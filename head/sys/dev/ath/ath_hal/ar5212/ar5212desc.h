@@ -22,7 +22,6 @@
 /*
  * Hardware-specific descriptor structures.
  */
-#include "ah_desc.h"
 
 /*
  * AR5212-specific tx/rx descriptor definition.

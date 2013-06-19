@@ -31,6 +31,7 @@
 # opt_<name-of-option-in-lower-case>.h
 
 AAC_DEBUG		opt_aac.h
+AACRAID_DEBUG		opt_aacraid.h
 AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_TMODE_ENABLE	opt_aic7xxx.h
 AHC_DUMP_EEPROM		opt_aic7xxx.h
@@ -61,14 +62,18 @@ KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 KLD_DEBUG	opt_kld.h
 SYSCTL_DEBUG	opt_sysctl.h
+TEXTDUMP_PREFERRED	opt_ddb.h
+TEXTDUMP_VERBOSE	opt_ddb.h
 
 # Miscellaneous options.
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+BOOTHOWTO	opt_global.h
+BOOTVERBOSE	opt_global.h
+CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
-CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_43TTY	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
@@ -138,6 +143,7 @@ MAC_STATIC	opt_mac.h
 MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
+MD_ROOT_FSTYPE	opt_md.h
 MD_ROOT_SIZE	opt_md.h
 MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
@@ -189,7 +195,6 @@ SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 VFS_AIO
-VFS_ALLOW_NONMPSAFE
 VERBOSE_SYSINIT	opt_global.h
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
@@ -207,21 +212,16 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
 CD9660		opt_dontuse.h
-CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
-HPFS		opt_dontuse.h
+FUSE		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NANDFS		opt_dontuse.h
-NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
-NWFS		opt_dontuse.h
-PORTALFS	opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h
-SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
@@ -250,7 +250,6 @@ NFSD		opt_nfs.h
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
 MSDOSFS_ICONV	opt_dontuse.h
-NTFS_ICONV	opt_dontuse.h
 UDF_ICONV	opt_dontuse.h
 
 # If you are following the conditions in the copyright,
@@ -288,9 +287,6 @@ UFS_GJOURNAL	opt_ufs.h
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
 
-# SMB/CIFS requester
-NETSMB		opt_netsmb.h
-
 # Options used only in subr_param.c.
 HZ		opt_param.h
 MAXFILES	opt_param.h
@@ -312,12 +308,14 @@ CAM_DEBUG_BUS		opt_cam.h
 CAM_DEBUG_TARGET	opt_cam.h
 CAM_DEBUG_LUN		opt_cam.h
 CAM_DEBUG_FLAGS		opt_cam.h
+CAM_BOOT_DELAY		opt_cam.h
 SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
 
 # Options used only in cam/ata/ata_da.c
-ADA_TEST_FAILURE       opt_ada.h
+ADA_TEST_FAILURE	opt_ada.h
+ATA_STATIC_ID		opt_ada.h
 
 # Options used only in cam/scsi/scsi_cd.c
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
@@ -364,12 +362,6 @@ ISP_INTERNAL_TARGET	opt_isp.h
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
 
-# Options used in the 'ata' ATA/ATAPI driver
-ATA_STATIC_ID		opt_ata.h
-ATA_NOPCI		opt_ata.h
-ATA_REQUEST_TIMEOUT	opt_ata.h
-ATA_CAM			opt_ata.h
-
 # Net stuff.
 ACCEPT_FILTER_DATA
 ACCEPT_FILTER_DNS
@@ -409,7 +401,6 @@ IPFILTER_LOG		opt_ipfilter.h
 IPFILTER_LOOKUP		opt_ipfilter.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
-IPFIREWALL_FORWARD	opt_ipfw.h
 IPFIREWALL_NAT		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
@@ -426,10 +417,10 @@ LIBMCHAIN
 MBUF_PROFILING
 MBUF_STRESS_TEST
 MROUTING		opt_mrouting.h
-NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
 PCBGROUP		opt_pcbgroup.h
+PF_DEFAULT_TO_DROP	opt_pf.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
@@ -531,10 +522,10 @@ NGATM_CCATM		opt_netgraph.h
 # DRM options
 DRM_DEBUG		opt_drm.h
 
-ZERO_COPY_SOCKETS	opt_zero.h
+SOCKET_SEND_COW		opt_zero.h
+SOCKET_RECV_PFLIP	opt_zero.h
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
-BCE_JUMBO_HDRSPLIT	opt_bce.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.
@@ -542,9 +533,6 @@ NATM
 
 # DPT driver debug flags
 DPT_MEASURE_PERFORMANCE	opt_dpt.h
-DPT_HANDLE_TIMEOUTS	opt_dpt.h
-DPT_TIMEOUT_FACTOR	opt_dpt.h
-DPT_LOST_IRQ		opt_dpt.h
 DPT_RESET_HBA		opt_dpt.h
 
 # Misc debug flags.  Most of these should probably be replaced with
@@ -581,6 +569,7 @@ DIAGNOSTIC		opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
 MAXCPU			opt_global.h
+MAXMEMDOM		opt_global.h
 MAXPHYS			opt_global.h
 MCLSHIFT		opt_global.h
 MUTEX_DEBUG		opt_global.h
@@ -656,6 +645,7 @@ BUS_DEBUG		opt_bus.h
 USB_DEBUG		opt_usb.h
 USB_HOST_ALIGN		opt_usb.h
 USB_REQ_DEBUG		opt_usb.h
+USB_TEMPLATE		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
@@ -678,10 +668,12 @@ KTR_ALQ			opt_ktr.h
 KTR_MASK		opt_ktr.h
 KTR_CPUMASK		opt_ktr.h
 KTR_COMPILE		opt_global.h
+KTR_BOOT_ENTRIES	opt_global.h
 KTR_ENTRIES		opt_global.h
 KTR_VERBOSE		opt_ktr.h
 WITNESS			opt_global.h
 WITNESS_KDB		opt_witness.h
+WITNESS_NO_VNODE	opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
 
 # options for ACPI support
@@ -784,6 +776,8 @@ ATH_ENABLE_11N		opt_ath.h
 ATH_ENABLE_DFS		opt_ath.h
 ATH_EEPROM_FIRMWARE	opt_ath.h
 ATH_ENABLE_RADIOTAP_VENDOR_EXT	opt_ath.h
+ATH_DEBUG_ALQ		opt_ath.h
+ATH_KTR_INTR_DEBUG	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -803,7 +797,7 @@ AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
 AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
-
+AH_INTERRUPT_DEBUGGING	opt_ah.h
 # AR5416 and later interrupt mitigation
 # XXX do not use this for AR9130
 AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
@@ -837,9 +831,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
-
-# XFS
-XFS
 
 ZFS			opt_dontuse.h
 

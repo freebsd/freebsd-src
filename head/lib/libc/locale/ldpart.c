@@ -87,7 +87,7 @@ __part_load_locale(const char *name,
 	strcat(filename, name);
 	strcat(filename, "/");
 	strcat(filename, category_filename);
-	if ((fd = _open(filename, O_RDONLY)) < 0)
+	if ((fd = _open(filename, O_RDONLY | O_CLOEXEC)) < 0)
 		return (_LDP_ERROR);
 	if (_fstat(fd, &st) != 0)
 		goto bad_locale;

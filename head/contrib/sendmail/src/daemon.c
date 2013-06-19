@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include "map.h"
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.691 2011/01/25 18:31:30 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.694 2012/03/03 00:10:42 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -826,6 +826,7 @@ getrequests(e)
 			InChannel = inchannel;
 			OutChannel = outchannel;
 			DisConnected = false;
+
 
 #if XLA
 			if (!xla_host_ok(RealHostName))
@@ -4405,6 +4406,8 @@ hostnamebyanyaddr(sap)
 	saveretry = _res.retry;
 	if (_res.retry * _res.retrans > 20)
 		_res.retry = 20 / _res.retrans;
+	if (_res.retry == 0)
+		_res.retry = 1;
 # endif /* NAMED_BIND */
 
 	switch (sap->sa.sa_family)

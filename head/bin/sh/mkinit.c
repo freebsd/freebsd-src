@@ -101,7 +101,7 @@ struct block {
  */
 
 struct event {
-	const char *name;	/* name of event (e.g. INIT) */
+	const char *name;	/* name of event (e.g. RESET) */
 	const char *routine;	/* name of routine called on event */
 	const char *comment;	/* comment describing routine */
 	struct text code;	/* code for handling event */
@@ -114,11 +114,6 @@ char writer[] = "\
  */\n\
 \n";
 
-char init[] = "\
-/*\n\
- * Initialization code.\n\
- */\n";
-
 char reset[] = "\
 /*\n\
  * This routine is called when an error or an interrupt occurs in an\n\
@@ -127,7 +122,6 @@ char reset[] = "\
 
 
 struct event event[] = {
-	{ "INIT", "init", init, { NULL, 0, NULL, NULL } },
 	{ "RESET", "reset", reset, { NULL, 0, NULL, NULL } },
 	{ NULL, NULL, NULL, { NULL, 0, NULL, NULL } }
 };

@@ -304,7 +304,7 @@ struct mbuf *sppp_fr_header (struct sppp *sp, struct mbuf *m,
 
 	/* Prepend the space for Frame Relay header. */
 	hlen = (family == AF_INET) ? 4 : 10;
-	M_PREPEND (m, hlen, M_DONTWAIT);
+	M_PREPEND (m, hlen, M_NOWAIT);
 	if (! m)
 		return 0;
 	h = mtod (m, u_char*);
@@ -381,7 +381,7 @@ void sppp_fr_keepalive (struct sppp *sp)
 	unsigned char *h, *p;
 	struct mbuf *m;
 
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return;
 	m->m_pkthdr.rcvif = 0;
@@ -501,7 +501,7 @@ static void sppp_fr_arp (struct sppp *sp, struct arp_req *req,
 			(unsigned char) his_ip_address);
 
 	/* Send the Inverse ARP reply. */
-	MGETHDR (m, M_DONTWAIT, MT_DATA);
+	MGETHDR (m, M_NOWAIT, MT_DATA);
 	if (! m)
 		return;
 	m->m_pkthdr.len = m->m_len = 10 + sizeof (*reply);

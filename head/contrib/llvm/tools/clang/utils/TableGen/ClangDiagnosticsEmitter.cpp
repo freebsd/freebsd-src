@@ -11,13 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 #include <algorithm>
@@ -75,7 +80,7 @@ getCategoryFromDiagGroup(const Record *Group,
 static std::string getDiagnosticCategory(const Record *R,
                                          DiagGroupParentMap &DiagGroupParents) {
   // If the diagnostic is in a group, and that group has a category, use it.
-  if (DefInit *Group = dynamic_cast<DefInit*>(R->getValueInit("Group"))) {
+  if (DefInit *Group = dyn_cast<DefInit>(R->getValueInit("Group"))) {
     // Check the diagnostic's diag group for a category.
     std::string CatName = getCategoryFromDiagGroup(Group->getDef(),
                                                    DiagGroupParents);
@@ -126,30 +131,69 @@ namespace {
     std::vector<const Record*> DiagsInGroup;
     std::vector<std::string> SubGroups;
     unsigned IDNo;
+
+    const Record *ExplicitDef;
+
+    GroupInfo() : ExplicitDef(0) {}
   };
 } // end anonymous namespace.
+
+static bool beforeThanCompare(const Record *LHS, const Record *RHS) {
+  assert(!LHS->getLoc().empty() && !RHS->getLoc().empty());
+  return
+    LHS->getLoc().front().getPointer() < RHS->getLoc().front().getPointer();
+}
+
+static bool beforeThanCompareGroups(const GroupInfo *LHS, const GroupInfo *RHS){
+  assert(!LHS->DiagsInGroup.empty() && !RHS->DiagsInGroup.empty());
+  return beforeThanCompare(LHS->DiagsInGroup.front(),
+                           RHS->DiagsInGroup.front());
+}
+
+static SMRange findSuperClassRange(const Record *R, StringRef SuperName) {
+  ArrayRef<Record *> Supers = R->getSuperClasses();
+
+  for (size_t i = 0, e = Supers.size(); i < e; ++i)
+    if (Supers[i]->getName() == SuperName)
+      return R->getSuperClassRanges()[i];
+
+  return SMRange();
+}
 
 /// \brief Invert the 1-[0/1] mapping of diags to group into a one to many
 /// mapping of groups to diags in the group.
 static void groupDiagnostics(const std::vector<Record*> &Diags,
                              const std::vector<Record*> &DiagGroups,
                              std::map<std::string, GroupInfo> &DiagsInGroup) {
+
   for (unsigned i = 0, e = Diags.size(); i != e; ++i) {
     const Record *R = Diags[i];
-    DefInit *DI = dynamic_cast<DefInit*>(R->getValueInit("Group"));
+    DefInit *DI = dyn_cast<DefInit>(R->getValueInit("Group"));
     if (DI == 0) continue;
     assert(R->getValueAsDef("Class")->getName() != "CLASS_NOTE" &&
            "Note can't be in a DiagGroup");
     std::string GroupName = DI->getDef()->getValueAsString("GroupName");
     DiagsInGroup[GroupName].DiagsInGroup.push_back(R);
   }
-  
+
+  typedef SmallPtrSet<GroupInfo *, 16> GroupSetTy;
+  GroupSetTy ImplicitGroups;
+
   // Add all DiagGroup's to the DiagsInGroup list to make sure we pick up empty
   // groups (these are warnings that GCC supports that clang never produces).
   for (unsigned i = 0, e = DiagGroups.size(); i != e; ++i) {
     Record *Group = DiagGroups[i];
     GroupInfo &GI = DiagsInGroup[Group->getValueAsString("GroupName")];
-    
+    if (Group->isAnonymous()) {
+      if (GI.DiagsInGroup.size() > 1)
+        ImplicitGroups.insert(&GI);
+    } else {
+      if (GI.ExplicitDef)
+        assert(GI.ExplicitDef == Group);
+      else
+        GI.ExplicitDef = Group;
+    }
+
     std::vector<Record*> SubGroups = Group->getValueAsListOfDefs("SubGroups");
     for (unsigned j = 0, e = SubGroups.size(); j != e; ++j)
       GI.SubGroups.push_back(SubGroups[j]->getValueAsString("GroupName"));
@@ -160,6 +204,80 @@ static void groupDiagnostics(const std::vector<Record*> &Diags,
   for (std::map<std::string, GroupInfo>::iterator
        I = DiagsInGroup.begin(), E = DiagsInGroup.end(); I != E; ++I, ++IDNo)
     I->second.IDNo = IDNo;
+
+  // Sort the implicit groups, so we can warn about them deterministically.
+  SmallVector<GroupInfo *, 16> SortedGroups(ImplicitGroups.begin(),
+                                            ImplicitGroups.end());
+  for (SmallVectorImpl<GroupInfo *>::iterator I = SortedGroups.begin(),
+                                              E = SortedGroups.end();
+       I != E; ++I) {
+    MutableArrayRef<const Record *> GroupDiags = (*I)->DiagsInGroup;
+    std::sort(GroupDiags.begin(), GroupDiags.end(), beforeThanCompare);
+  }
+  std::sort(SortedGroups.begin(), SortedGroups.end(), beforeThanCompareGroups);
+
+  // Warn about the same group being used anonymously in multiple places.
+  for (SmallVectorImpl<GroupInfo *>::const_iterator I = SortedGroups.begin(),
+                                                    E = SortedGroups.end();
+       I != E; ++I) {
+    ArrayRef<const Record *> GroupDiags = (*I)->DiagsInGroup;
+
+    if ((*I)->ExplicitDef) {
+      std::string Name = (*I)->ExplicitDef->getValueAsString("GroupName");
+      for (ArrayRef<const Record *>::const_iterator DI = GroupDiags.begin(),
+                                                    DE = GroupDiags.end();
+           DI != DE; ++DI) {
+        const DefInit *GroupInit = cast<DefInit>((*DI)->getValueInit("Group"));
+        const Record *NextDiagGroup = GroupInit->getDef();
+        if (NextDiagGroup == (*I)->ExplicitDef)
+          continue;
+
+        SMRange InGroupRange = findSuperClassRange(*DI, "InGroup");
+        SmallString<64> Replacement;
+        if (InGroupRange.isValid()) {
+          Replacement += "InGroup<";
+          Replacement += (*I)->ExplicitDef->getName();
+          Replacement += ">";
+        }
+        SMFixIt FixIt(InGroupRange, Replacement.str());
+
+        SrcMgr.PrintMessage(NextDiagGroup->getLoc().front(),
+                            SourceMgr::DK_Error,
+                            Twine("group '") + Name +
+                              "' is referred to anonymously",
+                            None,
+                            InGroupRange.isValid() ? FixIt
+                                                   : ArrayRef<SMFixIt>());
+        SrcMgr.PrintMessage((*I)->ExplicitDef->getLoc().front(),
+                            SourceMgr::DK_Note, "group defined here");
+      }
+    } else {
+      // If there's no existing named group, we should just warn once and use
+      // notes to list all the other cases.
+      ArrayRef<const Record *>::const_iterator DI = GroupDiags.begin(),
+                                               DE = GroupDiags.end();
+      assert(DI != DE && "We only care about groups with multiple uses!");
+
+      const DefInit *GroupInit = cast<DefInit>((*DI)->getValueInit("Group"));
+      const Record *NextDiagGroup = GroupInit->getDef();
+      std::string Name = NextDiagGroup->getValueAsString("GroupName");
+
+      SMRange InGroupRange = findSuperClassRange(*DI, "InGroup");
+      SrcMgr.PrintMessage(NextDiagGroup->getLoc().front(),
+                          SourceMgr::DK_Error,
+                          Twine("group '") + Name +
+                            "' is referred to anonymously",
+                          InGroupRange);
+
+      for (++DI; DI != DE; ++DI) {
+        GroupInit = cast<DefInit>((*DI)->getValueInit("Group"));
+        InGroupRange = findSuperClassRange(*DI, "InGroup");
+        SrcMgr.PrintMessage(GroupInit->getDef()->getLoc().front(),
+                            SourceMgr::DK_Note, "also referenced here",
+                            InGroupRange);
+      }
+    }
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -173,7 +291,7 @@ typedef llvm::PointerUnion<RecordVec*, RecordSet*> VecOrSet;
 namespace {
 class InferPedantic {
   typedef llvm::DenseMap<const Record*,
-                         std::pair<unsigned, llvm::Optional<unsigned> > > GMap;
+                         std::pair<unsigned, Optional<unsigned> > > GMap;
 
   DiagGroupParentMap &DiagGroupParents;
   const std::vector<Record*> &Diags;
@@ -280,7 +398,7 @@ void InferPedantic::compute(VecOrSet DiagsInPedantic,
     Record *R = Diags[i];
     if (isExtension(R) && isOffByDefault(R)) {
       DiagsSet.insert(R);
-      if (DefInit *Group = dynamic_cast<DefInit*>(R->getValueInit("Group"))) {
+      if (DefInit *Group = dyn_cast<DefInit>(R->getValueInit("Group"))) {
         const Record *GroupRec = Group->getDef();
         if (!isSubGroupOfGroup(GroupRec, "pedantic")) {
           markGroup(GroupRec);
@@ -299,7 +417,7 @@ void InferPedantic::compute(VecOrSet DiagsInPedantic,
     // Check if the group is implicitly in -Wpedantic.  If so,
     // the diagnostic should not be directly included in the -Wpedantic
     // diagnostic group.
-    if (DefInit *Group = dynamic_cast<DefInit*>(R->getValueInit("Group")))
+    if (DefInit *Group = dyn_cast<DefInit>(R->getValueInit("Group")))
       if (groupInPedantic(Group->getDef()))
         continue;
 
@@ -391,11 +509,11 @@ void EmitClangDiagsDefs(RecordKeeper &Records, raw_ostream &OS,
     // Check if this is an error that is accidentally in a warning
     // group.
     if (isError(R)) {
-      if (DefInit *Group = dynamic_cast<DefInit*>(R.getValueInit("Group"))) {
+      if (DefInit *Group = dyn_cast<DefInit>(R.getValueInit("Group"))) {
         const Record *GroupRec = Group->getDef();
         const std::string &GroupName = GroupRec->getValueAsString("GroupName");
-        throw "Error " + R.getName() + " cannot be in a warning group [" +
-              GroupName + "]";
+        PrintFatalError(R.getLoc(), "Error " + R.getName() +
+                      " cannot be in a warning group [" + GroupName + "]");
       }
     }
 
@@ -413,7 +531,7 @@ void EmitClangDiagsDefs(RecordKeeper &Records, raw_ostream &OS,
     
     // Warning associated with the diagnostic. This is stored as an index into
     // the alphabetically sorted warning table.
-    if (DefInit *DI = dynamic_cast<DefInit*>(R.getValueInit("Group"))) {
+    if (DefInit *DI = dyn_cast<DefInit>(R.getValueInit("Group"))) {
       std::map<std::string, GroupInfo>::iterator I =
           DiagsInGroup.find(DI->getDef()->getValueAsString("GroupName"));
       assert(I != DiagsInGroup.end());
@@ -556,7 +674,8 @@ void EmitClangDiagGroups(RecordKeeper &Records, raw_ostream &OS) {
     if (I->first.find_first_not_of("abcdefghijklmnopqrstuvwxyz"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                    "0123456789!@#$%^*-+=:?")!=std::string::npos)
-      throw "Invalid character in diagnostic group '" + I->first + "'";
+      PrintFatalError("Invalid character in diagnostic group '" +
+                      I->first + "'");
     OS.write_escaped(I->first) << "\","
                                << std::string(MaxLen-I->first.size()+1, ' ');
 

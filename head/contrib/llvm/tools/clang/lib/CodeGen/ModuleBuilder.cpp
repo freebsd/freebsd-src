@@ -13,22 +13,22 @@
 
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "CodeGenModule.h"
-#include "clang/Frontend/CodeGenOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/TargetInfo.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Target/TargetData.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 using namespace clang;
 
 namespace {
   class CodeGeneratorImpl : public CodeGenerator {
     DiagnosticsEngine &Diags;
-    OwningPtr<const llvm::TargetData> TD;
+    OwningPtr<const llvm::DataLayout> TD;
     ASTContext *Ctx;
     const CodeGenOptions CodeGenOpts;  // Intentionally copied in.
   protected:
@@ -37,7 +37,8 @@ namespace {
   public:
     CodeGeneratorImpl(DiagnosticsEngine &diags, const std::string& ModuleName,
                       const CodeGenOptions &CGO, llvm::LLVMContext& C)
-      : Diags(diags), CodeGenOpts(CGO), M(new llvm::Module(ModuleName, C)) {}
+      : Diags(diags), CodeGenOpts(CGO),
+        M(new llvm::Module(ModuleName, C)) {}
 
     virtual ~CodeGeneratorImpl() {}
 
@@ -54,9 +55,9 @@ namespace {
 
       M->setTargetTriple(Ctx->getTargetInfo().getTriple().getTriple());
       M->setDataLayout(Ctx->getTargetInfo().getTargetDescription());
-      TD.reset(new llvm::TargetData(Ctx->getTargetInfo().getTargetDescription()));
-      Builder.reset(new CodeGen::CodeGenModule(Context, CodeGenOpts,
-                                               *M, *TD, Diags));
+      TD.reset(new llvm::DataLayout(Ctx->getTargetInfo().getTargetDescription()));
+      Builder.reset(new CodeGen::CodeGenModule(Context, CodeGenOpts, *M, *TD,
+                                               Diags));
     }
 
     virtual void HandleCXXStaticMemberVarInstantiation(VarDecl *VD) {
@@ -122,6 +123,7 @@ void CodeGenerator::anchor() { }
 CodeGenerator *clang::CreateLLVMCodeGen(DiagnosticsEngine &Diags,
                                         const std::string& ModuleName,
                                         const CodeGenOptions &CGO,
+                                        const TargetOptions &/*TO*/,
                                         llvm::LLVMContext& C) {
   return new CodeGeneratorImpl(Diags, ModuleName, CGO, C);
 }

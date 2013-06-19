@@ -55,13 +55,14 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation Loc) { RParenLoc = Loc; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(ForLoc, SubExprs[BODY]->getLocEnd());
+  SourceLocation getLocStart() const LLVM_READONLY { return ForLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return SubExprs[BODY]->getLocEnd();
   }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCForCollectionStmtClass;
   }
-  static bool classof(const ObjCForCollectionStmt *) { return true; }
 
   // Iterators
   child_range children() {
@@ -103,16 +104,14 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation Loc) { RParenLoc = Loc; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtCatchLoc, Body->getLocEnd());
-  }
+  SourceLocation getLocStart() const LLVM_READONLY { return AtCatchLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY { return Body->getLocEnd(); }
 
   bool hasEllipsis() const { return getCatchParamDecl() == 0; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtCatchStmtClass;
   }
-  static bool classof(const ObjCAtCatchStmt *) { return true; }
 
   child_range children() { return child_range(&Body, &Body + 1); }
 };
@@ -133,8 +132,9 @@ public:
   Stmt *getFinallyBody() { return AtFinallyStmt; }
   void setFinallyBody(Stmt *S) { AtFinallyStmt = S; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtFinallyLoc, AtFinallyStmt->getLocEnd());
+  SourceLocation getLocStart() const LLVM_READONLY { return AtFinallyLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return AtFinallyStmt->getLocEnd();
   }
 
   SourceLocation getAtFinallyLoc() const { return AtFinallyLoc; }
@@ -143,7 +143,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtFinallyStmtClass;
   }
-  static bool classof(const ObjCAtFinallyStmt *) { return true; }
 
   child_range children() {
     return child_range(&AtFinallyStmt, &AtFinallyStmt+1);
@@ -239,12 +238,12 @@ public:
     getStmts()[1 + NumCatchStmts] = S; 
   }
 
-  SourceRange getSourceRange() const LLVM_READONLY;
+  SourceLocation getLocStart() const LLVM_READONLY { return AtTryLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtTryStmtClass;
   }
-  static bool classof(const ObjCAtTryStmt *) { return true; }
 
   child_range children() {
     return child_range(getStmts(),
@@ -296,14 +295,14 @@ public:
   }
   void setSynchExpr(Stmt *S) { SubStmts[SYNC_EXPR] = S; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtSynchronizedLoc, getSynchBody()->getLocEnd());
+  SourceLocation getLocStart() const LLVM_READONLY { return AtSynchronizedLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return getSynchBody()->getLocEnd();
   }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtSynchronizedStmtClass;
   }
-  static bool classof(const ObjCAtSynchronizedStmt *) { return true; }
 
   child_range children() {
     return child_range(&SubStmts[0], &SubStmts[0]+END_EXPR);
@@ -329,17 +328,14 @@ public:
   SourceLocation getThrowLoc() { return AtThrowLoc; }
   void setThrowLoc(SourceLocation Loc) { AtThrowLoc = Loc; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    if (Throw)
-      return SourceRange(AtThrowLoc, Throw->getLocEnd());
-    else
-      return SourceRange(AtThrowLoc);
+  SourceLocation getLocStart() const LLVM_READONLY { return AtThrowLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY {
+    return Throw ? Throw->getLocEnd() : AtThrowLoc;
   }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAtThrowStmtClass;
   }
-  static bool classof(const ObjCAtThrowStmt *) { return true; }
 
   child_range children() { return child_range(&Throw, &Throw+1); }
 };
@@ -361,9 +357,8 @@ public:
   Stmt *getSubStmt() { return SubStmt; }
   void setSubStmt(Stmt *S) { SubStmt = S; }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return SourceRange(AtLoc, SubStmt->getLocEnd());
-  }
+  SourceLocation getLocStart() const LLVM_READONLY { return AtLoc; }
+  SourceLocation getLocEnd() const LLVM_READONLY { return SubStmt->getLocEnd();}
 
   SourceLocation getAtLoc() const { return AtLoc; }
   void setAtLoc(SourceLocation Loc) { AtLoc = Loc; }
@@ -371,7 +366,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCAutoreleasePoolStmtClass;
   }
-  static bool classof(const ObjCAutoreleasePoolStmt *) { return true; }
 
   child_range children() { return child_range(&SubStmt, &SubStmt + 1); }
 };

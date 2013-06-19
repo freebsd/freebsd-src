@@ -19,6 +19,7 @@ _pflogd
 _dhcp
 uucp
 pop
+auditdistd
 www
 hast
 nobody

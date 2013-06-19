@@ -16,15 +16,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclObjC.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/AST/DeclObjC.h"
-#include "clang/AST/Decl.h"
 
 using namespace clang;
 using namespace ento;
@@ -71,7 +71,7 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
   BugReport *Report = new BugReport(*BT, "Use -drain instead of -release when "
     "using NSAutoreleasePool and garbage collection", N);
   Report->addRange(msg.getSourceRange());
-  C.EmitReport(Report);
+  C.emitReport(Report);
 }
 
 void ento::registerNSAutoreleasePoolChecker(CheckerManager &mgr) {

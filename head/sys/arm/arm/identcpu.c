@@ -246,6 +246,8 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_CORTEXA9R2,	CPU_CLASS_CORTEXA,	"Cortex A9-r2",
 	  generic_steppings },
+	{ CPU_ID_CORTEXA9R3,	CPU_CLASS_CORTEXA,	"Cortex A9-r3",
+	  generic_steppings },
 
 	{ CPU_ID_SA110,		CPU_CLASS_SA1,		"SA-110",
 	  sa110_steppings },
@@ -307,6 +309,8 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_ARM1136JSR1,	CPU_CLASS_ARM11J,	"ARM1136J-S R1",
 	  generic_steppings },
+	{ CPU_ID_ARM1176JZS,	CPU_CLASS_ARM11J,	"ARM1176JZ-S",
+	  generic_steppings },
 
 	{ CPU_ID_MV88FR131,	CPU_CLASS_MARVELL,	"Feroceon 88FR131",
 	  generic_steppings },
@@ -321,9 +325,11 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_ARM_88SV581X_V7, CPU_CLASS_MARVELL,	"Sheeva 88SV581x",
 	  generic_steppings },
-	{ CPU_ID_MV88SV584X,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
+	{ CPU_ID_MV88SV584X_V6,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
 	  generic_steppings },
-	{ CPU_ID_ARM_88SV584X,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
+	{ CPU_ID_ARM_88SV584X_V6, CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
+	  generic_steppings },
+	{ CPU_ID_MV88SV584X_V7,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
 	  generic_steppings },
 
 	{ 0, CPU_CLASS_NONE, NULL, NULL }

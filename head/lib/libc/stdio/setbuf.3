@@ -32,7 +32,7 @@
 .\"     @(#)setbuf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd February 18, 2013
 .Dt SETBUF 3
 .Os
 .Sh NAME
@@ -196,18 +196,5 @@ functions
 conform to
 .St -isoC .
 .Sh BUGS
-The
-.Fn setbuffer
-and
-.Fn setlinebuf
-functions are not portable to versions of
-.Bx
-before
-.Bx 4.2 .
-On
-.Bx 4.2
-and
-.Bx 4.3
-systems,
 .Fn setbuf
-always uses a suboptimal buffer size and should be avoided.
+usually uses a suboptimal buffer size and should be avoided.

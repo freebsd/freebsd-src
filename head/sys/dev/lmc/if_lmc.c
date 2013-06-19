@@ -2916,7 +2916,7 @@ rxintr_cleanup(softc_t *sc)
     /* Optimization: copy a small pkt into a small mbuf. */
     if (first_mbuf->m_pkthdr.len <= COPY_BREAK)
       {
-      MGETHDR(new_mbuf, M_DONTWAIT, MT_DATA);
+      MGETHDR(new_mbuf, M_NOWAIT, MT_DATA);
       if (new_mbuf != NULL)
         {
         new_mbuf->m_pkthdr.rcvif = first_mbuf->m_pkthdr.rcvif;
@@ -3016,7 +3016,7 @@ rxintr_setup(softc_t *sc)
     return 0;  /* ring is full; nothing to do */
 
   /* Allocate a small mbuf and attach an mbuf cluster. */
-  MGETHDR(m, M_DONTWAIT, MT_DATA);
+  MGETHDR(m, M_NOWAIT, MT_DATA);
   if (m == NULL)
     {
     sc->status.cntrs.rxdma++;
@@ -3024,7 +3024,7 @@ rxintr_setup(softc_t *sc)
       printf("%s: rxintr_setup: MGETHDR() failed\n", NAME_UNIT);
     return 0;
     }
-  MCLGET(m, M_DONTWAIT);
+  MCLGET(m, M_NOWAIT);
   if ((m->m_flags & M_EXT) == 0)
     {
     m_freem(m);
@@ -4587,7 +4587,7 @@ lmc_ifnet_start(struct ifnet *ifp)
 /* Called from a syscall (user context; no spinlocks). */
 static int
 lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
- struct sockaddr *dst, struct route *ro)
+ const struct sockaddr *dst, struct route *ro)
   {
   softc_t *sc = IFP2SC(ifp);
   int error = 0;

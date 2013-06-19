@@ -12,19 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
-#include "CodeGenModule.h"
 #include "CGCXXABI.h"
 #include "CGObjCRuntime.h"
 #include "CGRecordLayout.h"
+#include "CodeGenModule.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Builtins.h"
-#include "llvm/Constants.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -79,12 +79,12 @@ private:
   CharUnits getAlignment(const llvm::Constant *C) const {
     if (Packed)  return CharUnits::One();
     return CharUnits::fromQuantity(
-        CGM.getTargetData().getABITypeAlignment(C->getType()));
+        CGM.getDataLayout().getABITypeAlignment(C->getType()));
   }
 
   CharUnits getSizeInChars(const llvm::Constant *C) const {
     return CharUnits::fromQuantity(
-        CGM.getTargetData().getTypeAllocSize(C->getType()));
+        CGM.getDataLayout().getTypeAllocSize(C->getType()));
   }
 };
 
@@ -204,7 +204,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
     if (!FitsCompletelyInPreviousByte) {
       unsigned NewFieldWidth = FieldSize - BitsInPreviousByte;
 
-      if (CGM.getTargetData().isBigEndian()) {
+      if (CGM.getDataLayout().isBigEndian()) {
         Tmp = Tmp.lshr(NewFieldWidth);
         Tmp = Tmp.trunc(BitsInPreviousByte);
 
@@ -220,7 +220,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
     }
 
     Tmp = Tmp.zext(CharWidth);
-    if (CGM.getTargetData().isBigEndian()) {
+    if (CGM.getDataLayout().isBigEndian()) {
       if (FitsCompletelyInPreviousByte)
         Tmp = Tmp.shl(BitsInPreviousByte - FieldValue.getBitWidth());
     } else {
@@ -269,7 +269,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
   while (FieldValue.getBitWidth() > CharWidth) {
     llvm::APInt Tmp;
 
-    if (CGM.getTargetData().isBigEndian()) {
+    if (CGM.getDataLayout().isBigEndian()) {
       // We want the high bits.
       Tmp = 
         FieldValue.lshr(FieldValue.getBitWidth() - CharWidth).trunc(CharWidth);
@@ -292,7 +292,7 @@ void ConstStructBuilder::AppendBitField(const FieldDecl *Field,
          "Should not have more than a byte left!");
 
   if (FieldValue.getBitWidth() < CharWidth) {
-    if (CGM.getTargetData().isBigEndian()) {
+    if (CGM.getDataLayout().isBigEndian()) {
       unsigned BitWidth = FieldValue.getBitWidth();
 
       FieldValue = FieldValue.zext(CharWidth) << (CharWidth - BitWidth);
@@ -337,7 +337,7 @@ void ConstStructBuilder::ConvertStructToPacked() {
     llvm::Constant *C = Elements[i];
 
     CharUnits ElementAlign = CharUnits::fromQuantity(
-      CGM.getTargetData().getABITypeAlignment(C->getType()));
+      CGM.getDataLayout().getABITypeAlignment(C->getType()));
     CharUnits AlignedElementOffsetInChars =
       ElementOffsetInChars.RoundUpToAlignment(ElementAlign);
 
@@ -379,7 +379,7 @@ bool ConstStructBuilder::Build(InitListExpr *ILE) {
   unsigned FieldNo = 0;
   unsigned ElementNo = 0;
   const FieldDecl *LastFD = 0;
-  bool IsMsStruct = RD->hasAttr<MsStructAttr>();
+  bool IsMsStruct = RD->isMsStruct(CGM.getContext());
   
   for (RecordDecl::field_iterator Field = RD->field_begin(),
        FieldEnd = RD->field_end(); Field != FieldEnd; ++Field, ++FieldNo) {
@@ -455,7 +455,7 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
 
     // Accumulate and sort bases, in order to visit them in address order, which
     // may not be the same as declaration order.
-    llvm::SmallVector<BaseInfo, 8> Bases;
+    SmallVector<BaseInfo, 8> Bases;
     Bases.reserve(CD->getNumBases());
     unsigned BaseNo = 0;
     for (CXXRecordDecl::base_class_const_iterator Base = CD->bases_begin(),
@@ -478,7 +478,7 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
 
   unsigned FieldNo = 0;
   const FieldDecl *LastFD = 0;
-  bool IsMsStruct = RD->hasAttr<MsStructAttr>();
+  bool IsMsStruct = RD->isMsStruct(CGM.getContext());
   uint64_t OffsetBits = CGM.getContext().toBits(Offset);
 
   for (RecordDecl::field_iterator Field = RD->field_begin(),
@@ -665,8 +665,8 @@ public:
       SmallVector<llvm::Type*, 2> Types;
       Elts.push_back(C);
       Types.push_back(C->getType());
-      unsigned CurSize = CGM.getTargetData().getTypeAllocSize(C->getType());
-      unsigned TotalSize = CGM.getTargetData().getTypeAllocSize(destType);
+      unsigned CurSize = CGM.getDataLayout().getTypeAllocSize(C->getType());
+      unsigned TotalSize = CGM.getDataLayout().getTypeAllocSize(destType);
 
       assert(CurSize <= TotalSize && "Union size mismatch!");
       if (unsigned NumPadBytes = TotalSize - CurSize) {
@@ -690,6 +690,9 @@ public:
       return C;
 
     case CK_Dependent: llvm_unreachable("saw dependent cast!");
+
+    case CK_BuiltinFnToFnPtr:
+      llvm_unreachable("builtin functions are handled elsewhere");
 
     case CK_ReinterpretMemberPointer:
     case CK_DerivedToBaseMemberPointer:
@@ -744,6 +747,7 @@ public:
     case CK_FloatingToIntegral:
     case CK_FloatingToBoolean:
     case CK_FloatingCast:
+    case CK_ZeroToOCLEvent:
       return 0;
     }
     llvm_unreachable("Invalid CastKind");
@@ -751,6 +755,12 @@ public:
 
   llvm::Constant *VisitCXXDefaultArgExpr(CXXDefaultArgExpr *DAE) {
     return Visit(DAE->getExpr());
+  }
+
+  llvm::Constant *VisitCXXDefaultInitExpr(CXXDefaultInitExpr *DIE) {
+    // No need for a DefaultInitExprScope: we don't handle 'this' in a
+    // constant expression.
+    return Visit(DIE->getExpr());
   }
 
   llvm::Constant *VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
@@ -811,11 +821,7 @@ public:
     return llvm::ConstantArray::get(AType, Elts);
   }
 
-  llvm::Constant *EmitStructInitialization(InitListExpr *ILE) {
-    return ConstStructBuilder::BuildStruct(CGM, CGF, ILE);
-  }
-
-  llvm::Constant *EmitUnionInitialization(InitListExpr *ILE) {
+  llvm::Constant *EmitRecordInitialization(InitListExpr *ILE) {
     return ConstStructBuilder::BuildStruct(CGM, CGF, ILE);
   }
 
@@ -828,10 +834,7 @@ public:
       return EmitArrayInitialization(ILE);
 
     if (ILE->getType()->isRecordType())
-      return EmitStructInitialization(ILE);
-
-    if (ILE->getType()->isUnionType())
-      return EmitUnionInitialization(ILE);
+      return EmitRecordInitialization(ILE);
 
     return 0;
   }
@@ -909,10 +912,8 @@ public:
         if (!VD->hasLocalStorage()) {
           if (VD->isFileVarDecl() || VD->hasExternalStorage())
             return CGM.GetAddrOfGlobalVar(VD);
-          else if (VD->isLocalVarDecl()) {
-            assert(CGF && "Can't access static local vars without CGF");
-            return CGF->GetAddrOfStaticLocalVar(VD);
-          }
+          else if (VD->isLocalVarDecl())
+            return CGM.getStaticLocalDeclAddress(VD);
         }
       }
       return 0;
@@ -999,6 +1000,9 @@ public:
         T = Typeid->getExprOperand()->getType();
       return CGM.GetAddrOfRTTIDescriptor(T);
     }
+    case Expr::CXXUuidofExprClass: {
+      return CGM.GetAddrOfUuidDescriptor(cast<CXXUuidofExpr>(E));
+    }
     }
 
     return 0;
@@ -1009,6 +1013,22 @@ public:
 
 llvm::Constant *CodeGenModule::EmitConstantInit(const VarDecl &D,
                                                 CodeGenFunction *CGF) {
+  // Make a quick check if variable can be default NULL initialized
+  // and avoid going through rest of code which may do, for c++11,
+  // initialization of memory to all NULLs.
+  if (!D.hasLocalStorage()) {
+    QualType Ty = D.getType();
+    if (Ty->isArrayType())
+      Ty = Context.getBaseElementType(Ty);
+    if (Ty->isRecordType())
+      if (const CXXConstructExpr *E =
+          dyn_cast_or_null<CXXConstructExpr>(D.getInit())) {
+        const CXXConstructorDecl *CD = E->getConstructor();
+        if (CD->isTrivial() && CD->isDefaultConstructor())
+          return EmitNullConstant(D.getType());
+      }
+  }
+  
   if (const APValue *Value = D.evaluateValue())
     return EmitConstantValueForMemory(*Value, D.getType(), CGF);
 
@@ -1125,7 +1145,8 @@ llvm::Constant *CodeGenModule::EmitConstantValue(const APValue &Value,
   }
   case APValue::Float: {
     const llvm::APFloat &Init = Value.getFloat();
-    if (&Init.getSemantics() == &llvm::APFloat::IEEEhalf)
+    if (&Init.getSemantics() == &llvm::APFloat::IEEEhalf &&
+         !Context.getLangOpts().NativeHalfType)
       return llvm::ConstantInt::get(VMContext, Init.bitcastToAPInt());
     else
       return llvm::ConstantFP::get(VMContext, Init);
@@ -1198,6 +1219,8 @@ llvm::Constant *CodeGenModule::EmitConstantValue(const APValue &Value,
       if (I < NumInitElts)
         C = EmitConstantValueForMemory(Value.getArrayInitializedElt(I),
                                        CAT->getElementType(), CGF);
+      else
+        assert(Filler && "Missing filler for implicit elements of initializer");
       if (I == 0)
         CommonElementType = C->getType();
       else if (C->getType() != CommonElementType)

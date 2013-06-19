@@ -249,6 +249,20 @@ typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 #define	CMD_SHOWQ_LONG	'\4'
 #define	CMD_RMJOB	'\5'
 
+/*
+ * seteuid() macros.
+*/
+
+extern uid_t	uid, euid;
+
+#define PRIV_START { \
+    if (seteuid(euid) != 0) err(1, "seteuid failed"); \
+}
+#define PRIV_END { \
+    if (seteuid(uid) != 0) err(1, "seteuid failed"); \
+}
+
+
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 
 __BEGIN_DECLS

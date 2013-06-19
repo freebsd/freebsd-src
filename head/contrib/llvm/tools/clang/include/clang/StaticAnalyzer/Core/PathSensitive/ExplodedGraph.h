@@ -19,19 +19,19 @@
 #ifndef LLVM_CLANG_GR_EXPLODEDGRAPH
 #define LLVM_CLANG_GR_EXPLODEDGRAPH
 
-#include "clang/Analysis/ProgramPoint.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/AST/Decl.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/Support/Casting.h"
+#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/ProgramPoint.h"
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/Casting.h"
 #include <vector>
 
 namespace clang {
@@ -60,45 +60,50 @@ class ExplodedNode : public llvm::FoldingSetNode {
   friend class SwitchNodeBuilder;
   friend class EndOfFunctionNodeBuilder;
 
+  /// Efficiently stores a list of ExplodedNodes, or an optional flag.
+  ///
+  /// NodeGroup provides opaque storage for a list of ExplodedNodes, optimizing
+  /// for the case when there is only one node in the group. This is a fairly
+  /// common case in an ExplodedGraph, where most nodes have only one
+  /// predecessor and many have only one successor. It can also be used to
+  /// store a flag rather than a node list, which ExplodedNode uses to mark
+  /// whether a node is a sink. If the flag is set, the group is implicitly
+  /// empty and no nodes may be added.
   class NodeGroup {
-    enum { Size1 = 0x0, SizeOther = 0x1, AuxFlag = 0x2, Mask = 0x3 };
+    // Conceptually a discriminated union. If the low bit is set, the node is
+    // a sink. If the low bit is not set, the pointer refers to the storage
+    // for the nodes in the group.
+    // This is not a PointerIntPair in order to keep the storage type opaque.
     uintptr_t P;
-
-    unsigned getKind() const {
-      return P & 0x1;
-    }
-
-    void *getPtr() const {
-      assert (!getFlag());
-      return reinterpret_cast<void*>(P & ~Mask);
-    }
-
-    ExplodedNode *getNode() const {
-      return reinterpret_cast<ExplodedNode*>(getPtr());
-    }
     
   public:
-    NodeGroup() : P(0) {}
+    NodeGroup(bool Flag = false) : P(Flag) {
+      assert(getFlag() == Flag);
+    }
 
-    ExplodedNode **begin() const;
+    ExplodedNode * const *begin() const;
 
-    ExplodedNode **end() const;
+    ExplodedNode * const *end() const;
 
     unsigned size() const;
 
-    bool empty() const { return (P & ~Mask) == 0; }
+    bool empty() const { return P == 0 || getFlag() != 0; }
 
+    /// Adds a node to the list.
+    ///
+    /// The group must not have been created with its flag set.
     void addNode(ExplodedNode *N, ExplodedGraph &G);
 
+    /// Replaces the single node in this group with a new node.
+    ///
+    /// Note that this should only be used when you know the group was not
+    /// created with its flag set, and that the group is empty or contains
+    /// only a single node.
     void replaceNode(ExplodedNode *node);
 
-    void setFlag() {
-      assert(P == 0);
-      P = AuxFlag;
-    }
-
+    /// Returns whether this group was created with its flag set.
     bool getFlag() const {
-      return P & AuxFlag ? true : false;
+      return (P & 1);
     }
   };
 
@@ -119,9 +124,8 @@ public:
 
   explicit ExplodedNode(const ProgramPoint &loc, ProgramStateRef state,
                         bool IsSink)
-    : Location(loc), State(state) {
-    if (IsSink)
-      Succs.setFlag();
+    : Location(loc), State(state), Succs(IsSink) {
+    assert(isSink() == IsSink);
   }
   
   ~ExplodedNode() {}
@@ -148,10 +152,12 @@ public:
     return *getLocationContext()->getAnalysis<T>();
   }
 
-  ProgramStateRef getState() const { return State; }
+  const ProgramStateRef &getState() const { return State; }
 
   template <typename T>
-  const T* getLocationAs() const { return llvm::dyn_cast<T>(&Location); }
+  Optional<T> getLocationAs() const LLVM_LVALUE_FUNCTION {
+    return Location.getAs<T>();
+  }
 
   static void Profile(llvm::FoldingSetNodeID &ID,
                       const ProgramPoint &Loc,
@@ -163,7 +169,8 @@ public:
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) const {
-    Profile(ID, getLocation(), getState(), isSink());
+    // We avoid copy constructors by not using accessors.
+    Profile(ID, Location, State, isSink());
   }
 
   /// addPredeccessor - Adds a predecessor to the current node, and
@@ -189,10 +196,14 @@ public:
     return const_cast<ExplodedNode*>(this)->getFirstPred();
   }
 
+  const ExplodedNode *getFirstSucc() const {
+    return succ_empty() ? NULL : *(succ_begin());
+  }
+
   // Iterators over successor and predecessor vertices.
-  typedef ExplodedNode**       succ_iterator;
+  typedef ExplodedNode*       const *       succ_iterator;
   typedef const ExplodedNode* const * const_succ_iterator;
-  typedef ExplodedNode**       pred_iterator;
+  typedef ExplodedNode*       const *       pred_iterator;
   typedef const ExplodedNode* const * const_pred_iterator;
 
   pred_iterator pred_begin() { return Preds.begin(); }
@@ -232,18 +243,8 @@ private:
   void replacePredecessor(ExplodedNode *node) { Preds.replaceNode(node); }
 };
 
-// FIXME: Is this class necessary?
-class InterExplodedGraphMap {
-  virtual void anchor();
-  llvm::DenseMap<const ExplodedNode*, ExplodedNode*> M;
-  friend class ExplodedGraph;
-
-public:
-  ExplodedNode *getMappedNode(const ExplodedNode *N) const;
-
-  InterExplodedGraphMap() {}
-  virtual ~InterExplodedGraphMap() {}
-};
+typedef llvm::DenseMap<const ExplodedNode *, const ExplodedNode *>
+        InterExplodedGraphMap;
 
 class ExplodedGraph {
 protected:
@@ -278,11 +279,13 @@ protected:
   /// A list of nodes that can be reused.
   NodeVector FreeNodes;
   
-  /// A flag that indicates whether nodes should be recycled.
-  bool reclaimNodes;
+  /// Determines how often nodes are reclaimed.
+  ///
+  /// If this is 0, nodes will never be reclaimed.
+  unsigned ReclaimNodeInterval;
   
   /// Counter to determine when to reclaim nodes.
-  unsigned reclaimCounter;
+  unsigned ReclaimCounter;
 
 public:
 
@@ -359,22 +362,33 @@ public:
 
   typedef llvm::DenseMap<const ExplodedNode*, ExplodedNode*> NodeMap;
 
-  std::pair<ExplodedGraph*, InterExplodedGraphMap*>
-  Trim(const NodeTy* const* NBeg, const NodeTy* const* NEnd,
-       llvm::DenseMap<const void*, const void*> *InverseMap = 0) const;
-
-  ExplodedGraph* TrimInternal(const ExplodedNode* const * NBeg,
-                              const ExplodedNode* const * NEnd,
-                              InterExplodedGraphMap *M,
-                    llvm::DenseMap<const void*, const void*> *InverseMap) const;
+  /// Creates a trimmed version of the graph that only contains paths leading
+  /// to the given nodes.
+  ///
+  /// \param Nodes The nodes which must appear in the final graph. Presumably
+  ///              these are end-of-path nodes (i.e. they have no successors).
+  /// \param[out] ForwardMap A optional map from nodes in this graph to nodes in
+  ///                        the returned graph.
+  /// \param[out] InverseMap An optional map from nodes in the returned graph to
+  ///                        nodes in this graph.
+  /// \returns The trimmed graph
+  ExplodedGraph *trim(ArrayRef<const NodeTy *> Nodes,
+                      InterExplodedGraphMap *ForwardMap = 0,
+                      InterExplodedGraphMap *InverseMap = 0) const;
 
   /// Enable tracking of recently allocated nodes for potential reclamation
   /// when calling reclaimRecentlyAllocatedNodes().
-  void enableNodeReclamation() { reclaimNodes = true; }
+  void enableNodeReclamation(unsigned Interval) {
+    ReclaimCounter = ReclaimNodeInterval = Interval;
+  }
 
   /// Reclaim "uninteresting" nodes created since the last time this method
   /// was called.
   void reclaimRecentlyAllocatedNodes();
+
+  /// \brief Returns true if nodes for the given expression kind are always
+  ///        kept around.
+  static bool isInterestingLValueExpr(const Expr *Ex);
 
 private:
   bool shouldCollect(const ExplodedNode *node);

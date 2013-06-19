@@ -1,13 +1,9 @@
-//===-- ARMAsmPrinter.h - Print machine code to an ARM .s file --*- C++ -*-===//
+//===-- ARMAsmPrinter.h - ARM implementation of AsmPrinter ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// ARM Assembly printer class.
 //
 //===----------------------------------------------------------------------===//
 
@@ -53,8 +49,8 @@ public:
       Subtarget = &TM.getSubtarget<ARMSubtarget>();
     }
 
-  virtual const char *getPassName() const {
-    return "ARM Assembly Printer";
+  virtual const char *getPassName() const LLVM_OVERRIDE {
+    return "ARM Assembly / Object Emitter";
   }
 
   void printOperand(const MachineInstr *MI, int OpNum, raw_ostream &O,
@@ -62,22 +58,24 @@ public:
 
   virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
                                unsigned AsmVariant, const char *ExtraCode,
-                               raw_ostream &O);
+                               raw_ostream &O) LLVM_OVERRIDE;
   virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNum,
-                                     unsigned AsmVariant,
-                                     const char *ExtraCode, raw_ostream &O);
+                                     unsigned AsmVariant, const char *ExtraCode,
+                                     raw_ostream &O) LLVM_OVERRIDE;
 
   void EmitJumpTable(const MachineInstr *MI);
   void EmitJump2Table(const MachineInstr *MI);
-  virtual void EmitInstruction(const MachineInstr *MI);
-  bool runOnMachineFunction(MachineFunction &F);
+  virtual void EmitInstruction(const MachineInstr *MI) LLVM_OVERRIDE;
+  virtual bool runOnMachineFunction(MachineFunction &F) LLVM_OVERRIDE;
 
-  virtual void EmitConstantPool() {} // we emit constant pools customly!
-  virtual void EmitFunctionBodyEnd();
-  virtual void EmitFunctionEntryLabel();
-  void EmitStartOfAsmFile(Module &M);
-  void EmitEndOfAsmFile(Module &M);
-  void EmitXXStructor(const Constant *CV);
+  virtual void EmitConstantPool() LLVM_OVERRIDE {
+    // we emit constant pools customly!
+  }
+  virtual void EmitFunctionBodyEnd() LLVM_OVERRIDE;
+  virtual void EmitFunctionEntryLabel() LLVM_OVERRIDE;
+  virtual void EmitStartOfAsmFile(Module &M) LLVM_OVERRIDE;
+  virtual void EmitEndOfAsmFile(Module &M) LLVM_OVERRIDE;
+  virtual void EmitXXStructor(const Constant *CV) LLVM_OVERRIDE;
 
   // lowerOperand - Convert a MachineOperand into the equivalent MCOperand.
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp);
@@ -101,12 +99,13 @@ private:
 public:
   void PrintDebugValueComment(const MachineInstr *MI, raw_ostream &OS);
 
-  MachineLocation getDebugValueLocation(const MachineInstr *MI) const;
+  virtual MachineLocation
+    getDebugValueLocation(const MachineInstr *MI) const LLVM_OVERRIDE;
 
   /// EmitDwarfRegOp - Emit dwarf register operation.
-  virtual void EmitDwarfRegOp(const MachineLocation &MLoc) const;
+  virtual void EmitDwarfRegOp(const MachineLocation &MLoc) const LLVM_OVERRIDE;
 
-  virtual unsigned getISAEncoding() {
+  virtual unsigned getISAEncoding() LLVM_OVERRIDE {
     // ARM/Darwin adds ISA to the DWARF info for each function.
     if (!Subtarget->isTargetDarwin())
       return 0;
@@ -114,18 +113,19 @@ public:
       ARM::DW_ISA_ARM_thumb : ARM::DW_ISA_ARM_arm;
   }
 
+private:
   MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol);
-  MCSymbol *GetARMSetPICJumpTableLabel2(unsigned uid, unsigned uid2,
-                                        const MachineBasicBlock *MBB) const;
   MCSymbol *GetARMJTIPICJumpTableLabel2(unsigned uid, unsigned uid2) const;
 
-  MCSymbol *GetARMSJLJEHLabel(void) const;
+  MCSymbol *GetARMSJLJEHLabel() const;
 
   MCSymbol *GetARMGVSymbol(const GlobalValue *GV);
 
+public:
   /// EmitMachineConstantPoolValue - Print a machine constantpool value to
   /// the .s file.
-  virtual void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV);
+  virtual void
+    EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) LLVM_OVERRIDE;
 };
 } // end namespace llvm
 

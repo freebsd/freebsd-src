@@ -14,22 +14,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Constants.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/DebugInfo.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Function.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/ADT/SmallVector.h"
 #include <map>
 using namespace llvm;
 
@@ -87,24 +87,26 @@ void llvm::CloneFunctionInto(Function *NewFunc, const Function *OldFunc,
     assert(VMap.count(I) && "No mapping from source argument specified!");
 #endif
 
-  // Clone any attributes.
-  if (NewFunc->arg_size() == OldFunc->arg_size())
-    NewFunc->copyAttributesFrom(OldFunc);
-  else {
-    //Some arguments were deleted with the VMap. Copy arguments one by one
-    for (Function::const_arg_iterator I = OldFunc->arg_begin(), 
-           E = OldFunc->arg_end(); I != E; ++I)
-      if (Argument* Anew = dyn_cast<Argument>(VMap[I]))
-        Anew->addAttr( OldFunc->getAttributes()
-                       .getParamAttributes(I->getArgNo() + 1));
-    NewFunc->setAttributes(NewFunc->getAttributes()
-                           .addAttr(0, OldFunc->getAttributes()
-                                     .getRetAttributes()));
-    NewFunc->setAttributes(NewFunc->getAttributes()
-                           .addAttr(~0, OldFunc->getAttributes()
-                                     .getFnAttributes()));
+  AttributeSet OldAttrs = OldFunc->getAttributes();
+  // Clone any argument attributes that are present in the VMap.
+  for (Function::const_arg_iterator I = OldFunc->arg_begin(),
+                                    E = OldFunc->arg_end();
+       I != E; ++I)
+    if (Argument *Anew = dyn_cast<Argument>(VMap[I])) {
+      AttributeSet attrs =
+          OldAttrs.getParamAttributes(I->getArgNo() + 1);
+      if (attrs.getNumSlots() > 0)
+        Anew->addAttr(attrs);
+    }
 
-  }
+  NewFunc->setAttributes(NewFunc->getAttributes()
+                         .addAttributes(NewFunc->getContext(),
+                                        AttributeSet::ReturnIndex,
+                                        OldAttrs.getRetAttributes()));
+  NewFunc->setAttributes(NewFunc->getAttributes()
+                         .addAttributes(NewFunc->getContext(),
+                                        AttributeSet::FunctionIndex,
+                                        OldAttrs.getFnAttributes()));
 
   // Loop over all of the basic blocks in the function, cloning them as
   // appropriate.  Note that we save BE this way in order to handle cloning of
@@ -202,14 +204,14 @@ namespace {
     bool ModuleLevelChanges;
     const char *NameSuffix;
     ClonedCodeInfo *CodeInfo;
-    const TargetData *TD;
+    const DataLayout *TD;
   public:
     PruningFunctionCloner(Function *newFunc, const Function *oldFunc,
                           ValueToValueMapTy &valueMap,
                           bool moduleLevelChanges,
                           const char *nameSuffix, 
                           ClonedCodeInfo *codeInfo,
-                          const TargetData *td)
+                          const DataLayout *td)
     : NewFunc(newFunc), OldFunc(oldFunc),
       VMap(valueMap), ModuleLevelChanges(moduleLevelChanges),
       NameSuffix(nameSuffix), CodeInfo(codeInfo), TD(td) {
@@ -365,7 +367,7 @@ void llvm::CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
                                      SmallVectorImpl<ReturnInst*> &Returns,
                                      const char *NameSuffix, 
                                      ClonedCodeInfo *CodeInfo,
-                                     const TargetData *TD,
+                                     const DataLayout *TD,
                                      Instruction *TheCall) {
   assert(NameSuffix && "NameSuffix cannot be null!");
   

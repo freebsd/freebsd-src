@@ -14,16 +14,18 @@
 #ifndef LLVM_RUNTIME_DYLD_IMPL_H
 #define LLVM_RUNTIME_DYLD_IMPL_H
 
-#include "ObjectImage.h"
-#include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/ExecutionEngine/ObjectImage.h"
+#include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/SwapByteOrder.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
 #include <map>
@@ -33,7 +35,7 @@ using namespace llvm::object;
 
 namespace llvm {
 
-class MemoryBuffer;
+class ObjectBuffer;
 class Twine;
 
 
@@ -41,10 +43,13 @@ class Twine;
 /// linker.
 class SectionEntry {
 public:
+  /// Name - section name.
+  StringRef Name;
+
   /// Address - address in the linker's memory where the section resides.
   uint8_t *Address;
 
-  /// Size - section size.
+  /// Size - section size. Doesn't include the stubs.
   size_t Size;
 
   /// LoadAddress - the address of the section in the target process's memory.
@@ -61,10 +66,10 @@ public:
   /// for calculating relocations in some object formats (like MachO).
   uintptr_t ObjAddress;
 
-  SectionEntry(uint8_t *address, size_t size, uintptr_t stubOffset,
+  SectionEntry(StringRef name, uint8_t *address, size_t size,
                uintptr_t objAddress)
-    : Address(address), Size(size), LoadAddress((uintptr_t)address),
-      StubOffset(stubOffset), ObjAddress(objAddress) {}
+    : Name(name), Address(address), Size(size), LoadAddress((uintptr_t)address),
+      StubOffset(size), ObjAddress(objAddress) {}
 };
 
 /// RelocationEntry - used to represent relocations internally in the dynamic
@@ -84,20 +89,20 @@ public:
   /// used to make a relocation section relative instead of symbol relative.
   intptr_t Addend;
 
-  RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend)
-    : SectionID(id), Offset(offset), RelType(type), Addend(addend) {}
-};
+  /// True if this is a PCRel relocation (MachO specific).
+  bool IsPCRel;
 
-/// ObjRelocationInfo - relocation information as read from the object file.
-/// Used to pass around data taken from object::RelocationRef, together with
-/// the section to which the relocation points (represented by a SectionID).
-class ObjRelocationInfo {
-public:
-  unsigned  SectionID;
-  uint64_t  Offset;
-  SymbolRef Symbol;
-  uint64_t  Type;
-  int64_t   AdditionalInfo;
+  /// The size of this relocation (MachO specific).
+  unsigned Size;
+
+  RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend)
+    : SectionID(id), Offset(offset), RelType(type), Addend(addend),
+      IsPCRel(false), Size(0) {}
+
+  RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend,
+                  bool IsPCRel, unsigned Size)
+    : SectionID(id), Offset(offset), RelType(type), Addend(addend),
+      IsPCRel(IsPCRel), Size(Size) {}
 };
 
 class RelocationValueRef {
@@ -135,8 +140,10 @@ protected:
   typedef StringMap<SymbolLoc> SymbolTableMap;
   SymbolTableMap GlobalSymbolTable;
 
-  // Keep a map of common symbols to their sizes
-  typedef std::map<SymbolRef, unsigned> CommonSymbolMap;
+  // Pair representing the size and alignment requirement for a common symbol.
+  typedef std::pair<unsigned, unsigned> CommonSymbolInfo;
+  // Keep a map of common symbols to their info pairs
+  typedef std::map<SymbolRef, CommonSymbolInfo> CommonSymbolMap;
 
   // For each symbol, keep a list of relocations based on it. Anytime
   // its address is reassigned (the JIT re-compiled the function, e.g.),
@@ -159,10 +166,27 @@ protected:
   Triple::ArchType Arch;
 
   inline unsigned getMaxStubSize() {
+    if (Arch == Triple::aarch64)
+      return 20; // movz; movk; movk; movk; br
     if (Arch == Triple::arm || Arch == Triple::thumb)
       return 8; // 32-bit instruction and 32-bit address
+    else if (Arch == Triple::mipsel || Arch == Triple::mips)
+      return 16;
+    else if (Arch == Triple::ppc64)
+      return 44;
+    else if (Arch == Triple::x86_64)
+      return 8; // GOT
+    else if (Arch == Triple::systemz)
+      return 16;
     else
       return 0;
+  }
+
+  inline unsigned getStubAlignment() {
+    if (Arch == Triple::systemz)
+      return 8;
+    else
+      return 1;
   }
 
   bool HasError;
@@ -175,8 +199,41 @@ protected:
     return true;
   }
 
+  uint64_t getSectionLoadAddress(unsigned SectionID) {
+    return Sections[SectionID].LoadAddress;
+  }
+
   uint8_t *getSectionAddress(unsigned SectionID) {
     return (uint8_t*)Sections[SectionID].Address;
+  }
+
+  void writeInt16BE(uint8_t *Addr, uint16_t Value) {
+    if (sys::IsLittleEndianHost)
+      Value = sys::SwapByteOrder(Value);
+    *Addr     = (Value >> 8) & 0xFF;
+    *(Addr+1) = Value & 0xFF;
+  }
+
+  void writeInt32BE(uint8_t *Addr, uint32_t Value) {
+    if (sys::IsLittleEndianHost)
+      Value = sys::SwapByteOrder(Value);
+    *Addr     = (Value >> 24) & 0xFF;
+    *(Addr+1) = (Value >> 16) & 0xFF;
+    *(Addr+2) = (Value >> 8) & 0xFF;
+    *(Addr+3) = Value & 0xFF;
+  }
+
+  void writeInt64BE(uint8_t *Addr, uint64_t Value) {
+    if (sys::IsLittleEndianHost)
+      Value = sys::SwapByteOrder(Value);
+    *Addr     = (Value >> 56) & 0xFF;
+    *(Addr+1) = (Value >> 48) & 0xFF;
+    *(Addr+2) = (Value >> 40) & 0xFF;
+    *(Addr+3) = (Value >> 32) & 0xFF;
+    *(Addr+4) = (Value >> 24) & 0xFF;
+    *(Addr+5) = (Value >> 16) & 0xFF;
+    *(Addr+6) = (Value >> 8) & 0xFF;
+    *(Addr+7) = Value & 0xFF;
   }
 
   /// \brief Given the common symbols discovered in the object file, emit a
@@ -218,23 +275,16 @@ protected:
 
   /// \brief Resolves relocations from Relocs list with address from Value.
   void resolveRelocationList(const RelocationList &Relocs, uint64_t Value);
-  void resolveRelocationEntry(const RelocationEntry &RE, uint64_t Value);
 
   /// \brief A object file specific relocation resolver
-  /// \param Address Address to apply the relocation action
+  /// \param RE The relocation to be resolved
   /// \param Value Target symbol address to apply the relocation action
-  /// \param Type object file specific relocation type
-  /// \param Addend A constant addend used to compute the value to be stored
-  ///        into the relocatable field
-  virtual void resolveRelocation(uint8_t *LocalAddress,
-                                 uint64_t FinalAddress,
-                                 uint64_t Value,
-                                 uint32_t Type,
-                                 int64_t Addend) = 0;
+  virtual void resolveRelocation(const RelocationEntry &RE, uint64_t Value) = 0;
 
   /// \brief Parses the object file relocation and stores it to Relocations
   ///        or SymbolRelocations (this depends on the object file type).
-  virtual void processRelocationRef(const ObjRelocationInfo &Rel,
+  virtual void processRelocationRef(unsigned SectionID,
+                                    RelocationRef RelI,
                                     ObjectImage &Obj,
                                     ObjSectionToIDMap &ObjSectionToID,
                                     const SymbolTableMap &Symbols,
@@ -242,19 +292,13 @@ protected:
 
   /// \brief Resolve relocations to external symbols.
   void resolveExternalSymbols();
-  virtual ObjectImage *createObjectImage(const MemoryBuffer *InputBuffer);
-  virtual void handleObjectLoaded(ObjectImage *Obj)
-  {
-    // Subclasses may choose to retain this image if they have a use for it
-    delete Obj;
-  }
-
+  virtual ObjectImage *createObjectImage(ObjectBuffer *InputBuffer);
 public:
   RuntimeDyldImpl(RTDyldMemoryManager *mm) : MemMgr(mm), HasError(false) {}
 
   virtual ~RuntimeDyldImpl();
 
-  bool loadObject(const MemoryBuffer *InputBuffer);
+  ObjectImage *loadObject(ObjectBuffer *InputBuffer);
 
   void *getSymbolAddress(StringRef Name) {
     // FIXME: Just look up as a function for now. Overly simple of course.
@@ -265,11 +309,20 @@ public:
     return getSectionAddress(Loc.first) + Loc.second;
   }
 
+  uint64_t getSymbolLoadAddress(StringRef Name) {
+    // FIXME: Just look up as a function for now. Overly simple of course.
+    // Work in progress.
+    if (GlobalSymbolTable.find(Name) == GlobalSymbolTable.end())
+      return 0;
+    SymbolLoc Loc = GlobalSymbolTable.lookup(Name);
+    return getSectionLoadAddress(Loc.first) + Loc.second;
+  }
+
   void resolveRelocations();
 
   void reassignSectionAddress(unsigned SectionID, uint64_t Addr);
 
-  void mapSectionAddress(void *LocalAddress, uint64_t TargetAddress);
+  void mapSectionAddress(const void *LocalAddress, uint64_t TargetAddress);
 
   // Is the linker in an error state?
   bool hasError() { return HasError; }
@@ -280,8 +333,9 @@ public:
   // Get the error message.
   StringRef getErrorString() { return ErrorStr; }
 
-  virtual bool isCompatibleFormat(const MemoryBuffer *InputBuffer) const = 0;
+  virtual bool isCompatibleFormat(const ObjectBuffer *Buffer) const = 0;
 
+  virtual StringRef getEHFrameSection();
 };
 
 } // end namespace llvm

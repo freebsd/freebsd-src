@@ -12,36 +12,41 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/LLVMContext.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
-#include "llvm/CallGraphSCCPass.h"
-#include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/Assembly/PrintModulePass.h"
-#include "llvm/Analysis/Verifier.h"
-#include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/RegionPass.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/PassNameParser.h"
-#include "llvm/Support/Signals.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
+#include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/RegionPass.h"
+#include "llvm/Analysis/Verifier.h"
+#include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/CodeGen/CommandFlags.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/LinkAllIR.h"
+#include "llvm/LinkAllPasses.h"
+#include "llvm/MC/SubtargetFeature.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/SystemUtils.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/LinkAllPasses.h"
-#include "llvm/LinkAllVMCore.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include <memory>
 #include <algorithm>
+#include <memory>
 using namespace llvm;
 
 // The OptimizationList is automatically populated with registered Passes by the
@@ -478,6 +483,70 @@ static void AddStandardLinkPasses(PassManagerBase &PM) {
                                  /*RunInliner=*/ !DisableInline);
 }
 
+//===----------------------------------------------------------------------===//
+// CodeGen-related helper functions.
+//
+static TargetOptions GetTargetOptions() {
+  TargetOptions Options;
+  Options.LessPreciseFPMADOption = EnableFPMAD;
+  Options.NoFramePointerElim = DisableFPElim;
+  Options.NoFramePointerElimNonLeaf = DisableFPElimNonLeaf;
+  Options.AllowFPOpFusion = FuseFPOps;
+  Options.UnsafeFPMath = EnableUnsafeFPMath;
+  Options.NoInfsFPMath = EnableNoInfsFPMath;
+  Options.NoNaNsFPMath = EnableNoNaNsFPMath;
+  Options.HonorSignDependentRoundingFPMathOption =
+  EnableHonorSignDependentRoundingFPMath;
+  Options.UseSoftFloat = GenerateSoftFloatCalls;
+  if (FloatABIForCalls != FloatABI::Default)
+    Options.FloatABIType = FloatABIForCalls;
+  Options.NoZerosInBSS = DontPlaceZerosInBSS;
+  Options.GuaranteedTailCallOpt = EnableGuaranteedTailCallOpt;
+  Options.DisableTailCalls = DisableTailCalls;
+  Options.StackAlignmentOverride = OverrideStackAlignment;
+  Options.RealignStack = EnableRealignStack;
+  Options.TrapFuncName = TrapFuncName;
+  Options.PositionIndependentExecutable = EnablePIE;
+  Options.EnableSegmentedStacks = SegmentedStacks;
+  Options.UseInitArray = UseInitArray;
+  Options.SSPBufferSize = SSPBufferSize;
+  return Options;
+}
+
+CodeGenOpt::Level GetCodeGenOptLevel() {
+  if (OptLevelO1)
+    return CodeGenOpt::Less;
+  if (OptLevelO2)
+    return CodeGenOpt::Default;
+  if (OptLevelO3)
+    return CodeGenOpt::Aggressive;
+  return CodeGenOpt::None;
+}
+
+// Returns the TargetMachine instance or zero if no triple is provided.
+static TargetMachine* GetTargetMachine(Triple TheTriple) {
+  std::string Error;
+  const Target *TheTarget = TargetRegistry::lookupTarget(MArch, TheTriple,
+                                                         Error);
+  // Some modules don't specify a triple, and this is okay.
+  if (!TheTarget) {
+    return 0;
+  }
+
+  // Package up features to be passed to target/subtarget
+  std::string FeaturesStr;
+  if (MAttrs.size()) {
+    SubtargetFeatures Features;
+    for (unsigned i = 0; i != MAttrs.size(); ++i)
+      Features.AddFeature(MAttrs[i]);
+    FeaturesStr = Features.getString();
+  }
+
+  return TheTarget->createTargetMachine(TheTriple.getTriple(),
+                                        MCPU, FeaturesStr, GetTargetOptions(),
+                                        RelocModel, CMModel,
+                                        GetCodeGenOptLevel());
+}
 
 //===----------------------------------------------------------------------===//
 // main for opt
@@ -492,10 +561,14 @@ int main(int argc, char **argv) {
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   LLVMContext &Context = getGlobalContext();
 
+  InitializeAllTargets();
+  InitializeAllTargetMCs();
+
   // Initialize passes
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initializeCore(Registry);
   initializeScalarOpts(Registry);
+  initializeObjCARCOpts(Registry);
   initializeVectorization(Registry);
   initializeIPO(Registry);
   initializeAnalysis(Registry);
@@ -513,14 +586,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Allocate a full target machine description only if necessary.
-  // FIXME: The choice of target should be controllable on the command line.
-  std::auto_ptr<TargetMachine> target;
-
   SMDiagnostic Err;
 
   // Load the input module...
-  std::auto_ptr<Module> M;
+  OwningPtr<Module> M;
   M.reset(ParseIRFile(InputFilename, Err, Context));
 
   if (M.get() == 0) {
@@ -572,22 +641,32 @@ int main(int argc, char **argv) {
     TLI->disableAllFunctions();
   Passes.add(TLI);
 
-  // Add an appropriate TargetData instance for this module.
-  TargetData *TD = 0;
+  // Add an appropriate DataLayout instance for this module.
+  DataLayout *TD = 0;
   const std::string &ModuleDataLayout = M.get()->getDataLayout();
   if (!ModuleDataLayout.empty())
-    TD = new TargetData(ModuleDataLayout);
+    TD = new DataLayout(ModuleDataLayout);
   else if (!DefaultDataLayout.empty())
-    TD = new TargetData(DefaultDataLayout);
+    TD = new DataLayout(DefaultDataLayout);
 
   if (TD)
     Passes.add(TD);
+
+  Triple ModuleTriple(M->getTargetTriple());
+  TargetMachine *Machine = 0;
+  if (ModuleTriple.getArch())
+    Machine = GetTargetMachine(Triple(ModuleTriple));
+  OwningPtr<TargetMachine> TM(Machine);
+
+  // Add internal analysis passes from the target machine.
+  if (TM.get())
+    TM->addAnalysisPasses(Passes);
 
   OwningPtr<FunctionPassManager> FPasses;
   if (OptLevelO1 || OptLevelO2 || OptLevelOs || OptLevelOz || OptLevelO3) {
     FPasses.reset(new FunctionPassManager(M.get()));
     if (TD)
-      FPasses->add(new TargetData(*TD));
+      FPasses->add(new DataLayout(*TD));
   }
 
   if (PrintBreakpoints) {

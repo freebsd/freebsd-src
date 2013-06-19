@@ -120,15 +120,11 @@ uart_pl011_probe(struct uart_bas *bas)
 }
 
 static void
-uart_pl011_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
+uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
 	uint32_t ctrl, line;
 	uint32_t baud;
-
-	/* Mask all interrupts */
-	__uart_setreg(bas, UART_IMSC, __uart_getreg(bas, UART_IMSC) &
-	    ~IMSC_MASK_ALL);
 
 	/*
 	 * Zero all settings to make sure
@@ -176,6 +172,17 @@ uart_pl011_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	    ~0xff) | line);
 
 	__uart_setreg(bas, UART_CR, ctrl);
+}
+
+static void
+uart_pl011_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
+    int parity)
+{
+	/* Mask all interrupts */
+	__uart_setreg(bas, UART_IMSC, __uart_getreg(bas, UART_IMSC) &
+	    ~IMSC_MASK_ALL);
+	
+	uart_pl011_param(bas, baudrate, databits, stopbits, parity);
 }
 
 static void
@@ -271,9 +278,6 @@ uart_pl011_bus_attach(struct uart_softc *sc)
 	/* Clear RX & TX interrupts */
 	__uart_setreg(bas, UART_ICR, IMSC_MASK_ALL);
 
-	sc->sc_rxfifosz = 1;
-	sc->sc_txfifosz = 1;
-
 	return (0);
 }
 
@@ -358,7 +362,7 @@ uart_pl011_bus_param(struct uart_softc *sc, int baudrate, int databits,
 {
 
 	uart_lock(sc->sc_hwmtx);
-	uart_pl011_init(&sc->sc_bas, baudrate, databits, stopbits, parity);
+	uart_pl011_param(&sc->sc_bas, baudrate, databits, stopbits, parity);
 	uart_unlock(sc->sc_hwmtx);
 
 	return (0);
@@ -369,6 +373,9 @@ uart_pl011_bus_probe(struct uart_softc *sc)
 {
 
 	device_set_desc(sc->sc_dev, "PrimeCell UART (PL011)");
+
+	sc->sc_rxfifosz = 1;
+	sc->sc_txfifosz = 1;
 
 	return (0);
 }

@@ -89,6 +89,7 @@ void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_dump_decode_win(void);
 uint32_t soc_power_ctrl_get(uint32_t mask);
 void soc_power_ctrl_set(uint32_t mask);
+uint64_t get_sar_value(void);
 
 int decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
     vm_paddr_t remap);
@@ -96,6 +97,7 @@ int decode_win_overlap(int, int, const struct decode_win *);
 int win_cpu_can_remap(int);
 void decode_win_pcie_setup(u_long);
 
+void ddr_disable(int i);
 int ddr_is_active(int i);
 uint32_t ddr_base(int i);
 uint32_t ddr_size(int i);
@@ -107,6 +109,13 @@ uint32_t get_tclk(void);
 uint32_t get_l2clk(void);
 uint32_t read_cpu_ctrl(uint32_t);
 void write_cpu_ctrl(uint32_t, uint32_t);
+
+#if defined(SOC_MV_ARMADAXP)
+uint32_t read_cpu_mp_clocks(uint32_t reg);
+void write_cpu_mp_clocks(uint32_t reg, uint32_t val);
+uint32_t read_cpu_misc(uint32_t reg);
+void write_cpu_misc(uint32_t reg, uint32_t val);
+#endif
 
 int mv_pcib_bar_win_set(device_t dev, uint32_t base, uint32_t size,
     uint32_t remap, int winno, int busno);
@@ -125,5 +134,7 @@ void	mv_drbl_set_cause(uint32_t val, int dir, int unit);
 uint32_t mv_drbl_get_cause(int dir, int unit);
 void	mv_drbl_set_msg(uint32_t val, int mnr, int dir, int unit);
 uint32_t mv_drbl_get_msg(int mnr, int dir, int unit);
+
+int	mv_msi_data(int irq, uint64_t *addr, uint32_t *data);
 
 #endif /* _MVVAR_H_ */

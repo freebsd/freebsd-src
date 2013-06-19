@@ -308,7 +308,7 @@ static const struct optlv_h OPTLV_msg[F_OP_MAX + 1] = {
 	/* F_OP_GET */ {ZERO_TTLV, 0, " Get", recpdoptlv_print},
 	/* F_OP_GETPROP */ {ZERO_TTLV, 0, " GetProp", recpdoptlv_print},
 	/* F_OP_GETRESP */
-	    {TTLV_T2, B_FULLD | B_RESTV, " GetResp", recpdoptlv_print},
+	    {TTLV_T2, B_FULLD | B_SPARD | B_RESTV, " GetResp", recpdoptlv_print},
 	/* F_OP_GETPRESP */
 	    {TTLV_T2, B_FULLD | B_RESTV, " GetPropResp", recpdoptlv_print},
 	/* F_OP_REPORT */

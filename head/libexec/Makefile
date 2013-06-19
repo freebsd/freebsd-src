@@ -3,7 +3,8 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	${_atrun} \
+SUBDIR=	${_atf} \
+	${_atrun} \
 	bootpd \
 	${_comsat} \
 	fingerd \
@@ -31,6 +32,10 @@ SUBDIR=	${_atrun} \
 	${_tftp-proxy} \
 	ulog-helper \
 	${_ypxfr}
+
+.if ${MK_ATF} != "no"
+_atf=		atf
+.endif
 
 .if ${MK_AT} != "no"
 _atrun=		atrun

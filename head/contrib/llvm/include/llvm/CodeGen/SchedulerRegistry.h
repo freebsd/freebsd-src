@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGENSCHEDULERREGISTRY_H
-#define LLVM_CODEGENSCHEDULERREGISTRY_H
+#ifndef LLVM_CODEGEN_SCHEDULERREGISTRY_H
+#define LLVM_CODEGEN_SCHEDULERREGISTRY_H
 
 #include "llvm/CodeGen/MachinePassRegistry.h"
 #include "llvm/Target/TargetMachine.h"
@@ -101,6 +101,11 @@ ScheduleDAGSDNodes *createVLIWDAGScheduler(SelectionDAGISel *IS,
 /// for the target.
 ScheduleDAGSDNodes *createDefaultScheduler(SelectionDAGISel *IS,
                                            CodeGenOpt::Level OptLevel);
+
+/// createDAGLinearizer - This creates a "no-scheduling" scheduler which
+/// linearize the DAG using topological order.
+ScheduleDAGSDNodes *createDAGLinearizer(SelectionDAGISel *IS,
+                                        CodeGenOpt::Level OptLevel);
 
 } // end namespace llvm
 

@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2006
+.Dd October 25, 2012
 .Dt IPFW 4
 .Os
 .Sh NAME
@@ -20,7 +20,6 @@ Other related kernel options
 which may also be useful are:
 .Bd -ragged -offset indent
 .Cd "options IPFIREWALL_DEFAULT_TO_ACCEPT"
-.Cd "options IPFIREWALL_FORWARD"
 .Cd "options IPFIREWALL_VERBOSE"
 .Cd "options IPFIREWALL_VERBOSE_LIMIT=100"
 .Ed
@@ -70,12 +69,6 @@ option will prevent
 from flooding system logs or causing local Denial of Service.
 This option may be set to the number of packets which will be logged on
 a per-entry basis before the entry is rate-limited.
-.Pp
-Policy routing and transparent forwarding features of
-.Nm
-can be enabled by
-.Dv IPFIREWALL_FORWARD
-kernel option.
 .Pp
 The user interface for
 .Nm

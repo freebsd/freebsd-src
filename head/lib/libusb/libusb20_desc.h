@@ -45,6 +45,10 @@
 #ifndef _LIBUSB20_DESC_H_
 #define	_LIBUSB20_DESC_H_
 
+#ifndef LIBUSB_GLOBAL_INCLUDE_FILE
+#include <stdint.h>
+#endif
+
 #ifdef __cplusplus
 extern	"C" {
 #endif

@@ -122,14 +122,18 @@
 #define MV_DDR_CADR_BASE	(MV_AXI_BASE + 0x100)
 #elif defined(SOC_MV_LOKIPLUS)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0xF1500)
+#elif defined(SOC_MV_ARMADAXP)
+#define MV_DDR_CADR_BASE	(MV_BASE + 0x20180)
 #else
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
 #endif
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
 
 #if defined(SOC_MV_ARMADAXP)
+#define MV_MISC_BASE		(MV_BASE + 0x18200)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
 #define MV_INTREGS_BASE		(MV_MBUS_BRIDGE_BASE + 0x80)
+#define MV_MP_CLOCKS_BASE	(MV_MBUS_BRIDGE_BASE + 0x700)
 #define MV_CPU_CONTROL_BASE	(MV_MBUS_BRIDGE_BASE + 0x1800)
 #elif !defined(SOC_MV_FREY)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)
@@ -206,16 +210,28 @@
 #define MV_WIN_DDR_MAX			4
 #endif /* SOC_MV_DOVE */
 
-#define MV_WIN_CESA_CTRL(n)		(0x8 * (n) + 0xa04)
-#define MV_WIN_CESA_BASE(n)		(0x8 * (n) + 0xa00)
-#define MV_WIN_CESA_MAX			4
+/*
+ * These values are valid only for peripherals decoding windows
+ * Bit in ATTR is zeroed according to CS bank number
+ */
+#define MV_WIN_DDR_ATTR(cs)		(0x0F & ~(0x01 << (cs)))
+#define MV_WIN_DDR_TARGET		0x0
 
 #if defined(SOC_MV_DISCOVERY)
 #define MV_WIN_CESA_TARGET		9
-#define MV_WIN_CESA_ATTR		1
+#define MV_WIN_CESA_ATTR(eng_sel)	1
+#elif defined(SOC_MV_ARMADAXP)
+#define MV_WIN_CESA_TARGET		9
+/*
+ * Bits [2:3] of cesa attribute select engine:
+ * eng_sel:
+ *  1: engine1
+ *  2: engine0
+ */
+#define MV_WIN_CESA_ATTR(eng_sel)	(1 | ((eng_sel) << 2))
 #else
 #define MV_WIN_CESA_TARGET		3
-#define MV_WIN_CESA_ATTR		0
+#define MV_WIN_CESA_ATTR(eng_sel)	0
 #endif
 
 #define MV_WIN_USB_CTRL(n)		(0x10 * (n) + 0x320)
@@ -255,14 +271,15 @@
 #define MV_WIN_PCIE_TARGET(n)		4
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
 #define MV_WIN_PCIE_IO_ATTR(n)		0x51
-#define MV_WIN_PCI_TARGET		3
-#define MV_WIN_PCI_MEM_ATTR		0x59
-#define MV_WIN_PCI_IO_ATTR		0x51
 #elif defined(SOC_MV_LOKIPLUS)
 #define MV_WIN_PCIE_TARGET(n)		(3 + (n))
 #define MV_WIN_PCIE_MEM_ATTR(n)		0x59
 #define MV_WIN_PCIE_IO_ATTR(n)		0x51
 #endif
+
+#define MV_WIN_PCI_TARGET		3
+#define MV_WIN_PCI_MEM_ATTR		0x59
+#define MV_WIN_PCI_IO_ATTR		0x51
 
 #define MV_WIN_PCIE_CTRL(n)		(0x10 * (((n) < 5) ? (n) : \
 					    (n) + 1) + 0x1820)

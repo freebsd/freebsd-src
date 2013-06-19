@@ -91,6 +91,10 @@
 #define	SDT_PROBE_DEFINE3(prov, mod, func, name, sname, arg0, arg1, arg2)
 #define	SDT_PROBE_DEFINE4(prov, mod, func, name, sname, arg0, arg1, arg2, arg3)
 #define	SDT_PROBE_DEFINE5(prov, mod, func, name, sname, arg0, arg1, arg2, arg3, arg4)
+#define	SDT_PROBE_DEFINE6(prov, mod, func, name, snamp, arg0, arg1, arg2,      \
+    arg3, arg4, arg5)
+#define	SDT_PROBE_DEFINE7(prov, mod, func, name, snamp, arg0, arg1, arg2,      \
+    arg3, arg4, arg5, arg6)
 
 #define	SDT_PROBE0(prov, mod, func, name)
 #define	SDT_PROBE1(prov, mod, func, name, arg0)
@@ -98,6 +102,9 @@
 #define	SDT_PROBE3(prov, mod, func, name, arg0, arg1, arg2)
 #define	SDT_PROBE4(prov, mod, func, name, arg0, arg1, arg2, arg3)
 #define	SDT_PROBE5(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
+#define	SDT_PROBE6(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5)
+#define	SDT_PROBE7(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5,  \
+    arg6)
 
 #else
 
@@ -184,11 +191,12 @@ struct sdt_provider {
 #define SDT_PROBE_DECLARE(prov, mod, func, name)				\
 	extern struct sdt_probe sdt_##prov##_##mod##_##func##_##name[1]
 
-#define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)		\
+#define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)	do {	\
 	if (sdt_##prov##_##mod##_##func##_##name->id)				\
 		(*sdt_probe_func)(sdt_##prov##_##mod##_##func##_##name->id,	\
 		    (uintptr_t) arg0, (uintptr_t) arg1, (uintptr_t) arg2,	\
-		    (uintptr_t) arg3, (uintptr_t) arg4)
+		    (uintptr_t) arg3, (uintptr_t) arg4);			\
+} while (0)
 
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)			\
 	static struct sdt_argtype sdt_##prov##_##mod##_##func##_##name##num[1]	\
@@ -232,6 +240,27 @@ struct sdt_provider {
 	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
 	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4)
 
+#define	SDT_PROBE_DEFINE6(prov, mod, func, name, sname, arg0, arg1, arg2, arg3,\
+    arg4, arg5) \
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5);
+
+#define	SDT_PROBE_DEFINE7(prov, mod, func, name, sname, arg0, arg1, arg2, arg3,\
+    arg4, arg5, arg6) \
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5);		\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 6, arg6);
+
 #define	SDT_PROBE0(prov, mod, func, name)				\
 	SDT_PROBE(prov, mod, func, name, 0, 0, 0, 0, 0)
 #define	SDT_PROBE1(prov, mod, func, name, arg0)				\
@@ -244,6 +273,27 @@ struct sdt_provider {
 	SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, 0)
 #define	SDT_PROBE5(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4) \
 	SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
+#define	SDT_PROBE6(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5)  \
+	do {								       \
+		if (sdt_##prov##_##mod##_##func##_##name->id)		       \
+			(*(void (*)(uint32_t, uintptr_t, uintptr_t, uintptr_t, \
+			    uintptr_t, uintptr_t, uintptr_t))sdt_probe_func)(  \
+			    sdt_##prov##_##mod##_##func##_##name->id,	       \
+			    (uintptr_t)arg0, (uintptr_t)arg1, (uintptr_t)arg2, \
+			    (uintptr_t)arg3, (uintptr_t)arg4, (uintptr_t)arg5);\
+	} while (0)
+#define	SDT_PROBE7(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5,  \
+    arg6)								       \
+	do {								       \
+		if (sdt_##prov##_##mod##_##func##_##name->id)		       \
+			(*(void (*)(uint32_t, uintptr_t, uintptr_t, uintptr_t, \
+			    uintptr_t, uintptr_t, uintptr_t, uintptr_t))       \
+			    sdt_probe_func)(				       \
+			    sdt_##prov##_##mod##_##func##_##name->id,	       \
+			    (uintptr_t)arg0, (uintptr_t)arg1, (uintptr_t)arg2, \
+			    (uintptr_t)arg3, (uintptr_t)arg4, (uintptr_t)arg5, \
+			    (uintptr_t)arg6);				       \
+	} while (0)
 
 typedef int (*sdt_argtype_listall_func_t)(struct sdt_argtype *, void *);
 typedef int (*sdt_probe_listall_func_t)(struct sdt_probe *, void *);

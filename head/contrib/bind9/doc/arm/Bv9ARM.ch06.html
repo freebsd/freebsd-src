@@ -78,28 +78,28 @@
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#server_statement_definition_and_usage"><span><strong class="command">server</strong></span> Statement Definition and
             Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#statschannels"><span><strong class="command">statistics-channels</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589481"><span><strong class="command">statistics-channels</strong></span> Statement Definition and
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589534"><span><strong class="command">statistics-channels</strong></span> Statement Definition and
             Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#trusted-keys"><span><strong class="command">trusted-keys</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589689"><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589742"><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589736"><span><strong class="command">managed-keys</strong></span> Statement Grammar</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2589858"><span><strong class="command">managed-keys</strong></span> Statement Grammar</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#managed-keys"><span><strong class="command">managed-keys</strong></span> Statement Definition
             and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#view_statement_grammar"><span><strong class="command">view</strong></span> Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2590162"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2590352"><span><strong class="command">view</strong></span> Statement Definition and Usage</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zone_statement_grammar"><span><strong class="command">zone</strong></span>
             Statement Grammar</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591713"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2591902"><span><strong class="command">zone</strong></span> Statement Definition and Usage</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2595116">Zone File</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch06.html#id2595170">Zone File</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#types_of_resource_records_and_when_to_use_them">Types of Resource Records and When to Use Them</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2597415">Discussion of MX Records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2597537">Discussion of MX Records</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#Setting_TTLs">Setting TTLs</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2597962">Inverse Mapping in IPv4</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598157">Other Zone File Directives</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598430"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598084">Inverse Mapping in IPv4</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598211">Other Zone File Directives</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch06.html#id2598552"><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch06.html#zonefile_format">Additional File Formats</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch06.html#statistics">BIND9 Statistics</a></span></dt>
@@ -2277,7 +2277,11 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     [<span class="optional"> resolver-query-timeout <em class="replaceable"><code>number</code></em> ; </span>]
     [<span class="optional"> deny-answer-addresses { <em class="replaceable"><code>address_match_list</code></em> } [<span class="optional"> except-from { <em class="replaceable"><code>namelist</code></em> } </span>];</span>]
     [<span class="optional"> deny-answer-aliases { <em class="replaceable"><code>namelist</code></em> } [<span class="optional"> except-from { <em class="replaceable"><code>namelist</code></em> } </span>];</span>]
-    [<span class="optional"> response-policy { <em class="replaceable"><code>zone_name</code></em> [<span class="optional"> policy given | disabled | passthru | nxdomain | nodata | cname <em class="replaceable"><code>domain</code></em> </span>] ; } ; </span>]
+    [<span class="optional"> response-policy { <em class="replaceable"><code>zone_name</code></em>
+        [<span class="optional"> policy given | disabled | passthru | nxdomain | nodata | cname <em class="replaceable"><code>domain</code></em> </span>]
+        [<span class="optional"> recursive-only <em class="replaceable"><code>yes_or_no</code></em> </span>] [<span class="optional"> max-policy-ttl <em class="replaceable"><code>number</code></em> </span>] ;
+    } [<span class="optional"> recursive-only <em class="replaceable"><code>yes_or_no</code></em> </span>] [<span class="optional"> max-policy-ttl <em class="replaceable"><code>number</code></em> </span>]
+        [<span class="optional"> break-dnssec <em class="replaceable"><code>yes_or_no</code></em> </span>] ; </span>]
 };
 </pre>
 </div>
@@ -3665,7 +3669,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2583643"></a>Forwarding</h4></div></div></div>
+<a name="id2583675"></a>Forwarding</h4></div></div></div>
 <p>
             The forwarding facility can be used to create a large site-wide
             cache on a few servers, reducing traffic over links to external
@@ -3709,7 +3713,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2583702"></a>Dual-stack Servers</h4></div></div></div>
+<a name="id2583734"></a>Dual-stack Servers</h4></div></div></div>
 <p>
             Dual-stack servers are used as servers of last resort to work
             around
@@ -3911,8 +3915,8 @@ options {
 <dt><span class="term"><span><strong class="command">resolver-query-timeout</strong></span></span></dt>
 <dd><p>
                   The amount of time the resolver will spend attempting
-                  to resolve a recursive query before failing.  The
-                  default is <code class="literal">10</code> and the maximum is
+                  to resolve a recursive query before failing.  The default
+                  and minimum is <code class="literal">10</code> and the maximum is
                   <code class="literal">30</code>.  Setting it to <code class="literal">0</code>
                   will result in the default being used.
                 </p></dd>
@@ -3920,7 +3924,7 @@ options {
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2584322"></a>Interfaces</h4></div></div></div>
+<a name="id2584422"></a>Interfaces</h4></div></div></div>
 <p>
             The interfaces and ports that the server will answer queries
             from may be specified using the <span><strong class="command">listen-on</strong></span> option. <span><strong class="command">listen-on</strong></span> takes
@@ -4379,7 +4383,7 @@ avoid-v6-udp-ports {};
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2585531"></a>UDP Port Lists</h4></div></div></div>
+<a name="id2585495"></a>UDP Port Lists</h4></div></div></div>
 <p>
             <span><strong class="command">use-v4-udp-ports</strong></span>,
             <span><strong class="command">avoid-v4-udp-ports</strong></span>,
@@ -4421,7 +4425,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2585591"></a>Operating System Resource Limits</h4></div></div></div>
+<a name="id2585555"></a>Operating System Resource Limits</h4></div></div></div>
 <p>
             The server's usage of many system resources can be limited.
             Scaled values are allowed when specifying resource limits.  For
@@ -4583,7 +4587,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2586082"></a>Periodic Task Intervals</h4></div></div></div>
+<a name="id2586114"></a>Periodic Task Intervals</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">cleaning-interval</strong></span></span></dt>
 <dd><p>
@@ -5423,7 +5427,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2588188"></a>Content Filtering</h4></div></div></div>
+<a name="id2588152"></a>Content Filtering</h4></div></div></div>
 <p>
             <acronym class="acronym">BIND</acronym> 9 provides the ability to filter
             out DNS responses from external DNS servers containing
@@ -5546,18 +5550,16 @@ deny-answer-aliases { "example.net"; };
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2588379"></a>Response Policy Zone (RPZ) Rewriting</h4></div></div></div>
+<a name="id2588343"></a>Response Policy Zone (RPZ) Rewriting</h4></div></div></div>
 <p>
-            <acronym class="acronym">BIND</acronym> 9 includes an intentionally limited
-            mechanism to modify DNS responses for recursive requests
-            somewhat similar to email anti-spam DNS blacklists.
+            <acronym class="acronym">BIND</acronym> 9 includes a limited
+            mechanism to modify DNS responses for requests
+            analogous to email anti-spam DNS blacklists.
             Responses can be changed to deny the existence of domains(NXDOMAIN),
             deny the existence of IP addresses for domains (NODATA),
             or contain other IP addresses or data.
           </p>
 <p>
-            The actions encoded in a response policy zone (RPZ) are applied
-            only to queries that ask for recursion (RD=1).
             Response policy zones are named in the
             <span><strong class="command">response-policy</strong></span> option for the view or among the
             global options if there is no response-policy option for the view.
@@ -5567,21 +5569,20 @@ deny-answer-aliases { "example.net"; };
             <span><strong class="command">allow-query { localhost; };</strong></span>.
           </p>
 <p>
-            There are four kinds of RPZ records, QNAME, IP, NSIP,
+            Four policy triggers are encoded in RPZ records, QNAME, IP, NSIP,
             and NSDNAME.
-            QNAME records are applied to query names of requests and targets
+            QNAME RPZ records triggered by query names of requests and targets
             of CNAME records resolved to generate the response.
             The owner name of a QNAME RPZ record is the query name relativized
             to the RPZ.
           </p>
 <p>
-            The second kind of RPZ record, an IP policy record,
-            is triggered by addresses in A and AAAA records
-            for the ANSWER sections of responses.
-            IP policy records have owner names that are
-            subdomains of <strong class="userinput"><code>rpz-ip</code></strong> relativized to the
-            RPZ origin name and encode an IP address or address block.
-            IPv4 addresses are encoded as
+            The second kind of RPZ trigger is an IP address in an A and AAAA
+            record in the ANSWER section of a response.
+            IP address triggers are encoded in records that have owner names
+            that are subdomains of <strong class="userinput"><code>rpz-ip</code></strong> relativized
+            to the RPZ origin name and encode an IP address or address block.
+            IPv4 trigger addresses are represented as
             <strong class="userinput"><code>prefixlength.B4.B3.B2.B1.rpz-ip</code></strong>.
             The prefix length must be between 1 and 32.
             All four bytes, B4, B3, B2, and B1, must be present.
@@ -5599,42 +5600,44 @@ deny-answer-aliases { "example.net"; };
             The prefix length must be between 1 and 128.
           </p>
 <p>
-            NSDNAME policy records match names of authoritative servers
-            for the query name, a parent of the query name, a CNAME,
-            or a parent of a CNAME.
+            NSDNAME triggers match names of authoritative servers
+            for the query name, a parent of the query name, a CNAME for
+            query name, or a parent of a CNAME.
             They are encoded as subdomains of
             <strong class="userinput"><code>rpz-nsdomain</code></strong> relativized
             to the RPZ origin name.
           </p>
 <p>
-            NSIP policy records match IP addresses in A and AAAA RRsets
-            for domains that can be checked against NSDNAME policy records.
-            The are encoded like IP policies except as subdomains of
+            NSIP triggers match IP addresses in A and
+            AAAA RRsets for domains that can be checked against NSDNAME
+            policy records.
+            NSIP triggers are encoded like IP triggers except as subdomains of
             <strong class="userinput"><code>rpz-nsip</code></strong>.
           </p>
 <p>
             The query response is checked against all RPZs, so
-            two or more policy records can apply to a single response.
-            Because DNS responses can be rewritten according by at most a
-            single policy record, a single policy (other than
-            <span><strong class="command">DISABLED</strong></span> policies) must be chosen.
-            Policies are chosen in the following order:
+            two or more policy records can be triggered by a response.
+            Because DNS responses can be rewritten according to at most one
+            policy record, a single record encoding an action (other than
+            <span><strong class="command">DISABLED</strong></span> actions) must be chosen.
+            Triggers or the records that encode them are chosen in
+            the following order:
             </p>
 <div class="itemizedlist"><ul type="disc">
-<li>Among applicable zones, use the RPZ that appears first
-                in the response-policy option.
+<li>Choose the triggered record in the zone that appears
+                first in the response-policy option.
               </li>
-<li>Prefer QNAME to IP to NSDNAME to NSIP policy records
-                in a single RPZ
+<li>Prefer QNAME to IP to NSDNAME to NSIP triggers
+                in a single zone.
               </li>
-<li>Among applicable NSDNAME policy records, prefer the
-                policy record that matches the lexically smallest name
+<li>Among NSDNAME triggers, prefer the
+                trigger that matches the smallest name under the DNSSEC ordering.
               </li>
-<li>Among IP or NSIP policy records, prefer the record
+<li>Among IP or NSIP triggers, prefer the trigger
                 with the longest prefix.
               </li>
-<li>Among records with the same prefex length,
-                prefer the IP or NSIP policy record that matches
+<li>Among triggers with the same prefex length,
+                prefer the IP or NSIP trigger that matches
                 the smallest IP address.
               </li>
 </ul></div>
@@ -5642,8 +5645,8 @@ deny-answer-aliases { "example.net"; };
           </p>
 <p>
             When the processing of a response is restarted to resolve
-            DNAME or CNAME records and an applicable policy record set has
-            not been found,
+            DNAME or CNAME records and a policy record set has
+            not been triggered,
             all RPZs are again consulted for the DNAME or CNAME names
             and addresses.
           </p>
@@ -5658,59 +5661,60 @@ deny-answer-aliases { "example.net"; };
             on the "configure" command line.
           </p>
 <p>
-            RPZ record sets are special CNAME records or one or more
-            of any types of DNS record except DNAME or DNSSEC.
-            Except when a policy record is a CNAME, there can be more
-            more than one record and more than one type
-            in a set of policy records.
-            Except for three kinds of CNAME records that are illegal except
-            in policy zones, the records in a set are used in the response as if
-            their owner name were the query name.  They are copied to the
-            response as dictated by their types.
+            RPZ record sets are sets of any types of DNS record except
+            DNAME or DNSSEC that encode actions or responses to queries.
             </p>
 <div class="itemizedlist"><ul type="disc">
-<li>A CNAME whose target is the root domain (.)
-                specifies the <span><strong class="command">NXDOMAIN</strong></span> policy,
-                which generates an NXDOMAIN response.
+<li>The <span><strong class="command">NXDOMAIN</strong></span> response is encoded
+                by a CNAME whose target is the root domain (.)
               </li>
 <li>A CNAME whose target is the wildcard top-level
-                domain (*.) specifies the <span><strong class="command">NODATA</strong></span> policy,
+                domain (*.) specifies the <span><strong class="command">NODATA</strong></span> action,
                 which rewrites the response to NODATA or ANCOUNT=1.
               </li>
-<li>A CNAME whose target is a wildcard hostname such
-                as *.example.com is used normally after the astrisk (*)
+<li>The <span><strong class="command">Local Data</strong></span> action is
+                represented by a set ordinary DNS records that are used
+                to answer queries.  Queries for record types not the
+                set are answered with NODATA.
+
+                A special form of local data is a CNAME whose target is a
+                wildcard such as *.example.com.
+                It is used as if were an ordinary CNAME after the astrisk (*)
                 has been replaced with the query name.
-                These records are usually resolved with ordinary CNAMEs
-                outside the policy zones.  They can be useful for logging.
+                The purpose for this special form is query logging in the
+                walled garden's authority DNS server.
               </li>
 <li>The <span><strong class="command">PASSTHRU</strong></span> policy is specified
-                by a CNAME whose target is the variable part of its own
-                owner name.  It causes the response to not be rewritten
+                by a CNAME whose target is <span><strong class="command">rpz_passthru.</strong></span>
+                It causes the response to not be rewritten
                 and is most often used to "poke holes" in policies for
                 CIDR blocks.
+                (A CNAME whose target is the variable part of its owner name
+                is an obsolete specification of the PASSTHRU policy.)
               </li>
 </ul></div>
 <p>
           </p>
 <p>
-            The policies specified in individual records
-            in an RPZ can be overridden with a <span><strong class="command">policy</strong></span> clause
-            in the <span><strong class="command">response-policy</strong></span> option.
+            The actions specified in an RPZ can be overridden with a
+            <span><strong class="command">policy</strong></span> clause in the
+            <span><strong class="command">response-policy</strong></span> option.
             An organization using an RPZ provided by another organization might
             use this mechanism to redirect domains to its own walled garden.
             </p>
 <div class="itemizedlist"><ul type="disc">
 <li>
-<span><strong class="command">GIVEN</strong></span> says "do not override."
+<span><strong class="command">GIVEN</strong></span> says "do not override but
+                perform the action specified in the zone."
               </li>
 <li>
 <span><strong class="command">DISABLED</strong></span> causes policy records to do
                 nothing but log what they might have done.
                 The response to the DNS query will be written according to
-                any matching policy records that are not disabled.
-                Policy zones overridden with <span><strong class="command">DISABLED</strong></span> should
-                appear first, because they will often not be logged
-                if a higher precedence policy is found first.
+                any triggered policy records that are not disabled.
+                Disabled policy zones should appear first,
+                because they will often not be logged
+                if a higher precedence trigger is found first.
               </li>
 <li>
 <span><strong class="command">PASSTHRU</strong></span> causes all policy records
@@ -5734,6 +5738,34 @@ deny-answer-aliases { "example.net"; };
 <p>
           </p>
 <p>
+            By default, the actions encoded in an RPZ are applied
+            only to queries that ask for recursion (RD=1).
+            That default can be changed for a single RPZ or all RPZs in a view
+            with a <span><strong class="command">recursive-only no</strong></span> clause.
+            This feature is useful for serving the same zone files
+            both inside and outside an RFC 1918 cloud and using RPZ to
+            delete answers that would otherwise contain RFC 1918 values
+            on the externally visible name server or view.
+          </p>
+<p>
+            Also by default, RPZ actions are applied only to DNS requests that
+            either do not request DNSSEC metadata (DO=0) or when no DNSSEC
+            records are available for request name in the original zone (not
+            the response policy zone).
+            This default can be changed for all RPZs in a view with a
+            <span><strong class="command">break-dnssec yes</strong></span> clause.
+            In that case, RPZ actions are applied regardless of DNSSEC.
+            The name of the clause option reflects the fact that results
+            rewritten by RPZ actions cannot verify.
+          </p>
+<p>
+            The TTL of a record modified by RPZ policies is set from the
+            TTL of the relevant record in policy zone.  It is then limited
+            to a maximum value.
+            The <span><strong class="command">max-policy-ttl</strong></span> clause changes that
+            maximum from its default of 5.
+          </p>
+<p>
             For example, you might use this option statement
           </p>
 <pre class="programlisting">    response-policy { zone "badlist"; };</pre>
@@ -5755,7 +5787,7 @@ bad.domain.com          A       10.0.0.1        ; redirect to a walled garden
                         AAAA    2001:2::1
 
 ; do not rewrite (PASSTHRU) OK.DOMAIN.COM
-ok.domain.com           CNAME   ok.domain.com.
+ok.domain.com           CNAME   rpz-passthru.
 
 bzone.domain.com        CNAME   garden.example.com.
 
@@ -5765,7 +5797,7 @@ bzone.domain.com        CNAME   garden.example.com.
 
 ; IP policy records that rewrite all answers for 127/8 except 127.0.0.1
 8.0.0.0.127.rpz-ip      CNAME   .
-32.1.0.0.127.rpz-ip     CNAME   32.1.0.0.127.   ; PASSTHRU for 127.0.0.1
+32.1.0.0.127.rpz-ip     CNAME   rpz-passthru.
 
 ; NSDNAME and NSIP policy records
 ns.domain.com.rpz-nsdname   CNAME   .
@@ -5981,7 +6013,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2589481"></a><span><strong class="command">statistics-channels</strong></span> Statement Definition and
+<a name="id2589534"></a><span><strong class="command">statistics-channels</strong></span> Statement Definition and
             Usage</h3></div></div></div>
 <p>
           The <span><strong class="command">statistics-channels</strong></span> statement
@@ -6041,7 +6073,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2589689"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
+<a name="id2589742"></a><span><strong class="command">trusted-keys</strong></span> Statement Definition
             and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">trusted-keys</strong></span> statement defines
@@ -6081,7 +6113,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2589736"></a><span><strong class="command">managed-keys</strong></span> Statement Grammar</h3></div></div></div>
+<a name="id2589858"></a><span><strong class="command">managed-keys</strong></span> Statement Grammar</h3></div></div></div>
 <pre class="programlisting"><span><strong class="command">managed-keys</strong></span> {
     <em class="replaceable"><code>string</code></em> initial-key <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ;
     [<span class="optional"> <em class="replaceable"><code>string</code></em> initial-key <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>number</code></em> <em class="replaceable"><code>string</code></em> ; [<span class="optional">...</span>]</span>]
@@ -6216,7 +6248,7 @@ ns.domain.com.rpz-nsdname   CNAME   .
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2590162"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2590352"></a><span><strong class="command">view</strong></span> Statement Definition and Usage</h3></div></div></div>
 <p>
             The <span><strong class="command">view</strong></span> statement is a powerful
             feature
@@ -6505,10 +6537,10 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2591713"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
+<a name="id2591902"></a><span><strong class="command">zone</strong></span> Statement Definition and Usage</h3></div></div></div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2591720"></a>Zone Types</h4></div></div></div>
+<a name="id2591910"></a>Zone Types</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -6768,7 +6800,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592402"></a>Class</h4></div></div></div>
+<a name="id2592455"></a>Class</h4></div></div></div>
 <p>
               The zone's name may optionally be followed by a class. If
               a class is not specified, class <code class="literal">IN</code> (for <code class="varname">Internet</code>),
@@ -6790,7 +6822,7 @@ zone <em class="replaceable"><code>zone_name</code></em> [<span class="optional"
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2592503"></a>Zone Options</h4></div></div></div>
+<a name="id2592488"></a>Zone Options</h4></div></div></div>
 <div class="variablelist"><dl>
 <dt><span class="term"><span><strong class="command">allow-notify</strong></span></span></dt>
 <dd><p>
@@ -7506,7 +7538,7 @@ example.com. NS ns2.example.net.
                         (machine$@REALM) for machine in REALM and
                         and converts it machine.realm allowing the machine 
                         to update machine.realm.  The REALM to be matched
-                        is specified in the <font color="red">&lt;replacable&gt;identity&lt;/replacable&gt;</font>
+                        is specified in the <em class="replaceable"><code>identity</code></em>
                         field.
                       </p>
                     </td>
@@ -7524,7 +7556,7 @@ example.com. NS ns2.example.net.
                         converts it to machine.realm allowing the machine
                         to update subdomains of machine.realm.  The REALM
                         to be matched is specified in the
-                        <font color="red">&lt;replacable&gt;identity&lt;/replacable&gt;</font> field.
+                        <em class="replaceable"><code>identity</code></em> field.
                       </p>
                     </td>
 </tr>
@@ -7540,7 +7572,7 @@ example.com. NS ns2.example.net.
                         (host/machine@REALM) for machine in REALM and
                         and converts it machine.realm allowing the machine 
                         to update machine.realm.  The REALM to be matched
-                        is specified in the <font color="red">&lt;replacable&gt;identity&lt;/replacable&gt;</font>
+                        is specified in the <em class="replaceable"><code>identity</code></em>
                         field.
                       </p>
                     </td>
@@ -7558,7 +7590,7 @@ example.com. NS ns2.example.net.
                         converts it to machine.realm allowing the machine
                         to update subdomains of machine.realm.  The REALM
                         to be matched is specified in the
-                        <font color="red">&lt;replacable&gt;identity&lt;/replacable&gt;</font> field.
+                        <em class="replaceable"><code>identity</code></em> field.
                       </p>
                     </td>
 </tr>
@@ -7667,7 +7699,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2595116"></a>Zone File</h2></div></div></div>
+<a name="id2595170"></a>Zone File</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="types_of_resource_records_and_when_to_use_them"></a>Types of Resource Records and When to Use Them</h3></div></div></div>
@@ -7680,7 +7712,7 @@ example.com. NS ns2.example.net.
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2595134"></a>Resource Records</h4></div></div></div>
+<a name="id2595188"></a>Resource Records</h4></div></div></div>
 <p>
               A domain name identifies a node.  Each node has a set of
               resource information, which may be empty.  The set of resource
@@ -8417,7 +8449,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2596826"></a>Textual expression of RRs</h4></div></div></div>
+<a name="id2596880"></a>Textual expression of RRs</h4></div></div></div>
 <p>
               RRs are represented in binary form in the packets of the DNS
               protocol, and are usually represented in highly encoded form
@@ -8620,7 +8652,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2597415"></a>Discussion of MX Records</h3></div></div></div>
+<a name="id2597537"></a>Discussion of MX Records</h3></div></div></div>
 <p>
             As described above, domain servers store information as a
             series of resource records, each of which contains a particular
@@ -8876,7 +8908,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2597962"></a>Inverse Mapping in IPv4</h3></div></div></div>
+<a name="id2598084"></a>Inverse Mapping in IPv4</h3></div></div></div>
 <p>
             Reverse name resolution (that is, translation from IP address
             to name) is achieved by means of the <span class="emphasis"><em>in-addr.arpa</em></span> domain
@@ -8937,7 +8969,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2598157"></a>Other Zone File Directives</h3></div></div></div>
+<a name="id2598211"></a>Other Zone File Directives</h3></div></div></div>
 <p>
             The Master File Format was initially defined in RFC 1035 and
             has subsequently been extended. While the Master File Format
@@ -8952,7 +8984,7 @@ example.com. NS ns2.example.net.
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598180"></a>The <span><strong class="command">@</strong></span> (at-sign)</h4></div></div></div>
+<a name="id2598233"></a>The <span><strong class="command">@</strong></span> (at-sign)</h4></div></div></div>
 <p>
               When used in the label (or name) field, the asperand or
               at-sign (@) symbol represents the current origin.
@@ -8963,7 +8995,7 @@ example.com. NS ns2.example.net.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598196"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
+<a name="id2598249"></a>The <span><strong class="command">$ORIGIN</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$ORIGIN</strong></span>
               <em class="replaceable"><code>domain-name</code></em>
@@ -8992,7 +9024,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598325"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
+<a name="id2598446"></a>The <span><strong class="command">$INCLUDE</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$INCLUDE</strong></span>
               <em class="replaceable"><code>filename</code></em>
@@ -9028,7 +9060,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2598394"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
+<a name="id2598516"></a>The <span><strong class="command">$TTL</strong></span> Directive</h4></div></div></div>
 <p>
               Syntax: <span><strong class="command">$TTL</strong></span>
               <em class="replaceable"><code>default-ttl</code></em>
@@ -9047,7 +9079,7 @@ WWW.EXAMPLE.COM. CNAME MAIN-SERVER.EXAMPLE.COM.
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2598430"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
+<a name="id2598552"></a><acronym class="acronym">BIND</acronym> Master File Extension: the  <span><strong class="command">$GENERATE</strong></span> Directive</h3></div></div></div>
 <p>
             Syntax: <span><strong class="command">$GENERATE</strong></span>
             <em class="replaceable"><code>range</code></em>
@@ -9471,7 +9503,7 @@ HOST-127.EXAMPLE. MX 0 .
           </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2599384"></a>Name Server Statistics Counters</h4></div></div></div>
+<a name="id2599437"></a>Name Server Statistics Counters</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -10028,7 +10060,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2600857"></a>Zone Maintenance Statistics Counters</h4></div></div></div>
+<a name="id2601047"></a>Zone Maintenance Statistics Counters</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -10182,7 +10214,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2601308"></a>Resolver Statistics Counters</h4></div></div></div>
+<a name="id2601498"></a>Resolver Statistics Counters</h4></div></div></div>
 <div class="informaltable"><table border="1">
 <colgroup>
 <col>
@@ -10565,7 +10597,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2602398"></a>Socket I/O Statistics Counters</h4></div></div></div>
+<a name="id2602588"></a>Socket I/O Statistics Counters</h4></div></div></div>
 <p>
               Socket I/O statistics counters are defined per socket
               types, which are
@@ -10720,7 +10752,7 @@ HOST-127.EXAMPLE. MX 0 .
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2602840"></a>Compatibility with <span class="emphasis"><em>BIND</em></span> 8 Counters</h4></div></div></div>
+<a name="id2602962"></a>Compatibility with <span class="emphasis"><em>BIND</em></span> 8 Counters</h4></div></div></div>
 <p>
               Most statistics counters that were available
               in <span><strong class="command">BIND</strong></span> 8 are also supported in

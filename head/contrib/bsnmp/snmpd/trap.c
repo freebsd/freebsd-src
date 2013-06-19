@@ -117,7 +117,7 @@ trapsink_create(struct trapsink_dep *tdep)
 		return (SNMP_ERR_RES_UNAVAIL);
 	}
 	(void)shutdown(t->socket, SHUT_RD);
-
+	memset(&sa, 0, sizeof(sa));
 	sa.sin_len = sizeof(sa);
 	sa.sin_family = AF_INET;
 	sa.sin_addr.s_addr = htonl((t->index.subs[0] << 24) |
@@ -725,6 +725,7 @@ target_activate_address(struct target_address *addrs)
 	}
 
 	(void)shutdown(addrs->socket, SHUT_RD);
+	memset(&sa, 0, sizeof(sa));
 	sa.sin_len = sizeof(sa);
 	sa.sin_family = AF_INET;
 

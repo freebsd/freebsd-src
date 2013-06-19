@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % sections SYSTEM "../common/install.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "i386">
+<!ENTITY arch.print "i386">
+]>
+
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/i386/article.xml,v 1.5 2002/12/07 21:09:56 ue Exp $
+  basiert auf: 1.4
+-->
+
+<article lang="de">
+  &artheader;
+  &abstract;
+  &sect.install;
+  &sect.layout;
+  &sect.upgrade;
+  &sect.trouble;
+</article>

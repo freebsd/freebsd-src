@@ -16,19 +16,20 @@
 #define LLVM_CLANG_DIAGNOSTIC_H
 
 #include "clang/Basic/DiagnosticIDs.h"
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/type_traits.h"
-
-#include <vector>
 #include <list>
+#include <vector>
 
 namespace clang {
   class DiagnosticConsumer;
   class DiagnosticBuilder;
+  class DiagnosticOptions;
   class IdentifierInfo;
   class DeclContext;
   class LangOptions;
@@ -76,7 +77,7 @@ public:
                                    bool BeforePreviousInsertions = false) {
     FixItHint Hint;
     Hint.RemoveRange =
-      CharSourceRange(SourceRange(InsertionLoc, InsertionLoc), false);
+      CharSourceRange::getCharRange(InsertionLoc, InsertionLoc);
     Hint.CodeToInsert = Code;
     Hint.BeforePreviousInsertions = BeforePreviousInsertions;
     return Hint;
@@ -89,7 +90,7 @@ public:
                                         bool BeforePreviousInsertions = false) {
     FixItHint Hint;
     Hint.RemoveRange =
-      CharSourceRange(SourceRange(InsertionLoc, InsertionLoc), false);
+      CharSourceRange::getCharRange(InsertionLoc, InsertionLoc);
     Hint.InsertFromRange = FromRange;
     Hint.BeforePreviousInsertions = BeforePreviousInsertions;
     return Hint;
@@ -160,13 +161,6 @@ public:
     ak_qualtype_pair    ///< pair<QualType, QualType>
   };
 
-  /// \brief Specifies which overload candidates to display when overload
-  /// resolution fails.
-  enum OverloadsShown {
-    Ovl_All,  ///< Show all overloads.
-    Ovl_Best  ///< Show just the "best" overload candidates.
-  };
-
   /// \brief Represents on argument value, which is a union discriminated
   /// by ArgumentKind, with a value.
   typedef std::pair<ArgumentKind, intptr_t> ArgumentValue;
@@ -190,6 +184,7 @@ private:
                                     // backtrace stack, 0 -> no limit.
   ExtensionHandling ExtBehavior; // Map extensions onto warnings or errors?
   IntrusiveRefCntPtr<DiagnosticIDs> Diags;
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   DiagnosticConsumer *Client;
   bool OwnsDiagClient;
   SourceManager *SourceMgr;
@@ -284,6 +279,10 @@ private:
   /// \brief Sticky flag set to \c true when an error is emitted.
   bool ErrorOccurred;
 
+  /// \brief Sticky flag set to \c true when an "uncompilable error" occurs.
+  /// I.e. an error that was not upgraded from a warning by -Werror.
+  bool UncompilableErrorOccurred;
+
   /// \brief Sticky flag set to \c true when a fatal error is emitted.
   bool FatalErrorOccurred;
 
@@ -341,6 +340,7 @@ private:
 public:
   explicit DiagnosticsEngine(
                       const IntrusiveRefCntPtr<DiagnosticIDs> &Diags,
+                      DiagnosticOptions *DiagOpts,
                       DiagnosticConsumer *client = 0,
                       bool ShouldOwnClient = true);
   ~DiagnosticsEngine();
@@ -348,6 +348,9 @@ public:
   const IntrusiveRefCntPtr<DiagnosticIDs> &getDiagnosticIDs() const {
     return Diags;
   }
+
+  /// \brief Retrieve the diagnostic options.
+  DiagnosticOptions &getDiagnosticOptions() const { return *DiagOpts; }
 
   DiagnosticConsumer *getClient() { return Client; }
   const DiagnosticConsumer *getClient() const { return Client; }
@@ -432,8 +435,8 @@ public:
   ///
   /// If this and IgnoreAllWarnings are both set, then that one wins.
   void setEnableAllWarnings(bool Val) { EnableAllWarnings = Val; }
-  bool getEnableAllWarnngs() const { return EnableAllWarnings; }
-  
+  bool getEnableAllWarnings() const { return EnableAllWarnings; }
+
   /// \brief When set to true, any warnings reported are issued as errors.
   void setWarningsAsErrors(bool Val) { WarningsAsErrors = Val; }
   bool getWarningsAsErrors() const { return WarningsAsErrors; }
@@ -478,10 +481,13 @@ public:
   }
   OverloadsShown getShowOverloads() const { return ShowOverloads; }
   
-  /// \brief Pretend that the last diagnostic issued was ignored.
+  /// \brief Pretend that the last diagnostic issued was ignored, so any
+  /// subsequent notes will be suppressed.
   ///
   /// This can be used by clients who suppress diagnostics themselves.
   void setLastDiagnosticIgnored() {
+    if (LastDiagLevel == DiagnosticIDs::Fatal)
+      FatalErrorOccurred = true;
     LastDiagLevel = DiagnosticIDs::Ignored;
   }
   
@@ -556,6 +562,12 @@ public:
                                   SourceLocation Loc = SourceLocation());
 
   bool hasErrorOccurred() const { return ErrorOccurred; }
+
+  /// \brief Errors that actually prevent compilation, not those that are
+  /// upgraded from a warning by -Werror.
+  bool hasUncompilableErrorOccurred() const {
+    return UncompilableErrorOccurred;
+  }
   bool hasFatalErrorOccurred() const { return FatalErrorOccurred; }
   
   /// \brief Determine whether any kind of unrecoverable error has occurred.
@@ -571,7 +583,7 @@ public:
 
   /// \brief Return an ID for a diagnostic with the specified message and level.
   ///
-  /// If this is the first request for this diagnosic, it is registered and
+  /// If this is the first request for this diagnostic, it is registered and
   /// created, otherwise the existing ID is returned.
   unsigned getCustomDiagID(Level L, StringRef Message) {
     return Diags->getCustomDiagID((DiagnosticIDs::Level)L, Message);
@@ -584,7 +596,7 @@ public:
                           const char *Argument, unsigned ArgLen,
                           const ArgumentValue *PrevArgs, unsigned NumPrevArgs,
                           SmallVectorImpl<char> &Output,
-                          SmallVectorImpl<intptr_t> &QualTypeVals) const {
+                          ArrayRef<intptr_t> QualTypeVals) const {
     ArgToStringFn(Kind, Val, Modifier, ModLen, Argument, ArgLen,
                   PrevArgs, NumPrevArgs, Output, ArgToStringCookie,
                   QualTypeVals);
@@ -593,6 +605,12 @@ public:
   void SetArgToStringFn(ArgToStringFnTy Fn, void *Cookie) {
     ArgToStringFn = Fn;
     ArgToStringCookie = Cookie;
+  }
+
+  /// \brief Note that the prior diagnostic was emitted by some other
+  /// \c DiagnosticsEngine, and we may be attaching a note to that diagnostic.
+  void notePriorDiagnosticFrom(const DiagnosticsEngine &Other) {
+    LastDiagLevel = Other.LastDiagLevel;
   }
 
   /// \brief Reset the state of the diagnostic object to its initial 
@@ -837,7 +855,7 @@ class DiagnosticBuilder {
   /// call to ForceEmit.
   mutable bool IsForceEmit;
 
-  void operator=(const DiagnosticBuilder&); // DO NOT IMPLEMENT
+  void operator=(const DiagnosticBuilder &) LLVM_DELETED_FUNCTION;
   friend class DiagnosticsEngine;
   
   DiagnosticBuilder()
@@ -960,6 +978,10 @@ public:
     assert(NumFixits < DiagnosticsEngine::MaxFixItHints &&
            "Too many arguments to diagnostic!");
     DiagObj->DiagFixItHints[NumFixits++] = Hint;
+  }
+
+  bool hasMaxRanges() const {
+    return NumRanges == DiagnosticsEngine::MaxRanges;
   }
 };
 
@@ -1274,10 +1296,6 @@ public:
   /// warnings and errors.
   virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
                                 const Diagnostic &Info);
-  
-  /// \brief Clone the diagnostic consumer, producing an equivalent consumer
-  /// that can be used in a different context.
-  virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const = 0;
 };
 
 /// \brief A diagnostic client that ignores all diagnostics.
@@ -1287,9 +1305,24 @@ class IgnoringDiagConsumer : public DiagnosticConsumer {
                         const Diagnostic &Info) {
     // Just ignore it.
   }
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-    return new IgnoringDiagConsumer();
-  }
+};
+
+/// \brief Diagnostic consumer that forwards diagnostics along to an
+/// existing, already-initialized diagnostic consumer.
+///
+class ForwardingDiagnosticConsumer : public DiagnosticConsumer {
+  DiagnosticConsumer &Target;
+
+public:
+  ForwardingDiagnosticConsumer(DiagnosticConsumer &Target) : Target(Target) {}
+
+  virtual ~ForwardingDiagnosticConsumer();
+
+  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                                const Diagnostic &Info);
+  virtual void clear();
+
+  virtual bool IncludeInDiagnosticCounts() const;
 };
 
 // Struct used for sending info about how a type should be printed.

@@ -31,8 +31,12 @@ static const char rcsid[] =
 /* System Headers */
 
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
 #include <sys/wait.h>
 #include <sys/param.h>
 #include <ctype.h>
@@ -123,7 +127,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     pid_t pid;
     int fd_out, fd_in;
     int queue;
-    char mailbuf[MAXLOGNAME], fmt[49];
+    char mailbuf[MAXLOGNAME], fmt[64];
     char *mailname = NULL;
     FILE *stream;
     int send_mail = 0;
@@ -194,7 +198,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     PRIV_END
 
     if (stream == NULL)
-	perr("cannot open input file");
+	perr("cannot open input file %s", filename);
 
     if ((fd_in = dup(fileno(stream))) <0)
 	perr("error duplicating input file descriptor");
@@ -454,7 +458,12 @@ main(int argc, char *argv[])
     gid_t batch_gid;
     int c;
     int run_batch;
+#ifdef __FreeBSD__
+    size_t ncpu, ncpusz;
+    double load_avg = -1;
+#else
     double load_avg = LOADAVG_MX;
+#endif
 
 /* We don't need root privileges all the time; running under uid and gid daemon
  * is fine.
@@ -472,8 +481,10 @@ main(int argc, char *argv[])
 	case 'l': 
 	    if (sscanf(optarg, "%lf", &load_avg) != 1)
 		perr("garbled option -l");
+#ifndef __FreeBSD__
 	    if (load_avg <= 0.)
 		load_avg = LOADAVG_MX;
+#endif
 	    break;
 
 	case 'd':
@@ -489,6 +500,15 @@ main(int argc, char *argv[])
     if (chdir(ATJOB_DIR) != 0)
 	perr("cannot change to %s", ATJOB_DIR);
 
+#ifdef __FreeBSD__
+    if (load_avg <= 0.) {
+	ncpusz = sizeof(size_t);
+	if (sysctlbyname("hw.ncpu", &ncpu, &ncpusz, NULL, 0) < 0)
+		ncpu = 1;
+	load_avg = LOADAVG_MX * ncpu;
+    }
+#endif
+
     /* Main loop. Open spool directory for reading and look over all the
      * files in there. If the filename indicates that the job should be run
      * and the x bit is set, fork off a child which sets its user and group
@@ -501,6 +521,9 @@ main(int argc, char *argv[])
      */
     if ((spool = opendir(".")) == NULL)
 	perr("cannot read %s", ATJOB_DIR);
+
+    if (flock(dirfd(spool), LOCK_EX) == -1)
+	perr("cannot lock %s", ATJOB_DIR);
 
     now = time(NULL);
     run_batch = 0;

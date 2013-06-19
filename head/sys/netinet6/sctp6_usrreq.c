@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 extern struct protosw inetsw[];
 
 int
-sctp6_input(struct mbuf **i_pak, int *offp, int proto)
+sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 {
 	struct mbuf *m;
 	int iphlen;
@@ -84,7 +84,6 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 #endif
 	uint32_t mflowid;
 	uint8_t use_mflowid;
-	uint16_t port = 0;
 
 	iphlen = *offp;
 	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
@@ -194,6 +193,12 @@ out:
 	return (IPPROTO_DONE);
 }
 
+
+int
+sctp6_input(struct mbuf **i_pak, int *offp, int proto SCTP_UNUSED)
+{
+	return (sctp6_input_with_port(i_pak, offp, 0));
+}
 
 static void
 sctp6_notify_mbuf(struct sctp_inpcb *inp, struct icmp6_hdr *icmp6,
@@ -782,18 +787,11 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
-		if (!MODULE_GLOBAL(ip6_v6only)) {
-			struct sockaddr_in sin;
+		struct sockaddr_in sin;
 
-			/* convert v4-mapped into v4 addr and send */
-			in6_sin6_2_sin(&sin, sin6);
-			return (sctp_sendm(so, flags, m, (struct sockaddr *)&sin,
-			    control, p));
-		} else {
-			/* mapped addresses aren't enabled */
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return (EINVAL);
-		}
+		/* convert v4-mapped into v4 addr and send */
+		in6_sin6_2_sin(&sin, sin6);
+		return (sctp_sendm(so, flags, m, (struct sockaddr *)&sin, control, p));
 	}
 #endif				/* INET */
 connected_type:
@@ -927,17 +925,9 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		}
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
-		if (!MODULE_GLOBAL(ip6_v6only)) {
-			/* convert v4-mapped into v4 addr */
-			in6_sin6_2_sin((struct sockaddr_in *)&ss, sin6);
-			addr = (struct sockaddr *)&ss;
-		} else {
-			/* mapped addresses aren't enabled */
-			SCTP_INP_RUNLOCK(inp);
-			SCTP_ASOC_CREATE_UNLOCK(inp);
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-			return (EINVAL);
-		}
+		/* convert v4-mapped into v4 addr */
+		in6_sin6_2_sin((struct sockaddr_in *)&ss, sin6);
+		addr = (struct sockaddr *)&ss;
 	}
 #endif				/* INET */
 	/* Now do we connect? */

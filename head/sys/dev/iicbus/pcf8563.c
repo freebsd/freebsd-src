@@ -83,6 +83,16 @@ pcf8563_attach(device_t dev)
 	if (sc->sc_addr == 0)
 		sc->sc_addr = PCF8563_ADDR;
 
+	/*
+	 * NB: PCF8563_R_SECOND_VL doesn't automatically clear when VDD
+	 * rises above Vlow again and needs to be cleared manually.
+	 * However, apparently this needs all of the time registers to be
+	 * set, i.e. pcf8563_settime(), and not just PCF8563_R_SECOND in
+	 * order for PCF8563_R_SECOND_VL to stick.  Thus, we just issue a
+	 * warning here rather than failing with ENXIO in case it is set.
+	 * Note that pcf8563_settime() will also clear PCF8563_R_SECOND_VL
+	 * as a side-effect.
+	 */
 	msgs[0].slave = msgs[1].slave = sc->sc_addr;
 	error = iicbus_transfer(device_get_parent(dev), msgs, sizeof(msgs) /
 	    sizeof(*msgs));
@@ -90,10 +100,8 @@ pcf8563_attach(device_t dev)
 		device_printf(dev, "%s: cannot read RTC\n", __func__);
 		return (error);
 	}
-	if ((val & PCF8563_R_SECOND_VL) != 0) {
+	if ((val & PCF8563_R_SECOND_VL) != 0)
 		device_printf(dev, "%s: battery low\n", __func__);
-		return (ENXIO);
-	}
 
 	sc->sc_year0 = 1900;
 	clock_register(dev, 1000000);   /* 1 second resolution */

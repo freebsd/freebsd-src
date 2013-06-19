@@ -61,9 +61,7 @@ struct stringlist	Ehead = { 0 , 0 };
 struct stringlist	*Elist = &Ehead;
 
 void
-addlist( listp , funcname )
-    struct stringlist	*listp;
-    char		*funcname;
+addlist(struct stringlist *listp, char *funcname)
 {
     struct stringlist	*slp;
 
@@ -76,9 +74,7 @@ addlist( listp , funcname )
 }
 
 bool
-onlist( listp , funcname )
-    struct stringlist	*listp;
-    const char		*funcname;
+onlist(struct stringlist *listp, const char *funcname)
 {
     struct stringlist	*slp;
 

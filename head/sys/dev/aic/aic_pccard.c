@@ -28,8 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
@@ -71,7 +74,7 @@ aic_pccard_alloc_resources(device_t dev)
 	struct aic_pccard_softc *sc = device_get_softc(dev);
 	int rid;
 
-	sc->sc_port = sc->sc_irq = 0;
+	sc->sc_port = sc->sc_irq = NULL;
 
 	rid = 0;
 	sc->sc_port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -87,9 +90,8 @@ aic_pccard_alloc_resources(device_t dev)
 	}
 
 	sc->sc_aic.dev = dev;
-	sc->sc_aic.unit = device_get_unit(dev);
-	sc->sc_aic.tag = rman_get_bustag(sc->sc_port);
-	sc->sc_aic.bsh = rman_get_bushandle(sc->sc_port);
+	sc->sc_aic.res = sc->sc_port;
+	mtx_init(&sc->sc_aic.lock, "aic", NULL, MTX_DEF);
 	return (0);
 }
 
@@ -102,7 +104,8 @@ aic_pccard_release_resources(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->sc_port);
 	if (sc->sc_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
-	sc->sc_port = sc->sc_irq = 0;
+	sc->sc_port = sc->sc_irq = NULL;
+	mtx_destroy(&sc->sc_aic.lock);
 }
 
 static int
@@ -114,9 +117,12 @@ aic_pccard_probe(device_t dev)
 	    sizeof(aic_pccard_products[0]), NULL)) != NULL) {
 		if (pp->pp_name != NULL)
 			device_set_desc(dev, pp->pp_name);
-		return 0;
+		else
+			device_set_desc(dev,
+			    "Adaptec 6260/6360 SCSI controller");
+		return (BUS_PROBE_DEFAULT);
 	}
-	return EIO;
+	return (ENXIO);
 }
 
 static int
@@ -133,8 +139,6 @@ aic_pccard_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	device_set_desc(dev, "Adaptec 6260/6360 SCSI controller");
-
 	error = aic_attach(aic);
 	if (error) {
 		device_printf(dev, "attach failed\n");
@@ -142,8 +146,8 @@ aic_pccard_attach(device_t dev)
 		return (error);
 	}
 
-	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM|INTR_ENTROPY,
-				NULL, aic_intr, aic, &sc->sc_ih);
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, aic_intr, aic, &sc->sc_ih);
 	if (error) {
 		device_printf(dev, "failed to register interrupt handler\n");
 		aic_pccard_release_resources(dev);

@@ -2513,7 +2513,7 @@ int out;
 	} else
 #endif
 	{
-#if (defined(OpenBSD) && (OpenBSD >= 200311)) && defined(_KERNEL)
+#if ((defined(OpenBSD) && (OpenBSD >= 200311)) || (__FreeBSD_version >= 1000019)) && defined(_KERNEL)
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_off = ntohs(ip->ip_off);
 #endif
@@ -2777,7 +2777,7 @@ finished:
 	RWLOCK_EXIT(&ipf_global);
 
 #ifdef _KERNEL
-# if (defined(OpenBSD) && (OpenBSD >= 200311))
+# if (defined(OpenBSD) && (OpenBSD >= 200311)) || (__FreeBSD_version >= 1000019)
 	if (FR_ISPASS(pass) && (v == 4)) {
 		ip = fin->fin_ip;
 		ip->ip_len = ntohs(ip->ip_len);

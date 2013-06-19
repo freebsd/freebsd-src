@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2011-2013 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2011
+.Dd February 25, 2013
 .Dt EVENTTIMERS 9
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 struct eventtimer;
 
 typedef int et_start_t(struct eventtimer *et,
-    struct bintime *first, struct bintime *period);
+    sbintime_t first, sbintime_t period);
 typedef int et_stop_t(struct eventtimer *et);
 typedef void et_event_cb_t(struct eventtimer *et, void *arg);
 typedef int et_deregister_cb_t(struct eventtimer *et, void *arg);
@@ -53,8 +53,8 @@ struct eventtimer {
 	int			et_quality;
 	int			et_active;
 	uint64_t		et_frequency;
-	struct bintime		et_min_period;
-	struct bintime		et_max_period;
+	sbintime_t		et_min_period;
+	sbintime_t		et_max_period;
 	et_start_t		*et_start;
 	et_stop_t		*et_stop;
 	et_event_cb_t		*et_event_cb;
@@ -75,7 +75,7 @@ struct eventtimer {
 .Ft int
 .Fn et_init "struct eventtimer *et" "et_event_cb_t *event" "et_deregister_cb_t *deregister" "void *arg"
 .Ft int
-.Fn et_start "struct eventtimer *et" "struct bintime *first" "struct bintime *period"
+.Fn et_start "struct eventtimer *et" "sbintime_t first" "sbintime_t period"
 .Ft int
 .Fn et_stop "struct eventtimer *et"
 .Ft int

@@ -34,6 +34,10 @@ MACHINE=pc98
 
 MKMODULESENV+=	MACHINE=${MACHINE}
 
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS}
+ASM_CFLAGS+=			${ASM_CFLAGS.${.IMPSRC:T}}
+
 %BEFORE_DEPEND
 
 %OBJS

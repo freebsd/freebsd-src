@@ -107,13 +107,6 @@
 #endif
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -201,5 +194,9 @@
 #endif
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
+
+#ifndef VM_MAX_AUTOTUNE_MAXUSERS
+#define VM_MAX_AUTOTUNE_MAXUSERS 384
+#endif
 
 #endif /* _MACHINE_VMPARAM_H_ */

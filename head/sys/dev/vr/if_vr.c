@@ -119,7 +119,7 @@ static const struct vr_type {
 	u_int16_t		vr_did;
 	int			vr_quirks;
 	const char		*vr_name;
-} const vr_devs[] = {
+} vr_devs[] = {
 	{ VIA_VENDORID, VIA_DEVICEID_RHINE,
 	    VR_Q_NEEDALIGN,
 	    "VIA VT3043 Rhine I 10/100BaseTX" },
@@ -200,7 +200,7 @@ static const struct vr_tx_threshold_table {
 	int tx_cfg;
 	int bcr_cfg;
 	int value;
-} const vr_tx_threshold_tables[] = {
+} vr_tx_threshold_tables[] = {
 	{ VR_TXTHRESH_64BYTES, VR_BCR1_TXTHRESH64BYTES,	64 },
 	{ VR_TXTHRESH_128BYTES, VR_BCR1_TXTHRESH128BYTES, 128 },
 	{ VR_TXTHRESH_256BYTES, VR_BCR1_TXTHRESH256BYTES, 256 },
@@ -1224,7 +1224,7 @@ vr_newbuf(struct vr_softc *sc, int idx)
 	bus_dmamap_t		map;
 	int			nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1800,7 +1800,7 @@ vr_encap(struct vr_softc *sc, struct mbuf **m_head)
 	 * to copy, just do it all the time.
 	 */
 	if ((sc->vr_quirks & VR_Q_NEEDALIGN) != 0) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -1819,7 +1819,7 @@ vr_encap(struct vr_softc *sc, struct mbuf **m_head)
 		padlen = VR_MIN_FRAMELEN - m->m_pkthdr.len;
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1828,7 +1828,7 @@ vr_encap(struct vr_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 		if (m->m_next != NULL || M_TRAILINGSPACE(m) < padlen) {
-			m = m_defrag(m, M_DONTWAIT);
+			m = m_defrag(m, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(*m_head);
 				*m_head = NULL;
@@ -1850,7 +1850,7 @@ vr_encap(struct vr_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->vr_cdata.vr_tx_tag, txd->tx_dmamap,
 	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, VR_MAXFRAGS);
+		m = m_collapse(*m_head, M_NOWAIT, VR_MAXFRAGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

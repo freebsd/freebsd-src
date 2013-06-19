@@ -157,6 +157,7 @@ arm_get_next_irq(int last_irq)
 	if ((active_irq & 0xffffff80)) {
 		device_printf(ti_aintc_sc->sc_dev,
 			"Spurious interrupt detected (0x%08x)\n", active_irq);
+		aintc_write_4(INTC_SIR_IRQ, 0);
 		return -1;
 	}
 

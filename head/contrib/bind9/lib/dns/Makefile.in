@@ -47,7 +47,8 @@ LIBS =		@LIBS@
 # Alphabetically
 
 OPENSSLLINKOBJS = openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
-		  opensslgost_link.@O@ opensslrsa_link.@O@
+		  opensslecdsa_link.@O@ opensslgost_link.@O@ \
+		  opensslrsa_link.@O@
 
 DSTOBJS =	@DST_EXTRA_OBJS@ @OPENSSLLINKOBJS@ \
 		dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
@@ -76,7 +77,7 @@ OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS}
 
 # Alphabetically
 OPENSSLLINKSRCS = openssl_link.c openssldh_link.c openssldsa_link.c \
-		  opensslgost_link.c opensslrsa_link.c
+		  opensslecdsa_link.c opensslgost_link.c opensslrsa_link.c
 
 DSTSRCS =	@DST_EXTRA_SRCS@ @OPENSSLLINKSRCS@ \
 		dst_api.c dst_lib.c dst_parse.c \

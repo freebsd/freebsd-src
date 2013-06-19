@@ -250,7 +250,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 			return (EEXIST);
 		}
 	}
-	gp = g_new_geomf(mp, name);
+	gp = g_new_geomf(mp, "%s", name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "gmountver", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_queue);
@@ -262,7 +262,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	gp->access = g_mountver_access;
 	gp->dumpconf = g_mountver_dumpconf;
 
-	newpp = g_new_providerf(gp, gp->name);
+	newpp = g_new_providerf(gp, "%s", gp->name);
 	newpp->mediasize = pp->mediasize;
 	newpp->sectorsize = pp->sectorsize;
 

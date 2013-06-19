@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -295,7 +295,7 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 /*
  * Some compilers complain about unused variables. Sometimes we don't want to
  * use all the variables (for example, _AcpiModuleName). This allows us
- * to to tell the compiler in a per-variable manner that a variable
+ * to tell the compiler in a per-variable manner that a variable
  * is unused
  */
 #ifndef ACPI_UNUSED_VAR
@@ -308,6 +308,14 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
  */
 #ifndef ACPI_EXPORT_SYMBOL
 #define ACPI_EXPORT_SYMBOL(Symbol)
+#endif
+
+/*
+ * Compiler/Clibrary-dependent debug initialization. Used for ACPICA
+ * utilities only.
+ */
+#ifndef ACPI_DEBUG_INITIALIZE
+#define ACPI_DEBUG_INITIALIZE()
 #endif
 
 
@@ -346,7 +354,7 @@ typedef UINT32                          ACPI_PHYSICAL_ADDRESS;
 
 /* PM Timer ticks per second (HZ) */
 
-#define PM_TIMER_FREQUENCY              3579545
+#define ACPI_PM_TIMER_FREQUENCY         3579545
 
 
 /*******************************************************************************
@@ -379,6 +387,22 @@ typedef UINT32                          ACPI_STATUS;    /* All ACPI Exceptions *
 typedef UINT32                          ACPI_NAME;      /* 4-byte ACPI name */
 typedef char *                          ACPI_STRING;    /* Null terminated ASCII string */
 typedef void *                          ACPI_HANDLE;    /* Actually a ptr to a NS Node */
+
+
+/* Time constants for timer calculations */
+
+#define ACPI_MSEC_PER_SEC               1000L
+
+#define ACPI_USEC_PER_MSEC              1000L
+#define ACPI_USEC_PER_SEC               1000000L
+
+#define ACPI_100NSEC_PER_USEC           10L
+#define ACPI_100NSEC_PER_MSEC           10000L
+#define ACPI_100NSEC_PER_SEC            10000000L
+
+#define ACPI_NSEC_PER_USEC              1000L
+#define ACPI_NSEC_PER_MSEC              1000000L
+#define ACPI_NSEC_PER_SEC               1000000000L
 
 
 /* Owner IDs are used to track namespace nodes for selective deletion */
@@ -454,10 +478,14 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_PHYSADDR_TO_PTR(i)         ACPI_TO_POINTER(i)
 #define ACPI_PTR_TO_PHYSADDR(i)         ACPI_TO_INTEGER(i)
 
+/* Optimizations for 4-character (32-bit) ACPI_NAME manipulation */
+
 #ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
 #define ACPI_COMPARE_NAME(a,b)          (*ACPI_CAST_PTR (UINT32, (a)) == *ACPI_CAST_PTR (UINT32, (b)))
+#define ACPI_MOVE_NAME(dest,src)        (*ACPI_CAST_PTR (UINT32, (dest)) = *ACPI_CAST_PTR (UINT32, (src)))
 #else
 #define ACPI_COMPARE_NAME(a,b)          (!ACPI_STRNCMP (ACPI_CAST_PTR (char, (a)), ACPI_CAST_PTR (char, (b)), ACPI_NAME_SIZE))
+#define ACPI_MOVE_NAME(dest,src)        (ACPI_STRNCPY (ACPI_CAST_PTR (char, (dest)), ACPI_CAST_PTR (char, (src)), ACPI_NAME_SIZE))
 #endif
 
 
@@ -592,7 +620,7 @@ typedef UINT32                          ACPI_OBJECT_TYPE;
 
 /*
  * These are special object types that never appear in
- * a Namespace node, only in an ACPI_OPERAND_OBJECT
+ * a Namespace node, only in an object of ACPI_OPERAND_OBJECT
  */
 #define ACPI_TYPE_LOCAL_EXTRA           0x1C
 #define ACPI_TYPE_LOCAL_DATA            0x1D
@@ -900,6 +928,10 @@ typedef struct acpi_buffer
 
 } ACPI_BUFFER;
 
+/* Free a buffer created in an ACPI_BUFFER via ACPI_ALLOCATE_LOCAL_BUFFER */
+
+#define ACPI_FREE_BUFFER(b)         ACPI_FREE(b.Pointer)
+
 
 /*
  * NameType for AcpiGetName
@@ -1105,22 +1137,22 @@ UINT32 (*ACPI_INTERFACE_HANDLER) (
 #define ACPI_UUID_LENGTH                16
 
 
-/* Structures used for device/processor HID, UID, CID */
+/* Structures used for device/processor HID, UID, CID, and SUB */
 
-typedef struct acpi_device_id
+typedef struct acpi_pnp_device_id
 {
     UINT32                          Length;             /* Length of string + null */
     char                            *String;
 
-} ACPI_DEVICE_ID;
+} ACPI_PNP_DEVICE_ID;
 
-typedef struct acpi_device_id_list
+typedef struct acpi_pnp_device_id_list
 {
     UINT32                          Count;              /* Number of IDs in Ids array */
     UINT32                          ListSize;           /* Size of list, including ID strings */
-    ACPI_DEVICE_ID                  Ids[1];             /* ID array */
+    ACPI_PNP_DEVICE_ID              Ids[1];             /* ID array */
 
-} ACPI_DEVICE_ID_LIST;
+} ACPI_PNP_DEVICE_ID_LIST;
 
 /*
  * Structure returned from AcpiGetObjectInfo.
@@ -1138,9 +1170,10 @@ typedef struct acpi_device_info
     UINT8                           LowestDstates[5];   /* _SxW values: 0xFF indicates not valid */
     UINT32                          CurrentStatus;      /* _STA value */
     UINT64                          Address;            /* _ADR value */
-    ACPI_DEVICE_ID                  HardwareId;         /* _HID value */
-    ACPI_DEVICE_ID                  UniqueId;           /* _UID value */
-    ACPI_DEVICE_ID_LIST             CompatibleIdList;   /* _CID list <must be last> */
+    ACPI_PNP_DEVICE_ID              HardwareId;         /* _HID value */
+    ACPI_PNP_DEVICE_ID              UniqueId;           /* _UID value */
+    ACPI_PNP_DEVICE_ID              SubsystemId;        /* _SUB value */
+    ACPI_PNP_DEVICE_ID_LIST         CompatibleIdList;   /* _CID list <must be last> */
 
 } ACPI_DEVICE_INFO;
 
@@ -1154,11 +1187,12 @@ typedef struct acpi_device_info
 #define ACPI_VALID_ADR                  0x02
 #define ACPI_VALID_HID                  0x04
 #define ACPI_VALID_UID                  0x08
-#define ACPI_VALID_CID                  0x10
-#define ACPI_VALID_SXDS                 0x20
-#define ACPI_VALID_SXWS                 0x40
+#define ACPI_VALID_SUB                  0x10
+#define ACPI_VALID_CID                  0x20
+#define ACPI_VALID_SXDS                 0x40
+#define ACPI_VALID_SXWS                 0x80
 
-/* Flags for _STA method */
+/* Flags for _STA return value (CurrentStatus above) */
 
 #define ACPI_STA_DEVICE_PRESENT         0x01
 #define ACPI_STA_DEVICE_ENABLED         0x02
@@ -1200,7 +1234,6 @@ typedef struct acpi_memory_list
     UINT16                          ObjectSize;
     UINT16                          MaxDepth;
     UINT16                          CurrentDepth;
-    UINT16                          LinkOffset;
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 

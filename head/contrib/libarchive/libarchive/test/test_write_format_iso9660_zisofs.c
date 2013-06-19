@@ -106,15 +106,18 @@ test_write_format_iso9660_zisofs_1(void)
 	memset(nullb, 0, sizeof(nullb));
 	buff = malloc(buffsize);
 	assert(buff != NULL);
+	if (buff == NULL)
+		return;
 
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_iso9660(a));
-	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
+	assertEqualIntA(a, 0, archive_write_add_filter_none(a));
 	r = archive_write_set_option(a, NULL, "zisofs", "1");
 	if (r == ARCHIVE_FATAL) {
 		skipping("zisofs option not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
 		return;
 	}
 	assertEqualIntA(a, 0, archive_write_set_option(a, NULL, "pad", NULL));
@@ -335,15 +338,18 @@ test_write_format_iso9660_zisofs_2(void)
 
 	buff = malloc(buffsize);
 	assert(buff != NULL);
+	if (buff == NULL)
+		return;
 
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_iso9660(a));
-	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
+	assertEqualIntA(a, 0, archive_write_add_filter_none(a));
 	r = archive_write_set_option(a, NULL, "zisofs", "1");
 	if (r == ARCHIVE_FATAL) {
 		skipping("zisofs option not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
 		return;
 	}
 	assertEqualIntA(a, 0, archive_write_set_option(a, NULL, "pad", NULL));
@@ -585,15 +591,18 @@ test_write_format_iso9660_zisofs_3(void)
 	memset(nullb, 0, sizeof(nullb));
 	buff = malloc(buffsize);
 	assert(buff != NULL);
+	if (buff == NULL)
+		return;
 
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_iso9660(a));
-	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
+	assertEqualIntA(a, 0, archive_write_add_filter_none(a));
 	r = archive_write_set_option(a, NULL, "zisofs", "1");
 	if (r == ARCHIVE_FATAL) {
 		skipping("zisofs option not supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		free(buff);
 		return;
 	}
 	assertEqualIntA(a, 0, archive_write_set_option(a, NULL, "boot", "boot.img"));

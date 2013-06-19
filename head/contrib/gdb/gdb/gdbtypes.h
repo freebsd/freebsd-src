@@ -273,6 +273,13 @@ enum type_code
 #define TYPE_ADDRESS_CLASS_ALL(t) (TYPE_INSTANCE_FLAGS(t) \
 				   & TYPE_FLAG_ADDRESS_CLASS_ALL)
 
+/* Restrict type.  If this is set, the corresponding type has a
+ * restrict modifier.
+ */
+
+#define TYPE_FLAG_RESTRICT (1 << 17)
+#define TYPE_RESTRICT(t)	(TYPE_INSTANCE_FLAGS (t) & TYPE_FLAG_RESTRICT)
+
 /*  Array bound type.  */
 enum array_bound_type
 {
@@ -1099,7 +1106,8 @@ extern struct type *lookup_reference_type (struct type *);
 
 extern struct type *make_reference_type (struct type *, struct type **);
 
-extern struct type *make_cv_type (int, int, struct type *, struct type **);
+extern struct type *make_cvr_type (int, int, int, struct type *,
+                                   struct type **);
 
 extern void replace_type (struct type *, struct type *);
 

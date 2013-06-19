@@ -12,17 +12,18 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "loop-instsimplify"
-#include "llvm/Instructions.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 STATISTIC(NumSimplified, "Number of redundant instructions simplified");
@@ -66,7 +67,7 @@ Pass *llvm::createLoopInstSimplifyPass() {
 bool LoopInstSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
   DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>();
   LoopInfo *LI = &getAnalysis<LoopInfo>();
-  const TargetData *TD = getAnalysisIfAvailable<TargetData>();
+  const DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
   const TargetLibraryInfo *TLI = &getAnalysis<TargetLibraryInfo>();
 
   SmallVector<BasicBlock*, 8> ExitBlocks;
@@ -120,7 +121,7 @@ bool LoopInstSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
             ++NumSimplified;
           }
         }
-        LocalChanged |= RecursivelyDeleteTriviallyDeadInstructions(I);
+        LocalChanged |= RecursivelyDeleteTriviallyDeadInstructions(I, TLI);
 
         if (IsSubloopHeader && !isa<PHINode>(I))
           break;

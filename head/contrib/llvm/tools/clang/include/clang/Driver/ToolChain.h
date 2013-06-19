@@ -10,8 +10,10 @@
 #ifndef CLANG_DRIVER_TOOLCHAIN_H_
 #define CLANG_DRIVER_TOOLCHAIN_H_
 
-#include "clang/Driver/Util.h"
+#include "clang/Driver/Action.h"
 #include "clang/Driver/Types.h"
+#include "clang/Driver/Util.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Path.h"
@@ -47,6 +49,7 @@ public:
 private:
   const Driver &D;
   const llvm::Triple Triple;
+  const ArgList &Args;
 
   /// The list of toolchain specific path prefixes to search for
   /// files.
@@ -56,8 +59,20 @@ private:
   /// programs.
   path_list ProgramPaths;
 
+  mutable OwningPtr<Tool> Clang;
+  mutable OwningPtr<Tool> Assemble;
+  mutable OwningPtr<Tool> Link;
+  Tool *getClang() const;
+  Tool *getAssemble() const;
+  Tool *getLink() const;
+  Tool *getClangAs() const;
+
 protected:
-  ToolChain(const Driver &D, const llvm::Triple &T);
+  ToolChain(const Driver &D, const llvm::Triple &T, const ArgList &Args);
+
+  virtual Tool *buildAssembler() const;
+  virtual Tool *buildLinker() const;
+  virtual Tool *getTool(Action::ActionClass AC) const;
 
   /// \name Utilities for implementing subclasses.
   ///@{
@@ -67,6 +82,9 @@ protected:
   static void addExternCSystemInclude(const ArgList &DriverArgs,
                                       ArgStringList &CC1Args,
                                       const Twine &Path);
+  static void addExternCSystemIncludeIfExists(const ArgList &DriverArgs,
+                                              ArgStringList &CC1Args,
+                                              const Twine &Path);
   static void addSystemIncludes(const ArgList &DriverArgs,
                                 ArgStringList &CC1Args,
                                 ArrayRef<StringRef> Paths);
@@ -84,6 +102,10 @@ public:
   StringRef getArchName() const { return Triple.getArchName(); }
   StringRef getPlatform() const { return Triple.getVendorName(); }
   StringRef getOS() const { return Triple.getOSName(); }
+
+  /// \brief Provide the default architecture name (as expected by -arch) for
+  /// this toolchain. Note t
+  std::string getDefaultUniversalArchName() const;
 
   std::string getTripleString() const {
     return Triple.getTriple();
@@ -107,15 +129,13 @@ public:
     return 0;
   }
 
-  /// SelectTool - Choose a tool to use to handle the action \arg JA with the
-  /// given \arg Inputs.
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
-                           const ActionList &Inputs) const = 0;
+  /// Choose a tool to use to handle the action \p JA.
+  Tool *SelectTool(const JobAction &JA) const;
 
   // Helper methods
 
   std::string GetFilePath(const char *Name) const;
-  std::string GetProgramPath(const char *Name, bool WantFile = false) const;
+  std::string GetProgramPath(const char *Name) const;
 
   // Platform defaults information
 
@@ -134,6 +154,9 @@ public:
   /// by default.
   virtual bool IsIntegratedAssemblerDefault() const { return false; }
 
+  /// \brief Check if the toolchain should use the integrated assembler.
+  bool useIntegratedAs() const;
+
   /// IsStrictAliasingDefault - Does this tool chain use -fstrict-aliasing by
   /// default.
   virtual bool IsStrictAliasingDefault() const { return true; }
@@ -143,7 +166,11 @@ public:
 
   /// IsObjCDefaultSynthPropertiesDefault - Does this tool chain enable
   /// -fobjc-default-synthesize-properties by default.
-  virtual bool IsObjCDefaultSynthPropertiesDefault() const { return false; }
+  virtual bool IsObjCDefaultSynthPropertiesDefault() const { return true; }
+  
+  /// IsEncodeExtendedBlockSignatureDefault - Does this tool chain enable
+  /// -fencode-extended-block-signature by default.
+  virtual bool IsEncodeExtendedBlockSignatureDefault() const { return false; }
 
   /// IsObjCNonFragileABIDefault - Does this tool chain set
   /// -fobjc-nonfragile-abi by default.
@@ -166,16 +193,19 @@ public:
 
   /// IsUnwindTablesDefault - Does this tool chain use -funwind-tables
   /// by default.
-  virtual bool IsUnwindTablesDefault() const = 0;
+  virtual bool IsUnwindTablesDefault() const;
 
-  /// GetDefaultRelocationModel - Return the LLVM name of the default
-  /// relocation model for this tool chain.
-  virtual const char *GetDefaultRelocationModel() const = 0;
+  /// \brief Test whether this toolchain defaults to PIC.
+  virtual bool isPICDefault() const = 0;
 
-  /// GetForcedPicModel - Return the LLVM name of the forced PIC model
-  /// for this tool chain, or 0 if this tool chain does not force a
-  /// particular PIC mode.
-  virtual const char *GetForcedPicModel() const = 0;
+  /// \brief Test whether this toolchain defaults to PIE.
+  virtual bool isPIEDefault() const = 0;
+
+  /// \brief Tests whether this toolchain forces its default for PIC, PIE or
+  /// non-PIC.  If this returns true, any PIC related flags should be ignored
+  /// and instead the results of \c isPICDefault() and \c isPIEDefault() are
+  /// used exclusively.
+  virtual bool isPICDefaultForced() const = 0;
 
   /// SupportsProfiling - Does this tool chain support -pg.
   virtual bool SupportsProfiling() const { return true; }
@@ -183,8 +213,8 @@ public:
   /// Does this tool chain support Objective-C garbage collection.
   virtual bool SupportsObjCGC() const { return true; }
 
-  /// Does this tool chain support Objective-C ARC.
-  virtual bool SupportsObjCARC() const { return true; }
+  /// Complain if this tool chain doesn't support Objective-C ARC.
+  virtual void CheckObjCARC() const {}
 
   /// UseDwarfDebugFlags - Embed the compile options to clang into the Dwarf
   /// compile unit information.
@@ -226,9 +256,9 @@ public:
   virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                          ArgStringList &CC1Args) const;
 
-  // addClangTargetOptions - Add options that need to be passed to cc1 for
-  // this target.
-  virtual void addClangTargetOptions(ArgStringList &CC1Args) const;
+  /// \brief Add options that need to be passed to cc1 for this target.
+  virtual void addClangTargetOptions(const ArgList &DriverArgs,
+                                     ArgStringList &CC1Args) const;
 
   // GetRuntimeLibType - Determine the runtime library type to use with the
   // given compilation arguments.
@@ -252,6 +282,13 @@ public:
   /// for kernel extensions (Darwin-specific).
   virtual void AddCCKextLibArgs(const ArgList &Args,
                                 ArgStringList &CmdArgs) const;
+
+  /// AddFastMathRuntimeIfAvailable - If a runtime library exists that sets
+  /// global flags for unsafe floating point math, add it and return true.
+  ///
+  /// This checks for presence of the -ffast-math or -funsafe-math flags.
+  virtual bool AddFastMathRuntimeIfAvailable(const ArgList &Args,
+                                             ArgStringList &CmdArgs) const;
 };
 
 } // end namespace driver

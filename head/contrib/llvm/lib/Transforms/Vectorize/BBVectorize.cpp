@@ -16,41 +16,52 @@
 
 #define BBV_NAME "bb-vectorize"
 #define DEBUG_TYPE BBV_NAME
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
-#include "llvm/Pass.h"
-#include "llvm/Type.h"
+#include "llvm/Transforms/Vectorize.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AliasSetTracker.h"
+#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Type.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ValueHandle.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Vectorize.h"
 #include <algorithm>
-#include <map>
 using namespace llvm;
+
+static cl::opt<bool>
+IgnoreTargetInfo("bb-vectorize-ignore-target-info",  cl::init(false),
+  cl::Hidden, cl::desc("Ignore target information"));
 
 static cl::opt<unsigned>
 ReqChainDepth("bb-vectorize-req-chain-depth", cl::init(6), cl::Hidden,
   cl::desc("The required chain depth for vectorization"));
+
+static cl::opt<bool>
+UseChainDepthWithTI("bb-vectorize-use-chain-depth",  cl::init(false),
+  cl::Hidden, cl::desc("Use the chain depth requirement with"
+                       " target information"));
 
 static cl::opt<unsigned>
 SearchLimit("bb-vectorize-search-limit", cl::init(400), cl::Hidden,
@@ -77,6 +88,10 @@ MaxInsts("bb-vectorize-max-instr-per-group", cl::init(500), cl::Hidden,
   cl::desc("The maximum number of pairable instructions per group"));
 
 static cl::opt<unsigned>
+MaxPairs("bb-vectorize-max-pairs-per-group", cl::init(3000), cl::Hidden,
+  cl::desc("The maximum number of candidate instruction pairs per group"));
+
+static cl::opt<unsigned>
 MaxCandPairsForCycleCheck("bb-vectorize-max-cycle-check-pairs", cl::init(200),
   cl::Hidden, cl::desc("The maximum number of candidate pairs with which to use"
                        " a full cycle check"));
@@ -93,8 +108,9 @@ static cl::opt<bool>
 NoFloats("bb-vectorize-no-floats", cl::init(false), cl::Hidden,
   cl::desc("Don't try to vectorize floating-point values"));
 
+// FIXME: This should default to false once pointer vector support works.
 static cl::opt<bool>
-NoPointers("bb-vectorize-no-pointers", cl::init(false), cl::Hidden,
+NoPointers("bb-vectorize-no-pointers", cl::init(/*false*/ true), cl::Hidden,
   cl::desc("Don't try to vectorize pointer values"));
 
 static cl::opt<bool>
@@ -159,6 +175,12 @@ DebugCycleCheck("bb-vectorize-debug-cycle-check",
   cl::init(false), cl::Hidden,
   cl::desc("When debugging is enabled, output information on the"
            " cycle-checking process"));
+
+static cl::opt<bool>
+PrintAfterEveryPair("bb-vectorize-debug-print-after-every-pair",
+  cl::init(false), cl::Hidden,
+  cl::desc("When debugging is enabled, dump the basic block after"
+           " every pair is fused"));
 #endif
 
 STATISTIC(NumFusedOps, "Number of operations fused by bb-vectorize");
@@ -177,22 +199,23 @@ namespace {
     BBVectorize(Pass *P, const VectorizeConfig &C)
       : BasicBlockPass(ID), Config(C) {
       AA = &P->getAnalysis<AliasAnalysis>();
+      DT = &P->getAnalysis<DominatorTree>();
       SE = &P->getAnalysis<ScalarEvolution>();
-      TD = P->getAnalysisIfAvailable<TargetData>();
+      TD = P->getAnalysisIfAvailable<DataLayout>();
+      TTI = IgnoreTargetInfo ? 0 : &P->getAnalysis<TargetTransformInfo>();
     }
 
     typedef std::pair<Value *, Value *> ValuePair;
+    typedef std::pair<ValuePair, int> ValuePairWithCost;
     typedef std::pair<ValuePair, size_t> ValuePairWithDepth;
     typedef std::pair<ValuePair, ValuePair> VPPair; // A ValuePair pair
-    typedef std::pair<std::multimap<Value *, Value *>::iterator,
-              std::multimap<Value *, Value *>::iterator> VPIteratorPair;
-    typedef std::pair<std::multimap<ValuePair, ValuePair>::iterator,
-              std::multimap<ValuePair, ValuePair>::iterator>
-                VPPIteratorPair;
+    typedef std::pair<VPPair, unsigned> VPPairWithType;
 
     AliasAnalysis *AA;
+    DominatorTree *DT;
     ScalarEvolution *SE;
-    TargetData *TD;
+    DataLayout *TD;
+    const TargetTransformInfo *TTI;
 
     // FIXME: const correct?
 
@@ -200,84 +223,121 @@ namespace {
 
     bool getCandidatePairs(BasicBlock &BB,
                        BasicBlock::iterator &Start,
-                       std::multimap<Value *, Value *> &CandidatePairs,
+                       DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+                       DenseSet<ValuePair> &FixedOrderPairs,
+                       DenseMap<ValuePair, int> &CandidatePairCostSavings,
                        std::vector<Value *> &PairableInsts, bool NonPow2Len);
 
-    void computeConnectedPairs(std::multimap<Value *, Value *> &CandidatePairs,
-                       std::vector<Value *> &PairableInsts,
-                       std::multimap<ValuePair, ValuePair> &ConnectedPairs);
+    // FIXME: The current implementation does not account for pairs that
+    // are connected in multiple ways. For example:
+    //   C1 = A1 / A2; C2 = A2 / A1 (which may be both direct and a swap)
+    enum PairConnectionType {
+      PairConnectionDirect,
+      PairConnectionSwap,
+      PairConnectionSplat
+    };
+
+    void computeConnectedPairs(
+             DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+             DenseSet<ValuePair> &CandidatePairsSet,
+             std::vector<Value *> &PairableInsts,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseMap<VPPair, unsigned> &PairConnectionTypes);
 
     void buildDepMap(BasicBlock &BB,
-                       std::multimap<Value *, Value *> &CandidatePairs,
-                       std::vector<Value *> &PairableInsts,
-                       DenseSet<ValuePair> &PairableInstUsers);
+             DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+             std::vector<Value *> &PairableInsts,
+             DenseSet<ValuePair> &PairableInstUsers);
 
-    void choosePairs(std::multimap<Value *, Value *> &CandidatePairs,
-                        std::vector<Value *> &PairableInsts,
-                        std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                        DenseSet<ValuePair> &PairableInstUsers,
-                        DenseMap<Value *, Value *>& ChosenPairs);
+    void choosePairs(DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+             DenseSet<ValuePair> &CandidatePairsSet,
+             DenseMap<ValuePair, int> &CandidatePairCostSavings,
+             std::vector<Value *> &PairableInsts,
+             DenseSet<ValuePair> &FixedOrderPairs,
+             DenseMap<VPPair, unsigned> &PairConnectionTypes,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps,
+             DenseSet<ValuePair> &PairableInstUsers,
+             DenseMap<Value *, Value *>& ChosenPairs);
 
     void fuseChosenPairs(BasicBlock &BB,
-                     std::vector<Value *> &PairableInsts,
-                     DenseMap<Value *, Value *>& ChosenPairs);
+             std::vector<Value *> &PairableInsts,
+             DenseMap<Value *, Value *>& ChosenPairs,
+             DenseSet<ValuePair> &FixedOrderPairs,
+             DenseMap<VPPair, unsigned> &PairConnectionTypes,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps);
+
 
     bool isInstVectorizable(Instruction *I, bool &IsSimpleLoadStore);
 
     bool areInstsCompatible(Instruction *I, Instruction *J,
-                       bool IsSimpleLoadStore, bool NonPow2Len);
+                       bool IsSimpleLoadStore, bool NonPow2Len,
+                       int &CostSavings, int &FixedOrder);
 
     bool trackUsesOfI(DenseSet<Value *> &Users,
                       AliasSetTracker &WriteSet, Instruction *I,
                       Instruction *J, bool UpdateUsers = true,
-                      std::multimap<Value *, Value *> *LoadMoveSet = 0);
+                      DenseSet<ValuePair> *LoadMoveSetPairs = 0);
 
-    void computePairsConnectedTo(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      ValuePair P);
+  void computePairsConnectedTo(
+             DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+             DenseSet<ValuePair> &CandidatePairsSet,
+             std::vector<Value *> &PairableInsts,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseMap<VPPair, unsigned> &PairConnectionTypes,
+             ValuePair P);
 
     bool pairsConflict(ValuePair P, ValuePair Q,
-                 DenseSet<ValuePair> &PairableInstUsers,
-                 std::multimap<ValuePair, ValuePair> *PairableInstUserMap = 0);
+             DenseSet<ValuePair> &PairableInstUsers,
+             DenseMap<ValuePair, std::vector<ValuePair> >
+               *PairableInstUserMap = 0,
+             DenseSet<VPPair> *PairableInstUserPairSet = 0);
 
     bool pairWillFormCycle(ValuePair P,
-                       std::multimap<ValuePair, ValuePair> &PairableInstUsers,
-                       DenseSet<ValuePair> &CurrentPairs);
+             DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUsers,
+             DenseSet<ValuePair> &CurrentPairs);
 
-    void pruneTreeFor(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      DenseSet<ValuePair> &PairableInstUsers,
-                      std::multimap<ValuePair, ValuePair> &PairableInstUserMap,
-                      DenseMap<Value *, Value *> &ChosenPairs,
-                      DenseMap<ValuePair, size_t> &Tree,
-                      DenseSet<ValuePair> &PrunedTree, ValuePair J,
-                      bool UseCycleCheck);
+    void pruneDAGFor(
+             DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+             std::vector<Value *> &PairableInsts,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseSet<ValuePair> &PairableInstUsers,
+             DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
+             DenseSet<VPPair> &PairableInstUserPairSet,
+             DenseMap<Value *, Value *> &ChosenPairs,
+             DenseMap<ValuePair, size_t> &DAG,
+             DenseSet<ValuePair> &PrunedDAG, ValuePair J,
+             bool UseCycleCheck);
 
-    void buildInitialTreeFor(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      DenseSet<ValuePair> &PairableInstUsers,
-                      DenseMap<Value *, Value *> &ChosenPairs,
-                      DenseMap<ValuePair, size_t> &Tree, ValuePair J);
+    void buildInitialDAGFor(
+             DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+             DenseSet<ValuePair> &CandidatePairsSet,
+             std::vector<Value *> &PairableInsts,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseSet<ValuePair> &PairableInstUsers,
+             DenseMap<Value *, Value *> &ChosenPairs,
+             DenseMap<ValuePair, size_t> &DAG, ValuePair J);
 
-    void findBestTreeFor(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      DenseSet<ValuePair> &PairableInstUsers,
-                      std::multimap<ValuePair, ValuePair> &PairableInstUserMap,
-                      DenseMap<Value *, Value *> &ChosenPairs,
-                      DenseSet<ValuePair> &BestTree, size_t &BestMaxDepth,
-                      size_t &BestEffSize, VPIteratorPair ChoiceRange,
-                      bool UseCycleCheck);
+    void findBestDAGFor(
+             DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+             DenseSet<ValuePair> &CandidatePairsSet,
+             DenseMap<ValuePair, int> &CandidatePairCostSavings,
+             std::vector<Value *> &PairableInsts,
+             DenseSet<ValuePair> &FixedOrderPairs,
+             DenseMap<VPPair, unsigned> &PairConnectionTypes,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps,
+             DenseSet<ValuePair> &PairableInstUsers,
+             DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
+             DenseSet<VPPair> &PairableInstUserPairSet,
+             DenseMap<Value *, Value *> &ChosenPairs,
+             DenseSet<ValuePair> &BestDAG, size_t &BestMaxDepth,
+             int &BestEffSize, Value *II, std::vector<Value *>&JJ,
+             bool UseCycleCheck);
 
     Value *getReplacementPointerInput(LLVMContext& Context, Instruction *I,
-                     Instruction *J, unsigned o, bool FlipMemInputs);
+                     Instruction *J, unsigned o);
 
     void fillNewShuffleMask(LLVMContext& Context, Instruction *J,
                      unsigned MaskOffset, unsigned NumInElem,
@@ -289,54 +349,61 @@ namespace {
 
     bool expandIEChain(LLVMContext& Context, Instruction *I, Instruction *J,
                        unsigned o, Value *&LOp, unsigned numElemL,
-                       Type *ArgTypeL, Type *ArgTypeR,
+                       Type *ArgTypeL, Type *ArgTypeR, bool IBeforeJ,
                        unsigned IdxOff = 0);
 
     Value *getReplacementInput(LLVMContext& Context, Instruction *I,
-                     Instruction *J, unsigned o, bool FlipMemInputs);
+                     Instruction *J, unsigned o, bool IBeforeJ);
 
     void getReplacementInputsForPair(LLVMContext& Context, Instruction *I,
                      Instruction *J, SmallVector<Value *, 3> &ReplacedOperands,
-                     bool FlipMemInputs);
+                     bool IBeforeJ);
 
     void replaceOutputsOfPair(LLVMContext& Context, Instruction *I,
                      Instruction *J, Instruction *K,
                      Instruction *&InsertionPt, Instruction *&K1,
-                     Instruction *&K2, bool FlipMemInputs);
+                     Instruction *&K2);
 
     void collectPairLoadMoveSet(BasicBlock &BB,
                      DenseMap<Value *, Value *> &ChosenPairs,
-                     std::multimap<Value *, Value *> &LoadMoveSet,
+                     DenseMap<Value *, std::vector<Value *> > &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *I);
 
     void collectLoadMoveSet(BasicBlock &BB,
                      std::vector<Value *> &PairableInsts,
                      DenseMap<Value *, Value *> &ChosenPairs,
-                     std::multimap<Value *, Value *> &LoadMoveSet);
-
-    void collectPtrInfo(std::vector<Value *> &PairableInsts,
-                        DenseMap<Value *, Value *> &ChosenPairs,
-                        DenseSet<Value *> &LowPtrInsts);
+                     DenseMap<Value *, std::vector<Value *> > &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs);
 
     bool canMoveUsesOfIAfterJ(BasicBlock &BB,
-                     std::multimap<Value *, Value *> &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *I, Instruction *J);
 
     void moveUsesOfIAfterJ(BasicBlock &BB,
-                     std::multimap<Value *, Value *> &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *&InsertionPt,
                      Instruction *I, Instruction *J);
 
     void combineMetadata(Instruction *K, const Instruction *J);
 
     bool vectorizeBB(BasicBlock &BB) {
+      if (!DT->isReachableFromEntry(&BB)) {
+        DEBUG(dbgs() << "BBV: skipping unreachable " << BB.getName() <<
+              " in " << BB.getParent()->getName() << "\n");
+        return false;
+      }
+
+      DEBUG(if (TTI) dbgs() << "BBV: using target information\n");
+
       bool changed = false;
       // Iterate a sufficient number of times to merge types of size 1 bit,
       // then 2 bits, then 4, etc. up to half of the target vector width of the
       // target vector register.
       unsigned n = 1;
       for (unsigned v = 2;
-           v <= Config.VectorBits && (!Config.MaxIter || n <= Config.MaxIter);
+           (TTI || v <= Config.VectorBits) &&
+           (!Config.MaxIter || n <= Config.MaxIter);
            v *= 2, ++n) {
         DEBUG(dbgs() << "BBV: fusing loop #" << n <<
               " for " << BB.getName() << " in " <<
@@ -363,8 +430,10 @@ namespace {
 
     virtual bool runOnBasicBlock(BasicBlock &BB) {
       AA = &getAnalysis<AliasAnalysis>();
+      DT = &getAnalysis<DominatorTree>();
       SE = &getAnalysis<ScalarEvolution>();
-      TD = getAnalysisIfAvailable<TargetData>();
+      TD = getAnalysisIfAvailable<DataLayout>();
+      TTI = IgnoreTargetInfo ? 0 : &getAnalysis<TargetTransformInfo>();
 
       return vectorizeBB(BB);
     }
@@ -372,8 +441,11 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       BasicBlockPass::getAnalysisUsage(AU);
       AU.addRequired<AliasAnalysis>();
+      AU.addRequired<DominatorTree>();
       AU.addRequired<ScalarEvolution>();
+      AU.addRequired<TargetTransformInfo>();
       AU.addPreserved<AliasAnalysis>();
+      AU.addPreserved<DominatorTree>();
       AU.addPreserved<ScalarEvolution>();
       AU.setPreservesCFG();
     }
@@ -401,20 +473,28 @@ namespace {
 
     static inline void getInstructionTypes(Instruction *I,
                                            Type *&T1, Type *&T2) {
-      if (isa<StoreInst>(I)) {
+      if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
         // For stores, it is the value type, not the pointer type that matters
         // because the value is what will come from a vector register.
   
-        Value *IVal = cast<StoreInst>(I)->getValueOperand();
+        Value *IVal = SI->getValueOperand();
         T1 = IVal->getType();
       } else {
         T1 = I->getType();
       }
   
-      if (I->isCast())
-        T2 = cast<CastInst>(I)->getSrcTy();
+      if (CastInst *CI = dyn_cast<CastInst>(I))
+        T2 = CI->getSrcTy();
       else
         T2 = T1;
+
+      if (SelectInst *SI = dyn_cast<SelectInst>(I)) {
+        T2 = SI->getCondition()->getType();
+      } else if (ShuffleVectorInst *SI = dyn_cast<ShuffleVectorInst>(I)) {
+        T2 = SI->getOperand(0)->getType();
+      } else if (CmpInst *CI = dyn_cast<CmpInst>(I)) {
+        T2 = CI->getOperand(0)->getType();
+      }
     }
 
     // Returns the weight associated with the provided value. A chain of
@@ -430,7 +510,7 @@ namespace {
       // InsertElement and ExtractElement have a depth factor of zero. This is
       // for two reasons: First, they cannot be usefully fused. Second, because
       // the pass generates a lot of these, they can confuse the simple metric
-      // used to compare the trees in the next iteration. Thus, giving them a
+      // used to compare the dags in the next iteration. Thus, giving them a
       // weight of zero allows the pass to essentially ignore them in
       // subsequent iterations when looking for vectorization opportunities
       // while still tracking dependency chains that flow through those
@@ -446,6 +526,62 @@ namespace {
       return 1;
     }
 
+    // Returns the cost of the provided instruction using TTI.
+    // This does not handle loads and stores.
+    unsigned getInstrCost(unsigned Opcode, Type *T1, Type *T2) {
+      switch (Opcode) {
+      default: break;
+      case Instruction::GetElementPtr:
+        // We mark this instruction as zero-cost because scalar GEPs are usually
+        // lowered to the intruction addressing mode. At the moment we don't
+        // generate vector GEPs.
+        return 0;
+      case Instruction::Br:
+        return TTI->getCFInstrCost(Opcode);
+      case Instruction::PHI:
+        return 0;
+      case Instruction::Add:
+      case Instruction::FAdd:
+      case Instruction::Sub:
+      case Instruction::FSub:
+      case Instruction::Mul:
+      case Instruction::FMul:
+      case Instruction::UDiv:
+      case Instruction::SDiv:
+      case Instruction::FDiv:
+      case Instruction::URem:
+      case Instruction::SRem:
+      case Instruction::FRem:
+      case Instruction::Shl:
+      case Instruction::LShr:
+      case Instruction::AShr:
+      case Instruction::And:
+      case Instruction::Or:
+      case Instruction::Xor:
+        return TTI->getArithmeticInstrCost(Opcode, T1);
+      case Instruction::Select:
+      case Instruction::ICmp:
+      case Instruction::FCmp:
+        return TTI->getCmpSelInstrCost(Opcode, T1, T2);
+      case Instruction::ZExt:
+      case Instruction::SExt:
+      case Instruction::FPToUI:
+      case Instruction::FPToSI:
+      case Instruction::FPExt:
+      case Instruction::PtrToInt:
+      case Instruction::IntToPtr:
+      case Instruction::SIToFP:
+      case Instruction::UIToFP:
+      case Instruction::Trunc:
+      case Instruction::FPTrunc:
+      case Instruction::BitCast:
+      case Instruction::ShuffleVector:
+        return TTI->getCastInstrCost(Opcode, T1, T2);
+      }
+
+      return 1;
+    }
+
     // This determines the relative offset of two loads or stores, returning
     // true if the offset could be determined to be some constant value.
     // For example, if OffsetInElmts == 1, then J accesses the memory directly
@@ -453,19 +589,29 @@ namespace {
     // directly after J.
     bool getPairPtrInfo(Instruction *I, Instruction *J,
         Value *&IPtr, Value *&JPtr, unsigned &IAlignment, unsigned &JAlignment,
-        int64_t &OffsetInElmts) {
+        unsigned &IAddressSpace, unsigned &JAddressSpace,
+        int64_t &OffsetInElmts, bool ComputeOffset = true) {
       OffsetInElmts = 0;
-      if (isa<LoadInst>(I)) {
-        IPtr = cast<LoadInst>(I)->getPointerOperand();
-        JPtr = cast<LoadInst>(J)->getPointerOperand();
-        IAlignment = cast<LoadInst>(I)->getAlignment();
-        JAlignment = cast<LoadInst>(J)->getAlignment();
+      if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
+        LoadInst *LJ = cast<LoadInst>(J);
+        IPtr = LI->getPointerOperand();
+        JPtr = LJ->getPointerOperand();
+        IAlignment = LI->getAlignment();
+        JAlignment = LJ->getAlignment();
+        IAddressSpace = LI->getPointerAddressSpace();
+        JAddressSpace = LJ->getPointerAddressSpace();
       } else {
-        IPtr = cast<StoreInst>(I)->getPointerOperand();
-        JPtr = cast<StoreInst>(J)->getPointerOperand();
-        IAlignment = cast<StoreInst>(I)->getAlignment();
-        JAlignment = cast<StoreInst>(J)->getAlignment();
+        StoreInst *SI = cast<StoreInst>(I), *SJ = cast<StoreInst>(J);
+        IPtr = SI->getPointerOperand();
+        JPtr = SJ->getPointerOperand();
+        IAlignment = SI->getAlignment();
+        JAlignment = SJ->getAlignment();
+        IAddressSpace = SI->getPointerAddressSpace();
+        JAddressSpace = SJ->getPointerAddressSpace();
       }
+
+      if (!ComputeOffset)
+        return true;
 
       const SCEV *IPtrSCEV = SE->getSCEV(IPtr);
       const SCEV *JPtrSCEV = SE->getSCEV(JPtr);
@@ -502,7 +648,7 @@ namespace {
       Function *F = I->getCalledFunction();
       if (!F) return false;
 
-      unsigned IID = F->getIntrinsicID();
+      Intrinsic::ID IID = (Intrinsic::ID) F->getIntrinsicID();
       if (!IID) return false;
 
       switch(IID) {
@@ -520,21 +666,22 @@ namespace {
       case Intrinsic::pow:
         return Config.VectorizeMath;
       case Intrinsic::fma:
+      case Intrinsic::fmuladd:
         return Config.VectorizeFMA;
       }
     }
 
-    // Returns true if J is the second element in some pair referenced by
-    // some multimap pair iterator pair.
-    template <typename V>
-    bool isSecondInIteratorPair(V J, std::pair<
-           typename std::multimap<V, V>::iterator,
-           typename std::multimap<V, V>::iterator> PairRange) {
-      for (typename std::multimap<V, V>::iterator K = PairRange.first;
-           K != PairRange.second; ++K)
-        if (K->second == J) return true;
+    bool isPureIEChain(InsertElementInst *IE) {
+      InsertElementInst *IENext = IE;
+      do {
+        if (!isa<UndefValue>(IENext->getOperand(0)) &&
+            !isa<InsertElementInst>(IENext->getOperand(0))) {
+          return false;
+        }
+      } while ((IENext =
+                 dyn_cast<InsertElementInst>(IENext->getOperand(0))));
 
-      return false;
+      return true;
     }
   };
 
@@ -546,13 +693,29 @@ namespace {
 
     std::vector<Value *> AllPairableInsts;
     DenseMap<Value *, Value *> AllChosenPairs;
+    DenseSet<ValuePair> AllFixedOrderPairs;
+    DenseMap<VPPair, unsigned> AllPairConnectionTypes;
+    DenseMap<ValuePair, std::vector<ValuePair> > AllConnectedPairs,
+                                                 AllConnectedPairDeps;
 
     do {
       std::vector<Value *> PairableInsts;
-      std::multimap<Value *, Value *> CandidatePairs;
+      DenseMap<Value *, std::vector<Value *> > CandidatePairs;
+      DenseSet<ValuePair> FixedOrderPairs;
+      DenseMap<ValuePair, int> CandidatePairCostSavings;
       ShouldContinue = getCandidatePairs(BB, Start, CandidatePairs,
+                                         FixedOrderPairs,
+                                         CandidatePairCostSavings,
                                          PairableInsts, NonPow2Len);
       if (PairableInsts.empty()) continue;
+
+      // Build the candidate pair set for faster lookups.
+      DenseSet<ValuePair> CandidatePairsSet;
+      for (DenseMap<Value *, std::vector<Value *> >::iterator I =
+           CandidatePairs.begin(), E = CandidatePairs.end(); I != E; ++I)
+        for (std::vector<Value *>::iterator J = I->second.begin(),
+             JE = I->second.end(); J != JE; ++J)
+          CandidatePairsSet.insert(ValuePair(I->first, *J));
 
       // Now we have a map of all of the pairable instructions and we need to
       // select the best possible pairing. A good pairing is one such that the
@@ -563,28 +726,75 @@ namespace {
       // Note that it only matters that both members of the second pair use some
       // element of the first pair (to allow for splatting).
 
-      std::multimap<ValuePair, ValuePair> ConnectedPairs;
-      computeConnectedPairs(CandidatePairs, PairableInsts, ConnectedPairs);
+      DenseMap<ValuePair, std::vector<ValuePair> > ConnectedPairs,
+                                                   ConnectedPairDeps;
+      DenseMap<VPPair, unsigned> PairConnectionTypes;
+      computeConnectedPairs(CandidatePairs, CandidatePairsSet,
+                            PairableInsts, ConnectedPairs, PairConnectionTypes);
       if (ConnectedPairs.empty()) continue;
+
+      for (DenseMap<ValuePair, std::vector<ValuePair> >::iterator
+           I = ConnectedPairs.begin(), IE = ConnectedPairs.end();
+           I != IE; ++I)
+        for (std::vector<ValuePair>::iterator J = I->second.begin(),
+             JE = I->second.end(); J != JE; ++J)
+          ConnectedPairDeps[*J].push_back(I->first);
 
       // Build the pairable-instruction dependency map
       DenseSet<ValuePair> PairableInstUsers;
       buildDepMap(BB, CandidatePairs, PairableInsts, PairableInstUsers);
 
       // There is now a graph of the connected pairs. For each variable, pick
-      // the pairing with the largest tree meeting the depth requirement on at
-      // least one branch. Then select all pairings that are part of that tree
+      // the pairing with the largest dag meeting the depth requirement on at
+      // least one branch. Then select all pairings that are part of that dag
       // and remove them from the list of available pairings and pairable
       // variables.
 
       DenseMap<Value *, Value *> ChosenPairs;
-      choosePairs(CandidatePairs, PairableInsts, ConnectedPairs,
+      choosePairs(CandidatePairs, CandidatePairsSet,
+        CandidatePairCostSavings,
+        PairableInsts, FixedOrderPairs, PairConnectionTypes,
+        ConnectedPairs, ConnectedPairDeps,
         PairableInstUsers, ChosenPairs);
 
       if (ChosenPairs.empty()) continue;
       AllPairableInsts.insert(AllPairableInsts.end(), PairableInsts.begin(),
                               PairableInsts.end());
       AllChosenPairs.insert(ChosenPairs.begin(), ChosenPairs.end());
+
+      // Only for the chosen pairs, propagate information on fixed-order pairs,
+      // pair connections, and their types to the data structures used by the
+      // pair fusion procedures.
+      for (DenseMap<Value *, Value *>::iterator I = ChosenPairs.begin(),
+           IE = ChosenPairs.end(); I != IE; ++I) {
+        if (FixedOrderPairs.count(*I))
+          AllFixedOrderPairs.insert(*I);
+        else if (FixedOrderPairs.count(ValuePair(I->second, I->first)))
+          AllFixedOrderPairs.insert(ValuePair(I->second, I->first));
+
+        for (DenseMap<Value *, Value *>::iterator J = ChosenPairs.begin();
+             J != IE; ++J) {
+          DenseMap<VPPair, unsigned>::iterator K =
+            PairConnectionTypes.find(VPPair(*I, *J));
+          if (K != PairConnectionTypes.end()) {
+            AllPairConnectionTypes.insert(*K);
+          } else {
+            K = PairConnectionTypes.find(VPPair(*J, *I));
+            if (K != PairConnectionTypes.end())
+              AllPairConnectionTypes.insert(*K);
+          }
+        }
+      }
+
+      for (DenseMap<ValuePair, std::vector<ValuePair> >::iterator
+           I = ConnectedPairs.begin(), IE = ConnectedPairs.end();
+           I != IE; ++I)
+        for (std::vector<ValuePair>::iterator J = I->second.begin(),
+          JE = I->second.end(); J != JE; ++J)
+          if (AllPairConnectionTypes.count(VPPair(I->first, *J))) {
+            AllConnectedPairs[I->first].push_back(*J);
+            AllConnectedPairDeps[*J].push_back(I->first);
+          }
     } while (ShouldContinue);
 
     if (AllChosenPairs.empty()) return false;
@@ -597,11 +807,13 @@ namespace {
     // replaced with a vector_extract on the result.  Subsequent optimization
     // passes should coalesce the build/extract combinations.
 
-    fuseChosenPairs(BB, AllPairableInsts, AllChosenPairs);
+    fuseChosenPairs(BB, AllPairableInsts, AllChosenPairs, AllFixedOrderPairs,
+                    AllPairConnectionTypes,
+                    AllConnectedPairs, AllConnectedPairDeps);
 
     // It is important to cleanup here so that future iterations of this
     // function have less work to do.
-    (void) SimplifyInstructionsInBlock(&BB, TD);
+    (void) SimplifyInstructionsInBlock(&BB, TD, AA->getTargetLibraryInfo());
     return true;
   }
 
@@ -667,15 +879,22 @@ namespace {
         !(VectorType::isValidElementType(T2) || T2->isVectorTy()))
       return false;
 
-    if (T1->getScalarSizeInBits() == 1 && T2->getScalarSizeInBits() == 1) {
+    if (T1->getScalarSizeInBits() == 1) {
       if (!Config.VectorizeBools)
         return false;
     } else {
-      if (!Config.VectorizeInts
-          && (T1->isIntOrIntVectorTy() || T2->isIntOrIntVectorTy()))
+      if (!Config.VectorizeInts && T1->isIntOrIntVectorTy())
         return false;
     }
-  
+
+    if (T2->getScalarSizeInBits() == 1) {
+      if (!Config.VectorizeBools)
+        return false;
+    } else {
+      if (!Config.VectorizeInts && T2->isIntOrIntVectorTy())
+        return false;
+    }
+
     if (!Config.VectorizeFloats
         && (T1->isFPOrFPVectorTy() || T2->isFPOrFPVectorTy()))
       return false;
@@ -691,8 +910,8 @@ namespace {
          T2->getScalarType()->isPointerTy()))
       return false;
 
-    if (T1->getPrimitiveSizeInBits() >= Config.VectorBits ||
-        T2->getPrimitiveSizeInBits() >= Config.VectorBits)
+    if (!TTI && (T1->getPrimitiveSizeInBits() >= Config.VectorBits ||
+                 T2->getPrimitiveSizeInBits() >= Config.VectorBits))
       return false;
 
     return true;
@@ -701,11 +920,15 @@ namespace {
   // This function returns true if the two provided instructions are compatible
   // (meaning that they can be fused into a vector instruction). This assumes
   // that I has already been determined to be vectorizable and that J is not
-  // in the use tree of I.
+  // in the use dag of I.
   bool BBVectorize::areInstsCompatible(Instruction *I, Instruction *J,
-                       bool IsSimpleLoadStore, bool NonPow2Len) {
+                       bool IsSimpleLoadStore, bool NonPow2Len,
+                       int &CostSavings, int &FixedOrder) {
     DEBUG(if (DebugInstructionExamination) dbgs() << "BBV: looking at " << *I <<
                      " <-> " << *J << "\n");
+
+    CostSavings = 0;
+    FixedOrder = 0;
 
     // Loads and stores can be merged if they have different alignments,
     // but are otherwise the same.
@@ -719,52 +942,162 @@ namespace {
     unsigned MaxTypeBits = std::max(
       IT1->getPrimitiveSizeInBits() + JT1->getPrimitiveSizeInBits(),
       IT2->getPrimitiveSizeInBits() + JT2->getPrimitiveSizeInBits());
-    if (MaxTypeBits > Config.VectorBits)
+    if (!TTI && MaxTypeBits > Config.VectorBits)
       return false;
 
     // FIXME: handle addsub-type operations!
 
     if (IsSimpleLoadStore) {
       Value *IPtr, *JPtr;
-      unsigned IAlignment, JAlignment;
+      unsigned IAlignment, JAlignment, IAddressSpace, JAddressSpace;
       int64_t OffsetInElmts = 0;
       if (getPairPtrInfo(I, J, IPtr, JPtr, IAlignment, JAlignment,
+            IAddressSpace, JAddressSpace,
             OffsetInElmts) && abs64(OffsetInElmts) == 1) {
-        if (Config.AlignedOnly) {
-          Type *aTypeI = isa<StoreInst>(I) ?
-            cast<StoreInst>(I)->getValueOperand()->getType() : I->getType();
-          Type *aTypeJ = isa<StoreInst>(J) ?
-            cast<StoreInst>(J)->getValueOperand()->getType() : J->getType();
+        FixedOrder = (int) OffsetInElmts;
+        unsigned BottomAlignment = IAlignment;
+        if (OffsetInElmts < 0) BottomAlignment = JAlignment;
 
+        Type *aTypeI = isa<StoreInst>(I) ?
+          cast<StoreInst>(I)->getValueOperand()->getType() : I->getType();
+        Type *aTypeJ = isa<StoreInst>(J) ?
+          cast<StoreInst>(J)->getValueOperand()->getType() : J->getType();
+        Type *VType = getVecTypeForPair(aTypeI, aTypeJ);
+
+        if (Config.AlignedOnly) {
           // An aligned load or store is possible only if the instruction
           // with the lower offset has an alignment suitable for the
           // vector type.
 
-          unsigned BottomAlignment = IAlignment;
-          if (OffsetInElmts < 0) BottomAlignment = JAlignment;
-
-          Type *VType = getVecTypeForPair(aTypeI, aTypeJ);
           unsigned VecAlignment = TD->getPrefTypeAlignment(VType);
           if (BottomAlignment < VecAlignment)
             return false;
         }
+
+        if (TTI) {
+          unsigned ICost = TTI->getMemoryOpCost(I->getOpcode(), aTypeI,
+                                                IAlignment, IAddressSpace);
+          unsigned JCost = TTI->getMemoryOpCost(J->getOpcode(), aTypeJ,
+                                                JAlignment, JAddressSpace);
+          unsigned VCost = TTI->getMemoryOpCost(I->getOpcode(), VType,
+                                                BottomAlignment,
+                                                IAddressSpace);
+
+          ICost += TTI->getAddressComputationCost(aTypeI);
+          JCost += TTI->getAddressComputationCost(aTypeJ);
+          VCost += TTI->getAddressComputationCost(VType);
+
+          if (VCost > ICost + JCost)
+            return false;
+
+          // We don't want to fuse to a type that will be split, even
+          // if the two input types will also be split and there is no other
+          // associated cost.
+          unsigned VParts = TTI->getNumberOfParts(VType);
+          if (VParts > 1)
+            return false;
+          else if (!VParts && VCost == ICost + JCost)
+            return false;
+
+          CostSavings = ICost + JCost - VCost;
+        }
       } else {
         return false;
       }
+    } else if (TTI) {
+      unsigned ICost = getInstrCost(I->getOpcode(), IT1, IT2);
+      unsigned JCost = getInstrCost(J->getOpcode(), JT1, JT2);
+      Type *VT1 = getVecTypeForPair(IT1, JT1),
+           *VT2 = getVecTypeForPair(IT2, JT2);
+
+      // Note that this procedure is incorrect for insert and extract element
+      // instructions (because combining these often results in a shuffle),
+      // but this cost is ignored (because insert and extract element
+      // instructions are assigned a zero depth factor and are not really
+      // fused in general).
+      unsigned VCost = getInstrCost(I->getOpcode(), VT1, VT2);
+
+      if (VCost > ICost + JCost)
+        return false;
+
+      // We don't want to fuse to a type that will be split, even
+      // if the two input types will also be split and there is no other
+      // associated cost.
+      unsigned VParts1 = TTI->getNumberOfParts(VT1),
+               VParts2 = TTI->getNumberOfParts(VT2);
+      if (VParts1 > 1 || VParts2 > 1)
+        return false;
+      else if ((!VParts1 || !VParts2) && VCost == ICost + JCost)
+        return false;
+
+      CostSavings = ICost + JCost - VCost;
     }
 
     // The powi intrinsic is special because only the first argument is
     // vectorized, the second arguments must be equal.
     CallInst *CI = dyn_cast<CallInst>(I);
     Function *FI;
-    if (CI && (FI = CI->getCalledFunction()) &&
-        FI->getIntrinsicID() == Intrinsic::powi) {
+    if (CI && (FI = CI->getCalledFunction())) {
+      Intrinsic::ID IID = (Intrinsic::ID) FI->getIntrinsicID();
+      if (IID == Intrinsic::powi) {
+        Value *A1I = CI->getArgOperand(1),
+              *A1J = cast<CallInst>(J)->getArgOperand(1);
+        const SCEV *A1ISCEV = SE->getSCEV(A1I),
+                   *A1JSCEV = SE->getSCEV(A1J);
+        return (A1ISCEV == A1JSCEV);
+      }
 
-      Value *A1I = CI->getArgOperand(1),
-            *A1J = cast<CallInst>(J)->getArgOperand(1);
-      const SCEV *A1ISCEV = SE->getSCEV(A1I),
-                 *A1JSCEV = SE->getSCEV(A1J);
-      return (A1ISCEV == A1JSCEV);
+      if (IID && TTI) {
+        SmallVector<Type*, 4> Tys;
+        for (unsigned i = 0, ie = CI->getNumArgOperands(); i != ie; ++i)
+          Tys.push_back(CI->getArgOperand(i)->getType());
+        unsigned ICost = TTI->getIntrinsicInstrCost(IID, IT1, Tys);
+
+        Tys.clear();
+        CallInst *CJ = cast<CallInst>(J);
+        for (unsigned i = 0, ie = CJ->getNumArgOperands(); i != ie; ++i)
+          Tys.push_back(CJ->getArgOperand(i)->getType());
+        unsigned JCost = TTI->getIntrinsicInstrCost(IID, JT1, Tys);
+
+        Tys.clear();
+        assert(CI->getNumArgOperands() == CJ->getNumArgOperands() &&
+               "Intrinsic argument counts differ");
+        for (unsigned i = 0, ie = CI->getNumArgOperands(); i != ie; ++i) {
+          if (IID == Intrinsic::powi && i == 1)
+            Tys.push_back(CI->getArgOperand(i)->getType());
+          else
+            Tys.push_back(getVecTypeForPair(CI->getArgOperand(i)->getType(),
+                                            CJ->getArgOperand(i)->getType()));
+        }
+
+        Type *RetTy = getVecTypeForPair(IT1, JT1);
+        unsigned VCost = TTI->getIntrinsicInstrCost(IID, RetTy, Tys);
+
+        if (VCost > ICost + JCost)
+          return false;
+
+        // We don't want to fuse to a type that will be split, even
+        // if the two input types will also be split and there is no other
+        // associated cost.
+        unsigned RetParts = TTI->getNumberOfParts(RetTy);
+        if (RetParts > 1)
+          return false;
+        else if (!RetParts && VCost == ICost + JCost)
+          return false;
+
+        for (unsigned i = 0, ie = CI->getNumArgOperands(); i != ie; ++i) {
+          if (!Tys[i]->isVectorTy())
+            continue;
+
+          unsigned NumParts = TTI->getNumberOfParts(Tys[i]);
+          if (NumParts > 1)
+            return false;
+          else if (!NumParts && VCost == ICost + JCost)
+            return false;
+        }
+
+        CostSavings = ICost + JCost - VCost;
+      }
     }
 
     return true;
@@ -778,7 +1111,7 @@ namespace {
   // to contain any memory locations to which J writes. The function returns
   // true if J uses I. By default, alias analysis is used to determine
   // whether J reads from memory that overlaps with a location in WriteSet.
-  // If LoadMoveSet is not null, then it is a previously-computed multimap
+  // If LoadMoveSet is not null, then it is a previously-computed map
   // where the key is the memory-based user instruction and the value is
   // the instruction to be compared with I. So, if LoadMoveSet is provided,
   // then the alias analysis is not used. This is necessary because this
@@ -788,7 +1121,7 @@ namespace {
   bool BBVectorize::trackUsesOfI(DenseSet<Value *> &Users,
                        AliasSetTracker &WriteSet, Instruction *I,
                        Instruction *J, bool UpdateUsers,
-                       std::multimap<Value *, Value *> *LoadMoveSet) {
+                       DenseSet<ValuePair> *LoadMoveSetPairs) {
     bool UsesI = false;
 
     // This instruction may already be marked as a user due, for example, to
@@ -806,9 +1139,8 @@ namespace {
         }
       }
     if (!UsesI && J->mayReadFromMemory()) {
-      if (LoadMoveSet) {
-        VPIteratorPair JPairRange = LoadMoveSet->equal_range(J);
-        UsesI = isSecondInIteratorPair<Value*>(I, JPairRange);
+      if (LoadMoveSetPairs) {
+        UsesI = LoadMoveSetPairs->count(ValuePair(J, I));
       } else {
         for (AliasSetTracker::iterator W = WriteSet.begin(),
              WE = WriteSet.end(); W != WE; ++W) {
@@ -832,8 +1164,11 @@ namespace {
   // basic block and collects all candidate pairs for vectorization.
   bool BBVectorize::getCandidatePairs(BasicBlock &BB,
                        BasicBlock::iterator &Start,
-                       std::multimap<Value *, Value *> &CandidatePairs,
+                       DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+                       DenseSet<ValuePair> &FixedOrderPairs,
+                       DenseMap<ValuePair, int> &CandidatePairCostSavings,
                        std::vector<Value *> &PairableInsts, bool NonPow2Len) {
+    size_t TotalPairs = 0;
     BasicBlock::iterator E = BB.end();
     if (Start == E) return false;
 
@@ -869,7 +1204,9 @@ namespace {
 
         // J does not use I, and comes before the first use of I, so it can be
         // merged with I if the instructions are compatible.
-        if (!areInstsCompatible(I, J, IsSimpleLoadStore, NonPow2Len)) continue;
+        int CostSavings, FixedOrder;
+        if (!areInstsCompatible(I, J, IsSimpleLoadStore, NonPow2Len,
+            CostSavings, FixedOrder)) continue;
 
         // J is a candidate for merging with I.
         if (!PairableInsts.size() ||
@@ -877,7 +1214,16 @@ namespace {
           PairableInsts.push_back(I);
         }
 
-        CandidatePairs.insert(ValuePair(I, J));
+        CandidatePairs[I].push_back(J);
+        ++TotalPairs;
+        if (TTI)
+          CandidatePairCostSavings.insert(ValuePairWithCost(ValuePair(I, J),
+                                                            CostSavings));
+
+        if (FixedOrder == 1)
+          FixedOrderPairs.insert(ValuePair(I, J));
+        else if (FixedOrder == -1)
+          FixedOrderPairs.insert(ValuePair(J, I));
 
         // The next call to this function must start after the last instruction
         // selected during this invocation.
@@ -887,12 +1233,14 @@ namespace {
         }
 
         DEBUG(if (DebugCandidateSelection) dbgs() << "BBV: candidate pair "
-                     << *I << " <-> " << *J << "\n");
+                     << *I << " <-> " << *J << " (cost savings: " <<
+                     CostSavings << ")\n");
 
         // If we have already found too many pairs, break here and this function
         // will be called again starting after the last instruction selected
         // during this invocation.
-        if (PairableInsts.size() >= Config.MaxInsts) {
+        if (PairableInsts.size() >= Config.MaxInsts ||
+            TotalPairs >= Config.MaxPairs) {
           ShouldContinue = true;
           break;
         }
@@ -912,10 +1260,12 @@ namespace {
   // it looks for pairs such that both members have an input which is an
   // output of PI or PJ.
   void BBVectorize::computePairsConnectedTo(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      ValuePair P) {
+                  DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+                  DenseSet<ValuePair> &CandidatePairsSet,
+                  std::vector<Value *> &PairableInsts,
+                  DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+                  DenseMap<VPPair, unsigned> &PairConnectionTypes,
+                  ValuePair P) {
     StoreInst *SI, *SJ;
 
     // For each possible pairing for this variable, look at the uses of
@@ -933,8 +1283,6 @@ namespace {
         continue;
       }
 
-      VPIteratorPair IPairRange = CandidatePairs.equal_range(*I);
-
       // For each use of the first variable, look for uses of the second
       // variable...
       for (Value::use_iterator J = P.second->use_begin(),
@@ -943,15 +1291,19 @@ namespace {
             P.second == SJ->getPointerOperand())
           continue;
 
-        VPIteratorPair JPairRange = CandidatePairs.equal_range(*J);
-
         // Look for <I, J>:
-        if (isSecondInIteratorPair<Value*>(*J, IPairRange))
-          ConnectedPairs.insert(VPPair(P, ValuePair(*I, *J)));
+        if (CandidatePairsSet.count(ValuePair(*I, *J))) {
+          VPPair VP(P, ValuePair(*I, *J));
+          ConnectedPairs[VP.first].push_back(VP.second);
+          PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionDirect));
+        }
 
         // Look for <J, I>:
-        if (isSecondInIteratorPair<Value*>(*I, JPairRange))
-          ConnectedPairs.insert(VPPair(P, ValuePair(*J, *I)));
+        if (CandidatePairsSet.count(ValuePair(*J, *I))) {
+          VPPair VP(P, ValuePair(*J, *I));
+          ConnectedPairs[VP.first].push_back(VP.second);
+          PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionSwap));
+        }
       }
 
       if (Config.SplatBreaksChain) continue;
@@ -962,8 +1314,11 @@ namespace {
             P.first == SJ->getPointerOperand())
           continue;
 
-        if (isSecondInIteratorPair<Value*>(*J, IPairRange))
-          ConnectedPairs.insert(VPPair(P, ValuePair(*I, *J)));
+        if (CandidatePairsSet.count(ValuePair(*I, *J))) {
+          VPPair VP(P, ValuePair(*I, *J));
+          ConnectedPairs[VP.first].push_back(VP.second);
+          PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionSplat));
+        }
       }
     }
 
@@ -978,15 +1333,16 @@ namespace {
                P.second == SI->getPointerOperand())
         continue;
 
-      VPIteratorPair IPairRange = CandidatePairs.equal_range(*I);
-
       for (Value::use_iterator J = P.second->use_begin(); J != E; ++J) {
         if ((SJ = dyn_cast<StoreInst>(*J)) &&
             P.second == SJ->getPointerOperand())
           continue;
 
-        if (isSecondInIteratorPair<Value*>(*J, IPairRange))
-          ConnectedPairs.insert(VPPair(P, ValuePair(*I, *J)));
+        if (CandidatePairsSet.count(ValuePair(*I, *J))) {
+          VPPair VP(P, ValuePair(*I, *J));
+          ConnectedPairs[VP.first].push_back(VP.second);
+          PairConnectionTypes.insert(VPPairWithType(VP, PairConnectionSplat));
+        }
       }
     }
   }
@@ -995,54 +1351,73 @@ namespace {
   // connected if some output of the first pair forms an input to both members
   // of the second pair.
   void BBVectorize::computeConnectedPairs(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs) {
-
+                  DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+                  DenseSet<ValuePair> &CandidatePairsSet,
+                  std::vector<Value *> &PairableInsts,
+                  DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+                  DenseMap<VPPair, unsigned> &PairConnectionTypes) {
     for (std::vector<Value *>::iterator PI = PairableInsts.begin(),
          PE = PairableInsts.end(); PI != PE; ++PI) {
-      VPIteratorPair choiceRange = CandidatePairs.equal_range(*PI);
+      DenseMap<Value *, std::vector<Value *> >::iterator PP =
+        CandidatePairs.find(*PI);
+      if (PP == CandidatePairs.end())
+        continue;
 
-      for (std::multimap<Value *, Value *>::iterator P = choiceRange.first;
-           P != choiceRange.second; ++P)
-        computePairsConnectedTo(CandidatePairs, PairableInsts,
-                                ConnectedPairs, *P);
+      for (std::vector<Value *>::iterator P = PP->second.begin(),
+           E = PP->second.end(); P != E; ++P)
+        computePairsConnectedTo(CandidatePairs, CandidatePairsSet,
+                                PairableInsts, ConnectedPairs,
+                                PairConnectionTypes, ValuePair(*PI, *P));
     }
 
-    DEBUG(dbgs() << "BBV: found " << ConnectedPairs.size()
+    DEBUG(size_t TotalPairs = 0;
+          for (DenseMap<ValuePair, std::vector<ValuePair> >::iterator I =
+               ConnectedPairs.begin(), IE = ConnectedPairs.end(); I != IE; ++I)
+            TotalPairs += I->second.size();
+          dbgs() << "BBV: found " << TotalPairs
                  << " pair connections.\n");
   }
 
   // This function builds a set of use tuples such that <A, B> is in the set
-  // if B is in the use tree of A. If B is in the use tree of A, then B
+  // if B is in the use dag of A. If B is in the use dag of A, then B
   // depends on the output of A.
   void BBVectorize::buildDepMap(
                       BasicBlock &BB,
-                      std::multimap<Value *, Value *> &CandidatePairs,
+                      DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
                       std::vector<Value *> &PairableInsts,
                       DenseSet<ValuePair> &PairableInstUsers) {
     DenseSet<Value *> IsInPair;
-    for (std::multimap<Value *, Value *>::iterator C = CandidatePairs.begin(),
-         E = CandidatePairs.end(); C != E; ++C) {
+    for (DenseMap<Value *, std::vector<Value *> >::iterator C =
+         CandidatePairs.begin(), E = CandidatePairs.end(); C != E; ++C) {
       IsInPair.insert(C->first);
-      IsInPair.insert(C->second);
+      IsInPair.insert(C->second.begin(), C->second.end());
     }
 
-    // Iterate through the basic block, recording all Users of each
+    // Iterate through the basic block, recording all users of each
     // pairable instruction.
 
-    BasicBlock::iterator E = BB.end();
+    BasicBlock::iterator E = BB.end(), EL =
+      BasicBlock::iterator(cast<Instruction>(PairableInsts.back()));
     for (BasicBlock::iterator I = BB.getFirstInsertionPt(); I != E; ++I) {
       if (IsInPair.find(I) == IsInPair.end()) continue;
 
       DenseSet<Value *> Users;
       AliasSetTracker WriteSet(*AA);
-      for (BasicBlock::iterator J = llvm::next(I); J != E; ++J)
+      for (BasicBlock::iterator J = llvm::next(I); J != E; ++J) {
         (void) trackUsesOfI(Users, WriteSet, I, J);
 
+        if (J == EL)
+          break;
+      }
+
       for (DenseSet<Value *>::iterator U = Users.begin(), E = Users.end();
-           U != E; ++U)
+           U != E; ++U) {
+        if (IsInPair.find(*U) == IsInPair.end()) continue;
         PairableInstUsers.insert(ValuePair(I, *U));
+      }
+
+      if (I == EL)
+        break;
     }
   }
 
@@ -1050,8 +1425,9 @@ namespace {
   // input of pair Q is an output of pair P. If this is the case, then these
   // two pairs cannot be simultaneously fused.
   bool BBVectorize::pairsConflict(ValuePair P, ValuePair Q,
-                     DenseSet<ValuePair> &PairableInstUsers,
-                     std::multimap<ValuePair, ValuePair> *PairableInstUserMap) {
+             DenseSet<ValuePair> &PairableInstUsers,
+             DenseMap<ValuePair, std::vector<ValuePair> > *PairableInstUserMap,
+             DenseSet<VPPair> *PairableInstUserPairSet) {
     // Two pairs are in conflict if they are mutual Users of eachother.
     bool QUsesP = PairableInstUsers.count(ValuePair(P.first,  Q.first))  ||
                   PairableInstUsers.count(ValuePair(P.first,  Q.second)) ||
@@ -1064,17 +1440,14 @@ namespace {
     if (PairableInstUserMap) {
       // FIXME: The expensive part of the cycle check is not so much the cycle
       // check itself but this edge insertion procedure. This needs some
-      // profiling and probably a different data structure (same is true of
-      // most uses of std::multimap).
+      // profiling and probably a different data structure.
       if (PUsesQ) {
-        VPPIteratorPair QPairRange = PairableInstUserMap->equal_range(Q);
-        if (!isSecondInIteratorPair(P, QPairRange))
-          PairableInstUserMap->insert(VPPair(Q, P));
+        if (PairableInstUserPairSet->insert(VPPair(Q, P)).second)
+          (*PairableInstUserMap)[Q].push_back(P);
       }
       if (QUsesP) {
-        VPPIteratorPair PPairRange = PairableInstUserMap->equal_range(P);
-        if (!isSecondInIteratorPair(Q, PPairRange))
-          PairableInstUserMap->insert(VPPair(P, Q));
+        if (PairableInstUserPairSet->insert(VPPair(P, Q)).second)
+          (*PairableInstUserMap)[P].push_back(Q);
       }
     }
 
@@ -1084,8 +1457,8 @@ namespace {
   // This function walks the use graph of current pairs to see if, starting
   // from P, the walk returns to P.
   bool BBVectorize::pairWillFormCycle(ValuePair P,
-                       std::multimap<ValuePair, ValuePair> &PairableInstUserMap,
-                       DenseSet<ValuePair> &CurrentPairs) {
+             DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
+             DenseSet<ValuePair> &CurrentPairs) {
     DEBUG(if (DebugCycleCheck)
             dbgs() << "BBV: starting cycle check for : " << *P.first << " <-> "
                    << *P.second << "\n");
@@ -1102,36 +1475,41 @@ namespace {
       DEBUG(if (DebugCycleCheck)
               dbgs() << "BBV: cycle check visiting: " << *QTop.first << " <-> "
                      << *QTop.second << "\n");
-      VPPIteratorPair QPairRange = PairableInstUserMap.equal_range(QTop);
-      for (std::multimap<ValuePair, ValuePair>::iterator C = QPairRange.first;
-           C != QPairRange.second; ++C) {
-        if (C->second == P) {
+      DenseMap<ValuePair, std::vector<ValuePair> >::iterator QQ =
+        PairableInstUserMap.find(QTop);
+      if (QQ == PairableInstUserMap.end())
+        continue;
+
+      for (std::vector<ValuePair>::iterator C = QQ->second.begin(),
+           CE = QQ->second.end(); C != CE; ++C) {
+        if (*C == P) {
           DEBUG(dbgs()
                  << "BBV: rejected to prevent non-trivial cycle formation: "
-                 << *C->first.first << " <-> " << *C->first.second << "\n");
+                 << QTop.first << " <-> " << C->second << "\n");
           return true;
         }
 
-        if (CurrentPairs.count(C->second) && !Visited.count(C->second))
-          Q.push_back(C->second);
+        if (CurrentPairs.count(*C) && !Visited.count(*C))
+          Q.push_back(*C);
       }
     } while (!Q.empty());
 
     return false;
   }
 
-  // This function builds the initial tree of connected pairs with the
+  // This function builds the initial dag of connected pairs with the
   // pair J at the root.
-  void BBVectorize::buildInitialTreeFor(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      DenseSet<ValuePair> &PairableInstUsers,
-                      DenseMap<Value *, Value *> &ChosenPairs,
-                      DenseMap<ValuePair, size_t> &Tree, ValuePair J) {
-    // Each of these pairs is viewed as the root node of a Tree. The Tree
+  void BBVectorize::buildInitialDAGFor(
+                  DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+                  DenseSet<ValuePair> &CandidatePairsSet,
+                  std::vector<Value *> &PairableInsts,
+                  DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+                  DenseSet<ValuePair> &PairableInstUsers,
+                  DenseMap<Value *, Value *> &ChosenPairs,
+                  DenseMap<ValuePair, size_t> &DAG, ValuePair J) {
+    // Each of these pairs is viewed as the root node of a DAG. The DAG
     // is then walked (depth-first). As this happens, we keep track of
-    // the pairs that compose the Tree and the maximum depth of the Tree.
+    // the pairs that compose the DAG and the maximum depth of the DAG.
     SmallVector<ValuePairWithDepth, 32> Q;
     // General depth-first post-order traversal:
     Q.push_back(ValuePairWithDepth(J, getDepthFactor(J.first)));
@@ -1141,69 +1519,65 @@ namespace {
       // Push each child onto the queue:
       bool MoreChildren = false;
       size_t MaxChildDepth = QTop.second;
-      VPPIteratorPair qtRange = ConnectedPairs.equal_range(QTop.first);
-      for (std::multimap<ValuePair, ValuePair>::iterator k = qtRange.first;
-           k != qtRange.second; ++k) {
-        // Make sure that this child pair is still a candidate:
-        bool IsStillCand = false;
-        VPIteratorPair checkRange =
-          CandidatePairs.equal_range(k->second.first);
-        for (std::multimap<Value *, Value *>::iterator m = checkRange.first;
-             m != checkRange.second; ++m) {
-          if (m->second == k->second.second) {
-            IsStillCand = true;
-            break;
+      DenseMap<ValuePair, std::vector<ValuePair> >::iterator QQ =
+        ConnectedPairs.find(QTop.first);
+      if (QQ != ConnectedPairs.end())
+        for (std::vector<ValuePair>::iterator k = QQ->second.begin(),
+             ke = QQ->second.end(); k != ke; ++k) {
+          // Make sure that this child pair is still a candidate:
+          if (CandidatePairsSet.count(*k)) {
+            DenseMap<ValuePair, size_t>::iterator C = DAG.find(*k);
+            if (C == DAG.end()) {
+              size_t d = getDepthFactor(k->first);
+              Q.push_back(ValuePairWithDepth(*k, QTop.second+d));
+              MoreChildren = true;
+            } else {
+              MaxChildDepth = std::max(MaxChildDepth, C->second);
+            }
           }
         }
-
-        if (IsStillCand) {
-          DenseMap<ValuePair, size_t>::iterator C = Tree.find(k->second);
-          if (C == Tree.end()) {
-            size_t d = getDepthFactor(k->second.first);
-            Q.push_back(ValuePairWithDepth(k->second, QTop.second+d));
-            MoreChildren = true;
-          } else {
-            MaxChildDepth = std::max(MaxChildDepth, C->second);
-          }
-        }
-      }
 
       if (!MoreChildren) {
-        // Record the current pair as part of the Tree:
-        Tree.insert(ValuePairWithDepth(QTop.first, MaxChildDepth));
+        // Record the current pair as part of the DAG:
+        DAG.insert(ValuePairWithDepth(QTop.first, MaxChildDepth));
         Q.pop_back();
       }
     } while (!Q.empty());
   }
 
-  // Given some initial tree, prune it by removing conflicting pairs (pairs
+  // Given some initial dag, prune it by removing conflicting pairs (pairs
   // that cannot be simultaneously chosen for vectorization).
-  void BBVectorize::pruneTreeFor(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      DenseSet<ValuePair> &PairableInstUsers,
-                      std::multimap<ValuePair, ValuePair> &PairableInstUserMap,
-                      DenseMap<Value *, Value *> &ChosenPairs,
-                      DenseMap<ValuePair, size_t> &Tree,
-                      DenseSet<ValuePair> &PrunedTree, ValuePair J,
-                      bool UseCycleCheck) {
+  void BBVectorize::pruneDAGFor(
+              DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+              std::vector<Value *> &PairableInsts,
+              DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+              DenseSet<ValuePair> &PairableInstUsers,
+              DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
+              DenseSet<VPPair> &PairableInstUserPairSet,
+              DenseMap<Value *, Value *> &ChosenPairs,
+              DenseMap<ValuePair, size_t> &DAG,
+              DenseSet<ValuePair> &PrunedDAG, ValuePair J,
+              bool UseCycleCheck) {
     SmallVector<ValuePairWithDepth, 32> Q;
     // General depth-first post-order traversal:
     Q.push_back(ValuePairWithDepth(J, getDepthFactor(J.first)));
     do {
       ValuePairWithDepth QTop = Q.pop_back_val();
-      PrunedTree.insert(QTop.first);
+      PrunedDAG.insert(QTop.first);
 
       // Visit each child, pruning as necessary...
-      DenseMap<ValuePair, size_t> BestChildren;
-      VPPIteratorPair QTopRange = ConnectedPairs.equal_range(QTop.first);
-      for (std::multimap<ValuePair, ValuePair>::iterator K = QTopRange.first;
-           K != QTopRange.second; ++K) {
-        DenseMap<ValuePair, size_t>::iterator C = Tree.find(K->second);
-        if (C == Tree.end()) continue;
+      SmallVector<ValuePairWithDepth, 8> BestChildren;
+      DenseMap<ValuePair, std::vector<ValuePair> >::iterator QQ =
+        ConnectedPairs.find(QTop.first);
+      if (QQ == ConnectedPairs.end())
+        continue;
 
-        // This child is in the Tree, now we need to make sure it is the
+      for (std::vector<ValuePair>::iterator K = QQ->second.begin(),
+           KE = QQ->second.end(); K != KE; ++K) {
+        DenseMap<ValuePair, size_t>::iterator C = DAG.find(*K);
+        if (C == DAG.end()) continue;
+
+        // This child is in the DAG, now we need to make sure it is the
         // best of any conflicting children. There could be multiple
         // conflicting children, so first, determine if we're keeping
         // this child, then delete conflicting children as necessary.
@@ -1217,7 +1591,7 @@ namespace {
         // fusing (a,b) we have y .. a/b .. x where y is an input
         // to a/b and x is an output to a/b: x and y can no longer
         // be legally fused. To prevent this condition, we must
-        // make sure that a child pair added to the Tree is not
+        // make sure that a child pair added to the DAG is not
         // both an input and output of an already-selected pair.
 
         // Pairing-induced dependencies can also form from more complicated
@@ -1228,7 +1602,7 @@ namespace {
         DenseSet<ValuePair> CurrentPairs;
 
         bool CanAdd = true;
-        for (DenseMap<ValuePair, size_t>::iterator C2
+        for (SmallVector<ValuePairWithDepth, 8>::iterator C2
               = BestChildren.begin(), E2 = BestChildren.end();
              C2 != E2; ++C2) {
           if (C2->first.first == C->first.first ||
@@ -1236,7 +1610,8 @@ namespace {
               C2->first.second == C->first.first ||
               C2->first.second == C->first.second ||
               pairsConflict(C2->first, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : 0,
+                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
             if (C2->second >= C->second) {
               CanAdd = false;
               break;
@@ -1248,15 +1623,16 @@ namespace {
         if (!CanAdd) continue;
 
         // Even worse, this child could conflict with another node already
-        // selected for the Tree. If that is the case, ignore this child.
-        for (DenseSet<ValuePair>::iterator T = PrunedTree.begin(),
-             E2 = PrunedTree.end(); T != E2; ++T) {
+        // selected for the DAG. If that is the case, ignore this child.
+        for (DenseSet<ValuePair>::iterator T = PrunedDAG.begin(),
+             E2 = PrunedDAG.end(); T != E2; ++T) {
           if (T->first == C->first.first ||
               T->first == C->first.second ||
               T->second == C->first.first ||
               T->second == C->first.second ||
               pairsConflict(*T, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : 0,
+                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
             CanAdd = false;
             break;
           }
@@ -1273,7 +1649,8 @@ namespace {
               C2->first.second == C->first.first ||
               C2->first.second == C->first.second ||
               pairsConflict(C2->first, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : 0,
+                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
             CanAdd = false;
             break;
           }
@@ -1288,7 +1665,8 @@ namespace {
               ChosenPairs.begin(), E2 = ChosenPairs.end();
              C2 != E2; ++C2) {
           if (pairsConflict(*C2, C->first, PairableInstUsers,
-                            UseCycleCheck ? &PairableInstUserMap : 0)) {
+                            UseCycleCheck ? &PairableInstUserMap : 0,
+                            UseCycleCheck ? &PairableInstUserPairSet : 0)) {
             CanAdd = false;
             break;
           }
@@ -1300,7 +1678,7 @@ namespace {
         // To check for non-trivial cycles formed by the addition of the
         // current pair we've formed a list of all relevant pairs, now use a
         // graph walk to check for a cycle. We start from the current pair and
-        // walk the use tree to see if we again reach the current pair. If we
+        // walk the use dag to see if we again reach the current pair. If we
         // do, then the current pair is rejected.
 
         // FIXME: It may be more efficient to use a topological-ordering
@@ -1313,22 +1691,22 @@ namespace {
         // to an already-selected child. Check for this here, and if a
         // conflict is found, then remove the previously-selected child
         // before adding this one in its place.
-        for (DenseMap<ValuePair, size_t>::iterator C2
+        for (SmallVector<ValuePairWithDepth, 8>::iterator C2
               = BestChildren.begin(); C2 != BestChildren.end();) {
           if (C2->first.first == C->first.first ||
               C2->first.first == C->first.second ||
               C2->first.second == C->first.first ||
               C2->first.second == C->first.second ||
               pairsConflict(C2->first, C->first, PairableInstUsers))
-            BestChildren.erase(C2++);
+            C2 = BestChildren.erase(C2);
           else
             ++C2;
         }
 
-        BestChildren.insert(ValuePairWithDepth(C->first, C->second));
+        BestChildren.push_back(ValuePairWithDepth(C->first, C->second));
       }
 
-      for (DenseMap<ValuePair, size_t>::iterator C
+      for (SmallVector<ValuePairWithDepth, 8>::iterator C
             = BestChildren.begin(), E2 = BestChildren.end();
            C != E2; ++C) {
         size_t DepthF = getDepthFactor(C->first.first);
@@ -1337,30 +1715,40 @@ namespace {
     } while (!Q.empty());
   }
 
-  // This function finds the best tree of mututally-compatible connected
+  // This function finds the best dag of mututally-compatible connected
   // pairs, given the choice of root pairs as an iterator range.
-  void BBVectorize::findBestTreeFor(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      DenseSet<ValuePair> &PairableInstUsers,
-                      std::multimap<ValuePair, ValuePair> &PairableInstUserMap,
-                      DenseMap<Value *, Value *> &ChosenPairs,
-                      DenseSet<ValuePair> &BestTree, size_t &BestMaxDepth,
-                      size_t &BestEffSize, VPIteratorPair ChoiceRange,
-                      bool UseCycleCheck) {
-    for (std::multimap<Value *, Value *>::iterator J = ChoiceRange.first;
-         J != ChoiceRange.second; ++J) {
+  void BBVectorize::findBestDAGFor(
+              DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+              DenseSet<ValuePair> &CandidatePairsSet,
+              DenseMap<ValuePair, int> &CandidatePairCostSavings,
+              std::vector<Value *> &PairableInsts,
+              DenseSet<ValuePair> &FixedOrderPairs,
+              DenseMap<VPPair, unsigned> &PairConnectionTypes,
+              DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+              DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps,
+              DenseSet<ValuePair> &PairableInstUsers,
+              DenseMap<ValuePair, std::vector<ValuePair> > &PairableInstUserMap,
+              DenseSet<VPPair> &PairableInstUserPairSet,
+              DenseMap<Value *, Value *> &ChosenPairs,
+              DenseSet<ValuePair> &BestDAG, size_t &BestMaxDepth,
+              int &BestEffSize, Value *II, std::vector<Value *>&JJ,
+              bool UseCycleCheck) {
+    for (std::vector<Value *>::iterator J = JJ.begin(), JE = JJ.end();
+         J != JE; ++J) {
+      ValuePair IJ(II, *J);
+      if (!CandidatePairsSet.count(IJ))
+        continue;
 
       // Before going any further, make sure that this pair does not
       // conflict with any already-selected pairs (see comment below
-      // near the Tree pruning for more details).
+      // near the DAG pruning for more details).
       DenseSet<ValuePair> ChosenPairSet;
       bool DoesConflict = false;
       for (DenseMap<Value *, Value *>::iterator C = ChosenPairs.begin(),
            E = ChosenPairs.end(); C != E; ++C) {
-        if (pairsConflict(*C, *J, PairableInstUsers,
-                          UseCycleCheck ? &PairableInstUserMap : 0)) {
+        if (pairsConflict(*C, IJ, PairableInstUsers,
+                          UseCycleCheck ? &PairableInstUserMap : 0,
+                          UseCycleCheck ? &PairableInstUserPairSet : 0)) {
           DoesConflict = true;
           break;
         }
@@ -1370,47 +1758,343 @@ namespace {
       if (DoesConflict) continue;
 
       if (UseCycleCheck &&
-          pairWillFormCycle(*J, PairableInstUserMap, ChosenPairSet))
+          pairWillFormCycle(IJ, PairableInstUserMap, ChosenPairSet))
         continue;
 
-      DenseMap<ValuePair, size_t> Tree;
-      buildInitialTreeFor(CandidatePairs, PairableInsts, ConnectedPairs,
-                          PairableInstUsers, ChosenPairs, Tree, *J);
+      DenseMap<ValuePair, size_t> DAG;
+      buildInitialDAGFor(CandidatePairs, CandidatePairsSet,
+                          PairableInsts, ConnectedPairs,
+                          PairableInstUsers, ChosenPairs, DAG, IJ);
 
       // Because we'll keep the child with the largest depth, the largest
-      // depth is still the same in the unpruned Tree.
-      size_t MaxDepth = Tree.lookup(*J);
+      // depth is still the same in the unpruned DAG.
+      size_t MaxDepth = DAG.lookup(IJ);
 
-      DEBUG(if (DebugPairSelection) dbgs() << "BBV: found Tree for pair {"
-                   << *J->first << " <-> " << *J->second << "} of depth " <<
-                   MaxDepth << " and size " << Tree.size() << "\n");
+      DEBUG(if (DebugPairSelection) dbgs() << "BBV: found DAG for pair {"
+                   << *IJ.first << " <-> " << *IJ.second << "} of depth " <<
+                   MaxDepth << " and size " << DAG.size() << "\n");
 
-      // At this point the Tree has been constructed, but, may contain
+      // At this point the DAG has been constructed, but, may contain
       // contradictory children (meaning that different children of
-      // some tree node may be attempting to fuse the same instruction).
-      // So now we walk the tree again, in the case of a conflict,
+      // some dag node may be attempting to fuse the same instruction).
+      // So now we walk the dag again, in the case of a conflict,
       // keep only the child with the largest depth. To break a tie,
       // favor the first child.
 
-      DenseSet<ValuePair> PrunedTree;
-      pruneTreeFor(CandidatePairs, PairableInsts, ConnectedPairs,
-                   PairableInstUsers, PairableInstUserMap, ChosenPairs, Tree,
-                   PrunedTree, *J, UseCycleCheck);
+      DenseSet<ValuePair> PrunedDAG;
+      pruneDAGFor(CandidatePairs, PairableInsts, ConnectedPairs,
+                   PairableInstUsers, PairableInstUserMap,
+                   PairableInstUserPairSet,
+                   ChosenPairs, DAG, PrunedDAG, IJ, UseCycleCheck);
 
-      size_t EffSize = 0;
-      for (DenseSet<ValuePair>::iterator S = PrunedTree.begin(),
-           E = PrunedTree.end(); S != E; ++S)
-        EffSize += getDepthFactor(S->first);
+      int EffSize = 0;
+      if (TTI) {
+        DenseSet<Value *> PrunedDAGInstrs;
+        for (DenseSet<ValuePair>::iterator S = PrunedDAG.begin(),
+             E = PrunedDAG.end(); S != E; ++S) {
+          PrunedDAGInstrs.insert(S->first);
+          PrunedDAGInstrs.insert(S->second);
+        }
+
+        // The set of pairs that have already contributed to the total cost.
+        DenseSet<ValuePair> IncomingPairs;
+
+        // If the cost model were perfect, this might not be necessary; but we
+        // need to make sure that we don't get stuck vectorizing our own
+        // shuffle chains.
+        bool HasNontrivialInsts = false;
+
+        // The node weights represent the cost savings associated with
+        // fusing the pair of instructions.
+        for (DenseSet<ValuePair>::iterator S = PrunedDAG.begin(),
+             E = PrunedDAG.end(); S != E; ++S) {
+          if (!isa<ShuffleVectorInst>(S->first) &&
+              !isa<InsertElementInst>(S->first) &&
+              !isa<ExtractElementInst>(S->first))
+            HasNontrivialInsts = true;
+
+          bool FlipOrder = false;
+
+          if (getDepthFactor(S->first)) {
+            int ESContrib = CandidatePairCostSavings.find(*S)->second;
+            DEBUG(if (DebugPairSelection) dbgs() << "\tweight {"
+                   << *S->first << " <-> " << *S->second << "} = " <<
+                   ESContrib << "\n");
+            EffSize += ESContrib;
+          }
+
+          // The edge weights contribute in a negative sense: they represent
+          // the cost of shuffles.
+          DenseMap<ValuePair, std::vector<ValuePair> >::iterator SS =
+            ConnectedPairDeps.find(*S);
+          if (SS != ConnectedPairDeps.end()) {
+            unsigned NumDepsDirect = 0, NumDepsSwap = 0;
+            for (std::vector<ValuePair>::iterator T = SS->second.begin(),
+                 TE = SS->second.end(); T != TE; ++T) {
+              VPPair Q(*S, *T);
+              if (!PrunedDAG.count(Q.second))
+                continue;
+              DenseMap<VPPair, unsigned>::iterator R =
+                PairConnectionTypes.find(VPPair(Q.second, Q.first));
+              assert(R != PairConnectionTypes.end() &&
+                     "Cannot find pair connection type");
+              if (R->second == PairConnectionDirect)
+                ++NumDepsDirect;
+              else if (R->second == PairConnectionSwap)
+                ++NumDepsSwap;
+            }
+
+            // If there are more swaps than direct connections, then
+            // the pair order will be flipped during fusion. So the real
+            // number of swaps is the minimum number.
+            FlipOrder = !FixedOrderPairs.count(*S) &&
+              ((NumDepsSwap > NumDepsDirect) ||
+                FixedOrderPairs.count(ValuePair(S->second, S->first)));
+
+            for (std::vector<ValuePair>::iterator T = SS->second.begin(),
+                 TE = SS->second.end(); T != TE; ++T) {
+              VPPair Q(*S, *T);
+              if (!PrunedDAG.count(Q.second))
+                continue;
+              DenseMap<VPPair, unsigned>::iterator R =
+                PairConnectionTypes.find(VPPair(Q.second, Q.first));
+              assert(R != PairConnectionTypes.end() &&
+                     "Cannot find pair connection type");
+              Type *Ty1 = Q.second.first->getType(),
+                   *Ty2 = Q.second.second->getType();
+              Type *VTy = getVecTypeForPair(Ty1, Ty2);
+              if ((R->second == PairConnectionDirect && FlipOrder) ||
+                  (R->second == PairConnectionSwap && !FlipOrder)  ||
+                  R->second == PairConnectionSplat) {
+                int ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
+                                                   VTy, VTy);
+
+                if (VTy->getVectorNumElements() == 2) {
+                  if (R->second == PairConnectionSplat)
+                    ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost(
+                      TargetTransformInfo::SK_Broadcast, VTy));
+                  else
+                    ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost(
+                      TargetTransformInfo::SK_Reverse, VTy));
+                }
+
+                DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" <<
+                  *Q.second.first << " <-> " << *Q.second.second <<
+                    "} -> {" <<
+                  *S->first << " <-> " << *S->second << "} = " <<
+                   ESContrib << "\n");
+                EffSize -= ESContrib;
+              }
+            }
+          }
+
+          // Compute the cost of outgoing edges. We assume that edges outgoing
+          // to shuffles, inserts or extracts can be merged, and so contribute
+          // no additional cost.
+          if (!S->first->getType()->isVoidTy()) {
+            Type *Ty1 = S->first->getType(),
+                 *Ty2 = S->second->getType();
+            Type *VTy = getVecTypeForPair(Ty1, Ty2);
+
+            bool NeedsExtraction = false;
+            for (Value::use_iterator I = S->first->use_begin(),
+                 IE = S->first->use_end(); I != IE; ++I) {
+              if (ShuffleVectorInst *SI = dyn_cast<ShuffleVectorInst>(*I)) {
+                // Shuffle can be folded if it has no other input
+                if (isa<UndefValue>(SI->getOperand(1)))
+                  continue;
+              }
+              if (isa<ExtractElementInst>(*I))
+                continue;
+              if (PrunedDAGInstrs.count(*I))
+                continue;
+              NeedsExtraction = true;
+              break;
+            }
+
+            if (NeedsExtraction) {
+              int ESContrib;
+              if (Ty1->isVectorTy()) {
+                ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
+                                               Ty1, VTy);
+                ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost(
+                  TargetTransformInfo::SK_ExtractSubvector, VTy, 0, Ty1));
+              } else
+                ESContrib = (int) TTI->getVectorInstrCost(
+                                    Instruction::ExtractElement, VTy, 0);
+
+              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" <<
+                *S->first << "} = " << ESContrib << "\n");
+              EffSize -= ESContrib;
+            }
+
+            NeedsExtraction = false;
+            for (Value::use_iterator I = S->second->use_begin(),
+                 IE = S->second->use_end(); I != IE; ++I) {
+              if (ShuffleVectorInst *SI = dyn_cast<ShuffleVectorInst>(*I)) {
+                // Shuffle can be folded if it has no other input
+                if (isa<UndefValue>(SI->getOperand(1)))
+                  continue;
+              }
+              if (isa<ExtractElementInst>(*I))
+                continue;
+              if (PrunedDAGInstrs.count(*I))
+                continue;
+              NeedsExtraction = true;
+              break;
+            }
+
+            if (NeedsExtraction) {
+              int ESContrib;
+              if (Ty2->isVectorTy()) {
+                ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
+                                               Ty2, VTy);
+                ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost(
+                  TargetTransformInfo::SK_ExtractSubvector, VTy,
+                  Ty1->isVectorTy() ? Ty1->getVectorNumElements() : 1, Ty2));
+              } else
+                ESContrib = (int) TTI->getVectorInstrCost(
+                                    Instruction::ExtractElement, VTy, 1);
+              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {" <<
+                *S->second << "} = " << ESContrib << "\n");
+              EffSize -= ESContrib;
+            }
+          }
+
+          // Compute the cost of incoming edges.
+          if (!isa<LoadInst>(S->first) && !isa<StoreInst>(S->first)) {
+            Instruction *S1 = cast<Instruction>(S->first),
+                        *S2 = cast<Instruction>(S->second);
+            for (unsigned o = 0; o < S1->getNumOperands(); ++o) {
+              Value *O1 = S1->getOperand(o), *O2 = S2->getOperand(o);
+
+              // Combining constants into vector constants (or small vector
+              // constants into larger ones are assumed free).
+              if (isa<Constant>(O1) && isa<Constant>(O2))
+                continue;
+
+              if (FlipOrder)
+                std::swap(O1, O2);
+
+              ValuePair VP  = ValuePair(O1, O2);
+              ValuePair VPR = ValuePair(O2, O1);
+
+              // Internal edges are not handled here.
+              if (PrunedDAG.count(VP) || PrunedDAG.count(VPR))
+                continue;
+
+              Type *Ty1 = O1->getType(),
+                   *Ty2 = O2->getType();
+              Type *VTy = getVecTypeForPair(Ty1, Ty2);
+
+              // Combining vector operations of the same type is also assumed
+              // folded with other operations.
+              if (Ty1 == Ty2) {
+                // If both are insert elements, then both can be widened.
+                InsertElementInst *IEO1 = dyn_cast<InsertElementInst>(O1),
+                                  *IEO2 = dyn_cast<InsertElementInst>(O2);
+                if (IEO1 && IEO2 && isPureIEChain(IEO1) && isPureIEChain(IEO2))
+                  continue;
+                // If both are extract elements, and both have the same input
+                // type, then they can be replaced with a shuffle
+                ExtractElementInst *EIO1 = dyn_cast<ExtractElementInst>(O1),
+                                   *EIO2 = dyn_cast<ExtractElementInst>(O2);
+                if (EIO1 && EIO2 &&
+                    EIO1->getOperand(0)->getType() ==
+                      EIO2->getOperand(0)->getType())
+                  continue;
+                // If both are a shuffle with equal operand types and only two
+                // unqiue operands, then they can be replaced with a single
+                // shuffle
+                ShuffleVectorInst *SIO1 = dyn_cast<ShuffleVectorInst>(O1),
+                                  *SIO2 = dyn_cast<ShuffleVectorInst>(O2);
+                if (SIO1 && SIO2 &&
+                    SIO1->getOperand(0)->getType() ==
+                      SIO2->getOperand(0)->getType()) {
+                  SmallSet<Value *, 4> SIOps;
+                  SIOps.insert(SIO1->getOperand(0));
+                  SIOps.insert(SIO1->getOperand(1));
+                  SIOps.insert(SIO2->getOperand(0));
+                  SIOps.insert(SIO2->getOperand(1));
+                  if (SIOps.size() <= 2)
+                    continue;
+                }
+              }
+
+              int ESContrib;
+              // This pair has already been formed.
+              if (IncomingPairs.count(VP)) {
+                continue;
+              } else if (IncomingPairs.count(VPR)) {
+                ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
+                                               VTy, VTy);
+
+                if (VTy->getVectorNumElements() == 2)
+                  ESContrib = std::min(ESContrib, (int) TTI->getShuffleCost(
+                    TargetTransformInfo::SK_Reverse, VTy));
+              } else if (!Ty1->isVectorTy() && !Ty2->isVectorTy()) {
+                ESContrib = (int) TTI->getVectorInstrCost(
+                                    Instruction::InsertElement, VTy, 0);
+                ESContrib += (int) TTI->getVectorInstrCost(
+                                     Instruction::InsertElement, VTy, 1);
+              } else if (!Ty1->isVectorTy()) {
+                // O1 needs to be inserted into a vector of size O2, and then
+                // both need to be shuffled together.
+                ESContrib = (int) TTI->getVectorInstrCost(
+                                    Instruction::InsertElement, Ty2, 0);
+                ESContrib += (int) getInstrCost(Instruction::ShuffleVector,
+                                                VTy, Ty2);
+              } else if (!Ty2->isVectorTy()) {
+                // O2 needs to be inserted into a vector of size O1, and then
+                // both need to be shuffled together.
+                ESContrib = (int) TTI->getVectorInstrCost(
+                                    Instruction::InsertElement, Ty1, 0);
+                ESContrib += (int) getInstrCost(Instruction::ShuffleVector,
+                                                VTy, Ty1);
+              } else {
+                Type *TyBig = Ty1, *TySmall = Ty2;
+                if (Ty2->getVectorNumElements() > Ty1->getVectorNumElements())
+                  std::swap(TyBig, TySmall);
+
+                ESContrib = (int) getInstrCost(Instruction::ShuffleVector,
+                                               VTy, TyBig);
+                if (TyBig != TySmall)
+                  ESContrib += (int) getInstrCost(Instruction::ShuffleVector,
+                                                  TyBig, TySmall);
+              }
+
+              DEBUG(if (DebugPairSelection) dbgs() << "\tcost {"
+                     << *O1 << " <-> " << *O2 << "} = " <<
+                     ESContrib << "\n");
+              EffSize -= ESContrib;
+              IncomingPairs.insert(VP);
+            }
+          }
+        }
+
+        if (!HasNontrivialInsts) {
+          DEBUG(if (DebugPairSelection) dbgs() <<
+                "\tNo non-trivial instructions in DAG;"
+                " override to zero effective size\n");
+          EffSize = 0;
+        }
+      } else {
+        for (DenseSet<ValuePair>::iterator S = PrunedDAG.begin(),
+             E = PrunedDAG.end(); S != E; ++S)
+          EffSize += (int) getDepthFactor(S->first);
+      }
 
       DEBUG(if (DebugPairSelection)
-             dbgs() << "BBV: found pruned Tree for pair {"
-             << *J->first << " <-> " << *J->second << "} of depth " <<
-             MaxDepth << " and size " << PrunedTree.size() <<
+             dbgs() << "BBV: found pruned DAG for pair {"
+             << *IJ.first << " <-> " << *IJ.second << "} of depth " <<
+             MaxDepth << " and size " << PrunedDAG.size() <<
             " (effective size: " << EffSize << ")\n");
-      if (MaxDepth >= Config.ReqChainDepth && EffSize > BestEffSize) {
+      if (((TTI && !UseChainDepthWithTI) ||
+            MaxDepth >= Config.ReqChainDepth) &&
+          EffSize > 0 && EffSize > BestEffSize) {
         BestMaxDepth = MaxDepth;
         BestEffSize = EffSize;
-        BestTree = PrunedTree;
+        BestDAG = PrunedDAG;
       }
     }
   }
@@ -1418,59 +2102,98 @@ namespace {
   // Given the list of candidate pairs, this function selects those
   // that will be fused into vector instructions.
   void BBVectorize::choosePairs(
-                      std::multimap<Value *, Value *> &CandidatePairs,
-                      std::vector<Value *> &PairableInsts,
-                      std::multimap<ValuePair, ValuePair> &ConnectedPairs,
-                      DenseSet<ValuePair> &PairableInstUsers,
-                      DenseMap<Value *, Value *>& ChosenPairs) {
+                DenseMap<Value *, std::vector<Value *> > &CandidatePairs,
+                DenseSet<ValuePair> &CandidatePairsSet,
+                DenseMap<ValuePair, int> &CandidatePairCostSavings,
+                std::vector<Value *> &PairableInsts,
+                DenseSet<ValuePair> &FixedOrderPairs,
+                DenseMap<VPPair, unsigned> &PairConnectionTypes,
+                DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+                DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps,
+                DenseSet<ValuePair> &PairableInstUsers,
+                DenseMap<Value *, Value *>& ChosenPairs) {
     bool UseCycleCheck =
-     CandidatePairs.size() <= Config.MaxCandPairsForCycleCheck;
-    std::multimap<ValuePair, ValuePair> PairableInstUserMap;
+     CandidatePairsSet.size() <= Config.MaxCandPairsForCycleCheck;
+
+    DenseMap<Value *, std::vector<Value *> > CandidatePairs2;
+    for (DenseSet<ValuePair>::iterator I = CandidatePairsSet.begin(),
+         E = CandidatePairsSet.end(); I != E; ++I) {
+      std::vector<Value *> &JJ = CandidatePairs2[I->second];
+      if (JJ.empty()) JJ.reserve(32);
+      JJ.push_back(I->first);
+    }
+
+    DenseMap<ValuePair, std::vector<ValuePair> > PairableInstUserMap;
+    DenseSet<VPPair> PairableInstUserPairSet;
     for (std::vector<Value *>::iterator I = PairableInsts.begin(),
          E = PairableInsts.end(); I != E; ++I) {
       // The number of possible pairings for this variable:
-      size_t NumChoices = CandidatePairs.count(*I);
+      size_t NumChoices = CandidatePairs.lookup(*I).size();
       if (!NumChoices) continue;
 
-      VPIteratorPair ChoiceRange = CandidatePairs.equal_range(*I);
+      std::vector<Value *> &JJ = CandidatePairs[*I];
 
-      // The best pair to choose and its tree:
-      size_t BestMaxDepth = 0, BestEffSize = 0;
-      DenseSet<ValuePair> BestTree;
-      findBestTreeFor(CandidatePairs, PairableInsts, ConnectedPairs,
-                      PairableInstUsers, PairableInstUserMap, ChosenPairs,
-                      BestTree, BestMaxDepth, BestEffSize, ChoiceRange,
+      // The best pair to choose and its dag:
+      size_t BestMaxDepth = 0;
+      int BestEffSize = 0;
+      DenseSet<ValuePair> BestDAG;
+      findBestDAGFor(CandidatePairs, CandidatePairsSet,
+                      CandidatePairCostSavings,
+                      PairableInsts, FixedOrderPairs, PairConnectionTypes,
+                      ConnectedPairs, ConnectedPairDeps,
+                      PairableInstUsers, PairableInstUserMap,
+                      PairableInstUserPairSet, ChosenPairs,
+                      BestDAG, BestMaxDepth, BestEffSize, *I, JJ,
                       UseCycleCheck);
 
-      // A tree has been chosen (or not) at this point. If no tree was
+      if (BestDAG.empty())
+        continue;
+
+      // A dag has been chosen (or not) at this point. If no dag was
       // chosen, then this instruction, I, cannot be paired (and is no longer
       // considered).
 
-      DEBUG(if (BestTree.size() > 0)
-              dbgs() << "BBV: selected pairs in the best tree for: "
-                     << *cast<Instruction>(*I) << "\n");
+      DEBUG(dbgs() << "BBV: selected pairs in the best DAG for: "
+                   << *cast<Instruction>(*I) << "\n");
 
-      for (DenseSet<ValuePair>::iterator S = BestTree.begin(),
-           SE2 = BestTree.end(); S != SE2; ++S) {
-        // Insert the members of this tree into the list of chosen pairs.
+      for (DenseSet<ValuePair>::iterator S = BestDAG.begin(),
+           SE2 = BestDAG.end(); S != SE2; ++S) {
+        // Insert the members of this dag into the list of chosen pairs.
         ChosenPairs.insert(ValuePair(S->first, S->second));
         DEBUG(dbgs() << "BBV: selected pair: " << *S->first << " <-> " <<
                *S->second << "\n");
 
-        // Remove all candidate pairs that have values in the chosen tree.
-        for (std::multimap<Value *, Value *>::iterator K =
-               CandidatePairs.begin(); K != CandidatePairs.end();) {
-          if (K->first == S->first || K->second == S->first ||
-              K->second == S->second || K->first == S->second) {
-            // Don't remove the actual pair chosen so that it can be used
-            // in subsequent tree selections.
-            if (!(K->first == S->first && K->second == S->second))
-              CandidatePairs.erase(K++);
-            else
-              ++K;
-          } else {
-            ++K;
-          }
+        // Remove all candidate pairs that have values in the chosen dag.
+        std::vector<Value *> &KK = CandidatePairs[S->first];
+        for (std::vector<Value *>::iterator K = KK.begin(), KE = KK.end();
+             K != KE; ++K) {
+          if (*K == S->second)
+            continue;
+
+          CandidatePairsSet.erase(ValuePair(S->first, *K));
+        }
+
+        std::vector<Value *> &LL = CandidatePairs2[S->second];
+        for (std::vector<Value *>::iterator L = LL.begin(), LE = LL.end();
+             L != LE; ++L) {
+          if (*L == S->first)
+            continue;
+
+          CandidatePairsSet.erase(ValuePair(*L, S->second));
+        }
+
+        std::vector<Value *> &MM = CandidatePairs[S->second];
+        for (std::vector<Value *>::iterator M = MM.begin(), ME = MM.end();
+             M != ME; ++M) {
+          assert(*M != S->first && "Flipped pair in candidate list?");
+          CandidatePairsSet.erase(ValuePair(S->second, *M));
+        }
+
+        std::vector<Value *> &NN = CandidatePairs2[S->first];
+        for (std::vector<Value *>::iterator N = NN.begin(), NE = NN.end();
+             N != NE; ++N) {
+          assert(*N != S->second && "Flipped pair in candidate list?");
+          CandidatePairsSet.erase(ValuePair(*N, S->first));
         }
       }
     }
@@ -1490,24 +2213,19 @@ namespace {
   // Returns the value that is to be used as the pointer input to the vector
   // instruction that fuses I with J.
   Value *BBVectorize::getReplacementPointerInput(LLVMContext& Context,
-                     Instruction *I, Instruction *J, unsigned o,
-                     bool FlipMemInputs) {
+                     Instruction *I, Instruction *J, unsigned o) {
     Value *IPtr, *JPtr;
-    unsigned IAlignment, JAlignment;
+    unsigned IAlignment, JAlignment, IAddressSpace, JAddressSpace;
     int64_t OffsetInElmts;
 
-    // Note: the analysis might fail here, that is why FlipMemInputs has
+    // Note: the analysis might fail here, that is why the pair order has
     // been precomputed (OffsetInElmts must be unused here).
     (void) getPairPtrInfo(I, J, IPtr, JPtr, IAlignment, JAlignment,
-                          OffsetInElmts);
+                          IAddressSpace, JAddressSpace,
+                          OffsetInElmts, false);
 
     // The pointer value is taken to be the one with the lowest offset.
-    Value *VPtr;
-    if (!FlipMemInputs) {
-      VPtr = IPtr;
-    } else {
-      VPtr = JPtr;
-    }
+    Value *VPtr = IPtr;
 
     Type *ArgTypeI = cast<PointerType>(IPtr->getType())->getElementType();
     Type *ArgTypeJ = cast<PointerType>(JPtr->getType())->getElementType();
@@ -1515,7 +2233,7 @@ namespace {
     Type *VArgPtrType = PointerType::get(VArgType,
       cast<PointerType>(IPtr->getType())->getAddressSpace());
     return new BitCastInst(VPtr, VArgPtrType, getReplacementName(I, true, o),
-                        /* insert before */ FlipMemInputs ? J : I);
+                        /* insert before */ I);
   }
 
   void BBVectorize::fillNewShuffleMask(LLVMContext& Context, Instruction *J,
@@ -1585,23 +2303,12 @@ namespace {
                                   Instruction *J, unsigned o, Value *&LOp,
                                   unsigned numElemL,
                                   Type *ArgTypeL, Type *ArgTypeH,
-                                  unsigned IdxOff) {
+                                  bool IBeforeJ, unsigned IdxOff) {
     bool ExpandedIEChain = false;
     if (InsertElementInst *LIE = dyn_cast<InsertElementInst>(LOp)) {
       // If we have a pure insertelement chain, then this can be rewritten
       // into a chain that directly builds the larger type.
-      bool PureChain = true;
-      InsertElementInst *LIENext = LIE;
-      do {
-        if (!isa<UndefValue>(LIENext->getOperand(0)) &&
-            !isa<InsertElementInst>(LIENext->getOperand(0))) {
-          PureChain = false;
-          break;
-        }
-      } while ((LIENext =
-                 dyn_cast<InsertElementInst>(LIENext->getOperand(0))));
-
-      if (PureChain) {
+      if (isPureIEChain(LIE)) {
         SmallVector<Value *, 8> VectElemts(numElemL,
           UndefValue::get(ArgTypeL->getScalarType()));
         InsertElementInst *LIENext = LIE;
@@ -1619,8 +2326,9 @@ namespace {
           LIENext = InsertElementInst::Create(LIEPrev, VectElemts[i],
                              ConstantInt::get(Type::getInt32Ty(Context),
                                               i + IdxOff),
-                             getReplacementName(I, true, o, i+1));
-          LIENext->insertBefore(J);
+                             getReplacementName(IBeforeJ ? I : J,
+                                                true, o, i+1));
+          LIENext->insertBefore(IBeforeJ ? J : I);
           LIEPrev = LIENext;
         }
 
@@ -1635,7 +2343,7 @@ namespace {
   // Returns the value to be used as the specified operand of the vector
   // instruction that fuses I with J.
   Value *BBVectorize::getReplacementInput(LLVMContext& Context, Instruction *I,
-                     Instruction *J, unsigned o, bool FlipMemInputs) {
+                     Instruction *J, unsigned o, bool IBeforeJ) {
     Value *CV0 = ConstantInt::get(Type::getInt32Ty(Context), 0);
     Value *CV1 = ConstantInt::get(Type::getInt32Ty(Context), 1);
 
@@ -1646,12 +2354,6 @@ namespace {
 
     Instruction *L = I, *H = J;
     Type *ArgTypeL = ArgTypeI, *ArgTypeH = ArgTypeJ;
-    if (FlipMemInputs) {
-      L = J;
-      H = I;
-      ArgTypeL = ArgTypeJ;
-      ArgTypeH = ArgTypeI;
-    }
 
     unsigned numElemL;
     if (ArgTypeL->isVectorTy())
@@ -1804,8 +2506,9 @@ namespace {
           Instruction *S =
             new ShuffleVectorInst(I1, UndefValue::get(I1T),
                                   ConstantVector::get(Mask),
-                                  getReplacementName(I, true, o));
-          S->insertBefore(J);
+                                  getReplacementName(IBeforeJ ? I : J,
+                                                     true, o));
+          S->insertBefore(IBeforeJ ? J : I);
           return S;
         }
 
@@ -1826,8 +2529,9 @@ namespace {
           Instruction *NewI1 =
             new ShuffleVectorInst(I1, UndefValue::get(I1T),
                                   ConstantVector::get(Mask),
-                                  getReplacementName(I, true, o, 1));
-          NewI1->insertBefore(J);
+                                  getReplacementName(IBeforeJ ? I : J,
+                                                     true, o, 1));
+          NewI1->insertBefore(IBeforeJ ? J : I);
           I1 = NewI1;
           I1T = I2T;
           I1Elem = I2Elem;
@@ -1842,8 +2546,9 @@ namespace {
           Instruction *NewI2 =
             new ShuffleVectorInst(I2, UndefValue::get(I2T),
                                   ConstantVector::get(Mask),
-                                  getReplacementName(I, true, o, 1));
-          NewI2->insertBefore(J);
+                                  getReplacementName(IBeforeJ ? I : J,
+                                                     true, o, 1));
+          NewI2->insertBefore(IBeforeJ ? J : I);
           I2 = NewI2;
           I2T = I1T;
           I2Elem = I1Elem;
@@ -1863,8 +2568,8 @@ namespace {
 
         Instruction *NewOp =
           new ShuffleVectorInst(I1, I2, ConstantVector::get(Mask),
-                                getReplacementName(I, true, o));
-        NewOp->insertBefore(J);
+                                getReplacementName(IBeforeJ ? I : J, true, o));
+        NewOp->insertBefore(IBeforeJ ? J : I);
         return NewOp;
       }
     }
@@ -1872,17 +2577,17 @@ namespace {
     Type *ArgType = ArgTypeL;
     if (numElemL < numElemH) {
       if (numElemL == 1 && expandIEChain(Context, I, J, o, HOp, numElemH,
-                                         ArgTypeL, VArgType, 1)) {
+                                         ArgTypeL, VArgType, IBeforeJ, 1)) {
         // This is another short-circuit case: we're combining a scalar into
         // a vector that is formed by an IE chain. We've just expanded the IE
         // chain, now insert the scalar and we're done.
 
         Instruction *S = InsertElementInst::Create(HOp, LOp, CV0,
-                                               getReplacementName(I, true, o));
-        S->insertBefore(J);
+                           getReplacementName(IBeforeJ ? I : J, true, o));
+        S->insertBefore(IBeforeJ ? J : I);
         return S;
       } else if (!expandIEChain(Context, I, J, o, LOp, numElemL, ArgTypeL,
-                                ArgTypeH)) {
+                                ArgTypeH, IBeforeJ)) {
         // The two vector inputs to the shuffle must be the same length,
         // so extend the smaller vector to be the same length as the larger one.
         Instruction *NLOp;
@@ -1897,29 +2602,32 @@ namespace {
     
           NLOp = new ShuffleVectorInst(LOp, UndefValue::get(ArgTypeL),
                                        ConstantVector::get(Mask),
-                                       getReplacementName(I, true, o, 1));
+                                       getReplacementName(IBeforeJ ? I : J,
+                                                          true, o, 1));
         } else {
           NLOp = InsertElementInst::Create(UndefValue::get(ArgTypeH), LOp, CV0,
-                                           getReplacementName(I, true, o, 1));
+                                           getReplacementName(IBeforeJ ? I : J,
+                                                              true, o, 1));
         }
   
-        NLOp->insertBefore(J);
+        NLOp->insertBefore(IBeforeJ ? J : I);
         LOp = NLOp;
       }
 
       ArgType = ArgTypeH;
     } else if (numElemL > numElemH) {
       if (numElemH == 1 && expandIEChain(Context, I, J, o, LOp, numElemL,
-                                         ArgTypeH, VArgType)) {
+                                         ArgTypeH, VArgType, IBeforeJ)) {
         Instruction *S =
           InsertElementInst::Create(LOp, HOp, 
                                     ConstantInt::get(Type::getInt32Ty(Context),
                                                      numElemL),
-                                    getReplacementName(I, true, o));
-        S->insertBefore(J);
+                                    getReplacementName(IBeforeJ ? I : J,
+                                                       true, o));
+        S->insertBefore(IBeforeJ ? J : I);
         return S;
       } else if (!expandIEChain(Context, I, J, o, HOp, numElemH, ArgTypeH,
-                                ArgTypeL)) {
+                                ArgTypeL, IBeforeJ)) {
         Instruction *NHOp;
         if (numElemH > 1) {
           std::vector<Constant *> Mask(numElemL);
@@ -1931,13 +2639,15 @@ namespace {
     
           NHOp = new ShuffleVectorInst(HOp, UndefValue::get(ArgTypeH),
                                        ConstantVector::get(Mask),
-                                       getReplacementName(I, true, o, 1));
+                                       getReplacementName(IBeforeJ ? I : J,
+                                                          true, o, 1));
         } else {
           NHOp = InsertElementInst::Create(UndefValue::get(ArgTypeL), HOp, CV0,
-                                           getReplacementName(I, true, o, 1));
+                                           getReplacementName(IBeforeJ ? I : J,
+                                                              true, o, 1));
         }
   
-        NHOp->insertBefore(J);
+        NHOp->insertBefore(IBeforeJ ? J : I);
         HOp = NHOp;
       }
     }
@@ -1955,19 +2665,21 @@ namespace {
       }
 
       Instruction *BV = new ShuffleVectorInst(LOp, HOp,
-                                              ConstantVector::get(Mask),
-                                              getReplacementName(I, true, o));
-      BV->insertBefore(J);
+                          ConstantVector::get(Mask),
+                          getReplacementName(IBeforeJ ? I : J, true, o));
+      BV->insertBefore(IBeforeJ ? J : I);
       return BV;
     }
 
     Instruction *BV1 = InsertElementInst::Create(
                                           UndefValue::get(VArgType), LOp, CV0,
-                                          getReplacementName(I, true, o, 1));
-    BV1->insertBefore(I);
+                                          getReplacementName(IBeforeJ ? I : J,
+                                                             true, o, 1));
+    BV1->insertBefore(IBeforeJ ? J : I);
     Instruction *BV2 = InsertElementInst::Create(BV1, HOp, CV1,
-                                          getReplacementName(I, true, o, 2));
-    BV2->insertBefore(J);
+                                          getReplacementName(IBeforeJ ? I : J,
+                                                             true, o, 2));
+    BV2->insertBefore(IBeforeJ ? J : I);
     return BV2;
   }
 
@@ -1976,7 +2688,7 @@ namespace {
   void BBVectorize::getReplacementInputsForPair(LLVMContext& Context,
                      Instruction *I, Instruction *J,
                      SmallVector<Value *, 3> &ReplacedOperands,
-                     bool FlipMemInputs) {
+                     bool IBeforeJ) {
     unsigned NumOperands = I->getNumOperands();
 
     for (unsigned p = 0, o = NumOperands-1; p < NumOperands; ++p, --o) {
@@ -1985,12 +2697,11 @@ namespace {
 
       if (isa<LoadInst>(I) || (o == 1 && isa<StoreInst>(I))) {
         // This is the pointer for a load/store instruction.
-        ReplacedOperands[o] = getReplacementPointerInput(Context, I, J, o,
-                                FlipMemInputs);
+        ReplacedOperands[o] = getReplacementPointerInput(Context, I, J, o);
         continue;
       } else if (isa<CallInst>(I)) {
         Function *F = cast<CallInst>(I)->getCalledFunction();
-        unsigned IID = F->getIntrinsicID();
+        Intrinsic::ID IID = (Intrinsic::ID) F->getIntrinsicID();
         if (o == NumOperands-1) {
           BasicBlock &BB = *I->getParent();
 
@@ -1999,8 +2710,7 @@ namespace {
           Type *ArgTypeJ = J->getType();
           Type *VArgType = getVecTypeForPair(ArgTypeI, ArgTypeJ);
 
-          ReplacedOperands[o] = Intrinsic::getDeclaration(M,
-            (Intrinsic::ID) IID, VArgType);
+          ReplacedOperands[o] = Intrinsic::getDeclaration(M, IID, VArgType);
           continue;
         } else if (IID == Intrinsic::powi && o == 1) {
           // The second argument of powi is a single integer and we've already
@@ -2014,8 +2724,7 @@ namespace {
         continue;
       }
 
-      ReplacedOperands[o] =
-        getReplacementInput(Context, I, J, o, FlipMemInputs);
+      ReplacedOperands[o] = getReplacementInput(Context, I, J, o, IBeforeJ);
     }
   }
 
@@ -2026,8 +2735,7 @@ namespace {
   void BBVectorize::replaceOutputsOfPair(LLVMContext& Context, Instruction *I,
                      Instruction *J, Instruction *K,
                      Instruction *&InsertionPt,
-                     Instruction *&K1, Instruction *&K2,
-                     bool FlipMemInputs) {
+                     Instruction *&K1, Instruction *&K2) {
     if (isa<StoreInst>(I)) {
       AA->replaceWithNewValue(I, K);
       AA->replaceWithNewValue(J, K);
@@ -2057,13 +2765,11 @@ namespace {
         }
 
         K1 = new ShuffleVectorInst(K, UndefValue::get(VType),
-                                   ConstantVector::get(
-                                     FlipMemInputs ? Mask2 : Mask1),
+                                   ConstantVector::get( Mask1),
                                    getReplacementName(K, false, 1));
       } else {
         Value *CV0 = ConstantInt::get(Type::getInt32Ty(Context), 0);
-        Value *CV1 = ConstantInt::get(Type::getInt32Ty(Context), numElem-1);
-        K1 = ExtractElementInst::Create(K, FlipMemInputs ? CV1 : CV0,
+        K1 = ExtractElementInst::Create(K, CV0,
                                           getReplacementName(K, false, 1));
       }
 
@@ -2075,13 +2781,11 @@ namespace {
         }
 
         K2 = new ShuffleVectorInst(K, UndefValue::get(VType),
-                                   ConstantVector::get(
-                                     FlipMemInputs ? Mask1 : Mask2),
+                                   ConstantVector::get( Mask2),
                                    getReplacementName(K, false, 2));
       } else {
-        Value *CV0 = ConstantInt::get(Type::getInt32Ty(Context), 0);
         Value *CV1 = ConstantInt::get(Type::getInt32Ty(Context), numElem-1);
-        K2 = ExtractElementInst::Create(K, FlipMemInputs ? CV0 : CV1,
+        K2 = ExtractElementInst::Create(K, CV1,
                                           getReplacementName(K, false, 2));
       }
 
@@ -2093,7 +2797,7 @@ namespace {
 
   // Move all uses of the function I (including pairing-induced uses) after J.
   bool BBVectorize::canMoveUsesOfIAfterJ(BasicBlock &BB,
-                     std::multimap<Value *, Value *> &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *I, Instruction *J) {
     // Skip to the first instruction past I.
     BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
@@ -2101,18 +2805,18 @@ namespace {
     DenseSet<Value *> Users;
     AliasSetTracker WriteSet(*AA);
     for (; cast<Instruction>(L) != J; ++L)
-      (void) trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSet);
+      (void) trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSetPairs);
 
     assert(cast<Instruction>(L) == J &&
       "Tracking has not proceeded far enough to check for dependencies");
     // If J is now in the use set of I, then trackUsesOfI will return true
     // and we have a dependency cycle (and the fusing operation must abort).
-    return !trackUsesOfI(Users, WriteSet, I, J, true, &LoadMoveSet);
+    return !trackUsesOfI(Users, WriteSet, I, J, true, &LoadMoveSetPairs);
   }
 
   // Move all uses of the function I (including pairing-induced uses) after J.
   void BBVectorize::moveUsesOfIAfterJ(BasicBlock &BB,
-                     std::multimap<Value *, Value *> &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *&InsertionPt,
                      Instruction *I, Instruction *J) {
     // Skip to the first instruction past I.
@@ -2121,7 +2825,7 @@ namespace {
     DenseSet<Value *> Users;
     AliasSetTracker WriteSet(*AA);
     for (; cast<Instruction>(L) != J;) {
-      if (trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSet)) {
+      if (trackUsesOfI(Users, WriteSet, I, L, true, &LoadMoveSetPairs)) {
         // Move this instruction
         Instruction *InstToMove = L; ++L;
 
@@ -2141,7 +2845,8 @@ namespace {
   // to be moved after J (the second instruction) when the pair is fused.
   void BBVectorize::collectPairLoadMoveSet(BasicBlock &BB,
                      DenseMap<Value *, Value *> &ChosenPairs,
-                     std::multimap<Value *, Value *> &LoadMoveSet,
+                     DenseMap<Value *, std::vector<Value *> > &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs,
                      Instruction *I) {
     // Skip to the first instruction past I.
     BasicBlock::iterator L = llvm::next(BasicBlock::iterator(I));
@@ -2154,8 +2859,10 @@ namespace {
     // could be before I if this is an inverted input.
     for (BasicBlock::iterator E = BB.end(); cast<Instruction>(L) != E; ++L) {
       if (trackUsesOfI(Users, WriteSet, I, L)) {
-        if (L->mayReadFromMemory())
-          LoadMoveSet.insert(ValuePair(L, I));
+        if (L->mayReadFromMemory()) {
+          LoadMoveSet[L].push_back(I);
+          LoadMoveSetPairs.insert(ValuePair(L, I));
+        }
       }
     }
   }
@@ -2164,50 +2871,22 @@ namespace {
   // are chosen for vectorization, we can end up in a situation where the
   // aliasing analysis starts returning different query results as the
   // process of fusing instruction pairs continues. Because the algorithm
-  // relies on finding the same use trees here as were found earlier, we'll
+  // relies on finding the same use dags here as were found earlier, we'll
   // need to precompute the necessary aliasing information here and then
   // manually update it during the fusion process.
   void BBVectorize::collectLoadMoveSet(BasicBlock &BB,
                      std::vector<Value *> &PairableInsts,
                      DenseMap<Value *, Value *> &ChosenPairs,
-                     std::multimap<Value *, Value *> &LoadMoveSet) {
+                     DenseMap<Value *, std::vector<Value *> > &LoadMoveSet,
+                     DenseSet<ValuePair> &LoadMoveSetPairs) {
     for (std::vector<Value *>::iterator PI = PairableInsts.begin(),
          PIE = PairableInsts.end(); PI != PIE; ++PI) {
       DenseMap<Value *, Value *>::iterator P = ChosenPairs.find(*PI);
       if (P == ChosenPairs.end()) continue;
 
       Instruction *I = cast<Instruction>(P->first);
-      collectPairLoadMoveSet(BB, ChosenPairs, LoadMoveSet, I);
-    }
-  }
-
-  // As with the aliasing information, SCEV can also change because of
-  // vectorization. This information is used to compute relative pointer
-  // offsets; the necessary information will be cached here prior to
-  // fusion.
-  void BBVectorize::collectPtrInfo(std::vector<Value *> &PairableInsts,
-                                   DenseMap<Value *, Value *> &ChosenPairs,
-                                   DenseSet<Value *> &LowPtrInsts) {
-    for (std::vector<Value *>::iterator PI = PairableInsts.begin(),
-      PIE = PairableInsts.end(); PI != PIE; ++PI) {
-      DenseMap<Value *, Value *>::iterator P = ChosenPairs.find(*PI);
-      if (P == ChosenPairs.end()) continue;
-
-      Instruction *I = cast<Instruction>(P->first);
-      Instruction *J = cast<Instruction>(P->second);
-
-      if (!isa<LoadInst>(I) && !isa<StoreInst>(I))
-        continue;
-
-      Value *IPtr, *JPtr;
-      unsigned IAlignment, JAlignment;
-      int64_t OffsetInElmts;
-      if (!getPairPtrInfo(I, J, IPtr, JPtr, IAlignment, JAlignment,
-                          OffsetInElmts) || abs64(OffsetInElmts) != 1)
-        llvm_unreachable("Pre-fusion pointer analysis failed");
-
-      Value *LowPI = (OffsetInElmts > 0) ? I : J;
-      LowPtrInsts.insert(LowPI);
+      collectPairLoadMoveSet(BB, ChosenPairs, LoadMoveSet,
+                             LoadMoveSetPairs, I);
     }
   }
 
@@ -2243,27 +2922,29 @@ namespace {
   // because the vector instruction is inserted in the location of the pair's
   // second member).
   void BBVectorize::fuseChosenPairs(BasicBlock &BB,
-                     std::vector<Value *> &PairableInsts,
-                     DenseMap<Value *, Value *> &ChosenPairs) {
+             std::vector<Value *> &PairableInsts,
+             DenseMap<Value *, Value *> &ChosenPairs,
+             DenseSet<ValuePair> &FixedOrderPairs,
+             DenseMap<VPPair, unsigned> &PairConnectionTypes,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairs,
+             DenseMap<ValuePair, std::vector<ValuePair> > &ConnectedPairDeps) {
     LLVMContext& Context = BB.getContext();
 
     // During the vectorization process, the order of the pairs to be fused
     // could be flipped. So we'll add each pair, flipped, into the ChosenPairs
     // list. After a pair is fused, the flipped pair is removed from the list.
-    std::vector<ValuePair> FlippedPairs;
-    FlippedPairs.reserve(ChosenPairs.size());
+    DenseSet<ValuePair> FlippedPairs;
     for (DenseMap<Value *, Value *>::iterator P = ChosenPairs.begin(),
          E = ChosenPairs.end(); P != E; ++P)
-      FlippedPairs.push_back(ValuePair(P->second, P->first));
-    for (std::vector<ValuePair>::iterator P = FlippedPairs.begin(),
+      FlippedPairs.insert(ValuePair(P->second, P->first));
+    for (DenseSet<ValuePair>::iterator P = FlippedPairs.begin(),
          E = FlippedPairs.end(); P != E; ++P)
       ChosenPairs.insert(*P);
 
-    std::multimap<Value *, Value *> LoadMoveSet;
-    collectLoadMoveSet(BB, PairableInsts, ChosenPairs, LoadMoveSet);
-
-    DenseSet<Value *> LowPtrInsts;
-    collectPtrInfo(PairableInsts, ChosenPairs, LowPtrInsts);
+    DenseMap<Value *, std::vector<Value *> > LoadMoveSet;
+    DenseSet<ValuePair> LoadMoveSetPairs;
+    collectLoadMoveSet(BB, PairableInsts, ChosenPairs,
+                       LoadMoveSet, LoadMoveSetPairs);
 
     DEBUG(dbgs() << "BBV: initial: \n" << BB << "\n");
 
@@ -2295,7 +2976,7 @@ namespace {
       ChosenPairs.erase(FP);
       ChosenPairs.erase(P);
 
-      if (!canMoveUsesOfIAfterJ(BB, LoadMoveSet, I, J)) {
+      if (!canMoveUsesOfIAfterJ(BB, LoadMoveSetPairs, I, J)) {
         DEBUG(dbgs() << "BBV: fusion of: " << *I <<
                " <-> " << *J <<
                " aborted because of non-trivial dependency cycle\n");
@@ -2304,57 +2985,110 @@ namespace {
         continue;
       }
 
-      bool FlipMemInputs = false;
-      if (isa<LoadInst>(I) || isa<StoreInst>(I))
-        FlipMemInputs = (LowPtrInsts.find(I) == LowPtrInsts.end());
+      // If the pair must have the other order, then flip it.
+      bool FlipPairOrder = FixedOrderPairs.count(ValuePair(J, I));
+      if (!FlipPairOrder && !FixedOrderPairs.count(ValuePair(I, J))) {
+        // This pair does not have a fixed order, and so we might want to
+        // flip it if that will yield fewer shuffles. We count the number
+        // of dependencies connected via swaps, and those directly connected,
+        // and flip the order if the number of swaps is greater.
+        bool OrigOrder = true;
+        DenseMap<ValuePair, std::vector<ValuePair> >::iterator IJ =
+          ConnectedPairDeps.find(ValuePair(I, J));
+        if (IJ == ConnectedPairDeps.end()) {
+          IJ = ConnectedPairDeps.find(ValuePair(J, I));
+          OrigOrder = false;
+        }
 
+        if (IJ != ConnectedPairDeps.end()) {
+          unsigned NumDepsDirect = 0, NumDepsSwap = 0;
+          for (std::vector<ValuePair>::iterator T = IJ->second.begin(),
+               TE = IJ->second.end(); T != TE; ++T) {
+            VPPair Q(IJ->first, *T);
+            DenseMap<VPPair, unsigned>::iterator R =
+              PairConnectionTypes.find(VPPair(Q.second, Q.first));
+            assert(R != PairConnectionTypes.end() &&
+                   "Cannot find pair connection type");
+            if (R->second == PairConnectionDirect)
+              ++NumDepsDirect;
+            else if (R->second == PairConnectionSwap)
+              ++NumDepsSwap;
+          }
+
+          if (!OrigOrder)
+            std::swap(NumDepsDirect, NumDepsSwap);
+
+          if (NumDepsSwap > NumDepsDirect) {
+            FlipPairOrder = true;
+            DEBUG(dbgs() << "BBV: reordering pair: " << *I <<
+                            " <-> " << *J << "\n");
+          }
+        }
+      }
+
+      Instruction *L = I, *H = J;
+      if (FlipPairOrder)
+        std::swap(H, L);
+
+      // If the pair being fused uses the opposite order from that in the pair
+      // connection map, then we need to flip the types.
+      DenseMap<ValuePair, std::vector<ValuePair> >::iterator HL =
+        ConnectedPairs.find(ValuePair(H, L));
+      if (HL != ConnectedPairs.end())
+        for (std::vector<ValuePair>::iterator T = HL->second.begin(),
+             TE = HL->second.end(); T != TE; ++T) {
+          VPPair Q(HL->first, *T);
+          DenseMap<VPPair, unsigned>::iterator R = PairConnectionTypes.find(Q);
+          assert(R != PairConnectionTypes.end() &&
+                 "Cannot find pair connection type");
+          if (R->second == PairConnectionDirect)
+            R->second = PairConnectionSwap;
+          else if (R->second == PairConnectionSwap)
+            R->second = PairConnectionDirect;
+        }
+
+      bool LBeforeH = !FlipPairOrder;
       unsigned NumOperands = I->getNumOperands();
       SmallVector<Value *, 3> ReplacedOperands(NumOperands);
-      getReplacementInputsForPair(Context, I, J, ReplacedOperands,
-        FlipMemInputs);
+      getReplacementInputsForPair(Context, L, H, ReplacedOperands,
+                                  LBeforeH);
 
       // Make a copy of the original operation, change its type to the vector
       // type and replace its operands with the vector operands.
-      Instruction *K = I->clone();
-      if (I->hasName()) K->takeName(I);
+      Instruction *K = L->clone();
+      if (L->hasName())
+        K->takeName(L);
+      else if (H->hasName())
+        K->takeName(H);
 
       if (!isa<StoreInst>(K))
-        K->mutateType(getVecTypeForPair(I->getType(), J->getType()));
+        K->mutateType(getVecTypeForPair(L->getType(), H->getType()));
 
-      combineMetadata(K, J);
+      combineMetadata(K, H);
+      K->intersectOptionalDataWith(H);
 
       for (unsigned o = 0; o < NumOperands; ++o)
         K->setOperand(o, ReplacedOperands[o]);
-
-      // If we've flipped the memory inputs, make sure that we take the correct
-      // alignment.
-      if (FlipMemInputs) {
-        if (isa<StoreInst>(K))
-          cast<StoreInst>(K)->setAlignment(cast<StoreInst>(J)->getAlignment());
-        else
-          cast<LoadInst>(K)->setAlignment(cast<LoadInst>(J)->getAlignment());
-      }
 
       K->insertAfter(J);
 
       // Instruction insertion point:
       Instruction *InsertionPt = K;
       Instruction *K1 = 0, *K2 = 0;
-      replaceOutputsOfPair(Context, I, J, K, InsertionPt, K1, K2,
-        FlipMemInputs);
+      replaceOutputsOfPair(Context, L, H, K, InsertionPt, K1, K2);
 
-      // The use tree of the first original instruction must be moved to after
-      // the location of the second instruction. The entire use tree of the
-      // first instruction is disjoint from the input tree of the second
+      // The use dag of the first original instruction must be moved to after
+      // the location of the second instruction. The entire use dag of the
+      // first instruction is disjoint from the input dag of the second
       // (by definition), and so commutes with it.
 
-      moveUsesOfIAfterJ(BB, LoadMoveSet, InsertionPt, I, J);
+      moveUsesOfIAfterJ(BB, LoadMoveSetPairs, InsertionPt, I, J);
 
       if (!isa<StoreInst>(I)) {
-        I->replaceAllUsesWith(K1);
-        J->replaceAllUsesWith(K2);
-        AA->replaceWithNewValue(I, K1);
-        AA->replaceWithNewValue(J, K2);
+        L->replaceAllUsesWith(K1);
+        H->replaceAllUsesWith(K2);
+        AA->replaceWithNewValue(L, K1);
+        AA->replaceWithNewValue(H, K2);
       }
 
       // Instructions that may read from memory may be in the load move set.
@@ -2365,17 +3099,23 @@ namespace {
       // yet-to-be-fused pair. The loads in question are the keys of the map.
       if (I->mayReadFromMemory()) {
         std::vector<ValuePair> NewSetMembers;
-        VPIteratorPair IPairRange = LoadMoveSet.equal_range(I);
-        VPIteratorPair JPairRange = LoadMoveSet.equal_range(J);
-        for (std::multimap<Value *, Value *>::iterator N = IPairRange.first;
-             N != IPairRange.second; ++N)
-          NewSetMembers.push_back(ValuePair(K, N->second));
-        for (std::multimap<Value *, Value *>::iterator N = JPairRange.first;
-             N != JPairRange.second; ++N)
-          NewSetMembers.push_back(ValuePair(K, N->second));
+        DenseMap<Value *, std::vector<Value *> >::iterator II =
+          LoadMoveSet.find(I);
+        if (II != LoadMoveSet.end())
+          for (std::vector<Value *>::iterator N = II->second.begin(),
+               NE = II->second.end(); N != NE; ++N)
+            NewSetMembers.push_back(ValuePair(K, *N));
+        DenseMap<Value *, std::vector<Value *> >::iterator JJ =
+          LoadMoveSet.find(J);
+        if (JJ != LoadMoveSet.end())
+          for (std::vector<Value *>::iterator N = JJ->second.begin(),
+               NE = JJ->second.end(); N != NE; ++N)
+            NewSetMembers.push_back(ValuePair(K, *N));
         for (std::vector<ValuePair>::iterator A = NewSetMembers.begin(),
-             AE = NewSetMembers.end(); A != AE; ++A)
-          LoadMoveSet.insert(*A);
+             AE = NewSetMembers.end(); A != AE; ++A) {
+          LoadMoveSet[A->first].push_back(A->second);
+          LoadMoveSetPairs.insert(*A);
+        }
       }
 
       // Before removing I, set the iterator to the next instruction.
@@ -2387,6 +3127,9 @@ namespace {
       SE->forgetValue(J);
       I->eraseFromParent();
       J->eraseFromParent();
+
+      DEBUG(if (PrintAfterEveryPair) dbgs() << "BBV: block is now: \n" <<
+                                               BB << "\n");
     }
 
     DEBUG(dbgs() << "BBV: final: \n" << BB << "\n");
@@ -2397,6 +3140,8 @@ char BBVectorize::ID = 0;
 static const char bb_vectorize_name[] = "Basic-Block Vectorization";
 INITIALIZE_PASS_BEGIN(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
 INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
 INITIALIZE_PASS_END(BBVectorize, BBV_NAME, bb_vectorize_name, false, false)
 
@@ -2430,6 +3175,7 @@ VectorizeConfig::VectorizeConfig() {
   MaxCandPairsForCycleCheck = ::MaxCandPairsForCycleCheck;
   SplatBreaksChain = ::SplatBreaksChain;
   MaxInsts = ::MaxInsts;
+  MaxPairs = ::MaxPairs;
   MaxIter = ::MaxIter;
   Pow2LenOnly = ::Pow2LenOnly;
   NoMemOpBoost = ::NoMemOpBoost;

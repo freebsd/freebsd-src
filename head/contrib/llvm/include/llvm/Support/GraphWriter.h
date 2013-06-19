@@ -23,17 +23,21 @@
 #ifndef LLVM_SUPPORT_GRAPHWRITER_H
 #define LLVM_SUPPORT_GRAPHWRITER_H
 
-#include "llvm/Support/DOTGraphTraits.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/GraphTraits.h"
+#include "llvm/Support/DOTGraphTraits.h"
 #include "llvm/Support/Path.h"
-#include <vector>
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
+#include <vector>
 
 namespace llvm {
 
 namespace DOT {  // Private functions...
   std::string EscapeString(const std::string &Label);
+
+  /// \brief Get a color string for this node number. Simply round-robin selects
+  /// from a reasonable number of colors.
+  StringRef getColorString(unsigned NodeNumber);
 }
 
 namespace GraphProgram {
@@ -173,6 +177,10 @@ public:
       // If we should include the address of the node in the label, do so now.
       if (DTraits.hasNodeAddressLabel(Node, G))
         O << "|" << static_cast<const void*>(Node);
+
+      std::string NodeDesc = DTraits.getNodeDescription(Node, G);
+      if (!NodeDesc.empty())
+        O << "|" << DOT::EscapeString(NodeDesc);
     }
 
     std::string edgeSourceLabels;
@@ -193,6 +201,10 @@ public:
       // If we should include the address of the node in the label, do so now.
       if (DTraits.hasNodeAddressLabel(Node, G))
         O << "|" << static_cast<const void*>(Node);
+
+      std::string NodeDesc = DTraits.getNodeDescription(Node, G);
+      if (!NodeDesc.empty())
+        O << "|" << DOT::EscapeString(NodeDesc);
     }
 
     if (DTraits.hasEdgeDestLabels()) {

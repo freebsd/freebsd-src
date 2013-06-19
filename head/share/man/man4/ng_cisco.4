@@ -114,28 +114,28 @@ understands the
 message.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobarbazio
-.It Dv downstream
+.Bl -tag -width ".Va downstream"
+.It Va downstream
 The connection to the synchronous line.
-.It Dv inet
+.It Va inet
 IP hook.
-.It Dv inet6
+.It Va inet6
 IPv6 hook.
-.It Dv atalk
+.It Va atalk
 AppleTalk hook.
-.It Dv ipx
-IPX hook
+.It Va ipx
+IPX hook.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_CISCO_SET_IPADDR
+.It Dv NGM_CISCO_SET_IPADDR Pq Ic setipaddr
 This command takes an array of two
 .Dv "struct in_addr"
 arguments.
 The first is the IP address of the corresponding interface
 and the second is the netmask.
-.It Dv NGM_CISCO_GET_IPADDR
+.It Dv NGM_CISCO_GET_IPADDR Pq Ic getipaddr
 This command returns the IP configuration in the same format used by
 .Dv NGM_CISCO_SET_IPADDR .
 This command is also
@@ -143,13 +143,13 @@ This command is also
 by this node type to the
 .Dv inet
 peer whenever an IP address inquiry packet is received.
-.It Dv NGM_CISCO_GET_STATUS
+.It Dv NGM_CISCO_GET_STATUS Pq Ic getstats
 Returns a
 .Dv "struct ngciscostat" :
 .Bd -literal -offset 4n
 struct ngciscostat {
-  uint32_t   seq_retries;       /* # unack'd retries */
-  uint32_t   keepalive_period;  /* in seconds */
+  uint32_t   seqRetries;	/* # unack'd retries */
+  uint32_t   keepAlivePeriod;	/* in seconds */
 };
 .Ed
 .El

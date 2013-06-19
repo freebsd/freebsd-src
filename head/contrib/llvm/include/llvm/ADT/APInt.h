@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_APINT_H
-#define LLVM_APINT_H
+#ifndef LLVM_ADT_APINT_H
+#define LLVM_ADT_APINT_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Compiler.h"
@@ -251,7 +251,7 @@ public:
   /// constructor.
   APInt(unsigned numBits, unsigned numWords, const uint64_t bigVal[]);
 
-  /// This constructor interprets the string \arg str in the given radix. The
+  /// This constructor interprets the string \p str in the given radix. The
   /// interpretation stops when the first character that is not suitable for the
   /// radix is encountered, or the end of the string. Acceptable radix values
   /// are 2, 8, 10, 16, and 36. It is an error for the value implied by the 
@@ -274,7 +274,7 @@ public:
       initSlowCase(that);
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   /// @brief Move Constructor.
   APInt(APInt&& that) : BitWidth(that.BitWidth), VAL(that.VAL) {
     that.BitWidth = 0;
@@ -427,7 +427,7 @@ public:
   /// @returns the all-ones value for an APInt of the specified bit-width.
   /// @brief Get the all-ones value.
   static APInt getAllOnesValue(unsigned numBits) {
-    return APInt(numBits, -1ULL, true);
+    return APInt(numBits, UINT64_MAX, true);
   }
 
   /// @returns the '0' value for an APInt of the specified bit-width.
@@ -498,11 +498,22 @@ public:
     if (loBitsSet == 0)
       return APInt(numBits, 0);
     if (loBitsSet == APINT_BITS_PER_WORD)
-      return APInt(numBits, -1ULL);
+      return APInt(numBits, UINT64_MAX);
     // For small values, return quickly.
     if (loBitsSet <= APINT_BITS_PER_WORD)
-      return APInt(numBits, -1ULL >> (APINT_BITS_PER_WORD - loBitsSet));
+      return APInt(numBits, UINT64_MAX >> (APINT_BITS_PER_WORD - loBitsSet));
     return getAllOnesValue(numBits).lshr(numBits - loBitsSet);
+  }
+
+  /// \brief Return a value containing V broadcasted over NewLen bits.
+  static APInt getSplat(unsigned NewLen, const APInt &V) {
+    assert(NewLen >= V.getBitWidth() && "Can't splat to smaller bit width!");
+
+    APInt Val = V.zextOrSelf(NewLen);
+    for (unsigned I = V.getBitWidth(); I < NewLen; I <<= 1)
+      Val |= Val << I;
+
+    return Val;
   }
 
   /// \brief Determine if two APInts have the same value, after zero-extending
@@ -601,7 +612,7 @@ public:
     return AssignSlowCase(RHS);
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   /// @brief Move assignment operator.
   APInt& operator=(APInt&& that) {
     if (!isSingleWord())
@@ -760,7 +771,7 @@ public:
   APInt shl(unsigned shiftAmt) const {
     assert(shiftAmt <= BitWidth && "Invalid shift amount");
     if (isSingleWord()) {
-      if (shiftAmt == BitWidth)
+      if (shiftAmt >= BitWidth)
         return APInt(BitWidth, 0); // avoid undefined shift results
       return APInt(BitWidth, VAL << shiftAmt);
     }
@@ -799,16 +810,7 @@ public:
 
   /// Signed divide this APInt by APInt RHS.
   /// @brief Signed division function for APInt.
-  APInt sdiv(const APInt &RHS) const {
-    if (isNegative())
-      if (RHS.isNegative())
-        return (-(*this)).udiv(-RHS);
-      else
-        return -((-(*this)).udiv(RHS));
-    else if (RHS.isNegative())
-      return -(this->udiv(-RHS));
-    return this->udiv(RHS);
-  }
+  APInt sdiv(const APInt &RHS) const;
 
   /// Perform an unsigned remainder operation on this APInt with RHS being the
   /// divisor. Both this and RHS are treated as unsigned quantities for purposes
@@ -821,16 +823,7 @@ public:
 
   /// Signed remainder operation on APInt.
   /// @brief Function for signed remainder operation.
-  APInt srem(const APInt &RHS) const {
-    if (isNegative())
-      if (RHS.isNegative())
-        return -((-(*this)).urem(-RHS));
-      else
-        return -((-(*this)).urem(RHS));
-    else if (RHS.isNegative())
-      return this->urem(-RHS);
-    return this->urem(RHS);
-  }
+  APInt srem(const APInt &RHS) const;
 
   /// Sometimes it is convenient to divide two APInt values and obtain both the
   /// quotient and remainder. This function does both operations in the same
@@ -842,24 +835,9 @@ public:
                       APInt &Quotient, APInt &Remainder);
 
   static void sdivrem(const APInt &LHS, const APInt &RHS,
-                      APInt &Quotient, APInt &Remainder) {
-    if (LHS.isNegative()) {
-      if (RHS.isNegative())
-        APInt::udivrem(-LHS, -RHS, Quotient, Remainder);
-      else {
-        APInt::udivrem(-LHS, RHS, Quotient, Remainder);
-        Quotient = -Quotient;
-      }
-      Remainder = -Remainder;
-    } else if (RHS.isNegative()) {
-      APInt::udivrem(LHS, -RHS, Quotient, Remainder);
-      Quotient = -Quotient;
-    } else {
-      APInt::udivrem(LHS, RHS, Quotient, Remainder);
-    }
-  }
-  
-  
+                      APInt &Quotient, APInt &Remainder);
+
+
   // Operations that return overflow indicators.
   APInt sadd_ov(const APInt &RHS, bool &Overflow) const;
   APInt uadd_ov(const APInt &RHS, bool &Overflow) const;
@@ -1113,11 +1091,11 @@ public:
   /// @brief Set every bit to 1.
   void setAllBits() {
     if (isSingleWord())
-      VAL = -1ULL;
+      VAL = UINT64_MAX;
     else {
       // Set all the bits in all the words.
       for (unsigned i = 0; i < getNumWords(); ++i)
-        pVal[i] = -1ULL;
+        pVal[i] = UINT64_MAX;
     }
     // Clear the unused ones
     clearUnusedBits();
@@ -1142,10 +1120,10 @@ public:
   /// @brief Toggle every bit to its opposite value.
   void flipAllBits() {
     if (isSingleWord())
-      VAL ^= -1ULL;
+      VAL ^= UINT64_MAX;
     else {
       for (unsigned i = 0; i < getNumWords(); ++i)
-        pVal[i] ^= -1ULL;
+        pVal[i] ^= UINT64_MAX;
     }
     clearUnusedBits();
   }
@@ -1191,7 +1169,8 @@ public:
   /// APInt. This is used in conjunction with getActiveData to extract the raw
   /// value of the APInt.
   unsigned getActiveWords() const {
-    return whichWord(getActiveBits()-1) + 1;
+    unsigned numActiveBits = getActiveBits();
+    return numActiveBits ? whichWord(numActiveBits - 1) + 1 : 1;
   }
 
   /// Computes the minimum bit width for this APInt while considering it to be
@@ -1231,15 +1210,15 @@ public:
   }
 
   /// This method determines how many bits are required to hold the APInt
-  /// equivalent of the string given by \arg str.
+  /// equivalent of the string given by \p str.
   /// @brief Get bits required for string value.
   static unsigned getBitsNeeded(StringRef str, uint8_t radix);
 
   /// countLeadingZeros - This function is an APInt version of the
   /// countLeadingZeros_{32,64} functions in MathExtras.h. It counts the number
   /// of zeros from the most significant bit to the first one bit.
-  /// @returns BitWidth if the value is zero.
-  /// @returns the number of zeros from the most significant bit to the first
+  /// @returns BitWidth if the value is zero, otherwise
+  /// returns the number of zeros from the most significant bit to the first
   /// one bits.
   unsigned countLeadingZeros() const {
     if (isSingleWord()) {
@@ -1252,8 +1231,8 @@ public:
   /// countLeadingOnes - This function is an APInt version of the
   /// countLeadingOnes_{32,64} functions in MathExtras.h. It counts the number
   /// of ones from the most significant bit to the first zero bit.
-  /// @returns 0 if the high order bit is not set
-  /// @returns the number of 1 bits from the most significant to the least
+  /// @returns 0 if the high order bit is not set, otherwise
+  /// returns the number of 1 bits from the most significant to the least
   /// @brief Count the number of leading one bits.
   unsigned countLeadingOnes() const;
 
@@ -1266,8 +1245,8 @@ public:
   /// countTrailingZeros - This function is an APInt version of the
   /// countTrailingZeros_{32,64} functions in MathExtras.h. It counts
   /// the number of zeros from the least significant bit to the first set bit.
-  /// @returns BitWidth if the value is zero.
-  /// @returns the number of zeros from the least significant bit to the first
+  /// @returns BitWidth if the value is zero, otherwise
+  /// returns the number of zeros from the least significant bit to the first
   /// one bit.
   /// @brief Count the number of trailing zero bits.
   unsigned countTrailingZeros() const;
@@ -1275,8 +1254,8 @@ public:
   /// countTrailingOnes - This function is an APInt version of the
   /// countTrailingOnes_{32,64} functions in MathExtras.h. It counts
   /// the number of ones from the least significant bit to the first zero bit.
-  /// @returns BitWidth if the value is all ones.
-  /// @returns the number of ones from the least significant bit to the first
+  /// @returns BitWidth if the value is all ones, otherwise
+  /// returns the number of ones from the least significant bit to the first
   /// zero bit.
   /// @brief Count the number of trailing one bits.
   unsigned countTrailingOnes() const {
@@ -1288,8 +1267,8 @@ public:
   /// countPopulation - This function is an APInt version of the
   /// countPopulation_{32,64} functions in MathExtras.h. It counts the number
   /// of 1 bits in the APInt value.
-  /// @returns 0 if the value is zero.
-  /// @returns the number of set bits.
+  /// @returns 0 if the value is zero, otherwise returns the number of set
+  /// bits.
   /// @brief Count the number of bits set.
   unsigned countPopulation() const {
     if (isSingleWord())
@@ -1780,6 +1759,9 @@ inline APInt Not(const APInt& APIVal) {
 
 } // End of APIntOps namespace
 
+  // See friend declaration above. This additional declaration is required in
+  // order to compile LLVM with IBM xlC compiler.
+  hash_code hash_value(const APInt &Arg);
 } // End of llvm namespace
 
 #endif

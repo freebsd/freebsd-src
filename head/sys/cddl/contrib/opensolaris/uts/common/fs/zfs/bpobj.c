@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/bpobj.h>
@@ -43,7 +43,7 @@ bpobj_alloc_empty(objset_t *os, int blocksize, dmu_tx_t *tx)
 
 	if (spa_feature_is_enabled(spa, empty_bpobj_feat)) {
 		if (!spa_feature_is_active(spa, empty_bpobj_feat)) {
-			ASSERT3U(dp->dp_empty_bpobj, ==, 0);
+			ASSERT0(dp->dp_empty_bpobj);
 			dp->dp_empty_bpobj =
 			    bpobj_alloc(os, SPA_MAXBLOCKSIZE, tx);
 			VERIFY(zap_add(os,
@@ -392,6 +392,10 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 		    DMU_OT_BPOBJ_SUBOBJ, SPA_MAXBLOCKSIZE, DMU_OT_NONE, 0, tx);
 	}
 
+	dmu_object_info_t doi;
+	ASSERT0(dmu_object_info(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs, &doi));
+	ASSERT3U(doi.doi_type, ==, DMU_OT_BPOBJ_SUBOBJ);
+
 	mutex_enter(&bpo->bpo_lock);
 	dmu_write(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs,
 	    bpo->bpo_phys->bpo_num_subobjs * sizeof (subobj),
@@ -414,6 +418,12 @@ bpobj_enqueue_subobj(bpobj_t *bpo, uint64_t subobj, dmu_tx_t *tx)
 
 			VERIFY3U(0, ==, dmu_buf_hold(bpo->bpo_os, subsubobjs,
 			    0, FTAG, &subdb, 0));
+			/*
+			 * Make sure that we are not asking dmu_write()
+			 * to write more data than we have in our buffer.
+			 */
+			VERIFY3U(subdb->db_size, >=,
+			    numsubsub * sizeof (subobj));
 			dmu_write(bpo->bpo_os, bpo->bpo_phys->bpo_subobjs,
 			    bpo->bpo_phys->bpo_num_subobjs * sizeof (subobj),
 			    numsubsub * sizeof (subobj), subdb->db_data, tx);

@@ -1,6 +1,6 @@
 %option nounput noinput
 %{
-/* $OpenBSD: tokenizer.l,v 1.7 2010/03/22 20:40:44 espie Exp $ */
+/* $OpenBSD: tokenizer.l,v 1.8 2012/04/12 17:00:11 espie Exp $ */
 /*
  * Copyright (c) 2004 Marc Espie <espie@cvs.openbsd.org>
  *
@@ -31,6 +31,8 @@ extern int32_t yylval;
 int32_t number(void);
 int32_t parse_radix(void);
 extern int yylex(void);
+
+#define	YY_DECL	int yylex(void)
 %}
 
 delim 	[ \t\n]

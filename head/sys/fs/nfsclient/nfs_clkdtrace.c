@@ -92,7 +92,7 @@ struct dtnfsclient_rpc {
  * This table is indexed by NFSv3 procedure number, but also used for NFSv2
  * procedure names and NFSv4 operations.
  */
-static struct dtnfsclient_rpc	dtnfsclient_rpcs[NFS_NPROCS + 1] = {
+static struct dtnfsclient_rpc	dtnfsclient_rpcs[NFSV41_NPROCS + 1] = {
 	{ "null", "null", "null" },
 	{ "getattr", "getattr", "getattr" },
 	{ "setattr", "setattr", "setattr" },
@@ -196,17 +196,17 @@ extern uint32_t	nfscl_attrcache_load_done_id;
  * stored in one of these two NFS client-allocated arrays; 0 indicates that
  * the event is not being traced so probes should not be called.
  *
- * For simplicity, we allocate both v2, v3 and v4 arrays as NFS_NPROCS + 1, and
- * the v2, v3 arrays are simply sparse.
+ * For simplicity, we allocate both v2, v3 and v4 arrays as NFSV41_NPROCS + 1,
+ * and the v2, v3 arrays are simply sparse.
  */
-extern uint32_t			nfscl_nfs2_start_probes[NFS_NPROCS + 1];
-extern uint32_t			nfscl_nfs2_done_probes[NFS_NPROCS + 1];
+extern uint32_t			nfscl_nfs2_start_probes[NFSV41_NPROCS + 1];
+extern uint32_t			nfscl_nfs2_done_probes[NFSV41_NPROCS + 1];
 
-extern uint32_t			nfscl_nfs3_start_probes[NFS_NPROCS + 1];
-extern uint32_t			nfscl_nfs3_done_probes[NFS_NPROCS + 1];
+extern uint32_t			nfscl_nfs3_start_probes[NFSV41_NPROCS + 1];
+extern uint32_t			nfscl_nfs3_done_probes[NFSV41_NPROCS + 1];
 
-extern uint32_t			nfscl_nfs4_start_probes[NFS_NPROCS + 1];
-extern uint32_t			nfscl_nfs4_done_probes[NFS_NPROCS + 1];
+extern uint32_t			nfscl_nfs4_start_probes[NFSV41_NPROCS + 1];
+extern uint32_t			nfscl_nfs4_done_probes[NFSV41_NPROCS + 1];
 
 /*
  * Look up a DTrace probe ID to see if it's associated with a "done" event --
@@ -217,7 +217,7 @@ dtnfs234_isdoneprobe(dtrace_id_t id)
 {
 	int i;
 
-	for (i = 0; i < NFS_NPROCS + 1; i++) {
+	for (i = 0; i < NFSV41_NPROCS + 1; i++) {
 		if (dtnfsclient_rpcs[i].nr_v4_id_done == id ||
 		    dtnfsclient_rpcs[i].nr_v3_id_done == id ||
 		    dtnfsclient_rpcs[i].nr_v2_id_done == id)
@@ -401,7 +401,7 @@ dtnfsclient_provide(void *arg, dtrace_probedesc_t *desc)
 	 * Register NFSv2 RPC procedures; note sparseness check for each slot
 	 * in the NFSv3, NFSv4 procnum-indexed array.
 	 */
-	for (i = 0; i < NFS_NPROCS + 1; i++) {
+	for (i = 0; i < NFSV41_NPROCS + 1; i++) {
 		if (dtnfsclient_rpcs[i].nr_v2_name != NULL &&
 		    dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs2_str,
 		    dtnfsclient_rpcs[i].nr_v2_name, dtnfsclient_start_str) ==
@@ -430,7 +430,7 @@ dtnfsclient_provide(void *arg, dtrace_probedesc_t *desc)
 	 * Register NFSv3 RPC procedures; note sparseness check for each slot
 	 * in the NFSv4 procnum-indexed array.
 	 */
-	for (i = 0; i < NFS_NPROCS + 1; i++) {
+	for (i = 0; i < NFSV41_NPROCS + 1; i++) {
 		if (dtnfsclient_rpcs[i].nr_v3_name != NULL &&
 		    dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs3_str,
 		    dtnfsclient_rpcs[i].nr_v3_name, dtnfsclient_start_str) ==
@@ -458,7 +458,7 @@ dtnfsclient_provide(void *arg, dtrace_probedesc_t *desc)
 	/*
 	 * Register NFSv4 RPC procedures.
 	 */
-	for (i = 0; i < NFS_NPROCS + 1; i++) {
+	for (i = 0; i < NFSV41_NPROCS + 1; i++) {
 		if (dtrace_probe_lookup(dtnfsclient_id, dtnfsclient_nfs4_str,
 		    dtnfsclient_rpcs[i].nr_v4_name, dtnfsclient_start_str) ==
 		    0) {

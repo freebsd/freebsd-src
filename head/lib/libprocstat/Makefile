@@ -6,10 +6,9 @@ LIB=	procstat
 
 SRCS=	cd9660.c	\
 	common_kvm.c	\
+	core.c		\
 	libprocstat.c	\
         msdosfs.c	\
-	ntfs.c		\
-	smbfs.c		\
 	udf.c
 
 VERSION_DEF=	${.CURDIR}/Versions.def
@@ -19,15 +18,10 @@ INCS=		libprocstat.h
 CFLAGS+=	-I. -I${.CURDIR} -D_KVM_VNODE
 SHLIB_MAJOR=	1
 
-DPADD=		${LIBKVM} ${LIBUTIL}
-LDADD=		-lkvm -lutil
+DPADD=		${LIBELF} ${LIBKVM} ${LIBUTIL}
+LDADD=		-lelf -lkvm -lutil
 
 MAN=		libprocstat.3
-
-.if ${MK_NCP} != "no"
-CFLAGS+=	-DLIBPROCSTAT_NWFS
-SRCS+=	nwfs.c
-.endif
 
 # XXX This is a hack.
 .if ${MK_CDDL} != "no"

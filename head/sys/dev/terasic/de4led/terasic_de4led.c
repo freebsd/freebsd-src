@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/led/led.h>
 #include <dev/terasic/de4led/terasic_de4led.h>
 
+devclass_t	terasic_de4led_devclass;
+
 static void
 terasic_de4led_update(struct terasic_de4led_softc *sc)
 {

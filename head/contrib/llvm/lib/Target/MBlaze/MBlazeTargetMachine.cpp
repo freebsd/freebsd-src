@@ -13,8 +13,8 @@
 
 #include "MBlazeTargetMachine.h"
 #include "MBlaze.h"
-#include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
@@ -38,10 +38,10 @@ MBlazeTargetMachine(const Target &T, StringRef TT,
                     CodeGenOpt::Level OL)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS),
-    DataLayout("E-p:32:32:32-i8:8:8-i16:16:16"),
+    DL("E-p:32:32:32-i8:8:8-i16:16:16"),
     InstrInfo(*this),
     FrameLowering(Subtarget),
-    TLInfo(*this), TSInfo(*this), ELFWriterInfo(*this),
+    TLInfo(*this), TSInfo(*this),
     InstrItins(Subtarget.getInstrItineraryData()) {
 }
 

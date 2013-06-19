@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd February 19, 2012
+.Dd February 7, 2013
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -100,6 +100,16 @@ or any of the routines built on it
 it will stop before executing the first instruction of the new image.
 Also, any setuid or setgid bits on the executable being executed will
 be ignored.
+If the child was created by
+.Xr vfork 2
+system call or
+.Xr rfork(2)
+call with the
+.Dv RFMEM
+flag specified, the debugging events are reported to the parent
+only after the
+.Xr execve 2
+is executed.
 .It Dv PT_READ_I , Dv PT_READ_D
 These requests read a single
 .Vt int

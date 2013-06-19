@@ -14,7 +14,6 @@
 
 #define DEBUG_TYPE "regalloc"
 #include "Spiller.h"
-#include "VirtRegMap.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -22,16 +21,17 @@
 #include "llvm/CodeGen/LiveRangeEdit.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -613,7 +613,7 @@ MachineInstr *InlineSpiller::traceSiblingValue(unsigned UseReg, VNInfo *UseVNI,
     propagateSiblingValue(SVI);
   } while (!WorkList.empty());
 
-  // Look up the value we were looking for.  We already did this lokup at the
+  // Look up the value we were looking for.  We already did this lookup at the
   // top of the function, but SibValues may have been invalidated.
   SVI = SibValues.find(UseVNI);
   assert(SVI != SibValues.end() && "Didn't compute requested info");
@@ -863,7 +863,7 @@ bool InlineSpiller::reMaterializeFor(LiveInterval &VirtReg,
   // If the instruction also writes VirtReg.reg, it had better not require the
   // same register for uses and defs.
   SmallVector<std::pair<MachineInstr*, unsigned>, 8> Ops;
-  MIBundleOperands::RegInfo RI =
+  MIBundleOperands::VirtRegInfo RI =
     MIBundleOperands(MI).analyzeVirtReg(VirtReg.reg, &Ops);
   if (RI.Tied) {
     markValueUsed(&VirtReg, ParentVNI);
@@ -955,18 +955,21 @@ void InlineSpiller::reMaterializeAll() {
   Edit->eliminateDeadDefs(DeadDefs, RegsToSpill);
 
   // Get rid of deleted and empty intervals.
-  for (unsigned i = RegsToSpill.size(); i != 0; --i) {
-    unsigned Reg = RegsToSpill[i-1];
-    if (!LIS.hasInterval(Reg)) {
-      RegsToSpill.erase(RegsToSpill.begin() + (i - 1));
+  unsigned ResultPos = 0;
+  for (unsigned i = 0, e = RegsToSpill.size(); i != e; ++i) {
+    unsigned Reg = RegsToSpill[i];
+    if (!LIS.hasInterval(Reg))
+      continue;
+
+    LiveInterval &LI = LIS.getInterval(Reg);
+    if (LI.empty()) {
+      Edit->eraseVirtReg(Reg);
       continue;
     }
-    LiveInterval &LI = LIS.getInterval(Reg);
-    if (!LI.empty())
-      continue;
-    Edit->eraseVirtReg(Reg);
-    RegsToSpill.erase(RegsToSpill.begin() + (i - 1));
+
+    RegsToSpill[ResultPos++] = Reg;
   }
+  RegsToSpill.erase(RegsToSpill.begin() + ResultPos, RegsToSpill.end());
   DEBUG(dbgs() << RegsToSpill.size() << " registers to spill after remat.\n");
 }
 
@@ -1142,7 +1145,7 @@ void InlineSpiller::spillAroundUses(unsigned Reg) {
 
     // Analyze instruction.
     SmallVector<std::pair<MachineInstr*, unsigned>, 8> Ops;
-    MIBundleOperands::RegInfo RI =
+    MIBundleOperands::VirtRegInfo RI =
       MIBundleOperands(MI).analyzeVirtReg(Reg, &Ops);
 
     // Find the slot index where this instruction reads and writes OldLI.

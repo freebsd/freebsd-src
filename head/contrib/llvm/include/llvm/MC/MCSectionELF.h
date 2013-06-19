@@ -14,9 +14,11 @@
 #ifndef LLVM_MC_MCSECTIONELF_H
 #define LLVM_MC_MCSECTIONELF_H
 
-#include "llvm/MC/MCSection.h"
-#include "llvm/Support/ELF.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCSection.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ELF.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 
@@ -57,13 +59,19 @@ public:
   bool ShouldOmitSectionDirective(StringRef Name, const MCAsmInfo &MAI) const;
 
   StringRef getSectionName() const { return SectionName; }
+  virtual std::string getLabelBeginName() const {
+    return SectionName.str() + "_begin"; }
+  virtual std::string getLabelEndName() const {
+    return SectionName.str() + "_end";
+  }
   unsigned getType() const { return Type; }
   unsigned getFlags() const { return Flags; }
   unsigned getEntrySize() const { return EntrySize; }
   const MCSymbol *getGroup() const { return Group; }
 
   void PrintSwitchToSection(const MCAsmInfo &MAI,
-                            raw_ostream &OS) const;
+                            raw_ostream &OS,
+                            const MCExpr *Subsection) const;
   virtual bool UseCodeAlign() const;
   virtual bool isVirtualSection() const;
 
@@ -76,7 +84,6 @@ public:
   static bool classof(const MCSection *S) {
     return S->getVariant() == SV_ELF;
   }
-  static bool classof(const MCSectionELF *) { return true; }
 
   // Return the entry size for sections with fixed-width data.
   static unsigned DetermineEntrySize(SectionKind Kind);

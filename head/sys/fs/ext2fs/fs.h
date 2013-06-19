@@ -65,6 +65,16 @@
 #define MAXMNTLEN	512
 
 /*
+ * A summary of contiguous blocks of various sizes is maintained
+ * in each cylinder group. Normally this is set by the initial
+ * value of fs_maxcontig.
+ *
+ * XXX:FS_MAXCONTIG is set to 16 to conserve space. Here we set
+ * EXT2_MAXCONTIG to 32 for better performance.
+ */
+#define EXT2_MAXCONTIG	32
+
+/*
  * Grigoriy Orlov <gluk@ptci.ru> has done some extensive work to fine
  * tune the layout preferences for directories within a filesystem.
  * His algorithm can be tuned by adjusting the following parameters
@@ -148,8 +158,5 @@
  * NINDIR is the number of indirects in a file system block.
  */
 #define	NINDIR(fs)	(EXT2_ADDR_PER_BLOCK(fs))
-
-extern int inside[], around[];
-extern u_char *fragtbl[];
 
 #endif /* !_FS_EXT2FS_FS_H_ */

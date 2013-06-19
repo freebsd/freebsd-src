@@ -34,8 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/ctype.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
@@ -87,6 +89,7 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_ntfs,
 	&g_label_gpt,
 	&g_label_gpt_uuid,
+	&g_label_disk_ident,
 	NULL
 };
 
@@ -138,6 +141,26 @@ g_label_is_name_ok(const char *label)
 	return (1);
 }
 
+static void
+g_label_mangle_name(char *label, size_t size)
+{
+	struct sbuf *sb;
+	const u_char *c;
+
+	sb = sbuf_new(NULL, NULL, size, SBUF_FIXEDLEN);
+	for (c = label; *c != '\0'; c++) {
+		if (!isprint(*c) || isspace(*c) || *c =='"' || *c == '%')
+			sbuf_printf(sb, "%%%02X", *c);
+		else
+			sbuf_putc(sb, *c);
+	}
+	if (sbuf_finish(sb) != 0)
+		label[0] = '\0';
+	else
+		strlcpy(label, sbuf_data(sb), size);
+	sbuf_delete(sb);
+}
+
 static struct g_geom *
 g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
     const char *label, const char *dir, off_t mediasize)
@@ -187,7 +210,7 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	gp->spoiled = g_label_spoiled;
 	g_access(cp, -1, 0, 0);
 	g_slice_config(gp, 0, G_SLICE_CONFIG_SET, (off_t)0, mediasize,
-	    pp->sectorsize, name);
+	    pp->sectorsize, "%s", name);
 	G_LABEL_DEBUG(1, "Label for provider %s is %s.", pp->name, name);
 	return (gp);
 }
@@ -317,12 +340,13 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->mediasize - pp->sectorsize);
 	} while (0);
 	for (i = 0; g_labels[i] != NULL; i++) {
-		char label[64];
+		char label[128];
 
 		if (g_labels[i]->ld_enabled == 0)
 			continue;
 		g_topology_unlock();
 		g_labels[i]->ld_taste(cp, label, sizeof(label));
+		g_label_mangle_name(label, sizeof(label));
 		g_topology_lock();
 		if (label[0] == '\0')
 			continue;

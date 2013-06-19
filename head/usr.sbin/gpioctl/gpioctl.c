@@ -43,7 +43,7 @@ struct flag_desc {
 	uint32_t flag;
 };
 
-struct flag_desc gpio_flags[] = {
+static struct flag_desc gpio_flags[] = {
 	{ "IN", GPIO_PIN_INPUT },
 	{ "OUT", GPIO_PIN_OUTPUT },
 	{ "OD", GPIO_PIN_OPENDRAIN },

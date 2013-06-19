@@ -267,7 +267,7 @@ error_code COFFObjectFile::getSymbolNMTypeChar(DataRefImpl Symb,
   }
 
   if (symb->StorageClass == COFF::IMAGE_SYM_CLASS_EXTERNAL)
-    ret = ::toupper(ret);
+    ret = ::toupper(static_cast<unsigned char>(ret));
 
   Result = ret;
   return object_error::success;
@@ -286,6 +286,11 @@ error_code COFFObjectFile::getSymbolSection(DataRefImpl Symb,
     Result = section_iterator(SectionRef(Sec, this));
   }
   return object_error::success;
+}
+
+error_code COFFObjectFile::getSymbolValue(DataRefImpl Symb,
+                                          uint64_t &Val) const {
+  report_fatal_error("getSymbolValue unimplemented in COFFObjectFile");
 }
 
 error_code COFFObjectFile::getSectionNext(DataRefImpl Sec,
@@ -372,7 +377,14 @@ error_code COFFObjectFile::isSectionVirtual(DataRefImpl Sec,
 
 error_code COFFObjectFile::isSectionZeroInit(DataRefImpl Sec,
                                              bool &Result) const {
-  // FIXME: Unimplemented
+  // FIXME: Unimplemented.
+  Result = false;
+  return object_error::success;
+}
+
+error_code COFFObjectFile::isSectionReadOnlyData(DataRefImpl Sec,
+                                                bool &Result) const {
+  // FIXME: Unimplemented.
   Result = false;
   return object_error::success;
 }
@@ -417,7 +429,7 @@ relocation_iterator COFFObjectFile::getSectionRelEnd(DataRefImpl Sec) const {
 }
 
 COFFObjectFile::COFFObjectFile(MemoryBuffer *Object, error_code &ec)
-  : ObjectFile(Binary::ID_COFF, Object, ec)
+  : ObjectFile(Binary::ID_COFF, Object)
   , Header(0)
   , SectionTable(0)
   , SymbolTable(0)
@@ -693,8 +705,7 @@ error_code COFFObjectFile::getRelocationNext(DataRefImpl Rel,
 }
 error_code COFFObjectFile::getRelocationAddress(DataRefImpl Rel,
                                                 uint64_t &Res) const {
-  Res = toRel(Rel)->VirtualAddress;
-  return object_error::success;
+  report_fatal_error("getRelocationAddress not implemented in COFFObjectFile");
 }
 error_code COFFObjectFile::getRelocationOffset(DataRefImpl Rel,
                                                uint64_t &Res) const {

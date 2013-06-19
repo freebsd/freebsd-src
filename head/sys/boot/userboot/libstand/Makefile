@@ -94,7 +94,7 @@ SRCS+= uuid_equal.c uuid_is_nil.c
 
 # _setjmp/_longjmp
 .if ${MACHINE_CPUARCH} == "amd64"
-.PATH: ${.CURDIR}/amd64
+.PATH: ${S}/amd64
 .elif ${MACHINE_ARCH} == "powerpc64"
 .PATH: ${S}/powerpc
 .else

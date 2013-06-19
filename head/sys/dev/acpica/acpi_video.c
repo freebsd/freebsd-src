@@ -906,7 +906,8 @@ vid_enum_outputs_subr(ACPI_HANDLE handle, UINT32 level __unused,
 
 	for (i = 0; i < argset->dod_pkg->Package.Count; i++) {
 		if (acpi_PkgInt32(argset->dod_pkg, i, &val) == 0 &&
-		    (val & DOD_DEVID_MASK_FULL) == adr) {
+		    (val & DOD_DEVID_MASK_FULL) ==
+		    (adr & DOD_DEVID_MASK_FULL)) {
 			argset->callback(handle, val, argset->context);
 			argset->count++;
 		}

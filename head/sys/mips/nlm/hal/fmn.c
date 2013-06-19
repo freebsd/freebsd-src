@@ -138,9 +138,9 @@ uint32_t nlm_cms_total_stations = 18 * 4 /*xlp_num_nodes*/;
 
 void nlm_cms_setup_credits(uint64_t base, int destid, int srcid, int credit)
 {
-	uint32_t val;
+	uint64_t val;
 
-	val = ((credit << 24) | (destid << 12) | (srcid << 0));
+	val = (((uint64_t)credit << 24) | (destid << 12) | (srcid << 0));
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CREDIT_CFG, val);
 
 }

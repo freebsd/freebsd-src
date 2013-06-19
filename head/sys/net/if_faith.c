@@ -79,14 +79,12 @@
 #include <netinet6/ip6_var.h>
 #endif
 
-#define FAITHNAME	"faith"
-
 struct faith_softc {
 	struct ifnet *sc_ifp;
 };
 
 static int faithioctl(struct ifnet *, u_long, caddr_t);
-int faithoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int faithoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	struct route *);
 static void faithrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 #ifdef INET6
@@ -95,12 +93,12 @@ static int faithprefix(struct in6_addr *);
 
 static int faithmodevent(module_t, int, void *);
 
-static MALLOC_DEFINE(M_FAITH, FAITHNAME, "Firewall Assisted Tunnel Interface");
+static const char faithname[] = "faith";
+static MALLOC_DEFINE(M_FAITH, faithname, "Firewall Assisted Tunnel Interface");
 
 static int	faith_clone_create(struct if_clone *, int, caddr_t);
 static void	faith_clone_destroy(struct ifnet *);
-
-IFC_SIMPLE_DECLARE(faith, 0);
+static struct if_clone *faith_cloner;
 
 #define	FAITHMTU	1500
 
@@ -113,8 +111,8 @@ faithmodevent(mod, type, data)
 
 	switch (type) {
 	case MOD_LOAD:
-		if_clone_attach(&faith_cloner);
-
+		faith_cloner = if_clone_simple(faithname, faith_clone_create,
+		    faith_clone_destroy, 0);
 #ifdef INET6
 		faithprefix_p = faithprefix;
 #endif
@@ -125,7 +123,7 @@ faithmodevent(mod, type, data)
 		faithprefix_p = NULL;
 #endif
 
-		if_clone_detach(&faith_cloner);
+		if_clone_detach(faith_cloner);
 		break;
 	default:
 		return EOPNOTSUPP;
@@ -159,7 +157,7 @@ faith_clone_create(ifc, unit, params)
 	}
 
 	ifp->if_softc = sc;
-	if_initname(sc->sc_ifp, ifc->ifc_name, unit);
+	if_initname(sc->sc_ifp, faithname, unit);
 
 	ifp->if_mtu = FAITHMTU;
 	/* Change to BROADCAST experimentaly to announce its prefix. */
@@ -186,12 +184,9 @@ faith_clone_destroy(ifp)
 	free(sc, M_FAITH);
 }
 
-int
-faithoutput(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+static int
+faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	int isr;
 	u_int32_t af;
@@ -202,15 +197,13 @@ faithoutput(ifp, m, dst, ro)
 	if (ro != NULL)
 		rt = ro->ro_rt;
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-
-	if (bpf_peers_present(ifp->if_bpf)) {
+	else
 		af = dst->sa_family;
+
+	if (bpf_peers_present(ifp->if_bpf))
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-	}
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
 		m_freem(m);
@@ -219,7 +212,7 @@ faithoutput(ifp, m, dst, ro)
 	}
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-	switch (dst->sa_family) {
+	switch (af) {
 #ifdef INET
 	case AF_INET:
 		isr = NETISR_IP;

@@ -11,17 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 #ifndef NVPTX_TARGETMACHINE_H
 #define NVPTX_TARGETMACHINE_H
 
-#include "NVPTXInstrInfo.h"
+#include "ManagedStringPool.h"
+#include "NVPTXFrameLowering.h"
 #include "NVPTXISelLowering.h"
+#include "NVPTXInstrInfo.h"
 #include "NVPTXRegisterInfo.h"
 #include "NVPTXSubtarget.h"
-#include "NVPTXFrameLowering.h"
-#include "ManagedStringPool.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSelectionDAGInfo.h"
@@ -31,42 +30,40 @@ namespace llvm {
 /// NVPTXTargetMachine
 ///
 class NVPTXTargetMachine : public LLVMTargetMachine {
-  NVPTXSubtarget        Subtarget;
-  const TargetData      DataLayout;       // Calculates type size & alignment
-  NVPTXInstrInfo        InstrInfo;
-  NVPTXTargetLowering   TLInfo;
-  TargetSelectionDAGInfo   TSInfo;
+  NVPTXSubtarget Subtarget;
+  const DataLayout DL; // Calculates type size & alignment
+  NVPTXInstrInfo InstrInfo;
+  NVPTXTargetLowering TLInfo;
+  TargetSelectionDAGInfo TSInfo;
 
   // NVPTX does not have any call stack frame, but need a NVPTX specific
   // FrameLowering class because TargetFrameLowering is abstract.
-  NVPTXFrameLowering       FrameLowering;
+  NVPTXFrameLowering FrameLowering;
 
   // Hold Strings that can be free'd all together with NVPTXTargetMachine
-  ManagedStringPool     ManagedStrPool;
+  ManagedStringPool ManagedStrPool;
 
   //bool addCommonCodeGenPasses(PassManagerBase &, CodeGenOpt::Level,
   //                            bool DisableVerify, MCContext *&OutCtx);
 
 public:
-  NVPTXTargetMachine(const Target &T, StringRef TT, StringRef CPU,
-                     StringRef FS, const TargetOptions &Options,
-                     Reloc::Model RM, CodeModel::Model CM,
-                     CodeGenOpt::Level OP,
-                     bool is64bit);
+  NVPTXTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
+                     const TargetOptions &Options, Reloc::Model RM,
+                     CodeModel::Model CM, CodeGenOpt::Level OP, bool is64bit);
 
   virtual const TargetFrameLowering *getFrameLowering() const {
     return &FrameLowering;
   }
-  virtual const NVPTXInstrInfo *getInstrInfo() const  { return &InstrInfo; }
-  virtual const TargetData *getTargetData() const     { return &DataLayout;}
-  virtual const NVPTXSubtarget *getSubtargetImpl() const { return &Subtarget;}
+  virtual const NVPTXInstrInfo *getInstrInfo() const { return &InstrInfo; }
+  virtual const DataLayout *getDataLayout() const { return &DL; }
+  virtual const NVPTXSubtarget *getSubtargetImpl() const { return &Subtarget; }
 
   virtual const NVPTXRegisterInfo *getRegisterInfo() const {
     return &(InstrInfo.getRegisterInfo());
   }
 
   virtual NVPTXTargetLowering *getTargetLowering() const {
-    return const_cast<NVPTXTargetLowering*>(&TLInfo);
+    return const_cast<NVPTXTargetLowering *>(&TLInfo);
   }
 
   virtual const TargetSelectionDAGInfo *getSelectionDAGInfo() const {
@@ -79,22 +76,19 @@ public:
   //virtual bool addPreRegAlloc(PassManagerBase &, CodeGenOpt::Level);
 
   ManagedStringPool *getManagedStrPool() const {
-    return const_cast<ManagedStringPool*>(&ManagedStrPool);
+    return const_cast<ManagedStringPool *>(&ManagedStrPool);
   }
 
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
 
   // Emission of machine code through JITCodeEmitter is not supported.
-  virtual bool addPassesToEmitMachineCode(PassManagerBase &,
-                                          JITCodeEmitter &,
+  virtual bool addPassesToEmitMachineCode(PassManagerBase &, JITCodeEmitter &,
                                           bool = true) {
     return true;
   }
 
   // Emission of machine code through MCJIT is not supported.
-  virtual bool addPassesToEmitMC(PassManagerBase &,
-                                 MCContext *&,
-                                 raw_ostream &,
+  virtual bool addPassesToEmitMC(PassManagerBase &, MCContext *&, raw_ostream &,
                                  bool = true) {
     return true;
   }
@@ -118,7 +112,6 @@ public:
                        Reloc::Model RM, CodeModel::Model CM,
                        CodeGenOpt::Level OL);
 };
-
 
 } // end namespace llvm
 

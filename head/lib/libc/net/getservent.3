@@ -65,7 +65,7 @@ containing the broken-out
 fields of a line in the network services data base,
 .Pa /etc/services .
 .Bd -literal -offset indent
-struct	servent {
+struct servent {
 	char	*s_name;	/* official name of service */
 	char	**s_aliases;	/* alias list */
 	int	s_port;		/* port service resides at */
@@ -130,8 +130,7 @@ searches must also match the protocol.
 .It Pa /etc/services
 .El
 .Sh DIAGNOSTICS
-Null pointer
-(0) returned on
+Null pointer returned on
 .Dv EOF
 or error.
 .Sh SEE ALSO

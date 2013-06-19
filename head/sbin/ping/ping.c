@@ -255,7 +255,8 @@ main(int argc, char *const *argv)
 	s = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	sockerrno = errno;
 
-	setuid(getuid());
+	if (setuid(getuid()) != 0)
+		err(EX_NOPERM, "setuid() failed");
 	uid = getuid();
 
 	alarmtimeout = df = preload = tos = 0;

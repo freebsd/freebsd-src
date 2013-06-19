@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/shm.h>
@@ -238,10 +239,12 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 	vm_pindex_t pindex;
 	int rv;
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	pindex = OFF_TO_IDX(offset);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+	    VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_busy(m);
 		ma[0] = m;
 		rv = vm_pager_get_pages(object, ma, 1, 0);
 		m = vm_page_lookup(object, pindex);
@@ -254,13 +257,13 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 			m = NULL;
 			goto out;
 		}
+		vm_page_wakeup(m);
 	}
 	vm_page_lock(m);
 	vm_page_hold(m);
 	vm_page_unlock(m);
-	vm_page_wakeup(m);
 out:
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return (m);
 }
 
@@ -307,6 +310,8 @@ struct kstack_cache_entry *kstack_cache;
 static int kstack_cache_size = 128;
 static int kstacks;
 static struct mtx kstack_cache_mtx;
+MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
+
 SYSCTL_INT(_vm, OID_AUTO, kstack_cache_size, CTLFLAG_RW, &kstack_cache_size, 0,
     "");
 SYSCTL_INT(_vm, OID_AUTO, kstacks, CTLFLAG_RD, &kstacks, 0,
@@ -392,7 +397,7 @@ vm_thread_new(struct thread *td, int pages)
 	 * For the length of the stack, link in a real page of ram for each
 	 * page of stack.
 	 */
-	VM_OBJECT_LOCK(ksobj);
+	VM_OBJECT_WLOCK(ksobj);
 	for (i = 0; i < pages; i++) {
 		/*
 		 * Get a kernel stack page.
@@ -402,7 +407,7 @@ vm_thread_new(struct thread *td, int pages)
 		ma[i] = m;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
-	VM_OBJECT_UNLOCK(ksobj);
+	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(ks, ma, pages);
 	return (1);
 }
@@ -415,7 +420,7 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 
 	atomic_add_int(&kstacks, -1);
 	pmap_qremove(ks, pages);
-	VM_OBJECT_LOCK(ksobj);
+	VM_OBJECT_WLOCK(ksobj);
 	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
@@ -425,7 +430,7 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		vm_page_free(m);
 		vm_page_unlock(m);
 	}
-	VM_OBJECT_UNLOCK(ksobj);
+	VM_OBJECT_WUNLOCK(ksobj);
 	vm_object_deallocate(ksobj);
 	kmem_free(kernel_map, ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
 	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
@@ -486,7 +491,6 @@ kstack_cache_init(void *nulll)
 	    EVENTHANDLER_PRI_ANY);
 }
 
-MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
 SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
 
 #ifndef NO_SWAPPING
@@ -504,7 +508,7 @@ vm_thread_swapout(struct thread *td)
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	pmap_qremove(td->td_kstack, pages);
-	VM_OBJECT_LOCK(ksobj);
+	VM_OBJECT_WLOCK(ksobj);
 	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
@@ -514,7 +518,7 @@ vm_thread_swapout(struct thread *td)
 		vm_page_unwire(m, 0);
 		vm_page_unlock(m);
 	}
-	VM_OBJECT_UNLOCK(ksobj);
+	VM_OBJECT_WUNLOCK(ksobj);
 }
 
 /*
@@ -529,7 +533,7 @@ vm_thread_swapin(struct thread *td)
 
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
-	VM_OBJECT_LOCK(ksobj);
+	VM_OBJECT_WLOCK(ksobj);
 	for (i = 0; i < pages; i++)
 		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
 		    VM_ALLOC_WIRED);
@@ -556,7 +560,7 @@ vm_thread_swapin(struct thread *td)
 		} else if (ma[i]->oflags & VPO_BUSY)
 			vm_page_wakeup(ma[i]);
 	}
-	VM_OBJECT_UNLOCK(ksobj);
+	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);
 	cpu_thread_swapin(td);
 }

@@ -13,12 +13,6 @@ using namespace llvm;
 
 DIContext::~DIContext() {}
 
-DIContext *DIContext::getDWARFContext(bool isLittleEndian,
-                                      StringRef infoSection,
-                                      StringRef abbrevSection,
-                                      StringRef aRangeSection,
-                                      StringRef lineSection,
-                                      StringRef stringSection) {
-  return new DWARFContextInMemory(isLittleEndian, infoSection, abbrevSection,
-                                  aRangeSection, lineSection, stringSection);
+DIContext *DIContext::getDWARFContext(object::ObjectFile *Obj) {
+  return new DWARFContextInMemory(Obj);
 }

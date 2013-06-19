@@ -35,15 +35,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_YAML_PARSER_H
-#define LLVM_SUPPORT_YAML_PARSER_H
+#ifndef LLVM_SUPPORT_YAMLPARSER_H
+#define LLVM_SUPPORT_YAMLPARSER_H
 
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/SMLoc.h"
-
 #include <limits>
 #include <utility>
 
@@ -77,7 +76,11 @@ std::string escape(StringRef Input);
 ///        documents.
 class Stream {
 public:
+  /// @brief This keeps a reference to the string referenced by \p Input.
   Stream(StringRef Input, SourceMgr &);
+
+  /// @brief This takes ownership of \p InputBuffer.
+  Stream(MemoryBuffer *InputBuffer, SourceMgr &);
   ~Stream();
 
   document_iterator begin();
@@ -133,7 +136,6 @@ public:
   virtual void skip() {}
 
   unsigned int getType() const { return TypeID; }
-  static inline bool classof(const Node *) { return true; }
 
   void *operator new ( size_t Size
                      , BumpPtrAllocator &Alloc
@@ -166,7 +168,6 @@ class NullNode : public Node {
 public:
   NullNode(OwningPtr<Document> &D) : Node(NK_Null, D, StringRef()) {}
 
-  static inline bool classof(const NullNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Null;
   }
@@ -183,7 +184,7 @@ public:
     : Node(NK_Scalar, D, Anchor)
     , Value(Val) {
     SMLoc Start = SMLoc::getFromPointer(Val.begin());
-    SMLoc End = SMLoc::getFromPointer(Val.end() - 1);
+    SMLoc End = SMLoc::getFromPointer(Val.end());
     SourceRange = SMRange(Start, End);
   }
 
@@ -199,7 +200,6 @@ public:
   ///        This happens with escaped characters and multi-line literals.
   StringRef getValue(SmallVectorImpl<char> &Storage) const;
 
-  static inline bool classof(const ScalarNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Scalar;
   }
@@ -241,12 +241,11 @@ public:
   /// @returns The value, or nullptr if failed() == true.
   Node *getValue();
 
-  virtual void skip() {
+  virtual void skip() LLVM_OVERRIDE {
     getKey()->skip();
     getValue()->skip();
   }
 
-  static inline bool classof(const KeyValueNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_KeyValue;
   }
@@ -358,11 +357,10 @@ public:
 
   iterator end() { return iterator(); }
 
-  virtual void skip() {
+  virtual void skip() LLVM_OVERRIDE {
     yaml::skip(*this);
   }
 
-  static inline bool classof(const MappingNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Mapping;
   }
@@ -421,11 +419,10 @@ public:
 
   iterator end() { return iterator(); }
 
-  virtual void skip() {
+  virtual void skip() LLVM_OVERRIDE {
     yaml::skip(*this);
   }
 
-  static inline bool classof(const SequenceNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Sequence;
   }
@@ -450,7 +447,6 @@ public:
   StringRef getName() const { return Name; }
   Node *getTarget();
 
-  static inline bool classof(const ScalarNode *) { return true; }
   static inline bool classof(const Node *N) {
     return N->getType() == NK_Alias;
   }

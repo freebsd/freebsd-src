@@ -59,6 +59,7 @@ struct drm_file;
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/filio.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
@@ -85,6 +86,11 @@ struct drm_file;
 #endif
 #include <machine/sysarch.h>
 #include <sys/endian.h>
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define __BIG_ENDIAN 1
+#else
+#define __LITTLE_ENDIAN 1
+#endif
 #include <sys/mman.h>
 #include <sys/rman.h>
 #include <sys/memrange.h>

@@ -15,8 +15,8 @@
 #define LLVM_CODEGEN_FASTISEL_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/ValueTypes.h"
 
 namespace llvm {
 
@@ -32,7 +32,7 @@ class MachineFunction;
 class MachineInstr;
 class MachineFrameInfo;
 class MachineRegisterInfo;
-class TargetData;
+class DataLayout;
 class TargetInstrInfo;
 class TargetLibraryInfo;
 class TargetLowering;
@@ -54,7 +54,7 @@ protected:
   MachineConstantPool &MCP;
   DebugLoc DL;
   const TargetMachine &TM;
-  const TargetData &TD;
+  const DataLayout &TD;
   const TargetInstrInfo &TII;
   const TargetLowering &TLI;
   const TargetRegisterInfo &TRI;
@@ -90,6 +90,11 @@ public:
 
   /// getCurDebugLoc() - Return current debug location information.
   DebugLoc getCurDebugLoc() const { return DL; }
+  
+  /// LowerArguments - Do "fast" instruction selection for function arguments
+  /// and append machine instructions to the current block. Return true if
+  /// it is successful.
+  bool LowerArguments();
 
   /// SelectInstruction - Do "fast" instruction selection for the given
   /// LLVM IR instruction, and append generated machine instructions to
@@ -118,18 +123,38 @@ public:
   /// index value.
   std::pair<unsigned, bool> getRegForGEPIndex(const Value *V);
 
-  /// TryToFoldLoad - The specified machine instr operand is a vreg, and that
+  /// \brief We're checking to see if we can fold \p LI into \p FoldInst.
+  /// Note that we could have a sequence where multiple LLVM IR instructions
+  /// are folded into the same machineinstr.  For example we could have:
+  ///   A: x = load i32 *P
+  ///   B: y = icmp A, 42
+  ///   C: br y, ...
+  ///
+  /// In this scenario, \p LI is "A", and \p FoldInst is "C".  We know
+  /// about "B" (and any other folded instructions) because it is between
+  /// A and C.
+  ///
+  /// If we succeed folding, return true.
+  ///
+  bool tryToFoldLoad(const LoadInst *LI, const Instruction *FoldInst);
+
+  /// \brief The specified machine instr operand is a vreg, and that
   /// vreg is being provided by the specified load instruction.  If possible,
   /// try to fold the load as an operand to the instruction, returning true if
   /// possible.
-  virtual bool TryToFoldLoad(MachineInstr * /*MI*/, unsigned /*OpNo*/,
-                             const LoadInst * /*LI*/) {
+  /// This method should be implemented by targets.
+  virtual bool tryToFoldLoadIntoMI(MachineInstr * /*MI*/, unsigned /*OpNo*/,
+                                   const LoadInst * /*LI*/) {
     return false;
   }
 
   /// recomputeInsertPt - Reset InsertPt to prepare for inserting instructions
   /// into the current block.
   void recomputeInsertPt();
+
+  /// removeDeadCode - Remove all dead instructions between the I and E.
+  void removeDeadCode(MachineBasicBlock::iterator I,
+                      MachineBasicBlock::iterator E);
 
   struct SavePoint {
     MachineBasicBlock::iterator InsertPt;
@@ -156,6 +181,11 @@ protected:
   ///
   virtual bool
   TargetSelectInstruction(const Instruction *I) = 0;
+  
+  /// FastLowerArguments - This method is called by target-independent code to
+  /// do target specific argument lowering. It returns true if it was
+  /// successful.
+  virtual bool FastLowerArguments();
 
   /// FastEmit_r - This method is called by target-independent code
   /// to request that an instruction with the given type and opcode
@@ -395,10 +425,6 @@ private:
 
   /// hasTrivialKill - Test whether the given value has exactly one use.
   bool hasTrivialKill(const Value *V) const;
-
-  /// removeDeadCode - Remove all dead instructions between the I and E.
-  void removeDeadCode(MachineBasicBlock::iterator I,
-                      MachineBasicBlock::iterator E);
 };
 
 }

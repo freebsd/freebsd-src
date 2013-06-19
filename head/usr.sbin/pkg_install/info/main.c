@@ -68,6 +68,7 @@ main(int argc, char **argv)
     char **pkgs, **start;
     char *pkgs_split;
 
+    warnpkgng();
     whead = malloc(sizeof(struct which_head));
     if (whead == NULL)
 	err(2, NULL);

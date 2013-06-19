@@ -111,12 +111,13 @@ typedef struct pcap_addr pcap_addr_t;
  *	the old file header as well as files with the new file header
  *	(using the magic number to determine the header format).
  *
- * Then supply the changes as a patch at
+ * Then supply the changes by forking the branch at
  *
- *	http://sourceforge.net/projects/libpcap/
+ *	https://github.com/mcr/libpcap/issues
  *
- * so that future versions of libpcap and programs that use it (such as
- * tcpdump) will be able to read your new capture file format.
+ * and issuing a pull request, so that future versions of libpcap and
+ * programs that use it (such as tcpdump) will be able to read your new
+ * capture file format.
  */
 struct pcap_file_header {
 	bpf_u_int32 magic;
@@ -368,8 +369,8 @@ int	pcap_compile(pcap_t *, struct bpf_program *, const char *, int,
 int	pcap_compile_nopcap(int, int, struct bpf_program *,
 	    const char *, int, bpf_u_int32);
 void	pcap_freecode(struct bpf_program *);
-int	pcap_offline_filter(struct bpf_program *, const struct pcap_pkthdr *,
-	    const u_char *);
+int	pcap_offline_filter(const struct bpf_program *,
+	    const struct pcap_pkthdr *, const u_char *);
 int	pcap_datalink(pcap_t *);
 int	pcap_datalink_ext(pcap_t *);
 int	pcap_list_datalinks(pcap_t *, int **);

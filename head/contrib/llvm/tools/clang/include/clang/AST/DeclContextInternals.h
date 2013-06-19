@@ -15,10 +15,10 @@
 #define LLVM_CLANG_AST_DECLCONTEXTINTERNALS_H
 
 #include "clang/AST/Decl.h"
-#include "clang/AST/DeclarationName.h"
 #include "clang/AST/DeclCXX.h"
-#include "llvm/ADT/PointerUnion.h"
+#include "clang/AST/DeclarationName.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/SmallVector.h"
 #include <algorithm>
 
@@ -97,6 +97,22 @@ public:
              == Vec.end() && "list still contains decl");
   }
 
+  /// \brief Remove any declarations which were imported from an external
+  /// AST source.
+  void removeExternalDecls() {
+    if (isNull()) {
+      // Nothing to do.
+    } else if (NamedDecl *Singleton = getAsDecl()) {
+      if (Singleton->isFromASTFile())
+        *this = StoredDeclsList();
+    } else {
+      DeclsTy &Vec = *getAsVector();
+      Vec.erase(std::remove_if(Vec.begin(), Vec.end(),
+                               std::mem_fun(&Decl::isFromASTFile)),
+                Vec.end());
+    }
+  }
+
   /// getLookupResult - Return an array of all the decls that this list
   /// represents.
   DeclContext::lookup_result getLookupResult() {
@@ -117,7 +133,7 @@ public:
     DeclsTy &Vector = *getAsVector();
 
     // Otherwise, we have a range result.
-    return DeclContext::lookup_result(&Vector[0], &Vector[0]+Vector.size());
+    return DeclContext::lookup_result(Vector.begin(), Vector.end());
   }
 
   /// HandleRedeclaration - If this is a redeclaration of an existing decl,
@@ -186,7 +202,7 @@ public:
     // All other declarations go at the end of the list, but before any
     // tag declarations.  But we can be clever about tag declarations
     // because there can only ever be one in a scope.
-    } else if (Vec.back()->hasTagIdentifierNamespace()) {
+    } else if (!Vec.empty() && Vec.back()->hasTagIdentifierNamespace()) {
       NamedDecl *TagD = Vec.back();
       Vec.back() = D;
       Vec.push_back(TagD);

@@ -123,8 +123,8 @@ reset.
 The
 .Nm sscfu
 node understands the generic messages plus the following:
-.Bl -tag -width indent
-.It Dv NGM_SSCFU_GETDEFPARAM
+.Bl -tag -width foo
+.It Dv NGM_SSCFU_GETDEFPARAM Pq Ic getdefparam
 This message returns a
 .Vt sscop_param
 structure, which contains the default parameters for the SSCOP at the
@@ -132,22 +132,22 @@ UNI.
 This structure should be used for a
 .Dv NGM_SSCOP_SETPARAM
 message to the SSCOP node below the SSCF.
-.It Dv NGM_SSCFU_ENABLE
+.It Dv NGM_SSCFU_ENABLE Pq Ic enable
 This message creates the actual SSCF instance and initializes it.
 Until this is done, parameters may neither be retrieved nor set,
 and all messages
 received on any hook are discarded.
-.It Dv NGM_SSCFU_DISABLE
+.It Dv NGM_SSCFU_DISABLE Pq Ic disable
 Destroy the SSCF instance.
 After this, all messages on any hooks are discarded.
-.It Dv NGM_SSCFU_GETDEBUG
+.It Dv NGM_SSCFU_GETDEBUG Pq Ic getdebug
 Retrieve the debugging flags in a
 .Vt uint32_t .
-.It Dv NGM_SSCFU_SETDEBUG
+.It Dv NGM_SSCFU_SETDEBUG Pq Ic setdebug
 Set debugging flags.
 The argument must be a
 .Vt uint32_t .
-.It Dv NGM_SSCFU_GETSTATE
+.It Dv NGM_SSCFU_GETSTATE Pq Ic getstate
 Retrieve the current state of the SSCFU instance in a
 .Vt uint32_t .
 If the node has not been enabled, 0 is returned.

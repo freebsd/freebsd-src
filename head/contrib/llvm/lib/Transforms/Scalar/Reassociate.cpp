@@ -22,24 +22,24 @@
 
 #define DEBUG_TYPE "reassociate"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Pass.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -110,6 +110,51 @@ namespace {
       }
     };
   };
+  
+  /// Utility class representing a non-constant Xor-operand. We classify
+  /// non-constant Xor-Operands into two categories:
+  ///  C1) The operand is in the form "X & C", where C is a constant and C != ~0
+  ///  C2)
+  ///    C2.1) The operand is in the form of "X | C", where C is a non-zero
+  ///          constant.
+  ///    C2.2) Any operand E which doesn't fall into C1 and C2.1, we view this
+  ///          operand as "E | 0"
+  class XorOpnd {
+  public:
+    XorOpnd(Value *V);
+    const XorOpnd &operator=(const XorOpnd &That);
+
+    bool isInvalid() const { return SymbolicPart == 0; }
+    bool isOrExpr() const { return isOr; }
+    Value *getValue() const { return OrigVal; }
+    Value *getSymbolicPart() const { return SymbolicPart; }
+    unsigned getSymbolicRank() const { return SymbolicRank; }
+    const APInt &getConstPart() const { return ConstPart; }
+
+    void Invalidate() { SymbolicPart = OrigVal = 0; }
+    void setSymbolicRank(unsigned R) { SymbolicRank = R; }
+
+    // Sort the XorOpnd-Pointer in ascending order of symbolic-value-rank.
+    // The purpose is twofold:
+    // 1) Cluster together the operands sharing the same symbolic-value.
+    // 2) Operand having smaller symbolic-value-rank is permuted earlier, which 
+    //   could potentially shorten crital path, and expose more loop-invariants.
+    //   Note that values' rank are basically defined in RPO order (FIXME). 
+    //   So, if Rank(X) < Rank(Y) < Rank(Z), it means X is defined earlier 
+    //   than Y which is defined earlier than Z. Permute "x | 1", "Y & 2",
+    //   "z" in the order of X-Y-Z is better than any other orders.
+    struct PtrSortFunctor {
+      bool operator()(XorOpnd * const &LHS, XorOpnd * const &RHS) {
+        return LHS->getSymbolicRank() < RHS->getSymbolicRank();
+      }
+    };
+  private:
+    Value *OrigVal;
+    Value *SymbolicPart;
+    APInt ConstPart;
+    unsigned SymbolicRank;
+    bool isOr;
+  };
 }
 
 namespace {
@@ -137,6 +182,11 @@ namespace {
     Value *OptimizeExpression(BinaryOperator *I,
                               SmallVectorImpl<ValueEntry> &Ops);
     Value *OptimizeAdd(Instruction *I, SmallVectorImpl<ValueEntry> &Ops);
+    Value *OptimizeXor(Instruction *I, SmallVectorImpl<ValueEntry> &Ops);
+    bool CombineXorOpnd(Instruction *I, XorOpnd *Opnd1, APInt &ConstOpnd,
+                        Value *&Res);
+    bool CombineXorOpnd(Instruction *I, XorOpnd *Opnd1, XorOpnd *Opnd2,
+                        APInt &ConstOpnd, Value *&Res);
     bool collectMultiplyFactors(SmallVectorImpl<ValueEntry> &Ops,
                                 SmallVectorImpl<Factor> &Factors);
     Value *buildMinimalMultiplyDAG(IRBuilder<> &Builder,
@@ -146,6 +196,42 @@ namespace {
     void EraseInst(Instruction *I);
     void OptimizeInst(Instruction *I);
   };
+}
+
+XorOpnd::XorOpnd(Value *V) {
+  assert(!isa<ConstantInt>(V) && "No ConstantInt");
+  OrigVal = V;
+  Instruction *I = dyn_cast<Instruction>(V);
+  SymbolicRank = 0;
+
+  if (I && (I->getOpcode() == Instruction::Or ||
+            I->getOpcode() == Instruction::And)) {
+    Value *V0 = I->getOperand(0);
+    Value *V1 = I->getOperand(1);
+    if (isa<ConstantInt>(V0))
+      std::swap(V0, V1);
+
+    if (ConstantInt *C = dyn_cast<ConstantInt>(V1)) {
+      ConstPart = C->getValue();
+      SymbolicPart = V0;
+      isOr = (I->getOpcode() == Instruction::Or);
+      return;
+    }
+  }
+
+  // view the operand as "V | 0"
+  SymbolicPart = V;
+  ConstPart = APInt::getNullValue(V->getType()->getIntegerBitWidth());
+  isOr = true;
+}
+
+const XorOpnd &XorOpnd::operator=(const XorOpnd &That) {
+  OrigVal = That.OrigVal;
+  SymbolicPart = That.SymbolicPart;
+  ConstPart = That.ConstPart;
+  SymbolicRank = That.SymbolicRank;
+  isOr = That.isOr;
+  return *this;
 }
 
 char Reassociate::ID = 0;
@@ -339,36 +425,6 @@ static void IncorporateWeight(APInt &LHS, const APInt &RHS, unsigned Opcode) {
   }
 }
 
-/// EvaluateRepeatedConstant - Compute C op C op ... op C where the constant C
-/// is repeated Weight times.
-static Constant *EvaluateRepeatedConstant(unsigned Opcode, Constant *C,
-                                          APInt Weight) {
-  // For addition the result can be efficiently computed as the product of the
-  // constant and the weight.
-  if (Opcode == Instruction::Add)
-    return ConstantExpr::getMul(C, ConstantInt::get(C->getContext(), Weight));
-
-  // The weight might be huge, so compute by repeated squaring to ensure that
-  // compile time is proportional to the logarithm of the weight.
-  Constant *Result = 0;
-  Constant *Power = C; // Successively C, C op C, (C op C) op (C op C) etc.
-  // Visit the bits in Weight.
-  while (Weight != 0) {
-    // If the current bit in Weight is non-zero do Result = Result op Power.
-    if (Weight[0])
-      Result = Result ? ConstantExpr::get(Opcode, Result, Power) : Power;
-    // Move on to the next bit if any more are non-zero.
-    Weight = Weight.lshr(1);
-    if (Weight.isMinValue())
-      break;
-    // Square the power.
-    Power = ConstantExpr::get(Opcode, Power, Power);
-  }
-
-  assert(Result && "Only positive weights supported!");
-  return Result;
-}
-
 typedef std::pair<Value*, APInt> RepeatedValue;
 
 /// LinearizeExprTree - Given an associative binary expression, return the leaf
@@ -382,9 +438,7 @@ typedef std::pair<Value*, APInt> RepeatedValue;
 /// op
 ///   (Ops[N].first op Ops[N].first op ... Ops[N].first)  <- Ops[N].second times
 ///
-/// Note that the values Ops[0].first, ..., Ops[N].first are all distinct, and
-/// they are all non-constant except possibly for the last one, which if it is
-/// constant will have weight one (Ops[N].second === 1).
+/// Note that the values Ops[0].first, ..., Ops[N].first are all distinct.
 ///
 /// This routine may modify the function, in which case it returns 'true'.  The
 /// changes it makes may well be destructive, changing the value computed by 'I'
@@ -455,10 +509,6 @@ static bool LinearizeExprTree(BinaryOperator *I,
   assert(Instruction::isAssociative(Opcode) &&
          Instruction::isCommutative(Opcode) &&
          "Expected an associative and commutative operation!");
-  // If we see an absorbing element then the entire expression must be equal to
-  // it.  For example, if this is a multiplication expression and zero occurs as
-  // an operand somewhere in it then the result of the expression must be zero.
-  Constant *Absorber = ConstantExpr::getBinOpAbsorber(Opcode, I->getType());
 
   // Visit all operands of the expression, keeping track of their weight (the
   // number of paths from the expression root to the operand, or if you like
@@ -505,13 +555,6 @@ static bool LinearizeExprTree(BinaryOperator *I,
       APInt Weight = P.second; // Number of paths to this operand.
       DEBUG(dbgs() << "OPERAND: " << *Op << " (" << Weight << ")\n");
       assert(!Op->use_empty() && "No uses, so how did we get to it?!");
-
-      // If the expression contains an absorbing element then there is no need
-      // to analyze it further: it must evaluate to the absorbing element.
-      if (Op == Absorber && !Weight.isMinValue()) {
-        Ops.push_back(std::make_pair(Absorber, APInt(Bitwidth, 1)));
-        return MadeChange;
-      }
 
       // If this is a binary operation of the right kind with only one use then
       // add its operands to the expression.
@@ -604,7 +647,6 @@ static bool LinearizeExprTree(BinaryOperator *I,
 
   // The leaves, repeated according to their weights, represent the linearized
   // form of the expression.
-  Constant *Cst = 0; // Accumulate constants here.
   for (unsigned i = 0, e = LeafOrder.size(); i != e; ++i) {
     Value *V = LeafOrder[i];
     LeafMap::iterator It = Leaves.find(V);
@@ -618,31 +660,14 @@ static bool LinearizeExprTree(BinaryOperator *I,
       continue;
     // Ensure the leaf is only output once.
     It->second = 0;
-    // Glob all constants together into Cst.
-    if (Constant *C = dyn_cast<Constant>(V)) {
-      C = EvaluateRepeatedConstant(Opcode, C, Weight);
-      Cst = Cst ? ConstantExpr::get(Opcode, Cst, C) : C;
-      continue;
-    }
-    // Add non-constant
     Ops.push_back(std::make_pair(V, Weight));
-  }
-
-  // Add any constants back into Ops, all globbed together and reduced to having
-  // weight 1 for the convenience of users.
-  Constant *Identity = ConstantExpr::getBinOpIdentity(Opcode, I->getType());
-  if (Cst && Cst != Identity) {
-    // If combining multiple constants resulted in the absorber then the entire
-    // expression must evaluate to the absorber.
-    if (Cst == Absorber)
-      Ops.clear();
-    Ops.push_back(std::make_pair(Cst, APInt(Bitwidth, 1)));
   }
 
   // For nilpotent operations or addition there may be no operands, for example
   // because the expression was "X xor X" or consisted of 2^Bitwidth additions:
   // in both cases the weight reduces to 0 causing the value to be skipped.
   if (Ops.empty()) {
+    Constant *Identity = ConstantExpr::getBinOpIdentity(Opcode, I->getType());
     assert(Identity && "Associative operation without identity!");
     Ops.push_back(std::make_pair(Identity, APInt(Bitwidth, 1)));
   }
@@ -656,8 +681,8 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
                                   SmallVectorImpl<ValueEntry> &Ops) {
   assert(Ops.size() > 1 && "Single values should be used directly!");
 
-  // Since our optimizations never increase the number of operations, the new
-  // expression can always be written by reusing the existing binary operators
+  // Since our optimizations should never increase the number of operations, the
+  // new expression can usually be written reusing the existing binary operators
   // from the original expression tree, without creating any new instructions,
   // though the rewritten expression may have a completely different topology.
   // We take care to not change anything if the new expression will be the same
@@ -670,6 +695,20 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
   SmallVector<BinaryOperator*, 8> NodesToRewrite;
   unsigned Opcode = I->getOpcode();
   BinaryOperator *Op = I;
+
+  /// NotRewritable - The operands being written will be the leaves of the new
+  /// expression and must not be used as inner nodes (via NodesToRewrite) by
+  /// mistake.  Inner nodes are always reassociable, and usually leaves are not
+  /// (if they were they would have been incorporated into the expression and so
+  /// would not be leaves), so most of the time there is no danger of this.  But
+  /// in rare cases a leaf may become reassociable if an optimization kills uses
+  /// of it, or it may momentarily become reassociable during rewriting (below)
+  /// due it being removed as an operand of one of its uses.  Ensure that misuse
+  /// of leaf nodes as inner nodes cannot occur by remembering all of the future
+  /// leaves and refusing to reuse any of them as inner nodes.
+  SmallPtrSet<Value*, 8> NotRewritable;
+  for (unsigned i = 0, e = Ops.size(); i != e; ++i)
+    NotRewritable.insert(Ops[i].Op);
 
   // ExpressionChanged - Non-null if the rewritten expression differs from the
   // original in some non-trivial way, requiring the clearing of optional flags.
@@ -703,12 +742,14 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
       // the old operands with the new ones.
       DEBUG(dbgs() << "RA: " << *Op << '\n');
       if (NewLHS != OldLHS) {
-        if (BinaryOperator *BO = isReassociableOp(OldLHS, Opcode))
+        BinaryOperator *BO = isReassociableOp(OldLHS, Opcode);
+        if (BO && !NotRewritable.count(BO))
           NodesToRewrite.push_back(BO);
         Op->setOperand(0, NewLHS);
       }
       if (NewRHS != OldRHS) {
-        if (BinaryOperator *BO = isReassociableOp(OldRHS, Opcode))
+        BinaryOperator *BO = isReassociableOp(OldRHS, Opcode);
+        if (BO && !NotRewritable.count(BO))
           NodesToRewrite.push_back(BO);
         Op->setOperand(1, NewRHS);
       }
@@ -732,7 +773,8 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
         Op->swapOperands();
       } else {
         // Overwrite with the new right-hand side.
-        if (BinaryOperator *BO = isReassociableOp(Op->getOperand(1), Opcode))
+        BinaryOperator *BO = isReassociableOp(Op->getOperand(1), Opcode);
+        if (BO && !NotRewritable.count(BO))
           NodesToRewrite.push_back(BO);
         Op->setOperand(1, NewRHS);
         ExpressionChanged = Op;
@@ -745,7 +787,8 @@ void Reassociate::RewriteExprTree(BinaryOperator *I,
     // Now deal with the left-hand side.  If this is already an operation node
     // from the original expression then just rewrite the rest of the expression
     // into it.
-    if (BinaryOperator *BO = isReassociableOp(Op->getOperand(0), Opcode)) {
+    BinaryOperator *BO = isReassociableOp(Op->getOperand(0), Opcode);
+    if (BO && !NotRewritable.count(BO)) {
       Op = BO;
       continue;
     }
@@ -1080,6 +1123,250 @@ static Value *OptimizeAndOrXor(unsigned Opcode,
       ++NumAnnihil;
     }
   }
+  return 0;
+}
+
+/// Helper funciton of CombineXorOpnd(). It creates a bitwise-and
+/// instruction with the given two operands, and return the resulting
+/// instruction. There are two special cases: 1) if the constant operand is 0,
+/// it will return NULL. 2) if the constant is ~0, the symbolic operand will
+/// be returned.
+static Value *createAndInstr(Instruction *InsertBefore, Value *Opnd, 
+                             const APInt &ConstOpnd) {
+  if (ConstOpnd != 0) {
+    if (!ConstOpnd.isAllOnesValue()) {
+      LLVMContext &Ctx = Opnd->getType()->getContext();
+      Instruction *I;
+      I = BinaryOperator::CreateAnd(Opnd, ConstantInt::get(Ctx, ConstOpnd),
+                                    "and.ra", InsertBefore);
+      I->setDebugLoc(InsertBefore->getDebugLoc());
+      return I;
+    }
+    return Opnd;
+  }
+  return 0;
+}
+
+// Helper function of OptimizeXor(). It tries to simplify "Opnd1 ^ ConstOpnd"
+// into "R ^ C", where C would be 0, and R is a symbolic value.
+//
+// If it was successful, true is returned, and the "R" and "C" is returned
+// via "Res" and "ConstOpnd", respectively; otherwise, false is returned,
+// and both "Res" and "ConstOpnd" remain unchanged.
+//  
+bool Reassociate::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1,
+                                 APInt &ConstOpnd, Value *&Res) {
+  // Xor-Rule 1: (x | c1) ^ c2 = (x | c1) ^ (c1 ^ c1) ^ c2 
+  //                       = ((x | c1) ^ c1) ^ (c1 ^ c2)
+  //                       = (x & ~c1) ^ (c1 ^ c2)
+  // It is useful only when c1 == c2.
+  if (Opnd1->isOrExpr() && Opnd1->getConstPart() != 0) {
+    if (!Opnd1->getValue()->hasOneUse())
+      return false;
+
+    const APInt &C1 = Opnd1->getConstPart();
+    if (C1 != ConstOpnd)
+      return false;
+
+    Value *X = Opnd1->getSymbolicPart();
+    Res = createAndInstr(I, X, ~C1);
+    // ConstOpnd was C2, now C1 ^ C2.
+    ConstOpnd ^= C1;
+
+    if (Instruction *T = dyn_cast<Instruction>(Opnd1->getValue()))
+      RedoInsts.insert(T);
+    return true;
+  }
+  return false;
+}
+
+                           
+// Helper function of OptimizeXor(). It tries to simplify
+// "Opnd1 ^ Opnd2 ^ ConstOpnd" into "R ^ C", where C would be 0, and R is a
+// symbolic value. 
+// 
+// If it was successful, true is returned, and the "R" and "C" is returned 
+// via "Res" and "ConstOpnd", respectively (If the entire expression is
+// evaluated to a constant, the Res is set to NULL); otherwise, false is
+// returned, and both "Res" and "ConstOpnd" remain unchanged.
+bool Reassociate::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1, XorOpnd *Opnd2,
+                                 APInt &ConstOpnd, Value *&Res) {
+  Value *X = Opnd1->getSymbolicPart();
+  if (X != Opnd2->getSymbolicPart())
+    return false;
+
+  // This many instruction become dead.(At least "Opnd1 ^ Opnd2" will die.)
+  int DeadInstNum = 1;
+  if (Opnd1->getValue()->hasOneUse())
+    DeadInstNum++;
+  if (Opnd2->getValue()->hasOneUse())
+    DeadInstNum++;
+
+  // Xor-Rule 2:
+  //  (x | c1) ^ (x & c2)
+  //   = (x|c1) ^ (x&c2) ^ (c1 ^ c1) = ((x|c1) ^ c1) ^ (x & c2) ^ c1
+  //   = (x & ~c1) ^ (x & c2) ^ c1               // Xor-Rule 1
+  //   = (x & c3) ^ c1, where c3 = ~c1 ^ c2      // Xor-rule 3
+  //
+  if (Opnd1->isOrExpr() != Opnd2->isOrExpr()) {
+    if (Opnd2->isOrExpr())
+      std::swap(Opnd1, Opnd2);
+
+    const APInt &C1 = Opnd1->getConstPart();
+    const APInt &C2 = Opnd2->getConstPart();
+    APInt C3((~C1) ^ C2);
+
+    // Do not increase code size!
+    if (C3 != 0 && !C3.isAllOnesValue()) {
+      int NewInstNum = ConstOpnd != 0 ? 1 : 2;
+      if (NewInstNum > DeadInstNum)
+        return false;
+    }
+
+    Res = createAndInstr(I, X, C3);
+    ConstOpnd ^= C1;
+
+  } else if (Opnd1->isOrExpr()) {
+    // Xor-Rule 3: (x | c1) ^ (x | c2) = (x & c3) ^ c3 where c3 = c1 ^ c2
+    //
+    const APInt &C1 = Opnd1->getConstPart();
+    const APInt &C2 = Opnd2->getConstPart();
+    APInt C3 = C1 ^ C2;
+    
+    // Do not increase code size
+    if (C3 != 0 && !C3.isAllOnesValue()) {
+      int NewInstNum = ConstOpnd != 0 ? 1 : 2;
+      if (NewInstNum > DeadInstNum)
+        return false;
+    }
+
+    Res = createAndInstr(I, X, C3);
+    ConstOpnd ^= C3;
+  } else {
+    // Xor-Rule 4: (x & c1) ^ (x & c2) = (x & (c1^c2))
+    //
+    const APInt &C1 = Opnd1->getConstPart();
+    const APInt &C2 = Opnd2->getConstPart();
+    APInt C3 = C1 ^ C2;
+    Res = createAndInstr(I, X, C3);
+  }
+
+  // Put the original operands in the Redo list; hope they will be deleted
+  // as dead code.
+  if (Instruction *T = dyn_cast<Instruction>(Opnd1->getValue()))
+    RedoInsts.insert(T);
+  if (Instruction *T = dyn_cast<Instruction>(Opnd2->getValue()))
+    RedoInsts.insert(T);
+
+  return true;
+}
+
+/// Optimize a series of operands to an 'xor' instruction. If it can be reduced
+/// to a single Value, it is returned, otherwise the Ops list is mutated as
+/// necessary.
+Value *Reassociate::OptimizeXor(Instruction *I,
+                                SmallVectorImpl<ValueEntry> &Ops) {
+  if (Value *V = OptimizeAndOrXor(Instruction::Xor, Ops))
+    return V;
+      
+  if (Ops.size() == 1)
+    return 0;
+
+  SmallVector<XorOpnd, 8> Opnds;
+  SmallVector<XorOpnd*, 8> OpndPtrs;
+  Type *Ty = Ops[0].Op->getType();
+  APInt ConstOpnd(Ty->getIntegerBitWidth(), 0);
+
+  // Step 1: Convert ValueEntry to XorOpnd
+  for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
+    Value *V = Ops[i].Op;
+    if (!isa<ConstantInt>(V)) {
+      XorOpnd O(V);
+      O.setSymbolicRank(getRank(O.getSymbolicPart()));
+      Opnds.push_back(O);
+    } else
+      ConstOpnd ^= cast<ConstantInt>(V)->getValue();
+  }
+
+  // NOTE: From this point on, do *NOT* add/delete element to/from "Opnds".
+  //  It would otherwise invalidate the "Opnds"'s iterator, and hence invalidate
+  //  the "OpndPtrs" as well. For the similar reason, do not fuse this loop
+  //  with the previous loop --- the iterator of the "Opnds" may be invalidated
+  //  when new elements are added to the vector.
+  for (unsigned i = 0, e = Opnds.size(); i != e; ++i)
+    OpndPtrs.push_back(&Opnds[i]);
+
+  // Step 2: Sort the Xor-Operands in a way such that the operands containing
+  //  the same symbolic value cluster together. For instance, the input operand
+  //  sequence ("x | 123", "y & 456", "x & 789") will be sorted into:
+  //  ("x | 123", "x & 789", "y & 456").
+  std::sort(OpndPtrs.begin(), OpndPtrs.end(), XorOpnd::PtrSortFunctor());
+
+  // Step 3: Combine adjacent operands
+  XorOpnd *PrevOpnd = 0;
+  bool Changed = false;
+  for (unsigned i = 0, e = Opnds.size(); i < e; i++) {
+    XorOpnd *CurrOpnd = OpndPtrs[i];
+    // The combined value
+    Value *CV;
+
+    // Step 3.1: Try simplifying "CurrOpnd ^ ConstOpnd"
+    if (ConstOpnd != 0 && CombineXorOpnd(I, CurrOpnd, ConstOpnd, CV)) {
+      Changed = true;
+      if (CV)
+        *CurrOpnd = XorOpnd(CV);
+      else {
+        CurrOpnd->Invalidate();
+        continue;
+      }
+    }
+
+    if (!PrevOpnd || CurrOpnd->getSymbolicPart() != PrevOpnd->getSymbolicPart()) {
+      PrevOpnd = CurrOpnd;
+      continue;
+    }
+
+    // step 3.2: When previous and current operands share the same symbolic
+    //  value, try to simplify "PrevOpnd ^ CurrOpnd ^ ConstOpnd" 
+    //    
+    if (CombineXorOpnd(I, CurrOpnd, PrevOpnd, ConstOpnd, CV)) {
+      // Remove previous operand
+      PrevOpnd->Invalidate();
+      if (CV) {
+        *CurrOpnd = XorOpnd(CV);
+        PrevOpnd = CurrOpnd;
+      } else {
+        CurrOpnd->Invalidate();
+        PrevOpnd = 0;
+      }
+      Changed = true;
+    }
+  }
+
+  // Step 4: Reassemble the Ops
+  if (Changed) {
+    Ops.clear();
+    for (unsigned int i = 0, e = Opnds.size(); i < e; i++) {
+      XorOpnd &O = Opnds[i];
+      if (O.isInvalid())
+        continue;
+      ValueEntry VE(getRank(O.getValue()), O.getValue());
+      Ops.push_back(VE);
+    }
+    if (ConstOpnd != 0) {
+      Value *C = ConstantInt::get(Ty->getContext(), ConstOpnd);
+      ValueEntry VE(getRank(C), C);
+      Ops.push_back(VE);
+    }
+    int Sz = Ops.size();
+    if (Sz == 1)
+      return Ops.back().Op;
+    else if (Sz == 0) {
+      assert(ConstOpnd == 0);
+      return ConstantInt::get(Ty->getContext(), ConstOpnd);
+    }
+  }
+
   return 0;
 }
 
@@ -1446,9 +1733,26 @@ Value *Reassociate::OptimizeExpression(BinaryOperator *I,
                                        SmallVectorImpl<ValueEntry> &Ops) {
   // Now that we have the linearized expression tree, try to optimize it.
   // Start by folding any constants that we found.
-  if (Ops.size() == 1) return Ops[0].Op;
-
+  Constant *Cst = 0;
   unsigned Opcode = I->getOpcode();
+  while (!Ops.empty() && isa<Constant>(Ops.back().Op)) {
+    Constant *C = cast<Constant>(Ops.pop_back_val().Op);
+    Cst = Cst ? ConstantExpr::get(Opcode, C, Cst) : C;
+  }
+  // If there was nothing but constants then we are done.
+  if (Ops.empty())
+    return Cst;
+
+  // Put the combined constant back at the end of the operand list, except if
+  // there is no point.  For example, an add of 0 gets dropped here, while a
+  // multiplication by zero turns the whole expression into zero.
+  if (Cst && Cst != ConstantExpr::getBinOpIdentity(Opcode, I->getType())) {
+    if (Cst == ConstantExpr::getBinOpAbsorber(Opcode, I->getType()))
+      return Cst;
+    Ops.push_back(ValueEntry(0, Cst));
+  }
+
+  if (Ops.size() == 1) return Ops[0].Op;
 
   // Handle destructive annihilation due to identities between elements in the
   // argument list here.
@@ -1457,8 +1761,12 @@ Value *Reassociate::OptimizeExpression(BinaryOperator *I,
   default: break;
   case Instruction::And:
   case Instruction::Or:
-  case Instruction::Xor:
     if (Value *Result = OptimizeAndOrXor(Opcode, Ops))
+      return Result;
+    break;
+
+  case Instruction::Xor:
+    if (Value *Result = OptimizeXor(I, Ops))
       return Result;
     break;
 

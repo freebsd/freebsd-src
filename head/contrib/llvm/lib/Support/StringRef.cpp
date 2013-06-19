@@ -9,10 +9,9 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/APInt.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/edit_distance.h"
-
 #include <bitset>
 
 using namespace llvm;
@@ -350,8 +349,8 @@ bool llvm::getAsUnsignedInteger(StringRef Str, unsigned Radix,
     unsigned long long PrevResult = Result;
     Result = Result*Radix+CharVal;
 
-    // Check for overflow.
-    if (Result < PrevResult)
+    // Check for overflow by shifting back and seeing if bits were lost.
+    if (Result/Radix < PrevResult)
       return true;
 
     Str = Str.substr(1);

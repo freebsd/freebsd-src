@@ -61,6 +61,7 @@ static int	parsenum(const char *, unsigned long *);
 static int	ethers(int, char *[]);
 static int	group(int, char *[]);
 static int	hosts(int, char *[]);
+static int	netgroup(int, char *[]);
 static int	networks(int, char *[]);
 static int	passwd(int, char *[]);
 static int	protocols(int, char *[]);
@@ -89,6 +90,7 @@ static struct getentdb {
 	{	"rpc",		rpc,		},
 	{	"services",	services,	},
 	{	"shells",	shells,		},
+	{	"netgroup",	netgroup,	},
 	{	"utmpx",	utmpx,		},
 
 	{	NULL,		NULL,		},
@@ -277,7 +279,7 @@ hostsprint(const struct hostent *he)
 static int
 hosts(int argc, char *argv[])
 {
-	struct hostent	*he;
+	struct hostent	*he4, *he6;
 	char		addr[IN6ADDRSZ];
 	int		i, rv;
 
@@ -285,21 +287,31 @@ hosts(int argc, char *argv[])
 	assert(argv != NULL);
 
 	sethostent(1);
+	he4 = he6 = NULL;
 	rv = RV_OK;
 	if (argc == 2) {
-		while ((he = gethostent()) != NULL)
-			hostsprint(he);
+		while ((he4 = gethostent()) != NULL)
+			hostsprint(he4);
 	} else {
 		for (i = 2; i < argc; i++) {
-			if (inet_pton(AF_INET6, argv[i], (void *)addr) > 0)
-				he = gethostbyaddr(addr, IN6ADDRSZ, AF_INET6);
-			else if (inet_pton(AF_INET, argv[i], (void *)addr) > 0)
-				he = gethostbyaddr(addr, INADDRSZ, AF_INET);
-			else
-				he = gethostbyname(argv[i]);
-			if (he != NULL)
-				hostsprint(he);
-			else {
+			if (inet_pton(AF_INET6, argv[i], (void *)addr) > 0) {
+				he6 = gethostbyaddr(addr, IN6ADDRSZ, AF_INET6);
+				if (he6 != NULL)
+					hostsprint(he6);
+			} else if (inet_pton(AF_INET, argv[i],
+			    (void *)addr) > 0) {
+				he4 = gethostbyaddr(addr, INADDRSZ, AF_INET);
+				if (he4 != NULL)
+					hostsprint(he4);
+	       		} else {
+				he6 = gethostbyname2(argv[i], AF_INET6);
+				if (he6 != NULL)
+					hostsprint(he6);
+				he4 = gethostbyname(argv[i]);
+				if (he4 != NULL)
+					hostsprint(he4);
+			}
+			if ( he4 == NULL && he6 == NULL ) {
 				rv = RV_NOTFOUND;
 				break;
 			}
@@ -557,6 +569,47 @@ shells(int argc, char *argv[])
 		}
 	}
 	endusershell();
+	return rv;
+}
+
+/*
+ * netgroup
+ */
+static int
+netgroup(int argc, char *argv[])
+{
+	char		*host, *user, *domain;
+	int		first;
+	int		rv, i;
+
+	assert(argc > 1);
+	assert(argv != NULL);
+
+#define NETGROUPPRINT(s)	(((s) != NULL) ? (s) : "")
+
+	rv = RV_OK;
+	if (argc == 2) {
+		fprintf(stderr, "Enumeration not supported on netgroup\n");
+		rv = RV_NOENUM;
+	} else {
+		for (i = 2; i < argc; i++) {
+			setnetgrent(argv[i]);
+			first = 1;
+			while (getnetgrent(&host, &user, &domain) != 0) {
+				if (first) {
+					first = 0;
+					(void)fputs(argv[i], stdout);
+				}
+				(void)printf(" (%s,%s,%s)",
+				    NETGROUPPRINT(host),
+				    NETGROUPPRINT(user),
+				    NETGROUPPRINT(domain));
+			}
+			if (!first)
+				(void)putchar('\n');
+			endnetgrent();
+		}
+	}
 	return rv;
 }
 

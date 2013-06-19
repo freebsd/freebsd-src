@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,17 +28,18 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/startup/rcconf.subr
 
-APP_DIR="140.startup"
-f_include $BSDCFG_LIBE/$APP_DIR/include/rcconf.subr
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ GLOBALS
@@ -47,14 +48,13 @@ ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 # Global map/menu-list for the main menu
 #
 RCCONF_MAP=
-_RCCONF_MAP=
 RCCONF_MENU_LIST=
 
 #
 # Options
 #
 # Inherit SHOW_DESC value if set, otherwise default to 1
-( : ${SHOW_DESC?} ) > /dev/null 2>&1 || SHOW_DESC=1
+[ "${SHOW_DESC+set}" ] || SHOW_DESC=1
 # Selectively inherit SHOW_* value (in order of preference)
 if [ "$SHOW_DEFAULT_VALUE" ]; then
 	SHOW_DEFAULT_VALUE=1
@@ -72,46 +72,19 @@ fi
 
 ############################################################ FUNCTIONS
 
-# dialog_menu_main
+# dialog_create_main
 #
-# Display the dialog(1)-based application main menu.
+# Create the dialog(1) main menu. Separated from dialog_menu_main (used to
+# display the menu) to speed up execution (we only call this function when
+# initializing or changing the view details).
 #
-dialog_menu_main()
+dialog_create_main()
 {
-	local size
-	local hline="$hline_arrows_tab_enter"
-	local prompt=""
-
-	RCCONF_MENU_LIST="
-		'X $msg_exit_cancel'     '$msg_exit_cancel_desc'
-		            ${SHOW_DESC:+'$msg_exit_cancel_help'}
-		'> $msg_delete_selected' '$msg_delete_selected_desc'
-		            ${SHOW_DESC:+'$msg_delete_selected_help'}
-		'> $msg_all'             '$msg_all_desc'
-		            ${SHOW_DESC:+'$msg_all_help'}
-		'> $msg_none'            '$msg_none_desc'
-		            ${SHOW_DESC:+'$msg_none_help'}
-	${USE_XDIALOG:+
-		'> $msg_view_details' '$msg_view_details_desc'
-		                       ${SHOW_DESC:+'$msg_view_details_help'}
-	}
-	" # END-QUOTE
-
-	if [ ! "$_RCCONF_MAP" ]; then
-		# Genreate RCCONF_MAP of `var desc ...' per-line
-		f_dialog_info "$msg_creating_rcconf_map"
-		RCCONF_MAP=$( f_startup_rcconf_map )
-		export RCCONF_MAP
-		# Generate _${var}_desc variables from $RCCONF_MAP
-		f_startup_rcconf_map_expand
-		export _RCCONF_MAP=1
-	fi
-
 	# Show infobox for modes that take a while to calculate/display
 	[ "$SHOW_DEFAULT_VALUE" -o "$SHOW_CONFIGURED" ] &&
 		f_dialog_info "$msg_creating_menu_list"
 
-	RCCONF_MENU_LIST="$RCCONF_MENU_LIST $(
+	RCCONF_MENU_LIST=$(
 		. "$RC_DEFAULTS" > /dev/null
 		source_rc_confs > /dev/null
 		var_list=$( f_startup_rcconf_list )
@@ -164,52 +137,129 @@ dialog_menu_main()
 			}
 			printf "\n"
 		}'
-	)"
+	)
+}
 
-	set -f # noglob
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local prompt=
+	local menu_list="
+		'X $msg_exit_cancel'     '$msg_exit_cancel_desc'
+		            ${SHOW_DESC:+'$msg_exit_cancel_help'}
+		'> $msg_delete_selected' '$msg_delete_selected_desc'
+		            ${SHOW_DESC:+'$msg_delete_selected_help'}
+		'> $msg_all'             '$msg_all_desc'
+		            ${SHOW_DESC:+'$msg_all_help'}
+		'> $msg_none'            '$msg_none_desc'
+		            ${SHOW_DESC:+'$msg_none_help'}
+	${USE_XDIALOG:+
+		'> $msg_view_details'    '$msg_view_details_desc'
+		            ${SHOW_DESC:+'$msg_view_details_help'}
+	}
+	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
-	size=$( eval f_dialog_menu_${SHOW_DESC:+with_help_}size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$RCCONF_MENU_LIST      )
+	#
+	# [Re-]Accent the menu list before incorporating it
+	#
+	local rcconf_var details help menu_buf delete
+	eval set -- $RCCONF_MENU_LIST
+	while [ $# -gt 0 ]; do
+		rcconf_var="$1" details="$2" delete=
+		f_shell_escape "$details" details
+		if [ "$SHOW_DESC" ]; then
+			help="$3"
+			f_shell_escape "$help" help
+			shift 3 # rcconf_var/details/help
+		else
+			shift 2 # rcconf_var/details
+		fi
 
-	eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		# Update mark
+		f_getvar _${rcconf_var# }_delete delete
+		if [ "$delete" ]; then
+			details="[X]${details#???}"
+		else
+			details="[ ]${details#???}"
+		fi
+
+		# Update buffer with modified elements
+		menu_buf="$menu_buf
+		'$rcconf_var' '$details' ${SHOW_DESC:+'$help'}" # End-Quote
+	done
+	menu_list="$menu_list $menu_buf"
+
+	set -f # set noglob because descriptions in the $menu_list may contain
+	       # `*' and get expanded by dialog(1) (doesn't affect Xdialog(1)).
+	       # This prevents dialog(1) from expanding wildcards in help line.
+
+	local height width rows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
+		height width rows      \
+		\"\$DIALOG_TITLE\"     \
+		\"\$DIALOG_BACKTITLE\" \
+		\"\$prompt\"           \
+		\"\$hline\"            \
+		$menu_list
+
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
+		--keep-tite                        \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--help-button                      \
 		--help-label \"\$msg_details\"     \
 		${SHOW_DESC:+--item-help}          \
-		--menu \"\$prompt\" $size          \
-		$RCCONF_MENU_LIST                  \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+
+	# Only update default-item on success
+	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
+
+	return $retval
 }
 
-# dialog_menu_delete $var1 [$var2 ...]
+# dialog_menu_confirm_delete $var1 [$var2 ...]
 #
-# Get the user's blessing to delete one or more variables.
-# if (and only-if) the user confirms (does not press ESC or Cancel/NO).
+# Get the user's blessing to delete one or more variables. Returns success if
+# (and only-if) the user confirms (does not press ESC or Cancel/NO). Does NOT
+# return the user's menu-choice.
 #
-dialog_menu_delete()
+dialog_menu_confirm_delete()
 {
-	local size
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_are_you_sure_you_want_delete_the_following"
-	local var_list menu_list
+	local menu_list # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
 	[ $# -ge 1 ] || return $FAILURE
 
+	# If asked to delete only one variable, simply ask and return
 	if [ $# -eq 1 ]; then
-		msg=$( printf "$msg_are_you_sure_you_want_to_delete" \
-		              "$delete_vars" )
-		f_dialog_noyes "$msg"
+		f_noyes "$msg_are_you_sure_you_want_to_delete" "$1"
 		return $?
 	fi
+	# Not reached unless requested to delete multiple variables
 
+	# Generate a menu to cleanly display the variables to be deleted
+	local var_list
 	var_list=$( for var in $*; do echo "$var"; done | sort -u )
 	menu_list=$(
 		. "$RC_DEFAULTS"
@@ -230,26 +280,30 @@ dialog_menu_delete()
 		}'
 	)
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
 	local defaultno="defaultno"
 	[ "$USE_XDIALOG" ] && defaultno="default-no"
 
 	eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--$defaultno                       \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2> /dev/null
+
+	# Menu choice ignored; status of above command returned
 }
 
 ############################################################ MAIN
@@ -260,7 +314,7 @@ dialog_menu_delete()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -270,25 +324,36 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_delete_startup_directives"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
+# Genreate $RCCONF_MAP of `var desc ...' per-line (see share/rcconf.subr)
+f_dialog_info "$msg_creating_rcconf_map"
+f_startup_rcconf_map RCCONF_MAP
+
+# Generate _${var}_desc variables from $RCCONF_MAP
+f_startup_rcconf_map_expand RCCONF_MAP
+
+# Generate RCCONF_MENU_LIST from $RCCONF_MAP
+dialog_create_main
+
+#
+# Launch application main menu
+#
 while :; do
 	dialog_menu_main
 	retval=$?
-	mtag=$( f_dialog_menutag )
+	f_dialog_menutag_fetch mtag
 
 	if [ "$USE_XDIALOG" ]; then
-		case "$mtag" in
-		"> $msg_view_details")
-			f_dialog_input_view_details
+		case "$mtag" in "> $msg_view_details")
+			f_dialog_input_view_details && dialog_create_main
 			continue
 		esac
 	elif [ $retval -eq 2 ]; then
 		# The ``Help'' button (labeled "Details") was pressed
-		f_dialog_input_view_details
+		f_dialog_input_view_details && dialog_create_main
 		continue
 	fi
 
@@ -303,18 +368,19 @@ while :; do
 			delete_vars="$delete_vars${delete_vars:+ }$var"
 		done
 		unset var # no longer needed
-		if dialog_menu_delete $delete_vars; then
+		if dialog_menu_confirm_delete $delete_vars; then
 			f_dialog_title "$msg_info"
 			f_dialog_info "$msg_deleting_selected_directives"
 			f_dialog_title_restore
 			for var in $delete_vars; do
 				err=$( f_sysrc_delete $var 2>&1 )
 				if [ $? -ne $SUCCESS ]; then
-					f_show_msg "%s\n" "$err"
+					f_dialog_msgbox "$err\n"
 					break
 				fi
 			done
 			unset var # no longer needed
+			dialog_create_main
 		fi
 		;;
 	"> $msg_all")
@@ -338,7 +404,7 @@ while :; do
 		var="${mtag# }"
 
 		# Toggle the state-variable and loop back to menu
-		if ( eval : \${_${var}_delete?} ) > /dev/null 2>&1; then
+		if f_isset _${var}_delete; then
 			unset _${var}_delete
 		else
 			setvar _${var}_delete 1

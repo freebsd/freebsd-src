@@ -70,6 +70,9 @@ struct devsw *devsw[] = {
 };
 
 struct fs_ops *file_system[] = {
+#if defined(LOADER_ZFS_SUPPORT)
+    &zfs_fsops,
+#endif
     &ufs_fsops,
     &ext2fs_fsops,
     &dosfs_fsops,
@@ -77,9 +80,8 @@ struct fs_ops *file_system[] = {
 #if defined(LOADER_NANDFS_SUPPORT)
     &nandfs_fsops,
 #endif
+#ifdef LOADER_SPLIT_SUPPORT
     &splitfs_fsops,
-#if defined(LOADER_ZFS_SUPPORT)
-    &zfs_fsops,
 #endif
 #ifdef LOADER_GZIP_SUPPORT
     &gzipfs_fsops,
@@ -107,10 +109,16 @@ extern struct file_format	amd64_elf;
 extern struct file_format	amd64_elf_obj;
 
 struct file_format *file_formats[] = {
-    &i386_elf,
-    &i386_elf_obj,
+#ifdef LOADER_PREFER_AMD64
     &amd64_elf,
     &amd64_elf_obj,
+#endif
+    &i386_elf,
+    &i386_elf_obj,
+#ifndef LOADER_PREFER_AMD64
+    &amd64_elf,
+    &amd64_elf_obj,
+#endif
     NULL
 };
 

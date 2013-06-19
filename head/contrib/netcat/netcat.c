@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.105 2012/02/09 06:25:35 lum Exp $ */
+/* $OpenBSD: netcat.c,v 1.111 2013/03/20 09:27:56 sthen Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -75,9 +75,9 @@
 /* Command Line Options */
 int	dflag;					/* detached, no stdin */
 unsigned int iflag;				/* Interval Flag */
-int	jflag;					/* use jumbo frames if we can */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
+int	Nflag;					/* shutdown() network socket */
 int	nflag;					/* Don't do name look up */
 int	FreeBSD_Oflag;				/* Do not use TCP options */
 char   *Pflag;					/* Proxy username */
@@ -116,6 +116,7 @@ int	unix_connect(char *);
 int	unix_listen(char *);
 void	set_common_sockopts(int);
 int	map_tos(char *, int *);
+void	report_connect(const struct sockaddr *, socklen_t);
 void	usage(int);
 
 #ifdef IPSEC
@@ -153,7 +154,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt_long(argc, argv,
-	    "46DdEe:hI:i:jklnoO:P:p:rSs:tT:UuV:vw:X:x:z",
+	    "46DdEe:hI:i:klNnoO:P:p:rSs:tT:UuV:vw:X:x:z",
 	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
@@ -201,16 +202,14 @@ main(int argc, char *argv[])
 			if (errstr)
 				errx(1, "interval %s: %s", errstr, optarg);
 			break;
-#ifdef SO_JUMBO
-		case 'j':
-			jflag = 1;
-			break;
-#endif
 		case 'k':
 			kflag = 1;
 			break;
 		case 'l':
 			lflag = 1;
+			break;
+		case 'N':
+			Nflag = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -395,17 +394,23 @@ main(int argc, char *argv[])
 			if (s < 0)
 				err(1, NULL);
 			/*
-			 * For UDP, we will use recvfrom() initially
-			 * to wait for a caller, then use the regular
-			 * functions to talk to the caller.
+			 * For UDP and -k, don't connect the socket, let it
+			 * receive datagrams from multiple socket pairs.
 			 */
-			if (uflag) {
+			if (uflag && kflag)
+				readwrite(s);
+			/*
+			 * For UDP and not -k, we will use recvfrom() initially
+			 * to wait for a caller, then use the regular functions
+			 * to talk to the caller.
+			 */
+			else if (uflag && !kflag) {
 				int rv, plen;
 				char buf[16384];
 				struct sockaddr_storage z;
 
 				len = sizeof(z);
-				plen = jflag ? 16384 : 2048;
+				plen = 2048;
 				rv = recvfrom(s, buf, plen, MSG_PEEK,
 				    (struct sockaddr *)&z, &len);
 				if (rv < 0)
@@ -415,11 +420,21 @@ main(int argc, char *argv[])
 				if (rv < 0)
 					err(1, "connect");
 
+				if (vflag)
+					report_connect((struct sockaddr *)&z, len);
+
 				readwrite(s);
 			} else {
 				len = sizeof(cliaddr);
 				connfd = accept(s, (struct sockaddr *)&cliaddr,
 				    &len);
+				if (connfd == -1) {
+					/* For now, all errnos are fatal */
+   					err(1, "accept");
+				}
+				if (vflag)
+					report_connect((struct sockaddr *)&cliaddr, len);
+
 				readwrite(connfd);
 				close(connfd);
 			}
@@ -782,7 +797,7 @@ readwrite(int nfd)
 	int lfd = fileno(stdout);
 	int plen;
 
-	plen = jflag ? 16384 : 2048;
+	plen = 2048;
 
 	/* Setup Network FD */
 	pfd[0].fd = nfd;
@@ -823,7 +838,8 @@ readwrite(int nfd)
 			if ((n = read(wfd, buf, plen)) < 0)
 				return;
 			else if (n == 0) {
-				shutdown(nfd, SHUT_WR);
+				if (Nflag)
+					shutdown(nfd, SHUT_WR);
 				pfd[1].fd = -1;
 				pfd[1].events = 0;
 			} else {
@@ -961,13 +977,6 @@ set_common_sockopts(int s)
 			&x, sizeof(x)) == -1)
 			err(1, NULL);
 	}
-#ifdef SO_JUMBO
-	if (jflag) {
-		if (setsockopt(s, SOL_SOCKET, SO_JUMBO,
-			&x, sizeof(x)) == -1)
-			err(1, NULL);
-	}
-#endif
 	if (Tflag != -1) {
 		if (setsockopt(s, IPPROTO_IP, IP_TOS,
 		    &Tflag, sizeof(Tflag)) == -1)
@@ -1039,6 +1048,32 @@ map_tos(char *s, int *val)
 }
 
 void
+report_connect(const struct sockaddr *sa, socklen_t salen)
+{
+	char remote_host[NI_MAXHOST];
+	char remote_port[NI_MAXSERV];
+	int herr;
+	int flags = NI_NUMERICSERV;
+	
+	if (nflag)
+		flags |= NI_NUMERICHOST;
+	
+	if ((herr = getnameinfo(sa, salen,
+	    remote_host, sizeof(remote_host),
+	    remote_port, sizeof(remote_port),
+	    flags)) != 0) {
+		if (herr == EAI_SYSTEM)
+			err(1, "getnameinfo");
+		else
+			errx(1, "getnameinfo: %s", gai_strerror(herr));
+	}
+	
+	fprintf(stderr,
+	    "Connection from %s %s "
+	    "received!\n", remote_host, remote_port);
+}
+
+void
 help(void)
 {
 	usage(0);
@@ -1058,6 +1093,7 @@ help(void)
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
+	\t-N		Shutdown the network socket after EOF on stdin\n\
 	\t-n		Suppress name/port resolutions\n\
 	\t--no-tcpopt	Disable TCP options\n\
 	\t-O length	TCP send buffer length\n\
@@ -1110,9 +1146,9 @@ usage(int ret)
 {
 	fprintf(stderr,
 #ifdef IPSEC
-	    "usage: nc [-46DdEhklnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdEhklNnrStUuvz] [-e policy] [-I length] [-i interval] [-O length]\n"
 #else
-	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
+	    "usage: nc [-46DdhklNnrStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
 	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
 	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"

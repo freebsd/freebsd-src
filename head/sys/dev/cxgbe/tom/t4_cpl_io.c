@@ -73,9 +73,9 @@ VNET_DECLARE(int, tcp_autorcvbuf_max);
 void
 send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 {
-        struct wrqe *wr;
-        struct fw_flowc_wr *flowc;
-	unsigned int nparams = ftxp ? 8 : 4, flowclen;
+	struct wrqe *wr;
+	struct fw_flowc_wr *flowc;
+	unsigned int nparams = ftxp ? 8 : 6, flowclen;
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
 	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
@@ -88,7 +88,7 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
-	wr = alloc_wrqe(roundup(flowclen, 16), toep->ofld_txq);
+	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);
@@ -102,13 +102,13 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	    V_FW_WR_FLOWID(toep->tid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-        flowc->mnemval[0].val = htobe32(pfvf);
-        flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-        flowc->mnemval[1].val = htobe32(pi->tx_chan);
-        flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-        flowc->mnemval[2].val = htobe32(pi->tx_chan);
-        flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
-        flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
+	flowc->mnemval[0].val = htobe32(pfvf);
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
 	if (ftxp) {
 		uint32_t sndbuf = min(ftxp->snd_space, sc->tt.sndbuf);
 
@@ -120,6 +120,11 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		flowc->mnemval[6].val = htobe32(sndbuf);
 		flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[7].val = htobe32(ftxp->mss);
+	} else {
+		flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
+		flowc->mnemval[4].val = htobe32(512);
+		flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
+		flowc->mnemval[5].val = htobe32(512);
 	}
 
 	txsd->tx_credits = howmany(flowclen, 16);
@@ -627,7 +632,7 @@ unlocked:
 
 			/* Immediate data tx */
 
-			wr = alloc_wrqe(roundup(sizeof(*txwr) + plen, 16),
+			wr = alloc_wrqe(roundup2(sizeof(*txwr) + plen, 16),
 					toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
@@ -646,7 +651,7 @@ unlocked:
 
 			wr_len = sizeof(*txwr) + sizeof(struct ulptx_sgl) +
 			    ((3 * (nsegs - 1)) / 2 + ((nsegs - 1) & 1)) * 8;
-			wr = alloc_wrqe(roundup(wr_len, 16), toep->ofld_txq);
+			wr = alloc_wrqe(roundup2(wr_len, 16), toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
 				toep->flags |= TPF_TX_SUSPENDED;
@@ -781,6 +786,29 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	KASSERT(opcode == CPL_PEER_CLOSE,
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
+
+	if (__predict_false(toep->flags & TPF_SYNQE)) {
+#ifdef INVARIANTS
+		struct synq_entry *synqe = (void *)toep;
+
+		INP_WLOCK(synqe->lctx->inp);
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
+			    ("%s: listen socket closed but tid %u not aborted.",
+			    __func__, tid));
+		} else {
+			/*
+			 * do_pass_accept_req is still running and will
+			 * eventually take care of this tid.
+			 */
+		}
+		INP_WUNLOCK(synqe->lctx->inp);
+#endif
+		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
+		    toep, toep->flags);
+		return (0);
+	}
+
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -799,15 +827,8 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
-		m = m_get(M_NOWAIT, MT_DATA);
-		if (m == NULL)
-			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
-
-		m->m_len = be32toh(cpl->rcv_nxt) - tp->rcv_nxt;
-		m->m_flags |= M_DDP;	/* Data is already where it should be */
-		m->m_data = "nothing to see here";
+		m = get_ddp_mbuf(be32toh(cpl->rcv_nxt) - tp->rcv_nxt);
 		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
-
 		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
 
 		KASSERT(toep->sb_cc >= sb->sb_cc,
@@ -977,7 +998,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sge_wrq *ofld_txq = toep->ofld_txq;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct socket *so;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -991,8 +1011,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
-	if (cpl->status == CPL_ERR_RTX_NEG_ADVICE ||
-	    cpl->status == CPL_ERR_PERSIST_NEG_ADVICE) {
+	if (negative_advice(cpl->status)) {
 		CTR4(KTR_CXGBE, "%s: negative advice %d for tid %d (0x%x)",
 		    __func__, cpl->status, tid, toep->flags);
 		return (0);	/* Ignore negative advice */
@@ -1003,7 +1022,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
-	so = inp->inp_socket;
 
 	CTR6(KTR_CXGBE,
 	    "%s: tid %d (%s), toep_flags 0x%x, inp_flags 0x%x, status %d",
@@ -1021,10 +1039,16 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	so_error_set(so, abort_status_to_errno(tp, cpl->status));
-	tp = tcp_close(tp);
-	if (tp == NULL)
-		INP_WLOCK(inp);	/* re-acquire */
+	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+		struct socket *so = inp->inp_socket;
+
+		if (so != NULL)
+			so_error_set(so, abort_status_to_errno(tp,
+			    cpl->status));
+		tp = tcp_close(tp);
+		if (tp == NULL)
+			INP_WLOCK(inp);	/* re-acquire */
+	}
 
 	final_cpl_received(toep);
 done:
@@ -1081,15 +1105,27 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct socket *so;
 	struct sockbuf *sb;
 	int len;
+	uint32_t ddp_placed = 0;
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
-		/*
-		 * do_pass_establish failed and must be attempting to abort the
-		 * synqe's tid.  Meanwhile, the T4 has sent us data for such a
-		 * connection.
-		 */
-		KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
-		    ("%s: synqe and tid isn't being aborted.", __func__));
+#ifdef INVARIANTS
+		struct synq_entry *synqe = (void *)toep;
+
+		INP_WLOCK(synqe->lctx->inp);
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
+			    ("%s: listen socket closed but tid %u not aborted.",
+			    __func__, tid));
+		} else {
+			/*
+			 * do_pass_accept_req is still running and will
+			 * eventually take care of this tid.
+			 */
+		}
+		INP_WUNLOCK(synqe->lctx->inp);
+#endif
+		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
+		    toep, toep->flags);
 		m_freem(m);
 		return (0);
 	}
@@ -1111,13 +1147,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp = intotcpcb(inp);
 
-#ifdef INVARIANTS
-	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq))) {
-		log(LOG_ERR,
-		    "%s: unexpected seq# %x for TID %u, rcv_nxt %x\n",
-		    __func__, be32toh(cpl->seq), toep->tid, tp->rcv_nxt);
-	}
-#endif
+	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq)))
+		ddp_placed = be32toh(cpl->seq) - tp->rcv_nxt;
 
 	tp->rcv_nxt += len;
 	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
@@ -1164,12 +1195,20 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
 
 		if (changed) {
-			if (__predict_false(!(toep->ddp_flags & DDP_SC_REQ))) {
-				/* XXX: handle this if legitimate */
-				panic("%s: unexpected DDP state change %d",
-				    __func__, cpl->ddp_off);
+			if (toep->ddp_flags & DDP_SC_REQ)
+				toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
+			else {
+				KASSERT(cpl->ddp_off == 1,
+				    ("%s: DDP switched on by itself.",
+				    __func__));
+
+				/* Fell out of DDP mode */
+				toep->ddp_flags &= ~(DDP_ON | DDP_BUF0_ACTIVE |
+				    DDP_BUF1_ACTIVE);
+
+				if (ddp_placed)
+					insert_ddp_data(toep, ddp_placed);
 			}
-			toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
 		}
 
 		if ((toep->ddp_flags & DDP_OK) == 0 &&
@@ -1371,13 +1410,13 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, uint16_t word,
-    uint64_t mask, uint64_t val)
+t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, int ctrl,
+    uint16_t word, uint64_t mask, uint64_t val)
 {
 	struct wrqe *wr;
 	struct cpl_set_tcb_field *req;
 
-	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
+	wr = alloc_wrqe(sizeof(*req), ctrl ? toep->ctrlq : toep->ofld_txq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);

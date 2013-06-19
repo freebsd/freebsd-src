@@ -14,11 +14,10 @@
 
 #include "ClangSACheckers.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/StaticAnalyzer/Checkers/DereferenceChecker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 
 using namespace clang;
@@ -43,15 +42,15 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
   SVal V = state->getSVal(Ex, C.getLocationContext());
 
   // Uninitialized value used for the mutex?
-  if (isa<UndefinedVal>(V)) {
+  if (V.getAs<UndefinedVal>()) {
     if (ExplodedNode *N = C.generateSink()) {
       if (!BT_undef)
         BT_undef.reset(new BuiltinBug("Uninitialized value used as mutex "
                                   "for @synchronized"));
       BugReport *report =
         new BugReport(*BT_undef, BT_undef->getDescription(), N);
-      bugreporter::addTrackNullOrUndefValueVisitor(N, Ex, report);
-      C.EmitReport(report);
+      bugreporter::trackNullOrUndefValue(N, Ex, *report);
+      C.emitReport(report);
     }
     return;
   }
@@ -61,7 +60,7 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
 
   // Check for null mutexes.
   ProgramStateRef notNullState, nullState;
-  llvm::tie(notNullState, nullState) = state->assume(cast<DefinedSVal>(V));
+  llvm::tie(notNullState, nullState) = state->assume(V.castAs<DefinedSVal>());
 
   if (nullState) {
     if (!notNullState) {
@@ -73,9 +72,9 @@ void ObjCAtSyncChecker::checkPreStmt(const ObjCAtSynchronizedStmt *S,
                                    "(no synchronization will occur)"));
         BugReport *report =
           new BugReport(*BT_null, BT_null->getDescription(), N);
-        bugreporter::addTrackNullOrUndefValueVisitor(N, Ex, report);
+        bugreporter::trackNullOrUndefValue(N, Ex, *report);
 
-        C.EmitReport(report);
+        C.emitReport(report);
         return;
       }
     }

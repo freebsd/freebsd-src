@@ -12,19 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/ASTConsumers.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/SourceManager.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/RecursiveASTVisitor.h"
-#include "llvm/Module.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -58,14 +58,18 @@ namespace {
     bool shouldWalkTypesOfTypeLocs() const { return false; }
 
     bool TraverseDecl(Decl *D) {
-      if (filterMatches(D)) {
-        Out.changeColor(llvm::raw_ostream::BLUE) <<
-            (Dump ? "Dumping " : "Printing ") << getName(D) << ":\n";
-        Out.resetColor();
+      if (D != NULL && filterMatches(D)) {
+        bool ShowColors = Out.has_colors();
+        if (ShowColors)
+          Out.changeColor(raw_ostream::BLUE);
+        Out << (Dump ? "Dumping " : "Printing ") << getName(D) << ":\n";
+        if (ShowColors)
+          Out.resetColor();
         if (Dump)
           D->dump(Out);
         else
           D->print(Out, /*Indentation=*/0, /*PrintInstantiation=*/true);
+        Out << "\n";
         // Don't traverse child nodes to avoid output duplication.
         return true;
       }
@@ -89,8 +93,6 @@ namespace {
 
   class ASTDeclNodeLister : public ASTConsumer,
                      public RecursiveASTVisitor<ASTDeclNodeLister> {
-    typedef RecursiveASTVisitor<ASTDeclNodeLister> base;
-
   public:
     ASTDeclNodeLister(raw_ostream *Out = NULL)
         : Out(Out ? *Out : llvm::outs()) {}
@@ -102,7 +104,8 @@ namespace {
     bool shouldWalkTypesOfTypeLocs() const { return false; }
 
     virtual bool VisitNamedDecl(NamedDecl *D) {
-      Out << D->getQualifiedNameAsString() << "\n";
+      D->printQualifiedName(Out);
+      Out << '\n';
       return true;
     }
 
@@ -458,6 +461,10 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     case Decl::ClassTemplate: {
       ClassTemplateDecl *CTD = cast<ClassTemplateDecl>(*I);
       Out << "<class template> " << *CTD << '\n';
+      break;
+    }
+    case Decl::OMPThreadPrivate: {
+      Out << "<omp threadprivate> " << '"' << *I << "\"\n";
       break;
     }
     default:

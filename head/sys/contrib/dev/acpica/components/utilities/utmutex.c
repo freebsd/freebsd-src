@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,7 +96,7 @@ AcpiUtMutexInitialize (
         }
     }
 
-    /* Create the spinlocks for use at interrupt level */
+    /* Create the spinlocks for use at interrupt level or for speed */
 
     Status = AcpiOsCreateLock (&AcpiGbl_GpeLock);
     if (ACPI_FAILURE (Status))
@@ -110,7 +110,14 @@ AcpiUtMutexInitialize (
         return_ACPI_STATUS (Status);
     }
 
+    Status = AcpiOsCreateLock (&AcpiGbl_ReferenceCountLock);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
     /* Mutex for _OSI support */
+
     Status = AcpiOsCreateMutex (&AcpiGbl_OsiMutex);
     if (ACPI_FAILURE (Status))
     {
@@ -160,6 +167,7 @@ AcpiUtMutexTerminate (
 
     AcpiOsDeleteLock (AcpiGbl_GpeLock);
     AcpiOsDeleteLock (AcpiGbl_HardwareLock);
+    AcpiOsDeleteLock (AcpiGbl_ReferenceCountLock);
 
     /* Delete the reader/writer lock */
 
@@ -225,6 +233,8 @@ AcpiUtDeleteMutex (
 
     AcpiGbl_MutexInfo[MutexId].Mutex = NULL;
     AcpiGbl_MutexInfo[MutexId].ThreadId = ACPI_MUTEX_NOT_ACQUIRED;
+
+    return_VOID;
 }
 
 
@@ -264,9 +274,9 @@ AcpiUtAcquireMutex (
         /*
          * Mutex debug code, for internal debugging only.
          *
-         * Deadlock prevention.  Check if this thread owns any mutexes of value
-         * greater than or equal to this one.  If so, the thread has violated
-         * the mutex ordering rule.  This indicates a coding error somewhere in
+         * Deadlock prevention. Check if this thread owns any mutexes of value
+         * greater than or equal to this one. If so, the thread has violated
+         * the mutex ordering rule. This indicates a coding error somewhere in
          * the ACPI subsystem code.
          */
         for (i = MutexId; i < ACPI_NUM_MUTEX; i++)
@@ -337,6 +347,7 @@ AcpiUtReleaseMutex (
 {
     ACPI_FUNCTION_NAME (UtReleaseMutex);
 
+
     ACPI_DEBUG_PRINT ((ACPI_DB_MUTEX, "Thread %u releasing Mutex [%s]\n",
         (UINT32) AcpiOsGetThreadId (), AcpiUtGetMutexName (MutexId)));
 
@@ -362,9 +373,9 @@ AcpiUtReleaseMutex (
         /*
          * Mutex debug code, for internal debugging only.
          *
-         * Deadlock prevention.  Check if this thread owns any mutexes of value
-         * greater than this one.  If so, the thread has violated the mutex
-         * ordering rule.  This indicates a coding error somewhere in
+         * Deadlock prevention. Check if this thread owns any mutexes of value
+         * greater than this one. If so, the thread has violated the mutex
+         * ordering rule. This indicates a coding error somewhere in
          * the ACPI subsystem code.
          */
         for (i = MutexId; i < ACPI_NUM_MUTEX; i++)
@@ -393,5 +404,3 @@ AcpiUtReleaseMutex (
     AcpiOsReleaseMutex (AcpiGbl_MutexInfo[MutexId].Mutex);
     return (AE_OK);
 }
-
-

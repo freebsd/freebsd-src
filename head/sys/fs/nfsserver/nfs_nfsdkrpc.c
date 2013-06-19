@@ -42,14 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
+#include <nfs/nfs_fha.h>
+#include <fs/nfsserver/nfs_fha_new.h>
+
 #include <security/mac/mac_framework.h>
 
 NFSDLOCKMUTEX;
+NFSV4ROOTLOCKMUTEX;
+struct nfsv4lock nfsd_suspend_lock;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
  */
-static int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
+int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 	NFSPROC_NULL,
 	NFSPROC_GETATTR,
 	NFSPROC_SETATTR,
@@ -145,7 +150,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	 */
 	nd.nd_mrep = rqst->rq_args;
 	rqst->rq_args = NULL;
-	newnfs_realign(&nd.nd_mrep);
+	newnfs_realign(&nd.nd_mrep, M_WAITOK);
 	nd.nd_md = nd.nd_mrep;
 	nd.nd_dpos = mtod(nd.nd_md, caddr_t);
 	nd.nd_nam = svc_getrpccaller(rqst);
@@ -221,9 +226,24 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
+		/*
+		 * Get a refcnt (shared lock) on nfsd_suspend_lock.
+		 * NFSSVC_SUSPENDNFSD will take an exclusive lock on
+		 * nfsd_suspend_lock to suspend these threads.
+		 * This must be done here, before the check of
+		 * nfsv4root exports by nfsvno_v4rootexport().
+		 */
+		NFSLOCKV4ROOTMUTEX();
+		nfsv4_getref(&nfsd_suspend_lock, NULL, NFSV4ROOTLOCKMUTEXPTR,
+		    NULL);
+		NFSUNLOCKV4ROOTMUTEX();
+
 		if ((nd.nd_flag & ND_NFSV4) != 0) {
 			nd.nd_repstat = nfsvno_v4rootexport(&nd);
 			if (nd.nd_repstat != 0) {
+				NFSLOCKV4ROOTMUTEX();
+				nfsv4_relref(&nfsd_suspend_lock);
+				NFSUNLOCKV4ROOTMUTEX();
 				svcerr_weakauth(rqst);
 				svc_freereq(rqst);
 				m_freem(nd.nd_mrep);
@@ -233,6 +253,9 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt->xp_socket,
 		    xprt->xp_sockref, &rp);
+		NFSLOCKV4ROOTMUTEX();
+		nfsv4_relref(&nfsd_suspend_lock);
+		NFSUNLOCKV4ROOTMUTEX();
 	} else {
 		NFSMGET(nd.nd_mreq);
 		nd.nd_mreq->m_len = 0;
@@ -290,7 +313,6 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 	} else {
 		isdgram = 1;
 	}
-	NFSGETTIME(&nd->nd_starttime);
 
 	/*
 	 * Two cases:
@@ -472,8 +494,8 @@ nfsrvd_init(int terminating)
 
 	nfsrvd_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
 	nfsrvd_pool->sp_rcache = NULL;
-	nfsrvd_pool->sp_assign = NULL;
-	nfsrvd_pool->sp_done = NULL;
+	nfsrvd_pool->sp_assign = fhanew_assign;
+	nfsrvd_pool->sp_done = fha_nd_complete;
 
 	NFSD_LOCK();
 }

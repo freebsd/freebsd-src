@@ -29,17 +29,17 @@
 
 #define DEBUG_TYPE "lcssa"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Constants.h"
-#include "llvm/Pass.h"
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/PredIteratorCache.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
 using namespace llvm;
 
 STATISTIC(NumLCSSA, "Number of live out of a loop variables");
@@ -53,6 +53,8 @@ namespace {
 
     // Cached analysis information for the current function.
     DominatorTree *DT;
+    LoopInfo *LI;
+    ScalarEvolution *SE;
     std::vector<BasicBlock*> LoopBlocks;
     PredIteratorCache PredCache;
     Loop *L;
@@ -117,6 +119,8 @@ bool LCSSA::runOnLoop(Loop *TheLoop, LPPassManager &LPM) {
   L = TheLoop;
   
   DT = &getAnalysis<DominatorTree>();
+  LI = &getAnalysis<LoopInfo>();
+  SE = getAnalysisIfAvailable<ScalarEvolution>();
 
   // Get the set of exiting blocks.
   SmallVector<BasicBlock*, 8> ExitBlocks;
@@ -156,6 +160,12 @@ bool LCSSA::runOnLoop(Loop *TheLoop, LPPassManager &LPM) {
       MadeChange |= ProcessInstruction(I, ExitBlocks);
     }
   }
+
+  // If we modified the code, remove any caches about the loop from SCEV to
+  // avoid dangling entries.
+  // FIXME: This is a big hammer, can we clear the cache more selectively?
+  if (SE && MadeChange)
+    SE->forgetLoop(L);
   
   assert(L->isLCSSAForm(*DT));
   PredCache.clear();
@@ -245,7 +255,7 @@ bool LCSSA::ProcessInstruction(Instruction *Inst,
     // Remember that this phi makes the value alive in this block.
     SSAUpdate.AddAvailableValue(ExitBB, PN);
   }
-  
+
   // Rewrite all uses outside the loop in terms of the new PHIs we just
   // inserted.
   for (unsigned i = 0, e = UsesToRewrite.size(); i != e; ++i) {
@@ -260,6 +270,9 @@ bool LCSSA::ProcessInstruction(Instruction *Inst,
 
     if (isa<PHINode>(UserBB->begin()) &&
         isExitBlock(UserBB, ExitBlocks)) {
+      // Tell the VHs that the uses changed. This updates SCEV's caches.
+      if (UsesToRewrite[i]->get()->hasValueHandle())
+        ValueHandleBase::ValueIsRAUWd(*UsesToRewrite[i], UserBB->begin());
       UsesToRewrite[i]->set(UserBB->begin());
       continue;
     }

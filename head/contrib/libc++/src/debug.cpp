@@ -17,15 +17,15 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-_LIBCPP_VISIBLE
+_LIBCPP_FUNC_VIS
 __libcpp_db*
 __get_db()
 {
     static __libcpp_db db;
     return &db;
-};
+}
 
-_LIBCPP_VISIBLE
+_LIBCPP_FUNC_VIS
 const __libcpp_db*
 __get_const_db()
 {
@@ -110,8 +110,7 @@ __libcpp_db::__find_c_from_i(void* __i) const
 {
     RLock _(mut());
     __i_node* i = __find_iterator(__i);
-    _LIBCPP_ASSERT(i != nullptr, "iterator constructed in translation unit with debug mode not enabled."
-                   "  #define _LIBCPP_DEBUG2 1 for that translation unit.");
+    _LIBCPP_ASSERT(i != nullptr, "iterator not found in debug database.");
     return i->__c_ != nullptr ? i->__c_->__c_ : nullptr;
 }
 
@@ -146,7 +145,11 @@ __libcpp_db::__insert_c(void* __c)
         size_t nc = __next_prime(2*static_cast<size_t>(__cend_ - __cbeg_) + 1);
         __c_node** cbeg = (__c_node**)calloc(nc, sizeof(void*));
         if (cbeg == nullptr)
+#ifndef _LIBCPP_NO_EXCEPTIONS
             throw bad_alloc();
+#else
+            abort();
+#endif
         for (__c_node** p = __cbeg_; p != __cend_; ++p)
         {
             __c_node* q = *p;
@@ -167,7 +170,11 @@ __libcpp_db::__insert_c(void* __c)
     __c_node* p = __cbeg_[hc];
     __c_node* r = __cbeg_[hc] = (__c_node*)malloc(sizeof(__c_node));
     if (__cbeg_[hc] == nullptr)
+#ifndef _LIBCPP_NO_EXCEPTIONS
         throw bad_alloc();
+#else
+        abort();
+#endif
     r->__c_ = __c;
     r->__next_ = p;
     ++__csz_;
@@ -294,7 +301,7 @@ __libcpp_db::__iterator_copy(void* __i, const void* __i0)
     __i_node* i = __find_iterator(__i);
     __i_node* i0 = __find_iterator(__i0);
     __c_node* c0 = i0 != nullptr ? i0->__c_ : nullptr;
-    if (i == nullptr && c0 != nullptr)
+    if (i == nullptr && i0 != nullptr)
         i = __insert_iterator(__i);
     __c_node* c = i != nullptr ? i->__c_ : nullptr;
     if (c != c0)
@@ -402,7 +409,11 @@ __c_node::__add(__i_node* i)
             nc = 1;
         __i_node** beg = (__i_node**)malloc(nc * sizeof(__i_node*));
         if (beg == nullptr)
+#ifndef _LIBCPP_NO_EXCEPTIONS
             throw bad_alloc();
+#else
+            abort();
+#endif
         if (nc > 1)
             memcpy(beg, beg_, nc/2*sizeof(__i_node*));
         free(beg_);
@@ -424,7 +435,11 @@ __libcpp_db::__insert_iterator(void* __i)
         size_t nc = __next_prime(2*static_cast<size_t>(__iend_ - __ibeg_) + 1);
         __i_node** ibeg = (__i_node**)calloc(nc, sizeof(void*));
         if (ibeg == nullptr)
+#ifndef _LIBCPP_NO_EXCEPTIONS
             throw bad_alloc();
+#else
+            abort();
+#endif
         for (__i_node** p = __ibeg_; p != __iend_; ++p)
         {
             __i_node* q = *p;
@@ -445,7 +460,11 @@ __libcpp_db::__insert_iterator(void* __i)
     __i_node* p = __ibeg_[hi];
     __i_node* r = __ibeg_[hi] = (__i_node*)malloc(sizeof(__i_node));
     if (r == nullptr)
+#ifndef _LIBCPP_NO_EXCEPTIONS
         throw bad_alloc();
+#else
+        abort();
+#endif
     ::new(r) __i_node(__i, p, nullptr);
     ++__isz_;
     return r;

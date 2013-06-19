@@ -1,9 +1,12 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangcodegen
 
 SRCDIR=	tools/clang/lib/CodeGen
 SRCS=	BackendUtil.cpp \
+	CGAtomic.cpp \
 	CGBlocks.cpp \
 	CGBuiltin.cpp \
 	CGCUDANV.cpp \
@@ -45,6 +48,7 @@ SRCS=	BackendUtil.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

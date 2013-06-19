@@ -1,0 +1,8 @@
+bootstrap/
+config.log
+config.status
+libtool
+Makefile
+stamp-h1
+*/*/.deps/
+*/.deps/

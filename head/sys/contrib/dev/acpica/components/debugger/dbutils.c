@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,7 @@ static char                 *Converter = "0123456789ABCDEF";
 ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     char                    *UserArgument,
-    ARGUMENT_INFO           *Arguments)
+    ACPI_DB_ARGUMENT_INFO   *Arguments)
 {
     UINT32                  i;
 
@@ -117,7 +117,7 @@ AcpiDbMatchArgument (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Set the current destination for debugger output.  Also sets
+ * DESCRIPTION: Set the current destination for debugger output. Also sets
  *              the debug output level accordingly.
  *
  ******************************************************************************/
@@ -179,13 +179,11 @@ AcpiDbDumpExternalObject (
         AcpiOsPrintf ("[Null Object] (Type=0)\n");
         break;
 
-
     case ACPI_TYPE_INTEGER:
 
         AcpiOsPrintf ("[Integer] = %8.8X%8.8X\n",
                     ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
         break;
-
 
     case ACPI_TYPE_STRING:
 
@@ -193,7 +191,6 @@ AcpiDbDumpExternalObject (
         AcpiUtPrintString (ObjDesc->String.Pointer, ACPI_UINT8_MAX);
         AcpiOsPrintf ("\n");
         break;
-
 
     case ACPI_TYPE_BUFFER:
 
@@ -204,7 +201,7 @@ AcpiDbDumpExternalObject (
             {
                 AcpiOsPrintf ("\n");
             }
-            AcpiUtDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
+            AcpiUtDebugDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
                     ObjDesc->Buffer.Length, DB_BYTE_DISPLAY, _COMPONENT);
         }
         else
@@ -212,7 +209,6 @@ AcpiDbDumpExternalObject (
             AcpiOsPrintf ("\n");
         }
         break;
-
 
     case ACPI_TYPE_PACKAGE:
 
@@ -225,25 +221,21 @@ AcpiDbDumpExternalObject (
         }
         break;
 
-
     case ACPI_TYPE_LOCAL_REFERENCE:
 
         AcpiOsPrintf ("[Object Reference] = ");
         AcpiDmDisplayInternalObject (ObjDesc->Reference.Handle, NULL);
         break;
 
-
     case ACPI_TYPE_PROCESSOR:
 
         AcpiOsPrintf ("[Processor]\n");
         break;
 
-
     case ACPI_TYPE_POWER:
 
         AcpiOsPrintf ("[Power Resource]\n");
         break;
-
 
     default:
 
@@ -286,7 +278,7 @@ AcpiDbPrepNamestring (
 
     /* Ignore a leading backslash, this is the root prefix */
 
-    if (*Name == '\\')
+    if (ACPI_IS_ROOT_PREFIX (*Name))
     {
         Name++;
     }
@@ -316,7 +308,7 @@ AcpiDbPrepNamestring (
  *
  * DESCRIPTION: Lookup a name in the ACPI namespace
  *
- * Note: Currently begins search from the root.  Could be enhanced to use
+ * Note: Currently begins search from the root. Could be enhanced to use
  * the current prefix (scope) node as the search beginning point.
  *
  ******************************************************************************/
@@ -407,7 +399,7 @@ AcpiDbUint32ToHexString (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Second pass parse of the ACPI tables.  We need to wait until
+ * DESCRIPTION: Second pass parse of the ACPI tables. We need to wait until
  *              second pass to parse the control methods
  *
  ******************************************************************************/
@@ -513,11 +505,9 @@ AcpiDbDumpBuffer (
     AcpiOsPrintf ("\nLocation %X:\n", Address);
 
     AcpiDbgLevel |= ACPI_LV_TABLES;
-    AcpiUtDumpBuffer (ACPI_TO_POINTER (Address), 64, DB_BYTE_DISPLAY,
+    AcpiUtDebugDumpBuffer (ACPI_TO_POINTER (Address), 64, DB_BYTE_DISPLAY,
             ACPI_UINT32_MAX);
 }
 #endif
 
 #endif /* ACPI_DEBUGGER */
-
-

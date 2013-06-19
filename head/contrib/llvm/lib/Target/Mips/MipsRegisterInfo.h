@@ -22,16 +22,14 @@
 
 namespace llvm {
 class MipsSubtarget;
-class TargetInstrInfo;
 class Type;
 
 class MipsRegisterInfo : public MipsGenRegisterInfo {
 protected:
   const MipsSubtarget &Subtarget;
-  const TargetInstrInfo &TII;
 
 public:
-  MipsRegisterInfo(const MipsSubtarget &Subtarget, const TargetInstrInfo &tii);
+  MipsRegisterInfo(const MipsSubtarget &Subtarget);
 
   /// getRegisterNumbering - Given the enum value for some register, e.g.
   /// Mips::RA, return the number that it corresponds to (e.g. 31).
@@ -44,6 +42,8 @@ public:
   void adjustMipsStackFrame(MachineFunction &MF) const;
 
   /// Code Generation virtual methods...
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const;
   const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
   const uint32_t *getCallPreservedMask(CallingConv::ID) const;
 
@@ -55,9 +55,11 @@ public:
 
   /// Stack Frame Processing Methods
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+                           int SPAdj, unsigned FIOperandNum,
+                           RegScavenger *RS = NULL) const;
 
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
+                                       RegScavenger *RS = NULL) const;
 
   /// Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const;
@@ -65,6 +67,9 @@ public:
   /// Exception handling queries.
   unsigned getEHExceptionRegister() const;
   unsigned getEHHandlerRegister() const;
+
+  /// \brief Return GPR register class.
+  virtual const TargetRegisterClass *intRegClass(unsigned Size) const = 0;
 
 private:
   virtual void eliminateFI(MachineBasicBlock::iterator II, unsigned OpNo,

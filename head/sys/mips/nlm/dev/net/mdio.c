@@ -149,7 +149,8 @@ nlm_int_gmac_mdio_reset(uint64_t nae_base, int bus, int block,
 	uint32_t val;
 
 	val = (7 << INT_MDIO_CTRL_XDIV_POS) | 
-	    (1 << INT_MDIO_CTRL_MCDIV_POS);
+	    (1 << INT_MDIO_CTRL_MCDIV_POS) |
+	    (INT_MDIO_CTRL_SMP);
 
 	nlm_write_nae_reg(nae_base,
 	    NAE_REG(block, intf_type, (INT_MDIO_CTRL + bus * 4)), 
@@ -302,10 +303,13 @@ nlm_gmac_mdio_reset(uint64_t nae_base, int bus, int block,
 {
 	uint32_t ctrlval;
 
+	ctrlval = nlm_read_nae_reg(nae_base,
+	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL+bus*4)));
+
 	if (nlm_is_xlp8xx_ax() || nlm_is_xlp8xx_b0() || nlm_is_xlp3xx_ax())
-	    	ctrlval = EXT_G_MDIO_DIV;
+		ctrlval |= EXT_G_MDIO_DIV;
 	else
-		ctrlval = EXT_G_MDIO_DIV_WITH_HW_DIV64;
+		ctrlval |= EXT_G_MDIO_DIV_WITH_HW_DIV64;
 
 	nlm_write_nae_reg(nae_base,
 	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL + bus * 4)), 
@@ -313,4 +317,17 @@ nlm_gmac_mdio_reset(uint64_t nae_base, int bus, int block,
 	nlm_write_nae_reg(nae_base,
 	    NAE_REG(block, intf_type, (EXT_G0_MDIO_CTRL + bus * 4)), ctrlval);
 	return (0);
+}
+
+/*
+ * nlm_mdio_reset_all : reset all internal and external MDIO
+ */
+void
+nlm_mdio_reset_all(uint64_t nae_base)
+{
+	/* reset internal MDIO */
+	nlm_int_gmac_mdio_reset(nae_base, 0, BLOCK_7, LANE_CFG);
+	/* reset external MDIO */
+	nlm_gmac_mdio_reset(nae_base, 0, BLOCK_7, LANE_CFG);
+	nlm_gmac_mdio_reset(nae_base, 1, BLOCK_7, LANE_CFG);
 }

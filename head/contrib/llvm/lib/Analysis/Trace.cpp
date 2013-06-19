@@ -16,8 +16,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/Trace.h"
-#include "llvm/Function.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -43,9 +43,11 @@ void Trace::print(raw_ostream &O) const {
   O << "; Trace parent function: \n" << *F;
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// dump - Debugger convenience method; writes trace to standard error
 /// output stream.
 ///
 void Trace::dump() const {
   print(dbgs());
 }
+#endif

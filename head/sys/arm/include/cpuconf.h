@@ -54,7 +54,8 @@
 			 defined(CPU_ARM8) + defined(CPU_ARM9) +	\
 			 defined(CPU_ARM9E) +				\
 			 defined(CPU_ARM10) +				\
-			 defined(CPU_ARM11) +				\
+			 defined(CPU_ARM1136) +				\
+			 defined(CPU_ARM1176) +				\
 			 defined(CPU_SA110) + defined(CPU_SA1100) +	\
 			 defined(CPU_SA1110) +				\
 			 defined(CPU_IXP12X0) +				\
@@ -89,7 +90,7 @@
 #endif
 
 #if !defined(ARM_ARCH_6)
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B)
 #define ARM_ARCH_6	1
 #else
 #define ARM_ARCH_6	0
@@ -149,7 +150,7 @@
 #define	ARM_MMU_GENERIC		0
 #endif
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B)
 #define ARM_MMU_V6		1
 #else
 #define ARM_MMU_V6		0

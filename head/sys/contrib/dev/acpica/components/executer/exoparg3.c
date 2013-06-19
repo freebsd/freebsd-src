@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exoparg3 - AML execution - opcodes with 3 arguments
@@ -6,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -130,7 +129,6 @@ AcpiExOpcode_3A_0T_0R (
         ACPI_FREE (Fatal);
         break;
 
-
     default:
 
         ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
@@ -177,9 +175,8 @@ AcpiExOpcode_3A_1T_1R (
     switch (WalkState->Opcode)
     {
     case AML_MID_OP:    /* Mid (Source[0], Index[1], Length[2], Result[3]) */
-
         /*
-         * Create the return object.  The Source operand is guaranteed to be
+         * Create the return object. The Source operand is guaranteed to be
          * either a String or a Buffer, so just use its type.
          */
         ReturnDesc = AcpiUtCreateInternalObject (
@@ -269,7 +266,6 @@ AcpiExOpcode_3A_1T_1R (
         ReturnDesc->Buffer.Flags |= AOPOBJ_DATA_VALID;
         break;
 
-
     default:
 
         ACPI_ERROR ((AE_INFO, "Unknown AML opcode 0x%X",
@@ -300,5 +296,3 @@ Cleanup:
     }
     return_ACPI_STATUS (Status);
 }
-
-

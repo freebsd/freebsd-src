@@ -86,6 +86,11 @@ static const char rcsid[] _U_ =
 #include "pcap/sll.h"
 #include "pcap/ipnet.h"
 #include "arcnet.h"
+#if defined(PF_PACKET) && defined(SO_ATTACH_FILTER)
+#include <linux/types.h>
+#include <linux/if_packet.h>
+#include <linux/filter.h>
+#endif
 #ifdef HAVE_NET_PFVAR_H
 #include <sys/socket.h>
 #include <net/if.h>
@@ -104,6 +109,18 @@ static const char rcsid[] _U_ =
 
 #define ETHERMTU	1500
 
+#ifndef IPPROTO_HOPOPTS
+#define IPPROTO_HOPOPTS 0
+#endif
+#ifndef IPPROTO_ROUTING
+#define IPPROTO_ROUTING 43
+#endif
+#ifndef IPPROTO_FRAGMENT
+#define IPPROTO_FRAGMENT 44
+#endif
+#ifndef IPPROTO_DSTOPTS
+#define IPPROTO_DSTOPTS 60
+#endif
 #ifndef IPPROTO_SCTP
 #define IPPROTO_SCTP 132
 #endif
@@ -258,20 +275,16 @@ static struct block *gen_gateway(const u_char *, bpf_u_int32 **, int, int);
 static struct block *gen_ipfrag(void);
 static struct block *gen_portatom(int, bpf_int32);
 static struct block *gen_portrangeatom(int, bpf_int32, bpf_int32);
-#ifdef INET6
 static struct block *gen_portatom6(int, bpf_int32);
 static struct block *gen_portrangeatom6(int, bpf_int32, bpf_int32);
-#endif
 struct block *gen_portop(int, int, int);
 static struct block *gen_port(int, int, int);
 struct block *gen_portrangeop(int, int, int, int);
 static struct block *gen_portrange(int, int, int, int);
-#ifdef INET6
 struct block *gen_portop6(int, int, int);
 static struct block *gen_port6(int, int, int);
 struct block *gen_portrangeop6(int, int, int, int);
 static struct block *gen_portrange6(int, int, int, int);
-#endif
 static int lookup_proto(const char *, int);
 static struct block *gen_protochain(int, int, int);
 static struct block *gen_proto(int, int, int);
@@ -420,8 +433,17 @@ pcap_compile(pcap_t *p, struct bpf_program *program,
 {
 	extern int n_errors;
 	const char * volatile xbuf = buf;
-	int len;
+	u_int len;
 
+	/*
+	 * If this pcap_t hasn't been activated, it doesn't have a
+	 * link-layer type, so we can't use it.
+	 */
+	if (!p->activated) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		    "not-yet-activated pcap_t passed to pcap_compile");
+		return (-1);
+	}
 	no_optimize = 0;
 	n_errors = 0;
 	root = NULL;
@@ -1395,14 +1417,12 @@ init_linktype(p)
 		off_nl_nosnap = -1;
 		return;
 
-#ifdef DLT_PFSYNC
 	case DLT_PFSYNC:
 		off_linktype = -1;
 		off_macpl = 4;
 		off_nl = 0;
 		off_nl_nosnap = 0;
 		return;
-#endif
 
 	case DLT_AX25_KISS:
 		/*
@@ -2831,11 +2851,9 @@ ethertype_to_ppptype(proto)
 		proto = PPP_IP;
 		break;
 
-#ifdef INET6
 	case ETHERTYPE_IPV6:
 		proto = PPP_IPV6;
 		break;
-#endif
 
 	case ETHERTYPE_DN:
 		proto = PPP_DECNET;
@@ -3043,11 +3061,10 @@ gen_linktype(proto)
 		case ETHERTYPE_IP:
 			/* Check for a version number of 4. */
 			return gen_mcmp(OR_LINK, 0, BPF_B, 0x40, 0xF0);
-#ifdef INET6
+
 		case ETHERTYPE_IPV6:
 			/* Check for a version number of 6. */
 			return gen_mcmp(OR_LINK, 0, BPF_B, 0x60, 0xF0);
-#endif
 
 		default:
 			return gen_false();		/* always false */
@@ -3071,10 +3088,8 @@ gen_linktype(proto)
 		/*
 		 * Raw IPv6, so no type field.
 		 */
-#ifdef INET6
 		if (proto == ETHERTYPE_IPV6)
 			return gen_true();		/* always true */
-#endif
 
 		/* Checking for something other than IPv6; always false */
 		return gen_false();
@@ -3196,11 +3211,9 @@ gen_linktype(proto)
 		if (proto == ETHERTYPE_IP)
 			return (gen_cmp(OR_LINK, offsetof(struct pfloghdr, af),
 			    BPF_B, (bpf_int32)AF_INET));
-#ifdef INET6
 		else if (proto == ETHERTYPE_IPV6)
 			return (gen_cmp(OR_LINK, offsetof(struct pfloghdr, af),
 			    BPF_B, (bpf_int32)AF_INET6));
-#endif /* INET6 */
 		else
 			return gen_false();
 		/*NOTREACHED*/
@@ -3218,11 +3231,9 @@ gen_linktype(proto)
 		default:
 			return gen_false();
 
-#ifdef INET6
 		case ETHERTYPE_IPV6:
 			return (gen_cmp(OR_LINK, off_linktype, BPF_B,
 				(bpf_int32)ARCTYPE_INET6));
-#endif /* INET6 */
 
 		case ETHERTYPE_IP:
 			b0 = gen_cmp(OR_LINK, off_linktype, BPF_B,
@@ -3274,13 +3285,11 @@ gen_linktype(proto)
 			 */
 			return gen_cmp(OR_LINK, 2, BPF_H, (0x03<<8) | 0xcc);
 
-#ifdef INET6
 		case ETHERTYPE_IPV6:
 			/*
 			 * Check for the special NLPID for IPv6.
 			 */
 			return gen_cmp(OR_LINK, 2, BPF_H, (0x03<<8) | 0x8e);
-#endif
 
 		case LLCSAP_ISONS:
 			/*
@@ -3358,10 +3367,8 @@ gen_linktype(proto)
 	case DLT_ERF:
 		bpf_error("ERF link-layer type filtering not implemented");
 
-#ifdef DLT_PFSYNC
 	case DLT_PFSYNC:
 		bpf_error("PFSYNC link-layer type filtering not implemented");
-#endif
 
 	case DLT_LINUX_LAPD:
 		bpf_error("LAPD link-layer type filtering not implemented");
@@ -3629,7 +3636,7 @@ gen_hostop6(addr, mask, dir, proto, src_off, dst_off)
 	gen_and(b0, b1);
 	return b1;
 }
-#endif /*INET6*/
+#endif
 
 static struct block *
 gen_ehostop(eaddr, dir)
@@ -4507,13 +4514,11 @@ gen_host(addr, mask, proto, dir, type)
 	case Q_MOPRC:
 		bpf_error("MOPRC host filtering not implemented");
 
-#ifdef INET6
 	case Q_IPV6:
 		bpf_error("'ip6' modifier applied to ip host");
 
 	case Q_ICMPV6:
 		bpf_error("'icmp6' modifier applied to %s", typestr);
-#endif /* INET6 */
 
 	case Q_AH:
 		bpf_error("'ah' modifier applied to %s", typestr);
@@ -4670,7 +4675,7 @@ gen_host6(addr, mask, proto, dir, type)
 	}
 	/* NOTREACHED */
 }
-#endif /*INET6*/
+#endif
 
 #ifndef INET6
 static struct block *
@@ -4762,26 +4767,20 @@ gen_proto_abbrev(proto)
 
 	case Q_SCTP:
 		b1 = gen_proto(IPPROTO_SCTP, Q_IP, Q_DEFAULT);
-#ifdef INET6
 		b0 = gen_proto(IPPROTO_SCTP, Q_IPV6, Q_DEFAULT);
 		gen_or(b0, b1);
-#endif
 		break;
 
 	case Q_TCP:
 		b1 = gen_proto(IPPROTO_TCP, Q_IP, Q_DEFAULT);
-#ifdef INET6
 		b0 = gen_proto(IPPROTO_TCP, Q_IPV6, Q_DEFAULT);
 		gen_or(b0, b1);
-#endif
 		break;
 
 	case Q_UDP:
 		b1 = gen_proto(IPPROTO_UDP, Q_IP, Q_DEFAULT);
-#ifdef INET6
 		b0 = gen_proto(IPPROTO_UDP, Q_IPV6, Q_DEFAULT);
 		gen_or(b0, b1);
-#endif
 		break;
 
 	case Q_ICMP:
@@ -4809,10 +4808,8 @@ gen_proto_abbrev(proto)
 
 	case Q_PIM:
 		b1 = gen_proto(IPPROTO_PIM, Q_IP, Q_DEFAULT);
-#ifdef INET6
 		b0 = gen_proto(IPPROTO_PIM, Q_IPV6, Q_DEFAULT);
 		gen_or(b0, b1);
-#endif
 		break;
 
 #ifndef IPPROTO_VRRP
@@ -4874,7 +4871,6 @@ gen_proto_abbrev(proto)
 		b1 =  gen_linktype(ETHERTYPE_MOPRC);
 		break;
 
-#ifdef INET6
 	case Q_IPV6:
 		b1 = gen_linktype(ETHERTYPE_IPV6);
 		break;
@@ -4885,17 +4881,14 @@ gen_proto_abbrev(proto)
 	case Q_ICMPV6:
 		b1 = gen_proto(IPPROTO_ICMPV6, Q_IPV6, Q_DEFAULT);
 		break;
-#endif /* INET6 */
 
 #ifndef IPPROTO_AH
 #define IPPROTO_AH	51
 #endif
 	case Q_AH:
 		b1 = gen_proto(IPPROTO_AH, Q_IP, Q_DEFAULT);
-#ifdef INET6
 		b0 = gen_proto(IPPROTO_AH, Q_IPV6, Q_DEFAULT);
 		gen_or(b0, b1);
-#endif
 		break;
 
 #ifndef IPPROTO_ESP
@@ -4903,10 +4896,8 @@ gen_proto_abbrev(proto)
 #endif
 	case Q_ESP:
 		b1 = gen_proto(IPPROTO_ESP, Q_IP, Q_DEFAULT);
-#ifdef INET6
 		b0 = gen_proto(IPPROTO_ESP, Q_IPV6, Q_DEFAULT);
 		gen_or(b0, b1);
-#endif
 		break;
 
 	case Q_ISO:
@@ -5039,7 +5030,6 @@ gen_portatom(off, v)
 	return gen_cmp(OR_TRAN_IPV4, off, BPF_H, v);
 }
 
-#ifdef INET6
 static struct block *
 gen_portatom6(off, v)
 	int off;
@@ -5047,7 +5037,6 @@ gen_portatom6(off, v)
 {
 	return gen_cmp(OR_TRAN_IPV6, off, BPF_H, v);
 }
-#endif/*INET6*/
 
 struct block *
 gen_portop(port, proto, dir)
@@ -5139,7 +5128,6 @@ gen_port(port, ip_proto, dir)
 	return b1;
 }
 
-#ifdef INET6
 struct block *
 gen_portop6(port, proto, dir)
 	int port, proto, dir;
@@ -5212,7 +5200,6 @@ gen_port6(port, ip_proto, dir)
 	gen_and(b0, b1);
 	return b1;
 }
-#endif /* INET6 */
 
 /* gen_portrange code */
 static struct block *
@@ -5317,7 +5304,6 @@ gen_portrange(port1, port2, ip_proto, dir)
 	return b1;
 }
 
-#ifdef INET6
 static struct block *
 gen_portrangeatom6(off, v1, v2)
 	int off;
@@ -5418,7 +5404,6 @@ gen_portrange6(port1, port2, ip_proto, dir)
 	gen_and(b0, b1);
 	return b1;
 }
-#endif /* INET6 */
 
 static int
 lookup_proto(name, proto)
@@ -5553,7 +5538,7 @@ gen_protochain(v, proto, dir)
 		s[i]->s.k = off_macpl + off_nl;
 		i++;
 		break;
-#ifdef INET6
+
 	case Q_IPV6:
 		b0 = gen_linktype(ETHERTYPE_IPV6);
 
@@ -5566,7 +5551,7 @@ gen_protochain(v, proto, dir)
 		s[i]->s.k = 40;
 		i++;
 		break;
-#endif
+
 	default:
 		bpf_error("unsupported proto to gen_protochain");
 		/*NOTREACHED*/
@@ -5593,7 +5578,6 @@ gen_protochain(v, proto, dir)
 	fix2 = i;
 	i++;
 
-#ifdef INET6
 	if (proto == Q_IPV6) {
 		int v6start, v6end, v6advance, j;
 
@@ -5675,9 +5659,7 @@ gen_protochain(v, proto, dir)
 		/* fixup */
 		for (j = v6start; j <= v6end; j++)
 			s[j]->s.jt = s[v6advance];
-	} else
-#endif
-	{
+	} else {
 		/* nop */
 		s[i] = new_stmt(BPF_ALU|BPF_ADD|BPF_K);
 		s[i]->s.k = 0;
@@ -5821,20 +5803,20 @@ gen_proto(v, proto, dir)
 	int dir;
 {
 	struct block *b0, *b1;
+#ifndef CHASE_CHAIN
+	struct block *b2;
+#endif
 
 	if (dir != Q_DEFAULT)
 		bpf_error("direction applied to 'proto'");
 
 	switch (proto) {
 	case Q_DEFAULT:
-#ifdef INET6
 		b0 = gen_proto(v, Q_IP, dir);
 		b1 = gen_proto(v, Q_IPV6, dir);
 		gen_or(b0, b1);
 		return b1;
-#else
-		/*FALLTHROUGH*/
-#endif
+
 	case Q_IP:
 		/*
 		 * For FDDI, RFC 1188 says that SNAP encapsulation is used,
@@ -5985,11 +5967,18 @@ gen_proto(v, proto, dir)
 		bpf_error("'carp proto' is bogus");
 		/* NOTREACHED */
 
-#ifdef INET6
 	case Q_IPV6:
 		b0 = gen_linktype(ETHERTYPE_IPV6);
 #ifndef CHASE_CHAIN
-		b1 = gen_cmp(OR_NET, 6, BPF_B, (bpf_int32)v);
+		/*
+		 * Also check for a fragment header before the final
+		 * header.
+		 */
+		b2 = gen_cmp(OR_NET, 6, BPF_B, IPPROTO_FRAGMENT);
+		b1 = gen_cmp(OR_NET, 40, BPF_B, (bpf_int32)v);
+		gen_and(b2, b1);
+		b2 = gen_cmp(OR_NET, 6, BPF_B, (bpf_int32)v);
+		gen_or(b2, b1);
 #else
 		b1 = gen_protochain(v, Q_IPV6);
 #endif
@@ -5998,7 +5987,6 @@ gen_proto(v, proto, dir)
 
 	case Q_ICMPV6:
 		bpf_error("'icmp6 proto' is bogus");
-#endif /* INET6 */
 
 	case Q_AH:
 		bpf_error("'ah proto' is bogus");
@@ -6255,13 +6243,9 @@ gen_scode(name, q)
 			bpf_error("illegal port number %d < 0", port);
 		if (port > 65535)
 			bpf_error("illegal port number %d > 65535", port);
-#ifndef INET6
-		return gen_port(port, real_proto, dir);
-#else
 		b = gen_port(port, real_proto, dir);
 		gen_or(gen_port6(port, real_proto, dir), b);
 		return b;
-#endif /* INET6 */
 
 	case Q_PORTRANGE:
 		if (proto != Q_DEFAULT &&
@@ -6305,13 +6289,9 @@ gen_scode(name, q)
 		if (port2 > 65535)
 			bpf_error("illegal port number %d > 65535", port2);
 
-#ifndef INET6
-		return gen_portrange(port1, port2, real_proto, dir);
-#else
 		b = gen_portrange(port1, port2, real_proto, dir);
 		gen_or(gen_portrange6(port1, port2, real_proto, dir), b);
 		return b;
-#endif /* INET6 */
 
 	case Q_GATEWAY:
 #ifndef INET6
@@ -6459,16 +6439,12 @@ gen_ncode(s, v, q)
 		if (v > 65535)
 			bpf_error("illegal port number %u > 65535", v);
 
-#ifndef INET6
-		return gen_port((int)v, proto, dir);
-#else
 	    {
 		struct block *b;
 		b = gen_port((int)v, proto, dir);
 		gen_or(gen_port6((int)v, proto, dir), b);
 		return b;
 	    }
-#endif /* INET6 */
 
 	case Q_PORTRANGE:
 		if (proto == Q_UDP)
@@ -6485,16 +6461,12 @@ gen_ncode(s, v, q)
 		if (v > 65535)
 			bpf_error("illegal port number %u > 65535", v);
 
-#ifndef INET6
-		return gen_portrange((int)v, (int)v, proto, dir);
-#else
 	    {
 		struct block *b;
 		b = gen_portrange((int)v, (int)v, proto, dir);
 		gen_or(gen_portrange6((int)v, (int)v, proto, dir), b);
 		return b;
 	    }
-#endif /* INET6 */
 
 	case Q_GATEWAY:
 		bpf_error("'gateway' requires a name");
@@ -6784,9 +6756,7 @@ gen_load(proto, inst, size)
 	case Q_LAT:
 	case Q_MOPRC:
 	case Q_MOPDL:
-#ifdef INET6
 	case Q_IPV6:
-#endif
 		/*
 		 * The offset is relative to the beginning of
 		 * the network-layer header.
@@ -6895,16 +6865,12 @@ gen_load(proto, inst, size)
 		gen_and(gen_proto_abbrev(proto), b = gen_ipfrag());
 		if (inst->b)
 			gen_and(inst->b, b);
-#ifdef INET6
 		gen_and(gen_proto_abbrev(Q_IP), b);
-#endif
 		inst->b = b;
 		break;
-#ifdef INET6
 	case Q_ICMPV6:
 		bpf_error("IPv6 upper-layer protocol is not supported by proto[x]");
 		/*NOTREACHED*/
-#endif
 	}
 	inst->regno = regno;
 	s = new_stmt(BPF_ST);
@@ -7456,13 +7422,11 @@ gen_multicast(proto)
 		gen_and(b0, b1);
 		return b1;
 
-#ifdef INET6
 	case Q_IPV6:
 		b0 = gen_linktype(ETHERTYPE_IPV6);
 		b1 = gen_cmp(OR_NET, 24, BPF_B, (bpf_int32)255);
 		gen_and(b0, b1);
 		return b1;
-#endif /* INET6 */
 	}
 	bpf_error("link-layer multicast filters supported only on ethernet/FDDI/token ring/ARCNET/802.11/ATM LANE/Fibre Channel");
 	/* NOTREACHED */
@@ -7470,9 +7434,13 @@ gen_multicast(proto)
 }
 
 /*
- * generate command for inbound/outbound.  It's here so we can
- * make it link-type specific.  'dir' = 0 implies "inbound",
- * = 1 implies "outbound".
+ * Filter on inbound (dir == 0) or outbound (dir == 1) traffic.
+ * Outbound traffic is sent by this machine, while inbound traffic is
+ * sent by a remote machine (and may include packets destined for a
+ * unicast or multicast link-layer address we are not subscribing to).
+ * These are the same definitions implemented by pcap_setdirection().
+ * Capturing only unicast traffic destined for this host is probably
+ * better accomplished using a higher-layer filter.
  */
 struct block *
 gen_inbound(dir)
@@ -7502,23 +7470,11 @@ gen_inbound(dir)
 		break;
 
 	case DLT_LINUX_SLL:
-		if (dir) {
-			/*
-			 * Match packets sent by this machine.
-			 */
-			b0 = gen_cmp(OR_LINK, 0, BPF_H, LINUX_SLL_OUTGOING);
-		} else {
-			/*
-			 * Match packets sent to this machine.
-			 * (No broadcast or multicast packets, or
-			 * packets sent to some other machine and
-			 * received promiscuously.)
-			 *
-			 * XXX - packets sent to other machines probably
-			 * shouldn't be matched, but what about broadcast
-			 * or multicast packets we received?
-			 */
-			b0 = gen_cmp(OR_LINK, 0, BPF_H, LINUX_SLL_HOST);
+		/* match outgoing packets */
+		b0 = gen_cmp(OR_LINK, 0, BPF_H, LINUX_SLL_OUTGOING);
+		if (!dir) {
+			/* to filter on inbound traffic, invert the match */
+			gen_not(b0);
 		}
 		break;
 
@@ -7574,10 +7530,38 @@ gen_inbound(dir)
 		break;
 
 	default:
+		/*
+		 * If we have packet meta-data indicating a direction,
+		 * check it, otherwise give up as this link-layer type
+		 * has nothing in the packet data.
+		 */
+#if defined(PF_PACKET) && defined(SO_ATTACH_FILTER)
+		/*
+		 * We infer that this is Linux with PF_PACKET support.
+		 * If this is a *live* capture, we can look at
+		 * special meta-data in the filter expression;
+		 * if it's a savefile, we can't.
+		 */
+		if (bpf_pcap->sf.rfile != NULL) {
+			/* We have a FILE *, so this is a savefile */
+			bpf_error("inbound/outbound not supported on linktype %d when reading savefiles",
+			    linktype);
+			b0 = NULL;
+			/* NOTREACHED */
+		}
+		/* match outgoing packets */
+		b0 = gen_cmp(OR_LINK, SKF_AD_OFF + SKF_AD_PKTTYPE, BPF_H,
+		             PACKET_OUTGOING);
+		if (!dir) {
+			/* to filter on inbound traffic, invert the match */
+			gen_not(b0);
+		}
+#else /* defined(PF_PACKET) && defined(SO_ATTACH_FILTER) */
 		bpf_error("inbound/outbound not supported on linktype %d",
 		    linktype);
 		b0 = NULL;
 		/* NOTREACHED */
+#endif /* defined(PF_PACKET) && defined(SO_ATTACH_FILTER) */
 	}
 	return (b0);
 }

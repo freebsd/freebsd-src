@@ -15,13 +15,13 @@ INSTALL_COMPRESSED?= gz
 INSTALL_ONLY_COMPRESSED?=
 
 # SGML content
-SRCS+=	article.sgml
-SRCS+=	../common/artheader.sgml
-SRCS+=	../common/abstract.sgml
-SRCS+=	../common/install.sgml
-SRCS+=	../common/layout.sgml
-SRCS+=	../common/trouble.sgml
-SRCS+=	../common/upgrade.sgml
+SRCS+=	article.xml
+SRCS+=	../common/artheader.xml
+SRCS+=	../common/abstract.xml
+SRCS+=	../common/install.xml
+SRCS+=	../common/layout.xml
+SRCS+=	../common/trouble.xml
+SRCS+=	../common/upgrade.xml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"

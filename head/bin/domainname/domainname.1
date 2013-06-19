@@ -29,7 +29,7 @@
 .\"	From: @(#)hostname.1	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd September 18, 1994
+.Dd April 22, 2013
 .Dt DOMAINNAME 1
 .Os
 .Sh NAME
@@ -43,10 +43,11 @@ The
 .Nm
 utility prints the name of the current YP/NIS domain.
 The super-user can
-set the domain name by supplying an argument; this is usually done in the
-network initialization script
-.Pa /etc/rc.network ,
-normally run at boot
+set the domain name by supplying an argument; this is usually done with the
+.Va nisdomainname
+variable in the
+.Pa /etc/rc.conf
+file, normally run at boot
 time.
 .Sh NOTES
 The YP/NIS (formerly ``Yellow Pages'' but renamed for legal reasons)
@@ -54,7 +55,8 @@ domain name does not necessarily have anything to do with the Domain
 Name System domain name, although they are often set equal for administrative
 convenience.
 .Sh SEE ALSO
-.Xr getdomainname 3
+.Xr getdomainname 3 ,
+.Xr rc.conf 5
 .Sh HISTORY
 The
 .Nm

@@ -14,7 +14,6 @@
 #ifndef LLVM_CODEGEN_MACHINEOPERAND_H
 #define LLVM_CODEGEN_MACHINEOPERAND_H
 
-#include "llvm/ADT/Hashing.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
 
@@ -30,10 +29,16 @@ class MachineRegisterInfo;
 class MDNode;
 class TargetMachine;
 class TargetRegisterInfo;
+class hash_code;
 class raw_ostream;
 class MCSymbol;
 
 /// MachineOperand class - Representation of each machine instruction operand.
+///
+/// This class isn't a POD type because it has a private constructor, but its
+/// destructor must be trivial. Functions like MachineInstr::addOperand(),
+/// MachineRegisterInfo::moveOperands(), and MF::DeleteMachineInstr() depend on
+/// not having to call the MachineOperand destructor.
 ///
 class MachineOperand {
 public:
@@ -60,12 +65,16 @@ private:
   /// union.
   unsigned char OpKind; // MachineOperandType
 
-  /// SubReg - Subregister number, only valid for MO_Register.  A value of 0
-  /// indicates the MO_Register has no subReg.
-  unsigned char SubReg;
+  /// Subregister number for MO_Register.  A value of 0 indicates the
+  /// MO_Register has no subReg.
+  ///
+  /// For all other kinds of operands, this field holds target-specific flags.
+  unsigned SubReg_TargetFlags : 12;
 
-  /// TargetFlags - This is a set of target-specific operand flags.
-  unsigned char TargetFlags;
+  /// TiedTo - Non-zero when this register operand is tied to another register
+  /// operand. The encoding of this field is described in the block comment
+  /// before MachineInstr::tieOperands().
+  unsigned char TiedTo : 4;
 
   /// IsDef/IsImp/IsKill/IsDead flags - These are only valid for MO_Register
   /// operands.
@@ -168,17 +177,26 @@ private:
     } OffsetedInfo;
   } Contents;
 
-  explicit MachineOperand(MachineOperandType K) : OpKind(K), ParentMI(0) {
-    TargetFlags = 0;
-  }
+  explicit MachineOperand(MachineOperandType K)
+    : OpKind(K), SubReg_TargetFlags(0), ParentMI(0) {}
 public:
   /// getType - Returns the MachineOperandType for this operand.
   ///
   MachineOperandType getType() const { return (MachineOperandType)OpKind; }
 
-  unsigned char getTargetFlags() const { return TargetFlags; }
-  void setTargetFlags(unsigned char F) { TargetFlags = F; }
-  void addTargetFlag(unsigned char F) { TargetFlags |= F; }
+  unsigned getTargetFlags() const {
+    return isReg() ? 0 : SubReg_TargetFlags;
+  }
+  void setTargetFlags(unsigned F) {
+    assert(!isReg() && "Register operands can't have target flags");
+    SubReg_TargetFlags = F;
+    assert(SubReg_TargetFlags == F && "Target flags out of range");
+  }
+  void addTargetFlag(unsigned F) {
+    assert(!isReg() && "Register operands can't have target flags");
+    SubReg_TargetFlags |= F;
+    assert((SubReg_TargetFlags & F) && "Target flags out of range");
+  }
 
 
   /// getParent - Return the instruction that this operand belongs to.
@@ -245,7 +263,7 @@ public:
 
   unsigned getSubReg() const {
     assert(isReg() && "Wrong MachineOperand accessor");
-    return (unsigned)SubReg;
+    return SubReg_TargetFlags;
   }
 
   bool isUse() const {
@@ -288,6 +306,11 @@ public:
     return IsEarlyClobber;
   }
 
+  bool isTied() const {
+    assert(isReg() && "Wrong MachineOperand accessor");
+    return TiedTo;
+  }
+
   bool isDebug() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsDebug;
@@ -315,7 +338,8 @@ public:
 
   void setSubReg(unsigned subReg) {
     assert(isReg() && "Wrong MachineOperand accessor");
-    SubReg = (unsigned char)subReg;
+    SubReg_TargetFlags = subReg;
+    assert(SubReg_TargetFlags == subReg && "SubReg out of range");
   }
 
   /// substVirtReg - Substitute the current register with the virtual
@@ -421,7 +445,7 @@ public:
   int64_t getOffset() const {
     assert((isGlobal() || isSymbol() || isCPI() || isTargetIndex() ||
             isBlockAddress()) && "Wrong MachineOperand accessor");
-    return (int64_t(Contents.OffsetedInfo.OffsetHi) << 32) |
+    return int64_t(uint64_t(Contents.OffsetedInfo.OffsetHi) << 32) |
            SmallContents.OffsetLo;
   }
 
@@ -548,11 +572,12 @@ public:
     Op.IsUndef = isUndef;
     Op.IsInternalRead = isInternalRead;
     Op.IsEarlyClobber = isEarlyClobber;
+    Op.TiedTo = 0;
     Op.IsDebug = isDebug;
     Op.SmallContents.RegNo = Reg;
     Op.Contents.Reg.Prev = 0;
     Op.Contents.Reg.Next = 0;
-    Op.SubReg = SubReg;
+    Op.setSubReg(SubReg);
     return Op;
   }
   static MachineOperand CreateMBB(MachineBasicBlock *MBB,
@@ -606,11 +631,11 @@ public:
     Op.setTargetFlags(TargetFlags);
     return Op;
   }
-  static MachineOperand CreateBA(const BlockAddress *BA,
+  static MachineOperand CreateBA(const BlockAddress *BA, int64_t Offset,
                                  unsigned char TargetFlags = 0) {
     MachineOperand Op(MachineOperand::MO_BlockAddress);
     Op.Contents.OffsetedInfo.Val.BA = BA;
-    Op.setOffset(0); // Offset is always 0.
+    Op.setOffset(Offset);
     Op.setTargetFlags(TargetFlags);
     return Op;
   }
@@ -665,6 +690,9 @@ inline raw_ostream &operator<<(raw_ostream &OS, const MachineOperand& MO) {
   return OS;
 }
 
+  // See friend declaration above. This additional declaration is required in
+  // order to compile LLVM with IBM xlC compiler.
+  hash_code hash_value(const MachineOperand &MO);
 } // End llvm namespace
 
 #endif

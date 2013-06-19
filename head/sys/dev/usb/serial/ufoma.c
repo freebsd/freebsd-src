@@ -631,10 +631,7 @@ tr_setup:
 
 		if (error == USB_ERR_CANCELLED) {
 			return;
-		} else {
-			goto tr_setup;
 		}
-
 		goto tr_transferred;
 	}
 }
@@ -651,7 +648,6 @@ ufoma_ctrl_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 tr_transferred:
 	case USB_ST_SETUP:
-tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 1);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0, 1, &actlen)) {
 
@@ -677,10 +673,7 @@ tr_setup:
 
 		if (error == USB_ERR_CANCELLED) {
 			return;
-		} else {
-			goto tr_setup;
 		}
-
 		goto tr_transferred;
 	}
 }

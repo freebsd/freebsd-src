@@ -45,8 +45,8 @@ The
 control message is used to configure a hook.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following.
-.Bl -tag -width indent
-.It Dv NGM_TCPMSS_CONFIG Pq Li config
+.Bl -tag -width foo
+.It Dv NGM_TCPMSS_CONFIG Pq Ic config
 This control message configures node to do given MSS adjusting on
 a particular hook.
 It requires the
@@ -69,7 +69,7 @@ if it exceeds
 .Va maxMSS .
 After that, packets would be sent to hook
 .Va outHook .
-.It Dv NGM_TCPMSS_GET_STATS Pq Li getstats
+.It Dv NGM_TCPMSS_GET_STATS Pq Ic getstats
 This control message obtains statistics for a given hook.
 The statistics are returned in
 .Vt "struct ng_tcpmss_hookstat" :
@@ -82,9 +82,9 @@ struct ng_tcpmss_hookstat {
 	uint64_t	FixedPkts;	/* changed packets */
 };
 .Ed
-.It Dv NGM_TCPMSS_CLR_STATS Pq Li clrstats
+.It Dv NGM_TCPMSS_CLR_STATS Pq Ic clrstats
 This control message clears statistics for a given hook.
-.It Dv NGM_TCPMSS_GETCLR_STATS Pq Li getclrstats
+.It Dv NGM_TCPMSS_GETCLR_STATS Pq Ic getclrstats
 This control message obtains and clears statistics for a given hook.
 .El
 .Sh EXAMPLES

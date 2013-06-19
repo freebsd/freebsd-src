@@ -14,16 +14,13 @@
 
 #define DEBUG_TYPE "jit"
 #include "ARM.h"
-#include "ARMConstantPoolValue.h"
 #include "ARMBaseInstrInfo.h"
+#include "ARMConstantPoolValue.h"
 #include "ARMRelocations.h"
 #include "ARMSubtarget.h"
 #include "ARMTargetMachine.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/PassManager.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -31,7 +28,10 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -47,7 +47,7 @@ namespace {
   class ARMCodeEmitter : public MachineFunctionPass {
     ARMJITInfo                *JTI;
     const ARMBaseInstrInfo    *II;
-    const TargetData          *TD;
+    const DataLayout          *TD;
     const ARMSubtarget        *Subtarget;
     TargetMachine             &TM;
     JITCodeEmitter            &MCE;
@@ -67,7 +67,7 @@ namespace {
     ARMCodeEmitter(TargetMachine &tm, JITCodeEmitter &mce)
       : MachineFunctionPass(ID), JTI(0),
         II((const ARMBaseInstrInfo *)tm.getInstrInfo()),
-        TD(tm.getTargetData()), TM(tm),
+        TD(tm.getDataLayout()), TM(tm),
         MCE(mce), MCPEs(0), MJTEs(0),
         IsPIC(TM.getRelocationModel() == Reloc::PIC_), IsThumb(false) {}
 
@@ -371,12 +371,16 @@ FunctionPass *llvm::createARMJITCodeEmitterPass(ARMBaseTargetMachine &TM,
 }
 
 bool ARMCodeEmitter::runOnMachineFunction(MachineFunction &MF) {
-  assert((MF.getTarget().getRelocationModel() != Reloc::Default ||
-          MF.getTarget().getRelocationModel() != Reloc::Static) &&
+  TargetMachine &Target = const_cast<TargetMachine&>(MF.getTarget());
+
+  assert((Target.getRelocationModel() != Reloc::Default ||
+          Target.getRelocationModel() != Reloc::Static) &&
          "JIT relocation model must be set to static or default!");
-  JTI = ((ARMBaseTargetMachine &)MF.getTarget()).getJITInfo();
-  II = (const ARMBaseInstrInfo *)MF.getTarget().getInstrInfo();
-  TD = MF.getTarget().getTargetData();
+
+  JTI = static_cast<ARMJITInfo*>(Target.getJITInfo());
+  II = static_cast<const ARMBaseInstrInfo*>(Target.getInstrInfo());
+  TD = Target.getDataLayout();
+
   Subtarget = &TM.getSubtarget<ARMSubtarget>();
   MCPEs = &MF.getConstantPool()->getConstants();
   MJTEs = 0;
@@ -389,7 +393,7 @@ bool ARMCodeEmitter::runOnMachineFunction(MachineFunction &MF) {
 
   do {
     DEBUG(errs() << "JITTing function '"
-          << MF.getFunction()->getName() << "'\n");
+          << MF.getName() << "'\n");
     MCE.startFunction(MF);
     for (MachineFunction::iterator MBB = MF.begin(), E = MF.end();
          MBB != E; ++MBB) {

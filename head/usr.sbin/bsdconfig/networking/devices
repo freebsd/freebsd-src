@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,20 +28,22 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/networking/device.subr
+f_include $BSDCFG_SHARE/networking/ipaddr.subr
+f_include $BSDCFG_SHARE/networking/media.subr
+f_include $BSDCFG_SHARE/networking/netmask.subr
 
-APP_DIR="120.networking"
-f_include $BSDCFG_LIBE/$APP_DIR/include/device.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/ipaddr.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/media.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/netmask.subr
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ MAIN
@@ -52,7 +54,7 @@ ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 # Process command-line options
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -62,7 +64,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_networking_devices"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
@@ -70,12 +71,11 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
+defaultitem=
 while :; do
-	f_dialog_menu_netdev
-	retval=$?
-	interface=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || break
+	f_dialog_menu_netdev "$defaultitem" || break
+	f_dialog_menutag_fetch interface
+	defaultitem="$interface"
 
 	#
 	# dialog_menu_netdev adds an asterisk (*) to the right of the
@@ -96,11 +96,12 @@ while :; do
 	# fallback to reading the active configuration if not configured in
 	# the rc.conf(5) file(s).
 	#
+	dhcp=
 	_ipaddr=
 	_netmask=
 	_ifconfig=$( f_sysrc_get ifconfig_$interface )
 	if [ "$_ifconfig" ]; then
-		# If DHCP get IP address/netmask later from ifconfig(8)
+		# If DHCP, get IP address/netmask later from ifconfig(8)
 		glob="[Dd][Hh][Cc][Pp]"
 		case "$_ifconfig" in
 		$glob) dhcp=1;;
@@ -108,8 +109,7 @@ while :; do
 		[Nn][Oo][Ss][Yy][Nn][Cc]$glob) dhcp=1;;
 		*)
 			#
-			# Get IP address/netmask from rc.conf(5)
-			# configuration
+			# Get IP address/netmask from rc.conf(5) configuration
 			#
 			dhcp=
 			eval "$( exec 2> /dev/null
@@ -144,11 +144,10 @@ while :; do
 
 	# Block on user-configuration of the probed settings
 	f_dialog_menu_netdev_edit \
-		$interface $_ipaddr $_netmask "$_options" $dhcp
+		"$interface" "$_ipaddr" "$_netmask" "$_options" $dhcp
 
 	# Return to root menu if above returns success
 	[ $? -eq $SUCCESS ] && break
-
 done
 
 exit $SUCCESS

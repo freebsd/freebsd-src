@@ -1268,7 +1268,7 @@ ed_get_packet(struct ed_softc *sc, bus_size_t buf, u_short len)
 	struct mbuf *m;
 
 	/* Allocate a header mbuf */
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 	m->m_pkthdr.rcvif = ifp;
@@ -1282,7 +1282,7 @@ ed_get_packet(struct ed_softc *sc, bus_size_t buf, u_short len)
 	 */
 	if ((len + 2) > MHLEN) {
 		/* Attach an mbuf cluster */
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 
 		/* Insist on getting a cluster */
 		if ((m->m_flags & M_EXT) == 0) {

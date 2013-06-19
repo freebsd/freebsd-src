@@ -93,8 +93,8 @@ struct cfcs_softc {
  * handle physical addresses yet.  That would require mapping things in
  * order to do the copy.
  */
-#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_PHYS | CAM_SG_LIST_PHYS | \
-	CAM_MSG_BUF_PHYS | CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |\
+#define	CFCS_BAD_CCB_FLAGS (CAM_DATA_ISPHYS | CAM_MSG_BUF_PHYS |	\
+	CAM_SNS_BUF_PHYS | CAM_CDB_PHYS | CAM_SENSE_PTR |		\
 	CAM_SENSE_PHYS)
 
 int cfcs_init(void);
@@ -119,14 +119,24 @@ struct cfcs_softc cfcs_softc;
  * amount of SCSI sense data that we will report to CAM.
  */
 static int cfcs_max_sense = sizeof(struct scsi_sense_data);
-extern int ctl_disable;
 
-SYSINIT(cfcs_init, SI_SUB_CONFIGURE, SI_ORDER_FOURTH, cfcs_init, NULL);
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl2cam, CTLFLAG_RD, 0,
 	    "CAM Target Layer SIM frontend");
 SYSCTL_INT(_kern_cam_ctl2cam, OID_AUTO, max_sense, CTLFLAG_RW,
            &cfcs_max_sense, 0, "Maximum sense data size");
 
+static int cfcs_module_event_handler(module_t, int /*modeventtype_t*/, void *);
+
+static moduledata_t cfcs_moduledata = {
+	"ctlcfcs",
+	cfcs_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctlcfcs, cfcs_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
+MODULE_VERSION(ctlcfcs, 1);
+MODULE_DEPEND(ctlcfi, ctl, 1, 1, 1);
+MODULE_DEPEND(ctlcfi, cam, 1, 1, 1);
 
 int
 cfcs_init(void)
@@ -138,10 +148,6 @@ cfcs_init(void)
 	char wwnn[8];
 #endif
 	int retval;
-
-	/* Don't continue if CTL is disabled */
-	if (ctl_disable != 0)
-		return (0);
 
 	softc = &cfcs_softc;
 	retval = 0;
@@ -175,8 +181,8 @@ cfcs_init(void)
 	if (retval != 0) {
 		printf("%s: ctl_frontend_register() failed with error %d!\n",
 		       __func__, retval);
-		retval = 1;
-		goto bailout;
+		mtx_destroy(&softc->lock);
+		return (retval);
 	}
 
 	/*
@@ -207,7 +213,7 @@ cfcs_init(void)
 		softc->wwpn = fe->wwpn;
 	}
 
-
+	mtx_lock(&softc->lock);
 	softc->devq = cam_simq_alloc(fe->num_requested_ctl_io);
 	if (softc->devq == NULL) {
 		printf("%s: error allocating devq\n", __func__);
@@ -224,9 +230,7 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	mtx_lock(&softc->lock);
 	if (xpt_bus_register(softc->sim, NULL, 0) != CAM_SUCCESS) {
-		mtx_unlock(&softc->lock);
 		printf("%s: error registering SIM\n", __func__);
 		retval = ENOMEM;
 		goto bailout;
@@ -236,21 +240,20 @@ cfcs_init(void)
 			    cam_sim_path(softc->sim),
 			    CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		mtx_unlock(&softc->lock);
 		printf("%s: error creating path\n", __func__);
 		xpt_bus_deregister(cam_sim_path(softc->sim));
-		retval = 1;
+		retval = EINVAL;
 		goto bailout;
 	}
 
-	mtx_unlock(&softc->lock);
-
-	xpt_setup_ccb(&csa.ccb_h, softc->path, /*priority*/ 5);
+	xpt_setup_ccb(&csa.ccb_h, softc->path, CAM_PRIORITY_NONE);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
 	csa.callback = cfcs_async;
         csa.callback_arg = softc->sim;
         xpt_action((union ccb *)&csa);
+
+	mtx_unlock(&softc->lock);
 
 	return (retval);
 
@@ -259,6 +262,8 @@ bailout:
 		cam_sim_free(softc->sim, /*free_devq*/ TRUE);
 	else if (softc->devq)
 		cam_simq_free(softc->devq);
+	mtx_unlock(&softc->lock);
+	mtx_destroy(&softc->lock);
 
 	return (retval);
 }
@@ -275,8 +280,22 @@ cfcs_shutdown(void)
 
 }
 
+static int
+cfcs_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		return (cfcs_init());
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
 static void
-cfcs_online(void *arg)
+cfcs_onoffline(void *arg, int online)
 {
 	struct cfcs_softc *softc;
 	union ccb *ccb;
@@ -284,51 +303,37 @@ cfcs_online(void *arg)
 	softc = (struct cfcs_softc *)arg;
 
 	mtx_lock(&softc->lock);
-	softc->online = 1;
-	mtx_unlock(&softc->lock);
+	softc->online = online;
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
 		printf("%s: unable to allocate CCB for rescan\n", __func__);
-		return;
+		goto bailout;
 	}
 
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+	if (xpt_create_path(&ccb->ccb_h.path, NULL,
 			    cam_sim_path(softc->sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: can't allocate path for rescan\n", __func__);
 		xpt_free_ccb(ccb);
-		return;
+		goto bailout;
 	}
 	xpt_rescan(ccb);
+
+bailout:
+	mtx_unlock(&softc->lock);
+}
+
+static void
+cfcs_online(void *arg)
+{
+	cfcs_onoffline(arg, /*online*/ 1);
 }
 
 static void
 cfcs_offline(void *arg)
 {
-	struct cfcs_softc *softc;
-	union ccb *ccb;
-
-	softc = (struct cfcs_softc *)arg;
-
-	mtx_lock(&softc->lock);
-	softc->online = 0;
-	mtx_unlock(&softc->lock);
-
-	ccb = xpt_alloc_ccb_nowait();
-	if (ccb == NULL) {
-		printf("%s: unable to allocate CCB for rescan\n", __func__);
-		return;
-	}
-
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
-			    cam_sim_path(softc->sim), CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		printf("%s: can't allocate path for rescan\n", __func__);
-		xpt_free_ccb(ccb);
-		return;
-	}
-	xpt_rescan(ccb);
+	cfcs_onoffline(arg, /*online*/ 0);
 }
 
 static int
@@ -394,36 +399,35 @@ cfcs_datamove(union ctl_io *io)
 	 * Simplify things on both sides by putting single buffers into a
 	 * single entry S/G list.
 	 */
-	if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-		if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) {
-			/* We should filter this out on entry */
-			panic("%s: physical S/G list, should not get here",
-			      __func__);
-		} else {
-			int len_seen;
+	switch ((ccb->ccb_h.flags & CAM_DATA_MASK)) {
+	case CAM_DATA_SG: {
+		int len_seen;
 
-			cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
-			cam_sg_count = ccb->csio.sglist_cnt;
+		cam_sglist = (bus_dma_segment_t *)ccb->csio.data_ptr;
+		cam_sg_count = ccb->csio.sglist_cnt;
 
-			for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
-				if ((len_seen + cam_sglist[i].ds_len) >=
-				     io->scsiio.kern_rel_offset) {
-					cam_sg_start = i;
-					cam_sg_offset =
-						io->scsiio.kern_rel_offset -
-						len_seen;
-					break;
-				}
-				len_seen += cam_sglist[i].ds_len;
+		for (i = 0, len_seen = 0; i < cam_sg_count; i++) {
+			if ((len_seen + cam_sglist[i].ds_len) >=
+			     io->scsiio.kern_rel_offset) {
+				cam_sg_start = i;
+				cam_sg_offset = io->scsiio.kern_rel_offset -
+					len_seen;
+				break;
 			}
+			len_seen += cam_sglist[i].ds_len;
 		}
-	} else {
+		break;
+	}
+	case CAM_DATA_VADDR:
 		cam_sglist = &cam_sg_entry;
 		cam_sglist[0].ds_len = ccb->csio.dxfer_len;
 		cam_sglist[0].ds_addr = (bus_addr_t)ccb->csio.data_ptr;
 		cam_sg_count = 1;
 		cam_sg_start = 0;
 		cam_sg_offset = io->scsiio.kern_rel_offset;
+		break;
+	default:
+		panic("Invalid CAM flags %#x", ccb->ccb_h.flags);
 	}
 
 	if (io->scsiio.kern_sg_entries > 0) {

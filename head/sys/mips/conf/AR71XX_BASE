@@ -33,7 +33,7 @@ options		SCHED_4BSD		#4BSD scheduler
 options		INET			#InterNETworking
 options		INET6			# IPv6
 
-# options		NFS_CL		#Network Filesystem Client
+# options		NFSCL		#Network Filesystem Client
 
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
@@ -108,6 +108,7 @@ device		mx25l
 device		ar71xx_wdog
 
 device		uart
+device		uart_ar71xx
 
 device		loop
 device		ether

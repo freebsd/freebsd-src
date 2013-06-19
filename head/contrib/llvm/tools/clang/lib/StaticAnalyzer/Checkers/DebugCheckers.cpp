@@ -7,16 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines a checkers that display debugging information.
+//  This file defines checkers that display debugging information.
 //
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Analysis/Analyses/Dominators.h"
+#include "clang/Analysis/Analyses/LiveVariables.h"
+#include "clang/Analysis/CallGraph.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
-#include "clang/Analysis/Analyses/LiveVariables.h"
-#include "clang/Analysis/Analyses/Dominators.h"
-#include "clang/Analysis/CallGraph.h"
 #include "llvm/Support/Process.h"
 
 using namespace clang;
@@ -143,4 +143,39 @@ public:
 
 void ento::registerCallGraphDumper(CheckerManager &mgr) {
   mgr.registerChecker<CallGraphDumper>();
+}
+
+
+//===----------------------------------------------------------------------===//
+// ConfigDumper
+//===----------------------------------------------------------------------===//
+
+namespace {
+class ConfigDumper : public Checker< check::EndOfTranslationUnit > {
+public:
+  void checkEndOfTranslationUnit(const TranslationUnitDecl *TU,
+                                 AnalysisManager& mgr,
+                                 BugReporter &BR) const {
+
+    const AnalyzerOptions::ConfigTable &Config = mgr.options.Config;
+    AnalyzerOptions::ConfigTable::const_iterator I =
+      Config.begin(), E = Config.end();
+
+    std::vector<StringRef> Keys;
+    for (; I != E ; ++I) { Keys.push_back(I->getKey()); }
+    sort(Keys.begin(), Keys.end());
+    
+    llvm::errs() << "[config]\n";
+    for (unsigned i = 0, n = Keys.size(); i < n ; ++i) {
+      StringRef Key = Keys[i];
+      I = Config.find(Key);
+      llvm::errs() << Key << " = " << I->second << '\n';
+    }
+    llvm::errs() << "[stats]\n" << "num-entries = " << Keys.size() << '\n';
+  }
+};
+}
+
+void ento::registerConfigDumper(CheckerManager &mgr) {
+  mgr.registerChecker<ConfigDumper>();
 }

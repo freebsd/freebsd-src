@@ -153,7 +153,7 @@ public:
       switchToLarge(new BitVector(*RHS.getPointer()));
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   SmallBitVector(SmallBitVector &&RHS) : X(RHS.X) {
     RHS.X = 1;
   }
@@ -178,9 +178,9 @@ public:
   unsigned count() const {
     if (isSmall()) {
       uintptr_t Bits = getSmallBits();
-      if (sizeof(uintptr_t) * CHAR_BIT == 32)
+      if (NumBaseBits == 32)
         return CountPopulation_32(Bits);
-      if (sizeof(uintptr_t) * CHAR_BIT == 64)
+      if (NumBaseBits == 64)
         return CountPopulation_64(Bits);
       llvm_unreachable("Unsupported!");
     }
@@ -215,9 +215,9 @@ public:
       uintptr_t Bits = getSmallBits();
       if (Bits == 0)
         return -1;
-      if (sizeof(uintptr_t) * CHAR_BIT == 32)
+      if (NumBaseBits == 32)
         return CountTrailingZeros_32(Bits);
-      if (sizeof(uintptr_t) * CHAR_BIT == 64)
+      if (NumBaseBits == 64)
         return CountTrailingZeros_64(Bits);
       llvm_unreachable("Unsupported!");
     }
@@ -233,9 +233,9 @@ public:
       Bits &= ~uintptr_t(0) << (Prev + 1);
       if (Bits == 0 || Prev + 1 >= getSmallSize())
         return -1;
-      if (sizeof(uintptr_t) * CHAR_BIT == 32)
+      if (NumBaseBits == 32)
         return CountTrailingZeros_32(Bits);
-      if (sizeof(uintptr_t) * CHAR_BIT == 64)
+      if (NumBaseBits == 64)
         return CountTrailingZeros_64(Bits);
       llvm_unreachable("Unsupported!");
     }
@@ -300,6 +300,21 @@ public:
     return *this;
   }
 
+  /// set - Efficiently set a range of bits in [I, E)
+  SmallBitVector &set(unsigned I, unsigned E) {
+    assert(I <= E && "Attempted to set backwards range!");
+    assert(E <= size() && "Attempted to set out-of-bounds range!");
+    if (I == E) return *this;
+    if (isSmall()) {
+      uintptr_t EMask = ((uintptr_t)1) << E;
+      uintptr_t IMask = ((uintptr_t)1) << I;
+      uintptr_t Mask = EMask - IMask;
+      setSmallBits(getSmallBits() | Mask);
+    } else
+      getPointer()->set(I, E);
+    return *this;
+  }
+
   SmallBitVector &reset() {
     if (isSmall())
       setSmallBits(0);
@@ -313,6 +328,21 @@ public:
       setSmallBits(getSmallBits() & ~(uintptr_t(1) << Idx));
     else
       getPointer()->reset(Idx);
+    return *this;
+  }
+
+  /// reset - Efficiently reset a range of bits in [I, E)
+  SmallBitVector &reset(unsigned I, unsigned E) {
+    assert(I <= E && "Attempted to reset backwards range!");
+    assert(E <= size() && "Attempted to reset out-of-bounds range!");
+    if (I == E) return *this;
+    if (isSmall()) {
+      uintptr_t EMask = ((uintptr_t)1) << E;
+      uintptr_t IMask = ((uintptr_t)1) << I;
+      uintptr_t Mask = EMask - IMask;
+      setSmallBits(getSmallBits() & ~Mask);
+    } else
+      getPointer()->reset(I, E);
     return *this;
   }
 
@@ -442,7 +472,7 @@ public:
     return *this;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   const SmallBitVector &operator=(SmallBitVector &&RHS) {
     if (this != &RHS) {
       clear();

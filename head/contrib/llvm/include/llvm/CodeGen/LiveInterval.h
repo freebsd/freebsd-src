@@ -22,13 +22,14 @@
 #define LLVM_CODEGEN_LIVEINTERVAL_H
 
 #include "llvm/ADT/IntEqClasses.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/Support/AlignOf.h"
 #include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/Support/AlignOf.h"
+#include "llvm/Support/Allocator.h"
 #include <cassert>
 #include <climits>
 
 namespace llvm {
+  class CoalescerPair;
   class LiveIntervals;
   class MachineInstr;
   class MachineRegisterInfo;
@@ -85,9 +86,10 @@ namespace llvm {
     SlotIndex end;    // End point of the interval (exclusive)
     VNInfo *valno;   // identifier for the value contained in this interval.
 
+    LiveRange() : valno(0) {}
+
     LiveRange(SlotIndex S, SlotIndex E, VNInfo *V)
       : start(S), end(E), valno(V) {
-
       assert(S < E && "Cannot create empty or backwards range");
     }
 
@@ -113,9 +115,6 @@ namespace llvm {
 
     void dump() const;
     void print(raw_ostream &os) const;
-
-  private:
-    LiveRange(); // DO NOT IMPLEMENT
   };
 
   template <> struct isPodLike<LiveRange> { static const bool value = true; };
@@ -275,11 +274,6 @@ namespace llvm {
     void MergeValueInAsValue(const LiveInterval &RHS,
                              const VNInfo *RHSValNo, VNInfo *LHSValNo);
 
-    /// Copy - Copy the specified live interval. This copies all the fields
-    /// except for the register of the interval.
-    void Copy(const LiveInterval &RHS, MachineRegisterInfo *MRI,
-              VNInfo::Allocator &VNInfoAllocator);
-
     bool empty() const { return ranges.empty(); }
 
     /// beginIndex - Return the lowest numbered slot covered by interval.
@@ -311,12 +305,6 @@ namespace llvm {
       const_iterator r = find(index.getRegSlot(true));
       return r != end() && r->end == index;
     }
-
-    /// killedInRange - Return true if the interval has kills in [Start,End).
-    /// Note that the kill point is considered the end of a live range, so it is
-    /// not contained in the live range. If a live range ends at End, it won't
-    /// be counted as a kill by this method.
-    bool killedInRange(SlotIndex Start, SlotIndex End) const;
 
     /// getLiveRangeContaining - Return the live range that contains the
     /// specified index, or null if there is none.
@@ -366,6 +354,14 @@ namespace llvm {
       return overlapsFrom(other, other.begin());
     }
 
+    /// overlaps - Return true if the two intervals have overlapping segments
+    /// that are not coalescable according to CP.
+    ///
+    /// Overlapping segments where one interval is defined by a coalescable
+    /// copy are allowed.
+    bool overlaps(const LiveInterval &Other, const CoalescerPair &CP,
+                  const SlotIndexes&) const;
+
     /// overlaps - Return true if the live interval overlaps a range specified
     /// by [Start, End).
     bool overlaps(SlotIndex Start, SlotIndex End) const;
@@ -378,8 +374,8 @@ namespace llvm {
     /// addRange - Add the specified LiveRange to this interval, merging
     /// intervals as appropriate.  This returns an iterator to the inserted live
     /// range (which may have grown since it was inserted.
-    void addRange(LiveRange LR) {
-      addRangeFrom(LR, ranges.begin());
+    iterator addRange(LiveRange LR) {
+      return addRangeFrom(LR, ranges.begin());
     }
 
     /// extendInBlock - If this interval is live before Kill in the basic block
@@ -401,6 +397,15 @@ namespace llvm {
     bool isInOneLiveRange(SlotIndex Start, SlotIndex End) const {
       const_iterator r = find(Start);
       return r != end() && r->containsRange(Start, End);
+    }
+
+    /// True iff this live range is a single segment that lies between the
+    /// specified boundaries, exclusively. Vregs live across a backedge are not
+    /// considered local. The boundaries are expected to lie within an extended
+    /// basic block, so vregs that are not live out should contain no holes.
+    bool isLocal(SlotIndex Start, SlotIndex End) const {
+      return beginIndex() > Start.getBaseIndex() &&
+        endIndex() < End.getBoundaryIndex();
     }
 
     /// removeRange - Remove the specified range from this interval.  Note that
@@ -465,16 +470,71 @@ namespace llvm {
     void extendIntervalEndTo(Ranges::iterator I, SlotIndex NewEnd);
     Ranges::iterator extendIntervalStartTo(Ranges::iterator I, SlotIndex NewStr);
     void markValNoForDeletion(VNInfo *V);
-    void mergeIntervalRanges(const LiveInterval &RHS,
-                             VNInfo *LHSValNo = 0,
-                             const VNInfo *RHSValNo = 0);
 
-    LiveInterval& operator=(const LiveInterval& rhs); // DO NOT IMPLEMENT
+    LiveInterval& operator=(const LiveInterval& rhs) LLVM_DELETED_FUNCTION;
 
   };
 
   inline raw_ostream &operator<<(raw_ostream &OS, const LiveInterval &LI) {
     LI.print(OS);
+    return OS;
+  }
+
+  /// Helper class for performant LiveInterval bulk updates.
+  ///
+  /// Calling LiveInterval::addRange() repeatedly can be expensive on large
+  /// live ranges because segments after the insertion point may need to be
+  /// shifted. The LiveRangeUpdater class can defer the shifting when adding
+  /// many segments in order.
+  ///
+  /// The LiveInterval will be in an invalid state until flush() is called.
+  class LiveRangeUpdater {
+    LiveInterval *LI;
+    SlotIndex LastStart;
+    LiveInterval::iterator WriteI;
+    LiveInterval::iterator ReadI;
+    SmallVector<LiveRange, 16> Spills;
+    void mergeSpills();
+
+  public:
+    /// Create a LiveRangeUpdater for adding segments to LI.
+    /// LI will temporarily be in an invalid state until flush() is called.
+    LiveRangeUpdater(LiveInterval *li = 0) : LI(li) {}
+
+    ~LiveRangeUpdater() { flush(); }
+
+    /// Add a segment to LI and coalesce when possible, just like LI.addRange().
+    /// Segments should be added in increasing start order for best performance.
+    void add(LiveRange);
+
+    void add(SlotIndex Start, SlotIndex End, VNInfo *VNI) {
+      add(LiveRange(Start, End, VNI));
+    }
+
+    /// Return true if the LI is currently in an invalid state, and flush()
+    /// needs to be called.
+    bool isDirty() const { return LastStart.isValid(); }
+
+    /// Flush the updater state to LI so it is valid and contains all added
+    /// segments.
+    void flush();
+
+    /// Select a different destination live range.
+    void setDest(LiveInterval *li) {
+      if (LI != li && isDirty())
+        flush();
+      LI = li;
+    }
+
+    /// Get the current destination live range.
+    LiveInterval *getDest() const { return LI; }
+
+    void dump() const;
+    void print(raw_ostream&) const;
+  };
+
+  inline raw_ostream &operator<<(raw_ostream &OS, const LiveRangeUpdater &X) {
+    X.print(OS);
     return OS;
   }
 
@@ -501,7 +561,9 @@ namespace llvm {
       if (I == E)
         return;
       // Is this an instruction live-in segment?
-      if (SlotIndex::isEarlierInstr(I->start, Idx)) {
+      // If Idx is the start index of a basic block, include live-in segments
+      // that start at Idx.getBaseIndex().
+      if (I->start <= Idx.getBaseIndex()) {
         EarlyVal = I->valno;
         EndPoint = I->end;
         // Move to the potentially live-out segment.
@@ -510,6 +572,12 @@ namespace llvm {
           if (++I == E)
             return;
         }
+        // Special case: A PHIDef value can have its def in the middle of a
+        // segment if the value happens to be live out of the layout
+        // predecessor.
+        // Such a value is not live-in.
+        if (EarlyVal->def == Idx.getBaseIndex())
+          EarlyVal = 0;
       }
       // I now points to the segment that may be live-through, or defined by
       // this instr. Ignore segments starting after the current instr.

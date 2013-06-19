@@ -188,7 +188,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	}
 	KNOTE_LOCKED(&sb->sb_sel.si_note, 0);
 	if (sb->sb_upcall != NULL) {
-		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_DONTWAIT);
+		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_NOWAIT);
 		if (ret == SU_ISCONNECTED) {
 			KASSERT(sb == &so->so_rcv,
 			    ("SO_SND upcall returned SU_ISCONNECTED"));
@@ -528,6 +528,9 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
 
 	SBLASTMBUFCHK(sb);
 
+	/* Remove all packet headers and mbuf tags to get a pure data chain. */
+	m_demote(m, 1);
+	
 	sbcompress(sb, m, sb->sb_mbtail);
 
 	sb->sb_lastrecord = sb->sb_mb;
@@ -644,8 +647,8 @@ sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 	if (asa->sa_len > MLEN)
 		return (0);
 #endif
-	MGET(m, M_DONTWAIT, MT_SONAME);
-	if (m == 0)
+	m = m_get(M_NOWAIT, MT_SONAME);
+	if (m == NULL)
 		return (0);
 	m->m_len = asa->sa_len;
 	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
@@ -939,6 +942,13 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 	/* Return closest mbuf in chain for current offset. */
 	*moff = off - sb->sb_sndptroff;
 	m = ret = sb->sb_sndptr ? sb->sb_sndptr : sb->sb_mb;
+	if (*moff == m->m_len) {
+		*moff = 0;
+		sb->sb_sndptroff += m->m_len;
+		m = ret = m->m_next;
+		KASSERT(ret->m_len > 0,
+		    ("mbuf %p in sockbuf %p chain has no valid data", ret, sb));
+	}
 
 	/* Advance by len to be as close as possible for the next transmit. */
 	for (off = off - sb->sb_sndptroff + len - 1;
@@ -1002,9 +1012,9 @@ sbcreatecontrol(caddr_t p, int size, int type, int level)
 	if (CMSG_SPACE((u_int)size) > MCLBYTES)
 		return ((struct mbuf *) NULL);
 	if (CMSG_SPACE((u_int)size) > MLEN)
-		m = m_getcl(M_DONTWAIT, MT_CONTROL, 0);
+		m = m_getcl(M_NOWAIT, MT_CONTROL, 0);
 	else
-		m = m_get(M_DONTWAIT, MT_CONTROL);
+		m = m_get(M_NOWAIT, MT_CONTROL);
 	if (m == NULL)
 		return ((struct mbuf *) NULL);
 	cp = mtod(m, struct cmsghdr *);

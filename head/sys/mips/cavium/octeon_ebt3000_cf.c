@@ -280,6 +280,7 @@ static void cf_outb_8(int port, uint8_t val)
 	if (bus_type == CF_8) {
 		volatile uint8_t *task_file = (volatile uint8_t *)base_addr;
 		task_file[port] = val;
+		return;
 	}
 
 	/*
@@ -325,14 +326,9 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	uint8_t  *ptr_8;
 	int error;
 
-//#define OCTEON_VISUAL_CF_0 1
-#ifdef OCTEON_VISUAL_CF_0
-        octeon_led_write_char(0, 'R');
-#endif
 	ptr_8  = (uint8_t*)buf;
 	ptr_16 = (uint16_t*)buf;
 	lba = start_sector; 
-
 
 	while (nr_sectors--) {
 		error = cf_send_cmd(lba, CMD_READ_SECTOR);
@@ -365,9 +361,6 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 
 		lba++;
 	}
-#ifdef OCTEON_VISUAL_CF_0
-        octeon_led_write_char(0, ' ');
-#endif
 	return (0);
 }
 
@@ -386,10 +379,6 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	uint8_t  *ptr_8;
 	int error;
 	
-//#define OCTEON_VISUAL_CF_1 1
-#ifdef OCTEON_VISUAL_CF_1
-        octeon_led_write_char(1, 'W');
-#endif
 	lba = start_sector;
 	ptr_8  = (uint8_t*)buf;
 	ptr_16 = (uint16_t*)buf;
@@ -424,9 +413,6 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 
 		lba++;
 	}
-#ifdef OCTEON_VISUAL_CF_1
-        octeon_led_write_char(1, ' ');
-#endif
 	return (0);
 }
 
@@ -542,13 +528,6 @@ static int cf_wait_busy (void)
 {
 	uint8_t status;
 
-//#define OCTEON_VISUAL_CF_2 1
-#ifdef OCTEON_VISUAL_CF_2
-        static int where0 = 0;
-
-        octeon_led_run_wheel(&where0, 2);
-#endif
-
 	switch (bus_type)
 	{
 	case CF_8:
@@ -584,9 +563,6 @@ static int cf_wait_busy (void)
 		return (ENXIO);
 	}
 
-#ifdef OCTEON_VISUAL_CF_2
-        octeon_led_write_char(2, ' ');
-#endif
 	return (0);
 }
 
@@ -614,7 +590,7 @@ static void cf_swap_ascii (unsigned char str1[], char str2[])
 
 static int cf_probe (device_t dev)
 {
-    	if (octeon_is_simulation())
+    	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
 		return (ENXIO);
 
 	if (device_get_unit(dev) != 0) {
@@ -642,10 +618,12 @@ static void cf_identify (driver_t *drv, device_t parent)
 	cvmx_mio_boot_reg_cfgx_t cfg;
 	uint64_t phys_base;
 	
-    	if (octeon_is_simulation())
+    	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
 		return;
 
 	phys_base = cvmx_sysinfo_get()->compact_flash_common_base_addr;
+	if (phys_base == 0)
+		return;
 	base_addr = cvmx_phys_to_ptr(phys_base);
 
         for (bus_region = 0; bus_region < 8; bus_region++)
@@ -718,7 +696,7 @@ static int cf_attach (device_t dev)
 	struct cf_priv *cf_priv;
 	int error;
 
-    	if (octeon_is_simulation())
+    	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
 		return (ENXIO);
 
 	cf_priv = device_get_softc(dev);

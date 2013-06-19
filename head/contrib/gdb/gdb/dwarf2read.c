@@ -825,6 +825,8 @@ static void read_array_type (struct die_info *, struct dwarf2_cu *);
 
 static void read_tag_pointer_type (struct die_info *, struct dwarf2_cu *);
 
+static void read_tag_unspecified_type (struct die_info *, struct dwarf2_cu *);
+
 static void read_tag_ptr_to_member_type (struct die_info *,
 					 struct dwarf2_cu *);
 
@@ -833,6 +835,8 @@ static void read_tag_reference_type (struct die_info *, struct dwarf2_cu *);
 static void read_tag_const_type (struct die_info *, struct dwarf2_cu *);
 
 static void read_tag_volatile_type (struct die_info *, struct dwarf2_cu *);
+
+static void read_tag_restrict_type (struct die_info *, struct dwarf2_cu *);
 
 static void read_tag_string_type (struct die_info *, struct dwarf2_cu *);
 
@@ -1975,6 +1979,7 @@ process_die (struct die_info *die, struct dwarf2_cu *cu)
       read_tag_ptr_to_member_type (die, cu);
       break;
     case DW_TAG_reference_type:
+    case DW_TAG_rvalue_reference_type:
       read_tag_reference_type (die, cu);
       break;
     case DW_TAG_string_type:
@@ -3719,6 +3724,27 @@ read_tag_reference_type (struct die_info *die, struct dwarf2_cu *cu)
 }
 
 static void
+read_tag_unspecified_type (struct die_info *die, struct dwarf2_cu *cu)
+{
+  struct objfile *objfile = cu->objfile;
+  struct type *type;
+  struct attribute *attr;
+
+  if (die->type)
+    {
+      return;
+    }
+
+  type = alloc_type (objfile);
+  TYPE_LENGTH (type) = 0;
+  attr = dwarf2_attr (die, DW_AT_name, cu);
+  if (attr && DW_STRING (attr))
+      TYPE_NAME (type) = DW_STRING (attr);
+
+  die->type = type;
+}
+
+static void
 read_tag_const_type (struct die_info *die, struct dwarf2_cu *cu)
 {
   struct type *base_type;
@@ -3729,7 +3755,8 @@ read_tag_const_type (struct die_info *die, struct dwarf2_cu *cu)
     }
 
   base_type = die_type (die, cu);
-  die->type = make_cv_type (1, TYPE_VOLATILE (base_type), base_type, 0);
+  die->type = make_cvr_type (1, TYPE_VOLATILE (base_type),
+                             TYPE_RESTRICT (base_type), base_type, 0);
 }
 
 static void
@@ -3743,7 +3770,23 @@ read_tag_volatile_type (struct die_info *die, struct dwarf2_cu *cu)
     }
 
   base_type = die_type (die, cu);
-  die->type = make_cv_type (TYPE_CONST (base_type), 1, base_type, 0);
+  die->type = make_cvr_type (TYPE_CONST (base_type), 1,
+                             TYPE_RESTRICT (base_type), base_type, 0);
+}
+
+static void
+read_tag_restrict_type (struct die_info *die, struct dwarf2_cu *cu)
+{
+  struct type *base_type;
+
+  if (die->type)
+    {
+      return;
+    }
+
+  base_type = die_type (die, cu);
+  die->type = make_cvr_type (TYPE_CONST (base_type), TYPE_VOLATILE (base_type),
+                             1, base_type, 0);
 }
 
 /* Extract all information from a DW_TAG_string_type DIE and add to
@@ -6039,8 +6082,8 @@ tag_type_to_type (struct die_info *die, struct dwarf2_cu *cu)
       if (!die->type)
 	{
 	  dump_die (die);
-	  error ("Dwarf Error: Cannot find type of die [in module %s]", 
-			  cu->objfile->name);
+	  error ("Dwarf Error: Cannot find type of die 0x%x [in module %s]", 
+			  die->tag, cu->objfile->name);
 	}
       return die->type;
     }
@@ -6074,10 +6117,14 @@ read_type_die (struct die_info *die, struct dwarf2_cu *cu)
     case DW_TAG_pointer_type:
       read_tag_pointer_type (die, cu);
       break;
+    case DW_TAG_unspecified_type:
+      read_tag_unspecified_type (die, cu);
+      break;
     case DW_TAG_ptr_to_member_type:
       read_tag_ptr_to_member_type (die, cu);
       break;
     case DW_TAG_reference_type:
+    case DW_TAG_rvalue_reference_type:
       read_tag_reference_type (die, cu);
       break;
     case DW_TAG_const_type:
@@ -6085,6 +6132,9 @@ read_type_die (struct die_info *die, struct dwarf2_cu *cu)
       break;
     case DW_TAG_volatile_type:
       read_tag_volatile_type (die, cu);
+      break;
+    case DW_TAG_restrict_type:
+      read_tag_restrict_type (die, cu);
       break;
     case DW_TAG_string_type:
       read_tag_string_type (die, cu);
@@ -6403,6 +6453,8 @@ dwarf_tag_name (unsigned tag)
       return "DW_TAG_pointer_type";
     case DW_TAG_reference_type:
       return "DW_TAG_reference_type";
+    case DW_TAG_rvalue_reference_type:
+      return "DW_TAG_rvalue_reference_type";
     case DW_TAG_compile_unit:
       return "DW_TAG_compile_unit";
     case DW_TAG_string_type:

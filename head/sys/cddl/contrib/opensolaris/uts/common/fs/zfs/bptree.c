@@ -43,7 +43,7 @@
  * dsl_scan_sync. This allows the delete operation to finish without traversing
  * all the dataset's blocks.
  *
- * Note that while bt_begin and bt_end are only ever incremented in this code
+ * Note that while bt_begin and bt_end are only ever incremented in this code,
  * they are effectively reset to 0 every time the entire bptree is freed because
  * the bptree's object is destroyed and re-created.
  */
@@ -94,9 +94,9 @@ bptree_free(objset_t *os, uint64_t obj, dmu_tx_t *tx)
 	VERIFY3U(0, ==, dmu_bonus_hold(os, obj, FTAG, &db));
 	bt = db->db_data;
 	ASSERT3U(bt->bt_begin, ==, bt->bt_end);
-	ASSERT3U(bt->bt_bytes, ==, 0);
-	ASSERT3U(bt->bt_comp, ==, 0);
-	ASSERT3U(bt->bt_uncomp, ==, 0);
+	ASSERT0(bt->bt_bytes);
+	ASSERT0(bt->bt_comp);
+	ASSERT0(bt->bt_uncomp);
 	dmu_buf_rele(db, FTAG);
 
 	return (dmu_object_free(os, obj, tx));
@@ -135,7 +135,7 @@ bptree_add(objset_t *os, uint64_t obj, blkptr_t *bp, uint64_t birth_txg,
 
 /* ARGSUSED */
 static int
-bptree_visit_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp, arc_buf_t *pbuf,
+bptree_visit_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	int err;
@@ -189,7 +189,8 @@ bptree_iterate(objset_t *os, uint64_t obj, boolean_t free, bptree_itor_t func,
 			break;
 
 		err = traverse_dataset_destroyed(os->os_spa, &bte.be_bp,
-		    bte.be_birth_txg, &bte.be_zb, TRAVERSE_POST,
+		    bte.be_birth_txg, &bte.be_zb,
+		    TRAVERSE_PREFETCH_METADATA | TRAVERSE_POST,
 		    bptree_visit_cb, &ba);
 		if (free) {
 			ASSERT(err == 0 || err == ERESTART);
@@ -197,7 +198,7 @@ bptree_iterate(objset_t *os, uint64_t obj, boolean_t free, bptree_itor_t func,
 				/* save bookmark for future resume */
 				ASSERT3U(bte.be_zb.zb_objset, ==,
 				    ZB_DESTROYED_OBJSET);
-				ASSERT3U(bte.be_zb.zb_level, ==, 0);
+				ASSERT0(bte.be_zb.zb_level);
 				dmu_write(os, obj, i * sizeof (bte),
 				    sizeof (bte), &bte, tx);
 				break;
@@ -213,9 +214,9 @@ bptree_iterate(objset_t *os, uint64_t obj, boolean_t free, bptree_itor_t func,
 
 	/* if all blocks are free there should be no used space */
 	if (ba.ba_phys->bt_begin == ba.ba_phys->bt_end) {
-		ASSERT3U(ba.ba_phys->bt_bytes, ==, 0);
-		ASSERT3U(ba.ba_phys->bt_comp, ==, 0);
-		ASSERT3U(ba.ba_phys->bt_uncomp, ==, 0);
+		ASSERT0(ba.ba_phys->bt_bytes);
+		ASSERT0(ba.ba_phys->bt_comp);
+		ASSERT0(ba.ba_phys->bt_uncomp);
 	}
 
 	dmu_buf_rele(db, FTAG);

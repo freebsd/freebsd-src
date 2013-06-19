@@ -15,16 +15,17 @@
 #ifndef LLVM_CODEGEN_SELECTIONDAG_H
 #define LLVM_CODEGEN_SELECTIONDAG_H
 
-#include "llvm/ADT/ilist.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/ilist.h"
+#include "llvm/CodeGen/DAGCombine.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Support/RecyclingAllocator.h"
 #include "llvm/Target/TargetMachine.h"
 #include <cassert>
-#include <vector>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace llvm {
 
@@ -36,6 +37,7 @@ class SDNodeOrdering;
 class SDDbgValue;
 class TargetLowering;
 class TargetSelectionDAGInfo;
+class TargetTransformInfo;
 
 template<> struct ilist_traits<SDNode> : public ilist_default_traits<SDNode> {
 private:
@@ -73,8 +75,8 @@ class SDDbgInfo {
   SmallVector<SDDbgValue*, 32> ByvalParmDbgValues;
   DenseMap<const SDNode*, SmallVector<SDDbgValue*, 2> > DbgValMap;
 
-  void operator=(const SDDbgInfo&);   // Do not implement.
-  SDDbgInfo(const SDDbgInfo&);   // Do not implement.
+  void operator=(const SDDbgInfo&) LLVM_DELETED_FUNCTION;
+  SDDbgInfo(const SDDbgInfo&) LLVM_DELETED_FUNCTION;
 public:
   SDDbgInfo() {}
 
@@ -111,13 +113,6 @@ public:
   DbgIterator ByvalParmDbgEnd()   { return ByvalParmDbgValues.end(); }
 };
 
-enum CombineLevel {
-  BeforeLegalizeTypes,
-  AfterLegalizeTypes,
-  AfterLegalizeVectorOps,
-  AfterLegalizeDAG
-};
-
 class SelectionDAG;
 void checkForCycles(const SDNode *N);
 void checkForCycles(const SelectionDAG *DAG);
@@ -137,6 +132,7 @@ class SelectionDAG {
   const TargetMachine &TM;
   const TargetLowering &TLI;
   const TargetSelectionDAGInfo &TSI;
+  const TargetTransformInfo *TTI;
   MachineFunction *MF;
   LLVMContext *Context;
   CodeGenOpt::Level OptLevel;
@@ -222,8 +218,8 @@ private:
                               DenseSet<SDNode *> &visited,
                               int level, bool &printed);
 
-  void operator=(const SelectionDAG&); // Do not implement.
-  SelectionDAG(const SelectionDAG&);   // Do not implement.
+  void operator=(const SelectionDAG&) LLVM_DELETED_FUNCTION;
+  SelectionDAG(const SelectionDAG&) LLVM_DELETED_FUNCTION;
 
 public:
   explicit SelectionDAG(const TargetMachine &TM, llvm::CodeGenOpt::Level);
@@ -232,7 +228,7 @@ public:
   /// init - Prepare this SelectionDAG to process code in the given
   /// MachineFunction.
   ///
-  void init(MachineFunction &mf);
+  void init(MachineFunction &mf, const TargetTransformInfo *TTI);
 
   /// clear - Clear state and free memory necessary to make this
   /// SelectionDAG ready to process a new block.
@@ -243,6 +239,7 @@ public:
   const TargetMachine &getTarget() const { return TM; }
   const TargetLowering &getTargetLoweringInfo() const { return TLI; }
   const TargetSelectionDAGInfo &getSelectionDAGInfo() const { return TSI; }
+  const TargetTransformInfo *getTargetTransformInfo() const { return TTI; }
   LLVMContext *getContext() const {return Context; }
 
   /// viewGraph - Pop up a GraphViz/gv window with the DAG rendered using 'dot'.
@@ -437,7 +434,13 @@ public:
   SDValue getRegisterMask(const uint32_t *RegMask);
   SDValue getEHLabel(DebugLoc dl, SDValue Root, MCSymbol *Label);
   SDValue getBlockAddress(const BlockAddress *BA, EVT VT,
-                          bool isTarget = false, unsigned char TargetFlags = 0);
+                          int64_t Offset = 0, bool isTarget = false,
+                          unsigned char TargetFlags = 0);
+  SDValue getTargetBlockAddress(const BlockAddress *BA, EVT VT,
+                                int64_t Offset = 0,
+                                unsigned char TargetFlags = 0) {
+    return getBlockAddress(BA, VT, Offset, true, TargetFlags);
+  }
 
   SDValue getCopyToReg(SDValue Chain, DebugLoc dl, unsigned Reg, SDValue N) {
     return getNode(ISD::CopyToReg, dl, MVT::Other, Chain,
@@ -564,7 +567,7 @@ public:
   SDValue getNode(unsigned Opcode, DebugLoc DL, EVT VT,
                   const SDValue *Ops, unsigned NumOps);
   SDValue getNode(unsigned Opcode, DebugLoc DL,
-                  const std::vector<EVT> &ResultTys,
+                  ArrayRef<EVT> ResultTys,
                   const SDValue *Ops, unsigned NumOps);
   SDValue getNode(unsigned Opcode, DebugLoc DL, const EVT *VTs, unsigned NumVTs,
                   const SDValue *Ops, unsigned NumOps);
@@ -807,31 +810,32 @@ public:
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT,
                                 SDValue Op1, SDValue Op2);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT,
-                         SDValue Op1, SDValue Op2, SDValue Op3);
+                                SDValue Op1, SDValue Op2, SDValue Op3);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT,
-                         const SDValue *Ops, unsigned NumOps);
+                                ArrayRef<SDValue> Ops);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
-                         SDValue Op1);
-  MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1,
-                         EVT VT2, SDValue Op1, SDValue Op2);
-  MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1,
-                         EVT VT2, SDValue Op1, SDValue Op2, SDValue Op3);
+                                SDValue Op1);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
-                         const SDValue *Ops, unsigned NumOps);
+                                SDValue Op1, SDValue Op2);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
-                         EVT VT3, SDValue Op1, SDValue Op2);
+                                SDValue Op1, SDValue Op2, SDValue Op3);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
-                         EVT VT3, SDValue Op1, SDValue Op2, SDValue Op3);
+                                ArrayRef<SDValue> Ops);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
-                         EVT VT3, const SDValue *Ops, unsigned NumOps);
+                                EVT VT3, SDValue Op1, SDValue Op2);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
-                         EVT VT3, EVT VT4, const SDValue *Ops, unsigned NumOps);
+                                EVT VT3, SDValue Op1, SDValue Op2,
+                                SDValue Op3);
+  MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
+                                EVT VT3, ArrayRef<SDValue> Ops);
+  MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, EVT VT1, EVT VT2,
+                                EVT VT3, EVT VT4, ArrayRef<SDValue> Ops);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl,
-                         const std::vector<EVT> &ResultTys, const SDValue *Ops,
-                         unsigned NumOps);
+                                ArrayRef<EVT> ResultTys,
+                                ArrayRef<SDValue> Ops);
   MachineSDNode *getMachineNode(unsigned Opcode, DebugLoc dl, SDVTList VTs,
-                         const SDValue *Ops, unsigned NumOps);
+                                ArrayRef<SDValue> Ops);
 
   /// getTargetExtractSubreg - A convenience function for creating
   /// TargetInstrInfo::EXTRACT_SUBREG nodes.
@@ -932,6 +936,20 @@ public:
     }
   }
 
+  /// Returns an APFloat semantics tag appropriate for the given type. If VT is
+  /// a vector type, the element semantics are returned.
+  static const fltSemantics &EVTToAPFloatSemantics(EVT VT) {
+    switch (VT.getScalarType().getSimpleVT().SimpleTy) {
+    default: llvm_unreachable("Unknown FP format");
+    case MVT::f16:     return APFloat::IEEEhalf;
+    case MVT::f32:     return APFloat::IEEEsingle;
+    case MVT::f64:     return APFloat::IEEEdouble;
+    case MVT::f80:     return APFloat::x87DoubleExtended;
+    case MVT::f128:    return APFloat::IEEEquad;
+    case MVT::ppcf128: return APFloat::PPCDoubleDouble;
+    }
+  }
+
   /// AssignOrdering - Assign an order to the SDNode.
   void AssignOrdering(const SDNode *SD, unsigned Order);
 
@@ -975,10 +993,8 @@ public:
   SDValue CreateStackTemporary(EVT VT1, EVT VT2);
 
   /// FoldConstantArithmetic -
-  SDValue FoldConstantArithmetic(unsigned Opcode,
-                                 EVT VT,
-                                 ConstantSDNode *Cst1,
-                                 ConstantSDNode *Cst2);
+  SDValue FoldConstantArithmetic(unsigned Opcode, EVT VT,
+                                 SDNode *Cst1, SDNode *Cst2);
 
   /// FoldSetCC - Constant fold a setcc to true or false.
   SDValue FoldSetCC(EVT VT, SDValue N1,

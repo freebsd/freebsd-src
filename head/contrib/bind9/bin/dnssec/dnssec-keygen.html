@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007-2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2010, 2012 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-keygen</code>  [<code class="option">-a <em class="replaceable"><code>algorithm</code></em></code>] [<code class="option">-b <em class="replaceable"><code>keysize</code></em></code>] [<code class="option">-n <em class="replaceable"><code>nametype</code></em></code>] [<code class="option">-3</code>] [<code class="option">-A <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-C</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] [<code class="option">-e</code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-G</code>] [<code class="option">-g <em class="replaceable"><code>generator</code></em></code>] [<code class="option">-h</code>] [<code class="option">-I <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-i <em class="replaceable"><code>interval</code></em></code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-k</code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-q</code>] [<code class="option">-R <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-S <em class="replaceable"><code>key</code></em></code>] [<code class="option">-s <em class="replaceable"><code>strength</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-z</code>] {name}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543579"></a><h2>DESCRIPTION</h2>
+<a name="id2543582"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-keygen</strong></span>
       generates keys for DNSSEC (Secure DNS), as defined in RFC 2535
       and RFC 4034.  It can also generate keys for use with
@@ -46,14 +46,15 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543597"></a><h2>OPTIONS</h2>
+<a name="id2543601"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd>
 <p>
             Selects the cryptographic algorithm.  For DNSSEC keys, the value
             of <code class="option">algorithm</code> must be one of RSAMD5, RSASHA1,
-	    DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256, RSASHA512 or ECCGOST.
+	    DSA, NSEC3RSASHA1, NSEC3DSA, RSASHA256, RSASHA512, ECCGOST,
+	    ECDSAP256SHA256 or ECDSAP384SHA384.
 	    For TSIG/TKEY, the value must
             be DH (Diffie Hellman), HMAC-MD5, HMAC-SHA1, HMAC-SHA224,
             HMAC-SHA256, HMAC-SHA384, or HMAC-SHA512.  These values are
@@ -84,7 +85,8 @@
             between 512 and 2048 bits.  Diffie Hellman keys must be between
             128 and 4096 bits.  DSA keys must be between 512 and 1024
             bits and an exact multiple of 64.  HMAC keys must be
-            between 1 and 512 bits.
+            between 1 and 512 bits. Elliptic curve algorithms don't need
+            this parameter.
           </p>
 <p>
             The key size does not need to be specified if using a default
@@ -111,7 +113,8 @@
 	    Use an NSEC3-capable algorithm to generate a DNSSEC key.
             If this option is used and no algorithm is explicitly
             set on the command line, NSEC3RSASHA1 will be used by
-            default. Note that RSASHA256, RSASHA512 and ECCGOST algorithms
+            default. Note that RSASHA256, RSASHA512, ECCGOST,
+	    ECDSAP256SHA256 and ECDSAP384SHA384 algorithms
 	    are NSEC3-capable.
           </p></dd>
 <dt><span class="term">-C</span></dt>
@@ -248,7 +251,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544166"></a><h2>TIMING OPTIONS</h2>
+<a name="id2544169"></a><h2>TIMING OPTIONS</h2>
 <p>
       Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
       If the argument begins with a '+' or '-', it is interpreted as
@@ -319,7 +322,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544356"></a><h2>GENERATED KEYS</h2>
+<a name="id2544359"></a><h2>GENERATED KEYS</h2>
 <p>
       When <span><strong class="command">dnssec-keygen</strong></span> completes
       successfully,
@@ -365,7 +368,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544506"></a><h2>EXAMPLE</h2>
+<a name="id2544441"></a><h2>EXAMPLE</h2>
 <p>
       To generate a 768-bit DSA key for the domain
       <strong class="userinput"><code>example.com</code></strong>, the following command would be
@@ -386,7 +389,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544550"></a><h2>SEE ALSO</h2>
+<a name="id2544485"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 2539</em>,
@@ -395,7 +398,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544581"></a><h2>AUTHOR</h2>
+<a name="id2544584"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

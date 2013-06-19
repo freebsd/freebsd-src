@@ -85,6 +85,7 @@ struct source {
 
 void			 init_bmachine(bool);
 void			 reset_bmachine(struct source *);
+u_int			 bmachine_scale(void);
 void			 scale_number(BIGNUM *, int);
 void			 normalize(struct number *, u_int);
 void			 eval(void);
@@ -93,6 +94,4 @@ void			 pbn(const char *, const BIGNUM *);
 void			 negate(struct number *);
 void			 split_number(const struct number *, BIGNUM *, BIGNUM *);
 void			 bmul_number(struct number *, struct number *,
-			    struct number *);
-
-extern BIGNUM		 zero;
+			    struct number *, u_int);

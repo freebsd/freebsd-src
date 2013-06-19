@@ -173,7 +173,7 @@ ar5416BTCoexSetupBmissThresh(struct ath_hal *ah, u_int32_t thresh)
  *
  * Kite will override this particular method.
  */
-static void
+void
 ar5416BTCoexAntennaDiversity(struct ath_hal *ah)
 {
 }
@@ -269,14 +269,14 @@ ar5416BTCoexEnable(struct ath_hal *ah)
 	}
 	OS_REG_WRITE(ah, AR_BT_COEX_MODE2, ahp->ah_btCoexMode2);
 
-#if 0
-    /* Added Select GPIO5~8 instaed SPI */
-    if (AR_SREV_9271(ah)) {
-        val = OS_REG_READ(ah, AR9271_CLOCK_CONTROL);
-        val &= 0xFFFFFEFF;
-        OS_REG_WRITE(ah, AR9271_CLOCK_CONTROL, val);
-    }
-#endif
+	/* Added Select GPIO5~8 instaed SPI */
+	if (AR_SREV_9271(ah)) {
+		uint32_t val;
+
+		val = OS_REG_READ(ah, AR9271_CLOCK_CONTROL);
+		val &= 0xFFFFFEFF;
+		OS_REG_WRITE(ah, AR9271_CLOCK_CONTROL, val);
+	}
 
 	if (ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_LOW_ACK_PWR)
 		OS_REG_WRITE(ah, AR_TPC, HAL_BT_COEX_LOW_ACK_POWER);
@@ -328,6 +328,11 @@ ar5416InitBTCoex(struct ath_hal *ah)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 
+	HALDEBUG(ah, HAL_DEBUG_BT_COEX,
+	    "%s: called; configType=%d\n",
+	    __func__,
+	    ahp->ah_btCoexConfigType);
+
 	if (ahp->ah_btCoexConfigType == HAL_BT_COEX_CFG_3WIRE) {
 		OS_REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
 		    (AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB |
@@ -350,8 +355,12 @@ ar5416InitBTCoex(struct ath_hal *ah)
 		ar5416GpioCfgInput(ah, ahp->ah_btActiveGpioSelect);
 		ar5416GpioCfgInput(ah, ahp->ah_btPriorityGpioSelect);
 
-		if (AR_SREV_KITE(ah))
-			ar5416BTCoexAntennaDiversity(ah);
+		/*
+		 * Configure the antenna diversity setup.
+		 * It's a no-op for AR9287; AR9285 overrides this
+		 * as required.
+		 */
+		AH5416(ah)->ah_btCoexSetDiversity(ah);
 
 		if (ahp->ah_btCoexEnabled)
 			ar5416BTCoexEnable(ah);

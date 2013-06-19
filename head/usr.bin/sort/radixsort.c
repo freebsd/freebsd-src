@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Oleg Moskalenko <oleg.moskalenko@citrix.com>
+ * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * Copyright (C) 2012 Gabor Kovesdan <gabor@FreeBSD.org>
  * All rights reserved.
  *
@@ -203,7 +203,7 @@ pop_ls_mt(void)
 }
 
 static void
-add_to_sublevel(struct sort_level *sl, struct sort_list_item *item, int indx)
+add_to_sublevel(struct sort_level *sl, struct sort_list_item *item, size_t indx)
 {
 	struct sort_level *ssl;
 

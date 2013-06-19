@@ -421,17 +421,19 @@ fdt_regsize(phandle_t node, u_long *base, u_long *size)
 int
 fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 {
-	u_long start, end, count;
+	u_long end, count, start;
 	pcell_t *reg, *regptr;
 	pcell_t addr_cells, size_cells;
 	int tuple_size, tuples;
 	int i, rv;
-	bus_space_handle_t vaddr;
 	long busaddr, bussize;
 
 	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
 		return (ENXIO);
-	fdt_get_range(OF_parent(node), 0, &busaddr, &bussize);
+	if (fdt_get_range(OF_parent(node), 0, &busaddr, &bussize)) {
+		busaddr = 0;
+		bussize = 0;
+	}
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
 	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
@@ -454,14 +456,12 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 
 		/* Calculate address range relative to base. */
 		start += busaddr;
-		if (bus_space_map(fdtbus_bs_tag, start, count, 0, &vaddr) != 0)
-			panic("Couldn't map the device memory");
-		end = vaddr + count - 1;
+		end = start + count - 1;
 
-		debugf("reg addr start = %lx, end = %lx, count = %lx\n", vaddr,
+		debugf("reg addr start = %lx, end = %lx, count = %lx\n", start,
 		    end, count);
 
-		resource_list_add(rl, SYS_RES_MEMORY, i, vaddr, end,
+		resource_list_add(rl, SYS_RES_MEMORY, i, start, end,
 		    count);
 	}
 	rv = 0;
@@ -631,6 +631,66 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 }
 
 int
+fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
+{
+	pcell_t reserve[FDT_REG_CELLS * FDT_MEM_REGIONS];
+	pcell_t *reservep;
+	phandle_t memory, root;
+	uint32_t memory_size;
+	int addr_cells, size_cells;
+	int i, max_size, res_len, rv, tuple_size, tuples;
+
+	max_size = sizeof(reserve);
+	root = OF_finddevice("/");
+	memory = OF_finddevice("/memory");
+	if (memory == -1) {
+		rv = ENXIO;
+		goto out;
+	}
+
+	if ((rv = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
+	    &size_cells)) != 0)
+		goto out;
+
+	if (addr_cells > 2) {
+		rv = ERANGE;
+		goto out;
+	}
+
+	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
+
+	res_len = OF_getproplen(root, "memreserve");
+	if (res_len <= 0 || res_len > sizeof(reserve)) {
+		rv = ERANGE;
+		goto out;
+	}
+
+	if (OF_getprop(root, "memreserve", reserve, res_len) <= 0) {
+		rv = ENXIO;
+		goto out;
+	}
+
+	memory_size = 0;
+	tuples = res_len / tuple_size;
+	reservep = (pcell_t *)&reserve;
+	for (i = 0; i < tuples; i++) {
+
+		rv = fdt_data_to_res(reservep, addr_cells, size_cells,
+			(u_long *)&mr[i].mr_start, (u_long *)&mr[i].mr_size);
+
+		if (rv != 0)
+			goto out;
+
+		reservep += addr_cells + size_cells;
+	}
+
+	*mrcnt = i;
+	rv = 0;
+out:
+	return (rv);
+}
+
+int
 fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
 {
 	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
@@ -693,4 +753,15 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
 	rv = 0;
 out:
 	return (rv);
+}
+
+int
+fdt_get_unit(device_t dev)
+{
+	const char * name;
+
+	name = ofw_bus_get_name(dev);
+	name = strchr(name, '@') + 1;
+
+	return (strtol(name,NULL,0));
 }

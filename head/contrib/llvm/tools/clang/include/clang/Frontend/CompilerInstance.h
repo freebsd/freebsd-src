@@ -10,14 +10,15 @@
 #ifndef LLVM_CLANG_FRONTEND_COMPILERINSTANCE_H_
 #define LLVM_CLANG_FRONTEND_COMPILERINSTANCE_H_
 
-#include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/StringRef.h"
 #include <cassert>
 #include <list>
 #include <string>
@@ -93,7 +94,7 @@ class CompilerInstance : public ModuleLoader {
 
   /// \brief The semantic analysis object.
   OwningPtr<Sema> TheSema;
-  
+
   /// \brief The frontend timer
   OwningPtr<llvm::Timer> FrontendTimer;
 
@@ -110,8 +111,15 @@ class CompilerInstance : public ModuleLoader {
   
   /// \brief The result of the last module import.
   ///
-  Module *LastModuleImportResult;
-  
+  ModuleLoadResult LastModuleImportResult;
+
+  /// \brief Whether we should (re)build the global module index once we
+  /// have finished with this translation unit.
+  bool BuildGlobalModuleIndex;
+
+  /// \brief One or more modules failed to build.
+  bool ModuleBuildFailed;
+
   /// \brief Holds information about the output file.
   ///
   /// If TempFilename is not empty we must rename it to Filename at the end.
@@ -130,8 +138,8 @@ class CompilerInstance : public ModuleLoader {
   /// The list of active output files.
   std::list<OutputFile> OutputFiles;
 
-  void operator=(const CompilerInstance &);  // DO NOT IMPLEMENT
-  CompilerInstance(const CompilerInstance&); // DO NOT IMPLEMENT
+  CompilerInstance(const CompilerInstance &) LLVM_DELETED_FUNCTION;
+  void operator=(const CompilerInstance &) LLVM_DELETED_FUNCTION;
 public:
   CompilerInstance();
   ~CompilerInstance();
@@ -185,14 +193,20 @@ public:
   /// setInvocation - Replace the current invocation.
   void setInvocation(CompilerInvocation *Value);
 
+  /// \brief Indicates whether we should (re)build the global module index.
+  bool shouldBuildGlobalModuleIndex() const;
+  
+  /// \brief Set the flag indicating whether we should (re)build the global
+  /// module index.
+  void setBuildGlobalModuleIndex(bool Build) {
+    BuildGlobalModuleIndex = Build;
+  }
+
   /// }
   /// @name Forwarding Methods
   /// {
 
-  AnalyzerOptions &getAnalyzerOpts() {
-    return Invocation->getAnalyzerOpts();
-  }
-  const AnalyzerOptions &getAnalyzerOpts() const {
+  AnalyzerOptionsRef getAnalyzerOpts() {
     return Invocation->getAnalyzerOpts();
   }
 
@@ -393,7 +407,7 @@ public:
   ASTConsumer *takeASTConsumer() { return Consumer.take(); }
 
   /// setASTConsumer - Replace the current AST consumer; the compiler instance
-  /// takes ownership of \arg Value.
+  /// takes ownership of \p Value.
   void setASTConsumer(ASTConsumer *Value);
 
   /// }
@@ -413,6 +427,7 @@ public:
   /// {
 
   ASTReader *getModuleManager() const { return ModuleManager; }
+  void setModuleManager(ASTReader *Reader) { ModuleManager = Reader; }
 
   /// }
   /// @name Code Completion
@@ -433,7 +448,7 @@ public:
   }
 
   /// setCodeCompletionConsumer - Replace the current code completion consumer;
-  /// the compiler instance takes ownership of \arg Value.
+  /// the compiler instance takes ownership of \p Value.
   void setCodeCompletionConsumer(CodeCompleteConsumer *Value);
 
   /// }
@@ -478,19 +493,10 @@ public:
   ///
   /// \param ShouldOwnClient If Client is non-NULL, specifies whether 
   /// the diagnostic object should take ownership of the client.
-  ///
-  /// \param ShouldCloneClient If Client is non-NULL, specifies whether that
-  /// client should be cloned.
-  void createDiagnostics(int Argc, const char* const *Argv,
-                         DiagnosticConsumer *Client = 0,
-                         bool ShouldOwnClient = true,
-                         bool ShouldCloneClient = true);
+  void createDiagnostics(DiagnosticConsumer *Client = 0,
+                         bool ShouldOwnClient = true);
 
   /// Create a DiagnosticsEngine object with a the TextDiagnosticPrinter.
-  ///
-  /// The \arg Argc and \arg Argv arguments are used only for logging purposes,
-  /// when the diagnostic options indicate that the compiler should output
-  /// logging information.
   ///
   /// If no diagnostic client is provided, this creates a
   /// DiagnosticConsumer that is owned by the returned diagnostic
@@ -498,8 +504,7 @@ public:
   /// releasing the returned DiagnosticsEngine's client eventually.
   ///
   /// \param Opts - The diagnostic options; note that the created text
-  /// diagnostic object contains a reference to these options and its lifetime
-  /// must extend past that of the diagnostic engine.
+  /// diagnostic object contains a reference to these options.
   ///
   /// \param Client If non-NULL, a diagnostic client that will be
   /// attached to (and, then, owned by) the returned DiagnosticsEngine
@@ -510,11 +515,9 @@ public:
   ///
   /// \return The new object on success, or null on failure.
   static IntrusiveRefCntPtr<DiagnosticsEngine>
-  createDiagnostics(const DiagnosticOptions &Opts, int Argc,
-                    const char* const *Argv,
+  createDiagnostics(DiagnosticOptions *Opts,
                     DiagnosticConsumer *Client = 0,
                     bool ShouldOwnClient = true,
-                    bool ShouldCloneClient = true,
                     const CodeGenOptions *CodeGenOpts = 0);
 
   /// Create the file manager and replace any existing one with it.
@@ -534,7 +537,6 @@ public:
   /// context.
   void createPCHExternalASTSource(StringRef Path,
                                   bool DisablePCHValidation,
-                                  bool DisableStatCache,
                                   bool AllowPCHWithCompilerErrors,
                                   void *DeserializationListener);
 
@@ -544,10 +546,10 @@ public:
   static ExternalASTSource *
   createPCHExternalASTSource(StringRef Path, const std::string &Sysroot,
                              bool DisablePCHValidation,
-                             bool DisableStatCache,
                              bool AllowPCHWithCompilerErrors,
                              Preprocessor &PP, ASTContext &Context,
-                             void *DeserializationListener, bool Preamble);
+                             void *DeserializationListener, bool Preamble,
+                             bool UseGlobalModuleIndex);
 
   /// Create a code completion consumer using the invocation; note that this
   /// will cause the source manager to truncate the input source file at the
@@ -555,8 +557,7 @@ public:
   void createCodeCompletionConsumer();
 
   /// Create a code completion consumer to print code completion results, at
-  /// \arg Filename, \arg Line, and \arg Column, to the given output stream \arg
-  /// OS.
+  /// \p Filename, \p Line, and \p Column, to the given output stream \p OS.
   static CodeCompleteConsumer *
   createCodeCompletionConsumer(Preprocessor &PP, const std::string &Filename,
                                unsigned Line, unsigned Column,
@@ -596,15 +597,15 @@ public:
 
   /// Create a new output file, optionally deriving the output path name.
   ///
-  /// If \arg OutputPath is empty, then createOutputFile will derive an output
-  /// path location as \arg BaseInput, with any suffix removed, and \arg
-  /// Extension appended. If OutputPath is not stdout and \arg UseTemporary
+  /// If \p OutputPath is empty, then createOutputFile will derive an output
+  /// path location as \p BaseInput, with any suffix removed, and \p Extension
+  /// appended. If \p OutputPath is not stdout and \p UseTemporary
   /// is true, createOutputFile will create a new temporary file that must be
-  /// renamed to OutputPath in the end.
+  /// renamed to \p OutputPath in the end.
   ///
   /// \param OutputPath - If given, the path to the output file.
   /// \param Error [out] - On failure, the error message.
-  /// \param BaseInput - If \arg OutputPath is empty, the input path name to use
+  /// \param BaseInput - If \p OutputPath is empty, the input path name to use
   /// for deriving the output path.
   /// \param Extension - The extension to use for derived output names.
   /// \param Binary - The mode to open the file in.
@@ -613,7 +614,7 @@ public:
   /// multithreaded use, as the underlying signal mechanism is not reentrant
   /// \param UseTemporary - Create a new temporary file that must be renamed to
   /// OutputPath in the end.
-  /// \param CreateMissingDirectories - When \arg UseTemporary is true, create
+  /// \param CreateMissingDirectories - When \p UseTemporary is true, create
   /// missing directories in the output path.
   /// \param ResultPathName [out] - If given, the result path name will be
   /// stored here on success.
@@ -637,15 +638,13 @@ public:
   /// as the main file.
   ///
   /// \return True on success.
-  bool InitializeSourceManager(StringRef InputFile,
-         SrcMgr::CharacteristicKind Kind = SrcMgr::C_User);
+  bool InitializeSourceManager(const FrontendInputFile &Input);
 
   /// InitializeSourceManager - Initialize the source manager to set InputFile
   /// as the main file.
   ///
   /// \return True on success.
-  static bool InitializeSourceManager(StringRef InputFile,
-                SrcMgr::CharacteristicKind Kind,
+  static bool InitializeSourceManager(const FrontendInputFile &Input,
                 DiagnosticsEngine &Diags,
                 FileManager &FileMgr,
                 SourceManager &SourceMgr,
@@ -653,9 +652,16 @@ public:
 
   /// }
   
-  virtual Module *loadModule(SourceLocation ImportLoc, ModuleIdPath Path,
-                             Module::NameVisibilityKind Visibility,
-                             bool IsInclusionDirective);
+  virtual ModuleLoadResult loadModule(SourceLocation ImportLoc,
+                                      ModuleIdPath Path,
+                                      Module::NameVisibilityKind Visibility,
+                                      bool IsInclusionDirective);
+
+  virtual void makeModuleVisible(Module *Mod,
+                                 Module::NameVisibilityKind Visibility,
+                                 SourceLocation ImportLoc,
+                                 bool Complain);
+
 };
 
 } // end namespace clang

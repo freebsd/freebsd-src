@@ -894,7 +894,7 @@ mvs_legacy_intr(device_t dev, int poll)
 		    if (ccb->ataio.dxfer_len > ch->donecount) {
 			/* Set this transfer size according to HW capabilities */
 			ch->transfersize = min(ccb->ataio.dxfer_len - ch->donecount,
-			    ch->curr[ccb->ccb_h.target_id].bytecount);
+			    ch->transfersize);
 			/* If data write command - put them */
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
 				if (mvs_wait(dev, ATA_S_DRQ, ATA_S_BUSY, 1000) < 0) {
@@ -1260,19 +1260,9 @@ mvs_begin_transaction(device_t dev, union ccb *ccb)
 		mvs_set_edma_mode(dev, MVS_EDMA_OFF);
 	}
 	if (ch->numpslots == 0 || ch->basic_dma) {
-		void *buf;
-		bus_size_t size;
-
 		slot->state = MVS_SLOT_LOADING;
-		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-			buf = ccb->ataio.data_ptr;
-			size = ccb->ataio.dxfer_len;
-		} else {
-			buf = ccb->csio.data_ptr;
-			size = ccb->csio.dxfer_len;
-		}
-		bus_dmamap_load(ch->dma.data_tag, slot->dma.data_map,
-		    buf, size, mvs_dmasetprd, slot, 0);
+		bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map,
+		    ccb, mvs_dmasetprd, slot, 0);
 	} else
 		mvs_legacy_execute_transaction(slot);
 }
@@ -1344,8 +1334,14 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 			return;
 		}
 		ch->donecount = 0;
-		ch->transfersize = min(ccb->ataio.dxfer_len,
-		    ch->curr[port].bytecount);
+		if (ccb->ataio.cmd.command == ATA_READ_MUL ||
+		    ccb->ataio.cmd.command == ATA_READ_MUL48 ||
+		    ccb->ataio.cmd.command == ATA_WRITE_MUL ||
+		    ccb->ataio.cmd.command == ATA_WRITE_MUL48) {
+			ch->transfersize = min(ccb->ataio.dxfer_len,
+			    ch->curr[port].bytecount);
+		} else
+			ch->transfersize = min(ccb->ataio.dxfer_len, 512);
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 			ch->fake_busy = 1;
 		/* If data write command - output the data */

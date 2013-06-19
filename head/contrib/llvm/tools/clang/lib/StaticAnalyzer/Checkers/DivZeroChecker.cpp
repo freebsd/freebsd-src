@@ -13,10 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 
 using namespace clang;
 using namespace ento;
@@ -39,13 +39,9 @@ void DivZeroChecker::reportBug(const char *Msg,
     if (!BT)
       BT.reset(new BuiltinBug("Division by zero"));
 
-    BugReport *R =
-      new BugReport(*BT, Msg, N);
-
-    bugreporter::addTrackNullOrUndefValueVisitor(N,
-                                                 bugreporter::GetDenomExpr(N),
-                                                 R);
-    C.EmitReport(R);
+    BugReport *R = new BugReport(*BT, Msg, N);
+    bugreporter::trackNullOrUndefValue(N, bugreporter::GetDenomExpr(N), *R);
+    C.emitReport(R);
   }
 }
 
@@ -62,7 +58,7 @@ void DivZeroChecker::checkPreStmt(const BinaryOperator *B,
     return;
 
   SVal Denom = C.getState()->getSVal(B->getRHS(), C.getLocationContext());
-  const DefinedSVal *DV = dyn_cast<DefinedSVal>(&Denom);
+  Optional<DefinedSVal> DV = Denom.getAs<DefinedSVal>();
 
   // Divide-by-undefined handled in the generic checking for uses of
   // undefined values.

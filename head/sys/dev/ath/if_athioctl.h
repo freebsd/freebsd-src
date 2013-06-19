@@ -162,8 +162,11 @@ struct ath_stats {
 	u_int32_t	ast_tx_aggr_fail;	/* aggregate TX failed */
 	u_int32_t	ast_tx_mcastq_overflow;	/* multicast queue overflow */
 	u_int32_t	ast_rx_keymiss;
-
-	u_int32_t	ast_pad[16];
+	u_int32_t	ast_tx_swfiltered;
+	u_int32_t	ast_tx_node_psq_overflow;
+	u_int32_t	ast_rx_stbc;		/* RX STBC frame */
+	u_int32_t	ast_tx_nodeq_overflow;	/* node sw queue overflow */
+	u_int32_t	ast_pad[12];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
@@ -272,6 +275,12 @@ struct ath_rateioctl {
 #define	ATH_RADIOTAP_MAX_CHAINS		4
 
 /*
+ * AR9380 and later chips are 3x3, which requires
+ * 5 EVM DWORDs in HT40 mode.
+ */
+#define	ATH_RADIOTAP_MAX_EVM		5
+
+/*
  * The vendor radiotap header data needs to be:
  *
  * + Aligned to a 4 byte address
@@ -290,7 +299,7 @@ struct ath_radiotap_vendor_hdr {		/* 30 bytes */
 	uint8_t		vh_rx_chainmask;	/* 1 */
 
 	/* At this point it should be 4 byte aligned */
-	uint32_t	evm[ATH_RADIOTAP_MAX_CHAINS];	/* 4 * 4 = 16 */
+	uint32_t	evm[ATH_RADIOTAP_MAX_EVM];	/* 5 * 4 = 20 */
 
 	uint8_t		rssi_ctl[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
 	uint8_t		rssi_ext[ATH_RADIOTAP_MAX_CHAINS];	/* 4 */
@@ -298,7 +307,16 @@ struct ath_radiotap_vendor_hdr {		/* 30 bytes */
 	uint8_t		vh_phyerr_code;	/* Phy error code, or 0xff */
 	uint8_t		vh_rs_status;	/* RX status */
 	uint8_t		vh_rssi;	/* Raw RSSI */
-	uint8_t		vh_pad1[1];	/* Pad to 4 byte boundary */
+	uint8_t		vh_flags;	/* General flags */
+#define	ATH_VENDOR_PKT_RX	0x01
+#define	ATH_VENDOR_PKT_TX	0x02
+#define	ATH_VENDOR_PKT_RXPHYERR	0x04
+#define	ATH_VENDOR_PKT_ISAGGR	0x08
+#define	ATH_VENDOR_PKT_MOREAGGR	0x10
+
+	uint8_t		vh_rx_hwrate;	/* hardware RX ratecode */
+	uint8_t		vh_rs_flags;	/* RX HAL flags */
+	uint8_t		vh_pad[2];	/* pad to DWORD boundary */
 } __packed;
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 
@@ -404,5 +422,29 @@ struct ath_tx_radiotap_header {
 /* FreeBSD-specific start at 32 */
 #define	DFS_PARAM_ENABLE	32
 #define	DFS_PARAM_EN_EXTCH	33
+
+/*
+ * Spectral ioctl parameter types
+ */
+#define	SPECTRAL_PARAM_FFT_PERIOD	1
+#define	SPECTRAL_PARAM_SS_PERIOD	2
+#define	SPECTRAL_PARAM_SS_COUNT		3
+#define	SPECTRAL_PARAM_SS_SHORT_RPT	4
+#define	SPECTRAL_PARAM_ENABLED		5
+#define	SPECTRAL_PARAM_ACTIVE		6
+
+/*
+ * Spectral control parameters
+ */
+#define	SIOCGATHSPECTRAL	_IOWR('i', 151, struct ath_diag)
+
+#define	SPECTRAL_CONTROL_ENABLE		2
+#define	SPECTRAL_CONTROL_DISABLE	3
+#define	SPECTRAL_CONTROL_START		4
+#define	SPECTRAL_CONTROL_STOP		5
+#define	SPECTRAL_CONTROL_GET_PARAMS	6
+#define	SPECTRAL_CONTROL_SET_PARAMS	7
+#define	SPECTRAL_CONTROL_ENABLE_AT_RESET	8
+#define	SPECTRAL_CONTROL_DISABLE_AT_RESET	9
 
 #endif /* _DEV_ATH_ATHIOCTL_H */

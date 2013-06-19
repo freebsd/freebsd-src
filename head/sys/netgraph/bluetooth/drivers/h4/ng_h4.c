@@ -525,7 +525,7 @@ ng_h4_input(int c, struct tty *tp)
 		if (sc->hook != NULL && NG_HOOK_IS_VALID(sc->hook)) {
 			struct mbuf	*m = NULL;
 
-			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m != NULL) {
 				m->m_pkthdr.len = 0;
 

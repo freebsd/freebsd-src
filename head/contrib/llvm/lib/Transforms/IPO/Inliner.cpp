@@ -14,21 +14,22 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "inline"
-#include "llvm/Module.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/Transforms/IPO/InlinerPass.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/InlineCost.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Transforms/IPO/InlinerPass.h"
-#include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 STATISTIC(NumInlined, "Number of functions inlined");
@@ -63,13 +64,47 @@ Inliner::Inliner(char &ID, int Threshold, bool InsertLifetime)
 /// getAnalysisUsage - For this class, we declare that we require and preserve
 /// the call graph.  If the derived class implements this method, it should
 /// always explicitly call the implementation here.
-void Inliner::getAnalysisUsage(AnalysisUsage &Info) const {
-  CallGraphSCCPass::getAnalysisUsage(Info);
+void Inliner::getAnalysisUsage(AnalysisUsage &AU) const {
+  CallGraphSCCPass::getAnalysisUsage(AU);
 }
 
 
 typedef DenseMap<ArrayType*, std::vector<AllocaInst*> >
 InlinedArrayAllocasTy;
+
+/// \brief If the inlined function had a higher stack protection level than the
+/// calling function, then bump up the caller's stack protection level.
+static void AdjustCallerSSPLevel(Function *Caller, Function *Callee) {
+  // If upgrading the SSP attribute, clear out the old SSP Attributes first.
+  // Having multiple SSP attributes doesn't actually hurt, but it adds useless
+  // clutter to the IR.
+  AttrBuilder B;
+  B.addAttribute(Attribute::StackProtect)
+    .addAttribute(Attribute::StackProtectStrong);
+  AttributeSet OldSSPAttr = AttributeSet::get(Caller->getContext(),
+                                              AttributeSet::FunctionIndex,
+                                              B);
+  AttributeSet CallerAttr = Caller->getAttributes(),
+               CalleeAttr = Callee->getAttributes();
+
+  if (CalleeAttr.hasAttribute(AttributeSet::FunctionIndex,
+                              Attribute::StackProtectReq)) {
+    Caller->removeAttributes(AttributeSet::FunctionIndex, OldSSPAttr);
+    Caller->addFnAttr(Attribute::StackProtectReq);
+  } else if (CalleeAttr.hasAttribute(AttributeSet::FunctionIndex,
+                                     Attribute::StackProtectStrong) &&
+             !CallerAttr.hasAttribute(AttributeSet::FunctionIndex,
+                                      Attribute::StackProtectReq)) {
+    Caller->removeAttributes(AttributeSet::FunctionIndex, OldSSPAttr);
+    Caller->addFnAttr(Attribute::StackProtectStrong);
+  } else if (CalleeAttr.hasAttribute(AttributeSet::FunctionIndex,
+                                     Attribute::StackProtect) &&
+           !CallerAttr.hasAttribute(AttributeSet::FunctionIndex,
+                                    Attribute::StackProtectReq) &&
+           !CallerAttr.hasAttribute(AttributeSet::FunctionIndex,
+                                    Attribute::StackProtectStrong))
+    Caller->addFnAttr(Attribute::StackProtect);
+}
 
 /// InlineCallIfPossible - If it is possible to inline the specified call site,
 /// do so and update the CallGraph for this operation.
@@ -90,13 +125,7 @@ static bool InlineCallIfPossible(CallSite CS, InlineFunctionInfo &IFI,
   if (!InlineFunction(CS, IFI, InsertLifetime))
     return false;
 
-  // If the inlined function had a higher stack protection level than the
-  // calling function, then bump up the caller's stack protection level.
-  if (Callee->hasFnAttr(Attribute::StackProtectReq))
-    Caller->addFnAttr(Attribute::StackProtectReq);
-  else if (Callee->hasFnAttr(Attribute::StackProtect) &&
-           !Caller->hasFnAttr(Attribute::StackProtectReq))
-    Caller->addFnAttr(Attribute::StackProtect);
+  AdjustCallerSSPLevel(Caller, Callee);
 
   // Look at all of the allocas that we inlined through this call site.  If we
   // have already inlined other allocas through other calls into this function,
@@ -208,15 +237,21 @@ unsigned Inliner::getInlineThreshold(CallSite CS) const {
   // would decrease the threshold.
   Function *Caller = CS.getCaller();
   bool OptSize = Caller && !Caller->isDeclaration() &&
-    Caller->hasFnAttr(Attribute::OptimizeForSize);
-  if (!(InlineLimit.getNumOccurrences() > 0) && OptSize && OptSizeThreshold < thres)
+    Caller->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                         Attribute::OptimizeForSize);
+  if (!(InlineLimit.getNumOccurrences() > 0) && OptSize &&
+      OptSizeThreshold < thres)
     thres = OptSizeThreshold;
 
-  // Listen to the inlinehint attribute when it would increase the threshold.
+  // Listen to the inlinehint attribute when it would increase the threshold
+  // and the caller does not need to minimize its size.
   Function *Callee = CS.getCalledFunction();
   bool InlineHint = Callee && !Callee->isDeclaration() &&
-    Callee->hasFnAttr(Attribute::InlineHint);
-  if (InlineHint && HintThreshold > thres)
+    Callee->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                         Attribute::InlineHint);
+  if (InlineHint && HintThreshold > thres
+      && !Caller->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                               Attribute::MinSize))
     thres = HintThreshold;
 
   return thres;
@@ -338,7 +373,8 @@ static bool InlineHistoryIncludes(Function *F, int InlineHistoryID,
 
 bool Inliner::runOnSCC(CallGraphSCC &SCC) {
   CallGraph &CG = getAnalysis<CallGraph>();
-  const TargetData *TD = getAnalysisIfAvailable<TargetData>();
+  const DataLayout *TD = getAnalysisIfAvailable<DataLayout>();
+  const TargetLibraryInfo *TLI = getAnalysisIfAvailable<TargetLibraryInfo>();
 
   SmallPtrSet<Function*, 8> SCCFunctions;
   DEBUG(dbgs() << "Inliner visiting SCC:");
@@ -417,7 +453,7 @@ bool Inliner::runOnSCC(CallGraphSCC &SCC) {
       // just delete the call instead of trying to inline it, regardless of
       // size.  This happens because IPSCCP propagates the result out of the
       // call and then we're left with the dead call.
-      if (isInstructionTriviallyDead(CS.getInstruction())) {
+      if (isInstructionTriviallyDead(CS.getInstruction(), TLI)) {
         DEBUG(dbgs() << "    -> Deleting dead call: "
                      << *CS.getInstruction() << "\n");
         // Update the call graph by deleting the edge from Callee to Caller.
@@ -530,7 +566,9 @@ bool Inliner::removeDeadFunctions(CallGraph &CG, bool AlwaysInlineOnly) {
     // Handle the case when this function is called and we only want to care
     // about always-inline functions. This is a bit of a hack to share code
     // between here and the InlineAlways pass.
-    if (AlwaysInlineOnly && !F->hasFnAttr(Attribute::AlwaysInline))
+    if (AlwaysInlineOnly &&
+        !F->getAttributes().hasAttribute(AttributeSet::FunctionIndex,
+                                         Attribute::AlwaysInline))
       continue;
 
     // If the only remaining users of the function are dead constants, remove

@@ -22,14 +22,14 @@
         ..
         engines
         ..
-	i18n
-	..
+        i18n
+        ..
     ..
     lib32
-	dtrace
-	..
-	i18n
-	..
+        dtrace
+        ..
+        i18n
+        ..
     ..
     libdata
         gcc
@@ -40,8 +40,8 @@
         ..
     ..
     libexec
-	bsdinstall
-	..
+        bsdinstall
+        ..
         lpr
             ru
             ..
@@ -58,6 +58,8 @@
     sbin
     ..
     share
+        atf
+        ..
         calendar
             de_DE.ISO8859-1
             ..
@@ -76,6 +78,8 @@
         ..
         doc
             IPv6
+            ..
+            atf
             ..
             atm
             ..
@@ -144,8 +148,6 @@
                 ..
                 27.nfsrfc
                 ..
-                28.cvs
-                ..
             ..
             smm
                 01.setup
@@ -203,7 +205,7 @@
         dtrace
             toolkit
             ..
-        ..  
+        ..
         examples
             BSD_daemon
             ..
@@ -211,13 +213,13 @@
             ..
             IPv6
             ..
+            atf
+            ..
+            bhyve
+            ..
             bootforth
             ..
             csh
-            ..
-            cvs
-                contrib
-                ..
             ..
             cvsup
             ..
@@ -281,15 +283,11 @@
                 bluetooth
                 ..
             ..
-            nwclient
-            ..
             pc-sysinstall
             ..
             perfmon
             ..
             pf
-            ..
-            portal
             ..
             ppi
             ..
@@ -311,10 +309,6 @@
                 srcs
                 ..
             ..
-            smbfs
-                print
-                ..
-            ..
             sunrpc
                 dir
                 ..
@@ -330,79 +324,79 @@
             fortune
             ..
         ..
+        i18n
+            csmapper
+                APPLE
+                ..
+                AST
+                ..
+                BIG5
+                ..
+                CNS
+                ..
+                CP
+                ..
+                EBCDIC
+                ..
+                GB
+                ..
+                GEORGIAN
+                ..
+                ISO-8859
+                ..
+                ISO646
+                ..
+                JIS
+                ..
+                KAZAKH
+                ..
+                KOI
+                ..
+                KS
+                ..
+                MISC
+                ..
+                TCVN
+                ..
+            ..
+            esdb
+                APPLE
+                ..
+                AST
+                ..
+                BIG5
+                ..
+                CP
+                ..
+                DEC
+                ..
+                EBCDIC
+                ..
+                EUC
+                ..
+                GB
+                ..
+                GEORGIAN
+                ..
+                ISO-2022
+                ..
+                ISO-8859
+                ..
+                ISO646
+                ..
+                KAZAKH
+                ..
+                KOI
+                ..
+                MISC
+                ..
+                TCVN
+                ..
+                UTF
+                ..
+            ..
+        ..
         info
-	..
-	i18n
-	    csmapper
-		APPLE
-		..
-		AST
-		..
-		BIG5
-		..
-		CNS
-		..
-		CP
-		..
-		EBCDIC
-		..
-		GB
-		..
-		GEORGIAN
-		..
-		ISO-8859
-		..
-		ISO646
-		..
-		JIS
-		..
-		KAZAKH
-		..
-		KOI
-		..
-		KS
-		..
-		MISC
-		..
-		TCVN
-		..
-	    ..
-	    esdb
-		APPLE
-		..
-		AST
-		..
-		BIG5
-		..
-		CP
-		..
-		DEC
-		..
-		EBCDIC
-		..
-		EUC
-		..
-		GB
-		..
-		GEORGIAN
-		..
-		ISO-2022
-		..
-		ISO-8859
-		..
-		ISO646
-		..
-		KAZAKH
-		..
-		KOI
-		..
-		MISC
-		..
-		TCVN
-		..
-		UTF
-		..
-	    ..
         ..
         locale
             UTF-8
@@ -429,25 +423,25 @@
             ..
             ca_AD.ISO8859-1
             ..
-            ca_ES.ISO8859-1
-            ..
-            ca_FR.ISO8859-1
-            ..
-            ca_IT.ISO8859-1
-            ..
             ca_AD.ISO8859-15
-            ..
-            ca_ES.ISO8859-15
-            ..
-            ca_FR.ISO8859-15
-            ..
-            ca_IT.ISO8859-15
             ..
             ca_AD.UTF-8
             ..
+            ca_ES.ISO8859-1
+            ..
+            ca_ES.ISO8859-15
+            ..
             ca_ES.UTF-8
             ..
+            ca_FR.ISO8859-1
+            ..
+            ca_FR.ISO8859-15
+            ..
             ca_FR.UTF-8
+            ..
+            ca_IT.ISO8859-1
+            ..
+            ca_IT.ISO8859-15
             ..
             ca_IT.UTF-8
             ..
@@ -758,8 +752,6 @@
 /set uname=man
             cat1
             ..
-            cat1aout
-            ..
             cat2
             ..
             cat3
@@ -796,8 +788,6 @@
             ..
             en.ISO8859-1    uname=root
                 cat1
-                ..
-                cat1aout
                 ..
                 cat2
                 ..
@@ -836,8 +826,6 @@
             ..
             en.UTF-8        uname=root
                 cat1
-                ..
-                cat1aout
                 ..
                 cat2
                 ..
@@ -915,8 +903,6 @@
             ..
             man1
             ..
-            man1aout
-            ..
             man2
             ..
             man3
@@ -951,6 +937,8 @@
             ..
             man9
             ..
+        ..
+        mdocml
         ..
         misc
             fonts
@@ -1330,6 +1318,14 @@
             catalog
             ..
         ..
+        xml
+            atf
+            ..
+        ..
+        xsl
+            atf
+            ..
+        ..
         zoneinfo
             Africa
             ..
@@ -1366,5 +1362,7 @@
         ..
     ..
     src             nochange
+    ..
+    tests
     ..
 ..

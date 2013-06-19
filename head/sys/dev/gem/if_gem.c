@@ -1120,7 +1120,7 @@ gem_load_txmbuf(struct gem_softc *sc, struct mbuf **m_head)
 	cflags = 0;
 	if (((*m_head)->m_pkthdr.csum_flags & sc->sc_csum_features) != 0) {
 		if (M_WRITABLE(*m_head) == 0) {
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			*m_head = m;
 			if (m == NULL)
@@ -1143,7 +1143,7 @@ gem_load_txmbuf(struct gem_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->sc_tdmatag, txs->txs_dmamap,
 	    *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, GEM_NTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, GEM_NTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -1663,7 +1663,7 @@ gem_add_rxbuf(struct gem_softc *sc, int idx)
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;

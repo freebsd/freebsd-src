@@ -217,6 +217,9 @@ isc_result_t dst__gssapi_init(struct dst_func **funcp);
 #ifdef HAVE_OPENSSL_GOST
 isc_result_t dst__opensslgost_init(struct dst_func **funcp);
 #endif
+#ifdef HAVE_OPENSSL_ECDSA
+isc_result_t dst__opensslecdsa_init(struct dst_func **funcp);
+#endif
 
 /*%
  * Destructors

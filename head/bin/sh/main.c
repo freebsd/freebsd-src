@@ -80,7 +80,7 @@ struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
 static void cmdloop(int);
-static void read_profile(char *);
+static void read_profile(const char *);
 static char *find_dot_file(char *);
 
 /*
@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 #endif
 	rootpid = getpid();
 	rootshell = 1;
-	init();
+	initvar();
 	setstackmark(&smark);
 	setstackmark(&smark2);
 	procargs(argc, argv);
@@ -196,7 +196,7 @@ cmdloop(int top)
 	TRACE(("cmdloop(%d) called\n", top));
 	setstackmark(&smark);
 	for (;;) {
-		if (pendingsigs)
+		if (pendingsig)
 			dotrap();
 		inter = 0;
 		if (iflag && top) {
@@ -239,7 +239,7 @@ cmdloop(int top)
  */
 
 static void
-read_profile(char *name)
+read_profile(const char *name)
 {
 	int fd;
 	const char *expandedname;
@@ -248,7 +248,7 @@ read_profile(char *name)
 	if (expandedname == NULL)
 		return;
 	INTOFF;
-	if ((fd = open(expandedname, O_RDONLY)) >= 0)
+	if ((fd = open(expandedname, O_RDONLY | O_CLOEXEC)) >= 0)
 		setinputfd(fd, 1);
 	INTON;
 	if (fd < 0)
@@ -266,14 +266,7 @@ read_profile(char *name)
 void
 readcmdfile(const char *name)
 {
-	int fd;
-
-	INTOFF;
-	if ((fd = open(name, O_RDONLY)) >= 0)
-		setinputfd(fd, 1);
-	else
-		error("cannot open %s: %s", name, strerror(errno));
-	INTON;
+	setinputfile(name, 1);
 	cmdloop(0);
 	popfile();
 }

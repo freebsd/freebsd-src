@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -85,16 +85,19 @@ static const char *nsstats_desc[dns_nsstatscounter_max];
 static const char *resstats_desc[dns_resstatscounter_max];
 static const char *zonestats_desc[dns_zonestatscounter_max];
 static const char *sockstats_desc[isc_sockstatscounter_max];
+static const char *dnssecstats_desc[dns_dnssecstats_max];
 #ifdef HAVE_LIBXML2
 static const char *nsstats_xmldesc[dns_nsstatscounter_max];
 static const char *resstats_xmldesc[dns_resstatscounter_max];
 static const char *zonestats_xmldesc[dns_zonestatscounter_max];
 static const char *sockstats_xmldesc[isc_sockstatscounter_max];
+static const char *dnssecstats_xmldesc[dns_dnssecstats_max];
 #else
 #define nsstats_xmldesc NULL
 #define resstats_xmldesc NULL
 #define zonestats_xmldesc NULL
 #define sockstats_xmldesc NULL
+#define dnssecstats_xmldesc NULL
 #endif	/* HAVE_LIBXML2 */
 
 #define TRY0(a) do { xmlrc = (a); if (xmlrc < 0) goto error; } while(0)
@@ -108,6 +111,7 @@ static int nsstats_index[dns_nsstatscounter_max];
 static int resstats_index[dns_resstatscounter_max];
 static int zonestats_index[dns_zonestatscounter_max];
 static int sockstats_index[isc_sockstatscounter_max];
+static int dnssecstats_index[dns_dnssecstats_max];
 
 static inline void
 set_desc(int counter, int maxcounter, const char *fdesc, const char **fdescs,
@@ -409,6 +413,33 @@ init_desc(void) {
 			 "FDwatchRecvErr");
 	INSIST(i == isc_sockstatscounter_max);
 
+	/* Initialize DNSSEC statistics */
+	for (i = 0; i < dns_dnssecstats_max; i++)
+		dnssecstats_desc[i] = NULL;
+#ifdef  HAVE_LIBXML2
+	for (i = 0; i < dns_dnssecstats_max; i++)
+		dnssecstats_xmldesc[i] = NULL;
+#endif
+
+#define SET_DNSSECSTATDESC(counterid, desc, xmldesc) \
+	do { \
+		set_desc(dns_dnssecstats_ ## counterid, \
+			 dns_dnssecstats_max, \
+			 desc, dnssecstats_desc,\
+			 xmldesc, dnssecstats_xmldesc); \
+		dnssecstats_index[i++] = dns_dnssecstats_ ## counterid; \
+	} while (0)
+
+	i = 0;
+	SET_DNSSECSTATDESC(asis, "dnssec validation success with signer "
+			   "\"as is\"", "DNSSECasis");
+	SET_DNSSECSTATDESC(downcase, "dnssec validation success with signer "
+			   "lower cased", "DNSSECdowncase");
+	SET_DNSSECSTATDESC(wildcard, "dnssec validation of wildcard signature",
+			   "DNSSECwild");
+	SET_DNSSECSTATDESC(fail, "dnssec validation failures", "DNSSECfail");
+	INSIST(i == dns_dnssecstats_max);
+
 	/* Sanity check */
 	for (i = 0; i < dns_nsstatscounter_max; i++)
 		INSIST(nsstats_desc[i] != NULL);
@@ -418,6 +449,8 @@ init_desc(void) {
 		INSIST(zonestats_desc[i] != NULL);
 	for (i = 0; i < isc_sockstatscounter_max; i++)
 		INSIST(sockstats_desc[i] != NULL);
+	for (i = 0; i < dns_dnssecstats_max; i++)
+		INSIST(dnssecstats_desc[i] != NULL);
 #ifdef  HAVE_LIBXML2
 	for (i = 0; i < dns_nsstatscounter_max; i++)
 		INSIST(nsstats_xmldesc[i] != NULL);
@@ -427,6 +460,8 @@ init_desc(void) {
 		INSIST(zonestats_xmldesc[i] != NULL);
 	for (i = 0; i < isc_sockstatscounter_max; i++)
 		INSIST(sockstats_xmldesc[i] != NULL);
+	for (i = 0; i < dns_dnssecstats_max; i++)
+		INSIST(dnssecstats_xmldesc[i] != NULL);
 #endif
 }
 

@@ -13,22 +13,55 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/Analysis/Analyses/LiveVariables.h"
-#include "clang/Analysis/Visitors/CFGRecStmtVisitor.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
-#include "clang/Basic/Diagnostic.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ParentMap.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Analysis/Analyses/LiveVariables.h"
+#include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/SaveAndRestore.h"
 
 using namespace clang;
 using namespace ento;
 
-namespace {
+namespace {  
+  
+/// A simple visitor to record what VarDecls occur in EH-handling code.
+class EHCodeVisitor : public RecursiveASTVisitor<EHCodeVisitor> {
+public:
+  bool inEH;
+  llvm::DenseSet<const VarDecl *> &S;
+  
+  bool TraverseObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
+    SaveAndRestore<bool> inFinally(inEH, true);
+    return ::RecursiveASTVisitor<EHCodeVisitor>::TraverseObjCAtFinallyStmt(S);
+  }
+  
+  bool TraverseObjCAtCatchStmt(ObjCAtCatchStmt *S) {
+    SaveAndRestore<bool> inCatch(inEH, true);
+    return ::RecursiveASTVisitor<EHCodeVisitor>::TraverseObjCAtCatchStmt(S);
+  }
+  
+  bool TraverseCXXCatchStmt(CXXCatchStmt *S) {
+    SaveAndRestore<bool> inCatch(inEH, true);
+    return TraverseStmt(S->getHandlerBlock());
+  }
+  
+  bool VisitDeclRefExpr(DeclRefExpr *DR) {
+    if (inEH)
+      if (const VarDecl *D = dyn_cast<VarDecl>(DR->getDecl()))
+        S.insert(D);
+    return true;
+  }
+  
+  EHCodeVisitor(llvm::DenseSet<const VarDecl *> &S) :
+  inEH(false), S(S) {}
+};
 
 // FIXME: Eventually migrate into its own file, and have it managed by
 // AnalysisManager.
@@ -68,13 +101,18 @@ void ReachableCode::computeReachableBlocks() {
   }
 }
 
-static const Expr *LookThroughTransitiveAssignments(const Expr *Ex) {
+static const Expr *
+LookThroughTransitiveAssignmentsAndCommaOperators(const Expr *Ex) {
   while (Ex) {
     const BinaryOperator *BO =
       dyn_cast<BinaryOperator>(Ex->IgnoreParenCasts());
     if (!BO)
       break;
     if (BO->getOpcode() == BO_Assign) {
+      Ex = BO->getRHS();
+      continue;
+    }
+    if (BO->getOpcode() == BO_Comma) {
       Ex = BO->getRHS();
       continue;
     }
@@ -93,6 +131,7 @@ class DeadStoreObs : public LiveVariables::Observer {
   llvm::SmallPtrSet<const VarDecl*, 20> Escaped;
   OwningPtr<ReachableCode> reachableCode;
   const CFGBlock *currentBlock;
+  OwningPtr<llvm::DenseSet<const VarDecl *> > InEH;
 
   enum DeadStoreKind { Standard, Enclosing, DeadIncrement, DeadInit };
 
@@ -105,6 +144,23 @@ public:
 
   virtual ~DeadStoreObs() {}
 
+  bool isLive(const LiveVariables::LivenessValues &Live, const VarDecl *D) {
+    if (Live.isLive(D))
+      return true;
+    // Lazily construct the set that records which VarDecls are in
+    // EH code.
+    if (!InEH.get()) {
+      InEH.reset(new llvm::DenseSet<const VarDecl *>());
+      EHCodeVisitor V(*InEH.get());
+      V.TraverseStmt(AC->getBody());
+    }
+    // Treat all VarDecls that occur in EH code as being "always live"
+    // when considering to suppress dead stores.  Frequently stores
+    // are followed by reads in EH code, but we don't have the ability
+    // to analyze that yet.
+    return InEH->count(D);
+  }
+  
   void Report(const VarDecl *V, DeadStoreKind dsk,
               PathDiagnosticLocation L, SourceRange R) {
     if (Escaped.count(V))
@@ -159,7 +215,7 @@ public:
     if (VD->getType()->getAs<ReferenceType>())
       return;
 
-    if (!Live.isLive(VD) && 
+    if (!isLive(Live, VD) &&
         !(VD->getAttr<UnusedAttr>() || VD->getAttr<BlocksAttr>())) {
 
       PathDiagnosticLocation ExLoc =
@@ -215,7 +271,9 @@ public:
         if (VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
           // Special case: check for assigning null to a pointer.
           //  This is a common form of defensive programming.
-          const Expr *RHS = LookThroughTransitiveAssignments(B->getRHS());
+          const Expr *RHS =
+            LookThroughTransitiveAssignmentsAndCommaOperators(B->getRHS());
+          RHS = RHS->IgnoreParenCasts();
           
           QualType T = VD->getType();
           if (T->isPointerType() || T->isObjCObjectPointerType()) {
@@ -223,7 +281,6 @@ public:
               return;
           }
 
-          RHS = RHS->IgnoreParenCasts();
           // Special case: self-assignments.  These are often used to shut up
           //  "unused variable" compiler warnings.
           if (const DeclRefExpr *RhsDR = dyn_cast<DeclRefExpr>(RHS))
@@ -275,7 +332,7 @@ public:
             
             // Look through transitive assignments, e.g.:
             // int x = y = 0;
-            E = LookThroughTransitiveAssignments(E);
+            E = LookThroughTransitiveAssignmentsAndCommaOperators(E);
             
             // Don't warn on C++ objects (yet) until we can show that their
             // constructors/destructors don't have side effects.
@@ -285,7 +342,7 @@ public:
             // A dead initialization is a variable that is dead after it
             // is initialized.  We don't flag warnings for those variables
             // marked 'unused'.
-            if (!Live.isLive(V) && V->getAttr<UnusedAttr>() == 0) {
+            if (!isLive(Live, V) && V->getAttr<UnusedAttr>() == 0) {
               // Special case: check for initializations with constants.
               //
               //  e.g. : int x = 0;
@@ -368,6 +425,15 @@ class DeadStoresChecker : public Checker<check::ASTCodeBody> {
 public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
+
+    // Don't do anything for template instantiations.
+    // Proving that code in a template instantiation is "dead"
+    // means proving that it is dead in all instantiations.
+    // This same problem exists with -Wunreachable-code.
+    if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+      if (FD->isTemplateInstantiation())
+        return;
+
     if (LiveVariables *L = mgr.getAnalysis<LiveVariables>(D)) {
       CFG &cfg = *mgr.getCFG(D);
       AnalysisDeclContext *AC = mgr.getAnalysisDeclContext(D);

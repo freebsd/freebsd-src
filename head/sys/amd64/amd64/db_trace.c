@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/sysent.h>
 
@@ -62,6 +63,8 @@ static db_varfcn_t db_dr7;
 static db_varfcn_t db_frame;
 static db_varfcn_t db_rsp;
 static db_varfcn_t db_ss;
+
+CTASSERT(sizeof(struct dbreg) == sizeof(((struct pcpu *)NULL)->pc_dbreg));
 
 /*
  * Machine register set.
@@ -186,7 +189,8 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 
 static void db_nextframe(struct amd64_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct amd64_frame *);
-static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t);
+static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t,
+    void *);
 static void decode_syscall(int, struct thread *);
 
 static const char * watchtype_str(int type);
@@ -230,12 +234,13 @@ db_numargs(fp)
 }
 
 static void
-db_print_stack_entry(name, narg, argnp, argp, callpc)
+db_print_stack_entry(name, narg, argnp, argp, callpc, frame)
 	const char *name;
 	int narg;
 	char **argnp;
 	long *argp;
 	db_addr_t callpc;
+	void *frame;
 {
 	db_printf("%s(", name);
 #if 0
@@ -250,6 +255,8 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 #endif
 	db_printf(") at ");
 	db_printsym(callpc, DB_STGY_PROC);
+	if (frame != NULL)
+		db_printf("/frame 0x%lx", (register_t)frame);
 	db_printf("\n");
 }
 
@@ -341,7 +348,7 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 		return;
 	}
 
-	db_print_stack_entry(name, 0, 0, 0, rip);
+	db_print_stack_entry(name, 0, 0, 0, rip, &(*fp)->f_frame);
 
 	/*
 	 * Point to base of trapframe which is just above the
@@ -437,7 +444,8 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, pc);
+				db_print_stack_entry(name, 0, 0, 0, pc,
+				    actframe);
 				break;
 			}
 			first = FALSE;
@@ -451,7 +459,7 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 			narg = db_numargs(frame);
 		}
 
-		db_print_stack_entry(name, narg, argnp, argp, pc);
+		db_print_stack_entry(name, narg, argnp, argp, pc, actframe);
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
@@ -465,7 +473,7 @@ db_backtrace(struct thread *td, struct trapframe *tf,
 		if (INKERNEL((long)pc) && !INKERNEL((long)frame)) {
 			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, 0, 0, 0, pc);
+			db_print_stack_entry(name, 0, 0, 0, pc, frame);
 			break;
 		}
 		if (!INKERNEL((long) frame)) {
@@ -586,64 +594,82 @@ db_md_set_watchpoint(addr, size)
 	db_expr_t addr;
 	db_expr_t size;
 {
-	struct dbreg d;
-	int avail, i, wsize;
+	struct dbreg *d;
+	struct pcpu *pc;
+	int avail, c, cpu, i, wsize;
 
-	fill_dbregs(NULL, &d);
+	d = (struct dbreg *)PCPU_PTR(dbreg);
+	cpu = PCPU_GET(cpuid);
+	fill_dbregs(NULL, d);
 
 	avail = 0;
-	for(i = 0; i < 4; i++) {
-		if (!DBREG_DR7_ENABLED(d.dr[7], i))
+	for (i = 0; i < 4; i++) {
+		if (!DBREG_DR7_ENABLED(d->dr[7], i))
 			avail++;
 	}
 
 	if (avail * 8 < size)
 		return (-1);
 
-	for (i = 0; i < 4 && (size > 0); i++) {
-		if (!DBREG_DR7_ENABLED(d.dr[7], i)) {
+	for (i = 0; i < 4 && size > 0; i++) {
+		if (!DBREG_DR7_ENABLED(d->dr[7], i)) {
 			if (size >= 8 || (avail == 1 && size > 4))
 				wsize = 8;
 			else if (size > 2)
 				wsize = 4;
 			else
 				wsize = size;
-			amd64_set_watch(i, addr, wsize,
-				       DBREG_DR7_WRONLY, &d);
+			amd64_set_watch(i, addr, wsize, DBREG_DR7_WRONLY, d);
 			addr += wsize;
 			size -= wsize;
 			avail--;
 		}
 	}
 
-	set_dbregs(NULL, &d);
+	set_dbregs(NULL, d);
+	CPU_FOREACH(c) {
+		if (c == cpu)
+			continue;
+		pc = pcpu_find(c);
+		memcpy(pc->pc_dbreg, d, sizeof(*d));
+		pc->pc_dbreg_cmd = PC_DBREG_CMD_LOAD;
+	}
 
-	return(0);
+	return (0);
 }
-
 
 int
 db_md_clr_watchpoint(addr, size)
 	db_expr_t addr;
 	db_expr_t size;
 {
-	struct dbreg d;
-	int i;
+	struct dbreg *d;
+	struct pcpu *pc;
+	int i, c, cpu;
 
-	fill_dbregs(NULL, &d);
+	d = (struct dbreg *)PCPU_PTR(dbreg);
+	cpu = PCPU_GET(cpuid);
+	fill_dbregs(NULL, d);
 
-	for(i = 0; i < 4; i++) {
-		if (DBREG_DR7_ENABLED(d.dr[7], i)) {
-			if ((DBREG_DRX((&d), i) >= addr) &&
-			    (DBREG_DRX((&d), i) < addr+size))
-				amd64_clr_watch(i, &d);
+	for (i = 0; i < 4; i++) {
+		if (DBREG_DR7_ENABLED(d->dr[7], i)) {
+			if (DBREG_DRX((d), i) >= addr &&
+			    DBREG_DRX((d), i) < addr + size)
+				amd64_clr_watch(i, d);
 
 		}
 	}
 
-	set_dbregs(NULL, &d);
+	set_dbregs(NULL, d);
+	CPU_FOREACH(c) {
+		if (c == cpu)
+			continue;
+		pc = pcpu_find(c);
+		memcpy(pc->pc_dbreg, d, sizeof(*d));
+		pc->pc_dbreg_cmd = PC_DBREG_CMD_LOAD;
+	}
 
-	return(0);
+	return (0);
 }
 
 
@@ -693,4 +719,18 @@ db_md_list_watchpoints()
 		db_printf("  dr%d 0x%016lx\n", i, DBREG_DRX((&d), i));
 	}
 	db_printf("\n");
+}
+
+void
+amd64_db_resume_dbreg(void)
+{
+	struct dbreg *d;
+
+	switch (PCPU_GET(dbreg_cmd)) {
+	case PC_DBREG_CMD_LOAD:
+		d = (struct dbreg *)PCPU_PTR(dbreg);
+		set_dbregs(NULL, d);
+		PCPU_SET(dbreg_cmd, PC_DBREG_CMD_NONE);
+		break;
+	}
 }

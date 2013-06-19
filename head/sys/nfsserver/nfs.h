@@ -268,7 +268,7 @@ int	nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
 int	nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
-int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, int *,
+int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **,
 	    struct nfsrv_descript *, struct nfssvc_sock *, struct sockaddr *,
 	    int *);
 int	nfsrv_setpublicfs(struct mount *, struct netexport *,

@@ -39,17 +39,17 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "strongphielim"
-#include "PHIEliminationUtils.h"
 #include "llvm/CodeGen/Passes.h"
+#include "PHIEliminationUtils.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Target/TargetInstrInfo.h"
 using namespace llvm;
 
 namespace {
@@ -404,9 +404,9 @@ bool StrongPHIElimination::runOnMachineFunction(MachineFunction &MF) {
 }
 
 void StrongPHIElimination::addReg(unsigned Reg) {
-  if (RegNodeMap.count(Reg))
-    return;
-  RegNodeMap[Reg] = new (Allocator) Node(Reg);
+  Node *&N = RegNodeMap[Reg];
+  if (!N)
+    N = new (Allocator) Node(Reg);
 }
 
 StrongPHIElimination::Node*
@@ -714,8 +714,9 @@ void StrongPHIElimination::InsertCopiesForPHI(MachineInstr *PHI,
         assert(getRegColor(CopyReg) == CopyReg);
       }
 
-      if (!InsertedSrcCopyMap.count(std::make_pair(PredBB, PHIColor)))
-        InsertedSrcCopyMap[std::make_pair(PredBB, PHIColor)] = CopyInstr;
+      // Insert into map if not already there.
+      InsertedSrcCopyMap.insert(std::make_pair(std::make_pair(PredBB, PHIColor),
+                                               CopyInstr));
     }
 
     SrcMO.setReg(CopyReg);

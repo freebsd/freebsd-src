@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -64,7 +63,7 @@ ata_jmicron_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     const struct ata_chip_id *idx;
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_JMB360, 0, 1, 0, ATA_SA300, "JMB360" },
      { ATA_JMB361, 0, 1, 1, ATA_UDMA6, "JMB361" },
      { ATA_JMB362, 0, 2, 0, ATA_SA300, "JMB362" },

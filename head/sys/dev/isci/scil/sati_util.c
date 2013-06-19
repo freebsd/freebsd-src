@@ -1976,6 +1976,8 @@ void sati_ata_download_microcode_construct(
 )
 {
    U8 * register_fis = sati_cb_get_h2d_register_fis_address(ata_io);
+   U32 allocation_blocks = allocation_length >> 9;
+   U32 buffer_blkoffset = buffer_offset >> 9;
 
    sati_set_ata_command(register_fis, ATA_DOWNLOAD_MICROCODE);
    sati_set_ata_features(register_fis, mode);
@@ -1987,9 +1989,10 @@ void sati_ata_download_microcode_construct(
    }
    else //mode == 0x03
    {
-      sati_set_ata_sector_count(register_fis, (U8) (allocation_length >> 9));
-      sati_set_ata_lba_low(register_fis, (U8) (allocation_length >> 17));
-      sati_set_ata_lba_high(register_fis, (U8) (buffer_offset >> 9));
+      sati_set_ata_sector_count(register_fis, (U8) (allocation_blocks & 0xff));
+      sati_set_ata_lba_low(register_fis, (U8) ((allocation_blocks >> 8) & 0xff));
+      sati_set_ata_lba_mid(register_fis, (U8) (buffer_blkoffset & 0xff));
+      sati_set_ata_lba_high(register_fis, (U8) ((buffer_blkoffset >> 8) & 0xff));
    }
 
    if((allocation_length == 0) && (buffer_offset == 0))

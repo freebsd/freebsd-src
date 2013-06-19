@@ -8,125 +8,88 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/CommentCommandTraits.h"
-#include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/STLExtras.h"
 
 namespace clang {
 namespace comments {
 
-// TODO: tablegen
+#include "clang/AST/CommentCommandInfo.inc"
 
-bool CommandTraits::isVerbatimBlockCommand(StringRef StartName,
-                                           StringRef &EndName) const {
-  const char *Result = llvm::StringSwitch<const char *>(StartName)
-    .Case("code", "endcode")
-    .Case("verbatim", "endverbatim")
-    .Case("htmlonly", "endhtmlonly")
-    .Case("latexonly", "endlatexonly")
-    .Case("xmlonly", "endxmlonly")
-    .Case("manonly", "endmanonly")
-    .Case("rtfonly", "endrtfonly")
+CommandTraits::CommandTraits(llvm::BumpPtrAllocator &Allocator,
+                             const CommentOptions &CommentOptions) :
+    NextID(llvm::array_lengthof(Commands)), Allocator(Allocator) {
+  registerCommentOptions(CommentOptions);
+}
 
-    .Case("dot", "enddot")
-    .Case("msc", "endmsc")
-
-    .Case("f$", "f$") // Inline LaTeX formula
-    .Case("f[", "f]") // Displayed LaTeX formula
-    .Case("f{", "f}") // LaTeX environment
-
-    .Default(NULL);
-
-  if (Result) {
-    EndName = Result;
-    return true;
+void CommandTraits::registerCommentOptions(
+    const CommentOptions &CommentOptions) {
+  for (CommentOptions::BlockCommandNamesTy::const_iterator
+           I = CommentOptions.BlockCommandNames.begin(),
+           E = CommentOptions.BlockCommandNames.end();
+       I != E; I++) {
+    registerBlockCommand(*I);
   }
-
-  for (VerbatimBlockCommandVector::const_iterator
-           I = VerbatimBlockCommands.begin(),
-           E = VerbatimBlockCommands.end();
-       I != E; ++I)
-    if (I->StartName == StartName) {
-      EndName = I->EndName;
-      return true;
-    }
-
-  return false;
 }
 
-bool CommandTraits::isVerbatimLineCommand(StringRef Name) const {
-  bool Result = isDeclarationCommand(Name) || llvm::StringSwitch<bool>(Name)
-  .Case("defgroup", true)
-  .Case("ingroup", true)
-  .Case("addtogroup", true)
-  .Case("weakgroup", true)
-  .Case("name", true)
-
-  .Case("section", true)
-  .Case("subsection", true)
-  .Case("subsubsection", true)
-  .Case("paragraph", true)
-
-  .Case("mainpage", true)
-  .Case("subpage", true)
-  .Case("ref", true)
-
-  .Default(false);
-
-  if (Result)
-    return true;
-
-  for (VerbatimLineCommandVector::const_iterator
-           I = VerbatimLineCommands.begin(),
-           E = VerbatimLineCommands.end();
-       I != E; ++I)
-    if (I->Name == Name)
-      return true;
-
-  return false;
+const CommandInfo *CommandTraits::getCommandInfoOrNULL(StringRef Name) const {
+  if (const CommandInfo *Info = getBuiltinCommandInfo(Name))
+    return Info;
+  return getRegisteredCommandInfo(Name);
 }
 
-bool CommandTraits::isDeclarationCommand(StringRef Name) const {
-  return llvm::StringSwitch<bool>(Name)
-      // Doxygen commands.
-      .Case("fn", true)
-      .Case("var", true)
-      .Case("property", true)
-      .Case("typedef", true)
-
-      .Case("overload", true)
-
-      // HeaderDoc commands.
-      .Case("class", true)
-      .Case("interface", true)
-      .Case("protocol", true)
-      .Case("category", true)
-      .Case("template", true)
-      .Case("function", true)
-      .Case("method", true)
-      .Case("callback", true)
-      .Case("var", true)
-      .Case("const", true)
-      .Case("constant", true)
-      .Case("property", true)
-      .Case("struct", true)
-      .Case("union", true)
-      .Case("typedef", true)
-      .Case("enum", true)
-
-      .Default(false);
+const CommandInfo *CommandTraits::getCommandInfo(unsigned CommandID) const {
+  if (const CommandInfo *Info = getBuiltinCommandInfo(CommandID))
+    return Info;
+  return getRegisteredCommandInfo(CommandID);
 }
 
-void CommandTraits::addVerbatimBlockCommand(StringRef StartName,
-                                            StringRef EndName) {
-  VerbatimBlockCommand VBC;
-  VBC.StartName = StartName;
-  VBC.EndName = EndName;
-  VerbatimBlockCommands.push_back(VBC);
+CommandInfo *CommandTraits::createCommandInfoWithName(StringRef CommandName) {
+  char *Name = Allocator.Allocate<char>(CommandName.size() + 1);
+  memcpy(Name, CommandName.data(), CommandName.size());
+  Name[CommandName.size()] = '\0';
+
+  // Value-initialize (=zero-initialize in this case) a new CommandInfo.
+  CommandInfo *Info = new (Allocator) CommandInfo();
+  Info->Name = Name;
+  Info->ID = NextID++;
+
+  RegisteredCommands.push_back(Info);
+
+  return Info;
 }
 
-void CommandTraits::addVerbatimLineCommand(StringRef Name) {
-  VerbatimLineCommand VLC;
-  VLC.Name = Name;
-  VerbatimLineCommands.push_back(VLC);
+const CommandInfo *CommandTraits::registerUnknownCommand(
+                                                  StringRef CommandName) {
+  CommandInfo *Info = createCommandInfoWithName(CommandName);
+  Info->IsUnknownCommand = true;
+  return Info;
+}
+
+const CommandInfo *CommandTraits::registerBlockCommand(StringRef CommandName) {
+  CommandInfo *Info = createCommandInfoWithName(CommandName);
+  Info->IsBlockCommand = true;
+  return Info;
+}
+
+const CommandInfo *CommandTraits::getBuiltinCommandInfo(
+                                                  unsigned CommandID) {
+  if (CommandID < llvm::array_lengthof(Commands))
+    return &Commands[CommandID];
+  return NULL;
+}
+
+const CommandInfo *CommandTraits::getRegisteredCommandInfo(
+                                                  StringRef Name) const {
+  for (unsigned i = 0, e = RegisteredCommands.size(); i != e; ++i) {
+    if (RegisteredCommands[i]->Name == Name)
+      return RegisteredCommands[i];
+  }
+  return NULL;
+}
+
+const CommandInfo *CommandTraits::getRegisteredCommandInfo(
+                                                  unsigned CommandID) const {
+  return RegisteredCommands[CommandID - llvm::array_lengthof(Commands)];
 }
 
 } // end namespace comments

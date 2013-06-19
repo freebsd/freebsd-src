@@ -1,19 +1,15 @@
-/* $Id: main.c,v 1.38 2012/01/14 01:01:15 tom Exp $ */
+/* $Id: main.c,v 1.40 2012/09/29 13:11:00 Adrian.Bunk Exp $ */
 
 #include <signal.h>
 #include <unistd.h>		/* for _exit() */
 
 #include "defs.h"
 
-#if defined(HAVE_ATEXIT)
-# ifdef HAVE_MKSTEMP
-#  define USE_MKSTEMP 1
-# elif defined(HAVE_FCNTL_H)
-#  define USE_MKSTEMP 1
-#  include <fcntl.h>		/* for open(), O_EXCL, etc. */
-# else
-#  define USE_MKSTEMP 0
-# endif
+#ifdef HAVE_MKSTEMP
+# define USE_MKSTEMP 1
+#elif defined(HAVE_FCNTL_H)
+# define USE_MKSTEMP 1
+# include <fcntl.h>		/* for open(), O_EXCL, etc. */
 #else
 # define USE_MKSTEMP 0
 #endif
@@ -163,7 +159,7 @@ done(int k)
 }
 
 static void
-onintr(__unused int sig)
+onintr(int sig GCC_UNUSED)
 {
     got_intr = 1;
     done(EXIT_FAILURE);
@@ -367,7 +363,7 @@ allocate(size_t n)
 }
 
 #define CREATE_FILE_NAME(dest, suffix) \
-	dest = MALLOC(len + strlen(suffix) + 1); \
+	dest = TMALLOC(char, len + strlen(suffix) + 1); \
 	NO_SPACE(dest); \
 	strcpy(dest, file_prefix); \
 	strcpy(dest + len, suffix)
@@ -398,7 +394,7 @@ create_file_names(void)
     if (prefix != NULL)
     {
 	len = (size_t) (prefix - output_file_name);
-	file_prefix = (char *)MALLOC(len + 1);
+	file_prefix = TMALLOC(char, len + 1);
 	NO_SPACE(file_prefix);
 	strncpy(file_prefix, output_file_name, len)[len] = 0;
     }

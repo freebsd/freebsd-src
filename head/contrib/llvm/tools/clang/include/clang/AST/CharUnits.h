@@ -164,11 +164,22 @@ namespace clang {
       QuantityType getQuantity() const { return Quantity; }
 
       /// RoundUpToAlignment - Returns the next integer (mod 2**64) that is
-      /// greater than or equal to this quantity and is a multiple of \arg
-      /// Align. Align must be non-zero.
+      /// greater than or equal to this quantity and is a multiple of \p Align.
+      /// Align must be non-zero.
       CharUnits RoundUpToAlignment(const CharUnits &Align) {
         return CharUnits(llvm::RoundUpToAlignment(Quantity, 
                                                   Align.Quantity));
+      }
+
+      /// Given that this is a non-zero alignment value, what is the
+      /// alignment at the given offset?
+      CharUnits alignmentAtOffset(CharUnits offset) {
+        // alignment: 0010000
+        // offset:    1011100
+        // lowBits:   0001011
+        // result:    0000100
+        QuantityType lowBits = (Quantity-1) & (offset.Quantity-1);
+        return CharUnits((lowBits + 1) & ~lowBits);
       }
 
 

@@ -16,20 +16,20 @@
 #ifndef LLVM_CODEGEN_INTRINSICLOWERING_H
 #define LLVM_CODEGEN_INTRINSICLOWERING_H
 
-#include "llvm/Intrinsics.h"
+#include "llvm/IR/Intrinsics.h"
 
 namespace llvm {
   class CallInst;
   class Module;
-  class TargetData;
+  class DataLayout;
 
   class IntrinsicLowering {
-    const TargetData& TD;
+    const DataLayout& TD;
 
     
     bool Warned;
   public:
-    explicit IntrinsicLowering(const TargetData &td) :
+    explicit IntrinsicLowering(const DataLayout &td) :
       TD(td), Warned(false) {}
 
     /// AddPrototypes - This method, if called, causes all of the prototypes

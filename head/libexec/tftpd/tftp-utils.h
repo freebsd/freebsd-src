@@ -106,7 +106,7 @@ const char *debug_show(int d);
 extern int tftp_logtostdout;
 void	tftp_openlog(const char *ident, int logopt, int facility);
 void	tftp_closelog(void);
-void	tftp_log(int priority, const char *message, ...);
+void	tftp_log(int priority, const char *message, ...) __printflike(2, 3);
 
 /*
  * Performance figures

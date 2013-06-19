@@ -839,7 +839,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 	for (i = 0; i < AMD_NPMCS; i++) {
 		KASSERT(pac->pc_amdpmcs[i].phw_pmc == NULL,
 		    ("[amd,%d] CPU%d/PMC%d in use", __LINE__, cpu, i));
-		KASSERT(AMD_PMC_IS_STOPPED(AMD_PMC_EVSEL_0 + (i-1)),
+		KASSERT(AMD_PMC_IS_STOPPED(AMD_PMC_EVSEL_0 + i),
 		    ("[amd,%d] CPU%d/PMC%d not stopped", __LINE__, cpu, i));
 	}
 #endif

@@ -144,6 +144,6 @@ device		usfs		# emulate a flash
 device		cdce		# emulate an ethernet
 device		usb_template	# Control of the gadget
 
-options		IEEE80211_SUPPORT_MESH
+options 	IEEE80211_SUPPORT_MESH
 
-options		AH_SUPPORT_AR5416
+options 	AH_SUPPORT_AR5416

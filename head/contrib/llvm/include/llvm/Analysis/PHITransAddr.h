@@ -14,12 +14,12 @@
 #ifndef LLVM_ANALYSIS_PHITRANSADDR_H
 #define LLVM_ANALYSIS_PHITRANSADDR_H
 
-#include "llvm/Instruction.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/Instruction.h"
 
 namespace llvm {
   class DominatorTree;
-  class TargetData;
+  class DataLayout;
   class TargetLibraryInfo;
 
 /// PHITransAddr - An address value which tracks and handles phi translation.
@@ -37,7 +37,7 @@ class PHITransAddr {
   Value *Addr;
   
   /// TD - The target data we are playing with if known, otherwise null.
-  const TargetData *TD;
+  const DataLayout *TD;
 
   /// TLI - The target library info if known, otherwise null.
   const TargetLibraryInfo *TLI;
@@ -45,7 +45,7 @@ class PHITransAddr {
   /// InstInputs - The inputs for our symbolic address.
   SmallVector<Instruction*, 4> InstInputs;
 public:
-  PHITransAddr(Value *addr, const TargetData *td) : Addr(addr), TD(td), TLI(0) {
+  PHITransAddr(Value *addr, const DataLayout *td) : Addr(addr), TD(td), TLI(0) {
     // If the address is an instruction, the whole thing is considered an input.
     if (Instruction *I = dyn_cast<Instruction>(Addr))
       InstInputs.push_back(I);

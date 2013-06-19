@@ -353,7 +353,8 @@ mmc_highest_voltage(uint32_t ocr)
 {
 	int i;
 
-	for (i = 30; i >= 0; i--)
+	for (i = MMC_OCR_MAX_VOLTAGE_SHIFT;
+	    i >= MMC_OCR_MIN_VOLTAGE_SHIFT; i--)
 		if (ocr & (1 << i))
 			return (i);
 	return (-1);
@@ -411,6 +412,7 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 	memset(&mreq, 0, sizeof(mreq));
 	memset(cmd->resp, 0, sizeof(cmd->resp));
 	cmd->retries = retries;
+	cmd->mrq = &mreq;
 	mreq.cmd = cmd;
 	mmc_wait_for_req(sc, &mreq);
 	return (cmd->error);
@@ -878,7 +880,7 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 	else
 		snprintf(oidstr, sizeof(oidstr), "0x%04x", ivar->cid.oid);
 	snprintf(ivar->card_id_string, sizeof(ivar->card_id_string),
-	    "%s%s %s %d.%d SN %d MFG %02d/%04d by %d %s",
+	    "%s%s %s %d.%d SN %u MFG %02d/%04d by %d %s",
 	    ivar->mode == mode_sd ? "SD" : "MMC", ivar->high_cap ? "HC" : "",
 	    ivar->cid.pnm, ivar->cid.prv >> 4, ivar->cid.prv & 0x0f,
 	    ivar->cid.psn, ivar->cid.mdt_month, ivar->cid.mdt_year,
@@ -1261,8 +1263,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 		if (newcard) {
 			ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF,
 			    M_WAITOK | M_ZERO);
-			if (!ivar)
-				return;
 			memcpy(ivar->raw_cid, raw_cid, sizeof(raw_cid));
 		}
 		if (mmcbr_get_ro(sc->dev))
@@ -1732,4 +1732,6 @@ static devclass_t mmc_devclass;
 
 DRIVER_MODULE(mmc, ti_mmchs, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_fdt, mmc_driver, mmc_devclass, NULL, NULL);

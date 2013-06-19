@@ -10,9 +10,9 @@
 #ifndef CLANG_DRIVER_JOB_H_
 #define CLANG_DRIVER_JOB_H_
 
+#include "clang/Basic/LLVM.h"
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/SmallVector.h"
-#include "clang/Basic/LLVM.h"
 
 namespace clang {
 namespace driver {
@@ -39,8 +39,6 @@ public:
   /// addCommand - Append a command to the current job, which must be
   /// either a piped job or a job list.
   void addCommand(Command *C);
-
-  static bool classof(const Job *) { return true; }
 };
 
   /// Command - An executable path/name and argument vector to
@@ -78,7 +76,6 @@ public:
   static bool classof(const Job *J) {
     return J->getKind() == CommandClass;
   }
-  static bool classof(const Command *) { return true; }
 };
 
   /// JobList - A sequence of jobs to perform.
@@ -113,7 +110,6 @@ public:
   static bool classof(const Job *J) {
     return J->getKind() == JobListClass;
   }
-  static bool classof(const JobList *) { return true; }
 };
 
 } // end namespace driver

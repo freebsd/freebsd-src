@@ -907,10 +907,8 @@ ng_uni_free(enum unimem type, void *ptr, const char *file, u_int lno)
 static int
 ng_uni_mod_event(module_t mod, int event, void *data)
 {
-	int s;
 	int error = 0;
 
-	s = splnet();
 	switch(event) {
 
 	  case MOD_LOAD:
@@ -925,6 +923,5 @@ ng_uni_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }

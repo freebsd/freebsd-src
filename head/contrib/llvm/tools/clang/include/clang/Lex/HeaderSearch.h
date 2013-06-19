@@ -17,10 +17,11 @@
 #include "clang/Lex/DirectoryLookup.h"
 #include "clang/Lex/ModuleMap.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Allocator.h"
-#include "llvm/ADT/OwningPtr.h"
 #include <vector>
 
 namespace clang {
@@ -29,6 +30,7 @@ class DiagnosticsEngine;
 class ExternalIdentifierLookup;
 class FileEntry;
 class FileManager;
+class HeaderSearchOptions;
 class IdentifierInfo;
 
 /// \brief The preprocessor keeps track of this information for each
@@ -48,6 +50,9 @@ struct HeaderFileInfo {
 
   /// \brief Whether this header file info was supplied by an external source.
   unsigned External : 1;
+
+  /// \brief Whether this header is part of a module.
+  unsigned isModuleHeader : 1;
   
   /// \brief Whether this structure is considered to already have been
   /// "resolved", meaning that it was loaded from the external source.
@@ -88,7 +93,8 @@ struct HeaderFileInfo {
   
   HeaderFileInfo()
     : isImport(false), isPragmaOnce(false), DirInfo(SrcMgr::C_User), 
-      External(false), Resolved(false), IndexHeaderMapHeader(false),
+      External(false), isModuleHeader(false), Resolved(false),
+      IndexHeaderMapHeader(false),
       NumIncludes(0), ControllingMacroID(0), ControllingMacro(0)  {}
 
   /// \brief Retrieve the controlling macro for this header file, if
@@ -131,8 +137,10 @@ class HeaderSearch {
     bool IsUserSpecifiedSystemFramework;
   };
 
+  /// \brief Header-search options used to initialize this header search.
+  IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts;
+
   FileManager &FileMgr;
-  DiagnosticsEngine &Diags;
   /// \#include search path information.  Requests for \#include "x" search the
   /// directory of the \#including file first, then each directory in SearchDirs
   /// consecutively. Requests for <x> search the current dir first, then each
@@ -185,7 +193,7 @@ class HeaderSearch {
   std::vector<std::pair<const FileEntry*, const HeaderMap*> > HeaderMaps;
 
   /// \brief The mapping between modules and headers.
-  ModuleMap ModMap;
+  mutable ModuleMap ModMap;
   
   /// \brief Describes whether a given directory has a module map in it.
   llvm::DenseMap<const DirectoryEntry *, bool> DirectoryHasModuleMap;
@@ -207,17 +215,21 @@ class HeaderSearch {
   unsigned NumFrameworkLookups, NumSubFrameworkLookups;
 
   // HeaderSearch doesn't support default or copy construction.
-  explicit HeaderSearch();
-  explicit HeaderSearch(const HeaderSearch&);
-  void operator=(const HeaderSearch&);
-  
+  HeaderSearch(const HeaderSearch&) LLVM_DELETED_FUNCTION;
+  void operator=(const HeaderSearch&) LLVM_DELETED_FUNCTION;
+
   friend class DirectoryLookup;
   
 public:
-  HeaderSearch(FileManager &FM, DiagnosticsEngine &Diags,
+  HeaderSearch(IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts,
+               FileManager &FM, DiagnosticsEngine &Diags,
                const LangOptions &LangOpts, const TargetInfo *Target);
   ~HeaderSearch();
 
+  /// \brief Retrieve the header-search options with which this header search
+  /// was initialized.
+  HeaderSearchOptions &getHeaderSearchOpts() const { return *HSOpts; }
+  
   FileManager &getFileMgr() const { return FileMgr; }
 
   /// \brief Interface for setting the file search paths.
@@ -283,6 +295,11 @@ public:
   
   /// \brief Retrieve the path to the module cache.
   StringRef getModuleCachePath() const { return ModuleCachePath; }
+
+  /// \brief Consider modules when including files from this directory.
+  void setDirectoryHasModuleMap(const DirectoryEntry* Dir) {
+    DirectoryHasModuleMap[Dir] = true;
+  }
   
   /// \brief Forget everything we know about headers so far.
   void ClearFileInfo() {
@@ -350,7 +367,8 @@ public:
       StringRef Filename,
       const FileEntry *RelativeFileEnt,
       SmallVectorImpl<char> *SearchPath,
-      SmallVectorImpl<char> *RelativePath);
+      SmallVectorImpl<char> *RelativePath,
+      Module **SuggestedModule);
 
   /// \brief Look up the specified framework name in our framework cache.
   /// \returns The DirectoryEntry it is in if we know, null otherwise.
@@ -385,6 +403,9 @@ public:
   void MarkFileSystemHeader(const FileEntry *File) {
     getFileInfo(File).DirInfo = SrcMgr::C_System;
   }
+
+  /// \brief Mark the specified file as part of a module.
+  void MarkFileModuleHeader(const FileEntry *File);
 
   /// \brief Increment the count for the number of times the specified
   /// FileEntry has been entered.
@@ -455,7 +476,7 @@ public:
   /// \brief Retrieve the module that corresponds to the given file, if any.
   ///
   /// \param File The header that we wish to map to a module.
-  Module *findModuleForHeader(const FileEntry *File);
+  Module *findModuleForHeader(const FileEntry *File) const;
   
   /// \brief Read the contents of the given module map file.
   ///
@@ -467,7 +488,7 @@ public:
   /// \brief Collect the set of all known, top-level modules.
   ///
   /// \param Modules Will be filled with the set of known, top-level modules.
-  void collectAllModules(llvm::SmallVectorImpl<Module *> &Modules);
+  void collectAllModules(SmallVectorImpl<Module *> &Modules);
                          
 private:
   /// \brief Retrieve a module with the given name, which may be part of the
@@ -484,7 +505,11 @@ private:
   Module *loadFrameworkModule(StringRef Name, 
                               const DirectoryEntry *Dir,
                               bool IsSystem);
-  
+
+  /// \brief Load all of the module maps within the immediate subdirectories
+  /// of the given search directory.
+  void loadSubdirectoryModuleMaps(DirectoryLookup &SearchDir);
+
 public:
   /// \brief Retrieve the module map.
   ModuleMap &getModuleMap() { return ModMap; }

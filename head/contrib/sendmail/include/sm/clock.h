@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: clock.h,v 1.12 2004/08/03 19:57:21 ca Exp $
+ *	$Id: clock.h,v 1.13 2011/11/03 03:13:24 ca Exp $
  */
 
 /*
@@ -59,7 +59,7 @@ extern SIGFUNC_DECL	sm_tick __P((int));
 /*
 **  SM_SETEVENT -- set an event to happen at a specific time in seconds.
 **
-**	Translates the seconds into millseconds and calls sm_seteventm()
+**	Translates the seconds into milliseconds and calls sm_seteventm()
 **	to get a specific event to happen in the future at a specific time.
 **
 **	Parameters:

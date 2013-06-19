@@ -99,6 +99,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 static int
 ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
 {
@@ -357,11 +361,13 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, axq_fifo_depth=%d\n",
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, "
+			    "axq_fifo_depth=%d, holdingbf=%p\n",
 			    i,
 			    sc->sc_txq[i].axq_depth,
 			    sc->sc_txq[i].axq_aggr_depth,
-			    sc->sc_txq[i].axq_fifo_depth);
+			    sc->sc_txq[i].axq_fifo_depth,
+			    sc->sc_txq[i].axq_holdingbf);
 		}
 	}
 
@@ -390,6 +396,23 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	ATH_TXBUF_UNLOCK(sc);
 	printf("Total mgmt TX buffers: %d; Total mgmt TX buffers busy: %d\n",
 	    t, i);
+
+	ATH_RX_LOCK(sc);
+	for (i = 0; i < 2; i++) {
+		printf("%d: fifolen: %d/%d; head=%d; tail=%d\n",
+		    i,
+		    sc->sc_rxedma[i].m_fifo_depth,
+		    sc->sc_rxedma[i].m_fifolen,
+		    sc->sc_rxedma[i].m_fifo_head,
+		    sc->sc_rxedma[i].m_fifo_tail);
+	}
+	i = 0;
+	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
+		i++;
+	}
+	printf("Total RX buffers in free list: %d buffers\n",
+	    i);
+	ATH_RX_UNLOCK(sc);
 
 	return 0;
 }
@@ -501,6 +524,84 @@ ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+static int
+ath_sysctl_hangcheck(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int val = 0;
+	int error;
+	uint32_t mask = 0xffffffff;
+	uint32_t *sp;
+	uint32_t rsize;
+	struct ath_hal *ah = sc->sc_ah;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	if (val == 0)
+		return 0;
+
+	/* Do a hang check */
+	if (!ath_hal_getdiagstate(ah, HAL_DIAG_CHECK_HANGS,
+	    &mask, sizeof(mask),
+	    (void *) &sp, &rsize))
+		return (0);
+	device_printf(sc->sc_dev, "%s: sp=0x%08x\n", __func__, *sp);
+
+	val = 0;
+	return 0;
+}
+
+#ifdef ATH_DEBUG_ALQ
+static int
+ath_sysctl_alq_log(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int error, enable;
+
+	enable = (sc->sc_alq.sc_alq_isactive);
+
+	error = sysctl_handle_int(oidp, &enable, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	else if (enable)
+		error = if_ath_alq_start(&sc->sc_alq);
+	else
+		error = if_ath_alq_stop(&sc->sc_alq);
+	return (error);
+}
+
+/*
+ * Attach the ALQ debugging if required.
+ */
+static void
+ath_sysctl_alq_attach(struct ath_softc *sc)
+{
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "alq", CTLFLAG_RD,
+	    NULL, "Atheros ALQ logging parameters");
+	child = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_STRING(ctx, child, OID_AUTO, "filename",
+	    CTLFLAG_RW, sc->sc_alq.sc_alq_filename, 0, "ALQ filename");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"enable", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_alq_log, "I", "");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debugmask", CTLFLAG_RW, &sc->sc_alq.sc_alq_debug, 0,
+		"ALQ debug mask");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"numlost", CTLFLAG_RW, &sc->sc_alq.sc_alq_numlost, 0,
+		"number lost");
+}
+#endif /* ATH_DEBUG_ALQ */
+
 void
 ath_sysctlattach(struct ath_softc *sc)
 {
@@ -519,6 +620,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"debug", CTLFLAG_RW, &sc->sc_debug,
 		"control debugging printfs");
 #endif
+#ifdef	ATH_DEBUG_ALQ
+	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"ktrdebug", CTLFLAG_RW, &sc->sc_ktrdebug,
+		"control debugging KTR");
+#endif /* ATH_DEBUG_ALQ */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_slottime, "I", "802.11 slot time (us)");
@@ -601,6 +707,10 @@ ath_sysctlattach(struct ath_softc *sc)
 		"forcebstuck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_forcebstuck, "I", "");
 
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hangcheck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_hangcheck, "I", "");
+
 	if (ath_hal_hasintmit(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -612,8 +722,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"mask of error frames to pass when monitoring");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
-		"");
+		"hwq_limit_nonaggr", CTLFLAG_RW, &sc->sc_hwq_limit_nonaggr, 0,
+		"Hardware non-AMPDU queue depth before software-queuing TX frames");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hwq_limit_aggr", CTLFLAG_RW, &sc->sc_hwq_limit_aggr, 0,
+		"Hardware AMPDU queue depth before software-queuing TX frames");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
 		"");
@@ -621,15 +734,38 @@ ath_sysctlattach(struct ath_softc *sc)
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
 
+	/* Aggregate length twiddles */
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"aggr_limit", CTLFLAG_RW, &sc->sc_aggr_limit, 0,
+		"Maximum A-MPDU size, or 0 for 'default'");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"rts_aggr_limit", CTLFLAG_RW, &sc->sc_rts_aggr_limit, 0,
+		"Maximum A-MPDU size for RTS-protected frames, or '0' "
+		"for default");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"delim_min_pad", CTLFLAG_RW, &sc->sc_delim_min_pad, 0,
+		"Enforce a minimum number of delimiters per A-MPDU "
+		" sub-frame");
+
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
 		0, "Minimum free buffers before adding a data frame"
 		" to the TX queue");
-
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_mcastq_maxdepth", CTLFLAG_RW,
 		&sc->sc_txq_mcastq_maxdepth, 0,
 		"Maximum buffer depth for multicast/broadcast frames");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_node_maxdepth", CTLFLAG_RW,
+		&sc->sc_txq_node_maxdepth, 0,
+		"Maximum buffer depth for a single node");
+
+#if 0
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"cabq_enable", CTLFLAG_RW,
+		&sc->sc_cabq_enable, 0,
+		"Whether to transmit on the CABQ or not");
+#endif
 
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
@@ -651,6 +787,10 @@ ath_sysctlattach(struct ath_softc *sc)
 			"setcca", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_setcca, "I", "enable CCA control");
 	}
+#endif
+
+#ifdef	ATH_DEBUG_ALQ
+	ath_sysctl_alq_attach(sc);
 #endif
 }
 
@@ -937,6 +1077,11 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    "Number of multicast frames exceeding maximum mcast queue depth");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_keymiss", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_keymiss, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swfiltered", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swfiltered, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_stbc",
+	    CTLFLAG_RD, &sc->sc_stats.ast_rx_stbc, 0,
+	    "Number of STBC frames received");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

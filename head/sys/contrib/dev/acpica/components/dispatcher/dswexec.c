@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,7 +164,7 @@ AcpiDsGetPredicateValue (
 
     /* Truncate the predicate to 32-bits if necessary */
 
-    AcpiExTruncateFor32bitTable (LocalObjDesc);
+    (void) AcpiExTruncateFor32bitTable (LocalObjDesc);
 
     /*
      * Save the result of the predicate evaluation on
@@ -223,7 +223,7 @@ Cleanup:
  * RETURN:      Status
  *
  * DESCRIPTION: Descending callback used during the execution of control
- *              methods.  This is where most operators and operands are
+ *              methods. This is where most operators and operands are
  *              dispatched to the interpreter.
  *
  ****************************************************************************/
@@ -318,14 +318,13 @@ AcpiDsExecBeginOp (
         Status = AcpiDsExecBeginControlOp (WalkState, Op);
         break;
 
-
     case AML_CLASS_NAMED_OBJECT:
 
         if (WalkState->WalkType & ACPI_WALK_METHOD)
         {
             /*
              * Found a named object declaration during method execution;
-             * we must enter this object into the namespace.  The created
+             * we must enter this object into the namespace. The created
              * object is temporary and will be deleted upon completion of
              * the execution of this method.
              *
@@ -350,14 +349,13 @@ AcpiDsExecBeginOp (
         }
         break;
 
-
     case AML_CLASS_EXECUTE:
     case AML_CLASS_CREATE:
 
         break;
 
-
     default:
+
         break;
     }
 
@@ -381,7 +379,7 @@ ErrorExit:
  * RETURN:      Status
  *
  * DESCRIPTION: Ascending callback used during the execution of control
- *              methods.  The only thing we really need to do here is to
+ *              methods. The only thing we really need to do here is to
  *              notice the beginning of IF, ELSE, and WHILE blocks.
  *
  ****************************************************************************/
@@ -441,7 +439,6 @@ AcpiDsExecEndOp (
         }
         break;
 
-
     case AML_CLASS_EXECUTE:     /* Most operators with arguments */
 
         /* Build resolved operand stack */
@@ -469,7 +466,7 @@ AcpiDsExecEndOp (
         {
             /*
              * Dispatch the request to the appropriate interpreter handler
-             * routine.  There is one routine per opcode "type" based upon the
+             * routine. There is one routine per opcode "type" based upon the
              * number of opcode arguments and return type.
              */
             Status = AcpiGbl_OpTypeDispatch[OpType] (WalkState);
@@ -514,7 +511,6 @@ AcpiDsExecEndOp (
         }
         break;
 
-
     default:
 
         switch (OpType)
@@ -527,9 +523,7 @@ AcpiDsExecEndOp (
 
             break;
 
-
         case AML_TYPE_METHOD_CALL:
-
             /*
              * If the method is referenced from within a package
              * declaration, it is not a invocation of the method, just
@@ -596,7 +590,6 @@ AcpiDsExecEndOp (
              */
             return_ACPI_STATUS (Status);
 
-
         case AML_TYPE_CREATE_FIELD:
 
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
@@ -620,7 +613,6 @@ AcpiDsExecEndOp (
             switch (Op->Common.Parent->Common.AmlOpcode)
             {
             case AML_NAME_OP:
-
                 /*
                  * Put the Node on the object stack (Contains the ACPI Name
                  * of this object)
@@ -660,7 +652,6 @@ AcpiDsExecEndOp (
                 Status = AcpiDsResultPush (WalkState->ResultObj, WalkState);
             }
             break;
-
 
         case AML_TYPE_NAMED_FIELD:
         case AML_TYPE_NAMED_COMPLEX:
@@ -708,13 +699,11 @@ AcpiDsExecEndOp (
             }
             break;
 
-
         case AML_TYPE_UNDEFINED:
 
             ACPI_ERROR ((AE_INFO,
                 "Undefined opcode type Op=%p", Op));
             return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
-
 
         case AML_TYPE_BOGUS:
 
@@ -723,11 +712,10 @@ AcpiDsExecEndOp (
                 WalkState->Opcode, Op));
             break;
 
-
         default:
 
             ACPI_ERROR ((AE_INFO,
-                "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
+                "Unimplemented opcode, class=0x%X type=0x%X Opcode=0x%X Op=%p",
                 OpClass, OpType, Op->Common.AmlOpcode, Op));
 
             Status = AE_NOT_IMPLEMENTED;
@@ -739,7 +727,7 @@ AcpiDsExecEndOp (
      * ACPI 2.0 support for 64-bit integers: Truncate numeric
      * result value if we are executing from a 32-bit ACPI table
      */
-    AcpiExTruncateFor32bitTable (WalkState->ResultObj);
+    (void) AcpiExTruncateFor32bitTable (WalkState->ResultObj);
 
     /*
      * Check if we just completed the evaluation of a
@@ -793,5 +781,3 @@ Cleanup:
     WalkState->NumOperands = 0;
     return_ACPI_STATUS (Status);
 }
-
-

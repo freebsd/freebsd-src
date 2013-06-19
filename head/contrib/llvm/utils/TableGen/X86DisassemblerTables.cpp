@@ -14,13 +14,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "X86DisassemblerShared.h"
 #include "X86DisassemblerTables.h"
-
-#include "llvm/TableGen/TableGenBackend.h"
+#include "X86DisassemblerShared.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <map>
 
 using namespace llvm;
@@ -209,6 +208,7 @@ static ModRMDecisionType getDecisionType(ModRMDecision &decision) {
   bool satisfiesOneEntry = true;
   bool satisfiesSplitRM = true;
   bool satisfiesSplitReg = true;
+  bool satisfiesSplitMisc = true;
 
   for (unsigned index = 0; index < 256; ++index) {
     if (decision.instructionIDs[index] != decision.instructionIDs[0])
@@ -228,7 +228,7 @@ static ModRMDecisionType getDecisionType(ModRMDecision &decision) {
 
     if (((index & 0xc0) != 0xc0) &&
        (decision.instructionIDs[index] != decision.instructionIDs[index&0x38]))
-      satisfiesSplitReg = false;
+      satisfiesSplitMisc = false;
   }
 
   if (satisfiesOneEntry)
@@ -237,8 +237,11 @@ static ModRMDecisionType getDecisionType(ModRMDecision &decision) {
   if (satisfiesSplitRM)
     return MODRM_SPLITRM;
 
-  if (satisfiesSplitReg)
+  if (satisfiesSplitReg && satisfiesSplitMisc)
     return MODRM_SPLITREG;
+
+  if (satisfiesSplitMisc)
+    return MODRM_SPLITMISC;
 
   return MODRM_FULL;
 }
@@ -332,6 +335,12 @@ void DisassemblerTables::emitModRMDecision(raw_ostream &o1, raw_ostream &o2,
       for (unsigned index = 0xc0; index < 256; index += 8)
         emitOneID(o1, i1, decision.instructionIDs[index], true);
       break;
+    case MODRM_SPLITMISC:
+      for (unsigned index = 0; index < 64; index += 8)
+        emitOneID(o1, i1, decision.instructionIDs[index], true);
+      for (unsigned index = 0xc0; index < 256; ++index)
+        emitOneID(o1, i1, decision.instructionIDs[index], true);
+      break;
     case MODRM_FULL:
       for (unsigned index = 0; index < 256; ++index)
         emitOneID(o1, i1, decision.instructionIDs[index], true);
@@ -361,10 +370,17 @@ void DisassemblerTables::emitModRMDecision(raw_ostream &o1, raw_ostream &o2,
     case MODRM_SPLITREG:
       sEntryNumber += 16;
       break;
+    case MODRM_SPLITMISC:
+      sEntryNumber += 8 + 64;
+      break;
     case MODRM_FULL:
       sEntryNumber += 256;
       break;
   }
+
+  // We assume that the index can fit into uint16_t.
+  assert(sEntryNumber < 65536U &&
+         "Index into ModRMDecision is too large for uint16_t!");
 
   ++sTableNumber;
 }

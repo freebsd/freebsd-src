@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % sections SYSTEM "../common/install.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "alpha">
+<!ENTITY arch.print "Alpha/AXP">
+]>
+
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/alpha/article.xml,v 1.4 2002/10/12 18:02:23 ue Exp $
+  basiert auf: 1.3
+-->
+
+<article lang="de">
+  &artheader;
+  &abstract;
+  &sect.install;
+  &sect.layout;
+  &sect.upgrade;
+  &sect.trouble;
+</article>

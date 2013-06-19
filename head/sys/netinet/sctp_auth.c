@@ -591,7 +591,7 @@ sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t key_id)
 		atomic_add_int(&skey->refcount, 1);
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount acquire to %d\n",
-		    __FUNCTION__, stcb, key_id, skey->refcount);
+		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
 	}
 }
 
@@ -612,7 +612,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 		sctp_free_sharedkey(skey);
 		SCTPDBG(SCTP_DEBUG_AUTH2,
 		    "%s: stcb %p key %u refcount release to %d\n",
-		    __FUNCTION__, stcb, key_id, skey->refcount);
+		    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
 
 		/* see if a notification should be generated */
 		if ((skey->refcount <= 1) && (skey->deactivated)) {
@@ -621,7 +621,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
 			    key_id, 0, so_locked);
 			SCTPDBG(SCTP_DEBUG_AUTH2,
 			    "%s: stcb %p key %u no longer used, %d\n",
-			    __FUNCTION__, stcb, key_id, skey->refcount);
+			    __FUNCTION__, (void *)stcb, key_id, skey->refcount);
 		}
 	}
 }
@@ -1763,7 +1763,7 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 		 * report this in an Error Chunk: Unsupported HMAC
 		 * Identifier
 		 */
-		m_err = sctp_get_mbuf_for_msg(sizeof(*err), 0, M_DONTWAIT,
+		m_err = sctp_get_mbuf_for_msg(sizeof(*err), 0, M_NOWAIT,
 		    1, MT_HEADER);
 		if (m_err != NULL) {
 			/* pre-reserve some space */
@@ -1869,7 +1869,7 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 		return;
 
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_authkey_event),
-	    0, M_DONTWAIT, 1, MT_HEADER);
+	    0, M_NOWAIT, 1, MT_HEADER);
 	if (m_notify == NULL)
 		/* no space left */
 		return;

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#10 $
+ * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_record.h#12 $
  */
 
 #ifndef _BSM_AUDIT_RECORD_H_
@@ -233,6 +233,7 @@ token_t	*au_to_ipc_perm(struct ipc_perm *perm);
 token_t	*au_to_iport(uint16_t iport);
 token_t	*au_to_opaque(const char *data, uint16_t bytes);
 token_t	*au_to_path(const char *path);
+token_t	*au_to_privset(char *privtypestr, char *privstr);
 token_t	*au_to_process(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	    gid_t rgid, pid_t pid, au_asid_t sid, au_tid_t *tid);
 token_t	*au_to_process32(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
@@ -278,6 +279,7 @@ token_t	*au_to_exec_env(char **envp);
 token_t	*au_to_text(const char *text);
 token_t	*au_to_kevent(struct kevent *kev);
 token_t	*au_to_trailer(int rec_size);
+token_t	*au_to_upriv(char sorf, char *priv);
 token_t	*au_to_zonename(const char *zonename);
 
 /*

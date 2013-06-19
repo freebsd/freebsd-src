@@ -1303,6 +1303,29 @@
     </band>
   </netband>
 </rd>
+
+<rd id="xc900m">
+  <name>XC900M</name>
+  <sku>0x29b</sku>
+  <netband mode="11g">
+    <band>
+      <freqband ref="S1_905_925_5"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_910_920_10"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_915_915"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+  </netband>
+</rd>
+
 </regulatory-domains>
 
 <country-codes>
@@ -1895,6 +1918,25 @@
   <chanwidth>20</chanwidth> <chansep>5</chansep>
   <flags>IEEE80211_CHAN_GSM</flags>
 </freqband>
+
+<freqband id="S1_905_925_5">
+  <freqstart>905</freqstart> <freqend>925</freqend>
+  <chanwidth>5</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+  <flags>IEEE80211_CHAN_QUARTER</flags>
+</freqband>
+<freqband id="S1_910_920_10">
+  <freqstart>910</freqstart> <freqend>920</freqend>
+  <chanwidth>10</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+  <flags>IEEE80211_CHAN_HALF</flags>
+</freqband>
+<freqband id="S1_915_915">
+  <freqstart>915</freqstart> <freqend>915</freqend>
+  <chanwidth>20</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+</freqband>
+
 
 </shared-frequency-bands>
 

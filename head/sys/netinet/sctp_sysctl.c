@@ -197,29 +197,29 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 	/* Turn on all the appropriate scope */
 	if (stcb) {
 		/* use association specific values */
-		loopback_scope = stcb->asoc.loopback_scope;
-		ipv4_local_scope = stcb->asoc.ipv4_local_scope;
-		local_scope = stcb->asoc.local_scope;
-		site_scope = stcb->asoc.site_scope;
+		loopback_scope = stcb->asoc.scope.loopback_scope;
+		ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+		local_scope = stcb->asoc.scope.local_scope;
+		site_scope = stcb->asoc.scope.site_scope;
+		ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+		ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
 	} else {
-		/* use generic values for endpoints */
+		/* Use generic values for endpoints. */
 		loopback_scope = 1;
 		ipv4_local_scope = 1;
 		local_scope = 1;
 		site_scope = 1;
-	}
-
-	/* use only address families of interest */
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-		ipv6_addr_legal = 1;
-		if (SCTP_IPV6_V6ONLY(inp)) {
-			ipv4_addr_legal = 0;
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+			ipv6_addr_legal = 1;
+			if (SCTP_IPV6_V6ONLY(inp)) {
+				ipv4_addr_legal = 0;
+			} else {
+				ipv4_addr_legal = 1;
+			}
 		} else {
+			ipv6_addr_legal = 0;
 			ipv4_addr_legal = 1;
 		}
-	} else {
-		ipv4_addr_legal = 1;
-		ipv6_addr_legal = 0;
 	}
 
 	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
@@ -549,8 +549,6 @@ skip:
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
 
-/* XXX: Remove the #if after tunneling over IPv6 works also on FreeBSD. */
-#if !defined(__FreeBSD__) || defined(INET)
 static int
 sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 {
@@ -581,8 +579,6 @@ sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 out:
 	return (error);
 }
-
-#endif
 
 
 static int
@@ -1067,12 +1063,9 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, clear_trace, CTLTYPE_UINT | CTLFLAG_R
     "Clear SCTP Logging buffer");
 #endif
 
-/* XXX: Remove the #if after tunneling over IPv6 works also on FreeBSD. */
-#if !defined(__FreeBSD__) || defined(INET)
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_port, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_udp_tunneling_port), 0, sysctl_sctp_udp_tunneling_check, "IU",
     SCTPCTL_UDP_TUNNELING_PORT_DESC);
-#endif
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, enable_sack_immediately, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_enable_sack_immediately), 0, sysctl_sctp_check, "IU",

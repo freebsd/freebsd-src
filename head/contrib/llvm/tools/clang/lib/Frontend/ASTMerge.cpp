@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Frontend/ASTUnit.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/FrontendActions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/ASTImporter.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/FrontendActions.h"
 
 using namespace clang;
 
@@ -34,15 +34,17 @@ bool ASTMergeAction::BeginSourceFileAction(CompilerInstance &CI,
 void ASTMergeAction::ExecuteAction() {
   CompilerInstance &CI = getCompilerInstance();
   CI.getDiagnostics().getClient()->BeginSourceFile(
-                                         CI.getASTContext().getLangOpts());
+                                             CI.getASTContext().getLangOpts());
   CI.getDiagnostics().SetArgToStringFn(&FormatASTNodeDiagnosticArgument,
                                        &CI.getASTContext());
   IntrusiveRefCntPtr<DiagnosticIDs>
       DiagIDs(CI.getDiagnostics().getDiagnosticIDs());
   for (unsigned I = 0, N = ASTFiles.size(); I != N; ++I) {
     IntrusiveRefCntPtr<DiagnosticsEngine>
-        Diags(new DiagnosticsEngine(DiagIDs, CI.getDiagnostics().getClient(),
-                             /*ShouldOwnClient=*/false));
+        Diags(new DiagnosticsEngine(DiagIDs, &CI.getDiagnosticOpts(),
+                                    new ForwardingDiagnosticConsumer(
+                                          *CI.getDiagnostics().getClient()),
+                                    /*ShouldOwnClient=*/true));
     ASTUnit *Unit = ASTUnit::LoadFromASTFile(ASTFiles[I], Diags,
                                              CI.getFileSystemOpts(), false);
     if (!Unit)

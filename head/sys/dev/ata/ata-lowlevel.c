@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -116,6 +115,7 @@ ata_begin_transaction(struct ata_request *request)
 		} while (request->status & ATA_S_BUSY && timeout--);
 		if (request->status & ATA_S_ERROR)
 		    request->error = ATA_IDX_INB(ch, ATA_ERROR);
+		ch->hw.tf_read(request);
 		goto begin_finished;
 	    }
 
@@ -253,8 +253,9 @@ ata_end_transaction(struct ata_request *request)
 	if (request->flags & ATA_R_TIMEOUT)
 	    goto end_finished;
 
-	/* on control commands read back registers to the request struct */
-	if (request->flags & ATA_R_CONTROL) {
+	/* Read back registers to the request struct. */
+	if ((request->status & ATA_S_ERROR) ||
+	    (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT))) {
 	    ch->hw.tf_read(request);
 	}
 
@@ -332,6 +333,12 @@ ata_end_transaction(struct ata_request *request)
 	else if (!(request->flags & ATA_R_TIMEOUT))
 	    request->donecount = request->bytecount;
 
+	/* Read back registers to the request struct. */
+	if ((request->status & ATA_S_ERROR) ||
+	    (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT))) {
+	    ch->hw.tf_read(request);
+	}
+
 	/* release SG list etc */
 	ch->dma.unload(request);
 
@@ -370,7 +377,6 @@ ata_end_transaction(struct ata_request *request)
 			      "%s trying to write on read buffer\n",
 			   ata_cmd2str(request));
 		goto end_finished;
-		break;
 	    }
 	    ata_pio_write(request, length);
 	    request->donecount += length;
@@ -497,7 +503,7 @@ ata_generic_reset(device_t dev)
 		      mask, ostat0, ostat1);
 
     /* if nothing showed up there is no need to get any further */
-    /* XXX SOS is that too strong?, we just might loose devices here */
+    /* XXX SOS is that too strong?, we just might lose devices here */
     ch->devices = 0;
     if (!mask)
 	return;
@@ -597,7 +603,7 @@ ata_generic_reset(device_t dev)
 }
 
 /* must be called with ATA channel locked and state_mtx held */
-int
+static int
 ata_generic_status(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
@@ -776,9 +782,6 @@ static void
 ata_tf_write(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(request->parent);
-#ifndef ATA_CAM
-    struct ata_device *atadev = device_get_softc(request->dev);
-#endif
 
     if (request->flags & ATA_R_48BIT) {
 	ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature >> 8);
@@ -796,39 +799,12 @@ ata_tf_write(struct ata_request *request)
     else {
 	ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
 	ATA_IDX_OUTB(ch, ATA_COUNT, request->u.ata.count);
-#ifndef ATA_CAM
-	if (atadev->flags & ATA_D_USE_CHS) {
-	    int heads, sectors;
-    
-	    if (atadev->param.atavalid & ATA_FLAG_54_58) {
-		heads = atadev->param.current_heads;
-		sectors = atadev->param.current_sectors;
-	    }
-	    else {
-		heads = atadev->param.heads;
-		sectors = atadev->param.sectors;
-	    }
-
-	    ATA_IDX_OUTB(ch, ATA_SECTOR, (request->u.ata.lba % sectors)+1);
-	    ATA_IDX_OUTB(ch, ATA_CYL_LSB,
-			 (request->u.ata.lba / (sectors * heads)));
-	    ATA_IDX_OUTB(ch, ATA_CYL_MSB,
-			 (request->u.ata.lba / (sectors * heads)) >> 8);
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(request->unit) | 
-			 (((request->u.ata.lba% (sectors * heads)) /
-			   sectors) & 0xf));
-	}
-	else {
-#endif
 	    ATA_IDX_OUTB(ch, ATA_SECTOR, request->u.ata.lba);
 	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
 	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
 	    ATA_IDX_OUTB(ch, ATA_DRIVE,
 			 ATA_D_IBM | ATA_D_LBA | ATA_DEV(request->unit) |
 			 ((request->u.ata.lba >> 24) & 0x0f));
-#ifndef ATA_CAM
-	}
-#endif
     }
 }
 
@@ -839,14 +815,28 @@ ata_pio_read(struct ata_request *request, int length)
     uint8_t *addr;
     int size = min(request->transfersize, length);
     int resid;
-    uint8_t buf[2];
+    uint8_t buf[2] __aligned(sizeof(int16_t));
+#ifndef __NO_STRICT_ALIGNMENT
+    int i;
+#endif
 
     addr = (uint8_t *)request->data + request->donecount;
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)) ||
-	((uintptr_t)addr % sizeof(int32_t))) {
-	ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int16_t));
+    if (__predict_false(ch->flags & ATA_USE_16BIT ||
+      (size % sizeof(int32_t)) || ((uintptr_t)addr % sizeof(int32_t)))) {
+#ifndef __NO_STRICT_ALIGNMENT
+	if (__predict_false((uintptr_t)addr % sizeof(int16_t))) {
+	    for (i = 0, resid = size & ~1; resid > 0; resid -=
+	      sizeof(int16_t)) {
+		*(uint16_t *)&buf = ATA_IDX_INW_STRM(ch, ATA_DATA);
+	        addr[i++] = buf[0];
+	        addr[i++] = buf[1];
+	    }
+	} else
+#endif
+	    ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)addr, size /
+	      sizeof(int16_t));
 	if (size & 1) {
-	    ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)buf, 1);
+	    *(uint16_t *)&buf = ATA_IDX_INW_STRM(ch, ATA_DATA);
 	    (addr + (size & ~1))[0] = buf[0];
 	}
     } else
@@ -868,15 +858,30 @@ ata_pio_write(struct ata_request *request, int length)
     uint8_t *addr;
     int size = min(request->transfersize, length);
     int resid;
-    uint8_t buf[2];
+    uint8_t buf[2] __aligned(sizeof(int16_t));
+#ifndef __NO_STRICT_ALIGNMENT
+    int i;
+#endif
 
+    size = min(request->transfersize, length);
     addr = (uint8_t *)request->data + request->donecount;
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)) ||
-	((uintptr_t)addr % sizeof(int32_t))) {
-	ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int16_t));
+    if (__predict_false(ch->flags & ATA_USE_16BIT ||
+      (size % sizeof(int32_t)) || ((uintptr_t)addr % sizeof(int32_t)))) {
+#ifndef __NO_STRICT_ALIGNMENT
+	if (__predict_false((uintptr_t)addr % sizeof(int16_t))) {
+	    for (i = 0, resid = size & ~1; resid > 0; resid -=
+	      sizeof(int16_t)) {
+	        buf[0] = addr[i++];
+	        buf[1] = addr[i++];
+		ATA_IDX_OUTW_STRM(ch, ATA_DATA, *(uint16_t *)&buf);
+	    }
+	} else
+#endif
+	    ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)addr, size /
+	      sizeof(int16_t));
 	if (size & 1) {
 	    buf[0] = (addr + (size & ~1))[0];
-	    ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)buf, 1);
+	    ATA_IDX_OUTW_STRM(ch, ATA_DATA, *(uint16_t *)&buf);
 	}
     } else
 	ATA_IDX_OUTSL_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int32_t));

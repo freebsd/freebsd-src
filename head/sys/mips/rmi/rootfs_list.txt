@@ -530,7 +530,6 @@
 ./sbin/mount_msdosfs
 ./sbin/mount_nfs
 ./sbin/mount_newnfs
-./sbin/mount_ntfs
 ./sbin/mount_nullfs
 ./sbin/mount_udf
 ./sbin/mount_unionfs

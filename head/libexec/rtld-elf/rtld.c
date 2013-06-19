@@ -145,9 +145,8 @@ static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
-static int origin_subst_one(char **, const char *, const char *,
-  const char *, char *);
-static char *origin_subst(const char *, const char *);
+static char *origin_subst_one(char *, const char *, const char *, bool);
+static char *origin_subst(char *, const char *);
 static void preinit_main(void);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
@@ -748,79 +747,81 @@ basename(const char *name)
 
 static struct utsname uts;
 
-static int
-origin_subst_one(char **res, const char *real, const char *kw, const char *subst,
-    char *may_free)
+static char *
+origin_subst_one(char *real, const char *kw, const char *subst,
+    bool may_free)
 {
-    const char *p, *p1;
-    char *res1;
-    int subst_len;
-    int kw_len;
+	char *p, *p1, *res, *resp;
+	int subst_len, kw_len, subst_count, old_len, new_len;
 
-    res1 = *res = NULL;
-    p = real;
-    subst_len = kw_len = 0;
-    for (;;) {
-	 p1 = strstr(p, kw);
-	 if (p1 != NULL) {
-	     if (subst_len == 0) {
-		 subst_len = strlen(subst);
-		 kw_len = strlen(kw);
-	     }
-	     if (*res == NULL) {
-		 *res = xmalloc(PATH_MAX);
-		 res1 = *res;
-	     }
-	     if ((res1 - *res) + subst_len + (p1 - p) >= PATH_MAX) {
-		 _rtld_error("Substitution of %s in %s cannot be performed",
-		     kw, real);
-		 if (may_free != NULL)
-		     free(may_free);
-		 free(res);
-		 return (false);
-	     }
-	     memcpy(res1, p, p1 - p);
-	     res1 += p1 - p;
-	     memcpy(res1, subst, subst_len);
-	     res1 += subst_len;
-	     p = p1 + kw_len;
-	 } else {
-	    if (*res == NULL) {
-		if (may_free != NULL)
-		    *res = may_free;
-		else
-		    *res = xstrdup(real);
-		return (true);
-	    }
-	    *res1 = '\0';
-	    if (may_free != NULL)
-		free(may_free);
-	    if (strlcat(res1, p, PATH_MAX - (res1 - *res)) >= PATH_MAX) {
-		free(res);
-		return (false);
-	    }
-	    return (true);
-	 }
-    }
+	kw_len = strlen(kw);
+
+	/*
+	 * First, count the number of the keyword occurences, to
+	 * preallocate the final string.
+	 */
+	for (p = real, subst_count = 0;; p = p1 + kw_len, subst_count++) {
+		p1 = strstr(p, kw);
+		if (p1 == NULL)
+			break;
+	}
+
+	/*
+	 * If the keyword is not found, just return.
+	 */
+	if (subst_count == 0)
+		return (may_free ? real : xstrdup(real));
+
+	/*
+	 * There is indeed something to substitute.  Calculate the
+	 * length of the resulting string, and allocate it.
+	 */
+	subst_len = strlen(subst);
+	old_len = strlen(real);
+	new_len = old_len + (subst_len - kw_len) * subst_count;
+	res = xmalloc(new_len + 1);
+
+	/*
+	 * Now, execute the substitution loop.
+	 */
+	for (p = real, resp = res, *resp = '\0';;) {
+		p1 = strstr(p, kw);
+		if (p1 != NULL) {
+			/* Copy the prefix before keyword. */
+			memcpy(resp, p, p1 - p);
+			resp += p1 - p;
+			/* Keyword replacement. */
+			memcpy(resp, subst, subst_len);
+			resp += subst_len;
+			*resp = '\0';
+			p = p1 + kw_len;
+		} else
+			break;
+	}
+
+	/* Copy to the end of string and finish. */
+	strcat(resp, p);
+	if (may_free)
+		free(real);
+	return (res);
 }
 
 static char *
-origin_subst(const char *real, const char *origin_path)
+origin_subst(char *real, const char *origin_path)
 {
-    char *res1, *res2, *res3, *res4;
+	char *res1, *res2, *res3, *res4;
 
-    if (uts.sysname[0] == '\0') {
-	if (uname(&uts) != 0) {
-	    _rtld_error("utsname failed: %d", errno);
-	    return (NULL);
+	if (uts.sysname[0] == '\0') {
+		if (uname(&uts) != 0) {
+			_rtld_error("utsname failed: %d", errno);
+			return (NULL);
+		}
 	}
-    }
-    if (!origin_subst_one(&res1, real, "$ORIGIN", origin_path, NULL) ||
-	!origin_subst_one(&res2, res1, "$OSNAME", uts.sysname, res1) ||
-	!origin_subst_one(&res3, res2, "$OSREL", uts.release, res2) ||
-	!origin_subst_one(&res4, res3, "$PLATFORM", uts.machine, res3))
-	    return (NULL);
-    return (res4);
+	res1 = origin_subst_one(real, "$ORIGIN", origin_path, false);
+	res2 = origin_subst_one(res1, "$OSNAME", uts.sysname, true);
+	res3 = origin_subst_one(res2, "$OSREL", uts.release, true);
+	res4 = origin_subst_one(res3, "$PLATFORM", uts.machine, true);
+	return (res4);
 }
 
 static void
@@ -1429,7 +1430,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
 {
     char *pathname;
     char *name;
-    bool objgiven;
+    bool nodeflib, objgiven;
 
     objgiven = refobj != NULL;
     if (strchr(xname, '/') != NULL) {	/* Hard coded pathname */
@@ -1438,10 +1439,12 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	      xname);
 	    return NULL;
 	}
-	if (objgiven && refobj->z_origin)
-	    return origin_subst(xname, refobj->origin_path);
-	else
-	    return xstrdup(xname);
+	if (objgiven && refobj->z_origin) {
+		return (origin_subst(__DECONST(char *, xname),
+		    refobj->origin_path));
+	} else {
+		return (xstrdup(xname));
+	}
     }
 
     if (libmap_disable || !objgiven ||
@@ -1464,6 +1467,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
 	    return (pathname);
     } else {
+	nodeflib = objgiven ? refobj->z_nodeflib : false;
 	if ((objgiven &&
 	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
 	  (objgiven && refobj->runpath == NULL && refobj != obj_main &&
@@ -1471,9 +1475,8 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	  (pathname = search_library_path(name, ld_library_path)) != NULL ||
 	  (objgiven &&
 	  (pathname = search_library_path(name, refobj->runpath)) != NULL) ||
-	  (pathname = search_library_path(name, gethints(refobj->z_nodeflib)))
-	  != NULL ||
-	  (objgiven && !refobj->z_nodeflib &&
+	  (pathname = search_library_path(name, gethints(nodeflib))) != NULL ||
+	  (objgiven && !nodeflib &&
 	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL))
 	    return (pathname);
     }
@@ -1598,7 +1601,7 @@ gethints(bool nostdlib)
 		/* Keep from trying again in case the hints file is bad. */
 		hints = "";
 
-		if ((fd = open(ld_elf_hints_path, O_RDONLY)) == -1)
+		if ((fd = open(ld_elf_hints_path, O_RDONLY | O_CLOEXEC)) == -1)
 			return (NULL);
 		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
 		    hdr.magic != ELFHINTS_MAGIC ||
@@ -2046,13 +2049,13 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
      */
     fd = -1;
     if (fd_u == -1) {
-	if ((fd = open(path, O_RDONLY)) == -1) {
+	if ((fd = open(path, O_RDONLY | O_CLOEXEC)) == -1) {
 	    _rtld_error("Cannot open \"%s\"", path);
 	    free(path);
 	    return (NULL);
 	}
     } else {
-	fd = dup(fd_u);
+	fd = fcntl(fd_u, F_DUPFD_CLOEXEC, 0);
 	if (fd == -1) {
 	    _rtld_error("Cannot dup fd");
 	    free(path);

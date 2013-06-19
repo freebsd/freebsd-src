@@ -86,7 +86,7 @@ static const struct fmt athstats[] = {
 #define	S_TX_LINEAR	AFTER(S_MIB)
 	{ 5,	"txlinear",	"txlinear",	"tx linearized to cluster" },
 #define	S_BSTUCK	AFTER(S_TX_LINEAR)
-	{ 5,	"bstuck",	"bstuck",	"stuck beacon conditions" },
+	{ 6,	"bstuck",	"bstuck",	"stuck beacon conditions" },
 #define	S_INTRCOAL	AFTER(S_BSTUCK)
 	{ 5,	"intrcoal",	"intrcoal",	"interrupts coalesced" },
 #define	S_RATE		AFTER(S_INTRCOAL)
@@ -262,7 +262,9 @@ static const struct fmt athstats[] = {
 	{ 10,	"rxdescbusy",	"rxdescbusy",	"Decryption engine busy" },
 #define	S_RX_HI_CHAIN	AFTER(S_RX_DECRYPT_BUSY_ERR)
 	{ 4,	"rxhi",	"rxhi",	"Frames received with RX chain in high power mode" },
-#define	S_TX_HTPROTECT	AFTER(S_RX_HI_CHAIN)
+#define	S_RX_STBC	AFTER(S_RX_HI_CHAIN)
+	{ 6,	"rxstbc", "rxstbc", "Frames received w/ STBC encoding" },
+#define	S_TX_HTPROTECT	AFTER(S_RX_STBC)
 	{ 7,	"txhtprot",	"txhtprot",	"Frames transmitted with HT Protection" },
 #define	S_RX_QEND	AFTER(S_TX_HTPROTECT)
 	{ 7,	"rxquend",	"rxquend",	"Hit end of RX descriptor queue" },
@@ -292,15 +294,15 @@ static const struct fmt athstats[] = {
 	{ 7,	"txaggrfailall",	"TXAFALL",	"A-MPDU TX frame failures" },
 #ifndef __linux__
 #define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAILALL)
-	{ 5,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
+	{ 7,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
 #define	S_CABQ_BUSY	AFTER(S_CABQ_XMIT)
-	{ 5,	"cabqbusy",	"cabqbusy",	"cabq xmit overflowed beacon interval" },
+	{ 8,	"cabqbusy",	"cabqbusy",	"cabq xmit overflowed beacon interval" },
 #define	S_TX_NODATA	AFTER(S_CABQ_BUSY)
-	{ 5,	"txnodata",	"txnodata",	"tx discarded empty frame" },
+	{ 8,	"txnodata",	"txnodata",	"tx discarded empty frame" },
 #define	S_TX_BUSDMA	AFTER(S_TX_NODATA)
-	{ 5,	"txbusdma",	"txbusdma",	"tx failed for dma resrcs" },
+	{ 8,	"txbusdma",	"txbusdma",	"tx failed for dma resrcs" },
 #define	S_RX_BUSDMA	AFTER(S_TX_BUSDMA)
-	{ 5,	"rxbusdma",	"rxbusdma",	"rx setup failed for dma resrcs" },
+	{ 8,	"rxbusdma",	"rxbusdma",	"rx setup failed for dma resrcs" },
 #define	S_FF_TXOK	AFTER(S_RX_BUSDMA)
 #else
 #define	S_FF_TXOK	AFTER(S_TX_AGGR_FAILALL)
@@ -418,12 +420,13 @@ static const struct fmt athstats[] = {
 	{ 4,	"asignal",	"asig",	"signal of last ack (dBm)" },
 #define	S_RX_SIGNAL	AFTER(S_TX_SIGNAL)
 	{ 4,	"signal",	"sig",	"avg recv signal (dBm)" },
-
+#define	S_BMISSCOUNT		AFTER(S_RX_SIGNAL)
+	{ 8,	"bmisscount",	"bmisscnt",	"beacon miss count" },
 };
 #define	S_PHY_MIN	S_RX_PHY_UNDERRUN
 #define	S_PHY_MAX	S_RX_PHY_CCK_RESTART
 #define	S_LAST		S_ANT_TX0
-#define	S_MAX	S_ANT_RX7+1
+#define	S_MAX		S_BMISSCOUNT+1
 
 /*
  * XXX fold this into the external HAL definitions! -adrian
@@ -490,7 +493,7 @@ ath_zerostats(struct athstatfoo *wf0)
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
 
 	if (ioctl(wf->s, SIOCZATHSTATS, &wf->ifr) < 0)
-		err(-1, wf->ifr.ifr_name);
+		err(-1, "ioctl: %s", wf->ifr.ifr_name);
 }
 
 static void
@@ -498,21 +501,21 @@ ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 {
 	wf->ifr.ifr_data = (caddr_t) &stats->ath;
 	if (ioctl(wf->s, SIOCGATHSTATS, &wf->ifr) < 0)
-		err(1, wf->ifr.ifr_name);
+		err(1, "ioctl: %s", wf->ifr.ifr_name);
 #ifdef ATH_SUPPORT_ANI
 	if (wf->optstats & ATHSTATS_ANI) {
 		wf->atd.ad_id = 5;
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_state;
 		wf->atd.ad_out_size = sizeof(stats->ani_state);
 		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0) {
-			warn(wf->atd.ad_name);
+			warn("ioctl: %s", wf->atd.ad_name);
 			wf->optstats &= ~ATHSTATS_ANI;
 		}
 		wf->atd.ad_id = 8;
 		wf->atd.ad_out_data = (caddr_t) &stats->ani_stats;
 		wf->atd.ad_out_size = sizeof(stats->ani_stats);
 		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0)
-			warn(wf->atd.ad_name);
+			warn("ioctl: %s", wf->atd.ad_name);
 	}
 #endif /* ATH_SUPPORT_ANI */
 }
@@ -574,12 +577,14 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	switch (s) {
 	case S_INPUT:
 		snprintf(b, bs, "%lu",
-		    (wf->cur.ath.ast_rx_packets - wf->total.ath.ast_rx_packets) -
-		    (wf->cur.ath.ast_rx_mgt - wf->total.ath.ast_rx_mgt));
+		    (unsigned long)
+		    ((wf->cur.ath.ast_rx_packets - wf->total.ath.ast_rx_packets) -
+		    (wf->cur.ath.ast_rx_mgt - wf->total.ath.ast_rx_mgt)));
 		return 1;
 	case S_OUTPUT:
 		snprintf(b, bs, "%lu",
-		    wf->cur.ath.ast_tx_packets - wf->total.ath.ast_tx_packets);
+		    (unsigned long)
+		    (wf->cur.ath.ast_tx_packets - wf->total.ath.ast_tx_packets));
 		return 1;
 	case S_RATE:
 		snprintrate(b, bs, wf->cur.ath.ast_tx_rate);
@@ -750,6 +755,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_FF_RX:		STAT(ff_rx);
 	case S_FF_FLUSH:	STAT(ff_flush);
 	case S_TX_QFULL:	STAT(tx_qfull);
+	case S_BMISSCOUNT:	STAT(be_missed);
 	case S_RX_NOISE:
 		snprintf(b, bs, "%d", wf->cur.ath.ast_rx_noise);
 		return 1;
@@ -768,6 +774,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_POST_CRC_ERR:	STAT(rx_post_crc_err);
 	case S_RX_DECRYPT_BUSY_ERR:	STAT(rx_decrypt_busy_err);
 	case S_RX_HI_CHAIN:	STAT(rx_hi_rx_chain);
+	case S_RX_STBC:		STAT(rx_stbc);
 	case S_TX_HTPROTECT:	STAT(tx_htprotect);
 	case S_RX_QEND:		STAT(rx_hitqueueend);
 	case S_TX_TIMEOUT:	STAT(tx_timeout);
@@ -991,6 +998,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_FF_RX:		STAT(ff_rx);
 	case S_FF_FLUSH:	STAT(ff_flush);
 	case S_TX_QFULL:	STAT(tx_qfull);
+	case S_BMISSCOUNT:	STAT(be_missed);
 	case S_RX_NOISE:
 		snprintf(b, bs, "%d", wf->total.ath.ast_rx_noise);
 		return 1;
@@ -1009,6 +1017,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_POST_CRC_ERR:	STAT(rx_post_crc_err);
 	case S_RX_DECRYPT_BUSY_ERR:	STAT(rx_decrypt_busy_err);
 	case S_RX_HI_CHAIN:	STAT(rx_hi_rx_chain);
+	case S_RX_STBC:		STAT(rx_stbc);
 	case S_TX_HTPROTECT:	STAT(tx_htprotect);
 	case S_RX_QEND:		STAT(rx_hitqueueend);
 	case S_TX_TIMEOUT:	STAT(tx_timeout);

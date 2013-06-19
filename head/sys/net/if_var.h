@@ -99,6 +99,11 @@ TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifmultihead, ifmultiaddr);
 TAILQ_HEAD(ifgrouphead, ifg_group);
 
+#ifdef _KERNEL
+VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
+#define	V_link_pfil_hook	VNET(link_pfil_hook)
+#endif /* _KERNEL */
+
 /*
  * Structure defining a queue for a network interface.
  */
@@ -153,7 +158,7 @@ struct ifnet {
 	int	if_amcount;		/* number of all-multicast requests */
 /* procedure handles */
 	int	(*if_output)		/* output routine (enqueue) */
-		(struct ifnet *, struct mbuf *, struct sockaddr *,
+		(struct ifnet *, struct mbuf *, const struct sockaddr *,
 		     struct route *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);
@@ -199,6 +204,11 @@ struct ifnet {
 	u_int	if_fib;			/* interface FIB */
 	u_char	if_alloctype;		/* if_type at time of allocation */
 
+	u_int	if_hw_tsomax;		/* tso burst length limit, the minmum
+					 * is (IP_MAXPACKET / 8).
+					 * XXXAO: Have to find a better place
+					 * for it eventually. */
+
 	/*
 	 * Spare fields are added so that we can modify sensitive data
 	 * structures without changing the kernel binary interface, and must
@@ -223,6 +233,7 @@ typedef void if_init_f_t(void *);
 #define	if_metric	if_data.ifi_metric
 #define	if_link_state	if_data.ifi_link_state
 #define	if_baudrate	if_data.ifi_baudrate
+#define	if_baudrate_pf	if_data.ifi_baudrate_pf
 #define	if_hwassist	if_data.ifi_hwassist
 #define	if_ipackets	if_data.ifi_ipackets
 #define	if_ierrors	if_data.ifi_ierrors
@@ -268,7 +279,7 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
  * are queues of messages stored on ifqueue structures
  * (defined above).  Entries are added to and deleted from these structures
- * by these macros, which should be called with ipl raised to splimp().
+ * by these macros.
  */
 #define IF_LOCK(ifq)		mtx_lock(&(ifq)->ifq_mtx)
 #define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)
@@ -586,21 +597,21 @@ do {									\
 
 #ifdef _KERNEL
 static __inline void
-drbr_stats_update(struct ifnet *ifp, int len, int mflags)
+if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
 {
-#ifndef NO_SLOW_STATS
-	ifp->if_obytes += len;
-	if (mflags & M_MCAST)
-		ifp->if_omcasts++;
-#endif
+
+	ifp->if_baudrate_pf = 0;
+	while (baud > (u_long)(~0UL)) {
+		baud /= 10;
+		ifp->if_baudrate_pf++;
+	}
+	ifp->if_baudrate = baud;
 }
 
 static __inline int
 drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 {	
 	int error = 0;
-	int len = m->m_pkthdr.len;
-	int mflags = m->m_flags;
 
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
@@ -608,13 +619,50 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 		return (error);
 	}
 #endif
-	if ((error = buf_ring_enqueue_bytes(br, m, len)) == ENOBUFS) {
-		br->br_drops++;
+	error = buf_ring_enqueue(br, m);
+	if (error)
 		m_freem(m);
-	} else
-		drbr_stats_update(ifp, len, mflags);
-	
+
 	return (error);
+}
+
+static __inline void
+drbr_putback(struct ifnet *ifp, struct buf_ring *br, struct mbuf *new)
+{
+	/*
+	 * The top of the list needs to be swapped 
+	 * for this one.
+	 */
+#ifdef ALTQ
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		/* 
+		 * Peek in altq case dequeued it
+		 * so put it back.
+		 */
+		IFQ_DRV_PREPEND(&ifp->if_snd, new);
+		return;
+	}
+#endif
+	buf_ring_putback_sc(br, new);
+}
+
+static __inline struct mbuf *
+drbr_peek(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	struct mbuf *m;
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		/* 
+		 * Pull it off like a dequeue
+		 * since drbr_advance() does nothing
+		 * for altq and drbr_putback() will
+		 * use the old prepend function.
+		 */
+		IFQ_DEQUEUE(&ifp->if_snd, m);
+		return (m);
+	}
+#endif
+	return(buf_ring_peek(br));
 }
 
 static __inline void
@@ -644,13 +692,25 @@ drbr_dequeue(struct ifnet *ifp, struct buf_ring *br)
 #ifdef ALTQ
 	struct mbuf *m;
 
-	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {	
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {	
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		return (m);
 	}
 #endif
 	return (buf_ring_dequeue_sc(br));
 }
+
+static __inline void
+drbr_advance(struct ifnet *ifp, struct buf_ring *br)
+{
+#ifdef ALTQ
+	/* Nothing to do here since peek dequeues in altq case */
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd))
+		return;
+#endif
+	return (buf_ring_advance_sc(br));
+}
+
 
 static __inline struct mbuf *
 drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
@@ -884,8 +944,8 @@ struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithnet(struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithroute(int, struct sockaddr *, struct sockaddr *);
 struct	ifaddr *ifa_ifwithroute_fib(int, struct sockaddr *, struct sockaddr *, u_int);
-
 struct	ifaddr *ifaof_ifpforaddr(struct sockaddr *, struct ifnet *);
+int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
 

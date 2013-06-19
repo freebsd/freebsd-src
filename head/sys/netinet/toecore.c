@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/nd6.h>
 #define TCPSTATES
 #include <netinet/tcp.h>
@@ -355,11 +357,14 @@ toe_4tuple_check(struct in_conninfo *inc, struct tcphdr *th, struct ifnet *ifp)
 {
 	struct inpcb *inp;
 
-	if (inc->inc_flags & INC_ISIPV6)
-		return (ENOSYS);	/* XXX: implement */
-
-	inp = in_pcblookup(&V_tcbinfo, inc->inc_faddr, inc->inc_fport,
-	    inc->inc_laddr, inc->inc_lport, INPLOOKUP_WLOCKPCB, ifp);
+	if (inc->inc_flags & INC_ISIPV6) {
+		inp = in6_pcblookup(&V_tcbinfo, &inc->inc6_faddr,
+		    inc->inc_fport, &inc->inc6_laddr, inc->inc_lport,
+		    INPLOOKUP_WLOCKPCB, ifp);
+	} else {
+		inp = in_pcblookup(&V_tcbinfo, inc->inc_faddr, inc->inc_fport,
+		    inc->inc_laddr, inc->inc_lport, INPLOOKUP_WLOCKPCB, ifp);
+	}
 	if (inp != NULL) {
 		INP_WLOCK_ASSERT(inp);
 
@@ -440,6 +445,68 @@ toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
 	return;
 }
 
+#ifdef INET6
+/*
+ * XXX: no checks to verify that sa is really a neighbor because we assume it is
+ * the result of a route lookup and is on-link on the given ifp.
+ */
+static int
+toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
+{
+	struct llentry *lle;
+	struct sockaddr_in6 *sin6 = (void *)sa;
+	int rc, flags = 0;
+
+restart:
+	IF_AFDATA_RLOCK(ifp);
+	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
+	IF_AFDATA_RUNLOCK(ifp);
+	if (lle == NULL) {
+		IF_AFDATA_LOCK(ifp);
+		lle = nd6_lookup(&sin6->sin6_addr, ND6_CREATE | ND6_EXCLUSIVE,
+		    ifp);
+		IF_AFDATA_UNLOCK(ifp);
+		if (lle == NULL)
+			return (ENOMEM); /* Couldn't create entry in cache. */
+		lle->ln_state = ND6_LLINFO_INCOMPLETE;
+		nd6_llinfo_settimer_locked(lle,
+		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+		LLE_WUNLOCK(lle);
+
+		nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
+
+		return (EWOULDBLOCK);
+	}
+
+	if (lle->ln_state == ND6_LLINFO_STALE) {
+		if ((flags & LLE_EXCLUSIVE) == 0) {
+			LLE_RUNLOCK(lle);
+			flags |= LLE_EXCLUSIVE;
+			goto restart;
+		}
+
+		LLE_WLOCK_ASSERT(lle);
+
+		lle->la_asked = 0;
+		lle->ln_state = ND6_LLINFO_DELAY;
+		nd6_llinfo_settimer_locked(lle, (long)V_nd6_delay * hz);
+	}
+
+	if (lle->la_flags & LLE_VALID) {
+		memcpy(lladdr, &lle->ll_addr, ifp->if_addrlen);
+		rc = 0;
+	} else
+		rc = EWOULDBLOCK;
+
+	if (flags & LLE_EXCLUSIVE)
+		LLE_WUNLOCK(lle);
+	else
+		LLE_RUNLOCK(lle);
+
+	return (rc);
+}
+#endif
+
 /*
  * Returns 0 or EWOULDBLOCK on success (any other value is an error).  0 means
  * lladdr and vtag are valid on return, EWOULDBLOCK means the TOE driver's
@@ -449,7 +516,9 @@ int
 toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
     uint8_t *lladdr, uint16_t *vtag)
 {
+#ifdef INET
 	struct llentry *lle;
+#endif
 	int rc;
 
 	switch (sa->sa_family) {
@@ -460,7 +529,7 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		rc = nd6_storelladdr(ifp, NULL, sa, lladdr, &lle);
+		rc = toe_nd6_resolve(ifp, sa, lladdr);
 		break;
 #endif
 	default:

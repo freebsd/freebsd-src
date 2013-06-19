@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ AcpiExSetupRegion (
  * RETURN:      Status
  *
  * DESCRIPTION: Common processing for AcpiExExtractFromField and
- *              AcpiExInsertIntoField.  Initialize the Region if necessary and
+ *              AcpiExInsertIntoField. Initialize the Region if necessary and
  *              validate the request.
  *
  ******************************************************************************/
@@ -168,7 +168,7 @@ AcpiExSetupRegion (
 #endif
 
     /*
-     * Validate the request.  The entire request from the byte offset for a
+     * Validate the request. The entire request from the byte offset for a
      * length of one field datum (access width) must fit within the region.
      * (Region length is specified in bytes)
      */
@@ -197,7 +197,7 @@ AcpiExSetupRegion (
         {
             /*
              * This is the case where the AccessType (AccWord, etc.) is wider
-             * than the region itself.  For example, a region of length one
+             * than the region itself. For example, a region of length one
              * byte, and a field with Dword access specified.
              */
             ACPI_ERROR ((AE_INFO,
@@ -339,7 +339,7 @@ AcpiExAccessRegion (
  *
  * DESCRIPTION: Check if a value is out of range of the field being written.
  *              Used to check if the values written to Index and Bank registers
- *              are out of range.  Normally, the value is simply truncated
+ *              are out of range. Normally, the value is simply truncated
  *              to fit the field, but this case is most likely a serious
  *              coding error in the ASL.
  *
@@ -392,7 +392,7 @@ AcpiExRegisterOverflow (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Read or Write a single datum of a field.  The FieldType is
+ * DESCRIPTION: Read or Write a single datum of a field. The FieldType is
  *              demultiplexed here to handle the different types of fields
  *              (BufferField, RegionField, IndexField, BankField)
  *
@@ -480,9 +480,7 @@ AcpiExFieldDatumIo (
         Status = AE_OK;
         break;
 
-
     case ACPI_TYPE_LOCAL_BANK_FIELD:
-
         /*
          * Ensure that the BankValue is not beyond the capacity of
          * the register
@@ -512,7 +510,6 @@ AcpiExFieldDatumIo (
 
         /*lint -fallthrough */
 
-
     case ACPI_TYPE_LOCAL_REGION_FIELD:
         /*
          * For simple RegionFields, we just directly access the owning
@@ -522,10 +519,7 @@ AcpiExFieldDatumIo (
                     ReadWrite);
         break;
 
-
     case ACPI_TYPE_LOCAL_INDEX_FIELD:
-
-
         /*
          * Ensure that the IndexValue is not beyond the capacity of
          * the register
@@ -574,7 +568,6 @@ AcpiExFieldDatumIo (
                         Value, sizeof (UINT64));
         }
         break;
-
 
     default:
 
@@ -766,7 +759,18 @@ AcpiExExtractFromField (
     if ((ObjDesc->CommonField.StartFieldBitOffset == 0) &&
         (ObjDesc->CommonField.BitLength == AccessBitWidth))
     {
-        Status = AcpiExFieldDatumIo (ObjDesc, 0, Buffer, ACPI_READ);
+        if (BufferLength >= sizeof (UINT64))
+        {
+            Status = AcpiExFieldDatumIo (ObjDesc, 0, Buffer, ACPI_READ);
+        }
+        else
+        {
+            /* Use RawDatum (UINT64) to handle buffers < 64 bits */
+
+            Status = AcpiExFieldDatumIo (ObjDesc, 0, &RawDatum, ACPI_READ);
+            ACPI_MEMCPY (Buffer, &RawDatum, BufferLength);
+        }
+
         return_ACPI_STATUS (Status);
     }
 
@@ -906,7 +910,7 @@ AcpiExInsertIntoField (
                         ObjDesc->CommonField.BitLength);
     /*
      * We must have a buffer that is at least as long as the field
-     * we are writing to.  This is because individual fields are
+     * we are writing to. This is because individual fields are
      * indivisible and partial writes are not supported -- as per
      * the ACPI specification.
      */
@@ -922,7 +926,7 @@ AcpiExInsertIntoField (
 
         /*
          * Copy the original data to the new buffer, starting
-         * at Byte zero.  All unused (upper) bytes of the
+         * at Byte zero. All unused (upper) bytes of the
          * buffer will be 0.
          */
         ACPI_MEMCPY ((char *) NewBuffer, (char *) Buffer, BufferLength);
@@ -1051,5 +1055,3 @@ Exit:
     }
     return_ACPI_STATUS (Status);
 }
-
-

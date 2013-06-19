@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -153,6 +153,11 @@ qla_add_sysctls(qla_host_t *ha)
                 OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RD,
                 (void *)ha, 0,
                 qla_sysctl_get_stats, "I", "Statistics");
+
+	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "fw_version", CTLFLAG_RD,
+		&ha->fw_ver_str, 0, "firmware version");
 
 	dbg_level = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
@@ -346,6 +351,10 @@ qla_pci_attach(device_t dev)
 	device_printf(dev, "%s: firmware[%d.%d.%d.%d]\n", __func__,
 		ha->fw_ver_major, ha->fw_ver_minor, ha->fw_ver_sub,
 		ha->fw_ver_build);
+
+	snprintf(ha->fw_ver_str, sizeof(ha->fw_ver_str), "%d.%d.%d.%d",
+			ha->fw_ver_major, ha->fw_ver_minor, ha->fw_ver_sub,
+			ha->fw_ver_build);
 
 	//qla_get_hw_caps(ha);
 	qla_read_mac_addr(ha);
@@ -660,7 +669,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-	ifp->if_baudrate = (1 * 1000 * 1000 *1000);
+	if_initbaudrate(ifp, IF_Gbps(10));
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -680,6 +689,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 				IFCAP_JUMBO_MTU;
 
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
 
 #if defined(__FreeBSD_version) && (__FreeBSD_version < 900002)
 	ifp->if_timer = 0;
@@ -1063,7 +1073,7 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp)
 		QL_DPRINT8((ha->pci_dev, "%s: EFBIG [%d]\n", __func__,
 			m_head->m_pkthdr.len));
 
-		m = m_defrag(m_head, M_DONTWAIT);
+		m = m_defrag(m_head, M_NOWAIT);
 		if (m == NULL) {
 			ha->err_tx_defrag++;
 			m_freem(m_head);
@@ -1405,7 +1415,7 @@ qla_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp,
 	if (mp == NULL) {
 
 		if (!jumbo) {
-			mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			mp = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 
 			if (mp == NULL) {
 				ha->err_m_getcl++;
@@ -1416,7 +1426,7 @@ qla_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp,
 			}
 			mp->m_len = mp->m_pkthdr.len = MCLBYTES;
 		} else {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+			mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
 				MJUM9BYTES);
 			if (mp == NULL) {
 				ha->err_m_getjcl++;

@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 // Include all information about LLVM intrinsics.
-include "llvm/Intrinsics.td"
+include "llvm/IR/Intrinsics.td"
 
 //===----------------------------------------------------------------------===//
 // Register file description - These classes are used to fill in the target
@@ -343,8 +343,8 @@ class Instruction {
   bit isBarrier    = 0;     // Can control flow fall through this instruction?
   bit isCall       = 0;     // Is this instruction a call instruction?
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?
-  bit mayLoad      = 0;     // Is it possible for this inst to read memory?
-  bit mayStore     = 0;     // Is it possible for this inst to write memory?
+  bit mayLoad      = ?;     // Is it possible for this inst to read memory?
+  bit mayStore     = ?;     // Is it possible for this inst to write memory?
   bit isConvertibleToThreeAddress = 0;  // Can this 2-addr instruction promote?
   bit isCommutable = 0;     // Is this 3 operand instruction commutable?
   bit isTerminator = 0;     // Is this part of the terminator for a basic block?
@@ -367,9 +367,10 @@ class Instruction {
   //  hasSideEffects - The instruction has side effects that are not
   //    captured by any operands of the instruction or other flags.
   //
-  //  neverHasSideEffects - Set on an instruction with no pattern if it has no
-  //    side effects.
-  bit hasSideEffects = 0;
+  //  neverHasSideEffects (deprecated) - Set on an instruction with no pattern
+  //    if it has no side effects. This is now equivalent to setting
+  //    "hasSideEffects = 0".
+  bit hasSideEffects = ?;
   bit neverHasSideEffects = 0;
 
   // Is this instruction a "real" instruction (with a distinct machine
@@ -395,6 +396,9 @@ class Instruction {
   bit isAsmParserOnly = 0;
 
   InstrItinClass Itinerary = NoItinerary;// Execution steps used for scheduling.
+
+  // Scheduling information from TargetSchedule.td.
+  list<SchedReadWrite> SchedRW;
 
   string Constraints = "";  // OperandConstraint, e.g. $src = $dst.
 
@@ -495,7 +499,8 @@ def ptr_rc : PointerLikeRegClass<0>;
 
 /// unknown definition - Mark this operand as being of unknown type, causing
 /// it to be resolved by inference in the context it is used.
-def unknown;
+class unknown_class;
+def unknown : unknown_class;
 
 /// AsmOperandClass - Representation for the kinds of operands which the target
 /// specific parser can create and the assembly matcher may need to distinguish.
@@ -602,23 +607,31 @@ def f64imm : Operand<f64>;
 ///
 def zero_reg;
 
+/// OperandWithDefaultOps - This Operand class can be used as the parent class
+/// for an Operand that needs to be initialized with a default value if
+/// no value is supplied in a pattern.  This class can be used to simplify the
+/// pattern definitions for instructions that have target specific flags
+/// encoded as immediate operands.
+class OperandWithDefaultOps<ValueType ty, dag defaultops>
+  : Operand<ty> {
+  dag DefaultOps = defaultops;
+}
+
 /// PredicateOperand - This can be used to define a predicate operand for an
 /// instruction.  OpTypes specifies the MIOperandInfo for the operand, and
 /// AlwaysVal specifies the value of this predicate when set to "always
 /// execute".
 class PredicateOperand<ValueType ty, dag OpTypes, dag AlwaysVal>
-  : Operand<ty> {
+  : OperandWithDefaultOps<ty, AlwaysVal> {
   let MIOperandInfo = OpTypes;
-  dag DefaultOps = AlwaysVal;
 }
 
 /// OptionalDefOperand - This is used to define a optional definition operand
 /// for an instruction. DefaultOps is the register the operand represents if
 /// none is supplied, e.g. zero_reg.
 class OptionalDefOperand<ValueType ty, dag OpTypes, dag defaultops>
-  : Operand<ty> {
+  : OperandWithDefaultOps<ty, defaultops> {
   let MIOperandInfo = OpTypes;
-  dag DefaultOps = defaultops;
 }
 
 
@@ -631,6 +644,17 @@ class InstrInfo {
   // Sparc manual specifies its instructions in the format [31..0] (big), while
   // PowerPC specifies them using the format [0..31] (little).
   bit isLittleEndianEncoding = 0;
+
+  // The instruction properties mayLoad, mayStore, and hasSideEffects are unset
+  // by default, and TableGen will infer their value from the instruction
+  // pattern when possible.
+  //
+  // Normally, TableGen will issue an error it it can't infer the value of a
+  // property that hasn't been set explicitly. When guessInstructionProperties
+  // is set, it will guess a safe value instead.
+  //
+  // This option is a temporary migration help. It will go away.
+  bit guessInstructionProperties = 1;
 }
 
 // Standard Pseudo Instructions.
@@ -734,6 +758,18 @@ def BUNDLE : Instruction {
   let InOperandList = (ins variable_ops);
   let AsmString = "BUNDLE";
 }
+def LIFETIME_START : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i32imm:$id);
+  let AsmString = "LIFETIME_START";
+  let neverHasSideEffects = 1;
+}
+def LIFETIME_END : Instruction {
+  let OutOperandList = (outs);
+  let InOperandList = (ins i32imm:$id);
+  let AsmString = "LIFETIME_END";
+  let neverHasSideEffects = 1;
+}
 }
 
 //===----------------------------------------------------------------------===//
@@ -753,6 +789,10 @@ class AsmParser {
   // function of the AsmParser class to call on every matched instruction.
   // This can be used to perform target specific instruction post-processing.
   string AsmParserInstCleanup  = "";
+
+  // ShouldEmitMatchRegisterName - Set to false if the target needs a hand
+  // written register name matcher
+  bit ShouldEmitMatchRegisterName = 1;
 }
 def DefaultAsmParser : AsmParser;
 
@@ -766,6 +806,9 @@ class AsmParserVariant {
   // used to support targets that need to parser multiple formats for the
   // assembly language.
   int Variant = 0;
+
+  // Name - The AsmParser variant name (e.g., AT&T vs Intel).
+  string Name = "";
 
   // CommentDelimiter - If given, the delimiter string used to recognize
   // comments which are hard coded in the .td assembler strings for individual
@@ -820,9 +863,16 @@ class TokenAlias<string From, string To> {
 ///  def : MnemonicAlias<"pushf", "pushfq">, Requires<[In64BitMode]>;
 ///  def : MnemonicAlias<"pushf", "pushfl">, Requires<[In32BitMode]>;
 ///
-class MnemonicAlias<string From, string To> {
+/// Mnemonic aliases can also be constrained to specific variants, e.g.:
+///
+///  def : MnemonicAlias<"pushf", "pushfq", "att">, Requires<[In64BitMode]>;
+///
+/// If no variant (e.g., "att" or "intel") is specified then the alias is
+/// applied unconditionally.
+class MnemonicAlias<string From, string To, string VariantName = ""> {
   string FromMnemonic = From;
   string ToMnemonic = To;
+  string AsmVariantName = VariantName;
 
   // Predicates - Predicates that must be true for this remapping to happen.
   list<Predicate> Predicates = [];
@@ -953,9 +1003,61 @@ class Processor<string n, ProcessorItineraries pi, list<SubtargetFeature> f> {
 // ProcessorModel allows subtargets to specify the more general
 // SchedMachineModel instead if a ProcessorItinerary. Subtargets will
 // gradually move to this newer form.
+//
+// Although this class always passes NoItineraries to the Processor
+// class, the SchedMachineModel may still define valid Itineraries.
 class ProcessorModel<string n, SchedMachineModel m, list<SubtargetFeature> f>
   : Processor<n, NoItineraries, f> {
   let SchedModel = m;
+}
+
+//===----------------------------------------------------------------------===//
+// InstrMapping - This class is used to create mapping tables to relate
+// instructions with each other based on the values specified in RowFields,
+// ColFields, KeyCol and ValueCols.
+//
+class InstrMapping {
+  // FilterClass - Used to limit search space only to the instructions that
+  // define the relationship modeled by this InstrMapping record.
+  string FilterClass;
+
+  // RowFields - List of fields/attributes that should be same for all the
+  // instructions in a row of the relation table. Think of this as a set of
+  // properties shared by all the instructions related by this relationship
+  // model and is used to categorize instructions into subgroups. For instance,
+  // if we want to define a relation that maps 'Add' instruction to its
+  // predicated forms, we can define RowFields like this:
+  //
+  // let RowFields = BaseOp
+  // All add instruction predicated/non-predicated will have to set their BaseOp
+  // to the same value.
+  //
+  // def Add: { let BaseOp = 'ADD'; let predSense = 'nopred' }
+  // def Add_predtrue: { let BaseOp = 'ADD'; let predSense = 'true' }
+  // def Add_predfalse: { let BaseOp = 'ADD'; let predSense = 'false'  }
+  list<string> RowFields = [];
+
+  // List of fields/attributes that are same for all the instructions
+  // in a column of the relation table.
+  // Ex: let ColFields = 'predSense' -- It means that the columns are arranged
+  // based on the 'predSense' values. All the instruction in a specific
+  // column have the same value and it is fixed for the column according
+  // to the values set in 'ValueCols'.
+  list<string> ColFields = [];
+
+  // Values for the fields/attributes listed in 'ColFields'.
+  // Ex: let KeyCol = 'nopred' -- It means that the key instruction (instruction
+  // that models this relation) should be non-predicated.
+  // In the example above, 'Add' is the key instruction.
+  list<string> KeyCol = [];
+
+  // List of values for the fields/attributes listed in 'ColFields', one for
+  // each column in the relation table.
+  //
+  // Ex: let ValueCols = [['true'],['false']] -- It adds two columns in the
+  // table. First column requires all the instructions to have predSense
+  // set to 'true' and second column requires it to be 'false'.
+  list<list<string> > ValueCols = [];
 }
 
 //===----------------------------------------------------------------------===//

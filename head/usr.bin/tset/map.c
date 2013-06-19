@@ -44,8 +44,7 @@ static const char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
 
 #include "extern.h"
 
-extern speed_t Ospeed;
-speed_t	tset_baudrate(char *);
+static speed_t tset_baudrate(char *);
 
 /* Baud rate conditionals for mapping. */
 #define	GT		0x01
@@ -63,7 +62,7 @@ typedef struct map {
 	speed_t	speed;		/* Baud	rate to	compare	against. */
 } MAP;
 
-MAP *cur, *maplist;
+static MAP *cur, *maplist;
 
 /*
  * Syntax for -m:
@@ -224,7 +223,7 @@ typedef struct speeds {
 	speed_t	speed;
 } SPEEDS;
 
-SPEEDS speeds[] = {
+static SPEEDS speeds[] = {
 	{ "0",		B0 },
 	{ "134.5",	B134 },
 	{ "exta",	B19200 },
@@ -232,7 +231,7 @@ SPEEDS speeds[] = {
 	{ NULL, 0 }
 };
 
-speed_t
+static speed_t
 tset_baudrate(char *rate)
 {
 	SPEEDS *sp;

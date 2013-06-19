@@ -11,6 +11,25 @@
 
 ======================================================================
 
+	Major changes between "less" versions 451 and 458
+
+* Allow backslash escaping of metacharacters in LESS environment variable
+  after the --use-backslash option.
+
+* Don't quit if syntax errors are found in command line options.
+
+* Increase sizes of some internal buffers.
+
+* Fix configure bug with --with-regex=none.
+
+* Fix crash with "stty rows 0".
+
+* Fix Win32 attribute display bug.
+
+* Fix display bug when using up/down arrow on the command line.
+
+======================================================================
+
 	Major changes between "less" versions 444 and 451
 
 * Add ESC-F command to keep reading data until a pattern is found.

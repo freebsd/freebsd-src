@@ -2810,7 +2810,7 @@ mwl_rx_proc(void *arg, int npending)
 		 * be a net loss.  The tradeoff might be system
 		 * dependent (cache architecture is important).
 		 */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			DPRINTF(sc, MWL_DEBUG_ANY,
 			    "%s: no rx mbuf\n", __func__);
@@ -3087,9 +3087,9 @@ mwl_tx_dmasetup(struct mwl_softc *sc, struct mwl_txbuf *bf, struct mbuf *m0)
 	if (error == EFBIG) {		/* too many desc's, linearize */
 		sc->sc_stats.mst_tx_linear++;
 #if MWL_TXDESC > 1
-		m = m_collapse(m0, M_DONTWAIT, MWL_TXDESC);
+		m = m_collapse(m0, M_NOWAIT, MWL_TXDESC);
 #else
-		m = m_defrag(m0, M_DONTWAIT);
+		m = m_defrag(m0, M_NOWAIT);
 #endif
 		if (m == NULL) {
 			m_freem(m0);

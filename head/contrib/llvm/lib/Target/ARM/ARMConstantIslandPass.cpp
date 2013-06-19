@@ -16,23 +16,23 @@
 #define DEBUG_TYPE "arm-cp-islands"
 #include "ARM.h"
 #include "ARMMachineFunctionInfo.h"
-#include "Thumb2InstrInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
+#include "Thumb2InstrInfo.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetMachine.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -528,7 +528,7 @@ ARMConstantIslands::doInitialPlacement(std::vector<MachineInstr*> &CPEMIs) {
   // identity mapping of CPI's to CPE's.
   const std::vector<MachineConstantPoolEntry> &CPs = MCP->getConstants();
 
-  const TargetData &TD = *MF->getTarget().getTargetData();
+  const DataLayout &TD = *MF->getTarget().getDataLayout();
   for (unsigned i = 0, e = CPs.size(); i != e; ++i) {
     unsigned Size = TD.getTypeAllocSize(CPs[i].getType());
     assert(Size >= 4 && "Too small constant pool entry");
@@ -1388,10 +1388,9 @@ bool ARMConstantIslands::handleConstantPoolUser(unsigned CPUserIndex) {
     // If the original WaterList entry was "new water" on this iteration,
     // propagate that to the new island.  This is just keeping NewWaterList
     // updated to match the WaterList, which will be updated below.
-    if (NewWaterList.count(WaterBB)) {
-      NewWaterList.erase(WaterBB);
+    if (NewWaterList.erase(WaterBB))
       NewWaterList.insert(NewIsland);
-    }
+
     // The new CPE goes before the following block (NewMBB).
     NewMBB = llvm::next(MachineFunction::iterator(WaterBB));
 
@@ -1469,7 +1468,7 @@ void ARMConstantIslands::removeDeadCPEMI(MachineInstr *CPEMI) {
   if (CPEBB->empty()) {
     BBInfo[CPEBB->getNumber()].Size = 0;
 
-    // This block no longer needs to be aligned. <rdar://problem/10534709>.
+    // This block no longer needs to be aligned.
     CPEBB->setAlignment(0);
   } else
     // Entries are sorted by descending alignment, so realign from the front.

@@ -16,14 +16,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclObjC.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/AST/DeclObjC.h"
-#include "clang/AST/Decl.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -163,23 +164,9 @@ public:
 };
 }
 
-namespace { struct NSErrorOut {}; }
-namespace { struct CFErrorOut {}; }
-
 typedef llvm::ImmutableMap<SymbolRef, unsigned> ErrorOutFlag;
-
-namespace clang {
-namespace ento {
-  template <>
-  struct ProgramStateTrait<NSErrorOut> : public ProgramStatePartialTrait<ErrorOutFlag> {  
-    static void *GDMIndex() { static int index = 0; return &index; }
-  };
-  template <>
-  struct ProgramStateTrait<CFErrorOut> : public ProgramStatePartialTrait<ErrorOutFlag> {  
-    static void *GDMIndex() { static int index = 0; return &index; }
-  };
-}
-}
+REGISTER_TRAIT_WITH_PROGRAMSTATE(NSErrorOut, ErrorOutFlag)
+REGISTER_TRAIT_WITH_PROGRAMSTATE(CFErrorOut, ErrorOutFlag)
 
 template <typename T>
 static bool hasFlag(SVal val, ProgramStateRef state) {
@@ -199,7 +186,7 @@ static void setFlag(ProgramStateRef state, SVal val, CheckerContext &C) {
 static QualType parameterTypeFromSVal(SVal val, CheckerContext &C) {
   const StackFrameContext *
     SFC = C.getLocationContext()->getCurrentStackFrame();
-  if (const loc::MemRegionVal* X = dyn_cast<loc::MemRegionVal>(&val)) {
+  if (Optional<loc::MemRegionVal> X = val.getAs<loc::MemRegionVal>()) {
     const MemRegion* R = X->getRegion();
     if (const VarRegion *VR = R->getAs<VarRegion>())
       if (const StackArgumentsSpaceRegion *
@@ -216,7 +203,7 @@ void NSOrCFErrorDerefChecker::checkLocation(SVal loc, bool isLoad,
                                             CheckerContext &C) const {
   if (!isLoad)
     return;
-  if (loc.isUndef() || !isa<Loc>(loc))
+  if (loc.isUndef() || !loc.getAs<Loc>())
     return;
 
   ASTContext &Ctx = C.getASTContext();
@@ -238,12 +225,12 @@ void NSOrCFErrorDerefChecker::checkLocation(SVal loc, bool isLoad,
     CFErrorII = &Ctx.Idents.get("CFErrorRef");
 
   if (ShouldCheckNSError && IsNSError(parmT, NSErrorII)) {
-    setFlag<NSErrorOut>(state, state->getSVal(cast<Loc>(loc)), C);
+    setFlag<NSErrorOut>(state, state->getSVal(loc.castAs<Loc>()), C);
     return;
   }
 
   if (ShouldCheckCFError && IsCFError(parmT, CFErrorII)) {
-    setFlag<CFErrorOut>(state, state->getSVal(cast<Loc>(loc)), C);
+    setFlag<CFErrorOut>(state, state->getSVal(loc.castAs<Loc>()), C);
     return;
   }
 }
@@ -265,18 +252,15 @@ void NSOrCFErrorDerefChecker::checkEvent(ImplicitNullDerefEvent event) const {
     return;
 
   // Storing to possible null NSError/CFErrorRef out parameter.
+  SmallString<128> Buf;
+  llvm::raw_svector_ostream os(Buf);
 
-  // Emit an error.
-  std::string err;
-  llvm::raw_string_ostream os(err);
-    os << "Potential null dereference.  According to coding standards ";
+  os << "Potential null dereference.  According to coding standards ";
+  os << (isNSError
+         ? "in 'Creating and Returning NSError Objects' the parameter"
+         : "documented in CoreFoundation/CFError.h the parameter");
 
-  if (isNSError)
-    os << "in 'Creating and Returning NSError Objects' the parameter '";
-  else
-    os << "documented in CoreFoundation/CFError.h the parameter '";
-
-  os  << "' may be null.";
+  os  << " may be null";
 
   BugType *bug = 0;
   if (isNSError)
@@ -285,7 +269,7 @@ void NSOrCFErrorDerefChecker::checkEvent(ImplicitNullDerefEvent event) const {
     bug = new CFErrorDerefBug();
   BugReport *report = new BugReport(*bug, os.str(),
                                                     event.SinkNode);
-  BR.EmitReport(report);
+  BR.emitReport(report);
 }
 
 static bool IsNSError(QualType T, IdentifierInfo *II) {

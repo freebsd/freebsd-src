@@ -29,6 +29,7 @@
 #ifndef LLVM_PASS_H
 #define LLVM_PASS_H
 
+#include "llvm/Support/Compiler.h"
 #include <string>
 
 namespace llvm {
@@ -82,8 +83,8 @@ class Pass {
   AnalysisResolver *Resolver;  // Used to resolve analysis
   const void *PassID;
   PassKind Kind;
-  void operator=(const Pass&);  // DO NOT IMPLEMENT
-  Pass(const Pass &);           // DO NOT IMPLEMENT
+  void operator=(const Pass&) LLVM_DELETED_FUNCTION;
+  Pass(const Pass &) LLVM_DELETED_FUNCTION;
 
 public:
   explicit Pass(PassKind K, char &pid) : Resolver(0), PassID(&pid), Kind(K) { }
@@ -102,6 +103,16 @@ public:
   AnalysisID getPassID() const {
     return PassID;
   }
+
+  /// doInitialization - Virtual method overridden by subclasses to do
+  /// any necessary initialization before any pass is run.
+  ///
+  virtual bool doInitialization(Module &)  { return false; }
+
+  /// doFinalization - Virtual method overriden by subclasses to do any
+  /// necessary clean up after all passes have run.
+  ///
+  virtual bool doFinalization(Module &) { return false; }
 
   /// print - Print out the internal state of the pass.  This is called by
   /// Analyze to print out the contents of an analysis.  Otherwise it is not
@@ -286,20 +297,10 @@ public:
   /// createPrinterPass - Get a function printer pass.
   Pass *createPrinterPass(raw_ostream &O, const std::string &Banner) const;
 
-  /// doInitialization - Virtual method overridden by subclasses to do
-  /// any necessary per-module initialization.
-  ///
-  virtual bool doInitialization(Module &);
-
   /// runOnFunction - Virtual method overriden by subclasses to do the
   /// per-function processing of the pass.
   ///
   virtual bool runOnFunction(Function &F) = 0;
-
-  /// doFinalization - Virtual method overriden by subclasses to do any post
-  /// processing needed after all passes have run.
-  ///
-  virtual bool doFinalization(Module &);
 
   virtual void assignPassManager(PMStack &PMS,
                                  PassManagerType T);
@@ -327,10 +328,8 @@ public:
   /// createPrinterPass - Get a basic block printer pass.
   Pass *createPrinterPass(raw_ostream &O, const std::string &Banner) const;
 
-  /// doInitialization - Virtual method overridden by subclasses to do
-  /// any necessary per-module initialization.
-  ///
-  virtual bool doInitialization(Module &);
+  using llvm::Pass::doInitialization;
+  using llvm::Pass::doFinalization;
 
   /// doInitialization - Virtual method overridden by BasicBlockPass subclasses
   /// to do any necessary per-function initialization.
@@ -346,11 +345,6 @@ public:
   /// do any post processing needed after all passes have run.
   ///
   virtual bool doFinalization(Function &);
-
-  /// doFinalization - Virtual method overriden by subclasses to do any post
-  /// processing needed after all passes have run.
-  ///
-  virtual bool doFinalization(Module &);
 
   virtual void assignPassManager(PMStack &PMS,
                                  PassManagerType T);

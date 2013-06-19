@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmpowerpccodegen
 
 SRCDIR=	lib/Target/PowerPC
@@ -18,7 +20,8 @@ SRCS=	PPCAsmPrinter.cpp \
 	PPCRegisterInfo.cpp \
 	PPCSelectionDAGInfo.cpp \
 	PPCSubtarget.cpp \
-	PPCTargetMachine.cpp
+	PPCTargetMachine.cpp \
+	PPCTargetTransformInfo.cpp
 
 TGHDRS=	Intrinsics \
 	PPCGenCallingConv \

@@ -76,6 +76,9 @@ extern "C" {
     #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
         #define cvmx_dprintf        printk
         #define cvmx_dvprintf       vprintk
+    #elif defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
+	void cvmx_dvprintf(const char *, va_list);
+	void cvmx_dprintf(const char *, ...) __attribute__ ((format(printf, 1, 2)));
     #else
         #define cvmx_dprintf        printf
         #define cvmx_dvprintf       vprintf

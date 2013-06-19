@@ -20,8 +20,10 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
+
+/* Copyright (c) 2013 by Saso Kiselkov. All rights reserved. */
 
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
@@ -40,10 +42,20 @@
 #include <sys/zfs_ioctl.h>
 #include <sys/zap.h>
 #include <sys/zio_checksum.h>
+#include <sys/zio_compress.h>
 #include <sys/sa.h>
 #ifdef _KERNEL
 #include <sys/zfs_znode.h>
 #endif
+
+/*
+ * Enable/disable nopwrite feature.
+ */
+int zfs_nopwrite_enabled = 1;
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.nopwrite_enabled", &zfs_nopwrite_enabled);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, nopwrite_enabled, CTLFLAG_RDTUN,
+    &zfs_nopwrite_enabled, 0, "Enable nopwrite feature");
 
 const dmu_object_type_info_t dmu_ot[DMU_OT_NUMTYPES] = {
 	{	DMU_BSWAP_UINT8,	TRUE,	"unallocated"		},
@@ -136,7 +148,7 @@ dmu_buf_hold(objset_t *os, uint64_t object, uint64_t offset,
 	db = dbuf_hold(dn, blkid, tag);
 	rw_exit(&dn->dn_struct_rwlock);
 	if (db == NULL) {
-		err = EIO;
+		err = SET_ERROR(EIO);
 	} else {
 		err = dbuf_read(db, NULL, db_flags);
 		if (err) {
@@ -167,9 +179,9 @@ dmu_set_bonus(dmu_buf_t *db_fake, int newsize, dmu_tx_t *tx)
 	dn = DB_DNODE(db);
 
 	if (dn->dn_bonus != db) {
-		error = EINVAL;
+		error = SET_ERROR(EINVAL);
 	} else if (newsize < 0 || newsize > db_fake->db_size) {
-		error = EINVAL;
+		error = SET_ERROR(EINVAL);
 	} else {
 		dnode_setbonuslen(dn, newsize, tx);
 		error = 0;
@@ -190,9 +202,9 @@ dmu_set_bonustype(dmu_buf_t *db_fake, dmu_object_type_t type, dmu_tx_t *tx)
 	dn = DB_DNODE(db);
 
 	if (!DMU_OT_IS_VALID(type)) {
-		error = EINVAL;
+		error = SET_ERROR(EINVAL);
 	} else if (dn->dn_bonus != db) {
-		error = EINVAL;
+		error = SET_ERROR(EINVAL);
 	} else {
 		dnode_setbonus_type(dn, type, tx);
 		error = 0;
@@ -319,12 +331,12 @@ dmu_spill_hold_existing(dmu_buf_t *bonus, void *tag, dmu_buf_t **dbp)
 	dn = DB_DNODE(db);
 
 	if (spa_version(dn->dn_objset->os_spa) < SPA_VERSION_SA) {
-		err = EINVAL;
+		err = SET_ERROR(EINVAL);
 	} else {
 		rw_enter(&dn->dn_struct_rwlock, RW_READER);
 
 		if (!dn->dn_have_spill) {
-			err = ENOENT;
+			err = SET_ERROR(ENOENT);
 		} else {
 			err = dmu_spill_hold_by_dnode(dn,
 			    DB_RF_HAVESTRUCT | DB_RF_CANFAIL, tag, dbp);
@@ -390,7 +402,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 			    (longlong_t)dn->dn_object, dn->dn_datablksz,
 			    (longlong_t)offset, (longlong_t)length);
 			rw_exit(&dn->dn_struct_rwlock);
-			return (EIO);
+			return (SET_ERROR(EIO));
 		}
 		nblks = 1;
 	}
@@ -398,8 +410,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 
 	if (dn->dn_objset->os_dsl_dataset)
 		dp = dn->dn_objset->os_dsl_dataset->ds_dir->dd_pool;
-	if (dp && dsl_pool_sync_context(dp))
-		start = gethrtime();
+	start = gethrtime();
 	zio = zio_root(dn->dn_objset->os_spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 	blkid = dbuf_whichblock(dn, offset);
 	for (i = 0; i < nblks; i++) {
@@ -408,7 +419,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 			rw_exit(&dn->dn_struct_rwlock);
 			dmu_buf_rele_array(dbp, nblks, tag);
 			zio_nowait(zio);
-			return (EIO);
+			return (SET_ERROR(EIO));
 		}
 		/* initiate async i/o */
 		if (read)
@@ -440,7 +451,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 			    db->db_state == DB_FILL)
 				cv_wait(&db->db_changed, &db->db_mtx);
 			if (db->db_state == DB_UNCACHED)
-				err = EIO;
+				err = SET_ERROR(EIO);
 			mutex_exit(&db->db_mtx);
 			if (err) {
 				dmu_buf_rele_array(dbp, nblks, tag);
@@ -1195,7 +1206,7 @@ void
 dmu_return_arcbuf(arc_buf_t *buf)
 {
 	arc_return_buf(buf, FTAG);
-	VERIFY(arc_buf_remove_ref(buf, FTAG) == 1);
+	VERIFY(arc_buf_remove_ref(buf, FTAG));
 }
 
 /*
@@ -1287,6 +1298,16 @@ dmu_sync_done(zio_t *zio, arc_buf_t *buf, void *varg)
 	mutex_enter(&db->db_mtx);
 	ASSERT(dr->dt.dl.dr_override_state == DR_IN_DMU_SYNC);
 	if (zio->io_error == 0) {
+		dr->dt.dl.dr_nopwrite = !!(zio->io_flags & ZIO_FLAG_NOPWRITE);
+		if (dr->dt.dl.dr_nopwrite) {
+			blkptr_t *bp = zio->io_bp;
+			blkptr_t *bp_orig = &zio->io_bp_orig;
+			uint8_t chksum = BP_GET_CHECKSUM(bp_orig);
+
+			ASSERT(BP_EQUAL(bp, bp_orig));
+			ASSERT(zio->io_prop.zp_compress != ZIO_COMPRESS_OFF);
+			ASSERT(zio_checksum_table[chksum].ci_dedup);
+		}
 		dr->dt.dl.dr_overridden_by = *zio->io_bp;
 		dr->dt.dl.dr_override_state = DR_OVERRIDDEN;
 		dr->dt.dl.dr_copies = zio->io_prop.zp_copies;
@@ -1308,11 +1329,22 @@ dmu_sync_late_arrival_done(zio_t *zio)
 {
 	blkptr_t *bp = zio->io_bp;
 	dmu_sync_arg_t *dsa = zio->io_private;
+	blkptr_t *bp_orig = &zio->io_bp_orig;
 
 	if (zio->io_error == 0 && !BP_IS_HOLE(bp)) {
-		ASSERT(zio->io_bp->blk_birth == zio->io_txg);
-		ASSERT(zio->io_txg > spa_syncing_txg(zio->io_spa));
-		zio_free(zio->io_spa, zio->io_txg, zio->io_bp);
+		/*
+		 * If we didn't allocate a new block (i.e. ZIO_FLAG_NOPWRITE)
+		 * then there is nothing to do here. Otherwise, free the
+		 * newly allocated block in this txg.
+		 */
+		if (zio->io_flags & ZIO_FLAG_NOPWRITE) {
+			ASSERT(BP_EQUAL(bp, bp_orig));
+		} else {
+			ASSERT(BP_IS_HOLE(bp_orig) || !BP_EQUAL(bp, bp_orig));
+			ASSERT(zio->io_bp->blk_birth == zio->io_txg);
+			ASSERT(zio->io_txg > spa_syncing_txg(zio->io_spa));
+			zio_free(zio->io_spa, zio->io_txg, zio->io_bp);
+		}
 	}
 
 	dmu_tx_commit(dsa->dsa_tx);
@@ -1333,7 +1365,8 @@ dmu_sync_late_arrival(zio_t *pio, objset_t *os, dmu_sync_cb_t *done, zgd_t *zgd,
 	dmu_tx_hold_space(tx, zgd->zgd_db->db_size);
 	if (dmu_tx_assign(tx, TXG_WAIT) != 0) {
 		dmu_tx_abort(tx);
-		return (EIO);	/* Make zl_get_data do txg_waited_synced() */
+		/* Make zl_get_data do txg_waited_synced() */
+		return (SET_ERROR(EIO));
 	}
 
 	dsa = kmem_alloc(sizeof (dmu_sync_arg_t), KM_SLEEP);
@@ -1357,7 +1390,7 @@ dmu_sync_late_arrival(zio_t *pio, objset_t *os, dmu_sync_cb_t *done, zgd_t *zgd,
  *
  * Return values:
  *
- *	EEXIST: this txg has already been synced, so there's nothing to to.
+ *	EEXIST: this txg has already been synced, so there's nothing to do.
  *		The caller should not log the write.
  *
  *	ENOENT: the block was dbuf_free_range()'d, so there's nothing to do.
@@ -1389,7 +1422,6 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 	dnode_t *dn;
 
 	ASSERT(pio != NULL);
-	ASSERT(BP_IS_HOLE(bp));
 	ASSERT(txg != 0);
 
 	SET_BOOKMARK(&zb, ds->ds_object,
@@ -1419,7 +1451,7 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 		 * This txg has already synced.  There's nothing to do.
 		 */
 		mutex_exit(&db->db_mtx);
-		return (EEXIST);
+		return (SET_ERROR(EEXIST));
 	}
 
 	if (txg <= spa_syncing_txg(os->os_spa)) {
@@ -1441,8 +1473,25 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 		 * There's no need to log writes to freed blocks, so we're done.
 		 */
 		mutex_exit(&db->db_mtx);
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	}
+
+	ASSERT(dr->dr_next == NULL || dr->dr_next->dr_txg < txg);
+
+	/*
+	 * Assume the on-disk data is X, the current syncing data is Y,
+	 * and the current in-memory data is Z (currently in dmu_sync).
+	 * X and Z are identical but Y is has been modified. Normally,
+	 * when X and Z are the same we will perform a nopwrite but if Y
+	 * is different we must disable nopwrite since the resulting write
+	 * of Y to disk can free the block containing X. If we allowed a
+	 * nopwrite to occur the block pointing to Z would reference a freed
+	 * block. Since this is a rare case we simplify this by disabling
+	 * nopwrite if the current dmu_sync-ing dbuf has been modified in
+	 * a previous transaction.
+	 */
+	if (dr->dr_next)
+		zp.zp_nopwrite = B_FALSE;
 
 	ASSERT(dr->dr_txg == txg);
 	if (dr->dt.dl.dr_override_state == DR_IN_DMU_SYNC ||
@@ -1453,7 +1502,7 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 		 * have been dirtied since, or we would have cleared the state.
 		 */
 		mutex_exit(&db->db_mtx);
-		return (EALREADY);
+		return (SET_ERROR(EALREADY));
 	}
 
 	ASSERT(dr->dt.dl.dr_override_state == DR_NOT_OVERRIDDEN);
@@ -1467,9 +1516,9 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 	dsa->dsa_tx = NULL;
 
 	zio_nowait(arc_write(pio, os->os_spa, txg,
-	    bp, dr->dt.dl.dr_data, DBUF_IS_L2CACHEABLE(db), &zp,
-	    dmu_sync_ready, dmu_sync_done, dsa,
-	    ZIO_PRIORITY_SYNC_WRITE, ZIO_FLAG_CANFAIL, &zb));
+	    bp, dr->dt.dl.dr_data, DBUF_IS_L2CACHEABLE(db),
+	    DBUF_IS_L2COMPRESSIBLE(db), &zp, dmu_sync_ready, dmu_sync_done,
+	    dsa, ZIO_PRIORITY_SYNC_WRITE, ZIO_FLAG_CANFAIL, &zb));
 
 	return (0);
 }
@@ -1519,7 +1568,6 @@ dmu_object_set_compress(objset_t *os, uint64_t object, uint8_t compress,
 
 int zfs_mdcomp_disable = 0;
 TUNABLE_INT("vfs.zfs.mdcomp_disable", &zfs_mdcomp_disable);
-SYSCTL_DECL(_vfs_zfs);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, mdcomp_disable, CTLFLAG_RW,
     &zfs_mdcomp_disable, 0, "Disable metadata compression");
 
@@ -1532,14 +1580,26 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	enum zio_checksum checksum = os->os_checksum;
 	enum zio_compress compress = os->os_compress;
 	enum zio_checksum dedup_checksum = os->os_dedup_checksum;
-	boolean_t dedup;
+	boolean_t dedup = B_FALSE;
+	boolean_t nopwrite = B_FALSE;
 	boolean_t dedup_verify = os->os_dedup_verify;
 	int copies = os->os_copies;
 
 	/*
-	 * Determine checksum setting.
+	 * We maintain different write policies for each of the following
+	 * types of data:
+	 *	 1. metadata
+	 *	 2. preallocated blocks (i.e. level-0 blocks of a dump device)
+	 *	 3. all other level 0 blocks
 	 */
 	if (ismd) {
+		/*
+		 * XXX -- we should design a compression algorithm
+		 * that specializes in arrays of bps.
+		 */
+		compress = zfs_mdcomp_disable ? ZIO_COMPRESS_EMPTY :
+		    ZIO_COMPRESS_LZJB;
+
 		/*
 		 * Metadata always gets checksummed.  If the data
 		 * checksum is multi-bit correctable, and it's not a
@@ -1550,45 +1610,47 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		if (zio_checksum_table[checksum].ci_correctable < 1 ||
 		    zio_checksum_table[checksum].ci_eck)
 			checksum = ZIO_CHECKSUM_FLETCHER_4;
-	} else {
-		checksum = zio_checksum_select(dn->dn_checksum, checksum);
-	}
+	} else if (wp & WP_NOFILL) {
+		ASSERT(level == 0);
 
-	/*
-	 * Determine compression setting.
-	 */
-	if (ismd) {
 		/*
-		 * XXX -- we should design a compression algorithm
-		 * that specializes in arrays of bps.
+		 * If we're writing preallocated blocks, we aren't actually
+		 * writing them so don't set any policy properties.  These
+		 * blocks are currently only used by an external subsystem
+		 * outside of zfs (i.e. dump) and not written by the zio
+		 * pipeline.
 		 */
-		compress = zfs_mdcomp_disable ? ZIO_COMPRESS_EMPTY :
-		    ZIO_COMPRESS_LZJB;
+		compress = ZIO_COMPRESS_OFF;
+		checksum = ZIO_CHECKSUM_OFF;
 	} else {
 		compress = zio_compress_select(dn->dn_compress, compress);
-	}
 
-	/*
-	 * Determine dedup setting.  If we are in dmu_sync(), we won't
-	 * actually dedup now because that's all done in syncing context;
-	 * but we do want to use the dedup checkum.  If the checksum is not
-	 * strong enough to ensure unique signatures, force dedup_verify.
-	 */
-	dedup = (!ismd && dedup_checksum != ZIO_CHECKSUM_OFF);
-	if (dedup) {
-		checksum = dedup_checksum;
-		if (!zio_checksum_table[checksum].ci_dedup)
-			dedup_verify = 1;
-	}
+		checksum = (dedup_checksum == ZIO_CHECKSUM_OFF) ?
+		    zio_checksum_select(dn->dn_checksum, checksum) :
+		    dedup_checksum;
 
-	if (wp & WP_DMU_SYNC)
-		dedup = 0;
+		/*
+		 * Determine dedup setting.  If we are in dmu_sync(),
+		 * we won't actually dedup now because that's all
+		 * done in syncing context; but we do want to use the
+		 * dedup checkum.  If the checksum is not strong
+		 * enough to ensure unique signatures, force
+		 * dedup_verify.
+		 */
+		if (dedup_checksum != ZIO_CHECKSUM_OFF) {
+			dedup = (wp & WP_DMU_SYNC) ? B_FALSE : B_TRUE;
+			if (!zio_checksum_table[checksum].ci_dedup)
+				dedup_verify = B_TRUE;
+		}
 
-	if (wp & WP_NOFILL) {
-		ASSERT(!ismd && level == 0);
-		checksum = ZIO_CHECKSUM_OFF;
-		compress = ZIO_COMPRESS_OFF;
-		dedup = B_FALSE;
+		/*
+		 * Enable nopwrite if we have a cryptographically secure
+		 * checksum that has no known collisions (i.e. SHA-256)
+		 * and compression is enabled.  We don't enable nopwrite if
+		 * dedup is enabled as the two features are mutually exclusive.
+		 */
+		nopwrite = (!dedup && zio_checksum_table[checksum].ci_dedup &&
+		    compress != ZIO_COMPRESS_OFF && zfs_nopwrite_enabled);
 	}
 
 	zp->zp_checksum = checksum;
@@ -1598,6 +1660,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	zp->zp_copies = MIN(copies + ismd, spa_max_replication(os->os_spa));
 	zp->zp_dedup = dedup;
 	zp->zp_dedup_verify = dedup && dedup_verify;
+	zp->zp_nopwrite = nopwrite;
 }
 
 int
@@ -1651,7 +1714,7 @@ dmu_object_info_from_dnode(dnode_t *dn, dmu_object_info_t *doi)
 	doi->doi_checksum = dn->dn_checksum;
 	doi->doi_compress = dn->dn_compress;
 	doi->doi_physical_blocks_512 = (DN_USED_BYTES(dnp) + 256) >> 9;
-	doi->doi_max_offset = (dnp->dn_maxblkid + 1) * dn->dn_datablksz;
+	doi->doi_max_offset = (dn->dn_maxblkid + 1) * dn->dn_datablksz;
 	doi->doi_fill_count = 0;
 	for (int i = 0; i < dnp->dn_nblkptr; i++)
 		doi->doi_fill_count += dnp->dn_blkptr[i].blk_fill;
@@ -1776,7 +1839,7 @@ dmu_init(void)
 void
 dmu_fini(void)
 {
-	arc_fini();
+	arc_fini(); /* arc depends on l2arc, so arc must go first */
 	l2arc_fini();
 	zfetch_fini();
 	dbuf_fini();

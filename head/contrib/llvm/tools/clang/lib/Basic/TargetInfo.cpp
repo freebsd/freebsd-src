@@ -11,20 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/AddressSpaces.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <cctype>
 #include <cstdlib>
 using namespace clang;
 
 static const LangAS::Map DefaultAddrSpaceMap = { 0 };
 
 // TargetInfo Constructor.
-TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
+TargetInfo::TargetInfo(const std::string &T) : TargetOpts(), Triple(T)
+{
   // Set defaults.  Defaults are set for a 32-bit RISC platform, like PPC or
   // SPARC.  These should be overridden by concrete targets as needed.
   BigEndian = true;
@@ -36,6 +37,7 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   LongWidth = LongAlign = 32;
   LongLongWidth = LongLongAlign = 64;
   SuitableAlign = 64;
+  MinGlobalAlign = 0;
   HalfWidth = 16;
   HalfAlign = 16;
   FloatWidth = 32;
@@ -59,6 +61,7 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   Char32Type = UnsignedInt;
   Int64Type = SignedLongLong;
   SigAtomicType = SignedInt;
+  ProcessIDType = SignedInt;
   UseSignedCharForObjCBool = true;
   UseBitFieldTypeAlignment = true;
   UseZeroLengthBitfieldAlignment = false;
@@ -82,7 +85,7 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   ComplexLongDoubleUsesFP2Ret = false;
 
   // Default to using the Itanium ABI.
-  CXXABI = CXXABI_Itanium;
+  TheCXXABI.set(TargetCXXABI::GenericItanium);
 
   // Default to an empty address space map.
   AddrSpaceMap = &DefaultAddrSpaceMap;
@@ -221,7 +224,7 @@ bool TargetInfo::isValidGCCRegisterName(StringRef Name) const {
   getGCCRegNames(Names, NumNames);
 
   // If we have a number it maps to an entry in the register name array.
-  if (isdigit(Name[0])) {
+  if (isDigit(Name[0])) {
     int n;
     if (!Name.getAsInteger(0, n))
       return n >= 0 && (unsigned)n < NumNames;
@@ -277,7 +280,7 @@ TargetInfo::getNormalizedGCCRegisterName(StringRef Name) const {
   getGCCRegNames(Names, NumNames);
 
   // First, check if we have a number.
-  if (isdigit(Name[0])) {
+  if (isDigit(Name[0])) {
     int n;
     if (!Name.getAsInteger(0, n)) {
       assert(n >= 0 && (unsigned)n < NumNames &&
@@ -363,13 +366,17 @@ bool TargetInfo::validateOutputConstraint(ConstraintInfo &Info) const {
       break;
     case '?': // Disparage slightly code.
     case '!': // Disparage severely.
+    case '#': // Ignore as constraint.
+    case '*': // Ignore for choosing register preferences.
       break;  // Pass them.
     }
 
     Name++;
   }
 
-  return true;
+  // If a constraint allows neither memory nor register operands it contains
+  // only modifiers. Reject it.
+  return Info.allowsMemory() || Info.allowsRegister();
 }
 
 bool TargetInfo::resolveSymbolicName(const char *&Name,
@@ -482,11 +489,27 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
       break;
     case '?': // Disparage slightly code.
     case '!': // Disparage severely.
+    case '#': // Ignore as constraint.
+    case '*': // Ignore for choosing register preferences.
       break;  // Pass them.
     }
 
     Name++;
   }
 
+  return true;
+}
+
+bool TargetCXXABI::tryParse(llvm::StringRef name) {
+  const Kind unknown = static_cast<Kind>(-1);
+  Kind kind = llvm::StringSwitch<Kind>(name)
+    .Case("arm", GenericARM)
+    .Case("ios", iOS)
+    .Case("itanium", GenericItanium)
+    .Case("microsoft", Microsoft)
+    .Default(unknown);
+  if (kind == unknown) return false;
+
+  set(kind);
   return true;
 }

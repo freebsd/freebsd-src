@@ -14,11 +14,11 @@
 #ifndef TGPARSER_H
 #define TGPARSER_H
 
-#include "llvm/TableGen/Record.h"
 #include "TGLexer.h"
-#include "llvm/TableGen/Error.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include <map>
 
 namespace llvm {
@@ -30,7 +30,7 @@ namespace llvm {
   struct MultiClass;
   struct SubClassReference;
   struct SubMultiClassReference;
-  
+
   struct LetRecord {
     std::string Name;
     std::vector<unsigned> Bits;
@@ -41,7 +41,7 @@ namespace llvm {
       : Name(N), Bits(B), Value(V), Loc(L) {
     }
   };
-  
+
   /// ForeachLoop - Record the iteration state associated with a for loop.
   /// This is used to instantiate items in the loop body.
   struct ForeachLoop {
@@ -56,13 +56,13 @@ class TGParser {
   TGLexer Lex;
   std::vector<std::vector<LetRecord> > LetStack;
   std::map<std::string, MultiClass*> MultiClasses;
-  
+
   /// Loops - Keep track of any foreach loops we are within.
   ///
   typedef std::vector<ForeachLoop> LoopVector;
   LoopVector Loops;
 
-  /// CurMultiClass - If we are parsing a 'multiclass' definition, this is the 
+  /// CurMultiClass - If we are parsing a 'multiclass' definition, this is the
   /// current value.
   MultiClass *CurMultiClass;
 
@@ -82,13 +82,13 @@ class TGParser {
   };
 
 public:
-  TGParser(SourceMgr &SrcMgr, RecordKeeper &records) : 
+  TGParser(SourceMgr &SrcMgr, RecordKeeper &records) :
     Lex(SrcMgr), CurMultiClass(0), Records(records) {}
-  
+
   /// ParseFile - Main entrypoint for parsing a tblgen file.  These parser
   /// routines return true on error, or false on success.
   bool ParseFile();
-  
+
   bool Error(SMLoc L, const Twine &Msg) const {
     PrintError(L, Msg);
     return true;
@@ -96,15 +96,15 @@ public:
   bool TokError(const Twine &Msg) const {
     return Error(Lex.getLoc(), Msg);
   }
-  const std::vector<std::string> &getDependencies() const {
+  const TGLexer::DependenciesMapTy &getDependencies() const {
     return Lex.getDependencies();
   }
 
 private:  // Semantic analysis methods.
   bool AddValue(Record *TheRec, SMLoc Loc, const RecordVal &RV);
-  bool SetValue(Record *TheRec, SMLoc Loc, Init *ValName, 
+  bool SetValue(Record *TheRec, SMLoc Loc, Init *ValName,
                 const std::vector<unsigned> &BitList, Init *V);
-  bool SetValue(Record *TheRec, SMLoc Loc, const std::string &ValName, 
+  bool SetValue(Record *TheRec, SMLoc Loc, const std::string &ValName,
                 const std::vector<unsigned> &BitList, Init *V) {
     return SetValue(TheRec, Loc, StringInit::get(ValName), BitList, V);
   }
@@ -134,7 +134,7 @@ private:  // Parser methods.
   Record *InstantiateMulticlassDef(MultiClass &MC,
                                    Record *DefProto,
                                    Init *DefmPrefix,
-                                   SMLoc DefmPrefixLoc);
+                                   SMRange DefmPrefixRange);
   bool ResolveMulticlassDefArgs(MultiClass &MC,
                                 Record *DefProto,
                                 SMLoc DefmPrefixLoc,
@@ -170,7 +170,8 @@ private:  // Parser methods.
                          IDParseMode Mode = ParseValueMode);
   Init *ParseValue(Record *CurRec, RecTy *ItemType = 0,
                    IDParseMode Mode = ParseValueMode);
-  std::vector<Init*> ParseValueList(Record *CurRec, Record *ArgsRec = 0, RecTy *EltTy = 0);
+  std::vector<Init*> ParseValueList(Record *CurRec, Record *ArgsRec = 0,
+                                    RecTy *EltTy = 0);
   std::vector<std::pair<llvm::Init*, std::string> > ParseDagArgList(Record *);
   bool ParseOptionalRangeList(std::vector<unsigned> &Ranges);
   bool ParseOptionalBitList(std::vector<unsigned> &Ranges);
@@ -182,9 +183,9 @@ private:  // Parser methods.
   Init *ParseObjectName(MultiClass *CurMultiClass);
   Record *ParseClassID();
   MultiClass *ParseMultiClassID();
-  Record *ParseDefmID();
+  bool ApplyLetStack(Record *CurRec);
 };
-  
+
 } // end namespace llvm
 
 #endif

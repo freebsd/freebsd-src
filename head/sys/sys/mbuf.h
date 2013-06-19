@@ -52,11 +52,14 @@
  * stored.  Additionally, it is possible to allocate a separate buffer
  * externally and attach it to the mbuf in a way similar to that of mbuf
  * clusters.
+ *
+ * MLEN is data length in a normal mbuf.
+ * MHLEN is data length in an mbuf with pktheader.
+ * MINCLSIZE is a smallest amount of data that should be put into cluster.
  */
-#define	MLEN		(MSIZE - sizeof(struct m_hdr))	/* normal data len */
-#define	MHLEN		(MLEN - sizeof(struct pkthdr))	/* data len w/pkthdr */
-#define	MINCLSIZE	(MHLEN + 1)	/* smallest amount to put in cluster */
-#define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
+#define	MLEN		((int)(MSIZE - sizeof(struct m_hdr)))
+#define	MHLEN		((int)(MLEN - sizeof(struct pkthdr)))
+#define	MINCLSIZE	(MHLEN + 1)
 
 #ifdef _KERNEL
 /*-
@@ -126,6 +129,8 @@ struct pkthdr {
 		u_int16_t vt_vtag;	/* Ethernet 802.1p+q vlan tag */
 		u_int16_t vt_nrecs;	/* # of IGMPv3 records in this chain */
 	} PH_vt;
+	u_int16_t	 fibnum;	/* this packet should use this fib */
+	u_int16_t	 pad2;		/* align to 32 bits */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
 };
 #define ether_vtag	PH_vt.vt_vtag
@@ -192,7 +197,7 @@ struct mbuf {
 #define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
 #define	M_LASTFRAG	0x00002000 /* packet is last fragment */
 #define	M_SKIP_FIREWALL	0x00004000 /* skip firewall processing */
-#define	M_FREELIST	0x00008000 /* mbuf is on the free list */
+		     /*	0x00008000    free */
 #define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
 #define	M_PROMISC	0x00020000 /* packet was not for us */
 #define	M_NOFREE	0x00040000 /* do not free mbuf, embedded in cluster */
@@ -201,12 +206,6 @@ struct mbuf {
 #define	M_PROTO8	0x00200000 /* protocol-specific */
 #define	M_FLOWID	0x00400000 /* deprecated: flowid is valid */
 #define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
-
-/*
- * For RELENG_{6,7} steal these flags for limited multiple routing table
- * support. In RELENG_8 and beyond, use just one flag and a tag.
- */
-#define	M_FIB		0xF0000000 /* steal some bits to store fib number. */
 
 #define	M_NOTIFICATION	M_PROTO5    /* SCTP notification */
 
@@ -255,7 +254,7 @@ struct mbuf {
  */
 #define	M_COPYFLAGS \
     (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
-     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_FIB|M_HASHTYPEBITS)
+     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_HASHTYPEBITS)
 
 /*
  * External buffer types: identify ext_buf type.
@@ -279,7 +278,6 @@ struct mbuf {
 #define	CSUM_IP			0x0001		/* will csum IP */
 #define	CSUM_TCP		0x0002		/* will csum TCP */
 #define	CSUM_UDP		0x0004		/* will csum UDP */
-#define	CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
 #define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
 #define	CSUM_TSO		0x0020		/* will do TSO */
 #define	CSUM_SCTP		0x0040		/* will csum SCTP */
@@ -347,18 +345,7 @@ struct mbstat {
 };
 
 /*
- * Flags specifying how an allocation should be made.
- *
- * The flag to use is as follows:
- * - M_DONTWAIT or M_NOWAIT from an interrupt handler to not block allocation.
- * - M_WAIT or M_WAITOK from wherever it is safe to block.
- *
- * M_DONTWAIT/M_NOWAIT means that we will not block the thread explicitly and
- * if we cannot allocate immediately we may return NULL, whereas
- * M_WAIT/M_WAITOK means that if we cannot allocate resources we
- * will block until they are available, and thus never return NULL.
- *
- * XXX Eventually just phase this out to use M_WAITOK/M_NOWAIT.
+ * Compatibility with historic mbuf allocator.
  */
 #define	MBTOM(how)	(how)
 #define	M_DONTWAIT	M_NOWAIT
@@ -396,7 +383,6 @@ struct mbstat {
  *
  * The rest of it is defined in kern/kern_mbuf.c
  */
-
 extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
 extern uma_zone_t	zone_pack;
@@ -405,23 +391,8 @@ extern uma_zone_t	zone_jumbo9;
 extern uma_zone_t	zone_jumbo16;
 extern uma_zone_t	zone_ext_refcnt;
 
-static __inline struct mbuf	*m_getcl(int how, short type, int flags);
-static __inline struct mbuf	*m_get(int how, short type);
-static __inline struct mbuf	*m_get2(int how, short type, int flags,
-				    int size);
-static __inline struct mbuf	*m_gethdr(int how, short type);
-static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
-				    int size);
-static __inline struct mbuf	*m_getclr(int how, short type);	/* XXX */
-static __inline int		 m_init(struct mbuf *m, uma_zone_t zone,
-				    int size, int how, short type, int flags);
-static __inline struct mbuf	*m_free(struct mbuf *m);
-static __inline void		 m_clget(struct mbuf *m, int how);
-static __inline void		*m_cljget(struct mbuf *m, int how, int size);
-static __inline void		 m_chtype(struct mbuf *m, short new_type);
-void				 mb_free_ext(struct mbuf *);
-static __inline struct mbuf	*m_last(struct mbuf *m);
-int				 m_pkthdr_init(struct mbuf *m, int how);
+void		 mb_free_ext(struct mbuf *);
+int		 m_pkthdr_init(struct mbuf *, int);
 
 static __inline int
 m_gettype(int size)
@@ -514,7 +485,7 @@ m_get(int how, short type)
 
 	args.flags = 0;
 	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
 /*
@@ -541,7 +512,7 @@ m_gethdr(int how, short type)
 
 	args.flags = M_PKTHDR;
 	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
 
 static __inline struct mbuf *
@@ -551,85 +522,7 @@ m_getcl(int how, short type, int flags)
 
 	args.flags = flags;
 	args.type = type;
-	return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
-}
-
-/*
- * m_get2() allocates minimum mbuf that would fit "size" argument.
- *
- * XXX: This is rather large, should be real function maybe.
- */
-static __inline struct mbuf *
-m_get2(int how, short type, int flags, int size)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-	uma_zone_t zone;
-
-	args.flags = flags;
-	args.type = type;
-
-	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
-		return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
-	if (size <= MCLBYTES)
-		return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
-
-	if (size > MJUM16BYTES)
-		return (NULL);
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-#if MJUMPAGESIZE != MCLBYTES
-	if (size <= MJUMPAGESIZE)
-		zone = zone_jumbop;
-	else
-#endif
-	if (size <= MJUM9BYTES)
-		zone = zone_jumbo9;
-	else
-		zone = zone_jumbo16;
-
-	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-
-	return (m);
-}
-
-/*
- * m_getjcl() returns an mbuf with a cluster of the specified size attached.
- * For size it takes MCLBYTES, MJUMPAGESIZE, MJUM9BYTES, MJUM16BYTES.
- *
- * XXX: This is rather large, should be real function maybe.
- */
-static __inline struct mbuf *
-m_getjcl(int how, short type, int flags, int size)
-{
-	struct mb_args args;
-	struct mbuf *m, *n;
-	uma_zone_t zone;
-
-	if (size == MCLBYTES)
-		return m_getcl(how, type, flags);
-
-	args.flags = flags;
-	args.type = type;
-
-	m = uma_zalloc_arg(zone_mbuf, &args, how);
-	if (m == NULL)
-		return (NULL);
-
-	zone = m_getzone(size);
-	n = uma_zalloc_arg(zone, m, how);
-	if (n == NULL) {
-		uma_zfree(zone_mbuf, m);
-		return (NULL);
-	}
-	return (m);
+	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
 static __inline void
@@ -758,7 +651,8 @@ m_last(struct mbuf *m)
 #define	MGETHDR(m, how, type)	((m) = m_gethdr((how), (type)))
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, arg1, arg2, flags, type)		\
-    m_extadd((m), (caddr_t)(buf), (size), (free),(arg1),(arg2),(flags), (type))
+    (void )m_extadd((m), (caddr_t)(buf), (size), (free), (arg1), (arg2),\
+    (flags), (type), M_NOWAIT)
 #define	m_getm(m, len, how, type)					\
     m_getm2((m), (len), (how), (type), M_PKTHDR)
 
@@ -807,6 +701,18 @@ m_last(struct mbuf *m)
 	KASSERT((m)->m_data == (m)->m_pktdat,				\
 		("%s: MH_ALIGN not a virgin mbuf", __func__));		\
 	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
+} while (0)
+
+/*
+ * As above, for mbuf with external storage.
+ */
+#define	MEXT_ALIGN(m, len) do {						\
+	KASSERT((m)->m_flags & M_EXT,					\
+		("%s: MEXT_ALIGN not an M_EXT mbuf", __func__));	\
+	KASSERT((m)->m_data == (m)->m_ext.ext_buf,			\
+		("%s: MEXT_ALIGN not a virgin mbuf", __func__));	\
+	(m)->m_data += ((m)->m_ext.ext_size - (len)) &			\
+	    ~(sizeof(long) - 1); 					\
 } while (0)
 
 /*
@@ -866,7 +772,7 @@ m_last(struct mbuf *m)
 #define	M_COPYALL	1000000000
 
 /* Compatibility with 4.3. */
-#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_DONTWAIT)
+#define	m_copy(m, o, l)	m_copym((m), (o), (l), M_NOWAIT)
 
 extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
@@ -883,8 +789,8 @@ int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
-void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(void *, void *), void *, void *, int, int);
+int		 m_extadd(struct mbuf *, caddr_t, u_int,
+		    void (*)(void *, void *), void *, void *, int, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
@@ -893,7 +799,7 @@ struct mbuf	*m_copymdata(struct mbuf *, struct mbuf *,
 		    int, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
-struct mbuf	*m_copyup(struct mbuf *n, int len, int dstoff);
+struct mbuf	*m_copyup(struct mbuf *, int, int);
 struct mbuf	*m_defrag(struct mbuf *, int);
 void		 m_demote(struct mbuf *, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
@@ -903,6 +809,8 @@ int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
+struct mbuf	*m_get2(int, int, short, int);
+struct mbuf	*m_getjcl(int, short, int, int);
 struct mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
@@ -912,10 +820,10 @@ struct mbuf	*m_prepend(struct mbuf *, int, int);
 void		 m_print(const struct mbuf *, int);
 struct mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct mbuf	*m_pullup(struct mbuf *, int);
-int		m_sanity(struct mbuf *, int);
+int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
-struct mbuf	*m_unshare(struct mbuf *, int how);
+struct mbuf	*m_unshare(struct mbuf *, int);
 
 /*-
  * Network packets may have annotations attached by affixing a list of
@@ -1098,17 +1006,18 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
 
-/* XXX temporary FIB methods probably eventually use tags.*/
-#define M_FIBSHIFT    28
-#define M_FIBMASK	0x0F
+static int inline
+rt_m_getfib(struct mbuf *m)
+{
+	KASSERT(m->m_flags & M_PKTHDR , ("Attempt to get FIB from non header mbuf."));
+	return (m->m_pkthdr.fibnum);
+}
 
-/* get the fib from an mbuf and if it is not set, return the default */
-#define M_GETFIB(_m) \
-    ((((_m)->m_flags & M_FIB) >> M_FIBSHIFT) & M_FIBMASK)
+#define M_GETFIB(_m)   rt_m_getfib(_m)
 
 #define M_SETFIB(_m, _fib) do {						\
-	_m->m_flags &= ~M_FIB;					   	\
-	_m->m_flags |= (((_fib) << M_FIBSHIFT) & M_FIB);  \
+        KASSERT((_m)->m_flags & M_PKTHDR, ("Attempt to set FIB on non header mbuf."));	\
+	((_m)->m_pkthdr.fibnum) = (_fib);				\
 } while (0)
 
 #endif /* _KERNEL */

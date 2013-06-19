@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/signalvar.h>
+#include <vm/uma.h>
 
 #include <machine/cputypes.h>
 #include <machine/frame.h>
@@ -131,9 +132,9 @@ static	void	fpu_clean_state(void);
 SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
     NULL, 1, "Floating point instructions executed in hardware");
 
-static int use_xsaveopt;
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
+static	uma_zone_t fpu_save_area_zone;
 static	struct savefpu *fpu_initialstate;
 
 struct xsave_area_elm_descr {
@@ -151,7 +152,7 @@ fpusave(void *addr)
 		fxsave((char *)addr);
 }
 
-static void
+void
 fpurestore(void *addr)
 {
 
@@ -196,7 +197,6 @@ fpuinit_bsp1(void)
 		 * REX byte, and set the bit 4 of the r/m byte.
 		 */
 		ctx_switch_xsave[3] |= 0x10;
-		use_xsaveopt = 1;
 	}
 }
 
@@ -294,7 +294,7 @@ fpuinitstate(void *arg __unused)
 	 * Create a table describing the layout of the CPU Extended
 	 * Save Area.
 	 */
-	if (use_xsaveopt) {
+	if (use_xsave) {
 		max_ext_n = flsl(xsave_mask);
 		xsave_area_desc = malloc(max_ext_n * sizeof(struct
 		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -311,6 +311,10 @@ fpuinitstate(void *arg __unused)
 			xsave_area_desc[i].size = cp[0];
 		}
 	}
+
+	fpu_save_area_zone = uma_zcreate("FPU_save_area",
+	    cpu_max_ext_state_size, NULL, NULL, NULL, NULL,
+	    XSAVE_AREA_ALIGN - 1, 0);
 
 	start_emulating();
 	intr_restore(saveintr);
@@ -655,7 +659,7 @@ fpugetregs(struct thread *td)
 	struct pcb *pcb;
 	uint64_t *xstate_bv, bit;
 	char *sa;
-	int max_ext_n, i;
+	int max_ext_n, i, owned;
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_USERFPUINITDONE) == 0) {
@@ -669,31 +673,31 @@ fpugetregs(struct thread *td)
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 		fpusave(get_pcb_user_save_pcb(pcb));
-		critical_exit();
-		return (_MC_FPOWNED_FPU);
+		owned = _MC_FPOWNED_FPU;
 	} else {
-		critical_exit();
-		if (use_xsaveopt) {
-			/*
-			 * Handle partially saved state.
-			 */
-			sa = (char *)get_pcb_user_save_pcb(pcb);
-			xstate_bv = (uint64_t *)(sa + sizeof(struct savefpu) +
-			    offsetof(struct xstate_hdr, xstate_bv));
-			max_ext_n = flsl(xsave_mask);
-			for (i = 0; i < max_ext_n; i++) {
-				bit = 1 << i;
-				if ((*xstate_bv & bit) != 0)
-					continue;
-				bcopy((char *)fpu_initialstate +
-				    xsave_area_desc[i].offset,
-				    sa + xsave_area_desc[i].offset,
-				    xsave_area_desc[i].size);
-				*xstate_bv |= bit;
-			}
-		}
-		return (_MC_FPOWNED_PCB);
+		owned = _MC_FPOWNED_PCB;
 	}
+	critical_exit();
+	if (use_xsave) {
+		/*
+		 * Handle partially saved state.
+		 */
+		sa = (char *)get_pcb_user_save_pcb(pcb);
+		xstate_bv = (uint64_t *)(sa + sizeof(struct savefpu) +
+		    offsetof(struct xstate_hdr, xstate_bv));
+		max_ext_n = flsl(xsave_mask);
+		for (i = 0; i < max_ext_n; i++) {
+			bit = 1ULL << i;
+			if ((xsave_mask & bit) == 0 || (*xstate_bv & bit) != 0)
+				continue;
+			bcopy((char *)fpu_initialstate +
+			    xsave_area_desc[i].offset,
+			    sa + xsave_area_desc[i].offset,
+			    xsave_area_desc[i].size);
+			*xstate_bv |= bit;
+		}
+	}
+	return (owned);
 }
 
 void
@@ -736,9 +740,6 @@ fpusetxstate(struct thread *td, char *xfpustate, size_t xfpustate_size)
 	 * Avoid #gp.
 	 */
 	if (bv & ~xsave_mask)
-		return (EINVAL);
-	if ((bv & (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE)) !=
-	    (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE))
 		return (EINVAL);
 
 	hdr = (struct xstate_hdr *)(get_pcb_user_save_td(td) + 1);
@@ -979,4 +980,28 @@ is_fpu_kern_thread(u_int flags)
 	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
 		return (0);
 	return ((curpcb->pcb_flags & PCB_KERNFPU) != 0);
+}
+
+/*
+ * FPU save area alloc/free/init utility routines
+ */
+struct savefpu *
+fpu_save_area_alloc(void)
+{
+
+	return (uma_zalloc(fpu_save_area_zone, 0));
+}
+
+void
+fpu_save_area_free(struct savefpu *fsa)
+{
+
+	uma_zfree(fpu_save_area_zone, fsa);
+}
+
+void
+fpu_save_area_reset(struct savefpu *fsa)
+{
+
+	bcopy(fpu_initialstate, fsa, cpu_max_ext_state_size);
 }

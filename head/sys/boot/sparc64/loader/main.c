@@ -142,6 +142,10 @@ static vm_offset_t heapva;
 static char bootpath[64];
 static phandle_t root;
 
+#ifdef LOADER_ZFS_SUPPORT
+static struct zfs_devdesc zfs_currdev;
+#endif
+
 /*
  * Machine dependent structures that the machine independent
  * loader part uses.
@@ -156,28 +160,30 @@ struct devsw *devsw[] = {
 #ifdef LOADER_ZFS_SUPPORT
 	&zfs_dev,
 #endif
-	0
+	NULL
 };
+
 struct arch_switch archsw;
 
 static struct file_format sparc64_elf = {
 	__elfN(loadfile),
 	__elfN(exec)
 };
+
 struct file_format *file_formats[] = {
 	&sparc64_elf,
-	0
+	NULL
 };
 
 struct fs_ops *file_system[] = {
+#ifdef LOADER_ZFS_SUPPORT
+	&zfs_fsops,
+#endif
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
 #ifdef LOADER_CD9660_SUPPORT
 	&cd9660_fsops,
-#endif
-#ifdef LOADER_ZFS_SUPPORT
-	&zfs_fsops,
 #endif
 #ifdef LOADER_ZIP_SUPPORT
 	&zipfs_fsops,
@@ -194,19 +200,20 @@ struct fs_ops *file_system[] = {
 #ifdef LOADER_TFTP_SUPPORT
 	&tftp_fsops,
 #endif
-	0
+	NULL
 };
+
 struct netif_driver *netif_drivers[] = {
 #ifdef LOADER_NET_SUPPORT
 	&ofwnet,
 #endif
-	0
+	NULL
 };
 
 extern struct console ofwconsole;
 struct console *consoles[] = {
 	&ofwconsole,
-	0
+	NULL
 };
 
 #ifdef LOADER_DEBUG
@@ -732,7 +739,6 @@ static void
 sparc64_zfs_probe(void)
 {
 	struct vtoc8 vtoc;
-	struct zfs_devdesc zfs_currdev;
 	char alias[64], devname[sizeof(alias) + sizeof(":x") - 1];
 	char type[sizeof("device_type")];
 	char *bdev, *dev, *odev;
@@ -805,9 +811,6 @@ sparc64_zfs_probe(void)
 		zfs_currdev.root_guid = 0;
 		zfs_currdev.d_dev = &zfs_dev;
 		zfs_currdev.d_type = zfs_currdev.d_dev->dv_type;
-		(void)strncpy(bootpath, zfs_fmtdev(&zfs_currdev),
-		    sizeof(bootpath) - 1);
-		bootpath[sizeof(bootpath) - 1] = '\0';
 	}
 }
 #endif /* LOADER_ZFS_SUPPORT */
@@ -854,34 +857,35 @@ main(int (*openfirm)(void *))
 	OF_getprop(chosen, "bootpath", bootpath, sizeof(bootpath));
 
 	/*
-	 * Sun compatible bootable CD-ROMs have a disk label placed
-	 * before the cd9660 data, with the actual filesystem being
-	 * in the first partition, while the other partitions contain
-	 * pseudo disk labels with embedded boot blocks for different
-	 * architectures, which may be followed by UFS filesystems.
-	 * The firmware will set the boot path to the partition it
-	 * boots from ('f' in the sun4u case), but we want the kernel
-	 * to be loaded from the cd9660 fs ('a'), so the boot path
-	 * needs to be altered.
-	 */
-	if (bootpath[strlen(bootpath) - 2] == ':' &&
-	    bootpath[strlen(bootpath) - 1] == 'f' &&
-	    strstr(bootpath, "cdrom") != NULL) {
-		bootpath[strlen(bootpath) - 1] = 'a';
-		printf("Boot path set to %s\n", bootpath);
-	}
-
-	/*
 	 * Initialize devices.
 	 */
 	for (dp = devsw; *dp != 0; dp++)
 		if ((*dp)->dv_init != 0)
 			(*dp)->dv_init();
 
+#ifdef LOADER_ZFS_SUPPORT
+	if (zfs_currdev.pool_guid != 0) {
+		(void)strncpy(bootpath, zfs_fmtdev(&zfs_currdev),
+		    sizeof(bootpath) - 1);
+		bootpath[sizeof(bootpath) - 1] = '\0';
+	} else
+#endif
+
 	/*
-	 * Now that sparc64_zfs_probe() might have altered bootpath,
-	 * export it.
+	 * Sun compatible bootable CD-ROMs have a disk label placed before
+	 * the ISO 9660 data, with the actual file system being in the first
+	 * partition, while the other partitions contain pseudo disk labels
+	 * with embedded boot blocks for different architectures, which may
+	 * be followed by UFS file systems.
+	 * The firmware will set the boot path to the partition it boots from
+	 * ('f' in the sun4u/sun4v case), but we want the kernel to be loaded
+	 * from the ISO 9660 file system ('a'), so the boot path needs to be
+	 * altered.
 	 */
+	if (bootpath[strlen(bootpath) - 2] == ':' &&
+	    bootpath[strlen(bootpath) - 1] == 'f')
+		bootpath[strlen(bootpath) - 1] = 'a';
+
 	env_setenv("currdev", EV_VOLATILE, bootpath,
 	    ofw_setcurrdev, env_nounset);
 	env_setenv("loaddev", EV_VOLATILE, bootpath,

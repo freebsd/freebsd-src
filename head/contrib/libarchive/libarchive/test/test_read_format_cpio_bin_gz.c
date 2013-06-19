@@ -51,8 +51,8 @@ DEFINE_TEST(test_read_format_cpio_bin_gz)
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_compression(a),
-	    ARCHIVE_COMPRESSION_GZIP);
+	assertEqualInt(archive_filter_code(a, 0),
+	    ARCHIVE_FILTER_GZIP);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

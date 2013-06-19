@@ -100,6 +100,7 @@ typedef	__useconds_t	useconds_t;
  * returns -1, the functions may be stubbed out.
  */
 #define	_POSIX_BARRIERS			200112L
+#define	_POSIX_CPUTIME			200112L
 #define	_POSIX_READER_WRITER_LOCKS	200112L
 #define	_POSIX_REGEXP			1
 #define	_POSIX_SHELL			1
@@ -532,6 +533,7 @@ char	*mktemp(char *);
 #endif
 int	 nfssvc(int, void *);
 int	 nlm_syscall(int, int, int, char **);
+int	 pipe2(int *, int);
 int	 profil(char *, size_t, vm_offset_t, int);
 int	 rcmd(char **, int, const char *, const char *, const char *, int *);
 int	 rcmd_af(char **, int, const char *,

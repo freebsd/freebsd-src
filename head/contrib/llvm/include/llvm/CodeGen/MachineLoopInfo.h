@@ -27,11 +27,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_MACHINE_LOOP_INFO_H
-#define LLVM_CODEGEN_MACHINE_LOOP_INFO_H
+#ifndef LLVM_CODEGEN_MACHINELOOPINFO_H
+#define LLVM_CODEGEN_MACHINELOOPINFO_H
 
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 
 namespace llvm {
 
@@ -73,8 +73,8 @@ class MachineLoopInfo : public MachineFunctionPass {
   LoopInfoBase<MachineBasicBlock, MachineLoop> LI;
   friend class LoopBase<MachineBasicBlock, MachineLoop>;
 
-  void operator=(const MachineLoopInfo &);  // do not implement
-  MachineLoopInfo(const MachineLoopInfo &); // do not implement
+  void operator=(const MachineLoopInfo &) LLVM_DELETED_FUNCTION;
+  MachineLoopInfo(const MachineLoopInfo &) LLVM_DELETED_FUNCTION;
 
 public:
   static char ID; // Pass identification, replacement for typeid

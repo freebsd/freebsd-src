@@ -17,24 +17,24 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "regalloc"
-#include "VirtRegMap.h"
+#include "llvm/CodeGen/VirtRegMap.h"
 #include "LiveDebugVariables.h"
-#include "llvm/Function.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -77,15 +77,22 @@ unsigned VirtRegMap::createSpillSlot(const TargetRegisterClass *RC) {
   return SS;
 }
 
-unsigned VirtRegMap::getRegAllocPref(unsigned virtReg) {
-  std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(virtReg);
-  unsigned physReg = Hint.second;
-  if (TargetRegisterInfo::isVirtualRegister(physReg) && hasPhys(physReg))
-    physReg = getPhys(physReg);
-  if (Hint.first == 0)
-    return (TargetRegisterInfo::isPhysicalRegister(physReg))
-      ? physReg : 0;
-  return TRI->ResolveRegAllocHint(Hint.first, physReg, *MF);
+bool VirtRegMap::hasPreferredPhys(unsigned VirtReg) {
+  unsigned Hint = MRI->getSimpleHint(VirtReg);
+  if (!Hint)
+    return 0;
+  if (TargetRegisterInfo::isVirtualRegister(Hint))
+    Hint = getPhys(Hint);
+  return getPhys(VirtReg) == Hint;
+}
+
+bool VirtRegMap::hasKnownPreference(unsigned VirtReg) {
+  std::pair<unsigned, unsigned> Hint = MRI->getRegAllocationHint(VirtReg);
+  if (TargetRegisterInfo::isPhysicalRegister(Hint.second))
+    return true;
+  if (TargetRegisterInfo::isVirtualRegister(Hint.second))
+    return hasPhys(Hint.second);
+  return false;
 }
 
 int VirtRegMap::assignVirt2StackSlot(unsigned virtReg) {
@@ -127,9 +134,11 @@ void VirtRegMap::print(raw_ostream &OS, const Module*) const {
   OS << '\n';
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void VirtRegMap::dump() const {
   print(dbgs());
 }
+#endif
 
 //===----------------------------------------------------------------------===//
 //                              VirtRegRewriter
@@ -170,6 +179,7 @@ INITIALIZE_PASS_BEGIN(VirtRegRewriter, "virtregrewriter",
 INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
 INITIALIZE_PASS_DEPENDENCY(LiveIntervals)
 INITIALIZE_PASS_DEPENDENCY(LiveDebugVariables)
+INITIALIZE_PASS_DEPENDENCY(LiveStacks)
 INITIALIZE_PASS_DEPENDENCY(VirtRegMap)
 INITIALIZE_PASS_END(VirtRegRewriter, "virtregrewriter",
                     "Virtual Register Rewriter", false, false)
@@ -182,6 +192,8 @@ void VirtRegRewriter::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<SlotIndexes>();
   AU.addPreserved<SlotIndexes>();
   AU.addRequired<LiveDebugVariables>();
+  AU.addRequired<LiveStacks>();
+  AU.addPreserved<LiveStacks>();
   AU.addRequired<VirtRegMap>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
@@ -197,11 +209,11 @@ bool VirtRegRewriter::runOnMachineFunction(MachineFunction &fn) {
   VRM = &getAnalysis<VirtRegMap>();
   DEBUG(dbgs() << "********** REWRITE VIRTUAL REGISTERS **********\n"
                << "********** Function: "
-               << MF->getFunction()->getName() << '\n');
+               << MF->getName() << '\n');
   DEBUG(VRM->dump());
 
   // Add kill flags while we still have virtual registers.
-  LIS->addKillFlags();
+  LIS->addKillFlags(VRM);
 
   // Live-in lists on basic blocks are required for physregs.
   addMBBLiveIns();
@@ -252,9 +264,6 @@ void VirtRegRewriter::rewrite() {
   SmallVector<unsigned, 8> SuperDeads;
   SmallVector<unsigned, 8> SuperDefs;
   SmallVector<unsigned, 8> SuperKills;
-#ifndef NDEBUG
-  BitVector Reserved = TRI->getReservedRegs(*MF);
-#endif
 
   for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end();
        MBBI != MBBE; ++MBBI) {
@@ -278,7 +287,7 @@ void VirtRegRewriter::rewrite() {
         unsigned PhysReg = VRM->getPhys(VirtReg);
         assert(PhysReg != VirtRegMap::NO_PHYS_REG &&
                "Instruction uses unmapped VirtReg");
-        assert(!Reserved.test(PhysReg) && "Reserved register assignment");
+        assert(!MRI->isReserved(PhysReg) && "Reserved register assignment");
 
         // Preserve semantics of sub-register operands.
         if (MO.getSubReg()) {

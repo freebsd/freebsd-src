@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 /*
  * ASSERTION:
@@ -32,44 +34,51 @@
  * a runtime error.
  *
  * SECTION: Pointers and Arrays/Generic Pointers
- *
- * NOTES:
- * This test doesn't apply to x86; for the time being, we're working
- * around this with the preprocessor.
  */
 
 #pragma D option quiet
 
-int array[3];
-uintptr_t uptr;
+#if defined(__i386) || defined(__amd64)
+#define __x86 1
+#endif
+
+int array[2];
+char *ptr;
 int *p;
 int *q;
 int *r;
 
 BEGIN
 {
-#ifdef __i386
+	array[0] = 0x12345678;
+	array[1] = 0xabcdefff;
+
+	ptr = (char *) &array[0];
+
+	p = (int *) (ptr);
+	q = (int *) (ptr + 2);
+	r = (int *) (ptr + 3);
+
+	printf("*p: 0x%x\n", *p);
+	printf("*q: 0x%x\n", *q);
+	printf("*r: 0x%x\n", *r);
+
+	/*
+	 * On x86, the above unaligned memory accesses are allowed and should
+	 * not result in the ERROR probe firing.
+	 */
+#ifdef __x86
 	exit(1);
 #else
-	array[0] = 20;
-	array[1] = 40;
-	array[2] = 80;
-
-	uptr = (uintptr_t) &array[0];
-
-	p = (int *) (uptr);
-	q = (int *) (uptr + 2);
-	r = (int *) (uptr + 3);
-
-	printf("array[0]: %d\t*p: %d\n", array[0], *p);
-	printf("array[1]: %d\t*q: %d\n", array[1], *q);
-	printf("array[2]: %d\t*r: %d\n", array[2], *r);
-
 	exit(0);
 #endif
 }
 
 ERROR
 {
+#ifdef __x86
+	exit(0);
+#else
 	exit(1);
+#endif
 }

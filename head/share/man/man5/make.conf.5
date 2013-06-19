@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2012
+.Dd May 28, 2013
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -143,7 +143,7 @@ and
 are not supported.
 .Va BDECFLAGS
 is provided as a set of
-.Xr gcc 1
+.Xr cc 1
 settings suggested by
 .An "Bruce Evans" Aq bde@FreeBSD.org
 for developing and testing changes.
@@ -162,7 +162,7 @@ the value of
 and
 .Va COPTFLAGS
 to contain the appropriate optimization directive to
-.Xr gcc 1 .
+.Xr cc 1 .
 The automatic setting of
 .Va CFLAGS
 and
@@ -177,16 +177,6 @@ Refer to
 for a list of recognized
 .Va CPUTYPE
 options.
-.It Va CVS_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr cvs 1
-to update your
-.Pa src , ports
-and
-.Pa doc
-trees with
-.Dq Li "make update" .
 .It Va CXXFLAGS
 .Pq Vt str
 Controls the compiler settings when compiling C++ code.
@@ -200,20 +190,12 @@ value, use
 .Dq Li +=
 instead of
 .Dq Li = .
-.It Va DOCSUPFILE
-.Pq Vt str
-The documentation
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/doc-supfile .
 .It Va INSTALL
 .Pq Vt str
 the default install command.
 To install only files for which the target differs or does not exist, use
 .Bd -literal -offset indent
-INSTALL="install -C"
+INSTALL+= -C
 .Ed
 Note that some makefiles (including those in
 .Pa /usr/share/mk )
@@ -263,68 +245,6 @@ Set this to not update the doc tree during
 .Pq Vt bool
 Set this to not update the ports tree during
 .Dq Li "make update" .
-.It Va NO_WWWUPDATE
-.Pq Vt bool
-Set this to not update the www tree during
-.Dq Li "make update" .
-.It Va PORTSSUPFILE
-.Pq Vt str
-The ports
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/ports-supfile .
-.It Va SUP
-.Pq Vt str
-The location of the
-.Xr csup 1
-or
-.Xr cvsup 1
-command for
-.Dq Li "make update" .
-.It Va SUPFILE
-.Pq Vt str
-The first
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/standard-supfile .
-.It Va SUPFILE1
-.Pq Vt str
-The second
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-.It Va SUPFILE2
-.Pq Vt str
-The third
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-.It Va SUPFLAGS
-.Pq Vt str
-The flag for the
-.Xr sup 1
-command when doing
-.Dq Li "make update" .
-This defaults to
-.Op Fl g L Ar 2 .
-.It Va SUPHOST
-.Pq Vt str
-The hostname of the sup server to use when doing
-.Dq Li "make update" .
-.It Va SUP_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr csup 1
-to update your
-.Pa src , ports , doc
-and
-.Pa www
-trees with
-.Dq Li "make update" .
 .It Va SVN_UPDATE
 .Pq Vt bool
 Set this to use
@@ -339,14 +259,6 @@ you will need to set
 to the full path of a
 .Xr svn 1
 binary.
-.It Va WWWSUPFILE
-.Pq Vt str
-The www
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/www-supfile .
 .El
 .Ss "BUILDING THE KERNEL"
 The following list provides a name and short description for variables
@@ -477,11 +389,6 @@ with the set-user-ID bit set.
 Otherwise,
 .Xr newgrp 1
 will not be able to change users' groups.
-.It Va ENABLE_SUID_SSH
-.Pq Vt bool
-Set this to install
-.Xr ssh 1
-with the set-user-ID bit turned on.
 .It Va LOADER_TFTP_SUPPORT
 .Pq Vt bool
 By default the
@@ -717,7 +624,7 @@ The default number is 20011.
 .Pq Vt int
 Causes the system compiler to be built such that it forces high optimization
 levels to a lower one.
-.Xr gcc 1
+.Xr cc 1
 .Fl O2
 and above is known to trigger known optimizer bugs at various
 times.
@@ -759,7 +666,7 @@ filter, or both.
 .It Pa /usr/src/Makefile.inc1
 .El
 .Sh SEE ALSO
-.Xr gcc 1 ,
+.Xr cc 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr src.conf 5 ,

@@ -103,13 +103,6 @@
 #define	VM_NFREEORDER		16
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -181,12 +174,13 @@
 /* user/kernel map constants */
 #define	VM_MIN_ADDRESS		0
 #define	VM_MAXUSER_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION)
-#define	VM_MIN_KERNEL_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION + 1)
-#define	VM_MAX_KERNEL_ADDRESS	\
-		(VM_MIN_KERNEL_ADDRESS + IA64_REGION_GAP_START - 1)
+#define	VM_MIN_KERNEL_ADDRESS	VM_MAXUSER_ADDRESS
+#define	VM_INIT_KERNEL_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION + 1)
+#define	VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(IA64_VM_MINKERN_REGION + 2) - 1)
 #define	VM_MAX_ADDRESS		~0UL
 
-#define	KERNBASE		VM_MAXUSER_ADDRESS
+/* We link the kernel at IA64_PBVM_BASE. */
+#define	KERNBASE		IA64_PBVM_BASE
 
 /*
  * USRSTACK is the top (end) of the user stack.  Immediately above the user

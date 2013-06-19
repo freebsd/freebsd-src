@@ -97,8 +97,7 @@ private:
       Specifier(Other.Specifier) {
   }
 
-  NestedNameSpecifier &operator=(const NestedNameSpecifier &); // do not
-                                                               // implement
+  void operator=(const NestedNameSpecifier &) LLVM_DELETED_FUNCTION;
 
   /// \brief Either find or insert the given nested name specifier
   /// mockup in the given context.
@@ -118,7 +117,7 @@ public:
   /// \brief Builds a nested name specifier that names a namespace.
   static NestedNameSpecifier *Create(const ASTContext &Context,
                                      NestedNameSpecifier *Prefix,
-                                     NamespaceDecl *NS);
+                                     const NamespaceDecl *NS);
 
   /// \brief Builds a nested name specifier that names a namespace alias.
   static NestedNameSpecifier *Create(const ASTContext &Context,

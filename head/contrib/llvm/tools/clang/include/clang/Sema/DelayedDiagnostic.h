@@ -124,6 +124,7 @@ public:
   static DelayedDiagnostic makeDeprecation(SourceLocation Loc,
            const NamedDecl *D,
            const ObjCInterfaceDecl *UnknownObjCClass,
+           const ObjCPropertyDecl  *ObjCProperty,
            StringRef Msg);
 
   static DelayedDiagnostic makeAccess(SourceLocation Loc,
@@ -193,21 +194,30 @@ public:
     return DeprecationData.UnknownObjCClass;
   }
 
+  const ObjCPropertyDecl *getObjCProperty() const {
+    return DeprecationData.ObjCProperty;
+  }
+  
 private:
-  union {
-    /// Deprecation.
-    struct {
-      const NamedDecl *Decl;
-      const ObjCInterfaceDecl *UnknownObjCClass;
-      const char *Message;
-      size_t MessageLen;
-    } DeprecationData;
 
-    struct {
-      unsigned Diagnostic;
-      unsigned Argument;
-      void *OperandType;
-    } ForbiddenTypeData;
+  struct DD {
+    const NamedDecl *Decl;
+    const ObjCInterfaceDecl *UnknownObjCClass;
+    const ObjCPropertyDecl  *ObjCProperty;
+    const char *Message;
+    size_t MessageLen;
+  };
+
+  struct FTD {
+    unsigned Diagnostic;
+    unsigned Argument;
+    void *OperandType;
+  };
+
+  union {
+    /// Deprecation
+    struct DD DeprecationData;
+    struct FTD ForbiddenTypeData;
 
     /// Access control.
     char AccessData[sizeof(AccessedEntity)];
@@ -218,15 +228,14 @@ private:
 /// delayed.
 class DelayedDiagnosticPool {
   const DelayedDiagnosticPool *Parent;
-  llvm::SmallVector<DelayedDiagnostic, 4> Diagnostics;
+  SmallVector<DelayedDiagnostic, 4> Diagnostics;
 
-  // Do not implement.
-  DelayedDiagnosticPool(const DelayedDiagnosticPool &other);
-  DelayedDiagnosticPool &operator=(const DelayedDiagnosticPool &other);
+  DelayedDiagnosticPool(const DelayedDiagnosticPool &) LLVM_DELETED_FUNCTION;
+  void operator=(const DelayedDiagnosticPool &) LLVM_DELETED_FUNCTION;
 public:
   DelayedDiagnosticPool(const DelayedDiagnosticPool *parent) : Parent(parent) {}
   ~DelayedDiagnosticPool() {
-    for (llvm::SmallVectorImpl<DelayedDiagnostic>::iterator
+    for (SmallVectorImpl<DelayedDiagnostic>::iterator
            i = Diagnostics.begin(), e = Diagnostics.end(); i != e; ++i)
       i->Destroy();
   }
@@ -255,8 +264,7 @@ public:
     pool.Diagnostics.clear();
   }
 
-  typedef llvm::SmallVectorImpl<DelayedDiagnostic>::const_iterator
-    pool_iterator;
+  typedef SmallVectorImpl<DelayedDiagnostic>::const_iterator pool_iterator;
   pool_iterator pool_begin() const { return Diagnostics.begin(); }
   pool_iterator pool_end() const { return Diagnostics.end(); }
   bool pool_empty() const { return Diagnostics.empty(); }

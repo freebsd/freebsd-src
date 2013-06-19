@@ -590,7 +590,7 @@ sdp_rx_comp_work(struct work_struct *work)
 	if (unlikely(!ssk->poll_cq)) {
 		struct rdma_cm_id *id = ssk->id;
 		if (id && id->qp)
-			rdma_notify(id, RDMA_CM_EVENT_ESTABLISHED);
+			rdma_notify(id, IB_EVENT_COMM_EST);
 		goto out;
 	}
 

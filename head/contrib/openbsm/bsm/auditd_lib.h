@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/auditd_lib.h#4 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/auditd_lib.h#5 $
  */
 
 #ifndef _BSM_AUDITD_LIB_H_
@@ -37,9 +37,10 @@
  */
 #define	NOT_TERMINATED		"not_terminated"
 #define	CRASH_RECOVERY		"crash_recovery"
-#define	POSTFIX_LEN	(sizeof("YYYYMMDDhhmmss") - 1)
-#define	FILENAME_LEN	((2 * POSTFIX_LEN) + 2)
-#define	TIMESTAMP_LEN	(POSTFIX_LEN + 1)
+#define	PREFIX_LEN	(sizeof("YYYYMMDDhhmmss") - 1)
+#define	POSTFIX_LEN	PREFIX_LEN
+#define	FILENAME_LEN	(PREFIX_LEN + 1 + POSTFIX_LEN)
+#define	TIMESTAMP_LEN	POSTFIX_LEN
 
 /*
  * Macro to generate the timestamp string for trail file.
@@ -91,6 +92,7 @@ int auditd_set_minfree(void);
 int auditd_expire_trails(int (*warn_expired)(char *));
 int auditd_read_dirs(int (*warn_soft)(char *), int (*warn_hard)(char *));
 void auditd_close_dirs(void);
+int auditd_set_dist(void);
 int auditd_set_evcmap(void);
 int auditd_set_namask(void);
 int auditd_set_policy(void);
@@ -101,6 +103,7 @@ int auditd_swap_trail(char *TS, char **newfile, gid_t gid,
 int auditd_prevent_audit(void);
 int auditd_gen_record(int event, char *path);
 int auditd_new_curlink(char *curfile);
+int auditd_rename(const char *fromname, const char *toname);
 int audit_quick_start(void);
 int audit_quick_stop(void);
 

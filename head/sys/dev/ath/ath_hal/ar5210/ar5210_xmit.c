@@ -518,7 +518,8 @@ ar5210SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl1 = 0;
 	if (flags & HAL_TXDESC_RTSENA) {
 		ads->ds_ctl0 |= AR_RTSCTSEnable;
-		ads->ds_ctl1 |= rtsctsDuration & AR_RTSDuration;
+		ads->ds_ctl1 |= (rtsctsDuration << AR_RTSDuration_S)
+		    & AR_RTSDuration;
 	}
 	return AH_TRUE;
 }

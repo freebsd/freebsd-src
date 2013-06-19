@@ -50,6 +50,7 @@
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-7.4    7.4
 .ds doc-operating-system-FreeBSD-8.3    8.3
+.ds doc-operating-system-FreeBSD-8.4    8.4
 .ds doc-operating-system-FreeBSD-9.1    9.1
 .ds doc-operating-system-FreeBSD-10.0   10.0
 .

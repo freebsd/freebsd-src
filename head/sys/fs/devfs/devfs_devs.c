@@ -121,7 +121,7 @@ devfs_alloc(int flags)
 	struct cdev *cdev;
 	struct timespec ts;
 
-	cdp = malloc(sizeof *cdp, M_CDEVP, M_USE_RESERVE | M_ZERO |
+	cdp = malloc(sizeof *cdp, M_CDEVP, M_ZERO |
 	    ((flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK));
 	if (cdp == NULL)
 		return (NULL);
@@ -655,7 +655,7 @@ devfs_cleanup(struct devfs_mount *dm)
 /*
  * devfs_create() and devfs_destroy() are called from kern_conf.c and
  * in both cases the devlock() mutex is held, so no further locking
- * is necesary and no sleeping allowed.
+ * is necessary and no sleeping allowed.
  */
 
 void

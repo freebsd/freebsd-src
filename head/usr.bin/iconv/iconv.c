@@ -47,8 +47,7 @@ static void		 do_conv(FILE *, const char *, const char *, bool, bool);
 static int		 do_list(unsigned int, const char * const *, void *);
 static void		 usage(void);
 
-struct option long_options[] =
-{
+static struct option long_options[] = {
 	{"from-code",		required_argument,	NULL, 'f'},
 	{"list",		no_argument,		NULL, 'l'},
 	{"silent",		no_argument,		NULL, 's'},

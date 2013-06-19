@@ -133,7 +133,7 @@ ng_hub_rcvdata(hook_p hook, item_p item)
 		if (--nhooks == 1)
 			NG_FWD_ITEM_HOOK(error, item, hook2);
 		else {
-			if ((m2 = m_dup(m, M_DONTWAIT)) == NULL) {
+			if ((m2 = m_dup(m, M_NOWAIT)) == NULL) {
 				NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}

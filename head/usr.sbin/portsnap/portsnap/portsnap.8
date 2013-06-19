@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2012
+.Dd October 14, 2012
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -55,10 +55,6 @@ In a normal update operation,
 .Nm
 will routinely restore modified files to their unmodified state and
 delete unrecognized local files.
-This behavior is different to
-.Xr cvs 1
-and
-.Xr cvsup 1 .
 .Sh OPTIONS
 The following options are supported:
 .Bl -tag -width "-f conffile"
@@ -173,13 +169,32 @@ If your clock is set to local time, adding the line
 .Pp
 .Dl 0 3 * * * root /usr/sbin/portsnap cron
 .Pp
-to /etc/crontab is a good way to make sure you always have
+to
+.Pa /etc/crontab
+is a good way to make sure you always have
 an up-to-date snapshot of the ports tree available which
 can quickly be extracted into
 .Pa /usr/ports .
 If your clock is set to UTC, please pick a random time other
 than 3AM, to avoid overly imposing an uneven load on the
 server(s) hosting the snapshots.
+.Pp
+Note that running
+.Nm
+.Cm cron
+or
+.Nm
+.Cm fetch
+does not apply the changes that were received: they only download
+them.
+To apply the changes, you must follow these commands with
+.Nm
+.Cm update .
+The
+.Nm
+.Cm update
+command is normally run by hand at a time when you are sure that
+no one is manually working in the ports tree.
 .It
 Running
 .Nm
@@ -234,11 +249,11 @@ may be published, but only in aggregate and after anonymizing the
 individual systems.
 .Sh FILES
 .Bl -tag -width "/etc/portsnap.conf"
-.It /etc/portsnap.conf
+.It Pa /etc/portsnap.conf
 Default location of the portsnap configuration file.
-.It /var/db/portsnap
+.It Pa /var/db/portsnap
 Default location where compressed snapshots are stored.
-.It /usr/ports
+.It Pa /usr/ports
 Default location where the ports tree is extracted.
 .El
 .Sh SEE ALSO

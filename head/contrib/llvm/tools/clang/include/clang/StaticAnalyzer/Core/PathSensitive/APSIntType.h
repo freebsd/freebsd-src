@@ -66,6 +66,10 @@ public:
     return llvm::APSInt::getMaxValue(BitWidth, IsUnsigned);
   }
 
+  llvm::APSInt getValue(uint64_t RawValue) const LLVM_READONLY {
+    return (llvm::APSInt(BitWidth, IsUnsigned) = RawValue);
+  }
+
   /// Used to classify whether a value is representable using this type.
   ///
   /// \see testInRange
@@ -77,9 +81,12 @@ public:
 
   /// Tests whether a given value is losslessly representable using this type.
   ///
-  /// Note that signedness conversions will be rejected, even with the same bit
-  /// pattern. For example, -1s8 is not in range for 'unsigned char' (u8).
-  RangeTestResultKind testInRange(const llvm::APSInt &Val) const LLVM_READONLY;
+  /// \param Val The value to test.
+  /// \param AllowMixedSign Whether or not to allow signedness conversions.
+  ///                       This determines whether -1s8 is considered in range
+  ///                       for 'unsigned char' (u8).
+  RangeTestResultKind testInRange(const llvm::APSInt &Val,
+                                  bool AllowMixedSign) const LLVM_READONLY;
   
   bool operator==(const APSIntType &Other) const {
     return BitWidth == Other.BitWidth && IsUnsigned == Other.IsUnsigned;

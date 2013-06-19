@@ -296,7 +296,7 @@ information are:
 .Bl -tag -compact -width modelxxx
 .It Ar port
 Port (device file) name, i.e.\&
-.Pa /dev/cuad0 ,
+.Pa /dev/cuau0 ,
 .Pa /dev/mse0
 and
 .Pa /dev/psm0 .
@@ -564,7 +564,7 @@ There may be more than one serial port to which the serial
 mouse can be attached.
 Many people often assign the first, built-in
 serial port
-.Pa /dev/cuad0
+.Pa /dev/cuau0
 to the mouse.
 You can attach multiple USB mice to your system or to your USB hub.
 They are accessible as
@@ -731,16 +731,16 @@ utility
 UNIX-domain stream socket for X10 MouseRemote events
 .El
 .Sh EXAMPLES
-.Dl "moused -p /dev/cuad0 -i type"
+.Dl "moused -p /dev/cuau0 -i type"
 .Pp
 Let the
 .Nm
 utility determine the protocol type of the mouse at the serial port
-.Pa /dev/cuad0 .
+.Pa /dev/cuau0 .
 If successful, the command will print the type, otherwise it will say
 .Dq Li unknown .
 .Bd -literal -offset indent
-moused -p /dev/cuad0
+moused -p /dev/cuau0
 vidcontrol -m on
 .Ed
 .Pp

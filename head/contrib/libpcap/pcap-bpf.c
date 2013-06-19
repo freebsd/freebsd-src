@@ -124,14 +124,6 @@ static int bpf_load(char *errbuf);
 
 #include "pcap-int.h"
 
-#ifdef HAVE_DAG_API
-#include "pcap-dag.h"
-#endif /* HAVE_DAG_API */
-
-#ifdef HAVE_SNF_API
-#include "pcap-snf.h"
-#endif /* HAVE_SNF_API */
-
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -156,6 +148,10 @@ static void remove_802_11(pcap_t *);
 # endif /* defined(__APPLE__) || defined(HAVE_BSD_IEEE80211) */
 
 #endif /* BIOCGDLTLIST */
+
+#if defined(sun) && defined(LIFNAMSIZ) && defined(lifr_zoneid)
+#include <zone.h>
+#endif
 
 /*
  * We include the OS's <net/bpf.h>, not our "pcap/bpf.h", so we probably
@@ -216,30 +212,21 @@ pcap_setnonblock_bpf(pcap_t *p, int nonblock, char *errbuf)
 #ifdef HAVE_ZEROCOPY_BPF
 	if (p->md.zerocopy) {
 		/*
-		 * Map each value to the corresponding 2's complement, to
+		 * Map each value to their corresponding negation to
 		 * preserve the timeout value provided with pcap_set_timeout.
 		 * (from pcap-linux.c).
 		 */
 		if (nonblock) {
 			if (p->md.timeout >= 0) {
 				/*
-				 * Timeout is non-negative, so we're not
-				 * currently in non-blocking mode; set it
-				 * to the 2's complement, to make it
-				 * negative, as an indication that we're
-				 * in non-blocking mode.
+				 * Indicate that we're switching to
+				 * non-blocking mode.
 				 */
-				p->md.timeout = p->md.timeout * -1 - 1;
+				p->md.timeout = ~p->md.timeout;
 			}
 		} else {
 			if (p->md.timeout < 0) {
-				/*
-				 * Timeout is negative, so we're currently
-				 * in blocking mode; reverse the previous
-				 * operation, to make the timeout non-negative
-				 * again.
-				 */
-				p->md.timeout = (p->md.timeout + 1) * -1;
+				p->md.timeout = ~p->md.timeout;
 			}
 		}
 		return (0);
@@ -405,18 +392,9 @@ pcap_ack_zbuf(pcap_t *p)
 #endif /* HAVE_ZEROCOPY_BPF */
 
 pcap_t *
-pcap_create(const char *device, char *ebuf)
+pcap_create_interface(const char *device, char *ebuf)
 {
 	pcap_t *p;
-
-#ifdef HAVE_DAG_API
-	if (strstr(device, "dag"))
-		return (dag_create(device, ebuf));
-#endif /* HAVE_DAG_API */
-#ifdef HAVE_SNF_API
-	if (strstr(device, "snf"))
-		return (snf_create(device, ebuf));
-#endif /* HAVE_SNF_API */
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)
@@ -1454,8 +1432,16 @@ check_setif_failure(pcap_t *p, int error)
  * Default capture buffer size.
  * 32K isn't very much for modern machines with fast networks; we
  * pick .5M, as that's the maximum on at least some systems with BPF.
+ *
+ * However, on AIX 3.5, the larger buffer sized caused unrecoverable
+ * read failures under stress, so we leave it as 32K; yet another
+ * place where AIX's BPF is broken.
  */
+#ifdef _AIX
+#define DEFAULT_BUFSIZE	32768
+#else
 #define DEFAULT_BUFSIZE	524288
+#endif
 
 static int
 pcap_activate_bpf(pcap_t *p)
@@ -1463,6 +1449,7 @@ pcap_activate_bpf(pcap_t *p)
 	int status = 0;
 	int fd;
 #ifdef LIFNAMSIZ
+	char *zonesep;
 	struct lifreq ifr;
 	char *ifrname = ifr.lifr_name;
 	const size_t ifnamsiz = sizeof(ifr.lifr_name);
@@ -1525,6 +1512,29 @@ pcap_activate_bpf(pcap_t *p)
 		status = PCAP_ERROR;
 		goto bad;
 	}
+
+#if defined(LIFNAMSIZ) && defined(ZONENAME_MAX) && defined(lifr_zoneid)
+	/*
+	 * Check if the given source network device has a '/' separated
+	 * zonename prefix string. The zonename prefixed source device
+	 * can be used by libpcap consumers to capture network traffic
+	 * in non-global zones from the global zone on Solaris 11 and
+	 * above. If the zonename prefix is present then we strip the
+	 * prefix and pass the zone ID as part of lifr_zoneid.
+	 */
+	if ((zonesep = strchr(p->opt.source, '/')) != NULL) {
+		char zonename[ZONENAME_MAX];
+		int  znamelen;
+		char *lnamep;
+
+		znamelen = zonesep - p->opt.source;
+		(void) strlcpy(zonename, p->opt.source, znamelen + 1);
+		lnamep = strdup(zonesep + 1);
+		ifr.lifr_zoneid = getzoneidbyname(zonename);
+		free(p->opt.source);
+		p->opt.source = lnamep;
+	}
+#endif
 
 	p->md.device = strdup(p->opt.source);
 	if (p->md.device == NULL) {
@@ -1684,7 +1694,7 @@ pcap_activate_bpf(pcap_t *p)
 			    pcap_strerror(errno));
 			goto bad;
 		}
-		bzero(&bz, sizeof(bz));
+		memset(&bz, 0, sizeof(bz)); /* bzero() deprecated, replaced with memset() */
 		bz.bz_bufa = p->md.zbuf1;
 		bz.bz_bufb = p->md.zbuf2;
 		bz.bz_buflen = p->md.zbufsize;
@@ -2267,15 +2277,6 @@ pcap_activate_bpf(pcap_t *p)
 int
 pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 {
-#ifdef HAVE_DAG_API
-	if (dag_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif /* HAVE_DAG_API */
-#ifdef HAVE_SNF_API
-	if (snf_platform_finddevs(alldevsp, errbuf) < 0)
-		return (-1);
-#endif /* HAVE_SNF_API */
-
 	return (0);
 }
 

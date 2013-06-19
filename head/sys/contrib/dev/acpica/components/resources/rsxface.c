@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -452,6 +452,7 @@ AcpiResourceToAddress64 (
         break;
 
     default:
+
         return (AE_BAD_PARAMETER);
     }
 
@@ -474,7 +475,7 @@ ACPI_EXPORT_SYMBOL (AcpiResourceToAddress64)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Walk a resource template for the specified evice to find a
+ * DESCRIPTION: Walk a resource template for the specified device to find a
  *              vendor-defined resource that matches the supplied UUID and
  *              UUID subtype. Returns a ACPI_RESOURCE of type Vendor.
  *
@@ -586,6 +587,99 @@ AcpiRsMatchVendorResource (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiWalkResourceBuffer
+ *
+ * PARAMETERS:  Buffer          - Formatted buffer returned by one of the
+ *                                various Get*Resource functions
+ *              UserFunction    - Called for each resource
+ *              Context         - Passed to UserFunction
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Walks the input resource template. The UserFunction is called
+ *              once for each resource in the list.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiWalkResourceBuffer (
+    ACPI_BUFFER                 *Buffer,
+    ACPI_WALK_RESOURCE_CALLBACK UserFunction,
+    void                        *Context)
+{
+    ACPI_STATUS                 Status = AE_OK;
+    ACPI_RESOURCE               *Resource;
+    ACPI_RESOURCE               *ResourceEnd;
+
+
+    ACPI_FUNCTION_TRACE (AcpiWalkResourceBuffer);
+
+
+    /* Parameter validation */
+
+    if (!Buffer || !Buffer->Pointer || !UserFunction)
+    {
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
+    }
+
+    /* Buffer contains the resource list and length */
+
+    Resource = ACPI_CAST_PTR (ACPI_RESOURCE, Buffer->Pointer);
+    ResourceEnd = ACPI_ADD_PTR (ACPI_RESOURCE, Buffer->Pointer, Buffer->Length);
+
+    /* Walk the resource list until the EndTag is found (or buffer end) */
+
+    while (Resource < ResourceEnd)
+    {
+        /* Sanity check the resource type */
+
+        if (Resource->Type > ACPI_RESOURCE_TYPE_MAX)
+        {
+            Status = AE_AML_INVALID_RESOURCE_TYPE;
+            break;
+        }
+
+        /* Sanity check the length. It must not be zero, or we loop forever */
+
+        if (!Resource->Length)
+        {
+            return_ACPI_STATUS (AE_AML_BAD_RESOURCE_LENGTH);
+        }
+
+        /* Invoke the user function, abort on any error returned */
+
+        Status = UserFunction (Resource, Context);
+        if (ACPI_FAILURE (Status))
+        {
+            if (Status == AE_CTRL_TERMINATE)
+            {
+                /* This is an OK termination by the user function */
+
+                Status = AE_OK;
+            }
+            break;
+        }
+
+        /* EndTag indicates end-of-list */
+
+        if (Resource->Type == ACPI_RESOURCE_TYPE_END_TAG)
+        {
+            break;
+        }
+
+        /* Get the next resource descriptor */
+
+        Resource = ACPI_NEXT_RESOURCE (Resource);
+    }
+
+    return_ACPI_STATUS (Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiWalkResourceBuffer)
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiWalkResources
  *
  * PARAMETERS:  DeviceHandle    - Handle to the device object for the
@@ -613,8 +707,6 @@ AcpiWalkResources (
 {
     ACPI_STATUS                 Status;
     ACPI_BUFFER                 Buffer;
-    ACPI_RESOURCE               *Resource;
-    ACPI_RESOURCE               *ResourceEnd;
 
 
     ACPI_FUNCTION_TRACE (AcpiWalkResources);
@@ -639,49 +731,9 @@ AcpiWalkResources (
         return_ACPI_STATUS (Status);
     }
 
-    /* Buffer now contains the resource list */
+    /* Walk the resource list and cleanup */
 
-    Resource = ACPI_CAST_PTR (ACPI_RESOURCE, Buffer.Pointer);
-    ResourceEnd = ACPI_ADD_PTR (ACPI_RESOURCE, Buffer.Pointer, Buffer.Length);
-
-    /* Walk the resource list until the EndTag is found (or buffer end) */
-
-    while (Resource < ResourceEnd)
-    {
-        /* Sanity check the resource */
-
-        if (Resource->Type > ACPI_RESOURCE_TYPE_MAX)
-        {
-            Status = AE_AML_INVALID_RESOURCE_TYPE;
-            break;
-        }
-
-        /* Invoke the user function, abort on any error returned */
-
-        Status = UserFunction (Resource, Context);
-        if (ACPI_FAILURE (Status))
-        {
-            if (Status == AE_CTRL_TERMINATE)
-            {
-                /* This is an OK termination by the user function */
-
-                Status = AE_OK;
-            }
-            break;
-        }
-
-        /* EndTag indicates end-of-list */
-
-        if (Resource->Type == ACPI_RESOURCE_TYPE_END_TAG)
-        {
-            break;
-        }
-
-        /* Get the next resource descriptor */
-
-        Resource = ACPI_ADD_PTR (ACPI_RESOURCE, Resource, Resource->Length);
-    }
-
+    Status = AcpiWalkResourceBuffer (&Buffer, UserFunction, Context);
     ACPI_FREE (Buffer.Pointer);
     return_ACPI_STATUS (Status);
 }

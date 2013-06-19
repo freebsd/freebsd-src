@@ -15,10 +15,10 @@
 #define ARMBASEINSTRUCTIONINFO_H
 
 #include "ARM.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/Target/TargetInstrInfo.h"
 
 #define GET_INSTRINFO_HEADER
 #include "ARMGenInstrInfo.inc"
@@ -141,6 +141,10 @@ public:
 
   MachineInstr *commuteInstruction(MachineInstr*, bool=false) const;
 
+  const MachineInstrBuilder &AddDReg(MachineInstrBuilder &MIB, unsigned Reg,
+                                     unsigned SubIdx, unsigned State,
+                                     const TargetRegisterInfo *TRI) const;
+
   virtual bool produceSameValue(const MachineInstr *MI0,
                                 const MachineInstr *MI1,
                                 const MachineRegisterInfo *MRI) const;
@@ -182,9 +186,12 @@ public:
   virtual bool isProfitableToDupForIfCvt(MachineBasicBlock &MBB,
                                          unsigned NumCycles,
                                          const BranchProbability
-                                           &Probability) const {
+                                         &Probability) const {
     return NumCycles == 1;
   }
+
+  virtual bool isProfitableToUnpredicate(MachineBasicBlock &TMBB,
+                                         MachineBasicBlock &FMBB) const;
 
   /// analyzeCompare - For a comparison instruction, return the source registers
   /// in SrcReg and SrcReg2 if having two register operands, and the value it
@@ -226,14 +233,17 @@ public:
                         SDNode *DefNode, unsigned DefIdx,
                         SDNode *UseNode, unsigned UseIdx) const;
 
-  virtual unsigned getOutputLatency(const InstrItineraryData *ItinData,
-                                    const MachineInstr *DefMI, unsigned DefIdx,
-                                    const MachineInstr *DepMI) const;
-
   /// VFP/NEON execution domains.
   std::pair<uint16_t, uint16_t>
   getExecutionDomain(const MachineInstr *MI) const;
   void setExecutionDomain(MachineInstr *MI, unsigned Domain) const;
+
+  unsigned getPartialRegUpdateClearance(const MachineInstr*, unsigned,
+                                        const TargetRegisterInfo*) const;
+  void breakPartialRegDependency(MachineBasicBlock::iterator, unsigned,
+                                 const TargetRegisterInfo *TRI) const;
+  /// Get the number of addresses by LDM or VLDM or zero for unknown.
+  unsigned getNumLDMAddresses(const MachineInstr *MI) const;
 
 private:
   unsigned getInstBundleLength(const MachineInstr *MI) const;
@@ -308,6 +318,10 @@ public:
   bool canCauseFpMLxStall(unsigned Opcode) const {
     return MLxHazardOpcodes.count(Opcode);
   }
+
+  /// Returns true if the instruction has a shift by immediate that can be
+  /// executed in one cycle less.
+  bool isSwiftFastImmShift(const MachineInstr *MI) const;
 };
 
 static inline

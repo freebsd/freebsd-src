@@ -98,7 +98,7 @@ ahc_isa_identify(driver_t *driver, device_t parent)
 					  RF_ACTIVE);
 		if (regs == NULL) {
 			if (bootverbose)
-				printf("ahc_isa_probe %d: ioport 0x%x "
+				printf("ahc_isa_identify %d: ioport 0x%x "
 				       "alloc failed\n", slot, iobase);
 			continue;
 		}

@@ -11,17 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/TokenKinds.h"
+#include "clang/Lex/PTHLexer.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/OnDiskHashTable.h"
+#include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/LexDiagnostic.h"
-#include "clang/Lex/PTHLexer.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/PTHManager.h"
-#include "clang/Lex/Token.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/Token.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
@@ -198,12 +197,11 @@ bool PTHLexer::SkipBlock() {
   assert(LastHashTokPtr && "No known '#' token.");
 
   const unsigned char* HashEntryI = 0;
-  uint32_t Offset;
   uint32_t TableIdx;
 
   do {
     // Read the token offset from the side-table.
-    Offset = ReadLE32(CurPPCondPtr);
+    uint32_t Offset = ReadLE32(CurPPCondPtr);
 
     // Read the target table index from the side-table.
     TableIdx = ReadLE32(CurPPCondPtr);
@@ -223,13 +221,11 @@ bool PTHLexer::SkipBlock() {
         PPCond + TableIdx*(sizeof(uint32_t)*2);
       assert(NextPPCondPtr >= CurPPCondPtr);
       // Read where we should jump to.
-      uint32_t TmpOffset = ReadLE32(NextPPCondPtr);
-      const unsigned char* HashEntryJ = TokBuf + TmpOffset;
+      const unsigned char* HashEntryJ = TokBuf + ReadLE32(NextPPCondPtr);
 
       if (HashEntryJ <= LastHashTokPtr) {
         // Jump directly to the next entry in the side table.
         HashEntryI = HashEntryJ;
-        Offset = TmpOffset;
         TableIdx = ReadLE32(NextPPCondPtr);
         CurPPCondPtr = NextPPCondPtr;
       }
@@ -448,8 +444,8 @@ PTHManager *PTHManager::Create(const std::string &file,
 
   // Get the buffer ranges and check if there are at least three 32-bit
   // words at the end of the file.
-  const unsigned char *BufBeg = (unsigned char*)File->getBufferStart();
-  const unsigned char *BufEnd = (unsigned char*)File->getBufferEnd();
+  const unsigned char *BufBeg = (const unsigned char*)File->getBufferStart();
+  const unsigned char *BufEnd = (const unsigned char*)File->getBufferEnd();
 
   // Check the prologue of the file.
   if ((BufEnd - BufBeg) < (signed)(sizeof("cfe-pth") + 4 + 4) ||
@@ -682,13 +678,13 @@ public:
   ~PTHStatCache() {}
 
   LookupResult getStat(const char *Path, struct stat &StatBuf,
-                       int *FileDescriptor) {
+                       bool isFile, int *FileDescriptor) {
     // Do the lookup for the file's data in the PTH file.
     CacheTy::iterator I = Cache.find(Path);
 
     // If we don't get a hit in the PTH file just forward to 'stat'.
     if (I == Cache.end())
-      return statChained(Path, StatBuf, FileDescriptor);
+      return statChained(Path, StatBuf, isFile, FileDescriptor);
 
     const PTHStatData &Data = *I;
 

@@ -555,7 +555,7 @@ glc_add_rxbuf(struct glc_softc *sc, int idx)
 	bus_dma_segment_t segs[1];
 	int error, nsegs;
 			
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
@@ -630,7 +630,7 @@ glc_encap(struct glc_softc *sc, struct mbuf **m_head, bus_addr_t *pktdesc)
 		nsegs++;
 
 	if (nsegs > nsegs_max) {
-		m = m_collapse(*m_head, M_DONTWAIT, nsegs_max);
+		m = m_collapse(*m_head, M_NOWAIT, nsegs_max);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

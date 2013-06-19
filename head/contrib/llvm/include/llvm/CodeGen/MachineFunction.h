@@ -18,10 +18,11 @@
 #ifndef LLVM_CODEGEN_MACHINEFUNCTION_H
 #define LLVM_CODEGEN_MACHINEFUNCTION_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/ADT/ilist.h"
-#include "llvm/Support/DebugLoc.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/ArrayRecycler.h"
+#include "llvm/Support/DebugLoc.h"
 #include "llvm/Support/Recycler.h"
 
 namespace llvm {
@@ -105,6 +106,9 @@ class MachineFunction {
   // Allocation management for instructions in function.
   Recycler<MachineInstr> InstructionRecycler;
 
+  // Allocation management for operand arrays on instructions.
+  ArrayRecycler<MachineOperand> OperandRecycler;
+
   // Allocation management for basic blocks in function.
   Recycler<MachineBasicBlock> BasicBlockRecycler;
 
@@ -127,8 +131,11 @@ class MachineFunction {
   /// about the control flow of such functions.
   bool ExposesReturnsTwice;
 
-  MachineFunction(const MachineFunction &); // DO NOT IMPLEMENT
-  void operator=(const MachineFunction&);   // DO NOT IMPLEMENT
+  /// True if the function includes MS-style inline assembly.
+  bool HasMSInlineAsm;
+
+  MachineFunction(const MachineFunction &) LLVM_DELETED_FUNCTION;
+  void operator=(const MachineFunction&) LLVM_DELETED_FUNCTION;
 public:
   MachineFunction(const Function *Fn, const TargetMachine &TM,
                   unsigned FunctionNum, MachineModuleInfo &MMI,
@@ -138,15 +145,19 @@ public:
   MachineModuleInfo &getMMI() const { return MMI; }
   GCModuleInfo *getGMI() const { return GMI; }
   MCContext &getContext() const { return Ctx; }
-  
+
   /// getFunction - Return the LLVM function that this machine code represents
   ///
   const Function *getFunction() const { return Fn; }
 
+  /// getName - Return the name of the corresponding LLVM function.
+  ///
+  StringRef getName() const;
+
   /// getFunctionNumber - Return a unique ID for the current function.
   ///
   unsigned getFunctionNumber() const { return FunctionNumber; }
-  
+
   /// getTarget - Return the target machine this machine code is compiled with
   ///
   const TargetMachine &getTarget() const { return Target; }
@@ -205,6 +216,17 @@ public:
   /// a "returns twice" function.
   void setExposesReturnsTwice(bool B) {
     ExposesReturnsTwice = B;
+  }
+
+  /// Returns true if the function contains any MS-style inline assembly.
+  bool hasMSInlineAsm() const {
+    return HasMSInlineAsm;
+  }
+
+  /// Set a flag that indicates that the function contains MS-style inline
+  /// assembly.
+  void setHasMSInlineAsm(bool B) {
+    HasMSInlineAsm = B;
   }
   
   /// getInfo - Keep track of various per-function pieces of information for
@@ -330,8 +352,8 @@ public:
   // Internal functions used to automatically number MachineBasicBlocks
   //
 
-  /// getNextMBBNumber - Returns the next unique number to be assigned
-  /// to a MachineBasicBlock in this MachineFunction.
+  /// \brief Adds the MBB to the internal numbering. Returns the unique number
+  /// assigned to the MBB.
   ///
   unsigned addToMBBNumbering(MachineBasicBlock *MBB) {
     MBBNumbering.push_back(MBB);
@@ -389,6 +411,21 @@ public:
   /// explicitly deallocated.
   MachineMemOperand *getMachineMemOperand(const MachineMemOperand *MMO,
                                           int64_t Offset, uint64_t Size);
+
+  typedef ArrayRecycler<MachineOperand>::Capacity OperandCapacity;
+
+  /// Allocate an array of MachineOperands. This is only intended for use by
+  /// internal MachineInstr functions.
+  MachineOperand *allocateOperandArray(OperandCapacity Cap) {
+    return OperandRecycler.allocate(Cap, Allocator);
+  }
+
+  /// Dellocate an array of MachineOperands and recycle the memory. This is
+  /// only intended for use by internal MachineInstr functions.
+  /// Cap must be the same capacity that was used to allocate the array.
+  void deallocateOperandArray(OperandCapacity Cap, MachineOperand *Array) {
+    OperandRecycler.deallocate(Cap, Array);
+  }
 
   /// allocateMemRefsArray - Allocate an array to hold MachineMemOperand
   /// pointers.  This array is owned by the MachineFunction.

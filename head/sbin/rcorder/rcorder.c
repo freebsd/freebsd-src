@@ -84,7 +84,7 @@ typedef bool flag;
 #define SET TRUE
 #define RESET FALSE
 
-Hash_Table provide_hash_s, *provide_hash;
+static Hash_Table provide_hash_s, *provide_hash;
 
 typedef struct provnode provnode;
 typedef struct filenode filenode;

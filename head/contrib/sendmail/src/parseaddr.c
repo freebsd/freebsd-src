@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.404 2010/07/27 03:35:42 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.406 2013/04/17 16:53:01 ca Exp $")
 
 #include <sm/sendmail.h>
 #include "map.h"
@@ -242,6 +242,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 **
 **	Parameters:
 **		addr -- the address to check.
+**		  note: this is the complete address (including display part)
 **		delimptr -- if non-NULL: end of address to check, i.e.,
 **			a pointer in the address string.
 **		isrcpt -- true iff the address is for a recipient.
@@ -2347,6 +2348,14 @@ sameaddr(a, b)
 
 	/* if they don't have the same mailer, forget it */
 	if (a->q_mailer != b->q_mailer)
+		return false;
+
+	/*
+	**  Addresses resolving to error mailer
+	**  should not be considered identical
+	*/
+
+	if (a->q_mailer == &errormailer)
 		return false;
 
 	/* if the user isn't the same, we can drop out */

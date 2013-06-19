@@ -1,23 +1,29 @@
 # $FreeBSD$
 
-PROG_CXX=llvm-objdump
 NO_MAN=
+.include <bsd.own.mk>
+
+PROG_CXX=llvm-objdump
+DPADD=	${LIBZ}
+LDADD=	-lz
 
 SRCDIR=	tools/llvm-objdump
 SRCS=	llvm-objdump.cpp \
+	COFFDump.cpp \
+	ELFDump.cpp \
 	MachODump.cpp \
-	MCFunction.cpp \
+	MCFunction.cpp
 
 LIBDEPS=llvmmcdisassembler \
 	llvmdebuginfo \
 	llvmarmdisassembler \
-	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
 	llvmmipsdisassembler \
+	llvmmipscodegen \
 	llvmmipsasmparser \
 	llvmmipsdesc \
 	llvmmipsinfo \
@@ -26,18 +32,19 @@ LIBDEPS=llvmmcdisassembler \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
+	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
 	llvmcodegen \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

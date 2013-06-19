@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Apple Inc.
+.\" Copyright (c) 2004-2009 Apple Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,9 +25,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.1#13 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.1#14 $
 .\"
-.Dd November 5, 2006
+.Dd August 4, 2009
 .Dt PRAUDIT 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd "print the contents of audit trail files"
 .Sh SYNOPSIS
 .Nm
-.Op Fl lpx
+.Op Fl lnpx
 .Op Fl r | s
 .Op Fl d Ar del
 .Op Ar
@@ -58,6 +58,9 @@ The default delimiter is the comma.
 Prints the entire record on the same line.
 If this option is not specified,
 every token is displayed on a different line.
+.It Fl n
+Do not convert user and group IDs to their names but leave in their
+numeric forms.
 .It Fl p
 Specify this option if input to
 .Nm

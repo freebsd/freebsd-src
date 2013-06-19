@@ -21,5 +21,7 @@ OpenBSM TODO
   alternative locations can be used.
 - NLS support for au_strerror(3), which provides error strings for BSM errors
   not available on the local OS platform.
+- Support for client certificates in auditdistd, to include certificate chain
+  validation.
 
-$P4: //depot/projects/trustedbsd/openbsm/TODO#13 $
+$P4: //depot/projects/trustedbsd/openbsm/TODO#14 $

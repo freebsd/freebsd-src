@@ -12,11 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_LOOP_INFO_IMPL_H
-#define LLVM_ANALYSIS_LOOP_INFO_IMPL_H
+#ifndef LLVM_ANALYSIS_LOOPINFOIMPL_H
+#define LLVM_ANALYSIS_LOOPINFOIMPL_H
 
-#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Analysis/LoopInfo.h"
 
 namespace llvm {
 
@@ -145,7 +146,6 @@ BlockT *LoopBase<BlockT, LoopT>::getLoopPredecessor() const {
 
   // Loop over the predecessors of the header node...
   BlockT *Header = getHeader();
-  typedef GraphTraits<BlockT*> BlockTraits;
   typedef GraphTraits<Inverse<BlockT*> > InvBlockTraits;
   for (typename InvBlockTraits::ChildIteratorType PI =
          InvBlockTraits::child_begin(Header),

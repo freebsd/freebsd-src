@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,7 +160,7 @@ AcpiTbAddTable (
         ACPI_BIOS_ERROR ((AE_INFO,
             "Table has invalid signature [%4.4s] (0x%8.8X), "
             "must be SSDT or OEMx",
-            AcpiUtValidAcpiName (*(UINT32 *) TableDesc->Pointer->Signature) ?
+            AcpiUtValidAcpiName (TableDesc->Pointer->Signature) ?
                 TableDesc->Pointer->Signature : "????",
             *(UINT32 *) TableDesc->Pointer->Signature));
 
@@ -374,6 +374,7 @@ AcpiTbResizeRootTableList (
     void)
 {
     ACPI_TABLE_DESC         *Tables;
+    UINT32                  TableCount;
 
 
     ACPI_FUNCTION_TRACE (TbResizeRootTableList);
@@ -389,9 +390,17 @@ AcpiTbResizeRootTableList (
 
     /* Increase the Table Array size */
 
+    if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
+    {
+        TableCount = AcpiGbl_RootTableList.MaxTableCount;
+    }
+    else
+    {
+        TableCount = AcpiGbl_RootTableList.CurrentTableCount;
+    }
+
     Tables = ACPI_ALLOCATE_ZEROED (
-        ((ACPI_SIZE) AcpiGbl_RootTableList.MaxTableCount +
-            ACPI_ROOT_TABLE_SIZE_INCREMENT) *
+        ((ACPI_SIZE) TableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT) *
         sizeof (ACPI_TABLE_DESC));
     if (!Tables)
     {
@@ -404,7 +413,7 @@ AcpiTbResizeRootTableList (
     if (AcpiGbl_RootTableList.Tables)
     {
         ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables,
-            (ACPI_SIZE) AcpiGbl_RootTableList.MaxTableCount * sizeof (ACPI_TABLE_DESC));
+            (ACPI_SIZE) TableCount * sizeof (ACPI_TABLE_DESC));
 
         if (AcpiGbl_RootTableList.Flags & ACPI_ROOT_ORIGIN_ALLOCATED)
         {
@@ -413,8 +422,9 @@ AcpiTbResizeRootTableList (
     }
 
     AcpiGbl_RootTableList.Tables = Tables;
-    AcpiGbl_RootTableList.MaxTableCount += ACPI_ROOT_TABLE_SIZE_INCREMENT;
-    AcpiGbl_RootTableList.Flags |= (UINT8) ACPI_ROOT_ORIGIN_ALLOCATED;
+    AcpiGbl_RootTableList.MaxTableCount =
+        TableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT;
+    AcpiGbl_RootTableList.Flags |= ACPI_ROOT_ORIGIN_ALLOCATED;
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -504,16 +514,19 @@ AcpiTbDeleteTable (
     switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
     {
     case ACPI_TABLE_ORIGIN_MAPPED:
+
         AcpiOsUnmapMemory (TableDesc->Pointer, TableDesc->Length);
         break;
 
     case ACPI_TABLE_ORIGIN_ALLOCATED:
+
         ACPI_FREE (TableDesc->Pointer);
         break;
 
     /* Not mapped or allocated, there is nothing we can do */
 
     default:
+
         return;
     }
 
@@ -567,6 +580,8 @@ AcpiTbTerminate (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "ACPI Tables freed\n"));
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
+
+    return_VOID;
 }
 
 
@@ -806,4 +821,3 @@ AcpiTbSetTableLoadedFlag (
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
 }
-

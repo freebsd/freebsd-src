@@ -26,9 +26,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE. 
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_fcntl_cmd.3#1 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/au_fcntl_cmd.3#2 $
 .\"
-.Dd March 5, 2009 
+.Dd March 5, 2009
 .Dt AU_BSM_TO_FCNTL_CMD 3
 .Os
 .Sh NAME
@@ -65,12 +65,12 @@ The
 .Fn au_fcntl_cmd_to_bsm
 function accepts a local
 .Xr fcntl 2
-command value, and returns the BSM 
+command value, and returns the BSM
 .Xr fcntl 2
-command value for it.  This call cannot fail, and instead returns a BSM 
+command value for it.  This call cannot fail, and instead returns a BSM
 command value indicating to a later decoder that the command value could
 not be encoded.
-.Sh RETURN VALULES
+.Sh RETURN VALUES
 On success,
 .Fn au_bsm_to_fcntl_cmd
 returns 0 and a converted command value; on failure, it returns -1 but does
@@ -90,7 +90,7 @@ and
 were introduced in OpenBSM 1.1.
 .Sh AUTHORS
 These functions were implemented by
-.An Stacey Son 
+.An Stacey Son
 under contract to Apple Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event

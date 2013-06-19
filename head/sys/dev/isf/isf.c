@@ -150,6 +150,7 @@ static void	isf_task(void *arg);
  * physical package, due to variable block size support in the StrataFlash
  * part.
  */
+devclass_t	isf_devclass;
 
 static uint16_t
 isf_read_reg(struct isf_softc *sc, uint16_t reg)
@@ -498,7 +499,7 @@ isf_disk_ioctl(struct disk *disk, u_long cmd, void *data, int fflag,
 static void
 isf_disk_strategy(struct bio *bp)
 {
-	struct isf_softc *sc = bp->bio_disk->d_drv1;;
+	struct isf_softc *sc = bp->bio_disk->d_drv1;
 
 	/*
 	 * We advertise a block size and maximum I/O size up the stack; catch

@@ -47,7 +47,7 @@
 #include "ggate.h"
 
 
-enum { UNSET, CREATE, DESTROY, LIST, RESCUE } action = UNSET;
+static enum { UNSET, CREATE, DESTROY, LIST, RESCUE } action = UNSET;
 
 static const char *path = NULL;
 static int unit = G_GATE_UNIT_AUTO;

@@ -384,7 +384,7 @@ ng_atm_input(struct ifnet *ifp, struct mbuf **mp,
 		/*
 		 * Prepend the atm_pseudoheader.
 		 */
-		M_PREPEND(*mp, sizeof(*ah), M_DONTWAIT);
+		M_PREPEND(*mp, sizeof(*ah), M_NOWAIT);
 		if (*mp == NULL)
 			return;
 		memcpy(mtod(*mp, struct atm_pseudohdr *), ah, sizeof(*ah));
@@ -462,7 +462,7 @@ ng_atm_input_orphans(struct ifnet *ifp, struct mbuf *m,
 	/*
 	 * Prepend the atm_pseudoheader.
 	 */
-	M_PREPEND(m, sizeof(*ah), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*ah), M_NOWAIT);
 	if (m == NULL)
 		return;
 	memcpy(mtod(m, struct atm_pseudohdr *), ah, sizeof(*ah));
@@ -502,7 +502,7 @@ ng_atm_rcvdata(hook_p hook, item_p item)
 	/*
 	 * Prepend pseudo-hdr. Drivers don't care about the flags.
 	 */
-	M_PREPEND(m, sizeof(*aph), M_DONTWAIT);
+	M_PREPEND(m, sizeof(*aph), M_NOWAIT);
 	if (m == NULL) {
 		NG_FREE_M(m);
 		return (ENOMEM);

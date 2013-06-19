@@ -96,18 +96,10 @@ public:
   /// Code Generation virtual methods...
   const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
   const uint32_t *getCallPreservedMask(CallingConv::ID) const;
+  const uint32_t *getThisReturnPreservedMask(CallingConv::ID) const;
+  const uint32_t *getNoPreservedMask() const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
-
-  /// canCombineSubRegIndices - Given a register class and a list of
-  /// subregister indices, return true if it's possible to combine the
-  /// subregister indices into one that corresponds to a larger
-  /// subregister. Return the new subregister index by reference. Note the
-  /// new index may be zero if the given subregisters can be combined to
-  /// form the whole register.
-  virtual bool canCombineSubRegIndices(const TargetRegisterClass *RC,
-                                       SmallVectorImpl<unsigned> &SubIndices,
-                                       unsigned &NewSubIdx) const;
 
   const TargetRegisterClass*
   getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
@@ -120,12 +112,11 @@ public:
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const;
 
-  ArrayRef<uint16_t> getRawAllocationOrder(const TargetRegisterClass *RC,
-                                           unsigned HintType, unsigned HintReg,
-                                           const MachineFunction &MF) const;
-
-  unsigned ResolveRegAllocHint(unsigned Type, unsigned Reg,
-                               const MachineFunction &MF) const;
+  void getRegAllocationHints(unsigned VirtReg,
+                             ArrayRef<MCPhysReg> Order,
+                             SmallVectorImpl<MCPhysReg> &Hints,
+                             const MachineFunction &MF,
+                             const VirtRegMap *VRM) const;
 
   void UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
                           MachineFunction &MF) const;
@@ -170,8 +161,6 @@ public:
                                  unsigned MIFlags = MachineInstr::NoFlags)const;
 
   /// Code Generation virtual methods...
-  virtual bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;
-
   virtual bool requiresRegisterScavenging(const MachineFunction &MF) const;
 
   virtual bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
@@ -180,17 +169,9 @@ public:
 
   virtual bool requiresVirtualBaseRegisters(const MachineFunction &MF) const;
 
-  virtual void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                           MachineBasicBlock &MBB,
-                                           MachineBasicBlock::iterator I) const;
-
   virtual void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                   int SPAdj, RegScavenger *RS = NULL) const;
-
-private:
-  unsigned getRegisterPairEven(unsigned Reg, const MachineFunction &MF) const;
-
-  unsigned getRegisterPairOdd(unsigned Reg, const MachineFunction &MF) const;
+                                   int SPAdj, unsigned FIOperandNum,
+                                   RegScavenger *RS = NULL) const;
 };
 
 } // end namespace llvm

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
+<!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "ia64">
+<!ENTITY arch.print "IA-64">
+]>
+
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.2
+-->
+
+<article>
+  &artheader;
+  
+  <abstract>
+    <para>Ce document est un document en version alpha. Il est
+    incomplet et ne reflète certainement pas la réalité de cette
+    plateforme.</para>
+  </abstract>
+
+  &sect.intro;
+  &sect.proc.ia64;
+  &sect.dev;
+</article>

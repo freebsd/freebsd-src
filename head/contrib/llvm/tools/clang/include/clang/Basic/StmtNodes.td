@@ -27,12 +27,12 @@ def DeclStmt  : Stmt;
 def SwitchCase : Stmt<1>;
 def CaseStmt : DStmt<SwitchCase>;
 def DefaultStmt : DStmt<SwitchCase>;
+def CapturedStmt : Stmt;
 
-// GNU Extensions
-def AsmStmt : Stmt;
-
-// MS Extensions
-def MSAsmStmt : Stmt;
+// Asm statements
+def AsmStmt : Stmt<1>;
+def GCCAsmStmt : DStmt<AsmStmt>;
+def MSAsmStmt : DStmt<AsmStmt>;
 
 // Obj-C statements
 def ObjCAtTryStmt : Stmt;
@@ -108,6 +108,7 @@ def CXXNullPtrLiteralExpr : DStmt<Expr>;
 def CXXThisExpr : DStmt<Expr>;
 def CXXThrowExpr : DStmt<Expr>;
 def CXXDefaultArgExpr : DStmt<Expr>;
+def CXXDefaultInitExpr : DStmt<Expr>;
 def CXXScalarValueInitExpr : DStmt<Expr>;
 def CXXNewExpr : DStmt<Expr>;
 def CXXDeleteExpr : DStmt<Expr>;
@@ -132,6 +133,7 @@ def PackExpansionExpr : DStmt<Expr>;
 def SizeOfPackExpr : DStmt<Expr>;
 def SubstNonTypeTemplateParmExpr : DStmt<Expr>;
 def SubstNonTypeTemplateParmPackExpr : DStmt<Expr>;
+def FunctionParmPackExpr : DStmt<Expr>;
 def MaterializeTemporaryExpr : DStmt<Expr>;
 def LambdaExpr : DStmt<Expr>;
 
@@ -163,6 +165,7 @@ def BlockExpr : DStmt<Expr>;
 def OpaqueValueExpr : DStmt<Expr>;
 
 // Microsoft Extensions.
+def MSPropertyRefExpr : DStmt<Expr>;
 def CXXUuidofExpr : DStmt<Expr>; 
 def SEHTryStmt : Stmt;
 def SEHExceptStmt : Stmt;

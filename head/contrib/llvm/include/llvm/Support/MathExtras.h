@@ -16,6 +16,10 @@
 
 #include "llvm/Support/SwapByteOrder.h"
 
+#ifdef _MSC_VER
+# include <intrin.h>
+#endif
+
 namespace llvm {
 
 // NOTE: The following support functions use the _32/_64 extensions instead of
@@ -61,7 +65,7 @@ inline bool isShiftedInt(int64_t x) {
 /// isUInt - Checks if an unsigned integer fits into the given bit width.
 template<unsigned N>
 inline bool isUInt(uint64_t x) {
-  return N >= 64 || x < (UINT64_C(1)<<N);
+  return N >= 64 || x < (UINT64_C(1)<<(N));
 }
 // Template specializations to get better code for common cases.
 template<>
@@ -254,7 +258,10 @@ inline unsigned CountTrailingZeros_32(uint32_t Value) {
     4, 7, 17, 0, 25, 22, 31, 15, 29, 10, 12, 6, 0, 21, 14, 9,
     5, 20, 8, 19, 18
   };
-  return Mod37BitPosition[(-Value & Value) % 37];
+  // Replace "-Value" by "1+~Value" in the following commented code to avoid 
+  // MSVC warning C4146
+  //    return Mod37BitPosition[(-Value & Value) % 37];
+  return Mod37BitPosition[((1 + ~Value) & Value) % 37];
 #endif
 }
 
@@ -281,7 +288,10 @@ inline unsigned CountTrailingZeros_64(uint64_t Value) {
     29, 50, 43, 46, 31, 37, 21, 57, 52, 8, 26, 49, 45, 36, 56,
     7, 48, 35, 6, 34, 33, 0
   };
-  return Mod67Position[(-Value & Value) % 67];
+  // Replace "-Value" by "1+~Value" in the following commented code to avoid 
+  // MSVC warning C4146
+  //    return Mod67Position[(-Value & Value) % 67];
+  return Mod67Position[((1 + ~Value) & Value) % 67];
 #endif
 }
 
@@ -416,7 +426,11 @@ int IsInf(double d);
 /// alignment that may be assumed after adding the two together.
 inline uint64_t MinAlign(uint64_t A, uint64_t B) {
   // The largest power of 2 that divides both A and B.
-  return (A | B) & -(A | B);
+  //
+  // Replace "-Value" by "1+~Value" in the following commented code to avoid 
+  // MSVC warning C4146
+  //    return (A | B) & -(A | B);
+  return (A | B) & (1 + ~(A | B));
 }
 
 /// NextPowerOf2 - Returns the next power of two (in 64-bits)
@@ -431,21 +445,22 @@ inline uint64_t NextPowerOf2(uint64_t A) {
   return A + 1;
 }
 
-/// RoundUpToAlignment - Returns the next integer (mod 2**64) that is
-/// greater than or equal to \arg Value and is a multiple of \arg
-/// Align. Align must be non-zero.
+/// Returns the next integer (mod 2**64) that is greater than or equal to
+/// \p Value and is a multiple of \p Align. \p Align must be non-zero.
 ///
 /// Examples:
-/// RoundUpToAlignment(5, 8) = 8
-/// RoundUpToAlignment(17, 8) = 24
-/// RoundUpToAlignment(~0LL, 8) = 0
+/// \code
+///   RoundUpToAlignment(5, 8) = 8
+///   RoundUpToAlignment(17, 8) = 24
+///   RoundUpToAlignment(~0LL, 8) = 0
+/// \endcode
 inline uint64_t RoundUpToAlignment(uint64_t Value, uint64_t Align) {
   return ((Value + Align - 1) / Align) * Align;
 }
 
-/// OffsetToAlignment - Return the offset to the next integer (mod 2**64) that
-/// is greater than or equal to \arg Value and is a multiple of \arg
-/// Align. Align must be non-zero.
+/// Returns the offset to the next integer (mod 2**64) that is greater than
+/// or equal to \p Value and is a multiple of \p Align. \p Align must be
+/// non-zero.
 inline uint64_t OffsetToAlignment(uint64_t Value, uint64_t Align) {
   return RoundUpToAlignment(Value, Align) - Value;
 }
@@ -463,10 +478,22 @@ template <unsigned B> inline int32_t SignExtend32(uint32_t x) {
   return int32_t(x << (32 - B)) >> (32 - B);
 }
 
+/// \brief Sign extend number in the bottom B bits of X to a 32-bit int.
+/// Requires 0 < B <= 32.
+inline int32_t SignExtend32(uint32_t X, unsigned B) {
+  return int32_t(X << (32 - B)) >> (32 - B);
+}
+
 /// SignExtend64 - Sign extend B-bit number x to 64-bit int.
 /// Usage int64_t r = SignExtend64<5>(x);
 template <unsigned B> inline int64_t SignExtend64(uint64_t x) {
   return int64_t(x << (64 - B)) >> (64 - B);
+}
+
+/// \brief Sign extend number in the bottom B bits of X to a 64-bit int.
+/// Requires 0 < B <= 64.
+inline int64_t SignExtend64(uint64_t X, unsigned B) {
+  return int64_t(X << (64 - B)) >> (64 - B);
 }
 
 } // End llvm namespace

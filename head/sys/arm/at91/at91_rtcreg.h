@@ -42,6 +42,10 @@
 #define RTC_IMR		0x28		/* RTC Interrupt Mask Register */
 #define RTC_VER		0x2c		/* RTC Valid Entry Register */
 
+/* CR */
+#define	RTC_CR_UPDTIM	(0x1u <<  0)	/* Request update of time register */
+#define	RTC_CR_UPDCAL	(0x1u <<  1)	/* Request update of calendar reg. */
+
 /* TIMR */
 #define RTC_TIMR_SEC_M	0x7fUL
 #define RTC_TIMR_SEC_S	0
@@ -71,14 +75,29 @@
 #define RTC_CALR_DOW_M	0x00d0000UL
 #define RTC_CALR_DOW_S	21
 #define RTC_CALR_DOW(x)	FROMBCD(((x) & RTC_CALR_DOW_M) >> RTC_CALR_DOW_S)
-#define RTC_CALR_DAY_M	0x3f00000UL
+#define RTC_CALR_DAY_M	0x3f000000UL
 #define RTC_CALR_DAY_S	24
 #define RTC_CALR_DAY(x)	FROMBCD(((x) & RTC_CALR_DAY_M) >> RTC_CALR_DAY_S)
 #define RTC_CALR_MK(yr, mon, day, dow) \
-		((TOBCD((yr) / 100 + 19) << RTC_CALR_CEN_S) | \
+		((TOBCD((yr) / 100) << RTC_CALR_CEN_S) | \
 		 (TOBCD((yr) % 100) << RTC_CALR_YEAR_S) | \
 		 (TOBCD(mon) << RTC_CALR_MON_S) | \
 		 (TOBCD(dow) << RTC_CALR_DOW_S) | \
 		 (TOBCD(day) << RTC_CALR_DAY_S))
+
+/* SR */
+
+#define	RTC_SR_ACKUPD		(0x1u <<  0)	/* Acknowledge for Update */
+#define	RTC_SR_ALARM		(0x1u <<  1)	/* Alarm Flag */
+#define	RTC_SR_SECEV		(0x1u <<  2)	/* Second Event */
+#define	RTC_SR_TIMEV		(0x1u <<  3)	/* Time Event */
+#define	RTC_SR_CALEV		(0x1u <<  4)	/* Calendar event */
+
+/* VER */
+
+#define	RTC_VER_NVTIM		(0x1 << 0)	/* Non-valid time */
+#define	RTC_VER_NVCAL		(0x1 << 1)	/* Non-valid calendar */
+#define	RTC_VER_NVTIMALR	(0x1 << 2)	/* Non-valid time alarm */
+#define	RTC_VER_NVCALALR	(0x1 << 3)	/* Non-valid calendar alarm */
 
 #endif /* ARM_AT91_AT91_RTCREG_H */

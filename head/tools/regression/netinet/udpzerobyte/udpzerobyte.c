@@ -80,7 +80,7 @@ test(int domain, const char *domainstr, struct sockaddr *sa, socklen_t salen)
 
 	size = recv(sock_receive, NULL, 0, 0);
 	if (size > 0)
-		errx(-1, "Protocol %s recv(sock_receive, NULL, 0) before: %d",
+		errx(-1, "Protocol %s recv(sock_receive, NULL, 0) before: %zd",
 		    domainstr, size);
 	else if (size < 0)
 		err(-1, "Protocol %s recv(sock_receive, NULL, 0) before",
@@ -98,7 +98,7 @@ test(int domain, const char *domainstr, struct sockaddr *sa, socklen_t salen)
 
 	size = recv(sock_receive, NULL, 0, 0);
 	if (size > 0)
-		errx(-1, "Protocol %s recv(sock_receive, NULL, 0) after: %d",
+		errx(-1, "Protocol %s recv(sock_receive, NULL, 0) after: %zd",
 		    domainstr, size);
 	else if (size < 0)
 		err(-1, "Protocol %s recv(sock_receive, NULL, 0) after",

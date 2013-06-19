@@ -15,9 +15,9 @@
 
 #include "PPC.h"
 #include "PPCSubtarget.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/ADT/STLExtras.h"
 
 namespace llvm {
   class PPCSubtarget;
@@ -27,11 +27,14 @@ class PPCFrameLowering: public TargetFrameLowering {
 
 public:
   PPCFrameLowering(const PPCSubtarget &sti)
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 16, 0),
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
+        (sti.hasQPX() || sti.isBGQ()) ? 32 : 16, 0),
       Subtarget(sti) {
   }
 
-  void determineFrameLayout(MachineFunction &MF) const;
+  unsigned determineFrameLayout(MachineFunction &MF,
+                                bool UpdateMF = true,
+                                bool UseEstimate = false) const;
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
@@ -40,10 +43,27 @@ public:
 
   bool hasFP(const MachineFunction &MF) const;
   bool needsFP(const MachineFunction &MF) const;
+  void replaceFPWithRealFP(MachineFunction &MF) const;
 
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                             RegScavenger *RS = NULL) const;
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
+                                       RegScavenger *RS = NULL) const;
+  void addScavengingSpillSlot(MachineFunction &MF, RegScavenger *RS) const;
+
+  bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
+                                 MachineBasicBlock::iterator MI,
+                                 const std::vector<CalleeSavedInfo> &CSI,
+                                 const TargetRegisterInfo *TRI) const;
+
+  void eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                     MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I) const;
+
+  bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
+                                   MachineBasicBlock::iterator MI,
+                                   const std::vector<CalleeSavedInfo> &CSI,
+                                   const TargetRegisterInfo *TRI) const;
 
   /// targetHandlesStackFrameRounding - Returns true if the target is
   /// responsible for rounding up the stack frame (probably at emitPrologue
@@ -129,6 +149,9 @@ public:
       return 0;
     }
 
+    // Note that the offsets here overlap, but this is fixed up in
+    // processFunctionBeforeFrameFinalized.
+
     static const SpillSlot Offsets[] = {
       // Floating-point register save area offsets.
       {PPC::F31, -8},
@@ -170,23 +193,11 @@ public:
       {PPC::R15, -68},
       {PPC::R14, -72},
 
-      // CR save area offset.
-      // FIXME SVR4: Disable CR save area for now.
-//      {PPC::CR2, -4},
-//      {PPC::CR3, -4},
-//      {PPC::CR4, -4},
-//      {PPC::CR2LT, -4},
-//      {PPC::CR2GT, -4},
-//      {PPC::CR2EQ, -4},
-//      {PPC::CR2UN, -4},
-//      {PPC::CR3LT, -4},
-//      {PPC::CR3GT, -4},
-//      {PPC::CR3EQ, -4},
-//      {PPC::CR3UN, -4},
-//      {PPC::CR4LT, -4},
-//      {PPC::CR4GT, -4},
-//      {PPC::CR4EQ, -4},
-//      {PPC::CR4UN, -4},
+      // CR save area offset.  We map each of the nonvolatile CR fields
+      // to the slot for CR2, which is the first of the nonvolatile CR
+      // fields to be assigned, so that we only allocate one save slot.
+      // See PPCRegisterInfo::hasReservedSpillSlot() for more information.
+      {PPC::CR2, -4},
 
       // VRSAVE save area offset.
       {PPC::VRSAVE, -4},
@@ -228,27 +239,6 @@ public:
       {PPC::F14, -144},
 
       // General register save area offsets.
-      // FIXME 64-bit SVR4: Are 32-bit registers actually allocated in 64-bit
-      //                    mode?
-      {PPC::R31, -4},
-      {PPC::R30, -12},
-      {PPC::R29, -20},
-      {PPC::R28, -28},
-      {PPC::R27, -36},
-      {PPC::R26, -44},
-      {PPC::R25, -52},
-      {PPC::R24, -60},
-      {PPC::R23, -68},
-      {PPC::R22, -76},
-      {PPC::R21, -84},
-      {PPC::R20, -92},
-      {PPC::R19, -100},
-      {PPC::R18, -108},
-      {PPC::R17, -116},
-      {PPC::R16, -124},
-      {PPC::R15, -132},
-      {PPC::R14, -140},
-
       {PPC::X31, -8},
       {PPC::X30, -16},
       {PPC::X29, -24},
@@ -267,24 +257,6 @@ public:
       {PPC::X16, -128},
       {PPC::X15, -136},
       {PPC::X14, -144},
-
-      // CR save area offset.
-      // FIXME SVR4: Disable CR save area for now.
-//      {PPC::CR2, -4},
-//      {PPC::CR3, -4},
-//      {PPC::CR4, -4},
-//      {PPC::CR2LT, -4},
-//      {PPC::CR2GT, -4},
-//      {PPC::CR2EQ, -4},
-//      {PPC::CR2UN, -4},
-//      {PPC::CR3LT, -4},
-//      {PPC::CR3GT, -4},
-//      {PPC::CR3EQ, -4},
-//      {PPC::CR3UN, -4},
-//      {PPC::CR4LT, -4},
-//      {PPC::CR4GT, -4},
-//      {PPC::CR4EQ, -4},
-//      {PPC::CR4UN, -4},
 
       // VRSAVE save area offset.
       {PPC::VRSAVE, -4},

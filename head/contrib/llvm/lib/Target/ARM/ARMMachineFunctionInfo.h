@@ -15,10 +15,10 @@
 #define ARMMACHINEFUNCTIONINFO_H
 
 #include "ARMSubtarget.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
 
@@ -38,7 +38,7 @@ class ARMFunctionInfo : public MachineFunctionInfo {
 
   /// VarArgsRegSaveSize - Size of the register save area for vararg functions.
   ///
-  unsigned VarArgsRegSaveSize;
+  unsigned ArgRegsSaveSize;
 
   /// HasStackFrame - True if this function has a stack frame. Set by
   /// processFunctionBeforeCalleeSavedScan().
@@ -108,36 +108,41 @@ class ARMFunctionInfo : public MachineFunctionInfo {
   /// pass.
   DenseMap<unsigned, unsigned> CPEClones;
 
+  /// GlobalBaseReg - keeps track of the virtual register initialized for
+  /// use as the global base register. This is used for PIC in some PIC
+  /// relocation models.
+  unsigned GlobalBaseReg;
+
 public:
   ARMFunctionInfo() :
     isThumb(false),
     hasThumb2(false),
-    VarArgsRegSaveSize(0), HasStackFrame(false), RestoreSPFromFP(false),
+    ArgRegsSaveSize(0), HasStackFrame(false), RestoreSPFromFP(false),
     LRSpilledForFarJump(false),
     FramePtrSpillOffset(0), GPRCS1Offset(0), GPRCS2Offset(0), DPRCSOffset(0),
     GPRCS1Size(0), GPRCS2Size(0), DPRCSSize(0),
     GPRCS1Frames(0), GPRCS2Frames(0), DPRCSFrames(0),
     NumAlignedDPRCS2Regs(0),
     JumpTableUId(0), PICLabelUId(0),
-    VarArgsFrameIndex(0), HasITBlocks(false) {}
+    VarArgsFrameIndex(0), HasITBlocks(false), GlobalBaseReg(0) {}
 
   explicit ARMFunctionInfo(MachineFunction &MF) :
     isThumb(MF.getTarget().getSubtarget<ARMSubtarget>().isThumb()),
     hasThumb2(MF.getTarget().getSubtarget<ARMSubtarget>().hasThumb2()),
-    VarArgsRegSaveSize(0), HasStackFrame(false), RestoreSPFromFP(false),
+    ArgRegsSaveSize(0), HasStackFrame(false), RestoreSPFromFP(false),
     LRSpilledForFarJump(false),
     FramePtrSpillOffset(0), GPRCS1Offset(0), GPRCS2Offset(0), DPRCSOffset(0),
     GPRCS1Size(0), GPRCS2Size(0), DPRCSSize(0),
     GPRCS1Frames(32), GPRCS2Frames(32), DPRCSFrames(32),
     JumpTableUId(0), PICLabelUId(0),
-    VarArgsFrameIndex(0), HasITBlocks(false) {}
+    VarArgsFrameIndex(0), HasITBlocks(false), GlobalBaseReg(0) {}
 
   bool isThumbFunction() const { return isThumb; }
   bool isThumb1OnlyFunction() const { return isThumb && !hasThumb2; }
   bool isThumb2Function() const { return isThumb && hasThumb2; }
 
-  unsigned getVarArgsRegSaveSize() const { return VarArgsRegSaveSize; }
-  void setVarArgsRegSaveSize(unsigned s) { VarArgsRegSaveSize = s; }
+  unsigned getArgRegsSaveSize() const { return ArgRegsSaveSize; }
+  void setArgRegsSaveSize(unsigned s) { ArgRegsSaveSize = s; }
 
   bool hasStackFrame() const { return HasStackFrame; }
   void setHasStackFrame(bool s) { HasStackFrame = s; }
@@ -248,6 +253,9 @@ public:
 
   bool hasITBlocks() const { return HasITBlocks; }
   void setHasITBlocks(bool h) { HasITBlocks = h; }
+
+  unsigned getGlobalBaseReg() const { return GlobalBaseReg; }
+  void setGlobalBaseReg(unsigned Reg) { GlobalBaseReg = Reg; }
 
   void recordCPEClone(unsigned CPIdx, unsigned CPCloneIdx) {
     if (!CPEClones.insert(std::make_pair(CPCloneIdx, CPIdx)).second)

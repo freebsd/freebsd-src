@@ -11,15 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
-#include "clang/Basic/SourceManager.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
+#include "clang/Basic/Version.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Casting.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 using namespace ento;
 
@@ -32,7 +34,9 @@ namespace {
     const LangOptions &LangOpts;
     const bool SupportsCrossFileDiagnostics;
   public:
-    PlistDiagnostics(const std::string& prefix, const LangOptions &LangOpts,
+    PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                     const std::string& prefix,
+                     const LangOptions &LangOpts,
                      bool supportsMultipleFiles);
 
     virtual ~PlistDiagnostics() {}
@@ -47,29 +51,34 @@ namespace {
     PathGenerationScheme getGenerationScheme() const { return Extensive; }
     bool supportsLogicalOpControlFlow() const { return true; }
     bool supportsAllBlockEdges() const { return true; }
-    virtual bool useVerboseDescription() const { return false; }
     virtual bool supportsCrossFileDiagnostics() const {
       return SupportsCrossFileDiagnostics;
     }
   };
 } // end anonymous namespace
 
-PlistDiagnostics::PlistDiagnostics(const std::string& output,
+PlistDiagnostics::PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                                   const std::string& output,
                                    const LangOptions &LO,
                                    bool supportsMultipleFiles)
-  : OutputFile(output), LangOpts(LO),
+  : OutputFile(output),
+    LangOpts(LO),
     SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
-void ento::createPlistDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                         PathDiagnosticConsumers &C,
                                          const std::string& s,
                                          const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), false));
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), false));
 }
 
-void ento::createPlistMultiFileDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistMultiFileDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                                  PathDiagnosticConsumers &C,
                                                   const std::string &s,
                                                   const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), true));
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), true));
 }
 
 static void AddFID(FIDMap &FIDs, SmallVectorImpl<FileID> &V,
@@ -247,6 +256,7 @@ static void ReportEvent(raw_ostream &o, const PathDiagnosticPiece& P,
   // Output the short text.
   // FIXME: Really use a short string.
   Indent(o, indent) << "<key>message</key>\n";
+  Indent(o, indent);
   EmitString(o, P.getString()) << '\n';
   
   // Finish up.
@@ -286,6 +296,8 @@ static void ReportCall(raw_ostream &o,
   
   for (PathPieces::const_iterator I = P.path.begin(), E = P.path.end();I!=E;++I)
     ReportPiece(o, **I, FM, SM, LangOpts, indent, depth, true);
+
+  --depth;
   
   IntrusiveRefCntPtr<PathDiagnosticEventPiece> callExit =
     P.getCallExitEvent();
@@ -359,7 +371,7 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
 
     const PathDiagnostic *D = *DI;
 
-    llvm::SmallVector<const PathPieces *, 5> WorkList;
+    SmallVector<const PathPieces *, 5> WorkList;
     WorkList.push_back(&D->path);
 
     while (!WorkList.empty()) {
@@ -409,10 +421,13 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
   "<plist version=\"1.0\">\n";
 
   // Write the root object: a <dict> containing...
+  //  - "clang_version", the string representation of clang version
   //  - "files", an <array> mapping from FIDs to file names
   //  - "diagnostics", an <array> containing the path diagnostics
-  o << "<dict>\n"
-       " <key>files</key>\n"
+  o << "<dict>\n" <<
+       " <key>clang_version</key>\n";
+  EmitString(o, getClangFullVersion()) << '\n';
+  o << " <key>files</key>\n"
        " <array>\n";
 
   for (SmallVectorImpl<FileID>::iterator I=Fids.begin(), E=Fids.end();
@@ -443,7 +458,7 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
 
     // Output the bug type and bug category.
     o << "   <key>description</key>";
-    EmitString(o, D->getDescription()) << '\n';
+    EmitString(o, D->getShortDescription()) << '\n';
     o << "   <key>category</key>";
     EmitString(o, D->getCategory()) << '\n';
     o << "   <key>type</key>";
@@ -482,12 +497,32 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
         // Output the bug hash for issue unique-ing. Currently, it's just an
         // offset from the beginning of the function.
         if (const Stmt *Body = DeclWithIssue->getBody()) {
-          FullSourceLoc Loc(SM->getExpansionLoc(D->getLocation().asLocation()),
+          
+          // If the bug uniqueing location exists, use it for the hash.
+          // For example, this ensures that two leaks reported on the same line
+          // will have different issue_hashes and that the hash will identify
+          // the leak location even after code is added between the allocation
+          // site and the end of scope (leak report location).
+          PathDiagnosticLocation UPDLoc = D->getUniqueingLoc();
+          if (UPDLoc.isValid()) {
+            FullSourceLoc UL(SM->getExpansionLoc(UPDLoc.asLocation()),
+                             *SM);
+            FullSourceLoc UFunL(SM->getExpansionLoc(
+              D->getUniqueingDecl()->getBody()->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << UL.getExpansionLineNumber() - UFunL.getExpansionLineNumber()
+              << "</string>\n";
+
+          // Otherwise, use the location on which the bug is reported.
+          } else {
+            FullSourceLoc L(SM->getExpansionLoc(D->getLocation().asLocation()),
                             *SM);
-          FullSourceLoc FunLoc(SM->getExpansionLoc(Body->getLocStart()), *SM);
-          o << "  <key>issue_hash</key><integer>"
-              << Loc.getExpansionLineNumber() - FunLoc.getExpansionLineNumber()
-              << "</integer>\n";
+            FullSourceLoc FunL(SM->getExpansionLoc(Body->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << L.getExpansionLineNumber() - FunL.getExpansionLineNumber()
+              << "</string>\n";
+          }
+
         }
       }
     }
@@ -499,19 +534,23 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
     // Output the diagnostic to the sub-diagnostic client, if any.
     if (!filesMade->empty()) {
       StringRef lastName;
-      for (FilesMade::iterator I = filesMade->begin(), E = filesMade->end();
-           I != E; ++I) {
-        StringRef newName = I->first;
-        if (newName != lastName) {
-          if (!lastName.empty())
-            o << "  </array>\n";
-          lastName = newName;
-          o <<  "  <key>" << lastName << "_files</key>\n";
-          o << "  <array>\n";
+      PDFileEntry::ConsumerFiles *files = filesMade->getFiles(*D);
+      if (files) {
+        for (PDFileEntry::ConsumerFiles::const_iterator CI = files->begin(),
+                CE = files->end(); CI != CE; ++CI) {
+          StringRef newName = CI->first;
+          if (newName != lastName) {
+            if (!lastName.empty()) {
+              o << "  </array>\n";
+            }
+            lastName = newName;
+            o <<  "  <key>" << lastName << "_files</key>\n";
+            o << "  <array>\n";
+          }
+          o << "   <string>" << CI->second << "</string>\n";
         }
-        o << "   <string>" << I->second << "</string>\n";
+        o << "  </array>\n";
       }
-      o << "  </array>\n";
     }
 
     // Close up the entry.
@@ -521,10 +560,5 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
   o << " </array>\n";
 
   // Finish.
-  o << "</dict>\n</plist>";
-  
-  if (filesMade) {
-    StringRef Name(getName());
-    filesMade->push_back(std::make_pair(Name, OutputFile));
-  }
+  o << "</dict>\n</plist>";  
 }

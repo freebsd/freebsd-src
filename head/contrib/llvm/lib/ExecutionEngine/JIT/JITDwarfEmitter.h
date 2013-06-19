@@ -15,20 +15,24 @@
 #ifndef LLVM_EXECUTION_ENGINE_JIT_DWARFEMITTER_H
 #define LLVM_EXECUTION_ENGINE_JIT_DWARFEMITTER_H
 
+#include "llvm/Support/DataTypes.h"
+#include <vector>
+
 namespace llvm {
 
 class Function;
+class JIT;
 class JITCodeEmitter;
 class MachineFunction;
 class MachineModuleInfo;
 class MachineMove;
 class MCAsmInfo;
-class TargetData;
+class DataLayout;
 class TargetMachine;
 class TargetRegisterInfo;
 
 class JITDwarfEmitter {
-  const TargetData* TD;
+  const DataLayout* TD;
   JITCodeEmitter* JCE;
   const TargetRegisterInfo* RI;
   const MCAsmInfo *MAI;

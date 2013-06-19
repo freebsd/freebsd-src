@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,7 +79,7 @@ AcpiDbListInfo (
 /*
  * Statistics subcommands
  */
-static ARGUMENT_INFO        AcpiDbStatTypes [] =
+static ACPI_DB_ARGUMENT_INFO    AcpiDbStatTypes [] =
 {
     {"ALLOCATIONS"},
     {"OBJECTS"},
@@ -267,6 +267,7 @@ AcpiDbEnumerateObject (
         break;
 
     default:
+
         break;
     }
 }
@@ -314,7 +315,7 @@ AcpiDbClassifyOneObject (
         AcpiGbl_NodeTypeCount [Type]++;
     }
 
-    return AE_OK;
+    return (AE_OK);
 
 
 #ifdef ACPI_FUTURE_IMPLEMENTATION
@@ -398,12 +399,6 @@ AcpiDbDisplayStatistics (
     UINT32                  Temp;
 
 
-    if (!TypeArg)
-    {
-        AcpiOsPrintf ("The following subcommands are available:\n    ALLOCATIONS, OBJECTS, MEMORY, MISC, SIZES, TABLES\n");
-        return (AE_OK);
-    }
-
     AcpiUtStrupr (TypeArg);
     Temp = AcpiDbMatchArgument (TypeArg, AcpiDbStatTypes);
     if (Temp == (UINT32) -1)
@@ -485,7 +480,6 @@ AcpiDbDisplayStatistics (
         }
         break;
 
-
     case CMD_STAT_SIZES:
 
         AcpiOsPrintf ("\nInternal object sizes:\n\n");
@@ -536,7 +530,6 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("Notify Info      %3d\n", sizeof (ACPI_NOTIFY_INFO));
         break;
 
-
     case CMD_STAT_STACK:
 #if defined(ACPI_DEBUG_OUTPUT)
 
@@ -551,6 +544,7 @@ AcpiDbDisplayStatistics (
         break;
 
     default:
+
         break;
     }
 

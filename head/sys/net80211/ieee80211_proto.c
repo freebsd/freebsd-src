@@ -996,6 +996,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	struct wmeParams *chanp, *bssp;
 	enum ieee80211_phymode mode;
 	int i;
+	int do_aggrmode = 0;
 
        	/*
 	 * Set up the channel access parameters for the physical
@@ -1036,11 +1037,38 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	 * BE uses agressive params to optimize performance of
 	 * legacy/non-QoS traffic.
 	 */
-        if ((vap->iv_opmode == IEEE80211_M_HOSTAP &&
-	     (wme->wme_flags & WME_F_AGGRMODE) != 0) ||
-	    (vap->iv_opmode == IEEE80211_M_STA &&
-	     (vap->iv_bss->ni_flags & IEEE80211_NODE_QOS) == 0) ||
-	    (vap->iv_flags & IEEE80211_F_WME) == 0) {
+
+	/* Hostap? Only if aggressive mode is enabled */
+        if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
+	     (wme->wme_flags & WME_F_AGGRMODE) != 0)
+		do_aggrmode = 1;
+
+	/*
+	 * Station? Only if we're in a non-QoS BSS.
+	 */
+	else if ((vap->iv_opmode == IEEE80211_M_STA &&
+	     (vap->iv_bss->ni_flags & IEEE80211_NODE_QOS) == 0))
+		do_aggrmode = 1;
+
+	/*
+	 * IBSS? Only if we we have WME enabled.
+	 */
+	else if ((vap->iv_opmode == IEEE80211_M_IBSS) &&
+	    (vap->iv_flags & IEEE80211_F_WME))
+		do_aggrmode = 1;
+
+	/*
+	 * If WME is disabled on this VAP, default to aggressive mode
+	 * regardless of the configuration.
+	 */
+	if ((vap->iv_flags & IEEE80211_F_WME) == 0)
+		do_aggrmode = 1;
+
+	/* XXX WDS? */
+
+	/* XXX MBSS? */
+	
+	if (do_aggrmode) {
 		chanp = &wme->wme_chanParams.cap_wmeParams[WME_AC_BE];
 		bssp = &wme->wme_bssChanParams.cap_wmeParams[WME_AC_BE];
 
@@ -1058,7 +1086,14 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		    chanp->wmep_acm, chanp->wmep_aifsn, chanp->wmep_logcwmin,
 		    chanp->wmep_logcwmax, chanp->wmep_txopLimit);
 	}
-	
+
+
+	/*
+	 * Change the contention window based on the number of associated
+	 * stations.  If the number of associated stations is 1 and
+	 * aggressive mode is enabled, lower the contention window even
+	 * further.
+	 */
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
 	    ic->ic_sta_assoc < 2 && (wme->wme_flags & WME_F_AGGRMODE) != 0) {
 		static const uint8_t logCwMin[IEEE80211_MODE_MAX] = {
@@ -1082,8 +1117,15 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
 		    "update %s (chan+bss) logcwmin %u\n",
 		    ieee80211_wme_acnames[WME_AC_BE], chanp->wmep_logcwmin);
-    	}	
-	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {	/* XXX ibss? */
+	}
+
+	/*
+	 * Arrange for the beacon update.
+	 *
+	 * XXX what about MBSS, WDS?
+	 */
+	if (vap->iv_opmode == IEEE80211_M_HOSTAP
+	    || vap->iv_opmode == IEEE80211_M_IBSS) {
 		/*
 		 * Arrange for a beacon update and bump the parameter
 		 * set number so associated stations load the new values.
@@ -1745,6 +1787,11 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		IF_LOCK(&vap->iv_ifp->if_snd);
 		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		IF_UNLOCK(&vap->iv_ifp->if_snd);
+
+		/*
+		 * XXX Kick-start a VAP queue - this should be a method,
+		 * not if_start()!
+		 */
 		if_start(vap->iv_ifp);
 
 		/* bring up any vaps waiting on us */

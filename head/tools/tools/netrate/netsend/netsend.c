@@ -144,7 +144,7 @@ timing_loop(struct _a *a)
 	long finishtime;
 	long send_errors, send_calls;
 	/* do not call gettimeofday more than every 20us */
-	long minres_ns = 20000;
+	long minres_ns = 200000;
 	int ic, gettimeofday_cycles;
 	int cur_port;
 	uint64_t n, ns;
@@ -154,17 +154,22 @@ timing_loop(struct _a *a)
 		return (-1);
 	}
 
+	ns = a->interval.tv_nsec;
 	if (timespec_ge(&tmptime, &a->interval))
 		fprintf(stderr,
 		    "warning: interval (%jd.%09ld) less than resolution (%jd.%09ld)\n",
 		    (intmax_t)a->interval.tv_sec, a->interval.tv_nsec,
 		    (intmax_t)tmptime.tv_sec, tmptime.tv_nsec);
-	if (a->interval.tv_nsec < minres_ns) {
-		gettimeofday_cycles = minres_ns/(tmptime.tv_nsec + 1);
-		fprintf(stderr,
-		    "calling time every %d cycles\n", gettimeofday_cycles);
-	} else
-		gettimeofday_cycles = 0;
+		/* interval too short, limit the number of gettimeofday()
+		 * calls, but also make sure there is at least one every
+		 * some 100 packets.
+		 */
+	if ((long)ns < minres_ns/100)
+		gettimeofday_cycles = 100;
+	else
+		gettimeofday_cycles = minres_ns/ns;
+	fprintf(stderr,
+	    "calling time every %d cycles\n", gettimeofday_cycles);
 
 	if (clock_gettime(CLOCK_REALTIME, &starttime) == -1) {
 		perror("clock_gettime");

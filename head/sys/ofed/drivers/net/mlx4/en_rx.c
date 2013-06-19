@@ -405,7 +405,7 @@ static inline int invalid_cqe(struct mlx4_en_priv *priv,
 	}
 	if (unlikely(cqe->badfcs_enc & MLX4_CQE_BAD_FCS)) {
 		en_dbg(RX_ERR, priv, "Accepted frame with bad FCS\n");
-		return 1;;
+		return 1;
 	}
 
 	return 0;

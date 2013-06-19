@@ -15,6 +15,7 @@
 #define LLVM_MC_MCSYMBOL_H
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Compiler.h"
 
 namespace llvm {
   class MCExpr;
@@ -62,8 +63,8 @@ namespace llvm {
       : Name(name), Section(0), Value(0),
         IsTemporary(isTemporary), IsUsed(false) {}
 
-    MCSymbol(const MCSymbol&);       // DO NOT IMPLEMENT
-    void operator=(const MCSymbol&); // DO NOT IMPLEMENT
+    MCSymbol(const MCSymbol&) LLVM_DELETED_FUNCTION;
+    void operator=(const MCSymbol&) LLVM_DELETED_FUNCTION;
   public:
     /// getName - Get the symbol name.
     StringRef getName() const { return Name; }
@@ -112,7 +113,7 @@ namespace llvm {
       return *Section;
     }
 
-    /// setSection - Mark the symbol as defined in the section \arg S.
+    /// setSection - Mark the symbol as defined in the section \p S.
     void setSection(const MCSection &S) { Section = &S; }
 
     /// setUndefined - Mark the symbol as undefined.
@@ -132,7 +133,7 @@ namespace llvm {
       return Value != 0;
     }
 
-    /// getValue() - Get the value for variable symbols.
+    /// getVariableValue() - Get the value for variable symbols.
     const MCExpr *getVariableValue() const {
       assert(isVariable() && "Invalid accessor!");
       IsUsed = true;
@@ -148,7 +149,7 @@ namespace llvm {
 
     /// @}
 
-    /// print - Print the value to the stream \arg OS.
+    /// print - Print the value to the stream \p OS.
     void print(raw_ostream &OS) const;
 
     /// dump - Print the value to stderr.

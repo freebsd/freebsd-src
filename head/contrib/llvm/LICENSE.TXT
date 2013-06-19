@@ -4,7 +4,7 @@ LLVM Release License
 University of Illinois/NCSA
 Open Source License
 
-Copyright (c) 2003-2012 University of Illinois at Urbana-Champaign.
+Copyright (c) 2003-2013 University of Illinois at Urbana-Champaign.
 All rights reserved.
 
 Developed by:
@@ -64,7 +64,7 @@ Program             Directory
 Autoconf            llvm/autoconf
                     llvm/projects/ModuleMaker/autoconf
                     llvm/projects/sample/autoconf
-CellSPU backend     llvm/lib/Target/CellSPU/README.txt
 Google Test         llvm/utils/unittest/googletest
 OpenBSD regex       llvm/lib/Support/{reg*, COPYRIGHT.regex}
 pyyaml tests        llvm/test/YAMLParser/{*.data, LICENSE.TXT}
+ARM contributions   llvm/lib/Target/ARM/LICENSE.TXT

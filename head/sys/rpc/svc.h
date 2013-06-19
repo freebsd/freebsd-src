@@ -703,6 +703,8 @@ extern SVCXPRT *svc_vc_create(SVCPOOL *, struct socket *,
          * const size_t recvsize;                        -- max recv size
          */
 
+extern SVCXPRT *svc_vc_create_backchannel(SVCPOOL *);
+
 /*
  * Generic TLI create routine
  */

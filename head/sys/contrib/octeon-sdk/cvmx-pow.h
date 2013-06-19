@@ -80,9 +80,23 @@
 extern "C" {
 #endif
 
-/* Default to having all POW constancy checks turned on */
-#ifndef CVMX_ENABLE_POW_CHECKS
-#define CVMX_ENABLE_POW_CHECKS 1
+#if defined(__FreeBSD__) && defined(_KERNEL)
+    /*
+     * For the FreeBSD kernel, have POW consistency checks depend on
+     * the setting of INVARIANTS.
+     */
+    #ifndef CVMX_ENABLE_POW_CHECKS
+        #ifdef INVARIANTS
+            #define CVMX_ENABLE_POW_CHECKS 1
+        #else
+            #define CVMX_ENABLE_POW_CHECKS 0
+        #endif
+    #endif
+#else
+    /* Default to having all POW constancy checks turned on */
+    #ifndef CVMX_ENABLE_POW_CHECKS
+        #define CVMX_ENABLE_POW_CHECKS 1
+    #endif
 #endif
 
 /**

@@ -80,11 +80,11 @@ n or #  - change number of processes to display\n", stdout);
 #ifdef ORDER
 	if (displaymode == DISP_CPU)
 		fputs("\
-o       - specify sort order (pri, size, res, cpu, time, threads, jid)\n",
+o       - specify sort order (pri, size, res, cpu, time, threads, jid, pid)\n",
 	    stdout);
 	else
 		fputs("\
-o       - specify sort order (vcsw, ivcsw, read, write, fault, total, jid)\n",
+o       - specify sort order (vcsw, ivcsw, read, write, fault, total, jid, pid)\n",
 	    stdout);
 #endif
 	fputs("\

@@ -14,17 +14,17 @@
 #ifndef LLVM_CLANG_AST_CXXINHERITANCE_H
 #define LLVM_CLANG_AST_CXXINHERITANCE_H
 
-#include "clang/AST/DeclarationName.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclarationName.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeOrdering.h"
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include <cassert>
 #include <list>
 #include <map>
-#include <cassert>
 
 namespace clang {
   
@@ -271,15 +271,14 @@ struct UniqueVirtualMethod {
 /// pair is the virtual method that overrides it (including the
 /// subobject in which that virtual function occurs).
 class OverridingMethods {
-  llvm::DenseMap<unsigned, SmallVector<UniqueVirtualMethod, 4> > 
-    Overrides;
+  typedef SmallVector<UniqueVirtualMethod, 4> ValuesT;
+  typedef llvm::MapVector<unsigned, ValuesT> MapType;
+  MapType Overrides;
 
 public:
   // Iterate over the set of subobjects that have overriding methods.
-  typedef llvm::DenseMap<unsigned, SmallVector<UniqueVirtualMethod, 4> >
-            ::iterator iterator;
-  typedef llvm::DenseMap<unsigned, SmallVector<UniqueVirtualMethod, 4> >
-            ::const_iterator const_iterator;
+  typedef MapType::iterator iterator;
+  typedef MapType::const_iterator const_iterator;
   iterator begin() { return Overrides.begin(); }
   const_iterator begin() const { return Overrides.begin(); }
   iterator end() { return Overrides.end(); }
@@ -357,8 +356,8 @@ public:
 /// 0 represents the virtua base class subobject of that type, while
 /// subobject numbers greater than 0 refer to non-virtual base class
 /// subobjects of that type.
-class CXXFinalOverriderMap 
-  : public llvm::DenseMap<const CXXMethodDecl *, OverridingMethods> { };
+class CXXFinalOverriderMap
+  : public llvm::MapVector<const CXXMethodDecl *, OverridingMethods> { };
 
 /// \brief A set of all the primary bases for a class.
 class CXXIndirectPrimaryBaseSet

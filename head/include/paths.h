@@ -85,6 +85,7 @@
 #define	_PATH_SHELLS	"/etc/shells"
 #define	_PATH_TTY	"/dev/tty"
 #define	_PATH_UNIX	"don't use _PATH_UNIX"
+#define	_PATH_UFSSUSPEND	"/dev/ufssuspend"
 #define	_PATH_VI	"/usr/bin/vi"
 #define	_PATH_WALL	"/usr/bin/wall"
 

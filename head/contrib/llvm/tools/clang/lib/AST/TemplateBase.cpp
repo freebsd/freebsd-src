@@ -23,8 +23,8 @@
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
-#include <cctype>
 
 using namespace clang;
 
@@ -77,7 +77,7 @@ TemplateArgument TemplateArgument::CreatePackCopy(ASTContext &Context,
                                                   const TemplateArgument *Args,
                                                   unsigned NumArgs) {
   if (NumArgs == 0)
-    return TemplateArgument(0, 0);
+    return getEmptyPack();
   
   TemplateArgument *Storage = new (Context) TemplateArgument [NumArgs];
   std::copy(Args, Args + NumArgs, Storage);
@@ -99,12 +99,11 @@ bool TemplateArgument::isDependent() const {
     return true;
 
   case Declaration:
-    if (Decl *D = getAsDecl()) {
-      if (DeclContext *DC = dyn_cast<DeclContext>(D))
-        return DC->isDependentContext();
-      return D->getDeclContext()->isDependentContext();
-    }
-      
+    if (DeclContext *DC = dyn_cast<DeclContext>(getAsDecl()))
+      return DC->isDependentContext();
+    return getAsDecl()->getDeclContext()->isDependentContext();
+
+  case NullPtr:
     return false;
 
   case Integral:
@@ -141,11 +140,11 @@ bool TemplateArgument::isInstantiationDependent() const {
     return true;
     
   case Declaration:
-    if (Decl *D = getAsDecl()) {
-      if (DeclContext *DC = dyn_cast<DeclContext>(D))
-        return DC->isDependentContext();
-      return D->getDeclContext()->isDependentContext();
-    }
+    if (DeclContext *DC = dyn_cast<DeclContext>(getAsDecl()))
+      return DC->isDependentContext();
+    return getAsDecl()->getDeclContext()->isDependentContext();
+
+  case NullPtr:
     return false;
       
   case Integral:
@@ -174,6 +173,7 @@ bool TemplateArgument::isPackExpansion() const {
   case Integral:
   case Pack:    
   case Template:
+  case NullPtr:
     return false;
       
   case TemplateExpansion:
@@ -195,6 +195,7 @@ bool TemplateArgument::containsUnexpandedParameterPack() const {
   case Declaration:
   case Integral:
   case TemplateExpansion:
+  case NullPtr:
     break;
 
   case Type:
@@ -223,12 +224,12 @@ bool TemplateArgument::containsUnexpandedParameterPack() const {
   return false;
 }
 
-llvm::Optional<unsigned> TemplateArgument::getNumTemplateExpansions() const {
+Optional<unsigned> TemplateArgument::getNumTemplateExpansions() const {
   assert(Kind == TemplateExpansion);
   if (TemplateArg.NumExpansions)
     return TemplateArg.NumExpansions - 1;
   
-  return llvm::Optional<unsigned>();
+  return None; 
 }
 
 void TemplateArgument::Profile(llvm::FoldingSetNodeID &ID,
@@ -286,11 +287,15 @@ bool TemplateArgument::structurallyEquals(const TemplateArgument &Other) const {
   switch (getKind()) {
   case Null:
   case Type:
-  case Declaration:
   case Expression:      
   case Template:
   case TemplateExpansion:
+  case NullPtr:
     return TypeOrValue == Other.TypeOrValue;
+
+  case Declaration:
+    return getAsDecl() == Other.getAsDecl() && 
+           isDeclForReferenceParam() && Other.isDeclForReferenceParam();
 
   case Integral:
     return getIntegralType() == Other.getIntegralType() &&
@@ -319,12 +324,13 @@ TemplateArgument TemplateArgument::getPackExpansionPattern() const {
     
   case TemplateExpansion:
     return TemplateArgument(getAsTemplateOrTemplatePattern());
-    
+
   case Declaration:
   case Integral:
   case Pack:
   case Null:
   case Template:
+  case NullPtr:
     return TemplateArgument();
   }
 
@@ -341,25 +347,25 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
   case Type: {
     PrintingPolicy SubPolicy(Policy);
     SubPolicy.SuppressStrongLifetime = true;
-    std::string TypeStr;
-    getAsType().getAsStringInternal(TypeStr, SubPolicy);
-    Out << TypeStr;
+    getAsType().print(Out, SubPolicy);
     break;
   }
     
   case Declaration: {
-    if (NamedDecl *ND = dyn_cast_or_null<NamedDecl>(getAsDecl())) {
-      if (ND->getDeclName()) {
-        Out << *ND;
-      } else {
-        Out << "<anonymous>";
-      }
+    NamedDecl *ND = cast<NamedDecl>(getAsDecl());
+    if (ND->getDeclName()) {
+      // FIXME: distinguish between pointer and reference args?
+      Out << *ND;
     } else {
-      Out << "nullptr";
+      Out << "<anonymous>";
     }
     break;
   }
-    
+
+  case NullPtr:
+    Out << "nullptr";
+    break;
+
   case Template:
     getAsTemplate().print(Out, Policy);
     break;
@@ -411,6 +417,9 @@ SourceRange TemplateArgumentLoc::getSourceRange() const {
   case TemplateArgument::Declaration:
     return getSourceDeclExpression()->getSourceRange();
 
+  case TemplateArgument::NullPtr:
+    return getSourceNullPtrExpression()->getSourceRange();
+
   case TemplateArgument::Type:
     if (TypeSourceInfo *TSI = getTypeSourceInfo())
       return TSI->getTypeLoc().getSourceRange();
@@ -430,6 +439,8 @@ SourceRange TemplateArgumentLoc::getSourceRange() const {
     return SourceRange(getTemplateNameLoc(), getTemplateEllipsisLoc());
 
   case TemplateArgument::Integral:
+    return getSourceIntegralExpression()->getSourceRange();
+
   case TemplateArgument::Pack:
   case TemplateArgument::Null:
     return SourceRange();
@@ -438,10 +449,9 @@ SourceRange TemplateArgumentLoc::getSourceRange() const {
   llvm_unreachable("Invalid TemplateArgument Kind!");
 }
 
-TemplateArgumentLoc 
-TemplateArgumentLoc::getPackExpansionPattern(SourceLocation &Ellipsis,
-                                       llvm::Optional<unsigned> &NumExpansions,
-                                             ASTContext &Context) const {
+TemplateArgumentLoc TemplateArgumentLoc::getPackExpansionPattern(
+    SourceLocation &Ellipsis, Optional<unsigned> &NumExpansions,
+    ASTContext &Context) const {
   assert(Argument.isPackExpansion());
   
   switch (Argument.getKind()) {
@@ -453,8 +463,8 @@ TemplateArgumentLoc::getPackExpansionPattern(SourceLocation &Ellipsis,
       ExpansionTSInfo = Context.getTrivialTypeSourceInfo(
                                                      getArgument().getAsType(),
                                                          Ellipsis);
-    PackExpansionTypeLoc Expansion
-      = cast<PackExpansionTypeLoc>(ExpansionTSInfo->getTypeLoc());
+    PackExpansionTypeLoc Expansion =
+        ExpansionTSInfo->getTypeLoc().castAs<PackExpansionTypeLoc>();
     Ellipsis = Expansion.getEllipsisLoc();
     
     TypeLoc Pattern = Expansion.getPatternLoc();
@@ -490,6 +500,7 @@ TemplateArgumentLoc::getPackExpansionPattern(SourceLocation &Ellipsis,
                                getTemplateNameLoc());
     
   case TemplateArgument::Declaration:
+  case TemplateArgument::NullPtr:
   case TemplateArgument::Template:
   case TemplateArgument::Integral:
   case TemplateArgument::Pack:
@@ -512,8 +523,9 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
     return DB << Arg.getAsType();
       
   case TemplateArgument::Declaration:
-    if (Decl *D = Arg.getAsDecl())
-      return DB << D;
+    return DB << Arg.getAsDecl();
+
+  case TemplateArgument::NullPtr:
     return DB << "nullptr";
       
   case TemplateArgument::Integral:

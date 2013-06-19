@@ -29,7 +29,11 @@
 #include <stdio.h>
 
 #define	DEFAULT_BYTES_PER_BLOCK	(20*512)
+#define ENV_READER_OPTIONS	"TAR_READER_OPTIONS"
+#define ENV_WRITER_OPTIONS	"TAR_WRITER_OPTIONS"
+#define IGNORE_WRONG_MODULE_NAME "__ignore_wrong_module_name__,"
 
+struct creation_set;
 /*
  * The internal state for the "bsdtar" program.
  *
@@ -41,7 +45,6 @@
 struct bsdtar {
 	/* Options */
 	const char	 *filename; /* -f filename */
-	const char	 *create_format; /* -F format */
 	char		 *pending_chdir; /* -C dir */
 	const char	 *names_from_file; /* -T file */
 	int		  bytes_per_block; /* -b block_size */
@@ -56,8 +59,6 @@ struct bsdtar {
 	const char	 *uname; /* --uname */
 	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
-	char		  create_compression; /* j, y, or z */
-	const char	 *compress_program;
 	char		  option_absolute_paths; /* -P */
 	char		  option_chroot; /* --chroot */
 	char		  option_fast_read; /* --fast-read */
@@ -72,6 +73,7 @@ struct bsdtar {
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* --check-links */
 	char		  day_first; /* show day before month in -tv output */
+	struct creation_set *cset;
 
 	/* Option parser state */
 	int		  getopt_state;
@@ -111,27 +113,37 @@ struct bsdtar {
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_CHECK_LINKS = 1,
+	OPTION_B64ENCODE = 1,
+	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,
 	OPTION_DISABLE_COPYFILE,
 	OPTION_EXCLUDE,
 	OPTION_FORMAT,
 	OPTION_GID,
 	OPTION_GNAME,
+	OPTION_GRZIP,
 	OPTION_HELP,
+	OPTION_HFS_COMPRESSION,
 	OPTION_INCLUDE,
 	OPTION_KEEP_NEWER_FILES,
+	OPTION_LRZIP,
 	OPTION_LZIP,
 	OPTION_LZMA,
+	OPTION_LZOP,
 	OPTION_NEWER_CTIME,
 	OPTION_NEWER_CTIME_THAN,
 	OPTION_NEWER_MTIME,
 	OPTION_NEWER_MTIME_THAN,
 	OPTION_NODUMP,
+	OPTION_NOPRESERVE_HFS_COMPRESSION,
 	OPTION_NO_SAME_OWNER,
 	OPTION_NO_SAME_PERMISSIONS,
 	OPTION_NULL,
 	OPTION_NUMERIC_OWNER,
+	OPTION_OLDER_CTIME,
+	OPTION_OLDER_CTIME_THAN,
+	OPTION_OLDER_MTIME,
+	OPTION_OLDER_MTIME_THAN,
 	OPTION_ONE_FILE_SYSTEM,
 	OPTION_OPTIONS,
 	OPTION_POSIX,
@@ -141,6 +153,7 @@ enum {
 	OPTION_UID,
 	OPTION_UNAME,
 	OPTION_USE_COMPRESS_PROGRAM,
+	OPTION_UUENCODE,
 	OPTION_VERSION
 };
 
@@ -160,8 +173,21 @@ void	tar_mode_x(struct bsdtar *bsdtar);
 void	usage(void);
 int	yes(const char *fmt, ...);
 
-#if HAVE_REGEX_H
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
 void	add_substitution(struct bsdtar *, const char *);
 int	apply_substitution(struct bsdtar *, const char *, char **, int, int);
 void	cleanup_substitution(struct bsdtar *);
 #endif
+
+void		cset_add_filter(struct creation_set *, const char *);
+void		cset_add_filter_program(struct creation_set *, const char *);
+int		cset_auto_compress(struct creation_set *, const char *);
+void		cset_free(struct creation_set *);
+const char *	cset_get_format(struct creation_set *);
+struct creation_set *cset_new(void);
+int		cset_read_support_filter_program(struct creation_set *,
+		    struct archive *);
+void		cset_set_format(struct creation_set *, const char *);
+int		cset_write_add_filters(struct creation_set *,
+		    struct archive *, const void **);
+

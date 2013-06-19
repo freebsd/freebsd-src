@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <signal.h>
 #include <fcntl.h>
+#include <err.h>
 #include <errno.h>
 #include <dirent.h>
 #include <unistd.h>
@@ -288,10 +289,10 @@ kill_qtask(const char *lf)
 	pid_t pid;
 	int errsav, killres, lockres, res;
 
-	seteuid(euid);
+	PRIV_START
 	fp = fopen(lf, "r");
 	errsav = errno;
-	seteuid(uid);
+	PRIV_END
 	res = KQT_NODAEMON;
 	if (fp == NULL) {
 		/*
@@ -329,10 +330,10 @@ kill_qtask(const char *lf)
 		goto killdone;
 	}
 
-	seteuid(uid);
+	PRIV_END
 	killres = kill(pid, SIGTERM);
 	errsav = errno;
-	seteuid(uid);
+	PRIV_END
 	if (killres == 0) {
 		res = KQT_KILLOK;
 		printf("\tdaemon (pid %d) killed\n", pid);
@@ -376,9 +377,9 @@ upstat(struct printer *pp, const char *msg, int notifyuser)
 
 	status_file_name(pp, statfile, sizeof statfile);
 	umask(0);
-	seteuid(euid);
+	PRIV_START
 	fd = open(statfile, O_WRONLY|O_CREAT|O_EXLOCK, STAT_FILE_MODE);
-	seteuid(uid);
+	PRIV_END
 	if (fd < 0) {
 		printf("\tcannot create status file: %s\n", strerror(errno));
 		return;
@@ -683,9 +684,9 @@ clean_q(struct printer *pp)
 	linerem = sizeof(line) - (lp - line);
 
 	cln_foundcore = 0;
-	seteuid(euid);
+	PRIV_START
 	nitems = scandir(pp->spool_dir, &queue, doselect, sortq);
-	seteuid(uid);
+	PRIV_END
 	if (nitems < 0) {
 		if (!didhead) {
 			printf("%s:\n", pp->printer);
@@ -795,9 +796,9 @@ unlinkf(char *name)
 	 * that case, we need to check the last-mod time of the symlink, and
 	 * not the file that the symlink is pointed at.
 	 */
-	seteuid(euid);
+	PRIV_START
 	res = lstat(name, &stbuf);
-	seteuid(uid);
+	PRIV_END
 	if (res < 0) {
 		printf("\terror return from stat(%s):\n", name);
 		printf("\t      %s\n", strerror(errno));
@@ -819,9 +820,9 @@ unlinkf(char *name)
 	 * symlink before unlink-ing the file itself
 	 */
 	if (S_ISLNK(stbuf.st_mode)) {
-		seteuid(euid);
+		PRIV_START
 		res = readlink(name, linkbuf, sizeof(linkbuf));
-		seteuid(uid);
+		PRIV_END
 		if (res < 0) {
 			printf("\terror return from readlink(%s):\n", name);
 			printf("\t      %s\n", strerror(errno));
@@ -841,9 +842,9 @@ unlinkf(char *name)
 			printf("\t    (which is a symlink to %s)\n", linkbuf);
 		}
 	} else {
-		seteuid(euid);
+		PRIV_START
 		res = unlink(name);
-		seteuid(uid);
+		PRIV_END
 		if (res < 0)
 			printf("\tcannot remove %s (!)\n", name);
 		else
@@ -983,9 +984,9 @@ restart_q(struct printer *pp)
 	/* make sure the queue is set to print jobs */
 	setres = set_qstate(SQS_STARTP, lf);
 
-	seteuid(euid);
+	PRIV_START
 	startok = startdaemon(pp);
-	seteuid(uid);
+	PRIV_END
 	if (!startok)
 		printf("\tcouldn't restart daemon\n");
 	else
@@ -1049,14 +1050,14 @@ start_q(struct printer *pp)
 
 	setres = set_qstate(SQS_STARTP, lf);
 
-	seteuid(euid);
+	PRIV_START
 	startok = startdaemon(pp);
-	seteuid(uid);
+	PRIV_END
 	if (!startok)
 		printf("\tcouldn't start daemon\n");
 	else
 		printf("\tdaemon started\n");
-	seteuid(uid);
+	PRIV_END
 }
 
 /*
@@ -1178,12 +1179,12 @@ topq(int argc, char *argv[])
 	}
 	printf("%s:\n", pp->printer);
 
-	seteuid(euid);
+	PRIV_START
 	if (chdir(pp->spool_dir) < 0) {
 		printf("\tcannot chdir to %s\n", pp->spool_dir);
 		goto out;
 	}
-	seteuid(uid);
+	PRIV_END
 	nitems = getq(pp, &queue);
 	if (nitems == 0)
 		return;
@@ -1207,12 +1208,12 @@ topq(int argc, char *argv[])
 	 * Turn on the public execute bit of the lock file to
 	 * get lpd to rebuild the queue after the current job.
 	 */
-	seteuid(euid);
+	PRIV_START
 	if (changed && stat(pp->lock_file, &stbuf) >= 0)
 		(void) chmod(pp->lock_file, stbuf.st_mode | LFM_RESET_QUE);
 
 out:
-	seteuid(uid);
+	PRIV_END
 } 
 
 /*
@@ -1227,9 +1228,9 @@ touch(struct jobqueue *jq)
 
 	tvp[0].tv_sec = tvp[1].tv_sec = --mtime;
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
-	seteuid(euid);
+	PRIV_START
 	ret = utimes(jq->job_cfname, tvp);
-	seteuid(uid);
+	PRIV_END
 	return (ret);
 }
 
@@ -1286,9 +1287,9 @@ doarg(char *job)
 	 * Process item consisting of owner's name (example: henry).
 	 */
 	for (qq = queue + nitems; --qq >= queue; ) {
-		seteuid(euid);
+		PRIV_START
 		fp = fopen((*qq)->job_cfname, "r");
-		seteuid(uid);
+		PRIV_END
 		if (fp == NULL)
 			continue;
 		while (getline(fp) > 0)
@@ -1319,9 +1320,9 @@ up_q(struct printer *pp)
 
 	setres = set_qstate(SQS_ENABLEQ+SQS_STARTP, lf);
 
-	seteuid(euid);
+	PRIV_START
 	startok = startdaemon(pp);
-	seteuid(uid);
+	PRIV_END
 	if (!startok)
 		printf("\tcouldn't start daemon\n");
 	else

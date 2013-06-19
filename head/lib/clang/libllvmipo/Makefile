@@ -6,6 +6,7 @@ LIB=	llvmipo
 
 SRCDIR=	lib/Transforms/IPO
 SRCS=	ArgumentPromotion.cpp \
+	BarrierNoopPass.cpp \
 	ConstantMerge.cpp \
 	DeadArgumentElimination.cpp \
 	ExtractGV.cpp \

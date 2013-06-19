@@ -56,9 +56,7 @@
 #ifndef _MACHINE_ASM_H_
 #define	_MACHINE_ASM_H_
 
-#ifndef NO_REG_DEFS
 #include <machine/regdef.h>
-#endif
 #include <machine/endian.h>
 #include <machine/cdefs.h>
 
@@ -110,26 +108,6 @@
  */
 #define	WARN_REFERENCES(_sym,_msg)				\
 	.section .gnu.warning. ## _sym ; .ascii _msg ; .text
-
-/*
- * These are temp registers whose names can be used in either the old
- * or new ABI, although they map to different physical registers.  In
- * the old ABI, they map to t4-t7, and in the new ABI, they map to a4-a7.
- *
- * Because they overlap with the last 4 arg regs in the new ABI, ta0-ta3
- * should be used only when we need more than t0-t3.
- */
-#if defined(__mips_n32) || defined(__mips_n64)
-#define ta0     $8
-#define ta1     $9
-#define ta2     $10
-#define ta3     $11
-#else
-#define ta0     $12
-#define ta1     $13
-#define ta2     $14
-#define ta3     $15
-#endif /* __mips_n32 || __mips_n64 */
 
 #ifdef __ELF__
 # define _C_LABEL(x)    x
@@ -673,97 +651,6 @@ _C_LABEL(x):
 #define	RESTORE_GP64		.cpreturn
 #define	USE_ALT_CP(a)		.cplocal a
 #endif	/* __mips_n32 || __mips_n64 */
-
-#define	mfc0_macro(data, spr)						\
-	__asm __volatile ("mfc0 %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (spr));	/* inputs */
-
-#define	mtc0_macro(data, spr)						\
-	__asm __volatile ("mtc0 %0, $%1"				\
-			:				/* outputs */	\
-			: "r" (data), "i" (spr));	/* inputs */
-
-#define	cfc0_macro(data, spr)						\
-	__asm __volatile ("cfc0 %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (spr));	/* inputs */
-
-#define	ctc0_macro(data, spr)						\
-	__asm __volatile ("ctc0 %0, $%1"				\
-			:				/* outputs */	\
-			: "r" (data), "i" (spr));	/* inputs */
-
-
-#define	lbu_macro(data, addr)						\
-	__asm __volatile ("lbu %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	lb_macro(data, addr)						\
-	__asm __volatile ("lb %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	lwl_macro(data, addr)						\
-	__asm __volatile ("lwl %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	lwr_macro(data, addr)						\
-	__asm __volatile ("lwr %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	ldl_macro(data, addr)						\
-	__asm __volatile ("ldl %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	ldr_macro(data, addr)						\
-	__asm __volatile ("ldr %0, 0x0(%1)"				\
-			: "=r" (data)	/* outputs */			\
-			: "r" (addr));	/* inputs */
-
-#define	sb_macro(data, addr)						\
-	__asm __volatile ("sb %0, 0x0(%1)"				\
-			:				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	swl_macro(data, addr)						\
-	__asm __volatile ("swl %0, 0x0(%1)"				\
-			: 				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	swr_macro(data, addr)						\
-	__asm __volatile ("swr %0, 0x0(%1)"				\
-			: 				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	sdl_macro(data, addr)						\
-	__asm __volatile ("sdl %0, 0x0(%1)"				\
-			: 				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	sdr_macro(data, addr)						\
-	__asm __volatile ("sdr %0, 0x0(%1)"				\
-			:				/* outputs */	\
-			: "r" (data), "r" (addr));	/* inputs */
-
-#define	mfgr_macro(data, gr)						\
-	__asm __volatile ("move %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (gr));	/* inputs */
-
-#define	dmfc0_macro(data, spr)						\
-	__asm __volatile ("dmfc0 %0, $%1"				\
-			: "=r" (data)	/* outputs */			\
-			: "i" (spr));	/* inputs */
-
-#define	dmtc0_macro(data, spr, sel)					\
-	__asm __volatile ("dmtc0	%0, $%1, %2"			\
-			:			/* no  outputs */	\
-			: "r" (data), "i" (spr), "i" (sel)); /* inputs */
 
 #define	GET_CPU_PCPU(reg)		\
 	PTR_L	reg, _C_LABEL(pcpup);

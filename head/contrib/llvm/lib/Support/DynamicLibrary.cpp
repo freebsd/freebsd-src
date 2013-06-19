@@ -13,11 +13,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/Mutex.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Config/config.h"
+#include "llvm/Support/Mutex.h"
 #include <cstdio>
 #include <cstring>
 
@@ -46,7 +46,7 @@ void llvm::sys::DynamicLibrary::AddSymbol(StringRef symbolName,
                                           void *symbolValue) {
   SmartScopedLock<true> lock(getMutex());
   if (ExplicitSymbols == 0)
-    ExplicitSymbols = new llvm::StringMap<void*>();
+    ExplicitSymbols = new StringMap<void*>();
   (*ExplicitSymbols)[symbolName] = symbolValue;
 }
 
@@ -160,7 +160,7 @@ void* DynamicLibrary::SearchForAddressOfSymbol(const char *symbolName) {
 // On linux we have a weird situation. The stderr/out/in symbols are both
 // macros and global variables because of standards requirements. So, we
 // boldly use the EXPLICIT_SYMBOL macro without checking for a #define first.
-#if defined(__linux__)
+#if defined(__linux__) and !defined(__ANDROID__)
   {
     EXPLICIT_SYMBOL(stderr);
     EXPLICIT_SYMBOL(stdout);

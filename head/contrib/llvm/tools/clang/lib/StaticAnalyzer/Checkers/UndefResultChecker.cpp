@@ -13,12 +13,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -76,13 +77,12 @@ void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
     BugReport *report = new BugReport(*BT, OS.str(), N);
     if (Ex) {
       report->addRange(Ex->getSourceRange());
-      bugreporter::addTrackNullOrUndefValueVisitor(N, Ex, report);
+      bugreporter::trackNullOrUndefValue(N, Ex, *report);
     }
     else
-      bugreporter::addTrackNullOrUndefValueVisitor(N, B, report);
+      bugreporter::trackNullOrUndefValue(N, B, *report);
     
-    report->disablePathPruning();
-    C.EmitReport(report);
+    C.emitReport(report);
   }
 }
 

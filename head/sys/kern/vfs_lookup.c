@@ -133,10 +133,7 @@ namei(struct nameidata *ndp)
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct thread *td = cnp->cn_thread;
 	struct proc *p = td->td_proc;
-	int vfslocked;
 
-	KASSERT((cnp->cn_flags & MPSAFE) != 0 || mtx_owned(&Giant) != 0,
-	    ("NOT MPSAFE and Giant not held"));
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
 	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
@@ -163,17 +160,6 @@ namei(struct nameidata *ndp)
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
 
-	if (error == 0) {
-		/*
-		 * If we are auditing the kernel pathname, save the user
-		 * pathname.
-		 */
-		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
-		if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
-	}
-
 	/*
 	 * Don't allow empty pathnames.
 	 */
@@ -186,7 +172,7 @@ namei(struct nameidata *ndp)
 	 * not an absolute path, and not containing '..' components) to
 	 * a real file descriptor, not the pseudo-descriptor AT_FDCWD.
 	 */
-	if (IN_CAPABILITY_MODE(td)) {
+	if (IN_CAPABILITY_MODE(td) && (cnp->cn_flags & NOCAPCHECK) == 0) {
 		ndp->ni_strictrelative = 1;
 		if (ndp->ni_dirfd == AT_FDCWD) {
 #ifdef KTRACE
@@ -221,6 +207,14 @@ namei(struct nameidata *ndp)
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
 
+	/*
+	 * If we are auditing the kernel pathname, save the user pathname.
+	 */
+	if (cnp->cn_flags & AUDITVNODE1)
+		AUDIT_ARG_UPATH1(td, ndp->ni_dirfd, cnp->cn_pnbuf);
+	if (cnp->cn_flags & AUDITVNODE2)
+		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
+
 	dp = NULL;
 	if (cnp->cn_pnbuf[0] != '/') {
 		if (ndp->ni_startdir != NULL) {
@@ -233,25 +227,24 @@ namei(struct nameidata *ndp)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			error = fgetvp_rights(td, ndp->ni_dirfd,
 			    ndp->ni_rightsneeded | CAP_LOOKUP,
-			    &(ndp->ni_baserights), &dp);
+			    &ndp->ni_filecaps, &dp);
 #ifdef CAPABILITIES
 			/*
-			 * Lookups relative to a capability must also be
+			 * If file descriptor doesn't have all rights,
+			 * all lookups relative to it must also be
 			 * strictly relative.
-			 *
-			 * Note that a capability with rights CAP_MASK_VALID
-			 * is treated exactly like a regular file descriptor.
 			 */
-			if (ndp->ni_baserights != CAP_MASK_VALID)
+			if (ndp->ni_filecaps.fc_rights != CAP_ALL ||
+			    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
+			    ndp->ni_filecaps.fc_nioctls != -1) {
 				ndp->ni_strictrelative = 1;
+			}
 #endif
 		}
 		if (error != 0 || dp != NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			if (error == 0 && dp->v_type != VDIR) {
-				vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 				vrele(dp);
-				VFS_UNLOCK_GIANT(vfslocked);
 				error = ENOTDIR;
 			}
 		}
@@ -268,15 +261,11 @@ namei(struct nameidata *ndp)
 		dp = fdp->fd_cdir;
 		VREF(dp);
 		FILEDESC_SUNLOCK(fdp);
-		if (ndp->ni_startdir != NULL) {
-			vfslocked = VFS_LOCK_GIANT(ndp->ni_startdir->v_mount);
+		if (ndp->ni_startdir != NULL)
 			vrele(ndp->ni_startdir);
-			VFS_UNLOCK_GIANT(vfslocked);
-		}
 	}
 	SDT_PROBE(vfs, namei, lookup, entry, dp, cnp->cn_pnbuf,
 	    cnp->cn_flags, 0, 0);
-	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	for (;;) {
 		/*
 		 * Check if root directory should replace current directory.
@@ -285,7 +274,6 @@ namei(struct nameidata *ndp)
 		cnp->cn_nameptr = cnp->cn_pnbuf;
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			if (ndp->ni_strictrelative != 0) {
 #ifdef KTRACE
 				if (KTRPOINT(curthread, KTR_CAPFAIL))
@@ -298,11 +286,8 @@ namei(struct nameidata *ndp)
 				ndp->ni_pathlen--;
 			}
 			dp = ndp->ni_rootdir;
-			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VREF(dp);
 		}
-		if (vfslocked)
-			ndp->ni_cnd.cn_flags |= GIANTHELD;
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
@@ -315,8 +300,6 @@ namei(struct nameidata *ndp)
 			    0, 0);
 			return (error);
 		}
-		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
-		ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 		/*
 		 * If not a symbolic link, we're done.
 		 */
@@ -330,10 +313,6 @@ namei(struct nameidata *ndp)
 			} else
 				cnp->cn_flags |= HASBUF;
 
-			if ((cnp->cn_flags & MPSAFE) == 0) {
-				VFS_UNLOCK_GIANT(vfslocked);
-			} else if (vfslocked)
-				ndp->ni_cnd.cn_flags |= GIANTHELD;
 			SDT_PROBE(vfs, namei, lookup, return, 0, ndp->ni_vp,
 			    0, 0, 0);
 			return (0);
@@ -361,7 +340,7 @@ namei(struct nameidata *ndp)
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_td = (struct thread *)0;
+		auio.uio_td = td;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {
@@ -400,17 +379,18 @@ namei(struct nameidata *ndp)
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0, 0, 0);
 	return (error);
 }
 
 static int
-compute_cn_lkflags(struct mount *mp, int lkflags)
+compute_cn_lkflags(struct mount *mp, int lkflags, int cnflags)
 {
 
-	if (mp == NULL || 
-	    ((lkflags & LK_SHARED) && !(mp->mnt_kern_flag & MNTK_LOOKUP_SHARED))) {
+	if (mp == NULL || ((lkflags & LK_SHARED) &&
+	    (!(mp->mnt_kern_flag & MNTK_LOOKUP_SHARED) ||
+	    ((cnflags & ISDOTDOT) &&
+	    (mp->mnt_kern_flag & MNTK_LOOKUP_EXCL_DOTDOT))))) {
 		lkflags &= ~LK_SHARED;
 		lkflags |= LK_EXCLUSIVE;
 	}
@@ -504,19 +484,13 @@ lookup(struct nameidata *ndp)
 	int error = 0;
 	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
-	int vfslocked;			/* VFS Giant state for child */
-	int dvfslocked;			/* VFS Giant state for parent */
-	int tvfslocked;
 	int lkflags_save;
 	int ni_dvp_unlocked;
 	
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
-	dvfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
-	vfslocked = 0;
 	ni_dvp_unlocked = 0;
-	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 	KASSERT(cnp->cn_nameiop == LOOKUP || wantparent,
 	    ("CREATE, DELETE, RENAME require LOCKPARENT or WANTPARENT."));
@@ -539,7 +513,8 @@ lookup(struct nameidata *ndp)
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
 	vn_lock(dp,
-	    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY));
+	    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY,
+	    cnp->cn_flags));
 
 dirloop:
 	/*
@@ -681,7 +656,6 @@ dirloop:
 			     (cnp->cn_flags & NOCROSSMOUNT) != 0)) {
 				ndp->ni_dvp = dp;
 				ndp->ni_vp = dp;
-				vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 				VREF(dp);
 				goto nextname;
 			}
@@ -693,14 +667,11 @@ dirloop:
 			}
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
-			tvfslocked = dvfslocked;
-			dvfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VREF(dp);
 			vput(tdp);
-			VFS_UNLOCK_GIANT(tvfslocked);
 			vn_lock(dp,
 			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
-			    LK_RETRY));
+			    LK_RETRY, ISDOTDOT));
 		}
 	}
 
@@ -719,7 +690,6 @@ unionlookup:
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
 	ASSERT_VOP_LOCKED(dp, "lookup");
-	VNASSERT(vfslocked == 0, dp, ("lookup: vfslocked %d", vfslocked));
 	/*
 	 * If we have a shared lock we may need to upgrade the lock for the
 	 * last operation.
@@ -728,6 +698,10 @@ unionlookup:
 	    VOP_ISLOCKED(dp) == LK_SHARED &&
 	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
 		vn_lock(dp, LK_UPGRADE|LK_RETRY);
+	if ((dp->v_iflag & VI_DOOMED) != 0) {
+		error = ENOENT;
+		goto bad;
+	}
 	/*
 	 * If we're looking up the last component and we need an exclusive
 	 * lock, adjust our lkflags.
@@ -738,7 +712,8 @@ unionlookup:
 	vprint("lookup in", dp);
 #endif
 	lkflags_save = cnp->cn_lkflags;
-	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags);
+	cnp->cn_lkflags = compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags,
+	    cnp->cn_flags);
 	if ((error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) != 0) {
 		cnp->cn_lkflags = lkflags_save;
 		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
@@ -750,14 +725,11 @@ unionlookup:
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
-			tvfslocked = dvfslocked;
-			dvfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VREF(dp);
 			vput(tdp);
-			VFS_UNLOCK_GIANT(tvfslocked);
 			vn_lock(dp,
 			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
-			    LK_RETRY));
+			    LK_RETRY, cnp->cn_flags));
 			goto unionlookup;
 		}
 
@@ -808,7 +780,6 @@ unionlookup:
 	}
 
 	dp = ndp->ni_vp;
-	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 
 	/*
 	 * Check to see if the vnode has been mounted on;
@@ -819,18 +790,14 @@ unionlookup:
 		if (vfs_busy(mp, 0))
 			continue;
 		vput(dp);
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = VFS_LOCK_GIANT(mp);
 		if (dp != ndp->ni_dvp)
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
-		VFS_UNLOCK_GIANT(dvfslocked);
-		dvfslocked = 0;
 		vref(vp_crossmp);
 		ndp->ni_dvp = vp_crossmp;
-		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags),
-		    &tdp);
+		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags,
+		    cnp->cn_flags), &tdp);
 		vfs_unbusy(mp);
 		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");
@@ -887,9 +854,6 @@ nextname:
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
-		VFS_UNLOCK_GIANT(dvfslocked);
-		dvfslocked = vfslocked;	/* dp becomes dvp in dirloop */
-		vfslocked = 0;
 		goto dirloop;
 	}
 	/*
@@ -918,8 +882,6 @@ nextname:
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
-		VFS_UNLOCK_GIANT(dvfslocked);
-		dvfslocked = 0;
 	} else if ((cnp->cn_flags & LOCKPARENT) == 0 && ndp->ni_dvp != dp) {
 		VOP_UNLOCK(ndp->ni_dvp, 0);
 		ni_dvp_unlocked = 1;
@@ -945,10 +907,6 @@ success:
 			goto bad2;
 		}
 	}
-	if (vfslocked && dvfslocked)
-		VFS_UNLOCK_GIANT(dvfslocked);	/* Only need one */
-	if (vfslocked || dvfslocked)
-		ndp->ni_cnd.cn_flags |= GIANTHELD;
 	return (0);
 
 bad2:
@@ -961,9 +919,6 @@ bad2:
 bad:
 	if (!dpunlocked)
 		vput(dp);
-	VFS_UNLOCK_GIANT(vfslocked);
-	VFS_UNLOCK_GIANT(dvfslocked);
-	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	ndp->ni_vp = NULL;
 	return (error);
 }
@@ -1226,13 +1181,13 @@ kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
 		*cp = '\0';
 
-		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 		error = namei(&nd);
 		*cp = '/';
 		if (error != 0)
 			goto keeporig;
 	} else {
-		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, buf, td);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
 
 		error = namei(&nd);
 		if (error != 0)
@@ -1246,7 +1201,7 @@ kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 		 * root directory and never finding it, because "/" resolves
 		 * to the emulation root directory. This is expensive :-(
 		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, prefix,
+		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, prefix,
 		    td);
 
 		/* We shouldn't ever get an error from this namei(). */
@@ -1257,13 +1212,11 @@ kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 
 			NDFREE(&ndroot, NDF_ONLY_PNBUF);
 			vrele(ndroot.ni_vp);
-			VFS_UNLOCK_GIANT(NDHASGIANT(&ndroot));
 		}
 	}
 
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
-	VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
 
 keeporig:
 	/* If there was an error, use the original path name. */

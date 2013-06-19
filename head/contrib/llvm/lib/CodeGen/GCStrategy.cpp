@@ -16,21 +16,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/GCStrategy.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Module.h"
+#include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -387,9 +388,16 @@ void GCMachineCodeAnalysis::FindStackOffsets(MachineFunction &MF) {
   const TargetFrameLowering *TFI = TM->getFrameLowering();
   assert(TFI && "TargetRegisterInfo not available!");
 
-  for (GCFunctionInfo::roots_iterator RI = FI->roots_begin(),
-                                      RE = FI->roots_end(); RI != RE; ++RI)
-    RI->StackOffset = TFI->getFrameIndexOffset(MF, RI->Num);
+  for (GCFunctionInfo::roots_iterator RI = FI->roots_begin();
+       RI != FI->roots_end();) {
+    // If the root references a dead object, no need to keep it.
+    if (MF.getFrameInfo()->isDeadObjectIndex(RI->Num)) {
+      RI = FI->removeStackRoot(RI);
+    } else {
+      RI->StackOffset = TFI->getFrameIndexOffset(MF, RI->Num);
+      ++RI;
+    }
+  }
 }
 
 bool GCMachineCodeAnalysis::runOnMachineFunction(MachineFunction &MF) {

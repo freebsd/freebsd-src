@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -85,6 +85,7 @@ usage(void) {
 	fprintf(stderr, "        RSA | RSAMD5 | DSA | RSASHA1 | NSEC3RSASHA1"
 				" | NSEC3DSA |\n");
 	fprintf(stderr, "        RSASHA256 | RSASHA512 | ECCGOST |\n");
+	fprintf(stderr, "        ECDSAP256SHA256 | ECDSAP384SHA384 |\n");
 	fprintf(stderr, "        DH | HMAC-MD5 | HMAC-SHA1 | HMAC-SHA224 | "
 				"HMAC-SHA256 | \n");
 	fprintf(stderr, "        HMAC-SHA384 | HMAC-SHA512\n");
@@ -102,6 +103,8 @@ usage(void) {
 	fprintf(stderr, "        NSEC3DSA:\t[512..1024] and divisible "
 				"by 64\n");
 	fprintf(stderr, "        ECCGOST:\tignored\n");
+	fprintf(stderr, "        ECDSAP256SHA256:\tignored\n");
+	fprintf(stderr, "        ECDSAP384SHA384:\tignored\n");
 	fprintf(stderr, "        HMAC-MD5:\t[1..512]\n");
 	fprintf(stderr, "        HMAC-SHA1:\t[1..160]\n");
 	fprintf(stderr, "        HMAC-SHA224:\t[1..224]\n");
@@ -549,7 +552,8 @@ main(int argc, char **argv) {
 		if (use_nsec3 &&
 		    alg != DST_ALG_NSEC3DSA && alg != DST_ALG_NSEC3RSASHA1 &&
 		    alg != DST_ALG_RSASHA256 && alg!= DST_ALG_RSASHA512 &&
-		    alg != DST_ALG_ECCGOST) {
+		    alg != DST_ALG_ECCGOST &&
+		    alg != DST_ALG_ECDSA256 && alg != DST_ALG_ECDSA384) {
 			fatal("%s is incompatible with NSEC3; "
 			      "do not use the -3 option", algname);
 		}
@@ -579,9 +583,11 @@ main(int argc, char **argv) {
 					size = 1024;
 				if (verbose > 0)
 					fprintf(stderr, "key size not "
-							"specified; defaulting "
-							"to %d\n", size);
-			} else if (alg != DST_ALG_ECCGOST)
+							"specified; defaulting"
+							" to %d\n", size);
+			} else if (alg != DST_ALG_ECCGOST &&
+				   alg != DST_ALG_ECDSA256 &&
+				   alg != DST_ALG_ECDSA384)
 				fatal("key size not specified (-b option)");
 		}
 
@@ -710,6 +716,8 @@ main(int argc, char **argv) {
 			fatal("invalid DSS key size: %d", size);
 		break;
 	case DST_ALG_ECCGOST:
+	case DST_ALG_ECDSA256:
+	case DST_ALG_ECDSA384:
 		break;
 	case DST_ALG_HMACMD5:
 		options |= DST_TYPE_KEY;
@@ -775,7 +783,8 @@ main(int argc, char **argv) {
 
 	if (!(alg == DNS_KEYALG_RSAMD5 || alg == DNS_KEYALG_RSASHA1 ||
 	      alg == DNS_KEYALG_NSEC3RSASHA1 || alg == DNS_KEYALG_RSASHA256 ||
-	      alg == DNS_KEYALG_RSASHA512 || alg == DST_ALG_ECCGOST) &&
+	      alg == DNS_KEYALG_RSASHA512 || alg == DST_ALG_ECCGOST ||
+	      alg == DST_ALG_ECDSA256 || alg == DST_ALG_ECDSA384) &&
 	    rsa_exp != 0)
 		fatal("specified RSA exponent for a non-RSA key");
 
@@ -849,6 +858,8 @@ main(int argc, char **argv) {
 	case DNS_KEYALG_DSA:
 	case DNS_KEYALG_NSEC3DSA:
 	case DST_ALG_ECCGOST:
+	case DST_ALG_ECDSA256:
+	case DST_ALG_ECDSA384:
 		show_progress = ISC_TRUE;
 		/* fall through */
 

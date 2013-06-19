@@ -12,14 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 #define DEBUG_TYPE "profile-estimator"
-#include "llvm/Pass.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ProfileInfo.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 static cl::opt<double>
@@ -286,7 +286,7 @@ void ProfileEstimatorPass::recurseBasicBlock(BasicBlock *BB) {
     }
   }
 
-  double fraction = floor(BBWeight/Edges.size());
+  double fraction = Edges.size() ? floor(BBWeight/Edges.size()) : 0.0;
   // Finally we know what flow is still not leaving the block, distribute this
   // flow onto the empty edges.
   for (SmallVector<Edge, 8>::iterator ei = Edges.begin(), ee = Edges.end();

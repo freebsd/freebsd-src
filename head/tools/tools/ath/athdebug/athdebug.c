@@ -206,20 +206,20 @@ main(int argc, char *argv[])
 						bit = strtoul(cp, NULL, 0);
 					else
 						errx(1, "unknown flag %.*s",
-							tp-cp, cp);
+							(int) (tp-cp), cp);
 				}
 				ndebug = bit;
 			}
 		} while (*(cp = tp) != '\0');
 	}
 	if (debug != ndebug) {
-		printf("%s: 0x%x => ", oid, debug);
+		printf("%s: 0x%llx => ", oid, (long long) debug);
 		if (sysctlbyname(oid, NULL, NULL, &ndebug, sizeof(ndebug)) < 0)
 			err(1, "sysctl-set(%s)", oid);
-		printf("0x%x", ndebug);
+		printf("0x%llx", (long long) ndebug);
 		debug = ndebug;
 	} else
-		printf("%s: 0x%x", oid, debug);
+		printf("%s: 0x%llx", oid, (long long) debug);
 	sep = "<";
 	for (i = 0; i < N(flags); i++)
 		if (debug & flags[i].bit) {

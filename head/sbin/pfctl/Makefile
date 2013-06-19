@@ -1,11 +1,10 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/pf/pfctl
-.PATH:	${.CURDIR}/../../sys/contrib/pf/net
-.PATH:	${.CURDIR}/../../contrib/pf/man
+# pf_ruleset.c is shared between kernel and pfctl
+.PATH: ${.CURDIR}/../../sys/netpfil/pf
 
 PROG=	pfctl
-MAN=	pfctl.8 pf.4 pflog.4 pfsync.4 pf.conf.5 pf.os.5
+MAN=	pfctl.8
 
 SRCS = pfctl.c parse.y pfctl_parser.c pf_print_state.c pfctl_altq.c
 SRCS+= pfctl_osfp.c pfctl_radix.c pfctl_table.c pfctl_qstats.c
@@ -14,11 +13,8 @@ SRCS+= pf_ruleset.c
 
 WARNS?=	2
 CFLAGS+= -Wall -Wmissing-prototypes -Wno-uninitialized
-CFLAGS+= -Wstrict-prototypes -I${.CURDIR}/../../contrib/pf/pfctl
-
-# XXX ALTQ
-CFLAGS+= -DENABLE_ALTQ
-#CFLAGS+= -I${.CURDIR}/missing
+CFLAGS+= -Wstrict-prototypes
+CFLAGS+= -DENABLE_ALTQ -I${.CURDIR}
 
 YFLAGS=
 

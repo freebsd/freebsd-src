@@ -114,15 +114,12 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	int status;			/* Child exit status */
 	int error;			/* Our return value */
 	int serrno;			/* errno to return */
-	char *ifs;			/* IFS env. var. */
 	char *np, *p;			/* Handy pointers */
 	char *nstrings;			/* Temporary for realloc() */
 	char **nwv;			/* Temporary for realloc() */
 	sigset_t newsigblock, oldsigblock;
 
 	serrno = errno;
-	if ((ifs = getenv("IFS")) == NULL)
-		ifs = " \t\n";
 
 	if (pipe(pdes) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
@@ -142,25 +139,15 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		 * We are the child; just get /bin/sh to run the wordexp
 		 * builtin on `words'.
 		 */
-		int devnull;
-		char *cmd;
-
 		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		_close(pdes[0]);
 		if (_dup2(pdes[1], STDOUT_FILENO) < 0)
 			_exit(1);
 		_close(pdes[1]);
-		if (asprintf(&cmd, "wordexp%c%s\n", *ifs, words) < 0)
-			_exit(1);
-		if ((flags & WRDE_SHOWERR) == 0) {
-			if ((devnull = _open(_PATH_DEVNULL, O_RDWR, 0666)) < 0)
-				_exit(1);
-			if (_dup2(devnull, STDERR_FILENO) < 0)
-				_exit(1);
-			_close(devnull);
-		}
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
-		    "-c", cmd, (char *)NULL);
+		    "-c", "eval \"$1\";eval \"wordexp $2\"", "",
+		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null", words,
+		    (char *)NULL);
 		_exit(1);
 	}
 

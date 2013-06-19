@@ -30,14 +30,14 @@
 #ifndef LLVM_CLANG_TOOLING_TOOLING_H
 #define LLVM_CLANG_TOOLING_TOOLING_H
 
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/Twine.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Driver/Util.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Tooling/ArgumentsAdjusters.h"
 #include "clang/Tooling/CompilationDatabase.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/Twine.h"
 #include <string>
 #include <vector>
 
@@ -74,6 +74,14 @@ public:
 template <typename T>
 FrontendActionFactory *newFrontendActionFactory();
 
+/// \brief Called at the end of each source file when used with
+/// \c newFrontendActionFactory.
+class EndOfSourceFileCallback {
+public:
+  virtual ~EndOfSourceFileCallback() {}
+  virtual void run() = 0;
+};
+
 /// \brief Returns a new FrontendActionFactory for any type that provides an
 /// implementation of newASTConsumer().
 ///
@@ -87,7 +95,7 @@ FrontendActionFactory *newFrontendActionFactory();
 ///   newFrontendActionFactory(&Factory);
 template <typename FactoryT>
 inline FrontendActionFactory *newFrontendActionFactory(
-    FactoryT *ConsumerFactory);
+    FactoryT *ConsumerFactory, EndOfSourceFileCallback *EndCallback = NULL);
 
 /// \brief Runs (and deletes) the tool on 'Code' with the -fsyntax-only flag.
 ///
@@ -98,6 +106,19 @@ inline FrontendActionFactory *newFrontendActionFactory(
 /// \return - True if 'ToolAction' was successfully executed.
 bool runToolOnCode(clang::FrontendAction *ToolAction, const Twine &Code,
                    const Twine &FileName = "input.cc");
+
+/// \brief Runs (and deletes) the tool on 'Code' with the -fsyntax-only flag and
+///        with additional other flags.
+///
+/// \param ToolAction The action to run over the code.
+/// \param Code C++ code.
+/// \param Args Additional flags to pass on.
+/// \param FileName The file name which 'Code' will be mapped as.
+///
+/// \return - True if 'ToolAction' was successfully executed.
+bool runToolOnCodeWithArgs(clang::FrontendAction *ToolAction, const Twine &Code,
+                           const std::vector<std::string> &Args,
+                           const Twine &FileName = "input.cc");
 
 /// \brief Utility to run a FrontendAction in a single clang invocation.
 class ToolInvocation {
@@ -130,11 +151,10 @@ class ToolInvocation {
 
   bool runInvocation(const char *BinaryName,
                      clang::driver::Compilation *Compilation,
-                     clang::CompilerInvocation *Invocation,
-                     const clang::driver::ArgStringList &CC1Args);
+                     clang::CompilerInvocation *Invocation);
 
   std::vector<std::string> CommandLine;
-  llvm::OwningPtr<FrontendAction> ToolAction;
+  OwningPtr<FrontendAction> ToolAction;
   FileManager *Files;
   // Maps <file name> -> <file content>.
   llvm::StringMap<StringRef> MappedFileContents;
@@ -158,6 +178,8 @@ class ClangTool {
   ClangTool(const CompilationDatabase &Compilations,
             ArrayRef<std::string> SourcePaths);
 
+  virtual ~ClangTool() {}
+
   /// \brief Map a virtual file to be used while running the tool.
   ///
   /// \param FilePath The path at which the content will be mapped.
@@ -174,7 +196,7 @@ class ClangTool {
   /// \param ActionFactory Factory generating the frontend actions. The function
   /// takes ownership of this parameter. A new action is generated for every
   /// processed translation unit.
-  int run(FrontendActionFactory *ActionFactory);
+  virtual int run(FrontendActionFactory *ActionFactory);
 
   /// \brief Returns the file manager used in the tool.
   ///
@@ -189,7 +211,7 @@ class ClangTool {
   // Contains a list of pairs (<file name>, <file content>).
   std::vector< std::pair<StringRef, StringRef> > MappedFileContents;
 
-  llvm::OwningPtr<ArgumentsAdjuster> ArgsAdjuster;
+  OwningPtr<ArgumentsAdjuster> ArgsAdjuster;
 };
 
 template <typename T>
@@ -204,34 +226,45 @@ FrontendActionFactory *newFrontendActionFactory() {
 
 template <typename FactoryT>
 inline FrontendActionFactory *newFrontendActionFactory(
-    FactoryT *ConsumerFactory) {
+    FactoryT *ConsumerFactory, EndOfSourceFileCallback *EndCallback) {
   class FrontendActionFactoryAdapter : public FrontendActionFactory {
   public:
-    explicit FrontendActionFactoryAdapter(FactoryT *ConsumerFactory)
-      : ConsumerFactory(ConsumerFactory) {}
+    explicit FrontendActionFactoryAdapter(FactoryT *ConsumerFactory,
+                                          EndOfSourceFileCallback *EndCallback)
+      : ConsumerFactory(ConsumerFactory), EndCallback(EndCallback) {}
 
     virtual clang::FrontendAction *create() {
-      return new ConsumerFactoryAdaptor(ConsumerFactory);
+      return new ConsumerFactoryAdaptor(ConsumerFactory, EndCallback);
     }
 
   private:
     class ConsumerFactoryAdaptor : public clang::ASTFrontendAction {
     public:
-      ConsumerFactoryAdaptor(FactoryT *ConsumerFactory)
-        : ConsumerFactory(ConsumerFactory) {}
+      ConsumerFactoryAdaptor(FactoryT *ConsumerFactory,
+                             EndOfSourceFileCallback *EndCallback)
+        : ConsumerFactory(ConsumerFactory), EndCallback(EndCallback) {}
 
       clang::ASTConsumer *CreateASTConsumer(clang::CompilerInstance &,
-                                            llvm::StringRef) {
+                                            StringRef) {
         return ConsumerFactory->newASTConsumer();
+      }
+
+    protected:
+      virtual void EndSourceFileAction() {
+        if (EndCallback != NULL)
+          EndCallback->run();
+        clang::ASTFrontendAction::EndSourceFileAction();
       }
 
     private:
       FactoryT *ConsumerFactory;
+      EndOfSourceFileCallback *EndCallback;
     };
     FactoryT *ConsumerFactory;
+    EndOfSourceFileCallback *EndCallback;
   };
 
-  return new FrontendActionFactoryAdapter(ConsumerFactory);
+  return new FrontendActionFactoryAdapter(ConsumerFactory, EndCallback);
 }
 
 /// \brief Returns the absolute path of \c File, by prepending it with

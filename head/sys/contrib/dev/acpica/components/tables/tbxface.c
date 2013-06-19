@@ -1,11 +1,11 @@
 /******************************************************************************
  *
- * Module Name: tbxface - ACPI table oriented external interfaces
+ * Module Name: tbxface - ACPI table-oriented external interfaces
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,7 +86,7 @@ AcpiAllocateRootTable (
  *                                    array is dynamically allocated.
  *              InitialTableCount   - Size of InitialTableArray, in number of
  *                                    ACPI_TABLE_DESC structures
- *              AllowRealloc        - Flag to tell Table Manager if resize of
+ *              AllowResize         - Flag to tell Table Manager if resize of
  *                                    pre-allocated array is allowed. Ignored
  *                                    if InitialTableArray is NULL.
  *
@@ -117,8 +117,8 @@ AcpiInitializeTables (
 
 
     /*
-     * Set up the Root Table Array
-     * Allocate the table array if requested
+     * Setup the Root Table Array and allocate the table array
+     * if requested
      */
     if (!InitialTableArray)
     {
@@ -175,7 +175,7 @@ ACPI_EXPORT_SYMBOL (AcpiInitializeTables)
  * DESCRIPTION: Reallocate Root Table List into dynamic memory. Copies the
  *              root list from the previously provided scratch area. Should
  *              be called once dynamic memory allocation is available in the
- *              kernel
+ *              kernel.
  *
  ******************************************************************************/
 
@@ -183,9 +183,7 @@ ACPI_STATUS
 AcpiReallocateRootTable (
     void)
 {
-    ACPI_TABLE_DESC         *Tables;
-    ACPI_SIZE               NewSize;
-    ACPI_SIZE               CurrentSize;
+    ACPI_STATUS             Status;
 
 
     ACPI_FUNCTION_TRACE (AcpiReallocateRootTable);
@@ -200,38 +198,10 @@ AcpiReallocateRootTable (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    /*
-     * Get the current size of the root table and add the default
-     * increment to create the new table size.
-     */
-    CurrentSize = (ACPI_SIZE)
-        AcpiGbl_RootTableList.CurrentTableCount * sizeof (ACPI_TABLE_DESC);
+    AcpiGbl_RootTableList.Flags |= ACPI_ROOT_ALLOW_RESIZE;
 
-    NewSize = CurrentSize +
-        (ACPI_ROOT_TABLE_SIZE_INCREMENT * sizeof (ACPI_TABLE_DESC));
-
-    /* Create new array and copy the old array */
-
-    Tables = ACPI_ALLOCATE_ZEROED (NewSize);
-    if (!Tables)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    ACPI_MEMCPY (Tables, AcpiGbl_RootTableList.Tables, CurrentSize);
-
-    /*
-     * Update the root table descriptor. The new size will be the current
-     * number of tables plus the increment, independent of the reserved
-     * size of the original table list.
-     */
-    AcpiGbl_RootTableList.Tables = Tables;
-    AcpiGbl_RootTableList.MaxTableCount =
-        AcpiGbl_RootTableList.CurrentTableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT;
-    AcpiGbl_RootTableList.Flags =
-        ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
-
-    return_ACPI_STATUS (AE_OK);
+    Status = AcpiTbResizeRootTableList ();
+    return_ACPI_STATUS (Status);
 }
 
 ACPI_EXPORT_SYMBOL (AcpiReallocateRootTable)
@@ -298,22 +268,23 @@ AcpiGetTableHeader (
                             sizeof (ACPI_TABLE_HEADER));
                 if (!Header)
                 {
-                    return AE_NO_MEMORY;
+                    return (AE_NO_MEMORY);
                 }
 
-                ACPI_MEMCPY (OutTableHeader, Header, sizeof(ACPI_TABLE_HEADER));
-                AcpiOsUnmapMemory (Header, sizeof(ACPI_TABLE_HEADER));
+                ACPI_MEMCPY (OutTableHeader, Header,
+                    sizeof (ACPI_TABLE_HEADER));
+                AcpiOsUnmapMemory (Header, sizeof (ACPI_TABLE_HEADER));
             }
             else
             {
-                return AE_NOT_FOUND;
+                return (AE_NOT_FOUND);
             }
         }
         else
         {
             ACPI_MEMCPY (OutTableHeader,
                 AcpiGbl_RootTableList.Tables[i].Pointer,
-                sizeof(ACPI_TABLE_HEADER));
+                sizeof (ACPI_TABLE_HEADER));
         }
 
         return (AE_OK);
@@ -333,9 +304,10 @@ ACPI_EXPORT_SYMBOL (AcpiGetTableHeader)
  *              Instance            - Which instance (for SSDTs)
  *              OutTable            - Where the pointer to the table is returned
  *
- * RETURN:      Status and pointer to table
+ * RETURN:      Status and pointer to the requested table
  *
- * DESCRIPTION: Finds and verifies an ACPI table.
+ * DESCRIPTION: Finds and verifies an ACPI table. Table must be in the
+ *              RSDT/XSDT.
  *
  ******************************************************************************/
 
@@ -394,9 +366,10 @@ ACPI_EXPORT_SYMBOL (AcpiGetTable)
  * PARAMETERS:  TableIndex          - Table index
  *              Table               - Where the pointer to the table is returned
  *
- * RETURN:      Status and pointer to the table
+ * RETURN:      Status and pointer to the requested table
  *
- * DESCRIPTION: Obtain a table by an index into the global table list.
+ * DESCRIPTION: Obtain a table by an index into the global table list. Used
+ *              internally also.
  *
  ******************************************************************************/
 
@@ -457,7 +430,7 @@ ACPI_EXPORT_SYMBOL (AcpiGetTableByIndex)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Install table event handler
+ * DESCRIPTION: Install a global table event handler.
  *
  ******************************************************************************/
 
@@ -513,7 +486,7 @@ ACPI_EXPORT_SYMBOL (AcpiInstallTableHandler)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Remove table event handler
+ * DESCRIPTION: Remove a table event handler
  *
  ******************************************************************************/
 
@@ -552,4 +525,3 @@ Cleanup:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiRemoveTableHandler)
-

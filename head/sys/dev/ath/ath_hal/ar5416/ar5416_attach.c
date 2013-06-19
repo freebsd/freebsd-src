@@ -47,8 +47,8 @@ ar5416AniSetup(struct ath_hal *ah)
 		.coarseHigh		= { -14, -14, -14, -14, -12 },
 		.coarseLow		= { -64, -64, -64, -64, -70 },
 		.firpwr			= { -78, -78, -78, -78, -80 },
-		.maxSpurImmunityLevel	= 2,
-		.cycPwrThr1		= { 2, 4, 6 },
+		.maxSpurImmunityLevel	= 7,
+		.cycPwrThr1		= { 2, 4, 6, 8, 10, 12, 14, 16 },
 		.maxFirstepLevel	= 2,	/* levels 0..2 */
 		.firstep		= { 0, 4, 8 },
 		.ofdmTrigHigh		= 500,
@@ -142,6 +142,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_gpioSet			= ar5416GpioSet;
 	ah->ah_gpioSetIntr		= ar5416GpioSetIntr;
 	ah->ah_getTsf64			= ar5416GetTsf64;
+	ah->ah_setTsf64			= ar5416SetTsf64;
 	ah->ah_resetTsf			= ar5416ResetTsf;
 	ah->ah_getRfGain		= ar5416GetRfgain;
 	ah->ah_setAntennaSwitch		= ar5416SetAntennaSwitch;
@@ -149,6 +150,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setCoverageClass		= ar5416SetCoverageClass;
 	ah->ah_setQuiet			= ar5416SetQuiet;
 	ah->ah_getMibCycleCounts	= ar5416GetMibCycleCounts;
+	ah->ah_setChainMasks		= ar5416SetChainMasks;
 
 	ah->ah_resetKeyCacheEntry	= ar5416ResetKeyCacheEntry;
 	ah->ah_setKeyCacheEntry		= ar5416SetKeyCacheEntry;
@@ -159,6 +161,14 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_getDfsDefaultThresh	= ar5416GetDfsDefaultThresh;
 	ah->ah_procRadarEvent		= ar5416ProcessRadarEvent;
 	ah->ah_isFastClockEnabled	= ar5416IsFastClockEnabled;
+
+	/* Spectral Scan Functions */
+	ah->ah_spectralConfigure	= ar5416ConfigureSpectralScan;
+	ah->ah_spectralGetConfig	= ar5416GetSpectralParams;
+	ah->ah_spectralStart		= ar5416StartSpectralScan;
+	ah->ah_spectralStop		= ar5416StopSpectralScan;
+	ah->ah_spectralIsEnabled	= ar5416IsSpectralEnabled;
+	ah->ah_spectralIsActive		= ar5416IsSpectralActive;
 
 	/* Power Management Functions */
 	ah->ah_setPowerMode		= ar5416SetPowerMode;
@@ -184,11 +194,23 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_set11nMac2040		= ar5416Set11nMac2040;
 	ah->ah_get11nRxClear		= ar5416Get11nRxClear;
 	ah->ah_set11nRxClear		= ar5416Set11nRxClear;
+	ah->ah_set11nVirtMoreFrag	= ar5416Set11nVirtualMoreFrag;
 
 	/* Interrupt functions */
 	ah->ah_isInterruptPending	= ar5416IsInterruptPending;
 	ah->ah_getPendingInterrupts	= ar5416GetPendingInterrupts;
 	ah->ah_setInterrupts		= ar5416SetInterrupts;
+
+	/* Bluetooth Coexistence functions */
+	ah->ah_btCoexSetInfo		= ar5416SetBTCoexInfo;
+	ah->ah_btCoexSetConfig		= ar5416BTCoexConfig;
+	ah->ah_btCoexSetQcuThresh	= ar5416BTCoexSetQcuThresh;
+	ah->ah_btCoexSetWeights		= ar5416BTCoexSetWeights;
+	ah->ah_btCoexSetBmissThresh	= ar5416BTCoexSetupBmissThresh;
+	ah->ah_btCoexSetParameter	= ar5416BTCoexSetParameter;
+	ah->ah_btCoexDisable		= ar5416BTCoexDisable;
+	ah->ah_btCoexEnable		= ar5416BTCoexEnable;
+	AH5416(ah)->ah_btCoexSetDiversity = ar5416BTCoexAntennaDiversity;
 
 	ahp->ah_priv.ah_getWirelessModes= ar5416GetWirelessModes;
 	ahp->ah_priv.ah_eepromRead	= ar5416EepromRead;
@@ -221,8 +243,37 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	/* Enable all ANI functions to begin with */
 	AH5416(ah)->ah_ani_function = 0xffffffff;
 
-        /* Set overridable ANI methods */
-        AH5212(ah)->ah_aniControl = ar5416AniControl;
+	/* Set overridable ANI methods */
+	AH5212(ah)->ah_aniControl = ar5416AniControl;
+
+	/*
+	 * Default FIFO Trigger levels
+	 *
+	 * These define how filled the TX FIFO needs to be before
+	 * the baseband begins to be given some data.
+	 *
+	 * To be paranoid, we ensure that the TX trigger level always
+	 * has at least enough space for two TX DMA to occur.
+	 * The TX DMA size is currently hard-coded to AR_TXCFG_DMASZ_128B.
+	 * That means we need to leave at least 256 bytes available in
+	 * the TX DMA FIFO.
+	 */
+#define	AR_FTRIG_512B	0x00000080 // 5 bits total
+	/*
+	 * AR9285/AR9271 have half the size TX FIFO compared to
+	 * other devices
+	 */
+	if (AR_SREV_KITE(ah) || AR_SREV_9271(ah)) {
+		AH5212(ah)->ah_txTrigLev = (AR_FTRIG_256B >> AR_FTRIG_S);
+		AH5212(ah)->ah_maxTxTrigLev = ((2048 / 64) - 1);
+	} else {
+		AH5212(ah)->ah_txTrigLev = (AR_FTRIG_512B >> AR_FTRIG_S);
+		AH5212(ah)->ah_maxTxTrigLev = ((4096 / 64) - 1);
+	}
+#undef	AR_FTRIG_512B
+
+	/* And now leave some headspace - 256 bytes */
+	AH5212(ah)->ah_maxTxTrigLev -= 4;
 }
 
 uint32_t
@@ -886,7 +937,13 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 
 	pCap->halCompressSupport = AH_FALSE;
 	pCap->halBurstSupport = AH_TRUE;
-	pCap->halFastFramesSupport = AH_FALSE;	/* XXX? */
+	/*
+	 * This is disabled for now; the net80211 layer needs to be
+	 * taught when it is and isn't appropriate to enable FF processing
+	 * with 802.11n NICs (it tries to enable both A-MPDU and
+	 * fast frames, with very tragic crash-y results.)
+	 */
+	pCap->halFastFramesSupport = AH_FALSE;
 	pCap->halChapTuningSupport = AH_TRUE;
 	pCap->halTurboPrimeSupport = AH_TRUE;
 
@@ -900,6 +957,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halMcastKeySrchSupport = AH_TRUE;	/* Works on AR5416 and later */
 	pCap->halTsfAddSupport = AH_TRUE;
 	pCap->hal4AddrAggrSupport = AH_FALSE;	/* Broken in Owl */
+	pCap->halSpectralScanSupport = AH_FALSE;	/* AR9280 and later */
 
 	if (ath_hal_eepromGet(ah, AR_EEP_MAXQCU, &val) == HAL_OK)
 		pCap->halTotalQueues = val;
@@ -911,9 +969,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halKeyCacheSize = AR5416_KEYTABLE_SIZE;
 
-	/* XXX not needed */
-	pCap->halChanHalfRate = AH_FALSE;	/* XXX ? */
-	pCap->halChanQuarterRate = AH_FALSE;	/* XXX ? */
+	/* XXX Which chips? */
+	pCap->halChanHalfRate = AH_TRUE;
+	pCap->halChanQuarterRate = AH_TRUE;
 
 	pCap->halTstampPrecision = 32;
 	pCap->halHwPhyCounterSupport = AH_TRUE;

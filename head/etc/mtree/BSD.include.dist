@@ -9,6 +9,10 @@
     ..
     arpa
     ..
+    atf-c
+    ..
+    atf-c++
+    ..
     bsm
     ..
     bsnmp
@@ -88,13 +92,15 @@
         ..
     ..
     clang
-        3.2
+        3.3
         ..
     ..
     crypto
     ..
     dev
         acpica
+        ..
+        agp
         ..
         an
         ..
@@ -126,9 +132,13 @@
         ..
         nand
         ..
+        nvme
+        ..
         ofw
         ..
         pbio
+        ..
+        pci
         ..
         powermac_nvram
         ..
@@ -162,17 +172,9 @@
         ..
         nfs
         ..
-        ntfs
-        ..
         nullfs
         ..
-        nwfs
-        ..
-        portalfs
-        ..
         procfs
-        ..
-        smbfs
         ..
         udf
         ..
@@ -284,8 +286,6 @@
         ..
         sig
         ..
-    ..
-    netncp
     ..
     netsmb
     ..

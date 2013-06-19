@@ -613,10 +613,21 @@ BUILTIN(__builtin_ia32_gatherd_d256, "V8iV8iV8iC*V8iV8iIc", "")
 BUILTIN(__builtin_ia32_gatherq_d, "V4iV4iV4iC*V2LLiV4iIc", "")
 BUILTIN(__builtin_ia32_gatherq_d256, "V4iV4iV4iC*V4LLiV4iIc", "")
 
+// F16C
+BUILTIN(__builtin_ia32_vcvtps2ph, "V8sV4fIi", "")
+BUILTIN(__builtin_ia32_vcvtps2ph256, "V8sV8fIi", "")
+BUILTIN(__builtin_ia32_vcvtph2ps, "V4fV8s", "")
+BUILTIN(__builtin_ia32_vcvtph2ps256, "V8fV8s", "")
+
 // RDRAND
 BUILTIN(__builtin_ia32_rdrand16_step, "UiUs*", "")
 BUILTIN(__builtin_ia32_rdrand32_step, "UiUi*", "")
 BUILTIN(__builtin_ia32_rdrand64_step, "UiULLi*", "")
+
+// RDSEED
+BUILTIN(__builtin_ia32_rdseed16_step, "UiUs*", "")
+BUILTIN(__builtin_ia32_rdseed32_step, "UiUi*", "")
+BUILTIN(__builtin_ia32_rdseed64_step, "UiULLi*", "")
 
 // BMI
 BUILTIN(__builtin_ia32_bextr_u32, "UiUiUi", "")
@@ -730,5 +741,9 @@ BUILTIN(__builtin_ia32_vfrczps, "V4fV4f", "")
 BUILTIN(__builtin_ia32_vfrczpd, "V2dV2d", "")
 BUILTIN(__builtin_ia32_vfrczps256, "V8fV8f", "")
 BUILTIN(__builtin_ia32_vfrczpd256, "V4dV4d", "")
+BUILTIN(__builtin_ia32_xbegin, "i", "")
+BUILTIN(__builtin_ia32_xend, "v", "")
+BUILTIN(__builtin_ia32_xabort, "vIc", "")
+BUILTIN(__builtin_ia32_xtest, "i", "")
 
 #undef BUILTIN

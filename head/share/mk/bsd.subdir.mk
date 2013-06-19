@@ -29,20 +29,23 @@
 #	maninstall, manlint, obj, objlink, realinstall, regress, tags
 #
 
+.if !target(__<bsd.subdir.mk>__)
+__<bsd.subdir.mk>__:
+
 .include <bsd.init.mk>
 
 DISTRIBUTION?=	base
 .if !target(distribute)
-distribute:
+distribute: .MAKE
 .for dist in ${DISTRIBUTION}
 	${_+_}cd ${.CURDIR}; \
 	    ${MAKE} install -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
 .endfor
 .endif
 
-_SUBDIR: .USE
+_SUBDIR: .USE .MAKE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}for entry in ${SUBDIR}; do \
+	@${_+_}set -e; for entry in ${SUBDIR}; do \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH} (${.TARGET:realinstall=install})"; \
 			edir=$${entry}.${MACHINE_ARCH}; \
@@ -57,7 +60,7 @@ _SUBDIR: .USE
 	done
 .endif
 
-${SUBDIR}: .PHONY
+${SUBDIR}: .PHONY .MAKE
 	${_+_}@if test -d ${.TARGET}.${MACHINE_ARCH}; then \
 		cd ${.CURDIR}/${.TARGET}.${MACHINE_ARCH}; \
 	else \
@@ -78,8 +81,8 @@ ${__stage}${__target}:
 ${__stage}${__target}: _SUBDIR
 .endif
 .endfor
-${__target}:
-	${_+_}cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+${__target}: .MAKE
+	${_+_}set -e; cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
 .endfor
 
 .if !target(install)
@@ -91,4 +94,6 @@ afterinstall:
 .endif
 install: beforeinstall realinstall afterinstall
 .ORDER: beforeinstall realinstall afterinstall
+.endif
+
 .endif

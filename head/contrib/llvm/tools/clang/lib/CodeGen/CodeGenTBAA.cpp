@@ -17,12 +17,15 @@
 
 #include "CodeGenTBAA.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Mangle.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/Frontend/CodeGenOptions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Metadata.h"
-#include "llvm/Constants.h"
-#include "llvm/Type.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Type.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -47,13 +50,25 @@ llvm::MDNode *CodeGenTBAA::getRoot() {
   return Root;
 }
 
+// For struct-path aware TBAA, the scalar type has the same format as
+// the struct type: name, offset, pointer to another node in the type DAG.
+// For scalar TBAA, the scalar type is the same as the scalar tag:
+// name and a parent pointer.
+llvm::MDNode *CodeGenTBAA::createTBAAScalarType(StringRef Name,
+                                                llvm::MDNode *Parent) {
+  if (CodeGenOpts.StructPathTBAA)
+    return MDHelper.createTBAAScalarTypeNode(Name, Parent);
+  else
+    return MDHelper.createTBAANode(Name, Parent);
+}
+
 llvm::MDNode *CodeGenTBAA::getChar() {
   // Define the root of the tree for user-accessible memory. C and C++
   // give special powers to char and certain similar types. However,
   // these special powers only cover user-accessible memory, and doesn't
   // include things like vtables.
   if (!Char)
-    Char = MDHelper.createTBAANode("omnipotent char", getRoot());
+    Char = createTBAAScalarType("omnipotent char", getRoot());
 
   return Char;
 }
@@ -121,7 +136,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
     // "underlying types".
     default:
       return MetadataCache[Ty] =
-        MDHelper.createTBAANode(BTy->getName(Features), getChar());
+        createTBAAScalarType(BTy->getName(Features), getChar());
     }
   }
 
@@ -129,8 +144,8 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
   // TODO: Implement C++'s type "similarity" and consider dis-"similar"
   // pointers distinct.
   if (Ty->isPointerType())
-    return MetadataCache[Ty] = MDHelper.createTBAANode("any pointer",
-                                                       getChar());
+    return MetadataCache[Ty] = createTBAAScalarType("any pointer",
+                                                    getChar());
 
   // Enum types are distinct types. In C++ they have "underlying types",
   // however they aren't related for TBAA.
@@ -157,7 +172,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
     llvm::raw_svector_ostream Out(OutName);
     MContext.mangleCXXRTTIName(QualType(ETy, 0), Out);
     Out.flush();
-    return MetadataCache[Ty] = MDHelper.createTBAANode(OutName, getChar());
+    return MetadataCache[Ty] = createTBAAScalarType(OutName, getChar());
   }
 
   // For now, handle any other kind of type conservatively.
@@ -165,5 +180,171 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
 }
 
 llvm::MDNode *CodeGenTBAA::getTBAAInfoForVTablePtr() {
-  return MDHelper.createTBAANode("vtable pointer", getRoot());
+  return createTBAAScalarType("vtable pointer", getRoot());
+}
+
+bool
+CodeGenTBAA::CollectFields(uint64_t BaseOffset,
+                           QualType QTy,
+                           SmallVectorImpl<llvm::MDBuilder::TBAAStructField> &
+                             Fields,
+                           bool MayAlias) {
+  /* Things not handled yet include: C++ base classes, bitfields, */
+
+  if (const RecordType *TTy = QTy->getAs<RecordType>()) {
+    const RecordDecl *RD = TTy->getDecl()->getDefinition();
+    if (RD->hasFlexibleArrayMember())
+      return false;
+
+    // TODO: Handle C++ base classes.
+    if (const CXXRecordDecl *Decl = dyn_cast<CXXRecordDecl>(RD))
+      if (Decl->bases_begin() != Decl->bases_end())
+        return false;
+
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+
+    unsigned idx = 0;
+    const FieldDecl *LastFD = 0;
+    bool IsMsStruct = RD->isMsStruct(Context);
+    for (RecordDecl::field_iterator i = RD->field_begin(),
+         e = RD->field_end(); i != e; ++i, ++idx) {
+      if (IsMsStruct) {
+        // Zero-length bitfields following non-bitfield members are ignored.
+        if (Context.ZeroBitfieldFollowsNonBitfield(*i, LastFD)) {
+          --idx;
+          continue;
+        }
+        LastFD = *i;
+      }
+      uint64_t Offset = BaseOffset +
+                        Layout.getFieldOffset(idx) / Context.getCharWidth();
+      QualType FieldQTy = i->getType();
+      if (!CollectFields(Offset, FieldQTy, Fields,
+                         MayAlias || TypeHasMayAlias(FieldQTy)))
+        return false;
+    }
+    return true;
+  }
+
+  /* Otherwise, treat whatever it is as a field. */
+  uint64_t Offset = BaseOffset;
+  uint64_t Size = Context.getTypeSizeInChars(QTy).getQuantity();
+  llvm::MDNode *TBAAInfo = MayAlias ? getChar() : getTBAAInfo(QTy);
+  llvm::MDNode *TBAATag = CodeGenOpts.StructPathTBAA ?
+                          getTBAAScalarTagInfo(TBAAInfo) : TBAAInfo;
+  Fields.push_back(llvm::MDBuilder::TBAAStructField(Offset, Size, TBAATag));
+  return true;
+}
+
+llvm::MDNode *
+CodeGenTBAA::getTBAAStructInfo(QualType QTy) {
+  const Type *Ty = Context.getCanonicalType(QTy).getTypePtr();
+
+  if (llvm::MDNode *N = StructMetadataCache[Ty])
+    return N;
+
+  SmallVector<llvm::MDBuilder::TBAAStructField, 4> Fields;
+  if (CollectFields(0, QTy, Fields, TypeHasMayAlias(QTy)))
+    return MDHelper.createTBAAStructNode(Fields);
+
+  // For now, handle any other kind of type conservatively.
+  return StructMetadataCache[Ty] = NULL;
+}
+
+/// Check if the given type can be handled by path-aware TBAA.
+static bool isTBAAPathStruct(QualType QTy) {
+  if (const RecordType *TTy = QTy->getAs<RecordType>()) {
+    const RecordDecl *RD = TTy->getDecl()->getDefinition();
+    if (RD->hasFlexibleArrayMember())
+      return false;
+    // RD can be struct, union, class, interface or enum.
+    // For now, we only handle struct and class.
+    if (RD->isStruct() || RD->isClass())
+      return true;
+  }
+  return false;
+}
+
+llvm::MDNode *
+CodeGenTBAA::getTBAAStructTypeInfo(QualType QTy) {
+  const Type *Ty = Context.getCanonicalType(QTy).getTypePtr();
+  assert(isTBAAPathStruct(QTy));
+
+  if (llvm::MDNode *N = StructTypeMetadataCache[Ty])
+    return N;
+
+  if (const RecordType *TTy = QTy->getAs<RecordType>()) {
+    const RecordDecl *RD = TTy->getDecl()->getDefinition();
+
+    const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+    SmallVector <std::pair<llvm::MDNode*, uint64_t>, 4> Fields;
+    unsigned idx = 0;
+    const FieldDecl *LastFD = 0;
+    bool IsMsStruct = RD->isMsStruct(Context);
+    for (RecordDecl::field_iterator i = RD->field_begin(),
+         e = RD->field_end(); i != e; ++i, ++idx) {
+      if (IsMsStruct) {
+        // Zero-length bitfields following non-bitfield members are ignored.
+        if (Context.ZeroBitfieldFollowsNonBitfield(*i, LastFD)) {
+          --idx;
+          continue;
+        }
+        LastFD = *i;
+      }
+
+      QualType FieldQTy = i->getType();
+      llvm::MDNode *FieldNode;
+      if (isTBAAPathStruct(FieldQTy))
+        FieldNode = getTBAAStructTypeInfo(FieldQTy);
+      else
+        FieldNode = getTBAAInfo(FieldQTy);
+      if (!FieldNode)
+        return StructTypeMetadataCache[Ty] = NULL;
+      Fields.push_back(std::make_pair(
+          FieldNode, Layout.getFieldOffset(idx) / Context.getCharWidth()));
+    }
+
+    // TODO: This is using the RTTI name. Is there a better way to get
+    // a unique string for a type?
+    SmallString<256> OutName;
+    llvm::raw_svector_ostream Out(OutName);
+    MContext.mangleCXXRTTIName(QualType(Ty, 0), Out);
+    Out.flush();
+    // Create the struct type node with a vector of pairs (offset, type).
+    return StructTypeMetadataCache[Ty] =
+      MDHelper.createTBAAStructTypeNode(OutName, Fields);
+  }
+
+  return StructMetadataCache[Ty] = NULL;
+}
+
+llvm::MDNode *
+CodeGenTBAA::getTBAAStructTagInfo(QualType BaseQTy, llvm::MDNode *AccessNode,
+                                  uint64_t Offset) {
+  if (!CodeGenOpts.StructPathTBAA)
+    return AccessNode;
+
+  const Type *BTy = Context.getCanonicalType(BaseQTy).getTypePtr();
+  TBAAPathTag PathTag = TBAAPathTag(BTy, AccessNode, Offset);
+  if (llvm::MDNode *N = StructTagMetadataCache[PathTag])
+    return N;
+
+  llvm::MDNode *BNode = 0;
+  if (isTBAAPathStruct(BaseQTy))
+    BNode  = getTBAAStructTypeInfo(BaseQTy);
+  if (!BNode)
+    return StructTagMetadataCache[PathTag] =
+       MDHelper.createTBAAStructTagNode(AccessNode, AccessNode, 0);
+
+  return StructTagMetadataCache[PathTag] =
+    MDHelper.createTBAAStructTagNode(BNode, AccessNode, Offset);
+}
+
+llvm::MDNode *
+CodeGenTBAA::getTBAAScalarTagInfo(llvm::MDNode *AccessNode) {
+  if (llvm::MDNode *N = ScalarTagMetadataCache[AccessNode])
+    return N;
+
+  return ScalarTagMetadataCache[AccessNode] =
+    MDHelper.createTBAAStructTagNode(AccessNode, AccessNode, 0);
 }

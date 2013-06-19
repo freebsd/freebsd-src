@@ -36,7 +36,7 @@ FILES=	loader.efi
 FILESMODE_loader.efi=	${BINMODE}
 
 LDSCRIPT=	${.CURDIR}/ldscript.i386
-LDFLAGS=	-Wl,-T${LDSCRIPT} -shared -symbolic
+LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-Bsymbolic -shared
 
 ${PROG}:	${LDSCRIPT}
 

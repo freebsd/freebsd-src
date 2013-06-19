@@ -582,7 +582,6 @@ free(void *addr, struct malloc_type *mtp)
 		panic("free: address %p(%p) has not been allocated.\n",
 		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
 
-
 	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
 #ifdef INVARIANTS
 		struct malloc_type **mtpp = addr;

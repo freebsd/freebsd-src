@@ -2084,8 +2084,10 @@ sys_getlogin(struct thread *td, struct getlogin_args *uap)
 	bcopy(p->p_session->s_login, login, uap->namelen);
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
+	if (strlen(login) + 1 > uap->namelen)
+		return (ERANGE);
 	error = copyout(login, uap->namebuf, uap->namelen);
-	return(error);
+	return (error);
 }
 
 /*

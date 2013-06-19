@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/endian.h>
 #include <sys/kdb.h>
@@ -45,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <dev/altera/jtag_uart/altera_jtag_uart.h>
+
+devclass_t	altera_jtag_uart_devclass;
 
 /*
  * One-byte buffer as we can't check whether the UART is readable without
@@ -82,7 +85,7 @@ static cn_ungrab_t	aju_cnungrab;
 
 /*
  * I/O routines lifted from Deimos.  This is not only MIPS-specific, but also
- * BERI-specific, as we're hard coding the the address at which we expect to
+ * BERI-specific, as we're hard coding the address at which we expect to
  * find the Altera JTAG UART and using it unconditionally.  We use these
  * low-level routines so that we can perform console I/O long before newbus
  * has initialised and devices have attached.  The TTY layer of the driver

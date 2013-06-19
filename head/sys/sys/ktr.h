@@ -116,7 +116,7 @@ extern int ktr_entries;
 extern int ktr_verbose;
 
 extern volatile int ktr_idx;
-extern struct ktr_entry ktr_buf[];
+extern struct ktr_entry *ktr_buf;
 
 #ifdef KTR
 
@@ -242,6 +242,50 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 #define	KTR_POINT4(m, egroup, ident, point, a0, v0, a1, v1, a2, v2, a3, v3)\
 	KTR_EVENT4(m, egroup, ident, "point:\"%s\"",			\
 	    point, a0, (v0), a1, (v1), a2, (v2), a3, (v3))
+
+/*
+ * Start functions denote the start of a region of code or operation
+ * and should be paired with stop functions for timing of nested
+ * sequences.
+ *
+ * Specifying extra attributes with the name "key" will result in
+ * multi-part keys.  For example a block device and offset pair
+ * might be used to describe a buf undergoing I/O.
+ */
+#define	KTR_START0(m, egroup, ident, key)				\
+	KTR_EVENT0(m, egroup, ident, "start:0x%jX", (uintmax_t)key)
+#define	KTR_START1(m, egroup, ident, key, a0, v0)			\
+	KTR_EVENT1(m, egroup, ident, "start:0x%jX", (uintmax_t)key, a0, (v0))
+#define	KTR_START2(m, egroup, ident, key, a0, v0, a1, v1)		\
+	KTR_EVENT2(m, egroup, ident, "start:0x%jX", (uintmax_t)key,	\
+	    a0, (v0), a1, (v1))
+#define	KTR_START3(m, egroup, ident, key, a0, v0, a1, v1, a2, v2)\
+	KTR_EVENT3(m, egroup, ident, "start:0x%jX", (uintmax_t)key,	\
+	    a0, (v0), a1, (v1), a2, (v2))
+#define	KTR_START4(m, egroup, ident, key,				\
+	    a0, v0, a1, v1, a2, v2, a3, v3)				\
+	KTR_EVENT4(m, egroup, ident, "start:0x%jX", (uintmax_t)key,	\
+	    a0, (v0), a1, (v1), a2, (v2), a3, (v3))
+
+/*
+ * Stop functions denote the end of a region of code or operation
+ * and should be paired with start functions for timing of nested
+ * sequences.
+ */
+#define	KTR_STOP0(m, egroup, ident, key)				\
+	KTR_EVENT0(m, egroup, ident, "stop:0x%jX", (uintmax_t)key)
+#define	KTR_STOP1(m, egroup, ident, key, a0, v0)			\
+	KTR_EVENT1(m, egroup, ident, "stop:0x%jX", (uintmax_t)key, a0, (v0))
+#define	KTR_STOP2(m, egroup, ident, key, a0, v0, a1, v1)		\
+	KTR_EVENT2(m, egroup, ident, "stop:0x%jX", (uintmax_t)key,	\
+	    a0, (v0), a1, (v1))
+#define	KTR_STOP3(m, egroup, ident, key, a0, v0, a1, v1, a2, v2)\
+	KTR_EVENT3(m, egroup, ident, "stop:0x%jX", (uintmax_t)key,	\
+	    a0, (v0), a1, (v1), a2, (v2))
+#define	KTR_STOP4(m, egroup, ident, 					\
+	    key, a0, v0, a1, v1, a2, v2, a3, v3)			\
+	KTR_EVENT4(m, egroup, ident, "stop:0x%jX", (uintmax_t)key,	\
+	    a0, (v0), a1, (v1), a2, (v2), a3, (v3))
 
 /*
  * Trace initialization events, similar to CTR with KTR_INIT, but

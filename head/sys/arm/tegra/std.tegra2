@@ -2,7 +2,7 @@
 #$FreeBSD$
 
 cpu		CPU_CORTEXA
-makeoption      ARM_LITTLE_ENDIAN
+machine 	arm armv6
 
 options		PHYSADDR=0x00000000
 
@@ -13,4 +13,4 @@ options		KERNVIRTADDR=0xc0200000
 
 options		STARTUP_PAGETABLE_ADDR=0x00100000
 
-files	"../tegra/files.tegra2"
+files		"../tegra/files.tegra2"

@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 using namespace ento;
@@ -41,13 +41,13 @@ public:
   PathGenerationScheme getGenerationScheme() const { return Minimal; }
   bool supportsLogicalOpControlFlow() const { return true; }
   bool supportsAllBlockEdges() const { return true; }
-  virtual bool useVerboseDescription() const { return true; }
   virtual bool supportsCrossFileDiagnostics() const { return true; }
 };
 
 } // end anonymous namespace
 
-void ento::createTextPathDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createTextPathDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                            PathDiagnosticConsumers &C,
                                             const std::string& out,
                                             const Preprocessor &PP) {
   C.push_back(new TextPathDiagnostics(out, PP.getDiagnostics()));

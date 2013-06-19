@@ -17,11 +17,10 @@
 #ifndef LLVM_ANALYSIS_ALIASSETTRACKER_H
 #define LLVM_ANALYSIS_ALIASSETTRACKER_H
 
-#include "llvm/Support/CallSite.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
+#include "llvm/Support/ValueHandle.h"
 #include <vector>
 
 namespace llvm {
@@ -109,7 +108,6 @@ class AliasSet : public ilist_node<AliasSet> {
 
   PointerRec *PtrList, **PtrListEnd;  // Doubly linked list of nodes.
   AliasSet *Forward;             // Forwarding pointer.
-  AliasSet *Next, *Prev;         // Doubly linked list of AliasSets.
 
   // All instructions without a specific address in this alias set.
   std::vector<AssertingVH<Instruction> > UnknownInsts;
@@ -226,8 +224,8 @@ private:
                AccessTy(NoModRef), AliasTy(MustAlias), Volatile(false) {
   }
 
-  AliasSet(const AliasSet &AS);        // do not implement
-  void operator=(const AliasSet &AS);  // do not implement
+  AliasSet(const AliasSet &AS) LLVM_DELETED_FUNCTION;
+  void operator=(const AliasSet &AS) LLVM_DELETED_FUNCTION;
 
   PointerRec *getSomePointer() const {
     return PtrList;

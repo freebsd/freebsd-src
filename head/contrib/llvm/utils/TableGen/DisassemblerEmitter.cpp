@@ -117,11 +117,9 @@ void EmitDisassembler(RecordKeeper &Records, raw_ostream &OS) {
     for (unsigned i = 0, e = numberedInstructions.size(); i != e; ++i)
       RecognizableInstr::processInstr(Tables, *numberedInstructions[i], i);
 
-    // FIXME: As long as we are using exceptions, might as well drop this to the
-    // actual conflict site.
     if (Tables.hasConflicts())
-      throw TGError(Target.getTargetRecord()->getLoc(),
-                    "Primary decode conflict");
+      PrintFatalError(Target.getTargetRecord()->getLoc(),
+                      "Primary decode conflict");
 
     Tables.emit(OS);
     return;
@@ -129,8 +127,9 @@ void EmitDisassembler(RecordKeeper &Records, raw_ostream &OS) {
 
   // ARM and Thumb have a CHECK() macro to deal with DecodeStatuses.
   if (Target.getName() == "ARM" ||
-      Target.getName() == "Thumb") {
-    EmitFixedLenDecoder(Records, OS, "ARM",
+      Target.getName() == "Thumb" || 
+      Target.getName() == "AArch64") {
+    EmitFixedLenDecoder(Records, OS, Target.getName() == "AArch64" ? "AArch64" : "ARM",
                         "if (!Check(S, ", ")) return MCDisassembler::Fail;",
                         "S", "MCDisassembler::Fail",
                         "  MCDisassembler::DecodeStatus S = "

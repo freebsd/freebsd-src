@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslsupport.l - Flex/lex scanner C support routines.
@@ -7,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -167,8 +166,8 @@ ResetAndExit:
  * RETURN:      0 if a node was popped, -1 otherwise
  *
  * DESCRIPTION: Pop the top of the input file stack and point the parser to
- *              the saved parse buffer contained in the fnode.  Also, set the
- *              global line counters to the saved values.  This function is
+ *              the saved parse buffer contained in the fnode. Also, set the
+ *              global line counters to the saved values. This function is
  *              called when an include file reaches EOF.
  *
  ******************************************************************************/
@@ -223,7 +222,7 @@ AslPopInputFileStack (
  * RETURN:      None
  *
  * DESCRIPTION: Push the InputFile onto the file stack, and point the parser
- *              to this file.  Called when an include file is successfully
+ *              to this file. Called when an include file is successfully
  *              opened.
  *
  ******************************************************************************/
@@ -325,7 +324,7 @@ AslInsertLineBuffer (
 
     Gbl_InputByteCount++;
 
-    /* Handle tabs.  Convert to spaces */
+    /* Handle tabs. Convert to spaces */
 
     if (SourceChar == '\t')
     {
@@ -343,14 +342,14 @@ AslInsertLineBuffer (
         *Gbl_LineBufPtr = (UINT8) SourceChar;
         Gbl_LineBufPtr++;
 
-        if (Gbl_LineBufPtr > (Gbl_CurrentLineBuffer + (ASL_LINE_BUFFER_SIZE - 1)))
+        if (Gbl_LineBufPtr > (Gbl_CurrentLineBuffer + (Gbl_LineBufferSize - 1)))
         {
 #if 0
             /*
              * Warning if we have split a long source line.
              * <Probably overkill>
              */
-            sprintf (MsgBuffer, "Max %u", ASL_LINE_BUFFER_SIZE);
+            sprintf (MsgBuffer, "Max %u", Gbl_LineBufferSize);
             AslCommonError (ASL_WARNING, ASL_MSG_LONG_LINE,
                             Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
                             Gbl_CurrentLineOffset, Gbl_CurrentColumn,
@@ -396,13 +395,19 @@ count (
     switch (Type)
     {
     case 2:
+
         TotalKeywords++;
         TotalNamedObjects++;
         break;
 
     case 3:
+
         TotalKeywords++;
         TotalExecutableOpcodes++;
+        break;
+
+    default:
+
         break;
     }
 
@@ -571,7 +576,6 @@ AslDoStringLiteral (
         AslInsertLineBuffer (StringChar);
 
 DoCharacter:
-
         switch (State)
         {
         case ASL_NORMAL_CHAR:
@@ -580,7 +584,7 @@ DoCharacter:
             {
             case '\\':
                 /*
-                 * Special handling for backslash-escape sequence.  We will
+                 * Special handling for backslash-escape sequence. We will
                  * toss the backslash and translate the escape char(s).
                  */
                 State = ASL_ESCAPE_SEQUENCE;
@@ -591,6 +595,10 @@ DoCharacter:
                 /* String terminator */
 
                 goto CompletedString;
+
+            default:
+
+                break;
             }
             break;
 
@@ -601,34 +609,42 @@ DoCharacter:
             switch (StringChar)
             {
             case 'a':
+
                 StringChar = 0x07;      /* BELL */
                 break;
 
             case 'b':
+
                 StringChar = 0x08;      /* BACKSPACE */
                 break;
 
             case 'f':
+
                 StringChar = 0x0C;      /* FORMFEED */
                 break;
 
             case 'n':
+
                 StringChar = 0x0A;      /* LINEFEED */
                 break;
 
             case 'r':
+
                 StringChar = 0x0D;      /* CARRIAGE RETURN*/
                 break;
 
             case 't':
+
                 StringChar = 0x09;      /* HORIZONTAL TAB */
                 break;
 
             case 'v':
+
                 StringChar = 0x0B;      /* VERTICAL TAB */
                 break;
 
             case 'x':
+
                 State = ASL_HEX_CONSTANT;
                 i = 0;
                 continue;
@@ -636,6 +652,7 @@ DoCharacter:
             case '\'':                  /* Single Quote */
             case '\"':                  /* Double Quote */
             case '\\':                  /* Backslash */
+
                 break;
 
             default:
@@ -669,7 +686,7 @@ DoCharacter:
                 (i > 2))
             {
                 /*
-                 * Reached end of the constant.  Convert the assembled ASCII
+                 * Reached end of the constant. Convert the assembled ASCII
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;
@@ -705,7 +722,6 @@ DoCharacter:
             i++;
             continue;
 
-
         case ASL_HEX_CONSTANT:
 
             /* Up to two hex digits allowed */
@@ -714,7 +730,7 @@ DoCharacter:
                 (i > 1))
             {
                 /*
-                 * Reached end of the constant.  Convert the assembled ASCII
+                 * Reached end of the constant. Convert the assembled ASCII
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;
@@ -749,6 +765,10 @@ DoCharacter:
             ConvertBuffer[i] = StringChar;
             i++;
             continue;
+
+        default:
+
+            break;
         }
 
         /* Save the finished character */

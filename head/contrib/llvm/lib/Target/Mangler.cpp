@@ -12,14 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/Mangler.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/Twine.h"
 using namespace llvm;
 
 static bool isAcceptableChar(char C, bool AllowPeriod, bool AllowUTF8) {
@@ -44,7 +44,7 @@ static void MangleLetter(SmallVectorImpl<char> &OutName, unsigned char C) {
   OutName.push_back('_');
 }
 
-/// NameNeedsEscaping - Return true if the identifier \arg Str needs quotes
+/// NameNeedsEscaping - Return true if the identifier \p Str needs quotes
 /// for this assembler.
 static bool NameNeedsEscaping(StringRef Str, const MCAsmInfo &MAI) {
   assert(!Str.empty() && "Cannot create an empty MCSymbol");
@@ -157,7 +157,7 @@ void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
 /// a suffix on their name indicating the number of words of arguments they
 /// take.
 static void AddFastCallStdCallSuffix(SmallVectorImpl<char> &OutName,
-                                     const Function *F, const TargetData &TD) {
+                                     const Function *F, const DataLayout &TD) {
   // Calculate arguments size total.
   unsigned ArgWords = 0;
   for (Function::const_arg_iterator AI = F->arg_begin(), AE = F->arg_end();
@@ -183,13 +183,17 @@ void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
   ManglerPrefixTy PrefixTy = Mangler::Default;
   if (GV->hasPrivateLinkage() || isImplicitlyPrivate)
     PrefixTy = Mangler::Private;
-  else if (GV->hasLinkerPrivateLinkage() || GV->hasLinkerPrivateWeakLinkage() ||
-           GV->hasLinkerPrivateWeakDefAutoLinkage())
+  else if (GV->hasLinkerPrivateLinkage() || GV->hasLinkerPrivateWeakLinkage())
     PrefixTy = Mangler::LinkerPrivate;
   
   // If this global has a name, handle it simply.
   if (GV->hasName()) {
-    getNameWithPrefix(OutName, GV->getName(), PrefixTy);
+    StringRef Name = GV->getName();
+    getNameWithPrefix(OutName, Name, PrefixTy);
+    // No need to do anything else if the global has the special "do not mangle"
+    // flag in the name.
+    if (Name[0] == 1)
+      return;
   } else {
     // Get the ID for the global, assigning a new one if we haven't got one
     // already.

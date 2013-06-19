@@ -12,15 +12,26 @@
 
 #include "DWARFDebugAbbrev.h"
 #include "DWARFDebugInfoEntry.h"
+#include "DWARFDebugRangeList.h"
+#include "DWARFRelocMap.h"
 #include <vector>
 
 namespace llvm {
 
-class DWARFContext;
+class DWARFDebugAbbrev;
+class StringRef;
 class raw_ostream;
 
 class DWARFCompileUnit {
-  DWARFContext &Context;
+  const DWARFDebugAbbrev *Abbrev;
+  StringRef InfoSection;
+  StringRef AbbrevSection;
+  StringRef RangeSection;
+  StringRef StringSection;
+  StringRef StringOffsetSection;
+  StringRef AddrOffsetSection;
+  const RelocAddrMap *RelocMap;
+  bool isLittleEndian;
 
   uint32_t Offset;
   uint32_t Length;
@@ -31,11 +42,20 @@ class DWARFCompileUnit {
   // The compile unit debug information entry item.
   std::vector<DWARFDebugInfoEntryMinimal> DieArray;
 public:
-  DWARFCompileUnit(DWARFContext &context) : Context(context) {
+
+  DWARFCompileUnit(const DWARFDebugAbbrev *DA, StringRef IS, StringRef AS,
+                   StringRef RS, StringRef SS, StringRef SOS, StringRef AOS,
+                   const RelocAddrMap *M, bool LE) :
+    Abbrev(DA), InfoSection(IS), AbbrevSection(AS),
+    RangeSection(RS), StringSection(SS), StringOffsetSection(SOS),
+    AddrOffsetSection(AOS), RelocMap(M), isLittleEndian(LE) {
     clear();
   }
 
-  DWARFContext &getContext() const { return Context; }
+  StringRef getStringSection() const { return StringSection; }
+  StringRef getStringOffsetSection() const { return StringOffsetSection; }
+  StringRef getAddrOffsetSection() const { return AddrOffsetSection; }
+  const RelocAddrMap *getRelocMap() const { return RelocMap; }
   DataExtractor getDebugInfoExtractor() const;
 
   bool extract(DataExtractor debug_info, uint32_t* offset_ptr);
@@ -45,6 +65,11 @@ public:
   /// extractDIEsIfNeeded - Parses a compile unit and indexes its DIEs if it
   /// hasn't already been done. Returns the number of DIEs parsed at this call.
   size_t extractDIEsIfNeeded(bool cu_die_only);
+  /// extractRangeList - extracts the range list referenced by this compile
+  /// unit from .debug_ranges section. Returns true on success.
+  /// Requires that compile unit is already extracted.
+  bool extractRangeList(uint32_t RangeListOffset,
+                        DWARFDebugRangeList &RangeList) const;
   void clear();
   void dump(raw_ostream &OS);
   uint32_t getOffset() const { return Offset; }
@@ -106,11 +131,11 @@ public:
 
   void buildAddressRangeTable(DWARFDebugAranges *debug_aranges,
                               bool clear_dies_if_already_not_parsed);
-  /// getFunctionDIEForAddress - Returns pointer to parsed subprogram DIE,
-  /// address ranges of which contain the provided address,
-  /// or NULL if there is no such subprogram. The pointer
-  /// is valid until DWARFCompileUnit::clear() or clearDIEs() is called.
-  const DWARFDebugInfoEntryMinimal *getFunctionDIEForAddress(int64_t address);
+
+  /// getInlinedChainForAddress - fetches inlined chain for a given address.
+  /// Returns empty chain if there is no subprogram containing address.
+  DWARFDebugInfoEntryMinimal::InlinedChain getInlinedChainForAddress(
+      uint64_t Address);
 };
 
 }

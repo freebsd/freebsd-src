@@ -5,10 +5,7 @@
 LIB=	llvmmcjit
 
 SRCDIR=	lib/ExecutionEngine/MCJIT
-SRCS=	MCJIT.cpp
-
-.if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	MCJITMemoryManager.cpp
-.endif
+SRCS=	MCJIT.cpp \
+	SectionMemoryManager.cpp
 
 .include "../clang.lib.mk"

@@ -257,6 +257,55 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 }
 
 int
+archive_write_zip_set_compression_deflate(struct archive *_a)
+{
+	struct archive_write *a = (struct archive_write *)_a;
+	int ret = ARCHIVE_FAILED;
+	
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+		ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER,
+		"archive_write_zip_set_compression_deflate");
+	if (a->archive.archive_format != ARCHIVE_FORMAT_ZIP) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		"Can only use archive_write_zip_set_compression_deflate"
+		" with zip format");
+		ret = ARCHIVE_FATAL;
+	} else {
+#ifdef HAVE_ZLIB_H
+		struct zip *zip = a->format_data;
+		zip->compression = COMPRESSION_DEFLATE;
+		ret = ARCHIVE_OK;
+#else
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"deflate compression not supported");
+#endif
+	}
+	return (ret);
+}
+
+int
+archive_write_zip_set_compression_store(struct archive *_a)
+{
+	struct archive_write *a = (struct archive_write *)_a;
+	struct zip *zip = a->format_data;
+	int ret = ARCHIVE_FAILED;
+	
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+		ARCHIVE_STATE_NEW | ARCHIVE_STATE_HEADER,
+		"archive_write_zip_set_compression_deflate");
+	if (a->archive.archive_format != ARCHIVE_FORMAT_ZIP) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			"Can only use archive_write_zip_set_compression_store"
+			" with zip format");
+		ret = ARCHIVE_FATAL;
+	} else {
+		zip->compression = COMPRESSION_STORE;
+		ret = ARCHIVE_OK;
+	}
+	return (ret);
+}
+
+int
 archive_write_set_format_zip(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
@@ -343,7 +392,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Filetype not supported");
 		return ARCHIVE_FAILED;
-	}; 
+	};
 
 	/* Directory entries should have a size of 0. */
 	if (type == AE_IFDIR)
@@ -511,7 +560,7 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		zip->stream.zfree = Z_NULL;
 		zip->stream.opaque = Z_NULL;
 		zip->stream.next_out = zip->buf;
-		zip->stream.avail_out = zip->len_buf;
+		zip->stream.avail_out = (uInt)zip->len_buf;
 		if (deflateInit2(&zip->stream, Z_DEFAULT_COMPRESSION,
 		    Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
 			archive_set_error(&a->archive, ENOMEM,
@@ -599,12 +648,12 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 		zip->written_bytes += s;
 		zip->remaining_data_bytes -= s;
 		l->compressed_size += s;
-		l->crc32 = crc32(l->crc32, buff, s);
+		l->crc32 = crc32(l->crc32, buff, (unsigned)s);
 		return (s);
 #if HAVE_ZLIB_H
 	case COMPRESSION_DEFLATE:
 		zip->stream.next_in = (unsigned char*)(uintptr_t)buff;
-		zip->stream.avail_in = s;
+		zip->stream.avail_in = (uInt)s;
 		do {
 			ret = deflate(&zip->stream, Z_NO_FLUSH);
 			if (ret == Z_STREAM_ERROR)
@@ -617,12 +666,12 @@ archive_write_zip_data(struct archive_write *a, const void *buff, size_t s)
 				l->compressed_size += zip->len_buf;
 				zip->written_bytes += zip->len_buf;
 				zip->stream.next_out = zip->buf;
-				zip->stream.avail_out = zip->len_buf;
+				zip->stream.avail_out = (uInt)zip->len_buf;
 			}
 		} while (zip->stream.avail_in != 0);
 		zip->remaining_data_bytes -= s;
 		/* If we have it, use zlib's fast crc32() */
-		l->crc32 = crc32(l->crc32, buff, s);
+		l->crc32 = crc32(l->crc32, buff, (uInt)s);
 		return (s);
 #endif
 
@@ -663,7 +712,7 @@ archive_write_zip_finish_entry(struct archive_write *a)
 			zip->stream.next_out = zip->buf;
 			if (zip->stream.avail_out != 0)
 				break;
-			zip->stream.avail_out = zip->len_buf;
+			zip->stream.avail_out = (uInt)zip->len_buf;
 		}
 		deflateEnd(&zip->stream);
 		break;
@@ -842,7 +891,10 @@ path_length(struct archive_entry *entry)
 	type = archive_entry_filetype(entry);
 	path = archive_entry_pathname(entry);
 
-	if ((type == AE_IFDIR) & (path[strlen(path) - 1] != '/')) {
+	if (path == NULL)
+		return (0);
+	if (type == AE_IFDIR &&
+	    (path[0] == '\0' || path[strlen(path) - 1] != '/')) {
 		return strlen(path) + 1;
 	} else {
 		return strlen(path);

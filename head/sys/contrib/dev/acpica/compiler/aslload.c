@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,7 +113,7 @@ LdLoadNamespace (
     WalkState = AcpiDsCreateWalkState (0, NULL, NULL, NULL);
     if (!WalkState)
     {
-        return AE_NO_MEMORY;
+        return (AE_NO_MEMORY);
     }
 
     /* Walk the entire parse tree, first pass */
@@ -129,7 +129,7 @@ LdLoadNamespace (
     /* Dump the namespace if debug is enabled */
 
     AcpiNsDumpTables (ACPI_NS_ALL, ACPI_UINT32_MAX);
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -177,7 +177,9 @@ LdLoadFieldElements (
         break;
 
     default:
+
         /* No other opcodes should arrive here */
+
         return (AE_BAD_PARAMETER);
     }
 
@@ -374,6 +376,7 @@ LdNamespace1Begin (
     default:
 
         /* All other opcodes go below */
+
         break;
     }
 
@@ -422,7 +425,6 @@ LdNamespace1Begin (
 
 
     case PARSEOP_EXTERNAL:
-
         /*
          * "External" simply enters a name and type into the namespace.
          * We must be careful to not open a new scope, however, no matter
@@ -466,7 +468,6 @@ LdNamespace1Begin (
 
 
     case PARSEOP_SCOPE:
-
         /*
          * The name referenced by Scope(Name) must already exist at this point.
          * In other words, forward references for Scope() are not supported.
@@ -521,7 +522,6 @@ LdNamespace1Begin (
         case ACPI_TYPE_INTEGER:
         case ACPI_TYPE_STRING:
         case ACPI_TYPE_BUFFER:
-
             /*
              * These types we will allow, but we will change the type.
              * This enables some existing code of the form:
@@ -894,5 +894,3 @@ LdCommonNamespaceEnd (
 
     return (AE_OK);
 }
-
-

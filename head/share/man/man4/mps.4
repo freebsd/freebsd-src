@@ -34,7 +34,7 @@
 .\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#6 $
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2012
+.Dd January 3, 2013
 .Dt MPS 4
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ controllers and WarpDrive solid state storage cards.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following controllers:
+driver supports the following hardware:
 .Pp
 .Bl -bullet -compact
 .It
@@ -80,6 +80,19 @@ LSI Logic SAS2116 (16 Port
 .It
 LSI Logic SAS2208 (8 Port
 .Tn SAS )
+.It
+LSI Logic SAS2308 (8 Port
+.Tn SAS )
+.It
+LSI Logic SSS6200 Solid State Storage
+.It
+Intel Integrated RAID Module RMS25JB040
+.It
+Intel Integrated RAID Module RMS25JB080
+.It
+Intel Integrated RAID Module RMS25KB040
+.It
+Intel Integrated RAID Module RMS25KB080
 .El
 .Sh CONFIGURATION
 To disable MSI interrupts for all

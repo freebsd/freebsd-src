@@ -20,11 +20,14 @@ namespace clang {
   /// \brief Names for the unary type traits.
   enum UnaryTypeTrait {
     UTT_HasNothrowAssign,
+    UTT_HasNothrowMoveAssign,
     UTT_HasNothrowCopy,
     UTT_HasNothrowConstructor,
     UTT_HasTrivialAssign,
+    UTT_HasTrivialMoveAssign,
     UTT_HasTrivialCopy,
     UTT_HasTrivialDefaultConstructor,
+    UTT_HasTrivialMoveConstructor,
     UTT_HasTrivialDestructor,
     UTT_HasVirtualDestructor,
     UTT_IsAbstract,
@@ -41,6 +44,7 @@ namespace clang {
     UTT_IsFunction,
     UTT_IsFundamental,
     UTT_IsIntegral,
+    UTT_IsInterfaceClass,
     UTT_IsLiteral,
     UTT_IsLvalueReference,
     UTT_IsMemberFunctionPointer,

@@ -20,6 +20,7 @@ namespace driver {
   class DerivedArgList;
   class Driver;
   class InputArgList;
+  class JobAction;
   class JobList;
   class ToolChain;
 
@@ -54,11 +55,11 @@ class Compilation {
   ArgStringList TempFiles;
 
   /// Result files which should be removed on failure.
-  ArgStringList ResultFiles;
+  ArgStringMap ResultFiles;
 
   /// Result files which are generated correctly on failure, and which should
   /// only be removed if we crash.
-  ArgStringList FailureResultFiles;
+  ArgStringMap FailureResultFiles;
 
   /// Redirection for stdout, stderr, etc.
   const llvm::sys::Path **Redirects;
@@ -88,9 +89,9 @@ public:
 
   const ArgStringList &getTempFiles() const { return TempFiles; }
 
-  const ArgStringList &getResultFiles() const { return ResultFiles; }
+  const ArgStringMap &getResultFiles() const { return ResultFiles; }
 
-  const ArgStringList &getFailureResultFiles() const {
+  const ArgStringMap &getFailureResultFiles() const {
     return FailureResultFiles;
   }
 
@@ -98,8 +99,7 @@ public:
   StringRef getSysRoot() const;
 
   /// getArgsForToolChain - Return the derived argument list for the
-  /// tool chain \arg TC (or the default tool chain, if TC is not
-  /// specified).
+  /// tool chain \p TC (or the default tool chain, if TC is not specified).
   ///
   /// \param BoundArch - The bound architecture name, or 0.
   const DerivedArgList &getArgsForToolChain(const ToolChain *TC,
@@ -114,24 +114,40 @@ public:
 
   /// addResultFile - Add a file to remove on failure, and returns its
   /// argument.
-  const char *addResultFile(const char *Name) {
-    ResultFiles.push_back(Name);
+  const char *addResultFile(const char *Name, const JobAction *JA) {
+    ResultFiles[JA] = Name;
     return Name;
   }
 
   /// addFailureResultFile - Add a file to remove if we crash, and returns its
   /// argument.
-  const char *addFailureResultFile(const char *Name) {
-    FailureResultFiles.push_back(Name);
+  const char *addFailureResultFile(const char *Name, const JobAction *JA) {
+    FailureResultFiles[JA] = Name;
     return Name;
   }
+
+  /// CleanupFile - Delete a given file.
+  ///
+  /// \param IssueErrors - Report failures as errors.
+  /// \return Whether the file was removed successfully.
+  bool CleanupFile(const char *File, bool IssueErrors = false) const;
 
   /// CleanupFileList - Remove the files in the given list.
   ///
   /// \param IssueErrors - Report failures as errors.
   /// \return Whether all files were removed successfully.
   bool CleanupFileList(const ArgStringList &Files,
-                       bool IssueErrors=false) const;
+                       bool IssueErrors = false) const;
+
+  /// CleanupFileMap - Remove the files in the given map.
+  ///
+  /// \param JA - If specified, only delete the files associated with this
+  /// JobAction.  Otherwise, delete all files in the map.
+  /// \param IssueErrors - Report failures as errors.
+  /// \return Whether all files were removed successfully.
+  bool CleanupFileMap(const ArgStringMap &Files,
+                      const JobAction *JA,
+                      bool IssueErrors = false) const;
 
   /// PrintJob - Print one job in -### format.
   ///
@@ -142,6 +158,14 @@ public:
   void PrintJob(raw_ostream &OS, const Job &J,
                 const char *Terminator, bool Quote) const;
 
+  /// PrintDiagnosticJob - Print one job in -### format, but with the 
+  /// superfluous options removed, which are not necessary for 
+  /// reproducing the crash.
+  ///
+  /// \param OS - The stream to print on.
+  /// \param J - The job to print.
+  void PrintDiagnosticJob(raw_ostream &OS, const Job &J) const;
+
   /// ExecuteCommand - Execute an actual command.
   ///
   /// \param FailingCommand - For non-zero results, this will be set to the
@@ -151,10 +175,10 @@ public:
 
   /// ExecuteJob - Execute a single job.
   ///
-  /// \param FailingCommand - For non-zero results, this will be set to the
-  /// Command which failed.
-  /// \return The accumulated result code of the job.
-  int ExecuteJob(const Job &J, const Command *&FailingCommand) const;
+  /// \param FailingCommands - For non-zero results, this will be a vector of
+  /// failing commands and their associated result code.
+  void ExecuteJob(const Job &J,
+     SmallVectorImpl< std::pair<int, const Command *> > &FailingCommands) const;
 
   /// initCompilationForDiagnostics - Remove stale state and suppress output
   /// so compilation can be reexecuted to generate additional diagnostic

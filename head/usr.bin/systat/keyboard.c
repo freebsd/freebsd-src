@@ -35,88 +35,146 @@ __FBSDID("$FreeBSD$");
 static const char sccsid[] = "@(#)keyboard.c	8.1 (Berkeley) 6/6/93";
 #endif
 
+#include <sys/select.h>
+#include <sys/time.h>
+
 #include <errno.h>
 #include <ctype.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include "systat.h"
 #include "extern.h"
 
+static char line[80];
+static int keyboard_dispatch(int ch);
+
 int
 keyboard(void)
 {
-	char line[80];
-	int ch, oldmask;
+	int ch, n;
+	struct timeval last, intvl, now, tm;
+	fd_set rfds;
 
+	/* Set initial timings */
+	gettimeofday(&last, NULL);
+	intvl.tv_sec = delay / 1000000;
+	intvl.tv_usec = delay % 1000000;
 	for (;;) {
 		col = 0;
 		move(CMDLINE, 0);
-		do {
-			refresh();
-			ch = getch();
-			if (ch == ERR) {
-				if (errno == EINTR)
-					continue;
-				exit(1);
+		for (;;) {
+			/* Determine interval to sleep */
+			(void)gettimeofday(&now, NULL);
+			tm.tv_sec = last.tv_sec + intvl.tv_sec - now.tv_sec;
+			tm.tv_usec = last.tv_usec + intvl.tv_usec - now.tv_usec;
+			while (tm.tv_usec < 0) {
+				tm.tv_usec += 1000000;
+				tm.tv_sec--;
 			}
-			if (ch >= 'A' && ch <= 'Z')
-				ch += 'a' - 'A';
-			if (col == 0) {
-#define	mask(s)	(1 << ((s) - 1))
-				if (ch == CTRL('l')) {
-					oldmask = sigblock(mask(SIGALRM));
-					wrefresh(curscr);
-					sigsetmask(oldmask);
-					continue;
-				}
-				if (ch == CTRL('g')) {
-					oldmask = sigblock(mask(SIGALRM));
-					status();
-					sigsetmask(oldmask);
-					continue;
-				}
-				if (ch != ':')
-					continue;
-				move(CMDLINE, 0);
-				clrtoeol();
+			while (tm.tv_usec >= 1000000) {
+				tm.tv_usec -= 1000000;
+				tm.tv_sec++;
 			}
-			if (ch == erasechar() && col > 0) {
-				if (col == 1 && line[0] == ':')
-					continue;
-				col--;
-				goto doerase;
-			}
-			if (ch == CTRL('w') && col > 0) {
-				while (--col >= 0 && isspace(line[col]))
-					;
-				col++;
-				while (--col >= 0 && !isspace(line[col]))
-					if (col == 0 && line[0] == ':')
-						break;
-				col++;
-				goto doerase;
-			}
-			if (ch == killchar() && col > 0) {
-				col = 0;
-				if (line[0] == ':')
-					col++;
-		doerase:
-				move(CMDLINE, col);
-				clrtoeol();
+			if (tm.tv_sec < 0) {
+				/* We have to update screen immediately */
+				display();
+				gettimeofday(&last, NULL);
 				continue;
 			}
-			if (isprint(ch) || ch == ' ') {
-				line[col] = ch;
-				mvaddch(CMDLINE, col, ch);
-				col++;
+
+			/* Prepare select  */
+			FD_ZERO(&rfds);
+			FD_SET(STDIN_FILENO, &rfds);
+			n = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tm);
+
+			if (n > 0) {
+				/* Read event on stdin */
+				ch = getch();
+
+				if (keyboard_dispatch(ch) == 0) {
+					refresh();
+					continue;
+				}
+	
+				line[col] = '\0';
+				command(line + 1);
+				/* Refresh delay */
+				intvl.tv_sec = delay / 1000000;
+				intvl.tv_usec = delay % 1000000;
+				refresh();
+				break;
 			}
-		} while (col == 0 || (ch != '\r' && ch != '\n'));
-		line[col] = '\0';
-		oldmask = sigblock(mask(SIGALRM));
-		command(line + 1);
-		sigsetmask(oldmask);
+
+			if (n < 0 && errno != EINTR)
+				exit(1);
+
+			/* Timeout or signal. Call display another time */
+			display();
+			gettimeofday(&last, NULL);
+		}
 	}
-	/*NOTREACHED*/
+}
+
+static int
+keyboard_dispatch(int ch)
+{
+
+	if (ch == ERR) {
+		if (errno == EINTR)
+			return 0;
+		exit(1);
+	}
+	if (ch >= 'A' && ch <= 'Z')
+		ch += 'a' - 'A';
+	if (col == 0) {
+		if (ch == CTRL('l')) {
+			wrefresh(curscr);
+			return 0;
+		}
+		if (ch == CTRL('g')) {
+			status();
+			return 0;
+		}
+		if (ch != ':')
+			return 0;
+		move(CMDLINE, 0);
+		clrtoeol();
+	}
+	if (ch == erasechar() && col > 0) {
+		if (col == 1 && line[0] == ':')
+			return 0;
+		col--;
+		goto doerase;
+	}
+	if (ch == CTRL('w') && col > 0) {
+		while (--col >= 0 && isspace(line[col]))
+			;
+		col++;
+		while (--col >= 0 && !isspace(line[col]))
+			if (col == 0 && line[0] == ':')
+				return 1;
+		col++;
+		goto doerase;
+	}
+	if (ch == killchar() && col > 0) {
+		col = 0;
+		if (line[0] == ':')
+			col++;
+doerase:
+		move(CMDLINE, col);
+		clrtoeol();
+		return 0;
+	}
+	if (isprint(ch) || ch == ' ') {
+		line[col] = ch;
+		mvaddch(CMDLINE, col, ch);
+		col++;
+	}
+
+	if (col == 0 || (ch != '\r' && ch != '\n'))
+		return 0;
+
+	return 1;
 }

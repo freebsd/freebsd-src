@@ -35,9 +35,6 @@ def RetCC_MipsO32 : CallingConv<[
 //===----------------------------------------------------------------------===//
 
 def CC_MipsN : CallingConv<[
-   // Handles byval parameters.
-  CCIfByVal<CCCustom<"CC_Mips64Byval">>,
-
   // Promote i8/i16 arguments to i32.
   CCIfType<[i8, i16], CCPromoteToType<i32>>,
 
@@ -72,9 +69,6 @@ def CC_MipsN : CallingConv<[
 // N32/64 variable arguments.
 // All arguments are passed in integer registers.
 def CC_MipsN_VarArg : CallingConv<[
-   // Handles byval parameters.
-  CCIfByVal<CCCustom<"CC_Mips64Byval">>,
-
   // Promote i8/i16 arguments to i32.
   CCIfType<[i8, i16], CCPromoteToType<i32>>,
 
@@ -100,6 +94,12 @@ def RetCC_MipsN : CallingConv<[
 
   // f64 are returned in registers D0, D2
   CCIfType<[f64], CCAssignToReg<[D0_64, D2_64]>>
+]>;
+
+// In soft-mode, register A0_64, instead of V1_64, is used to return a long
+// double value.
+def RetCC_F128Soft : CallingConv<[
+  CCIfType<[i64], CCAssignToReg<[V0_64, A0_64]>>
 ]>;
 
 //===----------------------------------------------------------------------===//
@@ -142,17 +142,6 @@ def RetCC_MipsEABI : CallingConv<[
 
   // f64 are returned in register D0
   CCIfType<[f64], CCIfSubtarget<"isNotSingleFloat()", CCAssignToReg<[D0]>>>
-]>;
-
-//===----------------------------------------------------------------------===//
-// Mips Android Calling Convention
-//===----------------------------------------------------------------------===//
-
-def RetCC_MipsAndroid : CallingConv<[
-  // f32 are returned in registers F0, F2, F1, F3
-  CCIfType<[f32], CCAssignToReg<[F0, F2, F1, F3]>>,
-
-  CCDelegateTo<RetCC_MipsO32>
 ]>;
 
 //===----------------------------------------------------------------------===//
@@ -211,17 +200,10 @@ def CC_Mips_FastCC : CallingConv<[
 // Mips Calling Convention Dispatch
 //===----------------------------------------------------------------------===//
 
-def CC_Mips : CallingConv<[
-  CCIfSubtarget<"isABI_EABI()", CCDelegateTo<CC_MipsEABI>>,
-  CCIfSubtarget<"isABI_N32()", CCDelegateTo<CC_MipsN>>,
-  CCIfSubtarget<"isABI_N64()", CCDelegateTo<CC_MipsN>>
-]>;
-
 def RetCC_Mips : CallingConv<[
   CCIfSubtarget<"isABI_EABI()", CCDelegateTo<RetCC_MipsEABI>>,
   CCIfSubtarget<"isABI_N32()", CCDelegateTo<RetCC_MipsN>>,
   CCIfSubtarget<"isABI_N64()", CCDelegateTo<RetCC_MipsN>>,
-  CCIfSubtarget<"isAndroid()", CCDelegateTo<RetCC_MipsAndroid>>,
   CCDelegateTo<RetCC_MipsO32>
 ]>;
 

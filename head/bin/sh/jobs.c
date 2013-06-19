@@ -95,6 +95,8 @@ static int ttyfd = -1;
 static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
+static int waitcmdloop(struct job *);
+static struct job *getjob_nonotfound(char *);
 static struct job *getjob(char *);
 pid_t getjobpgrp(char *);
 static pid_t dowait(int, struct job *);
@@ -127,11 +129,12 @@ setjobctl(int on)
 	if (on) {
 		if (ttyfd != -1)
 			close(ttyfd);
-		if ((ttyfd = open(_PATH_TTY, O_RDWR)) < 0) {
+		if ((ttyfd = open(_PATH_TTY, O_RDWR | O_CLOEXEC)) < 0) {
 			i = 0;
 			while (i <= 2 && !isatty(i))
 				i++;
-			if (i > 2 || (ttyfd = fcntl(i, F_DUPFD, 10)) < 0)
+			if (i > 2 ||
+			    (ttyfd = fcntl(i, F_DUPFD_CLOEXEC, 10)) < 0)
 				goto out;
 		}
 		if (ttyfd < 10) {
@@ -139,18 +142,13 @@ setjobctl(int on)
 			 * Keep our TTY file descriptor out of the way of
 			 * the user's redirections.
 			 */
-			if ((i = fcntl(ttyfd, F_DUPFD, 10)) < 0) {
+			if ((i = fcntl(ttyfd, F_DUPFD_CLOEXEC, 10)) < 0) {
 				close(ttyfd);
 				ttyfd = -1;
 				goto out;
 			}
 			close(ttyfd);
 			ttyfd = i;
-		}
-		if (fcntl(ttyfd, F_SETFD, FD_CLOEXEC) < 0) {
-			close(ttyfd);
-			ttyfd = -1;
-			goto out;
 		}
 		do { /* while we are in the background */
 			initialpgrp = tcgetpgrp(ttyfd);
@@ -250,15 +248,13 @@ restartjob(struct job *jp)
 
 
 int
-jobscmd(int argc, char *argv[])
+jobscmd(int argc __unused, char *argv[] __unused)
 {
 	char *id;
 	int ch, mode;
 
-	optind = optreset = 1;
-	opterr = 0;
 	mode = SHOWJOBS_DEFAULT;
-	while ((ch = getopt(argc, argv, "lps")) != -1) {
+	while ((ch = nextopt("lps")) != '\0') {
 		switch (ch) {
 		case 'l':
 			mode = SHOWJOBS_VERBOSE;
@@ -269,18 +265,13 @@ jobscmd(int argc, char *argv[])
 		case 's':
 			mode = SHOWJOBS_PIDS;
 			break;
-		case '?':
-		default:
-			error("unknown option: -%c", optopt);
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
-	if (argc == 0)
+	if (*argptr == NULL)
 		showjobs(0, mode);
 	else
-		while ((id = *argv++) != NULL)
+		while ((id = *argptr++) != NULL)
 			showjob(getjob(id), mode);
 
 	return (0);
@@ -305,6 +296,7 @@ showjob(struct job *jp, int mode)
 {
 	char s[64];
 	char statestr[64];
+	const char *sigstr;
 	struct procstat *ps;
 	struct job *j;
 	int col, curr, i, jobno, prev, procno;
@@ -331,8 +323,9 @@ showjob(struct job *jp, int mode)
 			i = WSTOPSIG(ps->status);
 		else
 			i = -1;
-		if (i > 0 && i < sys_nsig && sys_siglist[i])
-			strcpy(statestr, sys_siglist[i]);
+		sigstr = strsignal(i);
+		if (sigstr != NULL)
+			strcpy(statestr, sigstr);
 		else
 			strcpy(statestr, "Suspended");
 #endif
@@ -344,10 +337,11 @@ showjob(struct job *jp, int mode)
 			    WEXITSTATUS(ps->status));
 	} else {
 		i = WTERMSIG(ps->status);
-		if (i > 0 && i < sys_nsig && sys_siglist[i])
-			strcpy(statestr, sys_siglist[i]);
+		sigstr = strsignal(i);
+		if (sigstr != NULL)
+			strcpy(statestr, sigstr);
 		else
-			fmtstr(statestr, 64, "Signal %d", i);
+			strcpy(statestr, "Unknown signal");
 		if (WCOREDUMP(ps->status))
 			strcat(statestr, " (core dumped)");
 	}
@@ -421,13 +415,15 @@ showjobs(int change, int mode)
 		if (change && ! jp->changed)
 			continue;
 		showjob(jp, mode);
-		jp->changed = 0;
-		/* Hack: discard jobs for which $! has not been referenced
-		 * in interactive mode when they terminate.
-		 */
-		if (jp->state == JOBDONE && !jp->remembered &&
-				(iflag || jp != bgjob)) {
-			freejob(jp);
+		if (mode == SHOWJOBS_DEFAULT || mode == SHOWJOBS_VERBOSE) {
+			jp->changed = 0;
+			/* Hack: discard jobs for which $! has not been
+			 * referenced in interactive mode when they terminate.
+			 */
+			if (jp->state == JOBDONE && !jp->remembered &&
+					(iflag || jp != bgjob)) {
+				freejob(jp);
+			}
 		}
 	}
 }
@@ -462,17 +458,32 @@ freejob(struct job *jp)
 
 
 int
-waitcmd(int argc, char **argv)
+waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
+	int retval;
+
+	nextopt("");
+	if (*argptr == NULL)
+		return (waitcmdloop(NULL));
+
+	do {
+		job = getjob_nonotfound(*argptr);
+		if (job == NULL)
+			retval = 127;
+		else
+			retval = waitcmdloop(job);
+		argptr++;
+	} while (*argptr != NULL);
+
+	return (retval);
+}
+
+static int
+waitcmdloop(struct job *job)
+{
 	int status, retval;
 	struct job *jp;
-
-	if (argc > 1) {
-		job = getjob(argv[1]);
-	} else {
-		job = NULL;
-	}
 
 	/*
 	 * Loop until a process is terminated or stopped, or a SIGINT is
@@ -525,7 +536,7 @@ waitcmd(int argc, char **argv)
 	} while (dowait(DOWAIT_BLOCK | DOWAIT_SIG, (struct job *)NULL) != -1);
 	in_waitcmd--;
 
-	return 0;
+	return pendingsig + 128;
 }
 
 
@@ -551,7 +562,7 @@ jobidcmd(int argc __unused, char **argv)
  */
 
 static struct job *
-getjob(char *name)
+getjob_nonotfound(char *name)
 {
 	int jobno;
 	struct job *found, *jp;
@@ -616,9 +627,19 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 				return jp;
 		}
 	}
-	error("No such job: %s", name);
-	/*NOTREACHED*/
 	return NULL;
+}
+
+
+static struct job *
+getjob(char *name)
+{
+	struct job *jp;
+
+	jp = getjob_nonotfound(name);
+	if (jp == NULL)
+		error("No such job: %s", name);
+	return (jp);
 }
 
 
@@ -671,7 +692,8 @@ makejob(union node *node __unused, int nprocs)
 				jobtab = jp;
 			}
 			jp = jobtab + njobs;
-			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = 0);
+			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = 0)
+				;
 			INTON;
 			break;
 		}
@@ -1008,7 +1030,7 @@ waitforjob(struct job *jp, int *origstatus)
 
 
 static void
-dummy_handler(int sig)
+dummy_handler(int sig __unused)
 {
 }
 
@@ -1026,6 +1048,7 @@ dowait(int mode, struct job *job)
 	struct procstat *sp;
 	struct job *jp;
 	struct job *thisjob;
+	const char *sigstr;
 	int done;
 	int stopped;
 	int sig;
@@ -1033,7 +1056,7 @@ dowait(int mode, struct job *job)
 	int wflags;
 	int restore_sigchld;
 
-	TRACE(("dowait(%d) called\n", block));
+	TRACE(("dowait(%d, %p) called\n", mode, job));
 	restore_sigchld = 0;
 	if ((mode & DOWAIT_SIG) != 0) {
 		sigfillset(&mask);
@@ -1136,10 +1159,11 @@ dowait(int mode, struct job *job)
 				coredump = WCOREDUMP(sp->status);
 			}
 		if (sig > 0 && sig != SIGINT && sig != SIGPIPE) {
-			if (sig < sys_nsig && sys_siglist[sig])
-				out2str(sys_siglist[sig]);
+			sigstr = strsignal(sig);
+			if (sigstr != NULL)
+				out2str(sigstr);
 			else
-				outfmt(out2, "Signal %d", sig);
+				out2str("Unknown signal");
 			if (coredump)
 				out2str(" (core dumped)");
 			out2c('\n');
@@ -1299,6 +1323,10 @@ until:
 	case NDEFUN:
 		cmdputs(n->narg.text);
 		cmdputs("() ...");
+		break;
+	case NNOT:
+		cmdputs("! ");
+		cmdtxt(n->nnot.com);
 		break;
 	case NCMD:
 		for (np = n->ncmd.args ; np ; np = np->narg.next) {

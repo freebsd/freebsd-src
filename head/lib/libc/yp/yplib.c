@@ -375,7 +375,7 @@ again:
 			ysd->dom_socket = -1;
 		}
 		snprintf(path, sizeof(path), "%s/%s.%d", BINDINGDIR, dom, 2);
-		if ((fd = _open(path, O_RDONLY)) == -1) {
+		if ((fd = _open(path, O_RDONLY | O_CLOEXEC)) == -1) {
 			/* no binding file, YP is dead. */
 			/* Try to bring it back to life. */
 			_close(fd);

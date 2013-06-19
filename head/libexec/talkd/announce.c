@@ -60,8 +60,6 @@ static const char rcsid[] =
 #include "ttymsg.h"
 #include "extern.h"
 
-extern char hostname[];
-
 /*
  * Announce an invitation to talk.
  */

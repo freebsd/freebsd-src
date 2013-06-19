@@ -137,6 +137,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 		 int fontsize, int fontwidth)
 {
     video_info_t info;
+    struct winsize wsz;
     u_char *font;
     int prev_ysize;
     int error;
@@ -234,16 +235,9 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 
     if (tp == NULL)
 	return 0;
-    DPRINTF(5, ("ws_*size (%d,%d), size (%d,%d)\n",
-	tp->t_winsize.ws_col, tp->t_winsize.ws_row, scp->xsize, scp->ysize));
-    if (tp->t_winsize.ws_col != scp->xsize
-	|| tp->t_winsize.ws_row != scp->ysize) {
-	tp->t_winsize.ws_col = scp->xsize;
-	tp->t_winsize.ws_row = scp->ysize;
-
-	tty_signal_pgrp(tp, SIGWINCH);
-    }
-
+    wsz.ws_col = scp->xsize;
+    wsz.ws_row = scp->ysize;
+    tty_set_winsize(tp, &wsz);
     return 0;
 }
 
@@ -254,6 +248,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     return ENODEV;
 #else
     video_info_t info;
+    struct winsize wsz;
     int error;
     int s;
 
@@ -300,14 +295,9 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 
     if (tp == NULL)
 	return 0;
-    if (tp->t_winsize.ws_xpixel != scp->xpixel
-	|| tp->t_winsize.ws_ypixel != scp->ypixel) {
-	tp->t_winsize.ws_xpixel = scp->xpixel;
-	tp->t_winsize.ws_ypixel = scp->ypixel;
-
-	tty_signal_pgrp(tp, SIGWINCH);
-    }
-
+    wsz.ws_col = scp->xsize;
+    wsz.ws_row = scp->ysize;
+    tty_set_winsize(tp, &wsz);
     return 0;
 #endif /* SC_NO_MODE_CHANGE */
 }
@@ -320,7 +310,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     return ENODEV;
 #else
     video_info_t info;
-    ksiginfo_t ksi;
+    struct winsize wsz;
     u_char *font;
     int prev_ysize;
     int error;
@@ -425,20 +415,9 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 
     if (tp == NULL)
 	return 0;
-    if (tp->t_winsize.ws_col != scp->xsize
-	|| tp->t_winsize.ws_row != scp->ysize) {
-	tp->t_winsize.ws_col = scp->xsize;
-	tp->t_winsize.ws_row = scp->ysize;
-	if (tp->t_pgrp != NULL) {
-	    ksiginfo_init(&ksi);
-	    ksi.ksi_signo = SIGWINCH;
-	    ksi.ksi_code = SI_KERNEL;
-	    PGRP_LOCK(tp->t_pgrp);
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1, &ksi);
-	    PGRP_UNLOCK(tp->t_pgrp);
-	}
-    }
-
+    wsz.ws_col = scp->xsize;
+    wsz.ws_row = scp->ysize;
+    tty_set_winsize(tp, &wsz);
     return 0;
 #endif /* SC_PIXEL_MODE */
 }

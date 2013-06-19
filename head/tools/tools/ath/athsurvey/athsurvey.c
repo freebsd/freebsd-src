@@ -66,7 +66,7 @@ get_survey_stats(int s, const char *ifname, HAL_CHANNEL_SURVEY *hs)
 	strncpy(atd.ad_name, ifname, sizeof(atd.ad_name));
 
 	if (ioctl(s, SIOCGATHDIAG, &atd) < 0) {
-		err(1, atd.ad_name);
+		err(1, "ioctl: %s", atd.ad_name);
 		return (0);
 	}
 	return (1);

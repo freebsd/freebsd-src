@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -48,7 +48,7 @@ dmu_tx_create_dd(dsl_dir_t *dd)
 {
 	dmu_tx_t *tx = kmem_zalloc(sizeof (dmu_tx_t), KM_SLEEP);
 	tx->tx_dir = dd;
-	if (dd)
+	if (dd != NULL)
 		tx->tx_pool = dd->dd_pool;
 	list_create(&tx->tx_holds, sizeof (dmu_tx_hold_t),
 	    offsetof(dmu_tx_hold_t, txh_node));
@@ -160,7 +160,7 @@ dmu_tx_check_ioerr(zio_t *zio, dnode_t *dn, int level, uint64_t blkid)
 	db = dbuf_hold_level(dn, level, blkid, FTAG);
 	rw_exit(&dn->dn_struct_rwlock);
 	if (db == NULL)
-		return (EIO);
+		return (SET_ERROR(EIO));
 	err = dbuf_read(db, zio, DB_RF_CANFAIL | DB_RF_NOPREFETCH);
 	dbuf_rele(db, FTAG);
 	return (err);
@@ -284,6 +284,7 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			delta = P2NPHASE(off, dn->dn_datablksz);
 		}
 
+		min_ibs = max_ibs = dn->dn_indblkshift;
 		if (dn->dn_maxblkid > 0) {
 			/*
 			 * The blocksize can't change,
@@ -291,13 +292,6 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			 */
 			ASSERT(dn->dn_datablkshift != 0);
 			min_bs = max_bs = dn->dn_datablkshift;
-			min_ibs = max_ibs = dn->dn_indblkshift;
-		} else if (dn->dn_indblkshift > max_ibs) {
-			/*
-			 * This ensures that if we reduce DN_MAX_INDBLKSHIFT,
-			 * the code will still work correctly on older pools.
-			 */
-			min_ibs = max_ibs = dn->dn_indblkshift;
 		}
 
 		/*
@@ -376,7 +370,7 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 out:
 	if (txh->txh_space_towrite + txh->txh_space_tooverwrite >
 	    2 * DMU_MAX_ACCESS)
-		err = EFBIG;
+		err = SET_ERROR(EFBIG);
 
 	if (err)
 		txh->txh_tx->tx_err = err;
@@ -429,6 +423,7 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 	dsl_dataset_t *ds = dn->dn_objset->os_dsl_dataset;
 	spa_t *spa = txh->txh_tx->tx_pool->dp_spa;
 	int epbs;
+	uint64_t l0span = 0, nl1blks = 0;
 
 	if (dn->dn_nlevels == 0)
 		return;
@@ -461,6 +456,7 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			nblks = dn->dn_maxblkid - blkid;
 
 	}
+	l0span = nblks;    /* save for later use to calc level > 1 overhead */
 	if (dn->dn_nlevels == 1) {
 		int i;
 		for (i = 0; i < nblks; i++) {
@@ -473,22 +469,8 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			}
 			unref += BP_GET_ASIZE(bp);
 		}
+		nl1blks = 1;
 		nblks = 0;
-	}
-
-	/*
-	 * Add in memory requirements of higher-level indirects.
-	 * This assumes a worst-possible scenario for dn_nlevels.
-	 */
-	{
-		uint64_t blkcnt = 1 + ((nblks >> epbs) >> epbs);
-		int level = (dn->dn_nlevels > 1) ? 2 : 1;
-
-		while (level++ < DN_MAX_LEVELS) {
-			txh->txh_memory_tohold += blkcnt << dn->dn_indblkshift;
-			blkcnt = 1 + (blkcnt >> epbs);
-		}
-		ASSERT(blkcnt <= dn->dn_nblkptr);
 	}
 
 	lastblk = blkid + nblks - 1;
@@ -561,10 +543,34 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 		}
 		dbuf_rele(dbuf, FTAG);
 
+		++nl1blks;
 		blkid += tochk;
 		nblks -= tochk;
 	}
 	rw_exit(&dn->dn_struct_rwlock);
+
+	/*
+	 * Add in memory requirements of higher-level indirects.
+	 * This assumes a worst-possible scenario for dn_nlevels and a
+	 * worst-possible distribution of l1-blocks over the region to free.
+	 */
+	{
+		uint64_t blkcnt = 1 + ((l0span >> epbs) >> epbs);
+		int level = 2;
+		/*
+		 * Here we don't use DN_MAX_LEVEL, but calculate it with the
+		 * given datablkshift and indblkshift. This makes the
+		 * difference between 19 and 8 on large files.
+		 */
+		int maxlevel = 2 + (DN_MAX_OFFSET_SHIFT - dn->dn_datablkshift) /
+		    (dn->dn_indblkshift - SPA_BLKPTRSHIFT);
+
+		while (level++ < maxlevel) {
+			txh->txh_memory_tohold += MAX(MIN(blkcnt, nl1blks), 1)
+			    << dn->dn_indblkshift;
+			blkcnt = 1 + (blkcnt >> epbs);
+		}
+	}
 
 	/* account for new level 1 indirect blocks that might show up */
 	if (skipped > 0) {
@@ -892,14 +898,14 @@ dmu_tx_dirty_buf(dmu_tx_t *tx, dmu_buf_impl_t *db)
 #endif
 
 static int
-dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
+dmu_tx_try_assign(dmu_tx_t *tx, txg_how_t txg_how)
 {
 	dmu_tx_hold_t *txh;
 	spa_t *spa = tx->tx_pool->dp_spa;
 	uint64_t memory, asize, fsize, usize;
 	uint64_t towrite, tofree, tooverwrite, tounref, tohold, fudge;
 
-	ASSERT3U(tx->tx_txg, ==, 0);
+	ASSERT0(tx->tx_txg);
 
 	if (tx->tx_err)
 		return (tx->tx_err);
@@ -916,9 +922,9 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 		 */
 		if (spa_get_failmode(spa) == ZIO_FAILURE_MODE_CONTINUE &&
 		    txg_how != TXG_WAIT)
-			return (EIO);
+			return (SET_ERROR(EIO));
 
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 
 	tx->tx_txg = txg_hold_open(tx->tx_pool, &tx->tx_txgh);
@@ -939,7 +945,7 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 			if (dn->dn_assigned_txg == tx->tx_txg - 1) {
 				mutex_exit(&dn->dn_mtx);
 				tx->tx_needassign_txh = txh;
-				return (ERESTART);
+				return (SET_ERROR(ERESTART));
 			}
 			if (dn->dn_assigned_txg == 0)
 				dn->dn_assigned_txg = tx->tx_txg;
@@ -954,13 +960,6 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 		tohold += txh->txh_memory_tohold;
 		fudge += txh->txh_fudge;
 	}
-
-	/*
-	 * NB: This check must be after we've held the dnodes, so that
-	 * the dmu_tx_unassign() logic will work properly
-	 */
-	if (txg_how >= TXG_INITIAL && txg_how != tx->tx_txg)
-		return (ERESTART);
 
 	/*
 	 * If a snapshot has been taken since we made our estimates,
@@ -1015,6 +1014,10 @@ dmu_tx_unassign(dmu_tx_t *tx)
 
 	txg_rele_to_quiesce(&tx->tx_txgh);
 
+	/*
+	 * Walk the transaction's hold list, removing the hold on the
+	 * associated dnode, and notifying waiters if the refcount drops to 0.
+	 */
 	for (txh = list_head(&tx->tx_holds); txh != tx->tx_needassign_txh;
 	    txh = list_next(&tx->tx_holds, txh)) {
 		dnode_t *dn = txh->txh_dnode;
@@ -1042,25 +1045,24 @@ dmu_tx_unassign(dmu_tx_t *tx)
  *
  * (1)	TXG_WAIT.  If the current open txg is full, waits until there's
  *	a new one.  This should be used when you're not holding locks.
- *	If will only fail if we're truly out of space (or over quota).
+ *	It will only fail if we're truly out of space (or over quota).
  *
  * (2)	TXG_NOWAIT.  If we can't assign into the current open txg without
  *	blocking, returns immediately with ERESTART.  This should be used
  *	whenever you're holding locks.  On an ERESTART error, the caller
  *	should drop locks, do a dmu_tx_wait(tx), and try again.
- *
- * (3)	A specific txg.  Use this if you need to ensure that multiple
- *	transactions all sync in the same txg.  Like TXG_NOWAIT, it
- *	returns ERESTART if it can't assign you into the requested txg.
  */
 int
-dmu_tx_assign(dmu_tx_t *tx, uint64_t txg_how)
+dmu_tx_assign(dmu_tx_t *tx, txg_how_t txg_how)
 {
 	int err;
 
 	ASSERT(tx->tx_txg == 0);
-	ASSERT(txg_how != 0);
+	ASSERT(txg_how == TXG_WAIT || txg_how == TXG_NOWAIT);
 	ASSERT(!dsl_pool_sync_context(tx->tx_pool));
+
+	/* If we might wait, we must not hold the config lock. */
+	ASSERT(txg_how != TXG_WAIT || !dsl_pool_config_held(tx->tx_pool));
 
 	while ((err = dmu_tx_try_assign(tx, txg_how)) != 0) {
 		dmu_tx_unassign(tx);
@@ -1082,6 +1084,7 @@ dmu_tx_wait(dmu_tx_t *tx)
 	spa_t *spa = tx->tx_pool->dp_spa;
 
 	ASSERT(tx->tx_txg == 0);
+	ASSERT(!dsl_pool_config_held(tx->tx_pool));
 
 	/*
 	 * It's possible that the pool has become active after this thread
@@ -1127,6 +1130,10 @@ dmu_tx_commit(dmu_tx_t *tx)
 
 	ASSERT(tx->tx_txg != 0);
 
+	/*
+	 * Go through the transaction's hold list and remove holds on
+	 * associated dnodes, notifying waiters if no holds remain.
+	 */
 	while (txh = list_head(&tx->tx_holds)) {
 		dnode_t *dn = txh->txh_dnode;
 
@@ -1207,6 +1214,14 @@ dmu_tx_get_txg(dmu_tx_t *tx)
 	ASSERT(tx->tx_txg != 0);
 	return (tx->tx_txg);
 }
+
+dsl_pool_t *
+dmu_tx_pool(dmu_tx_t *tx)
+{
+	ASSERT(tx->tx_pool != NULL);
+	return (tx->tx_pool);
+}
+
 
 void
 dmu_tx_callback_register(dmu_tx_t *tx, dmu_tx_callback_func_t *func, void *data)

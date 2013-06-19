@@ -73,17 +73,19 @@ struct pci_device_id {
 #define	PCI_DEVICE_ID_MELLANOX_SINAI		0x6274
 
 
-#define PCI_VDEVICE(vendor, device)					\
-	    PCI_VENDOR_ID_##vendor, (device), PCI_ANY_ID, PCI_ANY_ID, 0, 0
-#define	PCI_DEVICE(vendor, device)					\
-	    (vendor), (device), PCI_ANY_ID, PCI_ANY_ID, 0, 0
+#define PCI_VDEVICE(_vendor, _device)					\
+	    .vendor = PCI_VENDOR_ID_##_vendor, .device = (_device),	\
+	    .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
+#define	PCI_DEVICE(_vendor, _device)					\
+	    .vendor = (_vendor), .device = (_device),			\
+	    .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
 
 #define	to_pci_dev(n)	container_of(n, struct pci_dev, dev)
 
 #define	PCI_VENDOR_ID	PCIR_DEVVENDOR
 #define	PCI_COMMAND	PCIR_COMMAND
-#define	PCI_EXP_DEVCTL	PCIR_EXPRESS_DEVICE_CTL
-#define	PCI_EXP_LNKCTL	PCIR_EXPRESS_LINK_CTL
+#define	PCI_EXP_DEVCTL	PCIER_DEVICE_CTL
+#define	PCI_EXP_LNKCTL	PCIER_LINK_CTL
 
 #define	IORESOURCE_MEM	SYS_RES_MEMORY
 #define	IORESOURCE_IO	SYS_RES_IOPORT

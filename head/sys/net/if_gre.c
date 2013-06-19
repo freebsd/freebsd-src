@@ -90,8 +90,6 @@
  */
 #define GREMTU	1476
 
-#define GRENAME	"gre"
-
 #define	MTAG_COOKIE_GRE		1307983903
 #define	MTAG_GRE_NESTING	1
 struct mtag_gre_nesting {
@@ -105,17 +103,18 @@ struct mtag_gre_nesting {
  * XXX: gre_softc data not protected yet.
  */
 struct mtx gre_mtx;
-static MALLOC_DEFINE(M_GRE, GRENAME, "Generic Routing Encapsulation");
+static const char grename[] = "gre";
+static MALLOC_DEFINE(M_GRE, grename, "Generic Routing Encapsulation");
 
 struct gre_softc_head gre_softc_list;
 
 static int	gre_clone_create(struct if_clone *, int, caddr_t);
 static void	gre_clone_destroy(struct ifnet *);
-static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
-static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct route *ro);
+static struct if_clone *gre_cloner;
 
-IFC_SIMPLE_DECLARE(gre, 0);
+static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
+static int	gre_output(struct ifnet *, struct mbuf *,
+		    const struct sockaddr *, struct route *);
 
 static int gre_compute_route(struct gre_softc *sc);
 
@@ -172,7 +171,8 @@ greattach(void)
 
 	mtx_init(&gre_mtx, "gre_mtx", NULL, MTX_DEF);
 	LIST_INIT(&gre_softc_list);
-	if_clone_attach(&gre_cloner);
+	gre_cloner = if_clone_simple(grename, gre_clone_create,
+	    gre_clone_destroy, 0);
 }
 
 static int
@@ -192,7 +192,7 @@ gre_clone_create(ifc, unit, params)
 	}
 
 	GRE2IFP(sc)->if_softc = sc;
-	if_initname(GRE2IFP(sc), ifc->ifc_name, unit);
+	if_initname(GRE2IFP(sc), grename, unit);
 
 	GRE2IFP(sc)->if_snd.ifq_maxlen = ifqmaxlen;
 	GRE2IFP(sc)->if_addrlen = 0;
@@ -241,7 +241,7 @@ gre_clone_destroy(ifp)
  * given by sc->g_proto. See also RFC 1701 and RFC 2004
  */
 static int
-gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	   struct route *ro)
 {
 	int error = 0;
@@ -333,20 +333,24 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	ip = NULL;
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-
-	if (bpf_peers_present(ifp->if_bpf)) {
+	else
 		af = dst->sa_family;
+
+	if (bpf_peers_present(ifp->if_bpf))
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
+
+	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		m_freem(m);
+		error = ENETDOWN;
+		goto end;
 	}
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 
 	if (sc->g_proto == IPPROTO_MOBILE) {
-		if (dst->sa_family == AF_INET) {
+		if (af == AF_INET) {
 			struct mbuf *m0;
 			int msiz;
 
@@ -356,7 +360,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			 * RFC2004 specifies that fragmented diagrams shouldn't
 			 * be encapsulated.
 			 */
-			if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
+			if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
 				_IF_DROP(&ifp->if_snd);
 				m_freem(m);
 				error = EINVAL;    /* is there better errno? */
@@ -384,8 +388,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			mob_h.hcrc = gre_in_cksum((u_int16_t *)&mob_h, msiz);
 
 			if ((m->m_data - msiz) < m->m_pktdat) {
-				/* need new mbuf */
-				MGETHDR(m0, M_DONTWAIT, MT_DATA);
+				m0 = m_gethdr(M_NOWAIT, MT_DATA);
 				if (m0 == NULL) {
 					_IF_DROP(&ifp->if_snd);
 					m_freem(m);
@@ -410,7 +413,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			}
 			ip = mtod(m, struct ip *);
 			memcpy((caddr_t)(ip + 1), &mob_h, (unsigned)msiz);
-			ip->ip_len = ntohs(ip->ip_len) + msiz;
+			ip->ip_len = htons(ntohs(ip->ip_len) + msiz);
 		} else {  /* AF_INET */
 			_IF_DROP(&ifp->if_snd);
 			m_freem(m);
@@ -418,7 +421,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			goto end;
 		}
 	} else if (sc->g_proto == IPPROTO_GRE) {
-		switch (dst->sa_family) {
+		switch (af) {
 		case AF_INET:
 			ip = mtod(m, struct ip *);
 			gre_ip_tos = ip->ip_tos;
@@ -452,7 +455,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		int hdrlen = sizeof(struct greip) + extra;
 		if (sc->key)
 			hdrlen += sizeof(uint32_t);
-		M_PREPEND(m, hdrlen, M_DONTWAIT);
+		M_PREPEND(m, hdrlen, M_NOWAIT);
 	} else {
 		_IF_DROP(&ifp->if_snd);
 		m_freem(m);
@@ -493,7 +496,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		((struct ip*)gh)->ip_ttl = GRE_TTL;
 		((struct ip*)gh)->ip_tos = gre_ip_tos;
 		((struct ip*)gh)->ip_id = gre_ip_id;
-		gh->gi_len = m->m_pkthdr.len;
+		gh->gi_len = htons(m->m_pkthdr.len);
 	}
 
 	ifp->if_opackets++;
@@ -518,7 +521,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct if_laddrreq *lifr = (struct if_laddrreq *)data;
 	struct in_aliasreq *aifr = (struct in_aliasreq *)data;
 	struct gre_softc *sc = ifp->if_softc;
-	int s;
 	struct sockaddr_in si;
 	struct sockaddr *sa = NULL;
 	int error, adj;
@@ -528,7 +530,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = 0;
 	adj = 0;
 
-	s = splnet();
 	switch (cmd) {
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
@@ -848,7 +849,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	}
 
-	splx(s);
 	return (error);
 }
 
@@ -961,7 +961,7 @@ gremodevent(module_t mod, int type, void *data)
 		greattach();
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(&gre_cloner);
+		if_clone_detach(gre_cloner);
 		mtx_destroy(&gre_mtx);
 		break;
 	default:

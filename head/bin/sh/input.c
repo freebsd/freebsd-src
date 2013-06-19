@@ -64,10 +64,9 @@ __FBSDID("$FreeBSD$");
 
 #define EOF_NLEFT -99		/* value of parsenleft when EOF pushed back */
 
-MKINIT
 struct strpush {
 	struct strpush *prev;	/* preceding string on stack */
-	char *prevstring;
+	const char *prevstring;
 	int prevnleft;
 	int prevlleft;
 	struct alias *ap;	/* if push was associated with an alias */
@@ -78,14 +77,13 @@ struct strpush {
  * contains information about the current file being read.
  */
 
-MKINIT
 struct parsefile {
 	struct parsefile *prev;	/* preceding file on stack */
 	int linno;		/* current line */
 	int fd;			/* file descriptor (or -1 if string) */
 	int nleft;		/* number of chars left in this line */
 	int lleft;		/* number of lines left in this buffer */
-	char *nextc;		/* next char in buffer */
+	const char *nextc;	/* next char in buffer */
 	char *buf;		/* input buffer */
 	struct strpush *strpush; /* for pushing strings at this level */
 	struct strpush basestrpush; /* so pushing one is fast */
@@ -95,11 +93,13 @@ struct parsefile {
 int plinno = 1;			/* input line number */
 int parsenleft;			/* copy of parsefile->nleft */
 MKINIT int parselleft;		/* copy of parsefile->lleft */
-char *parsenextc;		/* copy of parsefile->nextc */
-MKINIT struct parsefile basepf;	/* top level input file */
-char basebuf[BUFSIZ + 1];	/* buffer for top level input file */
+const char *parsenextc;		/* copy of parsefile->nextc */
+static char basebuf[BUFSIZ + 1];/* buffer for top level input file */
+static struct parsefile basepf = {	/* top level input file */
+	.nextc = basebuf,
+	.buf = basebuf
+};
 static struct parsefile *parsefile = &basepf;	/* current input file */
-int init_editline = 0;		/* editline library initialized? */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 EditLine *el;			/* cookie for editline package */
@@ -111,12 +111,6 @@ static void popstring(void);
 #ifdef mkinit
 INCLUDE "input.h"
 INCLUDE "error.h"
-
-MKINIT char basebuf[];
-
-INIT {
-	basepf.nextc = basepf.buf = basebuf;
-}
 
 RESET {
 	popallfiles();
@@ -191,7 +185,7 @@ retry:
 			nr = el_len;
 			if (nr > BUFSIZ)
 				nr = BUFSIZ;
-			memcpy(parsenextc, rl_cp, nr);
+			memcpy(parsefile->buf, rl_cp, nr);
 			if (nr != el_len) {
 				el_len -= nr;
 				rl_cp += nr;
@@ -200,7 +194,7 @@ retry:
 		}
 	} else
 #endif
-		nr = read(parsefile->fd, parsenextc, BUFSIZ);
+		nr = read(parsefile->fd, parsefile->buf, BUFSIZ);
 
 	if (nr <= 0) {
                 if (nr < 0) {
@@ -258,7 +252,7 @@ again:
 		}
 	}
 
-	q = p = parsenextc;
+	q = p = parsefile->buf + (parsenextc - parsefile->buf);
 
 	/* delete nul characters */
 	something = 0;
@@ -350,7 +344,7 @@ pungetc(void)
  * We handle aliases this way.
  */
 void
-pushstring(char *s, int len, void *ap)
+pushstring(char *s, int len, struct alias *ap)
 {
 	struct strpush *sp;
 
@@ -365,9 +359,9 @@ pushstring(char *s, int len, void *ap)
 	sp->prevstring = parsenextc;
 	sp->prevnleft = parsenleft;
 	sp->prevlleft = parselleft;
-	sp->ap = (struct alias *)ap;
+	sp->ap = ap;
 	if (ap)
-		((struct alias *)ap)->flag |= ALIASINUSE;
+		ap->flag |= ALIASINUSE;
 	parsenextc = s;
 	parsenleft = len;
 	INTON;
@@ -403,10 +397,10 @@ setinputfile(const char *fname, int push)
 	int fd2;
 
 	INTOFF;
-	if ((fd = open(fname, O_RDONLY)) < 0)
+	if ((fd = open(fname, O_RDONLY | O_CLOEXEC)) < 0)
 		error("cannot open %s: %s", fname, strerror(errno));
 	if (fd < 10) {
-		fd2 = fcntl(fd, F_DUPFD, 10);
+		fd2 = fcntl(fd, F_DUPFD_CLOEXEC, 10);
 		close(fd);
 		if (fd2 < 0)
 			error("Out of file descriptors");
@@ -418,14 +412,13 @@ setinputfile(const char *fname, int push)
 
 
 /*
- * Like setinputfile, but takes an open file descriptor.  Call this with
- * interrupts off.
+ * Like setinputfile, but takes an open file descriptor (which should have
+ * its FD_CLOEXEC flag already set).  Call this with interrupts off.
  */
 
 void
 setinputfd(int fd, int push)
 {
-	(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
 	if (push) {
 		pushfile();
 		parsefile->buf = ckmalloc(BUFSIZ + 1);
@@ -445,7 +438,7 @@ setinputfd(int fd, int push)
  */
 
 void
-setinputstring(char *string, int push)
+setinputstring(const char *string, int push)
 {
 	INTOFF;
 	if (push)

@@ -13,22 +13,22 @@
 
 #include "MSP430.h"
 #include "MSP430TargetMachine.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/CallingConv.h"
-#include "llvm/Constants.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/Target/TargetLowering.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetLowering.h"
 using namespace llvm;
 
 namespace {
@@ -274,8 +274,8 @@ bool MSP430DAGToDAGISel::SelectAddr(SDValue N,
   else if (AM.JT != -1)
     Disp = CurDAG->getTargetJumpTable(AM.JT, MVT::i16, 0/*AM.SymbolFlags*/);
   else if (AM.BlockAddr)
-    Disp = CurDAG->getBlockAddress(AM.BlockAddr, MVT::i32,
-                                   true, 0/*AM.SymbolFlags*/);
+    Disp = CurDAG->getTargetBlockAddress(AM.BlockAddr, MVT::i32, 0,
+                                         0/*AM.SymbolFlags*/);
   else
     Disp = CurDAG->getTargetConstant(AM.Disp, MVT::i16);
 

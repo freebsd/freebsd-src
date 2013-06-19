@@ -632,13 +632,6 @@ oct16550_bus_ipend(struct uart_softc *sc)
 	}
 	uart_unlock(sc->sc_hwmtx);
 
-//#define OCTEON_VISUAL_UART 1
-#ifdef OCTEON_VISUAL_UART
-        static int where1 = 0;
-
-        if (ipend)	octeon_led_run_wheel(&where1, 6 + device_get_unit(sc->sc_dev));
-#endif
-
 	return (ipend);
 }
 
@@ -663,7 +656,7 @@ oct16550_bus_probe (struct uart_softc *sc)
 	int error;
 
 	bas = &sc->sc_bas;
-	bas->rclk = uart_oct16550_class.uc_rclk = cvmx_sysinfo_get()->cpu_clock_hz;
+	bas->rclk = uart_oct16550_class.uc_rclk = cvmx_clock_get_rate(CVMX_CLOCK_SCLK);
 
 	error = oct16550_probe(bas);
 	if (error) {

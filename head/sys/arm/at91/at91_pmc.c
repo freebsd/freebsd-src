@@ -227,23 +227,18 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 	struct at91_pmc_softc *sc = pmc_softc;
 	uint32_t value;
 
-	if (on) {
-		on = PMC_IER_LOCKB;
-		value = pllb_init;
-	} else
-		value = 0;
+	value = on ? pllb_init : 0;
 
-	/* Workaround RM9200 Errata #26 */
-	if (at91_is_rm92() &&
-	   ((value ^ RD4(sc, CKGR_PLLBR)) & 0x03f0ff) != 0) {
-		WR4(sc, CKGR_PLLBR, value ^ 1);
-		while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
+	/*
+	 * Only write to the register if the value is changing.  Besides being
+	 * good common sense, this works around RM9200 Errata #26 (CKGR_PLL[AB]R
+	 * must not be written with the same value currently in the register).
+	 */
+	if (RD4(sc, CKGR_PLLBR) != value) {
+		WR4(sc, CKGR_PLLBR, value);
+		while (on && (RD4(sc, PMC_SR) & PMC_IER_LOCKB) != PMC_IER_LOCKB)
 			continue;
 	}
-
-	WR4(sc, CKGR_PLLBR, value);
-	while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
-		continue;
 }
 
 static void
@@ -577,7 +572,6 @@ at91_pmc_init_clock(void)
 		WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
 	} else
 		WR4(sc, PMC_SCDR, PMC_SCER_UHP_SAM9 | PMC_SCER_UDP_SAM9);
-	WR4(sc, CKGR_PLLBR, 0);
 
 	/*
 	 * MCK and PCU derive from one of the primary clocks.  Initialize

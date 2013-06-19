@@ -107,6 +107,7 @@ hdspe_intr(void *p)
 		}
 
 		hdspe_write_1(sc, HDSPE_INTERRUPT_ACK, 0);
+		free(devlist, M_TEMP);
 	}
 
 	snd_mtxunlock(sc->lock);

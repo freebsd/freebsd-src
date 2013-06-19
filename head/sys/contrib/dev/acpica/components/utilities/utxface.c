@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,7 +160,7 @@ ACPI_EXPORT_SYMBOL (AcpiSubsystemStatus)
  * RETURN:      Status          - the status of the call
  *
  * DESCRIPTION: This function is called to get information about the current
- *              state of the ACPI subsystem.  It will return system information
+ *              state of the ACPI subsystem. It will return system information
  *              in the OutBuffer.
  *
  *              If the function fails an appropriate status will be returned
@@ -310,7 +310,7 @@ AcpiInstallInitializationHandler (
     }
 
     AcpiGbl_InitHandler = Handler;
-    return AE_OK;
+    return (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL (AcpiInstallInitializationHandler)
@@ -334,10 +334,12 @@ AcpiPurgeCachedObjects (
 {
     ACPI_FUNCTION_TRACE (AcpiPurgeCachedObjects);
 
+
     (void) AcpiOsPurgeCache (AcpiGbl_StateCache);
     (void) AcpiOsPurgeCache (AcpiGbl_OperandCache);
     (void) AcpiOsPurgeCache (AcpiGbl_PsNodeCache);
     (void) AcpiOsPurgeCache (AcpiGbl_PsNodeExtCache);
+
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -371,7 +373,11 @@ AcpiInstallInterface (
         return (AE_BAD_PARAMETER);
     }
 
-    (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     /* Check if the interface name is already in the global list */
 
@@ -432,7 +438,11 @@ AcpiRemoveInterface (
         return (AE_BAD_PARAMETER);
     }
 
-    (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     Status = AcpiUtRemoveInterface (InterfaceName);
 
@@ -462,10 +472,14 @@ ACPI_STATUS
 AcpiInstallInterfaceHandler (
     ACPI_INTERFACE_HANDLER  Handler)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
 
 
-    (void) AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
 
     if (Handler && AcpiGbl_InterfaceHandler)
     {

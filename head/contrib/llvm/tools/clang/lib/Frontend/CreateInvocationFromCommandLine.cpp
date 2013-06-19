@@ -12,14 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/Utils.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/DiagnosticOptions.h"
-#include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Basic/DiagnosticOptions.h"
+#include "clang/Driver/ArgList.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
-#include "clang/Driver/ArgList.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/Tool.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/Support/Host.h"
 using namespace clang;
 
@@ -34,9 +34,7 @@ clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
   if (!Diags.getPtr()) {
     // No diagnostics engine was provided, so create our own diagnostics object
     // with the default options.
-    DiagnosticOptions DiagOpts;
-    Diags = CompilerInstance::createDiagnostics(DiagOpts, ArgList.size(),
-                                                ArgList.begin());
+    Diags = CompilerInstance::createDiagnostics(new DiagnosticOptions);
   }
 
   SmallVector<const char *, 16> Args;
@@ -48,12 +46,7 @@ clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
 
   // FIXME: We shouldn't have to pass in the path info.
   driver::Driver TheDriver("clang", llvm::sys::getDefaultTargetTriple(),
-                           "a.out", false, *Diags);
-  // Force driver to use clang.
-  // FIXME: This seems like a hack. Maybe the "Clang" tool subclass should be
-  // available for using it to get the arguments, thus avoiding the overkill
-  // of using the driver.
-  TheDriver.setForcedClangUse();
+                           "a.out", *Diags);
 
   // Don't check that inputs exist, they may have been remapped.
   TheDriver.setCheckInputsExist(false);

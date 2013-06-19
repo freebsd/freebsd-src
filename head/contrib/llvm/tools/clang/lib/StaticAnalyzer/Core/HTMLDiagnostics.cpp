@@ -12,19 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
-#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
-#include "clang/Rewrite/Rewriter.h"
-#include "clang/Rewrite/HTMLRewrite.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Rewrite/Core/HTMLRewrite.h"
+#include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -76,7 +76,8 @@ HTMLDiagnostics::HTMLDiagnostics(const std::string& prefix,
   FilePrefix.appendComponent("report");
 }
 
-void ento::createHTMLDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createHTMLDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                        PathDiagnosticConsumers &C,
                                         const std::string& prefix,
                                         const Preprocessor &PP) {
   C.push_back(new HTMLDiagnostics(prefix, PP));
@@ -189,7 +190,7 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
       << (*path.rbegin())->getLocation().asLocation().getExpansionColumnNumber()
       << "</a></td></tr>\n"
          "<tr><td class=\"rowname\">Description:</td><td>"
-      << D.getDescription() << "</td></tr>\n";
+      << D.getVerboseDescription() << "</td></tr>\n";
 
     // Output any other meta data.
 
@@ -209,15 +210,15 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
     std::string s;
     llvm::raw_string_ostream os(s);
 
-    const std::string& BugDesc = D.getDescription();
+    StringRef BugDesc = D.getVerboseDescription();
     if (!BugDesc.empty())
       os << "\n<!-- BUGDESC " << BugDesc << " -->\n";
 
-    const std::string& BugType = D.getBugType();
+    StringRef BugType = D.getBugType();
     if (!BugType.empty())
       os << "\n<!-- BUGTYPE " << BugType << " -->\n";
 
-    const std::string& BugCategory = D.getCategory();
+    StringRef BugCategory = D.getCategory();
     if (!BugCategory.empty())
       os << "\n<!-- BUGCATEGORY " << BugCategory << " -->\n";
 
@@ -267,8 +268,7 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   }
 
   if (filesMade) {
-    filesMade->push_back(std::make_pair(StringRef(getName()),
-                                        llvm::sys::path::filename(H.str())));
+    filesMade->addDiagnostic(D, getName(), llvm::sys::path::filename(H.str()));
   }
 
   // Emit the HTML to disk.

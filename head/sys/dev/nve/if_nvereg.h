@@ -186,10 +186,6 @@ struct nve_type {
 #define NVE_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
 #define NVE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
-#define IF_Kbps(x) ((x) * 1000)			/* kilobits/sec. */
-#define IF_Mbps(x) (IF_Kbps((x) * 1000))	/* megabits/sec. */
-#define ETHER_ALIGN 2
-
 extern int ADAPTER_ReadPhy (PVOID pContext, ULONG ulPhyAddr, ULONG ulReg, ULONG *pulVal);
 extern int ADAPTER_WritePhy (PVOID pContext, ULONG ulPhyAddr, ULONG ulReg, ULONG ulVal);
 extern int ADAPTER_Init (PVOID pContext, USHORT usForcedSpeed, UCHAR ucForceDpx, UCHAR ucForceMode, UINT *puiLinkState);

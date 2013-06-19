@@ -682,7 +682,7 @@ epic_ifstart_locked(struct ifnet * ifp)
 		 * recopy packet to a newly allocated mbuf cluster.
 		 */
 		if (error) {
-			m = m_defrag(m0, M_DONTWAIT);
+			m = m_defrag(m0, M_NOWAIT);
 			if (m == NULL) {
 				m_freem(m0);
 				ifp->if_oerrors++;
@@ -761,7 +761,7 @@ epic_rx_done(epic_softc_t *sc)
 		m = buf->mbuf;
 
 		/* Try to get an mbuf cluster. */
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			buf->mbuf = m;
 			desc->status = 0x8000;
@@ -1495,7 +1495,7 @@ epic_queue_last_packet(epic_softc_t *sc)
 	if ((desc->status & 0x8000) || (buf->mbuf != NULL))
 		return (EBUSY);
 
-	MGETHDR(m0, M_DONTWAIT, MT_DATA);
+	MGETHDR(m0, M_NOWAIT, MT_DATA);
 	if (m0 == NULL)
 		return (ENOBUFS);
 
@@ -1644,7 +1644,7 @@ epic_init_rings(epic_softc_t *sc)
 			return (EFAULT);
 		}
 
-		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		buf->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (buf->mbuf == NULL) {
 			epic_free_rings(sc);
 			return (ENOBUFS);

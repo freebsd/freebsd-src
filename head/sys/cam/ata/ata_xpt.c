@@ -224,11 +224,6 @@ proberegister(struct cam_periph *periph, void *arg)
 	probe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
-	if (periph == NULL) {
-		printf("proberegister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (request_ccb == NULL) {
 		printf("proberegister: no probe CCB, "
 		       "can't register device\n");
@@ -254,12 +249,6 @@ proberegister(struct cam_periph *periph, void *arg)
 		return (status);
 	}
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
-
-	/*
-	 * Ensure nobody slip in until probe finish.
-	 */
-	cam_freeze_devq_arg(periph->path,
-	    RELSIM_RELEASE_RUNLEVEL, CAM_RL_XPT + 1);
 	probeschedule(periph);
 	return(CAM_REQ_CMP);
 }
@@ -666,6 +655,7 @@ negotiate:
 	default:
 		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
+	start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 	xpt_action(start_ccb);
 }
 
@@ -713,12 +703,15 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if (cam_periph_error(done_ccb,
 		    0, softc->restart ? (SF_NO_RECOVERY | SF_NO_RETRY) : 0,
-		    NULL) == ERESTART)
+		    NULL) == ERESTART) {
+out:
+			/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+			cam_release_devq(path, 0, 0, 0, FALSE);
 			return;
+		}
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
+			xpt_release_devq(path, /*count*/1, /*run_queue*/TRUE);
 		}
 		status = done_ccb->ccb_h.status & CAM_STATUS_MASK;
 		if (softc->restart) {
@@ -756,6 +749,14 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			goto noerror;
 
 		/*
+		 * Some Samsung SSDs report supported Asynchronous Notification,
+		 * but return ABORT on attempt to enable it.
+		 */
+		} else if (softc->action == PROBE_SETAN &&
+		    status == CAM_ATA_STATUS_ERROR) {
+			goto noerror;
+
+		/*
 		 * SES and SAF-TE SEPs have different IDENTIFY commands,
 		 * but SATA specification doesn't tell how to identify them.
 		 * Until better way found, just try another if first fail.
@@ -765,7 +766,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			PROBE_SET_ACTION(softc, PROBE_IDENTIFY_SAFTE);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 
 		/*
@@ -827,7 +828,7 @@ noerror:
 		}
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	}
 	case PROBE_IDENTIFY:
 	{
@@ -861,7 +862,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SPINUP);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		ident_buf = &path->device->ident_data;
 		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
@@ -914,6 +915,7 @@ noerror:
 					    path->device->device_id, 8);
 					bcopy(ident_buf->wwn,
 					    path->device->device_id + 8, 8);
+					ata_bswap(path->device->device_id + 8, 8);
 				}
 			}
 
@@ -951,7 +953,7 @@ noerror:
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	}
 	case PROBE_SPINUP:
 		if (bootverbose)
@@ -960,21 +962,24 @@ noerror:
 		PROBE_SET_ACTION(softc, PROBE_IDENTIFY);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	case PROBE_SETMODE:
-		if (path->device->transport != XPORT_SATA)
-			goto notsata;
 		/* Set supported bits. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
 		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		xpt_action((union ccb *)&cts);
-		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+		if (path->device->transport == XPORT_SATA &&
+		    cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
 			caps = cts.xport_specific.sata.caps & CTS_SATA_CAPS_H;
+		else if (path->device->transport == XPORT_ATA &&
+		    cts.xport_specific.ata.valid & CTS_ATA_VALID_CAPS)
+			caps = cts.xport_specific.ata.caps & CTS_ATA_CAPS_H;
 		else
 			caps = 0;
-		if (ident_buf->satacapabilities != 0xffff) {
+		if (path->device->transport == XPORT_SATA &&
+		    ident_buf->satacapabilities != 0xffff) {
 			if (ident_buf->satacapabilities & ATA_SUPPORT_IFPWRMNGTRCV)
 				caps |= CTS_SATA_CAPS_D_PMREQ;
 			if (ident_buf->satacapabilities & ATA_SUPPORT_HAPST)
@@ -986,26 +991,49 @@ noerror:
 		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_USER_SETTINGS;
 		xpt_action((union ccb *)&cts);
-		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
+		if (path->device->transport == XPORT_SATA &&
+		    cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
 			caps &= cts.xport_specific.sata.caps;
+		else if (path->device->transport == XPORT_ATA &&
+		    cts.xport_specific.ata.valid & CTS_ATA_VALID_CAPS)
+			caps &= cts.xport_specific.ata.caps;
 		else
 			caps = 0;
+		/*
+		 * Remember what transport thinks about 48-bit DMA.  If
+		 * capability information is not provided or transport is
+		 * SATA, we take support for granted.
+		 */
+		if (!(path->device->inq_flags & SID_DMA) ||
+		    (path->device->transport == XPORT_ATA &&
+		    (cts.xport_specific.ata.valid & CTS_ATA_VALID_CAPS) &&
+		    !(caps & CTS_ATA_CAPS_H_DMA48)))
+			path->device->inq_flags &= ~SID_DMA48;
+		else
+			path->device->inq_flags |= SID_DMA48;
 		/* Store result to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
 		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
-		cts.xport_specific.sata.caps = caps;
-		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
+		if (path->device->transport == XPORT_SATA) {
+			cts.xport_specific.sata.caps = caps;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
+		} else {
+			cts.xport_specific.ata.caps = caps;
+			cts.xport_specific.ata.valid = CTS_ATA_VALID_CAPS;
+		}
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
+		if (path->device->transport != XPORT_SATA)
+			goto notsata;
 		if ((ident_buf->satasupport & ATA_SUPPORT_IFPWRMNGT) &&
 		    (!(softc->caps & CTS_SATA_CAPS_H_PMREQ)) !=
 		    (!(ident_buf->sataenabled & ATA_SUPPORT_IFPWRMNGT))) {
 			PROBE_SET_ACTION(softc, PROBE_SETPM);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETPM:
@@ -1016,7 +1044,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SETAPST);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETAPST:
@@ -1026,7 +1054,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SETDMAAA);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETDMAAA:
@@ -1036,7 +1064,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_SETAN);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETAN:
@@ -1048,15 +1076,14 @@ notsata:
 		}
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	case PROBE_SET_MULTI:
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
-			    done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1089,7 +1116,7 @@ notsata:
 			PROBE_SET_ACTION(softc, PROBE_FULL_INQUIRY);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
-			return;
+			goto out;
 		}
 
 		ata_device_transport(path);
@@ -1098,7 +1125,7 @@ notsata:
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path, done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1116,7 +1143,7 @@ notsata:
 		PROBE_SET_ACTION(softc, PROBE_PM_PRV);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		return;
+		goto out;
 	case PROBE_PM_PRV:
 		softc->pm_prv = (done_ccb->ataio.res.lba_high << 24) +
 		    (done_ccb->ataio.res.lba_mid << 16) +
@@ -1151,6 +1178,11 @@ notsata:
 			caps &= cts.xport_specific.sata.caps;
 		else
 			caps = 0;
+		/* Remember what transport thinks about AEN. */
+		if (caps & CTS_SATA_CAPS_H_AN)
+			path->device->inq_flags |= SID_AEN;
+		else
+			path->device->inq_flags &= ~SID_AEN;
 		/* Store result to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
@@ -1160,23 +1192,17 @@ notsata:
 		cts.xport_specific.sata.valid = CTS_SATA_VALID_CAPS;
 		xpt_action((union ccb *)&cts);
 		softc->caps = caps;
-		/* Remember what transport thinks about AEN. */
-		if (softc->caps & CTS_SATA_CAPS_H_AN)
-			path->device->inq_flags |= SID_AEN;
-		else
-			path->device->inq_flags &= ~SID_AEN;
 		xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
-			    done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		} else {
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_SCSI_AEN, done_ccb->ccb_h.path, done_ccb);
+			xpt_async(AC_SCSI_AEN, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1221,8 +1247,7 @@ notsata:
 			xpt_acquire_device(path->device);
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
-			    done_ccb);
+			xpt_async(AC_FOUND_DEVICE, path, done_ccb);
 		}
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
@@ -1234,7 +1259,7 @@ done:
 		softc->restart = 0;
 		xpt_release_ccb(done_ccb);
 		probeschedule(periph);
-		return;
+		goto out;
 	}
 	xpt_release_ccb(done_ccb);
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
@@ -1244,9 +1269,9 @@ done:
 		done_ccb->ccb_h.status = found ? CAM_REQ_CMP : CAM_REQ_CMP_ERR;
 		xpt_done(done_ccb);
 	}
+	/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
+	cam_release_devq(path, 0, 0, 0, FALSE);
 	cam_periph_invalidate(periph);
-	cam_release_devq(periph->path,
-	    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_XPT + 1, FALSE);
 	cam_periph_release_locked(periph);
 }
 
@@ -1415,7 +1440,7 @@ done:
 		scan_info->counter = (scan_info->counter + 1 ) %
 		    (scan_info->cpi->max_target + 1);
 scan_next:
-		status = xpt_create_path(&path, xpt_periph,
+		status = xpt_create_path(&path, NULL,
 		    scan_info->request_ccb->ccb_h.path_id,
 		    scan_info->counter, 0);
 		if (status != CAM_REQ_CMP) {
@@ -1467,29 +1492,20 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	}
 
 	if (request_ccb == NULL) {
-		request_ccb = malloc(sizeof(union ccb), M_CAMXPT, M_NOWAIT);
+		request_ccb = xpt_alloc_ccb_nowait();
 		if (request_ccb == NULL) {
 			xpt_print(path, "xpt_scan_lun: can't allocate CCB, "
 			    "can't continue\n");
 			return;
 		}
-		new_path = malloc(sizeof(*new_path), M_CAMXPT, M_NOWAIT);
-		if (new_path == NULL) {
-			xpt_print(path, "xpt_scan_lun: can't allocate path, "
-			    "can't continue\n");
-			free(request_ccb, M_CAMXPT);
-			return;
-		}
-		status = xpt_compile_path(new_path, xpt_periph,
+		status = xpt_create_path(&new_path, NULL,
 					  path->bus->path_id,
 					  path->target->target_id,
 					  path->device->lun_id);
-
 		if (status != CAM_REQ_CMP) {
-			xpt_print(path, "xpt_scan_lun: can't compile path, "
+			xpt_print(path, "xpt_scan_lun: can't create path, "
 			    "can't continue\n");
-			free(request_ccb, M_CAMXPT);
-			free(new_path, M_CAMXPT);
+			xpt_free_ccb(request_ccb);
 			return;
 		}
 		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_XPT);
@@ -1529,9 +1545,9 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 static void
 xptscandone(struct cam_periph *periph, union ccb *done_ccb)
 {
-	xpt_release_path(done_ccb->ccb_h.path);
-	free(done_ccb->ccb_h.path, M_CAMXPT);
-	free(done_ccb, M_CAMXPT);
+
+	xpt_free_path(done_ccb->ccb_h.path);
+	xpt_free_ccb(done_ccb);
 }
 
 static struct cam_ed *
@@ -1540,7 +1556,6 @@ ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	struct cam_path path;
 	struct ata_quirk_entry *quirk;
 	struct cam_ed *device;
-	struct cam_ed *cur_device;
 
 	device = xpt_alloc_device(bus, target, lun_id);
 	if (device == NULL)
@@ -1565,16 +1580,6 @@ ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	 * do.
 	 */
 	bus->sim->max_ccbs += device->ccbq.devq_openings;
-	/* Insertion sort into our target's device list */
-	cur_device = TAILQ_FIRST(&target->ed_entries);
-	while (cur_device != NULL && cur_device->lun_id < lun_id)
-		cur_device = TAILQ_NEXT(cur_device, links);
-	if (cur_device != NULL) {
-		TAILQ_INSERT_BEFORE(cur_device, device, links);
-	} else {
-		TAILQ_INSERT_TAIL(&target->ed_entries, device, links);
-	}
-	target->generation++;
 	if (lun_id != CAM_LUN_WILDCARD) {
 		xpt_compile_path(&path,
 				 NULL,
@@ -2094,4 +2099,3 @@ ata_announce_periph(struct cam_periph *periph)
 	}
 	printf("\n");
 }
-

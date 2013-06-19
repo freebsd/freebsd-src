@@ -13,33 +13,33 @@ include "clang/StaticAnalyzer/Checkers/CheckerBase.td"
 // Packages.
 //===----------------------------------------------------------------------===//
 
-def Experimental : Package<"experimental">;
+def Alpha : Package<"alpha">;
 
 def Core : Package<"core">;
 def CoreBuiltin : Package<"builtin">, InPackage<Core>;
 def CoreUninitialized  : Package<"uninitialized">, InPackage<Core>;
-def CoreExperimental : Package<"core">, InPackage<Experimental>, Hidden;
+def CoreAlpha : Package<"core">, InPackage<Alpha>, Hidden;
 
 def Cplusplus : Package<"cplusplus">;
-def CplusplusExperimental : Package<"cplusplus">, InPackage<Experimental>, Hidden;
+def CplusplusAlpha : Package<"cplusplus">, InPackage<Alpha>, Hidden;
 
 def DeadCode : Package<"deadcode">;
-def DeadCodeExperimental : Package<"deadcode">, InPackage<Experimental>, Hidden;
+def DeadCodeAlpha : Package<"deadcode">, InPackage<Alpha>, Hidden;
 
 def Security : Package <"security">;
 def InsecureAPI : Package<"insecureAPI">, InPackage<Security>;
-def SecurityExperimental : Package<"security">, InPackage<Experimental>, Hidden;
-def Taint : Package<"taint">, InPackage<SecurityExperimental>, Hidden;  
+def SecurityAlpha : Package<"security">, InPackage<Alpha>, Hidden;
+def Taint : Package<"taint">, InPackage<SecurityAlpha>, Hidden;  
 
 def Unix : Package<"unix">;
-def UnixExperimental : Package<"unix">, InPackage<Experimental>, Hidden;
+def UnixAlpha : Package<"unix">, InPackage<Alpha>, Hidden;
 def CString : Package<"cstring">, InPackage<Unix>, Hidden;
-def CStringExperimental : Package<"cstring">, InPackage<UnixExperimental>, Hidden;
+def CStringAlpha : Package<"cstring">, InPackage<UnixAlpha>, Hidden;
 
 def OSX : Package<"osx">;
-def OSXExperimental : Package<"osx">, InPackage<Experimental>, Hidden;
+def OSXAlpha : Package<"osx">, InPackage<Alpha>, Hidden;
 def Cocoa : Package<"cocoa">, InPackage<OSX>;
-def CocoaExperimental : Package<"cocoa">, InPackage<OSXExperimental>, Hidden;
+def CocoaAlpha : Package<"cocoa">, InPackage<OSXAlpha>, Hidden;
 def CoreFoundation : Package<"coreFoundation">, InPackage<OSX>;
 def Containers : Package<"containers">, InPackage<CoreFoundation>;
 
@@ -60,13 +60,9 @@ def CallAndMessageChecker : Checker<"CallAndMessage">,
   HelpText<"Check for logical errors for function calls and Objective-C message expressions (e.g., uninitialized arguments, null function pointers)">,
   DescFile<"CallAndMessageChecker.cpp">;
 
-def AdjustedReturnValueChecker : Checker<"AdjustedReturnValue">,
-  HelpText<"Check to see if the return value of a function call is different than the caller expects (e.g., from calls through function pointers)">,
-  DescFile<"AdjustedReturnValueChecker.cpp">;
-
-def AttrNonNullChecker : Checker<"AttributeNonNull">,
-  HelpText<"Check for null pointers passed as arguments to a function whose arguments are marked with the 'nonnull' attribute">,
-  DescFile<"AttrNonNullChecker.cpp">;
+def NonNullParamChecker : Checker<"NonNullParamChecker">,
+  HelpText<"Check for null pointers passed as arguments to a function whose arguments are references or marked with the 'nonnull' attribute">,
+  DescFile<"NonNullParamChecker.cpp">;
 
 def VLASizeChecker : Checker<"VLASize">,
   HelpText<"Check for declarations of VLA of undefined or zero size">,
@@ -90,7 +86,7 @@ def DynamicTypePropagation : Checker<"DynamicTypePropagation">,
 
 } // end "core"
 
-let ParentPackage = CoreExperimental in {
+let ParentPackage = CoreAlpha in {
 
 def BoolAssignmentChecker : Checker<"BoolAssignment">,
   HelpText<"Warn about assigning non-{0,1} values to Boolean variables">,
@@ -120,7 +116,7 @@ def SizeofPointerChecker : Checker<"SizeofPtr">,
   HelpText<"Warn about unintended use of sizeof() on pointer expressions">,
   DescFile<"CheckSizeofPointer.cpp">;
 
-} // end "core.experimental"
+} // end "alpha.core"
 
 //===----------------------------------------------------------------------===//
 // Evaluate "builtin" functions.
@@ -170,13 +166,25 @@ def ReturnUndefChecker : Checker<"UndefReturn">,
 // C++ checkers.
 //===----------------------------------------------------------------------===//
 
-let ParentPackage = CplusplusExperimental in {
+let ParentPackage = Cplusplus in {
+
+def NewDeleteChecker : Checker<"NewDelete">,
+  HelpText<"Check for double-free and use-after-free problems. Traces memory managed by new/delete.">, 
+  DescFile<"MallocChecker.cpp">;
+
+} // end: "cplusplus"
+
+let ParentPackage = CplusplusAlpha in {
 
 def VirtualCallChecker : Checker<"VirtualCall">,
   HelpText<"Check virtual function calls during construction or destruction">, 
   DescFile<"VirtualCallChecker.cpp">;
 
-} // end: "cplusplus.experimental"
+def NewDeleteLeaksChecker : Checker<"NewDeleteLeaks">,
+  HelpText<"Check for memory leaks. Traces memory managed by new/delete.">, 
+  DescFile<"MallocChecker.cpp">;
+
+} // end: "alpha.cplusplus"
 
 //===----------------------------------------------------------------------===//
 // Deadcode checkers.
@@ -189,7 +197,7 @@ def DeadStoresChecker : Checker<"DeadStores">,
   DescFile<"DeadStoresChecker.cpp">;
 } // end DeadCode
 
-let ParentPackage = DeadCodeExperimental in {
+let ParentPackage = DeadCodeAlpha in {
 
 def IdempotentOperationChecker : Checker<"IdempotentOperations">,
   HelpText<"Warn about idempotent operations">,
@@ -199,7 +207,7 @@ def UnreachableCodeChecker : Checker<"UnreachableCode">,
   HelpText<"Check unreachable code">,
   DescFile<"UnreachableCodeChecker.cpp">;
 
-} // end "deadcode.experimental"
+} // end "alpha.deadcode"
 
 //===----------------------------------------------------------------------===//
 // Security checkers.
@@ -237,7 +245,7 @@ let ParentPackage = Security in {
     DescFile<"CheckSecuritySyntaxOnly.cpp">;
 }
 
-let ParentPackage = SecurityExperimental in {
+let ParentPackage = SecurityAlpha in {
 
 def ArrayBoundChecker : Checker<"ArrayBound">,
   HelpText<"Warn about buffer overflows (older checker)">,
@@ -255,7 +263,7 @@ def MallocOverflowSecurityChecker : Checker<"MallocOverflow">,
   HelpText<"Check for overflows in the arguments to malloc()">,
   DescFile<"MallocOverflowSecurityChecker.cpp">;
 
-} // end "security.experimental"
+} // end "alpha.security"
 
 //===----------------------------------------------------------------------===//
 // Taint checkers.
@@ -267,7 +275,7 @@ def GenericTaintChecker : Checker<"TaintPropagation">,
   HelpText<"Generate taint information used by other checkers">,
   DescFile<"GenericTaintChecker.cpp">;
 
-} // end "experimental.security.taint"
+} // end "alpha.security.taint"
 
 //===----------------------------------------------------------------------===//
 // Unix API checkers.
@@ -280,23 +288,27 @@ def UnixAPIChecker : Checker<"API">,
   DescFile<"UnixAPIChecker.cpp">;
 
 def MallocPessimistic : Checker<"Malloc">,
-  HelpText<"Check for memory leaks, double free, and use-after-free problems.">,
+  HelpText<"Check for memory leaks, double free, and use-after-free problems. Traces memory managed by malloc()/free().">,
   DescFile<"MallocChecker.cpp">;
   
 def MallocSizeofChecker : Checker<"MallocSizeof">,
   HelpText<"Check for dubious malloc arguments involving sizeof">,
   DescFile<"MallocSizeofChecker.cpp">;
+
+def MismatchedDeallocatorChecker : Checker<"MismatchedDeallocator">,
+  HelpText<"Check for mismatched deallocators.">,
+  DescFile<"MallocChecker.cpp">;
   
 } // end "unix"
 
-let ParentPackage = UnixExperimental in {
+let ParentPackage = UnixAlpha in {
 
 def ChrootChecker : Checker<"Chroot">,
   HelpText<"Check improper use of chroot">,
   DescFile<"ChrootChecker.cpp">;
 
 def MallocOptimistic : Checker<"MallocWithAnnotations">,
-  HelpText<"Check for memory leaks, double free, and use-after-free problems. Assumes that all user-defined functions which might free a pointer are annotated.">,
+  HelpText<"Check for memory leaks, double free, and use-after-free problems. Traces memory managed by malloc()/free(). Assumes that all user-defined functions which might free a pointer are annotated.">,
   DescFile<"MallocChecker.cpp">;
 
 def PthreadLockChecker : Checker<"PthreadLock">,
@@ -307,7 +319,11 @@ def StreamChecker : Checker<"Stream">,
   HelpText<"Check stream handling functions">,
   DescFile<"StreamChecker.cpp">;
 
-} // end "unix.experimental"
+def SimpleStreamChecker : Checker<"SimpleStream">,
+  HelpText<"Check for misuses of stream APIs">,
+  DescFile<"SimpleStreamChecker.cpp">;
+
+} // end "alpha.unix"
 
 let ParentPackage = CString in {
 
@@ -320,7 +336,7 @@ def CStringSyntaxChecker : Checker<"BadSizeArg">,
   DescFile<"CStringSyntaxChecker.cpp">;  
 }
 
-let ParentPackage = CStringExperimental in {
+let ParentPackage = CStringAlpha in {
 
 def CStringOutOfBounds : Checker<"OutOfBounds">,
   HelpText<"Check for out-of-bounds access in string functions">,
@@ -343,20 +359,15 @@ let ParentPackage = OSX in {
 
 def MacOSXAPIChecker : Checker<"API">,
   InPackage<OSX>,
-  HelpText<"Check for proper uses of various Mac OS X APIs">,
+  HelpText<"Check for proper uses of various Apple APIs">,
   DescFile<"MacOSXAPIChecker.cpp">;
-
-def OSAtomicChecker : Checker<"AtomicCAS">,
-  InPackage<OSX>,
-  HelpText<"Evaluate calls to OSAtomic functions">,
-  DescFile<"OSAtomicChecker.cpp">;
 
 def MacOSKeychainAPIChecker : Checker<"SecKeychainAPI">,
   InPackage<OSX>,
   HelpText<"Check for proper uses of Secure Keychain APIs">,
   DescFile<"MacOSKeychainAPIChecker.cpp">;
 
-} // end "macosx"
+} // end "osx"
 
 let ParentPackage = Cocoa in {
 
@@ -397,6 +408,10 @@ def ObjCLoopChecker : Checker<"Loops">,
   HelpText<"Improved modeling of loops using Cocoa collection types">,
   DescFile<"BasicObjCFoundationChecks.cpp">;
 
+def ObjCNonNilReturnValueChecker : Checker<"NonNilReturnValue">,
+  HelpText<"Model the APIs that are guaranteed to return a non-nil value">,
+  DescFile<"BasicObjCFoundationChecks.cpp">;
+
 def NSErrorChecker : Checker<"NSError">,
   HelpText<"Check usage of NSError** parameters">,
   DescFile<"NSErrorChecker.cpp">;
@@ -407,13 +422,33 @@ def RetainCountChecker : Checker<"RetainCount">,
 
 } // end "osx.cocoa"
 
-let ParentPackage = CocoaExperimental in {
+let ParentPackage = CocoaAlpha in {
 
 def ObjCDeallocChecker : Checker<"Dealloc">,
   HelpText<"Warn about Objective-C classes that lack a correct implementation of -dealloc">,
   DescFile<"CheckObjCDealloc.cpp">;
 
-} // end "cocoa.experimental"
+def InstanceVariableInvalidation : Checker<"InstanceVariableInvalidation">,
+  HelpText<"Check that the invalidatable instance variables are invalidated in the methods annotated with objc_instance_variable_invalidator">,
+  DescFile<"IvarInvalidationChecker.cpp">;
+
+def MissingInvalidationMethod : Checker<"MissingInvalidationMethod">,
+  HelpText<"Check that the invalidation methods are present in classes that contain invalidatable instance variables">,
+  DescFile<"IvarInvalidationChecker.cpp">;
+
+def DirectIvarAssignment : Checker<"DirectIvarAssignment">,
+  HelpText<"Check for direct assignments to instance variables">,
+  DescFile<"DirectIvarAssignment.cpp">;
+
+def DirectIvarAssignmentForAnnotatedFunctions : Checker<"DirectIvarAssignmentForAnnotatedFunctions">,
+  HelpText<"Check for direct assignments to instance variables in the methods annotated with objc_no_direct_instance_variable_assignment">,
+  DescFile<"DirectIvarAssignment.cpp">;
+
+def ObjCSuperCallChecker : Checker<"MissingSuperCall">,
+  HelpText<"Warn about Objective-C methods that lack a necessary call to super">,
+  DescFile<"ObjCMissingSuperCallChecker.cpp">;
+
+} // end "alpha.osx.cocoa"
 
 let ParentPackage = CoreFoundation in {
 
@@ -422,7 +457,7 @@ def CFNumberCreateChecker : Checker<"CFNumber">,
   DescFile<"BasicObjCFoundationChecks.cpp">;
 
 def CFRetainReleaseChecker : Checker<"CFRetainRelease">,
-  HelpText<"Check for null arguments to CFRetain/CFRelease">,
+  HelpText<"Check for null arguments to CFRetain/CFRelease/CFMakeCollectable">,
   DescFile<"BasicObjCFoundationChecks.cpp">;
 
 def CFErrorChecker : Checker<"CFError">,
@@ -479,6 +514,10 @@ def CallGraphDumper : Checker<"DumpCallGraph">,
   HelpText<"Display Call Graph">,
   DescFile<"DebugCheckers.cpp">;
 
+def ConfigDumper : Checker<"ConfigDumper">,
+  HelpText<"Dump config table">,
+  DescFile<"DebugCheckers.cpp">;
+
 def TraversalDumper : Checker<"DumpTraversal">,
   HelpText<"Print branch conditions as they are traversed by the engine">,
   DescFile<"TraversalChecker.cpp">;
@@ -500,4 +539,3 @@ def ExprInspectionChecker : Checker<"ExprInspection">,
   DescFile<"ExprInspectionChecker.cpp">;
 
 } // end "debug"
-

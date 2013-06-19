@@ -466,7 +466,7 @@ hatm_start(struct ifnet *ifp)
 		if (error == EFBIG) {
 			/* try to defragment the packet */
 			sc->istats.defrag++;
-			m = m_defrag(m, M_DONTWAIT);
+			m = m_defrag(m, M_NOWAIT);
 			if (m == NULL) {
 				tpd->mbuf = NULL;
 				hatm_free_txmbuf(sc);

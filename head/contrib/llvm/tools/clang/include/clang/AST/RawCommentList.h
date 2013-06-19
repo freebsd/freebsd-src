@@ -10,6 +10,7 @@
 #ifndef LLVM_CLANG_AST_RAW_COMMENT_LIST_H
 #define LLVM_CLANG_AST_RAW_COMMENT_LIST_H
 
+#include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/ArrayRef.h"
 
@@ -18,6 +19,7 @@ namespace clang {
 class ASTContext;
 class ASTReader;
 class Decl;
+class Preprocessor;
 
 namespace comments {
   class FullComment;
@@ -39,7 +41,7 @@ public:
   RawComment() : Kind(RCK_Invalid), IsAlmostTrailingComment(false) { }
 
   RawComment(const SourceManager &SourceMgr, SourceRange SR,
-             bool Merged = false);
+             bool Merged, bool ParseAllComments);
 
   CommentKind getKind() const LLVM_READONLY {
     return (CommentKind) Kind;
@@ -81,12 +83,18 @@ public:
 
   /// Returns true if this comment is not a documentation comment.
   bool isOrdinary() const LLVM_READONLY {
-    return (Kind == RCK_OrdinaryBCPL) || (Kind == RCK_OrdinaryC);
+    return ((Kind == RCK_OrdinaryBCPL) || (Kind == RCK_OrdinaryC)) &&
+        !ParseAllComments;
   }
 
   /// Returns true if this comment any kind of a documentation comment.
   bool isDocumentation() const LLVM_READONLY {
     return !isInvalid() && !isOrdinary();
+  }
+
+  /// Returns whether we are parsing all comments.
+  bool isParseAllComments() const LLVM_READONLY {
+    return ParseAllComments;
   }
 
   /// Returns raw comment text with comment markers.
@@ -114,7 +122,8 @@ public:
   }
 
   /// Parse the comment, assuming it is attached to decl \c D.
-  comments::FullComment *parse(const ASTContext &Context, const Decl *D) const;
+  comments::FullComment *parse(const ASTContext &Context,
+                               const Preprocessor *PP, const Decl *D) const;
 
 private:
   SourceRange Range;
@@ -133,6 +142,10 @@ private:
   bool IsTrailingComment : 1;
   bool IsAlmostTrailingComment : 1;
 
+  /// When true, ordinary comments starting with "//" and "/*" will be
+  /// considered as documentation comments.
+  bool ParseAllComments : 1;
+
   mutable bool BeginLineValid : 1; ///< True if BeginLine is valid
   mutable bool EndLineValid : 1;   ///< True if EndLine is valid
   mutable unsigned BeginLine;      ///< Cached line number
@@ -140,10 +153,12 @@ private:
 
   /// \brief Constructor for AST deserialization.
   RawComment(SourceRange SR, CommentKind K, bool IsTrailingComment,
-             bool IsAlmostTrailingComment) :
+             bool IsAlmostTrailingComment,
+             bool ParseAllComments) :
     Range(SR), RawTextValid(false), BriefTextValid(false), Kind(K),
     IsAttached(false), IsTrailingComment(IsTrailingComment),
     IsAlmostTrailingComment(IsAlmostTrailingComment),
+    ParseAllComments(ParseAllComments),
     BeginLineValid(false), EndLineValid(false)
   { }
 
@@ -188,7 +203,7 @@ public:
 private:
   SourceManager &SourceMgr;
   std::vector<RawComment *> Comments;
-  RawComment LastComment;
+  SourceLocation PrevCommentEndLoc;
   bool OnlyWhitespaceSeen;
 
   void addCommentsToFront(const std::vector<RawComment *> &C) {
@@ -205,4 +220,3 @@ private:
 } // end namespace clang
 
 #endif
-

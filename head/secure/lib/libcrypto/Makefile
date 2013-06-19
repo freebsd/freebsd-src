@@ -188,11 +188,11 @@ SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
 	digest.c e_aes.c e_aes_cbc_hmac_sha1.c e_bf.c e_camellia.c e_cast.c \
 	e_des.c e_des3.c e_idea.c e_null.c e_old.c e_rc2.c e_rc4.c \
 	e_rc4_hmac_md5.c e_rc5.c e_seed.c e_xcbc_d.c encode.c evp_acnf.c \
-	evp_enc.c evp_err.c evp_key.c evp_lib.c evp_pbe.c evp_pkey.c m_dss.c \
-	m_dss1.c m_ecdsa.c m_md4.c m_md5.c m_mdc2.c m_null.c m_ripemd.c \
-	m_sha.c m_sha1.c m_sigver.c m_wp.c names.c p5_crpt.c p5_crpt2.c \
-	p_dec.c p_enc.c p_lib.c p_open.c p_seal.c p_sign.c p_verify.c \
-	pmeth_fn.c pmeth_gn.c pmeth_lib.c
+	evp_cnf.c evp_enc.c evp_err.c evp_key.c evp_lib.c evp_pbe.c \
+	evp_pkey.c m_dss.c m_dss1.c m_ecdsa.c m_md4.c m_md5.c m_mdc2.c \
+	m_null.c m_ripemd.c m_sha.c m_sha1.c m_sigver.c m_wp.c names.c \
+	p5_crpt.c p5_crpt2.c p_dec.c p_enc.c p_lib.c p_open.c p_seal.c \
+	p_sign.c p_verify.c pmeth_fn.c pmeth_gn.c pmeth_lib.c
 INCS+=	evp.h
 
 # hmac
@@ -200,10 +200,8 @@ SRCS+=	hm_ameth.c hm_pmeth.c hmac.c
 INCS+=	hmac.h
 
 # idea
-.if ${MK_IDEA} != "no"
 SRCS+=	i_cbc.c i_cfb64.c i_ecb.c i_ofb64.c i_skey.c
 INCS+=	idea.h
-.endif
 
 # krb5
 INCS+=	krb5_asn.h
@@ -404,12 +402,6 @@ opensslconf.h: opensslconf-${MACHINE_CPUARCH}.h
 .endif
 	cp -f ${.ALLSRC} ${.TARGET}
 
-.if ${MK_IDEA} == "no"
-evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
-	sed '/^#ifndef OPENSSL_NO_IDEA$$/,/^#endif$$/d' ${.ALLSRC} > ${.TARGET}
-CLEANFILES+=	evp.h
-.endif
-
 OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
 afterinstall:
 	@${ECHO} "Removing stale symlinks."
@@ -428,10 +420,6 @@ afterinstall:
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
-.endif
-
-.if ${MK_IDEA} != "no"
-_ideapath=	${LCRYPTO_SRC}/crypto/idea
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \
@@ -459,7 +447,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/err \
 	${LCRYPTO_SRC}/crypto/evp \
 	${LCRYPTO_SRC}/crypto/hmac \
-	${_ideapath} \
+	${LCRYPTO_SRC}/crypto/idea \
 	${LCRYPTO_SRC}/crypto/krb5 \
 	${LCRYPTO_SRC}/crypto/lhash \
 	${LCRYPTO_SRC}/crypto/md4 \

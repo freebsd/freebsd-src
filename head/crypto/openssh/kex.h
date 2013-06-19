@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.52 2010/09/22 05:01:29 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.54 2013/01/08 18:49:04 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -90,6 +90,7 @@ struct Enc {
 	Cipher	*cipher;
 	int	enabled;
 	u_int	key_len;
+	u_int	iv_len;
 	u_int	block_size;
 	u_char	*key;
 	u_char	*iv;
@@ -101,6 +102,7 @@ struct Mac {
 	u_char	*key;
 	u_int	key_len;
 	int	type;
+	int	etm;		/* Encrypt-then-MAC */
 	const EVP_MD	*evp_md;
 	HMAC_CTX	evp_ctx;
 	struct umac_ctx *umac_ctx;

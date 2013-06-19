@@ -59,22 +59,21 @@
 #define DSMTU	65532
 #endif
 
-#define DISCNAME	"disc"
-
 struct disc_softc {
 	struct ifnet *sc_ifp;
 };
 
 static int	discoutput(struct ifnet *, struct mbuf *,
-		    struct sockaddr *, struct route *);
+		    const struct sockaddr *, struct route *);
 static void	discrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	discioctl(struct ifnet *, u_long, caddr_t);
 static int	disc_clone_create(struct if_clone *, int, caddr_t);
 static void	disc_clone_destroy(struct ifnet *);
 
-static MALLOC_DEFINE(M_DISC, DISCNAME, "Discard interface");
+static const char discname[] = "disc";
+static MALLOC_DEFINE(M_DISC, discname, "Discard interface");
 
-IFC_SIMPLE_DECLARE(disc, 0);
+static struct if_clone *disc_cloner;
 
 static int
 disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
@@ -90,7 +89,7 @@ disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	}
 
 	ifp->if_softc = sc;
-	if_initname(ifp, ifc->ifc_name, unit);
+	if_initname(ifp, discname, unit);
 	ifp->if_mtu = DSMTU;
 	/*
 	 * IFF_LOOPBACK should not be removed from disc's flags because
@@ -135,10 +134,11 @@ disc_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		if_clone_attach(&disc_cloner);
+		disc_cloner = if_clone_simple(discname, disc_clone_create,
+		    disc_clone_destroy, 0);
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(&disc_cloner);
+		if_clone_detach(disc_cloner);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -155,7 +155,7 @@ static moduledata_t disc_mod = {
 DECLARE_MODULE(if_disc, disc_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 static int
-discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+discoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	u_int32_t af;
@@ -163,15 +163,14 @@ discoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	M_ASSERTPKTHDR(m);
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
+	else
+		af = dst->sa_family;
 
-	if (bpf_peers_present(ifp->if_bpf)) {
-		u_int af = dst->sa_family;
+	if (bpf_peers_present(ifp->if_bpf))
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
-	}
+
 	m->m_pkthdr.rcvif = ifp;
 
 	ifp->if_opackets++;

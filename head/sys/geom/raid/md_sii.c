@@ -140,6 +140,7 @@ static struct g_raid_md_class g_raid_md_sii_class = {
 	"SiI",
 	g_raid_md_sii_methods,
 	sizeof(struct g_raid_md_sii_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -911,7 +912,7 @@ g_raid_md_taste_sii(struct g_raid_md_object *md, struct g_class *mp,
 	struct sii_raid_conf *meta;
 	struct g_raid_md_sii_perdisk *pd;
 	struct g_geom *geom;
-	int error, disk_pos, result, spare, len;
+	int disk_pos, result, spare, len;
 	char name[32];
 	uint16_t vendor;
 
@@ -1031,14 +1032,7 @@ search:
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_sii_new_disk(disk);
 
@@ -1200,15 +1194,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			pd->pd_disk_size = pp->mediasize;
 			if (size > pp->mediasize)
@@ -1458,15 +1444,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			update += g_raid_md_sii_start_disk(disk);
@@ -1688,4 +1666,4 @@ g_raid_md_free_sii(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_sii);
+G_RAID_MD_DECLARE(sii, "SiI");

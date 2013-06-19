@@ -2,7 +2,7 @@
 
 NO_OBJ=
 
-SUBDIR= include
+SUBDIR= include share
 
 FILESDIR=	${LIBEXECDIR}/bsdconfig/140.startup
 FILES=		INDEX USAGE

@@ -17,12 +17,11 @@
  * $FreeBSD$
  */
 #ifndef _ATH_AR5416_DESC_H_
-#define _ATH_AR5416_DESC_H
+#define _ATH_AR5416_DESC_H_
 
 /*
  * Hardware-specific descriptor structures.
  */
-#include "ah_desc.h"
 
 /* XXX Need to replace this with a dynamic 
  * method of determining Owl2 if possible 
@@ -358,6 +357,7 @@ struct ar5416_desc {
 #define AR_RxStatusRsvd30   0xfffff800
 /* Owl 2.x only */
 #define AR_DupFrame	    0x00000004
+#define AR_STBCFrame        0x00000008
 #define AR_RxAntenna        0xffffff00
 #define AR_RxAntenna_S      8
 

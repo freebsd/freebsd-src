@@ -14,10 +14,9 @@
 #ifndef LIB_ARCHIVE_ARCHIVEINTERNALS_H
 #define LIB_ARCHIVE_ARCHIVEINTERNALS_H
 
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Bitcode/Archive.h"
 #include "llvm/Support/TimeValue.h"
-#include "llvm/ADT/StringExtras.h"
-
 #include <cstring>
 
 #define ARFILE_MAGIC "!<arch>\n"                   ///< magic string
@@ -66,7 +65,7 @@ namespace llvm {
       fmag[1] = '\n';
     }
 
-    bool checkSignature() {
+    bool checkSignature() const {
       return 0 == memcmp(fmag, ARFILE_MEMBER_MAGIC,2);
     }
   };

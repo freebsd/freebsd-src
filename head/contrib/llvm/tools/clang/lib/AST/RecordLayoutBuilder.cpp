@@ -7,6 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/RecordLayout.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/CXXInheritance.h"
@@ -14,13 +15,12 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
-#include "clang/AST/RecordLayout.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/SemaDiagnostic.h"
-#include "llvm/Support/Format.h"
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/CrashRecoveryContext.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/MathExtras.h"
 
 using namespace clang;
 
@@ -676,8 +676,12 @@ protected:
                           bool FieldPacked, const FieldDecl *D);
   void LayoutBitField(const FieldDecl *D);
 
+  TargetCXXABI getCXXABI() const {
+    return Context.getTargetInfo().getCXXABI();
+  }
+
   bool isMicrosoftCXXABI() const {
-    return Context.getTargetInfo().getCXXABI() == CXXABI_Microsoft;
+    return getCXXABI().isMicrosoft();
   }
 
   void MSLayoutVirtualBases(const CXXRecordDecl *RD);
@@ -789,10 +793,8 @@ protected:
   void setDataSize(CharUnits NewSize) { DataSize = Context.toBits(NewSize); }
   void setDataSize(uint64_t NewSize) { DataSize = NewSize; }
 
-  RecordLayoutBuilder(const RecordLayoutBuilder&);   // DO NOT IMPLEMENT
-  void operator=(const RecordLayoutBuilder&); // DO NOT IMPLEMENT
-public:
-  static const CXXMethodDecl *ComputeKeyFunction(const CXXRecordDecl *RD);
+  RecordLayoutBuilder(const RecordLayoutBuilder &) LLVM_DELETED_FUNCTION;
+  void operator=(const RecordLayoutBuilder &) LLVM_DELETED_FUNCTION;
 };
 } // end anonymous namespace
 
@@ -1557,6 +1559,13 @@ CharUnits RecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
     bool Allowed = EmptySubobjects->CanPlaceBaseAtOffset(Base, Offset);
     (void)Allowed;
     assert(Allowed && "Base subobject externally placed at overlapping offset");
+
+    if (InferAlignment && Offset < getDataSize().RoundUpToAlignment(BaseAlign)){
+      // The externally-supplied base offset is before the base offset we
+      // computed. Assume that the structure is packed.
+      Alignment = CharUnits::One();
+      InferAlignment = false;
+    }
   }
   
   if (!Base->Class->isEmpty()) {
@@ -1574,12 +1583,12 @@ CharUnits RecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
 }
 
 void RecordLayoutBuilder::InitializeLayout(const Decl *D) {
-  if (const RecordDecl *RD = dyn_cast<RecordDecl>(D))
+  if (const RecordDecl *RD = dyn_cast<RecordDecl>(D)) {
     IsUnion = RD->isUnion();
+    IsMsStruct = RD->isMsStruct(Context);
+  }
 
-  Packed = D->hasAttr<PackedAttr>();
-  
-  IsMsStruct = D->hasAttr<MsStructAttr>();
+  Packed = D->hasAttr<PackedAttr>();  
 
   // Honor the default struct packing maximum alignment flag.
   if (unsigned DefaultMaxFieldAlignment = Context.getLangOpts().PackStruct) {
@@ -1616,7 +1625,6 @@ void RecordLayoutBuilder::InitializeLayout(const Decl *D) {
       if (ExternalLayout) {
         if (ExternalAlign > 0) {
           Alignment = Context.toCharUnitsFromBits(ExternalAlign);
-          UnpackedAlignment = Alignment;
         } else {
           // The external source didn't have alignment information; infer it.
           InferAlignment = true;
@@ -2085,7 +2093,7 @@ void RecordLayoutBuilder::LayoutField(const FieldDecl *D) {
       ZeroLengthBitfield = 0;
     }
 
-    if (Context.getLangOpts().MSBitfields || IsMsStruct) {
+    if (IsMsStruct) {
       // If MS bitfield layout is required, figure out what type is being
       // laid out and align the field to the width of that type.
       
@@ -2166,11 +2174,6 @@ void RecordLayoutBuilder::LayoutField(const FieldDecl *D) {
 }
 
 void RecordLayoutBuilder::FinishLayout(const NamedDecl *D) {
-  if (ExternalLayout) {
-    setSize(ExternalSize);
-    return;
-  }
-  
   // In C++, records cannot be of size 0.
   if (Context.getLangOpts().CPlusPlus && getSizeInBits() == 0) {
     if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
@@ -2184,20 +2187,37 @@ void RecordLayoutBuilder::FinishLayout(const NamedDecl *D) {
       setSize(CharUnits::One());
   }
 
+  // Finally, round the size of the record up to the alignment of the
+  // record itself.
+  uint64_t UnpaddedSize = getSizeInBits() - UnfilledBitsInLastByte;
+  uint64_t UnpackedSizeInBits =
+  llvm::RoundUpToAlignment(getSizeInBits(),
+                           Context.toBits(UnpackedAlignment));
+  CharUnits UnpackedSize = Context.toCharUnitsFromBits(UnpackedSizeInBits);
+  uint64_t RoundedSize
+    = llvm::RoundUpToAlignment(getSizeInBits(), Context.toBits(Alignment));
+
+  if (ExternalLayout) {
+    // If we're inferring alignment, and the external size is smaller than
+    // our size after we've rounded up to alignment, conservatively set the
+    // alignment to 1.
+    if (InferAlignment && ExternalSize < RoundedSize) {
+      Alignment = CharUnits::One();
+      InferAlignment = false;
+    }
+    setSize(ExternalSize);
+    return;
+  }
+
+
   // MSVC doesn't round up to the alignment of the record with virtual bases.
   if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(D)) {
     if (isMicrosoftCXXABI() && RD->getNumVBases())
       return;
   }
 
-  // Finally, round the size of the record up to the alignment of the
-  // record itself.
-  uint64_t UnpaddedSize = getSizeInBits() - UnfilledBitsInLastByte;
-  uint64_t UnpackedSizeInBits = 
-    llvm::RoundUpToAlignment(getSizeInBits(), 
-                             Context.toBits(UnpackedAlignment));
-  CharUnits UnpackedSize = Context.toCharUnitsFromBits(UnpackedSizeInBits);
-  setSize(llvm::RoundUpToAlignment(getSizeInBits(), Context.toBits(Alignment)));
+  // Set the size to the final size.
+  setSize(RoundedSize);
 
   unsigned CharBitNum = Context.getTargetInfo().getCharWidth();
   if (const RecordDecl *RD = dyn_cast<RecordDecl>(D)) {
@@ -2255,12 +2275,26 @@ RecordLayoutBuilder::updateExternalFieldOffset(const FieldDecl *Field,
   if (InferAlignment && ExternalFieldOffset < ComputedOffset) {
     // The externally-supplied field offset is before the field offset we
     // computed. Assume that the structure is packed.
-    Alignment = CharUnits::fromQuantity(1);
+    Alignment = CharUnits::One();
     InferAlignment = false;
   }
   
   // Use the externally-supplied field offset.
   return ExternalFieldOffset;
+}
+
+/// \brief Get diagnostic %select index for tag kind for
+/// field padding diagnostic message.
+/// WARNING: Indexes apply to particular diagnostics only!
+///
+/// \returns diagnostic %select index.
+static unsigned getPaddingDiagFromTagKind(TagTypeKind Tag) {
+  switch (Tag) {
+  case TTK_Struct: return 0;
+  case TTK_Interface: return 1;
+  case TTK_Class: return 2;
+  default: llvm_unreachable("Invalid tag kind for field padding diagnostic!");
+  }
 }
 
 void RecordLayoutBuilder::CheckFieldPadding(uint64_t Offset,
@@ -2291,14 +2325,14 @@ void RecordLayoutBuilder::CheckFieldPadding(uint64_t Offset,
     }
     if (D->getIdentifier())
       Diag(D->getLocation(), diag::warn_padded_struct_field)
-          << (D->getParent()->isStruct() ? 0 : 1) // struct|class
+          << getPaddingDiagFromTagKind(D->getParent()->getTagKind())
           << Context.getTypeDeclType(D->getParent())
           << PadSize
           << (InBits ? 1 : 0) /*(byte|bit)*/ << (PadSize > 1) // plural or not
           << D->getIdentifier();
     else
       Diag(D->getLocation(), diag::warn_padded_struct_anon_field)
-          << (D->getParent()->isStruct() ? 0 : 1) // struct|class
+          << getPaddingDiagFromTagKind(D->getParent()->getTagKind())
           << Context.getTypeDeclType(D->getParent())
           << PadSize
           << (InBits ? 1 : 0) /*(byte|bit)*/ << (PadSize > 1); // plural or not
@@ -2311,8 +2345,8 @@ void RecordLayoutBuilder::CheckFieldPadding(uint64_t Offset,
         << D->getIdentifier();
 }
 
-const CXXMethodDecl *
-RecordLayoutBuilder::ComputeKeyFunction(const CXXRecordDecl *RD) {
+static const CXXMethodDecl *computeKeyFunction(ASTContext &Context,
+                                               const CXXRecordDecl *RD) {
   // If a class isn't polymorphic it doesn't have a key function.
   if (!RD->isPolymorphic())
     return 0;
@@ -2329,6 +2363,9 @@ RecordLayoutBuilder::ComputeKeyFunction(const CXXRecordDecl *RD) {
   if (TSK == TSK_ImplicitInstantiation ||
       TSK == TSK_ExplicitInstantiationDefinition)
     return 0;
+
+  bool allowInlineFunctions =
+    Context.getTargetInfo().getCXXABI().canKeyFunctionBeInline();
 
   for (CXXRecordDecl::method_iterator I = RD->method_begin(),
          E = RD->method_end(); I != E; ++I) {
@@ -2355,6 +2392,13 @@ RecordLayoutBuilder::ComputeKeyFunction(const CXXRecordDecl *RD) {
     if (!MD->isUserProvided())
       continue;
 
+    // In certain ABIs, ignore functions with out-of-line inline definitions.
+    if (!allowInlineFunctions) {
+      const FunctionDecl *Def;
+      if (MD->hasBody(Def) && Def->isInlineSpecified())
+        continue;
+    }
+
     // We found it.
     return MD;
   }
@@ -2365,6 +2409,48 @@ RecordLayoutBuilder::ComputeKeyFunction(const CXXRecordDecl *RD) {
 DiagnosticBuilder
 RecordLayoutBuilder::Diag(SourceLocation Loc, unsigned DiagID) {
   return Context.getDiagnostics().Report(Loc, DiagID);
+}
+
+/// Does the target C++ ABI require us to skip over the tail-padding
+/// of the given class (considering it as a base class) when allocating
+/// objects?
+static bool mustSkipTailPadding(TargetCXXABI ABI, const CXXRecordDecl *RD) {
+  switch (ABI.getTailPaddingUseRules()) {
+  case TargetCXXABI::AlwaysUseTailPadding:
+    return false;
+
+  case TargetCXXABI::UseTailPaddingUnlessPOD03:
+    // FIXME: To the extent that this is meant to cover the Itanium ABI
+    // rules, we should implement the restrictions about over-sized
+    // bitfields:
+    //
+    // http://mentorembedded.github.com/cxx-abi/abi.html#POD :
+    //   In general, a type is considered a POD for the purposes of
+    //   layout if it is a POD type (in the sense of ISO C++
+    //   [basic.types]). However, a POD-struct or POD-union (in the
+    //   sense of ISO C++ [class]) with a bitfield member whose
+    //   declared width is wider than the declared type of the
+    //   bitfield is not a POD for the purpose of layout.  Similarly,
+    //   an array type is not a POD for the purpose of layout if the
+    //   element type of the array is not a POD for the purpose of
+    //   layout.
+    //
+    //   Where references to the ISO C++ are made in this paragraph,
+    //   the Technical Corrigendum 1 version of the standard is
+    //   intended.
+    return RD->isPOD();
+
+  case TargetCXXABI::UseTailPaddingUnlessPOD11:
+    // This is equivalent to RD->getTypeForDecl().isCXX11PODType(),
+    // but with a lot of abstraction penalty stripped off.  This does
+    // assume that these properties are set correctly even in C++98
+    // mode; fortunately, that is true because we want to assign
+    // consistently semantics to the type-traits intrinsics (or at
+    // least as many of them as possible).
+    return RD->isTrivial() && RD->isStandardLayout();
+  }
+
+  llvm_unreachable("bad tail-padding use kind");
 }
 
 /// getASTRecordLayout - Get or compute information about the layout of the
@@ -2411,18 +2497,17 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
       Builder.Layout(RD);
     }
 
-    // FIXME: This is not always correct. See the part about bitfields at
-    // http://www.codesourcery.com/public/cxx-abi/abi.html#POD for more info.
-    // FIXME: IsPODForThePurposeOfLayout should be stored in the record layout.
-    // This does not affect the calculations of MSVC layouts
-    bool IsPODForThePurposeOfLayout = 
-      (!Builder.isMicrosoftCXXABI() && cast<CXXRecordDecl>(D)->isPOD());
+    // In certain situations, we are allowed to lay out objects in the
+    // tail-padding of base classes.  This is ABI-dependent.
+    // FIXME: this should be stored in the record layout.
+    bool skipTailPadding =
+      mustSkipTailPadding(getTargetInfo().getCXXABI(), cast<CXXRecordDecl>(D));
 
     // FIXME: This should be done in FinalizeLayout.
     CharUnits DataSize =
-      IsPODForThePurposeOfLayout ? Builder.getSize() : Builder.getDataSize();
+      skipTailPadding ? Builder.getSize() : Builder.getDataSize();
     CharUnits NonVirtualSize = 
-      IsPODForThePurposeOfLayout ? DataSize : Builder.NonVirtualSize;
+      skipTailPadding ? DataSize : Builder.NonVirtualSize;
 
     NewEntry =
       new (*this) ASTRecordLayout(*this, Builder.getSize(), 
@@ -2460,15 +2545,37 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
   return *NewEntry;
 }
 
-const CXXMethodDecl *ASTContext::getKeyFunction(const CXXRecordDecl *RD) {
+const CXXMethodDecl *ASTContext::getCurrentKeyFunction(const CXXRecordDecl *RD) {
+  assert(RD->getDefinition() && "Cannot get key function for forward decl!");
   RD = cast<CXXRecordDecl>(RD->getDefinition());
-  assert(RD && "Cannot get key function for forward declarations!");
 
-  const CXXMethodDecl *&Entry = KeyFunctions[RD];
-  if (!Entry)
-    Entry = RecordLayoutBuilder::ComputeKeyFunction(RD);
+  const CXXMethodDecl *&entry = KeyFunctions[RD];
+  if (!entry) {
+    entry = computeKeyFunction(*this, RD);
+  }
 
-  return Entry;
+  return entry;
+}
+
+void ASTContext::setNonKeyFunction(const CXXMethodDecl *method) {
+  assert(method == method->getFirstDeclaration() &&
+         "not working with method declaration from class definition");
+
+  // Look up the cache entry.  Since we're working with the first
+  // declaration, its parent must be the class definition, which is
+  // the correct key for the KeyFunctions hash.
+  llvm::DenseMap<const CXXRecordDecl*, const CXXMethodDecl*>::iterator
+    i = KeyFunctions.find(method->getParent());
+
+  // If it's not cached, there's nothing to do.
+  if (i == KeyFunctions.end()) return;
+
+  // If it is cached, check whether it's the target method, and if so,
+  // remove it from the cache.
+  if (i->second == method) {
+    // FIXME: remember that we did this for module / chained PCH state?
+    KeyFunctions.erase(i);
+  }
 }
 
 static uint64_t getFieldOffset(const ASTContext &C, const FieldDecl *FD) {
@@ -2508,8 +2615,8 @@ ASTContext::getObjCLayout(const ObjCInterfaceDecl *D,
   assert(D && D->isThisDeclarationADefinition() && "Invalid interface decl!");
 
   // Look up this layout, if already laid out, return what we have.
-  ObjCContainerDecl *Key =
-    Impl ? (ObjCContainerDecl*) Impl : (ObjCContainerDecl*) D;
+  const ObjCContainerDecl *Key =
+    Impl ? (const ObjCContainerDecl*) Impl : (const ObjCContainerDecl*) D;
   if (const ASTRecordLayout *Entry = ObjCLayouts[Key])
     return *Entry;
 
@@ -2545,6 +2652,11 @@ static void PrintOffset(raw_ostream &OS,
   OS.indent(IndentLevel * 2);
 }
 
+static void PrintIndentNoOffset(raw_ostream &OS, unsigned IndentLevel) {
+  OS << "     | ";
+  OS.indent(IndentLevel * 2);
+}
+
 static void DumpCXXRecordLayout(raw_ostream &OS,
                                 const CXXRecordDecl *RD, const ASTContext &C,
                                 CharUnits Offset,
@@ -2569,7 +2681,7 @@ static void DumpCXXRecordLayout(raw_ostream &OS,
 
   // Vtable pointer.
   if (RD->isDynamicClass() && !PrimaryBase &&
-      C.getTargetInfo().getCXXABI() != CXXABI_Microsoft) {
+      !C.getTargetInfo().getCXXABI().isMicrosoft()) {
     PrintOffset(OS, Offset, IndentLevel);
     OS << '(' << *RD << " vtable pointer)\n";
   }
@@ -2648,11 +2760,14 @@ static void DumpCXXRecordLayout(raw_ostream &OS,
                         /*IncludeVirtualBases=*/false);
   }
 
-  OS << "  sizeof=" << Layout.getSize().getQuantity();
+  PrintIndentNoOffset(OS, IndentLevel - 1);
+  OS << "[sizeof=" << Layout.getSize().getQuantity();
   OS << ", dsize=" << Layout.getDataSize().getQuantity();
   OS << ", align=" << Layout.getAlignment().getQuantity() << '\n';
-  OS << "  nvsize=" << Layout.getNonVirtualSize().getQuantity();
-  OS << ", nvalign=" << Layout.getNonVirtualAlign().getQuantity() << '\n';
+
+  PrintIndentNoOffset(OS, IndentLevel - 1);
+  OS << " nvsize=" << Layout.getNonVirtualSize().getQuantity();
+  OS << ", nvalign=" << Layout.getNonVirtualAlign().getQuantity() << "]\n";
   OS << '\n';
 }
 

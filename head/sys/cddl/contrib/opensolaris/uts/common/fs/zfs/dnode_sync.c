@@ -274,7 +274,7 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
 			continue;
 		rw_enter(&dn->dn_struct_rwlock, RW_READER);
 		err = dbuf_hold_impl(dn, db->db_level-1, i, TRUE, FTAG, &subdb);
-		ASSERT3U(err, ==, 0);
+		ASSERT0(err);
 		rw_exit(&dn->dn_struct_rwlock);
 
 		if (free_children(subdb, blkid, nblks, trunc, tx) == ALL) {
@@ -294,7 +294,7 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
 			continue;
 		else if (i == end && !trunc)
 			continue;
-		ASSERT3U(bp->blk_birth, ==, 0);
+		ASSERT0(bp->blk_birth);
 	}
 #endif
 	ASSERT(all || blocks_freed == 0 || db->db_last_dirty);
@@ -302,7 +302,7 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
 }
 
 /*
- * free_range: Traverse the indicated range of the provided file
+ * Traverse the indicated range of the provided file
  * and "free" all the blocks contained there.
  */
 static void
@@ -350,7 +350,7 @@ dnode_sync_free_range(dnode_t *dn, uint64_t blkid, uint64_t nblks, dmu_tx_t *tx)
 			continue;
 		rw_enter(&dn->dn_struct_rwlock, RW_READER);
 		err = dbuf_hold_impl(dn, dnlevel-1, i, TRUE, FTAG, &db);
-		ASSERT3U(err, ==, 0);
+		ASSERT0(err);
 		rw_exit(&dn->dn_struct_rwlock);
 
 		if (free_children(db, blkid, nblks, trunc, tx) == ALL) {
@@ -370,7 +370,7 @@ dnode_sync_free_range(dnode_t *dn, uint64_t blkid, uint64_t nblks, dmu_tx_t *tx)
 }
 
 /*
- * Try to kick all the dnodes dbufs out of the cache...
+ * Try to kick all the dnode's dbufs out of the cache...
  */
 void
 dnode_evict_dbufs(dnode_t *dn)
@@ -474,12 +474,13 @@ dnode_sync_free(dnode_t *dn, dmu_tx_t *tx)
 	 * Our contents should have been freed in dnode_sync() by the
 	 * free range record inserted by the caller of dnode_free().
 	 */
-	ASSERT3U(DN_USED_BYTES(dn->dn_phys), ==, 0);
+	ASSERT0(DN_USED_BYTES(dn->dn_phys));
 	ASSERT(BP_IS_HOLE(dn->dn_phys->dn_blkptr));
 
 	dnode_undirty_dbufs(&dn->dn_dirty_records[txgoff]);
 	dnode_evict_dbufs(dn);
 	ASSERT3P(list_head(&dn->dn_dbufs), ==, NULL);
+	ASSERT3P(dn->dn_bonus, ==, NULL);
 
 	/*
 	 * XXX - It would be nice to assert this, but we may still

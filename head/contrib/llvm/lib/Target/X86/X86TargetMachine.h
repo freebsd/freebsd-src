@@ -15,16 +15,15 @@
 #define X86TARGETMACHINE_H
 
 #include "X86.h"
-#include "X86ELFWriterInfo.h"
-#include "X86InstrInfo.h"
-#include "X86ISelLowering.h"
 #include "X86FrameLowering.h"
+#include "X86ISelLowering.h"
+#include "X86InstrInfo.h"
 #include "X86JITInfo.h"
 #include "X86SelectionDAGInfo.h"
 #include "X86Subtarget.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
@@ -33,7 +32,6 @@ class StringRef;
 class X86TargetMachine : public LLVMTargetMachine {
   X86Subtarget       Subtarget;
   X86FrameLowering   FrameLowering;
-  X86ELFWriterInfo   ELFWriterInfo;
   InstrItineraryData InstrItins;
 
 public:
@@ -62,12 +60,12 @@ public:
   virtual const X86RegisterInfo  *getRegisterInfo() const {
     return &getInstrInfo()->getRegisterInfo();
   }
-  virtual const X86ELFWriterInfo *getELFWriterInfo() const {
-    return Subtarget.isTargetELF() ? &ELFWriterInfo : 0;
-  }
   virtual const InstrItineraryData *getInstrItineraryData() const {
     return &InstrItins;
   }
+
+  /// \brief Register X86 analysis passes with a pass manager.
+  virtual void addAnalysisPasses(PassManagerBase &PM);
 
   // Set up the pass pipeline.
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
@@ -80,17 +78,17 @@ public:
 ///
 class X86_32TargetMachine : public X86TargetMachine {
   virtual void anchor();
-  const TargetData  DataLayout; // Calculates type size & alignment
+  const DataLayout  DL; // Calculates type size & alignment
   X86InstrInfo      InstrInfo;
-  X86SelectionDAGInfo TSInfo;
   X86TargetLowering TLInfo;
+  X86SelectionDAGInfo TSInfo;
   X86JITInfo        JITInfo;
 public:
   X86_32TargetMachine(const Target &T, StringRef TT,
                       StringRef CPU, StringRef FS, const TargetOptions &Options,
                       Reloc::Model RM, CodeModel::Model CM,
                       CodeGenOpt::Level OL);
-  virtual const TargetData *getTargetData() const { return &DataLayout; }
+  virtual const DataLayout *getDataLayout() const { return &DL; }
   virtual const X86TargetLowering *getTargetLowering() const {
     return &TLInfo;
   }
@@ -109,17 +107,17 @@ public:
 ///
 class X86_64TargetMachine : public X86TargetMachine {
   virtual void anchor();
-  const TargetData  DataLayout; // Calculates type size & alignment
+  const DataLayout  DL; // Calculates type size & alignment
   X86InstrInfo      InstrInfo;
-  X86SelectionDAGInfo TSInfo;
   X86TargetLowering TLInfo;
+  X86SelectionDAGInfo TSInfo;
   X86JITInfo        JITInfo;
 public:
   X86_64TargetMachine(const Target &T, StringRef TT,
                       StringRef CPU, StringRef FS, const TargetOptions &Options,
                       Reloc::Model RM, CodeModel::Model CM,
                       CodeGenOpt::Level OL);
-  virtual const TargetData *getTargetData() const { return &DataLayout; }
+  virtual const DataLayout *getDataLayout() const { return &DL; }
   virtual const X86TargetLowering *getTargetLowering() const {
     return &TLInfo;
   }

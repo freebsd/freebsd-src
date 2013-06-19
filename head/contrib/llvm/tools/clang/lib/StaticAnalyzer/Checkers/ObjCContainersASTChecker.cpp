@@ -12,11 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ClangSACheckers.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
@@ -30,8 +30,6 @@ class WalkAST : public StmtVisitor<WalkAST> {
   AnalysisDeclContext* AC;
   ASTContext &ASTC;
   uint64_t PtrWidth;
-
-  static const unsigned InvalidArgIndex = UINT_MAX;
 
   /// Check if the type has pointer size (very conservative).
   inline bool isPointerSize(const Type *T) {
@@ -102,16 +100,18 @@ void WalkAST::VisitCallExpr(CallExpr *CE) {
     return;
 
   const Expr *Arg = 0;
-  unsigned ArgNum = InvalidArgIndex;
+  unsigned ArgNum;
 
   if (Name.equals("CFArrayCreate") || Name.equals("CFSetCreate")) {
+    if (CE->getNumArgs() != 4)
+      return;
     ArgNum = 1;
     Arg = CE->getArg(ArgNum)->IgnoreParenCasts();
     if (hasPointerToPointerSizedType(Arg))
         return;
-  }
-
-  if (Arg == 0 && Name.equals("CFDictionaryCreate")) {
+  } else if (Name.equals("CFDictionaryCreate")) {
+    if (CE->getNumArgs() != 6)
+      return;
     // Check first argument.
     ArgNum = 1;
     Arg = CE->getArg(ArgNum)->IgnoreParenCasts();
@@ -125,17 +125,18 @@ void WalkAST::VisitCallExpr(CallExpr *CE) {
     }
   }
 
-  if (ArgNum != InvalidArgIndex) {
+  if (Arg) {
     assert(ArgNum == 1 || ArgNum == 2);
 
-    SmallString<256> BufName;
+    SmallString<64> BufName;
     llvm::raw_svector_ostream OsName(BufName);
-    assert(ArgNum == 1 || ArgNum == 2);
     OsName << " Invalid use of '" << Name << "'" ;
 
     SmallString<256> Buf;
     llvm::raw_svector_ostream Os(Buf);
-    Os << " The "<< ((ArgNum == 1) ? "first" : "second") << " argument to '"
+    // Use "second" and "third" since users will expect 1-based indexing
+    // for parameter names when mentioned in prose.
+    Os << " The "<< ((ArgNum == 1) ? "second" : "third") << " argument to '"
         << Name << "' must be a C array of pointer-sized values, not '"
         << Arg->getType().getAsString() << "'";
 

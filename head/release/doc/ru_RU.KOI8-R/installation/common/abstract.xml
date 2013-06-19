@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/abstract.xml,v 1.1 2004/06/24 07:21:47 den Exp $
+
+     Original revision: 1.2
+-->
+
+<abstract>
+  <para>Эта статья дает краткие инструкции по установке
+  &os;/&arch; &release.current;, особое внимание уделено
+  получению дистрибутива &os;.  Представлены также
+  отдельные заметки по решению проблем и часто задаваемые
+  вопросы.</para>
+</abstract>

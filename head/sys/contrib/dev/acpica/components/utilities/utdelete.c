@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,7 +118,6 @@ AcpiUtDeleteInternalObj (
         }
         break;
 
-
     case ACPI_TYPE_BUFFER:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "**** Buffer %p, ptr %p\n",
@@ -134,7 +133,6 @@ AcpiUtDeleteInternalObj (
         }
         break;
 
-
     case ACPI_TYPE_PACKAGE:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, " **** Package of count %X\n",
@@ -149,7 +147,6 @@ AcpiUtDeleteInternalObj (
 
         ObjPointer = Object->Package.Elements;
         break;
-
 
     /*
      * These objects have a possible list of notify handlers.
@@ -178,7 +175,6 @@ AcpiUtDeleteInternalObj (
         }
         break;
 
-
     case ACPI_TYPE_MUTEX:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
@@ -202,7 +198,6 @@ AcpiUtDeleteInternalObj (
         }
         break;
 
-
     case ACPI_TYPE_EVENT:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
@@ -212,7 +207,6 @@ AcpiUtDeleteInternalObj (
         (void) AcpiOsDeleteSemaphore (Object->Event.OsSemaphore);
         Object->Event.OsSemaphore = NULL;
         break;
-
 
     case ACPI_TYPE_METHOD:
 
@@ -228,7 +222,6 @@ AcpiUtDeleteInternalObj (
             Object->Method.Mutex = NULL;
         }
         break;
-
 
     case ACPI_TYPE_REGION:
 
@@ -298,7 +291,6 @@ AcpiUtDeleteInternalObj (
         }
         break;
 
-
     case ACPI_TYPE_BUFFER_FIELD:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
@@ -310,7 +302,6 @@ AcpiUtDeleteInternalObj (
             AcpiUtDeleteObjectDesc (SecondDesc);
         }
         break;
-
 
     case ACPI_TYPE_LOCAL_BANK_FIELD:
 
@@ -324,8 +315,8 @@ AcpiUtDeleteInternalObj (
         }
         break;
 
-
     default:
+
         break;
     }
 
@@ -368,7 +359,7 @@ AcpiUtDeleteInternalObjectList (
     ACPI_OPERAND_OBJECT     **InternalObj;
 
 
-    ACPI_FUNCTION_TRACE (UtDeleteInternalObjectList);
+    ACPI_FUNCTION_ENTRY ();
 
 
     /* Walk the null-terminated internal list */
@@ -381,7 +372,7 @@ AcpiUtDeleteInternalObjectList (
     /* Free the combined parameter pointer list and object array */
 
     ACPI_FREE (ObjList);
-    return_VOID;
+    return;
 }
 
 
@@ -390,11 +381,11 @@ AcpiUtDeleteInternalObjectList (
  * FUNCTION:    AcpiUtUpdateRefCount
  *
  * PARAMETERS:  Object          - Object whose ref count is to be updated
- *              Action          - What to do
+ *              Action          - What to do (REF_INCREMENT or REF_DECREMENT)
  *
- * RETURN:      New ref count
+ * RETURN:      None. Sets new reference count within the object
  *
- * DESCRIPTION: Modify the ref count and return it.
+ * DESCRIPTION: Modify the reference count for an internal acpi object
  *
  ******************************************************************************/
 
@@ -403,8 +394,9 @@ AcpiUtUpdateRefCount (
     ACPI_OPERAND_OBJECT     *Object,
     UINT32                  Action)
 {
-    UINT16                  Count;
-    UINT16                  NewCount;
+    UINT16                  OriginalCount;
+    UINT16                  NewCount = 0;
+    ACPI_CPU_FLAGS          LockFlags;
 
 
     ACPI_FUNCTION_NAME (UtUpdateRefCount);
@@ -415,80 +407,85 @@ AcpiUtUpdateRefCount (
         return;
     }
 
-    Count = Object->Common.ReferenceCount;
-    NewCount = Count;
-
     /*
-     * Perform the reference count action (increment, decrement, force delete)
+     * Always get the reference count lock. Note: Interpreter and/or
+     * Namespace is not always locked when this function is called.
      */
+    LockFlags = AcpiOsAcquireLock (AcpiGbl_ReferenceCountLock);
+    OriginalCount = Object->Common.ReferenceCount;
+
+    /* Perform the reference count action (increment, decrement) */
+
     switch (Action)
     {
     case REF_INCREMENT:
 
-        NewCount++;
+        NewCount = OriginalCount + 1;
         Object->Common.ReferenceCount = NewCount;
+        AcpiOsReleaseLock (AcpiGbl_ReferenceCountLock, LockFlags);
+
+        /* The current reference count should never be zero here */
+
+        if (!OriginalCount)
+        {
+            ACPI_WARNING ((AE_INFO,
+                "Obj %p, Reference Count was zero before increment\n",
+                Object));
+        }
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
-            "Obj %p Refs=%X, [Incremented]\n",
-            Object, NewCount));
+            "Obj %p Type %.2X Refs %.2X [Incremented]\n",
+            Object, Object->Common.Type, NewCount));
         break;
 
     case REF_DECREMENT:
 
-        if (Count < 1)
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
-                "Obj %p Refs=%X, can't decrement! (Set to 0)\n",
-                Object, NewCount));
+        /* The current reference count must be non-zero */
 
-            NewCount = 0;
-        }
-        else
+        if (OriginalCount)
         {
-            NewCount--;
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
-                "Obj %p Refs=%X, [Decremented]\n",
-                Object, NewCount));
+            NewCount = OriginalCount - 1;
+            Object->Common.ReferenceCount = NewCount;
         }
 
-        if (Object->Common.Type == ACPI_TYPE_METHOD)
+        AcpiOsReleaseLock (AcpiGbl_ReferenceCountLock, LockFlags);
+
+        if (!OriginalCount)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
-                "Method Obj %p Refs=%X, [Decremented]\n", Object, NewCount));
+            ACPI_WARNING ((AE_INFO,
+                "Obj %p, Reference Count is already zero, cannot decrement\n",
+                Object));
         }
 
-        Object->Common.ReferenceCount = NewCount;
+        ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
+            "Obj %p Type %.2X Refs %.2X [Decremented]\n",
+            Object, Object->Common.Type, NewCount));
+
+        /* Actually delete the object on a reference count of zero */
+
         if (NewCount == 0)
         {
             AcpiUtDeleteInternalObj (Object);
         }
         break;
 
-    case REF_FORCE_DELETE:
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
-            "Obj %p Refs=%X, Force delete! (Set to 0)\n", Object, Count));
-
-        NewCount = 0;
-        Object->Common.ReferenceCount = NewCount;
-        AcpiUtDeleteInternalObj (Object);
-        break;
-
     default:
 
-        ACPI_ERROR ((AE_INFO, "Unknown action (0x%X)", Action));
-        break;
+        AcpiOsReleaseLock (AcpiGbl_ReferenceCountLock, LockFlags);
+        ACPI_ERROR ((AE_INFO, "Unknown Reference Count action (0x%X)",
+            Action));
+        return;
     }
 
     /*
      * Sanity check the reference count, for debug purposes only.
      * (A deleted object will have a huge reference count)
      */
-    if (Count > ACPI_MAX_REFERENCE_COUNT)
+    if (NewCount > ACPI_MAX_REFERENCE_COUNT)
     {
         ACPI_WARNING ((AE_INFO,
-            "Large Reference Count (0x%X) in object %p", Count, Object));
+            "Large Reference Count (0x%X) in object %p, Type=0x%.2X",
+            NewCount, Object, Object->Common.Type));
     }
 }
 
@@ -499,8 +496,7 @@ AcpiUtUpdateRefCount (
  *
  * PARAMETERS:  Object              - Increment ref count for this object
  *                                    and all sub-objects
- *              Action              - Either REF_INCREMENT or REF_DECREMENT or
- *                                    REF_FORCE_DELETE
+ *              Action              - Either REF_INCREMENT or REF_DECREMENT
  *
  * RETURN:      Status
  *
@@ -528,7 +524,7 @@ AcpiUtUpdateObjectReference (
     UINT32                  i;
 
 
-    ACPI_FUNCTION_TRACE_PTR (UtUpdateObjectReference, Object);
+    ACPI_FUNCTION_NAME (UtUpdateObjectReference);
 
 
     while (Object)
@@ -539,7 +535,7 @@ AcpiUtUpdateObjectReference (
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
                 "Object %p is NS handle\n", Object));
-            return_ACPI_STATUS (AE_OK);
+            return (AE_OK);
         }
 
         /*
@@ -552,7 +548,6 @@ AcpiUtUpdateObjectReference (
         case ACPI_TYPE_PROCESSOR:
         case ACPI_TYPE_POWER:
         case ACPI_TYPE_THERMAL:
-
             /*
              * Update the notify objects for these types (if present)
              * Two lists, system and device notify handlers.
@@ -577,17 +572,43 @@ AcpiUtUpdateObjectReference (
             for (i = 0; i < Object->Package.Count; i++)
             {
                 /*
-                 * Push each element onto the stack for later processing.
-                 * Note: There can be null elements within the package,
-                 * these are simply ignored
+                 * Null package elements are legal and can be simply
+                 * ignored.
                  */
-                Status = AcpiUtCreateUpdateStateAndPush (
-                            Object->Package.Elements[i], Action, &StateList);
-                if (ACPI_FAILURE (Status))
+                NextObject = Object->Package.Elements[i];
+                if (!NextObject)
                 {
-                    goto ErrorExit;
+                    continue;
+                }
+
+                switch (NextObject->Common.Type)
+                {
+                case ACPI_TYPE_INTEGER:
+                case ACPI_TYPE_STRING:
+                case ACPI_TYPE_BUFFER:
+                    /*
+                     * For these very simple sub-objects, we can just
+                     * update the reference count here and continue.
+                     * Greatly increases performance of this operation.
+                     */
+                    AcpiUtUpdateRefCount (NextObject, Action);
+                    break;
+
+                default:
+                    /*
+                     * For complex sub-objects, push them onto the stack
+                     * for later processing (this eliminates recursion.)
+                     */
+                    Status = AcpiUtCreateUpdateStateAndPush (
+                                 NextObject, Action, &StateList);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        goto ErrorExit;
+                    }
+                    break;
                 }
             }
+            NextObject = NULL;
             break;
 
         case ACPI_TYPE_BUFFER_FIELD:
@@ -637,6 +658,7 @@ AcpiUtUpdateObjectReference (
 
         case ACPI_TYPE_REGION:
         default:
+
             break; /* No subobjects for all other types */
         }
 
@@ -663,7 +685,7 @@ AcpiUtUpdateObjectReference (
         }
     }
 
-    return_ACPI_STATUS (AE_OK);
+    return (AE_OK);
 
 
 ErrorExit:
@@ -679,7 +701,7 @@ ErrorExit:
         AcpiUtDeleteGenericState (State);
     }
 
-    return_ACPI_STATUS (Status);
+    return (Status);
 }
 
 
@@ -701,14 +723,14 @@ AcpiUtAddReference (
     ACPI_OPERAND_OBJECT     *Object)
 {
 
-    ACPI_FUNCTION_TRACE_PTR (UtAddReference, Object);
+    ACPI_FUNCTION_NAME (UtAddReference);
 
 
     /* Ensure that we have a valid object */
 
     if (!AcpiUtValidInternalObject (Object))
     {
-        return_VOID;
+        return;
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
@@ -718,7 +740,7 @@ AcpiUtAddReference (
     /* Increment the reference count */
 
     (void) AcpiUtUpdateObjectReference (Object, REF_INCREMENT);
-    return_VOID;
+    return;
 }
 
 
@@ -739,26 +761,25 @@ AcpiUtRemoveReference (
     ACPI_OPERAND_OBJECT     *Object)
 {
 
-    ACPI_FUNCTION_TRACE_PTR (UtRemoveReference, Object);
+    ACPI_FUNCTION_NAME (UtRemoveReference);
 
 
     /*
      * Allow a NULL pointer to be passed in, just ignore it. This saves
      * each caller from having to check. Also, ignore NS nodes.
-     *
      */
     if (!Object ||
         (ACPI_GET_DESCRIPTOR_TYPE (Object) == ACPI_DESC_TYPE_NAMED))
 
     {
-        return_VOID;
+        return;
     }
 
     /* Ensure that we have a valid object */
 
     if (!AcpiUtValidInternalObject (Object))
     {
-        return_VOID;
+        return;
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
@@ -771,7 +792,5 @@ AcpiUtRemoveReference (
      * of all subobjects!)
      */
     (void) AcpiUtUpdateObjectReference (Object, REF_DECREMENT);
-    return_VOID;
+    return;
 }
-
-

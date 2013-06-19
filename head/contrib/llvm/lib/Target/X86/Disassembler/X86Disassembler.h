@@ -78,7 +78,7 @@
   uint16_t operands;
 
 #define INSTRUCTION_IDS               \
-  unsigned instructionIDs;
+  uint16_t instructionIDs;
 
 #include "X86DisassemblerDecoderCommon.h"
 
@@ -94,8 +94,6 @@ class MCInstrInfo;
 class MCSubtargetInfo;
 class MemoryObject;
 class raw_ostream;
-
-struct EDInstInfo;
 
 namespace X86Disassembler {
 
@@ -122,8 +120,6 @@ public:
                               raw_ostream &vStream,
                               raw_ostream &cStream) const;
 
-  /// getEDInfo - See MCDisassembler.
-  const EDInstInfo *getEDInfo() const;
 private:
   DisassemblerMode              fMode;
 };

@@ -1,5 +1,5 @@
 %{
-/* $OpenBSD: parser.y,v 1.6 2008/08/21 21:00:14 espie Exp $ */
+/* $OpenBSD: parser.y,v 1.7 2012/04/12 17:00:11 espie Exp $ */
 /*
  * Copyright (c) 2004 Marc Espie <espie@cvs.openbsd.org>
  *
@@ -17,10 +17,17 @@
  *
  * $FreeBSD$
  */
+
 #include <math.h>
+#include <stddef.h>
+#include <stdio.h>
 #include <stdint.h>
+
+#include "mdef.h"
+#include "extern.h"
+
 #define YYSTYPE	int32_t
-extern int32_t end_result;
+
 extern int yylex(void);
 extern int yyerror(const char *);
 %}

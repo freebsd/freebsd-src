@@ -16,20 +16,20 @@
 
 #define DEBUG_TYPE "globalsmodref-aa"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Instructions.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/ADT/SCCIterator.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InstIterator.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/SCCIterator.h"
 #include <set>
 using namespace llvm;
 
@@ -263,7 +263,7 @@ bool GlobalsModRef::AnalyzeUsesOfPointer(Value *V,
     } else if (BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
       if (AnalyzeUsesOfPointer(BCI, Readers, Writers, OkayStoreDest))
         return true;
-    } else if (isFreeCall(U)) {
+    } else if (isFreeCall(U, TLI)) {
       Writers.push_back(cast<Instruction>(U)->getParent()->getParent());
     } else if (CallInst *CI = dyn_cast<CallInst>(U)) {
       // Make sure that this is just the function being called, not that it is
@@ -329,7 +329,7 @@ bool GlobalsModRef::AnalyzeIndirectGlobalMemory(GlobalValue *GV) {
       // Check the value being stored.
       Value *Ptr = GetUnderlyingObject(SI->getOperand(0));
 
-      if (!isAllocLikeFn(Ptr))
+      if (!isAllocLikeFn(Ptr, TLI))
         return false;  // Too hard to analyze.
 
       // Analyze all uses of the allocation.  If any of them are used in a
@@ -458,7 +458,7 @@ void GlobalsModRef::AnalyzeCallGraph(CallGraph &CG, Module &M) {
           if (SI->isVolatile())
             // Treat volatile stores as reading memory somewhere.
             FunctionEffect |= Ref;
-        } else if (isAllocationFn(&*II) || isFreeCall(&*II)) {
+        } else if (isAllocationFn(&*II, TLI) || isFreeCall(&*II, TLI)) {
           FunctionEffect |= ModRef;
         } else if (IntrinsicInst *Intrinsic = dyn_cast<IntrinsicInst>(&*II)) {
           // The callgraph doesn't include intrinsic calls.

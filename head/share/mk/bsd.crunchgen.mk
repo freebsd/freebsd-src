@@ -38,12 +38,17 @@ OUTPUTS=$(OUTMK) $(OUTC) $(PROG).cache
 CRUNCHOBJS= ${.OBJDIR}
 .if defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:= ${MAKEOBJDIRPREFIX}${.CURDIR}
+.elif defined(MAKEOBJDIR) && ${MAKEOBJDIR:M/*} != ""
+CANONICALOBJDIR:=${MAKEOBJDIR}
 .else
 CANONICALOBJDIR:= /usr/obj${.CURDIR}
 .endif
 CRUNCH_GENERATE_LINKS?=	yes
 
 CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
+
+# Don't try to extract debug info from ${PROG}.
+NO_DEBUG_FILES=
 
 # Program names and their aliases contribute hardlinks to 'rescue' executable,
 # except for those that get suppressed.

@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2011
+.Dd October 11, 2012
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -66,12 +66,20 @@ The first field,
 .Pq Fa fs_spec ,
 describes the special device or
 remote file system to be mounted.
+The contents are decoded by the
+.Xr strunvis 3
+function.
+This allows using spaces or tabs in the device name which would be
+interpreted as field separators otherwise.
 .Pp
 The second field,
 .Pq Fa fs_file ,
 describes the mount point for the file system.
 For swap partitions, this field should be specified as
 .Dq none .
+The contents are decoded by the
+.Xr strunvis 3
+function, as above.
 .Pp
 The third field,
 .Pq Fa fs_vfstype ,
@@ -338,6 +346,7 @@ resides in
 .Xr mount 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
+.Xr strunvis 3 ,
 .Xr swapon 8 ,
 .Xr umount 8
 .Sh HISTORY

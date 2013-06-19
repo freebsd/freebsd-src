@@ -669,7 +669,7 @@ pimv2_print(register const u_char *bp, register u_int len, u_int cksum)
 
 			case PIMV2_HELLO_OPTION_LANPRUNEDELAY:
 				if (olen != 4) {
-					(void)printf("ERROR: Option Lenght != 4 Bytes (%u)", olen);
+					(void)printf("ERROR: Option Length != 4 Bytes (%u)", olen);
 				} else {
 					char t_bit;
 					u_int16_t lan_delay, override_interval;
@@ -692,7 +692,7 @@ pimv2_print(register const u_char *bp, register u_int len, u_int cksum)
                                     printf("%u", EXTRACT_32BITS(bp));
                                     break;
                                 default:
-                                    printf("ERROR: Option Lenght != 4 Bytes (%u)", olen);
+                                    printf("ERROR: Option Length != 4 Bytes (%u)", olen);
                                     break;
                                 }
                                 break;

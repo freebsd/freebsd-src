@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -363,6 +364,7 @@ typedef struct ses_softc {
 	uint32_t		ses_flags;
 #define	SES_FLAG_TIMEDCOMP	0x01
 #define	SES_FLAG_ADDLSTATUS	0x02
+#define	SES_FLAG_DESC		0x04
 
 	ses_control_reqlist_t	ses_requests;
 	ses_control_reqlist_t	ses_pending_requests;
@@ -886,6 +888,7 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	struct device_match_result  *device_match;
 	struct device_match_pattern *device_pattern;
 	ses_path_iter_args_t	    *args;
+	struct cam_sim		    *sim;
 
 	args = (ses_path_iter_args_t *)arg;
 	match_pattern.type = DEV_MATCH_DEVICE;
@@ -898,9 +901,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	       device_pattern->data.devid_pat.id_len);
 
 	memset(&cdm, 0, sizeof(cdm));
-	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL, CAM_XPT_PATH_ID,
-			    CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
+				     CAM_XPT_PATH_ID,
+				     CAM_TARGET_WILDCARD,
+				     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 		return;
 
 	cdm.ccb_h.func_code = XPT_DEV_MATCH;
@@ -910,8 +914,11 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	cdm.match_buf_len   = sizeof(match_result);
 	cdm.matches         = &match_result;
 
+	sim = xpt_path_sim(cdm.ccb_h.path);
+	CAM_SIM_LOCK(sim);
 	xpt_action((union ccb *)&cdm);
 	xpt_free_path(cdm.ccb_h.path);
+	CAM_SIM_UNLOCK(sim);
 
 	if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
 	 || (cdm.status != CAM_DEV_MATCH_LAST
@@ -920,14 +927,18 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 		return;
 
 	device_match = &match_result.result.device_result;
-	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
-			    device_match->path_id,
-			    device_match->target_id,
-			    device_match->target_lun) != CAM_REQ_CMP)
+	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
+				     device_match->path_id,
+				     device_match->target_id,
+				     device_match->target_lun) != CAM_REQ_CMP)
 		return;
 
 	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);
+
+	sim = xpt_path_sim(cdm.ccb_h.path);
+	CAM_SIM_LOCK(sim);
 	xpt_free_path(cdm.ccb_h.path);
+	CAM_SIM_UNLOCK(sim);
 }
 
 /**
@@ -999,7 +1010,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 
 	args = (ses_setphyspath_callback_args_t *)arg;
 	old_physpath = malloc(MAXPATHLEN, M_SCSIENC, M_WAITOK|M_ZERO);
-
+	cam_periph_lock(enc->periph);
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.buftype = CDAI_TYPE_PHYS_PATH;
@@ -1024,6 +1035,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 		if (cdai.ccb_h.status == CAM_REQ_CMP)
 			args->num_set++;
 	}
+	cam_periph_unlock(enc->periph);
 	free(old_physpath, M_SCSIENC);
 }
 
@@ -1042,10 +1054,12 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 {
 	struct ccb_dev_advinfo cdai;
 	ses_setphyspath_callback_args_t args;
-	int ret;
+	int i, ret;
 	struct sbuf sb;
-	uint8_t *devid, *elmaddr;
+	struct scsi_vpd_id_descriptor *idd;
+	uint8_t *devid;
 	ses_element_t *elmpriv;
+	const char *c;
 
 	ret = EIO;
 	devid = NULL;
@@ -1063,15 +1077,17 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 		ret = ENOMEM;
 		goto out;
 	}
+	cam_periph_lock(enc->periph);
 	xpt_action((union ccb *)&cdai);
 	if ((cdai.ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(cdai.ccb_h.path, 0, 0, 0, FALSE);
+	cam_periph_unlock(enc->periph);
 	if (cdai.ccb_h.status != CAM_REQ_CMP)
 		goto out;
 
-	elmaddr = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+	idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
 	    cdai.provsiz, scsi_devid_is_naa_ieee_reg);
-	if (elmaddr == NULL)
+	if (idd == NULL)
 		goto out;
 
 	if (sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND) == NULL) {
@@ -1080,13 +1096,19 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	}
 	/* Next, generate the physical path string */
 	sbuf_printf(&sb, "id1,enc@n%jx/type@%x/slot@%x",
-	    scsi_8btou64(elmaddr), iter->type_index,
+	    scsi_8btou64(idd->identifier), iter->type_index,
 	    iter->type_element_index);
 	/* Append the element descriptor if one exists */
 	elmpriv = elm->elm_private;
 	if (elmpriv->descr != NULL && elmpriv->descr_len > 0) {
 		sbuf_cat(&sb, "/elmdesc@");
-		sbuf_bcat(&sb, elmpriv->descr, elmpriv->descr_len);
+		for (i = 0, c = elmpriv->descr; i < elmpriv->descr_len;
+		    i++, c++) {
+			if (!isprint(*c) || isspace(*c) || *c == '/')
+				sbuf_putc(&sb, '_');
+			else
+				sbuf_putc(&sb, *c);
+		}
 	}
 	sbuf_finish(&sb);
 
@@ -1259,10 +1281,10 @@ ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	err = 0;
 	for (i = 0; i < length; i++) {
-		if (page->params[i] == SesAddlElementStatus) {
+		if (page->params[i] == SesElementDescriptor)
+			ses->ses_flags |= SES_FLAG_DESC;
+		else if (page->params[i] == SesAddlElementStatus)
 			ses->ses_flags |= SES_FLAG_ADDLSTATUS;
-			break;
-		}
 	}
 
 out:
@@ -1311,7 +1333,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 	buf = *bufp;
-	err = -1;;
+	err = -1;
 
 	if (error != 0) {
 		err = error;
@@ -1474,7 +1496,8 @@ out:
 		ses_cache_free(enc, enc_cache);
 	else {
 		enc_update_request(enc, SES_UPDATE_GETSTATUS);
-		enc_update_request(enc, SES_UPDATE_GETELMDESCS);
+		if (ses->ses_flags & SES_FLAG_DESC)
+			enc_update_request(enc, SES_UPDATE_GETELMDESCS);
 		if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
 			enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
 		enc_update_request(enc, SES_PUBLISH_CACHE);
@@ -1787,8 +1810,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d Beyond End "
 			    "of Additional Element Status Descriptors\n",
 			    iter.global_element_index);
-			err = EIO;
-			goto out;
+			break;
 		}
 
 		/* Advance to the protocol data, skipping eip bytes if needed */
@@ -1817,7 +1839,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d: Unknown Additional Element "
 			    "Protocol 0x%x\n", iter.global_element_index,
 			    ses_elm_addlstatus_proto(elmpriv->addl.hdr));
-			goto out;
+			break;
 		}
 
 		offset += proto_info_len;

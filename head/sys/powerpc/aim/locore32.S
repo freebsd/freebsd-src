@@ -64,6 +64,9 @@
 #include <machine/param.h>
 #include <machine/spr.h>
 #include <machine/asm.h>
+#include "opt_platform.h"
+
+#include "opt_kdtrace.h"
 
 /* Locate the per-CPU data structure */
 #define GET_CPUINFO(r)  \
@@ -127,7 +130,9 @@ __start:
 	bdnz	1b
 	sync
 	isync
-
+#ifdef WII
+#include <powerpc/wii/locore.S>
+#endif
 	/* Zero bss, in case we were started by something unhelpful */
 	li	0,0
 	lis	8,_edata@ha

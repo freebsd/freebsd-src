@@ -35,29 +35,33 @@
 #include <sys/mount.h>
 
 struct file;
+enum idtype;
 struct itimerval;
 struct image_args;
 struct jail;
-struct mbuf;
-struct msghdr;
-struct msqid_ds;
-struct rlimit;
-struct rusage;
-union semun;
-struct sockaddr;
-struct stat;
 struct kevent;
 struct kevent_copyops;
 struct kld_file_stat;
 struct ksiginfo;
-struct sendfile_args;
-struct thr_param;
+struct mbuf;
+struct msghdr;
+struct msqid_ds;
 struct ogetdirentries_args;
+struct rlimit;
+struct rusage;
+union semun;
+struct sendfile_args;
+struct sockaddr;
+struct stat;
+struct thr_param;
+struct __wrusage;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
+int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
+	    socklen_t *namelen, int flags, struct file **fp);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
 int	kern_accessat(struct thread *td, int fd, char *path,
@@ -154,6 +158,7 @@ int	kern_openat(struct thread *td, int fd, char *path,
 int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
 	    int name, u_long flags);
 int	kern_pipe(struct thread *td, int fildes[2]);
+int	kern_pipe2(struct thread *td, int fildes[2], int flags);
 int	kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	    int advice);
 int	kern_posix_fallocate(struct thread *td, int fd, off_t offset,
@@ -234,6 +239,8 @@ int	kern_utimesat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
+int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,
+	    int options, struct __wrusage *wrup, siginfo_t *sip);
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
 int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);

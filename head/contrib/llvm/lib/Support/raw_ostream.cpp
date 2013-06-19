@@ -12,16 +12,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Format.h"
-#include "llvm/Support/Program.h"
-#include "llvm/Support/Process.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Support/system_error.h"
-#include "llvm/ADT/STLExtras.h"
 #include <cctype>
 #include <cerrno>
 #include <sys/stat.h>
@@ -241,7 +241,8 @@ raw_ostream &raw_ostream::operator<<(double N) {
       if (cs == '+' || cs == '-') {
         int c1 = buf[len - 2];
         int c0 = buf[len - 1];
-        if (isdigit(c1) && isdigit(c0)) {
+        if (isdigit(static_cast<unsigned char>(c1)) &&
+            isdigit(static_cast<unsigned char>(c0))) {
           // Trim leading '0': "...e+012" -> "...e+12\0"
           buf[len - 3] = c1;
           buf[len - 2] = c0;
@@ -266,8 +267,8 @@ void raw_ostream::flush_nonempty() {
 
 raw_ostream &raw_ostream::write(unsigned char C) {
   // Group exceptional cases into a single branch.
-  if (BUILTIN_EXPECT(OutBufCur >= OutBufEnd, false)) {
-    if (BUILTIN_EXPECT(!OutBufStart, false)) {
+  if (LLVM_UNLIKELY(OutBufCur >= OutBufEnd)) {
+    if (LLVM_UNLIKELY(!OutBufStart)) {
       if (BufferMode == Unbuffered) {
         write_impl(reinterpret_cast<char*>(&C), 1);
         return *this;
@@ -286,8 +287,8 @@ raw_ostream &raw_ostream::write(unsigned char C) {
 
 raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
   // Group exceptional cases into a single branch.
-  if (BUILTIN_EXPECT(size_t(OutBufEnd - OutBufCur) < Size, false)) {
-    if (BUILTIN_EXPECT(!OutBufStart, false)) {
+  if (LLVM_UNLIKELY(size_t(OutBufEnd - OutBufCur) < Size)) {
+    if (LLVM_UNLIKELY(!OutBufStart)) {
       if (BufferMode == Unbuffered) {
         write_impl(Ptr, Size);
         return *this;
@@ -302,10 +303,15 @@ raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
     // If the buffer is empty at this point we have a string that is larger
     // than the buffer. Directly write the chunk that is a multiple of the
     // preferred buffer size and put the remainder in the buffer.
-    if (BUILTIN_EXPECT(OutBufCur == OutBufStart, false)) {
+    if (LLVM_UNLIKELY(OutBufCur == OutBufStart)) {
       size_t BytesToWrite = Size - (Size % NumBytes);
       write_impl(Ptr, BytesToWrite);
-      copy_to_buffer(Ptr + BytesToWrite, Size - BytesToWrite);
+      size_t BytesRemaining = Size - BytesToWrite;
+      if (BytesRemaining > size_t(OutBufEnd - OutBufCur)) {
+        // Too much left over to copy into our buffer.
+        return write(Ptr + BytesToWrite, BytesRemaining);
+      }
+      copy_to_buffer(Ptr + BytesToWrite, BytesRemaining);
       return *this;
     }
 
@@ -511,7 +517,7 @@ raw_fd_ostream::~raw_fd_ostream() {
   // has_error() and clear the error flag with clear_error() before
   // destructing raw_ostream objects which may have errors.
   if (has_error())
-    report_fatal_error("IO failure on output stream.");
+    report_fatal_error("IO failure on output stream.", /*GenCrashDiag=*/false);
 }
 
 
@@ -523,7 +529,7 @@ void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
     ssize_t ret;
 
     // Check whether we should attempt to use atomic writes.
-    if (BUILTIN_EXPECT(!UseAtomicWrites, true)) {
+    if (LLVM_LIKELY(!UseAtomicWrites)) {
       ret = ::write(FD, Ptr, Size);
     } else {
       // Use ::writev() where available.

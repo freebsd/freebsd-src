@@ -12,10 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetData.h"
 using namespace llvm;
 
 namespace {
@@ -36,7 +36,7 @@ namespace {
     virtual void initializePass() {
       // Note: NoAA does not call InitializeAliasAnalysis because it's
       // special and does not support chaining.
-      TD = getAnalysisIfAvailable<TargetData>();
+      TD = getAnalysisIfAvailable<DataLayout>();
     }
 
     virtual AliasResult alias(const Location &LocA, const Location &LocB) {

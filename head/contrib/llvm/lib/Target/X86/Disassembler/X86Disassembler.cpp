@@ -16,11 +16,9 @@
 
 #include "X86Disassembler.h"
 #include "X86DisassemblerDecoder.h"
-
-#include "llvm/MC/EDInstInfo.h"
-#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -33,7 +31,6 @@
 #include "X86GenRegisterInfo.inc"
 #define GET_INSTRINFO_ENUM
 #include "X86GenInstrInfo.inc"
-#include "X86GenEDInfo.inc"
 
 using namespace llvm;
 using namespace llvm::X86Disassembler;
@@ -44,7 +41,7 @@ void x86DisassemblerDebug(const char *file,
   dbgs() << file << ":" << line << ": " << s;
 }
 
-const char *x86DisassemblerGetInstrName(unsigned Opcode, void *mii) {
+const char *x86DisassemblerGetInstrName(unsigned Opcode, const void *mii) {
   const MCInstrInfo *MII = static_cast<const MCInstrInfo *>(mii);
   return MII->getName(Opcode);
 }
@@ -84,10 +81,6 @@ X86GenericDisassembler::~X86GenericDisassembler() {
   delete MII;
 }
 
-const EDInstInfo *X86GenericDisassembler::getEDInfo() const {
-  return instInfoX86;
-}
-
 /// regionReader - a callback function that wraps the readByte method from
 ///   MemoryObject.
 ///
@@ -95,8 +88,8 @@ const EDInstInfo *X86GenericDisassembler::getEDInfo() const {
 ///                   be a pointer to a MemoryObject.
 /// @param byte     - A pointer to the byte to be read.
 /// @param address  - The address to be read.
-static int regionReader(void* arg, uint8_t* byte, uint64_t address) {
-  MemoryObject* region = static_cast<MemoryObject*>(arg);
+static int regionReader(const void* arg, uint8_t* byte, uint64_t address) {
+  const MemoryObject* region = static_cast<const MemoryObject*>(arg);
   return region->readByte(address, byte);
 }
 
@@ -135,10 +128,10 @@ X86GenericDisassembler::getInstruction(MCInst &instr,
   
   int ret = decodeInstruction(&internalInstr,
                               regionReader,
-                              (void*)&region,
+                              (const void*)&region,
                               loggerFn,
                               (void*)&vStream,
-                              (void*)MII,
+                              (const void*)MII,
                               address,
                               fMode);
 
@@ -379,6 +372,8 @@ static void translateImmediate(MCInst &mcInst, uint64_t immediate,
   }
 
   switch (type) {
+  case TYPE_XMM32:
+  case TYPE_XMM64:
   case TYPE_XMM128:
     mcInst.addOperand(MCOperand::CreateReg(X86::XMM0 + (immediate >> 4)));
     return;

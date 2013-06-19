@@ -20,6 +20,7 @@
 
 #include "ah.h"
 #include "ah_internal.h"
+#include "ah_desc.h"
 
 #include "ar5212/ar5212.h"
 #include "ar5212/ar5212reg.h"

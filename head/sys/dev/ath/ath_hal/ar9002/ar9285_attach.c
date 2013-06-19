@@ -87,8 +87,8 @@ ar9285AniSetup(struct ath_hal *ah)
                 .coarseHigh             = { -14, -14, -14, -14, -12 },
                 .coarseLow              = { -64, -64, -64, -64, -70 },
                 .firpwr                 = { -78, -78, -78, -78, -80 },
-                .maxSpurImmunityLevel   = 2,
-                .cycPwrThr1             = { 2, 4, 6 },
+                .maxSpurImmunityLevel   = 7,
+                .cycPwrThr1             = { 2, 4, 6, 8, 10, 12, 14, 16 },
                 .maxFirstepLevel        = 2,    /* levels 0..2 */
                 .firstep                = { 0, 4, 8 },
                 .ofdmTrigHigh           = 500,
@@ -103,6 +103,28 @@ ar9285AniSetup(struct ath_hal *ah)
 	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
 
         ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
+}
+
+static const char * ar9285_lna_conf[] = {
+	"LNA1-LNA2",
+	"LNA2",
+	"LNA1",
+	"LNA1+LNA2",
+};
+
+static void
+ar9285_eeprom_print_diversity_settings(struct ath_hal *ah)
+{
+	const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
+	const MODAL_EEP4K_HEADER *pModal = &ee->ee_base.modalHeader;
+
+	ath_hal_printf(ah, "[ath] AR9285 Main LNA config: %s\n",
+	    ar9285_lna_conf[(pModal->antdiv_ctl2 >> 2) & 0x3]);
+	ath_hal_printf(ah, "[ath] AR9285 Alt LNA config: %s\n",
+	    ar9285_lna_conf[pModal->antdiv_ctl2 & 0x3]);
+	ath_hal_printf(ah, "[ath] LNA diversity %s, Diversity %s\n",
+	    ((pModal->antdiv_ctl1 & 0x1) ? "enabled" : "disabled"),
+	    ((pModal->antdiv_ctl1 & 0x8) ? "enabled" : "disabled"));
 }
 
 /*
@@ -148,15 +170,18 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		ah->ah_eepromdata = eepromdata;
 	}
 
-	/* XXX override with 9285 specific state */
-	/* override 5416 methods for our needs */
+	/* override with 9285 specific state */
 	AH5416(ah)->ah_initPLL = ar9280InitPLL;
+	AH5416(ah)->ah_btCoexSetDiversity = ar9285BTCoexAntennaDiversity;
 
 	ah->ah_setAntennaSwitch		= ar9285SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9285ConfigPCIE;
 	ah->ah_disablePCIE		= ar9285DisablePCIE;
 	ah->ah_setTxPower		= ar9285SetTransmitPower;
 	ah->ah_setBoardValues		= ar9285SetBoardValues;
+	ah->ah_btCoexSetParameter	= ar9285BTCoexSetParameter;
+	ah->ah_divLnaConfGet		= ar9285_antdiv_comb_conf_get;
+	ah->ah_divLnaConfSet		= ar9285_antdiv_comb_conf_set;
 
 	AH5416(ah)->ah_cal.iqCalData.calData = &ar9280_iq_cal;
 	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9280_adc_gain_cal;
@@ -308,10 +333,16 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 
+	/*
+	 * Print out the EEPROM antenna configuration mapping.
+	 * Some devices have a hard-coded LNA configuration profile;
+	 * others enable diversity.
+	 */
+	ar9285_eeprom_print_diversity_settings(ah);
+
 	/* Print out whether the EEPROM settings enable AR9285 diversity */
 	if (ar9285_check_div_comb(ah)) {
 		ath_hal_printf(ah, "[ath] Enabling diversity for Kite\n");
-		ah->ah_rxAntCombDiversity = ar9285_ant_comb_scan;
 	}
 
 	/* Disable 11n for the AR2427 */
@@ -513,7 +544,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halRtsAggrLimit = 64*1024;	/* 802.11n max */
 	pCap->halExtChanDfsSupport = AH_TRUE;
 	pCap->halUseCombinedRadarRssi = AH_TRUE;
-#if 0
+#if 1
 	/* XXX bluetooth */
 	pCap->halBtCoexSupport = AH_TRUE;
 #endif
@@ -523,6 +554,8 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halHasRxSelfLinkedTail = AH_FALSE;
 	pCap->halMbssidAggrSupport = AH_TRUE;  
 	pCap->hal4AddrAggrSupport = AH_TRUE;
+	pCap->halSpectralScanSupport = AH_TRUE;
+	pCap->halRxUsingLnaMixing = AH_TRUE;
 
 	if (AR_SREV_KITE_12_OR_LATER(ah))
 		pCap->halPSPollBroken = AH_FALSE;

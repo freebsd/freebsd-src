@@ -204,12 +204,12 @@ main(int argc, char **argv)
 	s6 = -1;
 #ifdef INET
 	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (s == -1 && errno != EPROTONOSUPPORT)
+	if (s == -1 && errno != EAFNOSUPPORT)
 		err(1, "can't open IPv4 socket");
 #endif
 #ifdef INET6
 	s6 = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	if (s6 == -1 && errno != EPROTONOSUPPORT)
+	if (s6 == -1 && errno != EAFNOSUPPORT)
 		err(1, "can't open IPv6 socket");
 #endif
 	if (s == -1 && s6 == -1)

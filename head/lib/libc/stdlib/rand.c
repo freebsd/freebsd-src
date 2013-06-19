@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,11 +36,10 @@ static char sccsid[] = "@(#)rand.c	8.1 (Berkeley) 6/14/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/time.h>          /* for sranddev() */
+#include <sys/param.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
-#include <fcntl.h>             /* for sranddev() */
 #include <stdlib.h>
-#include <unistd.h>            /* for sranddev() */
 #include "un-namespace.h"
 
 #ifdef TEST
@@ -112,29 +111,20 @@ u_int seed;
  * sranddev:
  *
  * Many programs choose the seed value in a totally predictable manner.
- * This often causes problems.  We seed the generator using the much more
- * secure random(4) interface.
+ * This often causes problems.  We seed the generator using pseudo-random
+ * data from the kernel.
  */
 void
 sranddev()
 {
-	int fd, done;
+	int mib[2];
+	size_t len;
 
-	done = 0;
-	fd = _open("/dev/random", O_RDONLY, 0);
-	if (fd >= 0) {
-		if (_read(fd, (void *) &next, sizeof(next)) == sizeof(next))
-			done = 1;
-		_close(fd);
-	}
+	len = sizeof(next);
 
-	if (!done) {
-		struct timeval tv;
-		unsigned long junk;
-
-		gettimeofday(&tv, NULL);
-		srand((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec ^ junk);
-	}
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+	sysctl(mib, 2, (void *)&next, &len, NULL, 0);
 }
 
 

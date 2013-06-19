@@ -33,6 +33,7 @@ is_disk()
   for _dsk in `sysctl -n kern.disks`
   do
     [ "$_dsk" = "${1}" ] && return 0
+    [ "/dev/$_dsk" = "${1}" ] && return 0
   done
 
   return 1
@@ -221,6 +222,15 @@ get_disk_heads()
 get_disk_mediasize()
 {
   mediasize=`diskinfo -v ${1} | grep "# mediasize in sectors" | tr -s ' ' | cut -f 2`
+  export VAL="${mediasize}"
+};
+
+# Function which returns a target disks mediasize in megabytes
+get_disk_mediasize_mb()
+{
+  mediasize=`diskinfo -v ${1} | grep "# mediasize in bytes" | tr -s ' ' | cut -f 2`
+  mediasize=`expr $mediasize / 1024`
+  mediasize=`expr $mediasize / 1024`
   export VAL="${mediasize}"
 };
 

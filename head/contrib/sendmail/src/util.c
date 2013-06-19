@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.416 2009/12/18 17:05:26 ca Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.426 2013/03/12 15:24:54 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sysexits.h>
@@ -1285,8 +1285,7 @@ sfgets(buf, siz, fp, timeout, during)
 	char *during;
 {
 	register char *p;
-	int save_errno;
-	int io_timeout;
+	int save_errno, io_timeout, l;
 
 	SM_REQUIRE(siz > 0);
 	SM_REQUIRE(buf != NULL);
@@ -1299,7 +1298,7 @@ sfgets(buf, siz, fp, timeout, during)
 	}
 
 	/* try to read */
-	p = NULL;
+	l = -1;
 	errno = 0;
 
 	/* convert the timeout to sm_io notation */
@@ -1307,8 +1306,8 @@ sfgets(buf, siz, fp, timeout, during)
 	while (!sm_io_eof(fp) && !sm_io_error(fp))
 	{
 		errno = 0;
-		p = sm_io_fgets(fp, io_timeout, buf, siz);
-		if (p == NULL && errno == EAGAIN)
+		l = sm_io_fgets(fp, io_timeout, buf, siz);
+		if (l < 0 && errno == EAGAIN)
 		{
 			/* The sm_io_fgets() call timedout */
 			if (LogLevel > 1)
@@ -1328,7 +1327,7 @@ sfgets(buf, siz, fp, timeout, during)
 			errno = ETIMEDOUT;
 			return NULL;
 		}
-		if (p != NULL || errno != EINTR)
+		if (l >= 0 || errno != EINTR)
 			break;
 		(void) sm_io_clearerr(fp);
 	}
@@ -1336,7 +1335,7 @@ sfgets(buf, siz, fp, timeout, during)
 
 	/* clean up the books and exit */
 	LineNumber++;
-	if (p == NULL)
+	if (l < 0)
 	{
 		buf[0] = '\0';
 		if (TrafficLogFile != NULL)
@@ -2638,7 +2637,13 @@ proc_list_drop(pid, st, other)
 		mark_work_group_restart(ProcListVec[i].proc_other, st);
 	}
 	else if (type == PROC_QUEUE)
+	{
 		CurRunners -= ProcListVec[i].proc_count;
+
+		/* CHK_CUR_RUNNERS() can't be used here: uses syslog() */
+		if (CurRunners < 0)
+			CurRunners = 0;
+	}
 }
 
 /*
@@ -2702,6 +2707,14 @@ proc_list_probe()
 					  (int) ProcListVec[i].proc_pid);
 			ProcListVec[i].proc_pid = NO_PID;
 			SM_FREE_CLR(ProcListVec[i].proc_task);
+
+			if (ProcListVec[i].proc_type == PROC_QUEUE)
+			{
+				CurRunners -= ProcListVec[i].proc_count;
+				CHK_CUR_RUNNERS("proc_list_probe", i,
+						ProcListVec[i].proc_count);
+			}
+
 			CurChildren--;
 		}
 		else
@@ -2852,3 +2865,4 @@ count_open_connections(hostaddr)
 	}
 	return n;
 }
+

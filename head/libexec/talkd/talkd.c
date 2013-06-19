@@ -69,13 +69,13 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-CTL_MSG		request;
-CTL_RESPONSE	response;
+static CTL_MSG		request;
+static CTL_RESPONSE	response;
 
-int	debug = 0;
-long	lastmsgtime;
+int			debug = 0;
+static long		lastmsgtime;
 
-char	hostname[MAXHOSTNAMELEN];
+char			hostname[MAXHOSTNAMELEN];
 
 #define TIMEOUT 30
 #define MAXIDLE 120

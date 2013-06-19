@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ASMLEXER_H
-#define ASMLEXER_H
+#ifndef LLVM_MC_MCPARSER_ASMLEXER_H
+#define LLVM_MC_MCPARSER_ASMLEXER_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
@@ -31,8 +31,8 @@ class AsmLexer : public MCAsmLexer {
   const MemoryBuffer *CurBuf;
   bool isAtStartOfLine;
 
-  void operator=(const AsmLexer&); // DO NOT IMPLEMENT
-  AsmLexer(const AsmLexer&);       // DO NOT IMPLEMENT
+  void operator=(const AsmLexer&) LLVM_DELETED_FUNCTION;
+  AsmLexer(const AsmLexer&) LLVM_DELETED_FUNCTION;
 
 protected:
   /// LexToken - Read the next token and return its code.

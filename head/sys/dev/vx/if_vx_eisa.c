@@ -177,7 +177,7 @@ static device_method_t vx_eisa_methods[] = {
 	DEVMETHOD(device_probe, vx_eisa_probe),
 	DEVMETHOD(device_attach, vx_eisa_attach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t vx_eisa_driver = {

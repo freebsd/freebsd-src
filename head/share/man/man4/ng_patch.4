@@ -57,7 +57,7 @@ bytes beginning from
 are taken as a single integer in network byte order.
 .Sh HOOKS
 This node type has two hooks:
-.Bl -tag -width indent
+.Bl -tag -width ".Va out"
 .It Va in
 Packets received on this hook are modified according to rules specified
 in config and then forwarded to
@@ -73,8 +73,8 @@ hook without any changes.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_PATCH_SETCONFIG Pq Li setconfig
+.Bl -tag -width foo
+.It Dv NGM_PATCH_SETCONFIG Pq Ic setconfig
 This command sets the sequence of modify operations
 that will be applied to incoming data on a hook.
 The following
@@ -115,16 +115,16 @@ corresponding checksum before transmitting packet on output interface.
 The
 .Nm
 node does not do any checksum correction by itself.
-.It Dv NGM_PATCH_GETCONFIG Pq Li getconfig
+.It Dv NGM_PATCH_GETCONFIG Pq Ic getconfig
 This control message obtains current set of modify operations,
 returned as
 .Vt "struct ng_patch_config" .
-.It Dv NGM_PATCH_GET_STATS Pq Li getstats
+.It Dv NGM_PATCH_GET_STATS Pq Ic getstats
 Returns node statistics as a
 .Vt "struct ng_patch_stats" .
-.It Dv NGM_PATCH_CLR_STATS Pq Li clrstats
+.It Dv NGM_PATCH_CLR_STATS Pq Ic clrstats
 Clear node statistics.
-.It Dv NGM_PATCH_GETCLR_STATS Pq Li getclrstats
+.It Dv NGM_PATCH_GETCLR_STATS Pq Ic getclrstats
 This command is identical to
 .Dv NGM_PATCH_GET_STATS ,
 except that the statistics are also atomically cleared.

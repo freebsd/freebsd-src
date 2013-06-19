@@ -13,8 +13,8 @@
 
 #define DEBUG_TYPE "x86-selectiondag-info"
 #include "X86TargetMachine.h"
-#include "llvm/DerivedTypes.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/IR/DerivedTypes.h"
 using namespace llvm;
 
 X86SelectionDAGInfo::X86SelectionDAGInfo(const X86TargetMachine &TM) :
@@ -54,7 +54,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
     if (const char *bzeroEntry =  V &&
         V->isNullValue() ? Subtarget->getBZeroEntry() : 0) {
       EVT IntPtr = TLI.getPointerTy();
-      Type *IntPtrTy = getTargetData()->getIntPtrType(*DAG.getContext());
+      Type *IntPtrTy = getDataLayout()->getIntPtrType(*DAG.getContext());
       TargetLowering::ArgListTy Args;
       TargetLowering::ArgListEntry Entry;
       Entry.Node = Dst;
@@ -200,6 +200,14 @@ X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
   // If to a segment-relative address space, use the default lowering.
   if (DstPtrInfo.getAddrSpace() >= 256 ||
       SrcPtrInfo.getAddrSpace() >= 256)
+    return SDValue();
+
+  // ESI might be used as a base pointer, in that case we can't simply overwrite
+  // the register.  Fall back to generic code.
+  const X86RegisterInfo *TRI =
+      static_cast<const X86RegisterInfo *>(DAG.getTarget().getRegisterInfo());
+  if (TRI->hasBasePointer(DAG.getMachineFunction()) &&
+      TRI->getBaseRegister() == X86::ESI)
     return SDValue();
 
   MVT AVT;

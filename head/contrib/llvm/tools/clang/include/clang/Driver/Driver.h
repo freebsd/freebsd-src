@@ -11,11 +11,10 @@
 #define CLANG_DRIVER_DRIVER_H_
 
 #include "clang/Basic/Diagnostic.h"
-
+#include "clang/Basic/LLVM.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
-
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
@@ -25,9 +24,6 @@
 #include <set>
 #include <string>
 
-namespace llvm {
-  template<typename T> class ArrayRef;
-}
 namespace clang {
 namespace driver {
   class Action;
@@ -146,28 +142,11 @@ private:
   /// jobs.
   unsigned CheckInputsExist : 1;
 
-  /// Use the clang compiler where possible.
-  unsigned CCCUseClang : 1;
-
-  /// Use clang for handling C++ and Objective-C++ inputs.
-  unsigned CCCUseClangCXX : 1;
-
-  /// Use clang as a preprocessor (clang's preprocessor will still be
-  /// used where an integrated CPP would).
-  unsigned CCCUseClangCPP : 1;
-
-  /// \brief Force use of clang frontend.
-  unsigned ForcedClangUse : 1;
-
 public:
   /// Use lazy precompiled headers for PCH support.
   unsigned CCCUsePCH : 1;
 
 private:
-  /// Only use clang for the given architectures (only used when
-  /// non-empty).
-  std::set<llvm::Triple::ArchType> CCCClangArchs;
-
   /// Certain options suppress the 'no input files' warning.
   bool SuppressMissingInputWarning : 1;
 
@@ -195,7 +174,6 @@ public:
   Driver(StringRef _ClangExecutable,
          StringRef _DefaultTargetTriple,
          StringRef _DefaultImageName,
-         bool IsProduction,
          DiagnosticsEngine &_Diags);
   ~Driver();
 
@@ -231,9 +209,6 @@ public:
   void setInstalledDir(StringRef Value) {
     InstalledDir = Value;
   }
-
-  bool shouldForceClangUse() const { return ForcedClangUse; }
-  void setForcedClangUse(bool V = true) { ForcedClangUse = V; }
 
   /// @}
   /// @name Primary Functionality
@@ -287,7 +262,7 @@ public:
   /// BuildJobs - Bind actions to concrete tools and translate
   /// arguments to form the list of jobs to run.
   ///
-  /// \arg C - The compilation that is being built.
+  /// \param C - The compilation that is being built.
   void BuildJobs(Compilation &C) const;
 
   /// ExecuteCompilation - Execute the compilation according to the command line
@@ -297,7 +272,7 @@ public:
   /// to just running the subprocesses, for example reporting errors, removing
   /// temporary files, etc.
   int ExecuteCompilation(const Compilation &C,
-                         const Command *&FailingCommand) const;
+     SmallVectorImpl< std::pair<int, const Command *> > &FailingCommands) const;
   
   /// generateCompilationDiagnostics - Generate diagnostics information 
   /// including preprocessed source file(s).
@@ -323,26 +298,21 @@ public:
   /// PrintVersion - Print the driver version.
   void PrintVersion(const Compilation &C, raw_ostream &OS) const;
 
-  /// GetFilePath - Lookup \arg Name in the list of file search paths.
+  /// GetFilePath - Lookup \p Name in the list of file search paths.
   ///
-  /// \arg TC - The tool chain for additional information on
+  /// \param TC - The tool chain for additional information on
   /// directories to search.
   //
   // FIXME: This should be in CompilationInfo.
   std::string GetFilePath(const char *Name, const ToolChain &TC) const;
 
-  /// GetProgramPath - Lookup \arg Name in the list of program search
-  /// paths.
+  /// GetProgramPath - Lookup \p Name in the list of program search paths.
   ///
-  /// \arg TC - The provided tool chain for additional information on
+  /// \param TC - The provided tool chain for additional information on
   /// directories to search.
-  ///
-  /// \arg WantFile - False when searching for an executable file, otherwise
-  /// true.  Defaults to false.
   //
   // FIXME: This should be in CompilationInfo.
-  std::string GetProgramPath(const char *Name, const ToolChain &TC,
-                              bool WantFile = false) const;
+  std::string GetProgramPath(const char *Name, const ToolChain &TC) const;
 
   /// HandleImmediateArgs - Handle any arguments which should be
   /// treated before building actions or binding tools.
@@ -352,35 +322,40 @@ public:
   bool HandleImmediateArgs(const Compilation &C);
 
   /// ConstructAction - Construct the appropriate action to do for
-  /// \arg Phase on the \arg Input, taking in to account arguments
+  /// \p Phase on the \p Input, taking in to account arguments
   /// like -fsyntax-only or --analyze.
   Action *ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
                                Action *Input) const;
 
 
   /// BuildJobsForAction - Construct the jobs to perform for the
-  /// action \arg A.
+  /// action \p A.
   void BuildJobsForAction(Compilation &C,
                           const Action *A,
                           const ToolChain *TC,
                           const char *BoundArch,
                           bool AtTopLevel,
+                          bool MultipleArchs,
                           const char *LinkingOutput,
                           InputInfo &Result) const;
 
   /// GetNamedOutputPath - Return the name to use for the output of
-  /// the action \arg JA. The result is appended to the compilation's
+  /// the action \p JA. The result is appended to the compilation's
   /// list of temporary or result files, as appropriate.
   ///
   /// \param C - The compilation.
   /// \param JA - The action of interest.
   /// \param BaseInput - The original input file that this action was
   /// triggered by.
+  /// \param BoundArch - The bound architecture. 
   /// \param AtTopLevel - Whether this is a "top-level" action.
+  /// \param MultipleArchs - Whether multiple -arch options were supplied.
   const char *GetNamedOutputPath(Compilation &C,
                                  const JobAction &JA,
                                  const char *BaseInput,
-                                 bool AtTopLevel) const;
+                                 const char *BoundArch,
+                                 bool AtTopLevel,
+                                 bool MultipleArchs) const;
 
   /// GetTemporaryPath - Return the pathname of a temporary file to use 
   /// as part of compilation; the file will have the given prefix and suffix.
@@ -388,10 +363,9 @@ public:
   /// GCC goes to extra lengths here to be a bit more robust.
   std::string GetTemporaryPath(StringRef Prefix, const char *Suffix) const;
 
-  /// ShouldUseClangCompilar - Should the clang compiler be used to
+  /// ShouldUseClangCompiler - Should the clang compiler be used to
   /// handle this action.
-  bool ShouldUseClangCompiler(const Compilation &C, const JobAction &JA,
-                              const llvm::Triple &ArchName) const;
+  bool ShouldUseClangCompiler(const JobAction &JA) const;
 
   bool IsUsingLTO(const ArgList &Args) const;
 

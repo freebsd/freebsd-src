@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,15 +28,16 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
 
-APP_DIR="110.mouse"
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="110.mouse"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ FUNCTIONS
@@ -47,11 +48,8 @@ ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
-	local hline=""
 	local prompt="$msg_menu_text"
-
-	menu_list="
+	local menu_list="
 		'X $msg_exit'    '$msg_exit_this_menu'
 		'2 $msg_enable'  '$msg_test_and_run_the_mouse_daemon'
 		'3 $msg_type'    '$msg_select_mouse_protocol_type'
@@ -59,23 +57,38 @@ dialog_menu_main()
 		'5 $msg_flags'   '$msg_set_additional_flags'
 		'6 $msg_disable' '$msg_disable_the_mouse_daemon'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline=
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$prompt\" $size          \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
+	return $retval
 }
 
 ############################################################ MAIN
@@ -86,7 +99,7 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -96,7 +109,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_please_configure_your_mouse"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
@@ -105,26 +117,24 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
-	[ $retval -eq 0 ] || f_die
-
+	command=
 	case "$mtag" in
-	"X $msg_exit") break ;;
-	"2 $msg_enable") # Test and run the mouse daemon
-		$BSDCFG_LIBE/$APP_DIR/enable ${USE_XDIALOG:+-X} ;;
-	"3 $msg_type") # Select mouse protocol type
-		$BSDCFG_LIBE/$APP_DIR/type ${USE_XDIALOG:+-X} ;;
-	"4 $msg_port") # Select mouse port
-		$BSDCFG_LIBE/$APP_DIR/port ${USE_XDIALOG:+-X} ;;
-	"5 $msg_flags") # Set additional flags
-		$BSDCFG_LIBE/$APP_DIR/flags ${USE_XDIALOG:+-X} ;;
-	"6 $msg_disable") # Disable the mouse daemon
-		$BSDCFG_LIBE/$APP_DIR/disable ${USE_XDIALOG:+-X} ;;
+	"X $msg_exit")    break ;;
+	"2 $msg_enable")  command=enable  ;; # Test and run the mouse daemon
+	"3 $msg_type")    command=type    ;; # Select mouse protocol type
+	"4 $msg_port")    command=port    ;; # Select mouse port
+	"5 $msg_flags")   command=flags   ;; # Set additional flags
+	"6 $msg_disable") command=disable ;; # Disable the mouse daemon
 	esac
 
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X} ;;
+	else
+		f_die 1 "$msg_unknown_mouse_menu_selection"
+	fi
 done
 
 exit $SUCCESS

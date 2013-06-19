@@ -329,7 +329,6 @@ trap(struct trapframe *tf)
 		}
 
 		userret(td, tf);
-		mtx_assert(&Giant, MA_NOTOWNED);
 	} else {
 		KASSERT((tf->tf_type & T_KERNEL) != 0,
 		    ("trap: kernel trap isn't"));

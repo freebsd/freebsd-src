@@ -61,11 +61,21 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
 TUNABLE_INT("kern.timecounter.invariant_tsc", &tsc_is_invariant);
 
 #ifdef SMP
-static int	smp_tsc;
+int	smp_tsc;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RDTUN, &smp_tsc, 0,
     "Indicates whether the TSC is safe to use in SMP mode");
 TUNABLE_INT("kern.timecounter.smp_tsc", &smp_tsc);
+
+int	smp_tsc_adjust = 0;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc_adjust, CTLFLAG_RDTUN,
+    &smp_tsc_adjust, 0, "Try to adjust TSC on APs to match BSP");
+TUNABLE_INT("kern.timecounter.smp_tsc_adjust", &smp_tsc_adjust);
 #endif
+
+static int	tsc_shift = 1;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, tsc_shift, CTLFLAG_RDTUN,
+    &tsc_shift, 0, "Shift to pre-apply for the maximum TSC frequency");
+TUNABLE_INT("kern.timecounter.tsc_shift", &tsc_shift);
 
 static int	tsc_disabled;
 SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
@@ -398,25 +408,77 @@ comp_smp_tsc(void *arg)
 		}
 }
 
+static void
+adj_smp_tsc(void *arg)
+{
+	uint64_t *tsc;
+	int64_t d, min, max;
+	u_int cpu = PCPU_GET(cpuid);
+	u_int first, i, size;
+
+	first = CPU_FIRST();
+	if (cpu == first)
+		return;
+	min = INT64_MIN;
+	max = INT64_MAX;
+	size = (mp_maxid + 1) * 3;
+	for (i = 0, tsc = arg; i < N; i++, tsc += size) {
+		d = tsc[first * 3] - tsc[cpu * 3 + 1];
+		if (d > min)
+			min = d;
+		d = tsc[first * 3 + 1] - tsc[cpu * 3 + 2];
+		if (d > min)
+			min = d;
+		d = tsc[first * 3 + 1] - tsc[cpu * 3];
+		if (d < max)
+			max = d;
+		d = tsc[first * 3 + 2] - tsc[cpu * 3 + 1];
+		if (d < max)
+			max = d;
+	}
+	if (min > max)
+		return;
+	d = min / 2 + max / 2;
+	__asm __volatile (
+		"movl $0x10, %%ecx\n\t"
+		"rdmsr\n\t"
+		"addl %%edi, %%eax\n\t"
+		"adcl %%esi, %%edx\n\t"
+		"wrmsr\n"
+		: /* No output */
+		: "D" ((uint32_t)d), "S" ((uint32_t)(d >> 32))
+		: "ax", "cx", "dx", "cc"
+	);
+}
+
 static int
-test_smp_tsc(void)
+test_tsc(void)
 {
 	uint64_t *data, *tsc;
-	u_int i, size;
+	u_int i, size, adj;
 
-	if (!smp_tsc && !tsc_is_invariant)
+	if ((!smp_tsc && !tsc_is_invariant) || vm_guest)
 		return (-100);
 	size = (mp_maxid + 1) * 3;
 	data = malloc(sizeof(*data) * size * N, M_TEMP, M_WAITOK);
+	adj = 0;
+retry:
 	for (i = 0, tsc = data; i < N; i++, tsc += size)
 		smp_rendezvous(tsc_read_0, tsc_read_1, tsc_read_2, tsc);
 	smp_tsc = 1;	/* XXX */
 	smp_rendezvous(smp_no_rendevous_barrier, comp_smp_tsc,
 	    smp_no_rendevous_barrier, data);
+	if (!smp_tsc && adj < smp_tsc_adjust) {
+		adj++;
+		smp_rendezvous(smp_no_rendevous_barrier, adj_smp_tsc,
+		    smp_no_rendevous_barrier, data);
+		goto retry;
+	}
 	free(data, M_TEMP);
 	if (bootverbose)
-		printf("SMP: %sed TSC synchronization test\n",
-		    smp_tsc ? "pass" : "fail");
+		printf("SMP: %sed TSC synchronization test%s\n",
+		    smp_tsc ? "pass" : "fail", 
+		    adj > 0 ? " after adjustment" : "");
 	if (smp_tsc && tsc_is_invariant) {
 		switch (cpu_vendor_id) {
 		case CPU_VENDOR_AMD:
@@ -443,6 +505,19 @@ test_smp_tsc(void)
 }
 
 #undef N
+
+#else
+
+/*
+ * The function is not called, it is provided to avoid linking failure
+ * on uniprocessor kernel.
+ */
+static int
+test_tsc(void)
+{
+
+	return (0);
+}
 
 #endif /* SMP */
 
@@ -492,41 +567,37 @@ init_TSC_tc(void)
 		goto init;
 	}
 
-#ifdef SMP
 	/*
-	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs are
-	 * synchronized.  If the user is sure that the system has synchronized
-	 * TSCs, set kern.timecounter.smp_tsc tunable to a non-zero value.
-	 * We also limit the frequency even lower to avoid "temporal anomalies"
-	 * as much as possible.  The TSC seems unreliable in virtualized SMP
+	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs
+	 * are synchronized.  If the user is sure that the system has
+	 * synchronized TSCs, set kern.timecounter.smp_tsc tunable to a
+	 * non-zero value.  The TSC seems unreliable in virtualized SMP
 	 * environments, so it is set to a negative quality in those cases.
 	 */
-	if (smp_cpus > 1) {
-		if (vm_guest != 0) {
-			tsc_timecounter.tc_quality = -100;
-		} else {
-			tsc_timecounter.tc_quality = test_smp_tsc();
-			max_freq >>= 8;
-		}
-	} else
-#endif
-	if (tsc_is_invariant)
+	if (mp_ncpus > 1)
+		tsc_timecounter.tc_quality = test_tsc();
+	else if (tsc_is_invariant)
 		tsc_timecounter.tc_quality = 1000;
+	max_freq >>= tsc_shift;
 
 init:
-	for (shift = 0; shift < 31 && (tsc_freq >> shift) > max_freq; shift++)
+	for (shift = 0; shift <= 31 && (tsc_freq >> shift) > max_freq; shift++)
 		;
+	if ((cpu_feature & CPUID_SSE2) != 0 && mp_ncpus > 1) {
+		if (cpu_vendor_id == CPU_VENDOR_AMD) {
+			tsc_timecounter.tc_get_timecount = shift > 0 ?
+			    tsc_get_timecount_low_mfence :
+			    tsc_get_timecount_mfence;
+		} else {
+			tsc_timecounter.tc_get_timecount = shift > 0 ?
+			    tsc_get_timecount_low_lfence :
+			    tsc_get_timecount_lfence;
+		}
+	} else {
+		tsc_timecounter.tc_get_timecount = shift > 0 ?
+		    tsc_get_timecount_low : tsc_get_timecount;
+	}
 	if (shift > 0) {
-		if (cpu_feature & CPUID_SSE2) {
-			if (cpu_vendor_id == CPU_VENDOR_AMD) {
-				tsc_timecounter.tc_get_timecount =
-				    tsc_get_timecount_low_mfence;
-			} else {
-				tsc_timecounter.tc_get_timecount =
-				    tsc_get_timecount_low_lfence;
-			}
-		} else
-			tsc_timecounter.tc_get_timecount = tsc_get_timecount_low;
 		tsc_timecounter.tc_name = "TSC-low";
 		if (bootverbose)
 			printf("TSC timecounter discards lower %d bit(s)\n",
