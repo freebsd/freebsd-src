@@ -40,9 +40,9 @@ LIBSVN_SUBRDIR=		${.OBJDIR}/../lib/libsvn_subr
 LIBSVN_WCDIR=		${.OBJDIR}/../lib/libsvn_wc
 
 LIBAPR=			${LIBAPRDIR}/libapr.a
-LIBAPR_UTIL=		${LIBAPR_UTILDIR}/libapr_util.a
+LIBAPR_UTIL=		${LIBAPR_UTILDIR}/libapr-util.a
 LIBSQLITE=		${LIBSQLITEDIR}/libsqlite3.a
-LIBSERF=		${LIBSQLITEDIR}/libserf.a
+LIBSERF=		${LIBSERFDIR}/libserf.a
 
 LIBSVN_CLIENT=		${LIBSVN_CLIENTDIR}/libsvn_client.a
 LIBSVN_DELTA=		${LIBSVN_DELTADIR}/libsvn_delta.a
