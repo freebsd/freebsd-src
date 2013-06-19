@@ -244,29 +244,11 @@ if [ $# -ge 1 ]; then
 	default="$1"
 
 	f_dialog_title "$msg_default_zone_provided"
-	title="$DIALOG_TITLE"
-	btitle="$DIALOG_BACKTITLE"
-	f_dialog_title_restore
 	msg=$( printf "\n$msg_use_default_zone" "$default" )
-	f_dialog_buttonbox_size height width "$title" "$btitle" "$msg"
-
-	if [ "$USE_XDIALOG" ]; then
-		eval $DIALOG \
-			--title \"\$title\"         \
-			--backtitle \"\$btitle\"    \
-			--ok-label \"\$msg_yes\"    \
-			--cancel-label \"\$msg_no\" \
-			--yesno \"\$msg\" $height $width
-		result=$?
-	else
-		eval $DIALOG \
-			--title \"\$title\"       \
-			--backtitle \"\$btitle\"  \
-			--yes-label \"\$msg_yes\" \
-			--no-label \"\$msg_no\"   \
-			--yesno \"\$msg\" $height $width
-		result=$?
-	fi
+	hline=
+	f_dialog_yesno "$msg" "$hline"
+	result=$?
+	f_dialog_title_restore
 
 	if [ $result -eq 0 ]; then
 		# User chose YES
