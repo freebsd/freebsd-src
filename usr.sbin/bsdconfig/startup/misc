@@ -347,7 +347,7 @@ while :; do
 	case "$mtag" in
 	"X $msg_exit") break ;;
 	?" [X] "*) toggled=1 ;;
-	        *) toggled=  ;;
+	        *) toggled=
 	esac
 
 	case "$mtag" in
