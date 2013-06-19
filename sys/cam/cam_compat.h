@@ -40,9 +40,9 @@ int cam_compat_ioctl(struct cdev *dev, u_long *cmd, caddr_t *addr, int *flag, st
 #define CAMIOCOMMAND_0x16	_IOWR(CAM_VERSION_0x16, 2, union ccb)
 #define CAMGETPASSTHRU_0x16	_IOWR(CAM_VERSION_0x16, 3, union ccb)
 
-#define CAM_SCATTER_VALID_0x16	0x10
-#define CAM_SG_LIST_PHYS_0x16	0x40000
-#define CAM_DATA_PHYS_0x16	0x20000
+#define CAM_SCATTER_VALID_0x16	0x00000010
+#define CAM_SG_LIST_PHYS_0x16	0x00040000
+#define CAM_DATA_PHYS_0x16	0x00200000
 
 #endif
 
