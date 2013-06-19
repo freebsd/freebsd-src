@@ -378,136 +378,35 @@ f_install_zoneinfo_file()
 		fi
 	fi
 
-	if [ "$REALLYDOIT" ]; then
-		if [ ! "$zoneinfo_file" ]; then
-			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
+	[ "$REALLYDOIT" ] || return $SUCCESS
+
+	if [ ! "$zoneinfo_file" ]; then
+		err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
 			fi
+			return $FAILURE
+		fi
 
-			err=$( rm -f "$_PATH_DB" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
+		err=$( rm -f "$_PATH_DB" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
 			fi
-
-			if [ "$VERBOSE" ]; then
-				msg=$( printf "$msg_removed_file" \
-				              "$_PATH_LOCALTIME" )
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_done"
-					f_dialog_msgbox "$msg"
-					f_dialog_title_restore
-				else
-					printf "%s\n" "$msg"
-				fi
-			fi
-
-			return $SUCCESS
-
-		fi # ! zoneinfo_file
-
-		if [ "$copymode" ]; then
-
-			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( umask 222 && : 2>&1 > "$_PATH_LOCALTIME" )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( cat "$zoneinfo_file" 2>&1 > "$_PATH_LOCALTIME" )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-		else # ! copymode
-
-			err=$( ( :< "$zoneinfo_file" ) 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( ln -s "$zoneinfo_file" "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					f_dialog_title "$msg_error"
-					f_dialog_msgbox "$err"
-					f_dialog_title_restore
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-		fi # copymode
+			return $FAILURE
+		fi
 
 		if [ "$VERBOSE" ]; then
-			if [ "$copymode" ]; then
-				msg=$( printf "$msg_copied_timezone_file" \
-				              "$zoneinfo_file" \
-				              "$_PATH_LOCALTIME" )
-			else
-				msg=$( printf "$msg_created_symlink" \
-				              "$_PATH_LOCALTIME" \
-				              "$zoneinfo_file" )
-			fi
+			msg=$( printf "$msg_removed_file" "$_PATH_LOCALTIME" )
 			if [ "$USEDIALOG" ]; then
 				f_dialog_title "$msg_done"
 				f_dialog_msgbox "$msg"
@@ -517,7 +416,104 @@ f_install_zoneinfo_file()
 			fi
 		fi
 
-	fi # REALLYDOIT
+		return $SUCCESS
+
+	fi # ! zoneinfo_file
+
+	if [ "$copymode" ]; then
+
+		err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( umask 222 && : 2>&1 > "$_PATH_LOCALTIME" )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( cat "$zoneinfo_file" 2>&1 > "$_PATH_LOCALTIME" )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+	else # ! copymode
+
+		err=$( ( :< "$zoneinfo_file" ) 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( ln -s "$zoneinfo_file" "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+	fi # copymode
+
+	if [ "$VERBOSE" ]; then
+		if [ "$copymode" ]; then
+			msg=$( printf "$msg_copied_timezone_file" \
+			              "$zoneinfo_file" "$_PATH_LOCALTIME" )
+		else
+			msg=$( printf "$msg_created_symlink" \
+			              "$_PATH_LOCALTIME" "$zoneinfo_file" )
+		fi
+		if [ "$USEDIALOG" ]; then
+			f_dialog_title "$msg_done"
+			f_dialog_msgbox "$msg"
+			f_dialog_title_restore
+		else
+			printf "%s\n" "$msg"
+		fi
+	fi
 
 	return $SUCCESS
 }
