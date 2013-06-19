@@ -366,8 +366,10 @@ SUBDIR+=	users
 SUBDIR+=	who
 .endif
 
+.if ${MACHINE_ARCH} != "mips"	# mips is broken with pthread
 .if ${MK_SVN} == "yes" || ${MK_SVNLITE} == "yes"
 SUBDIR+=	svn
+.endif
 .endif
 
 .include <bsd.arch.inc.mk>
