@@ -371,41 +371,21 @@ f_install_zoneinfo_file()
 		fi
 		if [ "$USEDIALOG" ]; then
 			f_dialog_title "$msg_info"
-			title="$DIALOG_TITLE"
-			btitle="$DIALOG_BACKTITLE"
+			f_dialog_msgbox "$msg"
 			f_dialog_title_restore
-			f_dialog_buttonbox_size height width \
-			                        "$title" "$btitle" "$msg"
-			$DIALOG \
-				--title "$title"      \
-				--backtitle "$btitle" \
-				--ok-label "$msg_ok"  \
-				--msgbox "$msg" $height $width
 		else
 			printf "%s\n" "$msg"
 		fi
 	fi
 
 	if [ "$REALLYDOIT" ]; then
-		f_dialog_title "$msg_error"
-		title="$DIALOG_TITLE"
-		btitle="$DIALOG_BACKTITLE"
-		f_dialog_title_restore
-
 		if [ ! "$zoneinfo_file" ]; then
-
 			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -415,15 +395,9 @@ f_install_zoneinfo_file()
 			err=$( rm -f "$_PATH_DB" 2>&1 )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -431,19 +405,12 @@ f_install_zoneinfo_file()
 			fi
 
 			if [ "$VERBOSE" ]; then
-				title="$msg_done"
 				msg=$( printf "$msg_removed_file" \
 				              "$_PATH_LOCALTIME" )
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$msg"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$msg" $height $width
+					f_dialog_title "$msg_done"
+					f_dialog_msgbox "$msg"
+					f_dialog_title_restore
 				else
 					printf "%s\n" "$msg"
 				fi
@@ -458,15 +425,9 @@ f_install_zoneinfo_file()
 			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -476,15 +437,9 @@ f_install_zoneinfo_file()
 			err=$( umask 222 && : 2>&1 > "$_PATH_LOCALTIME" )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -494,15 +449,9 @@ f_install_zoneinfo_file()
 			err=$( cat "$zoneinfo_file" 2>&1 > "$_PATH_LOCALTIME" )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -514,15 +463,9 @@ f_install_zoneinfo_file()
 			err=$( ( :< "$zoneinfo_file" ) 2>&1 )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -532,15 +475,9 @@ f_install_zoneinfo_file()
 			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -550,15 +487,9 @@ f_install_zoneinfo_file()
 			err=$( ln -s "$zoneinfo_file" "$_PATH_LOCALTIME" 2>&1 )
 			if [ "$err" ]; then
 				if [ "$USEDIALOG" ]; then
-					f_dialog_buttonbox_size height $width \
-					                        "$title"  \
-					                        "$btitle" \
-					                        "$err"
-					$DIALOG \
-						--title "$title"      \
-						--backtitle "$btitle" \
-						--ok-label "$msg_ok"  \
-						--msgbox "$err" $height $width
+					f_dialog_title "$msg_error"
+					f_dialog_msgbox "$err"
+					f_dialog_title_restore
 				else
 					f_err "%s\n" "$err"
 				fi
@@ -568,7 +499,6 @@ f_install_zoneinfo_file()
 		fi # copymode
 
 		if [ "$VERBOSE" ]; then
-			title="$msg_done"
 			if [ "$copymode" ]; then
 				msg=$( printf "$msg_copied_timezone_file" \
 				              "$zoneinfo_file" \
@@ -579,13 +509,9 @@ f_install_zoneinfo_file()
 				              "$zoneinfo_file" )
 			fi
 			if [ "$USEDIALOG" ]; then
-				f_dialog_buttonbox_size height width \
-				                    "$title" "$btitle" "$msg"
-				$DIALOG \
-					--title "$title"      \
-					--backtitle "$btitle" \
-					--ok-label "$msg_ok"  \
-					--msgbox "$msg" $height $width
+				f_dialog_title "$msg_done"
+				f_dialog_msgbox "$msg"
+				f_dialog_title_restore
 			else
 				printf "%s\n" "$msg"
 			fi
