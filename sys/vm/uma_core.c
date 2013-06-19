@@ -2418,7 +2418,7 @@ zone_alloc_bucket(uma_zone_t zone, int flags)
 	int max;
 
 	max = zone->uz_count;
-	bflags = M_NOWAIT;
+	bflags = (flags & ~M_WAITOK) | M_NOWAIT;
 	if (zone->uz_flags & UMA_ZFLAG_CACHEONLY)
 		bflags |= M_NOVM;
 	bucket = bucket_alloc(zone->uz_count, bflags);
