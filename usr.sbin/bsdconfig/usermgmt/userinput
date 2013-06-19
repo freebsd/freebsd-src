@@ -530,7 +530,6 @@ while :; do
 		esac
 		;;
 	esac
-
 done
 
 exit $SUCCESS
