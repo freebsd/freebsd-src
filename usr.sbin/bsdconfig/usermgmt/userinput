@@ -475,35 +475,25 @@ while :; do
 	   esac
 	   ;;
 	2) # Full Name
-	   f_dialog_input_gecos "$pw_gecos"
-	   ;;
+	   f_dialog_input_gecos "$pw_gecos" ;;
 	3) # Password
-	   f_dialog_input_password
-	   ;;
+	   f_dialog_input_password ;;
 	4) # UID
-	   f_dialog_input_uid "$pw_uid"
-	   ;;
+	   f_dialog_input_uid "$pw_uid" ;;
 	5) # Default Group
-	   f_dialog_input_gid "$pw_gid"
-	   ;;
+	   f_dialog_input_gid "$pw_gid" ;;
 	6) # Member of Groups
-	   f_dialog_input_member_groups "$pw_member_groups"
-	   ;;
+	   f_dialog_input_member_groups "$pw_member_groups" ;;
 	7) # Login Class
-	   f_dialog_input_class "$pw_class"
-	   ;;
+	   f_dialog_input_class "$pw_class" ;;
 	8) # Password Expire on
-	   f_dialog_input_expire_password "$pw_password_expire"
-	   ;;
+	   f_dialog_input_expire_password "$pw_password_expire" ;;
 	9) # Account Expire on
-	   f_dialog_input_expire_account "$pw_account_expire"
-	   ;;
+	   f_dialog_input_expire_account "$pw_account_expire" ;;
 	A) # Home Directory
-	   f_dialog_input_home_dir "$pw_home_dir"
-	   ;;
+	   f_dialog_input_home_dir "$pw_home_dir" ;;
 	B) # Shell
-	   f_dialog_input_shell "$pw_shell"
-	   ;;
+	   f_dialog_input_shell "$pw_shell" ;;
 	esac
 
 	case "$mode" in
