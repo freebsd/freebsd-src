@@ -2040,7 +2040,7 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 	pp->stripeoffset = 0;
 
 	/* Splitting of unmapped BIO's could work but isn't implemented now */
-	if (sc->sc_balance != G_MIRROR_BALANCE_SPLIT)
+	if (sc->sc_balance != G_MIRROR_BALANCE_SPLIT)
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;
 
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
