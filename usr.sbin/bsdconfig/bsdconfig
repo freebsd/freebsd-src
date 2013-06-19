@@ -180,8 +180,7 @@ dialog_menu_main()
 
 		case "$menu_program" in
 		/*) : already fully qualified ;;
-		*)
-			menu_program="$menuitem/$menu_program"
+		 *) menu_program="$menuitem/$menu_program"
 		esac
 
 		f_shell_escape "$menu_title" menu_title
