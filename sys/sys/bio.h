@@ -81,9 +81,6 @@ struct bio {
 	off_t	bio_offset;		/* Offset into file. */
 	long	bio_bcount;		/* Valid bytes in buffer. */
 	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
-	struct vm_page **bio_ma;	/* Or unmapped. */
-	int	bio_ma_offset;		/* Offset in the first page of bio_ma. */
-	int	bio_ma_n;		/* Number of pages in bio_ma. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
 	long	bio_resid;		/* Remaining I/O in bytes. */
 	void	(*bio_done)(struct bio *);
@@ -116,6 +113,11 @@ struct bio {
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
+
+	/* Unmapped i/o.  Placed at the end in 9.x for binary compatibility. */
+	struct vm_page **bio_ma;	/* Physical page array. */
+	int	bio_ma_offset;		/* Offset in first page of bio_ma. */
+	int	bio_ma_n;		/* Number of pages in bio_ma. */
 };
 
 struct uio;
