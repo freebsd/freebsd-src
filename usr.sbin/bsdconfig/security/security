@@ -162,9 +162,9 @@ while :; do
 	"2 ["?"] $msg_securelevel") # Configure securelevels for the system
 		$BSDCFG_LIBE/$APP_DIR/kern_securelevel ${USE_XDIALOG:+-X} ;;
 	"3 [X] $msg_nfs_port") # Require that NFS clients use reserved ports
-		f_sysrc_set nfs_reserved_port_only "NO";;
+		f_sysrc_set nfs_reserved_port_only "NO" ;;
 	"3 [ ] $msg_nfs_port") # Same; Toggle value
-		f_sysrc_set nfs_reserved_port_only "YES";;
+		f_sysrc_set nfs_reserved_port_only "YES" ;;
 	esac
 done
 

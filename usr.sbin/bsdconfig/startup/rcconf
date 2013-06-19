@@ -246,9 +246,7 @@ while :; do
 
 	case "$mtag" in
 	"X $msg_exit") break ;;
-	"> $msg_add_new")
-		$BSDCFG_LIBE/$APP_DIR/rcadd ${USE_XDIALOG:+-X}
-		;;
+	"> $msg_add_new") $BSDCFG_LIBE/$APP_DIR/rcadd ${USE_XDIALOG:+-X} ;;
 	"> $msg_delete")
 		# rcdelete has a similar interface that can inherit the below:
 		export SHOW_VALUE SHOW_DESC SHOW_DEFAULT_VALUE SHOW_CONFIGURED
