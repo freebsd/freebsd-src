@@ -366,7 +366,7 @@ SUBDIR+=	users
 SUBDIR+=	who
 .endif
 
-.if ${MACHINE_ARCH} != "mips"	# mips is broken with pthread
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "i386"
 .if ${MK_SVN} == "yes" || ${MK_SVNLITE} == "yes"
 SUBDIR+=	svn
 .endif
