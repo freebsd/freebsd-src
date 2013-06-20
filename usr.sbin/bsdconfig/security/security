@@ -165,6 +165,8 @@ while :; do
 		f_sysrc_set nfs_reserved_port_only "NO" ;;
 	"3 [ ] $msg_nfs_port") # Same; Toggle value
 		f_sysrc_set nfs_reserved_port_only "YES" ;;
+	*)
+		f_die 1 "$msg_unknown_security_menu_selection"
 	esac
 done
 
