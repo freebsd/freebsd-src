@@ -343,6 +343,12 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 
+	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		m_freem(m);
+		error = ENETDOWN;
+		goto end;
+	}
+
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 
 	if (sc->g_proto == IPPROTO_MOBILE) {
