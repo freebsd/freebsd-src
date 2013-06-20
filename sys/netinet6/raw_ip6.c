@@ -263,7 +263,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			if (n && ipsec6_in_reject(n, last)) {
 				m_freem(n);
-				V_ipsec6stat.in_polvio++;
+				IPSEC6STAT_INC(in_polvio);
 				/* Do not inject data into pcb. */
 			} else
 #endif /* IPSEC */
@@ -295,7 +295,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	if ((last != NULL) && ipsec6_in_reject(m, last)) {
 		m_freem(m);
-		V_ipsec6stat.in_polvio++;
+		IPSEC6STAT_INC(in_polvio);
 		IP6STAT_DEC(ip6s_delivered);
 		/* Do not inject data into pcb. */
 		INP_RUNLOCK(last);
