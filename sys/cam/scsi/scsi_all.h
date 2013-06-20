@@ -917,10 +917,10 @@ struct ata_pass_12 {
 #define	AP_PROTO_DMA_QUEUED	(0x07 << 1)
 #define	AP_PROTO_DEVICE_DIAG	(0x08 << 1)
 #define	AP_PROTO_DEVICE_RESET	(0x09 << 1)
-#define	AP_PROTO_UDMA_IN	(0x10 << 1)
-#define	AP_PROTO_UDMA_OUT	(0x11 << 1)
-#define	AP_PROTO_FPDMA		(0x12 << 1)
-#define	AP_PROTO_RESP_INFO	(0x15 << 1)
+#define	AP_PROTO_UDMA_IN	(0x0a << 1)
+#define	AP_PROTO_UDMA_OUT	(0x0b << 1)
+#define	AP_PROTO_FPDMA		(0x0c << 1)
+#define	AP_PROTO_RESP_INFO	(0x0f << 1)
 #define	AP_MULTI	0xe0
 	u_int8_t flags;
 #define	AP_T_LEN	0x03
