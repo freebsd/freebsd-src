@@ -106,8 +106,8 @@ struct mfi_command {
 #define MFI_CMD_CCB		(1<<6)
 #define MFI_CMD_TBOLT		(1<<7)
 #define MFI_ON_MFIQ_FREE	(1<<8)
-#define MFI_ON_MFIQ_BUSY	(1<<9)
-#define MFI_ON_MFIQ_READY	(1<<10)
+#define MFI_ON_MFIQ_READY	(1<<9)
+#define MFI_ON_MFIQ_BUSY	(1<<10)
 #define MFI_ON_MFIQ_MASK	(MFI_ON_MFIQ_FREE | MFI_ON_MFIQ_READY| \
     MFI_ON_MFIQ_BUSY)
 #define MFI_CMD_FLAGS_FMT	"\20" \
