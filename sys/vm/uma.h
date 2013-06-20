@@ -234,7 +234,7 @@ int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
  * zones.  The 'arg' parameter is passed to import/release and is caller
  * specific.
  */
-uma_zone_t uma_zcache_create(char *name, uma_ctor ctor, uma_dtor dtor,
+uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 		    uma_init zinit, uma_fini zfini, uma_import zimport,
 		    uma_release zrelease, void *arg, int flags);
 
