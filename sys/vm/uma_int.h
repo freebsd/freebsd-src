@@ -189,7 +189,7 @@ typedef struct uma_cache * uma_cache_t;
  *
  */
 struct uma_keg {
-	struct mtx	uk_lock;	/* Lock for the keg */
+	struct mtx_padalign	uk_lock;	/* Lock for the keg */
 	struct uma_hash	uk_hash;
 
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
@@ -281,8 +281,9 @@ typedef struct uma_klink *uma_klink_t;
  *
  */
 struct uma_zone {
-	const char	*uz_name;	/* Text name of the zone */
-	struct mtx	*uz_lock;	/* Lock for the zone (keg's lock) */
+	struct mtx_padalign	uz_lock;	/* Lock for the zone */
+	struct mtx_padalign	*uz_lockptr;
+	const char		*uz_name;	/* Text name of the zone */
 
 	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */
 	LIST_HEAD(,uma_bucket)	uz_buckets;	/* full buckets */
@@ -334,8 +335,10 @@ struct uma_zone {
 static inline uma_keg_t
 zone_first_keg(uma_zone_t zone)
 {
+	uma_klink_t klink;
 
-	return (LIST_FIRST(&zone->uz_kegs)->kl_keg);
+	klink = LIST_FIRST(&zone->uz_kegs);
+	return (klink != NULL) ? klink->kl_keg : NULL;
 }
 
 #undef UMA_ALIGN
@@ -357,13 +360,25 @@ void uma_large_free(uma_slab_t slab);
 			mtx_init(&(k)->uk_lock, (k)->uk_name,	\
 			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
 	} while (0)
-	    
+
 #define	KEG_LOCK_FINI(k)	mtx_destroy(&(k)->uk_lock)
 #define	KEG_LOCK(k)	mtx_lock(&(k)->uk_lock)
 #define	KEG_UNLOCK(k)	mtx_unlock(&(k)->uk_lock)
-#define	ZONE_LOCK(z)	mtx_lock((z)->uz_lock)
-#define	ZONE_TRYLOCK(z)	mtx_trylock((z)->uz_lock)
-#define ZONE_UNLOCK(z)	mtx_unlock((z)->uz_lock)
+
+#define	ZONE_LOCK_INIT(z, lc)					\
+	do {							\
+		if ((lc))					\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    (z)->uz_name, MTX_DEF | MTX_DUPOK);	\
+		else						\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
+	} while (0)
+	    
+#define	ZONE_LOCK(z)	mtx_lock((z)->uz_lockptr)
+#define	ZONE_TRYLOCK(z)	mtx_trylock((z)->uz_lockptr)
+#define	ZONE_UNLOCK(z)	mtx_unlock((z)->uz_lockptr)
+#define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
 
 /*
  * Find a slab within a hash table.  This is used for OFFPAGE zones to lookup
