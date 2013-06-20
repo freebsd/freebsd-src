@@ -77,13 +77,12 @@ while :; do
 
 	[ $retval -eq 0 ] || f_die
 
-	case "$mtag" in
-	"X $msg_exit") break ;;
-	*) # anything else is a userid
-	   $BSDCFG_LIBE/$APP_DIR/userinput \
-	   	${USE_XDIALOG:+-X} mode="Edit/View" user="$mtag"
-	   ;;
-	esac
+	[ "$mtag" = "X $msg_exit" ] && break
+
+	# Anything else is a userid
+
+	$BSDCFG_LIBE/$APP_DIR/userinput \
+		${USE_XDIALOG:+-X} mode="Edit/View" user="$mtag"
 done
 
 exit $SUCCESS
