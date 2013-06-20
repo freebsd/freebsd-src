@@ -77,13 +77,12 @@ while :; do
 
 	[ $retval -eq 0 ] || f_die
 
-	case "$mtag" in
-	"X $msg_exit") break ;;
-	*) # anything else is a group name
-	   $BSDCFG_LIBE/$APP_DIR/groupinput \
-	   	${USE_XDIALOG:+-X} mode="Edit/View" group="$mtag"
-	   ;;
-	esac
+	[ "$mtag" = "X $msg_exit" ] && break
+
+	# Anything else is a group name
+
+	$BSDCFG_LIBE/$APP_DIR/groupinput \
+		${USE_XDIALOG:+-X} mode="Edit/View" group="$mtag"
 done
 
 exit $SUCCESS
