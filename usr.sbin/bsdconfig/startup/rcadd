@@ -127,13 +127,12 @@ while :; do
 			f_dialog_menutag_fetch mtag
 			defaultitem="$mtag"
 
-			case "$mtag" in
-			"X $msg_exit" ) break ;;
-			*) # Anything else is a directive
-				rcvar="${mtag# }"
-				$BSDCFG_LIBE/$APP_DIR/rcedit \
-					${USE_XDIALOG:+-X} "$rcvar"
-			esac
+			[ "$mtag" = "X $msg_exit" ] && break
+
+			# Anything else is a directive
+
+			$BSDCFG_LIBE/$APP_DIR/rcedit ${USE_XDIALOG:+-X} \
+			                             "${mtag# }"
 		done
 		;;
 	2) # Add Custom
