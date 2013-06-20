@@ -237,12 +237,12 @@ struct ext2_gd {
 	uint16_t ext2bgd_nbfree;	/* number of free blocks */
 	uint16_t ext2bgd_nifree;	/* number of free inodes */
 	uint16_t ext2bgd_ndirs;		/* number of directories */
-	uint16_t ext2bgd_flags;		/* block group flags */
-	uint32_t ext2bgd_x_bitmap;	/* snapshot exclusion bitmap loc. */
-	uint16_t ext2bgd_b_bmap_csum;	/* block bitmap checksum */
-	uint16_t ext2bgd_i_bmap_csum;	/* inode bitmap checksum */
-	uint16_t ext2bgd_i_unused;	/* unused inode count */
-	uint16_t ext2bgd_csum;		/* group descriptor checksum */
+	uint16_t ext4bgd_flags;		/* block group flags */
+	uint32_t ext4bgd_x_bitmap;	/* snapshot exclusion bitmap loc. */
+	uint16_t ext4bgd_b_bmap_csum;	/* block bitmap checksum */
+	uint16_t ext4bgd_i_bmap_csum;	/* inode bitmap checksum */
+	uint16_t ext4bgd_i_unused;	/* unused inode count */
+	uint16_t ext4bgd_csum;		/* group descriptor checksum */
 };
 
 
