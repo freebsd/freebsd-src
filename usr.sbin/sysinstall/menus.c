@@ -891,7 +891,7 @@ DMenu MenuMediaHTTPDirect = {
     "guaranteed to carry the full range of possible distributions.",
     "Select a site that's close!",
     NULL,
-    { { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
+    { { "URL", "Specify some other http site by URL", NULL, dmenuSetVariable, NULL,
 	VAR_HTTP_PATH "=other" },
 
       { NULL } }
