@@ -362,7 +362,7 @@ main(int argc, char **argv)
 			 * Listing all devices. This is why we pass NULL
 			 * together with OPT_LIST.
 			 */
-			md_list(NULL, OPT_LIST | vflag, fflag);
+			return (md_list(NULL, OPT_LIST | vflag, fflag));
 		} else
 			return (md_query(uflag, vflag, fflag));
 	} else
@@ -408,7 +408,7 @@ md_list(const char *units, int opt, const char *fflag)
 	struct ggeom *gg;
 	struct gclass *gcl;
 	void *sq;
-	int retcode, found;
+	int retcode, ffound, ufound;
 	char *type, *file, *length;
 
 	type = file = length = NULL;
@@ -423,7 +423,7 @@ md_list(const char *units, int opt, const char *fflag)
 	if (sq == NULL)
 		return (-1);
 
-	found = 0;
+	ffound = ufound = 0;
 	while ((gsp = geom_stats_snapshot_next(sq)) != NULL) {
 		gid = geom_lookupid(&gm, gsp->id);
 		if (gid == NULL)
@@ -439,7 +439,7 @@ md_list(const char *units, int opt, const char *fflag)
 				if (retcode != 1)
 					continue;
 				else
-					found = 1;
+					ufound = 1;
 			}
 			gc = &pp->lg_config;
 			type = geom_config_get(gc, "type");
@@ -448,6 +448,8 @@ md_list(const char *units, int opt, const char *fflag)
 				if (fflag != NULL &&
 				    strcmp(fflag, file) != 0)
 					continue;
+				else
+					ffound = 1;
 			}
 			if (nflag && strncmp(pp->lg_name, MD_NAME, 2) == 0)
 				printf("%s", pp->lg_name + 2);
@@ -476,7 +478,9 @@ md_list(const char *units, int opt, const char *fflag)
 		printf("\n");
 	/* XXX: Check if it's enough to clean everything. */
 	geom_stats_snapshot_free(sq);
-	if ((opt & OPT_UNIT) && found)
+	if (((opt & OPT_UNIT) && (fflag == NULL) && ufound) ||
+	    ((opt & OPT_UNIT) == 0 && (fflag != NULL) && ffound) ||
+	    ((opt & OPT_UNIT) && (fflag != NULL) && ufound && ffound))
 		return (0);
 	else
 		return (-1);
