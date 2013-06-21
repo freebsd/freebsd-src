@@ -157,23 +157,15 @@ f_media_options_menu()
 			device_media get type cp
 			case "$cp" in
 			$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK)
-				cp="$msg_file_system";;
-			$DEVICE_TYPE_DIRECTORY)
-				cp="$msg_directory";;
-			$DEVICE_TYPE_FLOPPY)
-				cp="$msg_floppy";;
-			$DEVICE_TYPE_FTP)
-				cp="$msg_ftp";;
-			$DEVICE_TYPE_HTTP_PROXY)
-				cp="$msg_http_proxy";;
-			$DEVICE_TYPE_CDROM)
-				cp="$msg_cdrom";;
-			$DEVICE_TYPE_USB)
-				cp="$msg_usb";;
-			$DEVICE_TYPE_DOS)
-				cp="$msg_dos";;
-			$DEVICE_TYPE_NFS)
-				cp="$msg_nfs";;
+				cp="$msg_file_system" ;;
+			$DEVICE_TYPE_DIRECTORY)  cp="$msg_directory"  ;;
+			$DEVICE_TYPE_FLOPPY)     cp="$msg_floppy"     ;;
+			$DEVICE_TYPE_FTP)        cp="$msg_ftp"        ;;
+			$DEVICE_TYPE_HTTP_PROXY) cp="$msg_http_proxy" ;;
+			$DEVICE_TYPE_CDROM)      cp="$msg_cdrom"      ;;
+			$DEVICE_TYPE_USB)        cp="$msg_usb"        ;;
+			$DEVICE_TYPE_DOS)        cp="$msg_dos"        ;;
+			$DEVICE_TYPE_NFS)        cp="$msg_nfs"        ;;
 			*)
 				cp="<$msg_unknown>"
 			esac

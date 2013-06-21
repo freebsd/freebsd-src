@@ -133,7 +133,7 @@ f_media_set_http_proxy()
 #
 f_http_proxy_check_access()
 {
-	local connect_only="$1" hosts=""
+	local connect_only="$1" hosts=
 
 	local proxy_host proxy_port
 	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
