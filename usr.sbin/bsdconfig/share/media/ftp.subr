@@ -789,7 +789,7 @@ f_media_init_ftp()
 #
 f_media_get_ftp()
 {
-	local dev="$1" file="$2" probe_only="$3"
+	local dev="$1" file="$2" probe_only="$3" hosts=
 
 	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_only=%s" \
 	          "$dev" "$file" "$probe_only"
