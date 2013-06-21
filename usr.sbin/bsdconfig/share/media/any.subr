@@ -32,7 +32,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/any.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/media/cdrom.subr
 f_include $BSDCFG_SHARE/media/directory.subr
 f_include $BSDCFG_SHARE/media/dos.subr
@@ -43,6 +42,7 @@ f_include $BSDCFG_SHARE/media/nfs.subr
 f_include $BSDCFG_SHARE/media/options.subr
 f_include $BSDCFG_SHARE/media/ufs.subr
 f_include $BSDCFG_SHARE/media/usb.subr
+f_include $BSDCFG_SHARE/struct.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
