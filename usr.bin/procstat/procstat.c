@@ -107,7 +107,7 @@ main(int argc, char *argv[])
 	int ch, interval, name[4], tmp;
 	unsigned int i;
 	struct kinfo_proc *kipp;
-	size_t len;
+	size_t len, olen;
 	long l;
 	pid_t pid;
 	char *dummy;
@@ -204,13 +204,21 @@ main(int argc, char *argv[])
 			if (sysctl(name, 3, NULL, &len, NULL, 0) < 0)
 				err(-1, "sysctl: kern.proc.all");
 
-			kipp = malloc(len);
-			if (kipp == NULL)
-				err(-1, "malloc");
+			kipp = NULL;
+			for (;;) {
+				len += len / 10;
+				kipp = reallocf(kipp, len);
+				if (kipp == NULL)
+					err(-1, "malloc");
 
-			if (sysctl(name, 3, kipp, &len, NULL, 0) < 0) {
-				free(kipp);
-				err(-1, "sysctl: kern.proc.all");
+				olen = len;
+				if (sysctl(name, 3, kipp, &len, NULL, 0) < 0) {
+					if (errno == ENOMEM && olen == len)
+						continue;
+					free(kipp);
+					err(-1, "sysctl: kern.proc.all");
+				}
+				break;
 			}
 			if (len % sizeof(*kipp) != 0)
 				err(-1, "kinfo_proc mismatch");
@@ -242,13 +250,22 @@ main(int argc, char *argv[])
 			if (sysctl(name, 4, NULL, &len, NULL, 0) < 0)
 				err(-1, "sysctl: kern.proc.pid: %d", pid);
 
-			kipp = malloc(len);
-			if (kipp == NULL)
-				err(-1, "malloc");
+			kipp = NULL;
+			for (;;) {
+				len += len / 10;
+				kipp = reallocf(kipp, len);
+				if (kipp == NULL)
+					err(-1, "malloc");
 
-			if (sysctl(name, 4, kipp, &len, NULL, 0) < 0) {
-				free(kipp);
-				err(-1, "sysctl: kern.proc.pid: %d", pid);
+				olen = len;
+				if (sysctl(name, 4, kipp, &len, NULL, 0) < 0) {
+					if (errno == ENOMEM && olen == len)
+						continue;
+					free(kipp);
+					err(-1, "sysctl: kern.proc.pid: %d",
+					    pid);
+				}
+				break;
 			}
 			if (len != sizeof(*kipp))
 				err(-1, "kinfo_proc mismatch");
