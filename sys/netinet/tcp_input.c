@@ -309,7 +309,7 @@ void
 kmod_tcpstat_inc(int statnum)
 {
 
-	counter_u64_add((counter_u64_t )&V_tcpstatp + statnum, 1);
+	counter_u64_add(*((counter_u64_t *)&V_tcpstatp + statnum), 1);
 }
 
 /*
