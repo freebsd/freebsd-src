@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: headers-sh.in,v 1.9 2011/01/06 09:38:25 tom Exp $
+# $Id: headers-sh.in,v 1.11 2011/10/18 23:49:13 tom Exp $
 ##############################################################################
 # Copyright (c) 2004-2007,2011 Thomas E. Dickey                              #
 #                                                                            #
@@ -44,6 +44,8 @@ PACKAGE=@PACKAGE@
 PKGNAME=@PACKAGE_PREFIX@
 CONFIGH=@PACKAGE_CONFIG@
 SUB_INC=@SUB_INC@
+
+: ${TMPDIR:=/tmp}
 
 TMPSED=headers.sed
 
@@ -98,9 +100,9 @@ s/ $//
 :done
 EOF
 	# pick up autoconf-style symbols used in the application's headers
-	for i in $REF/*.h
+	for name in $REF/*.h
 	do
-		sed -e 's/^[ 	][ 	]*#[ 	][ 	]*/#/' $i \
+		sed -e 's/^[ 	][ 	]*#[ 	][ 	]*/#/' $name \
 		| egrep '^#(if|ifdef|ifndef|elif)' \
 		| sed	-f headers.tmp \
 		| sort -u \
@@ -116,8 +118,7 @@ EOF
 			-e 's/^#define[ 	][ 	]*//' \
 			-e 's/[ 	].*//' \
 		| egrep -v "^${PACKAGE}_" \
-		| sort -u \
-		| egrep -v "^${PKGNAME}_"`
+		| sort -u`
 	do
 		echo "s/\\<$name\\>/${PKGNAME}_$name/g" >>$TMPSED
 	done
@@ -126,6 +127,8 @@ EOF
 	then
 		echo "s,#include <${pkgname}_,#include <${PACKAGE}/${pkgname}_," >>$TMPSED
 	fi
+
+	echo '/_FILE_OFFSET_BITS/d' >>$TMPSED
 
 	# reduce the count if possible, since some old sed's limit is 100 lines
 	sort -u $TMPSED >headers.tmp
@@ -142,13 +145,32 @@ else
 	SRC=$3
 
 	SHOW=`basename $SRC`
-	TMPSRC=${TMPDIR-/tmp}/${SHOW}$$
+	TMPSRC=$TMPDIR/${SHOW}-text$$
+	TMPEDT=$TMPDIR/${SHOW}-edit$$
+	TMPTMP=$TMPDIR/${SHOW}-temp$$
 
 	echo "	... $SHOW"
 	test -f $REF/$SRC && SRC="$REF/$SRC"
 
 	rm -f $TMPSRC
-	sed -f $TMPSED $SRC > $TMPSRC
+	cat $SRC >$TMPSRC
+
+	tmp1=1
+	while true
+	do
+		tmp2=`expr $tmp1 + 49`
+		if test $tmp1 = 1
+		then
+			sed "${tmp2}q" $TMPSED >$TMPEDT
+		else
+			sed "1,${tmp1}d; ${tmp2}q" $TMPSED >$TMPEDT
+		fi
+		test -s $TMPEDT || break
+		sed -f $TMPEDT $TMPSRC > $TMPTMP
+		mv $TMPTMP $TMPSRC
+		tmp1=$tmp2
+	done
+
 	NAME=`basename $SRC`
 
 	# Just in case someone gzip'd manpages, remove the conflicting copy.
@@ -172,6 +194,6 @@ else
 	fi
 
 	eval $PRG $TMPSRC $DST/$NAME
-	rm -f $TMPSRC
+	rm -f $TMPEDT $TMPTMP $TMPSRC
 fi
 # vile:ts=4 sw=4

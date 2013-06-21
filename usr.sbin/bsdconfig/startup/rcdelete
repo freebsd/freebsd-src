@@ -338,6 +338,9 @@ f_startup_rcconf_map_expand RCCONF_MAP
 # Generate RCCONF_MENU_LIST from $RCCONF_MAP
 dialog_create_main
 
+#
+# Launch application main menu
+#
 while :; do
 	dialog_menu_main
 	retval=$?
@@ -364,19 +367,16 @@ while :; do
 			[ "$( eval echo \$_${var}_delete )" ] || continue
 			delete_vars="$delete_vars${delete_vars:+ }$var"
 		done
-		unset var # no longer needed
 		if dialog_menu_confirm_delete $delete_vars; then
 			f_dialog_title "$msg_info"
 			f_dialog_info "$msg_deleting_selected_directives"
 			f_dialog_title_restore
 			for var in $delete_vars; do
-				err=$( f_sysrc_delete $var 2>&1 )
-				if [ $? -ne $SUCCESS ]; then
+				if ! err=$( f_sysrc_delete $var 2>&1 ); then
 					f_dialog_msgbox "$err\n"
 					break
 				fi
 			done
-			unset var # no longer needed
 			dialog_create_main
 		fi
 		;;
@@ -385,7 +385,6 @@ while :; do
 			setvar _${var}_delete 1
 			export _${var}_delete
 		done
-		unset var # no longer needed
 		;;
 	"> $msg_none")
 		var_list=$( set | awk -F= "
@@ -395,7 +394,6 @@ while :; do
 			}"
 		)
 		[ "$var_list" ] && unset $var_list
-		unset var_list # no longer needed
 		;;
 	*) # Anything else is a variable to edit
 		var="${mtag# }"
@@ -407,7 +405,6 @@ while :; do
 			setvar _${var}_delete 1
 			export _${var}_delete
 		fi
-		unset var # no longer needed
 	esac
 done
 

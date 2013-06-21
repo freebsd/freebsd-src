@@ -53,6 +53,12 @@ struct	ext2fs_direct_2 {
 	uint8_t e2d_type;		/* file type */
 	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
 };
+
+/*
+ * Maximal count of links to a file
+ */
+#define EXT2_LINK_MAX	32000
+
 /*
  * Ext2 directory file types.  Only the low 3 bits are used.  The
  * other bits are reserved for now.

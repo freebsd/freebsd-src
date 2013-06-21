@@ -272,7 +272,6 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CTM \
-    CVS \
     CXX \
     DICT \
     DYNAMICROOT \
@@ -348,6 +347,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
     SSP \
+    SVNLITE \
     SYMVER \
     SYSCONS \
     SYSINSTALL \
@@ -384,7 +384,8 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
-    SHARED_TOOLCHAIN
+    SHARED_TOOLCHAIN \
+    SVN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately

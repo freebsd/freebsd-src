@@ -189,7 +189,7 @@ typedef struct uma_cache * uma_cache_t;
  *
  */
 struct uma_keg {
-	struct mtx	uk_lock;	/* Lock for the keg */
+	struct mtx_padalign	uk_lock;	/* Lock for the keg */
 	struct uma_hash	uk_hash;
 
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
@@ -197,7 +197,6 @@ struct uma_keg {
 	LIST_HEAD(,uma_slab)	uk_free_slab;	/* empty slab list */
 	LIST_HEAD(,uma_slab)	uk_full_slab;	/* full slabs */
 
-	uint32_t	uk_recurse;	/* Allocation recursion count */
 	uint32_t	uk_align;	/* Alignment mask */
 	uint32_t	uk_pages;	/* Total page count */
 	uint32_t	uk_free;	/* Count of items free in slabs */
@@ -282,12 +281,12 @@ typedef struct uma_klink *uma_klink_t;
  *
  */
 struct uma_zone {
-	const char	*uz_name;	/* Text name of the zone */
-	struct mtx	*uz_lock;	/* Lock for the zone (keg's lock) */
+	struct mtx_padalign	uz_lock;	/* Lock for the zone */
+	struct mtx_padalign	*uz_lockptr;
+	const char		*uz_name;	/* Text name of the zone */
 
 	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */
-	LIST_HEAD(,uma_bucket)	uz_full_bucket;	/* full buckets */
-	LIST_HEAD(,uma_bucket)	uz_free_bucket;	/* Buckets for frees */
+	LIST_HEAD(,uma_bucket)	uz_buckets;	/* full buckets */
 
 	LIST_HEAD(,uma_klink)	uz_kegs;	/* List of kegs. */
 	struct uma_klink	uz_klink;	/* klink for first keg. */
@@ -296,16 +295,18 @@ struct uma_zone {
 	uma_ctor	uz_ctor;	/* Constructor for each allocation */
 	uma_dtor	uz_dtor;	/* Destructor */
 	uma_init	uz_init;	/* Initializer for each item */
-	uma_fini	uz_fini;	/* Discards memory */
+	uma_fini	uz_fini;	/* Finalizer for each item. */
+	uma_import	uz_import;	/* Import new memory to cache. */
+	uma_release	uz_release;	/* Release memory from cache. */
+	void		*uz_arg;	/* Import/release argument. */
 
 	uint32_t	uz_flags;	/* Flags inherited from kegs */
 	uint32_t	uz_size;	/* Size inherited from kegs */
 
-	uint64_t	uz_allocs UMA_ALIGN; /* Total number of allocations */
-	uint64_t	uz_frees;	/* Total number of frees */
-	uint64_t	uz_fails;	/* Total number of alloc failures */
+	volatile u_long	uz_allocs UMA_ALIGN; /* Total number of allocations */
+	volatile u_long	uz_fails;	/* Total number of alloc failures */
+	volatile u_long	uz_frees;	/* Total number of frees */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
-	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest amount of items in bucket */
 
 	/* The next three fields are used to print a rate-limited warnings. */
@@ -322,7 +323,6 @@ struct uma_zone {
 /*
  * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
  */
-#define	UMA_ZFLAG_BUCKET	0x02000000	/* Bucket zone. */
 #define	UMA_ZFLAG_MULTI		0x04000000	/* Multiple kegs in the zone. */
 #define	UMA_ZFLAG_DRAINING	0x08000000	/* Running zone_drain. */
 #define UMA_ZFLAG_PRIVALLOC	0x10000000	/* Use uz_allocf. */
@@ -330,8 +330,16 @@ struct uma_zone {
 #define UMA_ZFLAG_FULL		0x40000000	/* Reached uz_maxpages */
 #define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
 
-#define	UMA_ZFLAG_INHERIT	(UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY | \
-				    UMA_ZFLAG_BUCKET)
+#define	UMA_ZFLAG_INHERIT	(UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)
+
+static inline uma_keg_t
+zone_first_keg(uma_zone_t zone)
+{
+	uma_klink_t klink;
+
+	klink = LIST_FIRST(&zone->uz_kegs);
+	return (klink != NULL) ? klink->kl_keg : NULL;
+}
 
 #undef UMA_ALIGN
 
@@ -352,12 +360,25 @@ void uma_large_free(uma_slab_t slab);
 			mtx_init(&(k)->uk_lock, (k)->uk_name,	\
 			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
 	} while (0)
-	    
+
 #define	KEG_LOCK_FINI(k)	mtx_destroy(&(k)->uk_lock)
 #define	KEG_LOCK(k)	mtx_lock(&(k)->uk_lock)
 #define	KEG_UNLOCK(k)	mtx_unlock(&(k)->uk_lock)
-#define	ZONE_LOCK(z)	mtx_lock((z)->uz_lock)
-#define ZONE_UNLOCK(z)	mtx_unlock((z)->uz_lock)
+
+#define	ZONE_LOCK_INIT(z, lc)					\
+	do {							\
+		if ((lc))					\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    (z)->uz_name, MTX_DEF | MTX_DUPOK);	\
+		else						\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
+	} while (0)
+	    
+#define	ZONE_LOCK(z)	mtx_lock((z)->uz_lockptr)
+#define	ZONE_TRYLOCK(z)	mtx_trylock((z)->uz_lockptr)
+#define	ZONE_UNLOCK(z)	mtx_unlock((z)->uz_lockptr)
+#define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
 
 /*
  * Find a slab within a hash table.  This is used for OFFPAGE zones to lookup

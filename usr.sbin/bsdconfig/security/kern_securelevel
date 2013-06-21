@@ -124,7 +124,7 @@ f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
 #
-# Launch application main menu
+# Launch application main menu (loop for additional `Help' button)
 #
 while :; do
 	dialog_menu_main
@@ -158,6 +158,8 @@ case "$mtag" in
 	f_sysrc_set kern_securelevel_enable "YES"
 	f_sysrc_set kern_securelevel "3" 
 	;;
+*)
+	f_die 1 "$msg_unknown_kern_securelevel_selection"
 esac
 
 exit $SUCCESS

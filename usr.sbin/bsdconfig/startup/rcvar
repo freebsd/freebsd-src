@@ -190,25 +190,27 @@ f_dialog_title "$msg_toggle_startup_services"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
+#
+# Launch application main menu
+#
 while :; do
 	dialog_menu_main || f_die
 	f_dialog_menutag_fetch mtag
 
-	case "$mtag" in
-	"X $msg_exit") break ;;
-	*) # Anything else is an rcvar to toggle
-		rcvar="${mtag# }"
-		f_dialog_menuitem_fetch value
+	[ "$mtag" = "X $msg_exit" ] && break
 
-		# Determine the new [toggled] value to use
-		case "$value" in
-		"[X]"*) value="NO";;
-		     *) value="YES";;
-		esac
+	# Anything else is an rcvar to toggle
 
-		err=$( f_sysrc_set "$rcvar" "$value" 2>&1 ) ||
-			f_dialog_msgbox "$err"
+	rcvar="${mtag# }"
+	f_dialog_menuitem_fetch value
+
+	# Determine the new [toggled] value to use
+	case "$value" in
+	"[X]"*) value="NO" ;;
+	     *) value="YES"
 	esac
+
+	err=$( f_sysrc_set "$rcvar" "$value" 2>&1 ) || f_dialog_msgbox "$err"
 done
 
 exit $SUCCESS

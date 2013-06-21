@@ -1608,7 +1608,7 @@ lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 	 */
 	if ((lp = lagg_link_active(sc, lp)) == NULL) {
 		m_freem(m);
-		return (ENOENT);
+		return (ENETDOWN);
 	}
 
 	/* Send mbuf */
@@ -1656,7 +1656,7 @@ lagg_fail_start(struct lagg_softc *sc, struct mbuf *m)
 	/* Use the master port if active or the next available port */
 	if ((lp = lagg_link_active(sc, sc->sc_primary)) == NULL) {
 		m_freem(m);
-		return (ENOENT);
+		return (ENETDOWN);
 	}
 
 	/* Send mbuf */
@@ -1785,7 +1785,7 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	 */
 	if ((lp = lagg_link_active(sc, lp)) == NULL) {
 		m_freem(m);
-		return (ENOENT);
+		return (ENETDOWN);
 	}
 
 	/* Send mbuf */

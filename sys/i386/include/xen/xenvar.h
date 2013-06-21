@@ -93,7 +93,7 @@ extern xen_pfn_t *xen_machine_phys;
 void xpq_init(void);
 
 #define BITS_PER_LONG 32
-#define NR_CPUS      MAX_VIRT_CPUS
+#define NR_CPUS      XEN_LEGACY_MAX_VCPUS
 
 #define BITS_TO_LONGS(bits) \
 	(((bits)+BITS_PER_LONG-1)/BITS_PER_LONG)
