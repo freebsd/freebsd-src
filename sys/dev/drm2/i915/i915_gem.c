@@ -1362,7 +1362,6 @@ unlocked_vmobj:
 	cause = ret = 0;
 	m = NULL;
 
-
 	if (i915_intr_pf) {
 		ret = i915_mutex_lock_interruptible(dev);
 		if (ret != 0) {
