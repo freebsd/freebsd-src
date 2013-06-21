@@ -287,7 +287,7 @@ f_dialog_menu_media_ftp()
 #
 # 	VAR_FTP_HOST
 # 		The FTP host to connect to, parsed from VAR_FTP_PATH. In the
-# 		example case of IPv6 where VAR_FTP_PATH is a "ftp://[::1]" this
+# 		example case of IPv6 where VAR_FTP_PATH is "ftp://[::1]", this
 # 		variable will be set to "::1" (the outer brackets are removed).
 # 	VAR_FTP_PORT
 # 		The TCP port to connect to, parsed from VAR_FTP_PATH. Usually
