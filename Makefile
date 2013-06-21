@@ -117,7 +117,13 @@ MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
 BINMAKE= \
 	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
 	-m ${.CURDIR}/share/mk
+
+.if defined(.PARSEDIR)
+# don't pass -J to fmake
+_MAKE=	PATH=${PATH} MAKEFLAGS="${MAKEFLAGS:N-J:N1*,1*}" ${BINMAKE} -f Makefile.inc1
+.else
 _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
+.endif
 
 #
 # Make sure we have an up-to-date make(1). Only world and buildworld
@@ -175,7 +181,7 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s; echo
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif

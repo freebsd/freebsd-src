@@ -573,6 +573,8 @@ MK_${vv:H}:=	${MK_${vv:T}}
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif defined(.PARSEDIR) || ${MAKE_VERSION} >= 9201210220
+CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 

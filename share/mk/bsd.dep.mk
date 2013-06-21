@@ -123,6 +123,9 @@ ${_YC:R}.o: ${_YC}
 .if defined(SRCS)
 depend: beforedepend ${DEPENDFILE} afterdepend
 
+# Tell bmake not to look for generated files via .PATH
+.NOPATH: ${DEPENDFILE}
+
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
 .if ${CC} == "icc"
