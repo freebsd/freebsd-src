@@ -216,8 +216,8 @@ main(int argc, char **argv)
 				errx(1, "unknown suffix on -s argument");
 			break;
 		case 'u':
-			if (!strncmp(optarg, _PATH_DEV, 5))
-				optarg += 5;
+			if (!strncmp(optarg, _PATH_DEV, sizeof(_PATH_DEV) - 1))
+				optarg += sizeof(_PATH_DEV) - 1;
 			if (!strncmp(optarg, MD_NAME, sizeof(MD_NAME) - 1))
 				optarg += sizeof(MD_NAME) - 1;
 			uflag = optarg;
@@ -510,7 +510,7 @@ static int
 md_find(const char *list, const char *name)
 {
 	int ret;
-	char num[16];
+	char num[PATH_MAX];
 	char *ptr, *p, *u;
 
 	ret = 0;
@@ -518,10 +518,10 @@ md_find(const char *list, const char *name)
 	if (ptr == NULL)
 		return (-1);
 	for (p = ptr; (u = strsep(&p, ",")) != NULL;) {
-		if (strncmp(u, _PATH_DEV, 5) == 0)
-			u += 5;
+		if (strncmp(u, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+			u += sizeof(_PATH_DEV) - 1;
 		/* Just in case user specified number instead of full name */
-		snprintf(num, sizeof(num), "md%s", u);
+		snprintf(num, sizeof(num), "%s%s", MD_NAME, u);
 		if (strcmp(u, name) == 0 || strcmp(num, name) == 0) {
 			ret = 1;
 			break;
