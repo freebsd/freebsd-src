@@ -103,7 +103,7 @@ xbd_thaw(struct xbd_softc *sc, xbd_flag_t xbd_flag)
 	if (xbd_flag != XBDF_NONE && (sc->xbd_flags & xbd_flag) == 0)
 		return;
 
-	if (sc->xbd_qfrozen_cnt != 0)
+	if (sc->xbd_qfrozen_cnt == 0)
 		panic("%s: Thaw with flag 0x%x while not frozen.",
 		    __func__, xbd_flag);
 

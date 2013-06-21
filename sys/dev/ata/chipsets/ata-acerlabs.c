@@ -133,7 +133,7 @@ ata_ali_chipinit(device_t dev)
 			for (i--; i >=0; i--)
 				bus_release_resource(dev, SYS_RES_IOPORT,
 				    PCIR_BAR(i), res->bars[i]);
-			free(res, M_TEMP);
+			free(res, M_ATAPCI);
 			return ENXIO;
 		}
 	}

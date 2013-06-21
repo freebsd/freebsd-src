@@ -83,7 +83,7 @@ while :; do
 	# from the device name if present.
 	#
 	case "$interface" in
-	*\*) interface="${interface%?}";;
+	*\*) interface="${interface%?}" ;;
 	esac
 
 	#
@@ -101,34 +101,34 @@ while :; do
 	_netmask=
 	_ifconfig=$( f_sysrc_get ifconfig_$interface )
 	if [ "$_ifconfig" ]; then
-		# If DHCP get IP address/netmask later from ifconfig(8)
+		# If DHCP, get IP address/netmask later from ifconfig(8)
 		glob="[Dd][Hh][Cc][Pp]"
 		case "$_ifconfig" in
-		$glob) dhcp=1;;
-		[Ss][Yy][Nn][Cc]$glob) dhcp=1;;
-		[Nn][Oo][Ss][Yy][Nn][Cc]$glob) dhcp=1;;
+		$glob) dhcp=1 ;;
+		[Ss][Yy][Nn][Cc]$glob) dhcp=1 ;;
+		[Nn][Oo][Ss][Yy][Nn][Cc]$glob) dhcp=1 ;;
 		*)
 			#
-			# Get IP address/netmask from rc.conf(5)
-			# configuration
+			# Get IP address/netmask from rc.conf(5) configuration
 			#
 			dhcp=
-			eval "$( exec 2> /dev/null
-			         set -- $_ifconfig
-			         while [ $# -gt 0 ]; do
-			         	case "$1" in
-			         	inet)
-			         		shift 1
-			         		echo "_ipaddr='$1'"
-			         		;;
-			         	netmask)
-			         		shift 1
-			         		echo "_netmask='$1'"
-			         		;;
-			         	esac
-			         	shift 1
-			         done
-			       )"
+			eval "$(
+				exec 2> /dev/null
+				set -- $_ifconfig
+				while [ $# -gt 0 ]; do
+					case "$1" in
+					inet)
+						shift 1
+						echo "_ipaddr='$1'"
+						;;
+					netmask)
+						shift 1
+						echo "_netmask='$1'"
+						;;
+					esac
+					shift 1
+				done
+			)"
 			;;
 		esac
 	fi
@@ -149,7 +149,6 @@ while :; do
 
 	# Return to root menu if above returns success
 	[ $? -eq $SUCCESS ] && break
-
 done
 
 exit $SUCCESS

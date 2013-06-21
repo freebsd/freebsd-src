@@ -180,8 +180,7 @@ dialog_menu_main()
 
 		case "$menu_program" in
 		/*) : already fully qualified ;;
-		*)
-			menu_program="$menuitem/$menu_program"
+		 *) menu_program="$menuitem/$menu_program"
 		esac
 
 		f_shell_escape "$menu_title" menu_title
@@ -290,8 +289,9 @@ if [ "$1" ]; then
 	#
 	# ...unless it's a long-option for usage.
 	#
-	case "$1" in
-	-help|--help|-\?) usage;;
+	case "$1" in -help|--help|-\?)
+		usage
+		# Not reached
 	esac
 
 	#
@@ -304,10 +304,12 @@ if [ "$1" ]; then
 		# no matches, display usage (which shows valid keywords)
 		f_err "%s: %s: $msg_not_found\n" "$pgm" "$1"
 		usage
+		# Not reached
 	fi
 
 	shift
 	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
+	# Not reached
 fi
 
 #
@@ -328,25 +330,21 @@ while :; do
 	fi
 
 	case "$mtag" in
-	X) # Exit
-	   break
-	   ;;
-
+	X) break ;;
 	1) # Usage
 	   f_show_help "$USAGE_HELPFILE"
 	   continue
-	   ;;
-
-	*) # Dynamically loaded menuitem
-	   f_getvar menu_program$mtag menu_program
-	   case "$menu_program" in
-	   /*) cmd="$menu_program";;
-	    *) cmd="$BSDCFG_LIBE/$menu_program"
-	   esac
-	   f_dprintf "cmd=[%s]" "$cmd"
-	   $cmd ${USE_XDIALOG:+-X}
-
 	esac
+
+	# Anything else is a dynamically loaded menuitem
+
+	f_getvar menu_program$mtag menu_program
+	case "$menu_program" in
+	/*) cmd="$menu_program";;
+	 *) cmd="$BSDCFG_LIBE/$menu_program"
+	esac
+	f_dprintf "cmd=[%s]" "$cmd"
+	$cmd ${USE_XDIALOG:+-X}
 done
 
 exit $SUCCESS

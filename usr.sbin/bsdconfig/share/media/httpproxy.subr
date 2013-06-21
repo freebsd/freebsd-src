@@ -81,7 +81,7 @@ f_media_set_http_proxy()
 		hostname="${hostname#\[}"
 		hostname="${hostname%\]}"
 		;;
-	"["*"]:")
+	"["*"]:"*)
 		hostname="${hostname#\[}"
 		port="${hostname#*\]:}"
 		port="${port%%[!0-9]*}"

@@ -889,35 +889,6 @@ OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
 OLD_FILES+=usr/share/man/man5/ctm.5.gz
 .endif
 
-.if ${MK_CVS} == no
-OLD_FILES+=usr/bin/cvs
-OLD_FILES+=usr/bin/cvsbug
-OLD_FILES+=usr/share/examples/cvs/contrib/README
-OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
-OLD_FILES+=usr/share/examples/cvs/contrib/cln_hist
-OLD_FILES+=usr/share/examples/cvs/contrib/commit_prep
-OLD_FILES+=usr/share/examples/cvs/contrib/cvs2vendor
-OLD_FILES+=usr/share/examples/cvs/contrib/cvs_acls
-OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck
-OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck.man
-OLD_FILES+=usr/share/examples/cvs/contrib/cvshelp.man
-OLD_FILES+=usr/share/examples/cvs/contrib/descend.man
-OLD_FILES+=usr/share/examples/cvs/contrib/easy-import
-OLD_FILES+=usr/share/examples/cvs/contrib/intro.doc
-OLD_FILES+=usr/share/examples/cvs/contrib/log
-OLD_FILES+=usr/share/examples/cvs/contrib/log_accum
-OLD_FILES+=usr/share/examples/cvs/contrib/mfpipe
-OLD_FILES+=usr/share/examples/cvs/contrib/rcs-to-cvs
-OLD_FILES+=usr/share/examples/cvs/contrib/rcs2log
-OLD_FILES+=usr/share/examples/cvs/contrib/rcslock
-OLD_FILES+=usr/share/examples/cvs/contrib/sccs2rcs
-OLD_FILES+=usr/share/info/cvs.info.gz
-OLD_FILES+=usr/share/info/cvsclient.info.gz
-OLD_FILES+=usr/share/man/man1/cvs.1.gz
-OLD_FILES+=usr/share/man/man5/cvs.5.gz
-OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
-.endif
-
 # devd(8) and gperf(1) not listed here on purpose
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
@@ -4345,4 +4316,28 @@ OLD_FILES+=usr/share/man/man8/wlandebug.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_cli.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_passphrase.8.gz
 OLD_FILES+=usr/share/man/man8/wpa_supplicant.8.gz
+.endif
+
+.if ${MK_SVNLITE} == no || ${MK_SVN} == yes
+OLD_FILES+=usr/bin/svnlite
+OLD_FILES+=usr/bin/svnliteadmin
+OLD_FILES+=usr/bin/svnlitedumpfilter
+OLD_FILES+=usr/bin/svnlitelook
+OLD_FILES+=usr/bin/svnlitemucc
+OLD_FILES+=usr/bin/svnliterdump
+OLD_FILES+=usr/bin/svnliteserve
+OLD_FILES+=usr/bin/svnlitesync
+OLD_FILES+=usr/bin/svnliteversion
+.endif
+
+.if ${MK_SVN} == no
+OLD_FILES+=usr/bin/svn
+OLD_FILES+=usr/bin/svnadmin
+OLD_FILES+=usr/bin/svndumpfilter
+OLD_FILES+=usr/bin/svnlook
+OLD_FILES+=usr/bin/svnmucc
+OLD_FILES+=usr/bin/svnrdump
+OLD_FILES+=usr/bin/svnserve
+OLD_FILES+=usr/bin/svnsync
+OLD_FILES+=usr/bin/svnversion
 .endif

@@ -148,8 +148,6 @@
                 ..
                 27.nfsrfc
                 ..
-                28.cvs
-                ..
             ..
             smm
                 01.setup
@@ -222,10 +220,6 @@
             bootforth
             ..
             csh
-            ..
-            cvs
-                contrib
-                ..
             ..
             cvsup
             ..

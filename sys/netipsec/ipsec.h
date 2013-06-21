@@ -359,6 +359,7 @@ VNET_DECLARE(int, ip4_ipsec_ecn);
 VNET_DECLARE(int, ip4_esp_randpad);
 VNET_DECLARE(int, crypto_support);
 
+#define	IPSECSTAT_INC(name)	V_ipsec4stat.name += 1
 #define	V_ipsec4stat		VNET(ipsec4stat)
 #define	V_ip4_def_policy	VNET(ip4_def_policy)
 #define	V_ip4_esp_trans_deflev	VNET(ip4_esp_trans_deflev)
