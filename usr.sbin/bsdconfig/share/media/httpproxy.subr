@@ -292,7 +292,7 @@ f_media_init_http_proxy()
 			;;
 		*)
 			local fdir fp
-			f_getvar $VAR_FTP_PATH fp
+			f_getvar $VAR_FTP_PATH%/ fp
 			for fdir in $FTP_DIRS; do
 				setvar $VAR_HTTP_PROXY_PATH "$fp/$fdir/$rel"
 				if f_http_proxy_check_access; then
@@ -380,9 +380,9 @@ f_media_get_http_proxy()
 	fi
 
 	local proxy_path mode
-	f_getvar $VAR_HTTP_PROXY_PATH proxy_path
+	f_getvar $VAR_HTTP_PROXY_PATH%/ proxy_path
 	f_getvar $VAR_HTTP_FTP_MODE mode
-	local url="${proxy_path%/}/$file$mode" rx
+	local url="$proxy_path/$file$mode" rx
 
 	f_dprintf "sending http request for: %s" "$url"
 	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$proxy_port" |
