@@ -661,7 +661,7 @@ f_media_init_ftp()
 			if echo "$rx" | awk -v dir="/${ftp_dir#/}" '
 				BEGIN {
 					found = 0
-					sub("/$", "", dir)
+					if ( dir != "/" ) sub("/$", "", dir)
 				}
 				/^Remote directory: / {
 					sub(/^[^:]*:[[:space:]]*/, "")
