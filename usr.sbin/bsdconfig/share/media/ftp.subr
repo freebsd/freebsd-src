@@ -853,11 +853,10 @@ f_media_get_ftp()
 		userpass="$userpass${userpass:+@}"
 	fi
 
-	local ftp_dir mode rx
-	f_getvar $VAR_FTP_DIR ftp_dir
+	local dir mode rx
+	f_getvar $VAR_FTP_DIR\#/ dir
 	f_getvar $VAR_FTP_STATE mode
 
-	local dir="${ftp_dir#/}"
 	local port="${ftp_port:+:$ftp_port}"
 	case "$host" in *:*) host="[$host]"; esac
 
