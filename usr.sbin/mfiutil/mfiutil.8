@@ -573,6 +573,10 @@ Updates the flash on the controller with the firmware stored in
 A reboot is required for the new firmware to take effect.
 .It Cm start learn
 Start a battery relearn.
+Note that this seems to always result in the battery being completely drained,
+regardless of the BBU mode.
+In particular, the controller write cache will be disabled during the relearn
+even if transparent learning mode is enabled.
 .It Cm bbu Ar setting Ar value
 Update battery backup unit (BBU) properties related to battery relearning.
 The following settings are configurable:
