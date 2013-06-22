@@ -593,7 +593,7 @@ f_ifconfig_netmask()
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
 #
-f_route_get_default='
+f_route_get_default_awk='
 BEGIN { found = 0 }
 ( $1 == "gateway:" ) \
 {
