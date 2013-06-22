@@ -133,7 +133,7 @@ while :; do
 	esac
 
 	if [ "$command" ]; then
-		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X} ;;
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
 	else
 		f_die 1 "$msg_unknown_console_menu_selection"
 	fi
