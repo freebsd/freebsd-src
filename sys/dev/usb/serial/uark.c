@@ -92,6 +92,7 @@ struct uark_softc {
 
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;
+	uint8_t	sc_irda;	/* Set to 1 for IrDA */
 };
 
 /* prototypes */
@@ -173,8 +174,12 @@ MODULE_DEPEND(uark, ucom, 1, 1, 1);
 MODULE_DEPEND(uark, usb, 1, 1, 1);
 MODULE_VERSION(uark, 1);
 
+#define UARK_TYPE_SERIAL 0
+#define UARK_TYPE_IRDA 1
+
 static const STRUCT_USB_HOST_ID uark_devs[] = {
-	{USB_VPI(USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116, 0)},
+	{USB_VPI(USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116, UARK_TYPE_SERIAL)},
+	{USB_VPI(USB_VENDOR_ARKMICRO2, USB_PRODUCT_ARKMICRO2_ARK3118, UARK_TYPE_IRDA)},
 };
 
 static int
@@ -207,6 +212,7 @@ uark_attach(device_t dev)
 	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
+	sc->sc_irda = (USB_GET_DRIVER_INFO (uaa) == UARK_TYPE_IRDA);
 
 	iface_index = UARK_IFACE_INDEX;
 	error = usbd_transfer_setup
@@ -378,6 +384,15 @@ uark_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	uint32_t speed = t->c_ospeed;
 	uint16_t data;
 
+	if (!(sc->sc_irda)) {
+		uark_cfg_write(sc, 0xb, 0);
+	} else {
+		uark_cfg_write(sc, 0xb, 1);
+		uark_cfg_write(sc, 0xc, 0);
+		uark_cfg_write(sc, 0xd, 0x41);
+		uark_cfg_write(sc, 0xa, 1);
+	}
+
 	/*
 	 * NOTE: When reverse computing the baud rate from the "data" all
 	 * allowed baud rates are within 3% of the initial baud rate.
@@ -419,6 +434,10 @@ uark_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	}
 	uark_cfg_write(sc, 3, 0x00);
 	uark_cfg_write(sc, 3, data);
+
+	uark_cfg_write(sc, 0xe, 0);
+	if (sc->sc_irda)
+		uark_cfg_write (sc, 9, 0);
 }
 
 static void
