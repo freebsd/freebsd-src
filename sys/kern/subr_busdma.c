@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Marcel Moolenaar
+ * Copyright (c) 2012-2013 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/queue.h>
 #include <machine/stdarg.h>
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -737,6 +739,70 @@ busdma_md_get_vaddr(struct busdma_md *md, u_int idx)
 	vaddr = (seg != NULL) ? seg->mds_vaddr : 0UL;
 	KASSERT(vaddr != 0UL, ("%s: invalid vaddr", __func__));
 	return (vaddr);
+}
+
+int
+busdma_md_load_ccb(busdma_md_t md, union ccb *ccb, busdma_callback_f cb,
+    void *arg, u_int flags)
+{
+	struct ccb_hdr *ccb_h;
+	void *buf;
+	size_t cnt, len;
+	int error;
+
+	CTR6(KTR_BUSDMA, "%s: md=%p, ccb=%p, cb=%p, arg=%p, flags=%#x",
+	    __func__, md, ccb, cb, arg, flags);
+
+	flags = _busdma_flags(__func__, md->md_tag->dt_device, flags);
+
+	if (md == NULL || ccb == NULL)
+		return (EINVAL);
+
+	ccb_h = &ccb->ccb_h;
+	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
+		(*cb)(arg, NULL, 0);
+		return (0);
+	}
+
+	switch (ccb_h->func_code) {
+	case XPT_SCSI_IO:
+		buf = ccb->csio.data_ptr;
+		len = ccb->csio.dxfer_len;
+		cnt = ccb->csio.sglist_cnt;
+		break;
+	case XPT_CONT_TARGET_IO:
+		buf = ccb->ctio.data_ptr;
+		len = ccb->ctio.dxfer_len;
+		cnt = ccb->ctio.sglist_cnt;
+		break;
+	case XPT_ATA_IO:
+		buf = ccb->ataio.data_ptr;
+		len = ccb->ataio.dxfer_len;
+		cnt = 0;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	switch (ccb_h->flags & CAM_DATA_MASK) {
+	case CAM_DATA_VADDR:
+		error = _busdma_md_load(md, NULL, (uintptr_t)buf, len);
+		break;
+	case CAM_DATA_PADDR:
+	case CAM_DATA_SG:
+	case CAM_DATA_SG_PADDR:
+	case CAM_DATA_BIO:
+	default:
+		panic(__func__);
+	}
+
+	if (!error) {
+		error = _busdma_iommu_map(md->md_tag->dt_device, md);
+		if (error)
+			printf("_busdma_iommu_map: error=%d\n", error);
+	}
+	(*cb)(arg, md, error);
+	return (0);
 }
 
 int

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Marcel Moolenaar
+ * Copyright (c) 2012-2013 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,6 +98,7 @@ bus_addr_t busdma_tag_get_maxaddr(busdma_tag_t tag);
 /*
  *
  */
+union ccb;
 struct mbuf;
 struct uio;
 
@@ -105,14 +106,16 @@ typedef void (*busdma_callback_f)(void *, busdma_md_t, int);
 
 int busdma_md_create(busdma_tag_t tag, u_int flags, busdma_md_t *md_p);
 int busdma_md_destroy(busdma_md_t md);
+int busdma_md_load_ccb(busdma_md_t md, union ccb *ccb, busdma_callback_f cb,
+    void *arg, u_int flags);
 int busdma_md_load_linear(busdma_md_t md, void *buf, size_t size,
     busdma_callback_f cb, void *arg, u_int flags);
 int busdma_md_load_mbuf(busdma_md_t md, struct mbuf *mbuf,
     busdma_callback_f cb, void *arg, u_int flags);
 int busdma_md_load_phys(busdma_md_t md, vm_paddr_t buf, size_t size,
     busdma_callback_f cb, void *arg, u_int flags);
-int busdma_md_load_uio(busdma_md_t md, struct uio *uio,
-    busdma_callback_f cb, void *arg, u_int flags);
+int busdma_md_load_uio(busdma_md_t md, struct uio *uio, busdma_callback_f cb,
+    void *arg, u_int flags);
 int busdma_md_unload(busdma_md_t md);
 u_int busdma_md_get_flags(busdma_md_t md);
 u_int busdma_md_get_nsegs(busdma_md_t md);
