@@ -73,6 +73,7 @@ setvar DEVICE_TYPE_UFS		9
 setvar DEVICE_TYPE_NFS		10
 setvar DEVICE_TYPE_ANY		11
 setvar DEVICE_TYPE_HTTP_PROXY	12
+setvar DEVICE_TYPE_HTTP		13
 
 #
 # Default behavior is to call f_device_get_all() automatically when loaded.
