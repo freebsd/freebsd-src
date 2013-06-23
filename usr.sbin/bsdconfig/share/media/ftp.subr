@@ -378,27 +378,62 @@ f_media_set_ftp()
 
 	local hostname="${url#*://}" port=21 dir=/
 	case "$hostname" in
-	"["*"]")
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*/*) # IPv6 address with port and directory
+		f_dprintf "Looks like an IPv6 addr with port/dir: %s" \
+		          "$hostname"
 		hostname="${hostname#\[}"
-		hostname="${hostname%%\]*}"
-		;;
-	"["*"]/"*)
-		hostname="${hostname#\[}"
+		port="${hostname#*\]:}"
+		port="${port%%[!0-9]*}"
 		dir="/${hostname#*/}"
-		hostname="${hostname%%\]*}"
+		hostname="${hostname%%\]:*}"
 		;;
-	*"/"*)
-		dir="/${hostname#*/}"
-		hostname="${hostname%%/*}"
-		;;
-	"["*"]:"*)
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
 		hostname="${hostname#\[}"
 		port="${hostname#*\]:}"
 		port="${port%%[!0-9]*}"
 		hostname="${hostname%%\]:*}"
 		;;
-	*)
+	"["*"]"/*) # IPv6 address with directory
+		f_dprintf "Looks like an IPv6 addr with dir: %s" "$hostname"
+		hostname="${hostname#\[}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%\]*}"
+		;;
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*/*) # DNS name or IPv4 address with port and directory
+		f_dprintf "Looks like a %s with port/dir: %s" \
+		          "DNS name or IPv4 addr" "$hostname"
+		port="${hostname#*:}"
+		port="${port%%[!0-9]*}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%:*}"
+		;;
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
+		port="${hostname#*:}"
+		hostname="${hostname%%:*}"
+		;;
+	*/*) # DNS name or IPv4 address with directory
+		f_dprintf "Looks like a DNS name or IPv4 addr with dir: %s" \
+		          "$hostname"
+		dir="/${hostname#*/}"
 		hostname="${hostname%%/*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
 	esac
 
 	f_dprintf "hostname = \`%s'" "$hostname"
