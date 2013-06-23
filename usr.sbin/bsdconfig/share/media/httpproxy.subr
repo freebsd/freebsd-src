@@ -77,19 +77,33 @@ f_media_set_http_proxy()
 
 	local hostname="$proxy" port=3128
 	case "$hostname" in
-	"["*"]")
-		hostname="${hostname#\[}"
-		hostname="${hostname%\]}"
-		;;
-	"["*"]:"*)
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
 		hostname="${hostname#\[}"
 		port="${hostname#*\]:}"
 		port="${port%%[!0-9]*}"
 		hostname="${hostname%%\]:*}"
 		;;
-	*":"*)
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
 		port="${hostname#*:}"
 		hostname="${hostname%%:*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
 	esac
 
 	setvar $VAR_HTTP_PROXY_HOST "$hostname"
