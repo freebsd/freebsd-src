@@ -63,6 +63,8 @@ struct taskqueue {
 	int			tq_spin;
 	int			tq_flags;
 	int			tq_callouts;
+	taskqueue_callback_fn	tq_callbacks[TASKQUEUE_NUM_CALLBACKS];
+	void			*tq_cb_contexts[TASKQUEUE_NUM_CALLBACKS];
 };
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
@@ -78,6 +80,7 @@ struct taskqueue {
 		else							\
 			mtx_lock(&(tq)->tq_mutex);			\
 	} while (0)
+#define	TQ_ASSERT_LOCKED(tq)	mtx_assert(&(tq)->tq_mutex, MA_OWNED)
 
 #define	TQ_UNLOCK(tq)							\
 	do {								\
@@ -86,6 +89,7 @@ struct taskqueue {
 		else							\
 			mtx_unlock(&(tq)->tq_mutex);			\
 	} while (0)
+#define	TQ_ASSERT_UNLOCKED(tq)	mtx_assert(&(tq)->tq_mutex, MA_NOTOWNED)
 
 void
 _timeout_task_init(struct taskqueue *queue, struct timeout_task *timeout_task,
@@ -135,6 +139,23 @@ taskqueue_create(const char *name, int mflags,
 {
 	return _taskqueue_create(name, mflags, enqueue, context,
 			MTX_DEF, "taskqueue");
+}
+
+void
+taskqueue_set_callback(struct taskqueue *queue,
+    enum taskqueue_callback_type cb_type, taskqueue_callback_fn callback,
+    void *context)
+{
+
+	KASSERT(((cb_type >= TASKQUEUE_CALLBACK_TYPE_MIN) &&
+	    (cb_type <= TASKQUEUE_CALLBACK_TYPE_MAX)),
+	    ("Callback type %d not valid, must be %d-%d", cb_type,
+	    TASKQUEUE_CALLBACK_TYPE_MIN, TASKQUEUE_CALLBACK_TYPE_MAX));
+	KASSERT((queue->tq_callbacks[cb_type] == NULL),
+	    ("Re-initialization of taskqueue callback?"));
+
+	queue->tq_callbacks[cb_type] = callback;
+	queue->tq_cb_contexts[cb_type] = context;
 }
 
 /*
@@ -293,7 +314,7 @@ taskqueue_run_locked(struct taskqueue *queue)
 	struct task *task;
 	int pending;
 
-	mtx_assert(&queue->tq_mutex, MA_OWNED);
+	TQ_ASSERT_LOCKED(queue);
 	tb.tb_running = NULL;
 	TAILQ_INSERT_TAIL(&queue->tq_active, &tb, tb_link);
 
@@ -332,7 +353,7 @@ task_is_running(struct taskqueue *queue, struct task *task)
 {
 	struct taskqueue_busy *tb;
 
-	mtx_assert(&queue->tq_mutex, MA_OWNED);
+	TQ_ASSERT_LOCKED(queue);
 	TAILQ_FOREACH(tb, &queue->tq_active, tb_link) {
 		if (tb->tb_running == task)
 			return (1);
@@ -489,6 +510,18 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	return (0);
 }
 
+static inline void
+taskqueue_run_callback(struct taskqueue *tq,
+    enum taskqueue_callback_type cb_type)
+{
+	taskqueue_callback_fn tq_callback;
+
+	TQ_ASSERT_UNLOCKED(tq);
+	tq_callback = tq->tq_callbacks[cb_type];
+	if (tq_callback != NULL)
+		tq_callback(tq->tq_cb_contexts[cb_type]);
+}
+
 void
 taskqueue_thread_loop(void *arg)
 {
@@ -496,6 +529,7 @@ taskqueue_thread_loop(void *arg)
 
 	tqp = arg;
 	tq = *tqp;
+	taskqueue_run_callback(tq, TASKQUEUE_CALLBACK_TYPE_INIT);
 	TQ_LOCK(tq);
 	while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0) {
 		taskqueue_run_locked(tq);
@@ -509,6 +543,15 @@ taskqueue_thread_loop(void *arg)
 		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
 	}
 	taskqueue_run_locked(tq);
+
+	/*
+	 * This thread is on its way out, so just drop the lock temporarily
+	 * in order to call the shutdown callback.  This allows the callback
+	 * to look at the taskqueue, even just before it dies.
+	 */
+	TQ_UNLOCK(tq);
+	taskqueue_run_callback(tq, TASKQUEUE_CALLBACK_TYPE_SHUTDOWN);
+	TQ_LOCK(tq);
 
 	/* rendezvous with thread that asked us to terminate */
 	tq->tq_tcount--;
@@ -525,7 +568,7 @@ taskqueue_thread_enqueue(void *context)
 	tqp = context;
 	tq = *tqp;
 
-	mtx_assert(&tq->tq_mutex, MA_OWNED);
+	TQ_ASSERT_LOCKED(tq);
 	wakeup_one(tq);
 }
 

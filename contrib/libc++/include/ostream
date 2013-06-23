@@ -140,7 +140,7 @@ template <class charT, class traits, class T>
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _CharT, class _Traits>
-class _LIBCPP_VISIBLE basic_ostream
+class _LIBCPP_TYPE_VIS basic_ostream
     : virtual public basic_ios<_CharT, _Traits>
 {
 public:
@@ -169,7 +169,7 @@ protected:
 public:
 
     // 27.7.2.4 Prefix/suffix:
-    class _LIBCPP_VISIBLE sentry;
+    class _LIBCPP_TYPE_VIS sentry;
 
     // 27.7.2.6 Formatted output:
     basic_ostream& operator<<(basic_ostream& (*__pf)(basic_ostream&));
@@ -207,7 +207,7 @@ protected:
 };
 
 template <class _CharT, class _Traits>
-class _LIBCPP_VISIBLE basic_ostream<_CharT, _Traits>::sentry
+class _LIBCPP_TYPE_VIS basic_ostream<_CharT, _Traits>::sentry
 {
     bool __ok_;
     basic_ostream<_CharT, _Traits>& __os_;
@@ -1100,17 +1100,8 @@ basic_ostream<_CharT, _Traits>::write(const char_type* __s, streamsize __n)
         sentry __sen(*this);
         if (__sen && __n)
         {
-            typedef ostreambuf_iterator<_CharT, _Traits> _Op;
-            _Op __o(*this);
-            for (; __n; --__n, ++__o, ++__s)
-            {
-                *__o = *__s;
-                if (__o.failed())
-                {
-                    this->setstate(ios_base::badbit);
-                    break;
-                }
-            }
+            if (this->rdbuf()->sputn(__s, __n) != __n)
+                this->setstate(ios_base::badbit);
         }
 #ifndef _LIBCPP_NO_EXCEPTIONS
     }

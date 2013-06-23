@@ -159,7 +159,7 @@ pppoe_print(register const u_char *bp, u_int length)
 
 			if (tag_len) {
 				unsigned isascii = 0, isgarbage = 0;
-				const u_char *v = p;
+				const u_char *v;
 				char tag_str[MAXTAGPRINT];
 				unsigned tag_str_len = 0;
 

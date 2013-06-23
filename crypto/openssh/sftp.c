@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.136 2012/06/22 14:36:33 dtucker Exp $ */
+/* $OpenBSD: sftp.c,v 1.142 2013/02/08 00:41:12 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -53,10 +53,6 @@ typedef void EditLine;
 
 #ifdef HAVE_UTIL_H
 # include <util.h>
-#endif
-
-#ifdef HAVE_LIBUTIL_H
-# include <libutil.h>
 #endif
 
 #include "xmalloc.h"
@@ -992,6 +988,10 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,
 	state = MA_START;
 	i = j = 0;
 	for (;;) {
+		if ((size_t)argc >= sizeof(argv) / sizeof(*argv)){
+			error("Too many arguments.");
+			return NULL;
+		}
 		if (isspace(arg[i])) {
 			if (state == MA_UNQUOTED) {
 				/* Terminate current argument */
@@ -1142,7 +1142,7 @@ parse_args(const char **cpp, int *pflag, int *rflag, int *lflag, int *iflag,
 
 	/* Figure out which command we have */
 	for (i = 0; cmds[i].c != NULL; i++) {
-		if (strcasecmp(cmds[i].c, argv[0]) == 0)
+		if (argv[0] != NULL && strcasecmp(cmds[i].c, argv[0]) == 0)
 			break;
 	}
 	cmdnum = cmds[i].n;
@@ -1696,7 +1696,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 {
 	glob_t g;
 	char *tmp, *tmp2, ins[3];
-	u_int i, hadglob, pwdlen, len, tmplen, filelen;
+	u_int i, hadglob, pwdlen, len, tmplen, filelen, cesc, isesc, isabs;
 	const LineInfo *lf;
 	
 	/* Glob from "file" location */
@@ -1704,6 +1704,9 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 		tmp = xstrdup("*");
 	else
 		xasprintf(&tmp, "%s*", file);
+
+	/* Check if the path is absolute. */
+	isabs = tmp[0] == '/';
 
 	memset(&g, 0, sizeof(g));
 	if (remote != LOCAL) {
@@ -1739,7 +1742,7 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 		goto out;
 
 	tmp2 = complete_ambiguous(file, g.gl_pathv, g.gl_matchc);
-	tmp = path_strip(tmp2, remote_path);
+	tmp = path_strip(tmp2, isabs ? NULL : remote_path);
 	xfree(tmp2);
 
 	if (tmp == NULL)
@@ -1748,8 +1751,18 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 	tmplen = strlen(tmp);
 	filelen = strlen(file);
 
-	if (tmplen > filelen)  {
-		tmp2 = tmp + filelen;
+	/* Count the number of escaped characters in the input string. */
+	cesc = isesc = 0;
+	for (i = 0; i < filelen; i++) {
+		if (!isesc && file[i] == '\\' && i + 1 < filelen){
+			isesc = 1;
+			cesc++;
+		} else
+			isesc = 0;
+	}
+
+	if (tmplen > (filelen - cesc)) {
+		tmp2 = tmp + filelen - cesc;
 		len = strlen(tmp2); 
 		/* quote argument on way out */
 		for (i = 0; i < len; i++) {
@@ -1763,6 +1776,8 @@ complete_match(EditLine *el, struct sftp_conn *conn, char *remote_path,
 			case '\t':
 			case '[':
 			case ' ':
+			case '#':
+			case '*':
 				if (quote == '\0' || tmp2[i] == quote) {
 					if (el_insertstr(el, ins) == -1)
 						fatal("el_insertstr "
@@ -1918,6 +1933,7 @@ interactive_loop(struct sftp_conn *conn, char *file1, char *file2)
 				return (-1);
 			}
 		} else {
+			/* XXX this is wrong wrt quoting */
 			if (file2 == NULL)
 				snprintf(cmd, sizeof cmd, "get %s", dir);
 			else

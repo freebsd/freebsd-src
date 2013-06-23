@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -826,7 +826,8 @@ UtAttachNameseg (
         /* No dots in the namepath, there is only a single nameseg. */
         /* Handle prefixes */
 
-        while ((*Name == '\\') || (*Name == '^'))
+        while (ACPI_IS_ROOT_PREFIX (*Name) ||
+               ACPI_IS_PARENT_PREFIX (*Name))
         {
             Name++;
         }
@@ -955,6 +956,7 @@ UtStrtoul64 (
     case 8:
     case 10:
     case 16:
+
         break;
 
     default:
@@ -1089,19 +1091,24 @@ ErrorExit:
     switch (Base)
     {
     case 8:
+
         Status = AE_BAD_OCTAL_CONSTANT;
         break;
 
     case 10:
+
         Status = AE_BAD_DECIMAL_CONSTANT;
         break;
 
     case 16:
+
         Status = AE_BAD_HEX_CONSTANT;
         break;
 
     default:
+
         /* Base validated above */
+
         break;
     }
 

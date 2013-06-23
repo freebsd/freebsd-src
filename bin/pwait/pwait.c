@@ -141,5 +141,5 @@ main(int argc, char *argv[])
 		nleft -= n;
 	}
 
-	return 0;
+	exit(EX_OK);
 }

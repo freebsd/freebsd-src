@@ -425,7 +425,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 
 			grp = GETGRNAM(a_name->val);
-			if (*grp->gr_mem == NULL)
+			if (grp != NULL && *grp->gr_mem == NULL)
 				delgrent(GETGRNAM(a_name->val));
 			SETGRENT();
 			while ((grp = GETGRENT()) != NULL) {

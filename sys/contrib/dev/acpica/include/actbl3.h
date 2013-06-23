@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,13 +70,13 @@
 #define ACPI_SIG_PCCT           "PCCT"      /* Platform Communications Channel Table */
 #define ACPI_SIG_PMTT           "PMTT"      /* Platform Memory Topology Table */
 #define ACPI_SIG_RASF           "RASF"      /* RAS Feature table */
+#define ACPI_SIG_TPM2           "TPM2"      /* Trusted Platform Module 2.0 H/W interface table */
 
 #define ACPI_SIG_S3PT           "S3PT"      /* S3 Performance (sub)Table */
 #define ACPI_SIG_PCCS           "PCC"       /* PCC Shared Memory Region */
 
 /* Reserved table signatures */
 
-#define ACPI_SIG_CSRT           "CSRT"      /* Core System Resources Table */
 #define ACPI_SIG_MATR           "MATR"      /* Memory Address Translation Table */
 #define ACPI_SIG_MSDM           "MSDM"      /* Microsoft Data Management Table */
 #define ACPI_SIG_WPBT           "WPBT"      /* Windows Platform Binary Table */
@@ -195,7 +195,7 @@ typedef struct acpi_fpdt_header
 enum AcpiFpdtType
 {
     ACPI_FPDT_TYPE_BOOT                 = 0,
-    ACPI_FPDT_TYPE_S3PERF               = 1,
+    ACPI_FPDT_TYPE_S3PERF               = 1
 };
 
 
@@ -257,7 +257,7 @@ typedef struct acpi_s3pt_header
 enum AcpiS3ptType
 {
     ACPI_S3PT_TYPE_RESUME               = 0,
-    ACPI_S3PT_TYPE_SUSPEND              = 1,
+    ACPI_S3PT_TYPE_SUSPEND              = 1
 };
 
 typedef struct acpi_s3pt_resume
@@ -599,28 +599,67 @@ typedef struct acpi_rasf_shared_memory
     UINT32                  Signature;
     UINT16                  Command;
     UINT16                  Status;
-    UINT64                  RequestedAddress;
-    UINT64                  RequestedLength;
-    UINT64                  ActualAddress;
-    UINT64                  ActualLength;
-    UINT16                  Flags;
-    UINT8                   Speed;
+    UINT16                  Version;
+    UINT8                   Capabilities[16];
+    UINT8                   SetCapabilities[16];
+    UINT16                  NumParameterBlocks;
+    UINT32                  SetCapabilitiesStatus;
 
 } ACPI_RASF_SHARED_MEMORY;
+
+/* RASF Parameter Block Structure Header */
+
+typedef struct acpi_rasf_parameter_block
+{
+    UINT16                  Type;
+    UINT16                  Version;
+    UINT16                  Length;
+
+} ACPI_RASF_PARAMETER_BLOCK;
+
+/* RASF Parameter Block Structure for PATROL_SCRUB */
+
+typedef struct acpi_rasf_patrol_scrub_parameter
+{
+    ACPI_RASF_PARAMETER_BLOCK   Header;
+    UINT16                      PatrolScrubCommand;
+    UINT64                      RequestedAddressRange[2];
+    UINT64                      ActualAddressRange[2];
+    UINT16                      Flags;
+    UINT8                       RequestedSpeed;
+
+} ACPI_RASF_PATROL_SCRUB_PARAMETER;
 
 /* Masks for Flags and Speed fields above */
 
 #define ACPI_RASF_SCRUBBER_RUNNING      1
 #define ACPI_RASF_SPEED                 (7<<1)
+#define ACPI_RASF_SPEED_SLOW            (0<<1)
+#define ACPI_RASF_SPEED_MEDIUM          (4<<1)
+#define ACPI_RASF_SPEED_FAST            (7<<1)
 
 /* Channel Commands */
 
 enum AcpiRasfCommands
 {
-    ACPI_RASF_GET_RAS_CAPABILITIES      = 1,
-    ACPI_RASF_GET_PATROL_PARAMETERS     = 2,
-    ACPI_RASF_START_PATROL_SCRUBBER     = 3,
-    ACPI_RASF_STOP_PATROL_SCRUBBER      = 4
+    ACPI_RASF_EXECUTE_RASF_COMMAND      = 1
+};
+
+/* Platform RAS Capabilities */
+
+enum AcpiRasfCapabiliities
+{
+    ACPI_HW_PATROL_SCRUB_SUPPORTED      = 0,
+    ACPI_SW_PATROL_SCRUB_EXPOSED        = 1
+};
+
+/* Patrol Scrub Commands */
+
+enum AcpiRasfPatrolScrubCommands
+{
+    ACPI_RASF_GET_PATROL_PARAMETERS     = 1,
+    ACPI_RASF_START_PATROL_SCRUBBER     = 2,
+    ACPI_RASF_STOP_PATROL_SCRUBBER      = 3
 };
 
 /* Channel Command flags */
@@ -646,6 +685,41 @@ enum AcpiRasfStatus
 #define ACPI_RASF_SCI_DOORBELL          (1<<1)
 #define ACPI_RASF_ERROR                 (1<<2)
 #define ACPI_RASF_STATUS                (0x1F<<3)
+
+
+/*******************************************************************************
+ *
+ * TPM2 - Trusted Platform Module (TPM) 2.0 Hardware Interface Table
+ *        Version 3
+ *
+ * Conforms to "TPM 2.0 Hardware Interface Table (TPM2)" 29 November 2011
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_tpm2
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT32                  Flags;
+    UINT64                  ControlAddress;
+    UINT32                  StartMethod;
+
+} ACPI_TABLE_TPM2;
+
+/* Control area structure (not part of table, pointed to by ControlAddress) */
+
+typedef struct acpi_tpm2_control
+{
+    UINT32                  Reserved;
+    UINT32                  Error;
+    UINT32                  Cancel;
+    UINT32                  Start;
+    UINT64                  InterruptControl;
+    UINT32                  CommandSize;
+    UINT64                  CommandAddress;
+    UINT32                  ResponseSize;
+    UINT64                  ResponseAddress;
+
+} ACPI_TPM2_CONTROL;
 
 
 /* Reset to default packing */

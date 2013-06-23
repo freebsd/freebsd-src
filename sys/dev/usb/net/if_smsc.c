@@ -99,9 +99,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
 
-#include <dev/usb/usb_device.h>
 #include <dev/usb/net/usb_ethernet.h>
-#include "if_smscreg.h"
+
+#include <dev/usb/net/if_smscreg.h>
 
 #ifdef USB_DEBUG
 static int smsc_debug = 0;
@@ -606,16 +606,13 @@ smsc_ifmedia_upd(struct ifnet *ifp)
 {
 	struct smsc_softc *sc = ifp->if_softc;
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
+	struct mii_softc *miisc;
 	int err;
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	err = mii_mediachg(mii);
 	return (err);
 }
@@ -638,13 +635,10 @@ smsc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
 
 	SMSC_LOCK(sc);
-	
 	mii_pollstat(mii);
-	
-	SMSC_UNLOCK(sc);
-	
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	SMSC_UNLOCK(sc);
 }
 
 /**
@@ -1009,6 +1003,10 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 				/* Check if RX TCP/UDP checksumming is being offloaded */
 				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+
+					struct ether_header *eh;
+
+					eh = mtod(m, struct ether_header *);
 				
 					/* Remove the extra 2 bytes of the csum */
 					pktlen -= 2;
@@ -1020,8 +1018,10 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 					 * the padding bytes as well. Therefore to be safe we
 					 * ignore the H/W csum on frames less than or equal to
 					 * 64 bytes.
+					 *
+					 * Ignore H/W csum for non-IPv4 packets.
 					 */
-					if (pktlen > ETHER_MIN_LEN) {
+					if (be16toh(eh->ether_type) == ETHERTYPE_IP && pktlen > ETHER_MIN_LEN) {
 					
 						/* Indicate the UDP/TCP csum has been calculated */
 						m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
@@ -1810,7 +1810,7 @@ static device_method_t smsc_methods[] = {
 	DEVMETHOD(miibus_writereg, smsc_miibus_writereg),
 	DEVMETHOD(miibus_statchg, smsc_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t smsc_driver = {

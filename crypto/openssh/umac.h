@@ -1,4 +1,4 @@
-/* $OpenBSD: umac.h,v 1.1 2007/06/07 19:37:34 pvalchev Exp $ */
+/* $OpenBSD: umac.h,v 1.2 2012/10/04 13:21:50 markus Exp $ */
 /* -----------------------------------------------------------------------
  * 
  * umac.h -- C Implementation UMAC Message Authentication
@@ -115,6 +115,12 @@ int uhash(uhash_ctx_t ctx,
         u_char        output[]);
 
 #endif
+
+/* matching umac-128 API, we reuse umac_ctx, since it's opaque */
+struct umac_ctx *umac128_new(u_char key[]);
+int umac128_update(struct umac_ctx *ctx, u_char *input, long len);
+int umac128_final(struct umac_ctx *ctx, u_char tag[], u_char nonce[8]);
+int umac128_delete(struct umac_ctx *ctx);
 
 #ifdef __cplusplus
     }

@@ -405,11 +405,6 @@ oce_create_nw_interface(POCE_SOFTC sc)
 
 	sc->if_cap_flags = capab_en_flags;
 
-	/* Enable VLAN Promisc on HW */
-	rc = oce_config_vlan(sc, (uint8_t) sc->if_id, NULL, 0, 1, 1);
-	if (rc)
-		goto error;
-
 	/* set default flow control */
 	rc = oce_set_flow_control(sc, sc->flow_control);
 	if (rc)
@@ -477,12 +472,9 @@ oce_hw_start(POCE_SOFTC sc)
 		return 1;
 	
 	if (link.logical_link_status == NTWK_LOGICAL_LINK_UP) {
-		sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		sc->link_status = NTWK_LOGICAL_LINK_UP;
 		if_link_state_change(sc->ifp, LINK_STATE_UP);
 	} else {
-		sc->ifp->if_drv_flags &=
-			~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 		sc->link_status = NTWK_LOGICAL_LINK_DOWN;
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
 	}

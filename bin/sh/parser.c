@@ -119,7 +119,7 @@ static void parseheredoc(void);
 static int peektoken(void);
 static int readtoken(void);
 static int xxreadtoken(void);
-static int readtoken1(int, char const *, char *, int);
+static int readtoken1(int, const char *, const char *, int);
 static int noexpand(char *);
 static void synexpect(int) __dead2;
 static void synerror(const char *) __dead2;
@@ -240,9 +240,9 @@ list(int nlflag, int erflag)
 		n2 = andor();
 		tok = readtoken();
 		if (tok == TBACKGND) {
-			if (n2->type == NPIPE) {
+			if (n2 != NULL && n2->type == NPIPE) {
 				n2->npipe.backgnd = 1;
-			} else if (n2->type == NREDIR) {
+			} else if (n2 != NULL && n2->type == NREDIR) {
 				n2->type = NBACKGND;
 			} else {
 				n3 = (union node *)stalloc(sizeof (struct nredir));
@@ -286,7 +286,8 @@ list(int nlflag, int erflag)
 				tokpushback++;
 			}
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
-			if (!nlflag && !erflag && tokendlist[peektoken()])
+			if (!nlflag && (erflag ? peektoken() == TEOF :
+			    tokendlist[peektoken()]))
 				return ntop;
 			break;
 		case TEOF:
@@ -982,7 +983,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	char *volatile str;
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
-	int savelen;
+	size_t savelen;
 	int saveprompt;
 	const int bq_startlinno = plinno;
 	char *volatile ostr = NULL;
@@ -1299,7 +1300,8 @@ readcstyleesc(char *out)
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
 static int
-readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
+readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
+    int striptabs)
 {
 	int c = firstc;
 	char *out;
@@ -1520,7 +1522,7 @@ checkend: {
 		}
 		if (c == *eofmark) {
 			if (pfgets(line, sizeof line) != NULL) {
-				char *p, *q;
+				const char *p, *q;
 
 				p = line;
 				for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
@@ -2037,7 +2039,7 @@ getprompt(void *unused __unused)
 
 
 const char *
-expandstr(char *ps)
+expandstr(const char *ps)
 {
 	union node n;
 	struct jmploc jmploc;

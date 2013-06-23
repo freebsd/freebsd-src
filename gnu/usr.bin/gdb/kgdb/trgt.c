@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include "kgdb.h"
 
+static CORE_ADDR stoppcbs;
+
 static void	kgdb_core_cleanup(void *);
 
 static char *vmcore;
@@ -351,4 +353,19 @@ initialize_kgdb_target(void)
 	   "Set current process context");
 	add_com ("tid", class_obscure, kgdb_set_tid_cmd,
 	   "Set current thread context");
+}
+
+CORE_ADDR
+kgdb_trgt_stop_pcb(u_int cpuid, u_int pcbsz)
+{
+	static int once = 0;
+
+	if (stoppcbs == 0 && !once) {
+		once = 1;
+		stoppcbs = kgdb_lookup("stoppcbs");
+	}
+	if (stoppcbs == 0)
+		return 0;
+
+	return (stoppcbs + pcbsz * cpuid);
 }

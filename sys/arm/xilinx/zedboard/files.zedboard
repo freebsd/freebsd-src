@@ -1,0 +1,9 @@
+#
+# files.zedboard
+#
+# $FreeBSD$
+
+#   We'll need board specific files once we start implementing drivers
+#   for Zedboard PL peripherals such as HDMI, VGA, or Audio Codecs.  For
+#   now, nothing is needed.
+#

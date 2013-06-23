@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,7 @@ MOUSED_PIDFILE=/var/run/moused.pid
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
 	esac
@@ -79,9 +79,8 @@ flags=$( f_sysrc_get moused_flags )
 # Prompt the user with the current value
 #
 f_dialog_title "$msg_value_required"
-flags=$( f_dialog_input "$msg_please_specify_the_mouse_daemon_flags" \
-                        "$flags"
-       ) || f_die
+f_dialog_input flags "$msg_please_specify_the_mouse_daemon_flags" \
+               "$flags" || f_die
 f_dialog_title_restore
 
 #

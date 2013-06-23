@@ -2235,7 +2235,7 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 			ep->ex_indexfile = strdup(cpoptarg);
 		} else if (!strcmp(cpopt, "quiet")) {
 			opt_flags |= OP_QUIET;
-		} else if (!strcmp(cpopt, "sec")) {
+		} else if (cpoptarg && !strcmp(cpopt, "sec")) {
 			if (parsesec(cpoptarg, ep))
 				return (1);
 			opt_flags |= OP_SEC;

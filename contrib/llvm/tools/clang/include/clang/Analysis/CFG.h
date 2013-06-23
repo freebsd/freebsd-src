@@ -15,15 +15,16 @@
 #ifndef LLVM_CLANG_CFG_H
 #define LLVM_CLANG_CFG_H
 
-#include "llvm/ADT/PointerIntPair.h"
-#include "llvm/ADT/GraphTraits.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/DenseMap.h"
 #include "clang/AST/Stmt.h"
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/Casting.h"
 #include <bitset>
 #include <cassert>
 #include <iterator>
@@ -48,7 +49,6 @@ class CFGElement {
 public:
   enum Kind {
     // main kind
-    Invalid,
     Statement,
     Initializer,
     // dtor kind
@@ -69,24 +69,37 @@ protected:
     : Data1(const_cast<void*>(Ptr1), ((unsigned) kind) & 0x3),
       Data2(const_cast<void*>(Ptr2), (((unsigned) kind) >> 2) & 0x3) {}
 
-public:
   CFGElement() {}
+public:
+
+  /// \brief Convert to the specified CFGElement type, asserting that this
+  /// CFGElement is of the desired type.
+  template<typename T>
+  T castAs() const {
+    assert(T::isKind(*this));
+    T t;
+    CFGElement& e = t;
+    e = *this;
+    return t;
+  }
+
+  /// \brief Convert to the specified CFGElement type, returning None if this
+  /// CFGElement is not of the desired type.
+  template<typename T>
+  Optional<T> getAs() const {
+    if (!T::isKind(*this))
+      return None;
+    T t;
+    CFGElement& e = t;
+    e = *this;
+    return t;
+  }
 
   Kind getKind() const {
     unsigned x = Data2.getInt();
     x <<= 2;
     x |= Data1.getInt();
     return (Kind) x;
-  }
-
-  bool isValid() const { return getKind() != Invalid; }
-
-  operator bool() const { return isValid(); }
-
-  template<class ElemTy> const ElemTy *getAs() const {
-    if (llvm::isa<ElemTy>(this))
-      return static_cast<const ElemTy*>(this);
-    return 0;
   }
 };
 
@@ -98,8 +111,11 @@ public:
     return static_cast<const Stmt *>(Data1.getPointer());
   }
 
-  static bool classof(const CFGElement *E) {
-    return E->getKind() == Statement;
+private:
+  friend class CFGElement;
+  CFGStmt() {}
+  static bool isKind(const CFGElement &E) {
+    return E.getKind() == Statement;
   }
 };
 
@@ -114,8 +130,11 @@ public:
     return static_cast<CXXCtorInitializer*>(Data1.getPointer());
   }
 
-  static bool classof(const CFGElement *E) {
-    return E->getKind() == Initializer;
+private:
+  friend class CFGElement;
+  CFGInitializer() {}
+  static bool isKind(const CFGElement &E) {
+    return E.getKind() == Initializer;
   }
 };
 
@@ -123,6 +142,7 @@ public:
 /// by compiler on various occasions.
 class CFGImplicitDtor : public CFGElement {
 protected:
+  CFGImplicitDtor() {}
   CFGImplicitDtor(Kind kind, const void *data1, const void *data2 = 0)
     : CFGElement(kind, data1, data2) {
     assert(kind >= DTOR_BEGIN && kind <= DTOR_END);
@@ -132,8 +152,10 @@ public:
   const CXXDestructorDecl *getDestructorDecl(ASTContext &astContext) const;
   bool isNoReturn(ASTContext &astContext) const;
 
-  static bool classof(const CFGElement *E) {
-    Kind kind = E->getKind();
+private:
+  friend class CFGElement;
+  static bool isKind(const CFGElement &E) {
+    Kind kind = E.getKind();
     return kind >= DTOR_BEGIN && kind <= DTOR_END;
   }
 };
@@ -155,8 +177,11 @@ public:
     return static_cast<Stmt*>(Data2.getPointer());
   }
 
-  static bool classof(const CFGElement *elem) {
-    return elem->getKind() == AutomaticObjectDtor;
+private:
+  friend class CFGElement;
+  CFGAutomaticObjDtor() {}
+  static bool isKind(const CFGElement &elem) {
+    return elem.getKind() == AutomaticObjectDtor;
   }
 };
 
@@ -171,8 +196,11 @@ public:
     return static_cast<const CXXBaseSpecifier*>(Data1.getPointer());
   }
 
-  static bool classof(const CFGElement *E) {
-    return E->getKind() == BaseDtor;
+private:
+  friend class CFGElement;
+  CFGBaseDtor() {}
+  static bool isKind(const CFGElement &E) {
+    return E.getKind() == BaseDtor;
   }
 };
 
@@ -187,8 +215,11 @@ public:
     return static_cast<const FieldDecl*>(Data1.getPointer());
   }
 
-  static bool classof(const CFGElement *E) {
-    return E->getKind() == MemberDtor;
+private:
+  friend class CFGElement;
+  CFGMemberDtor() {}
+  static bool isKind(const CFGElement &E) {
+    return E.getKind() == MemberDtor;
   }
 };
 
@@ -203,8 +234,11 @@ public:
     return static_cast<const CXXBindTemporaryExpr *>(Data1.getPointer());
   }
 
-  static bool classof(const CFGElement *E) {
-    return E->getKind() == TemporaryDtor;
+private:
+  friend class CFGElement;
+  CFGTemporaryDtor() {}
+  static bool isKind(const CFGElement &E) {
+    return E.getKind() == TemporaryDtor;
   }
 };
 
@@ -535,7 +569,7 @@ public:
   // the elements beginning at the last position in prepared space.
   iterator beginAutomaticObjDtorsInsert(iterator I, size_t Cnt,
       BumpVectorContext &C) {
-    return iterator(Elements.insert(I.base(), Cnt, CFGElement(), C));
+    return iterator(Elements.insert(I.base(), Cnt, CFGAutomaticObjDtor(0, 0), C));
   }
   iterator insertAutomaticObjDtor(iterator I, VarDecl *VD, Stmt *S) {
     *I = CFGAutomaticObjDtor(VD, S);
@@ -567,6 +601,7 @@ public:
     bool AddInitializers;
     bool AddImplicitDtors;
     bool AddTemporaryDtors;
+    bool AddStaticInitBranches;
 
     bool alwaysAdd(const Stmt *stmt) const {
       return alwaysAddMask[stmt->getStmtClass()];
@@ -587,7 +622,8 @@ public:
       ,AddEHEdges(false)
       ,AddInitializers(false)
       ,AddImplicitDtors(false)
-      ,AddTemporaryDtors(false) {}
+      ,AddTemporaryDtors(false)
+      ,AddStaticInitBranches(false) {}
   };
 
   /// \brief Provides a custom implementation of the iterator class to have the
@@ -718,7 +754,7 @@ public:
     for (const_iterator I=begin(), E=end(); I != E; ++I)
       for (CFGBlock::const_iterator BI=(*I)->begin(), BE=(*I)->end();
            BI != BE; ++BI) {
-        if (const CFGStmt *stmt = BI->getAs<CFGStmt>())
+        if (Optional<CFGStmt> stmt = BI->getAs<CFGStmt>())
           O(const_cast<Stmt*>(stmt->getStmt()));
       }
   }
@@ -807,17 +843,10 @@ namespace llvm {
 
 /// Implement simplify_type for CFGTerminator, so that we can dyn_cast from
 /// CFGTerminator to a specific Stmt class.
-template <> struct simplify_type<const ::clang::CFGTerminator> {
-  typedef const ::clang::Stmt *SimpleType;
-  static SimpleType getSimplifiedValue(const ::clang::CFGTerminator &Val) {
-    return Val.getStmt();
-  }
-};
-
 template <> struct simplify_type< ::clang::CFGTerminator> {
   typedef ::clang::Stmt *SimpleType;
-  static SimpleType getSimplifiedValue(const ::clang::CFGTerminator &Val) {
-    return const_cast<SimpleType>(Val.getStmt());
+  static SimpleType getSimplifiedValue(::clang::CFGTerminator Val) {
+    return Val.getStmt();
   }
 };
 

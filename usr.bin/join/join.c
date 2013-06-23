@@ -516,7 +516,7 @@ static void
 outfield(LINE *lp, u_long fieldno, int out_empty)
 {
 	if (needsep++)
-		(void)printf("%lc", *tabchar);
+		(void)printf("%lc", (wint_t)*tabchar);
 	if (!ferror(stdout)) {
 		if (lp->fieldcnt <= fieldno || out_empty) {
 			if (empty != NULL)

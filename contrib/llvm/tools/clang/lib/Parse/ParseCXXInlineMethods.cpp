@@ -11,18 +11,25 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Parser.h"
+#include "RAIIObjectsForParser.h"
+#include "clang/AST/DeclTemplate.h"
+#include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Scope.h"
-#include "clang/AST/DeclTemplate.h"
-#include "RAIIObjectsForParser.h"
 using namespace clang;
+
+/// Get the FunctionDecl for a function or function template decl.
+static FunctionDecl *getFunctionDecl(Decl *D) {
+  if (FunctionDecl *fn = dyn_cast<FunctionDecl>(D))
+    return fn;
+  return cast<FunctionTemplateDecl>(D)->getTemplatedDecl();
+}
 
 /// ParseCXXInlineMethodDef - We parsed and verified that the specified
 /// Declarator is a well formed C++ inline method definition. Now lex its body
 /// and store its tokens for parsing after the C++ class is complete.
-Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
+NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
                                       AttributeList *AccessAttrs,
                                       ParsingDeclarator &D,
                                       const ParsedTemplateInfo &TemplateInfo,
@@ -38,7 +45,7 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
           TemplateInfo.TemplateParams ? TemplateInfo.TemplateParams->data() : 0,
           TemplateInfo.TemplateParams ? TemplateInfo.TemplateParams->size() : 0);
 
-  Decl *FnD;
+  NamedDecl *FnD;
   D.setFunctionDefinitionKind(DefinitionKind);
   if (D.getDeclSpec().isFriendSpecified())
     FnD = Actions.ActOnFriendFunctionDecl(getCurScope(), D,
@@ -50,8 +57,7 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
     if (FnD) {
       Actions.ProcessDeclAttributeList(getCurScope(), FnD, AccessAttrs,
                                        false, true);
-      bool TypeSpecContainsAuto
-        = D.getDeclSpec().getTypeSpecType() == DeclSpec::TST_auto;
+      bool TypeSpecContainsAuto = D.getDeclSpec().containsPlaceholderType();
       if (Init.isUsable())
         Actions.AddInitializerToDecl(FnD, Init.get(), false, 
                                      TypeSpecContainsAuto);
@@ -75,7 +81,7 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
     bool Delete = false;
     SourceLocation KWLoc;
     if (Tok.is(tok::kw_delete)) {
-      Diag(Tok, getLangOpts().CPlusPlus0x ?
+      Diag(Tok, getLangOpts().CPlusPlus11 ?
            diag::warn_cxx98_compat_deleted_function :
            diag::ext_deleted_function);
 
@@ -83,7 +89,7 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
       Actions.SetDeclDeleted(FnD, KWLoc);
       Delete = true;
     } else if (Tok.is(tok::kw_default)) {
-      Diag(Tok, getLangOpts().CPlusPlus0x ?
+      Diag(Tok, getLangOpts().CPlusPlus11 ?
            diag::warn_cxx98_compat_defaulted_function :
            diag::ext_defaulted_function);
 
@@ -117,11 +123,7 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
     if (FnD) {
       LateParsedTemplatedFunction *LPT = new LateParsedTemplatedFunction(FnD);
 
-      FunctionDecl *FD = 0;
-      if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(FnD))
-        FD = FunTmpl->getTemplatedDecl();
-      else
-        FD = cast<FunctionDecl>(FnD);
+      FunctionDecl *FD = getFunctionDecl(FnD);
       Actions.CheckForFunctionRedefinition(FD);
 
       LateParsedTemplateMap[FD] = LPT;
@@ -174,6 +176,19 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
     // just throw away the late-parsed declaration.
     delete getCurrentClass().LateParsedDeclarations.back();
     getCurrentClass().LateParsedDeclarations.pop_back();
+  }
+
+  // If this is a friend function, mark that it's late-parsed so that
+  // it's still known to be a definition even before we attach the
+  // parsed body.  Sema needs to treat friend function definitions
+  // differently during template instantiation, and it's possible for
+  // the containing class to be instantiated before all its member
+  // function definitions are parsed.
+  //
+  // If you remove this, you can remove the code that clears the flag
+  // after parsing the member.
+  if (D.getDeclSpec().isFriendSpecified()) {
+    getFunctionDecl(FnD)->setLateTemplateParsed(true);
   }
 
   return FnD;
@@ -263,8 +278,11 @@ void Parser::LateParsedMemberInitializer::ParseLexedMemberInitializers() {
 void Parser::ParseLexedMethodDeclarations(ParsingClass &Class) {
   bool HasTemplateScope = !Class.TopLevelClass && Class.TemplateScope;
   ParseScope ClassTemplateScope(this, Scope::TemplateParamScope, HasTemplateScope);
-  if (HasTemplateScope)
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+  if (HasTemplateScope) {
     Actions.ActOnReenterTemplateScope(getCurScope(), Class.TagOrTemplate);
+    ++CurTemplateDepthTracker;
+  }
 
   // The current scope is still active if we're the top-level class.
   // Otherwise we'll need to push and enter a new scope.
@@ -285,16 +303,18 @@ void Parser::ParseLexedMethodDeclarations(ParsingClass &Class) {
 void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
   // If this is a member template, introduce the template parameter scope.
   ParseScope TemplateScope(this, Scope::TemplateParamScope, LM.TemplateScope);
-  if (LM.TemplateScope)
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+  if (LM.TemplateScope) {
     Actions.ActOnReenterTemplateScope(getCurScope(), LM.Method);
-
+    ++CurTemplateDepthTracker;
+  }
   // Start the delayed C++ method declaration
   Actions.ActOnStartDelayedCXXMethodDeclaration(getCurScope(), LM.Method);
 
   // Introduce the parameters into scope and parse their default
   // arguments.
-  ParseScope PrototypeScope(this,
-                            Scope::FunctionPrototypeScope|Scope::DeclScope);
+  ParseScope PrototypeScope(this, Scope::FunctionPrototypeScope |
+                            Scope::FunctionDeclarationScope | Scope::DeclScope);
   for (unsigned I = 0, N = LM.DefaultArgs.size(); I != N; ++I) {
     // Introduce the parameter into scope.
     Actions.ActOnDelayedCXXMethodParameter(getCurScope(), 
@@ -322,7 +342,7 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
                                             LM.DefaultArgs[I].Param);
 
       ExprResult DefArgResult;
-      if (getLangOpts().CPlusPlus0x && Tok.is(tok::l_brace)) {
+      if (getLangOpts().CPlusPlus11 && Tok.is(tok::l_brace)) {
         Diag(Tok, diag::warn_cxx98_compat_generalized_initializer_lists);
         DefArgResult = ParseBraceInitializer();
       } else
@@ -363,9 +383,11 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
 void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
   bool HasTemplateScope = !Class.TopLevelClass && Class.TemplateScope;
   ParseScope ClassTemplateScope(this, Scope::TemplateParamScope, HasTemplateScope);
-  if (HasTemplateScope)
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+  if (HasTemplateScope) {
     Actions.ActOnReenterTemplateScope(getCurScope(), Class.TagOrTemplate);
-
+    ++CurTemplateDepthTracker;
+  }
   bool HasClassScope = !Class.TopLevelClass;
   ParseScope ClassScope(this, Scope::ClassScope|Scope::DeclScope,
                         HasClassScope);
@@ -378,9 +400,11 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 void Parser::ParseLexedMethodDef(LexedMethod &LM) {
   // If this is a member template, introduce the template parameter scope.
   ParseScope TemplateScope(this, Scope::TemplateParamScope, LM.TemplateScope);
-  if (LM.TemplateScope)
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+  if (LM.TemplateScope) {
     Actions.ActOnReenterTemplateScope(getCurScope(), LM.D);
-
+    ++CurTemplateDepthTracker;
+  }
   // Save the current token position.
   SourceLocation origLoc = Tok.getLocation();
 
@@ -391,7 +415,7 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
   PP.EnterTokenStream(LM.Toks.data(), LM.Toks.size(), true, false);
 
   // Consume the previously pushed token.
-  ConsumeAnyToken();
+  ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);
   assert((Tok.is(tok::l_brace) || Tok.is(tok::colon) || Tok.is(tok::kw_try))
          && "Inline method not starting with '{', ':' or 'try'");
 
@@ -425,7 +449,17 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
   } else
     Actions.ActOnDefaultCtorInitializers(LM.D);
 
+  assert((Actions.getDiagnostics().hasErrorOccurred() ||
+          !isa<FunctionTemplateDecl>(LM.D) ||
+          cast<FunctionTemplateDecl>(LM.D)->getTemplateParameters()->getDepth()
+            < TemplateParameterDepth) &&
+         "TemplateParameterDepth should be greater than the depth of "
+         "current template being instantiated!");
+
   ParseFunctionStatementBody(LM.D, FnScope);
+
+  // Clear the late-template-parsed bit if we set it before.
+  if (LM.D) getFunctionDecl(LM.D)->setLateTemplateParsed(false);
 
   if (Tok.getLocation() != origLoc) {
     // Due to parsing error, we either went over the cached tokens or
@@ -447,9 +481,11 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
   bool HasTemplateScope = !Class.TopLevelClass && Class.TemplateScope;
   ParseScope ClassTemplateScope(this, Scope::TemplateParamScope,
                                 HasTemplateScope);
-  if (HasTemplateScope)
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+  if (HasTemplateScope) {
     Actions.ActOnReenterTemplateScope(getCurScope(), Class.TagOrTemplate);
-
+    ++CurTemplateDepthTracker;
+  }
   // Set or update the scope flags.
   bool AlreadyHasClassScope = Class.TopLevelClass;
   unsigned ScopeFlags = Scope::ClassScope|Scope::DeclScope;
@@ -491,7 +527,7 @@ void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
   PP.EnterTokenStream(MI.Toks.data(), MI.Toks.size(), true, false);
 
   // Consume the previously pushed token.
-  ConsumeAnyToken();
+  ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);
 
   SourceLocation EqualLoc;
 
@@ -651,7 +687,7 @@ bool Parser::ConsumeAndStoreFunctionPrologue(CachedTokens &Toks) {
         ConsumeBrace();
         // In C++03, this has to be the start of the function body, which
         // means the initializer is malformed; we'll diagnose it later.
-        if (!getLangOpts().CPlusPlus0x)
+        if (!getLangOpts().CPlusPlus11)
           return false;
       }
 

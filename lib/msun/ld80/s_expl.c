@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Steven G. Kargl
+ * Copyright (c) 2009-2013 Steven G. Kargl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*-
+/**
  * Compute the exponential of x for Intel 80-bit format.  This is based on:
  *
  *   PTP Tang, "Table-driven implementation of the exponential function
@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "math_private.h"
 
 #define	INTERVALS	128
+#define	LOG2_INTERVALS	7
 #define	BIAS	(LDBL_MAX_EXP - 1)
 
 static const long double
@@ -60,9 +61,12 @@ static volatile const long double tiny = 0x1p-10000L;
 
 static const union IEEEl2bits
 /* log(2**16384 - 0.5) rounded towards zero: */
-o_threshold = LD80C(0xb17217f7d1cf79ab, 13,  11356.5234062941439488L),
+/* log(2**16384 - 0.5 + 1) rounded towards zero for expm1l() is the same: */
+o_thresholdu = LD80C(0xb17217f7d1cf79ab, 13,  11356.5234062941439488L),
+#define o_threshold	 (o_thresholdu.e)
 /* log(2**(-16381-64-1)) rounded towards zero: */
-u_threshold = LD80C(0xb21dfe7f09e2baa9, 13, -11399.4985314888605581L);
+u_thresholdu = LD80C(0xb21dfe7f09e2baa9, 13, -11399.4985314888605581L);
+#define u_threshold	 (u_thresholdu.e)
 
 static const double
 /*
@@ -78,11 +82,11 @@ L2 = -3.2819649005320973e-13,		/* -0x1718432a1b0e26.0p-94 */
  * |exp(x) - p(x)| < 2**-77.2
  * (0.002708 is ln2/(2*INTERVALS) rounded up a little).
  */
-P2 =  0.5,
-P3 =  1.6666666666666119e-1,		/*  0x15555555555490.0p-55 */
-P4 =  4.1666666666665887e-2,		/*  0x155555555554e5.0p-57 */
-P5 =  8.3333354987869413e-3,		/*  0x1111115b789919.0p-59 */
-P6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
+A2 =  0.5,
+A3 =  1.6666666666666119e-1,		/*  0x15555555555490.0p-55 */
+A4 =  4.1666666666665887e-2,		/*  0x155555555554e5.0p-57 */
+A5 =  8.3333354987869413e-3,		/*  0x1111115b789919.0p-59 */
+A6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
 
 /*
  * 2^(i/INTERVALS) for i in [0,INTERVALS] is represented by two values where
@@ -96,8 +100,7 @@ P6 =  1.3888891738560272e-3;		/*  0x16c16c651633ae.0p-62 */
 static const struct {
 	double	hi;
 	double	lo;
-/* XXX should rename 's'. */
-} s[INTERVALS] = {
+} tbl[INTERVALS] = {
 	0x1p+0, 0x0p+0,
 	0x1.0163da9fb3335p+0, 0x1.b61299ab8cdb7p-54,
 	0x1.02c9a3e778060p+0, 0x1.dcdef95949ef4p-53,
@@ -232,7 +235,8 @@ long double
 expl(long double x)
 {
 	union IEEEl2bits u, v;
-	long double fn, q, r, r1, r2, t, t23, t45, twopk, twopkp10000, z;
+	long double fn, q, r, r1, r2, t, twopk, twopkp10000;
+	long double z;
 	int k, n, n2;
 	uint16_t hx, ix;
 
@@ -242,40 +246,39 @@ expl(long double x)
 	ix = hx & 0x7fff;
 	if (ix >= BIAS + 13) {		/* |x| >= 8192 or x is NaN */
 		if (ix == BIAS + LDBL_MAX_EXP) {
-			if (hx & 0x8000 && u.xbits.man == 1ULL << 63)
-				return (0.0L);	/* x is -Inf */
-			return (x + x); /* x is +Inf, NaN or unsupported */
+			if (hx & 0x8000)  /* x is -Inf, -NaN or unsupported */
+				return (-1 / x);
+ 			return (x + x);	/* x is +Inf, +NaN or unsupported */
 		}
-		if (x > o_threshold.e)
+		if (x > o_threshold)
 			return (huge * huge);
-		if (x < u_threshold.e)
+		if (x < u_threshold)
 			return (tiny * tiny);
-	} else if (ix < BIAS - 66) {	/* |x| < 0x1p-66 */
-					/* includes pseudo-denormals */
-		if (huge + x > 1.0L)	/* trigger inexact iff x != 0 */
-			return (1.0L + x);
+	} else if (ix < BIAS - 65) {	/* |x| < 0x1p-65 (includes pseudos) */
+		return (1 + x);		/* 1 with inexact iff x != 0 */
 	}
 
 	ENTERI();
 
-	/* Reduce x to (k*ln2 + midpoint[n2] + r1 + r2). */
+	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
 	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
 	fn = x * INV_L + 0x1.8p63 - 0x1.8p63;
 	r = x - fn * L1 - fn * L2;	/* r = r1 + r2 done independently. */
 #if defined(HAVE_EFFICIENT_IRINTL)
-	n  = irintl(fn);
+	n = irintl(fn);
 #elif defined(HAVE_EFFICIENT_IRINT)
-	n  = irint(fn);
+	n = irint(fn);
 #else
-	n  = (int)fn;
+	n = (int)fn;
 #endif
 	n2 = (unsigned)n % INTERVALS;
-	k = (n - n2) / INTERVALS;
+	/* Depend on the sign bit being propagated: */
+	k = n >> LOG2_INTERVALS;
 	r1 = x - fn * L1;
-	r2 = -fn * L2;
+	r2 = fn * -L2;
 
 	/* Prepare scale factors. */
-	v.xbits.man = 1ULL << 63;
+	v.e = 1;
 	if (k >= LDBL_MIN_EXP) {
 		v.xbits.expsign = BIAS + k;
 		twopk = v.e;
@@ -284,21 +287,183 @@ expl(long double x)
 		twopkp10000 = v.e;
 	}
 
-	/* Evaluate expl(midpoint[n2] + r1 + r2) = s[n2] * expl(r1 + r2). */
-	/* Here q = q(r), not q(r1), since r1 is lopped like L1. */
-	t45 = r * P5 + P4;
+	/* Evaluate expl(endpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2). */
 	z = r * r;
-	t23 = r * P3 + P2;
-	q = r2 + z * t23 + z * z * t45 + z * z * z * P6;
-	t = (long double)s[n2].lo + s[n2].hi;
-	t = s[n2].lo + t * (q + r1) + s[n2].hi;
+	q = r2 + z * (A2 + r * A3) + z * z * (A4 + r * A5) + z * z * z * A6;
+	t = (long double)tbl[n2].lo + tbl[n2].hi;
+	t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
 
 	/* Scale by 2**k. */
 	if (k >= LDBL_MIN_EXP) {
 		if (k == LDBL_MAX_EXP)
-			RETURNI(t * 2.0L * 0x1p16383L);
+			RETURNI(t * 2 * 0x1p16383L);
 		RETURNI(t * twopk);
 	} else {
 		RETURNI(t * twopkp10000 * twom10000);
 	}
+}
+
+/**
+ * Compute expm1l(x) for Intel 80-bit format.  This is based on:
+ *
+ *   PTP Tang, "Table-driven implementation of the Expm1 function
+ *   in IEEE floating-point arithmetic," ACM Trans. Math. Soft., 18,
+ *   211-222 (1992).
+ */
+
+/*
+ * Our T1 and T2 are chosen to be approximately the points where method
+ * A and method B have the same accuracy.  Tang's T1 and T2 are the
+ * points where method A's accuracy changes by a full bit.  For Tang,
+ * this drop in accuracy makes method A immediately less accurate than
+ * method B, but our larger INTERVALS makes method A 2 bits more
+ * accurate so it remains the most accurate method significantly
+ * closer to the origin despite losing the full bit in our extended
+ * range for it.
+ */
+static const double
+T1 = -0.1659,				/* ~-30.625/128 * log(2) */
+T2 =  0.1659;				/* ~30.625/128 * log(2) */
+
+/*
+ * Domain [-0.1659, 0.1659], range ~[-1.2027e-22, 3.4417e-22]:
+ * |(exp(x)-1-x-x**2/2)/x - p(x)| < 2**-71.2
+ */
+static const union IEEEl2bits
+B3 = LD80C(0xaaaaaaaaaaaaaaab, -3,  1.66666666666666666671e-1L),
+B4 = LD80C(0xaaaaaaaaaaaaaaac, -5,  4.16666666666666666712e-2L);
+
+static const double
+B5  =  8.3333333333333245e-3,		/*  0x1.111111111110cp-7 */
+B6  =  1.3888888888888861e-3,		/*  0x1.6c16c16c16c0ap-10 */
+B7  =  1.9841269841532042e-4,		/*  0x1.a01a01a0319f9p-13 */
+B8  =  2.4801587302069236e-5,		/*  0x1.a01a01a03cbbcp-16 */
+B9  =  2.7557316558468562e-6,		/*  0x1.71de37fd33d67p-19 */
+B10 =  2.7557315829785151e-7,		/*  0x1.27e4f91418144p-22 */
+B11 =  2.5063168199779829e-8,		/*  0x1.ae94fabdc6b27p-26 */
+B12 =  2.0887164654459567e-9;		/*  0x1.1f122d6413fe1p-29 */
+
+long double
+expm1l(long double x)
+{
+	union IEEEl2bits u, v;
+	long double fn, hx2_hi, hx2_lo, q, r, r1, r2, t, twomk, twopk, x_hi;
+	long double x_lo, x2, z;
+	long double x4;
+	int k, n, n2;
+	uint16_t hx, ix;
+
+	/* Filter out exceptional cases. */
+	u.e = x;
+	hx = u.xbits.expsign;
+	ix = hx & 0x7fff;
+	if (ix >= BIAS + 6) {		/* |x| >= 64 or x is NaN */
+		if (ix == BIAS + LDBL_MAX_EXP) {
+			if (hx & 0x8000)  /* x is -Inf, -NaN or unsupported */
+				return (-1 / x - 1);
+			return (x + x);	/* x is +Inf, +NaN or unsupported */
+		}
+		if (x > o_threshold)
+			return (huge * huge);
+		/*
+		 * expm1l() never underflows, but it must avoid
+		 * unrepresentable large negative exponents.  We used a
+		 * much smaller threshold for large |x| above than in
+		 * expl() so as to handle not so large negative exponents
+		 * in the same way as large ones here.
+		 */
+		if (hx & 0x8000)	/* x <= -64 */
+			return (tiny - 1);	/* good for x < -65ln2 - eps */
+	}
+
+	ENTERI();
+
+	if (T1 < x && x < T2) {
+		if (ix < BIAS - 64) {	/* |x| < 0x1p-64 (includes pseudos) */
+			/* x (rounded) with inexact if x != 0: */
+			RETURNI(x == 0 ? x :
+			    (0x1p100 * x + fabsl(x)) * 0x1p-100);
+		}
+
+		x2 = x * x;
+		x4 = x2 * x2;
+		q = x4 * (x2 * (x4 *
+		    /*
+		     * XXX the number of terms is no longer good for
+		     * pairwise grouping of all except B3, and the
+		     * grouping is no longer from highest down.
+		     */
+		    (x2 *            B12  + (x * B11 + B10)) +
+		    (x2 * (x * B9 +  B8) +  (x * B7 +  B6))) +
+			  (x * B5 +  B4.e)) + x2 * x * B3.e;
+
+		x_hi = (float)x;
+		x_lo = x - x_hi;
+		hx2_hi = x_hi * x_hi / 2;
+		hx2_lo = x_lo * (x + x_hi) / 2;
+		if (ix >= BIAS - 7)
+			RETURNI(hx2_lo + x_lo + q + (hx2_hi + x_hi));
+		else
+			RETURNI(hx2_lo + q + hx2_hi + x);
+	}
+
+	/* Reduce x to (k*ln2 + endpoint[n2] + r1 + r2). */
+	/* Use a specialized rint() to get fn.  Assume round-to-nearest. */
+	fn = x * INV_L + 0x1.8p63 - 0x1.8p63;
+#if defined(HAVE_EFFICIENT_IRINTL)
+	n = irintl(fn);
+#elif defined(HAVE_EFFICIENT_IRINT)
+	n = irint(fn);
+#else
+	n = (int)fn;
+#endif
+	n2 = (unsigned)n % INTERVALS;
+	k = n >> LOG2_INTERVALS;
+	r1 = x - fn * L1;
+	r2 = fn * -L2;
+	r = r1 + r2;
+
+	/* Prepare scale factor. */
+	v.e = 1;
+	v.xbits.expsign = BIAS + k;
+	twopk = v.e;
+
+	/*
+	 * Evaluate lower terms of
+	 * expl(endpoint[n2] + r1 + r2) = tbl[n2] * expl(r1 + r2).
+	 */
+	z = r * r;
+	q = r2 + z * (A2 + r * A3) + z * z * (A4 + r * A5) + z * z * z * A6;
+
+	t = (long double)tbl[n2].lo + tbl[n2].hi;
+
+	if (k == 0) {
+		t = tbl[n2].lo * (r1 + 1) + t * q + tbl[n2].hi * r1 +
+		    (tbl[n2].hi - 1);
+		RETURNI(t);
+	}
+	if (k == -1) {
+		t = tbl[n2].lo * (r1 + 1) + t * q + tbl[n2].hi * r1 + 
+		    (tbl[n2].hi - 2);
+		RETURNI(t / 2);
+	}
+	if (k < -7) {
+		t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
+		RETURNI(t * twopk - 1);
+	}
+	if (k > 2 * LDBL_MANT_DIG - 1) {
+		t = tbl[n2].lo + t * (q + r1) + tbl[n2].hi;
+		if (k == LDBL_MAX_EXP)
+			RETURNI(t * 2 * 0x1p16383L - 1);
+		RETURNI(t * twopk - 1);
+	}
+
+	v.xbits.expsign = BIAS - k;
+	twomk = v.e;
+
+	if (k > LDBL_MANT_DIG - 1)
+		t = tbl[n2].lo - twomk + t * (q + r1) + tbl[n2].hi;
+	else
+		t = tbl[n2].lo + t * (q + r1) + (tbl[n2].hi - twomk);
+	RETURNI(t * twopk);
 }

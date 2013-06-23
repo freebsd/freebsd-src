@@ -1,7 +1,7 @@
 /*-
  * Cronyx-Tau adapter driver for FreeBSD.
  * Supports PPP/HDLC and Cisco/HDLC protocol in synchronous mode,
- * and asyncronous channels with full modem control.
+ * and asynchronous channels with full modem control.
  * Keepalive protocol implemented in both Cisco and PPP modes.
  *
  * Copyright (C) 1994-2002 Cronyx Engineering.
@@ -93,7 +93,8 @@ static device_method_t ct_isa_methods [] = {
 	DEVMETHOD(device_probe,		ct_probe),
 	DEVMETHOD(device_attach,	ct_attach),
 	DEVMETHOD(device_detach,	ct_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 typedef struct _ct_dma_mem_t {

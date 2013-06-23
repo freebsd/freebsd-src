@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -154,7 +155,7 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 	if (name[0] == '.' &&
 	    (name[1] == '\0' || (name[1] == '.' && name[2] == '\0')) ||
 	    zfs_has_ctldir(dzp) && strcmp(name, ZFS_CTLDIR_NAME) == 0)
-		return (EEXIST);
+		return (SET_ERROR(EEXIST));
 
 	/*
 	 * Case sensitivity and normalization preferences are set when
@@ -225,7 +226,7 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 			mutex_exit(&dzp->z_lock);
 			if (!(flag & ZHAVELOCK))
 				rw_exit(&dzp->z_name_lock);
-			return (ENOENT);
+			return (SET_ERROR(ENOENT));
 		}
 		for (dl = dzp->z_dirlocks; dl != NULL; dl = dl->dl_next) {
 			if ((u8_strcmp(name, dl->dl_name, 0, cmpflags,
@@ -236,7 +237,7 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 			mutex_exit(&dzp->z_lock);
 			if (!(flag & ZHAVELOCK))
 				rw_exit(&dzp->z_name_lock);
-			return (ENOENT);
+			return (SET_ERROR(ENOENT));
 		}
 		if (dl == NULL)	{
 			size_t namesize;
@@ -289,12 +290,12 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 			vp = dnlc_lookup(ZTOV(dzp), name);
 		if (vp == DNLC_NO_VNODE) {
 			VN_RELE(vp);
-			error = ENOENT;
+			error = SET_ERROR(ENOENT);
 		} else if (vp) {
 			if (flag & ZNEW) {
 				zfs_dirent_unlock(dl);
 				VN_RELE(vp);
-				return (EEXIST);
+				return (SET_ERROR(EEXIST));
 			}
 			*dlpp = dl;
 			*zpp = VTOZ(vp);
@@ -312,7 +313,7 @@ zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
 	} else {
 		if (flag & ZNEW) {
 			zfs_dirent_unlock(dl);
-			return (EEXIST);
+			return (SET_ERROR(EEXIST));
 		}
 		error = zfs_zget(zfsvfs, zoid, zpp);
 		if (error) {
@@ -719,7 +720,7 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 		if (zp->z_unlinked) {	/* no new links to unlinked zp */
 			ASSERT(!(flag & (ZNEW | ZEXISTS)));
 			mutex_exit(&zp->z_lock);
-			return (ENOENT);
+			return (SET_ERROR(ENOENT));
 		}
 		zp->z_links++;
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_LINKS(zfsvfs), NULL,
@@ -820,11 +821,11 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 
 	if (!(flag & ZRENAMING)) {
 		if (vn_vfswlock(vp))		/* prevent new mounts on zp */
-			return (EBUSY);
+			return (SET_ERROR(EBUSY));
 
 		if (vn_ismntpt(vp)) {		/* don't remove mount point */
 			vn_vfsunlock(vp);
-			return (EBUSY);
+			return (SET_ERROR(EBUSY));
 		}
 
 		mutex_enter(&zp->z_lock);
@@ -832,7 +833,11 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 		if (zp_is_dir && !zfs_dirempty(zp)) {
 			mutex_exit(&zp->z_lock);
 			vn_vfsunlock(vp);
-			return (ENOTEMPTY);
+#ifdef illumos
+			return (SET_ERROR(EEXIST));
+#else
+			return (SET_ERROR(ENOTEMPTY));
+#endif
 		}
 
 		/*
@@ -943,7 +948,7 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, vnode_t **xvpp, cred_t *cr)
 		return (error);
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
 		zfs_acl_ids_free(&acl_ids);
-		return (EDQUOT);
+		return (SET_ERROR(EDQUOT));
 	}
 
 top:
@@ -1026,16 +1031,16 @@ top:
 
 	if (!(flags & CREATE_XATTR_DIR)) {
 		zfs_dirent_unlock(dl);
-#ifdef __FreeBSD__
-		return (ENOATTR);
+#ifdef illumos
+		return (SET_ERROR(ENOENT));
 #else
-		return (ENOENT);
+		return (SET_ERROR(ENOATTR));
 #endif
 	}
 
 	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
 		zfs_dirent_unlock(dl);
-		return (EROFS);
+		return (SET_ERROR(EROFS));
 	}
 
 	/*

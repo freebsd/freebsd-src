@@ -13,13 +13,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_TARGETSCHEDMODEL_H
-#define LLVM_TARGET_TARGETSCHEDMODEL_H
+#ifndef LLVM_CODEGEN_TARGETSCHEDULE_H
+#define LLVM_CODEGEN_TARGETSCHEDULE_H
 
-#include "llvm/Target/TargetSubtargetInfo.h"
-#include "llvm/MC/MCSchedule.h"
-#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/MC/MCSchedule.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 namespace llvm {
 
@@ -83,6 +83,9 @@ public:
 
   /// \brief Maximum number of micro-ops that may be scheduled per cycle.
   unsigned getIssueWidth() const { return SchedModel.IssueWidth; }
+
+  /// \brief Number of cycles the OOO processor is expected to hide.
+  unsigned getILPWindow() const { return SchedModel.ILPWindow; }
 
   /// \brief Return the number of issue slots required for this MI.
   unsigned getNumMicroOps(const MachineInstr *MI,

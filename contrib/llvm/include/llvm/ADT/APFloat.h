@@ -97,8 +97,8 @@
     nexttoward.
 */
 
-#ifndef LLVM_FLOAT_H
-#define LLVM_FLOAT_H
+#ifndef LLVM_ADT_APFLOAT_H
+#define LLVM_ADT_APFLOAT_H
 
 // APInt contains static functions implementing bignum arithmetic.
 #include "llvm/ADT/APInt.h"
@@ -184,9 +184,9 @@ namespace llvm {
     APFloat(const fltSemantics &, integerPart);
     APFloat(const fltSemantics &, fltCategory, bool negative);
     APFloat(const fltSemantics &, uninitializedTag);
+    APFloat(const fltSemantics &, const APInt &);
     explicit APFloat(double d);
     explicit APFloat(float f);
-    explicit APFloat(const APInt &, bool isIEEE = false);
     APFloat(const APFloat &);
     ~APFloat();
 
@@ -300,7 +300,7 @@ namespace llvm {
     /* The definition of equality is not straightforward for floating point,
        so we won't use operator==.  Use one of the following, or write
        whatever it is you really mean. */
-    // bool operator==(const APFloat &) const;     // DO NOT IMPLEMENT
+    bool operator==(const APFloat &) const LLVM_DELETED_FUNCTION;
 
     /* IEEE comparison with another floating point number (NaNs
        compare unordered, 0==-0). */
@@ -327,6 +327,7 @@ namespace llvm {
     bool isNegative() const { return sign; }
     bool isPosZero() const { return isZero() && !isNegative(); }
     bool isNegZero() const { return isZero() && isNegative(); }
+    bool isDenormal() const;
 
     APFloat& operator=(const APFloat &);
 
@@ -422,7 +423,7 @@ namespace llvm {
     APInt convertQuadrupleAPFloatToAPInt() const;
     APInt convertF80LongDoubleAPFloatToAPInt() const;
     APInt convertPPCDoubleDoubleAPFloatToAPInt() const;
-    void initFromAPInt(const APInt& api, bool isIEEE = false);
+    void initFromAPInt(const fltSemantics *Sem, const APInt& api);
     void initFromHalfAPInt(const APInt& api);
     void initFromFloatAPInt(const APInt& api);
     void initFromDoubleAPInt(const APInt& api);
@@ -462,4 +463,4 @@ namespace llvm {
   hash_code hash_value(const APFloat &Arg);
 } /* namespace llvm */
 
-#endif /* LLVM_FLOAT_H */
+#endif /* LLVM_ADT_APFLOAT_H */

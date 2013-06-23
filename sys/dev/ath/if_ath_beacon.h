@@ -39,6 +39,7 @@ extern	void ath_beacon_config(struct ath_softc *sc,
 	    struct ieee80211vap *vap);
 extern	struct ath_buf * ath_beacon_generate(struct ath_softc *sc,
 	    struct ieee80211vap *vap);
+extern	void ath_beacon_cabq_start(struct ath_softc *sc);
 extern	int ath_wme_update(struct ieee80211com *ic);
 extern	void ath_beacon_update(struct ieee80211vap *vap, int item);
 extern	void ath_beacon_start_adhoc(struct ath_softc *sc,

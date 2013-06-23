@@ -12,11 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "mccodeemitter"
+#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
 #include "MCTargetDesc/ARMFixupKinds.h"
 #include "MCTargetDesc/ARMMCExpr.h"
-#include "MCTargetDesc/ARMMCTargetDesc.h"
+#include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
@@ -24,8 +26,6 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -655,15 +655,28 @@ getAdrLabelOpValue(const MCInst &MI, unsigned OpIdx,
   int32_t offset = MO.getImm();
   uint32_t Val = 0x2000;
 
+  int SoImmVal;
   if (offset == INT32_MIN) {
     Val = 0x1000;
-    offset = 0;
+    SoImmVal = 0;
   } else if (offset < 0) {
     Val = 0x1000;
     offset *= -1;
+    SoImmVal = ARM_AM::getSOImmVal(offset);
+    if(SoImmVal == -1) {
+      Val = 0x2000;
+      offset *= -1;
+      SoImmVal = ARM_AM::getSOImmVal(offset);
+    }
+  } else {
+    SoImmVal = ARM_AM::getSOImmVal(offset);
+    if(SoImmVal == -1) {
+      Val = 0x1000;
+      offset *= -1;
+      SoImmVal = ARM_AM::getSOImmVal(offset);
+    }
   }
 
-  int SoImmVal = ARM_AM::getSOImmVal(offset);
   assert(SoImmVal != -1 && "Not a valid so_imm value!");
 
   Val |= SoImmVal;

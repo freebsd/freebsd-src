@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/endian.h>
 #include <sys/kdb.h>
@@ -45,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <dev/altera/jtag_uart/altera_jtag_uart.h>
+
+devclass_t	altera_jtag_uart_devclass;
 
 /*
  * One-byte buffer as we can't check whether the UART is readable without

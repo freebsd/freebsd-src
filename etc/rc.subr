@@ -1285,7 +1285,7 @@ make_symlink()
 #
 devfs_rulesets_from_file()
 {
-	local file _err _me
+	local file _err _me _opts
 	file="$1"
 	_me="devfs_rulesets_from_file"
 	_err=0
@@ -1298,6 +1298,11 @@ devfs_rulesets_from_file()
 		debug "$_me: no such file ($file)"
 		return 0
 	fi
+
+	# Disable globbing so that the rule patterns are not expanded
+	# by accident with matching filesystem entries.
+	_opts=$-; set -f
+
 	debug "reading rulesets from file ($file)"
 	{ while read line
 	do
@@ -1344,6 +1349,7 @@ devfs_rulesets_from_file()
 			break
 		fi
 	done } < $file
+	case $_opts in *f*) ;; *) set +f ;; esac
 	return $_err
 }
 

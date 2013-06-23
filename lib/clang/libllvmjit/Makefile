@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmjit
 
 SRCDIR=	lib/ExecutionEngine/JIT

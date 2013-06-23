@@ -12,22 +12,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_EXECUTION_ENGINE_H
-#define LLVM_EXECUTION_ENGINE_H
+#ifndef LLVM_EXECUTIONENGINE_EXECUTIONENGINE_H
+#define LLVM_EXECUTIONENGINE_EXECUTIONENGINE_H
 
-#include "llvm/MC/MCCodeGenInfo.h"
+#include "llvm-c/ExecutionEngine.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ValueMap.h"
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/Mutex.h"
+#include "llvm/Support/ValueHandle.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include <vector>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace llvm {
 
@@ -42,6 +43,7 @@ class JITMemoryManager;
 class MachineCodeInfo;
 class Module;
 class MutexGuard;
+class ObjectCache;
 class DataLayout;
 class Triple;
 class Type;
@@ -371,6 +373,12 @@ public:
   virtual void RegisterJITEventListener(JITEventListener *) {}
   virtual void UnregisterJITEventListener(JITEventListener *) {}
 
+  /// Sets the pre-compiled object cache.  The ownership of the ObjectCache is
+  /// not changed.  Supported by MCJIT but not JIT.
+  virtual void setObjectCache(ObjectCache *) {
+    llvm_unreachable("No support for an object cache");
+  }
+
   /// DisableLazyCompilation - When lazy compilation is off (the default), the
   /// JIT will eagerly compile every function reachable from the argument to
   /// getPointerToFunction.  If lazy compilation is turned on, the JIT will only
@@ -624,6 +632,9 @@ public:
 
   ExecutionEngine *create(TargetMachine *TM);
 };
+
+// Create wrappers for C Binding types (see CBindingWrapping.h).
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(ExecutionEngine, LLVMExecutionEngineRef)
 
 } // End llvm namespace
 

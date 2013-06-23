@@ -86,7 +86,6 @@ union	sockunion {
 #endif
 	struct	sockaddr_at sat;
 	struct	sockaddr_dl sdl;
-	struct	sockaddr_inarp sinarp;
 	struct	sockaddr_storage ss; /* added to avoid memory overrun */
 } so_dst, so_gate, so_mask, so_genmask, so_ifa, so_ifp;
 
@@ -849,6 +848,7 @@ newroute(int argc, char **argv)
 				if (!--argc)
 					usage(NULL);
 				getaddr(RTA_GATEWAY, *++argv, 0, nrflags);
+				gateway = *argv;
 				break;
 			case K_DST:
 				if (!--argc)
@@ -923,10 +923,8 @@ newroute(int argc, char **argv)
 		flags |= RTF_HOST;
 	if ((nrflags & F_INTERFACE) == 0)
 		flags |= RTF_GATEWAY;
-	if (nrflags & F_PROXY) {
-		so_dst.sinarp.sin_other = SIN_PROXY;
+	if (nrflags & F_PROXY)
 		flags |= RTF_ANNOUNCE;
-	}
 	if (dest == NULL)
 		dest = "";
 	if (gateway == NULL)

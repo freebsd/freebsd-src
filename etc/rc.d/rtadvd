@@ -46,6 +46,8 @@ rtadvd_precmd()
 			fi
 		done
 		;;
+	[Nn][Oo][Nn][Ee])
+		;;
 	*)
 		command_args="${rtadvd_interfaces}"
 		;;

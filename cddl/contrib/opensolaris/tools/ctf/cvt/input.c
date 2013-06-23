@@ -387,6 +387,7 @@ GElf_Sym *
 symit_next(symit_data_t *si, int type)
 {
 	GElf_Sym sym;
+	char *bname;
 	int check_sym = (type == STT_OBJECT || type == STT_FUNC);
 
 	for (; si->si_next < si->si_nument; si->si_next++) {
@@ -394,8 +395,10 @@ symit_next(symit_data_t *si, int type)
 		gelf_getsym(si->si_symd, si->si_next, &sym);
 		si->si_curname = (caddr_t)si->si_strd->d_buf + sym.st_name;
 
-		if (GELF_ST_TYPE(sym.st_info) == STT_FILE)
-			si->si_curfile = si->si_curname;
+		if (GELF_ST_TYPE(sym.st_info) == STT_FILE) {
+			bname = strrchr(si->si_curname, '/');
+			si->si_curfile = bname == NULL ? si->si_curname : bname + 1;
+		}
 
 		if (GELF_ST_TYPE(sym.st_info) != type ||
 		    sym.st_shndx == SHN_UNDEF)

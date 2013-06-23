@@ -43,6 +43,14 @@ UT_OK=good
 UT_OKDIR=unit-tests
 UT_TEST=export-all
 UT_ZOO=hoopie
+make:
+UT_TEST=export-env
+UT_ENV=not-exported
+UT_EXP=not-exported
+env:
+UT_TEST=export-env
+UT_ENV=exported
+UT_EXP=exported
 At first, I am
 happy
 and now: sad

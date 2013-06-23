@@ -50,6 +50,7 @@
 #define PF_BOOL		0x10	/* Boolean parameter */
 #define PF_INT		0x20	/* Integer parameter */
 #define PF_CONV		0x40	/* Parameter duplicated in converted form */
+#define PF_REV		0x80	/* Run commands in reverse order on stopping */
 
 #define JF_START	0x0001	/* -c */
 #define JF_SET		0x0002	/* -m */

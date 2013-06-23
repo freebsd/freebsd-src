@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.203 2012/08/31 07:00:36 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.210 2013/03/23 05:31:29 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.203 2012/08/31 07:00:36 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.210 2013/03/23 05:31:29 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.203 2012/08/31 07:00:36 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.210 2013/03/23 05:31:29 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -119,9 +119,7 @@ __RCSID("$NetBSD: main.c,v 1.203 2012/08/31 07:00:36 sjg Exp $");
 #include <sys/resource.h>
 #include <signal.h>
 #include <sys/stat.h>
-#ifdef MAKE_NATIVE
 #include <sys/utsname.h>
-#endif
 #include "wait.h"
 
 #include <errno.h>
@@ -176,9 +174,6 @@ Boolean			varNoExportEnv;	/* -X flag */
 Boolean			doing_depend;	/* Set while reading .depend */
 static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
 static const char *	tracefile;
-#ifndef NO_CHECK_MAKE_CHDIR
-static char *		Check_Cwd_av(int, char **, int);
-#endif
 static void		MainParseArgs(int, char **);
 static int		ReadMakefile(const void *, const void *);
 static void		usage(void) MAKE_ATTR_DEAD;
@@ -771,7 +766,7 @@ MakeMode(const char *mode)
 	}
 #if USE_META
 	if (strstr(mode, "meta"))
-	    meta_init(mode);
+	    meta_mode_init(mode);
 #endif
     }
     if (mp)
@@ -801,7 +796,10 @@ main(int argc, char **argv)
 	Lst targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = FALSE; 	/* FALSE if all targets up to date */
 	struct stat sb, sa;
-	char *p1, *path, *pwd;
+	char *p1, *path;
+#ifndef NO_PWD_OVERRIDE
+	char *pwd;
+#endif
 	char mdpath[MAXPATHLEN];
 #ifdef FORCE_MACHINE
 	const char *machine = FORCE_MACHINE;
@@ -816,9 +814,7 @@ main(int argc, char **argv)
 	static char defsyspath[] = _PATH_DEFSYSPATH;
 	char found_path[MAXPATHLEN + 1];	/* for searching for sys.mk */
 	struct timeval rightnow;		/* to initialize random seed */
-#ifdef MAKE_NATIVE
 	struct utsname utsname;
-#endif
 
 	/* default to writing debug to stderr */
 	debug_file = stderr;
@@ -837,7 +833,7 @@ main(int argc, char **argv)
 		progname++;
 	else
 		progname = argv[0];
-#ifdef RLIMIT_NOFILE
+#if defined(MAKE_NATIVE) || (defined(HAVE_SETRLIMIT) && defined(RLIMIT_NOFILE))
 	/*
 	 * get rid of resource limit on file descriptors
 	 */
@@ -851,6 +847,12 @@ main(int argc, char **argv)
 	}
 #endif
 
+	if (uname(&utsname) == -1) {
+	    (void)fprintf(stderr, "%s: uname failed (%s).\n", progname,
+		strerror(errno));
+	    exit(2);
+	}
+
 	/*
 	 * Get the name of this type of MACHINE from utsname
 	 * so we can share an executable for similar machines.
@@ -861,11 +863,6 @@ main(int argc, char **argv)
 	 */
 	if (!machine) {
 #ifdef MAKE_NATIVE
-	    if (uname(&utsname) == -1) {
-		(void)fprintf(stderr, "%s: uname failed (%s).\n", progname,
-		    strerror(errno));
-		exit(2);
-	    }
 	    machine = utsname.machine;
 #else
 #ifdef MAKE_MACHINE
@@ -895,6 +892,7 @@ main(int argc, char **argv)
 	 */
 	Var_Init();		/* Initialize the lists of variables for
 				 * parsing arguments */
+	Var_Set(".MAKE.OS", utsname.sysname, VAR_GLOBAL, 0);
 	Var_Set("MACHINE", machine, VAR_GLOBAL, 0);
 	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL, 0);
 #ifdef MAKE_VERSION
@@ -990,6 +988,9 @@ main(int argc, char **argv)
 	}
 	Job_SetPrefix();
 
+#ifdef USE_META
+	meta_init();
+#endif
 	/*
 	 * First snag any flags out of the MAKE environment variable.
 	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
@@ -1203,10 +1204,6 @@ main(int argc, char **argv)
 		jp_0, jp_1, maxJobs, maxJobTokens, compatMake);
 
 	Main_ExportMAKEFLAGS(TRUE);	/* initial export */
-
-#ifndef NO_CHECK_MAKE_CHDIR
-	Check_Cwd_av(0, NULL, 0);	/* initialize it */
-#endif
 
 	/*
 	 * For compatibility, look at the directories in the VPATH variable
@@ -1423,208 +1420,6 @@ found:
 }
 
 
-/*
- * If MAKEOBJDIRPREFIX is in use, make ends up not in .CURDIR
- * in situations that would not arrise with ./obj (links or not).
- * This tends to break things like:
- *
- * build:
- * 	${MAKE} includes
- *
- * This function spots when ${.MAKE:T} or ${.MAKE} is a command (as
- * opposed to an argument) in a command line and if so returns
- * ${.CURDIR} so caller can chdir() so that the assumptions made by
- * the Makefile hold true.
- *
- * If ${.MAKE} does not contain any '/', then ${.MAKE:T} is skipped.
- *
- * The chdir() only happens in the child process, and does nothing if
- * MAKEOBJDIRPREFIX and MAKEOBJDIR are not in the environment so it
- * should not break anything.  Also if NOCHECKMAKECHDIR is set we
- * do nothing - to ensure historic semantics can be retained.
- */
-#ifdef NO_CHECK_MAKE_CHDIR
-char *
-Check_Cwd_Cmd(cmd)
-     char *cmd;
-{
-     return 0;
-}
-
-void
-Check_Cwd(argv)
-    char **argv;
-{
-    return;
-}
-
-#else
-
-static int  Check_Cwd_Off = 0;
-
-static char *
-Check_Cwd_av(int ac, char **av, int copy)
-{
-    static char *make[4];
-    static char *cur_dir = NULL;
-    char **mp;
-    char *cp;
-    int is_cmd, next_cmd;
-    int i;
-    int n;
-
-    if (Check_Cwd_Off) {
-	if (DEBUG(CWD))
-	    fprintf(debug_file, "check_cwd: check is off.\n");
-	return NULL;
-    }
-    
-    if (make[0] == NULL) {
-	if (Var_Exists("NOCHECKMAKECHDIR", VAR_GLOBAL)) {
-	    Check_Cwd_Off = 1;
-	    if (DEBUG(CWD))
-		fprintf(debug_file, "check_cwd: turning check off.\n");
-	    return NULL;
-	}
-	    
-        make[1] = Var_Value(".MAKE", VAR_GLOBAL, &cp);
-        if ((make[0] = strrchr(make[1], '/')) == NULL) {
-            make[0] = make[1];
-            make[1] = NULL;
-        } else
-            ++make[0];
-        make[2] = NULL;
-        cur_dir = Var_Value(".CURDIR", VAR_GLOBAL, &cp);
-    }
-    if (ac == 0 || av == NULL) {
-	if (DEBUG(CWD))
-	    fprintf(debug_file, "check_cwd: empty command.\n");
-        return NULL;			/* initialization only */
-    }
-
-    if (getenv("MAKEOBJDIR") == NULL &&
-        getenv("MAKEOBJDIRPREFIX") == NULL) {
-	if (DEBUG(CWD))
-	    fprintf(debug_file, "check_cwd: no obj dirs.\n");
-        return NULL;
-    }
-
-    
-    next_cmd = 1;
-    for (i = 0; i < ac; ++i) {
-	is_cmd = next_cmd;
-
-	n = strlen(av[i]);
-	cp = &(av[i])[n - 1];
-	if (strspn(av[i], "|&;") == (size_t)n) {
-	    next_cmd = 1;
-	    continue;
-	} else if (*cp == ';' || *cp == '&' || *cp == '|' || *cp == ')') {
-	    next_cmd = 1;
-	    if (copy) {
-		do {
-		    *cp-- = '\0';
-		} while (*cp == ';' || *cp == '&' || *cp == '|' ||
-			 *cp == ')' || *cp == '}') ;
-	    } else {
-		/*
-		 * XXX this should not happen.
-		 */
-		fprintf(stderr, "%s: WARNING: raw arg ends in shell meta '%s'\n",
-		    progname, av[i]);
-	    }
-	} else
-	    next_cmd = 0;
-
-	cp = av[i];
-	if (*cp == ';' || *cp == '&' || *cp == '|')
-	    is_cmd = 1;
-	
-	if (DEBUG(CWD))
-	    fprintf(debug_file, "av[%d] == %s '%s'",
-		i, (is_cmd) ? "cmd" : "arg", av[i]);
-	if (is_cmd != 0) {
-	    if (*cp == '(' || *cp == '{' ||
-		*cp == ';' || *cp == '&' || *cp == '|') {
-		do {
-		    ++cp;
-		} while (*cp == '(' || *cp == '{' ||
-			 *cp == ';' || *cp == '&' || *cp == '|');
-		if (*cp == '\0') {
-		    next_cmd = 1;
-		    continue;
-		}
-	    }
-	    if (strcmp(cp, "cd") == 0 || strcmp(cp, "chdir") == 0) {
-		if (DEBUG(CWD))
-		    fprintf(debug_file, " == cd, done.\n");
-		return NULL;
-	    }
-	    for (mp = make; *mp != NULL; ++mp) {
-		n = strlen(*mp);
-		if (strcmp(cp, *mp) == 0) {
-		    if (DEBUG(CWD))
-			fprintf(debug_file, " %s == '%s', chdir(%s)\n",
-			    cp, *mp, cur_dir);
-		    return cur_dir;
-		}
-	    }
-	}
-	if (DEBUG(CWD))
-	    fprintf(debug_file, "\n");
-    }
-    return NULL;
-}
-
-char *
-Check_Cwd_Cmd(const char *cmd)
-{
-    char *cp, *bp;
-    char **av;
-    int ac;
-
-    if (Check_Cwd_Off)
-	return NULL;
-    
-    if (cmd) {
-	av = brk_string(cmd, &ac, TRUE, &bp);
-	if (DEBUG(CWD))
-	    fprintf(debug_file, "splitting: '%s' -> %d words\n",
-		cmd, ac);
-    } else {
-	ac = 0;
-	av = NULL;
-	bp = NULL;
-    }
-    cp = Check_Cwd_av(ac, av, 1);
-    if (bp)
-	free(bp);
-    if (av)
-	free(av);
-    return cp;
-}
-
-void
-Check_Cwd(const char **argv)
-{
-    char *cp;
-    int ac;
-    
-    if (Check_Cwd_Off)
-	return;
-    
-    for (ac = 0; argv[ac] != NULL; ++ac)
-	/* NOTHING */;
-    if (ac == 3 && *argv[1] == '-') {
-	cp =  Check_Cwd_Cmd(argv[2]);
-    } else {
-	cp = Check_Cwd_av(ac, UNCONST(argv), 0);
-    }
-    if (cp) {
-	chdir(cp);
-    }
-}
-#endif /* NO_CHECK_MAKE_CHDIR */
 
 /*-
  * Cmd_Exec --
@@ -1906,7 +1701,7 @@ Finish(int errors)
 }
 
 /*
- * enunlink --
+ * eunlink --
  *	Remove a file carefully, avoiding directories.
  */
 int
@@ -1952,7 +1747,8 @@ execError(const char *af, const char *av)
 	IOADD(")\n");
 
 #ifdef USE_IOVEC
-	(void)writev(2, iov, 8);
+	while (writev(2, iov, 8) == -1 && errno == EAGAIN)
+	    continue;
 #endif
 }
 

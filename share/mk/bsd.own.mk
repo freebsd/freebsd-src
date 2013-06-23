@@ -43,6 +43,11 @@
 # LIBMODE	Library mode. [${NOBINMODE}]
 #
 #
+# DEBUGDIR	Base path for standalone debug files. [/usr/lib/debug]
+#
+# DEBUGMODE	Mode for debug files. [${NOBINMODE}]
+#
+#
 # KMODDIR	Base path for loadable kernel modules
 #		(see kld(4)). [/boot/kernel]
 #
@@ -117,7 +122,7 @@ __<bsd.own.mk>__:
 
 .if !defined(_WITHOUT_SRCCONF)
 SRCCONF?=	/etc/src.conf
-.if exists(${SRCCONF})
+.if exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf"
 .include "${SRCCONF}"
 .endif
 .endif
@@ -146,6 +151,9 @@ SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
 LIBMODE?=	${NOBINMODE}
+
+DEBUGDIR?=	/usr/lib/debug
+DEBUGMODE?=	${NOBINMODE}
 
 
 # Share files
@@ -181,6 +189,15 @@ NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
 
+#
+# install(1) parameters.
+#
+HRDLINK?=	-l h
+SYMLINK?=	-l s
+
+INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+
 # Common variables
 .if !defined(DEBUG_FLAGS)
 STRIP?=		-s
@@ -204,6 +221,7 @@ COMPRESS_EXT?=	.gz
 #
 .for var in \
     CTF \
+    DEBUG_FILES \
     INSTALLLIB \
     MAN \
     PROFILE
@@ -220,9 +238,6 @@ WITHOUT_${var}=
 #
 .if defined(YES_HESIOD)
 WITH_HESIOD=
-.endif
-.if defined(MAKE_IDEA)
-WITH_IDEA=
 .endif
 
 __DEFAULT_YES_OPTIONS = \
@@ -245,6 +260,7 @@ __DEFAULT_YES_OPTIONS = \
     BIND_UTILS \
     BINUTILS \
     BLUETOOTH \
+    BMAKE \
     BOOT \
     BSD_CPIO \
     BSNMP \
@@ -253,15 +269,16 @@ __DEFAULT_YES_OPTIONS = \
     CAPSICUM \
     CDDL \
     CPP \
+    CROSS_COMPILER \
     CRYPT \
     CTM \
-    CVS \
     CXX \
     DICT \
     DYNAMICROOT \
     ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
+    FORMAT_EXTENSIONS \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
@@ -286,6 +303,7 @@ __DEFAULT_YES_OPTIONS = \
     KERBEROS \
     KERNEL_SYMBOLS \
     KVM \
+    LDNS \
     LEGACY_CONSOLE \
     LIB32 \
     LIBPTHREAD \
@@ -309,6 +327,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSH \
     OPENSSL \
     PAM \
+    PC_SYSINSTALL \
     PF \
     PKGBOOTSTRAP \
     PKGTOOLS \
@@ -328,6 +347,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
     SSP \
+    SVNLITE \
     SYMVER \
     SYSCONS \
     SYSINSTALL \
@@ -343,24 +363,29 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    ARM_EABI \
+    BSD_PATCH \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    BMAKE \
     BSDCONFIG \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
+    DEBUG_FILES \
+    GPL_DTC \
     HESIOD \
     ICONV \
-    IDEA \
     INSTALL_AS_USER \
+    LDNS_UTILS \
     NMTREE \
     NAND \
     OFED \
-    SHARED_TOOLCHAIN
+    OPENSSH_NONE_CIPHER \
+    SHARED_TOOLCHAIN \
+    SVN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -375,14 +400,19 @@ __T=${TARGET_ARCH}
 .else
 __T=${MACHINE_ARCH}
 .endif
-# Clang is only for x86 and powerpc right now, by default.
+# Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
+.elif ${__T} == "arm" || ${__T} == "armv6"
 __DEFAULT_YES_OPTIONS+=CLANG
+# GCC is unable to build the full clang on arm, disable it by default.
+__DEFAULT_NO_OPTIONS+=CLANG_FULL
 .else
-__DEFAULT_NO_OPTIONS+=CLANG
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
-# Clang the default system compiler only on x86.
-.if ${__T} == "amd64" || ${__T} == "i386"
+# Clang the default system compiler only on little-endian arm and x86.
+.if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
+    ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
 .else
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC
@@ -453,6 +483,14 @@ MK_BIND_NAMED:=	no
 MK_BIND_UTILS:=	no
 .endif
 
+.if ${MK_LDNS} == "no"
+MK_LDNS_UTILS:=	no
+.endif
+
+.if ${MK_LDNS_UTILS} != "no"
+MK_BIND_UTILS:=	no
+.endif
+
 .if ${MK_BIND_MTREE} == "no"
 MK_BIND_ETC:=	no
 .endif
@@ -465,10 +503,6 @@ MK_SOURCELESS_UCODE:= no
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
 MK_CTF:=	no
-.endif
-
-.if ${MK_CLANG} == "no"
-MK_CLANG_EXTRAS:= no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -513,6 +547,8 @@ MK_GDB:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
+MK_CLANG_EXTRAS:= no
+MK_CLANG_FULL:= no
 MK_CLANG_IS_CC:= no
 .endif
 

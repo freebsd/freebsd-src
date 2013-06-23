@@ -104,7 +104,7 @@ copy_file(const FTSENT *entp, int dne)
 			if (vflag)
 				printf("%s not overwritten\n", to.p_path);
 			(void)close(from_fd);
-			return (0);
+			return (1);
 		} else if (iflag) {
 			(void)fprintf(stderr, "overwrite %s? %s", 
 					to.p_path, YESNO);
@@ -266,6 +266,11 @@ copy_link(const FTSENT *p, int exists)
 	int len;
 	char llink[PATH_MAX];
 
+	if (exists && nflag) {
+		if (vflag)
+			printf("%s not overwritten\n", to.p_path);
+		return (1);
+	}
 	if ((len = readlink(p->fts_path, llink, sizeof(llink) - 1)) == -1) {
 		warn("readlink: %s", p->fts_path);
 		return (1);
@@ -285,6 +290,12 @@ copy_link(const FTSENT *p, int exists)
 int
 copy_fifo(struct stat *from_stat, int exists)
 {
+
+	if (exists && nflag) {
+		if (vflag)
+			printf("%s not overwritten\n", to.p_path);
+		return (1);
+	}
 	if (exists && unlink(to.p_path)) {
 		warn("unlink: %s", to.p_path);
 		return (1);
@@ -299,6 +310,12 @@ copy_fifo(struct stat *from_stat, int exists)
 int
 copy_special(struct stat *from_stat, int exists)
 {
+
+	if (exists && nflag) {
+		if (vflag)
+			printf("%s not overwritten\n", to.p_path);
+		return (1);
+	}
 	if (exists && unlink(to.p_path)) {
 		warn("unlink: %s", to.p_path);
 		return (1);

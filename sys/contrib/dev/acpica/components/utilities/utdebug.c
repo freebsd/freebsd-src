@@ -1,11 +1,11 @@
 /******************************************************************************
  *
- * Module Name: utdebug - Debug print routines
+ * Module Name: utdebug - Debug print/trace routines
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,11 +189,9 @@ AcpiDebugPrint (
     va_list                 args;
 
 
-    /*
-     * Stay silent if the debug level or component ID is disabled
-     */
-    if (!(RequestedDebugLevel & AcpiDbgLevel) ||
-        !(ComponentId & AcpiDbgLayer))
+    /* Check if debug output enabled */
+
+    if (!ACPI_IS_DEBUG_ENABLED (RequestedDebugLevel, ComponentId))
     {
         return;
     }
@@ -268,8 +266,9 @@ AcpiDebugPrintRaw (
     va_list                 args;
 
 
-    if (!(RequestedDebugLevel & AcpiDbgLevel) ||
-        !(ComponentId & AcpiDbgLayer))
+    /* Check if debug output enabled */
+
+    if (!ACPI_IS_DEBUG_ENABLED (RequestedDebugLevel, ComponentId))
     {
         return;
     }
@@ -309,9 +308,14 @@ AcpiUtTrace (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s\n", AcpiGbl_FnEntryStr);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s\n", AcpiGbl_FnEntryStr);
+    }
 }
 
 ACPI_EXPORT_SYMBOL (AcpiUtTrace)
@@ -346,9 +350,14 @@ AcpiUtTracePtr (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %p\n", AcpiGbl_FnEntryStr, Pointer);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %p\n", AcpiGbl_FnEntryStr, Pointer);
+    }
 }
 
 
@@ -381,9 +390,14 @@ AcpiUtTraceStr (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %s\n", AcpiGbl_FnEntryStr, String);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %s\n", AcpiGbl_FnEntryStr, String);
+    }
 }
 
 
@@ -416,9 +430,14 @@ AcpiUtTraceU32 (
     AcpiGbl_NestingLevel++;
     AcpiUtTrackStackPtr ();
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %08X\n", AcpiGbl_FnEntryStr, Integer);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %08X\n", AcpiGbl_FnEntryStr, Integer);
+    }
 }
 
 
@@ -446,9 +465,14 @@ AcpiUtExit (
     UINT32                  ComponentId)
 {
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s\n", AcpiGbl_FnExitStr);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s\n", AcpiGbl_FnExitStr);
+    }
 
     AcpiGbl_NestingLevel--;
 }
@@ -482,19 +506,24 @@ AcpiUtStatusExit (
     ACPI_STATUS             Status)
 {
 
-    if (ACPI_SUCCESS (Status))
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
     {
-        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-            LineNumber, FunctionName, ModuleName, ComponentId,
-            "%s %s\n", AcpiGbl_FnExitStr,
-            AcpiFormatException (Status));
-    }
-    else
-    {
-        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-            LineNumber, FunctionName, ModuleName, ComponentId,
-            "%s ****Exception****: %s\n", AcpiGbl_FnExitStr,
-            AcpiFormatException (Status));
+        if (ACPI_SUCCESS (Status))
+        {
+            AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+                LineNumber, FunctionName, ModuleName, ComponentId,
+                "%s %s\n", AcpiGbl_FnExitStr,
+                AcpiFormatException (Status));
+        }
+        else
+        {
+            AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+                LineNumber, FunctionName, ModuleName, ComponentId,
+                "%s ****Exception****: %s\n", AcpiGbl_FnExitStr,
+                AcpiFormatException (Status));
+        }
     }
 
     AcpiGbl_NestingLevel--;
@@ -529,10 +558,15 @@ AcpiUtValueExit (
     UINT64                  Value)
 {
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %8.8X%8.8X\n", AcpiGbl_FnExitStr,
-        ACPI_FORMAT_UINT64 (Value));
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %8.8X%8.8X\n", AcpiGbl_FnExitStr,
+            ACPI_FORMAT_UINT64 (Value));
+    }
 
     AcpiGbl_NestingLevel--;
 }
@@ -566,176 +600,16 @@ AcpiUtPtrExit (
     UINT8                   *Ptr)
 {
 
-    AcpiDebugPrint (ACPI_LV_FUNCTIONS,
-        LineNumber, FunctionName, ModuleName, ComponentId,
-        "%s %p\n", AcpiGbl_FnExitStr, Ptr);
+    /* Check if enabled up-front for performance */
+
+    if (ACPI_IS_DEBUG_ENABLED (ACPI_LV_FUNCTIONS, ComponentId))
+    {
+        AcpiDebugPrint (ACPI_LV_FUNCTIONS,
+            LineNumber, FunctionName, ModuleName, ComponentId,
+            "%s %p\n", AcpiGbl_FnExitStr, Ptr);
+    }
 
     AcpiGbl_NestingLevel--;
 }
 
 #endif
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtDumpBuffer
- *
- * PARAMETERS:  Buffer              - Buffer to dump
- *              Count               - Amount to dump, in bytes
- *              Display             - BYTE, WORD, DWORD, or QWORD display
- *              Offset              - Beginning buffer offset (display only)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Generic dump buffer in both hex and ascii.
- *
- ******************************************************************************/
-
-void
-AcpiUtDumpBuffer (
-    UINT8                   *Buffer,
-    UINT32                  Count,
-    UINT32                  Display,
-    UINT32                  BaseOffset)
-{
-    UINT32                  i = 0;
-    UINT32                  j;
-    UINT32                  Temp32;
-    UINT8                   BufChar;
-
-
-    if (!Buffer)
-    {
-        AcpiOsPrintf ("Null Buffer Pointer in DumpBuffer!\n");
-        return;
-    }
-
-    if ((Count < 4) || (Count & 0x01))
-    {
-        Display = DB_BYTE_DISPLAY;
-    }
-
-    /* Nasty little dump buffer routine! */
-
-    while (i < Count)
-    {
-        /* Print current offset */
-
-        AcpiOsPrintf ("%6.4X: ", (BaseOffset + i));
-
-        /* Print 16 hex chars */
-
-        for (j = 0; j < 16;)
-        {
-            if (i + j >= Count)
-            {
-                /* Dump fill spaces */
-
-                AcpiOsPrintf ("%*s", ((Display * 2) + 1), " ");
-                j += Display;
-                continue;
-            }
-
-            switch (Display)
-            {
-            case DB_BYTE_DISPLAY:
-            default:    /* Default is BYTE display */
-
-                AcpiOsPrintf ("%02X ", Buffer[(ACPI_SIZE) i + j]);
-                break;
-
-
-            case DB_WORD_DISPLAY:
-
-                ACPI_MOVE_16_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j]);
-                AcpiOsPrintf ("%04X ", Temp32);
-                break;
-
-
-            case DB_DWORD_DISPLAY:
-
-                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j]);
-                AcpiOsPrintf ("%08X ", Temp32);
-                break;
-
-
-            case DB_QWORD_DISPLAY:
-
-                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j]);
-                AcpiOsPrintf ("%08X", Temp32);
-
-                ACPI_MOVE_32_TO_32 (&Temp32, &Buffer[(ACPI_SIZE) i + j + 4]);
-                AcpiOsPrintf ("%08X ", Temp32);
-                break;
-            }
-
-            j += Display;
-        }
-
-        /*
-         * Print the ASCII equivalent characters but watch out for the bad
-         * unprintable ones (printable chars are 0x20 through 0x7E)
-         */
-        AcpiOsPrintf (" ");
-        for (j = 0; j < 16; j++)
-        {
-            if (i + j >= Count)
-            {
-                AcpiOsPrintf ("\n");
-                return;
-            }
-
-            BufChar = Buffer[(ACPI_SIZE) i + j];
-            if (ACPI_IS_PRINT (BufChar))
-            {
-                AcpiOsPrintf ("%c", BufChar);
-            }
-            else
-            {
-                AcpiOsPrintf (".");
-            }
-        }
-
-        /* Done with that line. */
-
-        AcpiOsPrintf ("\n");
-        i += 16;
-    }
-
-    return;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtDebugDumpBuffer
- *
- * PARAMETERS:  Buffer              - Buffer to dump
- *              Count               - Amount to dump, in bytes
- *              Display             - BYTE, WORD, DWORD, or QWORD display
- *              ComponentID         - Caller's component ID
- *
- * RETURN:      None
- *
- * DESCRIPTION: Generic dump buffer in both hex and ascii.
- *
- ******************************************************************************/
-
-void
-AcpiUtDebugDumpBuffer (
-    UINT8                   *Buffer,
-    UINT32                  Count,
-    UINT32                  Display,
-    UINT32                  ComponentId)
-{
-
-    /* Only dump the buffer if tracing is enabled */
-
-    if (!((ACPI_LV_TABLES & AcpiDbgLevel) &&
-        (ComponentId & AcpiDbgLayer)))
-    {
-        return;
-    }
-
-    AcpiUtDumpBuffer (Buffer, Count, Display, 0);
-}

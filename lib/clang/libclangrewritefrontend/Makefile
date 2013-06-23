@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangrewritefrontend
 
 SRCDIR=	tools/clang/lib/Rewrite/Frontend
@@ -15,6 +17,7 @@ SRCS=	FixItRewriter.cpp \
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentCommandList \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \

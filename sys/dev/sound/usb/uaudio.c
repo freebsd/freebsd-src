@@ -71,7 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
+#include <dev/usb/usbhid.h>
 #include <dev/usb/usb_request.h>
+#include <dev/usb/usb_process.h>
 
 #define	USB_DEBUG_VAR uaudio_debug
 #include <dev/usb/usb_debug.h>
@@ -175,19 +177,34 @@ struct uaudio_mixer_node {
 	struct uaudio_mixer_node *next;
 };
 
-struct uaudio_chan {
-	struct pcmchan_caps pcm_cap;	/* capabilities */
+struct uaudio_configure_msg {
+	struct usb_proc_msg hdr;
+	struct uaudio_softc *sc;
+};
 
-	struct snd_dbuf *pcm_buf;
-	const struct usb_config *usb_cfg;
-	struct mtx *pcm_mtx;		/* lock protecting this structure */
-	struct uaudio_softc *priv_sc;
-	struct pcm_channel *pcm_ch;
-	struct usb_xfer *xfer[UAUDIO_NCHANBUFS + 1];
+#define	CHAN_MAX_ALT 20
+
+struct uaudio_chan_alt {
 	union uaudio_asf1d p_asf1d;
 	union uaudio_sed p_sed;
 	const usb_endpoint_descriptor_audio_t *p_ed1;
 	const struct uaudio_format *p_fmt;
+	const struct usb_config *usb_cfg;
+	uint32_t sample_rate;	/* in Hz */
+	uint16_t sample_size;
+	uint8_t	iface_index;
+	uint8_t	iface_alt_index;
+	uint8_t channels;
+};
+
+struct uaudio_chan {
+	struct pcmchan_caps pcm_cap;	/* capabilities */
+	struct uaudio_chan_alt usb_alt[CHAN_MAX_ALT];
+	struct snd_dbuf *pcm_buf;
+	struct mtx *pcm_mtx;		/* lock protecting this structure */
+	struct uaudio_softc *priv_sc;
+	struct pcm_channel *pcm_ch;
+	struct usb_xfer *xfer[UAUDIO_NCHANBUFS + 1];
 
 	uint8_t *buf;			/* pointer to buffer */
 	uint8_t *start;			/* upper layer buffer start */
@@ -195,24 +212,24 @@ struct uaudio_chan {
 	uint8_t *cur;			/* current position in upper layer
 					 * buffer */
 
-	uint32_t intr_size;		/* in bytes */
 	uint32_t intr_frames;		/* in units */
-	uint32_t sample_rate;
 	uint32_t frames_per_second;
 	uint32_t sample_rem;
 	uint32_t sample_curr;
+	uint32_t max_buf;
 
-	uint32_t format;
 	uint32_t pcm_format[2];
 
 	uint16_t bytes_per_frame[2];
 
-	uint16_t sample_size;
-
-	uint8_t	valid;
-	uint8_t	iface_index;
-	uint8_t	iface_alt_index;
-	uint8_t channels;
+	uint8_t	num_alt;
+	uint8_t cur_alt;
+	uint8_t set_alt;
+	uint8_t operation;
+#define	CHAN_OP_NONE 0
+#define	CHAN_OP_START 1
+#define	CHAN_OP_STOP 2
+#define	CHAN_OP_DRAIN 3
 
 	uint8_t last_sync_time;
 	uint8_t last_sync_state;
@@ -277,16 +294,41 @@ struct uaudio_search_result {
 	uint8_t is_input;
 };
 
+enum {
+	UAUDIO_HID_RX_TRANSFER,
+	UAUDIO_HID_N_TRANSFER,
+};
+
+struct uaudio_hid {
+	struct usb_xfer *xfer[UAUDIO_HID_N_TRANSFER];
+	struct hid_location volume_up_loc;
+	struct hid_location volume_down_loc;
+	struct hid_location mute_loc;
+	uint32_t flags;
+#define	UAUDIO_HID_VALID		0x0001
+#define	UAUDIO_HID_HAS_ID		0x0002
+#define	UAUDIO_HID_HAS_VOLUME_UP	0x0004
+#define	UAUDIO_HID_HAS_VOLUME_DOWN	0x0008
+#define	UAUDIO_HID_HAS_MUTE		0x0010
+	uint8_t iface_index;
+	uint8_t volume_up_id;
+	uint8_t volume_down_id;
+	uint8_t mute_id;
+};
+
 struct uaudio_softc {
 	struct sbuf sc_sndstat;
 	struct sndcard_func sc_sndcard_func;
 	struct uaudio_chan sc_rec_chan;
 	struct uaudio_chan sc_play_chan;
 	struct umidi_chan sc_midi_chan;
+	struct uaudio_hid sc_hid;
 	struct uaudio_search_result sc_mixer_clocks;
 	struct uaudio_mixer_node sc_mixer_node;
+	struct uaudio_configure_msg sc_config_msg[2];
 
 	struct mtx *sc_mixer_lock;
+	struct snd_mixer *sc_mixer_dev;
 	struct usb_device *sc_udev;
 	struct usb_xfer *sc_mixer_xfer[1];
 	struct uaudio_mixer_node *sc_mixer_root;
@@ -407,6 +449,9 @@ static usb_callback_t uaudio_chan_record_sync_callback;
 static usb_callback_t uaudio_mixer_write_cfg_callback;
 static usb_callback_t umidi_bulk_read_callback;
 static usb_callback_t umidi_bulk_write_callback;
+static usb_callback_t uaudio_hid_rx_callback;
+
+static usb_proc_callback_t uaudio_configure_msg;
 
 /* ==== USB mixer ==== */
 
@@ -500,6 +545,9 @@ static void	umidi_close(struct usb_fifo *, int);
 static void	umidi_init(device_t dev);
 static int	umidi_probe(device_t dev);
 static int	umidi_detach(device_t dev);
+static int	uaudio_hid_probe(struct uaudio_softc *sc,
+		    struct usb_attach_arg *uaa);
+static void	uaudio_hid_detach(struct uaudio_softc *sc);
 
 #ifdef USB_DEBUG
 static void	uaudio_chan_dump_ep_desc(
@@ -621,6 +669,18 @@ static const struct usb_config
 		.bufsize = 4,	/* bytes */
 		.flags = {.short_xfer_ok = 1,.proxy_buffer = 1,},
 		.callback = &umidi_bulk_read_callback,
+	},
+};
+
+static const struct usb_config
+	uaudio_hid_config[UAUDIO_HID_N_TRANSFER] = {
+	[UAUDIO_HID_RX_TRANSFER] = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.short_xfer_ok = 1,},
+		.callback = &uaudio_hid_rx_callback,
 	},
 };
 
@@ -808,6 +868,7 @@ uaudio_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uaudio_softc *sc = device_get_softc(dev);
 	struct usb_interface_descriptor *id;
+	usb_error_t err;
 	device_t child;
 
 	sc->sc_play_chan.priv_sc = sc;
@@ -815,6 +876,10 @@ uaudio_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	sc->sc_mixer_iface_index = uaa->info.bIfaceIndex;
 	sc->sc_mixer_iface_no = uaa->info.bIfaceNum;
+	sc->sc_config_msg[0].hdr.pm_callback = &uaudio_configure_msg;
+	sc->sc_config_msg[0].sc = sc;
+	sc->sc_config_msg[1].hdr.pm_callback = &uaudio_configure_msg;
+	sc->sc_config_msg[1].sc = sc;
 
 	if (usb_test_quirk(uaa, UQ_AUDIO_SWAP_LR))
 		sc->sc_uq_audio_swap_lr = 1;
@@ -859,22 +924,54 @@ uaudio_attach(device_t dev)
 	DPRINTF("%d mixer controls\n",
 	    sc->sc_mixer_count);
 
-	if (sc->sc_play_chan.valid) {
-		device_printf(dev, "Play: %d Hz, %d ch, %s format, "
-		    "2x8ms buffer.\n",
-		    sc->sc_play_chan.sample_rate,
-		    sc->sc_play_chan.channels,
-		    sc->sc_play_chan.p_fmt->description);
+	if (sc->sc_play_chan.num_alt > 0) {
+		uint8_t x;
+
+		/*
+		 * Need to set a default alternate interface, else
+		 * some USB audio devices might go into an infinte
+		 * re-enumeration loop:
+		 */
+		err = usbd_set_alt_interface_index(sc->sc_udev,
+		    sc->sc_play_chan.usb_alt[0].iface_index,
+		    sc->sc_play_chan.usb_alt[0].iface_alt_index);
+		if (err) {
+			DPRINTF("setting of alternate index failed: %s!\n",
+			    usbd_errstr(err));
+		}
+		for (x = 0; x != sc->sc_play_chan.num_alt; x++) {
+			device_printf(dev, "Play: %d Hz, %d ch, %s format, "
+			    "2x8ms buffer.\n",
+			    sc->sc_play_chan.usb_alt[x].sample_rate,
+			    sc->sc_play_chan.usb_alt[x].channels,
+			    sc->sc_play_chan.usb_alt[x].p_fmt->description);
+		}
 	} else {
 		device_printf(dev, "No playback.\n");
 	}
 
-	if (sc->sc_rec_chan.valid) {
-		device_printf(dev, "Record: %d Hz, %d ch, %s format, "
-		    "2x8ms buffer.\n",
-		    sc->sc_rec_chan.sample_rate,
-		    sc->sc_rec_chan.channels,
-		    sc->sc_rec_chan.p_fmt->description);
+	if (sc->sc_rec_chan.num_alt > 0) {
+		uint8_t x;
+
+		/*
+		 * Need to set a default alternate interface, else
+		 * some USB audio devices might go into an infinte
+		 * re-enumeration loop:
+		 */
+		err = usbd_set_alt_interface_index(sc->sc_udev,
+		    sc->sc_rec_chan.usb_alt[0].iface_index,
+		    sc->sc_rec_chan.usb_alt[0].iface_alt_index);
+		if (err) {
+			DPRINTF("setting of alternate index failed: %s!\n",
+			    usbd_errstr(err));
+		}
+		for (x = 0; x != sc->sc_rec_chan.num_alt; x++) {
+			device_printf(dev, "Record: %d Hz, %d ch, %s format, "
+			    "2x8ms buffer.\n",
+			    sc->sc_rec_chan.usb_alt[x].sample_rate,
+			    sc->sc_rec_chan.usb_alt[x].channels,
+			    sc->sc_rec_chan.usb_alt[x].p_fmt->description);
+		}
 	} else {
 		device_printf(dev, "No recording.\n");
 	}
@@ -896,7 +993,7 @@ uaudio_attach(device_t dev)
 		}
 		device_printf(dev, "MIDI sequencer.\n");
 	} else {
-		device_printf(dev, "No midi sequencer.\n");
+		device_printf(dev, "No MIDI sequencer.\n");
 	}
 
 	DPRINTF("doing child attach\n");
@@ -909,8 +1006,8 @@ uaudio_attach(device_t dev)
 	 * Only attach a PCM device if we have a playback, recording
 	 * or mixer device present:
 	 */
-	if (sc->sc_play_chan.valid ||
-	    sc->sc_rec_chan.valid ||
+	if (sc->sc_play_chan.num_alt > 0 ||
+	    sc->sc_rec_chan.num_alt > 0 ||
 	    sc->sc_mix_info) {
 		child = device_add_child(dev, "pcm", -1);
 
@@ -924,6 +1021,12 @@ uaudio_attach(device_t dev)
 	if (bus_generic_attach(dev)) {
 		DPRINTF("child attach failed\n");
 		goto detach;
+	}
+
+	if (uaudio_hid_probe(sc, uaa) == 0) {
+		device_printf(dev, "HID volume keys found.\n");
+	} else {
+		device_printf(dev, "No HID volume keys found.\n");
 	}
 
 	/* reload all mixer settings */
@@ -968,21 +1071,23 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 		goto detach;
 	sc->sc_mixer_init = 1;
 
+	mixer_hwvol_init(dev);
+
 	snprintf(status, sizeof(status), "at ? %s", PCM_KLDSTRING(snd_uaudio));
 
 	if (pcm_register(dev, sc,
-	    sc->sc_play_chan.valid ? 1 : 0,
-	    sc->sc_rec_chan.valid ? 1 : 0)) {
+	    (sc->sc_play_chan.num_alt > 0) ? 1 : 0,
+	    (sc->sc_rec_chan.num_alt > 0) ? 1 : 0)) {
 		goto detach;
 	}
 
 	uaudio_pcm_setflags(dev, SD_F_MPSAFE);
 	sc->sc_pcm_registered = 1;
 
-	if (sc->sc_play_chan.valid) {
+	if (sc->sc_play_chan.num_alt > 0) {
 		pcm_addchan(dev, PCMDIR_PLAY, chan_class, sc);
 	}
-	if (sc->sc_rec_chan.valid) {
+	if (sc->sc_rec_chan.num_alt > 0) {
 		pcm_addchan(dev, PCMDIR_REC, chan_class, sc);
 	}
 	pcm_setstatus(dev, status);
@@ -1029,10 +1134,17 @@ uaudio_detach(device_t dev)
 	 * will time out and close opened /dev/dspX.Y device(s), if
 	 * any.
 	 */
-	if (sc->sc_play_chan.valid)
-		usbd_transfer_unsetup(sc->sc_play_chan.xfer, UAUDIO_NCHANBUFS + 1);
-	if (sc->sc_rec_chan.valid)
-		usbd_transfer_unsetup(sc->sc_rec_chan.xfer, UAUDIO_NCHANBUFS + 1);
+	usb_proc_explore_lock(sc->sc_udev);
+	sc->sc_play_chan.operation = CHAN_OP_DRAIN;
+	sc->sc_rec_chan.operation = CHAN_OP_DRAIN;
+	usb_proc_explore_mwait(sc->sc_udev,
+	    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
+	usb_proc_explore_unlock(sc->sc_udev);
+
+	usbd_transfer_unsetup(sc->sc_play_chan.xfer, UAUDIO_NCHANBUFS + 1);
+	usbd_transfer_unsetup(sc->sc_rec_chan.xfer, UAUDIO_NCHANBUFS + 1);
+
+	uaudio_hid_detach(sc);
 
 	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
@@ -1047,6 +1159,201 @@ uaudio_detach(device_t dev)
 	uaudio_mixer_ctl_free(sc);
 
 	return (0);
+}
+
+static uint32_t
+uaudio_get_buffer_size(struct uaudio_chan *ch, uint8_t alt)
+{
+	struct uaudio_chan_alt *chan_alt = &ch->usb_alt[alt];
+	/* We use 2 times 8ms of buffer */
+	uint32_t buf_size = (((chan_alt->sample_rate * (UAUDIO_NFRAMES / 8)) +
+	    1000 - 1) / 1000) * chan_alt->sample_size;
+	return (buf_size);
+}
+
+static void
+uaudio_configure_msg_sub(struct uaudio_softc *sc,
+    struct uaudio_chan *chan, int dir)
+{
+	struct uaudio_chan_alt *chan_alt;
+	uint32_t frames;
+	uint32_t buf_size;
+	uint16_t fps;
+	uint8_t set_alt;
+	uint8_t fps_shift;
+	uint8_t operation;
+	usb_error_t err;
+
+	if (chan->num_alt <= 0)
+		return;
+
+	DPRINTF("\n");
+
+	usb_proc_explore_lock(sc->sc_udev);
+	operation = chan->operation;
+	chan->operation = CHAN_OP_NONE;
+	usb_proc_explore_unlock(sc->sc_udev);
+
+	mtx_lock(chan->pcm_mtx);
+	if (chan->cur_alt != chan->set_alt)
+		set_alt = chan->set_alt;
+	else
+		set_alt = CHAN_MAX_ALT;
+	mtx_unlock(chan->pcm_mtx);
+
+	if (set_alt >= chan->num_alt)
+		goto done;
+
+	chan_alt = chan->usb_alt + set_alt;
+
+	usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
+
+	err = usbd_set_alt_interface_index(sc->sc_udev,
+	    chan_alt->iface_index, chan_alt->iface_alt_index);
+	if (err) {
+		DPRINTF("setting of alternate index failed: %s!\n",
+		    usbd_errstr(err));
+		goto error;
+	}
+
+	/*
+	 * Only set the sample rate if the channel reports that it
+	 * supports the frequency control.
+	 */
+
+	if (sc->sc_audio_rev >= UAUDIO_VERSION_30) {
+		/* FALLTHROUGH */
+	} else if (sc->sc_audio_rev >= UAUDIO_VERSION_20) {
+		unsigned int x;
+	  
+		for (x = 0; x != 256; x++) {
+			if (dir == PCMDIR_PLAY) {
+				if (!(sc->sc_mixer_clocks.bit_output[x / 8] &
+				    (1 << (x % 8)))) {
+					continue;
+				}
+			} else {
+				if (!(sc->sc_mixer_clocks.bit_input[x / 8] &
+				    (1 << (x % 8)))) {
+					continue;
+				}
+			}
+
+			if (uaudio20_set_speed(sc->sc_udev,
+			    sc->sc_mixer_iface_no, x, chan_alt->sample_rate)) {
+				/*
+				 * If the endpoint is adaptive setting
+				 * the speed may fail.
+				 */
+				DPRINTF("setting of sample rate failed! "
+				    "(continuing anyway)\n");
+			}
+		}
+	} else if (chan_alt->p_sed.v1->bmAttributes & UA_SED_FREQ_CONTROL) {
+		if (uaudio_set_speed(sc->sc_udev,
+		    chan_alt->p_ed1->bEndpointAddress, chan_alt->sample_rate)) {
+			/*
+			 * If the endpoint is adaptive setting the
+			 * speed may fail.
+			 */
+			DPRINTF("setting of sample rate failed! "
+			    "(continuing anyway)\n");
+		}
+	}
+	if (usbd_transfer_setup(sc->sc_udev, &chan_alt->iface_index, chan->xfer,
+	    chan_alt->usb_cfg, UAUDIO_NCHANBUFS + 1, chan, chan->pcm_mtx)) {
+		DPRINTF("could not allocate USB transfers!\n");
+		goto error;
+	}
+
+	fps = usbd_get_isoc_fps(sc->sc_udev);
+
+	if (fps < 8000) {
+		/* FULL speed USB */
+		frames = 8;
+	} else {
+		/* HIGH speed USB */
+		frames = UAUDIO_NFRAMES;
+	}
+
+	fps_shift = usbd_xfer_get_fps_shift(chan->xfer[0]);
+
+	/* down shift number of frames per second, if any */
+	fps >>= fps_shift;
+	frames >>= fps_shift;
+
+	/* bytes per frame should not be zero */
+	chan->bytes_per_frame[0] =
+	    ((chan_alt->sample_rate / fps) * chan_alt->sample_size);
+	chan->bytes_per_frame[1] =
+	    (((chan_alt->sample_rate + fps - 1) / fps) * chan_alt->sample_size);
+
+	/* setup data rate dithering, if any */
+	chan->frames_per_second = fps;
+	chan->sample_rem = chan_alt->sample_rate % fps;
+	chan->sample_curr = 0;
+	chan->frames_per_second = fps;
+
+	/* compute required buffer size */
+	buf_size = (chan->bytes_per_frame[1] * frames);
+
+	if (buf_size > (chan->end - chan->start)) {
+		DPRINTF("buffer size is too big\n");
+		goto error;
+	}
+
+	chan->intr_frames = frames;
+
+	DPRINTF("fps=%d sample_rem=%d\n", (int)fps, (int)chan->sample_rem);
+
+	if (chan->intr_frames == 0) {
+		DPRINTF("frame shift is too high!\n");
+		goto error;
+	}
+
+	mtx_lock(chan->pcm_mtx);
+	chan->cur_alt = set_alt;
+	mtx_unlock(chan->pcm_mtx);
+
+done:
+#if (UAUDIO_NCHANBUFS != 2)
+#error "please update code"
+#endif
+	switch (operation) {
+	case CHAN_OP_START:
+		mtx_lock(chan->pcm_mtx);
+		usbd_transfer_start(chan->xfer[0]);
+		usbd_transfer_start(chan->xfer[1]);
+		mtx_unlock(chan->pcm_mtx);
+		break;
+	case CHAN_OP_STOP:
+		mtx_lock(chan->pcm_mtx);
+		usbd_transfer_stop(chan->xfer[0]);
+		usbd_transfer_stop(chan->xfer[1]);
+		mtx_unlock(chan->pcm_mtx);
+		break;
+	default:
+		break;
+	}
+	return;
+
+error:
+	usbd_transfer_unsetup(chan->xfer, UAUDIO_NCHANBUFS + 1);
+
+	mtx_lock(chan->pcm_mtx);
+	chan->cur_alt = CHAN_MAX_ALT;
+	mtx_unlock(chan->pcm_mtx);
+}
+
+static void
+uaudio_configure_msg(struct usb_proc_msg *pm)
+{
+	struct uaudio_softc *sc = ((struct uaudio_configure_msg *)pm)->sc;
+
+	usb_proc_explore_unlock(sc->sc_udev);
+	uaudio_configure_msg_sub(sc, &sc->sc_play_chan, PCMDIR_PLAY);
+	uaudio_configure_msg_sub(sc, &sc->sc_rec_chan, PCMDIR_REC);
+	usb_proc_explore_lock(sc->sc_udev);
 }
 
 /*========================================================================*
@@ -1186,6 +1493,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	struct usb_interface_descriptor *id;
 	const struct uaudio_format *p_fmt = NULL;
 	struct uaudio_chan *chan;
+	struct uaudio_chan_alt *chan_alt;
+	uint32_t format;
 	uint16_t curidx = 0xFFFF;
 	uint16_t lastidx = 0xFFFF;
 	uint16_t alt_index = 0;
@@ -1211,6 +1520,18 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 			} else {
 				alt_index++;
+			}
+
+			if ((!(sc->sc_hid.flags & UAUDIO_HID_VALID)) &&
+			    (id->bInterfaceClass == UICLASS_HID) &&
+			    (id->bInterfaceSubClass == 0) &&
+			    (id->bInterfaceProtocol == 0) &&
+			    (alt_index == 0) &&
+			    usbd_get_iface(udev, curidx) != NULL) {
+				DPRINTF("Found HID interface at %d\n",
+				    curidx);
+				sc->sc_hid.flags |= UAUDIO_HID_VALID;
+				sc->sc_hid.iface_index = curidx;
 			}
 
 			uma_if_class =
@@ -1351,6 +1672,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			bBitResolution = asf1d.v2->bBitResolution;
 			bSubslotSize = asf1d.v2->bSubslotSize;
 
+			/* Map 4-byte aligned 24-bit samples into 32-bit */
+			if (bBitResolution == 24 && bSubslotSize == 4)
+				bBitResolution = 32;
+
 			if (bBitResolution != (bSubslotSize * 8)) {
 				DPRINTF("Invalid bSubslotSize\n");
 				goto next_ep;
@@ -1445,14 +1770,19 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan = (ep_dir == UE_DIR_IN) ?
 		    &sc->sc_rec_chan : &sc->sc_play_chan;
 
-		if (chan->valid != 0 ||
-		    usbd_get_iface(udev, curidx) == NULL) {
-			DPRINTF("Channel already exists or "
-			    "interface is not valid\n");
+		if (usbd_get_iface(udev, curidx) == NULL) {
+			DPRINTF("Interface is not valid\n");
 			goto next_ep;
 		}
+		if (chan->num_alt == CHAN_MAX_ALT) {
+			DPRINTF("Too many alternate settings\n");
+			goto next_ep;
+		}
+		chan->set_alt = 0;
+		chan->cur_alt = CHAN_MAX_ALT;
 
-		chan->valid = 1;
+		chan_alt = &chan->usb_alt[chan->num_alt++];
+
 #ifdef USB_DEBUG
 		uaudio_chan_dump_ep_desc(ed1);
 #endif
@@ -1460,29 +1790,80 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		    "bits = %d, format = %s\n", rate, channels,
 		    bit_resolution, p_fmt->description);
 
-		chan->sample_rate = rate;
-		chan->p_asf1d = asf1d;
-		chan->p_ed1 = ed1;
-		chan->p_fmt = p_fmt;
-		chan->p_sed = sed;
-		chan->iface_index = curidx;
-		chan->iface_alt_index = alt_index;
+		chan_alt->sample_rate = rate;
+		chan_alt->p_asf1d = asf1d;
+		chan_alt->p_ed1 = ed1;
+		chan_alt->p_fmt = p_fmt;
+		chan_alt->p_sed = sed;
+		chan_alt->iface_index = curidx;
+		chan_alt->iface_alt_index = alt_index;
+
+		usbd_set_parent_iface(sc->sc_udev, curidx,
+		    sc->sc_mixer_iface_index);
 
 		if (ep_dir == UE_DIR_IN)
-			chan->usb_cfg = uaudio_cfg_record;
+			chan_alt->usb_cfg = uaudio_cfg_record;
 		else
-			chan->usb_cfg = uaudio_cfg_play;
+			chan_alt->usb_cfg = uaudio_cfg_play;
 
-		chan->sample_size = (UAUDIO_MAX_CHAN(channels) *
+		chan_alt->sample_size = (UAUDIO_MAX_CHAN(channels) *
 		    p_fmt->bPrecision) / 8;
-		chan->channels = channels;
+		chan_alt->channels = channels;
 
 		if (ep_dir == UE_DIR_IN &&
 		    usbd_get_speed(udev) == USB_SPEED_FULL) {
 			uaudio_record_fix_fs(ed1,
-			    chan->sample_size * (rate / 1000),
-			    chan->sample_size * (rate / 4000));
+			    chan_alt->sample_size * (rate / 1000),
+			    chan_alt->sample_size * (rate / 4000));
 		}
+
+		/* setup play/record format */
+
+		format = chan_alt->p_fmt->freebsd_fmt;
+
+		switch (chan_alt->channels) {
+		case 2:
+			/* stereo */
+			format = SND_FORMAT(format, 2, 0);
+			break;
+		case 1:
+			/* mono */
+			format = SND_FORMAT(format, 1, 0);
+			break;
+		default:
+			/* surround and more */
+			format = feeder_matrix_default_format(
+			    SND_FORMAT(format, chan_alt->channels, 0));
+			break;
+		}
+
+		/* check if format is not supported */
+		if (format == 0) {
+			DPRINTF("The selected audio format is not supported\n");
+			chan->num_alt--;
+			goto next_ep;
+		}
+		if (chan->num_alt > 1) {
+			/* we only accumulate one format at different sample rates */
+			if (chan->pcm_format[0] != format) {
+				DPRINTF("Multiple formats is not supported\n");
+				chan->num_alt--;
+				goto next_ep;
+			}
+			/* ignore if duplicate sample rate entry */
+			if (rate == chan->usb_alt[chan->num_alt - 2].sample_rate) {
+				DPRINTF("Duplicate sample rate detected\n");
+				chan->num_alt--;
+				goto next_ep;
+			}
+		}
+		chan->pcm_cap.fmtlist = chan->pcm_format;
+		chan->pcm_cap.fmtlist[0] = format;
+
+		if (rate < chan->pcm_cap.minspeed || chan->pcm_cap.minspeed == 0)
+			chan->pcm_cap.minspeed = rate;
+		if (rate > chan->pcm_cap.maxspeed || chan->pcm_cap.maxspeed == 0)
+			chan->pcm_cap.maxspeed = rate;
 
 		if (sc->sc_sndstat_valid != 0) {
 			sbuf_printf(&sc->sc_sndstat, "\n\t"
@@ -1501,8 +1882,9 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 /* This structure defines all the supported rates. */
 
-static const uint32_t uaudio_rate_list[] = {
+static const uint32_t uaudio_rate_list[CHAN_MAX_ALT] = {
 	96000,
+	88200,
 	88000,
 	80000,
 	72000,
@@ -1567,21 +1949,12 @@ uaudio_chan_fill_info(struct uaudio_softc *sc, struct usb_device *udev)
 				uaudio_chan_fill_info_sub(sc, udev, rate, x, y);
 
 			/* try find a matching rate, if any */
-			for (z = 0; uaudio_rate_list[z]; z++) {
+			for (z = 0; uaudio_rate_list[z]; z++)
 				uaudio_chan_fill_info_sub(sc, udev, uaudio_rate_list[z], x, y);
-
-				if (sc->sc_rec_chan.valid &&
-				    sc->sc_play_chan.valid) {
-					goto done;
-				}
-			}
 		}
 	}
-
-done:
-	if (sc->sc_sndstat_valid) {
+	if (sc->sc_sndstat_valid)
 		sbuf_finish(&sc->sc_sndstat);
-	}
 }
 
 static void
@@ -1589,6 +1962,7 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
+	uint64_t sample_rate = ch->usb_alt[ch->cur_alt].sample_rate;
 	uint8_t buf[4];
 	uint64_t temp;
 	int len;
@@ -1635,24 +2009,20 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* auto adjust */
 
-		while (temp < (ch->sample_rate - (ch->sample_rate / 4)))
+		while (temp < (sample_rate - (sample_rate / 4)))
 			temp *= 2;
 
-		while (temp > (ch->sample_rate + (ch->sample_rate / 2)))
+		while (temp > (sample_rate + (sample_rate / 2)))
 			temp /= 2;
-
-		/* bias */
-
-		temp += (ch->sample_rate + 1999) / 2000;
 
 		/* compare */
 
 		DPRINTF("Comparing %d < %d\n",
-		    (int)temp, (int)ch->sample_rate);
+		    (int)temp, (int)sample_rate);
 
-		if (temp == ch->sample_rate)
+		if (temp == sample_rate)
 			ch->last_sync_state = UAUDIO_SYNC_NONE;
-		else if (temp > ch->sample_rate)
+		else if (temp > sample_rate)
 			ch->last_sync_state = UAUDIO_SYNC_MORE;
 		else
 			ch->last_sync_state = UAUDIO_SYNC_LESS;
@@ -1674,6 +2044,7 @@ uaudio_chan_play_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
+	uint32_t sample_size = ch->usb_alt[ch->cur_alt].sample_size;
 	uint32_t mfl;
 	uint32_t total;
 	uint32_t blockcount;
@@ -1737,14 +2108,14 @@ tr_transferred:
 				switch (ch->last_sync_state) {
 				case UAUDIO_SYNC_MORE:
 					DPRINTFN(6, "sending one sample more\n");
-					if ((frame_len + ch->sample_size) <= mfl)
-						frame_len += ch->sample_size;
+					if ((frame_len + sample_size) <= mfl)
+						frame_len += sample_size;
 					ch->last_sync_state = UAUDIO_SYNC_NONE;
 					break;
 				case UAUDIO_SYNC_LESS:
 					DPRINTFN(6, "sending one sample less\n");
-					if (frame_len >= ch->sample_size)
-						frame_len -= ch->sample_size;
+					if (frame_len >= sample_size)
+						frame_len -= sample_size;
 					ch->last_sync_state = UAUDIO_SYNC_NONE;
 					break;
 				default:
@@ -1881,187 +2252,43 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 	struct uaudio_chan *ch = ((dir == PCMDIR_PLAY) ?
 	    &sc->sc_play_chan : &sc->sc_rec_chan);
 	uint32_t buf_size;
-	uint32_t frames;
-	uint32_t format;
-	uint16_t fps;
-	uint8_t endpoint;
-	uint8_t blocks;
-	uint8_t iface_index;
-	uint8_t alt_index;
-	uint8_t fps_shift;
-	usb_error_t err;
+	uint8_t x;
 
-	fps = usbd_get_isoc_fps(sc->sc_udev);
-
-	if (fps < 8000) {
-		/* FULL speed USB */
-		frames = 8;
-	} else {
-		/* HIGH speed USB */
-		frames = UAUDIO_NFRAMES;
-	}
-
-	/* setup play/record format */
-
-	ch->pcm_cap.fmtlist = ch->pcm_format;
-
-	ch->pcm_format[0] = 0;
-	ch->pcm_format[1] = 0;
-
-	ch->pcm_cap.minspeed = ch->sample_rate;
-	ch->pcm_cap.maxspeed = ch->sample_rate;
-
-	/* setup mutex and PCM channel */
+	/* store mutex and PCM channel */
 
 	ch->pcm_ch = c;
 	ch->pcm_mtx = c->lock;
 
-	format = ch->p_fmt->freebsd_fmt;
+	/* compute worst case buffer */
 
-	switch (ch->channels) {
-	case 2:
-		/* stereo */
-		format = SND_FORMAT(format, 2, 0);
-		break;
-	case 1:
-		/* mono */
-		format = SND_FORMAT(format, 1, 0);
-		break;
-	default:
-		/* surround and more */
-		format = feeder_matrix_default_format(
-		    SND_FORMAT(format, ch->channels, 0));
-		break;
+	buf_size = 0;
+	for (x = 0; x != ch->num_alt; x++) {
+		uint32_t temp = uaudio_get_buffer_size(ch, x);
+		if (temp > buf_size)
+			buf_size = temp;
 	}
 
-	ch->pcm_cap.fmtlist[0] = format;
-	ch->pcm_cap.fmtlist[1] = 0;
-
-	/* check if format is not supported */
-
-	if (format == 0) {
-		DPRINTF("The selected audio format is not supported\n");
-		goto error;
-	}
-
-	/* set alternate interface corresponding to the mode */
-
-	endpoint = ch->p_ed1->bEndpointAddress;
-	iface_index = ch->iface_index;
-	alt_index = ch->iface_alt_index;
-
-	DPRINTF("endpoint=0x%02x, speed=%d, iface=%d alt=%d\n",
-	    endpoint, ch->sample_rate, iface_index, alt_index);
-
-	err = usbd_set_alt_interface_index(sc->sc_udev, iface_index, alt_index);
-	if (err) {
-		DPRINTF("setting of alternate index failed: %s!\n",
-		    usbd_errstr(err));
-		goto error;
-	}
-	usbd_set_parent_iface(sc->sc_udev, iface_index,
-	    sc->sc_mixer_iface_index);
-
-	/*
-	 * Only set the sample rate if the channel reports that it
-	 * supports the frequency control.
-	 */
-
-	if (sc->sc_audio_rev >= UAUDIO_VERSION_30) {
-		/* FALLTHROUGH */
-	} else if (sc->sc_audio_rev >= UAUDIO_VERSION_20) {
-		unsigned int x;
-	  
-		for (x = 0; x != 256; x++) {
-			if (dir == PCMDIR_PLAY) {
-				if (!(sc->sc_mixer_clocks.bit_output[x / 8] &
-				    (1 << (x % 8)))) {
-					continue;
-				}
-			} else {
-				if (!(sc->sc_mixer_clocks.bit_input[x / 8] &
-				    (1 << (x % 8)))) {
-					continue;
-				}
-			}
-
-			if (uaudio20_set_speed(sc->sc_udev,
-			    sc->sc_mixer_iface_no, x, ch->sample_rate)) {
-				/*
-				 * If the endpoint is adaptive setting
-				 * the speed may fail.
-				 */
-				DPRINTF("setting of sample rate failed! "
-				    "(continuing anyway)\n");
-			}
-		}
-	} else if (ch->p_sed.v1->bmAttributes & UA_SED_FREQ_CONTROL) {
-		if (uaudio_set_speed(sc->sc_udev, endpoint, ch->sample_rate)) {
-			/*
-			 * If the endpoint is adaptive setting the
-			 * speed may fail.
-			 */
-			DPRINTF("setting of sample rate failed! "
-			    "(continuing anyway)\n");
-		}
-	}
-	if (usbd_transfer_setup(sc->sc_udev, &iface_index, ch->xfer,
-	    ch->usb_cfg, UAUDIO_NCHANBUFS + 1, ch, ch->pcm_mtx)) {
-		DPRINTF("could not allocate USB transfers!\n");
-		goto error;
-	}
-
-	fps_shift = usbd_xfer_get_fps_shift(ch->xfer[0]);
-
-	/* down shift number of frames per second, if any */
-	fps >>= fps_shift;
-	frames >>= fps_shift;
-
-	/* bytes per frame should not be zero */
-	ch->bytes_per_frame[0] = ((ch->sample_rate / fps) * ch->sample_size);
-	ch->bytes_per_frame[1] = (((ch->sample_rate + fps - 1) / fps) * ch->sample_size);
-
-	/* setup data rate dithering, if any */
-	ch->frames_per_second = fps;
-	ch->sample_rem = ch->sample_rate % fps;
-	ch->sample_curr = 0;
-	ch->frames_per_second = fps;
-
-	/* compute required buffer size */
-	buf_size = (ch->bytes_per_frame[1] * frames);
-
-	ch->intr_size = buf_size;
-	ch->intr_frames = frames;
-
-	DPRINTF("fps=%d sample_rem=%d\n", fps, ch->sample_rem);
-
-	if (ch->intr_frames == 0) {
-		DPRINTF("frame shift is too high!\n");
-		goto error;
-	}
-
-	/* setup double buffering */
+	/* allow double buffering */
 	buf_size *= 2;
-	blocks = 2;
+
+	DPRINTF("Worst case buffer is %d bytes\n", (int)buf_size);
 
 	ch->buf = malloc(buf_size, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (ch->buf == NULL)
 		goto error;
 	if (sndbuf_setup(b, ch->buf, buf_size) != 0)
 		goto error;
-	if (sndbuf_resize(b, blocks, ch->intr_size)) 
-		goto error;
 
 	ch->start = ch->buf;
 	ch->end = ch->buf + buf_size;
 	ch->cur = ch->buf;
 	ch->pcm_buf = b;
+	ch->max_buf = buf_size;
 
 	if (ch->pcm_mtx == NULL) {
 		DPRINTF("ERROR: PCM channels does not have a mutex!\n");
 		goto error;
 	}
-
 	return (ch);
 
 error:
@@ -2078,7 +2305,7 @@ uaudio_chan_free(struct uaudio_chan *ch)
 	}
 	usbd_transfer_unsetup(ch->xfer, UAUDIO_NCHANBUFS + 1);
 
-	ch->valid = 0;
+	ch->num_alt = 0;
 
 	return (0);
 }
@@ -2086,7 +2313,15 @@ uaudio_chan_free(struct uaudio_chan *ch)
 int
 uaudio_chan_set_param_blocksize(struct uaudio_chan *ch, uint32_t blocksize)
 {
-	return (ch->intr_size);
+	uint32_t temp = 2 * uaudio_get_buffer_size(ch, ch->set_alt);
+
+	sndbuf_setup(ch->pcm_buf, ch->buf, temp);
+
+	ch->start = ch->buf;
+	ch->end = ch->buf + temp;
+	ch->cur = ch->buf;
+
+	return (temp / 2);
 }
 
 int
@@ -2099,10 +2334,23 @@ uaudio_chan_set_param_fragments(struct uaudio_chan *ch, uint32_t blocksize,
 int
 uaudio_chan_set_param_speed(struct uaudio_chan *ch, uint32_t speed)
 {
-	if (speed != ch->sample_rate) {
-		DPRINTF("rate conversion required\n");
+	uint8_t x;
+
+	for (x = 0; x < ch->num_alt; x++) {
+		if (ch->usb_alt[x].sample_rate < speed) {
+			/* sample rate is too low */
+			break;
+		}
 	}
-	return (ch->sample_rate);
+
+	if (x != 0)
+		x--;
+
+	ch->set_alt = x;
+
+	DPRINTF("Selecting alt %d\n", (int)x);
+
+	return (ch->usb_alt[x].sample_rate);
 }
 
 int
@@ -2165,31 +2413,61 @@ uaudio_chan_getmatrix(struct uaudio_chan *ch, uint32_t format)
 int
 uaudio_chan_set_param_format(struct uaudio_chan *ch, uint32_t format)
 {
-	ch->format = format;
+	DPRINTF("Selecting format 0x%08x\n", (unsigned int)format);
 	return (0);
 }
 
 int
 uaudio_chan_start(struct uaudio_chan *ch)
 {
-	ch->cur = ch->start;
+	struct uaudio_softc *sc = ch->priv_sc;
+	int do_start = 0;
 
-#if (UAUDIO_NCHANBUFS != 2)
-#error "please update code"
-#endif
-	usbd_transfer_start(ch->xfer[0]);
-	usbd_transfer_start(ch->xfer[1]);
+	usb_proc_explore_lock(sc->sc_udev);
+	if (ch->operation != CHAN_OP_DRAIN) {
+		if (ch->cur_alt == ch->set_alt &&
+		    ch->operation == CHAN_OP_NONE) {
+			/* save doing the explore task */
+			do_start = 1;
+		} else {
+			ch->operation = CHAN_OP_START;
+			(void)usb_proc_explore_msignal(sc->sc_udev,
+			    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
+		}
+	}
+	usb_proc_explore_unlock(sc->sc_udev);
+
+	if (do_start) {
+		usbd_transfer_start(ch->xfer[0]);
+		usbd_transfer_start(ch->xfer[1]);
+	}
 	return (0);
 }
 
 int
 uaudio_chan_stop(struct uaudio_chan *ch)
 {
-#if (UAUDIO_NCHANBUFS != 2)
-#error "please update code"
-#endif
-	usbd_transfer_stop(ch->xfer[0]);
-	usbd_transfer_stop(ch->xfer[1]);
+	struct uaudio_softc *sc = ch->priv_sc;
+	int do_stop = 0;
+
+	usb_proc_explore_lock(sc->sc_udev);
+	if (ch->operation != CHAN_OP_DRAIN) {
+		if (ch->cur_alt == ch->set_alt &&
+		    ch->operation == CHAN_OP_NONE) {
+			/* save doing the explore task */
+			do_stop = 1;
+		} else {
+			ch->operation = CHAN_OP_STOP;
+			(void)usb_proc_explore_msignal(sc->sc_udev,
+			    &sc->sc_config_msg[0], &sc->sc_config_msg[1]);
+		}
+	}
+	usb_proc_explore_unlock(sc->sc_udev);
+
+	if (do_stop) {
+		usbd_transfer_stop(ch->xfer[0]);
+		usbd_transfer_stop(ch->xfer[1]);
+	}
 	return (0);
 }
 
@@ -2490,6 +2768,9 @@ uaudio_mixer_reload_all(struct uaudio_softc *sc)
 			pmc->update[chan / 8] |= (1 << (chan % 8));
 	}
 	usbd_transfer_start(sc->sc_mixer_xfer[0]);
+
+	/* start HID volume keys, if any */
+	usbd_transfer_start(sc->sc_hid.xfer[0]);
 	mtx_unlock(sc->sc_mixer_lock);
 }
 
@@ -4818,6 +5099,7 @@ uaudio_mixer_init_sub(struct uaudio_softc *sc, struct snd_mixer *m)
 	DPRINTF("\n");
 
 	sc->sc_mixer_lock = mixer_get_lock(m);
+	sc->sc_mixer_dev = m;
 
 	if (usbd_transfer_setup(sc->sc_udev, &sc->sc_mixer_iface_index,
 	    sc->sc_mixer_xfer, uaudio_mixer_config, 1, sc,
@@ -5310,7 +5592,6 @@ umidi_open(struct usb_fifo *fifo, int fflags)
 		}
 		/* clear stall first */
 		mtx_lock(&chan->mtx);
-		usbd_xfer_set_stall(chan->xfer[UMIDI_TX_TRANSFER]);
 		chan->write_open_refcount++;
 		sub->write_open = 1;
 
@@ -5409,9 +5690,6 @@ umidi_probe(device_t dev)
 
 	mtx_lock(&chan->mtx);
 
-	/* clear stall first */
-	usbd_xfer_set_stall(chan->xfer[UMIDI_RX_TRANSFER]);
-
 	/*
 	 * NOTE: At least one device will not work properly unless the
 	 * BULK IN pipe is open all the time. This might have to do
@@ -5450,6 +5728,170 @@ umidi_detach(device_t dev)
 	mtx_destroy(&chan->mtx);
 
 	return (0);
+}
+
+static void
+uaudio_hid_rx_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct uaudio_softc *sc = usbd_xfer_softc(xfer);
+	const uint8_t *buffer = usbd_xfer_get_frame_buffer(xfer, 0);
+	struct snd_mixer *m;
+	uint8_t id;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+		DPRINTF("actlen=%d\n", actlen);
+
+		if (actlen != 0 &&
+		    (sc->sc_hid.flags & UAUDIO_HID_HAS_ID)) {
+			id = *buffer;
+			buffer++;
+			actlen--;
+		} else {
+			id = 0;
+		}
+
+		m = sc->sc_mixer_dev;
+
+		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_MUTE) &&
+		    (sc->sc_hid.mute_id == id) &&
+		    hid_get_data(buffer, actlen,
+		    &sc->sc_hid.mute_loc)) {
+
+			DPRINTF("Mute toggle\n");
+
+			mixer_hwvol_mute_locked(m);
+		}
+
+		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_UP) &&
+		    (sc->sc_hid.volume_up_id == id) &&
+		    hid_get_data(buffer, actlen,
+		    &sc->sc_hid.volume_up_loc)) {
+
+			DPRINTF("Volume Up\n");
+
+			mixer_hwvol_step_locked(m, 1, 1);
+		}
+
+		if ((sc->sc_hid.flags & UAUDIO_HID_HAS_VOLUME_DOWN) &&
+		    (sc->sc_hid.volume_down_id == id) &&
+		    hid_get_data(buffer, actlen,
+		    &sc->sc_hid.volume_down_loc)) {
+
+			DPRINTF("Volume Down\n");
+
+			mixer_hwvol_step_locked(m, -1, -1);
+		}
+
+	case USB_ST_SETUP:
+tr_setup:
+		/* check if we can put more data into the FIFO */
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
+		break;
+
+	default:			/* Error */
+
+		DPRINTF("error=%s\n", usbd_errstr(error));
+
+		if (error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			usbd_xfer_set_stall(xfer);
+			goto tr_setup;
+		}
+		break;
+	}
+}
+
+static int
+uaudio_hid_probe(struct uaudio_softc *sc,
+    struct usb_attach_arg *uaa)
+{
+	void *d_ptr;
+	uint32_t flags;
+	uint16_t d_len;
+	uint8_t id;
+	int error;
+
+	if (!(sc->sc_hid.flags & UAUDIO_HID_VALID))
+		return (-1);
+
+	if (sc->sc_mixer_lock == NULL)
+		return (-1);
+
+	/* Get HID descriptor */
+	error = usbd_req_get_hid_desc(uaa->device, NULL, &d_ptr,
+	    &d_len, M_TEMP, sc->sc_hid.iface_index);
+
+	if (error) {
+		DPRINTF("error reading report description\n");
+		return (-1);
+	}
+
+	/* check if there is an ID byte */
+	hid_report_size(d_ptr, d_len, hid_input, &id);
+
+	if (id != 0)
+		sc->sc_hid.flags |= UAUDIO_HID_HAS_ID;
+
+	if (hid_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_CONSUMER, 0xE9 /* Volume Increment */),
+	    hid_input, 0, &sc->sc_hid.volume_up_loc, &flags,
+	    &sc->sc_hid.volume_up_id)) {
+		if (flags & HIO_VARIABLE)
+			sc->sc_hid.flags |= UAUDIO_HID_HAS_VOLUME_UP;
+		DPRINTFN(1, "Found Volume Up key\n");
+	}
+
+	if (hid_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_CONSUMER, 0xEA /* Volume Decrement */),
+	    hid_input, 0, &sc->sc_hid.volume_down_loc, &flags,
+	    &sc->sc_hid.volume_down_id)) {
+		if (flags & HIO_VARIABLE)
+			sc->sc_hid.flags |= UAUDIO_HID_HAS_VOLUME_DOWN;
+		DPRINTFN(1, "Found Volume Down key\n");
+	}
+
+	if (hid_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_CONSUMER, 0xE2 /* Mute */),
+	    hid_input, 0, &sc->sc_hid.mute_loc, &flags,
+	    &sc->sc_hid.mute_id)) {
+		if (flags & HIO_VARIABLE)
+			sc->sc_hid.flags |= UAUDIO_HID_HAS_MUTE;
+		DPRINTFN(1, "Found Mute key\n");
+	}
+
+	free(d_ptr, M_TEMP);
+
+	if (!(sc->sc_hid.flags & (UAUDIO_HID_HAS_VOLUME_UP |
+	    UAUDIO_HID_HAS_VOLUME_DOWN |
+	    UAUDIO_HID_HAS_MUTE))) {
+		DPRINTFN(1, "Did not find any volume related keys\n");
+		return (-1);
+	}
+
+	/* prevent the uhid driver from attaching */
+	usbd_set_parent_iface(uaa->device, sc->sc_hid.iface_index,
+	    sc->sc_mixer_iface_index);
+
+	/* allocate USB transfers */
+	error = usbd_transfer_setup(uaa->device, &sc->sc_hid.iface_index,
+	    sc->sc_hid.xfer, uaudio_hid_config, UAUDIO_HID_N_TRANSFER,
+	    sc, sc->sc_mixer_lock);
+	if (error) {
+		DPRINTF("error=%s\n", usbd_errstr(error));
+		return (-1);
+	}
+	return (0);
+}
+
+static void
+uaudio_hid_detach(struct uaudio_softc *sc)
+{
+	usbd_transfer_unsetup(sc->sc_hid.xfer, UAUDIO_HID_N_TRANSFER);
 }
 
 DRIVER_MODULE(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0);

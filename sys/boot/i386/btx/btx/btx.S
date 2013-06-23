@@ -248,7 +248,7 @@ exit:		cli				# Disable interrupts
 /*
  * Restore the GDT in case we caught a kernel trap.
  */
-		lgdt gdtdesc	 		# Set GDT
+		lgdt %cs:gdtdesc		# Set GDT
 /*
  * To 16 bits.
  */

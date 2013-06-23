@@ -146,7 +146,7 @@ iic_dp_aux_xfer(device_t idev, struct iic_msg *msgs, uint32_t num)
 		len = msgs[m].len;
 		buf = msgs[m].buf;
 		reading = (msgs[m].flags & IIC_M_RD) != 0;
-		ret = iic_dp_aux_address(idev, msgs[m].slave, reading);
+		ret = iic_dp_aux_address(idev, msgs[m].slave >> 1, reading);
 		if (ret != 0)
 			break;
 		if (reading) {

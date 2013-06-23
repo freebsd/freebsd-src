@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -349,27 +349,33 @@ AcpiDmValidateFadtLength (
     switch (Revision)
     {
     case 0:
+
         AcpiOsPrintf ("// ACPI Warning: Invalid FADT revision: 0\n");
         return;
 
     case 1:
+
         ExpectedLength = ACPI_FADT_V1_SIZE;
         break;
 
     case 2:
+
         ExpectedLength = ACPI_FADT_V2_SIZE;
         break;
 
     case 3:
     case 4:
+
         ExpectedLength = ACPI_FADT_V3_SIZE;
         break;
 
     case 5:
+
         ExpectedLength = ACPI_FADT_V5_SIZE;
         break;
 
     default:
+
         return;
     }
 
@@ -434,10 +440,12 @@ AcpiDmDumpAsf (
         switch (Type)
         {
         case ACPI_ASF_TYPE_INFO:
+
             InfoTable = AcpiDmTableInfoAsf0;
             break;
 
         case ACPI_ASF_TYPE_ALERT:
+
             InfoTable = AcpiDmTableInfoAsf1;
             DataInfoTable = AcpiDmTableInfoAsf1a;
             DataTable = ACPI_ADD_PTR (UINT8, SubTable, sizeof (ACPI_ASF_ALERT));
@@ -447,6 +455,7 @@ AcpiDmDumpAsf (
             break;
 
         case ACPI_ASF_TYPE_CONTROL:
+
             InfoTable = AcpiDmTableInfoAsf2;
             DataInfoTable = AcpiDmTableInfoAsf2a;
             DataTable = ACPI_ADD_PTR (UINT8, SubTable, sizeof (ACPI_ASF_REMOTE));
@@ -456,10 +465,12 @@ AcpiDmDumpAsf (
             break;
 
         case ACPI_ASF_TYPE_BOOT:
+
             InfoTable = AcpiDmTableInfoAsf3;
             break;
 
         case ACPI_ASF_TYPE_ADDRESS:
+
             InfoTable = AcpiDmTableInfoAsf4;
             DataTable = ACPI_ADD_PTR (UINT8, SubTable, sizeof (ACPI_ASF_ADDRESS));
             DataLength = ACPI_CAST_PTR (ACPI_ASF_ADDRESS, SubTable)->Devices;
@@ -467,6 +478,7 @@ AcpiDmDumpAsf (
             break;
 
         default:
+
             AcpiOsPrintf ("\n**** Unknown ASF sub-table type 0x%X\n", SubTable->Header.Type);
             return;
         }
@@ -523,6 +535,7 @@ AcpiDmDumpAsf (
             break;
 
         default:
+
             break;
         }
 
@@ -614,6 +627,7 @@ AcpiDmDumpCsrt (
 {
     ACPI_STATUS             Status;
     ACPI_CSRT_GROUP         *SubTable;
+    ACPI_CSRT_SHARED_INFO   *SharedInfoTable;
     ACPI_CSRT_DESCRIPTOR    *SubSubTable;
     UINT32                  Length = Table->Length;
     UINT32                  Offset = sizeof (ACPI_TABLE_CSRT);
@@ -629,6 +643,8 @@ AcpiDmDumpCsrt (
     SubTable = ACPI_ADD_PTR (ACPI_CSRT_GROUP, Table, Offset);
     while (Offset < Table->Length)
     {
+        /* Resource group subtable */
+
         AcpiOsPrintf ("\n");
         Status = AcpiDmDumpTable (Length, Offset, SubTable,
                     SubTable->Length, AcpiDmTableInfoCsrt0);
@@ -637,15 +653,23 @@ AcpiDmDumpCsrt (
             return;
         }
 
+        /* Shared info subtable (One per resource group) */
+
         SubOffset = sizeof (ACPI_CSRT_GROUP);
+        SharedInfoTable = ACPI_ADD_PTR (ACPI_CSRT_SHARED_INFO, Table,
+            Offset + SubOffset);
 
-        /* Shared resource group info buffer */
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset + SubOffset, SharedInfoTable,
+                    sizeof (ACPI_CSRT_SHARED_INFO), AcpiDmTableInfoCsrt1);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
 
-        AcpiDmDumpBuffer (SubTable, SubOffset, SubTable->InfoLength,
-            Offset+SubOffset, "Shared Data");
-        SubOffset += SubTable->InfoLength;
+        SubOffset += SubTable->SharedInfoLength;
 
-        /* Sub-Sub-tables (Resource Descriptors) */
+        /* Sub-Subtables (Resource Descriptors) */
 
         SubSubTable = ACPI_ADD_PTR (ACPI_CSRT_DESCRIPTOR, Table,
             Offset + SubOffset);
@@ -655,7 +679,7 @@ AcpiDmDumpCsrt (
         {
             AcpiOsPrintf ("\n");
             Status = AcpiDmDumpTable (Length, Offset + SubOffset, SubSubTable,
-                        SubSubTable->Length, AcpiDmTableInfoCsrt1);
+                        SubSubTable->Length, AcpiDmTableInfoCsrt2);
             if (ACPI_FAILURE (Status))
             {
                 return;
@@ -671,7 +695,7 @@ AcpiDmDumpCsrt (
                 Offset + SubOffset + SubSubOffset, "ResourceInfo");
             SubSubOffset += InfoLength;
 
-            /* Point to next sub-sub-table */
+            /* Point to next sub-subtable */
 
             SubOffset += SubSubTable->Length;
             SubSubTable = ACPI_ADD_PTR (ACPI_CSRT_DESCRIPTOR, SubSubTable,
@@ -852,22 +876,31 @@ AcpiDmDumpDmar (
         switch (SubTable->Type)
         {
         case ACPI_DMAR_TYPE_HARDWARE_UNIT:
+
             InfoTable = AcpiDmTableInfoDmar0;
             ScopeOffset = sizeof (ACPI_DMAR_HARDWARE_UNIT);
             break;
+
         case ACPI_DMAR_TYPE_RESERVED_MEMORY:
+
             InfoTable = AcpiDmTableInfoDmar1;
             ScopeOffset = sizeof (ACPI_DMAR_RESERVED_MEMORY);
             break;
+
         case ACPI_DMAR_TYPE_ATSR:
+
             InfoTable = AcpiDmTableInfoDmar2;
             ScopeOffset = sizeof (ACPI_DMAR_ATSR);
             break;
+
         case ACPI_DMAR_HARDWARE_AFFINITY:
+
             InfoTable = AcpiDmTableInfoDmar3;
             ScopeOffset = sizeof (ACPI_DMAR_RHSA);
             break;
+
         default:
+
             AcpiOsPrintf ("\n**** Unknown DMAR sub-table type 0x%X\n\n", SubTable->Type);
             return;
         }
@@ -1075,12 +1108,17 @@ AcpiDmDumpFpdt (
         switch (SubTable->Type)
         {
         case ACPI_FPDT_TYPE_BOOT:
+
             InfoTable = AcpiDmTableInfoFpdt0;
             break;
+
         case ACPI_FPDT_TYPE_S3PERF:
+
             InfoTable = AcpiDmTableInfoFpdt1;
             break;
+
         default:
+
             AcpiOsPrintf ("\n**** Unknown FPDT sub-table type 0x%X\n\n", SubTable->Type);
 
             /* Attempt to continue */
@@ -1153,6 +1191,7 @@ AcpiDmDumpHest (
         switch (SubTable->Type)
         {
         case ACPI_HEST_TYPE_IA32_CHECK:
+
             InfoTable = AcpiDmTableInfoHest0;
             SubTableLength = sizeof (ACPI_HEST_IA_MACHINE_CHECK);
             BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_MACHINE_CHECK,
@@ -1160,6 +1199,7 @@ AcpiDmDumpHest (
             break;
 
         case ACPI_HEST_TYPE_IA32_CORRECTED_CHECK:
+
             InfoTable = AcpiDmTableInfoHest1;
             SubTableLength = sizeof (ACPI_HEST_IA_CORRECTED);
             BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_CORRECTED,
@@ -1167,31 +1207,37 @@ AcpiDmDumpHest (
             break;
 
         case ACPI_HEST_TYPE_IA32_NMI:
+
             InfoTable = AcpiDmTableInfoHest2;
             SubTableLength = sizeof (ACPI_HEST_IA_NMI);
             break;
 
         case ACPI_HEST_TYPE_AER_ROOT_PORT:
+
             InfoTable = AcpiDmTableInfoHest6;
             SubTableLength = sizeof (ACPI_HEST_AER_ROOT);
             break;
 
         case ACPI_HEST_TYPE_AER_ENDPOINT:
+
             InfoTable = AcpiDmTableInfoHest7;
             SubTableLength = sizeof (ACPI_HEST_AER);
             break;
 
         case ACPI_HEST_TYPE_AER_BRIDGE:
+
             InfoTable = AcpiDmTableInfoHest8;
             SubTableLength = sizeof (ACPI_HEST_AER_BRIDGE);
             break;
 
         case ACPI_HEST_TYPE_GENERIC_ERROR:
+
             InfoTable = AcpiDmTableInfoHest9;
             SubTableLength = sizeof (ACPI_HEST_GENERIC);
             break;
 
         default:
+
             /* Cannot continue on unknown type - no length */
 
             AcpiOsPrintf ("\n**** Unknown HEST sub-table type 0x%X\n", SubTable->Type);
@@ -1293,14 +1339,19 @@ AcpiDmDumpIvrs (
         switch (SubTable->Type)
         {
         case ACPI_IVRS_TYPE_HARDWARE:
+
             InfoTable = AcpiDmTableInfoIvrs0;
             break;
+
         case ACPI_IVRS_TYPE_MEMORY1:
         case ACPI_IVRS_TYPE_MEMORY2:
         case ACPI_IVRS_TYPE_MEMORY3:
+
             InfoTable = AcpiDmTableInfoIvrs1;
             break;
+
         default:
+
             AcpiOsPrintf ("\n**** Unknown IVRS sub-table type 0x%X\n",
                 SubTable->Type);
 
@@ -1462,45 +1513,72 @@ AcpiDmDumpMadt (
         switch (SubTable->Type)
         {
         case ACPI_MADT_TYPE_LOCAL_APIC:
+
             InfoTable = AcpiDmTableInfoMadt0;
             break;
+
         case ACPI_MADT_TYPE_IO_APIC:
+
             InfoTable = AcpiDmTableInfoMadt1;
             break;
+
         case ACPI_MADT_TYPE_INTERRUPT_OVERRIDE:
+
             InfoTable = AcpiDmTableInfoMadt2;
             break;
+
         case ACPI_MADT_TYPE_NMI_SOURCE:
+
             InfoTable = AcpiDmTableInfoMadt3;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_APIC_NMI:
+
             InfoTable = AcpiDmTableInfoMadt4;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE:
+
             InfoTable = AcpiDmTableInfoMadt5;
             break;
+
         case ACPI_MADT_TYPE_IO_SAPIC:
+
             InfoTable = AcpiDmTableInfoMadt6;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_SAPIC:
+
             InfoTable = AcpiDmTableInfoMadt7;
             break;
+
         case ACPI_MADT_TYPE_INTERRUPT_SOURCE:
+
             InfoTable = AcpiDmTableInfoMadt8;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_X2APIC:
+
             InfoTable = AcpiDmTableInfoMadt9;
             break;
+
         case ACPI_MADT_TYPE_LOCAL_X2APIC_NMI:
+
             InfoTable = AcpiDmTableInfoMadt10;
             break;
+
         case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
+
             InfoTable = AcpiDmTableInfoMadt11;
             break;
+
         case ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR:
+
             InfoTable = AcpiDmTableInfoMadt12;
             break;
+
         default:
+
             AcpiOsPrintf ("\n**** Unknown MADT sub-table type 0x%X\n\n", SubTable->Type);
 
             /* Attempt to continue */
@@ -1779,6 +1857,58 @@ AcpiDmDumpMsct (
 
         Offset += sizeof (ACPI_MSCT_PROXIMITY);
         SubTable = ACPI_ADD_PTR (ACPI_MSCT_PROXIMITY, SubTable, sizeof (ACPI_MSCT_PROXIMITY));
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpMtmr
+ *
+ * PARAMETERS:  Table               - A MTMR table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a MTMR
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpMtmr (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Offset = sizeof (ACPI_TABLE_MTMR);
+    ACPI_MTMR_ENTRY         *SubTable;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoMtmr);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Sub-tables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_MTMR_ENTRY, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        /* Common sub-table header */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    sizeof (ACPI_MTMR_ENTRY), AcpiDmTableInfoMtmr0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next sub-table */
+
+        Offset += sizeof (ACPI_MTMR_ENTRY);
+        SubTable = ACPI_ADD_PTR (ACPI_MTMR_ENTRY, SubTable, sizeof (ACPI_MTMR_ENTRY));
     }
 }
 
@@ -2089,12 +2219,17 @@ AcpiDmDumpS3pt (
         switch (SubTable->Type)
         {
         case ACPI_S3PT_TYPE_RESUME:
+
             InfoTable = AcpiDmTableInfoS3pt0;
             break;
+
         case ACPI_S3PT_TYPE_SUSPEND:
+
             InfoTable = AcpiDmTableInfoS3pt1;
             break;
+
         default:
+
             AcpiOsPrintf ("\n**** Unknown S3PT sub-table type 0x%X\n", SubTable->Type);
 
             /* Attempt to continue */
@@ -2166,12 +2301,17 @@ AcpiDmDumpSlic (
         switch (SubTable->Type)
         {
         case ACPI_SLIC_TYPE_PUBLIC_KEY:
+
             InfoTable = AcpiDmTableInfoSlic0;
             break;
+
         case ACPI_SLIC_TYPE_WINDOWS_MARKER:
+
             InfoTable = AcpiDmTableInfoSlic1;
             break;
+
         default:
+
             AcpiOsPrintf ("\n**** Unknown SLIC sub-table type 0x%X\n", SubTable->Type);
 
             /* Attempt to continue */
@@ -2327,14 +2467,20 @@ AcpiDmDumpSrat (
         switch (SubTable->Type)
         {
         case ACPI_SRAT_TYPE_CPU_AFFINITY:
+
             InfoTable = AcpiDmTableInfoSrat0;
             break;
+
         case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
+
             InfoTable = AcpiDmTableInfoSrat1;
             break;
+
         case ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY:
+
             InfoTable = AcpiDmTableInfoSrat2;
             break;
+
         default:
             AcpiOsPrintf ("\n**** Unknown SRAT sub-table type 0x%X\n", SubTable->Type);
 
@@ -2361,6 +2507,58 @@ NextSubTable:
 
         Offset += SubTable->Length;
         SubTable = ACPI_ADD_PTR (ACPI_SUBTABLE_HEADER, SubTable, SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpVrtc
+ *
+ * PARAMETERS:  Table               - A VRTC table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a VRTC
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpVrtc (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Offset = sizeof (ACPI_TABLE_VRTC);
+    ACPI_VRTC_ENTRY         *SubTable;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoVrtc);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Sub-tables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_VRTC_ENTRY, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        /* Common sub-table header */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    sizeof (ACPI_VRTC_ENTRY), AcpiDmTableInfoVrtc0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to next sub-table */
+
+        Offset += sizeof (ACPI_VRTC_ENTRY);
+        SubTable = ACPI_ADD_PTR (ACPI_VRTC_ENTRY, SubTable, sizeof (ACPI_VRTC_ENTRY));
     }
 }
 

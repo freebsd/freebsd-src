@@ -59,8 +59,8 @@ struct listen_ctx;
 
 struct stid_region {
 	TAILQ_ENTRY(stid_region) link;
-	int used;	/* # of stids used by this region */
-	int free;	/* # of contiguous stids free right after this region */
+	u_int used;	/* # of stids used by this region */
+	u_int free;	/* # of contiguous stids free right after this region */
 };
 
 /*
@@ -104,8 +104,8 @@ struct tid_info {
 };
 
 struct t4_range {
-	unsigned int start;
-	unsigned int size;
+	u_int start;
+	u_int size;
 };
 
 struct t4_virt_res {                      /* virtualized HW resources */
@@ -117,6 +117,7 @@ struct t4_virt_res {                      /* virtualized HW resources */
 	struct t4_range qp;
 	struct t4_range cq;
 	struct t4_range ocq;
+	struct t4_range l2t;
 };
 
 #ifdef TCP_OFFLOAD

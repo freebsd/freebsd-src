@@ -32,10 +32,6 @@
 #ifndef	_BCEREG_H_DEFINED
 #define _BCEREG_H_DEFINED
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
@@ -622,7 +618,7 @@ struct bce_type {
 	u_int16_t bce_did;
 	u_int16_t bce_svid;
 	u_int16_t bce_sdid;
-	char      *bce_name;
+	const char *bce_name;
 };
 
 /****************************************************************************/
@@ -716,7 +712,7 @@ struct flash_spec {
 	u32 page_size;
 	u32 addr_mask;
 	u32 total_size;
-	u8  *name;
+	const u8 *name;
 };
 
 
@@ -6318,31 +6314,31 @@ struct fw_info {
 	u32 text_addr;
 	u32 text_len;
 	u32 text_index;
-	u32 *text;
+	const u32 *text;
 
 	/* Data section. */
 	u32 data_addr;
 	u32 data_len;
 	u32 data_index;
-	u32 *data;
+	const u32 *data;
 
 	/* SBSS section. */
 	u32 sbss_addr;
 	u32 sbss_len;
 	u32 sbss_index;
-	u32 *sbss;
+	const u32 *sbss;
 
 	/* BSS section. */
 	u32 bss_addr;
 	u32 bss_len;
 	u32 bss_index;
-	u32 *bss;
+	const u32 *bss;
 
 	/* Read-only section. */
 	u32 rodata_addr;
 	u32 rodata_len;
 	u32 rodata_index;
-	u32 *rodata;
+	const u32 *rodata;
 };
 
 #define RV2P_PROC1		0
@@ -6421,7 +6417,9 @@ struct fw_info {
 
 struct bce_softc
 {
-	/* Interface info.  Must be first!! */
+	struct mtx		bce_mtx;
+
+	/* Interface info */
 	struct ifnet		*bce_ifp;
 
 	/* Parent device handle */
@@ -6448,13 +6446,8 @@ struct bce_softc
 	/* IRQ Resource Handle */
 	struct resource		*bce_res_irq;
 
-	struct mtx		bce_mtx;
-
 	/* Interrupt handler. */
-	driver_intr_t		*bce_intr;
 	void			*bce_intrhand;
-	int			bce_irq_rid;
-	int			bce_msi_count;
 
 	/* ASIC Chip ID. */
 	u32			bce_chipid;
@@ -6509,7 +6502,7 @@ struct bce_softc
 	u16			link_speed;
 
 	/* Flash NVRAM settings */
-	struct flash_spec	*bce_flash_info;
+	const struct flash_spec	*bce_flash_info;
 
 	/* Flash NVRAM size */
 	u32			bce_flash_size;
@@ -6518,7 +6511,7 @@ struct bce_softc
 	u32			bce_shmem_base;
 
 	/* Name string */
-	char			*bce_name;
+	const char		*bce_name;
 
 	/* Tracks the version of bootcode firmware. */
 	char			bce_bc_ver[32];
@@ -6566,14 +6559,6 @@ struct bce_softc
 	u16			bce_rx_ticks;
 	u32			bce_stats_ticks;
 
-	/* ToDo: Can these be removed? */
-	u16			bce_comp_prod_trip_int;
-	u16			bce_comp_prod_trip;
-	u16			bce_com_ticks_int;
-	u16			bce_com_ticks;
-	u16			bce_cmd_ticks_int;
-	u16			bce_cmd_ticks;
-
 	/* The address of the integrated PHY on the MII bus. */
 	int			bce_phy_addr;
 
@@ -6606,11 +6591,9 @@ struct bce_softc
 	int			watchdog_timer;
 
 	/* Frame size and mbuf allocation size for RX frames. */
-	u32			max_frame_size;
 	int			rx_bd_mbuf_alloc_size;
 	int			rx_bd_mbuf_data_len;
 	int			rx_bd_mbuf_align_pad;
-	int			pg_bd_mbuf_alloc_size;
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
 	u32			rx_mode;
@@ -6834,4 +6817,3 @@ struct bce_softc
 };
 
 #endif /* __BCEREG_H_DEFINED */
-

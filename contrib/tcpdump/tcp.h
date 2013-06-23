@@ -105,7 +105,7 @@ struct tcphdr {
 #define NFS_PORT	        2049
 #endif
 #define MSDP_PORT	        639
-#define RPKI_RTR_PORT	        2222 /* experimental up until sidr-wg registers a well-known port */
+#define RPKI_RTR_PORT	        323
 #define LDP_PORT                646
 #ifndef SMB_PORT
 #define SMB_PORT                445

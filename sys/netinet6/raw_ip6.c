@@ -160,7 +160,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *opts = NULL;
 	struct sockaddr_in6 fromsa;
 
-	V_rip6stat.rip6s_ipackets++;
+	RIP6STAT_INC(rip6s_ipackets);
 
 	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
 		/* XXX Send icmp6 host/port unreach? */
@@ -197,16 +197,16 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			    &ip6->ip6_dst) != 0)
 				continue;
 		}
+		INP_RLOCK(in6p);
 		if (in6p->in6p_cksum != -1) {
-			V_rip6stat.rip6s_isum++;
+			RIP6STAT_INC(rip6s_isum);
 			if (in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				INP_RUNLOCK(in6p);
-				V_rip6stat.rip6s_badsum++;
+				RIP6STAT_INC(rip6s_badsum);
 				continue;
 			}
 		}
-		INP_RLOCK(in6p);
 		/*
 		 * If this raw socket has multicast state, and we
 		 * have received a multicast, check if this socket
@@ -263,7 +263,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			if (n && ipsec6_in_reject(n, last)) {
 				m_freem(n);
-				V_ipsec6stat.in_polvio++;
+				IPSEC6STAT_INC(in_polvio);
 				/* Do not inject data into pcb. */
 			} else
 #endif /* IPSEC */
@@ -279,7 +279,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 					m_freem(n);
 					if (opts)
 						m_freem(opts);
-					V_rip6stat.rip6s_fullsock++;
+					RIP6STAT_INC(rip6s_fullsock);
 				} else
 					sorwakeup(last->inp_socket);
 				opts = NULL;
@@ -295,8 +295,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	if ((last != NULL) && ipsec6_in_reject(m, last)) {
 		m_freem(m);
-		V_ipsec6stat.in_polvio++;
-		V_ip6stat.ip6s_delivered--;
+		IPSEC6STAT_INC(in_polvio);
+		IP6STAT_DEC(ip6s_delivered);
 		/* Do not inject data into pcb. */
 		INP_RUNLOCK(last);
 	} else
@@ -312,14 +312,14 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
-			V_rip6stat.rip6s_fullsock++;
+			RIP6STAT_INC(rip6s_fullsock);
 		} else
 			sorwakeup(last->inp_socket);
 		INP_RUNLOCK(last);
 	} else {
-		V_rip6stat.rip6s_nosock++;
+		RIP6STAT_INC(rip6s_nosock);
 		if (m->m_flags & M_MCAST)
-			V_rip6stat.rip6s_nosockmcast++;
+			RIP6STAT_INC(rip6s_nosockmcast);
 		if (proto == IPPROTO_NONE)
 			m_freem(m);
 		else {
@@ -328,7 +328,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			    ICMP6_PARAMPROB_NEXTHEADER,
 			    prvnxtp - mtod(m, char *));
 		}
-		V_ip6stat.ip6s_delivered--;
+		IP6STAT_DEC(ip6s_delivered);
 	}
 	return (IPPROTO_DONE);
 }
@@ -559,7 +559,7 @@ rip6_output(m, va_alist)
 			icmp6_ifoutstat_inc(oifp, type, code);
 		ICMP6STAT_INC(icp6s_outhist[type]);
 	} else
-		V_rip6stat.rip6s_opackets++;
+		RIP6STAT_INC(rip6s_opackets);
 
 	goto freectl;
 

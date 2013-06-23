@@ -23,6 +23,9 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+ */
 
 #ifndef _SYS_ZIO_COMPRESS_H
 #define	_SYS_ZIO_COMPRESS_H
@@ -33,11 +36,10 @@
 extern "C" {
 #endif
 
-/*
- * Common signature for all zio compress/decompress functions.
- */
+/* Common signature for all zio compress functions. */
 typedef size_t zio_compress_func_t(void *src, void *dst,
     size_t s_len, size_t d_len, int);
+/* Common signature for all zio decompress functions. */
 typedef int zio_decompress_func_t(void *src, void *dst,
     size_t s_len, size_t d_len, int);
 
@@ -67,6 +69,10 @@ extern int gzip_decompress(void *src, void *dst, size_t s_len, size_t d_len,
 extern size_t zle_compress(void *src, void *dst, size_t s_len, size_t d_len,
     int level);
 extern int zle_decompress(void *src, void *dst, size_t s_len, size_t d_len,
+    int level);
+extern size_t lz4_compress(void *src, void *dst, size_t s_len, size_t d_len,
+    int level);
+extern int lz4_decompress(void *src, void *dst, size_t s_len, size_t d_len,
     int level);
 
 /*

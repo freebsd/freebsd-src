@@ -143,30 +143,24 @@ am335x_dmtimer_tc_get_timecount(struct timecounter *tc)
 }
 
 static int
-am335x_dmtimer_start(struct eventtimer *et, struct bintime *first,
-              struct bintime *period)
+am335x_dmtimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct am335x_dmtimer *tmr = (struct am335x_dmtimer *)et->et_priv;
 	uint32_t load, count;
 	uint32_t tclr = 0;
 
-	if (period != NULL) {
-		load = (et->et_frequency * (period->frac >> 32)) >> 32;
-		if (period->sec > 0)
-			load += et->et_frequency * period->sec;
+	if (period != 0) {
+		load = ((uint32_t)et->et_frequency * period) >> 32;
 		tclr |= 2; /* autoreload bit */
 		panic("periodic timer not implemented\n");
 	} else {
 		load = 0;
 	}
 
-	if (first != NULL) {
-		count = (tmr->et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			count += tmr->et.et_frequency * first->sec;
-	} else {
+	if (first != 0)
+		count = ((uint32_t)et->et_frequency * first) >> 32;
+	else
 		count = load;
-	}
 
 	/* Reset Timer */
 	am335x_dmtimer_et_write_4(DMTIMER_TSICR, 2);
@@ -316,12 +310,10 @@ am335x_dmtimer_attach(device_t dev)
 	sc->t[3].et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
 	sc->t[3].et.et_quality = 1000;
 	sc->t[3].et.et_frequency = sc->sysclk_freq;
-	sc->t[3].et.et_min_period.sec = 0;
-	sc->t[3].et.et_min_period.frac =
-	    ((0x00000002LLU << 32) / sc->t[3].et.et_frequency) << 32;
-	sc->t[3].et.et_max_period.sec = 0xfffffff0U / sc->t[3].et.et_frequency;
-	sc->t[3].et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->t[3].et.et_frequency) << 32;
+	sc->t[3].et.et_min_period =
+	    (0x00000002LLU << 32) / sc->t[3].et.et_frequency;
+	sc->t[3].et.et_max_period =
+	    (0xfffffffeLLU << 32) / sc->t[3].et.et_frequency;
 	sc->t[3].et.et_start = am335x_dmtimer_start;
 	sc->t[3].et.et_stop = am335x_dmtimer_stop;
 	sc->t[3].et.et_priv = &sc->t[3];

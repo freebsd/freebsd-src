@@ -279,7 +279,8 @@ typedef struct {
 			halAntDivCombSupport		: 1,
 			halAntDivCombSupportOrg		: 1,
 			halRadioRetentionSupport	: 1,
-			halSpectralScanSupport		: 1;
+			halSpectralScanSupport		: 1,
+			halRxUsingLnaMixing		: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
@@ -392,6 +393,7 @@ struct ath_hal_private {
 	int16_t		ah_powerLimit;		/* tx power cap */
 	uint16_t	ah_maxPowerLevel;	/* calculated max tx power */
 	u_int		ah_tpScale;		/* tx power scale factor */
+	u_int16_t	ah_extraTxPow;		/* low rates extra-txpower */
 	uint32_t	ah_11nCompat;		/* 11n compat controls */
 
 	/*

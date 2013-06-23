@@ -82,6 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
@@ -115,8 +116,10 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
+	${_libvmmapi} \
 	libwrap \
 	liby \
+	libyaml \
 	libz \
 	${_atf} \
 	${_bind} \
@@ -176,6 +179,15 @@ _libiconv_modules=	libiconv_modules
 _libipx=	libipx
 .endif
 
+.if ${MK_LDNS} != "no"
+_libldns=	libldns
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
+.endif
+
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
 .endif
@@ -198,6 +210,10 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64"
+_libvmmapi=	libvmmapi
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
 .endif
@@ -214,11 +230,6 @@ _librtld_db=	librtld_db
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
-.endif
-
-.if ${MK_LIBCPLUSPLUS} != "no"
-_libcxxrt=	libcxxrt
-_libcplusplus=	libc++
 .endif
 
 .if ${MK_PMC} != "no"
@@ -239,6 +250,11 @@ _libtelnet=	libtelnet
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 _libusb=	libusb
+.endif
+
+.if !defined(LIBRARIES_ONLY)
+afterinstall:
+	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
 .endif
 
 .include <bsd.subdir.mk>

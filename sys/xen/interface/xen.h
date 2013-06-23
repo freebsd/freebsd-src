@@ -33,6 +33,8 @@
 #include "arch-x86/xen.h"
 #elif defined(__ia64__)
 #include "arch-ia64.h"
+#elif defined(__arm__)
+#include "arch-arm.h"
 #else
 #error "Unsupported architecture"
 #endif
@@ -47,11 +49,16 @@ DEFINE_XEN_GUEST_HANDLE(long);
 __DEFINE_XEN_GUEST_HANDLE(ulong, unsigned long);
 DEFINE_XEN_GUEST_HANDLE(void);
 
+DEFINE_XEN_GUEST_HANDLE(uint64_t);
 DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #endif
 
 /*
  * HYPERCALLS
+ */
+
+/* `incontents 100 hcalls List of hypercalls
+ * ` enum hypercall_num { // __HYPERVISOR_* => HYPERVISOR_*()
  */
 
 #define __HYPERVISOR_set_trap_table        0
@@ -91,6 +98,8 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #define __HYPERVISOR_sysctl               35
 #define __HYPERVISOR_domctl               36
 #define __HYPERVISOR_kexec_op             37
+#define __HYPERVISOR_tmem_op              38
+#define __HYPERVISOR_xc_reserved_op       39 /* reserved for XenClient */
 
 /* Architecture-specific hypercall definitions. */
 #define __HYPERVISOR_arch_0               48
@@ -101,6 +110,8 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #define __HYPERVISOR_arch_5               53
 #define __HYPERVISOR_arch_6               54
 #define __HYPERVISOR_arch_7               55
+
+/* ` } */
 
 /*
  * HYPERCALL COMPATIBILITY.
@@ -135,6 +146,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
  * The latter can be allocated only once per guest: they must initially be
  * allocated to VCPU0 but can subsequently be re-bound.
  */
+/* ` enum virq { */
 #define VIRQ_TIMER      0  /* V. Timebase update, and/or requested timeout.  */
 #define VIRQ_DEBUG      1  /* V. Request guest to dump debug info.           */
 #define VIRQ_CONSOLE    2  /* G. (DOM0) Bytes received on emergency console. */
@@ -143,6 +155,10 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #define VIRQ_DEBUGGER   6  /* G. (DOM0) A domain has paused for debugging.   */
 #define VIRQ_XENOPROF   7  /* V. XenOprofile interrupt: new sample available */
 #define VIRQ_CON_RING   8  /* G. (DOM0) Bytes received on console            */
+#define VIRQ_PCPU_STATE 9  /* G. (DOM0) PCPU state changed                   */
+#define VIRQ_MEM_EVENT  10 /* G. (DOM0) A memory event has occured           */
+#define VIRQ_XC_RESERVED 11 /* G. Reserved for XenClient                     */
+#define VIRQ_ENOMEM     12 /* G. (DOM0) Low on heap memory       */
 
 /* Architecture-specific VIRQ definitions. */
 #define VIRQ_ARCH_0    16
@@ -153,26 +169,72 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #define VIRQ_ARCH_5    21
 #define VIRQ_ARCH_6    22
 #define VIRQ_ARCH_7    23
+/* ` } */
 
 #define NR_VIRQS       24
 
 /*
- * MMU-UPDATE REQUESTS
+ * ` enum neg_errnoval
+ * ` HYPERVISOR_mmu_update(const struct mmu_update reqs[],
+ * `                       unsigned count, unsigned *done_out,
+ * `                       unsigned foreigndom)
+ * `
+ * @reqs is an array of mmu_update_t structures ((ptr, val) pairs).
+ * @count is the length of the above array.
+ * @pdone is an output parameter indicating number of completed operations
+ * @foreigndom[15:0]: FD, the expected owner of data pages referenced in this
+ *                    hypercall invocation. Can be DOMID_SELF.
+ * @foreigndom[31:16]: PFD, the expected owner of pagetable pages referenced
+ *                     in this hypercall invocation. The value of this field
+ *                     (x) encodes the PFD as follows:
+ *                     x == 0 => PFD == DOMID_SELF
+ *                     x != 0 => PFD == x - 1
  * 
- * HYPERVISOR_mmu_update() accepts a list of (ptr, val) pairs.
- * A foreigndom (FD) can be specified (or DOMID_SELF for none).
- * Where the FD has some effect, it is described below.
- * ptr[1:0] specifies the appropriate MMU_* command.
- * 
+ * Sub-commands: ptr[1:0] specifies the appropriate MMU_* command.
+ * -------------
  * ptr[1:0] == MMU_NORMAL_PT_UPDATE:
- * Updates an entry in a page table. If updating an L1 table, and the new
- * table entry is valid/present, the mapped frame must belong to the FD, if
- * an FD has been specified. If attempting to map an I/O page then the
- * caller assumes the privilege of the FD.
+ * Updates an entry in a page table belonging to PFD. If updating an L1 table,
+ * and the new table entry is valid/present, the mapped frame must belong to
+ * FD. If attempting to map an I/O page then the caller assumes the privilege
+ * of the FD.
  * FD == DOMID_IO: Permit /only/ I/O mappings, at the priv level of the caller.
  * FD == DOMID_XEN: Map restricted areas of Xen's heap space.
  * ptr[:2]  -- Machine address of the page-table entry to modify.
  * val      -- Value to write.
+ *
+ * There also certain implicit requirements when using this hypercall. The
+ * pages that make up a pagetable must be mapped read-only in the guest.
+ * This prevents uncontrolled guest updates to the pagetable. Xen strictly
+ * enforces this, and will disallow any pagetable update which will end up
+ * mapping pagetable page RW, and will disallow using any writable page as a
+ * pagetable. In practice it means that when constructing a page table for a
+ * process, thread, etc, we MUST be very dilligient in following these rules:
+ *  1). Start with top-level page (PGD or in Xen language: L4). Fill out
+ *      the entries.
+ *  2). Keep on going, filling out the upper (PUD or L3), and middle (PMD
+ *      or L2).
+ *  3). Start filling out the PTE table (L1) with the PTE entries. Once
+ *  	done, make sure to set each of those entries to RO (so writeable bit
+ *  	is unset). Once that has been completed, set the PMD (L2) for this
+ *  	PTE table as RO.
+ *  4). When completed with all of the PMD (L2) entries, and all of them have
+ *  	been set to RO, make sure to set RO the PUD (L3). Do the same
+ *  	operation on PGD (L4) pagetable entries that have a PUD (L3) entry.
+ *  5). Now before you can use those pages (so setting the cr3), you MUST also
+ *      pin them so that the hypervisor can verify the entries. This is done
+ *      via the HYPERVISOR_mmuext_op(MMUEXT_PIN_L4_TABLE, guest physical frame
+ *      number of the PGD (L4)). And this point the HYPERVISOR_mmuext_op(
+ *      MMUEXT_NEW_BASEPTR, guest physical frame number of the PGD (L4)) can be
+ *      issued.
+ * For 32-bit guests, the L4 is not used (as there is less pagetables), so
+ * instead use L3.
+ * At this point the pagetables can be modified using the MMU_NORMAL_PT_UPDATE
+ * hypercall. Also if so desired the OS can also try to write to the PTE
+ * and be trapped by the hypervisor (as the PTE entry is RO).
+ *
+ * To deallocate the pages, the operations are the reverse of the steps
+ * mentioned above. The argument is MMUEXT_UNPIN_TABLE for all levels and the
+ * pagetable MUST not be in use (meaning that the cr3 is not set to it).
  * 
  * ptr[1:0] == MMU_MACHPHYS_UPDATE:
  * Updates an entry in the machine->pseudo-physical mapping table.
@@ -183,6 +245,72 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
  * ptr[1:0] == MMU_PT_UPDATE_PRESERVE_AD:
  * As MMU_NORMAL_PT_UPDATE above, but A/D bits currently in the PTE are ORed
  * with those in @val.
+ *
+ * @val is usually the machine frame number along with some attributes.
+ * The attributes by default follow the architecture defined bits. Meaning that
+ * if this is a X86_64 machine and four page table layout is used, the layout
+ * of val is:
+ *  - 63 if set means No execute (NX)
+ *  - 46-13 the machine frame number
+ *  - 12 available for guest
+ *  - 11 available for guest
+ *  - 10 available for guest
+ *  - 9 available for guest
+ *  - 8 global
+ *  - 7 PAT (PSE is disabled, must use hypercall to make 4MB or 2MB pages)
+ *  - 6 dirty
+ *  - 5 accessed
+ *  - 4 page cached disabled
+ *  - 3 page write through
+ *  - 2 userspace accessible
+ *  - 1 writeable
+ *  - 0 present
+ *
+ *  The one bits that does not fit with the default layout is the PAGE_PSE
+ *  also called PAGE_PAT). The MMUEXT_[UN]MARK_SUPER arguments to the
+ *  HYPERVISOR_mmuext_op serve as mechanism to set a pagetable to be 4MB
+ *  (or 2MB) instead of using the PAGE_PSE bit.
+ *
+ *  The reason that the PAGE_PSE (bit 7) is not being utilized is due to Xen
+ *  using it as the Page Attribute Table (PAT) bit - for details on it please
+ *  refer to Intel SDM 10.12. The PAT allows to set the caching attributes of
+ *  pages instead of using MTRRs.
+ *
+ *  The PAT MSR is as follow (it is a 64-bit value, each entry is 8 bits):
+ *             PAT4                 PAT0
+ *   +---+----+----+----+-----+----+----+
+ *    WC | WC | WB | UC | UC- | WC | WB |  <= Linux
+ *   +---+----+----+----+-----+----+----+
+ *    WC | WT | WB | UC | UC- | WT | WB |  <= BIOS (default when machine boots)
+ *   +---+----+----+----+-----+----+----+
+ *    WC | WP | WC | UC | UC- | WT | WB |  <= Xen
+ *   +---+----+----+----+-----+----+----+
+ *
+ *  The lookup of this index table translates to looking up
+ *  Bit 7, Bit 4, and Bit 3 of val entry:
+ *
+ *  PAT/PSE (bit 7) ... PCD (bit 4) .. PWT (bit 3).
+ *
+ *  If all bits are off, then we are using PAT0. If bit 3 turned on,
+ *  then we are using PAT1, if bit 3 and bit 4, then PAT2..
+ *
+ *  As you can see, the Linux PAT1 translates to PAT4 under Xen. Which means
+ *  that if a guest that follows Linux's PAT setup and would like to set Write
+ *  Combined on pages it MUST use PAT4 entry. Meaning that Bit 7 (PAGE_PAT) is
+ *  set. For example, under Linux it only uses PAT0, PAT1, and PAT2 for the
+ *  caching as:
+ *
+ *   WB = none (so PAT0)
+ *   WC = PWT (bit 3 on)
+ *   UC = PWT | PCD (bit 3 and 4 are on).
+ *
+ * To make it work with Xen, it needs to translate the WC bit as so:
+ *
+ *  PWT (so bit 3 on) --> PAT (so bit 7 is on) and clear bit 3
+ *
+ * And to translate back it would:
+ *
+ * PAT (bit 7 on) --> PWT (bit 3 on) and clear bit 7.
  */
 #define MMU_NORMAL_PT_UPDATE      0 /* checked '*ptr = val'. ptr is MA.      */
 #define MMU_MACHPHYS_UPDATE       1 /* ptr = MA of frame to modify entry for */
@@ -227,10 +355,24 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
  * 
  * cmd: MMUEXT_FLUSH_CACHE
  * No additional arguments. Writes back and flushes cache contents.
+ *
+ * cmd: MMUEXT_FLUSH_CACHE_GLOBAL
+ * No additional arguments. Writes back and flushes cache contents
+ * on all CPUs in the system.
  * 
  * cmd: MMUEXT_SET_LDT
  * linear_addr: Linear address of LDT base (NB. must be page-aligned).
  * nr_ents: Number of entries in LDT.
+ *
+ * cmd: MMUEXT_CLEAR_PAGE
+ * mfn: Machine frame number to be cleared.
+ *
+ * cmd: MMUEXT_COPY_PAGE
+ * mfn: Machine frame number of the destination page.
+ * src_mfn: Machine frame number of the source page.
+ *
+ * cmd: MMUEXT_[UN]MARK_SUPER
+ * mfn: Machine frame number of head of superpage to be [un]marked.
  */
 #define MMUEXT_PIN_L1_TABLE      0
 #define MMUEXT_PIN_L2_TABLE      1
@@ -247,12 +389,18 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #define MMUEXT_FLUSH_CACHE      12
 #define MMUEXT_SET_LDT          13
 #define MMUEXT_NEW_USER_BASEPTR 15
+#define MMUEXT_CLEAR_PAGE       16
+#define MMUEXT_COPY_PAGE        17
+#define MMUEXT_FLUSH_CACHE_GLOBAL 18
+#define MMUEXT_MARK_SUPER       19
+#define MMUEXT_UNMARK_SUPER     20
 
 #ifndef __ASSEMBLY__
 struct mmuext_op {
     unsigned int cmd;
     union {
-        /* [UN]PIN_TABLE, NEW_BASEPTR, NEW_USER_BASEPTR */
+        /* [UN]PIN_TABLE, NEW_BASEPTR, NEW_USER_BASEPTR
+         * CLEAR_PAGE, COPY_PAGE, [UN]MARK_SUPER */
         xen_pfn_t     mfn;
         /* INVLPG_LOCAL, INVLPG_ALL, SET_LDT */
         unsigned long linear_addr;
@@ -262,10 +410,12 @@ struct mmuext_op {
         unsigned int nr_ents;
         /* TLB_FLUSH_MULTI, INVLPG_MULTI */
 #if __XEN_INTERFACE_VERSION__ >= 0x00030205
-        XEN_GUEST_HANDLE(void) vcpumask;
+        XEN_GUEST_HANDLE(const_void) vcpumask;
 #else
-        void *vcpumask;
+        const void *vcpumask;
 #endif
+        /* COPY_PAGE */
+        xen_pfn_t src_mfn;
     } arg2;
 };
 typedef struct mmuext_op mmuext_op_t;
@@ -341,6 +491,16 @@ typedef uint16_t domid_t;
  * the caller is privileged.
  */
 #define DOMID_XEN  (0x7FF2U)
+
+/*
+ * DOMID_COW is used as the owner of sharable pages */
+#define DOMID_COW  (0x7FF3U)
+
+/* DOMID_INVALID is used to identify pages with unknown owner. */
+#define DOMID_INVALID (0x7FF4U)
+
+/* Idle domain. */
+#define DOMID_IDLE (0x7FFFU)
 
 /*
  * Send an array of these to HYPERVISOR_mmu_update().
@@ -442,7 +602,7 @@ typedef struct vcpu_info vcpu_info_t;
  * of this structure remaining constant.
  */
 struct shared_info {
-    struct vcpu_info vcpu_info[MAX_VIRT_CPUS];
+    struct vcpu_info vcpu_info[XEN_LEGACY_MAX_VCPUS];
 
     /*
      * A domain can create "event channels" on which it can send and receive
@@ -501,6 +661,7 @@ typedef struct shared_info shared_info_t;
  *      a. relocated kernel image
  *      b. initial ram disk              [mod_start, mod_len]
  *      c. list of allocated page frames [mfn_list, nr_pages]
+ *         (unless relocated due to XEN_ELFNOTE_INIT_P2M)
  *      d. start_info_t structure        [register ESI (x86)]
  *      e. bootstrap page tables         [pt_base, CR3 (x86)]
  *      f. bootstrap stack               [register ESP (x86)]
@@ -539,9 +700,14 @@ struct start_info {
     unsigned long pt_base;      /* VIRTUAL address of page directory.     */
     unsigned long nr_pt_frames; /* Number of bootstrap p.t. frames.       */
     unsigned long mfn_list;     /* VIRTUAL address of page-frame list.    */
-    unsigned long mod_start;    /* VIRTUAL address of pre-loaded module.  */
+    unsigned long mod_start;    /* VIRTUAL address of pre-loaded module   */
+                                /* (PFN of pre-loaded module if           */
+                                /*  SIF_MOD_START_PFN set in flags).      */
     unsigned long mod_len;      /* Size (bytes) of pre-loaded module.     */
     int8_t cmd_line[MAX_GUEST_CMDLINE];
+    /* The pfn range here covers both page table and p->m table frames.   */
+    unsigned long first_p2m_pfn;/* 1st pfn forming initial P->M table.    */
+    unsigned long nr_p2m_frames;/* # of pfns forming initial P->M table.  */
 };
 typedef struct start_info start_info_t;
 
@@ -554,12 +720,41 @@ typedef struct start_info start_info_t;
 /* These flags are passed in the 'flags' field of start_info_t. */
 #define SIF_PRIVILEGED    (1<<0)  /* Is the domain privileged? */
 #define SIF_INITDOMAIN    (1<<1)  /* Is this the initial control domain? */
+#define SIF_MULTIBOOT_MOD (1<<2)  /* Is mod_start a multiboot module? */
+#define SIF_MOD_START_PFN (1<<3)  /* Is mod_start a PFN? */
 #define SIF_PM_MASK       (0xFF<<8) /* reserve 1 byte for xen-pm options */
+
+/*
+ * A multiboot module is a package containing modules very similar to a
+ * multiboot module array. The only differences are:
+ * - the array of module descriptors is by convention simply at the beginning
+ *   of the multiboot module,
+ * - addresses in the module descriptors are based on the beginning of the
+ *   multiboot module,
+ * - the number of modules is determined by a termination descriptor that has
+ *   mod_start == 0.
+ *
+ * This permits to both build it statically and reference it in a configuration
+ * file, and let the PV guest easily rebase the addresses to virtual addresses
+ * and at the same time count the number of modules.
+ */
+struct xen_multiboot_mod_list
+{
+    /* Address of first byte of the module */
+    uint32_t mod_start;
+    /* Address of last byte of the module (inclusive) */
+    uint32_t mod_end;
+    /* Address of zero-terminated command line */
+    uint32_t cmdline;
+    /* Unused, must be zero */
+    uint32_t pad;
+};
 
 typedef struct dom0_vga_console_info {
     uint8_t video_type; /* DOM0_VGA_CONSOLE_??? */
 #define XEN_VGATYPE_TEXT_MODE_3 0x03
 #define XEN_VGATYPE_VESA_LFB    0x23
+#define XEN_VGATYPE_EFI_LFB     0x70
 
     union {
         struct {
@@ -618,13 +813,22 @@ __DEFINE_XEN_GUEST_HANDLE(uint64, uint64_t);
 
 /* Default definitions for macros used by domctl/sysctl. */
 #if defined(__XEN__) || defined(__XEN_TOOLS__)
+
 #ifndef uint64_aligned_t
 #define uint64_aligned_t uint64_t
 #endif
 #ifndef XEN_GUEST_HANDLE_64
 #define XEN_GUEST_HANDLE_64(name) XEN_GUEST_HANDLE(name)
 #endif
+
+#ifndef __ASSEMBLY__
+struct xenctl_cpumap {
+    XEN_GUEST_HANDLE_64(uint8) bitmap;
+    uint32_t nr_cpus;
+};
 #endif
+
+#endif /* defined(__XEN__) || defined(__XEN_TOOLS__) */
 
 #endif /* __XEN_PUBLIC_XEN_H__ */
 

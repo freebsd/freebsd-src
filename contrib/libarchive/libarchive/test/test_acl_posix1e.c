@@ -137,10 +137,12 @@ acl_match(struct acl_t *acl, int type, int permset, int tag, int qual, const cha
 	if (name == NULL) {
 		if (acl->name == NULL || acl->name[0] == '\0')
 			return (1);
+		return (0);
 	}
 	if (acl->name == NULL) {
 		if (name[0] == '\0')
 			return (1);
+		return (0);
 	}
 	return (0 == strcmp(name, acl->name));
 }

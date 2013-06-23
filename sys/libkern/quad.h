@@ -110,4 +110,9 @@ u_quad_t	__udivdi3(u_quad_t a, u_quad_t b);
 u_quad_t	__umoddi3(u_quad_t a, u_quad_t b);
 int		__ucmpdi2(u_quad_t a, u_quad_t b);
 
+/* ARM EABI support functions. */
+#ifdef __ARM_EABI__
+int		__aeabi_ulcmp(unsigned long long, unsigned long long);
+#endif
+
 #endif /* !_LIBKERN_QUAD_H_ */

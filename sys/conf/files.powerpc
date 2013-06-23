@@ -27,7 +27,6 @@ dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
 dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
-dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
@@ -62,6 +61,7 @@ dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
+dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart aim
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 kern/kern_clocksource.c		standard
@@ -77,7 +77,6 @@ libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/lshrdi3.c		optional	powerpc
-libkern/memchr.c		optional	fdt
 libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		optional	powerpc
@@ -233,5 +232,5 @@ powerpc/wii/platform_wii.c	optional	wii
 powerpc/wii/wii_bus.c		optional	wii
 powerpc/wii/wii_pic.c		optional	wii
 powerpc/wii/wii_fb.c		optional	wii
-powerpc/wii/wii_gpio.c		optional	wiigpio
+powerpc/wii/wii_gpio.c		optional	wii wiigpio
 powerpc/wii/wii_ipc.c		optional	wii

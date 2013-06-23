@@ -1,4 +1,4 @@
-dnl $Id: Makefile.m4,v 1.72 2006/08/16 21:06:31 ca Exp $
+dnl $Id: Makefile.m4,v 1.73 2013/03/12 15:24:50 ca Exp $
 define(`confREQUIRE_LIBUNIX')
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
@@ -18,6 +18,7 @@ smcheck(`t-exc', `compile-run')
 smcheck(`t-rpool', `compile-run')
 smcheck(`t-string', `compile-run')
 smcheck(`t-smstdio', `compile-run')
+smcheck(`t-fget', `compile-run')
 smcheck(`t-match', `compile-run')
 smcheck(`t-strio', `compile-run')
 smcheck(`t-heap', `compile-run')

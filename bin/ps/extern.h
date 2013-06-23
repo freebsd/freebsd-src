@@ -51,7 +51,7 @@ char	 *elapsed(KINFO *, VARENT *);
 char	 *elapseds(KINFO *, VARENT *);
 char	 *emulname(KINFO *, VARENT *);
 VARENT	*find_varentry(VAR *);
-const	 char *fmt_argv(char **, char *, size_t);
+const	 char *fmt_argv(char **, char *, char *, size_t);
 double	 getpcpu(const KINFO *);
 char	 *kvar(KINFO *, VARENT *);
 char	 *label(KINFO *, VARENT *);

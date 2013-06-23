@@ -73,6 +73,7 @@ static fstype_t fstypes[] = {
 };
 
 u_int		debug;
+int		dupsok;
 struct timespec	start_time;
 
 static	fstype_t *get_fstype(const char *);
@@ -112,7 +113,7 @@ main(int argc, char *argv[])
 	start_time.tv_sec = start.tv_sec;
 	start_time.tv_nsec = start.tv_usec * 1000;
 
-	while ((ch = getopt(argc, argv, "B:b:d:f:F:M:m:N:o:ps:S:t:x")) != -1) {
+	while ((ch = getopt(argc, argv, "B:b:Dd:f:F:M:m:N:o:ps:S:t:x")) != -1) {
 		switch (ch) {
 
 		case 'B':
@@ -146,6 +147,10 @@ main(int argc, char *argv[])
 				    strsuftoll("free blocks",
 					optarg, 0, LLONG_MAX);
 			}
+			break;
+
+		case 'D':
+			dupsok = 1;
 			break;
 
 		case 'd':

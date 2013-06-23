@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mutex.h>
 #include <sys/mman.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 
 #include <vm/vm.h>
@@ -206,7 +207,7 @@ void
 cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type == OBJT_MGTDEVICE) {
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
 		pmap_remove_all(m);
@@ -221,7 +222,7 @@ static void
 dev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->type == OBJT_DEVICE &&
 	    (m->oflags & VPO_UNMANAGED) != 0),
 	    ("Managed device or page obj %p m %p", object, m));
@@ -235,13 +236,13 @@ dev_pager_dealloc(object)
 {
 	vm_page_t m;
 
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.dev);
 
 	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
 	mtx_unlock(&dev_pager_mtx);
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 
 	if (object->type == OBJT_DEVICE) {
 		/*
@@ -258,11 +259,11 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
 {
 	int error, i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
 	    IDX_TO_OFF(ma[reqpage]->pindex), PROT_READ, &ma[reqpage]);
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	for (i = 0; i < count; i++) {
 		if (i != reqpage) {
@@ -304,12 +305,12 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	pidx = OFF_TO_IDX(offset);
 	memattr = object->memattr;
 
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	dev = object->handle;
 	csw = dev_refthread(dev, &ref);
 	if (csw == NULL) {
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		return (VM_PAGER_FAIL);
 	}
 	td = curthread;
@@ -321,7 +322,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	if (ret != 0) {
 		printf(
 	    "WARNING: dev_pager_getpage: map function returns error %d", ret);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		return (VM_PAGER_FAIL);
 	}
 
@@ -338,7 +339,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 * the new physical address.
 		 */
 		page = *mres;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		vm_page_updatefake(page, paddr, memattr);
 	} else {
 		/*
@@ -346,7 +347,7 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 * free up the all of the original pages.
 		 */
 		page = vm_page_getfake(paddr, memattr);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		vm_page_lock(*mres);
 		vm_page_free(*mres);
 		vm_page_unlock(*mres);

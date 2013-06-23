@@ -105,17 +105,14 @@ ia64_ih_clock(struct thread *td, u_int xiv, struct trapframe *tf)
  * Event timer start method.
  */
 static int
-ia64_clock_start(struct eventtimer *et, struct bintime *first,
-    struct bintime *period)
+ia64_clock_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	u_long itc, load;
 	register_t is;
 
-	if (period != NULL) {
+	if (period != 0) {
 		PCPU_SET(md.clock_mode, CLOCK_ET_PERIODIC);
-		load = (et->et_frequency * (period->frac >> 32)) >> 32;
-		if (period->sec > 0)
-			load += et->et_frequency * period->sec;
+		load = (et->et_frequency * period) >> 32;
 	} else {
 		PCPU_SET(md.clock_mode, CLOCK_ET_ONESHOT);
 		load = 0;
@@ -123,11 +120,8 @@ ia64_clock_start(struct eventtimer *et, struct bintime *first,
 
 	PCPU_SET(md.clock_load, load);
 
-	if (first != NULL) {
-		load = (et->et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec > 0)
-			load += et->et_frequency * first->sec;
-	}
+	if (first != 0)
+		load = (et->et_frequency * first) >> 32;
 
 	is = intr_disable();
 	itc = ia64_get_itc();
@@ -185,10 +179,8 @@ clock_configure(void *dummy)
 	et->et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
 	et->et_quality = 1000;
 	et->et_frequency = itc_freq;
-	et->et_min_period.sec = 0;
-	et->et_min_period.frac = (0x8000000000000000ul / (u_long)(10*hz)) << 1;
-	et->et_max_period.sec = 0xffffffff;
-	et->et_max_period.frac = ((0xfffffffeul << 32) / itc_freq) << 32;
+	et->et_min_period = SBT_1S / (10 * hz);
+	et->et_max_period = (0xfffffffeul << 32) / itc_freq;
 	et->et_start = ia64_clock_start;
 	et->et_stop = ia64_clock_stop;
 	et->et_priv = NULL;

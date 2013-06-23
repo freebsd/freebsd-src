@@ -48,7 +48,6 @@ struct ext2mount {
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 
 	struct	m_ext2fs *um_e2fs;		/* EXT2FS */
-#define em_e2fsb um_e2fs->e2fs
 
 	u_long	um_nindir;			/* indirect ptrs per block */
 	u_long	um_bptrtodb;			/* indir ptr to disk block */

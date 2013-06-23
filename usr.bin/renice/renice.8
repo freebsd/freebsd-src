@@ -85,13 +85,6 @@ Reset the
 interpretation to be (the default) process ID's.
 .El
 .Pp
-For example,
-.Pp
-.Dl "renice +1 987 -u daemon root -p 32"
-.Pp
-would change the priority of process ID's 987 and 32, and
-all processes owned by users daemon and root.
-.Pp
 Users other than the super-user may only alter the priority of
 processes they own,
 and can only monotonically increase their ``nice value''
@@ -116,6 +109,11 @@ anything negative (to make things go very fast).
 .It Pa /etc/passwd
 to map user names to user ID's
 .El
+.Sh EXAMPLES
+Change the priority of process ID's 987 and 32, and
+all processes owned by users daemon and root.
+.Pp
+.Dl "renice +1 987 -u daemon root -p 32"
 .Sh SEE ALSO
 .Xr nice 1 ,
 .Xr rtprio 1 ,

@@ -62,6 +62,7 @@
 #include <machine/cpuregs.h>
 #include <machine/regnum.h>
 #include <machine/pte.h>
+#include <machine/pcb.h>
 
 #include "assym.s"
 
@@ -173,26 +174,26 @@ END(fork_trampoline)
  *	savectx(struct pcb *pcbp);
  */
 LEAF(savectx)
-	SAVE_U_PCB_CONTEXT(s0, PREG_S0, a0)
-	SAVE_U_PCB_CONTEXT(s1, PREG_S1, a0)
-	SAVE_U_PCB_CONTEXT(s2, PREG_S2, a0)
-	SAVE_U_PCB_CONTEXT(s3, PREG_S3, a0)
+	SAVE_U_PCB_CONTEXT(s0, PCB_REG_S0, a0)
+	SAVE_U_PCB_CONTEXT(s1, PCB_REG_S1, a0)
+	SAVE_U_PCB_CONTEXT(s2, PCB_REG_S2, a0)
+	SAVE_U_PCB_CONTEXT(s3, PCB_REG_S3, a0)
 	mfc0	v0, MIPS_COP_0_STATUS
-	SAVE_U_PCB_CONTEXT(s4, PREG_S4, a0)
-	SAVE_U_PCB_CONTEXT(s5, PREG_S5, a0)
-	SAVE_U_PCB_CONTEXT(s6, PREG_S6, a0)
-	SAVE_U_PCB_CONTEXT(s7, PREG_S7, a0)
-	SAVE_U_PCB_CONTEXT(sp, PREG_SP, a0)
-	SAVE_U_PCB_CONTEXT(s8, PREG_S8, a0)
-	SAVE_U_PCB_CONTEXT(ra, PREG_RA, a0)
-	SAVE_U_PCB_CONTEXT(v0, PREG_SR, a0)
-	SAVE_U_PCB_CONTEXT(gp, PREG_GP, a0)
+	SAVE_U_PCB_CONTEXT(s4, PCB_REG_S4, a0)
+	SAVE_U_PCB_CONTEXT(s5, PCB_REG_S5, a0)
+	SAVE_U_PCB_CONTEXT(s6, PCB_REG_S6, a0)
+	SAVE_U_PCB_CONTEXT(s7, PCB_REG_S7, a0)
+	SAVE_U_PCB_CONTEXT(sp, PCB_REG_SP, a0)
+	SAVE_U_PCB_CONTEXT(s8, PCB_REG_S8, a0)
+	SAVE_U_PCB_CONTEXT(ra, PCB_REG_RA, a0)
+	SAVE_U_PCB_CONTEXT(v0, PCB_REG_SR, a0)
+	SAVE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 
 	move	v0, ra			/* save 'ra' before we trash it */
 	jal	1f
 	nop
 1:
-	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)
+	SAVE_U_PCB_CONTEXT(ra, PCB_REG_PC, a0)
 	move	ra, v0			/* restore 'ra' before returning */
 
 	j	ra
@@ -229,26 +230,26 @@ NON_LEAF(cpu_switch, CALLFRAME_SIZ, ra)
 	beqz	a0, mips_sw1
 	move	a3, a0
 	PTR_L	a0, TD_PCB(a0)		# load PCB addr of curproc
-	SAVE_U_PCB_CONTEXT(sp, PREG_SP, a0)		# save old sp
+	SAVE_U_PCB_CONTEXT(sp, PCB_REG_SP, a0)		# save old sp
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	REG_S	ra, CALLFRAME_RA(sp)
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	SAVE_U_PCB_CONTEXT(s0, PREG_S0, a0)		# do a 'savectx()'
-	SAVE_U_PCB_CONTEXT(s1, PREG_S1, a0)
-	SAVE_U_PCB_CONTEXT(s2, PREG_S2, a0)
-	SAVE_U_PCB_CONTEXT(s3, PREG_S3, a0)
-	SAVE_U_PCB_CONTEXT(s4, PREG_S4, a0)
-	SAVE_U_PCB_CONTEXT(s5, PREG_S5, a0)
-	SAVE_U_PCB_CONTEXT(s6, PREG_S6, a0)
-	SAVE_U_PCB_CONTEXT(s7, PREG_S7, a0)
-	SAVE_U_PCB_CONTEXT(s8, PREG_S8, a0)
-	SAVE_U_PCB_CONTEXT(ra, PREG_RA, a0)		# save return address
-	SAVE_U_PCB_CONTEXT(t0, PREG_SR, a0)		# save status register
-	SAVE_U_PCB_CONTEXT(gp, PREG_GP, a0)
+	SAVE_U_PCB_CONTEXT(s0, PCB_REG_S0, a0)		# do a 'savectx()'
+	SAVE_U_PCB_CONTEXT(s1, PCB_REG_S1, a0)
+	SAVE_U_PCB_CONTEXT(s2, PCB_REG_S2, a0)
+	SAVE_U_PCB_CONTEXT(s3, PCB_REG_S3, a0)
+	SAVE_U_PCB_CONTEXT(s4, PCB_REG_S4, a0)
+	SAVE_U_PCB_CONTEXT(s5, PCB_REG_S5, a0)
+	SAVE_U_PCB_CONTEXT(s6, PCB_REG_S6, a0)
+	SAVE_U_PCB_CONTEXT(s7, PCB_REG_S7, a0)
+	SAVE_U_PCB_CONTEXT(s8, PCB_REG_S8, a0)
+	SAVE_U_PCB_CONTEXT(ra, PCB_REG_RA, a0)		# save return address
+	SAVE_U_PCB_CONTEXT(t0, PCB_REG_SR, a0)		# save status register
+	SAVE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 	jal	getpc
 	nop
 getpc:
-	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)		# save return address
+	SAVE_U_PCB_CONTEXT(ra, PCB_REG_PC, a0)		# save return address
 
 #ifdef CPU_CNMIPS
 
@@ -262,7 +263,7 @@ getpc:
 	sw	t2, TD_MDFLAGS(a3)
 
 	and	t2, t0, ~MIPS_SR_COP_2_BIT	# clear COP_2 enable bit
-	SAVE_U_PCB_CONTEXT(t2, PREG_SR, a0)	# save status register
+	SAVE_U_PCB_CONTEXT(t2, PCB_REG_SR, a0)	# save status register
 
 	RESTORE_U_PCB_REG(t0, PS, a0)		# get CPU status register
 	and	t2, t0, ~MIPS_SR_COP_2_BIT	# clear COP_2 enable bit
@@ -374,7 +375,7 @@ entry0set:
  */
 sw2:
 	PTR_L	s0, TD_PCB(s7)
-	RESTORE_U_PCB_CONTEXT(sp, PREG_SP, s0)
+	RESTORE_U_PCB_CONTEXT(sp, PCB_REG_SP, s0)
 	PTR_LA	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
 	jalr	t1				# s7 = new proc pointer
 	move	a0, s7				# BDSLOT
@@ -382,18 +383,18 @@ sw2:
  * Restore registers and return.
  */
 	move	a0, s0
-	RESTORE_U_PCB_CONTEXT(gp, PREG_GP, a0)
-	RESTORE_U_PCB_CONTEXT(v0, PREG_SR, a0)	# restore kernel context
-	RESTORE_U_PCB_CONTEXT(ra, PREG_RA, a0)
-	RESTORE_U_PCB_CONTEXT(s0, PREG_S0, a0)
-	RESTORE_U_PCB_CONTEXT(s1, PREG_S1, a0)
-	RESTORE_U_PCB_CONTEXT(s2, PREG_S2, a0)
-	RESTORE_U_PCB_CONTEXT(s3, PREG_S3, a0)
-	RESTORE_U_PCB_CONTEXT(s4, PREG_S4, a0)
-	RESTORE_U_PCB_CONTEXT(s5, PREG_S5, a0)
-	RESTORE_U_PCB_CONTEXT(s6, PREG_S6, a0)
-	RESTORE_U_PCB_CONTEXT(s7, PREG_S7, a0)
-	RESTORE_U_PCB_CONTEXT(s8, PREG_S8, a0)
+	RESTORE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
+	RESTORE_U_PCB_CONTEXT(v0, PCB_REG_SR, a0)	# restore kernel context
+	RESTORE_U_PCB_CONTEXT(ra, PCB_REG_RA, a0)
+	RESTORE_U_PCB_CONTEXT(s0, PCB_REG_S0, a0)
+	RESTORE_U_PCB_CONTEXT(s1, PCB_REG_S1, a0)
+	RESTORE_U_PCB_CONTEXT(s2, PCB_REG_S2, a0)
+	RESTORE_U_PCB_CONTEXT(s3, PCB_REG_S3, a0)
+	RESTORE_U_PCB_CONTEXT(s4, PCB_REG_S4, a0)
+	RESTORE_U_PCB_CONTEXT(s5, PCB_REG_S5, a0)
+	RESTORE_U_PCB_CONTEXT(s6, PCB_REG_S6, a0)
+	RESTORE_U_PCB_CONTEXT(s7, PCB_REG_S7, a0)
+	RESTORE_U_PCB_CONTEXT(s8, PCB_REG_S8, a0)
 
 	mfc0	t0, MIPS_COP_0_STATUS
 	and	t0, t0, MIPS_SR_INT_MASK

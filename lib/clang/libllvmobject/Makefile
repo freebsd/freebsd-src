@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmobject
 
 SRCDIR=	lib/Object
@@ -8,7 +10,6 @@ SRCS=	Archive.cpp \
 	COFFObjectFile.cpp \
 	ELFObjectFile.cpp \
 	Error.cpp \
-	MachOObject.cpp \
 	MachOObjectFile.cpp \
 	Object.cpp \
 	ObjectFile.cpp

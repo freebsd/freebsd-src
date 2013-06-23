@@ -130,7 +130,7 @@ enum tryret {
 	TRYRET_LOCALERR		/* Local failure. */
 };
 
-static int	fallback_mount(struct iovec *iov, int iovlen, int mntflags);
+static int	fallback_mount(struct iovec *iov, int iovlen);
 static int	sec_name_to_num(char *sec);
 static char	*sec_num_to_name(int num);
 static int	getnfsargs(char *, struct iovec **iov, int *iovlen);
@@ -149,13 +149,12 @@ main(int argc, char *argv[])
 {
 	int c;
 	struct iovec *iov;
-	int mntflags, num, iovlen;
+	int num, iovlen;
 	int osversion;
 	char *name, *p, *spec, *fstype;
 	char mntpath[MAXPATHLEN], errmsg[255];
 	char hostname[MAXHOSTNAMELEN + 1], *gssname, gssn[MAXHOSTNAMELEN + 50];
 
-	mntflags = 0;
 	iov = NULL;
 	iovlen = 0;
 	memset(errmsg, 0, sizeof(errmsg));
@@ -427,10 +426,10 @@ main(int argc, char *argv[])
 	 */
 	osversion = getosreldate();
 	if (osversion >= 702100) {
-		if (nmount(iov, iovlen, mntflags))
+		if (nmount(iov, iovlen, 0))
 			err(1, "%s, %s", mntpath, errmsg);
 	} else {
-		if (fallback_mount(iov, iovlen, mntflags))
+		if (fallback_mount(iov, iovlen))
 			err(1, "%s, %s", mntpath, errmsg);
 	}
 
@@ -473,7 +472,7 @@ copyopt(struct iovec **newiov, int *newiovlen,
  *      parameters.  It should be eventually be removed.
  */
 static int
-fallback_mount(struct iovec *iov, int iovlen, int mntflags)
+fallback_mount(struct iovec *iov, int iovlen)
 {
 	struct nfs_args args = {
 	    .version = NFS_ARGSVERSION,
@@ -663,7 +662,7 @@ fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 	copyopt(&newiov, &newiovlen, iov, iovlen, "fspath");
 	copyopt(&newiov, &newiovlen, iov, iovlen, "errmsg");
 
-	return nmount(newiov, newiovlen, mntflags);
+	return nmount(newiov, newiovlen, 0);
 }
 
 static int

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvminstcombine
 
 SRCDIR=	lib/Transforms/InstCombine

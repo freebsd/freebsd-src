@@ -801,7 +801,7 @@ extern "C" void __cxa_decrement_exception_refcount(void* thrown_exception)
  */
 extern "C" void __cxa_rethrow()
 {
-	__cxa_thread_info *ti = thread_info_fast();
+	__cxa_thread_info *ti = thread_info();
 	__cxa_eh_globals *globals = &ti->globals;
 	// Note: We don't remove this from the caught list here, because
 	// __cxa_end_catch will be called when we unwind out of the try block.  We
@@ -1387,7 +1387,7 @@ namespace std
 	{
 		if (thread_local_handlers) { return pathscale::set_unexpected(f); }
 
-		return ATOMIC_SWAP(&terminateHandler, f);
+		return ATOMIC_SWAP(&unexpectedHandler, f);
 	}
 	/**
 	 * Sets the function that is called to terminate the program.
@@ -1404,7 +1404,7 @@ namespace std
 	 */
 	void terminate()
 	{
-		static __cxa_thread_info *info = thread_info_fast();
+		static __cxa_thread_info *info = thread_info();
 		if (0 != info && 0 != info->terminateHandler)
 		{
 			info->terminateHandler();
@@ -1421,7 +1421,7 @@ namespace std
 	 */
 	void unexpected()
 	{
-		static __cxa_thread_info *info = thread_info_fast();
+		static __cxa_thread_info *info = thread_info();
 		if (0 != info && 0 != info->unexpectedHandler)
 		{
 			info->unexpectedHandler();

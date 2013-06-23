@@ -10,8 +10,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 #include <fstream>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #if LLVM_ON_WIN32
 #include <windows.h>
 #endif
@@ -31,7 +31,7 @@ LockFileManager::readLockFile(StringRef LockFileName) {
   // to read, so we just return.
   bool Exists = false;
   if (sys::fs::exists(LockFileName, Exists) || !Exists)
-    return Optional<std::pair<std::string, int> >();
+    return None;
 
   // Read the owning host and PID out of the lock file. If it appears that the
   // owning process is dead, the lock file is invalid.
@@ -45,7 +45,7 @@ LockFileManager::readLockFile(StringRef LockFileName) {
   // Delete the lock file. It's invalid anyway.
   bool Existed;
   sys::fs::remove(LockFileName, Existed);
-  return Optional<std::pair<std::string, int> >();
+  return None;
 }
 
 bool LockFileManager::processStillExecuting(StringRef Hostname, int PID) {
@@ -64,6 +64,7 @@ bool LockFileManager::processStillExecuting(StringRef Hostname, int PID) {
 
 LockFileManager::LockFileManager(StringRef FileName)
 {
+  this->FileName = FileName;
   LockFileName = FileName;
   LockFileName += ".lock";
 
@@ -173,8 +174,9 @@ void LockFileManager::waitForUnlock() {
   Interval.tv_sec = 0;
   Interval.tv_nsec = 1000000;
 #endif
-  // Don't wait more than an hour for the file to appear.
-  const unsigned MaxSeconds = 3600;
+  // Don't wait more than five minutes for the file to appear.
+  unsigned MaxSeconds = 300;
+  bool LockFileGone = false;
   do {
     // Sleep for the designated interval, to allow the owning process time to
     // finish up and remove the lock file.
@@ -185,13 +187,48 @@ void LockFileManager::waitForUnlock() {
 #else
     nanosleep(&Interval, NULL);
 #endif
-    // If the file no longer exists, we're done.
     bool Exists = false;
-    if (!sys::fs::exists(LockFileName.str(), Exists) && !Exists)
-      return;
+    bool LockFileJustDisappeared = false;
 
-    if (!processStillExecuting((*Owner).first, (*Owner).second))
+    // If the lock file is still expected to be there, check whether it still
+    // is.
+    if (!LockFileGone) {
+      if (!sys::fs::exists(LockFileName.str(), Exists) && !Exists) {
+        LockFileGone = true;
+        LockFileJustDisappeared = true;
+        Exists = false;
+      }
+    }
+
+    // If the lock file is no longer there, check if the original file is
+    // available now.
+    if (LockFileGone) {
+      if (!sys::fs::exists(FileName.str(), Exists) && Exists) {
+        return;
+      }
+
+      // The lock file is gone, so now we're waiting for the original file to
+      // show up. If this just happened, reset our waiting intervals and keep
+      // waiting.
+      if (LockFileJustDisappeared) {
+        MaxSeconds = 5;
+
+#if LLVM_ON_WIN32
+        Interval = 1;
+#else
+        Interval.tv_sec = 0;
+        Interval.tv_nsec = 1000000;
+#endif
+        continue;
+      }
+    }
+
+    // If we're looking for the lock file to disappear, but the process
+    // owning the lock died without cleaning up, just bail out.
+    if (!LockFileGone &&
+        !processStillExecuting((*Owner).first, (*Owner).second)) {
       return;
+    }
 
     // Exponentially increase the time we wait for the lock to be removed.
 #if LLVM_ON_WIN32

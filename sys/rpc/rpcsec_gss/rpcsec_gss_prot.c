@@ -208,6 +208,8 @@ m_trim(struct mbuf *m, int len)
 	struct mbuf *n;
 	int off;
 
+	if (m == NULL)
+		return;
 	n = m_getptr(m, len, &off);
 	if (n) {
 		n->m_len = off;
@@ -251,10 +253,19 @@ xdr_rpc_gss_unwrap_data(struct mbuf **resultsp,
 		 * Extract the MIC and make it contiguous.
 		 */
 		cklen = get_uint32(&results);
+		if (!results) {
+			m_freem(message);
+			return (FALSE);
+		}
 		KASSERT(cklen <= MHLEN, ("unexpected large GSS-API checksum"));
 		mic = results;
-		if (cklen > mic->m_len)
+		if (cklen > mic->m_len) {
 			mic = m_pullup(mic, cklen);
+			if (!mic) {
+				m_freem(message);
+				return (FALSE);
+			}
+		}
 		if (cklen != RNDUP(cklen))
 			m_trim(mic, cklen);
 
@@ -272,6 +283,8 @@ xdr_rpc_gss_unwrap_data(struct mbuf **resultsp,
 	} else if (svc == rpc_gss_svc_privacy) {
 		/* Decode databody_priv. */
 		len = get_uint32(&results);
+		if (!results)
+			return (FALSE);
 
 		/* Decrypt databody. */
 		message = results;
@@ -294,6 +307,8 @@ xdr_rpc_gss_unwrap_data(struct mbuf **resultsp,
 
 	/* Decode rpc_gss_data_t (sequence number + arguments). */
 	seq_num = get_uint32(&message);
+	if (!message)
+		return (FALSE);
 	
 	/* Verify sequence number. */
 	if (seq_num != seq) {

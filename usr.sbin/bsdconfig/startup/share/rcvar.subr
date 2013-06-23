@@ -1,6 +1,6 @@
 if [ ! "$_STARTUP_RCVAR_SUBR" ]; then _STARTUP_RCVAR_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ STARTUP_RCVAR_MAP_CACHEFILE="/var/run/bsdconfig/startup_rcvar_map.cache"
 
 ############################################################ FUNCTIONS
 
-# f_startup_rcvar_map
+# f_startup_rcvar_map [$var_to_set]
 #
 # Produce a map (beit from in-memory cache or on-disk cache) of rc.d scripts
 # and their associated rcvar's. The map returned has the following format:
@@ -79,11 +79,21 @@ STARTUP_RCVAR_MAP_CACHEFILE="/var/run/bsdconfig/startup_rcvar_map.cache"
 # 	script        the rc.d script in-question
 # 	description   description of the variable from rc.conf(5) defaults
 #
+# If $var_to_set is missing or NULL, the map is printed to standard output for
+# capturing in a sub-shell (which is less-recommended because of performance
+# degredation; for example, when called in a loop).
+#
 f_startup_rcvar_map()
 {
+	local __var_to_set="$1"
+
 	# If the in-memory cached value is available, return it immediately
 	if [ "$_STARTUP_RCVAR_MAP" ]; then
-		echo "$STARTUP_RCVAR_MAP"
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$STARTUP_RCVAR_MAP"
+		else
+			echo "$STARTUP_RCVAR_MAP"
+		fi
 		return $SUCCESS
 	fi
 
@@ -92,19 +102,20 @@ f_startup_rcvar_map()
 	#
 
 	# Get a list of /etc/rc.d scripts ...
-	local file rc_script_list=
-	for file in "$ETC_RC_D"/*; do
-		[ -f "$file" ] || continue
-		[ -x "$file" ] || continue
-		rc_script_list="$rc_script_list${rc_script_list:+ }$file"
+	local __file __rc_script_list=
+	for __file in "$ETC_RC_D"/*; do
+		[ -f "$__file" ] || continue
+		[ -x "$__file" ] || continue
+		__rc_script_list="$__rc_script_list $__file"
 	done
 	# ... and /usr/local/etc/rc.d scripts
-	rc_script_list="$rc_script_list${rc_script_list:+ }$(
+	__rc_script_list="$__rc_script_list $(
 		local_startup=$( f_sysrc_get local_startup )
 		f_include "$ETC_RC_SUBR"
 		find_local_scripts_new
 		echo $local_rc
 	)"
+	__rc_script_list="${__rc_script_list# }" # Trim leading space
 
 	#
 	# Calculate a digest given the checksums of all dependencies (scripts
@@ -113,9 +124,9 @@ f_startup_rcvar_map()
 	# first line) is valid and can be used to quickly populate the cache
 	# value for immediate return.
 	#
-	local rc_script_list_digest
-	rc_script_list_digest=$( cd "$ETC_RC_D" &&
-		cksum "$RC_DEFAULTS" $rc_script_list | md5 )
+	local __rc_script_list_digest
+	__rc_script_list_digest=$( cd "$ETC_RC_D" &&
+		cksum "$RC_DEFAULTS" $__rc_script_list | md5 )
 
 	#
 	# Check to see if the global persistant cache file exists
@@ -123,19 +134,19 @@ f_startup_rcvar_map()
 	if [ -f "$STARTUP_RCVAR_MAP_CACHEFILE" ]; then
 		#
 		# Attempt to populate the in-memory cache with the (soon to be)
-		# be validated on-disk cache. If validation fails, fall-back to
-		# the current value and provide error exit status.
+		# validated on-disk cache. If validation fails, fall-back to
+		# the current value and return error.
 		#
 		STARTUP_RCVAR_MAP=$(
-			(	# Get digest as the first word on the first line
+			(	# Get digest as first word on first line
 				read digest rest_ignored
 
 				#
 				# If the stored digest matches the calculated-
 				# one populate the in-memory cache from the on-
-				# disk cache and provide success exit status.
+				# disk cache and return success.
 				#
-				if [ "$digest" = "$rc_script_list_digest" ]
+				if [ "$digest" = "$__rc_script_list_digest" ]
 				then
 					cat
 					exit $SUCCESS
@@ -146,10 +157,15 @@ f_startup_rcvar_map()
 				fi
 			) < "$STARTUP_RCVAR_MAP_CACHEFILE"
 		)
-		export STARTUP_RCVAR_MAP
-		if [ $? -eq $SUCCESS ]; then
+		local __retval=$?
+		export STARTUP_RCVAR_MAP # Make children faster (export cache)
+		if [ $__retval -eq $SUCCESS ]; then
 			export _STARTUP_RCVAR_MAP=1
-			echo "$STARTUP_RCVAR_MAP"
+			if [ "$__var_to_set" ]; then
+				setvar "$__var_to_set" "$STARTUP_RCVAR_MAP"
+			else
+				echo "$STARTUP_RCVAR_MAP"
+			fi
 			return $SUCCESS
 		fi
 		# Otherwise, fall-thru to create in-memory cache from scratch
@@ -162,7 +178,7 @@ f_startup_rcvar_map()
 	#
 
 	STARTUP_RCVAR_MAP=$(
-		for script in $rc_script_list; do
+		for script in $__rc_script_list; do
 			rcvar_list=$( $script rcvar | awk -F= \
 				-v script="$script" '
 		              	/^'"$STARTUP_RCVAR_REGEX"'/ {
@@ -184,25 +200,29 @@ f_startup_rcvar_map()
 	)
 	export STARTUP_RCVAR_MAP
 	export _STARTUP_RCVAR_MAP=1
-	echo "$STARTUP_RCVAR_MAP"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$STARTUP_RCVAR_MAP"
+	else
+		echo "$STARTUP_RCVAR_MAP"
+	fi
 
 	#
-	# Attempt to create the persistant global cache
+	# Attempt to create/update the persistant global cache
 	#
 
 	# Create a new temporary file to write to
-	local tmpfile="$( mktemp -t "$pgm" )"
-	[ "$tmpfile" ] || return $FAILURE
+	local __tmpfile="$( mktemp -t "$pgm" )"
+	[ "$__tmpfile" ] || return $FAILURE
 
 	# Write the temporary file contents
-	echo "$rc_script_list_digest" > "$tmpfile"
-	echo "$STARTUP_RCVAR_MAP" >> "$tmpfile"
+	echo "$__rc_script_list_digest" > "$__tmpfile"
+	echo "$STARTUP_RCVAR_MAP" >> "$__tmpfile"
 
 	# Finally, move the temporary file into place
 	case "$STARTUP_RCVAR_MAP_CACHEFILE" in
 	*/*) f_quietly mkdir -p "${STARTUP_RCVAR_MAP_CACHEFILE%/*}"
 	esac
-	mv "$tmpfile" "$STARTUP_RCVAR_MAP_CACHEFILE"
+	mv "$__tmpfile" "$STARTUP_RCVAR_MAP_CACHEFILE"
 }
 
 ############################################################ MAIN

@@ -113,8 +113,8 @@ static void	gre_clone_destroy(struct ifnet *);
 static struct if_clone *gre_cloner;
 
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
-static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct route *ro);
+static int	gre_output(struct ifnet *, struct mbuf *,
+		    const struct sockaddr *, struct route *);
 
 static int gre_compute_route(struct gre_softc *sc);
 
@@ -241,7 +241,7 @@ gre_clone_destroy(ifp)
  * given by sc->g_proto. See also RFC 1701 and RFC 2004
  */
 static int
-gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	   struct route *ro)
 {
 	int error = 0;
@@ -333,20 +333,24 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	ip = NULL;
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-
-	if (bpf_peers_present(ifp->if_bpf)) {
+	else
 		af = dst->sa_family;
+
+	if (bpf_peers_present(ifp->if_bpf))
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
+
+	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		m_freem(m);
+		error = ENETDOWN;
+		goto end;
 	}
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 
 	if (sc->g_proto == IPPROTO_MOBILE) {
-		if (dst->sa_family == AF_INET) {
+		if (af == AF_INET) {
 			struct mbuf *m0;
 			int msiz;
 
@@ -384,8 +388,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			mob_h.hcrc = gre_in_cksum((u_int16_t *)&mob_h, msiz);
 
 			if ((m->m_data - msiz) < m->m_pktdat) {
-				/* need new mbuf */
-				MGETHDR(m0, M_NOWAIT, MT_DATA);
+				m0 = m_gethdr(M_NOWAIT, MT_DATA);
 				if (m0 == NULL) {
 					_IF_DROP(&ifp->if_snd);
 					m_freem(m);
@@ -418,7 +421,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			goto end;
 		}
 	} else if (sc->g_proto == IPPROTO_GRE) {
-		switch (dst->sa_family) {
+		switch (af) {
 		case AF_INET:
 			ip = mtod(m, struct ip *);
 			gre_ip_tos = ip->ip_tos;

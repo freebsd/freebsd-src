@@ -230,15 +230,8 @@ int
 cam_devq_init(struct cam_devq *devq, int devices, int openings)
 {
 	bzero(devq, sizeof(*devq));
-	if (camq_init(&devq->alloc_queue, devices) != 0) {
+	if (camq_init(&devq->send_queue, devices) != 0)
 		return (1);
-	}
-	if (camq_init(&devq->send_queue, devices) != 0) {
-		camq_fini(&devq->alloc_queue);
-		return (1);
-	}
-	devq->alloc_openings = openings;
-	devq->alloc_active = 0;
 	devq->send_openings = openings;
 	devq->send_active = 0;	
 	return (0);	
@@ -247,7 +240,6 @@ cam_devq_init(struct cam_devq *devq, int devices, int openings)
 void
 cam_devq_free(struct cam_devq *devq)
 {
-	camq_fini(&devq->alloc_queue);
 	camq_fini(&devq->send_queue);
 	free(devq, M_CAMDEVQ);
 }
@@ -257,11 +249,7 @@ cam_devq_resize(struct cam_devq *camq, int devices)
 {
 	u_int32_t retval;
 
-	retval = camq_resize(&camq->alloc_queue, devices);
-
-	if (retval == CAM_REQ_CMP)
-		retval = camq_resize(&camq->send_queue, devices);
-
+	retval = camq_resize(&camq->send_queue, devices);
 	return (retval);
 }
 
@@ -328,11 +316,10 @@ int
 cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 {
 	bzero(ccbq, sizeof(*ccbq));
-	if (camq_init(&ccbq->queue, openings + (CAM_RL_VALUES - 1)) != 0) {
+	if (camq_init(&ccbq->queue, openings + (CAM_RL_VALUES - 1)) != 0)
 		return (1);
-	}
 	ccbq->devq_openings = openings;
-	ccbq->dev_openings = openings;	
+	ccbq->dev_openings = openings;
 	return (0);
 }
 

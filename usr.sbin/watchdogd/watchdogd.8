@@ -1,3 +1,5 @@
+.\" Copyright (c) 2013  iXsystems.com,
+.\"                     author: Alfred Perlstein <alfred@freebsd.org>
 .\" Copyright (c) 2004  Poul-Henning Kamp <phk@FreeBSD.org>
 .\" Copyright (c) 2003  Sean M. Kelly <smkelly@FreeBSD.org>
 .\" All rights reserved.
@@ -25,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2006
+.Dd March 5, 2013
 .Dt WATCHDOGD 8
 .Os
 .Sh NAME
@@ -33,11 +35,17 @@
 .Nd watchdog daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl d
+.Op Fl dnSw
+.Op Fl -debug
+.Op Fl -softtimeout
+.Op Fl -softtimeout-action Ar action
+.Op Fl -pretimeout Ar timeout
+.Op Fl -pretimeout-action Ar action
 .Op Fl e Ar cmd
 .Op Fl I Ar file
 .Op Fl s Ar sleep
 .Op Fl t Ar timeout
+.Op Fl T Ar script_timeout
 .Sh DESCRIPTION
 The
 .Nm
@@ -62,6 +70,13 @@ is not specified, the daemon will perform a trivial file system
 check instead.
 .Pp
 The
+.Fl n
+argument 'dry-run' will cause watchdog not to arm the system watchdog and
+instead only run the watchdog function and report on failures.
+This is useful for developing new watchdogd scripts as the system will not
+reboot if there are problems with the script.
+.Pp
+The
 .Fl s Ar sleep
 argument can be used to control the sleep period between each execution
 of the check and defaults to one second.
@@ -78,6 +93,16 @@ If this occurs,
 will no longer execute and thus the kernel's watchdog routines will take
 action after a configurable timeout.
 .Pp
+The
+.Fl T Ar script_timeout
+specifies the threshold (in seconds) at which the watchdogd will complain
+that its script has run for too long.
+If unset
+.Ar script_timeout
+defaults to the value specified by the
+.Fl s Ar sleep
+option.
+.Pp
 Upon receiving the
 .Dv SIGTERM
 or
@@ -90,17 +115,95 @@ will terminate.
 The
 .Nm
 utility recognizes the following runtime options:
-.Bl -tag -width ".Fl I Ar file"
+.Bl -tag -width ".Fl -softtimeout-action Ar action  "
 .It Fl I Ar file
 Write the process ID of the
 .Nm
 utility in the specified file.
-.It Fl d
+.It Fl d Fl -debug
 Do not fork.
 When this option is specified,
 .Nm
 will not fork into the background at startup.
+.Pp
+.It Fl S
+Do not send a message to the system logger when the watchdog command takes
+longer than expected to execute.
+The default behaviour is to log a warning via the system logger with the
+LOG_DAEMON facility, and to output a warning to standard error.
+.Pp
+.It Fl w
+Complain when the watchdog script takes too long.
+This flag will cause watchdogd to complain when the amount of time to
+execute the watchdog script exceeds the threshold of 'sleep' option.
+.Pp
+.It Fl -pretimeout Ar timeout
+Set a "pretimeout" watchdog.
+At "timeout" seconds before the watchdog will fire attempt an action.
+The action is set by the --pretimeout-action flag.
+The default is just to log a message (WD_SOFT_LOG) via
+.Xr log 9 .
+.Pp
+.It Fl -pretimeout-action Ar action
+Set the timeout action for the pretimeout.
+See the section
+.Sx Timeout Actions .
+.Pp
+.It Fl -softtimeout
+Instead of arming the various hardware watchdogs, only use a basic software
+watchdog.
+The default action is just to
+.Xr log 9
+a message (WD_SOFT_LOG).
+.Pp
+.It Fl -softtimeout-action Ar action
+Set the timeout action for the softtimeout.
+See the section
+.Sx Timeout Actions .
+.Pp
 .El
+.Sh Timeout Actions
+The following timeout actions are available via the
+.Fl -pretimeout-action
+and
+.Fl -softtimeout-action
+flags:
+.Bl -tag -width ".Ar printf  "
+.It Ar panic
+Call
+.Xr panic 9
+when the timeout is reached.
+.Pp
+.It Ar ddb
+Enter the kernel debugger via
+.Xr kdb_enter 9
+when the timeout is reached.
+.Pp
+.It Ar log
+Log a message using
+.Xr log 9
+when the timeout is reached.
+.Pp
+.It Ar printf
+call the kernel
+.Xr printf 9
+to display a message to the console and
+.Xr dmesg 8
+buffer.
+.Pp
+.El
+Actions can be combined in a comma separated list as so:
+.Ar log,printf
+which would both
+.Xr printf 9
+and
+.Xr log 9
+which will send messages both to
+.Xr dmesg 8
+and the kernel
+.Xr log 4
+device for
+.Xr syslog 8 .
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/watchdogd.pid" -compact
 .It Pa /var/run/watchdogd.pid
@@ -125,3 +228,6 @@ and
 .Pp
 Some contributions made by
 .An Jeff Roberson Aq jeff@FreeBSD.org .
+.Pp
+The pretimeout and softtimeout action system was added by
+.An Alfred Perlstein Aq alfred@freebsd.org .

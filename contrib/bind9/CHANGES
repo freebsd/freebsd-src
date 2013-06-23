@@ -1,3 +1,10 @@
+	--- 9.8.4-P2 released ---
+
+3516.	[security]	Removed the check for regex.h in configure in order
+			to disable regex syntax checking, as it exposes
+			BIND to a critical flaw in libregex on some
+			platforms. [RT #32688]
+
 	--- 9.8.4-P1 released ---
 
 3407.	[security]	Named could die on specific queries with dns64 enabled.

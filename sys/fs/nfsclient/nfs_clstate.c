@@ -1888,7 +1888,7 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	struct nfsreq *rep;
 	u_int64_t len;
 	u_int32_t delegtype = NFSV4OPEN_DELEGATEWRITE, mode;
-	int i, igotlock = 0, error, trycnt, firstlock, s;
+	int i, igotlock = 0, error, trycnt, firstlock;
 	struct nfscllayout *lyp, *nlyp;
 
 	/*
@@ -1945,14 +1945,12 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	 * This will be translated to NFSERR_STALEDONTRECOVER when
 	 * R_DONTRECOVER is set.
 	 */
-	s = splsoftclock();
 	NFSLOCKREQ();
 	TAILQ_FOREACH(rep, &nfsd_reqq, r_chain) {
 		if (rep->r_nmp == nmp)
 			rep->r_flags |= R_DONTRECOVER;
 	}
 	NFSUNLOCKREQ();
-	splx(s);
 
 	/*
 	 * Now, mark all delegations "need reclaim".
@@ -2447,7 +2445,7 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	u_int32_t clidrev;
 	int error, cbpathdown, islept, igotlock, ret, clearok;
 	uint32_t recover_done_time = 0;
-	struct timespec mytime;
+	time_t mytime;
 	static time_t prevsec = 0;
 	struct nfscllockownerfh *lfhp, *nlfhp;
 	struct nfscllockownerfhhead lfh;
@@ -2720,9 +2718,9 @@ tryagain2:
 		 * Call nfscl_cleanupkext() once per second to check for
 		 * open/lock owners where the process has exited.
 		 */
-		NFSGETNANOTIME(&mytime);
-		if (prevsec != mytime.tv_sec) {
-			prevsec = mytime.tv_sec;
+		mytime = NFSD_MONOSEC;
+		if (prevsec != mytime) {
+			prevsec = mytime;
 			nfscl_cleanupkext(clp, &lfh);
 		}
 
@@ -4611,7 +4609,7 @@ nfscl_delegmodtime(vnode_t vp)
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
 	if (dp != NULL && (dp->nfsdl_flags & NFSCLDL_WRITE)) {
-		NFSGETNANOTIME(&dp->nfsdl_modtime);
+		nanotime(&dp->nfsdl_modtime);
 		dp->nfsdl_flags |= NFSCLDL_MODTIMESET;
 	}
 	NFSUNLOCKCLSTATE();
@@ -5147,16 +5145,26 @@ static void
 nfscl_dolayoutcommit(struct nfsmount *nmp, struct nfscllayout *lyp,
     struct ucred *cred, NFSPROC_T *p)
 {
+	struct nfsclflayout *flp;
+	uint64_t len;
 	int error;
 
-	error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh, lyp->nfsly_fhlen,
-	    0, 0, 0, lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
-	    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
-	if (error == NFSERR_NOTSUPP) {
-		/* If the server doesn't want it, don't bother doing it. */
-		NFSLOCKMNT(nmp);
-		nmp->nm_state |= NFSSTA_NOLAYOUTCOMMIT;
-		NFSUNLOCKMNT(nmp);
+	LIST_FOREACH(flp, &lyp->nfsly_flayrw, nfsfl_list) {
+		if (flp->nfsfl_off <= lyp->nfsly_lastbyte) {
+			len = flp->nfsfl_end - flp->nfsfl_off;
+			error = nfsrpc_layoutcommit(nmp, lyp->nfsly_fh,
+			    lyp->nfsly_fhlen, 0, flp->nfsfl_off, len,
+			    lyp->nfsly_lastbyte, &lyp->nfsly_stateid,
+			    NFSLAYOUT_NFSV4_1_FILES, 0, NULL, cred, p, NULL);
+			NFSCL_DEBUG(4, "layoutcommit err=%d\n", error);
+			if (error == NFSERR_NOTSUPP) {
+				/* If not supported, don't bother doing it. */
+				NFSLOCKMNT(nmp);
+				nmp->nm_state |= NFSSTA_NOLAYOUTCOMMIT;
+				NFSUNLOCKMNT(nmp);
+				break;
+			}
+		}
 	}
 }
 

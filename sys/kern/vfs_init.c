@@ -122,7 +122,7 @@ struct vfsconf *
 vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 {
 	struct vfsconf *vfsp;
-	int fileid;
+	int fileid, loaded;
 
 	vfsp = vfs_byname(fstype);
 	if (vfsp != NULL)
@@ -130,13 +130,17 @@ vfs_byname_kld(const char *fstype, struct thread *td, int *error)
 
 	/* Try to load the respective module. */
 	*error = kern_kldload(td, fstype, &fileid);
+	loaded = (*error == 0);
+	if (*error == EEXIST)
+		*error = 0;
 	if (*error)
 		return (NULL);
 
 	/* Look up again to see if the VFS was loaded. */
 	vfsp = vfs_byname(fstype);
 	if (vfsp == NULL) {
-		(void)kern_kldunload(td, fileid, LINKER_UNLOAD_FORCE);
+		if (loaded)
+			(void)kern_kldunload(td, fileid, LINKER_UNLOAD_FORCE);
 		*error = ENODEV;
 		return (NULL);
 	}

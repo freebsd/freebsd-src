@@ -404,7 +404,7 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	u_char *sector;
 	off_t compsize;
 	intmax_t *no;
-	int *hardcode, *nargs, error;
+	int *hardcode, *nargs, error, autono;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -425,11 +425,10 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 1);
 		return;
 	}
-	no = gctl_get_paraml(req, "number", sizeof(*no));
-	if (no == NULL) {
-		gctl_error(req, "No '%s' argument.", "no");
-		return;
-	}
+	if (gctl_get_param(req, "number", NULL) != NULL)
+		no = gctl_get_paraml(req, "number", sizeof(*no));
+	else
+		no = NULL;
 	if (strncmp(name, "/dev/", 5) == 0)
 		name += 5;
 	g_topology_lock();
@@ -465,16 +464,30 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No such device: %s.", name);
 		goto end;
 	}
-	if (*no >= sc->sc_ndisks) {
-		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Invalid component number.");
-		goto end;
-	}
-	disk = &sc->sc_disks[*no];
-	if (disk->d_state != G_RAID3_DISK_STATE_NODISK) {
-		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Component %jd is already connected.", *no);
-		goto end;
+	if (no != NULL) {
+		if (*no < 0 || *no >= sc->sc_ndisks) {
+			sx_xunlock(&sc->sc_lock);
+			gctl_error(req, "Invalid component number.");
+			goto end;
+		}
+		disk = &sc->sc_disks[*no];
+		if (disk->d_state != G_RAID3_DISK_STATE_NODISK) {
+			sx_xunlock(&sc->sc_lock);
+			gctl_error(req, "Component %jd is already connected.",
+			    *no);
+			goto end;
+		}
+	} else {
+		disk = NULL;
+		for (autono = 0; autono < sc->sc_ndisks && disk == NULL; autono++)
+			if (sc->sc_disks[autono].d_state ==
+			    G_RAID3_DISK_STATE_NODISK)
+				disk = &sc->sc_disks[autono];
+		if (disk == NULL) {
+			sx_xunlock(&sc->sc_lock);
+			gctl_error(req, "No disconnected components.");
+			goto end;
+		}
 	}
 	if (((sc->sc_sectorsize / (sc->sc_ndisks - 1)) % pp->sectorsize) != 0) {
 		sx_xunlock(&sc->sc_lock);

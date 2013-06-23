@@ -234,17 +234,17 @@ static const struct pci_quirk pci_quirks[] = {
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
 	/*
-	 * MSI-X doesn't work with at least LSI SAS1068E passed through by
-	 * VMware.
+	 * MSI-X allocation doesn't work properly for devices passed through
+	 * by VMware up to at least ESXi 5.1.
 	 */
-	{ 0x079015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x079015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 }, /* PCI/PCI-X */
+	{ 0x07a015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 }, /* PCIe */
 
 	/*
 	 * Some virtualization environments emulate an older chipset
 	 * but support MSI just fine.  QEMU uses the Intel 82440.
 	 */
 	{ 0x12378086, PCI_QUIRK_ENABLE_MSI_VM,	0,	0 },
-	{ 0x12751275, PCI_QUIRK_ENABLE_MSI_VM,	0, 	0 },	/* bhyve */
 
 	/*
 	 * HPET MMIO base address may appear in Bar1 for AMD SB600 SMBus
@@ -279,6 +279,12 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
     "Enable I/O and memory bits in the config register.  Some BIOSes do not\n\
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
+
+static int pci_do_realloc_bars = 1;
+TUNABLE_INT("hw.pci.realloc_bars", &pci_do_realloc_bars);
+SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RW,
+    &pci_do_realloc_bars, 0,
+    "Attempt to allocate a new range for any BARs whose original firmware-assigned ranges fail to allocate during the initial device scan.");
 
 static int pci_do_power_nodriver = 0;
 TUNABLE_INT("hw.pci.do_power_nodriver", &pci_do_power_nodriver);
@@ -2816,13 +2822,34 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 */
 	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
+	if (pci_do_realloc_bars && res == NULL && (start != 0 || end != ~0ul)) {
+		/*
+		 * If the allocation fails, try to allocate a resource for
+		 * this BAR using any available range.  The firmware felt
+		 * it was important enough to assign a resource, so don't
+		 * disable decoding if we can help it.
+		 */
+		resource_list_delete(rl, type, reg);
+		resource_list_add(rl, type, reg, 0, ~0ul, count);
+		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0ul,
+		    count, prefetch ? RF_PREFETCHABLE : 0);
+	}
 	if (res == NULL) {
 		/*
 		 * If the allocation fails, delete the resource list entry
-		 * to force pci_alloc_resource() to allocate resources
-		 * from the parent.
+		 * and disable decoding for this device.
+		 *
+		 * If the driver requests this resource in the future,
+		 * pci_reserve_map() will try to allocate a fresh
+		 * resource range.
 		 */
 		resource_list_delete(rl, type, reg);
+		pci_disable_io(dev, type);
+		if (bootverbose)
+			device_printf(bus,
+			    "pci%d:%d:%d:%d bar %#x failed to allocate\n",
+			    pci_get_domain(dev), pci_get_bus(dev),
+			    pci_get_slot(dev), pci_get_function(dev), reg);
 	} else {
 		start = rman_get_start(res);
 		pci_write_bar(dev, pm, start);
@@ -3644,11 +3671,11 @@ pci_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-static struct
+static const struct
 {
-	int	class;
-	int	subclass;
-	char	*desc;
+	int		class;
+	int		subclass;
+	const char	*desc;
 } pci_nomatch_tab[] = {
 	{PCIC_OLD,		-1,			"old"},
 	{PCIC_OLD,		PCIS_OLD_NONVGA,	"non-VGA display device"},
@@ -3740,8 +3767,9 @@ static struct
 void
 pci_probe_nomatch(device_t dev, device_t child)
 {
-	int	i;
-	char	*cp, *scp, *device;
+	int i;
+	const char *cp, *scp;
+	char *device;
 
 	/*
 	 * Look for a listing for this device in a loaded device database.
@@ -3774,7 +3802,6 @@ pci_probe_nomatch(device_t dev, device_t child)
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
 	pci_cfg_save(child, device_get_ivars(child), 1);
-	return;
 }
 
 /*

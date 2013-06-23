@@ -1,7 +1,7 @@
 if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
 #
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,48 @@ export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
 export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
 export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 
+#
+# Default behavior is to call f_debug_init() automatically when loaded.
+#
+: ${DEBUG_SELF_INITIALIZE=1}
+
+#
+# Define standard optstring arguments that should be supported by all programs
+# using this include (unless DEBUG_SELF_INITIALIZE is set to NULL to prevent
+# f_debug_init() from autamatically processing "$@" for the below arguments):
+#
+# 	d	Sets $debug to 1
+# 	D:	Sets $debugFile to $OPTARG
+#
+GETOPTS_STDARGS="dD:"
+
+#
+# The getopts builtin will return 1 either when the end of "$@" or the first
+# invalid flag is reached. This makes it impossible to determine if you've
+# processed all the arguments or simply have hit an invalid flag. In the cases
+# where we want to tolerate invalid flags (f_debug_init() for example), the
+# following variable can be appended to your optstring argument to getopts,
+# preventing it from prematurely returning 1 before the end of the arguments.
+#
+# NOTE: This assumes that all unknown flags are argument-less.
+#
+GETOPTS_ALLFLAGS="abcdefghijklmnopqrstuvwxyz"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}0123456789"
+
+#
+# When we get included, f_debug_init() will fire (unless $DEBUG_SELF_INITIALIZE
+# is set to disable automatic initialization) and process "$@" for a few global
+# options such as `-d' and/or `-D file'. However, if your program takes custom
+# flags that take arguments, this automatic processing may fail unexpectedly.
+#
+# The solution to this problem is to pre-define (before including this file)
+# the following variable (which defaults to NULL) to indicate that there are
+# extra flags that should be considered when performing automatic processing of
+# globally persistent flags.
+#
+: ${GETOPTS_EXTRA:=}
+
 ############################################################ FUNCTIONS
 
 # f_dprintf $fmt [ $opts ... ]
@@ -84,6 +126,62 @@ f_dprintf()
 	[ "${debugFile#+}" ] &&
 		printf "DEBUG: $fmt${fmt:+\n}" "$@" >> "${debugFile#+}"
 	return $SUCCESS
+}
+
+# f_debug_init
+#
+# Initialize debugging. Truncates $debugFile to zero bytes if set.
+#
+f_debug_init()
+{
+	#
+	# Process stored command-line arguments
+	#
+	set -- $ARGV
+	local OPTIND
+	f_dprintf "f_debug_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
+	          "$ARGV" "$GETOPTS_STDARGS"
+	while getopts "$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" flag \
+	> /dev/null; do
+		case "$flag" in
+		d) debug=1;;
+		D) debugFile="$OPTARG";;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	f_dprintf "f_debug_init: debug=[%s] debugFile=[%s]" \
+	          "$debug" "$debugFile"
+
+	#
+	# Automagically enable debugging if debugFile is set (and non-NULL)
+	#
+	[ "$debugFile" ] && { [ "${debug+set}" ] || debug=1; }
+
+	#
+	# Make debugging persistant if set
+	#
+	[ "$debug" ] && export debug
+	[ "$debugFile" ] && export debugFile
+
+	#
+	# Truncate the debug file upon. Note that we will trim a leading plus
+	# (`+') from the value of debugFile to support persistant meaning that
+	# f_dprintf() should print both to standard output and $debugFile
+	# (minus the leading plus, of course).
+	#
+	local _debug_file="${debugFile#+}"
+	if [ "$_debug_file" ]; then
+		if ( umask 022 && :> "$_debug_file" ); then
+			f_dprintf "Successfully initialized debugFile \`%s'" \
+			          "$_debug_file"
+			[ "${debug+set}" ] ||
+				debug=1 # turn debugging on if not set
+		else
+			unset debugFile
+			f_dprintf "Unable to initialize debugFile \`%s'" \
+			          "$_debug_file"
+		fi
+	fi
 }
 
 # f_err $fmt [ $opts ... ]
@@ -127,15 +225,25 @@ f_have()
 #
 f_getvar()
 {
-	local var_to_get="$1" var_to_set="$2"
-	[ "$var_to_set" ] || local value
-	eval ${var_to_set:-value}=\"\${$var_to_get}\"
-	eval [ \"\${$var_to_get+set}\" ]
-	local retval=$?
+	local __var_to_get="$1" __var_to_set="$2"
+	[ "$__var_to_set" ] || local value
+	eval ${__var_to_set:-value}=\"\${$__var_to_get}\"
+	eval [ \"\${$__var_to_get+set}\" ]
+	local __retval=$?
 	eval f_dprintf '"f_getvar: var=[%s] value=[%s] r=%u"' \
-	               \"\$var_to_get\" \"\$${var_to_set:-value}\" \$retval
-	[ "$var_to_set" ] || { [ "$value" ] && echo "$value"; }
-	return $retval
+		\"\$__var_to_get\" \"\$${__var_to_set:-value}\" \$__retval
+	[ "$__var_to_set" ] || { [ "$value" ] && echo "$value"; }
+	return $__retval
+}
+
+# f_isset $var
+#
+# Check if variable $var is set. Returns success if variable is set, otherwise
+# returns failure.
+#
+f_isset()
+{
+	eval [ \"\${${1%%[$IFS]*}+set}\" ]
 }
 
 # f_die [ $status [ $fmt [ $opts ... ]]]
@@ -211,6 +319,50 @@ f_show_msg()
 		f_dialog_msgbox "$msg"
 	else
 		dialog --msgbox "$msg" 0 0
+	fi
+}
+
+
+# f_yesno $fmt [ $opts ... ]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+#
+f_yesno()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_yesno from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_yesno; then
+		f_dialog_yesno "$msg"
+	else
+		dialog --yesno "$msg" 0 0
+	fi
+}
+
+# f_noyes $fmt [ $opts ... ]
+#
+# Display a message in a dialog yes/no box using printf(1) syntax.
+# NOTE: THis is just like the f_yesno function except "No" is default.
+#
+f_noyes()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_noyes from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_noyes; then
+		f_dialog_noyes "$msg"
+	else
+		dialog --defaultno --yesno "$msg" 0 0
 	fi
 }
 
@@ -530,6 +682,30 @@ f_index_menusel_command()
 	echo "$command"
 }
 
+# f_running_as_init
+#
+# Returns true if running as init(1).
+#
+f_running_as_init()
+{
+	#
+	# When a custom init(8) performs an exec(3) to invoke a shell script,
+	# PID 1 becomes sh(1) and $PPID is set to 1 in the executed script.
+	#
+	[ ${PPID:-0} -eq 1 ] # Return status
+}
+
+# f_mounted $local_directory
+#
+# Return success if a filesystem is mounted on a particular directory.
+#
+f_mounted()
+{
+	local dir="$1"
+	[ -d "$dir" ] || return $FAILURE
+	mount | grep -Eq " on $dir \([^)]+\)$"
+}
+
 ############################################################ MAIN
 
 #
@@ -547,28 +723,14 @@ eval exec $TERMINAL_STDOUT_PASSTHRU\>\&1
 eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
 
 #
-# Make debugging persistant if set
+# Self-initialize unless requested otherwise
 #
-[ "$debug" ] && export debug
-
-#
-# Truncate the debug file upon initialization (now). Note that we will trim a
-# leading plus (`+') from the value of debugFile to support persistant meaning
-# that f_dprintf() should print both to standard output and $debugFile (minus
-# the leading plus, of course).
-#
-_debug_file="${debugFile#+}"
-if [ "$_debug_file" ]; then
-	if ( umask 022 && :> "$_debug_file" ); then
-		f_dprintf "Successfully initialized debugFile \`%s'" \
-		          "$_debug_file"
-	else
-		unset debugFile
-		f_dprintf "Unable to initialize debugFile \`%s'" \
-		          "$_debug_file"
-	fi
-fi
-unset _debug_file
+f_dprintf "%s: DEBUG_SELF_INITIALIZE=[%s]" \
+          dialog.subr "$DEBUG_SELF_INITIALIZE"
+case "$DEBUG_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_debug_init
+esac
 
 #
 # Log our operating environment for debugging purposes

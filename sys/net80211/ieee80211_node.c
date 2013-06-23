@@ -771,6 +771,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		/* XXX msg */
 		return 0;
 	}
+
 	/*
 	 * Expand scan state into node's format.
 	 * XXX may not need all this stuff
@@ -821,6 +822,29 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		IEEE80211_F_DOSORT);
 	if (ieee80211_iserp_rateset(&ni->ni_rates))
 		ni->ni_flags |= IEEE80211_NODE_ERP;
+
+	/*
+	 * Setup HT state for this node if it's available, otherwise
+	 * non-STA modes won't pick this state up.
+	 *
+	 * For IBSS and related modes that don't go through an
+	 * association request/response, the only appropriate place
+	 * to setup the HT state is here.
+	 */
+	if (ni->ni_ies.htinfo_ie != NULL &&
+	    ni->ni_ies.htcap_ie != NULL &&
+	    vap->iv_flags_ht & IEEE80211_FHT_HT) {
+		ieee80211_ht_node_init(ni);
+		ieee80211_ht_updateparams(ni,
+		    ni->ni_ies.htcap_ie,
+		    ni->ni_ies.htinfo_ie);
+		ieee80211_setup_htrates(ni, ni->ni_ies.htcap_ie,
+		    IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
+		ieee80211_setup_basic_htrates(ni, ni->ni_ies.htinfo_ie);
+	}
+	/* XXX else check for ath FF? */
+	/* XXX QoS? Difficult given that WME config is specific to a master */
+
 	ieee80211_node_setuptxparms(ni);
 	ieee80211_ratectl_node_init(ni);
 
@@ -937,6 +961,9 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 			break;
 		case IEEE80211_ELEMID_HTCAP:
 			ies->htcap_ie = ie;
+			break;
+		case IEEE80211_ELEMID_HTINFO:
+			ies->htinfo_ie = ie;
 			break;
 #ifdef IEEE80211_SUPPORT_MESH
 		case IEEE80211_ELEMID_MESHID:
@@ -1404,7 +1431,7 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 {
 	struct ieee80211_node *ni;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE | IEEE80211_MSG_ASSOC,
 	    "%s: mac<%s>\n", __func__, ether_sprintf(macaddr));
 	ni = ieee80211_dup_bss(vap, macaddr);
 	if (ni != NULL) {
@@ -1444,6 +1471,8 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh,
 	const struct ieee80211_scanparams *sp)
 {
+	int do_ht_setup = 0;
+
 	ni->ni_esslen = sp->ssid[1];
 	memcpy(ni->ni_essid, sp->ssid + 2, sp->ssid[1]);
 	IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
@@ -1469,12 +1498,41 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 		if (ni->ni_ies.ath_ie != NULL)
 			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
 #endif
+		if (ni->ni_ies.htcap_ie != NULL)
+			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
+		if (ni->ni_ies.htinfo_ie != NULL)
+			ieee80211_parse_htinfo(ni, ni->ni_ies.htinfo_ie);
+
+		if ((ni->ni_ies.htcap_ie != NULL) &&
+		    (ni->ni_ies.htinfo_ie != NULL) &&
+		    (ni->ni_vap->iv_flags_ht & IEEE80211_FHT_HT)) {
+			do_ht_setup = 1;
+		}
 	}
 
 	/* NB: must be after ni_chan is setup */
 	ieee80211_setup_rates(ni, sp->rates, sp->xrates,
 		IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
 		IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
+
+	/*
+	 * If the neighbor is HT compatible, flip that on.
+	 */
+	if (do_ht_setup) {
+		IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_ASSOC,
+		    "%s: doing HT setup\n", __func__);
+		ieee80211_ht_node_init(ni);
+		ieee80211_ht_updateparams(ni,
+		    ni->ni_ies.htcap_ie,
+		    ni->ni_ies.htinfo_ie);
+		ieee80211_setup_htrates(ni,
+		    ni->ni_ies.htcap_ie,
+		    IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
+		ieee80211_setup_basic_htrates(ni,
+		    ni->ni_ies.htinfo_ie);
+		ieee80211_node_setuptxparms(ni);
+		ieee80211_ratectl_node_init(ni);
+	}
 }
 
 /*
@@ -1490,7 +1548,7 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 {
 	struct ieee80211_node *ni;
 
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
 	    "%s: mac<%s>\n", __func__, ether_sprintf(wh->i_addr2));
 	ni = ieee80211_dup_bss(vap, wh->i_addr2);/* XXX alloc_node? */
 	if (ni != NULL) {

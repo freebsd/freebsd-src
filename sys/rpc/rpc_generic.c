@@ -750,9 +750,7 @@ clnt_call_private(
 	struct mbuf *mrep;
 	enum clnt_stat stat;
 
-	MGET(mreq, M_WAITOK, MT_DATA);
-	MCLGET(mreq, M_WAITOK);
-	mreq->m_len = 0;
+	mreq = m_getcl(M_WAITOK, MT_DATA, 0);
 
 	xdrmbuf_create(&xdrs, mreq, XDR_ENCODE);
 	if (!xargs(&xdrs, argsp)) {

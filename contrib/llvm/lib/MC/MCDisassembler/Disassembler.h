@@ -18,10 +18,10 @@
 #define LLVM_MC_DISASSEMBLER_H
 
 #include "llvm-c/Disassembler.h"
-#include <string>
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
+#include <string>
 
 namespace llvm {
 class MCContext;
@@ -109,7 +109,11 @@ public:
   const Target *getTarget() const { return TheTarget; }
   const MCDisassembler *getDisAsm() const { return DisAsm.get(); }
   const MCAsmInfo *getAsmInfo() const { return MAI.get(); }
+  const MCInstrInfo *getInstrInfo() const { return MII.get(); }
+  const MCRegisterInfo *getRegisterInfo() const { return MRI.get(); }
+  const MCSubtargetInfo *getSubtargetInfo() const { return MSI.get(); }
   MCInstPrinter *getIP() { return IP.get(); }
+  void setIP(MCInstPrinter *NewIP) { IP.reset(NewIP); }
 };
 
 } // namespace llvm

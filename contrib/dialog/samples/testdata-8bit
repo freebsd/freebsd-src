@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: testdata-8bit,v 1.1 2004/12/19 16:19:12 tom Exp $
+# $Id: testdata-8bit,v 1.2 2011/10/16 23:26:32 tom Exp $
 
 # Select one of the "SAMPLE=" lines, to test handling of characters which
 # are nonprinting in a POSIX locale:
@@ -37,3 +37,12 @@ case .$1 in
 	SAMPLE=""
 	;;
 esac
+
+# This script is source'd from other scripts, and uses the parameter list from
+# those explicitly.  But they may use the parameter list later, to set options
+# specially for dialog.  Work around the conflicting uses by removing the
+# parameter which we just used to select a set of data.
+if test $# != 0
+then
+	shift 1
+fi

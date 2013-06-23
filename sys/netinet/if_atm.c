@@ -317,7 +317,7 @@ failed:
  *   but this is enough for PVCs entered via the "route" command.
  */
 int
-atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
+atmresolve(struct rtentry *rt, struct mbuf *m, const struct sockaddr *dst,
     struct atm_pseudohdr *desten)
 {
 	struct sockaddr_dl *sdl;
@@ -329,7 +329,8 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 	}
 
 	if (rt == NULL) {
-		rt = RTALLOC1(dst, 0); /* link level on table 0 XXX MRT */
+		/* link level on table 0 XXX MRT */
+		rt = RTALLOC1(__DECONST(struct sockaddr *, dst), 0);
 		if (rt == NULL)
 			goto bad;	/* failed */
 		RT_REMREF(rt);		/* don't keep LL references */

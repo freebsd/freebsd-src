@@ -24,40 +24,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2013
+.Dd January 25, 2013
 .Dt GPART 8
 .Os
 .Sh NAME
 .Nm gpart
 .Nd "control utility for the disk partitioning GEOM class"
 .Sh SYNOPSIS
-To add support for the disk partitioning GEOM class,
-place one or more of the following
-lines in the kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "options GEOM_PART_APM"
-.Cd "options GEOM_PART_BSD"
-.Cd "options GEOM_PART_GPT"
-.Cd "options GEOM_PART_LDM"
-.Cd "options GEOM_PART_MBR"
-.Cd "options GEOM_PART_EBR"
-.Cd "options GEOM_PART_EBR_COMPAT"
-.Cd "options GEOM_PART_PC98"
-.Cd "options GEOM_PART_VTOC8"
-.Ed
-.Pp
-These options provide support for the various types of partitioning
-schemes supported by the
-.Ns Nm
-utility.
-See
-.Sx "PARTITIONING SCHEMES"
-below for more details.
-.Pp
-Usage of the
-.Ns Nm
-utility:
-.Pp
 .\" ==== ADD ====
 .Nm
 .Cm add
@@ -583,7 +556,7 @@ The system partition for computers that use the Extensible Firmware
 Interface (EFI).
 In such cases, the GPT partitioning scheme is used and the
 actual partition type for the system partition can also be specified as
-.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93ab" .
+.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b" .
 .It Cm freebsd
 A
 .Fx
@@ -807,34 +780,51 @@ Both types of bootstrap code are used to boot from the GUID Partition Table.
 First, a protective MBR is embedded into the first disk sector from the
 .Pa /boot/pmbr
 image.
-It searches the GPT
+It searches through the GPT for a
 .Cm freebsd-boot
 partition (see the
 .Sx "PARTITION TYPES"
-section) in the GPT and runs the next bootstrap stage from it.
+section) and runs the next bootstrap stage from it.
 The
 .Cm freebsd-boot
 partition should be smaller than 545 KB.
+It can be located either before or after other
+.Fx
+partitions on the disk.
 There are two variants of bootstrap code to write to this partition:
 .Pa /boot/gptboot
 and
 .Pa /boot/gptzfsboot .
 .Pa /boot/gptboot
 is used to boot from UFS.
-It searches
+It searches through
 .Cm freebsd-ufs
-GPT partitions and starts
+partitions in the GPT and boots from the first one with the
+.Cm bootonce
+attribute set.
+If that attribute is not found,
+.Pa /boot/gptboot
+boots from the first
+.Cm freebsd-ufs
+partition with the
+.Cm bootme
+attribute set.
+If neither attribute is found,
+.Pa /boot/gptboot
+boots from the first
+.Cm freebsd-ufs
+partition.
 .Pa /boot/loader
 .Pq the third bootstrap stage
-if found.
-The
+is loaded from the first partition that matches these conditions.
 .Pa /boot/gptzfsboot
 is used to boot from ZFS.
-It searches
+It searches through the GPT for
 .Cm freebsd-zfs
-GPT partitions and starts
+partitions, trying to detect ZFS pools.
+After all pools are detected,
 .Pa /boot/zfsloader
-if found.
+is started from the first one found.
 .Pp
 The VTOC8 scheme does not support embedding bootstrap code.
 Instead, the 8 KBytes bootstrap code image
@@ -945,7 +935,7 @@ The GEOM PART class can detect the same partition table visible through
 different GEOM providers, and some of them will be marked as corrupt.
 Be careful when choosing a provider for recovery.
 If you choose incorrectly you can destroy the metadata of another GEOM class,
-e.g.\& GEOM MIRROR or GEOM LABEL.
+e.g.,\& GEOM MIRROR or GEOM LABEL.
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8

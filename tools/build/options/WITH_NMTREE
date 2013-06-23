@@ -1,4 +1,4 @@
-\" $FreeBSD$
+.\" $FreeBSD$
 Set to install
 .Xr nmtree 8
 as

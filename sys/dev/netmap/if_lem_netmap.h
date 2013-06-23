@@ -26,7 +26,6 @@
 
 /*
  * $FreeBSD$
- * $Id: if_lem_netmap.h 10627 2012-02-23 19:37:15Z luigi $
  *
  * netmap support for "lem"
  *
@@ -253,6 +252,8 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	l = adapter->next_rx_desc_to_check;
 	j = netmap_idx_n2k(kring, l);
 	if (netmap_no_pendintr || force_update) {
+		uint16_t slot_flags = kring->nkr_slot_flags;
+
 		for (n = 0; ; n++) {
 			struct e1000_rx_desc *curr = &adapter->rx_desc_base[l];
 			uint32_t staterr = le32toh(curr->status);
@@ -266,6 +267,7 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 				len = 0;
 			}
 			ring->slot[j].len = len;
+			ring->slot[j].flags = slot_flags;
 			bus_dmamap_sync(adapter->rxtag,
 				adapter->rx_buffer_area[l].map,
 				    BUS_DMASYNC_POSTREAD);

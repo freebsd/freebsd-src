@@ -41,7 +41,7 @@ divert(-1)
 #  The best documentation for this .mc file is:
 #  /usr/share/sendmail/cf/README or
 #  /usr/src/contrib/sendmail/cf/README
-#
+# 
 
 divert(0)
 VERSIONID(`$FreeBSD$')

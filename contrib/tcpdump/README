@@ -13,8 +13,11 @@ Anonymous Git is available via:
 Version 4.x.y of TCPDUMP can be retrieved with the CVS tag "tcpdump_4_xrely":
 	cvs -d :pserver:cvs.tcpdump.org:/tcpdump/master checkout -r tcpdump_4_xrely tcpdump
 
-Please submit patches against the master copy to the tcpdump project on
-sourceforge.net.
+Please submit patches by forking the branch on GitHub at
+
+	http://github.com/mcr/tcpdump/tree/master
+
+and issuing a pull request.
 
 formerly from 	Lawrence Berkeley National Laboratory
 		Network Research Group <tcpdump@ee.lbl.gov>
@@ -68,16 +71,19 @@ documentation.
 
 Problems, bugs, questions, desirable enhancements, etc. should be sent
 to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
-requests, and feature requests may also be submitted on the SourceForge
-site for tcpdump at
+requests, and feature requests may also be submitted on the GitHub issue
+tracker for tcpdump at
 
-	http://sourceforge.net/projects/tcpdump/
+	https://github.com/mcr/tcpdump/issues
 
 Source code contributions, etc. should be sent to the email address
-submitted as patches on the SourceForge site for tcpdump.
+above or submitted by forking the branch on GitHub at
 
-Current versions can be found at www.tcpdump.org, or the SourceForge
-site for tcpdump.
+	http://github.com/mcr/tcpdump/tree/master
+
+and issuing a pull request.
+
+Current versions can be found at www.tcpdump.org.
 
  - The TCPdump team
 

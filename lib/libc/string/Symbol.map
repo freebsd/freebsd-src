@@ -94,6 +94,7 @@ FBSD_1.1 {
 FBSD_1.3 {
 	strcasecmp_l;
 	strcasestr_l;
+	strchrnul;
 	strncasecmp_l;
 	wcswidth_l;
 	wcwidth_l;

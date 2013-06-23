@@ -38,9 +38,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/fnv_hash.h>
+#include <sys/lock.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -164,6 +166,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
     char *target, dev_t rdev, struct tmpfs_node **node)
 {
 	struct tmpfs_node *nnode;
+	vm_object_t obj;
 
 	/* If the root directory of the 'tmp' file system is not yet
 	 * allocated, this must be the request to do it. */
@@ -225,9 +228,14 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		break;
 
 	case VREG:
-		nnode->tn_reg.tn_aobj =
+		obj = nnode->tn_reg.tn_aobj =
 		    vm_pager_allocate(OBJT_SWAP, NULL, 0, VM_PROT_DEFAULT, 0,
 			NULL /* XXXKIB - tmpfs needs swap reservation */);
+		VM_OBJECT_WLOCK(obj);
+		/* OBJ_TMPFS is set together with the setting of vp->v_object */
+		vm_object_set_flag(obj, OBJ_NOSPLIT);
+		vm_object_clear_flag(obj, OBJ_ONEMAPPING);
+		VM_OBJECT_WUNLOCK(obj);
 		break;
 
 	default:
@@ -306,6 +314,8 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 			TMPFS_LOCK(tmp);
 			tmp->tm_pages_used -= uobj->size;
 			TMPFS_UNLOCK(tmp);
+			KASSERT((uobj->flags & OBJ_TMPFS) == 0,
+			    ("leaked OBJ_TMPFS node %p vm_obj %p", node, uobj));
 			vm_object_deallocate(uobj);
 		}
 		break;
@@ -421,6 +431,36 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de)
 
 /* --------------------------------------------------------------------- */
 
+void
+tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
+{
+
+	if (vp->v_type != VREG || obj == NULL)
+		return;
+
+	VM_OBJECT_WLOCK(obj);
+	VI_LOCK(vp);
+	vm_object_clear_flag(obj, OBJ_TMPFS);
+	obj->un_pager.swp.swp_tmpfs = NULL;
+	VI_UNLOCK(vp);
+	VM_OBJECT_WUNLOCK(obj);
+}
+
+/*
+ * Need to clear v_object for insmntque failure.
+ */
+static void
+tmpfs_insmntque_dtr(struct vnode *vp, void *dtr_arg)
+{
+
+	tmpfs_destroy_vobject(vp, vp->v_object);
+	vp->v_object = NULL;
+	vp->v_data = NULL;
+	vp->v_op = &dead_vnodeops;
+	vgone(vp);
+	vput(vp);
+}
+
 /*
  * Allocates a new vnode for the node node or returns a new reference to
  * an existing one if the node had already a vnode referencing it.  The
@@ -432,9 +472,11 @@ int
 tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
     struct vnode **vpp)
 {
-	int error = 0;
 	struct vnode *vp;
+	vm_object_t object;
+	int error;
 
+	error = 0;
 loop:
 	TMPFS_NODE_LOCK(node);
 	if ((vp = node->tn_vnode) != NULL) {
@@ -504,12 +546,21 @@ loop:
 		/* FALLTHROUGH */
 	case VLNK:
 		/* FALLTHROUGH */
-	case VREG:
-		/* FALLTHROUGH */
 	case VSOCK:
 		break;
 	case VFIFO:
 		vp->v_op = &tmpfs_fifoop_entries;
+		break;
+	case VREG:
+		object = node->tn_reg.tn_aobj;
+		VM_OBJECT_WLOCK(object);
+		VI_LOCK(vp);
+		KASSERT(vp->v_object == NULL, ("Not NULL v_object in tmpfs"));
+		vp->v_object = object;
+		object->un_pager.swp.swp_tmpfs = vp;
+		vm_object_set_flag(object, OBJ_TMPFS);
+		VI_UNLOCK(vp);
+		VM_OBJECT_WUNLOCK(object);
 		break;
 	case VDIR:
 		MPASS(node->tn_dir.tn_parent != NULL);
@@ -521,8 +572,7 @@ loop:
 		panic("tmpfs_alloc_vp: type %p %d", node, (int)node->tn_type);
 	}
 
-	vnode_pager_setsize(vp, node->tn_size);
-	error = insmntque(vp, mp);
+	error = insmntque1(vp, mp, tmpfs_insmntque_dtr, NULL);
 	if (error)
 		vp = NULL;
 
@@ -1270,7 +1320,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 	    tmpfs_pages_check_avail(tmp, newpages - oldpages) == 0)
 		return (ENOSPC);
 
-	VM_OBJECT_LOCK(uobj);
+	VM_OBJECT_WLOCK(uobj);
 	if (newsize < oldsize) {
 		/*
 		 * Zero the truncated part of the last page.
@@ -1290,9 +1340,9 @@ retry:
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
-					VM_OBJECT_UNLOCK(uobj);
+					VM_OBJECT_WUNLOCK(uobj);
 					VM_WAIT;
-					VM_OBJECT_LOCK(uobj);
+					VM_OBJECT_WLOCK(uobj);
 					goto retry;
 				} else if (m->valid != VM_PAGE_BITS_ALL) {
 					ma[0] = m;
@@ -1312,7 +1362,7 @@ retry:
 					if (ignerr)
 						m = NULL;
 					else {
-						VM_OBJECT_UNLOCK(uobj);
+						VM_OBJECT_WUNLOCK(uobj);
 						return (EIO);
 					}
 				}
@@ -1334,14 +1384,13 @@ retry:
 		}
 	}
 	uobj->size = newpages;
-	VM_OBJECT_UNLOCK(uobj);
+	VM_OBJECT_WUNLOCK(uobj);
 
 	TMPFS_LOCK(tmp);
 	tmp->tm_pages_used += (newpages - oldpages);
 	TMPFS_UNLOCK(tmp);
 
 	node->tn_size = newsize;
-	vnode_pager_setsize(vp, newsize);
 	return (0);
 }
 
@@ -1353,7 +1402,8 @@ retry:
  * The vnode must be locked on entry and remain locked on exit.
  */
 int
-tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
+tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
+    struct thread *p)
 {
 	int error;
 	struct tmpfs_node *node;

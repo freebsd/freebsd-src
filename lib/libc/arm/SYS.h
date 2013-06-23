@@ -39,7 +39,15 @@
 #include <sys/syscall.h>
 #include <machine/swi.h>
 
+#ifdef __ARM_EABI__
+#define SYSTRAP(x)							\
+			mov ip, r7;					\
+			ldr r7, =SYS_ ## x;				\
+			swi 0;						\
+			mov r7, ip
+#else
 #define SYSTRAP(x)	swi 0 | SYS_ ## x
+#endif
 
 #define	CERROR		_C_LABEL(cerror)
 #define	CURBRK		_C_LABEL(curbrk)

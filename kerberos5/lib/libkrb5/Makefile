@@ -82,8 +82,7 @@ MAN=	krb5.3 \
 	krb5_timeofday.3 \
 	krb5_v4compat.3 \
 	krb5_verify_init_creds.3 \
-	krb5_verify_user.3 \
-	verify_krb5_conf.8
+	krb5_verify_user.3
 
 MAN+=	krb5.conf.5
 MAN+=	kerberos.8
@@ -107,7 +106,6 @@ MLINKS=	krb5.3 krb5_add_et_list.3 \
 	krb5.3 krb5_data_realloc.3 \
 	krb5.3 krb5_data_zero.3 \
 	krb5.3 krb5_free_config_files.3 \
-	krb5.3 krb5_free_context.3 \
 	krb5.3 krb5_free_cred_contents.3 \
 	krb5.3 krb5_free_creds.3 \
 	krb5.3 krb5_free_data.3 \
@@ -123,7 +121,6 @@ MLINKS=	krb5.3 krb5_add_et_list.3 \
 	krb5.3 krb5_get_use_admin_kdc.3 \
 	krb5.3 krb5_init_ets.3 \
 	krb5.3 krb5_kerberos_enctypes.3 \
-	krb5.3 krb5_krbhst_get_addrinfo.3 \
 	krb5.3 krb5_prepend_config_files_default.3 \
 	krb5.3 krb5_set_config_files.3 \
 	krb5.3 krb5_set_default_in_tkt_etypes.3 \
@@ -195,7 +192,6 @@ MLINKS=	krb5.3 krb5_add_et_list.3 \
 	krb5_auth_context.3 krb5_auth_getcksumtype.3 \
 	krb5_auth_context.3 krb5_auth_getkeytype.3 \
 	krb5_auth_context.3 krb5_auth_getlocalseqnumber.3 \
-	krb5_auth_context.3 krb5_auth_getremoteseqnumber.3 \
 	krb5_auth_context.3 krb5_auth_setcksumtype.3 \
 	krb5_auth_context.3 krb5_auth_setkeytype.3 \
 	krb5_auth_context.3 krb5_auth_setlocalseqnumber.3 \
@@ -383,11 +379,8 @@ MLINKS=	krb5.3 krb5_add_et_list.3 \
 	krb5_principal.3 krb5_free_principal.3 \
 	krb5_principal.3 krb5_get_default_principal.3 \
 	krb5_principal.3 krb5_make_principal.3 \
-	krb5_principal.3 krb5_parse_name.3 \
 	krb5_principal.3 krb5_parse_name_flags.3 \
 	krb5_principal.3 krb5_parse_nametype.3 \
-	krb5_principal.3 krb5_princ_realm.3 \
-	krb5_principal.3 krb5_princ_set_realm.3 \
 	krb5_principal.3 krb5_principal_compare.3 \
 	krb5_principal.3 krb5_principal_compare_any_realm.3 \
 	krb5_principal.3 krb5_principal_get_comp_string.3 \
@@ -486,7 +479,6 @@ MLINKS=	krb5.3 krb5_add_et_list.3 \
 	krb5_support.3 krb5_config_vget_time_default.3 \
 	krb5_support.3 krb5_expand_hostname.3 \
 	krb5_support.3 krb5_expand_hostname_realms.3 \
-	krb5_support.3 krb5_free_host_realm.3 \
 	krb5_support.3 krb5_kuserok.3 \
 	krb5_support.3 krb5_plugin_register.3 \
 	krb5_ticket.3 krb5_ticket_get_flags.3 \

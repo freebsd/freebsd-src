@@ -656,7 +656,7 @@ oct16550_bus_probe (struct uart_softc *sc)
 	int error;
 
 	bas = &sc->sc_bas;
-	bas->rclk = uart_oct16550_class.uc_rclk = cvmx_sysinfo_get()->cpu_clock_hz;
+	bas->rclk = uart_oct16550_class.uc_rclk = cvmx_clock_get_rate(CVMX_CLOCK_SCLK);
 
 	error = oct16550_probe(bas);
 	if (error) {

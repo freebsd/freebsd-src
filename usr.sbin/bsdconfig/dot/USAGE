@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 Usage: bsdconfig @PROGRAM_NAME@ [OPTIONS]
 
 OPTIONS:
-	-h    Print usage statement and exit.
+	-h    Print this usage statement and exit.
 	-c    Don't show command-line shortcut relationships.
 	-d    Don't show the date in the graph label.
 	-i    Don't show include relationships.

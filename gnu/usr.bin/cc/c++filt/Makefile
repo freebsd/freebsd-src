@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+NO_MAN=
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 .include "../Makefile.fe"
 
@@ -7,7 +10,6 @@
 
 PROG=	c++filt
 SRCS=	cp-demangle.c
-NO_MAN=
 
 CFLAGS+= -DSTANDALONE_DEMANGLER -DVERSION=\"$(GCC_VERSION)\"
 

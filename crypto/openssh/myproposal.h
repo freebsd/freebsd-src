@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.29 2012/06/28 05:07:45 dtucker Exp $ */
+/* $OpenBSD: myproposal.h,v 1.32 2013/01/08 18:49:04 markus Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -74,6 +74,7 @@
 #define	KEX_DEFAULT_ENCRYPT \
 	"aes128-ctr,aes192-ctr,aes256-ctr," \
 	"arcfour256,arcfour128," \
+	"aes128-gcm@openssh.com,aes256-gcm@openssh.com," \
 	"aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc," \
 	"aes192-cbc,aes256-cbc,arcfour,rijndael-cbc@lysator.liu.se"
 #ifdef	NONE_CIPHER_ENABLED
@@ -88,9 +89,19 @@
 # define SHA2_HMAC_MODES
 #endif
 #define	KEX_DEFAULT_MAC \
+	"hmac-md5-etm@openssh.com," \
+	"hmac-sha1-etm@openssh.com," \
+	"umac-64-etm@openssh.com," \
+	"umac-128-etm@openssh.com," \
+	"hmac-sha2-256-etm@openssh.com," \
+	"hmac-sha2-512-etm@openssh.com," \
+	"hmac-ripemd160-etm@openssh.com," \
+	"hmac-sha1-96-etm@openssh.com," \
+	"hmac-md5-96-etm@openssh.com," \
 	"hmac-md5," \
 	"hmac-sha1," \
 	"umac-64@openssh.com," \
+	"umac-128@openssh.com," \
 	SHA2_HMAC_MODES \
 	"hmac-ripemd160," \
 	"hmac-ripemd160@openssh.com," \

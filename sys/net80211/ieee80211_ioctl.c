@@ -1340,12 +1340,17 @@ setmlme_dropsta(struct ieee80211vap *vap,
 	if (!IEEE80211_ADDR_EQ(mac, ic->ic_ifp->if_broadcastaddr)) {
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_node_locked(nt, mac);
+		IEEE80211_NODE_UNLOCK(nt);
+		/*
+		 * Don't do the node update inside the node
+		 * table lock.  This unfortunately causes LORs
+		 * with drivers and their TX paths.
+		 */
 		if (ni != NULL) {
 			domlme(mlmeop, ni);
 			ieee80211_free_node(ni);
 		} else
 			error = ENOENT;
-		IEEE80211_NODE_UNLOCK(nt);
 	} else {
 		ieee80211_iterate_nodes(nt, domlme, mlmeop);
 	}
@@ -1400,13 +1405,18 @@ setmlme_common(struct ieee80211vap *vap, int op,
 		case IEEE80211_M_MBSS:
 			IEEE80211_NODE_LOCK(nt);
 			ni = ieee80211_find_node_locked(nt, mac);
+			/*
+			 * Don't do the node update inside the node
+			 * table lock.  This unfortunately causes LORs
+			 * with drivers and their TX paths.
+			 */
+			IEEE80211_NODE_UNLOCK(nt);
 			if (ni != NULL) {
 				ieee80211_node_leave(ni);
 				ieee80211_free_node(ni);
 			} else {
 				error = ENOENT;
 			}
-			IEEE80211_NODE_UNLOCK(nt);
 			break;
 		default:
 			error = EINVAL;
@@ -1422,6 +1432,12 @@ setmlme_common(struct ieee80211vap *vap, int op,
 		}
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_vap_node_locked(nt, vap, mac);
+		/*
+		 * Don't do the node update inside the node
+		 * table lock.  This unfortunately causes LORs
+		 * with drivers and their TX paths.
+		 */
+		IEEE80211_NODE_UNLOCK(nt);
 		if (ni != NULL) {
 			mlmedebug(vap, mac, op, reason);
 			if (op == IEEE80211_MLME_AUTHORIZE)
@@ -1431,7 +1447,6 @@ setmlme_common(struct ieee80211vap *vap, int op,
 			ieee80211_free_node(ni);
 		} else
 			error = ENOENT;
-		IEEE80211_NODE_UNLOCK(nt);
 		break;
 	case IEEE80211_MLME_AUTH:
 		if (vap->iv_opmode != IEEE80211_M_HOSTAP) {
@@ -1440,6 +1455,12 @@ setmlme_common(struct ieee80211vap *vap, int op,
 		}
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_vap_node_locked(nt, vap, mac);
+		/*
+		 * Don't do the node update inside the node
+		 * table lock.  This unfortunately causes LORs
+		 * with drivers and their TX paths.
+		 */
+		IEEE80211_NODE_UNLOCK(nt);
 		if (ni != NULL) {
 			mlmedebug(vap, mac, op, reason);
 			if (reason == IEEE80211_STATUS_SUCCESS) {
@@ -1463,7 +1484,6 @@ setmlme_common(struct ieee80211vap *vap, int op,
 			ieee80211_free_node(ni);
 		} else
 			error = ENOENT;
-		IEEE80211_NODE_UNLOCK(nt);
 		break;
 	default:
 		error = EINVAL;

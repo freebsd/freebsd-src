@@ -557,7 +557,7 @@ hdaa_presence_handler(struct hdaa_widget *w)
 	HDA_BOOTVERBOSE(
 		if (connected || old != 2) {
 			device_printf(devinfo->dev,
-			    "Pin sense: nid=%d sence=0x%08x (%sconnected)\n",
+			    "Pin sense: nid=%d sense=0x%08x (%sconnected)\n",
 			    w->nid, res, !connected ? "dis" : "");
 		}
 	);
@@ -706,7 +706,7 @@ hdaa_eld_handler(struct hdaa_widget *w)
 	}
 	HDA_BOOTVERBOSE(
 		device_printf(devinfo->dev,
-		    "Pin sense: nid=%d sence=0x%08x "
+		    "Pin sense: nid=%d sense=0x%08x "
 		    "(%sconnected, ELD %svalid)\n",
 		    w->nid, res,
 		    (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) ? "" : "dis",

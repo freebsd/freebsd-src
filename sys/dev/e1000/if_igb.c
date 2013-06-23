@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -42,7 +42,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 #include <sys/buf_ring.h>
 #endif
 #include <sys/bus.h>
@@ -100,7 +100,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.5";
+char igb_driver_version[] = "version - 2.3.10";
 
 
 /*********************************************************************
@@ -179,7 +179,7 @@ static int	igb_detach(device_t);
 static int	igb_shutdown(device_t);
 static int	igb_suspend(device_t);
 static int	igb_resume(device_t);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 static int	igb_mq_start(struct ifnet *, struct mbuf *);
 static int	igb_mq_start_locked(struct ifnet *, struct tx_ring *);
 static void	igb_qflush(struct ifnet *);
@@ -294,7 +294,7 @@ static device_method_t igb_methods[] = {
 	DEVMETHOD(device_shutdown, igb_shutdown),
 	DEVMETHOD(device_suspend, igb_suspend),
 	DEVMETHOD(device_resume, igb_resume),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t igb_driver = {
@@ -350,6 +350,16 @@ TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
 SYSCTL_INT(_hw_igb, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &igb_max_interrupt_rate, 0, "Maximum interrupts per second");
 
+#if __FreeBSD_version >= 800000
+/*
+** Tuneable number of buffers in the buf-ring (drbr_xxx)
+*/
+static int igb_buf_ring_size = IGB_BR_SIZE;
+TUNABLE_INT("hw.igb.buf_ring_size", &igb_buf_ring_size);
+SYSCTL_INT(_hw_igb, OID_AUTO, buf_ring_size, CTLFLAG_RDTUN,
+    &igb_buf_ring_size, 0, "Size of the bufring");
+#endif
+
 /*
 ** Header split causes the packet header to
 ** be dma'd to a seperate mbuf from the payload.
@@ -364,8 +374,9 @@ SYSCTL_INT(_hw_igb, OID_AUTO, header_split, CTLFLAG_RDTUN, &igb_header_split, 0,
     "Enable receive mbuf header split");
 
 /*
-** This will autoconfigure based on
-** the number of CPUs if left at 0.
+** This will autoconfigure based on the
+** number of CPUs and max supported
+** MSIX messages if left at 0.
 */
 static int igb_num_queues = 0;
 TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
@@ -840,7 +851,7 @@ igb_resume(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) && adapter->link_active) {
 		for (int i = 0; i < adapter->num_queues; i++, txr++) {
 			IGB_TX_LOCK(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			/* Process the stack queue only if not depleted */
 			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 			    !drbr_empty(ifp, txr->br))
@@ -858,7 +869,7 @@ igb_resume(device_t dev)
 }
 
 
-#if __FreeBSD_version < 800000
+#ifdef IGB_LEGACY_TX
 
 /*********************************************************************
  *  Transmit entry point
@@ -936,10 +947,11 @@ igb_start(struct ifnet *ifp)
 	return;
 }
 
-#else /* __FreeBSD_version >= 800000 */
+#else /* ~IGB_LEGACY_TX */
 
 /*
-** Multiqueue Transmit driver
+** Multiqueue Transmit Entry:
+**  quick turnaround to the stack
 **
 */
 static int
@@ -955,24 +967,11 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
 	else
 		i = curcpu % adapter->num_queues;
-
 	txr = &adapter->tx_rings[i];
 	que = &adapter->queues[i];
-	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
-	    IGB_TX_TRYLOCK(txr)) {
-		/*
-		** Try to queue first to avoid
-		** out-of-order delivery, but 
-		** settle for it if that fails
-		*/
-		if (m)
-			drbr_enqueue(ifp, txr->br, m);
-		err = igb_mq_start_locked(ifp, txr);
-		IGB_TX_UNLOCK(txr);
-	} else {
-		err = drbr_enqueue(ifp, txr->br, m);
-		taskqueue_enqueue(que->tq, &txr->txq_task);
-	}
+
+	err = drbr_enqueue(ifp, txr->br, m);
+	taskqueue_enqueue(que->tq, &txr->txq_task);
 
 	return (err);
 }
@@ -987,19 +986,28 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	IGB_TX_LOCK_ASSERT(txr);
 
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    (txr->queue_status & IGB_QUEUE_DEPLETED) ||
 	    adapter->link_active == 0)
-		return (err);
+		return (ENETDOWN);
 
 	enq = 0;
 
 	/* Process the queue */
-	while ((next = drbr_dequeue(ifp, txr->br)) != NULL) {
+	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
 		if ((err = igb_xmit(txr, &next)) != 0) {
-			if (next != NULL)
-				err = drbr_enqueue(ifp, txr->br, next);
+			if (next == NULL) {
+				/* It was freed, move forward */
+				drbr_advance(ifp, txr->br);
+			} else {
+				/* 
+				 * Still have one left, it may not be
+				 * the same since the transmit function
+				 * may have changed it.
+				 */
+				drbr_putback(ifp, txr->br, next);
+			}
 			break;
 		}
+		drbr_advance(ifp, txr->br);
 		enq++;
 		ifp->if_obytes += next->m_pkthdr.len;
 		if (next->m_flags & M_MCAST)
@@ -1054,7 +1062,7 @@ igb_qflush(struct ifnet *ifp)
 	}
 	if_qflush(ifp);
 }
-#endif /* __FreeBSD_version >= 800000 */
+#endif /* ~IGB_LEGACY_TX */
 
 /*********************************************************************
  *  Ioctl entry point
@@ -1380,7 +1388,7 @@ igb_handle_que(void *context, int pending)
 
 		IGB_TX_LOCK(txr);
 		igb_txeof(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		/* Process the stack queue only if not depleted */
 		if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 		    !drbr_empty(ifp, txr->br))
@@ -1431,7 +1439,7 @@ igb_handle_link_locked(struct adapter *adapter)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && adapter->link_active) {
 		for (int i = 0; i < adapter->num_queues; i++, txr++) {
 			IGB_TX_LOCK(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			/* Process the stack queue only if not depleted */
 			if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 			    !drbr_empty(ifp, txr->br))
@@ -1533,7 +1541,7 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		do {
 			more = igb_txeof(txr);
 		} while (loop-- && more);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		if (!drbr_empty(ifp, txr->br))
 			igb_mq_start_locked(ifp, txr);
 #else
@@ -1568,7 +1576,7 @@ igb_msix_que(void *arg)
 
 	IGB_TX_LOCK(txr);
 	igb_txeof(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	/* Process the stack queue only if not depleted */
 	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 	    !drbr_empty(ifp, txr->br))
@@ -1681,7 +1689,6 @@ static void
 igb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct adapter *adapter = ifp->if_softc;
-	u_char fiber_type = IFM_1000_SX;
 
 	INIT_DEBUGOUT("igb_media_status: begin");
 
@@ -1698,26 +1705,31 @@ igb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
-	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
-	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes))
-		ifmr->ifm_active |= fiber_type | IFM_FDX;
-	else {
-		switch (adapter->link_speed) {
-		case 10:
-			ifmr->ifm_active |= IFM_10_T;
-			break;
-		case 100:
-			ifmr->ifm_active |= IFM_100_TX;
-			break;
-		case 1000:
-			ifmr->ifm_active |= IFM_1000_T;
-			break;
-		}
-		if (adapter->link_duplex == FULL_DUPLEX)
-			ifmr->ifm_active |= IFM_FDX;
+	switch (adapter->link_speed) {
+	case 10:
+		ifmr->ifm_active |= IFM_10_T;
+		break;
+	case 100:
+		/*
+		** Support for 100Mb SFP - these are Fiber 
+		** but the media type appears as serdes
+		*/
+		if (adapter->hw.phy.media_type ==
+		    e1000_media_type_internal_serdes)
+			ifmr->ifm_active |= IFM_100_FX;
 		else
-			ifmr->ifm_active |= IFM_HDX;
+			ifmr->ifm_active |= IFM_100_TX;
+		break;
+	case 1000:
+		ifmr->ifm_active |= IFM_1000_T;
+		break;
 	}
+
+	if (adapter->link_duplex == FULL_DUPLEX)
+		ifmr->ifm_active |= IFM_FDX;
+	else
+		ifmr->ifm_active |= IFM_HDX;
+
 	IGB_CORE_UNLOCK(adapter);
 }
 
@@ -2084,7 +2096,9 @@ static void
 igb_disable_promisc(struct adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	struct ifnet	*ifp = adapter->ifp;
 	u32		reg;
+	int		mcnt = 0;
 
 	if (adapter->vf_ifp) {
 		e1000_promisc_set_vf(hw, e1000_promisc_disabled);
@@ -2092,7 +2106,31 @@ igb_disable_promisc(struct adapter *adapter)
 	}
 	reg = E1000_READ_REG(hw, E1000_RCTL);
 	reg &=  (~E1000_RCTL_UPE);
-	reg &=  (~E1000_RCTL_MPE);
+	if (ifp->if_flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else {
+		struct  ifmultiaddr *ifma;
+#if __FreeBSD_version < 800000
+		IF_ADDR_LOCK(ifp);
+#else   
+		if_maddr_rlock(ifp);
+#endif
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+				break;
+			mcnt++;
+		}
+#if __FreeBSD_version < 800000
+		IF_ADDR_UNLOCK(ifp);
+#else
+		if_maddr_runlock(ifp);
+#endif
+	}
+	/* Don't disable if in MAX groups */
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg &=  (~E1000_RCTL_MPE);
 	E1000_WRITE_REG(hw, E1000_RCTL, reg);
 }
 
@@ -2220,11 +2258,13 @@ timeout:
 static void
 igb_update_link_status(struct adapter *adapter)
 {
-	struct e1000_hw *hw = &adapter->hw;
-	struct ifnet *ifp = adapter->ifp;
-	device_t dev = adapter->dev;
-	struct tx_ring *txr = adapter->tx_rings;
-	u32 link_check, thstat, ctrl;
+	struct e1000_hw		*hw = &adapter->hw;
+	struct e1000_fc_info	*fc = &hw->fc;
+	struct ifnet		*ifp = adapter->ifp;
+	device_t		dev = adapter->dev;
+	struct tx_ring		*txr = adapter->tx_rings;
+	u32			link_check, thstat, ctrl;
+	char			*flowctl = NULL;
 
 	link_check = thstat = ctrl = 0;
 
@@ -2262,15 +2302,33 @@ igb_update_link_status(struct adapter *adapter)
 		ctrl = E1000_READ_REG(hw, E1000_CTRL_EXT);
 	}
 
+	/* Get the flow control for display */
+	switch (fc->current_mode) {
+	case e1000_fc_rx_pause:
+		flowctl = "RX";
+		break;	
+	case e1000_fc_tx_pause:
+		flowctl = "TX";
+		break;	
+	case e1000_fc_full:
+		flowctl = "Full";
+		break;	
+	case e1000_fc_none:
+	default:
+		flowctl = "None";
+		break;	
+	}
+
 	/* Now we check if a transition has happened */
 	if (link_check && (adapter->link_active == 0)) {
 		e1000_get_speed_and_duplex(&adapter->hw, 
 		    &adapter->link_speed, &adapter->link_duplex);
 		if (bootverbose)
-			device_printf(dev, "Link is up %d Mbps %s\n",
+			device_printf(dev, "Link is up %d Mbps %s,"
+			    " Flow Control: %s\n",
 			    adapter->link_speed,
 			    ((adapter->link_duplex == FULL_DUPLEX) ?
-			    "Full Duplex" : "Half Duplex"));
+			    "Full Duplex" : "Half Duplex"), flowctl);
 		adapter->link_active = 1;
 		ifp->if_baudrate = adapter->link_speed * 1000000;
 		if ((ctrl & E1000_CTRL_EXT_LINK_MODE_GMII) &&
@@ -2416,7 +2474,6 @@ igb_allocate_legacy(struct adapter *adapter)
 {
 	device_t		dev = adapter->dev;
 	struct igb_queue	*que = adapter->queues;
-	struct tx_ring		*txr = adapter->tx_rings;
 	int			error, rid = 0;
 
 	/* Turn off all interrupts */
@@ -2435,8 +2492,8 @@ igb_allocate_legacy(struct adapter *adapter)
 		return (ENXIO);
 	}
 
-#if __FreeBSD_version >= 800000
-	TASK_INIT(&txr->txq_task, 0, igb_deferred_mq_start, txr);
+#ifndef IGB_LEGACY_TX
+	TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start, que->txr);
 #endif
 
 	/*
@@ -2519,7 +2576,7 @@ igb_allocate_msix(struct adapter *adapter)
 				i,igb_last_bind_cpu);
 			igb_last_bind_cpu = CPU_NEXT(igb_last_bind_cpu);
 		}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start,
 		    que->txr);
 #endif
@@ -2745,7 +2802,7 @@ igb_free_pci_resources(struct adapter *adapter)
 
 	for (int i = 0; i < adapter->num_queues; i++, que++) {
 		if (que->tq != NULL) {
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			taskqueue_drain(que->tq, &que->txr->txq_task);
 #endif
 			taskqueue_drain(que->tq, &que->que_task);
@@ -3055,7 +3112,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = igb_ioctl;
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	ifp->if_transmit = igb_mq_start;
 	ifp->if_qflush = igb_qflush;
 #else
@@ -3299,9 +3356,9 @@ igb_allocate_queues(struct adapter *adapter)
 			error = ENOMEM;
 			goto err_tx_desc;
         	}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 		/* Allocate a buf ring */
-		txr->br = buf_ring_alloc(IGB_BR_SIZE, M_DEVBUF,
+		txr->br = buf_ring_alloc(igb_buf_ring_size, M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
 #endif
 	}
@@ -3360,7 +3417,7 @@ err_tx_desc:
 		igb_dma_free(adapter, &txr->txdma);
 	free(adapter->rx_rings, M_DEVBUF);
 rx_fail:
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	buf_ring_free(txr->br, M_DEVBUF);
 #endif
 	free(adapter->tx_rings, M_DEVBUF);
@@ -3618,7 +3675,7 @@ igb_free_transmit_buffers(struct tx_ring *txr)
 			tx_buffer->map = NULL;
 		}
 	}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 	if (txr->br != NULL)
 		buf_ring_free(txr->br, M_DEVBUF);
 #endif
@@ -3840,17 +3897,9 @@ igb_txeof(struct tx_ring *txr)
 	IGB_TX_LOCK_ASSERT(txr);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
-		IGB_TX_UNLOCK(txr);
-		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_si, PI_NET);
-		IGB_CORE_UNLOCK(adapter);
-		IGB_TX_LOCK(txr);
-		return FALSE;
-	}
+	if (netmap_tx_irq(ifp, txr->me |
+	    (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
+		return (FALSE);
 #endif /* DEV_NETMAP */
         if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = IGB_QUEUE_IDLE;
@@ -4704,17 +4753,8 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
-		IGB_RX_UNLOCK(rxr);
-		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_si, PI_NET);
-		IGB_CORE_UNLOCK(adapter);
-		return (0);
-	}
+	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+		return (FALSE);
 #endif /* DEV_NETMAP */
 
 	/* Main clean loop */
@@ -4839,7 +4879,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 				rxr->fmp->m_pkthdr.ether_vtag = vtag;
 				rxr->fmp->m_flags |= M_VLANTAG;
 			}
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 			rxr->fmp->m_pkthdr.flowid = que->msix;
 			rxr->fmp->m_flags |= M_FLOWID;
 #endif

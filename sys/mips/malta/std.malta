@@ -4,7 +4,6 @@ files	"../malta/files.malta"
 cpu		CPU_MIPS4KC
 device		pci
 device		ata
-options 	ATA_CAM
 
 device		scbus		# SCSI bus (required for ATA/SCSI)
 device		cd		# CD

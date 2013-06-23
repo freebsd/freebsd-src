@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -541,7 +541,7 @@ AcpiDsBuildInternalPackageObj (
         }
 
         ACPI_INFO ((AE_INFO,
-            "Actual Package length (%u) is larger than NumElements field (%u), truncated\n",
+            "Actual Package length (%u) is larger than NumElements field (%u), truncated",
             i, ElementCount));
     }
     else if (i < ElementCount)
@@ -677,7 +677,6 @@ AcpiDsInitObjectFromOp (
     switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_BUFFER:
-
         /*
          * Defer evaluation of Buffer TermArg operand
          */
@@ -687,9 +686,7 @@ AcpiDsInitObjectFromOp (
         ObjDesc->Buffer.AmlLength = Op->Named.Length;
         break;
 
-
     case ACPI_TYPE_PACKAGE:
-
         /*
          * Defer evaluation of Package TermArg operand
          */
@@ -698,7 +695,6 @@ AcpiDsInitObjectFromOp (
         ObjDesc->Package.AmlStart  = Op->Named.Data;
         ObjDesc->Package.AmlLength = Op->Named.Length;
         break;
-
 
     case ACPI_TYPE_INTEGER:
 
@@ -734,7 +730,7 @@ AcpiDsInitObjectFromOp (
                 /* Truncate value if we are executing from a 32-bit ACPI table */
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-                AcpiExTruncateFor32bitTable (ObjDesc);
+                (void) AcpiExTruncateFor32bitTable (ObjDesc);
 #endif
                 break;
 
@@ -752,24 +748,31 @@ AcpiDsInitObjectFromOp (
             }
             break;
 
-
         case AML_TYPE_LITERAL:
 
             ObjDesc->Integer.Value = Op->Common.Value.Integer;
+
 #ifndef ACPI_NO_METHOD_EXECUTION
-            AcpiExTruncateFor32bitTable (ObjDesc);
+            if (AcpiExTruncateFor32bitTable (ObjDesc))
+            {
+                /* Warn if we found a 64-bit constant in a 32-bit table */
+
+                ACPI_WARNING ((AE_INFO,
+                    "Truncated 64-bit constant found in 32-bit table: %8.8X%8.8X => %8.8X",
+                    ACPI_FORMAT_UINT64 (Op->Common.Value.Integer),
+                    (UINT32) ObjDesc->Integer.Value));
+            }
 #endif
             break;
 
-
         default:
+
             ACPI_ERROR ((AE_INFO, "Unknown Integer type 0x%X",
                 OpInfo->Type));
             Status = AE_AML_OPERAND_TYPE;
             break;
         }
         break;
-
 
     case ACPI_TYPE_STRING:
 
@@ -783,10 +786,8 @@ AcpiDsInitObjectFromOp (
         ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;
         break;
 
-
     case ACPI_TYPE_METHOD:
         break;
-
 
     case ACPI_TYPE_LOCAL_REFERENCE:
 
@@ -806,7 +807,6 @@ AcpiDsInitObjectFromOp (
                             &ObjDesc->Reference.Object));
 #endif
             break;
-
 
         case AML_TYPE_METHOD_ARGUMENT:
 
@@ -850,7 +850,6 @@ AcpiDsInitObjectFromOp (
             break;
         }
         break;
-
 
     default:
 

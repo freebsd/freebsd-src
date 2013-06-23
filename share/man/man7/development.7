@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 2012
+.Dd March 7, 2013
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
@@ -109,9 +109,9 @@ your clients automatically pick up the changes.
 .Bd -literal -offset 4n
 mkdir /FreeBSD
 cd /FreeBSD
-svn co svn://svn.freebsd.org/ports/head ports
-svn co svn://svn.freebsd.org/doc/head doc
-svn co svn://svn.freebsd.org/base/head src
+svn co https://svn.freebsd.org/ports/head ports
+svn co https://svn.freebsd.org/doc/head doc
+svn co https://svn.freebsd.org/base/head src
 cd /usr
 rm -rf src
 ln -s /FreeBSD/src src

@@ -561,3 +561,40 @@ void drm_mm_takedown(struct drm_mm * mm)
 
 	KASSERT(mm->num_unused == 0, ("num_unused != 0"));
 }
+
+void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
+{
+	struct drm_mm_node *entry;
+	unsigned long total_used = 0, total_free = 0, total = 0;
+	unsigned long hole_start, hole_end, hole_size;
+
+	hole_start = drm_mm_hole_node_start(&mm->head_node);
+	hole_end = drm_mm_hole_node_end(&mm->head_node);
+	hole_size = hole_end - hole_start;
+	if (hole_size)
+		printf("%s 0x%08lx-0x%08lx: %8lu: free\n",
+			prefix, hole_start, hole_end,
+			hole_size);
+	total_free += hole_size;
+
+	drm_mm_for_each_node(entry, mm) {
+		printf("%s 0x%08lx-0x%08lx: %8lu: used\n",
+			prefix, entry->start, entry->start + entry->size,
+			entry->size);
+		total_used += entry->size;
+
+		if (entry->hole_follows) {
+			hole_start = drm_mm_hole_node_start(entry);
+			hole_end = drm_mm_hole_node_end(entry);
+			hole_size = hole_end - hole_start;
+			printf("%s 0x%08lx-0x%08lx: %8lu: free\n",
+				prefix, hole_start, hole_end,
+				hole_size);
+			total_free += hole_size;
+		}
+	}
+	total = total_free + total_used;
+
+	printf("%s total: %lu, used %lu free %lu\n", prefix, total,
+		total_used, total_free);
+}

@@ -84,7 +84,7 @@ struct promise_raid_conf {
 	struct promise_raid_disk	disk;	/* This subdisk info. */
 	uint32_t	disk_offset;		/* Subdisk offset. */
 	uint32_t	disk_sectors;		/* Subdisk size */
-	uint32_t	rebuild_lba;		/* Rebuild position. */
+	uint32_t	disk_rebuild;		/* Rebuild position. */
 	uint16_t	generation;		/* Generation number. */
 	uint8_t		status;			/* Volume status. */
 #define PROMISE_S_VALID		0x01
@@ -123,7 +123,18 @@ struct promise_raid_conf {
 	uint32_t	magic_4;
 	uint32_t	magic_5;
 	uint32_t	total_sectors_high;
-	uint32_t	filler3[324];
+	uint8_t		magic_6;
+	uint8_t		sector_size;
+	uint16_t	magic_7;
+	uint32_t	magic_8[31];
+	uint32_t	backup_time;
+	uint16_t	magic_9;
+	uint32_t	disk_offset_high;
+	uint32_t	disk_sectors_high;
+	uint32_t	disk_rebuild_high;
+	uint16_t	magic_10;
+	uint32_t	magic_11[3];
+	uint32_t	filler3[284];
 	uint32_t	checksum;
 } __packed;
 
@@ -191,7 +202,7 @@ g_raid_md_promise_print(struct promise_raid_conf *meta)
 	    meta->disk.device, meta->disk.id);
 	printf("disk_offset         %u\n", meta->disk_offset);
 	printf("disk_sectors        %u\n", meta->disk_sectors);
-	printf("rebuild_lba         %u\n", meta->rebuild_lba);
+	printf("disk_rebuild        %u\n", meta->disk_rebuild);
 	printf("generation          %u\n", meta->generation);
 	printf("status              0x%02x\n", meta->status);
 	printf("type                %u\n", meta->type);
@@ -217,6 +228,11 @@ g_raid_md_promise_print(struct promise_raid_conf *meta)
 	printf("magic_4             0x%08x\n", meta->magic_4);
 	printf("magic_5             0x%08x\n", meta->magic_5);
 	printf("total_sectors_high  0x%08x\n", meta->total_sectors_high);
+	printf("sector_size         %u\n", meta->sector_size);
+	printf("backup_time         %d\n", meta->backup_time);
+	printf("disk_offset_high    0x%08x\n", meta->disk_offset_high);
+	printf("disk_sectors_high   0x%08x\n", meta->disk_sectors_high);
+	printf("disk_rebuild_high   0x%08x\n", meta->disk_rebuild_high);
 	printf("=================================================\n");
 }
 
@@ -244,9 +260,9 @@ promise_meta_find_disk(struct promise_raid_conf *meta, uint64_t id)
 
 static int
 promise_meta_unused_range(struct promise_raid_conf **metaarr, int nsd,
-    uint32_t sectors, uint32_t *off, uint32_t *size)
+    off_t sectors, off_t *off, off_t *size)
 {
-	uint32_t coff, csize;
+	off_t coff, csize, tmp;
 	int i, j;
 
 	sectors -= 131072;
@@ -257,10 +273,10 @@ promise_meta_unused_range(struct promise_raid_conf **metaarr, int nsd,
 	i = 0;
 	while (1) {
 		for (j = 0; j < nsd; j++) {
-			if (metaarr[j]->disk_offset >= coff) {
-				csize = MIN(csize,
-				    metaarr[j]->disk_offset - coff);
-			}
+			tmp = ((off_t)metaarr[j]->disk_offset_high << 32) +
+			    metaarr[j]->disk_offset;
+			if (tmp >= coff)
+				csize = MIN(csize, tmp - coff);
 		}
 		if (csize > *size) {
 			*off = coff;
@@ -268,7 +284,10 @@ promise_meta_unused_range(struct promise_raid_conf **metaarr, int nsd,
 		}
 		if (i >= nsd)
 			break;
-		coff = metaarr[i]->disk_offset + metaarr[i]->disk_sectors;
+		coff = ((off_t)metaarr[i]->disk_offset_high << 32) +
+		     metaarr[i]->disk_offset +
+		    ((off_t)metaarr[i]->disk_sectors_high << 32) +
+		     metaarr[i]->disk_sectors;
 		csize = sectors - coff;
 		i++;
 	};
@@ -369,6 +388,26 @@ next:
 		return (subdisks);
 	}
 
+	/* Remove filler garbage from fields used in newer metadata. */
+	if (meta->disk_offset_high == 0x8b8c8d8e &&
+	    meta->disk_sectors_high == 0x8788898a &&
+	    meta->disk_rebuild_high == 0x83848586) {
+		meta->disk_offset_high = 0;
+		meta->disk_sectors_high = 0;
+		if (meta->disk_rebuild == UINT32_MAX)
+			meta->disk_rebuild_high = UINT32_MAX;
+		else
+			meta->disk_rebuild_high = 0;
+		if (meta->total_sectors_high == 0x15161718) {
+			meta->total_sectors_high = 0;
+			meta->backup_time = 0;
+			if (meta->rebuild_lba64 == 0x2122232425262728)
+				meta->rebuild_lba64 = UINT64_MAX;
+		}
+	}
+	if (meta->sector_size < 1 || meta->sector_size > 8)
+		meta->sector_size = 1;
+
 	/* Save this part and look for next. */
 	*metaarr = meta;
 	metaarr++;
@@ -386,8 +425,9 @@ promise_meta_write(struct g_consumer *cp,
 	struct g_provider *pp;
 	struct promise_raid_conf *meta;
 	char *buf;
+	off_t off, size;
 	int error, i, subdisk, fake;
-	uint32_t checksum, *ptr, off, size;
+	uint32_t checksum, *ptr;
 
 	pp = cp->provider;
 	subdisk = 0;
@@ -409,9 +449,12 @@ next:
 		meta->disk.flags = PROMISE_F_ONLINE | PROMISE_F_VALID;
 		meta->disk.number = 0xff;
 		arc4rand(&meta->disk.id, sizeof(meta->disk.id), 0);
-		meta->disk_offset = off;
-		meta->disk_sectors = size;
-		meta->rebuild_lba = UINT32_MAX;
+		meta->disk_offset_high = off >> 32;
+		meta->disk_offset = (uint32_t)off;
+		meta->disk_sectors_high = size >> 32;
+		meta->disk_sectors = (uint32_t)size;
+		meta->disk_rebuild_high = UINT32_MAX;
+		meta->disk_rebuild = UINT32_MAX;
 		fake = 1;
 	}
 	if (meta != NULL) {
@@ -464,6 +507,7 @@ static int
 promise_meta_write_spare(struct g_consumer *cp)
 {
 	struct promise_raid_conf *meta;
+	off_t tmp;
 	int error;
 
 	meta = malloc(sizeof(*meta), M_MD_PROMISE, M_WAITOK | M_ZERO);
@@ -473,9 +517,11 @@ promise_meta_write_spare(struct g_consumer *cp)
 	meta->disk.flags = PROMISE_F_SPARE | PROMISE_F_ONLINE | PROMISE_F_VALID;
 	meta->disk.number = 0xff;
 	arc4rand(&meta->disk.id, sizeof(meta->disk.id), 0);
-	meta->disk_sectors = cp->provider->mediasize / cp->provider->sectorsize;
-	meta->disk_sectors -= 131072;
-	meta->rebuild_lba = UINT32_MAX;
+	tmp = cp->provider->mediasize / cp->provider->sectorsize - 131072;
+	meta->disk_sectors_high = tmp >> 32;
+	meta->disk_sectors = (uint32_t)tmp;
+	meta->disk_rebuild_high = UINT32_MAX;
+	meta->disk_rebuild = UINT32_MAX;
 	error = promise_meta_write(cp, &meta, 1);
 	free(meta, M_MD_PROMISE);
 	return (error);
@@ -617,9 +663,8 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_raid_md_promise_pervolume *pv;
 	struct promise_raid_conf *meta;
-	off_t size;
+	off_t eoff, esize, size;
 	int disk_pos, md_disk_pos, i, resurrection = 0;
-	uint32_t eoff, esize;
 
 	sc = disk->d_softc;
 	pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
@@ -729,8 +774,10 @@ nofit:
 		sd->sd_offset = (off_t)eoff * 512;
 		sd->sd_size = (off_t)esize * 512;
 	} else {
-		sd->sd_offset = (off_t)pd->pd_meta[sdn]->disk_offset * 512;
-		sd->sd_size = (off_t)pd->pd_meta[sdn]->disk_sectors * 512;
+		sd->sd_offset = (((off_t)pd->pd_meta[sdn]->disk_offset_high
+		    << 32) + pd->pd_meta[sdn]->disk_offset) * 512;
+		sd->sd_size = (((off_t)pd->pd_meta[sdn]->disk_sectors_high
+		    << 32) + pd->pd_meta[sdn]->disk_sectors) * 512;
 	}
 
 	if (resurrection) {
@@ -749,7 +796,8 @@ nofit:
 			sd->sd_rebuild_pos = 0;
 		else {
 			sd->sd_rebuild_pos =
-			    (off_t)pd->pd_meta[sdn]->rebuild_lba * 512;
+			    (((off_t)pd->pd_meta[sdn]->disk_rebuild_high << 32) +
+			     pd->pd_meta[sdn]->disk_rebuild) * 512;
 		}
 	} else if (!(meta->disks[md_disk_pos].flags & PROMISE_F_ONLINE)) {
 		/* Rebuilding disk. */
@@ -875,13 +923,15 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	vol->v_disks_count = meta->total_disks;
 	vol->v_mediasize = (off_t)meta->total_sectors * 512; //ZZZ
 	if (meta->total_sectors_high < 256) /* If value looks sane. */
-		vol->v_mediasize |=
+		vol->v_mediasize +=
 		    ((off_t)meta->total_sectors_high << 32) * 512; //ZZZ
-	vol->v_sectorsize = 512; //ZZZ
+	vol->v_sectorsize = 512 * meta->sector_size;
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
-		sd->sd_offset = (off_t)meta->disk_offset * 512; //ZZZ
-		sd->sd_size = (off_t)meta->disk_sectors * 512; //ZZZ
+		sd->sd_offset = (((off_t)meta->disk_offset_high << 32) +
+		    meta->disk_offset) * 512;
+		sd->sd_size = (((off_t)meta->disk_sectors_high << 32) +
+		    meta->disk_sectors) * 512;
 	}
 	g_raid_start_volume(vol);
 
@@ -1213,9 +1263,8 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 	const char *nodename, *verb, *volname, *levelname, *diskname;
 	char *tmp;
 	int *nargs, *force;
-	off_t size, sectorsize, strip;
+	off_t esize, offs[PROMISE_MAX_DISKS], size, sectorsize, strip;
 	intmax_t *sizearg, *striparg;
-	uint32_t offs[PROMISE_MAX_DISKS], esize;
 	int numdisks, i, len, level, qual;
 	int error;
 
@@ -1323,13 +1372,6 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			if (pp->mediasize / pp->sectorsize > UINT32_MAX) {
-				gctl_error(req,
-				    "Disk '%s' is too big.", diskname);
-				error = -8;
-				break;
-			}
-
 			g_raid_get_disk_info(disk);
 
 			/* Reserve some space for metadata. */
@@ -1393,10 +1435,6 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		if (size <= 0) {
 			gctl_error(req, "Size too small.");
 			return (-13);
-		}
-		if (size > 0xffffffffllu * sectorsize) {
-			gctl_error(req, "Size too big.");
-			return (-14);
 		}
 
 		/* We have all we need, create things: volume, ... */
@@ -1629,14 +1667,6 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			pp = cp->provider;
 			g_topology_unlock();
 
-			if (pp->mediasize / pp->sectorsize > UINT32_MAX) {
-				gctl_error(req,
-				    "Disk '%s' is too big.", diskname);
-				g_raid_kill_consumer(sc, cp);
-				error = -8;
-				break;
-			}
-
 			pd = malloc(sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
 
 			disk = g_raid_create_disk(sc);
@@ -1733,9 +1763,9 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		    vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
 			meta->array_width /= 2;
 		meta->array_number = vol->v_global_id;
-		meta->total_sectors = vol->v_mediasize / vol->v_sectorsize;
-		meta->total_sectors_high =
-		    (vol->v_mediasize / vol->v_sectorsize) >> 32;
+		meta->total_sectors = vol->v_mediasize / 512;
+		meta->total_sectors_high = (vol->v_mediasize / 512) >> 32;
+		meta->sector_size = vol->v_sectorsize / 512;
 		meta->cylinders = meta->total_sectors / (255 * 63) - 1;
 		meta->heads = 254;
 		meta->sectors = 63;
@@ -1828,15 +1858,24 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			pd->pd_meta[j] = promise_meta_copy(meta);
 			pd->pd_meta[j]->disk = meta->disks[pos];
 			pd->pd_meta[j]->disk.number = pos;
+			pd->pd_meta[j]->disk_offset_high =
+			    (sd->sd_offset / 512) >> 32;
 			pd->pd_meta[j]->disk_offset = sd->sd_offset / 512;
+			pd->pd_meta[j]->disk_sectors_high =
+			    (sd->sd_size / 512) >> 32;
 			pd->pd_meta[j]->disk_sectors = sd->sd_size / 512;
 			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD) {
-				pd->pd_meta[j]->rebuild_lba =
+				pd->pd_meta[j]->disk_rebuild_high =
+				    (sd->sd_rebuild_pos / 512) >> 32;
+				pd->pd_meta[j]->disk_rebuild =
 				    sd->sd_rebuild_pos / 512;
-			} else if (sd->sd_state < G_RAID_SUBDISK_S_REBUILD)
-				pd->pd_meta[j]->rebuild_lba = 0;
-			else
-				pd->pd_meta[j]->rebuild_lba = UINT32_MAX;
+			} else if (sd->sd_state < G_RAID_SUBDISK_S_REBUILD) {
+				pd->pd_meta[j]->disk_rebuild_high = 0;
+				pd->pd_meta[j]->disk_rebuild = 0;
+			} else {
+				pd->pd_meta[j]->disk_rebuild_high = UINT32_MAX;
+				pd->pd_meta[j]->disk_rebuild = UINT32_MAX;
+			}
 			pd->pd_updated = 1;
 		}
 	}

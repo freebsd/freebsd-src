@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -194,7 +194,6 @@ AcpiDmByteList (
 
     case ACPI_DASM_BUFFER:
     default:
-
         /*
          * Not a resource, string, or unicode string.
          * Just dump the buffer

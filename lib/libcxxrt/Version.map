@@ -208,19 +208,7 @@ CXXABI_1.3 {
         "typeinfo name for __cxxabiv1::__vmi_class_type_info";
 
         "std::type_info::type_info(std::type_info const&)";
-        "std::type_info::type_info(std::type_info const&)";
-        "std::type_info::~type_info()";
-        "std::type_info::~type_info()";
-        "std::type_info::~type_info()";
         "std::type_info::operator=(std::type_info const&)";
-        "std::unexpected()";
-        "std::get_terminate()";
-        "std::set_terminate(void (*)())";
-        "std::get_unexpected()";
-        "std::set_unexpected(void (*)())";
-        "std::set_new_handler(void (*)())";
-        "std::uncaught_exception()";
-        "std::terminate()";
 
 
         # Extensions
@@ -243,69 +231,22 @@ CXXABI_1.3.1 {
 CXXRT_1.0 {
 
     extern "C++" {
-        "std::bad_cast::what() const";
-        "std::bad_typeid::what() const";
-        "std::bad_alloc::what() const";
-        "std::exception::what() const";
         "std::type_info::name() const";
         "std::type_info::before(std::type_info const&) const";
         "std::type_info::operator==(std::type_info const&) const";
         "std::type_info::operator!=(std::type_info const&) const";
-        "std::bad_typeid::bad_typeid(std::bad_typeid const&)";
-        "std::bad_typeid::bad_typeid()";
-        "std::bad_typeid::bad_typeid(std::bad_typeid const&)";
-        "std::bad_typeid::bad_typeid()";
-        "std::bad_typeid::~bad_typeid()";
-        "std::bad_typeid::~bad_typeid()";
-        "std::bad_typeid::~bad_typeid()";
-        "std::bad_typeid::operator=(std::bad_typeid const&)";
         "std::bad_cast::bad_cast(std::bad_cast const&)";
         "std::bad_cast::bad_cast()";
-        "std::bad_cast::bad_cast(std::bad_cast const&)";
-        "std::bad_cast::bad_cast()";
-        "std::bad_cast::~bad_cast()";
-        "std::bad_cast::~bad_cast()";
-        "std::bad_cast::~bad_cast()";
         "std::bad_cast::operator=(std::bad_cast const&)";
-        "std::bad_alloc::bad_alloc(std::bad_alloc const&)";
-        "std::bad_alloc::bad_alloc()";
-        "std::bad_alloc::bad_alloc(std::bad_alloc const&)";
-        "std::bad_alloc::bad_alloc()";
-        "std::bad_alloc::~bad_alloc()";
-        "std::bad_alloc::~bad_alloc()";
-        "std::bad_alloc::~bad_alloc()";
-        "std::bad_alloc::operator=(std::bad_alloc const&)";
+        "std::bad_typeid::bad_typeid(std::bad_typeid const&)";
+        "std::bad_typeid::bad_typeid()";
+        "std::bad_typeid::operator=(std::bad_typeid const&)";
         "std::exception::exception(std::exception const&)";
         "std::exception::exception()";
-        "std::exception::exception(std::exception const&)";
-        "std::exception::exception()";
-        "std::exception::~exception()";
-        "std::exception::~exception()";
-        "std::exception::~exception()";
         "std::exception::operator=(std::exception const&)";
-
-
-        "vtable for std::bad_typeid";
-        "vtable for std::bad_cast";
-        "vtable for std::bad_alloc";
-        "vtable for std::exception";
-        "vtable for std::type_info";
-        "typeinfo for std::bad_typeid";
-        "typeinfo for std::bad_cast";
-        "typeinfo for std::bad_alloc";
-        "typeinfo for std::exception";
-        "typeinfo for std::type_info";
-        "typeinfo name for std::bad_typeid";
-        "typeinfo name for std::bad_cast";
-        "typeinfo name for std::bad_alloc";
-        "typeinfo name for std::exception";
-        "typeinfo name for std::type_info";
-
-        "std::type_info::__is_function_p() const";
-        "std::type_info::__do_upcast(__cxxabiv1::__class_type_info const*, void**) const";
-        "std::type_info::__is_pointer_p() const";
-
-
+        "std::bad_alloc::bad_alloc(std::bad_alloc const&)";
+        "std::bad_alloc::bad_alloc()";
+        "std::bad_alloc::operator=(std::bad_alloc const&)";
 
     };
     __cxa_allocate_dependent_exception;
@@ -317,6 +258,7 @@ CXXRT_1.0 {
 
 } CXXABI_1.3.1;
 
+
 GLIBCXX_3.4 {
     extern "C++" {
         "operator delete[](void*)";
@@ -327,5 +269,51 @@ GLIBCXX_3.4 {
         "operator new[](unsigned long)";
         "operator new(unsigned long)";
         "operator new(unsigned long, std::nothrow_t const&)";
+
+        "std::unexpected()";
+        "std::get_terminate()";
+        "std::get_unexpected()";
+        "std::uncaught_exception()";
+        "std::terminate()";
+
+        "std::type_info::~type_info()";
+        "std::bad_cast::~bad_cast()";
+        "std::bad_typeid::~bad_typeid()";
+        "std::exception::~exception()";
+        "std::bad_alloc::~bad_alloc()";
+
+        "std::exception::what() const";
+
+        std::set_new_handler*;
+        std::set_terminate*;
+        std::set_unexpected*;
+        std::type_info::__*;
+
+        "vtable for std::bad_alloc";
+        "vtable for std::bad_cast";
+        "vtable for std::bad_typeid";
+        "vtable for std::exception";
+        "vtable for std::type_info";
+
+        "typeinfo for std::bad_alloc";
+        "typeinfo for std::bad_typeid";
+        "typeinfo for std::bad_cast";
+        "typeinfo for std::exception";
+        "typeinfo for std::type_info";
+        "typeinfo name for std::bad_alloc";
+        "typeinfo name for std::bad_typeid";
+        "typeinfo name for std::bad_cast";
+        "typeinfo name for std::exception";
+        "typeinfo name for std::type_info";
+
     };
 };
+
+GLIBCXX_3.4.9 {
+    extern "C++" {
+        "std::bad_typeid::what() const";
+        "std::bad_cast::what() const";
+        "std::bad_alloc::what() const";
+    };
+} GLIBCXX_3.4;
+

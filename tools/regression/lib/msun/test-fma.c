@@ -37,8 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <math.h>
 #include <stdio.h>
 
-#define	ALL_STD_EXCEPT	(FE_DIVBYZERO | FE_INEXACT | FE_INVALID | \
-			 FE_OVERFLOW | FE_UNDERFLOW)
+#include "test-utils.h"
 
 #pragma STDC FENV_ACCESS ON
 
@@ -53,14 +52,17 @@ __FBSDID("$FreeBSD$");
  * meaningful error messages.
  */
 #define	test(func, x, y, z, result, exceptmask, excepts) do {		\
+	volatile long double _vx = (x), _vy = (y), _vz = (z);		\
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);			\
-	assert(fpequal((func)((x), (y), (z)), (result)));		\
-	assert(((func), fetestexcept(exceptmask) == (excepts)));	\
+	assert(fpequal((func)(_vx, _vy, _vz), (result)));		\
+	assert(((void)(func), fetestexcept(exceptmask) == (excepts)));	\
 } while (0)
 
 #define	testall(x, y, z, result, exceptmask, excepts)	do {		\
-	test(fma, (x), (y), (z), (double)(result), (exceptmask), (excepts)); \
-	test(fmaf, (x), (y), (z), (float)(result), (exceptmask), (excepts)); \
+	test(fma, (double)(x), (double)(y), (double)(z),		\
+		(double)(result), (exceptmask), (excepts));		\
+	test(fmaf, (float)(x), (float)(y), (float)(z),			\
+		(float)(result), (exceptmask), (excepts));		\
 	test(fmal, (x), (y), (z), (result), (exceptmask), (excepts));	\
 } while (0)
 
@@ -77,17 +79,10 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 /*
- * Determine whether x and y are equal, with two special rules:
- *	+0.0 != -0.0
- *	 NaN == NaN
+ * This is needed because clang constant-folds fma in ways that are incorrect
+ * in rounding modes other than FE_TONEAREST.
  */
-int
-fpequal(long double x, long double y)
-{
-
-	return ((x == y && !signbit(x) == !signbit(y))
-		|| (isnan(x) && isnan(y)));
-}
+volatile double one = 1.0;
 
 static void
 test_zeroes(void)
@@ -108,9 +103,9 @@ test_zeroes(void)
 	testall(-0.0, 0.0, -0.0, -0.0, ALL_STD_EXCEPT, 0);
 	testall(0.0, -0.0, -0.0, -0.0, ALL_STD_EXCEPT, 0);
 
-	testall(-1.0, 1.0, 1.0, rd ? -0.0 : 0.0, ALL_STD_EXCEPT, 0);
-	testall(1.0, -1.0, 1.0, rd ? -0.0 : 0.0, ALL_STD_EXCEPT, 0);
-	testall(-1.0, -1.0, -1.0, rd ? -0.0 : 0.0, ALL_STD_EXCEPT, 0);
+	testall(-one, one, one, rd ? -0.0 : 0.0, ALL_STD_EXCEPT, 0);
+	testall(one, -one, one, rd ? -0.0 : 0.0, ALL_STD_EXCEPT, 0);
+	testall(-one, -one, -one, rd ? -0.0 : 0.0, ALL_STD_EXCEPT, 0);
 
 	switch (fegetround()) {
 	case FE_TONEAREST:
@@ -190,53 +185,53 @@ test_small_z(void)
 
 	/* x*y positive, z positive */
 	if (fegetround() == FE_UPWARD) {
-		test(fmaf, 1.0, 1.0, 0x1.0p-100, 1.0 + FLT_EPSILON,
+		test(fmaf, one, one, 0x1.0p-100, 1.0 + FLT_EPSILON,
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fma, 1.0, 1.0, 0x1.0p-200, 1.0 + DBL_EPSILON,
+		test(fma, one, one, 0x1.0p-200, 1.0 + DBL_EPSILON,
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fmal, 1.0, 1.0, 0x1.0p-200, 1.0 + LDBL_EPSILON,
+		test(fmal, one, one, 0x1.0p-200, 1.0 + LDBL_EPSILON,
 		     ALL_STD_EXCEPT, FE_INEXACT);
 	} else {
-		testall(0x1.0p100, 1.0, 0x1.0p-100, 0x1.0p100,
+		testall(0x1.0p100, one, 0x1.0p-100, 0x1.0p100,
 			ALL_STD_EXCEPT, FE_INEXACT);
 	}
 
 	/* x*y negative, z negative */
 	if (fegetround() == FE_DOWNWARD) {
-		test(fmaf, -1.0, 1.0, -0x1.0p-100, -(1.0 + FLT_EPSILON),
+		test(fmaf, -one, one, -0x1.0p-100, -(1.0 + FLT_EPSILON),
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fma, -1.0, 1.0, -0x1.0p-200, -(1.0 + DBL_EPSILON),
+		test(fma, -one, one, -0x1.0p-200, -(1.0 + DBL_EPSILON),
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fmal, -1.0, 1.0, -0x1.0p-200, -(1.0 + LDBL_EPSILON),
+		test(fmal, -one, one, -0x1.0p-200, -(1.0 + LDBL_EPSILON),
 		     ALL_STD_EXCEPT, FE_INEXACT);
 	} else {
-		testall(0x1.0p100, -1.0, -0x1.0p-100, -0x1.0p100,
+		testall(0x1.0p100, -one, -0x1.0p-100, -0x1.0p100,
 			ALL_STD_EXCEPT, FE_INEXACT);
 	}
 
 	/* x*y positive, z negative */
 	if (fegetround() == FE_DOWNWARD || fegetround() == FE_TOWARDZERO) {
-		test(fmaf, 1.0, 1.0, -0x1.0p-100, 1.0 - FLT_EPSILON / 2,
+		test(fmaf, one, one, -0x1.0p-100, 1.0 - FLT_EPSILON / 2,
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fma, 1.0, 1.0, -0x1.0p-200, 1.0 - DBL_EPSILON / 2,
+		test(fma, one, one, -0x1.0p-200, 1.0 - DBL_EPSILON / 2,
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fmal, 1.0, 1.0, -0x1.0p-200, 1.0 - LDBL_EPSILON / 2,
+		test(fmal, one, one, -0x1.0p-200, 1.0 - LDBL_EPSILON / 2,
 		     ALL_STD_EXCEPT, FE_INEXACT);
 	} else {
-		testall(0x1.0p100, 1.0, -0x1.0p-100, 0x1.0p100,
+		testall(0x1.0p100, one, -0x1.0p-100, 0x1.0p100,
 			ALL_STD_EXCEPT, FE_INEXACT);
 	}
 
 	/* x*y negative, z positive */
 	if (fegetround() == FE_UPWARD || fegetround() == FE_TOWARDZERO) {
-		test(fmaf, -1.0, 1.0, 0x1.0p-100, -1.0 + FLT_EPSILON / 2,
+		test(fmaf, -one, one, 0x1.0p-100, -1.0 + FLT_EPSILON / 2,
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fma, -1.0, 1.0, 0x1.0p-200, -1.0 + DBL_EPSILON / 2,
+		test(fma, -one, one, 0x1.0p-200, -1.0 + DBL_EPSILON / 2,
 		     ALL_STD_EXCEPT, FE_INEXACT);
-		test(fmal, -1.0, 1.0, 0x1.0p-200, -1.0 + LDBL_EPSILON / 2,
+		test(fmal, -one, one, 0x1.0p-200, -1.0 + LDBL_EPSILON / 2,
 		     ALL_STD_EXCEPT, FE_INEXACT);
 	} else {
-		testall(-0x1.0p100, 1.0, 0x1.0p-100, -0x1.0p100,
+		testall(-0x1.0p100, one, 0x1.0p-100, -0x1.0p100,
 			ALL_STD_EXCEPT, FE_INEXACT);
 	}
 }

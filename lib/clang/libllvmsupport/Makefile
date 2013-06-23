@@ -14,6 +14,8 @@ SRCS=	APFloat.cpp \
 	BranchProbability.cpp \
 	CommandLine.cpp \
 	ConstantRange.cpp \
+	ConvertUTF.c \
+	ConvertUTFWrapper.cpp \
 	CrashRecoveryContext.cpp \
 	DAGDeltaAlgorithm.cpp \
 	Debug.cpp \
@@ -22,14 +24,18 @@ SRCS=	APFloat.cpp \
 	DynamicLibrary.cpp \
 	Errno.cpp \
 	ErrorHandling.cpp \
+	FileOutputBuffer.cpp \
 	FoldingSet.cpp \
 	FormattedStream.cpp \
 	GraphWriter.cpp \
 	Hashing.cpp \
 	Host.cpp \
-	IntervalMap.cpp \
+	IncludeFile.cpp \
 	IntEqClasses.cpp \
+	IntervalMap.cpp \
 	IntrusiveRefCntPtr.cpp \
+	IsInf.cpp \
+	IsNAN.cpp \
 	Locale.cpp \
 	LockFileManager.cpp \
 	ManagedStatic.cpp \
@@ -65,6 +71,9 @@ SRCS=	APFloat.cpp \
 	Triple.cpp \
 	Twine.cpp \
 	Valgrind.cpp \
+	Watchdog.cpp \
+	YAMLParser.cpp \
+	YAMLTraits.cpp \
 	circular_raw_ostream.cpp \
 	raw_os_ostream.cpp \
 	raw_ostream.cpp \
@@ -74,17 +83,19 @@ SRCS=	APFloat.cpp \
 	regfree.c \
 	regstrlcpy.c \
 	system_error.cpp
-LLVM_REQUIRES_RTTI=
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	BlockFrequency.cpp \
-	BranchProbability.cpp \
+SRCS+=	Compression.cpp \
 	DataExtractor.cpp \
 	DataStream.cpp \
 	Disassembler.cpp \
 	FileUtilities.cpp \
-	MemoryObject.cpp \
 	SystemUtils.cpp
 .endif
 
 .include "../clang.lib.mk"
+
+# Ugly hack to work around CLOCK_PROCESS_CPUTIME_ID not being properly defined
+# between r239347 and r245428.
+CXXFLAGS.Process.cpp=	-DCLOCK_PROCESS_CPUTIME_ID=15
+CXXFLAGS+=		${CXXFLAGS.${.IMPSRC:T}}

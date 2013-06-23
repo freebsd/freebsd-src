@@ -1863,6 +1863,7 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 {
 	mush_t mush, *mp;
 	busdma_callback_f cbf;
+	int error;
 
 	mp = &mush;
 	mp->isp = isp;
@@ -1877,71 +1878,17 @@ isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
 #endif
 		cbf = dma_cb;
 
-	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE ||
-	    (csio->dxfer_len == 0)) {
-		(*cbf)(mp, NULL, 0);
-	} else if ((csio->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
-		int error;
-		if ((csio->ccb_h.flags & CAM_DATA_PHYS) == 0) {
-			error = busdma_md_load_linear(PISP_PCMD(csio)->dmap,
-			    csio->data_ptr, csio->dxfer_len, cbf, mp, 0);
-		} else {
-			error = busdma_md_load_phys(PISP_PCMD(csio)->dmap,
-			    (uintptr_t)csio->data_ptr, csio->dxfer_len, cbf,
-			    mp, 0);
-		}
-#if 0
-		xpt_print(csio->ccb_h.path, "%s: busdma_md_load ptr %p len %d "
-		    "returned %d\n", __func__, csio->data_ptr, csio->dxfer_len,
-		    error);
-#endif
-		if (error == EINPROGRESS) {
-			busdma_md_unload(PISP_PCMD(csio)->dmap);
-			mp->error = EINVAL;
-			isp_prt(isp, ISP_LOGERR,
-			    "deferred dma allocation not supported");
-		} else if (error && mp->error == 0) {
+	error = busdma_md_load_ccb(PISP_PCMD(csio)->dmap, (union ccb *)csio,
+	    cbf, mp, 0);
+	if (error == EINPROGRESS) {
+		busdma_md_unload(PISP_PCMD(csio)->dmap);
+		mp->error = EINVAL;
+		isp_prt(isp, ISP_LOGERR, "deferred dma mapping not supported");
+	} else if (error && mp->error == 0) {
 #ifdef	DIAGNOSTIC
-			isp_prt(isp, ISP_LOGERR,
-			    "error %d in dma mapping code", error);
+		isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
 #endif
-			mp->error = error;
-		}
-	} else {
-		if ((csio->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-			isp_prt(isp, ISP_LOGERR, "Physical segment pointers unsupported");
-			mp->error = EINVAL;
-		} else if ((csio->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
-			struct uio sguio;
-			int error;
-
-			/*
-			 * We're taking advantage of the fact that
-			 * the pointer/length sizes and layout of the iovec
-			 * structure are the same as the bus_dma_segment
-			 * structure.  This might be a little dangerous,
-			 * but only if they change the structures, which
-			 * seems unlikely.
-			 */
-			KASSERT((sizeof (sguio.uio_iov) == sizeof (csio->data_ptr) &&
-			    sizeof (sguio.uio_iovcnt) >= sizeof (csio->sglist_cnt) &&
-			    sizeof (sguio.uio_resid) >= sizeof (csio->dxfer_len)), ("Ken's assumption failed"));
-			sguio.uio_iov = (struct iovec *)csio->data_ptr;
-			sguio.uio_iovcnt = csio->sglist_cnt;
-			sguio.uio_resid = csio->dxfer_len;
-			sguio.uio_segflg = UIO_SYSSPACE;
-
-			error = busdma_md_load_uio(PISP_PCMD(csio)->dmap,
-			    &sguio, cbf, mp, 0);
-
-			if (error != 0 && mp->error == 0) {
-				isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
-				mp->error = error;
-			}
-		} else {
-			isp_prt(isp, ISP_LOGERR, "Physical segment pointers unsupported");
-			mp->error = EINVAL;
-		}
+		mp->error = error;
 	}
 	if (mp->error) {
 		int retval = CMD_COMPLETE;

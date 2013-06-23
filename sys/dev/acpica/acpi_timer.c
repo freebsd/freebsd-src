@@ -82,7 +82,7 @@ static device_method_t acpi_timer_methods[] = {
     DEVMETHOD(device_probe,	acpi_timer_probe),
     DEVMETHOD(device_attach,	acpi_timer_attach),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_timer_driver = {

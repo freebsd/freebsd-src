@@ -17,13 +17,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/MacroInfo.h"
-#include "clang/Lex/LiteralSupport.h"
-#include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/LiteralSupport.h"
+#include "clang/Lex/MacroInfo.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SaveAndRestore.h"
 using namespace clang;
 
 namespace {
@@ -111,15 +112,21 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   Result.Val = II->hasMacroDefinition();
   Result.Val.setIsUnsigned(false);  // Result is signed intmax_t.
 
+  MacroDirective *Macro = 0;
   // If there is a macro, mark it used.
   if (Result.Val != 0 && ValueLive) {
-    MacroInfo *Macro = PP.getMacroInfo(II);
-    PP.markMacroAsUsed(Macro);
+    Macro = PP.getMacroDirective(II);
+    PP.markMacroAsUsed(Macro->getMacroInfo());
   }
 
   // Invoke the 'defined' callback.
-  if (PPCallbacks *Callbacks = PP.getPPCallbacks())
-    Callbacks->Defined(PeekTok);
+  if (PPCallbacks *Callbacks = PP.getPPCallbacks()) {
+    MacroDirective *MD = Macro;
+    // Pass the MacroInfo for the macro name even if the value is dead.
+    if (!MD && Result.Val != 0)
+      MD = PP.getMacroDirective(II);
+    Callbacks->Defined(PeekTok, MD);
+  }
 
   // If we are in parens, ensure we have a trailing ).
   if (LParenLoc.isValid()) {
@@ -224,7 +231,7 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     if (!PP.getLangOpts().C99 && Literal.isLongLong) {
       if (PP.getLangOpts().CPlusPlus)
         PP.Diag(PeekTok,
-             PP.getLangOpts().CPlusPlus0x ?
+             PP.getLangOpts().CPlusPlus11 ?
              diag::warn_cxx98_compat_longlong : diag::ext_cxx11_longlong);
       else
         PP.Diag(PeekTok, diag::ext_c99_longlong);
@@ -258,9 +265,9 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     return false;
   }
   case tok::char_constant:          // 'x'
-  case tok::wide_char_constant: {   // L'x'
+  case tok::wide_char_constant:     // L'x'
   case tok::utf16_char_constant:    // u'x'
-  case tok::utf32_char_constant:    // U'x'
+  case tok::utf32_char_constant: {  // U'x'
     // Complain about, and drop, any ud-suffix.
     if (PeekTok.hasUDSuffix())
       PP.Diag(PeekTok, diag::err_pp_invalid_udl) << /*character*/0;
@@ -724,6 +731,7 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
 /// to "!defined(X)" return X in IfNDefMacro.
 bool Preprocessor::
 EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
+  SaveAndRestore<bool> PPDir(ParsingIfOrElifDirective, true);
   // Save the current state of 'DisableMacroExpansion' and reset it to false. If
   // 'DisableMacroExpansion' is true, then we must be in a macro argument list
   // in which case a directive is undefined behavior.  We want macros to be able

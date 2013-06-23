@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 	*p = NULL;
 
 	if ((dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
-		err(1, ".");
+		ftsoptions |= FTS_NOCHDIR;
 
 	exit(find_execute(find_formplan(argv), start));
 }

@@ -1799,13 +1799,13 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
 	ia = in6ifa_ifpforlinklocal(ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
 	/* ia may be NULL if link-local address is tentative. */
 
-	MGETHDR(mh, M_NOWAIT, MT_HEADER);
+	mh = m_gethdr(M_NOWAIT, MT_DATA);
 	if (mh == NULL) {
 		if (ia != NULL)
 			ifa_free(&ia->ia_ifa);
 		return (ENOMEM);
 	}
-	MGET(md, M_NOWAIT, MT_DATA);
+	md = m_get(M_NOWAIT, MT_DATA);
 	if (md == NULL) {
 		m_free(mh);
 		if (ia != NULL)
@@ -3173,7 +3173,7 @@ mld_v2_encap_report(struct ifnet *ifp, struct mbuf *m)
 	if (ia == NULL)
 		CTR1(KTR_MLD, "%s: warning: ia is NULL", __func__);
 
-	MGETHDR(mh, M_NOWAIT, MT_HEADER);
+	mh = m_gethdr(M_NOWAIT, MT_DATA);
 	if (mh == NULL) {
 		if (ia != NULL)
 			ifa_free(&ia->ia_ifa);

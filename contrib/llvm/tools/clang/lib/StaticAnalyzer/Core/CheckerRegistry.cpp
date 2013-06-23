@@ -10,6 +10,7 @@
 #include "clang/StaticAnalyzer/Core/CheckerRegistry.h"
 #include "clang/StaticAnalyzer/Core/CheckerOptInfo.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -109,7 +110,7 @@ void CheckerRegistry::initializeManager(CheckerManager &checkerMgr,
   }
 }
 
-void CheckerRegistry::printHelp(llvm::raw_ostream &out,
+void CheckerRegistry::printHelp(raw_ostream &out,
                                 size_t maxNameChars) const {
   // FIXME: Alphabetical sort puts 'experimental' in the middle.
   // Would it be better to name it '~experimental' or something else

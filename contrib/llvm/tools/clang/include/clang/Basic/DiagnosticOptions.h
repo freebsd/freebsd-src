@@ -10,8 +10,8 @@
 #ifndef LLVM_CLANG_BASIC_DIAGNOSTICOPTIONS_H
 #define LLVM_CLANG_BASIC_DIAGNOSTICOPTIONS_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-
 #include <string>
 #include <vector>
 
@@ -24,9 +24,8 @@ enum OverloadsShown {
   Ovl_Best  ///< Show just the "best" overload candidates.
 };
 
-/// DiagnosticOptions - Options for controlling the compiler diagnostics
-/// engine.
-class DiagnosticOptions : public llvm::RefCountedBase<DiagnosticOptions>{
+/// \brief Options for controlling the compiler diagnostics engine.
+class DiagnosticOptions : public RefCountedBase<DiagnosticOptions>{
 public:
   enum TextDiagnosticFormat { Clang, Msvc, Vi };
 
@@ -49,14 +48,10 @@ protected:
 #include "clang/Basic/DiagnosticOptions.def"
 
 public:
-  /// If non-empty, a file to log extended build information to, for development
-  /// testing and analysis.
-  std::string DumpBuildInformation;
-
-  /// The file to log diagnostic output to.
+  /// \brief The file to log diagnostic output to.
   std::string DiagnosticLogFile;
   
-  /// The file to serialize diagnostics to (non-appending).
+  /// \brief The file to serialize diagnostics to (non-appending).
   std::string DiagnosticSerializationFile;
 
   /// The list of -W... options used to alter the diagnostic mappings, with the

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010, 2013 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.684 2011/03/15 17:29:29 guenther Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.690 2013/03/15 17:54:12 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -1141,7 +1141,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 		return;
 	}
 
-	while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 #if SCANF
 		char wordbuf[MAXLINE + 1];
@@ -2284,6 +2284,14 @@ static struct optioninfo
 # define O_INETQOS	0xe7	/* reserved for FFR_QOS */
 	{ "InetQoS",			O_INETQOS,	OI_NONE },
 #endif
+#if STARTTLS && _FFR_FIPSMODE
+# define O_FIPSMODE	0xe8
+	{ "FIPSMode",		O_FIPSMODE,	OI_NONE	},
+#endif /* STARTTLS && _FFR_FIPSMODE  */
+#if _FFR_REJECT_NUL_BYTE
+# define O_REJECTNUL	0xe9
+	{ "RejectNUL",	O_REJECTNUL,	OI_SAFE	},
+#endif /* _FFR_REJECT_NUL_BYTE */
 
 	{ NULL,				'\0',		OI_NONE	}
 };
@@ -3862,6 +3870,11 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 #endif /* STARTTLS */
+#if STARTTLS && _FFR_FIPSMODE
+	  case O_FIPSMODE:
+		FipsMode = atobool(val);
+		break;
+#endif /* STARTTLS && _FFR_FIPSMODE  */
 
 	  case O_CLIENTPORT:
 		setclientoptions(val);
@@ -4015,6 +4028,12 @@ setoption(opt, val, safe, sticky, e)
 		BadRcptShutdownGood = atoi(val);
 		break;
 #endif /* _FFR_BADRCPT_SHUTDOWN */
+
+#if _FFR_REJECT_NUL_BYTE
+	  case O_REJECTNUL:
+		RejectNUL = atobool(val);
+		break;
+#endif /* _FFR_REJECT_NUL_BYTE */
 
 	  default:
 		if (tTd(37, 1))

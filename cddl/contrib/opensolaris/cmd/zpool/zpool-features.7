@@ -18,10 +18,11 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
+.\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 28, 2012
+.Dd February 8, 2013
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -185,6 +186,49 @@ This feature is
 .Sy active
 while there are any filesystems, volumes, or snapshots which were created
 after enabling this feature.
+.It Sy lz4_compress
+.Bl -column "READ\-ONLY COMPATIBLE" "org.illumos:lz4_compress"
+.It GUID Ta org.illumos:lz4_compress
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+.Sy lz4
+is a high-performance real-time compression algorithm that
+features significantly faster compression and decompression as well as a
+higher compression ratio than the older
+.Sy lzjb
+compression.
+Typically,
+.Sy lz4
+compression is approximately 50% faster on
+compressible data and 200% faster on incompressible data than
+.Sy lzjb .
+It is also approximately 80% faster on decompression, while
+giving approximately 10% better compression ratio.
+.Pp
+When the
+.Sy lz4_compress
+feature is set to
+.Sy enabled ,
+the
+administrator can turn on
+.Sy lz4
+compression on any dataset on the
+pool using the
+.Xr zfs 8
+command. Please note that doing so will
+immediately activate the
+.Sy lz4_compress
+feature on the underlying
+pool (even before any data is written). Since this feature is not
+read-only compatible, this operation will render the pool unimportable
+on systems without support for the
+.Sy lz4_compress
+feature. At the
+moment, this operation cannot be reversed. Booting off of
+.Sy lz4
+-compressed root pools is supported.
 .El
 .Sh SEE ALSO
 .Xr zpool 8

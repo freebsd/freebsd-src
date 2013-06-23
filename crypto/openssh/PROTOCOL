@@ -51,6 +51,46 @@ and ecdsa-sha2-nistp521 curves over GF(p) are supported. Elliptic
 curve points encoded using point compression are NOT accepted or
 generated.
 
+1.5 transport: Protocol 2 Encrypt-then-MAC MAC algorithms
+
+OpenSSH supports MAC algorithms, whose names contain "-etm", that
+perform the calculations in a different order to that defined in RFC
+4253. These variants use the so-called "encrypt then MAC" ordering,
+calculating the MAC over the packet ciphertext rather than the
+plaintext. This ordering closes a security flaw in the SSH transport
+protocol, where decryption of unauthenticated ciphertext provided a
+"decryption oracle" that could, in conjunction with cipher flaws, reveal
+session plaintext.
+
+Specifically, the "-etm" MAC algorithms modify the transport protocol
+to calculate the MAC over the packet ciphertext and to send the packet
+length unencrypted. This is necessary for the transport to obtain the
+length of the packet and location of the MAC tag so that it may be
+verified without decrypting unauthenticated data.
+
+As such, the MAC covers:
+
+      mac = MAC(key, sequence_number || packet_length || encrypted_packet)
+
+where "packet_length" is encoded as a uint32 and "encrypted_packet"
+contains:
+
+      byte      padding_length
+      byte[n1]  payload; n1 = packet_length - padding_length - 1
+      byte[n2]  random padding; n2 = padding_length
+
+1.6 transport: AES-GCM
+
+OpenSSH supports the AES-GCM algorithm as specified in RFC 5647.
+Because of problems with the specification of the key exchange
+the behaviour of OpenSSH differs from the RFC as follows:
+
+AES-GCM is only negotiated as the cipher algorithms
+"aes128-gcm@openssh.com" or "aes256-gcm@openssh.com" and never as
+an MAC algorithm. Additionally, if AES-GCM is selected as the cipher
+the exchanged MAC algorithms are ignored and there doesn't have to be
+a matching MAC.
+
 2. Connection protocol changes
 
 2.1. connection: Channel write close extension "eow@openssh.com"
@@ -291,4 +331,4 @@ link(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-$OpenBSD: PROTOCOL,v 1.17 2010/12/04 00:18:01 djm Exp $
+$OpenBSD: PROTOCOL,v 1.20 2013/01/08 18:49:04 markus Exp $

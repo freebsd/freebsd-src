@@ -1,9 +1,13 @@
 /*-
  * Copyright (c) 2008-2010 Robert N. M. Watson
+ * Copyright (c) 2012 FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed at the University of Cambridge Computer
  * Laboratory with support from a grant from Google, Inc.
+ *
+ * Portions of this software were developed by Pawel Jakub Dawidek under
+ * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,9 +40,10 @@
 #define	_SYS_CAPABILITY_H_
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <sys/file.h>
+#include <sys/fcntl.h>
 
 /*
  * Possible rights on capabilities.
@@ -54,34 +59,70 @@
  * involve reads or writes depending a great deal on context.
  */
 
-/* General file I/O. */
-#define	CAP_READ		0x0000000000000001ULL	/* read/recv */
-#define	CAP_WRITE		0x0000000000000002ULL	/* write/send */
-#define	CAP_MMAP		0x0000000000000004ULL	/* mmap */
-#define	CAP_MAPEXEC		0x0000000000000008ULL	/* mmap(2) as exec */
-#define	CAP_FEXECVE		0x0000000000000010ULL
-#define	CAP_FSYNC		0x0000000000000020ULL
-#define	CAP_FTRUNCATE		0x0000000000000040ULL
+#define	CAP_NONE		0x0000000000000000ULL
+
+/*
+ * General file I/O.
+ */
+/* Allows for openat(O_RDONLY), read(2), readv(2). */
+#define	CAP_READ		0x0000000000000001ULL
+/* Allows for openat(O_WRONLY | O_APPEND), write(2), writev(2). */
+#define	CAP_WRITE		0x0000000000000002ULL
+/* Allows for lseek(2). */
 #define	CAP_SEEK		0x0000000000000080ULL
+/* Allows for pread(2), preadv(2). */
+#define	CAP_PREAD		(CAP_SEEK | CAP_READ)
+/* Allows for openat(O_WRONLY) (without O_APPEND), pwrite(2), pwritev(2). */
+#define	CAP_PWRITE		(CAP_SEEK | CAP_WRITE)
+/* Allows for mmap(PROT_NONE). */
+#define	CAP_MMAP		0x0000000000000004ULL
+/* Allows for mmap(PROT_READ). */
+#define	CAP_MMAP_R		(CAP_MMAP | CAP_SEEK | CAP_READ)
+/* Allows for mmap(PROT_WRITE). */
+#define	CAP_MMAP_W		(CAP_MMAP | CAP_SEEK | CAP_WRITE)
+/* Allows for mmap(PROT_EXEC). */
+#define	CAP_MMAP_X		(CAP_MMAP | CAP_SEEK | 0x0000000000000008ULL)
+/* Allows for mmap(PROT_READ | PROT_WRITE). */
+#define	CAP_MMAP_RW		(CAP_MMAP_R | CAP_MMAP_W)
+/* Allows for mmap(PROT_READ | PROT_EXEC). */
+#define	CAP_MMAP_RX		(CAP_MMAP_R | CAP_MMAP_X)
+/* Allows for mmap(PROT_WRITE | PROT_EXEC). */
+#define	CAP_MMAP_WX		(CAP_MMAP_W | CAP_MMAP_X)
+/* Allows for mmap(PROT_READ | PROT_WRITE | PROT_EXEC). */
+#define	CAP_MMAP_RWX		(CAP_MMAP_R | CAP_MMAP_W | CAP_MMAP_X)
+/* Allows for openat(O_CREAT). */
+#define	CAP_CREATE		0x0000000000080000ULL
+/* Allows for openat(O_EXEC) and fexecve(2) in turn. */
+#define	CAP_FEXECVE		0x0000000000000010ULL
+/* Allows for openat(O_SYNC), openat(O_FSYNC), fsync(2). */
+#define	CAP_FSYNC		0x0000000000000020ULL
+/* Allows for openat(O_TRUNC), ftruncate(2). */
+#define	CAP_FTRUNCATE		0x0000000000000040ULL
 
 /* VFS methods. */
-#define	CAP_FCHFLAGS		0x0000000000000100ULL
 #define	CAP_FCHDIR		0x0000000000000200ULL
+#define	CAP_FCHFLAGS		0x0000000000000100ULL
+#define	CAP_CHFLAGSAT		CAP_FCHFLAGS
 #define	CAP_FCHMOD		0x0000000000000400ULL
+#define	CAP_FCHMODAT		CAP_FCHMOD
 #define	CAP_FCHOWN		0x0000000000000800ULL
+#define	CAP_FCHOWNAT		CAP_FCHOWN
 #define	CAP_FCNTL		0x0000000000001000ULL
-#define	CAP_FPATHCONF		0x0000000000002000ULL
 #define	CAP_FLOCK		0x0000000000004000ULL
+#define	CAP_FPATHCONF		0x0000000000002000ULL
 #define	CAP_FSCK		0x0000000000008000ULL
 #define	CAP_FSTAT		0x0000000000010000ULL
+#define	CAP_FSTATAT		CAP_FSTAT
 #define	CAP_FSTATFS		0x0000000000020000ULL
 #define	CAP_FUTIMES		0x0000000000040000ULL
-#define	CAP_CREATE		0x0000000000080000ULL
-#define	CAP_DELETE		0x0000000000100000ULL
-#define	CAP_MKDIR		0x0000000000200000ULL
-#define	CAP_RMDIR		0x0000000000400000ULL
-#define	CAP_MKFIFO		0x0000000000800000ULL
-#define	CAP_MKNOD		0x0080000000000000ULL
+#define	CAP_FUTIMESAT		CAP_FUTIMES
+#define	CAP_LINKAT		0x0000000000400000ULL
+#define	CAP_MKDIRAT		0x0000000000200000ULL
+#define	CAP_MKFIFOAT		0x0000000000800000ULL
+#define	CAP_MKNODAT		0x0080000000000000ULL
+#define	CAP_RENAMEAT		0x0200000000000000ULL
+#define	CAP_SYMLINKAT		0x0100000000000000ULL
+#define	CAP_UNLINKAT		0x0000000000100000ULL
 
 /* Lookups - used to constrain *at() calls. */
 #define	CAP_LOOKUP		0x0000000001000000ULL
@@ -107,13 +148,18 @@
 #define	CAP_GETSOCKOPT		0x0000004000000000ULL
 #define	CAP_LISTEN		0x0000008000000000ULL
 #define	CAP_PEELOFF		0x0000010000000000ULL
+#define	CAP_RECV		CAP_READ
+#define	CAP_SEND		CAP_WRITE
 #define	CAP_SETSOCKOPT		0x0000020000000000ULL
 #define	CAP_SHUTDOWN		0x0000040000000000ULL
 
-#define	CAP_SOCK_ALL \
-	(CAP_ACCEPT | CAP_BIND | CAP_CONNECT \
-	 | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT \
-	 | CAP_LISTEN | CAP_PEELOFF | CAP_SETSOCKOPT | CAP_SHUTDOWN)
+#define	CAP_SOCK_CLIENT \
+	(CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
+	 CAP_PEELOFF | CAP_RECV | CAP_SEND | CAP_SETSOCKOPT | CAP_SHUTDOWN)
+#define	CAP_SOCK_SERVER \
+	(CAP_ACCEPT | CAP_BIND | CAP_GETPEERNAME | CAP_GETSOCKNAME | \
+	 CAP_GETSOCKOPT | CAP_LISTEN | CAP_PEELOFF | CAP_RECV | CAP_SEND | \
+	 CAP_SETSOCKOPT | CAP_SHUTDOWN)
 
 /* Mandatory Access Control. */
 #define	CAP_MAC_GET		0x0000080000000000ULL
@@ -137,41 +183,83 @@
 #define	CAP_PDWAIT		0x0020000000000000ULL
 #define	CAP_PDKILL		0x0040000000000000ULL
 
+/*
+ * Rights that allow to use bindat(2) and connectat(2) syscalls on a
+ * directory descriptor.
+ */
+#define	CAP_BINDAT		0x0400000000000000ULL
+#define	CAP_CONNECTAT		0x0800000000000000ULL
+
 /* The mask of all valid method rights. */
-#define	CAP_MASK_VALID		0x00ffffffffffffffULL
+#define	CAP_MASK_VALID		0x0fffffffffffffffULL
+#define	CAP_ALL			CAP_MASK_VALID
+
+/* Available bits. */
+#define	CAP_UNUSED3		0x1000000000000000ULL
+#define	CAP_UNUSED2		0x2000000000000000ULL
+#define	CAP_UNUSED1		0x4000000000000000ULL
+#define	CAP_UNUSED0		0x8000000000000000ULL
+
+/*
+ * The following defines are provided for backward API compatibility and
+ * should not be used in new code.
+ */
+#define	CAP_MAPEXEC		CAP_MMAP_X
+#define	CAP_DELETE		CAP_UNLINKAT
+#define	CAP_MKDIR		CAP_MKDIRAT
+#define	CAP_RMDIR		CAP_UNLINKAT
+#define	CAP_MKFIFO		CAP_MKFIFOAT
+#define	CAP_MKNOD		CAP_MKNODAT
+#define	CAP_SOCK_ALL		(CAP_SOCK_CLIENT | CAP_SOCK_SERVER)
+
+/*
+ * Allowed fcntl(2) commands.
+ */
+#define	CAP_FCNTL_GETFL		(1 << F_GETFL)
+#define	CAP_FCNTL_SETFL		(1 << F_SETFL)
+#if __BSD_VISIBLE || __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
+#define	CAP_FCNTL_GETOWN	(1 << F_GETOWN)
+#define	CAP_FCNTL_SETOWN	(1 << F_SETOWN)
+#endif
+#if __BSD_VISIBLE || __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
+#define	CAP_FCNTL_ALL		(CAP_FCNTL_GETFL | CAP_FCNTL_SETFL | \
+				 CAP_FCNTL_GETOWN | CAP_FCNTL_SETOWN)
+#else
+#define	CAP_FCNTL_ALL		(CAP_FCNTL_GETFL | CAP_FCNTL_SETFL)
+#endif
+
+#define	CAP_IOCTLS_ALL	SSIZE_MAX
 
 #ifdef _KERNEL
 
-#define IN_CAPABILITY_MODE(td) (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)
+#include <sys/systm.h>
+
+#define IN_CAPABILITY_MODE(td) ((td->td_ucred->cr_flags & CRED_FLAG_CAPMODE) != 0)
+
+struct filedesc;
 
 /*
- * Create a capability to wrap a file object.
+ * Test whether a capability grants the requested rights.
  */
-int	kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
-	    int *capfd);
-
+int	cap_check(cap_rights_t have, cap_rights_t need);
 /*
- * Unwrap a capability if its rights mask is a superset of 'rights'.
- *
- * Unwrapping a non-capability is effectively a no-op; the value of fp_cap
- * is simply copied into fpp.
+ * Convert capability rights into VM access flags.
  */
-int	cap_funwrap(struct file *fp_cap, cap_rights_t rights,
-	    struct file **fpp);
-int	cap_funwrap_mmap(struct file *fp_cap, cap_rights_t rights,
-	    u_char *maxprotp, struct file **fpp);
+u_char	cap_rights_to_vmprot(cap_rights_t have);
 
 /*
  * For the purposes of procstat(1) and similar tools, allow kern_descrip.c to
- * extract the rights from a capability.  However, this should not be used by
- * kernel code generally, instead cap_funwrap() should be used in order to
- * keep all access control in one place.
+ * extract the rights from a capability.
  */
-cap_rights_t	cap_rights(struct file *fp_cap);
+cap_rights_t	cap_rights(struct filedesc *fdp, int fd);
+
+int	cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd);
+int	cap_fcntl_check(struct filedesc *fdp, int fd, int cmd);
 
 #else /* !_KERNEL */
 
 __BEGIN_DECLS
+#include <stdbool.h>
 
 /*
  * cap_enter(): Cause the process to enter capability mode, which will
@@ -187,21 +275,46 @@ __BEGIN_DECLS
 int	cap_enter(void);
 
 /*
+ * Are we sandboxed (in capability mode)?
+ * This is a libc wrapper around the cap_getmode(2) system call.
+ */
+bool	cap_sandboxed(void);
+
+/*
  * cap_getmode(): Are we in capability mode?
  */
-int	cap_getmode(u_int* modep);
+int	cap_getmode(u_int *modep);
 
 /*
- * cap_new(): Create a new capability derived from an existing file
- * descriptor with the specified rights.  If the existing file descriptor is
- * a capability, then the new rights must be a subset of the existing rights.
+ * Limits capability rights for the given descriptor (CAP_*).
  */
-int	cap_new(int fd, cap_rights_t rights);
-
+int cap_rights_limit(int fd, cap_rights_t rights);
 /*
- * cap_getrights(): Query the rights on a capability.
+ * Returns bitmask of capability rights for the given descriptor.
  */
-int	cap_getrights(int fd, cap_rights_t *rightsp);
+int cap_rights_get(int fd, cap_rights_t *rightsp);
+/*
+ * Limits allowed ioctls for the given descriptor.
+ */
+int cap_ioctls_limit(int fd, const unsigned long *cmds, size_t ncmds);
+/*
+ * Returns array of allowed ioctls for the given descriptor.
+ * If all ioctls are allowed, the cmds array is not populated and
+ * the function returns CAP_IOCTLS_ALL.
+ */
+ssize_t cap_ioctls_get(int fd, unsigned long *cmds, size_t maxcmds);
+/*
+ * Limits allowed fcntls for the given descriptor (CAP_FCNTL_*).
+ */
+int cap_fcntls_limit(int fd, uint32_t fcntlrights);
+/*
+ * Returns bitmask of allowed fcntls for the given descriptor.
+ */
+int cap_fcntls_get(int fd, uint32_t *fcntlrightsp);
+
+/* For backward compatibility. */
+int cap_new(int fd, cap_rights_t rights);
+#define	cap_getrights(fd, rightsp)	cap_rights_get((fd), (rightsp))
 
 __END_DECLS
 
