@@ -56,8 +56,8 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This errata document for &os; &release;
-      will be maintained until the release of &os; &release.current.release;.</para>
+    <para>This errata document for &os; &release; will be maintained
+      until the release of &os; &release.current.release;.</para>
   </abstract>
 
   <sect1 id="intro">
