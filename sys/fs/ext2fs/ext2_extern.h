@@ -49,10 +49,10 @@ struct vnode;
 int	ext2_alloc(struct inode *,
 	    int32_t, int32_t, int, struct ucred *, int32_t *);
 int	ext2_balloc(struct inode *,
-	    int32_t, int, struct ucred *, struct buf **, int);
+	    e2fs_lbn_t, int, struct ucred *, struct buf **, int);
 int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
 void	ext2_blkfree(struct inode *, int32_t, long);
-int32_t	ext2_blkpref(struct inode *, int32_t, int, int32_t *, int32_t);
+int32_t	ext2_blkpref(struct inode *, e2fs_lbn_t, int, int32_t *, int32_t);
 int	ext2_bmap(struct vop_bmap_args *);
 int	ext2_bmaparray(struct vnode *, int32_t, int32_t *, int *, int *);
 void	ext2_clusteracct(struct m_ext2fs *, char *, int, daddr_t, int);
