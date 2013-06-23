@@ -27,7 +27,6 @@ device		uart
 device		vlan
 
 options 	ALT_BREAK_TO_DEBUGGER
-options 	ATA_CAM
 options 	CD9660
 options 	DDB
 options 	DEADLKRES
