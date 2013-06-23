@@ -204,7 +204,11 @@ f_variable_new VAR_FTP_STATE		ftpState
 f_variable_new VAR_FTP_USER		ftpUser
 f_variable_new VAR_GATEWAY		defaultrouter
 f_variable_new VAR_HOSTNAME		hostname
+f_variable_new VAR_HTTP_DIR		httpDirectory
 f_variable_new VAR_HTTP_FTP_MODE	httpFtpMode
+f_variable_new VAR_HTTP_HOST		httpHost
+f_variable_new VAR_HTTP_PATH		_httpPath
+f_variable_new VAR_HTTP_PORT		httpPort
 f_variable_new VAR_HTTP_PROXY		httpProxy
 f_variable_new VAR_HTTP_PROXY_HOST	httpProxyHost
 f_variable_new VAR_HTTP_PROXY_PATH	_httpProxyPath
