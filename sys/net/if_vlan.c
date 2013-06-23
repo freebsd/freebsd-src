@@ -1034,7 +1034,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (!UP_AND_RUNNING(p)) {
 		m_freem(m);
 		ifp->if_oerrors++;
-		return (0);
+		return (ENETDOWN);
 	}
 
 	/*
