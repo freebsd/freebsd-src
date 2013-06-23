@@ -57,7 +57,7 @@
       &os;.</para>
 
     <para>This errata document for &os; &release;
-      will be maintained until the release of &os; &release.next;.</para>
+      will be maintained until the release of &os; &release.current.release;.</para>
   </abstract>
 
   <sect1 id="intro">
