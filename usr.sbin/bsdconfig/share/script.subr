@@ -181,8 +181,10 @@ f_resword_new mediaSetFTPActive		f_media_set_ftp_active
 f_resword_new mediaSetFTPPassive	f_media_set_ftp_passive
 f_resword_new mediaSetFTPUserPass	f_media_set_ftp_userpass
 
+# media/http.subr
+f_resword_new mediaSetHTTP	f_media_set_http
+
 # media/httpproxy.subr
-f_resword_new mediaSetHTTP	f_media_set_http_proxy
 f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
 
 # packages/packages.subr
