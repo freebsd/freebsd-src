@@ -333,8 +333,10 @@ f_media_init_http_proxy()
 #
 # Returns data from $file on an FTP server via HTTP proxy using nc(1). Please
 # note that $device is unused but must be present (even if null). Information
-# is instead gathered from the environment. $probe_only is currently unused by
-# this media type.
+# is instead gathered from the environment. If $probe_only is both present and
+# non-NULL, this function exits after receiving the HTTP header response from
+# the proxy server (if the HTTP response code is 200, success is returned;
+# otherwise failure).
 #
 # The variables used to configure the connection are as follows (all of which
 # are configured by f_media_set_http_proxy above):
@@ -425,11 +427,14 @@ f_media_get_http_proxy()
 		[ $rv -ge 300 ] && exit 3
 		[ $rv -eq 200 ] || exit $FAILURE
 
-		cat # output the rest ``as-is''
+		if [ ! "$probe_only" ]; then
+			cat # output the rest ``as-is''
+		fi
 		exit 200
 	)
 	local retval=$?
 	[ $retval -eq 200 ] && return $SUCCESS
+	[ "$probe_only" ] && return $FAILURE
 
 	case "$retval" in
 	  5) f_show_msg "$msg_server_error_when_requesting_url" "$url" ;;
