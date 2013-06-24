@@ -330,7 +330,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_rlock() of destroyed rwlock @ %s:%d", file, line));
 	KASSERT(rw_wowner(rw) != curthread,
-	    ("%s (%s): wlock already held @ %s:%d", __func__,
+	    ("rw_rlock: wlock already held for %s @ %s:%d",
 	    rw->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line, NULL);
 
@@ -1055,6 +1055,8 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 	case RA_LOCKED | RA_RECURSED:
 	case RA_LOCKED | RA_NOTRECURSED:
 	case RA_RLOCKED:
+	case RA_RLOCKED | RA_RECURSED:
+	case RA_RLOCKED | RA_NOTRECURSED:
 #ifdef WITNESS
 		witness_assert(&rw->lock_object, what, file, line);
 #else
@@ -1064,13 +1066,13 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 		 * has a lock at all, fail.
 		 */
 		if (rw->rw_lock == RW_UNLOCKED ||
-		    (!(rw->rw_lock & RW_LOCK_READ) && (what == RA_RLOCKED ||
+		    (!(rw->rw_lock & RW_LOCK_READ) && (what & RA_RLOCKED ||
 		    rw_wowner(rw) != curthread)))
 			panic("Lock %s not %slocked @ %s:%d\n",
-			    rw->lock_object.lo_name, (what == RA_RLOCKED) ?
+			    rw->lock_object.lo_name, (what & RA_RLOCKED) ?
 			    "read " : "", file, line);
 
-		if (!(rw->rw_lock & RW_LOCK_READ)) {
+		if (!(rw->rw_lock & RW_LOCK_READ) && !(what & RA_RLOCKED)) {
 			if (rw_recursed(rw)) {
 				if (what & RA_NOTRECURSED)
 					panic("Lock %s recursed @ %s:%d\n",
