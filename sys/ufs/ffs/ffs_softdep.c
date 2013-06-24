@@ -656,8 +656,8 @@ FEATURE(softupdates, "FFS soft-updates support");
 #define	D_SBDEP		24
 #define	D_JTRUNC	25
 #define	D_JFSYNC	26
-#define	D_SENTINAL	27
-#define	D_LAST		D_SENTINAL
+#define	D_SENTINEL	27
+#define	D_LAST		D_SENTINEL
 
 unsigned long dep_current[D_LAST + 1];
 unsigned long dep_total[D_LAST + 1];
@@ -711,6 +711,8 @@ SOFTDEP_TYPE(SBDEP, sbdep, "Superblock write dependency");
 SOFTDEP_TYPE(JTRUNC, jtrunc, "Journal inode truncation");
 SOFTDEP_TYPE(JFSYNC, jfsync, "Journal fsync complete");
 
+static MALLOC_DEFINE(M_SENTINEL, "sentinel", "Worklist sentinel");
+
 static MALLOC_DEFINE(M_SAVEDINO, "savedino", "Saved inodes");
 static MALLOC_DEFINE(M_JBLOCKS, "jblocks", "Journal block locations");
 
@@ -745,7 +747,8 @@ static struct malloc_type *memtype[] = {
 	M_JSEGDEP,
 	M_SBDEP,
 	M_JTRUNC,
-	M_JFSYNC
+	M_JFSYNC,
+	M_SENTINEL
 };
 
 static LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
@@ -1724,7 +1727,7 @@ process_worklist_item(mp, target, flags)
 	int target;
 	int flags;
 {
-	struct worklist sintenel;
+	struct worklist sentinel;
 	struct worklist *wk;
 	struct ufsmount *ump;
 	int matchcnt;
@@ -1742,14 +1745,14 @@ process_worklist_item(mp, target, flags)
 	PHOLD(curproc);	/* Don't let the stack go away. */
 	ump = VFSTOUFS(mp);
 	matchcnt = 0;
-	sintenel.wk_mp = NULL;
-	sintenel.wk_type = D_SENTINAL;
-	LIST_INSERT_HEAD(&ump->softdep_workitem_pending, &sintenel, wk_list);
-	for (wk = LIST_NEXT(&sintenel, wk_list); wk != NULL;
-	    wk = LIST_NEXT(&sintenel, wk_list)) {
-		if (wk->wk_type == D_SENTINAL) {
-			LIST_REMOVE(&sintenel, wk_list);
-			LIST_INSERT_AFTER(wk, &sintenel, wk_list);
+	sentinel.wk_mp = NULL;
+	sentinel.wk_type = D_SENTINEL;
+	LIST_INSERT_HEAD(&ump->softdep_workitem_pending, &sentinel, wk_list);
+	for (wk = LIST_NEXT(&sentinel, wk_list); wk != NULL;
+	    wk = LIST_NEXT(&sentinel, wk_list)) {
+		if (wk->wk_type == D_SENTINEL) {
+			LIST_REMOVE(&sentinel, wk_list);
+			LIST_INSERT_AFTER(wk, &sentinel, wk_list);
 			continue;
 		}
 		if (wk->wk_state & INPROGRESS)
@@ -1806,11 +1809,11 @@ process_worklist_item(mp, target, flags)
 		wake_worklist(wk);
 		add_to_worklist(wk, WK_HEAD);
 	}
-	LIST_REMOVE(&sintenel, wk_list);
+	LIST_REMOVE(&sentinel, wk_list);
 	/* Sentinal could've become the tail from remove_from_worklist. */
-	if (ump->softdep_worklist_tail == &sintenel)
+	if (ump->softdep_worklist_tail == &sentinel)
 		ump->softdep_worklist_tail =
-		    (struct worklist *)sintenel.wk_list.le_prev;
+		    (struct worklist *)sentinel.wk_list.le_prev;
 	PRELE(curproc);
 	return (matchcnt);
 }
@@ -4992,13 +4995,14 @@ bmsafemap_lookup(mp, bp, cg, newbmsafemap)
 	struct fs *fs;
 
 	mtx_assert(&lk, MA_OWNED);
-	if (bp)
-		LIST_FOREACH(wk, &bp->b_dep, wk_list)
-			if (wk->wk_type == D_BMSAFEMAP) {
-				if (newbmsafemap)
-					WORKITEM_FREE(newbmsafemap,D_BMSAFEMAP);
-				return (WK_BMSAFEMAP(wk));
-			}
+	KASSERT(bp != NULL, ("bmsafemap_lookup: missing buffer"));
+	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
+		if (wk->wk_type == D_BMSAFEMAP) {
+			if (newbmsafemap)
+				WORKITEM_FREE(newbmsafemap, D_BMSAFEMAP);
+			return (WK_BMSAFEMAP(wk));
+		}
+	}
 	fs = VFSTOUFS(mp)->um_fs;
 	bmsafemaphd = BMSAFEMAP_HASH(fs, cg);
 	if (bmsafemap_find(bmsafemaphd, mp, cg, &bmsafemap) == 1) {
@@ -8157,6 +8161,7 @@ setup_newdir(dap, newinum, dinum, newdirbp, mkdirp)
 	    (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE) {
 		dap->da_state &= ~MKDIR_PARENT;
 		WORKITEM_FREE(mkdir2, D_MKDIR);
+		mkdir2 = NULL;
 	} else {
 		LIST_INSERT_HEAD(&mkdirlisthd, mkdir2, md_mkdirs);
 		WORKLIST_INSERT(&inodedep->id_bufwait, &mkdir2->md_list);
@@ -9365,13 +9370,16 @@ clear_unlinked_inodedep(inodedep)
 		if (idp && (idp->id_state & UNLINKNEXT))
 			pino = idp->id_ino;
 		FREE_LOCK(&lk);
-		if (pino == 0)
+		if (pino == 0) {
 			bp = getblk(ump->um_devvp, btodb(fs->fs_sblockloc),
 			    (int)fs->fs_sbsize, 0, 0, 0);
-		else
+		} else {
 			error = bread(ump->um_devvp,
 			    fsbtodb(fs, ino_to_fsba(fs, pino)),
 			    (int)fs->fs_bsize, NOCRED, &bp);
+			if (error)
+				brelse(bp);
+		}
 		ACQUIRE_LOCK(&lk);
 		if (error)
 			break;
@@ -12128,7 +12136,7 @@ restart:
 
 /*
  * Sync all cylinder groups that were dirty at the time this function is
- * called.  Newly dirtied cgs will be inserted before the sintenel.  This
+ * called.  Newly dirtied cgs will be inserted before the sentinel.  This
  * is used to flush freedep activity that may be holding up writes to a
  * indirect block.
  */
@@ -12138,25 +12146,25 @@ sync_cgs(mp, waitfor)
 	int waitfor;
 {
 	struct bmsafemap *bmsafemap;
-	struct bmsafemap *sintenel;
+	struct bmsafemap *sentinel;
 	struct ufsmount *ump;
 	struct buf *bp;
 	int error;
 
-	sintenel = malloc(sizeof(*sintenel), M_BMSAFEMAP, M_ZERO | M_WAITOK);
-	sintenel->sm_cg = -1;
+	sentinel = malloc(sizeof(*sentinel), M_BMSAFEMAP, M_ZERO | M_WAITOK);
+	sentinel->sm_cg = -1;
 	ump = VFSTOUFS(mp);
 	error = 0;
 	ACQUIRE_LOCK(&lk);
-	LIST_INSERT_HEAD(&ump->softdep_dirtycg, sintenel, sm_next);
-	for (bmsafemap = LIST_NEXT(sintenel, sm_next); bmsafemap != NULL;
-	    bmsafemap = LIST_NEXT(sintenel, sm_next)) {
-		/* Skip sintenels and cgs with no work to release. */
+	LIST_INSERT_HEAD(&ump->softdep_dirtycg, sentinel, sm_next);
+	for (bmsafemap = LIST_NEXT(sentinel, sm_next); bmsafemap != NULL;
+	    bmsafemap = LIST_NEXT(sentinel, sm_next)) {
+		/* Skip sentinels and cgs with no work to release. */
 		if (bmsafemap->sm_cg == -1 ||
 		    (LIST_EMPTY(&bmsafemap->sm_freehd) &&
 		    LIST_EMPTY(&bmsafemap->sm_freewr))) {
-			LIST_REMOVE(sintenel, sm_next);
-			LIST_INSERT_AFTER(bmsafemap, sintenel, sm_next);
+			LIST_REMOVE(sentinel, sm_next);
+			LIST_INSERT_AFTER(bmsafemap, sentinel, sm_next);
 			continue;
 		}
 		/*
@@ -12166,8 +12174,8 @@ sync_cgs(mp, waitfor)
 		bp = getdirtybuf(bmsafemap->sm_buf, &lk, waitfor);
 		if (bp == NULL && waitfor == MNT_WAIT)
 			continue;
-		LIST_REMOVE(sintenel, sm_next);
-		LIST_INSERT_AFTER(bmsafemap, sintenel, sm_next);
+		LIST_REMOVE(sentinel, sm_next);
+		LIST_INSERT_AFTER(bmsafemap, sentinel, sm_next);
 		if (bp == NULL)
 			continue;
 		FREE_LOCK(&lk);
@@ -12179,9 +12187,9 @@ sync_cgs(mp, waitfor)
 		if (error)
 			break;
 	}
-	LIST_REMOVE(sintenel, sm_next);
+	LIST_REMOVE(sentinel, sm_next);
 	FREE_LOCK(&lk);
-	free(sintenel, M_BMSAFEMAP);
+	free(sentinel, M_BMSAFEMAP);
 	return (error);
 }
 
@@ -13180,6 +13188,7 @@ softdep_inode_append(ip, cred, wkhd)
 	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, cred, &bp);
 	if (error) {
+		bqrelse(bp);
 		softdep_freework(wkhd);
 		return;
 	}
