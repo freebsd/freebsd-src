@@ -388,6 +388,9 @@ OLD_FILES+=var/named/etc/namedb/PROTO.localhost.rev
 OLD_FILES+=var/named/etc/namedb/make-localhost
 #OLD_FILES+=var/named/etc/namedb/named.conf	# intentionally left out
 OLD_FILES+=var/named/etc/namedb/named.root
+OLD_FILES+=var/named/etc/namedb/master/empty.db
+OLD_FILES+=var/named/etc/namedb/master/localhost-forward.db
+OLD_FILES+=var/named/etc/namedb/master/localhost-reverse.db
 OLD_DIRS+=var/named/etc/namedb/slave
 OLD_DIRS+=var/named/etc/namedb/master
 OLD_DIRS+=var/named/etc/namedb/dynamic
@@ -1553,6 +1556,7 @@ OLD_FILES+=usr/include/gcc/4.2/mmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/pmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/tmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/xmmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/mm3dnow.h
 .elif ${TARGET_ARCH} == "ia64"
 OLD_FILES+=usr/include/gcc/4.2/ia64intrin.h
 .elif ${TARGET_ARCH} == "arm"
