@@ -2729,7 +2729,6 @@ static void
 InitPunchFW(struct libalias *la)
 {
 
-	LIBALIAS_LOCK_ASSERT(la);
 	la->fireWallField = malloc(la->fireWallNumNums);
 	if (la->fireWallField) {
 		memset(la->fireWallField, 0, la->fireWallNumNums);
@@ -2745,7 +2744,6 @@ static void
 UninitPunchFW(struct libalias *la)
 {
 
-	LIBALIAS_LOCK_ASSERT(la);
 	ClearAllFWHoles(la);
 	if (la->fireWallFD >= 0)
 		close(la->fireWallFD);
@@ -2765,7 +2763,6 @@ PunchFWHole(struct alias_link *lnk)
 	struct ip_fw rule;	/* On-the-fly built rule */
 	int fwhole;		/* Where to punch hole */
 
-	LIBALIAS_LOCK_ASSERT(la);
 	la = lnk->la;
 
 /* Don't do anything unless we are asked to */
@@ -2839,7 +2836,6 @@ ClearFWHole(struct alias_link *lnk)
 {
 	struct libalias *la;
 
-	LIBALIAS_LOCK_ASSERT(la);
 	la = lnk->la;
 	if (lnk->link_type == LINK_TCP) {
 		int fwhole = lnk->data.tcp->fwhole;	/* Where is the firewall
@@ -2864,7 +2860,6 @@ ClearAllFWHoles(struct libalias *la)
 	struct ip_fw rule;	/* On-the-fly built rule */
 	int i;
 
-	LIBALIAS_LOCK_ASSERT(la);
 	if (la->fireWallFD < 0)
 		return;
 
@@ -2878,7 +2873,7 @@ ClearAllFWHoles(struct libalias *la)
 	memset(la->fireWallField, 0, la->fireWallNumNums);
 }
 
-#endif
+#endif /* !NO_FW_PUNCH */
 
 void
 LibAliasSetFWBase(struct libalias *la, unsigned int base, unsigned int num)
