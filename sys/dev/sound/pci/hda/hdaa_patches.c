@@ -334,9 +334,32 @@ hdac_pin_patch(struct hdaa_widget *w)
 			break;
 		}
 	} else if (id == HDA_CODEC_CX20590 &&
-	    subid == LENOVO_X220_SUBVENDOR) {
+	    (subid == LENOVO_X1_SUBVENDOR ||
+	    subid == LENOVO_X220_SUBVENDOR ||
+	    subid == LENOVO_T420_SUBVENDOR ||
+	    subid == LENOVO_T520_SUBVENDOR)) {
 		switch (nid) {
 		case 25:
+			patch = "as=1 seq=15";
+			break;
+		/* 
+		 * Group onboard mic and headphone mic
+		 * together.  Fixes onboard mic.
+		 */
+		case 27:
+			patch = "as=2 seq=15";
+			break;
+		case 35:
+			patch = "as=2";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC269 &&
+	    (subid == LENOVO_X1CRBN_SUBVENDOR ||
+	    subid == LENOVO_T430_SUBVENDOR ||
+	    subid == LENOVO_T430S_SUBVENDOR ||
+	    subid == LENOVO_T530_SUBVENDOR)) {
+		switch (nid) {
+		case 21:
 			patch = "as=1 seq=15";
 			break;
 		}
