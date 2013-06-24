@@ -280,7 +280,7 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
-static int pci_do_realloc_bars = 1;
+static int pci_do_realloc_bars = 0;
 TUNABLE_INT("hw.pci.realloc_bars", &pci_do_realloc_bars);
 SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RW,
     &pci_do_realloc_bars, 0,
