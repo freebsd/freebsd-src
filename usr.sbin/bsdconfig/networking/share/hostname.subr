@@ -53,11 +53,12 @@ f_dialog_hnerror()
 	[ ${error:-0} -ne 0 ] || return $SUCCESS
 
 	case "$error" in
-	1) f_show_msg "$msg_hostname_label_contains_invalid_chars" "$fqhn";;
-	2) f_show_msg "$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn";;
-	3) f_show_msg "$msg_hostname_label_is_null" "$fqhn";;
-	63) f_show_msg "$msg_hostname_label_exceeds_max_length" "$fqhn";;
-	255) f_show_msg "$msg_hostname_exceeds_max_length" "$fqhn";;
+	1) f_show_msg "$msg_hostname_label_contains_invalid_chars" "$fqhn" ;;
+	2) f_show_msg \
+		"$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn" ;;
+	3) f_show_msg "$msg_hostname_label_is_null" "$fqhn" ;;
+	63) f_show_msg "$msg_hostname_label_exceeds_max_length" "$fqhn" ;;
+	255) f_show_msg "$msg_hostname_exceeds_max_length" "$fqhn" ;;
 	esac
 }
 

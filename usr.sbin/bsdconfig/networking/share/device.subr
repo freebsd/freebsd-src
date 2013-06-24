@@ -261,7 +261,7 @@ f_dialog_menu_netdev_edit()
 		# read and display in the summary dialog.
 		#
 		case "$tag" in
-		X\ *) break;;
+		X\ *) break ;;
 		2\ *) #
 		      # Do not proceed if/when there are NFS-mounts currently
 		      # active. If the network is changed while NFS-exported
@@ -313,11 +313,11 @@ f_dialog_menu_netdev_edit()
 		      fi
 		      ;;
 		3\ *) f_dialog_input_ipaddr "$interface" "$ipaddr"
-		      [ $? -eq $SUCCESS ] && dhcp=;;
+		      [ $? -eq $SUCCESS ] && dhcp= ;;
 		4\ *) f_dialog_input_netmask "$interface" "$netmask"
-		      [ $? -eq $SUCCESS -a "$_netmask" ] && dhcp=;;
+		      [ $? -eq $SUCCESS -a "$_netmask" ] && dhcp= ;;
 		5\ *) f_dialog_menu_media_options "$interface" "$options"
-		      [ $? -eq $SUCCESS ] && dhcp=;;
+		      [ $? -eq $SUCCESS ] && dhcp= ;;
 		esac
 	done
 

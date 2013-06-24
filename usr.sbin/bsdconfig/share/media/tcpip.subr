@@ -411,8 +411,8 @@ f_validate_netmask()
 
 		# Return error if the field is an invalid integer
 		case "$field" in
-		0|128|192|224|240|248|252|254|255) :;;
-		*) return 5;;
+		0|128|192|224|240|248|252|254|255) : ;;
+		*) return 5 ;;
 		esac
 
 		nfields=$(( $nfields + 1 ))

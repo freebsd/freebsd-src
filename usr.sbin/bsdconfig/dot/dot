@@ -94,8 +94,8 @@ print_node()
 	shift 1 # node
 
 	case "$node" in
-	edge) printf '\t\t%s' "$node";;
-	   *) printf '\t\t"%s"' "$node";;
+	edge) printf '\t\t%s' "$node" ;;
+	   *) printf '\t\t"%s"' "$node" ;;
 	esac
 
 	if [ $# -gt 0 ]; then
@@ -155,10 +155,10 @@ end_nodelist()
 #
 while getopts cdhi flag; do
 	case "$flag" in
-	i) SHOW_INCLUDES=;;
-	d) SHOW_GRAPH_LABEL_DATE=;;
-	c) SHOW_CMDLINE=;;
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	i) SHOW_INCLUDES= ;;
+	d) SHOW_GRAPH_LABEL_DATE= ;;
+	c) SHOW_CMDLINE= ;;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -611,7 +611,7 @@ for INDEX in */INDEX; do
 	printf '\tsubgraph "cluster_%s" {\n' "$item"
 
 	case "$item" in
-	[0-9][0-9][0-9].*) bgcolor="$bgcolor_menuitem";;
+	[0-9][0-9][0-9].*) bgcolor="$bgcolor_menuitem" ;;
 	*) bgcolor="$bgcolor_shortcuts"
 	esac
 	printf '\t\tbgcolor = "%s";\n' "$bgcolor"

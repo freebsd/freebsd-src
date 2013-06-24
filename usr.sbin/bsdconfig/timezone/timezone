@@ -127,14 +127,14 @@ dialog_menu_main()
 #
 while getopts C:ehnrsv$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	C) CHROOTENV="$OPTARG";;
-	e) TZ_OR_FAIL=1;;
-	n) REALLYDOIT=;;
+	C) CHROOTENV="$OPTARG" ;;
+	e) TZ_OR_FAIL=1 ;;
+	n) REALLYDOIT= ;;
 	r) REINSTALL=1
-	   USEDIALOG=;;
-	s) SKIPUTC=1;;
-	v) VERBOSE=1;;
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	   USEDIALOG= ;;
+	s) SKIPUTC=1 ;;
+	v) VERBOSE=1 ;;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
