@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #define	_WANT_FILE
 #include <sys/file.h>
 #include <sys/conf.h>
+#include <sys/ksem.h>
 #include <sys/mman.h>
 #define	_KERNEL
 #include <sys/pipe.h>
@@ -156,6 +157,7 @@ char *getmnton(struct mount *m);
 void pipetrans(struct pipe *pi, int i, int flag);
 void socktrans(struct socket *sock, int i);
 void ptstrans(struct tty *tp, int i, int flag);
+void semtrans(struct ksem *ksemp, int i, int flag);
 void shmtrans(struct shmfd *shmp, int i, int flag);
 void getinetproto(int number);
 int  getfname(const char *filename);
@@ -424,6 +426,12 @@ dofiles(struct kinfo_proc *kp)
 		else if (file.f_type == DTYPE_SHM) {
 			if (checkfile == 0)
 				shmtrans(file.f_data, i, file.f_flag);
+		}
+#endif
+#ifdef DTYPE_SEM
+		else if (file.f_type == DTYPE_SEM) {
+			if (checkfile == 0)
+				semtrans(file.f_data, i, file.f_flag);
 		}
 #endif
 		else {
@@ -941,6 +949,55 @@ ptstrans(struct tty *tp, int i, int flag)
 	printf(" %2s\n", rw);
 
 	free(name);
+
+	return;
+bad:
+	printf("* error\n");
+}
+
+void
+semtrans(struct ksem *ksemp, int i, int flag)
+{
+	struct ksem ks;
+	char name[MAXPATHLEN];
+	char mode[15];
+	char rw[3];
+	unsigned j;
+
+	PREFIX(i);
+
+	if (!KVM_READ(ksemp, &ks, sizeof(struct ksem))) {
+		dprintf(stderr, "can't read sem at %p\n", ksemp);
+		goto bad;
+	}
+
+	if (ks.ks_path != NULL) {
+		for (j = 0; j < sizeof(name) - 1; j++) {
+			if (!KVM_READ(ks.ks_path + j, name + j, 1))
+				break;
+			if (name[j] == '\0')
+				break;
+		}
+		name[j] = '\0';
+	} else
+		name[0] = '\0';
+
+	rw[0] = '\0';
+	if (flag & FREAD)
+		strcat(rw, "r");
+	if (flag & FWRITE)
+		strcat(rw, "w");
+
+	ks.ks_mode |= S_IFREG;
+	if (nflg) {
+		printf("             ");
+		(void)snprintf(mode, sizeof(mode), "%o", ks.ks_mode);
+	} else {
+		printf(" %-15s", name[0] != '\0' ? name : "-");
+		strmode(ks.ks_mode, mode);
+	}
+	printf(" %10s %6u", mode, ks.ks_value);
+	printf(" %2s\n", rw);
 
 	return;
 bad:

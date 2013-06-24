@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/ksem.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -96,6 +97,7 @@ MALLOC_DECLARE(M_FADVISE);
 
 static uma_zone_t file_zone;
 
+void	(*ksem_info)(struct ksem *ks, char *path, size_t size, uint32_t *value);
 
 /* Flags for do_dup() */
 #define DUP_FIXED	0x1	/* Force fixed allocation */
@@ -2764,6 +2766,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct shmfd *shmfd;
 	struct socket *so;
 	struct vnode *vp;
+	struct ksem *ks;
 	struct file *fp;
 	struct proc *p;
 	struct tty *tp;
@@ -2796,6 +2799,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			continue;
 		bzero(kif, sizeof(*kif));
 		kif->kf_structsize = sizeof(*kif);
+		ks = NULL;
 		vp = NULL;
 		so = NULL;
 		tp = NULL;
@@ -2840,6 +2844,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SEM:
 			kif->kf_type = KF_TYPE_SEM;
+			ks = fp->f_data;
 			break;
 
 		case DTYPE_PTS:
@@ -2945,6 +2950,8 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		}
 		if (shmfd != NULL)
 			shm_path(shmfd, kif->kf_path, sizeof(kif->kf_path));
+		if (ks != NULL && ksem_info != NULL)
+			ksem_info(ks, kif->kf_path, sizeof(kif->kf_path), NULL);
 		error = SYSCTL_OUT(req, kif, sizeof(*kif));
 		if (error)
 			break;
@@ -3022,6 +3029,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	struct shmfd *shmfd;
 	struct socket *so;
 	struct vnode *vp;
+	struct ksem *ks;
 	struct file *fp;
 	struct proc *p;
 	struct tty *tp;
@@ -3054,6 +3062,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		if ((fp = fdp->fd_ofiles[i]) == NULL)
 			continue;
 		bzero(kif, sizeof(*kif));
+		ks = NULL;
 		vp = NULL;
 		so = NULL;
 		tp = NULL;
@@ -3098,6 +3107,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SEM:
 			kif->kf_type = KF_TYPE_SEM;
+			ks = fp->f_data;
 			break;
 
 		case DTYPE_PTS:
@@ -3203,6 +3213,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		}
 		if (shmfd != NULL)
 			shm_path(shmfd, kif->kf_path, sizeof(kif->kf_path));
+		if (ks != NULL && ksem_info != NULL)
+			ksem_info(ks, kif->kf_path, sizeof(kif->kf_path), NULL);
 		/* Pack record size down */
 		kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 		    strlen(kif->kf_path) + 1;
