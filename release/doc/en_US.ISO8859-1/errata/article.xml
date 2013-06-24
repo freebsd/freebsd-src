@@ -28,7 +28,12 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2013</year>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <year>2005</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -51,8 +56,8 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This errata document for &os; &release; will be maintained
-      until the release of &os; &release.current.release;.</para>
+    <para>This errata document for &os; &release;
+      will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
   <sect1 id="intro">
