@@ -370,11 +370,11 @@ f_dialog_input_nameserver()
 		#
 		local retval=$?
 		case $retval in
-		1) f_die 1 "$msg_internal_error_nsindex_value" "$nsindex";;
+		1) f_die 1 "$msg_internal_error_nsindex_value" "$nsindex" ;;
 		2) f_dialog_msgbox "$msg_resolv_conf_changed_while_editing"
-		   return $retval;;
+		   return $retval ;;
 		3) f_dialog_msgbox "$msg_resolv_conf_entry_no_longer_exists"
-		   return $retval;;
+		   return $retval ;;
 		esac
 
 		#
@@ -460,7 +460,7 @@ f_dialog_menu_nameservers()
 		fi
 
 		case "$tag" in
-		"X $msg_exit") break;;
+		"X $msg_exit") break ;;
 		"A $msg_add")
 			f_dialog_input_nameserver
 			;;

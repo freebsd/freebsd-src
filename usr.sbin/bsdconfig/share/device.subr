@@ -486,11 +486,11 @@ f_device_desc()
 	# Sensible fall-backs for specific types
 	#
 	case "$__type" in
-	$DEVICE_TYPE_CDROM)   __cp="<unknown cdrom device type>";;
-	$DEVICE_TYPE_DISK)    __cp="<unknown disk device type>";;
-	$DEVICE_TYPE_FLOPPY)  __cp="<unknown floppy device type>";;
-	$DEVICE_TYPE_USB)     __cp="<unknown usb storage device type>";;
-	$DEVICE_TYPE_NETWORK) __cp="<unknown network interface type>";;
+	$DEVICE_TYPE_CDROM)   __cp="<unknown cdrom device type>" ;;
+	$DEVICE_TYPE_DISK)    __cp="<unknown disk device type>" ;;
+	$DEVICE_TYPE_FLOPPY)  __cp="<unknown floppy device type>" ;;
+	$DEVICE_TYPE_USB)     __cp="<unknown usb storage device type>" ;;
+	$DEVICE_TYPE_NETWORK) __cp="<unknown network interface type>" ;;
 	*)
 		__cp="<unknown device type>"
 	esac
