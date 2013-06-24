@@ -49,14 +49,17 @@ struct g_class zfs_vdev_class = {
 
 DECLARE_GEOM_CLASS(zfs_vdev_class, zfs_vdev);
 
-/*
- * Don't send BIO_FLUSH.
- */
+SYSCTL_DECL(_vfs_zfs_vdev);
+/* Don't send BIO_FLUSH. */
 static int vdev_geom_bio_flush_disable = 0;
 TUNABLE_INT("vfs.zfs.vdev.bio_flush_disable", &vdev_geom_bio_flush_disable);
-SYSCTL_DECL(_vfs_zfs_vdev);
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_flush_disable, CTLFLAG_RW,
     &vdev_geom_bio_flush_disable, 0, "Disable BIO_FLUSH");
+/* Don't send BIO_DELETE. */
+static int vdev_geom_bio_delete_disable = 0;
+TUNABLE_INT("vfs.zfs.vdev.bio_delete_disable", &vdev_geom_bio_delete_disable);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_delete_disable, CTLFLAG_RW,
+    &vdev_geom_bio_delete_disable, 0, "Disable BIO_DELETE");
 
 static void
 vdev_geom_orphan(struct g_consumer *cp)
@@ -663,8 +666,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
 
 	/*
-	 * Clear the nowritecache bit, so that on a vdev_reopen() we will
-	 * try again.
+	 * Clear the nowritecache settings, so that on a vdev_reopen()
+	 * we will try again.
 	 */
 	vd->vdev_nowritecache = B_FALSE;
 
@@ -710,6 +713,15 @@ vdev_geom_io_intr(struct bio *bp)
 		 */
 		vd->vdev_nowritecache = B_TRUE;
 	}
+	if (bp->bio_cmd == BIO_DELETE && bp->bio_error == ENOTSUP) {
+		/*
+		 * If we get ENOTSUP, we know that no future
+		 * attempts will ever succeed.  In this case we
+		 * set a persistent bit so that we don't bother
+		 * with the ioctl in the future.
+		 */
+		vd->vdev_notrim = B_TRUE;
+	}
 	if (zio->io_error == EIO && !vd->vdev_remove_wanted) {
 		/*
 		 * If provider's error is set we assume it is being
@@ -752,17 +764,21 @@ vdev_geom_io_start(zio_t *zio)
 		}
 
 		switch (zio->io_cmd) {
-
 		case DKIOCFLUSHWRITECACHE:
-
 			if (zfs_nocacheflush || vdev_geom_bio_flush_disable)
 				break;
-
 			if (vd->vdev_nowritecache) {
 				zio->io_error = ENOTSUP;
 				break;
 			}
-
+			goto sendreq;
+		case DKIOCTRIM:
+			if (vdev_geom_bio_delete_disable)
+				break;
+			if (vd->vdev_notrim) {
+				zio->io_error = ENOTSUP;
+				break;
+			}
 			goto sendreq;
 		default:
 			zio->io_error = ENOTSUP;
@@ -787,11 +803,21 @@ sendreq:
 		bp->bio_length = zio->io_size;
 		break;
 	case ZIO_TYPE_IOCTL:
-		bp->bio_cmd = BIO_FLUSH;
-		bp->bio_flags |= BIO_ORDERED;
-		bp->bio_data = NULL;
-		bp->bio_offset = cp->provider->mediasize;
-		bp->bio_length = 0;
+		switch (zio->io_cmd) {
+		case DKIOCFLUSHWRITECACHE:
+			bp->bio_cmd = BIO_FLUSH;
+			bp->bio_flags |= BIO_ORDERED;
+			bp->bio_data = NULL;
+			bp->bio_offset = cp->provider->mediasize;
+			bp->bio_length = 0;
+			break;
+		case DKIOCTRIM:
+			bp->bio_cmd = BIO_DELETE;
+			bp->bio_data = NULL;
+			bp->bio_offset = zio->io_offset;
+			bp->bio_length = zio->io_size;
+			break;
+		}
 		break;
 	}
 	bp->bio_done = vdev_geom_io_intr;
