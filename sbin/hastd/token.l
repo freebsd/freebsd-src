@@ -42,6 +42,9 @@ int depth;
 int lineno;
 
 #define	DP	do { } while (0)
+#define	YY_DECL	int yylex(void)
+
+extern int yylex(void);
 %}
 
 %option noinput
