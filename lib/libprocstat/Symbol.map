@@ -22,6 +22,7 @@ FBSD_1.3 {
 	procstat_freegroups;
 	procstat_freekstack;
 	procstat_freevmmap;
+	procstat_get_sem_info;
 	procstat_get_shm_info;
 	procstat_getargv;
 	procstat_getauxv;
