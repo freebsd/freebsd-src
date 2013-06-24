@@ -68,7 +68,7 @@ f_ifconfig_options()
 		output=
 		while [ $# -gt 0 ]; do
 			case "$1" in
-			inet|netmask) shift 1;;
+			inet|netmask) shift 1 ;;
 			*) output="$output${output:+ }$1"
 			esac
 			shift 1
