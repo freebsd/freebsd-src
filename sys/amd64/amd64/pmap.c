@@ -1694,6 +1694,7 @@ pmap_pinit(pmap_t pmap)
 	/* install self-referential address mapping entry(s) */
 	pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
 
+	pmap->pm_type = PT_X86;
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);

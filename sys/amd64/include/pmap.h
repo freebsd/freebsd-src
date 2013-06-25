@@ -236,6 +236,12 @@ struct md_page {
 	int			pat_mode;
 };
 
+enum pmap_type {
+	PT_X86,			/* regular x86 page tables */
+	PT_EPT,			/* Intel's nested page tables */
+	PT_RVI,			/* AMD's nested page tables */
+};
+
 /*
  * The kernel virtual address (KVA) of the level 4 page table page is always
  * within the direct map (DMAP) region.
@@ -245,7 +251,7 @@ struct pmap {
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
-	/* spare u_int here due to padding */
+	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */
 };
