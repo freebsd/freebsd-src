@@ -203,7 +203,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	periph->type = type;
 	periph->periph_name = name;
 	periph->immediate_priority = CAM_PRIORITY_NONE;
-	periph->refcount = 0;
+	periph->refcount = 1;		/* Dropped by invalidation. */
 	periph->sim = sim;
 	SLIST_INIT(&periph->ccb_list);
 	status = xpt_create_path(&path, periph, path_id, target_id, lun_id);
@@ -381,10 +381,8 @@ cam_periph_release_locked_buses(struct cam_periph *periph)
 
 	mtx_assert(periph->sim->mtx, MA_OWNED);
 	KASSERT(periph->refcount >= 1, ("periph->refcount >= 1"));
-	if (--periph->refcount == 0
-	    && (periph->flags & CAM_PERIPH_INVALID)) {
+	if (--periph->refcount == 0)
 		camperiphfree(periph);
-	}
 }
 
 void
@@ -579,23 +577,20 @@ void
 cam_periph_invalidate(struct cam_periph *periph)
 {
 
-	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
 	mtx_assert(periph->sim->mtx, MA_OWNED);
 	/*
 	 * We only call this routine the first time a peripheral is
 	 * invalidated.
 	 */
-	if (((periph->flags & CAM_PERIPH_INVALID) == 0)
-	 && (periph->periph_oninval != NULL))
-		periph->periph_oninval(periph);
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0)
+		return;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph invalidated\n"));
 	periph->flags |= CAM_PERIPH_INVALID;
 	periph->flags &= ~CAM_PERIPH_NEW_DEV_FOUND;
-
-	xpt_lock_buses();
-	if (periph->refcount == 0)
-		camperiphfree(periph);
-	xpt_unlock_buses();
+	if (periph->periph_oninval != NULL)
+		periph->periph_oninval(periph);
+	cam_periph_release_locked(periph);
 }
 
 static void
