@@ -2470,9 +2470,9 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	sglist_init(&sg, 4, segs);
 	error |= sglist_append(&sg, &hdr, sizeof(struct virtio_net_ctrl_hdr));
 	error |= sglist_append(&sg, &filter->vmf_unicast,
-	    sizeof(struct vtnet_mac_table));
+	    sizeof(uint32_t) + filter->vmf_unicast.nentries * ETHER_ADDR_LEN);
 	error |= sglist_append(&sg, &filter->vmf_multicast,
-	    sizeof(struct vtnet_mac_table));
+	    sizeof(uint32_t) + filter->vmf_multicast.nentries * ETHER_ADDR_LEN);
 	error |= sglist_append(&sg, &ack, sizeof(uint8_t));
 	KASSERT(error == 0 && sg.sg_nseg == 4,
 	    ("error adding MAC filtering message to sglist"));
