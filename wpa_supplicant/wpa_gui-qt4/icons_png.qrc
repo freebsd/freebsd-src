@@ -1,7 +1,0 @@
-<RCC>
- <qresource prefix="/icons" >
-  <file alias="wpa_gui.png">icons/hicolor/16x16/apps/wpa_gui.png</file>
-  <file alias="ap.png">icons/hicolor/32x32/apps/ap.png</file>
-  <file alias="laptop.png">icons/hicolor/32x32/apps/laptop.png</file>
- </qresource>
-</RCC>
