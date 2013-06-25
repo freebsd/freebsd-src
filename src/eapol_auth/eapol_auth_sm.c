@@ -2,14 +2,8 @@
  * IEEE 802.1X-2004 Authenticator - EAPOL state machine
  * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -762,7 +756,9 @@ SM_STEP(CTRL_DIR)
 
 struct eapol_state_machine *
 eapol_auth_alloc(struct eapol_authenticator *eapol, const u8 *addr,
-		 int flags, const struct wpabuf *assoc_wps_ie, void *sta_ctx)
+		 int flags, const struct wpabuf *assoc_wps_ie,
+		 const struct wpabuf *assoc_p2p_ie, void *sta_ctx,
+		 const char *identity, const char *radius_cui)
 {
 	struct eapol_state_machine *sm;
 	struct eap_config eap_conf;
@@ -829,7 +825,11 @@ eapol_auth_alloc(struct eapol_authenticator *eapol, const u8 *addr,
 	eap_conf.tnc = eapol->conf.tnc;
 	eap_conf.wps = eapol->conf.wps;
 	eap_conf.assoc_wps_ie = assoc_wps_ie;
+	eap_conf.assoc_p2p_ie = assoc_p2p_ie;
 	eap_conf.peer_addr = addr;
+	eap_conf.fragment_size = eapol->conf.fragment_size;
+	eap_conf.pwd_group = eapol->conf.pwd_group;
+	eap_conf.pbc_in_m1 = eapol->conf.pbc_in_m1;
 	sm->eap = eap_server_sm_init(sm, &eapol_cb, &eap_conf);
 	if (sm->eap == NULL) {
 		eapol_auth_free(sm);
@@ -838,6 +838,15 @@ eapol_auth_alloc(struct eapol_authenticator *eapol, const u8 *addr,
 	sm->eap_if = eap_get_interface(sm->eap);
 
 	eapol_auth_initialize(sm);
+
+	if (identity) {
+		sm->identity = (u8 *) os_strdup(identity);
+		if (sm->identity)
+			sm->identity_len = os_strlen(identity);
+	}
+	if (radius_cui)
+		sm->radius_cui = wpabuf_alloc_copy(radius_cui,
+						   os_strlen(radius_cui));
 
 	return sm;
 }
@@ -1012,7 +1021,7 @@ static struct eapol_callbacks eapol_cb =
 
 int eapol_auth_eap_pending_cb(struct eapol_state_machine *sm, void *ctx)
 {
-	if (sm == NULL || ctx != sm->eap)
+	if (sm == NULL || ctx == NULL || ctx != sm->eap)
 		return -1;
 
 	eap_sm_pending_cb(sm->eap);
@@ -1034,6 +1043,8 @@ static int eapol_auth_conf_clone(struct eapol_auth_config *dst,
 	dst->msg_ctx = src->msg_ctx;
 	dst->eap_sim_db_priv = src->eap_sim_db_priv;
 	os_free(dst->eap_req_id_text);
+	dst->pwd_group = src->pwd_group;
+	dst->pbc_in_m1 = src->pbc_in_m1;
 	if (src->eap_req_id_text) {
 		dst->eap_req_id_text = os_malloc(src->eap_req_id_text_len);
 		if (dst->eap_req_id_text == NULL)
@@ -1077,6 +1088,7 @@ static int eapol_auth_conf_clone(struct eapol_auth_config *dst,
 	dst->eap_sim_aka_result_ind = src->eap_sim_aka_result_ind;
 	dst->tnc = src->tnc;
 	dst->wps = src->wps;
+	dst->fragment_size = src->fragment_size;
 	return 0;
 }
 

@@ -3,14 +3,8 @@
  * Copyright (c) 2006, Dan Williams <dcbw@redhat.com> and Red Hat, Inc.
  * Copyright (c) 2009-2010, Witold Sowa <witold.sowa@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef CTRL_IFACE_DBUS_NEW_HANDLERS_H
@@ -26,17 +20,26 @@ struct bss_handler_args {
 	unsigned int id;
 };
 
-DBusMessage * wpas_dbus_simple_property_getter(DBusMessage *message,
-					       const int type,
-					       const void *val);
+dbus_bool_t wpas_dbus_simple_property_getter(DBusMessageIter *iter,
+					     const int type,
+					     const void *val,
+					     DBusError *error);
 
-DBusMessage * wpas_dbus_simple_property_setter(DBusMessage *message,
-					       const int type, void *val);
+dbus_bool_t wpas_dbus_simple_property_setter(DBusMessageIter *iter,
+					     DBusError *error,
+					     const int type, void *val);
 
-DBusMessage * wpas_dbus_simple_array_property_getter(DBusMessage *message,
-						     const int type,
-						     const void *array,
-						     size_t array_len);
+dbus_bool_t wpas_dbus_simple_array_property_getter(DBusMessageIter *iter,
+						   const int type,
+						   const void *array,
+						   size_t array_len,
+						   DBusError *error);
+
+dbus_bool_t wpas_dbus_simple_array_array_property_getter(DBusMessageIter *iter,
+							 const int type,
+							 struct wpabuf **array,
+							 size_t array_len,
+							 DBusError *error);
 
 DBusMessage * wpas_dbus_handler_create_interface(DBusMessage *message,
 						 struct wpa_global *global);
@@ -47,29 +50,39 @@ DBusMessage * wpas_dbus_handler_remove_interface(DBusMessage *message,
 DBusMessage * wpas_dbus_handler_get_interface(DBusMessage *message,
 					      struct wpa_global *global);
 
-DBusMessage * wpas_dbus_getter_debug_level(DBusMessage *message,
-					   struct wpa_global *global);
+dbus_bool_t wpas_dbus_getter_debug_level(DBusMessageIter *iter,
+					 DBusError *error,
+					 void *user_data);
 
-DBusMessage * wpas_dbus_getter_debug_timestamp(DBusMessage *message,
-					       struct wpa_global *global);
+dbus_bool_t wpas_dbus_getter_debug_timestamp(DBusMessageIter *iter,
+                                             DBusError *error,
+                                             void *user_data);
 
-DBusMessage * wpas_dbus_getter_debug_show_keys(DBusMessage *message,
-					       struct wpa_global *global);
+dbus_bool_t wpas_dbus_getter_debug_show_keys(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data);
 
-DBusMessage * wpas_dbus_setter_debug_level(DBusMessage *message,
-					   struct wpa_global *global);
+dbus_bool_t wpas_dbus_setter_debug_level(DBusMessageIter *iter,
+					 DBusError *error, void *user_data);
 
-DBusMessage * wpas_dbus_setter_debug_timestamp(DBusMessage *message,
-					       struct wpa_global *global);
+dbus_bool_t wpas_dbus_setter_debug_timestamp(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data);
 
-DBusMessage * wpas_dbus_setter_debug_show_keys(DBusMessage *message,
-					       struct wpa_global *global);
+dbus_bool_t wpas_dbus_setter_debug_show_keys(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data);
 
-DBusMessage * wpas_dbus_getter_interfaces(DBusMessage *message,
-					  struct wpa_global *global);
+dbus_bool_t wpas_dbus_getter_interfaces(DBusMessageIter *iter,
+					DBusError *error,
+					void *user_data);
 
-DBusMessage * wpas_dbus_getter_eap_methods(DBusMessage *message,
-					   void *nothing);
+dbus_bool_t wpas_dbus_getter_eap_methods(DBusMessageIter *iter,
+					 DBusError *error, void *user_data);
+
+dbus_bool_t wpas_dbus_getter_global_capabilities(DBusMessageIter *iter,
+						 DBusError *error,
+						 void *user_data);
 
 DBusMessage * wpas_dbus_handler_scan(DBusMessage *message,
 				     struct wpa_supplicant *wpa_s);
@@ -77,14 +90,28 @@ DBusMessage * wpas_dbus_handler_scan(DBusMessage *message,
 DBusMessage * wpas_dbus_handler_disconnect(DBusMessage *message,
 					   struct wpa_supplicant *wpa_s);
 
+dbus_bool_t set_network_properties(struct wpa_supplicant *wpa_s,
+				   struct wpa_ssid *ssid,
+				   DBusMessageIter *iter,
+				   DBusError *error);
+
 DBusMessage * wpas_dbus_handler_add_network(DBusMessage *message,
+					    struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_handler_reassociate(DBusMessage *message,
 					    struct wpa_supplicant *wpa_s);
 
 DBusMessage * wpas_dbus_handler_remove_network(DBusMessage *message,
 					       struct wpa_supplicant *wpa_s);
 
+DBusMessage * wpas_dbus_handler_remove_all_networks(
+	DBusMessage *message, struct wpa_supplicant *wpa_s);
+
 DBusMessage * wpas_dbus_handler_select_network(DBusMessage *message,
 					       struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_handler_network_reply(DBusMessage *message,
+					      struct wpa_supplicant *wpa_s);
 
 DBusMessage * wpas_dbus_handler_add_blob(DBusMessage *message,
 					 struct wpa_supplicant *wpa_s);
@@ -95,102 +122,164 @@ DBusMessage * wpas_dbus_handler_get_blob(DBusMessage *message,
 DBusMessage * wpas_dbus_handler_remove_blob(DBusMessage *message,
 					    struct wpa_supplicant *wpa_s);
 
-DBusMessage * wpas_dbus_getter_capabilities(DBusMessage *message,
-					    struct wpa_supplicant *wpa_s);
+DBusMessage * wpas_dbus_handler_flush_bss(DBusMessage *message,
+					  struct wpa_supplicant *wpa_s);
 
-DBusMessage * wpas_dbus_getter_state(DBusMessage *message,
-				     struct wpa_supplicant *wpa_s);
+DBusMessage * wpas_dbus_handler_autoscan(DBusMessage *message,
+					 struct wpa_supplicant *wpa_s);
 
-DBusMessage * wpas_dbus_getter_scanning(DBusMessage *message,
-					struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_capabilities(DBusMessageIter *iter,
+					  DBusError *error, void *user_data);
 
-DBusMessage * wpas_dbus_getter_ap_scan(DBusMessage *message,
-				       struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_state(DBusMessageIter *iter, DBusError *error,
+				   void *user_data);
 
-DBusMessage * wpas_dbus_setter_ap_scan(DBusMessage *message,
-				       struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_scanning(DBusMessageIter *iter, DBusError *error,
+				      void *user_data);
 
-DBusMessage * wpas_dbus_getter_ifname(DBusMessage *message,
-				      struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_ap_scan(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
 
-DBusMessage * wpas_dbus_getter_driver(DBusMessage *message,
-				      struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_setter_ap_scan(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
 
-DBusMessage * wpas_dbus_getter_bridge_ifname(DBusMessage *message,
-					     struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_fast_reauth(DBusMessageIter *iter,
+					 DBusError *error,
+					 void *user_data);
 
-DBusMessage * wpas_dbus_getter_current_bss(DBusMessage *message,
-					   struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_setter_fast_reauth(DBusMessageIter *iter,
+					 DBusError *error,
+					 void *user_data);
 
-DBusMessage * wpas_dbus_getter_current_network(DBusMessage *message,
-					       struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_disconnect_reason(DBusMessageIter *iter,
+					       DBusError *error,
+					       void *user_data);
 
-DBusMessage * wpas_dbus_getter_bsss(DBusMessage *message,
-				    struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_bss_expire_age(DBusMessageIter *iter,
+					    DBusError *error, void *user_data);
 
-DBusMessage * wpas_dbus_getter_networks(DBusMessage *message,
-					struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_setter_bss_expire_age(DBusMessageIter *iter,
+					    DBusError *error,
+					    void *user_data);
 
-DBusMessage * wpas_dbus_getter_blobs(DBusMessage *message,
-				     struct wpa_supplicant *bss);
+dbus_bool_t wpas_dbus_getter_bss_expire_count(DBusMessageIter *iter,
+					      DBusError *error,
+					      void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_bssid(DBusMessage *message,
-					 struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_setter_bss_expire_count(DBusMessageIter *iter,
+					      DBusError *error,
+					      void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_ssid(DBusMessage *message,
-					struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_getter_country(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_privacy(DBusMessage *message,
-					   struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_setter_country(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_mode(DBusMessage *message,
-					struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_getter_scan_interval(DBusMessageIter *iter,
+					   DBusError *error,
+					   void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_signal(DBusMessage *message,
-					  struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_setter_scan_interval(DBusMessageIter *iter,
+					   DBusError *error,
+					   void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_frequency(DBusMessage *message,
-					     struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_getter_ifname(DBusMessageIter *iter, DBusError *error,
+				    void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_rates(DBusMessage *message,
-					 struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_getter_driver(DBusMessageIter *iter, DBusError *error,
+				    void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_wpa(DBusMessage *message,
-				       struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_getter_bridge_ifname(DBusMessageIter *iter,
+					   DBusError *error,
+					   void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_rsn(DBusMessage *message,
-				       struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_getter_current_bss(DBusMessageIter *iter,
+					 DBusError *error,
+					 void *user_data);
 
-DBusMessage * wpas_dbus_getter_bss_ies(DBusMessage *message,
-				       struct bss_handler_args *bss);
+dbus_bool_t wpas_dbus_getter_current_network(DBusMessageIter *iter,
+					     DBusError *error,
+					     void *user_data);
 
-DBusMessage * wpas_dbus_getter_enabled(DBusMessage *message,
-				       struct network_handler_args *net);
+dbus_bool_t wpas_dbus_getter_current_auth_mode(DBusMessageIter *iter,
+					       DBusError *error,
+					       void *user_data);
 
-DBusMessage * wpas_dbus_setter_enabled(DBusMessage *message,
-				       struct network_handler_args *net);
+dbus_bool_t wpas_dbus_getter_bsss(DBusMessageIter *iter, DBusError *error,
+				  void *user_data);
 
-DBusMessage * wpas_dbus_getter_network_properties(
-	DBusMessage *message, struct network_handler_args *net);
+dbus_bool_t wpas_dbus_getter_networks(DBusMessageIter *iter, DBusError *error,
+				      void *user_data);
 
-DBusMessage * wpas_dbus_setter_network_properties(
-	DBusMessage *message, struct network_handler_args *net);
+dbus_bool_t wpas_dbus_getter_blobs(DBusMessageIter *iter, DBusError *error,
+				   void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_bssid(DBusMessageIter *iter, DBusError *error,
+				       void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_ssid(DBusMessageIter *iter, DBusError *error,
+				      void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_privacy(DBusMessageIter *iter,
+					 DBusError *error, void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_mode(DBusMessageIter *iter, DBusError *error,
+				      void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_signal(DBusMessageIter *iter,
+					DBusError *error, void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_frequency(DBusMessageIter *iter,
+					   DBusError *error, void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_rates(DBusMessageIter *iter,
+				       DBusError *error, void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_wpa(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_rsn(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_wps(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
+
+dbus_bool_t wpas_dbus_getter_bss_ies(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
+
+dbus_bool_t wpas_dbus_getter_enabled(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
+
+dbus_bool_t wpas_dbus_setter_enabled(DBusMessageIter *iter, DBusError *error,
+				     void *user_data);
+
+dbus_bool_t wpas_dbus_getter_network_properties(DBusMessageIter *iter,
+						DBusError *error,
+						void *user_data);
+
+dbus_bool_t wpas_dbus_setter_network_properties(DBusMessageIter *iter,
+						DBusError *error,
+						void *user_data);
 
 DBusMessage * wpas_dbus_handler_wps_start(DBusMessage *message,
 					  struct wpa_supplicant *wpa_s);
 
-DBusMessage * wpas_dbus_getter_process_credentials(
-	DBusMessage *message, struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_getter_process_credentials(DBusMessageIter *iter,
+	DBusError *error, void *user_data);
 
-DBusMessage * wpas_dbus_setter_process_credentials(
-	DBusMessage *message, struct wpa_supplicant *wpa_s);
-
-DBusMessage * wpas_dbus_getter_credentials(DBusMessage *message,
-					   struct wpa_supplicant *wpa_s);
+dbus_bool_t wpas_dbus_setter_process_credentials(DBusMessageIter *iter,
+						 DBusError *error,
+						 void *user_data);
 
 DBusMessage * wpas_dbus_error_invalid_args(DBusMessage *message,
 					   const char *arg);
 DBusMessage * wpas_dbus_error_unknown_error(DBusMessage *message,
 					    const char *arg);
+
+DBusMessage * wpas_dbus_handler_subscribe_preq(
+	DBusMessage *message, struct wpa_supplicant *wpa_s);
+DBusMessage * wpas_dbus_handler_unsubscribe_preq(
+	DBusMessage *message, struct wpa_supplicant *wpa_s);
 
 #endif /* CTRL_IFACE_DBUS_HANDLERS_NEW_H */

@@ -2,14 +2,8 @@
  * WPA Supplicant - driver_wext exported functions
  * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef DRIVER_WEXT_H
@@ -23,9 +17,12 @@ struct wpa_driver_wext_data {
 	int ioctl_sock;
 	int mlme_sock;
 	char ifname[IFNAMSIZ + 1];
+	char phyname[32];
 	int ifindex;
 	int ifindex2;
 	int if_removed;
+	int if_disabled;
+	struct rfkill_data *rfkill;
 	u8 *assoc_req_ies;
 	size_t assoc_req_ies_len;
 	u8 *assoc_resp_ies;
@@ -45,6 +42,14 @@ struct wpa_driver_wext_data {
 	int scan_complete_events;
 
 	int cfg80211; /* whether driver is using cfg80211 */
+
+	u8 max_level;
+
+#ifdef ANDROID
+	int errors;
+	int driver_is_started;
+	int bgscan_enabled;
+#endif /* ANDROID */
 };
 
 int wpa_driver_wext_get_bssid(void *priv, u8 *bssid);
