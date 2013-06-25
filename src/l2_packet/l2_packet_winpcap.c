@@ -2,14 +2,8 @@
  * WPA Supplicant - Layer2 packet handling with WinPcap RX thread
  * Copyright (c) 2003-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This l2_packet implementation is explicitly for WinPcap and Windows events.
  * l2_packet_pcap.c has support for WinPcap, but it requires polling to receive

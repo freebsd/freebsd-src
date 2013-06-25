@@ -2,14 +2,8 @@
  * EAP peer method: Test method for vendor specific (expanded) EAP type
  * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This file implements a vendor specific test method using EAP expanded types.
  * This is only for test use and must not be used for authentication since no
@@ -25,7 +19,7 @@
 #endif /* TEST_PENDING_REQUEST */
 
 
-#define EAP_VENDOR_ID 0xfffefd
+#define EAP_VENDOR_ID EAP_VENDOR_HOSTAP
 #define EAP_VENDOR_TYPE 0xfcfbfaf9
 
 

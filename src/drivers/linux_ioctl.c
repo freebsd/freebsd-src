@@ -2,14 +2,8 @@
  * Linux ioctl helper functions for driver wrappers
  * Copyright (c) 2002-2010, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "utils/includes.h"
@@ -24,6 +18,7 @@
 int linux_set_iface_flags(int sock, const char *ifname, int dev_up)
 {
 	struct ifreq ifr;
+	int ret;
 
 	if (sock < 0)
 		return -1;
@@ -32,9 +27,10 @@ int linux_set_iface_flags(int sock, const char *ifname, int dev_up)
 	os_strlcpy(ifr.ifr_name, ifname, IFNAMSIZ);
 
 	if (ioctl(sock, SIOCGIFFLAGS, &ifr) != 0) {
+		ret = errno ? -errno : -999;
 		wpa_printf(MSG_ERROR, "Could not read interface %s flags: %s",
 			   ifname, strerror(errno));
-		return -1;
+		return ret;
 	}
 
 	if (dev_up) {
@@ -48,12 +44,36 @@ int linux_set_iface_flags(int sock, const char *ifname, int dev_up)
 	}
 
 	if (ioctl(sock, SIOCSIFFLAGS, &ifr) != 0) {
-		wpa_printf(MSG_ERROR, "Could not set interface %s flags: %s",
-			   ifname, strerror(errno));
-		return -1;
+		ret = errno ? -errno : -999;
+		wpa_printf(MSG_ERROR, "Could not set interface %s flags (%s): "
+			   "%s",
+			   ifname, dev_up ? "UP" : "DOWN", strerror(errno));
+		return ret;
 	}
 
 	return 0;
+}
+
+
+int linux_iface_up(int sock, const char *ifname)
+{
+	struct ifreq ifr;
+	int ret;
+
+	if (sock < 0)
+		return -1;
+
+	os_memset(&ifr, 0, sizeof(ifr));
+	os_strlcpy(ifr.ifr_name, ifname, IFNAMSIZ);
+
+	if (ioctl(sock, SIOCGIFFLAGS, &ifr) != 0) {
+		ret = errno ? -errno : -999;
+		wpa_printf(MSG_ERROR, "Could not read interface %s flags: %s",
+			   ifname, strerror(errno));
+		return ret;
+	}
+
+	return !!(ifr.ifr_flags & IFF_UP);
 }
 
 

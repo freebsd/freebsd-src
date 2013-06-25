@@ -2,14 +2,8 @@
  * WPA Supplicant / dbus-based control interface (WPS)
  * Copyright (c) 2006, Dan Williams <dcbw@redhat.com> and Red Hat, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -43,9 +37,9 @@ DBusMessage * wpas_dbus_iface_wps_pbc(DBusMessage *message,
 		return wpas_dbus_new_invalid_opts_error(message, NULL);
 
 	if (!os_strcmp(arg_bssid, "any"))
-		ret = wpas_wps_start_pbc(wpa_s, NULL);
+		ret = wpas_wps_start_pbc(wpa_s, NULL, 0);
 	else if (!hwaddr_aton(arg_bssid, bssid))
-		ret = wpas_wps_start_pbc(wpa_s, bssid);
+		ret = wpas_wps_start_pbc(wpa_s, bssid, 0);
 	else {
 		return wpas_dbus_new_invalid_opts_error(message,
 							"Invalid BSSID");
@@ -94,9 +88,11 @@ DBusMessage * wpas_dbus_iface_wps_pin(DBusMessage *message,
 	}
 
 	if (os_strlen(pin) > 0)
-		ret = wpas_wps_start_pin(wpa_s, _bssid, pin);
+		ret = wpas_wps_start_pin(wpa_s, _bssid, pin, 0,
+					 DEV_PW_DEFAULT);
 	else
-		ret = wpas_wps_start_pin(wpa_s, _bssid, NULL);
+		ret = wpas_wps_start_pin(wpa_s, _bssid, NULL, 0,
+					 DEV_PW_DEFAULT);
 
 	if (ret < 0) {
 		return dbus_message_new_error(message,

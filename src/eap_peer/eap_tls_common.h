@@ -1,15 +1,9 @@
 /*
  * EAP peer: EAP-TLS/PEAP/TTLS/FAST common functions
- * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2009, 2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_TLS_COMMON_H
@@ -66,14 +60,19 @@ struct eap_ssl_data {
 	int include_tls_length;
 
 	/**
-	 * tls_ia - Whether TLS/IA is enabled for this TLS connection
-	 */
-	int tls_ia;
-
-	/**
 	 * eap - EAP state machine allocated with eap_peer_sm_init()
 	 */
 	struct eap_sm *eap;
+
+	/**
+	 * ssl_ctx - TLS library context to use for the connection
+	 */
+	void *ssl_ctx;
+
+	/**
+	 * eap_type - EAP method used in Phase 1 (EAP_TYPE_TLS/PEAP/TTLS/FAST)
+	 */
+	u8 eap_type;
 };
 
 
@@ -86,9 +85,12 @@ struct eap_ssl_data {
  /* could be up to 128 bytes, but only the first 64 bytes are used */
 #define EAP_TLS_KEY_LEN 64
 
+/* dummy type used as a flag for UNAUTH-TLS */
+#define EAP_UNAUTH_TLS_TYPE 255
+
 
 int eap_peer_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
-			  struct eap_peer_config *config);
+			  struct eap_peer_config *config, u8 eap_type);
 void eap_peer_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data);
 u8 * eap_peer_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 			     const char *label, size_t len);

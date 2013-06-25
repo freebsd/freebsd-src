@@ -246,59 +246,9 @@
 
     <variablelist>
       <varlistentry>
-	<term>hostap</term>
-	<listitem>
-	  <para>(default) Host AP driver (Intersil Prism2/2.5/3).
-  	  (this can also be used with Linuxant DriverLoader).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>hermes</term>
-	<listitem>
-	  <para>Agere Systems Inc. driver (Hermes-I/Hermes-II).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>madwifi</term>
-	<listitem>
-	  <para>MADWIFI 802.11 support (Atheros, etc.).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>atmel</term>
-	<listitem>
-	  <para>ATMEL AT76C5XXx (USB, PCMCIA).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
 	<term>wext</term>
 	<listitem>
 	  <para>Linux wireless extensions (generic).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>ndiswrapper</term>
-	<listitem>
-	  <para>Linux ndiswrapper.</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>broadcom</term>
-	<listitem>
-	  <para>Broadcom wl.o driver.</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>ipw</term>
-	<listitem>
-	  <para>Intel ipw2100/2200 driver.</para>
 	</listitem>
       </varlistentry>
 
@@ -432,7 +382,7 @@
       <varlistentry>
 	<term>-L</term>
 	<listitem>
-	  <para>Show license (GPL and BSD).</para>
+	  <para>Show license (BSD).</para>
 	</listitem>
       </varlistentry>
 
@@ -527,8 +477,8 @@ wpa_supplicant -Dnl80211,wext -c/etc/wpa_supplicant.conf -iwlan0
 
 <blockquote><programlisting>
 wpa_supplicant \
-	-c wpa1.conf -i wlan0 -D hostap -N \
-	-c wpa2.conf -i ath0 -D madwifi
+	-c wpa1.conf -i wlan0 -D nl80211 -N \
+	-c wpa2.conf -i ath0 -D wext
 </programlisting></blockquote>
   </refsect1>
 
@@ -557,93 +507,6 @@ wpa_supplicant \
   <refsect1>
     <title>Supported Drivers</title>
     <variablelist>
-      <varlistentry>
-	<term>Host AP driver for Prism2/2.5/3 (development
-	snapshot/v0.2.x)</term>
-	<listitem>
-	  <para> (http://hostap.epitest.fi/) Driver needs to be set in
-	  Managed mode (<emphasis>iwconfig wlan0 mode managed</emphasis>).
-	  Please note that station firmware version needs to be 1.7.0 or
-	  newer to work in WPA mode.</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>Linuxant DriverLoader</term>
-	<listitem>
-	  <para>(http://www.linuxant.com/driverloader/)
-	with Windows NDIS driver for your wlan card supporting WPA.</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>Agere Systems Inc. Linux Driver</term>
-	<listitem>
-	  <para> (http://www.agere.com/support/drivers/) Please note
-	that the driver interface file (driver_hermes.c) and hardware
-	specific include files are not included in the wpa_supplicant
-	distribution. You will need to copy these from the source
-	package of the Agere driver.</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>madwifi driver for cards based on Atheros chip set (ar521x)</term>
-	<listitem>
-	  <para> (http://sourceforge.net/projects/madwifi/) Please
-	note that you will need to modify the wpa_supplicant .config
-	file to use the correct path for the madwifi driver root
-	directory (CFLAGS += -I../madwifi/wpa line in example
-	defconfig).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>ATMEL AT76C5XXx driver for USB and PCMCIA cards</term>
-	<listitem>
-	  <para> (http://atmelwlandriver.sourceforge.net/).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>Linux ndiswrapper</term>
-	<listitem>
-	  <para> (http://ndiswrapper.sourceforge.net/) with Windows
-	NDIS driver.</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>Broadcom wl.o driver</term>
-	<listitem>
-	  <para> This is a generic Linux driver for Broadcom IEEE
-	802.11a/g cards.  However, it is proprietary driver that is
-	not publicly available except for couple of exceptions, mainly
-	Broadcom-based APs/wireless routers that use Linux. The driver
-	binary can be downloaded, e.g., from Linksys support site
-	(http://www.linksys.com/support/gpl.asp) for Linksys
-	WRT54G. The GPL tarball includes cross-compiler and the needed
-	header file, wlioctl.h, for compiling wpa_supplicant.  This
-	driver support in wpa_supplicant is expected to work also with
-	other devices based on Broadcom driver (assuming the driver
-	includes client mode support).</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term> Intel ipw2100 driver</term>
-	<listitem>
-	  <para> (http://sourceforge.net/projects/ipw2100/)</para>
-	</listitem>
-      </varlistentry>
-
-      <varlistentry>
-	<term>Intel ipw2200 driver</term>
-	<listitem>
-	  <para> (http://sourceforge.net/projects/ipw2200/)</para>
-	</listitem>
-      </varlistentry>
-
       <varlistentry>
 	<term>Linux wireless extensions</term>
 	<listitem>
@@ -816,12 +679,12 @@ fi
   </refsect1>
   <refsect1>
     <title>Legal</title>
-    <para>wpa_supplicant is copyright (c) 2003-2007,
+    <para>wpa_supplicant is copyright (c) 2003-2012,
     Jouni Malinen <email>j@w1.fi</email> and
     contributors.
     All Rights Reserved.</para>
 
-    <para>This program is dual-licensed under both the GPL version 2
-    and BSD license. Either license may be used at your option.</para>
+    <para>This program is licensed under the BSD license (the one with
+    advertisement clause removed).</para>
   </refsect1>
 </refentry>

@@ -2,14 +2,8 @@
  * WPA Supplicant - Layer2 packet handling with privilege separation
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -179,7 +173,7 @@ struct l2_packet_data * l2_packet_init(
 	addr.sun_family = AF_UNIX;
 	os_strlcpy(addr.sun_path, l2->own_socket_path, sizeof(addr.sun_path));
 	if (bind(l2->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind(PF_UNIX)");
+		perror("l2-pkt-privsep: bind(PF_UNIX)");
 		goto fail;
 	}
 

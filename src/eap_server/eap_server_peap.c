@@ -2,14 +2,8 @@
  * hostapd / EAP-PEAP (draft-josefsson-pppext-eap-tls-eap-10.txt)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -17,6 +11,7 @@
 #include "common.h"
 #include "crypto/sha1.h"
 #include "crypto/tls.h"
+#include "crypto/random.h"
 #include "eap_i.h"
 #include "eap_tls_common.h"
 #include "eap_common/eap_tlv_common.h"
@@ -350,8 +345,12 @@ static int eap_peap_derive_cmk(struct eap_sm *sm, struct eap_peap_data *data)
 	 * in the end of the label just before ISK; is that just a typo?)
 	 */
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: TempKey", tk, 40);
-	peap_prfplus(data->peap_version, tk, 40, "Inner Methods Compound Keys",
-		     isk, sizeof(isk), imck, sizeof(imck));
+	if (peap_prfplus(data->peap_version, tk, 40,
+			 "Inner Methods Compound Keys",
+			 isk, sizeof(isk), imck, sizeof(imck)) < 0) {
+		os_free(tk);
+		return -1;
+	}
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: IMCK (IPMKj)",
 			imck, sizeof(imck));
 
@@ -414,7 +413,7 @@ static struct wpabuf * eap_peap_build_phase2_tlv(struct eap_sm *sm,
 #endif /* EAP_SERVER_TNC */
 
 		if (eap_peap_derive_cmk(sm, data) < 0 ||
-		    os_get_random(data->binding_nonce, 32)) {
+		    random_get_bytes(data->binding_nonce, 32)) {
 			wpabuf_free(buf);
 			return NULL;
 		}
@@ -1059,8 +1058,6 @@ static void eap_peap_process_phase2(struct eap_sm *sm,
 	wpa_hexdump_buf_key(MSG_DEBUG, "EAP-PEAP: Decrypted Phase 2 EAP",
 			    in_decrypted);
 
-	hdr = wpabuf_head(in_decrypted);
-
 	if (data->peap_version == 0 && data->state != PHASE2_TLV) {
 		const struct eap_hdr *resp;
 		struct eap_hdr *nhdr;
@@ -1319,9 +1316,10 @@ static u8 * eap_peap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 		 * termination for this label while the one used for deriving
 		 * IPMK|CMK did not use null termination.
 		 */
-		peap_prfplus(data->peap_version, data->ipmk, 40,
-			     "Session Key Generating Function",
-			     (u8 *) "\00", 1, csk, sizeof(csk));
+		if (peap_prfplus(data->peap_version, data->ipmk, 40,
+				 "Session Key Generating Function",
+				 (u8 *) "\00", 1, csk, sizeof(csk)) < 0)
+			return NULL;
 		wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: CSK", csk, sizeof(csk));
 		eapKeyData = os_malloc(EAP_TLS_KEY_LEN);
 		if (eapKeyData) {

@@ -2,14 +2,8 @@
  * WPA Supplicant - privilege separated driver interface
  * Copyright (c) 2007-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -158,7 +152,7 @@ wpa_driver_privsep_get_scan_results2(void *priv)
 		return NULL;
 	}
 
-	results->res = os_zalloc(num * sizeof(struct wpa_scan_res *));
+	results->res = os_calloc(num, sizeof(struct wpa_scan_res *));
 	if (results->res == NULL) {
 		os_free(results);
 		os_free(buf);
@@ -301,17 +295,6 @@ static int wpa_driver_privsep_get_ssid(void *priv, u8 *ssid)
 
 static int wpa_driver_privsep_deauthenticate(void *priv, const u8 *addr,
 					  int reason_code)
-{
-	//struct wpa_driver_privsep_data *drv = priv;
-	wpa_printf(MSG_DEBUG, "%s addr=" MACSTR " reason_code=%d",
-		   __func__, MAC2STR(addr), reason_code);
-	wpa_printf(MSG_DEBUG, "%s - TODO", __func__);
-	return 0;
-}
-
-
-static int wpa_driver_privsep_disassociate(void *priv, const u8 *addr,
-					int reason_code)
 {
 	//struct wpa_driver_privsep_data *drv = priv;
 	wpa_printf(MSG_DEBUG, "%s addr=" MACSTR " reason_code=%d",
@@ -657,7 +640,7 @@ static int wpa_driver_privsep_set_param(void *priv, const char *param)
 	os_strlcpy(addr.sun_path, drv->own_socket_path, sizeof(addr.sun_path));
 	if (bind(drv->priv_socket, (struct sockaddr *) &addr, sizeof(addr)) <
 	    0) {
-		perror("bind(PF_UNIX)");
+		perror("privsep-set-params priv-sock: bind(PF_UNIX)");
 		close(drv->priv_socket);
 		drv->priv_socket = -1;
 		unlink(drv->own_socket_path);
@@ -682,7 +665,7 @@ static int wpa_driver_privsep_set_param(void *priv, const char *param)
 	os_strlcpy(addr.sun_path, drv->own_cmd_path, sizeof(addr.sun_path));
 	if (bind(drv->cmd_socket, (struct sockaddr *) &addr, sizeof(addr)) < 0)
 	{
-		perror("bind(PF_UNIX)");
+		perror("privsep-set-params cmd-sock: bind(PF_UNIX)");
 		close(drv->cmd_socket);
 		drv->cmd_socket = -1;
 		unlink(drv->own_cmd_path);
@@ -742,7 +725,6 @@ struct wpa_driver_ops wpa_driver_privsep_ops = {
 	.set_param = wpa_driver_privsep_set_param,
 	.scan2 = wpa_driver_privsep_scan,
 	.deauthenticate = wpa_driver_privsep_deauthenticate,
-	.disassociate = wpa_driver_privsep_disassociate,
 	.associate = wpa_driver_privsep_associate,
 	.get_capa = wpa_driver_privsep_get_capa,
 	.get_mac_addr = wpa_driver_privsep_get_mac_addr,
