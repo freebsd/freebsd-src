@@ -72,6 +72,7 @@ static int ata_intel_sata_cscr_write(device_t dev, int port,
     int reg, u_int32_t result);
 static int ata_intel_sata_sidpr_write(device_t dev, int port,
     int reg, u_int32_t result);
+static int ata_intel_sata_sidpr_test(device_t dev);
 static int ata_intel_31244_ch_attach(device_t dev);
 static int ata_intel_31244_ch_detach(device_t dev);
 static int ata_intel_31244_status(device_t dev);
@@ -416,22 +417,20 @@ ata_intel_ch_attach(device_t dev)
 		}
 		if (ch->flags & ATA_SATA) {
 			if ((ctlr->chip->cfg1 & INTEL_ICH5)) {
-				ch->flags |= ATA_PERIODIC_POLL;
-				ch->hw.status = ata_intel_sata_status;
 				ch->hw.pm_read = ata_intel_sata_cscr_read;
 				ch->hw.pm_write = ata_intel_sata_cscr_write;
 			} else if (ctlr->r_res2) {
-				ch->flags |= ATA_PERIODIC_POLL;
-				ch->hw.status = ata_intel_sata_status;
 				if ((ctlr->chip->cfg1 & INTEL_ICH7)) {
 					ch->hw.pm_read = ata_intel_sata_ahci_read;
 					ch->hw.pm_write = ata_intel_sata_ahci_write;
-				} else {
+				} else if (ata_intel_sata_sidpr_test(dev)) {
 					ch->hw.pm_read = ata_intel_sata_sidpr_read;
 					ch->hw.pm_write = ata_intel_sata_sidpr_write;
 				};
 			}
 			if (ch->hw.pm_write != NULL) {
+				ch->flags |= ATA_PERIODIC_POLL;
+				ch->hw.status = ata_intel_sata_status;
 				ata_sata_scr_write(ch, 0,
 				    ATA_SERROR, 0xffffffff);
 				if ((ch->flags & ATA_NO_SLAVE) == 0) {
@@ -831,6 +830,32 @@ ata_intel_sata_sidpr_write(device_t dev, int port, int reg, u_int32_t value)
 	ATA_IDX_OUTL(ch, ATA_IDX_ADDR, ((ch->unit * 2 + port) << 8) + reg);
 	ATA_IDX_OUTL(ch, ATA_IDX_DATA, value);
 	ATA_INTEL_UNLOCK(ctlr);
+	return (0);
+}
+
+static int
+ata_intel_sata_sidpr_test(device_t dev)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	int port;
+	uint32_t val;
+
+	port = (ch->flags & ATA_NO_SLAVE) ? 0 : 1;
+	for (; port >= 0; port--) {
+		ata_intel_sata_sidpr_read(dev, port, ATA_SCONTROL, &val);
+		if ((val & ATA_SC_IPM_MASK) ==
+		    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER))
+			return (1);
+		val |= ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER;
+		ata_intel_sata_sidpr_write(dev, port, ATA_SCONTROL, val);
+		ata_intel_sata_sidpr_read(dev, port, ATA_SCONTROL, &val);
+		if ((val & ATA_SC_IPM_MASK) ==
+		    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER))
+			return (1);
+	}
+	if (bootverbose)
+		device_printf(dev,
+		    "SControl registers are not functional: %08x\n", val);
 	return (0);
 }
 
