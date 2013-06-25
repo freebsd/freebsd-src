@@ -243,7 +243,6 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_sleep,
 	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
-	curthread->td_locks--;
 	WITNESS_UNLOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
@@ -252,6 +251,7 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	if (m->mtx_recurse == 0)
 		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_UNLOCK_RELEASE, m);
 	__mtx_unlock(m, curthread, opts, file, line);
+	curthread->td_locks--;
 }
 
 void
@@ -894,10 +894,10 @@ _mtx_init(volatile uintptr_t *c, const char *name, const char *type, int opts)
 		flags |= LO_NOPROFILE;
 
 	/* Initialize mutex. */
+	lock_init(&m->lock_object, class, name, type, flags);
+
 	m->mtx_lock = MTX_UNOWNED;
 	m->mtx_recurse = 0;
-
-	lock_init(&m->lock_object, class, name, type, flags);
 }
 
 /*
