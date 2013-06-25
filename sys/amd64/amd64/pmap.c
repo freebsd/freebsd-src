@@ -473,6 +473,8 @@ vtopte(vm_offset_t va)
 {
 	u_int64_t mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
 
+	KASSERT(va >= VM_MAXUSER_ADDRESS, ("vtopte on a uva/gpa 0x%0lx", va));
+
 	return (PTmap + ((va >> PAGE_SHIFT) & mask));
 }
 
@@ -480,6 +482,8 @@ static __inline pd_entry_t *
 vtopde(vm_offset_t va)
 {
 	u_int64_t mask = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
+
+	KASSERT(va >= VM_MAXUSER_ADDRESS, ("vtopde on a uva/gpa 0x%0lx", va));
 
 	return (PDmap + ((va >> PDRSHIFT) & mask));
 }
