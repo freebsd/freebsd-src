@@ -2162,7 +2162,7 @@ main(int argc, char **argv)
 		    "before growing the Filesystem\n\n"
 		    " Did you backup your data (Yes/No) ? ");
 		fgets(reply, (int)sizeof(reply), stdin);
-		if (strcmp(reply, "Yes\n")){
+		if (strcasecmp(reply, "Yes\n")){
 			printf("\n Nothing done \n");
 			exit (0);
 		}
