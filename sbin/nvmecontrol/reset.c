@@ -22,38 +22,50 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef __NVMECONTROL_H__
-#define __NVMECONTROL_H__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <dev/nvme/nvme.h>
+#include <sys/param.h>
+#include <sys/ioccom.h>
 
-#define DEVLIST_USAGE							       \
-"       nvmecontrol devlist\n"
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
 
-#define IDENTIFY_USAGE							       \
-"       nvmecontrol identify <controller id|namespace id>\n"
+#include "nvmecontrol.h"
 
-#define PERFTEST_USAGE							       \
-"       nvmecontrol perftest <-n num_threads> <-o read|write>\n"	       \
-"                            <-s size_in_bytes> <-t time_in_seconds>\n"	       \
-"                            <-i intr|wait> [-f refthread] [-p]\n"	       \
-"                            <namespace id>\n"
+static void
+reset_usage(void)
+{
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, RESET_USAGE);
+	exit(EX_USAGE);
+}
 
-#define RESET_USAGE							       \
-"       nvmecontrol reset <controller id>\n"
+void
+reset(int argc, char *argv[])
+{
+	int	ch, fd;
 
-int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
-void read_controller_data(int fd, struct nvme_controller_data *cdata);
-void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
+	while ((ch = getopt(argc, argv, "")) != -1) {
+		switch ((char)ch) {
+		default:
+			reset_usage();
+		}
+	}
 
-void devlist(int argc, char *argv[]);
-void identify(int argc, char *argv[]);
-void perftest(int argc, char *argv[]);
-void reset(int argc, char *argv[]);
+	open_dev(argv[optind], &fd, 1, 1);
+	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0) {
+		printf("Reset request to %s failed. errno=%d (%s)\n",
+		    argv[optind], errno, strerror(errno));
+		exit(EX_IOERR);
+	}
 
-#endif
-
+	exit(EX_OK);
+}
