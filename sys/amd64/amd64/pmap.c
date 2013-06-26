@@ -146,6 +146,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
+/* Intel EPT bits */
+#define	EPT_PG_RD			(1 << 0)
+#define	EPT_PG_WR			(1 << 1)
+#define	EPT_PG_EX			(1 << 2)
+#define	EPT_PG_MEMORY_TYPE(x)		((x) << 3)
+#define	EPT_PG_IGNORE_PAT		(1 << 6)
+#define	EPT_PG_PS			(1 << 7)
+#define	EPT_PG_A			(1 << 8)
+#define	EPT_PG_M			(1 << 9)
+
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
 #define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
@@ -904,27 +914,39 @@ SYSCTL_ULONG(_vm_pmap_pdpe, OID_AUTO, demotions, CTLFLAG_RD,
  * caching mode.
  */
 static int
-pmap_cache_bits(int mode, boolean_t is_pde)
+pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 {
 	int cache_bits, pat_flag, pat_idx;
 
 	if (mode < 0 || mode >= PAT_INDEX_SIZE || pat_index[mode] < 0)
 		panic("Unknown caching mode %d\n", mode);
 
-	/* The PAT bit is different for PTE's and PDE's. */
-	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
+	switch (pmap->pm_type) {
+	case PT_X86:
+		/* The PAT bit is different for PTE's and PDE's. */
+		pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
 
-	/* Map the caching mode to a PAT index. */
-	pat_idx = pat_index[mode];
+		/* Map the caching mode to a PAT index. */
+		pat_idx = pat_index[mode];
 
-	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
-	cache_bits = 0;
-	if (pat_idx & 0x4)
-		cache_bits |= pat_flag;
-	if (pat_idx & 0x2)
-		cache_bits |= PG_NC_PCD;
-	if (pat_idx & 0x1)
-		cache_bits |= PG_NC_PWT;
+		/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
+		cache_bits = 0;
+		if (pat_idx & 0x4)
+			cache_bits |= pat_flag;
+		if (pat_idx & 0x2)
+			cache_bits |= PG_NC_PCD;
+		if (pat_idx & 0x1)
+			cache_bits |= PG_NC_PWT;
+		break;
+
+	case PT_EPT:
+		cache_bits = EPT_PG_IGNORE_PAT | EPT_PG_MEMORY_TYPE(mode);
+		break;
+
+	default:
+		panic("unsupported pmap type %d", pmap->pm_type);
+	}
+
 	return (cache_bits);
 }
 
@@ -1401,9 +1423,11 @@ static __inline void
 pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 {
 	pt_entry_t *pte;
+	int cache_bits;
 
 	pte = vtopte(va);
-	pte_store(pte, pa | PG_RW | PG_V | PG_G | pmap_cache_bits(mode, 0));
+	cache_bits = pmap_cache_bits(kernel_pmap, mode, 0);
+	pte_store(pte, pa | PG_RW | PG_V | PG_G | cache_bits);
 }
 
 /*
@@ -1452,13 +1476,15 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
 	pt_entry_t *endpte, oldpte, pa, *pte;
 	vm_page_t m;
+	int cache_bits;
 
 	oldpte = 0;
 	pte = vtopte(sva);
 	endpte = pte + count;
 	while (pte < endpte) {
 		m = *ma++;
-		pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
+		cache_bits = pmap_cache_bits(kernel_pmap, m->md.pat_mode, 0);
+		pa = VM_PAGE_TO_PHYS(m) | cache_bits;
 		if ((*pte & (PG_FRAME | PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
 			pte_store(pte, pa | PG_G | PG_RW | PG_V);
@@ -3488,7 +3514,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		newpte |= PG_U;
 	if (pmap == kernel_pmap)
 		newpte |= PG_G;
-	newpte |= pmap_cache_bits(m->md.pat_mode, 0);
+	newpte |= pmap_cache_bits(pmap, m->md.pat_mode, 0);
 
 	mpte = NULL;
 
@@ -3676,7 +3702,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		    " in pmap %p", va, pmap);
 		return (FALSE);
 	}
-	newpde = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 1) |
+	newpde = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(pmap, m->md.pat_mode, 1) |
 	    PG_PS | PG_V;
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		newpde |= PG_MANAGED;
@@ -3878,7 +3904,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap_resident_count_inc(pmap, 1);
 
-	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
+	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(pmap, m->md.pat_mode, 0);
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		pa |= pg_nx;
 
@@ -3962,8 +3988,9 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		 * will not affect the termination of this loop.
 		 */ 
 		PMAP_LOCK(pmap);
-		for (pa = ptepa | pmap_cache_bits(pat_mode, 1); pa < ptepa +
-		    size; pa += NBPDR) {
+		for (pa = ptepa | pmap_cache_bits(pmap, pat_mode, 1);
+		     pa < ptepa + size;
+		     pa += NBPDR) {
 			pdpg = pmap_allocpde(pmap, addr, NULL);
 			if (pdpg == NULL) {
 				/*
@@ -5186,8 +5213,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
 
-	cache_bits_pde = pmap_cache_bits(mode, 1);
-	cache_bits_pte = pmap_cache_bits(mode, 0);
+	cache_bits_pde = pmap_cache_bits(kernel_pmap, mode, 1);
+	cache_bits_pte = pmap_cache_bits(kernel_pmap, mode, 0);
 	changed = FALSE;
 
 	/*
