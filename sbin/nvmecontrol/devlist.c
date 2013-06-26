@@ -78,7 +78,7 @@ devlist(int argc, char *argv[])
 
 	while (1) {
 		ctrlr++;
-		sprintf(name, "nvme%d", ctrlr);
+		sprintf(name, "%s%d", NVME_CTRLR_PREFIX, ctrlr);
 
 		exit_code = open_dev(name, &fd, 0, 0);
 
@@ -95,7 +95,8 @@ devlist(int argc, char *argv[])
 		printf("%6s: %s\n", name, cdata.mn);
 
 		for (i = 0; i < cdata.nn; i++) {
-			sprintf(name, "nvme%dns%d", ctrlr, i+1);
+			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
+			    NVME_NS_PREFIX, i+1);
 			read_namespace_data(fd, i+1, &nsdata);
 			printf("  %10s (%lldGB)\n",
 				name,
