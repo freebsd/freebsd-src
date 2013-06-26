@@ -1,4 +1,60 @@
 ----------------------------------------
+26 June 2013. Summary of changes for version 20130626:
+
+1) ACPICA kernel-resident subsystem:
+
+Fixed an issue with runtime repair of the _CST object. Null or invalid 
+elements were not always removed properly. Lv Zheng. 
+
+Removed an arbitrary restriction of 256 GPEs per GPE block (such as the 
+FADT-defined GPE0 and GPE1). For GPE0, GPE1, and each GPE Block Device, 
+the maximum number of GPEs is 1016. Use of multiple GPE block devices 
+makes the system-wide number of GPEs essentially unlimited.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 9.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and 
+has a much larger code and data size.
+
+  Current Release:
+    Non-Debug Version:  95.9K Code, 26.9K Data, 122.8K Total
+    Debug Version:     184.1K Code, 76.7K Data, 260.8K Total
+  Previous Release:
+    Non-Debug Version:  96.0K Code, 27.0K Data, 123.0K Total
+    Debug Version:     184.1K Code, 76.8K Data, 260.9K Total
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+Portable AcpiDump: Implemented full support for the Linux and FreeBSD 
+hosts. Now supports Linux, FreeBSD, and Windows.
+
+Disassembler: Added some missing types for the HEST and EINJ tables: "Set 
+Error Type With Address", "CMCI", "MCE", and "Flush Cacheline".
+
+iASL/Preprocessor: Implemented full support for nested 
+#if/#else/#elif/#endif blocks. Allows arbitrary depth of nested blocks.
+
+Disassembler: Expanded maximum output string length to 64K. Was 256 bytes 
+max. The original purpose of this constraint was to limit the amount of 
+debug output. However, the string function in question (UtPrintString) is 
+now used for the disassembler also, where 256 bytes is insufficient. 
+Reported by RehabMan@GitHub.
+
+iASL/DataTables: Fixed some problems and issues with compilation of DMAR 
+tables. ACPICA BZ 999. Lv Zheng.
+
+iASL: Fixed a couple of error exit issues that could result in a "Could 
+not delete <file>" message during ASL compilation.
+
+AcpiDump: Allow "FADT" and "MADT" as valid table signatures, even though 
+the actual signatures for these tables are "FACP" and "APIC", 
+respectively.
+
+AcpiDump: Added support for multiple UEFI tables. Only SSDT and UEFI 
+tables are allowed to have multiple instances.
+
+----------------------------------------
 17 May 2013. Summary of changes for version 20130517:
 
 1) ACPICA kernel-resident subsystem:

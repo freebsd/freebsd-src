@@ -783,11 +783,13 @@ AcpiDbFindReferences (
     char                    *ObjectArg)
 {
     ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_SIZE               Address;
 
 
     /* Convert string to object pointer */
 
-    ObjDesc = ACPI_TO_POINTER (ACPI_STRTOUL (ObjectArg, NULL, 16));
+    Address = ACPI_STRTOUL (ObjectArg, NULL, 16);
+    ObjDesc = ACPI_TO_POINTER (Address);
 
     /* Search all nodes in namespace */
 

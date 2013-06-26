@@ -32,13 +32,24 @@ OBJECTS = \
 	$(OBJDIR)/apfiles.o\
 	$(OBJDIR)/apmain.o\
 	$(OBJDIR)/tbprint.o\
+	$(OBJDIR)/tbxfroot.o\
 	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utexcep.o\
 	$(OBJDIR)/utmath.o\
 	$(OBJDIR)/utstring.o\
 	$(OBJDIR)/utxferror.o\
-	$(OBJDIR)/oslinuxtbl.o\
 	$(OBJDIR)/getopt.o
+
+#
+# Per-host interfaces
+#
+ifeq ($(HOST), _FreeBSD)
+OBJECTS += \
+	$(OBJDIR)/osfreebsdtbl.o
+else
+OBJECTS += \
+	$(OBJDIR)/oslinuxtbl.o
+endif
 
 #
 # Flags specific to acpidump

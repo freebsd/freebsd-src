@@ -12,11 +12,11 @@ HARDWARE_NAME := $(shell uname -m)
 # Main rule will only generate versions that are appropriate for the running
 # OS, either 64-bit or 32-bit.
 #
-all:	${PROGS}
-${PROGS}: FORCE
+all:	$(PROGS)
+$(PROGS): FORCE
 	@cd $(BUILD_DIRECTORY_PATH)/$@; \
 	mkdir -p obj; \
-	make || exit "$$?"; \
+	$(MAKE) || exit "$$?"; \
 	if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
 		echo "64-bit version of $@:"; \
 	else \
@@ -30,12 +30,12 @@ ${PROGS}: FORCE
 # in the local bin directory
 #
 clean:	FORCE
-	@for toolname in ${PROGS}; do \
+	@for toolname in $(PROGS); do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
 		if [ -d "obj" ] ; then \
 			echo "Removing $$toolname:"; \
 			pwd; \
-			make clean; \
+			$(MAKE) clean; \
 			rmdir obj; \
 			echo ""; \
 		fi; \
@@ -46,12 +46,12 @@ clean:	FORCE
 # Very clean removes all executables and the local bin directory
 #
 veryclean:	FORCE
-	@for toolname in ${PROGS}; do \
+	@for toolname in $(PROGS); do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
 		if [ -d "obj" ] ; then \
 			echo "Removing $$toolname:"; \
 			pwd; \
-			make clean; \
+			$(MAKE) clean; \
 			rmdir obj; \
 			echo ""; \
 		fi; \
@@ -68,10 +68,10 @@ veryclean:	FORCE
 # Install all tools, either 32-bit or 64-bit as appropriate for the host OS
 #
 install:	FORCE
-	@for toolname in ${PROGS}; do \
+	@for toolname in $(PROGS); do \
 		(cd $(BUILD_DIRECTORY_PATH)/$$toolname; \
 		pwd; \
-		make PROG=$$toolname install; \
+		$(MAKE) PROG=$$toolname install; \
 		if [ $(findstring 64,$(HARDWARE_NAME)) ]; then \
 			echo "Installed 64-bit version of $$toolname"; \
 		else \

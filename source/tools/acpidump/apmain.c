@@ -92,7 +92,7 @@ UINT32                      CurrentAction = 0;
 
 
 #define AP_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AP_SUPPORTED_OPTIONS        "?a:bf:hn:o:rsv"
+#define AP_SUPPORTED_OPTIONS        "?a:bf:hn:o:svz"
 
 
 /******************************************************************************
@@ -113,15 +113,15 @@ ApDisplayUsage (
     ACPI_OPTION ("-b",                      "Dump tables to binary files");
     ACPI_OPTION ("-h -?",                   "This help message");
     ACPI_OPTION ("-o <File>",               "Redirect output to file");
-    ACPI_OPTION ("-r",                      "Revision (version)");
     ACPI_OPTION ("-s",                      "Print table summaries only");
-    ACPI_OPTION ("-v",                      "Verbose mode");
+    ACPI_OPTION ("-v",                      "Version of this utility");
+    ACPI_OPTION ("-z",                      "Verbose mode");
 
     printf ("\nTable Options:\n");
 
-    ACPI_OPTION ("-a <Address>",            "Get table via physical address");
-    ACPI_OPTION ("-f <BinaryFile>",         "Get table via binary file");
-    ACPI_OPTION ("-n <Signature>",          "Get table via name/signature");
+    ACPI_OPTION ("-a <Address>",            "Get table via a physical address");
+    ACPI_OPTION ("-f <BinaryFile>",         "Get table via a binary file");
+    ACPI_OPTION ("-n <Signature>",          "Get table via a name/signature");
 
     printf (
         "\n"
@@ -210,17 +210,17 @@ ApDoOptions (
         }
         continue;
 
-    case 'r':   /* Revision/version */
-
-        printf (ACPI_COMMON_SIGNON (AP_UTILITY_NAME));
-        exit (0);
-
     case 's':   /* Print table summaries only */
 
         Gbl_SummaryMode = TRUE;
         continue;
 
-    case 'v':   /* Verbose mode */
+    case 'v':   /* Revision/version */
+
+        printf (ACPI_COMMON_SIGNON (AP_UTILITY_NAME));
+        exit (0);
+
+    case 'z':   /* Verbose mode */
 
         Gbl_VerboseMode = TRUE;
         fprintf (stderr, ACPI_COMMON_SIGNON (AP_UTILITY_NAME));
