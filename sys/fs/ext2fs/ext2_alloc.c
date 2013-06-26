@@ -165,7 +165,8 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
-	int32_t start_lbn, end_lbn, soff, newblk, blkno;
+	e2fs_lbn_t start_lbn, end_lbn;
+	int32_t soff, newblk, blkno;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
 	if (doreallocblks == 0)
@@ -550,7 +551,7 @@ ext2_dirpref(struct inode *pip)
  * that will hold the pointer
  */
 int32_t
-ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
+ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, int32_t *bap,
     int32_t blocknr)
 {
 	int	tmp;
