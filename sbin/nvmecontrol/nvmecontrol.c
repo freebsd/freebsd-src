@@ -55,6 +55,7 @@ struct nvme_function {
 	{"identify",	identify,	IDENTIFY_USAGE},
 	{"perftest",	perftest,	PERFTEST_USAGE},
 	{"reset",	reset,		RESET_USAGE},
+	{"logpage",	logpage,	LOGPAGE_USAGE},
 	{NULL,		NULL,		NULL},
 };
 
