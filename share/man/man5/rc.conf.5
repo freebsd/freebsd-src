@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2013
+.Dd June 25, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1321,13 +1321,24 @@ it is possible to use something like:
 ifconfig_ed0="DHCP"
 .Ed
 .Pp
-Also, if you want to configure your wireless interface with
+If you want to configure your wireless interface with
 .Xr wpa_supplicant 8
 for use with WPA, EAP/LEAP or WEP, you need to add
 .Dq Li WPA
 to the
 .Va ifconfig_ Ns Aq Ar interface
 variable.
+.Pp
+On the other hand, if you want to configure your wireless interface with
+.Xr hostapd 8 ,
+you need to add
+.Dq Li HOSTAP
+to the
+.Va ifconfig_ Ns Aq Ar interface
+variable.
+.Xr hostapd 8
+will use the settings from
+.Pa /etc/hostapd- Ns Ao Ar interface Ac Ns .conf
 .Pp
 Finally, you can add
 .Xr ifconfig 8
