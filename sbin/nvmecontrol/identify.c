@@ -200,6 +200,10 @@ identify_ctrlr(int argc, char *argv[])
 		}
 	}
 
+	/* Check that a controller was specified. */
+	if (optind >= argc)
+		identify_usage();
+
 	open_dev(argv[optind], &fd, 1, 1);
 	read_controller_data(fd, &cdata);
 	close(fd);
@@ -244,6 +248,10 @@ identify_ns(int argc, char *argv[])
 			identify_usage();
 		}
 	}
+
+	/* Check that a namespace was specified. */
+	if (optind >= argc)
+		identify_usage();
 
 	/*
 	 * Check if the specified device node exists before continuing.
