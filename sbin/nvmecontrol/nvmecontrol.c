@@ -72,6 +72,54 @@ usage(void)
 	exit(EX_USAGE);
 }
 
+static void
+print_bytes(void *data, uint32_t length)
+{
+	uint32_t	i, j;
+	uint8_t		*p, *end;
+
+	end = (uint8_t *)data + length;
+
+	for (i = 0; i < length; i++) {
+		p = (uint8_t *)data + (i*16);
+		printf("%03x: ", i*16);
+		for (j = 0; j < 16 && p < end; j++)
+			printf("%02x ", *p++);
+		if (p >= end)
+			break;
+		printf("\n");
+	}
+	printf("\n");
+}
+
+static void
+print_dwords(void *data, uint32_t length)
+{
+	uint32_t	*p;
+	uint32_t	i, j;
+
+	p = (uint32_t *)data;
+	length /= sizeof(uint32_t);
+
+	for (i = 0; i < length; i+=8) {
+		printf("%03x: ", i*4);
+		for (j = 0; j < 8; j++)
+			printf("%08x ", p[i+j]);
+		printf("\n");
+	}
+
+	printf("\n");
+}
+
+void
+print_hex(void *data, uint32_t length)
+{
+	if (length >= sizeof(uint32_t) || length % sizeof(uint32_t) == 0)
+		print_dwords(data, length);
+	else
+		print_bytes(data, length);
+}
+
 void
 read_controller_data(int fd, struct nvme_controller_data *cdata)
 {
