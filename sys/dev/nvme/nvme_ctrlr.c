@@ -222,7 +222,6 @@ nvme_ctrlr_construct_admin_qpair(struct nvme_controller *ctrlr)
 			     0, /* vector */
 			     num_entries,
 			     NVME_ADMIN_TRACKERS,
-			     16*1024, /* max xfer size */
 			     ctrlr);
 }
 
@@ -256,16 +255,6 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 */
 	num_trackers = min(num_trackers, (num_entries-1));
 
-	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
-	TUNABLE_INT_FETCH("hw.nvme.max_xfer_size", &ctrlr->max_xfer_size);
-	/*
-	 * Check that tunable doesn't specify a size greater than what our
-	 *  driver supports, and is an even PAGE_SIZE multiple.
-	 */
-	if (ctrlr->max_xfer_size > NVME_MAX_XFER_SIZE ||
-	    ctrlr->max_xfer_size % PAGE_SIZE)
-		ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
-
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
 
@@ -284,7 +273,6 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 				     ctrlr->msix_enabled ? i+1 : 0, /* vector */
 				     num_entries,
 				     num_trackers,
-				     ctrlr->max_xfer_size,
 				     ctrlr);
 
 		if (ctrlr->per_cpu_io_queues)
@@ -1089,8 +1077,8 @@ intx:
 	if (!ctrlr->msix_enabled)
 		nvme_ctrlr_configure_intx(ctrlr);
 
+	ctrlr->max_xfer_size = NVME_MAX_XFER_SIZE;
 	nvme_ctrlr_construct_admin_qpair(ctrlr);
-
 	status = nvme_ctrlr_construct_io_qpairs(ctrlr);
 
 	if (status != 0)
