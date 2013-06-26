@@ -42,25 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "nvmecontrol.h"
 
 static void
-print_controller_hex(struct nvme_controller_data *cdata, uint32_t length)
-{
-	uint32_t	*p;
-	uint32_t	i, j;
-
-	p = (uint32_t *)cdata;
-	length /= sizeof(uint32_t);
-
-	for (i = 0; i < length; i+=8) {
-		printf("%03x: ", i*4);
-		for (j = 0; j < 8; j++)
-			printf("%08x ", p[i+j]);
-		printf("\n");
-	}
-
-	printf("\n");
-}
-
-static void
 print_controller(struct nvme_controller_data *cdata)
 {
 	printf("Controller Capabilities/Features\n");
@@ -125,25 +106,6 @@ print_controller(struct nvme_controller_data *cdata)
 		cdata->oncs.dsm ? "Supported" : "Not Supported");
 	printf("Volatile Write Cache:        %s\n",
 		cdata->vwc.present ? "Present" : "Not Present");
-}
-
-static void
-print_namespace_hex(struct nvme_namespace_data *nsdata, uint32_t length)
-{
-	uint32_t	*p;
-	uint32_t	i, j;
-
-	p = (uint32_t *)nsdata;
-	length /= sizeof(uint32_t);
-
-	for (i = 0; i < length; i+=8) {
-		printf("%03x: ", i*4);
-		for (j = 0; j < 8; j++)
-			printf("%08x ", p[i+j]);
-		printf("\n");
-	}
-
-	printf("\n");
 }
 
 static void
@@ -214,7 +176,7 @@ identify_ctrlr(int argc, char *argv[])
 		else
 			hexlength = offsetof(struct nvme_controller_data,
 			    reserved5);
-		print_controller_hex(&cdata, hexlength);
+		print_hex(&cdata, hexlength);
 		exit(EX_OK);
 	}
 
@@ -290,7 +252,7 @@ identify_ns(int argc, char *argv[])
 		else
 			hexlength = offsetof(struct nvme_namespace_data,
 			    reserved6);
-		print_namespace_hex(&nsdata, hexlength);
+		print_hex(&nsdata, hexlength);
 		exit(EX_OK);
 	}
 
