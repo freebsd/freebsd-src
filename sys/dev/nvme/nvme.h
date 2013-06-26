@@ -33,6 +33,8 @@
 #include <sys/types.h>
 #endif
 
+#include <sys/param.h>
+
 #define	NVME_PASSTHROUGH_CMD		_IOWR('n', 0, struct nvme_pt_command)
 #define	NVME_RESET_CONTROLLER		_IO('n', 1)
 
@@ -44,6 +46,8 @@
  *  log pages.
  */
 #define NVME_GLOBAL_NAMESPACE_TAG	((uint32_t)0xFFFFFFFF)
+
+#define NVME_MAX_XFER_SIZE		MAXPHYS
 
 union cap_lo_register {
 	uint32_t	raw;
