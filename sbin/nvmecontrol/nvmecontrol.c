@@ -31,8 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/stat.h>
 
-#include <dev/nvme/nvme.h>
-
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -44,20 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-#define DEVLIST_USAGE							       \
-"       nvmecontrol devlist\n"
-
-#define IDENTIFY_USAGE							       \
-"       nvmecontrol identify <controller id|namespace id>\n"
-
-#define PERFTEST_USAGE							       \
-"       nvmecontrol perftest <-n num_threads> <-o read|write>\n"	       \
-"                            <-s size_in_bytes> <-t time_in_seconds>\n"	       \
-"                            <-i intr|wait> [-f refthread] [-p]\n"	       \
-"                            <namespace id>\n"
-
-#define RESET_USAGE							       \
-"       nvmecontrol reset <controller id>\n"
+#include "nvmecontrol.h"
 
 static void perftest_usage(void);
 
@@ -203,14 +188,7 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	}
 }
 
-static uint32_t
-ns_get_sector_size(struct nvme_namespace_data *nsdata)
-{
-
-	return (1 << nsdata->lbaf[0].lbads);
-}
-
-static void
+void
 read_controller_data(int fd, struct nvme_controller_data *cdata)
 {
 	struct nvme_pt_command	pt;
@@ -234,7 +212,7 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 	}
 }
 
-static void
+void
 read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
 {
 	struct nvme_pt_command	pt;
@@ -258,7 +236,7 @@ read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
 	}
 }
 
-static int
+int
 open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 {
 	struct stat	devstat;
@@ -286,72 +264,6 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 	}
 
 	return (EX_OK);
-}
-
-static void
-devlist_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, DEVLIST_USAGE);
-	exit(EX_USAGE);
-}
-
-static void
-devlist(int argc, char *argv[])
-{
-	struct nvme_controller_data	cdata;
-	struct nvme_namespace_data	nsdata;
-	char				name[64];
-	uint32_t			i;
-	int				ch, ctrlr, exit_code, fd, found;
-
-	exit_code = EX_OK;
-
-	while ((ch = getopt(argc, argv, "")) != -1) {
-		switch ((char)ch) {
-		default:
-			devlist_usage();
-		}
-	}
-
-	ctrlr = -1;
-	found = 0;
-
-	while (1) {
-		ctrlr++;
-		sprintf(name, "nvme%d", ctrlr);
-
-		exit_code = open_dev(name, &fd, 0, 0);
-
-		if (exit_code == EX_NOINPUT)
-			break;
-		else if (exit_code == EX_NOPERM) {
-			printf("Could not open /dev/%s, errno = %d (%s)\n",
-			    name, errno, strerror(errno));
-			continue;
-		}
-
-		found++;
-		read_controller_data(fd, &cdata);
-		printf("%6s: %s\n", name, cdata.mn);
-
-		for (i = 0; i < cdata.nn; i++) {
-			sprintf(name, "nvme%dns%d", ctrlr, i+1);
-			read_namespace_data(fd, i+1, &nsdata);
-			printf("  %10s (%lldGB)\n",
-				name,
-				nsdata.nsze *
-				(long long)ns_get_sector_size(&nsdata) /
-				1024 / 1024 / 1024);
-		}
-
-		close(fd);
-	}
-
-	if (found == 0)
-		printf("No NVMe controllers found.\n");
-
-	exit(EX_OK);
 }
 
 static void
