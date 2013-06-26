@@ -46,10 +46,6 @@
 
 /* Local prototypes */
 
-static BOOLEAN
-ApIsValidHeader (
-    ACPI_TABLE_HEADER       *Table);
-
 static int
 ApDumpTableBuffer (
     ACPI_TABLE_HEADER       *Table,
@@ -68,7 +64,7 @@ ApDumpTableBuffer (
  *
  ******************************************************************************/
 
-static BOOLEAN
+BOOLEAN
 ApIsValidHeader (
     ACPI_TABLE_HEADER       *Table)
 {
@@ -77,7 +73,7 @@ ApIsValidHeader (
 
     if (!AcpiUtValidAcpiName (Table->Signature))
     {
-        fprintf (stderr, "Table signature (0x%X) is invalid\n",
+        fprintf (stderr, "Table signature (0x%8.8X) is invalid\n",
             *(UINT32 *) Table->Signature);
         return (FALSE);
     }
@@ -86,7 +82,7 @@ ApIsValidHeader (
 
     if (Table->Length <= sizeof (ACPI_TABLE_HEADER))
     {
-        fprintf (stderr, "Table length (0x%X) is invalid\n",
+        fprintf (stderr, "Table length (0x%8.8X) is invalid\n",
             Table->Length);
         return (FALSE);
     }
@@ -295,10 +291,10 @@ ApDumpTableByName (
     ACPI_STATUS             Status;
 
 
-    if (strlen (Signature) > ACPI_NAME_SIZE)
+    if (strlen (Signature) != ACPI_NAME_SIZE)
     {
         fprintf (stderr,
-            "Invalid table signature [%s]: too long (4 chars max)\n",
+            "Invalid table signature [%s]: must be exactly 4 characters\n",
             Signature);
         return (-1);
     }
@@ -307,6 +303,17 @@ ApDumpTableByName (
 
     strcpy (LocalSignature, Signature);
     AcpiUtStrupr (LocalSignature);
+
+    /* To be friendly, handle tables whose signatures do not match the name */
+
+    if (ACPI_COMPARE_NAME (LocalSignature, "FADT"))
+    {
+        strcpy (LocalSignature, ACPI_SIG_FADT);
+    }
+    else if (ACPI_COMPARE_NAME (LocalSignature, "MADT"))
+    {
+        strcpy (LocalSignature, ACPI_SIG_MADT);
+    }
 
     /* Dump all instances of this signature (to handle multiple SSDTs) */
 

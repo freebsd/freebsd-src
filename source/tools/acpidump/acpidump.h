@@ -98,6 +98,14 @@ typedef struct ap_dump_action
 
 #define AP_MAX_ACPI_FILES           256 /* Prevent infinite loops */
 
+/* Minimum FADT sizes for various table addresses */
+
+#define MIN_FADT_FOR_DSDT           (ACPI_FADT_OFFSET (Dsdt) + sizeof (UINT32))
+#define MIN_FADT_FOR_FACS           (ACPI_FADT_OFFSET (Facs) + sizeof (UINT32))
+#define MIN_FADT_FOR_XDSDT          (ACPI_FADT_OFFSET (XDsdt) + sizeof (UINT64))
+#define MIN_FADT_FOR_XFACS          (ACPI_FADT_OFFSET (XFacs) + sizeof (UINT64))
+
+
 /*
  * apdump - Table get/dump routines
  */
@@ -116,6 +124,10 @@ ApDumpTableByAddress (
 int
 ApDumpAllTables (
     void);
+
+BOOLEAN
+ApIsValidHeader (
+    ACPI_TABLE_HEADER       *Table);
 
 
 /*

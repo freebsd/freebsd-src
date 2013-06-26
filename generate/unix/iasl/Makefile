@@ -238,22 +238,22 @@ include ../Makefile.rules
 # Parser and Lexer - intermediate C files
 #
 $(OBJDIR)/aslcompilerlex.c :   $(ASL_COMPILER)/aslcompiler.l $(ASL_COMPILER)/aslsupport.l
-	${LEX} ${LFLAGS} -PAslCompiler -o$@ $(ASL_COMPILER)/aslcompiler.l
+	$(LEX) $(LFLAGS) -PAslCompiler -o$@ $(ASL_COMPILER)/aslcompiler.l
 
 $(OBJDIR)/aslcompilerparse.c $(OBJDIR)/aslcompilerparse.h : $(ASL_COMPILER)/aslcompiler.y
-	${YACC} ${YFLAGS} -pAslCompiler -o$@ $?
+	$(YACC) $(YFLAGS) -pAslCompiler -o$@ $?
 
 $(OBJDIR)/dtparserlex.c :      $(ASL_COMPILER)/dtparser.l
-	${LEX} ${LFLAGS} -PDtParser -o$@ $?
+	$(LEX) $(LFLAGS) -PDtParser -o$@ $?
 
 $(OBJDIR)/dtparserparse.c $(OBJDIR)/dtparserparse.h : $(ASL_COMPILER)/dtparser.y
-	${YACC} ${YFLAGS} -pDtParser -o$@ $?
+	$(YACC) $(YFLAGS) -pDtParser -o$@ $?
 
 $(OBJDIR)/prparserlex.c :      $(ASL_COMPILER)/prparser.l
-	${LEX} ${LFLAGS} -PPrParser -o$@ $?
+	$(LEX) $(LFLAGS) -PPrParser -o$@ $?
 
 $(OBJDIR)/prparserparse.c $(OBJDIR)/prparserparse.h : $(ASL_COMPILER)/prparser.y
-	${YACC} ${YFLAGS} -pPrParser -o$@ $?
+	$(YACC) $(YFLAGS) -pPrParser -o$@ $?
 
 
 #

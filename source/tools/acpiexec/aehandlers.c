@@ -1192,7 +1192,7 @@ AeRegionHandler (
             case AML_FIELD_ATTRIB_QUICK:
             case AML_FIELD_ATTRIB_SEND_RCV:
             case AML_FIELD_ATTRIB_BYTE:
-                
+
                 Length = 1;
                 break;
 
