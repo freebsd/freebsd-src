@@ -289,6 +289,14 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 }
 
 static void
+devlist_usage(void)
+{
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, DEVLIST_USAGE);
+	exit(EX_USAGE);
+}
+
+static void
 devlist(int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
@@ -302,7 +310,7 @@ devlist(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch ((char)ch) {
 		default:
-			usage();
+			devlist_usage();
 		}
 	}
 
@@ -347,6 +355,14 @@ devlist(int argc, char *argv[])
 }
 
 static void
+identify_usage(void)
+{
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, IDENTIFY_USAGE);
+	exit(EX_USAGE);
+}
+
+static void
 identify_ctrlr(int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
@@ -362,7 +378,7 @@ identify_ctrlr(int argc, char *argv[])
 			hexflag = 1;
 			break;
 		default:
-			usage();
+			identify_usage();
 		}
 	}
 
@@ -382,7 +398,7 @@ identify_ctrlr(int argc, char *argv[])
 
 	if (verboseflag == 1) {
 		printf("-v not currently supported without -x.\n");
-		usage();
+		identify_usage();
 	}
 
 	print_controller(&cdata);
@@ -407,7 +423,7 @@ identify_ns(int argc, char *argv[])
 			hexflag = 1;
 			break;
 		default:
-			usage();
+			identify_usage();
 		}
 	}
 
@@ -454,7 +470,7 @@ identify_ns(int argc, char *argv[])
 
 	if (verboseflag == 1) {
 		printf("-v not currently supported without -x.\n");
-		usage();
+		identify_usage();
 	}
 
 	print_namespace(&nsdata);
@@ -467,7 +483,7 @@ identify(int argc, char *argv[])
 	char	*target;
 
 	if (argc < 2)
-		usage();
+		identify_usage();
 
 	while (getopt(argc, argv, "vx") != -1) ;
 
@@ -624,6 +640,14 @@ perftest(int argc, char *argv[])
 }
 
 static void
+reset_usage(void)
+{
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, RESET_USAGE);
+	exit(EX_USAGE);
+}
+
+static void
 reset_ctrlr(int argc, char *argv[])
 {
 	int	ch, fd;
@@ -631,7 +655,7 @@ reset_ctrlr(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch ((char)ch) {
 		default:
-			usage();
+			reset_usage();
 		}
 	}
 
