@@ -895,7 +895,13 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	struct buf		*buf = NULL;
 	int			ret = 0;
 
-	if (pt->len > 0)
+	if (pt->len > 0) {
+		if (pt->len > ctrlr->max_xfer_size) {
+			nvme_printf(ctrlr, "pt->len (%d) "
+			    "exceeds max_xfer_size (%d)\n", pt->len,
+			    ctrlr->max_xfer_size);
+			return EIO;
+		}
 		if (is_user_buffer) {
 			/*
 			 * Ensure the user buffer is wired for the duration of
@@ -920,7 +926,7 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 		} else
 			req = nvme_allocate_request_vaddr(pt->buf, pt->len,
 			    nvme_pt_done, pt);
-	else
+	} else
 		req = nvme_allocate_request_null(nvme_pt_done, pt);
 
 	req->cmd.opc	= pt->cmd.opc;

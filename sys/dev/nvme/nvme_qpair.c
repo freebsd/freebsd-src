@@ -786,6 +786,9 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 
 	switch (req->type) {
 	case NVME_REQUEST_VADDR:
+		KASSERT(req->payload_size <= qpair->ctrlr->max_xfer_size,
+		    ("payload_size (%d) exceeds max_xfer_size (%d)\n",
+		    req->payload_size, qpair->ctrlr->max_xfer_size));
 		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
 		    req->u.payload, req->payload_size, nvme_payload_map, tr, 0);
 		if (err != 0)
@@ -805,6 +808,10 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		break;
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	case NVME_REQUEST_BIO:
+		KASSERT(req->u.bio->bio_bcount <= qpair->ctrlr->max_xfer_size,
+		    ("bio->bio_bcount (%jd) exceeds max_xfer_size (%d)\n",
+		    (intmax_t)req->u.bio->bio_bcount,
+		    qpair->ctrlr->max_xfer_size));
 		err = bus_dmamap_load_bio(tr->qpair->dma_tag,
 		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
 		if (err != 0)
