@@ -735,14 +735,6 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 }
 
 static void
-nvme_payload_map_uio(void *arg, bus_dma_segment_t *seg, int nseg,
-    bus_size_t mapsize, int error)
-{
-
-	nvme_payload_map(arg, seg, nseg, error);
-}
-
-static void
 _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
@@ -797,14 +789,6 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 		break;
 	case NVME_REQUEST_NULL:
 		nvme_qpair_submit_tracker(tr->qpair, tr);
-		break;
-	case NVME_REQUEST_UIO:
-		err = bus_dmamap_load_uio(tr->qpair->dma_tag,
-		    tr->payload_dma_map, req->u.uio, nvme_payload_map_uio,
-		    tr, 0);
-		if (err != 0)
-			nvme_printf(qpair->ctrlr,
-			    "bus_dmamap_load_uio returned 0x%x!\n", err);
 		break;
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	case NVME_REQUEST_BIO:
