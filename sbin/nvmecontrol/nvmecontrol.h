@@ -49,15 +49,21 @@
 #define RESET_USAGE							       \
 "       nvmecontrol reset <controller id>\n"
 
+#define LOGPAGE_USAGE							       \
+"       nvmecontrol logpage <-p page_id> [-x] <controller id|namespace id>\n"  \
+
 void devlist(int argc, char *argv[]);
 void identify(int argc, char *argv[]);
 void perftest(int argc, char *argv[]);
 void reset(int argc, char *argv[]);
+void logpage(int argc, char *argv[]);
 
 int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
 void read_controller_data(int fd, struct nvme_controller_data *cdata);
 void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
 void print_hex(void *data, uint32_t length);
+void read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
+    uint32_t payload_size);
 
 #endif
 
