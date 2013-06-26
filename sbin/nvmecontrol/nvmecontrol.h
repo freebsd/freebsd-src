@@ -46,14 +46,14 @@
 #define RESET_USAGE							       \
 "       nvmecontrol reset <controller id>\n"
 
-int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
-void read_controller_data(int fd, struct nvme_controller_data *cdata);
-void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
-
 void devlist(int argc, char *argv[]);
 void identify(int argc, char *argv[]);
 void perftest(int argc, char *argv[]);
 void reset(int argc, char *argv[]);
+
+int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
+void read_controller_data(int fd, struct nvme_controller_data *cdata);
+void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
 
 #endif
 
