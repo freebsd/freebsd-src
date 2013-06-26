@@ -1669,7 +1669,7 @@ pmap_pinit0(pmap_t pmap)
  * such as one in a vmspace structure.
  */
 int
-pmap_pinit(pmap_t pmap)
+pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type)
 {
 	vm_page_t pml4pg;
 	int i;
@@ -1688,23 +1688,37 @@ pmap_pinit(pmap_t pmap)
 	if ((pml4pg->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_pml4);
 
-	/* Wire in kernel global address entries. */
-	pmap->pm_pml4[KPML4I] = KPDPphys | PG_RW | PG_V | PG_U;
-	for (i = 0; i < NDMPML4E; i++) {
-		pmap->pm_pml4[DMPML4I + i] = (DMPDPphys + (i << PAGE_SHIFT)) |
-		    PG_RW | PG_V | PG_U;
+	/*
+	 * Do not install the host kernel mappings in the nested page
+	 * tables. These mappings are meaningless in the guest physical
+	 * address space.
+	 */
+	if ((pmap->pm_type = pm_type) == PT_X86) {
+		/* Wire in kernel global address entries. */
+		pmap->pm_pml4[KPML4I] = KPDPphys | PG_RW | PG_V | PG_U;
+		for (i = 0; i < NDMPML4E; i++) {
+			pmap->pm_pml4[DMPML4I + i] =
+			  (DMPDPphys + (i << PAGE_SHIFT)) | PG_RW | PG_V | PG_U;
+		}
+
+		/* install self-referential address mapping entry(s) */
+		pmap->pm_pml4[PML4PML4I] =
+			VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
 	}
 
-	/* install self-referential address mapping entry(s) */
-	pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
-
-	pmap->pm_type = PT_X86;
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
 	return (1);
+}
+
+int
+pmap_pinit(pmap_t pmap)
+{
+
+	return (pmap_pinit_type(pmap, PT_X86));
 }
 
 /*

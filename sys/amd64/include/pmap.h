@@ -272,6 +272,8 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
+
+int pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type);
 #endif
 
 /*
