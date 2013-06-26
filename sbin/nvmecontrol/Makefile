@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	nvmecontrol
-SRCS=	nvmecontrol.c devlist.c identify.c
+SRCS=	nvmecontrol.c devlist.c identify.c perftest.c
 MAN=	nvmecontrol.8
 
 .include <bsd.prog.mk>
