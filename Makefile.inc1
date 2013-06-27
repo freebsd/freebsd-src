@@ -23,6 +23,9 @@
 #	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
+#	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
+#	WORLD_FLAGS= additional flags to pass to make(1) during buildworld
+#	KERNEL_FLAGS= additional flags to pass to make(1) during buildkernel
 
 #
 # The intended user-driven targets are:
@@ -111,15 +114,10 @@ CLEANDIR=	clean cleandepend
 CLEANDIR=	cleandir
 .endif
 
-CVS?=		cvs
-CVSFLAGS?=	-A -P -d -I!
-SVN?=		svn
+BUILDENV_SHELL?=/bin/sh
+
+SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
-SUP?=		/usr/bin/csup
-SUPFLAGS?=	-g -L 2
-.if defined(SUPHOST)
-SUPFLAGS+=	-h ${SUPHOST}
-.endif
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 .if !defined(OSRELDATE)
@@ -240,7 +238,7 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 		COMPILER_TYPE=${COMPILER_TYPE}
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
@@ -250,7 +248,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
-		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
@@ -283,7 +281,7 @@ WMAKE_COMPILER_TYPE=	gcc
 WMAKE_COMPILER_TYPE=	clang
 .endif
 WMAKEENV+=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
-WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
+WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
@@ -373,7 +371,7 @@ IMAKE_MTREE=	MTREE_CMD="nmtree ${MTREEFLAGS}"
 
 # kernel stage
 KMAKEENV=	${WMAKEENV}
-KMAKE=		${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME}
+KMAKE=		${KMAKEENV} ${MAKE} ${KERNEL_FLAGS} KERNEL=${INSTKERNNAME}
 
 #
 # buildworld
@@ -602,7 +600,7 @@ buildenvvars:
 
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} sh || true
+	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
@@ -1014,59 +1012,18 @@ doxygen:
 # latest copy.
 #
 update:
-.if defined(SUP_UPDATE)
+.if (defined(CVS_UPDATE) || defined(SUP_UPDATE)) && !defined(SVN_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Running ${SUP}"
+	@echo "CVS_UPDATE and SUP_UPDATE are no longer supported."
+	@echo "Please see: https://wiki.freebsd.org/CvsIsDeprecated"
 	@echo "--------------------------------------------------------------"
-	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
-	@echo "!! Update methods with ${SUP} are deprecated."
-	@echo "!! Please see http://www.freebsd.org/handbook/svn.html"
-	@echo "!! and convert your update method to SVN_UPDATE or"
-	@echo "!! freebsd-update(8)."
-	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
-	@sleep 5
-.if defined(SUPFILE)
-	@${SUP} ${SUPFLAGS} ${SUPFILE}
-.endif
-.if defined(SUPFILE1)
-	@${SUP} ${SUPFLAGS} ${SUPFILE1}
-.endif
-.if defined(SUPFILE2)
-	@${SUP} ${SUPFLAGS} ${SUPFILE2}
-.endif
-.if defined(PORTSSUPFILE) && !defined(NO_PORTSUPDATE)
-	@${SUP} ${SUPFLAGS} ${PORTSSUPFILE}
-.endif
-.if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
-	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
-.endif
-.endif
-.if defined(CVS_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d CVS ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
-		echo "--------------------------------------------------------------" ; \
-		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
-		echo "!! Update methods with CVS are deprecated." ; \
-		echo "!! Please see http://www.freebsd.org/handbook/svn.html" ; \
-		echo "!! and convert your update method to SVN_UPDATE or" ; \
-		echo "!! freebsd-update(8)." ; \
-		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
-		sleep 5 ; \
-		echo ${CVS} -R -q update ${CVSFLAGS} ; \
-		${CVS} -R -q update ${CVSFLAGS} ; \
-	fi
+	@exit 1
 .endif
 .if defined(SVN_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d .svn ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} using Subversion" ; \
-		echo "--------------------------------------------------------------" ; \
-		echo ${SVN} update ${SVNFLAGS} ; \
-		${SVN} update ${SVNFLAGS} ; \
-	fi
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Updating ${.CURDIR} using Subversion"
+	@echo "--------------------------------------------------------------"
+	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
 .endif
 
 #
