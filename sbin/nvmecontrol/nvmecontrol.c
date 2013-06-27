@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 typedef void (*nvme_fn_t)(int argc, char *argv[]);
 
-struct nvme_function {
+static struct nvme_function {
 	const char	*name;
 	nvme_fn_t	fn;
 	const char	*usage;

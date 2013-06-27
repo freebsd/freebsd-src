@@ -227,7 +227,7 @@ print_log_firmware(void *buf, uint32_t size __unused)
 	}
 }
 
-struct logpage_function {
+static struct logpage_function {
 	uint8_t		log_page;
 	print_fn_t	fn;
 } logfuncs[] = {
