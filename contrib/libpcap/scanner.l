@@ -207,20 +207,8 @@ vrrp		return VRRP;
 carp		return CARP;
 radio		return RADIO;
 
-ip6		{
-#ifdef INET6
-		return IPV6;
-#else
-		bpf_error("%s not supported", yytext);
-#endif
-		}
-icmp6		{
-#ifdef INET6
-		return ICMPV6;
-#else
-		bpf_error("%s not supported", yytext);
-#endif
-		}
+ip6		return IPV6;
+icmp6		return ICMPV6;
 ah		return AH;
 esp		return ESP;
 
