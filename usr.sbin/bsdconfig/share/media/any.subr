@@ -32,17 +32,18 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/any.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/media/cdrom.subr
 f_include $BSDCFG_SHARE/media/directory.subr
 f_include $BSDCFG_SHARE/media/dos.subr
 f_include $BSDCFG_SHARE/media/floppy.subr
 f_include $BSDCFG_SHARE/media/ftp.subr
+f_include $BSDCFG_SHARE/media/http.subr
 f_include $BSDCFG_SHARE/media/httpproxy.subr
 f_include $BSDCFG_SHARE/media/nfs.subr
 f_include $BSDCFG_SHARE/media/options.subr
 f_include $BSDCFG_SHARE/media/ufs.subr
 f_include $BSDCFG_SHARE/media/usb.subr
+f_include $BSDCFG_SHARE/struct.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -71,9 +72,9 @@ f_media_get_type()
 	local menu_list="
 		'1 $msg_cd_dvd'    '$msg_install_from_a_freebsd_cd_dvd'
 		'2 $msg_ftp'       '$msg_install_from_an_ftp_server'
-		'3 $msg_ftp_passive'
-		                '$msg_install_from_an_ftp_server_thru_firewall'
-		'4 $msg_http'      '$msg_install_from_an_ftp_server_thru_proxy'
+		'3 $msg_http_proxy'
+		                '$msg_install_from_an_ftp_server_thru_proxy'
+		'4 $msg_http_direct' '$msg_install_from_an_http_server'
 		'5 $msg_directory' '$msg_install_from_the_existing_filesystem'
 		'6 $msg_nfs'       '$msg_install_over_nfs'
 		'7 $msg_dos'       '$msg_install_from_a_dos_partition'
@@ -123,8 +124,8 @@ f_media_get_type()
 		case "$mtag" in
 		?" $msg_cd_dvd")      f_media_set_cdrom ;;
 		?" $msg_ftp")         f_media_set_ftp ;;
-		?" $msg_ftp_passive") f_media_set_ftp_passive ;;
-		?" $msg_http")        f_media_set_http_proxy ;;
+		?" $msg_http_proxy")  f_media_set_http_proxy ;;
+		?" $msg_http_direct") f_media_set_http ;;
 		?" $msg_directory")   f_media_set_directory ;;
 		?" $msg_dos")         f_media_set_dos ;;
 		?" $msg_nfs")         f_media_set_nfs ;;

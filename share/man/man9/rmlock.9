@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .\" Based on rwlock.9 man page
-.Dd June 8, 2012
+.Dd June 25, 2013
 .Dt RMLOCK 9
 .Os
 .Sh NAME
@@ -40,6 +40,8 @@
 .Nm rm_runlock ,
 .Nm rm_wunlock ,
 .Nm rm_wowned ,
+.Nm rm_sleep ,
+.Nm rm_assert ,
 .Nm RM_SYSINIT
 .Nd kernel reader/writer lock optimized for read-mostly access patterns
 .Sh SYNOPSIS
@@ -64,6 +66,13 @@
 .Fn rm_wunlock "struct rmlock *rm"
 .Ft int
 .Fn rm_wowned "const struct rmlock *rm"
+.Ft int
+.Fn rm_sleep "void *wchan" "struct rmlock *rm" "int priority" "const char *wmesg" "int timo"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn rm_assert "struct rmlock *rm" "int what"
 .In sys/kernel.h
 .Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc" "int opts"
 .Sh DESCRIPTION
@@ -215,12 +224,63 @@ lock must be unlocked.
 This function returns a non-zero value if the current thread owns an
 exclusive lock on
 .Fa rm .
+.It Fn rm_sleep "void *wchan" "struct rmlock *rm" "int priority" "const char *wmesg" "int timo"
+This function atomically releases
+.Fa rm
+while waiting for an event.
+The
+.Fa rm
+lock must be exclusively locked.
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.It Fn rm_assert "struct rmlock *rm" "int what"
+This function asserts that the
+.Fa rm
+lock is in the state specified by
+.Fa what .
+If the assertions are not true and the kernel is compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the kernel will panic.
+Currently the following base assertions are supported:
+.Bl -tag -width ".Dv RA_UNLOCKED"
+.It Dv RA_LOCKED
+Assert that current thread holds either a shared or exclusive lock
+of
+.Fa rm .
+.It Dv RA_RLOCKED
+Assert that current thread holds a shared lock of
+.Fa rm .
+.It Dv RA_WLOCKED
+Assert that current thread holds an exclusive lock of
+.Fa rm .
+.It Dv RA_UNLOCKED
+Assert that current thread holds neither a shared nor exclusive lock of
+.Fa rm .
+.El
+.Pp
+In addition, one of the following optional flags may be specified with
+.Dv RA_LOCKED ,
+.Dv RA_RLOCKED ,
+or
+.Dv RA_WLOCKED :
+.Bl -tag -width ".Dv RA_NOTRECURSED"
+.It Dv RA_RECURSED
+Assert that the current thread holds a recursive lock of
+.Fa rm .
+.It Dv RA_NOTRECURSED
+Assert that the current thread does not hold a recursive lock of
+.Fa rm .
+.El
 .El
 .Sh SEE ALSO
 .Xr locking 9 ,
 .Xr mutex 9 ,
 .Xr panic 9 ,
 .Xr rwlock 9 ,
+.Xr sleep 9 ,
 .Xr sema 9 ,
 .Xr sx 9
 .Sh HISTORY
@@ -252,8 +312,3 @@ implementation uses a single per CPU list shared by all
 rmlocks in the system.
 If rmlocks become popular, hashing to multiple per CPU queues may
 be needed to speed up the writer lock process.
-.Pp
-The
-.Nm
-can currently not be used as a lock argument for condition variable
-wait functions.

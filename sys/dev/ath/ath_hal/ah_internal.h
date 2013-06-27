@@ -1021,5 +1021,9 @@ ath_hal_getantennaallowed(struct ath_hal *ah,
 	return (chan->ic_maxantgain);
 }
 
+/*
+ * Map the given 2GHz channel to an IEEE number.
+ */
+extern	int ath_hal_mhz2ieee_2ghz(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
 
 #endif /* _ATH_AH_INTERAL_H_ */

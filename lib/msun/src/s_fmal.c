@@ -113,7 +113,7 @@ add_and_denormalize(long double a, long double b, int scale)
 	if (sum.lo != 0) {
 		u.e = sum.hi;
 		bits_lost = -u.bits.exp - scale + 1;
-		if (bits_lost != 1 ^ (int)(u.bits.manl & 1))
+		if ((bits_lost != 1) ^ (int)(u.bits.manl & 1))
 			sum.hi = nextafterl(sum.hi, INFINITY * sum.lo);
 	}
 	return (ldexp(sum.hi, scale));

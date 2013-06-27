@@ -220,8 +220,8 @@ while [ $# -gt 0 ]; do
 	value="${1#*=}"
 	f_dprintf "key=[%s] value=[%s]" "$key" "$value"
 	case "$key" in
-	mode) mode="$value";;
-	user) user="$value";;
+	mode) mode="$value" ;;
+	user) user="$value" ;;
 	esac
 	shift
 done
