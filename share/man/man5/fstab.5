@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2012
+.Dd June 21, 2013
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -185,6 +185,15 @@ variable must be used to extend the
 .Xr rc 8
 startup script's list of network file system types.
 .Pp
+If the option
+.Dq late
+is specified, the file system will be automatically mounted
+at a stage of system startup after remote mount points are mounted.
+For more detail about this option,
+see the
+.Xr mount 8
+manual page.
+.Pp
 The type of the mount is extracted from the
 .Fa fs_mntops
 field and stored separately in the
@@ -202,6 +211,7 @@ then the file system whose name is given in the
 .Fa fs_file
 field is normally mounted read-write or read-only on the
 specified special file.
+.Pp
 If
 .Fa fs_type
 is
@@ -210,6 +220,25 @@ then the special file is made available as a piece of swap
 space by the
 .Xr swapon 8
 command at the end of the system reboot procedure.
+For vnode-backed swap spaces,
+.Dq file
+is supported in the
+.Fa fs_mntops
+field.
+When
+.Fa fs_spec
+is an
+.Xr md 4
+device file
+.Pq Do md Dc or Do md[0-9]* Dc
+and 
+.Dq file
+is specified in
+.Fa fs_mntopts ,
+an
+.Xr md 4
+device is created with the specified file used as backing store,
+and then the new device is used as swap space.
 The fields other than
 .Fa fs_spec
 and
