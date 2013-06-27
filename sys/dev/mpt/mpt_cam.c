@@ -1254,7 +1254,8 @@ mpt_timeout(void *arg)
 }
 
 /*
- * Callback routine from "bus_dmamap_load" or, in simple cases, called directly.
+ * Callback routine from bus_dmamap_load_ccb(9) or, in simple cases, called
+ * directly.
  *
  * Takes a list of physical segments and builds the SGL for SCSI IO command
  * and forwards the commard to the IOC after one last check that CAM has not
@@ -1687,7 +1688,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	hdrp = req->req_vbuf;
 	mpt_off = req->req_vbuf;
-
 
 	if (error == 0 && ((uint32_t)nseg) >= mpt->max_seg_cnt) {
 		error = EFBIG;
@@ -3595,21 +3595,21 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 #ifdef	CAM_NEW_TRAN_CODE
 		cpi->protocol = PROTO_SCSI;
 		if (mpt->is_fc) {
-			cpi->hba_misc = PIM_NOBUSRESET;
+			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 			cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 			cpi->transport = XPORT_FC;
 			cpi->transport_version = 0;
 			cpi->protocol_version = SCSI_REV_SPC;
 		} else if (mpt->is_sas) {
-			cpi->hba_misc = PIM_NOBUSRESET;
+			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 			cpi->transport = XPORT_SAS;
 			cpi->transport_version = 0;
 			cpi->protocol_version = SCSI_REV_SPC2;
 		} else {
-			cpi->hba_misc = PIM_SEQSCAN;
+			cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 			cpi->transport = XPORT_SPI;
