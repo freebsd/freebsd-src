@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2012
+.Dd June 20, 2013
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -67,6 +67,7 @@
 .Fl l
 .Op Fl n
 .Op Fl v
+.Op Fl f Ar file
 .Op Fl u Ar unit
 .Nm
 .Ar file
@@ -124,6 +125,19 @@ List configured devices.
 If given with
 .Fl u ,
 display details about that particular device.
+If given with
+.Fl f Ar file ,
+display
+.Xr md 4
+device names of which
+.Ar file
+is used as the backing store.
+If both of
+.Fl u
+and
+.Fl f
+options are specified,
+display devices which match the two conditions. 
 If the
 .Fl v
 option is specified, show all details.
