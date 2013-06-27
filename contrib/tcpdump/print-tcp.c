@@ -639,6 +639,15 @@ tcp_print(register const u_char *bp, register u_int length,
                 return;
         } 
 
+        if (packettype) {
+                switch (packettype) {
+                case PT_ZMTP1:
+                        zmtp1_print(bp, length);
+                        break;
+                }
+                return;
+        }
+
         if (sport == TELNET_PORT || dport == TELNET_PORT) {
                 if (!qflag && vflag)
                         telnet_print(bp, length);
