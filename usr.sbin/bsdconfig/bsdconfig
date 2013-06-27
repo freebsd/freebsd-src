@@ -263,8 +263,8 @@ while getopts f:h$GETOPTS_STDARGS flag; do
 	case "$flag" in
 	f) [ $scripts_loaded -eq 0 ] && f_include $BSDCFG_SHARE/script.subr
 	   f_script_load "$OPTARG"
-	   scripts_loaded=$(( $scripts_loaded + 1 ));;
-	h|\?) usage;;
+	   scripts_loaded=$(( $scripts_loaded + 1 )) ;;
+	h|\?) usage ;;
 	esac
 done
 shift $(( $OPTIND -1 ))
@@ -340,7 +340,7 @@ while :; do
 
 	f_getvar menu_program$mtag menu_program
 	case "$menu_program" in
-	/*) cmd="$menu_program";;
+	/*) cmd="$menu_program" ;;
 	 *) cmd="$BSDCFG_LIBE/$menu_program"
 	esac
 	f_dprintf "cmd=[%s]" "$cmd"

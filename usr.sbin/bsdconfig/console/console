@@ -102,7 +102,7 @@ dialog_menu_main()
 #
 while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -133,7 +133,7 @@ while :; do
 	esac
 
 	if [ "$command" ]; then
-		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X} ;;
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
 	else
 		f_die 1 "$msg_unknown_console_menu_selection"
 	fi

@@ -31,10 +31,10 @@ if [ ! "$_NETWORKING_HOSTNAME_SUBR" ]; then _NETWORKING_HOSTNAME_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." networking/hostname.subr
-f_include $BSDCFG_SHARE/sysrc.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/networking/common.subr
 f_include $BSDCFG_SHARE/networking/resolv.subr
+f_include $BSDCFG_SHARE/sysrc.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
@@ -53,11 +53,12 @@ f_dialog_hnerror()
 	[ ${error:-0} -ne 0 ] || return $SUCCESS
 
 	case "$error" in
-	1) f_show_msg "$msg_hostname_label_contains_invalid_chars" "$fqhn";;
-	2) f_show_msg "$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn";;
-	3) f_show_msg "$msg_hostname_label_is_null" "$fqhn";;
-	63) f_show_msg "$msg_hostname_label_exceeds_max_length" "$fqhn";;
-	255) f_show_msg "$msg_hostname_exceeds_max_length" "$fqhn";;
+	1) f_show_msg "$msg_hostname_label_contains_invalid_chars" "$fqhn" ;;
+	2) f_show_msg \
+		"$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn" ;;
+	3) f_show_msg "$msg_hostname_label_is_null" "$fqhn" ;;
+	63) f_show_msg "$msg_hostname_label_exceeds_max_length" "$fqhn" ;;
+	255) f_show_msg "$msg_hostname_exceeds_max_length" "$fqhn" ;;
 	esac
 }
 

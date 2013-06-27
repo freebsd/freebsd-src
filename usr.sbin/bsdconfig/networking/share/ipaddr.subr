@@ -32,8 +32,8 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." networking/ipaddr.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
@@ -52,10 +52,10 @@ f_dialog_iperror()
 	[ ${error:-0} -ne 0 ] || return $SUCCESS
 
 	case "$error" in
-	1) f_show_msg "$msg_ipv4_addr_octet_contains_invalid_chars" "$ip";;
-	2) f_show_msg "$msg_ipv4_addr_octet_is_null" "$ip";;
-	3) f_show_msg "$msg_ipv4_addr_octet_exceeds_max_value" "$ip";;
-	4) f_show_msg "$msg_ipv4_addr_octet_missing_or_extra" "$ip";;
+	1) f_show_msg "$msg_ipv4_addr_octet_contains_invalid_chars" "$ip" ;;
+	2) f_show_msg "$msg_ipv4_addr_octet_is_null" "$ip" ;;
+	3) f_show_msg "$msg_ipv4_addr_octet_exceeds_max_value" "$ip" ;;
+	4) f_show_msg "$msg_ipv4_addr_octet_missing_or_extra" "$ip" ;;
 	esac
 }
 
@@ -91,10 +91,10 @@ f_dialog_ip6error()
 	[ ${error:-0} -ne 0 ] || return $SUCCESS
 
 	case "$error" in
-	1) f_show_msg "$msg_ipv6_addr_segment_contains_invalid_chars" "$ip";;
-	2) f_show_msg "$msg_ipv6_addr_too_many_null_segments" "$ip";;
-	3) f_show_msg "$msg_ipv6_addr_segment_contains_too_many_chars" "$ip";;
-	4) f_show_msg "$msg_ipv6_addr_too_few_or_extra_segments" "$ip";;
+	1) f_show_msg "$msg_ipv6_addr_segment_contains_invalid_chars" "$ip" ;;
+	2) f_show_msg "$msg_ipv6_addr_too_many_null_segments" "$ip" ;;
+	3) f_show_msg "$msg_ipv6_addr_segment_contains_too_many_chars" "$ip" ;;
+	4) f_show_msg "$msg_ipv6_addr_too_few_or_extra_segments" "$ip" ;;
 	*)
 		if [ $(( $error & 0xF )) -eq 5 ]; then
 			# IPv4 at the end of IPv6 address is invalid

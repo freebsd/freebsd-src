@@ -32,8 +32,8 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." networking/netmask.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/networking/common.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
@@ -52,11 +52,11 @@ f_dialog_maskerror()
 	[ ${error:-0} -ne 0 ] || return $SUCCESS
 
 	case "$error" in
-	1) f_show_msg "$msg_ipv4_mask_field_contains_invalid_chars" "$mask";;
-	2) f_show_msg "$msg_ipv4_mask_field_is_null" "$mask";;
-	3) f_show_msg "$msg_ipv4_mask_field_exceeds_max_value" "$mask";;
-	4) f_show_msg "$msg_ipv4_mask_field_missing_or_extra" "$mask";;
-	5) f_show_msg "$msg_ipv4_mask_field_invalid_value" "$mask";;
+	1) f_show_msg "$msg_ipv4_mask_field_contains_invalid_chars" "$mask" ;;
+	2) f_show_msg "$msg_ipv4_mask_field_is_null" "$mask" ;;
+	3) f_show_msg "$msg_ipv4_mask_field_exceeds_max_value" "$mask" ;;
+	4) f_show_msg "$msg_ipv4_mask_field_missing_or_extra" "$mask" ;;
+	5) f_show_msg "$msg_ipv4_mask_field_invalid_value" "$mask" ;;
 	esac
 }
 

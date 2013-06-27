@@ -32,9 +32,9 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/httpproxy.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/ftp.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -77,19 +77,33 @@ f_media_set_http_proxy()
 
 	local hostname="$proxy" port=3128
 	case "$hostname" in
-	"["*"]")
-		hostname="${hostname#\[}"
-		hostname="${hostname%\]}"
-		;;
-	"["*"]:"*)
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
 		hostname="${hostname#\[}"
 		port="${hostname#*\]:}"
 		port="${port%%[!0-9]*}"
 		hostname="${hostname%%\]:*}"
 		;;
-	*":"*)
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
 		port="${hostname#*:}"
 		hostname="${hostname%%:*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
 	esac
 
 	setvar $VAR_HTTP_PROXY_HOST "$hostname"
@@ -133,7 +147,7 @@ f_media_set_http_proxy()
 #
 f_http_proxy_check_access()
 {
-	local connect_only="$1" hosts=""
+	local connect_only="$1" hosts=
 
 	local proxy_host proxy_port
 	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
@@ -292,7 +306,7 @@ f_media_init_http_proxy()
 			;;
 		*)
 			local fdir fp
-			f_getvar $VAR_FTP_PATH fp
+			f_getvar $VAR_FTP_PATH%/ fp
 			for fdir in $FTP_DIRS; do
 				setvar $VAR_HTTP_PROXY_PATH "$fp/$fdir/$rel"
 				if f_http_proxy_check_access; then
@@ -319,8 +333,10 @@ f_media_init_http_proxy()
 #
 # Returns data from $file on an FTP server via HTTP proxy using nc(1). Please
 # note that $device is unused but must be present (even if null). Information
-# is instead gathered from the environment. $probe_only is currently unused by
-# this media type.
+# is instead gathered from the environment. If $probe_only is both present and
+# non-NULL, this function exits after receiving the HTTP header response from
+# the proxy server (if the HTTP response code is 200, success is returned;
+# otherwise failure).
 #
 # The variables used to configure the connection are as follows (all of which
 # are configured by f_media_set_http_proxy above):
@@ -380,9 +396,9 @@ f_media_get_http_proxy()
 	fi
 
 	local proxy_path mode
-	f_getvar $VAR_HTTP_PROXY_PATH proxy_path
+	f_getvar $VAR_HTTP_PROXY_PATH%/ proxy_path
 	f_getvar $VAR_HTTP_FTP_MODE mode
-	local url="${proxy_path%/}/$file$mode" rx
+	local url="$proxy_path/$file$mode" rx
 
 	f_dprintf "sending http request for: %s" "$url"
 	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$proxy_port" |
@@ -411,11 +427,14 @@ f_media_get_http_proxy()
 		[ $rv -ge 300 ] && exit 3
 		[ $rv -eq 200 ] || exit $FAILURE
 
-		cat # output the rest ``as-is''
+		if [ ! "$probe_only" ]; then
+			cat # output the rest ``as-is''
+		fi
 		exit 200
 	)
 	local retval=$?
 	[ $retval -eq 200 ] && return $SUCCESS
+	[ "$probe_only" ] && return $FAILURE
 
 	case "$retval" in
 	  5) f_show_msg "$msg_server_error_when_requesting_url" "$url" ;;

@@ -31,9 +31,9 @@ if [ ! "$_MEDIA_TCPIP_SUBR" ]; then _MEDIA_TCPIP_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/tcpip.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
@@ -411,8 +411,8 @@ f_validate_netmask()
 
 		# Return error if the field is an invalid integer
 		case "$field" in
-		0|128|192|224|240|248|252|254|255) :;;
-		*) return 5;;
+		0|128|192|224|240|248|252|254|255) : ;;
+		*) return 5 ;;
 		esac
 
 		nfields=$(( $nfields + 1 ))
@@ -593,7 +593,7 @@ f_ifconfig_netmask()
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
 #
-f_route_get_default='
+f_route_get_default_awk='
 BEGIN { found = 0 }
 ( $1 == "gateway:" ) \
 {

@@ -243,7 +243,7 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 		if (min + length - 1 != max)
 			device_printf(sc->ap_dev,
 			    "Length mismatch for %d range: %jx vs %jx\n", type,
-			    (uintmax_t)max - min + 1, (uintmax_t)length);
+			    (uintmax_t)(max - min + 1), (uintmax_t)length);
 #ifdef __i386__
 		if (min > ULONG_MAX) {
 			device_printf(sc->ap_dev,

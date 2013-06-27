@@ -31,14 +31,13 @@ if [ ! "$_MEDIA_FTP_SUBR" ]; then _MEDIA_FTP_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/ftp.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/strings.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/common.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
-f_include $BSDCFG_SHARE/media/network.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -287,7 +286,7 @@ f_dialog_menu_media_ftp()
 #
 # 	VAR_FTP_HOST
 # 		The FTP host to connect to, parsed from VAR_FTP_PATH. In the
-# 		example case of IPv6 where VAR_FTP_PATH is a "ftp://[::1]" this
+# 		example case of IPv6 where VAR_FTP_PATH is "ftp://[::1]", this
 # 		variable will be set to "::1" (the outer brackets are removed).
 # 	VAR_FTP_PORT
 # 		The TCP port to connect to, parsed from VAR_FTP_PATH. Usually
@@ -379,27 +378,62 @@ f_media_set_ftp()
 
 	local hostname="${url#*://}" port=21 dir=/
 	case "$hostname" in
-	"["*"]")
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*/*) # IPv6 address with port and directory
+		f_dprintf "Looks like an IPv6 addr with port/dir: %s" \
+		          "$hostname"
 		hostname="${hostname#\[}"
-		hostname="${hostname%%\]*}"
-		;;
-	"["*"]/"*)
-		hostname="${hostname#\[}"
+		port="${hostname#*\]:}"
+		port="${port%%[!0-9]*}"
 		dir="/${hostname#*/}"
-		hostname="${hostname%%\]*}"
+		hostname="${hostname%%\]:*}"
 		;;
-	*"/"*)
-		dir="/${hostname#*/}"
-		hostname="${hostname%%/*}"
-		;;
-	"["*"]:"*)
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
 		hostname="${hostname#\[}"
 		port="${hostname#*\]:}"
 		port="${port%%[!0-9]*}"
 		hostname="${hostname%%\]:*}"
 		;;
-	*)
+	"["*"]"/*) # IPv6 address with directory
+		f_dprintf "Looks like an IPv6 addr with dir: %s" "$hostname"
+		hostname="${hostname#\[}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%\]*}"
+		;;
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*/*) # DNS name or IPv4 address with port and directory
+		f_dprintf "Looks like a %s with port/dir: %s" \
+		          "DNS name or IPv4 addr" "$hostname"
+		port="${hostname#*:}"
+		port="${port%%[!0-9]*}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%:*}"
+		;;
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
+		port="${hostname#*:}"
+		hostname="${hostname%%:*}"
+		;;
+	*/*) # DNS name or IPv4 address with directory
+		f_dprintf "Looks like a DNS name or IPv4 addr with dir: %s" \
+		          "$hostname"
+		dir="/${hostname#*/}"
 		hostname="${hostname%%/*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
 	esac
 
 	f_dprintf "hostname = \`%s'" "$hostname"
@@ -660,7 +694,10 @@ f_media_init_ftp()
 				break # to failure
 			fi
 			if echo "$rx" | awk -v dir="/${ftp_dir#/}" '
-				BEGIN { found = 0 }
+				BEGIN {
+					found = 0
+					if ( dir != "/" ) sub("/$", "", dir)
+				}
 				/^Remote directory: / {
 					sub(/^[^:]*:[[:space:]]*/, "")
 					if ($0 != dir) next
@@ -790,7 +827,7 @@ f_media_init_ftp()
 #
 f_media_get_ftp()
 {
-	local dev="$1" file="$2" probe_only="$3"
+	local dev="$1" file="$2" probe_only="$3" hosts=
 
 	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_only=%s" \
 	          "$dev" "$file" "$probe_only"
@@ -854,11 +891,10 @@ f_media_get_ftp()
 		userpass="$userpass${userpass:+@}"
 	fi
 
-	local ftp_dir mode rx
-	f_getvar $VAR_FTP_DIR ftp_dir
+	local dir mode rx
+	f_getvar $VAR_FTP_DIR\#/ dir
 	f_getvar $VAR_FTP_STATE mode
 
-	local dir="${ftp_dir#/}"
 	local port="${ftp_port:+:$ftp_port}"
 	case "$host" in *:*) host="[$host]"; esac
 

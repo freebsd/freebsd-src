@@ -65,6 +65,10 @@ void	_rm_wunlock(struct rmlock *rm);
 int	_rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker,
 	    int trylock);
 void	_rm_runlock(struct rmlock *rm,  struct rm_priotracker *tracker);
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+void	_rm_assert(const struct rmlock *rm, int what, const char *file,
+	    int line);
+#endif
 
 /*
  * Public interface for lock operations.
@@ -89,6 +93,9 @@ void	_rm_runlock(struct rmlock *rm,  struct rm_priotracker *tracker);
 #define	rm_try_rlock(rm,tracker)	_rm_rlock((rm),(tracker), 1)
 #define	rm_runlock(rm,tracker)		_rm_runlock((rm), (tracker))
 #endif
+#define	rm_sleep(chan, rm, pri, wmesg, timo)				\
+	_sleep((chan), &(rm)->lock_object, (pri), (wmesg),		\
+	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
 struct rm_args {
 	struct rmlock	*ra_rm;
@@ -122,6 +129,21 @@ struct rm_args_flags {
 	    rm_sysinit_flags, &name##_args);				\
 	SYSUNINIT(name##_rm_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rm_destroy, (rm))
+
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+#define	RA_LOCKED		LA_LOCKED
+#define	RA_RLOCKED		LA_SLOCKED
+#define	RA_WLOCKED		LA_XLOCKED
+#define	RA_UNLOCKED		LA_UNLOCKED
+#define	RA_RECURSED		LA_RECURSED
+#define	RA_NOTRECURSED		LA_NOTRECURSED
+#endif
+
+#ifdef INVARIANTS
+#define	rm_assert(rm, what)	_rm_assert((rm), (what), LOCK_FILE, LOCK_LINE)
+#else
+#define	rm_assert(rm, what)
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RMLOCK_H_ */
