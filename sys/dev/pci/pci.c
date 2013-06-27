@@ -295,6 +295,12 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
+static int pci_do_realloc_bars = 0;
+TUNABLE_INT("hw.pci.realloc_bars", &pci_do_realloc_bars);
+SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RW,
+    &pci_do_realloc_bars, 0,
+    "Attempt to allocate a new range for any BARs whose original firmware-assigned ranges fail to allocate during the initial device scan.");
+
 static int pci_do_power_nodriver = 0;
 TUNABLE_INT("hw.pci.do_power_nodriver", &pci_do_power_nodriver);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RW,
@@ -2743,20 +2749,39 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 */
 	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
-	if (res == NULL) {
+	if (pci_do_realloc_bars && res == NULL && (start != 0 || end != ~0ul)) {
 		/*
-		 * If the allocation fails, clear the BAR and delete
-		 * the resource list entry to force
-		 * pci_alloc_resource() to allocate resources from the
-		 * parent.
+		 * If the allocation fails, try to allocate a resource for
+		 * this BAR using any available range.  The firmware felt
+		 * it was important enough to assign a resource, so don't
+		 * disable decoding if we can help it.
 		 */
 		resource_list_delete(rl, type, reg);
-		start = 0;
+		resource_list_add(rl, type, reg, 0, ~0ul, count);
+		res = resource_list_alloc(rl, bus, dev, type, &reg, 0, ~0ul,
+		    count, prefetch ? RF_PREFETCHABLE : 0);
+	}
+	if (res == NULL) {
+		/*
+		 * If the allocation fails, delete the resource list entry
+		 * and disable decoding for this device.
+		 *
+		 * If the driver requests this resource in the future,
+		 * pci_reserve_map() will try to allocate a fresh
+		 * resource range.
+		 */
+		resource_list_delete(rl, type, reg);
+		pci_disable_io(dev, type);
+		if (bootverbose)
+			device_printf(bus,
+			    "pci%d:%d:%d:%d bar %#x failed to allocate\n",
+			    pci_get_domain(dev), pci_get_bus(dev),
+			    pci_get_slot(dev), pci_get_function(dev), reg);
 	} else {
 		start = rman_get_start(res);
+		pci_write_bar(dev, pm, start);
 		rman_set_device(res, bus);
 	}
-	pci_write_bar(dev, pm, start);
 	return (barlen);
 }
 
@@ -3732,7 +3757,7 @@ pci_describe_device(device_t dev)
 	if ((desc = malloc(strlen(vp) + strlen(dp) + 3, M_DEVBUF, M_NOWAIT)) !=
 	    NULL)
 		sprintf(desc, "%s, %s", vp, dp);
- out:
+out:
 	if (vp != NULL)
 		free(vp, M_DEVBUF);
 	if (dp != NULL)
@@ -4008,7 +4033,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 		    count, *rid, type, rman_get_start(res));
 	map = rman_get_start(res);
 	pci_write_bar(child, pm, map);
-out:;
+out:
 	return (res);
 }
 
@@ -4210,19 +4235,6 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			    rman_get_start(rle->res));
 			return;
 		}
-
-#ifndef __PCI_BAR_ZERO_VALID
-		/*
-		 * If this is a BAR, clear the BAR so it stops
-		 * decoding before releasing the resource.
-		 */
-		switch (type) {
-		case SYS_RES_IOPORT:
-		case SYS_RES_MEMORY:
-			pci_write_bar(child, pci_find_bar(child, rid), 0);
-			break;
-		}
-#endif
 		bus_release_resource(dev, type, rid, rle->res);
 	}
 	resource_list_delete(rl, type, rid);
