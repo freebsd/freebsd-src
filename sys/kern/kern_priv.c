@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -90,14 +93,6 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 		goto out;
 #endif
 
-	/*
-	 * Jail policy will restrict certain privileges that may otherwise be
-	 * be granted.
-	 */
-	error = prison_priv_check(cred, priv);
-	if (error)
-		goto out;
-
 	if (unprivileged_mlock) {
 		/*
 		 * Allow unprivileged users to call mlock(2)/munlock(2) and
@@ -110,6 +105,24 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 			goto out;
 		}
 	}
+
+	/*
+	 * Jail policy will restrict certain privileges that may otherwise be
+	 * be granted.
+	 */
+	error = prison_priv_check(cred, priv);
+	if (error)
+		goto out;
+
+#ifdef VPS
+	/*
+	 * VPS instances have a very fine granulated privilege mask.
+	 * In the ''base'' instance altough, usually every privilege is set.
+	 */
+	error = vps_priv_check(cred, priv);
+	if (error)
+		goto out;
+#endif
 
 	/*
 	 * Having determined if privilege is restricted by various policies,

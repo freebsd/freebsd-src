@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <sys/sysctl.h>
 
+#include <vps/vps_account.h>
+
 #if defined(CLUSTERDEBUG)
 static int	rcluster= 0;
 SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0,
@@ -240,6 +242,9 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 		bp->b_iooffset = dbtob(bp->b_blkno);
 		bstrategy(bp);
 		curthread->td_ru.ru_inblock++;
+#ifdef VPS
+		vps_account_bio(curthread);
+#endif
 	}
 
 	/*
@@ -293,6 +298,9 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 		rbp->b_iooffset = dbtob(rbp->b_blkno);
 		bstrategy(rbp);
 		curthread->td_ru.ru_inblock++;
+#ifdef VPS
+		vps_account_bio(curthread);
+#endif
 	}
 
 	if (reqbp)

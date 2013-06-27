@@ -53,7 +53,7 @@ ddi_strtoul(const char *str, char **nptr, int base, unsigned long *result)
 {
 
 	if (str == hw_serial) {
-		*result = prison0.pr_hostid;
+		*result = V_prison0->pr_hostid;
 		return (0);
 	}
 

@@ -129,6 +129,7 @@ amd64/amd64/trap.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
+amd64/amd64/vps_machdep.c	optional	vps
 amd64/pci/pci_cfgreg.c		optional	pci
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 crypto/aesni/aesencdec_amd64.S	optional aesni

@@ -73,6 +73,9 @@
 #include <net/route.h>
 #include <net/vnet.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -674,6 +677,12 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 			if (ifa->ifa_addr->sa_family == AF_LINK) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 				sdl->sdl_index = ifp->if_index;
+#ifdef VPS
+				namelen = strlen(ifp->if_xname);
+				sdl->sdl_nlen = namelen;
+				bcopy(ifp->if_xname, sdl->sdl_data, namelen);
+				/* XXX --> netmask ... */
+#endif
 			}
 		}
 	}
@@ -1072,6 +1081,46 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	prison_free(pr);
 	return (0);
 }
+
+#ifdef VPS
+int
+if_vmove_vps(struct thread *td, char *ifname, size_t ifname_size, struct vps *vps, char *newifname)
+{
+	struct ifnet *ifp;
+	struct ifnet *difp;
+
+	ifp = ifunit(ifname);
+	if (ifp == NULL)
+		return (ESRCH);
+
+	/* Do not try to move the iface from and to the same vnet. */
+	if (vps->vnet == ifp->if_vnet)
+		return (EEXIST);
+
+	/* Make sure the named iface does not exists in the dst. vnet. */
+	/* XXX Lock interfaces to avoid races. */
+	CURVNET_SET_QUIET(vps->vnet);
+	difp = ifunit(newifname != NULL ? newifname : ifname);
+	CURVNET_RESTORE();
+	if (difp != NULL)
+		return (EEXIST);
+
+	/* XXX Make sure there are no unwanted side effects. */
+	DBGCORE("%s: newifname=%p\n", __func__, newifname);
+	if (newifname != NULL) {
+		DBGCORE("%s: newifname=[%s]\n", __func__, newifname);
+		snprintf(ifp->if_xname, sizeof(ifp->if_xname), "%s", newifname);	
+	}
+
+	/* Move the interface into the child vnet. */
+	if_vmove(ifp, vps->vnet);
+
+	/* Report the new if_xname back to the userland. */
+	snprintf(ifname, ifname_size, "%s", ifp->if_xname);
+
+	return (0);
+}
+#endif /* VPS */
 #endif /* VIMAGE */
 
 /*
@@ -2617,7 +2666,16 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		if (ifp->if_flags & IFF_UP)
 			in6_if_up(ifp);
 #endif
+
 	}
+
+#ifdef VPS
+	if (ifp->if_pspare[2] != NULL)
+		((void (*) (u_long cmd, caddr_t data,
+			struct ifnet *ifp, struct thread *td))
+			ifp->if_pspare[2])(cmd, data, ifp, td);
+#endif
+
 	if_rele(ifp);
 	CURVNET_RESTORE();
 	return (error);

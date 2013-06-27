@@ -98,8 +98,8 @@ sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 	return (error);
 
 }
-SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD,
-    NULL, 0, sysctl_hw_machine, "A", "Machine class");
+_SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, sysctl_hw_machine, "A", "Machine class", VPS_PUBLIC);
 
 static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 

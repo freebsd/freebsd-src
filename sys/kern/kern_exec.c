@@ -112,19 +112,19 @@ static int do_execve(struct thread *td, struct image_args *args,
     struct mac *mac_p);
 
 /* XXX This should be vm_size_t. */
-SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
-    NULL, 0, sysctl_kern_ps_strings, "LU", "");
+_SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_ps_strings, "LU", "", VPS_PUBLIC);
 
 /* XXX This should be vm_size_t. */
-SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD|
-    CTLFLAG_CAPRD, NULL, 0, sysctl_kern_usrstack, "LU", "");
+_SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD|
+    CTLFLAG_CAPRD, NULL, 0, sysctl_kern_usrstack, "LU", "", VPS_PUBLIC);
 
-SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD,
-    NULL, 0, sysctl_kern_stackprot, "I", "");
+_SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_stackprot, "I", "", VPS_PUBLIC);
 
 u_long ps_arg_cache_limit = PAGE_SIZE / 16;
-SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
-    &ps_arg_cache_limit, 0, "");
+_SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
+    &ps_arg_cache_limit, 0, "", VPS_PUBLIC);
 
 static int map_at_zero = 0;
 TUNABLE_INT("security.bsd.map_at_zero", &map_at_zero);

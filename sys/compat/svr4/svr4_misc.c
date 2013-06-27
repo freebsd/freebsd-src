@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/wait.h>
 
+#include <vps/vps.h>
+
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_types.h>
 #include <compat/svr4/svr4_signal.h>
@@ -738,7 +740,7 @@ svr4_sys_sysconfig(td, uap)
 		*retval = 0;	/* No delaytimer support */
 		break;
 	case SVR4_CONFIG_MQ_OPEN_MAX:
-		*retval = msginfo.msgmni;
+		*retval = V_msginfo.msgmni;
 		break;
 	case SVR4_CONFIG_MQ_PRIO_MAX:
 		*retval = 0;	/* XXX: Don't know */
@@ -747,10 +749,10 @@ svr4_sys_sysconfig(td, uap)
 		*retval = 0;
 		break;
 	case SVR4_CONFIG_SEM_NSEMS_MAX:
-		*retval = seminfo.semmni;
+		*retval = V_seminfo.semmni;
 		break;
 	case SVR4_CONFIG_SEM_VALUE_MAX:
-		*retval = seminfo.semvmx;
+		*retval = V_seminfo.semvmx;
 		break;
 	case SVR4_CONFIG_SIGQUEUE_MAX:
 		*retval = 0;	/* XXX: Don't know */
@@ -1236,7 +1238,7 @@ svr4_sys_waitsys(td, uap)
 	 */
 loop:
 	nfound = 0;
-	sx_slock(&proctree_lock);
+	sx_slock(&V_proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		PROC_LOCK(p);
 		if (pid != WAIT_ANY &&
@@ -1272,7 +1274,7 @@ loop:
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
 			PROC_SUNLOCK(p);
 			PROC_UNLOCK(p);
-			sx_sunlock(&proctree_lock);
+			sx_sunlock(&V_proctree_lock);
 
 			/* Copy the info out to userland. */
 			*retval = 0;
@@ -1291,7 +1293,7 @@ loop:
 			PROC_SUNLOCK(p);
 		        if (((uap->options & SVR4_WNOWAIT)) == 0)
 				p->p_flag |= P_WAITED;
-			sx_sunlock(&proctree_lock);
+			sx_sunlock(&V_proctree_lock);
 			pid = p->p_pid;
 			status = W_STOPCODE(p->p_xstat);
 			ru = p->p_ru;
@@ -1313,7 +1315,7 @@ loop:
 		PROC_SUNLOCK(p);
 		if (uap->options & SVR4_WCONTINUED &&
 		    (p->p_flag & P_CONTINUED)) {
-			sx_sunlock(&proctree_lock);
+			sx_sunlock(&V_proctree_lock);
 		        if (((uap->options & SVR4_WNOWAIT)) == 0)
 				p->p_flag &= ~P_CONTINUED;
 			pid = p->p_pid;
@@ -1338,18 +1340,18 @@ loop:
 	}
 
 	if (nfound == 0) {
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 		return (ECHILD);
 	}
 
 	if (uap->options & SVR4_WNOHANG) {
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 		*retval = 0;
 		return (svr4_setinfo(0, NULL, 0, uap->info));
 	}
 
 	PROC_LOCK(q);
-	sx_sunlock(&proctree_lock);
+	sx_sunlock(&V_proctree_lock);
 	if (q->p_flag & P_STATCHILD) {
 		q->p_flag &= ~P_STATCHILD;
 		error = 0;

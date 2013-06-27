@@ -52,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <security/audit/audit.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+#define _VPS_MD_FUNCTIONS
+#include <machine/vps_md.h>
+
 static inline int
 syscallenter(struct thread *td, struct syscall_args *sa)
 {
@@ -150,6 +155,31 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 #endif
 		syscall_thread_exit(td, sa->callp);
 	}
+
+#ifdef VPS
+	/*
+	 * If thread was suspended by VPS vps_suspend, suspend it now
+	 * without any syscall error processing.
+	 *
+	 * XXX error/td_errno hack
+	 */
+	if (td->td_flags & TDF_VPSSUSPEND) {
+		DBGCORE("%s: td=%p suspending\n", __func__, td);
+		td->td_errno = error;
+		if (td->td_flags & TDF_NEEDSUSPCHK) {
+			PROC_LOCK(td->td_proc);
+			thread_suspend_check(0);
+			/*
+			 * Threads created by vps_restore() never
+			 * reach this point.
+			 */
+			PROC_UNLOCK(td->td_proc);
+		}
+		td->td_flags &= ~TDF_VPSSUSPEND;
+		error = td->td_errno;
+	}
+#endif
+
  retval:
 	KTR_STOP4(KTR_SYSC, "syscall", syscallname(p, sa->code),
 	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
@@ -228,8 +258,52 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 		td->td_pflags &= ~TDP_RFPPWAIT;
 		p2 = td->td_rfppwait_p;
 		PROC_LOCK(p2);
+#ifdef VPS
+		while (p2->p_flag & P_PPWAIT) {
+			cv_wait(&p2->p_pwait, &p2->p_mtx);
+			if (td->td_flags & TDF_VPSSUSPEND)
+				break;
+		}
+#else
 		while (p2->p_flag & P_PPWAIT)
 			cv_wait(&p2->p_pwait, &p2->p_mtx);
+#endif /* !VPS */
 		PROC_UNLOCK(p2);
 	}
+
+#ifdef VPS
+	/*
+	 * Have to duplicate this code block from syscallenter()
+	 * here because of above TDP_RFPPWAIT check.
+	 * 
+	 * syscallenter() calls sv_set_syscall_retval(), which
+	 * overwrites trapframe->tf_rax (the syscall number).
+	 */
+	/*
+	 * If thread was suspended by VPS vps_suspend, suspend it now
+	 * without any syscall error processing.
+	 *
+	 * XXX error/td_errno hack
+	 */
+	if (td->td_flags & TDF_VPSSUSPEND) {
+		DBGCORE("%s: td=%p suspending\n", __func__, td);
+
+		vps_md_syscallret(td, sa);
+
+		td->td_errno = error = EINTR;
+		td->td_errno = error;
+		if (td->td_flags & TDF_NEEDSUSPCHK) {
+			PROC_LOCK(td->td_proc);
+			thread_suspend_check(0);
+			/*
+			 * Threads created by vps_restore() never
+			 * reach this point.
+			 */
+			PROC_UNLOCK(td->td_proc);
+		}
+		td->td_flags &= ~TDF_VPSSUSPEND;
+		error = td->td_errno;
+	}
+#endif
+
 }

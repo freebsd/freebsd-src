@@ -108,6 +108,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <vps/vps.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif

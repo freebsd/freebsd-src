@@ -176,6 +176,16 @@ userret(struct thread *td, struct trapframe *frame)
 		msleep(p->p_racct, &p->p_mtx, 0, "racct", 0);
 	PROC_UNLOCK(p);
 #endif
+#ifdef VPS
+	/*
+	KASSERT(td->td_vps == NULL || td->td_vps == td->td_ucred->cr_vps,
+		("%s: bad vps ref: td=%p, td->td_vps=%p, td->td_ucred->cr_vps=%p\n",
+		__func__, td, td->td_vps, td->td_ucred->cr_vps));
+	*/
+	KASSERT(td->td_vps != NULL && td->td_vps == td->td_ucred->cr_vps,
+		("%s: bad vps ref: td=%p, td->td_vps=%p, td->td_ucred->cr_vps=%p\n",
+		__func__, td, td->td_vps, td->td_ucred->cr_vps));
+#endif
 }
 
 /*

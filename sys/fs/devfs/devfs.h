@@ -161,6 +161,10 @@ struct devfs_mount {
 	int			dm_holdcnt;
 	struct sx		dm_lock;
 	devfs_rsnum		dm_ruleset;
+#ifdef VPS
+	struct vps		*dm_vps;
+	int			dm_vps_rsnum;
+#endif
 };
 
 #define DEVFS_ROOTINO 2

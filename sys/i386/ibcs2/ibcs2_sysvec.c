@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
 
+#include <vps/vps.h>
+
 #include <i386/ibcs2/ibcs2_syscall.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 
@@ -115,14 +117,14 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 		break;
 	case MOD_UNLOAD:
 		/* if this was an ELF module we'd use elf_brand_inuse()... */
-		sx_slock(&allproc_lock);
+		sx_slock(&V_allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_sysent == &ibcs2_svr3_sysvec) {
 				rval = EBUSY;
 				break;
 			}
 		}
-		sx_sunlock(&allproc_lock);
+		sx_sunlock(&V_allproc_lock);
 		break;
 	default:
 	        rval = EOPNOTSUPP;

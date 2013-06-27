@@ -393,5 +393,6 @@ int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 int vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     int flags);
 long vmspace_swap_count(struct vmspace *vmspace);
+void vmspace_zone_reclaim(void);
 #endif				/* _KERNEL */
 #endif				/* _VM_MAP_ */

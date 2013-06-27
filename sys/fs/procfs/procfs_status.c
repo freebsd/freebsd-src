@@ -53,6 +53,9 @@
 #include <sys/sysent.h>
 #include <sys/tty.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
@@ -129,7 +132,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		calcru(p, &ut, &st);
 		PROC_SUNLOCK(p);
 		start = p->p_stats->p_start;
-		timevaladd(&start, &boottime);
+		timevaladd(&start, &G_boottime);
 		sbuf_printf(sb, " %jd,%ld %jd,%ld %jd,%ld",
 		    (intmax_t)start.tv_sec, start.tv_usec,
 		    (intmax_t)ut.tv_sec, ut.tv_usec,

@@ -50,6 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
+#include <sys/proc.h>
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <net/if.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -193,6 +197,29 @@ tcp_output(struct tcpcb *tp)
 #endif
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+#ifdef VPS
+	if (so->so_vnet->vnet_vps_flags & VPS_VNET_ABORT) {
+		printf("%s: VPS_VNET_ABORT --> returning 0, so=%p\n",
+			__func__, so);
+		return (0);
+	}
+	
+	/*
+	 * This can actually happen because we set the suspended flag
+	 * first and then suspend thread by thread ...
+	 * Better don't panic but return with EAGAIN.
+	 * XXX But make sure common user programs can deal with it.
+	 *
+	KASSERT( ! (so->so_vnet->vnet_vps_flags & VPS_VNET_SUSPENDED),
+		("%s: SUSPENDED vnet %p\n", __func__, so->so_vnet));
+	 */
+	if (so->so_vnet->vnet_vps_flags & VPS_VNET_SUSPENDED) {
+		printf("%s: VPS_VNET_SUSPENDED --> returning EINTR, so=%p\n",
+			__func__, so);
+		return (EINTR);
+	}
+#endif
 
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)

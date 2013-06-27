@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/jail.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -89,6 +92,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
+#endif
+
+#ifdef VPS
+static void tcp_usr_abort(struct socket *so);
 #endif
 
 /*
@@ -587,6 +594,14 @@ tcp_usr_disconnect(struct socket *so)
 	int error = 0;
 
 	TCPDEBUG0;
+#ifdef VPS
+	if (so->so_vnet->vnet_vps_flags & VPS_VNET_ABORT) {
+		DBGCORE("%s: VPS_VNET_ABORT --> tcp_usr_abort(so=%p)\n",
+			__func__, so);
+		tcp_usr_abort(so);
+		return (0);
+	}
+#endif
 	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_disconnect: inp == NULL"));
@@ -977,6 +992,15 @@ tcp_usr_close(struct socket *so)
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	TCPDEBUG0;
+
+#ifdef VPS
+	if (so->so_vnet->vnet_vps_flags & VPS_VNET_ABORT) {
+		DBGCORE("%s: VPS_VNET_ABORT --> tcp_usr_abort(so=%p)\n",
+			__func__, so);
+		tcp_usr_abort(so);
+		return;
+	}
+#endif
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_close: inp == NULL"));

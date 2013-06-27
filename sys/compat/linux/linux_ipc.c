@@ -35,9 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/limits.h>
-#include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
+#include <sys/msg.h>
+
+#include <vps/vps.h>
 
 #include "opt_compat.h"
 
@@ -52,6 +54,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_util.h>
+
+#define V_msginfo       VPSV(msginfo)
+#define V_seminfo       VPSV(seminfo)
+#define V_shminfo       VPSV(shminfo)
 
 struct l_seminfo {
 	l_int semmap;
@@ -575,7 +581,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		return (error);
 	case LINUX_IPC_INFO:
 	case LINUX_SEM_INFO:
-		bcopy(&seminfo, &linux_seminfo.semmni, sizeof(linux_seminfo) -
+		bcopy(&V_seminfo, &linux_seminfo.semmni, sizeof(linux_seminfo) -
 		    sizeof(linux_seminfo.semmap) );
 		/*
 		 * Linux does not use the semmap field but populates it with
@@ -594,7 +600,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		    PTRIN(args->arg.buf), sizeof(linux_seminfo));
 		if (error)
 			return (error);
-		td->td_retval[0] = seminfo.semmni;
+		td->td_retval[0] = V_seminfo.semmni;
 		return (0);			/* No need for __semctl call */
 	case LINUX_GETALL:
 		cmd = GETALL;
@@ -621,7 +627,7 @@ linux_msgsnd(struct thread *td, struct linux_msgsnd_args *args)
 	l_long lmtype;
 	int error;
 
-	if ((l_long)args->msgsz < 0 || args->msgsz > (l_long)msginfo.msgmax)
+	if ((l_long)args->msgsz < 0 || args->msgsz > (l_long)V_msginfo.msgmax)
 		return (EINVAL);
 	msgp = PTRIN(args->msgp);
 	if ((error = copyin(msgp, &lmtype, sizeof(lmtype))) != 0)
@@ -640,7 +646,7 @@ linux_msgrcv(struct thread *td, struct linux_msgrcv_args *args)
 	l_long lmtype;
 	int error;
 
-	if ((l_long)args->msgsz < 0 || args->msgsz > (l_long)msginfo.msgmax)
+	if ((l_long)args->msgsz < 0 || args->msgsz > (l_long)V_msginfo.msgmax)
 		return (EINVAL);
 	msgp = PTRIN(args->msgp);
 	if ((error = kern_msgrcv(td, args->msqid,
@@ -681,19 +687,19 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 		 * XXX MSG_INFO uses the same data structure but returns different
 		 * dynamic counters in msgpool, msgmap, and msgtql fields.
 		 */
-		linux_msginfo.msgpool = (long)msginfo.msgmni *
-		    (long)msginfo.msgmnb / 1024L;	/* XXX MSG_INFO. */
-		linux_msginfo.msgmap = msginfo.msgmnb;	/* XXX MSG_INFO. */
-		linux_msginfo.msgmax = msginfo.msgmax;
-		linux_msginfo.msgmnb = msginfo.msgmnb;
-		linux_msginfo.msgmni = msginfo.msgmni;
-		linux_msginfo.msgssz = msginfo.msgssz;
-		linux_msginfo.msgtql = msginfo.msgtql;	/* XXX MSG_INFO. */
-		linux_msginfo.msgseg = msginfo.msgseg;
+		linux_msginfo.msgpool = (long)V_msginfo.msgmni *
+		    (long)V_msginfo.msgmnb / 1024L;	/* XXX MSG_INFO. */
+		linux_msginfo.msgmap = V_msginfo.msgmnb;	/* XXX MSG_INFO. */
+		linux_msginfo.msgmax = V_msginfo.msgmax;
+		linux_msginfo.msgmnb = V_msginfo.msgmnb;
+		linux_msginfo.msgmni = V_msginfo.msgmni;
+		linux_msginfo.msgssz = V_msginfo.msgssz;
+		linux_msginfo.msgtql = V_msginfo.msgtql;	/* XXX MSG_INFO. */
+		linux_msginfo.msgseg = V_msginfo.msgseg;
 		error = copyout(&linux_msginfo, PTRIN(args->buf),
 		    sizeof(linux_msginfo));
 		if (error == 0)
-		    td->td_retval[0] = msginfo.msgmni;	/* XXX */
+		    td->td_retval[0] = V_msginfo.msgmni;	/* XXX */
 
 		return (error);
 	}

@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/sched.h>
 
+#include <vps/vps.h>
+
 #include <machine/frame.h>
 #include <machine/psl.h>
 #include <machine/segments.h>

@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/callout.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
@@ -109,6 +112,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	struct in6_addr daddr6 = ip6->ip6_dst;
 	struct in6_addr taddr6;
 	struct in6_addr myaddr6;
+	struct rtentry *rt = NULL;
 	char *lladdr = NULL;
 	struct ifaddr *ifa = NULL;
 	int lladdrlen = 0;
@@ -232,7 +236,6 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/* (2) check. */
 	if (ifa == NULL) {
-		struct rtentry *rt;
 		struct sockaddr_in6 tsin6;
 		int need_proxy;
 #ifdef RADIX_MPATH
@@ -266,7 +269,6 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 			 */
 			if (need_proxy)
 				proxydl = *SDL(rt->rt_gateway);
-			RTFREE_LOCKED(rt);
 		}
 		if (need_proxy) {
 			/*
@@ -277,6 +279,19 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 			if (ifa)
 				proxy = 1;
 		}
+
+#ifdef VPS
+		if (rt && (rt->rt_flags & RTF_PROTO1)) {
+			/* ''Proxy'' ns where we answer with our own lladdr. */
+			DBGCORE("%s: RTF_PROTO1 proxy\n", __func__);
+			ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
+				IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
+			proxy = 0;
+			memset(&proxydl, 0, sizeof (proxydl));
+		}
+#endif
+		if (rt != NULL)
+			RTFREE_LOCKED(rt);
 	}
 	if (ifa == NULL) {
 		/*
@@ -363,6 +378,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
  freeit:
 	if (ifa != NULL)
 		ifa_free(ifa);
+	if (rt)
+		RTFREE_LOCKED(rt);
 	m_freem(m);
 	return;
 
@@ -376,6 +393,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	ICMP6STAT_INC(icp6s_badns);
 	if (ifa != NULL)
 		ifa_free(ifa);
+	if (rt)
+		RTFREE_LOCKED(rt);
 	m_freem(m);
 }
 

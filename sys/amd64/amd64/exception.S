@@ -350,6 +350,9 @@ IDTVEC(fast_syscall)
 	/* Now emulate a trapframe. Make the 8 byte alignment odd for call. */
 	subq	$TF_SIZE,%rsp
 	/* defer TF_RSP till we have a spare register */
+#ifdef VPS
+	movq	$0x80,TF_TRAPNO(%rsp)
+#endif
 	movq	%r11,TF_RFLAGS(%rsp)
 	movq	%rcx,TF_RIP(%rsp)	/* %rcx original value is in %r10 */
 	movq	PCPU(SCRATCH_RSP),%r11	/* %r11 already saved */

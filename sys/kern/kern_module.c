@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/linker.h>
 
+#include <vps/vps.h>
+
 static MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
 struct module {
@@ -317,6 +319,11 @@ sys_modnext(struct thread *td, struct modnext_args *uap)
 
 	td->td_retval[0] = -1;
 
+#ifdef VPS
+	if (td->td_vps != vps0)
+		return (ENOSYS);
+#endif
+
 	MOD_SLOCK;
 	if (uap->modid == 0) {
 		mod = TAILQ_FIRST(&modules);
@@ -347,6 +354,11 @@ sys_modfnext(struct thread *td, struct modfnext_args *uap)
 	int error;
 
 	td->td_retval[0] = -1;
+
+#ifdef VPS
+	if (td->td_vps != vps0)
+		return (ENOSYS);
+#endif
 
 	MOD_SLOCK;
 	mod = module_lookupbyid(uap->modid);
@@ -379,6 +391,11 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 	int id, namelen, refs, version;
 	struct module_stat *stat;
 	char *name;
+
+#ifdef VPS
+	if (td->td_vps != vps0)
+		return (ENOSYS);
+#endif
 
 	MOD_SLOCK;
 	mod = module_lookupbyid(uap->modid);
@@ -430,6 +447,11 @@ sys_modfind(struct thread *td, struct modfind_args *uap)
 	char name[MAXMODNAME];
 	module_t mod;
 
+#ifdef VPS
+	if (td->td_vps != vps0)
+		return (ENOSYS);
+#endif
+
 	if ((error = copyinstr(uap->name, name, sizeof name, 0)) != 0)
 		return (error);
 
@@ -476,6 +498,11 @@ freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 	int id, namelen, refs, version;
 	struct module_stat32 *stat32;
 	char *name;
+
+#ifdef VPS
+	if (td->td_vps != vps0)
+		return (ENOSYS);
+#endif
 
 	MOD_SLOCK;
 	mod = module_lookupbyid(uap->modid);

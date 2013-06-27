@@ -62,6 +62,9 @@
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 static struct vop_vector devfs_vnodeops;
 static struct vop_vector devfs_specops;
 static struct fileops devfs_ops_f;
@@ -546,7 +549,7 @@ devfs_close(struct vop_close_args *ap)
 	 * plus the session), release the reference from the session.
 	 */
 	oldvp = NULL;
-	sx_xlock(&proctree_lock);
+	sx_xlock(&V_proctree_lock);
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
 		SESS_LOCK(td->td_proc->p_session);
 		VI_LOCK(vp);
@@ -558,7 +561,7 @@ devfs_close(struct vop_close_args *ap)
 		VI_UNLOCK(vp);
 		SESS_UNLOCK(td->td_proc->p_session);
 	}
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 	if (oldvp != NULL)
 		vrele(oldvp);
 	/*
@@ -684,12 +687,12 @@ devfs_getattr(struct vop_getattr_args *ap)
 	vap->va_blocksize = DEV_BSIZE;
 	vap->va_type = vp->v_type;
 
-#define fix(aa)							\
-	do {							\
-		if ((aa).tv_sec <= 3600) {			\
-			(aa).tv_sec = boottime.tv_sec;		\
-			(aa).tv_nsec = boottime.tv_usec * 1000; \
-		}						\
+#define fix(aa)								\
+	do {								\
+		if ((aa).tv_sec <= 3600) {				\
+			(aa).tv_sec = G_boottime.tv_sec;		\
+			(aa).tv_nsec = G_boottime.tv_usec * 1000; 	\
+		}							\
 	} while (0)
 
 	if (vp->v_type != VCHR)  {
@@ -763,9 +766,9 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 		vp = fp->f_vnode;
 
 		/* Do nothing if reassigning same control tty */
-		sx_slock(&proctree_lock);
+		sx_slock(&V_proctree_lock);
 		if (td->td_proc->p_session->s_ttyvp == vp) {
-			sx_sunlock(&proctree_lock);
+			sx_sunlock(&V_proctree_lock);
 			return (0);
 		}
 
@@ -776,7 +779,7 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 		td->td_proc->p_session->s_ttydp = cdev2priv(dev);
 		SESS_UNLOCK(td->td_proc->p_session);
 
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 
 		/* Get rid of reference to old control tty */
 		if (vpold)
@@ -1364,6 +1367,10 @@ devfs_remove(struct vop_remove_args *ap)
  * as well so that we create a new one next time around.
  *
  */
+#ifdef VPS
+extern struct cdev *dev_console;
+#endif
+
 static int
 devfs_revoke(struct vop_revoke_args *ap)
 {
@@ -1377,6 +1384,16 @@ devfs_revoke(struct vop_revoke_args *ap)
 
 	dev = vp->v_rdev;
 	cdp = cdev2priv(dev);
+
+#ifdef VPS
+	if (dev != dev_console && !strcmp(dev->si_name, "console")) {
+		/* 
+		 * This is a virtual console device, and we don't
+		 * like being revoked.
+		 */
+	   return (EPERM);
+	}
+#endif
  
 	dev_lock();
 	cdp->cdp_inuse++;

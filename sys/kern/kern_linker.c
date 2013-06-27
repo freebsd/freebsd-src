@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <vps/vps.h>
+
 #include <security/mac/mac_framework.h>
 
 #include "linker_if.h"
@@ -383,7 +385,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 	int foundfile, error, modules;
 
 	/* Refuse to load modules if securelevel raised */
-	if (prison0.pr_securelevel > 0)
+	if (V_prison0->pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
@@ -599,7 +601,7 @@ linker_file_unload(linker_file_t file, int flags)
 	int error, i;
 
 	/* Refuse to unload modules if securelevel raised. */
-	if (prison0.pr_securelevel > 0)
+	if (V_prison0->pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
@@ -1166,6 +1168,11 @@ sys_kldfind(struct thread *td, struct kldfind_args *uap)
 	linker_file_t lf;
 	int error;
 
+#ifdef VPS
+	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
+		return (error);
+#endif
+
 #ifdef MAC
 	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
@@ -1196,6 +1203,11 @@ sys_kldnext(struct thread *td, struct kldnext_args *uap)
 {
 	linker_file_t lf;
 	int error = 0;
+
+#ifdef VPS
+	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
+		return (error);
+#endif
 
 #ifdef MAC
 	error = mac_kld_check_stat(td->td_ucred);
@@ -1233,6 +1245,11 @@ sys_kldstat(struct thread *td, struct kldstat_args *uap)
 {
 	struct kld_file_stat stat;
 	int error, version;
+
+#ifdef VPS
+	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
+		return (error);
+#endif
 
 	/*
 	 * Check the version of the user's structure.
@@ -1297,6 +1314,11 @@ sys_kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 	module_t mp;
 	int error = 0;
 
+#ifdef VPS
+	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
+		return (error);
+#endif
+
 #ifdef MAC
 	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
@@ -1328,6 +1350,11 @@ sys_kldsym(struct thread *td, struct kldsym_args *uap)
 	linker_file_t lf;
 	struct kld_sym_lookup lookup;
 	int error = 0;
+
+#ifdef VPS
+	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
+		return (error);
+#endif
 
 #ifdef MAC
 	error = mac_kld_check_stat(td->td_ucred);

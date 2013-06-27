@@ -65,6 +65,30 @@
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 
+#ifdef _KERNEL
+#include <vps/vps.h>
+
+#define         V_allproc_lock          VPSV(allproc_lock)
+#define         V_proctree_lock         VPSV(proctree_lock)
+#define         V_ppeers_lock           VPSV(ppeers_lock)
+#define         V_proc_lock_names       VPSV(proc_lock_names)
+#define         V_allproc               VPSV(allproc)
+#define         V_zombproc              VPSV(zombproc)
+#define         V_nprocs                VPSV(nprocs)
+#define         V_nprocs_zomb           VPSV(nprocs_zomb)
+#define         V_maxproc               VPSV(vmaxproc)
+#define         V_maxprocperuid         VPSV(vmaxprocperuid)
+#define         V_lastpid               VPSV(lastpid)
+#define         V_pidhashtbl            VPSV(pidhashtbl)
+#define         V_pidhash               VPSV(pidhash)
+#define         V_pgrphashtbl           VPSV(pgrphashtbl)
+#define         V_pgrphash              VPSV(pgrphash)
+#define         V_initproc              VPSV(initproc)
+#define         V_initpgrp              VPSV(initpgrp)
+
+#define		G_maxproc		maxproc
+#endif /* _KERNEL */
+
 /*
  * One structure allocated per session.
  *
@@ -315,6 +339,10 @@ struct thread {
 	int		td_errno;	/* Error returned by last syscall. */
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
+#ifdef VPS
+        struct vps      *td_vps;        /* (k) Effective vps. */
+	struct vps_acc	*td_vps_acc;	/* (t) vps accounting info. */
+#endif
 	struct trapframe *td_intr_frame;/* (k) Frame of the current irq */
 	struct proc	*td_rfppwait_p;	/* (k) The vforked child */
 	struct vm_page	**td_ma;	/* (k) uio pages held */
@@ -365,11 +393,14 @@ do {									\
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
 #define	TDF_NOLOAD	0x00040000 /* Ignore during load avg calculations. */
-#define	TDF_UNUSED19	0x00080000 /* --available-- */
+//#define	TDF_UNUSED19	0x00080000 /* --available-- */
+#define TDF_VPSLIMIT  0x00080000 /* Thread is suspended by VPS resource limits. */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
-#define	TDF_UNUSED21	0x00200000 /* --available-- */
+//#define	TDF_UNUSED21	0x00200000 /* --available-- */
+#define TDF_PREEMPTED 0x0004000  /* Thread was preempted */
 #define	TDF_SWAPINREQ	0x00400000 /* Swapin request due to wakeup. */
-#define	TDF_UNUSED23	0x00800000 /* --available-- */
+//#define	TDF_UNUSED23	0x00800000 /* --available-- */
+#define TDF_VPSSUSPEND        0x00800000 /* VPS suspend pending */
 #define	TDF_SCHED0	0x01000000 /* Reserved for scheduler private use */
 #define	TDF_SCHED1	0x02000000 /* Reserved for scheduler private use */
 #define	TDF_SCHED2	0x04000000 /* Reserved for scheduler private use */
@@ -691,7 +722,7 @@ MALLOC_DECLARE(M_SUBPROC);
 #endif
 
 #define	FOREACH_PROC_IN_SYSTEM(p)					\
-	LIST_FOREACH((p), &allproc, p_list)
+	LIST_FOREACH((p), &V_allproc, p_list)
 #define	FOREACH_THREAD_IN_PROC(p, td)					\
 	TAILQ_FOREACH((td), &(p)->p_threads, td_plist)
 
@@ -793,36 +824,63 @@ extern pid_t pid_max;
 
 #define	THREAD_SLEEPING_OK()		((curthread)->td_no_sleeping--)
 
-#define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
+#define PIDHASH(pid)    (&V_pidhashtbl[(pid) & V_pidhash])
+#if 0
+//delete
+#ifndef VPS
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
 extern u_long pidhash;
+#endif
+#endif
+LIST_HEAD(pidhashhead, proc);
+VPS_DECLARE(struct pidhashhead *, pidhashtbl);
+VPS_DECLARE(u_long, pidhash);
+
 #define	TIDHASH(tid)	(&tidhashtbl[(tid) & tidhash])
 extern LIST_HEAD(tidhashhead, thread) *tidhashtbl;
 extern u_long tidhash;
 extern struct rwlock tidhash_lock;
 
-#define	PGRPHASH(pgid)	(&pgrphashtbl[(pgid) & pgrphash])
-extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
-extern u_long pgrphash;
+#define PGRPHASH(pgid)  (&V_pgrphashtbl[(pgid) & V_pgrphash])
 
-extern struct sx allproc_lock;
-extern struct sx proctree_lock;
-extern struct mtx ppeers_lock;
+LIST_HEAD(pgrphashhead, pgrp);
+VPS_DECLARE(struct pgrphashhead *, pgrphashtbl);
+VPS_DECLARE(u_long, pgrphash);
+
+VPS_DECLARE(struct sx, allproc_lock);
+VPS_DECLARE(struct sx, proctree_lock);
+VPS_DECLARE(struct mtx, ppeers_lock);
+
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0. */
 extern struct vmspace vmspace0;		/* VM space for proc0. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
-extern int lastpid;
-extern int nprocs, maxproc;		/* Current and max number of procs. */
+
+VPS_DECLARE(int, lastpid);
+VPS_DECLARE(int, randompid);
+VPS_DECLARE(int, nprocs);		/* Current number of procs. */
+VPS_DECLARE(int, nprocs_zomb);
+VPS_DECLARE(int, vmaxproc);		/* Max number of procs. */
+VPS_DECLARE(int, vmaxprocperuid);	/* Max procs per uid. */
+VPS_DECLARE(int, pidchecked);
+VPS_DECLARE(struct timeval, lastfail);
+VPS_DECLARE(int, curfail);
+VPS_DECLARE(char *, proc_lock_names);
+
+extern int maxproc;			/* Max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
+
 extern u_long ps_arg_cache_limit;
 
 LIST_HEAD(proclist, proc);
 TAILQ_HEAD(procqueue, proc);
 TAILQ_HEAD(threadqueue, thread);
-extern struct proclist allproc;		/* List of all processes. */
-extern struct proclist zombproc;	/* List of zombie processes. */
-extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
+
+VPS_DECLARE(struct proclist, allproc);	/* List of all processes. */
+VPS_DECLARE(struct proclist, zombproc);	/* List of zombie processes. */
+VPS_DECLARE(struct proc *, initproc);	/* Process slot for init. */
+VPS_DECLARE(struct pgrp *, initpgrp);
+extern struct proc *pageproc;		/* Process slots for pager. */
 
 extern struct uma_zone *proc_zone;
 
@@ -877,6 +935,10 @@ int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
+#ifdef VPS
+void	procuninit(void);
+#endif
+void	proc_zone_reclaim(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
@@ -945,6 +1007,7 @@ int	thread_unsuspend_one(struct thread *td);
 void	thread_unthread(struct thread *td);
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
+void	thread_zone_reclaim(void);
 
 static __inline int
 curthread_pflags_set(int flags)

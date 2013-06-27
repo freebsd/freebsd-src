@@ -89,8 +89,8 @@ int	cpu_class;
 u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 char machine[] = MACHINE;
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
-    machine, 0, "Machine class");
+_SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
+    machine, 0, "Machine class", VPS_PUBLIC);
 
 static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 

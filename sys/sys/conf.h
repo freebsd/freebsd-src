@@ -276,6 +276,10 @@ int	make_dev_p(int _flags, struct cdev **_cdev, struct cdevsw *_devsw,
 		const char *_fmt, ...) __printflike(8, 9);
 struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...)
 		__printflike(2, 3);
+#ifdef VPS
+struct cdev *make_dev_alias_cred(struct cdev *_pdev, struct ucred *_cr,
+		const char *_fmt, ...) __printflike(3, 4);
+#endif
 int	make_dev_alias_p(int _flags, struct cdev **_cdev, struct cdev *_pdev,
 		const char *_fmt, ...) __printflike(4, 5);
 int	make_dev_physpath_alias(int _flags, struct cdev **_cdev,

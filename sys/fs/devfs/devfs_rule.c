@@ -105,10 +105,8 @@ static void devfs_rule_applyde_recursive(struct devfs_krule *dk,
 static void devfs_rule_applydm(struct devfs_krule *dk, struct devfs_mount *dm);
 static int  devfs_rule_autonumber(struct devfs_ruleset *ds, devfs_rnum *rnp);
 static struct devfs_krule *devfs_rule_byid(devfs_rid rid);
-static int  devfs_rule_delete(struct devfs_krule *dkp);
 static struct cdev *devfs_rule_getdev(struct devfs_dirent *de);
 static int  devfs_rule_input(struct devfs_rule *dr, struct devfs_mount *dm);
-static int  devfs_rule_insert(struct devfs_rule *dr);
 static int  devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de);
 static int  devfs_rule_matchpath(struct devfs_krule *dk,
 		struct devfs_dirent *de);
@@ -118,10 +116,12 @@ static void devfs_ruleset_applyde(struct devfs_ruleset *ds,
 		struct devfs_dirent *de, unsigned depth);
 static void devfs_ruleset_applydm(struct devfs_ruleset *ds,
 		struct devfs_mount *dm);
-static struct devfs_ruleset *devfs_ruleset_bynum(devfs_rsnum rsnum);
 static struct devfs_ruleset *devfs_ruleset_create(devfs_rsnum rsnum);
 static void devfs_ruleset_reap(struct devfs_ruleset *dsp);
+static struct devfs_ruleset *devfs_ruleset_bynum(devfs_rsnum rsnum);
+static int  devfs_rule_delete(struct devfs_krule *dkp);
 static int  devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm);
+static int  devfs_rule_insert(struct devfs_rule *dr);
 
 static struct sx sx_rules;
 SX_SYSINIT(sx_rules, &sx_rules, "DEVFS ruleset lock");

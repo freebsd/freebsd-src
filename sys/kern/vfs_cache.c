@@ -309,8 +309,13 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
 static void cache_zap(struct namecache *ncp);
 static int vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
     u_int *buflen);
+#ifdef VPS
+int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, u_int buflen);
+#else
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen);
+#endif
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -1264,7 +1269,11 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
 /*
  * The magic behind kern___getcwd() and vn_fullpath().
  */
+#ifdef VPS
+int
+#else
 static int
+#endif
 vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen)
 {

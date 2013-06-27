@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+#include <vps/vps.h>
+
 #include <net/if.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -540,10 +542,10 @@ nfs_mountroot(struct mount *mp)
 	 * set hostname here and then let the "/etc/rc.xxx" files
 	 * mount the right /var based upon its preset value.
 	 */
-	mtx_lock(&prison0.pr_mtx);
-	strlcpy(prison0.pr_hostname, nd->my_hostnam,
-	    sizeof (prison0.pr_hostname));
-	mtx_unlock(&prison0.pr_mtx);
+	mtx_lock(&V_prison0->pr_mtx);
+	strlcpy(V_prison0->pr_hostname, nd->my_hostnam,
+	    sizeof (V_prison0->pr_hostname));
+	mtx_unlock(&V_prison0->pr_mtx);
 	inittodr(ntohl(nd->root_time));
 	return (0);
 }

@@ -43,6 +43,9 @@
 
 #include <sys/kdb.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
 
@@ -145,12 +148,23 @@ int
 devfs_dev_exists(const char *name)
 {
 	struct cdev_priv *cdp;
+#ifdef VPS
+	struct vps *vps = curthread->td_vps;
+#endif
 
 	mtx_assert(&devmtx, MA_OWNED);
 
 	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
 		if ((cdp->cdp_flags & CDP_ACTIVE) == 0)
 			continue;
+#ifdef VPS
+		if ((cdp->cdp_c.si_cred && cdp->cdp_c.si_cred->cr_vps != vps))
+			/* 
+			 * This device does not belong to the
+			 * vps instance that is asking.
+			 */
+			continue;
+#endif
 		if (devfs_pathpath(cdp->cdp_c.si_name, name) != 0)
 			return (1);
 		if (devfs_pathpath(name, cdp->cdp_c.si_name) != 0)
@@ -546,6 +560,10 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			continue;
 		}
 
+#ifdef VPS
+		if (vps_devfs_whiteout_cb(dm, cdp))
+			continue;
+#endif /* VPS */
 
 		cdp->cdp_inuse++;
 		dev_unlock();

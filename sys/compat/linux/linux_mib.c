@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sx.h>
 
+#include <vps/vps.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #else
@@ -282,10 +284,10 @@ linux_find_prison(struct prison *spr, struct prison **prp)
 
 	if (!linux_osd_jail_slot)
 		/* In case osd_register failed. */
-		spr = &prison0;
+		spr = V_prison0;
 	for (pr = spr;; pr = pr->pr_parent) {
 		mtx_lock(&pr->pr_mtx);
-		lpr = (pr == &prison0)
+		lpr = (pr == V_prison0)
 		    ? &lprison0
 		    : osd_jail_get(pr, linux_osd_jail_slot);
 		if (lpr != NULL)
@@ -660,7 +662,7 @@ linux_osd_jail_register(void)
 	if (linux_osd_jail_slot > 0) {
 		/* Copy the system linux info to any current prisons. */
 		sx_xlock(&allprison_lock);
-		TAILQ_FOREACH(pr, &allprison, pr_list)
+		TAILQ_FOREACH(pr, &V_allprison, pr_list)
 			(void)linux_alloc_prison(pr, NULL);
 		sx_xunlock(&allprison_lock);
 	}

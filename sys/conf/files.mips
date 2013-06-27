@@ -45,6 +45,7 @@ mips/mips/trap.c			standard
 mips/mips/uio_machdep.c			standard
 mips/mips/uma_machdep.c			standard
 mips/mips/vm_machdep.c			standard
+mips/mips/vps_machdep.c			optional	vps
 
 # misc opt-in bits
 kern/kern_clocksource.c			standard

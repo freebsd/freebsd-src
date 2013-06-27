@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/rwlock.h>
 
+#include <vps/vps.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -1153,7 +1155,7 @@ ereply:
 		 * for debugging purposes.
 		 */
 		if (nfsver.tv_sec == 0)
-			nfsver = boottime;
+			nfsver = G_boottime;
 		*tl++ = txdr_unsigned(nfsver.tv_sec);
 		*tl = txdr_unsigned(nfsver.tv_usec);
 	} else if (!error) {
@@ -3419,7 +3421,7 @@ ereply:
 	if (!error) {
 		tl = nfsm_build(u_int32_t *, NFSX_V3WRITEVERF);
 		if (nfsver.tv_sec == 0)
-			nfsver = boottime;
+			nfsver = G_boottime;
 		*tl++ = txdr_unsigned(nfsver.tv_sec);
 		*tl = txdr_unsigned(nfsver.tv_usec);
 	} else {

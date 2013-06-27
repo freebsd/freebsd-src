@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
 
+#include <vps/vps.h>
+#include <vps/vps_account.h>
+
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>

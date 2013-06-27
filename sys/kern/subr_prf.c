@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/ctype.h>
 
+#include <vps/vps.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -146,7 +148,7 @@ uprintf(const char *fmt, ...)
 	if (TD_IS_IDLETHREAD(td))
 		return (0);
 
-	sx_slock(&proctree_lock);
+	sx_slock(&V_proctree_lock);
 	p = td->td_proc;
 	PROC_LOCK(p);
 	if ((p->p_flag & P_CONTROLT) == 0) {
@@ -170,7 +172,7 @@ uprintf(const char *fmt, ...)
 	tty_unlock(pca.tty);
 	va_end(ap);
 out:
-	sx_sunlock(&proctree_lock);
+	sx_sunlock(&V_proctree_lock);
 	return (retval);
 }
 
@@ -187,7 +189,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	struct putchar_arg pca;
 	struct session *sess = NULL;
 
-	sx_slock(&proctree_lock);
+	sx_slock(&V_proctree_lock);
 	if (pri != -1)
 		flags |= TOLOG;
 	if (p != NULL) {
@@ -218,7 +220,7 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	if (sess != NULL)
 		sess_release(sess);
 	msgbuftrigger = 1;
-	sx_sunlock(&proctree_lock);
+	sx_sunlock(&V_proctree_lock);
 }
 
 /*
@@ -1007,7 +1009,12 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 	u_int seq;
 	int error, len;
 
+#ifdef VPS
+	/* Always check for PRIV_MSGBUF. */
+	if (1) {
+#else
 	if (!unprivileged_read_msgbuf) {
+#endif
 		error = priv_check(req->td, PRIV_MSGBUF);
 		if (error)
 			return (error);
@@ -1030,9 +1037,9 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 	}
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, msgbuf,
+_SYSCTL_PROC(_kern, OID_AUTO, msgbuf,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer");
+    NULL, 0, sysctl_kern_msgbuf, "A", "Contents of kernel message buffer", VPS_PUBLIC);
 
 static int msgbuf_clearflag;
 

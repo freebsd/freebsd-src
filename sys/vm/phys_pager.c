@@ -165,7 +165,8 @@ phys_pager_putpages(vm_object_t object, vm_page_t *m, int count, boolean_t sync,
 		    int *rtvals)
 {
 
-	panic("phys_pager_putpage called");
+	panic("phys_pager_putpage called: object=%p m=%p count=%u sync=%u rtvals=%p",
+		object, m, count, sync, rtvals);
 }
 
 /*

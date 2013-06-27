@@ -35,6 +35,11 @@
 
 #include <sys/event.h>		/* for struct klist */
 
+#ifdef VPS
+#include <sys/condvar.h>
+#include <vm/uma.h>
+#endif
+
 struct selfd;
 TAILQ_HEAD(selfdlist, selfd);
 
@@ -56,6 +61,49 @@ void	selrecord(struct thread *selector, struct selinfo *sip);
 void	selwakeup(struct selinfo *sip);
 void	selwakeuppri(struct selinfo *sip, int pri);
 void	seltdfini(struct thread *td);
-#endif
+
+#ifdef VPS
+/*
+ * One seltd per-thread allocated on demand as needed.
+ *
+ *      t - protected by st_mtx
+ *      k - Only accessed by curthread or read-only
+ */
+struct seltd {
+        STAILQ_HEAD(, selfd)    st_selq;        /* (k) List of selfds. */
+        struct selfd            *st_free1;      /* (k) free fd for read set. */
+        struct selfd            *st_free2;      /* (k) free fd for write set. */
+        struct mtx              st_mtx;         /* Protects struct seltd */
+        struct cv               st_wait;        /* (t) Wait channel. */
+        int                     st_flags;       /* (t) SELTD_ flags. */
+};
+
+#define SELTD_PENDING   0x0001                  /* We have pending events. */
+#define SELTD_RESCAN    0x0002                  /* Doing a rescan. */
+
+/*
+ * One selfd allocated per-thread per-file-descriptor.
+ *      f - protected by sf_mtx
+ */
+struct selfd {
+        STAILQ_ENTRY(selfd)     sf_link;        /* (k) fds owned by this td. */
+        TAILQ_ENTRY(selfd)      sf_threads;     /* (f) fds on this selinfo. */
+        struct selinfo          *sf_si;         /* (f) selinfo when linked. */
+        struct mtx              *sf_mtx;        /* Pointer to selinfo mtx. */
+        struct seltd            *sf_td;         /* (k) owning seltd. */
+        void                    *sf_cookie;     /* (k) fd or pollfd. */
+};
+
+extern uma_zone_t selfd_zone;
+MALLOC_DECLARE(M_SELECT);
+
+void	selfdalloc(struct thread *td, void *cookie);
+void	selfdfree(struct seltd *stp, struct selfd *sfp);
+int	seltdwait(struct thread *td, sbintime_t sbt, sbintime_t precision);
+void	seltdinit(struct thread *td);
+void	seltdclear(struct thread *td);
+#endif /* VPS */
+
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SELINFO_H_ */

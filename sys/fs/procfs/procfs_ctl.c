@@ -47,6 +47,7 @@
 #include <sys/signalvar.h>
 #include <sys/sx.h>
 #include <sys/uio.h>
+#include <vps/vps.h>
 
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
@@ -117,7 +118,7 @@ procfs_control(struct thread *td, struct proc *p, int op)
 	 * by the calling process.
 	 */
 	if (op == PROCFS_CTL_ATTACH) {
-		sx_xlock(&proctree_lock);
+		sx_xlock(&V_proctree_lock);
 		PROC_LOCK(p);
 		if ((error = p_candebug(td, p)) != 0)
 			goto out;
@@ -150,7 +151,7 @@ procfs_control(struct thread *td, struct proc *p, int op)
 		kern_psignal(p, SIGSTOP);
 out:
 		PROC_UNLOCK(p);
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 		return (error);
 	}
 
@@ -222,7 +223,7 @@ out:
 		PROC_UNLOCK(p);
 
 		/* give process back to original parent */
-		sx_xlock(&proctree_lock);
+		sx_xlock(&V_proctree_lock);
 		if (p->p_oppid != p->p_pptr->p_pid) {
 			struct proc *pp;
 
@@ -236,7 +237,7 @@ out:
 			PROC_LOCK(p);
 		p->p_oppid = 0;
 		p->p_flag &= ~P_WAITED;	/* XXX ? */
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 
 		wakeup(td->td_proc);	/* XXX for CTL_WAIT below ? */
 

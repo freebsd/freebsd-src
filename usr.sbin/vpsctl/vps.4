@@ -1,0 +1,224 @@
+.\"
+.\" $Id: vps.4 120 2012-08-30 11:14:36Z klaus $
+.\"
+.\" The following commands are required for all man pages.
+.Dd August 29, 2012
+.Os
+.Dt VPS 4
+.Sh NAME
+.Nm vps
+.Nd "Virtual Private Systems"
+.\" 
+.\" 
+.Sh SYNOPSIS
+To compile VPS into the kernel,
+place following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "option VPS"
+.Cd "option VIMAGE"
+.Ed
+.Pp
+The core code will be statically linked into the kernel,
+and some additional modules will be built:
+.Bd -ragged -offset indent
+.\" XXX which macro can be used here ?
+.Cd vps_dev.ko
+.Cd vps_account.ko
+.Cd vps_suspend.ko
+.Cd vps_libdump.ko
+.Cd vps_snapst.ko
+.Cd vps_restore.ko
+.Cd vps_ddb.ko
+.Cd vpsfs.ko
+.Cd if_vps.ko
+.Ed
+.Pp
+In order to have the all the code linked into the kernel
+rather than having several loadable modules, add:
+.Bd -ragged -offset indent
+.Cd "option VPS_STATIC"
+.Ed
+.\" 
+.\" 
+.Sh DESCRIPTION
+Virtual Private Systems (short VPS) is an operating system level
+virtualization implementation.
+.Pp
+Virtualization solutions like XEN divide the host's resources into
+several, often fixed-sized, parts, and runs several instances
+of the same or different operating systems.
+This implies a big performance impact, since loads of translation work
+for hardware access is necessary.
+Furthermore, resources can't be shared and overcommitted very well.
+.Pp
+In VPS, in comparison, the virtualization takes place one level
+higher, in the actual operating system.
+The drawback is that you can't provide different operating systems
+or versions, but there is only very little performance impact compared
+to a native environment.
+Resource sharing, like diskspace and memory overcommittment work much
+better, too.
+.Pp
+For network stack virtualization
+.Xr vimage/vnet
+is used.
+.Pp
+VPS is capable of migrating a running instance to another physical host
+without closing any process, TCP session or any other resource.
+.Pp
+Currently, since VPS is still experimental, not all resources
+or system setups are supported yet for live migration.
+.\"
+.Pp
+Description of the kernel modules:
+.Bl -tag -width indent
+.\"
+.\"
+.It Cd vps_dev.ko
+This module provides the
+.Ar /dev/vps
+interface and all the procedures required for
+.Xr vpsctl 8
+to work.
+.\"
+.\"
+.It Cd vps_account.ko
+This module provides the resource accounting and limiting functionality.
+.\"
+.\"
+.It Cd vps_suspend.ko
+This module provides the suspend and resume commands described in
+.Xr vpsctl 8
+under
+.Cm suspend
+and
+.Cm resume .
+.\"
+.\"
+.It Cd vps_libdump.ko
+This module provides common routines for both the snapshot and restore modules.
+.\"
+.\"
+.It Cd vps_snapst.ko
+This module provides the snapshot functionality described in
+.Xr vpsctl 8
+under
+.Cm snapshot .
+.\"
+.\"
+.It Cd vps_restore.ko
+This module provides the functionality to restore a VPS instance
+from a snapshot file or in live host to host migration.
+See
+.Xr vpsctl 8
+under
+.Cm restore
+and
+.Cm migrate .
+.\"
+.\"
+.It Cd vps_ddb.ko
+If compiled with
+.Cd option DDB
+this modules provides debugging routines.
+.\"
+.\"
+.It Cd vpsfs.ko
+This module provides a virtual filesystem, that allows VPS to account
+and restrict diskspace usage per instance.
+Also see
+.Xr mount_vpsfs 8 .
+.\"
+.\"
+.It Cd if_vps.ko
+This module provides virtual network interfaces named
+.Ar vpsN .
+Each VPS instance can have zero, one or more interfaces.
+Whenever a packet is input to a vps interface, it is output
+on the vps interface that has the destination address of the packet
+configured on it AND is allowed to have this address by means of
+VPS instance configuration.
+.Pp
+Interfaces can be created using the 'ifconfig create' command,
+but usually
+.Xr vpsctl 8
+will create and destroy them as needed.
+.\".Pp
+.\"On load of the module
+.\".Ar vps0
+.\"is automatically created and later used as the default output interface.
+The first interface created is used as the default output interface,
+so after loading the module
+.Ar vps0 ,
+should be created, set to UP and kept on the main vps instance.
+.El
+.Pp
+If you don't want a certain functionality simply don't load the
+respective module.
+.Pp
+.\" 
+.\" 
+.\" .Sh IMPLEMENTATION NOTES
+.\" 
+.\" 
+.Sh DIAGNOSTICS
+.\" 
+.Pp
+If compiled with option
+.Cd DIAGNOSTIC
+following sysctls are available:
+.Pp
+.Dl debug.vps_core_debug
+.Dl debug.vps_if_debug
+.Dl debug.vps_dev_debug
+.Dl debug.vps_user_debug
+.Dl debug.vps_snapst_debug
+.Dl debug.vps_restore_debug
+.Dl debug.vps_account_debug
+.Dl debug.vps_vpsfs_debug
+.Pp
+Each of them enables/disables debug output to the
+kernel message buffer for the corresponding module.
+.Pp
+.\" 
+.\" .Sh COMPATIBILITY
+.\" 
+.\" 
+.Sh SEE ALSO
+.Xr vps 9 ,
+.Xr vpsctl 8 ,
+.Xr vps.conf 5 ,
+.Xr mount_vpsfs 8 ,
+.Ad http://www.7he.at/freebsd/vps/
+.\" 
+.\" 
+.\" .Sh STANDARDS
+.\" 
+.\" 
+.Sh HISTORY
+Work on VPS was started in February 2009.
+.\" 
+.\" 
+.Sh AUTHORS
+.Pp
+Virtual Private Systems for FreeBSD and this manual page as well,
+were written by
+.An "Klaus P. Ohrhallinger" .
+.Pp
+Development of this software was partly funded by:
+.Pp
+TransIP.nl <http://www.transip.nl/>
+.\"
+.\"
+.Sh BUGS
+VPS is in an early stage of development and has to be considered as
+experimental.
+This means many bugs have to be expected.
+.Pp
+Please submit bug reports to
+.Ad freebsd-vps@7he.at .
+.\"
+.\"
+.Sh VERSION
+$Id: vps.4 120 2012-08-30 11:14:36Z klaus $

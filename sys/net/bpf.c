@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <net/bpfdesc.h>
 #include <net/vnet.h>
 
+#include <vps/vps.h>
+
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <sys/kernel.h>
@@ -2245,7 +2247,7 @@ bpf_bintime2ts(struct bintime *bt, struct bpf_ts *ts, int tstype)
 
 	if ((tstype & BPF_T_MONOTONIC) == 0) {
 		bt2 = *bt;
-		bintime_add(&bt2, &boottimebin);
+		bintime_add(&bt2, &V_boottimebin);
 		bt = &bt2;
 	}
 	switch (BPF_T_FORMAT(tstype)) {

@@ -315,6 +315,8 @@ in_rtqdrain(void)
 
 		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
 			rnh = rt_tables_get_rnh(fibnum, AF_INET);
+			if (rnh == NULL)
+				continue;
 			arg.found = arg.killed = 0;
 			arg.rnh = rnh;
 			arg.nextstop = 0;
@@ -372,11 +374,67 @@ in_inithead(void **head, int off)
 }
 
 #ifdef VIMAGE
+__attribute__ ((unused))
+static int
+in_rtqkill_hard(struct radix_node *rn, void *rock)
+{
+	struct rtqk_arg *ap = rock;
+	struct rtentry *rt = (struct rtentry *)rn;
+	int err;
+
+	RADIX_NODE_HEAD_WLOCK_ASSERT(ap->rnh);
+
+	if (1) {
+		ap->found++;
+
+		if (1) {
+			if (0 && rt->rt_refcnt > 0)
+				panic("rtqkill route really not free");
+
+			err = in_rtrequest(RTM_DELETE,
+					(struct sockaddr *)rt_key(rt),
+					rt->rt_gateway, rt_mask(rt),
+					rt->rt_flags | RTF_RNH_LOCKED, 0,
+					rt->rt_fibnum);
+			if (err) {
+				log(LOG_WARNING, "in_rtqkill: error %d\n", err);
+			} else {
+				ap->killed++;
+			}
+		}
+	}
+
+	return 0;
+}
+
 int
 in_detachhead(void **head, int off)
 {
+	struct radix_node_head *rnh;
+	struct rtqk_arg arg;
 
 	callout_drain(&V_rtq_timer);
+
+	rnh = *head;
+
+	arg.found = arg.killed = 0;
+	arg.rnh = rnh;
+	arg.nextstop = 0;
+	arg.draining = 1;
+	arg.updating = 0;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	//rnh->rnh_walktree(rnh, in_rtqkill_hard, &arg);
+	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+
+	/*
+	printf("%s: found=%d killed=%d\n",
+		__func__, arg.found, arg.killed);
+	*/
+
+	/* XXX determine if tree is actually as empty as it can be. */
+	rn_detachhead(head);
+
 	return (1);
 }
 #endif

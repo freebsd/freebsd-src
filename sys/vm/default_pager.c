@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 
+#include <vps/vps_account.h>
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>

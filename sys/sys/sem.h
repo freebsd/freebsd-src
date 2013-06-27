@@ -12,6 +12,10 @@
 
 #include <sys/ipc.h>
 
+#if defined(_KERNEL) && defined(VPS)
+#include <vps/vps.h>
+#endif
+
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
@@ -117,7 +121,12 @@ struct seminfo {
 		semvmx,		/* semaphore maximum value */
 		semaem;		/* adjust on exit max value */
 };
+#ifndef VPS
 extern struct seminfo	seminfo;
+#else
+VPS_DECLARE(struct seminfo, seminfo);
+#define V_seminfo	VPSV(seminfo)
+#endif
 
 /*
  * Kernel wrapper for the user-level structure

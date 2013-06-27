@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <geom/geom.h>
 
 /*
@@ -980,10 +983,14 @@ vfs_mountroot(void)
 	inittodr(timebase);
 
 	/* Keep prison0's root in sync with the global rootvnode. */
-	mtx_lock(&prison0.pr_mtx);
-	prison0.pr_root = rootvnode;
-	vref(prison0.pr_root);
-	mtx_unlock(&prison0.pr_mtx);
+	mtx_lock(&V_prison0->pr_mtx);
+	V_prison0->pr_root = rootvnode;
+	vref(V_prison0->pr_root);
+	mtx_unlock(&V_prison0->pr_mtx);
+#ifdef VPS
+	/* XXX locking */
+	vps0->_rootvnode = rootvnode;
+#endif
 
 	mtx_lock(&mountlist_mtx);
 	atomic_store_rel_int(&root_mount_complete, 1);

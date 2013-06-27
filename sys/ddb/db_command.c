@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/setjmp.h>
 
+#include <vps/vps.h>
+
 /*
  * Exported global variables
  */

@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/random.h>
 
+#include <vps/vps.h>
+
 #include <vm/uma.h>
 
 #include <net/route.h>
@@ -357,15 +359,31 @@ tcp_init(void)
 		    "clipped from %d to %d.\n", __func__, oldhashsize,
 		    hashsize);
 	}
+	/*
+	 * Until UMA supports draining a UMA_ZONE_NOFREE zone on destroy,
+	 * UMA_ZONE_NOFREE can't be specified here.
+	 */
 	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
+#ifdef VIMAGE
+	    "tcp_inpcb", tcp_inpcb_init, NULL, 0,
+#else
 	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE,
+#endif
 	    IPI_HASHFIELDS_4TUPLE);
 
 	/*
 	 * These have to be type stable for the benefit of the timers.
 	 */
+	/*
+	 * Until UMA supports draining a UMA_ZONE_NOFREE zone on destroy,
+	 * UMA_ZONE_NOFREE can't be specified here.
+	 */
 	V_tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+#ifdef VIMAGE
+		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+#else
+		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+#endif
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
 	uma_zone_set_warning(V_tcpcb_zone, "kern.ipc.maxsockets limit reached");
 
@@ -376,7 +394,11 @@ tcp_init(void)
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
+#ifdef VIMAGE
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+#else
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+#endif
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
@@ -436,6 +458,10 @@ tcp_destroy(void)
 	in_pcbinfo_destroy(&V_tcbinfo);
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
+
+	/* VPS */
+	hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_OUT]);
+	hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
 }
 #endif
 
@@ -1275,7 +1301,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist,
+SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
     tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
 

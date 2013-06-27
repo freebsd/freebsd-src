@@ -272,6 +272,7 @@ SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, tcp_expire, CTLFLAG_RW,
     &VNET_NAME(flowtable_tcp_expire), 0,
     "seconds after which to remove flow allocated to a TCP connection.");
 
+MALLOC_DEFINE(M_FLOWTBL, "flowtbl", "flowtable");
 
 /*
  * Maximum number of flows that can be allocated of a given type.
@@ -1308,7 +1309,7 @@ flowtable_alloc(char *name, int nentry, int flags)
 	KASSERT(nentry > 0, ("nentry must be > 0, is %d\n", nentry));
 
 	ft = malloc(sizeof(struct flowtable),
-	    M_RTABLE, M_WAITOK | M_ZERO);
+	    M_FLOWTBL, M_WAITOK | M_ZERO);
 
 	ft->ft_name = name;
 	ft->ft_flags = flags;
@@ -1325,7 +1326,7 @@ flowtable_alloc(char *name, int nentry, int flags)
 		for (i = 0; i <= mp_maxid; i++) {
 			ft->ft_table.pcpu[i] =
 			    malloc(nentry*sizeof(struct flentry *),
-				M_RTABLE, M_WAITOK | M_ZERO);
+				M_FLOWTBL, M_WAITOK | M_ZERO);
 			ft->ft_masks[i] = bit_alloc(nentry);
 		}
 	} else {
@@ -1336,9 +1337,9 @@ flowtable_alloc(char *name, int nentry, int flags)
 		ft->ft_unlock = flowtable_global_unlock;
 		ft->ft_table.global =
 			    malloc(nentry*sizeof(struct flentry *),
-				M_RTABLE, M_WAITOK | M_ZERO);
+				M_FLOWTBL, M_WAITOK | M_ZERO);
 		ft->ft_locks = malloc(ft->ft_lock_count*sizeof(struct mtx),
-				M_RTABLE, M_WAITOK | M_ZERO);
+				M_FLOWTBL, M_WAITOK | M_ZERO);
 		for (i = 0; i < ft->ft_lock_count; i++)
 			mtx_init(&ft->ft_locks[i], "flow", NULL, MTX_DEF|MTX_DUPOK);
 
@@ -1375,6 +1376,82 @@ flowtable_alloc(char *name, int nentry, int flags)
 	}
 
 	return (ft);
+}
+
+/*
+ * Since this is called from ip_destroy it is assumed
+ * that there will be no more access and thus no locking
+ * required.
+ */
+static bitstr_t * flowtable_mask_pcpu(struct flowtable *ft, int cpuid);
+static struct flentry ** flowtable_entry_pcpu(struct flowtable *ft, uint32_t hash, int cpuid);
+static void fle_free(struct flentry *fle, struct flowtable *ft);
+void
+flowtable_destroy(struct flowtable *ft)
+{
+	struct flowtable *ft2;
+	struct flentry *fle, **flehead;
+	bitstr_t *mask, *tmpmask;
+	int curbit = 0;
+	int cpuid;
+	int i;
+
+	/* Free all entries. */
+	/* XXX not sure if this code actually works because
+	       in my tests there were never entries left at this
+	       point so the code didn't do anything.
+	 */
+
+	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
+		
+		mask = flowtable_mask_pcpu(ft, cpuid);
+		tmpmask = ft->ft_tmpmask;
+		memcpy(tmpmask, mask, ft->ft_size/8);
+		bit_ffs(tmpmask, ft->ft_size, &curbit);
+
+		while (curbit != -1) {
+			flehead = flowtable_entry_pcpu(ft, curbit, cpuid);
+			fle = *flehead;
+
+			while (fle != NULL) {
+				fle = fle->f_next;
+				fle_free(fle, ft);
+			}
+			bit_clear(tmpmask, curbit);
+			bit_ffs(tmpmask, ft->ft_size, &curbit);
+		}
+	}
+
+	KASSERT(ft->ft_count == 0, ("%s: ft=%p ft->ft_count=%d\n",
+		__func__, ft, ft->ft_count));
+
+	/* Remove from the cleaner list */
+	if (V_flow_list_head) {
+		ft2 = V_flow_list_head;
+		while (ft2 && ft != ft2 && ft2->ft_next != ft)
+			ft2 = ft2->ft_next;
+		if (ft == V_flow_list_head)
+			V_flow_list_head = ft2;
+		if (ft2 != NULL)
+			ft2->ft_next = ft->ft_next;
+	}
+
+	free(ft->ft_tmpmask, M_DEVBUF);
+
+	if (ft->ft_flags & FL_PCPU) {
+		for (i = 0; i <= mp_maxid; i++) {
+			free(ft->ft_masks[i], M_DEVBUF);
+			free(ft->ft_table.pcpu[i], M_FLOWTBL);
+		}
+	} else {
+		free(ft->ft_masks[0], M_DEVBUF);
+		for (i = 0; i < ft->ft_lock_count; i++)
+			mtx_destroy(&ft->ft_locks[i]);
+		free(ft->ft_locks, M_FLOWTBL);
+		free(ft->ft_table.global, M_FLOWTBL);
+	}
+
+	free(ft, M_FLOWTBL);
 }
 
 /*

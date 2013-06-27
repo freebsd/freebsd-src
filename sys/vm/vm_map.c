@@ -83,6 +83,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/shm.h>
 
+#include <vps/vps.h>
+#include <vps/vps_account.h>
+#include <ddb/ddb.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -305,14 +309,14 @@ vm_init2(void)
 {
 	uma_zone_reserve_kva(kmapentzone, lmin(cnt.v_page_count,
 	    (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / PAGE_SIZE) / 8 +
-	     maxproc * 2 + maxfiles);
+	     V_maxproc * 2 + maxfiles);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
 #ifdef INVARIANTS
 	    vmspace_zdtor,
 #else
 	    NULL,
 #endif
-	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, 0 /* XXX VPS UMA_ZONE_NOFREE*/);
 }
 
 static void
@@ -1167,6 +1171,14 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if ((prev_entry->next != &map->header) &&
 	    (prev_entry->next->start < end))
 		return (KERN_NO_SPACE);
+
+#ifdef OBSOLETEDVPS
+	if (map != kmem_map && map != kernel_map && map != buffer_map) {
+		if ((vps_account(curthread->td_vps, VPS_ACC_VIRT,
+		   VPS_ACC_ALLOC, end - start)) != 0)
+			return (KERN_RESOURCE_SHORTAGE);
+	}
+#endif
 
 	protoeflags = 0;
 	charge_prev_obj = FALSE;
@@ -2713,6 +2725,11 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 	size = entry->end - entry->start;
 	map->size -= size;
 
+#ifdef OBSOLETEDVPS
+	if (map != kmem_map && map != kernel_map && map != buffer_map)
+		vps_account(curthread->td_vps, VPS_ACC_VIRT, VPS_ACC_FREE, size);
+#endif
+
 	if (entry->cred != NULL) {
 		swap_release_by_cred(size, entry->cred);
 		crfree(entry->cred);
@@ -3606,6 +3623,13 @@ Retry:
 		}
 
 		grow_amount = addr - stack_entry->end;
+#ifdef OBSOLETEDVPS
+		if (map != kmem_map && map != kernel_map && map != buffer_map) {
+			if ((vps_account(curthread->td_vps, VPS_ACC_VIRT,
+			   VPS_ACC_ALLOC, grow_amount)) != 0)
+				return (KERN_RESOURCE_SHORTAGE);
+		}
+#endif
 		cred = stack_entry->cred;
 		if (cred == NULL && stack_entry->object.vm_object != NULL)
 			cred = stack_entry->object.vm_object->cred;
@@ -4010,6 +4034,13 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 	 * Unlock the main-level map
 	 */
 	vm_map_unlock_read(map);
+}
+
+void
+vmspace_zone_reclaim(void)
+{
+
+	uma_zone_reclaim(vmspace_zone);
 }
 
 #include "opt_ddb.h"

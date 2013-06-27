@@ -37,6 +37,9 @@
 #include <sys/sysctl.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
+#include <sys/proc.h>
+
+#include <vps/vps.h>
 
 #include <machine/pc/display.h>
 
@@ -353,23 +356,23 @@ daemon_init(video_adapter_t *adp)
 {
 	size_t hostlen;
 
-	mtx_lock(&prison0.pr_mtx);
+	mtx_lock(&V_prison0->pr_mtx);
 	for (;;) {
-		hostlen = strlen(prison0.pr_hostname);
-		mtx_unlock(&prison0.pr_mtx);
+		hostlen = strlen(V_prison0->pr_hostname);
+		mtx_unlock(&V_prison0->pr_mtx);
 	
 		messagelen = hostlen + 3 + strlen(ostype) + 1 +
 		    strlen(osrelease);
 		message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
-		mtx_lock(&prison0.pr_mtx);
-		if (hostlen < strlen(prison0.pr_hostname)) {
+		mtx_lock(&V_prison0->pr_mtx);
+		if (hostlen < strlen(V_prison0->pr_hostname)) {
 			free(message, M_DEVBUF);
 			continue;
 		}
 		break;
 	}
-	sprintf(message, "%s - %s %s", prison0.pr_hostname, ostype, osrelease);
-	mtx_unlock(&prison0.pr_mtx);
+	sprintf(message, "%s - %s %s", V_prison0->pr_hostname, ostype, osrelease);
+	mtx_unlock(&V_prison0->pr_mtx);
 	blanked = 0;
 	switch (adp->va_mode) {
 	case M_PC98_80x25:

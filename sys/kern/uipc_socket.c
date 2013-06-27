@@ -140,6 +140,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <vps/vps.h>
+
 #include <security/mac/mac_framework.h>
 
 #include <vm/uma.h>

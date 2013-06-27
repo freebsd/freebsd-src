@@ -83,6 +83,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/sx.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+#include <vps/vps_account.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -97,6 +101,45 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/uma.h>
+
+ 
+#include <vps/vps_account.h>
+ 
+#ifdef VPS
+ 
+#define VPS_ACCOUNT_RESIDENT(object, action, charge)      \
+		vps_account_resident(object, action, charge)
+ 
+static __inline void
+vps_account_resident(vm_object_t object, int action, size_t charge)
+{  
+ 
+        if (object->cred == NULL)
+                return;
+   
+        vps_account(object->cred->cr_vps, VPS_ACC_PHYS,
+                action, charge << PAGE_SHIFT);
+}
+
+#define VPS_ACCOUNT_VIRTUAL(object, action, charge)      \
+		vps_account_virtual(object, action, charge)
+ 
+static __inline void
+vps_account_virtual(vm_object_t object, int action, size_t charge)
+{  
+ 
+        if (object->cred == NULL)
+                return;
+   
+        vps_account(object->cred->cr_vps, VPS_ACC_VIRT,
+                action, charge << PAGE_SHIFT);
+}
+
+#else
+
+#define VPS_ACCOUNT_RESIDENT(object, action, charge)
+
+#endif /* !VPS */
 
 static int old_msync;
 SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
@@ -236,6 +279,11 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	case OBJT_VNODE:
 		object->flags = 0;
 		break;
+#ifdef VPS
+	case OBJT_VPS:
+		object->flags = OBJ_ONEMAPPING;
+		break;
+#endif
 	default:
 		panic("_vm_object_allocate: type %d is undefined", type);
 	}
@@ -767,6 +815,7 @@ vm_object_terminate(vm_object_t object)
 	 * modified by the preceding loop.
 	 */
 	if (object->resident_page_count != 0) {
+		VPS_ACCOUNT_RESIDENT(object, VPS_ACC_FREE, object->resident_page_count);
 		vm_radix_reclaim_allnodes(&object->rtree);
 		TAILQ_INIT(&object->memq);
 		object->resident_page_count = 0;
@@ -2405,5 +2454,80 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 			nl++;
 		}
 	}
+}
+
+DB_SHOW_COMMAND(vmobjlist, vm_object_print_list)
+{
+	vm_object_t obj;
+#ifdef VPS
+	struct vps *vps;
+#endif
+	struct proc *p;
+	char is_in_vmspace;
+	char *mapname;
+	int cnt_nomap_respages = 0;
+	int cnt_nomap = 0;
+
+	TAILQ_FOREACH(obj, &vm_object_list, object_list) {
+
+		is_in_vmspace = 0;
+		mapname = NULL;
+
+		if (_vm_object_in_map(kernel_map, obj, 0))
+			mapname = "kernel_map";
+		if (_vm_object_in_map(kmem_map, obj, 0))
+			mapname = "kmem_map";
+		if (_vm_object_in_map(pager_map, obj, 0))
+			mapname = "pager_map";
+		if (_vm_object_in_map(buffer_map, obj, 0))
+			mapname = "buffer_map";
+
+#ifdef VPS
+		/* sx_slock(&vps_all_lock); */
+        	LIST_FOREACH(vps, &vps_head, vps_all) {
+			/* sx_slock(&allproc_lock); */
+#endif
+			LIST_FOREACH(p, &VPS_VPS(vps, allproc), p_list) {
+				if (!p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
+					continue;
+				if (_vm_object_in_map(&p->p_vmspace->vm_map, obj, 0)) {
+					/* sx_sunlock(&allproc_lock); */
+					/*
+					db_printf("      is in vmspace %p proc %d/%p\n",
+						p->p_vmspace, p->p_pid, p);
+					*/
+					is_in_vmspace = 1;
+					mapname = "vmspace";
+				}
+			}
+			/* sx_sunlock(&allproc_lock); */
+#ifdef VPS
+		}
+		/* sx_sunlock(&vps_all_lock); */
+#endif
+
+		if (is_in_vmspace)
+			continue;
+
+		if (obj->type == OBJT_VNODE)
+			continue;
+
+		db_printf("obj=%p size=%zu ref_count=%d type=%d resident_page_count=%d\n",
+			obj, (size_t)obj->size, obj->ref_count,
+			obj->type, obj->resident_page_count);
+		if (mapname) {
+			db_printf("      is in %s\n", mapname);
+		} else {
+			db_printf("      IS IN NO MAP !\n");
+			cnt_nomap++;
+			cnt_nomap_respages += obj->resident_page_count;
+
+			if (obj->type == OBJT_VNODE) {
+				db_printf("      OBJT_VNODE; vnode = %p\n", obj->handle);
+			}
+		}
+	}
+	db_printf("total count of objects without mapping: %d\n", cnt_nomap);
+	db_printf("total count of resident pages in such objects: %d\n", cnt_nomap_respages);
 }
 #endif /* DDB */

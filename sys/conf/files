@@ -4,6 +4,7 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
+
 acpi_quirks.h			optional acpi				   \
 	dependency	"$S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
@@ -3706,6 +3707,32 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
+#
+vps/vps_core.c			optional vps
+vps/vps_priv.c			optional vps
+vps/vps_console.c		optional vps
+vps/vps_pager.c			optional vps
+#
+vps/vps_account.c		optional vps_static
+#
+vps/vps_suspend.c		optional vps_static
+#
+vps/vps_dev.c			optional vps_static
+vps/vps_user.c			optional vps_static
+#
+vps/if_vps.c			optional vps_static
+#
+vps/vps_snapst.c		optional vps_static
+vps/vps_restore.c		optional vps_static
+vps/vps_libdump.c		optional vps_static
+#
+vps/vps_ddb.c			optional vps_static
+#
+fs/vpsfs/vpsfs_subr.c		optional vps_static
+fs/vpsfs/vpsfs_vfsops.c		optional vps_static
+fs/vpsfs/vpsfs_vnops.c		optional vps_static
+fs/vpsfs/vpsfs_quota.c		optional vps_static
+#
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
 xen/evtchn/evtchn.c		optional xen

@@ -75,6 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
 
+#include <vps/vps_account.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -611,6 +613,7 @@ kmem_alloc_wait(map, size)
 	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL,
 	    VM_PROT_ALL, MAP_ACC_CHARGED);
 	vm_map_unlock(map);
+
 	return (addr);
 }
 

@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #include <sys/sysctl.h>
 
+#include <vps/vps.h>
+
 #include <machine/kdb.h>
 #include <machine/pcb.h>
 
@@ -537,7 +539,7 @@ kdb_thr_first(void)
 	struct proc *p;
 	struct thread *thr;
 
-	p = LIST_FIRST(&allproc);
+	p = LIST_FIRST(&V_allproc);
 	while (p != NULL) {
 		if (p->p_flag & P_INMEM) {
 			thr = FIRST_THREAD_IN_PROC(p);
@@ -554,7 +556,7 @@ kdb_thr_from_pid(pid_t pid)
 {
 	struct proc *p;
 
-	p = LIST_FIRST(&allproc);
+	p = LIST_FIRST(&V_allproc);
 	while (p != NULL) {
 		if (p->p_flag & P_INMEM && p->p_pid == pid)
 			return (FIRST_THREAD_IN_PROC(p));

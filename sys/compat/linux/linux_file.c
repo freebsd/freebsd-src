@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
+#include <vps/vps.h>
+
 #include <security/mac/mac_framework.h>
 
 #include <ufs/ufs/extattr.h>
@@ -145,19 +147,19 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	     */
 	    error = fget(td, fd, CAP_IOCTL, &fp);
 	    if (!error) {
-		    sx_slock(&proctree_lock);
+		    sx_slock(&V_proctree_lock);
 		    PROC_LOCK(p);
 		    if (!(bsd_flags & O_NOCTTY) &&
 			SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 			    PROC_UNLOCK(p);
-			    sx_unlock(&proctree_lock);
+			    sx_unlock(&V_proctree_lock);
 			    /* XXXPJD: Verify if TIOCSCTTY is allowed. */
 			    if (fp->f_type == DTYPE_VNODE)
 				    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
 					     td->td_ucred, td);
 		    } else {
 			    PROC_UNLOCK(p);
-			    sx_sunlock(&proctree_lock);
+			    sx_sunlock(&V_proctree_lock);
 		    }
 		    fdrop(fp, td);
 		    /*

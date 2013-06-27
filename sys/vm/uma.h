@@ -647,6 +647,8 @@ struct uma_type_header {
 	uint64_t	_uth_reserved1[2];	/* Reserved. */
 };
 
+void uma_zone_reclaim(uma_zone_t zone);
+
 struct uma_percpu_stat {
 	uint64_t	ups_allocs;	/* Cache: number of allocations. */
 	uint64_t	ups_frees;	/* Cache: number of frees. */

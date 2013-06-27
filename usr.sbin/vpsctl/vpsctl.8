@@ -1,0 +1,566 @@
+.\"
+.\" $Id: vpsctl.8 130 2013-04-10 09:32:39Z klaus $
+.\"
+.\" The following commands are required for all man pages.
+.Dd April 10, 2013
+.Os
+.Dt VPSCTL 8
+.Sh NAME
+.Nm vpsctl
+.Nd manage Virtual Private Systems instances
+.\" 
+.\" 
+.Sh SYNOPSIS
+.Nm
+.\" .Op Fl X 
+.Cm start
+.Ar id
+.Op Ar config-file
+.Nm
+.Cm stop
+.Ar id
+.Op Ar config-file
+.Nm
+.Cm list
+.Nm
+.Cm show
+.Ar id
+.Nm
+.Cm shell
+.Ar id
+.Nm
+.Cm console
+.Ar id
+.Nm
+.Cm ifmove
+.Ar id
+.Ar ifname
+.Op Ar ifnewname
+.Nm
+.Cm execin
+.Ar id
+.Ar command
+.Op Ar arguments ...
+.Nm
+.Cm execwt
+.Ar id
+.Ar command
+.Op Ar arguments ...
+.Nm
+.Cm suspend
+.Ar id
+.Nm
+.Cm resume
+.Ar id
+.Nm
+.Cm snapshot
+.Ar id
+.Ar output-file
+.Nm
+.Cm abort
+.Ar id
+.Nm
+.Cm restore
+.Ar id
+.Ar input-file
+.Nm
+.Cm migrate
+.Ar id
+.Ar remote-host
+.Op Ar norsync|onersync
+.\"
+.\"
+.\"
+.Nm
+.Cm argshow
+.Ar id
+.\"
+.Cm ipnet
+.Ar id
+.Cm add
+.Ar adress/network, ...
+.\" 
+.Nm
+.Cm ipnet
+.Ar id
+.Cm rem
+.Ar adress/network, ...
+.\"
+.Nm
+.Cm priv
+.Ar id
+.Cm allow
+.Ar privilege-number, ...
+.\"
+.Nm
+.Cm priv
+.Ar id
+.Cm deny
+.Ar privilege-number, ...
+.\"
+.Nm
+.Cm priv
+.Ar id
+.Cm nosys
+.Ar privilege-number, ...
+.\"
+.Nm
+.Cm limit
+.Ar id
+.Ar resource:softlimit:hardlimit, ...
+.\" 
+.Nm
+.Cm showdump
+.Ar file
+.\" 
+.\" 
+.Sh DESCRIPTION
+.\" The following commands should be uncommented and
+.\" used where appropriate.
+The
+.Nm
+utility is used to manage Virtual Private System (VPS) instances,
+e.g. starting, stopping, migrating and reading status information.
+.Pp
+Basically VPS works in a hierarchical way, so you can use the
+.Nm
+utility on the main host system (which in turn is a VPS instance too)
+and inside child VPS instances as well. You can only see and manage
+instances that are children of the current instance.
+.Pp
+For a general description of what VPS is, see
+.Xr vps 4 .
+.Pp
+The following commands are available:
+.Bl -tag -width indent
+.\" 
+.\" START
+.It Cm start Ar id Op Ar config-file
+Creates and runs a new VPS instance named
+.Ar id
+using settings from
+.Ar config-file .
+.Pp
+If no
+.Ar config-file
+is given,
+.Nm
+tries to read settings from /etc/vps/vps_<ID>.conf.
+.Pp
+See the
+.Sx FILES
+sections for the config file syntax.
+.\" 
+.\" STOP
+.It Cm stop Ar id Op Ar config-file
+Stops and destroys VPS instance
+.Ar id .
+.Pp
+If no
+.Ar config-file
+is given,
+.Nm
+tries to read settings from /etc/vps/vps_<ID>.conf.
+.Pp
+If you perform 'shutdown -h ...' from inside a VPS instance,
+you still have to run
+.Cm stop Ar id
+to free it entirely.
+.\" 
+.\" LIST
+.It Cm list
+Prints a listing of all currently existing VPS instances.
+Status is one of running, suspended or dead.
+After stopping an instance, it may reside for a while as dead
+instance in the system. A typical cause is TCP sockets in TIME_WAIT state.
+After all references are gone, it will be automatically deleted.
+.\".Pp
+.\"Restore count tells you how often one instance was restored either from a
+.\"snapshot file or in a live migration from another host.
+.\"
+.\" SHOW
+.It Cm show Ar id
+Shows some details about the VPS instance given by
+.Ar id .
+For a more detailed listing including all run-time properties about
+a VPS instance see
+.Cm argshow
+.Ar id .
+.\" 
+.\" SHELL
+.It Cm shell Ar id
+Allocates a pseudo tty and starts an interactive shell in the given VPS instance.
+This command is equally to 'vpsctl execwt /bin/sh'.
+.\" 
+.\" CONSOLE
+.It Cm console Ar id
+Opens the system console of the given VPS instance.
+.\" 
+.\" IFMOVE
+.It Cm ifmove Ar id Ar ifname Op Ar ifnewname
+Moves network interface
+.Ar ifname
+into vps instance
+.Ar id
+and optionally renames it to
+.Op Ar ifnewname .
+.\" 
+.\" EXECIN
+.It Cm execin Ar id Ar command Op Ar arguments ...
+Starts the given
+.Ar command
+using
+.Ar arguments
+if given in the context of VPS instance
+.Ar id .
+The
+.Nm
+utility does not wait on exit of
+.Ar command
+but exits immediately.
+.\" 
+.\" EXECWT
+.It Cm execwt Ar id Ar command Op Ar arguments ...
+Same syntax as for the
+.Cm execin
+command, but a pseudo tty is allocated for
+.Ar command
+in order to have interactive input/output
+and the
+.Nm
+utility waits until exit of
+.Ar command .
+.\" 
+.\" EXECWT
+.It Cm suspend Ar id
+Suspends all processes in VPS instance
+.Ar id ,
+all TCP sockets are set to drop incoming data, every other activity is suspended.
+May be used for creating consistent backups of one VPS instances' filesystem space.
+.\" 
+.\" RESUME
+.It Cm resume Ar id
+Resumes previously suspended vps instance
+.Ar id .
+.\" 
+.\" SNAPSHOT
+.It Cm snapshot Ar id Ar output-file
+Writes a snapshot of
+.Ar id
+to
+.Ar output-file ,
+including the state of all processes, sockets, network attributes etc.
+The VPS instance
+.Ar id
+has to be suspended by
+.Cm suspend
+first.
+.\" 
+.\" ABORT
+.It Cm abort Ar id
+Ungracefully kill all processes in VPS instance
+.Ar id .
+You still have to run
+.Cm stop Ar id
+to get rid of it.
+If
+.Ar id
+is currently suspended, run
+.Cm resume Ar id
+afterwards in order to have effect.
+.\" 
+.\" RESTORE
+.It Cm restore Ar id Ar input-file
+Restores a VPS instance from a snapshot file previously created by
+.Cm snapshot
+to a suspended state. Use
+.Cm resume Ar id
+to get it running again.
+.Pp
+The snapshot file can originate from a different host, but care has
+to be taken to have compatible or better, the same kernel, on both
+systems. Before the actual restore process starts, sanity and compatibility
+checks against the snapshot file are performed, but in case of mismatches
+a kernel crash could still happen.
+.Pp
+Instead of
+.Ar id
+an empty string ('') can be given. The
+.Ar id
+the instance had when its snapshot was created is used then.
+.Pp
+The right instance config file has to exist.
+.\" 
+.\" MIGRATE
+.It Cm migrate Ar id Ar remote-host Op Ar norsync|onersync
+Performs a live migration of VPS instance
+.Ar id
+to host
+.Ar remote-host .
+All processes, open files, pipes, sockets, TCP session etc. are preserved.
+.Pp
+Specify
+.Ar norsync
+if you don't want the filesystem tree to be synced.
+Do not use this option unless you are sure nothing was modified
+or the filesystem is mounted readonly.
+Specify
+.Ar onersync
+if you only need one sync pass (faster than two-pass but vps is suspended
+longer).
+.Pp
+If the migration process fails or is aborted, the instance is left in
+suspended state.
+Use 
+.Cm resume Ar id
+to get it running again. You might have to set some network settings
+in the parent system manually, like published arp entries and routes.
+.Pp
+SSH is used as transport to
+.Ar remote-host .
+If no ssh key is loaded/available, you will be prompted for a password.
+.\"
+.\" ARGSHOW
+.It Cm argshow Ar id
+Shows arguments of VPS instance
+.Ar id .
+.Pp
+The output show IPv4 and IPv6 networks the instance is allowed to use
+on its interfaces, as well as a list of privileges 
+.Xr priv 9.
+For
+.Ar NOSYS
+privileges, a 'No such system call' error is returned instead 
+of 'Permission denied'. Some applications wouldn't run otherwise.
+.Pp
+Resource limits are shown as: resource type, current utilization,
+preconfigured soft limit (may be exceeded if resources are still
+available), hard limit (will never be exceeded) and counters how
+often the soft or hard limits have been hit.
+.\"
+.\" IPNET ADD
+.It Cm ipnet Ar id Cm add Ar address/network, ...
+Adds an IP address or network to the list of networks the VPS
+instance is allowed to use on its interfaces.
+.Pp
+Following formats are valid:
+.Dl 192.168.123.231
+.Dl 192.168.213.0/255.255.255.0
+.Dl fc00::200:20
+.Dl fc00::100:0/112
+.Pp
+Multiple networks can be specified on the command line at once,
+separated by ',' but without whitespace.
+.Pp
+To specify networks in a configuration file, use 
+.Ar IP_NETWORKS.
+.\"
+.\" IPNET REM
+.It Cm ipnet Ar id Cm rem Ar address/network, ...
+Removes a previously added IP address or network from the list.
+See the description of
+.Cm ipnet Ar id Cm add
+for more information.
+.\"
+.\" PRIV ALLOW
+.It Cm priv Ar id Cm allow Ar privilege-number, ...
+Adds one or more privileges, specified by name (e.g. PRIV_KLD_LOAD)
+or its numeric value, to the list of allowed privileges.
+Separate multiple privileges by ',' without whitespace.
+.Pp
+See 
+.Xr priv 9
+for more information about privileges, and
+.Ar sys/priv.h
+for a list of defined privileges.
+.Pp
+To specify privileges in a configuration file, use
+.Ar PRIV_ALLOW.
+.\"
+.\" PRIV DENY
+.It Cm priv Ar id Cm deny Ar privilege-number, ...
+Removes one or more privileges, specified by name (e.g. PRIV_KLD_LOAD)
+or its numeric value, from the list of allowed or 'nosys' privileges.
+.Pp
+System calls or other operations that depend on the privilege in
+question, return to userspace with a 'Permission denied' error.
+.\"
+.\" PRIV NOSYS
+.It Cm priv Ar id Cm nosys privilege-number, ...
+Adds one ore more privileges, specified by name (e.g. PRIV_KLD_LOAD)
+or its numeric value, to the list of
+privileges, that are not allowed, but supposed to return ''No such
+system call'' instead of ''Permission denied'', to satisfy some
+applications.
+.Pp
+To specify privileges in a configuration file, use
+.Ar PRIV_NOSYS.
+.\"
+.\" LIMIT
+.It Cm limit Ar id Ar resource:softlimit:hardlimit, ....
+Configures a limit on one or more given resources (like virtual memory,
+ cpu utilization, ...).
+.Pp
+The command
+.Cm argshow
+.Ar id
+shows you which resources are known.
+.Pp
+The
+.Ar softlimit
+is a treshold that will be exceeded in case the current
+utilization of the given resource allows to do so without affecting
+other VPS instances' performance.
+.Pp
+The
+.Ar hardlimit
+will never be exceeded.
+.Pp
+For CPU utilization 'sysctl kern.fscale' equals 100% of one cpu
+(To allow a VPS instance to use 25% of one CPU set the limit to
+(sysctl kern.fscale) * 0.25).
+.Pp
+To specify resource limits in a configuration file, use
+.Ar LIMITS .
+.Pp
+.\"
+.\" SHOWDUMP
+.It Cm showdump Ar file
+Shows information about the snapshot contained in
+.Ar file .
+It generates a lot of output.
+.Pp
+.El
+.\" 
+.\" 
+.\" .Sh IMPLEMENTATION NOTES
+.\" This next command is for sections 1, 6, 7 and 8 only.
+.\" 
+.\" 
+.\" .Sh ENVIRONMENT
+.\" 
+.\" 
+.Sh EXIT STATUS
+The
+.Nm
+utility exits 0 on success and -1 if an error occurs.  
+.\"
+.\"
+.Sh FILES
+.Bl -tag -width /etc/vps/vps_<ID>.conf
+.It Pa /etc/vps/vps_<ID>.conf
+for each VPS instance with id <ID>.
+.El
+.\" 
+.\" 
+.Sh EXAMPLES
+Example of a rc script (e.g. put these lines in /etc/rc.local):
+.Pp
+.Dl kldload vps_ddb
+.Dl kldload vps_dev
+.Dl kldload if_vps
+.Dl kldload vpsfs
+.Dl kldload vps_account
+.Dl kldload vps_suspend
+.Dl kldload vps_libdump
+.Dl kldload vps_snapst
+.Dl kldload vps_restore
+.Pp
+.Dl ifconfig vps0 create
+.Dl ifconfig vps0 up
+.Pp
+.Dl sysctl -w net.inet.ip.forwarding=1
+.Dl sysctl -w net.inet6.ip6.forwarding=1
+.Pp
+.Pp
+.\"
+.\"
+Example of a minimal VPS instance config file (/etc/vps/vps_testvps.conf):
+.Pp
+.Dl NAME = testvps
+.Dl FSROOT = /vps/testvps
+.Dl NETIF_0_ADDRESS = '1.2.3.4, 2001:2002::2003'
+.Dl ROOT_MOUNT = 'true'
+.Dl ROOT_UMOUNT = 'true'
+.Dl INIT = '/sbin/init'
+.Pp
+See
+.Xr vps.conf 5
+for a complete description of config file options.
+.Pp
+The /vps/testvps directory contains a full FreeBSD userland installation.
+See
+.Xr jail 8
+for examples how to install into a directory.
+.Pp
+The only crucial configuration bits are setting all terminals to
+.Ar off
+in
+.Ar /etc/ttys ,
+as well as putting
+.Ar root_rw_mount=NO
+into
+.Ar /etc/rc.conf .
+.Pp
+Don't use nullfs, there are some issues with snapshot/restore.
+.Pp
+The IP addresses given are assumed to belong to a subnet on a physically attached
+ethernet network. The
+.Nm
+utility
+creates a published ARP entry and a local route for each address.
+.Pp
+Start the vps instance:
+.Pp
+.Dl vpsctl start testvps
+.Dl vpsctl list
+.\"
+.\"
+.\" This next command is for sections 1, 6, 7, 8 and 9 only
+.\"     (command return values (to shell) and
+.\"     fprintf/stderr type diagnostics).
+.\" 
+.\" 
+.\" .Sh DIAGNOSTICS
+.\" 
+.\" 
+.\" .Sh COMPATIBILITY
+.\" 
+.\" 
+.Sh SEE ALSO
+.Xr vps 4 ,
+.Xr vps 9 ,
+.Xr vps.conf 5 ,
+.Xr mount_vpsfs 8 ,
+.Ad http://www.7he.at/freebsd/vps/
+.\" 
+.\" 
+.\" .Sh STANDARDS
+.\" 
+.\" 
+.Sh HISTORY
+Work on VPS was started in February 2009.
+.\" 
+.\" 
+.Sh AUTHORS
+.Pp
+Virtual Private Systems for FreeBSD and this manual page as well,
+were written by
+.An "Klaus P. Ohrhallinger" .
+.Pp
+Development of this software was partly funded by:
+.Pp
+TransIP.nl <http://www.transip.nl/>
+.\"
+.\"
+.Sh BUGS
+VPS is in an early stage of development and has to be considered as
+experimental.
+This means many bugs have to be expected.
+.Pp
+Please submit bug reports to
+.Ad freebsd-vps@7he.at .
+.\"
+.\"
+.Sh VERSION
+$Id: vpsctl.8 130 2013-04-10 09:32:39Z klaus $

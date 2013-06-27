@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_command.h>
 #include <ddb/db_sym.h>
 
+#include <vps/vps.h>
+
 void
 db_print_thread(void)
 {
@@ -137,7 +139,7 @@ db_lookup_thread(db_expr_t addr, boolean_t check_pid)
 			if (p->p_pid == decaddr)
 				return (FIRST_THREAD_IN_PROC(p));
 		}
-		LIST_FOREACH(p, &zombproc, p_list) {
+		LIST_FOREACH(p, &V_zombproc, p_list) {
 			if (p->p_pid == decaddr)
 				return (FIRST_THREAD_IN_PROC(p));
 		}
@@ -163,7 +165,7 @@ db_lookup_proc(db_expr_t addr)
 			if (p->p_pid == decaddr)
 				return (p);
 		}
-		LIST_FOREACH(p, &zombproc, p_list) {
+		LIST_FOREACH(p, &V_zombproc, p_list) {
 			if (p->p_pid == decaddr)
 				return (p);
 		}

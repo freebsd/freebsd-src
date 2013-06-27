@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
 
+#include <vps/vps.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -242,20 +244,20 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	KASSERT(em != NULL, ("proc_exit: emuldata not found.\n"));
 
-	/* reparent all procs that are not a thread leader to initproc */
+	/* reparent all procs that are not a thread leader to V_initproc */
 	if (em->shared->group_pid != p->p_pid) {
 		LIN_SDT_PROBE3(emul, proc_exit, reparent,
 		    em->shared->group_pid, p->p_pid, p);
 
 		child_clear_tid = em->child_clear_tid;
 		EMUL_UNLOCK(&emul_lock);
-		sx_xlock(&proctree_lock);
-		wakeup(initproc);
+		sx_xlock(&V_proctree_lock);
+		wakeup(V_initproc);
 		PROC_LOCK(p);
-		proc_reparent(p, initproc);
+		proc_reparent(p, V_initproc);
 		p->p_sigparent = SIGCHLD;
 		PROC_UNLOCK(p);
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 	} else {
 		child_clear_tid = em->child_clear_tid;
 		EMUL_UNLOCK(&emul_lock);	
@@ -313,7 +315,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	free(em, M_LINUX);
 
 	/* this is a little weird but rewritten from exit1() */
-	sx_xlock(&proctree_lock);
+	sx_xlock(&V_proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
@@ -330,7 +332,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 		PROC_UNLOCK(q);
 		EMUL_UNLOCK(&emul_lock);
 	}
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 
 	LIN_SDT_PROBE0(emul, proc_exit, return);
 }

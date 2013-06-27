@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/jail.h>
 
+#include <vps/vps.h>
+
 #include <machine/cpu.h>
 
 #include <security/audit/audit.h>
@@ -1610,7 +1612,7 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		/*
 		 * broadcast
 		 */
-		sx_slock(&allproc_lock);
+		sx_slock(&V_allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
@@ -1628,9 +1630,9 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 				ret = err;
 			PROC_UNLOCK(p);
 		}
-		sx_sunlock(&allproc_lock);
+		sx_sunlock(&V_allproc_lock);
 	} else {
-		sx_slock(&proctree_lock);
+		sx_slock(&V_proctree_lock);
 		if (pgid == 0) {
 			/*
 			 * zero pgid means send to my process group.
@@ -1640,11 +1642,11 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		} else {
 			pgrp = pgfind(pgid);
 			if (pgrp == NULL) {
-				sx_sunlock(&proctree_lock);
+				sx_sunlock(&V_proctree_lock);
 				return (ESRCH);
 			}
 		}
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
@@ -1831,9 +1833,9 @@ gsignal(int pgid, int sig, ksiginfo_t *ksi)
 	struct pgrp *pgrp;
 
 	if (pgid != 0) {
-		sx_slock(&proctree_lock);
+		sx_slock(&V_proctree_lock);
 		pgrp = pgfind(pgid);
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 		if (pgrp != NULL) {
 			pgsignal(pgrp, sig, 0, ksi);
 			PGRP_UNLOCK(pgrp);
@@ -2690,7 +2692,11 @@ issignal(struct thread *td)
 			/*
 			 * Don't take default actions on system processes.
 			 */
+#ifdef VPS
+			if (p->p_flag & P_SYSTEM) {
+#else
 			if (p->p_pid <= 1) {
+#endif
 #ifdef DIAGNOSTIC
 				/*
 				 * Are you sure you want to ignore SIGSEGV

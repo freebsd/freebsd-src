@@ -2694,6 +2694,10 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			if (lle->la_flags & LLE_PUB)
 				ndpc.rtm.rtm_flags |= RTF_ANNOUNCE;
 
+			/* proxy */
+			if (lle->la_flags & LLE_PROXY)
+				ndpc.rtm.rtm_flags |= RTF_PROTO1;
+
 			sdl = &ndpc.sdl;
 			sdl->sdl_family = AF_LINK;
 			sdl->sdl_len = sizeof(*sdl);

@@ -1,0 +1,111 @@
+.\"
+.\" Copyright (c) 1992, 1993, 1994
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" John Heidemann of the UCLA Ficus project.
+.\"
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" This used to be mount_nullfs(8).
+.\"
+.\" $Id: mount_vpsfs.8 120 2012-08-30 11:14:36Z klaus $
+.\"
+.Dd August 29, 2012
+.Dt MOUNT_VPSFS 8
+.Os
+.Sh NAME
+.Nm mount_vpsfs
+.Nd "mount a virtual filesystem layer for use with VPS"
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar options
+.Ar target
+.Ar mount-point
+.Sh DESCRIPTION
+The
+.Nm
+utility mounts a virtual filesystem layer for use with
+.Xr vps 4 .
+This implements per-VPS-instance quotas and I/O throttling.
+.Pp
+It is based on 
+.Xr mount_nullfs 8 .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.\"
+.\"
+.\"
+.\"
+.\"
+.\"
+.Sh SEE ALSO
+.Xr mount 8
+.Xr vpsctl 8 ,
+.Xr vps 4 ,
+.Xr vps 9 ,
+.Xr vps.conf 5 ,
+.Ad http://www.7he.at/freebsd/vps/
+.\" 
+.\" 
+.\" .Sh STANDARDS
+.\" 
+.\" 
+.Sh HISTORY
+Work on VPS was started in February 2009.
+.\" 
+.\" 
+.Sh AUTHORS
+.Pp
+Virtual Private Systems for FreeBSD and this manual page as well,
+were written by
+.An "Klaus P. Ohrhallinger" .
+.Pp
+Development of this software was partly funded by:
+.Pp
+TransIP.nl <http://www.transip.nl/>
+.\"
+.\"
+.Sh BUGS
+VPS is in an early stage of development and has to be considered as
+experimental.
+This means many bugs have to be expected.
+.Pp
+Please submit bug reports to
+.Ad freebsd-vps@7he.at .
+.\"
+.\"
+.Sh VERSION
+$Id: mount_vpsfs.8 120 2012-08-30 11:14:36Z klaus $

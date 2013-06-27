@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/ttycom.h>
 
+#include <vps/vps.h>
+
 #include <machine/stdarg.h>
 
 /*
@@ -71,7 +73,8 @@ __FBSDID("$FreeBSD$");
  * users to increase this number, assuming they have manually increased
  * UT_LINESIZE.
  */
-static struct unrhdr *pts_pool;
+VPS_DEFINE(struct unrhdr *, pts_pool) = NULL;
+#define V_pts_pool    VPSV(pts_pool)
 
 static MALLOC_DEFINE(M_PTS, "pts", "pseudo tty device");
 
@@ -679,10 +682,23 @@ static void
 ptsdrv_free(void *softc)
 {
 	struct pts_softc *psc = softc;
+#ifdef VPS
+	struct vps *save_vps;
+
+	/*
+	 * Since we come in here from the giant taskqueue thread,
+	 * we have to to restore the proper vps reference.
+	 */
+	if (psc->pts_cred) {
+		save_vps = curthread->td_vps;
+		curthread->td_vps = psc->pts_cred->cr_vps;
+	} else
+		save_vps = NULL;
+#endif
 
 	/* Make device number available again. */
 	if (psc->pts_unit >= 0)
-		free_unr(pts_pool, psc->pts_unit);
+		free_unr(V_pts_pool, psc->pts_unit);
 
 	chgptscnt(psc->pts_cred->cr_ruidinfo, -1, 0);
 	racct_sub_cred(psc->pts_cred, RACCT_NPTS, 1);
@@ -700,6 +716,11 @@ ptsdrv_free(void *softc)
 #endif /* PTS_EXTERNAL */
 
 	free(psc, M_PTS);
+
+#ifdef VPS
+	if (save_vps)
+		curthread->td_vps = save_vps;
+#endif
 }
 
 static struct ttydevsw pts_class = {
@@ -715,8 +736,20 @@ static struct ttydevsw pts_class = {
 #ifndef PTS_EXTERNAL
 static
 #endif /* !PTS_EXTERNAL */
+#ifdef VPS
 int
 pts_alloc(int fflags, struct thread *td, struct file *fp)
+{
+
+	return (pts_alloc2(fflags, td, fp, -1));
+}
+
+int
+pts_alloc2(int fflags, struct thread *td, struct file *fp, int want_unit)
+#else
+int
+pts_alloc(int fflags, struct thread *td, struct file *fp)
+#endif /* !VPS */
 {
 	int unit, ok, error;
 	struct tty *tp;
@@ -739,8 +772,20 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	}
 	PROC_UNLOCK(p);
 
-	/* Try to allocate a new pts unit number. */
-	unit = alloc_unr(pts_pool);
+#ifdef VPS
+	if (want_unit > -1) {
+		//unit = alloc_unr_unit(V_pts_pool, want_unit);                   
+		unit = alloc_unr_specific(V_pts_pool, want_unit);
+		if (unit == -1) {
+			printf("%s: vps=%p could not allocate unit=%d from pool=%p\n",
+			    __func__, curthread->td_vps, want_unit, V_pts_pool);
+			return (EEXIST);
+		}
+	} else
+#endif
+		/* Try to allocate a new pts unit number. */
+		unit = alloc_unr(V_pts_pool);
+
 	if (unit < 0) {
 		racct_sub(p, RACCT_NPTS, 1);
 		chgptscnt(cred->cr_ruidinfo, -1, 0);
@@ -815,8 +860,21 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 }
 #endif /* PTS_EXTERNAL */
 
+#ifdef VPS
+int sys_posix_openpt_unit(struct thread *, struct posix_openpt_args *, int);
+
 int
 sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
+{
+      return (sys_posix_openpt_unit(td, uap, -1));
+}
+
+int
+sys_posix_openpt_unit(struct thread *td, struct posix_openpt_args *uap, int unit)
+#else
+int
+sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
+#endif /* !VPS */
 {
 	int error, fd;
 	struct file *fp;
@@ -833,7 +891,11 @@ sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 		return (error);
 
 	/* Allocate the actual pseudo-TTY. */
+#ifdef VPS
+	error = pts_alloc2(FFLAGS(uap->flags & O_ACCMODE), td, fp, unit);
+#else
 	error = pts_alloc(FFLAGS(uap->flags & O_ACCMODE), td, fp);
+#endif
 	if (error != 0) {
 		fdclose(td->td_proc->p_fd, fp, fd, td);
 		fdrop(fp, td);
@@ -851,7 +913,9 @@ static void
 pts_init(void *unused)
 {
 
-	pts_pool = new_unrhdr(0, INT_MAX, NULL);
+#ifndef VPS
+	V_pts_pool = new_unrhdr(0, INT_MAX, NULL);
+#endif
 }
 
 SYSINIT(pts, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, pts_init, NULL);

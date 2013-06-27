@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <ddb/ddb.h>
 
 #include <machine/cpu.h>
@@ -186,11 +189,23 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 #endif
 	if (error == 0)
 		error = priv_check(td, PRIV_REBOOT);
+#ifdef VPS
+	if (error == 0 && td->td_vps != vps0) {
+		error = vps_reboot(td, uap->opt);
+
+	} else if (error == 0) {
+		(void)vps_shutdown_all(td);
+		mtx_lock(&Giant);
+		kern_reboot(uap->opt);
+		mtx_unlock(&Giant);
+	}
+#else 
 	if (error == 0) {
 		mtx_lock(&Giant);
 		kern_reboot(uap->opt);
 		mtx_unlock(&Giant);
 	}
+#endif
 	return (error);
 }
 
@@ -206,10 +221,10 @@ shutdown_nice(int howto)
 	shutdown_howto = howto;
 
 	/* Send a signal to init(8) and have it shutdown the world */
-	if (initproc != NULL) {
-		PROC_LOCK(initproc);
-		kern_psignal(initproc, SIGINT);
-		PROC_UNLOCK(initproc);
+	if (V_initproc != NULL) {
+		PROC_LOCK(V_initproc);
+		kern_psignal(V_initproc, SIGINT);
+		PROC_UNLOCK(V_initproc);
 	} else {
 		/* No init(8) running, so simply reboot */
 		kern_reboot(RB_NOSYNC);
@@ -885,7 +900,7 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
+	strncpy(kdh->hostname, V_prison0->pr_hostname, sizeof(kdh->hostname));
 	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
 		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));

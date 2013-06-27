@@ -95,6 +95,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 
+#include <vps/vps.h>
+
 #include <security/audit/audit.h>
 
 #include <vm/uma.h>
@@ -104,7 +106,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_FILEDESC, "filedesc", "Open file descriptor table");
 static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "filedesc_to_leader",
-    "file desc to leader structures");
+	"file desc to leader structures");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 MALLOC_DEFINE(M_FILECAPS, "filecaps", "descriptor capabilities");
 
@@ -112,18 +114,24 @@ MALLOC_DECLARE(M_FADVISE);
 
 static uma_zone_t file_zone;
 
-void	(*ksem_info)(struct ksem *ks, char *path, size_t size, uint32_t *value);
+void  (*ksem_info)(struct ksem *ks, char *path, size_t size, uint32_t *value);
 
-static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
-		    struct thread *td, int holdleaders);
+static int    closefp(struct filedesc *fdp, int fd, struct file *fp,
+			struct thread *td, int holdleaders);
 static int	fd_first_free(struct filedesc *fdp, int low, int size);
 static int	fd_last_used(struct filedesc *fdp, int size);
+#ifdef VPS
+void		fdgrowtable(struct filedesc *fdp, int nfd);
+void		fdunused(struct filedesc *fdp, int fd);
+void		fdused(struct filedesc *fdp, int fd);
+#else
 static void	fdgrowtable(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
+#endif /* !VPS */
 static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
 static int	fill_procdesc_info(struct procdesc *pdp,
-		    struct kinfo_file *kif);
+			struct kinfo_file *kif);
 static int	fill_pts_info(struct tty *tp, struct kinfo_file *kif);
 static int	fill_sem_info(struct file *fp, struct kinfo_file *kif);
 static int	fill_shm_info(struct file *fp, struct kinfo_file *kif);
@@ -256,7 +264,11 @@ fdisused(struct filedesc *fdp, int fd)
 /*
  * Mark a file descriptor as used.
  */
+#ifdef VPS
+void
+#else
 static void
+#endif
 fdused(struct filedesc *fdp, int fd)
 {
 
@@ -274,7 +286,11 @@ fdused(struct filedesc *fdp, int fd)
 /*
  * Mark a file descriptor as unused.
  */
+#ifdef VPS
+void
+#else
 static void
+#endif
 fdunused(struct filedesc *fdp, int fd)
 {
 
@@ -1003,7 +1019,7 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
 
-	sx_slock(&proctree_lock);
+	sx_slock(&V_proctree_lock);
 	if (pgid > 0) {
 		proc = pfind(pgid);
 		if (proc == NULL) {
@@ -1071,14 +1087,14 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 		sigio->sio_pgrp = pgrp;
 		PGRP_UNLOCK(pgrp);
 	}
-	sx_sunlock(&proctree_lock);
+	sx_sunlock(&V_proctree_lock);
 	SIGIO_LOCK();
 	*sigiop = sigio;
 	SIGIO_UNLOCK();
 	return (0);
 
 fail:
-	sx_sunlock(&proctree_lock);
+	sx_sunlock(&V_proctree_lock);
 	crfree(sigio->sio_ucred);
 	free(sigio, M_SIGIO);
 	return (ret);
@@ -1457,38 +1473,42 @@ filecaps_validate(const struct filecaps *fcaps, const char *func)
 /*
  * Grow the file table to accomodate (at least) nfd descriptors.
  */
+#ifdef VPS
+void
+#else
 static void
+#endif
 fdgrowtable(struct filedesc *fdp, int nfd)
 {
-	struct filedesc0 *fdp0;
+  	struct filedesc0 *fdp0;
 	struct freetable *ft;
 	struct filedescent *ntable;
 	struct filedescent *otable;
-	int nnfiles, onfiles;
+  	int nnfiles, onfiles;
 	NDSLOTTYPE *nmap, *omap;
-
-	FILEDESC_XLOCK_ASSERT(fdp);
-
+  
+  	FILEDESC_XLOCK_ASSERT(fdp);
+  
 	KASSERT(fdp->fd_nfiles > 0, ("zero-length file table"));
-
+  
 	/* save old values */
-	onfiles = fdp->fd_nfiles;
+  	onfiles = fdp->fd_nfiles;
 	otable = fdp->fd_ofiles;
 	omap = fdp->fd_map;
 
 	/* compute the size of the new table */
-	nnfiles = NDSLOTS(nfd) * NDENTRIES; /* round up */
-	if (nnfiles <= onfiles)
-		/* the table is already large enough */
-		return;
-
-	/*
+  	nnfiles = NDSLOTS(nfd) * NDENTRIES; /* round up */
+  	if (nnfiles <= onfiles)
+  		/* the table is already large enough */
+  		return;
+  
+  	/*
 	 * Allocate a new table and map.  We need enough space for the
 	 * file entries themselves and the struct freetable we will use
 	 * when we decommission the table and place it on the freelist.
 	 * We place the struct freetable in the middle so we don't have
 	 * to worry about padding.
-	 */
+  	 */
 	ntable = malloc(nnfiles * sizeof(ntable[0]) + sizeof(struct freetable),
 	    M_FILEDESC, M_ZERO | M_WAITOK);
 	nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
@@ -1501,10 +1521,10 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	/* update the pointers and counters */
 	fdp->fd_nfiles = nnfiles;
 	memcpy(ntable, otable, onfiles * sizeof(ntable[0]));
-	fdp->fd_ofiles = ntable;
+  	fdp->fd_ofiles = ntable;
 	fdp->fd_map = nmap;
 
-	/*
+  	/*
 	 * Do not free the old file table, as some threads may still
 	 * reference entries within it.  Instead, place it on a freelist
 	 * which will be processed when the struct filedesc is released.
@@ -1514,14 +1534,14 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	 * Note that if onfiles == NDFILE, we're dealing with the original
 	 * static allocation contained within (struct filedesc0 *)fdp,
 	 * which must not be freed.
-	 */
-	if (onfiles > NDFILE) {
+  	 */
+  	if (onfiles > NDFILE) {
 		ft = (struct freetable *)&otable[onfiles];
-		fdp0 = (struct filedesc0 *)fdp;
+  		fdp0 = (struct filedesc0 *)fdp;
 		ft->ft_table = otable;
 		SLIST_INSERT_HEAD(&fdp0->fd_free, ft, ft_next);
 		free(omap, M_FILEDESC);
-	}
+  	}
 }
 
 /*
@@ -2754,7 +2774,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	if (vrefcnt(olddp) == 1)
 		return;
 	nrele = 0;
-	sx_slock(&allproc_lock);
+	sx_slock(&V_allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		fdp = fdhold(p);
 		if (fdp == NULL)
@@ -2778,21 +2798,21 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 		FILEDESC_XUNLOCK(fdp);
 		fddrop(fdp);
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&V_allproc_lock);
 	if (rootvnode == olddp) {
 		vref(newdp);
 		rootvnode = newdp;
 		nrele++;
 	}
-	mtx_lock(&prison0.pr_mtx);
-	if (prison0.pr_root == olddp) {
+	mtx_lock(&V_prison0->pr_mtx);
+	if (V_prison0->pr_root == olddp) {
 		vref(newdp);
-		prison0.pr_root = newdp;
+		V_prison0->pr_root = newdp;
 		nrele++;
 	}
-	mtx_unlock(&prison0.pr_mtx);
+	mtx_unlock(&V_prison0->pr_mtx);
 	sx_slock(&allprison_lock);
-	TAILQ_FOREACH(pr, &allprison, pr_list) {
+	TAILQ_FOREACH(pr, &V_allprison, pr_list) {
 		mtx_lock(&pr->pr_mtx);
 		if (pr->pr_root == olddp) {
 			vref(newdp);
@@ -2849,7 +2869,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (req->oldptr == NULL) {
 		n = 0;
-		sx_slock(&allproc_lock);
+		sx_slock(&V_allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_state == PRS_NEW)
 				continue;
@@ -2861,13 +2881,13 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 				n += fdp->fd_lastfile;
 			fddrop(fdp);
 		}
-		sx_sunlock(&allproc_lock);
+		sx_sunlock(&V_allproc_lock);
 		return (SYSCTL_OUT(req, 0, n * sizeof(xf)));
 	}
 	error = 0;
 	bzero(&xf, sizeof(xf));
 	xf.xf_size = sizeof(xf);
-	sx_slock(&allproc_lock);
+	sx_slock(&V_allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
 		if (p->p_state == PRS_NEW) {
@@ -2906,7 +2926,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&V_allproc_lock);
 	return (error);
 }
 

@@ -882,7 +882,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	int l, i;
 	time_t	boot_seconds;
 
-        boot_seconds = boottime.tv_sec;
+        boot_seconds = V_boottime.tv_sec;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
 

@@ -59,6 +59,9 @@ struct ucred {
 	struct loginclass	*cr_loginclass; /* login class */
 	u_int		cr_flags;	/* credential flags */
 	void 		*cr_pspare2[2];	/* general use 2 */
+#ifdef VPS
+	struct vps	*cr_vps;	/* virtual private system */
+#endif
 #define	cr_endcopy	cr_label
 	struct label	*cr_label;	/* MAC label */
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */

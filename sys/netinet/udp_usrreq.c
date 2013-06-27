@@ -185,11 +185,27 @@ void
 udp_init(void)
 {
 
+	/*
+	 * Until UMA supports draining a UMA_ZONE_NOFREE zone on destroy,
+	 * UMA_ZONE_NOFREE can't be specified here.
+	 */
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
+#ifdef VIMAGE
+	    "udp_inpcb", udp_inpcb_init, NULL, 0,
+#else
 	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE,
+#endif
 	    IPI_HASHFIELDS_2TUPLE);
+	/*
+	 * Until UMA supports draining a UMA_ZONE_NOFREE zone on destroy,
+	 * UMA_ZONE_NOFREE can't be specified here.
+	 */
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
+#ifdef VIMAGE
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+#else
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+#endif
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
 	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
@@ -797,7 +813,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist,
+SYSCTL_VNET_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
     udp_pcblist, "S,xinpcb", "List of active UDP sockets");
 

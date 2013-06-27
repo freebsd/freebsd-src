@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#include <vps/vps_account.h>
+
 /* Uncomment this to enable logging of critical_enter/exit. */
 #if 0
 #define	KTR_CRITICAL	KTR_SCHED
@@ -169,6 +171,14 @@ retry:
 		goto retry;
 	}
 
+#ifdef VPS
+	if (vps_account_runnable(td) == 0) {
+		/* note that it is no longer on the run queue */
+		vps_account_thread_pause(td);
+		goto retry;
+	}	
+#endif
+
 	TD_SET_RUNNING(td);
 	return (td);
 }
@@ -210,12 +220,14 @@ critical_exit(void)
 			td->td_critnest = 1;
 			thread_lock(td);
 			td->td_critnest--;
+			td->td_flags |= TDF_PREEMPTED;
 			flags = SW_INVOL | SW_PREEMPT;
 			if (TD_IS_IDLETHREAD(td))
 				flags |= SWT_IDLE;
 			else
 				flags |= SWT_OWEPREEMPT;
 			mi_switch(flags, NULL);
+			td->td_flags &= ~TDF_PREEMPTED;
 			thread_unlock(td);
 		}
 	} else

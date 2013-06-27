@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/power.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <machine/clock.h>
 #if defined(__arm__) || defined(__mips__) || \
 	defined(__powerpc__) || defined(__sparc64__)
@@ -360,7 +363,11 @@ sc_alloc_tty(int index, int devnum)
 	tp = tty_alloc_mutex(&sc_ttydevsw, stc, &Giant);
 
 	/* Create device node. */
+#ifdef VPS
+	tty_makedev(tp, vps0->vps_ucred, "v%r", devnum);
+#else
 	tty_makedev(tp, NULL, "v%r", devnum);
+#endif
 
 	return (tp);
 }
@@ -565,8 +572,13 @@ sc_attach_unit(int unit, int flags)
 	 */
     }
 
+#ifdef VPS
+    dev = make_dev_cred(&consolectl_devsw, 0, vps0->vps_ucred,
+	UID_ROOT, GID_WHEEL, 0600, "consolectl");
+#else
     dev = make_dev(&consolectl_devsw, 0, UID_ROOT, GID_WHEEL, 0600,
         "consolectl");
+#endif
     dev->si_drv1 = sc->dev[0];
 
     return 0;

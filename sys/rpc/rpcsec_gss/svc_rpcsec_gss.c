@@ -76,6 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/ucred.h>
 
+#include <vps/vps.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
@@ -452,7 +454,7 @@ rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = uc->uid;
 	cr->cr_rgid = cr->cr_svgid = uc->gid;
 	crsetgroups(cr, uc->gidlen, uc->gidlist);
-	cr->cr_prison = &prison0;
+	cr->cr_prison = V_prison0;
 	prison_hold(cr->cr_prison);
 	*crp = crhold(cr);
 
@@ -512,7 +514,7 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 	rpc_gss_log_debug("in svc_rpc_gss_find_client(%d)", id->ci_id);
 
 	getcredhostid(curthread->td_ucred, &hostid);
-	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
+	if (id->ci_hostid != hostid || id->ci_boottime != G_boottime.tv_sec)
 		return (NULL);
 
 	list = &svc_rpc_gss_client_hash[id->ci_id % CLIENT_HASH_SIZE];
@@ -550,7 +552,7 @@ svc_rpc_gss_create_client(void)
 	sx_init(&client->cl_lock, "GSS-client");
 	getcredhostid(curthread->td_ucred, &hostid);
 	client->cl_id.ci_hostid = hostid;
-	client->cl_id.ci_boottime = boottime.tv_sec;
+	client->cl_id.ci_boottime = G_boottime.tv_sec;
 	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
 	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
 	sx_xlock(&svc_rpc_gss_lock);

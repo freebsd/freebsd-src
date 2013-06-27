@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+#include <vps/vps.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif /* DDB */

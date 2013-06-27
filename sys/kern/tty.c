@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_TTY, "tty", "tty device");
@@ -77,7 +80,11 @@ SX_SYSINIT(tty_list, &tty_list_sx, "tty list");
 static unsigned int tty_list_count = 0;
 
 /* Character device of /dev/console. */
+#ifdef VPS
+struct cdev		*dev_console;
+#else
 static struct cdev	*dev_console;
+#endif
 static const char	*dev_console_filename;
 
 /*
@@ -393,6 +400,28 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		    SIGISMEMBER(td->td_sigmask, sig)) {
 			/* Only allow them in write()/ioctl(). */
 			PROC_UNLOCK(p);
+			if (sig != SIGTTOU) {
+				printf("%s: EIO #01 PID=%d\n", __func__, p->p_pid);
+				printf("%s: td->td_sigmask:\n"
+					"   0=%08x\n"
+					"   1=%08x\n"
+					"   2=%08x\n"
+					"   3=%08x\n"
+					, __func__
+					, td->td_sigmask.__bits[0]
+					, td->td_sigmask.__bits[1]
+					, td->td_sigmask.__bits[2]
+					, td->td_sigmask.__bits[3]
+					);
+				if (SIGISMEMBER(p->p_sigacts->ps_sigignore, sig))
+					printf (" --> p->p_sigacts->ps_sigignore\n");
+				if (SIGISMEMBER(td->td_sigmask, sig))
+					printf (" --> td->td_sigmask\n");
+				if (tty_is_ctty(tp, p))
+					printf ("tty_is_ctty(tp, p)\n");
+				if (p->p_pgrp == tp->t_pgrp)
+					printf ("p->p_pgrp == tp->t_pgrp\n");
+			}
 			return (sig == SIGTTOU ? 0 : EIO);
 		}
 
@@ -400,6 +429,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		if (p->p_flag & P_PPWAIT || pg->pg_jobc == 0) {
 			/* Don't allow the action to happen. */
 			PROC_UNLOCK(p);
+			printf("%s: EIO #02\n", __func__);
 			return (EIO);
 		}
 		PROC_UNLOCK(p);
@@ -1574,18 +1604,18 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 
 		/* XXX: This looks awful. */
 		tty_unlock(tp);
-		sx_xlock(&proctree_lock);
+		sx_xlock(&V_proctree_lock);
 		tty_lock(tp);
 
 		if (!SESS_LEADER(p)) {
 			/* Only the session leader may do this. */
-			sx_xunlock(&proctree_lock);
+			sx_xunlock(&V_proctree_lock);
 			return (EPERM);
 		}
 
 		if (tp->t_session != NULL && tp->t_session == p->p_session) {
 			/* This is already our controlling TTY. */
-			sx_xunlock(&proctree_lock);
+			sx_xunlock(&V_proctree_lock);
 			return (0);
 		}
 
@@ -1603,7 +1633,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 			 * TTYs of which the session leader has been
 			 * killed or the TTY revoked.
 			 */
-			sx_xunlock(&proctree_lock);
+			sx_xunlock(&V_proctree_lock);
 			return (EPERM);
 		}
 
@@ -1611,7 +1641,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		tp->t_session = p->p_session;
 		tp->t_session->s_ttyp = tp;
 		tp->t_sessioncnt++;
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 
 		/* Assign foreground process group. */
 		tp->t_pgrp = p->p_pgrp;
@@ -1630,12 +1660,12 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		 * decompose proctree_lock.
 		 */
 		tty_unlock(tp);
-		sx_slock(&proctree_lock);
+		sx_slock(&V_proctree_lock);
 		pg = pgfind(*(int *)data);
 		if (pg != NULL)
 			PGRP_UNLOCK(pg);
 		if (pg == NULL || pg->pg_session != td->td_proc->p_session) {
-			sx_sunlock(&proctree_lock);
+			sx_sunlock(&V_proctree_lock);
 			tty_lock(tp);
 			return (EPERM);
 		}
@@ -1646,11 +1676,11 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		 * relocking the TTY.
 		 */
 		if (!tty_is_ctty(tp, td->td_proc)) {
-			sx_sunlock(&proctree_lock);
+			sx_sunlock(&V_proctree_lock);
 			return (ENOTTY);
 		}
 		tp->t_pgrp = pg;
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 
 		/* Wake up the background process groups. */
 		cv_broadcast(&tp->t_bgwait);
@@ -1982,8 +2012,13 @@ static void
 ttyconsdev_init(void *unused)
 {
 
+#ifdef VPS
+	dev_console = make_dev_credf(MAKEDEV_ETERNAL, &ttyconsdev_cdevsw, 0,
+	    vps0->vps_ucred, UID_ROOT, GID_WHEEL, 0600, "console");
+#else
 	dev_console = make_dev_credf(MAKEDEV_ETERNAL, &ttyconsdev_cdevsw, 0,
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "console");
+#endif
 }
 
 SYSINIT(tty, SI_SUB_DRIVERS, SI_ORDER_FIRST, ttyconsdev_init, NULL);

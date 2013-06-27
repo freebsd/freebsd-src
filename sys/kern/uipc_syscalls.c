@@ -97,6 +97,10 @@ __FBSDID("$FreeBSD$");
 #endif /* SCTP */
 #endif /* INET || INET6 */
 
+#ifdef VPS
+int getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp);
+#endif
+
 /*
  * Flags for accept1() and kern_accept4(), in addition to SOCK_CLOEXEC
  * and SOCK_NONBLOCK.
@@ -153,6 +157,16 @@ getsock_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
 	*fpp = fp;
 	return (0);
 }
+
+#ifdef VPS
+int
+getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
+{
+
+	/* XXX cap_rights_t rights --> 0 */
+	return (getsock_cap(fdp, fd, 0, fpp, fflagp));
+}
+#endif
 
 /*
  * System call interface to the socket abstraction.

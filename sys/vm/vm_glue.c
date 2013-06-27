@@ -84,6 +84,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/unistd.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -707,6 +710,9 @@ scheduler(dummy)
 	int swtime;
 	int ppri;
 	int pri;
+#ifdef VPS
+	struct vps *vps, *save_vps;
+#endif
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 	mtx_unlock(&Giant);
@@ -719,7 +725,13 @@ loop:
 
 	pp = NULL;
 	ppri = INT_MIN;
-	sx_slock(&allproc_lock);
+#ifdef VPS
+	save_vps = curthread->td_vps;
+	sx_slock(&vps_all_lock);
+	LIST_FOREACH(vps, &vps_head, vps_all) {
+		curthread->td_vps = vps;
+#endif
+	sx_slock(&V_allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
 		if (p->p_state == PRS_NEW ||
@@ -755,7 +767,12 @@ loop:
 		}
 		PROC_UNLOCK(p);
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&V_allproc_lock);
+#ifdef VPS
+	}
+	sx_sunlock(&vps_all_lock);
+	curthread->td_vps = save_vps;
+#endif
 
 	/*
 	 * Nothing to do, back to sleep.
@@ -824,9 +841,18 @@ int action;
 	struct proc *p;
 	struct thread *td;
 	int didswap = 0;
+#ifdef VPS
+	struct vps *vps, *save_vps;
+	save_vps = curthread->td_vps;
+#endif
 
+#ifdef VPS
+	sx_slock(&vps_all_lock);
+	LIST_FOREACH(vps, &vps_head, vps_all) {
+		curthread->td_vps = vps;
+#endif
 retry:
-	sx_slock(&allproc_lock);
+	sx_slock(&V_allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		struct vmspace *vm;
 		int minslptime = 100000;
@@ -950,7 +976,7 @@ retry:
 				PROC_UNLOCK(p);
 				vm_map_unlock(&vm->vm_map);
 				vmspace_free(vm);
-				sx_sunlock(&allproc_lock);
+				sx_sunlock(&V_allproc_lock);
 				goto retry;
 			}
 		}
@@ -961,7 +987,12 @@ nextproc1:
 		vmspace_free(vm);
 		continue;
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&V_allproc_lock);
+#ifdef VPS
+	}
+	sx_sunlock(&vps_all_lock);
+	curthread->td_vps = save_vps;
+#endif
 	/*
 	 * If we swapped something out, and another process needed memory,
 	 * then wakeup the sched process.

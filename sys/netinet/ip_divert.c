@@ -156,7 +156,11 @@ div_init(void)
 	 * place for hashbase == NULL.
 	 */
 	in_pcbinfo_init(&V_divcbinfo, "div", &V_divcb, 1, 1, "divcb",
+#ifdef VIMAGE
+	    div_inpcb_init, div_inpcb_fini, 0,
+#else
 	    div_inpcb_init, div_inpcb_fini, UMA_ZONE_NOFREE,
+#endif
 	    IPI_HASHFIELDS_NONE);
 }
 

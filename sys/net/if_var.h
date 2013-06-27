@@ -216,7 +216,7 @@ struct ifnet {
 	 */
 	char	if_cspare[3];
 	int	if_ispare[4];
-	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
+	void	*if_pspare[8];		/* 1 netmap, 7 TDB, 2 VPS */
 };
 
 typedef void if_init_f_t(void *);
@@ -964,6 +964,10 @@ typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
 int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
 int    ether_poll_deregister(struct ifnet *ifp);
 #endif /* DEVICE_POLLING */
+
+#ifdef VPS
+int if_vmove_vps(struct thread *td, char *ifname, size_t ifname_size, struct vps *vps, char *);
+#endif
 
 #endif /* _KERNEL */
 

@@ -403,6 +403,9 @@ int alloc_unr(struct unrhdr *uh);
 int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
+#ifdef VPS
+int alloc_unr_unit(struct unrhdr *uh, int item);
+#endif
 
 /*
  * Population count algorithm using SWAR approach

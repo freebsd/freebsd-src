@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 
+#include <vps/vps.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

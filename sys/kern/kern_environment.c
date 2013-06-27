@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/kenv.h>
 
+#include <vps/vps.h>
+
 #include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_KENV, "kenv", "kernel environment");
@@ -91,6 +93,11 @@ sys_kenv(td, uap)
 	int error, i;
 
 	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
+
+#ifdef VPS
+	if (td->td_vps != vps0)
+		return (ENOSYS);
+#endif
 
 	error = 0;
 	if (uap->what == KENV_DUMP) {

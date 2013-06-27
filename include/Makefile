@@ -39,7 +39,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	netipsec ${_netipx} netnatm \
 	nfs nfsclient nfsserver \
-	sys vm
+	sys vm vps
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \

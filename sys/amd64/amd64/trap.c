@@ -656,6 +656,9 @@ trap_pfault(frame, usermode)
 	struct proc *p = td->td_proc;
 	vm_offset_t eva = frame->tf_addr;
 
+	ftype = 0;
+	map = NULL;
+
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
 		 * Due to both processor errata and lazy TLB invalidation when
@@ -789,7 +792,11 @@ nogo:
 		}
 		trap_fatal(frame, eva);
 		return (-1);
+	} else {
+		printf("%s: proc=%p/%d map=%p eva=%016lx prot=%x rv=%d\n",
+			__func__, p, p->p_pid, map, eva, ftype, rv);
 	}
+
 	return ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
 

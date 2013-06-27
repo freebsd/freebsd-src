@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
+#include <vps/vps.h>
+
 #include <net/if.h>
 
 #include <nfs/nfsproto.h>
@@ -284,7 +286,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 		p->p_nlminfo = malloc(sizeof(struct nlminfo),
 		    M_NLMINFO, M_WAITOK | M_ZERO);
 		p->p_nlminfo->pid_start = p->p_stats->p_start;
-		timevaladd(&p->p_nlminfo->pid_start, &boottime);
+		timevaladd(&p->p_nlminfo->pid_start, &G_boottime);
 	}
 	msg.lm_msg_ident.pid_start = p->p_nlminfo->pid_start;
 	msg.lm_msg_ident.msg_seq = ++(p->p_nlminfo->msg_seq);

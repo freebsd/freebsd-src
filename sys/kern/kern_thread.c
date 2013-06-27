@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 #endif
 
+#include <vps/vps_account.h>
+
 #include <security/audit/audit.h>
 
 #include <vm/vm.h>
@@ -279,7 +281,7 @@ threadinit(void)
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    16 - 1, 0);
-	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
+	tidhashtbl = hashinit(V_maxproc / 2, M_TIDHASH, &tidhash);
 	rw_init(&tidhash_lock, "tidhash");
 }
 
@@ -320,6 +322,7 @@ thread_reap(void)
 	if (!TAILQ_EMPTY(&zombie_threads)) {
 		mtx_lock_spin(&zombie_lock);
 		td_first = TAILQ_FIRST(&zombie_threads);
+		/* XXX - KLAUS: ?! */
 		if (td_first)
 			TAILQ_INIT(&zombie_threads);
 		mtx_unlock_spin(&zombie_lock);
@@ -372,6 +375,10 @@ void
 thread_free(struct thread *td)
 {
 
+	/* THREAD_CAN_MIGRATE() check for lock_profile_thread_exit() */
+	KASSERT(td->td_pinned == 0,
+		("%s: td=%p td->td_pinned=%d\n",
+		__func__, td, td->td_pinned));
 	lock_profile_thread_exit(td);
 	if (td->td_cpuset)
 		cpuset_rel(td->td_cpuset);
@@ -411,6 +418,10 @@ thread_exit(void)
 	CTR3(KTR_PROC, "thread_exit: thread %p (pid %ld, %s)", td,
 	    (long)p->p_pid, td->td_name);
 	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
+
+#ifdef VPS
+	vps_account(p->p_ucred->cr_vps, VPS_ACC_THREADS, VPS_ACC_FREE, 1);
+#endif
 
 #ifdef AUDIT
 	AUDIT_SYSCALL_EXIT(0, td);
@@ -1052,3 +1063,11 @@ tidhash_remove(struct thread *td)
 	LIST_REMOVE(td, td_hash);
 	rw_wunlock(&tidhash_lock);
 }
+
+void
+thread_zone_reclaim(void)
+{
+
+	uma_zone_reclaim(thread_zone);
+}
+

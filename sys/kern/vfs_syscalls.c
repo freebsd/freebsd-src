@@ -77,6 +77,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <machine/stdarg.h>
 
 #include <security/audit/audit.h>
@@ -148,7 +151,11 @@ sys_sync(td, uap)
 			continue;
 		}
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
-		    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
+#ifdef VPS
+		    vps_canseemount(td->td_ucred, mp) == 0 &&
+#endif /*VPS*/
+		    vn_start_write(NULL, &mp, V_NOWAIT) == 0
+		    ) {
 			save = curthread_pflags_set(TDP_SYNCIO);
 			vfs_msync(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT);
@@ -200,6 +207,12 @@ sys_quotactl(td, uap)
 	mp = nd.ni_vp->v_mount;
 	vfs_ref(mp);
 	vput(nd.ni_vp);
+#ifdef VPS
+	if (td->td_vps != vps0 && td->td_vps != mp->mnt_vps) {
+		vfs_rel(mp);
+		return (EPERM);
+	}
+#endif
 	error = vfs_busy(mp, 0);
 	vfs_rel(mp);
 	if (error)
@@ -485,6 +498,12 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
+#ifdef VPS
+		if (vps_canseemount(td->td_ucred, mp) != 0) {
+			nmp = TAILQ_NEXT(mp, mnt_list);
+			continue;
+		}
+#endif
 #ifdef MAC
 		if (mac_mount_check_stat(td->td_ucred, mp) != 0) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -4506,6 +4525,11 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	error = prison_canseemount(td->td_ucred, mp);
 	if (error)
 		goto out;
+#ifdef VPS
+	error = vps_canseemount(td->td_ucred, mp);
+	if (error)
+		goto out;
+#endif
 #ifdef MAC
 	error = mac_mount_check_stat(td->td_ucred, mp);
 	if (error)

@@ -56,6 +56,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/frame.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+#include <vps/vps_account.h>
+
 #include <security/audit/audit.h>
 
 static SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0,
@@ -168,6 +172,11 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		return (EPROCLIM);
 	}
 
+#ifdef VPS
+	if (vps_account(p->p_ucred->cr_vps, VPS_ACC_THREADS, VPS_ACC_ALLOC, 1))
+		return (ENOMEM);
+#endif
+
 	if (rtp != NULL) {
 		switch(rtp->type) {
 		case RTP_PRIO_REALTIME:
@@ -227,6 +236,11 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;
 	newtd->td_ucred = crhold(td->td_ucred);
+
+#ifdef VPS
+	newtd->td_vps = newtd->td_ucred->cr_vps;
+	newtd->td_vps_acc = newtd->td_ucred->cr_vps->vps_acc;
+#endif
 
 	if (ctx != NULL) { /* old way to set user context */
 		error = set_mcontext(newtd, ctx);

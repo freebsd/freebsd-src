@@ -102,6 +102,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+#include <vps/vps_account.h>
+
 #define PFBAK 4
 #define PFFOR 4
 #define PAGEORDER_SIZE (PFBAK+PFFOR)
@@ -422,6 +426,38 @@ RetryFault:;
 			 * restart and new reading of the p_flag.
 			 */
 			fs.m = NULL;
+#ifdef VPS
+			if (vps0 == NULL) {
+				/* 
+				 * During very very early system startup we don't
+				 * have vps0.
+				 */
+				;
+			} else {
+				struct vps *vps;
+
+				vps = curthread->td_vps;
+				if (vps->vps_acc->phys.soft != 0 && vps->vps_acc->phys.hard != 0 &&
+				    vps->vps_acc->phys.cur + PAGE_SIZE > vps->vps_acc->phys.hard) {
+					/*
+					printf("%s: vps=%p --> vps_account_waitpfault()\n",
+						__func__, vps);
+					unlock_and_deallocate(&fs);
+					vps_account_waitpfault(vps);
+					goto RetryFault;
+					*/
+					printf("%s: vps=%p --> LIMIT, td=%p\n",
+						__func__, vps, curthread);
+					unlock_and_deallocate(&fs);
+					if (vps_account_waitpfault(vps))
+						/* curproc has been killed */
+						return (KERN_FAILURE);
+					else
+						/* memory is available again */
+						goto RetryFault;
+				}
+			}
+#endif
 			if (!vm_page_count_severe() || P_KILLED(curproc)) {
 #if VM_NRESERVLEVEL > 0
 				if ((fs.object->flags & OBJ_COLORED) == 0) {

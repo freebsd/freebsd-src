@@ -90,6 +90,7 @@ SUBDIR=	adduser \
 	tzsetup \
 	ugidfw \
 	vipw \
+	vpsctl \
 	wake \
 	watch \
 	watchdogd \

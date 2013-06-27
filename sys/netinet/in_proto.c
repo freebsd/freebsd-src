@@ -100,7 +100,7 @@ static struct pr_usrreqs nousrreqs;
 #include <netinet/sctp_var.h>
 #endif /* SCTP */
 
-FEATURE(inet, "Internet Protocol version 4");
+_FEATURE(inet, "Internet Protocol version 4", VPS_PUBLIC);
 
 extern	struct domain inetdomain;
 

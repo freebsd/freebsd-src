@@ -1176,6 +1176,11 @@ nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 	gateway = (struct sockaddr_in6 *)rt->rt_gateway;
 	ifp = rt->rt_ifp;
 
+#ifdef VPS
+	if (rt->rt_flags & RTF_PROTO1)
+		return(nd6_rtrequest_koh(req, rt, info));
+#endif /* VPS */
+
 	switch (req) {
 	case RTM_ADD:
 		break;

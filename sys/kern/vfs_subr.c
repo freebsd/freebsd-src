@@ -92,6 +92,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/uma.h>
 
+#include <vps/vps.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -330,7 +332,7 @@ vntblinit(void *dummy __unused)
 	 * size.  The memory required by desiredvnodes vnodes and vm objects
 	 * may not exceed one seventh of the kernel's heap size.
 	 */
-	physvnodes = maxproc + cnt.v_page_count / 16 + 3 * min(98304 * 4,
+	physvnodes = V_maxproc + cnt.v_page_count / 16 + 3 * min(98304 * 4,
 	    cnt.v_page_count) / 16;
 	virtvnodes = vm_kmem_size / (7 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode)));

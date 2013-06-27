@@ -1,0 +1,255 @@
+.\"
+.\" $Id: vps.9 120 2012-08-30 11:14:36Z klaus $
+.\"
+.\" The following commands are required for all man pages.
+.Dd August 29, 2012
+.Os
+.Dt VPS 9
+.Sh NAME
+.Nm vps
+.Nd Virtual Private Systems internals
+.\" 
+.\" 
+.\" .Sh SYNOPSIS
+.\" 
+.\" 
+.Sh DESCRIPTION
+This manual page is supposed to give an overview of how Virtual Private
+Systems (short VPS) works and how it is implemented.
+.\" 
+.\" 
+.Sh IMPLEMENTATION NOTES
+As much as possible (which is almost all) of the code resides in the
+.Ar sys/vps
+directory.
+.Pp
+It can be roughly split up into several components:
+.Bl -tag -width indent
+.\"
+.\"
+.It Cm core
+All that absolutely has to be statically linked into the kernel.
+Very early in the boot process the kernel has to be able to allocate
+the
+.Ar vps0
+instance, which is the instance reflecting the physical host.
+.Pp
+The smaller this part is, the better, as it is even there when VPS
+is not used.
+.Pp
+Files:
+.Ar vps/vps_core.c ,
+.Ar vps/vps_priv.c ,
+.Ar vps/vps_console.c ,
+.Ar vps/vps_pager.c ,
+.Ar vps/vps_devfsruleset.h ,
+.Ar vps/vps_int.h ,
+.Ar vps/vps.h
+.\"
+.\"
+.It Cm device
+Provides the
+.Ar /dev/vps
+interface and all functions for managing VPS from userspace.
+.Pp
+Files:
+.Ar vps/vps_dev.c ,
+.Ar vps/vps_user.c ,
+.Ar vps/vps_user.h
+.\"
+.\"
+.It Cm network interface
+The
+.Ar vpsN
+network device.
+Acts like a virtual layer 3 switch, is the easiest way of connecting
+up VPS instances to a physical network.
+.Pp
+Files:
+.Ar vps/if_vps.c
+.\"
+.\"
+.It Cm suspend
+Suspending and resuming a vps instance.
+.Pp
+Files:
+.Ar vps/vps_suspend.c
+.\"
+.\"
+.It Cm libdump
+Common routines for the snapshot and restore modules and
+userspace programs.
+Provides functions for reading and manipulating snapshot
+files and definitions of all involved data structures.
+.Pp
+Files:
+.Ar vps/vps_libdump.c ,
+.Ar vps/vps_libdump.h
+.\"
+.\"
+.It Cm snapshot
+All the snapshot functionality.
+.Pp
+Files:
+.Ar vps/vps_snapst.c ,
+.Ar vps/vps_snapst.h
+.\"
+.\"
+.It Cm restore
+All the restore functionality.
+.Pp
+Files:
+.Ar vps/vps_restore.c
+.\"
+.\"
+.It Cm accounting
+All the resource accounting and limiting functionality.
+.Pp
+Files:
+.Ar vps/vps_account.c ,
+.Ar vps/vps_account.h
+.\"
+.\"
+.It Cm debug
+Debugging routines,
+.Ar DDB
+integration.
+.Pp
+Files:
+.Ar vps/vps_ddb.c
+.El
+.Pp
+.\"
+.\"
+Overview how things work:
+.\"
+.Bl -tag -width indent
+.It Cm Taking snapshots
+This procedure is quite simple. First all threads have to be suspended,
+which happens at the end of the
+.Ar syscall()
+function.
+A flag in the respective vnet instance is set, causing
+.Ar tcp_input()
+and
+.Ar tcp_output()
+to drop incoming data and not sending outgoing data.
+This is important for live migration.
+.Pp
+Then general information about the vps instance is dumped,
+after that each mount that belongs in the vps context.
+Next is networking related information like interfaces,
+routing tables.
+.Pp
+Each process gets dumped, including proc structure,
+user credentials, signal handlers, vmspace, fdset,
+and threads.
+Note that the userspace pages (vmspace) are not copied
+but wired and directly mapped in the vmspace of vpsctl.
+.Pp
+When the /dev/vps filehandle on which snapshot was requested
+is closed again, the snapshot information is deleted and
+the vps instance remains suspended and can be resumed again.
+.Pp
+The resulting snapshot or dump is of a well-defined format.
+This format is defined in vps/vps_libdump.h and has a version
+number.
+.Pp
+This allows live migration between different kernel versions
+and kernels compiled with different options that result
+in different data structures.
+.Pp
+.It Cm Restoring snapshots
+This applies for restoring from a file and in live migration
+as well.
+.Pp
+First sanity checks on the restore file have to be performed.
+First of all a magic pattern in the header, a checksum
+and the snapshot format version are compared.
+The dumped objects are serialized using length encoding, so
+it is necessary to check nothing runs out of bounds.
+.Pp
+If the snapshot file is found to be valid, or the user forced it,
+the actual restore process is started.
+A new vps instance is allocated, general vps information, mounts,
+network interfaces, including their flags and addresses, and
+routing tables are restored.
+Then sessions (for process groups) are restored,
+and then each process including all its information.
+Threads which were interrupted in certain syscalls get fixed up.
+For instance nanosleep is restarted for sleeping the remaining time.
+Afterwards the process tree (child/parent relationship, process groups, ...)
+is fixed up.
+At the end leftovers are cleaned up and the restored vps instance remains in
+state suspended, ready for being resumed.
+.It Cm Virtualization of globals
+Currently for storing and accessing virtualized global variables
+.Ar vnet
+is used. This can be changed easily by replacing a few macros.
+.Pp
+The 
+.Cm process tree ,
+i.e. the proctree, allproc and zombproc list and locks,
+are private to each vps instance.
+This allows each vps instance to run its init task as pid 1,
+and using the right pids when restoring a vps instance.
+.Pp
+.Cm Devfs 
+keeps a reference in each mount to the respective vps instance, and can
+therefore provide virtualized namespace for devices like pseudo ttys.
+The pts code already uses ucred references, so the only extension is
+support for restoring pts instances with certain unit numbers.
+The unit number allocator (kern/subr_unit.c) was extended by unr_alloc_unit().
+.Pp
+.\"
+.\"
+.It Cm Privilege checking / Security
+By default a reasonable set of
+.Xr priv 9
+privileges is given to a vps instance, but it is possible to give any
+privilege to a vps instance by configuration.
+.Pp
+.\"
+.\"
+.It Cm Resource accounting and limiting
+Currently might not always work as expected.
+.El
+.\" 
+.\" 
+.Sh SEE ALSO
+.Xr vps 4 ,
+.Xr vpsctl 8 ,
+.Xr vps.conf 5 ,
+.Xr mount_vpsfs 8 ,
+.Ad http://www.7he.at/freebsd/vps/
+.\" 
+.\" 
+.\" .Sh STANDARDS
+.\" 
+.\" 
+.Sh HISTORY
+Work on VPS was started in February 2009.
+.\" 
+.\" 
+.Sh AUTHORS
+.Pp
+Virtual Private Systems for FreeBSD and this manual page as well,
+were written by
+.An "Klaus P. Ohrhallinger" .
+.Pp
+Development of this software was partly funded by:
+.Pp
+TransIP.nl <http://www.transip.nl/>
+.\"
+.\"
+.Sh BUGS
+VPS is in an early stage of development and has to be considered as
+experimental.
+This means many bugs have to be expected.
+.Pp
+Please submit bug reports to
+.Ad freebsd-vps@7he.at .
+.\"
+.\"
+.Sh VERSION
+$Id: vps.9 120 2012-08-30 11:14:36Z klaus $

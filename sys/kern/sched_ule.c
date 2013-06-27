@@ -2180,6 +2180,7 @@ sched_preempt(struct thread *td)
 		else
 			mi_switch(flags | SWT_REMOTEPREEMPT, NULL);
 	}
+	td->td_flags &= ~TDF_PREEMPTED;
 	thread_unlock(td);
 }
 
@@ -2451,6 +2452,29 @@ sched_rem(struct thread *td)
 	if (td->td_priority == tdq->tdq_lowpri)
 		tdq_setlowpri(tdq, NULL);
 }
+
+#ifdef VPS
+/*
+ * sched_rem() without tdq_runq_rem() ...
+ */
+void
+sched_rem_norunq(struct thread *td)
+{
+	struct tdq *tdq;
+
+	tdq = TDQ_CPU(td->td_sched->ts_cpu);
+	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
+	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
+
+	KASSERT(TD_ON_RUNQ(td) == 0,
+	    ("sched_rem: thread on run queue"));
+
+	tdq_load_rem(tdq, td);
+	TD_SET_CAN_RUN(td);
+	if (td->td_priority == tdq->tdq_lowpri)
+		tdq_setlowpri(tdq, NULL);
+}
+#endif
 
 /*
  * Fetch cpu utilization information.  Updates on demand.
@@ -2900,4 +2924,4 @@ SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
 
 /* ps compat.  All cpu percentages from ULE are weighted. */
 static int ccpu = 0;
-SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
+_SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "", VPS_PUBLIC);

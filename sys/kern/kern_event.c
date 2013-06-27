@@ -91,7 +91,7 @@ TASKQUEUE_DEFINE_THREAD(kqueue);
 
 static int	kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int	kevent_copyin(void *arg, struct kevent *kevp, int count);
-static int	kqueue_register(struct kqueue *kq, struct kevent *kev,
+/* XXX static*/ int	kqueue_register(struct kqueue *kq, struct kevent *kev,
 		    struct thread *td, int waitok);
 static int	kqueue_acquire(struct file *fp, struct kqueue **kqp);
 static void	kqueue_release(struct kqueue *kq, int locked);
@@ -949,7 +949,7 @@ kqueue_fo_release(int filt)
  * influence if memory allocation should wait.  Make sure it is 0 if you
  * hold any mutexes.
  */
-static int
+/*static XXX */ int
 kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int waitok)
 {
 	struct filterops *fops;

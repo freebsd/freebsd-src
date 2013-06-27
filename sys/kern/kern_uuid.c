@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/vnet.h>
 
+#include <vps/vps.h>
+
 /*
  * See also:
  *	http://www.opengroup.org/dce/info/draft-leach-uuids-guids-01.txt

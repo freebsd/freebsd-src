@@ -164,7 +164,11 @@ tcp_tw_init(void)
 {
 
 	V_tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
+#ifdef VIMAGE
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+#else
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+#endif
 	TUNABLE_INT_FETCH("net.inet.tcp.maxtcptw", &maxtcptw);
 	if (maxtcptw == 0)
 		uma_zone_set_max(V_tcptw_zone, tcptw_auto_size());

@@ -318,10 +318,17 @@ prison_unlock(struct prison *pr)
 /*
  * Attributes of the physical system, and the root of the jail tree.
  */
-extern struct	prison prison0;
+#ifdef VPS
+VPS_DECLARE(struct prison *, prison0);
+#define V_prison0       VPSV(prison0)
+#else
+extern struct prison prison0;
+#define V_prison0	(&prison0)
+#endif
 
 TAILQ_HEAD(prisonlist, prison);
-extern struct	prisonlist allprison;
+VPS_DECLARE(struct prisonlist, allprison);
+#define V_allprison VPSV(allprison)
 extern struct	sx allprison_lock;
 
 /*
@@ -330,20 +337,20 @@ extern struct	sx allprison_lock;
 SYSCTL_DECL(_security_jail_param);
 
 #define	SYSCTL_JAIL_PARAM(module, param, type, fmt, descr)		\
-    SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
-	(type) | CTLFLAG_MPSAFE, NULL, 0, sysctl_jail_param, fmt, descr)
+    _SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
+	(type) | CTLFLAG_MPSAFE, NULL, 0, sysctl_jail_param, fmt, descr, VPS_PUBLIC)
 #define	SYSCTL_JAIL_PARAM_STRING(module, param, access, len, descr)	\
-    SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
+    _SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
 	CTLTYPE_STRING | CTLFLAG_MPSAFE | (access), NULL, len,		\
-	sysctl_jail_param, "A", descr)
+	sysctl_jail_param, "A", descr, VPS_PUBLIC)
 #define	SYSCTL_JAIL_PARAM_STRUCT(module, param, access, len, fmt, descr)\
-    SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
+    _SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
 	CTLTYPE_STRUCT | CTLFLAG_MPSAFE | (access), NULL, len,		\
-	sysctl_jail_param, fmt, descr)
+	sysctl_jail_param, fmt, descr, VPS_PUBLIC)
 #define	SYSCTL_JAIL_PARAM_NODE(module, descr)				\
-    SYSCTL_NODE(_security_jail_param, OID_AUTO, module, 0, 0, descr)
-#define	SYSCTL_JAIL_PARAM_SUBNODE(parent, module, descr)		\
-    SYSCTL_NODE(_security_jail_param_##parent, OID_AUTO, module, 0, 0, descr)
+    _SYSCTL_NODE(_security_jail_param, OID_AUTO, module, 0, 0, descr, VPS_PUBLIC)
+#define       SYSCTL_JAIL_PARAM_SUBNODE(parent, module, descr)                \
+    _SYSCTL_NODE(_security_jail_param_##parent, OID_AUTO, module, 0, 0, descr, VPS_PUBLIC)
 #define	SYSCTL_JAIL_PARAM_SYS_NODE(module, access, descr)		\
     SYSCTL_JAIL_PARAM_NODE(module, descr);				\
     SYSCTL_JAIL_PARAM(_##module, , CTLTYPE_INT | (access), "E,jailsys",	\

@@ -55,22 +55,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/unistd.h>
 
-SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
-	"Sysctl internal magic");
-SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW|CTLFLAG_CAPRD, 0,
-	"High kernel, proc, limits &c");
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
+_SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
+	"Sysctl internal magic", VPS_PUBLIC);
+_SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW|CTLFLAG_CAPRD, 0,
+	"High kernel, proc, limits &c", VPS_PUBLIC);
 SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0,
 	"Virtual memory");
 SYSCTL_NODE(, CTL_VFS,	  vfs,     CTLFLAG_RW, 0,
 	"File system");
-SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0,
-	"Network, (see socket.h)");
+_SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0,
+	"Network, (see socket.h)", VPS_PUBLIC);
 SYSCTL_NODE(, CTL_DEBUG,  debug,  CTLFLAG_RW, 0,
 	"Debugging");
 SYSCTL_NODE(_debug, OID_AUTO,  sizeof,  CTLFLAG_RW, 0,
 	"Sizeof various things");
-SYSCTL_NODE(, CTL_HW,	  hw,     CTLFLAG_RW, 0,
-	"hardware");
+_SYSCTL_NODE(, CTL_HW,	  hw,     CTLFLAG_RW, 0,
+	"hardware", VPS_PUBLIC);
 SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
 	"machine dependent");
 SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0,
@@ -87,49 +90,51 @@ SYSCTL_NODE(, OID_AUTO, regression, CTLFLAG_RW, 0,
      "Regression test MIB");
 #endif
 
-SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,
-    kern_ident, 0, "Kernel identifier");
+_SYSCTL_STRING(_kern, OID_AUTO, ident, CTLFLAG_RD|CTLFLAG_MPSAFE,
+    kern_ident, 0, "Kernel identifier", VPS_PUBLIC);
 
-SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD|CTLFLAG_MPSAFE|
-    CTLFLAG_CAPRD, osrelease, 0, "Operating system release");
+_SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD|CTLFLAG_MPSAFE|
+    CTLFLAG_CAPRD, osrelease, 0, "Operating system release", VPS_PUBLIC);
 
-SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
-    0, BSD, "Operating system revision");
+_SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD|CTLFLAG_CAPRD,
+    0, BSD, "Operating system revision", VPS_PUBLIC);
 
-SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
-    version, 0, "Kernel version");
+_SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD|CTLFLAG_MPSAFE,
+    version, 0, "Kernel version", VPS_PUBLIC);
 
-SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
-    compiler_version, 0, "Version of compiler used to compile kernel");
+_SYSCTL_STRING(_kern, OID_AUTO, compiler_version, CTLFLAG_RD|CTLFLAG_MPSAFE,
+	compiler_version, 0, "Version of compiler used to compile kernel", VPS_PUBLIC);
 
-SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
-    CTLFLAG_CAPRD, ostype, 0, "Operating system type");
+_SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
+    CTLFLAG_CAPRD, ostype, 0, "Operating system type", VPS_PUBLIC);
 
 /*
  * NOTICE: The *userland* release date is available in
  * /usr/include/osreldate.h
  */
-SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD|CTLFLAG_CAPRD,
-    &osreldate, 0, "Kernel release date");
+_SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD|CTLFLAG_CAPRD,
+    &osreldate, 0, "Kernel release date", VPS_PUBLIC);
 
+#ifndef VPS
 SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN,
     &maxproc, 0, "Maximum number of processes");
 
 SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid, CTLFLAG_RW,
     &maxprocperuid, 0, "Maximum processes allowed per userid");
+#endif
 
 SYSCTL_INT(_kern, OID_AUTO, maxusers, CTLFLAG_RDTUN,
     &maxusers, 0, "Hint for kernel tuning");
 
-SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD|CTLFLAG_CAPRD,
-    0, ARG_MAX, "Maximum bytes of argument to execve(2)");
+_SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD|CTLFLAG_CAPRD,
+    0, ARG_MAX, "Maximum bytes of argument to execve(2)", VPS_PUBLIC);
 
 SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, _POSIX_VERSION, "Version of POSIX attempting to comply to");
 
-SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
+_SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
     &ngroups_max, 0,
-    "Maximum number of supplemental groups a user can belong to");
+    "Maximum number of supplemental groups a user can belong to", VPS_PUBLIC);
 
 SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, 1, "Whether job control is available");
@@ -144,17 +149,17 @@ SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD|CTLFLAG_CAPRD,
 
 char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 
-SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
-    kernelname, sizeof kernelname, "Name of kernel file booted");
+_SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW,
+    kernelname, sizeof kernelname, "Name of kernel file booted", VPS_PUBLIC);
 
-SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD|CTLFLAG_CAPRD,
-    &mp_ncpus, 0, "Number of active CPUs");
+_SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD|CTLFLAG_CAPRD,
+    &mp_ncpus, 0, "Number of active CPUs", VPS_PUBLIC);
 
-SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD|CTLFLAG_CAPRD,
-    0, BYTE_ORDER, "System byte order");
+_SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD|CTLFLAG_CAPRD,
+    0, BYTE_ORDER, "System byte order", VPS_PUBLIC);
 
-SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD|CTLFLAG_CAPRD,
-    0, PAGE_SIZE, "System memory page size");
+_SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD|CTLFLAG_CAPRD,
+    0, PAGE_SIZE, "System memory page size", VPS_PUBLIC);
 
 static int
 sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
@@ -169,9 +174,9 @@ sysctl_kern_arnd(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, buf, len));
 }
 
-SYSCTL_PROC(_kern, KERN_ARND, arandom,
+_SYSCTL_PROC(_kern, KERN_ARND, arandom,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD, NULL, 0,
-    sysctl_kern_arnd, "", "arc4rand");
+    sysctl_kern_arnd, "", "arc4rand", VPS_PUBLIC);
 
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
@@ -206,7 +211,24 @@ sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "LU", "");
 
+#ifdef VPS
+static int
+sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
+{
+	u_long val;
+	if (req->td->td_vps == vps0)
+		val = physmem;
+	else
+		/* XXX retrieve phys memory limit of vps instance */
+		val = 1024;
+	return (sysctl_handle_long(oidp, &val, 0, req));
+}
+
+_SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_ULONG | CTLFLAG_RD,
+	0, 0, sysctl_hw_availpages, "LU", "", VPS_PUBLIC);
+#else
 SYSCTL_LONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
+#endif
 
 u_long pagesizes[MAXPAGESIZES] = { PAGE_SIZE };
 
@@ -228,12 +250,13 @@ sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
 
 		error = SYSCTL_OUT(req, pagesizes32, sizeof(pagesizes32));
 	} else
+
 #endif
 		error = SYSCTL_OUT(req, pagesizes, sizeof(pagesizes));
 	return (error);
 }
-SYSCTL_PROC(_hw, OID_AUTO, pagesizes, CTLTYPE_ULONG | CTLFLAG_RD,
-    NULL, 0, sysctl_hw_pagesizes, "LU", "Supported page sizes");
+_SYSCTL_PROC(_hw, OID_AUTO, pagesizes, CTLTYPE_ULONG | CTLFLAG_RD,
+    NULL, 0, sysctl_hw_pagesizes, "LU", "Supported page sizes", VPS_PUBLIC);
 
 #ifdef SCTL_MASK32
 int adaptive_machine_arch = 1;
@@ -258,9 +281,20 @@ sysctl_hw_machine_arch(SYSCTL_HANDLER_ARGS)
 	return (error);
 
 }
-SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD,
-    NULL, 0, sysctl_hw_machine_arch, "A", "System architecture");
+_SYSCTL_PROC(_hw, HW_MACHINE_ARCH, machine_arch, CTLTYPE_STRING | CTLFLAG_RD,
+    NULL, 0, sysctl_hw_machine_arch, "A", "System architecture", VPS_PUBLIC);
 
+#ifdef VPS
+static int
+sysctl_hostname(SYSCTL_HANDLER_ARGS)
+{
+      int error;
+
+      error = vps_sysctl_handle_string(oidp, arg1, arg2, req);
+
+      return (error);
+}
+#else /* VPS */
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
@@ -311,7 +345,26 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
+#endif /* VPS */
 
+#ifdef VPS
+VPS_DEFINE(char, hostname[MAXHOSTNAMELEN]) = "";
+VPS_DEFINE(char, domainname[MAXHOSTNAMELEN]) = "";
+VPS_DEFINE(char, hostuuid[HOSTUUIDLEN]) = "";
+
+SYSCTL_VPS_PROC(_kern, KERN_HOSTNAME, hostname,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    &VPS_NAME(hostname), MAXHOSTNAMELEN,
+    sysctl_hostname, "A", "Hostname");
+SYSCTL_VPS_PROC(_kern, KERN_NISDOMAINNAME, domainname,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    &VPS_NAME(domainname), MAXHOSTNAMELEN,
+    sysctl_hostname, "A", "Name of the current YP/NIS domain");
+SYSCTL_VPS_PROC(_kern, KERN_HOSTUUID, hostuuid,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    &VPS_NAME(hostuuid), HOSTUUIDLEN,
+    sysctl_hostname, "A", "Host UUID");
+#else
 SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
     (void *)(offsetof(struct prison, pr_hostname)), MAXHOSTNAMELEN,
@@ -324,6 +377,7 @@ SYSCTL_PROC(_kern, KERN_HOSTUUID, hostuuid,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
     (void *)(offsetof(struct prison, pr_hostuuid)), HOSTUUIDLEN,
     sysctl_hostname, "A", "Host UUID");
+#endif /* VPS */
 
 static int	regression_securelevel_nonmonotonic = 0;
 
@@ -422,7 +476,7 @@ SYSCTL_PROC(_kern, KERN_HOSTID, hostid,
     CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
     NULL, 0, sysctl_hostid, "LU", "Host ID");
 
-SYSCTL_NODE(_kern, OID_AUTO, features, CTLFLAG_RD, 0, "Kernel Features");
+_SYSCTL_NODE(_kern, OID_AUTO, features, CTLFLAG_RD, 0, "Kernel Features", VPS_PUBLIC);
 
 #ifdef COMPAT_FREEBSD4
 FEATURE(compat_freebsd4, "Compatible with FreeBSD 4");
@@ -504,8 +558,8 @@ sysctl_kern_pid_max(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &pm, 0, req);
 	if (error || !req->newptr)
 		return (error);
-	sx_xlock(&proctree_lock);
-	sx_xlock(&allproc_lock);
+	sx_xlock(&V_proctree_lock);
+	sx_xlock(&V_allproc_lock);
 
 	/*
 	 * Only permit the values less then PID_MAX.
@@ -515,8 +569,8 @@ sysctl_kern_pid_max(SYSCTL_HANDLER_ARGS)
 		error = EINVAL;
 	else
 		pid_max = pm;
-	sx_xunlock(&allproc_lock);
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_allproc_lock);
+	sx_xunlock(&V_proctree_lock);
 	return (error);
 }
 SYSCTL_PROC(_kern, OID_AUTO, pid_max, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN |

@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/unistd.h>
 
+#include <vps/vps.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -208,11 +210,11 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		return (error);
 
 	if (args->flags & (LINUX_CLONE_PARENT | LINUX_CLONE_THREAD)) {
-	   	sx_xlock(&proctree_lock);
+	   	sx_xlock(&V_proctree_lock);
 		PROC_LOCK(p2);
 		proc_reparent(p2, td->td_proc->p_pptr);
 		PROC_UNLOCK(p2);
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 	}
 
 	/* create the emuldata */

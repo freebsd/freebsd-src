@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 
+#include <vps/vps.h>
+
 #include <net/vnet.h>
 
 static struct rwlock khelp_list_lock;

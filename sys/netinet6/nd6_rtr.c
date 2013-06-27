@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/syslog.h>
 #include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -110,6 +111,251 @@ VNET_DEFINE(int, ip6_temp_regen_advance) = TEMPADDR_REGEN_ADVANCE;
 #define RTPREF_LOW	(-1)
 #define RTPREF_RESERVED	(-2)
 #define RTPREF_INVALID	(-3)	/* internal */
+
+/*
+ * XXX explain PROTO1 route
+ */
+
+struct nd6_rtrequest_koh_sendna_str {
+	struct task sna_task;
+	struct ifnet *sna_ifp;
+	struct rtentry *sna_rt;
+	struct sockaddr_in6 *sna_target;
+#ifdef VIMAGE
+	struct vnet *sna_vnet;
+#endif
+};
+
+void nd6_rtrequest_koh_sendna(void *arg, int pending);
+void
+nd6_rtrequest_koh_sendna(void *arg, int pending)
+{
+	struct nd6_rtrequest_koh_sendna_str *s = (struct nd6_rtrequest_koh_sendna_str *)arg;
+	struct sockaddr_in6 *taddr6;
+	struct in6_addr daddr6;
+	int error;
+
+	CURVNET_SET(s->sna_vnet);
+
+	/* Comes in referenced. */
+	RT_LOCK(s->sna_rt);
+
+	taddr6 = (struct sockaddr_in6 *)rt_key(s->sna_rt);
+	// ff02::1 XXX use the defined values
+	memset(&daddr6, 0, sizeof(daddr6));
+	daddr6.s6_addr8[0] = 0xff;
+	daddr6.s6_addr8[1] = 0x02;
+	daddr6.s6_addr8[15] = 0x01;
+	if ((error = in6_setscope(&daddr6, s->sna_ifp, NULL)) != 0) {
+	        /* XXX: should not happen */
+		printf("%s: in6_setscope failed\n", __func__);
+	        /* XXX cleanup and return */
+	}
+
+	nd6_na_output(s->sna_ifp, &daddr6,
+		&taddr6->sin6_addr,
+		ND_NA_FLAG_OVERRIDE | (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0),
+		/* tlladdr */ 1, NULL);
+
+	RTFREE_LOCKED(s->sna_rt);
+	if_rele(s->sna_ifp);
+
+	CURVNET_RESTORE();
+
+	free(s, M_TEMP);
+}
+
+void
+nd6_rtrequest_koh(int req, struct rtentry *rt, struct rt_addrinfo *info)
+{
+	struct sockaddr_in6 *dst6, net6;
+	struct in6_addr llsol;
+	struct in6_multi_mship *imm;
+	struct rtentry *rt2;
+	struct ifnet *srcifp;
+	struct in6_ifaddr *ia;
+	struct nd6_rtrequest_koh_sendna_str *sna;
+	char ip6buf[INET6_ADDRSTRLEN];
+	int error;
+
+	switch (req) {
+	case RTM_ADD:
+		if (rt->rt_flags & RTF_PROTO1 &&
+		    info->rti_addrs & RTA_DST &&
+		    info->rti_addrs & RTA_GATEWAY &&
+		    info->rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) {
+			printf("%s: RTM_ADD; RTF_PROTO1\n", __func__);
+
+			/* info->rti_info[RTAX_DST] ---> sockaddr, the proxied ipv6 address */
+			/* info->rti_info[RTAX_GATEWAY]  ---> sockaddr, the own ll address */
+			/* info->rti_ifp ---> the own _destination_ interface */
+
+			srcifp = NULL;
+			ia = NULL;
+			dst6 = (struct sockaddr_in6 *)info->rti_info[RTAX_DST];
+
+			/* 
+			 * We have to get the interface where the destination address
+			 * would belong to normally.
+			 */
+			/*
+			 * XXX how to get the right route ?!
+			 *     for now use this ugly hack where we assume a prefixlen
+			 *     of 64 for this network on the physical interface.
+			 */
+			/*
+			 * Another (but still ugly and expensive) possibility would be:
+			 *
+			 * Walk through the list of all interfaces and their addresses
+			 * and use the one that has a prefixlen < 128 for and matches
+			 * our destination address.
+			 */
+			memcpy(&net6, dst6, sizeof(net6));
+			net6.sin6_addr.s6_addr32[2] = 0;
+			net6.sin6_addr.s6_addr32[3] = 0;
+			rt2 = rtalloc1((struct sockaddr *)&net6, 0, RTF_RNH_LOCKED);
+			if (rt2) {
+				if_ref(rt2->rt_ifp);
+				srcifp = rt2->rt_ifp;
+				RTFREE_LOCKED(rt2);
+			} else {
+				printf("%s: failed to determine interface for %s\n",
+					__func__, ip6_sprintf(ip6buf, &net6.sin6_addr));
+				goto fail;
+			}
+
+			bzero(&llsol, sizeof(llsol));
+			llsol.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
+			llsol.s6_addr32[1] = 0;
+			llsol.s6_addr32[2] = htonl(1);
+			llsol.s6_addr32[3] = dst6->sin6_addr.s6_addr32[3];
+			llsol.s6_addr8[12] = 0xff;
+			if ((error = in6_setscope(&llsol, srcifp, NULL)) != 0) {
+			        /* XXX: should not happen */
+			        printf("%s: in6_setscope failed\n", __func__);
+			        /* XXX cleanup */
+			        goto fail;
+			}
+			/* XXX causing LOR: rtentry -> in6_multi_mtx */
+			imm = in6_joingroup(srcifp, &llsol, &error, 0 /*delay*/);
+			if (imm == NULL) {
+			        printf("%s: in6_joingroup failed\n", __func__);
+			        /* XXX cleanup */
+			        goto fail;
+			}
+
+			/* XXX not sure if this is alright */
+			ia = in6_ifawithifp(srcifp, &dst6->sin6_addr);
+			if (ia == NULL) {
+				printf("%s: in6_ifawithifp failed\n", __func__);
+				/* XXX cleanup */
+				goto fail;
+			}
+			LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
+
+			/* Snd out unsolicited NA immediately */
+			sna = malloc(sizeof(*sna), M_TEMP, M_NOWAIT|M_ZERO);
+			if (sna == NULL) {
+				/* 
+				 * We don't really fail but just omit
+				 * the NA packet, which is only for speeding
+				 * things up, but not necessary.
+				 */
+				goto fail;
+			}
+			sna->sna_ifp = srcifp;
+			if_ref(sna->sna_ifp);
+			sna->sna_rt = rt;
+			RT_ADDREF(sna->sna_rt);
+#ifdef VIMAGE
+			sna->sna_vnet = curvnet;
+#endif
+			TASK_INIT(&sna->sna_task, 0, nd6_rtrequest_koh_sendna, sna);
+			taskqueue_enqueue(taskqueue_thread, &sna->sna_task);
+			
+			fail:
+			if (ia)
+				ifa_free(&ia->ia_ifa);
+			if (srcifp)
+				if_rele(srcifp);
+		}
+		break;
+	case RTM_DELETE:
+		if (rt->rt_flags & RTF_PROTO1 &&
+		    info->rti_addrs & RTA_DST &&
+		    info->rti_addrs & RTA_GATEWAY &&
+		    info->rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) {
+			printf("%s: RTM_DELETE; RTF_PROTO1\n", __func__);
+
+			srcifp = NULL;
+			ia = NULL;
+			dst6 = (struct sockaddr_in6 *)info->rti_info[RTAX_DST];
+
+			/* 
+			 * We have to get the interface where the destination address
+			 * would belong to normally.
+			 *
+			 * XXX - see comments in RTM_ADD section above.
+			 */
+			memcpy(&net6, dst6, sizeof(net6));
+			net6.sin6_addr.s6_addr32[2] = 0;
+			net6.sin6_addr.s6_addr32[3] = 0;
+			rt2 = rtalloc1((struct sockaddr *)&net6, 0, RTF_PROTO1|RTF_RNH_LOCKED);
+			if (rt2) {
+				if_ref(rt2->rt_ifp);
+				srcifp = rt2->rt_ifp;
+				RTFREE_LOCKED(rt2);
+			} else {
+				printf("%s: failed to determine interface for %s\n",
+					__func__, ip6_sprintf(ip6buf, &net6.sin6_addr));
+				goto fail2;
+			}
+
+			bzero(&llsol, sizeof(llsol));
+			llsol.s6_addr32[0] = IPV6_ADDR_INT32_MLL;
+			llsol.s6_addr32[1] = 0;
+			llsol.s6_addr32[2] = htonl(1);
+			llsol.s6_addr32[3] = dst6->sin6_addr.s6_addr32[3];
+			llsol.s6_addr8[12] = 0xff;
+			if ((error = in6_setscope(&llsol, srcifp, NULL)) != 0) {
+			        /* XXX: should not happen */
+			        printf("%s: in6_setscope failed\n", __func__);
+			        /* XXX cleanup */
+			        goto fail2;
+			}
+
+			/* XXX not sure if this is alright */
+			ia = in6_ifawithifp(srcifp, &dst6->sin6_addr);
+			if (ia == NULL) {
+				printf("%s: in6_ifawithifp failed\n", __func__);
+				/* XXX cleanup */
+				goto fail2;
+			}
+			LIST_FOREACH(imm, &ia->ia6_memberships, i6mm_chain)
+				if (IN6_ARE_ADDR_EQUAL(&imm->i6mm_maddr->in6m_addr, &llsol))
+					break;
+
+			if (imm == NULL) {
+				printf("%s: couldn't find previously created multicast address\n",
+					__func__);
+				/* XXX cleanup */
+				goto fail2;
+			}
+
+			LIST_REMOVE(imm, i6mm_chain);
+			in6_leavegroup(imm);
+
+			fail2:
+			if (ia)
+				ifa_free(&ia->ia_ifa);
+			if (srcifp)
+				if_rele(srcifp);
+		}
+		break;
+	default:
+		break;
+	}
+}
 
 /*
  * Receive Router Solicitation Message - just for routers.

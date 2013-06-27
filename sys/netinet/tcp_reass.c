@@ -118,7 +118,11 @@ tcp_reass_init(void)
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
 	    &V_tcp_reass_maxseg);
 	V_tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
+#ifdef VIMAGE
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+#else
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+#endif
 	/* Set the zone limit and read back the effective value. */
 	V_tcp_reass_maxseg = uma_zone_set_max(V_tcp_reass_zone,
 	    V_tcp_reass_maxseg);

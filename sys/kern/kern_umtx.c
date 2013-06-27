@@ -3771,3 +3771,38 @@ umtx_thread_cleanup(struct thread *td)
 	sched_lend_user_prio(td, PRI_MAX);
 	thread_unlock(td);
 }
+
+#ifdef VPS
+
+/*
+ * VPS stuff
+ */
+
+int vps_umtx_snapshot(struct thread *td);
+int
+vps_umtx_snapshot(struct thread *td)
+{
+	struct umtx_q *uq, *uq2;
+	struct umtx_pi *pi;
+
+	uq = td->td_umtxq;
+
+	printf("%s: td->td_umtxq=%p\n", __func__, uq);
+	if (uq == NULL)
+		return (0);
+
+	printf("%s: uq->uq_spare_queue=%p\n", __func__, uq->uq_spare_queue);
+	printf("%s: uq->uq_inherited_pri=%d\n", __func__, uq->uq_inherited_pri);
+
+	if (uq->uq_spare_queue)
+		TAILQ_FOREACH(uq2, &uq->uq_spare_queue->head, uq_link)
+			printf("%s: uq2=%p\n", __func__, uq2);
+
+	TAILQ_FOREACH(pi, &uq->uq_pi_contested, pi_link)
+		printf("%s: pi=%p\n", __func__, pi);
+	
+	return (0);
+}
+
+#endif /* VPS */
+

@@ -88,6 +88,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+#define _VPS_USER_H__ONLY_FLAGS 1
+#include <vps/vps_user.h>
+#include <vps/vps_account.h>
+
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
 dtrace_execexit_func_t	dtrace_fasttrap_exit;
@@ -144,11 +150,39 @@ exit1(struct thread *td, int rv)
 	 * work around an unsolved stack overflow seen very late during
 	 * shutdown on sparc64 when the gmirror worker process exists.
 	 */
-	if (p == initproc && rebooting == 0) {
+#ifdef VPS
+	if (p == VPS_VPS(vps0, initproc) && rebooting == 0) { /* NOT V_initproc */
+#else
+	if (p == initproc && rebooting == 0) { /* NOT V_initproc */
+#endif
 		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
 	}
+
+#ifdef VPS
+	/*
+	 * If we are the initproc of a vps, we have to wait for all
+	 * other processes to exit before.
+	 */
+	if (p == V_initproc) {
+		struct vps *vps;
+
+		KASSERT( ! (LIST_EMPTY(&p->p_children) && (V_nprocs - V_nprocs_zomb) > 1),
+			("%s: p==V_initproc && LIST_EMPTY(&p->p_children) "
+			"&& (V_nprocs - V_nprocs_zomb) > 1; p=%p",
+			__func__, p));
+
+		/* From this point on we can't do any suspends. */
+		vps = p->p_ucred->cr_vps;
+		//vps->vps_status = VPS_ST_INITISDYING;
+		while ((V_nprocs - V_nprocs_zomb) > 1) {
+			/* Sleep. */
+			pause("vpsxit", hz / 10);
+		}
+
+	}
+#endif /* VPS */
 
 	/*
 	 * MUST abort all other threads before proceeding past here.
@@ -239,7 +273,7 @@ exit1(struct thread *td, int rv)
 
 	/* Are we a task leader? */
 	if (p == p->p_leader) {
-		mtx_lock(&ppeers_lock);
+		mtx_lock(&V_ppeers_lock);
 		q = p->p_peers;
 		while (q != NULL) {
 			PROC_LOCK(q);
@@ -248,8 +282,8 @@ exit1(struct thread *td, int rv)
 			q = q->p_peers;
 		}
 		while (p->p_peers != NULL)
-			msleep(p, &ppeers_lock, PWAIT, "exit1", 0);
-		mtx_unlock(&ppeers_lock);
+			msleep(p, &V_ppeers_lock, PWAIT, "exit1", 0);
+		mtx_unlock(&V_ppeers_lock);
 	}
 
 	/*
@@ -309,7 +343,7 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
 	 */
-	mtx_lock(&ppeers_lock);
+	mtx_lock(&V_ppeers_lock);
 	if (p->p_leader->p_peers) {
 		q = p->p_leader;
 		while (q->p_peers != p)
@@ -317,11 +351,11 @@ exit1(struct thread *td, int rv)
 		q->p_peers = p->p_peers;
 		wakeup(p->p_leader);
 	}
-	mtx_unlock(&ppeers_lock);
+	mtx_unlock(&V_ppeers_lock);
 
 	vmspace_exit(td);
 
-	sx_xlock(&proctree_lock);
+	sx_xlock(&V_proctree_lock);
 	if (SESS_LEADER(p)) {
 		struct session *sp = p->p_session;
 		struct tty *tp;
@@ -359,16 +393,16 @@ exit1(struct thread *td, int rv)
 		}
 
 		if (ttyvp != NULL) {
-			sx_xunlock(&proctree_lock);
+			sx_xunlock(&V_proctree_lock);
 			if (vn_lock(ttyvp, LK_EXCLUSIVE) == 0) {
 				VOP_REVOKE(ttyvp, REVOKEALL);
 				VOP_UNLOCK(ttyvp, 0);
 			}
-			sx_xlock(&proctree_lock);
+			sx_xlock(&V_proctree_lock);
 		}
 	}
 	fixjobc(p, p->p_pgrp, 0);
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 	(void)acct_process(td);
 
 	/* Release the TTY now we've unlocked everything. */
@@ -400,11 +434,14 @@ exit1(struct thread *td, int rv)
 	 * Remove proc from allproc queue and pidhash chain.
 	 * Place onto zombproc.  Unlink from parent's child list.
 	 */
-	sx_xlock(&allproc_lock);
+	sx_xlock(&V_allproc_lock);
 	LIST_REMOVE(p, p_list);
-	LIST_INSERT_HEAD(&zombproc, p, p_list);
+	LIST_INSERT_HEAD(&V_zombproc, p, p_list);
 	LIST_REMOVE(p, p_hash);
-	sx_xunlock(&allproc_lock);
+#ifdef VPS
+	V_nprocs_zomb++;
+#endif
+	sx_xunlock(&V_allproc_lock);
 
 	/*
 	 * Call machine-dependent code to release any
@@ -419,14 +456,25 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Reparent all of our children to init.
 	 */
-	sx_xlock(&proctree_lock);
+	sx_xlock(&V_proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
-		wakeup(initproc);
+#ifdef VPS
+	/* Since we don't allow the initproc to exit as long as there
+	 * are child processes, V_initproc must never be NULL here.
+	 */
+	KASSERT(V_initproc != NULL, ("%s: child procs exists but V_initproc == NULL, p=%p",
+		__func__, p));
+		/* if (V_initproc != NULL) */
+#endif
+		wakeup(V_initproc);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
 		PROC_LOCK(q);
-		proc_reparent(q, initproc);
+#ifdef VPS
+		/* if ( ! (q == V_initproc || V_initproc == NULL)) */
+#endif
+		proc_reparent(q, V_initproc);
 		q->p_sigparent = SIGCHLD;
 		/*
 		 * Traced processes are killed
@@ -511,6 +559,15 @@ exit1(struct thread *td, int rv)
 		 * notify process 1 instead (and hope it will handle this
 		 * situation).
 		 */
+#ifdef VPS
+		/*
+		 * If we don't have a parent proc at all we must be the init proc.
+		 * Otherwise something went wrong !
+		 */
+		KASSERT( ! (p->p_pptr==NULL && p != V_initproc),
+			("%s: p->p_pptr==NULL && p != V_initproc, p=%p", __func__, p));
+		if (p->p_pptr) {
+#endif
 		PROC_LOCK(p->p_pptr);
 		mtx_lock(&p->p_pptr->p_sigacts->ps_mtx);
 		if (p->p_pptr->p_sigacts->ps_flag &
@@ -520,7 +577,7 @@ exit1(struct thread *td, int rv)
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 			pp = p->p_pptr;
 			PROC_UNLOCK(pp);
-			proc_reparent(p, initproc);
+			proc_reparent(p, V_initproc);
 			p->p_sigparent = SIGCHLD;
 			PROC_LOCK(p->p_pptr);
 
@@ -533,7 +590,7 @@ exit1(struct thread *td, int rv)
 		} else
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
-		if (p->p_pptr == initproc)
+		if (p->p_pptr == V_initproc)
 			kern_psignal(p->p_pptr, SIGCHLD);
 		else if (p->p_sigparent != 0) {
 			if (p->p_sigparent == SIGCHLD)
@@ -541,11 +598,14 @@ exit1(struct thread *td, int rv)
 			else	/* LINUX thread */
 				kern_psignal(p->p_pptr, p->p_sigparent);
 		}
+#ifdef VPS
+		}
+#endif
 #ifdef PROCDESC
 	} else
 		PROC_LOCK(p->p_pptr);
 #endif
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 
 	/*
 	 * The state PRS_ZOMBIE prevents other proesses from sending
@@ -565,12 +625,22 @@ exit1(struct thread *td, int rv)
 	 * sched lock, update the state, and release the parent process'
 	 * proc lock.
 	 */
+#ifdef VPS
+	if (p->p_pptr) {
+#endif
 	wakeup(p->p_pptr);
 	cv_broadcast(&p->p_pwait);
 	sched_exit(p->p_pptr, td);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
 	PROC_UNLOCK(p->p_pptr);
+#ifdef VPS
+	} else {
+	   cv_broadcast(&p->p_pwait);
+	   PROC_SLOCK(p);
+	   p->p_state = PRS_ZOMBIE;
+	}
+#endif
 
 	/*
 	 * Hopefully no one will try to deliver a signal to the process this
@@ -582,6 +652,10 @@ exit1(struct thread *td, int rv)
 	 * Save our children's rusage information in our exit rusage.
 	 */
 	ruadd(&p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
+
+#ifdef VPS
+	vps_proc_exit(td, p);
+#endif
 
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.
@@ -754,7 +828,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 {
 	struct proc *q, *t;
 
-	sx_assert(&proctree_lock, SA_XLOCKED);
+	sx_assert(&V_proctree_lock, SA_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	KASSERT(p->p_state == PRS_ZOMBIE, ("proc_reap: !PRS_ZOMBIE"));
@@ -771,7 +845,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 		 * release the proc struct just yet.
 		 */
 		PROC_UNLOCK(p);
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 		return;
 	}
 
@@ -793,7 +867,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 		wakeup(t);
 		cv_broadcast(&p->p_pwait);
 		PROC_UNLOCK(t);
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 		return;
 	}
 
@@ -801,9 +875,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * Remove other references to this process to ensure we have an
 	 * exclusive reference.
 	 */
-	sx_xlock(&allproc_lock);
+	sx_xlock(&V_allproc_lock);
 	LIST_REMOVE(p, p_list);	/* off zombproc */
-	sx_xunlock(&allproc_lock);
+	sx_xunlock(&V_allproc_lock);
 	LIST_REMOVE(p, p_sibling);
 	PROC_LOCK(p);
 	clear_orphan(p);
@@ -813,7 +887,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	if (p->p_procdesc != NULL)
 		procdesc_reap(p);
 #endif
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 
 	/*
 	 * As a side effect of this lock, we know that all other writes to
@@ -841,6 +915,10 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 #endif
 	racct_proc_exit(p);
 
+#ifdef VPS
+	vps_account(p->p_ucred->cr_vps, VPS_ACC_PROCS, VPS_ACC_FREE, 1);
+#endif
+
 	/*
 	 * Free credentials, arguments, and sigacts.
 	 */
@@ -867,9 +945,12 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	KASSERT(FIRST_THREAD_IN_PROC(p),
 	    ("proc_reap: no residual thread!"));
 	uma_zfree(proc_zone, p);
-	sx_xlock(&allproc_lock);
-	nprocs--;
-	sx_xunlock(&allproc_lock);
+	sx_xlock(&V_allproc_lock);
+	V_nprocs--;
+#ifdef VPS
+	V_nprocs_zomb--;
+#endif
+	sx_xunlock(&V_allproc_lock);
 }
 
 static int
@@ -879,7 +960,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	struct proc *q;
 	struct rusage *rup;
 
-	sx_assert(&proctree_lock, SA_XLOCKED);
+	sx_assert(&V_proctree_lock, SA_XLOCKED);
 
 	q = td->td_proc;
 	PROC_LOCK(p);
@@ -1101,7 +1182,7 @@ loop:
 		PROC_UNLOCK(q);
 	}
 	nfound = 0;
-	sx_xlock(&proctree_lock);
+	sx_xlock(&V_proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		ret = proc_to_reap(td, p, idtype, id, status, options,
 		    wrusage, siginfo);
@@ -1113,7 +1194,7 @@ loop:
 			return (0);
 
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
+                PROC_SLOCK(p);
 
 		if ((options & WTRAPPED) != 0 &&
 		    (p->p_flag & P_TRACED) != 0 &&
@@ -1123,7 +1204,7 @@ loop:
 			PROC_SUNLOCK(p);
 			if ((options & WNOWAIT) == 0)
 				p->p_flag |= P_WAITED;
-			sx_xunlock(&proctree_lock);
+			sx_xunlock(&V_proctree_lock);
 			td->td_retval[0] = p->p_pid;
 
 			if (status != NULL)
@@ -1137,7 +1218,7 @@ loop:
 				sigqueue_take(p->p_ksi);
 				PROC_UNLOCK(q);
 			}
-
+  
 			PROC_UNLOCK(p);
 			return (0);
 		}
@@ -1148,7 +1229,7 @@ loop:
 			PROC_SUNLOCK(p);
 			if ((options & WNOWAIT) == 0)
 				p->p_flag |= P_WAITED;
-			sx_xunlock(&proctree_lock);
+			sx_xunlock(&V_proctree_lock);
 			td->td_retval[0] = p->p_pid;
 
 			if (status != NULL)
@@ -1162,14 +1243,14 @@ loop:
 				sigqueue_take(p->p_ksi);
 				PROC_UNLOCK(q);
 			}
-
+  
 			PROC_UNLOCK(p);
 			return (0);
 		}
 		PROC_SUNLOCK(p);
 		if ((options & WCONTINUED) != 0 &&
 		    (p->p_flag & P_CONTINUED) != 0) {
-			sx_xunlock(&proctree_lock);
+			sx_xunlock(&V_proctree_lock);
 			td->td_retval[0] = p->p_pid;
 			if ((options & WNOWAIT) == 0) {
 				p->p_flag &= ~P_CONTINUED;
@@ -1178,7 +1259,7 @@ loop:
 				PROC_UNLOCK(q);
 			}
 			PROC_UNLOCK(p);
-
+  
 			if (status != NULL)
 				*status = SIGCONT;
 			if (siginfo != NULL) {
@@ -1213,16 +1294,16 @@ loop:
 			return (0);
 	}
 	if (nfound == 0) {
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 		return (ECHILD);
 	}
 	if (options & WNOHANG) {
-		sx_xunlock(&proctree_lock);
+		sx_xunlock(&V_proctree_lock);
 		td->td_retval[0] = 0;
 		return (0);
 	}
 	PROC_LOCK(q);
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 	if (q->p_flag & P_STATCHILD) {
 		q->p_flag &= ~P_STATCHILD;
 		error = 0;
@@ -1242,7 +1323,7 @@ void
 proc_reparent(struct proc *child, struct proc *parent)
 {
 
-	sx_assert(&proctree_lock, SX_XLOCKED);
+	sx_assert(&V_proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;

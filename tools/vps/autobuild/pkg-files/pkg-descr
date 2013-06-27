@@ -1,0 +1,7 @@
+OS Level Virtualization
+See vps(4) for more information.
+
+This package will backup your previously installed
+kernel to /boot/kernel.GENERIC upon install.
+
+WWW: http://www.7he.at/freebsd/vps/

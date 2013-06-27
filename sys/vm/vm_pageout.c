@@ -96,6 +96,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
@@ -785,6 +788,10 @@ unlock_return:
 		VM_OBJECT_RUNLOCK(object);
 }
 
+#ifdef VPS
+int vps_pager_put_object(vm_object_t, long);
+#endif
+
 /*
  * deactivate some number of pages in a map, try to do it fairly, but
  * that is really hard to do.
@@ -829,7 +836,12 @@ vm_pageout_map_deactivate_pages(map, desired)
 	}
 
 	if (bigobj != NULL) {
-		vm_pageout_object_deactivate_pages(map->pmap, bigobj, desired);
+#ifdef VPS
+		if (bigobj->type == OBJT_VPS)
+			vps_pager_put_object(bigobj, desired);
+		else
+#endif
+			vm_pageout_object_deactivate_pages(map->pmap, bigobj, desired);
 		VM_OBJECT_RUNLOCK(bigobj);
 	}
 	/*
@@ -1428,6 +1440,9 @@ vm_pageout_oom(int shortage)
 	vm_offset_t size, bigsize;
 	struct thread *td;
 	struct vmspace *vm;
+#ifdef VPS
+	struct vps *vps, *save_vps;
+#endif  
 
 	/*
 	 * We keep the process bigproc locked once we find it to keep anyone
@@ -1439,7 +1454,13 @@ vm_pageout_oom(int shortage)
 	 */
 	bigproc = NULL;
 	bigsize = 0;
-	sx_slock(&allproc_lock);
+#ifdef VPS
+	save_vps = curthread->td_vps;
+	sx_slock(&vps_all_lock);
+	LIST_FOREACH(vps, &vps_head, vps_all) {
+		curthread->td_vps = vps;
+#endif
+	sx_slock(&V_allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		int breakout;
 
@@ -1506,7 +1527,13 @@ vm_pageout_oom(int shortage)
 		} else
 			PROC_UNLOCK(p);
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&V_allproc_lock);
+#ifdef VPS
+	}
+	sx_sunlock(&vps_all_lock);
+	curthread->td_vps = save_vps;
+#endif
+
 	if (bigproc != NULL) {
 		killproc(bigproc, "out of swap space");
 		sched_nice(bigproc, PRIO_MIN);
@@ -1804,6 +1831,10 @@ vm_daemon(void)
 #ifdef RACCT
 	uint64_t rsize, ravailable;
 #endif
+#ifdef VPS
+	struct vps *vps, *save_vps;
+	save_vps = curthread->td_vps;
+#endif  
 
 	while (TRUE) {
 		mtx_lock(&vm_daemon_mtx);
@@ -1826,7 +1857,12 @@ vm_daemon(void)
 		attempts = 0;
 again:
 		attempts++;
-		sx_slock(&allproc_lock);
+#ifdef VPS
+		sx_slock(&vps_all_lock);
+		LIST_FOREACH(vps, &vps_head, vps_all) {
+			curthread->td_vps = vps;
+#endif
+		sx_slock(&V_allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			vm_pindex_t limit, size;
 
@@ -1917,7 +1953,12 @@ again:
 #endif
 			vmspace_free(vm);
 		}
-		sx_sunlock(&allproc_lock);
+		sx_sunlock(&V_allproc_lock);
+#ifdef VPS
+		}
+		sx_sunlock(&vps_all_lock);
+		curthread->td_vps = save_vps;
+#endif
 		if (tryagain != 0 && attempts <= 10)
 			goto again;
 	}

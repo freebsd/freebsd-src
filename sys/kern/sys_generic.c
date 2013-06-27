@@ -86,7 +86,11 @@ SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
 CTASSERT(sizeof(register_t) >= sizeof(size_t));
 
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
+#ifdef VPS
+MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
+#else
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
+#endif
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
 static int	pollout(struct thread *, struct pollfd *, struct pollfd *,
@@ -95,13 +99,16 @@ static int	pollscan(struct thread *, struct pollfd *, u_int);
 static int	pollrescan(struct thread *);
 static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
 static int	selrescan(struct thread *, fd_mask **, fd_mask **);
+#ifndef VPS
 static void	selfdalloc(struct thread *, void *);
 static void	selfdfree(struct seltd *, struct selfd *);
+#endif
 static int	dofileread(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
+#ifndef VPS
 static void	seltdinit(struct thread *);
 static int	seltdwait(struct thread *, sbintime_t, sbintime_t);
 static void	seltdclear(struct thread *);
@@ -136,8 +143,13 @@ struct selfd {
 	struct seltd		*sf_td;		/* (k) owning seltd. */
 	void			*sf_cookie;	/* (k) fd or pollfd. */
 };
+#endif
 
+#ifdef VPS
+uma_zone_t selfd_zone;
+#else
 static uma_zone_t selfd_zone;
+#endif
 static struct mtx_pool *mtxpool_select;
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1501,7 +1513,11 @@ sys_openbsd_poll(td, uap)
  * Preallocate two selfds associated with 'cookie'.  Some fo_poll routines
  * have two select sets, one for read and another for write.
  */
+#ifdef VPS
+void
+#else
 static void
+#endif
 selfdalloc(struct thread *td, void *cookie)
 {
 	struct seltd *stp;
@@ -1517,7 +1533,11 @@ selfdalloc(struct thread *td, void *cookie)
 	stp->st_free2->sf_cookie = cookie;
 }
 
+#ifdef VPS
+void
+#else
 static void
+#endif
 selfdfree(struct seltd *stp, struct selfd *sfp)
 {
 	STAILQ_REMOVE(&stp->st_selq, sfp, selfd, sf_link);
@@ -1649,7 +1669,11 @@ doselwakeup(sip, pri)
 	mtx_unlock(sip->si_mtx);
 }
 
+#ifdef VPS
+void
+#else
 static void
+#endif
 seltdinit(struct thread *td)
 {
 	struct seltd *stp;
@@ -1664,7 +1688,11 @@ out:
 	STAILQ_INIT(&stp->st_selq);
 }
 
+#ifdef VPS
+int
+#else
 static int
+#endif
 seltdwait(struct thread *td, sbintime_t sbt, sbintime_t precision)
 {
 	struct seltd *stp;
@@ -1716,7 +1744,11 @@ seltdfini(struct thread *td)
  * Remove the references to the thread from all of the objects we were
  * polling.
  */
+#ifdef VPS
+void
+#else
 static void
+#endif
 seltdclear(struct thread *td)
 {
 	struct seltd *stp;

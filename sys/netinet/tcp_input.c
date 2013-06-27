@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
 #include <vm/uma.h>
@@ -644,6 +647,14 @@ tcp_input(struct mbuf *m, int off0)
 	u_char tcp_saveipgen[IP6_HDR_LEN];
 	struct tcphdr tcp_savetcp;
 	short ostate = 0;
+#endif
+
+#ifdef VPS
+	int vnet_vps_flags = curthread->td_vnet->vnet_vps_flags;
+
+	if (vnet_vps_flags & VPS_VNET_ABORT ||
+	    vnet_vps_flags & VPS_VNET_SUSPENDED)
+		goto drop;
 #endif
 
 #ifdef INET6

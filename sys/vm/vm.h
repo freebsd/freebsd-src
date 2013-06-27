@@ -83,7 +83,11 @@ typedef u_char vm_prot_t;	/* protection codes */
 #define	VM_PROT_DEFAULT		VM_PROT_ALL
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
-		OBJT_DEAD, OBJT_SG, OBJT_MGTDEVICE };
+		OBJT_DEAD, OBJT_SG, OBJT_MGTDEVICE
+#ifdef VPS
+		, OBJT_VPS
+#endif
+              };
 typedef u_char objtype_t;
 
 union vm_map_object;

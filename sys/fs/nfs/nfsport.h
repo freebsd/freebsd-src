@@ -99,6 +99,8 @@
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
+#include <vps/vps.h>
+
 /*
  * For Darwin, these functions should be "static" when built in a kext.
  * (This is always defined as nil otherwise.)
@@ -636,8 +638,8 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSUNLOCKMNT(m)		mtx_unlock(&((m)->nm_mtx))
 #define	NFSLOCKREQUEST(r)	mtx_lock(&((r)->r_mtx))
 #define	NFSUNLOCKREQUEST(r)	mtx_unlock(&((r)->r_mtx))
-#define	NFSPROCLISTLOCK()	sx_slock(&allproc_lock)
-#define	NFSPROCLISTUNLOCK()	sx_sunlock(&allproc_lock)
+#define	NFSPROCLISTLOCK()	sx_slock(&V_allproc_lock)
+#define	NFSPROCLISTUNLOCK()	sx_sunlock(&V_allproc_lock)
 #define	NFSLOCKSOCKREQ(r)	mtx_lock(&((r)->nr_mtx))
 #define	NFSUNLOCKSOCKREQ(r)	mtx_unlock(&((r)->nr_mtx))
 #define	NFSLOCKDS(d)		mtx_lock(&((d)->nfsclds_mtx))
@@ -869,7 +871,7 @@ int newnfs_realign(struct mbuf **, int);
 /*
  * Set boottime.
  */
-#define	NFSSETBOOTTIME(b)	((b) = boottime)
+#define	NFSSETBOOTTIME(b)	((b) = G_boottime)
 
 /*
  * The size of directory blocks in the buffer cache.

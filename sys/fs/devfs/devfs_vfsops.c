@@ -46,6 +46,9 @@
 #include <sys/limits.h>
 #include <sys/jail.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <fs/devfs/devfs.h>
 
 static struct unrhdr	*devfs_unr;
@@ -142,6 +145,17 @@ devfs_mount(struct mount *mp)
 
 	fmp->dm_rootdir = devfs_vmkdir(fmp, NULL, 0, NULL, DEVFS_ROOTINO);
 
+#ifdef VPS
+	/* Get number of an apropriate ruleset. */
+	error = vps_devfs_mount_cb(fmp, &rsnum);
+	if (error != 0) {
+		sx_destroy(&fmp->dm_lock);
+		free_unr(devfs_unr, fmp->dm_idx);
+		free(fmp, M_DEVFS);
+		return (error);
+	}
+#endif /* VPS */
+
 	error = devfs_root(mp, LK_EXCLUSIVE, &rvp);
 	if (error) {
 		sx_destroy(&fmp->dm_lock);
@@ -195,6 +209,9 @@ devfs_unmount(struct mount *mp, int mntflags)
 	idx = fmp->dm_idx;
 	sx_xunlock(&fmp->dm_lock);
 	free_unr(devfs_unr, idx);
+#ifdef VPS
+	(void)vps_devfs_unmount_cb(fmp);
+#endif /* VPS */
 	if (hold == 0)
 		devfs_unmount_final(fmp);
 	return 0;

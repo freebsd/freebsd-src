@@ -77,6 +77,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cpuset.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 #include <machine/cpu.h>
 
 #include <security/audit/audit.h>
@@ -99,7 +102,11 @@ static struct pgrp pgrp0;
 struct	proc proc0;
 struct	thread thread0 __aligned(16);
 struct	vmspace vmspace0;
+/*
+#ifndef VPS
 struct	proc *initproc;
+#endif
+*/
 
 #ifndef BOOTHOWTO
 #define	BOOTHOWTO	0
@@ -441,6 +448,9 @@ proc0_init(void *dummy __unused)
 	p->p_magic = P_MAGIC;
 	p->p_osrel = osreldate;
 
+	V_maxproc = maxproc;
+	V_maxprocperuid = maxprocperuid;
+
 	/*
 	 * Initialize thread and process structures.
 	 */
@@ -465,7 +475,7 @@ proc0_init(void *dummy __unused)
 	/*
 	 * Create process 0 (the swapper).
 	 */
-	LIST_INSERT_HEAD(&allproc, p, p_list);
+	LIST_INSERT_HEAD(&V_allproc, p, p_list);
 	LIST_INSERT_HEAD(PIDHASH(0), p, p_hash);
 	mtx_init(&pgrp0.pg_mtx, "process group", NULL, MTX_DEF | MTX_DUPOK);
 	p->p_pgrp = &pgrp0;
@@ -498,7 +508,7 @@ proc0_init(void *dummy __unused)
 	td->td_flags = TDF_INMEM;
 	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
-	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
+	V_prison0->pr_cpuset = cpuset_ref(td->td_cpuset);
 	p->p_peers = 0;
 	p->p_leader = p;
 
@@ -515,7 +525,7 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
-	p->p_ucred->cr_prison = &prison0;
+	p->p_ucred->cr_prison = V_prison0;
 	p->p_ucred->cr_loginclass = loginclass_find("default");
 #ifdef AUDIT
 	audit_cred_kproc0(p->p_ucred);
@@ -543,7 +553,7 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_NOFILE].rlim_cur =
 	    p->p_limit->pl_rlimit[RLIMIT_NOFILE].rlim_max = maxfiles;
 	p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_cur =
-	    p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_max = maxproc;
+	    p->p_limit->pl_rlimit[RLIMIT_NPROC].rlim_max = V_maxproc;
 	p->p_limit->pl_rlimit[RLIMIT_DATA].rlim_cur = dfldsiz;
 	p->p_limit->pl_rlimit[RLIMIT_DATA].rlim_max = maxdsiz;
 	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
@@ -589,6 +599,15 @@ proc0_init(void *dummy __unused)
 	PROC_LOCK(p);
 	racct_add_force(p, RACCT_NPROC, 1);
 	PROC_UNLOCK(p);
+
+#ifdef VPS
+	if (bootverbose)
+	    printf("proc0_init: vps0=%p\n", vps0);
+	p->p_ucred->cr_vps = vps0;
+	curthread->td_vps = vps0;
+	vps_ref(vps0, NULL);
+	curthread->td_vps_acc = vps0->vps_acc;
+#endif
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 
@@ -605,7 +624,7 @@ proc0_post(void *dummy __unused)
 	 * Now we can look at the time, having had a chance to verify the
 	 * time from the filesystem.  Pretend that proc0 started now.
 	 */
-	sx_slock(&allproc_lock);
+	sx_slock(&V_allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		microuptime(&p->p_stats->p_start);
 		PROC_SLOCK(p);
@@ -619,7 +638,7 @@ proc0_post(void *dummy __unused)
 			td->td_runtime = 0;
 		}
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&V_allproc_lock);
 	PCPU_SET(switchtime, cpu_ticks());
 	PCPU_SET(switchticks, ticks);
 
@@ -819,16 +838,16 @@ create_init(const void *udata __unused)
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc,
+	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &V_initproc,
 	    NULL, 0);
 	if (error)
 		panic("cannot fork init: %d\n", error);
-	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
+	KASSERT(V_initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
 	/* divorce init's credentials from the kernel's */
 	newcred = crget();
-	PROC_LOCK(initproc);
-	initproc->p_flag |= P_SYSTEM | P_INMEM;
-	oldcred = initproc->p_ucred;
+	PROC_LOCK(V_initproc);
+	V_initproc->p_flag |= P_SYSTEM | P_INMEM;
+	oldcred = V_initproc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
 	mac_cred_create_init(newcred);
@@ -836,11 +855,11 @@ create_init(const void *udata __unused)
 #ifdef AUDIT
 	audit_cred_proc1(newcred);
 #endif
-	initproc->p_ucred = newcred;
-	PROC_UNLOCK(initproc);
+	V_initproc->p_ucred = newcred;
+	PROC_UNLOCK(V_initproc);
 	crfree(oldcred);
-	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
-	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
+	cred_update_thread(FIRST_THREAD_IN_PROC(V_initproc));
+	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(V_initproc), start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL);
 
@@ -852,7 +871,7 @@ kick_init(const void *udata __unused)
 {
 	struct thread *td;
 
-	td = FIRST_THREAD_IN_PROC(initproc);
+	td = FIRST_THREAD_IN_PROC(V_initproc);
 	thread_lock(td);
 	TD_SET_CAN_RUN(td);
 	sched_add(td, SRQ_BORING);

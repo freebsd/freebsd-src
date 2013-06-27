@@ -1,0 +1,215 @@
+.\"
+.\" $Id: vps.conf.5 120 2012-08-30 11:14:36Z klaus $
+.\"
+.\" The following commands are required for all man pages.
+.Dd August 29, 2012
+.Os
+.Dt VPS.CONF 5
+.Sh NAME
+.Nm vps.conf
+.Nd configuration file for a Virtual Private Systems instance
+.\" 
+.\" 
+.Sh DESCRIPTION
+Options are set with
+.Dq Ar name Li = Ar value
+assignments, one per line.
+.Ar name
+is case insensetive.
+.Ar value
+needs quoting if it contains whitespace.
+Comments start with #.
+.Pp
+The following list provides a name and short description for each
+variable that can be set in the
+.Nm
+file:
+.Bl -tag -width indent-two
+.\" 
+.\" 
+.It Va NAME
+The desired name for the vps instance.
+.\" 
+.\" 
+.It Va FSROOT
+The filesystem root of the vps instance.
+.\" 
+.\" 
+.It Op Va FSROOT_PRIV
+If some sort of virtal file system (like
+.Xr mount_vpsfs 8
+is used), this lets you specify the underlying path
+that will be synced on migration instead of the virtual
+mount.
+.\" 
+.\" 
+.It Op Va INIT
+Command line to execute in vps instance after starting.
+If not specified, no processes are started in the vps instance.
+.\"
+.\"
+.It Op Va ROOT_MOUNT
+Command line for mounting root filesystem of vps instance,
+if necessary.
+.\"
+.\"
+.It Op Va ROOT_MOUNT
+Command line for unmounting root filesystem of vps instance,
+if necessary.
+.\" 
+.\" 
+.It Op Va NETWORK_ANNOUNCE
+Command line for announcing vps instance on the network.
+E.g. setting routes somewhere.
+.\" 
+.\" 
+.It Op Va NETWORK_REVOKE
+Command line for revoking vps instance from the network.
+E.g. deleting routes somewhere.
+.\" 
+.\" 
+.It Op Va IP_NETWORKS
+List of IPv4 and IPv6 networks the VPS
+instance is allowed to use on its interfaces.
+.Pp
+Following formats are valid:
+.Dl 192.168.123.231
+.Dl 192.168.213.0/255.255.255.0
+.Dl fc00::200:20
+.Dl fc00::100:0/112
+.Pp
+Multiple networks can be specified on at once,
+separated by ','.
+.\" 
+.\" 
+.It Op Va LIMITS
+Resource limits for the vps instance, specified as
+.Va resource:softlimit:hardlimit .
+Following resources are valid:
+.Bl -tag -width indent-two
+.It Ar phys
+Physical memory.
+.It Ar virt
+Virtual memory.
+.It Ar pctcpu
+CPU utilization in percent.
+.It Ar blockio
+Block I/O Operations per second.
+.It Ar threads
+Number of threads allowed.
+.It Ar procs
+Number of processes allowed.
+.El
+.Pp
+Separate multiple resource limit specifications by ','.
+.\" 
+.\" 
+.It Op Va PRIV_ALLOW
+List of 
+.Xr priv 9
+privileges that are allowed for the vps instance.
+This is used in addition to the quite reasonable
+default set.
+Specifiy either numeric value or name, separate by ','.
+See 
+.Va /usr/include/sys/priv.h
+for a list of valid privileges.
+.\" 
+.\" 
+.It Op Va PRIV_NOSYS
+List of
+.Xr priv 9
+privileges that are forbidden for the vps instance,
+but instead of EPERM error ENOSYS error is returned.
+This is necessary for some applications.
+.\" 
+.\" 
+.It Op Va NETIF_<index>_ADDRESS
+A list of IPv4 and/or IPv6 addresses that the vps instance
+may use on the network interface vps<index>.
+.Pp
+For every
+.Va NETIF_<index>_ADDRESS
+specification a if_vps interface with the name vps<index>
+is created in the vps instance.
+.Pp
+The difference to specifing the addresses in
+.Va IP_NETWORKS
+is that for each address an ARP entry and a routing entry is
+automatically created.
+.\" 
+.\" 
+.El
+.\"
+.\"
+.\" This next command is for sections 1, 6, 7, 8 and 9 only
+.\"     (command return values (to shell) and
+.\"     fprintf/stderr type diagnostics).
+.\" 
+.\" 
+.\" .Sh DIAGNOSTICS
+.\" 
+.\" 
+.\" .Sh COMPATIBILITY
+.\"
+.\"
+.Sh FILES
+.Bl -tag -width /etc/vps/vps_<ID>.conf
+.It Pa /etc/vps/vps_<ID>.conf
+for each VPS instance with id <ID>.
+.El
+.\" 
+.\" 
+.Sh EXAMPLES
+.Pp
+Example of a vps instance configuration file:
+.Pp
+.Dl # This is a comment.
+.Dl NAME = 'vps190'
+.Dl FSROOT = '/usr/vps/vps190'
+.Dl FSROOT_PRIV = '/usr/vps/vps190_priv'
+.Dl NETIF_0_ADDRESS = '10.142.178.190, 2001:10:10::beef:190'
+.Dl ROOT_MOUNT = 'mount_vpsfs /usr/vps/vps190_priv /usr/vps/vps190'
+.Dl ROOT_UNMOUNT = 'umount /usr/vps/vps190'
+.Dl INIT = '/sbin/init'
+.Dl LIMITS = 'phys:0:0,virt:100000000:160000000,pctcpu:100:200,threads:12:12'
+.Pp
+.\"
+.\"
+.Sh SEE ALSO
+.Xr vps 4 ,
+.Xr vps 9 ,
+.Xr vpsctl 8 ,
+.Xr mount_vpsfs 8 ,
+.Ad http://www.7he.at/freebsd/vps/
+.\" 
+.\" 
+.\" .Sh STANDARDS
+.\" 
+.\" 
+.Sh HISTORY
+Work on VPS was started in February 2009.
+.\" 
+.\" 
+.Sh AUTHORS
+.Pp
+Virtual Private Systems for FreeBSD and this manual page as well,
+were written by
+.An "Klaus P. Ohrhallinger" .
+.Pp
+Development of this software was partly funded by:
+.Pp
+TransIP.nl <http://www.transip.nl/>
+.\"
+.\"
+.Sh BUGS
+VPS is in an early stage of development and has to be considered as
+experimental.
+This means many bugs have to be expected.
+.Pp
+Please submit bug reports to
+.Ad freebsd-vps@7he.at .
+.\"
+.\"
+.Sh VERSION
+$Id: vps.conf.5 120 2012-08-30 11:14:36Z klaus $

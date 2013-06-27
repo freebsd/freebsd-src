@@ -93,6 +93,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/vnode.h>
 
+#include <vps/vps.h>
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -364,7 +366,7 @@ acct_process(struct thread *td)
 	 * Get process accounting information.
 	 */
 
-	sx_slock(&proctree_lock);
+	sx_slock(&V_proctree_lock);
 	PROC_LOCK(p);
 
 	/* (1) The terminal from which the process was started */
@@ -372,7 +374,7 @@ acct_process(struct thread *td)
 		acct.ac_tty = tty_udev(p->p_pgrp->pg_session->s_ttyp);
 	else
 		acct.ac_tty = NODEV;
-	sx_sunlock(&proctree_lock);
+	sx_sunlock(&V_proctree_lock);
 
 	/* (2) The name of the command that ran */
 	bcopy(p->p_comm, acct.ac_comm, sizeof acct.ac_comm);
@@ -383,7 +385,7 @@ acct_process(struct thread *td)
 	acct.ac_stime = encode_timeval(st);
 
 	/* (4) The elapsed time the command ran (and its starting time) */
-	tmp = boottime;
+	tmp = V_boottime;
 	timevaladd(&tmp, &p->p_stats->p_start);
 	acct.ac_btime = tmp.tv_sec;
 	microuptime(&tmp);

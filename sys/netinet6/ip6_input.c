@@ -304,6 +304,10 @@ ip6_destroy()
 	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);
+
+#ifdef FLOWTABLE
+        //flowtable_destroy(V_ip6_ft);
+#endif /* FLOWTABLE */
 }
 #endif
 

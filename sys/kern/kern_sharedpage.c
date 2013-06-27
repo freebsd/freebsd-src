@@ -50,7 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 static struct sx shared_page_alloc_sx;
+#ifdef VPS
+vm_object_t shared_page_obj;
+#else
 static vm_object_t shared_page_obj;
+#endif
 static int shared_page_free;
 char *shared_page_mapping;
 

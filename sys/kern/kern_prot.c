@@ -84,6 +84,9 @@ FEATURE(regression,
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+#include <vps/vps.h>
+#include <vps/vps2.h>
+
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
 SYSCTL_NODE(_security, OID_AUTO, bsd, CTLFLAG_RW, 0, "BSD security policy");
@@ -106,7 +109,13 @@ sys_getpid(struct thread *td, struct getpid_args *uap)
 	td->td_retval[0] = p->p_pid;
 #if defined(COMPAT_43)
 	PROC_LOCK(p);
+#ifdef VPS
+	if (V_initproc == td->td_proc) {
+		td->td_retval[1] = 0;
+	}
+#else
 	td->td_retval[1] = p->p_pptr->p_pid;
+#endif /* VPS */
 	PROC_UNLOCK(p);
 #endif
 	return (0);
@@ -124,6 +133,17 @@ sys_getppid(struct thread *td, struct getppid_args *uap)
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK(p);
+#ifdef VPS
+	/*
+	 * In case the initproc of a VPS instance called getppid()
+	 * we return pid 0, which would be true on a non-vps system.
+	 */
+	if (V_initproc == td->td_proc) {
+		td->td_retval[0] = 0;
+		PROC_UNLOCK(p);
+		return (0);
+	}
+#endif
 	td->td_retval[0] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
 	return (0);
@@ -348,7 +368,7 @@ sys_setsid(register struct thread *td, struct setsid_args *uap)
 	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
 	newsess = malloc(sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
 
-	sx_xlock(&proctree_lock);
+	sx_xlock(&V_proctree_lock);
 
 	if (p->p_pgid == p->p_pid || (pgrp = pgfind(p->p_pid)) != NULL) {
 		if (pgrp != NULL)
@@ -361,7 +381,7 @@ sys_setsid(register struct thread *td, struct setsid_args *uap)
 		newsess = NULL;
 	}
 
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 
 	if (newpgrp != NULL)
 		free(newpgrp, M_PGRP);
@@ -407,7 +427,7 @@ sys_setpgid(struct thread *td, register struct setpgid_args *uap)
 
 	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
 
-	sx_xlock(&proctree_lock);
+	sx_xlock(&V_proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == NULL) {
 			error = ESRCH;
@@ -465,7 +485,7 @@ sys_setpgid(struct thread *td, register struct setpgid_args *uap)
 		error = enterthispgrp(targp, pgrp);
 	}
 done:
-	sx_xunlock(&proctree_lock);
+	sx_xunlock(&V_proctree_lock);
 	KASSERT((error == 0) || (newpgrp != NULL),
 	    ("setpgid failed and newpgrp is NULL"));
 	if (newpgrp != NULL)
@@ -1695,7 +1715,7 @@ p_candebug(struct thread *td, struct proc *p)
 	}
 
 	/* Can't trace init when securelevel > 0. */
-	if (p == initproc) {
+	if (p == V_initproc) {
 		error = securelevel_gt(td->td_ucred, 0);
 		if (error)
 			return (error);
@@ -1835,6 +1855,17 @@ crhold(struct ucred *cr)
 void
 crfree(struct ucred *cr)
 {
+#ifdef VPS
+	/*
+	 * For e.g. timed TCP operations this function is called by the
+	 * ''intr'' system process without any VPS context.
+	 */
+	struct vps *vps_save;
+
+	vps_save = curthread->td_vps;
+	KASSERT(cr->cr_vps != NULL, ("%s: cr->cr_vps == NULL", __func__));
+	KASSERT((cr->cr_ref & 0xffff0000) != 0xdead0000, ("dangling reference to ucred 2: cr=%p cr_ref=%08x", cr, cr->cr_ref));
+#endif
 
 	KASSERT(cr->cr_ref > 0, ("bad ucred refcount: %d", cr->cr_ref));
 	KASSERT(cr->cr_ref != 0xdeadc0de, ("dangling reference to ucred"));
@@ -1844,10 +1875,16 @@ crfree(struct ucred *cr)
 		 * allocate a temporary credential, but don't
 		 * allocate a uidinfo structure.
 		 */
+#ifdef VPS
+		curthread->td_vps = cr->cr_vps;
+#endif
 		if (cr->cr_uidinfo != NULL)
 			uifree(cr->cr_uidinfo);
 		if (cr->cr_ruidinfo != NULL)
 			uifree(cr->cr_ruidinfo);
+#ifdef VPS
+		curthread->td_vps = vps_save;
+#endif
 		/*
 		 * Free a prison, if any.
 		 */
@@ -1855,6 +1892,11 @@ crfree(struct ucred *cr)
 			prison_free(cr->cr_prison);
 		if (cr->cr_loginclass != NULL)
 			loginclass_free(cr->cr_loginclass);
+#ifdef VPS
+		/* Drop reference to vps. */
+		if (cr->cr_vps != NULL)
+			vps_deref(cr->cr_vps, cr);
+#endif
 #ifdef AUDIT
 		audit_cred_destroy(cr);
 #endif
@@ -1892,6 +1934,10 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_ruidinfo);
 	prison_hold(dest->cr_prison);
 	loginclass_hold(dest->cr_loginclass);
+#ifdef VPS
+	/* Get reference on vps. */
+	vps_ref(dest->cr_vps, dest);
+#endif
 #ifdef AUDIT
 	audit_cred_copy(src, dest);
 #endif

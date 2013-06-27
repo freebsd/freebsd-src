@@ -78,7 +78,11 @@ int	msgbuf_peekbytes(struct msgbuf *mbp, char *buf, int buflen,
 void	msgbuf_reinit(struct msgbuf *mbp, void *ptr, int size);
 
 #ifndef MSGBUF_SIZE
+#if defined(VPS) && defined(DIAGNOSTIC)
+#define	MSGBUF_SIZE	(64 * 32768 * 3)
+#else
 #define	MSGBUF_SIZE	(32768 * 3)
+#endif /* VPS && DIAGNOSTIC */
 #endif
 #endif /* KERNEL */
 

@@ -114,6 +114,8 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 
+#include <vps/vps_account.h>
+
 /*
  * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, 16
  * or 32 pages per allocation.
@@ -245,6 +247,13 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	}
 #endif
 
+#ifdef VPS
+	if (res) {
+		if (vps_account(cred->cr_vps, VPS_ACC_VIRT, VPS_ACC_ALLOC, incr) != 0)
+			res = 0;
+	}
+#endif
+
 	return (res);
 }
 
@@ -305,6 +314,10 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 	UIDINFO_VMSIZE_UNLOCK(uip);
 
 	racct_sub_cred(cred, RACCT_SWAP, decr);
+
+#ifdef VPS
+	vps_account(cred->cr_vps, VPS_ACC_VIRT, VPS_ACC_FREE, decr);
+#endif
 }
 
 static void swapdev_strategy(struct buf *, struct swdevt *sw);
@@ -1389,6 +1402,10 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		for (j = 0; j < n; ++j) {
 			vm_page_t mreq = m[i+j];
 
+			KASSERT(mreq->object == object,
+				("%s: object=%p mreq->object=%p mreq=%p\n",
+				__func__, object, mreq->object, mreq));
+
 			swp_pager_meta_build(
 			    mreq->object,
 			    mreq->pindex,
@@ -1607,6 +1624,9 @@ swp_pager_async_iodone(struct buf *bp)
 			KASSERT(!pmap_page_is_write_mapped(m),
 			    ("swp_pager_async_iodone: page %p is not write"
 			    " protected", m));
+			KASSERT(m->object == object,
+				("%s: object=%p m->object=%p m=%p\n",
+				__func__, object, m->object, m));
 			vm_page_undirty(m);
 			vm_page_io_finish(m);
 			if (vm_page_count_severe()) {

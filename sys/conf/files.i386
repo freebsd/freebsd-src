@@ -452,6 +452,7 @@ i386/i386/trap.c		standard
 i386/i386/uio_machdep.c		standard
 i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
+i386/i386/vps_machdep.c		optional vps
 i386/ibcs2/ibcs2_errno.c	optional ibcs2
 i386/ibcs2/ibcs2_fcntl.c	optional ibcs2
 i386/ibcs2/ibcs2_ioctl.c	optional ibcs2

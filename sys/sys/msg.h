@@ -27,6 +27,10 @@
 #include <sys/_types.h>
 #include <sys/ipc.h>
 
+#if defined(_KERNEL) && defined(VPS)
+#include <vps/vps.h>
+#endif
+
 /*
  * The MSG_NOERROR identifier value, the msqid_ds struct and the msg struct
  * are as defined by the SV API Intel 386 Processor Supplement.
@@ -145,7 +149,12 @@ struct msginfo {
 		msgssz,		/* size of a message segment (see notes above) */
 		msgseg;		/* number of message segments */
 };
+#ifndef VPS
 extern struct msginfo	msginfo;
+#else
+VPS_DECLARE(struct msginfo, msginfo);
+#define V_msginfo VPSV(msginfo)
+#endif
 
 /*
  * Kernel wrapper for the user-level structure.

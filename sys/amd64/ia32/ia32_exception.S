@@ -44,6 +44,9 @@ IDTVEC(int0x80_syscall)
 	swapgs
 	pushq	$2			/* sizeof "int 0x80" */
 	subq	$TF_ERR,%rsp		/* skip over tf_trapno */
+#ifdef VPS
+	movl	$0x80,TF_TRAPNO(%rsp)
+#endif	
 	movq	%rdi,TF_RDI(%rsp)
 	movq	PCPU(CURPCB),%rdi
 	andl	$~PCB_FULL_IRET,PCB_FLAGS(%rdi)

@@ -239,6 +239,14 @@ typedef void (*app_coredump_error_fn)(void *, struct thread *td, char *msg, ...)
 
 EVENTHANDLER_DECLARE(app_coredump_start, app_coredump_start_fn);
 EVENTHANDLER_DECLARE(app_coredump_progress, app_coredump_progress_fn);
+
+#ifdef VPS
+struct vps;
+typedef void (*vps_alloc_fn)(void *, struct vps *);
+typedef void (*vps_free_fn)(void *, struct vps *);
+EVENTHANDLER_DECLARE(vps_alloc, vps_alloc_fn);
+EVENTHANDLER_DECLARE(vps_free, vps_free_fn);
+#endif /* VPS */
 EVENTHANDLER_DECLARE(app_coredump_finish, app_coredump_finish_fn);
 EVENTHANDLER_DECLARE(app_coredump_error, app_coredump_error_fn);
 

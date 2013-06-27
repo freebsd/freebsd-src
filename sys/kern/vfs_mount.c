@@ -59,7 +59,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+
 #include <vm/uma.h>
+
+#include <vps/vps.h>
+#include <vps/vps2.h>
 
 #include <geom/geom.h>
 
@@ -472,7 +476,32 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_cred = crdup(cred);
 	mp->mnt_stat.f_owner = cred->cr_uid;
-	strlcpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
+#if 0
+	/* Deprecated as of 9.1-RELEASE. */
+#ifdef VPS
+	/*
+	//debug
+	if (rootvnode != NULL && cred->cr_vps->_rootvnode != rootvnode)
+		printf("%s: cred->cr_vps->_rootpath=[%s] fspath=[%s]\n",
+			__func__, cred->cr_vps->_rootpath, fspath);
+	*/
+	/*
+	 * If the function is called from any VPS other than vps0;
+	 * the vfs root is likely to be different from the actual root.
+	 * But the entry in the global mount list can't contain an relative
+	 * fspath.
+	 *
+	 * Length check is done in vfs_domount().
+	 */
+	if (rootvnode != NULL && cred->cr_vps->_rootvnode != rootvnode)
+		snprintf(mp->mnt_stat.f_mntonname, MNAMELEN, "%s%s",
+			cred->cr_vps->_rootpath, fspath);
+	else
+#endif /* VPS */
+#else
+#endif /* 0 */
+		strlcpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
+
 	mp->mnt_iosize_max = DFLTPHYS;
 #ifdef MAC
 	mac_mount_init(mp);
@@ -651,6 +680,20 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 			fsflags |= MNT_UNION;
 	}
 
+#ifdef VPS
+	/*
+	 * If the function is called from any VPS other than vps0;
+	 * the vfs root is likely to be different from the actual root.
+	 * The entry in the global mount list can't contain an relative
+	 * fspath tough.
+	 *
+	 * Only do length check here, the absolute path gets put together
+	 * in vfs_mount_alloc().
+	 */
+	if (rootvnode != NULL && td->td_ucred->cr_vps->_rootvnode != rootvnode)
+		if (strlen(fspath) + strlen(td->td_ucred->cr_vps->_rootpath) >= MNAMELEN)
+			return (ENAMETOOLONG);
+#endif
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
@@ -846,6 +889,10 @@ vfs_domount_first(
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+#ifdef VPS
+	mp->mnt_vps = curthread->td_vps;
+	vps_ref(mp->mnt_vps, (void*)0xdead0010);
+#endif
 	MNT_IUNLOCK(mp);
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -987,6 +1034,10 @@ vfs_domount_update(
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
+#ifdef VPS
+	mp->mnt_vps = curthread->td_vps;
+	vps_ref(mp->mnt_vps, (void*)0xdead0010);
+#endif
 	MNT_IUNLOCK(mp);
 
 	if (error != 0)
@@ -1034,6 +1085,20 @@ vfs_domount(
 	char *pathbuf;
 	int error;
 
+#ifdef VPS
+	/*
+	 * If the function is called from any VPS other than vps0;
+	 * the vfs root is likely to be different from the actual root.
+	 * The entry in the global mount list can't contain an relative
+	 * fspath tough.
+	 *
+	 * Only do length check here, the absolute path gets put together
+	 * in vfs_mount_alloc().
+	 */
+	if (rootvnode != NULL && td->td_ucred->cr_vps->_rootvnode != rootvnode)
+		if (strlen(fspath) + strlen(td->td_ucred->cr_vps->_rootpath) >= MNAMELEN)
+			return (ENAMETOOLONG);
+#endif
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
 	 * variables will fit in our mp buffers, including the
@@ -1201,6 +1266,16 @@ sys_unmount(td, uap)
 		return ((uap->flags & MNT_BYFSID) ? ENOENT : EINVAL);
 	}
 
+#ifdef VPS
+	/* Only allow unmount for vps0 or if mount is owned by vps. */
+	if (td->td_ucred->cr_vps != vps0) {
+		if (mp->mnt_vps != td->td_ucred->cr_vps) {
+			mtx_unlock(&Giant);
+			return (EPERM);
+		}
+	}
+#endif /* VPS */
+
 	/*
 	 * Don't allow unmounting the root filesystem.
 	 */
@@ -1292,6 +1367,12 @@ dounmount(mp, flags, td)
 	async_flag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
+#ifdef VPS
+	if (mp->mnt_vps) {
+		vps_deref(mp->mnt_vps, (void*)0xdead0010);
+		mp->mnt_vps = NULL;
+	}
+#endif
 	MNT_IUNLOCK(mp);
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	vfs_deallocate_syncvnode(mp);

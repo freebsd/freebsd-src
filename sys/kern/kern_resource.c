@@ -66,13 +66,26 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+#include <vps/vps.h>
+
 
 static MALLOC_DEFINE(M_PLIMIT, "plimit", "plimit structures");
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
+
+#if 0
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
 static struct rwlock uihashtbl_lock;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
+#endif
+
+VPS_DEFINE(struct rwlock, uihashtbl_lock);
+VPS_DEFINE(LIST_HEAD(uihashhead, uidinfo) *, uihashtbl);
+VPS_DEFINE(u_long, uihash);
+#define V_uihashtbl_lock	VPSV(uihashtbl_lock)
+#define V_uihashtbl		VPSV(uihashtbl)
+#define V_uihash		VPSV(uihash)
+#define	UIHASH(uid)	(&V_uihashtbl[(uid) & V_uihash])
 
 static void	calcru1(struct proc *p, struct rusage_ext *ruxp,
 		    struct timeval *up, struct timeval *sp);
@@ -116,18 +129,18 @@ sys_getpriority(td, uap)
 		break;
 
 	case PRIO_PGRP:
-		sx_slock(&proctree_lock);
+		sx_slock(&V_proctree_lock);
 		if (uap->who == 0) {
 			pg = td->td_proc->p_pgrp;
 			PGRP_LOCK(pg);
 		} else {
 			pg = pgfind(uap->who);
 			if (pg == NULL) {
-				sx_sunlock(&proctree_lock);
+				sx_sunlock(&V_proctree_lock);
 				break;
 			}
 		}
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NORMAL &&
@@ -143,7 +156,7 @@ sys_getpriority(td, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = td->td_ucred->cr_uid;
-		sx_slock(&allproc_lock);
+		sx_slock(&V_allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NORMAL &&
@@ -154,7 +167,7 @@ sys_getpriority(td, uap)
 			}
 			PROC_UNLOCK(p);
 		}
-		sx_sunlock(&allproc_lock);
+		sx_sunlock(&V_allproc_lock);
 		break;
 
 	default:
@@ -203,18 +216,18 @@ sys_setpriority(td, uap)
 		break;
 
 	case PRIO_PGRP:
-		sx_slock(&proctree_lock);
+		sx_slock(&V_proctree_lock);
 		if (uap->who == 0) {
 			pg = curp->p_pgrp;
 			PGRP_LOCK(pg);
 		} else {
 			pg = pgfind(uap->who);
 			if (pg == NULL) {
-				sx_sunlock(&proctree_lock);
+				sx_sunlock(&V_proctree_lock);
 				break;
 			}
 		}
-		sx_sunlock(&proctree_lock);
+		sx_sunlock(&V_proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NORMAL &&
@@ -230,7 +243,7 @@ sys_setpriority(td, uap)
 	case PRIO_USER:
 		if (uap->who == 0)
 			uap->who = td->td_ucred->cr_uid;
-		sx_slock(&allproc_lock);
+		sx_slock(&V_allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NORMAL &&
@@ -241,7 +254,7 @@ sys_setpriority(td, uap)
 			}
 			PROC_UNLOCK(p);
 		}
-		sx_sunlock(&allproc_lock);
+		sx_sunlock(&V_allproc_lock);
 		break;
 
 	default:
@@ -728,10 +741,10 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 		break;
 
 	case RLIMIT_NPROC:
-		if (limp->rlim_cur > maxprocperuid)
-			limp->rlim_cur = maxprocperuid;
-		if (limp->rlim_max > maxprocperuid)
-			limp->rlim_max = maxprocperuid;
+		if (limp->rlim_cur > V_maxprocperuid)
+			limp->rlim_cur = V_maxprocperuid;
+		if (limp->rlim_max > V_maxprocperuid)
+			limp->rlim_max = V_maxprocperuid;
 		if (limp->rlim_cur < 1)
 			limp->rlim_cur = 1;
 		if (limp->rlim_max < 1)
@@ -1212,9 +1225,19 @@ void
 uihashinit()
 {
 
-	uihashtbl = hashinit(maxproc / 16, M_UIDINFO, &uihash);
-	rw_init(&uihashtbl_lock, "uidinfo hash");
+	V_uihashtbl = hashinit(V_maxproc / 16, M_UIDINFO, &V_uihash);
+	rw_init(&V_uihashtbl_lock, "uidinfo hash");
 }
+
+#ifdef VPS
+void
+uihashdestroy()
+{
+
+	rw_destroy(&V_uihashtbl_lock);
+	hashdestroy(V_uihashtbl, M_UIDINFO, V_uihash);
+}
+#endif
 
 /*
  * Look up a uidinfo struct for the parameter uid.
@@ -1227,7 +1250,7 @@ uilookup(uid)
 	struct uihashhead *uipp;
 	struct uidinfo *uip;
 
-	rw_assert(&uihashtbl_lock, RA_LOCKED);
+	rw_assert(&V_uihashtbl_lock, RA_LOCKED);
 	uipp = UIHASH(uid);
 	LIST_FOREACH(uip, uipp, ui_hash)
 		if (uip->ui_uid == uid)
@@ -1247,13 +1270,13 @@ uifind(uid)
 {
 	struct uidinfo *old_uip, *uip;
 
-	rw_rlock(&uihashtbl_lock);
+	rw_rlock(&V_uihashtbl_lock);
 	uip = uilookup(uid);
 	if (uip == NULL) {
-		rw_runlock(&uihashtbl_lock);
+		rw_runlock(&V_uihashtbl_lock);
 		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
 		racct_create(&uip->ui_racct);
-		rw_wlock(&uihashtbl_lock);
+		rw_wlock(&V_uihashtbl_lock);
 		/*
 		 * There's a chance someone created our uidinfo while we
 		 * were in malloc and not holding the lock, so we have to
@@ -1273,7 +1296,7 @@ uifind(uid)
 		}
 	}
 	uihold(uip);
-	rw_unlock(&uihashtbl_lock);
+	rw_unlock(&V_uihashtbl_lock);
 	return (uip);
 }
 
@@ -1315,11 +1338,11 @@ uifree(uip)
 		return;
 
 	/* Prepare for suboptimal case. */
-	rw_wlock(&uihashtbl_lock);
+	rw_wlock(&V_uihashtbl_lock);
 	if (refcount_release(&uip->ui_ref)) {
 		racct_destroy(&uip->ui_racct);
 		LIST_REMOVE(uip, ui_hash);
-		rw_wunlock(&uihashtbl_lock);
+		rw_wunlock(&V_uihashtbl_lock);
 		if (uip->ui_sbsize != 0)
 			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
 			    uip->ui_uid, uip->ui_sbsize);
@@ -1335,9 +1358,9 @@ uifree(uip)
 	}
 	/*
 	 * Someone added a reference between atomic_cmpset_int() and
-	 * rw_wlock(&uihashtbl_lock).
+	 * rw_wlock(&V_uihashtbl_lock).
 	 */
-	rw_wunlock(&uihashtbl_lock);
+	rw_wunlock(&V_uihashtbl_lock);
 }
 
 void
@@ -1347,13 +1370,13 @@ ui_racct_foreach(void (*callback)(struct racct *racct,
 	struct uidinfo *uip;
 	struct uihashhead *uih;
 
-	rw_rlock(&uihashtbl_lock);
-	for (uih = &uihashtbl[uihash]; uih >= uihashtbl; uih--) {
+	rw_rlock(&V_uihashtbl_lock);
+	for (uih = &V_uihashtbl[V_uihash]; uih >= V_uihashtbl; uih--) {
 		LIST_FOREACH(uip, uih, ui_hash) {
 			(callback)(uip->ui_racct, arg2, arg3);
 		}
 	}
-	rw_runlock(&uihashtbl_lock);
+	rw_runlock(&V_uihashtbl_lock);
 }
 
 /*

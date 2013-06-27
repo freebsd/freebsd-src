@@ -122,6 +122,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #endif
 
+#include <vps/vps_account.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
@@ -164,6 +166,24 @@ __FBSDID("$FreeBSD$");
 
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
+
+#if 0
+
+#ifdef VPS
+#define VPS_ACCOUNT_PMAP(_pmap, action, charge)				\
+	do {								\
+		if (_pmap == kernel_map->pmap || 			\
+		    _pmap == kmem_map->pmap ||				\
+		    _pmap == buffer_map->pmap)				\
+			break;						\
+		vps_account(curthread->td_vps, VPS_ACC_PHYS,		\
+			action, charge << PAGE_SHIFT);				\
+	} while (0)
+#endif /* VPS */
+
+#else
+#define VPS_ACCOUNT_PMAP(a, b, c)
+#endif
 
 #define	NPV_LIST_LOCKS	MAXCPU
 
@@ -461,6 +481,7 @@ pmap_resident_count_inc(pmap_t pmap, int count)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	pmap->pm_stats.resident_count += count;
+	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_ALLOC, count);
 }
 
 static __inline void
@@ -469,6 +490,7 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	pmap->pm_stats.resident_count -= count;
+	VPS_ACCOUNT_PMAP(pmap, VPS_ACC_FREE, count);
 }
 
 PMAP_INLINE pt_entry_t *

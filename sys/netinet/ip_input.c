@@ -425,6 +425,10 @@ ip_destroy(void)
 	IPQ_UNLOCK();
 
 	uma_zdestroy(V_ipq_zone);
+
+#ifdef FLOWTABLE
+	flowtable_destroy(V_ip_ft);
+#endif /* FLOWTABLE */
 }
 #endif
 

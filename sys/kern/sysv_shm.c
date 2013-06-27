@@ -58,6 +58,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*-
+ * VPS adaption:
+ *
+ * Copyright (c) 2009-2013 Klaus P. Ohrhallinger <k@7he.at>
+ * All rights reserved.
+ *
+ * Development of this software was partly funded by:
+ *    TransIP.nl <http://www.transip.nl/>
+ *
+ * <BSD license>
+ *
+ * $Id: sysv_shm.c 162 2013-06-06 18:17:55Z klaus $
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -68,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
@@ -86,6 +100,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/jail.h>
+
+#include <vps/vps.h>
+#include <vps/vps2.h>
+#include <vps/vps_int.h>
+#include <vps/vps_libdump.h>
+#define _VPS_SNAPST_H_RESTORE_OBJ
+#include <vps/vps_snapst.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -111,9 +132,46 @@ static int shmget_existing(struct thread *td, struct shmget_args *uap,
 #define	SHMSEG_ALLOCATED	0x0800
 #define	SHMSEG_WANTED		0x1000
 
+#if 0
 static int shm_last_free, shm_nused, shmalloced;
 vm_size_t shm_committed;
 static struct shmid_kernel	*shmsegs;
+
+struct	shminfo shminfo = {
+	SHMMAX,
+	SHMMIN,
+	SHMMNI,
+	SHMSEG,
+	SHMALL
+};
+
+static int shm_use_phys;
+static int shm_allow_removed;
+#endif
+
+VPS_DEFINE(int, shm_last_free);
+VPS_DEFINE(int, shm_nused);
+VPS_DEFINE(int, shmalloced);
+VPS_DEFINE(vm_size_t, shm_committed);
+VPS_DEFINE(struct shmid_kernel *, shmsegs);
+VPS_DEFINE(struct shminfo, shminfo);
+VPS_DEFINE(int, shm_use_phys) = 0;
+VPS_DEFINE(int, shm_allow_removed) = 0;
+
+#define V_shm_last_free		VPSV(shm_last_free)
+#define V_shm_nused		VPSV(shm_nused)
+#define V_shmalloced		VPSV(shmalloced)
+#define V_shm_committed		VPSV(shm_committed)
+#define V_shmsegs		VPSV(shmsegs)
+#define V_shminfo		VPSV(shminfo)
+#define V_shm_use_phys		VPSV(shm_use_phys)
+#define V_shm_allow_removed	VPSV(shm_allow_removed)
+
+#ifdef VPS
+static eventhandler_tag shm_vpsalloc_tag;
+static eventhandler_tag shm_vpsfree_tag;
+static int shm_nused_global;
+#endif
 
 struct shmmap_state {
 	vm_offset_t va;
@@ -155,6 +213,7 @@ static int sysctl_shmsegs(SYSCTL_HANDLER_ARGS);
 #define	SHMALL	(SHMMAXPGS)
 #endif
 
+#if 0
 struct	shminfo shminfo = {
 	SHMMAX,
 	SHMMIN,
@@ -165,23 +224,24 @@ struct	shminfo shminfo = {
 
 static int shm_use_phys;
 static int shm_allow_removed;
+#endif
 
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0,
+SYSCTL_VPS_ULONG(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &VPS_NAME(shminfo.shmmax), 0,
     "Maximum shared memory segment size");
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0,
+SYSCTL_VPS_ULONG(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &VPS_NAME(shminfo.shmmin), 0,
     "Minimum shared memory segment size");
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RDTUN, &shminfo.shmmni, 0,
+SYSCTL_VPS_ULONG(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RDTUN, &VPS_NAME(shminfo.shmmni), 0,
     "Number of shared memory identifiers");
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &shminfo.shmseg, 0,
+SYSCTL_VPS_ULONG(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &VPS_NAME(shminfo.shmseg), 0,
     "Number of segments per process");
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0,
+SYSCTL_VPS_ULONG(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &VPS_NAME(shminfo.shmall), 0,
     "Maximum number of pages available for shared memory");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
-    &shm_use_phys, 0, "Enable/Disable locking of shared memory pages in core");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW,
-    &shm_allow_removed, 0,
+SYSCTL_VPS_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
+    &VPS_NAME(shm_use_phys), 0, "Enable/Disable locking of shared memory pages in core");
+SYSCTL_VPS_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW,
+    &VPS_NAME(shm_allow_removed), 0,
     "Enable/Disable attachment to attached segments marked for removal");
-SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLTYPE_OPAQUE | CTLFLAG_RD,
+SYSCTL_VPS_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, sysctl_shmsegs, "",
     "Current number of shared memory segments allocated");
 
@@ -191,9 +251,9 @@ shm_find_segment_by_key(key)
 {
 	int i;
 
-	for (i = 0; i < shmalloced; i++)
-		if ((shmsegs[i].u.shm_perm.mode & SHMSEG_ALLOCATED) &&
-		    shmsegs[i].u.shm_perm.key == key)
+	for (i = 0; i < V_shmalloced; i++)
+		if ((V_shmsegs[i].u.shm_perm.mode & SHMSEG_ALLOCATED) &&
+		    V_shmsegs[i].u.shm_perm.key == key)
 			return (i);
 	return (-1);
 }
@@ -205,11 +265,11 @@ shm_find_segment_by_shmid(int shmid)
 	struct shmid_kernel *shmseg;
 
 	segnum = IPCID_TO_IX(shmid);
-	if (segnum < 0 || segnum >= shmalloced)
+	if (segnum < 0 || segnum >= V_shmalloced)
 		return (NULL);
-	shmseg = &shmsegs[segnum];
+	shmseg = &V_shmsegs[segnum];
 	if ((shmseg->u.shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
-	    (!shm_allow_removed &&
+	    (!V_shm_allow_removed &&
 	     (shmseg->u.shm_perm.mode & SHMSEG_REMOVED) != 0) ||
 	    shmseg->u.shm_perm.seq != IPCID_TO_SEQ(shmid))
 		return (NULL);
@@ -221,11 +281,11 @@ shm_find_segment_by_shmidx(int segnum)
 {
 	struct shmid_kernel *shmseg;
 
-	if (segnum < 0 || segnum >= shmalloced)
+	if (segnum < 0 || segnum >= V_shmalloced)
 		return (NULL);
-	shmseg = &shmsegs[segnum];
+	shmseg = &V_shmsegs[segnum];
 	if ((shmseg->u.shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
-	    (!shm_allow_removed &&
+	    (!V_shm_allow_removed &&
 	     (shmseg->u.shm_perm.mode & SHMSEG_REMOVED) != 0))
 		return (NULL);
 	return (shmseg);
@@ -242,8 +302,11 @@ shm_deallocate_segment(shmseg)
 	vm_object_deallocate(shmseg->object);
 	shmseg->object = NULL;
 	size = round_page(shmseg->u.shm_segsz);
-	shm_committed -= btoc(size);
-	shm_nused--;
+	V_shm_committed -= btoc(size);
+	V_shm_nused--;
+#ifdef VPS
+	atomic_subtract_int(&shm_nused_global, 1);
+#endif
 	shmseg->u.shm_perm.mode = SHMSEG_FREE;
 #ifdef MAC
 	mac_sysvshm_cleanup(shmseg);
@@ -264,7 +327,7 @@ shm_delete_mapping(struct vmspace *vm, struct shmmap_state *shmmap_s)
 	GIANT_REQUIRED;
 
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
-	shmseg = &shmsegs[segnum];
+	shmseg = &V_shmsegs[segnum];
 	size = round_page(shmseg->u.shm_segsz);
 	result = vm_map_remove(&vm->vm_map, shmmap_s->va, shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
@@ -274,7 +337,7 @@ shm_delete_mapping(struct vmspace *vm, struct shmmap_state *shmmap_s)
 	if ((--shmseg->u.shm_nattch <= 0) &&
 	    (shmseg->u.shm_perm.mode & SHMSEG_REMOVED)) {
 		shm_deallocate_segment(shmseg);
-		shm_last_free = segnum;
+		V_shm_last_free = segnum;
 	}
 	return (0);
 }
@@ -305,18 +368,18 @@ sys_shmdt(td, uap)
 		error = EINVAL;
 		goto done2;
 	}
-	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++) {
+	for (i = 0; i < V_shminfo.shmseg; i++, shmmap_s++) {
 		if (shmmap_s->shmid != -1 &&
 		    shmmap_s->va == (vm_offset_t)uap->shmaddr) {
 			break;
 		}
 	}
-	if (i == shminfo.shmseg) {
+	if (i == V_shminfo.shmseg) {
 		error = EINVAL;
 		goto done2;
 	}
 #ifdef MAC
-	shmsegptr = &shmsegs[IPCID_TO_IX(shmmap_s->shmid)];
+	shmsegptr = &V_shmsegs[IPCID_TO_IX(shmmap_s->shmid)];
 	error = mac_sysvshm_check_shmdt(td->td_ucred, shmsegptr);
 	if (error != 0)
 		goto done2;
@@ -356,9 +419,9 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	mtx_lock(&Giant);
 	shmmap_s = p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
-		shmmap_s = malloc(shminfo.shmseg * sizeof(struct shmmap_state),
+		shmmap_s = malloc(V_shminfo.shmseg * sizeof(struct shmmap_state),
 		    M_SHM, M_WAITOK);
-		for (i = 0; i < shminfo.shmseg; i++)
+		for (i = 0; i < V_shminfo.shmseg; i++)
 			shmmap_s[i].shmid = -1;
 		p->p_vmspace->vm_shm = shmmap_s;
 	}
@@ -376,12 +439,12 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	if (error != 0)
 		goto done2;
 #endif
-	for (i = 0; i < shminfo.shmseg; i++) {
+	for (i = 0; i < V_shminfo.shmseg; i++) {
 		if (shmmap_s->shmid == -1)
 			break;
 		shmmap_s++;
 	}
-	if (i >= shminfo.shmseg) {
+	if (i >= V_shminfo.shmseg) {
 		error = EMFILE;
 		goto done2;
 	}
@@ -466,14 +529,14 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 	 * consistent with the Linux ABI.
 	 */
 	case IPC_INFO:
-		memcpy(buf, &shminfo, sizeof(shminfo));
+		memcpy(buf, &V_shminfo, sizeof(V_shminfo));
 		if (bufsz)
-			*bufsz = sizeof(shminfo);
-		td->td_retval[0] = shmalloced;
+			*bufsz = sizeof(V_shminfo);
+		td->td_retval[0] = V_shmalloced;
 		goto done2;
 	case SHM_INFO: {
 		struct shm_info shm_info;
-		shm_info.used_ids = shm_nused;
+		shm_info.used_ids = V_shm_nused;
 		shm_info.shm_rss = 0;	/*XXX where to get from ? */
 		shm_info.shm_tot = 0;	/*XXX where to get from ? */
 		shm_info.shm_swp = 0;	/*XXX where to get from ? */
@@ -482,7 +545,7 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 		memcpy(buf, &shm_info, sizeof(shm_info));
 		if (bufsz)
 			*bufsz = sizeof(shm_info);
-		td->td_retval[0] = shmalloced;
+		td->td_retval[0] = V_shmalloced;
 		goto done2;
 	}
 	}
@@ -534,7 +597,7 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 		shmseg->u.shm_perm.mode |= SHMSEG_REMOVED;
 		if (shmseg->u.shm_nattch <= 0) {
 			shm_deallocate_segment(shmseg);
-			shm_last_free = IPCID_TO_IX(shmid);
+			V_shm_last_free = IPCID_TO_IX(shmid);
 		}
 		break;
 #if 0
@@ -611,7 +674,7 @@ shmget_existing(td, uap, mode, segnum)
 	struct shmid_kernel *shmseg;
 	int error;
 
-	shmseg = &shmsegs[segnum];
+	shmseg = &V_shmsegs[segnum];
 	if (shmseg->u.shm_perm.mode & SHMSEG_REMOVED) {
 		/*
 		 * This segment is in the process of being allocated.  Wait
@@ -651,26 +714,26 @@ shmget_allocate_segment(td, uap, mode)
 
 	GIANT_REQUIRED;
 
-	if (uap->size < shminfo.shmmin || uap->size > shminfo.shmmax)
+	if (uap->size < V_shminfo.shmmin || uap->size > V_shminfo.shmmax)
 		return (EINVAL);
-	if (shm_nused >= shminfo.shmmni) /* Any shmids left? */
+	if (V_shm_nused >= V_shminfo.shmmni) /* Any shmids left? */
 		return (ENOSPC);
 	size = round_page(uap->size);
-	if (shm_committed + btoc(size) > shminfo.shmall)
+	if (V_shm_committed + btoc(size) > V_shminfo.shmall)
 		return (ENOMEM);
-	if (shm_last_free < 0) {
+	if (V_shm_last_free < 0) {
 		shmrealloc();	/* Maybe expand the shmsegs[] array. */
-		for (i = 0; i < shmalloced; i++)
-			if (shmsegs[i].u.shm_perm.mode & SHMSEG_FREE)
+		for (i = 0; i < V_shmalloced; i++)
+			if (V_shmsegs[i].u.shm_perm.mode & SHMSEG_FREE)
 				break;
-		if (i == shmalloced)
+		if (i == V_shmalloced)
 			return (ENOSPC);
 		segnum = i;
 	} else  {
-		segnum = shm_last_free;
-		shm_last_free = -1;
+		segnum = V_shm_last_free;
+		V_shm_last_free = -1;
 	}
-	shmseg = &shmsegs[segnum];
+	shmseg = &V_shmsegs[segnum];
 #ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	if (racct_add(td->td_proc, RACCT_NSHM, 1)) {
@@ -697,7 +760,7 @@ shmget_allocate_segment(td, uap, mode)
 	 * We make sure that we have allocated a pager before we need
 	 * to.
 	 */
-	shm_object = vm_pager_allocate(shm_use_phys ? OBJT_PHYS : OBJT_SWAP,
+	shm_object = vm_pager_allocate(V_shm_use_phys ? OBJT_PHYS : OBJT_SWAP,
 	    0, size, VM_PROT_DEFAULT, 0, cred);
 	if (shm_object == NULL) {
 #ifdef RACCT
@@ -727,8 +790,11 @@ shmget_allocate_segment(td, uap, mode)
 	mac_sysvshm_create(cred, shmseg);
 #endif
 	shmseg->u.shm_ctime = time_second;
-	shm_committed += btoc(size);
-	shm_nused++;
+	V_shm_committed += btoc(size);
+	V_shm_nused++;
+#ifdef VPS
+	atomic_add_int(&shm_nused_global, 1);
+#endif
 	if (shmseg->u.shm_perm.mode & SHMSEG_WANTED) {
 		/*
 		 * Somebody else wanted this key while we were asleep.  Wake
@@ -789,13 +855,13 @@ shmfork_myhook(p1, p2)
 	int i;
 
 	mtx_lock(&Giant);
-	size = shminfo.shmseg * sizeof(struct shmmap_state);
+	size = V_shminfo.shmseg * sizeof(struct shmmap_state);
 	shmmap_s = malloc(size, M_SHM, M_WAITOK);
 	bcopy(p1->p_vmspace->vm_shm, shmmap_s, size);
 	p2->p_vmspace->vm_shm = shmmap_s;
-	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
+	for (i = 0; i < V_shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1)
-			shmsegs[IPCID_TO_IX(shmmap_s->shmid)].u.shm_nattch++;
+			V_shmsegs[IPCID_TO_IX(shmmap_s->shmid)].u.shm_nattch++;
 	mtx_unlock(&Giant);
 }
 
@@ -808,7 +874,7 @@ shmexit_myhook(struct vmspace *vm)
 	if ((base = vm->vm_shm) != NULL) {
 		vm->vm_shm = NULL;
 		mtx_lock(&Giant);
-		for (i = 0, shm = base; i < shminfo.shmseg; i++, shm++) {
+		for (i = 0, shm = base; i < V_shminfo.shmseg; i++, shm++) {
 			if (shm->shmid != -1)
 				shm_delete_mapping(vm, shm);
 		}
@@ -823,24 +889,24 @@ shmrealloc(void)
 	int i;
 	struct shmid_kernel *newsegs;
 
-	if (shmalloced >= shminfo.shmmni)
+	if (V_shmalloced >= V_shminfo.shmmni)
 		return;
 
-	newsegs = malloc(shminfo.shmmni * sizeof(*newsegs), M_SHM, M_WAITOK);
+	newsegs = malloc(V_shminfo.shmmni * sizeof(*newsegs), M_SHM, M_WAITOK);
 	if (newsegs == NULL)
 		return;
-	for (i = 0; i < shmalloced; i++)
-		bcopy(&shmsegs[i], &newsegs[i], sizeof(newsegs[0]));
-	for (; i < shminfo.shmmni; i++) {
-		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
-		shmsegs[i].u.shm_perm.seq = 0;
+	for (i = 0; i < V_shmalloced; i++)
+		bcopy(&V_shmsegs[i], &newsegs[i], sizeof(newsegs[0]));
+	for (; i < V_shminfo.shmmni; i++) {
+		V_shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
+		V_shmsegs[i].u.shm_perm.seq = 0;
 #ifdef MAC
-		mac_sysvshm_init(&shmsegs[i]);
+		mac_sysvshm_init(&V_shmsegs[i]);
 #endif
 	}
-	free(shmsegs, M_SHM);
-	shmsegs = newsegs;
-	shmalloced = shminfo.shmmni;
+	free(V_shmsegs, M_SHM);
+	V_shmsegs = newsegs;
+	V_shmalloced = V_shminfo.shmmni;
 }
 
 static struct syscall_helper_data shm_syscalls[] = {
@@ -880,41 +946,168 @@ static struct syscall_helper_data shm32_syscalls[] = {
 };
 #endif
 
+#ifdef VPS
+
+int shm_snapshot_vps(struct vps_snapst_ctx *ctx, struct vps *vps);
+int shm_snapshot_proc(struct vps_snapst_ctx *ctx, struct vps *vps, struct proc* proc);
+int shm_restore_vps(struct vps_snapst_ctx *ctx, struct vps *vps);
+int shm_restore_proc(struct vps_snapst_ctx *ctx, struct vps *vps, struct proc* proc);
+int shm_restore_fixup(struct vps_snapst_ctx *ctx, struct vps *vps);
+
+static void
+shm_vpsalloc_hook(void *arg, struct vps *vps)
+{
+	/*
+	DPRINTF(("%s: vps=%p\n", __func__, vps));
+	*/
+
+	vps_ref(vps, NULL);
+
+	shminit();
+}
+
+static void
+shm_vpsfree_hook(void *arg, struct vps *vps)
+{
+	/*
+	DPRINTF(("%s: vps=%p\n", __func__, vps));
+	*/
+
+	if (shmunload())
+		printf("%s: shmunload() error\n", __func__);
+
+	vps_deref(vps, NULL);
+}
+
+static int
+shminit_global(void)
+{
+	struct vps *vps, *save_vps;
+	int error;
+
+	save_vps = curthread->td_vps;
+
+	shm_nused_global = 0;
+
+	sx_slock(&vps_all_lock);
+	LIST_FOREACH(vps, &vps_head, vps_all) {
+		curthread->td_vps = vps;
+		shminit();
+		curthread->td_vps = save_vps;
+	}
+	sx_sunlock(&vps_all_lock);
+
+	shmexit_hook = &shmexit_myhook;
+	shmfork_hook = &shmfork_myhook;
+
+	shm_vpsalloc_tag = EVENTHANDLER_REGISTER(vps_alloc, shm_vpsalloc_hook, NULL,
+		EVENTHANDLER_PRI_ANY);
+	shm_vpsfree_tag = EVENTHANDLER_REGISTER(vps_free, shm_vpsfree_hook, NULL,
+		EVENTHANDLER_PRI_ANY);
+
+	vps_func->shm_snapshot_vps = shm_snapshot_vps;
+	vps_func->shm_snapshot_proc = shm_snapshot_proc;
+	vps_func->shm_restore_vps = shm_restore_vps;
+	vps_func->shm_restore_proc = shm_restore_proc;
+	vps_func->shm_restore_fixup = shm_restore_fixup;
+
+	error = syscall_helper_register(shm_syscalls);
+	if (error != 0)
+		return (error);
+#ifdef COMPAT_FREEBSD32
+	error = syscall32_helper_register(shm32_syscalls);
+	if (error != 0)
+		return (error);
+#endif
+	return (error);
+}
+
+static int
+shmunload_global(void)
+{
+	struct vps *vps, *save_vps;
+
+	save_vps = curthread->td_vps;
+ 
+	if (shm_nused_global != 0)
+		return (EBUSY);
+
+#ifdef COMPAT_FREEBSD32
+	syscall32_helper_unregister(shm32_syscalls);
+#endif
+	syscall_helper_unregister(shm_syscalls);
+
+	vps_func->shm_snapshot_vps = NULL;
+	vps_func->shm_snapshot_proc = NULL;
+	vps_func->shm_restore_vps = NULL;
+	vps_func->shm_restore_proc = NULL;
+	vps_func->shm_restore_fixup = NULL;
+
+	EVENTHANDLER_DEREGISTER(vps_alloc, shm_vpsalloc_tag);
+	EVENTHANDLER_DEREGISTER(vps_free, shm_vpsfree_tag);
+
+	shmexit_hook = NULL;
+	shmfork_hook = NULL;
+
+	sx_slock(&vps_all_lock);
+	LIST_FOREACH(vps, &vps_head, vps_all) {
+		curthread->td_vps = vps;
+		if (VPS_VPS(vps, shmsegs))
+			shmunload();
+		curthread->td_vps = save_vps;
+	}
+	sx_sunlock(&vps_all_lock);
+
+	return (0);
+}
+#endif /* VPS */
+
 static int
 shminit()
 {
-	int i, error;
+	int i;
+#ifndef VPS
+	int error;
+#endif
+
+	V_shminfo.shmmax = SHMMAX;
+	V_shminfo.shmmin = SHMMIN;
+	V_shminfo.shmmni = SHMMNI;
+	V_shminfo.shmseg = SHMSEG;
+	V_shminfo.shmall = SHMALL;
 
 #ifndef BURN_BRIDGES
-	if (TUNABLE_ULONG_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall) != 0)
+	if (TUNABLE_ULONG_FETCH("kern.ipc.shmmaxpgs", &V_shminfo.shmall) != 0)
 		printf("kern.ipc.shmmaxpgs is now called kern.ipc.shmall!\n");
 #endif
-	TUNABLE_ULONG_FETCH("kern.ipc.shmall", &shminfo.shmall);
-	if (!TUNABLE_ULONG_FETCH("kern.ipc.shmmax", &shminfo.shmmax)) {
+	TUNABLE_ULONG_FETCH("kern.ipc.shmall", &V_shminfo.shmall);
+		if (!TUNABLE_ULONG_FETCH("kern.ipc.shmmax", &V_shminfo.shmmax)) {
 		/* Initialize shmmax dealing with possible overflow. */
 		for (i = PAGE_SIZE; i > 0; i--) {
-			shminfo.shmmax = shminfo.shmall * i;
-			if (shminfo.shmmax >= shminfo.shmall)
+			V_shminfo.shmmax = V_shminfo.shmall * i;
+			if (V_shminfo.shmmax >= V_shminfo.shmall)
 				break;
 		}
 	}
-	TUNABLE_ULONG_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
-	TUNABLE_ULONG_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
-	TUNABLE_ULONG_FETCH("kern.ipc.shmseg", &shminfo.shmseg);
-	TUNABLE_INT_FETCH("kern.ipc.shm_use_phys", &shm_use_phys);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmmin", &V_shminfo.shmmin);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmmni", &V_shminfo.shmmni);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmseg", &V_shminfo.shmseg);
+	TUNABLE_INT_FETCH("kern.ipc.shm_use_phys", &V_shm_use_phys);
 
-	shmalloced = shminfo.shmmni;
-	shmsegs = malloc(shmalloced * sizeof(shmsegs[0]), M_SHM, M_WAITOK);
-	for (i = 0; i < shmalloced; i++) {
-		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
-		shmsegs[i].u.shm_perm.seq = 0;
+	V_shmalloced = V_shminfo.shmmni;
+	V_shmsegs = malloc(V_shmalloced * sizeof(V_shmsegs[0]), M_SHM, M_WAITOK);
+	for (i = 0; i < V_shmalloced; i++) {
+		V_shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
+		V_shmsegs[i].u.shm_perm.seq = 0;
+		V_shmsegs[i].cred = NULL;
 #ifdef MAC
-		mac_sysvshm_init(&shmsegs[i]);
+		mac_sysvshm_init(&V_shmsegs[i]);
 #endif
 	}
-	shm_last_free = 0;
-	shm_nused = 0;
-	shm_committed = 0;
+	V_shm_last_free = 0;
+	V_shm_nused = 0;
+	V_shm_committed = 0;
+#ifndef VPS
 	shmexit_hook = &shmexit_myhook;
 	shmfork_hook = &shmfork_myhook;
 
@@ -926,6 +1119,7 @@ shminit()
 	if (error != 0)
 		return (error);
 #endif
+#endif /* !VPS */
 	return (0);
 }
 
@@ -934,29 +1128,42 @@ shmunload()
 {
 	int i;	
 
-	if (shm_nused > 0)
+#ifdef VPS
+	/* Cleaning up */
+	mtx_lock(&Giant);
+	for (i = 0; i < V_shmalloced; i++)
+		if ((V_shmsegs[i].u.shm_perm.mode & SHMSEG_ALLOCATED)
+			&& V_shmsegs[i].object != NULL)
+			shm_deallocate_segment(&V_shmsegs[i]);
+	mtx_unlock(&Giant);
+#endif
+	if (V_shm_nused > 0)
 		return (EBUSY);
 
+#ifndef VPS
 #ifdef COMPAT_FREEBSD32
 	syscall32_helper_unregister(shm32_syscalls);
 #endif
 	syscall_helper_unregister(shm_syscalls);
+#endif /* !VPS */
 
-	for (i = 0; i < shmalloced; i++) {
+	for (i = 0; i < V_shmalloced; i++) {
 #ifdef MAC
-		mac_sysvshm_destroy(&shmsegs[i]);
+		mac_sysvshm_destroy(&V_shmsegs[i]);
 #endif
 		/*
 		 * Objects might be still mapped into the processes
 		 * address spaces.  Actual free would happen on the
 		 * last mapping destruction.
 		 */
-		if (shmsegs[i].u.shm_perm.mode != SHMSEG_FREE)
-			vm_object_deallocate(shmsegs[i].object);
+		if (V_shmsegs[i].u.shm_perm.mode != SHMSEG_FREE)
+			vm_object_deallocate(V_shmsegs[i].object);
 	}
-	free(shmsegs, M_SHM);
+	free(V_shmsegs, M_SHM);
+#ifndef VPS
 	shmexit_hook = NULL;
 	shmfork_hook = NULL;
+#endif
 	return (0);
 }
 
@@ -964,7 +1171,7 @@ static int
 sysctl_shmsegs(SYSCTL_HANDLER_ARGS)
 {
 
-	return (SYSCTL_OUT(req, shmsegs, shmalloced * sizeof(shmsegs[0])));
+	return (SYSCTL_OUT(req, V_shmsegs, V_shmalloced * sizeof(V_shmsegs[0])));
 }
 
 #if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
@@ -1381,12 +1588,22 @@ sysvshm_modload(struct module *module, int cmd, void *arg)
 
 	switch (cmd) {
 	case MOD_LOAD:
+#ifdef VPS
+		error = shminit_global();
+		if (error != 0)
+			shmunload();
+#else
 		error = shminit();
 		if (error != 0)
 			shmunload();
+#endif
 		break;
 	case MOD_UNLOAD:
+#ifdef VPS
+		error = shmunload_global();
+#else
 		error = shmunload();
+#endif
 		break;
 	case MOD_SHUTDOWN:
 		break;
@@ -1405,3 +1622,226 @@ static moduledata_t sysvshm_mod = {
 
 DECLARE_MODULE(sysvshm, sysvshm_mod, SI_SUB_SYSV_SHM, SI_ORDER_FIRST);
 MODULE_VERSION(sysvshm, 1);
+
+#ifdef VPS
+
+__attribute__ ((noinline, unused))
+int
+shm_snapshot_vps(struct vps_snapst_ctx *ctx, struct vps *vps)
+{
+	struct vps_dump_sysvshm_shminfo *vdshminfo;
+	struct vps_dump_sysvshm_shmid *vdshmsegs;
+	struct vps_dumpobj *o1;
+	struct shminfo *shminfo;
+	struct shmid_kernel *shmsegs;
+	int i;
+
+	o1 = vdo_create(ctx, VPS_DUMPOBJT_SYSVSHM_VPS, M_WAITOK);
+
+	shminfo = &VPS_VPS(vps, shminfo);
+	vdshminfo = vdo_space(ctx, sizeof(*vdshminfo), M_WAITOK);
+
+	vdshminfo->shmmax = shminfo->shmmax;
+	vdshminfo->shmmin = shminfo->shmmin;
+	vdshminfo->shmmni = shminfo->shmmni;
+	vdshminfo->shmseg = shminfo->shmseg;
+	vdshminfo->shmall = shminfo->shmall;
+	vdshminfo->shm_last_free = VPS_VPS(vps, shm_last_free);
+	vdshminfo->shm_nused = VPS_VPS(vps, shm_nused);
+	vdshminfo->shmalloced = VPS_VPS(vps, shmalloced);
+	vdshminfo->shm_committed = VPS_VPS(vps, shm_committed);
+
+	shmsegs = VPS_VPS(vps, shmsegs);
+	vdshmsegs = vdo_space(ctx, sizeof(*vdshmsegs) * shminfo->shmmni, M_WAITOK);
+	for (i = 0; i < shminfo->shmmni; i++) {
+		vdshmsegs[i].shm_perm.cuid = shmsegs[i].u.shm_perm.cuid;
+		vdshmsegs[i].shm_perm.cgid = shmsegs[i].u.shm_perm.cgid;
+		vdshmsegs[i].shm_perm.uid = shmsegs[i].u.shm_perm.uid;
+		vdshmsegs[i].shm_perm.gid = shmsegs[i].u.shm_perm.gid;
+		vdshmsegs[i].shm_perm.mode = shmsegs[i].u.shm_perm.mode;
+		vdshmsegs[i].shm_perm.seq = shmsegs[i].u.shm_perm.seq;
+		vdshmsegs[i].shm_perm.key = shmsegs[i].u.shm_perm.key;
+		vdshmsegs[i].shm_segsz = shmsegs[i].u.shm_segsz;
+		vdshmsegs[i].shm_lpid = shmsegs[i].u.shm_lpid;
+		vdshmsegs[i].shm_cpid = shmsegs[i].u.shm_cpid;
+		vdshmsegs[i].shm_nattch = shmsegs[i].u.shm_nattch;
+		vdshmsegs[i].shm_atime = shmsegs[i].u.shm_atime;
+		vdshmsegs[i].shm_ctime = shmsegs[i].u.shm_ctime;
+		vdshmsegs[i].shm_dtime = shmsegs[i].u.shm_dtime;
+		vdshmsegs[i].object = shmsegs[i].object;
+		/* XXX assert label == NULL */
+		vdshmsegs[i].label = shmsegs[i].label;
+		vdshmsegs[i].cred = shmsegs[i].cred;
+		if (shmsegs[i].cred != NULL)
+			vps_func->vps_snapshot_ucred(ctx, vps, shmsegs[i].cred, M_WAITOK);
+	}
+
+	vdo_close(ctx);
+
+	return (0);
+}
+
+__attribute__ ((noinline, unused))
+int
+shm_snapshot_proc(struct vps_snapst_ctx *ctx, struct vps *vps, struct proc* proc)
+{
+	struct vps_dumpobj *o1;
+	struct vps_dump_sysvshm_shmmap_state *vdbase;
+	struct shmmap_state *base;
+	int i;
+
+	if (proc->p_vmspace->vm_shm == NULL)
+		return (0);
+
+	o1 = vdo_create(ctx, VPS_DUMPOBJT_SYSVSHM_PROC, M_WAITOK);
+
+	base = proc->p_vmspace->vm_shm;
+	vdbase = vdo_space(ctx, sizeof(*vdbase) *
+		VPS_VPS(vps, shminfo).shmseg, M_WAITOK);
+	for (i = 0; i < VPS_VPS(vps, shminfo).shmseg; i++) {
+		vdbase[i].va = base[i].va;
+		vdbase[i].shmid = base[i].shmid;
+	}
+
+	vdo_close(ctx);
+
+	return (0);
+}
+
+__attribute__ ((noinline, unused))
+int
+shm_restore_vps(struct vps_snapst_ctx *ctx, struct vps *vps)
+{
+	struct vps_dump_sysvshm_shminfo *vdshminfo;
+	struct vps_dump_sysvshm_shmid *vdshmsegs;
+	struct vps_dumpobj *o1;
+	struct shminfo *shminfo;
+	struct shmid_kernel *shmsegs;
+	int i;
+
+	o1 = vdo_next(ctx);
+        if (o1->type != VPS_DUMPOBJT_SYSVSHM_VPS) {
+		printf("%s: o1=%p is not VPS_DUMPOBJT_SYSVSHM_VPS\n",
+			__func__, o1);
+		return (EINVAL);
+	}
+	shminfo = &VPS_VPS(vps, shminfo);
+	vdshminfo = (struct vps_dump_sysvshm_shminfo *)o1->data;
+
+        shminfo->shmmax = vdshminfo->shmmax;
+	shminfo->shmmin = vdshminfo->shmmin;
+	shminfo->shmmni = vdshminfo->shmmni;
+	shminfo->shmseg = vdshminfo->shmseg;
+	shminfo->shmall = vdshminfo->shmall;
+
+	free(VPS_VPS(vps, shmsegs), M_SHM);
+	VPS_VPS(vps, shmsegs) = malloc(VPS_VPS(vps, shmalloced) *
+		sizeof(VPS_VPS(vps, shmsegs[0])), M_SHM, M_WAITOK);
+
+	VPS_VPS(vps, shm_last_free) = vdshminfo->shm_last_free;
+	VPS_VPS(vps, shm_nused) = vdshminfo->shm_nused;
+	VPS_VPS(vps, shmalloced) = vdshminfo->shmalloced;
+	VPS_VPS(vps, shm_committed) = vdshminfo->shm_committed;
+
+	shmsegs = VPS_VPS(vps, shmsegs);
+	vdshmsegs = (struct vps_dump_sysvshm_shmid *)(vdshminfo + 1);
+	for (i = 0; i < shminfo->shmmni; i++) {
+		shmsegs[i].u.shm_perm.cuid = vdshmsegs[i].shm_perm.cuid;
+		shmsegs[i].u.shm_perm.cgid = vdshmsegs[i].shm_perm.cgid;
+		shmsegs[i].u.shm_perm.uid = vdshmsegs[i].shm_perm.uid;
+		shmsegs[i].u.shm_perm.gid = vdshmsegs[i].shm_perm.gid;
+		shmsegs[i].u.shm_perm.mode = vdshmsegs[i].shm_perm.mode;
+		shmsegs[i].u.shm_perm.seq = vdshmsegs[i].shm_perm.seq;
+		shmsegs[i].u.shm_perm.key = vdshmsegs[i].shm_perm.key;
+		shmsegs[i].u.shm_segsz = vdshmsegs[i].shm_segsz;
+		shmsegs[i].u.shm_lpid = vdshmsegs[i].shm_lpid;
+		shmsegs[i].u.shm_cpid = vdshmsegs[i].shm_cpid;
+		shmsegs[i].u.shm_nattch = vdshmsegs[i].shm_nattch;
+		shmsegs[i].u.shm_atime = vdshmsegs[i].shm_atime;
+		shmsegs[i].u.shm_ctime = vdshmsegs[i].shm_ctime;
+		shmsegs[i].u.shm_dtime = vdshmsegs[i].shm_dtime;
+		/* object fixed up later */
+		shmsegs[i].object = vdshmsegs[i].object;
+		/* XXX assert label == NULL */
+		//shmsegs[i].label = vdshmsegs[i].label;
+		shmsegs[i].label = NULL;
+		shmsegs[i].cred = vdshmsegs[i].cred;
+	}
+
+	while (vdo_typeofnext(ctx) == VPS_DUMPOBJT_UCRED)
+		vdo_next(ctx);//vps_func->vps_restore_ucred(ctx, vps);
+
+	for (i = 0; i < shminfo->shmmni; i++) {
+		if (shmsegs[i].cred != NULL)
+			shmsegs[i].cred = vps_func->vps_restore_ucred_lookup(ctx, vps,
+				shmsegs[i].cred);
+	}
+
+	return (0);
+}
+
+__attribute__ ((noinline, unused))
+int
+shm_restore_proc(struct vps_snapst_ctx *ctx, struct vps *vps, struct proc *proc)
+{
+	struct vps_dumpobj *o1;
+	struct vps_dump_sysvshm_shmmap_state *vdbase;
+	struct shmmap_state *base;
+	int i;
+
+	o1 = vdo_next(ctx);
+        if (o1->type != VPS_DUMPOBJT_SYSVSHM_PROC) {
+		printf("%s: o1=%p is not VPS_DUMPOBJT_SYSVSHM_PROC\n",
+			__func__, o1);
+		return (EINVAL);
+	}
+
+	proc->p_vmspace->vm_shm = malloc(sizeof(*base) * VPS_VPS(vps, shminfo).shmseg,
+			M_SHM, M_WAITOK);
+	base = proc->p_vmspace->vm_shm;
+	vdbase = (struct vps_dump_sysvshm_shmmap_state *)o1->data;
+
+	for (i = 0; i < VPS_VPS(vps, shminfo).shmseg; i++) {
+		base[i].va = vdbase[i].va;
+		base[i].shmid = vdbase[i].shmid;
+	}
+
+	return (0);
+}
+
+__attribute__ ((noinline, unused))
+int
+shm_restore_fixup(struct vps_snapst_ctx *ctx, struct vps *vps)
+{
+	struct vps_restore_obj *vbo;
+	struct shmid_kernel *shmseg;
+	int found;
+	int i;
+
+	for (i = 0; i < VPS_VPS(vps, shminfo).shmmni; i++) {
+		shmseg = &VPS_VPS(vps, shmsegs)[i];
+
+		if ( ! (shmseg->u.shm_perm.mode & SHMSEG_ALLOCATED) )
+			continue;
+
+		/* Look up vm object. */
+		found = 0;
+		SLIST_FOREACH(vbo, &ctx->obj_list, list)
+			if (vbo->type == VPS_DUMPOBJT_VMOBJECT &&
+			    vbo->orig_ptr == shmseg->object) {
+				vm_object_reference(vbo->new_ptr);
+				shmseg->object = vbo->new_ptr;
+				found = 1;
+				break;
+			}
+		KASSERT((found != 0), ("%s: object not found !\n", __func__));
+
+		printf("%s: shmseg=%p i=%d object=%p, mode=%08x seq=%08x shm_nattch=%d\n",
+			__func__, shmseg, i, shmseg->object, shmseg->u.shm_perm.mode,
+			shmseg->u.shm_perm.seq, shmseg->u.shm_nattch);
+
+	}
+
+	return (0);
+}
+#endif

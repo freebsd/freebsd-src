@@ -1,0 +1,59 @@
+Only in rsync-3.0.5-koh/: Makefile
+Only in rsync-3.0.5-koh/: config.h
+Only in rsync-3.0.5-koh/: config.log
+Only in rsync-3.0.5-koh/: config.status
+Only in rsync-3.0.5-koh/lib: dummy
+diff -aur rsync-3.0.5/log.c rsync-3.0.5-koh/log.c
+--- rsync-3.0.5/log.c	2008-09-27 04:19:51.000000000 +0000
++++ rsync-3.0.5-koh/log.c	2010-03-29 06:58:37.000000000 +0000
+@@ -319,7 +319,10 @@
+ 		f = stderr;
+ 		break;
+ 	case FINFO:
++		/*
+ 		f = am_server ? stderr : stdout;
++		*/
++		f = stderr;
+ 		break;
+ 	default:
+ 		exit_cleanup(RERR_MESSAGEIO);
+@@ -444,7 +447,10 @@
+ 		return;
+ 
+ 	if (code == FINFO && !am_server)
++		/*
+ 		f = stdout;
++		*/
++		f = stderr;
+ 	else
+ 		f = stderr;
+ 
+diff -aur rsync-3.0.5/main.c rsync-3.0.5-koh/main.c
+--- rsync-3.0.5/main.c	2008-10-11 18:14:43.000000000 +0000
++++ rsync-3.0.5-koh/main.c	2010-03-29 07:02:40.000000000 +0000
+@@ -1260,8 +1260,20 @@
+ 			remote_argv ? NS(remote_argv[0]) : "");
+ 	}
+ 
+-	pid = do_cmd(shell_cmd, shell_machine, shell_user, remote_argv, remote_argc,
+-		     &f_in, &f_out);
++	if (!strcmp(shell_cmd, "-")) {
++		server_options(remote_argv,&remote_argc);
++		f_in = 0;
++		f_out = 1;
++		pid = -1;
++		/*
++		rprintf(FINFO,"remote_argc=%d remote_argv: [%s] [%s] [%s] [%s]\n",
++			remote_argc, remote_argv[0], remote_argv[1], remote_argv[2],
++			remote_argv[3]);
++		*/
++	} else {
++		pid = do_cmd(shell_cmd, shell_machine, shell_user, remote_argv, remote_argc,
++			     &f_in, &f_out);
++	}
+ 
+ 	/* if we're running an rsync server on the remote host over a
+ 	 * remote shell command, we need to do the RSYNCD protocol first */
+Only in rsync-3.0.5-koh/popt: dummy
+Only in rsync-3.0.5-koh/: shconfig
+Only in rsync-3.0.5-koh/zlib: dummy

@@ -175,7 +175,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-static SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
+static _SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "", VPS_PUBLIC);
 
 struct walkarg {
 	int	w_tmemsize;
@@ -220,9 +220,9 @@ sysctl_route_netisr_maxqlen(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	return (netisr_setqlimit(&rtsock_nh, qlimit));
 }
-SYSCTL_PROC(_net_route, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
+_SYSCTL_PROC(_net_route, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_route_netisr_maxqlen, "I",
-    "maximum routing socket dispatch queue length");
+    "maximum routing socket dispatch queue length", VPS_PUBLIC);
 
 static void
 rts_init(void)
@@ -1965,7 +1965,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
+static _SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "", VPS_PUBLIC);
 
 /*
  * Definitions of protocols supported in the ROUTE domain.

@@ -110,6 +110,7 @@ enum sysinit_sub_id {
 	SI_SUB_MAC_POLICY	= 0x21C0000,	/* TrustedBSD MAC policies */
 	SI_SUB_MAC_LATE		= 0x21D0000,	/* TrustedBSD MAC subsystem */
 	SI_SUB_VNET		= 0x21E0000,	/* vnet 0 */
+	SI_SUB_VPS		= 0x21E8000,	/* vps setup */
 	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/
 	SI_SUB_VM_CONF		= 0x2300000,	/* config VM, set limits*/
 	SI_SUB_DDB_SERVICES	= 0x2380000,	/* capture, scripting, etc. */

@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_directio.h"
 #include "opt_swap.h"
 
+#include <vps/vps.h>
+#include <vps/vps_account.h>
+
 static MALLOC_DEFINE(M_BIOBUF, "biobuf", "BIO buffer");
 
 struct	bio_ops bioops;		/* I/O operation notification */
@@ -132,11 +135,12 @@ SYSCTL_LONG(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
 static long bufspace;
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
-SYSCTL_PROC(_vfs, OID_AUTO, bufspace, CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RD,
-    &bufspace, 0, sysctl_bufspace, "L", "Virtual memory used for buffers");
+_SYSCTL_PROC(_vfs, OID_AUTO, bufspace, CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RD,
+    &bufspace, 0, sysctl_bufspace, "L", "Virtual memory used for buffers", VPS_PUBLIC);
 #else
-SYSCTL_LONG(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
-    "Virtual memory used for buffers");
+/* XXX */
+_SYSCTL_LONG(_vfs, OID_AUTO, bufspace, CTLFLAG_RD, &bufspace, 0,
+    "Virtual memory used for buffers", VPS_0);
 #endif
 static long unmapped_bufspace;
 SYSCTL_LONG(_vfs, OID_AUTO, unmapped_bufspace, CTLFLAG_RD,
@@ -339,6 +343,14 @@ sysctl_bufspace(SYSCTL_HANDLER_ARGS)
 {
 	long lvalue;
 	int ivalue;
+
+#ifdef VPS
+	/* XXX value */
+	if (req->td->td_vps != vps0) {
+		lvalue = 0;
+		return (sysctl_handle_long(oidp, &lvalue, 0, req));
+	}
+#endif
 
 	if (sizeof(int) == sizeof(long) || req->oldlen >= sizeof(long))
 		return (sysctl_handle_long(oidp, arg1, arg2, req));
@@ -565,6 +577,18 @@ waitrunningbufspace(void)
 	}
 	mtx_unlock(&rbreqlock);
 }
+
+#ifdef VPS
+int vps_bio_runningbufspace_high(void);
+int
+vps_bio_runningbufspace_high(void)
+{
+	if (runningbufspace > hirunningspace / 2)
+		return (1);
+	else
+		return (0);
+}
+#endif
 
 
 /*
@@ -1072,8 +1096,12 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 		rabp = getblk(vp, *rablkno, *rabsize, 0, 0, 0);
 
 		if ((rabp->b_flags & B_CACHE) == 0) {
-			if (!TD_IS_IDLETHREAD(curthread))
+			if (!TD_IS_IDLETHREAD(curthread)) {
 				curthread->td_ru.ru_inblock++;
+#ifdef VPS
+				vps_account_bio(curthread);
+#endif
+			}
 			rabp->b_flags |= B_ASYNC;
 			rabp->b_flags &= ~B_INVAL;
 			rabp->b_ioflags &= ~BIO_ERROR;
@@ -1115,8 +1143,12 @@ breadn_flags(struct vnode *vp, daddr_t blkno, int size, daddr_t *rablkno,
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (!TD_IS_IDLETHREAD(curthread))
+		if (!TD_IS_IDLETHREAD(curthread)) {
 			curthread->td_ru.ru_inblock++;
+#ifdef VPS
+			vps_account_bio(curthread);
+#endif
+		}
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
 		bp->b_ioflags &= ~BIO_ERROR;
@@ -1171,6 +1203,11 @@ bufwrite(struct buf *bp)
 	if (bp->b_pin_count > 0)
 		bunpin_wait(bp);
 
+#ifdef VPS
+	if (!TD_IS_IDLETHREAD(curthread))
+		vps_account_bio(curthread);
+#endif
+
 	KASSERT(!(bp->b_vflags & BV_BKGRDINPROG),
 	    ("FFS background buffer should not get here %p", bp));
 
@@ -1202,8 +1239,10 @@ bufwrite(struct buf *bp)
 	bp->b_runningbufspace = bp->b_bufsize;
 	space = atomic_fetchadd_long(&runningbufspace, bp->b_runningbufspace);
 
-	if (!TD_IS_IDLETHREAD(curthread))
+	if (!TD_IS_IDLETHREAD(curthread)) {
 		curthread->td_ru.ru_oublock++;
+		//vps_account_bio(curthread);
+	}
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
@@ -2462,7 +2501,7 @@ restart:
 				bp->b_flags |= B_INVAL;
 				brelse(bp);
 				goto restart;
-			}
+                        }
 			atomic_add_int(&bufreusecnt, 1);
 		} else if ((bp->b_flags & B_KVAALLOC) != 0 &&
 		    (gbflags & (GB_UNMAPPED | GB_KVAALLOC)) == 0) {
@@ -2496,6 +2535,16 @@ restart:
 			bp->b_flags &= ~B_UNMAPPED;
 			BUF_CHECK_MAPPED(bp);
 		}
+
+#if 0
+	/* XXX 9.1 -> current: was not used anymore, check if can be deleted */
+#ifdef VPS
+				vps_account(curthread->td_vps, VPS_ACC_BUFCNT,
+					VPS_ACC_ALLOC, 1);
+				vps_account(curthread->td_vps, VPS_ACC_BUFSPACE,
+					VPS_ACC_ALLOC, bp->b_kvasize);
+#endif
+#endif
 	}
 	return (bp);
 }

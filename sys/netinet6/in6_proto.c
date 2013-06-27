@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
+#include <vps/vps.h>
+
 #include <net/if.h>
 #include <net/radix.h>
 #include <net/route.h>
@@ -133,7 +135,7 @@ __FBSDID("$FreeBSD$");
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
  */
-FEATURE(inet6, "Internet Protocol version 6");
+_FEATURE(inet6, "Internet Protocol version 6", VPS_PUBLIC);
 
 extern	struct domain inet6domain;
 static	struct pr_usrreqs nousrreqs;

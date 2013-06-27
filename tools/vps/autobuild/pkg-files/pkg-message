@@ -1,0 +1,16 @@
+* * * * * * * * * * * * * * * * * * * * * * * * * *
+Your previously installed kernel has been moved to
+/boot/kernel.GENERIC
+
+Type:
+boot /boot/kernel.GENERIC/kernel
+at the boot loader prompt to use it.
+
+There is an example config file at 
+/etc/vps/vps_example.conf
+
+A script that loads the kernel modules is at
+/etc/rc.vpssetup.sh
+
+See vpsctl(8) how to get started. 
+* * * * * * * * * * * * * * * * * * * * * * * * * *

@@ -941,6 +941,69 @@ make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
 	return (0);
 }
 
+#ifdef VPS
+static int
+make_dev_alias_cred_v(int flags, struct cdev **cdev, struct cdev *pdev,
+    struct ucred *cr, const char *fmt, va_list ap)
+{
+	struct cdev *dev;
+	int error;
+
+	KASSERT(pdev != NULL, ("make_dev_alias_v: pdev is NULL"));
+	KASSERT((flags & MAKEDEV_WAITOK) == 0 || (flags & MAKEDEV_NOWAIT) == 0,
+	    ("make_dev_alias_v: both WAITOK and NOWAIT specified"));
+	KASSERT((flags & ~(MAKEDEV_WAITOK | MAKEDEV_NOWAIT |
+	    MAKEDEV_CHECKNAME)) == 0,
+	    ("make_dev_alias_v: invalid flags specified (flags=%02x)", flags));
+
+	dev = devfs_alloc(flags);
+	if (dev == NULL)
+		return (ENOMEM);
+	dev_lock();
+	dev->si_flags |= SI_ALIAS;
+	if (cr != NULL)
+		dev->si_cred = crhold(cr);
+	error = prep_devname(dev, fmt, ap);
+	if (error != 0) {
+		if ((flags & MAKEDEV_CHECKNAME) == 0) {
+			panic("make_dev_alias_v: bad si_name "
+			    "(error=%d, si_name=%s)", error, dev->si_name);
+		}
+		dev_unlock();
+		devfs_free(dev);
+		return (error);
+	}
+	dev->si_flags |= SI_NAMED;
+	devfs_create(dev);
+	dev_dependsl(pdev, dev);
+	clean_unrhdrl(devfs_inos);
+	dev_unlock();
+
+	notify_create(dev, flags);
+	*cdev = dev;
+
+	return (0);
+}
+
+struct cdev *
+make_dev_alias_cred(struct cdev *pdev, struct ucred *cr, const char *fmt, ...)
+{
+	struct cdev *dev;
+	va_list ap;
+	int res;
+
+	dev = NULL;
+
+	va_start(ap, fmt);
+	res = make_dev_alias_cred_v(MAKEDEV_WAITOK, &dev, pdev, cr, fmt, ap);
+	va_end(ap);
+
+	KASSERT(res == 0 && dev != NULL,
+	    ("make_dev_alias: failed make_dev_alias_v (error=%d)", res));
+	return (dev);
+}
+#endif /* VPS */
+
 struct cdev *
 make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 {

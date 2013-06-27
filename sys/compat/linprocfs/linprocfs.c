@@ -76,6 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/bus.h>
 
+#include <vps/vps.h>
+
 #include <net/if.h>
 #include <net/vnet.h>
 
@@ -86,6 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
+
+#include <vps/vps.h>
 
 #include <machine/clock.h>
 
@@ -107,6 +111,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
+
+#define V_msginfo       VPSV(msginfo)
+#define V_seminfo       VPSV(seminfo)
+#define V_shminfo       VPSV(shminfo)
 
 /*
  * Various conversion macros
@@ -490,7 +498,7 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    cnt.v_swappgsout,
 	    cnt.v_intr,
 	    cnt.v_swtch,
-	    (long long)boottime.tv_sec);
+	    (long long)G_boottime.tv_sec);
 	return (0);
 }
 
@@ -626,8 +634,8 @@ linprocfs_doloadavg(PFS_FILL_ARGS)
 	    (int)(averunnable.ldavg[2] / averunnable.fscale),
 	    (int)(averunnable.ldavg[2] * 100 / averunnable.fscale % 100),
 	    1,				/* number of running tasks */
-	    nprocs,			/* number of tasks */
-	    lastpid			/* the last pid */
+	    VPSV(nprocs),			/* number of tasks */
+	    VPSV(lastpid)			/* the last pid */
 	);
 	return (0);
 }
@@ -685,7 +693,7 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	PS_ADD("nice",		"%d",	kp.ki_nice); /* 19 (nicest) to -19 */
 	PS_ADD("0",		"%d",	0); /* removed field */
 	PS_ADD("itrealvalue",	"%d",	0); /* XXX */
-	PS_ADD("starttime",	"%lu",	TV2J(&kp.ki_start) - TV2J(&boottime));
+	PS_ADD("starttime",	"%lu",	TV2J(&kp.ki_start) - TV2J(&G_boottime));
 	PS_ADD("vsize",		"%ju",	P2K((uintmax_t)kp.ki_size));
 	PS_ADD("rss",		"%ju",	(uintmax_t)kp.ki_rssize);
 	PS_ADD("rlim",		"%lu",	kp.ki_rusage.ru_maxrss);
@@ -1208,7 +1216,7 @@ static int
 linprocfs_domsgmni(PFS_FILL_ARGS)
 {
 
-	sbuf_printf(sb, "%d\n", msginfo.msgmni);
+	sbuf_printf(sb, "%d\n", V_msginfo.msgmni);
 	return (0);
 }
 
@@ -1230,8 +1238,8 @@ static int
 linprocfs_dosem(PFS_FILL_ARGS)
 {
 
-	sbuf_printf(sb, "%d %d %d %d\n", seminfo.semmsl, seminfo.semmns,
-	    seminfo.semopm, seminfo.semmni);
+	sbuf_printf(sb, "%d %d %d %d\n", V_seminfo.semmsl, V_seminfo.semmns,
+	    V_seminfo.semopm, V_seminfo.semmni);
 	return (0);
 }
 

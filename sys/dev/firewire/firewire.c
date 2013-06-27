@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>
+#include <sys/proc.h>
 #include <sys/kthread.h>
 
 #include <sys/kdb.h>
@@ -55,6 +56,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>		/* used by smbus and newbus */
 #include <machine/bus.h>
+
+#include <vps/vps.h>
 
 #ifdef __DragonFly__
 #include "firewire.h"
@@ -724,9 +727,9 @@ fw_reset_crom(struct firewire_comm *fc)
 	crom_add_simple_text(src, root, &buf->vendor, "FreeBSD Project");
 	crom_add_entry(root, CSRKEY_HW, __FreeBSD_version);
 #endif
-	mtx_lock(&prison0.pr_mtx);
-	crom_add_simple_text(src, root, &buf->hw, prison0.pr_hostname);
-	mtx_unlock(&prison0.pr_mtx);
+	mtx_lock(&V_prison0->pr_mtx);
+	crom_add_simple_text(src, root, &buf->hw, V_prison0->pr_hostname);
+	mtx_unlock(&V_prison0->pr_mtx);
 }
 
 /*

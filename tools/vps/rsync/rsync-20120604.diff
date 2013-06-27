@@ -1,0 +1,123 @@
+Only in rsync-3.0.9-koh: Makefile
+Only in rsync-3.0.9-koh: access.o
+Only in rsync-3.0.9-koh: acls.o
+Only in rsync-3.0.9-koh: authenticate.o
+Only in rsync-3.0.9-koh: backup.o
+Only in rsync-3.0.9-koh: batch.o
+Only in rsync-3.0.9-koh: checksum.o
+Only in rsync-3.0.9-koh: chmod.o
+Only in rsync-3.0.9-koh: cleanup.o
+Only in rsync-3.0.9-koh: clientname.o
+Only in rsync-3.0.9-koh: clientserver.o
+Only in rsync-3.0.9-koh: compat.o
+Only in rsync-3.0.9-koh: config.h
+Only in rsync-3.0.9-koh: config.log
+Only in rsync-3.0.9-koh: config.status
+Only in rsync-3.0.9-koh: connection.o
+Only in rsync-3.0.9-koh: exclude.o
+Only in rsync-3.0.9-koh: fileio.o
+Only in rsync-3.0.9-koh: flist.o
+Only in rsync-3.0.9-koh: generator.o
+Only in rsync-3.0.9-koh: hashtable.o
+Only in rsync-3.0.9-koh: hlink.o
+Only in rsync-3.0.9-koh: io.o
+Only in rsync-3.0.9-koh/lib: compat.o
+Only in rsync-3.0.9-koh/lib: dummy
+Only in rsync-3.0.9-koh/lib: md5.o
+Only in rsync-3.0.9-koh/lib: mdfour.o
+Only in rsync-3.0.9-koh/lib: permstring.o
+Only in rsync-3.0.9-koh/lib: pool_alloc.o
+Only in rsync-3.0.9-koh/lib: snprintf.o
+Only in rsync-3.0.9-koh/lib: sysacls.o
+Only in rsync-3.0.9-koh/lib: sysxattrs.o
+Only in rsync-3.0.9-koh/lib: wildmatch.o
+Only in rsync-3.0.9-koh: loadparm.o
+diff -aupr rsync-3.0.9/log.c rsync-3.0.9-koh/log.c
+--- rsync-3.0.9/log.c	2011-01-30 03:25:53.000000000 +0000
++++ rsync-3.0.9-koh/log.c	2012-06-04 10:59:45.000000000 +0000
+@@ -317,7 +317,10 @@ void rwrite(enum logcode code, const cha
+ 		f = stderr;
+ 		break;
+ 	case FINFO:
++		/*
+ 		f = am_server ? stderr : stdout;
++		*/
++		f = stderr;
+ 		break;
+ 	default:
+ 		exit_cleanup(RERR_MESSAGEIO);
+@@ -442,7 +445,10 @@ void rflush(enum logcode code)
+ 		return;
+ 
+ 	if (code == FINFO && !am_server)
++		/*
+ 		f = stdout;
++		*/
++		f = stderr;
+ 	else
+ 		f = stderr;
+ 
+Only in rsync-3.0.9-koh: log.c.orig
+Only in rsync-3.0.9-koh: log.o
+diff -aupr rsync-3.0.9/main.c rsync-3.0.9-koh/main.c
+--- rsync-3.0.9/main.c	2011-06-18 19:44:47.000000000 +0000
++++ rsync-3.0.9-koh/main.c	2012-06-04 13:30:32.000000000 +0000
+@@ -1272,8 +1272,21 @@ static int start_client(int argc, char *
+ 			remote_argv ? NS(remote_argv[0]) : "");
+ 	}
+ 
+-	pid = do_cmd(shell_cmd, shell_machine, shell_user, remote_argv, remote_argc,
+-		     &f_in, &f_out);
++	if (!strcmp(shell_cmd, "-")) {
++		server_options(remote_argv,&remote_argc);
++		f_in = 0;
++		f_out = 1;
++		pid = -1;
++		local_server = 0;
++		/*
++		rprintf(FINFO,"remote_argc=%d remote_argv: [%s] [%s] [%s] [%s]\n",
++			remote_argc, remote_argv[0], remote_argv[1], remote_argv[2],
++			remote_argv[3]);
++		*/
++	} else {
++		pid = do_cmd(shell_cmd, shell_machine, shell_user, remote_argv, remote_argc,
++			     &f_in, &f_out);
++	}
+ 
+ 	/* if we're running an rsync server on the remote host over a
+ 	 * remote shell command, we need to do the RSYNCD protocol first */
+Only in rsync-3.0.9-koh: main.c.orig
+Only in rsync-3.0.9-koh: main.o
+Only in rsync-3.0.9-koh: match.o
+Only in rsync-3.0.9-koh: options.o
+Only in rsync-3.0.9-koh: params.o
+Only in rsync-3.0.9-koh: pipe.o
+Only in rsync-3.0.9-koh/popt: dummy
+Only in rsync-3.0.9-koh/popt: findme.o
+Only in rsync-3.0.9-koh/popt: popt.o
+Only in rsync-3.0.9-koh/popt: poptconfig.o
+Only in rsync-3.0.9-koh/popt: popthelp.o
+Only in rsync-3.0.9-koh/popt: poptparse.o
+Only in rsync-3.0.9-koh: progress.o
+Only in rsync-3.0.9-koh: receiver.o
+Only in rsync-3.0.9-koh: rounding.h
+Only in rsync-3.0.9-koh: rsync
+Only in rsync-3.0.9-koh: rsync.o
+Only in rsync-3.0.9-koh: sender.o
+Only in rsync-3.0.9-koh: shconfig
+Only in rsync-3.0.9-koh: socket.o
+Only in rsync-3.0.9-koh: syscall.o
+Only in rsync-3.0.9-koh: token.o
+Only in rsync-3.0.9-koh: uidlist.o
+Only in rsync-3.0.9-koh: util.o
+Only in rsync-3.0.9-koh: xattrs.o
+Only in rsync-3.0.9-koh/zlib: adler32.o
+Only in rsync-3.0.9-koh/zlib: compress.o
+Only in rsync-3.0.9-koh/zlib: crc32.o
+Only in rsync-3.0.9-koh/zlib: deflate.o
+Only in rsync-3.0.9-koh/zlib: dummy
+Only in rsync-3.0.9-koh/zlib: inffast.o
+Only in rsync-3.0.9-koh/zlib: inflate.o
+Only in rsync-3.0.9-koh/zlib: inftrees.o
+Only in rsync-3.0.9-koh/zlib: trees.o
+Only in rsync-3.0.9-koh/zlib: zutil.o

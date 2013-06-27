@@ -55,6 +55,8 @@
 #include <sys/stat.h>
 #include <sys/vnode.h>
 
+#include <vps/vps.h>
+
 #include <fs/fdescfs/fdesc.h>
 
 #define	NFDCACHE 4
@@ -399,7 +401,7 @@ fdesc_getattr(ap)
 	vap->va_uid = 0;
 	vap->va_gid = 0;
 	vap->va_blocksize = DEV_BSIZE;
-	vap->va_atime.tv_sec = boottime.tv_sec;
+	vap->va_atime.tv_sec = G_boottime.tv_sec;
 	vap->va_atime.tv_nsec = 0;
 	vap->va_mtime = vap->va_atime;
 	vap->va_ctime = vap->va_mtime;

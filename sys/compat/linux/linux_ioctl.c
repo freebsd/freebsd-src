@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb_ioctl.h>
 
+#include <vps/vps.h>
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>

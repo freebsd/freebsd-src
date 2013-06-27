@@ -57,6 +57,7 @@ VNET_DECLARE(struct flowtable *, ip6_ft);
 #define	V_ip6_ft		VNET(ip6_ft)
 
 struct flowtable *flowtable_alloc(char *name, int nentry, int flags);
+void flowtable_destroy(struct flowtable *);
 
 /*
  * Given a flow table, look up the L3 and L2 information and
