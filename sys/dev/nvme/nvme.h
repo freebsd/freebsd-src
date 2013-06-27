@@ -383,6 +383,12 @@ enum nvme_dsm_attribute {
 	NVME_DSM_ATTR_DEALLOCATE		= 0x4,
 };
 
+enum nvme_activate_action {
+	NVME_AA_REPLACE_NO_ACTIVATE		= 0x0,
+	NVME_AA_REPLACE_ACTIVATE		= 0x1,
+	NVME_AA_ACTIVATE			= 0x2,
+};
+
 struct nvme_controller_data {
 
 	/* bytes 0-255: controller capabilities and features */
