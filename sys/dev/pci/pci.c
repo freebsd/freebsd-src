@@ -152,6 +152,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
+	DEVMETHOD(bus_child_detached,	pci_child_detached),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 	DEVMETHOD(bus_remap_intr,	pci_remap_intr_method),
@@ -3489,7 +3490,7 @@ pci_driver_added(device_t dev, driver_t *driver)
 			pci_printf(&dinfo->cfg, "reprobing on driver added\n");
 		pci_cfg_restore(child, dinfo);
 		if (device_probe_and_attach(child) != 0)
-			pci_cfg_save(child, dinfo, 1);
+			pci_child_detached(dev, child);
 	}
 	free(devlist, M_TEMP);
 }
@@ -3802,6 +3803,34 @@ pci_probe_nomatch(device_t dev, device_t child)
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
 	pci_cfg_save(child, device_get_ivars(child), 1);
+}
+
+void
+pci_child_detached(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo;
+	struct resource_list *rl;
+
+	dinfo = device_get_ivars(child);
+	rl = &dinfo->resources;
+
+	/*
+	 * Have to deallocate IRQs before releasing any MSI messages and
+	 * have to release MSI messages before deallocating any memory
+	 * BARs.
+	 */
+	if (resource_list_release_active(rl, dev, child, SYS_RES_IRQ) != 0)
+		pci_printf(&dinfo->cfg, "Device leaked IRQ resources\n");
+	if (dinfo->cfg.msi.msi_alloc != 0 || dinfo->cfg.msix.msix_alloc != 0) {
+		pci_printf(&dinfo->cfg, "Device leaked MSI vectors\n");
+		(void)pci_release_msi(child);
+	}
+	if (resource_list_release_active(rl, dev, child, SYS_RES_MEMORY) != 0)
+		pci_printf(&dinfo->cfg, "Device leaked memory resources\n");
+	if (resource_list_release_active(rl, dev, child, SYS_RES_IOPORT) != 0)
+		pci_printf(&dinfo->cfg, "Device leaked I/O resources\n");
+
+	pci_cfg_save(child, dinfo, 1);
 }
 
 /*
