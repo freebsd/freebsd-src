@@ -1834,6 +1834,7 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 		vdev_config_dirty(vd->vdev_top);
 	}
 
+	bzero(&smlock, sizeof (smlock));
 	mutex_init(&smlock, NULL, MUTEX_DEFAULT, NULL);
 
 	space_map_create(&smsync, sm->sm_start, sm->sm_size, sm->sm_shift,
