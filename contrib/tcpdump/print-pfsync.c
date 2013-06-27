@@ -37,10 +37,10 @@
 
 #include <sys/endian.h>
 #include <net/if.h>
+#define	TCPSTATES
 #include <net/pfvar.h>	/* XXX */
 #include <net/if_pfsync.h>
 #include <netinet/ip.h>
-#define	TCPSTATES
 #include <netinet/tcp_fsm.h>
 
 #include <string.h>
