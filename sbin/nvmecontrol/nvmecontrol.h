@@ -52,11 +52,15 @@
 #define LOGPAGE_USAGE							       \
 "       nvmecontrol logpage <-p page_id> [-x] <controller id|namespace id>\n"  \
 
+#define FIRMWARE_USAGE							       \
+"       nvmecontrol firmware [-s slot] [-f path_to_firmware] [-a] <controller id>\n"
+
 void devlist(int argc, char *argv[]);
 void identify(int argc, char *argv[]);
 void perftest(int argc, char *argv[]);
 void reset(int argc, char *argv[]);
 void logpage(int argc, char *argv[]);
+void firmware(int argc, char *argv[]);
 
 int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
 void read_controller_data(int fd, struct nvme_controller_data *cdata);
