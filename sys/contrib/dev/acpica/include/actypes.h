@@ -680,13 +680,6 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 #define ACPI_EVENT_FLAG_WAKE_ENABLED    (ACPI_EVENT_STATUS) 0x02
 #define ACPI_EVENT_FLAG_SET             (ACPI_EVENT_STATUS) 0x04
 
-/*
- * General Purpose Events (GPE)
- */
-#define ACPI_GPE_INVALID                0xFF
-#define ACPI_GPE_MAX                    0xFF
-#define ACPI_NUM_GPE                    256
-
 /* Actions for AcpiSetGpe, AcpiGpeWakeup, AcpiHwLowSetGpe */
 
 #define ACPI_GPE_ENABLE                 0
