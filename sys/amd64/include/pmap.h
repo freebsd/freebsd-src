@@ -66,9 +66,13 @@
 #define	PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
 #define	PG_NX		(1ul<<63) /* No-execute */
 
+/*
+ * PG_AVAIL1 is available for software use only with the regular x86 PTEs.
+ * PG_AVAIL2 and PG_AVAIL3 are available in both the regular and nested PTEs.
+ */
 
 /* Our various interpretations of the above */
-#define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
+#define PG_W		PG_AVAIL3	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2
 #define	PG_FRAME	(0x000ffffffffff000ul)
 #define	PG_PS_FRAME	(0x000fffffffe00000ul)
