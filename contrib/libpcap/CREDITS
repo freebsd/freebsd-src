@@ -22,6 +22,7 @@ Additional people who have contributed patches:
     Armando L. Caro Jr.           <acaro at mail dot eecis dot udel dot edu>
     Assar Westerlund              <assar at sics dot se>
     Brian Ginsbach                <ginsbach at cray dot com>
+    Bill Parker			  <wp02855 at gmail dot com>
     Charles M. Hannum             <mycroft at netbsd dot org>
     Chris G. Demetriou            <cgd at netbsd dot org>
     Chris Lightfoot               <cwrl at users dot sourceforge dot net>
@@ -59,6 +60,7 @@ Additional people who have contributed patches:
     Henri Doreau                  <hdoreau at sourceforge dot net>
     Hyung Sik Yoon                <hsyn at kr dot ibm dot com>
     Igor Khristophorov            <igor at atdot dot org>
+    Jakub Zawadzki                <darkjames at darkjames dot pl>
     Jan-Philip Velders            <jpv at veldersjes dot net>
     Jason R. Thorpe               <thorpej at netbsd dot org>
     Javier Achirica               <achirica at ttd dot net>
@@ -152,4 +154,4 @@ The original LBL crew:
     Van Jacobson
 
 Past maintainers:
-    Jun-ichiro itojun Hagino         <itojun at iijlab dot net>
+    Jun-ichiro itojun Hagino         <itojun at iijlab dot net>		Also see: http://www.wide.ad.jp/itojun-award/
