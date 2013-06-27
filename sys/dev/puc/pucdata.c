@@ -629,6 +629,7 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Exar XR17V258IV",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_8S, 0x10, 0, -1,
+	    .config_function = puc_config_exar
 	},
 
 	/* The XR17V358 uses the 125MHz PCIe clock as its reference clock. */
