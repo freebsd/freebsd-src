@@ -277,9 +277,19 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		rix = ath_tx_findrix(sc, tp->ucastrate);
 	else
 		rix = ath_tx_findrix(sc, tp->mcastrate);
-	/* XXX short preamble assumed */
-	sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
-		ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
+
+	/*
+	 * If the chip supports enforcing TxOP on transmission,
+	 * we can just delete the guard window.  It isn't at all required.
+	 */
+	if (sc->sc_hasenforcetxop) {
+		sc->sc_tdmaguard = 0;
+	} else {
+		/* XXX short preamble assumed */
+		/* XXX non-11n rate assumed */
+		sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
+			ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
+	}
 
 	ath_hal_intrset(ah, 0);
 
@@ -392,8 +402,35 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * the packet just received.
 	 */
 	rix = rt->rateCodeToIndex[rs->rs_rate];
-	txtime = ath_hal_computetxtime(ah, rt, rs->rs_datalen, rix,
-	    rt->info[rix].shortPreamble);
+
+	/*
+	 * To calculate the packet duration for legacy rates, we
+	 * only need the rix and preamble.
+	 *
+	 * For 11n non-aggregate frames, we also need the channel
+	 * width and short/long guard interval.
+	 *
+	 * For 11n aggregate frames, the required hacks are a little
+	 * more subtle.  You need to figure out the frame duration
+	 * for each frame, including the delimiters.  However, when
+	 * a frame isn't received successfully, we won't hear it
+	 * (unless you enable reception of CRC errored frames), so
+	 * your duration calculation is going to be off.
+	 *
+	 * However, we can assume that the beacon frames won't be
+	 * transmitted as aggregate frames, so we should be okay.
+	 * Just add a check to ensure that we aren't handed something
+	 * bad.
+	 *
+	 * For ath_hal_pkt_txtime() - for 11n rates, shortPreamble is
+	 * actually short guard interval. For legacy rates,
+	 * it's short preamble.
+	 */
+	txtime = ath_hal_pkt_txtime(ah, rt, rs->rs_datalen,
+	    rix,
+	    !! (rs->rs_flags & HAL_RX_2040),
+	    (rix & 0x80) ?
+	      (! (rs->rs_flags & HAL_RX_GI)) : rt->info[rix].shortPreamble);
 	/* NB: << 9 is to cvt to TU and /2 */
 	nextslot = (rstamp - txtime) + (sc->sc_tdmabintval << 9);
 

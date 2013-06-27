@@ -70,13 +70,14 @@ f_index_initialize()
 
 	f_show_info "$msg_attempting_to_fetch_file_from_selected_media" \
 	            "$__path"
-	eval "$__var_to_set"='$( f_device_get media "$__path" | sort )'
+	eval "$__var_to_set"='$( f_device_get media "$__path" )'
 	if [ $? -ne $SUCCESS ]; then
 		f_show_msg "$msg_unable_to_get_file_from_selected_media" \
 		           "$__path"
 		f_device_shutdown media
 		return $FAILURE
 	fi
+	eval "$__var_to_set"='$( debug= f_getvar "$__var_to_set" | sort )'
 
 	f_show_info "$msg_located_index_now_reading_package_data_from_it"
 	if ! f_index_read "$__var_to_set"; then
@@ -112,6 +113,7 @@ f_index_read()
 	export msg_no_description_provided
 	export msg_all msg_all_desc
 	export VALID_VARNAME_CHARS
+	export msg_packages
 
 	eval "$( debug= f_getvar "$var_to_get" | awk -F'|' '
 	function asorti(src, dest)
@@ -140,17 +142,18 @@ f_index_read()
 		# cached (also acting as a visitation indicator)
 		if ( ENVIRON["_index_page_" varcat "_1"] )
 			cat = cat "*"
-		printf "'\''%s'\'' '\''%s packages'\'' '\''%s'\''\n",
+		printf "'\''%s'\'' '\''%s " packages "'\'' '\''%s'\''\n",
 		       cat, npkgs, desc
 	}
 	BEGIN {
 		valid_chars = ENVIRON["VALID_VARNAME_CHARS"]
 		default_desc = ENVIRON["msg_no_description_provided"]
-		npkgs = 0
+		packages = ENVIRON["msg_packages"]
+		tpkgs = 0
 		prefix = ""
 	}
 	{
-		npkgs++
+		tpkgs++
 		varpkg = $1
 		gsub("[^" valid_chars "]", "_", varpkg)
 		print "_categories_" varpkg "=\"" $7 "\""
@@ -160,7 +163,7 @@ f_index_read()
 		print "_rundeps_" varpkg "=\"" $9 "\""
 	}
 	END {
-		print "_npkgs=" npkgs # For convenience, total package count
+		print "_npkgs=" tpkgs # For convenience, total package count
 
 		n = asorti(categories, categories_sorted)
 
@@ -175,7 +178,7 @@ f_index_read()
 
 		# Create menu list and generate list of categories at same time
 		print "CATEGORY_MENU_LIST=\""
-		print_category(ENVIRON["msg_all"], npkgs,
+		print_category(ENVIRON["msg_all"], tpkgs,
 		               ENVIRON["msg_all_desc"])
 		category_list = ""
 		for (i = 1; i <= n; i++)
@@ -221,11 +224,12 @@ f_index_extract_pages()
 		debug= f_getvar "$var_to_get" | awk -F'|' \
 			-v cat="$category" \
 			-v pagesize="$pagesize" \
-			-v var_basename="$var_basename" '
+			-v var_basename="$var_basename" \
+			-v i18n_all="$msg_all" '
 		BEGIN { n = page = 0 }
 		/'\''/{ gsub(/'\''/, "'\''\\'\'\''") }
 		{
-			if ( cat !~ /(^$|^All$)/ && $7 !~ \
+			if ( cat !~ "(^$|^" i18n_all "$)" && $7 !~ \
 			     "(^|[[:space:]])" cat "([[:space:]]|$)" ) next
 			starting_new_page = (n++ == (pagesize * page))
 			if ( starting_new_page )

@@ -1410,13 +1410,13 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, uint16_t word,
-    uint64_t mask, uint64_t val)
+t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, int ctrl,
+    uint16_t word, uint64_t mask, uint64_t val)
 {
 	struct wrqe *wr;
 	struct cpl_set_tcb_field *req;
 
-	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
+	wr = alloc_wrqe(sizeof(*req), ctrl ? toep->ctrlq : toep->ofld_txq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);

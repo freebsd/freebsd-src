@@ -55,9 +55,9 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 # Process command-line arguments
 #
-while getopts dD:hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -74,3 +74,7 @@ f_device_get_all
 # Display the package configuration menu and exit
 #
 f_package_config
+
+################################################################################
+# END
+################################################################################

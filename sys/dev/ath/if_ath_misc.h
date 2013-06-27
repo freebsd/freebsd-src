@@ -125,6 +125,8 @@ extern	void ath_tx_update_tim(struct ath_softc *sc,
 extern void ath_start(struct ifnet *ifp);
 extern	void ath_start_task(void *arg, int npending);
 
+extern void ath_tx_dump(struct ath_softc *sc, struct ath_txq *txq);
+
 /*
  * Kick the frame TX task.
  */
@@ -132,9 +134,7 @@ static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
-	ATH_TX_LOCK(sc);
-	ath_start(sc->sc_ifp);
-	ATH_TX_UNLOCK(sc);
+	/* XXX NULL for now */
 }
 
 /*

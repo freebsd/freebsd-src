@@ -137,7 +137,7 @@ uart_intr_break(void *arg)
  * much of the data we can, but otherwise flush the receiver FIFO to
  * create some breathing room. The net effect is that we avoid the
  * overrun condition to happen for the next X characters, where X is
- * related to the FIFO size at the cost of loosing data right away.
+ * related to the FIFO size at the cost of losing data right away.
  * So, instead of having multiple overrun interrupts in close proximity
  * to each other and possibly pessimizing UART interrupt latency for
  * other UARTs in a multiport configuration, we create a longer segment
@@ -192,7 +192,7 @@ uart_intr_rxready(void *arg)
  * Line or modem status change (OOB signalling).
  * We pass the signals to the software interrupt handler for further
  * processing. Note that we merge the delta bits, but set the state
- * bits. This is to avoid loosing state transitions due to having more
+ * bits. This is to avoid losing state transitions due to having more
  * than 1 hardware interrupt between software interrupts.
  */
 static __inline int

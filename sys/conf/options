@@ -31,6 +31,7 @@
 # opt_<name-of-option-in-lower-case>.h
 
 AAC_DEBUG		opt_aac.h
+AACRAID_DEBUG		opt_aacraid.h
 AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_TMODE_ENABLE	opt_aic7xxx.h
 AHC_DUMP_EEPROM		opt_aic7xxx.h
@@ -568,6 +569,7 @@ DIAGNOSTIC		opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
 MAXCPU			opt_global.h
+MAXMEMDOM		opt_global.h
 MAXPHYS			opt_global.h
 MCLSHIFT		opt_global.h
 MUTEX_DEBUG		opt_global.h
@@ -584,7 +586,6 @@ VFS_BIO_DEBUG		opt_global.h
 VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
-VM_NDOMAIN		opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
@@ -672,6 +673,7 @@ KTR_ENTRIES		opt_global.h
 KTR_VERBOSE		opt_ktr.h
 WITNESS			opt_global.h
 WITNESS_KDB		opt_witness.h
+WITNESS_NO_VNODE	opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
 
 # options for ACPI support
@@ -782,6 +784,10 @@ AH_SUPPORT_AR5416	opt_ah.h
 # XXX For now, this breaks non-AR9130 chipsets, so only use it
 # XXX when actually targetting AR9130.
 AH_SUPPORT_AR9130	opt_ah.h
+
+# This is required for AR933x SoC support
+AH_SUPPORT_AR9330	opt_ah.h
+AH_SUPPORT_AR9340	opt_ah.h
 
 AH_DEBUG		opt_ah.h
 AH_ASSERT		opt_ah.h

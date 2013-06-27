@@ -81,6 +81,7 @@ size_t	cbsz;			/* conversion block size */
 uintmax_t files_cnt = 1;	/* # of files to copy */
 const	u_char *ctab;		/* conversion table */
 char	fill_char;		/* Character to fill with if defined */
+volatile sig_atomic_t need_summary;
 
 int
 main(int argc __unused, char *argv[])
@@ -89,7 +90,7 @@ main(int argc __unused, char *argv[])
 	jcl(argv);
 	setup();
 
-	(void)signal(SIGINFO, summaryx);
+	(void)signal(SIGINFO, siginfo_handler);
 	(void)signal(SIGINT, terminate);
 
 	atexit(summary);
@@ -375,6 +376,9 @@ dd_in(void)
 
 		in.dbp += in.dbrcnt;
 		(*cfunc)();
+		if (need_summary) {
+			summary();
+		}
 	}
 }
 

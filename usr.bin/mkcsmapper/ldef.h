@@ -36,6 +36,6 @@ typedef struct {
 } linear_zone_t;
 
 extern int	 debug;
-extern int	 line_number;
+extern int	 linenumber;
 extern int	 yyerror(const char *);
 extern int	 yylex(void);

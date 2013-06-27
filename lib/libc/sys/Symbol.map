@@ -379,6 +379,7 @@ FBSD_1.2 {
 
 FBSD_1.3 {
 	accept4;
+	aio_mlock;
 	bindat;
 	cap_fcntls_get;
 	cap_fcntls_limit;

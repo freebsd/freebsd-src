@@ -100,6 +100,7 @@ static const char           *AcpiDmEinjActions[] =
     "Execute Operation",
     "Check Busy Status",
     "Get Command Status",
+    "Set Error Type With Address",
     "Unknown Action"
 };
 
@@ -110,6 +111,7 @@ static const char           *AcpiDmEinjInstructions[] =
     "Write Register",
     "Write Register Value",
     "Noop",
+    "Flush Cacheline",
     "Unknown Instruction"
 };
 
@@ -180,6 +182,8 @@ static const char           *AcpiDmHestNotifySubnames[] =
     "Local Interrupt",
     "SCI",
     "NMI",
+    "CMCI",                         /* ACPI 5.0 */
+    "MCE",                          /* ACPI 5.0 */
     "Unknown Notify Type"           /* Reserved */
 };
 
@@ -697,48 +701,76 @@ AcpiDmDumpTable (
         case ACPI_DMT_EINJINST:
         case ACPI_DMT_ERSTACT:
         case ACPI_DMT_ERSTINST:
+
             ByteLength = 1;
             break;
+
         case ACPI_DMT_UINT16:
         case ACPI_DMT_DMAR:
         case ACPI_DMT_HEST:
+
             ByteLength = 2;
             break;
+
         case ACPI_DMT_UINT24:
+
             ByteLength = 3;
             break;
+
         case ACPI_DMT_UINT32:
         case ACPI_DMT_NAME4:
         case ACPI_DMT_SIG:
         case ACPI_DMT_SLIC:
+
             ByteLength = 4;
             break;
+
         case ACPI_DMT_UINT40:
+
             ByteLength = 5;
             break;
+
         case ACPI_DMT_UINT48:
         case ACPI_DMT_NAME6:
+
             ByteLength = 6;
             break;
+
         case ACPI_DMT_UINT56:
         case ACPI_DMT_BUF7:
+
             ByteLength = 7;
             break;
+
         case ACPI_DMT_UINT64:
         case ACPI_DMT_NAME8:
+
             ByteLength = 8;
             break;
+
+        case ACPI_DMT_BUF10:
+
+            ByteLength = 10;
+            break;
+
         case ACPI_DMT_BUF16:
         case ACPI_DMT_UUID:
+
             ByteLength = 16;
             break;
+
         case ACPI_DMT_BUF128:
+
             ByteLength = 128;
             break;
+
         case ACPI_DMT_STRING:
+
             ByteLength = ACPI_STRLEN (ACPI_CAST_PTR (char, Target)) + 1;
             break;
+
         case ACPI_DMT_GAS:
+
             if (!LastOutputBlankLine)
             {
                 AcpiOsPrintf ("\n");
@@ -746,7 +778,9 @@ AcpiDmDumpTable (
             }
             ByteLength = sizeof (ACPI_GENERIC_ADDRESS);
             break;
+
         case ACPI_DMT_HESTNTFY:
+
             if (!LastOutputBlankLine)
             {
                 AcpiOsPrintf ("\n");
@@ -754,7 +788,9 @@ AcpiDmDumpTable (
             }
             ByteLength = sizeof (ACPI_HEST_NOTIFY);
             break;
+
         default:
+
             ByteLength = 0;
             break;
         }
@@ -835,9 +871,9 @@ AcpiDmDumpTable (
             break;
 
         case ACPI_DMT_BUF7:
+        case ACPI_DMT_BUF10:
         case ACPI_DMT_BUF16:
         case ACPI_DMT_BUF128:
-
             /*
              * Buffer: Size depends on the opcode and was set above.
              * Each hex byte is separated with a space.
@@ -1146,16 +1182,19 @@ AcpiDmDumpTable (
             switch (Temp8)
             {
             case ACPI_IVRS_TYPE_HARDWARE:
+
                 Name = AcpiDmIvrsSubnames[0];
                 break;
 
             case ACPI_IVRS_TYPE_MEMORY1:
             case ACPI_IVRS_TYPE_MEMORY2:
             case ACPI_IVRS_TYPE_MEMORY3:
+
                 Name = AcpiDmIvrsSubnames[1];
                 break;
 
             default:
+
                 Name = AcpiDmIvrsSubnames[2];
                 break;
             }
@@ -1164,9 +1203,11 @@ AcpiDmDumpTable (
             break;
 
         case ACPI_DMT_EXIT:
+
             return (AE_OK);
 
         default:
+
             ACPI_ERROR ((AE_INFO,
                 "**** Invalid table opcode [0x%X] ****\n", Info->Opcode));
             return (AE_SUPPORT);

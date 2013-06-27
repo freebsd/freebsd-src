@@ -204,6 +204,11 @@ struct ifnet {
 	u_int	if_fib;			/* interface FIB */
 	u_char	if_alloctype;		/* if_type at time of allocation */
 
+	u_int	if_hw_tsomax;		/* tso burst length limit, the minmum
+					 * is (IP_MAXPACKET / 8).
+					 * XXXAO: Have to find a better place
+					 * for it eventually. */
+
 	/*
 	 * Spare fields are added so that we can modify sensitive data
 	 * structures without changing the kernel binary interface, and must

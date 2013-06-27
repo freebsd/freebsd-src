@@ -30,7 +30,7 @@ TARGET_ABI=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd10.0
 BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd10.0
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
-		-DLLVM_HOSTTRIPLE=\"${BUILD_TRIPLE}\" \
+		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
 CXXFLAGS+=	-fno-exceptions -fno-rtti
 
@@ -81,6 +81,10 @@ Attrs.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 AttrDump.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
 	    -gen-clang-attr-dump -o ${.TARGET} ${.ALLSRC}
+
+AttrExprArgs.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \
+	    -gen-clang-attr-expr-args-list -o ${.TARGET} ${.ALLSRC}
 
 AttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include \

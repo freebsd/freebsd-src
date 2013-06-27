@@ -95,6 +95,8 @@ static int ttyfd = -1;
 static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
+static int waitcmdloop(struct job *);
+static struct job *getjob_nonotfound(char *);
 static struct job *getjob(char *);
 pid_t getjobpgrp(char *);
 static pid_t dowait(int, struct job *);
@@ -459,15 +461,29 @@ int
 waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
-	int status, retval;
-	struct job *jp;
+	int retval;
 
 	nextopt("");
-	if (*argptr != NULL) {
-		job = getjob(*argptr);
-	} else {
-		job = NULL;
-	}
+	if (*argptr == NULL)
+		return (waitcmdloop(NULL));
+
+	do {
+		job = getjob_nonotfound(*argptr);
+		if (job == NULL)
+			retval = 127;
+		else
+			retval = waitcmdloop(job);
+		argptr++;
+	} while (*argptr != NULL);
+
+	return (retval);
+}
+
+static int
+waitcmdloop(struct job *job)
+{
+	int status, retval;
+	struct job *jp;
 
 	/*
 	 * Loop until a process is terminated or stopped, or a SIGINT is
@@ -546,7 +562,7 @@ jobidcmd(int argc __unused, char **argv)
  */
 
 static struct job *
-getjob(char *name)
+getjob_nonotfound(char *name)
 {
 	int jobno;
 	struct job *found, *jp;
@@ -611,9 +627,19 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 				return jp;
 		}
 	}
-	error("No such job: %s", name);
-	/*NOTREACHED*/
 	return NULL;
+}
+
+
+static struct job *
+getjob(char *name)
+{
+	struct job *jp;
+
+	jp = getjob_nonotfound(name);
+	if (jp == NULL)
+		error("No such job: %s", name);
+	return (jp);
 }
 
 

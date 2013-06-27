@@ -377,9 +377,17 @@ ENTRY(sheeva_l2cache_wb_range)
 END(sheeva_l2cache_wb_range)
 
 ENTRY(sheeva_l2cache_wbinv_all)
+	/* Disable irqs */
+	mrs	r1, cpsr
+	orr	r2, r1, #I32_bit | F32_bit
+	msr	cpsr_c, r2
+
 	mov	r0, #0
 	mcr	p15, 1, r0, c15, c9, 0	/* Clean L2 */
 	mcr	p15, 1, r0, c15, c11, 0	/* Invalidate L2 */
+
+	msr	cpsr_c, r1		/* Reenable irqs */
+
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 END(sheeva_l2cache_wbinv_all)

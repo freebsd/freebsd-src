@@ -304,7 +304,7 @@ apply_specfile(const char *specfile, const char *dir, fsnode *parent, int specon
 	if ((fp = fopen(specfile, "r")) == NULL)
 		err(1, "Can't open `%s'", specfile);
 	TIMER_START(start);
-	root = mtree_readspec(fp);
+	root = spec(fp);
 	TIMER_RESULTS(start, "spec");
 	if (fclose(fp) == EOF)
 		err(1, "Can't close `%s'", specfile);
@@ -319,33 +319,6 @@ apply_specfile(const char *specfile, const char *dir, fsnode *parent, int specon
 	apply_specdir(dir, root, parent, speconly);
 
 }
-
-static u_int
-nodetoino(u_int type)
-{
-
-	switch (type) {
-	case F_BLOCK:
-		return S_IFBLK;
-	case F_CHAR:
-		return S_IFCHR;
-	case F_DIR:
-		return S_IFDIR;
-	case F_FIFO:
-		return S_IFIFO;
-	case F_FILE:
-		return S_IFREG;
-	case F_LINK:
-		return S_IFLNK;
-	case F_SOCK:
-		return S_IFSOCK;
-	default:
-		printf("unknown type %d", type);
-		abort();
-	}
-	/* NOTREACHED */
-}
-
 
 static void
 apply_specdir(const char *dir, NODE *specnode, fsnode *dirnode, int speconly)

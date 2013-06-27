@@ -745,7 +745,10 @@ Sema::FindProtocolDeclaration(bool WarnOnDeclarations,
         << ProtocolId[i].first;
       continue;
     }
-
+    // If this is a forward protocol declaration, get its definition.
+    if (!PDecl->isThisDeclarationADefinition() && PDecl->getDefinition())
+      PDecl = PDecl->getDefinition();
+    
     (void)DiagnoseUseOfDecl(PDecl, ProtocolId[i].second);
 
     // If this is a forward declaration and we are supposed to warn in this
@@ -1042,7 +1045,7 @@ Decl *Sema::ActOnStartClassImplementation(
 
   ObjCImplementationDecl* IMPDecl =
     ObjCImplementationDecl::Create(Context, CurContext, IDecl, SDecl,
-                                   ClassLoc, AtClassImplLoc);
+                                   ClassLoc, AtClassImplLoc, SuperClassLoc);
 
   if (CheckObjCDeclScope(IMPDecl))
     return ActOnObjCContainerStartDefinition(IMPDecl);
@@ -1833,7 +1836,7 @@ void Sema::ImplMethodsVsClassMethods(Scope *S, ObjCImplDecl* IMPDecl,
     if  (!(LangOpts.ObjCDefaultSynthProperties &&
            LangOpts.ObjCRuntime.isNonFragile()) ||
          IDecl->isObjCRequiresPropertyDefs())
-      DiagnoseUnimplementedProperties(S, IMPDecl, CDecl, InsMap);
+      DiagnoseUnimplementedProperties(S, IMPDecl, CDecl);
       
   SelectorSet ClsMap;
   for (ObjCImplementationDecl::classmeth_iterator
@@ -1880,17 +1883,7 @@ void Sema::ImplMethodsVsClassMethods(Scope *S, ObjCImplDecl* IMPDecl,
            E = C->protocol_end(); PI != E; ++PI)
         CheckProtocolMethodDefs(IMPDecl->getLocation(), *PI, IncompleteImpl,
                                 InsMap, ClsMap, CDecl);
-      // Report unimplemented properties in the category as well.
-      // When reporting on missing setter/getters, do not report when
-      // setter/getter is implemented in category's primary class 
-      // implementation.
-      if (ObjCInterfaceDecl *ID = C->getClassInterface())
-        if (ObjCImplDecl *IMP = ID->getImplementation()) {
-          for (ObjCImplementationDecl::instmeth_iterator
-               I = IMP->instmeth_begin(), E = IMP->instmeth_end(); I!=E; ++I)
-            InsMap.insert((*I)->getSelector());
-        }
-      DiagnoseUnimplementedProperties(S, IMPDecl, CDecl, InsMap);      
+      DiagnoseUnimplementedProperties(S, IMPDecl, CDecl);
     } 
   } else
     llvm_unreachable("invalid ObjCContainerDecl type.");
@@ -2082,17 +2075,24 @@ bool Sema::MatchTwoMethodDeclarations(const ObjCMethodDecl *left,
 }
 
 void Sema::addMethodToGlobalList(ObjCMethodList *List, ObjCMethodDecl *Method) {
+  // Record at the head of the list whether there were 0, 1, or >= 2 methods
+  // inside categories.
+  if (ObjCCategoryDecl *
+        CD = dyn_cast<ObjCCategoryDecl>(Method->getDeclContext()))
+    if (!CD->IsClassExtension() && List->getBits() < 2)
+        List->setBits(List->getBits()+1);
+
   // If the list is empty, make it a singleton list.
   if (List->Method == 0) {
     List->Method = Method;
-    List->Next = 0;
+    List->setNext(0);
     return;
   }
   
   // We've seen a method with this name, see if we have already seen this type
   // signature.
   ObjCMethodList *Previous = List;
-  for (; List; Previous = List, List = List->Next) {
+  for (; List; Previous = List, List = List->getNext()) {
     if (!MatchTwoMethodDeclarations(Method, List->Method))
       continue;
     
@@ -2121,7 +2121,7 @@ void Sema::addMethodToGlobalList(ObjCMethodList *List, ObjCMethodDecl *Method) {
   // We have a new signature for an existing method - add it.
   // This is extremely rare. Only 1% of Cocoa selectors are "overloaded".
   ObjCMethodList *Mem = BumpAlloc.Allocate<ObjCMethodList>();
-  Previous->Next = new (Mem) ObjCMethodList(Method, 0);
+  Previous->setNext(new (Mem) ObjCMethodList(Method, 0));
 }
 
 /// \brief Read the contents of the method pool for a given selector from
@@ -2183,7 +2183,7 @@ ObjCMethodDecl *Sema::LookupMethodInGlobalPool(Selector Sel, SourceRange R,
   // Gather the non-hidden methods.
   ObjCMethodList &MethList = instance ? Pos->second.first : Pos->second.second;
   llvm::SmallVector<ObjCMethodDecl *, 4> Methods;
-  for (ObjCMethodList *M = &MethList; M; M = M->Next) {
+  for (ObjCMethodList *M = &MethList; M; M = M->getNext()) {
     if (M->Method && !M->Method->isHidden()) {
       // If we're not supposed to warn about mismatches, we're done.
       if (!warn)
@@ -2800,10 +2800,47 @@ void Sema::CheckObjCMethodOverrides(ObjCMethodDecl *ObjCMethod,
          i = overrides.begin(), e = overrides.end(); i != e; ++i) {
     ObjCMethodDecl *overridden = *i;
 
-    if (isa<ObjCProtocolDecl>(overridden->getDeclContext()) ||
-        CurrentClass != overridden->getClassInterface() ||
-        overridden->isOverriding())
-      hasOverriddenMethodsInBaseOrProtocol = true;
+    if (!hasOverriddenMethodsInBaseOrProtocol) {
+      if (isa<ObjCProtocolDecl>(overridden->getDeclContext()) ||
+          CurrentClass != overridden->getClassInterface() ||
+          overridden->isOverriding()) {
+        hasOverriddenMethodsInBaseOrProtocol = true;
+
+      } else if (isa<ObjCImplDecl>(ObjCMethod->getDeclContext())) {
+        // OverrideSearch will return as "overridden" the same method in the
+        // interface. For hasOverriddenMethodsInBaseOrProtocol, we need to
+        // check whether a category of a base class introduced a method with the
+        // same selector, after the interface method declaration.
+        // To avoid unnecessary lookups in the majority of cases, we use the
+        // extra info bits in GlobalMethodPool to check whether there were any
+        // category methods with this selector.
+        GlobalMethodPool::iterator It =
+            MethodPool.find(ObjCMethod->getSelector());
+        if (It != MethodPool.end()) {
+          ObjCMethodList &List =
+            ObjCMethod->isInstanceMethod()? It->second.first: It->second.second;
+          unsigned CategCount = List.getBits();
+          if (CategCount > 0) {
+            // If the method is in a category we'll do lookup if there were at
+            // least 2 category methods recorded, otherwise only one will do.
+            if (CategCount > 1 ||
+                !isa<ObjCCategoryImplDecl>(overridden->getDeclContext())) {
+              OverrideSearch overrides(*this, overridden);
+              for (OverrideSearch::iterator
+                     OI= overrides.begin(), OE= overrides.end(); OI!=OE; ++OI) {
+                ObjCMethodDecl *SuperOverridden = *OI;
+                if (isa<ObjCProtocolDecl>(SuperOverridden->getDeclContext()) ||
+                    CurrentClass != SuperOverridden->getClassInterface()) {
+                  hasOverriddenMethodsInBaseOrProtocol = true;
+                  overridden->setOverriding(true);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
     // Propagate down the 'related result type' bit from overridden methods.
     if (RTC != Sema::RTC_Incompatible && overridden->hasRelatedResultType())
@@ -3187,12 +3224,14 @@ Decl *Sema::ActOnObjCExceptionDecl(Scope *S, Declarator &D) {
   if (DS.getStorageClassSpec() == DeclSpec::SCS_register) {
     Diag(DS.getStorageClassSpecLoc(), diag::warn_register_objc_catch_parm)
       << FixItHint::CreateRemoval(SourceRange(DS.getStorageClassSpecLoc()));
-  } else if (DS.getStorageClassSpec() != DeclSpec::SCS_unspecified) {
+  } else if (DeclSpec::SCS SCS = DS.getStorageClassSpec()) {
     Diag(DS.getStorageClassSpecLoc(), diag::err_storage_spec_on_catch_parm)
-      << DS.getStorageClassSpec();
-  }  
-  if (D.getDeclSpec().isThreadSpecified())
-    Diag(D.getDeclSpec().getThreadSpecLoc(), diag::err_invalid_thread);
+      << DeclSpec::getSpecifierName(SCS);
+  }
+  if (DeclSpec::TSCS TSCS = D.getDeclSpec().getThreadStorageClassSpec())
+    Diag(D.getDeclSpec().getThreadStorageClassSpecLoc(),
+         diag::err_invalid_thread)
+     << DeclSpec::getSpecifierName(TSCS);
   D.getMutableDeclSpec().ClearStorageClassSpecs();
 
   DiagnoseFunctionSpecifiers(D.getDeclSpec());

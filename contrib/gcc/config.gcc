@@ -269,12 +269,12 @@ xscale-*-*)
 i[34567]86-*-*)
 	cpu_type=i386
 	extra_headers="mmintrin.h mm3dnow.h xmmintrin.h emmintrin.h
-		       pmmintrin.h tmmintrin.h"
+		       pmmintrin.h tmmintrin.h ammintrin.h"
 	;;
 x86_64-*-*)
 	cpu_type=i386
 	extra_headers="mmintrin.h mm3dnow.h xmmintrin.h emmintrin.h
-		       pmmintrin.h tmmintrin.h"
+		       pmmintrin.h tmmintrin.h ammintrin.h"
 	need_64bit_hwint=yes
 	;;
 ia64-*-*)
@@ -428,6 +428,10 @@ case ${target} in
       tm_defines="${tm_defines} FBSD_MAJOR=8" ;;
     *-*-freebsd9 | *-*-freebsd[9].*)
       tm_defines="${tm_defines} FBSD_MAJOR=9" ;;
+    *-*-freebsd10 | *-*-freebsd10.*)
+      tm_defines="${tm_defines} FBSD_MAJOR=10" ;;
+    *-*-freebsd11 | *-*-freebsd11.*)
+      tm_defines="${tm_defines} FBSD_MAJOR=11" ;;
     *)
       echo 'Please update *-*-freebsd* in gcc/config.gcc'
       exit 1
@@ -1209,14 +1213,14 @@ i[34567]86-*-solaris2*)
 		# FIXME: -m64 for i[34567]86-*-* should be allowed just
 		# like -m32 for x86_64-*-*.
 		case X"${with_cpu}" in
-		Xgeneric|Xcore2|Xnocona|Xx86-64|Xk8|Xopteron|Xathlon64|Xathlon-fx)
+		Xgeneric|Xcore2|Xnocona|Xx86-64|Xamdfam10|Xbarcelona|Xk8|Xopteron|Xathlon64|Xathlon-fx)
 			;;
 		X)
 			with_cpu=generic
 			;;
 		*)
 			echo "Unsupported CPU used in --with-cpu=$with_cpu, supported values:" 1>&2
-			echo "generic core2 nocona x86-64 k8 opteron athlon64 athlon-fx" 1>&2
+			echo "generic core2 nocona x86-64 amdfam10 barcelona k8 opteron athlon64 athlon-fx" 1>&2
 			exit 1
 			;;
 		esac
@@ -2515,6 +2519,9 @@ if test x$with_cpu = x ; then
       ;;
     i686-*-* | i786-*-*)
       case ${target_noncanonical} in
+        amdfam10-*|barcelona-*)
+          with_cpu=amdfam10
+          ;;
         k8-*|opteron-*|athlon_64-*)
           with_cpu=k8
           ;;
@@ -2555,6 +2562,9 @@ if test x$with_cpu = x ; then
       ;;
     x86_64-*-*)
       case ${target_noncanonical} in
+        amdfam10-*|barcelona-*)
+          with_cpu=amdfam10
+          ;;
         k8-*|opteron-*|athlon_64-*)
           with_cpu=k8
           ;;
@@ -2795,7 +2805,7 @@ case "${target}" in
 				esac
 				# OK
 				;;
-			"" | k8 | opteron | athlon64 | athlon-fx | nocona | core2 | generic)
+			"" | amdfam10 | barcelona | k8 | opteron | athlon64 | athlon-fx | nocona | core2 | generic)
 				# OK
 				;;
 			*)

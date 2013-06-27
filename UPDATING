@@ -31,6 +31,45 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130618:
+	Fix a bug that allowed a tracing process (e.g. gdb) to write
+	to a memory-mapped file in the traced process's address space
+	even if neither the traced process nor the tracing process had
+	write access to that file.
+
+20130615:
+	CVS has been removed from the base system.  An exact copy
+	of the code is available from the devel/cvs port.
+
+20130613:
+	Some people report the following error after the switch to bmake:
+
+		make: illegal option -- J
+		usage: make [-BPSXeiknpqrstv] [-C directory] [-D variable]
+			...
+		*** [buildworld] Error code 2
+
+	this likely due to an old instance of make in
+	${MAKEPATH} (${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE})
+	which src/Makefile will use that blindly, if it exists, so if
+	you see the above error:
+
+		rm -rf `make -V MAKEPATH`
+
+	should resolve it.
+
+20130516:
+	Use bmake by default.
+	Whereas before one could choose to build with bmake via
+	-DWITH_BMAKE one must now use -DWITHOUT_BMAKE to use the old
+	make. The goal is to remove these knobs for 10-RELEASE.
+
+	It is worth noting that bmake (like gmake) treats the command
+	line as the unit of failure, rather than statements within the
+	command line.  Thus '(cd some/where && dosomething)' is safer
+	than 'cd some/where; dosomething'. The '()' allows consistent
+	behavior in parallel build.
+
 20130429:
         Fix a bug that allows NFS clients to issue READDIR on files.
 
@@ -108,7 +147,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	Due to the use of the new -l option to install(1) during build
 	and install, you must take care not to directly set the INSTALL
 	make variable in your /etc/make.conf, /etc/src.conf, or on the
-	command line.  If you with to use the -C flag for all installs
+	command line.  If you wish to use the -C flag for all installs
 	you may be able to add INSTALL+=-C to /etc/make.conf or
 	/etc/src.conf.
 

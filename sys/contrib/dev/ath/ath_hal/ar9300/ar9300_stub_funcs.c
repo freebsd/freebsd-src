@@ -431,7 +431,7 @@ ar9300_Stub_GetAntennaSwitch(struct ath_hal *ah)
 {
 
 	ath_hal_printf(ah, "%s: called\n", __func__);
-	return (HAL_ANTENNA_FIXED_A);
+	return (HAL_ANT_VARIABLE);
 }
 
 HAL_BOOL

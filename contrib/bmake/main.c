@@ -796,7 +796,10 @@ main(int argc, char **argv)
 	Lst targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = FALSE; 	/* FALSE if all targets up to date */
 	struct stat sb, sa;
-	char *p1, *path, *pwd;
+	char *p1, *path;
+#ifndef NO_PWD_OVERRIDE
+	char *pwd;
+#endif
 	char mdpath[MAXPATHLEN];
 #ifdef FORCE_MACHINE
 	const char *machine = FORCE_MACHINE;

@@ -951,6 +951,8 @@ namespace clang {
       DECL_OBJC_PROPERTY_IMPL,
       /// \brief A FieldDecl record.
       DECL_FIELD,
+      /// \brief A MSPropertyDecl record.
+      DECL_MS_PROPERTY,
       /// \brief A VarDecl record.
       DECL_VAR,
       /// \brief An ImplicitParamDecl record.
@@ -961,6 +963,8 @@ namespace clang {
       DECL_FILE_SCOPE_ASM,
       /// \brief A BlockDecl record.
       DECL_BLOCK,
+      /// \brief A CapturedDecl record.
+      DECL_CAPTURED,
       /// \brief A record that stores the set of declarations that are
       /// lexically stored within a given DeclContext.
       ///
@@ -1101,6 +1105,8 @@ namespace clang {
       STMT_RETURN,
       /// \brief A DeclStmt record.
       STMT_DECL,
+      /// \brief A CapturedStmt record.
+      STMT_CAPTURED,
       /// \brief A GCC-style AsmStmt record.
       STMT_GCCASM,
       /// \brief A MS-style AsmStmt record.
@@ -1261,6 +1267,7 @@ namespace clang {
       EXPR_CXX_THIS,              // CXXThisExpr
       EXPR_CXX_THROW,             // CXXThrowExpr
       EXPR_CXX_DEFAULT_ARG,       // CXXDefaultArgExpr
+      EXPR_CXX_DEFAULT_INIT,      // CXXDefaultInitExpr
       EXPR_CXX_BIND_TEMPORARY,    // CXXBindTemporaryExpr
 
       EXPR_CXX_SCALAR_VALUE_INIT, // CXXScalarValueInitExpr
@@ -1300,6 +1307,7 @@ namespace clang {
       EXPR_ASTYPE,                 // AsTypeExpr
 
       // Microsoft
+      EXPR_CXX_PROPERTY_REF_EXPR, // MSPropertyRefExpr
       EXPR_CXX_UUIDOF_EXPR,       // CXXUuidofExpr (of expr).
       EXPR_CXX_UUIDOF_TYPE,       // CXXUuidofExpr (of type).
       STMT_SEH_EXCEPT,            // SEHExceptStmt

@@ -73,6 +73,7 @@ setvar DEVICE_TYPE_UFS		9
 setvar DEVICE_TYPE_NFS		10
 setvar DEVICE_TYPE_ANY		11
 setvar DEVICE_TYPE_HTTP_PROXY	12
+setvar DEVICE_TYPE_HTTP		13
 
 #
 # Default behavior is to call f_device_get_all() automatically when loaded.
@@ -485,11 +486,11 @@ f_device_desc()
 	# Sensible fall-backs for specific types
 	#
 	case "$__type" in
-	$DEVICE_TYPE_CDROM)   __cp="<unknown cdrom device type>";;
-	$DEVICE_TYPE_DISK)    __cp="<unknown disk device type>";;
-	$DEVICE_TYPE_FLOPPY)  __cp="<unknown floppy device type>";;
-	$DEVICE_TYPE_USB)     __cp="<unknown usb storage device type>";;
-	$DEVICE_TYPE_NETWORK) __cp="<unknown network interface type>";;
+	$DEVICE_TYPE_CDROM)   __cp="<unknown cdrom device type>" ;;
+	$DEVICE_TYPE_DISK)    __cp="<unknown disk device type>" ;;
+	$DEVICE_TYPE_FLOPPY)  __cp="<unknown floppy device type>" ;;
+	$DEVICE_TYPE_USB)     __cp="<unknown usb storage device type>" ;;
+	$DEVICE_TYPE_NETWORK) __cp="<unknown network interface type>" ;;
 	*)
 		__cp="<unknown device type>"
 	esac
@@ -598,27 +599,26 @@ f_device_menu()
 	done
 	[ "$devs" ] || return $FAILURE
 
-	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
-
 	local desc menu_list=
 	for dev in $devs; do
 		device_$dev get desc desc
-		desc=$( echo "$desc" | awk "$sanitize_awk" )
+		f_shell_escape "$desc" desc
 		menu_list="$menu_list '$dev' '$desc'"
 	done
 
-	local size mtag
-	size=$( eval f_dialog_menu_size \
-	         	\"\$title\"  \
-	         	\"\$btitle\" \
-	         	\"\$prompt\" \
-	         	\"\$hline\"  \
-	         	$menu_list   )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
 
 	local errexit=
 	case $- in *e*) errexit=1; esac
 	set +e
 
+	local mtag
 	while :; do
 		mtag=$( eval $DIALOG \
 			--title \"\$title\"             \
@@ -630,7 +630,8 @@ f_device_menu()
 			  --help-label \"\$msg_help\"   \
 			  ${USE_XDIALOG:+--help \"\"}   \
 			}                               \
-			--menu \"\$prompt\" $size       \
+			--menu \"\$prompt\"             \
+			$height $width $rows            \
 			$menu_list                      \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
@@ -647,8 +648,7 @@ f_device_menu()
 
 	if [ $retval -eq 0 ]; then
 		# Clean up the output of [X]dialog(1) and return it
-		setvar DIALOG_MENU_$$ "$mtag"
-		mtag=$( f_dialog_menutag )
+		f_dialog_data_sanitize mtag
 		echo "$mtag" >&2
 	fi
 

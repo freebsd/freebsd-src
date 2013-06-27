@@ -93,6 +93,7 @@ unsigned int octal(const char *);
 unsigned int hex(const char *);
 int yyerror(const char *);
 
+#define YY_DECL int yylex(void)
 %}
 
 %option nounput

@@ -1186,6 +1186,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			goto unlink;
 		}
 		ia->ia_prefixmask = ifra->ifra_prefixmask;
+		ia->ia_prefixmask.sin6_family = AF_INET6;
 	}
 
 	/*

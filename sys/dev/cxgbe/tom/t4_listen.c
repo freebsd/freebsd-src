@@ -125,7 +125,7 @@ alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
 		TAILQ_FOREACH(s, &t->stids, link) {
 			stid += s->used + s->free;
 			f = stid & mask;
-			if (n <= s->free - f) {
+			if (s->free >= n + f) {
 				stid -= n + f;
 				s->free -= n + f;
 				TAILQ_INSERT_AFTER(&t->stids, s, sr, link);

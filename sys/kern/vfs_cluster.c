@@ -133,7 +133,7 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 			return 0;
 		} else {
 			bp->b_flags &= ~B_RAM;
-			BO_LOCK(bo);
+			BO_RLOCK(bo);
 			for (i = 1; i < maxra; i++) {
 				/*
 				 * Stop if the buffer does not exist or it
@@ -156,7 +156,7 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 					BUF_UNLOCK(rbp);
 				}			
 			}
-			BO_UNLOCK(bo);
+			BO_RUNLOCK(bo);
 			if (i >= maxra) {
 				return 0;
 			}
@@ -396,17 +396,16 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 			 * (marked B_CACHE), or locked (may be doing a
 			 * background write), or if the buffer is not
 			 * VMIO backed.  The clustering code can only deal
-			 * with VMIO-backed buffers.
+			 * with VMIO-backed buffers.  The bo lock is not
+			 * required for the BKGRDINPROG check since it
+			 * can not be set without the buf lock.
 			 */
-			BO_LOCK(bo);
 			if ((tbp->b_vflags & BV_BKGRDINPROG) ||
 			    (tbp->b_flags & B_CACHE) ||
 			    (tbp->b_flags & B_VMIO) == 0) {
-				BO_UNLOCK(bo);
 				bqrelse(tbp);
 				break;
 			}
-			BO_UNLOCK(bo);
 
 			/*
 			 * The buffer must be completely invalid in order to
@@ -790,7 +789,7 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 			continue;
 		}
 		if (BUF_LOCK(tbp,
-		    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, BO_MTX(bo))) {
+		    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, BO_LOCKPTR(bo))) {
 			++start_lbn;
 			--len;
 			continue;
@@ -891,7 +890,7 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 				 */
 				if (BUF_LOCK(tbp,
 				    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
-				    BO_MTX(bo)))
+				    BO_LOCKPTR(bo)))
 					break;
 
 				if ((tbp->b_flags & (B_VMIO | B_CLUSTEROK |

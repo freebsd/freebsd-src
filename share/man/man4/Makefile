@@ -4,6 +4,7 @@
 .include <bsd.own.mk>
 
 MAN=	aac.4 \
+	aacraid.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
 	${_acpi_asus_wmi.4} \
@@ -370,7 +371,9 @@ MAN=	aac.4 \
 	pts.4 \
 	pty.4 \
 	puc.4 \
+	${_qlxge.4} \
 	${_qlxgb.4} \
+	${_qlxgbe.4} \
 	ral.4 \
 	random.4 \
 	rc.4 \
@@ -514,6 +517,7 @@ MAN=	aac.4 \
 	ural.4 \
 	urio.4 \
 	${_urtw.4} \
+	urtwn.4 \
 	usb.4 \
 	usb_quirk.4 \
 	uslcom.4 \
@@ -790,10 +794,14 @@ _bhyve.4=	bhyve.4
 _if_ntb.4=	if_ntb.4
 _ntb.4=		ntb.4
 _ntb_hw.4=	ntb_hw.4
+_qlxge.4=	qlxge.4
 _qlxgb.4=	qlxgb.4
+_qlxgbe.4=	qlxgbe.4
 _sfxge.4=	sfxge.4
 
+MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4
+MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4
 .endif
 

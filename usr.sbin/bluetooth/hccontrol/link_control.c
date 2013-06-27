@@ -357,7 +357,7 @@ again:
 		goto again;
 
 	return (OK);
-} /* hci_diconnect */
+} /* hci_disconnect */
 
 /* Send Add_SCO_Connection command to the unit */
 static int

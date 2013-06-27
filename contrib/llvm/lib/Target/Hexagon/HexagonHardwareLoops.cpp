@@ -541,12 +541,6 @@ CountValue *HexagonHardwareLoops::getLoopTripCount(MachineLoop *L,
     case Hexagon::CMPEQrr:
       Cmp = !Negated ? Comparison::EQ : Comparison::NE;
       break;
-    case Hexagon::CMPLTrr:
-      Cmp = !Negated ? Comparison::LTs : Comparison::GEs;
-      break;
-    case Hexagon::CMPLTUrr:
-      Cmp = !Negated ? Comparison::LTu : Comparison::GEu;
-      break;
     case Hexagon::CMPGTUri:
     case Hexagon::CMPGTUrr:
       Cmp = !Negated ? Comparison::GTu : Comparison::LEu;
@@ -1125,8 +1119,8 @@ bool HexagonHardwareLoops::convertToHardwareLoop(MachineLoop *L) {
   // The loop ends with either:
   //  - a conditional branch followed by an unconditional branch, or
   //  - a conditional branch to the loop start.
-  if (LastI->getOpcode() == Hexagon::JMP_c ||
-      LastI->getOpcode() == Hexagon::JMP_cNot) {
+  if (LastI->getOpcode() == Hexagon::JMP_t ||
+      LastI->getOpcode() == Hexagon::JMP_f) {
     // Delete one and change/add an uncond. branch to out of the loop.
     MachineBasicBlock *BranchTarget = LastI->getOperand(1).getMBB();
     LastI = LastMBB->erase(LastI);

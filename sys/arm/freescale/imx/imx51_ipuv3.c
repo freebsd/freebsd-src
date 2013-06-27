@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Oleksandr Rybalko

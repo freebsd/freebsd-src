@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
@@ -92,6 +93,10 @@ typedef enum {
 	ADA_Q_NONE		= 0x00,
 	ADA_Q_4K		= 0x01,
 } ada_quirks;
+
+#define ADA_Q_BIT_STRING	\
+	"\020"			\
+	"\0014K"
 
 typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
@@ -267,12 +272,11 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "WDC WD?????PVT*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
+	/* SSDs */
 	{
 		/*
 		 * Corsair Force 2 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair CSSD-F*", "*" },
 		/*quirks*/ADA_Q_4K
@@ -281,28 +285,102 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*
 		 * Corsair Force 3 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Force 3*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
+		 * Corsair Force GT SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Force GT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Crucial M4 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "M4-CT???M4SSD2*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Crucial RealSSD C300 SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "C300-CTFDDAC???MAG*",
+		"*" }, /*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Intel 320 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSA2CW*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Intel 330 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2CT*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Intel 510 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2MH*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Intel 520 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2BW*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Kingston E100 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "KINGSTON SE100S3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Kingston HyperX 3k SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "KINGSTON SH103S3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * OCZ Agility 3 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-AGILITY3*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
+		 * OCZ Deneva R Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "DENRSTE251M45*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * OCZ Vertex 2 SSDs (inc pro series)
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ?VERTEX2*", "*" },
 		/*quirks*/ADA_Q_4K
@@ -311,70 +389,32 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*
 		 * OCZ Vertex 3 SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-VERTEX3*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
+		 * Samsung 830 Series SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG SSD 830 Series*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * SuperTalent TeraDrive CT SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "FTM??CT25H*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/*
-		 * Crucial RealSSD C300 SSDs
-		 * 4k optimised
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "C300-CTFDDAC???MAG*",
-		"*" }, /*quirks*/ADA_Q_4K
-	},
-	{
-		/*
 		 * XceedIOPS SATA SSDs
 		 * 4k optimised
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SG9XCS2D*", "*" },
-		/*quirks*/ADA_Q_4K
-	},
-	{
-		/*
-		 * Intel 330 Series SSDs
-		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2ct*", "*" },
-		/*quirks*/ADA_Q_4K
-	},
-	{
-		/*
-		 * OCZ Deneva R Series SSDs
-		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "DENRSTE251M45*", "*" },
-		/*quirks*/ADA_Q_4K
-	},
-	{
-		/*
-		 * Kingston HyperX 3k SSDs
-		 * 4k optimised & trim only works in 4k requests + 4k aligned
-		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
-		 * PR: 169974
-		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "KINGSTON SH103S3*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
@@ -1253,6 +1293,7 @@ adaregister(struct cam_periph *periph, void *arg)
 		dp->secsize, dp->heads,
 		dp->secs_per_track, dp->cylinders);
 	xpt_announce_periph(periph, announce_buf);
+	xpt_announce_quirks(periph, softc->quirks, ADA_Q_BIT_STRING);
 	if (legacy_id >= 0)
 		printf("%s%d: Previously was known as ad%d\n",
 		       periph->periph_name, periph->unit_number, legacy_id);
@@ -1839,11 +1880,16 @@ adaflush(void)
 	int error;
 
 	CAM_PERIPH_FOREACH(periph, &adadriver) {
-		/* If we paniced with lock held - not recurse here. */
-		if (cam_periph_owned(periph))
-			continue;
-		cam_periph_lock(periph);
 		softc = (struct ada_softc *)periph->softc;
+		if (SCHEDULER_STOPPED()) {
+			/* If we paniced with the lock held, do not recurse. */
+			if (!cam_periph_owned(periph) &&
+			    (softc->flags & ADA_FLAG_OPEN)) {
+				adadump(softc->disk, NULL, 0, 0, 0);
+			}
+			continue;
+		}
+		cam_periph_lock(periph);
 		/*
 		 * We only sync the cache if the drive is still open, and
 		 * if the drive is capable of it..

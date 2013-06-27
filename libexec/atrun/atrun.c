@@ -31,6 +31,7 @@ static const char rcsid[] =
 /* System Headers */
 
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef __FreeBSD__
@@ -197,7 +198,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     PRIV_END
 
     if (stream == NULL)
-	perr("cannot open input file");
+	perr("cannot open input file %s", filename);
 
     if ((fd_in = dup(fileno(stream))) <0)
 	perr("error duplicating input file descriptor");
@@ -520,6 +521,9 @@ main(int argc, char *argv[])
      */
     if ((spool = opendir(".")) == NULL)
 	perr("cannot read %s", ATJOB_DIR);
+
+    if (flock(dirfd(spool), LOCK_EX) == -1)
+	perr("cannot lock %s", ATJOB_DIR);
 
     now = time(NULL);
     run_batch = 0;

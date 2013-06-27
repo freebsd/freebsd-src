@@ -687,8 +687,8 @@ fpugetregs(struct thread *td)
 		    offsetof(struct xstate_hdr, xstate_bv));
 		max_ext_n = flsl(xsave_mask);
 		for (i = 0; i < max_ext_n; i++) {
-			bit = 1 << i;
-			if ((*xstate_bv & bit) != 0)
+			bit = 1ULL << i;
+			if ((xsave_mask & bit) == 0 || (*xstate_bv & bit) != 0)
 				continue;
 			bcopy((char *)fpu_initialstate +
 			    xsave_area_desc[i].offset,

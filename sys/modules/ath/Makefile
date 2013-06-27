@@ -38,6 +38,7 @@ KMOD=	if_ath
 SRCS=	if_ath.c if_ath_alq.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
 SRCS+=	if_ath_tx.c if_ath_tx_ht.c if_ath_led.c if_ath_rx.c if_ath_tdma.c
 SRCS+=	if_ath_beacon.c if_ath_rx_edma.c if_ath_tx_edma.c if_ath_spectral.c
+SRCS+=	if_ath_btcoex.c if_ath_lna_div.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h

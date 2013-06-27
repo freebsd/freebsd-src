@@ -862,9 +862,14 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		bf_prev = bf;
 
 		/*
-		 * XXX TODO: if any sub-frames have RTS/CTS enabled;
-		 * enable it for the entire aggregate.
+		 * If we're leaking frames, just return at this point;
+		 * we've queued a single frame and we don't want to add
+		 * any more.
 		 */
+		if (tid->an->an_leak_count) {
+			status = ATH_AGGR_LEAK_CLOSED;
+			break;
+		}
 
 #if 0
 		/*

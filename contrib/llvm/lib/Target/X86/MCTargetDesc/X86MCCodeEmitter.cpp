@@ -237,6 +237,14 @@ StartsWithGlobalOffsetTable(const MCExpr *Expr) {
   return GOT_Normal;
 }
 
+static bool HasSecRelSymbolRef(const MCExpr *Expr) {
+  if (Expr->getKind() == MCExpr::SymbolRef) {
+    const MCSymbolRefExpr *Ref = static_cast<const MCSymbolRefExpr*>(Expr);
+    return Ref->getKind() == MCSymbolRefExpr::VK_SECREL;
+  }
+  return false;
+}
+
 void X86MCCodeEmitter::
 EmitImmediate(const MCOperand &DispOp, SMLoc Loc, unsigned Size,
               MCFixupKind FixupKind, unsigned &CurByte, raw_ostream &OS,
@@ -268,8 +276,13 @@ EmitImmediate(const MCOperand &DispOp, SMLoc Loc, unsigned Size,
       if (Kind == GOT_Normal)
         ImmOffset = CurByte;
     } else if (Expr->getKind() == MCExpr::SymbolRef) {
-      const MCSymbolRefExpr *Ref = static_cast<const MCSymbolRefExpr*>(Expr);
-      if (Ref->getKind() == MCSymbolRefExpr::VK_SECREL) {
+      if (HasSecRelSymbolRef(Expr)) {
+        FixupKind = MCFixupKind(FK_SecRel_4);
+      }
+    } else if (Expr->getKind() == MCExpr::Binary) {
+      const MCBinaryExpr *Bin = static_cast<const MCBinaryExpr*>(Expr);
+      if (HasSecRelSymbolRef(Bin->getLHS())
+          || HasSecRelSymbolRef(Bin->getRHS())) {
         FixupKind = MCFixupKind(FK_SecRel_4);
       }
     }
@@ -979,18 +992,8 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   if ((TSFlags & X86II::FormMask) == X86II::Pseudo)
     return;
 
-  // If this is a two-address instruction, skip one of the register operands.
-  // FIXME: This should be handled during MCInst lowering.
   unsigned NumOps = Desc.getNumOperands();
-  unsigned CurOp = 0;
-  if (NumOps > 1 && Desc.getOperandConstraint(1, MCOI::TIED_TO) == 0)
-    ++CurOp;
-  else if (NumOps > 3 && Desc.getOperandConstraint(2, MCOI::TIED_TO) == 0) {
-    assert(Desc.getOperandConstraint(NumOps - 1, MCOI::TIED_TO) == 1);
-    // Special case for GATHER with 2 TIED_TO operands
-    // Skip the first 2 operands: dst, mask_wb
-    CurOp += 2;
-  }
+  unsigned CurOp = X86II::getOperandBias(Desc);
 
   // Keep track of the current byte being emitted.
   unsigned CurByte = 0;
@@ -1138,12 +1141,13 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
     break;
   case X86II::MRM_C1: case X86II::MRM_C2: case X86II::MRM_C3:
   case X86II::MRM_C4: case X86II::MRM_C8: case X86II::MRM_C9:
-  case X86II::MRM_D0: case X86II::MRM_D1: case X86II::MRM_D4:
-  case X86II::MRM_D5: case X86II::MRM_D6: case X86II::MRM_D8:
-  case X86II::MRM_D9: case X86II::MRM_DA: case X86II::MRM_DB:
-  case X86II::MRM_DC: case X86II::MRM_DD: case X86II::MRM_DE:
-  case X86II::MRM_DF: case X86II::MRM_E8: case X86II::MRM_F0:
-  case X86II::MRM_F8: case X86II::MRM_F9:
+  case X86II::MRM_CA: case X86II::MRM_CB: case X86II::MRM_D0:
+  case X86II::MRM_D1: case X86II::MRM_D4: case X86II::MRM_D5:
+  case X86II::MRM_D6: case X86II::MRM_D8: case X86II::MRM_D9:
+  case X86II::MRM_DA: case X86II::MRM_DB: case X86II::MRM_DC:
+  case X86II::MRM_DD: case X86II::MRM_DE: case X86II::MRM_DF:
+  case X86II::MRM_E8: case X86II::MRM_F0: case X86II::MRM_F8:
+  case X86II::MRM_F9:
     EmitByte(BaseOpcode, CurByte, OS);
 
     unsigned char MRM;
@@ -1155,6 +1159,8 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
     case X86II::MRM_C4: MRM = 0xC4; break;
     case X86II::MRM_C8: MRM = 0xC8; break;
     case X86II::MRM_C9: MRM = 0xC9; break;
+    case X86II::MRM_CA: MRM = 0xCA; break;
+    case X86II::MRM_CB: MRM = 0xCB; break;
     case X86II::MRM_D0: MRM = 0xD0; break;
     case X86II::MRM_D1: MRM = 0xD1; break;
     case X86II::MRM_D4: MRM = 0xD4; break;

@@ -224,6 +224,10 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32
 
+# MAXMEMDOM defines the maximum number of memory domains that can boot in the
+# system.  A default value should already be defined by every architecture.
+options 	MAXMEMDOM=1
+
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
 # CPU.  This behavior is enabled by default, so this option can be used
@@ -567,7 +571,8 @@ options 	HWPMC_HOOKS		# Other necessary kernel hooks
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
 
-options 	ROUTETABLES=2		# max 16. 1 is back compatible.
+options 	ROUTETABLES=2		# allocated fibs up to 65536. default is 1.
+					# but that would be a bad idea as they are large.
 
 options 	TCP_OFFLOAD		# TCP offload support.
 
@@ -2741,6 +2746,9 @@ device		ural
 #
 # Realtek RTL8187B/L wireless driver
 device		urtw
+#
+# Realtek RTL8188CU/RTL8192CU wireless driver
+device		urtwn
 #
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd

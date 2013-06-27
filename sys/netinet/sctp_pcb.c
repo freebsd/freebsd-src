@@ -2376,8 +2376,13 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	inp->sctp_socket = so;
 	inp->ip_inp.inp.inp_socket = so;
 #ifdef INET6
-	if (MODULE_GLOBAL(ip6_auto_flowlabel)) {
-		inp->ip_inp.inp.inp_flags |= IN6P_AUTOFLOWLABEL;
+	if (INP_SOCKAF(so) == AF_INET6) {
+		if (MODULE_GLOBAL(ip6_auto_flowlabel)) {
+			inp->ip_inp.inp.inp_flags |= IN6P_AUTOFLOWLABEL;
+		}
+		if (MODULE_GLOBAL(ip6_v6only)) {
+			inp->ip_inp.inp.inp_flags |= IN6P_IPV6_V6ONLY;
+		}
 	}
 #endif
 	inp->sctp_associd_counter = 1;

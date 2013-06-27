@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*-
- * Copyright (C) 2012 Oleg Moskalenko <oleg.moskalenko@citrix.com>
+ * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * Copyright (C) 2012 Gabor Kovesdan <gabor@FreeBSD.org>
  * All rights reserved.
  *
@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(__VSORT_H__)
-#define _VSORT_H__
+#ifndef _VSORT_H_
+#define _VSORT_H_
 
 #include "bwstring.h"
 

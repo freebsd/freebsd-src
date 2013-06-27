@@ -1956,6 +1956,17 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		goto out;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (vp->v_type == VREG) {
+		bsize = vp->v_mount->mnt_stat.f_iosize;
+		if (uap->nbytes == 0) {
+			error = VOP_GETATTR(vp, &va, td->td_ucred);
+			if (error != 0) {
+				VOP_UNLOCK(vp, 0);
+				obj = NULL;
+				goto out;
+			}
+			rem = va.va_size;
+		} else
+			rem = uap->nbytes;
 		obj = vp->v_object;
 		if (obj != NULL) {
 			/*
@@ -1973,7 +1984,8 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 				obj = NULL;
 			}
 		}
-	}
+	} else
+		bsize = 0;	/* silence gcc */
 	VOP_UNLOCK(vp, 0);
 	if (obj == NULL) {
 		error = EINVAL;
@@ -2065,11 +2077,20 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * The outer loop checks the state and available space of the socket
 	 * and takes care of the overall progress.
 	 */
-	for (off = uap->offset, rem = uap->nbytes; ; ) {
-		struct mbuf *mtail = NULL;
-		int loopbytes = 0;
-		int space = 0;
-		int done = 0;
+	for (off = uap->offset; ; ) {
+		struct mbuf *mtail;
+		int loopbytes;
+		int space;
+		int done;
+
+		if ((uap->nbytes != 0 && uap->nbytes == fsbytes) ||
+		    (uap->nbytes == 0 && va.va_size == fsbytes))
+			break;
+
+		mtail = NULL;
+		loopbytes = 0;
+		space = 0;
+		done = 0;
 
 		/*
 		 * Check the socket state for ongoing connection,
@@ -2141,17 +2162,16 @@ retry_space:
 		if (error != 0)
 			goto done;
 		error = VOP_GETATTR(vp, &va, td->td_ucred);
-		if (error != 0) {
+		if (error != 0 || off >= va.va_size) {
 			VOP_UNLOCK(vp, 0);
 			goto done;
 		}
-		bsize = vp->v_mount->mnt_stat.f_iosize;
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
-		while (1) {
+		while (space > loopbytes) {
 			vm_pindex_t pindex;
 			vm_offset_t pgoff;
 			struct mbuf *m0;
@@ -2171,15 +2191,6 @@ retry_space:
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
 				done = 1;		/* all data sent */
-				break;
-			}
-
-			/*
-			 * We've already overfilled the socket.
-			 * Let the outer loop figure out how to handle it.
-			 */
-			if (space <= loopbytes) {
-				done = 0;
 				break;
 			}
 

@@ -3387,7 +3387,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 */
 			if ((bp = gbincore(&vp->v_bufobj, lblkno)) != NULL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
-				    LK_INTERLOCK, BO_MTX(bo)) == ENOLCK) {
+				    LK_INTERLOCK, BO_LOCKPTR(bo)) == ENOLCK) {
 					BO_LOCK(bo);
 					continue; /* retry */
 				}

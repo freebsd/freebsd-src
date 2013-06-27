@@ -163,7 +163,9 @@ ti_scm_padconf_set_internal(struct ti_scm_softc *sc,
 	/* set the mux mode */
 	reg_val |= (uint16_t)(mode & ti_scm_dev.padconf_muxmode_mask);
 	
-	printf("setting internal %x for %s\n", reg_val, muxmode);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "setting internal %x for %s\n", 
+		    reg_val, muxmode);
 	/* write the register value (16-bit writes) */
 	ti_scm_write_2(sc, padconf->reg_off, reg_val);
 	

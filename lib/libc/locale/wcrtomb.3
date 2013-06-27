@@ -24,24 +24,34 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2004
+.Dd May 21, 2013
 .Dt WCRTOMB 3
 .Os
 .Sh NAME
-.Nm wcrtomb
+.Nm wcrtomb ,
+.Nm c16rtomb ,
+.Nm c32rtomb
 .Nd "convert a wide-character code to a character (restartable)"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In wchar.h
 .Ft size_t
-.Fn wcrtomb "char * restrict s" "wchar_t wc" "mbstate_t * restrict ps"
+.Fn wcrtomb "char * restrict s" "wchar_t c" "mbstate_t * restrict ps"
+.In uchar.h
+.Ft size_t
+.Fn c16rtomb "char * restrict s" "char16_t c" "mbstate_t * restrict ps"
+.Ft size_t
+.Fn c32rtomb "char * restrict s" "char32_t c" "mbstate_t * restrict ps"
 .Sh DESCRIPTION
 The
-.Fn wcrtomb
-function stores a multibyte sequence representing the
+.Fn wcrtomb ,
+.Fn c16rtomb
+and
+.Fn c32rtomb
+functions store a multibyte sequence representing the
 wide character
-.Fa wc ,
+.Fa c ,
 including any necessary shift sequences, to the
 character array
 .Fa s ,
@@ -53,11 +63,10 @@ If
 .Fa s
 is
 .Dv NULL ,
-.Fn wcrtomb
-behaves as if
+these functions behave as if
 .Fa s
 pointed to an internal buffer and
-.Fa wc
+.Fa c
 was a null wide character (L'\e0').
 .Pp
 The
@@ -67,26 +76,32 @@ argument,
 is used to keep track of the shift state.
 If it is
 .Dv NULL ,
-.Fn wcrtomb
-uses an internal, static
+these functions use an internal, static
 .Vt mbstate_t
 object, which is initialized to the initial conversion state
 at program startup.
+.Pp
+As certain multibyte characters may only be represented by a series of
+16-bit characters, the
+.Fn c16rtomb
+may need to invoked multiple times before a multibyte sequence is
+returned.
 .Sh RETURN VALUES
-The
-.Fn wcrtomb
-functions returns the length (in bytes) of the multibyte sequence
+These functions return the length (in bytes) of the multibyte sequence
 needed to represent
-.Fa wc ,
+.Fa c ,
 or
 .Po Vt size_t Pc Ns \-1
 if
-.Fa wc
+.Fa c
 is not a valid wide character code.
 .Sh ERRORS
 The
-.Fn wcrtomb
-function will fail if:
+.Fn wcrtomb ,
+.Fn c16rtomb
+and
+.Fn c32rtomb
+functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EILSEQ
 An invalid wide character code was specified.
@@ -100,6 +115,9 @@ The conversion state is invalid.
 .Xr wctomb 3
 .Sh STANDARDS
 The
-.Fn wcrtomb
-function conforms to
-.St -isoC-99 .
+.Fn wcrtomb ,
+.Fn c16rtomb
+and
+.Fn c32rtomb
+functions conform to
+.St -isoC-2011 .

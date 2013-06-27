@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2008-2011 MARVELL INTERNATIONAL LTD.
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * Developed by Semihalf.

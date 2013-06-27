@@ -260,6 +260,16 @@ gpt_map_type(struct uuid *t)
 	return (0);
 }
 
+static void
+gpt_create_pmbr(struct g_part_gpt_table *table, struct g_provider *pp)
+{
+
+	bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1,
+	    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
+	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
+}
+
 /*
  * Under Boot Camp the PMBR partition (type 0xEE) doesn't cover the
  * whole disk anymore. Rather, it covers the GPT table and the EFI
@@ -284,7 +294,7 @@ gpt_is_bootcamp(struct g_part_gpt_table *table, const char *provname)
 }
 
 static void
-gpt_update_bootcamp(struct g_part_table *basetable)
+gpt_update_bootcamp(struct g_part_table *basetable, struct g_provider *pp)
 {
 	struct g_part_entry *baseentry;
 	struct g_part_gpt_entry *entry;
@@ -341,6 +351,7 @@ gpt_update_bootcamp(struct g_part_table *basetable)
 
  disable:
 	table->bootcamp = 0;
+	gpt_create_pmbr(table, pp);
 }
 
 static struct gpt_hdr *
@@ -608,6 +619,8 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	    pp->mediasize < (3 + 2 * tblsz + basetable->gpt_entries) *
 	    pp->sectorsize)
 		return (ENOSPC);
+
+	gpt_create_pmbr(table, pp);
 
 	/* Allocate space for the header */
 	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
@@ -936,9 +949,13 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 static int
 g_part_gpt_recover(struct g_part_table *basetable)
 {
+	struct g_part_gpt_table *table;
+	struct g_provider *pp;
 
-	g_gpt_set_defaults(basetable,
-	    LIST_FIRST(&basetable->gpt_gp->consumer)->provider);
+	table = (struct g_part_gpt_table *)basetable;
+	pp = LIST_FIRST(&basetable->gpt_gp->consumer)->provider;
+	gpt_create_pmbr(table, pp);
+	g_gpt_set_defaults(basetable, pp);
 	basetable->gpt_corrupt = 0;
 	return (0);
 }
@@ -949,6 +966,7 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 {
 	struct g_part_gpt_entry *entry;
 	struct g_part_gpt_table *table;
+	uint8_t *p;
 	uint64_t attr;
 	int i;
 
@@ -956,14 +974,31 @@ g_part_gpt_setunset(struct g_part_table *basetable,
 	entry = (struct g_part_gpt_entry *)baseentry;
 
 	if (strcasecmp(attrib, "active") == 0) {
-		if (!table->bootcamp || baseentry->gpe_index > NDOSPART)
-			return (EINVAL);
-		for (i = 0; i < NDOSPART; i++) {
-			table->mbr[DOSPARTOFF + i * DOSPARTSIZE] =
-			    (i == baseentry->gpe_index - 1) ? 0x80 : 0;
+		if (table->bootcamp) {
+			/* The active flag must be set on a valid entry. */
+			if (entry == NULL)
+				return (ENXIO);
+			if (baseentry->gpe_index > NDOSPART)
+				return (EINVAL);
+			for (i = 0; i < NDOSPART; i++) {
+				p = &table->mbr[DOSPARTOFF + i * DOSPARTSIZE];
+				p[0] = (i == baseentry->gpe_index - 1)
+				    ? ((set) ? 0x80 : 0) : 0;
+			}
+		} else {
+			/* The PMBR is marked as active without an entry. */
+			if (entry != NULL)
+				return (ENXIO);
+			for (i = 0; i < NDOSPART; i++) {
+				p = &table->mbr[DOSPARTOFF + i * DOSPARTSIZE];
+				p[0] = (p[4] == 0xee) ? ((set) ? 0x80 : 0) : 0;
+			}
 		}
 		return (0);
 	}
+
+	if (entry == NULL)
+		return (ENODEV);
 
 	attr = 0;
 	if (strcasecmp(attrib, "bootme") == 0) {
@@ -1032,17 +1067,7 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	/* Reconstruct the MBR from the GPT if under Boot Camp. */
 	if (table->bootcamp)
-		gpt_update_bootcamp(basetable);
-
-	/* Update partition entries in the PMBR if Boot Camp disabled. */
-	if (!table->bootcamp) {
-		bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
-		gpt_write_mbr_entry(table->mbr, 0, 0xee, 1,
-		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
-		/* Mark the PMBR active since some BIOS require it. */
-		table->mbr[DOSPARTOFF] = 0x80;
-	}
-	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
+		gpt_update_bootcamp(basetable, pp);
 
 	/* Write the PMBR */
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);

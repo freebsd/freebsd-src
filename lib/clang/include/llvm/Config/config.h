@@ -83,6 +83,9 @@
 /* Define to 1 if you have the <ctype.h> header file. */
 #define HAVE_CTYPE_H 1
 
+/* Define to 1 if you have the <cxxabi.h> header file. */
+#define HAVE_CXXABI_H 1
+
 /* Define to 1 if you have the declaration of `FE_ALL_EXCEPT', and to 0 if you
    don't. */
 #define HAVE_DECL_FE_ALL_EXCEPT 1
@@ -230,6 +233,9 @@
 
 /* Define to 1 if you have the `udis86' library (-ludis86). */
 /* #undef HAVE_LIBUDIS86 */
+
+/* Define to 1 if you have the `z' library (-lz). */
+#define HAVE_LIBZ 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
@@ -510,6 +516,9 @@
 /* Define if the xdot.py program is available */
 /* #undef HAVE_XDOT_PY */
 
+/* Define to 1 if you have the <zlib.h> header file. */
+#define HAVE_ZLIB_H 1
+
 /* Have host's _alloca */
 /* #undef HAVE__ALLOCA */
 
@@ -582,6 +591,9 @@
 /* Define if threads enabled */
 #define LLVM_ENABLE_THREADS 0
 
+/* Define if zlib is enabled */
+#define LLVM_ENABLE_ZLIB 1
+
 /* Installation directory for config files */
 /* #undef LLVM_ETCDIR */
 
@@ -589,7 +601,7 @@
 #define LLVM_HAS_ATOMICS 0
 
 /* Host triple LLVM will be executed on */
-/* #undef LLVM_HOSTTRIPLE */
+/* #undef LLVM_HOST_TRIPLE */
 
 /* Installation directory for include files */
 /* #undef LLVM_INCLUDEDIR */
@@ -703,13 +715,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.3svn"
+#define PACKAGE_STRING "LLVM 3.3"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.3svn"
+#define PACKAGE_VERSION "3.3"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

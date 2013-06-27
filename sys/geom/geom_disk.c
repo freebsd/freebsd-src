@@ -138,6 +138,8 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 				printf("Opened disk %s -> %d\n",
 				    pp->name, error);
 			g_disk_unlock_giant(dp);
+			if (error != 0)
+				return (error);
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
@@ -425,8 +427,11 @@ g_disk_start(struct bio *bp)
 static void
 g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
+	struct bio *bp;
 	struct disk *dp;
 	struct g_disk_softc *sc;
+	char *buf;
+	int res = 0;
 
 	sc = gp->softc;
 	if (sc == NULL || (dp = sc->dp) == NULL)
@@ -441,7 +446,27 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		    indent, dp->d_fwheads);
 		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n",
 		    indent, dp->d_fwsectors);
-		sbuf_printf(sb, "%s<ident>%s</ident>\n", indent, dp->d_ident);
+		if (dp->d_getattr != NULL) {
+			buf = g_malloc(DISK_IDENT_SIZE, M_WAITOK);
+			bp = g_alloc_bio();
+			bp->bio_disk = dp;
+			bp->bio_attribute = "GEOM::ident";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			res = dp->d_getattr(bp);
+			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
+			    res == 0 ? buf: dp->d_ident);
+			bp->bio_attribute = "GEOM::lunid";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			if (dp->d_getattr(bp) == 0)
+				sbuf_printf(sb, "%s<lunid>%s</lunid>\n",
+				    indent, buf);
+			g_destroy_bio(bp);
+			g_free(buf);
+		} else
+			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
+			    dp->d_ident);
 		sbuf_printf(sb, "%s<descr>%s</descr>\n", indent, dp->d_descr);
 	}
 }

@@ -58,6 +58,7 @@ void    print_media_word_ifconfig(int);
 enum cmdmode {
 	MODE_NONE = 0,
 	MODE_PORT,
+	MODE_CONFIG,
 	MODE_VLANGROUP,
 	MODE_REGISTER,
 	MODE_PHYREG
@@ -68,6 +69,7 @@ struct cfg {
 	int					verbose;
 	int					mediatypes;
 	const char			*controlfile;
+	etherswitch_conf_t	conf;
 	etherswitch_info_t	info;
 	enum cmdmode		mode;
 	int					unit;
@@ -82,7 +84,37 @@ struct cmds {
 static struct cmds cmds[];
 
 
-static void usage(void);
+/*
+ * Print a value a la the %b format of the kernel's printf.
+ * Stolen from ifconfig.c.
+ */
+static void
+printb(const char *s, unsigned v, const char *bits)
+{
+	int i, any = 0;
+	char c;
+
+	if (bits && *bits == 8)
+		printf("%s=%o", s, v);
+	else
+		printf("%s=%x", s, v);
+	bits++;
+	if (bits) {
+		putchar('<');
+		while ((i = *bits++) != '\0') {
+			if (v & (1 << (i-1))) {
+				if (any)
+					putchar(',');
+				any = 1;
+				for (; (c = *bits) > 32; bits++)
+					putchar(c);
+			} else
+				for (; *bits > 32; bits++)
+					;
+		}
+		putchar('>');
+	}
+}
 
 static int
 read_register(struct cfg *cfg, int r)
@@ -145,6 +177,47 @@ set_port_vid(struct cfg *cfg, char *argv[])
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
 	p.es_pvid = v;
+	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
+		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
+}
+
+static void
+set_port_flag(struct cfg *cfg, char *argv[])
+{
+	char *flag;
+	int n;
+	uint32_t f;
+	etherswitch_port_t p;
+
+	n = 0;
+	f = 0;
+	flag = argv[0];
+	if (strcmp(flag, "none") != 0) {
+		if (*flag == '-') {
+			n++;
+			flag++;
+		}
+		if (strcasecmp(flag, "striptag") == 0)
+			f = ETHERSWITCH_PORT_STRIPTAG;
+		else if (strcasecmp(flag, "addtag") == 0)
+			f = ETHERSWITCH_PORT_ADDTAG;
+		else if (strcasecmp(flag, "firstlock") == 0)
+			f = ETHERSWITCH_PORT_FIRSTLOCK;
+		else if (strcasecmp(flag, "dropuntagged") == 0)
+			f = ETHERSWITCH_PORT_DROPUNTAGGED;
+		else if (strcasecmp(flag, "doubletag") == 0)
+			f = ETHERSWITCH_PORT_DOUBLE_TAG;
+		else if (strcasecmp(flag, "ingress") == 0)
+			f = ETHERSWITCH_PORT_INGRESS;
+	}
+	bzero(&p, sizeof(p));
+	p.es_port = cfg->unit;
+	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
+		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
+	if (n)
+		p.es_flags &= ~f;
+	else
+		p.es_flags |= f;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
 }
@@ -290,6 +363,66 @@ set_phyregister(struct cfg *cfg, char *arg)
 }
 
 static void
+set_vlan_mode(struct cfg *cfg, char *argv[])
+{
+	etherswitch_conf_t conf;
+
+	bzero(&conf, sizeof(conf));
+	conf.cmd = ETHERSWITCH_CONF_VLAN_MODE;
+	if (strcasecmp(argv[1], "isl") == 0)
+		conf.vlan_mode = ETHERSWITCH_VLAN_ISL;
+	else if (strcasecmp(argv[1], "port") == 0)
+		conf.vlan_mode = ETHERSWITCH_VLAN_PORT;
+	else if (strcasecmp(argv[1], "dot1q") == 0)
+		conf.vlan_mode = ETHERSWITCH_VLAN_DOT1Q;
+	else if (strcasecmp(argv[1], "dot1q4k") == 0)
+		conf.vlan_mode = ETHERSWITCH_VLAN_DOT1Q_4K;
+	else if (strcasecmp(argv[1], "qinq") == 0)
+		conf.vlan_mode = ETHERSWITCH_VLAN_DOUBLE_TAG;
+	else
+		conf.vlan_mode = 0;
+	if (ioctl(cfg->fd, IOETHERSWITCHSETCONF, &conf) != 0)
+		err(EX_OSERR, "ioctl(IOETHERSWITCHSETCONF)");
+}
+
+static void
+print_config(struct cfg *cfg)
+{
+	const char *c;
+
+	/* Get the device name. */
+	c = strrchr(cfg->controlfile, '/');
+	if (c != NULL)
+		c = c + 1;
+	else
+		c = cfg->controlfile;
+
+	/* Print VLAN mode. */
+	if (cfg->conf.cmd & ETHERSWITCH_CONF_VLAN_MODE) {
+		printf("%s: VLAN mode: ", c);
+		switch (cfg->conf.vlan_mode) {
+		case ETHERSWITCH_VLAN_ISL:
+			printf("ISL\n");
+			break;
+		case ETHERSWITCH_VLAN_PORT:
+			printf("PORT\n");
+			break;
+		case ETHERSWITCH_VLAN_DOT1Q:
+			printf("DOT1Q\n");
+			break;
+		case ETHERSWITCH_VLAN_DOT1Q_4K:
+			printf("DOT1Q4K\n");
+			break;
+		case ETHERSWITCH_VLAN_DOUBLE_TAG:
+			printf("QinQ\n");
+			break;
+		default:
+			printf("none\n");
+		}
+	}
+}
+
+static void
 print_port(struct cfg *cfg, int port)
 {
 	etherswitch_port_t p;
@@ -303,7 +436,10 @@ print_port(struct cfg *cfg, int port)
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
 	printf("port%d:\n", port);
-	printf("\tpvid: %d\n", p.es_pvid);
+	if (cfg->conf.vlan_mode == ETHERSWITCH_VLAN_DOT1Q)
+		printf("\tpvid: %d\n", p.es_pvid);
+	printb("\tflags", p.es_flags, ETHERSWITCH_PORT_FLAGS_BITS);
+	printf("\n");
 	printf("\tmedia: ");
 	print_media_word(p.es_ifmr.ifm_current, 1);
 	if (p.es_ifmr.ifm_active != p.es_ifmr.ifm_current) {
@@ -335,10 +471,13 @@ print_vlangroup(struct cfg *cfg, int vlangroup)
 	vg.es_vlangroup = vlangroup;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETVLANGROUP, &vg) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETVLANGROUP)");
-	if (cfg->verbose == 0 && vg.es_member_ports == 0)
+	if (vg.es_vid == 0 && vg.es_member_ports == 0)
 		return;
 	printf("vlangroup%d:\n", vlangroup);
-	printf("\tvlan: %d\n", vg.es_vid);
+	if (cfg->conf.vlan_mode == ETHERSWITCH_VLAN_PORT)
+		printf("\tport: %d\n", vg.es_vid);
+	else
+		printf("\tvlan: %d\n", vg.es_vid);
 	printf("\tmembers ");
 	comma = 0;
 	if (vg.es_member_ports != 0)
@@ -368,9 +507,16 @@ print_info(struct cfg *cfg)
 		c = c + 1;
 	else
 		c = cfg->controlfile;
-	if (cfg->verbose)
-		printf("%s: %s with %d ports and %d VLAN groups\n",
-			c, cfg->info.es_name, cfg->info.es_nports, cfg->info.es_nvlangroups);
+	if (cfg->verbose) {
+		printf("%s: %s with %d ports and %d VLAN groups\n", c,
+		    cfg->info.es_name, cfg->info.es_nports,
+		    cfg->info.es_nvlangroups);
+		printf("%s: ", c);
+		printb("VLAN capabilities",  cfg->info.es_vlan_caps,
+		    ETHERSWITCH_VLAN_CAPS_BITS);
+		printf("\n");
+	}
+	print_config(cfg);
 	for (i=0; i<cfg->info.es_nports; i++) {
 		print_port(cfg, i);
 	}
@@ -380,9 +526,23 @@ print_info(struct cfg *cfg)
 }
 
 static void
-usage(void)
+usage(struct cfg *cfg __unused, char *argv[] __unused)
 {
 	fprintf(stderr, "usage: etherswitchctl\n");
+	fprintf(stderr, "\tetherswitchcfg [-f control file] info\n");
+	fprintf(stderr, "\tetherswitchcfg [-f control file] config "
+	    "command parameter\n");
+	fprintf(stderr, "\t\tconfig commands: vlan_mode\n");
+	fprintf(stderr, "\tetherswitchcfg [-f control file] phy "
+	    "phy.register[=value]\n");
+	fprintf(stderr, "\tetherswitchcfg [-f control file] portX "
+	    "[flags] command parameter\n");
+	fprintf(stderr, "\t\tport commands: pvid, media, mediaopt\n");
+	fprintf(stderr, "\tetherswitchcfg [-f control file] reg "
+	    "register[=value]\n");
+	fprintf(stderr, "\tetherswitchcfg [-f control file] vlangroupX "
+	    "command parameter\n");
+	fprintf(stderr, "\t\tvlangroup commands: vlan, members\n");
 	exit(EX_USAGE);
 }
 
@@ -393,6 +553,15 @@ newmode(struct cfg *cfg, enum cmdmode mode)
 		return;
 	switch (cfg->mode) {
 	case MODE_NONE:
+		break;
+	case MODE_CONFIG:
+		/*
+		 * Read the updated the configuration (it can be different
+		 * from the last time we read it).
+		 */
+		if (ioctl(cfg->fd, IOETHERSWITCHGETCONF, &cfg->conf) != 0)
+			err(EX_OSERR, "ioctl(IOETHERSWITCHGETCONF)");
+		print_config(cfg);
 		break;
 	case MODE_PORT:
 		print_port(cfg, cfg->unit);
@@ -430,7 +599,7 @@ main(int argc, char *argv[])
 		case '?':
 			/* FALLTHROUGH */
 		default:
-			usage();
+			usage(&cfg, argv);
 		}
 	argc -= optind;
 	argv += optind;
@@ -439,6 +608,8 @@ main(int argc, char *argv[])
 		err(EX_UNAVAILABLE, "Can't open control file: %s", cfg.controlfile);
 	if (ioctl(cfg.fd, IOETHERSWITCHGETINFO, &cfg.info) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETINFO)");
+	if (ioctl(cfg.fd, IOETHERSWITCHGETCONF, &cfg.conf) != 0)
+		err(EX_OSERR, "ioctl(IOETHERSWITCHGETCONF)");
 	if (argc == 0) {
 		print_info(&cfg);
 		return (0);
@@ -457,15 +628,20 @@ main(int argc, char *argv[])
 				if (cfg.unit < 0 || cfg.unit >= cfg.info.es_nvlangroups)
 					errx(EX_USAGE, "port unit must be between 0 and %d", cfg.info.es_nvlangroups);
 				newmode(&cfg, MODE_VLANGROUP);
+			} else if (strcmp(argv[0], "config") == 0) {
+				newmode(&cfg, MODE_CONFIG);
 			} else if (strcmp(argv[0], "phy") == 0) {
 				newmode(&cfg, MODE_PHYREG);
 			} else if (strcmp(argv[0], "reg") == 0) {
 				newmode(&cfg, MODE_REGISTER);
+			} else if (strcmp(argv[0], "help") == 0) {
+				usage(&cfg, argv);
 			} else {
 				errx(EX_USAGE, "Unknown command \"%s\"", argv[0]);
 			}
 			break;
 		case MODE_PORT:
+		case MODE_CONFIG:
 		case MODE_VLANGROUP:
 			for(i=0; cmds[i].name != NULL; i++) {
 				if (cfg.mode == cmds[i].mode && strcmp(argv[0], cmds[i].name) == 0) {
@@ -510,6 +686,19 @@ static struct cmds cmds[] = {
 	{ MODE_PORT, "pvid", 1, set_port_vid },
 	{ MODE_PORT, "media", 1, set_port_media },
 	{ MODE_PORT, "mediaopt", 1, set_port_mediaopt },
+	{ MODE_PORT, "addtag", 0, set_port_flag },
+	{ MODE_PORT, "-addtag", 0, set_port_flag },
+	{ MODE_PORT, "ingress", 0, set_port_flag },
+	{ MODE_PORT, "-ingress", 0, set_port_flag },
+	{ MODE_PORT, "striptag", 0, set_port_flag },
+	{ MODE_PORT, "-striptag", 0, set_port_flag },
+	{ MODE_PORT, "doubletag", 0, set_port_flag },
+	{ MODE_PORT, "-doubletag", 0, set_port_flag },
+	{ MODE_PORT, "firstlock", 0, set_port_flag },
+	{ MODE_PORT, "-firstlock", 0, set_port_flag },
+	{ MODE_PORT, "dropuntagged", 0, set_port_flag },
+	{ MODE_PORT, "-dropuntagged", 0, set_port_flag },
+	{ MODE_CONFIG, "vlan_mode", 1, set_vlan_mode },
 	{ MODE_VLANGROUP, "vlan", 1, set_vlangroup_vid },
 	{ MODE_VLANGROUP, "members", 1, set_vlangroup_members },
 	{ 0, NULL, 0, NULL }

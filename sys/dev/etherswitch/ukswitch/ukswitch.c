@@ -120,8 +120,6 @@ ukswitch_attach_phys(struct ukswitch_softc *sc)
 			continue;
 		sc->ifpport[phy] = port;
 		sc->portphy[port] = phy;
-//		if (phy == sc->cpuport)
-//			sc->info.es_cpuport = port;
 		sc->ifp[port] = if_alloc(IFT_ETHER);
 		sc->ifp[port]->if_softc = sc;
 		sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
@@ -166,7 +164,7 @@ ukswitch_attach(device_t dev)
 	/* XXX Defaults */
 	sc->numports = 6;
 	sc->phymask = 0x0f;
-	sc->cpuport = 5;
+	sc->cpuport = -1;
 	sc->media = 100;
 
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -182,9 +180,9 @@ ukswitch_attach(device_t dev)
 	if (sc->media != 100 && sc->media != 1000)
 		sc->media = 100;
 
-	/* Always attach the cpu port. */
-	sc->phymask |= (1 << sc->cpuport);
-//	sc->info.es_cpuport = sc->cpuport;
+	if (sc->cpuport != -1)
+		/* Always attach the cpu port. */
+		sc->phymask |= (1 << sc->cpuport);
 
 	/* We do not support any vlan groups. */
 	sc->info.es_nvlangroups = 0;
@@ -347,15 +345,17 @@ ukswitch_getport(device_t dev, etherswitch_port_t *p)
 	struct ukswitch_softc *sc = device_get_softc(dev);
 	struct mii_data *mii;
 	struct ifmediareq *ifmr = &p->es_ifmr;
-	int err;
+	int err, phy;
 
 	if (p->es_port < 0 || p->es_port >= sc->numports)
 		return (ENXIO);
-	p->es_vlangroup = 0;
+	p->es_pvid = 0;
 
+	phy = sc->portphy[p->es_port];
 	mii = ukswitch_miiforport(sc, p->es_port);
-	if (sc->portphy[p->es_port] == sc->cpuport) {
+	if (sc->cpuport != -1 && phy == sc->cpuport) {
 		/* fill in fixed values for CPU port */
+		p->es_flags |= ETHERSWITCH_PORT_CPU;
 		ifmr->ifm_count = 0;
 		if (sc->media == 100)
 			ifmr->ifm_current = ifmr->ifm_active =

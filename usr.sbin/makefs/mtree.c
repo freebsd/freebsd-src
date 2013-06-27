@@ -1050,6 +1050,7 @@ read_mtree(const char *fname, fsnode *node)
 	bzero(&mtree_global_inode, sizeof(mtree_global_inode));
 	mtree_global.inode = &mtree_global_inode;
 	mtree_global_inode.nlink = 1;
+	mtree_global_inode.st.st_nlink = 1;
 	mtree_global_inode.st.st_atime = mtree_global_inode.st.st_ctime =
 	    mtree_global_inode.st.st_mtime = time(NULL);
 	errors = warnings = 0;

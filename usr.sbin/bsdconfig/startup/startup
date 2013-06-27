@@ -48,39 +48,44 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 dialog_menu_main()
 {
-	local menu_list size
-	local hline="$hline_arrows_tab_enter"
-	local prompt=""
-
-	menu_list="
+	local prompt=
+	local menu_list="
 		'X' '$msg_exit'
 		'1' '$msg_toggle_startup_services'
 		'2' '$msg_view_edit_startup_configuration'
 		'3' '$msg_miscellaneous_startup_services'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"          \
-		--backtitle \"\$DIALOG_BACKTITLE\"  \
-		--hline \"\$hline\"                 \
-		--ok-label \"\$msg_ok\"             \
-		--cancel-label \"\$msg_cancel\"     \
-		--default-item \"\$DEFAULTITEM_$$\" \
-		--menu \"\$prompt\" $size           \
-		$menu_list                          \
+	# Obtain default-item from previously stored selection
+	f_dialog_default_fetch defaultitem
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DEFAULTITEM_$$ "$dialog_menu"
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
 	return $retval
 }
 
@@ -92,9 +97,9 @@ dialog_menu_main()
 #
 # Process command-line arguments
 #
-while getopts dD:hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -110,22 +115,22 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
-	[ $retval -eq 0 ] || f_die
-
+	command=
 	case "$mtag" in
-	X) # Exit
-		break ;;
-	1) # Toggle Startup Services
-		$BSDCFG_LIBE/$APP_DIR/rcvar ${USE_XDIALOG:+-X} ;;
-	2) # View/Edit Startup Configuration
-		$BSDCFG_LIBE/$APP_DIR/rcconf ${USE_XDIALOG:+-X} ;;
-	3) # Miscellaneous Startup Services
-		$BSDCFG_LIBE/$APP_DIR/misc ${USE_XDIALOG:+-X} ;;
+	X) break ;;
+	1) command=rcvar  ;; # Toggle Startup Services
+	2) command=rcconf ;; # View/Edit Startup Configuration
+	3) command=misc   ;; # Miscellaneous Startup Services
 	esac
+
+	if [ "$command" ]; then
+		$BSDCFG_LIBE/$APP_DIR/$command ${USE_XDIALOG:+-X}
+	else
+		f_die 1 "$msg_unknown_startup_menu_selection"
+	fi
 done
 
 exit $SUCCESS

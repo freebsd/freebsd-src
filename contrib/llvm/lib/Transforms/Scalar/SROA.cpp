@@ -2322,17 +2322,15 @@ static Value *insertVector(IRBuilderTy &IRB, Value *Old, Value *V,
   V = IRB.CreateShuffleVector(V, UndefValue::get(V->getType()),
                               ConstantVector::get(Mask),
                               Name + ".expand");
-  DEBUG(dbgs() << "    shuffle1: " << *V << "\n");
+  DEBUG(dbgs() << "    shuffle: " << *V << "\n");
 
   Mask.clear();
   for (unsigned i = 0; i != VecTy->getNumElements(); ++i)
-    if (i >= BeginIndex && i < EndIndex)
-      Mask.push_back(IRB.getInt32(i));
-    else
-      Mask.push_back(IRB.getInt32(i + VecTy->getNumElements()));
-  V = IRB.CreateShuffleVector(V, Old, ConstantVector::get(Mask),
-                              Name + "insert");
-  DEBUG(dbgs() << "    shuffle2: " << *V << "\n");
+    Mask.push_back(IRB.getInt1(i >= BeginIndex && i < EndIndex));
+
+  V = IRB.CreateSelect(ConstantVector::get(Mask), V, Old, Name + "blend");
+
+  DEBUG(dbgs() << "    blend: " << *V << "\n");
   return V;
 }
 
@@ -2671,6 +2669,7 @@ private:
 
     StoreInst *NewSI;
     if (BeginOffset == NewAllocaBeginOffset &&
+        EndOffset == NewAllocaEndOffset &&
         canConvertValue(TD, V->getType(), NewAllocaTy)) {
       V = convertValue(TD, IRB, V, NewAllocaTy);
       NewSI = IRB.CreateAlignedStore(V, &NewAI, NewAI.getAlignment(),
@@ -3050,16 +3049,16 @@ private:
 
   bool visitSelectInst(SelectInst &SI) {
     DEBUG(dbgs() << "    original: " << SI << "\n");
-
-    // Find the operand we need to rewrite here.
-    bool IsTrueVal = SI.getTrueValue() == OldPtr;
-    if (IsTrueVal)
-      assert(SI.getFalseValue() != OldPtr && "Pointer is both operands!");
-    else
-      assert(SI.getFalseValue() == OldPtr && "Pointer isn't an operand!");
+    assert((SI.getTrueValue() == OldPtr || SI.getFalseValue() == OldPtr) &&
+           "Pointer isn't an operand!");
 
     Value *NewPtr = getAdjustedAllocaPtr(IRB, OldPtr->getType());
-    SI.setOperand(IsTrueVal ? 1 : 2, NewPtr);
+    // Replace the operands which were using the old pointer.
+    if (SI.getOperand(1) == OldPtr)
+      SI.setOperand(1, NewPtr);
+    if (SI.getOperand(2) == OldPtr)
+      SI.setOperand(2, NewPtr);
+
     DEBUG(dbgs() << "          to: " << SI << "\n");
     deleteIfTriviallyDead(OldPtr);
     return false;

@@ -162,6 +162,7 @@ mmcsd_attach(device_t dev)
 	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
+	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize * 1; /* conservative */
 	/*
 	 * Display in most natural units.  There's no cards < 1MB.  The SD
 	 * standard goes to 2GiB due to its reliance on FAT, but the data
@@ -170,13 +171,14 @@ mmcsd_attach(device_t dev)
 	 * data format supports up to 2TiB however. 2048GB isn't too ugly, so
 	 * we note it in passing here and don't add the code to print
 	 * TB). Since these cards are sold in terms of MB and GB not MiB and
-	 * GiB, report them like that.
+	 * GiB, report them like that. We also round to the nearest unit, since
+	 * many cards are a few percent short, even of the power of 10 size.
 	 */
-	mb = d->d_mediasize / 1000000;
+	mb = (d->d_mediasize + 1000000 / 2 - 1) / 1000000;
 	unit = 'M';
 	if (mb >= 1000) {
 		unit = 'G';
-		mb /= 1000;
+		mb = (mb + 1000 / 2 - 1) / 1000;
 	}
 	/*
 	 * Report the clock speed of the underlying hardware, which might be

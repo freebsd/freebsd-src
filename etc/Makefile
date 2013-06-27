@@ -143,6 +143,9 @@ MTREE+=	BIND.chroot.dist
 MTREE+=	BIND.include.dist
 .endif
 .endif
+.if ${MK_DEBUG_FILES} != "no"
+MTREE+=	BSD.debug.dist
+.endif
 
 PPPCNF=	ppp.conf
 
@@ -312,6 +315,9 @@ MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
 		mtree/BSD.usr.dist		/usr		\
 		mtree/BSD.include.dist		/usr/include
+.if ${MK_DEBUG_FILES} != "no"
+MTREES+=	mtree/BSD.debug.dist		/usr/lib
+.endif
 .if ${MK_BIND_LIBS} != "no"
 MTREES+=	mtree/BIND.include.dist		/usr/include
 .endif
