@@ -56,6 +56,7 @@ struct nvme_function {
 	{"perftest",	perftest,	PERFTEST_USAGE},
 	{"reset",	reset,		RESET_USAGE},
 	{"logpage",	logpage,	LOGPAGE_USAGE},
+	{"firmware",	firmware,	FIRMWARE_USAGE},
 	{NULL,		NULL,		NULL},
 };
 
