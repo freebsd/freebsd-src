@@ -1684,7 +1684,6 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, newfds;
-	int f;
 	u_int newlen;
 
 	UNP_LINK_UNLOCK_ASSERT();
@@ -1710,14 +1709,6 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				goto next;
 			}
 			FILEDESC_XLOCK(td->td_proc->p_fd);
-			/* if the new FD's will not fit free them.  */
-			if (!fdavail(td, newfds)) {
-				FILEDESC_XUNLOCK(td->td_proc->p_fd);
-				error = EMSGSIZE;
-				unp_freerights(rp, newfds);
-				goto next;
-			}
-
 			/*
 			 * Now change each pointer to an fd in the global
 			 * table to an integer that is the index to the local
@@ -1736,13 +1727,18 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			if (fdallocn(td, 0, fdp, newfds) != 0) {
+				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				error = EMSGSIZE;
+				unp_freerights(rp, newfds);
+				m_freem(*controlp);
+				*controlp = NULL;
+				goto next;
+			}
 			for (i = 0; i < newfds; i++) {
-				if (fdalloc(td, 0, &f))
-					panic("unp_externalize fdalloc failed");
 				fp = *rp++;
-				td->td_proc->p_fd->fd_ofiles[f] = fp;
+				td->td_proc->p_fd->fd_ofiles[fdp[i]] = fp;
 				unp_externalize_fp(fp);
-				*fdp++ = f;
 			}
 			FILEDESC_XUNLOCK(td->td_proc->p_fd);
 		} else {
