@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 static puc_config_f puc_config_amc;
 static puc_config_f puc_config_diva;
 static puc_config_f puc_config_exar;
+static puc_config_f puc_config_exar_pcie;
 static puc_config_f puc_config_icbook;
 static puc_config_f puc_config_moxa;
 static puc_config_f puc_config_oxford_pcie;
@@ -630,6 +631,14 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_8S, 0x10, 0, -1,
 	},
 
+	/* The XR17V358 uses the 125MHz PCIe clock as its reference clock. */
+	{   0x13a8, 0x0358, 0xffff, 0,
+	    "Exar XR17V358",
+	    125000000,
+	    PUC_PORT_8S, 0x10, 0, -1,
+	    .config_function = puc_config_exar_pcie
+	},
+
 	{   0x13fe, 0x1600, 0x1602, 0x0002,
 	    "Advantech PCI-1602",
 	    DEFAULT_RCLK * 8,
@@ -1180,6 +1189,17 @@ puc_config_exar(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 {
 	if (cmd == PUC_CFG_GET_OFS) {
 		*res = port * 0x200;
+		return (0);
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_exar_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
+    intptr_t *res)
+{
+	if (cmd == PUC_CFG_GET_OFS) {
+		*res = port * 0x400;
 		return (0);
 	}
 	return (ENXIO);
