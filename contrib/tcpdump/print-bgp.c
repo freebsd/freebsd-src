@@ -1531,8 +1531,12 @@ bgp_attr_print(u_int atype, const u_char *pptr, u_int len)
                 tptr++;
 
 		if (tlen) {
+                    int nnh = 0;
                     printf("\n\t    nexthop: ");
                     while (tlen > 0) {
+                        if ( nnh++ > 0 ) {
+                            printf( ", " );
+                        }
                         switch(af<<8 | safi) {
                         case (AFNUM_INET<<8 | SAFNUM_UNICAST):
                         case (AFNUM_INET<<8 | SAFNUM_MULTICAST):
