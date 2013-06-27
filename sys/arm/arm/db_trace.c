@@ -108,6 +108,7 @@ extern int extab_start, extab_end, exidx_start, exidx_end;
 #define	INSN_VSP_REG		0x90
 #define	INSN_POP_COUNT		0xa0
 #define	INSN_FINISH		0xb0
+#define	INSN_POP_REGS		0xb1
 #define	INSN_VSP_LARGE_INC	0xb2
 
 /* An item in the exception index table */
@@ -267,6 +268,24 @@ db_unwind_exec_insn(struct unwind_state *state)
 	} else if (insn == INSN_FINISH) {
 		/* Stop processing */
 		state->entries = 0;
+
+	} else if ((insn == INSN_POP_REGS)) {
+		unsigned int mask, reg;
+
+		mask = db_unwind_exec_read_byte(state);
+		if (mask == 0 || (mask & 0xf0) != 0)
+			return 1;
+
+		/* Update SP */
+		update_vsp = 1;
+
+		/* Load the registers */
+		for (reg = 0; mask && reg < 4; mask >>= 1, reg++) {
+			if (mask & 1) {
+				state->registers[reg] = *vsp++;
+				state->update_mask |= 1 << reg;
+			}
+		}
 
 	} else if ((insn & INSN_VSP_LARGE_INC_MASK) == INSN_VSP_LARGE_INC) {
 		unsigned int uleb128;
