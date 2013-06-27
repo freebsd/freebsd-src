@@ -3427,12 +3427,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		 * re-validate and re-evaluate its properties when
 		 * the loop continues.
 		 */
-		if (type == KF_TYPE_VNODE || type == KF_TYPE_FIFO)
-			FILEDESC_SUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		error = export_fd_to_sb(data, type, i, fflags, refcnt,
 		    offset, fd_cap_rights, kif, sb, &remainder);
-		if (type == KF_TYPE_VNODE || type == KF_TYPE_FIFO)
-			FILEDESC_SLOCK(fdp);
+		FILEDESC_SLOCK(fdp);
 		if (error)
 			break;
 	}
