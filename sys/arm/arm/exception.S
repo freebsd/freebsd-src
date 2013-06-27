@@ -206,7 +206,7 @@ END(address_exception_entry)
  */
 
 ASENTRY_NP(exception_exit)
-	STOP_UNWINDING
+	UNWINDSVCFRAME
 	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
 END(exception_exit)
