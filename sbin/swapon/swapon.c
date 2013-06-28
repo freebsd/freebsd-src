@@ -76,6 +76,8 @@ static int run_cmd(int *, const char *, ...) __printflike(2, 3);
 static enum { SWAPON, SWAPOFF, SWAPCTL } orig_prog, which_prog = SWAPCTL;
 
 static int qflag;
+static char aalgo_default[] = "hmac/sha256";
+static char ealgo_default[] = "aes";
 
 int
 main(int argc, char **argv)
@@ -319,7 +321,7 @@ swap_on_off_gbde(char *name, int doingall)
 static const char *
 swap_on_off_geli(char *name, char *mntops, int doingall)
 {
-	const char *ops, *aalgo, *ealgo, *keylen_str, *sectorsize_str;
+	char *ops, *aalgo, *ealgo, *keylen_str, *sectorsize_str;
 	char *dname, *p;
 	char args[4096];
 	struct stat sb;
@@ -337,8 +339,8 @@ swap_on_off_geli(char *name, char *mntops, int doingall)
 	ops = strdup(mntops);
 
 	/* Default parameters for geli(8). */
-	aalgo = "hmac/sha256";
-	ealgo = "aes";
+	aalgo = aalgo_default;
+	ealgo = ealgo_default;
 	keylen = 256;
 	sectorsize = 4096;
 
