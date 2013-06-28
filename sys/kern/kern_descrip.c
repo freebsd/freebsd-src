@@ -3446,9 +3446,8 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 			break;
 	}
 	FILEDESC_SUNLOCK(fdp);
+	fddrop(fdp);
 fail:
-	if (fdp != NULL)
-		fddrop(fdp);
 	free(efbuf, M_TEMP);
 	return (error);
 }
