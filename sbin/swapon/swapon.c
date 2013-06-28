@@ -248,11 +248,11 @@ swap_on_off_gbde(char *name, int doingall)
 {
 	const char *ret;
 	char pass[64 * 2 + 1], bpass[64];
-	char *devname, *p;
+	char *dname, *p;
 	int i, fd, error;
 
-	devname = strdup(name);
-	p = strrchr(devname, '.');
+	dname = strdup(name);
+	p = strrchr(dname, '.');
 	if (p == NULL) {
 		warnx("%s: Malformed device name", name);
 		return (NULL);
@@ -268,7 +268,7 @@ swap_on_off_gbde(char *name, int doingall)
 		pass[sizeof(pass) - 1] = '\0';
 
 		error = run_cmd(&fd, "%s init %s -P %s", _PATH_GBDE,
-		    devname, pass);
+		    dname, pass);
 		if (error) {
 			/* bde device found.  Ignore it. */
 			close(fd);
@@ -278,7 +278,7 @@ swap_on_off_gbde(char *name, int doingall)
 		}
 		close(fd);
 		error = run_cmd(&fd, "%s attach %s -p %s", _PATH_GBDE,
-		    devname, pass);
+		    dname, pass);
 		if (error) {
 			close(fd);
 			warnx("gbde (attach) error: %s", name);
@@ -298,11 +298,11 @@ swap_on_off_gbde(char *name, int doingall)
 	fd = -1;
 	switch (which_prog) {
 	case SWAPOFF:
-		error = run_cmd(&fd, "%s detach %s", _PATH_GBDE, devname);
+		error = run_cmd(&fd, "%s detach %s", _PATH_GBDE, dname);
 		if (error) {
 			/* bde device not found.  Ignore it. */
 			if (!qflag)
-				warnx("%s: Device not found", devname);
+				warnx("%s: Device not found", dname);
 			return (NULL);
 		}
 		break;
@@ -320,14 +320,14 @@ static const char *
 swap_on_off_geli(char *name, char *mntops, int doingall)
 {
 	const char *ops, *aalgo, *ealgo, *keylen_str, *sectorsize_str;
-	char *devname, *p;
+	char *dname, *p;
 	char args[4096];
 	struct stat sb;
 	int fd, error, keylen, sectorsize;
 	u_long ul;
 
-	devname = strdup(name);
-	p = strrchr(devname, '.');
+	dname = strdup(name);
+	p = strrchr(dname, '.');
 	if (p == NULL) {
 		warnx("%s: Malformed device name", name);
 		return (NULL);
@@ -397,7 +397,7 @@ swap_on_off_geli(char *name, char *mntops, int doingall)
 	switch (which_prog) {
 	case SWAPON:
 		error = run_cmd(&fd, "%s onetime %s %s", _PATH_GELI, args,
-		    devname);
+		    dname);
 		if (error) {
 			/* eli device found.  Ignore it. */
 			close(fd);
