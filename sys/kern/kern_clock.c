@@ -216,13 +216,8 @@ deadlkres(void)
 			}
 			FOREACH_THREAD_IN_PROC(p, td) {
 
-				/*
-				 * Once a thread is found in "interesting"
-				 * state a possible ticks wrap-up needs to be
-				 * checked.
-				 */
 				thread_lock(td);
-				if (TD_ON_LOCK(td) && ticks < td->td_blktick) {
+				if (TD_ON_LOCK(td)) {
 
 					/*
 					 * The thread should be blocked on a
@@ -247,8 +242,7 @@ deadlkres(void)
 						    __func__, td, tticks);
 					}
 				} else if (TD_IS_SLEEPING(td) &&
-				    TD_ON_SLEEPQ(td) &&
-				    ticks < td->td_blktick) {
+				    TD_ON_SLEEPQ(td)) {
 
 					/*
 					 * Check if the thread is sleeping on a
