@@ -37,13 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include "inout.h"
 
-/*
- * FreeBSD only writes to the 8259 interrupt controllers to put them in a
- * shutdown state.
- *
- * So, we just ignore the writes.
- */
-
 #define	IO_ICU1		0x20
 #define	IO_ICU2		0xA0
 #define	ICU_IMR_OFFSET	1
@@ -55,8 +48,14 @@ atpic_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	if (bytes != 1)
 		return (-1);
 
-	if (in)
-		return (-1);
+	if (in) {
+		if (port & ICU_IMR_OFFSET) {
+			/* all interrupts masked */
+			*eax = 0xff;
+		} else {
+			*eax = 0x00;
+		}
+	}
 
 	/* Pretend all writes to the 8259 are alright */
 	return (0);
