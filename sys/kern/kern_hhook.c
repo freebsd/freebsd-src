@@ -264,9 +264,10 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 	STAILQ_INIT(&tmphhh->hhh_hooks);
 	HHH_LOCK_INIT(tmphhh);
 
-	if (hhh != NULL)
+	if (hhh != NULL) {
 		refcount_init(&tmphhh->hhh_refcount, 1);
-	else
+		*hhh = tmphhh;
+	} else
 		refcount_init(&tmphhh->hhh_refcount, 0);
 
 	if (flags & HHOOK_HEADISINVNET) {
@@ -277,8 +278,6 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 	} else {
 		/* XXXLAS: Add tmphhh to the non-virtualised list. */
 	}
-
-	*hhh = tmphhh;
 
 	return (0);
 }
