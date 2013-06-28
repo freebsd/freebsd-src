@@ -493,7 +493,7 @@ keg_timeout(uma_keg_t keg)
 
 			KEG_UNLOCK(keg);
 			hash_free(&oldhash);
-			KEG_LOCK(keg);
+			return;
 		}
 	}
 	KEG_UNLOCK(keg);
