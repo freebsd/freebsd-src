@@ -105,7 +105,7 @@
 #PrintLastLog yes
 #TCPKeepAlive yes
 #UseLogin no
-#UsePrivilegeSeparation sandbox
+#UsePrivilegeSeparation yes
 #PermitUserEnvironment no
 #Compression delayed
 #ClientAliveInterval 0
