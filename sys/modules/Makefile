@@ -301,6 +301,7 @@ SUBDIR=	\
 	siis \
 	sis \
 	sk \
+	${_smbfs} \
 	${_sn} \
 	${_snc} \
 	snp \
@@ -520,6 +521,7 @@ _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
+_smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
 _splash=	splash
@@ -722,6 +724,7 @@ _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
 _sfxge=		sfxge
+_smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
 _splash=	splash
@@ -779,6 +782,7 @@ _ips=		ips
 _mly=		mly
 _pccard=	pccard
 _scsi_low=	scsi_low
+_smbfs=		smbfs
 _sound=		sound
 _splash=	splash
 _sppp=		sppp
@@ -801,6 +805,7 @@ _drm=		drm
 _exca=		exca
 _nvram=		powermac_nvram
 _pccard=	pccard
+_smbfs=		smbfs
 _sound=		sound
 _cyclic=	cyclic
 _dtrace=	dtrace
@@ -827,6 +832,7 @@ _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+_smbfs=		smbfs
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
