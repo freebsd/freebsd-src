@@ -318,6 +318,15 @@ dhcpif()
 	local _tmpargs _arg
 	_tmpargs=`_ifconfig_getargs $1`
 
+	case $1 in
+	lo[0-9]*|\
+	stf[0-9]*|\
+	faith[0-9]*|\
+	lp[0-9]*|\
+	sl[0-9]*)
+		return 1
+		;;
+	esac
 	if noafif $1; then
 		return 1
 	fi
@@ -509,7 +518,7 @@ ipv6_autoconfif()
 	_if=$1
 
 	case $_if in
-	lo0|\
+	lo[0-9]*|\
 	stf[0-9]*|\
 	faith[0-9]*|\
 	lp[0-9]*|\
