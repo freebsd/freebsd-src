@@ -15,6 +15,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130628:	p1	FreeBSD-EN-13:01.fxp
+			FreeBSD-EN-13:02.vtnet
+	Fix a problem where dhclient(8) utility tries to initilaize an
+	fxp(4) forever because the driver resets the controller chip
+	twice upon initialization. [EN-13:01]
+
+	Fix a problem where frames sent to additional MAC addresses are
+	not forwarded to the vtnet(4) interface. [EN-13:02]
+
 20130429:
 	Fix a bug that allows NFS clients to issue READDIR on files.
 

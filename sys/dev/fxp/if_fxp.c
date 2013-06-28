@@ -1074,7 +1074,8 @@ fxp_suspend(device_t dev)
 			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 			sc->flags |= FXP_FLAG_WOL;
 			/* Reconfigure hardware to accept magic frames. */
-			fxp_init_body(sc, 1);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			fxp_init_body(sc, 0);
 		}
 		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 	}
@@ -2140,8 +2141,10 @@ fxp_tick(void *xsc)
 	 */
 	if (sc->rx_idle_secs > FXP_MAX_RX_IDLE) {
 		sc->rx_idle_secs = 0;
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			fxp_init_body(sc, 1);
+		}
 		return;
 	}
 	/*
@@ -2239,6 +2242,7 @@ fxp_watchdog(struct fxp_softc *sc)
 	device_printf(sc->dev, "device timeout\n");
 	sc->ifp->if_oerrors++;
 
+	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	fxp_init_body(sc, 1);
 }
 
@@ -2273,6 +2277,10 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	int i, prm;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/*
 	 * Cancel any pending I/O
 	 */
@@ -2812,6 +2820,7 @@ fxp_miibus_statchg(device_t dev)
 	 */
 	if (sc->revision == FXP_REV_82557)
 		return;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	fxp_init_body(sc, 0);
 }
 
@@ -2835,9 +2844,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) &&
 			    ((ifp->if_flags ^ sc->if_flags) &
-			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0)
+			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				fxp_init_body(sc, 0);
-			else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				fxp_init_body(sc, 1);
 		} else {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
@@ -2850,8 +2860,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		FXP_LOCK(sc);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			fxp_init_body(sc, 0);
+		}
 		FXP_UNLOCK(sc);
 		break;
 
@@ -2941,8 +2953,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
 			reinit++;
 		}
-		if (reinit > 0 && ifp->if_flags & IFF_UP)
+		if (reinit > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			fxp_init_body(sc, 0);
+		}
 		FXP_UNLOCK(sc);
 		VLAN_CAPABILITIES(ifp);
 		break;
