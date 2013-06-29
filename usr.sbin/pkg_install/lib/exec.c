@@ -65,7 +65,7 @@ vpipe(const char *fmt, ...)
 {
    FILE *fp;
    char *cmd, *rp;
-   int maxargs;
+   long maxargs;
    va_list args;
 
     rp = malloc(MAXPATHLEN);
