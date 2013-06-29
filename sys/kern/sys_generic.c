@@ -1510,6 +1510,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 	sbintime_t asbt, precision, rsbt;
 	int error;
 
+	precision = 0;	/* stupid gcc! */
 	if (tvp != NULL) {
 		rtv = *tvp;
 		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 || 
