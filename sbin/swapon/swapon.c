@@ -65,19 +65,17 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void usage(void);
-static const char *swap_on_off(char *, int, char *);
-static const char *swap_on_off_gbde(char *, int);
-static const char *swap_on_off_geli(char *, char *, int);
-static const char *swap_on_off_md(char *, char *, int);
-static const char *swap_on_off_sfile(char *, int);
+static const char *swap_on_off(const char *, int, char *);
+static const char *swap_on_off_gbde(const char *, int);
+static const char *swap_on_off_geli(const char *, char *, int);
+static const char *swap_on_off_md(const char *, char *, int);
+static const char *swap_on_off_sfile(const char *, int);
 static void swaplist(int, int, int);
 static int run_cmd(int *, const char *, ...) __printflike(2, 3);
 
 static enum { SWAPON, SWAPOFF, SWAPCTL } orig_prog, which_prog = SWAPCTL;
 
 static int qflag;
-static char aalgo_default[] = "hmac/sha256";
-static char ealgo_default[] = "aes";
 
 int
 main(int argc, char **argv)
@@ -219,215 +217,231 @@ main(int argc, char **argv)
 }
 
 static const char *
-swap_on_off(char *name, int doingall, char *mntops)
+swap_on_off(const char *name, int doingall, char *mntops)
 {
 	char base[PATH_MAX];
 
 	/* Swap on vnode-backed md(4) device. */
 	if (mntops != NULL &&
-	    (fnmatch(_PATH_DEV MD_NAME "[0-9]*", name, 0) != FNM_NOMATCH ||
-	     fnmatch(MD_NAME "[0-9]*", name, 0) != FNM_NOMATCH ||
+	    (fnmatch(_PATH_DEV MD_NAME "[0-9]*", name, 0) == 0 ||
+	     fnmatch(MD_NAME "[0-9]*", name, 0) == 0 ||
 	     strncmp(_PATH_DEV MD_NAME, name,
 		sizeof(_PATH_DEV) + sizeof(MD_NAME)) == 0 ||
 	     strncmp(MD_NAME, name, sizeof(MD_NAME)) == 0))
 		return (swap_on_off_md(name, mntops, doingall));
 
-	/* Swap on encrypted device by GEOM_BDE. */
 	basename_r(name, base);
-	if (fnmatch("*.bde", base, 0) != FNM_NOMATCH)
+
+	/* Swap on encrypted device by GEOM_BDE. */
+	if (fnmatch("*.bde", base, 0) == 0)
 		return (swap_on_off_gbde(name, doingall));
 
 	/* Swap on encrypted device by GEOM_ELI. */
-	if (fnmatch("*.eli", base, 0) != FNM_NOMATCH)
+	if (fnmatch("*.eli", base, 0) == 0)
 		return (swap_on_off_geli(name, mntops, doingall));
 
 	/* Swap on special file. */
 	return (swap_on_off_sfile(name, doingall));
 }
 
-static const char *
-swap_on_off_gbde(char *name, int doingall)
+/* Strip off .bde or .eli suffix from swap device name */
+static char *
+swap_basename(const char *name)
 {
-	const char *ret;
-	char pass[64 * 2 + 1], bpass[64];
 	char *dname, *p;
-	int i, fd, error;
 
 	dname = strdup(name);
 	p = strrchr(dname, '.');
-	if (p == NULL) {
-		warnx("%s: Malformed device name", name);
-		return (NULL);
-	}
+	/* assert(p != NULL); */
 	*p = '\0';
 
-	fd = -1;
-	switch (which_prog) {
-	case SWAPON:
+	return (dname);
+}
+
+static const char *
+swap_on_off_gbde(const char *name, int doingall)
+{
+	const char *ret;
+	char pass[64 * 2 + 1], bpass[64];
+	char *dname;
+	int i, error;
+
+	dname = swap_basename(name);
+	if (dname == NULL)
+		return (NULL);
+
+	if (which_prog == SWAPON) {
 		arc4random_buf(bpass, sizeof(bpass));
 		for (i = 0; i < (int)sizeof(bpass); i++)
 			sprintf(&pass[2 * i], "%02x", bpass[i]);
 		pass[sizeof(pass) - 1] = '\0';
 
-		error = run_cmd(&fd, "%s init %s -P %s", _PATH_GBDE,
+		error = run_cmd(NULL, "%s init %s -P %s", _PATH_GBDE,
 		    dname, pass);
 		if (error) {
 			/* bde device found.  Ignore it. */
-			close(fd);
+			free(dname);
 			if (!qflag)
 				warnx("%s: Device already in use", name);
 			return (NULL);
 		}
-		close(fd);
-		error = run_cmd(&fd, "%s attach %s -p %s", _PATH_GBDE,
+		error = run_cmd(NULL, "%s attach %s -p %s", _PATH_GBDE,
 		    dname, pass);
+		free(dname);
 		if (error) {
-			close(fd);
 			warnx("gbde (attach) error: %s", name);
 			return (NULL);
 		}
-		break;
-	case SWAPOFF:
-		break;
-	default:
-		return (NULL);
-		break;
 	}
-	if (fd != -1)
-		close(fd);
+
 	ret = swap_on_off_sfile(name, doingall);
 
-	fd = -1;
-	switch (which_prog) {
-	case SWAPOFF:
-		error = run_cmd(&fd, "%s detach %s", _PATH_GBDE, dname);
+	if (which_prog == SWAPOFF) {
+		error = run_cmd(NULL, "%s detach %s", _PATH_GBDE, dname);
+		free(dname);
 		if (error) {
 			/* bde device not found.  Ignore it. */
-			if (!qflag)
-				warnx("%s: Device not found", dname);
-			return (NULL);
-		}
-		break;
-	default:
-		return (NULL);
-		break;
-	}
-
-	if (fd != -1)
-		close(fd);
-	return (ret);
-}
-
-static const char *
-swap_on_off_geli(char *name, char *mntops, int doingall)
-{
-	char *ops, *aalgo, *ealgo, *keylen_str, *sectorsize_str;
-	char *dname, *p;
-	char args[4096];
-	struct stat sb;
-	int fd, error, keylen, sectorsize;
-	u_long ul;
-
-	dname = strdup(name);
-	p = strrchr(dname, '.');
-	if (p == NULL) {
-		warnx("%s: Malformed device name", name);
-		return (NULL);
-	}
-	*p = '\0';
-
-	ops = strdup(mntops);
-
-	/* Default parameters for geli(8). */
-	aalgo = aalgo_default;
-	ealgo = ealgo_default;
-	keylen = 256;
-	sectorsize = 4096;
-
-	if ((p = strstr(ops, "aalgo=")) != NULL) {
-		aalgo = p + sizeof("aalgo=") - 1;
-		p = strchr(aalgo, ',');
-		if (p != NULL)
-			*p = '\0';
-	}
-	if ((p = strstr(ops, "ealgo=")) != NULL) {
-		ealgo = p + sizeof("ealgo=") - 1;
-		p = strchr(ealgo, ',');
-		if (p != NULL)
-			*p = '\0';
-	}
-	if ((p = strstr(ops, "keylen=")) != NULL) {
-		keylen_str = p + sizeof("keylen=") - 1;
-		p = strchr(keylen_str, ',');
-		if (p != NULL)
-			*p = '\0';
-		errno = 0;
-		ul = strtoul(keylen_str, &p, 10);
-		if (errno == 0) {
-			if (*p != '\0' || ul > INT_MAX)
-				errno = EINVAL;
-		}
-		if (errno) {
-			warn("Invalid keylen: %s", keylen_str);
-			return (NULL);
-		}
-		keylen = (int)ul;
-	}
-	if ((p = strstr(ops, "sectorsize=")) != NULL) {
-		sectorsize_str = p + sizeof("sectorsize=") - 1;
-		p = strchr(sectorsize_str, ',');
-		if (p != NULL)
-			*p = '\0';
-		errno = 0;
-		ul = strtoul(sectorsize_str, &p, 10);
-		if (errno == 0) {
-			if (*p != '\0' || ul > INT_MAX)
-				errno = EINVAL;
-		}
-		if (errno) {
-			warn("Invalid sectorsize: %s", sectorsize_str);
-			return (NULL);
-		}
-		sectorsize = (int)ul;
-	}
-	snprintf(args, sizeof(args), "-a %s -e %s -l %d -s %d -d",
-	    aalgo, ealgo, keylen, sectorsize);
-	args[sizeof(args) - 1] = '\0';
-	free((void *)ops);
-
-	fd = -1;
-	switch (which_prog) {
-	case SWAPON:
-		error = run_cmd(&fd, "%s onetime %s %s", _PATH_GELI, args,
-		    dname);
-		if (error) {
-			/* eli device found.  Ignore it. */
-			close(fd);
-			if (!qflag)
-				warnx("%s: Device already in use "
-				    "or invalid parameters", name);
-			return (NULL);
-		}
-		break;
-	case SWAPOFF:
-		if (stat(name, &sb) == -1 && errno == ENOENT) {
 			if (!qflag)
 				warnx("%s: Device not found", name);
 			return (NULL);
 		}
-		break;
-	default:
-		return (NULL);
-		break;
 	}
-	if (fd != -1)
-		close(fd);
+
+	return (ret);
+}
+
+/* Build geli(8) arguments from mntopts */
+static char *
+swap_on_geli_args(const char *mntops)
+{
+	const char *aalgo, *ealgo, *keylen_str, *sectorsize_str;
+	const char *aflag, *eflag, *lflag, *sflag;
+	char *p;
+	char *args;
+	char *token, *string, *ops;
+	int argsize, pagesize;
+	size_t pagesize_len;
+	u_long ul;
+
+	/* Use built-in defaults for geli(8) */
+	aalgo = ealgo = keylen_str = "";
+	aflag = eflag = lflag = "";
+
+	/* We will always specify sectorsize */
+	sflag = " -s ";
+	sectorsize_str = NULL;
+
+	if (mntops != NULL) {
+		string = ops = strdup(mntops);
+
+		while ((token = strsep(&string, ",")) != NULL) {
+			if ((p = strstr(token, "aalgo=")) == token) {
+				aalgo = p + sizeof("aalgo=") - 1;
+				aflag = " -a ";
+			} else if ((p = strstr(token, "ealgo=")) == token) {
+				ealgo = p + sizeof("ealgo=") - 1;
+				eflag = " -e ";
+			} else if ((p = strstr(token, "keylen=")) == token) {
+				keylen_str = p + sizeof("keylen=") - 1;
+				errno = 0;
+				ul = strtoul(keylen_str, &p, 10);
+				if (errno == 0) {
+					if (*p != '\0' || ul > INT_MAX)
+						errno = EINVAL;
+				}
+				if (errno) {
+					warn("Invalid keylen: %s", keylen_str);
+					free(ops);
+					return (NULL);
+				}
+				lflag = " -l ";
+			} else if ((p = strstr(token, "sectorsize=")) == token) {
+				sectorsize_str = p + sizeof("sectorsize=") - 1;
+				errno = 0;
+				ul = strtoul(sectorsize_str, &p, 10);
+				if (errno == 0) {
+					if (*p != '\0' || ul > INT_MAX)
+						errno = EINVAL;
+				}
+				if (errno) {
+					warn("Invalid sectorsize: %s", sectorsize_str);
+					free(ops);
+					return (NULL);
+				}
+			} else if (strcmp(token, "sw") != 0) {
+				warnx("Invalid option: %s", token);
+				free(ops);
+				return (NULL);
+			}
+		}
+	} else
+		ops = NULL;
+
+	/*
+	 * If we do not have a sector size at this point, fill in
+	 * pagesize as sector size.
+	 */
+	if (sectorsize_str == NULL) {
+		/* Use pagesize as default sectorsize */
+		pagesize = getpagesize();
+		pagesize_len = snprintf(NULL, 0, "%d", pagesize) + 1;
+		p = alloca(pagesize_len);
+		snprintf(p, pagesize_len, "%d", pagesize);
+		sectorsize_str = p;
+	}
+
+	argsize = asprintf(&args, "%s%s%s%s%s%s%s%s -d",
+	    aflag, aalgo, eflag, ealgo, lflag, keylen_str,
+	    sflag, sectorsize_str);
+
+	free(ops);
+	return (args);
+}
+
+static const char *
+swap_on_off_geli(const char *name, char *mntops, int doingall)
+{
+	char *dname;
+	char *args;
+	struct stat sb;
+	int error;
+
+	error = stat(name, &sb);
+
+	if (which_prog == SWAPON) do {
+		/* Skip if the .eli device already exists */
+		if (error == 0)
+			break;
+
+		args = swap_on_geli_args(mntops);
+		if (args == NULL)
+			return (NULL);
+
+		dname = swap_basename(name);
+		if (dname == NULL) {
+			free(args);
+			return (NULL);
+		}
+
+		error = run_cmd(NULL, "%s onetime%s %s", _PATH_GELI, args,
+		    dname);
+
+		free(dname);
+		free(args);
+
+		if (error) {
+			/* error occured during creation */
+			if (!qflag)
+				warnx("%s: Invalid parameters", name);
+			return (NULL);
+		}
+	} while (0);
 
 	return (swap_on_off_sfile(name, doingall));
 }
 
 static const char *
-swap_on_off_md(char *name, char *mntops, int doingall)
+swap_on_off_md(const char *name, char *mntops, int doingall)
 {
 	FILE *sfd;
 	int fd, mdunit, error;
@@ -467,8 +481,7 @@ swap_on_off_md(char *name, char *mntops, int doingall)
 		return (NULL);
 	}
 
-	switch (which_prog) {
-	case SWAPON:
+	if (which_prog == SWAPON) {
 		if (mdunit == -1) {
 			error = run_cmd(&fd, "%s -l -n -f %s",
 			    _PATH_MDCONFIG, vnodefile);
@@ -534,8 +547,7 @@ swap_on_off_md(char *name, char *mntops, int doingall)
 				return (NULL);
 			}
 		}
-		break;
-	case SWAPOFF:
+	} else /* SWAPOFF */ {
 		if (mdunit == -1) {
 			error = run_cmd(&fd, "%s -l -n -f %s",
 			    _PATH_MDCONFIG, vnodefile);
@@ -590,17 +602,13 @@ swap_on_off_md(char *name, char *mntops, int doingall)
 				return (NULL);
 			}
 		}
-		break;
-	default:
-		return (NULL);
 	}
 	snprintf(mdpath, sizeof(mdpath), "%s%s%d", _PATH_DEV,
 	    MD_NAME, mdunit);
 	mdpath[sizeof(mdpath) - 1] = '\0';
 	ret = swap_on_off_sfile(mdpath, doingall);
 
-	switch (which_prog) {
-	case SWAPOFF:
+	if (which_prog == SWAPOFF) {
 		if (ret != NULL) {
 			error = run_cmd(NULL, "%s -d -u %d",
 			    _PATH_MDCONFIG, mdunit);
@@ -608,9 +616,6 @@ swap_on_off_md(char *name, char *mntops, int doingall)
 				warn("mdconfig (detach) detach failed: %s%s%d",
 				    _PATH_DEV, MD_NAME, mdunit);
 		}
-		break;
-	default:
-		break;
 	}
 err:
 	if (sfd != NULL)
@@ -695,21 +700,15 @@ run_cmd(int *ofd, const char *cmdline, ...)
 }
 
 static const char *
-swap_on_off_sfile(char *name, int doingall)
+swap_on_off_sfile(const char *name, int doingall)
 {
 	int error;
 
-	switch (which_prog) {
-	case SWAPON:
+	if (which_prog == SWAPON)
 		error = swapon(name);
-		break;
-	case SWAPOFF:
+	else /* SWAPOFF */
 		error = swapoff(name);
-		break;
-	default:
-		error = 0;
-		break;
-	}
+
 	if (error == -1) {
 		switch (errno) {
 		case EBUSY:
