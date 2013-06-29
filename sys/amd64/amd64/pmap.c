@@ -1028,6 +1028,36 @@ pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 	return (cache_bits);
 }
 
+static void
+pmap_update_pde_store(pmap_t pmap, pd_entry_t *pde, pd_entry_t newpde)
+{
+
+	switch (pmap->pm_type) {
+	case PT_X86:
+		break;
+	case PT_EPT:
+		/*
+		 * XXX
+		 * This is a little bogus since the generation number is
+		 * supposed to be bumped up when a region of the address
+		 * space is invalidated in the page tables.
+		 *
+		 * In this case the old PDE entry is valid but yet we want
+		 * to make sure that any mappings using the old entry are
+		 * invalidated in the TLB.
+		 *
+		 * The reason this works as expected is because we rendezvous
+		 * "all" host cpus and force any vcpu context to exit as a
+		 * side-effect.
+		 */
+		atomic_add_acq_long(&pmap->pm_eptgen, 1);
+		break;
+	default:
+		panic("pmap_update_pde_store: bad pm_type %d", pmap->pm_type);
+	}
+	pde_store(pde, newpde);
+}
+
 /*
  * After changing the page size for the specified virtual address in the page
  * table, flush the corresponding entries from the processor's TLB.  Only the
@@ -1040,6 +1070,12 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 {
 	u_long cr4;
 	pt_entry_t PG_G;
+
+	if (pmap->pm_type == PT_EPT)
+		return;
+
+	if (pmap->pm_type != PT_X86)
+		panic("pmap_update_pde_invalidate: bad type %d", pmap->pm_type);
 
 	PG_G = pmap_global_bit(pmap);
 
@@ -1089,6 +1125,45 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
  * immutable.  The kernel page table is always active on every
  * processor.
  */
+
+/*
+ * Interrupt the cpus that are executing in the guest context.
+ * This will force the vcpu to exit and the cached EPT mappings
+ * will be invalidated by the host before the next vmresume.
+ */
+static __inline void
+pmap_invalidate_ept(pmap_t pmap)
+{
+
+	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
+		("pmap_invalidate_ept: absurd pm_active"));
+
+	/*
+	 * The TLB mappings associated with a vcpu context are not
+	 * flushed each time a different vcpu is chosen to execute.
+	 *
+	 * This is in contrast with a process's vtop mappings that
+	 * are flushed from the TLB on each context switch.
+	 *
+	 * Therefore we need to do more than just a TLB shootdown on
+	 * the active cpus in 'pmap->pm_active'. To do this we keep
+	 * track of the number of invalidations performed on this pmap.
+	 *
+	 * Each vcpu keeps a cache of this counter and compares it
+	 * just before a vmresume. If the counter is out-of-date an
+	 * invept will be done to flush stale mappings from the TLB.
+	 */
+	atomic_add_acq_long(&pmap->pm_eptgen, 1);
+
+	/*
+	 * Force the vcpu to exit and trap back into the hypervisor.
+	 *
+	 * XXX this is not optimal because IPI_AST builds a trapframe
+	 * whereas all we need is an 'eoi' followed by 'iret'.
+	 */
+	ipi_selected(pmap->pm_active, IPI_AST);
+}
+
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
@@ -1096,18 +1171,28 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	u_int cpuid;
 
 	sched_pin();
-	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-		invlpg(va);
-		smp_invlpg(va);
-	} else {
-		cpuid = PCPU_GET(cpuid);
-		other_cpus = all_cpus;
-		CPU_CLR(cpuid, &other_cpus);
-		if (CPU_ISSET(cpuid, &pmap->pm_active))
+	switch (pmap->pm_type) {
+	case PT_X86:
+		if (pmap == kernel_pmap ||
+		    !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 			invlpg(va);
-		CPU_AND(&other_cpus, &pmap->pm_active);
-		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invlpg(other_cpus, va);
+			smp_invlpg(va);
+		} else {
+			cpuid = PCPU_GET(cpuid);
+			other_cpus = all_cpus;
+			CPU_CLR(cpuid, &other_cpus);
+			if (CPU_ISSET(cpuid, &pmap->pm_active))
+				invlpg(va);
+			CPU_AND(&other_cpus, &pmap->pm_active);
+			if (!CPU_EMPTY(&other_cpus))
+				smp_masked_invlpg(other_cpus, va);
+		}
+		break;
+	case PT_EPT:
+		pmap_invalidate_ept(pmap);
+		break;
+	default:
+		panic("pmap_invalidate_page: invalid type %d", pmap->pm_type);
 	}
 	sched_unpin();
 }
@@ -1120,20 +1205,30 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	u_int cpuid;
 
 	sched_pin();
-	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-		for (addr = sva; addr < eva; addr += PAGE_SIZE)
-			invlpg(addr);
-		smp_invlpg_range(sva, eva);
-	} else {
-		cpuid = PCPU_GET(cpuid);
-		other_cpus = all_cpus;
-		CPU_CLR(cpuid, &other_cpus);
-		if (CPU_ISSET(cpuid, &pmap->pm_active))
+	switch (pmap->pm_type) {
+	case PT_X86:
+		if (pmap == kernel_pmap ||
+		    !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
-		CPU_AND(&other_cpus, &pmap->pm_active);
-		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invlpg_range(other_cpus, sva, eva);
+			smp_invlpg_range(sva, eva);
+		} else {
+			cpuid = PCPU_GET(cpuid);
+			other_cpus = all_cpus;
+			CPU_CLR(cpuid, &other_cpus);
+			if (CPU_ISSET(cpuid, &pmap->pm_active))
+				for (addr = sva; addr < eva; addr += PAGE_SIZE)
+					invlpg(addr);
+			CPU_AND(&other_cpus, &pmap->pm_active);
+			if (!CPU_EMPTY(&other_cpus))
+				smp_masked_invlpg_range(other_cpus, sva, eva);
+		}
+		break;
+	case PT_EPT:
+		pmap_invalidate_ept(pmap);
+		break;
+	default:
+		panic("pmap_invalidate_range: invalid type %d", pmap->pm_type);
 	}
 	sched_unpin();
 }
@@ -1145,18 +1240,28 @@ pmap_invalidate_all(pmap_t pmap)
 	u_int cpuid;
 
 	sched_pin();
-	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-		invltlb();
-		smp_invltlb();
-	} else {
-		cpuid = PCPU_GET(cpuid);
-		other_cpus = all_cpus;
-		CPU_CLR(cpuid, &other_cpus);
-		if (CPU_ISSET(cpuid, &pmap->pm_active))
+	switch (pmap->pm_type) {
+	case PT_X86:
+		if (pmap == kernel_pmap ||
+		    !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 			invltlb();
-		CPU_AND(&other_cpus, &pmap->pm_active);
-		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invltlb(other_cpus);
+			smp_invltlb();
+		} else {
+			cpuid = PCPU_GET(cpuid);
+			other_cpus = all_cpus;
+			CPU_CLR(cpuid, &other_cpus);
+			if (CPU_ISSET(cpuid, &pmap->pm_active))
+				invltlb();
+			CPU_AND(&other_cpus, &pmap->pm_active);
+			if (!CPU_EMPTY(&other_cpus))
+				smp_masked_invltlb(other_cpus);
+		}
+		break;
+	case PT_EPT:
+		pmap_invalidate_ept(pmap);
+		break;
+	default:
+		panic("pmap_invalidate_all: invalid type %d", pmap->pm_type);
 	}
 	sched_unpin();
 }
@@ -1186,7 +1291,7 @@ pmap_update_pde_action(void *arg)
 	struct pde_action *act = arg;
 
 	if (act->store == PCPU_GET(cpuid))
-		pde_store(act->pde, act->newpde);
+		pmap_update_pde_store(act->pmap, act->pde, act->newpde);
 }
 
 static void
@@ -1217,7 +1322,7 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	cpuid = PCPU_GET(cpuid);
 	other_cpus = all_cpus;
 	CPU_CLR(cpuid, &other_cpus);
-	if (pmap == kernel_pmap)
+	if (pmap == kernel_pmap || pmap->pm_type == PT_EPT)
 		active = all_cpus;
 	else
 		active = pmap->pm_active;
@@ -1233,7 +1338,7 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 		    smp_no_rendevous_barrier, pmap_update_pde_action,
 		    pmap_update_pde_teardown, &act);
 	} else {
-		pde_store(pde, newpde);
+		pmap_update_pde_store(pmap, pde, newpde);
 		if (CPU_ISSET(cpuid, &active))
 			pmap_update_pde_invalidate(pmap, va, newpde);
 	}
@@ -1248,8 +1353,17 @@ PMAP_INLINE void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-		invlpg(va);
+	switch (pmap->pm_type) {
+	case PT_X86:
+		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
+			invlpg(va);
+		break;
+	case PT_EPT:
+		pmap->pm_eptgen++;
+		break;
+	default:
+		panic("pmap_invalidate_page: unknown type: %d", pmap->pm_type);
+	}
 }
 
 PMAP_INLINE void
@@ -1257,17 +1371,35 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	vm_offset_t addr;
 
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-		for (addr = sva; addr < eva; addr += PAGE_SIZE)
-			invlpg(addr);
+	switch (pmap->pm_type) {
+	case PT_X86:
+		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
+			for (addr = sva; addr < eva; addr += PAGE_SIZE)
+				invlpg(addr);
+		break;
+	case PT_EPT:
+		pmap->eptgen++;
+		break;
+	default:
+		panic("pmap_invalidate_range: unknown type: %d", pmap->pm_type);
+	}
 }
 
 PMAP_INLINE void
 pmap_invalidate_all(pmap_t pmap)
 {
 
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-		invltlb();
+	switch (pmap->pm_type) {
+	case PT_X86:
+		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
+			invltlb();
+		break;
+	case PT_EPT:
+		pmap->pm_eptgen++;
+		break;
+	default:
+		panic("pmap_invalidate_all: unknown type %d", pmap->pm_type);
+	}
 }
 
 PMAP_INLINE void
@@ -1281,7 +1413,7 @@ static void
 pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 {
 
-	pde_store(pde, newpde);
+	pmap_update_pde_store(pmap, pde, newpde);
 	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		pmap_update_pde_invalidate(pmap, va, newpde);
 }

@@ -258,6 +258,7 @@ struct pmap {
 	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */
+	long			pm_eptgen;	/* EPT pmap generation id */
 };
 
 typedef struct pmap	*pmap_t;
