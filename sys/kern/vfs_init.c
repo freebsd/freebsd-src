@@ -201,6 +201,7 @@ vfs_register(struct vfsconf *vfc)
 	} else
 		vfc->vfc_typenum = maxvfsconf++;
 	TAILQ_INSERT_TAIL(&vfsconf, vfc, vfc_list);
+	vfc->vfc_flags |= VFCF_JAIL;
 
 	/*
 	 * If this filesystem has a sysctl node under vfs
