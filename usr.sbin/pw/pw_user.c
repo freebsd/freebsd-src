@@ -200,7 +200,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			strlcpy(dbuf, cnf->home, sizeof(dbuf));
 			p = dbuf;
 			if (stat(dbuf, &st) == -1) {
-				while ((p = strchr(++p, '/')) != NULL) {
+				while ((p = strchr(p + 1, '/')) != NULL) {
 					*p = '\0';
 					if (stat(dbuf, &st) == -1) {
 						if (mkdir(dbuf, _DEF_DIRMODE) == -1)
