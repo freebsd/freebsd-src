@@ -1253,6 +1253,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	cmd.mask = htole32(mode << 28 | basicrates);
 	error = urtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
 	if (error != 0) {
+		ieee80211_free_node(ni);
 		device_printf(sc->sc_dev,
 		    "could not add broadcast station\n");
 		return (error);
@@ -1267,6 +1268,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	cmd.mask = htole32(mode << 28 | rates);
 	error = urtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
 	if (error != 0) {
+		ieee80211_free_node(ni);
 		device_printf(sc->sc_dev, "could not add BSS station\n");
 		return (error);
 	}
@@ -1277,6 +1279,8 @@ urtwn_ra_init(struct urtwn_softc *sc)
 
 	/* Indicate highest supported rate. */
 	ni->ni_txrate = rs->rs_nrates - 1;
+	ieee80211_free_node(ni);
+
 	return (0);
 }
 
