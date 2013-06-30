@@ -1278,7 +1278,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	    maxrate);
 
 	/* Indicate highest supported rate. */
-	ni->ni_txrate = rs->rs_nrates - 1;
+	ni->ni_txrate = rs->rs_rates[rs->rs_nrates - 1];
 	ieee80211_free_node(ni);
 
 	return (0);
