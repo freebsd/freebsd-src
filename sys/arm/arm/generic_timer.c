@@ -241,7 +241,7 @@ arm_tmr_intr(void *arg)
 	sc = (struct arm_tmr_softc *)arg;
 	ctrl = get_ctrl();
 	if (ctrl & GENERIC_TIMER_CTRL_INT_STAT) {
-	        ctrl |= GENERIC_TIMER_CTRL_INT_MASK;
+		ctrl |= GENERIC_TIMER_CTRL_INT_MASK;
 		set_ctrl(ctrl);
 	}
 
@@ -305,7 +305,7 @@ arm_tmr_attach(device_t dev)
 	set_freq(sc->clkfreq);
 	disable_user_access();
 
-        arm_tmr_timecount.tc_frequency = sc->clkfreq;
+	arm_tmr_timecount.tc_frequency = sc->clkfreq;
 	tc_init(&arm_tmr_timecount);
 
 	sc->et.et_name = "ARM MPCore Eventtimer";
@@ -358,7 +358,7 @@ DELAY(int usec)
 	/*
 	 * Check the timers are setup, if not just
 	 * use a for loop for the meantime
-         */
+	 */
 	if (arm_tmr_sc == NULL) {
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
@@ -371,7 +371,7 @@ DELAY(int usec)
 	}
 
 	/* Get the number of times to count */
-        counts_per_usec = ((arm_tmr_timecount.tc_frequency / 1000000) + 1);
+	counts_per_usec = ((arm_tmr_timecount.tc_frequency / 1000000) + 1);
 
 	/*
 	 * Clamp the timeout at a maximum value (about 32 seconds with
