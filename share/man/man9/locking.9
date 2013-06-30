@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2013
+.Dd June 30, 2013
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -55,8 +55,7 @@ for details.
 Spin mutexes are a variation of basic mutexes; the main difference between
 the two is that spin mutexes never block.
 Instead, they spin while waiting for the lock to be released.
-Note that a thread that holds a spin mutex must never yield its CPU to
-avoid deadlock.
+To avoid deadlock, a thread that holds a spin mutex must never yield its CPU.
 Unlike ordinary mutexes, spin mutexes disable interrupts when acquired.
 Since disabling interrupts can be expensive, they are generally slower to
 acquire and release.
@@ -140,7 +139,7 @@ and in the buffer cache
 They have features other lock types do not have such as sleep
 timeouts, blocking upgrades,
 writer starvation avoidance, draining, and an interlock mutex,
-but this makes them complicated to both use and implement;
+but this makes them complicated both to use and to implement;
 for this reason, they should be avoided.
 .Pp
 See
@@ -183,7 +182,7 @@ and
 .Fn wakeup_one
 also handle event-based thread blocking.
 Unlike condition variables,
-arbitrary addresses may be used as wait channels and an dedicated
+arbitrary addresses may be used as wait channels and a dedicated
 structure does not need to be allocated.
 However, care must be taken to ensure that wait channel addresses are
 unique to an event.
@@ -280,21 +279,23 @@ they can and can not be combined.
 Many of these rules are checked by
 .Xr witness 4 .
 .Ss Bounded vs. Unbounded Sleep
-A bounded sleep
-.Pq or blocking
-is a sleep where the only resource needed to resume execution of a thread
+In a bounded sleep
+.Po also referred to as
+.Dq blocking
+.Pc
+the only resource needed to resume execution of a thread
 is CPU time for the owner of a lock that the thread is waiting to acquire.
-An unbounded sleep
+In an unbounded sleep
 .Po
 often referred to as simply
 .Dq sleeping
 .Pc
-is a sleep where a thread is waiting for an external event or for a condition
+a thread waits for an external event or for a condition
 to become true.
 In particular,
-since there is always CPU time available,
 a dependency chain of threads in bounded sleeps should always make forward
-progress.
+progress,
+since there is always CPU time available.
 This requires that no thread in a bounded sleep is waiting for a lock held
 by a thread in an unbounded sleep.
 To avoid priority inversions,
