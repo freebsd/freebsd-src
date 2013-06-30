@@ -281,6 +281,8 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 #define	atomic_store_explicit(object, desired, order)			\
 	__atomic_store_n(&(object)->__val, desired, order)
 #else
+#define	__atomic_apply_stride(object, operand) \
+	(((__typeof__((object)->__val))0) + (operand))
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure)	__extension__ ({			\
 	__typeof__(expected) __ep = (expected);				\
@@ -313,13 +315,15 @@ __extension__ ({							\
 })
 #endif
 #define	atomic_fetch_add_explicit(object, operand, order)		\
-	((void)(order), __sync_fetch_and_add(&(object)->__val, operand))
+	((void)(order), __sync_fetch_and_add(&(object)->__val,		\
+	    __atomic_apply_stride(object, operand)))
 #define	atomic_fetch_and_explicit(object, operand, order)		\
 	((void)(order), __sync_fetch_and_and(&(object)->__val, operand))
 #define	atomic_fetch_or_explicit(object, operand, order)		\
 	((void)(order), __sync_fetch_and_or(&(object)->__val, operand))
 #define	atomic_fetch_sub_explicit(object, operand, order)		\
-	((void)(order), __sync_fetch_and_sub(&(object)->__val, operand))
+	((void)(order), __sync_fetch_and_sub(&(object)->__val,		\
+	    __atomic_apply_stride(object, operand)))
 #define	atomic_fetch_xor_explicit(object, operand, order)		\
 	((void)(order), __sync_fetch_and_xor(&(object)->__val, operand))
 #define	atomic_load_explicit(object, order)				\
