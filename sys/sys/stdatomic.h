@@ -122,33 +122,44 @@
  * atomic operations.
  */
 
-enum memory_order {
+typedef enum {
 	memory_order_relaxed = __ATOMIC_RELAXED,
 	memory_order_consume = __ATOMIC_CONSUME,
 	memory_order_acquire = __ATOMIC_ACQUIRE,
 	memory_order_release = __ATOMIC_RELEASE,
 	memory_order_acq_rel = __ATOMIC_ACQ_REL,
 	memory_order_seq_cst = __ATOMIC_SEQ_CST
-};
+} memory_order;
 
 /*
  * 7.17.4 Fences.
  */
 
+static __inline void
+atomic_thread_fence(memory_order __order __unused)
+{
+
 #ifdef __CLANG_ATOMICS
-#define	atomic_thread_fence(order)	__c11_atomic_thread_fence(order)
-#define	atomic_signal_fence(order)	__c11_atomic_signal_fence(order)
+	__c11_atomic_thread_fence(__order);
 #elif defined(__GNUC_ATOMICS)
-#define	atomic_thread_fence(order)	__atomic_thread_fence(order)
-#define	atomic_signal_fence(order)	__atomic_signal_fence(order)
+	__atomic_thread_fence(__order);
 #else
-#define	atomic_thread_fence(order)	((void)(order), __sync_synchronize())
-#define	atomic_signal_fence(order)	__extension__ ({		\
-	(void)(order);							\
-	__asm volatile ("" ::: "memory");				\
-	(void)0;							\
-})
+	__sync_synchronize();
 #endif
+}
+
+static __inline void
+atomic_signal_fence(memory_order __order __unused)
+{
+
+#ifdef __CLANG_ATOMICS
+	__c11_atomic_signal_fence(__order);
+#elif defined(__GNUC_ATOMICS)
+	__atomic_signal_fence(__order);
+#else
+	__asm volatile ("" ::: "memory");
+#endif
+}
 
 /*
  * 7.17.5 Lock-free property.
@@ -319,8 +330,12 @@ __extension__ ({							\
 
 /*
  * Convenience functions.
+ *
+ * Don't provide these in kernel space. In kernel space, we should be
+ * disciplined enough to always provide explicit barriers.
  */
 
+#ifndef _KERNEL
 #define	atomic_compare_exchange_strong(object, expected, desired)	\
 	atomic_compare_exchange_strong_explicit(object, expected,	\
 	    desired, memory_order_seq_cst, memory_order_seq_cst)
@@ -343,23 +358,54 @@ __extension__ ({							\
 	atomic_load_explicit(object, memory_order_seq_cst)
 #define	atomic_store(object, desired)					\
 	atomic_store_explicit(object, desired, memory_order_seq_cst)
+#endif /* !_KERNEL */
 
 /*
  * 7.17.8 Atomic flag type and operations.
+ *
+ * XXX: Assume atomic_bool can be used as an atomic_flag. Is there some
+ * kind of compiler built-in type we could use?
  */
 
-typedef atomic_bool			atomic_flag;
+typedef struct {
+	atomic_bool	__flag;
+} atomic_flag;
 
-#define	ATOMIC_FLAG_INIT		ATOMIC_VAR_INIT(0)
+#define	ATOMIC_FLAG_INIT		{ ATOMIC_VAR_INIT(0) }
 
-#define	atomic_flag_clear_explicit(object, order)			\
-	atomic_store_explicit(object, 0, order)
-#define	atomic_flag_test_and_set_explicit(object, order)		\
-	atomic_compare_exchange_strong_explicit(object, 0, 1, order, order)
+static __inline _Bool
+atomic_flag_test_and_set_explicit(volatile atomic_flag *__object,
+    memory_order __order)
+{
+	_Bool __expected;
 
-#define	atomic_flag_clear(object)					\
-	atomic_flag_clear_explicit(object, memory_order_seq_cst)
-#define	atomic_flag_test_and_set(object)				\
-	atomic_flag_test_and_set_explicit(object, memory_order_seq_cst)
+	__expected = 0;
+	return (atomic_compare_exchange_strong_explicit(&__object->__flag,
+	    &__expected, 1, __order, __order));
+}
+
+static __inline void
+atomic_flag_clear_explicit(volatile atomic_flag *__object, memory_order __order)
+{
+
+	atomic_store_explicit(&__object->__flag, 0, __order);
+}
+
+#ifndef _KERNEL
+static __inline _Bool
+atomic_flag_test_and_set(volatile atomic_flag *__object)
+{
+
+	return (atomic_flag_test_and_set_explicit(__object,
+	    memory_order_seq_cst));
+}
+
+static __inline void
+atomic_flag_clear(volatile atomic_flag *__object)
+{
+
+	atomic_flag_clear_explicit(__object, memory_order_seq_cst);
+}
+#endif /* !_KERNEL */
 
 #endif /* !_STDATOMIC_H_ */
