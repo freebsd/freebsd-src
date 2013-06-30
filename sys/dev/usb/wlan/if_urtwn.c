@@ -80,7 +80,7 @@ SYSCTL_INT(_hw_usb_urtwn, OID_AUTO, debug, CTLFLAG_RW, &urtwn_debug, 0,
     "Debug level");
 #endif
 
-#define	URTWN_RSSI((r))  (r) - 110
+#define	URTWN_RSSI(r)  (r) - 110
 #define	IEEE80211_HAS_ADDR4(wh)	\
 	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 
