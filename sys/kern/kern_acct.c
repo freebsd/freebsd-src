@@ -284,12 +284,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 		error = kproc_create(acct_thread, NULL, NULL, 0, 0,
 		    "accounting");
 		if (error) {
-			(void) vn_close(acct_vp, acct_flags, acct_cred, td);
-			crfree(acct_cred);
-			acct_configured = 0;
-			acct_vp = NULL;
-			acct_cred = NULL;
-			acct_flags = 0;
+			(void) acct_disable(td, 0);
 			sx_xunlock(&acct_sx);
 			log(LOG_NOTICE, "Unable to start accounting thread\n");
 			return (error);
