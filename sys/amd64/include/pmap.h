@@ -87,8 +87,8 @@
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
  * (PTE) page mappings have identical settings for the following fields:
  */
-#define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_PAT | \
-	    PG_M | PG_A | PG_NC_PCD | PG_NC_PWT | PG_U | PG_RW | PG_V)
+#define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_CACHE | \
+	    PG_M | PG_A | PG_U | PG_RW | PG_V)
 
 /*
  * Page Protection Exception bits

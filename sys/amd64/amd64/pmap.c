@@ -2989,10 +2989,12 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	pt_entry_t *firstpte, newpte, PG_G, PG_A, PG_M;
 	vm_paddr_t mptepa;
 	vm_page_t free, mpte;
+	int PG_PTE_CACHE;
 
 	PG_G = pmap_global_bit(pmap);
 	PG_A = pmap_accessed_bit(pmap);
 	PG_M = pmap_modified_bit(pmap);
+	PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpde = *pde;
@@ -3647,10 +3649,12 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	pt_entry_t *firstpte, oldpte, pa, *pte, PG_G, PG_A, PG_M;
 	vm_offset_t oldpteva;
 	vm_page_t mpte;
+	int PG_PTE_CACHE;
 
 	PG_G = pmap_global_bit(pmap);
 	PG_A = pmap_accessed_bit(pmap);
 	PG_M = pmap_modified_bit(pmap);
+	PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
