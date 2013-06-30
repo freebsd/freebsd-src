@@ -229,6 +229,12 @@ pmap_modified_bit(pmap_t pmap)
 	return (mask);
 }
 
+#undef PG_PDE_CACHE
+#define	X86_PG_PDE_CACHE		(PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
+
+#undef PG_PTE_CACHE
+#define	X86_PG_PTE_CACHE		(PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
+
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
 #define PMAP_INLINE	__attribute__((__gnu_inline__)) inline
@@ -371,12 +377,12 @@ static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static boolean_t pmap_is_referenced_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
-static void pmap_pde_attr(pd_entry_t *pde, int cache_bits);
+static void pmap_pde_attr(pd_entry_t *pde, int cache_bits, int mask);
 static void pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     struct rwlock **lockp);
 static boolean_t pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva,
     vm_prot_t prot);
-static void pmap_pte_attr(pt_entry_t *pte, int cache_bits);
+static void pmap_pte_attr(pt_entry_t *pte, int cache_bits, int mask);
 static int pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		vm_page_t *free, struct rwlock **lockp);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
@@ -1026,6 +1032,25 @@ pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 	}
 
 	return (cache_bits);
+}
+
+static int
+pmap_cache_mask(pmap_t pmap, boolean_t is_pde)
+{
+	int mask;
+
+	switch (pmap->pm_type) {
+	case PT_X86:
+		mask = is_pde ? X86_PG_PDE_CACHE : X86_PG_PTE_CACHE;
+		break;
+	case PT_EPT:
+		mask = EPT_PG_IGNORE_PAT | EPT_PG_MEMORY_TYPE(0x7);
+		break;
+	default:
+		panic("pmap_cache_mask: invalid pm_type %d", pmap->pm_type);
+	}
+
+	return (mask);
 }
 
 static void
@@ -1695,9 +1720,10 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
 	pt_entry_t *endpte, oldpte, pa, *pte, PG_G;
 	vm_page_t m;
-	int cache_bits;
+	int cache_bits, PG_PTE_CACHE;
 
 	PG_G = pmap_global_bit(kernel_pmap);
+	PG_PTE_CACHE = pmap_cache_mask(kernel_pmap, 0);
 
 	oldpte = 0;
 	pte = vtopte(sva);
@@ -5280,7 +5306,7 @@ small_mappings:
 
 /* Adjust the cache mode for a 4KB page mapped via a PTE. */
 static __inline void
-pmap_pte_attr(pt_entry_t *pte, int cache_bits)
+pmap_pte_attr(pt_entry_t *pte, int cache_bits, int mask)
 {
 	u_int opte, npte;
 
@@ -5290,14 +5316,14 @@ pmap_pte_attr(pt_entry_t *pte, int cache_bits)
 	 */
 	do {
 		opte = *(u_int *)pte;
-		npte = opte & ~PG_PTE_CACHE;
+		npte = opte & ~mask;
 		npte |= cache_bits;
 	} while (npte != opte && !atomic_cmpset_int((u_int *)pte, opte, npte));
 }
 
 /* Adjust the cache mode for a 2MB page mapped via a PDE. */
 static __inline void
-pmap_pde_attr(pd_entry_t *pde, int cache_bits)
+pmap_pde_attr(pd_entry_t *pde, int cache_bits, int mask)
 {
 	u_int opde, npde;
 
@@ -5307,7 +5333,7 @@ pmap_pde_attr(pd_entry_t *pde, int cache_bits)
 	 */
 	do {
 		opde = *(u_int *)pde;
-		npde = opde & ~PG_PDE_CACHE;
+		npde = opde & ~mask;
 		npde |= cache_bits;
 	} while (npde != opde && !atomic_cmpset_int((u_int *)pde, opde, npde));
 }
@@ -5491,6 +5517,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	pd_entry_t *pde;
 	pt_entry_t *pte;
 	int cache_bits_pte, cache_bits_pde, error;
+	int PG_PDE_CACHE, PG_PTE_CACHE;
 	boolean_t changed;
 
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
@@ -5505,6 +5532,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
 
+	PG_PDE_CACHE = pmap_cache_mask(kernel_pmap, 1);
+	PG_PTE_CACHE = pmap_cache_mask(kernel_pmap, 0);
 	cache_bits_pde = pmap_cache_bits(kernel_pmap, mode, 1);
 	cache_bits_pte = pmap_cache_bits(kernel_pmap, mode, 0);
 	changed = FALSE;
@@ -5584,7 +5613,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
 		if (*pdpe & PG_PS) {
 			if ((*pdpe & PG_PDE_CACHE) != cache_bits_pde) {
-				pmap_pde_attr(pdpe, cache_bits_pde);
+				pmap_pde_attr(pdpe, cache_bits_pde,
+					      PG_PDE_CACHE);
 				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
@@ -5612,7 +5642,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde & PG_PS) {
 			if ((*pde & PG_PDE_CACHE) != cache_bits_pde) {
-				pmap_pde_attr(pde, cache_bits_pde);
+				pmap_pde_attr(pde, cache_bits_pde,
+					      PG_PDE_CACHE);
 				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
@@ -5638,7 +5669,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		} else {
 			pte = pmap_pde_to_pte(pde, tmpva);
 			if ((*pte & PG_PTE_CACHE) != cache_bits_pte) {
-				pmap_pte_attr(pte, cache_bits_pte);
+				pmap_pte_attr(pte, cache_bits_pte,
+					      PG_PTE_CACHE);
 				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
