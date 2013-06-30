@@ -164,6 +164,9 @@ ifconfig_up()
 		fi
 	fi
 
+	ifalias $1 link alias
+	ifalias $1 ether alias
+
 	if [ ${_cfg} -eq 0 ]; then
 		${IFCONFIG_CMD} $1 up
 	fi
@@ -431,6 +434,9 @@ afexists()
 		else
 			return 1
 		fi
+		;;
+	link|ether)
+		return 0
 		;;
 	*)
 		err 1 "afexists(): Unsupported address family: $_af"
@@ -700,7 +706,7 @@ ifalias()
 	afexists $2 || return $_ret
 
 	case "$2" in
-	inet|inet6)
+	inet|inet6|link|ether)
 		ifalias_af_common $1 $2 $3 && _ret=0
 		;;
 	esac
@@ -907,6 +913,11 @@ ifalias_af_common_handler()
 	*)	return	;;
 	esac
 
+	# link(ether) does not support address removal.
+	case $_af:$_action in
+	link:-alias|ether:-alias)	return ;;
+	esac
+
 	_tmpargs=
 	for _c in $_args; do
 		case $_c in
@@ -965,6 +976,8 @@ ifalias_af_common()
 		inet\ *)	_iaf=inet ;;
 		inet6\ *)	_iaf=inet6 ;;
 		ipx\ *)		_iaf=ipx ;;
+		link\ *)	_iaf=link ;;
+		ether\ *)	_iaf=ether ;;
 		esac
 
 		case ${_af}:${_action}:${_iaf}:"${ifconfig_args}" in
@@ -1012,7 +1025,7 @@ ifalias_af_common()
 	_tmpargs=
 	for _c in `get_if_var $_if ifconfig_IF_aliases` $_aliasn; do
 		case $_c in
-		inet|inet6|ipx)
+		inet|inet6|ipx|link|ether)
 			case $_tmpargs in
 			${_af}\ *)
 				eval ifalias_af_common_handler $_if $_af $_action $_tmpargs && _ret=0
