@@ -1355,15 +1355,14 @@ axe_init(struct usb_ether *ue)
 
 	if (AXE_IS_178_FAMILY(sc)) {
 		sc->sc_flags &= ~(AXE_FLAG_STD_FRAME | AXE_FLAG_CSUM_FRAME);
-		if ((sc->sc_flags & AXE_FLAG_772B) != 0)
-			sc->sc_lenmask = AXE_CSUM_HDR_LEN_MASK;
-		else
-			sc->sc_lenmask = AXE_HDR_LEN_MASK;
 		if ((sc->sc_flags & AXE_FLAG_772B) != 0 &&
-		    (ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		    (ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+			sc->sc_lenmask = AXE_CSUM_HDR_LEN_MASK;
 			sc->sc_flags |= AXE_FLAG_CSUM_FRAME;
-		else
+		} else {
+			sc->sc_lenmask = AXE_HDR_LEN_MASK;
 			sc->sc_flags |= AXE_FLAG_STD_FRAME;
+		}
 	}
 
 	/* Configure TX/RX checksum offloading. */
