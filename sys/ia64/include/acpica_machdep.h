@@ -37,7 +37,6 @@
 #define	__ACPICA_MACHDEP_H__
 
 #ifdef _KERNEL
-#define	_IA64
 
 /*
  * Calling conventions:
@@ -71,12 +70,8 @@ extern int	acpi_release_global_lock(uint32_t *lock);
 	(Acq) = acpi_release_global_lock(&((GLptr)->GlobalLock));	\
 } while (0)
 
-#endif /* _KERNEL */
-
-#define	ACPI_MACHINE_WIDTH             64
-#define	COMPILER_DEPENDENT_INT64       long
-#define	COMPILER_DEPENDENT_UINT64      unsigned long
-
 void	acpi_cpu_c1(void);
+
+#endif /* _KERNEL */
 
 #endif /* __ACPICA_MACHDEP_H__ */

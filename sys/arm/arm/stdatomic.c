@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <machine/cpufunc.h>
+#include <machine/sysarch.h>
 
 #ifdef _KERNEL
 #include "opt_global.h"
@@ -41,7 +42,7 @@ __FBSDID("$FreeBSD$");
  * Executing statements with interrupts disabled.
  */
 
-#ifndef SMP
+#if defined(_KERNEL) && !defined(SMP)
 #define	WITHOUT_INTERRUPTS(s) do {					\
 	register_t regs;						\
 									\
@@ -49,7 +50,7 @@ __FBSDID("$FreeBSD$");
 	do s while (0);							\
 	intr_restore(regs);						\
 } while (0)
-#endif /* !SMP */
+#endif /* _KERNEL && !SMP */
 
 /*
  * Memory barriers.
@@ -62,18 +63,30 @@ __FBSDID("$FreeBSD$");
  * should make <stdatomic.h>'s atomic_exchange_explicit() work reliably.
  */
 
+#if defined(_KERNEL) && !defined(SMP)
 static inline void
 do_sync(void)
 {
 
-#if defined(_KERNEL) && !defined(SMP)
 	__asm volatile ("" : : : "memory");
-#elif defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__)
-	__asm volatile ("dmb" : : : "memory");
-#else /* __ARM_ARCH_6__ */
-	__asm volatile ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory");
-#endif
 }
+#elif defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__)
+static inline void
+do_sync(void)
+{
+
+	__asm volatile ("dmb" : : : "memory");
+}
+#elif defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || \
+    defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || \
+    defined(__ARM_ARCH_6ZK__)
+static inline void
+do_sync(void)
+{
+
+	__asm volatile ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory");
+}
+#endif
 
 #if defined(__CLANG_ATOMICS) || defined(__GNUC_ATOMICS)
 
@@ -88,11 +101,7 @@ do_sync(void)
 
 /* These systems should be supported by the compiler. */
 
-#elif defined(_KERNEL)
-
-#ifdef SMP
-#error "On SMP systems we should have proper atomic operations."
-#endif
+#else /* __ARM_ARCH_5__ */
 
 /* Clang doesn't allow us to reimplement builtins without this. */
 #ifdef __clang__
@@ -103,9 +112,13 @@ do_sync(void)
 void
 __sync_synchronize(void)
 {
-
-	do_sync();
 }
+
+#ifdef _KERNEL
+
+#ifdef SMP
+#error "On SMP systems we should have proper atomic operations."
+#endif
 
 /*
  * On uniprocessor systems, we can perform the atomic operations by
@@ -182,19 +195,153 @@ EMIT_ALL_OPS_N(2, uint16_t)
 EMIT_ALL_OPS_N(4, uint32_t)
 EMIT_ALL_OPS_N(8, uint64_t)
 
-#else /* !__ARM_ARCH_6__ && !__ARM_ARCH_7__ && !_KERNEL */
+#else /* !_KERNEL */
 
-/* XXX: Implement intrinsics for ARMv5 userspace. */
+/*
+ * For userspace on uniprocessor systems, we can implement the atomic
+ * operations by using a Restartable Atomic Sequence. This makes the
+ * kernel restart the code from the beginning when interrupted.
+ */
+
+#define	EMIT_LOAD_N(N, uintN_t)						\
+uintN_t									\
+__atomic_load_##N(uintN_t *mem, int model __unused)			\
+{									\
+									\
+	return (*mem);							\
+}
+
+#define	EMIT_STORE_N(N, uintN_t)					\
+void									\
+__atomic_store_##N(uintN_t *mem, uintN_t val, int model __unused)	\
+{									\
+									\
+	*mem = val;							\
+}
+
+#define	EMIT_EXCHANGE_N(N, uintN_t, ldr, str)				\
+uintN_t									\
+__atomic_exchange_##N(uintN_t *mem, uintN_t val, int model __unused)	\
+{									\
+	uint32_t old, temp, ras_start;					\
+									\
+	ras_start = ARM_RAS_START;					\
+	__asm volatile (						\
+		/* Set up Restartable Atomic Sequence. */		\
+		"1:"							\
+		"\tadr   %2, 1b\n"					\
+		"\tstr   %2, [%5]\n"					\
+		"\tadr   %2, 2f\n"					\
+		"\tstr   %2, [%5, #4]\n"				\
+									\
+		"\t"ldr" %0, %4\n"	/* Load old value. */		\
+		"\t"str" %3, %1\n"	/* Store new value. */		\
+									\
+		/* Tear down Restartable Atomic Sequence. */		\
+		"2:"							\
+		"\tmov   %2, #0x00000000\n"				\
+		"\tstr   %2, [%5]\n"					\
+		"\tmov   %2, #0xffffffff\n"				\
+		"\tstr   %2, [%5, #4]\n"				\
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)		\
+		: "r" (val), "m" (*mem), "r" (ras_start));		\
+	return (old);							\
+}
+
+#define	EMIT_COMPARE_EXCHANGE_N(N, uintN_t, ldr, streq)			\
+_Bool									\
+__atomic_compare_exchange_##N(uintN_t *mem, uintN_t *pexpected,		\
+    uintN_t desired, int success __unused, int failure __unused)	\
+{									\
+	uint32_t expected, old, temp, ras_start;			\
+									\
+	expected = *pexpected;						\
+	ras_start = ARM_RAS_START;					\
+	__asm volatile (						\
+		/* Set up Restartable Atomic Sequence. */		\
+		"1:"							\
+		"\tadr   %2, 1b\n"					\
+		"\tstr   %2, [%6]\n"					\
+		"\tadr   %2, 2f\n"					\
+		"\tstr   %2, [%6, #4]\n"				\
+									\
+		"\t"ldr" %0, %5\n"	/* Load old value. */		\
+		"\tcmp   %0, %3\n"	/* Compare to expected value. */\
+		"\t"streq" %4, %1\n"	/* Store new value. */		\
+									\
+		/* Tear down Restartable Atomic Sequence. */		\
+		"2:"							\
+		"\tmov   %2, #0x00000000\n"				\
+		"\tstr   %2, [%6]\n"					\
+		"\tmov   %2, #0xffffffff\n"				\
+		"\tstr   %2, [%6, #4]\n"				\
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)		\
+		: "r" (expected), "r" (desired), "m" (*mem),		\
+		  "r" (ras_start));					\
+	if (old == expected) {						\
+		return (1);						\
+	} else {							\
+		*pexpected = old;					\
+		return (0);						\
+	}								\
+}
+
+#define	EMIT_FETCH_OP_N(N, uintN_t, ldr, str, name, op)			\
+uintN_t									\
+__atomic_##name##_##N(uintN_t *mem, uintN_t val, int model __unused)	\
+{									\
+	uint32_t old, temp, ras_start;					\
+									\
+	ras_start = ARM_RAS_START;					\
+	__asm volatile (						\
+		/* Set up Restartable Atomic Sequence. */		\
+		"1:"							\
+		"\tadr   %2, 1b\n"					\
+		"\tstr   %2, [%5]\n"					\
+		"\tadr   %2, 2f\n"					\
+		"\tstr   %2, [%5, #4]\n"				\
+									\
+		"\t"ldr" %0, %4\n"	/* Load old value. */		\
+		"\t"op"  %2, %0, %3\n"	/* Calculate new value. */	\
+		"\t"str" %2, %1\n"	/* Store new value. */		\
+									\
+		/* Tear down Restartable Atomic Sequence. */		\
+		"2:"							\
+		"\tmov   %2, #0x00000000\n"				\
+		"\tstr   %2, [%5]\n"					\
+		"\tmov   %2, #0xffffffff\n"				\
+		"\tstr   %2, [%5, #4]\n"				\
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)		\
+		: "r" (val), "m" (*mem), "r" (ras_start));		\
+	return (old);							\
+}
+
+#define	EMIT_ALL_OPS_N(N, uintN_t, ldr, str, streq)			\
+EMIT_LOAD_N(N, uintN_t)							\
+EMIT_STORE_N(N, uintN_t)						\
+EMIT_EXCHANGE_N(N, uintN_t, ldr, str)					\
+EMIT_COMPARE_EXCHANGE_N(N, uintN_t, ldr, streq)				\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_add, "add")			\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_and, "and")			\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_or, "orr")			\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_sub, "sub")			\
+EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_xor, "eor")
+
+EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "strbeq")
+EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "strheq")
+EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
+
+#endif /* _KERNEL */
 
 #endif
 
 #endif /* __CLANG_ATOMICS || __GNUC_ATOMICS */
 
+#if defined(__SYNC_ATOMICS)
+
 /*
  * Old __sync_* API.
  */
-
-#if defined(__SYNC_ATOMICS)
 
 #if defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || \
     defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || \
@@ -319,8 +466,8 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
     uintN_t desired)							\
 {									\
 	uint32_t *mem32;						\
-	reg_t expected32, desired32, posmask, negmask, old;		\
-	uint32_t temp1, temp2;						\
+	reg_t expected32, desired32, posmask, old;			\
+	uint32_t negmask, temp1, temp2;					\
 									\
 	mem32 = round_to_word(mem);					\
 	expected32.v32 = 0x00000000;					\
@@ -329,7 +476,7 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
 	put_##N(&desired32, mem, desired);				\
 	posmask.v32 = 0x00000000;					\
 	put_##N(&posmask, mem, ~0);					\
-	negmask.v32 = ~posmask.v32;					\
+	negmask = ~posmask.v32;						\
 									\
 	do_sync();							\
 	__asm volatile (						\
@@ -347,7 +494,7 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
 		: "=&r" (old), "=m" (*mem32), "=&r" (temp1),		\
 		  "=&r" (temp2)						\
 		: "r" (expected32.v32), "r" (desired32.v32),		\
-		  "r" (posmask.v32), "r" (negmask.v32), "m" (*mem32));	\
+		  "r" (posmask.v32), "r" (negmask), "m" (*mem32));	\
 	return (get_##N(&old, mem));					\
 }
 
@@ -359,15 +506,15 @@ uintN_t									\
 __sync_##name##_##N(uintN_t *mem, uintN_t val)				\
 {									\
 	uint32_t *mem32;						\
-	reg_t val32, posmask, negmask, old;				\
-	uint32_t temp1, temp2;						\
+	reg_t val32, posmask, old;					\
+	uint32_t negmask, temp1, temp2;					\
 									\
 	mem32 = round_to_word(mem);					\
 	val32.v32 = 0x00000000;						\
 	put_##N(&val32, mem, val);					\
 	posmask.v32 = 0x00000000;					\
 	put_##N(&posmask, mem, ~0);					\
-	negmask.v32 = ~posmask.v32;					\
+	negmask = ~posmask.v32;						\
 									\
 	do_sync();							\
 	__asm volatile (						\
@@ -382,8 +529,8 @@ __sync_##name##_##N(uintN_t *mem, uintN_t val)				\
 		"\tbne   1b\n"		/* Spin if failed. */		\
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp1),	\
 		  "=&r" (temp2)						\
-		: "r" (val32.v32), "r" (posmask.v32),			\
-		  "r" (negmask.v32), "m" (*mem32));			\
+		: "r" (val32.v32), "r" (posmask.v32), "r" (negmask),	\
+		  "m" (*mem32));					\
 	return (get_##N(&old, mem));					\
 }
 
@@ -430,23 +577,39 @@ EMIT_BITWISE_FETCH_AND_OP_N(2, uint16_t, fetch_and_xor, "eor", 0)
  */
 
 uint32_t
-__sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
-    uint32_t desired)
+__sync_lock_test_and_set_4(uint32_t *mem, uint32_t val)
 {
-	uint32_t old, temp1, temp2;
+	uint32_t old, temp;
 
 	do_sync();
 	__asm volatile (
 		"1:"
-		"\tldrex %0, %6\n"	/* Load old value. */
-		"\tcmp   %0, %4\n"	/* Compare to expected value. */
+		"\tldrex %0, %4\n"	/* Load old value. */
+		"\tstrex %2, %3, %1\n"	/* Attempt to store. */
+		"\tcmp   %2, #0\n"	/* Did it succeed? */
+		"\tbne   1b\n"		/* Spin if failed. */
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)
+		: "r" (val), "m" (*mem));
+	return (old);
+}
+
+uint32_t
+__sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
+    uint32_t desired)
+{
+	uint32_t old, temp;
+
+	do_sync();
+	__asm volatile (
+		"1:"
+		"\tldrex %0, %5\n"	/* Load old value. */
+		"\tcmp   %0, %3\n"	/* Compare to expected value. */
 		"\tbne   2f\n"		/* Values are unequal. */
-		"\tmov   %2, %5\n"	/* Value to store. */
-		"\tstrex %3, %2, %1\n"	/* Attempt to store. */
-		"\tcmp   %3, #0\n"	/* Did it succeed? */
+		"\tstrex %2, %4, %1\n"	/* Attempt to store. */
+		"\tcmp   %2, #0\n"	/* Did it succeed? */
 		"\tbne   1b\n"		/* Spin if failed. */
 		"2:"
-		: "=&r" (old), "=m" (*mem), "=&r" (temp1), "=&r" (temp2)
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)
 		: "r" (expected), "r" (desired), "m" (*mem));
 	return (old);
 }
@@ -461,7 +624,7 @@ __sync_##name##_4(uint32_t *mem, uint32_t val)				\
 	__asm volatile (						\
 		"1:"							\
 		"\tldrex %0, %5\n"	/* Load old value. */		\
-		"\t"op"\n"		/* Calculate new value. */	\
+		"\t"op"  %2, %0, %4\n"	/* Calculate new value. */	\
 		"\tstrex %3, %2, %1\n"	/* Attempt to store. */		\
 		"\tcmp   %3, #0\n"	/* Did it succeed? */		\
 		"\tbne   1b\n"		/* Spin if failed. */		\
@@ -471,14 +634,15 @@ __sync_##name##_4(uint32_t *mem, uint32_t val)				\
 	return (old);							\
 }
 
-EMIT_FETCH_AND_OP_4(lock_test_and_set, "mov %2, %4")
-EMIT_FETCH_AND_OP_4(fetch_and_add, "add %2, %0, %4")
-EMIT_FETCH_AND_OP_4(fetch_and_and, "and %2, %0, %4")
-EMIT_FETCH_AND_OP_4(fetch_and_or, "orr %2, %0, %4")
-EMIT_FETCH_AND_OP_4(fetch_and_sub, "sub %2, %0, %4")
-EMIT_FETCH_AND_OP_4(fetch_and_xor, "eor %2, %0, %4")
+EMIT_FETCH_AND_OP_4(fetch_and_add, "add")
+EMIT_FETCH_AND_OP_4(fetch_and_and, "and")
+EMIT_FETCH_AND_OP_4(fetch_and_or, "orr")
+EMIT_FETCH_AND_OP_4(fetch_and_sub, "sub")
+EMIT_FETCH_AND_OP_4(fetch_and_xor, "eor")
 
-#elif defined(_KERNEL)
+#else /* __ARM_ARCH_5__ */
+
+#ifdef _KERNEL
 
 #ifdef SMP
 #error "On SMP systems we should have proper atomic operations."
@@ -531,9 +695,119 @@ EMIT_ALL_OPS_N(2, uint16_t)
 EMIT_ALL_OPS_N(4, uint32_t)
 EMIT_ALL_OPS_N(8, uint64_t)
 
-#else /* !__ARM_ARCH_6__ && !__ARM_ARCH_7__ && !_KERNEL */
+#else /* !_KERNEL */
 
-/* XXX: Implement intrinsics for ARMv5 userspace. */
+/*
+ * For userspace on uniprocessor systems, we can implement the atomic
+ * operations by using a Restartable Atomic Sequence. This makes the
+ * kernel restart the code from the beginning when interrupted.
+ */
+
+#define	EMIT_LOCK_TEST_AND_SET_N(N, uintN_t, ldr, str)			\
+uintN_t									\
+__sync_lock_test_and_set_##N(uintN_t *mem, uintN_t val)			\
+{									\
+	uint32_t old, temp, ras_start;					\
+									\
+	ras_start = ARM_RAS_START;					\
+	__asm volatile (						\
+		/* Set up Restartable Atomic Sequence. */		\
+		"1:"							\
+		"\tadr   %2, 1b\n"					\
+		"\tstr   %2, [%5]\n"					\
+		"\tadr   %2, 2f\n"					\
+		"\tstr   %2, [%5, #4]\n"				\
+									\
+		"\t"ldr" %0, %4\n"	/* Load old value. */		\
+		"\t"str" %3, %1\n"	/* Store new value. */		\
+									\
+		/* Tear down Restartable Atomic Sequence. */		\
+		"2:"							\
+		"\tmov   %2, #0x00000000\n"				\
+		"\tstr   %2, [%5]\n"					\
+		"\tmov   %2, #0xffffffff\n"				\
+		"\tstr   %2, [%5, #4]\n"				\
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)		\
+		: "r" (val), "m" (*mem), "r" (ras_start));		\
+	return (old);							\
+}
+
+#define	EMIT_VAL_COMPARE_AND_SWAP_N(N, uintN_t, ldr, streq)		\
+uintN_t									\
+__sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
+    uintN_t desired)							\
+{									\
+	uint32_t old, temp, ras_start;					\
+									\
+	ras_start = ARM_RAS_START;					\
+	__asm volatile (						\
+		/* Set up Restartable Atomic Sequence. */		\
+		"1:"							\
+		"\tadr   %2, 1b\n"					\
+		"\tstr   %2, [%6]\n"					\
+		"\tadr   %2, 2f\n"					\
+		"\tstr   %2, [%6, #4]\n"				\
+									\
+		"\t"ldr" %0, %5\n"	/* Load old value. */		\
+		"\tcmp   %0, %3\n"	/* Compare to expected value. */\
+		"\t"streq" %4, %1\n"	/* Store new value. */		\
+									\
+		/* Tear down Restartable Atomic Sequence. */		\
+		"2:"							\
+		"\tmov   %2, #0x00000000\n"				\
+		"\tstr   %2, [%6]\n"					\
+		"\tmov   %2, #0xffffffff\n"				\
+		"\tstr   %2, [%6, #4]\n"				\
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)		\
+		: "r" (expected), "r" (desired), "m" (*mem),		\
+		  "r" (ras_start));					\
+	return (old);							\
+}
+
+#define	EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, name, op)		\
+uintN_t									\
+__sync_##name##_##N(uintN_t *mem, uintN_t val)				\
+{									\
+	uint32_t old, temp, ras_start;					\
+									\
+	ras_start = ARM_RAS_START;					\
+	__asm volatile (						\
+		/* Set up Restartable Atomic Sequence. */		\
+		"1:"							\
+		"\tadr   %2, 1b\n"					\
+		"\tstr   %2, [%5]\n"					\
+		"\tadr   %2, 2f\n"					\
+		"\tstr   %2, [%5, #4]\n"				\
+									\
+		"\t"ldr" %0, %4\n"	/* Load old value. */		\
+		"\t"op"  %2, %0, %3\n"	/* Calculate new value. */	\
+		"\t"str" %2, %1\n"	/* Store new value. */		\
+									\
+		/* Tear down Restartable Atomic Sequence. */		\
+		"2:"							\
+		"\tmov   %2, #0x00000000\n"				\
+		"\tstr   %2, [%5]\n"					\
+		"\tmov   %2, #0xffffffff\n"				\
+		"\tstr   %2, [%5, #4]\n"				\
+		: "=&r" (old), "=m" (*mem), "=&r" (temp)		\
+		: "r" (val), "m" (*mem), "r" (ras_start));		\
+	return (old);							\
+}
+
+#define	EMIT_ALL_OPS_N(N, uintN_t, ldr, str, streq)			\
+EMIT_LOCK_TEST_AND_SET_N(N, uintN_t, ldr, str)				\
+EMIT_VAL_COMPARE_AND_SWAP_N(N, uintN_t, ldr, streq)			\
+EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_add, "add")		\
+EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_and, "and")		\
+EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_or, "orr")		\
+EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_sub, "sub")		\
+EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_xor, "eor")
+
+EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "streqb")
+EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "streqh")
+EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
+
+#endif /* _KERNEL */
 
 #endif
 

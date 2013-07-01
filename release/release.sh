@@ -165,11 +165,22 @@ build_doc_ports() {
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" != "x" ]; then
-		PBUILD_FLAGS="OSVERSION=${OSVERSION} WITHOUT_JADETEX=yes BATCH=yes"
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} WITHOUT_JADETEX=yes BATCH=yes"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
 			${PBUILD_FLAGS} install
 	fi
 }
+
+# If MAKE_CONF and/or SRC_CONF are set and not character devices (/dev/null),
+# copy them to the chroot.
+if [ -e ${MAKE_CONF} ] && [ ! -c ${MAKE_CONF} ]; then
+	mkdir -p ${CHROOTDIR}/$(dirname ${MAKE_CONF})
+	cp ${MAKE_CONF} ${CHROOTDIR}/${MAKE_CONF}
+fi
+if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
+	mkdir -p ${CHROOTDIR}/$(dirname ${SRC_CONF})
+	cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
+fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then
 	cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf

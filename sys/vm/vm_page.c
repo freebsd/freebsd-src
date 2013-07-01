@@ -2013,7 +2013,7 @@ vm_page_wire(vm_page_t m)
  * However, unless the page belongs to an object, it is not enqueued because
  * it cannot be paged out.
  *
- * If a page is fictitious, then its wire count must alway be one.
+ * If a page is fictitious, then its wire count must always be one.
  *
  * A managed page must be locked.
  */

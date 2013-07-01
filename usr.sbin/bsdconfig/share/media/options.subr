@@ -32,10 +32,10 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/options.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/struct.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/any.subr
 f_include $BSDCFG_SHARE/media/ftp.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -157,23 +157,16 @@ f_media_options_menu()
 			device_media get type cp
 			case "$cp" in
 			$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK)
-				cp="$msg_file_system";;
-			$DEVICE_TYPE_DIRECTORY)
-				cp="$msg_directory";;
-			$DEVICE_TYPE_FLOPPY)
-				cp="$msg_floppy";;
-			$DEVICE_TYPE_FTP)
-				cp="$msg_ftp";;
-			$DEVICE_TYPE_HTTP_PROXY)
-				cp="$msg_http_proxy";;
-			$DEVICE_TYPE_CDROM)
-				cp="$msg_cdrom";;
-			$DEVICE_TYPE_USB)
-				cp="$msg_usb";;
-			$DEVICE_TYPE_DOS)
-				cp="$msg_dos";;
-			$DEVICE_TYPE_NFS)
-				cp="$msg_nfs";;
+				cp="$msg_file_system" ;;
+			$DEVICE_TYPE_DIRECTORY)  cp="$msg_directory"   ;;
+			$DEVICE_TYPE_FLOPPY)     cp="$msg_floppy"      ;;
+			$DEVICE_TYPE_FTP)        cp="$msg_ftp"         ;;
+			$DEVICE_TYPE_HTTP_PROXY) cp="$msg_http_proxy"  ;;
+			$DEVICE_TYPE_HTTP)       cp="$msg_http_direct" ;;
+			$DEVICE_TYPE_CDROM)      cp="$msg_cdrom"       ;;
+			$DEVICE_TYPE_USB)        cp="$msg_usb"         ;;
+			$DEVICE_TYPE_DOS)        cp="$msg_dos"         ;;
+			$DEVICE_TYPE_NFS)        cp="$msg_nfs"         ;;
 			*)
 				cp="<$msg_unknown>"
 			esac

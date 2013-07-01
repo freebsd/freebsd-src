@@ -283,14 +283,14 @@ void
 kmod_ipstat_inc(int statnum)
 {
 
-	counter_u64_add((counter_u64_t )&V_ipstatp + statnum, 1);
+	counter_u64_add(*((counter_u64_t *)&V_ipstatp + statnum), 1);
 }
 
 void
 kmod_ipstat_dec(int statnum)
 {
 
-	counter_u64_add((counter_u64_t )&V_ipstatp + statnum, -1);
+	counter_u64_add(*((counter_u64_t *)&V_ipstatp + statnum), -1);
 }
 
 static int

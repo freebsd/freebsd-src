@@ -31,6 +31,24 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130629:
+	Fix targets that run multiple make's to use && rather than ;
+	so that subsequent steps depend on success of previous.
+
+	NOTE: if building 'universe' with -j* on stable/8 or stable/9
+	it would be better to start the build using bmake, to avoid
+	overloading the machine.
+
+20130618:
+	Fix a bug that allowed a tracing process (e.g. gdb) to write
+	to a memory-mapped file in the traced process's address space
+	even if neither the traced process nor the tracing process had
+	write access to that file.
+
+20130615:
+	CVS has been removed from the base system.  An exact copy
+	of the code is available from the devel/cvs port.
+
 20130613:
 	Some people report the following error after the switch to bmake:
 

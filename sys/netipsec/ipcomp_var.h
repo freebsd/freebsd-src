@@ -68,6 +68,8 @@ struct ipcompstat {
 VNET_DECLARE(int, ipcomp_enable);
 VNET_DECLARE(struct ipcompstat, ipcompstat);
 
+#define	IPCOMPSTAT_ADD(name, val)	V_ipcompstat.name += (val)
+#define	IPCOMPSTAT_INC(name)		IPCOMPSTAT_ADD(name, 1)
 #define	V_ipcomp_enable		VNET(ipcomp_enable)
 #define	V_ipcompstat		VNET(ipcompstat)
 #endif /* _KERNEL */

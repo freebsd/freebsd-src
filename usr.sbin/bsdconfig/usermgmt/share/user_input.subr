@@ -590,9 +590,9 @@ f_dialog_input_expire_password()
 
 			f_dprintf "ret_days=[%s]" "$ret_days"
 			case "$ret_days" in
-			[-+]*) _input=$( date -v${ret_days}d +%s );;
-			    0) _input=$( date +%s );;
-			    *) _input=$( date -v+${ret_days}d +%s );;
+			[-+]*) _input=$( date -v${ret_days}d +%s ) ;;
+			    0) _input=$( date +%s ) ;;
+			    *) _input=$( date -v+${ret_days}d +%s ) ;;
 			esac
 			f_dprintf "_input=[%s]" "$_input"
 			break ;;
@@ -775,9 +775,9 @@ f_dialog_input_expire_account()
 
 			f_dprintf "ret_days=[%s]" "$ret_days"
 			case "$ret_days" in
-			[-+]*) _input=$( date -v${ret_days}d +%s );;
-			    0) _input=$( date +%s );;
-			    *) _input=$( date -v+${ret_days}d +%s );;
+			[-+]*) _input=$( date -v${ret_days}d +%s ) ;;
+			    0) _input=$( date +%s ) ;;
+			    *) _input=$( date -v+${ret_days}d +%s ) ;;
 			esac
 			f_dprintf "_input=[%s]" "$_input"
 			break ;;

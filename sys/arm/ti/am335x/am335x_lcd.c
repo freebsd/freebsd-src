@@ -42,12 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+/* syscons bits */
+#include <sys/fbio.h>
+#include <sys/consio.h>
+
 #include <machine/bus.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/fb/fbreg.h>
+#include <dev/syscons/syscons.h>
 
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_scm.h>
@@ -395,12 +402,19 @@ am335x_lcd_intr(void *arg)
 static int
 am335x_lcd_probe(device_t dev)
 {
+	int err;
+
 	if (!ofw_bus_is_compatible(dev, "ti,am335x-lcd"))
 		return (ENXIO);
 
 	device_set_desc(dev, "AM335x LCD controller");
 
-	return (0);
+	err = sc_probe_unit(device_get_unit(dev), 
+	    device_get_flags(dev) | SC_AUTODETECT_KBD);
+	if (err != 0)
+		return (err);
+
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -480,7 +494,7 @@ am335x_lcd_attach(device_t dev)
 		goto fail;
 
 	err = bus_dmamem_alloc(sc->sc_dma_tag, (void **)&sc->sc_fb_base,
-	    0, &sc->sc_dma_map);
+	    BUS_DMA_COHERENT, &sc->sc_dma_map);
 
 	if (err) {
 		device_printf(dev, "cannot allocate framebuffer\n");
@@ -630,6 +644,14 @@ am335x_lcd_attach(device_t dev)
 	if (am335x_pwm_config_ecas(PWM_UNIT,
 	    PWM_PERIOD, PWM_PERIOD) == 0)
 		sc->sc_backlight = 100;
+
+	err = (sc_attach_unit(device_get_unit(dev),
+	    device_get_flags(dev) | SC_AUTODETECT_KBD));
+
+	if (err) {
+		device_printf(dev, "failed to attach syscons\n");
+		goto fail;
+	}
 
 	am335x_lcd_syscons_setup((vm_offset_t)sc->sc_fb_base, sc->sc_fb_phys, &panel);
 

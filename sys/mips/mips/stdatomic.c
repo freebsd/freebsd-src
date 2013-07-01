@@ -187,8 +187,8 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
     uintN_t desired)							\
 {									\
 	uint32_t *mem32;						\
-	reg_t expected32, desired32, posmask, negmask, old;		\
-	uint32_t temp;							\
+	reg_t expected32, desired32, posmask, old;			\
+	uint32_t negmask, temp;						\
 									\
 	mem32 = round_to_word(mem);					\
 	expected32.v32 = 0x00000000;					\
@@ -197,7 +197,7 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
 	put_##N(&desired32, mem, desired);				\
 	posmask.v32 = 0x00000000;					\
 	put_##N(&posmask, mem, ~0);					\
-	negmask.v32 = ~posmask.v32;					\
+	negmask = ~posmask.v32;						\
 									\
 	do_sync();							\
 	__asm volatile (						\
@@ -212,7 +212,7 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
 		"2:"							\
 		: "=&r" (old), "=m" (*mem32), "=&r" (temp)		\
 		: "r" (expected32.v32), "r" (desired32.v32),		\
-		  "r" (posmask.v32), "r" (negmask.v32), "m" (*mem32));	\
+		  "r" (posmask.v32), "r" (negmask), "m" (*mem32));	\
 	return (get_##N(&old, mem));					\
 }
 
@@ -224,15 +224,15 @@ uintN_t									\
 __sync_##name##_##N(uintN_t *mem, uintN_t val)				\
 {									\
 	uint32_t *mem32;						\
-	reg_t val32, posmask, negmask, old;				\
-	uint32_t temp1, temp2;						\
+	reg_t val32, posmask, old;					\
+	uint32_t negmask, temp1, temp2;					\
 									\
 	mem32 = round_to_word(mem);					\
 	val32.v32 = 0x00000000;						\
 	put_##N(&val32, mem, val);					\
 	posmask.v32 = 0x00000000;					\
 	put_##N(&posmask, mem, ~0);					\
-	negmask.v32 = ~posmask.v32;					\
+	negmask = ~posmask.v32;						\
 									\
 	do_sync();							\
 	__asm volatile (						\
@@ -246,8 +246,8 @@ __sync_##name##_##N(uintN_t *mem, uintN_t val)				\
 		"\tbeqz	%2, 1b\n"	/* Spin if failed. */		\
 		: "=&r" (old.v32), "=m" (*mem32), "=&r" (temp1),	\
 		  "=&r" (temp2)						\
-		: "r" (val32.v32), "r" (posmask.v32),			\
-		  "r" (negmask.v32), "m" (*mem32));			\
+		: "r" (val32.v32), "r" (posmask.v32), "r" (negmask),	\
+		  "m" (*mem32));					\
 	return (get_##N(&old, mem));					\
 }
 

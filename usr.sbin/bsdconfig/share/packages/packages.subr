@@ -32,9 +32,9 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/packages/categories.subr
 f_include $BSDCFG_SHARE/packages/index.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -197,7 +197,7 @@ f_package_calculate_totals()
 		f_getvar _mark_$varpkg mark
 		case "$mark" in
 		""|" ") : ;;
-		X) tinstalled=$(( $tinstalled + 1 ));;
+		X) tinstalled=$(( $tinstalled + 1 )) ;;
 		*) tselected=$(( $tselected + 1 ))
 		esac
 		f_getvar _categories_$varpkg pkgcat
@@ -206,7 +206,7 @@ f_package_calculate_totals()
 			case "$mark" in
 			""|" ") : ;;
 			X) debug= f_getvar _${varcat}_ninstalled n
-			   setvar _${varcat}_ninstalled $(( $n + 1 ));;
+			   setvar _${varcat}_ninstalled $(( $n + 1 )) ;;
 			*) debug= f_getvar _${varcat}_nselected n
 			   setvar _${varcat}_nselected $(( $n + 1 ))
 			esac
@@ -381,7 +381,7 @@ f_package_menu_select()
 	# Get number of packages for this category
 	local npkgs=0
 	case "$category" in
-	"$msg_all"|"") npkgs="${_npkgs:-0}";;
+	"$msg_all"|"") npkgs="${_npkgs:-0}" ;;
 	*) f_getvar _npkgs_$varcat npkgs
 	esac
 

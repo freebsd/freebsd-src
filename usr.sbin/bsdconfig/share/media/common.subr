@@ -31,9 +31,9 @@ if [ ! "$_MEDIA_COMMON_SUBR" ]; then _MEDIA_COMMON_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/common.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/media/any.subr
+f_include $BSDCFG_SHARE/struct.subr
 
 ############################################################ GLOBALS
 

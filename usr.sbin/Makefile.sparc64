@@ -1,4 +1,5 @@
 # $FreeBSD$
 
 SUBDIR+=	eeprom
+SUBDIR+=	mount_smbfs
 SUBDIR+=	ofwdump

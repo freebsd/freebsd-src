@@ -44,18 +44,20 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_mount.h>
+
 /*
  * Balloc defines the structure of filesystem storage
  * by allocating the physical blocks on a device given
  * the inode and the logical block number in a file.
  */
 int
-ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
+ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
     struct buf **bpp, int flags)
 {
 	struct m_ext2fs *fs;

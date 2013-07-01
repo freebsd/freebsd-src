@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/cons.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
@@ -1907,11 +1908,16 @@ adaflush(void)
 	int error;
 
 	CAM_PERIPH_FOREACH(periph, &adadriver) {
-		/* If we paniced with lock held - not recurse here. */
-		if (cam_periph_owned(periph))
-			continue;
-		cam_periph_lock(periph);
 		softc = (struct ada_softc *)periph->softc;
+		if (SCHEDULER_STOPPED()) {
+			/* If we paniced with the lock held, do not recurse. */
+			if (!cam_periph_owned(periph) &&
+			    (softc->flags & ADA_FLAG_OPEN)) {
+				adadump(softc->disk, NULL, 0, 0, 0);
+			}
+			continue;
+		}
+		cam_periph_lock(periph);
 		/*
 		 * We only sync the cache if the drive is still open, and
 		 * if the drive is capable of it..
