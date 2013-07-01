@@ -310,7 +310,7 @@ swap_on_off_gbde(const char *name, int doingall)
 	return (ret);
 }
 
-/* Build geli(8) arguments from mntopts */
+/* Build geli(8) arguments from mntops */
 static char *
 swap_on_geli_args(const char *mntops)
 {
