@@ -81,7 +81,7 @@ SUBDIR=	\
 	${_ctau} \
 	ctl \
 	${_cxgb} \
-	cxgbe \
+	${_cxgbe} \
 	${_cyclic} \
 	dc \
 	dcons \
@@ -384,6 +384,10 @@ _sym=		sym
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cxgb=		cxgb
 .endif
+.endif
+
+.if ${MK_SOURCELESS_UCODE} != "no"
+_cxgbe=		cxgbe
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
