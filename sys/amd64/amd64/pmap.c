@@ -229,11 +229,17 @@ pmap_modified_bit(pmap_t pmap)
 	return (mask);
 }
 
+#undef PG_PDE_PAT
+#define	X86_PG_PDE_PAT			0x1000
+
 #undef PG_PDE_CACHE
-#define	X86_PG_PDE_CACHE		(PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
+#define	X86_PG_PDE_CACHE		(X86_PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
+
+#undef PG_PTE_PAT
+#define	X86_PG_PTE_PAT			0x080
 
 #undef PG_PTE_CACHE
-#define	X86_PG_PTE_CACHE		(PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
+#define	X86_PG_PTE_CACHE		(X86_PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
 
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
@@ -993,6 +999,34 @@ SYSCTL_ULONG(_vm_pmap_pdpe, OID_AUTO, demotions, CTLFLAG_RD,
  * Low level helper routines.....
  ***************************************************/
 
+static pt_entry_t
+pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
+{
+	int x86_pat_bits = X86_PG_PTE_PAT | X86_PG_PDE_PAT;
+
+	switch (pmap->pm_type) {
+	case PT_X86:
+		/* Verify that both PAT bits are not set at the same time */
+		KASSERT((entry & x86_pat_bits) != x86_pat_bits,
+			("Invalid PAT bits in entry %#lx", entry));
+
+		/* Swap the PAT bits if one of them is set */
+		if ((entry & x86_pat_bits) != 0)
+			entry ^= x86_pat_bits;
+		break;
+	case PT_EPT:
+		/*
+		 * Nothing to do - the memory attributes are represented
+		 * the same way for regular pages and superpages.
+		 */
+		break;
+	default:
+		panic("pmap_switch_pat_bits: bad pm_type %d", pmap->pm_type);
+	}
+
+	return (entry);
+}
+
 /*
  * Determine the appropriate bits to set in a PTE or PDE for a specified
  * caching mode.
@@ -1008,7 +1042,7 @@ pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 	switch (pmap->pm_type) {
 	case PT_X86:
 		/* The PAT bit is different for PTE's and PDE's. */
-		pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
+		pat_flag = is_pde ? X86_PG_PDE_PAT : X86_PG_PTE_PAT;
 
 		/* Map the caching mode to a PAT index. */
 		pat_idx = pat_index[mode];
@@ -3044,8 +3078,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	KASSERT((oldpde & (PG_M | PG_RW)) != PG_RW,
 	    ("pmap_demote_pde: oldpde is missing PG_M"));
 	newpte = oldpde & ~PG_PS;
-	if ((newpte & PG_PDE_PAT) != 0)
-		newpte ^= PG_PDE_PAT | PG_PTE_PAT;
+	newpte = pmap_swap_pat(pmap, newpte);
 
 	/*
 	 * If the page table page is new, initialize it.
@@ -3741,8 +3774,7 @@ setpte:
 	/*
 	 * Propagate the PAT index to its proper position.
 	 */
-	if ((newpde & PG_PTE_PAT) != 0)
-		newpde ^= PG_PDE_PAT | PG_PTE_PAT;
+	newpde = pmap_swap_pat(pmap, newpde);
 
 	/*
 	 * Map the superpage.
