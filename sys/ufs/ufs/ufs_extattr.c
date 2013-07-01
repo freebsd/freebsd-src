@@ -399,20 +399,8 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 			return (error);
 		}
 
-		/*
-		 * XXXRW: While in UFS, we always get DIRBLKSIZ returns from
-		 * the directory code on success, on other file systems this
-		 * may not be the case.  For portability, we should check the
-		 * read length on return from ufs_readdir().
-		 */
-		edp = (struct dirent *)&dirbuf[DIRBLKSIZ];
+		edp = (struct dirent *)&dirbuf[DIRBLKSIZ - auio.uio_resid];
 		for (dp = (struct dirent *)dirbuf; dp < edp; ) {
-#if (BYTE_ORDER == LITTLE_ENDIAN)
-			dp->d_type = dp->d_namlen;
-			dp->d_namlen = 0;
-#else
-			dp->d_type = 0;
-#endif
 			if (dp->d_reclen == 0)
 				break;
 			error = ufs_extattr_lookup(dvp, UE_GETDIR_LOCKPARENT,
