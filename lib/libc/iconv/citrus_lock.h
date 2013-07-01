@@ -27,7 +27,8 @@
 
 #include <pthread.h>
 
-static pthread_rwlock_t	lock;
+/* XXX Yes, the original code has three separate file-local lock instances */
+static pthread_rwlock_t	lock = PTHREAD_RWLOCK_INITIALIZER;
 
 #define WLOCK	if (__isthreaded)		\
 		    pthread_rwlock_wrlock(&lock);
