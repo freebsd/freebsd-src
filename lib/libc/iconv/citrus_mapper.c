@@ -96,7 +96,7 @@ _citrus_mapper_create_area(
 	ma->ma_dir = strdup(area);
 	if (ma->ma_dir == NULL) {
 		ret = errno;
-		free(ma->ma_dir);
+		free(ma);
 		goto quit;
 	}
 	_CITRUS_HASH_INIT(&ma->ma_cache, CM_HASH_SIZE);
