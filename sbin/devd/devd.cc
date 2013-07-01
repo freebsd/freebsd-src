@@ -117,6 +117,8 @@ static struct pidfh *pfh;
 
 int dflag;
 int nflag;
+static unsigned total_events = 0;
+static volatile sig_atomic_t got_siginfo = 0;
 static volatile sig_atomic_t romeo_must_die = 0;
 
 static const char *configfile = CF;
@@ -965,6 +967,11 @@ event_loop(void)
 			tv.tv_usec = 0;
 		}
 		rv = select(max_fd, &fds, NULL, NULL, &tv);
+		if (got_siginfo) {
+			devdlog(LOG_INFO, "Events received so far=%ld\n",
+			    total_events);
+			got_siginfo = 0;
+		}
 		if (rv == -1) {
 			if (errno == EINTR)
 				continue;
@@ -974,6 +981,7 @@ event_loop(void)
 		if (FD_ISSET(fd, &fds)) {
 			rv = read(fd, buffer, sizeof(buffer) - 1);
 			if (rv > 0) {
+				total_events++;
 				if (rv == sizeof(buffer) - 1) {
 					devdlog(LOG_WARNING, "Warning: "
 					    "available event data exceeded "
@@ -1091,6 +1099,16 @@ gensighand(int)
 }
 
 /*
+ * SIGINFO handler.  Will print useful statistics to the syslog or stderr
+ * as appropriate
+ */
+static void
+siginfohand(int)
+{
+	got_siginfo = 1;
+}
+
+/*
  * Local logging function.  Prints to syslog if we're daemonized; syslog
  * otherwise.
  */
@@ -1169,6 +1187,7 @@ main(int argc, char **argv)
 	signal(SIGHUP, gensighand);
 	signal(SIGINT, gensighand);
 	signal(SIGTERM, gensighand);
+	signal(SIGINFO, siginfohand);
 	event_loop();
 	return (0);
 }
