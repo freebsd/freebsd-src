@@ -107,8 +107,12 @@
 #define APU_HAVE_OPENSSL       0
 #define APU_HAVE_NSS           0
 
+#ifndef APU_HAVE_APR_ICONV
 #define APU_HAVE_APR_ICONV     0
+#endif
+#ifndef APU_HAVE_ICONV
 #define APU_HAVE_ICONV         0
+#endif
 #define APR_HAS_XLATE          (APU_HAVE_APR_ICONV || APU_HAVE_ICONV)
 
 #endif /* APU_H */
