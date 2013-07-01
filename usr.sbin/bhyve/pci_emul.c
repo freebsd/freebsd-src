@@ -140,20 +140,15 @@ pci_parse_slot(char *opt, int legacy)
 	error = -1;
 	str = cpy = strdup(opt);
 
-	config = NULL;
-
-	if (strchr(str, ':') != NULL) {
-		slot = strsep(&str, ":");
-		func = strsep(&str, ",");
-	} else {
-		slot = strsep(&str, ",");
-		func = NULL;
-	}
-
+        slot = strsep(&str, ",");
+        func = NULL;
+        if (strchr(slot, ':') != NULL) {
+		func = cpy;
+		(void) strsep(&func, ":");
+        }
+	
 	emul = strsep(&str, ",");
-	if (str != NULL) {
-		config = strsep(&str, ",");
-	}
+	config = str;
 
 	if (emul == NULL) {
 		pci_parse_slot_usage(opt);
