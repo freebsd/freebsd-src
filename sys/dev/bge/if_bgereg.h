@@ -797,7 +797,7 @@
 #define	BGE_LEDCTL_BLINKPERIOD_OVERRIDE	0x80000000
 
 /* TX backoff seed register */
-#define	BGE_TX_BACKOFF_SEED_MASK	0x3F
+#define	BGE_TX_BACKOFF_SEED_MASK	0x3FF
 
 /* Autopoll status register */
 #define	BGE_AUTOPOLLSTS_ERROR		0x00000001
