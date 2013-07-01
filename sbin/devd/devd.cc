@@ -170,7 +170,7 @@ bool
 event_proc::run(config &c) const
 {
 	vector<eps *>::const_iterator i;
-		
+
 	for (i = _epsvec.begin(); i != _epsvec.end(); ++i)
 		if (!(*i)->do_action(c))
 			return (false);
@@ -178,7 +178,7 @@ event_proc::run(config &c) const
 }
 
 action::action(const char *cmd)
-	: _cmd(cmd) 
+	: _cmd(cmd)
 {
 	// nothing
 }
@@ -197,7 +197,7 @@ my_system(const char *command)
 	sigset_t newsigblock, oldsigblock;
 
 	if (!command)		/* just checking... */
-		return(1);
+		return (1);
 
 	/*
 	 * Ignore SIGINT and SIGQUIT, block SIGCHLD. Remember to save
@@ -270,7 +270,7 @@ match::do_match(config &c)
 	const string &value = c.get_variable(_var);
 	bool retval;
 
-	/* 
+	/*
 	 * This function gets called WAY too often to justify calling syslog()
 	 * each time, even at LOG_DEBUG.  Because if syslogd isn't running, it
 	 * can consume excessive amounts of systime inside of connect().  Only
@@ -285,7 +285,7 @@ match::do_match(config &c)
 	if (_inv == 1)
 		retval = (retval == 0) ? 1 : 0;
 
-	return retval;
+	return (retval);
 }
 
 #include <sys/sockio.h>
@@ -354,7 +354,7 @@ media::do_match(config &c)
 		close(s);
 	}
 
-	return retval;
+	return (retval);
 }
 
 const string var_list::bogus = "_$_$_$_$_B_O_G_U_S_$_$_$_$_";
@@ -470,7 +470,7 @@ void
 config::open_pidfile()
 {
 	pid_t otherpid;
-	
+
 	if (_pidfile.empty())
 		return;
 	pfh = pidfile_open(_pidfile.c_str(), 0600, &otherpid);
@@ -484,21 +484,21 @@ config::open_pidfile()
 void
 config::write_pidfile()
 {
-	
+
 	pidfile_write(pfh);
 }
 
 void
 config::close_pidfile()
 {
-	
+
 	pidfile_close(pfh);
 }
 
 void
 config::remove_pidfile()
 {
-	
+
 	pidfile_remove(pfh);
 }
 
@@ -546,7 +546,7 @@ void
 config::push_var_table()
 {
 	var_list *vl;
-	
+
 	vl = new var_list();
 	_var_list_table.push_back(vl);
 	devdlog(LOG_DEBUG, "Pushing table\n");
@@ -581,7 +581,7 @@ config::get_variable(const string &var)
 bool
 config::is_id_char(char ch) const
 {
-	return (ch != '\0' && (isalpha(ch) || isdigit(ch) || ch == '_' || 
+	return (ch != '\0' && (isalpha(ch) || isdigit(ch) || ch == '_' ||
 	    ch == '-'));
 }
 
@@ -597,7 +597,7 @@ config::expand_one(const char *&src, string &dst)
 		dst += *src++;
 		return;
 	}
-		
+
 	// $(foo) -> $(foo)
 	// Not sure if I want to support this or not, so for now we just pass
 	// it through.
@@ -614,7 +614,7 @@ config::expand_one(const char *&src, string &dst)
 		}
 		return;
 	}
-	
+
 	// $[^A-Za-z] -> $\1
 	if (!isalpha(*src)) {
 		dst += '$';
@@ -665,7 +665,7 @@ bool
 config::chop_var(char *&buffer, char *&lhs, char *&rhs) const
 {
 	char *walker;
-	
+
 	if (*buffer == '\0')
 		return (false);
 	walker = lhs = buffer;
@@ -749,7 +749,7 @@ config::find_and_execute(char type)
 
 }
 
-
+
 static void
 process_event(char *buffer)
 {
@@ -800,7 +800,7 @@ process_event(char *buffer)
 			cfg.set_variable("bus", sp + 3);
 		break;
 	}
-	
+
 	cfg.find_and_execute(type);
 	cfg.pop_var_table();
 }
@@ -1005,7 +1005,7 @@ event_loop(void)
 	}
 	close(fd);
 }
-
+
 /*
  * functions that the parser uses.
  */
@@ -1090,7 +1090,7 @@ set_variable(const char *var, const char *val)
 	free(const_cast<char *>(val));
 }
 
-
+
 
 static void
 gensighand(int)
