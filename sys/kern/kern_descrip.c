@@ -3272,6 +3272,8 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
 		if (efbuf->remainder < kif->kf_structsize) {
 			/* Terminate export. */
 			efbuf->remainder = 0;
+			if (efbuf->fdp != NULL && !locked)
+				FILEDESC_SLOCK(efbuf->fdp);
 			return (0);
 		}
 		efbuf->remainder -= kif->kf_structsize;
