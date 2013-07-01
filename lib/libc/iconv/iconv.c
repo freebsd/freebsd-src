@@ -47,16 +47,13 @@
 #include "citrus_hash.h"
 #include "citrus_iconv.h"
 
-#ifdef __weak_alias
-__weak_alias(libiconv, _iconv)
-__weak_alias(libiconv_open, _iconv_open)
-__weak_alias(libiconv_open_into, _iconv_open_into)
-__weak_alias(libiconv_close, _iconv_close)
-__weak_alias(libiconvlist, _iconvlist)
-__weak_alias(libiconvctl, _iconvctl)
-__weak_alias(libiconv_set_relocation_prefix, _iconv_set_relocation_prefix)
-__weak_alias(iconv_canonicalize, _iconv_canonicalize)
-#endif
+__weak_reference(libiconv, iconv);
+__weak_reference(libiconv_open, iconv_open);
+__weak_reference(libiconv_open_into, iconv_open_into);
+__weak_reference(libiconv_close, iconv_close);
+__weak_reference(libiconvlist, iconvlist);
+__weak_reference(libiconvctl, iconvctl);
+__weak_reference(libiconv_set_relocation_prefix, iconv_set_relocation_prefix);
 
 #define ISBADF(_h_)	(!(_h_) || (_h_) == (iconv_t)-1)
 
