@@ -37,6 +37,45 @@
 #define	counter_enter()	critical_enter()
 #define	counter_exit()	critical_exit()
 
+#ifdef IN_SUBR_COUNTER_C
+static inline uint64_t
+counter_u64_read_one(uint64_t *p, int cpu)
+{
+
+	return (*(uint64_t *)((char *)p + sizeof(struct pcpu) * cpu));
+}
+
+static inline uint64_t
+counter_u64_fetch_inline(uint64_t *p)
+{
+	uint64_t r;
+	int i;
+
+	r = 0;
+	for (i = 0; i < mp_ncpus; i++)
+		r += counter_u64_read_one((uint64_t *)p, i);
+
+	return (r);
+}
+
+/* XXXKIB might interrupt increment */
+static void
+counter_u64_zero_one_cpu(void *arg)
+{
+
+	*((uint64_t *)((char *)arg + sizeof(struct pcpu) *
+	    PCPU_GET(cpuid))) = 0;
+}
+
+static inline void
+counter_u64_zero_inline(counter_u64_t c)
+{
+
+	smp_rendezvous(smp_no_rendevous_barrier, counter_u64_zero_one_cpu,
+	    smp_no_rendevous_barrier, c);
+}
+#endif
+
 #define	counter_u64_add_protected(c, inc)	do {	\
 	CRITICAL_ASSERT(curthread);			\
 	*(uint64_t *)zpcpu_get(c) += (inc);		\
