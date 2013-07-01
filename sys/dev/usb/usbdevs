@@ -678,6 +678,7 @@ vendor ASUS2		0x1761	ASUS
 vendor SWEEX2		0x177f	Sweex
 vendor METAGEEK		0x1781	MetaGeek
 vendor KAMSTRUP		0x17a8	Kamstrup A/S
+vendor LENOVO		0x17ef	Lenovo
 vendor WAVESENSE	0x17f4	WaveSense
 vendor VAISALA		0x1843	Vaisala
 vendor AMIT		0x18c5	AMIT
@@ -2419,6 +2420,9 @@ product LARSENBRUSGAARD ALTITRACK	0x0001	FTDI compatible adapter
 
 /* Leadtek products */
 product LEADTEK 9531		0x2101	9531 GPS
+
+/* Lenovo products */
+product LENOVO ETHERNET		0x7203	USB 2.0 Ethernet
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
