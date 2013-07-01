@@ -133,6 +133,7 @@ static int		 acct_configured;
 static int		 acct_suspended;
 static struct vnode	*acct_vp;
 static struct ucred	*acct_cred;
+static struct plimit	*acct_limit;
 static int		 acct_flags;
 static struct sx	 acct_sx;
 
@@ -196,7 +197,7 @@ int
 sys_acct(struct thread *td, struct acct_args *uap)
 {
 	struct nameidata nd;
-	int error, flags, replacing;
+	int error, flags, i, replacing;
 
 	error = priv_check(td, PRIV_ACCT);
 	if (error)
@@ -267,6 +268,15 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	}
 
 	/*
+	 * Create our own plimit object without limits. It will be assigned
+	 * to exiting processes.
+	 */
+	acct_limit = lim_alloc();
+	for (i = 0; i < RLIM_NLIMITS; i++)
+		acct_limit->pl_rlimit[i].rlim_cur =
+		    acct_limit->pl_rlimit[i].rlim_max = RLIM_INFINITY;
+
+	/*
 	 * Save the new accounting file vnode, and schedule the new
 	 * free space watcher.
 	 */
@@ -284,12 +294,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 		error = kproc_create(acct_thread, NULL, NULL, 0, 0,
 		    "accounting");
 		if (error) {
-			(void) vn_close(acct_vp, acct_flags, acct_cred, td);
-			crfree(acct_cred);
-			acct_configured = 0;
-			acct_vp = NULL;
-			acct_cred = NULL;
-			acct_flags = 0;
+			(void) acct_disable(td, 0);
 			sx_xunlock(&acct_sx);
 			log(LOG_NOTICE, "Unable to start accounting thread\n");
 			return (error);
@@ -314,6 +319,7 @@ acct_disable(struct thread *td, int logging)
 	sx_assert(&acct_sx, SX_XLOCKED);
 	error = vn_close(acct_vp, acct_flags, acct_cred, td);
 	crfree(acct_cred);
+	lim_free(acct_limit);
 	acct_configured = 0;
 	acct_vp = NULL;
 	acct_cred = NULL;
@@ -334,7 +340,7 @@ acct_process(struct thread *td)
 {
 	struct acctv2 acct;
 	struct timeval ut, st, tmp;
-	struct plimit *newlim, *oldlim;
+	struct plimit *oldlim;
 	struct proc *p;
 	struct rusage ru;
 	int t, ret;
@@ -410,7 +416,6 @@ acct_process(struct thread *td)
 
 	/* (8) The boolean flags that tell how the process terminated, etc. */
 	acct.ac_flagx = p->p_acflag;
-	PROC_UNLOCK(p);
 
 	/* Setup ancillary structure fields. */
 	acct.ac_flagx |= ANVER;
@@ -419,14 +424,10 @@ acct_process(struct thread *td)
 	acct.ac_len = acct.ac_len2 = sizeof(acct);
 
 	/*
-	 * Eliminate any file size rlimit.
+	 * Eliminate rlimits (file size limit in particular).
 	 */
-	newlim = lim_alloc();
-	PROC_LOCK(p);
 	oldlim = p->p_limit;
-	lim_copy(newlim, oldlim);
-	newlim->pl_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
-	p->p_limit = newlim;
+	p->p_limit = lim_hold(acct_limit);
 	PROC_UNLOCK(p);
 	lim_free(oldlim);
 

@@ -53,7 +53,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-I] [-j jail]\n");
+	fprintf(stderr, "usage: killall [-delmsqvz] [-help] [-I] [-j jail]\n");
 	fprintf(stderr,
 	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
@@ -101,6 +101,7 @@ main(int ac, char **av)
 	char		*user = NULL;
 	char		*tty = NULL;
 	char		*cmd = NULL;
+	int		qflag = 0;
 	int		vflag = 0;
 	int		sflag = 0;
 	int		dflag = 0;
@@ -190,6 +191,9 @@ main(int ac, char **av)
 				if (*av == NULL)
 				    	errx(1, "must specify procname");
 				cmd = *av;
+				break;
+			case 'q':
+				qflag++;
 				break;
 			case 'v':
 				vflag++;
@@ -417,8 +421,9 @@ main(int ac, char **av)
 		}
 	}
 	if (killed == 0) {
-		fprintf(stderr, "No matching processes %swere found\n",
-		    getuid() != 0 ? "belonging to you " : "");
+		if (!qflag)
+			fprintf(stderr, "No matching processes %swere found\n",
+			    getuid() != 0 ? "belonging to you " : "");
 		errors = 1;
 	}
 	exit(errors);

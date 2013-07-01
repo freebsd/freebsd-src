@@ -639,6 +639,11 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
 
     /* FreeBSD: to make OTP work for now, provide this.. */
     AH9300(ah)->ah_cal_mem = ath_hal_malloc(HOST_CALDATA_SIZE);
+    if (AH9300(ah)->ah_cal_mem == NULL) {
+        ath_hal_printf(ah, "%s: caldata malloc failed!\n", __func__);
+        ecode = HAL_EIO;
+        goto bad;
+    }
 
     /*
      * If eepromdata is not NULL, copy it it into ah_cal_mem.

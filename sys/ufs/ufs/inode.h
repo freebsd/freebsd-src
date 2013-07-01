@@ -102,7 +102,7 @@ struct inode {
 	int16_t	  i_nlink;	/* File link count. */
 	u_int64_t i_size;	/* File byte count. */
 	u_int32_t i_flags;	/* Status flags (chflags). */
-	int64_t	  i_gen;	/* Generation number. */
+	u_int64_t i_gen;	/* Generation number. */
 	u_int32_t i_uid;	/* File owner. */
 	u_int32_t i_gid;	/* File group. */
 	/*

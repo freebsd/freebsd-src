@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pipe.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -120,6 +121,7 @@ vm_mem_init(dummy)
 	/*
 	 * Initialize other VM packages
 	 */
+	vmem_startup();
 	vm_object_init();
 	vm_map_startup();
 	kmem_init(virtual_avail, virtual_end);
@@ -183,29 +185,31 @@ again:
 	if ((vm_size_t)((char *)v - firstaddr) != size)
 		panic("startup: table size inconsistency");
 
+	size = (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS +
+	    (long)bio_transient_maxcnt * MAXPHYS;
 	clean_map = kmem_suballoc(kernel_map, &kmi->clean_sva, &kmi->clean_eva,
-	    (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS +
-	    (long)bio_transient_maxcnt * MAXPHYS, TRUE);
-	buffer_map = kmem_suballoc(clean_map, &kmi->buffer_sva,
-	    &kmi->buffer_eva, (long)nbuf * BKVASIZE, FALSE);
-	buffer_map->system_map = 1;
+	    size, TRUE);
+
+	size = (long)nbuf * BKVASIZE;
+	kmi->buffer_sva = kmem_alloc_nofault(clean_map, size);
+	kmi->buffer_eva = kmi->buffer_sva + size;
+	vmem_init(buffer_arena, "buffer arena", kmi->buffer_sva, size,
+	    PAGE_SIZE, 0, 0);
+
+	size = (long)nswbuf * MAXPHYS;
+	swapbkva = kmem_alloc_nofault(clean_map, size);
+	if (!swapbkva)
+		panic("Not enough clean_map VM space for pager buffers");
+
 	if (bio_transient_maxcnt != 0) {
-		bio_transient_map = kmem_suballoc(clean_map,
-		    &kmi->bio_transient_sva, &kmi->bio_transient_eva,
-		    (long)bio_transient_maxcnt * MAXPHYS, FALSE);
-		bio_transient_map->system_map = 1;
+		size = (long)bio_transient_maxcnt * MAXPHYS;
+		vmem_init(transient_arena, "transient arena",
+		    kmem_alloc_nofault(clean_map, size),
+		    size, PAGE_SIZE, 0, 0);
 	}
-	pager_map = kmem_suballoc(clean_map, &kmi->pager_sva, &kmi->pager_eva,
-	    (long)nswbuf * MAXPHYS, FALSE);
-	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 	    exec_map_entries * round_page(PATH_MAX + ARG_MAX), FALSE);
 	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva,
 	    FALSE);
-
-	/*
-	 * XXX: Mbuf system machine-specific initializations should
-	 *      go here, if anywhere.
-	 */
 }
 

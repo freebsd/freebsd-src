@@ -48,25 +48,41 @@
  * use the most appropriate calling convention.  Public APR functions with 
  * variable arguments must use APU_DECLARE_NONSTD().
  *
- * @deffunc APU_DECLARE(rettype) apr_func(args);
+ * @fn APU_DECLARE(rettype) apr_func(args);
  */
 #define APU_DECLARE(type)            type
 /**
  * The public APR-UTIL functions using variable arguments are declared with 
  * APU_DECLARE_NONSTD(), as they must use the C language calling convention.
  *
- * @deffunc APU_DECLARE_NONSTD(rettype) apr_func(args, ...);
+ * @fn APU_DECLARE_NONSTD(rettype) apr_func(args, ...);
  */
 #define APU_DECLARE_NONSTD(type)     type
 /**
  * The public APR-UTIL variables are declared with APU_DECLARE_DATA.
  * This assures the appropriate indirection is invoked at compile time.
  *
- * @deffunc APU_DECLARE_DATA type apr_variable;
- * @tip APU_DECLARE_DATA extern type apr_variable; syntax is required for
+ * @fn APU_DECLARE_DATA type apr_variable;
+ * @note APU_DECLARE_DATA extern type apr_variable; syntax is required for
  * declarations within headers to properly import the variable.
  */
 #define APU_DECLARE_DATA
+
+#if !defined(WIN32) || defined(APU_MODULE_DECLARE_STATIC)
+/**
+ * Declare a dso module's exported module structure as APU_MODULE_DECLARE_DATA.
+ *
+ * Unless APU_MODULE_DECLARE_STATIC is defined at compile time, symbols 
+ * declared with APU_MODULE_DECLARE_DATA are always exported.
+ * @code
+ * module APU_MODULE_DECLARE_DATA mod_tag
+ * @endcode
+ */
+#define APU_MODULE_DECLARE_DATA
+#else
+#define APU_MODULE_DECLARE_DATA           __declspec(dllexport)
+#endif
+
 /*
  * we always have SDBM (it's in our codebase)
  */
@@ -77,15 +93,26 @@
 
 #if APU_HAVE_DB
 #define APU_HAVE_DB_VERSION    0
-#endif /* APU_HAVE_DB */
+#endif
 
 #define APU_HAVE_PGSQL         0
 #define APU_HAVE_MYSQL         0
 #define APU_HAVE_SQLITE3       0
 #define APU_HAVE_SQLITE2       0
+#define APU_HAVE_ORACLE        0
+#define APU_HAVE_FREETDS       0
+#define APU_HAVE_ODBC          0
 
+#define APU_HAVE_CRYPTO        0
+#define APU_HAVE_OPENSSL       0
+#define APU_HAVE_NSS           0
+
+#ifndef APU_HAVE_APR_ICONV
 #define APU_HAVE_APR_ICONV     0
+#endif
+#ifndef APU_HAVE_ICONV
 #define APU_HAVE_ICONV         0
+#endif
 #define APR_HAS_XLATE          (APU_HAVE_APR_ICONV || APU_HAVE_ICONV)
 
 #endif /* APU_H */

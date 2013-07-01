@@ -37,7 +37,6 @@ FILES=	DAEMON \
 	dhclient \
 	dmesg \
 	dumpon \
-	encswap \
 	faith \
 	fsck \
 	ftp-proxy \
@@ -139,7 +138,8 @@ FILES=	DAEMON \
 	static_arp \
 	static_ndp \
 	stf \
-	swap1 \
+	swap \
+	swaplate \
 	syscons \
 	sysctl \
 	syslogd \
