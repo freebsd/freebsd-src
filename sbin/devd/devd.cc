@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <poll.h>
 #include <regex.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -114,13 +115,13 @@ static const char detach = '-';
 
 static struct pidfh *pfh;
 
-int Dflag;
 int dflag;
 int nflag;
 static volatile sig_atomic_t romeo_must_die = 0;
 
 static const char *configfile = CF;
 
+static void devdlog(int priority, const char* message, ...);
 static void event_loop(void);
 static void usage(void);
 
@@ -243,8 +244,7 @@ bool
 action::do_action(config &c)
 {
 	string s = c.expand_string(_cmd.c_str());
-	if (Dflag)
-		fprintf(stderr, "Executing '%s'\n", s.c_str());
+	devdlog(LOG_NOTICE, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
@@ -268,9 +268,16 @@ match::do_match(config &c)
 	const string &value = c.get_variable(_var);
 	bool retval;
 
-	if (Dflag)
-		fprintf(stderr, "Testing %s=%s against %s, invert=%d\n",
+	/* 
+	 * This function gets called WAY too often to justify calling syslog()
+	 * each time, even at LOG_DEBUG.  Because if syslogd isn't running, it
+	 * can consume excessive amounts of systime inside of connect().  Only
+	 * log when we're in -d mode.
+	 */
+	if (dflag) {
+		devdlog(LOG_DEBUG, "Testing %s=%s against %s, invert=%d\n",
 		    _var.c_str(), value.c_str(), _re.c_str(), _inv);
+	}
 
 	retval = (regexec(&_regex, value.c_str(), 0, NULL, 0) == 0);
 	if (_inv == 1)
@@ -322,8 +329,7 @@ media::do_match(config &c)
 	value = c.get_variable("device-name");
 	if (value.empty())
 		value = c.get_variable("subsystem");
-	if (Dflag)
-		fprintf(stderr, "Testing media type of %s against 0x%x\n",
+	devdlog(LOG_DEBUG, "Testing media type of %s against 0x%x\n",
 		    value.c_str(), _type);
 
 	retval = false;
@@ -335,13 +341,11 @@ media::do_match(config &c)
 
 		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0 &&
 		    ifmr.ifm_status & IFM_AVALID) {
-			if (Dflag)
-				fprintf(stderr, "%s has media type 0x%x\n", 
+			devdlog(LOG_DEBUG, "%s has media type 0x%x\n",
 				    value.c_str(), IFM_TYPE(ifmr.ifm_active));
 			retval = (IFM_TYPE(ifmr.ifm_active) == _type);
 		} else if (_type == -1) {
-			if (Dflag)
-				fprintf(stderr, "%s has unknown media type\n", 
+			devdlog(LOG_DEBUG, "%s has unknown media type\n",
 				    value.c_str());
 			retval = true;
 		}
@@ -374,8 +378,14 @@ var_list::is_set(const string &var) const
 void
 var_list::set_variable(const string &var, const string &val)
 {
-	if (Dflag)
-		fprintf(stderr, "setting %s=%s\n", var.c_str(), val.c_str());
+	/*
+	 * This function gets called WAY too often to justify calling syslog()
+	 * each time, even at LOG_DEBUG.  Because if syslogd isn't running, it
+	 * can consume excessive amounts of systime inside of connect().  Only
+	 * log when we're in -d mode.
+	 */
+	if (dflag)
+		devdlog(LOG_DEBUG, "setting %s=%s\n", var.c_str(), val.c_str());
 	_vars[var] = val;
 }
 
@@ -393,8 +403,7 @@ config::reset(void)
 void
 config::parse_one_file(const char *fn)
 {
-	if (Dflag)
-		fprintf(stderr, "Parsing %s\n", fn);
+	devdlog(LOG_DEBUG, "Parsing %s\n", fn);
 	yyin = fopen(fn, "r");
 	if (yyin == NULL)
 		err(1, "Cannot open config file %s", fn);
@@ -411,8 +420,7 @@ config::parse_files_in_dir(const char *dirname)
 	struct dirent *dp;
 	char path[PATH_MAX];
 
-	if (Dflag)
-		fprintf(stderr, "Parsing files in %s\n", dirname);
+	devdlog(LOG_DEBUG, "Parsing files in %s\n", dirname);
 	dirp = opendir(dirname);
 	if (dirp == NULL)
 		return;
@@ -539,8 +547,7 @@ config::push_var_table()
 	
 	vl = new var_list();
 	_var_list_table.push_back(vl);
-	if (Dflag)
-		fprintf(stderr, "Pushing table\n");
+	devdlog(LOG_DEBUG, "Pushing table\n");
 }
 
 void
@@ -548,8 +555,7 @@ config::pop_var_table()
 {
 	delete _var_list_table.back();
 	_var_list_table.pop_back();
-	if (Dflag)
-		fprintf(stderr, "Popping table\n");
+	devdlog(LOG_DEBUG, "Popping table\n");
 }
 
 void
@@ -731,8 +737,7 @@ config::find_and_execute(char type)
 		s = "detach";
 		break;
 	}
-	if (Dflag)
-		fprintf(stderr, "Processing %s event\n", s);
+	devdlog(LOG_DEBUG, "Processing %s event\n", s);
 	for (i = l->begin(); i != l->end(); ++i) {
 		if ((*i)->matches(*this)) {
 			(*i)->run(*this);
@@ -750,8 +755,7 @@ process_event(char *buffer)
 	char *sp;
 
 	sp = buffer + 1;
-	if (Dflag)
-		fprintf(stderr, "Processing event '%s'\n", buffer);
+	devdlog(LOG_DEBUG, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
 	// No match doesn't have a device, and the format is a little
@@ -843,6 +847,8 @@ notify_clients(const char *data, int len)
 			--num_clients;
 			close(*i);
 			i = clients.erase(i);
+			devdlog(LOG_WARNING, "notify_clients: write() failed; "
+			    "dropping unresponsive client\n");
 		} else
 			++i;
 	}
@@ -871,6 +877,8 @@ check_clients(void)
 			--num_clients;
 			close(*i);
 			i = clients.erase(i);
+			devdlog(LOG_NOTICE, "check_clients:  "
+			    "dropping disconnected client\n");
 		} else
 			++i;
 	}
@@ -923,8 +931,7 @@ event_loop(void)
 			rv = select(fd + 1, &fds, &fds, &fds, &tv);
 			// No events -> we've processed all pending events
 			if (rv == 0) {
-				if (Dflag)
-					fprintf(stderr, "Calling daemon\n");
+				devdlog(LOG_DEBUG, "Calling daemon\n");
 				cfg.remove_pidfile();
 				cfg.open_pidfile();
 				daemon(0, 0);
@@ -967,6 +974,11 @@ event_loop(void)
 		if (FD_ISSET(fd, &fds)) {
 			rv = read(fd, buffer, sizeof(buffer) - 1);
 			if (rv > 0) {
+				if (rv == sizeof(buffer) - 1) {
+					devdlog(LOG_WARNING, "Warning: "
+					    "available event data exceeded "
+					    "buffer space\n");
+				}
 				notify_clients(buffer, rv);
 				buffer[rv] = '\0';
 				while (buffer[--rv] == '\n')
@@ -1078,10 +1090,27 @@ gensighand(int)
 	romeo_must_die = 1;
 }
 
+/*
+ * Local logging function.  Prints to syslog if we're daemonized; syslog
+ * otherwise.
+ */
+static void
+devdlog(int priority, const char* fmt, ...)
+{
+	va_list argp;
+
+	va_start(argp, fmt);
+	if (dflag)
+		vfprintf(stderr, fmt, argp);
+	else
+		vsyslog(priority, fmt, argp);
+	va_end(argp);
+}
+
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-Ddn] [-l connlimit] [-f file]\n",
+	fprintf(stderr, "usage: %s [-dn] [-l connlimit] [-f file]\n",
 	    getprogname());
 	exit(1);
 }
@@ -1111,11 +1140,8 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "Ddf:l:n")) != -1) {
+	while ((ch = getopt(argc, argv, "df:l:n")) != -1) {
 		switch (ch) {
-		case 'D':
-			Dflag++;
-			break;
 		case 'd':
 			dflag++;
 			break;

@@ -33,7 +33,7 @@
 .Nd "device state change daemon"
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ddn
+.Op Fl dn
 .Op Fl f Ar file
 .Op Fl l Ar num
 .Sh DESCRIPTION
@@ -44,10 +44,8 @@ kernel events happen.
 .Pp
 The following options are accepted.
 .Bl -tag -width ".Fl f Ar file"
-.It Fl D
-Enable debugging messages.
 .It Fl d
-Run in the foreground instead of becoming a daemon.
+Run in the foreground instead of becoming a daemon and log additional information for debugging.
 .It Fl f Ar file
 Use configuration file
 .Ar file
