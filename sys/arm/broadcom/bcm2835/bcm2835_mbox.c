@@ -163,11 +163,9 @@ bcm_mbox_attach(device_t dev)
 	}
 
 	/* Setup and enable the timer */
-	if (bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
-			NULL, bcm_mbox_intr, sc,
-			&sc->intr_hl) != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, rid,
-			sc->irq_res);
+	if (bus_setup_intr(dev, sc->irq_res, INTR_MPSAFE | INTR_TYPE_MISC, 
+	    NULL, bcm_mbox_intr, sc, &sc->intr_hl) != 0) {
+		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->irq_res);
 		device_printf(dev, "Unable to setup the clock irq handler.\n");
 		return (ENXIO);
 	}
