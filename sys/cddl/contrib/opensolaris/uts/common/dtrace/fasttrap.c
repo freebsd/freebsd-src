@@ -2435,6 +2435,7 @@ fasttrap_unload(void)
 	mtx_sleep(&fasttrap_cleanup_drain, &fasttrap_cleanup_mtx, 0, "ftcld",
 	    0);
 	fasttrap_cleanup_proc = NULL;
+	mtx_destroy(&fasttrap_cleanup_mtx);
 
 #ifdef DEBUG
 	mutex_enter(&fasttrap_count_mtx);
