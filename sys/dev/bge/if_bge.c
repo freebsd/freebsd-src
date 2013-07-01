@@ -1283,7 +1283,7 @@ bge_miibus_statchg(device_t dev)
 	/* Set MAC flow control behavior to match link flow control settings. */
 	tx_mode &= ~BGE_TXMODE_FLOWCTL_ENABLE;
 	rx_mode &= ~BGE_RXMODE_FLOWCTL_ENABLE;
-	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			tx_mode |= BGE_TXMODE_FLOWCTL_ENABLE;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
@@ -2279,9 +2279,9 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Set random backoff seed for TX */
 	CSR_WRITE_4(sc, BGE_TX_RANDOM_BACKOFF,
-	    IF_LLADDR(sc->bge_ifp)[0] + IF_LLADDR(sc->bge_ifp)[1] +
+	    (IF_LLADDR(sc->bge_ifp)[0] + IF_LLADDR(sc->bge_ifp)[1] +
 	    IF_LLADDR(sc->bge_ifp)[2] + IF_LLADDR(sc->bge_ifp)[3] +
-	    IF_LLADDR(sc->bge_ifp)[4] + IF_LLADDR(sc->bge_ifp)[5] +
+	    IF_LLADDR(sc->bge_ifp)[4] + IF_LLADDR(sc->bge_ifp)[5]) &
 	    BGE_TX_BACKOFF_SEED_MASK);
 
 	/* Set inter-packet gap */
