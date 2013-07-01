@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130701: vfs_mount.9 removed
+OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
 # 20130624: vinum.4 removed
 OLD_FILES+=usr/share/man/man4/vinum.4.gz
 # 20130415: Ports are no more available via cvsup
