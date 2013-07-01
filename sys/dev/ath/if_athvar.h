@@ -225,6 +225,7 @@ struct ath_buf {
 	bus_size_t		bf_mapsize;
 #define	ATH_MAX_SCATTER		ATH_TXDESC	/* max(tx,rx,beacon) desc's */
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
+	uint32_t		bf_nextfraglen;	/* length of next fragment */
 
 	/* Completion function to call on TX complete (fail or not) */
 	/*
@@ -628,8 +629,9 @@ struct ath_softc {
 	u_int32_t		sc_use_ent  : 1,
 				sc_rx_stbc  : 1,
 				sc_tx_stbc  : 1,
-				sc_hasenforcetxop : 1; /* support enforce TxOP */
-
+				sc_hasenforcetxop : 1, /* support enforce TxOP */
+				sc_hasdivcomb : 1,     /* RX diversity combining */
+				sc_rx_lnamixer : 1;    /* RX using LNA mixing */
 
 	int			sc_cabq_enable;	/* Enable cabq transmission */
 
@@ -733,7 +735,6 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
-	struct task		sc_txpkttask;	/* tx frame processing */
 
 	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
 	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
@@ -840,6 +841,10 @@ struct ath_softc {
 	/* Spectral related state */
 	void			*sc_spectral;
 	int			sc_dospectral;
+
+	/* LNA diversity related state */
+	void			*sc_lna_div;
+	int			sc_dolnadiv;
 
 	/* ALQ */
 #ifdef	ATH_DEBUG_ALQ
@@ -1269,6 +1274,11 @@ void	ath_intr(void *);
 #define	ath_hal_setenforcetxop(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_ENFORCE_TXOP, 1, _v, NULL)
 
+#define	ath_hal_hasrxlnamixer(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RX_LNA_MIXING, 0, NULL) == HAL_OK)
+
+#define	ath_hal_hasdivantcomb(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_ANT_DIV_COMB, 0, NULL) == HAL_OK)
 
 /* EDMA definitions */
 #define	ath_hal_hasedma(_ah) \
@@ -1434,5 +1444,31 @@ void	ath_intr(void *);
 	((*(_ah)->ah_spectralStart)((_ah)))
 #define	ath_hal_spectral_stop(_ah) \
 	((*(_ah)->ah_spectralStop)((_ah)))
+
+#define	ath_hal_btcoex_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_BT_COEX, 0, NULL) == HAL_OK)
+#define	ath_hal_btcoex_set_info(_ah, _info) \
+	((*(_ah)->ah_btCoexSetInfo)((_ah), (_info)))
+#define	ath_hal_btcoex_set_config(_ah, _cfg) \
+	((*(_ah)->ah_btCoexSetConfig)((_ah), (_cfg)))
+#define	ath_hal_btcoex_set_qcu_thresh(_ah, _qcuid) \
+	((*(_ah)->ah_btCoexSetQcuThresh)((_ah), (_qcuid)))
+#define	ath_hal_btcoex_set_weights(_ah, _weight) \
+	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
+#define	ath_hal_btcoex_set_weights(_ah, _weight) \
+	((*(_ah)->ah_btCoexSetWeights)((_ah), (_weight)))
+#define	ath_hal_btcoex_set_bmiss_thresh(_ah, _thr) \
+	((*(_ah)->ah_btCoexSetBmissThresh)((_ah), (_thr)))
+#define	ath_hal_btcoex_set_parameter(_ah, _attrib, _val) \
+	((*(_ah)->ah_btCoexSetParameter)((_ah), (_attrib), (_val)))
+#define	ath_hal_btcoex_enable(_ah) \
+	((*(_ah)->ah_btCoexEnable)((_ah)))
+#define	ath_hal_btcoex_disable(_ah) \
+	((*(_ah)->ah_btCoexDisable)((_ah)))
+
+#define	ath_hal_div_comb_conf_get(_ah, _conf) \
+	((*(_ah)->ah_divLnaConfGet)((_ah), (_conf)))
+#define	ath_hal_div_comb_conf_set(_ah, _conf) \
+	((*(_ah)->ah_divLnaConfSet)((_ah), (_conf)))
 
 #endif /* _DEV_ATH_ATHVAR_H */

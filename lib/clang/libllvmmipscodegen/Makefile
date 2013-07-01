@@ -23,6 +23,8 @@ SRCS=	Mips16FrameLowering.cpp \
 	MipsLongBranch.cpp \
 	MipsMCInstLower.cpp \
 	MipsMachineFunction.cpp \
+	MipsModuleISelDAGToDAG.cpp \
+	MipsOs16.cpp \
 	MipsRegisterInfo.cpp \
 	MipsSEFrameLowering.cpp \
 	MipsSEISelDAGToDAG.cpp \

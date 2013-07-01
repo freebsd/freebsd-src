@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
+ * Copyright (c) 2010,2013 Lawrence Stewart <lstewart@freebsd.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -61,15 +61,20 @@ struct hhook {
 static MALLOC_DEFINE(M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
 
 LIST_HEAD(hhookheadhead, hhook_head);
-VNET_DEFINE(struct hhookheadhead, hhook_head_list);
-#define	V_hhook_head_list VNET(hhook_head_list)
+struct hhookheadhead hhook_head_list;
+VNET_DEFINE(struct hhookheadhead, hhook_vhead_list);
+#define	V_hhook_vhead_list VNET(hhook_vhead_list)
 
 static struct mtx hhook_head_list_lock;
 MTX_SYSINIT(hhookheadlistlock, &hhook_head_list_lock, "hhook_head list lock",
     MTX_DEF);
 
+/* Protected by hhook_head_list_lock. */
+static uint32_t n_hhookheads;
+
 /* Private function prototypes. */
 static void hhook_head_destroy(struct hhook_head *hhh);
+void khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags);
 
 #define	HHHLIST_LOCK() mtx_lock(&hhook_head_list_lock)
 #define	HHHLIST_UNLOCK() mtx_unlock(&hhook_head_list_lock)
@@ -164,21 +169,71 @@ hhook_add_hook(struct hhook_head *hhh, struct hookinfo *hki, uint32_t flags)
 }
 
 /*
- * Lookup a helper hook point and register a new helper hook function with it.
+ * Register a helper hook function with a helper hook point (including all
+ * virtual instances of the hook point if it is virtualised).
+ *
+ * The logic is unfortunately far more complex than for
+ * hhook_remove_hook_lookup() because hhook_add_hook() can call malloc() with
+ * M_WAITOK and thus we cannot call hhook_add_hook() with the
+ * hhook_head_list_lock held.
+ *
+ * The logic assembles an array of hhook_head structs that correspond to the
+ * helper hook point being hooked and bumps the refcount on each (all done with
+ * the hhook_head_list_lock held). The hhook_head_list_lock is then dropped, and
+ * hhook_add_hook() is called and the refcount dropped for each hhook_head
+ * struct in the array.
  */
 int
 hhook_add_hook_lookup(struct hookinfo *hki, uint32_t flags)
 {
-	struct hhook_head *hhh;
-	int error;
+	struct hhook_head **heads_to_hook, *hhh;
+	int error, i, n_heads_to_hook;
 
-	hhh = hhook_head_get(hki->hook_type, hki->hook_id);
+tryagain:
+	error = i = 0;
+	/*
+	 * Accessing n_hhookheads without hhook_head_list_lock held opens up a
+	 * race with hhook_head_register() which we are unlikely to lose, but
+	 * nonetheless have to cope with - hence the complex goto logic.
+	 */
+	n_heads_to_hook = n_hhookheads;
+	heads_to_hook = malloc(n_heads_to_hook * sizeof(struct hhook_head *),
+	    M_HHOOK, flags & HHOOK_WAITOK ? M_WAITOK : M_NOWAIT);
+	if (heads_to_hook == NULL)
+		return (ENOMEM);
 
-	if (hhh == NULL)
-		return (ENOENT);
+	HHHLIST_LOCK();
+	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
+		if (hhh->hhh_type == hki->hook_type &&
+		    hhh->hhh_id == hki->hook_id) {
+			if (i < n_heads_to_hook) {
+				heads_to_hook[i] = hhh;
+				refcount_acquire(&heads_to_hook[i]->hhh_refcount);
+				i++;
+			} else {
+				/*
+				 * We raced with hhook_head_register() which
+				 * inserted a hhook_head that we need to hook
+				 * but did not malloc space for. Abort this run
+				 * and try again.
+				 */
+				for (i--; i >= 0; i--)
+					refcount_release(&heads_to_hook[i]->hhh_refcount);
+				free(heads_to_hook, M_HHOOK);
+				HHHLIST_UNLOCK();
+				goto tryagain;
+			}
+		}
+	}
+	HHHLIST_UNLOCK();
 
-	error = hhook_add_hook(hhh, hki, flags);
-	hhook_head_release(hhh);
+	for (i--; i >= 0; i--) {
+		if (!error)
+			error = hhook_add_hook(heads_to_hook[i], hki, flags);
+		refcount_release(&heads_to_hook[i]->hhh_refcount);
+	}
+
+	free(heads_to_hook, M_HHOOK);
 
 	return (error);
 }
@@ -210,20 +265,21 @@ hhook_remove_hook(struct hhook_head *hhh, struct hookinfo *hki)
 }
 
 /*
- * Lookup a helper hook point and remove a helper hook function from it.
+ * Remove a helper hook function from a helper hook point (including all
+ * virtual instances of the hook point if it is virtualised).
  */
 int
 hhook_remove_hook_lookup(struct hookinfo *hki)
 {
 	struct hhook_head *hhh;
 
-	hhh = hhook_head_get(hki->hook_type, hki->hook_id);
-
-	if (hhh == NULL)
-		return (ENOENT);
-
-	hhook_remove_hook(hhh, hki);
-	hhook_head_release(hhh);
+	HHHLIST_LOCK();
+	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
+		if (hhh->hhh_type == hki->hook_type &&
+		    hhh->hhh_id == hki->hook_id)
+			hhook_remove_hook(hhh, hki);
+	}
+	HHHLIST_UNLOCK();
 
 	return (0);
 }
@@ -245,13 +301,6 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 		return (EEXIST);
 	}
 
-	/* XXXLAS: Need to implement support for non-virtualised hooks. */
-	if ((flags & HHOOK_HEADISINVNET) == 0) {
-		printf("%s: only vnet-style virtualised hooks can be used\n",
-		    __func__);
-		return (EINVAL);
-	}
-
 	tmphhh = malloc(sizeof(struct hhook_head), M_HHOOK,
 	    M_ZERO | ((flags & HHOOK_WAITOK) ? M_WAITOK : M_NOWAIT));
 
@@ -263,22 +312,27 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 	tmphhh->hhh_nhooks = 0;
 	STAILQ_INIT(&tmphhh->hhh_hooks);
 	HHH_LOCK_INIT(tmphhh);
+	refcount_init(&tmphhh->hhh_refcount, 1);
 
-	if (hhh != NULL)
-		refcount_init(&tmphhh->hhh_refcount, 1);
-	else
-		refcount_init(&tmphhh->hhh_refcount, 0);
-
+	HHHLIST_LOCK();
 	if (flags & HHOOK_HEADISINVNET) {
 		tmphhh->hhh_flags |= HHH_ISINVNET;
-		HHHLIST_LOCK();
-		LIST_INSERT_HEAD(&V_hhook_head_list, tmphhh, hhh_next);
-		HHHLIST_UNLOCK();
-	} else {
-		/* XXXLAS: Add tmphhh to the non-virtualised list. */
+#ifdef VIMAGE
+		KASSERT(curvnet != NULL, ("curvnet is NULL"));
+		tmphhh->hhh_vid = (uintptr_t)curvnet;
+		LIST_INSERT_HEAD(&V_hhook_vhead_list, tmphhh, hhh_vnext);
+#endif
 	}
+	LIST_INSERT_HEAD(&hhook_head_list, tmphhh, hhh_next);
+	n_hhookheads++;
+	HHHLIST_UNLOCK();
 
-	*hhh = tmphhh;
+	khelp_new_hhook_registered(tmphhh, flags);
+
+	if (hhh != NULL)
+		*hhh = tmphhh;
+	else
+		refcount_release(&tmphhh->hhh_refcount);
 
 	return (0);
 }
@@ -289,14 +343,20 @@ hhook_head_destroy(struct hhook_head *hhh)
 	struct hhook *tmp, *tmp2;
 
 	HHHLIST_LOCK_ASSERT();
+	KASSERT(n_hhookheads > 0, ("n_hhookheads should be > 0"));
 
 	LIST_REMOVE(hhh, hhh_next);
+#ifdef VIMAGE
+	if (hhook_head_is_virtualised(hhh) == HHOOK_HEADISINVNET)
+		LIST_REMOVE(hhh, hhh_vnext);
+#endif
 	HHH_WLOCK(hhh);
 	STAILQ_FOREACH_SAFE(tmp, &hhh->hhh_hooks, hhk_next, tmp2)
 		free(tmp, M_HHOOK);
 	HHH_WUNLOCK(hhh);
 	HHH_LOCK_DESTROY(hhh);
 	free(hhh, M_HHOOK);
+	n_hhookheads--;
 }
 
 /*
@@ -348,10 +408,17 @@ hhook_head_get(int32_t hhook_type, int32_t hhook_id)
 {
 	struct hhook_head *hhh;
 
-	/* XXXLAS: Pick hhook_head_list based on hhook_head flags. */
 	HHHLIST_LOCK();
-	LIST_FOREACH(hhh, &V_hhook_head_list, hhh_next) {
+	LIST_FOREACH(hhh, &hhook_head_list, hhh_next) {
 		if (hhh->hhh_type == hhook_type && hhh->hhh_id == hhook_id) {
+#ifdef VIMAGE
+			if (hhook_head_is_virtualised(hhh) ==
+			    HHOOK_HEADISINVNET) {
+				KASSERT(curvnet != NULL, ("curvnet is NULL"));
+				if (hhh->hhh_vid != (uintptr_t)curvnet)
+					continue;
+			}
+#endif
 			refcount_acquire(&hhh->hhh_refcount);
 			break;
 		}
@@ -413,7 +480,7 @@ static void
 hhook_vnet_init(const void *unused __unused)
 {
 
-	LIST_INIT(&V_hhook_head_list);
+	LIST_INIT(&V_hhook_vhead_list);
 }
 
 /*
@@ -430,7 +497,7 @@ hhook_vnet_uninit(const void *unused __unused)
 	 * subsystem should have already called hhook_head_deregister().
 	 */
 	HHHLIST_LOCK();
-	LIST_FOREACH_SAFE(hhh, &V_hhook_head_list, hhh_next, tmphhh) {
+	LIST_FOREACH_SAFE(hhh, &V_hhook_vhead_list, hhh_vnext, tmphhh) {
 		printf("%s: hhook_head type=%d, id=%d cleanup required\n",
 		    __func__, hhh->hhh_type, hhh->hhh_id);
 		hhook_head_destroy(hhh);
@@ -440,9 +507,9 @@ hhook_vnet_uninit(const void *unused __unused)
 
 
 /*
- * When a vnet is created and being initialised, init the V_hhook_head_list.
+ * When a vnet is created and being initialised, init the V_hhook_vhead_list.
  */
-VNET_SYSINIT(hhook_vnet_init, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST,
+VNET_SYSINIT(hhook_vnet_init, SI_SUB_MBUF, SI_ORDER_FIRST,
     hhook_vnet_init, NULL);
 
 /*
@@ -450,5 +517,5 @@ VNET_SYSINIT(hhook_vnet_init, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST,
  * points to clean up on vnet tear down, but in case the KPI is misused,
  * provide a function to clean up and free memory for a vnet being destroyed.
  */
-VNET_SYSUNINIT(hhook_vnet_uninit, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST,
+VNET_SYSUNINIT(hhook_vnet_uninit, SI_SUB_MBUF, SI_ORDER_ANY,
     hhook_vnet_uninit, NULL);

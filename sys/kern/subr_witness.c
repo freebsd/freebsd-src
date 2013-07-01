@@ -1053,7 +1053,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 {
 	struct lock_list_entry *lock_list, *lle;
 	struct lock_instance *lock1, *lock2, *plock;
-	struct lock_class *class;
+	struct lock_class *class, *iclass;
 	struct witness *w, *w1;
 	struct thread *td;
 	int i, j;
@@ -1119,7 +1119,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			    fixup_filename(file), line);
 			printf("while exclusively locked from %s:%d\n",
 			    fixup_filename(lock1->li_file), lock1->li_line);
-			kassert_panic("share->excl");
+			kassert_panic("excl->share");
 		}
 		if ((lock1->li_flags & LI_EXCLUSIVE) == 0 &&
 		    (flags & LOP_EXCLUSIVE) != 0) {
@@ -1128,9 +1128,25 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			    fixup_filename(file), line);
 			printf("while share locked from %s:%d\n",
 			    fixup_filename(lock1->li_file), lock1->li_line);
-			kassert_panic("excl->share");
+			kassert_panic("share->excl");
 		}
 		return;
+	}
+
+	/* Warn if the interlock is not locked exactly once. */
+	if (interlock != NULL) {
+		iclass = LOCK_CLASS(interlock);
+		lock1 = find_instance(lock_list, interlock);
+		if (lock1 == NULL)
+			kassert_panic("interlock (%s) %s not locked @ %s:%d",
+			    iclass->lc_name, interlock->lo_name,
+			    flags & LOP_EXCLUSIVE ? "exclusive" : "shared",
+			    fixup_filename(file), line);
+		else if ((lock1->li_flags & LI_RECURSEMASK) != 0)
+			kassert_panic("interlock (%s) %s recursed @ %s:%d",
+			    iclass->lc_name, interlock->lo_name,
+			    flags & LOP_EXCLUSIVE ? "exclusive" : "shared",
+			    fixup_filename(file), line);
 	}
 
 	/*
@@ -1205,12 +1221,10 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			lock1 = &lle->ll_children[i];
 
 			/*
-			 * Ignore the interlock the first time we see it.
+			 * Ignore the interlock.
 			 */
-			if (interlock != NULL && interlock == lock1->li_lock) {
-				interlock = NULL;
+			if (interlock == lock1->li_lock)
 				continue;
-			}
 
 			/*
 			 * If this lock doesn't undergo witness checking,

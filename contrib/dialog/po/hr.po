@@ -1,110 +1,112 @@
-# Croatian translation of Dialog.
+# Dialog
+# Copyright 2003-2007,2008 # Thomas Dickey
 # This file is distributed under the same license as the dialog package.
-# Copyright (C) 2005 Thomas Dickey.
+# Tomislav Krznar <tomislav.krznar@gmail.com>, 2012.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Dialog 1.0-20050116\n"
+"Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2011-01-16 17:57-0500\n"
-"PO-Revision-Date: 2004-07-25 14:52+0200\n"
-"Last-Translator: Krunoslav Gernhard <kruno@linux.hr>\n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
+"PO-Revision-Date: 2012-03-31 00:10+0200\n"
+"Last-Translator: Tomislav Krznar <tomislav.krznar@gmail.com>\n"
 "Language-Team: Croatian <lokalizacija@linux.hr>\n"
 "Language: hr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)\n"
 
-#: buttons.c:387
+#: buttons.c:385
 msgid "Yes"
 msgstr "Da"
 
-#: buttons.c:395
+#: buttons.c:393
 msgid "No"
 msgstr "Ne"
 
-#: buttons.c:403
+#: buttons.c:401
 msgid "OK"
 msgstr "U redu"
 
-#: buttons.c:411
+#: buttons.c:409
 msgid "Cancel"
 msgstr "Otkaži"
 
-#: buttons.c:419
+#: buttons.c:417
 msgid "EXIT"
-msgstr ""
+msgstr "IZLAZ"
 
-#: buttons.c:427
+#: buttons.c:425
 msgid "Extra"
-msgstr ""
+msgstr "Dodatno"
 
-#: buttons.c:435
+#: buttons.c:433
 msgid "Help"
-msgstr ""
+msgstr "Pomoć"
 
 #. Headline "Month"
-#: calendar.c:298
+#: calendar.c:273
 msgid "Month"
-msgstr ""
+msgstr "Mjesec"
 
 #. Headline "Year"
-#: calendar.c:318
+#: calendar.c:293
 msgid "Year"
-msgstr ""
+msgstr "Godina"
 
-#: dialog.c:756
+#: dialog.c:741
 msgid "Rename"
-msgstr ""
+msgstr "Preimenuj"
 
-#: fselect.c:571
+#: fselect.c:550
 msgid "Directories"
-msgstr ""
+msgstr "Direktoriji"
 
-#: fselect.c:572
+#: fselect.c:551
 msgid "Files"
-msgstr ""
+msgstr "Datoteke"
 
 #: mixedgauge.c:58
 msgid "Succeeded"
-msgstr ""
+msgstr "Uspjeh"
 
 #: mixedgauge.c:61
 msgid "Failed"
-msgstr ""
+msgstr "Neuspjeh"
 
 #: mixedgauge.c:64
 msgid "Passed"
-msgstr ""
+msgstr "Prošlo"
 
 #: mixedgauge.c:67
 msgid "Completed"
-msgstr ""
+msgstr "Dovršeno"
 
 #: mixedgauge.c:70
 msgid "Checked"
-msgstr ""
+msgstr "Provjereno"
 
 #: mixedgauge.c:73
 msgid "Done"
-msgstr ""
+msgstr "Gotovo"
 
 #: mixedgauge.c:76
 msgid "Skipped"
-msgstr ""
+msgstr "Preskočeno"
 
 #: mixedgauge.c:79
 msgid "In Progress"
-msgstr ""
+msgstr "U tijeku"
 
 #: mixedgauge.c:85
 msgid "N/A"
-msgstr ""
+msgstr "Nedostupno"
 
 #: mixedgauge.c:193
 msgid "Overall Progress"
-msgstr ""
+msgstr "Ukupni napredak"
 
-#: textbox.c:468
+#: textbox.c:489
 msgid "Search"
-msgstr ""
+msgstr "Pretraga"

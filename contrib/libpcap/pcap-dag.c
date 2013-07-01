@@ -48,6 +48,12 @@ struct rtentry;		/* declarations in <net/if.h> */
 
 #include "pcap-dag.h"
 
+/*
+ * DAG devices have names beginning with "dag", followed by a number
+ * from 0 to MAXDAG.
+ */
+#define MAXDAG	31
+
 #define ATM_CELL_SIZE		52
 #define ATM_HDR_SIZE		4
 
@@ -81,15 +87,6 @@ static int atexit_handler_installed = 0;
 static const unsigned short endian_test_word = 0x0100;
 
 #define IS_BIGENDIAN() (*((unsigned char *)&endian_test_word))
-
-
-#ifdef DAG_ONLY
-/* This code is required when compiling for a DAG device only. */
-
-/* Replace dag function names with pcap equivalent. */
-#define dag_create pcap_create
-#define dag_platform_finddevs pcap_platform_finddevs
-#endif /* DAG_ONLY */
 
 #define MAX_DAG_PACKET 65536
 
@@ -835,9 +832,39 @@ fail:
 	return PCAP_ERROR;
 }
 
-pcap_t *dag_create(const char *device, char *ebuf)
+pcap_t *dag_create(const char *device, char *ebuf, int *is_ours)
 {
+	const char *cp;
+	char *cpend;
+	long devnum;
 	pcap_t *p;
+
+	/* Does this look like a DAG device? */
+	cp = strrchr(device, '/');
+	if (cp == NULL)
+		cp = device;
+	/* Does it begin with "dag"? */
+	if (strncmp(cp, "dag", 3) != 0) {
+		/* Nope, doesn't begin with "dag" */
+		*is_ours = 0;
+		return NULL;
+	}
+	/* Yes - is "dag" followed by a number from 0 to MAXDAG? */
+	cp += 3;
+	devnum = strtol(cp, &cpend, 10);
+	if (cpend == cp || *cpend != '\0') {
+		/* Not followed by a number. */
+		*is_ours = 0;
+		return NULL;
+	}
+	if (devnum < 0 || devnum > MAXDAG) {
+		/* Followed by a non-valid number. */
+		*is_ours = 0;
+		return NULL;
+	}
+
+	/* OK, it's probably ours. */
+	*is_ours = 1;
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)
@@ -870,7 +897,7 @@ dag_stats(pcap_t *p, struct pcap_stat *ps) {
  * open attempts will still be much less than the naive approach.
  */
 int
-dag_platform_finddevs(pcap_if_t **devlistp, char *errbuf)
+dag_findalldevs(pcap_if_t **devlistp, char *errbuf)
 {
 	char name[12];	/* XXX - pick a size */
 	int ret = 0;
@@ -879,8 +906,8 @@ dag_platform_finddevs(pcap_if_t **devlistp, char *errbuf)
 	int dagstream;
 	int dagfd;
 
-	/* Try all the DAGs 0-31 */
-	for (c = 0; c < 32; c++) {
+	/* Try all the DAGs 0-MAXDAG */
+	for (c = 0; c <= MAXDAG; c++) {
 		snprintf(name, 12, "dag%d", c);
 		if (-1 == dag_parse_name(name, dagname, DAGNAME_BUFSIZE, &dagstream))
 		{

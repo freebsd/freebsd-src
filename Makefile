@@ -65,8 +65,8 @@
 #  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
-#  8.  `make delete-old'
-#  9.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  8.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  9.  `make delete-old'
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
@@ -208,6 +208,12 @@ cleanworld:
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
+
+.if empty(.MAKEFLAGS:M-n)
+# skip this for -n to avoid changing previous behavior of 
+# 'make -n buildworld' etc.
+${TGTS}: .MAKE
+.endif
 
 ${TGTS}:
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
@@ -375,7 +381,7 @@ universe_prologue:
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}
-.ORDER: universe_prologue upgrade_checks universe_${target}_prologue universe_${target} universe_epilogue
+.ORDER: universe_prologue upgrade_checks universe_${target} universe_epilogue
 universe_${target}: universe_${target}_prologue
 universe_${target}_prologue:
 	@echo ">> ${target} started on `LC_ALL=C date`"

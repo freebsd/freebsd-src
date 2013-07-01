@@ -1686,8 +1686,8 @@ unp_freerights(struct filedescent **fdep, int fdcount)
 	struct file *fp;
 	int i;
 
-	if (fdcount == 0)
-		return;
+	KASSERT(fdcount > 0, ("%s: fdcount %d", __func__, fdcount));
+
 	for (i = 0; i < fdcount; i++) {
 		fp = fdep[i]->fde_file;
 		filecaps_free(&fdep[i]->fde_caps);
@@ -1725,6 +1725,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 		if (cm->cmsg_level == SOL_SOCKET
 		    && cm->cmsg_type == SCM_RIGHTS) {
 			newfds = datalen / sizeof(*fdep);
+			if (newfds == 0)
+				goto next;
 			fdep = data;
 
 			/* If we're not outputting the descriptors free them. */
@@ -1770,8 +1772,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				unp_externalize_fp(fde->fde_file);
 			}
 			FILEDESC_XUNLOCK(fdesc);
-			if (newfds != 0)
-				free(fdep[0], M_FILECAPS);
+			free(fdep[0], M_FILECAPS);
 		} else {
 			/* We can just copy anything else across. */
 			if (error || controlp == NULL)
@@ -1894,6 +1895,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 
 		case SCM_RIGHTS:
 			oldfds = datalen / sizeof (int);
+			if (oldfds == 0)
+				break;
 			/*
 			 * Check that all the FDs passed in refer to legal
 			 * files.  If not, reject the entire operation.
@@ -1927,10 +1930,6 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 				FILEDESC_SUNLOCK(fdesc);
 				error = E2BIG;
 				goto out;
-			}
-			if (oldfds == 0) {
-				FILEDESC_SUNLOCK(fdesc);
-				break;
 			}
 			fdp = data;
 			fdep = (struct filedescent **)

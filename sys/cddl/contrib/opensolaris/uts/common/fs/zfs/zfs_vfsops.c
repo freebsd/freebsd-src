@@ -173,7 +173,7 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 	return (0);
 }
 
-#ifndef __FreeBSD__
+#ifndef __FreeBSD_kernel__
 static int
 zfs_create_unique_device(dev_t *dev)
 {
@@ -225,7 +225,7 @@ zfs_create_unique_device(dev_t *dev)
 
 	return (0);
 }
-#endif	/* !__FreeBSD__ */
+#endif	/* !__FreeBSD_kernel__ */
 
 static void
 atime_changed_cb(void *arg, uint64_t newval)
@@ -1340,13 +1340,12 @@ zfs_parse_bootfs(char *bpath, char *outpath)
 }
 
 /*
- * zfs_check_global_label:
- *	Check that the hex label string is appropriate for the dataset
- *	being mounted into the global_zone proper.
+ * Check that the hex label string is appropriate for the dataset being
+ * mounted into the global_zone proper.
  *
- *	Return an error if the hex label string is not default or
- *	admin_low/admin_high.  For admin_low labels, the corresponding
- *	dataset must be readonly.
+ * Return an error if the hex label string is not default or
+ * admin_low/admin_high.  For admin_low labels, the corresponding
+ * dataset must be readonly.
  */
 int
 zfs_check_global_label(const char *dsname, const char *hexsl)
@@ -1368,15 +1367,12 @@ zfs_check_global_label(const char *dsname, const char *hexsl)
 }
 
 /*
- * zfs_mount_label_policy:
- *	Determine whether the mount is allowed according to MAC check.
- *	by comparing (where appropriate) label of the dataset against
- *	the label of the zone being mounted into.  If the dataset has
- *	no label, create one.
+ * Determine whether the mount is allowed according to MAC check.
+ * by comparing (where appropriate) label of the dataset against
+ * the label of the zone being mounted into.  If the dataset has
+ * no label, create one.
  *
- *	Returns:
- *		 0 :	access allowed
- *		>0 :	error code, such as EACCES
+ * Returns 0 if access allowed, error otherwise (e.g. EACCES)
  */
 static int
 zfs_mount_label_policy(vfs_t *vfsp, char *osname)

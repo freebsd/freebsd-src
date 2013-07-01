@@ -132,6 +132,16 @@ xhci_pci_probe(device_t self)
 	}
 }
 
+static void
+xhci_interrupt_poll(void *_sc)
+{
+	struct xhci_softc *sc = _sc;
+	USB_BUS_UNLOCK(&sc->sc_bus);
+	xhci_interrupt(sc);
+	USB_BUS_LOCK(&sc->sc_bus);
+	usb_callout_reset(&sc->sc_callout, 1, (void *)&xhci_interrupt_poll, sc);
+}
+
 static int
 xhci_pci_attach(device_t self)
 {
@@ -159,12 +169,13 @@ xhci_pci_attach(device_t self)
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
+	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
+
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
 		device_printf(self, "Could not allocate IRQ\n");
-		goto error;
 	}
 	sc->sc_bus.bdev = device_add_child(self, "usbus", -1);
 	if (sc->sc_bus.bdev == NULL) {
@@ -175,18 +186,22 @@ xhci_pci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "0x%04x", pci_get_vendor(self));
 
-#if (__FreeBSD_version >= 700031)
-	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
-#else
-	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
-#endif
-	if (err) {
-		device_printf(self, "Could not setup IRQ, err=%d\n", err);
-		sc->sc_intr_hdl = NULL;
-		goto error;
+	if (sc->sc_irq_res != NULL) {
+		err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
+		    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
+		if (err != 0) {
+			device_printf(self, "Could not setup IRQ, err=%d\n", err);
+			sc->sc_intr_hdl = NULL;
+		}
 	}
+	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL ||
+	    xhci_use_polling() != 0) {
+		device_printf(self, "Interrupt polling at %dHz\n", hz);
+		USB_BUS_LOCK(&sc->sc_bus);
+		xhci_interrupt_poll(sc);
+		USB_BUS_UNLOCK(&sc->sc_bus);
+	}
+
 	xhci_pci_take_controller(self);
 
 	err = xhci_halt_controller(sc);
@@ -222,12 +237,14 @@ xhci_pci_detach(device_t self)
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
+	if (sc->sc_io_res) {
+		usb_callout_drain(&sc->sc_callout);
+		xhci_halt_controller(sc);
+	}
+
 	pci_disable_busmaster(self);
 
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
-
-		xhci_halt_controller(sc);
-
 		bus_teardown_intr(self, sc->sc_irq_res, sc->sc_intr_hdl);
 		sc->sc_intr_hdl = NULL;
 	}

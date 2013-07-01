@@ -157,7 +157,7 @@ __RCSID("$NetBSD: parse.c,v 1.188 2013/03/22 16:07:59 sjg Exp $");
  * Structure for a file being read ("included file")
  */
 typedef struct IFile {
-    const char      *fname;         /* name of file */
+    char      	    *fname;         /* name of file */
     int             lineno;         /* current line number in file */
     int             first_lineno;   /* line number of start of text */
     int             cond_depth;     /* 'if' nesting when file opened */
@@ -2344,7 +2344,7 @@ Parse_SetInput(const char *name, int line, int fd,
      * name of the include file so error messages refer to the right
      * place.
      */
-    curFile->fname = name;
+    curFile->fname = bmake_strdup(name);
     curFile->lineno = line;
     curFile->first_lineno = line;
     curFile->nextbuf = nextbuf;
@@ -2357,6 +2357,8 @@ Parse_SetInput(const char *name, int line, int fd,
     buf = curFile->nextbuf(curFile->nextbuf_arg, &len);
     if (buf == NULL) {
         /* Was all a waste of time ... */
+	if (curFile->fname)
+	    free(curFile->fname);
 	free(curFile);
 	return;
     }

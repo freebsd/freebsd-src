@@ -1672,7 +1672,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		}
 
 		obj = entry->object.vm_object;
-		VM_OBJECT_WLOCK(obj);
+		VM_OBJECT_RLOCK(obj);
 
 		/* 
 		 * Walk the backing_object list to find the base
@@ -1680,9 +1680,9 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		 */
 		for (lobj = tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 
@@ -1692,14 +1692,14 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		if (lobj == NULL) {
 			PMCDBG(LOG,OPS,2, "hwpmc: lobj unexpectedly NULL! pid=%d "
 			    "vm_map=%p vm_obj=%p\n", p->p_pid, map, obj);
-			VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
 		if (lobj->type != OBJT_VNODE || lobj->handle == NULL) {
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
-			VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
@@ -1711,8 +1711,8 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		if (entry->start == last_end && lobj->handle == last_vp) {
 			last_end = entry->end;
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
-			VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
@@ -1734,9 +1734,9 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		vp = lobj->handle;
 		vref(vp);
 		if (lobj != obj)
-			VM_OBJECT_WUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(lobj);
 
-		VM_OBJECT_WUNLOCK(obj);
+		VM_OBJECT_RUNLOCK(obj);
 
 		freepath = NULL;
 		pmc_getfilename(vp, &fullpath, &freepath);

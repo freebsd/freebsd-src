@@ -32,9 +32,9 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/packages/categories.subr
 f_include $BSDCFG_SHARE/packages/index.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -73,13 +73,13 @@ SELECTED_PACKAGES=
 #
 f_package_accent_category_menu()
 {
-	local var_to_set="$1" cat desc help varcat menu_buf n
+	local var_to_set="$1" category cat desc help varcat menu_buf n
 	shift 1 # var_to_set
 	while [ $# -gt 0 ]; do
-		cat="${1%\*}" desc="${2%%; *}" help="$3"
+		category="${1%\*}" desc="${2%%; *}" help="$3"
 		shift 3 # cat/desc/help
 
-		cat="${cat# }" # Trim leading space inserted by sort-method
+		cat="${category# }" # Trim lead space inserted by sort-method
 		f_str2varname "$cat" varcat
 
 		# Add number of installed packages for this category (if any)
@@ -88,7 +88,7 @@ f_package_accent_category_menu()
 		"$msg_all") debug= f_getvar "_All_ninstalled" n ;;
 		         *) debug= f_getvar "_${varcat}_ninstalled" n ;;
 		esac &&
-			[ $n -ge 1 ] && desc="$desc; $n $msg_installed_lc"
+		[ $n -ge 1 ] && desc="$desc; $n $msg_installed_lc"
 
 		# Add number of selected packages for this category (if any)
 		n=0
@@ -96,14 +96,14 @@ f_package_accent_category_menu()
 		"$msg_all") debug= f_getvar "_All_nselected" n ;;
 		         *) debug= f_getvar "_${varcat}_nselected" n ;;
 		esac &&
-			[ $n -ge 1 ] && desc="$desc; $n $msg_selected"
+		[ $n -ge 1 ] && desc="$desc; $n $msg_selected"
 
-		# Add an asterisk to the category if its index has been cached
-		f_isset _index_page_${varcat}_1 && cat="$cat*"
+		# Re-Add asterisk to the category if its index has been cached
+		f_isset _index_page_${varcat}_1 && category="$category*"
 
 		# Update buffer with modified elements
 		menu_buf="$menu_buf
-		'$cat' '$desc' '$help'" # End-Quote
+		'$category' '$desc' '$help'" # End-Quote
 	done
 	setvar "$var_to_set" "$menu_buf" # return our buffer
 }
@@ -197,7 +197,7 @@ f_package_calculate_totals()
 		f_getvar _mark_$varpkg mark
 		case "$mark" in
 		""|" ") : ;;
-		X) tinstalled=$(( $tinstalled + 1 ));;
+		X) tinstalled=$(( $tinstalled + 1 )) ;;
 		*) tselected=$(( $tselected + 1 ))
 		esac
 		f_getvar _categories_$varpkg pkgcat
@@ -206,7 +206,7 @@ f_package_calculate_totals()
 			case "$mark" in
 			""|" ") : ;;
 			X) debug= f_getvar _${varcat}_ninstalled n
-			   setvar _${varcat}_ninstalled $(( $n + 1 ));;
+			   setvar _${varcat}_ninstalled $(( $n + 1 )) ;;
 			*) debug= f_getvar _${varcat}_nselected n
 			   setvar _${varcat}_nselected $(( $n + 1 ))
 			esac
@@ -272,52 +272,55 @@ f_package_calculate_rundeps()
 # Dislay the menu of package categories, complete with package counts for each
 # category, accents, and other miscellany. If $defaultitem is non-NULL and
 # matches one of the existing menu-items, it will be pre-highlighted in the
-# menu dialog (HINT: Use f_dialog_menutag() to populate a local variable that
-# is passed as $defaultitem to highlight the user's last selection by default).
+# menu dialog (HINT: Use f_dialog_menutag_fetch() to populate a local variable
+# that is passed as $defaultitem to highlight the user's last selection).
 #
 f_package_menu_categories()
 {
-	local var_to_get="$1" defaultitem="$2" category_list menu_list
+	local var_to_get="$1" defaultitem="$2"
+	local prompt="$msg_please_select_a_category_to_display"
+	local menu_list="
+		'> $msg_review' '$msg_review_desc' '$msg_review_help'
+	" # End-Quote
+	local hline=
 
 	f_package_calculate_rundeps
 		# updates package mark variables and SELECTED_PACKAGES
 	f_package_calculate_totals
 		# creates _{varcat}_ninstalled and _{varcat}_nselected
 
+	local category_list
 	debug= f_getvar "$var_to_get" category_list || return $FAILURE
 
 	# Accent the category menu list with ninstalled/nselected
 	eval f_package_accent_category_menu category_list $category_list
 
-	local prompt="$msg_please_select_a_category_to_display"
-	local hline=""
+	# Add list of categories to menu list
+	menu_list="$menu_list $category_list"
 
-	menu_list="
-		'> $msg_review' '$msg_review_desc' '$msg_review_help'
-		$category_list
-	" # End-Quote
-
-	local size dialog_menu
-	size=$( eval f_dialog_menu_with_help_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
-	dialog_menu=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--item-help                        \
-			--default-item \"\$defaultitem\"   \
-			--ok-label \"$msg_select\"         \
-			--cancel-label \"$msg_cancel\"     \
-			--menu \"\$prompt\" $size          \
-			$menu_list                         \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
+	local height width rows
+	eval f_dialog_menu_with_help_size height width rows \
+	                                  \"\$DIALOG_TITLE\"     \
+	                                  \"\$DIALOG_BACKTITLE\" \
+	                                  \"\$prompt\"           \
+	                                  \"\$hline\"            \
+	                                  $menu_list
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--item-help                        \
+		--default-item \"\$defaultitem\"   \
+		--ok-label \"$msg_select\"         \
+		--cancel-label \"$msg_cancel\"     \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -350,35 +353,40 @@ f_package_index_get_page()
 	fi
 }
 
-# f_package_menu_select $category [ $page [ $defaultitem ] ]
+# f_package_menu_select $category [$page [$defaultitem]]
 #
 # Display list of packages for $category, optionally $page N and with a default
 # item selected. If $page is omitted, the first page is displayed (but this
 # only matters if there are multiple pages; which is determined by the global
 # maximum $PACKAGE_MENU_PAGESIZE).
 #
-# On success, if the user doesn't press ESC or choose Cancel, the environment
-# variable $DIALOG_MENUITEM_$$ will hold the item associated with the chosen
-# tag (accessible through f_dialog_menutag()).
+# On success, if the user doesn't press ESC or choose Cancel, use
+# f_dialog_menuitem_fetch() to populate a local variable with the item (not
+# tag) corresponding to the user's selection. The tag portion of the user's
+# selection is available through f_dialog_menutag_fetch().
 #
 f_package_menu_select()
 {
-	local category="$1" page="${2:-1}" defaultitem="$3"
-	local varcat npkgs=0 npages menu_list
+	local category="$1" page="${2:-1}"
+	local prompt= # Calculated below
+	local menu_list # Calculated below
+	local defaultitem="$3"
+	local hline="$hline_arrows_tab_punc_enter"
 
 	f_isinteger "$page" || return $FAILURE
 
+	local varcat
 	f_str2varname "$category" varcat
-	f_package_index_get_page "$category" $page index_page
 
 	# Get number of packages for this category
+	local npkgs=0
 	case "$category" in
-	"$msg_all"|"") npkgs="${_npkgs:-0}";;
+	"$msg_all"|"") npkgs="${_npkgs:-0}" ;;
 	*) f_getvar _npkgs_$varcat npkgs
 	esac
 
 	# Calculate number of pages
-	npages=$(( ${npkgs:=0} / $PACKAGE_MENU_PAGESIZE ))
+	local npages=$(( ${npkgs:=0} / $PACKAGE_MENU_PAGESIZE ))
 
 	# Add a page to the pagecount if not evenly divisible
 	[ $(( $npages * $PACKAGE_MENU_PAGESIZE )) -lt $npkgs ] &&
@@ -404,6 +412,9 @@ f_package_menu_select()
 		f_isset _index_page_${varcat}_$(( $page + 1 )) &&
 			next_page="$next_page*"
 	fi
+
+	local index_page
+	f_package_index_get_page "$category" $page index_page
 
 	menu_list="
 		${add_prev:+'> $previous_page' '' ${SHOW_DESC:+''}}
@@ -444,7 +455,6 @@ f_package_menu_select()
 		${add_next:+'> $next_page' '' ${SHOW_DESC:+''}}
 	" # End-Quote
 
-	local prompt=""
 	# Accept/Translate i18n "All" but other category names must
 	# match tree definitions from INDEX, ports, FTP, etc.
 	case "$category" in
@@ -454,19 +464,17 @@ f_package_menu_select()
 	prompt="$prompt $( printf "$msg_page_of_npages" \
 	                          "$page" "$npages" )"
 
-	local hline="$hline_arrows_tab_punc_enter"
-	local size isize dialog_menu item
-	size=$( eval f_dialog_menu${SHOW_DESC:+_with_help}_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
-	isize=$( f_dialog_infobox_size \
-	         	"$DIALOG_TITLE"             \
-	         	"$DIALOG_BACKTITLE"         \
-	         	"$msg_processing_selection" )
-	dialog_menu=$( eval $DIALOG \
+	local mheight mwidth mrows
+	eval f_dialog_menu${SHOW_DESC:+_with_help}_size mheight mwidth mrows \
+	        	\"\$DIALOG_TITLE\" \"\$DIALOG_BACKTITLE\" \
+	        	\"\$prompt\" \"\$hline\" $menu_list
+	local iheight iwidth
+	f_dialog_infobox_size iheight iwidth \
+	         	"$DIALOG_TITLE" "$DIALOG_BACKTITLE" \
+	         	"$msg_processing_selection"
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -475,20 +483,24 @@ f_package_menu_select()
 		--cancel-label \"$msg_back\"       \
 		${SHOW_DESC:+--item-help}          \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$mheight $mwidth $mrows            \
 		$menu_list                         \
 		--and-widget                       \
 		${USE_XDIALOG:+--no-buttons}       \
-		--infobox \"\$msg_processing_selection\" $isize \
+		--infobox \"\$msg_processing_selection\" \
+		$iheight $iwidth                   \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
 
 	if [ $retval -eq $SUCCESS ]; then
+		local item
 		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
-		             	\"\$dialog_menu\" $menu_list )
-		setvar DIALOG_MENUITEM_$$ "$item"
+		             	\"\$menu_choice\" $menu_list )
+		f_dialog_menuitem_store "$item"
 	fi
 
 	return $retval
@@ -500,36 +512,42 @@ f_package_menu_select()
 # with regard to "deselecting" an already installed package. Choices include
 # uninstall, re-install, or cancel (leave $package marked as installed).
 # Returns success if the user does not press ESC or choose Cnacel. Use the
-# f_dialog_menutag() function upon success to retrieve the user's choice.
+# f_dialog_menutag_fetch() function upon success to retrieve the user's choice.
 #
 f_package_menu_deselect()
 {
-	local package="$1" prompt menu_list size dialog_menu
-	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
-	local hline="$hline_alnum_arrows_punc_tab_enter"
-	menu_list="
+	local package="$1"
+	local prompt # Calculated below
+	local menu_list="
 		'X $msg_installed' '$msg_installed_desc'
 		'R $msg_reinstall' '$msg_reinstall_desc'
 		'U $msg_uninstall' '$msg_uninstall_desc'
 	" # End-Quote
-	size=$( eval f_dialog_menu_size \
-	         	\"\$DIALOG_TITLE\"     \
-	         	\"\$DIALOG_BACKTITLE\" \
-	         	\"\$prompt\"           \
-	         	\"\$hline\"            \
-	         	$menu_list             )
-	dialog_menu=$( eval $DIALOG \
+	local hline="$hline_alnum_arrows_punc_tab_enter"
+
+	prompt=$( printf "$msg_what_would_you_like_to_do_with" "$package" )
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"$msg_select\"         \
 		--cancel-label \"$msg_cancel\"     \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -542,12 +560,16 @@ f_package_menu_deselect()
 #
 f_package_review()
 {
-	local prompt size dialog_menu package varpkg mark menu_list=
-	prompt=$( printf "$msg_reviewing_selected_packages" \
-	                 "$_All_nselected" )
+	local prompt # Calculated below
+	local menu_list # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
+
 	f_dprintf "f_package_review: SELECTED_PACKAGES=[%s]" \
 	          "$SELECTED_PACKAGES"
+
+	prompt=$( printf "$msg_reviewing_selected_packages" "$_All_nselected" )
+
+	local package varpkg mark
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
@@ -562,34 +584,72 @@ f_package_review()
 		return $FAILURE # They might have selected this by accident
 	fi
 	menu_list=$( echo "$menu_list" | sort )
-	size=$( eval f_dialog_menu_size \
-			\"\$DIALOG_TITLE\"     \
-			\"\$DIALOG_BACKTITLE\" \
-			\"\$prompt\"           \
-			\"\$hline\"            \
-			$menu_list             )
-	dialog_menu=$( eval $DIALOG \
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	# Show the review menu (ignore menu choice)
+	eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_proceed\"       \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+		2> /dev/null || return $?
+			# Return if the user pressed ESC or chose Cancel/No
 
 	#
-	# XXX
+	# Process each of the selected packages:
+	# + First, process dependencies.
+	# + Second, process packages marked for Install.
+	# + Third, process packages marked for Re-install.
+	# + Finally, process packages marked for Uninstall.
 	#
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "D" ] || continue
+		# XXX Install dependency
+		f_package_deselect "$package"
+	done
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "I" ] || continue
+		# XXX Install package
+		f_package_deselect "$package"
+	done
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "R" ] || continue
+		# XXX Re-install package
+		f_package_deselect "$package"
+	done
+	for package in $SELECTED_PACKAGES; do
+		mark=
+		f_str2varname "$package" varpkg
+		f_getvar _mark_$varpkg mark
+		[ "$mark" = "U" ] || continue
+		# XXX Uninstall package
+		f_package_deselect "$package"
+	done
+
+	# XXX
 	f_show_msg "Coming soon..."
-	#
-	# XXX
-	#
 
-	return $retval
+	return $SUCCESS
 }
 
 # f_package_config
@@ -617,7 +677,7 @@ f_package_config()
 		f_package_menu_categories \
 			CATEGORY_MENU_LIST "$category_defaultitem"
 		retval=$?
-		category=$( f_dialog_menutag )
+		f_dialog_menutag_fetch category
 		f_dprintf "retval=%u mtag=[%s]" $retval "$category"
 		category_defaultitem="$category"
 
@@ -639,7 +699,7 @@ f_package_config()
 
 		f_str2varname "$category" varcat
 
-		local page package varpkg mark
+		local page package varpkg mark menu_choice
 		while :; do
 			# Display the list of packages for selected category
 			page=1 defaultitem=""
@@ -648,8 +708,8 @@ f_package_config()
 			f_package_menu_select \
 				"$category" "${page:=1}" "$defaultitem"
 			retval=$?
-			dialog_menu=$( f_dialog_menutag )
-			f_dprintf "retval=%u mtag=[%s]" $retval "$dialog_menu"
+			f_dialog_menutag_fetch menu_choice
+			f_dprintf "retval=%u mtag=[%s]" $retval "$menu_choice"
 
 			# NOTE: When --and-widget is used only ESC will cause
 			# dialog(1) to return without going to the next widget.
@@ -657,24 +717,24 @@ f_package_config()
 			# the Cancel button because stdout will be NULL.
 			# Alternatively, Xdialog(1) will terminate with 1
 			# if/when Cancel is chosen on any widget.
-			if [ $retval -eq 255 -o ! "$dialog_menu" ]; then
+			if [ $retval -eq 255 -o ! "$menu_choice" ]; then
 				# User pressed ESC or chose Cancel
 				break
 			elif [ $retval -eq 1 ]; then
 				# Using X11, Xdialog(1) returned 1 for Cancel
-				f_show_msg "%s" "$dialog_menu"
+				f_show_msg "%s" "$menu_choice"
 				break
 			elif [ $retval -ne $SUCCESS ]; then
 				# X11-related error occurred using Xdialog(1)
-				f_show_msg "%s" "$dialog_menu"
+				f_show_msg "%s" "$menu_choice"
 				break
 			fi
 
-			defaultitem="$dialog_menu"
+			defaultitem="$menu_choice"
 
 			# NOTE: f_package_menu_select() does not show the
 			# `Previous Page' or `Next Page' items unless needed
-			case "$dialog_menu" in
+			case "$menu_choice" in
 			"> $msg_previous_page"|"> $msg_previous_page*")
 				page=$(( $page - 1 ))
 				setvar _defaultpage_$varcat $page
@@ -713,9 +773,9 @@ f_package_config()
 			esac
 
 			# Treat any other selection as a package
-			package="${dialog_menu# }" # Trim leading space
+			package="${menu_choice# }" # Trim leading space
 			f_str2varname $package varpkg
-			f_getvar DIALOG_MENUITEM_$$ mark
+			f_dialog_menuitem_fetch mark
 			mark="${mark#?}"
 			mark="${mark%%\] *}"
 			case "$mark" in
@@ -729,8 +789,8 @@ f_package_config()
 				;;
 			"X"|"R"|"U")
 				f_package_menu_deselect $package || continue
-				dialog_menu=$( f_dialog_menutag )
-				case "$dialog_menu" in
+				f_dialog_menutag_fetch menu_choice
+				case "$menu_choice" in
 				"X $msg_installed")
 					f_package_deselect "$package"
 					mark="X"

@@ -10,7 +10,6 @@ SRCS=	Archive.cpp \
 	COFFObjectFile.cpp \
 	ELFObjectFile.cpp \
 	Error.cpp \
-	MachOObject.cpp \
 	MachOObjectFile.cpp \
 	Object.cpp \
 	ObjectFile.cpp

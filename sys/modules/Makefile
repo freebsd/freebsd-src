@@ -9,6 +9,7 @@ SUBDIR=	\
 	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
+	${_aacraid} \
 	accf_data \
 	accf_dns \
 	accf_http \
@@ -270,6 +271,7 @@ SUBDIR=	\
 	${_pst} \
 	pty  \
 	puc \
+	${_qlxge} \
 	${_qlxgb} \
 	${_qlxgbe} \
 	ral \
@@ -299,6 +301,7 @@ SUBDIR=	\
 	siis \
 	sis \
 	sk \
+	${_smbfs} \
 	${_sn} \
 	${_snc} \
 	snp \
@@ -518,6 +521,7 @@ _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
+_smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
 _splash=	splash
@@ -534,6 +538,7 @@ _zfs=		zfs
 .endif
 .if ${MACHINE} == "i386"
 _aac=		aac
+_aacraid=	aacraid
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
@@ -616,6 +621,7 @@ _snc=		snc
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
+_aacraid=	aacraid
 _aout=		aout
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -710,6 +716,7 @@ _opensolaris=	opensolaris
 _padlock=	padlock
 .endif
 _pccard=	pccard
+_qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _rdma=		rdma
@@ -717,6 +724,7 @@ _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
 _sfxge=		sfxge
+_smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
 _splash=	splash
@@ -747,6 +755,7 @@ _cpsw=		cpsw
 
 .if ${MACHINE_CPUARCH} == "ia64"
 _aac=		aac
+_aacraid=	aacraid
 _aic=		aic
 _an=		an
 _arcnet=	arcnet
@@ -773,6 +782,7 @@ _ips=		ips
 _mly=		mly
 _pccard=	pccard
 _scsi_low=	scsi_low
+_smbfs=		smbfs
 _sound=		sound
 _splash=	splash
 _sppp=		sppp
@@ -795,6 +805,7 @@ _drm=		drm
 _exca=		exca
 _nvram=		powermac_nvram
 _pccard=	pccard
+_smbfs=		smbfs
 _sound=		sound
 _cyclic=	cyclic
 _dtrace=	dtrace
@@ -821,6 +832,7 @@ _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+_smbfs=		smbfs
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs

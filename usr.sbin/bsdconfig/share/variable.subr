@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." variable.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 ############################################################ GLOBALS
 
@@ -93,8 +94,7 @@ f_variable_get_value()
 
 	if ! { f_getvar $var cp && ! f_interactive; }; then
 		shift 1 # var
-		cp=$( f_dialog_input "$( printf "$@" )" "$cp" ) &&
-			setvar $var "$cp"
+		f_dialog_input cp "$( printf "$@" )" "$cp" && setvar $var "$cp"
 	fi
 
 	return $SUCCESS
@@ -110,7 +110,7 @@ f_variable_set_defaults()
 	# Initialize various user-edittable values to their defaults
 	#
 	setvar $VAR_EDITOR		"${EDITOR:-/usr/bin/ee}"
-	setvar $VAR_FTP_STATE		"passive"
+	setvar $VAR_FTP_STATE		"auto"
 	setvar $VAR_FTP_USER		"ftp"
 	setvar $VAR_HOSTNAME		"$( hostname )"
 	setvar $VAR_MEDIA_TIMEOUT	"300"
@@ -131,12 +131,12 @@ f_variable_set_defaults()
 #
 f_dump_variables()
 {
-	local err sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
+	local err
 	if ! err=$(
 		( for handle in $VARIABLES; do
 			f_getvar $handle var || continue
 			f_getvar $var value || continue
-			value=$( echo "$value" | awk "$sanitize_awk" )
+			f_shell_escape "$value" value
 			printf "%s='%s'\n" "$var" "$value"
 		  done > "$VARIABLE_DUMPFILE" ) 2>&1
 	); then
@@ -204,7 +204,11 @@ f_variable_new VAR_FTP_STATE		ftpState
 f_variable_new VAR_FTP_USER		ftpUser
 f_variable_new VAR_GATEWAY		defaultrouter
 f_variable_new VAR_HOSTNAME		hostname
+f_variable_new VAR_HTTP_DIR		httpDirectory
 f_variable_new VAR_HTTP_FTP_MODE	httpFtpMode
+f_variable_new VAR_HTTP_HOST		httpHost
+f_variable_new VAR_HTTP_PATH		_httpPath
+f_variable_new VAR_HTTP_PORT		httpPort
 f_variable_new VAR_HTTP_PROXY		httpProxy
 f_variable_new VAR_HTTP_PROXY_HOST	httpProxyHost
 f_variable_new VAR_HTTP_PROXY_PATH	_httpProxyPath

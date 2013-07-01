@@ -43,6 +43,11 @@
 # LIBMODE	Library mode. [${NOBINMODE}]
 #
 #
+# DEBUGDIR	Base path for standalone debug files. [/usr/lib/debug]
+#
+# DEBUGMODE	Mode for debug files. [${NOBINMODE}]
+#
+#
 # KMODDIR	Base path for loadable kernel modules
 #		(see kld(4)). [/boot/kernel]
 #
@@ -147,6 +152,9 @@ LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
 LIBMODE?=	${NOBINMODE}
 
+DEBUGDIR?=	/usr/lib/debug
+DEBUGMODE?=	${NOBINMODE}
+
 
 # Share files
 SHAREDIR?=	/usr/share
@@ -213,6 +221,7 @@ COMPRESS_EXT?=	.gz
 #
 .for var in \
     CTF \
+    DEBUG_FILES \
     INSTALLLIB \
     MAN \
     PROFILE
@@ -263,7 +272,6 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CTM \
-    CVS \
     CXX \
     DICT \
     DYNAMICROOT \
@@ -339,6 +347,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
     SSP \
+    SVNLITE \
     SYMVER \
     SYSCONS \
     SYSINSTALL \
@@ -365,6 +374,7 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
+    DEBUG_FILES \
     GPL_DTC \
     HESIOD \
     ICONV \
@@ -374,7 +384,8 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
-    SHARED_TOOLCHAIN
+    SHARED_TOOLCHAIN \
+    SVN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately

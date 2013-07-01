@@ -150,5 +150,28 @@
 			interrupt-parent = <&AINTC>;
 			i2c-device-id = <0>;
 		};
+
+		pwm@48300000 {
+			compatible = "ti,am335x-pwm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x48300000 0x100	/* PWMSS */
+				0x48300100 0x80		/* eCAP0 */
+				0x48300180 0x80		/* eQEP0 */
+				0x48300200 0x60		/* ePWM0 */
+			>;
+			interrupts = <86 58>; /* ePWM0INT, ePWM0_TZINT */
+			interrupt-parent = <&AINTC>;
+			pwm-device-id = <0>;
+		};
+
+		lcd: lcd@4830e000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,am335x-lcd";
+			reg =<	0x4830e000 0x1000 >;
+			interrupts = <36>;
+			interrupt-parent = <&AINTC>;
+		};
 	};
 };

@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -2076,7 +2077,8 @@ ffs_bufwrite(struct buf *bp)
 			return (0);
 		}
 		bp->b_vflags |= BV_BKGRDWAIT;
-		msleep(&bp->b_xflags, BO_MTX(bp->b_bufobj), PRIBIO, "bwrbg", 0);
+		msleep(&bp->b_xflags, BO_LOCKPTR(bp->b_bufobj), PRIBIO,
+		    "bwrbg", 0);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("bufwrite: still writing");
 	}

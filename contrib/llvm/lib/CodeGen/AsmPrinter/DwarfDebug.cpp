@@ -94,6 +94,12 @@ static cl::opt<DefaultOnOff> SplitDwarf("split-dwarf", cl::Hidden,
 namespace {
   const char *DWARFGroupName = "DWARF Emission";
   const char *DbgTimerName = "DWARF Debug Writer";
+
+  struct CompareFirst {
+    template <typename T> bool operator()(const T &lhs, const T &rhs) const {
+      return lhs.first < rhs.first;
+    }
+  };
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -170,12 +176,13 @@ DwarfDebug::DwarfDebug(AsmPrinter *A, Module *M)
   DwarfInfoSectionSym = DwarfAbbrevSectionSym = 0;
   DwarfStrSectionSym = TextSectionSym = 0;
   DwarfDebugRangeSectionSym = DwarfDebugLocSectionSym = DwarfLineSectionSym = 0;
+  DwarfAddrSectionSym = 0;
   DwarfAbbrevDWOSectionSym = DwarfStrDWOSectionSym = 0;
   FunctionBeginSym = FunctionEndSym = 0;
 
   // Turn on accelerator tables and older gdb compatibility
   // for Darwin.
-  bool IsDarwin = Triple(M->getTargetTriple()).isOSDarwin();
+  bool IsDarwin = Triple(A->getTargetTriple()).isOSDarwin();
   if (DarwinGDBCompat == Default) {
     if (IsDarwin)
       IsDarwinGDBCompat = true;
@@ -596,9 +603,16 @@ DIE *DwarfDebug::constructScopeDIE(CompileUnit *TheCU, LexicalScope *Scope) {
   }
   else {
     // There is no need to emit empty lexical block DIE.
-    if (Children.empty())
+    std::pair<ImportedEntityMap::const_iterator,
+              ImportedEntityMap::const_iterator> Range = std::equal_range(
+        ScopesWithImportedEntities.begin(), ScopesWithImportedEntities.end(),
+        std::pair<const MDNode *, const MDNode *>(DS, (const MDNode*)0),
+        CompareFirst());
+    if (Children.empty() && Range.first == Range.second)
       return NULL;
     ScopeDIE = constructLexicalScopeDIE(TheCU, Scope);
+    for (ImportedEntityMap::const_iterator i = Range.first; i != Range.second; ++i)
+      constructImportedModuleDIE(TheCU, i->second, ScopeDIE);
   }
 
   if (!ScopeDIE) return NULL;
@@ -643,7 +657,7 @@ unsigned DwarfDebug::getOrCreateSourceID(StringRef FileName,
 
   // We look up the CUID/file/dir by concatenating them with a zero byte.
   SmallString<128> NamePair;
-  NamePair += CUID;
+  NamePair += utostr(CUID);
   NamePair += '\0';
   NamePair += DirName;
   NamePair += '\0'; // Zero bytes are not allowed in paths.
@@ -681,9 +695,12 @@ CompileUnit *DwarfDebug::constructCompileUnit(const MDNode *N) {
   NewCU->addUInt(Die, dwarf::DW_AT_language, dwarf::DW_FORM_data2,
                  DIUnit.getLanguage());
   NewCU->addString(Die, dwarf::DW_AT_name, FN);
+
   // 2.17.1 requires that we use DW_AT_low_pc for a single entry point
-  // into an entity. We're using 0 (or a NULL label) for this.
-  NewCU->addLabelAddress(Die, dwarf::DW_AT_low_pc, NULL);
+  // into an entity. We're using 0 (or a NULL label) for this. For
+  // split dwarf it's in the skeleton CU so omit it here.
+  if (!useSplitDwarf())
+    NewCU->addLabelAddress(Die, dwarf::DW_AT_low_pc, NULL);
 
   // Define start line table label for each Compile Unit.
   MCSymbol *LineTableStartSym = Asm->GetTempSymbol("line_table_start",
@@ -691,21 +708,32 @@ CompileUnit *DwarfDebug::constructCompileUnit(const MDNode *N) {
   Asm->OutStreamer.getContext().setMCLineTableSymbol(LineTableStartSym,
                                                      NewCU->getUniqueID());
 
+  // Use a single line table if we are using .loc and generating assembly.
+  bool UseTheFirstCU =
+    (Asm->TM.hasMCUseLoc() &&
+     Asm->OutStreamer.getKind() == MCStreamer::SK_AsmStreamer) ||
+    (NewCU->getUniqueID() == 0);
+
   // DW_AT_stmt_list is a offset of line number information for this
-  // compile unit in debug_line section.
+  // compile unit in debug_line section. For split dwarf this is
+  // left in the skeleton CU and so not included.
   // The line table entries are not always emitted in assembly, so it
   // is not okay to use line_table_start here.
-  if (Asm->MAI->doesDwarfUseRelocationsAcrossSections())
-    NewCU->addLabel(Die, dwarf::DW_AT_stmt_list, dwarf::DW_FORM_data4,
-                    NewCU->getUniqueID() == 0 ?
-                    Asm->GetTempSymbol("section_line") : LineTableStartSym);
-  else if (NewCU->getUniqueID() == 0)
-    NewCU->addUInt(Die, dwarf::DW_AT_stmt_list, dwarf::DW_FORM_data4, 0);
-  else
-    NewCU->addDelta(Die, dwarf::DW_AT_stmt_list, dwarf::DW_FORM_data4,
-                    LineTableStartSym, DwarfLineSectionSym);
+  if (!useSplitDwarf()) {
+    if (Asm->MAI->doesDwarfUseRelocationsAcrossSections())
+      NewCU->addLabel(Die, dwarf::DW_AT_stmt_list, dwarf::DW_FORM_data4,
+                      UseTheFirstCU ?
+                      Asm->GetTempSymbol("section_line") : LineTableStartSym);
+    else if (UseTheFirstCU)
+      NewCU->addUInt(Die, dwarf::DW_AT_stmt_list, dwarf::DW_FORM_data4, 0);
+    else
+      NewCU->addDelta(Die, dwarf::DW_AT_stmt_list, dwarf::DW_FORM_data4,
+                      LineTableStartSym, DwarfLineSectionSym);
+  }
 
-  if (!CompilationDir.empty())
+  // If we're using split dwarf the compilation dir is going to be in the
+  // skeleton CU and so we don't need to duplicate it here.
+  if (!useSplitDwarf() && !CompilationDir.empty())
     NewCU->addString(Die, dwarf::DW_AT_comp_dir, CompilationDir);
   if (DIUnit.isOptimized())
     NewCU->addFlag(Die, dwarf::DW_AT_APPLE_optimized);
@@ -754,6 +782,41 @@ void DwarfDebug::constructSubprogramDIE(CompileUnit *TheCU,
     TheCU->addGlobalName(SP.getName(), SubprogramDie);
 }
 
+void DwarfDebug::constructImportedModuleDIE(CompileUnit *TheCU,
+                                            const MDNode *N) {
+  DIImportedModule Module(N);
+  if (!Module.Verify())
+    return;
+  if (DIE *D = TheCU->getOrCreateContextDIE(Module.getContext()))
+    constructImportedModuleDIE(TheCU, Module, D);
+}
+
+void DwarfDebug::constructImportedModuleDIE(CompileUnit *TheCU, const MDNode *N,
+                                            DIE *Context) {
+  DIImportedModule Module(N);
+  if (!Module.Verify())
+    return;
+  return constructImportedModuleDIE(TheCU, Module, Context);
+}
+
+void DwarfDebug::constructImportedModuleDIE(CompileUnit *TheCU,
+                                            const DIImportedModule &Module,
+                                            DIE *Context) {
+  assert(Module.Verify() &&
+         "Use one of the MDNode * overloads to handle invalid metadata");
+  assert(Context && "Should always have a context for an imported_module");
+  DIE *IMDie = new DIE(dwarf::DW_TAG_imported_module);
+  TheCU->insertDIE(Module, IMDie);
+  DIE *NSDie = TheCU->getOrCreateNameSpace(Module.getNameSpace());
+  unsigned FileID = getOrCreateSourceID(Module.getContext().getFilename(),
+                                        Module.getContext().getDirectory(),
+                                        TheCU->getUniqueID());
+  TheCU->addUInt(IMDie, dwarf::DW_AT_decl_file, 0, FileID);
+  TheCU->addUInt(IMDie, dwarf::DW_AT_decl_line, 0, Module.getLineNumber());
+  TheCU->addDIEEntry(IMDie, dwarf::DW_AT_import, dwarf::DW_FORM_ref4, NSDie);
+  Context->addChild(IMDie);
+}
+
 // Emit all Dwarf sections that should come prior to the content. Create
 // global DIEs and emit initial debug info sections. This is invoked by
 // the target AsmPrinter.
@@ -775,6 +838,13 @@ void DwarfDebug::beginModule() {
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
     DICompileUnit CUNode(CU_Nodes->getOperand(i));
     CompileUnit *CU = constructCompileUnit(CUNode);
+    DIArray ImportedModules = CUNode.getImportedModules();
+    for (unsigned i = 0, e = ImportedModules.getNumElements(); i != e; ++i)
+      ScopesWithImportedEntities.push_back(std::make_pair(
+          DIImportedModule(ImportedModules.getElement(i)).getContext(),
+          ImportedModules.getElement(i)));
+    std::sort(ScopesWithImportedEntities.begin(),
+              ScopesWithImportedEntities.end(), CompareFirst());
     DIArray GVs = CUNode.getGlobalVariables();
     for (unsigned i = 0, e = GVs.getNumElements(); i != e; ++i)
       CU->createGlobalVariableDIE(GVs.getElement(i));
@@ -787,11 +857,16 @@ void DwarfDebug::beginModule() {
     DIArray RetainedTypes = CUNode.getRetainedTypes();
     for (unsigned i = 0, e = RetainedTypes.getNumElements(); i != e; ++i)
       CU->getOrCreateTypeDIE(RetainedTypes.getElement(i));
+    // Emit imported_modules last so that the relevant context is already
+    // available.
+    for (unsigned i = 0, e = ImportedModules.getNumElements(); i != e; ++i)
+      constructImportedModuleDIE(CU, ImportedModules.getElement(i));
     // If we're splitting the dwarf out now that we've got the entire
     // CU then construct a skeleton CU based upon it.
     if (useSplitDwarf()) {
-    // This should be a unique identifier when we want to build .dwp files.
-      CU->addUInt(CU->getCUDie(), dwarf::DW_AT_GNU_dwo_id, dwarf::DW_FORM_data8, 0);
+      // This should be a unique identifier when we want to build .dwp files.
+      CU->addUInt(CU->getCUDie(), dwarf::DW_AT_GNU_dwo_id,
+                  dwarf::DW_FORM_data8, 0);
       // Now construct the skeleton CU associated.
       constructSkeletonCU(CUNode);
     }
@@ -1099,7 +1174,13 @@ static DotDebugLocEntry getDebugLocEntry(AsmPrinter *Asm,
   }
   if (MI->getOperand(0).isReg() && MI->getOperand(1).isImm()) {
     MachineLocation MLoc;
-    MLoc.set(MI->getOperand(0).getReg(), MI->getOperand(1).getImm());
+    // TODO: Currently an offset of 0 in a DBG_VALUE means
+    // we need to generate a direct register value.
+    // There is no way to specify an indirect value with offset 0.
+    if (MI->getOperand(1).getImm() == 0)
+      MLoc.set(MI->getOperand(0).getReg());
+    else
+      MLoc.set(MI->getOperand(0).getReg(), MI->getOperand(1).getImm());
     return DotDebugLocEntry(FLabel, SLabel, MLoc, Var);
   }
   if (MI->getOperand(0).isImm())
@@ -1366,7 +1447,12 @@ void DwarfDebug::beginFunction(const MachineFunction *MF) {
   LexicalScope *FnScope = LScopes.getCurrentFunctionScope();
   CompileUnit *TheCU = SPMap.lookup(FnScope->getScopeNode());
   assert(TheCU && "Unable to find compile unit!");
-  Asm->OutStreamer.getContext().setDwarfCompileUnitID(TheCU->getUniqueID());
+  if (Asm->TM.hasMCUseLoc() &&
+      Asm->OutStreamer.getKind() == MCStreamer::SK_AsmStreamer)
+    // Use a single line table if we are using .loc and generating assembly.
+    Asm->OutStreamer.getContext().setDwarfCompileUnitID(0);
+  else
+    Asm->OutStreamer.getContext().setDwarfCompileUnitID(TheCU->getUniqueID());
 
   FunctionBeginSym = Asm->GetTempSymbol("func_begin",
                                         Asm->getFunctionNumber());
@@ -1538,9 +1624,37 @@ void DwarfDebug::beginFunction(const MachineFunction *MF) {
 }
 
 void DwarfDebug::addScopeVariable(LexicalScope *LS, DbgVariable *Var) {
-//  SmallVector<DbgVariable *, 8> &Vars = ScopeVariables.lookup(LS);
-  ScopeVariables[LS].push_back(Var);
-//  Vars.push_back(Var);
+  SmallVectorImpl<DbgVariable *> &Vars = ScopeVariables[LS];
+  DIVariable DV = Var->getVariable();
+  if (DV.getTag() == dwarf::DW_TAG_arg_variable) {
+    DISubprogram Ctxt(DV.getContext());
+    DIArray Variables = Ctxt.getVariables();
+    // If the variable is a parameter (arg_variable) and this is an optimized
+    // build (the subprogram has a 'variables' list) make sure we keep the
+    // parameters in order. Otherwise we would produce an incorrect function
+    // type with parameters out of order if function parameters were used out of
+    // order or unused (see the call to addScopeVariable in endFunction where
+    // the remaining unused variables (including parameters) are added).
+    if (unsigned NumVariables = Variables.getNumElements()) {
+      // Keep the parameters at the start of the variables list. Search through
+      // current variable list (Vars) and the full function variable list in
+      // lock-step looking for this parameter in the full list to find the
+      // insertion point.
+      SmallVectorImpl<DbgVariable *>::iterator I = Vars.begin();
+      unsigned j = 0;
+      while (I != Vars.end() && j != NumVariables &&
+             Variables.getElement(j) != DV &&
+             (*I)->getVariable().getTag() == dwarf::DW_TAG_arg_variable) {
+        if (Variables.getElement(j) == (*I)->getVariable())
+          ++I;
+        ++j;
+      }
+      Vars.insert(I, Var);
+      return;
+    }
+  }
+
+  Vars.push_back(Var);
 }
 
 // Gather and emit post-function debug information.
@@ -1740,9 +1854,12 @@ void DwarfDebug::emitSectionLabels() {
   emitSectionSym(Asm, TLOF.getDwarfPubTypesSection());
   DwarfStrSectionSym =
     emitSectionSym(Asm, TLOF.getDwarfStrSection(), "info_string");
-  if (useSplitDwarf())
+  if (useSplitDwarf()) {
     DwarfStrDWOSectionSym =
       emitSectionSym(Asm, TLOF.getDwarfStrDWOSection(), "skel_string");
+    DwarfAddrSectionSym =
+      emitSectionSym(Asm, TLOF.getDwarfAddrSection(), "addr_sec");
+  }
   DwarfDebugRangeSectionSym = emitSectionSym(Asm, TLOF.getDwarfRangesSection(),
                                              "debug_range");
 
@@ -2510,9 +2627,14 @@ CompileUnit *DwarfDebug::constructSkeletonCU(const MDNode *N) {
   // This should be a unique identifier when we want to build .dwp files.
   NewCU->addUInt(Die, dwarf::DW_AT_GNU_dwo_id, dwarf::DW_FORM_data8, 0);
 
-  // FIXME: The addr base should be relative for each compile unit, however,
-  // this one is going to be 0 anyhow.
-  NewCU->addUInt(Die, dwarf::DW_AT_GNU_addr_base, dwarf::DW_FORM_sec_offset, 0);
+  // Relocate to the beginning of the addr_base section, else 0 for the
+  // beginning of the one for this compile unit.
+  if (Asm->MAI->doesDwarfUseRelocationsAcrossSections())
+    NewCU->addLabel(Die, dwarf::DW_AT_GNU_addr_base, dwarf::DW_FORM_sec_offset,
+                    DwarfAddrSectionSym);
+  else
+    NewCU->addUInt(Die, dwarf::DW_AT_GNU_addr_base,
+                   dwarf::DW_FORM_sec_offset, 0);
 
   // 2.17.1 requires that we use DW_AT_low_pc for a single entry point
   // into an entity. We're using 0, or a NULL label for this.
@@ -2520,6 +2642,7 @@ CompileUnit *DwarfDebug::constructSkeletonCU(const MDNode *N) {
 
   // DW_AT_stmt_list is a offset of line number information for this
   // compile unit in debug_line section.
+  // FIXME: Should handle multiple compile units.
   if (Asm->MAI->doesDwarfUseRelocationsAcrossSections())
     NewCU->addLabel(Die, dwarf::DW_AT_stmt_list, dwarf::DW_FORM_sec_offset,
                     DwarfLineSectionSym);

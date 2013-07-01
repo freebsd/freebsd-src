@@ -37,6 +37,8 @@ hint.ath.0.at="nexus0"
 hint.ath.0.maddr=0x18100000
 hint.ath.0.msize=0x20000
 hint.ath.0.irq=0
+hint.ath.0.vendor_id=0x168c
+hint.ath.0.device_id=0x0035
 # Set this to define where the ath calibration data
 # should be fetched from in physical memory.
 # hint.ath.0.eepromaddr=0x1fff1000

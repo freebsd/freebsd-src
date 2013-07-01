@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2013
+.Dd June 7, 2013
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -103,13 +103,17 @@ Returns the number of the bus contained by the device
 .Fa dev .
 .Pp
 .Ft int
-.Fn libusb_get_port_path "libusb_context *ctx" "libusb_device *dev" "uint8_t *buf" "uint8_t bufsize"
+.Fn libusb_get_port_numbers "libusb_device *dev" "uint8_t *buf" "uint8_t bufsize"
 Stores, in the buffer
 .Fa buf
 of size
 .Fa bufsize ,
 the list of all port numbers from root for the device
 .Fa dev .
+.Pp
+.Ft int
+.Fn libusb_get_port_path "libusb_context *ctx" "libusb_device *dev" "uint8_t *buf" "uint8_t bufsize"
+Deprecated function equivalent to libusb_get_port_numbers.
 .Pp
 .Ft uint8_t
 .Fn libusb_get_device_address "libusb_device *dev"

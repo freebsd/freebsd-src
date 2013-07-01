@@ -28,6 +28,7 @@ SRCF=	absvdi2 \
 	ashlti3 \
 	ashrdi3 \
 	ashrti3 \
+	clear_cache \
 	clzdi2 \
 	clzsi2 \
 	clzti2 \
@@ -125,11 +126,6 @@ SRCF=	absvdi2 \
 	umoddi3 \
 	umodti3
 
-# Don't build clear_cache on ARM with clang as it is a builtin there.
-.if ${MACHINE_CPUARCH} != "arm" || ${COMPILER_TYPE} != "clang"
-SRCF+=	clear_cache
-.endif
-
 # These are already shipped by libc.a on arm and mips
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 SRCF+=	adddf3 \
@@ -157,23 +153,14 @@ SRCF+=	divsi3 \
 .endif
 
 # FreeBSD-specific atomic intrinsics.
-.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
-SRCF+=	__sync_fetch_and_add_4 \
-	__sync_fetch_and_and_4 \
-	__sync_fetch_and_or_4 \
-	__sync_fetch_and_sub_4 \
-	__sync_fetch_and_xor_4 \
-	__sync_lock_test_and_set_4 \
-	__sync_val_compare_and_swap_4
-.endif
-.if ${MACHINE_ARCH:Mmips64*} != ""
-SRCF+=	__sync_fetch_and_add_8 \
-	__sync_fetch_and_and_8 \
-	__sync_fetch_and_or_8 \
-	__sync_fetch_and_sub_8 \
-	__sync_fetch_and_xor_8 \
-	__sync_lock_test_and_set_8 \
-	__sync_val_compare_and_swap_8
+.if ${MACHINE_CPUARCH} == "arm"
+.PATH: ${.CURDIR}/../../sys/arm/arm
+
+SRCF+=	stdatomic
+.elif ${MACHINE_CPUARCH} == "mips"
+.PATH: ${.CURDIR}/../../sys/mips/mips
+
+SRCF+=	stdatomic
 .endif
 
 .for file in ${SRCF}

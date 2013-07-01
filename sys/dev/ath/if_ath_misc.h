@@ -134,9 +134,7 @@ static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
-	ATH_TX_LOCK(sc);
-	ath_start(sc->sc_ifp);
-	ATH_TX_UNLOCK(sc);
+	/* XXX NULL for now */
 }
 
 /*

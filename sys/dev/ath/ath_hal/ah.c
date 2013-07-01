@@ -748,6 +748,9 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
 		*result = pCap->halTstampPrecision;
 		return HAL_OK;
+	case HAL_CAP_ANT_DIV_COMB:	/* AR9285/AR9485 LNA diversity */
+		return pCap->halAntDivCombSupport ? HAL_OK  : HAL_ENOTSUPP;
+
 	case HAL_CAP_ENHANCED_DFS_SUPPORT:
 		return pCap->halEnhancedDfsSupport ? HAL_OK : HAL_ENOTSUPP;
 
@@ -781,6 +784,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MFP:			/* Management frame protection setting */
 		*result = pCap->halMfpSupport;
 		return HAL_OK;
+	case HAL_CAP_RX_LNA_MIXING:	/* Hardware uses an RX LNA mixer to map 2 antennas to a 1 stream receiver */
+		return pCap->halRxUsingLnaMixing ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
@@ -1403,4 +1408,22 @@ ath_hal_EepromDataRead(struct ath_hal *ah, u_int off, uint16_t *data)
 	}
 	(*data) = ah->ah_eepromdata[off];
 	return AH_TRUE;
+}
+
+/*
+ * Do a 2GHz specific MHz->IEEE based on the hardware
+ * frequency.
+ *
+ * This is the unmapped frequency which is programmed into the hardware.
+ */
+int
+ath_hal_mhz2ieee_2ghz(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *ichan)
+{
+
+	if (ichan->channel == 2484)
+		return 14;
+	if (ichan->channel < 2484)
+		return ((int) ichan->channel - 2407) / 5;
+	else
+		return 15 + ((ichan->channel - 2512) / 20);
 }

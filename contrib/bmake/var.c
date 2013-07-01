@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.174 2013/05/18 13:12:45 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.175 2013/05/29 00:23:31 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.174 2013/05/18 13:12:45 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.175 2013/05/29 00:23:31 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.174 2013/05/18 13:12:45 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.175 2013/05/29 00:23:31 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -2326,9 +2326,7 @@ VarHash(char *str)
     size_t         len, len2;
     unsigned char  *ustr = (unsigned char *)str;
     uint32_t       h, k, c1, c2;
-    int            done;
 
-    done = 1;
     h  = 0x971e137bU;
     c1 = 0x95543787U;
     c2 = 0x2ad7eb25U;
@@ -2358,7 +2356,7 @@ VarHash(char *str)
 	h = (h << 13) ^ (h >> 19);
 	h = h * 5 + 0x52dce729U;
 	h ^= k;
-   } while (!done);
+   }
    h ^= len2;
    h *= 0x85ebca6b;
    h ^= h >> 13;

@@ -44,7 +44,7 @@ counter_u64_add(counter_u64_t c, int64_t inc)
 
 	__asm __volatile("addq\t%1,%%gs:(%0)"
 	    :
-	    : "r" ((char *)c - (char *)&__pcpu[0]), "r" (inc)
+	    : "r" ((char *)c - (char *)&__pcpu[0]), "ri" (inc)
 	    : "memory", "cc");
 }
 

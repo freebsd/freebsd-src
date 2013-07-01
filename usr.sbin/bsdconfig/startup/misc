@@ -56,19 +56,15 @@ UNAME_P=$( uname -p ) # Processor Architecture (i.e. i386)
 #
 dialog_menu_main()
 {
-	local menu_list var_list size defaultitem=
-	local hline="$hline_arrows_tab_enter"
 	local prompt="$msg_miscellaneous_menu_text"
-
-	# Obtain default-item (adjusted below for dynamic tags)
-	f_getvar DEFAULTITEM_$$ defaultitem
-	local ditem="${defaultitem%%[$IFS]*}"
-
-	menu_list="
-		'X <<< $msg_exit' '$msg_exit_this_menu'
+	local menu_list="
+		'X $msg_exit' '$msg_exit_this_menu'
 	" # END-QUOTE
+	local defaultitem= # Calculated below
+	local hline="$hline_arrows_tab_enter"
 
-	var_list="
+	# List of variables we'll need from rc.conf(5)
+	local var_list="
 		accounting_enable
 		local_startup
 		lpd_enable
@@ -80,6 +76,7 @@ dialog_menu_main()
 		startup_dirs
 	" # END-QUOTE
 
+	# Add i386-specific variables if appropriate
 	if [ "$UNAME_P" = "i386" ]; then
 		var_list="$var_list
 			apm_enable
@@ -87,6 +84,10 @@ dialog_menu_main()
 			svr4_enable
 		" # END-QUOTE
 	fi
+
+	# Obtain default-item (adjusted below for dynamic tags)
+	f_dialog_default_fetch defaultitem
+	local ditem="${defaultitem%%[$IFS]*}"
 
 	eval "$(
 		. "$RC_DEFAULTS"
@@ -265,28 +266,31 @@ dialog_menu_main()
 		}'
 	)"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$menu_list             )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
 		--default-item \"\$defaultitem\"   \
-		--menu \"\$prompt\" $size          \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DEFAULTITEM_$$ "$dialog_menu"
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	f_dialog_default_store "$menu_choice"
 	return $retval
 }
 
@@ -300,7 +304,7 @@ dialog_input_value()
 	local prompt="$1" _input="$2"
 
 	f_dialog_title "$msg_value_required"
-	_input=$( f_dialog_input "$prompt" "$_input" "$hline_alnum_tab_enter" )
+	f_dialog_input _input "$prompt" "$_input" "$hline_alnum_tab_enter"
 	local retval=$?
 	f_dialog_title_restore
 
@@ -321,7 +325,7 @@ dialog_input_value()
 #
 while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -337,94 +341,95 @@ f_mustberoot_init
 # Launch application main menu
 #
 while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || f_die
+	dialog_menu_main || f_die
+	f_dialog_menutag_fetch mtag
 
 	case "$mtag" in
-	"X <<< $msg_exit") break ;;
+	"X $msg_exit") break ;;
+	?" [X] "*) toggled=1 ;;
+	        *) toggled=
+	esac
+
+	case "$mtag" in
+	# Simple On/Off toggle bits
 	?" ["?"] $msg_apm")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set apm_enable NO 2>&1 ) ;;
-		?" [ ] "*) err=$( f_sysrc_set apm_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
-	?" ["?"] $msg_startup_dirs")
-		dialog_input_value \
-			"$msg_startup_dirs_desc" \
-			"$( f_sysrc_get local_startup )"
-		if [ $? -eq $SUCCESS ]; then
-			err=$( f_sysrc_set local_startup "$value" ) ||
-				f_dialog_msgbox "$err\n"
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set apm_enable NO 2>&1 )
+		else
+			err=$( f_sysrc_set apm_enable YES 2>&1 )
 		fi
 		;;
 	?" ["?"] $msg_named")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set named_enable NO 2>&1 ) ;;
-		?" [ ] "*) err=$( f_sysrc_set named_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
-	?" ["?"] $msg_named_flags")
-		dialog_input_value \
-			"$msg_named_flags_desc" \
-			"$( f_sysrc_get named_flags )"
-		if [ $? -eq $SUCCESS ]; then
-			err=$( f_sysrc_set named_flags "$value" ) ||
-				f_dialog_msgbox "$err\n"
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set named_enable NO 2>&1 )
+		else
+			err=$( f_sysrc_set named_enable YES 2>&1 )
 		fi
 		;;
+	?" ["?"] $msg_accounting")
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set accounting_enable NO 2>&1 )
+		else
+			err=$( f_sysrc_set accounting_enable YES 2>&1 )
+		fi
+		;;
+	?" ["?"] $msg_lpd")
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set lpd_enable NO 2>&1 )
+		else
+			err=$( f_sysrc_set lpd_enable YES 2>&1 )
+		fi
+		;;
+	?" ["?"] $msg_sco")
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set ibcs2_enable NO 2>&1 )
+		else
+			err=$( f_sysrc_set ibcs2_enable YES 2>&1 )
+		fi
+		;;
+	?" ["?"] $msg_svr4")
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set svr4_enable NO 2>&1 )
+		else
+			err=$( f_sysrc_set svr4_enable YES 2>&1 )
+		fi
+		;;
+	# Multi-variable On/Off toggle bits
 	?" ["?"] $msg_nis_client")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set nis_client_enable NO 2>&1 ) ;;
-		?" [ ] "*)
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set nis_client_enable NO 2>&1 )
+		else
 			err=$( f_sysrc_set nis_client_enable YES 2>&1 ) \
-			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
-	?" ["?"] $msg_nis_domainname")
-		dialog_input_value \
-			"$msg_nis_domainname_desc" \
-			"$( f_sysrc_get nisdomainname )"
-		if [ $? -eq $SUCCESS ]; then
-			err=$( f_sysrc_set nisdomainname "$value" ) ||
-				f_dialog_msgbox "$err\n"
+			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 )
 		fi
 		;;
 	?" ["?"] $msg_nis_server")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set nis_server_enable NO 2>&1 ) ;;
-		?" [ ] "*)
+		if [ "$toggled" ]; then
+			err=$( f_sysrc_set nis_server_enable NO 2>&1 )
+		else
 			err=$( f_sysrc_set nis_server_enable YES 2>&1 ) \
-			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
-	?" ["?"] $msg_accounting")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set accounting_enable NO 2>&1 ) ;;
-		?" [ ] "*) err=$( f_sysrc_set accounting_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
-	?" ["?"] $msg_lpd")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set lpd_enable NO 2>&1 ) ;;
-		?" [ ] "*) err=$( f_sysrc_set lpd_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
-	?" ["?"] $msg_sco")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set ibcs2_enable NO 2>&1 ) ;;
-		?" [ ] "*) err=$( f_sysrc_set ibcs2_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
-	?" ["?"] $msg_svr4")
-		case "$mtag" in
-		?" [X] "*) err=$( f_sysrc_set svr4_enable NO 2>&1 ) ;;
-		?" [ ] "*) err=$( f_sysrc_set svr4_enable YES 2>&1 ) ;;
-		esac
-		[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n" ;;
+			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 )
+		fi
+		;;
+	# Checkboxes for non-boolean options
+	?" ["?"] $msg_nis_domainname")
+		dialog_input_value "$msg_nis_domainname_desc" \
+		                   "$( f_sysrc_get nisdomainname )" || continue
+		err=$( f_sysrc_set nisdomainname "$value" 2>&1 )
+		;;
+	?" ["?"] $msg_startup_dirs")
+		dialog_input_value "$msg_startup_dirs_desc" \
+		                   "$( f_sysrc_get local_startup )" || continue
+		err=$( f_sysrc_set local_startup "$value" 2>&1 )
+		;;
+	?" ["?"] $msg_named_flags")
+		dialog_input_value "$msg_named_flags_desc" \
+		                   "$( f_sysrc_get named_flags )" || continue
+		err=$( f_sysrc_set named_flags "$value" 2>&1 )
+		;;
 	esac
+
+	[ $? -eq $SUCCESS ] || f_dialog_msgbox "$err\n"
 done
 
 exit $SUCCESS

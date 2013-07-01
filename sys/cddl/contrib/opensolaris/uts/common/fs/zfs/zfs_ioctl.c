@@ -28,6 +28,7 @@
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
 /*
@@ -335,9 +336,7 @@ zfs_is_bootfs(const char *name)
 }
 
 /*
- * zfs_earlier_version
- *
- *	Return non-zero if the spa version is less than requested version.
+ * Return non-zero if the spa version is less than requested version.
  */
 static int
 zfs_earlier_version(const char *name, int version)
@@ -355,8 +354,6 @@ zfs_earlier_version(const char *name, int version)
 }
 
 /*
- * zpl_earlier_version
- *
  * Return TRUE if the ZPL version is less than requested version.
  */
 static boolean_t
@@ -3000,10 +2997,10 @@ zfs_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx)
 
 /*
  * inputs:
- * createprops		list of properties requested by creator
- * default_zplver	zpl version to use if unspecified in createprops
- * fuids_ok		fuids allowed in this version of the spa?
  * os			parent objset pointer (NULL if root fs)
+ * fuids_ok		fuids allowed in this version of the spa?
+ * sa_ok		SAs allowed in this version of the spa?
+ * createprops		list of properties requested by creator
  *
  * outputs:
  * zplprops	values for the zplprops we attach to the master node object
@@ -3409,28 +3406,31 @@ zfs_ioc_log_history(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
  *
  * This function is best-effort.  Callers must deal gracefully if it
  * remains mounted (or is remounted after this call).
+ *
+ * Returns 0 if the argument is not a snapshot, or it is not currently a
+ * filesystem, or we were able to unmount it.  Returns error code otherwise.
  */
-void
+int
 zfs_unmount_snap(const char *snapname)
 {
 	vfs_t *vfsp;
 	zfsvfs_t *zfsvfs;
+	int err;
 
 	if (strchr(snapname, '@') == NULL)
-		return;
+		return (0);
 
 	vfsp = zfs_get_vfs(snapname);
 	if (vfsp == NULL)
-		return;
+		return (0);
 
 	zfsvfs = vfsp->vfs_data;
 	ASSERT(!dsl_pool_config_held(dmu_objset_pool(zfsvfs->z_os)));
 
-	if (vn_vfswlock(vfsp->vfs_vnodecovered) != 0) {
-		VFS_RELE(vfsp);
-		return;
-	}
+	err = vn_vfswlock(vfsp->vfs_vnodecovered);
 	VFS_RELE(vfsp);
+	if (err != 0)
+		return (SET_ERROR(err));
 
 	/*
 	 * Always force the unmount for snapshots.
@@ -3440,17 +3440,17 @@ zfs_unmount_snap(const char *snapname)
 	(void) dounmount(vfsp, MS_FORCE, kcred);
 #else
 	mtx_lock(&Giant);	/* dounmount() */
-	dounmount(vfsp, MS_FORCE, curthread);
+	(void) dounmount(vfsp, MS_FORCE, curthread);
 	mtx_unlock(&Giant);	/* dounmount() */
 #endif
+	return (0);
 }
 
 /* ARGSUSED */
 static int
 zfs_unmount_snap_cb(const char *snapname, void *arg)
 {
-	zfs_unmount_snap(snapname);
-	return (0);
+	return (zfs_unmount_snap(snapname));
 }
 
 /*
@@ -3473,7 +3473,7 @@ zfs_destroy_unmount_origin(const char *fsname)
 		char originname[MAXNAMELEN];
 		dsl_dataset_name(ds->ds_prev, originname);
 		dmu_objset_rele(os, FTAG);
-		zfs_unmount_snap(originname);
+		(void) zfs_unmount_snap(originname);
 	} else {
 		dmu_objset_rele(os, FTAG);
 	}
@@ -3491,7 +3491,7 @@ zfs_destroy_unmount_origin(const char *fsname)
 static int
 zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 {
-	int poollen;
+	int error, poollen;
 	nvlist_t *snaps;
 	nvpair_t *pair;
 	boolean_t defer;
@@ -3512,7 +3512,9 @@ zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		    (name[poollen] != '/' && name[poollen] != '@'))
 			return (SET_ERROR(EXDEV));
 
-		zfs_unmount_snap(name);
+		error = zfs_unmount_snap(name);
+		if (error != 0)
+			return (error);
 		(void) zvol_remove_minor(name);
 	}
 
@@ -3531,8 +3533,12 @@ static int
 zfs_ioc_destroy(zfs_cmd_t *zc)
 {
 	int err;
-	if (strchr(zc->zc_name, '@') && zc->zc_objset_type == DMU_OST_ZFS)
-		zfs_unmount_snap(zc->zc_name);
+
+	if (zc->zc_objset_type == DMU_OST_ZFS) {
+		err = zfs_unmount_snap(zc->zc_name);
+		if (err != 0)
+			return (err);
+	}
 
 	if (strchr(zc->zc_name, '@'))
 		err = dsl_destroy_snapshot(zc->zc_name, zc->zc_defer_destroy);
@@ -3578,8 +3584,7 @@ recursive_unmount(const char *fsname, void *arg)
 	char fullname[MAXNAMELEN];
 
 	(void) snprintf(fullname, sizeof (fullname), "%s@%s", fsname, snapname);
-	zfs_unmount_snap(fullname);
-	return (0);
+	return (zfs_unmount_snap(fullname));
 }
 
 /*
@@ -5074,16 +5079,6 @@ zfs_ioc_get_holds(const char *snapname, nvlist_t *args, nvlist_t *outnvl)
 static int
 zfs_ioc_release(const char *pool, nvlist_t *holds, nvlist_t *errlist)
 {
-	nvpair_t *pair;
-
-	/*
-	 * The release may cause the snapshot to be destroyed; make sure it
-	 * is not mounted.
-	 */
-	for (pair = nvlist_next_nvpair(holds, NULL); pair != NULL;
-	    pair = nvlist_next_nvpair(holds, pair))
-		zfs_unmount_snap(nvpair_name(pair));
-
 	return (dsl_dataset_user_release(holds, errlist));
 }
 
@@ -5575,6 +5570,13 @@ zfs_ioctl_init(void)
 	zfs_ioctl_register_dataset_nolog(ZFS_IOC_TMP_SNAPSHOT,
 	    zfs_ioc_tmp_snapshot, zfs_secpolicy_tmp_snapshot,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY);
+
+#ifdef __FreeBSD__
+	zfs_ioctl_register_dataset_nolog(ZFS_IOC_JAIL, zfs_ioc_jail,
+	    zfs_secpolicy_config, POOL_CHECK_NONE);
+	zfs_ioctl_register_dataset_nolog(ZFS_IOC_UNJAIL, zfs_ioc_unjail,
+	    zfs_secpolicy_config, POOL_CHECK_NONE);
+#endif
 }
 
 int

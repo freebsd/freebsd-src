@@ -83,7 +83,7 @@ f_category_desc_set()
 	for cat in $CATEGORIES; do
 		[ "$cat" = "$category" ] || continue
 		f_str2varname $cat varcat
-		f_quietly f_getvar _category_$varcat || continue
+		f_isset _category_$varcat || continue
 		found=1 && break
 	done
 	if [ ! "$found" ]; then

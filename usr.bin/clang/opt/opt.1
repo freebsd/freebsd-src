@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.TH "OPT" "1" "2013-04-11" "3.3" "LLVM"
+.TH "OPT" "1" "2013-06-10" "3.3" "LLVM"
 .SH NAME
 opt \- LLVM optimizer
 .
@@ -51,14 +51,14 @@ program.
 While \fI\-analyze\fP is \fInot\fP given, \fBopt\fP attempts to produce an
 optimized output file.  The optimizations available via \fBopt\fP depend
 upon what libraries were linked into it as well as any additional libraries
-that have been loaded with the \fI\%-load\fP option.  Use the \fI\-help\fP
+that have been loaded with the \fI\%-load\fP option.  Use the \fI\%-help\fP
 option to determine what optimizations you can use.
 .sp
 If \fBfilename\fP is omitted from the command line or is "\fB\-\fP", \fBopt\fP
 reads its input from standard input.  Inputs can be in either the LLVM assembly
 language format (\fB.ll\fP) or the LLVM bitcode format (\fB.bc\fP).
 .sp
-If an output filename is not specified with the \fI\-o\fP option,
+If an output filename is not specified with the \fI\%-o\fP option,
 \fBopt\fP writes its output to the standard output.
 .SH OPTIONS
 .INDENT 0.0
@@ -87,7 +87,7 @@ Write output in LLVM intermediate language (instead of bitcode).
 .TP
 .B \-{passname}
 \fBopt\fP provides the ability to run any of LLVM\(aqs optimization or
-analysis passes in any order.  The \fI\-help\fP option lists all the passes
+analysis passes in any order.  The \fI\%-help\fP option lists all the passes
 available.  The order in which the options occur on the command line are the
 order in which they are executed (within pass constraints).
 .UNINDENT
@@ -168,7 +168,7 @@ which use the \fBDEBUG()\fP macro.  See the \fI\%LLVM Programmer's Manual\fP, se
 Load the dynamic object \fBplugin\fP.  This object should register new
 optimization or analysis passes.  Once loaded, the object will add new command
 line options to enable various optimizations or analyses.  To see the new
-complete list of optimizations, use the \fI\-help\fP and \fI\%-load\fP
+complete list of optimizations, use the \fI\%-help\fP and \fI\%-load\fP
 options together.  For example:
 .INDENT 7.0
 .INDENT 3.5

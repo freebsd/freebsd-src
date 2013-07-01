@@ -31,6 +31,7 @@
 # opt_<name-of-option-in-lower-case>.h
 
 AAC_DEBUG		opt_aac.h
+AACRAID_DEBUG		opt_aacraid.h
 AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_TMODE_ENABLE	opt_aic7xxx.h
 AHC_DUMP_EEPROM		opt_aic7xxx.h
@@ -221,6 +222,7 @@ NULLFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h
+SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
@@ -285,6 +287,9 @@ UFS_GJOURNAL	opt_ufs.h
 # allows these options to be present in config files already (though
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
+
+# SMB/CIFS requester
+NETSMB		opt_netsmb.h
 
 # Options used only in subr_param.c.
 HZ		opt_param.h
@@ -783,6 +788,10 @@ AH_SUPPORT_AR5416	opt_ah.h
 # XXX For now, this breaks non-AR9130 chipsets, so only use it
 # XXX when actually targetting AR9130.
 AH_SUPPORT_AR9130	opt_ah.h
+
+# This is required for AR933x SoC support
+AH_SUPPORT_AR9330	opt_ah.h
+AH_SUPPORT_AR9340	opt_ah.h
 
 AH_DEBUG		opt_ah.h
 AH_ASSERT		opt_ah.h

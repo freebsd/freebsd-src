@@ -85,6 +85,37 @@ main(int argc, char *argv[])
 	assert(mbrtoc16(&c16, "", 0, &s) == (size_t)-2);
 	assert(c16 == L'z');
 
+	/* Check that mbrtoc16() doesn't read ahead too aggressively. */
+	memset(&s, 0, sizeof(s));
+	assert(mbrtoc16(&c16, "AB", 2, &s) == 1);
+	assert(c16 == L'A');
+	assert(mbrtoc16(&c16, "C", 1, &s) == 1);
+	assert(c16 == L'C');
+
+	/*
+	 * ISO-8859-1.
+	 */
+
+	assert(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-1"),
+	    "en_US.ISO8859-1") == 0);
+
+	/* Currency sign. */
+	memset(&s, 0, sizeof(s));
+	assert(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
+	assert(c16 == 0xa4);
+
+	/*
+	 * ISO-8859-15.
+	 */
+
+	assert(strcmp(setlocale(LC_CTYPE, "en_US.ISO8859-15"),
+	    "en_US.ISO8859-15") == 0);
+
+	/* Euro sign. */
+	memset(&s, 0, sizeof(s));
+	assert(mbrtoc16(&c16, "\xa4", 1, &s) == 1);
+	assert(c16 == 0x20ac);
+
 	/*
 	 * UTF-8.
 	 */
@@ -143,6 +174,20 @@ main(int argc, char *argv[])
 	assert(c16 == 0xd83d);
 	assert(mbrtoc16(&c16, "", 0, &s) == (size_t)-3);
 	assert(c16 == 0xdca9);
+
+	/* Letter e with acute, precomposed. */
+	memset(&s, 0, sizeof(s));
+	c16 = 0;
+	assert(mbrtoc16(&c16, "\xc3\xa9", 2, &s) == 2);
+	assert(c16 == 0xe9);
+
+	/* Letter e with acute, combined. */
+	memset(&s, 0, sizeof(s));
+	c16 = 0;
+	assert(mbrtoc16(&c16, "\x65\xcc\x81", 3, &s) == 1);
+	assert(c16 == 0x65);
+	assert(mbrtoc16(&c16, "\xcc\x81", 2, &s) == 2);
+	assert(c16 == 0x301);
 
 	printf("ok 1 - mbrtoc16()\n");
 

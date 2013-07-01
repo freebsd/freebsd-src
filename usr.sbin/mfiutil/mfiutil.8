@@ -63,6 +63,9 @@
 .Cm show firmware
 .Nm
 .Op Fl u Ar unit
+.Cm show foreign Op Ar volume
+.Nm
+.Op Fl u Ar unit
 .Cm show logstate
 .Nm
 .Op Fl d
@@ -138,6 +141,21 @@
 .Nm
 .Op Fl u Ar unit
 .Cm patrol Ar command Op Ar interval Op Ar start
+.Nm
+.Op Fl u Ar unit
+.Cm foreign scan
+.Nm
+.Op Fl u Ar unit
+.Cm foreign clear Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign diag Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign preview Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign import Op Ar config
 .Nm
 .Op Fl u Ar unit
 .Cm flash Ar file
@@ -321,6 +339,8 @@ The entry in the event log corresponding to the most recent boot.
 .El
 .It Cm show firmware
 Lists all of the firmware images present on the controller.
+.It Cm show foreign
+Displays detected foreign configurations on disks for importation or removal.
 .It Cm show logstate
 Display the various sequence numbers associated with the event log.
 .It Cm show patrol
@@ -567,6 +587,35 @@ Enable manual patrol reads that are only initiated by the user.
 Start a patrol read operation.
 .It Cm stop patrol
 Stop a currently running patrol read operation.
+.It Cm foreign scan
+Scan for foreign configurations and display the number found. The
+.Ar config
+argument for the commands below takes the form of a number from 0 to the total
+configurations found.
+.It Cm foreign clear Op config
+Clear the specifed foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
+.It Cm foreign diag Op config
+Display a diagnostic display of the specifed foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
+.It Cm foreign preview Op config
+Preview the specifed foreign
+.Ar config
+after import or all if no
+.Ar config
+argument is provided.
+.It Cm foreign import Op config
+Import the specifed foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
 .It Cm flash Ar file
 Updates the flash on the controller with the firmware stored in
 .Ar file .
@@ -634,6 +683,10 @@ Configure the adapter to run periodic patrol reads once a week with the first
 patrol read starting in 5 minutes:
 .Pp
 .Dl Nm Cm patrol auto 604800 300
+.Pp
+Display the second detected foreign configuration:
+.Pp
+.Dl Nm Cm show foreign 1
 .Sh SEE ALSO
 .Xr mfi 4
 .Sh HISTORY

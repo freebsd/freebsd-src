@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/cons.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
 #include <geom/geom.h>
 #include <geom/geom_disk.h>
 #endif /* _KERNEL */
@@ -906,6 +907,151 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HM250JI", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	/* SATA SSDs */
+	{
+		/*
+		 * Corsair Force 2 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Corsair CSSD-F*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Corsair Force 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Corsair Force 3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Corsair Force GT SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Corsair Force GT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Crucial M4 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "M4-CT???M4SSD2*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Crucial RealSSD C300 SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "C300-CTFDDAC???MAG*",
+		"*" }, /*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Intel 320 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSA2CW*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Intel 330 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSC2CT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Intel 510 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSC2MH*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Intel 520 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSC2BW*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Kingston E100 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "KINGSTON SE100S3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Kingston HyperX 3k SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "KINGSTON SH103S3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Agility 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "OCZ-AGILITY3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Deneva R Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "DENRSTE251M45*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Vertex 2 SSDs (inc pro series)
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "OCZ?VERTEX2*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Vertex 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "OCZ-VERTEX3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Samsung 830 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG SSD 830 Series*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * SuperTalent TeraDrive CT SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "FTM??CT25H*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * XceedIOPS SATA SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SG9XCS2D*", "*" },
+		/*quirks*/DA_Q_4K
 	},
 };
 
@@ -1780,7 +1926,8 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
-		if (strcmp(buf, da_delete_method_names[i]) != 0)
+		if (!(softc->delete_available & (1 << i)) ||
+		    strcmp(buf, da_delete_method_names[i]) != 0)
 			continue;
 		dadeletemethodset(softc, i);
 		return (0);
@@ -3525,8 +3672,16 @@ dashutdown(void * arg, int howto)
 	int error;
 
 	CAM_PERIPH_FOREACH(periph, &dadriver) {
-		cam_periph_lock(periph);
 		softc = (struct da_softc *)periph->softc;
+		if (SCHEDULER_STOPPED()) {
+			/* If we paniced with the lock held, do not recurse. */
+			if (!cam_periph_owned(periph) &&
+			    (softc->flags & DA_FLAG_OPEN)) {
+				dadump(softc->disk, NULL, 0, 0, 0);
+			}
+			continue;
+		}
+		cam_periph_lock(periph);
 
 		/*
 		 * We only sync the cache if the drive is still open, and

@@ -52,7 +52,7 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -71,21 +71,18 @@ defaultitem=""
 while :; do
 	f_dialog_menu_user_list "$defaultitem"
 	retval=$?
-	mtag=$( f_dialog_menutag )
+	f_dialog_menutag_fetch mtag
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 	defaultitem="$mtag"
 
 	[ $retval -eq 0 ] || f_die
 
-	case "$mtag" in
-	"X $msg_exit") break ;;
+	[ "$mtag" = "X $msg_exit" ] && break
 
-	*) # anything else is a userid
-	   $BSDCFG_LIBE/$APP_DIR/userinput \
-	   	${USE_XDIALOG:+-X} mode="Delete" user="$mtag"
-	   ;;
+	# Anything else is a userid
 
-	esac
+	$BSDCFG_LIBE/$APP_DIR/userinput \
+		${USE_XDIALOG:+-X} mode="Delete" user="$mtag"
 done
 
 exit $SUCCESS

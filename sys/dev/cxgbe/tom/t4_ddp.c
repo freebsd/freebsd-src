@@ -541,12 +541,12 @@ enable_ddp(struct adapter *sc, struct toepcb *toep)
 	    __func__, toep->tid, time_uptime);
 
 	toep->ddp_flags |= DDP_SC_REQ;
-	t4_set_tcb_field(sc, toep, W_TCB_RX_DDP_FLAGS,
+	t4_set_tcb_field(sc, toep, 1, W_TCB_RX_DDP_FLAGS,
 	    V_TF_DDP_OFF(1) | V_TF_DDP_INDICATE_OUT(1) |
 	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1) |
 	    V_TF_DDP_BUF0_VALID(1) | V_TF_DDP_BUF1_VALID(1),
 	    V_TF_DDP_BUF0_INDICATE(1) | V_TF_DDP_BUF1_INDICATE(1));
-	t4_set_tcb_field(sc, toep, W_TCB_T_FLAGS,
+	t4_set_tcb_field(sc, toep, 1, W_TCB_T_FLAGS,
 	    V_TF_RCV_COALESCE_ENABLE(1), 0);
 }
 
@@ -562,9 +562,9 @@ disable_ddp(struct adapter *sc, struct toepcb *toep)
 	    __func__, toep->tid, time_uptime);
 
 	toep->ddp_flags |= DDP_SC_REQ;
-	t4_set_tcb_field(sc, toep, W_TCB_T_FLAGS,
+	t4_set_tcb_field(sc, toep, 1, W_TCB_T_FLAGS,
 	    V_TF_RCV_COALESCE_ENABLE(1), V_TF_RCV_COALESCE_ENABLE(1));
-	t4_set_tcb_field(sc, toep, W_TCB_RX_DDP_FLAGS, V_TF_DDP_OFF(1),
+	t4_set_tcb_field(sc, toep, 1, W_TCB_RX_DDP_FLAGS, V_TF_DDP_OFF(1),
 	    V_TF_DDP_OFF(1));
 }
 

@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -801,11 +802,6 @@ vm_page_dirty_KBI(vm_page_t m)
  *
  *	Inserts the given mem entry into the object and object list.
  *
- *	The pagetables are not updated but will presumably fault the page
- *	in if necessary, or if a kernel page the caller will at some point
- *	enter the page into the kernel's pmap.  We are not allowed to sleep
- *	here so we *can't* do this anyway.
- *
  *	The object must be locked.
  */
 void
@@ -890,8 +886,6 @@ vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
  *	Removes the given mem entry from the object/offset-page
  *	table and the object page list, but do not invalidate/terminate
  *	the backing store.
- *
- *	The underlying pmap entry (if any) is NOT removed here.
  *
  *	The object must be locked.  The page must be locked if it is managed.
  */
@@ -1837,7 +1831,6 @@ vm_page_activate(vm_page_t m)
 	int queue;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((queue = m->queue) != PQ_ACTIVE) {
 		if (m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0) {
 			if (m->act_count < ACT_INIT)
@@ -2020,7 +2013,7 @@ vm_page_wire(vm_page_t m)
  * However, unless the page belongs to an object, it is not enqueued because
  * it cannot be paged out.
  *
- * If a page is fictitious, then its wire count must alway be one.
+ * If a page is fictitious, then its wire count must always be one.
  *
  * A managed page must be locked.
  */
@@ -2246,15 +2239,15 @@ vm_page_cache(vm_page_t m)
 }
 
 /*
- * vm_page_dontneed
+ * vm_page_advise
  *
  *	Cache, deactivate, or do nothing as appropriate.  This routine
- *	is typically used by madvise() MADV_DONTNEED.
+ *	is used by madvise().
  *
  *	Generally speaking we want to move the page into the cache so
  *	it gets reused quickly.  However, this can result in a silly syndrome
  *	due to the page recycling too quickly.  Small objects will not be
- *	fully cached.  On the otherhand, if we move the page to the inactive
+ *	fully cached.  On the other hand, if we move the page to the inactive
  *	queue we wind up with a problem whereby very large objects 
  *	unnecessarily blow away our inactive and cache queues.
  *
@@ -2269,13 +2262,31 @@ vm_page_cache(vm_page_t m)
  *	The object and page must be locked.
  */
 void
-vm_page_dontneed(vm_page_t m)
+vm_page_advise(vm_page_t m, int advice)
 {
-	int dnw;
-	int head;
+	int dnw, head;
 
-	vm_page_lock_assert(m, MA_OWNED);
+	vm_page_assert_locked(m);
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	if (advice == MADV_FREE) {
+		/*
+		 * Mark the page clean.  This will allow the page to be freed
+		 * up by the system.  However, such pages are often reused
+		 * quickly by malloc() so we do not do anything that would
+		 * cause a page fault if we can help it.
+		 *
+		 * Specifically, we do not try to actually free the page now
+		 * nor do we try to put it in the cache (which would cause a
+		 * page fault on reuse).
+		 *
+		 * But we do make the page is freeable as we can without
+		 * actually taking the step of unmapping it.
+		 */
+		pmap_clear_modify(m);
+		m->dirty = 0;
+		m->act_count = 0;
+	} else if (advice != MADV_DONTNEED)
+		return;
 	dnw = PCPU_GET(dnweight);
 	PCPU_INC(dnweight);
 
@@ -2302,7 +2313,7 @@ vm_page_dontneed(vm_page_t m)
 	pmap_clear_reference(m);
 	vm_page_aflag_clear(m, PGA_REFERENCED);
 
-	if (m->dirty == 0 && pmap_is_modified(m))
+	if (advice != MADV_FREE && m->dirty == 0 && pmap_is_modified(m))
 		vm_page_dirty(m);
 
 	if (m->dirty || (dnw & 0x0070) == 0) {
@@ -2725,6 +2736,13 @@ vm_page_trylock_KBI(vm_page_t m, const char *file, int line)
 }
 
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+void
+vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line)
+{
+
+	vm_page_lock_assert_KBI(m, MA_OWNED, file, line);
+}
+
 void
 vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
 {

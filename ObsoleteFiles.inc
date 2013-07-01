@@ -38,6 +38,45 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130623: dialog update from 1.1 to 1.2
+OLD_LIBS+=usr/lib/libdialog.so.7
+OLD_LIBS+=usr/lib32/libdialog.so.7
+# 20130616: vfs_mounted.9 removed
+OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
+# 20130614: remove CVS from base
+OLD_FILES+=usr/bin/cvs
+OLD_FILES+=usr/bin/cvsbug
+OLD_FILES+=usr/share/doc/psd/28.cvs/paper.ascii.gz
+OLD_DIRS+=usr/share/doc/psd/28.cvs
+OLD_FILES+=usr/share/examples/cvs/contrib/README
+OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
+OLD_FILES+=usr/share/examples/cvs/contrib/cln_hist
+OLD_FILES+=usr/share/examples/cvs/contrib/commit_prep
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs2vendor
+OLD_FILES+=usr/share/examples/cvs/contrib/cvs_acls
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck
+OLD_FILES+=usr/share/examples/cvs/contrib/cvscheck.man
+OLD_FILES+=usr/share/examples/cvs/contrib/cvshelp.man
+OLD_FILES+=usr/share/examples/cvs/contrib/descend.man
+OLD_FILES+=usr/share/examples/cvs/contrib/easy-import
+OLD_FILES+=usr/share/examples/cvs/contrib/intro.doc
+OLD_FILES+=usr/share/examples/cvs/contrib/log
+OLD_FILES+=usr/share/examples/cvs/contrib/log_accum
+OLD_FILES+=usr/share/examples/cvs/contrib/mfpipe
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs-to-cvs
+OLD_FILES+=usr/share/examples/cvs/contrib/rcs2log
+OLD_FILES+=usr/share/examples/cvs/contrib/rcslock
+OLD_FILES+=usr/share/examples/cvs/contrib/sccs2rcs
+OLD_DIRS+=usr/share/examples/cvs/contrib
+OLD_DIRS+=usr/share/examples/cvs
+OLD_FILES+=usr/share/info/cvs.info.gz
+OLD_FILES+=usr/share/info/cvsclient.info.gz
+OLD_FILES+=usr/share/man/man1/cvs.1.gz
+OLD_FILES+=usr/share/man/man5/cvs.5.gz
+OLD_FILES+=usr/share/man/man8/cvsbug.8.gz
+# 20130607: WITH_DEBUG_FILES added
+OLD_FILES+=lib/libufs.so.6.symbols
+OLD_FILES+=usr/lib32/libufs.so.6.symbols
 # 20130417: nfs fha moved from nfsserver to nfs
 OLD_FILES+=usr/include/nfsserver/nfs_fha.h
 # 20130411: new clang import which bumps version from 3.2 to 3.3.
@@ -257,7 +296,9 @@ OLD_FILES+=usr/share/man/man1/yyfix.1.gz
 # 20120505: new clang import installed a redundant internal header
 OLD_FILES+=usr/include/clang/3.1/stdalign.h
 # 20120428: MD2 removed from libmd
+OLD_LIBS+=lib/libmd.so.5
 OLD_FILES+=usr/include/md2.h
+OLD_LIBS+=usr/lib32/libmd.so.5
 OLD_FILES+=usr/share/man/man3/MD2Data.3.gz
 OLD_FILES+=usr/share/man/man3/MD2End.3.gz
 OLD_FILES+=usr/share/man/man3/MD2File.3.gz
@@ -824,7 +865,6 @@ OLD_LIBS+=lib/libipx.so.4
 OLD_LIBS+=lib/libkiconv.so.3
 OLD_LIBS+=lib/libkvm.so.4
 OLD_LIBS+=lib/libmd.so.4
-OLD_LIBS+=lib/libmd.so.5
 OLD_LIBS+=lib/libncurses.so.7
 OLD_LIBS+=lib/libncursesw.so.7
 OLD_LIBS+=lib/libnvpair.so.1

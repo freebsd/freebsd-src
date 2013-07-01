@@ -460,8 +460,9 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	 * type object.
 	 */
 	m = vm_page_grab(tobj, idx, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
-	    VM_ALLOC_IGN_SBUSY);
+	    VM_ALLOC_IGN_SBUSY | VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_busy(m);
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			rv = vm_pager_get_pages(tobj, &m, 1, 0);
 			m = vm_page_lookup(tobj, idx);
@@ -469,6 +470,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 				printf(
 		    "tmpfs: vm_obj %p idx %jd null lookup rv %d\n",
 				    tobj, idx, rv);
+				VM_OBJECT_WUNLOCK(tobj);
 				return (EIO);
 			}
 			if (rv != VM_PAGER_OK) {
@@ -483,14 +485,13 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 			}
 		} else
 			vm_page_zero_invalid(m, TRUE);
+		vm_page_wakeup(m);
 	}
 	vm_page_lock(m);
 	vm_page_hold(m);
-	vm_page_wakeup(m);
 	vm_page_unlock(m);
 	VM_OBJECT_WUNLOCK(tobj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
-	VM_OBJECT_WLOCK(tobj);
 	vm_page_lock(m);
 	vm_page_unhold(m);
 	if (m->queue == PQ_NONE) {
@@ -500,7 +501,6 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 		vm_page_requeue(m);
 	}
 	vm_page_unlock(m);
-	VM_OBJECT_WUNLOCK(tobj);
 
 	return (error);
 }
@@ -576,8 +576,10 @@ tmpfs_mappedwrite(vm_object_t tobj, size_t len, struct uio *uio)
 	tlen = MIN(PAGE_SIZE - offset, len);
 
 	VM_OBJECT_WLOCK(tobj);
-	tpg = vm_page_grab(tobj, idx, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	tpg = vm_page_grab(tobj, idx, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_RETRY);
 	if (tpg->valid != VM_PAGE_BITS_ALL) {
+		vm_page_busy(tpg);
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			rv = vm_pager_get_pages(tobj, &tpg, 1, 0);
 			tpg = vm_page_lookup(tobj, idx);
@@ -585,6 +587,7 @@ tmpfs_mappedwrite(vm_object_t tobj, size_t len, struct uio *uio)
 				printf(
 		    "tmpfs: vm_obj %p idx %jd null lookup rv %d\n",
 				    tobj, idx, rv);
+				VM_OBJECT_WUNLOCK(tobj);
 				return (EIO);
 			}
 			if (rv != VM_PAGER_OK) {
@@ -599,10 +602,10 @@ tmpfs_mappedwrite(vm_object_t tobj, size_t len, struct uio *uio)
 			}
 		} else
 			vm_page_zero_invalid(tpg, TRUE);
+		vm_page_wakeup(tpg);
 	}
 	vm_page_lock(tpg);
 	vm_page_hold(tpg);
-	vm_page_wakeup(tpg);
 	vm_page_unlock(tpg);
 	VM_OBJECT_WUNLOCK(tobj);
 	error = uiomove_fromphys(&tpg, offset, tlen, uio);

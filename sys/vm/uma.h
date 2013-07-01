@@ -124,6 +124,16 @@ typedef int (*uma_init)(void *mem, int size, int flags);
 typedef void (*uma_fini)(void *mem, int size);
 
 /*
+ * Import new memory into a cache zone.
+ */
+typedef int (*uma_import)(void *arg, void **store, int count, int flags);
+
+/*
+ * Free memory from a cache zone.
+ */
+typedef void (*uma_release)(void *arg, void **store, int count);
+
+/*
  * What's the difference between initializing and constructing?
  *
  * The item is initialized when it is cached, and this is the state that the
@@ -214,6 +224,19 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
  *	Error on failure, 0 on success.
  */
 int uma_zsecond_add(uma_zone_t zone, uma_zone_t master);
+
+/*
+ * Create cache-only zones.
+ *
+ * This allows uma's per-cpu cache facilities to handle arbitrary
+ * pointers.  Consumers must specify the import and release functions to
+ * fill and destroy caches.  UMA does not allocate any memory for these
+ * zones.  The 'arg' parameter is passed to import/release and is caller
+ * specific.
+ */
+uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
+		    uma_init zinit, uma_fini zfini, uma_import zimport,
+		    uma_release zrelease, void *arg, int flags);
 
 /*
  * Definitions for uma_zcreate flags
@@ -434,6 +457,12 @@ void uma_reclaim(void);
  *	Nothing
  */
 void uma_set_align(int align);
+
+/*
+ * Set a reserved number of items to hold for M_USE_RESERVE allocations.  All
+ * other requests must allocate new backing pages.
+ */
+void uma_zone_reserve(uma_zone_t zone, int nitems);
 
 /*
  * Reserves the maximum KVA space required by the zone and configures the zone

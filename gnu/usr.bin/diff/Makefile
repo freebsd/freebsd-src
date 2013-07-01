@@ -20,7 +20,7 @@ CFLAGS+=-DPR_PROGRAM=\"/usr/bin/pr\"
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/src
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/lib
-CFLAGS+=-I${.CURDIR}/../../lib/libregex
+CFLAGS+=-I${DESTDIR}/usr/include/gnu
 
 SUBDIR+=doc
 

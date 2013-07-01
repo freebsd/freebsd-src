@@ -35,7 +35,7 @@
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
 # doxygen     - build API documentation of the kernel
-# update      - convenient way to update your source tree (eg: cvsup/cvs)
+# update      - convenient way to update your source tree (eg: svn/svnup)
 #
 # Standard targets (not defined here) are documented in the makefiles in
 # /usr/share/mk.  These include:
@@ -114,15 +114,8 @@ LOCAL_TOOL_DIRS?=
 
 BUILDENV_SHELL?=/bin/sh
 
-CVS?=		cvs
-CVSFLAGS?=	-A -P -d -I!
-SVN?=		svn
+SVN?=		/usr/local/bin/svn
 SVNFLAGS?=	-r HEAD
-SUP?=		/usr/bin/csup
-SUPFLAGS?=	-g -L 2
-.if defined(SUPHOST)
-SUPFLAGS+=	-h ${SUPHOST}
-.endif
 
 MAKEOBJDIRPREFIX?=	/usr/obj
 .if !defined(OSRELDATE)
@@ -270,6 +263,13 @@ WMAKEENV=	${CROSSENV} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
+
+# make hierarchy
+HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE}
+.if defined(NO_ROOT)
+HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
+.endif
+
 .if ${MK_CDDL} == "no"
 WMAKEENV+=	NO_CTF=1
 .endif
@@ -414,11 +414,12 @@ IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
 INSTALLFLAGS+=	-N ${.CURDIR}/etc
 MTREEFLAGS+=	-N ${.CURDIR}/etc
 .endif
+_INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
+INSTALL_DDIR=	${_INSTALL_DDIR:S://:/:g:C:/$::}
 .if defined(NO_ROOT)
 METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
 IMAKE+=		-DNO_ROOT METALOG=${METALOG}
-INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
-INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR:S://:/:g:C:/$::}
+INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR}
 MTREEFLAGS+=	-W
 .endif
 .if defined(DB_FROM_SRC) || defined(NO_ROOT)
@@ -476,6 +477,13 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+.if ${MK_DEBUG_FILES} != "no"
+	# We could instead disable debug files for these build stages
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${WORLDTMP}/usr/lib >/dev/null
+.endif
 .if ${MK_BIND_LIBS} != "no"
 	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
@@ -561,6 +569,10 @@ build32:
 	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${LIB32TMP}/usr/lib >/dev/null
+.endif
 	mkdir -p ${WORLDTMP}
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .for _t in obj includes
@@ -785,6 +797,10 @@ distributeworld installworld: installcheck installcheck_UGID
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.if ${MK_DEBUG_FILES} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
+.endif
 .if defined(NO_ROOT)
 	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
@@ -804,7 +820,7 @@ distributeworld installworld: installcheck installcheck_UGID
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 .if make(distributeworld)
 .for dist in ${EXTRA_DISTRIBUTIONS}
-	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
+	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -empty -delete
 .endfor
 .if defined(NO_ROOT)
 .for dist in base ${EXTRA_DISTRIBUTIONS}
@@ -892,15 +908,10 @@ NO_KERNELOBJ=		t
 KERNCONF=${KERNFAST}
 .endif
 .endif
-.if !defined(KERNCONF) && defined(KERNEL)
-KERNCONF=	${KERNEL}
-KERNWARN=
-.else
 .if ${TARGET_ARCH} == "powerpc64"
 KERNCONF?=	GENERIC64
 .else
 KERNCONF?=	GENERIC
-.endif
 .endif
 INSTKERNNAME?=	kernel
 
@@ -929,12 +940,6 @@ buildkernel:
 .if empty(BUILDKERNELS)
 	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF})."; \
 	false
-.endif
-.if defined(KERNWARN)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> WARNING: KERNEL= setting should be changed to KERNCONF="
-	@echo "--------------------------------------------------------------"
-	@sleep 3
 .endif
 	@echo
 .for _kernel in ${BUILDKERNELS}
@@ -1032,7 +1037,7 @@ distributekernel distributekernel.debug:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
-	    DESTDIR=${INSTALL_DDIR:S://:/:g:C:/$::}/kernel \
+	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
@@ -1046,7 +1051,7 @@ distributekernel distributekernel.debug:
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
-	    DESTDIR=${INSTALL_DDIR:S://:/:g:C:/$::}/kernel.${_kernel} \
+	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
 	    ${.TARGET:S/distributekernel/install/}
 	sed -e 's|^./kernel|.|' \
 	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
@@ -1087,63 +1092,22 @@ doxygen:
 #
 # update
 #
-# Update the source tree(s), by running cvsup/cvs/svn to update to the
+# Update the source tree(s), by running svn/svnup to update to the
 # latest copy.
 #
 update:
-.if defined(SUP_UPDATE)
+.if (defined(CVS_UPDATE) || defined(SUP_UPDATE)) && !defined(SVN_UPDATE)
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Running ${SUP}"
+	@echo "CVS_UPDATE and SUP_UPDATE are no longer supported."
+	@echo "Please see: https://wiki.freebsd.org/CvsIsDeprecated"
 	@echo "--------------------------------------------------------------"
-	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
-	@echo "!! Update methods with ${SUP} are deprecated."
-	@echo "!! Please see http://www.freebsd.org/handbook/svn.html"
-	@echo "!! and convert your update method to SVN_UPDATE or"
-	@echo "!! freebsd-update(8)."
-	@echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!"
-	@sleep 5
-.if defined(SUPFILE)
-	@${SUP} ${SUPFLAGS} ${SUPFILE}
-.endif
-.if defined(SUPFILE1)
-	@${SUP} ${SUPFLAGS} ${SUPFILE1}
-.endif
-.if defined(SUPFILE2)
-	@${SUP} ${SUPFLAGS} ${SUPFILE2}
-.endif
-.if defined(PORTSSUPFILE) && !defined(NO_PORTSUPDATE)
-	@${SUP} ${SUPFLAGS} ${PORTSSUPFILE}
-.endif
-.if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
-	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
-.endif
-.endif
-.if defined(CVS_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d CVS ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
-		echo "--------------------------------------------------------------" ; \
-		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
-		echo "!! Update methods with CVS are deprecated." ; \
-		echo "!! Please see http://www.freebsd.org/handbook/svn.html" ; \
-		echo "!! and convert your update method to SVN_UPDATE or" ; \
-		echo "!! freebsd-update(8)." ; \
-		echo "!! WARNING WARNING WARNING WARNING WARNING WARNING WARNING !!" ; \
-		sleep 5 ; \
-		echo ${CVS} -R -q update ${CVSFLAGS} ; \
-		${CVS} -R -q update ${CVSFLAGS} ; \
-	fi
+	@exit 1
 .endif
 .if defined(SVN_UPDATE)
-	@cd ${.CURDIR} ; \
-	if [ -d .svn ] ; then \
-		echo "--------------------------------------------------------------" ; \
-		echo ">>> Updating ${.CURDIR} using Subversion" ; \
-		echo "--------------------------------------------------------------" ; \
-		echo ${SVN} update ${SVNFLAGS} ; \
-		${SVN} update ${SVNFLAGS} ; \
-	fi
+	@echo "--------------------------------------------------------------"
+	@echo ">>> Updating ${.CURDIR} using Subversion"
+	@echo "--------------------------------------------------------------"
+	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
 .endif
 
 #
@@ -1167,11 +1131,11 @@ legacy:
 .endif
 .for _tool in tools/build
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
-	    cd ${.CURDIR}/${_tool}; \
-	    ${MAKE} DIRPRFX=${_tool}/ obj; \
-	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
-	    ${MAKE} DIRPRFX=${_tool}/ depend; \
-	    ${MAKE} DIRPRFX=${_tool}/ all; \
+	    cd ${.CURDIR}/${_tool} && \
+	    ${MAKE} DIRPRFX=${_tool}/ obj && \
+	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes && \
+	    ${MAKE} DIRPRFX=${_tool}/ depend && \
+	    ${MAKE} DIRPRFX=${_tool}/ all && \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
@@ -1215,6 +1179,10 @@ _yacc=		lib/liby \
 		usr.bin/yacc
 .endif
 
+.if ${BOOTSTRAPPING} < 1000014
+_crunch=	usr.sbin/crunch
+.endif
+
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
@@ -1242,8 +1210,8 @@ _clang_tblgen= \
 
 # dtrace tools are required for older bootstrap env and cross-build
 .if ${MK_CDDL} != "no" && \
-    ((${BOOTSTRAPPING} < 800038 && \
-          !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)) \
+    ((${BOOTSTRAPPING} < 1000034 && \
+          !(${BOOTSTRAPPING} >= 901505 && ${BOOTSTRAPPING} < 999999)) \
       || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
@@ -1293,12 +1261,13 @@ bootstrap-tools:
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
+    ${_crunch} \
     ${_nmtree}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
-		${MAKE} DIRPRFX=${_tool}/ all; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
@@ -1336,16 +1305,16 @@ build-tools:
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
     ${_gcc_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
 
@@ -1394,10 +1363,10 @@ cross-tools:
     ${_crunchide} \
     ${_kgzip}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
-		${MAKE} DIRPRFX=${_tool}/ all; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
@@ -1405,12 +1374,7 @@ cross-tools:
 # hierarchy - ensure that all the needed directories are present
 #
 hierarchy hier:
-.if defined(NO_ROOT)
-	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} \
-	    -DNO_ROOT METALOG=${METALOG} distrib-dirs
-.else
-	cd ${.CURDIR}/etc; ${MAKE} LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
-.endif
+	cd ${.CURDIR}/etc && ${HMAKE} distrib-dirs
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
@@ -1581,10 +1545,10 @@ lib/libradius__L: lib/libmd__L
 ${_lib}__PL: .PHONY
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib}; \
-		${MAKE} DIRPRFX=${_lib}/ obj; \
-		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
+		cd ${.CURDIR}/${_lib} && \
+		${MAKE} DIRPRFX=${_lib}/ obj && \
+		${MAKE} DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all && \
 		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -1593,10 +1557,10 @@ ${_lib}__PL: .PHONY
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib}; \
-		${MAKE} DIRPRFX=${_lib}/ obj; \
-		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} DIRPRFX=${_lib}/ all; \
+		cd ${.CURDIR}/${_lib} && \
+		${MAKE} DIRPRFX=${_lib}/ obj && \
+		${MAKE} DIRPRFX=${_lib}/ depend && \
+		${MAKE} DIRPRFX=${_lib}/ all && \
 		${MAKE} DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -1606,10 +1570,10 @@ ${_lib}__L: .PHONY
 # modules.
 lib/libpam__L: .PHONY
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
-		cd ${.CURDIR}/lib/libpam; \
-		${MAKE} DIRPRFX=lib/libpam/ obj; \
-		${MAKE} DIRPRFX=lib/libpam/ depend; \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
+		cd ${.CURDIR}/lib/libpam && \
+		${MAKE} DIRPRFX=lib/libpam/ obj && \
+		${MAKE} DIRPRFX=lib/libpam/ depend && \
+		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all && \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
@@ -1620,7 +1584,7 @@ _generic_libs: ${_generic_libs:S/$/__L/}
 .for __target in all clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
-	${_+_}@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
+	${_+_}@set -e; if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
 		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH} (${__target})"; \
 		edir=${entry}.${MACHINE_ARCH}; \
 		cd ${.CURDIR}/$${edir}; \
@@ -1858,10 +1822,10 @@ _xb-bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-	cd ${.CURDIR}/${_tool}; \
-	${CDMAKE} DIRPRFX=${_tool}/ obj; \
-	${CDMAKE} DIRPRFX=${_tool}/ depend; \
-	${CDMAKE} DIRPRFX=${_tool}/ all; \
+	cd ${.CURDIR}/${_tool} && \
+	${CDMAKE} DIRPRFX=${_tool}/ obj && \
+	${CDMAKE} DIRPRFX=${_tool}/ depend && \
+	${CDMAKE} DIRPRFX=${_tool}/ all && \
 	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
 .endfor
 
@@ -1877,9 +1841,9 @@ _xb-cross-tools:
     ${_clang_libs} \
     ${_clang}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
-	cd ${.CURDIR}/${_tool}; \
-	${CDMAKE} DIRPRFX=${_tool}/ obj; \
-	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	cd ${.CURDIR}/${_tool} && \
+	${CDMAKE} DIRPRFX=${_tool}/ obj && \
+	${CDMAKE} DIRPRFX=${_tool}/ depend && \
 	${CDMAKE} DIRPRFX=${_tool}/ all
 .endfor
 
@@ -1928,3 +1892,5 @@ _xi-links:
 xdev xdev-build xdev-install:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
+
+buildkernel ${WMAKE_TGTS} ${.ALLTARGETS:M_*}: .MAKE

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitset.h>
 #include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -191,6 +192,7 @@ mtrash_fini(void *mem, int size)
 	(void)mtrash_ctor(mem, size, NULL, 0);
 }
 
+#ifdef INVARIANTS
 static uma_slab_t
 uma_dbg_getslab(uma_zone_t zone, void *item)
 {
@@ -198,15 +200,22 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 	uma_keg_t keg;
 	uint8_t *mem;
 
-	mem = (uint8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
+	mem = (uint8_t *)((uintptr_t)item & (~UMA_SLAB_MASK));
 	if (zone->uz_flags & UMA_ZONE_VTOSLAB) {
 		slab = vtoslab((vm_offset_t)mem);
 	} else {
+		/*
+		 * It is safe to return the slab here even though the
+		 * zone is unlocked because the item's allocation state
+		 * essentially holds a reference.
+		 */
+		ZONE_LOCK(zone);
 		keg = LIST_FIRST(&zone->uz_kegs)->kl_keg;
 		if (keg->uk_flags & UMA_ZONE_HASH)
 			slab = hash_sfind(&keg->uk_hash, mem);
 		else
 			slab = (uma_slab_t)(mem + keg->uk_pgoff);
+		ZONE_UNLOCK(zone);
 	}
 
 	return (slab);
@@ -216,14 +225,14 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
  * Set up the slab's freei data such that uma_dbg_free can function.
  *
  */
-
 void
 uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 {
 	uma_keg_t keg;
-	uma_slabrefcnt_t slabref;
 	int freei;
 
+	if (zone_first_keg(zone) == NULL)
+		return;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 
@@ -231,16 +240,12 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 			    item, zone->uz_name);
 	}
 	keg = slab->us_keg;
+	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
 
-	freei = ((unsigned long)item - (unsigned long)slab->us_data)
-	    / keg->uk_rsize;
-
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		slabref->us_freelist[freei].us_item = 255;
-	} else {
-		slab->us_freelist[freei].us_item = 255;
-	}
+	if (BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
+		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
+	BIT_SET_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
 
 	return;
 }
@@ -250,14 +255,14 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
  * and duplicate frees.
  *
  */
-
 void
 uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 {
 	uma_keg_t keg;
-	uma_slabrefcnt_t slabref;
 	int freei;
 
+	if (zone_first_keg(zone) == NULL)
+		return;
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 
@@ -265,49 +270,21 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 			    item, zone->uz_name);
 	}
 	keg = slab->us_keg;
-
-	freei = ((unsigned long)item - (unsigned long)slab->us_data)
-	    / keg->uk_rsize;
+	freei = ((uintptr_t)item - (uintptr_t)slab->us_data) / keg->uk_rsize;
 
 	if (freei >= keg->uk_ipers)
-		panic("zone: %s(%p) slab %p freelist %d out of range 0-%d\n",
-		    zone->uz_name, zone, slab, freei, keg->uk_ipers-1);
+		panic("Invalid free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
 
-	if (((freei * keg->uk_rsize) + slab->us_data) != item) {
-		printf("zone: %s(%p) slab %p freed address %p unaligned.\n",
-		    zone->uz_name, zone, slab, item);
-		panic("should be %p\n",
-		    (freei * keg->uk_rsize) + slab->us_data);
-	}
+	if (((freei * keg->uk_rsize) + slab->us_data) != item) 
+		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
 
-	if (keg->uk_flags & UMA_ZONE_REFCNT) {
-		slabref = (uma_slabrefcnt_t)slab;
-		if (slabref->us_freelist[freei].us_item != 255) {
-			printf("Slab at %p, freei %d = %d.\n",
-			    slab, freei, slabref->us_freelist[freei].us_item);
-			panic("Duplicate free of item %p from zone %p(%s)\n",
-			    item, zone, zone->uz_name);
-		}
+	if (!BIT_ISSET(SLAB_SETSIZE, freei, &slab->us_debugfree))
+		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)\n",
+		    item, zone, zone->uz_name, slab, freei);
 
-		/*
-		 * When this is actually linked into the slab this will change.
-		 * Until then the count of valid slabs will make sure we don't
-		 * accidentally follow this and assume it's a valid index.
-		 */
-		slabref->us_freelist[freei].us_item = 0;
-	} else {
-		if (slab->us_freelist[freei].us_item != 255) {
-			printf("Slab at %p, freei %d = %d.\n",
-			    slab, freei, slab->us_freelist[freei].us_item);
-			panic("Duplicate free of item %p from zone %p(%s)\n",
-			    item, zone, zone->uz_name);
-		}
-
-		/*
-		 * When this is actually linked into the slab this will change.
-		 * Until then the count of valid slabs will make sure we don't
-		 * accidentally follow this and assume it's a valid index.
-		 */
-		slab->us_freelist[freei].us_item = 0;
-	}
+	BIT_CLR_ATOMIC(SLAB_SETSIZE, freei, &slab->us_debugfree);
 }
+
+#endif /* INVARIANTS */

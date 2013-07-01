@@ -64,8 +64,7 @@ def HI22 : SDNodeXForm<imm, [{
 }]>;
 
 def SETHIimm : PatLeaf<(imm), [{
-  return (((unsigned)N->getZExtValue() >> 10) << 10) ==
-         (unsigned)N->getZExtValue();
+  return isShiftedUInt<22, 10>(N->getZExtValue());
 }], HI22>;
 
 // Addressing modes.
@@ -796,10 +795,8 @@ def : Pat<(SPhi tconstpool:$in), (SETHIi tconstpool:$in)>;
 def : Pat<(SPlo tconstpool:$in), (ORri (i32 G0), tconstpool:$in)>;
 
 // Add reg, lo.  This is used when taking the addr of a global/constpool entry.
-def : Pat<(add i32:$r, (SPlo tglobaladdr:$in)),
-          (ADDri $r, tglobaladdr:$in)>;
-def : Pat<(add i32:$r, (SPlo tconstpool:$in)),
-          (ADDri $r, tconstpool:$in)>;
+def : Pat<(add iPTR:$r, (SPlo tglobaladdr:$in)), (ADDri $r, tglobaladdr:$in)>;
+def : Pat<(add iPTR:$r, (SPlo tconstpool:$in)),  (ADDri $r, tconstpool:$in)>;
 
 // Calls: 
 def : Pat<(call tglobaladdr:$dst),
