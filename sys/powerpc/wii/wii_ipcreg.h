@@ -93,10 +93,10 @@ struct wiiipc_ipc_msg {
 
 CTASSERT(sizeof(struct wiiipc_ipc_msg) == 32);
 
-#define ipc_open 	args._ipc_open
+#define	ipc_open 	args._ipc_open
 #define	ipc_read	args._ipc_read
 #define	ipc_write	args._ipc_write
-#define ipc_ioctl 	args._ipc_ioctl
-#define ipc_ioctlv	args._ipc_ioctlv
+#define	ipc_ioctl 	args._ipc_ioctl
+#define	ipc_ioctlv	args._ipc_ioctlv
 
 #endif	/* _POWERPC_WII_WII_IPCREG_H */
