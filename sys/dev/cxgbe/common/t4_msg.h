@@ -104,6 +104,7 @@ enum {
 	CPL_RX_ISCSI_DDP      = 0x49,
 	CPL_RX_FCOE_DIF       = 0x4A,
 	CPL_RX_DATA_DIF       = 0x4B,
+	CPL_ERR_NOTIFY	      = 0x4D,
 
 	CPL_RDMA_READ_REQ     = 0x60,
 	CPL_RX_ISCSI_DIF      = 0x60,
@@ -125,6 +126,7 @@ enum {
 	CPL_RDMA_IMM_DATA_SE  = 0xAD,
 
 	CPL_TRACE_PKT         = 0xB0,
+	CPL_TRACE_PKT_T5      = 0x48,
 	CPL_RX2TX_DATA        = 0xB1,
 	CPL_ISCSI_DATA        = 0xB2,
 	CPL_FCOE_DATA         = 0xB3,
@@ -478,6 +480,11 @@ struct work_request_hdr {
 #define V_CONN_POLICY(x) ((x) << S_CONN_POLICY)
 #define G_CONN_POLICY(x) (((x) >> S_CONN_POLICY) & M_CONN_POLICY)
 
+#define S_FILT_INFO    28
+#define M_FILT_INFO    0xfffffffffULL
+#define V_FILT_INFO(x) ((x) << S_FILT_INFO)
+#define G_FILT_INFO(x) (((x) >> S_FILT_INFO) & M_FILT_INFO)
+
 /* option 2 fields */
 #define S_RSS_QUEUE    0
 #define M_RSS_QUEUE    0x3FF
@@ -551,6 +558,10 @@ struct work_request_hdr {
 #define S_SACK_EN    30
 #define V_SACK_EN(x) ((x) << S_SACK_EN)
 #define F_SACK_EN    V_SACK_EN(1U)
+
+#define S_T5_OPT_2_VALID    31
+#define V_T5_OPT_2_VALID(x) ((x) << S_T5_OPT_2_VALID)
+#define F_T5_OPT_2_VALID    V_T5_OPT_2_VALID(1U)
 
 struct cpl_pass_open_req {
 	WR_HDR;
@@ -679,6 +690,10 @@ struct cpl_act_open_req {
 	__be32 opt2;
 };
 
+#define S_FILTER_TUPLE	24
+#define M_FILTER_TUPLE	0xFFFFFFFFFF
+#define V_FILTER_TUPLE(x) ((x) << S_FILTER_TUPLE)
+#define G_FILTER_TUPLE(x) (((x) >> S_FILTER_TUPLE) & M_FILTER_TUPLE)
 struct cpl_t5_act_open_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -1053,6 +1068,12 @@ struct cpl_tx_pkt {
 #define V_TXPKT_OVLAN_IDX(x) ((x) << S_TXPKT_OVLAN_IDX)
 #define G_TXPKT_OVLAN_IDX(x) (((x) >> S_TXPKT_OVLAN_IDX) & M_TXPKT_OVLAN_IDX)
 
+#define S_TXPKT_T5_OVLAN_IDX    12
+#define M_TXPKT_T5_OVLAN_IDX    0x7
+#define V_TXPKT_T5_OVLAN_IDX(x) ((x) << S_TXPKT_T5_OVLAN_IDX)
+#define G_TXPKT_T5_OVLAN_IDX(x) (((x) >> S_TXPKT_T5_OVLAN_IDX) & \
+				M_TXPKT_T5_OVLAN_IDX)
+
 #define S_TXPKT_INTF    16
 #define M_TXPKT_INTF    0xF
 #define V_TXPKT_INTF(x) ((x) << S_TXPKT_INTF)
@@ -1062,9 +1083,17 @@ struct cpl_tx_pkt {
 #define V_TXPKT_SPECIAL_STAT(x) ((x) << S_TXPKT_SPECIAL_STAT)
 #define F_TXPKT_SPECIAL_STAT    V_TXPKT_SPECIAL_STAT(1U)
 
+#define S_TXPKT_T5_FCS_DIS    21
+#define V_TXPKT_T5_FCS_DIS(x) ((x) << S_TXPKT_T5_FCS_DIS)
+#define F_TXPKT_T5_FCS_DIS    V_TXPKT_T5_FCS_DIS(1U)
+
 #define S_TXPKT_INS_OVLAN    21
 #define V_TXPKT_INS_OVLAN(x) ((x) << S_TXPKT_INS_OVLAN)
 #define F_TXPKT_INS_OVLAN    V_TXPKT_INS_OVLAN(1U)
+
+#define S_TXPKT_T5_INS_OVLAN    15
+#define V_TXPKT_T5_INS_OVLAN(x) ((x) << S_TXPKT_T5_INS_OVLAN)
+#define F_TXPKT_T5_INS_OVLAN    V_TXPKT_T5_INS_OVLAN(1U)
 
 #define S_TXPKT_STAT_DIS    22
 #define V_TXPKT_STAT_DIS(x) ((x) << S_TXPKT_STAT_DIS)
@@ -1207,6 +1236,11 @@ struct cpl_tx_pkt_ufo {
 #define M_LSO_OPCODE    0xFF
 #define V_LSO_OPCODE(x) ((x) << S_LSO_OPCODE)
 #define G_LSO_OPCODE(x) (((x) >> S_LSO_OPCODE) & M_LSO_OPCODE)
+
+#define S_LSO_T5_XFER_SIZE	   0
+#define M_LSO_T5_XFER_SIZE    0xFFFFFFF
+#define V_LSO_T5_XFER_SIZE(x) ((x) << S_LSO_T5_XFER_SIZE)
+#define G_LSO_T5_XFER_SIZE(x) (((x) >> S_LSO_T5_XFER_SIZE) & M_LSO_T5_XFER_SIZE)
 
 /* cpl_tx_pkt_lso_core.mss fields */
 #define S_LSO_MSS    0
@@ -1906,13 +1940,23 @@ struct cpl_l2t_write_req {
 #define G_L2T_W_INFO(x) (((x) >> S_L2T_W_INFO) & M_L2T_W_INFO)
 
 #define S_L2T_W_PORT    8
-#define M_L2T_W_PORT    0xF
+#define M_L2T_W_PORT    0x3
 #define V_L2T_W_PORT(x) ((x) << S_L2T_W_PORT)
 #define G_L2T_W_PORT(x) (((x) >> S_L2T_W_PORT) & M_L2T_W_PORT)
+
+#define S_L2T_W_LPBK    10
+#define V_L2T_W_LPBK(x) ((x) << S_L2T_W_LPBK)
+#define F_L2T_W_PKBK    V_L2T_W_LPBK(1U)
+
+#define S_L2T_W_ARPMISS         11
+#define V_L2T_W_ARPMISS(x)      ((x) << S_L2T_W_ARPMISS)
+#define F_L2T_W_ARPMISS         V_L2T_W_ARPMISS(1U)
 
 #define S_L2T_W_NOREPLY    15
 #define V_L2T_W_NOREPLY(x) ((x) << S_L2T_W_NOREPLY)
 #define F_L2T_W_NOREPLY    V_L2T_W_NOREPLY(1U)
+
+#define CPL_L2T_VLAN_NONE 0xfff
 
 struct cpl_l2t_write_rpl {
 	RSS_HDR
@@ -2394,6 +2438,14 @@ struct ulp_mem_io {
 #define V_ULP_MEMIO_ORDER(x) ((x) << S_ULP_MEMIO_ORDER)
 #define F_ULP_MEMIO_ORDER    V_ULP_MEMIO_ORDER(1U)
 
+#define S_T5_ULP_MEMIO_IMM    23
+#define V_T5_ULP_MEMIO_IMM(x) ((x) << S_T5_ULP_MEMIO_IMM)
+#define F_T5_ULP_MEMIO_IMM    V_T5_ULP_MEMIO_IMM(1U)
+
+#define S_T5_ULP_MEMIO_ORDER    22
+#define V_T5_ULP_MEMIO_ORDER(x) ((x) << S_T5_ULP_MEMIO_ORDER)
+#define F_T5_ULP_MEMIO_ORDER    V_T5_ULP_MEMIO_ORDER(1U)
+
 /* ulp_mem_io.lock_addr fields */
 #define S_ULP_MEMIO_ADDR    0
 #define M_ULP_MEMIO_ADDR    0x7FFFFFF
@@ -2407,6 +2459,14 @@ struct ulp_mem_io {
 #define S_ULP_MEMIO_DATA_LEN    0
 #define M_ULP_MEMIO_DATA_LEN    0x1F
 #define V_ULP_MEMIO_DATA_LEN(x) ((x) << S_ULP_MEMIO_DATA_LEN)
+
+/* ULP_TXPKT field values */
+enum {
+	ULP_TXPKT_DEST_TP = 0,
+	ULP_TXPKT_DEST_SGE,
+	ULP_TXPKT_DEST_UP,
+	ULP_TXPKT_DEST_DEVNULL,
+};
 
 struct ulp_txpkt {
 	__be32 cmd_dest;

@@ -80,6 +80,7 @@ enum fw_retval {
  ********************************/
 
 enum fw_wr_opcodes {
+	FW_FRAG_WR		= 0x1d,
 	FW_FILTER_WR		= 0x02,
 	FW_ULPTX_WR		= 0x04,
 	FW_TP_WR		= 0x05,
@@ -202,6 +203,24 @@ struct fw_wr_hdr {
 #define M_FW_WR_LEN16		0xff
 #define V_FW_WR_LEN16(x)	((x) << S_FW_WR_LEN16)
 #define G_FW_WR_LEN16(x)	(((x) >> S_FW_WR_LEN16) & M_FW_WR_LEN16)
+
+struct fw_frag_wr {
+	__be32 op_to_fragoff16;
+	__be32 flowid_len16;
+	__be64 r4;
+};
+
+#define S_FW_FRAG_WR_EOF	15
+#define M_FW_FRAG_WR_EOF	0x1
+#define V_FW_FRAG_WR_EOF(x)	((x) << S_FW_FRAG_WR_EOF)
+#define G_FW_FRAG_WR_EOF(x)	(((x) >> S_FW_FRAG_WR_EOF) & M_FW_FRAG_WR_EOF)
+#define F_FW_FRAG_WR_EOF	V_FW_FRAG_WR_EOF(1U)
+
+#define S_FW_FRAG_WR_FRAGOFF16		8
+#define M_FW_FRAG_WR_FRAGOFF16		0x7f
+#define V_FW_FRAG_WR_FRAGOFF16(x)	((x) << S_FW_FRAG_WR_FRAGOFF16)
+#define G_FW_FRAG_WR_FRAGOFF16(x)	\
+    (((x) >> S_FW_FRAG_WR_FRAGOFF16) & M_FW_FRAG_WR_FRAGOFF16)
 
 /* valid filter configurations for compressed tuple
  * Encodings: TPL - Compressed TUPLE for filter in addition to 4-tuple
@@ -2996,6 +3015,9 @@ enum fw_ldst_addrspc {
 	FW_LDST_ADDRSPC_FUNC_I2C  = 0x002A, /* legacy */
 	FW_LDST_ADDRSPC_LE	  = 0x0030,
 	FW_LDST_ADDRSPC_I2C       = 0x0038,
+	FW_LDST_ADDRSPC_PCIE_CFGS = 0x0040,
+	FW_LDST_ADDRSPC_PCIE_DBG  = 0x0041,
+	FW_LDST_ADDRSPC_PCIE_PHY  = 0x0042,
 };
 
 /*
@@ -3482,13 +3504,20 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_INTFVER_ISCSIPDU = 0x08,
 	FW_PARAMS_PARAM_DEV_INTFVER_ISCSI = 0x09,
 	FW_PARAMS_PARAM_DEV_INTFVER_FCOE = 0x0A,
-	FW_PARAMS_PARAM_DEV_FWREV = 0x0B,
-	FW_PARAMS_PARAM_DEV_TPREV = 0x0C,
-	FW_PARAMS_PARAM_DEV_CF = 0x0D,
-	FW_PARAMS_PARAM_DEV_BYPASS = 0x0E,
-	FW_PARAMS_PARAM_DEV_PHYFW = 0x0F,
-	FW_PARAMS_PARAM_DEV_LOAD = 0x10,
-	FW_PARAMS_PARAM_DEV_DIAG = 0x11,
+	FW_PARAMS_PARAM_DEV_FWREV	= 0x0B,
+	FW_PARAMS_PARAM_DEV_TPREV	= 0x0C,
+	FW_PARAMS_PARAM_DEV_CF		= 0x0D,
+	FW_PARAMS_PARAM_DEV_BYPASS	= 0x0E,
+	FW_PARAMS_PARAM_DEV_PHYFW	= 0x0F,
+	FW_PARAMS_PARAM_DEV_LOAD	= 0x10,
+	FW_PARAMS_PARAM_DEV_DIAG	= 0x11,
+	FW_PARAMS_PARAM_DEV_UCLK	= 0x12, /* uP clock in khz */
+	FW_PARAMS_PARAM_DEV_MAXORDIRD_QP = 0x13, /* max supported QP IRD/ORD
+						 */
+	FW_PARAMS_PARAM_DEV_MAXIRD_ADAPTER= 0x14,/* max supported ADAPTER IRD
+						 */
+	FW_PARAMS_PARAM_DEV_INTFVER_FCOEPDU = 0x15,
+	FW_PARAMS_PARAM_DEV_MCINIT	= 0x16,
 };
 
 /*
@@ -5860,6 +5889,9 @@ enum fw_port_type {
 	FW_PORT_TYPE_SFP	=  9,	/* No, 1, Yes, No, No, No, 10G */
 	FW_PORT_TYPE_BP_AP	= 10,	/* No, 1, No, No, Yes, Yes, 10G, BP ANGE */
 	FW_PORT_TYPE_BP4_AP	= 11,	/* No, 4, No, No, Yes, Yes, 10G, BP ANGE */
+	FW_PORT_TYPE_QSFP_10G	= 12,	/* No, 1, Yes, No, No, No, 10G */
+	FW_PORT_TYPE_QSFP	= 14,	/* No, 4, Yes, No, No, No, 40G */
+	FW_PORT_TYPE_BP40_BA	= 15,	/* No, 4, No, No, Yes, Yes, 40G/10G/1G, BP ANGE */
 
 	FW_PORT_TYPE_NONE = M_FW_PORT_CMD_PTYPE
 };
@@ -6783,6 +6815,7 @@ enum fw_devlog_level {
  */
 enum fw_devlog_facility {
 	FW_DEVLOG_FACILITY_CORE		= 0x00,
+	FW_DEVLOG_FACILITY_CF		= 0x01,
 	FW_DEVLOG_FACILITY_SCHED	= 0x02,
 	FW_DEVLOG_FACILITY_TIMER	= 0x04,
 	FW_DEVLOG_FACILITY_RES		= 0x06,
