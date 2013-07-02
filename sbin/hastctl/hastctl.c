@@ -31,21 +31,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/disk.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <sys/sysctl.h>
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <libutil.h>
-#include <limits.h>
-#include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include <activemap.h>
