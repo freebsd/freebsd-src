@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/in6_ifattach.h>
 #endif
 
 #include <net/if_vlan_var.h>
@@ -543,6 +545,34 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	if (ifp->if_type != IFT_ETHER)
 		return (EPROTONOSUPPORT);
 
+#ifdef INET6
+	/*
+	 * The member interface should not have inet6 address because
+	 * two interfaces with a valid link-local scope zone must not be
+	 * merged in any form.  This restriction is needed to
+	 * prevent violation of link-local scope zone.  Attempts to
+	 * add a member interface which has inet6 addresses triggers
+	 * removal of all inet6 addresses on the member interface.
+	 */
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		if (in6ifa_llaonifp(lp->lp_ifp)) {
+			in6_ifdetach(lp->lp_ifp);
+			if_printf(sc->sc_ifp,
+			    "IPv6 addresses on %s have been removed "
+			    "before adding it as a member to prevent "
+			    "IPv6 address scope violation.\n",
+			    lp->lp_ifp->if_xname);
+		}
+	}
+	if (in6ifa_llaonifp(ifp)) {
+		in6_ifdetach(ifp);
+		if_printf(sc->sc_ifp,
+		    "IPv6 addresses on %s have been removed "
+		    "before adding it as a member to prevent "
+		    "IPv6 address scope violation.\n",
+		    ifp->if_xname);
+	}
+#endif
 	/* Allow the first Ethernet member to define the MTU */
 	if (SLIST_EMPTY(&sc->sc_ports))
 		sc->sc_ifp->if_mtu = ifp->if_mtu;
