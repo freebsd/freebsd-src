@@ -5575,6 +5575,13 @@ zfs_ioctl_init(void)
 	zfs_ioctl_register_dataset_nolog(ZFS_IOC_TMP_SNAPSHOT,
 	    zfs_ioc_tmp_snapshot, zfs_secpolicy_tmp_snapshot,
 	    POOL_CHECK_SUSPENDED | POOL_CHECK_READONLY);
+
+#ifdef __FreeBSD__
+	zfs_ioctl_register_dataset_nolog(ZFS_IOC_JAIL, zfs_ioc_jail,
+	    zfs_secpolicy_config, POOL_CHECK_NONE);
+	zfs_ioctl_register_dataset_nolog(ZFS_IOC_UNJAIL, zfs_ioc_unjail,
+	    zfs_secpolicy_config, POOL_CHECK_NONE);
+#endif
 }
 
 int
