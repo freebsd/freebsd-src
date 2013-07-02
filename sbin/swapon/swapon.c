@@ -491,6 +491,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 				if (!qflag)
 					warnx("%s: Device already in use",
 					    vnodefile);
+				free(vnodefile);
 				return (NULL);
 			}
 			error = run_cmd(&fd, "%s -a -t vnode -n -f %s",
@@ -498,6 +499,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 			if (error) {
 				warnx("mdconfig (attach) error: file=%s",
 				    vnodefile);
+				free(vnodefile);
 				return (NULL);
 			}
 			sfd = fdopen(fd, "r");
@@ -537,6 +539,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 				if (!qflag)
 					warnx("md%d on %s: Device already "
 					    "in use", mdunit, vnodefile);
+				free(vnodefile);
 				return (NULL);
 			}
 			error = run_cmd(NULL, "%s -a -t vnode -u %d -f %s",
@@ -544,6 +547,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 			if (error) {
 				warnx("mdconfig (attach) error: "
 				    "md%d on file=%s", mdunit, vnodefile);
+				free(vnodefile);
 				return (NULL);
 			}
 		}
@@ -557,6 +561,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 				if (!qflag)
 					warnx("md on %s: Device not found",
 					    vnodefile);
+				free(vnodefile);
 				return (NULL);
 			}
 			sfd = fdopen(fd, "r");
@@ -599,6 +604,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 				if (!qflag)
 					warnx("md%d on %s: Device not found",
 					    mdunit, vnodefile);
+				free(vnodefile);
 				return (NULL);
 			}
 		}
@@ -622,6 +628,7 @@ err:
 		fclose(sfd);
 	if (fd != -1)
 		close(fd);
+	free(vnodefile);
 	return (ret);
 }
 
