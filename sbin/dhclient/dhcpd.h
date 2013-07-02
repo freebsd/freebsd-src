@@ -121,6 +121,7 @@ struct client_lease {
 	struct client_lease	*next;
 	time_t			 expiry, renewal, rebind;
 	struct iaddr		 address;
+	struct iaddr		 nextserver;
 	char			*server_name;
 	char			*filename;
 	struct string_list	*medium;
