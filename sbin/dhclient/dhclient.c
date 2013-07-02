@@ -1063,6 +1063,9 @@ packet_to_lease(struct packet *packet)
 	lease->address.len = sizeof(packet->raw->yiaddr);
 	memcpy(lease->address.iabuf, &packet->raw->yiaddr, lease->address.len);
 
+	lease->nextserver.len = sizeof(packet->raw->siaddr);
+	memcpy(lease->nextserver.iabuf, &packet->raw->siaddr, lease->nextserver.len);
+
 	/* If the server name was filled out, copy it.
 	   Do not attempt to validate the server name as a host name.
 	   RFC 2131 merely states that sname is NUL-terminated (which do
@@ -1874,6 +1877,11 @@ write_client_lease(struct interface_info *ip, struct client_lease *lease,
 		fprintf(leaseFile, "  bootp;\n");
 	fprintf(leaseFile, "  interface \"%s\";\n", ip->name);
 	fprintf(leaseFile, "  fixed-address %s;\n", piaddr(lease->address));
+	if (lease->nextserver.len == sizeof(inaddr_any) &&
+	    0 != memcmp(lease->nextserver.iabuf, &inaddr_any,
+	    sizeof(inaddr_any)))
+		fprintf(leaseFile, "  next-server %s;\n",
+		    piaddr(lease->nextserver));
 	if (lease->filename)
 		fprintf(leaseFile, "  filename \"%s\";\n", lease->filename);
 	if (lease->server_name)
