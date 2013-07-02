@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <cstdio>
 #include <csignal>
 #include <cstring>
+#include <cstdarg>
 
 #include <dirent.h>
 #include <err.h>
