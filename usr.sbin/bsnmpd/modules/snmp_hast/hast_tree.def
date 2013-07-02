@@ -59,6 +59,7 @@
                   (19 hastResourceWriteErrors COUNTER64 GET)
                   (20 hastResourceDeleteErrors COUNTER64 GET)
                   (21 hastResourceFlushErrors COUNTER64 GET)
+                  (22 hastResourceWorkerPid INTEGER GET)
                 )
               )
             )
