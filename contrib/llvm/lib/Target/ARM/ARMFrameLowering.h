@@ -27,7 +27,7 @@ protected:
 
 public:
   explicit ARMFrameLowering(const ARMSubtarget &sti)
-    : TargetFrameLowering(StackGrowsDown, sti.getStackAlignment(), 0, 4),
+    : TargetFrameLowering(StackGrowsDown, sti.getStackAlignment(), 0, 8),
       STI(sti) {
   }
 
