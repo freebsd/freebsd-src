@@ -120,3 +120,6 @@ options         FDT
 # handed to kernel via U-Boot and ubldr.
 #options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=rpi.dts
+
+device		vfp			# vfp/neon
+options 	ARM_VFP_SUPPORT		# vfp/neon
