@@ -83,12 +83,17 @@ re_patch(void)
 void
 open_patch_file(char *filename)
 {
+	int nr, nw;
+
 	if (filename == Nullch || !*filename || strEQ(filename, "-")) {
 		pfp = fopen(TMPPATNAME, "w");
 		if (pfp == Nullfp)
 			pfatal2("can't create %s", TMPPATNAME);
-		while (fgets(buf, buf_size, stdin) != Nullch)
-			fputs(buf, pfp);
+		while ((nr = fread(buf, 1, buf_size, stdin)) > 0) {
+			nw = fwrite(buf, 1, nr, pfp);
+			if (nr != nw)
+				pfatal2("write error to %s", TMPPATNAME);
+		}
 		Fclose(pfp);
 		filename = TMPPATNAME;
 	}
