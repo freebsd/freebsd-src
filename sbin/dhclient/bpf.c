@@ -251,7 +251,7 @@ if_register_receive(struct interface_info *info)
 
 ssize_t
 send_packet(struct interface_info *interface, struct dhcp_packet *raw,
-    size_t len, struct in_addr from, struct sockaddr_in *to)
+    size_t len, struct in_addr from, struct in_addr to)
 {
 	unsigned char buf[256];
 	struct iovec iov[2];
@@ -259,10 +259,10 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 	int result, bufp = 0;
 
 	/* Assemble the headers... */
-	if (to->sin_addr.s_addr == INADDR_BROADCAST)
+	if (to.s_addr == INADDR_BROADCAST)
 		assemble_hw_header(interface, buf, &bufp);
-	assemble_udp_ip_header(buf, &bufp, from.s_addr,
-	    to->sin_addr.s_addr, to->sin_port, (unsigned char *)raw, len);
+	assemble_udp_ip_header(buf, &bufp, from.s_addr, to.s_addr,
+	    htons(REMOTE_PORT), (unsigned char *)raw, len);
 
 	iov[0].iov_base = (char *)buf;
 	iov[0].iov_len = bufp;
@@ -270,12 +270,19 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 	iov[1].iov_len = len;
 
 	/* Fire it off */
-	if (to->sin_addr.s_addr == INADDR_BROADCAST)
+	if (to.s_addr == INADDR_BROADCAST)
 		result = writev(interface->wfdesc, iov, 2);
 	else {
+		struct sockaddr_in sato;
+
+		sato.sin_addr = to;
+		sato.sin_port = htons(REMOTE_PORT);
+		sato.sin_family = AF_INET;
+		sato.sin_len = sizeof(sato);
+
 		memset(&msg, 0, sizeof(msg));
-		msg.msg_name = (struct sockaddr *)to;
-		msg.msg_namelen = sizeof(*to);
+		msg.msg_name = (struct sockaddr *)&sato;
+		msg.msg_namelen = sizeof(sato);
 		msg.msg_iov = iov;
 		msg.msg_iovlen = 2;
 		result = sendmsg(interface->ufdesc, &msg, 0);
