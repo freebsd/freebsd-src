@@ -476,6 +476,8 @@ main(int argc, char *argv[])
 
 	if ((routefd = socket(PF_ROUTE, SOCK_RAW, 0)) != -1)
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
+	if (shutdown(routefd, SHUT_WR) < 0)
+		error("can't shutdown route socket: %m");
 
 	/* set up the interface */
 	discover_interfaces(ifi);
