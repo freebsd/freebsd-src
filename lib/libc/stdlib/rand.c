@@ -90,7 +90,11 @@ rand_r(unsigned int *ctx)
 #endif
 	int r = do_rand(&val);
 
-	*ctx = (unsigned int) val;
+#ifdef  USE_WEAK_SEEDING
+	*ctx = (unsigned int)val;
+#else
+	*ctx = (unsigned int)(val - 1);
+#endif
 	return (r);
 }
 
