@@ -106,7 +106,7 @@ package_installed(char *name)
 
     /* XXX KLUDGE ALERT!  This makes evil assumptions about how XXX
      * packages register themselves and should *really be done with
-     * `pkg_info -e <name>' except that this it's too slow for an
+     * `pkg_info -e <name>' except that this is too slow for an
      * item check routine.. :-(
      */
     snprintf(fname, FILENAME_MAX, "/var/db/pkg/%s", name);
