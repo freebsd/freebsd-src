@@ -61,15 +61,15 @@ __FBSDID("$FreeBSD$");
  * mask.
  */
 int
-if_register_bpf(struct interface_info *info)
+if_register_bpf(struct interface_info *info, int flags)
 {
 	char filename[50];
 	int sock, b;
 
 	/* Open a BPF device */
-	for (b = 0; 1; b++) {
+	for (b = 0;; b++) {
 		snprintf(filename, sizeof(filename), BPF_FORMAT, b);
-		sock = open(filename, O_RDWR, 0);
+		sock = open(filename, flags);
 		if (sock < 0) {
 			if (errno == EBUSY)
 				continue;
@@ -87,16 +87,76 @@ if_register_bpf(struct interface_info *info)
 	return (sock);
 }
 
+/*
+ * Packet write filter program:
+ * 'ip and udp and src port bootps and dst port (bootps or bootpc)'
+ */
+struct bpf_insn dhcp_bpf_wfilter[] = {
+	BPF_STMT(BPF_LD + BPF_B + BPF_IND, 14),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, (IPVERSION << 4) + 5, 0, 12),
+
+	/* Make sure this is an IP packet... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 10),
+
+	/* Make sure it's a UDP packet... */
+	BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPPROTO_UDP, 0, 8),
+
+	/* Make sure this isn't a fragment... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 20),
+	BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, 0x1fff, 6, 0),	/* patched */
+
+	/* Get the IP header length... */
+	BPF_STMT(BPF_LDX + BPF_B + BPF_MSH, 14),
+
+	/* Make sure it's from the right port... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 14),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 68, 0, 3),
+
+	/* Make sure it is to the right ports ... */
+	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 16),
+	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 67, 0, 1),
+
+	/* If we passed all the tests, ask for the whole packet. */
+	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
+
+	/* Otherwise, drop it. */
+	BPF_STMT(BPF_RET+BPF_K, 0),
+};
+
+int dhcp_bpf_wfilter_len = sizeof(dhcp_bpf_wfilter) / sizeof(struct bpf_insn);
+
 void
 if_register_send(struct interface_info *info)
 {
+	struct bpf_version v;
+	struct bpf_program p;
 	int sock, on = 1;
 
-	/*
-	 * If we're using the bpf API for sending and receiving, we
-	 * don't need to register this interface twice.
-	 */
-	info->wfdesc = info->rfdesc;
+	/* Open a BPF device and hang it on this interface... */
+	info->wfdesc = if_register_bpf(info, O_WRONLY);
+
+	/* Make sure the BPF version is in range... */
+	if (ioctl(info->wfdesc, BIOCVERSION, &v) < 0)
+		error("Can't get BPF version: %m");
+
+	if (v.bv_major != BPF_MAJOR_VERSION ||
+	    v.bv_minor < BPF_MINOR_VERSION)
+		error("Kernel BPF version out of range - recompile dhcpd!");
+
+	/* Set up the bpf write filter program structure. */
+	p.bf_len = dhcp_bpf_wfilter_len;
+	p.bf_insns = dhcp_bpf_wfilter;
+
+	if (dhcp_bpf_wfilter[7].k == 0x1fff)
+		dhcp_bpf_wfilter[7].k = htons(IP_MF|IP_OFFMASK);
+
+	if (ioctl(info->wfdesc, BIOCSETWF, &p) < 0)
+		error("Can't install write filter program: %m");
+
+	if (ioctl(info->wfdesc, BIOCLOCK, NULL) < 0)
+		error("Cannot lock bpf");
 
 	/*
 	 * Use raw socket for unicast send.
@@ -144,46 +204,6 @@ struct bpf_insn dhcp_bpf_filter[] = {
 
 int dhcp_bpf_filter_len = sizeof(dhcp_bpf_filter) / sizeof(struct bpf_insn);
 
-/*
- * Packet write filter program:
- * 'ip and udp and src port bootps and dst port (bootps or bootpc)'
- */
-struct bpf_insn dhcp_bpf_wfilter[] = {
-	BPF_STMT(BPF_LD + BPF_B + BPF_IND, 14),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, (IPVERSION << 4) + 5, 0, 12),
-
-	/* Make sure this is an IP packet... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 12),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ETHERTYPE_IP, 0, 10),
-
-	/* Make sure it's a UDP packet... */
-	BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 23),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPPROTO_UDP, 0, 8),
-
-	/* Make sure this isn't a fragment... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_ABS, 20),
-	BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, 0x1fff, 6, 0),	/* patched */
-
-	/* Get the IP header length... */
-	BPF_STMT(BPF_LDX + BPF_B + BPF_MSH, 14),
-
-	/* Make sure it's from the right port... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 14),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 68, 0, 3),
-
-	/* Make sure it is to the right ports ... */
-	BPF_STMT(BPF_LD + BPF_H + BPF_IND, 16),
-	BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 67, 0, 1),
-
-	/* If we passed all the tests, ask for the whole packet. */
-	BPF_STMT(BPF_RET+BPF_K, (u_int)-1),
-
-	/* Otherwise, drop it. */
-	BPF_STMT(BPF_RET+BPF_K, 0),
-};
-
-int dhcp_bpf_wfilter_len = sizeof(dhcp_bpf_wfilter) / sizeof(struct bpf_insn);
-
 void
 if_register_receive(struct interface_info *info)
 {
@@ -192,7 +212,7 @@ if_register_receive(struct interface_info *info)
 	int flag = 1, sz;
 
 	/* Open a BPF device and hang it on this interface... */
-	info->rfdesc = if_register_bpf(info);
+	info->rfdesc = if_register_bpf(info, O_RDONLY);
 
 	/* Make sure the BPF version is in range... */
 	if (ioctl(info->rfdesc, BIOCVERSION, &v) < 0)
@@ -234,16 +254,6 @@ if_register_receive(struct interface_info *info)
 
 	if (ioctl(info->rfdesc, BIOCSETF, &p) < 0)
 		error("Can't install packet filter program: %m");
-
-	/* Set up the bpf write filter program structure. */
-	p.bf_len = dhcp_bpf_wfilter_len;
-	p.bf_insns = dhcp_bpf_wfilter;
-
-	if (dhcp_bpf_wfilter[7].k == 0x1fff)
-		dhcp_bpf_wfilter[7].k = htons(IP_MF|IP_OFFMASK);
-
-	if (ioctl(info->rfdesc, BIOCSETWF, &p) < 0)
-		error("Can't install write filter program: %m");
 
 	if (ioctl(info->rfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
