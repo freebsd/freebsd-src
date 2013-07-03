@@ -91,6 +91,8 @@ int log_perror = 1;
 int privfd;
 int nullfd = -1;
 
+char hostname[_POSIX_HOST_NAME_MAX + 1];
+
 struct iaddr iaddr_broadcast = { 4, { 255, 255, 255, 255 } };
 struct in_addr inaddr_any, inaddr_broadcast;
 
@@ -445,6 +447,13 @@ main(int argc, char *argv[])
 		if ((pw = getpwnam("nobody")) == NULL)
 			error("no such user: nobody");
 	}
+
+	/*
+	 * Obtain hostname before entering capability mode - it won't be
+	 * possible then, as reading kern.hostname is not permitted.
+	 */
+	if (gethostname(hostname, sizeof(hostname)) < 0)
+		hostname[0] = '\0';
 
 	if (pipe(pipe_fd) == -1)
 		error("pipe");
@@ -1525,9 +1534,8 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 		}
 
 	/* send host name if not set via config file. */
-	char hostname[_POSIX_HOST_NAME_MAX+1];
 	if (!options[DHO_HOST_NAME]) {
-		if (gethostname(hostname, sizeof(hostname)) == 0) {
+		if (hostname[0] != '\0') {
 			size_t len;
 			char* posDot = strchr(hostname, '.');
 			if (posDot != NULL)
@@ -1649,9 +1657,8 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 		}
 
 	/* send host name if not set via config file. */
-	char hostname[_POSIX_HOST_NAME_MAX+1];
 	if (!options[DHO_HOST_NAME]) {
-		if (gethostname(hostname, sizeof(hostname)) == 0) {
+		if (hostname[0] != '\0') {
 			size_t len;
 			char* posDot = strchr(hostname, '.');
 			if (posDot != NULL)
