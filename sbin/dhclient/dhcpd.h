@@ -405,8 +405,7 @@ void bootp(struct packet *);
 void dhcp(struct packet *);
 
 /* packet.c */
-void assemble_hw_header(struct interface_info *, unsigned char *,
-    int *, struct hardware *);
+void assemble_hw_header(struct interface_info *, unsigned char *, int *);
 void assemble_udp_ip_header(unsigned char *, int *, u_int32_t, u_int32_t,
     unsigned int, unsigned char *, int);
 ssize_t decode_hw_header(unsigned char *, int, struct hardware *);
