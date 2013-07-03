@@ -205,4 +205,14 @@ lla_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 }
 
 int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
+
+#include <sys/eventhandler.h>
+enum {
+	LLENTRY_RESOLVED,
+	LLENTRY_TIMEDOUT,
+	LLENTRY_DELETED,
+	LLENTRY_EXPIRED,
+};
+typedef void (*lle_event_fn)(void *, struct llentry *, int);
+EVENTHANDLER_DECLARE(lle_event, lle_event_fn);
 #endif  /* _NET_IF_LLATBL_H_ */

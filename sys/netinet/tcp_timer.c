@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
@@ -636,6 +637,11 @@ tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
 	void *f_callout;
 	struct inpcb *inp = tp->t_inpcb;
 	int cpu = INP_CPU(inp);
+
+#ifdef TCP_OFFLOAD
+	if (tp->t_flags & TF_TOE)
+		return;
+#endif
 
 	switch (timer_type) {
 		case TT_DELACK:

@@ -313,6 +313,7 @@ SUBDIR=	\
 	${_ti} \
 	tl \
 	tmpfs \
+	${_toecore} \
 	${_tpm} \
 	trm \
 	${_twa} \
@@ -395,6 +396,7 @@ _if_gre=	if_gre
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _if_carp=	if_carp
+_toecore=	toecore
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)

@@ -461,7 +461,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 #endif
 		vchar = ((inp->inp_vflag & INP_IPV4) != 0) ?
 		    "4 " : "  ";
-		printf("%-3.3s%-2.2s ", name, vchar);
+		if (istcp && (tp->t_flags & TF_TOE) != 0)
+			printf("%-3.3s%-2.2s ", "toe", vchar);
+		else
+			printf("%-3.3s%-2.2s ", name, vchar);
 		if (Lflag) {
 			char buf1[15];
 
