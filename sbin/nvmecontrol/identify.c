@@ -258,7 +258,7 @@ identify_ns(int argc, char *argv[])
 	 *  of the string.  Don't search past 10 characters into the string,
 	 *  otherwise we know it is malformed.
 	 */
-	nsloc = strnstr(argv[optind], "ns", 10);
+	nsloc = strnstr(argv[optind], NVME_NS_PREFIX, 10);
 	if (nsloc != NULL)
 		nsid = strtol(nsloc + 2, NULL, 10);
 	if (nsloc == NULL || (nsid == 0 && errno != 0)) {
@@ -314,7 +314,7 @@ identify(int argc, char *argv[])
 	 * If device node contains "ns", we consider it a namespace,
 	 *  otherwise, consider it a controller.
 	 */
-	if (strstr(target, "ns") == NULL)
+	if (strstr(target, NVME_NS_PREFIX) == NULL)
 		identify_ctrlr(argc, argv);
 	else
 		identify_ns(argc, argv);
