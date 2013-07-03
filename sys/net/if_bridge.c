@@ -1100,6 +1100,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		 * interfaces have inet6 address.  If any, remove
 		 * inet6 addresses on the interface to be added.
 		 */
+		ia6_m = NULL;
 		BRIDGE_XLOCK(sc);
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			ia6_m = in6ifa_llaonifp(bif->bif_ifp);
