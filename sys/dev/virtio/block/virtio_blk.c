@@ -692,7 +692,7 @@ vtblk_write_cache_sysctl(SYSCTL_HANDLER_ARGS)
 	int wc, error;
 
 	sc = oidp->oid_arg1;
-	wc = sc->vtblk_write_cache;;
+	wc = sc->vtblk_write_cache;
 
 	error = sysctl_handle_int(oidp, &wc, 0, req);
 	if (error || req->newptr == NULL)
