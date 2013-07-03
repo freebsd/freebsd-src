@@ -92,8 +92,7 @@ int privfd;
 int nullfd = -1;
 
 struct iaddr iaddr_broadcast = { 4, { 255, 255, 255, 255 } };
-struct in_addr inaddr_any;
-struct sockaddr_in sockaddr_broadcast;
+struct in_addr inaddr_any, inaddr_broadcast;
 
 char *path_dhclient_pidfile;
 struct pidfh *pidfile;
@@ -410,11 +409,7 @@ main(int argc, char *argv[])
 	tzset();
 	time(&cur_time);
 
-	memset(&sockaddr_broadcast, 0, sizeof(sockaddr_broadcast));
-	sockaddr_broadcast.sin_family = AF_INET;
-	sockaddr_broadcast.sin_port = htons(REMOTE_PORT);
-	sockaddr_broadcast.sin_addr.s_addr = INADDR_BROADCAST;
-	sockaddr_broadcast.sin_len = sizeof(sockaddr_broadcast);
+	inaddr_broadcast.s_addr = INADDR_BROADCAST;
 	inaddr_any.s_addr = INADDR_ANY;
 
 	read_client_conf();
@@ -1226,13 +1221,12 @@ again:
 	ip->client->secs = ip->client->packet.secs;
 
 	note("DHCPDISCOVER on %s to %s port %d interval %d",
-	    ip->name, inet_ntoa(sockaddr_broadcast.sin_addr),
-	    ntohs(sockaddr_broadcast.sin_port),
+	    ip->name, inet_ntoa(inaddr_broadcast), REMOTE_PORT,
 	    (int)ip->client->interval);
 
 	/* Send out a packet. */
 	(void)send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, &sockaddr_broadcast);
+	    inaddr_any, inaddr_broadcast);
 
 	add_timeout(cur_time + ip->client->interval, send_discover, ip);
 }
@@ -1340,8 +1334,7 @@ void
 send_request(void *ipp)
 {
 	struct interface_info *ip = ipp;
-	struct sockaddr_in destination;
-	struct in_addr from;
+	struct in_addr from, to;
 	int interval;
 
 	/* Figure out how long it's been since we started transmitting. */
@@ -1429,18 +1422,13 @@ cancel:
 
 	/* If the lease T2 time has elapsed, or if we're not yet bound,
 	   broadcast the DHCPREQUEST rather than unicasting. */
-	memset(&destination, 0, sizeof(destination));
 	if (ip->client->state == S_REQUESTING ||
 	    ip->client->state == S_REBOOTING ||
 	    cur_time > ip->client->active->rebind)
-		destination.sin_addr.s_addr = INADDR_BROADCAST;
+		to.s_addr = INADDR_BROADCAST;
 	else
-		memcpy(&destination.sin_addr.s_addr,
-		    ip->client->destination.iabuf,
-		    sizeof(destination.sin_addr.s_addr));
-	destination.sin_port = htons(REMOTE_PORT);
-	destination.sin_family = AF_INET;
-	destination.sin_len = sizeof(destination);
+		memcpy(&to.s_addr, ip->client->destination.iabuf,
+		    sizeof(to.s_addr));
 
 	if (ip->client->state != S_REQUESTING)
 		memcpy(&from, ip->client->active->address.iabuf,
@@ -1458,12 +1446,12 @@ cancel:
 			ip->client->packet.secs = htons(65535);
 	}
 
-	note("DHCPREQUEST on %s to %s port %d", ip->name,
-	    inet_ntoa(destination.sin_addr), ntohs(destination.sin_port));
+	note("DHCPREQUEST on %s to %s port %d", ip->name, inet_ntoa(to),
+	    REMOTE_PORT);
 
 	/* Send out a packet. */
 	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    from, &destination);
+	    from, to);
 
 	add_timeout(cur_time + ip->client->interval, send_request, ip);
 }
@@ -1474,12 +1462,11 @@ send_decline(void *ipp)
 	struct interface_info *ip = ipp;
 
 	note("DHCPDECLINE on %s to %s port %d", ip->name,
-	    inet_ntoa(sockaddr_broadcast.sin_addr),
-	    ntohs(sockaddr_broadcast.sin_port));
+	    inet_ntoa(inaddr_broadcast), REMOTE_PORT);
 
 	/* Send out a packet. */
 	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, &sockaddr_broadcast);
+	    inaddr_any, inaddr_broadcast);
 }
 
 void
