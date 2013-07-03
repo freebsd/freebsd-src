@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sglist.h>
+#include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
@@ -61,6 +62,12 @@ struct vtblk_request {
 	TAILQ_ENTRY(vtblk_request)	 vbr_link;
 };
 
+enum vtblk_cache_mode {
+	VTBLK_CACHE_WRITETHROUGH,
+	VTBLK_CACHE_WRITEBACK,
+	VTBLK_CACHE_MAX
+};
+
 struct vtblk_softc {
 	device_t		 vtblk_dev;
 	struct mtx		 vtblk_mtx;
@@ -72,6 +79,7 @@ struct vtblk_softc {
 #define VTBLK_FLAG_SUSPEND	0x0008
 #define VTBLK_FLAG_DUMPING	0x0010
 #define VTBLK_FLAG_BARRIER	0x0020
+#define VTBLK_FLAG_WC_CONFIG	0x0040
 
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
@@ -86,6 +94,7 @@ struct vtblk_softc {
 
 	int			 vtblk_max_nsegs;
 	int			 vtblk_request_count;
+	enum vtblk_cache_mode	 vtblk_write_cache;
 
 	struct vtblk_request	 vtblk_dump_request;
 };
@@ -127,8 +136,10 @@ static int	vtblk_maximum_segments(struct vtblk_softc *,
 		    struct virtio_blk_config *);
 static int	vtblk_alloc_virtqueue(struct vtblk_softc *);
 static void	vtblk_resize_disk(struct vtblk_softc *, uint64_t);
+static void	vtblk_set_write_cache(struct vtblk_softc *, int);
 static int	vtblk_write_cache_enabled(struct vtblk_softc *sc,
 		    struct virtio_blk_config *);
+static int	vtblk_write_cache_sysctl(SYSCTL_HANDLER_ARGS);
 static void	vtblk_alloc_disk(struct vtblk_softc *,
 		    struct virtio_blk_config *);
 static void	vtblk_create_disk(struct vtblk_softc *);
@@ -169,11 +180,14 @@ static void	vtblk_enqueue_ready(struct vtblk_softc *,
 static int	vtblk_request_error(struct vtblk_request *);
 static void	vtblk_finish_bio(struct bio *, int);
 
+static void	vtblk_setup_sysctl(struct vtblk_softc *);
+static int	vtblk_tunable_int(struct vtblk_softc *, const char *, int);
+
 /* Tunables. */
 static int vtblk_no_ident = 0;
 TUNABLE_INT("hw.vtblk.no_ident", &vtblk_no_ident);
-static int vtblk_write_cache = 1;
-TUNABLE_INT("hw.vtblk.write_cache", &vtblk_write_cache);
+static int vtblk_writecache_mode = -1;
+TUNABLE_INT("hw.vtblk.writecache_mode", &vtblk_writecache_mode);
 
 /* Features desired/implemented by this driver. */
 #define VTBLK_FEATURES \
@@ -292,6 +306,10 @@ vtblk_attach(device_t dev)
 		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_BARRIER))
 		sc->vtblk_flags |= VTBLK_FLAG_BARRIER;
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_CONFIG_WCE))
+		sc->vtblk_flags |= VTBLK_FLAG_WC_CONFIG;
+
+	vtblk_setup_sysctl(sc);
 
 	/* Get local copy of config. */
 	vtblk_read_config(sc, &blkcfg);
@@ -639,35 +657,57 @@ vtblk_resize_disk(struct vtblk_softc *sc, uint64_t new_capacity)
 	}
 }
 
+static void
+vtblk_set_write_cache(struct vtblk_softc *sc, int wc)
+{
+
+	/* Set either writeback (1) or writethrough (0) mode. */
+	virtio_write_dev_config_1(sc->vtblk_dev,
+	    offsetof(struct virtio_blk_config, writeback), wc);
+}
+
 static int
 vtblk_write_cache_enabled(struct vtblk_softc *sc,
     struct virtio_blk_config *blkcfg)
 {
-	device_t dev;
-	char buf[32];
 	int wc;
 
-	dev = sc->vtblk_dev;
+	if (sc->vtblk_flags & VTBLK_FLAG_WC_CONFIG) {
+		wc = vtblk_tunable_int(sc, "writecache_mode",
+		    vtblk_writecache_mode);
+		if (wc >= 0 && wc < VTBLK_CACHE_MAX) {
+			vtblk_set_write_cache(sc, wc);
+		} else
+			wc = blkcfg->writeback;
+	} else
+		wc = virtio_with_feature(sc->vtblk_dev, VIRTIO_BLK_F_WCE);
 
-	if (!virtio_with_feature(dev, VIRTIO_BLK_F_WCE))
-		return (0);
-	if (!virtio_with_feature(dev, VIRTIO_BLK_F_CONFIG_WCE))
-		return (1);
+	return (wc);
+}
 
-	wc = vtblk_write_cache;
-	snprintf(buf, sizeof(buf), "hw.vtblk.%d.write_cache",
-	    device_get_unit(dev));
-	TUNABLE_INT_FETCH(buf, &wc);
+static int
+vtblk_write_cache_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct vtblk_softc *sc;
+	int wc, error;
 
-	if (wc != -1) {
-		/* Set either writeback (1) or writethrough (0) mode. */
-		blkcfg->writeback = !!wc;
-		virtio_write_dev_config_1(dev,
-		    offsetof(struct virtio_blk_config, writeback),
-		    blkcfg->writeback);
-	}
+	sc = oidp->oid_arg1;
+	wc = sc->vtblk_write_cache;;
 
-	return (blkcfg->writeback);
+	error = sysctl_handle_int(oidp, &wc, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	if ((sc->vtblk_flags & VTBLK_FLAG_WC_CONFIG) == 0)
+		return (EPERM);
+	if (wc < 0 || wc >= VTBLK_CACHE_MAX)
+		return (EINVAL);
+
+	VTBLK_LOCK(sc);
+	sc->vtblk_write_cache = wc;
+	vtblk_set_write_cache(sc, sc->vtblk_write_cache);
+	VTBLK_UNLOCK(sc);
+
+	return (0);
 }
 
 static void
@@ -686,6 +726,7 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_name = VTBLK_DISK_NAME;
 	dp->d_unit = device_get_unit(dev);
 	dp->d_drv1 = sc;
+	dp->d_flags = DISKFLAG_CANFLUSHCACHE;
 	dp->d_hba_vendor = virtio_get_vendor(dev);
 	dp->d_hba_device = virtio_get_device(dev);
 	dp->d_hba_subvendor = virtio_get_subvendor(dev);
@@ -734,7 +775,9 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	}
 
 	if (vtblk_write_cache_enabled(sc, blkcfg) != 0)
-		dp->d_flags |= DISKFLAG_CANFLUSHCACHE;
+		sc->vtblk_write_cache = VTBLK_CACHE_WRITEBACK;
+	else
+		sc->vtblk_write_cache = VTBLK_CACHE_WRITETHROUGH;
 }
 
 static void
@@ -952,7 +995,7 @@ vtblk_stop(struct vtblk_softc *sc)
 #define VTBLK_GET_CONFIG(_dev, _feature, _field, _cfg)			\
 	if (virtio_with_feature(_dev, _feature)) {			\
 		virtio_read_device_config(_dev,				\
-		    offsetof(struct virtio_blk_config, _field), 	\
+		    offsetof(struct virtio_blk_config, _field),		\
 		    &(_cfg)->_field, sizeof((_cfg)->_field));		\
 	}
 
@@ -991,7 +1034,7 @@ vtblk_get_ident(struct vtblk_softc *sc)
 	dp = sc->vtblk_disk;
 	len = MIN(VIRTIO_BLK_ID_BYTES, DISK_IDENT_SIZE);
 
-	if (vtblk_no_ident != 0)
+	if (vtblk_tunable_int(sc, "no_ident", vtblk_no_ident) != 0)
 		return;
 
 	req = vtblk_dequeue_request(sc);
@@ -1326,4 +1369,34 @@ vtblk_finish_bio(struct bio *bp, int error)
 	}
 
 	biodone(bp);
+}
+
+static void
+vtblk_setup_sysctl(struct vtblk_softc *sc)
+{
+	device_t dev;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	dev = sc->vtblk_dev;
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "writecache_mode",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, vtblk_write_cache_sysctl,
+	    "I", "Write cache mode (writethrough (0) or writeback (1))");
+}
+
+static int
+vtblk_tunable_int(struct vtblk_softc *sc, const char *knob, int def)
+{
+	char path[64];
+
+	snprintf(path, sizeof(path),
+	    "hw.vtblk.%d.%s", device_get_unit(sc->vtblk_dev), knob);
+	TUNABLE_INT_FETCH(path, &def);
+
+	return (def);
 }
