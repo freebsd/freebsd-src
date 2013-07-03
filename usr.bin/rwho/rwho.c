@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define	NUSERS		1000
-#define	WHDRSIZE	(ssize_t)(sizeof (wd) - sizeof (wd.wd_we))
+#define	WHDRSIZE	(ssize_t)(sizeof(wd) - sizeof(wd.wd_we))
 /*
  * this macro should be shared with ruptime.
  */
@@ -143,18 +143,18 @@ main(int argc, char *argv[])
 			continue;
 		if (cap_rights_limit(f, CAP_READ) < 0 && errno != ENOSYS)
 			err(1, "cap_rights_limit failed: %s", dp->d_name);
-		cc = read(f, (char *)&wd, sizeof (struct whod));
+		cc = read(f, (char *)&wd, sizeof(struct whod));
 		if (cc < WHDRSIZE) {
 			(void) close(f);
 			continue;
 		}
-		if (down(w,now) != 0) {
+		if (down(w, now) != 0) {
 			(void) close(f);
 			continue;
 		}
 		cc -= WHDRSIZE;
 		we = w->wd_we;
-		for (n = cc / sizeof (struct whoent); n > 0; n--) {
+		for (n = cc / sizeof(struct whoent); n > 0; n--) {
 			if (aflg == 0 && we->we_idle >= 60 * 60) {
 				we++;
 				continue;
@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 		}
 		(void) close(f);
 	}
-	qsort((char *)myutmp, nusers, sizeof (struct myutmp), utmpcmp);
+	qsort((char *)myutmp, nusers, sizeof(struct myutmp), utmpcmp);
 	mp = myutmp;
 	width = 0;
 	for (i = 0; i < nusers; i++) {
@@ -188,18 +188,14 @@ main(int argc, char *argv[])
 		time_t t;
 
 		t = _int_to_time(mp->myutmp.out_time);
-		strftime(cbuf, sizeof(cbuf),
-		    d_first ? "%e %b %R" : "%b %e %R",
+		strftime(cbuf, sizeof(cbuf), d_first ? "%e %b %R" : "%b %e %R",
 		    localtime(&t));
 		(void) sprintf(buf, "%s:%-.*s", mp->myhost,
 		    (int)sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
 		printf("%-*.*s %-*s %s",
 		    (int)sizeof(mp->myutmp.out_name),
 		    (int)sizeof(mp->myutmp.out_name),
-		    mp->myutmp.out_name,
-		    width,
-		    buf,
-		    cbuf);
+		    mp->myutmp.out_name, width, buf, cbuf);
 		mp->myidle /= 60;
 		if (mp->myidle != 0) {
 			if (aflg != 0) {
@@ -224,6 +220,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: rwho [-a]\n");
 	exit(1);
 }
@@ -242,6 +239,6 @@ utmpcmp(const void *u1, const void *u2)
 	rc = strcmp(MYUTMP(u1)->myhost, MYUTMP(u2)->myhost);
 	if (rc != 0)
 		return (rc);
-	return (strncmp(MYUTMP(u1)->myutmp.out_line, MYUTMP(u2)->myutmp.out_line,
-	    sizeof(MYUTMP(u2)->myutmp.out_line)));
+	return (strncmp(MYUTMP(u1)->myutmp.out_line,
+	    MYUTMP(u2)->myutmp.out_line, sizeof(MYUTMP(u2)->myutmp.out_line)));
 }
