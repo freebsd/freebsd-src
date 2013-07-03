@@ -492,6 +492,10 @@ main(int argc, char *argv[])
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
 	if (shutdown(routefd, SHUT_WR) < 0)
 		error("can't shutdown route socket: %m");
+	if (cap_rights_limit(routefd, CAP_POLL_EVENT | CAP_READ) < 0 &&
+	    errno != ENOSYS) {
+		error("can't limit route socket: %m");
+	}
 
 	if (chroot(_PATH_VAREMPTY) == -1)
 		error("chroot");
