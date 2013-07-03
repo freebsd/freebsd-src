@@ -70,7 +70,7 @@ struct vtballoon_softc {
 	uint32_t		 vtballoon_current_npages;
 	TAILQ_HEAD(,vm_page)	 vtballoon_pages;
 
-	struct proc		*vtballoon_kproc;
+	struct thread		*vtballoon_td;
 	uint32_t		*vtballoon_page_frames;
 	int			 vtballoon_timeout;
 };
@@ -206,10 +206,10 @@ vtballoon_attach(device_t dev)
 		goto fail;
 	}
 
-	error = kproc_create(vtballoon_thread, sc, &sc->vtballoon_kproc,
+	error = kthread_add(vtballoon_thread, sc, NULL, &sc->vtballoon_td,
 	    0, 0, "virtio_balloon");
 	if (error) {
-		device_printf(dev, "cannot create balloon kproc\n");
+		device_printf(dev, "cannot create balloon kthread\n");
 		goto fail;
 	}
 
@@ -230,14 +230,14 @@ vtballoon_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->vtballoon_kproc != NULL) {
+	if (sc->vtballoon_td != NULL) {
 		VTBALLOON_LOCK(sc);
 		sc->vtballoon_flags |= VTBALLOON_FLAG_DETACH;
 		wakeup_one(sc);
-		msleep(sc->vtballoon_kproc, VTBALLOON_MTX(sc), 0, "vtbdth", 0);
+		msleep(sc->vtballoon_td, VTBALLOON_MTX(sc), 0, "vtbdth", 0);
 		VTBALLOON_UNLOCK(sc);
 
-		sc->vtballoon_kproc = NULL;
+		sc->vtballoon_td = NULL;
 	}
 
 	if (device_is_attached(dev)) {
