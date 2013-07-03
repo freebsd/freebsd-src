@@ -511,6 +511,9 @@ main(int argc, char *argv[])
 
 	setproctitle("%s", ifi->name);
 
+	if (cap_enter() < 0 && errno != ENOSYS)
+		error("can't enter capability mode: %m");
+
 	if (immediate_daemon)
 		go_daemon();
 
