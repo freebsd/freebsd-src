@@ -251,8 +251,7 @@ if_register_receive(struct interface_info *info)
 
 ssize_t
 send_packet(struct interface_info *interface, struct dhcp_packet *raw,
-    size_t len, struct in_addr from, struct sockaddr_in *to,
-    struct hardware *hto)
+    size_t len, struct in_addr from, struct sockaddr_in *to)
 {
 	unsigned char buf[256];
 	struct iovec iov[2];
@@ -261,7 +260,7 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 
 	/* Assemble the headers... */
 	if (to->sin_addr.s_addr == INADDR_BROADCAST)
-		assemble_hw_header(interface, buf, &bufp, hto);
+		assemble_hw_header(interface, buf, &bufp, NULL);
 	assemble_udp_ip_header(buf, &bufp, from.s_addr,
 	    to->sin_addr.s_addr, to->sin_port, (unsigned char *)raw, len);
 
