@@ -249,7 +249,7 @@ if_register_receive(struct interface_info *info)
 		error("Cannot lock bpf");
 }
 
-ssize_t
+void
 send_packet(struct interface_info *interface, struct dhcp_packet *raw,
     size_t len, struct in_addr from, struct in_addr to)
 {
@@ -290,7 +290,6 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 
 	if (result < 0)
 		warning("send_packet: %m");
-	return (result);
 }
 
 ssize_t
