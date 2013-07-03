@@ -455,10 +455,18 @@ main(int argc, char *argv[])
 	if (gethostname(hostname, sizeof(hostname)) < 0)
 		hostname[0] = '\0';
 
+	/* set up the interface */
+	discover_interfaces(ifi);
+
 	if (pipe(pipe_fd) == -1)
 		error("pipe");
 
 	fork_privchld(pipe_fd[0], pipe_fd[1]);
+
+	close(ifi->ufdesc);
+	ifi->ufdesc = -1;
+	close(ifi->wfdesc);
+	ifi->wfdesc = -1;
 
 	close(pipe_fd[0]);
 	privfd = pipe_fd[1];
@@ -478,9 +486,6 @@ main(int argc, char *argv[])
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
 	if (shutdown(routefd, SHUT_WR) < 0)
 		error("can't shutdown route socket: %m");
-
-	/* set up the interface */
-	discover_interfaces(ifi);
 
 	if (chroot(_PATH_VAREMPTY) == -1)
 		error("chroot");
@@ -1236,8 +1241,8 @@ again:
 	    (int)ip->client->interval);
 
 	/* Send out a packet. */
-	send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, inaddr_broadcast);
+	send_packet_unpriv(privfd, &ip->client->packet,
+	    ip->client->packet_length, inaddr_any, inaddr_broadcast);
 
 	add_timeout(cur_time + ip->client->interval, send_discover, ip);
 }
@@ -1461,8 +1466,8 @@ cancel:
 	    REMOTE_PORT);
 
 	/* Send out a packet. */
-	send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    from, to);
+	send_packet_unpriv(privfd, &ip->client->packet,
+	    ip->client->packet_length, from, to);
 
 	add_timeout(cur_time + ip->client->interval, send_request, ip);
 }
@@ -1476,8 +1481,8 @@ send_decline(void *ipp)
 	    inet_ntoa(inaddr_broadcast), REMOTE_PORT);
 
 	/* Send out a packet. */
-	send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, inaddr_broadcast);
+	send_packet_unpriv(privfd, &ip->client->packet,
+	    ip->client->packet_length, inaddr_any, inaddr_broadcast);
 }
 
 void
@@ -2698,6 +2703,8 @@ fork_privchld(int fd, int fd2)
 	dup2(nullfd, STDERR_FILENO);
 	close(nullfd);
 	close(fd2);
+	close(ifi->rfdesc);
+	ifi->rfdesc = -1;
 
 	for (;;) {
 		pfd[0].fd = fd;
@@ -2709,6 +2716,6 @@ fork_privchld(int fd, int fd2)
 		if (nfds == 0 || !(pfd[0].revents & POLLIN))
 			continue;
 
-		dispatch_imsg(fd);
+		dispatch_imsg(ifi, fd);
 	}
 }
