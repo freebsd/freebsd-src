@@ -2363,8 +2363,13 @@ go_daemon(void)
 	if (daemon(1, 0) == -1)
 		error("daemon");
 
-	if (pidfile != NULL)
+	if (pidfile != NULL) {
 		pidfile_write(pidfile);
+		if (cap_rights_limit(pidfile_fileno(pidfile), CAP_NONE) < 0 &&
+		    errno != ENOSYS) {
+			error("can't limit pidfile descriptor: %m");
+		}
+	}
 
 	/* we are chrooted, daemon(3) fails to open /dev/null */
 	if (nullfd != -1) {
