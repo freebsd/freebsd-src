@@ -4400,6 +4400,7 @@ pmap_remove_pages(pmap_t pmap)
 	int64_t bit;
 	uint64_t inuse, bitmask;
 	int allfree, field, freed, idx;
+	vm_paddr_t pa;
 
 	if (pmap != PCPU_GET(curpmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
@@ -4429,7 +4430,7 @@ pmap_remove_pages(pmap_t pmap)
 					pte = (pt_entry_t *)PHYS_TO_DMAP(tpte &
 					    PG_FRAME);
 					pte = &pte[pmap_pte_index(pv->pv_va)];
-					tpte = *pte & ~PG_PTE_PAT;
+					tpte = *pte;
 				}
 				if ((tpte & PG_V) == 0) {
 					panic("bad pte va %lx pte %lx",
@@ -4444,8 +4445,13 @@ pmap_remove_pages(pmap_t pmap)
 					continue;
 				}
 
-				m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
-				KASSERT(m->phys_addr == (tpte & PG_FRAME),
+				if (tpte & PG_PS)
+					pa = tpte & PG_PS_FRAME;
+				else
+					pa = tpte & PG_FRAME;
+
+				m = PHYS_TO_VM_PAGE(pa);
+				KASSERT(m->phys_addr == pa,
 				    ("vm_page_t %p phys_addr mismatch %016jx %016jx",
 				    m, (uintmax_t)m->phys_addr,
 				    (uintmax_t)tpte));
