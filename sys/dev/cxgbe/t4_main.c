@@ -1826,11 +1826,11 @@ allocate:
 }
 
 #define FW_VERSION(chip) ( \
-    V_FW_HDR_FW_VER_MAJOR(FW_VERSION_MAJOR_##chip) | \
-    V_FW_HDR_FW_VER_MINOR(FW_VERSION_MINOR_##chip) | \
-    V_FW_HDR_FW_VER_MICRO(FW_VERSION_MICRO_##chip) | \
-    V_FW_HDR_FW_VER_BUILD(FW_VERSION_BUILD_##chip))
-#define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
+    V_FW_HDR_FW_VER_MAJOR(chip##FW_VERSION_MAJOR) | \
+    V_FW_HDR_FW_VER_MINOR(chip##FW_VERSION_MINOR) | \
+    V_FW_HDR_FW_VER_MICRO(chip##FW_VERSION_MICRO) | \
+    V_FW_HDR_FW_VER_BUILD(chip##FW_VERSION_BUILD))
+#define FW_INTFVER(chip, intf) (chip##FW_HDR_INTFVER_##intf)
 
 struct fw_info {
 	uint8_t chip;
