@@ -297,7 +297,7 @@ struct hash_table	*new_hash_table(int);
 struct hash_bucket	*new_hash_bucket(void);
 
 /* bpf.c */
-int if_register_bpf(struct interface_info *);
+int if_register_bpf(struct interface_info *, int);
 void if_register_send(struct interface_info *);
 void if_register_receive(struct interface_info *);
 void send_packet(struct interface_info *, struct dhcp_packet *, size_t,
