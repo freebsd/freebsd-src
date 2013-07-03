@@ -2379,6 +2379,13 @@ go_daemon(void)
 		close(nullfd);
 		nullfd = -1;
 	}
+
+	if (cap_rights_limit(STDIN_FILENO, CAP_NONE) < 0 && errno != ENOSYS)
+		error("can't limit stdin: %m");
+	if (cap_rights_limit(STDOUT_FILENO, CAP_WRITE) < 0 && errno != ENOSYS)
+		error("can't limit stdout: %m");
+	if (cap_rights_limit(STDERR_FILENO, CAP_WRITE) < 0 && errno != ENOSYS)
+		error("can't limit stderr: %m");
 }
 
 int
