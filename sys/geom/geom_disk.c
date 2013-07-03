@@ -148,14 +148,12 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 			    dp->d_name, dp->d_unit);
 			dp->d_maxsize = DFLTPHYS;
 		}
-		if (dp->d_flags & DISKFLAG_CANDELETE) {
-			if (bootverbose && dp->d_delmaxsize == 0) {
-				printf("WARNING: Disk drive %s%d has no d_delmaxsize\n",
-				    dp->d_name, dp->d_unit);
-				dp->d_delmaxsize = dp->d_maxsize;
+		if (dp->d_delmaxsize == 0) {
+			if (bootverbose && dp->d_flags & DISKFLAG_CANDELETE) {
+				printf("WARNING: Disk drive %s%d has no "
+				    "d_delmaxsize\n", dp->d_name, dp->d_unit);
 			}
-		} else {
-			dp->d_delmaxsize = 0;
+			dp->d_delmaxsize = dp->d_maxsize;
 		}
 		pp->stripeoffset = dp->d_stripeoffset;
 		pp->stripesize = dp->d_stripesize;
@@ -629,7 +627,7 @@ void
 disk_create(struct disk *dp, int version)
 {
 
-	if (version != DISK_VERSION_02) {
+	if (version != DISK_VERSION) {
 		printf("WARNING: Attempt to add disk %s%d %s",
 		    dp->d_name, dp->d_unit,
 		    " using incompatible ABI version of disk(9)\n");

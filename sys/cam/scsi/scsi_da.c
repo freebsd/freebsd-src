@@ -1746,7 +1746,7 @@ dadeletemaxsysctl(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	/* only accept values smaller than the calculated value */
-	if (value > softc->disk->d_delmaxsize) {
+	if (value > dadeletemaxsize(softc, softc->delete_method)) {
 		return (EINVAL);
 	}
 	softc->disk->d_delmaxsize = value;
