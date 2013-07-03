@@ -413,12 +413,6 @@ ssize_t decode_hw_header(unsigned char *, int, struct hardware *);
 ssize_t decode_udp_ip_header(unsigned char *, int, struct sockaddr_in *,
     unsigned char *, int);
 
-/* ethernet.c */
-void assemble_ethernet_header(struct interface_info *, unsigned char *,
-    int *, struct hardware *);
-ssize_t decode_ethernet_header(struct interface_info *, unsigned char *,
-    int, struct hardware *);
-
 /* clparse.c */
 int read_client_conf(void);
 void read_client_leases(void);
