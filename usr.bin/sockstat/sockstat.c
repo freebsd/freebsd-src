@@ -325,6 +325,7 @@ gather_inet(int proto)
 			}
 			inp = &xtp->xt_inp;
 			so = &xtp->xt_socket;
+			protoname = xtp->xt_tp.t_flags & TF_TOE ? "toe" : "tcp";
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:

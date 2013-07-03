@@ -545,6 +545,8 @@ options 	INET6			#IPv6 communications protocols
 
 options 	ROUTETABLES=2		# max 16. 1 is back compatible.
 
+options 	TCP_OFFLOAD		# TCP offload support.
+
 # In order to enable IPSEC you MUST also add device crypto to 
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)

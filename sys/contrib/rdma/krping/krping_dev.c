@@ -14,7 +14,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/module.h>
 #include <sys/systm.h>  /* uprintf */
 #include <sys/errno.h>
 #include <sys/param.h>  /* defines used in kernel.h */
@@ -50,6 +49,9 @@ typedef struct s_krping {
 
 /* vars */
 static struct cdev *krping_dev;
+
+#undef MODULE_VERSION
+#include <sys/module.h>
 
 static int
 krping_loader(struct module *m, int what, void *arg)
@@ -175,6 +177,4 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return(err);
 }
 
-MODULE_DEPEND(krping, rdma_core, 1, 1, 1);
-MODULE_DEPEND(krping, rdma_cma, 1, 1, 1);
 DEV_MODULE(krping,krping_loader,NULL);
