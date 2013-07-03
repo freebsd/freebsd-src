@@ -31,6 +31,9 @@
 
 #include <dev/nvme/nvme.h>
 
+#define NVME_CTRLR_PREFIX	"nvme"
+#define NVME_NS_PREFIX		"ns"
+
 #define DEVLIST_USAGE							       \
 "       nvmecontrol devlist\n"
 
