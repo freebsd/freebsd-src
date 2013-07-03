@@ -260,7 +260,7 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 
 	/* Assemble the headers... */
 	if (to->sin_addr.s_addr == INADDR_BROADCAST)
-		assemble_hw_header(interface, buf, &bufp, NULL);
+		assemble_hw_header(interface, buf, &bufp);
 	assemble_udp_ip_header(buf, &bufp, from.s_addr,
 	    to->sin_addr.s_addr, to->sin_port, (unsigned char *)raw, len);
 
