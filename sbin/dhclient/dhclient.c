@@ -1842,6 +1842,11 @@ rewrite_client_leases(void)
 		leaseFile = fopen(path_dhclient_db, "w");
 		if (!leaseFile)
 			error("can't create %s: %m", path_dhclient_db);
+		if (cap_rights_limit(fileno(leaseFile), CAP_FSTAT | CAP_FSYNC |
+		    CAP_FTRUNCATE | CAP_SEEK | CAP_WRITE) < 0 &&
+		    errno != ENOSYS) {
+			error("can't limit lease descriptor: %m");
+		}
 	} else {
 		fflush(leaseFile);
 		rewind(leaseFile);
