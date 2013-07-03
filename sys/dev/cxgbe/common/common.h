@@ -67,16 +67,6 @@ enum {
 	PAUSE_AUTONEG = 1 << 2
 };
 
-#define FW_VERSION_MAJOR_T4 1
-#define FW_VERSION_MINOR_T4 8
-#define FW_VERSION_MICRO_T4 4
-#define FW_VERSION_BUILD_T4 0
-
-#define FW_VERSION_MAJOR_T5 0
-#define FW_VERSION_MINOR_T5 5
-#define FW_VERSION_MICRO_T5 18
-#define FW_VERSION_BUILD_T5 0
-
 struct memwin {
 	uint32_t base;
 	uint32_t aperture;
