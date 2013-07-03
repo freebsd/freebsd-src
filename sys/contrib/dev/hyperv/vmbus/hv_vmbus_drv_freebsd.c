@@ -354,7 +354,7 @@ vmbus_bus_init(void)
 
 	if (ret) {
 		if(bootverbose)
-		printf("Error VMBUS: Hypervisor Initialization Failed!\n");
+			printf("Error VMBUS: Hypervisor Initialization Failed!\n");
 		return (ret);
 	}
 

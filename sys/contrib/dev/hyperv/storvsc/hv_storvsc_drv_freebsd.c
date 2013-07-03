@@ -194,7 +194,7 @@ static device_method_t storvsc_methods[] = {
 	DEVMETHOD(device_attach,	storvsc_attach),
 	DEVMETHOD(device_detach,	storvsc_detach),
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t storvsc_driver = {
@@ -203,10 +203,9 @@ static driver_t storvsc_driver = {
 
 static devclass_t storvsc_devclass;
 DRIVER_MODULE(storvsc, vmbus, storvsc_driver, storvsc_devclass, 0, 0);
-MODULE_VERSION(storvsc,1);
+MODULE_VERSION(storvsc, 1);
 MODULE_DEPEND(storvsc, vmbus, 1, 1, 1);
 
-extern int ata_disk_enable;
 
 /**
  * The host is capable of sending messages to us that are 
@@ -759,15 +758,24 @@ scan_for_luns(struct storvsc_softc *sc)
 static int
 storvsc_probe(device_t dev)
 {
+	int ata_disk_enable = 0;
 	int ret	= ENXIO;
 
 	switch (storvsc_get_storage_type(dev)) {
 	case DRIVER_BLKVSC:
-		if (ata_disk_enable == 0) {
-			ret = 0; 
-		}
+		if(bootverbose)
+			device_printf(dev, "DRIVER_BLKVSC-Emulated ATA/IDE probe\n");
+		if (!getenv_int("hw.ata.disk_enable", &ata_disk_enable)) {
+			if(bootverbose)
+				device_printf(dev,
+					"Enlightened ATA/IDE detected\n");
+			ret = 0;
+		} else if(bootverbose)
+			device_printf(dev, "Emulated ATA/IDE set (hw.ata.disk_enable set)\n");
 		break;
 	case DRIVER_STORVSC:
+		if(bootverbose)
+			device_printf(dev, "Enlightened SCSI device detected\n");
 		ret = 0;
 		break;
 	default:
