@@ -264,9 +264,9 @@ send_packet(struct interface_info *interface, struct dhcp_packet *raw,
 	assemble_udp_ip_header(buf, &bufp, from.s_addr, to.s_addr,
 	    htons(REMOTE_PORT), (unsigned char *)raw, len);
 
-	iov[0].iov_base = (char *)buf;
+	iov[0].iov_base = buf;
 	iov[0].iov_len = bufp;
-	iov[1].iov_base = (char *)raw;
+	iov[1].iov_base = raw;
 	iov[1].iov_len = len;
 
 	/* Fire it off */
