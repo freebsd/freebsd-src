@@ -133,36 +133,6 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 	return (EX_OK);
 }
 
-static void
-reset_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, RESET_USAGE);
-	exit(EX_USAGE);
-}
-
-static void
-reset_ctrlr(int argc, char *argv[])
-{
-	int	ch, fd;
-
-	while ((ch = getopt(argc, argv, "")) != -1) {
-		switch ((char)ch) {
-		default:
-			reset_usage();
-		}
-	}
-
-	open_dev(argv[optind], &fd, 1, 1);
-	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0) {
-		printf("Reset request to %s failed. errno=%d (%s)\n",
-		    argv[optind], errno, strerror(errno));
-		exit(EX_IOERR);
-	}
-
-	exit(EX_OK);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -177,7 +147,7 @@ main(int argc, char *argv[])
 	else if (strcmp(argv[1], "perftest") == 0)
 		perftest(argc-1, &argv[1]);
 	else if (strcmp(argv[1], "reset") == 0)
-		reset_ctrlr(argc-1, &argv[1]);
+		reset(argc-1, &argv[1]);
 
 	usage();
 
