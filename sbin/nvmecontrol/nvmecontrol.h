@@ -52,6 +52,7 @@ void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
 
 void devlist(int argc, char *argv[]);
 void identify(int argc, char *argv[]);
+void perftest(int argc, char *argv[]);
 
 #endif
 
