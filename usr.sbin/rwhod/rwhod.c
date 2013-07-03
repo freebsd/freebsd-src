@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capability.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -220,7 +221,7 @@ main(int argc, char *argv[])
 	daemon(1, 0);
 #endif
 	(void) signal(SIGHUP, getboottime);
-	openlog("rwhod", LOG_PID, LOG_DAEMON);
+	openlog("rwhod", LOG_PID | LOG_NDELAY, LOG_DAEMON);
 	sp = getservbyname("who", "udp");
 	if (sp == NULL) {
 		syslog(LOG_ERR, "who/udp: unknown service");
@@ -342,12 +343,27 @@ receiver_process(void)
 	struct sockaddr_in from;
 	struct stat st;
 	char path[64];
+	int dirfd;
 	struct whod wd;
 	socklen_t len;
 	int cc, whod;
 	time_t t;
 
 	len = sizeof(from);
+	dirfd = open(".", O_RDONLY | O_DIRECTORY);
+	if (dirfd < 0) {
+		syslog(LOG_WARNING, "%s: %m", _PATH_RWHODIR);
+		exit(1);
+	}
+	if (cap_rights_limit(dirfd, CAP_CREATE | CAP_WRITE | CAP_FTRUNCATE |
+	    CAP_SEEK | CAP_LOOKUP | CAP_FSTAT) < 0 && errno != ENOSYS) {
+		syslog(LOG_WARNING, "cap_rights_limit: %m");
+		exit(1);
+	}
+	if (cap_enter() < 0 && errno != ENOSYS) {
+		syslog(LOG_ERR, "cap_enter: %m");
+		exit(1);
+	}
 	for (;;) {
 		cc = recvfrom(s, &wd, sizeof(wd), 0, (struct sockaddr *)&from,
 		    &len);
@@ -380,10 +396,15 @@ receiver_process(void)
 		 * Rather than truncating and growing the file each time,
 		 * use ftruncate if size is less than previous size.
 		 */
-		whod = open(path, O_WRONLY | O_CREAT, 0644);
+		whod = openat(dirfd, path, O_WRONLY | O_CREAT, 0644);
 		if (whod < 0) {
 			syslog(LOG_WARNING, "%s: %m", path);
 			continue;
+		}
+		if (cap_rights_limit(whod, CAP_WRITE | CAP_FTRUNCATE |
+		    CAP_FSTAT) < 0 && errno != ENOSYS) {
+			syslog(LOG_WARNING, "cap_rights_limit: %m");
+			exit(1);
 		}
 #if ENDIAN != BIG_ENDIAN
 		{
@@ -412,6 +433,7 @@ receiver_process(void)
 			ftruncate(whod, cc);
 		(void) close(whod);
 	}
+	(void) close(dirfd);
 }
 
 void
