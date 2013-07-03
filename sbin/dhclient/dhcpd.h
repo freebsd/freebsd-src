@@ -300,8 +300,10 @@ struct hash_bucket	*new_hash_bucket(void);
 int if_register_bpf(struct interface_info *, int);
 void if_register_send(struct interface_info *);
 void if_register_receive(struct interface_info *);
-void send_packet(struct interface_info *, struct dhcp_packet *, size_t,
-    struct in_addr, struct in_addr);
+void send_packet_unpriv(int, struct dhcp_packet *, size_t, struct in_addr,
+    struct in_addr);
+struct imsg_hdr;
+void send_packet_priv(struct interface_info *, struct imsg_hdr *, int);
 ssize_t receive_packet(struct interface_info *, unsigned char *, size_t,
     struct sockaddr_in *, struct hardware *);
 
@@ -435,4 +437,4 @@ struct buf	*buf_open(size_t);
 int		 buf_add(struct buf *, void *, size_t);
 int		 buf_close(int, struct buf *);
 ssize_t		 buf_read(int, void *, size_t);
-void		 dispatch_imsg(int);
+void		 dispatch_imsg(struct interface_info *, int);
