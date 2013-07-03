@@ -97,9 +97,9 @@ _citrus_UTF1632_init_state(_UTF1632EncodingInfo *ei __unused,
 
 static int
 _citrus_UTF1632_mbrtowc_priv(_UTF1632EncodingInfo *ei, wchar_t *pwc,
-    char **s, size_t n, _UTF1632State *psenc, size_t *nresult)
+    const char **s, size_t n, _UTF1632State *psenc, size_t *nresult)
 {
-	char *s0;
+	const char *s0;
 	size_t result;
 	wchar_t wc = L'\0';
 	int chlenbak, endian, needlen;
