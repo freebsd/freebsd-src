@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1983, 1993 The Regents of the University of California.
+ * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/signal.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
+#include <sys/procdesc.h>
+#include <sys/wait.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -93,10 +96,10 @@ struct	sockaddr_in multicast_addr =
 	{ sizeof(multicast_addr), AF_INET, 0, { 0 }, { 0 } };
 
 /*
- * Alarm interval. Don't forget to change the down time check in ruptime
+ * Sleep interval. Don't forget to change the down time check in ruptime
  * if this is changed.
  */
-#define AL_INTERVAL (3 * 60)
+#define SL_INTERVAL (3 * 60)
 
 char	myname[MAXHOSTNAMELEN];
 
@@ -117,15 +120,18 @@ struct	neighbor *neighbors;
 struct	whod mywd;
 struct	servent	*sp;
 int	s;
+int	fdp;
+pid_t	pid_child_receiver;
 
 #define	WHDRSIZE	(int)(sizeof(mywd) - sizeof(mywd.wd_we))
 
 int	configure(int so);
 void	getboottime(int signo __unused);
-void	onalrm(int signo __unused);
+void	receiver_process(void);
 void	rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo);
 void	run_as(uid_t *uid, gid_t *gid);
 void	quit(const char *msg);
+void	sender_process(void);
 int	verify(char *name, int maxlen);
 static void usage(void);
 
@@ -168,9 +174,6 @@ void	Sendto(int s, const void *buf, size_t cc, int flags,
 int
 main(int argc, char *argv[])
 {
-	struct sockaddr_in from;
-	struct stat st;
-	char path[64];
 	int on;
 	char *cp;
 	struct sockaddr_in soin;
@@ -269,16 +272,83 @@ main(int argc, char *argv[])
 	if (!configure(s))
 		exit(1);
 	if (!quiet_mode) {
-		signal(SIGALRM, onalrm);
-		onalrm(0);
+		pid_child_receiver = pdfork(&fdp, 0);
+		if (pid_child_receiver == 0) {
+			receiver_process();
+		} else if (pid_child_receiver > 0) {
+			sender_process();
+		} else if (pid_child_receiver == -1) {
+			syslog(LOG_ERR, "pdfork: %m");
+			exit(1);
+		}
+	} else {
+		receiver_process();
 	}
-	for (;;) {
-		struct whod wd;
-		socklen_t len;
-		int cc, whod;
-		time_t t;
+}
 
-		len = sizeof(from);
+static void
+usage(void)
+{
+
+	fprintf(stderr, "usage: rwhod [-i] [-p] [-l] [-m [ttl]]\n");
+	exit(1);
+}
+
+void
+run_as(uid_t *uid, gid_t *gid)
+{
+	struct passwd *pw;
+	struct group *gr;
+
+	pw = getpwnam(UNPRIV_USER);
+	if (pw == NULL) {
+		syslog(LOG_ERR, "getpwnam(%s): %m", UNPRIV_USER);
+		exit(1);
+	}
+	*uid = pw->pw_uid;
+
+	gr = getgrnam(UNPRIV_GROUP);
+	if (gr == NULL) {
+		syslog(LOG_ERR, "getgrnam(%s): %m", UNPRIV_GROUP);
+		exit(1);
+	}
+	*gid = gr->gr_gid;
+}
+
+/*
+ * Check out host name for unprintables
+ * and other funnies before allowing a file
+ * to be created.  Sorry, but blanks aren't allowed.
+ */
+int
+verify(char *name, int maxlen)
+{
+	int size;
+
+	size = 0;
+	while (*name != '\0' && size < maxlen - 1) {
+		if (!isascii(*name) || !isalnum(*name) || ispunct(*name))
+			return (0);
+		name++;
+		size++;
+	}
+	*name = '\0';
+	return (size > 0);
+}
+
+void
+receiver_process(void)
+{
+	struct sockaddr_in from;
+	struct stat st;
+	char path[64];
+	struct whod wd;
+	socklen_t len;
+	int cc, whod;
+	time_t t;
+
+	len = sizeof(from);
+	for (;;) {
 		cc = recvfrom(s, &wd, sizeof(wd), 0, (struct sockaddr *)&from,
 		    &len);
 		if (cc <= 0) {
@@ -344,139 +414,97 @@ main(int argc, char *argv[])
 	}
 }
 
-static void
-usage(void)
-{
-
-	fprintf(stderr, "usage: rwhod [-i] [-p] [-l] [-m [ttl]]\n");
-	exit(1);
-}
-
 void
-run_as(uid_t *uid, gid_t *gid)
+sender_process(void)
 {
-	struct passwd *pw;
-	struct group *gr;
-
-	pw = getpwnam(UNPRIV_USER);
-	if (pw == NULL) {
-		syslog(LOG_ERR, "getpwnam(%s): %m", UNPRIV_USER);
-		exit(1);
-	}
-	*uid = pw->pw_uid;
-
-	gr = getgrnam(UNPRIV_GROUP);
-	if (gr == NULL) {
-		syslog(LOG_ERR, "getgrnam(%s): %m", UNPRIV_GROUP);
-		exit(1);
-	}
-	*gid = gr->gr_gid;
-}
-
-/*
- * Check out host name for unprintables
- * and other funnies before allowing a file
- * to be created.  Sorry, but blanks aren't allowed.
- */
-int
-verify(char *name, int maxlen)
-{
-	int size;
-
-	size = 0;
-	while (*name != '\0' && size < maxlen - 1) {
-		if (!isascii(*name) || !isalnum(*name) || ispunct(*name))
-			return (0);
-		name++;
-		size++;
-	}
-	*name = '\0';
-	return (size > 0);
-}
-
-void
-onalrm(int signo __unused)
-{
-	static int alarmcount = 0;
+	int sendcount;
 	double avenrun[3];
 	time_t now;
-	int i, cc;
+	int i, cc, status;
 	struct utmpx *ut;
 	struct stat stb;
 	struct neighbor *np;
 	struct whoent *we, *wend;
 
-	we = mywd.wd_we;
-	now = time(NULL);
-	if (alarmcount % 10 == 0)
-		getboottime(0);
-	alarmcount++;
-	wend = &mywd.wd_we[1024 / sizeof(struct whoent)];
-	setutxent();
-	while ((ut = getutxent()) != NULL && we < wend) {
-		if (ut->ut_type != USER_PROCESS)
-			continue;
-		strncpy(we->we_utmp.out_line, ut->ut_line,
-		   sizeof(we->we_utmp.out_line));
-		strncpy(we->we_utmp.out_name, ut->ut_user,
-		   sizeof(we->we_utmp.out_name));
-		we->we_utmp.out_time =
-		    htonl(_time_to_time32(ut->ut_tv.tv_sec));
-		we++;
-	}
-	endutxent();
+	sendcount = 0;
+	for (;;) {
+		we = mywd.wd_we;
+		now = time(NULL);
+		if (sendcount % 10 == 0)
+			getboottime(0);
+		sendcount++;
+		wend = &mywd.wd_we[1024 / sizeof(struct whoent)];
+		setutxent();
+		while ((ut = getutxent()) != NULL && we < wend) {
+			if (ut->ut_type != USER_PROCESS)
+				continue;
+			strncpy(we->we_utmp.out_line, ut->ut_line,
+			    sizeof(we->we_utmp.out_line));
+			strncpy(we->we_utmp.out_name, ut->ut_user,
+			    sizeof(we->we_utmp.out_name));
+			we->we_utmp.out_time =
+			    htonl(_time_to_time32(ut->ut_tv.tv_sec));
+			we++;
+		}
+		endutxent();
 
-	if (chdir(_PATH_DEV) < 0) {
-		syslog(LOG_ERR, "chdir(%s): %m", _PATH_DEV);
-		exit(1);
-	}
-	wend = we;
-	for (we = mywd.wd_we; we < wend; we++) {
-		if (stat(we->we_utmp.out_line, &stb) >= 0)
-			we->we_idle = htonl(now - stb.st_atime);
-		we++;
-	}
-	(void) getloadavg(avenrun, sizeof(avenrun) / sizeof(avenrun[0]));
-	for (i = 0; i < 3; i++)
-		mywd.wd_loadav[i] = htonl((u_long)(avenrun[i] * 100));
-	cc = (char *)wend - (char *)&mywd;
-	mywd.wd_sendtime = htonl(_time_to_time32(time(NULL)));
-	mywd.wd_vers = WHODVERSION;
-	mywd.wd_type = WHODTYPE_STATUS;
-	if (multicast_mode == SCOPED_MULTICAST) {
-		(void) sendto(s, (char *)&mywd, cc, 0,
-				(struct sockaddr *)&multicast_addr,
-				sizeof(multicast_addr));
-	} else {
-		for (np = neighbors; np != NULL; np = np->n_next) {
-			if (multicast_mode == PER_INTERFACE_MULTICAST &&
-			    (np->n_flags & IFF_MULTICAST) != 0) {
-				/*
-				 * Select the outgoing interface for the
-				 * multicast.
-				 */
-				if (setsockopt(s, IPPROTO_IP,
-				    IP_MULTICAST_IF,
-				    &(((struct sockaddr_in *)np->n_addr)->sin_addr),
-				    sizeof(struct in_addr)) < 0) {
-					syslog(LOG_ERR,
-					    "setsockopt IP_MULTICAST_IF: %m");
-					exit(1);
+		if (chdir(_PATH_DEV) < 0) {
+			syslog(LOG_ERR, "chdir(%s): %m", _PATH_DEV);
+			exit(1);
+		}
+		wend = we;
+		for (we = mywd.wd_we; we < wend; we++) {
+			if (stat(we->we_utmp.out_line, &stb) >= 0)
+				we->we_idle = htonl(now - stb.st_atime);
+			we++;
+		}
+		(void) getloadavg(avenrun,
+		    sizeof(avenrun) / sizeof(avenrun[0]));
+		for (i = 0; i < 3; i++)
+			mywd.wd_loadav[i] = htonl((u_long)(avenrun[i] * 100));
+		cc = (char *)wend - (char *)&mywd;
+		mywd.wd_sendtime = htonl(_time_to_time32(time(NULL)));
+		mywd.wd_vers = WHODVERSION;
+		mywd.wd_type = WHODTYPE_STATUS;
+		if (multicast_mode == SCOPED_MULTICAST) {
+			(void) sendto(s, (char *)&mywd, cc, 0,
+			    (struct sockaddr *)&multicast_addr,
+			    sizeof(multicast_addr));
+		} else {
+			for (np = neighbors; np != NULL; np = np->n_next) {
+				if (multicast_mode == PER_INTERFACE_MULTICAST &&
+				    (np->n_flags & IFF_MULTICAST) != 0) {
+					/*
+					 * Select the outgoing interface for the
+					 * multicast.
+					 */
+					if (setsockopt(s, IPPROTO_IP,
+					    IP_MULTICAST_IF,
+					    &(((struct sockaddr_in *)np->n_addr)->sin_addr),
+					    sizeof(struct in_addr)) < 0) {
+						syslog(LOG_ERR,
+						    "setsockopt IP_MULTICAST_IF: %m");
+						exit(1);
+					}
+					(void) sendto(s, (char *)&mywd, cc, 0,
+					    (struct sockaddr *)&multicast_addr,
+					    sizeof(multicast_addr));
+				} else {
+					(void) sendto(s, (char *)&mywd, cc, 0,
+					    np->n_addr, np->n_addrlen);
 				}
-				(void) sendto(s, (char *)&mywd, cc, 0,
-				    (struct sockaddr *)&multicast_addr,
-				    sizeof(multicast_addr));
-			} else {
-			    (void) sendto(s, (char *)&mywd, cc, 0,
-			        np->n_addr, np->n_addrlen);
 			}
 		}
+		if (chdir(_PATH_RWHODIR) < 0) {
+			syslog(LOG_ERR, "chdir(%s): %m", _PATH_RWHODIR);
+			exit(1);
+		}
+		if (waitpid(pid_child_receiver, &status, WNOHANG) ==
+		    pid_child_receiver) {
+			break;
+		}
+		sleep(SL_INTERVAL);
 	}
-	if (chdir(_PATH_RWHODIR) < 0) {
-		syslog(LOG_ERR, "chdir(%s): %m", _PATH_RWHODIR);
-		exit(1);
-	}
-	(void) alarm(AL_INTERVAL);
 }
 
 void
