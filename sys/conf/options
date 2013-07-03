@@ -226,6 +226,7 @@ SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
+ZFS		opt_dontuse.h
 
 # Pseudofs debugging
 PSEUDOFS_TRACE	opt_pseudofs.h
@@ -839,8 +840,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
-
-ZFS			opt_dontuse.h
 
 # Interrupt filtering
 INTR_FILTER
