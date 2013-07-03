@@ -77,7 +77,6 @@ struct vmxcap {
 
 struct vmxstate {
 	int	lastcpu;	/* host cpu that this 'vcpu' last ran on */
-	uint16_t vpid;
 };
 
 /* virtual machine softc */
@@ -89,6 +88,7 @@ struct vmx {
 	struct vmxctx	ctx[VM_MAXCPU];
 	struct vmxcap	cap[VM_MAXCPU];
 	struct vmxstate	state[VM_MAXCPU];
+	vm_paddr_t	eptphys;		/* physical addr of pml4ept */
 	struct vm	*vm;
 };
 CTASSERT((offsetof(struct vmx, pml4ept) & PAGE_MASK) == 0);

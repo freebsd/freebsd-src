@@ -50,8 +50,7 @@ int	vmcs_set_defaults(struct vmcs *vmcs, u_long host_rip, u_long host_rsp,
 			  u_long ept_pml4,
 			  uint32_t pinbased_ctls, uint32_t procbased_ctls,
 			  uint32_t procbased_ctls2, uint32_t exit_ctls,
-			  uint32_t entry_ctls, u_long msr_bitmap,
-			  uint16_t vpid);
+			  uint32_t entry_ctls, u_long msr_bitmap);
 int	vmcs_getreg(struct vmcs *vmcs, int running, int ident, uint64_t *rv);
 int	vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val);
 int	vmcs_getdesc(struct vmcs *vmcs, int ident,

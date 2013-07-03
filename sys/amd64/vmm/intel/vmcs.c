@@ -321,7 +321,7 @@ vmcs_set_defaults(struct vmcs *vmcs,
 		  u_long host_rip, u_long host_rsp, u_long ept_pml4,
 		  uint32_t pinbased_ctls, uint32_t procbased_ctls,
 		  uint32_t procbased_ctls2, uint32_t exit_ctls,
-		  uint32_t entry_ctls, u_long msr_bitmap, uint16_t vpid)
+		  uint32_t entry_ctls, u_long msr_bitmap)
 {
 	int error, codesel, datasel, tsssel;
 	u_long cr0, cr4, efer;
@@ -436,10 +436,6 @@ vmcs_set_defaults(struct vmcs *vmcs,
 	if ((error = vmwrite(VMCS_EPTP, eptp)) != 0)
 		goto done;
 
-	/* vpid */
-	if ((error = vmwrite(VMCS_VPID, vpid)) != 0)
-		goto done;
-
 	/* msr bitmap */
 	if ((error = vmwrite(VMCS_MSR_BITMAP, msr_bitmap)) != 0)
 		goto done;
@@ -494,7 +490,6 @@ DB_SHOW_COMMAND(vmcs, db_show_vmcs)
 		return;
 	}
 	db_printf("VMCS: %jx\n", cur_vmcs);
-	db_printf("VPID: %lu\n", vmcs_read(VMCS_VPID));
 	db_printf("Activity: ");
 	val = vmcs_read(VMCS_GUEST_ACTIVITY);
 	switch (val) {
