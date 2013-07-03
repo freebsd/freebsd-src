@@ -67,15 +67,15 @@ do_rand(unsigned long *ctx)
  */
 	long hi, lo, x;
 
-	/* Can't be initialized with 0, so use another value. */
-	if (*ctx == 0)
-		*ctx = 123459876;
+	/* Must be in [1, 0x7ffffffe] range at this point. */
 	hi = *ctx / 127773;
 	lo = *ctx % 127773;
 	x = 16807 * lo - 2836 * hi;
 	if (x < 0)
 		x += 0x7fffffff;
-	return ((*ctx = x) % ((u_long)RAND_MAX + 1));
+	*ctx = x;
+	/* Transform to [0, 0x7ffffffd] range. */
+	return (x - 1);
 #endif  /* !USE_WEAK_SEEDING */
 }
 
@@ -84,6 +84,10 @@ int
 rand_r(unsigned int *ctx)
 {
 	u_long val = (u_long) *ctx;
+#ifndef USE_WEAK_SEEDING
+	/* Transform to [1, 0x7ffffffe] range. */
+	val = (val % 0x7ffffffe) + 1;
+#endif
 	int r = do_rand(&val);
 
 	*ctx = (unsigned int) val;
@@ -104,6 +108,10 @@ srand(seed)
 u_int seed;
 {
 	next = seed;
+#ifndef USE_WEAK_SEEDING
+	/* Transform to [1, 0x7ffffffe] range. */
+	next = (next % 0x7ffffffe) + 1;
+#endif
 }
 
 
@@ -125,6 +133,10 @@ sranddev()
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_ARND;
 	sysctl(mib, 2, (void *)&next, &len, NULL, 0);
+#ifndef USE_WEAK_SEEDING
+	/* Transform to [1, 0x7ffffffe] range. */
+	next = (next % 0x7ffffffe) + 1;
+#endif
 }
 
 
