@@ -975,14 +975,14 @@ int t4_check_fw_version(struct adapter *adapter)
 
 	switch (chip_id(adapter)) {
 	case CHELSIO_T4:
-		exp_major = FW_VERSION_MAJOR_T4;
-		exp_minor = FW_VERSION_MINOR_T4;
-		exp_micro = FW_VERSION_MICRO_T4;
+		exp_major = T4FW_VERSION_MAJOR;
+		exp_minor = T4FW_VERSION_MINOR;
+		exp_micro = T4FW_VERSION_MICRO;
 		break;
 	case CHELSIO_T5:
-		exp_major = FW_VERSION_MAJOR_T5;
-		exp_minor = FW_VERSION_MINOR_T5;
-		exp_micro = FW_VERSION_MICRO_T5;
+		exp_major = T5FW_VERSION_MAJOR;
+		exp_minor = T5FW_VERSION_MINOR;
+		exp_micro = T5FW_VERSION_MICRO;
 		break;
 	default:
 		CH_ERR(adapter, "Unsupported chip type, %x\n",
@@ -1128,7 +1128,19 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	const u32 *p = (const u32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	unsigned int fw_start_sec;
+	unsigned int fw_start;
+	unsigned int fw_size;
 
+	if (ntohl(hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP) {
+		fw_start_sec = FLASH_FWBOOTSTRAP_START_SEC;
+		fw_start = FLASH_FWBOOTSTRAP_START;
+		fw_size = FLASH_FWBOOTSTRAP_MAX_SIZE;
+	} else {
+		fw_start_sec = FLASH_FW_START_SEC;
+ 		fw_start = FLASH_FW_START;
+		fw_size = FLASH_FW_MAX_SIZE;
+	}
 	if (!size) {
 		CH_ERR(adap, "FW image has no data\n");
 		return -EINVAL;
@@ -1141,9 +1153,8 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 		CH_ERR(adap, "FW image size differs from size in FW header\n");
 		return -EINVAL;
 	}
-	if (size > FLASH_FW_MAX_SIZE) {
-		CH_ERR(adap, "FW image too large, max is %u bytes\n",
-		       FLASH_FW_MAX_SIZE);
+	if (size > fw_size) {
+		CH_ERR(adap, "FW image too large, max is %u bytes\n", fw_size);
 		return -EFBIG;
 	}
 	if ((is_t4(adap) && hdr->chip != FW_HDR_CHIP_T4) ||
@@ -1164,8 +1175,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	i = DIV_ROUND_UP(size, sf_sec_size);        /* # of sectors spanned */
-	ret = t4_flash_erase_sectors(adap, FLASH_FW_START_SEC,
-	    FLASH_FW_START_SEC + i - 1);
+	ret = t4_flash_erase_sectors(adap, fw_start_sec, fw_start_sec + i - 1);
 	if (ret)
 		goto out;
 
@@ -1176,11 +1186,11 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = htonl(0xffffffff);
-	ret = t4_write_flash(adap, FLASH_FW_START, SF_PAGE_SIZE, first_page, 1);
+	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page, 1);
 	if (ret)
 		goto out;
 
-	addr = FLASH_FW_START;
+	addr = fw_start;
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
@@ -1190,7 +1200,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	ret = t4_write_flash(adap,
-			     FLASH_FW_START + offsetof(struct fw_hdr, fw_ver),
+			     fw_start + offsetof(struct fw_hdr, fw_ver),
 			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver, 1);
 out:
 	if (ret)
@@ -4622,14 +4632,17 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		  const u8 *fw_data, unsigned int size, int force)
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
+	unsigned int bootstrap = ntohl(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
 	int reset, ret;
 
-	ret = t4_fw_halt(adap, mbox, force);
-	if (ret < 0 && !force)
-		return ret;
+	if (!bootstrap) {
+		ret = t4_fw_halt(adap, mbox, force);
+		if (ret < 0 && !force)
+			return ret;
+	}
 
 	ret = t4_load_fw(adap, fw_data, size);
-	if (ret < 0)
+	if (ret < 0 || bootstrap)
 		return ret;
 
 	/*
