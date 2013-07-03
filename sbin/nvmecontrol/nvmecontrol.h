@@ -51,6 +51,7 @@ void read_controller_data(int fd, struct nvme_controller_data *cdata);
 void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
 
 void devlist(int argc, char *argv[]);
+void identify(int argc, char *argv[]);
 
 #endif
 
