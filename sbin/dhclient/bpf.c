@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
 #include "privsep.h"
+#include <sys/capability.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 
@@ -159,6 +160,9 @@ if_register_send(struct interface_info *info)
 	if (ioctl(info->wfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
 
+	if (cap_rights_limit(info->wfdesc, CAP_WRITE) < 0 && errno != ENOSYS)
+		error("Can't limit bpf descriptor: %m");
+
 	/*
 	 * Use raw socket for unicast send.
 	 */
@@ -208,6 +212,7 @@ int dhcp_bpf_filter_len = sizeof(dhcp_bpf_filter) / sizeof(struct bpf_insn);
 void
 if_register_receive(struct interface_info *info)
 {
+	static const unsigned long cmds[2] = { SIOCGIFFLAGS, SIOCGIFMEDIA };
 	struct bpf_version v;
 	struct bpf_program p;
 	int flag = 1, sz;
@@ -258,6 +263,13 @@ if_register_receive(struct interface_info *info)
 
 	if (ioctl(info->rfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
+
+	if (cap_rights_limit(info->rfdesc,
+	    CAP_IOCTL | CAP_POLL_EVENT | CAP_READ) < 0 && errno != ENOSYS) {
+		error("Can't limit bpf descriptor: %m");
+	}
+	if (cap_ioctls_limit(info->rfdesc, cmds, 2) < 0 && errno != ENOSYS)
+		error("Can't limit ioctls for bpf descriptor: %m");
 }
 
 void
