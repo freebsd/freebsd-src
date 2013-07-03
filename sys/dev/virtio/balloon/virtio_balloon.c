@@ -540,7 +540,7 @@ vtballoon_thread(void *xsc)
 		}
 	}
 
-	kproc_exit(0);
+	kthread_exit();
 }
 
 static void
