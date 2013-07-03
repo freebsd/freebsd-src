@@ -1646,11 +1646,13 @@ qla_error_recovery(void *context, int pending)
 	
 	if ((ha->pci_func & 0x1) == 0) {
 
-		if (!ha->msg_from_peer) 
+		if (!ha->msg_from_peer) {
 			qla_send_msg_to_peer(ha, QL_PEER_MSG_RESET);
 
-		while ((ha->msg_from_peer != QL_PEER_MSG_ACK)  && msecs_100--)
-			qla_mdelay(__func__, 100);
+			while ((ha->msg_from_peer != QL_PEER_MSG_ACK) &&
+				msecs_100--)
+				qla_mdelay(__func__, 100);
+		}
 
 		ha->msg_from_peer = 0;
 
