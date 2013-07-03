@@ -74,6 +74,7 @@ static uint32_t n_hhookheads;
 
 /* Private function prototypes. */
 static void hhook_head_destroy(struct hhook_head *hhh);
+void khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags);
 
 #define	HHHLIST_LOCK() mtx_lock(&hhook_head_list_lock)
 #define	HHHLIST_UNLOCK() mtx_unlock(&hhook_head_list_lock)
@@ -311,12 +312,7 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 	tmphhh->hhh_nhooks = 0;
 	STAILQ_INIT(&tmphhh->hhh_hooks);
 	HHH_LOCK_INIT(tmphhh);
-
-	if (hhh != NULL) {
-		refcount_init(&tmphhh->hhh_refcount, 1);
-		*hhh = tmphhh;
-	} else
-		refcount_init(&tmphhh->hhh_refcount, 0);
+	refcount_init(&tmphhh->hhh_refcount, 1);
 
 	HHHLIST_LOCK();
 	if (flags & HHOOK_HEADISINVNET) {
@@ -330,6 +326,13 @@ hhook_head_register(int32_t hhook_type, int32_t hhook_id, struct hhook_head **hh
 	LIST_INSERT_HEAD(&hhook_head_list, tmphhh, hhh_next);
 	n_hhookheads++;
 	HHHLIST_UNLOCK();
+
+	khelp_new_hhook_registered(tmphhh, flags);
+
+	if (hhh != NULL)
+		*hhh = tmphhh;
+	else
+		refcount_release(&tmphhh->hhh_refcount);
 
 	return (0);
 }
