@@ -145,7 +145,6 @@ struct nvme_request {
 	struct nvme_qpair		*qpair;
 	union {
 		void			*payload;
-		struct uio		*uio;
 		struct bio		*bio;
 	} u;
 	uint32_t			type;
@@ -469,8 +468,6 @@ int	nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 			  struct nvme_controller *ctrlr);
 void	nvme_ns_destruct(struct nvme_namespace *ns);
 
-int	nvme_ns_physio(struct cdev *dev, struct uio *uio, int ioflag);
-
 void	nvme_sysctl_initialize_ctrlr(struct nvme_controller *ctrlr);
 
 void	nvme_dump_command(struct nvme_command *cmd);
@@ -521,19 +518,6 @@ nvme_allocate_request_null(nvme_cb_fn_t cb_fn, void *cb_arg)
 	req = _nvme_allocate_request(cb_fn, cb_arg);
 	if (req != NULL)
 		req->type = NVME_REQUEST_NULL;
-	return (req);
-}
-
-static __inline struct nvme_request *
-nvme_allocate_request_uio(struct uio *uio, nvme_cb_fn_t cb_fn, void *cb_arg)
-{
-	struct nvme_request *req;
-
-	req = _nvme_allocate_request(cb_fn, cb_arg);
-	if (req != NULL) {
-		req->type = NVME_REQUEST_UIO;
-		req->u.uio = uio;
-	}
 	return (req);
 }
 
