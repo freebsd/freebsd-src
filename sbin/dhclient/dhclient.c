@@ -1523,7 +1523,7 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 			    ip->client->config->send_options[i].len;
 			options[i]->timeout = 0xFFFFFFFF;
 		}
-		
+
 	/* send host name if not set via config file. */
 	char hostname[_POSIX_HOST_NAME_MAX+1];
 	if (!options[DHO_HOST_NAME]) {
@@ -1548,7 +1548,7 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
 				ip->hw_address.hlen : sizeof(client_ident)-1;
 		client_ident[0] = ip->hw_address.htype;
-		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen); 
+		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen);
 		options[DHO_DHCP_CLIENT_IDENTIFIER] = &option_elements[DHO_DHCP_CLIENT_IDENTIFIER];
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = client_ident;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen+1;
@@ -1647,7 +1647,7 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 			    ip->client->config->send_options[i].len;
 			options[i]->timeout = 0xFFFFFFFF;
 		}
-		
+
 	/* send host name if not set via config file. */
 	char hostname[_POSIX_HOST_NAME_MAX+1];
 	if (!options[DHO_HOST_NAME]) {
@@ -1672,7 +1672,7 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 		int hwlen = (ip->hw_address.hlen < sizeof(client_ident)-1) ?
 				ip->hw_address.hlen : sizeof(client_ident)-1;
 		client_ident[0] = ip->hw_address.htype;
-		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen); 
+		memcpy(&client_ident[1], ip->hw_address.haddr, hwlen);
 		options[DHO_DHCP_CLIENT_IDENTIFIER] = &option_elements[DHO_DHCP_CLIENT_IDENTIFIER];
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->value = client_ident;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->len = hwlen+1;
@@ -2489,19 +2489,19 @@ check_classless_option(unsigned char *data, int len)
 			i += 4;
 			continue;
 		} else if (width < 9) {
-			addr =  (in_addr_t)(data[i] 	<< 24);
+			addr =  (in_addr_t)(data[i]	<< 24);
 			i += 1;
 		} else if (width < 17) {
-			addr =  (in_addr_t)(data[i] 	<< 24) +
+			addr =  (in_addr_t)(data[i]	<< 24) +
 				(in_addr_t)(data[i + 1]	<< 16);
 			i += 2;
 		} else if (width < 25) {
-			addr =  (in_addr_t)(data[i] 	<< 24) +
+			addr =  (in_addr_t)(data[i]	<< 24) +
 				(in_addr_t)(data[i + 1]	<< 16) +
 				(in_addr_t)(data[i + 2]	<< 8);
 			i += 3;
 		} else if (width < 33) {
-			addr =  (in_addr_t)(data[i] 	<< 24) +
+			addr =  (in_addr_t)(data[i]	<< 24) +
 				(in_addr_t)(data[i + 1]	<< 16) +
 				(in_addr_t)(data[i + 2]	<< 8)  +
 				data[i + 3];
@@ -2525,7 +2525,7 @@ check_classless_option(unsigned char *data, int len)
 			addr &= mask;
 			data[i - 1] = (unsigned char)(
 				(addr >> (((32 - width)/8)*8)) & 0xFF);
-		} 
+		}
 		i += 4;
 	}
 	if (i > len) {
