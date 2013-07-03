@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include "dhcpd.h"
 #include "privsep.h"
 
+#include <sys/capability.h>
+
 #include <net80211/ieee80211_freebsd.h>
 
 #ifndef _PATH_VAREMPTY
@@ -470,6 +472,10 @@ main(int argc, char *argv[])
 
 	close(pipe_fd[0]);
 	privfd = pipe_fd[1];
+	if (cap_rights_limit(privfd, CAP_READ | CAP_WRITE) < 0 &&
+	    errno != ENOSYS) {
+		error("can't limit private descriptor: %m");
+	}
 
 	if ((fd = open(path_dhclient_db, O_RDONLY|O_EXLOCK|O_CREAT, 0)) == -1)
 		error("can't open and lock %s: %m", path_dhclient_db);
