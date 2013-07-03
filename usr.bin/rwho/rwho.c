@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1983, 1993 The Regents of the University of California.
+ * Copyright (c) 2013 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +43,7 @@ static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capability.h>
 #include <sys/param.h>
 #include <sys/file.h>
 
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dirent.h>
 #include <err.h>
+#include <errno.h>
 #include <langinfo.h>
 #include <locale.h>
 #include <stdio.h>
@@ -92,6 +95,8 @@ main(int argc, char *argv[])
 	struct myutmp *mp;
 	int f, n, i;
 	int d_first;
+	int dfd;
+	time_t ct;
 
 	w = &wd;
 	(void) setlocale(LC_TIME, "");
@@ -113,16 +118,31 @@ main(int argc, char *argv[])
 	if (argc != 0)
 		usage();
 
-	if (chdir(_PATH_RWHODIR) || (dirp = opendir(".")) == NULL)
-		err(1, "%s", _PATH_RWHODIR);
+	if (chdir(_PATH_RWHODIR) < 0)
+		err(1, "chdir(%s)", _PATH_RWHODIR);
+	if ((dirp = opendir(".")) == NULL)
+		err(1, "opendir(%s)", _PATH_RWHODIR);
+	dfd = dirfd(dirp);
 	mp = myutmp;
+	if (cap_rights_limit(dfd, CAP_READ | CAP_LOOKUP) < 0 && errno != ENOSYS)
+		err(1, "cap_rights_limit failed: %s", _PATH_RWHODIR);
+	/*
+	 * Cache files required for time(3) and localtime(3) before entering
+	 * capability mode.
+	 */
+	(void) time(&ct);
+	(void) localtime(&ct);
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "cap_enter");
 	(void) time(&now);
 	while ((dp = readdir(dirp)) != NULL) {
 		if (dp->d_ino == 0 || strncmp(dp->d_name, "whod.", 5) != 0)
 			continue;
-		f = open(dp->d_name, O_RDONLY);
+		f = openat(dfd, dp->d_name, O_RDONLY);
 		if (f < 0)
 			continue;
+		if (cap_rights_limit(f, CAP_READ) < 0 && errno != ENOSYS)
+			err(1, "cap_rights_limit failed: %s", dp->d_name);
 		cc = read(f, (char *)&wd, sizeof (struct whod));
 		if (cc < WHDRSIZE) {
 			(void) close(f);
