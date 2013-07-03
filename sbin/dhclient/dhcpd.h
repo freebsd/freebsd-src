@@ -300,7 +300,7 @@ struct hash_bucket	*new_hash_bucket(void);
 int if_register_bpf(struct interface_info *);
 void if_register_send(struct interface_info *);
 void if_register_receive(struct interface_info *);
-ssize_t send_packet(struct interface_info *, struct dhcp_packet *, size_t,
+void send_packet(struct interface_info *, struct dhcp_packet *, size_t,
     struct in_addr, struct in_addr);
 ssize_t receive_packet(struct interface_info *, unsigned char *, size_t,
     struct sockaddr_in *, struct hardware *);

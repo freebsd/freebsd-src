@@ -1225,7 +1225,7 @@ again:
 	    (int)ip->client->interval);
 
 	/* Send out a packet. */
-	(void)send_packet(ip, &ip->client->packet, ip->client->packet_length,
+	send_packet(ip, &ip->client->packet, ip->client->packet_length,
 	    inaddr_any, inaddr_broadcast);
 
 	add_timeout(cur_time + ip->client->interval, send_discover, ip);
@@ -1450,7 +1450,7 @@ cancel:
 	    REMOTE_PORT);
 
 	/* Send out a packet. */
-	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
+	send_packet(ip, &ip->client->packet, ip->client->packet_length,
 	    from, to);
 
 	add_timeout(cur_time + ip->client->interval, send_request, ip);
@@ -1465,7 +1465,7 @@ send_decline(void *ipp)
 	    inet_ntoa(inaddr_broadcast), REMOTE_PORT);
 
 	/* Send out a packet. */
-	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
+	send_packet(ip, &ip->client->packet, ip->client->packet_length,
 	    inaddr_any, inaddr_broadcast);
 }
 
