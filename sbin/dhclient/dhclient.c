@@ -1232,7 +1232,7 @@ again:
 
 	/* Send out a packet. */
 	(void)send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, &sockaddr_broadcast, NULL);
+	    inaddr_any, &sockaddr_broadcast);
 
 	add_timeout(cur_time + ip->client->interval, send_discover, ip);
 }
@@ -1463,7 +1463,7 @@ cancel:
 
 	/* Send out a packet. */
 	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    from, &destination, NULL);
+	    from, &destination);
 
 	add_timeout(cur_time + ip->client->interval, send_request, ip);
 }
@@ -1479,7 +1479,7 @@ send_decline(void *ipp)
 
 	/* Send out a packet. */
 	(void) send_packet(ip, &ip->client->packet, ip->client->packet_length,
-	    inaddr_any, &sockaddr_broadcast, NULL);
+	    inaddr_any, &sockaddr_broadcast);
 }
 
 void
