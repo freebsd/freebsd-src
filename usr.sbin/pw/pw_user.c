@@ -513,8 +513,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid password change date `%s'", arg->val);
 				if (pwd->pw_change != expire) {
 					pwd->pw_change = expire;
 					edited = 1;
@@ -533,8 +531,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid account expiry date `%s'", arg->val);
 				if (pwd->pw_expire != expire) {
 					pwd->pw_expire = expire;
 					edited = 1;
