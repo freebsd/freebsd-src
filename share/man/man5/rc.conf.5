@@ -3449,6 +3449,40 @@ For example,
 will set the
 .Xr syscons 4
 scrollback (history) buffer to 200 lines.
+.It Va auditd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr auditd 8
+daemon at system boot time.
+.It Va auditd_program
+.Pq Vt str
+Path to
+.Xr autitd 8
+(default
+.Pa /usr/sbin/auditd ) .
+.It Va auditd_flags
+.Pq Vt str
+Flags to pass to
+.Xr audtid 8 .
+.It Va auditdistd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr auditdistd 8
+daemon at system boot time.
+.It Va auditdistd_program
+.Pq Vt str
+Path to
+.Xr auditdistd 8
+(default
+.Pa /usr/sbin/auditdistd ) .
+.It Va auditdistd_flags
+.Pq Vt str
+Flags to pass to
+.Xr auditdistd 8 .
 .It Va cron_enable
 .Pq Vt bool
 If set to
