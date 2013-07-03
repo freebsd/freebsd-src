@@ -459,14 +459,15 @@ freejob(struct job *jp)
 
 
 int
-waitcmd(int argc, char **argv)
+waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
 	int status, retval;
 	struct job *jp;
 
-	if (argc > 1) {
-		job = getjob(argv[1]);
+	nextopt("");
+	if (*argptr != NULL) {
+		job = getjob(*argptr);
 	} else {
 		job = NULL;
 	}
