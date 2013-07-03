@@ -44,6 +44,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "dhcpd.h"
+#include "privsep.h"
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 
@@ -260,23 +261,67 @@ if_register_receive(struct interface_info *info)
 }
 
 void
-send_packet(struct interface_info *interface, struct dhcp_packet *raw,
-    size_t len, struct in_addr from, struct in_addr to)
+send_packet_unpriv(int privfd, struct dhcp_packet *raw, size_t len,
+    struct in_addr from, struct in_addr to)
+{
+	struct imsg_hdr hdr;
+	struct buf *buf;
+	int errs;
+
+	hdr.code = IMSG_SEND_PACKET;
+	hdr.len = sizeof(hdr) +
+	    sizeof(size_t) + len +
+	    sizeof(from) + sizeof(to);
+
+	if ((buf = buf_open(hdr.len)) == NULL)
+		error("buf_open: %m");
+
+	errs = 0;
+	errs += buf_add(buf, &hdr, sizeof(hdr));
+	errs += buf_add(buf, &len, sizeof(len));
+	errs += buf_add(buf, raw, len);
+	errs += buf_add(buf, &from, sizeof(from));
+	errs += buf_add(buf, &to, sizeof(to));
+	if (errs)
+		error("buf_add: %m");
+
+	if (buf_close(privfd, buf) == -1)
+		error("buf_close: %m");
+}
+
+void
+send_packet_priv(struct interface_info *interface, struct imsg_hdr *hdr, int fd)
 {
 	unsigned char buf[256];
 	struct iovec iov[2];
 	struct msghdr msg;
+	struct dhcp_packet raw;
+	size_t len;
+	struct in_addr from, to;
 	int result, bufp = 0;
+
+	if (hdr->len < sizeof(*hdr) + sizeof(size_t))
+		error("corrupted message received");
+	buf_read(fd, &len, sizeof(len));
+	if (hdr->len != sizeof(*hdr) + sizeof(size_t) + len +
+	    sizeof(from) + sizeof(to)) {
+		error("corrupted message received");
+	}
+	if (len > sizeof(raw))
+		error("corrupted message received");
+	buf_read(fd, &raw, len);
+	buf_read(fd, &from, sizeof(from));
+	buf_read(fd, &to, sizeof(to));
 
 	/* Assemble the headers... */
 	if (to.s_addr == INADDR_BROADCAST)
 		assemble_hw_header(interface, buf, &bufp);
 	assemble_udp_ip_header(buf, &bufp, from.s_addr, to.s_addr,
-	    htons(REMOTE_PORT), (unsigned char *)raw, len);
+	    htons(REMOTE_PORT), (unsigned char *)&raw, len);
 
 	iov[0].iov_base = buf;
 	iov[0].iov_len = bufp;
-	iov[1].iov_base = raw;
+	iov[1].iov_base = &raw;
 	iov[1].iov_len = len;
 
 	/* Fire it off */
