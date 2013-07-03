@@ -780,6 +780,19 @@ decode_immediate(struct vie *vie)
 }
 
 /*
+ * Verify that all the bytes in the instruction buffer were consumed.
+ */
+static int
+verify_inst_length(struct vie *vie)
+{
+
+	if (vie->num_processed == vie->num_valid)
+		return (0);
+	else
+		return (-1);
+}
+
+/*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
  */
@@ -851,6 +864,9 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		return (-1);
 	
 	if (decode_immediate(vie))
+		return (-1);
+
+	if (verify_inst_length(vie))
 		return (-1);
 
 	if (verify_gla(vm, cpuid, gla, vie))
