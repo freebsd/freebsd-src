@@ -44,14 +44,31 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+typedef void (*nvme_fn_t)(int argc, char *argv[]);
+
+static struct nvme_function {
+	const char	*name;
+	nvme_fn_t	fn;
+	const char	*usage;
+} funcs[] = {
+	{"devlist",	devlist,	DEVLIST_USAGE},
+	{"identify",	identify,	IDENTIFY_USAGE},
+	{"perftest",	perftest,	PERFTEST_USAGE},
+	{"reset",	reset,		RESET_USAGE},
+	{NULL,		NULL,		NULL},
+};
+
 static void
 usage(void)
 {
+	struct nvme_function *f;
+
+	f = funcs;
 	fprintf(stderr, "usage:\n");
-	fprintf(stderr, DEVLIST_USAGE);
-	fprintf(stderr, IDENTIFY_USAGE);
-	fprintf(stderr, RESET_USAGE);
-	fprintf(stderr, PERFTEST_USAGE);
+	while (f->name != NULL) {
+		fprintf(stderr, "%s", f->usage);
+		f++;
+	}
 	exit(EX_USAGE);
 }
 
@@ -136,18 +153,17 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 int
 main(int argc, char *argv[])
 {
+	struct nvme_function *f;
 
 	if (argc < 2)
 		usage();
 
-	if (strcmp(argv[1], "devlist") == 0)
-		devlist(argc-1, &argv[1]);
-	else if (strcmp(argv[1], "identify") == 0)
-		identify(argc-1, &argv[1]);
-	else if (strcmp(argv[1], "perftest") == 0)
-		perftest(argc-1, &argv[1]);
-	else if (strcmp(argv[1], "reset") == 0)
-		reset(argc-1, &argv[1]);
+	f = funcs;
+	while (f->name != NULL) {
+		if (strcmp(argv[1], f->name) == 0)
+			f->fn(argc-1, &argv[1]);
+		f++;
+	}
 
 	usage();
 
