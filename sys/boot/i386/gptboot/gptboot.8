@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2013
+.Dd July 3, 2013
 .Dt GPTBOOT 8
 .Os
 .Sh NAME
@@ -147,7 +147,8 @@ Middle priority: booting is attempted from each of the
 partitions with the
 .Cm bootme
 attribute.
-.It neither
+.El
+.Pp
 If neither
 .Cm bootonce
 nor
@@ -156,7 +157,6 @@ attributes are found on any partitions, booting is attempted from the
 first
 .Cm freebsd-ufs
 partition on the disk.
-.El
 .Sh POST-BOOT ACTIONS
 The startup script
 .Pa /etc/rc.d/gptboot
@@ -181,9 +181,12 @@ The
 attribute is cleared from the partition that successfully booted.
 There is normally only one of these.
 .Sh FILES
-.Bl -tag -width /boot/loader -compact
+.Bl -tag -width /boot/gptboot -compact
 .It Pa /boot/gptboot
+bootcode binary
 .It Pa /boot.config
+parameters for the boot blocks
+.Pq optional
 .El
 .Sh EXAMPLES
 .Nm
@@ -223,7 +226,6 @@ attribute:
 .Bd -literal -offset indent
 gpart set -a bootonce -i 2 ada0
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr boot.config 5 ,
 .Xr rc.conf 5 ,
