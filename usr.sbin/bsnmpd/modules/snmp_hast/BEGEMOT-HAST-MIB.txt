@@ -301,7 +301,7 @@ hastResourceFlushErrors OBJECT-TYPE
 
 hastResourceWorkerPid OBJECT-TYPE
     SYNTAX	INTEGER
-    MAX-ACCESS	read-write
+    MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
 	"Worker process ID."
