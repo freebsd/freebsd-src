@@ -28,7 +28,7 @@
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd March 26, 2013
 .Dt ACCEPT 2
 .Os
 .Sh NAME
@@ -57,7 +57,13 @@ queue of pending connections, creates a new socket,
 and allocates a new file descriptor for the socket which
 inherits the state of the
 .Dv O_NONBLOCK
-property from the original socket
+and
+.Dv O_ASYNC
+properties and the destination of
+.Dv SIGIO
+and
+.Dv SIGURG
+signals from the original socket
 .Fa s .
 .Pp
 If no pending connections are
@@ -129,7 +135,11 @@ to pre-process incoming connections.
 .Pp
 Portable programs should not rely on the
 .Dv O_NONBLOCK
-property being inherited.
+and
+.Dv O_ASYNC
+properties and the signal destination being inherited,
+but should set them explicitly using
+.Xr fcntl 2 .
 .Sh RETURN VALUES
 The call returns \-1 on error.
 If it succeeds, it returns a non-negative
