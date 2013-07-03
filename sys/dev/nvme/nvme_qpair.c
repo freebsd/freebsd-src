@@ -460,7 +460,7 @@ nvme_qpair_msix_handler(void *arg)
 void
 nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
     uint16_t vector, uint32_t num_entries, uint32_t num_trackers,
-    uint32_t max_xfer_size, struct nvme_controller *ctrlr)
+    struct nvme_controller *ctrlr)
 {
 	struct nvme_tracker	*tr;
 	uint32_t		i;
@@ -478,7 +478,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		num_trackers = min(num_trackers, 64);
 #endif
 	qpair->num_trackers = num_trackers;
-	qpair->max_xfer_size = max_xfer_size;
 	qpair->ctrlr = ctrlr;
 
 	if (ctrlr->msix_enabled) {
@@ -501,8 +500,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
 	    sizeof(uint64_t), PAGE_SIZE, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, qpair->max_xfer_size,
-	    (qpair->max_xfer_size/PAGE_SIZE)+1, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR, NULL, NULL, NVME_MAX_XFER_SIZE,
+	    (NVME_MAX_XFER_SIZE/PAGE_SIZE)+1, PAGE_SIZE, 0,
 	    NULL, NULL, &qpair->dma_tag);
 
 	qpair->num_cmds = 0;
