@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -258,13 +258,42 @@ read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
 	}
 }
 
+static int
+open_dev(const char *str, int *fd, int show_error, int exit_on_error)
+{
+	struct stat	devstat;
+	char		full_path[64];
+
+	snprintf(full_path, sizeof(full_path), "/dev/%s", str);
+	if (stat(full_path, &devstat) != 0) {
+		if (show_error)
+			fprintf(stderr, "error\n");
+		if (exit_on_error)
+			exit(EX_NOINPUT);
+		else
+			return (EX_NOINPUT);
+	}
+
+	*fd = open(full_path, O_RDWR);
+	if (*fd < 0) {
+		if (show_error)
+			printf("Could not open %s. errno=%d (%s)\n", full_path,
+			    errno, strerror(errno));
+		if (exit_on_error)
+			exit(EX_NOPERM);
+		else
+			return (EX_NOPERM);
+	}
+
+	return (EX_OK);
+}
+
 static void
 devlist(int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	struct nvme_namespace_data	nsdata;
-	struct stat			devstat;
-	char				name[64], path[64];
+	char				name[64];
 	uint32_t			i;
 	int				ch, ctrlr, exit_code, fd, found;
 
@@ -283,21 +312,18 @@ devlist(int argc, char *argv[])
 	while (1) {
 		ctrlr++;
 		sprintf(name, "nvme%d", ctrlr);
-		sprintf(path, "/dev/%s", name);
 
-		if (stat(path, &devstat) != 0)
+		exit_code = open_dev(name, &fd, 0, 0);
+
+		if (exit_code == EX_NOINPUT)
 			break;
-
-		found++;
-
-		fd = open(path, O_RDWR);
-		if (fd < 0) {
-			printf("Could not open %s. errno=%d (%s)\n", path,
-			    errno, strerror(errno));
-			exit_code = EX_NOPERM;
+		else if (exit_code == EX_NOPERM) {
+			printf("Could not open /dev/%s, errno = %d (%s)\n",
+			    name, errno, strerror(errno));
 			continue;
 		}
 
+		found++;
 		read_controller_data(fd, &cdata);
 		printf("%6s: %s\n", name, cdata.mn);
 
@@ -310,20 +336,20 @@ devlist(int argc, char *argv[])
 				(long long)ns_get_sector_size(&nsdata) /
 				1024 / 1024 / 1024);
 		}
+
+		close(fd);
 	}
 
 	if (found == 0)
 		printf("No NVMe controllers found.\n");
 
-	exit(exit_code);
+	exit(EX_OK);
 }
 
 static void
 identify_ctrlr(int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
-	struct stat			devstat;
-	char				path[64];
 	int				ch, fd, hexflag = 0, hexlength;
 	int				verboseflag = 0;
 
@@ -340,22 +366,9 @@ identify_ctrlr(int argc, char *argv[])
 		}
 	}
 
-	sprintf(path, "/dev/%s", argv[optind]);
-
-	if (stat(path, &devstat) < 0) {
-		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
-		    strerror(errno));
-		exit(EX_IOERR);
-	}
-
-	fd = open(path, O_RDWR);
-	if (fd < 0) {
-		printf("Could not open %s. errno=%d (%s)\n", path, errno,
-		    strerror(errno));
-		exit(EX_NOPERM);
-	}
-
+	open_dev(argv[optind], &fd, 1, 1);
 	read_controller_data(fd, &cdata);
+	close(fd);
 
 	if (hexflag == 1) {
 		if (verboseflag == 1)
@@ -380,7 +393,6 @@ static void
 identify_ns(int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
-	struct stat			devstat;
 	char				path[64];
 	char				*nsloc;
 	int				ch, fd, hexflag = 0, hexlength, nsid;
@@ -404,25 +416,18 @@ identify_ns(int argc, char *argv[])
 	 *  This is a cleaner check for cases where the correct controller
 	 *  is specified, but an invalid namespace on that controller.
 	 */
-	sprintf(path, "/dev/%s", argv[optind]);
-	if (stat(path, &devstat) < 0) {
-		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
-		    strerror(errno));
-		exit(EX_IOERR);
-	}
-
-	nsloc = strstr(argv[optind], "ns");
-	if (nsloc == NULL) {
-		printf("Invalid namepsace %s.\n", argv[optind]);
-		exit(EX_IOERR);
-	}
+	open_dev(argv[optind], &fd, 1, 1);
+	close(fd);
 
 	/*
 	 * Pull the namespace id from the string. +2 skips past the "ns" part
-	 *  of the string.
+	 *  of the string.  Don't search past 10 characters into the string,
+	 *  otherwise we know it is malformed.
 	 */
-	nsid = strtol(nsloc + 2, NULL, 10);
-	if (nsid == 0 && errno != 0) {
+	nsloc = strnstr(argv[optind], "ns", 10);
+	if (nsloc != NULL)
+		nsid = strtol(nsloc + 2, NULL, 10);
+	if (nsloc == NULL || (nsid == 0 && errno != 0)) {
 		printf("Invalid namespace ID %s.\n", argv[optind]);
 		exit(EX_IOERR);
 	}
@@ -432,22 +437,10 @@ identify_ns(int argc, char *argv[])
 	 *  since it is an admin cmd.  So the path should only include the
 	 *  nvmeX part of the nvmeXnsY string.
 	 */
-	sprintf(path, "/dev/");
-	strncat(path, argv[optind], nsloc - argv[optind]);
-	if (stat(path, &devstat) < 0) {
-		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
-		    strerror(errno));
-		exit(EX_IOERR);
-	}
-
-	fd = open(path, O_RDWR);
-	if (fd < 0) {
-		printf("Could not open %s. errno=%d (%s)\n", path, errno,
-		    strerror(errno));
-		exit(EX_NOPERM);
-	}
-
+	snprintf(path, nsloc - argv[optind] + 1, "%s", argv[optind]);
+	open_dev(path, &fd, 1, 1);
 	read_namespace_data(fd, nsid, &nsdata);
+	close(fd);
 
 	if (hexflag == 1) {
 		if (verboseflag == 1)
@@ -479,12 +472,6 @@ identify(int argc, char *argv[])
 	while (getopt(argc, argv, "vx") != -1) ;
 
 	target = argv[optind];
-
-	/* Specified device node must have "nvme" in it. */
-	if (strstr(argv[optind], "nvme") == NULL) {
-		printf("Invalid device node '%s'.\n", argv[optind]);
-		exit(EX_IOERR);
-	}
 
 	optreset = 1;
 	optind = 1;
@@ -538,14 +525,11 @@ perftest(int argc, char *argv[])
 	int				fd;
 	char				ch;
 	char				*p;
-	const char			*name;
-	char				path[64];
 	u_long				ioctl_cmd = NVME_IO_TEST;
 	bool				nflag, oflag, sflag, tflag;
 	int				perthread = 0;
 
 	nflag = oflag = sflag = tflag = false;
-	name = NULL;
 
 	memset(&io_test, 0, sizeof(io_test));
 
@@ -623,26 +607,18 @@ perftest(int argc, char *argv[])
 		}
 	}
 
-	name = argv[optind];
-
-	if (!nflag || !oflag || !sflag || !tflag || name == NULL)
+	if (!nflag || !oflag || !sflag || !tflag || optind >= argc)
 		perftest_usage();
 
-	sprintf(path, "/dev/%s", name);
-
-	fd = open(path, O_RDWR);
-	if (fd < 0) {
-		fprintf(stderr, "%s not valid device. errno=%d (%s)\n", path,
-		    errno, strerror(errno));
-		perftest_usage();
-	}
-
+	open_dev(argv[optind], &fd, 1, 1);
 	if (ioctl(fd, ioctl_cmd, &io_test) < 0) {
 		fprintf(stderr, "NVME_IO_TEST failed. errno=%d (%s)\n", errno,
 		    strerror(errno));
+		close(fd);
 		exit(EX_IOERR);
 	}
 
+	close(fd);
 	print_perftest(&io_test, perthread);
 	exit(EX_OK);
 }
@@ -650,9 +626,7 @@ perftest(int argc, char *argv[])
 static void
 reset_ctrlr(int argc, char *argv[])
 {
-	struct stat			devstat;
-	char				path[64];
-	int				ch, fd;
+	int	ch, fd;
 
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch ((char)ch) {
@@ -661,24 +635,10 @@ reset_ctrlr(int argc, char *argv[])
 		}
 	}
 
-	sprintf(path, "/dev/%s", argv[optind]);
-
-	if (stat(path, &devstat) < 0) {
-		printf("Invalid device node %s. errno=%d (%s)\n", path, errno,
-		    strerror(errno));
-		exit(EX_IOERR);
-	}
-
-	fd = open(path, O_RDWR);
-	if (fd < 0) {
-		printf("Could not open %s. errno=%d (%s)\n", path, errno,
-		    strerror(errno));
-		exit(EX_NOPERM);
-	}
-
+	open_dev(argv[optind], &fd, 1, 1);
 	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0) {
-		printf("Reset request to %s failed. errno=%d (%s)\n", path,
-		    errno, strerror(errno));
+		printf("Reset request to %s failed. errno=%d (%s)\n",
+		    argv[optind], errno, strerror(errno));
 		exit(EX_IOERR);
 	}
 
