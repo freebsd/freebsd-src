@@ -132,7 +132,6 @@ enum {
 #else
 	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
-	OFLD_BUF_SIZE = MJUM16BYTES,	/* size of fl buffer for TOE rxq */
 
 	CTRL_EQ_QSIZE = 128,
 
