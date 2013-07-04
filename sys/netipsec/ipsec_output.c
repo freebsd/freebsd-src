@@ -164,7 +164,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 * doing further processing.
 	 */
 	if (isr->next) {
-		V_ipsec4stat.ips_out_bundlesa++;
+		IPSECSTAT_INC(ips_out_bundlesa);
 		/* XXX-BZ currently only support same AF bundles. */
 		switch (saidx->dst.sa.sa_family) {
 #ifdef INET
@@ -362,7 +362,7 @@ again:
 		 * this packet because it is responsibility for
 		 * upper layer to retransmit the packet.
 		 */
-		V_ipsec4stat.ips_out_nosa++;
+		IPSECSTAT_INC(ips_out_nosa);
 		goto bad;
 	}
 	sav = isr->sav;
@@ -833,14 +833,14 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 			ipseclog((LOG_ERR, "%s: family mismatched between "
 			    "inner and outer, spi=%u\n", __func__,
 			    ntohl(isr->sav->spi)));
-			V_ipsec6stat.ips_out_inval++;
+			IPSEC6STAT_INC(ips_out_inval);
 			error = EAFNOSUPPORT;
 			goto bad;
 		}
 
 		m = ipsec6_splithdr(m);
 		if (!m) {
-			V_ipsec6stat.ips_out_nomem++;
+			IPSEC6STAT_INC(ips_out_nomem);
 			error = ENOMEM;
 			goto bad;
 		}
@@ -870,7 +870,7 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		}
 		if (state->ro->ro_rt == NULL) {
 			IP6STAT_INC(ip6s_noroute);
-			V_ipsec6stat.ips_out_noroute++;
+			IPSEC6STAT_INC(ips_out_noroute);
 			error = EHOSTUNREACH;
 			goto bad;
 		}
@@ -882,7 +882,7 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 
 	m = ipsec6_splithdr(m);
 	if (!m) {
-		V_ipsec6stat.ips_out_nomem++;
+		IPSEC6STAT_INC(ips_out_nomem);
 		error = ENOMEM;
 		goto bad;
 	}
