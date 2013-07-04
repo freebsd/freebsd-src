@@ -91,19 +91,19 @@ key_output(struct mbuf *m, struct socket *so)
 	if (m == 0)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	V_pfkeystat.out_total++;
-	V_pfkeystat.out_bytes += m->m_pkthdr.len;
+	PFKEYSTAT_INC(out_total);
+	PFKEYSTAT_ADD(out_bytes, m->m_pkthdr.len);
 
 	len = m->m_pkthdr.len;
 	if (len < sizeof(struct sadb_msg)) {
-		V_pfkeystat.out_tooshort++;
+		PFKEYSTAT_INC(out_tooshort);
 		error = EINVAL;
 		goto end;
 	}
 
 	if (m->m_len < sizeof(struct sadb_msg)) {
 		if ((m = m_pullup(m, sizeof(struct sadb_msg))) == 0) {
-			V_pfkeystat.out_nomem++;
+			PFKEYSTAT_INC(out_nomem);
 			error = ENOBUFS;
 			goto end;
 		}
@@ -114,9 +114,9 @@ key_output(struct mbuf *m, struct socket *so)
 	KEYDEBUG(KEYDEBUG_KEY_DUMP, kdebug_mbuf(m));
 
 	msg = mtod(m, struct sadb_msg *);
-	V_pfkeystat.out_msgtype[msg->sadb_msg_type]++;
+	PFKEYSTAT_INC(out_msgtype[msg->sadb_msg_type]);
 	if (len != PFKEY_UNUNIT64(msg->sadb_msg_len)) {
-		V_pfkeystat.out_invlen++;
+		PFKEYSTAT_INC(out_invlen);
 		error = EINVAL;
 		goto end;
 	}
@@ -147,7 +147,7 @@ key_sendup0(rp, m, promisc)
 		if (m && m->m_len < sizeof(struct sadb_msg))
 			m = m_pullup(m, sizeof(struct sadb_msg));
 		if (!m) {
-			V_pfkeystat.in_nomem++;
+			PFKEYSTAT_INC(in_nomem);
 			m_freem(m);
 			return ENOBUFS;
 		}
@@ -160,12 +160,12 @@ key_sendup0(rp, m, promisc)
 		pmsg->sadb_msg_len = PFKEY_UNIT64(m->m_pkthdr.len);
 		/* pid and seq? */
 
-		V_pfkeystat.in_msgtype[pmsg->sadb_msg_type]++;
+		PFKEYSTAT_INC(in_msgtype[pmsg->sadb_msg_type]);
 	}
 
 	if (!sbappendaddr(&rp->rcb_socket->so_rcv, (struct sockaddr *)&key_src,
 	    m, NULL)) {
-		V_pfkeystat.in_nomem++;
+		PFKEYSTAT_INC(in_nomem);
 		m_freem(m);
 		error = ENOBUFS;
 	} else
@@ -197,9 +197,9 @@ key_sendup(so, msg, len, target)
 	 * we increment statistics here, just in case we have ENOBUFS
 	 * in this function.
 	 */
-	V_pfkeystat.in_total++;
-	V_pfkeystat.in_bytes += len;
-	V_pfkeystat.in_msgtype[msg->sadb_msg_type]++;
+	PFKEYSTAT_INC(in_total);
+	PFKEYSTAT_ADD(in_bytes, len);
+	PFKEYSTAT_INC(in_msgtype[msg->sadb_msg_type]);
 
 	/*
 	 * Get mbuf chain whenever possible (not clusters),
@@ -216,14 +216,14 @@ key_sendup(so, msg, len, target)
 		if (tlen == len) {
 			MGETHDR(n, M_DONTWAIT, MT_DATA);
 			if (n == NULL) {
-				V_pfkeystat.in_nomem++;
+				PFKEYSTAT_INC(in_nomem);
 				return ENOBUFS;
 			}
 			n->m_len = MHLEN;
 		} else {
 			MGET(n, M_DONTWAIT, MT_DATA);
 			if (n == NULL) {
-				V_pfkeystat.in_nomem++;
+				PFKEYSTAT_INC(in_nomem);
 				return ENOBUFS;
 			}
 			n->m_len = MLEN;
@@ -233,7 +233,7 @@ key_sendup(so, msg, len, target)
 			if ((n->m_flags & M_EXT) == 0) {
 				m_free(n);
 				m_freem(m);
-				V_pfkeystat.in_nomem++;
+				PFKEYSTAT_INC(in_nomem);
 				return ENOBUFS;
 			}
 			n->m_len = MCLBYTES;
@@ -256,9 +256,9 @@ key_sendup(so, msg, len, target)
 	m_copyback(m, 0, len, (caddr_t)msg);
 
 	/* avoid duplicated statistics */
-	V_pfkeystat.in_total--;
-	V_pfkeystat.in_bytes -= len;
-	V_pfkeystat.in_msgtype[msg->sadb_msg_type]--;
+	PFKEYSTAT_ADD(in_total, -1);
+	PFKEYSTAT_ADD(in_bytes, -len);
+	PFKEYSTAT_ADD(in_msgtype[msg->sadb_msg_type], -1);
 
 	return key_sendup_mbuf(so, m, target);
 }
@@ -281,19 +281,19 @@ key_sendup_mbuf(so, m, target)
 	if (so == NULL && target == KEY_SENDUP_ONE)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	V_pfkeystat.in_total++;
-	V_pfkeystat.in_bytes += m->m_pkthdr.len;
+	PFKEYSTAT_INC(in_total);
+	PFKEYSTAT_ADD(in_bytes, m->m_pkthdr.len);
 	if (m->m_len < sizeof(struct sadb_msg)) {
 		m = m_pullup(m, sizeof(struct sadb_msg));
 		if (m == NULL) {
-			V_pfkeystat.in_nomem++;
+			PFKEYSTAT_INC(in_nomem);
 			return ENOBUFS;
 		}
 	}
 	if (m->m_len >= sizeof(struct sadb_msg)) {
 		struct sadb_msg *msg;
 		msg = mtod(m, struct sadb_msg *);
-		V_pfkeystat.in_msgtype[msg->sadb_msg_type]++;
+		PFKEYSTAT_INC(in_msgtype[msg->sadb_msg_type]);
 	}
 	mtx_lock(&rawcb_mtx);
 	LIST_FOREACH(rp, &V_rawcb_list, list)
@@ -338,14 +338,14 @@ key_sendup_mbuf(so, m, target)
 				sendup++;
 			break;
 		}
-		V_pfkeystat.in_msgtarget[target]++;
+		PFKEYSTAT_INC(in_msgtarget[target]);
 
 		if (!sendup)
 			continue;
 
 		if ((n = m_copy(m, 0, (int)M_COPYALL)) == NULL) {
 			m_freem(m);
-			V_pfkeystat.in_nomem++;
+			PFKEYSTAT_INC(in_nomem);
 			mtx_unlock(&rawcb_mtx);
 			return ENOBUFS;
 		}
