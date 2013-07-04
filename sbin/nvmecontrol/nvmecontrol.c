@@ -126,10 +126,22 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 	struct stat	devstat;
 	char		full_path[64];
 
+	if (!strnstr(str, NVME_CTRLR_PREFIX, strlen(NVME_CTRLR_PREFIX))) {
+		if (show_error)
+			fprintf(stderr,
+			    "Controller/namespace IDs must begin with '%s'.\n",
+			    NVME_CTRLR_PREFIX);
+		if (exit_on_error)
+			exit(EX_USAGE);
+		else
+			return (EX_USAGE);
+	}
+
 	snprintf(full_path, sizeof(full_path), "/dev/%s", str);
 	if (stat(full_path, &devstat) != 0) {
 		if (show_error)
-			fprintf(stderr, "error\n");
+			fprintf(stderr, "Could not stat %s. errno=%d (%s)\n",
+			    full_path, errno, strerror(errno));
 		if (exit_on_error)
 			exit(EX_NOINPUT);
 		else
@@ -139,8 +151,8 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 	*fd = open(full_path, O_RDWR);
 	if (*fd < 0) {
 		if (show_error)
-			printf("Could not open %s. errno=%d (%s)\n", full_path,
-			    errno, strerror(errno));
+			fprintf(stderr, "Could not open %s. errno=%d (%s)\n",
+			    full_path, errno, strerror(errno));
 		if (exit_on_error)
 			exit(EX_NOPERM);
 		else
