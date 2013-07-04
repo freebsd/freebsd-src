@@ -99,7 +99,12 @@ rand_r(unsigned int *ctx)
 }
 
 
-static u_long next = 1;
+static u_long next =
+#ifdef  USE_WEAK_SEEDING
+    1;
+#else
+    2;
+#endif
 
 int
 rand()
