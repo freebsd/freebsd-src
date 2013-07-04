@@ -675,9 +675,9 @@ vtblk_write_cache_enabled(struct vtblk_softc *sc,
 	if (sc->vtblk_flags & VTBLK_FLAG_WC_CONFIG) {
 		wc = vtblk_tunable_int(sc, "writecache_mode",
 		    vtblk_writecache_mode);
-		if (wc >= 0 && wc < VTBLK_CACHE_MAX) {
+		if (wc >= 0 && wc < VTBLK_CACHE_MAX)
 			vtblk_set_write_cache(sc, wc);
-		} else
+		else
 			wc = blkcfg->writeback;
 	} else
 		wc = virtio_with_feature(sc->vtblk_dev, VIRTIO_BLK_F_WCE);
