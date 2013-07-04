@@ -734,7 +734,13 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
-	init_pci(ctx);
+
+	/*
+	 * Exit if a device emulation finds an error in it's initilization
+	 */
+	if (init_pci(ctx) != 0)
+		exit(1);
+
 	if (ioapic)
 		ioapic_init(0);
 
