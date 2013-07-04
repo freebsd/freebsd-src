@@ -91,7 +91,7 @@ The output is either "Verification OK" or "Verification Failure".
 
 =item B<-prverify filename>
 
-verify the signature using the  the private key in "filename".
+verify the signature using the private key in "filename".
 
 =item B<-signature filename>
 

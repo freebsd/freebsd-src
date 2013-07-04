@@ -651,8 +651,8 @@ static struct ieee80211vap *urtw_vap_create(struct ieee80211com *,
 			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtw_vap_delete(struct ieee80211vap *);
 static void		urtw_init(void *);
-static void		urtw_stop(struct ifnet *, int);
-static void		urtw_stop_locked(struct ifnet *, int);
+static void		urtw_stop(struct ifnet *);
+static void		urtw_stop_locked(struct ifnet *);
 static int		urtw_ioctl(struct ifnet *, u_long, caddr_t);
 static void		urtw_start(struct ifnet *);
 static int		urtw_alloc_rx_data_list(struct urtw_softc *);
@@ -933,42 +933,63 @@ urtw_detach(device_t dev)
 	struct urtw_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	unsigned int x;
+	unsigned int n_xfers;
 
-	if (!device_is_attached(dev))
-		return (0);
+	/* Prevent further ioctls */
+	URTW_LOCK(sc);
+	sc->sc_flags |= URTW_DETACHED;
+	URTW_UNLOCK(sc);
 
-	urtw_stop(ifp, 1);
+	urtw_stop(ifp);
+
 	ieee80211_draintask(ic, &sc->sc_updateslot_task);
 	ieee80211_draintask(ic, &sc->sc_led_task);
 
 	usb_callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	ieee80211_ifdetach(ic);
+	n_xfers = (sc->sc_flags & URTW_RTL8187B) ?
+	    URTW_8187B_N_XFERS : URTW_8187L_N_XFERS;
 
-	usbd_transfer_unsetup(sc->sc_xfer, (sc->sc_flags & URTW_RTL8187B) ?
-	    URTW_8187B_N_XFERS : URTW_8187L_N_XFERS);
+	/* prevent further allocations from RX/TX data lists */
+	URTW_LOCK(sc);
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
 
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
+	URTW_UNLOCK(sc);
+
+	/* drain USB transfers */
+	for (x = 0; x != n_xfers; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
+
+	/* free data buffers */
+	URTW_LOCK(sc);
 	urtw_free_tx_data_list(sc);
 	urtw_free_rx_data_list(sc);
+	URTW_UNLOCK(sc);
 
+	/* free USB transfers and some data buffers */
+	usbd_transfer_unsetup(sc->sc_xfer, n_xfers);
+
+	ieee80211_ifdetach(ic);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
-
 	return (0);
 }
 
 static void
 urtw_free_tx_data_list(struct urtw_softc *sc)
 {
-
 	urtw_free_data_list(sc, sc->sc_tx, URTW_TX_DATA_LIST_COUNT, 0);
 }
 
 static void
 urtw_free_rx_data_list(struct urtw_softc *sc)
 {
-
 	urtw_free_data_list(sc, sc->sc_rx, URTW_RX_DATA_LIST_COUNT, 1);
 }
 
@@ -1046,7 +1067,7 @@ urtw_init_locked(void *arg)
 	usb_error_t error;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		urtw_stop_locked(ifp, 0);
+		urtw_stop_locked(ifp);
 
 	error = (sc->sc_flags & URTW_RTL8187B) ? urtw_adapter_start_b(sc) :
 	    urtw_adapter_start(sc);
@@ -1309,13 +1330,12 @@ urtw_do_request(struct urtw_softc *sc,
 }
 
 static void
-urtw_stop_locked(struct ifnet *ifp, int disable)
+urtw_stop_locked(struct ifnet *ifp)
 {
 	struct urtw_softc *sc = ifp->if_softc;
 	uint8_t data8;
 	usb_error_t error;
 
-	(void)disable;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	error = urtw_intr_disable(sc);
@@ -1349,12 +1369,12 @@ fail:
 }
 
 static void
-urtw_stop(struct ifnet *ifp, int disable)
+urtw_stop(struct ifnet *ifp)
 {
 	struct urtw_softc *sc = ifp->if_softc;
 
 	URTW_LOCK(sc);
-	urtw_stop_locked(ifp, disable);
+	urtw_stop_locked(ifp);
 	URTW_UNLOCK(sc);
 }
 
@@ -1379,7 +1399,14 @@ urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct urtw_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	int error;
+	int startall = 0;
+
+	URTW_LOCK(sc);
+	error = (sc->sc_flags & URTW_DETACHED) ? ENXIO : 0;
+	URTW_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -1394,7 +1421,7 @@ urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				urtw_stop(ifp, 1);
+				urtw_stop(ifp);
 		}
 		sc->sc_if_flags = ifp->if_flags;
 		if (startall)
@@ -1410,7 +1437,6 @@ urtw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = EINVAL;
 		break;
 	}
-
 	return (error);
 }
 
@@ -1991,9 +2017,11 @@ urtw_update_msr(struct urtw_softc *sc)
 			data |= URTW_MSR_LINK_HOSTAP;
 			break;
 		default:
-			panic("unsupported operation mode 0x%x\n",
+			DPRINTF(sc, URTW_DEBUG_STATE,
+			    "unsupported operation mode 0x%x\n",
 			    ic->ic_opmode);
-			/* never reach  */
+			error = USB_ERR_INVAL;
+			goto fail;
 		}
 	} else
 		data |= URTW_MSR_LINK_NONE;
@@ -2424,8 +2452,10 @@ urtw_get_rfchip(struct urtw_softc *sc)
 		sc->sc_rf_stop = urtw_8225_rf_stop;
 		break;
 	default:
-		panic("unsupported RF chip %d\n", data & 0xff);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported RF chip %d\n", data & 0xff);
+		error = USB_ERR_INVAL;
+		goto fail;
 	}
 
 	device_printf(sc->sc_dev, "%s rf %s hwrev %s\n",
@@ -3605,8 +3635,10 @@ urtw_led_ctl(struct urtw_softc *sc, int mode)
 		error = urtw_led_mode3(sc, mode);
 		break;
 	default:
-		panic("unsupported LED mode %d\n", sc->sc_strategy);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED mode %d\n", sc->sc_strategy);
+		error = USB_ERR_INVAL;
+		break;
 	}
 
 	return (error);
@@ -3631,8 +3663,9 @@ urtw_led_mode0(struct urtw_softc *sc, int mode)
 		sc->sc_gpio_ledstate = URTW_LED_ON;
 		break;
 	default:
-		panic("unsupported LED mode 0x%x", mode);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED mode 0x%x", mode);
+		return (USB_ERR_INVAL);
 	}
 
 	switch (sc->sc_gpio_ledstate) {
@@ -3655,8 +3688,9 @@ urtw_led_mode0(struct urtw_softc *sc, int mode)
 		urtw_led_off(sc, URTW_LED_GPIO);
 		break;
 	default:
-		panic("unknown LED status 0x%x", sc->sc_gpio_ledstate);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unknown LED status 0x%x", sc->sc_gpio_ledstate);
+		return (USB_ERR_INVAL);
 	}
 	return (0);
 }
@@ -3664,21 +3698,18 @@ urtw_led_mode0(struct urtw_softc *sc, int mode)
 static usb_error_t
 urtw_led_mode1(struct urtw_softc *sc, int mode)
 {
-
 	return (USB_ERR_INVAL);
 }
 
 static usb_error_t
 urtw_led_mode2(struct urtw_softc *sc, int mode)
 {
-
 	return (USB_ERR_INVAL);
 }
 
 static usb_error_t
 urtw_led_mode3(struct urtw_softc *sc, int mode)
 {
-
 	return (USB_ERR_INVAL);
 }
 
@@ -3694,13 +3725,17 @@ urtw_led_on(struct urtw_softc *sc, int type)
 			urtw_write8_m(sc, URTW_GP_ENABLE, 0x00);
 			break;
 		default:
-			panic("unsupported LED PIN type 0x%x",
+			DPRINTF(sc, URTW_DEBUG_STATE,
+			    "unsupported LED PIN type 0x%x",
 			    sc->sc_gpio_ledpin);
-			/* never reach  */
+			error = USB_ERR_INVAL;
+			goto fail;
 		}
 	} else {
-		panic("unsupported LED type 0x%x", type);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED type 0x%x", type);
+		error = USB_ERR_INVAL;
+		goto fail;
 	}
 
 	sc->sc_gpio_ledon = 1;
@@ -3721,13 +3756,17 @@ urtw_led_off(struct urtw_softc *sc, int type)
 			    URTW_GP_ENABLE, URTW_GP_ENABLE_DATA_MAGIC1);
 			break;
 		default:
-			panic("unsupported LED PIN type 0x%x",
+			DPRINTF(sc, URTW_DEBUG_STATE,
+			    "unsupported LED PIN type 0x%x",
 			    sc->sc_gpio_ledpin);
-			/* never reach  */
+			error = USB_ERR_INVAL;
+			goto fail;
 		}
 	} else {
-		panic("unsupported LED type 0x%x", type);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unsupported LED type 0x%x", type);
+		error = USB_ERR_INVAL;
+		goto fail;
 	}
 
 	sc->sc_gpio_ledon = 0;
@@ -3751,8 +3790,12 @@ urtw_ledtask(void *arg, int pending)
 {
 	struct urtw_softc *sc = arg;
 
-	if (sc->sc_strategy != URTW_SW_LED_MODE0)
-		panic("could not process a LED strategy 0x%x", sc->sc_strategy);
+	if (sc->sc_strategy != URTW_SW_LED_MODE0) {
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "could not process a LED strategy 0x%x",
+		    sc->sc_strategy);
+		return;
+	}
 
 	URTW_LOCK(sc);
 	urtw_led_blink(sc);
@@ -3799,8 +3842,10 @@ urtw_led_blink(struct urtw_softc *sc)
 		usb_callout_reset(&sc->sc_led_ch, hz, urtw_led_ch, sc);
 		break;
 	default:
-		panic("unknown LED status 0x%x", sc->sc_gpio_ledstate);
-		/* never reach  */
+		DPRINTF(sc, URTW_DEBUG_STATE,
+		    "unknown LED status 0x%x",
+		    sc->sc_gpio_ledstate);
+		return (USB_ERR_INVAL);
 	}
 	return (0);
 }

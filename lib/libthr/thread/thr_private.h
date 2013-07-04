@@ -746,7 +746,6 @@ void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
 void	_thr_ref_delete_unlocked(struct pthread *, struct pthread *) __hidden;
 int	_thr_find_thread(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_rtld_init(void) __hidden;
-void	_thr_rtld_fini(void) __hidden;
 void	_thr_rtld_postfork_child(void) __hidden;
 int	_thr_stack_alloc(struct pthread_attr *) __hidden;
 void	_thr_stack_free(struct pthread_attr *) __hidden;

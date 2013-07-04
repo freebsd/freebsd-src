@@ -21,12 +21,16 @@ namespace llvm {
 class MipsSEFrameLowering : public MipsFrameLowering {
 public:
   explicit MipsSEFrameLowering(const MipsSubtarget &STI)
-    : MipsFrameLowering(STI) {}
+    : MipsFrameLowering(STI, STI.hasMips64() ? 16 : 8) {}
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
+
+  void eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                     MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I) const;
 
   bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator MI,
@@ -37,6 +41,7 @@ public:
 
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                             RegScavenger *RS) const;
+  unsigned ehDataReg(unsigned I) const;
 };
 
 } // End llvm namespace

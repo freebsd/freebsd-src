@@ -228,7 +228,7 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 {	.mmi
 	mov		r16=ar.rsc
 	mov		ar.rsc=0
-	mov		r17=r13
+	nop		0
 	;;
 }
 {	.mmi
@@ -239,13 +239,13 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 	;;
 }
 {	.mmi
-	mov		r13=ar.k4
+	mov		r21=ar.unat
 	add		r30=-SIZEOF_TRAPFRAME,r14
 	mov		r20=sp
 	;;
 }
 {	.mii
-	mov		r21=ar.unat
+	mov		r17=r13
 	dep		r30=0,r30,0,10
 	;;
 	add		sp=-16,r30
@@ -258,10 +258,10 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 	add		r31=8,r30
 	;;
 }
-{	.mii
+{	.mmi
+	mov		r13=ar.k4
 	mov		r22=ar.fpsr
 	sub		r29=r14,r30
-	nop		0
 }
 {	.mmi
 	mov		r23=ar.bsp

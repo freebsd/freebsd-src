@@ -1,4 +1,4 @@
-/*	$NetBSD: verify.c,v 1.43 2012/10/05 01:31:05 christos Exp $	*/
+/*	$NetBSD: verify.c,v 1.44 2013/02/03 19:15:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: verify.c,v 1.43 2012/10/05 01:31:05 christos Exp $");
+__RCSID("$NetBSD: verify.c,v 1.44 2013/02/03 19:15:17 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -92,6 +92,10 @@ vwalk(void)
 	specdepth = rval = 0;
 	while ((p = fts_read(t)) != NULL) {
 		if (check_excludes(p->fts_name, p->fts_path)) {
+			fts_set(t, p, FTS_SKIP);
+			continue;
+		}
+		if (!find_only(p->fts_path)) {
 			fts_set(t, p, FTS_SKIP);
 			continue;
 		}

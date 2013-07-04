@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #define ND6_SLOWTIMER_INTERVAL (60 * 60) /* 1 hour */
 #define ND6_RECALC_REACHTM_INTERVAL (60 * 120) /* 2 hours */
 
-#define SIN6(s) ((struct sockaddr_in6 *)s)
+#define SIN6(s) ((const struct sockaddr_in6 *)(s))
 
 /* timer values */
 VNET_DEFINE(int, nd6_prune)	= 1;	/* walk list every 1 seconds */
@@ -120,8 +120,6 @@ VNET_DEFINE(struct nd_prhead, nd_prefix);
 VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
-static struct sockaddr_in6 all1_sa;
-
 int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
 static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
@@ -141,14 +139,8 @@ VNET_DEFINE(struct callout, nd6_timer_ch);
 void
 nd6_init(void)
 {
-	int i;
 
 	LIST_INIT(&V_nd_prefix);
-
-	all1_sa.sin6_family = AF_INET6;
-	all1_sa.sin6_len = sizeof(struct sockaddr_in6);
-	for (i = 0; i < sizeof(all1_sa.sin6_addr); i++)
-		all1_sa.sin6_addr.s6_addr[i] = 0xff;
 
 	/* initialization of the default router list */
 	TAILQ_INIT(&V_nd_defrouter);
@@ -184,13 +176,25 @@ nd6_ifattach(struct ifnet *ifp)
 
 	nd->flags = ND6_IFF_PERFORMNUD;
 
-	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL. */
-	if (V_ip6_auto_linklocal || (ifp->if_flags & IFF_LOOPBACK))
+	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL.
+	 * XXXHRS: Clear ND6_IFF_AUTO_LINKLOCAL on an IFT_BRIDGE interface by
+	 * default regardless of the V_ip6_auto_linklocal configuration to
+	 * give a reasonable default behavior.
+	 */
+	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) ||
+	    (ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_AUTO_LINKLOCAL;
-
-	/* A loopback interface does not need to accept RTADV. */
-	if (V_ip6_accept_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
-		nd->flags |= ND6_IFF_ACCEPT_RTADV;
+	/*
+	 * A loopback interface does not need to accept RTADV.
+	 * XXXHRS: Clear ND6_IFF_ACCEPT_RTADV on an IFT_BRIDGE interface by
+	 * default regardless of the V_ip6_accept_rtadv configuration to
+	 * prevent the interface from accepting RA messages arrived
+	 * on one of the member interfaces with ND6_IFF_ACCEPT_RTADV.
+	 */
+	if (V_ip6_accept_rtadv &&
+	    !(ifp->if_flags & IFF_LOOPBACK) &&
+	    (ifp->if_type != IFT_BRIDGE))
+			nd->flags |= ND6_IFF_ACCEPT_RTADV;
 	if (V_ip6_no_radr && !(ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_NO_RADR;
 
@@ -509,6 +513,7 @@ nd6_llinfo_timer(void *arg)
 				ln->la_hold = m0;
 				clear_llinfo_pqueue(ln);
 			}
+			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_TIMEDOUT);
 			(void)nd6_free(ln, 0);
 			ln = NULL;
 			if (m != NULL)
@@ -526,6 +531,7 @@ nd6_llinfo_timer(void *arg)
 	case ND6_LLINFO_STALE:
 		/* Garbage Collection(RFC 2461 5.3) */
 		if (!ND6_LLINFO_PERMANENT(ln)) {
+			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
 			(void)nd6_free(ln, 1);
 			ln = NULL;
 		}
@@ -553,6 +559,7 @@ nd6_llinfo_timer(void *arg)
 			nd6_ns_output(ifp, dst, dst, ln, 0);
 			LLE_WLOCK(ln);
 		} else {
+			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
 			(void)nd6_free(ln, 0);
 			ln = NULL;
 		}
@@ -1601,6 +1608,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		 */
 		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 		ln->la_flags |= LLE_VALID;
+		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 	}
 
 	if (!is_newentry) {
@@ -2160,13 +2168,13 @@ nd6_need_cache(struct ifnet *ifp)
  */
 int
 nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
-    struct sockaddr *dst, u_char *desten, struct llentry **lle)
+    const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *ln;
 
 	*lle = NULL;
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
-	if (m->m_flags & M_MCAST) {
+	if (m != NULL && m->m_flags & M_MCAST) {
 		int i;
 
 		switch (ifp->if_type) {

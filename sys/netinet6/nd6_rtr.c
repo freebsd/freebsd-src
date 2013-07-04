@@ -1720,6 +1720,7 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		}
 	}
 	error = a_failure;
+	a_failure = 1;
 	if (error == 0) {
 		pr->ndpr_stateflags &= ~NDPRF_ONLINK;
 
@@ -1758,7 +1759,8 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 						&opr->ndpr_prefix.sin6_addr),
 					    opr->ndpr_plen, if_name(ifp),
 					    if_name(opr->ndpr_ifp), e));
-				}
+				} else
+					a_failure = 0;
 			}
 		}
 	} else {
@@ -1769,6 +1771,10 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		    ip6_sprintf(ip6buf, &sa6.sin6_addr), pr->ndpr_plen,
 		    if_name(ifp), error));
 	}
+
+	if (a_failure)
+		lltable_prefix_free(AF_INET6, (struct sockaddr *)&sa6,
+		    (struct sockaddr *)&mask6, LLE_STATIC);
 
 	return (error);
 }

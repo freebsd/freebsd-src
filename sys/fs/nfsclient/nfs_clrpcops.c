@@ -1444,7 +1444,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			eof = fxdr_unsigned(int, *tl);
 		}
-		NFSM_STRSIZ(retlen, rsize);
+		NFSM_STRSIZ(retlen, len);
 		error = nfsm_mbufuio(nd, uiop, retlen);
 		if (error)
 			goto nfsmout;

@@ -1119,7 +1119,8 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
 		return (0);
-	if (fd < 0 && (newfd = _open(path, O_RDONLY | O_CLOEXEC, 0)) < 0)
+	if (fd < 0 && (newfd = _open(path, O_RDONLY | O_DIRECTORY |
+	    O_CLOEXEC, 0)) < 0)
 		return (-1);
 	if (_fstat(newfd, &sb)) {
 		ret = -1;

@@ -64,12 +64,12 @@ struct socket;
 #define	DTYPE_SEM	9	/* posix semaphore */
 #define	DTYPE_PTS	10	/* pseudo teletype master device */
 #define	DTYPE_DEV	11	/* Device specific fd type */
-#define	DTYPE_CAPABILITY	12	/* capability */
-#define	DTYPE_PROCDESC	13	/* process descriptor */
+#define	DTYPE_PROCDESC	12	/* process descriptor */
 
 #ifdef _KERNEL
 
 struct file;
+struct filecaps;
 struct ucred;
 
 #define	FOF_OFFSET	0x01	/* Use the offset in uio argument */
@@ -217,7 +217,6 @@ int fget_read(struct thread *td, int fd, cap_rights_t rights,
     struct file **fpp);
 int fget_write(struct thread *td, int fd, cap_rights_t rights,
     struct file **fpp);
-int fgetcap(struct thread *td, int fd, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
 /*
@@ -242,7 +241,7 @@ int fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp);
 int fgetvp_exec(struct thread *td, int fd, cap_rights_t rights,
     struct vnode **vpp);
 int fgetvp_rights(struct thread *td, int fd, cap_rights_t need,
-    cap_rights_t *have, struct vnode **vpp);
+    struct filecaps *havecaps, struct vnode **vpp);
 int fgetvp_read(struct thread *td, int fd, cap_rights_t rights,
     struct vnode **vpp);
 int fgetvp_write(struct thread *td, int fd, cap_rights_t rights,

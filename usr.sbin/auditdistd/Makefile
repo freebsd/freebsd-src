@@ -10,6 +10,7 @@ OPENBSMDIR=${.CURDIR}/../../contrib/openbsm
 CFLAGS+=-I${OPENBSMDIR} -I${OPENBSMDIR}/bin/auditdistd
 
 NO_WFORMAT=
+NO_WMISSING_VARIABLE_DECLARATIONS=
 
 PROG=	auditdistd
 SRCS=	auditdistd.c

@@ -106,7 +106,5 @@ static driver_t terasic_de4led_nexus_driver = {
 	sizeof(struct terasic_de4led_softc),
 };
 
-static devclass_t terasic_de4led_devclass;
-
 DRIVER_MODULE(terasic_de4led, nexus, terasic_de4led_nexus_driver,
     terasic_de4led_devclass, 0, 0);

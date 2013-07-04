@@ -645,9 +645,13 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	/* Do we have some invalid values? */
 	if (i != NDOSPART ||
 	    (table->type == PTABLE_GPT && count > 1)) {
-		table->type = PTABLE_NONE;
-		DEBUG("invalid values detected, ignore partition table");
-		goto out;
+		if (dp[1].dp_typ != DOSPTYP_HFS) {
+			table->type = PTABLE_NONE;
+			DEBUG("invalid values detected, ignore "
+			    "partition table");
+			goto out;
+		}
+		DEBUG("Bootcamp detected");
 	}
 #ifdef LOADER_GPT_SUPPORT
 	if (table->type == PTABLE_GPT) {

@@ -105,11 +105,11 @@ int list_mode;
 
 /* general library routines */
 
-void status(char *str);
+void status(const char *str);
 void out_of_memory(void);
 void add_string(strlst_t **listp, char *str);
-int is_dir(char *pathname);
-int is_nonempty_file(char *pathname);
+int is_dir(const char *pathname);
+int is_nonempty_file(const char *pathname);
 int subtract_strlst(strlst_t **lista, strlst_t **listb);
 int in_list(strlst_t **listp, char *str);
 
@@ -118,6 +118,8 @@ int in_list(strlst_t **listp, char *str);
 void usage(void);
 void parse_conf_file(void);
 void gen_outputs(void);
+
+extern char *crunched_skel[];
 
 
 int
@@ -245,7 +247,7 @@ usage(void)
 /* helper routines for parse_conf_file */
 
 void parse_one_file(char *filename);
-void parse_line(char *line, int *fc, char **fv, int nf);
+void parse_line(char *pline, int *fc, char **fv, int nf);
 void add_srcdirs(int argc, char **argv);
 void add_progs(int argc, char **argv);
 void add_link(int argc, char **argv);
@@ -340,15 +342,15 @@ parse_one_file(char *filename)
 
 
 void
-parse_line(char *line, int *fc, char **fv, int nf)
+parse_line(char *pline, int *fc, char **fv, int nf)
 {
 	char *p;
 
-	p = line;
+	p = pline;
 	*fc = 0;
 
 	while (1) {
-		while (isspace(*p))
+		while (isspace((unsigned char)*p))
 			p++;
 
 		if (*p == '\0' || *p == '#')
@@ -357,7 +359,7 @@ parse_line(char *line, int *fc, char **fv, int nf)
 		if (*fc < nf)
 			fv[(*fc)++] = p;
 
-		while (*p && !isspace(*p) && *p != '#')
+		while (*p && !isspace((unsigned char)*p) && *p != '#')
 			p++;
 
 		if (*p == '\0' || *p == '#')
@@ -767,17 +769,17 @@ fillin_program_objs(prog_t *p, char *path)
 		}
 
 		cp = line + 6;
-		while (isspace(*cp))
+		while (isspace((unsigned char)*cp))
 			cp++;
 
 		while(*cp) {
 			obj = cp;
-			while (*cp && !isspace(*cp))
+			while (*cp && !isspace((unsigned char)*cp))
 				cp++;
 			if (*cp)
 				*cp++ = '\0';
 			add_string(&p->objs, obj);
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 		}
 	}
@@ -887,7 +889,6 @@ gen_output_makefile(void)
 void
 gen_output_cfile(void)
 {
-	extern char *crunched_skel[];
 	char **cp;
 	FILE *outcf;
 	prog_t *p;
@@ -945,7 +946,7 @@ char *genident(char *str)
 	for (d = s = n; *s != '\0'; s++) {
 		if (*s == '-')
 			*d++ = '_';
-		else if (*s == '_' || isalnum(*s))
+		else if (*s == '_' || isalnum((unsigned char)*s))
 			*d++ = *s;
 	}
 	*d = '\0';
@@ -978,6 +979,7 @@ top_makefile_rules(FILE *outmk)
 {
 	prog_t *p;
 
+	fprintf(outmk, "LD?= ld\n");
 	if ( subtract_strlst(&libs, &libs_so) )
 		fprintf(outmk, "# NOTE: Some LIBS declarations below overridden by LIBS_SO\n");
 
@@ -1107,7 +1109,7 @@ prog_makefile_rules(FILE *outmk, prog_t *p)
 		fprintf(outmk, " $(%s_LIBS)", p->ident);
 
 	fprintf(outmk, "\n");
-	fprintf(outmk, "\tld -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
+	fprintf(outmk, "\t$(LD) -dc -r -o %s.lo %s_stub.o $(%s_OBJPATHS)",
 	    p->name, p->name, p->ident);
 	if (p->libs)
 		fprintf(outmk, " $(%s_LIBS)", p->ident);
@@ -1135,7 +1137,7 @@ output_strlst(FILE *outf, strlst_t *lst)
  */
 
 void
-status(char *str)
+status(const char *str)
 {
 	static int lastlen = 0;
 	int len, spaces;
@@ -1211,7 +1213,7 @@ in_list(strlst_t **listp, char *str)
 }
 
 int
-is_dir(char *pathname)
+is_dir(const char *pathname)
 {
 	struct stat buf;
 
@@ -1222,7 +1224,7 @@ is_dir(char *pathname)
 }
 
 int
-is_nonempty_file(char *pathname)
+is_nonempty_file(const char *pathname)
 {
 	struct stat buf;
 

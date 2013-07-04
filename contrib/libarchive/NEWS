@@ -1,3 +1,30 @@
+Feb 09, 2013: libarchive 3.1.2 released
+
+Jan 28, 2013: libarchive's new website moved to http://www.libarchive.org.
+
+Jan 13, 2013: libarchive 3.1.1 released
+
+Jan 13, 2013: libarchive 3.1.0 released
+
+Dec 07, 2012: Implement functions to manually set the format and filters used.
+    
+Nov 11, 2012: Add support for __MACOSX directory in Zip archives, which resource
+    forks are stored in.
+
+Oct 20, 2012: Add support for writing v7 tar format.
+
+Oct 09, 2012: Add support for grzip compression.
+
+Oct 07, 2012: Introduce b64encode filter.    
+Oct 07, 2012: Introduce uuencode filter.
+
+Oct 06, 2012: Add support for lzop.
+    
+Sep 27, 2012: Implement function used to seek within data blocks.
+    (Currently only supported for uncompressed RAR archives).
+    
+Apr 22, 2012: Add basic archive read and write filter support for lrzip.
+
 Mar 27, 2012: libarchive 3.0.4 released
 
 Feb 05, 2012: libarchive development now hosted at GitHub.

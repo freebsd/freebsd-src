@@ -119,6 +119,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_alq.h>
 #endif
 
+#include <dev/ath/if_ath_lna_div.h>
+
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -208,6 +210,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	 * DFS module.
 	 */
 	if (sc->sc_dodfs)
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+
+	/*
+	 * Enable spectral PHY errors if requested by the
+	 * spectral module.
+	 */
+	if (sc->sc_dospectral)
 		rfilt |= HAL_RX_FILTER_PHYRADAR;
 
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
@@ -392,13 +401,31 @@ ath_rx_tap_vendor(struct ifnet *ifp, struct mbuf *m,
 	sc->sc_rx_th.wr_v.evm[0] = rs->rs_evm0;
 	sc->sc_rx_th.wr_v.evm[1] = rs->rs_evm1;
 	sc->sc_rx_th.wr_v.evm[2] = rs->rs_evm2;
-	/* XXX TODO: extend this to include 3-stream EVM */
+	/* These are only populated from the AR9300 or later */
+	sc->sc_rx_th.wr_v.evm[3] = rs->rs_evm3;
+	sc->sc_rx_th.wr_v.evm[4] = rs->rs_evm4;
+
+	/* direction */
+	sc->sc_rx_th.wr_v.vh_flags = ATH_VENDOR_PKT_RX;
+
+	/* RX rate */
+	sc->sc_rx_th.wr_v.vh_rx_hwrate = rs->rs_rate;
+
+	/* RX flags */
+	sc->sc_rx_th.wr_v.vh_rs_flags = rs->rs_flags;
+
+	if (rs->rs_isaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_ISAGGR;
+	if (rs->rs_moreaggr)
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_MOREAGGR;
 
 	/* phyerr info */
-	if (rs->rs_status & HAL_RXERR_PHY)
+	if (rs->rs_status & HAL_RXERR_PHY) {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = rs->rs_phyerr;
-	else
+		sc->sc_rx_th.wr_v.vh_flags |= ATH_VENDOR_PKT_RXPHYERR;
+	} else {
 		sc->sc_rx_th.wr_v.vh_phyerr_code = 0xff;
+	}
 	sc->sc_rx_th.wr_v.vh_rs_status = rs->rs_status;
 	sc->sc_rx_th.wr_v.vh_rssi = rs->rs_rssi;
 }
@@ -424,18 +451,16 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 #ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
 	if (rs->rs_status & HAL_RXERR_PHY) {
-		struct ieee80211com *ic = ifp->if_l2com;
-
 		/*
 		 * PHY error - make sure the channel flags
 		 * reflect the actual channel configuration,
 		 * not the received frame.
 		 */
-		if (IEEE80211_IS_CHAN_HT40U(ic->ic_curchan))
+		if (IEEE80211_IS_CHAN_HT40U(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40U;
-		else if (IEEE80211_IS_CHAN_HT40D(ic->ic_curchan))
+		else if (IEEE80211_IS_CHAN_HT40D(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT40D;
-		else if (IEEE80211_IS_CHAN_HT20(ic->ic_curchan))
+		else if (IEEE80211_IS_CHAN_HT20(sc->sc_curchan))
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
 	} else if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
 		struct ieee80211com *ic = ifp->if_l2com;
@@ -479,12 +504,20 @@ ath_handle_micerror(struct ieee80211com *ic,
 	}
 }
 
+/*
+ * Process a single packet.
+ *
+ * The mbuf must already be synced, unmapped and removed from bf->bf_m
+ * by this stage.
+ *
+ * The mbuf must be consumed by this routine - either passed up the
+ * net80211 stack, put on the holding queue, or freed.
+ */
 int
 ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
-    uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf)
+    uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf,
+    struct mbuf *m)
 {
-	struct ath_hal *ah = sc->sc_ah;
-	struct mbuf *m = bf->bf_m;
 	uint64_t rstamp;
 	int len, type;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -513,6 +546,8 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 		sc->sc_stats.ast_rx_decrypt_busy_err++;
 	if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
 		sc->sc_stats.ast_rx_hi_rx_chain++;
+	if (rs->rs_flags & HAL_RX_STBC)
+		sc->sc_stats.ast_rx_stbc++;
 #endif /* AH_SUPPORT_AR5416 */
 
 	if (rs->rs_status != 0) {
@@ -525,10 +560,6 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 			/* Process DFS radar events */
 			if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
 			    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
-				/* Since we're touching the frame data, sync it */
-				bus_dmamap_sync(sc->sc_dmat,
-				    bf->bf_dmamap,
-				    BUS_DMASYNC_POSTREAD);
 				/* Now pass it to the radar processing code */
 				ath_dfs_process_phy_err(sc, m, rstamp, rs);
 			}
@@ -570,9 +601,6 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 			/* XXX frag's and qos frames */
 			len = rs->rs_datalen;
 			if (len >= sizeof (struct ieee80211_frame)) {
-				bus_dmamap_sync(sc->sc_dmat,
-				    bf->bf_dmamap,
-				    BUS_DMASYNC_POSTREAD);
 				ath_handle_micerror(ic,
 				    mtod(m, struct ieee80211_frame *),
 				    sc->sc_splitmic ?
@@ -596,34 +624,20 @@ rx_error:
 		 */
 		if (ieee80211_radiotap_active(ic) &&
 		    (rs->rs_status & sc->sc_monpass)) {
-			bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-			    BUS_DMASYNC_POSTREAD);
 			/* NB: bpf needs the mbuf length setup */
 			len = rs->rs_datalen;
 			m->m_pkthdr.len = m->m_len = len;
-			bf->bf_m = NULL;
 			ath_rx_tap(ifp, m, rs, rstamp, nf);
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
 			ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 			ieee80211_radiotap_rx_all(ic, m);
-			m_freem(m);
 		}
 		/* XXX pass MIC errors up for s/w reclaculation */
+		m_freem(m); m = NULL;
 		goto rx_next;
 	}
 rx_accept:
-	/*
-	 * Sync and unmap the frame.  At this point we're
-	 * committed to passing the mbuf somewhere so clear
-	 * bf_m; this means a new mbuf must be allocated
-	 * when the rx descriptor is setup again to receive
-	 * another frame.
-	 */
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTREAD);
-	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-	bf->bf_m = NULL;
-
 	len = rs->rs_datalen;
 	m->m_len = len;
 
@@ -641,6 +655,7 @@ rx_accept:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
 		re->m_rxpending = m;
+		m = NULL;
 		goto rx_next;
 	} else if (re->m_rxpending != NULL) {
 		/*
@@ -690,6 +705,34 @@ rx_accept:
 		rs->rs_antenna = 0;	/* XXX better than nothing */
 	}
 
+	/*
+	 * If this is an AR9285/AR9485, then the receive and LNA
+	 * configuration is stored in RSSI[2] / EXTRSSI[2].
+	 * We can extract this out to build a much better
+	 * receive antenna profile.
+	 *
+	 * Yes, this just blurts over the above RX antenna field
+	 * for now.  It's fine, the AR9285 doesn't really use
+	 * that.
+	 *
+	 * Later on we should store away the fine grained LNA
+	 * information and keep separate counters just for
+	 * that.  It'll help when debugging the AR9285/AR9485
+	 * combined diversity code.
+	 */
+	if (sc->sc_rx_lnamixer) {
+		rs->rs_antenna = 0;
+
+		/* Bits 0:1 - the LNA configuration used */
+		rs->rs_antenna |=
+		    ((rs->rs_rssi_ctl[2] & HAL_RX_LNA_CFG_USED)
+		      >> HAL_RX_LNA_CFG_USED_S);
+
+		/* Bit 2 - the external RX antenna switch */
+		if (rs->rs_rssi_ctl[2] & HAL_RX_LNA_EXTCFG)
+			rs->rs_antenna |= 0x4;
+	}
+
 	ifp->if_ipackets++;
 	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
@@ -720,7 +763,7 @@ rx_accept:
 			/* NB: in particular this captures ack's */
 			ieee80211_radiotap_rx_all(ic, m);
 		}
-		m_freem(m);
+		m_freem(m); m = NULL;
 		goto rx_next;
 	}
 
@@ -764,6 +807,7 @@ rx_accept:
 		 */
 		type = ieee80211_input(ni, m, rs->rs_rssi, nf);
 		ieee80211_free_node(ni);
+		m = NULL;
 		/*
 		 * Arrange to update the last rx timestamp only for
 		 * frames from our ap when operating in station mode.
@@ -775,7 +819,14 @@ rx_accept:
 			is_good = 1;
 	} else {
 		type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
+		m = NULL;
 	}
+
+	/*
+	 * At this point we have passed the frame up the stack; thus
+	 * the mbuf is no longer ours.
+	 */
+
 	/*
 	 * Track rx rssi and do any rx antenna management.
 	 */
@@ -793,10 +844,10 @@ rx_accept:
 			sc->sc_rxotherant = 0;
 	}
 
-	/* Newer school diversity - kite specific for now */
-	/* XXX perhaps migrate the normal diversity code to this? */
-	if ((ah)->ah_rxAntCombDiversity)
-		(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
+	/* Handle slow diversity if enabled */
+	if (sc->sc_dolnadiv) {
+		ath_lna_rx_comb_scan(sc, rs, ticks, hz);
+	}
 
 	if (sc->sc_softled) {
 		/*
@@ -813,6 +864,16 @@ rx_accept:
 			ath_led_event(sc, 0);
 		}
 rx_next:
+	/*
+	 * Debugging - complain if we didn't NULL the mbuf pointer
+	 * here.
+	 */
+	if (m != NULL) {
+		device_printf(sc->sc_dev,
+		    "%s: mbuf %p should've been freed!\n",
+		    __func__,
+		    m);
+	}
 	return (is_good);
 }
 
@@ -838,6 +899,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
+	int kickpcu = 0;
 
 	/* XXX we must not hold the ATH_LOCK here */
 	ATH_UNLOCK_ASSERT(sc);
@@ -845,6 +907,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
+	kickpcu = sc->sc_kickpcu;
 	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
@@ -859,7 +922,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		 * latency can jump by quite a bit, causing throughput
 		 * degredation.
 		 */
-		if (npkts >= ATH_RX_MAX)
+		if (!kickpcu && npkts >= ATH_RX_MAX)
 			break;
 
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
@@ -926,7 +989,10 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		/*
 		 * Process a single frame.
 		 */
-		if (ath_rx_pkt(sc, rs, status, tsf, nf, HAL_RX_QUEUE_HP, bf))
+		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+		bf->bf_m = NULL;
+		if (ath_rx_pkt(sc, rs, status, tsf, nf, HAL_RX_QUEUE_HP, bf, m))
 			ngood++;
 rx_proc_next:
 		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
@@ -947,13 +1013,31 @@ rx_proc_next:
 	 * need to be handled, kick the PCU if there's
 	 * been an RXEOL condition.
 	 */
-	ATH_PCU_LOCK(sc);
-	if (resched && sc->sc_kickpcu) {
+	if (resched && kickpcu) {
+		ATH_PCU_LOCK(sc);
 		ATH_KTR(sc, ATH_KTR_ERROR, 0, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
 
-		/* XXX rxslink? */
+		/*
+		 * Go through the process of fully tearing down
+		 * the RX buffers and reinitialising them.
+		 *
+		 * There's a hardware bug that causes the RX FIFO
+		 * to get confused under certain conditions and
+		 * constantly write over the same frame, leading
+		 * the RX driver code here to get heavily confused.
+		 */
+#if 1
+		ath_startrecv(sc);
+#else
+		/*
+		 * Disabled for now - it'd be nice to be able to do
+		 * this in order to limit the amount of CPU time spent
+		 * reinitialising the RX side (and thus minimise RX
+		 * drops) however there's a hardware issue that
+		 * causes things to get too far out of whack.
+		 */
 		/*
 		 * XXX can we hold the PCU lock here?
 		 * Are there any net80211 buffer calls involved?
@@ -963,11 +1047,12 @@ rx_proc_next:
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
+#endif
 
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
+		ATH_PCU_UNLOCK(sc);
 	}
-	ATH_PCU_UNLOCK(sc);
 
 	/* XXX check this inside of IF_LOCK? */
 	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
@@ -986,7 +1071,7 @@ rx_proc_next:
 	 * will reduce latency.
 	 */
 	if (npkts >= ATH_RX_MAX)
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+		sc->sc_rx.recv_sched(sc, resched);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt--;
@@ -1137,6 +1222,21 @@ ath_legacy_dma_rxteardown(struct ath_softc *sc)
 	return (0);
 }
 
+static void
+ath_legacy_recv_sched(struct ath_softc *sc, int dosched)
+{
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+}
+
+static void
+ath_legacy_recv_sched_queue(struct ath_softc *sc, HAL_RX_QUEUE q,
+    int dosched)
+{
+
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+}
+
 void
 ath_recv_setup_legacy(struct ath_softc *sc)
 {
@@ -1156,4 +1256,6 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 
 	sc->sc_rx.recv_setup = ath_legacy_dma_rxsetup;
 	sc->sc_rx.recv_teardown = ath_legacy_dma_rxteardown;
+	sc->sc_rx.recv_sched = ath_legacy_recv_sched;
+	sc->sc_rx.recv_sched_queue = ath_legacy_recv_sched_queue;
 }

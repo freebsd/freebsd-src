@@ -15,15 +15,15 @@
 #ifndef CODEGEN_DAGPATTERNS_H
 #define CODEGEN_DAGPATTERNS_H
 
-#include "CodeGenTarget.h"
 #include "CodeGenIntrinsics.h"
+#include "CodeGenTarget.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <set>
 #include <algorithm>
-#include <vector>
 #include <map>
+#include <set>
+#include <vector>
 
 namespace llvm {
   class Record;
@@ -59,7 +59,7 @@ namespace EEVT {
   public:
     TypeSet() {}
     TypeSet(MVT::SimpleValueType VT, TreePattern &TP);
-    TypeSet(const std::vector<MVT::SimpleValueType> &VTList);
+    TypeSet(ArrayRef<MVT::SimpleValueType> VTList);
 
     bool isCompletelyUnknown() const { return TypeVec.empty(); }
 
@@ -334,6 +334,7 @@ public:
   }
   ~TreePatternNode();
 
+  bool hasName() const { return !Name.empty(); }
   const std::string &getName() const { return Name; }
   void setName(StringRef N) { Name.assign(N.begin(), N.end()); }
 
@@ -462,6 +463,11 @@ public:   // Higher level manipulation routines.
                       TreePattern &TP) {
     return Types[ResNo].MergeInTypeInfo(EEVT::TypeSet(InTy, TP), TP);
   }
+
+  // Update node type with types inferred from an instruction operand or result
+  // def from the ins/outs lists.
+  // Return true if the type changed.
+  bool UpdateNodeTypeFromInst(unsigned ResNo, Record *Operand, TreePattern &TP);
 
   /// ContainsUnresolvedType - Return true if this tree contains any
   /// unresolved types.

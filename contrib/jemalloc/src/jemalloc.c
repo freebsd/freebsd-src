@@ -14,17 +14,20 @@ __sym_compat(_malloc_options, __malloc_options_1_0, FBSD_1.0);
 
 /* Runtime configuration options. */
 const char	*je_malloc_conf;
+bool	opt_abort =
 #ifdef JEMALLOC_DEBUG
-bool	opt_abort = true;
-#  ifdef JEMALLOC_FILL
-bool	opt_junk = true;
-#  else
-bool	opt_junk = false;
-#  endif
+    true
 #else
-bool	opt_abort = false;
-bool	opt_junk = false;
+    false
 #endif
+    ;
+bool	opt_junk =
+#if (defined(JEMALLOC_DEBUG) && defined(JEMALLOC_FILL))
+    true
+#else
+    false
+#endif
+    ;
 size_t	opt_quarantine = ZU(0);
 bool	opt_redzone = false;
 bool	opt_utrace = false;
@@ -87,11 +90,13 @@ typedef struct {
 #ifdef JEMALLOC_UTRACE
 #  define UTRACE(a, b, c) do {						\
 	if (opt_utrace) {						\
+		int utrace_serrno = errno;				\
 		malloc_utrace_t ut;					\
 		ut.p = (a);						\
 		ut.s = (b);						\
 		ut.r = (c);						\
 		utrace(&ut, sizeof(ut));				\
+		errno = utrace_serrno;					\
 	}								\
 } while (0)
 #else
@@ -281,12 +286,30 @@ arenas_cleanup(void *arg)
 	malloc_mutex_unlock(&arenas_lock);
 }
 
-static inline bool
+static JEMALLOC_ATTR(always_inline) void
+malloc_thread_init(void)
+{
+
+	/*
+	 * TSD initialization can't be safely done as a side effect of
+	 * deallocation, because it is possible for a thread to do nothing but
+	 * deallocate its TLS data via free(), in which case writing to TLS
+	 * would cause write-after-free memory corruption.  The quarantine
+	 * facility *only* gets used as a side effect of deallocation, so make
+	 * a best effort attempt at initializing its TSD by hooking all
+	 * allocation events.
+	 */
+	if (config_fill && opt_quarantine)
+		quarantine_alloc_hook();
+}
+
+static JEMALLOC_ATTR(always_inline) bool
 malloc_init(void)
 {
 
-	if (malloc_initialized == false)
-		return (malloc_init_hard());
+	if (malloc_initialized == false && malloc_init_hard())
+		return (true);
+	malloc_thread_init();
 
 	return (false);
 }
@@ -474,7 +497,7 @@ malloc_conf_init(void)
 
 		while (*opts != '\0' && malloc_conf_next(&opts, &k, &klen, &v,
 		    &vlen) == false) {
-#define	CONF_HANDLE_BOOL_HIT(o, n, hit)					\
+#define	CONF_HANDLE_BOOL(o, n)						\
 			if (sizeof(n)-1 == klen && strncmp(n, k,	\
 			    klen) == 0) {				\
 				if (strncmp("true", v, vlen) == 0 &&	\
@@ -488,16 +511,9 @@ malloc_conf_init(void)
 					    "Invalid conf value",	\
 					    k, klen, v, vlen);		\
 				}					\
-				hit = true;				\
-			} else						\
-				hit = false;
-#define	CONF_HANDLE_BOOL(o, n) {					\
-			bool hit;					\
-			CONF_HANDLE_BOOL_HIT(o, n, hit);		\
-			if (hit)					\
 				continue;				\
-}
-#define	CONF_HANDLE_SIZE_T(o, n, min, max)				\
+			}
+#define	CONF_HANDLE_SIZE_T(o, n, min, max, clip)			\
 			if (sizeof(n)-1 == klen && strncmp(n, k,	\
 			    klen) == 0) {				\
 				uintmax_t um;				\
@@ -510,12 +526,22 @@ malloc_conf_init(void)
 					malloc_conf_error(		\
 					    "Invalid conf value",	\
 					    k, klen, v, vlen);		\
-				} else if (um < min || um > max) {	\
-					malloc_conf_error(		\
-					    "Out-of-range conf value",	\
-					    k, klen, v, vlen);		\
-				} else					\
-					o = um;				\
+				} else if (clip) {			\
+					if (um < min)			\
+						o = min;		\
+					else if (um > max)		\
+						o = max;		\
+					else				\
+						o = um;			\
+				} else {				\
+					if (um < min || um > max) {	\
+						malloc_conf_error(	\
+						    "Out-of-range "	\
+						    "conf value",	\
+						    k, klen, v, vlen);	\
+					} else				\
+						o = um;			\
+				}					\
 				continue;				\
 			}
 #define	CONF_HANDLE_SSIZE_T(o, n, min, max)				\
@@ -560,7 +586,8 @@ malloc_conf_init(void)
 			 * config_fill.
 			 */
 			CONF_HANDLE_SIZE_T(opt_lg_chunk, "lg_chunk", LG_PAGE +
-			    (config_fill ? 2 : 1), (sizeof(size_t) << 3) - 1)
+			    (config_fill ? 2 : 1), (sizeof(size_t) << 3) - 1,
+			    true)
 			if (strncmp("dss", k, klen) == 0) {
 				int i;
 				bool match = false;
@@ -586,14 +613,14 @@ malloc_conf_init(void)
 				continue;
 			}
 			CONF_HANDLE_SIZE_T(opt_narenas, "narenas", 1,
-			    SIZE_T_MAX)
+			    SIZE_T_MAX, false)
 			CONF_HANDLE_SSIZE_T(opt_lg_dirty_mult, "lg_dirty_mult",
 			    -1, (sizeof(size_t) << 3) - 1)
 			CONF_HANDLE_BOOL(opt_stats_print, "stats_print")
 			if (config_fill) {
 				CONF_HANDLE_BOOL(opt_junk, "junk")
 				CONF_HANDLE_SIZE_T(opt_quarantine, "quarantine",
-				    0, SIZE_T_MAX)
+				    0, SIZE_T_MAX, false)
 				CONF_HANDLE_BOOL(opt_redzone, "redzone")
 				CONF_HANDLE_BOOL(opt_zero, "zero")
 			}
@@ -891,7 +918,7 @@ JEMALLOC_ATTR(nonnull(1))
  * Avoid any uncertainty as to how many backtrace frames to ignore in
  * PROF_ALLOC_PREP().
  */
-JEMALLOC_ATTR(noinline)
+JEMALLOC_NOINLINE
 #endif
 static int
 imemalign(void **memptr, size_t alignment, size_t size,
@@ -1091,6 +1118,7 @@ je_realloc(void *ptr, size_t size)
 	if (size == 0) {
 		if (ptr != NULL) {
 			/* realloc(ptr, 0) is equivalent to free(p). */
+			assert(malloc_initialized || IS_INITIALIZER);
 			if (config_prof) {
 				old_size = isalloc(ptr, true);
 				if (config_valgrind && opt_valgrind)
@@ -1116,6 +1144,7 @@ je_realloc(void *ptr, size_t size)
 
 	if (ptr != NULL) {
 		assert(malloc_initialized || IS_INITIALIZER);
+		malloc_thread_init();
 
 		if (config_prof) {
 			old_size = isalloc(ptr, true);
@@ -1319,6 +1348,7 @@ je_malloc_usable_size(JEMALLOC_USABLE_SIZE_CONST void *ptr)
 	size_t ret;
 
 	assert(malloc_initialized || IS_INITIALIZER);
+	malloc_thread_init();
 
 	if (config_ivsalloc)
 		ret = ivsalloc(ptr, config_prof);
@@ -1377,7 +1407,7 @@ je_mallctlbymib(const size_t *mib, size_t miblen, void *oldp, size_t *oldlenp,
  */
 #ifdef JEMALLOC_EXPERIMENTAL
 
-JEMALLOC_INLINE void *
+static JEMALLOC_ATTR(always_inline) void *
 iallocm(size_t usize, size_t alignment, bool zero, bool try_tcache,
     arena_t *arena)
 {
@@ -1493,6 +1523,7 @@ je_rallocm(void **ptr, size_t *rsize, size_t size, size_t extra, int flags)
 	assert(size != 0);
 	assert(SIZE_T_MAX - size >= extra);
 	assert(malloc_initialized || IS_INITIALIZER);
+	malloc_thread_init();
 
 	if (arena_ind != UINT_MAX) {
 		arena_chunk_t *chunk;
@@ -1607,6 +1638,7 @@ je_sallocm(const void *ptr, size_t *rsize, int flags)
 	size_t sz;
 
 	assert(malloc_initialized || IS_INITIALIZER);
+	malloc_thread_init();
 
 	if (config_ivsalloc)
 		sz = ivsalloc(ptr, config_prof);
@@ -1726,12 +1758,12 @@ _malloc_prefork(void)
 
 	/* Acquire all mutexes in a safe order. */
 	ctl_prefork();
+	prof_prefork();
 	malloc_mutex_prefork(&arenas_lock);
 	for (i = 0; i < narenas_total; i++) {
 		if (arenas[i] != NULL)
 			arena_prefork(arenas[i]);
 	}
-	prof_prefork();
 	chunk_prefork();
 	base_prefork();
 	huge_prefork();
@@ -1757,12 +1789,12 @@ _malloc_postfork(void)
 	huge_postfork_parent();
 	base_postfork_parent();
 	chunk_postfork_parent();
-	prof_postfork_parent();
 	for (i = 0; i < narenas_total; i++) {
 		if (arenas[i] != NULL)
 			arena_postfork_parent(arenas[i]);
 	}
 	malloc_mutex_postfork_parent(&arenas_lock);
+	prof_postfork_parent();
 	ctl_postfork_parent();
 }
 
@@ -1777,12 +1809,12 @@ jemalloc_postfork_child(void)
 	huge_postfork_child();
 	base_postfork_child();
 	chunk_postfork_child();
-	prof_postfork_child();
 	for (i = 0; i < narenas_total; i++) {
 		if (arenas[i] != NULL)
 			arena_postfork_child(arenas[i]);
 	}
 	malloc_mutex_postfork_child(&arenas_lock);
+	prof_postfork_child();
 	ctl_postfork_child();
 }
 

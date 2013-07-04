@@ -33,10 +33,6 @@ programs is:
 There are undoubtedly too many of these.  Mkinit searches all the
 C source files for entries looking like:
 
-        INIT {
-              x = 1;    /* executed during initialization */
-        }
-
         RESET {
               x = 2;    /* executed when the shell does a longjmp
                            back to the main command loop */

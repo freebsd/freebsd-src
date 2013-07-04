@@ -542,7 +542,6 @@ do {								\
 		((struct in6_ifextra *)((ifp)->if_afdata[AF_INET6]))->in6_ifstat->tag++; \
 } while (/*CONSTCOND*/ 0)
 
-extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
 VNET_DECLARE(unsigned long, in6_maxmtu);
 #define	V_in6_maxmtu			VNET(in6_maxmtu)
@@ -801,6 +800,7 @@ void	in6_setmaxmtu(void);
 int	in6_if2idlen(struct ifnet *);
 struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);
 struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, struct in6_addr *);
+struct in6_ifaddr *in6ifa_llaonifp(struct ifnet *);
 char	*ip6_sprintf(char *, const struct in6_addr *);
 int	in6_addr2zoneid(struct ifnet *, struct in6_addr *, u_int32_t *);
 int	in6_matchlen(struct in6_addr *, struct in6_addr *);

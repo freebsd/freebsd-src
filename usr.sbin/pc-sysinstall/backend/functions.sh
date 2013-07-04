@@ -277,7 +277,11 @@ get_zpool_name()
     while :
     do
       NEWNAME="${BASENAME}${NUM}"
-      zpool import | grep -qw "${NEWNAME}" || break
+      zpool list | grep -qw "${NEWNAME}"
+      local chk1=$?
+      zpool import | grep -qw "${NEWNAME}"
+      local chk2=$?
+      if [ $chk1 -eq 1 -a $chk2 -eq 1 ] ; then break ; fi 
       NUM=$((NUM+1))
     done
 

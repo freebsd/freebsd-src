@@ -652,8 +652,10 @@ route_output(struct mbuf *m, struct socket *so)
 		 */
 		if (gw_ro.ro_rt != NULL &&
 		    gw_ro.ro_rt->rt_gateway->sa_family == AF_LINK &&
-		    gw_ro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK)
+		    gw_ro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) {
 			info.rti_flags &= ~RTF_GATEWAY;
+			info.rti_flags |= RTF_GWFLAG_COMPAT;
+		}
 		if (gw_ro.ro_rt != NULL)
 			RTFREE(gw_ro.ro_rt);
 	}
@@ -853,7 +855,11 @@ route_output(struct mbuf *m, struct socket *so)
 				Free(rtm); rtm = new_rtm;
 			}
 			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
-			rtm->rtm_flags = rt->rt_flags;
+			if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+				rtm->rtm_flags = RTF_GATEWAY | 
+					(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+			else
+				rtm->rtm_flags = rt->rt_flags;
 			rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 			rtm->rtm_addrs = info.rti_addrs;
 			break;
@@ -905,6 +911,7 @@ route_output(struct mbuf *m, struct socket *so)
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
+				rt->rt_flags &= ~RTF_GATEWAY;
 				rt->rt_flags |= (RTF_GATEWAY & info.rti_flags);
 			}
 			if (info.rti_ifa != NULL &&
@@ -1118,20 +1125,17 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 	default:
 		len = sizeof(struct rt_msghdr);
 	}
-	if (len > MCLBYTES)
-		panic("rt_msg1");
-	m = m_gethdr(M_NOWAIT, MT_DATA);
-	if (m && len > MHLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			m = NULL;
-		}
-	}
+
+	/* XXXGL: can we use MJUMPAGESIZE cluster here? */
+	KASSERT(len <= MCLBYTES, ("%s: message too big", __func__));
+	if (len > MHLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	else
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (m);
+
 	m->m_pkthdr.len = m->m_len = len;
-	m->m_pkthdr.rcvif = NULL;
 	rtm = mtod(m, struct rt_msghdr *);
 	bzero((caddr_t)rtm, len);
 	for (i = 0; i < RTAX_MAX; i++) {
@@ -1594,7 +1598,11 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	if (w->w_req && w->w_tmem) {
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
-		rtm->rtm_flags = rt->rt_flags;
+		if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+			rtm->rtm_flags = RTF_GATEWAY | 
+				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+		else
+			rtm->rtm_flags = rt->rt_flags;
 		/*
 		 * let's be honest about this being a retarded hack
 		 */

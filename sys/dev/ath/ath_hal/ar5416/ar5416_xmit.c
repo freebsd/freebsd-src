@@ -155,6 +155,169 @@ ar5416StopTxDma(struct ath_hal *ah, u_int q)
 /* NB: accept HT rates */
 #define	isValidTxRate(_r)	((1<<((_r) & 0x7f)) & VALID_TX_RATES)
 
+static inline int
+ar5416RateToRateTable(struct ath_hal *ah, uint8_t rate, HAL_BOOL is_ht40)
+{
+
+	/*
+	 * Handle the non-MCS rates
+	 */
+	switch (rate) {
+	case /*   1 Mb */ 0x1b:
+	case /*   1 MbS*/ 0x1b | 0x4:
+		return (AH5416(ah)->ah_ratesArray[rate1l]);
+	case /*   2 Mb */ 0x1a:
+		return (AH5416(ah)->ah_ratesArray[rate2l]);
+	case /*   2 MbS*/ 0x1a | 0x4:
+		return (AH5416(ah)->ah_ratesArray[rate2s]);
+	case /* 5.5 Mb */ 0x19:
+		return (AH5416(ah)->ah_ratesArray[rate5_5l]);
+	case /* 5.5 MbS*/ 0x19 | 0x4:
+		return (AH5416(ah)->ah_ratesArray[rate5_5s]);
+	case /*  11 Mb */ 0x18:
+		return (AH5416(ah)->ah_ratesArray[rate11l]);
+	case /*  11 MbS*/ 0x18 | 0x4:
+		return (AH5416(ah)->ah_ratesArray[rate11s]);
+	}
+
+	/* OFDM rates */
+	switch (rate) {
+	case /*   6 Mb */ 0x0b:
+		return (AH5416(ah)->ah_ratesArray[rate6mb]);
+	case /*   9 Mb */ 0x0f:
+		return (AH5416(ah)->ah_ratesArray[rate9mb]);
+	case /*  12 Mb */ 0x0a:
+		return (AH5416(ah)->ah_ratesArray[rate12mb]);
+	case /*  18 Mb */ 0x0e:
+		return (AH5416(ah)->ah_ratesArray[rate18mb]);
+	case /*  24 Mb */ 0x09:
+		return (AH5416(ah)->ah_ratesArray[rate24mb]);
+	case /*  36 Mb */ 0x0d:
+		return (AH5416(ah)->ah_ratesArray[rate36mb]);
+	case /*  48 Mb */ 0x08:
+		return (AH5416(ah)->ah_ratesArray[rate48mb]);
+	case /*  54 Mb */ 0x0c:
+		return (AH5416(ah)->ah_ratesArray[rate54mb]);
+	}
+
+	/*
+	 * Handle HT20/HT40 - we only have to do MCS0-7;
+	 * there's no stream differences.
+	 */
+	if ((rate & 0x80) && is_ht40) {
+		return (AH5416(ah)->ah_ratesArray[rateHt40_0 + (rate & 0x7)]);
+	} else if (rate & 0x80) {
+		return (AH5416(ah)->ah_ratesArray[rateHt20_0 + (rate & 0x7)]);
+	}
+
+	/* XXX default (eg XR, bad bad person!) */
+	return (AH5416(ah)->ah_ratesArray[rate6mb]);
+}
+
+/*
+ * Return the TX power to be used for the given rate/chains/TX power.
+ *
+ * There are a bunch of tweaks to make to a given TX power based on
+ * the current configuration, so...
+ */
+static uint16_t
+ar5416GetTxRatePower(struct ath_hal *ah, uint8_t rate, uint8_t tx_chainmask,
+    uint16_t txPower, HAL_BOOL is_ht40)
+{
+	int n_txpower, max_txpower;
+	const int cck_ofdm_delta = 2;
+#define	EEP_MINOR(_ah) \
+	(AH_PRIVATE(_ah)->ah_eeversion & AR5416_EEP_VER_MINOR_MASK)
+#define	IS_EEP_MINOR_V2(_ah)	(EEP_MINOR(_ah) >= AR5416_EEP_MINOR_VER_2)
+
+	/* Take a copy ; we may underflow and thus need to clamp things */
+	n_txpower = txPower;
+
+	/* HT40? Need to adjust the TX power by this */
+	if (is_ht40)
+		n_txpower += AH5416(ah)->ah_ht40PowerIncForPdadc;
+
+	/*
+	 * Merlin? Offset the target TX power offset - it defaults to
+	 * starting at -5.0dBm, but that can change!
+	 *
+	 * Kiwi/Kite? Always -5.0dBm offset.
+	 */
+	if (AR_SREV_KIWI_10_OR_LATER(ah)) {
+		n_txpower -= (AR5416_PWR_TABLE_OFFSET_DB * 2);
+	} else if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+		int8_t pwr_table_offset = 0;
+		/* This is in dBm, convert to 1/2 dBm */
+		(void) ath_hal_eepromGet(ah, AR_EEP_PWR_TABLE_OFFSET,
+		    &pwr_table_offset);
+		n_txpower -= (pwr_table_offset * 2);
+	}
+
+	/*
+	 * If Open-loop TX power control is used, the CCK rates need
+	 * to be offset by that.
+	 *
+	 * Rates: 2S, 2L, 1S, 1L, 5.5S, 5.5L
+	 *
+	 * XXX Odd, we don't have a PHY table entry for long preamble
+	 * 1mbit CCK?
+	 */
+	if (AR_SREV_MERLIN_20_OR_LATER(ah) &&
+	    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) {
+
+		if (rate == 0x19 || rate == 0x1a || rate == 0x1b ||
+		    rate == (0x19 | 0x04) || rate == (0x1a | 0x04) ||
+		    rate == (0x1b | 0x04)) {
+			n_txpower -= cck_ofdm_delta;
+		}
+	}
+
+	/*
+	 * We're now offset by the same amount that the static maximum
+	 * PHY power tables are.  So, clamp the value based on that rate.
+	 */
+	max_txpower = ar5416RateToRateTable(ah, rate, is_ht40);
+#if 0
+	ath_hal_printf(ah, "%s: n_txpower = %d, max_txpower = %d, "
+	    "rate = 0x%x , is_ht40 = %d\n",
+	    __func__,
+	    n_txpower,
+	    max_txpower,
+	    rate,
+	    is_ht40);
+#endif
+	n_txpower = MIN(max_txpower, n_txpower);
+
+	/*
+	 * We don't have to offset the TX power for two or three
+	 * chain operation here - it's done by the AR_PHY_POWER_TX_SUB
+	 * register setting via the EEPROM.
+	 *
+	 * So for vendors that programmed the maximum target power assuming
+	 * that 2/3 chains are always on, things will just plain work.
+	 * (They won't reach that target power if only one chain is on, but
+	 * that's a different problem.)
+	 */
+
+	/* Over/underflow? Adjust */
+	if (n_txpower < 0)
+		n_txpower = 0;
+	else if (n_txpower > 63)
+		n_txpower = 63;
+
+	/*
+	 * For some odd reason the AR9160 with txpower=0 results in a
+	 * much higher (max?) TX power.  So, if it's a chipset before
+	 * AR9220/AR9280, just clamp the minimum value at 1.
+	 */
+	if ((! AR_SREV_MERLIN_10_OR_LATER(ah)) && (n_txpower == 0))
+		n_txpower = 1;
+
+	return (n_txpower);
+#undef	EEP_MINOR
+#undef	IS_EEP_MINOR_V2
+}
+
 HAL_BOOL
 ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	u_int pktLen,
@@ -186,6 +349,16 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
         txPower = (txPower + AH5212(ah)->ah_txPowerIndexOffset);
         if (txPower > 63)
 		txPower = 63;
+
+	/*
+	 * XXX For now, just assume that this isn't a HT40 frame.
+	 */
+	if (AH5212(ah)->ah_tpcEnabled) {
+		txPower = ar5416GetTxRatePower(ah, txRate0,
+		    ahp->ah_tx_chainmask,
+		    txPower,
+		    AH_FALSE);
+	}
 
 	ads->ds_ctl0 = (pktLen & AR_FrameLen)
 		     | (txPower << AR_XmitPower_S)
@@ -238,6 +411,8 @@ ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	 * Set the TX antenna to 0 for Kite
 	 * To preserve existing behaviour, also set the TPC bits to 0;
 	 * when TPC is enabled these should be filled in appropriately.
+	 *
+	 * XXX TODO: when doing TPC, set the TX power up appropriately?
 	 */
 	if (AR_SREV_KITE(ah)) {
 		ads->ds_ctl8 = SM(0, AR_AntCtl0);
@@ -306,10 +481,14 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		    & AR_TxIntrReq;
 		ads->ds_ctl2 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl2);
 		ads->ds_ctl3 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl3);
+		/* ctl6 - we only need encrtype; the rest are blank */
+		ads->ds_ctl6 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType);
 #else
 		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
 		ads->ds_ctl2 = AR5416DESC_CONST(ds0)->ds_ctl2;
 		ads->ds_ctl3 = AR5416DESC_CONST(ds0)->ds_ctl3;
+		/* ctl6 - we only need encrtype; the rest are blank */
+		ads->ds_ctl6 = AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType;
 #endif
 	} else {			/* !firstSeg && !lastSeg */
 		/*
@@ -318,8 +497,10 @@ ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 #ifdef AH_NEED_DESC_SWAP
 		ads->ds_ctl0 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl0)
 		    & AR_TxIntrReq;
+		ads->ds_ctl6 = __bswap32(AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType);
 #else
 		ads->ds_ctl0 = AR5416DESC_CONST(ds0)->ds_ctl0 & AR_TxIntrReq;
+		ads->ds_ctl6 = AR5416DESC_CONST(ds0)->ds_ctl6 & AR_EncrType;
 #endif
 		ads->ds_ctl1 = segLen | AR_TxMore;
 		ads->ds_ctl2 = 0;
@@ -663,6 +844,26 @@ ar5416GetGlobalTxTimeout(struct ath_hal *ah)
 	return MS(OS_REG_READ(ah, AR_GTXTO), AR_GTXTO_TIMEOUT_LIMIT);
 }
 
+#define	HT_RC_2_MCS(_rc)	((_rc) & 0x0f)
+static const u_int8_t baDurationDelta[] = {
+	24,	//  0: BPSK
+	12,	//  1: QPSK 1/2
+	12,	//  2: QPSK 3/4
+	4,	//  3: 16-QAM 1/2
+	4,	//  4: 16-QAM 3/4
+	4,	//  5: 64-QAM 2/3
+	4,	//  6: 64-QAM 3/4
+	4,	//  7: 64-QAM 5/6
+	24,	//  8: BPSK
+	12,	//  9: QPSK 1/2
+	12,	// 10: QPSK 3/4
+	4,	// 11: 16-QAM 1/2
+	4,	// 12: 16-QAM 3/4
+	4,	// 13: 64-QAM 2/3
+	4,	// 14: 64-QAM 3/4
+	4,	// 15: 64-QAM 5/6
+};
+
 void
 ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
         u_int durUpdateEn, u_int rtsctsRate,
@@ -673,20 +874,6 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 
 	HALASSERT(nseries == 4);
 	(void)nseries;
-
-	/*
-	 * XXX since the upper layers doesn't know the current chainmask
-	 * XXX setup, just override its decisions here.
-	 * XXX The upper layers need to be taught this!
-	 */
-	if (series[0].Tries != 0)
-		series[0].ChSel = AH5416(ah)->ah_tx_chainmask;
-	if (series[1].Tries != 0)
-		series[1].ChSel = AH5416(ah)->ah_tx_chainmask;
-	if (series[2].Tries != 0)
-		series[2].ChSel = AH5416(ah)->ah_tx_chainmask;
-	if (series[3].Tries != 0)
-		series[3].ChSel = AH5416(ah)->ah_tx_chainmask;
 
 	/*
 	 * Only one of RTS and CTS enable must be set.
@@ -732,19 +919,88 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		     | set11nRateFlags(series, 2)
 		     | set11nRateFlags(series, 3)
 		     | SM(rtsctsRate, AR_RTSCTSRate);
+
+	/*
+	 * Doing per-packet TPC - update the TX power for the first
+	 * field; program in the other series.
+	 */
+	if (AH5212(ah)->ah_tpcEnabled) {
+		uint32_t ds_ctl0;
+		uint16_t txPower;
+
+		/* Modify the tx power field for rate 0 */
+		txPower = ar5416GetTxRatePower(ah, series[0].Rate,
+		    series[0].ChSel,
+		    series[0].tx_power_cap,
+		    !! (series[0].RateFlags & HAL_RATESERIES_2040));
+		ds_ctl0 = ads->ds_ctl0 & ~AR_XmitPower;
+		ds_ctl0 |= (txPower << AR_XmitPower_S);
+		ads->ds_ctl0 = ds_ctl0;
+
+		/*
+		 * Override the whole descriptor field for each TX power.
+		 *
+		 * This will need changing if we ever support antenna control
+		 * programming.
+		 */
+		txPower = ar5416GetTxRatePower(ah, series[1].Rate,
+		    series[1].ChSel,
+		    series[1].tx_power_cap,
+		    !! (series[1].RateFlags & HAL_RATESERIES_2040));
+		ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
+
+		txPower = ar5416GetTxRatePower(ah, series[2].Rate,
+		    series[2].ChSel,
+		    series[2].tx_power_cap,
+		    !! (series[2].RateFlags & HAL_RATESERIES_2040));
+		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(txPower, AR_XmitPower2);
+
+		txPower = ar5416GetTxRatePower(ah, series[3].Rate,
+		    series[3].ChSel,
+		    series[3].tx_power_cap,
+		    !! (series[3].RateFlags & HAL_RATESERIES_2040));
+		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(txPower, AR_XmitPower3);
+	}
 }
 
+/*
+ * Note: this should be called before calling ar5416SetBurstDuration()
+ * (if it is indeed called) in order to ensure that the burst duration
+ * is correctly updated with the BA delta workaround.
+ */
 void
 ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds, u_int aggrLen,
     u_int numDelims)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t flags;
+	uint32_t burstDur;
+	uint8_t rate;
 
 	ads->ds_ctl1 |= (AR_IsAggr | AR_MoreAggr);
 
 	ads->ds_ctl6 &= ~(AR_AggrLen | AR_PadDelim);
 	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
 	ads->ds_ctl6 |= SM(numDelims, AR_PadDelim);
+
+	if (! AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		/*
+		 * XXX It'd be nice if I were passed in the rate scenario
+		 * at this point..
+		 */
+		rate = MS(ads->ds_ctl3, AR_XmitRate0);
+		flags = ads->ds_ctl0 & (AR_CTSEnable | AR_RTSEnable);
+		/*
+		 * WAR - MAC assumes normal ACK time instead of
+		 * block ACK while computing packet duration.
+		 * Add this delta to the burst duration in the descriptor.
+		 */
+		if (flags && (ads->ds_ctl1 & AR_IsAggr)) {
+			burstDur = baDurationDelta[HT_RC_2_MCS(rate)];
+			ads->ds_ctl2 &= ~(AR_BurstDur);
+			ads->ds_ctl2 |= SM(burstDur, AR_BurstDur);
+		}
+	}
 }
 
 void
@@ -787,13 +1043,46 @@ ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds)
 }
 
 void
+ar5416Set11nVirtualMoreFrag(struct ath_hal *ah, struct ath_desc *ds,
+    u_int vmf)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+	if (vmf)
+		ads->ds_ctl0 |= AR_VirtMoreFrag;
+	else
+		ads->ds_ctl0 &= ~AR_VirtMoreFrag;
+}
+
+/*
+ * Program the burst duration, with the included BA delta if it's
+ * applicable.
+ */
+void
 ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds,
                                                   u_int burstDuration)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
+	uint32_t burstDur = 0;
+	uint8_t rate;
+
+	if (! AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		/*
+		 * XXX It'd be nice if I were passed in the rate scenario
+		 * at this point..
+		 */
+		rate = MS(ads->ds_ctl3, AR_XmitDataTries0);
+		/*
+		 * WAR - MAC assumes normal ACK time instead of
+		 * block ACK while computing packet duration.
+		 * Add this delta to the burst duration in the descriptor.
+		 */
+		if (ads->ds_ctl1 & AR_IsAggr) {
+			burstDur = baDurationDelta[HT_RC_2_MCS(rate)];
+		}
+	}
 
 	ads->ds_ctl2 &= ~AR_BurstDur;
-	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
+	ads->ds_ctl2 |= SM(burstDur + burstDuration, AR_BurstDur);
 }
 
 /*
@@ -1119,10 +1408,10 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			 * XXX which I gather is because of such a long
 			 * XXX cabq time.)
 			 */
-			value = (ahp->ah_beaconInterval * 70 / 100)
-				- (ah->ah_config.ah_sw_beacon_response_time
-				+ ah->ah_config.ah_dma_beacon_response_time)
-				- ah->ah_config.ah_additional_swba_backoff;
+			value = (ahp->ah_beaconInterval * 50 / 100)
+				- ah->ah_config.ah_additional_swba_backoff
+				- ah->ah_config.ah_sw_beacon_response_time
+				+ ah->ah_config.ah_dma_beacon_response_time;
 			/*
 			 * XXX Ensure it isn't too low - nothing lower
 			 * XXX than 10 TU

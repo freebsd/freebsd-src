@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -381,6 +381,7 @@ AnIsResultUsed (
         return (TRUE);
 
     default:
+
         break;
     }
 
@@ -411,6 +412,7 @@ AnIsResultUsed (
         return (FALSE);
 
     default:
+
         /* Any other type of parent means that the result is used */
 
         return (TRUE);

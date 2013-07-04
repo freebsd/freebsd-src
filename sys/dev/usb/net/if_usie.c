@@ -121,7 +121,8 @@ static void usie_if_sync_cb(void *, int);
 static void usie_if_status_cb(void *, int);
 
 static void usie_if_start(struct ifnet *);
-static int usie_if_output(struct ifnet *, struct mbuf *, struct sockaddr *, struct route *);
+static int usie_if_output(struct ifnet *, struct mbuf *,
+	const struct sockaddr *, struct route *);
 static void usie_if_init(void *);
 static void usie_if_stop(struct usie_softc *);
 static int usie_if_ioctl(struct ifnet *, u_long, caddr_t);
@@ -1181,7 +1182,7 @@ usie_if_start(struct ifnet *ifp)
 }
 
 static int
-usie_if_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+usie_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	int err;

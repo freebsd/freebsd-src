@@ -1,0 +1,381 @@
+/*
+ * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@bluezbox.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+/dts-v1/;
+
+/include/ "bcm2835.dtsi"
+
+/memreserve/ 0x08000000 0x08000000;	/* Set by VideoCore */
+
+/ {
+	model = "Raspberry Pi (BCM2835)";
+	compatible = "raspberrypi,model-a", "raspberrypi,model-b", 
+		     "broadcom,bcm2835-vc", "broadcom,bcm2708-vc";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x8000000>; /* 128MB, Set by VideoCore */
+	
+	};
+
+	system {
+		revision = <0>;			/* Set by VideoCore */
+		serial = <0 0>;			/* Set by VideoCore */
+	};
+
+	axi {
+		gpio: gpio {
+			/* BSC0 */
+			pins_bsc0_a: bsc0_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_bsc0_b: bsc0_b {
+				broadcom,function = "ALT0";
+			};
+
+			pins_bsc0_c: bsc0_c {
+				broadcom,function = "ALT1";
+			};
+
+			/* BSC1 */
+			pins_bsc1_a: bsc1_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_bsc1_b: bsc1_b {
+				broadcom,function = "ALT2";
+			};
+
+			/* GPCLK0 */
+			pins_gpclk0_a: gpclk0_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_gpclk0_b: gpclk0_b {
+				broadcom,function = "ALT5";
+			};
+
+			pins_gpclk0_c: gpclk0_c {
+				broadcom,function = "ALT0";
+			};
+
+			pins_gpclk0_d: gpclk0_d {
+				broadcom,function = "ALT0";
+			};
+
+			/* GPCLK1 */
+			pins_gpclk1_a: gpclk1_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_gpclk1_b: gpclk1_b {
+				broadcom,function = "ALT5";
+			};
+
+			pins_gpclk1_c: gpclk1_c {
+				broadcom,function = "ALT0";
+			};
+
+			pins_gpclk1_d: gpclk1_d {
+				broadcom,function = "ALT0";
+			};
+
+			/* GPCLK2 */
+			pins_gpclk2_a: gpclk2_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_gpclk2_b: gpclk2_b {
+				broadcom,function = "ALT0";
+			};
+
+			/* SPI0 */
+			pins_spi0_a: spi0_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_spi0_b: spi0_b {
+				broadcom,function = "ALT0";
+			};
+
+			/* PWM */
+			pins_pwm0_a: pwm0_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_pwm0_b: pwm0_b {
+				broadcom,function = "ALT5";
+			};
+
+			pins_pwm0_c: pwm0_c {
+				broadcom,function = "ALT0";
+			};
+
+			pins_pwm1_a: pwm1_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_pwm1_b: pwm1_b {
+				broadcom,function = "ALT5";
+			};
+
+			pins_pwm1_c: pwm1_c {
+				broadcom,function = "ALT0";
+			};
+
+			pins_pwm1_d: pwm1_d {
+				broadcom,function = "ALT0";
+			};
+
+			/* UART0 */
+			pins_uart0_a: uart0_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_uart0_b: uart0_b {
+				broadcom,function = "ALT3";
+			};
+
+			pins_uart0_c: uart0_c {
+				broadcom,function = "ALT2";
+			};
+
+			pins_uart0_fc_a: uart0_fc_a {
+				broadcom,function = "ALT3";
+			};
+
+			pins_uart0_fc_b: uart0_fc_b {
+				broadcom,function = "ALT3";
+			};
+
+			pins_uart0_fc_c: uart0_fc_c {
+				broadcom,function = "ALT2";
+			};
+
+			/* PCM */
+			pins_pcm_a: pcm_a {
+				broadcom,function = "ALT0";
+			};
+
+			pins_pcm_b: pcm_b {
+				broadcom,function = "ALT2";
+			};
+
+			/* Secondary Address Bus */
+			pins_sm_addr_a: sm_addr_a {
+				broadcom,function = "ALT1";
+			};
+
+			pins_sm_addr_b: sm_addr_b {
+				broadcom,function = "ALT1";
+			};
+
+			pins_sm_ctl_a: sm_ctl_a {
+				broadcom,function = "ALT1";
+			};
+
+			pins_sm_ctl_b: sm_ctl_b {
+				broadcom,function = "ALT1";
+			};
+
+			pins_sm_data_8bit_a: sm_data_8bit_a {
+				broadcom,function = "ALT1";
+			};
+
+			pins_sm_data_8bit_b: sm_data_8bit_b {
+				broadcom,function = "ALT1";
+			};
+
+			pins_sm_data_16bit: sm_data_16bit {
+				broadcom,function = "ALT1";
+			};
+
+			pins_sm_data_18bit: sm_data_18bit {
+				broadcom,function = "ALT1";
+			};
+
+			/* BSCSL */
+			pins_bscsl: bscsl {
+				broadcom,function = "ALT3";
+			};
+
+			/* SPISL */
+			pins_spisl: spisl {
+				broadcom,function = "ALT3";
+			};
+
+			/* SPI1 */
+			pins_spi1: spi1 {
+				broadcom,function = "ALT4";
+			};
+
+			/* UART1 */
+			pins_uart1_a: uart1_a {
+				broadcom,function = "ALT5";
+			};
+
+			pins_uart1_b: uart1_b {
+				broadcom,function = "ALT5";
+			};
+
+			pins_uart1_c: uart1_c {
+				broadcom,function = "ALT5";
+			};
+
+			pins_uart1_fc_a: uart1_fc_a {
+				broadcom,function = "ALT5";
+			};
+
+			pins_uart1_fc_b: uart1_fc_b {
+				broadcom,function = "ALT5";
+			};
+
+			pins_uart1_fc_c: uart1_fc_c {
+				broadcom,function = "ALT5";
+			};
+
+			/* SPI2 */
+			pins_spi2: spi2 {
+				broadcom,function = "ALT4";
+			};
+
+			/* ARM JTAG */
+			pins_arm_jtag_trst: arm_jtag_trst {
+				broadcom,function = "ALT4";
+			};
+
+			pins_arm_jtag_a: arm_jtag_a {
+				broadcom,function = "ALT5";
+			};
+
+			pins_arm_jtag_b: arm_jtag_b {
+				broadcom,function = "ALT4";
+			};
+
+			/* Reserved */
+			pins_reserved: reserved {
+				broadcom,function = "ALT3";
+			};
+		};
+		usb {
+			hub {
+				compatible = "usb,hub", "usb,device";
+				reg = <0x00000001>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ethernet {
+					compatible = "net,ethernet",
+						     "usb,device";
+					reg = <0x00000001>;
+					mac-address = [00 00 00 00 00 00];
+				};
+			};
+
+		};
+
+
+	};
+
+	display {
+		compatible = "broadcom,bcm2835-fb", "broadcom,bcm2708-fb";
+
+		broadcom,vc-mailbox = <&vc_mbox>;
+		broadcom,vc-channel = <1>;
+
+		broadcom,width = <0>;		/* Set by VideoCore */
+		broadcom,height = <0>;		/* Set by VideoCore */
+		broadcom,depth = <0>;		/* Set by VideoCore */
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		ok {
+			label = "ok";
+			gpios = <&gpio 16 1>;
+
+			/* Don't change this - it configures
+			 * how the led driver determines if
+			 * the led is on or off when it loads.
+			 */
+			default-state = "keep";
+
+			/* This is the real default state. */
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	power: regulator {
+		compatible = "broadcom,bcm2835-power-mgr",
+			     "broadcom,bcm2708-power-mgr",
+			     "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		broadcom,vc-mailbox = <&vc_mbox>;
+		broadcom,vc-channel = <0>;
+
+		regulator-name = "VideoCore";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on = <1>;
+
+		sd_card_power: regulator@0 {
+			compatible = "broadcom,bcm2835-power-dev",
+				     "broadcom,bcm2708-power-dev";
+			reg = <0>;
+
+			vin-supply = <&power>;
+			regulator-name = "SD Card";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+		};
+
+		/* This is for the controller itself, not the root port */
+		usb_hcd_power: regulator@3 {
+			compatible = "broadcom,bcm2835-power-dev",
+				     "broadcom,bcm2708-power-dev";
+			reg = <3>;
+
+			vin-supply = <&power>;
+			regulator-name = "USB HCD";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+		};
+	};
+
+	aliases {
+		uart0 = &uart0;
+	};
+
+	chosen {
+		bootargs = "";			/* Set by VideoCore */
+		stdin = "uart0";
+		stdout = "uart0";
+	};
+
+};

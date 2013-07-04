@@ -3507,7 +3507,8 @@ static device_method_t xge_methods[] = {
 	DEVMETHOD(device_attach,    xge_attach),
 	DEVMETHOD(device_detach,    xge_detach),
 	DEVMETHOD(device_shutdown,  xge_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t xge_driver = {

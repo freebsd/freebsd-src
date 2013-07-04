@@ -32,7 +32,6 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_user.h 10597 2012-02-21 05:08:32Z luigi $
  *
  * This header contains the macros used to manipulate netmap structures
  * and packets in userspace. See netmap(4) for more information.
@@ -52,8 +51,8 @@
  *	ring->slot[i] gives us the i-th slot (we can access
  *		directly plen, flags, bufindex)
  *
- *	char *buf = NETMAP_BUF(ring, index) returns a pointer to
- *		the i-th buffer
+ *	char *buf = NETMAP_BUF(ring, x) returns a pointer to
+ *		the buffer numbered x
  *
  * Since rings are circular, we have macros to compute the next index
  *	i = NETMAP_RING_NEXT(ring, i);

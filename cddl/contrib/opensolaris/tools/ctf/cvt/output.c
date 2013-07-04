@@ -363,6 +363,7 @@ sort_iidescs(Elf *elf, const char *file, tdata_t *td, int fuzzymatch,
 
 	for (i = 0; i < nent; i++) {
 		GElf_Sym sym;
+		char *bname;
 		iidesc_t **tolist;
 		GElf_Sym ssym;
 		iidesc_match_t smatch;
@@ -377,7 +378,8 @@ sort_iidescs(Elf *elf, const char *file, tdata_t *td, int fuzzymatch,
 
 		switch (GELF_ST_TYPE(sym.st_info)) {
 		case STT_FILE:
-			match.iim_file = match.iim_name;
+			bname = strrchr(match.iim_name, '/');
+			match.iim_file = bname == NULL ? match.iim_name : bname + 1;
 			continue;
 		case STT_OBJECT:
 			tolist = iiburst->iib_objts;

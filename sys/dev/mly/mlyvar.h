@@ -126,6 +126,7 @@ struct mly_command {
 #define MLY_CMD_MAPPED		(1<<3)		/* command has had its data mapped */
 #define MLY_CMD_DATAIN		(1<<4)		/* data moves controller->system */
 #define MLY_CMD_DATAOUT		(1<<5)		/* data moves system->controller */
+#define MLY_CMD_CCB		(1<<6)		/* data is ccb. */
     u_int16_t			mc_status;	/* command completion status */
     u_int8_t			mc_sense;	/* sense data length */
     int32_t			mc_resid;	/* I/O residual count */

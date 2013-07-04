@@ -82,6 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
+	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
@@ -101,6 +102,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
+	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
@@ -115,8 +117,10 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libusbhid} \
 	${_libusb} \
 	${_libvgl} \
+	${_libvmmapi} \
 	libwrap \
 	liby \
+	libyaml \
 	libz \
 	${_atf} \
 	${_bind} \
@@ -176,6 +180,15 @@ _libiconv_modules=	libiconv_modules
 _libipx=	libipx
 .endif
 
+.if ${MK_LDNS} != "no"
+_libldns=	libldns
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
+.endif
+
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
 .endif
@@ -193,13 +206,19 @@ _libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64"
+_libvmmapi=	libvmmapi
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
+_libsmb=	libsmb
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
@@ -210,15 +229,15 @@ _librtld_db=	librtld_db
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libproc=	libproc
 _librtld_db=	librtld_db
+_libsmb=	libsmb
+.endif
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+_libsmb=	libsmb
 .endif
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
-.endif
-
-.if ${MK_LIBCPLUSPLUS} != "no"
-_libcxxrt=	libcxxrt
-_libcplusplus=	libc++
 .endif
 
 .if ${MK_PMC} != "no"
@@ -239,6 +258,11 @@ _libtelnet=	libtelnet
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 _libusb=	libusb
+.endif
+
+.if !defined(LIBRARIES_ONLY)
+afterinstall:
+	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
 .endif
 
 .include <bsd.subdir.mk>

@@ -35,4 +35,23 @@
 #define	LINUX_AT_REMOVEDIR		0x200
 #define	LINUX_AT_SYMLINK_FOLLOW		0x400
 
+/*
+ * posix_fadvise advice
+ */
+#define	LINUX_POSIX_FADV_NORMAL		0
+#define	LINUX_POSIX_FADV_RANDOM		1
+#define	LINUX_POSIX_FADV_SEQUENTIAL    	2
+#define	LINUX_POSIX_FADV_WILLNEED      	3
+#define	LINUX_POSIX_FADV_DONTNEED      	4
+#define	LINUX_POSIX_FADV_NOREUSE       	5
+
+/*
+ * mount flags
+ */
+#define	LINUX_MS_RDONLY		0x0001
+#define	LINUX_MS_NOSUID		0x0002
+#define	LINUX_MS_NODEV		0x0004
+#define	LINUX_MS_NOEXEC		0x0008
+#define	LINUX_MS_REMOUNT	0x0020
+
 #endif	/* !_LINUX_FILE_H_ */

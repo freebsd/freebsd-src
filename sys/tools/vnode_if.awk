@@ -172,6 +172,7 @@ if (cfile) {
 	    "#include <sys/kernel.h>\n" \
 	    "#include <sys/mount.h>\n" \
 	    "#include <sys/sdt.h>\n" \
+	    "#include <sys/signalvar.h>\n" \
 	    "#include <sys/systm.h>\n" \
 	    "#include <sys/vnode.h>\n" \
 	    "\n" \
@@ -365,10 +366,12 @@ while ((getline < srcfile) > 0) {
 			add_debug_code(name, args[i], "Entry", "\t");
 		printc("\tKTR_START" ctrstr);
 		add_pre(name);
+		printc("\tVFS_PROLOGUE(a->a_" args[0]"->v_mount);")
 		printc("\tif (vop->"name" != NULL)")
 		printc("\t\trc = vop->"name"(a);")
 		printc("\telse")
 		printc("\t\trc = vop->vop_bypass(&a->a_gen);")
+		printc("\tVFS_EPILOGUE(a->a_" args[0]"->v_mount);")
 		printc("\tSDT_PROBE(vfs, vop, " name ", return, a->a_" args[0] ", a, rc, 0, 0);\n");
 		printc("\tif (rc == 0) {");
 		for (i = 0; i < numargs; ++i)

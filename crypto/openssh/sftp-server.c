@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.94 2011/06/17 21:46:16 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.96 2013/01/04 19:26:38 jmc Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -1390,7 +1390,8 @@ sftp_server_usage(void)
 	extern char *__progname;
 
 	fprintf(stderr,
-	    "usage: %s [-ehR] [-f log_facility] [-l log_level] [-u umask]\n",
+	    "usage: %s [-ehR] [-d start_directory] [-f log_facility] "
+	    "[-l log_level]\n\t[-u umask]\n",
 	    __progname);
 	exit(1);
 }
@@ -1402,7 +1403,7 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	int in, out, max, ch, skipargs = 0, log_stderr = 0;
 	ssize_t len, olen, set_size;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
-	char *cp, buf[4*4096];
+	char *cp, *homedir = NULL, buf[4*4096];
 	long mask;
 
 	extern char *optarg;
@@ -1411,7 +1412,9 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	__progname = ssh_get_progname(argv[0]);
 	log_init(__progname, log_level, log_facility, log_stderr);
 
-	while (!skipargs && (ch = getopt(argc, argv, "f:l:u:cehR")) != -1) {
+	pw = pwcopy(user_pw);
+
+	while (!skipargs && (ch = getopt(argc, argv, "d:f:l:u:cehR")) != -1) {
 		switch (ch) {
 		case 'R':
 			readonly = 1;
@@ -1435,6 +1438,12 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 			log_facility = log_facility_number(optarg);
 			if (log_facility == SYSLOG_FACILITY_NOT_SET)
 				error("Invalid log facility \"%s\"", optarg);
+			break;
+		case 'd':
+			cp = tilde_expand_filename(optarg, user_pw->pw_uid);
+			homedir = percent_expand(cp, "d", user_pw->pw_dir,
+			    "u", user_pw->pw_name, (char *)NULL);
+			free(cp);
 			break;
 		case 'u':
 			errno = 0;
@@ -1463,8 +1472,6 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	} else
 		client_addr = xstrdup("UNKNOWN");
 
-	pw = pwcopy(user_pw);
-
 	logit("session opened for local user %s from [%s]",
 	    pw->pw_name, client_addr);
 
@@ -1488,6 +1495,13 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	set_size = howmany(max + 1, NFDBITS) * sizeof(fd_mask);
 	rset = (fd_set *)xmalloc(set_size);
 	wset = (fd_set *)xmalloc(set_size);
+
+	if (homedir != NULL) {
+		if (chdir(homedir) != 0) {
+			error("chdir to \"%s\" failed: %s", homedir,
+			    strerror(errno));
+		}
+	}
 
 	for (;;) {
 		memset(rset, 0, set_size);

@@ -522,31 +522,14 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	}
 
 	len = uio->uio_resid;
-
-	if (len - hlen > ifp->if_mtu)
+	if (len < hlen || len - hlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
-	if ((unsigned)len > MJUM16BYTES)
+	m = m_get2(len, M_WAITOK, MT_DATA, M_PKTHDR);
+	if (m == NULL)
 		return (EIO);
-
-	if (len <= MHLEN)
-		MGETHDR(m, M_WAITOK, MT_DATA);
-	else if (len <= MCLBYTES)
-		m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
-	else
-		m = m_getjcl(M_WAITOK, MT_DATA, M_PKTHDR,
-#if (MJUMPAGESIZE > MCLBYTES)
-		    len <= MJUMPAGESIZE ? MJUMPAGESIZE :
-#endif
-		    (len <= MJUM9BYTES ? MJUM9BYTES : MJUM16BYTES));
 	m->m_pkthdr.len = m->m_len = len;
-	m->m_pkthdr.rcvif = NULL;
 	*mp = m;
-
-	if (m->m_len < hlen) {
-		error = EPERM;
-		goto bad;
-	}
 
 	error = uiomove(mtod(m, u_char *), len, uio);
 	if (error)
@@ -873,9 +856,14 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 		callout_stop(&d->bd_callout);
 	timed_out = (d->bd_state == BPF_TIMED_OUT);
 	d->bd_state = BPF_IDLE;
-	while (d->bd_hbuf_in_use)
-		mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+	while (d->bd_hbuf_in_use) {
+		error = mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
 		    PRINET|PCATCH, "bd_hbuf", 0);
+		if (error != 0) {
+			BPFD_UNLOCK(d);
+			return (error);
+		}
+	}
 	/*
 	 * If the hold buffer is empty, then do a timed sleep, which
 	 * ends when the timeout expires or when enough packets

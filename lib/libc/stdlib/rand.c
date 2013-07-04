@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,11 +36,10 @@ static char sccsid[] = "@(#)rand.c	8.1 (Berkeley) 6/14/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/time.h>          /* for sranddev() */
+#include <sys/param.h>
+#include <sys/sysctl.h>
 #include <sys/types.h>
-#include <fcntl.h>             /* for sranddev() */
 #include <stdlib.h>
-#include <unistd.h>            /* for sranddev() */
 #include "un-namespace.h"
 
 #ifdef TEST
@@ -68,15 +67,15 @@ do_rand(unsigned long *ctx)
  */
 	long hi, lo, x;
 
-	/* Can't be initialized with 0, so use another value. */
-	if (*ctx == 0)
-		*ctx = 123459876;
+	/* Must be in [1, 0x7ffffffe] range at this point. */
 	hi = *ctx / 127773;
 	lo = *ctx % 127773;
 	x = 16807 * lo - 2836 * hi;
 	if (x < 0)
 		x += 0x7fffffff;
-	return ((*ctx = x) % ((u_long)RAND_MAX + 1));
+	*ctx = x;
+	/* Transform to [0, 0x7ffffffd] range. */
+	return (x - 1);
 #endif  /* !USE_WEAK_SEEDING */
 }
 
@@ -84,15 +83,32 @@ do_rand(unsigned long *ctx)
 int
 rand_r(unsigned int *ctx)
 {
-	u_long val = (u_long) *ctx;
-	int r = do_rand(&val);
+	u_long val;
+	int r;
 
-	*ctx = (unsigned int) val;
+#ifdef  USE_WEAK_SEEDING
+	val = *ctx;
+#else
+	/* Transform to [1, 0x7ffffffe] range. */
+	val = (*ctx % 0x7ffffffe) + 1;
+#endif
+	r = do_rand(&val);
+
+#ifdef  USE_WEAK_SEEDING
+	*ctx = (unsigned int)val;
+#else
+	*ctx = (unsigned int)(val - 1);
+#endif
 	return (r);
 }
 
 
-static u_long next = 1;
+static u_long next =
+#ifdef  USE_WEAK_SEEDING
+    1;
+#else
+    2;
+#endif
 
 int
 rand()
@@ -105,6 +121,10 @@ srand(seed)
 u_int seed;
 {
 	next = seed;
+#ifndef USE_WEAK_SEEDING
+	/* Transform to [1, 0x7ffffffe] range. */
+	next = (next % 0x7ffffffe) + 1;
+#endif
 }
 
 
@@ -112,28 +132,24 @@ u_int seed;
  * sranddev:
  *
  * Many programs choose the seed value in a totally predictable manner.
- * This often causes problems.  We seed the generator using the much more
- * secure random(4) interface.
+ * This often causes problems.  We seed the generator using pseudo-random
+ * data from the kernel.
  */
 void
 sranddev()
 {
-	int fd, done;
+	int mib[2];
+	size_t len;
 
-	done = 0;
-	fd = _open("/dev/random", O_RDONLY | O_CLOEXEC, 0);
-	if (fd >= 0) {
-		if (_read(fd, (void *) &next, sizeof(next)) == sizeof(next))
-			done = 1;
-		_close(fd);
-	}
+	len = sizeof(next);
 
-	if (!done) {
-		struct timeval tv;
-
-		gettimeofday(&tv, NULL);
-		srand((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec);
-	}
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+	sysctl(mib, 2, (void *)&next, &len, NULL, 0);
+#ifndef USE_WEAK_SEEDING
+	/* Transform to [1, 0x7ffffffe] range. */
+	next = (next % 0x7ffffffe) + 1;
+#endif
 }
 
 

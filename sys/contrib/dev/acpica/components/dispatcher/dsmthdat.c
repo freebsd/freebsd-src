@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -315,6 +315,7 @@ AcpiDsMethodDataGetNode (
         break;
 
     default:
+
         ACPI_ERROR ((AE_INFO, "Type %u is invalid", Type));
         return_ACPI_STATUS (AE_TYPE);
     }
@@ -472,7 +473,6 @@ AcpiDsMethodDataGetValue (
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_ARG);
 
         case ACPI_REFCLASS_LOCAL:
-
             /*
              * No error message for this case, will be trapped again later to
              * detect and ignore cases of Store(LocalX,LocalX)

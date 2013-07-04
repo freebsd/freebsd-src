@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
 #include <sys/smp.h>
@@ -110,7 +111,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	 */
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		if (!VM_OBJECT_TRYLOCK(object)) {
+		if (!VM_OBJECT_TRYWLOCK(object)) {
 			/*
 			 * Avoid a lock-order reversal.  Consequently,
 			 * the reported number of active pages may be
@@ -119,7 +120,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			continue;
 		}
 		vm_object_clear_flag(object, OBJ_ACTIVE);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 	mtx_unlock(&vm_object_list_mtx);
 	/*
@@ -178,10 +179,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) ||
 			    (object = entry->object.vm_object) == NULL)
 				continue;
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			vm_object_set_flag(object, OBJ_ACTIVE);
 			paging |= object->paging_in_progress;
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 		}
 		vm_map_unlock_read(map);
 		vmspace_free(vm);
@@ -283,6 +284,7 @@ VM_STATS_SYS(v_syscall, "System calls");
 VM_STATS_SYS(v_intr, "Device interrupts");
 VM_STATS_SYS(v_soft, "Software interrupts");
 VM_STATS_VM(v_vm_faults, "Address memory faults");
+VM_STATS_VM(v_io_faults, "Page faults requiring I/O");
 VM_STATS_VM(v_cow_faults, "Copy-on-write faults");
 VM_STATS_VM(v_cow_optim, "Optimized COW faults");
 VM_STATS_VM(v_zfod, "Pages zero-filled on demand");

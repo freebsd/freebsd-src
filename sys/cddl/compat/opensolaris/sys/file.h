@@ -39,15 +39,11 @@ typedef	struct file	file_t;
 #include <sys/capability.h>
 
 static __inline file_t *
-getf(int fd)
+getf(int fd, cap_rights_t rights)
 {
 	struct file *fp;
 
-	/*
-	 * We wouldn't need all of these rights on every invocation
-	 * if we had more information about intent.
-	 */
-	if (fget(curthread, fd, CAP_READ | CAP_WRITE | CAP_SEEK, &fp) == 0)
+	if (fget(curthread, fd, rights, &fp) == 0)
 		return (fp);
 	return (NULL);
 }

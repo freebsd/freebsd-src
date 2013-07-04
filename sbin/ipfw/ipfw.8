@@ -854,7 +854,7 @@ So, to prevent endless loops in case of mistakes, both
 and
 .Cm return
 actions don't do any jumps and simply go to the next rule if memory
-can't be allocated or stack overflowed/undeflowed.
+cannot be allocated or stack overflowed/underflowed.
 .Pp
 Internally stack for rule numbers is implemented using
 .Xr mbuf_tags 9
@@ -960,6 +960,61 @@ It is possible to use the
 keyword with setfib.
 If the tablearg value is not within the compiled range of fibs,
 the packet's fib is set to 0.
+.It Cm setdscp Ar DSCP | number | tablearg
+Set specified DiffServ codepoint for an IPv4/IPv6 packet.
+Processing continues at the next rule.
+Supported values are:
+.Pp
+.Cm CS0
+.Pq Dv 000000 ,
+.Cm CS1
+.Pq Dv 001000 ,
+.Cm CS2
+.Pq Dv 010000 ,
+.Cm CS3
+.Pq Dv 011000 ,
+.Cm CS4
+.Pq Dv 100000 ,
+.Cm CS5
+.Pq Dv 101000 ,
+.Cm CS6
+.Pq Dv 110000 ,
+.Cm CS7
+.Pq Dv 111000 ,
+.Cm AF11
+.Pq Dv 001010 ,
+.Cm AF12
+.Pq Dv 001100 ,
+.Cm AF13
+.Pq Dv 001110 ,
+.Cm AF21
+.Pq Dv 010010 ,
+.Cm AF22
+.Pq Dv 010100 ,
+.Cm AF23
+.Pq Dv 010110 ,
+.Cm AF31
+.Pq Dv 011010 ,
+.Cm AF32
+.Pq Dv 011100 ,
+.Cm AF33
+.Pq Dv 011110 ,
+.Cm AF41
+.Pq Dv 100010 ,
+.Cm AF42
+.Pq Dv 100100 ,
+.Cm AF43
+.Pq Dv 100110 ,
+.Cm EF
+.Pq Dv 101110 ,
+.Cm BE
+.Pq Dv 000000 .
+Additionally, DSCP value can be specified by number (0..64).
+It is also possible to use the
+.Cm tablearg
+keyword with setdscp.
+If the tablearg value is not within the 0..64 range, lower 6 bits of supplied
+value are used.
 .It Cm reass
 Queue and reassemble IP fragments.
 If the packet is not fragmented, counters are updated and
@@ -1454,6 +1509,17 @@ The supported IP types of service are:
 The absence of a particular type may be denoted
 with a
 .Ql \&! .
+.It Cm dscp spec Ns Op , Ns Ar spec
+Matches IPv4/IPv6 packets whose
+.Cm DS
+field value is contained in
+.Ar spec
+mask.
+Multiple values can be specified via
+the comma separated list.
+Value can be one of keywords used in
+.Cm setdscp
+action or exact number.
 .It Cm ipttl Ar ttl-list
 Matches IPv4 packets whose time to live is included in
 .Ar ttl-list ,
@@ -2966,6 +3032,23 @@ option could be used to do similar but more restricted anti-spoofing
 by adding the following to the top of a ruleset:
 .Pp
 .Dl "ipfw add deny ip from any to any not antispoof in"
+.Pp
+This rule drops all incoming packets that appear to be coming from another
+directly connected system but on the wrong interface.
+For example, a packet with a source address of
+.Li 192.168.0.0/24 ,
+configured on
+.Li fxp0 ,
+but coming in on
+.Li fxp1
+would be dropped.
+.Pp
+The
+.Cm setdscp
+option could be used to (re)mark user traffic,
+by adding the following to the appropriate place in ruleset:
+.Pp
+.Dl "ipfw add setdscp be ip from any to any dscp af11,af21"
 .Pp
 This rule drops all incoming packets that appear to be coming from another
 directly connected system but on the wrong interface.

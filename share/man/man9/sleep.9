@@ -25,14 +25,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2009
+.Dd February 19, 2013
 .Dt SLEEP 9
 .Os
 .Sh NAME
 .Nm msleep ,
+.Nm msleep_sbt ,
 .Nm msleep_spin ,
+.Nm msleep_spin_sbt ,
 .Nm pause ,
+.Nm pause_sbt ,
 .Nm tsleep ,
+.Nm tsleep_sbt ,
 .Nm wakeup
 .Nd wait for events
 .Sh SYNOPSIS
@@ -42,11 +46,23 @@
 .Ft int
 .Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
+.Fn msleep_sbt "void *chan" "struct mtx *mtx" "int priority" \
+"const char *wmesg" "sbintime_t sbt" "sbintime_t pr" "int flags"
+.Ft int
 .Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
+.Ft int
+.Fn msleep_spin_sbt "void *chan" "struct mtx *mtx" "const char *wmesg" \
+"sbintime_t sbt" "sbintime_t pr" "int flags"
 .Ft void
 .Fn pause "const char *wmesg" "int timo"
+.Ft void
+.Fn pause_sbt "const char *wmesg" "sbintime_t sbt" "sbintime_t pr" \
+ "int flags"
 .Ft int
 .Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn tsleep_sbt "void *chan" "int priority" "const char *wmesg" \
+"sbintime_t sbt" "sbintime_t pr" "int flags"
 .Ft void
 .Fn wakeup "void *chan"
 .Ft void
@@ -147,6 +163,27 @@ seconds.
 If the timeout expires,
 then the sleep function will return
 .Er EWOULDBLOCK .
+.Pp
+.Fn msleep_sbt ,
+.Fn msleep_spin_sbt ,
+.Fn pause_sbt
+and
+.Fn tsleep_sbt
+functions take
+.Fa sbt
+parameter instead of
+.Fa timo .
+It allows to specify relative or absolite wakeup time with higher resolution
+in form of
+.Vt sbintime_t .
+The parameter
+.Fa pr
+allows to specify wanted absolute event precision.
+The parameter
+.Fa flags
+allows to pass additional
+.Fn callout_reset_sbt
+flags.
 .Pp
 Several of the sleep functions including
 .Fn msleep ,
@@ -301,7 +338,8 @@ A non-zero timeout was specified and the timeout expired.
 .Xr mi_switch 9 ,
 .Xr mtx_sleep 9 ,
 .Xr rw_sleep 9 ,
-.Xr sx_sleep 9
+.Xr sx_sleep 9 ,
+.Xr timeout 9
 .Sh HISTORY
 The functions
 .Fn sleep

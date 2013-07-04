@@ -8,7 +8,7 @@
 
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -388,6 +388,28 @@ AcpiOsGetLine (
     char                    *Buffer,
     UINT32                  BufferLength,
     UINT32                  *BytesRead);
+
+
+/*
+ * Obtain ACPI table(s)
+ */
+ACPI_STATUS
+AcpiOsGetTableByName (
+    char                    *Signature,
+    UINT32                  Instance,
+    ACPI_TABLE_HEADER       **Table,
+    ACPI_PHYSICAL_ADDRESS   *Address);
+
+ACPI_STATUS
+AcpiOsGetTableByIndex (
+    UINT32                  Index,
+    ACPI_TABLE_HEADER       **Table,
+    ACPI_PHYSICAL_ADDRESS   *Address);
+
+ACPI_STATUS
+AcpiOsGetTableByAddress (
+    ACPI_PHYSICAL_ADDRESS   Address,
+    ACPI_TABLE_HEADER       **Table);
 
 
 /*

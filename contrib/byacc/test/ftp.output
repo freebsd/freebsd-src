@@ -759,8 +759,8 @@ state 79
 	type_code : L . SP byte_size  (62)
 	type_code : L . byte_size  (63)
 
-	SP  shift 123
-	NUMBER  shift 124
+	NUMBER  shift 123
+	SP  shift 124
 	CRLF  reduce 61
 
 	byte_size  goto 125
@@ -1110,18 +1110,18 @@ state 122
 
 
 state 123
-	type_code : L SP . byte_size  (62)
-
-	NUMBER  shift 124
-	.  error
-
-	byte_size  goto 159
-
-
-state 124
 	byte_size : NUMBER .  (51)
 
 	.  reduce 51
+
+
+state 124
+	type_code : L SP . byte_size  (62)
+
+	NUMBER  shift 123
+	.  error
+
+	byte_size  goto 159
 
 
 state 125

@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/file.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -125,7 +126,6 @@ static uma_zone_t mapentzone;
 static uma_zone_t kmapentzone;
 static uma_zone_t mapzone;
 static uma_zone_t vmspace_zone;
-static struct vm_object kmapentobj;
 static int vmspace_zinit(void *mem, int size, int flags);
 static void vmspace_zfini(void *mem, int size);
 static int vm_map_zinit(void *mem, int ize, int flags);
@@ -303,7 +303,7 @@ vmspace_alloc(min, max)
 void
 vm_init2(void)
 {
-	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(cnt.v_page_count,
+	uma_zone_reserve_kva(kmapentzone, lmin(cnt.v_page_count,
 	    (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / PAGE_SIZE) / 8 +
 	     maxproc * 2 + maxfiles);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
@@ -724,12 +724,6 @@ long
 vmspace_resident_count(struct vmspace *vmspace)
 {
 	return pmap_resident_count(vmspace_pmap(vmspace));
-}
-
-long
-vmspace_wired_count(struct vmspace *vmspace)
-{
-	return pmap_wired_count(vmspace_pmap(vmspace));
 }
 
 /*
@@ -1229,10 +1223,10 @@ charged:
 		 * reference counting is insufficient to recognize
 		 * aliases with precision.)
 		 */
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (object->ref_count > 1 || object->shadow_count != 0)
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 	else if ((prev_entry != &map->header) &&
 		 (prev_entry->eflags == protoeflags) &&
@@ -1630,12 +1624,12 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
 		   entry->cred != NULL) {
-		VM_OBJECT_LOCK(entry->object.vm_object);
+		VM_OBJECT_WLOCK(entry->object.vm_object);
 		KASSERT(entry->object.vm_object->cred == NULL,
 		    ("OVERCOMMIT: vm_entry_clip_start: both cred e %p", entry));
 		entry->object.vm_object->cred = entry->cred;
 		entry->object.vm_object->charge = entry->end - entry->start;
-		VM_OBJECT_UNLOCK(entry->object.vm_object);
+		VM_OBJECT_WUNLOCK(entry->object.vm_object);
 		entry->cred = NULL;
 	}
 
@@ -1707,12 +1701,12 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
 		   entry->cred != NULL) {
-		VM_OBJECT_LOCK(entry->object.vm_object);
+		VM_OBJECT_WLOCK(entry->object.vm_object);
 		KASSERT(entry->object.vm_object->cred == NULL,
 		    ("OVERCOMMIT: vm_entry_clip_end: both cred e %p", entry));
 		entry->object.vm_object->cred = entry->cred;
 		entry->object.vm_object->charge = entry->end - entry->start;
-		VM_OBJECT_UNLOCK(entry->object.vm_object);
+		VM_OBJECT_WUNLOCK(entry->object.vm_object);
 		entry->cred = NULL;
 	}
 
@@ -1812,18 +1806,27 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_RLOCK(object);
 	if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
-		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
-		goto unlock_return;
+		VM_OBJECT_RUNLOCK(object);
+		VM_OBJECT_WLOCK(object);
+		if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
+			pmap_object_init_pt(map->pmap, addr, object, pindex,
+			    size);
+			VM_OBJECT_WUNLOCK(object);
+			return;
+		}
+		VM_OBJECT_LOCK_DOWNGRADE(object);
 	}
 
 	psize = atop(size);
 	if (psize > MAX_INIT_PT && (flags & MAP_PREFAULT_PARTIAL) != 0)
 		psize = MAX_INIT_PT;
 	if (psize + pindex > object->size) {
-		if (object->size < pindex)
-			goto unlock_return;
+		if (object->size < pindex) {
+			VM_OBJECT_RUNLOCK(object);
+			return;
+		}
 		psize = object->size - pindex;
 	}
 
@@ -1862,8 +1865,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	if (p_start != NULL)
 		pmap_enter_object(map->pmap, start, addr + ptoa(psize),
 		    p_start, prot);
-unlock_return:
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_RUNLOCK(object);
 }
 
 /*
@@ -1939,9 +1941,9 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			continue;
 		}
 
-		VM_OBJECT_LOCK(obj);
+		VM_OBJECT_WLOCK(obj);
 		if (obj->type != OBJT_DEFAULT && obj->type != OBJT_SWAP) {
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 			continue;
 		}
 
@@ -1953,7 +1955,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		KASSERT(obj->charge == 0,
 		    ("vm_map_protect: object %p overcharged\n", obj));
 		if (!swap_reserve(ptoa(obj->size))) {
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 			vm_map_unlock(map);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
@@ -1961,7 +1963,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		crhold(cred);
 		obj->cred = cred;
 		obj->charge = ptoa(obj->size);
-		VM_OBJECT_UNLOCK(obj);
+		VM_OBJECT_WUNLOCK(obj);
 	}
 
 	/*
@@ -2724,7 +2726,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		count = OFF_TO_IDX(size);
 		offidxstart = OFF_TO_IDX(entry->offset);
 		offidxend = offidxstart + count;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (object->ref_count != 1 &&
 		    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
 		    object == kernel_object || object == kmem_object)) {
@@ -2753,7 +2755,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 				}
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	} else
 		entry->object.vm_object = NULL;
 	if (map->system_map)
@@ -2961,7 +2963,7 @@ vm_map_copy_entry(
 		 */
 		size = src_entry->end - src_entry->start;
 		if ((src_object = src_entry->object.vm_object) != NULL) {
-			VM_OBJECT_LOCK(src_object);
+			VM_OBJECT_WLOCK(src_object);
 			charged = ENTRY_CHARGED(src_entry);
 			if ((src_object->handle == NULL) &&
 				(src_object->type == OBJT_DEFAULT ||
@@ -2982,7 +2984,7 @@ vm_map_copy_entry(
 				src_object->cred = src_entry->cred;
 				src_object->charge = size;
 			}
-			VM_OBJECT_UNLOCK(src_object);
+			VM_OBJECT_WUNLOCK(src_object);
 			dst_entry->object.vm_object = src_object;
 			if (charged) {
 				cred = curthread->td_ucred;
@@ -3158,7 +3160,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				vm_object_deallocate(object);
 				object = old_entry->object.vm_object;
 			}
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 			if (old_entry->cred != NULL) {
 				KASSERT(object->cred == NULL, ("vmspace_fork both cred"));
@@ -3166,7 +3168,23 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				object->charge = old_entry->end - old_entry->start;
 				old_entry->cred = NULL;
 			}
-			VM_OBJECT_UNLOCK(object);
+
+			/*
+			 * Assert the correct state of the vnode
+			 * v_writecount while the object is locked, to
+			 * not relock it later for the assertion
+			 * correctness.
+			 */
+			if (old_entry->eflags & MAP_ENTRY_VN_WRITECNT &&
+			    object->type == OBJT_VNODE) {
+				KASSERT(((struct vnode *)object->handle)->
+				    v_writecount > 0,
+				    ("vmspace_fork: v_writecount %p", object));
+				KASSERT(object->un_pager.vnp.writemappings > 0,
+				    ("vmspace_fork: vnp.writecount %p",
+				    object));
+			}
+			VM_OBJECT_WUNLOCK(object);
 
 			/*
 			 * Clone the entry, referencing the shared object.
@@ -3177,12 +3195,6 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 			if (new_entry->eflags & MAP_ENTRY_VN_WRITECNT) {
-				object = new_entry->object.vm_object;
-				KASSERT(((struct vnode *)object->handle)->
-				    v_writecount > 0,
-				    ("vmspace_fork: v_writecount"));
-				KASSERT(object->un_pager.vnp.writemappings > 0,
-				    ("vmspace_fork: vnp.writecount"));
 				vnode_pager_update_writecount(object,
 				    new_entry->start, new_entry->end);
 			}
@@ -3281,8 +3293,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	}
 
 	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-		if (ptoa(vmspace_wired_count(curproc->p_vmspace)) +
-		    init_ssize > lmemlim) {
+		if (ptoa(pmap_wired_count(map->pmap)) + init_ssize > lmemlim) {
 			vm_map_unlock(map);
 			return (KERN_NO_SPACE);
 		}
@@ -3505,8 +3516,7 @@ Retry:
 		grow_amount = limit - ctob(vm->vm_ssize);
 #endif
 	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-		if (ptoa(vmspace_wired_count(p->p_vmspace)) + grow_amount >
-		    lmemlim) {
+		if (ptoa(pmap_wired_count(map->pmap)) + grow_amount > lmemlim) {
 			vm_map_unlock_read(map);
 			rv = KERN_NO_SPACE;
 			goto out;
@@ -3514,7 +3524,7 @@ Retry:
 #ifdef RACCT
 		PROC_LOCK(p);
 		if (racct_set(p, RACCT_MEMLOCK,
-		    ptoa(vmspace_wired_count(p->p_vmspace)) + grow_amount)) {
+		    ptoa(pmap_wired_count(map->pmap)) + grow_amount)) {
 			PROC_UNLOCK(p);
 			vm_map_unlock_read(map);
 			rv = KERN_NO_SPACE;
@@ -3645,7 +3655,7 @@ out:
 		KASSERT(error == 0, ("decreasing RACCT_VMEM failed"));
 		if (!old_mlock) {
 			error = racct_set(p, RACCT_MEMLOCK,
-			    ptoa(vmspace_wired_count(p->p_vmspace)));
+			    ptoa(pmap_wired_count(map->pmap)));
 			KASSERT(error == 0, ("decreasing RACCT_MEMLOCK failed"));
 		}
 	    	error = racct_set(p, RACCT_STACK, ctob(vm->vm_ssize));
@@ -3797,6 +3807,12 @@ RetryLookup:;
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
+	if ((fault_typea & VM_PROT_COPY) != 0 &&
+	    (entry->max_protection & VM_PROT_WRITE) == 0 &&
+	    (entry->eflags & MAP_ENTRY_COW) == 0) {
+		vm_map_unlock_read(map);
+		return (KERN_PROTECTION_FAILURE);
+	}
 
 	/*
 	 * If this page is not pageable, we have to get it for all possible
@@ -3854,10 +3870,10 @@ RetryLookup:;
 				crfree(entry->cred);
 				entry->cred = NULL;
 			} else if (entry->cred != NULL) {
-				VM_OBJECT_LOCK(eobject);
+				VM_OBJECT_WLOCK(eobject);
 				eobject->cred = entry->cred;
 				eobject->charge = size;
-				VM_OBJECT_UNLOCK(eobject);
+				VM_OBJECT_WUNLOCK(eobject);
 				entry->cred = NULL;
 			}
 
@@ -3882,10 +3898,10 @@ RetryLookup:;
 		    atop(size));
 		entry->offset = 0;
 		if (entry->cred != NULL) {
-			VM_OBJECT_LOCK(entry->object.vm_object);
+			VM_OBJECT_WLOCK(entry->object.vm_object);
 			entry->object.vm_object->cred = entry->cred;
 			entry->object.vm_object->charge = size;
-			VM_OBJECT_UNLOCK(entry->object.vm_object);
+			VM_OBJECT_WUNLOCK(entry->object.vm_object);
 			entry->cred = NULL;
 		}
 		vm_map_lock_downgrade(map);

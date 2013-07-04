@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -227,7 +227,7 @@ AcpiEnterSleepStateS4bios (
                 (UINT32) AcpiGbl_FADT.S4BiosRequest, 8);
 
     do {
-        AcpiOsStall(1000);
+        AcpiOsStall (ACPI_USEC_PER_MSEC);
         Status = AcpiReadBitRegister (ACPI_BITREG_WAKE_STATUS, &InValue);
         if (ACPI_FAILURE (Status))
         {
@@ -267,13 +267,14 @@ AcpiHwSleepDispatch (
 
 
 #if (!ACPI_REDUCED_HARDWARE)
-
     /*
      * If the Hardware Reduced flag is set (from the FADT), we must
-     * use the extended sleep registers
+     * use the extended sleep registers (FADT). Note: As per the ACPI
+     * specification, these extended registers are to be used for HW-reduced
+     * platforms only. They are not general-purpose replacements for the
+     * legacy PM register sleep support.
      */
-    if (AcpiGbl_ReducedHardware ||
-        AcpiGbl_FADT.SleepControl.Address)
+    if (AcpiGbl_ReducedHardware)
     {
         Status = SleepFunctions->ExtendedFunction (SleepState);
     }
@@ -351,20 +352,24 @@ AcpiEnterSleepStatePrep (
     switch (SleepState)
     {
     case ACPI_STATE_S0:
+
         SstValue = ACPI_SST_WORKING;
         break;
 
     case ACPI_STATE_S1:
     case ACPI_STATE_S2:
     case ACPI_STATE_S3:
+
         SstValue = ACPI_SST_SLEEPING;
         break;
 
     case ACPI_STATE_S4:
+
         SstValue = ACPI_SST_SLEEP_CONTEXT;
         break;
 
     default:
+
         SstValue = ACPI_SST_INDICATOR_OFF; /* Default is off */
         break;
     }

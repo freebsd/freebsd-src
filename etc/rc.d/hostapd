@@ -10,11 +10,18 @@
 . /etc/rc.subr
 
 name="hostapd"
-rcvar="hostapd_enable"
 command="/usr/sbin/${name}"
 
-conf_file="/etc/${name}.conf"
-pidfile="/var/run/${name}.pid"
+ifn="$2"
+if [ -z "$ifn" ]; then
+	rcvar="hostapd_enable"
+	conf_file="/etc/${name}.conf"
+	pidfile="/var/run/${name}.pid"
+else
+	rcvar=
+	conf_file="/etc/${name}-${ifn}.conf"
+	pidfile="/var/run/${name}-${ifn}.pid"
+fi
 
 command_args="-P ${pidfile} -B ${conf_file}"
 required_files="${conf_file}"

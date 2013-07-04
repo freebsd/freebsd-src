@@ -1,3 +1,37 @@
+Thursday  February 19, 2013 guy@alum.mit.edu.
+  Summary for 4.4.0 tcpdump release
+	RPKI-RTR (RFC6810) is now official (TCP Port 323)
+	Fix detection of OpenSSL libcrypto.
+	Add DNSSL (RFC6106) support.
+	Add "radius" as an option for -T.
+	Update Action codes for handle_action function according to
+	    802.11s amendment.
+	Decode DHCPv6 AFTR-Name option (RFC6334).
+	Updates for Babel.
+	Fix printing of infinite lifetime in ICMPv6.
+	Added support for SPB, SPBM Service Identifier, and Unicast
+	    Address sub-TLV in ISIS.
+	Decode RIPv2 authentication up to RFC4822.
+	Fix RIP Request/full table decoding issues.
+	On Linux systems with cap-ng.h, drop root privileges
+	    using Linux Capabilities.
+	Add support for reading multiple files.
+
+Wednesday  November 28, 2012 guy@alum.mit.edu.
+  Summary for 4.3.1 tcpdump release
+	Print "LLDP, length N" for LLDP packets even when not in verbose
+	    mode, so something is printed even if only the timestamp is
+	    present
+	Document "-T carp"
+	Print NTP poll interval correctly (it's an exponent, so print
+	    both its raw value and 2^value)
+	Document that "-e" is used to get MAC addresses
+	More clearly document that you need to escape or quote
+	    backslashes in filter expressions on the command line
+	Fix some "the the" in the man page
+	Use the right maximum path length
+	Don't treat 192_1_2, when passed to -i, as an interface number
+
 Friday  April 3, 2011.  mcr@sandelman.ca.
   Summary for 4.3.0 tcpdump release
         fixes for forces: SPARSE data (per RFC 5810)

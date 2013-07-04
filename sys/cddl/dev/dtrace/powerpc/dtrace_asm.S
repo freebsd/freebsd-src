@@ -19,6 +19,8 @@
  *
  * CDDL HEADER END
  *
+ * Portions Copyright 2012,2013 Justin Hibbits <jhibbits@freebsd.org>
+ *
  * $FreeBSD$
  */
 /*
@@ -83,10 +85,10 @@ ASENTRY_NOPROF(dtrace_cas32)
 1:
 	lwarx	%r0,0,%r3
 	cmpw	%r4,%r0
-	bne		2f
+	bne	2f
 	stwcx.	%r5,0,%r3
-	bne		1b
-2:	mr		%r3,%r0
+	bne	1b
+2:	mr	%r3,%r0
 	blr
 END(dtrace_cas32)
 
@@ -98,62 +100,13 @@ ASENTRY_NOPROF(dtrace_casptr)
 1:
 	lwarx	%r0,0,%r3
 	cmpw	%r4,%r0
-	bne		2f
+	bne	2f
 	stwcx.	%r5,0,%r3
-	bne		1b
-2:	mr		%r3,%r0
+	bne	1b
+2:	mr	%r3,%r0
 	blr
 END(dtrace_casptr)
 
-
-/*
-uintptr_t
-dtrace_fulword(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fulword)
-END(dtrace_fulword)
-
-/*
-uint8_t
-dtrace_fuword8_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword8_nocheck)
-	lbz	%r3,0(%r3)
-	blr
-END(dtrace_fuword8_nocheck)
-
-/*
-uint16_t
-dtrace_fuword16_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword16_nocheck)
-	lhz	%r3,0(%r3)
-	blr
-END(dtrace_fuword16_nocheck)
-
-/*
-uint32_t
-dtrace_fuword32_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword32_nocheck)
-	lwz	%r3,0(%r3)
-	blr
-END(dtrace_fuword32_nocheck)
-
-/*
-uint64_t
-dtrace_fuword64_nocheck(void *addr)
-*/
-ASENTRY_NOPROF(dtrace_fuword64_nocheck)
-#if defined(__powerpc64__)
-	ld	%r3,0(%r3)
-#else
-	lwz	%r5,0(%r3)
-	lwz	%r4,4(%r3)
-	mr	%r3,%r5
-#endif
-	blr
-END(dtrace_fuword64_nocheck)
 
 /*
 XXX: unoptimized
@@ -167,7 +120,7 @@ ASENTRY_NOPROF(dtrace_copy)
 	lbzu	%r3,1(%r7)
 	stbu	%r3,1(%r8)
 	addme	%r5,%r5
-	beq		2f
+	beq	2f
 2:
 	blr
 END(dtrace_copy)
@@ -184,40 +137,17 @@ ASENTRY_NOPROF(dtrace_copystr)
 	lbzu	%r3,1(%r7)
 	stbu	%r3,1(%r8)
 	addme	%r5,%r5
-	beq		2f
-	or		%r3,%r3,%r3
-	beq		2f
+	beq	2f
+	or	%r3,%r3,%r3
+	beq	2f
 	andi.	%r0,%r5,0x0fff
-	beq		2f
-	lwz		%r0,0(%r6)
+	beq	2f
+	lwz	%r0,0(%r6)
 	andi.	%r0,%r0,CPU_DTRACE_BADADDR
-	beq		1b
+	beq	1b
 2:
 	blr
 END(dtrace_copystr)
-
-/*
-void dtrace_invop_init(void)
-*/
-ASENTRY_NOPROF(dtrace_invop_init)
-	/* XXX: impement it properly -- implement dtrace_invop_start */
-	li		%r0,0
-	li		%r3,dtrace_invop_jump_addr@l
-	addis	%r3,%r3,dtrace_invop_jump_addr@ha
-	stw		%r0,0(%r3)
-	blr
-END(dtrace_invop_init)
-
-/*
-void dtrace_invop_uninit(void)
-*/
-ASENTRY_NOPROF(dtrace_invop_uninit)
-	li		%r0,0
-	li		%r3,dtrace_invop_jump_addr@l
-	addis	%r3,%r3,dtrace_invop_jump_addr@ha
-	stw		%r0,0(%r3)
-	blr
-END(dtrace_invop_uninit)
 
 /*
  * The panic() and cmn_err() functions invoke vpanic() as a common entry point

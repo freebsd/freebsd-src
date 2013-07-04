@@ -67,10 +67,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <sys/queue.h>
+
 #define	MAXDUP		10	/* limit on dup blks (per inode) */
 #define	MAXBAD		10	/* limit on bad blks (per inode) */
-#define	MAXBUFSPACE	40*1024	/* maximum space to allocate to buffers */
-#define	INOBUFSIZE	56*1024	/* size of buffer to read inodes in pass1 */
+#define	MINBUFS		10	/* minimum number of buffers required */
+#define	MAXBUFS		40	/* maximum space to allocate to buffers */
+#define	INOBUFSIZE	64*1024	/* size of buffer to read inodes in pass1 */
+#define	ZEROBUFSIZE	(dev_bsize * 128) /* size of zero buffer used by -Z */
 
 union dinode {
 	struct ufs1_dinode dp1;
@@ -130,12 +134,12 @@ struct inostatlist {
  * buffer cache structure.
  */
 struct bufarea {
-	struct bufarea *b_next;		/* free list queue */
-	struct bufarea *b_prev;		/* free list queue */
+	TAILQ_ENTRY(bufarea) b_list;		/* buffer list */
 	ufs2_daddr_t b_bno;
 	int b_size;
 	int b_errs;
 	int b_flags;
+	int b_type;
 	union {
 		char *b_buf;			/* buffer space */
 		ufs1_daddr_t *b_indir1;		/* UFS1 indirect block */
@@ -159,12 +163,42 @@ struct bufarea {
 		(bp)->b_un.b_indir2[i] = (val); \
 	} while (0)
 
-#define	B_INUSE 1
+/*
+ * Buffer flags
+ */
+#define	B_INUSE 	0x00000001	/* Buffer is in use */
+/*
+ * Type of data in buffer
+ */
+#define	BT_UNKNOWN 	 0	/* Buffer holds a superblock */
+#define	BT_SUPERBLK 	 1	/* Buffer holds a superblock */
+#define	BT_CYLGRP 	 2	/* Buffer holds a cylinder group map */
+#define	BT_LEVEL1 	 3	/* Buffer holds single level indirect */
+#define	BT_LEVEL2 	 4	/* Buffer holds double level indirect */
+#define	BT_LEVEL3 	 5	/* Buffer holds triple level indirect */
+#define	BT_EXTATTR 	 6	/* Buffer holds external attribute data */
+#define	BT_INODES 	 7	/* Buffer holds external attribute data */
+#define	BT_DIRDATA 	 8	/* Buffer holds directory data */
+#define	BT_DATA	 	 9	/* Buffer holds user data */
+#define BT_NUMBUFTYPES	10
+#define BT_NAMES {			\
+	"unknown",			\
+	"Superblock",			\
+	"Cylinder Group",		\
+	"Single Level Indirect",	\
+	"Double Level Indirect",	\
+	"Triple Level Indirect",	\
+	"External Attribute",		\
+	"Inode Block",			\
+	"Directory Contents",		\
+	"User Data" }
+long readcnt[BT_NUMBUFTYPES];
+long totalreadcnt[BT_NUMBUFTYPES];
+struct timespec readtime[BT_NUMBUFTYPES];
+struct timespec totalreadtime[BT_NUMBUFTYPES];
+struct timespec startprog;
 
-#define	MINBUFS		5	/* minimum number of buffers required */
-struct bufarea bufhead;		/* head of list of other blks in filesys */
 struct bufarea sblk;		/* file system superblock */
-struct bufarea cgblk;		/* cylinder group blocks */
 struct bufarea *pdirbp;		/* current directory contents */
 struct bufarea *pbp;		/* current inode block */
 
@@ -174,16 +208,15 @@ struct bufarea *pbp;		/* current inode block */
 	else \
 		(bp)->b_dirty = 1; \
 } while (0)
-#define	initbarea(bp) do { \
+#define	initbarea(bp, type) do { \
 	(bp)->b_dirty = 0; \
 	(bp)->b_bno = (ufs2_daddr_t)-1; \
 	(bp)->b_flags = 0; \
+	(bp)->b_type = type; \
 } while (0)
 
 #define	sbdirty()	dirty(&sblk)
-#define	cgdirty()	dirty(&cgblk)
 #define	sblock		(*sblk.b_un.b_fs)
-#define	cgrp		(*cgblk.b_un.b_cg)
 
 enum fixstate {DONTKNOW, NOFIX, FIX, IGNORE};
 ino_t cursnapshot;
@@ -274,7 +307,8 @@ char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
-int	Eflag;			/* zero out empty data blocks */
+int	Eflag;			/* delete empty data blocks */
+int	Zflag;			/* zero empty data blocks */
 int	inoopt;			/* trim out unused inodes */
 char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
@@ -326,6 +360,37 @@ struct	ufs2_dinode ufs2_zino;
 
 #define	EEXIT	8		/* Standard error exit. */
 
+int flushentry(void);
+/*
+ * Wrapper for malloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Malloc(int size)
+{
+	void *retval;
+
+	while ((retval = malloc(size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+
+/*
+ * Wrapper for calloc() that flushes the cylinder group cache to try 
+ * to get space.
+ */
+static inline void*
+Calloc(int cnt, int size)
+{
+	void *retval;
+
+	while ((retval = calloc(cnt, size)) == NULL)
+		if (flushentry() == 0)
+			break;
+	return (retval);
+}
+
 struct fstab;
 
 
@@ -339,11 +404,12 @@ int		blread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
 void		blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size);
 void		blerase(int fd, ufs2_daddr_t blk, long size);
+void		blzero(int fd, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
 int		changeino(ino_t dir, const char *name, ino_t newnum);
-int		check_cgmagic(int cg, struct cg *cgp);
+int		check_cgmagic(int cg, struct bufarea *cgbp);
 int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
 int		ckinode(union dinode *dp, struct inodesc *);
@@ -354,6 +420,7 @@ int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, const char *msg);
 int		eascan(struct inodesc *, struct ufs2_dinode *dp);
 void		fileerror(ino_t cwd, ino_t ino, const char *errmesg);
+void		finalIOstats(void);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
 void		flush(int fd, struct bufarea *bp);
@@ -362,7 +429,8 @@ void		freeino(ino_t ino);
 void		freeinodebuf(void);
 int		ftypeok(union dinode *dp);
 void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
-struct bufarea *getdatablk(ufs2_daddr_t blkno, long size);
+struct bufarea *cgget(int cg);
+struct bufarea *getdatablk(ufs2_daddr_t blkno, long size, int type);
 struct inoinfo *getinoinfo(ino_t inumber);
 union dinode   *getnextinode(ino_t inumber, int rebuildcg);
 void		getpathname(char *namebuf, ino_t curdir, ino_t ino);
@@ -372,6 +440,7 @@ void		alarmhandler(int sig);
 void		inocleanup(void);
 void		inodirty(void);
 struct inostat *inoinfo(ino_t inum);
+void		IOstats(char *what);
 int		linkup(ino_t orphan, ino_t parentdir, char *name);
 int		makeentry(ino_t parent, ino_t ino, const char *name);
 void		panic(const char *fmt, ...) __printflike(1, 2);

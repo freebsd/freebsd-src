@@ -23,15 +23,15 @@ bool CompileForDebugging;
 // compile for debugging
 static cl::opt<bool, true>
 Debug("debug-compile", cl::desc("Compile for debugging"), cl::Hidden,
-      cl::location(CompileForDebugging),
-      cl::init(false));
+      cl::location(CompileForDebugging), cl::init(false));
 
-void NVPTXMCAsmInfo::anchor() { }
+void NVPTXMCAsmInfo::anchor() {}
 
 NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Target &T, const StringRef &TT) {
   Triple TheTriple(TT);
-  if (TheTriple.getArch() == Triple::nvptx64)
-    PointerSize = 8;
+  if (TheTriple.getArch() == Triple::nvptx64) {
+    PointerSize = CalleeSaveStackSlotSize = 8;
+  }
 
   CommentString = "//";
 
@@ -54,7 +54,7 @@ NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Target &T, const StringRef &TT) {
   Data32bitsDirective = " .b32 ";
   Data64bitsDirective = " .b64 ";
   PrivateGlobalPrefix = "";
-  ZeroDirective =  " .b8";
+  ZeroDirective = " .b8";
   AsciiDirective = " .b8";
   AscizDirective = " .b8";
 

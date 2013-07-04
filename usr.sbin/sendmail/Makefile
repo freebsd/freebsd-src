@@ -45,11 +45,6 @@ CFLAGS+= -DNETINET6
 
 WARNS?=	1
 
-# Unfortunately, clang gives warnings about sendmail code that cannot
-# be turned off yet.  Since this is contrib code, and we don't really
-# care about the warnings, just make them non-fatal for now.
-NO_WERROR.clang=
-
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
 

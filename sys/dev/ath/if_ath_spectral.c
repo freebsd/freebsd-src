@@ -73,8 +73,21 @@ __FBSDID("$FreeBSD$");
 
 struct ath_spectral_state {
 	HAL_SPECTRAL_PARAM	spectral_state;
-	int	spectral_active;
-	int	spectral_enabled;
+
+	/*
+	 * Should we enable spectral scan upon
+	 * each network interface reset/change?
+	 *
+	 * This is intended to allow spectral scan
+	 * frame reporting during channel scans.
+	 *
+	 * Later on it can morph into a larger
+	 * scale config method where it pushes
+	 * a "channel scan" config into the hardware
+	 * rather than just the spectral_state
+	 * config.
+	 */
+	int spectral_enable_after_reset;
 };
 
 /*
@@ -135,7 +148,20 @@ ath_spectral_detach(struct ath_softc *sc)
 int
 ath_spectral_enable(struct ath_softc *sc, struct ieee80211_channel *ch)
 {
+	struct ath_spectral_state *ss = sc->sc_spectral;
 
+	/* Default to disable spectral PHY reporting */
+	sc->sc_dospectral = 0;
+
+	if (ss == NULL)
+		return (0);
+
+	if (ss->spectral_enable_after_reset) {
+		ath_hal_spectral_configure(sc->sc_ah,
+		    &ss->spectral_state);
+		(void) ath_hal_spectral_start(sc->sc_ah);
+		sc->sc_dospectral = 1;
+	}
 	return (0);
 }
 
@@ -158,6 +184,7 @@ ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 	HAL_SPECTRAL_PARAM peout;
 	HAL_SPECTRAL_PARAM *pe;
 	struct ath_spectral_state *ss = sc->sc_spectral;
+	int val;
 
 	if (! ath_hal_spectral_supported(sc->sc_ah))
 		return (EINVAL);
@@ -212,9 +239,32 @@ ath_ioctl_spectral(struct ath_softc *sc, struct ath_diag *ad)
 			ath_hal_spectral_configure(sc->sc_ah,
 			    &ss->spectral_state);
 			(void) ath_hal_spectral_start(sc->sc_ah);
+			sc->sc_dospectral = 1;
+			/* XXX need to update the PHY mask in the driver */
 			break;
 		case SPECTRAL_CONTROL_STOP:
 			(void) ath_hal_spectral_stop(sc->sc_ah);
+			sc->sc_dospectral = 0;
+			/* XXX need to update the PHY mask in the driver */
+			break;
+		case SPECTRAL_CONTROL_ENABLE_AT_RESET:
+			if (insize < sizeof(int)) {
+				device_printf(sc->sc_dev, "%d != %d\n",
+				    insize,
+				    (int) sizeof(int));
+				error = EINVAL;
+				break;
+			}
+			if (indata == NULL) {
+				device_printf(sc->sc_dev, "indata=NULL\n");
+				error = EINVAL;
+				break;
+			}
+			val = * ((int *) indata);
+			if (val == 0)
+				ss->spectral_enable_after_reset = 0;
+			else
+				ss->spectral_enable_after_reset = 1;
 			break;
 		case SPECTRAL_CONTROL_ENABLE:
 			/* XXX TODO */

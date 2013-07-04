@@ -43,8 +43,8 @@ public:
   enum ArchType {
     UnknownArch,
 
-    arm,     // ARM; arm, armv.*, xscale
-    cellspu, // CellSPU: spu, cellspu
+    arm,     // ARM: arm, armv.*, xscale
+    aarch64, // AArch64: aarch64
     hexagon, // Hexagon: hexagon
     mips,    // MIPS: mips, mipsallegrex
     mipsel,  // MIPSEL: mipsel, mipsallegrexel
@@ -56,6 +56,7 @@ public:
     r600,    // R600: AMD GPUs HD2XXX - HD6XXX
     sparc,   // Sparc: sparc
     sparcv9, // Sparcv9: Sparcv9
+    systemz, // SystemZ: s390x
     tce,     // TCE (http://tce.cs.tut.fi/): tce
     thumb,   // Thumb: thumb, thumbv.*
     x86,     // X86: i[3-9]86
@@ -101,8 +102,8 @@ public:
     Haiku,
     Minix,
     RTEMS,
-    NativeClient,
-    CNK,         // BG/P Compute-Node Kernel
+    NaCl,       // Native Client
+    CNK,        // BG/P Compute-Node Kernel
     Bitrig,
     AIX
   };
@@ -112,6 +113,7 @@ public:
     GNU,
     GNUEABI,
     GNUEABIHF,
+    GNUX32,
     EABI,
     MachO,
     Android,
@@ -296,9 +298,14 @@ public:
     return getOS() == Triple::Darwin || getOS() == Triple::MacOSX;
   }
 
+  /// Is this an iOS triple.
+  bool isiOS() const {
+    return getOS() == Triple::IOS;
+  }
+
   /// isOSDarwin - Is this a "Darwin" OS (OS X or iOS).
   bool isOSDarwin() const {
-    return isMacOSX() || getOS() == Triple::IOS;
+    return isMacOSX() || isiOS();
   }
 
   /// \brief Tests for either Cygwin or MinGW OS
@@ -309,6 +316,11 @@ public:
   /// isOSWindows - Is this a "Windows" OS.
   bool isOSWindows() const {
     return getOS() == Triple::Win32 || isOSCygMing();
+  }
+
+  /// \brief Tests whether the OS is NaCl (Native Client)
+  bool isOSNaCl() const {
+    return getOS() == Triple::NaCl;
   }
 
   /// \brief Tests whether the OS uses the ELF binary format.

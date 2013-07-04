@@ -286,9 +286,6 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if your OpenSSL version supports GOST. */
 #undef HAVE_OPENSSL_GOST
 
-/* Define to 1 if you have the <regex.h> header file. */
-#undef HAVE_REGEX_H
-
 /* Define to 1 if you have the `setegid' function. */
 #undef HAVE_SETEGID
 

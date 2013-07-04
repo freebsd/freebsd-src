@@ -409,6 +409,7 @@ archive_read_support_format_7zip(struct archive *_a)
 	    archive_read_format_7zip_read_header,
 	    archive_read_format_7zip_read_data,
 	    archive_read_format_7zip_read_data_skip,
+	    NULL,
 	    archive_read_format_7zip_cleanup);
 
 	if (r != ARCHIVE_OK)
@@ -684,8 +685,8 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 			symname[symsize] = '\0';
 			archive_entry_copy_symlink(entry,
 			    (const char *)symname);
-			free(symname);
 		}
+		free(symname);
 		archive_entry_set_size(entry, 0);
 	}
 
@@ -709,16 +710,15 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 	if (zip->pack_stream_bytes_unconsumed)
 		read_consume(a);
 
+	*offset = zip->entry_offset;
+	*size = 0;
+	*buff = NULL;
 	/*
 	 * If we hit end-of-entry last time, clean up and return
 	 * ARCHIVE_EOF this time.
 	 */
-	if (zip->end_of_entry) {
-		*offset = zip->entry_offset;
-		*size = 0;
-		*buff = NULL;
+	if (zip->end_of_entry)
 		return (ARCHIVE_EOF);
-	}
 
 	bytes = read_stream(a, buff,
 		(size_t)zip->entry_bytes_remaining, 0);
@@ -736,7 +736,8 @@ archive_read_format_7zip_read_data(struct archive_read *a,
 
 	/* Update checksum */
 	if ((zip->entry->flg & CRC32_IS_SET) && bytes)
-		zip->entry_crc32 = crc32(zip->entry_crc32, *buff, bytes);
+		zip->entry_crc32 = crc32(zip->entry_crc32, *buff,
+		    (unsigned)bytes);
 
 	/* If we hit the end, swallow any end-of-data marker. */
 	if (zip->end_of_entry) {
@@ -1363,9 +1364,9 @@ decompress(struct archive_read *a, struct _7zip *zip,
 #ifdef HAVE_ZLIB_H
 	case _7Z_DEFLATE:
 		zip->stream.next_in = (Bytef *)(uintptr_t)t_next_in;
-		zip->stream.avail_in = t_avail_in;
+		zip->stream.avail_in = (uInt)t_avail_in;
 		zip->stream.next_out = t_next_out;
-		zip->stream.avail_out = t_avail_out;
+		zip->stream.avail_out = (uInt)t_avail_out;
 		r = inflate(&(zip->stream), 0);
 		switch (r) {
 		case Z_STREAM_END: /* Found end of stream. */
@@ -1607,8 +1608,9 @@ read_Digests(struct archive_read *a, struct _7z_digests *d, size_t num)
 	const unsigned char *p;
 	unsigned i;
 
+	if (num == 0)
+		return (-1);
 	memset(d, 0, sizeof(*d));
-
 
 	d->defineds = malloc(num);
 	if (d->defineds == NULL)
@@ -2687,7 +2689,7 @@ header_bytes(struct archive_read *a, size_t rbytes)
 	}
 
 	/* Update checksum */
-	zip->header_crc32 = crc32(zip->header_crc32, p, rbytes);
+	zip->header_crc32 = crc32(zip->header_crc32, p, (unsigned)rbytes);
 	return (p);
 }
 
@@ -2966,16 +2968,19 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 			 * Expand the uncompressed buffer up to
 			 * the minimum size.
 			 */
-			zip->uncompressed_buffer_size = minimum + 1023;
-			zip->uncompressed_buffer_size &= ~0x3ff;
-			zip->uncompressed_buffer =
-			    realloc(zip->uncompressed_buffer,
-				zip->uncompressed_buffer_size);
-			if (zip->uncompressed_buffer == NULL) {
+			void *p;
+			size_t new_size;
+
+			new_size = minimum + 1023;
+			new_size &= ~0x3ff;
+			p = realloc(zip->uncompressed_buffer, new_size);
+			if (p == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory for 7-Zip decompression");
 				return (ARCHIVE_FATAL);
 			}
+			zip->uncompressed_buffer = (unsigned char *)p;
+			zip->uncompressed_buffer_size = new_size;
 		}
 		/*
 		 * Move unconsumed bytes to the head.
@@ -3095,7 +3100,7 @@ read_stream(struct archive_read *a, const void **buff, size_t size,
 {
 	struct _7zip *zip = (struct _7zip *)a->format->data;
 	uint64_t skip_bytes = 0;
-	int r;
+	ssize_t r;
 
 	if (zip->uncompressed_buffer_bytes_remaining == 0) {
 		if (zip->pack_stream_inbytes_remaining > 0) {
@@ -3346,8 +3351,10 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 		for (i = 0; i < 3; i++) {
 			const struct _7z_coder *coder = scoder[i];
 
-			if ((r = seek_pack(a)) < 0)
+			if ((r = seek_pack(a)) < 0) {
+				free(b[0]); free(b[1]); free(b[2]);
 				return (r);
+			}
 
 			if (sunpack[i] == (uint64_t)-1)
 				zip->folder_outbytes_remaining =
@@ -3356,13 +3363,16 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 				zip->folder_outbytes_remaining = sunpack[i];
 
 			r = init_decompression(a, zip, coder, NULL);
-			if (r != ARCHIVE_OK)
+			if (r != ARCHIVE_OK) {
+				free(b[0]); free(b[1]); free(b[2]);
 				return (ARCHIVE_FATAL);
+			}
 
 			/* Allocate memory for the decorded data of a sub
 			 * stream. */
 			b[i] = malloc((size_t)zip->folder_outbytes_remaining);
 			if (b[i] == NULL) {
+				free(b[0]); free(b[1]); free(b[2]);
 				archive_set_error(&a->archive, ENOMEM,
 				    "No memory for 7-Zip decompression");
 				return (ARCHIVE_FATAL);
@@ -3370,14 +3380,18 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 
 			/* Extract a sub stream. */
 			while (zip->pack_stream_inbytes_remaining > 0) {
-				r = extract_pack_stream(a, 0);
-				if (r < 0)
+				r = (int)extract_pack_stream(a, 0);
+				if (r < 0) {
+					free(b[0]); free(b[1]); free(b[2]);
 					return (r);
+				}
 				bytes = get_uncompressed_data(a, &buff,
 				    zip->uncompressed_buffer_bytes_remaining,
 				    0);
-				if (bytes < 0)
+				if (bytes < 0) {
+					free(b[0]); free(b[1]); free(b[2]);
 					return ((int)bytes);
+				}
 				memcpy(b[i]+s[i], buff, bytes);
 				s[i] += bytes;
 				if (zip->pack_stream_bytes_unconsumed)
@@ -3557,7 +3571,7 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 	}
 	zip->bcj_prevPosT = prevPosT;
 	zip->bcj_prevMask = prevMask;
-	zip->bcj_ip += bufferPos;
+	zip->bcj_ip += (uint32_t)bufferPos;
 	return (bufferPos);
 }
 
@@ -3701,7 +3715,7 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 			    ((uint32_t)v[1] << 16) |
 			    ((uint32_t)v[2] << 8) |
 			    ((uint32_t)v[3])) -
-			    ((uint32_t)zip->bcj2_outPos + outPos + 4);
+			    ((uint32_t)zip->bcj2_outPos + (uint32_t)outPos + 4);
 			out[0] = (uint8_t)dest;
 			out[1] = (uint8_t)(dest >> 8);
 			out[2] = (uint8_t)(dest >> 16);
@@ -3716,7 +3730,7 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 				 */
 				zip->odd_bcj_size = 4 -i;
 				for (; i < 4; i++) {
-					j = i - 4 + zip->odd_bcj_size;
+					j = i - 4 + (unsigned)zip->odd_bcj_size;
 					zip->odd_bcj[j] = out[i];
 				}
 				break;

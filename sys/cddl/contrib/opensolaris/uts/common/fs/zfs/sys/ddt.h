@@ -63,16 +63,15 @@ enum ddt_class {
  */
 typedef struct ddt_key {
 	zio_cksum_t	ddk_cksum;	/* 256-bit block checksum */
-	uint64_t	ddk_prop;	/* LSIZE, PSIZE, compression */
+	/*
+	 * Encoded with logical & physical size, and compression, as follows:
+	 *   +-------+-------+-------+-------+-------+-------+-------+-------+
+	 *   |   0   |   0   |   0   | comp  |     PSIZE     |     LSIZE     |
+	 *   +-------+-------+-------+-------+-------+-------+-------+-------+
+	 */
+	uint64_t	ddk_prop;
 } ddt_key_t;
 
-/*
- * ddk_prop layout:
- *
- *	+-------+-------+-------+-------+-------+-------+-------+-------+
- *	|   0	|   0	|   0	| comp	|     PSIZE	|     LSIZE	|
- *	+-------+-------+-------+-------+-------+-------+-------+-------+
- */
 #define	DDK_GET_LSIZE(ddk)	\
 	BF64_GET_SB((ddk)->ddk_prop, 0, 16, SPA_MINBLOCKSHIFT, 1)
 #define	DDK_SET_LSIZE(ddk, x)	\
@@ -163,7 +162,7 @@ typedef struct ddt_ops {
 	    dmu_tx_t *tx);
 	int (*ddt_op_walk)(objset_t *os, uint64_t object, ddt_entry_t *dde,
 	    uint64_t *walk);
-	uint64_t (*ddt_op_count)(objset_t *os, uint64_t object);
+	int (*ddt_op_count)(objset_t *os, uint64_t object, uint64_t *count);
 } ddt_ops_t;
 
 #define	DDT_NAMELEN	80
@@ -172,8 +171,8 @@ extern void ddt_object_name(ddt_t *ddt, enum ddt_type type,
     enum ddt_class cls, char *name);
 extern int ddt_object_walk(ddt_t *ddt, enum ddt_type type,
     enum ddt_class cls, uint64_t *walk, ddt_entry_t *dde);
-extern uint64_t ddt_object_count(ddt_t *ddt, enum ddt_type type,
-    enum ddt_class cls);
+extern int ddt_object_count(ddt_t *ddt, enum ddt_type type,
+    enum ddt_class class, uint64_t *count);
 extern int ddt_object_info(ddt_t *ddt, enum ddt_type type,
     enum ddt_class cls, dmu_object_info_t *);
 extern boolean_t ddt_object_exists(ddt_t *ddt, enum ddt_type type,

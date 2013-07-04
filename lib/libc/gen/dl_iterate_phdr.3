@@ -29,7 +29,7 @@ Statically linked programs use an implementation of
 .Fn dl_iterate_phdr
 from libc.
 .Sh SYNOPSIS
-.Fd #include <link.h>
+.In link.h
 .Ft int
 .Fn dl_iterate_phdr "int (*callback)(struct dl_phdr_info *, size_t, void *)" "void *data"
 .Sh DESCRIPTION

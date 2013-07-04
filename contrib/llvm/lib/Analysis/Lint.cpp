@@ -34,26 +34,26 @@
 // 
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/Lint.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/Dominators.h"
-#include "llvm/Analysis/Lint.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/Loads.h"
+#include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/InstVisitor.h"
 #include "llvm/Pass.h"
 #include "llvm/PassManager.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Function.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 using namespace llvm;
 
 namespace {
@@ -412,51 +412,49 @@ void Lint::visitMemoryReference(Instruction &I,
   }
 
   // Check for buffer overflows and misalignment.
-  if (TD) {
-    // Only handles memory references that read/write something simple like an
-    // alloca instruction or a global variable.
-    int64_t Offset = 0;
-    if (Value *Base = GetPointerBaseWithConstantOffset(Ptr, Offset, *TD)) {
-      // OK, so the access is to a constant offset from Ptr.  Check that Ptr is
-      // something we can handle and if so extract the size of this base object
-      // along with its alignment.
-      uint64_t BaseSize = AliasAnalysis::UnknownSize;
-      unsigned BaseAlign = 0;
+  // Only handles memory references that read/write something simple like an
+  // alloca instruction or a global variable.
+  int64_t Offset = 0;
+  if (Value *Base = GetPointerBaseWithConstantOffset(Ptr, Offset, TD)) {
+    // OK, so the access is to a constant offset from Ptr.  Check that Ptr is
+    // something we can handle and if so extract the size of this base object
+    // along with its alignment.
+    uint64_t BaseSize = AliasAnalysis::UnknownSize;
+    unsigned BaseAlign = 0;
 
-      if (AllocaInst *AI = dyn_cast<AllocaInst>(Base)) {
-        Type *ATy = AI->getAllocatedType();
-        if (!AI->isArrayAllocation() && ATy->isSized())
-          BaseSize = TD->getTypeAllocSize(ATy);
-        BaseAlign = AI->getAlignment();
-        if (BaseAlign == 0 && ATy->isSized())
-          BaseAlign = TD->getABITypeAlignment(ATy);
-      } else if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Base)) {
-        // If the global may be defined differently in another compilation unit
-        // then don't warn about funky memory accesses.
-        if (GV->hasDefinitiveInitializer()) {
-          Type *GTy = GV->getType()->getElementType();
-          if (GTy->isSized())
-            BaseSize = TD->getTypeAllocSize(GTy);
-          BaseAlign = GV->getAlignment();
-          if (BaseAlign == 0 && GTy->isSized())
-            BaseAlign = TD->getABITypeAlignment(GTy);
-        }
+    if (AllocaInst *AI = dyn_cast<AllocaInst>(Base)) {
+      Type *ATy = AI->getAllocatedType();
+      if (TD && !AI->isArrayAllocation() && ATy->isSized())
+        BaseSize = TD->getTypeAllocSize(ATy);
+      BaseAlign = AI->getAlignment();
+      if (TD && BaseAlign == 0 && ATy->isSized())
+        BaseAlign = TD->getABITypeAlignment(ATy);
+    } else if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Base)) {
+      // If the global may be defined differently in another compilation unit
+      // then don't warn about funky memory accesses.
+      if (GV->hasDefinitiveInitializer()) {
+        Type *GTy = GV->getType()->getElementType();
+        if (TD && GTy->isSized())
+          BaseSize = TD->getTypeAllocSize(GTy);
+        BaseAlign = GV->getAlignment();
+        if (TD && BaseAlign == 0 && GTy->isSized())
+          BaseAlign = TD->getABITypeAlignment(GTy);
       }
-
-      // Accesses from before the start or after the end of the object are not
-      // defined.
-      Assert1(Size == AliasAnalysis::UnknownSize ||
-              BaseSize == AliasAnalysis::UnknownSize ||
-              (Offset >= 0 && Offset + Size <= BaseSize),
-              "Undefined behavior: Buffer overflow", &I);
-
-      // Accesses that say that the memory is more aligned than it is are not
-      // defined.
-      if (Align == 0 && Ty && Ty->isSized())
-        Align = TD->getABITypeAlignment(Ty);
-      Assert1(!BaseAlign || Align <= MinAlign(BaseAlign, Offset),
-              "Undefined behavior: Memory reference address is misaligned", &I);
     }
+
+    // Accesses from before the start or after the end of the object are not
+    // defined.
+    Assert1(Size == AliasAnalysis::UnknownSize ||
+            BaseSize == AliasAnalysis::UnknownSize ||
+            (Offset >= 0 && Offset + Size <= BaseSize),
+            "Undefined behavior: Buffer overflow", &I);
+
+    // Accesses that say that the memory is more aligned than it is are not
+    // defined.
+    if (TD && Align == 0 && Ty && Ty->isSized())
+      Align = TD->getABITypeAlignment(Ty);
+    Assert1(!BaseAlign || Align <= MinAlign(BaseAlign, Offset),
+            "Undefined behavior: Memory reference address is misaligned", &I);
   }
 }
 

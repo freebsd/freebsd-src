@@ -121,7 +121,7 @@ static MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
  *		ro->ro_rt must also be NULL.
  */
 int
-atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
+atm_output(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
     struct route *ro)
 {
 	u_int16_t etype = 0;			/* if using LLC/SNAP */
@@ -129,7 +129,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 	struct atm_pseudohdr atmdst, *ad;
 	struct mbuf *m = m0;
 	struct atmllc *atmllc;
-	struct atmllc *llc_hdr = NULL;
+	const struct atmllc *llc_hdr = NULL;
 	u_int32_t atm_flags;
 
 #ifdef MAC
@@ -173,7 +173,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			 * (atm pseudo header (4) + LLC/SNAP (8))
 			 */
 			bcopy(dst->sa_data, &atmdst, sizeof(atmdst));
-			llc_hdr = (struct atmllc *)(dst->sa_data +
+			llc_hdr = (const struct atmllc *)(dst->sa_data +
 			    sizeof(atmdst));
 			break;
 			

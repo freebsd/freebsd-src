@@ -125,7 +125,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CLANG 1"
-.TH CLANG 1 "2012-12-21" "clang 3.2" "Clang Tools Documentation"
+.TH CLANG 1 "2013-06-10" "clang 3.3" "Clang Tools Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -135,7 +135,7 @@ clang \- the Clang C, C++, and Objective\-C compiler
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 \&\fBclang\fR [\fB\-c\fR|\fB\-S\fR|\fB\-E\fR] \fB\-std=\fR\fIstandard\fR \fB\-g\fR
-  [\fB\-O0\fR|\fB\-O1\fR|\fB\-O2\fR|\fB\-Os\fR|\fB\-Oz\fR|\fB\-O3\fR|\fB\-O4\fR]
+  [\fB\-O0\fR|\fB\-O1\fR|\fB\-O2\fR|\fB\-Os\fR|\fB\-Oz\fR|\fB\-O3\fR|\fB\-Ofast\fR|\fB\-O4\fR]
   \fB\-W\fR\fIwarnings...\fR \fB\-pedantic\fR
   \fB\-I\fR\fIdir...\fR \fB\-L\fR\fIdir...\fR
   \fB\-D\fR\fImacro[=defn]\fR
@@ -325,15 +325,17 @@ generate instructions that are valid on i486 and later processors, but which
 may not exist on earlier ones.
 .SS "Code Generation Options"
 .IX Subsection "Code Generation Options"
-.IP "\fB\-O0\fR \fB\-O1\fR \fB\-O2\fR \fB\-Os\fR \fB\-Oz\fR \fB\-O3\fR \fB\-O4\fR" 4
-.IX Item "-O0 -O1 -O2 -Os -Oz -O3 -O4"
+.IP "\fB\-O0\fR \fB\-O1\fR \fB\-O2\fR \fB\-Os\fR \fB\-Oz\fR \fB\-O3\fR \fB\-Ofast\fR \fB\-O4\fR" 4
+.IX Item "-O0 -O1 -O2 -Os -Oz -O3 -Ofast -O4"
 Specify which optimization level to use.  \fB\-O0\fR means \*(L"no optimization\*(R": this
 level compiles the fastest and generates the most debuggable code.  \fB\-O2\fR is a
 moderate level of optimization which enables most optimizations.  \fB\-Os\fR is like
 \&\fB\-O2\fR with extra optimizations to reduce code size.  \fB\-Oz\fR is like \fB\-Os\fR 
 (and thus \fB\-O2\fR), but reduces code size further.  \fB\-O3\fR is like \fB\-O2\fR,
 except that it enables optimizations that take longer to perform or that may
-generate larger code (in an attempt to make the program run faster).  On
+generate larger code (in an attempt to make the program run faster).
+\&\fB\-Ofast\fR enables all the optimizations from \fB\-O3\fR along with other aggressive
+optimizations that may violate strict compliance with language standards. On
 supported platforms, \fB\-O4\fR enables link-time optimization; object files are
 stored in the \s-1LLVM\s0 bitcode file format and whole program optimization is done at
 link time. \fB\-O1\fR is somewhere between \fB\-O0\fR and \fB\-O2\fR.

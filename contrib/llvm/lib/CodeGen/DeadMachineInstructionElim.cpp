@@ -13,14 +13,14 @@
 
 #define DEBUG_TYPE "codegen-dce"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Pass.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 STATISTIC(NumDeletes,          "Number of dead instructions deleted");
@@ -98,15 +98,6 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
 
     // Start out assuming that reserved registers are live out of this block.
     LivePhysRegs = MRI->getReservedRegs();
-
-    // Also add any explicit live-out physregs for this block.
-    if (!MBB->empty() && MBB->back().isReturn())
-      for (MachineRegisterInfo::liveout_iterator LOI = MRI->liveout_begin(),
-           LOE = MRI->liveout_end(); LOI != LOE; ++LOI) {
-        unsigned Reg = *LOI;
-        if (TargetRegisterInfo::isPhysicalRegister(Reg))
-          LivePhysRegs.set(Reg);
-      }
 
     // Add live-ins from sucessors to LivePhysRegs. Normally, physregs are not
     // live across blocks, but some targets (x86) can have flags live out of a

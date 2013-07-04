@@ -118,6 +118,7 @@ static struct g_part_mbr_alias {
 	{ DOSPTYP_386BSD,	G_PART_ALIAS_FREEBSD },
 	{ DOSPTYP_EXT,		G_PART_ALIAS_EBR },
 	{ DOSPTYP_NTFS,		G_PART_ALIAS_MS_NTFS },
+	{ DOSPTYP_FAT16,	G_PART_ALIAS_MS_FAT16 },
 	{ DOSPTYP_FAT32,	G_PART_ALIAS_MS_FAT32 },
 	{ DOSPTYP_EXTLBA,	G_PART_ALIAS_EBR },
 	{ DOSPTYP_LDM,		G_PART_ALIAS_MS_LDM_DATA },
@@ -496,6 +497,8 @@ g_part_mbr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_mbr_entry *entry;
 	int changed;
 
+	if (baseentry == NULL)
+		return (ENODEV);
 	if (strcasecmp(attrib, "active") != 0)
 		return (EINVAL);
 

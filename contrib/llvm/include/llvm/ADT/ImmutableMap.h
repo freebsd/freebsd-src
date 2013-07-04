@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ADT_IMMAP_H
-#define LLVM_ADT_IMMAP_H
+#ifndef LLVM_ADT_IMMUTABLEMAP_H
+#define LLVM_ADT_IMMUTABLEMAP_H
 
 #include "llvm/ADT/ImmutableSet.h"
 
@@ -211,17 +211,22 @@ public:
     friend class ImmutableMap;
 
   public:
-    value_type_ref operator*() const { return itr->getValue(); }
-    value_type*    operator->() const { return &itr->getValue(); }
+    typedef typename ImmutableMap<KeyT,ValT,ValInfo>::value_type value_type;
+    typedef typename ImmutableMap<KeyT,ValT,ValInfo>::value_type_ref reference;
+    typedef typename iterator::value_type *pointer;
+    typedef std::bidirectional_iterator_tag iterator_category;
+
+    typename iterator::reference operator*() const { return itr->getValue(); }
+    typename iterator::pointer   operator->() const { return &itr->getValue(); }
 
     key_type_ref getKey() const { return itr->getValue().first; }
     data_type_ref getData() const { return itr->getValue().second; }
-
 
     iterator& operator++() { ++itr; return *this; }
     iterator  operator++(int) { iterator tmp(*this); ++itr; return tmp; }
     iterator& operator--() { --itr; return *this; }
     iterator  operator--(int) { iterator tmp(*this); --itr; return tmp; }
+
     bool operator==(const iterator& RHS) const { return RHS.itr == itr; }
     bool operator!=(const iterator& RHS) const { return RHS.itr != itr; }
   };
@@ -288,6 +293,13 @@ public:
       Factory(F) {
     if (Root) { Root->retain(); }
   }
+
+  explicit ImmutableMapRef(const ImmutableMap<KeyT, ValT> &X,
+                           typename ImmutableMap<KeyT, ValT>::Factory &F)
+    : Root(X.getRootWithoutRetain()),
+      Factory(F.getTreeFactory()) {
+    if (Root) { Root->retain(); }
+  }
   
   ImmutableMapRef(const ImmutableMapRef &X)
     : Root(X.Root),
@@ -318,12 +330,20 @@ public:
     return ImmutableMapRef(0, F);
   }
 
-  ImmutableMapRef add(key_type_ref K, data_type_ref D) {
+  void manualRetain() {
+    if (Root) Root->retain();
+  }
+
+  void manualRelease() {
+    if (Root) Root->release();
+  }
+
+  ImmutableMapRef add(key_type_ref K, data_type_ref D) const {
     TreeTy *NewT = Factory->add(Root, std::pair<key_type, data_type>(K, D));
     return ImmutableMapRef(NewT, Factory);
   }
 
-  ImmutableMapRef remove(key_type_ref K) {
+  ImmutableMapRef remove(key_type_ref K) const {
     TreeTy *NewT = Factory->remove(Root, K);
     return ImmutableMapRef(NewT, Factory);
   }

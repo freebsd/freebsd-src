@@ -990,7 +990,7 @@ static void RangeEnc_ShiftLow(CPpmd7z_RangeEnc *p)
     p->Cache = (Byte)((UInt32)p->Low >> 24);
   }
   p->CacheSize++;
-  p->Low = (UInt32)p->Low << 8;
+  p->Low = ((UInt32)p->Low << 8) & 0xFFFFFFFF;
 }
 
 static void RangeEnc_Encode(CPpmd7z_RangeEnc *p, UInt32 start, UInt32 size, UInt32 total)

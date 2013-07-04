@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Johann 'Myrkraverk' Oskarsson.
  * Copyright (c) 1992 Diomidis Spinellis.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -57,6 +58,7 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #include <locale.h>
 #include <regex.h>
 #include <stddef.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -307,8 +309,9 @@ int
 mf_fgets(SPACE *sp, enum e_spflag spflag)
 {
 	struct stat sb;
-	size_t len;
-	char *p;
+	ssize_t len;
+	static char *p = NULL;
+	static size_t plen = 0;
 	int c;
 	static int firstfile;
 
@@ -424,13 +427,13 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 	 * We are here only when infile is open and we still have something
 	 * to read from it.
 	 *
-	 * Use fgetln so that we can handle essentially infinite input data.
-	 * Can't use the pointer into the stdio buffer as the process space
-	 * because the ungetc() can cause it to move.
+	 * Use getline() so that we can handle essentially infinite input
+	 * data.  The p and plen are static so each invocation gives
+	 * getline() the same buffer which is expanded as needed.
 	 */
-	p = fgetln(infile, &len);
-	if (ferror(infile))
-		errx(1, "%s: %s", fname, strerror(errno ? errno : EIO));
+	len = getline(&p, &plen, infile);
+	if (len == -1)
+		err(1, "%s", fname);
 	if (len != 0 && p[len - 1] == '\n')
 		len--;
 	cspace(sp, p, len, spflag);

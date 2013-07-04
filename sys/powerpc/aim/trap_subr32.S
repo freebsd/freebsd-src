@@ -242,13 +242,6 @@
 
 #ifdef KDTRACE_HOOKS
 	.data
-	.globl	dtrace_invop_jump_addr
-	.align	4
-	.type	dtrace_invop_jump_addr, @object
-        .size	dtrace_invop_jump_addr, 4
-dtrace_invop_jump_addr:
-	.word	0
-	.word	0
 	.globl	dtrace_invop_calltrap_addr
 	.align	4
 	.type	dtrace_invop_calltrap_addr, @object

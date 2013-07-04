@@ -89,7 +89,7 @@ extract_pattern(int delimiter)
 		default:
 			break;
 		case '[':
-			if ((nd = parse_char_class(++nd)) == NULL) {
+			if ((nd = parse_char_class(nd + 1)) == NULL) {
 				errmsg = "unbalanced brackets ([])";
 				return NULL;
 			}

@@ -13,19 +13,19 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "bounds-checking"
-#include "llvm/IRBuilder.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/Pass.h"
+#include "llvm/Transforms/Instrumentation.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/TargetFolder.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Transforms/Instrumentation.h"
 using namespace llvm;
 
 static cl::opt<bool> SingleTrapBB("bounds-checking-single-trap",
@@ -41,7 +41,7 @@ namespace {
   struct BoundsChecking : public FunctionPass {
     static char ID;
 
-    BoundsChecking(unsigned _Penalty = 5) : FunctionPass(ID), Penalty(_Penalty){
+    BoundsChecking() : FunctionPass(ID) {
       initializeBoundsCheckingPass(*PassRegistry::getPassRegistry());
     }
 
@@ -59,7 +59,6 @@ namespace {
     BuilderTy *Builder;
     Instruction *Inst;
     BasicBlock *TrapBB;
-    unsigned Penalty;
 
     BasicBlock *getTrapBB();
     void emitBranchToTrap(Value *Cmp = 0);
@@ -109,6 +108,7 @@ void BoundsChecking::emitBranchToTrap(Value *Cmp) {
     else
       Cmp = 0; // unconditional branch
   }
+  ++ChecksAdded;
 
   Instruction *Inst = Builder->GetInsertPoint();
   BasicBlock *OldBB = Inst->getParent();
@@ -163,7 +163,6 @@ bool BoundsChecking::instrument(Value *Ptr, Value *InstVal) {
   }
   emitBranchToTrap(Or);
 
-  ++ChecksAdded;
   return true;
 }
 
@@ -208,6 +207,6 @@ bool BoundsChecking::runOnFunction(Function &F) {
   return MadeChange;
 }
 
-FunctionPass *llvm::createBoundsCheckingPass(unsigned Penalty) {
-  return new BoundsChecking(Penalty);
+FunctionPass *llvm::createBoundsCheckingPass() {
+  return new BoundsChecking();
 }

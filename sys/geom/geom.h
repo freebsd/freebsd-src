@@ -205,6 +205,7 @@ struct g_provider {
 	u_int			flags;
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
+#define	G_PF_ACCEPT_UNMAPPED	0x8
 
 	/* Two fields for the implementing class to use */
 	void			*private;

@@ -35,6 +35,15 @@ class I<bits<6> opcode, dag OOL, dag IOL, string asmstr, InstrItinClass itin>
   let TSFlags{1}   = PPC970_Single;
   let TSFlags{2}   = PPC970_Cracked;
   let TSFlags{5-3} = PPC970_Unit;
+
+  // Fields used for relation models.
+  string BaseName = "";
+
+  // For cases where multiple instruction definitions really represent the
+  // same underlying instruction but with one definition for 64-bit arguments
+  // and one for 32-bit arguments, this bit breaks the degeneracy between
+  // the two forms and allows TableGen to generate mapping tables.
+  bit Interpretation64Bit = 0;
 }
 
 class PPC970_DGroup_First   { bits<1> PPC970_First = 1;  }
@@ -80,6 +89,10 @@ class I2<bits<6> opcode1, bits<6> opcode2, dag OOL, dag IOL, string asmstr,
   let TSFlags{1}   = PPC970_Single;
   let TSFlags{2}   = PPC970_Cracked;
   let TSFlags{5-3} = PPC970_Unit;
+
+  // Fields used for relation models.
+  string BaseName = "";
+  bit Interpretation64Bit = 0;
 }
 
 // 1.7.1 I-Form
@@ -118,6 +131,18 @@ class BForm_1<bits<6> opcode, bits<5> bo, bit aa, bit lk, dag OOL, dag IOL,
   let BIBO{4-0} = bo;
   let BIBO{6-5} = 0;
   let CR = 0;
+}
+
+class BForm_2<bits<6> opcode, bits<5> bo, bits<5> bi, bit aa, bit lk,
+              dag OOL, dag IOL, string asmstr>
+  : I<opcode, OOL, IOL, asmstr, BrB> {
+  bits<14> BD;
+
+  let Inst{6-10}  = bo;
+  let Inst{11-15} = bi;
+  let Inst{16-29} = BD;
+  let Inst{30}    = aa;
+  let Inst{31}    = lk;
 }
 
 // 1.7.4 D-Form
@@ -165,7 +190,12 @@ class DForm_1a<bits<6> opcode, dag OOL, dag IOL, string asmstr,
 
 class DForm_2<bits<6> opcode, dag OOL, dag IOL, string asmstr,
               InstrItinClass itin, list<dag> pattern>
-  : DForm_base<opcode, OOL, IOL, asmstr, itin, pattern>;
+  : DForm_base<opcode, OOL, IOL, asmstr, itin, pattern> {
+
+  // Even though ADDICo does not really have an RC bit, provide
+  // the declaration of one here so that isDOT has something to set.
+  bit RC = 0;
+}
 
 class DForm_2_r0<bits<6> opcode, dag OOL, dag IOL, string asmstr,
                  InstrItinClass itin, list<dag> pattern>
@@ -334,6 +364,12 @@ class XForm_base_r3xo_swapped
 class XForm_1<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
               InstrItinClass itin, list<dag> pattern> 
   : XForm_base_r3xo<opcode, xo, OOL, IOL, asmstr, itin, pattern>;
+
+class XForm_1a<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
+              InstrItinClass itin, list<dag> pattern>
+  : XForm_base_r3xo<opcode, xo, OOL, IOL, asmstr, itin, pattern> {
+  let RST = 0;
+}
 
 class XForm_6<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
               InstrItinClass itin, list<dag> pattern> 
@@ -553,9 +589,9 @@ class XLForm_2_br<bits<6> opcode, bits<10> xo, bit lk,
   bits<7> BIBO;  // 2 bits of BI and 5 bits of BO.
   bits<3>  CR;
   
-  let BO = BIBO{2-6};
-  let BI{0-1} = BIBO{0-1};
-  let BI{2-4} = CR;
+  let BO = BIBO{4-0};
+  let BI{0-1} = BIBO{5-6};
+  let BI{2-4} = CR{0-2};
   let BH = 0;
 }
 
@@ -664,14 +700,13 @@ class XFXForm_7_ext<bits<6> opcode, bits<10> xo, bits<10> spr,
 // This is probably 1.7.9, but I don't have the reference that uses this
 // numbering scheme...
 class XFLForm<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr, 
-                      string cstr, InstrItinClass itin, list<dag>pattern>
+              InstrItinClass itin, list<dag>pattern>
   : I<opcode, OOL, IOL, asmstr, itin> {
   bits<8> FM;
   bits<5> rT;
 
   bit RC = 0;    // set by isDOT
   let Pattern = pattern;
-  let Constraints = cstr;
 
   let Inst{6} = 0;
   let Inst{7-14}  = FM;
@@ -765,16 +800,14 @@ class AForm_4<bits<6> opcode, bits<5> xo, dag OOL, dag IOL, string asmstr,
   bits<5> RT;
   bits<5> RA;
   bits<5> RB;
-  bits<7> BIBO;  // 2 bits of BI and 5 bits of BO (must be 12).
-  bits<3> CR;
+  bits<5> COND;
 
   let Pattern = pattern;
 
   let Inst{6-10}  = RT;
   let Inst{11-15} = RA;
   let Inst{16-20} = RB;
-  let Inst{21-23} = CR;
-  let Inst{24-25} = BIBO{6-5};
+  let Inst{21-25} = COND;
   let Inst{26-30} = xo;
   let Inst{31}    = 0;
 }
@@ -828,6 +861,25 @@ class MDForm_1<bits<6> opcode, bits<3> xo, dag OOL, dag IOL, string asmstr,
   let Inst{31}    = RC;
 }
 
+class MDSForm_1<bits<6> opcode, bits<4> xo, dag OOL, dag IOL, string asmstr,
+                InstrItinClass itin, list<dag> pattern>
+    : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<5> RA;
+  bits<5> RS;
+  bits<5> RB;
+  bits<6> MBE;
+
+  let Pattern = pattern;
+
+  bit RC = 0;    // set by isDOT
+
+  let Inst{6-10}  = RS;
+  let Inst{11-15} = RA;
+  let Inst{16-20} = RB;
+  let Inst{21-26} = MBE{4,3,2,1,0,5};
+  let Inst{27-30} = xo;
+  let Inst{31}    = RC;
+}
 
 
 // E-1 VA-Form
@@ -987,6 +1039,7 @@ class VXRForm_1<bits<10> xo, dag OOL, dag IOL, string asmstr,
 //===----------------------------------------------------------------------===//
 class Pseudo<dag OOL, dag IOL, string asmstr, list<dag> pattern>
     : I<0, OOL, IOL, asmstr, NoItinerary> {
+  let isCodeGenOnly = 1;
   let PPC64 = 0;
   let Pattern = pattern;
   let Inst{31-0} = 0;

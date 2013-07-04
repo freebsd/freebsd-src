@@ -75,6 +75,8 @@ struct espstat {
 VNET_DECLARE(int, esp_enable);
 VNET_DECLARE(struct espstat, espstat);
 
+#define	ESPSTAT_ADD(name, val)	V_espstat.name += (val)
+#define	ESPSTAT_INC(name)	ESPSTAT_ADD(name, 1)
 #define	V_esp_enable	VNET(esp_enable)
 #define	V_espstat	VNET(espstat)
 #endif /* _KERNEL */

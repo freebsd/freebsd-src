@@ -48,7 +48,7 @@ CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 
 # Remove the date stamp to make it more obvious when real changes happen
-CFLAGS+=	-U__DATE__
+CFLAGS+=	-DNO_VERSION_DATE
 
 WARNS?=		0
 

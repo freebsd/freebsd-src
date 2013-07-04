@@ -24,6 +24,8 @@ __FBSDID("$FreeBSD$");
 #define	ARC4_RESEED_SECONDS 300
 #define	ARC4_KEYBYTES (256 / 8)
 
+int arc4rand_iniseed_state = ARC4_ENTR_NONE;
+
 static u_int8_t arc4_i, arc4_j;
 static int arc4_numruns = 0;
 static u_int8_t arc4_sbox[256];
@@ -130,7 +132,8 @@ arc4rand(void *ptr, u_int len, int reseed)
 	struct timeval tv;
 
 	getmicrouptime(&tv);
-	if (reseed || 
+	if (atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_HAVE,
+	    ARC4_ENTR_SEED) || reseed ||
 	   (arc4_numruns > ARC4_RESEED_BYTES) ||
 	   (tv.tv_sec > arc4_t_reseed))
 		arc4_randomstir();

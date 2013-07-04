@@ -94,7 +94,7 @@ $ EPROTONOSUPPORT
 $ ESOCKTNOSUPPORT
 44 Type de socket non supporté
 $ EOPNOTSUPP
-45 Opération non supporté
+45 Opération non supportée
 $ EPFNOSUPPORT
 46 Famille de protocole non supportée
 $ EAFNOSUPPORT

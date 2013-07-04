@@ -37,6 +37,7 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
+	dtc \
 	du \
 	ee \
 	elf2aout \
@@ -123,6 +124,7 @@ SUBDIR=	alias \
 	pagesize \
 	passwd \
 	paste \
+	patch \
 	pathchk \
 	perror \
 	pr \
@@ -146,7 +148,6 @@ SUBDIR=	alias \
 	sockstat \
 	sort \
 	split \
-	ssh-copy-id \
 	stat \
 	stdbuf \
 	su \
@@ -301,6 +302,10 @@ SUBDIR+=	ypmatch
 SUBDIR+=	ypwhich
 .endif
 
+.if ${MK_OPENSSH} != "no"
+SUBDIR+=	ssh-copy-id
+.endif
+
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=	bc
 SUBDIR+=	chkey
@@ -359,6 +364,12 @@ SUBDIR+=	usbhidctl
 SUBDIR+=	last
 SUBDIR+=	users
 SUBDIR+=	who
+.endif
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "armv6"
+.if ${MK_SVN} == "yes" || ${MK_SVNLITE} == "yes"
+SUBDIR+=	svn
+.endif
 .endif
 
 .include <bsd.arch.inc.mk>

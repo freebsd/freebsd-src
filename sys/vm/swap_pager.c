@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/blist.h>
@@ -343,7 +344,6 @@ SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
 static struct mtx sw_alloc_mtx;	/* protect list manipulation */
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
 static uma_zone_t	swap_zone;
-static struct vm_object	swap_zone_obj;
 
 /*
  * pagerops for OBJT_SWAP - "swap pager".  Some ops are also global procedure
@@ -554,7 +554,7 @@ swap_pager_swap_init(void)
 	if (swap_zone == NULL)
 		panic("failed to create swap_zone.");
 	do {
-		if (uma_zone_set_obj(swap_zone, &swap_zone_obj, n))
+		if (uma_zone_reserve_kva(swap_zone, n))
 			break;
 		/*
 		 * if the allocation failed, try a zone two thirds the
@@ -622,14 +622,14 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 				crhold(cred);
 			}
 			object = vm_object_allocate(OBJT_DEFAULT, pindex);
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			object->handle = handle;
 			if (cred != NULL) {
 				object->cred = cred;
 				object->charge = size;
 			}
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
 		mtx_unlock(&Giant);
@@ -640,13 +640,13 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			crhold(cred);
 		}
 		object = vm_object_allocate(OBJT_DEFAULT, pindex);
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		if (cred != NULL) {
 			object->cred = cred;
 			object->charge = size;
 		}
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 	return (object);
 }
@@ -675,7 +675,7 @@ swap_pager_dealloc(vm_object_t object)
 		mtx_unlock(&sw_alloc_mtx);
 	}
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	vm_object_pip_wait(object, "swpdea");
 
 	/*
@@ -758,6 +758,17 @@ swp_pager_strategy(struct buf *bp)
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (bp->b_blkno >= sp->sw_first && bp->b_blkno < sp->sw_end) {
 			mtx_unlock(&sw_dev_mtx);
+			if ((sp->sw_flags & SW_UNMAPPED) != 0 &&
+			    unmapped_buf_allowed) {
+				bp->b_kvaalloc = bp->b_data;
+				bp->b_data = unmapped_buf;
+				bp->b_kvabase = unmapped_buf;
+				bp->b_offset = 0;
+				bp->b_flags |= B_UNMAPPED;
+			} else {
+				pmap_qenter((vm_offset_t)bp->b_data,
+				    &bp->b_pages[0], bp->b_bcount / PAGE_SIZE);
+			}
 			sp->sw_strategy(bp, sp);
 			return;
 		}
@@ -811,12 +822,13 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
  *	The external callers of this routine typically have already destroyed
  *	or renamed vm_page_t's associated with this range in the object so
  *	we should be ok.
+ *
+ *	The object must be locked.
  */
 void
 swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	swp_pager_meta_free(object, start, size);
 }
 
@@ -835,7 +847,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 	daddr_t blk = SWAPBLK_NONE;
 	vm_pindex_t beg = start;	/* save start index */
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	while (size) {
 		if (n == 0) {
 			n = BLIST_MAX_ALLOC;
@@ -843,7 +855,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 				n >>= 1;
 				if (n == 0) {
 					swp_pager_meta_free(object, beg, start - beg);
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 					return (-1);
 				}
 			}
@@ -855,7 +867,7 @@ swap_pager_reserve(vm_object_t object, vm_pindex_t start, vm_size_t size)
 		--n;
 	}
 	swp_pager_meta_free(object, start, n);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return (0);
 }
 
@@ -884,8 +896,8 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 {
 	vm_pindex_t i;
 
-	VM_OBJECT_LOCK_ASSERT(srcobject, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(dstobject, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(srcobject);
+	VM_OBJECT_ASSERT_WLOCKED(dstobject);
 
 	/*
 	 * If destroysource is set, we remove the source object from the
@@ -935,11 +947,11 @@ swap_pager_copy(vm_object_t srcobject, vm_object_t dstobject,
 				 * swp_pager_meta_build() can sleep.
 				 */
 				vm_object_pip_add(srcobject, 1);
-				VM_OBJECT_UNLOCK(srcobject);
+				VM_OBJECT_WUNLOCK(srcobject);
 				vm_object_pip_add(dstobject, 1);
 				swp_pager_meta_build(dstobject, i, srcaddr);
 				vm_object_pip_wakeup(dstobject);
-				VM_OBJECT_LOCK(srcobject);
+				VM_OBJECT_WLOCK(srcobject);
 				vm_object_pip_wakeup(srcobject);
 			}
 		} else {
@@ -988,7 +1000,7 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
 {
 	daddr_t blk0;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	/*
 	 * do we have good backing store at the requested index ?
 	 */
@@ -1054,12 +1066,13 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
  *	depends on it.
  *
  *	This routine may not sleep.
+ *
+ *	The object containing the page must be locked.
  */
 static void
 swap_pager_unswapped(vm_page_t m)
 {
 
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	swp_pager_meta_ctl(m->object, m->pindex, SWM_FREE);
 }
 
@@ -1148,17 +1161,12 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	/*
 	 * Getpbuf() can sleep.
 	 */
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	/*
 	 * Get a swap buffer header to perform the IO
 	 */
 	bp = getpbuf(&nsw_rcount);
 	bp->b_flags |= B_PAGING;
-
-	/*
-	 * map our page(s) into kva for input
-	 */
-	pmap_qenter((vm_offset_t)bp->b_data, m + i, j - i);
 
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = swp_pager_async_iodone;
@@ -1169,7 +1177,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	bp->b_bufsize = PAGE_SIZE * (j - i);
 	bp->b_pager.pg_reqpage = reqpage - i;
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	{
 		int k;
 
@@ -1188,7 +1196,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * does not remove it.
 	 */
 	vm_object_pip_add(object, bp->b_npages);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	/*
 	 * perform the I/O.  NOTE!!!  bp cannot be considered valid after
@@ -1209,11 +1217,11 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 * cleared on completion.  If an I/O error occurs, SWAPBLK_NONE
 	 * is set in the meta-data.
 	 */
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
 		mreq->oflags |= VPO_WANTED;
 		PCPU_INC(cnt.v_intrans);
-		if (msleep(mreq, VM_OBJECT_MTX(object), PSWP, "swread", hz*20)) {
+		if (VM_OBJECT_SLEEP(object, mreq, PSWP, "swread", hz * 20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
 			    bp->b_bufobj, (intmax_t)bp->b_blkno, bp->b_bcount);
@@ -1284,7 +1292,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 */
 	if (object->type != OBJT_SWAP)
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	if (curproc != pageproc)
 		sync = TRUE;
@@ -1371,15 +1379,13 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_flags |= B_PAGING;
 		bp->b_iocmd = BIO_WRITE;
 
-		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
-
 		bp->b_rcred = crhold(thread0.td_ucred);
 		bp->b_wcred = crhold(thread0.td_ucred);
 		bp->b_bcount = PAGE_SIZE * n;
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
 
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 		for (j = 0; j < n; ++j) {
 			vm_page_t mreq = m[i+j];
 
@@ -1394,7 +1400,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 			mreq->oflags |= VPO_SWAPINPROG;
 			bp->b_pages[j] = mreq;
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		bp->b_npages = n;
 		/*
 		 * Must set dirty range for NFS to work.
@@ -1444,7 +1450,7 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		 */
 		swp_pager_async_iodone(bp);
 	}
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 }
 
 /*
@@ -1484,11 +1490,16 @@ swp_pager_async_iodone(struct buf *bp)
 	/*
 	 * remove the mapping for kernel virtual
 	 */
-	pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
+	if ((bp->b_flags & B_UNMAPPED) != 0) {
+		bp->b_data = bp->b_kvaalloc;
+		bp->b_kvabase = bp->b_kvaalloc;
+		bp->b_flags &= ~B_UNMAPPED;
+	} else
+		pmap_qremove((vm_offset_t)bp->b_data, bp->b_npages);
 
 	if (bp->b_npages) {
 		object = bp->b_pages[0]->object;
-		VM_OBJECT_LOCK(object);
+		VM_OBJECT_WLOCK(object);
 	}
 
 	/*
@@ -1612,7 +1623,7 @@ swp_pager_async_iodone(struct buf *bp)
 	 */
 	if (object != NULL) {
 		vm_object_pip_wakeupn(object, bp->b_npages);
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 	}
 
 	/*
@@ -1653,7 +1664,7 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 	int bcount;
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type != OBJT_SWAP)
 		return (0);
 
@@ -1695,18 +1706,19 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	vm_object_pip_add(object, 1);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+	    VM_ALLOC_NOBUSY);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
 		vm_page_dirty(m);
 		vm_page_lock(m);
 		vm_page_activate(m);
 		vm_page_unlock(m);
-		vm_page_wakeup(m);
 		vm_pager_page_unswapped(m);
 		return;
 	}
 
+	vm_page_busy(m);
 	if (swap_pager_getpages(object, &m, 1, 0) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_subtract(object, 1);
@@ -1747,13 +1759,13 @@ restart:
 			for (j = 0; j < SWAP_META_PAGES; ++j) {
 				if (swp_pager_isondev(swap->swb_pages[j], sp)) {
 					/* avoid deadlock */
-					if (!VM_OBJECT_TRYLOCK(object)) {
+					if (!VM_OBJECT_TRYWLOCK(object)) {
 						break;
 					} else {
 						mtx_unlock(&swhash_mtx);
 						swp_pager_force_pagein(object,
 						    pindex + j);
-						VM_OBJECT_UNLOCK(object);
+						VM_OBJECT_WUNLOCK(object);
 						mtx_lock(&swhash_mtx);
 						goto restart;
 					}
@@ -1809,7 +1821,7 @@ swp_pager_meta_build(vm_object_t object, vm_pindex_t pindex, daddr_t swapblk)
 	struct swblock **pswap;
 	int idx;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	/*
 	 * Convert default object to swap object if necessary
 	 */
@@ -1846,7 +1858,7 @@ retry:
 		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
 		if (swap == NULL) {
 			mtx_unlock(&swhash_mtx);
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 			if (uma_zone_exhausted(swap_zone)) {
 				if (atomic_cmpset_int(&exhausted, 0, 1))
 					printf("swap zone exhausted, "
@@ -1855,7 +1867,7 @@ retry:
 				pause("swzonex", 10);
 			} else
 				VM_WAIT;
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			goto retry;
 		}
 
@@ -1907,7 +1919,7 @@ static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -1953,7 +1965,7 @@ swp_pager_meta_free_all(vm_object_t object)
 {
 	daddr_t index = 0;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -2012,7 +2024,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 	daddr_t r1;
 	int idx;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	/*
 	 * The meta data only exists of the object is OBJT_SWAP
 	 * and even then might not be allocated yet.
@@ -2144,7 +2156,8 @@ swapon_check_swzone(unsigned long npages)
 }
 
 static void
-swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strategy, sw_close_t *close, dev_t dev)
+swaponsomething(struct vnode *vp, void *id, u_long nblks,
+    sw_strategy_t *strategy, sw_close_t *close, dev_t dev, int flags)
 {
 	struct swdevt *sp, *tsp;
 	swblk_t dvbase;
@@ -2180,6 +2193,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	sp->sw_used = 0;
 	sp->sw_strategy = strategy;
 	sp->sw_close = close;
+	sp->sw_flags = flags;
 
 	sp->sw_blist = blist_create(nblks, M_WAITOK);
 	/*
@@ -2465,14 +2479,14 @@ vmspace_swap_count(struct vmspace *vmspace)
 	for (cur = map->header.next; cur != &map->header; cur = cur->next) {
 		if ((cur->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
 		    (object = cur->object.vm_object) != NULL) {
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			if (object->type == OBJT_SWAP &&
 			    object->un_pager.swp.swp_bcount != 0) {
 				n = (cur->end - cur->start) / PAGE_SIZE;
 				count += object->un_pager.swp.swp_bcount *
 				    SWAP_META_PAGES * n / object->size + 1;
 			}
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 		}
 	}
 	return (count);
@@ -2537,10 +2551,19 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 
 	bio->bio_caller2 = bp;
 	bio->bio_cmd = bp->b_iocmd;
-	bio->bio_data = bp->b_data;
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
 	bio->bio_length = bp->b_bcount;
 	bio->bio_done = swapgeom_done;
+	if ((bp->b_flags & B_UNMAPPED) != 0) {
+		bio->bio_ma = bp->b_pages;
+		bio->bio_data = unmapped_buf;
+		bio->bio_ma_offset = (vm_offset_t)bp->b_offset & PAGE_MASK;
+		bio->bio_ma_n = bp->b_npages;
+		bio->bio_flags |= BIO_UNMAPPED;
+	} else {
+		bio->bio_data = bp->b_data;
+		bio->bio_ma = NULL;
+	}
 	g_io_request(bio, cp);
 	return;
 }
@@ -2630,9 +2653,9 @@ swapongeom_ev(void *arg, int flags)
 	}
 	nblks = pp->mediasize / DEV_BSIZE;
 	swaponsomething(swh->vp, cp, nblks, swapgeom_strategy,
-	    swapgeom_close, dev2udev(swh->dev));
+	    swapgeom_close, dev2udev(swh->dev),
+	    (pp->flags & G_PF_ACCEPT_UNMAPPED) != 0 ? SW_UNMAPPED : 0);
 	swh->error = 0;
-	return;
 }
 
 static int
@@ -2721,6 +2744,6 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 		return (error);
 
 	swaponsomething(vp, vp, nblks, swapdev_strategy, swapdev_close,
-	    NODEV);
+	    NODEV, 0);
 	return (0);
 }

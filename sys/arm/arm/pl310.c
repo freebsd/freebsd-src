@@ -73,13 +73,6 @@ __FBSDID("$FreeBSD$");
 static int pl310_enabled = 1;
 TUNABLE_INT("pl310.enabled", &pl310_enabled);
 
-void omap4_l2cache_wbinv_range(vm_paddr_t physaddr, vm_size_t size);
-void omap4_l2cache_inv_range(vm_paddr_t physaddr, vm_size_t size);
-void omap4_l2cache_wb_range(vm_paddr_t physaddr, vm_size_t size);
-void omap4_l2cache_wbinv_all(void);
-void omap4_l2cache_inv_all(void);
-void omap4_l2cache_wb_all(void);
-
 static uint32_t g_l2cache_way_mask;
 
 static const uint32_t g_l2cache_line_size = 32;

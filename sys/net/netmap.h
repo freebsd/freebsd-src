@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,7 +32,6 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap.h 10601 2012-02-21 16:40:14Z luigi $
  *
  * Definitions of constants and the structures used by the netmap
  * framework, for the part visible to both kernel and userspace.
@@ -113,15 +112,35 @@
  * In the kernel, buffers do not necessarily need to be contiguous,
  * and the virtual and physical addresses are derived through
  * a lookup table.
- * To associate a different buffer to a slot, applications must
- * write the new index in buf_idx, and set NS_BUF_CHANGED flag to
- * make sure that the kernel updates the hardware ring as needed.
  *
- * Normally the driver is not requested to report the result of
- * transmissions (this can dramatically speed up operation).
- * However the user may request to report completion by setting
- * NS_REPORT.
+ * struct netmap_slot:
+ *
+ * buf_idx	is the index of the buffer associated to the slot.
+ * len		is the length of the payload
+ * NS_BUF_CHANGED	must be set whenever userspace wants
+ *		to change buf_idx (it might be necessary to
+ *		reprogram the NIC slot)
+ * NS_REPORT	must be set if we want the NIC to generate an interrupt
+ *		when this slot is used. Leaving it to 0 improves
+ *		performance.
+ * NS_FORWARD	if set on a receive ring, and the device is in
+ *		transparent mode, buffers released with the flag set
+ *		will be forwarded to the 'other' side (host stack
+ *		or NIC, respectively) on the next select() or ioctl()
+ *
+ *		The following will be supported from NETMAP_API = 5
+ * NS_NO_LEARN	on a VALE switch, do not 'learn' the source port for
+ *		this packet.
+ * NS_INDIRECT	the netmap buffer contains a 64-bit pointer to
+ *		the actual userspace buffer. This may be useful
+ *		to reduce copies in a VM environment.
+ * NS_MOREFRAG	Part of a multi-segment frame. The last (or only)
+ *		segment must not have this flag.
+ * NS_PORT_MASK	the high 8 bits of the flag, if not zero, indicate the
+ *		destination port for the VALE switch, overriding
+ *		the lookup table.
  */
+
 struct netmap_slot {
 	uint32_t buf_idx; /* buffer index */
 	uint16_t len;	/* packet length, to be copied to/from the hw ring */
@@ -130,6 +149,14 @@ struct netmap_slot {
 #define	NS_REPORT	0x0002	/* ask the hardware to report results
 				 * e.g. by generating an interrupt
 				 */
+#define	NS_FORWARD	0x0004	/* pass packet to the other endpoint
+				 * (host stack or device)
+				 */
+#define	NS_NO_LEARN	0x0008
+#define	NS_INDIRECT	0x0010
+#define	NS_MOREFRAG	0x0020
+#define	NS_PORT_SHIFT	8
+#define	NS_PORT_MASK	(0xff << NS_PORT_SHIFT)
 };
 
 /*
@@ -186,6 +213,18 @@ struct netmap_slot {
  *	a system call.
  *
  *	The netmap_kring is only modified by the upper half of the kernel.
+ *
+ * FLAGS
+ *	NR_TIMESTAMP	updates the 'ts' field on each syscall. This is
+ *			a global timestamp for all packets.
+ *	NR_RX_TSTMP	if set, the last 64 byte in each buffer will
+ *			contain a timestamp for the frame supplied by
+ *			the hardware (if supported)
+ *	NR_FORWARD	if set, the NS_FORWARD flag in each slot of the
+ *			RX ring is checked, and if set the packet is
+ *			passed to the other side (host stack or device,
+ *			respectively). This permits bpf-like behaviour
+ *			or transparency for selected packets.
  */
 struct netmap_ring {
 	/*
@@ -202,6 +241,8 @@ struct netmap_ring {
 	const uint16_t	nr_buf_size;
 	uint16_t	flags;
 #define	NR_TIMESTAMP	0x0002		/* set timestamp on *sync() */
+#define	NR_FORWARD	0x0004		/* enable NS_FORWARD for ring */
+#define	NR_RX_TSTMP	0x0008		/* set rx timestamp in slots */
 
 	struct timeval	ts;		/* time of last *sync() */
 
@@ -245,10 +286,24 @@ struct netmap_if {
  * NIOCREGIF takes an interface name within a struct ifreq,
  *	and activates netmap mode on the interface (if possible).
  *
+ *	For vale ports, starting with NETMAP_API = 5,
+ *	nr_tx_rings and nr_rx_rings specify how many software rings
+ *	are created (0 means 1).
+ *
+ *	NIOCREGIF is also used to attach a NIC to a VALE switch.
+ *	In this case the name is vale*:ifname, and "nr_cmd"
+ *	is set to 'NETMAP_BDG_ATTACH' or 'NETMAP_BDG_DETACH'.
+ *	nr_ringid specifies which rings should be attached, 0 means all,
+ *	NETMAP_HW_RING + n means only the n-th ring.
+ *	The process can terminate after the interface has been attached.
+ *
  * NIOCUNREGIF unregisters the interface associated to the fd.
+ *	this is deprecated and will go away.
  *
  * NIOCTXSYNC, NIOCRXSYNC synchronize tx or rx queues,
  *	whose identity is set in NIOCREGIF through nr_ringid
+ *
+ * NETMAP_API is the API version.
  */
 
 /*
@@ -257,7 +312,7 @@ struct netmap_if {
 struct nmreq {
 	char		nr_name[IFNAMSIZ];
 	uint32_t	nr_version;	/* API version */
-#define	NETMAP_API	3		/* current version */
+#define	NETMAP_API	4		/* current version */
 	uint32_t	nr_offset;	/* nifp offset in the shared region */
 	uint32_t	nr_memsize;	/* size of the shared region */
 	uint32_t	nr_tx_slots;	/* slots in tx rings */
@@ -269,8 +324,15 @@ struct nmreq {
 #define NETMAP_SW_RING	0x2000		/* process the sw ring */
 #define NETMAP_NO_TX_POLL	0x1000	/* no automatic txsync on poll */
 #define NETMAP_RING_MASK 0xfff		/* the ring number */
-	uint16_t	spare1;
-	uint32_t	spare2[4];
+	uint16_t	nr_cmd;
+#define NETMAP_BDG_ATTACH	1	/* attach the NIC */
+#define NETMAP_BDG_DETACH	2	/* detach the NIC */
+#define NETMAP_BDG_LOOKUP_REG	3	/* register lookup function */
+#define NETMAP_BDG_LIST		4	/* get bridge's info */
+	uint16_t	nr_arg1;
+#define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
+	uint16_t	nr_arg2;
+	uint32_t	spare2[3];
 };
 
 /*

@@ -48,11 +48,12 @@ struct vmspace;
 	unsigned int pc_vfpmvfr0;					\
 	unsigned int pc_vfpmvfr1;					\
 	struct thread *pc_vfpcthread;					\
-	struct pmap *pc_curpmap;
+	struct pmap *pc_curpmap;					\
+	char __pad[133]
 #else
-#define PCPU_MD_FIELDS
+#define PCPU_MD_FIELDS							\
+	char __pad[157]
 #endif
-
 
 #ifdef _KERNEL
 
@@ -100,8 +101,8 @@ set_tls(void *tls)
 #define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
 #define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
-#define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
-#define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
+#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
+#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
 
 void pcpu0_init(void);
 #endif	/* _KERNEL */

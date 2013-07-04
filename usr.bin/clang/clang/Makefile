@@ -35,6 +35,19 @@ TGHDRS=	CC1AsOptions \
 	DiagnosticLexKinds \
 	DiagnosticSemaKinds \
 	Options
+
+.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+_clangstaticanalyzer= \
+	clangstaticanalyzerfrontend \
+	clangstaticanalyzercheckers \
+	clangstaticanalyzercore
+_clangarcmigrate= \
+	clangarcmigrate
+_clangrewriter= \
+	clangrewritefrontend \
+	clangrewritecore
+.endif # !EARLY_BUILD && MK_CLANG_FULL
+
 LIBDEPS=clangfrontendtool \
 	clangfrontend \
 	clangdriver \
@@ -42,19 +55,16 @@ LIBDEPS=clangfrontendtool \
 	clangcodegen \
 	clangparse \
 	clangsema \
-	clangstaticanalyzerfrontend \
-	clangstaticanalyzercheckers \
-	clangstaticanalyzercore \
+	${_clangstaticanalyzer} \
+	${_clangarcmigrate} \
+	${_clangrewriter} \
 	clanganalysis \
-	clangarcmigrate \
-	clangrewritefrontend \
-	clangrewritecore \
 	clangedit \
 	clangast \
-	clanglex \
 	clangbasic \
+	clanglex \
 	llvmlinker \
-	llvmarchive \
+	llvmirreader \
 	llvmipo \
 	llvmvectorize \
 	llvminstrumentation \
@@ -62,33 +72,34 @@ LIBDEPS=clangfrontendtool \
 	llvmbitreader \
 	llvmasmparser \
 	llvmarmdisassembler \
-	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinstprinter \
 	llvmmipsdisassembler \
+	llvmmipscodegen \
+	llvmmipsasmparser \
+	llvmmipsdesc \
 	llvmmipsinfo \
+	llvmmipsinstprinter \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
+	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
 	llvmcodegen \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

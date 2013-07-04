@@ -168,6 +168,11 @@ ENTRY(xscalec3_cache_cleanD)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	RET
+END(xscalec3_cache_syncI)
+END(xscalec3_cache_purgeID)
+END(xscalec3_cache_cleanID)
+END(xscalec3_cache_purgeD)
+END(xscalec3_cache_cleanD)
 
 ENTRY(xscalec3_cache_purgeID_rng)
 
@@ -189,6 +194,7 @@ ENTRY(xscalec3_cache_purgeID_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_cache_purgeID_rng)
 
 ENTRY(xscalec3_cache_syncI_rng)
 	cmp	r1, #0x4000
@@ -209,6 +215,7 @@ ENTRY(xscalec3_cache_syncI_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_cache_syncI_rng)
 	
 ENTRY(xscalec3_cache_purgeD_rng)
 
@@ -228,6 +235,8 @@ ENTRY(xscalec3_cache_purgeD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_cache_purgeD_rng)
+
 ENTRY(xscalec3_cache_cleanID_rng)
 ENTRY(xscalec3_cache_cleanD_rng)
 
@@ -248,7 +257,8 @@ ENTRY(xscalec3_cache_cleanD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
-
+END(xscalec3_cache_cleanID_rng)
+END(xscalec3_cache_cleanD_rng)
 
 ENTRY(xscalec3_l2cache_purge)
 	/* Clean-up the L2 cache */
@@ -271,6 +281,7 @@ ENTRY(xscalec3_l2cache_purge)
 	CPWAIT(r0)
 	mcr	p15, 0, r0, c7, c10, 5	/* Data memory barrier */
 	RET
+END(xscalec3_l2cache_purge)
 
 ENTRY(xscalec3_l2cache_clean_rng)
 	mcr	p15, 0, r0, c7, c10, 5	/* Data memory barrier */
@@ -291,6 +302,7 @@ ENTRY(xscalec3_l2cache_clean_rng)
 	mcr	p15, 0, r0, c7, c10, 5
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_l2cache_clean_rng)
 
 ENTRY(xscalec3_l2cache_purge_rng)
 
@@ -310,6 +322,7 @@ ENTRY(xscalec3_l2cache_purge_rng)
 	mcr	p15, 0, r0, c7, c10, 5
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_l2cache_purge_rng)
 
 ENTRY(xscalec3_l2cache_flush_rng)
 	mcr	p15, 0, r0, c7, c10, 5	/* Data memory barrier */
@@ -325,6 +338,8 @@ ENTRY(xscalec3_l2cache_flush_rng)
 	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mcr	p15, 0, r0, c7, c10, 5
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_l2cache_flush_rng)
+
 /*
  * Functions to set the MMU Translation Table Base register
  *
@@ -368,6 +383,7 @@ ENTRY(xscalec3_setttb)
 	str	r2, [r3]
 #endif
 	RET
+END(xscalec3_setttb)
 
 /*
  * Context switch.
@@ -395,3 +411,5 @@ ENTRY(xscalec3_context_switch)
 	mcr	p15, 0, r0, c8, c7, 0	/* flush the I+D tlb */
 
 	CPWAIT_AND_RETURN(r0)
+END(xscalec3_context_switch)
+

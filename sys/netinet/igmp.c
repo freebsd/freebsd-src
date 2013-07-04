@@ -523,7 +523,7 @@ igmp_ra_alloc(void)
 	struct mbuf	*m;
 	struct ipoption	*p;
 
-	MGET(m, M_NOWAIT, MT_DATA);
+	m = m_get(M_WAITOK, MT_DATA);
 	p = mtod(m, struct ipoption *);
 	p->ipopt_dst.s_addr = INADDR_ANY;
 	p->ipopt_list[0] = IPOPT_RA;	/* Router Alert Option */
@@ -2121,6 +2121,7 @@ igmp_v1v2_process_querier_timers(struct igmp_ifinfo *igi)
 				    __func__, igi->igi_version, IGMP_VERSION_2,
 				    igi->igi_ifp, igi->igi_ifp->if_xname);
 				igi->igi_version = IGMP_VERSION_2;
+				igmp_v3_cancel_link_timers(igi);
 			}
 		}
 	} else if (igi->igi_v1_timer > 0) {
@@ -2203,7 +2204,7 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 
 	ifp = inm->inm_ifp;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOMEM);
 	MH_ALIGN(m, sizeof(struct ip) + sizeof(struct igmp));

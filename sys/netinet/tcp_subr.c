@@ -174,7 +174,7 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
 VNET_DEFINE(int, tcp_minmss) = TCP_MINMSS;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
      &VNET_NAME(tcp_minmss), 0,
-    "Minmum TCP Maximum Segment Size");
+    "Minimum TCP Maximum Segment Size");
 
 VNET_DEFINE(int, tcp_do_rfc1323) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
@@ -1060,7 +1060,7 @@ tcp_drain(void)
 	 * XXX: The "Net/3" implementation doesn't imply that the TCP
 	 *      reassembly queue should be flushed, but in a situation
 	 *	where we're really low on mbufs, this is potentially
-	 *	usefull.
+	 *	useful.
 	 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
@@ -1770,7 +1770,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
  * tcp_mss_update to get the peer/interface MTU.
  */
 u_long
-tcp_maxmtu(struct in_conninfo *inc, int *flags)
+tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct route sro;
 	struct sockaddr_in *dst;
@@ -1795,10 +1795,11 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 			maxmtu = min(sro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
 
 		/* Report additional interface capabilities. */
-		if (flags != NULL) {
+		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO4 &&
 			    ifp->if_hwassist & CSUM_TSO)
-				*flags |= CSUM_TSO;
+				cap->ifcap |= CSUM_TSO;
+				cap->tsomax = ifp->if_hw_tsomax;
 		}
 		RTFREE(sro.ro_rt);
 	}
@@ -1808,7 +1809,7 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 
 #ifdef INET6
 u_long
-tcp_maxmtu6(struct in_conninfo *inc, int *flags)
+tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct route_in6 sro6;
 	struct ifnet *ifp;
@@ -1832,10 +1833,11 @@ tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
 
 		/* Report additional interface capabilities. */
-		if (flags != NULL) {
+		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO6 &&
 			    ifp->if_hwassist & CSUM_TSO)
-				*flags |= CSUM_TSO;
+				cap->ifcap |= CSUM_TSO;
+				cap->tsomax = ifp->if_hw_tsomax;
 		}
 		RTFREE(sro6.ro_rt);
 	}
@@ -1860,7 +1862,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 
 	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
 		return (0);
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (!m)
 		return (0);
 

@@ -1,0 +1,16 @@
+/*
+ * $FreeBSD$
+ */
+
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...)
+ * and are not used in the ARM EABI.
+ */
+FBSDprivate_1.0 {
+	__umodsi3;
+	__modsi3;
+	__udivsi3;
+	__divsi3;
+};

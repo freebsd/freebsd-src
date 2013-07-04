@@ -15,13 +15,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/Module.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/SubtargetFeature.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -32,8 +32,7 @@ TargetMachine *EngineBuilder::selectTarget() {
   // must use the host architecture.
   if (UseMCJIT && WhichEngine != EngineKind::Interpreter && M)
     TT.setTriple(M->getTargetTriple());
-  else
-    TT.setTriple(LLVM_HOSTTRIPLE);
+
   return selectTarget(TT, MArch, MCPU, MAttrs);
 }
 
@@ -45,7 +44,7 @@ TargetMachine *EngineBuilder::selectTarget(const Triple &TargetTriple,
                               const SmallVectorImpl<std::string>& MAttrs) {
   Triple TheTriple(TargetTriple);
   if (TheTriple.getTriple().empty())
-    TheTriple.setTriple(sys::getDefaultTargetTriple());
+    TheTriple.setTriple(sys::getProcessTriple());
 
   // Adjust the triple to match what the user requested.
   const Target *TheTarget = 0;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@ struct sglist;
 #define VIRTIO_RING_F_EVENT_IDX		(1 << 29)
 
 /* Device callback for a virtqueue interrupt. */
-typedef int virtqueue_intr_t(void *);
+typedef void virtqueue_intr_t(void *);
 
 #define VIRTQUEUE_MAX_NAME_SZ	32
 
@@ -70,7 +70,8 @@ void	*virtqueue_drain(struct virtqueue *vq, int *last);
 void	 virtqueue_free(struct virtqueue *vq);
 int	 virtqueue_reinit(struct virtqueue *vq, uint16_t size);
 
-int	 virtqueue_intr(struct virtqueue *vq);
+int	 virtqueue_intr_filter(struct virtqueue *vq);
+void	 virtqueue_intr(struct virtqueue *vq);
 int	 virtqueue_enable_intr(struct virtqueue *vq);
 int	 virtqueue_postpone_intr(struct virtqueue *vq);
 void	 virtqueue_disable_intr(struct virtqueue *vq);

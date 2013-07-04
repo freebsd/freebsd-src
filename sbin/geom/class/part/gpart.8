@@ -24,40 +24,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2013
+.Dd July 1, 2013
 .Dt GPART 8
 .Os
 .Sh NAME
 .Nm gpart
 .Nd "control utility for the disk partitioning GEOM class"
 .Sh SYNOPSIS
-To add support for the disk partitioning GEOM class,
-place one or more of the following
-lines in the kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "options GEOM_PART_APM"
-.Cd "options GEOM_PART_BSD"
-.Cd "options GEOM_PART_GPT"
-.Cd "options GEOM_PART_LDM"
-.Cd "options GEOM_PART_MBR"
-.Cd "options GEOM_PART_EBR"
-.Cd "options GEOM_PART_EBR_COMPAT"
-.Cd "options GEOM_PART_PC98"
-.Cd "options GEOM_PART_VTOC8"
-.Ed
-.Pp
-These options provide support for the various types of partitioning
-schemes supported by the
-.Ns Nm
-utility.
-See
-.Sx "PARTITIONING SCHEMES"
-below for more details.
-.Pp
-Usage of the
-.Ns Nm
-utility:
-.Pp
 .\" ==== ADD ====
 .Nm
 .Cm add
@@ -583,7 +556,7 @@ The system partition for computers that use the Extensible Firmware
 Interface (EFI).
 In such cases, the GPT partitioning scheme is used and the
 actual partition type for the system partition can also be specified as
-.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93ab" .
+.Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b" .
 .It Cm freebsd
 A
 .Fx
@@ -672,14 +645,12 @@ The scheme-specific attributes for GPT:
 When set, the
 .Nm gptboot
 stage 1 boot loader will try to boot the system from this partition.
-Multiple partitions might be marked with the
+Multiple partitions can be marked with the
 .Cm bootme
 attribute.
-In such scenario the
-.Nm gptboot
-will try all
-.Cm bootme
-partitions one by one, until the next boot stage is successfully entered.
+See
+.Xr gptboot 8
+for more details.
 .It Cm bootonce
 Setting this attribute automatically sets the
 .Cm bootme
@@ -687,49 +658,14 @@ attribute.
 When set, the
 .Nm gptboot
 stage 1 boot loader will try to boot the system from this partition only once.
-Partitions with both
-.Cm bootonce
-and
-.Cm bootme
-attributes are tried before partitions with only the
-.Cm bootme
-attribute.
-Before
-.Cm bootonce
-partition is tried, the
-.Nm gptboot
-removes the
-.Cm bootme
-attribute and tries to execute the next boot stage.
-If it fails, the
-.Cm bootonce
-attribute that is now alone is replaced with the
-.Cm bootfailed
-attribute.
-If the execution of the next boot stage succeeds, but the system is not fully
-booted, the
-.Nm gptboot
-will look for
-.Cm bootonce
-attributes alone (without the
-.Cm bootme
-attribute) on the next system boot and will replace those with the
-.Cm bootfailed
-attribute.
-If the system is fully booted, the
-.Pa /etc/rc.d/gptboot
-start-up script will look for partition with the
-.Cm bootonce
-attribute alone, will remove the attribute and log that the system was
-successfully booted from this partition.
-There should be at most one
-.Cm bootonce
-partition when system is successfully booted.
-Multiple partitions might be marked with the
+Multiple partitions can be marked with the
 .Cm bootonce
 and
 .Cm bootme
 attribute pairs.
+See
+.Xr gptboot 8
+for more details.
 .It Cm bootfailed
 This attribute should not be manually managed.
 It is managed by the
@@ -737,14 +673,9 @@ It is managed by the
 stage 1 boot loader and the
 .Pa /etc/rc.d/gptboot
 start-up script.
-This attribute is used to mark partitions that had the
-.Cm bootonce
-attribute set, but we failed to boot from them.
-Once we successfully boot, the
-.Pa /etc/rc.d/gptboot
-script will log all the partitions we failed to boot from and will remove the
-.Cm bootfailed
-attributes.
+See
+.Xr gptboot 8
+for more details.
 .El
 .Pp
 The scheme-specific attributes for MBR:
@@ -807,34 +738,52 @@ Both types of bootstrap code are used to boot from the GUID Partition Table.
 First, a protective MBR is embedded into the first disk sector from the
 .Pa /boot/pmbr
 image.
-It searches the GPT
+It searches through the GPT for a
 .Cm freebsd-boot
 partition (see the
 .Sx "PARTITION TYPES"
-section) in the GPT and runs the next bootstrap stage from it.
+section) and runs the next bootstrap stage from it.
 The
 .Cm freebsd-boot
 partition should be smaller than 545 KB.
+It can be located either before or after other
+.Fx
+partitions on the disk.
 There are two variants of bootstrap code to write to this partition:
 .Pa /boot/gptboot
 and
 .Pa /boot/gptzfsboot .
+.Pp
 .Pa /boot/gptboot
-is used to boot from UFS.
-It searches
+is used to boot from UFS partitions.
+.Cm gptboot
+searches through
 .Cm freebsd-ufs
-GPT partitions and starts
+partitions in the GPT and selects one to boot based on the
+.Cm bootonce
+and
+.Cm bootme
+attributes.
+If neither attribute is found,
+.Pa /boot/gptboot
+boots from the first
+.Cm freebsd-ufs
+partition.
 .Pa /boot/loader
 .Pq the third bootstrap stage
-if found.
-The
+is loaded from the first partition that matches these conditions.
+See
+.Xr gptboot 8
+for more information.
+.Pp
 .Pa /boot/gptzfsboot
 is used to boot from ZFS.
-It searches
+It searches through the GPT for
 .Cm freebsd-zfs
-GPT partitions and starts
+partitions, trying to detect ZFS pools.
+After all pools are detected,
 .Pa /boot/zfsloader
-if found.
+is started from the first one found.
 .Pp
 The VTOC8 scheme does not support embedding bootstrap code.
 Instead, the 8 KBytes bootstrap code image
@@ -945,7 +894,7 @@ The GEOM PART class can detect the same partition table visible through
 different GEOM providers, and some of them will be marked as corrupt.
 Be careful when choosing a provider for recovery.
 If you choose incorrectly you can destroy the metadata of another GEOM class,
-e.g.\& GEOM MIRROR or GEOM LABEL.
+e.g.,\& GEOM MIRROR or GEOM LABEL.
 .Sh SYSCTL VARIABLES
 The following
 .Xr sysctl 8
@@ -1115,7 +1064,8 @@ and
 .Xr dd 1 ,
 .Xr geom 4 ,
 .Xr boot0cfg 8 ,
-.Xr geom 8
+.Xr geom 8 ,
+.Xr gptboot 8
 .Sh HISTORY
 The
 .Nm

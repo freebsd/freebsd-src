@@ -49,8 +49,11 @@ __FBSDID("$FreeBSD$");
 extern uintptr_t 	dtrace_in_probe_addr;
 extern int		dtrace_in_probe;
 extern dtrace_id_t	dtrace_probeid_error;
+extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 
 int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
+void dtrace_invop_init(void);
+void dtrace_invop_uninit(void);
 
 typedef struct dtrace_invop_hdlr {
 	int (*dtih_func)(uintptr_t, uintptr_t *, uintptr_t);
@@ -70,6 +73,44 @@ dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t eax)
 			return (rval);
 
 	return (0);
+}
+
+void
+dtrace_invop_add(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+{
+	dtrace_invop_hdlr_t *hdlr;
+
+	hdlr = kmem_alloc(sizeof (dtrace_invop_hdlr_t), KM_SLEEP);
+	hdlr->dtih_func = func;
+	hdlr->dtih_next = dtrace_invop_hdlr;
+	dtrace_invop_hdlr = hdlr;
+}
+
+void
+dtrace_invop_remove(int (*func)(uintptr_t, uintptr_t *, uintptr_t))
+{
+	dtrace_invop_hdlr_t *hdlr = dtrace_invop_hdlr, *prev = NULL;
+
+	for (;;) {
+		if (hdlr == NULL)
+			panic("attempt to remove non-existent invop handler");
+
+		if (hdlr->dtih_func == func)
+			break;
+
+		prev = hdlr;
+		hdlr = hdlr->dtih_next;
+	}
+
+	if (prev == NULL) {
+		ASSERT(dtrace_invop_hdlr == hdlr);
+		dtrace_invop_hdlr = hdlr->dtih_next;
+	} else {
+		ASSERT(dtrace_invop_hdlr != hdlr);
+		prev->dtih_next = hdlr->dtih_next;
+	}
+
+	kmem_free(hdlr, 0);
 }
 
 
@@ -198,4 +239,37 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 	dtrace_probe(dtrace_probeid_error, (uint64_t)(uintptr_t)state,
 	    (uintptr_t)epid,
 	    (uintptr_t)which, (uintptr_t)fault, (uintptr_t)fltoffs);
+}
+
+static int
+dtrace_invop_start(struct trapframe *frame)
+{
+	switch (dtrace_invop(frame->srr0, (uintptr_t *)frame, frame->fixreg[3])) {
+	case DTRACE_INVOP_JUMP:
+		break;
+	case DTRACE_INVOP_BCTR:
+		frame->srr0 = frame->ctr;
+		break;
+	case DTRACE_INVOP_BLR:
+		frame->srr0 = frame->lr;
+		break;
+	case DTRACE_INVOP_MFLR_R0:
+		frame->fixreg[0] = frame->lr ;
+		break;
+	default:
+		return (-1);
+		break;
+	}
+
+	return (0);
+}
+
+void dtrace_invop_init(void)
+{
+	dtrace_invop_jump_addr = dtrace_invop_start;
+}
+
+void dtrace_invop_uninit(void)
+{
+	dtrace_invop_jump_addr = 0;
 }

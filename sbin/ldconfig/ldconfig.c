@@ -97,6 +97,13 @@ static void		listhints(void);
 static int		readhints(void);
 static void		usage(void);
 
+/*
+ * Note on aout/a.out support.
+ * To properly support shared libraries for compat2x, which are a.out, we need
+ * to support a.out here.  As of 2013, bug reports are still coming in for this
+ * feature (on amd64 no less), so we know it is still in use.
+ */
+
 int
 main(int argc, char **argv)
 {

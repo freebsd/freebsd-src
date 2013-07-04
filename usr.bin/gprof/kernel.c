@@ -16,7 +16,7 @@ __FBSDID("$FreeBSD$");
 static char	*excludes[] = { ".mcount", "_mcleanup", NULL };
 
 int
-kernel_getnfile(const char *unused, char ***defaultEs)
+kernel_getnfile(const char *unused __unused, char ***defaultEs)
 {
 	char *namelist;
 	size_t len;

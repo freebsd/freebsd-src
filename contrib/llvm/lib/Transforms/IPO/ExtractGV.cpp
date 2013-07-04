@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Constants.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -60,7 +60,7 @@ namespace {
             continue;
         }
 
-        bool Local = I->hasLocalLinkage();
+        bool Local = I->isDiscardableIfUnused();
         if (Local)
           I->setVisibility(GlobalValue::HiddenVisibility);
 
@@ -80,7 +80,7 @@ namespace {
             continue;
         }
 
-        bool Local = I->hasLocalLinkage();
+        bool Local = I->isDiscardableIfUnused();
         if (Local)
           I->setVisibility(GlobalValue::HiddenVisibility);
 
@@ -97,7 +97,7 @@ namespace {
         Module::alias_iterator CurI = I;
         ++I;
 
-        if (CurI->hasLocalLinkage()) {
+        if (CurI->isDiscardableIfUnused()) {
           CurI->setVisibility(GlobalValue::HiddenVisibility);
           CurI->setLinkage(GlobalValue::ExternalLinkage);
         }

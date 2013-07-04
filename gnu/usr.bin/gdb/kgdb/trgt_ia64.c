@@ -52,6 +52,18 @@ __FBSDID("$FreeBSD$");
 
 #include "kgdb.h"
 
+CORE_ADDR
+kgdb_trgt_core_pcb(u_int cpuid)
+{
+	CORE_ADDR addr;
+	char *expr;
+
+	asprintf(&expr, "&cpuid_to_pcpu[%d]->pc_md.pcb", cpuid);
+	addr = kgdb_parse(expr);
+	free(expr);
+	return (addr);
+}
+
 void
 kgdb_trgt_fetch_registers(int regno __unused)
 {

@@ -83,7 +83,6 @@ device		fdc
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_CAM		# Handle legacy controllers with CAM
 options 	ATA_STATIC_ID	# Static device numbering
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
@@ -151,7 +150,6 @@ device		mse
 device		ppc
 device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
-device		plip		# TCP/IP over parallel
 device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 # OLD Parallel port

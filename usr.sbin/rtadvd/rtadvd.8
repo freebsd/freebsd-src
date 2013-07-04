@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2011
+.Dd February 25, 2013
 .Dt RTADVD 8
 .Os
 .Sh NAME
@@ -39,13 +39,19 @@
 .Nm
 .Op Fl dDfRs
 .Op Fl c Ar configfile
+.Op Fl C Ar ctlsock
 .Op Fl M Ar ifname
 .Op Fl p Ar pidfile
-.Ar interface ...
+.Op Ar interface ...
 .Sh DESCRIPTION
 .Nm
 sends router advertisement packets to the specified
 .Ar interfaces .
+If no interfaces are specified,
+.Nm
+will still run, but will not advertise any routes until interfaces are
+added using
+.Xr rtadvctl 8 .
 .Pp
 The program will daemonize itself on invocation.
 It will then send router advertisement packets periodically, as well
@@ -121,6 +127,11 @@ for the configuration file.
 By default,
 .Pa /etc/rtadvd.conf
 is used.
+.It Fl C
+Specify an alternate location for the control socket used by
+.Xr rtadvctl 8 .
+The default is
+.Pa /var/run/rtadvd.sock .
 .It Fl d
 Print debugging information.
 .It Fl D
@@ -185,6 +196,7 @@ The default process ID file.
 .Ex -std
 .Sh SEE ALSO
 .Xr rtadvd.conf 5 ,
+.Xr rtadvctl 8 ,
 .Xr rtsol 8
 .Rs
 .%A Thomas Narten

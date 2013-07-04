@@ -13,24 +13,24 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "sjljehprepare"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -43,7 +43,7 @@ STATISTIC(NumSpilled, "Number of registers live across unwind edges");
 
 namespace {
   class SjLjEHPrepare : public FunctionPass {
-    const TargetLowering *TLI;
+    const TargetLoweringBase *TLI;
     Type *FunctionContextTy;
     Constant *RegisterFn;
     Constant *UnregisterFn;
@@ -58,7 +58,7 @@ namespace {
     AllocaInst *FuncCtx;
   public:
     static char ID; // Pass identification, replacement for typeid
-    explicit SjLjEHPrepare(const TargetLowering *tli = NULL)
+    explicit SjLjEHPrepare(const TargetLoweringBase *tli = NULL)
       : FunctionPass(ID), TLI(tli) { }
     bool doInitialization(Module &M);
     bool runOnFunction(Function &F);
@@ -82,7 +82,7 @@ namespace {
 char SjLjEHPrepare::ID = 0;
 
 // Public Interface To the SjLjEHPrepare pass.
-FunctionPass *llvm::createSjLjEHPreparePass(const TargetLowering *TLI) {
+FunctionPass *llvm::createSjLjEHPreparePass(const TargetLoweringBase *TLI) {
   return new SjLjEHPrepare(TLI);
 }
 // doInitialization - Set up decalarations and types needed to process
@@ -379,13 +379,22 @@ void SjLjEHPrepare::lowerAcrossUnwindEdges(Function &F,
 /// the function context and marking the call sites with the appropriate
 /// values. These values are used by the DWARF EH emitter.
 bool SjLjEHPrepare::setupEntryBlockAndCallSites(Function &F) {
-  SmallVector<ReturnInst*,     16> Returns;
-  SmallVector<InvokeInst*,     16> Invokes;
+  SmallVector<ReturnInst*, 16> Returns;
+  SmallVector<InvokeInst*, 16> Invokes;
   SmallSetVector<LandingPadInst*, 16> LPads;
 
   // Look through the terminators of the basic blocks to find invokes.
   for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
     if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
+      if (Function *Callee = II->getCalledFunction())
+        if (Callee->isIntrinsic() &&
+            Callee->getIntrinsicID() == Intrinsic::donothing) {
+          // Remove the NOP invoke.
+          BranchInst::Create(II->getNormalDest(), II);
+          II->eraseFromParent();
+          continue;
+        }
+
       Invokes.push_back(II);
       LPads.insert(II->getUnwindDest()->getLandingPadInst());
     } else if (ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator())) {

@@ -92,6 +92,7 @@ static void evalfor(union node *, int);
 static union node *evalcase(union node *);
 static void evalsubshell(union node *, int);
 static void evalredir(union node *, int);
+static void exphere(union node *, struct arglist *);
 static void expredir(union node *);
 static void evalpipe(union node *);
 static int is_valid_fast_cmdsubst(union node *n);
@@ -173,6 +174,7 @@ evalstring(char *s, int flags)
 			any = 1;
 		}
 		popstackmark(&smark);
+		setstackmark(&smark);
 	}
 	popfile();
 	popstackmark(&smark);
@@ -193,7 +195,9 @@ evaltree(union node *n, int flags)
 {
 	int do_etest;
 	union node *next;
+	struct stackmark smark;
 
+	setstackmark(&smark);
 	do_etest = 0;
 	if (n == NULL) {
 		TRACE(("evaltree(NULL) called\n"));
@@ -275,6 +279,8 @@ evaltree(union node *n, int flags)
 			break;
 		case NNOT:
 			evaltree(n->nnot.com, EV_TESTED);
+			if (evalskip)
+				goto out;
 			exitstatus = !exitstatus;
 			break;
 
@@ -292,9 +298,12 @@ evaltree(union node *n, int flags)
 			break;
 		}
 		n = next;
+		popstackmark(&smark);
+		setstackmark(&smark);
 	} while (n != NULL);
 out:
-	if (pendingsigs)
+	popstackmark(&smark);
+	if (pendingsig)
 		dotrap();
 	if (eflag && exitstatus != 0 && do_etest)
 		exitshell(exitstatus);
@@ -347,10 +356,8 @@ evalfor(union node *n, int flags)
 	struct arglist arglist;
 	union node *argp;
 	struct strlist *sp;
-	struct stackmark smark;
 	int status;
 
-	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	for (argp = n->nfor.args ; argp ; argp = argp->narg.next) {
 		oexitstatus = exitstatus;
@@ -375,7 +382,6 @@ evalfor(union node *n, int flags)
 		}
 	}
 	loopnest--;
-	popstackmark(&smark);
 	exitstatus = status;
 }
 
@@ -392,16 +398,13 @@ evalcase(union node *n)
 	union node *cp;
 	union node *patp;
 	struct arglist arglist;
-	struct stackmark smark;
 
-	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	oexitstatus = exitstatus;
 	expandarg(n->ncase.expr, &arglist, EXP_TILDE);
 	for (cp = n->ncase.cases ; cp ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
 			if (casematch(patp, arglist.list->text)) {
-				popstackmark(&smark);
 				while (cp->nclist.next &&
 				    cp->type == NCLISTFALLTHRU &&
 				    cp->nclist.body == NULL)
@@ -415,7 +418,6 @@ evalcase(union node *n)
 			}
 		}
 	}
-	popstackmark(&smark);
 	exitstatus = 0;
 	return (NULL);
 }
@@ -491,6 +493,37 @@ evalredir(union node *n, int flags)
 }
 
 
+static void
+exphere(union node *redir, struct arglist *fn)
+{
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
+	struct localvar *savelocalvars;
+	int need_longjmp = 0;
+
+	redir->nhere.expdoc = nullstr;
+	savelocalvars = localvars;
+	localvars = NULL;
+	forcelocal++;
+	savehandler = handler;
+	if (setjmp(jmploc.loc))
+		need_longjmp = exception != EXERROR && exception != EXEXEC;
+	else {
+		handler = &jmploc;
+		expandarg(redir->nhere.doc, fn, 0);
+		redir->nhere.expdoc = fn->list->text;
+		INTOFF;
+	}
+	handler = savehandler;
+	forcelocal--;
+	poplocalvars();
+	localvars = savelocalvars;
+	if (need_longjmp)
+		longjmp(handler->loc, 1);
+	INTON;
+}
+
+
 /*
  * Compute the names of the files in a redirection list.
  */
@@ -518,6 +551,9 @@ expredir(union node *n)
 				expandarg(redir->ndup.vname, &fn, EXP_TILDE | EXP_REDIR);
 				fixredir(redir, fn.list->text, 1);
 			}
+			break;
+		case NXHERE:
+			exphere(redir, &fn);
 			break;
 		}
 	}
@@ -553,7 +589,8 @@ evalpipe(union node *n)
 		pip[1] = -1;
 		if (lp->next) {
 			if (pipe(pip) < 0) {
-				close(prevfd);
+				if (prevfd >= 0)
+					close(prevfd);
 				error("Pipe call failed: %s", strerror(errno));
 			}
 		}
@@ -610,7 +647,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 {
 	int pip[2];
 	struct job *jp;
-	struct stackmark smark;		/* unnecessary */
+	struct stackmark smark;
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
@@ -624,8 +661,8 @@ evalbackcmd(union node *n, struct backcmd *result)
 		exitstatus = 0;
 		goto out;
 	}
+	exitstatus = oexitstatus;
 	if (is_valid_fast_cmdsubst(n)) {
-		exitstatus = oexitstatus;
 		savelocalvars = localvars;
 		localvars = NULL;
 		forcelocal++;
@@ -649,7 +686,6 @@ evalbackcmd(union node *n, struct backcmd *result)
 		poplocalvars();
 		localvars = savelocalvars;
 	} else {
-		exitstatus = 0;
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
 		jp = makejob(n, 1);
@@ -752,7 +788,6 @@ safe_builtin(int idx, int argc, char **argv)
 static void
 evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 {
-	struct stackmark smark;
 	union node *argp;
 	struct arglist arglist;
 	struct arglist varlist;
@@ -779,7 +814,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
-	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	varlist.lastp = &varlist.list;
 	varflag = 1;
@@ -1150,7 +1184,6 @@ out:
 		setvar("_", lastarg, 0);
 	if (do_clearcmdentry)
 		clearcmdentry();
-	popstackmark(&smark);
 }
 
 

@@ -23,6 +23,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
+
 #include <string.h>
 #include <strings.h>
 #include <dt_impl.h>
@@ -37,7 +41,6 @@ static const struct {
 	{ EDT_VERSREDUCED, "Requested version conflicts with earlier setting" },
 	{ EDT_CTF,	"Unexpected libctf error" },
 	{ EDT_COMPILER, "Error in D program compilation" },
-	{ EDT_NOREG,	"Insufficient registers to generate code" },
 	{ EDT_NOTUPREG,	"Insufficient tuple registers to generate code" },
 	{ EDT_NOMEM,	"Memory allocation failure" },
 	{ EDT_INT2BIG,	"Integer constant table limit exceeded" },

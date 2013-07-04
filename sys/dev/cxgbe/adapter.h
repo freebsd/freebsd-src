@@ -50,9 +50,6 @@
 #include "offload.h"
 #include "firmware/t4fw_interface.h"
 
-#define T4_CFGNAME "t4fw_cfg"
-#define T4_FWNAME "t4fw"
-
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
@@ -144,17 +141,21 @@ enum {
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
 
-#ifdef T4_PKT_TIMESTAMP
-#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
-#else
-#define RX_COPY_THRESHOLD MINCLSIZE
-#endif
-
 enum {
 	/* adapter intr_type */
 	INTR_INTX	= (1 << 0),
 	INTR_MSI 	= (1 << 1),
 	INTR_MSIX	= (1 << 2)
+};
+
+enum {
+	/* flags understood by begin_synchronized_op */
+	HOLD_LOCK	= (1 << 0),
+	SLEEP_OK	= (1 << 1),
+	INTR_OK		= (1 << 2),
+
+	/* flags understood by end_synchronized_op */
+	LOCK_HELD	= HOLD_LOCK,
 };
 
 enum {
@@ -174,11 +175,11 @@ enum {
 	PORT_SYSCTL_CTX	= (1 << 2),
 };
 
-#define IS_DOOMED(pi)	(pi->flags & DOOMED)
-#define SET_DOOMED(pi)	do {pi->flags |= DOOMED;} while (0)
-#define IS_BUSY(sc)	(sc->flags & CXGBE_BUSY)
-#define SET_BUSY(sc)	do {sc->flags |= CXGBE_BUSY;} while (0)
-#define CLR_BUSY(sc)	do {sc->flags &= ~CXGBE_BUSY;} while (0)
+#define IS_DOOMED(pi)	((pi)->flags & DOOMED)
+#define SET_DOOMED(pi)	do {(pi)->flags |= DOOMED;} while (0)
+#define IS_BUSY(sc)	((sc)->flags & CXGBE_BUSY)
+#define SET_BUSY(sc)	do {(sc)->flags |= CXGBE_BUSY;} while (0)
+#define CLR_BUSY(sc)	do {(sc)->flags &= ~CXGBE_BUSY;} while (0)
 
 struct port_info {
 	device_t dev;
@@ -317,6 +318,9 @@ enum {
 	EQ_STALLED	= (1 << 6),	/* out of hw descriptors or dmamaps */
 };
 
+/* Listed in order of preference.  Update t4_sysctls too if you change these */
+enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
+
 /*
  * Egress Queue: driver is producer, T4 is consumer.
  *
@@ -334,6 +338,9 @@ struct sge_eq {
 	struct tx_desc *desc;	/* KVA of descriptor ring */
 	bus_addr_t ba;		/* bus address of descriptor ring */
 	struct sge_qstat *spg;	/* status page, for convenience */
+	int doorbells;
+	volatile uint32_t *udb;	/* KVA of doorbell (lies within BAR2) */
+	u_int udb_qid;		/* relative qid within the doorbell page */
 	uint16_t cap;		/* max # of desc, for convenience */
 	uint16_t avail;		/* available descriptors, for convenience */
 	uint16_t qsize;		/* size (# of entries) of the queue */
@@ -486,6 +493,7 @@ struct sge {
 	int timer_val[SGE_NTIMERS];
 	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
+	int s_qpp;
 
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */
@@ -531,6 +539,9 @@ struct adapter {
 	bus_space_handle_t bh;
 	bus_space_tag_t bt;
 	bus_size_t mmio_len;
+	int udbs_rid;
+	struct resource *udbs_res;
+	volatile uint8_t *udbs_base;
 
 	unsigned int pf;
 	unsigned int mbox;
@@ -551,7 +562,6 @@ struct adapter {
 	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
-	uint32_t filter_mode;
 
 #ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */
@@ -560,6 +570,7 @@ struct adapter {
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
+	int doorbells;
 	int open_device_map;
 #ifdef TCP_OFFLOAD
 	int offload_map;
@@ -567,7 +578,8 @@ struct adapter {
 	int flags;
 
 	char fw_version[32];
-	unsigned int cfcsum;
+	char cfg_file[32];
+	u_int cfcsum;
 	struct adapter_params params;
 	struct t4_virt_res vres;
 
@@ -589,14 +601,25 @@ struct adapter {
 	struct callout sfl_callout;
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
-	fw_msg_handler_t fw_msg_handler[4];	/* NUM_FW6_TYPES */
+	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */
 	cpl_handler_t cpl_handler[0xef];	/* NUM_CPL_CMDS */
+
+#ifdef INVARIANTS
+	const char *last_op;
+	const void *last_op_thr;
+#endif
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
 #define ADAPTER_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
 #define ADAPTER_LOCK_ASSERT_OWNED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(sc) mtx_assert(&(sc)->sc_lock, MA_NOTOWNED)
+
+/* XXX: not bulletproof, but much better than nothing */
+#define ASSERT_SYNCHRONIZED_OP(sc)	\
+    KASSERT(IS_BUSY(sc) && \
+	(mtx_owned(&(sc)->sc_lock) || sc->last_op_thr == curthread), \
+	("%s: operation not synchronized.", __func__))
 
 #define PORT_LOCK(pi)			mtx_lock(&(pi)->pi_lock)
 #define PORT_UNLOCK(pi)			mtx_unlock(&(pi)->pi_lock)
@@ -626,18 +649,18 @@ struct adapter {
 #define TXQ_LOCK_ASSERT_OWNED(txq)	EQ_LOCK_ASSERT_OWNED(&(txq)->eq)
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
 
-#define for_each_txq(pi, iter, txq) \
-	txq = &pi->adapter->sge.txq[pi->first_txq]; \
-	for (iter = 0; iter < pi->ntxq; ++iter, ++txq)
-#define for_each_rxq(pi, iter, rxq) \
-	rxq = &pi->adapter->sge.rxq[pi->first_rxq]; \
-	for (iter = 0; iter < pi->nrxq; ++iter, ++rxq)
-#define for_each_ofld_txq(pi, iter, ofld_txq) \
-	ofld_txq = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq]; \
-	for (iter = 0; iter < pi->nofldtxq; ++iter, ++ofld_txq)
-#define for_each_ofld_rxq(pi, iter, ofld_rxq) \
-	ofld_rxq = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq]; \
-	for (iter = 0; iter < pi->nofldrxq; ++iter, ++ofld_rxq)
+#define for_each_txq(pi, iter, q) \
+	for (q = &pi->adapter->sge.txq[pi->first_txq], iter = 0; \
+	    iter < pi->ntxq; ++iter, ++q)
+#define for_each_rxq(pi, iter, q) \
+	for (q = &pi->adapter->sge.rxq[pi->first_rxq], iter = 0; \
+	    iter < pi->nrxq; ++iter, ++q)
+#define for_each_ofld_txq(pi, iter, q) \
+	for (q = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq], iter = 0; \
+	    iter < pi->nofldtxq; ++iter, ++q)
+#define for_each_ofld_rxq(pi, iter, q) \
+	for (q = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq], iter = 0; \
+	    iter < pi->nofldrxq; ++iter, ++q)
 
 /* One for errors, one for firmware events */
 #define T4_EXTRA_INTR 2
@@ -726,13 +749,22 @@ t4_os_set_hw_addr(struct adapter *sc, int idx, uint8_t hw_addr[])
 	bcopy(hw_addr, sc->port[idx]->hw_addr, ETHER_ADDR_LEN);
 }
 
-static inline bool is_10G_port(const struct port_info *pi)
+static inline bool
+is_10G_port(const struct port_info *pi)
 {
 
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
-static inline int tx_resume_threshold(struct sge_eq *eq)
+static inline bool
+is_40G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
+static inline int
+tx_resume_threshold(struct sge_eq *eq)
 {
 
 	return (eq->qsize / 4);
@@ -751,10 +783,14 @@ int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
 int t4_register_fw_msg_handler(struct adapter *, int, fw_msg_handler_t);
 int t4_filter_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int begin_synchronized_op(struct adapter *, struct port_info *, int, char *);
+void end_synchronized_op(struct adapter *, int);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
-int t4_sge_init(struct adapter *);
+void t4_init_sge_cpl_handlers(struct adapter *);
+void t4_tweak_chip_settings(struct adapter *);
+int t4_read_chip_settings(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);

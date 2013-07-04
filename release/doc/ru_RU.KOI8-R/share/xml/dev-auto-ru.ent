@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="koi8-r"?>
+<!--
+     The FreeBSD Russian Documentation Project
+
+     Some entities in this file was translated via
+     release/doc/ru_RU.KOI8-R/share/examples/dev-auto-translate.pl script,
+     the rest is translated manually.
+
+     Use release/doc/ru_RU.KOI8-R/share/examples/dev-auto-translate.pl
+     script to update this file (-o option).
+     This script maintained in HEAD branch.
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/xml/dev-auto-ru.xml,v 1.5 2005/06/30 12:11:18 den Exp $
+-->
+<!ENTITY hwlist.62c9ec99a9ca598d738dcf66b339aa1e 'Контроллеры, поддерживаемые драйвером &man.aac.4;, включая:'>
+<!ENTITY hwlist.43922be022d49dabc274b2afffd0db8b 'Драйвер &man.adv.4; поддерживает следующие контроллеры SCSI:'>
+<!ENTITY hwlist.cbf6eff03c5ce0d986b45880ed887070 'Драйвер &man.adw.4; поддерживает контроллеры SCSI, включая:'>
+<!ENTITY hwlist.0cce687e027220e7cff2d76897be603d 'Драйвер &man.aha.4; поддерживает следующие хост адаптеры SCSI:'>
+<!ENTITY hwlist.c418e3d138116d63590865e8e9524fdf 'Драйвер &man.ahb.4; поддерживает следующие хост адаптеры SCSI:'>
+<!ENTITY hwlist.8e391330b2354bda473cab7214c1dd09 'Драйвер &man.ahc.4; поддерживает следующие хост адаптеры SCSI и карты контроллеров SCSI:'>
+<!ENTITY hwlist.ccfe391ca2c0ac72c3d85d4d1c21d9fb 'Драйвер &man.ahd.4; поддерживает следующее:'>
+<!ENTITY hwlist.b2f83b643fc8ceb4ac19e22a28600786 'Контроллеры, поддерживаемые драйвером &man.amd.4;, включая:'>
+<!ENTITY hwlist.72f6158faefdb12346bc627163794c6a 'Контроллеры, поддерживаемые драйвером &man.amr.4;, включая:'>
+<!ENTITY hwlist.a6a898c40c4bbb090be33d01b44c3542 'Адаптеры, поддерживаемые в настоящее время драйвером &man.asr.4;, включая следующие:'>
+<!ENTITY hwlist.24043b14b616a68778dd242eea1f8910 'Следующие адаптеры входят в число поддерживаемых драйвером &man.ath.4;:'>
+<!ENTITY hwlist.b145c7b4021a8c5d8651da9eb4e36e61 'Следующие адаптеры входят в число поддерживаемых модулем &man.ath.hal.4;:'>
+<!ENTITY hwlist.83ac9034acfed2b9946e35238b025539 'Адаптеры, поддерживаемые драйвером &man.aue.4;, включая:'>
+<!ENTITY hwlist.a734256cbb5614a8b529e29c2e3346f3 'Карты, поддерживаемые драйвером &man.awi.4;, включая:'>
+<!ENTITY hwlist.a47714c8ac79c305dc24de117983c1b2 'Драйвер &man.axe.4; поддерживает основанные на ASIX Electronics AX88172 адаптеры USB Ethernet, включая:'>
+<!ENTITY hwlist.4ef588c76d5000d7934c88d3ea8dc374 'Драйвер &man.bge.4; поддерживает различные сетевые карты, основанные на семействе Broadcom BCM570x наборов микросхем контроллеров Gigabit Ethernet&#44; включая следующие:'>
+<!ENTITY hwlist.6df0411510c2b97e8f2fb11895a1e0e1 'Драйвер &man.bktr.4; поддерживает устройства захвата видео, основанные на микросхемах Brooktree Bt848&#47;849&#47;878&#47;879&#44; как и карты Pinnacle PCTV&#44; включая:'>
+<!ENTITY hwlist.18fa1a4af00956e506712b4ea27b097d 'Драйвер &man.bt.4; поддерживает серии BusLogic MultiMaster <quote>W<&#47;quote>&#44; <quote>C<&#47;quote>&#44; <quote>S<&#47;quote> и <quote>A<&#47;quote>, и совместимые хост адаптеры SCSI:'>
+<!ENTITY hwlist.363522c4c2f26972a4496dca682abf79 'AMI FastDisk Host Adapters, являющиеся клонами BusLogic MultiMaster, поддерживаются также драйвером &man.bt.4;&#46;'>
+<!ENTITY hwlist.8a0f71d10104f37e0bdbf8e1c391066d 'Контроллеры, поддерживаемые драйвером &man.ciss.4;, включая:'>
+<!ENTITY hwlist.721bf0142a0546b1be757afc78e97b4f 'Драйвер &man.cm.4; поддерживает следующие модели карт:'>
+<!ENTITY hwlist.cdfe34e989d5b63c24ef681f56b3d3a9 'Карты, поддерживаемые драйвером &man.cnw.4;, включая:'>
+<!ENTITY hwlist.64c9c7e0823d41af15e7c00a85703d14 'Драйвер &man.cue.4; поддерживает основанные на CATC USB&#45;EL1210A адаптеры USB Ethernet, включая:'>
+<!ENTITY hwlist.a2e170e7151d1b581466e61a99335688 'Драйвер &man.dc.4; поддерживает следующие наборы микросхем:'>
+<!ENTITY hwlist.33a353a9deb758a7f642e6c68add1025 'Следующие сетевые карты работают с драйвером &man.dc.4;:'>
+<!ENTITY hwlist.d7ee0d1b77e48e22abb2dbce623ce6ed 'Адаптеры, поддерживаемые драйвером &man.de.4;, включая:'>
+<!ENTITY hwlist.43d766ad53c1d29a1fd650c658080277 'Драйвер &man.dpt.4; поддерживает следующие RAID адаптеры:'>
+<!ENTITY hwlist.5c7012c07d39cdb76bde008815240fb6 'Драйвер &man.ed.4; поддерживает следующие сетевые карты Ethernet:'>
+<!ENTITY hwlist.715433611c8ec73ed43bc805db6203da 'Драйвер &man.em.4; поддерживает Gigabit Ethernet адаптеры, основанные на микросхемах контроллера Intel 82540&#44; 82541ER&#44; 82541PI&#44; 82542&#44; 82543&#44; 82544&#44; 82545&#44; 82546&#44; 82546EB&#44; 82546GB и 82547:'>
+<!ENTITY hwlist.e2b591911c3076569a942543c565671d 'Драйвер &man.fwohci.4; предоставляет поддержку для интерфейсных карт PCI&#47;CardBus FireWire&#46; Драйвер поддерживает следующие наборы микросхем IEEE 1394 OHCI:'>
+<!ENTITY hwlist.9dfd22a483b0fe25691900103983587a 'Адаптеры, поддерживаемые драйвером &man.fxp.4;, включая:'>
+<!ENTITY hwlist.4b7a23108cafef2da95c563c85259f3c 'Карты, поддерживаемые &man.gem.4;, включая:'>
+<!ENTITY hwlist.1e96956d4d3fb40f42f78f602705c3ba 'Драйвер &man.hfa.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.ea2a57034a0f12ef1fa0b0035234674b 'Драйвер &man.hifn.4; поддерживает различные карты, содержащие наборы микросхем Hifn 7751&#44; 7951&#44; 7811&#44; 7955&#44; и 7956 chipsets&#44; такие как:'>
+<!ENTITY hwlist.f56cdcc9214f4834064f0eec2ffb3c6c 'Драйвер &man.hme.4; поддерживает встроенные Ethernet интерфейсы многих рабочих станций и серверов Sun UltraSPARC&#46; Карты, поддерживаемые драйвером &man.hme.4;, включая:'>
+<!ENTITY hwlist.9e7fa064c78912746e7f5475717f7566 'Драйвер &man.hptmv.4; поддерживает следующие контроллеры ATA RAID:'>
+<!ENTITY hwlist.94511dcc4f50af600597c880ea0d6f9c 'Драйвером &man.ida.4; поддерживаются следующие контроллеры:'>
+<!ENTITY hwlist.0e2a9ca39513c2f31f4a4270e5acb6af 'Контроллеры, поддерживаемые драйвером &man.iir.4;, включая:'>
+<!ENTITY hwlist.c4186bc51a7ec8fcc5f946cda1f461e2 'Контроллеры, поддерживаемые драйвером &man.ips.4;, включая:'>
+<!ENTITY hwlist.f5aeb9afd0480dd565b1771e68bfcd7e 'Карты, поддерживаемые драйвером &man.isp.4;, включая:'>
+<!ENTITY hwlist.bea32ba761e7bbcda026eaca0b9c9e3e 'Драйвер &man.ixgb.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.4ee6ff420d60287e7d73ffc121bd7220 'Драйвер &man.kue.4; поддерживает адаптеры USB Ethernet, основанные на Kawasaki LSI KL5KLUSB101B, включая:'>
+<!ENTITY hwlist.cdbab64e94a7e83beefcc717678b6e02 'Адаптеры, поддерживаемые драйвером &man.lge.4;, включая:'>
+<!ENTITY hwlist.a7339ab4baa5dae0b999811512846399 'Контроллеры, поддерживаемые драйвером &man.mlx.4;, включая:'>
+<!ENTITY hwlist.b2d78d641e881d4993824d51db88272b 'Контроллеры, поддерживаемые драйвером &man.mly.4;, включая:'>
+<!ENTITY hwlist.2aba100fbd3734b5402a30fc860ded2c 'Драйвером &man.mpt.4; поддерживаются следующие контроллеры:'>
+<!ENTITY hwlist.8d40cd179c0ba2baab86acc5651afd2a 'Микросхемы SCSI контроллера, поддерживаемые драйвером &man.mpt.4;, могут быть встроены во многие системы, включая:'>
+<!ENTITY hwlist.0a0d6824695fb31496685bb3c197f660 'Драйвер &man.my.4; предоставляет поддержку различных сетевых карт, основанных на наборе микросхем Myson chipset&#46; Поддерживаемые модели включают:'>
+<!ENTITY hwlist.679e16db9880a62847fb27373e91eb6d 'Драйвер &man.ncr.4; предоставляет поддержку следующих наборов микросхем контроллеров NCR&#47;Symbios SCSI:'>
+<!ENTITY hwlist.0ead896f8221a4e58c9bba9f054d0703 'Драйвером &man.ncv.4; в настоящее время поддерживаются следующие устройства:'>
+<!ENTITY hwlist.1bd2c4e4dbf8e49e1dfd69ddb89a6db2 'Драйвер &man.ng.bt3c.4; предоставляет поддержку bluetooth адаптера 3Com&#47;HP 3CRWB6096&#45;A PCCARD&#46;'>
+<!ENTITY hwlist.584e542589112934a1074c60a7371df0 'Драйвер &man.ng.ubt.4; поддерживает все Bluetooth USB устройства, соответствующие спецификации Bluetooth v1&#46;1&#44; включая:'>
+<!ENTITY hwlist.768431e3e056920765911205a692d4f6 'Драйвер &man.nge.4; поддерживает основанные на National Semiconductor DP83820 и DP83821 адаптеры Gigabit Ethernet, включая:'>
+<!ENTITY hwlist.3f1863e7149bd75205c4c470508849ab 'Контроллеры, поддерживаемые драйвером &man.nsp.4;, включая:'>
+<!ENTITY hwlist.54163214a88d94b4fbb628765a6d15e9 'Драйвер &man.ohci.4; поддерживает все совместимые с OHCI v1&#46;0 контроллеры, включая:'>
+<!ENTITY hwlist.532133face40ce3dfa3792b6090bf113 'Драйвер &man.pcn.4; поддерживает адаптеры и встроенные контроллеры, основанные на микросхемах AMD PCnet&#47;FAST&#44; PCnet&#47;FAST&#43;&#44; PCnet&#47;FAST III&#44; PCnet&#47;PRO и PCnet&#47;Home Fast Ethernet:'>
+<!ENTITY hwlist.b89a4fb9f0c2a59c991af44d778596e1 'Драйвер &man.pst.4; поддерживает Promise Supertrak SX6000 ATA аппаратный RAID контроллер&#46;'>
+<!ENTITY hwlist.71d961a38d4813453d534cf60a7bf1c0 'Драйвер &man.re.4; поддерживает основанные на RealTek RTL8139C&#43;&#44; RTL8169&#44; RTL8169S и RTL8110S адаптеры Fast Ethernet и Gigabit Ethernet, включая:'>
+<!ENTITY hwlist.049ae823a29aef6d22653e8780a5d51b 'Адаптеры, поддерживаемые драйвером &man.rl.4;, включая:'>
+<!ENTITY hwlist.0309eaa8ea5fc2b405d6359269568f86 'Драйвер &man.rue.4; поддерживает основанные на RealTek RTL8150 адаптеры USB Ethernet, включая:'>
+<!ENTITY hwlist.33d81d62050169dea3392b4c71898a67 'Драйвер &man.safe.4; поддерживает карты, содержащие любую из следующих микросхем:'>
+<!ENTITY hwlist.285d0d52abdf538bb374e4efcffc4f41 'Адаптеры, поддерживаемые драйвером &man.sf.4;, включая:'>
+<!ENTITY hwlist.97e48240aa7ee522f8168bb0ad1fe6d1 'Драйвер &man.sis.4; поддерживает основанные на Silicon Integrated Systems SiS 900 и SiS 7016 адаптеры Fast Ethernet  и встроенные контроллеры&#44; как и адаптеры Fast Ethernet, основанные на микросхеме National Semiconductor DP83815 &#40;MacPhyter&#41;&#46; Поддерживаемые адаптеры включают:'>
+<!ENTITY hwlist.e0988c23826ec248e8efc038dfbf111f 'Адаптеры, поддерживаемые драйвером &man.sk.4;, включая:'>
+<!ENTITY hwlist.ee021ce8a0d8bd78a6e9e7200851181a 'Драйвер &man.sn.4; поддерживает основанные на SMC9xxx карты ISA и PCMCIA, включая:'>
+<!ENTITY hwlist.23329d3c1cef6e53f40bcc656f94a6b9 'Драйвер &man.snd.ad1816.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.fe73d6ddaab51bcc8cb7f9e829113a73 'Драйвер &man.snd.als4000.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.ae0e3e32462badacd47736e322f92b48 'Драйвер &man.snd.cmi.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.f694c5b8f37f6a18b7f8261ac68871da 'Драйвер &man.snd.cs4281.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.e690e006a7215ae8c14b686364272b6a 'Драйвер &man.snd.csa.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.e2a200b134158f3d54346eddf3e05244 'Некоторые встроенные микросхемы CS4610 сопровождаются кодеком CS423x ISA вместо кодека CS4297 AC97&#46; Такие конфигурации пока не поддерживаются драйвером &man.snd.csa.4;&#46;'>
+<!ENTITY hwlist.6acf6633674229b843e9f9f8adc0ed30 'Драйвер &man.snd.ds1.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.047130f4ab914f933c5e55ff5247f697 'Драйвер &man.snd.emu10k1.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.4761928e208651a00bb75cb4e5b4ae5b 'Драйвер &man.snd.es137x.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.394c7272b9c9770e7f705772b41ff3cb 'Драйвер &man.snd.ess.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.9f2626b70240b74e01ca238a12691123 'Драйвер &man.snd.fm801.4; поддерживает звуковые устройства, основанные на следующем наборе микросхем:'>
+<!ENTITY hwlist.607f17c8d900df1b30109708e63ccb54 'Драйвер &man.snd.gusc.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.f6d273d0d630af06cc5ddfe89dfb7a7b 'Драйвер &man.snd.ich.4; поддерживает следующие звуковые устройства:'>
+<!ENTITY hwlist.5f5766c47253be04b5ab28afce3cd619 'Драйвер &man.snd.maestro.4; поддерживает следующие звуковые карты PCI:'>
+<!ENTITY hwlist.6954a1334ef0d843ba16839865201a5d 'Драйвер &man.snd.maestro3.4; поддерживает следующие звуковые устройства:'>
+<!ENTITY hwlist.859d83a93125cf7c4dd8b14c5a62eb69 'Драйвер &man.snd.neomagic.4; поддерживает следующие звуковые устройства:'>
+<!ENTITY hwlist.91f876a63aab71c48e42eae223bcc943 'Драйвер &man.snd.sbc.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.3afa5dfff8edecfa593432eaa480848a 'Драйвер &man.snd.solo.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.ccdfcc794c876cba45c1a81a7ea2e3fe 'Драйвер &man.ste.4; поддерживает основанные на Sundance Technologies ST201 адаптеры и встроенные контроллеры Fast Ethernet, включая:'>
+<!ENTITY hwlist.14064ff2324d7e3f84a67f49890d600b 'Контроллеры, поддерживаемые драйвером &man.stg.4;, включая:'>
+<!ENTITY hwlist.e252a5e7ba9cc3e557d582aab38217a9 'Драйвер &man.sym.4; поддерживает следующие контроллеры Symbios&#47;LSI Logic PCI SCSI:'>
+<!ENTITY hwlist.cf777c43b4cc84282e6c535a45471cc0 'SCSI контроллеры, поддерживаемые &man.sym.4;, могут быть или встроены в материнскую плату, или находиться на одной из следующих карты расширения:'>
+<!ENTITY hwlist.3712218afd6a3f27d0b1eaf4b894092e 'Драйвер &man.ti.4; поддерживает адаптеры Gigabit Ethernet, основанные на микросхемах Alteon Tigon I и II&#46; Драйвер &man.ti.4; был протестирован со следующими адаптерами:'>
+<!ENTITY hwlist.7da8846b72ae5d158776b36797920b7c 'Драйвер &man.tl.4; поддерживает основанные на Texas Instruments ThunderLAN адаптеры Ethernet и Fast Ethernet, включая большое количество адаптеров Compaq PCI Ethernet&#46; Также поддерживаются:'>
+<!ENTITY hwlist.2260f7d9d8b90d15338dec03416ac0bd 'Драйвер &man.tl.4; также поддерживает встроенные адаптеры Ethernet в различных серверах Compaq Prosignia и настольных компьютерах Compaq Deskpro, включая:'>
+<!ENTITY hwlist.db02b4acabc70ffe1c5db08d13246cb9 'SCSI контроллеры, поддерживаемые драйвером &man.trm.4;, включают:'>
+<!ENTITY hwlist.9c0c1f52f8a863323841d6a8c70872e6 'Драйвер &man.twa.4; поддерживает следующие SATA RAID контроллеры:'>
+<!ENTITY hwlist.99a7a57e2171fa8207d196be774df62f 'Драйвер &man.twe.4; поддерживает следующие контроллеры PATA&#47;SATA RAID:'>
+<!ENTITY hwlist.29ad6a269efd93c15215ea90cba9caf1 'Драйвер &man.txp.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.9c987130a2024c69ab8eb8350ccba6ef 'Драйвер &man.ubsa.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.44dad25a25e7b1f901f3fe8869a47050 'Драйвер &man.ubsec.4; поддерживает карты, содержащие любую из следующих микросхем:'>
+<!ENTITY hwlist.18c44f082c51df601e259a42efc01341 'Драйвер &man.ubser.4; предоставляет поддержку адаптеров управления последовательной консолью BWCT&#46;'>
+<!ENTITY hwlist.78e840b0f4efd686fc412de05cc68c7b 'Драйвер &man.ucycom.4; в настоящее время поддерживает следующие устройства, включающие микросхемы Cypress USB to RS232 bridge:'>
+<!ENTITY hwlist.24bbbc7cc5ddc693ba1c79ea3b440a1e 'Драйвер &man.udav.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.6029a8138b92c22c3474e7bc218532c2 'Драйвер &man.uftdi.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.696437175c63c9697e1faed5641c7f52 'Драйвер &man.uhci.4; поддерживает все UHCI v1&#46;1 совместимые контроллеры, включая:'>
+<!ENTITY hwlist.6677c43264a28d9aa5cc4ce12632e5d8 'Драйвер &man.ulpt.4; предоставляет поддержку USB принтеров и переходных кабелей параллельных принтеров&#44; включая следующие:'>
+<!ENTITY hwlist.6b7220a228bd275c49a05788d90be42c 'Драйвер &man.umass.4; поддерживает устройства USB Mass Storage&#44; включая:'>
+<!ENTITY hwlist.067f36083a7988c8ebded538a7c0c9fb 'Драйвер &man.umct.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.10217275dd6e2f383066f56392dbd316 'Устройства, поддерживаемые драйвером &man.umodem.4;, включают:'>
+<!ENTITY hwlist.1f502af921a7a5cd4cfe8df4ff527e8a 'Драйвер &man.uplcom.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.76b92909fdde05aaadc11f39b638125b 'Следующие устройства поддерживаются драйвером &man.urio.4;'>
+<!ENTITY hwlist.3598a9039c0410332007e7b9ffd717ab 'Следующие устройства поддерживаются драйвером &man.uscanner.4;'>
+<!ENTITY hwlist.56c62cdda9540c16750e031908fccfaf 'Драйвер &man.uvisor.4; поддерживает следующие устройства:'>
+<!ENTITY hwlist.bdefa22ed37ed9af72cd40040853ee67 'Драйвер &man.uvscom.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.a9a9c48739e68ce01cf607e5f51291ce 'Драйвер &man.vge.4; поддерживает основанные на VIA Networking VT3119 и VT6122 адаптеры Gigabit Ethernet, включая:'>
+<!ENTITY hwlist.bf24cc4c8ea740503c1ab83e3e05966b 'Драйвер &man.vpo.4; поддерживает следующие parallel to SCSI интерфейсы'>
+<!ENTITY hwlist.843e71c7bfdfb8462b3be38b6007857e 'Драйвер &man.vr.4; поддерживает основанные на VIA Technologies Rhine I&#44; Rhine II&#44; и Rhine III адаптеры Fast Ethernet, включая:'>
+<!ENTITY hwlist.0b207852263019bee046e75a21f299e4 'Драйвер &man.wb.4; поддерживает основанные на Winbond W89C840F адаптеры и встроенные контроллеры Fast Ethernet, включая:'>
+<!ENTITY hwlist.ff13412c53303e70619678cebf8b381c 'Драйвер &man.xe.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.e31f309a17441e7733a3b69a99629bbc 'Драйвер &man.xl.4; поддерживает следующее оборудование:'>
+<!ENTITY hwlist.2f35a085828ff272e076d366b406aacb 'Семейства 3C656 карт CardBus и 3C556 карт MiniPCI имеют встроенную поддержку проприетарного модема&#46; Ни драйвер &man.xl.4;, ни какой-либо другой драйвер не поддерживают этот модем&#46;'>
+<!ENTITY hwlist.2832c80059358727b41e0b81dbc74776 'Адаптеры, поддерживаемые драйвером &man.aic.4;, включают:'>
+<!ENTITY hwlist.a086d2138ff88e169b186130f37feebe 'Драйвер &man.cp.4; поддерживает следующие модели адаптеров Tau&#45;PCI WAN:'>
+<!ENTITY hwlist.adfe0e99a40aa970f2ff51513e213bfb 'Драйвер &man.ct.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.6fb65e77ee965cf38efb50a9e2feda9b 'Драйвер &man.ctau.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.44b0ddab4ffe19afd55d9849caefeb9c 'Драйвер &man.cx.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.4f2c75a768d6a28fa79398adfc843402 'Драйвер &man.el.4; поддерживает карты 3Com 3c501 8bit ISA Ethernet&#46;'>
+<!ENTITY hwlist.42c4cfea0cd66c796e48dedec1f10c52 'Драйвер &man.ep.4; поддерживает адаптеры Ethernet, основанные на наборе микросхем 3Com 3C5x9 Etherlink III Parallel Tasking&#44; включая:'>
+<!ENTITY hwlist.4d1152906195c0b8885b4556d2acc7e1 'Драйвер &man.ex.4; поддерживает следующие адаптеры Ethernet:'>
+<!ENTITY hwlist.e33d3b4269c1c0a54c6983c39025cb2e 'Контроллеры и карты, поддерживаемые драйвером &man.fe.4;, включают:'>
+<!ENTITY hwlist.01cbcfd29830b2225b0260112f0dd6b7 'Драйвер &man.ie.4; предоставляет поддержку следующих 8 и 16-битных ISA Ethernet карт, основанных на микросхеме Intel i82586:'>
+<!ENTITY hwlist.0693981eaeaebc6d0d400470c81f29d3 'Драйвер &man.lnc.4; поддерживает следующие адаптеры:'>
+<!ENTITY hwlist.7363ffd109d23743166008d9ae72ce82 'Также поддерживаются адаптеры, работающие с драйвером pcn&#40;4&#41;&#46; Драйвер &man.lnc.4; работает с ними в режиме совместимости&#44; поэтому желательно использование драйвера pcn&#40;4&#41;&#46;'>
+<!ENTITY hwlist.bcec6450c71d0de3498c48126d9f96a9 'Драйвер &man.oltr.4; поддерживает следующие работающие на ISA адаптеры Olicom Token Ring:'>
+<!ENTITY hwlist.8b6ed4ad05ee2bbbdfb441278c1ebf8f 'Драйвер &man.snc.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.d5b1c477e51869e7cb454c70e5221249 'Драйвер &man.snc.4; также включает поддержку National Semiconductor NS46C46 как 64 &#42; 16 bits Microwave Serial EEPROM&#46;'>
+<!ENTITY hwlist.d0b148add52fd3a2c1593d2fed75a920 'Драйвер &man.vx.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.6099dff95afa452f801418cdf816cbd7 'Драйвер &man.snd.audiocs.4; поддерживает следующие звуковые устройства:'>
+<!ENTITY hwlist.38ac33fe29d9215e56f0c4e8f42b2d6d 'Драйвер &man.snd.via82c686.4; поддерживает звуковые устройства, основанные на следующем наборе микросхем:'>
+<!ENTITY hwlist.e688a5843719661e200e677735d50993 'Драйвер &man.snd.vibes.4; поддерживает звуковые устройства, основанные на следующем наборе микросхем:'>
+<!ENTITY hwlist.c2875a10d870ef5948a306802a3eb27c 'Драйвер &man.rc.4; поддерживает SDL Communications RISCom&#47;8 boards&#46;'>
+<!ENTITY hwlist.73c7ba1735e16bfd370f670d6f7f7ec1 'Драйвер &man.sr.4; поддерживает следующее оборудование:'>
+<!ENTITY hwlist.b15e9a237ad4fd8ff4d1e302d35b5d0e 'Драйвер &man.arcmsr.4; поддерживает следующие карты:'>
+<!ENTITY hwlist.5a5c5b85e01adc2f0accbf531676d0b3 'Драйвер &man.snd.via8233.4; поддерживает следующие аудио чипсеты:'>
+<!ENTITY hwlist.ffb8b63e66eb017d1fb18754c80430d7 'Драйвер &man.em.4; поддерживает Gigabit Ethernet адаптеры, основанные на Intel 82540&#44; 82541ER&#44; 82541PI&#44; 82542&#44; 82543&#44; 82544&#44; 82545&#44; 82546&#44; 82546EB&#44; 82546GB&#44; 82547 и 82573 микросхемах контроллеров:'>
+<!ENTITY hwlist.0fecf03242b8c2b439f69e438051ac74 'Драйвер &man.mn.4; предоставляет поддержку для референсных карт Siemens Easy321&#45;R1 E1&#47;T1&#46;'>
+<!ENTITY hwlist.d6e390f3eeb18215bf7061d249e6fd8d 'Драйвер &man.nve.4; поддерживает встроенные адаптеры NVIDIA MCP на материнских платах со следующими чипсетами:'>
+<!ENTITY hwlist.3b805ec9eee8b4752851992867518f42 'Следующие карты расширения проверены на работоспособность с драйвером &man.machfb.4; на данный момент:'>
+<!ENTITY hwlist.2a4b7e254ff87dc83da1876043a7c007 'Драйвер &man.sound.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.ad34498f56b94bcff7dc9243db266e4c 'Драйвер &man.snd.ad1816.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.7b418bf21d9b6039934a1b926b093195 'Драйвер &man.snd.als4000.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.5f7f9afb4483ff1bdff1219214a9073c 'Драйвер &man.snd.cmi.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.b4e3a832b1a55045a38edc20e6b4df3a 'Драйвер &man.snd.cs4281.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.9b49445e7dfa4e5f3e95a24a2a9bbf5c 'Драйвер &man.snd.csa.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.f1b7c2bba461df0c26bd84552c3741a8 'Драйвер &man.snd.ds1.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.07cc6d1fc2e38416cea9200af6b1dba0 'Драйвер &man.snd.emu10k1.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.07a14d75c09e9c0922d984454e495dd4 'Драйвер &man.snd.es137x.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.056d674fe1950d6be72d83c3ebbefdf5 'Драйвер &man.snd.ess.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.ce48e0b855b3c5375c1edbe1ddb7051e 'Драйвер &man.snd.gusc.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.b7b5ac30bf408e9efa9eae4c307a3564 'Драйвер &man.snd.sbc.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.5c8a068e76981ba8293f414b9f43c29a 'Драйвер &man.snd.solo.4; поддерживает следующие звуковые карты:'>
+<!ENTITY hwlist.c6b92ba2243d8c1704e2971bd80b301d 'Драйвер &man.machfb.4; предоставляет поддержку для следующих микросхем:'>

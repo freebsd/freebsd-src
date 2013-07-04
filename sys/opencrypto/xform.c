@@ -1,8 +1,9 @@
 /*	$OpenBSD: xform.c,v 1.16 2001/08/28 12:20:43 ben Exp $	*/
 /*-
  * The authors of this code are John Ioannidis (ji@tla.org),
- * Angelos D. Keromytis (kermit@csd.uch.gr) and
- * Niels Provos (provos@physnet.uni-hamburg.de).
+ * Angelos D. Keromytis (kermit@csd.uch.gr),
+ * Niels Provos (provos@physnet.uni-hamburg.de) and
+ * Damien Miller (djm@mindrot.org).
  *
  * This code was written by John Ioannidis for BSD/OS in Athens, Greece,
  * in November 1995.
@@ -15,10 +16,14 @@
  *
  * Additional features in 1999 by Angelos D. Keromytis.
  *
+ * AES XTS implementation in 2008 by Damien Miller
+ *
  * Copyright (C) 1995, 1996, 1997, 1998, 1999 by John Ioannidis,
  * Angelos D. Keromytis and Niels Provos.
  *
  * Copyright (C) 2001, Angelos D. Keromytis.
+ *
+ * Copyright (C) 2008, Damien Miller
  *
  * Permission to use, copy, and modify this software with or without fee
  * is hereby granted, provided that this entire notice is included in

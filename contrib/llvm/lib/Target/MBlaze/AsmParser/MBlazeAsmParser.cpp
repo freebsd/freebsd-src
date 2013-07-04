@@ -8,18 +8,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/MBlazeBaseInfo.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCTargetAsmParser.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/Twine.h"
 using namespace llvm;
 
 namespace {
@@ -35,7 +35,8 @@ class MBlazeAsmParser : public MCTargetAsmParser {
   bool Error(SMLoc L, const Twine &Msg) { return Parser.Error(L, Msg); }
 
   MBlazeOperand *ParseMemory(SmallVectorImpl<MCParsedAsmOperand*> &Operands);
-  MBlazeOperand *ParseRegister(unsigned &RegNo);
+  MBlazeOperand *ParseRegister();
+  MBlazeOperand *ParseRegister(SMLoc &StartLoc, SMLoc &EndLoc);
   MBlazeOperand *ParseImmediate();
   MBlazeOperand *ParseFsl();
   MBlazeOperand* ParseOperand(SmallVectorImpl<MCParsedAsmOperand*> &Operands);
@@ -81,29 +82,35 @@ struct MBlazeOperand : public MCParsedAsmOperand {
 
   SMLoc StartLoc, EndLoc;
 
+  struct TokOp {
+    const char *Data;
+    unsigned Length;
+  };
+
+  struct RegOp {
+    unsigned RegNum;
+  };
+
+  struct ImmOp {
+    const MCExpr *Val;
+  };
+
+  struct MemOp {
+    unsigned Base;
+    unsigned OffReg;
+    const MCExpr *Off;
+  };
+
+  struct FslImmOp {
+    const MCExpr *Val;
+  };
+
   union {
-    struct {
-      const char *Data;
-      unsigned Length;
-    } Tok;
-
-    struct {
-      unsigned RegNum;
-    } Reg;
-
-    struct {
-      const MCExpr *Val;
-    } Imm;
-
-    struct {
-      unsigned Base;
-      unsigned OffReg;
-      const MCExpr *Off;
-    } Mem;
-
-    struct {
-      const MCExpr *Val;
-    } FslImm;
+    struct TokOp Tok;
+    struct RegOp Reg;
+    struct ImmOp Imm;
+    struct MemOp Mem;
+    struct FslImmOp FslImm;
   };
 
   MBlazeOperand(KindTy K) : MCParsedAsmOperand(), Kind(K) {}
@@ -383,23 +390,31 @@ ParseMemory(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
 
 bool MBlazeAsmParser::ParseRegister(unsigned &RegNo,
                                     SMLoc &StartLoc, SMLoc &EndLoc) {
-  return (ParseRegister(RegNo) == 0);
+  MBlazeOperand *Reg = ParseRegister(StartLoc, EndLoc);
+  if (!Reg)
+    return true;
+  RegNo = Reg->getReg();
+  return false;
 }
 
-MBlazeOperand *MBlazeAsmParser::ParseRegister(unsigned &RegNo) {
-  SMLoc S = Parser.getTok().getLoc();
-  SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
+MBlazeOperand *MBlazeAsmParser::ParseRegister() {
+  SMLoc S, E;
+  return ParseRegister(S, E);
+}
 
-  switch (getLexer().getKind()) {
-  default: return 0;
-  case AsmToken::Identifier:
-    RegNo = MatchRegisterName(getLexer().getTok().getIdentifier());
-    if (RegNo == 0)
-      return 0;
+MBlazeOperand *MBlazeAsmParser::ParseRegister(SMLoc &StartLoc, SMLoc &EndLoc) {
+  StartLoc = Parser.getTok().getLoc();
+  EndLoc = Parser.getTok().getEndLoc();
 
-    getLexer().Lex();
-    return MBlazeOperand::CreateReg(RegNo, S, E);
-  }
+  if (getLexer().getKind() != AsmToken::Identifier)
+    return 0;
+
+  unsigned RegNo = MatchRegisterName(getLexer().getTok().getIdentifier());
+  if (RegNo == 0)
+    return 0;
+
+  getLexer().Lex();
+  return MBlazeOperand::CreateReg(RegNo, StartLoc, EndLoc);
 }
 
 static unsigned MatchFslRegister(StringRef String) {
@@ -415,7 +430,7 @@ static unsigned MatchFslRegister(StringRef String) {
 
 MBlazeOperand *MBlazeAsmParser::ParseFsl() {
   SMLoc S = Parser.getTok().getLoc();
-  SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
+  SMLoc E = Parser.getTok().getEndLoc();
 
   switch (getLexer().getKind()) {
   default: return 0;
@@ -432,7 +447,7 @@ MBlazeOperand *MBlazeAsmParser::ParseFsl() {
 
 MBlazeOperand *MBlazeAsmParser::ParseImmediate() {
   SMLoc S = Parser.getTok().getLoc();
-  SMLoc E = SMLoc::getFromPointer(Parser.getTok().getLoc().getPointer() - 1);
+  SMLoc E = Parser.getTok().getEndLoc();
 
   const MCExpr *EVal;
   switch (getLexer().getKind()) {
@@ -442,7 +457,7 @@ MBlazeOperand *MBlazeAsmParser::ParseImmediate() {
   case AsmToken::Minus:
   case AsmToken::Integer:
   case AsmToken::Identifier:
-    if (getParser().ParseExpression(EVal))
+    if (getParser().parseExpression(EVal))
       return 0;
 
     return MBlazeOperand::CreateImm(EVal, S, E);
@@ -454,8 +469,7 @@ ParseOperand(SmallVectorImpl<MCParsedAsmOperand*> &Operands) {
   MBlazeOperand *Op;
 
   // Attempt to parse the next token as a register name
-  unsigned RegNo;
-  Op = ParseRegister(RegNo);
+  Op = ParseRegister();
 
   // Attempt to parse the next token as an FSL immediate
   if (!Op)
@@ -529,10 +543,10 @@ bool MBlazeAsmParser::ParseDirectiveWord(unsigned Size, SMLoc L) {
   if (getLexer().isNot(AsmToken::EndOfStatement)) {
     for (;;) {
       const MCExpr *Value;
-      if (getParser().ParseExpression(Value))
+      if (getParser().parseExpression(Value))
         return true;
 
-      getParser().getStreamer().EmitValue(Value, Size, 0 /*addrspace*/);
+      getParser().getStreamer().EmitValue(Value, Size);
 
       if (getLexer().is(AsmToken::EndOfStatement))
         break;
@@ -548,12 +562,9 @@ bool MBlazeAsmParser::ParseDirectiveWord(unsigned Size, SMLoc L) {
   return false;
 }
 
-extern "C" void LLVMInitializeMBlazeAsmLexer();
-
 /// Force static initialization.
 extern "C" void LLVMInitializeMBlazeAsmParser() {
   RegisterMCAsmParser<MBlazeAsmParser> X(TheMBlazeTarget);
-  LLVMInitializeMBlazeAsmLexer();
 }
 
 #define GET_REGISTER_MATCHER

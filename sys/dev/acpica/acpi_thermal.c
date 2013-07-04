@@ -152,7 +152,7 @@ static device_method_t acpi_tz_methods[] = {
     DEVMETHOD(device_probe,	acpi_tz_probe),
     DEVMETHOD(device_attach,	acpi_tz_attach),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_tz_driver = {
@@ -509,15 +509,8 @@ acpi_tz_monitor(void *Context)
      */
     newactive = TZ_ACTIVE_NONE;
     for (i = TZ_NUMLEVELS - 1; i >= 0; i--) {
-	if (sc->tz_zone.ac[i] != -1 && temp >= sc->tz_zone.ac[i]) {
+	if (sc->tz_zone.ac[i] != -1 && temp >= sc->tz_zone.ac[i])
 	    newactive = i;
-	    if (sc->tz_active != newactive) {
-		ACPI_VPRINT(sc->tz_dev,
-			    acpi_device_get_parent_softc(sc->tz_dev),
-			    "_AC%d: temperature %d.%d >= setpoint %d.%d\n", i,
-			    TZ_KELVTOC(temp), TZ_KELVTOC(sc->tz_zone.ac[i]));
-	    }
-	}
     }
 
     /*

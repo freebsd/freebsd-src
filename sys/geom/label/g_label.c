@@ -89,6 +89,7 @@ const struct g_label_desc *g_labels[] = {
 	&g_label_ntfs,
 	&g_label_gpt,
 	&g_label_gpt_uuid,
+	&g_label_disk_ident,
 	NULL
 };
 
@@ -339,7 +340,7 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    pp->mediasize - pp->sectorsize);
 	} while (0);
 	for (i = 0; g_labels[i] != NULL; i++) {
-		char label[64];
+		char label[128];
 
 		if (g_labels[i]->ld_enabled == 0)
 			continue;

@@ -1,4 +1,4 @@
-# $Id: CACerts,v 8.5 2011/05/06 23:05:10 ca Exp $
+# $Id: CACerts,v 8.6 2013/01/18 15:14:17 ca Exp $
 # This file contains some CA certificates that are used to sign the
 # certificates of mail servers of members of the sendmail consortium
 # who may reply to questions etc sent to sendmail.org.
@@ -10,93 +10,93 @@ Certificate:
     Data:
         Version: 3 (0x2)
         Serial Number:
-            c2:3c:61:67:3b:0a:cc:5e
-        Signature Algorithm: md5WithRSAEncryption
-        Issuer: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=Claus Assmann CA RSA 2009/emailAddress=ca+ca-rsa2009@esmtp.org
+            f1:41:b3:3d:ba:bd:33:49
+        Signature Algorithm: sha1WithRSAEncryption
+        Issuer: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=Claus Assmann CA RSA 2012/emailAddress=ca+ca-rsa2012@esmtp.org
         Validity
-            Not Before: May 14 04:42:18 2009 GMT
-            Not After : May 13 04:42:18 2012 GMT
-        Subject: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=Claus Assmann CA RSA 2009/emailAddress=ca+ca-rsa2009@esmtp.org
+            Not Before: Mar 10 02:47:46 2012 GMT
+            Not After : Mar 10 02:47:46 2015 GMT
+        Subject: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=Claus Assmann CA RSA 2012/emailAddress=ca+ca-rsa2012@esmtp.org
         Subject Public Key Info:
             Public Key Algorithm: rsaEncryption
-            RSA Public Key: (2048 bit)
-                Modulus (2048 bit):
-                    00:d5:f8:d3:48:38:75:df:2e:6b:8b:c4:8d:1d:41:
-                    5e:ad:4b:96:3d:48:c2:dc:e5:ff:61:98:95:32:03:
-                    e9:b6:71:5a:68:31:bc:e1:5c:aa:0e:70:a7:bc:51:
-                    b7:13:6a:78:54:ae:a6:d0:44:49:1b:5e:37:5b:59:
-                    20:01:47:a7:ec:41:4c:11:79:8c:25:c1:1b:c0:ed:
-                    85:b2:de:0f:10:9f:e7:b2:a3:c4:f1:fc:85:51:aa:
-                    d6:68:49:51:3e:04:e1:eb:e9:cd:87:1b:d0:9d:97:
-                    7b:4c:e1:1e:b1:6a:be:01:0a:a9:97:9a:50:89:e3:
-                    66:06:4c:07:cb:7e:99:70:13:e8:b4:9c:e7:e6:52:
-                    38:c0:64:90:42:d0:f5:cf:22:46:22:60:e9:34:70:
-                    1d:e3:d1:13:33:3a:31:ba:13:06:a8:c2:34:90:47:
-                    c5:a1:bd:2d:7d:98:21:70:de:22:d0:13:11:e5:08:
-                    dd:a0:77:0b:df:34:a7:07:55:de:5a:71:f6:6c:9e:
-                    ec:f7:45:75:1f:22:a9:84:06:c6:4f:84:3d:4e:05:
-                    d7:e4:e5:98:41:61:7b:8e:c9:3b:a6:ed:31:80:7d:
-                    fd:fa:f0:dc:b7:07:82:b8:ec:27:20:39:5f:78:95:
-                    f1:0d:93:8d:f9:4d:21:08:fd:72:89:01:ff:2c:a0:
-                    71:9d
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:a2:80:fc:c6:ce:7f:60:38:65:f4:38:f9:7a:d9:
+                    87:fd:47:eb:3f:2c:4a:c9:38:77:6a:77:94:92:7f:
+                    83:3d:99:57:2c:5f:37:bb:ba:12:10:17:56:fa:eb:
+                    43:a6:4b:4c:1e:30:32:07:94:2f:5a:d8:65:49:29:
+                    fa:24:d1:f0:0b:45:2d:e5:d5:cb:7d:60:dc:a6:ce:
+                    a4:47:35:30:ee:5e:8d:c2:30:e7:a7:63:32:b0:59:
+                    80:cc:8c:99:64:77:8f:50:8e:88:51:47:36:ea:9a:
+                    f3:b4:c0:8c:a6:ab:c6:42:57:88:b9:5f:9f:61:15:
+                    bb:79:65:93:ca:a9:fd:17:eb:87:26:8b:eb:b7:2b:
+                    7e:33:05:2b:ba:c0:46:f7:08:fd:da:c1:50:9b:3d:
+                    26:83:5c:53:97:89:2c:cc:5f:f2:7b:a8:b7:3d:fb:
+                    f2:b4:89:0d:43:ef:18:5c:21:75:71:cc:f0:c2:a3:
+                    84:69:c0:a7:f3:9b:de:c1:c7:5a:5c:7e:68:da:49:
+                    71:af:58:a8:51:9f:bd:f9:3d:bb:a5:92:fa:7b:1d:
+                    52:f5:fe:90:59:95:27:65:a4:af:97:9a:4f:01:39:
+                    59:7d:08:6f:a1:8f:42:47:49:bf:12:52:53:39:74:
+                    8d:62:3b:bd:4c:4f:05:0f:c4:b9:3e:da:a8:0e:96:
+                    05:2d
                 Exponent: 65537 (0x10001)
         X509v3 extensions:
             X509v3 Subject Key Identifier: 
-            A7:61:FA:31:AF:A8:E2:5E:93:B6:84:9E:74:08:A2:76:50:87:69:7C
+                08:38:E3:88:92:53:6E:F1:56:69:27:44:B5:4C:A0:18:CA:06:97:EB
             X509v3 Authority Key Identifier: 
-            keyid:A7:61:FA:31:AF:A8:E2:5E:93:B6:84:9E:74:08:A2:76:50:87:69:7C
-            DirName:/C=US/ST=California/L=Berkeley/O=Endmail Org/OU=MTA/CN=Claus Assmann CA RSA 2009/emailAddress=ca+ca-rsa2009@esmtp.org
-            serial:C2:3C:61:67:3B:0A:CC:5E
+                keyid:08:38:E3:88:92:53:6E:F1:56:69:27:44:B5:4C:A0:18:CA:06:97:EB
+                DirName:/C=US/ST=California/L=Berkeley/O=Endmail Org/OU=MTA/CN=Claus Assmann CA RSA 2012/emailAddress=ca+ca-rsa2012@esmtp.org
+                serial:F1:41:B3:3D:BA:BD:33:49
 
             X509v3 Basic Constraints: 
-            CA:TRUE
+                CA:TRUE
             X509v3 Subject Alternative Name: 
-            email:ca+ca-rsa2009@esmtp.org
+                email:ca+ca-rsa2012@esmtp.org
             X509v3 Issuer Alternative Name: 
-            email:ca+ca-rsa2009@esmtp.org
-    Signature Algorithm: md5WithRSAEncryption
-        b3:38:e0:da:a8:07:d8:cc:b8:4d:8c:20:a6:06:2c:f8:27:db:
-        8e:28:0f:39:bd:d9:24:c7:9f:e0:4d:d6:b6:63:42:36:0f:d8:
-        70:41:e7:9e:a2:24:64:05:ea:85:97:ac:f2:cc:c2:a6:71:bb:
-        30:21:c1:c7:c4:54:34:1d:30:09:f0:9b:74:27:93:59:12:4c:
-        53:0b:8c:3e:d0:39:ed:4a:d0:d9:66:24:d8:e7:e5:9c:a8:6d:
-        5f:56:5d:9a:91:fe:1b:7d:b9:7c:79:9e:1c:b9:71:74:14:f8:
-        0c:30:50:f9:b1:22:56:a8:4d:6f:4b:9b:e5:8a:81:33:1b:77:
-        75:f6:d8:ce:d4:90:34:86:34:d1:86:75:a9:e1:23:e6:af:c1:
-        8e:28:97:47:20:4d:1b:57:09:39:f4:56:01:d2:87:43:3e:29:
-        f6:c4:5b:7d:8f:9e:bd:ad:36:79:cf:09:70:43:30:21:98:23:
-        31:c8:0d:39:ee:77:e1:4a:44:1a:5c:79:2f:6c:ec:8a:3c:db:
-        99:a0:11:bc:1a:46:24:51:e7:75:d6:9a:db:ad:dd:55:d4:dd:
-        ca:81:a0:10:77:96:91:9c:76:30:38:18:f0:82:43:b3:7c:41:
-        64:4c:4e:da:66:22:67:cf:b7:d7:10:ba:ed:f4:6d:43:59:00:
-        d0:82:1e:07
+                email:ca+ca-rsa2012@esmtp.org
+    Signature Algorithm: sha1WithRSAEncryption
+        9a:8f:4d:23:5b:30:80:e1:94:e4:66:9c:3a:17:8b:79:49:5b:
+        ec:5d:e5:a1:22:2d:71:37:a1:51:e7:1d:b1:0d:a9:9b:aa:a9:
+        0d:c7:cd:d6:24:f9:e0:f0:57:be:4f:74:0c:4b:7a:42:4c:70:
+        19:2e:8e:eb:cb:1b:00:26:27:eb:1c:42:33:d5:ec:32:b4:6c:
+        7d:a3:04:a1:5c:00:49:c9:0d:4c:4d:28:37:06:22:77:ec:40:
+        15:25:3a:23:84:ae:1f:da:90:dd:c9:dc:27:ee:7c:ec:e5:df:
+        b8:ba:1e:3f:ee:c2:91:a2:3f:22:92:1e:f3:06:7e:aa:e9:c3:
+        11:2d:3d:2f:85:f7:fc:d7:e2:f8:6d:70:a6:40:62:69:e7:52:
+        ed:1b:19:38:72:86:08:a1:3d:47:c8:68:82:41:db:db:2a:52:
+        25:d7:49:aa:9e:c5:83:22:7d:2f:0b:df:8c:90:2d:b5:aa:33:
+        c7:9b:e8:39:8f:bb:79:5b:13:2d:4e:a9:69:59:c7:09:26:e2:
+        b5:53:80:86:72:bb:7c:be:e9:46:5b:d8:b2:78:42:d6:5d:c3:
+        bb:3a:3b:5f:0f:e8:c3:60:fb:88:9f:3a:2b:9f:d3:7d:9f:c7:
+        32:aa:4d:34:a7:66:a1:25:16:95:a6:69:e7:86:a3:5c:b9:b9:
+        df:58:05:e3
 -----BEGIN CERTIFICATE-----
-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
+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
-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
+YXVzIEFzc21hbm4gQ0EgUlNBIDIwMTIxJjAkBgkqhkiG9w0BCQEWF2NhK2NhLXJz
+YTIwMTJAZXNtdHAub3JnMB4XDTEyMDMxMDAyNDc0NloXDTE1MDMxMDAyNDc0Nlow
 gaUxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMREwDwYDVQQHEwhC
 ZXJrZWxleTEUMBIGA1UEChMLRW5kbWFpbCBPcmcxDDAKBgNVBAsTA01UQTEiMCAG
-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
+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
-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
-gkOzfEFkTE7aZiJnz7fXELrt9G1DWQDQgh4H
+BgNVBAsTA01UQTEiMCAGA1UEAxMZQ2xhdXMgQXNzbWFubiBDQSBSU0EgMjAxMjEm
+MCQGCSqGSIb3DQEJARYXY2ErY2EtcnNhMjAxMkBlc210cC5vcmeCCQDxQbM9ur0z
+STAMBgNVHRMEBTADAQH/MCIGA1UdEQQbMBmBF2NhK2NhLXJzYTIwMTJAZXNtdHAu
+b3JnMCIGA1UdEgQbMBmBF2NhK2NhLXJzYTIwMTJAZXNtdHAub3JnMA0GCSqGSIb3
+DQEBBQUAA4IBAQCaj00jWzCA4ZTkZpw6F4t5SVvsXeWhIi1xN6FR5x2xDambqqkN
+x83WJPng8Fe+T3QMS3pCTHAZLo7ryxsAJifrHEIz1ewytGx9owShXABJyQ1MTSg3
+BiJ37EAVJTojhK4f2pDdydwn7nzs5d+4uh4/7sKRoj8ikh7zBn6q6cMRLT0vhff8
+1+L4bXCmQGJp51LtGxk4coYIoT1HyGiCQdvbKlIl10mqnsWDIn0vC9+MkC21qjPH
+m+g5j7t5WxMtTqlpWccJJuK1U4CGcrt8vulGW9iyeELWXcO7OjtfD+jDYPuInzor
+n9N9n8cyqk00p2ahJRaVpmnnhqNcubnfWAXj
 -----END CERTIFICATE-----

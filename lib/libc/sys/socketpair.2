@@ -28,7 +28,7 @@
 .\"     @(#)socketpair.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd March 19, 2013
 .Dt SOCKETPAIR 2
 .Os
 .Sh NAME
@@ -57,6 +57,14 @@ are returned in
 and
 .Fa sv Ns [1] .
 The two sockets are indistinguishable.
+.Pp
+The
+.Dv SOCK_CLOEXEC
+and
+.Dv SOCK_NONBLOCK
+flags in the
+.Fa type
+argument apply to both descriptors.
 .Sh RETURN VALUES
 .Rv -std socketpair
 .Sh ERRORS
@@ -79,6 +87,7 @@ process address space.
 .Sh SEE ALSO
 .Xr pipe 2 ,
 .Xr read 2 ,
+.Xr socket 2 ,
 .Xr write 2
 .Sh HISTORY
 The

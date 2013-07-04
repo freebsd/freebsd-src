@@ -10,8 +10,11 @@
 #ifndef LLVM_CLANG_LEX_HEADERSEARCHOPTIONS_H
 #define LLVM_CLANG_LEX_HEADERSEARCHOPTIONS_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringRef.h"
+#include <string>
 #include <vector>
 
 namespace clang {
@@ -27,6 +30,8 @@ namespace frontend {
     IndexHeaderMap, ///< Like Angled, but marks header maps used when
                        ///  building frameworks.
     System,         ///< Like Angled, but marks system directories.
+    ExternCSystem,  ///< Like System, but headers are implicitly wrapped in
+                    ///  extern "C".
     CSystem,        ///< Like System, but only used for C.
     CXXSystem,      ///< Like System, but only used for C++.
     ObjCSystem,     ///< Like System, but only used for ObjC.
@@ -37,12 +42,11 @@ namespace frontend {
 
 /// HeaderSearchOptions - Helper class for storing options related to the
 /// initialization of the HeaderSearch object.
-class HeaderSearchOptions : public llvm::RefCountedBase<HeaderSearchOptions> {
+class HeaderSearchOptions : public RefCountedBase<HeaderSearchOptions> {
 public:
   struct Entry {
     std::string Path;
     frontend::IncludeDirGroup Group;
-    unsigned IsUserSupplied : 1;
     unsigned IsFramework : 1;
     
     /// IgnoreSysRoot - This is false if an absolute path should be treated
@@ -50,24 +54,10 @@ public:
     /// path.
     unsigned IgnoreSysRoot : 1;
 
-    /// \brief True if this entry is an internal search path.
-    ///
-    /// This typically indicates that users didn't directly provide it, but
-    /// instead it was provided by a compatibility layer for a particular
-    /// system. This isn't redundant with IsUserSupplied (even though perhaps
-    /// it should be) because that is false for user provided '-iwithprefix'
-    /// header search entries.
-    unsigned IsInternal : 1;
-
-    /// \brief True if this entry's headers should be wrapped in extern "C".
-    unsigned ImplicitExternC : 1;
-
-    Entry(StringRef path, frontend::IncludeDirGroup group,
-          bool isUserSupplied, bool isFramework, bool ignoreSysRoot,
-          bool isInternal, bool implicitExternC)
-      : Path(path), Group(group), IsUserSupplied(isUserSupplied),
-        IsFramework(isFramework), IgnoreSysRoot(ignoreSysRoot),
-        IsInternal(isInternal), ImplicitExternC(implicitExternC) {}
+    Entry(StringRef path, frontend::IncludeDirGroup group, bool isFramework,
+          bool ignoreSysRoot)
+      : Path(path), Group(group), IsFramework(isFramework),
+        IgnoreSysRoot(ignoreSysRoot) {}
   };
 
   struct SystemHeaderPrefix {
@@ -98,13 +88,35 @@ public:
 
   /// \brief The directory used for the module cache.
   std::string ModuleCachePath;
-  
+
   /// \brief Whether we should disable the use of the hash string within the
   /// module cache.
   ///
   /// Note: Only used for testing!
   unsigned DisableModuleHash : 1;
-  
+
+  /// \brief The interval (in seconds) between pruning operations.
+  ///
+  /// This operation is expensive, because it requires Clang to walk through
+  /// the directory structure of the module cache, stat()'ing and removing
+  /// files.
+  ///
+  /// The default value is large, e.g., the operation runs once a week.
+  unsigned ModuleCachePruneInterval;
+
+  /// \brief The time (in seconds) after which an unused module file will be
+  /// considered unused and will, therefore, be pruned.
+  ///
+  /// When the module cache is pruned, any module file that has not been
+  /// accessed in this many seconds will be removed. The default value is
+  /// large, e.g., a month, to avoid forcing infrequently-used modules to be
+  /// regenerated often.
+  unsigned ModuleCachePruneAfter;
+
+  /// \brief The set of macro names that should be ignored for the purposes
+  /// of computing the module hash.
+  llvm::SetVector<std::string> ModulesIgnoreMacros;
+
   /// Include the compiler builtin includes.
   unsigned UseBuiltinIncludes : 1;
 
@@ -122,16 +134,17 @@ public:
 
 public:
   HeaderSearchOptions(StringRef _Sysroot = "/")
-    : Sysroot(_Sysroot), DisableModuleHash(0), UseBuiltinIncludes(true),
+    : Sysroot(_Sysroot), DisableModuleHash(0),
+      ModuleCachePruneInterval(7*24*60*60),
+      ModuleCachePruneAfter(31*24*60*60),
+      UseBuiltinIncludes(true),
       UseStandardSystemIncludes(true), UseStandardCXXIncludes(true),
       UseLibcxx(false), Verbose(false) {}
 
   /// AddPath - Add the \p Path path to the specified \p Group list.
   void AddPath(StringRef Path, frontend::IncludeDirGroup Group,
-               bool IsUserSupplied, bool IsFramework, bool IgnoreSysRoot,
-               bool IsInternal = false, bool ImplicitExternC = false) {
-    UserEntries.push_back(Entry(Path, Group, IsUserSupplied, IsFramework,
-                                IgnoreSysRoot, IsInternal, ImplicitExternC));
+               bool IsFramework, bool IgnoreSysRoot) {
+    UserEntries.push_back(Entry(Path, Group, IsFramework, IgnoreSysRoot));
   }
 
   /// AddSystemHeaderPrefix - Override whether \#include directives naming a

@@ -65,7 +65,7 @@ INCLUDES+= -I$S/contrib/altq
 INCLUDES+= -I$S/contrib/ipfilter
 
 # ... and the same for ath
-INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
+INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal
 
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm

@@ -107,13 +107,6 @@
 #endif
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -204,11 +197,6 @@
 
 #ifndef VM_MAX_AUTOTUNE_MAXUSERS
 #define VM_MAX_AUTOTUNE_MAXUSERS 384
-#endif
-
-#ifndef VM_MAX_AUTOTUNE_NMBCLUSTERS
-/* old maxusers max value. */
-#define VM_MAX_AUTOTUNE_NMBCLUSTERS (1024 + VM_MAX_AUTOTUNE_MAXUSERS * 64)
 #endif
 
 #endif /* _MACHINE_VMPARAM_H_ */

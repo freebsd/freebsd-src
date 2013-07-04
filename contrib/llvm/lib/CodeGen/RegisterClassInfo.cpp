@@ -18,10 +18,10 @@
 #include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
 
@@ -44,7 +44,7 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   }
 
   // Does this MF have different CSRs?
-  const uint16_t *CSR = TRI->getCalleeSavedRegs(MF);
+  const MCPhysReg *CSR = TRI->getCalleeSavedRegs(MF);
   if (Update || CSR != CalleeSaved) {
     // Build a CSRNum map. Every CSR alias gets an entry pointing to the last
     // overlapping CSR.
@@ -79,30 +79,47 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
   unsigned NumRegs = RC->getNumRegs();
 
   if (!RCI.Order)
-    RCI.Order.reset(new unsigned[NumRegs]);
+    RCI.Order.reset(new MCPhysReg[NumRegs]);
 
   unsigned N = 0;
-  SmallVector<unsigned, 16> CSRAlias;
+  SmallVector<MCPhysReg, 16> CSRAlias;
+  unsigned MinCost = 0xff;
+  unsigned LastCost = ~0u;
+  unsigned LastCostChange = 0;
 
   // FIXME: Once targets reserve registers instead of removing them from the
   // allocation order, we can simply use begin/end here.
-  ArrayRef<uint16_t> RawOrder = RC->getRawAllocationOrder(*MF);
+  ArrayRef<MCPhysReg> RawOrder = RC->getRawAllocationOrder(*MF);
   for (unsigned i = 0; i != RawOrder.size(); ++i) {
     unsigned PhysReg = RawOrder[i];
     // Remove reserved registers from the allocation order.
     if (Reserved.test(PhysReg))
       continue;
+    unsigned Cost = TRI->getCostPerUse(PhysReg);
+    MinCost = std::min(MinCost, Cost);
+
     if (CSRNum[PhysReg])
       // PhysReg aliases a CSR, save it for later.
       CSRAlias.push_back(PhysReg);
-    else
+    else {
+      if (Cost != LastCost)
+        LastCostChange = N;
       RCI.Order[N++] = PhysReg;
+      LastCost = Cost;
+    }
   }
   RCI.NumRegs = N + CSRAlias.size();
   assert (RCI.NumRegs <= NumRegs && "Allocation order larger than regclass");
 
   // CSR aliases go after the volatile registers, preserve the target's order.
-  std::copy(CSRAlias.begin(), CSRAlias.end(), &RCI.Order[N]);
+  for (unsigned i = 0, e = CSRAlias.size(); i != e; ++i) {
+    unsigned PhysReg = CSRAlias[i];
+    unsigned Cost = TRI->getCostPerUse(PhysReg);
+    if (Cost != LastCost)
+      LastCostChange = N;
+    RCI.Order[N++] = PhysReg;
+    LastCost = Cost;
+  }
 
   // Register allocator stress test.  Clip register class to N registers.
   if (StressRA && RCI.NumRegs > StressRA)
@@ -112,6 +129,9 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
   if (const TargetRegisterClass *Super = TRI->getLargestLegalSuperClass(RC))
     if (Super != RC && getNumAllocatableRegs(Super) > RCI.NumRegs)
       RCI.ProperSubClass = true;
+
+  RCI.MinCost = uint8_t(MinCost);
+  RCI.LastCostChange = LastCostChange;
 
   DEBUG({
     dbgs() << "AllocationOrder(" << RC->getName() << ") = [";

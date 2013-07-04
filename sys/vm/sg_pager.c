@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/sglist.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -142,10 +143,10 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	size_t space;
 	int i;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	sg = object->handle;
 	memattr = object->memattr;
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	offset = m[reqpage]->pindex;
 
 	/*
@@ -180,7 +181,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 
 	/* Construct a new fake page. */
 	page = vm_page_getfake(paddr, memattr);
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, pageq);
 
 	/* Free the original pages and insert this fake page into the object. */

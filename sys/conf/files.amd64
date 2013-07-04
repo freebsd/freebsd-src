@@ -136,7 +136,7 @@ crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 crypto/aesni/aesni_wrap.c	optional aesni
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
@@ -189,9 +189,9 @@ dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
+dev/fdt/fdt_x86.c		optional	fdt
 dev/hpt27xx/os_bsd.c		optional	hpt27xx
-dev/hpt27xx/osm_bsd.c		optional	hpt27xx \
-	compile-with "${NORMAL_C} ${NO_WFORMAT_SECURITY}"
+dev/hpt27xx/osm_bsd.c		optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
 dev/hptmv/entry.c		optional	hptmv
 dev/hptmv/mv.c			optional	hptmv
@@ -212,6 +212,8 @@ dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
+dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
+dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb ntb_hw
 dev/nvd/nvd.c			optional	nvd nvme
 dev/nve/if_nve.c		optional	nve pci
 dev/nvme/nvme.c			optional	nvme
@@ -222,16 +224,28 @@ dev/nvme/nvme_ns_cmd.c		optional	nvme
 dev/nvme/nvme_qpair.c		optional	nvme
 dev/nvme/nvme_sysctl.c		optional	nvme
 dev/nvme/nvme_test.c		optional	nvme
-dev/nvme/nvme_uio.c		optional	nvme
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	random rdrand_rng
 dev/random/nehemiah.c		optional	random padlock_rng
+dev/qlxge/qls_dbg.c		optional	qlxge pci
+dev/qlxge/qls_dump.c		optional	qlxge pci
+dev/qlxge/qls_hw.c		optional	qlxge pci
+dev/qlxge/qls_ioctl.c		optional	qlxge pci
+dev/qlxge/qls_isr.c		optional	qlxge pci
+dev/qlxge/qls_os.c		optional	qlxge pci
 dev/qlxgb/qla_dbg.c		optional	qlxgb pci
 dev/qlxgb/qla_hw.c		optional	qlxgb pci
 dev/qlxgb/qla_ioctl.c		optional	qlxgb pci
 dev/qlxgb/qla_isr.c		optional	qlxgb pci
 dev/qlxgb/qla_misc.c		optional	qlxgb pci
 dev/qlxgb/qla_os.c		optional	qlxgb pci
+dev/qlxgbe/ql_dbg.c		optional	qlxgbe pci
+dev/qlxgbe/ql_hw.c		optional	qlxgbe pci
+dev/qlxgbe/ql_ioctl.c		optional	qlxgbe pci
+dev/qlxgbe/ql_isr.c		optional	qlxgbe pci
+dev/qlxgbe/ql_misc.c		optional	qlxgbe pci
+dev/qlxgbe/ql_os.c		optional	qlxgbe pci
+dev/qlxgbe/ql_reset.c		optional	qlxgbe pci
 dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
 dev/sfxge/common/efx_ev.c	optional sfxge inet pci
 dev/sfxge/common/efx_filter.c	optional sfxge inet pci
@@ -391,6 +405,15 @@ dev/isci/scil/scif_sas_task_request.c				optional isci
 dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
+dev/virtio/virtio.c			optional	virtio
+dev/virtio/virtqueue.c			optional	virtio
+dev/virtio/virtio_bus_if.m		optional	virtio
+dev/virtio/virtio_if.m			optional	virtio
+dev/virtio/pci/virtio_pci.c		optional	virtio_pci
+dev/virtio/network/if_vtnet.c		optional	vtnet
+dev/virtio/block/virtio_blk.c		optional	virtio_blk
+dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
+dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
@@ -456,6 +479,11 @@ libkern/memset.c		standard
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
 #
+# bvm console
+#
+dev/bvm/bvm_console.c		optional	bvmconsole
+dev/bvm/bvm_dbg.c		optional	bvmdebug
+#
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
 x86/acpica/OsdEnvironment.c	optional	acpi
@@ -481,6 +509,7 @@ x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/fdt_machdep.c		optional	fdt
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
 x86/x86/legacy.c		standard

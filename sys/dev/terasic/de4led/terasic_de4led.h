@@ -72,4 +72,6 @@ struct terasic_de4led_softc {
 void	terasic_de4led_attach(struct terasic_de4led_softc *sc);
 void	terasic_de4led_detach(struct terasic_de4led_softc *sc);
 
+extern devclass_t	terasic_de4led_devclass;
+
 #endif /* _DEV_TERASIC_DE4LED_H_ */

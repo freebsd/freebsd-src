@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,15 @@
 ACPI_STATUS
 AcpiAllocateRootTable (
     UINT32                  InitialTableCount);
+
+/*
+ * tbxfroot - Root pointer utilities
+ */
+UINT8 *
+AcpiTbScanMemoryForRsdp (
+    UINT8                   *StartAddress,
+    UINT32                  Length);
+
 
 /*
  * tbfadt - FADT parse/convert/validate

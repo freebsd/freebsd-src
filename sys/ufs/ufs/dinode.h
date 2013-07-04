@@ -138,7 +138,7 @@ struct ufs2_dinode {
 	int32_t		di_atimensec;	/*  68: Last access time. */
 	int32_t		di_ctimensec;	/*  72: Last inode change time. */
 	int32_t		di_birthnsec;	/*  76: Inode creation time. */
-	int32_t		di_gen;		/*  80: Generation number. */
+	u_int32_t	di_gen;		/*  80: Generation number. */
 	u_int32_t	di_kernflags;	/*  84: Kernel flags. */
 	u_int32_t	di_flags;	/*  88: Status flags (chflags). */
 	int32_t		di_extsize;	/*  92: External attributes block. */
@@ -180,7 +180,7 @@ struct ufs1_dinode {
 	ufs1_daddr_t	di_ib[NIADDR];	/*  88: Indirect disk blocks. */
 	u_int32_t	di_flags;	/* 100: Status flags (chflags). */
 	int32_t		di_blocks;	/* 104: Blocks actually held. */
-	int32_t		di_gen;		/* 108: Generation number. */
+	u_int32_t	di_gen;		/* 108: Generation number. */
 	u_int32_t	di_uid;		/* 112: File owner. */
 	u_int32_t	di_gid;		/* 116: File group. */
 	u_int64_t	di_modrev;	/* 120: i_modrev for NFSv4 */

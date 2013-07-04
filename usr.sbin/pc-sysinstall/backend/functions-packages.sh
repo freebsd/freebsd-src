@@ -45,9 +45,11 @@ get_package_index_by_ftp()
   then
     INDEX_FILE="${INDEX_FILE}.bz2"
     USE_BZIP2=1
+    INDEX_PATH="${INDEXFILE}.bz2"
+  else
+    INDEX_PATH="${INDEXFILE}"
   fi
 
-  INDEX_PATH="${CONFDIR}/${INDEX_FILE}"
   fetch_file "${FTP_SERVER}/${INDEX_FILE}" "${INDEX_PATH}" "1"
   if [ -f "${INDEX_PATH}" ] && [ "${USE_BZIP2}" -eq "1" ]
   then
@@ -57,17 +59,18 @@ get_package_index_by_ftp()
 
 get_package_index_by_fs()
 {
-  local INDEX_FILE
-
-  INDEX_FILE="${CDMNT}/packages/INDEX"
-  fetch_file "${INDEX_FILE}" "${CONFDIR}/" "0"
+  if [ "$INSTALLMEDIUM" = "local" ] ; then
+    INDEXFILE="${LOCALPATH}/packages/INDEX"
+  else
+    INDEXFILE="${CDMNT}/packages/INDEX"
+  fi
 };
 
 get_package_index_size()
 {
-  if [ -f "${CONFDIR}/INDEX" ]
+  if [ -f "${INDEXFILE}" ]
   then
-    SIZE=`ls -l ${CONFDIR}/INDEX | awk '{ print $5 }'`
+    SIZE=`ls -l ${INDEXFILE} | awk '{ print $5 }'`
   else
     get_ftp_mirror
     FTPHOST="${VAL}"
@@ -94,28 +97,24 @@ get_package_index()
     get_package_index_by_ftp "${FTPPATH}"
 
   else
-    get_value_from_cfg ftpHost
-    if [ -z "$VAL" ]
-    then
-      exit_err "ERROR: Install medium was set to ftp, but no ftpHost was provided!" 
-    fi
-
-    FTPHOST="${VAL}"
-
-    get_value_from_cfg ftpDir
-    if [ -z "$VAL" ]
-    then
-      exit_err "ERROR: Install medium was set to ftp, but no ftpDir was provided!" 
-    fi
-
-    FTPDIR="${VAL}"
-    FTPPATH="ftp://${FTPHOST}${FTPDIR}"
 
     case "${INSTALLMEDIUM}" in
-      usb|dvd) get_package_index_by_fs ;;
-      ftp) get_package_index_by_ftp "${FTPPATH}" ;;
-      sftp) ;;
-      *) RES=1 ;;
+    usb|dvd|local) get_package_index_by_fs ;;
+              ftp) get_value_from_cfg ftpHost
+    		   if [ -z "$VAL" ]; then
+      		     exit_err "ERROR: Install medium was set to ftp, but no ftpHost was provided!" 
+    	  	   fi
+    		   FTPHOST="${VAL}"
+
+    		   get_value_from_cfg ftpDir
+    		   if [ -z "$VAL" ]; then
+      		     exit_err "ERROR: Install medium was set to ftp, but no ftpDir was provided!" 
+    		   fi
+    	 	   FTPDIR="${VAL}"
+    		   FTPPATH="ftp://${FTPHOST}${FTPDIR}"
+                   get_package_index_by_ftp "${FTPPATH}" ;;
+             sftp) ;;
+                *) RES=1 ;;
     esac
 
   fi
@@ -125,10 +124,11 @@ get_package_index()
 
 parse_package_index()
 {
+  echo_log "Building package dep list.. Please wait.."
   INDEX_FILE="${PKGDIR}/INDEX"
 
   exec 3<&0
-  exec 0<"${INDEX_FILE}"
+  exec 0<"${INDEXFILE}"
 
   while read -r line
   do
@@ -257,20 +257,38 @@ get_package_name()
 {
   PACKAGE="${1}"
   RES=0
+  local PKGPTH
 
-  INDEX_FILE="${PKGDIR}/INDEX.deps"
-  REGEX="^${PACKAGE}|"
+  # If we are on a local medium, we can parse the Latest/ directory
+  if [ "${INSTALLMEDIUM}" != "ftp" ] ; then
+    case "${INSTALLMEDIUM}" in
+      usb|dvd) PKGPTH="${CDMNT}/packages" ;; 
+        *) PKGPTH="${LOCALPATH}/packages" ;;
+    esac
+    
+    # Check the /Latest dir for generic names, then look for specific version in All/
+    if [ -e "${PKGPTH}/Latest/${PACKAGE}.${PKGEXT}" ] ; then
+       NAME=`ls -al ${PKGPTH}/Latest/${PACKAGE}.${PKGEXT} 2>/dev/null | cut -d '>' -f 2 | rev | cut -f1 -d'/' | rev | tr -s ' '`
+    else
+       NAME=`ls -al ${PKGPTH}/All/${PACKAGE}.${PKGEXT} 2>/dev/null | cut -d '>' -f 2 | rev | cut -f1 -d'/' | rev | tr -s ' '`
+    fi
+    export VAL="${NAME}"
+  else
+    # Doing remote fetch, we we will look up, but some generic names like
+    # "perl" wont work, since we don't know the default version
+    INDEX_FILE="${PKGDIR}/INDEX.deps"
+    REGEX="^${PACKAGE}|"
 	
-  LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
-  NAME=`echo "${LINE}"|cut -f2 -d'|'`
+    LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
+    NAME=`echo "${LINE}"|cut -f2 -d'|'`
 
-  export VAL="${NAME}"
+    export VAL="${NAME}"
+  fi
 
   if [ -z "${VAL}" ]
   then
     RES=1
   fi
-
   return ${RES}
 };
 
@@ -334,7 +352,7 @@ fetch_package_by_ftp()
   fi
   FTPDIR="${VAL}"
 
-  PACKAGE="${PACKAGE}.tbz"
+  PACKAGE="${PACKAGE}.${PKGEXT}"
   FTP_SERVER="ftp://${FTPHOST}${FTPDIR}"
 
   if [ ! -f "${SAVEDIR}/${PACKAGE}" ]
@@ -345,28 +363,49 @@ fetch_package_by_ftp()
   fi
 };
 
-fetch_package_by_fs()
-{
-  CATEGORY="${1}"
-  PACKAGE="${2}"
-  SAVEDIR="${3}"
-
-  PACKAGE="${PACKAGE}.tbz"
-  if [ ! -f "${SAVEDIR}/${PACKAGE}" ]
-  then
-    fetch_file "${CDMNT}/packages/${CATEGORY}/${PACKAGE}" "${SAVEDIR}/" "0"
-  fi
-};
-
 fetch_package()
 {
   CATEGORY="${1}"
   PACKAGE="${2}"
   SAVEDIR="${3}"
 
+  # Fetch package, but skip if installing from local media
   case "${INSTALLMEDIUM}" in
-    usb|dvd) fetch_package_by_fs "${CATEGORY}" "${PACKAGE}" "${SAVEDIR}" ;;
+  usb|dvd|local) return ;;
     ftp) fetch_package_by_ftp "${CATEGORY}" "${PACKAGE}" "${SAVEDIR}" ;;
     sftp) ;;
   esac
 };
+
+bootstrap_pkgng()
+{
+  # Check if we need to boot-strap pkgng
+  if run_chroot_cmd "which pkg-static" >/dev/null 2>/dev/null
+  then
+     return
+  fi
+  local PKGPTH
+
+  # Ok, lets boot-strap this sucker
+  echo_log "Bootstraping pkgng.."
+  fetch_package "Latest" "pkg" "${PKGDLDIR}"
+
+  # Figure out real location of "pkg" package
+  case "${INSTALLMEDIUM}" in
+    usb|dvd|local) PKGPTH="${PKGTMPDIR}/Latest/pkg.${PKGEXT}" ;;
+          *) PKGPTH="${PKGTMPDIR}/pkg.${PKGEXT}" ;;
+  esac
+  rc_halt "pkg -c ${FSMNT} add ${PKGPTH}" ; run_chroot_cmd "pkg2ng"
+}
+
+get_package_location()
+{
+  case "${INSTALLMEDIUM}" in
+  usb|dvd) rc_halt "mount_nullfs ${CDMNT}/packages ${FSMNT}${PKGTMPDIR}"
+           PKGDLDIR="${FSMNT}${PKGTMPDIR}/All" ;;
+    local) rc_halt "mount_nullfs ${LOCALPATH}/packages ${FSMNT}${PKGTMPDIR}"
+           PKGDLDIR="${FSMNT}${PKGTMPDIR}/All" ;;
+        *) PKGDLDIR="${FSMNT}${PKGTMPDIR}" ;;
+  esac
+  export PKGDLDIR
+}

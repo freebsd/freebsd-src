@@ -8,10 +8,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Types.h"
-
 #include "llvm/ADT/StringSwitch.h"
-#include <string.h>
 #include <cassert>
+#include <string.h>
 
 using namespace clang::driver;
 using namespace clang::driver::types;
@@ -88,7 +87,7 @@ bool types::isAcceptedByClang(ID Id) {
   case TY_ObjCHeader: case TY_PP_ObjCHeader:
   case TY_CXXHeader: case TY_PP_CXXHeader:
   case TY_ObjCXXHeader: case TY_PP_ObjCXXHeader:
-  case TY_AST:
+  case TY_AST: case TY_ModuleFile:
   case TY_LLVM_IR: case TY_LLVM_BC:
     return true;
   }
@@ -113,7 +112,7 @@ bool types::isCXX(ID Id) {
     return false;
 
   case TY_CXX: case TY_PP_CXX:
-  case TY_ObjCXX: case TY_PP_ObjCXX:
+  case TY_ObjCXX: case TY_PP_ObjCXX: case TY_PP_ObjCXX_Alias:
   case TY_CXXHeader: case TY_PP_CXXHeader:
   case TY_ObjCXXHeader: case TY_PP_ObjCXXHeader:
   case TY_CUDA:
@@ -165,16 +164,15 @@ types::ID types::lookupTypeForExtension(const char *Ext) {
            .Case("F90", TY_Fortran)
            .Case("F95", TY_Fortran)
            .Case("mii", TY_PP_ObjCXX)
+           .Case("pcm", TY_ModuleFile)
            .Default(TY_INVALID);
 }
 
 types::ID types::lookupTypeForTypeSpecifier(const char *Name) {
-  unsigned N = strlen(Name);
-
   for (unsigned i=0; i<numTypes; ++i) {
     types::ID Id = (types::ID) (i + 1);
     if (canTypeBeUserSpecified(Id) &&
-        memcmp(Name, getInfo(Id).Name, N + 1) == 0)
+        strcmp(Name, getInfo(Id).Name) == 0)
       return Id;
   }
 
@@ -182,54 +180,36 @@ types::ID types::lookupTypeForTypeSpecifier(const char *Name) {
 }
 
 // FIXME: Why don't we just put this list in the defs file, eh.
+void types::getCompilationPhases(
+  ID Id,
+  llvm::SmallVector<phases::ID, phases::MaxNumberOfPhases> &P) {
+  if (Id != TY_Object) {
+    if (getPreprocessedType(Id) != TY_INVALID) {
+      P.push_back(phases::Preprocess);
+    }
 
-unsigned types::getNumCompilationPhases(ID Id) {
-  if (Id == TY_Object)
-    return 1;
-
-  unsigned N = 0;
-  if (getPreprocessedType(Id) != TY_INVALID)
-    N += 1;
-
-  if (onlyAssembleType(Id))
-    return N + 2; // assemble, link
-  if (onlyPrecompileType(Id))
-    return N + 1; // precompile
-
-  return N + 3; // compile, assemble, link
-}
-
-phases::ID types::getCompilationPhase(ID Id, unsigned N) {
-  assert(N < getNumCompilationPhases(Id) && "Invalid index.");
-
-  if (Id == TY_Object)
-    return phases::Link;
-
-  if (getPreprocessedType(Id) != TY_INVALID) {
-    if (N == 0)
-      return phases::Preprocess;
-    --N;
+    if (onlyPrecompileType(Id)) {
+      P.push_back(phases::Precompile);
+    } else {
+      if (!onlyAssembleType(Id)) {
+        P.push_back(phases::Compile);
+      }
+      P.push_back(phases::Assemble);
+    }
   }
-
-  if (onlyAssembleType(Id))
-    return N == 0 ? phases::Assemble : phases::Link;
-
-  if (onlyPrecompileType(Id))
-    return phases::Precompile;
-
-  if (N == 0)
-    return phases::Compile;
-  if (N == 1)
-    return phases::Assemble;
-
-  return phases::Link;
+  if (!onlyPrecompileType(Id)) {
+    P.push_back(phases::Link);
+  }
+  assert(0 < P.size() && "Not enough phases in list");
+  assert(P.size() <= phases::MaxNumberOfPhases && "Too many phases in list");
+  return;
 }
 
 ID types::lookupCXXTypeForCType(ID Id) {
   switch (Id) {
   default:
     return Id;
-    
+
   case types::TY_C:
     return types::TY_CXX;
   case types::TY_PP_C:

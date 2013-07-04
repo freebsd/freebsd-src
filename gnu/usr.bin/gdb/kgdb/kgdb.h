@@ -49,6 +49,8 @@ extern struct kthr *curkthr;
 void initialize_kld_target(void);
 void initialize_kgdb_target(void);
 void kgdb_dmesg(void);
+CORE_ADDR kgdb_trgt_core_pcb(u_int);
+CORE_ADDR kgdb_trgt_stop_pcb(u_int, u_int);
 void kgdb_trgt_new_objfile(struct objfile *);
 void kgdb_trgt_fetch_registers(int);
 void kgdb_trgt_store_registers(int);

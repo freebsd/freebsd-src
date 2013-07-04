@@ -8,9 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
+#include "llvm/ADT/StringSwitch.h"
 
 using namespace clang;
 using namespace ento;
@@ -64,7 +65,7 @@ static const char *getArgumentValueString(const CallExpr *CE,
 
   ProgramStateRef StTrue, StFalse;
   llvm::tie(StTrue, StFalse) =
-    State->assume(cast<DefinedOrUnknownSVal>(AssertionVal));
+    State->assume(AssertionVal.castAs<DefinedOrUnknownSVal>());
 
   if (StTrue) {
     if (StFalse)

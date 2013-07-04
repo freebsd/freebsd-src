@@ -24,6 +24,7 @@
  */
 
 #include "test.h"
+#include "test_utils.h"
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
@@ -89,6 +90,7 @@ __FBSDID("$FreeBSD$");
  */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <io.h>
+#include <direct.h>
 #include <windows.h>
 #ifndef F_OK
 #define F_OK (0)
@@ -387,7 +389,6 @@ failure_finish(void *extra)
 		fprintf(stderr,
 		    " *** forcing core dump so failure can be debugged ***\n");
 		abort();
-		exit(1);
 	}
 }
 
@@ -620,8 +621,8 @@ assertion_equal_string(const char *file, int line,
 	if (v1 == v2 || (v1 != NULL && v2 != NULL && strcmp(v1, v2) == 0))
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
-	l1 = strlen(e1);
-	l2 = strlen(e2);
+	l1 = (int)strlen(e1);
+	l2 = (int)strlen(e2);
 	if (l1 < l2)
 		l1 = l2;
 	strdump(e1, v1, l1, utf8);
@@ -744,6 +745,8 @@ assertion_equal_mem(const char *file, int line,
 	assertion_count(file, line);
 	if (v1 == v2 || (v1 != NULL && v2 != NULL && memcmp(v1, v2, l) == 0))
 		return (1);
+	if (v1 == NULL || v2 == NULL)
+		return (0);
 
 	failure_start(file, line, "%s != %s", e1, e2);
 	logprintf("      size %s = %d\n", ld, (int)l);
@@ -837,9 +840,14 @@ assertion_equal_file(const char *filename, int line, const char *fn1, const char
 
 	f1 = fopen(fn1, "rb");
 	f2 = fopen(fn2, "rb");
+	if (f1 == NULL || f2 == NULL) {
+		if (f1) fclose(f1);
+		if (f2) fclose(f2);
+		return (0);
+	}
 	for (;;) {
-		n1 = fread(buff1, 1, sizeof(buff1), f1);
-		n2 = fread(buff2, 1, sizeof(buff2), f2);
+		n1 = (int)fread(buff1, 1, sizeof(buff1), f1);
+		n2 = (int)fread(buff2, 1, sizeof(buff2), f2);
 		if (n1 != n2)
 			break;
 		if (n1 == 0 && n2 == 0) {
@@ -913,7 +921,7 @@ assertion_file_contents(const char *filename, int line, const void *buff, int s,
 		return (0);
 	}
 	contents = malloc(s * 2);
-	n = fread(contents, 1, s * 2, f);
+	n = (int)fread(contents, 1, s * 2, f);
 	fclose(f);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
@@ -949,9 +957,9 @@ assertion_text_file_contents(const char *filename, int line, const char *buff, c
 		failure_finish(NULL);
 		return (0);
 	}
-	s = strlen(buff);
+	s = (int)strlen(buff);
 	contents = malloc(s * 2 + 128);
-	n = fread(contents, 1, s * 2 + 128 - 1, f);
+	n = (int)fread(contents, 1, s * 2 + 128 - 1, f);
 	if (n >= 0)
 		contents[n] = '\0';
 	fclose(f);
@@ -1002,8 +1010,8 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	char *buff;
 	size_t buff_size;
 	size_t expected_count, actual_count, i, j;
-	char **expected;
-	char *p, **actual;
+	char **expected = NULL;
+	char *p, **actual = NULL;
 	char c;
 	int expected_failure = 0, actual_failure = 0;
 
@@ -1016,14 +1024,21 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		return (0);
 	}
 
-	/* Make a copy of the provided lines and count up the expected file size. */
-	expected_count = 0;
+	/* Make a copy of the provided lines and count up the expected
+	 * file size. */
 	for (i = 0; lines[i] != NULL; ++i) {
 	}
 	expected_count = i;
-	expected = malloc(sizeof(char *) * expected_count);
-	for (i = 0; lines[i] != NULL; ++i) {
-		expected[i] = strdup(lines[i]);
+	if (expected_count) {
+		expected = malloc(sizeof(char *) * expected_count);
+		if (expected == NULL) {
+			failure_start(pathname, line, "Can't allocate memory");
+			failure_finish(NULL);
+			return (0);
+		}
+		for (i = 0; lines[i] != NULL; ++i) {
+			expected[i] = strdup(lines[i]);
+		}
 	}
 
 	/* Break the file into lines */
@@ -1035,11 +1050,20 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 			++actual_count;
 		c = *p;
 	}
-	actual = malloc(sizeof(char *) * actual_count);
-	for (j = 0, p = buff; p < buff + buff_size; p += 1 + strlen(p)) {
-		if (*p != '\0') {
-			actual[j] = p;
-			++j;
+	if (actual_count) {
+		actual = calloc(sizeof(char *), actual_count);
+		if (actual == NULL) {
+			failure_start(pathname, line, "Can't allocate memory");
+			failure_finish(NULL);
+			free(expected);
+			return (0);
+		}
+		for (j = 0, p = buff; p < buff + buff_size;
+		    p += 1 + strlen(p)) {
+			if (*p != '\0') {
+				actual[j] = p;
+				++j;
+			}
 		}
 	}
 
@@ -1174,11 +1198,11 @@ assertion_file_time(const char *file, int line,
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define EPOC_TIME	(116444736000000000ULL)
-	FILETIME ftime, fbirthtime, fatime, fmtime;
+	FILETIME fxtime, fbirthtime, fatime, fmtime;
 	ULARGE_INTEGER wintm;
 	HANDLE h;
-	ftime.dwLowDateTime = 0;
-	ftime.dwHighDateTime = 0;
+	fxtime.dwLowDateTime = 0;
+	fxtime.dwHighDateTime = 0;
 
 	assertion_count(file, line);
 	/* Note: FILE_FLAG_BACKUP_SEMANTICS applies to open
@@ -1193,9 +1217,9 @@ assertion_file_time(const char *file, int line,
 	}
 	r = GetFileTime(h, &fbirthtime, &fatime, &fmtime);
 	switch (type) {
-	case 'a': ftime = fatime; break;
-	case 'b': ftime = fbirthtime; break;
-	case 'm': ftime = fmtime; break;
+	case 'a': fxtime = fatime; break;
+	case 'b': fxtime = fbirthtime; break;
+	case 'm': fxtime = fmtime; break;
 	}
 	CloseHandle(h);
 	if (r == 0) {
@@ -1203,8 +1227,8 @@ assertion_file_time(const char *file, int line,
 		failure_finish(NULL);
 		return (0);
 	}
-	wintm.LowPart = ftime.dwLowDateTime;
-	wintm.HighPart = ftime.dwHighDateTime;
+	wintm.LowPart = fxtime.dwLowDateTime;
+	wintm.HighPart = fxtime.dwHighDateTime;
 	filet = (wintm.QuadPart - EPOC_TIME) / 10000000;
 	filet_nsec = ((wintm.QuadPart - EPOC_TIME) % 10000000) * 100;
 	nsec = (nsec / 100) * 100; /* Round the request */
@@ -1832,15 +1856,45 @@ canSymlink(void)
 	return (value);
 }
 
-/*
- * Can this platform run the gzip program?
- */
 /* Platform-dependent options for hiding the output of a subcommand. */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 static const char *redirectArgs = ">NUL 2>NUL"; /* Win32 cmd.exe */
 #else
 static const char *redirectArgs = ">/dev/null 2>/dev/null"; /* POSIX 'sh' */
 #endif
+/*
+ * Can this platform run the bzip2 program?
+ */
+int
+canBzip2(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("bzip2 -d -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the grzip program?
+ */
+int
+canGrzip(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("grzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the gzip program?
+ */
 int
 canGzip(void)
 {
@@ -1854,15 +1908,87 @@ canGzip(void)
 }
 
 /*
- * Can this platform run the gunzip program?
+ * Can this platform run the lrzip program?
  */
 int
-canGunzip(void)
+canRunCommand(const char *cmd)
+{
+  static int tested = 0, value = 0;
+  if (!tested) {
+    tested = 1;
+    if (systemf("%s %s", cmd, redirectArgs) == 0)
+      value = 1;
+  }
+  return (value);
+}
+
+int
+canLrzip(void)
 {
 	static int tested = 0, value = 0;
 	if (!tested) {
 		tested = 1;
-		if (systemf("gunzip -V %s", redirectArgs) == 0)
+		if (systemf("lrzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the lzip program?
+ */
+int
+canLzip(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lzip -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the lzma program?
+ */
+int
+canLzma(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lzma -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the lzop program?
+ */
+int
+canLzop(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("lzop -V %s", redirectArgs) == 0)
+			value = 1;
+	}
+	return (value);
+}
+
+/*
+ * Can this platform run the xz program?
+ */
+int
+canXz(void)
+{
+	static int tested = 0, value = 0;
+	if (!tested) {
+		tested = 1;
+		if (systemf("xz -V %s", redirectArgs) == 0)
 			value = 1;
 	}
 	return (value);
@@ -2101,6 +2227,14 @@ is_LargeInode(const char *file)
 	return (ino > 0xffffffff);
 #endif
 }
+
+void
+extract_reference_files(const char **names)
+{
+	while (names && *names)
+		extract_reference_file(*names++);
+}
+
 /*
  *
  * TEST management
@@ -2122,7 +2256,7 @@ is_LargeInode(const char *file)
 /* Use "list.h" to create a list of all tests (functions and names). */
 #undef DEFINE_TEST
 #define	DEFINE_TEST(n) { n, #n, 0 },
-struct { void (*func)(void); const char *name; int failures; } tests[] = {
+struct test_list_t tests[] = {
 	#include "list.h"
 };
 
@@ -2373,65 +2507,6 @@ success:
 	free(p);
 	free(pwd);
 	return strdup(buff);
-}
-
-static int
-get_test_set(int *test_set, int limit, const char *test)
-{
-	int start, end;
-	int idx = 0;
-
-	if (test == NULL) {
-		/* Default: Run all tests. */
-		for (;idx < limit; idx++)
-			test_set[idx] = idx;
-		return (limit);
-	}
-	if (*test >= '0' && *test <= '9') {
-		const char *vp = test;
-		start = 0;
-		while (*vp >= '0' && *vp <= '9') {
-			start *= 10;
-			start += *vp - '0';
-			++vp;
-		}
-		if (*vp == '\0') {
-			end = start;
-		} else if (*vp == '-') {
-			++vp;
-			if (*vp == '\0') {
-				end = limit - 1;
-			} else {
-				end = 0;
-				while (*vp >= '0' && *vp <= '9') {
-					end *= 10;
-					end += *vp - '0';
-					++vp;
-				}
-			}
-		} else
-			return (-1);
-		if (start < 0 || end >= limit || start > end)
-			return (-1);
-		while (start <= end)
-			test_set[idx++] = start++;
-	} else {
-		size_t len = strlen(test);
-		for (start = 0; start < limit; ++start) {
-			const char *name = tests[start].name;
-			const char *p;
-
-			while ((p = strchr(name, test[0])) != NULL) {
-				if (strncmp(p, test, len) == 0) {
-					test_set[idx++] = start;
-					break;
-				} else
-					name = p + 1;
-			}
-
-		}
-	}
-	return ((idx == 0)?-1:idx);
 }
 
 int
@@ -2718,10 +2793,11 @@ main(int argc, char **argv)
 		do {
 			int test_num;
 
-			test_num = get_test_set(test_set, limit, *argv);
+			test_num = get_test_set(test_set, limit, *argv, tests);
 			if (test_num < 0) {
 				printf("*** INVALID Test %s\n", *argv);
 				free(refdir_alloc);
+				free(testprogdir);
 				usage(progname);
 				return (1);
 			}

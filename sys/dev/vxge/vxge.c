@@ -4188,7 +4188,8 @@ static device_method_t vxge_methods[] = {
 	DEVMETHOD(device_attach, vxge_attach),
 	DEVMETHOD(device_detach, vxge_detach),
 	DEVMETHOD(device_shutdown, vxge_shutdown),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t vxge_driver = {

@@ -73,6 +73,8 @@ ar724x_chip_detect_sys_frequency(void)
 	uint32_t freq;
 	uint32_t div;
 
+	u_ar71xx_refclk = AR724X_BASE_FREQ;
+
 	pll = ATH_READ_REG(AR724X_PLL_REG_CPU_CONFIG);
 
 	div = ((pll >> AR724X_PLL_DIV_SHIFT) & AR724X_PLL_DIV_MASK);

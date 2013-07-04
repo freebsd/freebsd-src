@@ -18,10 +18,10 @@
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/SetVector.h"
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,12 +34,12 @@ namespace clang {
   
 class DirectoryEntry;
 class FileEntry;
+class FileManager;
 class LangOptions;
 class TargetInfo;
   
 /// \brief Describes the name of a module.
-typedef llvm::SmallVector<std::pair<std::string, SourceLocation>, 2>
-  ModuleId;
+typedef SmallVector<std::pair<std::string, SourceLocation>, 2> ModuleId;
   
 /// \brief Describes a module or submodule.
 class Module {
@@ -68,23 +68,26 @@ private:
   /// \brief The AST file if this is a top-level module which has a
   /// corresponding serialized AST file, or null otherwise.
   const FileEntry *ASTFile;
-  
-public:
-  /// \brief The headers that are part of this module.
-  llvm::SmallVector<const FileEntry *, 2> Headers;
-
-  /// \brief The headers that are explicitly excluded from this module.
-  llvm::SmallVector<const FileEntry *, 2> ExcludedHeaders;
 
   /// \brief The top-level headers associated with this module.
   llvm::SmallSetVector<const FileEntry *, 2> TopHeaders;
+
+  /// \brief top-level header filenames that aren't resolved to FileEntries yet.
+  std::vector<std::string> TopHeaderNames;
+
+public:
+  /// \brief The headers that are part of this module.
+  SmallVector<const FileEntry *, 2> Headers;
+
+  /// \brief The headers that are explicitly excluded from this module.
+  SmallVector<const FileEntry *, 2> ExcludedHeaders;
 
   /// \brief The set of language features required to use this module.
   ///
   /// If any of these features is not present, the \c IsAvailable bit
   /// will be false to indicate that this (sub)module is not
   /// available.
-  llvm::SmallVector<std::string, 2> Requires;
+  SmallVector<std::string, 2> Requires;
 
   /// \brief Whether this module is available in the current
   /// translation unit.
@@ -116,7 +119,14 @@ public:
   /// \brief Whether, when inferring submodules, the inferr submodules should
   /// export all modules they import (e.g., the equivalent of "export *").
   unsigned InferExportWildcard : 1;
-  
+
+  /// \brief Whether the set of configuration macros is exhaustive.
+  ///
+  /// When the set of configuration macros is exhaustive, meaning
+  /// that no identifier not in this list should affect how the module is
+  /// built.
+  unsigned ConfigMacrosExhaustive : 1;
+
   /// \brief Describes the visibility of the various names within a
   /// particular module.
   enum NameVisibilityKind {
@@ -137,7 +147,7 @@ public:
 
   /// \brief The set of modules imported by this module, and on which this
   /// module depends.
-  llvm::SmallVector<Module *, 2> Imports;
+  SmallVector<Module *, 2> Imports;
   
   /// \brief Describes an exported module.
   ///
@@ -146,7 +156,7 @@ public:
   typedef llvm::PointerIntPair<Module *, 1, bool> ExportDecl;
   
   /// \brief The set of export declarations.
-  llvm::SmallVector<ExportDecl, 2> Exports;
+  SmallVector<ExportDecl, 2> Exports;
   
   /// \brief Describes an exported module that has not yet been resolved
   /// (perhaps because the module it refers to has not yet been loaded).
@@ -164,8 +174,58 @@ public:
   };
   
   /// \brief The set of export declarations that have yet to be resolved.
-  llvm::SmallVector<UnresolvedExportDecl, 2> UnresolvedExports;
-  
+  SmallVector<UnresolvedExportDecl, 2> UnresolvedExports;
+
+  /// \brief A library or framework to link against when an entity from this
+  /// module is used.
+  struct LinkLibrary {
+    LinkLibrary() : IsFramework(false) { }
+    LinkLibrary(const std::string &Library, bool IsFramework)
+      : Library(Library), IsFramework(IsFramework) { }
+    
+    /// \brief The library to link against.
+    ///
+    /// This will typically be a library or framework name, but can also
+    /// be an absolute path to the library or framework.
+    std::string Library;
+
+    /// \brief Whether this is a framework rather than a library.
+    bool IsFramework;
+  };
+
+  /// \brief The set of libraries or frameworks to link against when
+  /// an entity from this module is used.
+  llvm::SmallVector<LinkLibrary, 2> LinkLibraries;
+
+  /// \brief The set of "configuration macros", which are macros that
+  /// (intentionally) change how this module is built.
+  std::vector<std::string> ConfigMacros;
+
+  /// \brief An unresolved conflict with another module.
+  struct UnresolvedConflict {
+    /// \brief The (unresolved) module id.
+    ModuleId Id;
+
+    /// \brief The message provided to the user when there is a conflict.
+    std::string Message;
+  };
+
+  /// \brief The list of conflicts for which the module-id has not yet been
+  /// resolved.
+  std::vector<UnresolvedConflict> UnresolvedConflicts;
+
+  /// \brief A conflict between two modules.
+  struct Conflict {
+    /// \brief The module that this module conflicts with.
+    Module *Other;
+
+    /// \brief The message provided to the user when there is a conflict.
+    std::string Message;
+  };
+
+  /// \brief The list of conflicts.
+  std::vector<Conflict> Conflicts;
+
   /// \brief Construct a top-level module.
   explicit Module(StringRef Name, SourceLocation DefinitionLoc,
                   bool IsFramework)
@@ -173,7 +233,8 @@ public:
       IsAvailable(true), IsFromModuleFile(false), IsFramework(IsFramework), 
       IsExplicit(false), IsSystem(false),
       InferSubmodules(false), InferExplicitSubmodules(false),
-      InferExportWildcard(false), NameVisibility(Hidden) { }
+      InferExportWildcard(false), ConfigMacrosExhaustive(false),
+      NameVisibility(Hidden) { }
   
   /// \brief Construct a new module or submodule.
   Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent, 
@@ -217,7 +278,13 @@ public:
     
     return false;
   }
-  
+
+  /// \brief Determine whether this module is a subframework of another
+  /// framework.
+  bool isSubFramework() const {
+    return IsFramework && Parent && Parent->isPartOfFramework();
+  }
+
   /// \brief Retrieve the full name of this module, including the path from
   /// its top-level module.
   std::string getFullModuleName() const;
@@ -266,6 +333,20 @@ public:
     return Umbrella && Umbrella.is<const DirectoryEntry *>();
   }
 
+  /// \brief Add a top-level header associated with this module.
+  void addTopHeader(const FileEntry *File) {
+    assert(File);
+    TopHeaders.insert(File);
+  }
+
+  /// \brief Add a top-level header filename associated with this module.
+  void addTopHeaderFilename(StringRef Filename) {
+    TopHeaderNames.push_back(Filename);
+  }
+
+  /// \brief The top-level headers associated with this module.
+  ArrayRef<const FileEntry *> getTopHeaders(FileManager &FileMgr);
+
   /// \brief Add the given feature requirement to the list of features
   /// required by this module.
   ///
@@ -284,7 +365,7 @@ public:
   ///
   /// \returns The submodule if found, or NULL otherwise.
   Module *findSubmodule(StringRef Name) const;
-  
+
   typedef std::vector<Module *>::iterator submodule_iterator;
   typedef std::vector<Module *>::const_iterator submodule_const_iterator;
   
@@ -292,14 +373,17 @@ public:
   submodule_const_iterator submodule_begin() const {return SubModules.begin();}
   submodule_iterator submodule_end()   { return SubModules.end(); }
   submodule_const_iterator submodule_end() const { return SubModules.end(); }
-  
+
+  /// \brief Returns the exported modules based on the wildcard restrictions.
+  void getExportedModules(SmallVectorImpl<Module *> &Exported) const;
+
   static StringRef getModuleInputBufferName() {
     return "<module-includes>";
   }
 
   /// \brief Print the module map for this module to the given stream. 
   ///
-  void print(llvm::raw_ostream &OS, unsigned Indent = 0) const;
+  void print(raw_ostream &OS, unsigned Indent = 0) const;
   
   /// \brief Dump the contents of this module to the given output stream.
   void dump() const;

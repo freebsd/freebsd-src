@@ -50,7 +50,7 @@
 .In sys/extattr.h
 .Ft ssize_t
 .Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft int
+.Ft ssize_t
 .Fn extattr_set_fd "int fd" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_fd "int fd" "int attrnamespace" "const char *attrname"
@@ -58,7 +58,7 @@
 .Fn extattr_list_fd "int fd" "int attrnamespace" "void *data" "size_t nbytes"
 .Ft ssize_t
 .Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft int
+.Ft ssize_t
 .Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_file "const char *path" "int attrnamespace" "const char *attrname"
@@ -66,7 +66,7 @@
 .Fn extattr_list_file "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
 .Ft ssize_t
 .Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft int
+.Ft ssize_t
 .Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_link "const char *path" "int attrnamespace" "const char *attrname"

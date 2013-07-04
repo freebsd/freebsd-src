@@ -43,7 +43,7 @@
  * dsl_scan_sync. This allows the delete operation to finish without traversing
  * all the dataset's blocks.
  *
- * Note that while bt_begin and bt_end are only ever incremented in this code
+ * Note that while bt_begin and bt_end are only ever incremented in this code,
  * they are effectively reset to 0 every time the entire bptree is freed because
  * the bptree's object is destroyed and re-created.
  */
@@ -135,7 +135,7 @@ bptree_add(objset_t *os, uint64_t obj, blkptr_t *bp, uint64_t birth_txg,
 
 /* ARGSUSED */
 static int
-bptree_visit_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp, arc_buf_t *pbuf,
+bptree_visit_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	int err;

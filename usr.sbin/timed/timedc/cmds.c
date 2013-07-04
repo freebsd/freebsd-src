@@ -32,7 +32,6 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 #endif
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -78,8 +77,7 @@ void bytehostorder(struct tsp *);
 /* compute the difference between our date and another machine
  */
 static int				/* difference in days from our time */
-daydiff(hostname)
-	char *hostname;
+daydiff(char *hostname)
 {
 	int i;
 	int trials;
@@ -164,9 +162,7 @@ daydiff(hostname)
  * measurement.
  */
 void
-clockdiff(argc, argv)
-	int argc;
-	char *argv[];
+clockdiff(int argc, char *argv[])
 {
 	int measure_status;
 	extern int measure(u_long, u_long, char *, struct sockaddr_in*, int);
@@ -263,9 +259,7 @@ clockdiff(argc, argv)
  * finds location of master timedaemon
  */
 void
-msite(argc, argv)
-	int argc;
-	char *argv[];
+msite(int argc, char *argv[])
 {
 	ssize_t cc;
 	fd_set ready;
@@ -360,7 +354,7 @@ msite(argc, argv)
  * quits timedc
  */
 void
-quit()
+quit(void)
 {
 	exit(0);
 }
@@ -372,9 +366,7 @@ quit()
  * reliability of communication channel.
  */
 void
-testing(argc, argv)
-	int argc;
-	char *argv[];
+testing(int argc, char *argv[])
 {
 	struct servent *srvp;
 	struct sockaddr_in sin;
@@ -422,9 +414,7 @@ testing(argc, argv)
  * Enables or disables tracing on local timedaemon
  */
 void
-tracing(argc, argv)
-	int argc;
-	char *argv[];
+tracing(int argc, char *argv[])
 {
 	int onflag;
 	int length;
@@ -513,7 +503,7 @@ tracing(argc, argv)
 }
 
 int
-priv_resources()
+priv_resources(void)
 {
 	int port;
 	struct sockaddr_in sin;

@@ -176,7 +176,7 @@ struct ortentry {
 /*			0x20000		   unused, was RTF_WASCLONED */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
 /*			0x80000		   unused */
-#define RTF_PINNED	0x100000	/* future use */
+#define RTF_PINNED	0x100000	/* route is immutable */
 #define	RTF_LOCAL	0x200000 	/* route represents a local address */
 #define	RTF_BROADCAST	0x400000	/* route represents a bcast address */
 #define	RTF_MULTICAST	0x800000	/* route represents a mcast address */
@@ -184,6 +184,9 @@ struct ortentry {
 #define	RTF_STICKY	 0x10000000	/* always route dst->src */
 
 #define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
+
+#define	RTF_GWFLAG_COMPAT 0x80000000	/* a compatibility bit for interacting
+					   with existing routing apps */
 
 /* Mask of RTF flags that are allowed to be modified by RTM_CHANGE. */
 #define RTF_FMASK	\

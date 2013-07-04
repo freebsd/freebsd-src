@@ -211,6 +211,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(LOGITEC,		RT2870_3),
     RUN_DEV(LOGITEC,		LANW300NU2),
     RUN_DEV(LOGITEC,		LANW150NU2),
+    RUN_DEV(LOGITEC,		LANW300NU2S),
     RUN_DEV(MELCO,		RT2870_1),
     RUN_DEV(MELCO,		RT2870_2),
     RUN_DEV(MELCO,		WLIUCAG300N),
@@ -716,11 +717,14 @@ run_detach(device_t self)
 	struct ieee80211com *ic;
 	int i;
 
+	RUN_LOCK(sc);
+	sc->sc_detached = 1;
+	RUN_UNLOCK(sc);
+
 	/* stop all USB transfers */
 	usbd_transfer_unsetup(sc->sc_xfer, RUN_N_XFER);
 
 	RUN_LOCK(sc);
-
 	sc->ratectl_run = RUN_RATECTL_OFF;
 	sc->cmdq_run = sc->cmdq_key_set = RUN_CMDQ_ABORT;
 
@@ -3441,7 +3445,13 @@ run_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int startall = 0;
-	int error = 0;
+	int error;
+
+	RUN_LOCK(sc);
+	error = sc->sc_detached ? ENXIO : 0;
+	RUN_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -4963,8 +4973,7 @@ static device_method_t run_methods[] = {
 	DEVMETHOD(device_probe,		run_match),
 	DEVMETHOD(device_attach,	run_attach),
 	DEVMETHOD(device_detach,	run_detach),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t run_driver = {

@@ -243,7 +243,7 @@ acpi_pcib_producer_handler(ACPI_RESOURCE *res, void *context)
 		if (min + length - 1 != max)
 			device_printf(sc->ap_dev,
 			    "Length mismatch for %d range: %jx vs %jx\n", type,
-			    (uintmax_t)max - min + 1, (uintmax_t)length);
+			    (uintmax_t)(max - min + 1), (uintmax_t)length);
 #ifdef __i386__
 		if (min > ULONG_MAX) {
 			device_printf(sc->ap_dev,
@@ -285,6 +285,12 @@ acpi_pcib_acpi_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->ap_dev = dev;
     sc->ap_handle = acpi_get_handle(dev);
+
+    /*
+     * Don't attach if we're not really there.
+     */
+    if (!acpi_DeviceIsPresent(dev))
+	return (ENXIO);
 
     /*
      * Get our segment number by evaluating _SEG.
@@ -353,7 +359,7 @@ acpi_pcib_acpi_attach(device_t dev)
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _BBN - %s\n",
 		AcpiFormatException(status));
-	    return_VALUE (ENXIO);
+	    return (ENXIO);
 	} else {
 	    /* If it's not found, assume 0. */
 	    sc->ap_bus = 0;

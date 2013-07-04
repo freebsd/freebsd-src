@@ -82,11 +82,6 @@ initarm_late_init(void)
 	pcell_t cells[2];
 	int len;
 
-	/*
-	 * It seems there is no way to let syscons framework know
-	 * that framebuffer resolution has changed. So just try
-	 * to fetch data from FDT and go with defaults if failed
-	 */
 	system = OF_finddevice("/system");
 	if (system != 0) {
 		len = OF_getprop(system, "linux,serial", &cells, sizeof(cells));

@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -28,7 +28,7 @@
 .\"     @(#)random.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2012
+.Dd April 2, 2013
 .Dt RANDOM 3
 .Os
 .Sh NAME
@@ -106,8 +106,8 @@ as the seed.
 .Pp
 The
 .Fn srandomdev
-routine initializes a state array using data from
-.Xr random 4 .
+routine initializes a state array using
+pseudo-random numbers obtained from the kernel.
 Note that this particular seeding
 procedure can generate states which are impossible to reproduce by
 calling
