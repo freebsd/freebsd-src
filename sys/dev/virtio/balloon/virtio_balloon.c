@@ -90,7 +90,7 @@ static int	vtballoon_config_change(device_t);
 static void	vtballoon_negotiate_features(struct vtballoon_softc *);
 static int	vtballoon_alloc_virtqueues(struct vtballoon_softc *);
 
-static int	vtballoon_vq_intr(void *);
+static void	vtballoon_vq_intr(void *);
 
 static void	vtballoon_inflate(struct vtballoon_softc *, int);
 static void	vtballoon_deflate(struct vtballoon_softc *, int);
@@ -300,7 +300,7 @@ vtballoon_alloc_virtqueues(struct vtballoon_softc *sc)
 	return (virtio_alloc_virtqueues(dev, 0, nvqs, vq_info));
 }
 
-static int
+static void
 vtballoon_vq_intr(void *xsc)
 {
 	struct vtballoon_softc *sc;
@@ -310,8 +310,6 @@ vtballoon_vq_intr(void *xsc)
 	VTBALLOON_LOCK(sc);
 	wakeup_one(sc);
 	VTBALLOON_UNLOCK(sc);
-
-	return (1);
 }
 
 static void
