@@ -60,6 +60,10 @@ reset(int argc, char *argv[])
 		}
 	}
 
+	/* Check that a controller was specified. */
+	if (optind >= argc)
+		reset_usage();
+
 	open_dev(argv[optind], &fd, 1, 1);
 	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0) {
 		printf("Reset request to %s failed. errno=%d (%s)\n",
