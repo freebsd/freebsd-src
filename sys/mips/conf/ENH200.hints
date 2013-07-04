@@ -117,8 +117,8 @@ hint.map.4.end=0x007f0000
 hint.map.4.name="cfg"
 
 # ART (64k)
-hint.map.4.at="flash/spi0"
-hint.map.4.start=0x007f0000
-hint.map.4.end=0x00800000
-hint.map.4.name="ART"
-hint.map.4.readonly=1
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x007f0000
+hint.map.5.end=0x00800000
+hint.map.5.name="ART"
+hint.map.5.readonly=1
