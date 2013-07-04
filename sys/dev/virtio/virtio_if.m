@@ -33,8 +33,7 @@ CODE {
 	static int
 	virtio_default_config_change(device_t dev)
 	{
-		/* Return that we've handled the change. */
-		return (1);
+		return (0);
 	}
 };
 
