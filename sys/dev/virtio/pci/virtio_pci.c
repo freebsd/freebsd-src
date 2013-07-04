@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -486,9 +486,6 @@ vtpci_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		return (EALREADY);
 	if (nvqs <= 0 || nvqs > VIRTIO_MAX_VIRTQUEUES)
 		return (EINVAL);
-
-	if (flags & VIRTIO_ALLOC_VQS_DISABLE_MSIX)
-		sc->vtpci_flags |= VTPCI_FLAG_NO_MSIX;
 
 	for (idx = 0; idx < nvqs; idx++) {
 		vqx = &sc->vtpci_vqx[idx];
