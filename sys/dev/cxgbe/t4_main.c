@@ -1072,9 +1072,10 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 		if (rc)
 			return (rc);
 		ifp->if_mtu = mtu;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (pi->flags & PORT_INIT_DONE) {
 			t4_update_fl_bufsize(ifp);
-			rc = update_mac_settings(pi, XGMAC_MTU);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				rc = update_mac_settings(pi, XGMAC_MTU);
 		}
 		end_synchronized_op(sc, 0);
 		break;
@@ -4381,6 +4382,10 @@ t4_sysctls(struct adapter *sc)
 		    G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2));
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp_thres", CTLFLAG_RW,
 		    &sc->tt.ddp_thres, 0, "DDP threshold");
+
+		sc->tt.rx_coalesce = 1;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_coalesce",
+		    CTLFLAG_RW, &sc->tt.rx_coalesce, 0, "receive coalescing");
 	}
 #endif
 
