@@ -1337,7 +1337,7 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct wrqe *wr)
 			eq->pidx -= eq->cap;
 
 		eq->pending += ndesc;
-		if (eq->pending > 16)
+		if (eq->pending >= 8)
 			ring_eq_db(sc, eq);
 
 		wrq->tx_wrs++;
@@ -1508,8 +1508,8 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 		if (sgl.nsegs == 0)
 			m_freem(m);
 doorbell:
-		if (eq->pending >= 64)
-		    ring_eq_db(sc, eq);
+		if (eq->pending >= 8)
+			ring_eq_db(sc, eq);
 
 		can_reclaim = reclaimable(eq);
 		if (can_reclaim >= 32)
