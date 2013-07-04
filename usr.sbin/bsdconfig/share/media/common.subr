@@ -83,16 +83,18 @@ f_media_verify()
 	f_struct device_media || f_media_get_type
 }
 
-# f_media_generic_get $base $file
+# f_media_generic_get $base $file [$probe_only]
 #
-# A generic open which follows a well-known "path" of places to look.
+# A generic open which follows a well-known "path" of places to look. If
+# $probe_only is present and non-NULL, returns success if $file exists.
 # 
 f_media_generic_get()
 {
-	local base="$1" file="$2"
+	local base="$1" file="$2" probe_only="$3"
 
 	local fname=f_media_generic_get
-	f_dprintf "%s: base=[%s] files=[%s]" $fname "$base" "$file"
+	f_dprintf "%s: base=[%s] files=[%s] probe_only=%s" \
+	          $fname "$base" "$file" "$probe_only"
 
 	local rel path
 	f_getvar $VAR_RELNAME rel
@@ -104,10 +106,19 @@ f_media_generic_get()
 	; do
 		if [ -f "$path" -a -r "$path" ]; then
 			f_dprintf "%s: file exists path=[%s]" $fname "$path"
+			[ "$probe_only" ] && return $SUCCESS
 			cat "$path"
 			return
 		fi
 	done
+
+	path="$base/releases/$rel/$file" # Final path to try
+	if [ -f "$path" -a -r "$path" ]; then
+		f_dprintf "%s: file exists path=[%s]" $fname "$path"
+		[ "$probe_only" ] && return $SUCCESS
+	elif [ "$probe_only" ]; then
+		return $FAILURE
+	fi
 	cat "$base/releases/$rel/$file" # Final path to try
 }
 

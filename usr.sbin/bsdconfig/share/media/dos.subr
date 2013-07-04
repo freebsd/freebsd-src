@@ -125,7 +125,7 @@ f_media_init_dos()
 # f_media_get_dos $device $file [$probe_only]
 #
 # Returns data from $file on a mounted DOS partition device. Similar to cat(1).
-# $probe_only is currently unused by this media type.
+# If $probe_only is present and non-NULL, returns success if $file exists.
 #
 f_media_get_dos()
 {
@@ -134,7 +134,7 @@ f_media_get_dos()
 	f_dprintf "f_media_get_dos: dev=[%s] file=[%s] probe_only=%s" \
 	          "$dev" "$file" "$probe_only"
 
-	f_media_generic_get "$MOUNTPOINT" "$file"
+	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_only"
 }
 
 # f_media_shutdown_dos $device

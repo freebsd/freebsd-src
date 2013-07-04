@@ -117,7 +117,8 @@ f_media_init_directory()
 # f_media_get_directory $device $file [$probe_only]
 #
 # Returns data from $file in the existing/current filesystem. Similar to
-# cat(1). $probe_only is currently unused by this media type.
+# cat(1). If $probe_only is present and non-NULL, returns success if $file
+# exists.
 #
 f_media_get_directory()
 {
@@ -127,7 +128,7 @@ f_media_get_directory()
 	          "$dev" "$file" "$probe_only"
 
 	device_$dev get private path
-	f_media_generic_get "$path" "$file"
+	f_media_generic_get "$path" "$file" "$probe_only"
 }
 
 # f_media_shutdown_directory $device
