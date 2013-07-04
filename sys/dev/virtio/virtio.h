@@ -99,7 +99,7 @@ struct vq_alloc_info;
 
 struct virtio_feature_desc {
 	uint64_t	 vfd_val;
-	char		*vfd_str;
+	const char	*vfd_str;
 };
 
 const char *virtio_device_name(uint16_t devid);
