@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
+#include "common/t4_tcb.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -328,6 +329,30 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 
 	if (!(toep->flags & TPF_CPL_PENDING))
 		release_offload_resources(toep);
+}
+
+/*
+ * setsockopt handler.
+ */
+static void
+t4_ctloutput(struct toedev *tod, struct tcpcb *tp, int dir, int name)
+{
+	struct adapter *sc = tod->tod_softc;
+	struct toepcb *toep = tp->t_toe;
+
+	if (dir == SOPT_GET)
+		return;
+
+	CTR4(KTR_CXGBE, "%s: tp %p, dir %u, name %u", __func__, tp, dir, name);
+
+	switch (name) {
+	case TCP_NODELAY:
+		t4_set_tcb_field(sc, toep, 1, W_TCB_T_FLAGS, V_TF_NAGLE(1),
+		    V_TF_NAGLE(tp->t_flags & TF_NODELAY ? 0 : 1));
+		break;
+	default:
+		break;
+	}
 }
 
 /*
@@ -946,6 +971,7 @@ t4_tom_activate(struct adapter *sc)
 	tod->tod_syncache_removed = t4_syncache_removed;
 	tod->tod_syncache_respond = t4_syncache_respond;
 	tod->tod_offload_socket = t4_offload_socket;
+	tod->tod_ctloutput = t4_ctloutput;
 
 	for_each_port(sc, i)
 		TOEDEV(sc->port[i]->ifp) = &td->tod;
