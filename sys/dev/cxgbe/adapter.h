@@ -562,7 +562,6 @@ struct adapter {
 	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
-	uint32_t filter_mode;
 
 #ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */

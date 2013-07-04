@@ -474,15 +474,10 @@ t4_read_chip_settings(struct adapter *sc)
 		s->s_qpp = r & M_QUEUESPERPAGEPF0;
 	}
 
-	r = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
-	sc->params.tp.tre = G_TIMERRESOLUTION(r);
-	sc->params.tp.dack_re = G_DELAYEDACKRESOLUTION(r);
+	t4_init_tp_params(sc);
 
 	t4_read_mtu_tbl(sc, sc->params.mtus, NULL);
 	t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd, sc->params.b_wnd);
-
-	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &sc->filter_mode, 1,
-	    A_TP_VLAN_PRI_MAP);
 
 	return (rc);
 }
