@@ -7,11 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
-#include "llvm/Type.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Type.h"
 using namespace llvm;
 
 /// DemoteRegToStack - This function takes a virtual register computed by an
@@ -78,12 +79,21 @@ AllocaInst *llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
     InsertPt = &I;
     ++InsertPt;
   } else {
-    // We cannot demote invoke instructions to the stack if their normal edge
-    // is critical.
     InvokeInst &II = cast<InvokeInst>(I);
-    assert(II.getNormalDest()->getSinglePredecessor() &&
-           "Cannot demote invoke with a critical successor!");
-    InsertPt = II.getNormalDest()->begin();
+    if (II.getNormalDest()->getSinglePredecessor())
+      InsertPt = II.getNormalDest()->getFirstInsertionPt();
+    else {
+      // We cannot demote invoke instructions to the stack if their normal edge
+      // is critical.  Therefore, split the critical edge and insert the store
+      // in the newly created basic block.
+      unsigned SuccNum = GetSuccessorNumber(I.getParent(), II.getNormalDest());
+      TerminatorInst *TI = &cast<TerminatorInst>(I);
+      assert (isCriticalEdge(TI, SuccNum) &&
+              "Expected a critical edge!");
+      BasicBlock *BB = SplitCriticalEdge(TI, SuccNum);
+      assert (BB && "Unable to split critical edge.");
+      InsertPt = BB->getFirstInsertionPt();
+    }
   }
 
   for (; isa<PHINode>(InsertPt) || isa<LandingPadInst>(InsertPt); ++InsertPt)
@@ -124,7 +134,12 @@ AllocaInst *llvm::DemotePHIToStack(PHINode *P, Instruction *AllocaPoint) {
   }
 
   // Insert a load in place of the PHI and replace all uses.
-  Value *V = new LoadInst(Slot, P->getName()+".reload", P);
+  BasicBlock::iterator InsertPt = P;
+
+  for (; isa<PHINode>(InsertPt) || isa<LandingPadInst>(InsertPt); ++InsertPt)
+    /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
+
+  Value *V = new LoadInst(Slot, P->getName()+".reload", InsertPt);
   P->replaceAllUsesWith(V);
 
   // Delete PHI.

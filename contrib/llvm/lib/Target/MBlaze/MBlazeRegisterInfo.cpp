@@ -16,25 +16,25 @@
 
 #include "MBlazeRegisterInfo.h"
 #include "MBlaze.h"
-#include "MBlazeSubtarget.h"
 #include "MBlazeMachineFunction.h"
-#include "llvm/Constants.h"
-#include "llvm/Type.h"
-#include "llvm/Function.h"
-#include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineFunction.h"
+#include "MBlazeSubtarget.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 
 #define GET_REGINFO_TARGET_DESC
 #include "MBlazeGenRegisterInfo.inc"
@@ -83,67 +83,21 @@ getReservedRegs(const MachineFunction &MF) const {
   return Reserved;
 }
 
-// This function eliminate ADJCALLSTACKDOWN/ADJCALLSTACKUP pseudo instructions
-void MBlazeRegisterInfo::
-eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator I) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
-
-  if (!TFI->hasReservedCallFrame(MF)) {
-    // If we have a frame pointer, turn the adjcallstackup instruction into a
-    // 'addi r1, r1, -<amt>' and the adjcallstackdown instruction into
-    // 'addi r1, r1, <amt>'
-    MachineInstr *Old = I;
-    int Amount = Old->getOperand(0).getImm() + 4;
-    if (Amount != 0) {
-      // We need to keep the stack aligned properly.  To do this, we round the
-      // amount of space needed for the outgoing arguments up to the next
-      // alignment boundary.
-      unsigned Align = TFI->getStackAlignment();
-      Amount = (Amount+Align-1)/Align*Align;
-
-      MachineInstr *New;
-      if (Old->getOpcode() == MBlaze::ADJCALLSTACKDOWN) {
-        New = BuildMI(MF,Old->getDebugLoc(),TII.get(MBlaze::ADDIK),MBlaze::R1)
-                .addReg(MBlaze::R1).addImm(-Amount);
-      } else {
-        assert(Old->getOpcode() == MBlaze::ADJCALLSTACKUP);
-        New = BuildMI(MF,Old->getDebugLoc(),TII.get(MBlaze::ADDIK),MBlaze::R1)
-                .addReg(MBlaze::R1).addImm(Amount);
-      }
-
-      // Replace the pseudo instruction with a new instruction...
-      MBB.insert(I, New);
-    }
-  }
-
-  // Simply discard ADJCALLSTACKDOWN, ADJCALLSTACKUP instructions.
-  MBB.erase(I);
-}
-
 // FrameIndex represent objects inside a abstract stack.
 // We must replace FrameIndex with an stack/frame pointer
 // direct reference.
 void MBlazeRegisterInfo::
 eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
-                    RegScavenger *RS) const {
+                    unsigned FIOperandNum, RegScavenger *RS) const {
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
   MachineFrameInfo *MFI = MF.getFrameInfo();
-
-  unsigned i = 0;
-  while (!MI.getOperand(i).isFI()) {
-    ++i;
-    assert(i < MI.getNumOperands() &&
-           "Instr doesn't have FrameIndex operand!");
-  }
-
-  unsigned oi = i == 2 ? 1 : 2;
+  unsigned OFIOperandNum = FIOperandNum == 2 ? 1 : 2;
 
   DEBUG(dbgs() << "\nFunction : " << MF.getName() << "\n";
         dbgs() << "<--------->\n" << MI);
 
-  int FrameIndex = MI.getOperand(i).getIndex();
+  int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   int stackSize  = MFI->getStackSize();
   int spOffset   = MFI->getObjectOffset(FrameIndex);
 
@@ -159,16 +113,16 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
   // as explained on LowerFormalArguments, detect negative offsets
   // and adjust SPOffsets considering the final stack size.
   int Offset = (spOffset < 0) ? (stackSize - spOffset) : spOffset;
-  Offset += MI.getOperand(oi).getImm();
+  Offset += MI.getOperand(OFIOperandNum).getImm();
 
   DEBUG(dbgs() << "Offset     : " << Offset << "\n" << "<--------->\n");
 
-  MI.getOperand(oi).ChangeToImmediate(Offset);
-  MI.getOperand(i).ChangeToRegister(getFrameRegister(MF), false);
+  MI.getOperand(OFIOperandNum).ChangeToImmediate(Offset);
+  MI.getOperand(FIOperandNum).ChangeToRegister(getFrameRegister(MF), false);
 }
 
 void MBlazeRegisterInfo::
-processFunctionBeforeFrameFinalized(MachineFunction &MF) const {
+processFunctionBeforeFrameFinalized(MachineFunction &MF, RegScavenger *) const {
   // Set the stack offset where GP must be saved/loaded from.
   MachineFrameInfo *MFI = MF.getFrameInfo();
   MBlazeFunctionInfo *MBlazeFI = MF.getInfo<MBlazeFunctionInfo>();

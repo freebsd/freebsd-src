@@ -13,13 +13,13 @@
 
 #include "PPCTargetMachine.h"
 #include "PPC.h"
-#include "llvm/PassManager.h"
-#include "llvm/MC/MCStreamer.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetOptions.h"
+#include "llvm/MC/MCStreamer.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
 static cl::
@@ -43,8 +43,7 @@ PPCTargetMachine::PPCTargetMachine(const Target &T, StringRef TT,
     DL(Subtarget.getDataLayoutString()), InstrInfo(*this),
     FrameLowering(Subtarget), JITInfo(*this, is64Bit),
     TLInfo(*this), TSInfo(*this),
-    InstrItins(Subtarget.getInstrItineraryData()),
-    STTI(&TLInfo), VTTI(&TLInfo) {
+    InstrItins(Subtarget.getInstrItineraryData()) {
 
   // The binutils for the BG/P are too old for CFI.
   if (Subtarget.isBGP())
@@ -87,8 +86,14 @@ public:
     return getTM<PPCTargetMachine>();
   }
 
+  const PPCSubtarget &getPPCSubtarget() const {
+    return *getPPCTargetMachine().getSubtargetImpl();
+  }
+
   virtual bool addPreRegAlloc();
+  virtual bool addILPOpts();
   virtual bool addInstSelector();
+  virtual bool addPreSched2();
   virtual bool addPreEmitPass();
 };
 } // namespace
@@ -104,13 +109,31 @@ bool PPCPassConfig::addPreRegAlloc() {
   return false;
 }
 
+bool PPCPassConfig::addILPOpts() {
+  if (getPPCSubtarget().hasISEL()) {
+    addPass(&EarlyIfConverterID);
+    return true;
+  }
+
+  return false;
+}
+
 bool PPCPassConfig::addInstSelector() {
   // Install an instruction selector.
   addPass(createPPCISelDag(getPPCTargetMachine()));
   return false;
 }
 
+bool PPCPassConfig::addPreSched2() {
+  if (getOptLevel() != CodeGenOpt::None)
+    addPass(&IfConverterID);
+
+  return true;
+}
+
 bool PPCPassConfig::addPreEmitPass() {
+  if (getOptLevel() != CodeGenOpt::None)
+    addPass(createPPCEarlyReturnPass());
   // Must run branch selection immediately preceding the asm printer.
   addPass(createPPCBranchSelectionPass());
   return false;
@@ -127,3 +150,12 @@ bool PPCTargetMachine::addCodeEmitter(PassManagerBase &PM,
 
   return false;
 }
+
+void PPCTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
+  // Add first the target-independent BasicTTI pass, then our PPC pass. This
+  // allows the PPC pass to delegate to the target independent layer when
+  // appropriate.
+  PM.add(createBasicTargetTransformInfoPass(getTargetLowering()));
+  PM.add(createPPCTargetTransformInfoPass(this));
+}
+

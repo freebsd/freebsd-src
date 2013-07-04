@@ -19,15 +19,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/LiveInterval.h"
+#include "RegisterCoalescer.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "RegisterCoalescer.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -440,7 +440,7 @@ void LiveInterval::join(LiveInterval &Other,
 
     iterator OutIt = begin();
     OutIt->valno = NewVNInfo[LHSValNoAssignments[OutIt->valno->id]];
-    for (iterator I = next(OutIt), E = end(); I != E; ++I) {
+    for (iterator I = llvm::next(OutIt), E = end(); I != E; ++I) {
       VNInfo* nextValNo = NewVNInfo[LHSValNoAssignments[I->valno->id]];
       assert(nextValNo != 0 && "Huh?");
 
@@ -464,10 +464,12 @@ void LiveInterval::join(LiveInterval &Other,
     ranges.erase(OutIt, end());
   }
 
-  // Remember assignements because val# ids are changing.
-  SmallVector<unsigned, 16> OtherAssignments;
+  // Rewrite Other values before changing the VNInfo ids.
+  // This can leave Other in an invalid state because we're not coalescing
+  // touching segments that now have identical values. That's OK since Other is
+  // not supposed to be valid after calling join();
   for (iterator I = Other.begin(), E = Other.end(); I != E; ++I)
-    OtherAssignments.push_back(RHSValNoAssignments[I->valno->id]);
+    I->valno = NewVNInfo[RHSValNoAssignments[I->valno->id]];
 
   // Update val# info. Renumber them and make sure they all belong to this
   // LiveInterval now. Also remove dead val#'s.
@@ -486,148 +488,9 @@ void LiveInterval::join(LiveInterval &Other,
     valnos.resize(NumNewVals);  // shrinkify
 
   // Okay, now insert the RHS live ranges into the LHS.
-  unsigned RangeNo = 0;
-  for (iterator I = Other.begin(), E = Other.end(); I != E; ++I, ++RangeNo) {
-    // Map the valno in the other live range to the current live range.
-    I->valno = NewVNInfo[OtherAssignments[RangeNo]];
-    assert(I->valno && "Adding a dead range?");
-  }
-  mergeIntervalRanges(Other);
-
-  verify();
-}
-
-/// \brief Helper function for merging in another LiveInterval's ranges.
-///
-/// This is a helper routine implementing an efficient merge of another
-/// LiveIntervals ranges into the current interval.
-///
-/// \param LHSValNo If non-NULL, set as the new value number for every range
-///                 from RHS which is merged into the LHS.
-/// \param RHSValNo If non-NULL, then only ranges in RHS whose original value
-///                 number maches this value number will be merged into LHS.
-void LiveInterval::mergeIntervalRanges(const LiveInterval &RHS,
-                                       VNInfo *LHSValNo,
-                                       const VNInfo *RHSValNo) {
-  if (RHS.empty())
-    return;
-
-  // Ensure we're starting with a valid range. Note that we don't verify RHS
-  // because it may have had its value numbers adjusted in preparation for
-  // merging.
-  verify();
-
-  // The strategy for merging these efficiently is as follows:
-  //
-  // 1) Find the beginning of the impacted ranges in the LHS.
-  // 2) Create a new, merged sub-squence of ranges merging from the position in
-  //    #1 until either LHS or RHS is exhausted. Any part of LHS between RHS
-  //    entries being merged will be copied into this new range.
-  // 3) Replace the relevant section in LHS with these newly merged ranges.
-  // 4) Append any remaning ranges from RHS if LHS is exhausted in #2.
-  //
-  // We don't follow the typical in-place merge strategy for sorted ranges of
-  // appending the new ranges to the back and then using std::inplace_merge
-  // because one step of the merge can both mutate the original elements and
-  // remove elements from the original. Essentially, because the merge includes
-  // collapsing overlapping ranges, a more complex approach is required.
-
-  // We do an initial binary search to optimize for a common pattern: a large
-  // LHS, and a very small RHS.
-  const_iterator RI = RHS.begin(), RE = RHS.end();
-  iterator LE = end(), LI = std::upper_bound(begin(), LE, *RI);
-
-  // Merge into NewRanges until one of the ranges is exhausted.
-  SmallVector<LiveRange, 4> NewRanges;
-
-  // Keep track of where to begin the replacement.
-  iterator ReplaceI = LI;
-
-  // If there are preceding ranges in the LHS, put the last one into NewRanges
-  // so we can optionally extend it. Adjust the replacement point accordingly.
-  if (LI != begin()) {
-    ReplaceI = llvm::prior(LI);
-    NewRanges.push_back(*ReplaceI);
-  }
-
-  // Now loop over the mergable portions of both LHS and RHS, merging into
-  // NewRanges.
-  while (LI != LE && RI != RE) {
-    // Skip incoming ranges with the wrong value.
-    if (RHSValNo && RI->valno != RHSValNo) {
-      ++RI;
-      continue;
-    }
-
-    // Select the first range. We pick the earliest start point, and then the
-    // largest range.
-    LiveRange R = *LI;
-    if (*RI < R) {
-      R = *RI;
-      ++RI;
-      if (LHSValNo)
-        R.valno = LHSValNo;
-    } else {
-      ++LI;
-    }
-
-    if (NewRanges.empty()) {
-      NewRanges.push_back(R);
-      continue;
-    }
-
-    LiveRange &LastR = NewRanges.back();
-    if (R.valno == LastR.valno) {
-      // Try to merge this range into the last one.
-      if (R.start <= LastR.end) {
-        LastR.end = std::max(LastR.end, R.end);
-        continue;
-      }
-    } else {
-      // We can't merge ranges across a value number.
-      assert(R.start >= LastR.end &&
-             "Cannot overlap two LiveRanges with differing ValID's");
-    }
-
-    // If all else fails, just append the range.
-    NewRanges.push_back(R);
-  }
-  assert(RI == RE || LI == LE);
-
-  // Check for being able to merge into the trailing sequence of ranges on the LHS.
-  if (!NewRanges.empty())
-    for (; LI != LE && (LI->valno == NewRanges.back().valno &&
-                        LI->start <= NewRanges.back().end);
-         ++LI)
-      NewRanges.back().end = std::max(NewRanges.back().end, LI->end);
-
-  // Replace the ranges in the LHS with the newly merged ones. It would be
-  // really nice if there were a move-supporting 'replace' directly in
-  // SmallVector, but as there is not, we pay the price of copies to avoid
-  // wasted memory allocations.
-  SmallVectorImpl<LiveRange>::iterator NRI = NewRanges.begin(),
-                                       NRE = NewRanges.end();
-  for (; ReplaceI != LI && NRI != NRE; ++ReplaceI, ++NRI)
-    *ReplaceI = *NRI;
-  if (NRI == NRE)
-    ranges.erase(ReplaceI, LI);
-  else
-    ranges.insert(LI, NRI, NRE);
-
-  // And finally insert any trailing end of RHS (if we have one).
-  for (; RI != RE; ++RI) {
-    LiveRange R = *RI;
-    if (LHSValNo)
-      R.valno = LHSValNo;
-    if (!ranges.empty() &&
-        ranges.back().valno == R.valno && R.start <= ranges.back().end)
-      ranges.back().end = std::max(ranges.back().end, R.end);
-    else
-      ranges.push_back(R);
-  }
-
-  // Ensure we finished with a valid new sequence of ranges.
-  verify();
+  LiveRangeUpdater Updater(this);
+  for (iterator I = Other.begin(), E = Other.end(); I != E; ++I)
+    Updater.add(*I);
 }
 
 /// MergeRangesInAsValue - Merge all of the intervals in RHS into this live
@@ -636,7 +499,9 @@ void LiveInterval::mergeIntervalRanges(const LiveInterval &RHS,
 /// the overlapping LiveRanges have the specified value number.
 void LiveInterval::MergeRangesInAsValue(const LiveInterval &RHS,
                                         VNInfo *LHSValNo) {
-  mergeIntervalRanges(RHS, LHSValNo);
+  LiveRangeUpdater Updater(this);
+  for (const_iterator I = RHS.begin(), E = RHS.end(); I != E; ++I)
+    Updater.add(I->start, I->end, LHSValNo);
 }
 
 /// MergeValueInAsValue - Merge all of the live ranges of a specific val#
@@ -647,7 +512,10 @@ void LiveInterval::MergeRangesInAsValue(const LiveInterval &RHS,
 void LiveInterval::MergeValueInAsValue(const LiveInterval &RHS,
                                        const VNInfo *RHSValNo,
                                        VNInfo *LHSValNo) {
-  mergeIntervalRanges(RHS, LHSValNo, RHSValNo);
+  LiveRangeUpdater Updater(this);
+  for (const_iterator I = RHS.begin(), E = RHS.end(); I != E; ++I)
+    if (I->valno == RHSValNo)
+      Updater.add(I->start, I->end, LHSValNo);
 }
 
 /// MergeValueNumberInto - This method is called when two value nubmers
@@ -783,6 +651,206 @@ void LiveInterval::verify() const {
 
 void LiveRange::print(raw_ostream &os) const {
   os << *this;
+}
+
+//===----------------------------------------------------------------------===//
+//                           LiveRangeUpdater class
+//===----------------------------------------------------------------------===//
+//
+// The LiveRangeUpdater class always maintains these invariants:
+//
+// - When LastStart is invalid, Spills is empty and the iterators are invalid.
+//   This is the initial state, and the state created by flush().
+//   In this state, isDirty() returns false.
+//
+// Otherwise, segments are kept in three separate areas:
+//
+// 1. [begin; WriteI) at the front of LI.
+// 2. [ReadI; end) at the back of LI.
+// 3. Spills.
+//
+// - LI.begin() <= WriteI <= ReadI <= LI.end().
+// - Segments in all three areas are fully ordered and coalesced.
+// - Segments in area 1 precede and can't coalesce with segments in area 2.
+// - Segments in Spills precede and can't coalesce with segments in area 2.
+// - No coalescing is possible between segments in Spills and segments in area
+//   1, and there are no overlapping segments.
+//
+// The segments in Spills are not ordered with respect to the segments in area
+// 1. They need to be merged.
+//
+// When they exist, Spills.back().start <= LastStart,
+//                 and WriteI[-1].start <= LastStart.
+
+void LiveRangeUpdater::print(raw_ostream &OS) const {
+  if (!isDirty()) {
+    if (LI)
+      OS << "Clean " << PrintReg(LI->reg) << " updater: " << *LI << '\n';
+    else
+      OS << "Null updater.\n";
+    return;
+  }
+  assert(LI && "Can't have null LI in dirty updater.");
+  OS << PrintReg(LI->reg) << " updater with gap = " << (ReadI - WriteI)
+     << ", last start = " << LastStart
+     << ":\n  Area 1:";
+  for (LiveInterval::const_iterator I = LI->begin(); I != WriteI; ++I)
+    OS << ' ' << *I;
+  OS << "\n  Spills:";
+  for (unsigned I = 0, E = Spills.size(); I != E; ++I)
+    OS << ' ' << Spills[I];
+  OS << "\n  Area 2:";
+  for (LiveInterval::const_iterator I = ReadI, E = LI->end(); I != E; ++I)
+    OS << ' ' << *I;
+  OS << '\n';
+}
+
+void LiveRangeUpdater::dump() const
+{
+  print(errs());
+}
+
+// Determine if A and B should be coalesced.
+static inline bool coalescable(const LiveRange &A, const LiveRange &B) {
+  assert(A.start <= B.start && "Unordered live ranges.");
+  if (A.end == B.start)
+    return A.valno == B.valno;
+  if (A.end < B.start)
+    return false;
+  assert(A.valno == B.valno && "Cannot overlap different values");
+  return true;
+}
+
+void LiveRangeUpdater::add(LiveRange Seg) {
+  assert(LI && "Cannot add to a null destination");
+
+  // Flush the state if Start moves backwards.
+  if (!LastStart.isValid() || LastStart > Seg.start) {
+    if (isDirty())
+      flush();
+    // This brings us to an uninitialized state. Reinitialize.
+    assert(Spills.empty() && "Leftover spilled segments");
+    WriteI = ReadI = LI->begin();
+  }
+
+  // Remember start for next time.
+  LastStart = Seg.start;
+
+  // Advance ReadI until it ends after Seg.start.
+  LiveInterval::iterator E = LI->end();
+  if (ReadI != E && ReadI->end <= Seg.start) {
+    // First try to close the gap between WriteI and ReadI with spills.
+    if (ReadI != WriteI)
+      mergeSpills();
+    // Then advance ReadI.
+    if (ReadI == WriteI)
+      ReadI = WriteI = LI->find(Seg.start);
+    else
+      while (ReadI != E && ReadI->end <= Seg.start)
+        *WriteI++ = *ReadI++;
+  }
+
+  assert(ReadI == E || ReadI->end > Seg.start);
+
+  // Check if the ReadI segment begins early.
+  if (ReadI != E && ReadI->start <= Seg.start) {
+    assert(ReadI->valno == Seg.valno && "Cannot overlap different values");
+    // Bail if Seg is completely contained in ReadI.
+    if (ReadI->end >= Seg.end)
+      return;
+    // Coalesce into Seg.
+    Seg.start = ReadI->start;
+    ++ReadI;
+  }
+
+  // Coalesce as much as possible from ReadI into Seg.
+  while (ReadI != E && coalescable(Seg, *ReadI)) {
+    Seg.end = std::max(Seg.end, ReadI->end);
+    ++ReadI;
+  }
+
+  // Try coalescing Spills.back() into Seg.
+  if (!Spills.empty() && coalescable(Spills.back(), Seg)) {
+    Seg.start = Spills.back().start;
+    Seg.end = std::max(Spills.back().end, Seg.end);
+    Spills.pop_back();
+  }
+
+  // Try coalescing Seg into WriteI[-1].
+  if (WriteI != LI->begin() && coalescable(WriteI[-1], Seg)) {
+    WriteI[-1].end = std::max(WriteI[-1].end, Seg.end);
+    return;
+  }
+
+  // Seg doesn't coalesce with anything, and needs to be inserted somewhere.
+  if (WriteI != ReadI) {
+    *WriteI++ = Seg;
+    return;
+  }
+
+  // Finally, append to LI or Spills.
+  if (WriteI == E) {
+    LI->ranges.push_back(Seg);
+    WriteI = ReadI = LI->ranges.end();
+  } else
+    Spills.push_back(Seg);
+}
+
+// Merge as many spilled segments as possible into the gap between WriteI
+// and ReadI. Advance WriteI to reflect the inserted instructions.
+void LiveRangeUpdater::mergeSpills() {
+  // Perform a backwards merge of Spills and [SpillI;WriteI).
+  size_t GapSize = ReadI - WriteI;
+  size_t NumMoved = std::min(Spills.size(), GapSize);
+  LiveInterval::iterator Src = WriteI;
+  LiveInterval::iterator Dst = Src + NumMoved;
+  LiveInterval::iterator SpillSrc = Spills.end();
+  LiveInterval::iterator B = LI->begin();
+
+  // This is the new WriteI position after merging spills.
+  WriteI = Dst;
+
+  // Now merge Src and Spills backwards.
+  while (Src != Dst) {
+    if (Src != B && Src[-1].start > SpillSrc[-1].start)
+      *--Dst = *--Src;
+    else
+      *--Dst = *--SpillSrc;
+  }
+  assert(NumMoved == size_t(Spills.end() - SpillSrc));
+  Spills.erase(SpillSrc, Spills.end());
+}
+
+void LiveRangeUpdater::flush() {
+  if (!isDirty())
+    return;
+  // Clear the dirty state.
+  LastStart = SlotIndex();
+
+  assert(LI && "Cannot add to a null destination");
+
+  // Nothing to merge?
+  if (Spills.empty()) {
+    LI->ranges.erase(WriteI, ReadI);
+    LI->verify();
+    return;
+  }
+
+  // Resize the WriteI - ReadI gap to match Spills.
+  size_t GapSize = ReadI - WriteI;
+  if (GapSize < Spills.size()) {
+    // The gap is too small. Make some room.
+    size_t WritePos = WriteI - LI->begin();
+    LI->ranges.insert(ReadI, Spills.size() - GapSize, LiveRange());
+    // This also invalidated ReadI, but it is recomputed below.
+    WriteI = LI->ranges.begin() + WritePos;
+  } else {
+    // Shrink the gap if necessary.
+    LI->ranges.erase(WriteI + Spills.size(), ReadI);
+  }
+  ReadI = WriteI + Spills.size();
+  mergeSpills();
+  LI->verify();
 }
 
 unsigned ConnectedVNInfoEqClasses::Classify(const LiveInterval *LI) {

@@ -12,7 +12,7 @@ let Component = "AST" in {
 // Constant expression diagnostics. These (and their users) belong in Sema.
 def note_expr_divide_by_zero : Note<"division by zero">;
 def note_constexpr_invalid_cast : Note<
-  "%select{reinterpret_cast|dynamic_cast|cast which performs the conversions of"
+  "%select{reinterpret_cast|dynamic_cast|cast that performs the conversions of"
   " a reinterpret_cast|cast from %1}0 is not allowed in a constant expression">;
 def note_constexpr_invalid_downcast : Note<
   "cannot cast object of dynamic type %0 to type %1">;
@@ -26,6 +26,8 @@ def note_constexpr_lshift_discards : Note<"signed left shift discards bits">;
 def note_constexpr_invalid_function : Note<
   "%select{non-constexpr|undefined}0 %select{function|constructor}1 %2 cannot "
   "be used in a constant expression">;
+def note_constexpr_no_return : Note<
+  "control reached end of constexpr function">;
 def note_constexpr_virtual_call : Note<
   "cannot evaluate virtual function call in a constant expression">;
 def note_constexpr_virtual_base : Note<
@@ -82,11 +84,20 @@ def note_constexpr_depth_limit_exceeded : Note<
 def note_constexpr_call_limit_exceeded : Note<
   "constexpr evaluation hit maximum call limit">;
 def note_constexpr_lifetime_ended : Note<
-  "read of %select{temporary|variable}0 whose lifetime has ended">;
-def note_constexpr_ltor_volatile_type : Note<
-  "read of volatile-qualified type %0 is not allowed in a constant expression">;
-def note_constexpr_ltor_volatile_obj : Note<
-  "read of volatile %select{temporary|object %1|member %1}0 is not allowed in "
+  "%select{read of|assignment to|increment of|decrement of}0 "
+  "%select{temporary|variable}1 whose lifetime has ended">;
+def note_constexpr_access_uninit : Note<
+  "%select{read of|assignment to|increment of|decrement of}0 "
+  "object outside its lifetime is not allowed in a constant expression">;
+def note_constexpr_modify_const_type : Note<
+  "modification of object of const-qualified type %0 is not allowed "
+  "in a constant expression">;
+def note_constexpr_access_volatile_type : Note<
+  "%select{read of|assignment to|increment of|decrement of}0 "
+  "volatile-qualified type %1 is not allowed in a constant expression">;
+def note_constexpr_access_volatile_obj : Note<
+  "%select{read of|assignment to|increment of|decrement of}0 volatile "
+  "%select{temporary|object %2|member %2}1 is not allowed in "
   "a constant expression">;
 def note_constexpr_ltor_mutable : Note<
   "read of mutable member %0 is not allowed in a constant expression">;
@@ -94,18 +105,26 @@ def note_constexpr_ltor_non_const_int : Note<
   "read of non-const variable %0 is not allowed in a constant expression">;
 def note_constexpr_ltor_non_constexpr : Note<
   "read of non-constexpr variable %0 is not allowed in a constant expression">;
-def note_constexpr_read_past_end : Note<
-  "read of dereferenced one-past-the-end pointer is not allowed in a "
-  "constant expression">;
-def note_constexpr_read_inactive_union_member : Note<
-  "read of member %0 of union with %select{active member %2|no active member}1 "
+def note_constexpr_access_null : Note<
+  "%select{read of|assignment to|increment of|decrement of}0 "
+  "dereferenced null pointer is not allowed in a constant expression">;
+def note_constexpr_access_past_end : Note<
+  "%select{read of|assignment to|increment of|decrement of}0 "
+  "dereferenced one-past-the-end pointer is not allowed in a constant expression">;
+def note_constexpr_access_inactive_union_member : Note<
+  "%select{read of|assignment to|increment of|decrement of}0 "
+  "member %1 of union with %select{active member %3|no active member}2 "
   "is not allowed in a constant expression">;
-def note_constexpr_read_uninit : Note<
-  "read of uninitialized object is not allowed in a constant expression">;
+def note_constexpr_modify_global : Note<
+  "a constant expression cannot modify an object that is visible outside "
+  "that expression">;
 def note_constexpr_calls_suppressed : Note<
   "(skipping %0 call%s0 in backtrace; use -fconstexpr-backtrace-limit=0 to "
   "see all)">;
 def note_constexpr_call_here : Note<"in call to '%0'">;
+def warn_integer_constant_overflow : Warning<
+  "overflow in expression; result is %0 with type %1">,
+  InGroup<DiagGroup<"integer-overflow">>;
 
 // inline asm related.
 let CategoryName = "Inline Assembly Issue" in {
@@ -135,7 +154,8 @@ def err_odr_function_type_inconsistent : Error<
   "external function %0 declared with incompatible types in different "
   "translation units (%1 vs. %2)">;
 def warn_odr_tag_type_inconsistent : Warning<
-  "type %0 has incompatible definitions in different translation units">;
+  "type %0 has incompatible definitions in different translation units">,
+  InGroup<DiagGroup<"odr">>;
 def note_odr_tag_kind_here: Note<
   "%0 is a %select{struct|interface|union|class|enum}1 here">;
 def note_odr_field : Note<"field %0 has type %1 here">;

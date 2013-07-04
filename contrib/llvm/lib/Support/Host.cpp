@@ -11,14 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Support/Host.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/Config/config.h"
 #include "llvm/Support/DataStream.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Config/config.h"
 #include <string.h>
 
 // Include the platform-specific parts of this class.
@@ -112,13 +113,13 @@ static bool GetX86CpuIDAndInfo(unsigned value, unsigned *rEAX,
 }
 
 static bool OSHasAVXSupport() {
-#if defined( __GNUC__ )
-  // Check xgetbv; this uses a .byte sequence instead of the instruction 
-  // directly because older assemblers do not include support for xgetbv and 
+#if defined(__GNUC__)
+  // Check xgetbv; this uses a .byte sequence instead of the instruction
+  // directly because older assemblers do not include support for xgetbv and
   // there is no easy way to conditionally compile based on the assembler used.
   int rEAX, rEDX;
   __asm__ (".byte 0x0f, 0x01, 0xd0" : "=a" (rEAX), "=d" (rEDX) : "c" (0));
-#elif defined(_MSC_VER)
+#elif defined(_MSC_FULL_VER) && defined(_XCR_XFEATURE_ENABLED_MASK)
   unsigned long long rEAX = _xgetbv(_XCR_XFEATURE_ENABLED_MASK);
 #else
   int rEAX = 0; // Ensures we return false
@@ -151,7 +152,8 @@ std::string sys::getHostCPUName() {
   // If CPUID indicates support for XSAVE, XRESTORE and AVX, and XGETBV 
   // indicates that the AVX registers will be saved and restored on context
   // switch, then we have full AVX support.
-  bool HasAVX = (ECX & ((1 << 28) | (1 << 27))) != 0 && OSHasAVXSupport();
+  const unsigned AVXBits = (1 << 27) | (1 << 28);
+  bool HasAVX = ((ECX & AVXBits) == AVXBits) && OSHasAVXSupport();
   GetX86CpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
   bool Em64T = (EDX >> 29) & 0x1;
 
@@ -353,7 +355,15 @@ std::string sys::getHostCPUName() {
       case 20:
         return "btver1";
       case 21:
+        if (!HasAVX) // If the OS doesn't support AVX provide a sane fallback.
+          return "btver1";
+        if (Model > 15 && Model <= 31)
+          return "bdver2";
         return "bdver1";
+      case 22:
+        if (!HasAVX) // If the OS doesn't support AVX provide a sane fallback.
+          return "btver1";
+        return "btver2";
     default:
       return "generic";
     }
@@ -540,6 +550,75 @@ std::string sys::getHostCPUName() {
 }
 #endif
 
+#if defined(__linux__) && defined(__arm__)
+bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
+  std::string Err;
+  DataStreamer *DS = getDataFileStreamer("/proc/cpuinfo", &Err);
+  if (!DS) {
+    DEBUG(dbgs() << "Unable to open /proc/cpuinfo: " << Err << "\n");
+    return false;
+  }
+
+  // Read 1024 bytes from /proc/cpuinfo, which should contain the Features line
+  // in all cases.
+  char buffer[1024];
+  size_t CPUInfoSize = DS->GetBytes((unsigned char*) buffer, sizeof(buffer));
+  delete DS;
+
+  StringRef Str(buffer, CPUInfoSize);
+
+  SmallVector<StringRef, 32> Lines;
+  Str.split(Lines, "\n");
+
+  // Look for the CPU implementer line.
+  StringRef Implementer;
+  for (unsigned I = 0, E = Lines.size(); I != E; ++I)
+    if (Lines[I].startswith("CPU implementer"))
+      Implementer = Lines[I].substr(15).ltrim("\t :");
+
+  if (Implementer == "0x41") { // ARM Ltd.
+    SmallVector<StringRef, 32> CPUFeatures;
+
+    // Look for the CPU features.
+    for (unsigned I = 0, E = Lines.size(); I != E; ++I)
+      if (Lines[I].startswith("Features")) {
+        Lines[I].split(CPUFeatures, " ");
+        break;
+      }
+
+    for (unsigned I = 0, E = CPUFeatures.size(); I != E; ++I) {
+      StringRef LLVMFeatureStr = StringSwitch<StringRef>(CPUFeatures[I])
+        .Case("half", "fp16")
+        .Case("neon", "neon")
+        .Case("vfpv3", "vfp3")
+        .Case("vfpv3d16", "d16")
+        .Case("vfpv4", "vfp4")
+        .Case("idiva", "hwdiv-arm")
+        .Case("idivt", "hwdiv")
+        .Default("");
+
+      if (LLVMFeatureStr != "")
+        Features.GetOrCreateValue(LLVMFeatureStr).setValue(true);
+    }
+
+    return true;
+  }
+
+  return false;
+}
+#else
 bool sys::getHostCPUFeatures(StringMap<bool> &Features){
   return false;
+}
+#endif
+
+std::string sys::getProcessTriple() {
+  Triple PT(LLVM_HOST_TRIPLE);
+
+  if (sizeof(void *) == 8 && PT.isArch32Bit())
+    PT = PT.get64BitArchVariant();
+  if (sizeof(void *) == 4 && PT.isArch64Bit())
+    PT = PT.get32BitArchVariant();
+
+  return PT.str();
 }

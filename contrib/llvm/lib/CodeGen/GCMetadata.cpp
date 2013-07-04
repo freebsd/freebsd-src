@@ -14,10 +14,10 @@
 #include "llvm/CodeGen/GCMetadata.h"
 #include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/Pass.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Function.h"
+#include "llvm/IR/Function.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -37,21 +37,9 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const;
     
     bool runOnFunction(Function &F);
-  };
-  
-  class Deleter : public FunctionPass {
-    static char ID;
-    
-  public:
-    Deleter();
-    
-    const char *getPassName() const;
-    void getAnalysisUsage(AnalysisUsage &AU) const;
-    
-    bool runOnFunction(Function &F);
     bool doFinalization(Module &M);
   };
-  
+
 }
 
 INITIALIZE_PASS(GCModuleInfo, "collector-metadata",
@@ -182,32 +170,9 @@ bool Printer::runOnFunction(Function &F) {
   return false;
 }
 
-// -----------------------------------------------------------------------------
-
-char Deleter::ID = 0;
-
-FunctionPass *llvm::createGCInfoDeleter() {
-  return new Deleter();
-}
-
-Deleter::Deleter() : FunctionPass(ID) {}
-
-const char *Deleter::getPassName() const {
-  return "Delete Garbage Collector Information";
-}
-
-void Deleter::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.setPreservesAll();
-  AU.addRequired<GCModuleInfo>();
-}
-
-bool Deleter::runOnFunction(Function &MF) {
-  return false;
-}
-
-bool Deleter::doFinalization(Module &M) {
+bool Printer::doFinalization(Module &M) {
   GCModuleInfo *GMI = getAnalysisIfAvailable<GCModuleInfo>();
-  assert(GMI && "Deleter didn't require GCModuleInfo?!");
+  assert(GMI && "Printer didn't require GCModuleInfo?!");
   GMI->clear();
   return false;
 }

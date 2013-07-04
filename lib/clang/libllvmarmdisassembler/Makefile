@@ -9,7 +9,6 @@ INCDIR=	lib/Target/ARM
 SRCS=	ARMDisassembler.cpp
 
 TGHDRS=	ARMGenDisassemblerTables \
-	ARMGenEDInfo \
 	ARMGenInstrInfo \
 	ARMGenRegisterInfo \
 	ARMGenSubtargetInfo

@@ -45,7 +45,14 @@ struct ELFRelocationEntry {
 
   // Support lexicographic sorting.
   bool operator<(const ELFRelocationEntry &RE) const {
-    return RE.r_offset < r_offset;
+    if (RE.r_offset != r_offset)
+      return RE.r_offset < r_offset;
+    if (Type != RE.Type)
+      return Type < RE.Type;
+    if (Index != RE.Index)
+      return Index < RE.Index;
+    llvm_unreachable("ELFRelocs might be unstable!");
+    return 0;
   }
 };
 
@@ -79,7 +86,6 @@ public:
   virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
                                 bool IsPCRel, bool IsRelocWithSymbol,
                                 int64_t Addend) const = 0;
-  virtual unsigned getEFlags() const;
   virtual const MCSymbol *ExplicitRelSym(const MCAssembler &Asm,
                                          const MCValue &Target,
                                          const MCFragment &F,

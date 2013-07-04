@@ -15,9 +15,9 @@
 #ifndef LLVM_CLANG_SERIALIZATION_MODULE_H
 #define LLVM_CLANG_SERIALIZATION_MODULE_H
 
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ContinuousRangeMap.h"
-#include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Bitcode/BitstreamReader.h"
@@ -55,6 +55,35 @@ struct DeclContextInfo {
   unsigned NumLexicalDecls;
 };
 
+/// \brief The input file that has been loaded from this AST file, along with
+/// bools indicating whether this was an overridden buffer or if it was
+/// out-of-date.
+class InputFile {
+  enum {
+    Overridden = 1,
+    OutOfDate = 2
+  };
+  llvm::PointerIntPair<const FileEntry *, 2, unsigned> Val;
+
+public:
+  InputFile() {}
+  InputFile(const FileEntry *File,
+            bool isOverridden = false, bool isOutOfDate = false) {
+    assert(!(isOverridden && isOutOfDate) &&
+           "an overridden cannot be out-of-date");
+    unsigned intVal = 0;
+    if (isOverridden)
+      intVal = Overridden;
+    else if (isOutOfDate)
+      intVal = OutOfDate;
+    Val.setPointerAndInt(File, intVal);
+  }
+
+  const FileEntry *getFile() const { return Val.getPointer(); }
+  bool isOverridden() const { return Val.getInt() == Overridden; }
+  bool isOutOfDate() const { return Val.getInt() == OutOfDate; }
+};
+
 /// \brief Information about a module that has been loaded by the ASTReader.
 ///
 /// Each instance of the Module class corresponds to a single AST file, which
@@ -68,6 +97,9 @@ public:
   ~ModuleFile();
 
   // === General information ===
+
+  /// \brief The index of this module in the list of modules.
+  unsigned Index;
 
   /// \brief The type of this module.
   ModuleKind Kind;
@@ -121,8 +153,15 @@ public:
   /// \brief The main bitstream cursor for the main block.
   llvm::BitstreamCursor Stream;
 
+  /// \brief The source location where the module was explicitly or implicitly
+  /// imported in the local translation unit.
+  ///
+  /// If module A depends on and imports module B, both modules will have the
+  /// same DirectImportLoc, but different ImportLoc (B's ImportLoc will be a
+  /// source location inside module A).
+  SourceLocation DirectImportLoc;
+
   /// \brief The source location where this module was first imported.
-  /// FIXME: This is not properly initialized yet.
   SourceLocation ImportLoc;
 
   /// \brief The first source location in this module.
@@ -135,10 +174,8 @@ public:
   /// \brief Offsets for all of the input file entries in the AST file.
   const uint32_t *InputFileOffsets;
 
-  /// \brief The input files that have been loaded from this AST file, along
-  /// with a bool indicating whether this was an overridden buffer.
-  std::vector<llvm::PointerIntPair<const FileEntry *, 1, bool> > 
-    InputFilesLoaded;
+  /// \brief The input files that have been loaded from this AST file.
+  std::vector<InputFile> InputFilesLoaded;
 
   // === Source Locations ===
 
@@ -251,10 +288,6 @@ public:
   /// \brief The on-disk hash table that contains information about each of
   /// the header files.
   void *HeaderFileInfoTable;
-
-  /// \brief Actual data for the list of framework names used in the header
-  /// search information.
-  const char *HeaderFileFrameworkStrings;
 
   // === Submodule information ===  
   /// \brief The number of submodules in this module.

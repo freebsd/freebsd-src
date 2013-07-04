@@ -17,10 +17,10 @@
 
 #include "clang/AST/Expr.h"
 #include "clang/Analysis/AnalysisContext.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/BlockCounter.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/FunctionSummary.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/WorkList.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/BlockCounter.h"
 #include "llvm/ADT/OwningPtr.h"
 
 namespace clang {
@@ -95,6 +95,10 @@ private:
 
   void HandleBranch(const Stmt *Cond, const Stmt *Term, const CFGBlock *B,
                     ExplodedNode *Pred);
+
+  /// Handle conditional logic for running static initializers.
+  void HandleStaticInit(const DeclStmt *DS, const CFGBlock *B,
+                        ExplodedNode *Pred);
 
 private:
   CoreEngine(const CoreEngine &) LLVM_DELETED_FUNCTION;
@@ -463,7 +467,7 @@ public:
     bool operator!=(const iterator &X) const { return I != X.I; }
 
     const LabelDecl *getLabel() const {
-      return llvm::cast<LabelStmt>((*I)->getLabel())->getDecl();
+      return cast<LabelStmt>((*I)->getLabel())->getDecl();
     }
 
     const CFGBlock *getBlock() const {
@@ -510,7 +514,7 @@ public:
     bool operator==(const iterator &X) const { return I == X.I; }
 
     const CaseStmt *getCase() const {
-      return llvm::cast<CaseStmt>((*I)->getLabel());
+      return cast<CaseStmt>((*I)->getLabel());
     }
 
     const CFGBlock *getBlock() const {
@@ -522,7 +526,7 @@ public:
   iterator end() { return iterator(Src->succ_rend()); }
 
   const SwitchStmt *getSwitch() const {
-    return llvm::cast<SwitchStmt>(Src->getTerminator());
+    return cast<SwitchStmt>(Src->getTerminator());
   }
 
   ExplodedNode *generateCaseStmtNode(const iterator &I,

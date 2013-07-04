@@ -15,12 +15,11 @@
 
 #ifndef CLANG_CODEGEN_OBCJRUNTIME_H
 #define CLANG_CODEGEN_OBCJRUNTIME_H
-#include "clang/Basic/IdentifierTable.h" // Selector
-#include "clang/AST/DeclObjC.h"
-
 #include "CGBuilder.h"
 #include "CGCall.h"
 #include "CGValue.h"
+#include "clang/AST/DeclObjC.h"
+#include "clang/Basic/IdentifierTable.h" // Selector
 
 namespace llvm {
   class Constant;
@@ -120,11 +119,11 @@ public:
   /// Get a selector for the specified name and type values. The
   /// return value should have the LLVM type for pointer-to
   /// ASTContext::getObjCSelType().
-  virtual llvm::Value *GetSelector(CGBuilderTy &Builder,
+  virtual llvm::Value *GetSelector(CodeGenFunction &CGF,
                                    Selector Sel, bool lval=false) = 0;
 
   /// Get a typed selector.
-  virtual llvm::Value *GetSelector(CGBuilderTy &Builder,
+  virtual llvm::Value *GetSelector(CodeGenFunction &CGF,
                                    const ObjCMethodDecl *Method) = 0;
 
   /// Get the type constant to catch for the given ObjC pointer type.
@@ -180,7 +179,7 @@ public:
 
   /// Emit the code to return the named protocol as an object, as in a
   /// \@protocol expression.
-  virtual llvm::Value *GenerateProtocolRef(CGBuilderTy &Builder,
+  virtual llvm::Value *GenerateProtocolRef(CodeGenFunction &CGF,
                                            const ObjCProtocolDecl *OPD) = 0;
 
   /// Generate the named protocol.  Protocols contain method metadata but no
@@ -210,17 +209,20 @@ public:
   virtual llvm::Constant *GetGetStructFunction() = 0;
   // API for atomic copying of qualified aggregates in setter.
   virtual llvm::Constant *GetSetStructFunction() = 0;
-  // API for atomic copying of qualified aggregates with non-trivial copy
-  // assignment (c++) in setter/getter.
-  virtual llvm::Constant *GetCppAtomicObjectFunction() = 0;
+  /// API for atomic copying of qualified aggregates with non-trivial copy
+  /// assignment (c++) in setter.
+  virtual llvm::Constant *GetCppAtomicObjectSetFunction() = 0;
+  /// API for atomic copying of qualified aggregates with non-trivial copy
+  /// assignment (c++) in getter.
+  virtual llvm::Constant *GetCppAtomicObjectGetFunction() = 0;
   
   /// GetClass - Return a reference to the class for the given
   /// interface decl.
-  virtual llvm::Value *GetClass(CGBuilderTy &Builder,
+  virtual llvm::Value *GetClass(CodeGenFunction &CGF,
                                 const ObjCInterfaceDecl *OID) = 0;
   
   
-  virtual llvm::Value *EmitNSAutoreleasePoolClassRef(CGBuilderTy &Builder) {
+  virtual llvm::Value *EmitNSAutoreleasePoolClassRef(CodeGenFunction &CGF) {
     llvm_unreachable("autoreleasepool unsupported in this ABI");
   }
   
@@ -233,7 +235,8 @@ public:
   virtual void EmitTryStmt(CodeGen::CodeGenFunction &CGF,
                            const ObjCAtTryStmt &S) = 0;
   virtual void EmitThrowStmt(CodeGen::CodeGenFunction &CGF,
-                             const ObjCAtThrowStmt &S) = 0;
+                             const ObjCAtThrowStmt &S,
+                             bool ClearInsertionPoint=true) = 0;
   virtual llvm::Value *EmitObjCWeakRead(CodeGen::CodeGenFunction &CGF,
                                         llvm::Value *AddrWeakObj) = 0;
   virtual void EmitObjCWeakAssign(CodeGen::CodeGenFunction &CGF,
@@ -263,6 +266,8 @@ public:
                                   const CodeGen::CGBlockInfo &blockInfo) = 0;
   virtual llvm::Constant *BuildRCBlockLayout(CodeGen::CodeGenModule &CGM,
                                   const CodeGen::CGBlockInfo &blockInfo) = 0;
+  virtual llvm::Constant *BuildByrefLayout(CodeGen::CodeGenModule &CGM,
+                                           QualType T) = 0;
   virtual llvm::GlobalVariable *GetClassGlobal(const std::string &Name) = 0;
 
   struct MessageSendInfo {

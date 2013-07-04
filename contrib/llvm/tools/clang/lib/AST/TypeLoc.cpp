@@ -11,11 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/raw_ostream.h"
-#include "clang/AST/TypeLocVisitor.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/TypeLocVisitor.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -85,7 +86,7 @@ void TypeLoc::initializeImpl(ASTContext &Context, TypeLoc TL,
 #define ABSTRACT_TYPELOC(CLASS, PARENT)
 #define TYPELOC(CLASS, PARENT)        \
     case CLASS: {                     \
-      CLASS##TypeLoc TLCasted = cast<CLASS##TypeLoc>(TL); \
+      CLASS##TypeLoc TLCasted = TL.castAs<CLASS##TypeLoc>(); \
       TLCasted.initializeLocal(Context, Loc);  \
       TL = TLCasted.getNextTypeLoc(); \
       if (!TL) return;                \
@@ -105,7 +106,8 @@ SourceLocation TypeLoc::getBeginLoc() const {
       LeftMost = Cur;
       break;
     case FunctionProto:
-      if (cast<FunctionProtoTypeLoc>(&Cur)->getTypePtr()->hasTrailingReturn()) {
+      if (Cur.castAs<FunctionProtoTypeLoc>().getTypePtr()
+              ->hasTrailingReturn()) {
         LeftMost = Cur;
         break;
       }
@@ -150,7 +152,7 @@ SourceLocation TypeLoc::getEndLoc() const {
       Last = Cur;
       break;
     case FunctionProto:
-      if (cast<FunctionProtoTypeLoc>(&Cur)->getTypePtr()->hasTrailingReturn())
+      if (Cur.castAs<FunctionProtoTypeLoc>().getTypePtr()->hasTrailingReturn())
         Last = TypeLoc();
       else
         Last = Cur;
@@ -197,9 +199,9 @@ namespace {
 /// because it's a convenient base class.  Ideally we would not accept
 /// those here, but ideally we would have better implementations for
 /// them.
-bool TypeSpecTypeLoc::classof(const TypeLoc *TL) {
-  if (TL->getType().hasLocalQualifiers()) return false;
-  return TSTChecker().Visit(*TL);
+bool TypeSpecTypeLoc::isKind(const TypeLoc &TL) {
+  if (TL.getType().hasLocalQualifiers()) return false;
+  return TSTChecker().Visit(TL);
 }
 
 // Reimplemented to account for GNU/C++ extension
@@ -261,6 +263,14 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
   case BuiltinType::ObjCId:
   case BuiltinType::ObjCClass:
   case BuiltinType::ObjCSel:
+  case BuiltinType::OCLImage1d:
+  case BuiltinType::OCLImage1dArray:
+  case BuiltinType::OCLImage1dBuffer:
+  case BuiltinType::OCLImage2d:
+  case BuiltinType::OCLImage2dArray:
+  case BuiltinType::OCLImage3d:
+  case BuiltinType::OCLSampler:
+  case BuiltinType::OCLEvent:
   case BuiltinType::BuiltinFn:
     return TST_unspecified;
   }
@@ -269,8 +279,8 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
 }
 
 TypeLoc TypeLoc::IgnoreParensImpl(TypeLoc TL) {
-  while (ParenTypeLoc* PTL = dyn_cast<ParenTypeLoc>(&TL))
-    TL = PTL->getInnerLoc();
+  while (ParenTypeLoc PTL = TL.getAs<ParenTypeLoc>())
+    TL = PTL.getInnerLoc();
   return TL;
 }
 

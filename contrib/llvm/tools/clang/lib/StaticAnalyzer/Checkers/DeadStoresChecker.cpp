@@ -14,6 +14,7 @@
 
 #include "ClangSACheckers.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
@@ -100,13 +101,18 @@ void ReachableCode::computeReachableBlocks() {
   }
 }
 
-static const Expr *LookThroughTransitiveAssignments(const Expr *Ex) {
+static const Expr *
+LookThroughTransitiveAssignmentsAndCommaOperators(const Expr *Ex) {
   while (Ex) {
     const BinaryOperator *BO =
       dyn_cast<BinaryOperator>(Ex->IgnoreParenCasts());
     if (!BO)
       break;
     if (BO->getOpcode() == BO_Assign) {
+      Ex = BO->getRHS();
+      continue;
+    }
+    if (BO->getOpcode() == BO_Comma) {
       Ex = BO->getRHS();
       continue;
     }
@@ -125,7 +131,7 @@ class DeadStoreObs : public LiveVariables::Observer {
   llvm::SmallPtrSet<const VarDecl*, 20> Escaped;
   OwningPtr<ReachableCode> reachableCode;
   const CFGBlock *currentBlock;
-  llvm::OwningPtr<llvm::DenseSet<const VarDecl *> > InEH;
+  OwningPtr<llvm::DenseSet<const VarDecl *> > InEH;
 
   enum DeadStoreKind { Standard, Enclosing, DeadIncrement, DeadInit };
 
@@ -265,7 +271,9 @@ public:
         if (VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
           // Special case: check for assigning null to a pointer.
           //  This is a common form of defensive programming.
-          const Expr *RHS = LookThroughTransitiveAssignments(B->getRHS());
+          const Expr *RHS =
+            LookThroughTransitiveAssignmentsAndCommaOperators(B->getRHS());
+          RHS = RHS->IgnoreParenCasts();
           
           QualType T = VD->getType();
           if (T->isPointerType() || T->isObjCObjectPointerType()) {
@@ -273,7 +281,6 @@ public:
               return;
           }
 
-          RHS = RHS->IgnoreParenCasts();
           // Special case: self-assignments.  These are often used to shut up
           //  "unused variable" compiler warnings.
           if (const DeclRefExpr *RhsDR = dyn_cast<DeclRefExpr>(RHS))
@@ -325,7 +332,7 @@ public:
             
             // Look through transitive assignments, e.g.:
             // int x = y = 0;
-            E = LookThroughTransitiveAssignments(E);
+            E = LookThroughTransitiveAssignmentsAndCommaOperators(E);
             
             // Don't warn on C++ objects (yet) until we can show that their
             // constructors/destructors don't have side effects.
@@ -418,6 +425,15 @@ class DeadStoresChecker : public Checker<check::ASTCodeBody> {
 public:
   void checkASTCodeBody(const Decl *D, AnalysisManager& mgr,
                         BugReporter &BR) const {
+
+    // Don't do anything for template instantiations.
+    // Proving that code in a template instantiation is "dead"
+    // means proving that it is dead in all instantiations.
+    // This same problem exists with -Wunreachable-code.
+    if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
+      if (FD->isTemplateInstantiation())
+        return;
+
     if (LiveVariables *L = mgr.getAnalysis<LiveVariables>(D)) {
       CFG &cfg = *mgr.getCFG(D);
       AnalysisDeclContext *AC = mgr.getAnalysisDeclContext(D);

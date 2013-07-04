@@ -15,19 +15,21 @@ SRCS=	ARCMT.cpp \
 	TransAutoreleasePool.cpp \
 	TransBlockObjCVariable.cpp \
 	TransEmptyStatementsAndDealloc.cpp \
-	TransformActions.cpp \
-	Transforms.cpp \
 	TransGCAttrs.cpp \
 	TransGCCalls.cpp \
 	TransProperties.cpp \
+	TransProtectedScope.cpp \
 	TransRetainReleaseDealloc.cpp \
 	TransUnbridgedCasts.cpp \
 	TransUnusedInitDelegate.cpp \
-	TransZeroOutPropsInDealloc.cpp
+	TransZeroOutPropsInDealloc.cpp \
+	TransformActions.cpp \
+	Transforms.cpp
 
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

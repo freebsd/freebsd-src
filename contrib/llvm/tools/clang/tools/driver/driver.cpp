@@ -12,37 +12,37 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Driver/ArgList.h"
-#include "clang/Driver/Options.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
-#include "clang/Driver/Option.h"
+#include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/OptTable.h"
+#include "clang/Driver/Option.h"
+#include "clang/Driver/Options.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Frontend/Utils.h"
-
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Regex.h"
-#include "llvm/Support/Timer.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/Regex.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
-#include <cctype>
 using namespace clang;
 using namespace clang::driver;
 
@@ -202,7 +202,7 @@ static void ExpandArgsFromBuf(const char *Arg,
   std::string CurArg;
 
   for (const char *P = Buf; ; ++P) {
-    if (*P == '\0' || (isspace(*P) && InQuote == ' ')) {
+    if (*P == '\0' || (isWhitespace(*P) && InQuote == ' ')) {
       if (!CurArg.empty()) {
 
         if (CurArg[0] != '@') {
@@ -219,7 +219,7 @@ static void ExpandArgsFromBuf(const char *Arg,
         continue;
     }
 
-    if (isspace(*P)) {
+    if (isWhitespace(*P)) {
       if (InQuote != ' ')
         CurArg.push_back(*P);
       continue;
@@ -373,6 +373,32 @@ int main(int argc_, const char **argv_) {
     }
   }
 
+  // Handle QA_OVERRIDE_GCC3_OPTIONS and CCC_ADD_ARGS, used for editing a
+  // command line behind the scenes.
+  if (const char *OverrideStr = ::getenv("QA_OVERRIDE_GCC3_OPTIONS")) {
+    // FIXME: Driver shouldn't take extra initial argument.
+    ApplyQAOverride(argv, OverrideStr, SavedStrings);
+  } else if (const char *Cur = ::getenv("CCC_ADD_ARGS")) {
+    // FIXME: Driver shouldn't take extra initial argument.
+    std::vector<const char*> ExtraArgs;
+
+    for (;;) {
+      const char *Next = strchr(Cur, ',');
+
+      if (Next) {
+        ExtraArgs.push_back(SaveStringInSet(SavedStrings,
+                                            std::string(Cur, Next)));
+        Cur = Next + 1;
+      } else {
+        if (*Cur != '\0')
+          ExtraArgs.push_back(SaveStringInSet(SavedStrings, Cur));
+        break;
+      }
+    }
+
+    argv.insert(&argv[1], ExtraArgs.begin(), ExtraArgs.end());
+  }
+
   llvm::sys::Path Path = GetExecutablePath(argv[0], CanonicalPrefixes);
 
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions;
@@ -391,19 +417,14 @@ int main(int argc_, const char **argv_) {
   // DiagnosticOptions instance.
   TextDiagnosticPrinter *DiagClient
     = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
-  DiagClient->setPrefix(llvm::sys::path::stem(Path.str()));
+  DiagClient->setPrefix(llvm::sys::path::filename(Path.str()));
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 
   DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagClient);
-  ProcessWarningOptions(Diags, *DiagOpts);
+  ProcessWarningOptions(Diags, *DiagOpts, /*ReportDiags=*/false);
 
-#ifdef CLANG_IS_PRODUCTION
-  const bool IsProduction = true;
-#else
-  const bool IsProduction = false;
-#endif
   Driver TheDriver(Path.str(), llvm::sys::getDefaultTargetTriple(),
-                   "a.out", IsProduction, Diags);
+                   "a.out", Diags);
 
   // Attempt to find the original path used to invoke the driver, to determine
   // the installed path. We do this manually, because we want to support that
@@ -443,46 +464,34 @@ int main(int argc_, const char **argv_) {
   if (TheDriver.CCLogDiagnostics)
     TheDriver.CCLogDiagnosticsFilename = ::getenv("CC_LOG_DIAGNOSTICS_FILE");
 
-  // Handle QA_OVERRIDE_GCC3_OPTIONS and CCC_ADD_ARGS, used for editing a
-  // command line behind the scenes.
-  if (const char *OverrideStr = ::getenv("QA_OVERRIDE_GCC3_OPTIONS")) {
-    // FIXME: Driver shouldn't take extra initial argument.
-    ApplyQAOverride(argv, OverrideStr, SavedStrings);
-  } else if (const char *Cur = ::getenv("CCC_ADD_ARGS")) {
-    // FIXME: Driver shouldn't take extra initial argument.
-    std::vector<const char*> ExtraArgs;
-
-    for (;;) {
-      const char *Next = strchr(Cur, ',');
-
-      if (Next) {
-        ExtraArgs.push_back(SaveStringInSet(SavedStrings,
-                                            std::string(Cur, Next)));
-        Cur = Next + 1;
-      } else {
-        if (*Cur != '\0')
-          ExtraArgs.push_back(SaveStringInSet(SavedStrings, Cur));
-        break;
-      }
-    }
-
-    argv.insert(&argv[1], ExtraArgs.begin(), ExtraArgs.end());
-  }
-
   OwningPtr<Compilation> C(TheDriver.BuildCompilation(argv));
   int Res = 0;
-  const Command *FailingCommand = 0;
+  SmallVector<std::pair<int, const Command *>, 4> FailingCommands;
   if (C.get())
-    Res = TheDriver.ExecuteCompilation(*C, FailingCommand);
+    Res = TheDriver.ExecuteCompilation(*C, FailingCommands);
 
   // Force a crash to test the diagnostics.
-  if(::getenv("FORCE_CLANG_DIAGNOSTICS_CRASH"))
-     Res = -1;
+  if (::getenv("FORCE_CLANG_DIAGNOSTICS_CRASH")) {
+    Diags.Report(diag::err_drv_force_crash) << "FORCE_CLANG_DIAGNOSTICS_CRASH";
+    const Command *FailingCommand = 0;
+    FailingCommands.push_back(std::make_pair(-1, FailingCommand));
+  }
 
-  // If result status is < 0, then the driver command signalled an error.
-  // In this case, generate additional diagnostic information if possible.
-  if (Res < 0)
-    TheDriver.generateCompilationDiagnostics(*C, FailingCommand);
+  for (SmallVectorImpl< std::pair<int, const Command *> >::iterator it =
+         FailingCommands.begin(), ie = FailingCommands.end(); it != ie; ++it) {
+    int CommandRes = it->first;
+    const Command *FailingCommand = it->second;
+    if (!Res)
+      Res = CommandRes;
+
+    // If result status is < 0, then the driver command signalled an error.
+    // If result status is 70, then the driver command reported a fatal error.
+    // In these cases, generate additional diagnostic information if possible.
+    if (CommandRes < 0 || CommandRes == 70) {
+      TheDriver.generateCompilationDiagnostics(*C, FailingCommand);
+      break;
+    }
+  }
 
   // If any timers were active but haven't been destroyed yet, print their
   // results now.  This happens in -disable-free mode.
@@ -498,5 +507,7 @@ int main(int argc_, const char **argv_) {
     Res = 1;
 #endif
 
+  // If we have multiple failing commands, we return the result of the first
+  // failing command.
   return Res;
 }

@@ -14,6 +14,7 @@ SRCS=	HeaderMap.cpp \
 	ModuleMap.cpp \
 	PPCaching.cpp \
 	PPCallbacks.cpp \
+	PPConditionalDirectiveRecord.cpp \
 	PPDirectives.cpp \
 	PPExpressions.cpp \
 	PPLexerChange.cpp \

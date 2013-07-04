@@ -15,6 +15,9 @@
 //===----------------------------------------------------------------------===//
 // TSX instructions
 
+def X86xtest: SDNode<"X86ISD::XTEST", SDTypeProfile<1, 0, [SDTCisVT<0, i32>]>,
+                     [SDNPHasChain, SDNPSideEffect]>;
+
 let usesCustomInserter = 1 in
 def XBEGIN : I<0, Pseudo, (outs GR32:$dst), (ins),
                "# XBEGIN", [(set GR32:$dst, (int_x86_xbegin))]>,
@@ -22,10 +25,14 @@ def XBEGIN : I<0, Pseudo, (outs GR32:$dst), (ins),
 
 let isBranch = 1, isTerminator = 1, Defs = [EAX] in
 def XBEGIN_4 : Ii32PCRel<0xc7, MRM_F8, (outs), (ins brtarget:$dst),
-                         "xbegin\t$dst", []>;
+                         "xbegin\t$dst", []>, Requires<[HasRTM]>;
 
 def XEND : I<0x01, MRM_D5, (outs), (ins),
              "xend", [(int_x86_xend)]>, TB, Requires<[HasRTM]>;
+
+let Defs = [EFLAGS] in
+def XTEST : I<0x01, MRM_D6, (outs), (ins),
+              "xtest", [(set EFLAGS, (X86xtest))]>, TB, Requires<[HasTSX]>;
 
 def XABORT : Ii8<0xc6, MRM_F8, (outs), (ins i8imm:$imm),
                  "xabort\t$imm",

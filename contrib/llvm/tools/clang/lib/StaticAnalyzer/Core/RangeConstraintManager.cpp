@@ -16,9 +16,9 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableSet.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -153,8 +153,8 @@ private:
     // The function returns false if the described range is entirely outside
     // the range of values for the associated symbol.
     APSIntType Type(getMinValue());
-    APSIntType::RangeTestResultKind LowerTest = Type.testInRange(Lower);
-    APSIntType::RangeTestResultKind UpperTest = Type.testInRange(Upper);
+    APSIntType::RangeTestResultKind LowerTest = Type.testInRange(Lower, true);
+    APSIntType::RangeTestResultKind UpperTest = Type.testInRange(Upper, true);
 
     switch (LowerTest) {
     case APSIntType::RTR_Below:
@@ -285,8 +285,8 @@ namespace {
 class RangeConstraintManager : public SimpleConstraintManager{
   RangeSet GetRange(ProgramStateRef state, SymbolRef sym);
 public:
-  RangeConstraintManager(SubEngine *subengine, BasicValueFactory &BVF)
-    : SimpleConstraintManager(subengine, BVF) {}
+  RangeConstraintManager(SubEngine *subengine, SValBuilder &SVB)
+    : SimpleConstraintManager(subengine, SVB) {}
 
   ProgramStateRef assumeSymNE(ProgramStateRef state, SymbolRef sym,
                              const llvm::APSInt& Int,
@@ -328,7 +328,7 @@ private:
 
 ConstraintManager *
 ento::CreateRangeConstraintManager(ProgramStateManager &StMgr, SubEngine *Eng) {
-  return new RangeConstraintManager(Eng, StMgr.getBasicVals());
+  return new RangeConstraintManager(Eng, StMgr.getSValBuilder());
 }
 
 const llvm::APSInt* RangeConstraintManager::getSymVal(ProgramStateRef St,
@@ -419,7 +419,7 @@ RangeConstraintManager::assumeSymNE(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
-  if (AdjustmentType.testInRange(Int) != APSIntType::RTR_Within)
+  if (AdjustmentType.testInRange(Int, true) != APSIntType::RTR_Within)
     return St;
 
   llvm::APSInt Lower = AdjustmentType.convert(Int) - Adjustment;
@@ -439,7 +439,7 @@ RangeConstraintManager::assumeSymEQ(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
-  if (AdjustmentType.testInRange(Int) != APSIntType::RTR_Within)
+  if (AdjustmentType.testInRange(Int, true) != APSIntType::RTR_Within)
     return NULL;
 
   // [Int-Adjustment, Int-Adjustment]
@@ -454,7 +454,7 @@ RangeConstraintManager::assumeSymLT(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
-  switch (AdjustmentType.testInRange(Int)) {
+  switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
     return NULL;
   case APSIntType::RTR_Within:
@@ -483,7 +483,7 @@ RangeConstraintManager::assumeSymGT(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
-  switch (AdjustmentType.testInRange(Int)) {
+  switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
     return St;
   case APSIntType::RTR_Within:
@@ -512,7 +512,7 @@ RangeConstraintManager::assumeSymGE(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
-  switch (AdjustmentType.testInRange(Int)) {
+  switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
     return St;
   case APSIntType::RTR_Within:
@@ -541,7 +541,7 @@ RangeConstraintManager::assumeSymLE(ProgramStateRef St, SymbolRef Sym,
                                     const llvm::APSInt &Adjustment) {
   // Before we do any real work, see if the value can even show up.
   APSIntType AdjustmentType(Adjustment);
-  switch (AdjustmentType.testInRange(Int)) {
+  switch (AdjustmentType.testInRange(Int, true)) {
   case APSIntType::RTR_Below:
     return NULL;
   case APSIntType::RTR_Within:

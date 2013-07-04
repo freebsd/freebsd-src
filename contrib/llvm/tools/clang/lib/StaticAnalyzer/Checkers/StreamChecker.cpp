@@ -12,10 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
@@ -57,9 +57,7 @@ struct StreamState {
 };
 
 class StreamChecker : public Checker<eval::Call,
-                                       check::DeadSymbols,
-                                       check::EndPath,
-                                       check::PreStmt<ReturnStmt> > {
+                                     check::DeadSymbols > {
   mutable IdentifierInfo *II_fopen, *II_tmpfile, *II_fclose, *II_fread,
                  *II_fwrite, 
                  *II_fseek, *II_ftell, *II_rewind, *II_fgetpos, *II_fsetpos,  
@@ -75,8 +73,6 @@ public:
 
   bool evalCall(const CallExpr *CE, CheckerContext &C) const;
   void checkDeadSymbols(SymbolReaper &SymReaper, CheckerContext &C) const;
-  void checkEndPath(CheckerContext &Ctx) const;
-  void checkPreStmt(const ReturnStmt *S, CheckerContext &C) const;
 
 private:
   void Fopen(CheckerContext &C, const CallExpr *CE) const;
@@ -214,9 +210,8 @@ void StreamChecker::OpenFileAux(CheckerContext &C, const CallExpr *CE) const {
   ProgramStateRef state = C.getState();
   SValBuilder &svalBuilder = C.getSValBuilder();
   const LocationContext *LCtx = C.getPredecessor()->getLocationContext();
-  DefinedSVal RetVal =
-    cast<DefinedSVal>(svalBuilder.conjureSymbolVal(0, CE, LCtx,
-                                                   C.blockCount()));
+  DefinedSVal RetVal = svalBuilder.conjureSymbolVal(0, CE, LCtx, C.blockCount())
+      .castAs<DefinedSVal>();
   state = state->BindExpr(CE, C.getLocationContext(), RetVal);
   
   ConstraintManager &CM = C.getConstraintManager();
@@ -264,7 +259,7 @@ void StreamChecker::Fseek(CheckerContext &C, const CallExpr *CE) const {
     return;
   // Check the legality of the 'whence' argument of 'fseek'.
   SVal Whence = state->getSVal(CE->getArg(2), C.getLocationContext());
-  const nonloc::ConcreteInt *CI = dyn_cast<nonloc::ConcreteInt>(&Whence);
+  Optional<nonloc::ConcreteInt> CI = Whence.getAs<nonloc::ConcreteInt>();
 
   if (!CI)
     return;
@@ -342,7 +337,7 @@ void StreamChecker::Fileno(CheckerContext &C, const CallExpr *CE) const {
 
 ProgramStateRef StreamChecker::CheckNullStream(SVal SV, ProgramStateRef state,
                                     CheckerContext &C) const {
-  const DefinedSVal *DV = dyn_cast<DefinedSVal>(&SV);
+  Optional<DefinedSVal> DV = SV.getAs<DefinedSVal>();
   if (!DV)
     return 0;
 
@@ -405,9 +400,8 @@ void StreamChecker::checkDeadSymbols(SymbolReaper &SymReaper,
     SymbolRef Sym = *I;
     ProgramStateRef state = C.getState();
     const StreamState *SS = state->get<StreamMap>(Sym);
-    // TODO: Shouldn't we have a continue here?
     if (!SS)
-      return;
+      continue;
 
     if (SS->isOpened()) {
       ExplodedNode *N = C.generateSink();
@@ -421,47 +415,6 @@ void StreamChecker::checkDeadSymbols(SymbolReaper &SymReaper,
       }
     }
   }
-}
-
-void StreamChecker::checkEndPath(CheckerContext &Ctx) const {
-  ProgramStateRef state = Ctx.getState();
-  StreamMapTy M = state->get<StreamMap>();
-  
-  for (StreamMapTy::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    StreamState SS = I->second;
-    if (SS.isOpened()) {
-      ExplodedNode *N = Ctx.addTransition(state);
-      if (N) {
-        if (!BT_ResourceLeak)
-          BT_ResourceLeak.reset(new BuiltinBug("Resource Leak", 
-                         "Opened File never closed. Potential Resource leak."));
-        BugReport *R = new BugReport(*BT_ResourceLeak, 
-                                     BT_ResourceLeak->getDescription(), N);
-        Ctx.emitReport(R);
-      }
-    }
-  }
-}
-
-void StreamChecker::checkPreStmt(const ReturnStmt *S, CheckerContext &C) const {
-  const Expr *RetE = S->getRetValue();
-  if (!RetE)
-    return;
-  
-  ProgramStateRef state = C.getState();
-  SymbolRef Sym = state->getSVal(RetE, C.getLocationContext()).getAsSymbol();
-  
-  if (!Sym)
-    return;
-  
-  const StreamState *SS = state->get<StreamMap>(Sym);
-  if(!SS)
-    return;
-
-  if (SS->isOpened())
-    state = state->set<StreamMap>(Sym, StreamState::getEscaped(S));
-
-  C.addTransition(state);
 }
 
 void ento::registerStreamChecker(CheckerManager &mgr) {

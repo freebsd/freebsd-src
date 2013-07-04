@@ -22,6 +22,8 @@ class MCInst;
 template <typename T> class SmallVectorImpl;
 
 enum AsmRewriteKind {
+  AOK_Delete = 0,     // Rewrite should be ignored.
+  AOK_Align,          // Rewrite align as .align.
   AOK_DotOperator,    // Rewrite a dot operator expression as an immediate.
                       // E.g., [eax].foo.bar -> [eax].8
   AOK_Emit,           // Rewrite _emit as .byte.
@@ -31,6 +33,19 @@ enum AsmRewriteKind {
   AOK_Output,         // Rewrite in terms of $N.
   AOK_SizeDirective,  // Add a sizing directive (e.g., dword ptr).
   AOK_Skip            // Skip emission (e.g., offset/type operators).
+};
+
+const char AsmRewritePrecedence [] = {
+  0, // AOK_Delete
+  1, // AOK_Align
+  1, // AOK_DotOperator
+  1, // AOK_Emit
+  3, // AOK_Imm
+  3, // AOK_ImmPrefix
+  2, // AOK_Input
+  2, // AOK_Output
+  4, // AOK_SizeDirective
+  1  // AOK_Skip
 };
 
 struct AsmRewrite {
@@ -141,6 +156,15 @@ public:
                           SmallVectorImpl<MCParsedAsmOperand*> &Operands,
                           MCStreamer &Out, unsigned &ErrorInfo,
                           bool MatchingInlineAsm) = 0;
+
+  /// Allow a target to add special case operand matching for things that
+  /// tblgen doesn't/can't handle effectively. For example, literal
+  /// immediates on ARM. TableGen expects a token operand, but the parser
+  /// will recognize them as immediates.
+  virtual unsigned validateTargetOperandClass(MCParsedAsmOperand *Op,
+                                              unsigned Kind) {
+    return Match_InvalidOperand;
+  }
 
   /// checkTargetMatchPredicate - Validate the instruction match against
   /// any complex target predicates not expressible via match classes.

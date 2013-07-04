@@ -17,10 +17,10 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/TextDiagnostic.h"
 #include "clang/Lex/Lexer.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/ADT/SmallString.h"
 #include <algorithm>
 using namespace clang;
 
@@ -154,9 +154,4 @@ void TextDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
                            &Info.getSourceManager());
 
   OS.flush();
-}
-
-DiagnosticConsumer *
-TextDiagnosticPrinter::clone(DiagnosticsEngine &Diags) const {
-  return new TextDiagnosticPrinter(OS, &*DiagOpts, /*OwnsOutputStream=*/false);
 }

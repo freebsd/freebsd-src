@@ -15,8 +15,8 @@
 #define DEBUG_TYPE "misched"
 
 #include "HexagonMachineScheduler.h"
-
-#include <queue>
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/IR/Function.h"
 
 using namespace llvm;
 
@@ -153,7 +153,16 @@ void VLIWMachineScheduler::schedule() {
   // Postprocess the DAG to add platform specific artificial dependencies.
   postprocessDAG();
 
+  SmallVector<SUnit*, 8> TopRoots, BotRoots;
+  findRootsAndBiasEdges(TopRoots, BotRoots);
+
+  // Initialize the strategy before modifying the DAG.
+  SchedImpl->initialize(this);
+
   // To view Height/Depth correctly, they should be accessed at least once.
+  //
+  // FIXME: SUnit::dumpAll always recompute depth and height now. The max
+  // depth/height could be computed directly from the roots and leaves.
   DEBUG(unsigned maxH = 0;
         for (unsigned su = 0, e = SUnits.size(); su != e; ++su)
           if (SUnits[su].getHeight() > maxH)
@@ -167,7 +176,7 @@ void VLIWMachineScheduler::schedule() {
   DEBUG(for (unsigned su = 0, e = SUnits.size(); su != e; ++su)
           SUnits[su].dumpAll(this));
 
-  initQueues();
+  initQueues(TopRoots, BotRoots);
 
   bool IsTopNode = false;
   while (SUnit *SU = SchedImpl->pickNode(IsTopNode)) {
@@ -187,6 +196,7 @@ void ConvergingVLIWScheduler::initialize(ScheduleDAGMI *dag) {
   DAG = static_cast<VLIWMachineScheduler*>(dag);
   SchedModel = DAG->getSchedModel();
   TRI = DAG->TRI;
+
   Top.init(DAG, SchedModel);
   Bot.init(DAG, SchedModel);
 
@@ -194,6 +204,8 @@ void ConvergingVLIWScheduler::initialize(ScheduleDAGMI *dag) {
   // are disabled, then these HazardRecs will be disabled.
   const InstrItineraryData *Itin = DAG->getSchedModel()->getInstrItineraries();
   const TargetMachine &TM = DAG->MF.getTarget();
+  delete Top.HazardRec;
+  delete Bot.HazardRec;
   Top.HazardRec = TM.getInstrInfo()->CreateTargetMIHazardRecognizer(Itin, DAG);
   Bot.HazardRec = TM.getInstrInfo()->CreateTargetMIHazardRecognizer(Itin, DAG);
 
@@ -678,4 +690,3 @@ void ConvergingVLIWScheduler::schedNode(SUnit *SU, bool IsTopNode) {
     Bot.bumpNode(SU);
   }
 }
-

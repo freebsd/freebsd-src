@@ -10,6 +10,7 @@ SRCS=	AddressSanitizer.cpp \
 	BoundsChecking.cpp \
 	EdgeProfiling.cpp \
 	GCOVProfiling.cpp \
+	MemorySanitizer.cpp \
 	Instrumentation.cpp \
 	OptimalEdgeProfiling.cpp \
 	PathProfiling.cpp \

@@ -15,9 +15,7 @@
 
 #include "clang/Sema/ExternalSemaSource.h"
 #include "clang/Sema/Weak.h"
-
 #include "llvm/ADT/SmallVector.h"
-
 #include <utility>
 
 namespace clang {
@@ -41,7 +39,7 @@ namespace clang {
 class MultiplexExternalSemaSource : public ExternalSemaSource {
 
 private:
-  llvm::SmallVector<ExternalSemaSource*, 2> Sources; // doesn't own them.
+  SmallVector<ExternalSemaSource *, 2> Sources; // doesn't own them.
 
 public:
   
@@ -67,58 +65,30 @@ public:
 
   /// \brief Resolve a declaration ID into a declaration, potentially
   /// building a new declaration.
-  ///
-  /// This method only needs to be implemented if the AST source ever
-  /// passes back decl sets as VisibleDeclaration objects.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual Decl *GetExternalDecl(uint32_t ID);
 
   /// \brief Resolve a selector ID into a selector.
-  ///
-  /// This operation only needs to be implemented if the AST source
-  /// returns non-zero for GetNumKnownSelectors().
-  ///
-  /// The default implementation of this method is a no-op.
   virtual Selector GetExternalSelector(uint32_t ID);
 
   /// \brief Returns the number of selectors known to the external AST
   /// source.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual uint32_t GetNumExternalSelectors();
 
   /// \brief Resolve the offset of a statement in the decl stream into
   /// a statement.
-  ///
-  /// This operation is meant to be used via a LazyOffsetPtr.  It only
-  /// needs to be implemented if the AST source uses methods like
-  /// FunctionDecl::setLazyBody when building decls.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual Stmt *GetExternalDeclStmt(uint64_t Offset);
 
   /// \brief Resolve the offset of a set of C++ base specifiers in the decl
   /// stream into an array of specifiers.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset);
 
-  /// \brief Finds all declarations with the given name in the
+  /// \brief Find all declarations with the given name in the
   /// given context.
-  ///
-  /// Generally the final step of this method is either to call
-  /// SetExternalVisibleDeclsForName or to recursively call lookup on
-  /// the DeclContext after calling SetExternalVisibleDecls.
-  ///
-  /// The default implementation of this method is a no-op.
-  virtual DeclContextLookupResult
+  virtual bool
   FindExternalVisibleDeclsByName(const DeclContext *DC, DeclarationName Name);
 
   /// \brief Ensures that the table of all visible declarations inside this
   /// context is up to date.
-  ///
-  /// The default implementation of this functino is a no-op.
   virtual void completeVisibleDeclsMap(const DeclContext *DC);
 
   /// \brief Finds all declarations lexically contained within the given
@@ -129,8 +99,6 @@ public:
   /// are returned.
   ///
   /// \return an indication of whether the load succeeded or failed.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual ExternalLoadResult FindExternalLexicalDecls(const DeclContext *DC,
                                         bool (*isKindWeWant)(Decl::Kind),
                                         SmallVectorImpl<Decl*> &Result);
@@ -174,26 +142,18 @@ public:
   /// \brief Notify ExternalASTSource that we started deserialization of
   /// a decl or type so until FinishedDeserializing is called there may be
   /// decls that are initializing. Must be paired with FinishedDeserializing.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual void StartedDeserializing();
 
   /// \brief Notify ExternalASTSource that we finished the deserialization of
   /// a decl or type. Must be paired with StartedDeserializing.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual void FinishedDeserializing();
 
   /// \brief Function that will be invoked when we begin parsing a new
   /// translation unit involving this external AST source.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual void StartTranslationUnit(ASTConsumer *Consumer);
 
   /// \brief Print any statistics that have been gathered regarding
   /// the external AST source.
-  ///
-  /// The default implementation of this method is a no-op.
   virtual void PrintStats();
   
   
@@ -254,6 +214,11 @@ public:
   /// \brief Load the set of namespaces that are known to the external source,
   /// which will be used during typo correction.
   virtual void ReadKnownNamespaces(SmallVectorImpl<NamespaceDecl*> &Namespaces);
+
+  /// \brief Load the set of used but not defined functions or variables with
+  /// internal linkage, or used but not defined inline functions.
+  virtual void ReadUndefinedButUsed(
+                         llvm::DenseMap<NamedDecl*, SourceLocation> &Undefined);
   
   /// \brief Do last resort, unqualified lookup on a LookupResult that
   /// Sema cannot find.
@@ -311,14 +276,14 @@ public:
   /// introduce the same declarations repeatedly.
   virtual void ReadDynamicClasses(SmallVectorImpl<CXXRecordDecl*> &Decls);
 
-  /// \brief Read the set of locally-scoped external declarations known to the
+  /// \brief Read the set of locally-scoped extern "C" declarations known to the
   /// external Sema source.
   ///
   /// The external source should append its own locally-scoped external
-  /// declarations to the given vector of declarations. Note that this routine 
-  /// may be invoked multiple times; the external source should take care not 
+  /// declarations to the given vector of declarations. Note that this routine
+  /// may be invoked multiple times; the external source should take care not
   /// to introduce the same declarations repeatedly.
-  virtual void ReadLocallyScopedExternalDecls(SmallVectorImpl<NamedDecl*>&Decls);
+  virtual void ReadLocallyScopedExternCDecls(SmallVectorImpl<NamedDecl*>&Decls);
 
   /// \brief Read the set of referenced selectors known to the
   /// external Sema source.
