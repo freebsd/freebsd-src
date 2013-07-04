@@ -138,6 +138,8 @@ SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_ones_mask, CTLFLAG_RD,
 SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_zeros_mask, CTLFLAG_RD,
 	     &cr4_zeros_mask, 0, NULL);
 
+static volatile u_int nextvpid;
+
 static int vmx_no_patmsr;
 
 static int vmx_initialized;
@@ -398,6 +400,7 @@ msr_save_area_init(struct msr_entry *g_area, int *g_count)
 static void
 vmx_disable(void *arg __unused)
 {
+	struct invvpid_desc invvpid_desc = { 0 };
 	struct invept_desc invept_desc = { 0 };
 
 	if (vmxon_enabled[curcpu]) {
@@ -408,6 +411,7 @@ vmx_disable(void *arg __unused)
 		 * caching structures. This prevents potential retention of
 		 * cached information in the TLB between distinct VMX episodes.
 		 */
+		invvpid(INVVPID_TYPE_ALL_CONTEXTS, invvpid_desc);
 		invept(INVEPT_TYPE_ALL_CONTEXTS, invept_desc);
 		vmxoff();
 	}
@@ -484,6 +488,12 @@ vmx_init(void)
 		       "processor-based controls\n");
 		return (error);
 	}
+
+	/* Check support for VPID */
+	error = vmx_set_ctlreg(MSR_VMX_PROCBASED_CTLS2, MSR_VMX_PROCBASED_CTLS2,
+			       PROCBASED2_ENABLE_VPID, 0, &tmp);
+	if (error == 0)
+		procbased_ctls2 |= PROCBASED2_ENABLE_VPID;
 
 	/* Check support for pin-based VM-execution controls */
 	error = vmx_set_ctlreg(MSR_VMX_PINBASED_CTLS,
@@ -605,6 +615,37 @@ vmx_init(void)
 	return (0);
 }
 
+/*
+ * If this processor does not support VPIDs then simply return 0.
+ *
+ * Otherwise generate the next value of VPID to use. Any value is alright
+ * as long as it is non-zero.
+ *
+ * We always execute in VMX non-root context with EPT enabled. Thus all
+ * combined mappings are tagged with the (EP4TA, VPID, PCID) tuple. This
+ * in turn means that multiple VMs can share the same VPID as long as
+ * they have distinct EPT page tables.
+ *
+ * XXX
+ * We should optimize this so that it returns VPIDs that are not in
+ * use. Then we will not unnecessarily invalidate mappings in
+ * vmx_set_pcpu_defaults() just because two or more vcpus happen to
+ * use the same 'vpid'.
+ */
+static uint16_t
+vmx_vpid(void)
+{
+	uint16_t vpid = 0;
+
+	if ((procbased_ctls2 & PROCBASED2_ENABLE_VPID) != 0) {
+		do {
+			vpid = atomic_fetchadd_int(&nextvpid, 1);
+		} while (vpid == 0);
+	}
+
+	return (vpid);
+}
+
 static int
 vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 {
@@ -642,6 +683,7 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 static void *
 vmx_vminit(struct vm *vm)
 {
+	uint16_t vpid;
 	int i, error, guest_msr_count;
 	struct vmx *vmx;
 
@@ -658,9 +700,10 @@ vmx_vminit(struct vm *vm)
 	 * VMX transitions are not required to invalidate any guest physical
 	 * mappings. So, it may be possible for stale guest physical mappings
 	 * to be present in the processor TLBs.
+	 *
+	 * Combined mappings for this EP4TA are also invalidated for all VPIDs.
 	 */
-	vmx->eptphys = vtophys(vmx->pml4ept);
-	ept_invalidate_mappings(vmx->eptphys, 1);
+	ept_invalidate_mappings(vtophys(vmx->pml4ept));
 
 	msr_bitmap_initialize(vmx->msr_bitmap);
 
@@ -711,6 +754,8 @@ vmx_vminit(struct vm *vm)
 			      error, i);
 		}
 
+		vpid = vmx_vpid();
+
 		error = vmcs_set_defaults(&vmx->vmcs[i],
 					  (u_long)vmx_longjmp,
 					  (u_long)&vmx->ctx[i],
@@ -719,7 +764,8 @@ vmx_vminit(struct vm *vm)
 					  procbased_ctls,
 					  procbased_ctls2,
 					  exit_ctls, entry_ctls,
-					  vtophys(vmx->msr_bitmap));
+					  vtophys(vmx->msr_bitmap),
+					  vpid);
 
 		if (error != 0)
 			panic("vmx_vminit: vmcs_set_defaults error %d", error);
@@ -728,6 +774,7 @@ vmx_vminit(struct vm *vm)
 		vmx->cap[i].proc_ctls = procbased_ctls;
 
 		vmx->state[i].lastcpu = -1;
+		vmx->state[i].vpid = vpid;
 
 		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
 
@@ -796,6 +843,7 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
 {
 	int error, lastcpu;
 	struct vmxstate *vmxstate;
+	struct invvpid_desc invvpid_desc = { 0 };
 
 	vmxstate = &vmx->state[vcpu];
 	lastcpu = vmxstate->lastcpu;
@@ -821,16 +869,24 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
 		goto done;
 
 	/*
-	 * Invalidate all mappings tagged with this EP4TA.
+	 * If we are using VPIDs then invalidate all mappings tagged with 'vpid'
 	 *
 	 * We do this because this vcpu was executing on a different host
-	 * cpu when it last ran. Thus the mappings on this cpu might be
-	 * potentially out-of-date and therefore must be invalidated.
+	 * cpu when it last ran. We do not track whether it invalidated
+	 * mappings associated with its 'vpid' during that run. So we must
+	 * assume that the mappings associated with 'vpid' on 'curcpu' are
+	 * stale and invalidate them.
 	 *
 	 * Note that we incur this penalty only when the scheduler chooses to
 	 * move the thread associated with this vcpu between host cpus.
+	 *
+	 * Note also that this will invalidate mappings tagged with 'vpid'
+	 * for "all" EP4TAs.
 	 */
-	ept_invalidate_mappings(vmx->eptphys, 0);
+	if (vmxstate->vpid != 0) {
+		invvpid_desc.vpid = vmxstate->vpid;
+		invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
+	}
 done:
 	return (error);
 }

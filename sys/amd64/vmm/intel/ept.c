@@ -382,14 +382,11 @@ invept_single_context(void *arg)
 }
 
 void
-ept_invalidate_mappings(u_long pml4ept, int allcpus)
+ept_invalidate_mappings(u_long pml4ept)
 {
 	struct invept_desc invept_desc = { 0 };
 
 	invept_desc.eptp = EPTP(pml4ept);
 
-	if (allcpus)
-		smp_rendezvous(NULL, invept_single_context, NULL, &invept_desc);
-	else
-		invept_single_context(&invept_desc);
+	smp_rendezvous(NULL, invept_single_context, NULL, &invept_desc);
 }
