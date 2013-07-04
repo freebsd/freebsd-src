@@ -554,6 +554,7 @@ null_rename(struct vop_rename_args *ap)
 	struct vnode *fvp = ap->a_fvp;
 	struct vnode *fdvp = ap->a_fdvp;
 	struct vnode *tvp = ap->a_tvp;
+	struct null_node *tnn;
 
 	/* Check for cross-device rename. */
 	if ((fvp->v_mount != tdvp->v_mount) ||
@@ -568,7 +569,11 @@ null_rename(struct vop_rename_args *ap)
 		vrele(fvp);
 		return (EXDEV);
 	}
-	
+
+	if (tvp != NULL) {
+		tnn = VTONULL(tvp);
+		tnn->null_flags |= NULLV_DROP;
+	}
 	return (null_bypass((struct vop_generic_args *)ap));
 }
 
