@@ -4646,6 +4646,9 @@ sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 	struct adapter *sc = pi->adapter;
 	int idx, rc, i;
 	struct sge_rxq *rxq;
+#ifdef TCP_OFFLOAD
+	struct sge_ofld_rxq *ofld_rxq;
+#endif
 	uint8_t v;
 
 	idx = pi->tmr_idx;
@@ -4670,6 +4673,15 @@ sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 		rxq->iq.intr_params = v;
 #endif
 	}
+#ifdef TCP_OFFLOAD
+	for_each_ofld_rxq(pi, i, ofld_rxq) {
+#ifdef atomic_store_rel_8
+		atomic_store_rel_8(&ofld_rxq->iq.intr_params, v);
+#else
+		ofld_rxq->iq.intr_params = v;
+#endif
+	}
+#endif
 	pi->tmr_idx = idx;
 
 	end_synchronized_op(sc, LOCK_HELD);
