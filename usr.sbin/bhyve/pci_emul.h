@@ -183,7 +183,7 @@ struct pciecap {
 	uint16_t	slot_status2;
 } __packed;
 
-void	init_pci(struct vmctx *ctx);
+int	init_pci(struct vmctx *ctx);
 void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	    int bytes, uint32_t val);
 void	msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,

@@ -662,11 +662,13 @@ pci_emul_finddev(char *name)
 	return (NULL);
 }
 
-static void
+static int
 pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
 	      char *params)
 {
 	struct pci_devinst *pdi;
+	int err;
+
 	pdi = malloc(sizeof(struct pci_devinst));
 	bzero(pdi, sizeof(*pdi));
 
@@ -684,12 +686,15 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
 	pci_set_cfgdata8(pdi, PCIR_COMMAND,
 		    PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
-	if ((*pde->pe_init)(ctx, pdi, params) != 0) {
+	err = (*pde->pe_init)(ctx, pdi, params);
+	if (err != 0) {
 		free(pdi);
 	} else {
 		pci_emul_devices++;
 		pci_slotinfo[slot][func].si_devi = pdi;
-	}	
+	}
+
+	return (err);
 }
 
 void
@@ -989,7 +994,7 @@ pci_emul_fallback_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 	return (0);
 }
 
-void
+int
 init_pci(struct vmctx *ctx)
 {
 	struct mem_range memp;
@@ -1009,8 +1014,10 @@ init_pci(struct vmctx *ctx)
 			if (si->si_name != NULL) {
 				pde = pci_emul_finddev(si->si_name);
 				assert(pde != NULL);
-				pci_emul_init(ctx, pde, slot, func,
-					      si->si_param);
+				error = pci_emul_init(ctx, pde, slot, func,
+					    si->si_param);
+				if (error)
+					return (error);
 			}
 		}
 	}
@@ -1047,6 +1054,8 @@ init_pci(struct vmctx *ctx)
 
 	error = register_mem_fallback(&memp);
 	assert(error == 0);
+
+	return (0);
 }
 
 int
