@@ -1,20 +1,24 @@
 # $FreeBSD$
 
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
-SRCS+=	crypto_openssl.c
+SRCS+=	crypto_openssl.c random.c sha1-prf.c sha256-prf.c
 DPADD+=	${LIBSSL} ${LIBCRYPTO}
 LDADD+=	-lssl -lcrypto
+CFLAGS+= -DCONFIG_SHA256
 .else
 CFLAGS+=-DCONFIG_CRYPTO_INTERNAL
-SRCS+=	crypto_internal.c
+SRCS+=	crypto_internal.c random.c
 CONFIG_INTERNAL_AES=y
 CONFIG_INTERNAL_DES=y
 CONFIG_INTERNAL_MD4=y
 CONFIG_INTERNAL_MD5=y
 CONFIG_INTERNAL_RC4=y
 CONFIG_INTERNAL_SHA1=y
+NEED_SHA256=y
 CONFIG_INTERNAL_SHA256=y
 CONFIG_INTERNAL_TLS=y
+CONFIG_INTERNAL_DH5=y
+CONFIG_INTERNAL_DH=y
 NEED_AES_ENC=true
 .endif
 
@@ -105,17 +109,25 @@ SRCS+=	rc4.c
 .endif
 
 .if defined(CONFIG_INTERNAL_SHA1)
-SRCS+=	sha1-internal.c
+SRCS+=	sha1-internal.c sha1-pbkdf2.c sha1.c sha1-prf.c
 .endif
 
 .if defined(NEED_SHA256)
 CFLAGS+=-DCONFIG_SHA256
 SRCS+=	sha256.c
 .if defined(CONFIG_INTERNAL_SHA256)
-SRCS+=	sha256-internal.c
+SRCS+=	sha256-internal.c sha256-prf.c
 .endif
 .endif
 
 .if defined(NEED_TLS_PRF)
 SRCS+=	sha1-tlsprf.c
+.endif
+
+.if defined(CONFIG_INTERNAL_DH5)
+SRCS+=	dh_group5.c
+.endif
+
+.if defined(CONFIG_INTERNAL_DH)
+SRCS+=	dh_groups.c
 .endif

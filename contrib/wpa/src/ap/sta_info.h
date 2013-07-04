@@ -1,15 +1,9 @@
 /*
  * hostapd / Station table
- * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef STA_INFO_H
@@ -31,6 +25,12 @@
 #define WLAN_STA_WPS BIT(12)
 #define WLAN_STA_MAYBE_WPS BIT(13)
 #define WLAN_STA_WDS BIT(14)
+#define WLAN_STA_ASSOC_REQ_OK BIT(15)
+#define WLAN_STA_WPS2 BIT(16)
+#define WLAN_STA_GAS BIT(17)
+#define WLAN_STA_VHT BIT(18)
+#define WLAN_STA_PENDING_DISASSOC_CB BIT(29)
+#define WLAN_STA_PENDING_DEAUTH_CB BIT(30)
 #define WLAN_STA_NONERP BIT(31)
 
 /* Maximum number of supported rates (from both Supported Rates and Extended
@@ -48,6 +48,7 @@ struct sta_info {
 	u16 listen_interval; /* or beacon_int for APs */
 	u8 supported_rates[WLAN_SUPP_RATES_MAX];
 	int supported_rates_len;
+	u8 qosinfo; /* Valid when WLAN_STA_WMM is set */
 
 	unsigned int nonerp_set:1;
 	unsigned int no_short_slot_time_set:1;
@@ -55,6 +56,7 @@ struct sta_info {
 	unsigned int no_ht_gf_set:1;
 	unsigned int no_ht_set:1;
 	unsigned int ht_20mhz_set:1;
+	unsigned int no_p2p_set:1;
 
 	u16 auth_alg;
 	u8 previous_ap[6];
@@ -62,6 +64,9 @@ struct sta_info {
 	enum {
 		STA_NULLFUNC = 0, STA_DISASSOC, STA_DEAUTH, STA_REMOVE
 	} timeout_next;
+
+	u16 deauth_reason;
+	u16 disassoc_reason;
 
 	/* IEEE 802.1X related data */
 	struct eapol_state_machine *eapol_sm;
@@ -90,8 +95,14 @@ struct sta_info {
 	struct hostapd_ssid *ssid_probe; /* SSID selection based on ProbeReq */
 
 	int vlan_id;
+	 /* PSKs from RADIUS authentication server */
+	struct hostapd_sta_wpa_psk_short *psk;
+
+	char *identity; /* User-Name from RADIUS */
+	char *radius_cui; /* Chargeable-User-Identity from RADIUS */
 
 	struct ieee80211_ht_capabilities *ht_capabilities;
+	struct ieee80211_vht_capabilities *vht_capabilities;
 
 #ifdef CONFIG_IEEE80211W
 	int sa_query_count; /* number of pending SA Query requests;
@@ -103,7 +114,22 @@ struct sta_info {
 	struct os_time sa_query_start;
 #endif /* CONFIG_IEEE80211W */
 
+#ifdef CONFIG_INTERWORKING
+#define GAS_DIALOG_MAX 8 /* Max concurrent dialog number */
+	struct gas_dialog_info *gas_dialog;
+	u8 gas_dialog_next;
+#endif /* CONFIG_INTERWORKING */
+
 	struct wpabuf *wps_ie; /* WPS IE from (Re)Association Request */
+	struct wpabuf *p2p_ie; /* P2P IE from (Re)Association Request */
+	struct wpabuf *hs20_ie; /* HS 2.0 IE from (Re)Association Request */
+
+	struct os_time connected_time;
+
+#ifdef CONFIG_SAE
+	enum { SAE_INIT, SAE_COMMIT, SAE_CONFIRM } sae_state;
+	u16 sae_send_confirm;
+#endif /* CONFIG_SAE */
 };
 
 
@@ -111,7 +137,7 @@ struct sta_info {
  * passed since last received frame from the station, a nullfunc data frame is
  * sent to the station. If this frame is not acknowledged and no other frames
  * have been received, the station will be disassociated after
- * AP_DISASSOC_DELAY seconds. Similarily, the station will be deauthenticated
+ * AP_DISASSOC_DELAY seconds. Similarly, the station will be deauthenticated
  * after AP_DEAUTH_DELAY seconds has passed after disassociation. */
 #define AP_MAX_INACTIVITY (5 * 60)
 #define AP_DISASSOC_DELAY (1)
@@ -132,7 +158,6 @@ int ap_for_each_sta(struct hostapd_data *hapd,
 struct sta_info * ap_get_sta(struct hostapd_data *hapd, const u8 *sta);
 void ap_sta_hash_add(struct hostapd_data *hapd, struct sta_info *sta);
 void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta);
-void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta);
 void hostapd_free_stas(struct hostapd_data *hapd);
 void ap_handle_timer(void *eloop_ctx, void *timeout_ctx);
 void ap_sta_session_timeout(struct hostapd_data *hapd, struct sta_info *sta,
@@ -144,6 +169,10 @@ void ap_sta_disassociate(struct hostapd_data *hapd, struct sta_info *sta,
 			 u16 reason);
 void ap_sta_deauthenticate(struct hostapd_data *hapd, struct sta_info *sta,
 			   u16 reason);
+#ifdef CONFIG_WPS
+int ap_sta_wps_cancel(struct hostapd_data *hapd,
+		      struct sta_info *sta, void *ctx);
+#endif /* CONFIG_WPS */
 int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 		     int old_vlanid);
 void ap_sta_start_sa_query(struct hostapd_data *hapd, struct sta_info *sta);
@@ -151,5 +180,15 @@ void ap_sta_stop_sa_query(struct hostapd_data *hapd, struct sta_info *sta);
 int ap_check_sa_query_timeout(struct hostapd_data *hapd, struct sta_info *sta);
 void ap_sta_disconnect(struct hostapd_data *hapd, struct sta_info *sta,
 		       const u8 *addr, u16 reason);
+
+void ap_sta_set_authorized(struct hostapd_data *hapd,
+			   struct sta_info *sta, int authorized);
+static inline int ap_sta_is_authorized(struct sta_info *sta)
+{
+	return sta->flags & WLAN_STA_AUTHORIZED;
+}
+
+void ap_sta_deauth_cb(struct hostapd_data *hapd, struct sta_info *sta);
+void ap_sta_disassoc_cb(struct hostapd_data *hapd, struct sta_info *sta);
 
 #endif /* STA_INFO_H */

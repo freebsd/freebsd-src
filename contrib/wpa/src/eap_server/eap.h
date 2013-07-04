@@ -2,14 +2,8 @@
  * hostapd / EAP Full Authenticator state machine (RFC 4137)
  * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_H
@@ -21,8 +15,6 @@
 #include "wpabuf.h"
 
 struct eap_sm;
-
-#define EAP_MAX_METHODS 8
 
 #define EAP_TTLS_AUTH_PAP 1
 #define EAP_TTLS_AUTH_CHAP 2
@@ -95,6 +87,7 @@ struct eap_config {
 	void *eap_sim_db_priv;
 	Boolean backend_auth;
 	int eap_server;
+	u16 pwd_group;
 	u8 *pac_opaque_encr_key;
 	u8 *eap_fast_a_id;
 	size_t eap_fast_a_id_len;
@@ -106,7 +99,11 @@ struct eap_config {
 	int tnc;
 	struct wps_context *wps;
 	const struct wpabuf *assoc_wps_ie;
+	const struct wpabuf *assoc_p2p_ie;
 	const u8 *peer_addr;
+	int fragment_size;
+
+	int pbc_in_m1;
 };
 
 
@@ -120,5 +117,6 @@ void eap_sm_pending_cb(struct eap_sm *sm);
 int eap_sm_method_pending(struct eap_sm *sm);
 const u8 * eap_get_identity(struct eap_sm *sm, size_t *len);
 struct eap_eapol_interface * eap_get_interface(struct eap_sm *sm);
+void eap_server_clear_identity(struct eap_sm *sm);
 
 #endif /* EAP_H */
