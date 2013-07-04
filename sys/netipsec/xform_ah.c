@@ -596,14 +596,14 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	IP6_EXTHDR_GET(ah, struct newah *, m, skip, rplen);
 	if (ah == NULL) {
 		DPRINTF(("ah_input: cannot pullup header\n"));
-		V_ahstat.ahs_hdrops++;		/*XXX*/
+		AHSTAT_INC(ahs_hdrops);		/*XXX*/
 		m_freem(m);
 		return ENOBUFS;
 	}
 
 	/* Check replay window, if applicable. */
 	if (sav->replay && !ipsec_chkreplay(ntohl(ah->ah_seq), sav)) {
-		V_ahstat.ahs_replay++;
+		AHSTAT_INC(ahs_replay);
 		DPRINTF(("%s: packet replay failure: %s\n", __func__,
 			  ipsec_logsastr(sav)));
 		m_freem(m);
@@ -620,17 +620,17 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 			hl, (u_long) (authsize + rplen - sizeof (struct ah)),
 			ipsec_address(&sav->sah->saidx.dst),
 			(u_long) ntohl(sav->spi)));
-		V_ahstat.ahs_badauthl++;
+		AHSTAT_INC(ahs_badauthl);
 		m_freem(m);
 		return EACCES;
 	}
-	V_ahstat.ahs_ibytes += m->m_pkthdr.len - skip - hl;
+	AHSTAT_ADD(ahs_ibytes, m->m_pkthdr.len - skip - hl);
 
 	/* Get crypto descriptors. */
 	crp = crypto_getreq(1);
 	if (crp == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptor\n",__func__));
-		V_ahstat.ahs_crypto++;
+		AHSTAT_INC(ahs_crypto);
 		m_freem(m);
 		return ENOBUFS;
 	}
@@ -670,7 +670,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	}
 	if (tc == NULL) {
 		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
-		V_ahstat.ahs_crypto++;
+		AHSTAT_INC(ahs_crypto);
 		crypto_freereq(crp);
 		m_freem(m);
 		return ENOBUFS;
@@ -694,7 +694,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		    skip, ahx->type, 0);
 		if (error != 0) {
 			/* NB: mbuf is free'd by ah_massage_headers */
-			V_ahstat.ahs_hdrops++;
+			AHSTAT_INC(ahs_hdrops);
 			free(tc, M_XDATA);
 			crypto_freereq(crp);
 			return error;
@@ -775,19 +775,19 @@ ah_input_cb(struct cryptop *crp)
 			return error;
 		}
 
-		V_ahstat.ahs_noxform++;
+		AHSTAT_INC(ahs_noxform);
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
 		goto bad;
 	} else {
-		V_ahstat.ahs_hist[sav->alg_auth]++;
+		AHSTAT_INC(ahs_hist[sav->alg_auth]);
 		crypto_freereq(crp);		/* No longer needed. */
 		crp = NULL;
 	}
 
 	/* Shouldn't happen... */
 	if (m == NULL) {
-		V_ahstat.ahs_crypto++;
+		AHSTAT_INC(ahs_crypto);
 		DPRINTF(("%s: bogus returned buffer from crypto\n", __func__));
 		error = EINVAL;
 		goto bad;
@@ -813,7 +813,7 @@ ah_input_cb(struct cryptop *crp)
 			    "in SA %s/%08lx\n", __func__,
 			    ipsec_address(&saidx->dst),
 			    (u_long) ntohl(sav->spi)));
-			V_ahstat.ahs_badauth++;
+			AHSTAT_INC(ahs_badauth);
 			error = EACCES;
 			goto bad;
 		}
@@ -844,7 +844,7 @@ ah_input_cb(struct cryptop *crp)
 		m_copydata(m, skip + offsetof(struct newah, ah_seq),
 			   sizeof (seq), (caddr_t) &seq);
 		if (ipsec_updatereplay(ntohl(seq), sav)) {
-			V_ahstat.ahs_replay++;
+			AHSTAT_INC(ahs_replay);
 			error = ENOBUFS;			/*XXX as above*/
 			goto bad;
 		}
@@ -858,7 +858,7 @@ ah_input_cb(struct cryptop *crp)
 		DPRINTF(("%s: mangled mbuf chain for SA %s/%08lx\n", __func__,
 		    ipsec_address(&saidx->dst), (u_long) ntohl(sav->spi)));
 
-		V_ahstat.ahs_hdrops++;
+		AHSTAT_INC(ahs_hdrops);
 		goto bad;
 	}
 
@@ -919,7 +919,7 @@ ah_output(
 	ahx = sav->tdb_authalgxform;
 	IPSEC_ASSERT(ahx != NULL, ("null authentication xform"));
 
-	V_ahstat.ahs_output++;
+	AHSTAT_INC(ahs_output);
 
 	/* Figure out header size. */
 	rplen = HDRSIZE(sav);
@@ -942,7 +942,7 @@ ah_output(
 		    sav->sah->saidx.dst.sa.sa_family,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi)));
-		V_ahstat.ahs_nopf++;
+		AHSTAT_INC(ahs_nopf);
 		error = EPFNOSUPPORT;
 		goto bad;
 	}
@@ -953,20 +953,20 @@ ah_output(
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi),
 		    rplen + authsize + m->m_pkthdr.len, maxpacketsize));
-		V_ahstat.ahs_toobig++;
+		AHSTAT_INC(ahs_toobig);
 		error = EMSGSIZE;
 		goto bad;
 	}
 
 	/* Update the counters. */
-	V_ahstat.ahs_obytes += m->m_pkthdr.len - skip;
+	AHSTAT_ADD(ahs_obytes, m->m_pkthdr.len - skip);
 
 	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
 		DPRINTF(("%s: cannot clone mbuf chain, SA %s/%08lx\n", __func__,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi)));
-		V_ahstat.ahs_hdrops++;
+		AHSTAT_INC(ahs_hdrops);
 		error = ENOBUFS;
 		goto bad;
 	}
@@ -979,7 +979,7 @@ ah_output(
 		    rplen + authsize,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi)));
-		V_ahstat.ahs_hdrops++;		/*XXX differs from openbsd */
+		AHSTAT_INC(ahs_hdrops);		/*XXX differs from openbsd */
 		error = ENOBUFS;
 		goto bad;
 	}
@@ -1007,7 +1007,7 @@ ah_output(
 				__func__,
 				ipsec_address(&sav->sah->saidx.dst),
 				(u_long) ntohl(sav->spi)));
-			V_ahstat.ahs_wrap++;
+			AHSTAT_INC(ahs_wrap);
 			error = EINVAL;
 			goto bad;
 		}
@@ -1024,7 +1024,7 @@ ah_output(
 	if (crp == NULL) {
 		DPRINTF(("%s: failed to acquire crypto descriptors\n",
 			__func__));
-		V_ahstat.ahs_crypto++;
+		AHSTAT_INC(ahs_crypto);
 		error = ENOBUFS;
 		goto bad;
 	}
@@ -1046,7 +1046,7 @@ ah_output(
 	if (tc == NULL) {
 		crypto_freereq(crp);
 		DPRINTF(("%s: failed to allocate tdb_crypto\n", __func__));
-		V_ahstat.ahs_crypto++;
+		AHSTAT_INC(ahs_crypto);
 		error = ENOBUFS;
 		goto bad;
 	}
@@ -1151,7 +1151,7 @@ ah_output_cb(struct cryptop *crp)
 	sav = tc->tc_sav;
 	/* With the isr lock released SA pointer can be updated. */
 	if (sav != isr->sav) {
-		V_ahstat.ahs_notdb++;
+		AHSTAT_INC(ahs_notdb);
 		DPRINTF(("%s: SA expired while in crypto\n", __func__));
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
@@ -1168,7 +1168,7 @@ ah_output_cb(struct cryptop *crp)
 			return error;
 		}
 
-		V_ahstat.ahs_noxform++;
+		AHSTAT_INC(ahs_noxform);
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
 		goto bad;
@@ -1176,12 +1176,12 @@ ah_output_cb(struct cryptop *crp)
 
 	/* Shouldn't happen... */
 	if (m == NULL) {
-		V_ahstat.ahs_crypto++;
+		AHSTAT_INC(ahs_crypto);
 		DPRINTF(("%s: bogus returned buffer from crypto\n", __func__));
 		error = EINVAL;
 		goto bad;
 	}
-	V_ahstat.ahs_hist[sav->alg_auth]++;
+	AHSTAT_INC(ahs_hist[sav->alg_auth]);
 
 	/*
 	 * Copy original headers (with the new protocol number) back

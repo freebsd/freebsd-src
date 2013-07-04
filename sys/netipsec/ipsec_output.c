@@ -282,8 +282,14 @@ ipsec_nextisr(
 	int *error
 )
 {
-#define IPSEC_OSTAT(x,y,z) (isr->saidx.proto == IPPROTO_ESP ? (x)++ : \
-			    isr->saidx.proto == IPPROTO_AH ? (y)++ : (z)++)
+#define	IPSEC_OSTAT(name)	do {		\
+	if (isr->saidx.proto == IPPROTO_ESP)	\
+		ESPSTAT_INC(esps_##name);	\
+	else if (isr->saidx.proto == IPPROTO_AH)\
+		AHSTAT_INC(ahs_##name);		\
+	else					\
+		IPCOMPSTAT_INC(ipcomps_##name);	\
+} while (0)
 	struct secasvar *sav;
 
 	IPSECREQUEST_LOCK_ASSERT(isr);
@@ -391,8 +397,7 @@ again:
 	    (isr->saidx.proto == IPPROTO_IPCOMP && !V_ipcomp_enable)) {
 		DPRINTF(("%s: IPsec outbound packet dropped due"
 			" to policy (check your sysctls)\n", __func__));
-		IPSEC_OSTAT(V_espstat.esps_pdrops, V_ahstat.ahs_pdrops,
-		    V_ipcompstat.ipcomps_pdrops);
+		IPSEC_OSTAT(pdrops);
 		*error = EHOSTUNREACH;
 		goto bad;
 	}
@@ -403,8 +408,7 @@ again:
 	 */
 	if (sav->tdb_xform == NULL) {
 		DPRINTF(("%s: no transform for SA\n", __func__));
-		IPSEC_OSTAT(V_espstat.esps_noxform, V_ahstat.ahs_noxform,
-		    V_ipcompstat.ipcomps_noxform);
+		IPSEC_OSTAT(noxform);
 		*error = EHOSTUNREACH;
 		goto bad;
 	}
