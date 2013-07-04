@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <krb5.h>
 #endif
 #include <pwd.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,11 +74,26 @@ int debug_level;
 static char ccfile_dirlist[PATH_MAX + 1], ccfile_substring[NAME_MAX + 1];
 static char pref_realm[1024];
 static int verbose;
+static int use_old_des;
+#ifndef WITHOUT_KERBEROS
+/* 1.2.752.43.13.14 */
+static gss_OID_desc gss_krb5_set_allowable_enctypes_x_desc =
+{6, (void *) "\x2a\x85\x70\x2b\x0d\x0e"};
+static gss_OID GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X =
+    &gss_krb5_set_allowable_enctypes_x_desc;
+static gss_OID_desc gss_krb5_mech_oid_x_desc =
+{9, (void *) "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
+static gss_OID GSS_KRB5_MECH_OID_X =
+    &gss_krb5_mech_oid_x_desc;
+#endif
 
 static void gssd_load_mech(void);
 static int find_ccache_file(const char *, uid_t, char *);
 static int is_a_valid_tgt_cache(const char *, uid_t, int *, time_t *);
 static void gssd_verbose_out(const char *, ...);
+#ifndef WITHOUT_KERBEROS
+static OM_uint32 gssd_get_user_cred(OM_uint32 *, uid_t, gss_cred_id_t *);
+#endif
 
 extern void gssd_1(struct svc_req *rqstp, SVCXPRT *transp);
 extern int gssd_syscall(char *path);
@@ -103,10 +119,21 @@ main(int argc, char **argv)
 	pref_realm[0] = '\0';
 	debug = 0;
 	verbose = 0;
-	while ((ch = getopt(argc, argv, "dvs:c:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "dovs:c:r:")) != -1) {
 		switch (ch) {
 		case 'd':
 			debug_level++;
+			break;
+		case 'o':
+#ifndef WITHOUT_KERBEROS
+			/*
+			 * Force use of DES and the old type of GSSAPI token.
+			 */
+			use_old_des = 1;
+#else
+			errx(1, "This option not available when built"
+			    " without MK_KERBEROS\n");
+#endif
 			break;
 		case 'v':
 			verbose = 1;
@@ -149,8 +176,12 @@ main(int argc, char **argv)
 
 	gssd_load_mech();
 
-	if (!debug_level)
+	if (!debug_level) {
 		daemon(0, 0);
+		signal(SIGINT, SIG_IGN);
+		signal(SIGQUIT, SIG_IGN);
+		signal(SIGHUP, SIG_IGN);
+	}
 
 	memset(&sun, 0, sizeof sun);
 	sun.sun_family = AF_LOCAL;
@@ -336,7 +367,14 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 	gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;
 	gss_name_t name = GSS_C_NO_NAME;
 	char ccname[PATH_MAX + 5 + 1], *cp, *cp2;
-	int gotone;
+	int gotone, gotcred;
+	OM_uint32 min_stat;
+#ifndef WITHOUT_KERBEROS
+	gss_buffer_desc principal_desc;
+	char enctype[sizeof(uint32_t)];
+	int key_enctype;
+	OM_uint32 maj_stat;
+#endif
 
 	memset(result, 0, sizeof(*result));
 	if (ccfile_dirlist[0] != '\0' && argp->cred == 0) {
@@ -411,7 +449,46 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 			return (TRUE);
 		}
 	}
+	gotcred = 0;
 
+#ifndef WITHOUT_KERBEROS
+	if (use_old_des != 0) {
+		if (cred == GSS_C_NO_CREDENTIAL) {
+			/* Acquire a credential for the uid. */
+			maj_stat = gssd_get_user_cred(&min_stat, argp->uid,
+			    &cred);
+			if (maj_stat == GSS_S_COMPLETE)
+				gotcred = 1;
+			else
+				gssd_verbose_out("gssd_init_sec_context: "
+				    "get user cred failed uid=%d major=0x%x "
+				    "minor=%d\n", (int)argp->uid,
+				    (unsigned int)maj_stat, (int)min_stat);
+		}
+		if (cred != GSS_C_NO_CREDENTIAL) {
+			key_enctype = ETYPE_DES_CBC_CRC;
+			enctype[0] = (key_enctype >> 24) & 0xff;
+			enctype[1] = (key_enctype >> 16) & 0xff;
+			enctype[2] = (key_enctype >> 8) & 0xff;
+			enctype[3] = key_enctype & 0xff;
+			principal_desc.length = sizeof(enctype);
+			principal_desc.value = enctype;
+			result->major_status = gss_set_cred_option(
+			    &result->minor_status, &cred,
+			    GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X,
+			    &principal_desc);
+			gssd_verbose_out("gssd_init_sec_context: set allowable "
+			    "enctype major=0x%x minor=%d\n",
+			    (unsigned int)result->major_status,
+			    (int)result->minor_status);
+			if (result->major_status != GSS_S_COMPLETE) {
+				if (gotcred != 0)
+					gss_release_cred(&min_stat, &cred);
+				return (TRUE);
+			}
+		}
+	}
+#endif
 	result->major_status = gss_init_sec_context(&result->minor_status,
 	    cred, &ctx, name, argp->mech_type,
 	    argp->req_flags, argp->time_req, argp->input_chan_bindings,
@@ -420,6 +497,8 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 	gssd_verbose_out("gssd_init_sec_context: done major=0x%x minor=%d"
 	    " uid=%d\n", (unsigned int)result->major_status,
 	    (int)result->minor_status, (int)argp->uid);
+	if (gotcred != 0)
+		gss_release_cred(&min_stat, &cred);
 
 	if (result->major_status == GSS_S_COMPLETE
 	    || result->major_status == GSS_S_CONTINUE_NEEDED) {
@@ -687,6 +766,11 @@ gssd_acquire_cred_1_svc(acquire_cred_args *argp, acquire_cred_res *result, struc
 	gss_cred_id_t cred;
 	char ccname[PATH_MAX + 5 + 1], *cp, *cp2;
 	int gotone;
+#ifndef WITHOUT_KERBEROS
+	gss_buffer_desc namebuf;
+	uint32_t minstat;
+	krb5_error_code kret;
+#endif
 
 	memset(result, 0, sizeof(*result));
 	if (ccfile_dirlist[0] != '\0' && argp->desired_name == 0) {
@@ -1026,3 +1110,52 @@ is_a_valid_tgt_cache(const char *filepath, uid_t uid, int *retrating,
 #endif /* !WITHOUT_KERBEROS */
 }
 
+#ifndef WITHOUT_KERBEROS
+/*
+ * Acquire a gss credential for a uid.
+ */
+static OM_uint32
+gssd_get_user_cred(OM_uint32 *min_statp, uid_t uid, gss_cred_id_t *credp)
+{
+	gss_buffer_desc principal_desc;
+	gss_name_t name;
+	OM_uint32 maj_stat, min_stat;
+	gss_OID_set mechlist;
+	struct passwd *pw;
+
+	pw = getpwuid(uid);
+	if (pw == NULL) {
+		*min_statp = 0;
+		return (GSS_S_FAILURE);
+	}
+
+	/*
+	 * The mechanism must be set to KerberosV for acquisition
+	 * of credentials to work reliably.
+	 */
+	maj_stat = gss_create_empty_oid_set(min_statp, &mechlist);
+	if (maj_stat != GSS_S_COMPLETE)
+		return (maj_stat);
+	maj_stat = gss_add_oid_set_member(min_statp, GSS_KRB5_MECH_OID_X,
+	    &mechlist);
+	if (maj_stat != GSS_S_COMPLETE) {
+		gss_release_oid_set(&min_stat, &mechlist);
+		return (maj_stat);
+	}
+
+	principal_desc.value = (void *)pw->pw_name;
+	principal_desc.length = strlen(pw->pw_name);
+	maj_stat = gss_import_name(min_statp, &principal_desc,
+	    GSS_C_NT_USER_NAME, &name);
+	if (maj_stat != GSS_S_COMPLETE) {
+		gss_release_oid_set(&min_stat, &mechlist);
+		return (maj_stat);
+	}
+	/* Acquire the credentials. */
+	maj_stat = gss_acquire_cred(min_statp, name, 0, mechlist,
+	    GSS_C_INITIATE, credp, NULL, NULL);
+	gss_release_name(&min_stat, &name);
+	gss_release_oid_set(&min_stat, &mechlist);
+	return (maj_stat);
+}
+#endif /* !WITHOUT_KERBEROS */
