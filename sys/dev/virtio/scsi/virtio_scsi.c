@@ -542,18 +542,13 @@ vtscsi_register_cam(struct vtscsi_softc *sc)
 		goto fail;
 	}
 
-	VTSCSI_UNLOCK(sc);
-
-	/*
-	 * The async register apparently needs to be done without
-	 * the lock held, otherwise it can recurse on the lock.
-	 */
 	if (vtscsi_register_async(sc) != CAM_REQ_CMP) {
 		error = EIO;
 		device_printf(dev, "cannot register async callback\n");
-		VTSCSI_LOCK(sc);
 		goto fail;
 	}
+
+	VTSCSI_UNLOCK(sc);
 
 	return (0);
 
@@ -621,8 +616,6 @@ static int
 vtscsi_register_async(struct vtscsi_softc *sc)
 {
 	struct ccb_setasync csa;
-
-	VTSCSI_LOCK_NOTOWNED(sc);
 
 	xpt_setup_ccb(&csa.ccb_h, sc->vtscsi_path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
@@ -1238,7 +1231,7 @@ vtscsi_scsi_cmd_cam_status(struct virtio_scsi_cmd_resp *cmd_resp)
 		status = CAM_REQ_ABORTED;
 		break;
 	case VIRTIO_SCSI_S_BAD_TARGET:
-		status = CAM_TID_INVALID;
+		status = CAM_SEL_TIMEOUT;
 		break;
 	case VIRTIO_SCSI_S_RESET:
 		status = CAM_SCSI_BUS_RESET;
