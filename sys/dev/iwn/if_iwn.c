@@ -585,6 +585,7 @@ iwn_attach(device_t dev)
 		| IEEE80211_C_IBSS		/* ibss/adhoc mode */
 #endif
 		| IEEE80211_C_WME		/* WME */
+		| IEEE80211_C_PMGT		/* Station-side power mgmt */
 		;
 
 	/* Read MAC address, channels, etc from EEPROM. */
@@ -4585,6 +4586,8 @@ iwn_collect_noise(struct iwn_softc *sc,
 {
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_calib_state *calib = &sc->calib;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t val;
 	int i;
 
@@ -4623,12 +4626,9 @@ iwn_collect_noise(struct iwn_softc *sc,
 	(void)iwn_cmd(sc, IWN_CMD_RXON, &sc->rxon, sc->rxonsz, 1);
 #endif
 
-#if 0
-	/* XXX: not yet */
 	/* Enable power-saving mode if requested by user. */
-	if (sc->sc_ic.ic_flags & IEEE80211_F_PMGTON)
+	if (ic->ic_flags & IEEE80211_F_PMGTON)
 		(void)iwn_set_pslevel(sc, 0, 3, 1);
-#endif
 }
 
 static int
