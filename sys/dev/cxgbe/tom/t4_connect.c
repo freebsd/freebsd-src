@@ -247,8 +247,10 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	/* RX_COALESCE is always a valid value (M_RX_COALESCE). */
 	if (is_t4(sc))
 		opt2 |= F_RX_COALESCE_VALID;
-	else
+	else {
 		opt2 |= F_T5_OPT_2_VALID;
+		opt2 |= F_CONG_CNTRL_VALID; /* OPT_2_ISS really, for T5 */
+	}
 	opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
@@ -392,7 +394,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
 
 			INIT_TP_WR(c5, 0);
-			c5->rsvd = 0;
+			c5->iss = htobe32(tp->iss);
 			c5->params = select_ntuple(pi, toep->l2te);
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
@@ -416,7 +418,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 			struct cpl_t5_act_open_req *c5 = (void *)cpl;
 
 			INIT_TP_WR(c5, 0);
-			c5->rsvd = 0;
+			c5->iss = htobe32(tp->iss);
 			c5->params = select_ntuple(pi, toep->l2te);
 		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
