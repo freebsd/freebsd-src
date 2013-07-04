@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "common/t4_regs_values.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -513,38 +514,38 @@ calc_opt0(struct socket *so, struct port_info *pi, struct l2t_entry *e,
 	return htobe64(opt0);
 }
 
-#define FILTER_SEL_WIDTH_P_FC (3 + 1)
-#define FILTER_SEL_WIDTH_VIN_P_FC (6 + 7 + FILTER_SEL_WIDTH_P_FC)
-#define FILTER_SEL_WIDTH_TAG_P_FC (3 + FILTER_SEL_WIDTH_VIN_P_FC)
-#define FILTER_SEL_WIDTH_VLD_TAG_P_FC (1 + FILTER_SEL_WIDTH_TAG_P_FC)
-#define VLAN_NONE 0xfff
-#define FILTER_SEL_VLAN_NONE 0xffff
-
 uint64_t
-select_ntuple(struct port_info *pi, struct l2t_entry *e, uint32_t filter_mode)
+select_ntuple(struct port_info *pi, struct l2t_entry *e)
 {
+	struct adapter *sc = pi->adapter;
+	struct tp_params *tp = &sc->params.tp;
 	uint16_t viid = pi->viid;
-	uint32_t ntuple = 0;
+	uint64_t ntuple = 0;
 
-	if (filter_mode == HW_TPL_FR_MT_PR_IV_P_FC) {
-                if (e->vlan == VLAN_NONE)
-			ntuple |= FILTER_SEL_VLAN_NONE << FILTER_SEL_WIDTH_P_FC;
-                else {
-                        ntuple |= e->vlan << FILTER_SEL_WIDTH_P_FC;
-                        ntuple |= 1 << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
-                }
-                ntuple |= e->lport << S_PORT;
-		ntuple |= IPPROTO_TCP << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
-	} else if (filter_mode == HW_TPL_FR_MT_PR_OV_P_FC) {
-                ntuple |= G_FW_VIID_VIN(viid) << FILTER_SEL_WIDTH_P_FC;
-                ntuple |= G_FW_VIID_PFN(viid) << FILTER_SEL_WIDTH_VIN_P_FC;
-                ntuple |= G_FW_VIID_VIVLD(viid) << FILTER_SEL_WIDTH_TAG_P_FC;
-                ntuple |= e->lport << S_PORT;
-		ntuple |= IPPROTO_TCP << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
-        }
+	/*
+	 * Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && e->vlan != CPL_L2T_VLAN_NONE)
+		ntuple |= (uint64_t)(F_FT_VLAN_VLD | e->vlan) << tp->vlan_shift;
 
-	if (is_t4(pi->adapter))
-		return (htobe32(ntuple));
+	if (tp->port_shift >= 0)
+		ntuple |= (uint64_t)e->lport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0)
+		ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;
+
+	if (tp->vnic_shift >= 0) {
+		uint32_t vf = G_FW_VIID_VIN(viid);
+		uint32_t pf = G_FW_VIID_PFN(viid);
+		uint32_t vld = G_FW_VIID_VIVLD(viid);
+
+		ntuple |= (uint64_t)(V_FT_VNID_ID_VF(vf) | V_FT_VNID_ID_PF(pf) |
+		    V_FT_VNID_ID_VLD(vld)) << tp->vnic_shift;
+	}
+
+	if (is_t4(sc))
+		return (htobe32((uint32_t)ntuple));
 	else
 		return (htobe64(V_FILTER_TUPLE(ntuple)));
 }

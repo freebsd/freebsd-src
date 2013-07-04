@@ -633,9 +633,6 @@ t4_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
-	for (i = 0; i < NCHAN; i++)
-		sc->params.tp.tx_modq[i] = i;
-
 	rc = t4_create_dma_tag(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
@@ -2089,6 +2086,7 @@ prep_firmware(struct adapter *sc)
 	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
+	t4_get_tp_version(sc, &sc->params.tp_vers);
 
 	/* Reset device */
 	if (need_fw_reset &&
@@ -6522,13 +6520,14 @@ get_filter_mode(struct adapter *sc, uint32_t *mode)
 	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &fconf, 1,
 	    A_TP_VLAN_PRI_MAP);
 
-	if (sc->filter_mode != fconf) {
+	if (sc->params.tp.vlan_pri_map != fconf) {
 		log(LOG_WARNING, "%s: cached filter mode out of sync %x %x.\n",
-		    device_get_nameunit(sc->dev), sc->filter_mode, fconf);
-		sc->filter_mode = fconf;
+		    device_get_nameunit(sc->dev), sc->params.tp.vlan_pri_map,
+		    fconf);
+		sc->params.tp.vlan_pri_map = fconf;
 	}
 
-	*mode = fconf_to_mode(sc->filter_mode);
+	*mode = fconf_to_mode(sc->params.tp.vlan_pri_map);
 
 	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
@@ -6661,7 +6660,8 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	}
 
 	/* Validate against the global filter mode */
-	if ((sc->filter_mode | fspec_to_fconf(&t->fs)) != sc->filter_mode) {
+	if ((sc->params.tp.vlan_pri_map | fspec_to_fconf(&t->fs)) !=
+	    sc->params.tp.vlan_pri_map) {
 		rc = E2BIG;
 		goto done;
 	}
