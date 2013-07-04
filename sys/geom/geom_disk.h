@@ -99,6 +99,9 @@ struct disk {
 
 	/* new fields in stable - don't use if DISKFLAG_LACKS_GONE is set */
 	disk_gone_t		*d_gone;
+
+	/* new fields in stable - don't use if DISKFLAG_LACKS_DELMAX is set */
+	off_t			d_delmaxsize;
 };
 
 #define DISKFLAG_NEEDSGIANT	0x1
@@ -106,7 +109,8 @@ struct disk {
 #define DISKFLAG_CANDELETE	0x4
 #define DISKFLAG_CANFLUSHCACHE	0x8
 #define DISKFLAG_LACKS_GONE	0x10
-#define	DISKFLAG_UNMAPPED_BIO	0x20
+#define DISKFLAG_UNMAPPED_BIO	0x20
+#define DISKFLAG_LACKS_DELMAX	0x40
 
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);
@@ -119,7 +123,8 @@ void disk_media_gone(struct disk *dp, int flag);
 #define DISK_VERSION_00		0x58561059
 #define DISK_VERSION_01		0x5856105a
 #define DISK_VERSION_02		0x5856105b
-#define DISK_VERSION		DISK_VERSION_02
+#define DISK_VERSION_03		0x5856105c
+#define DISK_VERSION		DISK_VERSION_03
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */

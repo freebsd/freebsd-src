@@ -155,6 +155,13 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 			    dp->d_name, dp->d_unit);
 			dp->d_maxsize = DFLTPHYS;
 		}
+		if (dp->d_delmaxsize == 0) {
+			if (bootverbose && dp->d_flags & DISKFLAG_CANDELETE) {
+				printf("WARNING: Disk drive %s%d has no "
+				    "d_delmaxsize\n", dp->d_name, dp->d_unit);
+			}
+			dp->d_delmaxsize = dp->d_maxsize;
+		}
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		if (dp->d_close != NULL) {
 			g_disk_lock_giant(dp);
@@ -299,6 +306,12 @@ g_disk_start(struct bio *bp)
 			break;
 		}
 		do {
+			off_t d_maxsize;
+
+			d_maxsize = (bp->bio_cmd == BIO_DELETE &&
+			    (dp->d_flags & DISKFLAG_LACKS_DELMAX) == 0) ?
+			    dp->d_delmaxsize : dp->d_maxsize;
+
 			bp2->bio_offset += off;
 			bp2->bio_length -= off;
 			if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
@@ -313,18 +326,20 @@ g_disk_start(struct bio *bp)
 				bp2->bio_ma_offset %= PAGE_SIZE;
 				bp2->bio_ma_n -= off / PAGE_SIZE;
 			}
-			if (bp2->bio_length > dp->d_maxsize) {
+			if (bp2->bio_length > d_maxsize) {
 				/*
 				 * XXX: If we have a stripesize we should really
-				 * use it here.
+				 * use it here. Care should be taken in the delete
+				 * case if this is done as deletes can be very 
+				 * sensitive to size given how they are processed.
 				 */
-				bp2->bio_length = dp->d_maxsize;
+				bp2->bio_length = d_maxsize;
 				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 					bp2->bio_ma_n = howmany(
 					    bp2->bio_ma_offset +
 					    bp2->bio_length, PAGE_SIZE);
 				}
-				off += dp->d_maxsize;
+				off += d_maxsize;
 				/*
 				 * To avoid a race, we need to grab the next bio
 				 * before we schedule this one.  See "notes".
@@ -603,7 +618,8 @@ void
 disk_create(struct disk *dp, int version)
 {
 
-	if (version != DISK_VERSION_02 && version != DISK_VERSION_01) {
+	if (version != DISK_VERSION_03 && version != DISK_VERSION_02 &&
+	    version != DISK_VERSION_01) {
 		printf("WARNING: Attempt to add disk %s%d %s",
 		    dp->d_name, dp->d_unit,
 		    " using incompatible ABI version of disk(9)\n");
@@ -613,6 +629,8 @@ disk_create(struct disk *dp, int version)
 	}
 	if (version == DISK_VERSION_01)
 		dp->d_flags |= DISKFLAG_LACKS_GONE;
+	if (version < DISK_VERSION_03)
+		dp->d_flags |= DISKFLAG_LACKS_DELMAX;
 	KASSERT(dp->d_strategy != NULL, ("disk_create need d_strategy"));
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
