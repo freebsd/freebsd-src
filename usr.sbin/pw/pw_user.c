@@ -573,7 +573,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			lc = login_getpwclass(pwd);
 			if (lc == NULL ||
-			    login_setcryptfmt(lc, "md5", NULL) == NULL)
+			    login_setcryptfmt(lc, "sha512", NULL) == NULL)
 				warn("setting crypt(3) format");
 			login_close(lc);
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
