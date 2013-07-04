@@ -2470,7 +2470,6 @@ pmap_remove_all(vm_page_t m)
 		else
 			cpu_tlb_flushD();
 	}
-	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	rw_wunlock(&pvh_global_lock);
 }
 
