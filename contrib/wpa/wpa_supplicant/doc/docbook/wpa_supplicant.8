@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT" "8" "07 September 2010" "" ""
+.TH "WPA_SUPPLICANT" "8" "12 January 2013" "" ""
 
 .SH NAME
 wpa_supplicant \- Wi-Fi Protected Access client and IEEE 802.1X supplicant
@@ -217,30 +217,8 @@ list of supported driver backends that may be used with the -D option on
 your system, refer to the help output of wpa_supplicant
 (\fBwpa_supplicant -h\fR).
 .TP
-\fBhostap\fR
-(default) Host AP driver (Intersil Prism2/2.5/3).
-(this can also be used with Linuxant DriverLoader).
-.TP
-\fBhermes\fR
-Agere Systems Inc. driver (Hermes-I/Hermes-II).
-.TP
-\fBmadwifi\fR
-MADWIFI 802.11 support (Atheros, etc.).
-.TP
-\fBatmel\fR
-ATMEL AT76C5XXx (USB, PCMCIA).
-.TP
 \fBwext\fR
 Linux wireless extensions (generic).
-.TP
-\fBndiswrapper\fR
-Linux ndiswrapper.
-.TP
-\fBbroadcom\fR
-Broadcom wl.o driver.
-.TP
-\fBipw\fR
-Intel ipw2100/2200 driver.
 .TP
 \fBwired\fR
 wpa_supplicant wired Ethernet driver
@@ -303,7 +281,7 @@ Include timestamp in debug messages.
 Help.  Show a usage message.
 .TP
 \fB-L\fR
-Show license (GPL and BSD).
+Show license (BSD).
 .TP
 \fB-p\fR
 Driver parameters. (Per interface)
@@ -375,8 +353,8 @@ wpa_supplicant for two interfaces:
 
 .nf
 wpa_supplicant \\
-	-c wpa1.conf -i wlan0 -D hostap -N \\
-	-c wpa2.conf -i ath0 -D madwifi
+	-c wpa1.conf -i wlan0 -D nl80211 -N \\
+	-c wpa2.conf -i ath0 -D wext
 .fi
 .RE
 .SH "OS REQUIREMENTS"
@@ -394,56 +372,6 @@ FreeBSD 6-CURRENT
 Microsoft Windows with WinPcap (at least WinXP, may work
 with other versions)
 .SH "SUPPORTED DRIVERS"
-.TP
-\fBHost AP driver for Prism2/2.5/3 (development snapshot/v0.2.x)\fR
-(http://hostap.epitest.fi/) Driver needs to be set in
-Managed mode (\fBiwconfig wlan0 mode managed\fR).
-Please note that station firmware version needs to be 1.7.0 or
-newer to work in WPA mode.
-.TP
-\fBLinuxant DriverLoader\fR
-(http://www.linuxant.com/driverloader/)
-with Windows NDIS driver for your wlan card supporting WPA.
-.TP
-\fBAgere Systems Inc. Linux Driver\fR
-(http://www.agere.com/support/drivers/) Please note
-that the driver interface file (driver_hermes.c) and hardware
-specific include files are not included in the wpa_supplicant
-distribution. You will need to copy these from the source
-package of the Agere driver.
-.TP
-\fBmadwifi driver for cards based on Atheros chip set (ar521x)\fR
-(http://sourceforge.net/projects/madwifi/) Please
-note that you will need to modify the wpa_supplicant .config
-file to use the correct path for the madwifi driver root
-directory (CFLAGS += -I../madwifi/wpa line in example
-defconfig).
-.TP
-\fBATMEL AT76C5XXx driver for USB and PCMCIA cards\fR
-(http://atmelwlandriver.sourceforge.net/).
-.TP
-\fBLinux ndiswrapper\fR
-(http://ndiswrapper.sourceforge.net/) with Windows
-NDIS driver.
-.TP
-\fBBroadcom wl.o driver\fR
-This is a generic Linux driver for Broadcom IEEE
-802.11a/g cards.  However, it is proprietary driver that is
-not publicly available except for couple of exceptions, mainly
-Broadcom-based APs/wireless routers that use Linux. The driver
-binary can be downloaded, e.g., from Linksys support site
-(http://www.linksys.com/support/gpl.asp) for Linksys
-WRT54G. The GPL tarball includes cross-compiler and the needed
-header file, wlioctl.h, for compiling wpa_supplicant.  This
-driver support in wpa_supplicant is expected to work also with
-other devices based on Broadcom driver (assuming the driver
-includes client mode support).
-.TP
-\fB Intel ipw2100 driver\fR
-(http://sourceforge.net/projects/ipw2100/)
-.TP
-\fBIntel ipw2200 driver\fR
-(http://sourceforge.net/projects/ipw2200/)
 .TP
 \fBLinux wireless extensions\fR
 In theory, any driver that supports Linux wireless
@@ -574,10 +502,10 @@ in.
 \fBwpa_passphrase\fR(8)
 .SH "LEGAL"
 .PP
-wpa_supplicant is copyright (c) 2003-2007,
+wpa_supplicant is copyright (c) 2003-2012,
 Jouni Malinen <j@w1.fi> and
 contributors.
 All Rights Reserved.
 .PP
-This program is dual-licensed under both the GPL version 2
-and BSD license. Either license may be used at your option.
+This program is licensed under the BSD license (the one with
+advertisement clause removed).

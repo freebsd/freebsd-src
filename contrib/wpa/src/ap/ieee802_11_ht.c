@@ -30,7 +30,8 @@ u8 * hostapd_eid_ht_capabilities(struct hostapd_data *hapd, u8 *eid)
 	struct ieee80211_ht_capabilities *cap;
 	u8 *pos = eid;
 
-	if (!hapd->iconf->ieee80211n || !hapd->iface->current_mode)
+	if (!hapd->iconf->ieee80211n || !hapd->iface->current_mode ||
+	    hapd->conf->disable_11n)
 		return eid;
 
 	*pos++ = WLAN_EID_HT_CAP;
@@ -58,7 +59,7 @@ u8 * hostapd_eid_ht_operation(struct hostapd_data *hapd, u8 *eid)
 	struct ieee80211_ht_operation *oper;
 	u8 *pos = eid;
 
-	if (!hapd->iconf->ieee80211n)
+	if (!hapd->iconf->ieee80211n || hapd->conf->disable_11n)
 		return eid;
 
 	*pos++ = WLAN_EID_HT_OPERATION;
@@ -92,7 +93,6 @@ Set to 1 (HT non-member protection) if there may be non-HT STAs
 Set to 2 if only HT STAs are associated in BSS,
 	however and at least one 20 MHz HT STA is associated
 Set to 3 (HT mixed mode) when one or more non-HT STAs are associated
-	(currently non-GF HT station is considered as non-HT STA also)
 */
 int hostapd_ht_operation_update(struct hostapd_iface *iface)
 {
@@ -130,13 +130,8 @@ int hostapd_ht_operation_update(struct hostapd_iface *iface)
 		op_mode_changes++;
 	}
 
-	/* Note: currently we switch to the MIXED op mode if HT non-greenfield
-	 * station is associated. Probably it's a theoretical case, since
-	 * it looks like all known HT STAs support greenfield.
-	 */
 	new_op_mode = 0;
-	if (iface->num_sta_no_ht ||
-	    (iface->ht_op_mode & HT_INFO_OPERATION_MODE_NON_GF_DEVS_PRESENT))
+	if (iface->num_sta_no_ht)
 		new_op_mode = OP_MODE_MIXED;
 	else if ((iface->conf->ht_capab & HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET)
 		 && iface->num_sta_ht_20mhz)
@@ -160,11 +155,13 @@ int hostapd_ht_operation_update(struct hostapd_iface *iface)
 }
 
 
-u16 copy_sta_ht_capab(struct sta_info *sta, const u8 *ht_capab,
-		      size_t ht_capab_len)
+u16 copy_sta_ht_capab(struct hostapd_data *hapd, struct sta_info *sta,
+		      const u8 *ht_capab, size_t ht_capab_len)
 {
+	/* Disable HT caps for STAs associated to no-HT BSSes. */
 	if (!ht_capab ||
-	    ht_capab_len < sizeof(struct ieee80211_ht_capabilities)) {
+	    ht_capab_len < sizeof(struct ieee80211_ht_capabilities) ||
+	    hapd->conf->disable_11n) {
 		sta->flags &= ~WLAN_STA_HT;
 		os_free(sta->ht_capabilities);
 		sta->ht_capabilities = NULL;
@@ -253,8 +250,14 @@ void hostapd_get_ht_capab(struct hostapd_data *hapd,
 		return;
 	os_memcpy(neg_ht_cap, ht_cap, sizeof(*neg_ht_cap));
 	cap = le_to_host16(neg_ht_cap->ht_capabilities_info);
-	cap &= hapd->iconf->ht_capab;
-	cap |= (hapd->iconf->ht_capab & HT_CAP_INFO_SMPS_DISABLED);
+
+	/*
+	 * Mask out HT features we don't support, but don't overwrite
+	 * non-symmetric features like STBC and SMPS. Just because
+	 * we're not in dynamic SMPS mode the STA might still be.
+	 */
+	cap &= (hapd->iconf->ht_capab | HT_CAP_INFO_RX_STBC_MASK |
+		HT_CAP_INFO_TX_STBC | HT_CAP_INFO_SMPS_MASK);
 
 	/*
 	 * STBC needs to be handled specially
