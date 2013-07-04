@@ -1,15 +1,9 @@
 /*
  * hostapd / TKIP countermeasures
- * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2002-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "utils/includes.h"
@@ -17,10 +11,12 @@
 #include "utils/common.h"
 #include "utils/eloop.h"
 #include "common/ieee802_11_defs.h"
+#include "radius/radius.h"
 #include "hostapd.h"
 #include "sta_info.h"
 #include "ap_mlme.h"
 #include "wpa_auth.h"
+#include "ap_drv_ops.h"
 #include "tkip_countermeasures.h"
 
 
@@ -29,7 +25,7 @@ static void ieee80211_tkip_countermeasures_stop(void *eloop_ctx,
 {
 	struct hostapd_data *hapd = eloop_ctx;
 	hapd->tkip_countermeasures = 0;
-	hapd->drv.set_countermeasures(hapd, 0);
+	hostapd_drv_set_countermeasures(hapd, 0);
 	hostapd_logger(hapd, NULL, HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_INFO, "TKIP countermeasures ended");
 }
@@ -44,24 +40,36 @@ static void ieee80211_tkip_countermeasures_start(struct hostapd_data *hapd)
 
 	wpa_auth_countermeasures_start(hapd->wpa_auth);
 	hapd->tkip_countermeasures = 1;
-	hapd->drv.set_countermeasures(hapd, 1);
+	hostapd_drv_set_countermeasures(hapd, 1);
 	wpa_gtk_rekey(hapd->wpa_auth);
 	eloop_cancel_timeout(ieee80211_tkip_countermeasures_stop, hapd, NULL);
 	eloop_register_timeout(60, 0, ieee80211_tkip_countermeasures_stop,
 			       hapd, NULL);
-	for (sta = hapd->sta_list; sta != NULL; sta = sta->next) {
-		hapd->drv.sta_deauth(hapd, sta->addr,
-				     WLAN_REASON_MICHAEL_MIC_FAILURE);
-		sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC |
-				WLAN_STA_AUTHORIZED);
-		hapd->drv.sta_remove(hapd, sta->addr);
+	while ((sta = hapd->sta_list)) {
+		sta->acct_terminate_cause =
+			RADIUS_ACCT_TERMINATE_CAUSE_ADMIN_RESET;
+		if (sta->flags & WLAN_STA_AUTH) {
+			mlme_deauthenticate_indication(
+				hapd, sta,
+				WLAN_REASON_MICHAEL_MIC_FAILURE);
+		}
+		hostapd_drv_sta_deauth(hapd, sta->addr,
+				       WLAN_REASON_MICHAEL_MIC_FAILURE);
+		ap_free_sta(hapd, sta);
 	}
 }
 
 
-void michael_mic_failure(struct hostapd_data *hapd, const u8 *addr, int local)
+void ieee80211_tkip_countermeasures_deinit(struct hostapd_data *hapd)
 {
-	time_t now;
+	eloop_cancel_timeout(ieee80211_tkip_countermeasures_stop, hapd, NULL);
+}
+
+
+int michael_mic_failure(struct hostapd_data *hapd, const u8 *addr, int local)
+{
+	struct os_time now;
+	int ret = 0;
 
 	if (addr && local) {
 		struct sta_info *sta = ap_get_sta(hapd, addr);
@@ -77,17 +85,21 @@ void michael_mic_failure(struct hostapd_data *hapd, const u8 *addr, int local)
 				   "MLME-MICHAELMICFAILURE.indication "
 				   "for not associated STA (" MACSTR
 				   ") ignored", MAC2STR(addr));
-			return;
+			return ret;
 		}
 	}
 
-	time(&now);
-	if (now > hapd->michael_mic_failure + 60) {
+	os_get_time(&now);
+	if (now.sec > hapd->michael_mic_failure + 60) {
 		hapd->michael_mic_failures = 1;
 	} else {
 		hapd->michael_mic_failures++;
-		if (hapd->michael_mic_failures > 1)
+		if (hapd->michael_mic_failures > 1) {
 			ieee80211_tkip_countermeasures_start(hapd);
+			ret = 1;
+		}
 	}
-	hapd->michael_mic_failure = now;
+	hapd->michael_mic_failure = now.sec;
+
+	return ret;
 }

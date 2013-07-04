@@ -28,6 +28,9 @@ LIB_OBJS += os_unix.o
 # Pick correct event loop implementation
 LIB_OBJS += eloop.o
 
+# Pick correct edit implementation
+LIB_OBJS += edit.o
+
 #LIB_OBJS += pcsc_funcs.o
 
 libutils.a: $(LIB_OBJS)

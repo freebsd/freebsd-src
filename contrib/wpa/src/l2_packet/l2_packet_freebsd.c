@@ -3,14 +3,8 @@
  * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2005, Sam Leffler <sam@errno.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -20,7 +14,11 @@
 #include <pcap.h>
 
 #include <sys/ioctl.h>
+#ifdef __sun__
+#include <libdlpi.h>
+#else /* __sun__ */
 #include <sys/sysctl.h>
+#endif /* __sun__ */
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -139,6 +137,7 @@ static int l2_packet_init_libpcap(struct l2_packet_data *l2,
 	}
 
 	pcap_freecode(&pcap_fp);
+#ifndef __sun__
 	/*
 	 * When libpcap uses BPF we must enable "immediate mode" to
 	 * receive frames right away; otherwise the system may
@@ -153,6 +152,7 @@ static int l2_packet_init_libpcap(struct l2_packet_data *l2,
 			/* XXX should we fail? */
 		}
 	}
+#endif /* __sun__ */
 
 	eloop_register_read_sock(pcap_get_selectable_fd(l2->pcap),
 				 l2_packet_receive, l2, l2->pcap);
@@ -163,6 +163,30 @@ static int l2_packet_init_libpcap(struct l2_packet_data *l2,
 
 static int eth_get(const char *device, u8 ea[ETH_ALEN])
 {
+#ifdef __sun__
+	dlpi_handle_t dh;
+	u32 physaddrlen = DLPI_PHYSADDR_MAX;
+	u8 physaddr[DLPI_PHYSADDR_MAX];
+	int retval;
+
+	retval = dlpi_open(device, &dh, 0);
+	if (retval != DLPI_SUCCESS) {
+		wpa_printf(MSG_ERROR, "dlpi_open error: %s",
+			   dlpi_strerror(retval));
+		return -1;
+	}
+
+	retval = dlpi_get_physaddr(dh, DL_CURR_PHYS_ADDR, physaddr,
+				   &physaddrlen);
+	if (retval != DLPI_SUCCESS) {
+		wpa_printf(MSG_ERROR, "dlpi_get_physaddr error: %s",
+			   dlpi_strerror(retval));
+		dlpi_close(dh);
+		return -1;
+	}
+	os_memcpy(ea, physaddr, ETH_ALEN);
+	dlpi_close(dh);
+#else /* __sun__ */
 	struct if_msghdr *ifm;
 	struct sockaddr_dl *sdl;
 	u_char *p, *buf;
@@ -195,6 +219,7 @@ static int eth_get(const char *device, u8 ea[ETH_ALEN])
 		errno = ESRCH;
 		return -1;
 	}
+#endif /* __sun__ */
 	return 0;
 }
 
