@@ -83,12 +83,16 @@ do_rand(unsigned long *ctx)
 int
 rand_r(unsigned int *ctx)
 {
-	u_long val = (u_long) *ctx;
-#ifndef USE_WEAK_SEEDING
+	u_long val;
+	int r;
+
+#ifdef  USE_WEAK_SEEDING
+	val = *ctx;
+#else
 	/* Transform to [1, 0x7ffffffe] range. */
-	val = (val % 0x7ffffffe) + 1;
+	val = (*ctx % 0x7ffffffe) + 1;
 #endif
-	int r = do_rand(&val);
+	r = do_rand(&val);
 
 #ifdef  USE_WEAK_SEEDING
 	*ctx = (unsigned int)val;
