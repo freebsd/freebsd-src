@@ -15,18 +15,18 @@
 
 #include "BugDriver.h"
 #include "ToolRunner.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/LinkAllIR.h"
 #include "llvm/LinkAllPasses.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/PassManager.h"
-#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/Valgrind.h"
-#include "llvm/LinkAllVMCore.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 //Enable this macro to debug bugpoint itself.
@@ -120,6 +120,7 @@ int main(int argc, char **argv) {
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initializeCore(Registry);
   initializeScalarOpts(Registry);
+  initializeObjCARCOpts(Registry);
   initializeVectorization(Registry);
   initializeIPO(Registry);
   initializeAnalysis(Registry);

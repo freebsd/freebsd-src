@@ -14,12 +14,12 @@
 #ifndef LLVM_CLANG_AST_COMMENT_SEMA_H
 #define LLVM_CLANG_AST_COMMENT_SEMA_H
 
+#include "clang/AST/Comment.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/AST/Comment.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
 
 namespace clang {
@@ -60,6 +60,9 @@ class Sema {
 
   /// AST node for the \\returns command and its aliases.
   const BlockCommandComment *ReturnsCommand;
+  
+  /// AST node for the \\headerfile command.
+  const BlockCommandComment *HeaderfileCommand;
 
   DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) {
     return Diags.Report(Loc, DiagID);
@@ -93,7 +96,8 @@ public:
 
   BlockCommandComment *actOnBlockCommandStart(SourceLocation LocBegin,
                                               SourceLocation LocEnd,
-                                              unsigned CommandID);
+                                              unsigned CommandID,
+                                              CommandMarkerKind CommandMarker);
 
   void actOnBlockCommandArgs(BlockCommandComment *Command,
                              ArrayRef<BlockCommandComment::Argument> Args);
@@ -103,7 +107,8 @@ public:
 
   ParamCommandComment *actOnParamCommandStart(SourceLocation LocBegin,
                                               SourceLocation LocEnd,
-                                              unsigned CommandID);
+                                              unsigned CommandID,
+                                              CommandMarkerKind CommandMarker);
 
   void actOnParamCommandDirectionArg(ParamCommandComment *Command,
                                      SourceLocation ArgLocBegin,
@@ -120,7 +125,8 @@ public:
 
   TParamCommandComment *actOnTParamCommandStart(SourceLocation LocBegin,
                                                 SourceLocation LocEnd,
-                                                unsigned CommandID);
+                                                unsigned CommandID,
+                                                CommandMarkerKind CommandMarker);
 
   void actOnTParamCommandParamNameArg(TParamCommandComment *Command,
                                       SourceLocation ArgLocBegin,
@@ -192,13 +198,28 @@ public:
   void checkBlockCommandDuplicate(const BlockCommandComment *Command);
 
   void checkDeprecatedCommand(const BlockCommandComment *Comment);
+  
+  void checkFunctionDeclVerbatimLine(const BlockCommandComment *Comment);
+  
+  void checkContainerDeclVerbatimLine(const BlockCommandComment *Comment);
+  
+  void checkContainerDecl(const BlockCommandComment *Comment);
 
   /// Resolve parameter names to parameter indexes in function declaration.
   /// Emit diagnostics about unknown parametrs.
   void resolveParamCommandIndexes(const FullComment *FC);
 
   bool isFunctionDecl();
+  bool isAnyFunctionDecl();
+  bool isFunctionPointerVarDecl();
+  bool isObjCMethodDecl();
+  bool isObjCPropertyDecl();
   bool isTemplateOrSpecialization();
+  bool isRecordLikeDecl();
+  bool isClassOrStructDecl();
+  bool isUnionDecl();
+  bool isObjCInterfaceDecl();
+  bool isObjCProtocolDecl();
 
   ArrayRef<const ParmVarDecl *> getParamVars();
 

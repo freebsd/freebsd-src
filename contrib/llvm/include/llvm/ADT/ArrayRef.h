@@ -10,6 +10,7 @@
 #ifndef LLVM_ADT_ARRAYREF_H
 #define LLVM_ADT_ARRAYREF_H
 
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallVector.h"
 #include <vector>
 
@@ -33,6 +34,8 @@ namespace llvm {
     typedef const T *const_iterator;
     typedef size_t size_type;
 
+    typedef std::reverse_iterator<iterator> reverse_iterator;
+
   private:
     /// The start of the array, in an external buffer.
     const T *Data;
@@ -46,6 +49,9 @@ namespace llvm {
 
     /// Construct an empty ArrayRef.
     /*implicit*/ ArrayRef() : Data(0), Length(0) {}
+
+    /// Construct an empty ArrayRef from None.
+    /*implicit*/ ArrayRef(NoneType) : Data(0), Length(0) {}
 
     /// Construct an ArrayRef from a single element.
     /*implicit*/ ArrayRef(const T &OneElt)
@@ -83,6 +89,9 @@ namespace llvm {
 
     iterator begin() const { return Data; }
     iterator end() const { return Data + Length; }
+
+    reverse_iterator rbegin() const { return reverse_iterator(end()); }
+    reverse_iterator rend() const { return reverse_iterator(begin()); }
 
     /// empty - Check if the array is empty.
     bool empty() const { return Length == 0; }
@@ -169,43 +178,46 @@ namespace llvm {
   public:
     typedef T *iterator;
 
-    /// Construct an empty ArrayRef.
+    /// Construct an empty MutableArrayRef.
     /*implicit*/ MutableArrayRef() : ArrayRef<T>() {}
-    
+
+    /// Construct an empty MutableArrayRef from None.
+    /*implicit*/ MutableArrayRef(NoneType) : ArrayRef<T>() {}
+
     /// Construct an MutableArrayRef from a single element.
     /*implicit*/ MutableArrayRef(T &OneElt) : ArrayRef<T>(OneElt) {}
-    
+
     /// Construct an MutableArrayRef from a pointer and length.
     /*implicit*/ MutableArrayRef(T *data, size_t length)
       : ArrayRef<T>(data, length) {}
-    
+
     /// Construct an MutableArrayRef from a range.
     MutableArrayRef(T *begin, T *end) : ArrayRef<T>(begin, end) {}
-    
+
     /// Construct an MutableArrayRef from a SmallVector.
     /*implicit*/ MutableArrayRef(SmallVectorImpl<T> &Vec)
     : ArrayRef<T>(Vec) {}
-    
+
     /// Construct a MutableArrayRef from a std::vector.
     /*implicit*/ MutableArrayRef(std::vector<T> &Vec)
     : ArrayRef<T>(Vec) {}
-    
+
     /// Construct an MutableArrayRef from a C array.
     template <size_t N>
     /*implicit*/ MutableArrayRef(T (&Arr)[N])
       : ArrayRef<T>(Arr) {}
-    
+
     T *data() const { return const_cast<T*>(ArrayRef<T>::data()); }
 
     iterator begin() const { return data(); }
     iterator end() const { return data() + this->size(); }
-    
+
     /// front - Get the first element.
     T &front() const {
       assert(!this->empty());
       return data()[0];
     }
-    
+
     /// back - Get the last element.
     T &back() const {
       assert(!this->empty());
@@ -217,14 +229,14 @@ namespace llvm {
       assert(N <= this->size() && "Invalid specifier");
       return MutableArrayRef<T>(data()+N, this->size()-N);
     }
-    
+
     /// slice(n, m) - Chop off the first N elements of the array, and keep M
     /// elements in the array.
     MutableArrayRef<T> slice(unsigned N, unsigned M) const {
       assert(N+M <= this->size() && "Invalid specifier");
       return MutableArrayRef<T>(data()+N, M);
     }
-    
+
     /// @}
     /// @name Operator Overloads
     /// @{
@@ -301,5 +313,5 @@ namespace llvm {
     static const bool value = true;
   };
 }
-  
+
 #endif

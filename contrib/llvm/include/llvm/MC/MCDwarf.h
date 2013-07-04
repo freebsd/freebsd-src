@@ -16,10 +16,10 @@
 #define LLVM_MC_MCDWARF_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/MC/MachineLocation.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Dwarf.h"
+#include "llvm/Support/raw_ostream.h"
+#include <map>
 #include <vector>
 
 namespace llvm {
@@ -187,29 +187,43 @@ namespace llvm {
     MCLineSection() {}
 
     // addLineEntry - adds an entry to this MCLineSection's line entries
-    void addLineEntry(const MCLineEntry &LineEntry) {
-      MCLineEntries.push_back(LineEntry);
+    void addLineEntry(const MCLineEntry &LineEntry, unsigned CUID) {
+      MCLineDivisions[CUID].push_back(LineEntry);
     }
 
     typedef std::vector<MCLineEntry> MCLineEntryCollection;
     typedef MCLineEntryCollection::iterator iterator;
     typedef MCLineEntryCollection::const_iterator const_iterator;
+    typedef std::map<unsigned, MCLineEntryCollection> MCLineDivisionMap;
 
   private:
-    MCLineEntryCollection MCLineEntries;
+    // A collection of MCLineEntry for each Compile Unit ID.
+    MCLineDivisionMap MCLineDivisions;
 
   public:
-    const MCLineEntryCollection *getMCLineEntries() const {
-      return &MCLineEntries;
+    // Returns whether MCLineSection contains entries for a given Compile
+    // Unit ID.
+    bool containEntriesForID(unsigned CUID) const {
+      return MCLineDivisions.count(CUID);
+    }
+    // Returns the collection of MCLineEntry for a given Compile Unit ID.
+    const MCLineEntryCollection &getMCLineEntries(unsigned CUID) const {
+      MCLineDivisionMap::const_iterator CIter = MCLineDivisions.find(CUID);
+      assert(CIter != MCLineDivisions.end());
+      return CIter->second;
     }
   };
 
   class MCDwarfFileTable {
   public:
     //
-    // This emits the Dwarf file and the line tables.
+    // This emits the Dwarf file and the line tables for all Compile Units.
     //
     static const MCSymbol *Emit(MCStreamer *MCOS);
+    //
+    // This emits the Dwarf file and the line tables for a given Compile Unit.
+    //
+    static const MCSymbol *EmitCU(MCStreamer *MCOS, unsigned ID);
   };
 
   class MCDwarfLineAddr {
@@ -266,42 +280,115 @@ namespace llvm {
 
   class MCCFIInstruction {
   public:
-    enum OpType { SameValue, RememberState, RestoreState, Move, RelMove, Escape,
-                  Restore};
+    enum OpType { OpSameValue, OpRememberState, OpRestoreState, OpOffset,
+                  OpDefCfaRegister, OpDefCfaOffset, OpDefCfa, OpRelOffset,
+                  OpAdjustCfaOffset, OpEscape, OpRestore, OpUndefined,
+                  OpRegister };
   private:
     OpType Operation;
     MCSymbol *Label;
-    // Move to & from location.
-    MachineLocation Destination;
-    MachineLocation Source;
+    unsigned Register;
+    union {
+      int Offset;
+      unsigned Register2;
+    };
     std::vector<char> Values;
+
+    MCCFIInstruction(OpType Op, MCSymbol *L, unsigned R, int O, StringRef V) :
+      Operation(Op), Label(L), Register(R), Offset(O),
+      Values(V.begin(), V.end()) {
+      assert(Op != OpRegister);
+    }
+
+    MCCFIInstruction(OpType Op, MCSymbol *L, unsigned R1, unsigned R2) :
+      Operation(Op), Label(L), Register(R1), Register2(R2) {
+      assert(Op == OpRegister);
+    }
+
   public:
-    MCCFIInstruction(OpType Op, MCSymbol *L)
-      : Operation(Op), Label(L) {
-      assert(Op == RememberState || Op == RestoreState);
+    static MCCFIInstruction
+    createOffset(MCSymbol *L, unsigned Register, int Offset) {
+      return MCCFIInstruction(OpOffset, L, Register, Offset, "");
     }
-    MCCFIInstruction(OpType Op, MCSymbol *L, unsigned Register)
-      : Operation(Op), Label(L), Destination(Register) {
-      assert(Op == SameValue || Op == Restore);
+
+    static MCCFIInstruction
+    createDefCfaRegister(MCSymbol *L, unsigned Register) {
+      return MCCFIInstruction(OpDefCfaRegister, L, Register, 0, "");
     }
-    MCCFIInstruction(MCSymbol *L, const MachineLocation &D,
-                     const MachineLocation &S)
-      : Operation(Move), Label(L), Destination(D), Source(S) {
+
+    static MCCFIInstruction createDefCfaOffset(MCSymbol *L, int Offset) {
+      return MCCFIInstruction(OpDefCfaOffset, L, 0, -Offset, "");
     }
-    MCCFIInstruction(OpType Op, MCSymbol *L, const MachineLocation &D,
-                     const MachineLocation &S)
-      : Operation(Op), Label(L), Destination(D), Source(S) {
-      assert(Op == RelMove);
+
+    static MCCFIInstruction
+    createDefCfa(MCSymbol *L, unsigned Register, int Offset) {
+      return MCCFIInstruction(OpDefCfa, L, Register, -Offset, "");
     }
-    MCCFIInstruction(OpType Op, MCSymbol *L, StringRef Vals)
-      : Operation(Op), Label(L), Values(Vals.begin(), Vals.end()) {
-      assert(Op == Escape);
+
+    static MCCFIInstruction createUndefined(MCSymbol *L, unsigned Register) {
+      return MCCFIInstruction(OpUndefined, L, Register, 0, "");
     }
+
+    static MCCFIInstruction createRestore(MCSymbol *L, unsigned Register) {
+      return MCCFIInstruction(OpRestore, L, Register, 0, "");
+    }
+
+    static MCCFIInstruction createSameValue(MCSymbol *L, unsigned Register) {
+      return MCCFIInstruction(OpSameValue, L, Register, 0, "");
+    }
+
+    static MCCFIInstruction createRestoreState(MCSymbol *L) {
+      return MCCFIInstruction(OpRestoreState, L, 0, 0, "");
+    }
+
+    static MCCFIInstruction createRememberState(MCSymbol *L) {
+      return MCCFIInstruction(OpRememberState, L, 0, 0, "");
+    }
+
+    static MCCFIInstruction
+    createRelOffset(MCSymbol *L, unsigned Register, int Offset) {
+      return MCCFIInstruction(OpRelOffset, L, Register, Offset, "");
+    }
+
+    static MCCFIInstruction
+    createAdjustCfaOffset(MCSymbol *L, int Adjustment) {
+      return MCCFIInstruction(OpAdjustCfaOffset, L, 0, Adjustment, "");
+    }
+
+    static MCCFIInstruction createEscape(MCSymbol *L, StringRef Vals) {
+      return MCCFIInstruction(OpEscape, L, 0, 0, Vals);
+    }
+
+   static MCCFIInstruction
+   createRegister(MCSymbol *L, unsigned Register1, unsigned Register2) {
+      return MCCFIInstruction(OpRegister, L, Register1, Register2);
+    }
+
     OpType getOperation() const { return Operation; }
     MCSymbol *getLabel() const { return Label; }
-    const MachineLocation &getDestination() const { return Destination; }
-    const MachineLocation &getSource() const { return Source; }
+
+    unsigned getRegister() const {
+      assert(Operation == OpDefCfa || Operation == OpOffset ||
+             Operation == OpRestore || Operation == OpUndefined ||
+             Operation == OpSameValue || Operation == OpDefCfaRegister ||
+             Operation == OpRelOffset || Operation == OpRegister);
+      return Register;
+    }
+
+    unsigned getRegister2() const {
+      assert(Operation == OpRegister);
+      return Register2;
+    }
+
+    int getOffset() const {
+      assert(Operation == OpDefCfa || Operation == OpOffset ||
+             Operation == OpRelOffset || Operation == OpDefCfaOffset ||
+             Operation == OpAdjustCfaOffset);
+      return Offset;
+    }
+
     const StringRef getValues() const {
+      assert(Operation == OpEscape);
       return StringRef(&Values[0], Values.size());
     }
   };

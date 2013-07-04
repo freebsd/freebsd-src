@@ -56,15 +56,15 @@ LIBDEPS=clangfrontendtool \
 	clangparse \
 	clangsema \
 	${_clangstaticanalyzer} \
-	clanganalysis \
 	${_clangarcmigrate} \
 	${_clangrewriter} \
+	clanganalysis \
 	clangedit \
 	clangast \
-	clanglex \
 	clangbasic \
+	clanglex \
 	llvmlinker \
-	llvmarchive \
+	llvmirreader \
 	llvmipo \
 	llvmvectorize \
 	llvminstrumentation \
@@ -72,33 +72,34 @@ LIBDEPS=clangfrontendtool \
 	llvmbitreader \
 	llvmasmparser \
 	llvmarmdisassembler \
-	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinstprinter \
 	llvmmipsdisassembler \
+	llvmmipscodegen \
+	llvmmipsasmparser \
+	llvmmipsdesc \
 	llvmmipsinfo \
+	llvmmipsinstprinter \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
+	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \
 	llvmcodegen \
+	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

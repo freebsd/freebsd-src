@@ -13,12 +13,12 @@
 
 #include "DAGISelMatcher.h"
 #include "CodeGenDAGPatterns.h"
-#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/TableGen/Record.h"
 using namespace llvm;
 
 enum {
@@ -132,7 +132,7 @@ static uint64_t EmitVBRValue(uint64_t Val, raw_ostream &OS) {
   return NumBytes+1;
 }
 
-/// EmitMatcherOpcodes - Emit bytes for the specified matcher and return
+/// EmitMatcher - Emit bytes for the specified matcher and return
 /// the number of bytes emitted.
 unsigned MatcherTableEmitter::
 EmitMatcher(const Matcher *N, unsigned Indent, unsigned CurrentIdx,

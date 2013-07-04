@@ -18,16 +18,17 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Type.h"
+#include "llvm/IR/Value.h"
 
 namespace llvm {
   class Constant;
-  class Value;
+  class MDNode;
 }
 
 namespace clang {
 namespace CodeGen {
   class AggValueSlot;
-  class CGBitFieldInfo;
+  struct CGBitFieldInfo;
 
 /// RValue - This trivial value class is used to represent the result of an
 /// expression that is evaluated.  It can be one of three things: either a
@@ -96,6 +97,10 @@ public:
   }
 };
 
+/// Does an ARC strong l-value have precise lifetime?
+enum ARCPreciseLifetime_t {
+  ARCImpreciseLifetime, ARCPreciseLifetime
+};
 
 /// LValue - This represents an lvalue references.  Because C/C++ allow
 /// bitfields, this is not a simple LLVM pointer, it may be a pointer plus a
@@ -146,7 +151,16 @@ class LValue {
   // Lvalue is a thread local reference
   bool ThreadLocalRef : 1;
 
+  // Lvalue has ARC imprecise lifetime.  We store this inverted to try
+  // to make the default bitfield pattern all-zeroes.
+  bool ImpreciseLifetime : 1;
+
   Expr *BaseIvarExp;
+
+  /// Used by struct-path-aware TBAA.
+  QualType TBAABaseType;
+  /// Offset relative to the base type.
+  uint64_t TBAAOffset;
 
   /// TBAAInfo - TBAA information to attach to dereferences of this LValue.
   llvm::MDNode *TBAAInfo;
@@ -163,8 +177,13 @@ private:
 
     // Initialize Objective-C flags.
     this->Ivar = this->ObjIsArray = this->NonGC = this->GlobalObjCRef = false;
+    this->ImpreciseLifetime = false;
     this->ThreadLocalRef = false;
     this->BaseIvarExp = 0;
+
+    // Initialize fields for TBAA.
+    this->TBAABaseType = Type;
+    this->TBAAOffset = 0;
     this->TBAAInfo = TBAAInfo;
   }
 
@@ -201,6 +220,13 @@ public:
   bool isThreadLocalRef() const { return ThreadLocalRef; }
   void setThreadLocalRef(bool Value) { ThreadLocalRef = Value;}
 
+  ARCPreciseLifetime_t isARCPreciseLifetime() const {
+    return ARCPreciseLifetime_t(!ImpreciseLifetime);
+  }
+  void setARCPreciseLifetime(ARCPreciseLifetime_t value) {
+    ImpreciseLifetime = (value == ARCImpreciseLifetime);
+  }
+
   bool isObjCWeak() const {
     return Quals.getObjCGCAttr() == Qualifiers::Weak;
   }
@@ -214,6 +240,12 @@ public:
   
   Expr *getBaseIvarExp() const { return BaseIvarExp; }
   void setBaseIvarExp(Expr *V) { BaseIvarExp = V; }
+
+  QualType getTBAABaseType() const { return TBAABaseType; }
+  void setTBAABaseType(QualType T) { TBAABaseType = T; }
+
+  uint64_t getTBAAOffset() const { return TBAAOffset; }
+  void setTBAAOffset(uint64_t O) { TBAAOffset = O; }
 
   llvm::MDNode *getTBAAInfo() const { return TBAAInfo; }
   void setTBAAInfo(llvm::MDNode *N) { TBAAInfo = N; }
@@ -245,7 +277,7 @@ public:
   }
 
   // bitfield lvalue
-  llvm::Value *getBitFieldBaseAddr() const {
+  llvm::Value *getBitFieldAddr() const {
     assert(isBitField());
     return V;
   }
@@ -289,16 +321,16 @@ public:
 
   /// \brief Create a new object to represent a bit-field access.
   ///
-  /// \param BaseValue - The base address of the structure containing the
-  /// bit-field.
+  /// \param Addr - The base address of the bit-field sequence this
+  /// bit-field refers to.
   /// \param Info - The information describing how to perform the bit-field
   /// access.
-  static LValue MakeBitfield(llvm::Value *BaseValue,
+  static LValue MakeBitfield(llvm::Value *Addr,
                              const CGBitFieldInfo &Info,
                              QualType type, CharUnits Alignment) {
     LValue R;
     R.LVType = BitField;
-    R.V = BaseValue;
+    R.V = Addr;
     R.BitFieldInfo = &Info;
     R.Initialize(type, type.getQualifiers(), Alignment);
     return R;
@@ -349,11 +381,23 @@ class AggValueSlot {
   /// evaluating an expression which constructs such an object.
   bool AliasedFlag : 1;
 
+  /// ValueOfAtomicFlag - This is set to true if the slot is the value
+  /// subobject of an object the size of an _Atomic(T).  The specific
+  /// guarantees this makes are:
+  ///   - the address is guaranteed to be a getelementptr into the
+  ///     padding struct and
+  ///   - it is okay to store something the width of an _Atomic(T)
+  ///     into the address.
+  /// Tracking this allows us to avoid some obviously unnecessary
+  /// memcpys.
+  bool ValueOfAtomicFlag : 1;
+
 public:
   enum IsAliased_t { IsNotAliased, IsAliased };
   enum IsDestructed_t { IsNotDestructed, IsDestructed };
   enum IsZeroed_t { IsNotZeroed, IsZeroed };
   enum NeedsGCBarriers_t { DoesNotNeedGCBarriers, NeedsGCBarriers };
+  enum IsValueOfAtomic_t { IsNotValueOfAtomic, IsValueOfAtomic };
 
   /// ignored - Returns an aggregate value slot indicating that the
   /// aggregate value is being ignored.
@@ -377,7 +421,9 @@ public:
                               IsDestructed_t isDestructed,
                               NeedsGCBarriers_t needsGC,
                               IsAliased_t isAliased,
-                              IsZeroed_t isZeroed = IsNotZeroed) {
+                              IsZeroed_t isZeroed = IsNotZeroed,
+                              IsValueOfAtomic_t isValueOfAtomic
+                                = IsNotValueOfAtomic) {
     AggValueSlot AV;
     AV.Addr = addr;
     AV.Alignment = align.getQuantity();
@@ -386,6 +432,7 @@ public:
     AV.ObjCGCFlag = needsGC;
     AV.ZeroedFlag = isZeroed;
     AV.AliasedFlag = isAliased;
+    AV.ValueOfAtomicFlag = isValueOfAtomic;
     return AV;
   }
 
@@ -393,9 +440,12 @@ public:
                                 IsDestructed_t isDestructed,
                                 NeedsGCBarriers_t needsGC,
                                 IsAliased_t isAliased,
-                                IsZeroed_t isZeroed = IsNotZeroed) {
+                                IsZeroed_t isZeroed = IsNotZeroed,
+                                IsValueOfAtomic_t isValueOfAtomic
+                                  = IsNotValueOfAtomic) {
     return forAddr(LV.getAddress(), LV.getAlignment(),
-                   LV.getQuals(), isDestructed, needsGC, isAliased, isZeroed);
+                   LV.getQuals(), isDestructed, needsGC, isAliased, isZeroed,
+                   isValueOfAtomic);
   }
 
   IsDestructed_t isExternallyDestructed() const {
@@ -411,6 +461,10 @@ public:
     return Quals.hasVolatile();
   }
 
+  void setVolatile(bool flag) {
+    Quals.setVolatile(flag);
+  }
+  
   Qualifiers::ObjCLifetime getObjCLifetime() const {
     return Quals.getObjCLifetime();
   }
@@ -422,6 +476,12 @@ public:
   llvm::Value *getAddr() const {
     return Addr;
   }
+
+  IsValueOfAtomic_t isValueOfAtomic() const {
+    return IsValueOfAtomic_t(ValueOfAtomicFlag);
+  }
+
+  llvm::Value *getPaddedAtomicAddr() const;
 
   bool isIgnored() const {
     return Addr == 0;

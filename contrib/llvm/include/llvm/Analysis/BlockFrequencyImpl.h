@@ -14,17 +14,17 @@
 #ifndef LLVM_ANALYSIS_BLOCKFREQUENCYIMPL_H
 #define LLVM_ANALYSIS_BLOCKFREQUENCYIMPL_H
 
-#include "llvm/BasicBlock.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace llvm {
 
@@ -271,7 +271,7 @@ class BlockFrequencyImpl {
 
     BlockT *EntryBlock = fn->begin();
 
-    copy(po_begin(EntryBlock), po_end(EntryBlock), back_inserter(POT));
+    std::copy(po_begin(EntryBlock), po_end(EntryBlock), std::back_inserter(POT));
 
     unsigned RPOidx = 0;
     for (rpot_iterator I = rpot_begin(), E = rpot_end(); I != E; ++I) {

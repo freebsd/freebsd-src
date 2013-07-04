@@ -31,6 +31,7 @@ HexagonMCAsmInfo::HexagonMCAsmInfo(const Target &T, StringRef TT) {
   AscizDirective = "\t.string\t";
   WeakRefDirective = "\t.weak\t";
 
+  SupportsDebugInformation = true;
   UsesELFSectionDirectiveForBSS  = true;
   ExceptionsType = ExceptionHandling::DwarfCFI;
 }

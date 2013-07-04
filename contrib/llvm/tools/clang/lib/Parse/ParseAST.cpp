@@ -12,22 +12,67 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Parse/ParseAST.h"
-#include "clang/Parse/ParseDiagnostic.h"
-#include "clang/Sema/Sema.h"
-#include "clang/Sema/CodeCompleteConsumer.h"
-#include "clang/Sema/SemaConsumer.h"
-#include "clang/Sema/ExternalSemaSource.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/Stmt.h"
+#include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Parser.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
+#include "clang/Sema/ExternalSemaSource.h"
+#include "clang/Sema/Sema.h"
+#include "clang/Sema/SemaConsumer.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include <cstdio>
 
 using namespace clang;
+
+namespace {
+
+/// If a crash happens while the parser is active, an entry is printed for it.
+class PrettyStackTraceParserEntry : public llvm::PrettyStackTraceEntry {
+  const Parser &P;
+public:
+  PrettyStackTraceParserEntry(const Parser &p) : P(p) {}
+  virtual void print(raw_ostream &OS) const;
+};
+
+/// If a crash happens while the parser is active, print out a line indicating
+/// what the current token is.
+void PrettyStackTraceParserEntry::print(raw_ostream &OS) const {
+  const Token &Tok = P.getCurToken();
+  if (Tok.is(tok::eof)) {
+    OS << "<eof> parser at end of file\n";
+    return;
+  }
+
+  if (Tok.getLocation().isInvalid()) {
+    OS << "<unknown> parser at unknown location\n";
+    return;
+  }
+
+  const Preprocessor &PP = P.getPreprocessor();
+  Tok.getLocation().print(OS, PP.getSourceManager());
+  if (Tok.isAnnotation()) {
+    OS << ": at annotation token\n";
+  } else {
+    // Do the equivalent of PP.getSpelling(Tok) except for the parts that would
+    // allocate memory.
+    bool Invalid = false;
+    const SourceManager &SM = P.getPreprocessor().getSourceManager();
+    unsigned Length = Tok.getLength();
+    const char *Spelling = SM.getCharacterData(Tok.getLocation(), &Invalid);
+    if (Invalid) {
+      OS << ": unknown current parser token\n";
+      return;
+    }
+    OS << ": current parser token '" << StringRef(Spelling, Length) << "'\n";
+  }
+}
+
+}  // namespace
 
 //===----------------------------------------------------------------------===//
 // Public interface to the file
@@ -43,9 +88,7 @@ void clang::ParseAST(Preprocessor &PP, ASTConsumer *Consumer,
                      CodeCompleteConsumer *CompletionConsumer,
                      bool SkipFunctionBodies) {
 
-  OwningPtr<Sema> S(new Sema(PP, Ctx, *Consumer,
-                                   TUKind,
-                                   CompletionConsumer));
+  OwningPtr<Sema> S(new Sema(PP, Ctx, *Consumer, TUKind, CompletionConsumer));
 
   // Recover resources if we crash before exiting this method.
   llvm::CrashRecoveryContextCleanupRegistrar<Sema> CleanupSema(S.get());
@@ -97,7 +140,7 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
       // is due to a top-level semicolon, an action override, or a parse error
       // skipping something.
       if (ADecl && !Consumer->HandleTopLevelDecl(ADecl.get()))
-	return;
+        return;
     } while (!P.ParseTopLevelDecl(ADecl));
   }
 

@@ -29,24 +29,24 @@ namespace thread_safety {
 /// This enum distinguishes between different kinds of operations that may
 /// need to be protected by locks. We use this enum in error handling.
 enum ProtectedOperationKind {
-  POK_VarDereference, /// Dereferencing a variable (e.g. p in *p = 5;)
-  POK_VarAccess, /// Reading or writing a variable (e.g. x in x = 5;)
-  POK_FunctionCall /// Making a function call (e.g. fool())
+  POK_VarDereference, ///< Dereferencing a variable (e.g. p in *p = 5;)
+  POK_VarAccess, ///< Reading or writing a variable (e.g. x in x = 5;)
+  POK_FunctionCall ///< Making a function call (e.g. fool())
 };
 
 /// This enum distinguishes between different kinds of lock actions. For
 /// example, it is an error to write a variable protected by shared version of a
 /// mutex.
 enum LockKind {
-  LK_Shared, /// Shared/reader lock of a mutex
-  LK_Exclusive /// Exclusive/writer lock of a mutex
+  LK_Shared, ///< Shared/reader lock of a mutex.
+  LK_Exclusive ///< Exclusive/writer lock of a mutex.
 };
 
 /// This enum distinguishes between different ways to access (read or write) a
 /// variable.
 enum AccessKind {
-  AK_Read, /// Reading a variable
-  AK_Written /// Writing a variable
+  AK_Read, ///< Reading a variable.
+  AK_Written ///< Writing a variable.
 };
 
 /// This enum distinguishes between different situations where we warn due to
@@ -67,7 +67,8 @@ enum LockErrorKind {
 /// Handler class for thread safety warnings.
 class ThreadSafetyHandler {
 public:
-  typedef llvm::StringRef Name;
+  typedef StringRef Name;
+  ThreadSafetyHandler() : IssueBetaWarnings(false) { }
   virtual ~ThreadSafetyHandler();
 
   /// Warn about lock expressions which fail to resolve to lockable objects.
@@ -143,6 +144,12 @@ public:
   /// \param Loc -- The location of the function call.
   virtual void handleFunExcludesLock(Name FunName, Name LockName,
                                      SourceLocation Loc) {}
+
+  bool issueBetaWarnings() { return IssueBetaWarnings; }
+  void setIssueBetaWarnings(bool b) { IssueBetaWarnings = b; }
+
+private:
+  bool IssueBetaWarnings;
 };
 
 /// \brief Check a function's CFG for thread-safety violations.

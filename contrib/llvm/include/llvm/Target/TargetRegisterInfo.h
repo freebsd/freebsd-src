@@ -16,11 +16,11 @@
 #ifndef LLVM_TARGET_TARGETREGISTERINFO_H
 #define LLVM_TARGET_TARGETREGISTERINFO_H
 
-#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/CallingConv.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include <cassert>
 #include <functional>
 
@@ -30,12 +30,13 @@ class BitVector;
 class MachineFunction;
 class RegScavenger;
 template<class T> class SmallVectorImpl;
+class VirtRegMap;
 class raw_ostream;
 
 class TargetRegisterClass {
 public:
-  typedef const uint16_t* iterator;
-  typedef const uint16_t* const_iterator;
+  typedef const MCPhysReg* iterator;
+  typedef const MCPhysReg* const_iterator;
   typedef const MVT::SimpleValueType* vt_iterator;
   typedef const TargetRegisterClass* const * sc_iterator;
 
@@ -45,7 +46,7 @@ public:
   const uint32_t *SubClassMask;
   const uint16_t *SuperRegIndices;
   const sc_iterator SuperClasses;
-  ArrayRef<uint16_t> (*OrderFunc)(const MachineFunction&);
+  ArrayRef<MCPhysReg> (*OrderFunc)(const MachineFunction&);
 
   /// getID() - Return the register class ID number.
   ///
@@ -190,7 +191,7 @@ public:
   ///
   /// By default, this method returns all registers in the class.
   ///
-  ArrayRef<uint16_t> getRawAllocationOrder(const MachineFunction &MF) const {
+  ArrayRef<MCPhysReg> getRawAllocationOrder(const MachineFunction &MF) const {
     return OrderFunc ? OrderFunc(MF) : makeArrayRef(begin(), getNumRegs());
   }
 };
@@ -387,27 +388,12 @@ public:
     return false;
   }
 
-  /// isSubRegister - Returns true if regB is a sub-register of regA.
-  ///
-  bool isSubRegister(unsigned regA, unsigned regB) const {
-    return isSuperRegister(regB, regA);
-  }
-
-  /// isSuperRegister - Returns true if regB is a super-register of regA.
-  ///
-  bool isSuperRegister(unsigned RegA, unsigned RegB) const {
-    for (MCSuperRegIterator I(RegA, this); I.isValid(); ++I)
-      if (*I == RegB)
-        return true;
-    return false;
-  }
-
   /// getCalleeSavedRegs - Return a null-terminated list of all of the
   /// callee saved registers on this target. The register should be in the
   /// order of desired callee-save stack frame offset. The first register is
   /// closest to the incoming stack pointer if stack grows down, and vice versa.
   ///
-  virtual const uint16_t* getCalleeSavedRegs(const MachineFunction *MF = 0)
+  virtual const MCPhysReg* getCalleeSavedRegs(const MachineFunction *MF = 0)
                                                                       const = 0;
 
   /// getCallPreservedMask - Return a mask of call-preserved registers for the
@@ -594,9 +580,12 @@ public:
     return 0;
   }
 
-// Get the weight in units of pressure for this register class.
+  /// Get the weight in units of pressure for this register class.
   virtual const RegClassWeight &getRegClassWeight(
     const TargetRegisterClass *RC) const = 0;
+
+  /// Get the weight in units of pressure for this register unit.
+  virtual unsigned getRegUnitWeight(unsigned RegUnit) const = 0;
 
   /// Get the number of dimensions of register pressure.
   virtual unsigned getNumRegPressureSets() const = 0;
@@ -613,27 +602,29 @@ public:
   virtual const int *getRegClassPressureSets(
     const TargetRegisterClass *RC) const = 0;
 
-  /// getRawAllocationOrder - Returns the register allocation order for a
-  /// specified register class with a target-dependent hint. The returned list
-  /// may contain reserved registers that cannot be allocated.
-  ///
-  /// Register allocators need only call this function to resolve
-  /// target-dependent hints, but it should work without hinting as well.
-  virtual ArrayRef<uint16_t>
-  getRawAllocationOrder(const TargetRegisterClass *RC,
-                        unsigned HintType, unsigned HintReg,
-                        const MachineFunction &MF) const {
-    return RC->getRawAllocationOrder(MF);
-  }
+  /// Get the dimensions of register pressure impacted by this register unit.
+  /// Returns a -1 terminated array of pressure set IDs.
+  virtual const int *getRegUnitPressureSets(unsigned RegUnit) const = 0;
 
-  /// ResolveRegAllocHint - Resolves the specified register allocation hint
-  /// to a physical register. Returns the physical register if it is successful.
-  virtual unsigned ResolveRegAllocHint(unsigned Type, unsigned Reg,
-                                       const MachineFunction &MF) const {
-    if (Type == 0 && Reg && isPhysicalRegister(Reg))
-      return Reg;
-    return 0;
-  }
+  /// Get a list of 'hint' registers that the register allocator should try
+  /// first when allocating a physical register for the virtual register
+  /// VirtReg. These registers are effectively moved to the front of the
+  /// allocation order.
+  ///
+  /// The Order argument is the allocation order for VirtReg's register class
+  /// as returned from RegisterClassInfo::getOrder(). The hint registers must
+  /// come from Order, and they must not be reserved.
+  ///
+  /// The default implementation of this function can resolve
+  /// target-independent hints provided to MRI::setRegAllocationHint with
+  /// HintType == 0. Targets that override this function should defer to the
+  /// default implementation if they have no reason to change the allocation
+  /// order for VirtReg. There may be target-independent hints.
+  virtual void getRegAllocationHints(unsigned VirtReg,
+                                     ArrayRef<MCPhysReg> Order,
+                                     SmallVectorImpl<MCPhysReg> &Hints,
+                                     const MachineFunction &MF,
+                                     const VirtRegMap *VRM = 0) const;
 
   /// avoidWriteAfterWrite - Return true if the register allocator should avoid
   /// writing a register from RC in two consecutive instructions.
@@ -742,21 +733,6 @@ public:
     llvm_unreachable("isFrameOffsetLegal does not exist on this target");
   }
 
-  /// eliminateCallFramePseudoInstr - This method is called during prolog/epilog
-  /// code insertion to eliminate call frame setup and destroy pseudo
-  /// instructions (but only if the Target is using them).  It is responsible
-  /// for eliminating these instructions, replacing them with concrete
-  /// instructions.  This method need only be implemented if using call frame
-  /// setup/destroy pseudo instructions.
-  ///
-  virtual void
-  eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                MachineBasicBlock &MBB,
-                                MachineBasicBlock::iterator MI) const {
-    llvm_unreachable("Call Frame Pseudo Instructions do not exist on this "
-                     "target!");
-  }
-
 
   /// saveScavengerRegister - Spill the register so it can be used by the
   /// register scavenger. Return true if the register was spilled, false
@@ -776,10 +752,11 @@ public:
   /// referenced by the iterator contains an MO_FrameIndex operand which must be
   /// eliminated by this method.  This method may modify or replace the
   /// specified instruction, as long as it keeps the iterator pointing at the
-  /// finished product. SPAdj is the SP adjustment due to call frame setup
-  /// instruction.
+  /// finished product.  SPAdj is the SP adjustment due to call frame setup
+  /// instruction.  FIOperandNum is the FI operand number.
   virtual void eliminateFrameIndex(MachineBasicBlock::iterator MI,
-                                   int SPAdj, RegScavenger *RS=NULL) const = 0;
+                                   int SPAdj, unsigned FIOperandNum,
+                                   RegScavenger *RS = NULL) const = 0;
 
   //===--------------------------------------------------------------------===//
   /// Debug information queries.
@@ -876,7 +853,8 @@ class PrintReg {
   unsigned Reg;
   unsigned SubIdx;
 public:
-  PrintReg(unsigned reg, const TargetRegisterInfo *tri = 0, unsigned subidx = 0)
+  explicit PrintReg(unsigned reg, const TargetRegisterInfo *tri = 0,
+                    unsigned subidx = 0)
     : TRI(tri), Reg(reg), SubIdx(subidx) {}
   void print(raw_ostream&) const;
 };

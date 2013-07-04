@@ -12,10 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/Basic/Builtins.h"
 
 using namespace clang;
 using namespace ento;
@@ -61,13 +61,14 @@ bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
     // SVal of the argument directly. If we save the extent in bits, we
     // cannot represent values like symbol*8.
     DefinedOrUnknownSVal Size =
-      cast<DefinedOrUnknownSVal>(state->getSVal(*(CE->arg_begin()), LCtx));
+        state->getSVal(*(CE->arg_begin()), LCtx).castAs<DefinedOrUnknownSVal>();
 
     SValBuilder& svalBuilder = C.getSValBuilder();
     DefinedOrUnknownSVal Extent = R->getExtent(svalBuilder);
     DefinedOrUnknownSVal extentMatchesSizeArg =
       svalBuilder.evalEQ(state, Extent, Size);
     state = state->assume(extentMatchesSizeArg, true);
+    assert(state && "The region should not have any previous constraints");
 
     C.addTransition(state->BindExpr(CE, LCtx, loc::MemRegionVal(R)));
     return true;

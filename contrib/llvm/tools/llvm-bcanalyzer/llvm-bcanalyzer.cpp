@@ -37,12 +37,11 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
-
-#include <map>
 #include <algorithm>
+#include <map>
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -99,16 +98,17 @@ static const char *GetBlockName(unsigned BlockID,
   if (CurStreamType != LLVMIRBitstream) return 0;
 
   switch (BlockID) {
-  default:                           return 0;
-  case bitc::MODULE_BLOCK_ID:        return "MODULE_BLOCK";
-  case bitc::PARAMATTR_BLOCK_ID:     return "PARAMATTR_BLOCK";
-  case bitc::TYPE_BLOCK_ID_NEW:      return "TYPE_BLOCK_ID";
-  case bitc::CONSTANTS_BLOCK_ID:     return "CONSTANTS_BLOCK";
-  case bitc::FUNCTION_BLOCK_ID:      return "FUNCTION_BLOCK";
-  case bitc::VALUE_SYMTAB_BLOCK_ID:  return "VALUE_SYMTAB";
-  case bitc::METADATA_BLOCK_ID:      return "METADATA_BLOCK";
-  case bitc::METADATA_ATTACHMENT_ID: return "METADATA_ATTACHMENT_BLOCK";
-  case bitc::USELIST_BLOCK_ID:       return "USELIST_BLOCK_ID";
+  default:                             return 0;
+  case bitc::MODULE_BLOCK_ID:          return "MODULE_BLOCK";
+  case bitc::PARAMATTR_BLOCK_ID:       return "PARAMATTR_BLOCK";
+  case bitc::PARAMATTR_GROUP_BLOCK_ID: return "PARAMATTR_GROUP_BLOCK_ID";
+  case bitc::TYPE_BLOCK_ID_NEW:        return "TYPE_BLOCK_ID";
+  case bitc::CONSTANTS_BLOCK_ID:       return "CONSTANTS_BLOCK";
+  case bitc::FUNCTION_BLOCK_ID:        return "FUNCTION_BLOCK";
+  case bitc::VALUE_SYMTAB_BLOCK_ID:    return "VALUE_SYMTAB";
+  case bitc::METADATA_BLOCK_ID:        return "METADATA_BLOCK";
+  case bitc::METADATA_ATTACHMENT_ID:   return "METADATA_ATTACHMENT_BLOCK";
+  case bitc::USELIST_BLOCK_ID:         return "USELIST_BLOCK_ID";
   }
 }
 
@@ -150,7 +150,7 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
     case bitc::MODULE_CODE_DATALAYOUT:  return "DATALAYOUT";
     case bitc::MODULE_CODE_ASM:         return "ASM";
     case bitc::MODULE_CODE_SECTIONNAME: return "SECTIONNAME";
-    case bitc::MODULE_CODE_DEPLIB:      return "DEPLIB";
+    case bitc::MODULE_CODE_DEPLIB:      return "DEPLIB"; // FIXME: Remove in 4.0
     case bitc::MODULE_CODE_GLOBALVAR:   return "GLOBALVAR";
     case bitc::MODULE_CODE_FUNCTION:    return "FUNCTION";
     case bitc::MODULE_CODE_ALIAS:       return "ALIAS";
@@ -160,7 +160,9 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
   case bitc::PARAMATTR_BLOCK_ID:
     switch (CodeID) {
     default: return 0;
-    case bitc::PARAMATTR_CODE_ENTRY: return "ENTRY";
+    case bitc::PARAMATTR_CODE_ENTRY_OLD: return "ENTRY";
+    case bitc::PARAMATTR_CODE_ENTRY:     return "ENTRY";
+    case bitc::PARAMATTR_GRP_CODE_ENTRY: return "ENTRY";
     }
   case bitc::TYPE_BLOCK_ID_NEW:
     switch (CodeID) {
@@ -319,10 +321,10 @@ static bool Error(const std::string &Err) {
 }
 
 /// ParseBlock - Read a block, updating statistics, etc.
-static bool ParseBlock(BitstreamCursor &Stream, unsigned IndentLevel) {
+static bool ParseBlock(BitstreamCursor &Stream, unsigned BlockID,
+                       unsigned IndentLevel) {
   std::string Indent(IndentLevel*2, ' ');
   uint64_t BlockBitStart = Stream.GetCurrentBitNo();
-  unsigned BlockID = Stream.ReadSubBlockID();
 
   // Get the statistics for this BlockID.
   PerBlockIDStats &BlockStats = BlockIDStats[BlockID];
@@ -355,7 +357,7 @@ static bool ParseBlock(BitstreamCursor &Stream, unsigned IndentLevel) {
       outs() << " BlockID=" << BlockID;
 
     outs() << " NumWords=" << NumWords
-           << " BlockCodeSize=" << Stream.GetAbbrevIDWidth() << ">\n";
+           << " BlockCodeSize=" << Stream.getAbbrevIDWidth() << ">\n";
   }
 
   SmallVector<uint64_t, 64> Record;
@@ -367,12 +369,13 @@ static bool ParseBlock(BitstreamCursor &Stream, unsigned IndentLevel) {
 
     uint64_t RecordStartBit = Stream.GetCurrentBitNo();
 
-    // Read the code for this record.
-    unsigned AbbrevID = Stream.ReadCode();
-    switch (AbbrevID) {
-    case bitc::END_BLOCK: {
-      if (Stream.ReadBlockEnd())
-        return Error("Error at end of block");
+    BitstreamEntry Entry =
+      Stream.advance(BitstreamCursor::AF_DontAutoprocessAbbrevs);
+    
+    switch (Entry.Kind) {
+    case BitstreamEntry::Error:
+      return Error("malformed bitcode file");
+    case BitstreamEntry::EndBlock: {
       uint64_t BlockBitEnd = Stream.GetCurrentBitNo();
       BlockStats.NumBits += BlockBitEnd-BlockBitStart;
       if (Dump) {
@@ -384,80 +387,81 @@ static bool ParseBlock(BitstreamCursor &Stream, unsigned IndentLevel) {
       }
       return false;
     }
-    case bitc::ENTER_SUBBLOCK: {
+        
+    case BitstreamEntry::SubBlock: {
       uint64_t SubBlockBitStart = Stream.GetCurrentBitNo();
-      if (ParseBlock(Stream, IndentLevel+1))
+      if (ParseBlock(Stream, Entry.ID, IndentLevel+1))
         return true;
       ++BlockStats.NumSubBlocks;
       uint64_t SubBlockBitEnd = Stream.GetCurrentBitNo();
-
+      
       // Don't include subblock sizes in the size of this block.
       BlockBitStart += SubBlockBitEnd-SubBlockBitStart;
+      continue;
+    }
+    case BitstreamEntry::Record:
+      // The interesting case.
       break;
     }
-    case bitc::DEFINE_ABBREV:
+
+    if (Entry.ID == bitc::DEFINE_ABBREV) {
       Stream.ReadAbbrevRecord();
       ++BlockStats.NumAbbrevs;
-      break;
-    default:
-      Record.clear();
+      continue;
+    }
+    
+    Record.clear();
 
-      ++BlockStats.NumRecords;
-      if (AbbrevID != bitc::UNABBREV_RECORD)
-        ++BlockStats.NumAbbreviatedRecords;
+    ++BlockStats.NumRecords;
 
-      const char *BlobStart = 0;
-      unsigned BlobLen = 0;
-      unsigned Code = Stream.ReadRecord(AbbrevID, Record, BlobStart, BlobLen);
+    StringRef Blob;
+    unsigned Code = Stream.readRecord(Entry.ID, Record, &Blob);
 
+    // Increment the # occurrences of this code.
+    if (BlockStats.CodeFreq.size() <= Code)
+      BlockStats.CodeFreq.resize(Code+1);
+    BlockStats.CodeFreq[Code].NumInstances++;
+    BlockStats.CodeFreq[Code].TotalBits +=
+      Stream.GetCurrentBitNo()-RecordStartBit;
+    if (Entry.ID != bitc::UNABBREV_RECORD) {
+      BlockStats.CodeFreq[Code].NumAbbrev++;
+      ++BlockStats.NumAbbreviatedRecords;
+    }
 
-
-      // Increment the # occurrences of this code.
-      if (BlockStats.CodeFreq.size() <= Code)
-        BlockStats.CodeFreq.resize(Code+1);
-      BlockStats.CodeFreq[Code].NumInstances++;
-      BlockStats.CodeFreq[Code].TotalBits +=
-        Stream.GetCurrentBitNo()-RecordStartBit;
-      if (AbbrevID != bitc::UNABBREV_RECORD)
-        BlockStats.CodeFreq[Code].NumAbbrev++;
-
-      if (Dump) {
-        outs() << Indent << "  <";
-        if (const char *CodeName =
-              GetCodeName(Code, BlockID, *Stream.getBitStreamReader()))
-          outs() << CodeName;
-        else
-          outs() << "UnknownCode" << Code;
-        if (NonSymbolic &&
+    if (Dump) {
+      outs() << Indent << "  <";
+      if (const char *CodeName =
             GetCodeName(Code, BlockID, *Stream.getBitStreamReader()))
-          outs() << " codeid=" << Code;
-        if (AbbrevID != bitc::UNABBREV_RECORD)
-          outs() << " abbrevid=" << AbbrevID;
+        outs() << CodeName;
+      else
+        outs() << "UnknownCode" << Code;
+      if (NonSymbolic &&
+          GetCodeName(Code, BlockID, *Stream.getBitStreamReader()))
+        outs() << " codeid=" << Code;
+      if (Entry.ID != bitc::UNABBREV_RECORD)
+        outs() << " abbrevid=" << Entry.ID;
 
-        for (unsigned i = 0, e = Record.size(); i != e; ++i)
-          outs() << " op" << i << "=" << (int64_t)Record[i];
+      for (unsigned i = 0, e = Record.size(); i != e; ++i)
+        outs() << " op" << i << "=" << (int64_t)Record[i];
 
-        outs() << "/>";
+      outs() << "/>";
 
-        if (BlobStart) {
-          outs() << " blob data = ";
-          bool BlobIsPrintable = true;
-          for (unsigned i = 0; i != BlobLen; ++i)
-            if (!isprint(BlobStart[i])) {
-              BlobIsPrintable = false;
-              break;
-            }
+      if (Blob.data()) {
+        outs() << " blob data = ";
+        bool BlobIsPrintable = true;
+        for (unsigned i = 0, e = Blob.size(); i != e; ++i)
+          if (!isprint(static_cast<unsigned char>(Blob[i]))) {
+            BlobIsPrintable = false;
+            break;
+          }
 
-          if (BlobIsPrintable)
-            outs() << "'" << std::string(BlobStart, BlobStart+BlobLen) <<"'";
-          else
-            outs() << "unprintable, " << BlobLen << " bytes.";
-        }
-
-        outs() << "\n";
+        if (BlobIsPrintable)
+          outs() << "'" << Blob << "'";
+        else
+          outs() << "unprintable, " << Blob.size() << " bytes.";
       }
 
-      break;
+      outs() << "\n";
     }
   }
 }
@@ -520,7 +524,9 @@ static int AnalyzeBitcode() {
     if (Code != bitc::ENTER_SUBBLOCK)
       return Error("Invalid record at top-level");
 
-    if (ParseBlock(Stream, 0))
+    unsigned BlockID = Stream.ReadSubBlockID();
+
+    if (ParseBlock(Stream, BlockID, 0))
       return true;
     ++NumTopBlocks;
   }

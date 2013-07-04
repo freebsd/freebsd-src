@@ -20,12 +20,12 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
-#include "llvm/Config/llvm-config.h"
 #include <map>
 #include <set>
 #include <string>
@@ -39,6 +39,9 @@
 #ifndef S_ISFIFO
 #define S_ISFIFO(x) (0)
 #endif
+#endif
+#if defined(LLVM_ON_UNIX)
+#include <limits.h>
 #endif
 using namespace clang;
 
@@ -311,7 +314,7 @@ const DirectoryEntry *FileManager::getDirectory(StringRef DirName,
 
   // Check to see if the directory exists.
   struct stat StatBuf;
-  if (getStatValue(InterndDirName, StatBuf, 0/*directory lookup*/)) {
+  if (getStatValue(InterndDirName, StatBuf, false, 0/*directory lookup*/)) {
     // There's no real directory at the given path.
     if (!CacheFailure)
       SeenDirEntries.erase(DirName);
@@ -376,7 +379,8 @@ const FileEntry *FileManager::getFile(StringRef Filename, bool openFile,
   // Nope, there isn't.  Check to see if the file exists.
   int FileDescriptor = -1;
   struct stat StatBuf;
-  if (getStatValue(InterndFileName, StatBuf, &FileDescriptor)) {
+  if (getStatValue(InterndFileName, StatBuf, true,
+                   openFile ? &FileDescriptor : 0)) {
     // There's no real file at the given path.
     if (!CacheFailure)
       SeenFileEntries.erase(Filename);
@@ -444,14 +448,9 @@ FileManager::getVirtualFile(StringRef Filename, off_t Size,
          "The directory of a virtual file should already be in the cache.");
 
   // Check to see if the file exists. If so, drop the virtual file
-  int FileDescriptor = -1;
   struct stat StatBuf;
   const char *InterndFileName = NamedFileEnt.getKeyData();
-  if (getStatValue(InterndFileName, StatBuf, &FileDescriptor) == 0) {
-    // If the stat process opened the file, close it to avoid a FD leak.
-    if (FileDescriptor != -1)
-      close(FileDescriptor);
-
+  if (getStatValue(InterndFileName, StatBuf, true, 0) == 0) {
     StatBuf.st_size = Size;
     StatBuf.st_mtime = ModificationTime;
     UFE = &UniqueRealFiles.getFile(InterndFileName, StatBuf);
@@ -564,18 +563,18 @@ getBufferForFile(StringRef Filename, std::string *ErrorStr) {
 /// false if it's an existent real file.  If FileDescriptor is NULL,
 /// do directory look-up instead of file look-up.
 bool FileManager::getStatValue(const char *Path, struct stat &StatBuf,
-                               int *FileDescriptor) {
+                               bool isFile, int *FileDescriptor) {
   // FIXME: FileSystemOpts shouldn't be passed in here, all paths should be
   // absolute!
   if (FileSystemOpts.WorkingDir.empty())
-    return FileSystemStatCache::get(Path, StatBuf, FileDescriptor,
+    return FileSystemStatCache::get(Path, StatBuf, isFile, FileDescriptor,
                                     StatCache.get());
 
   SmallString<128> FilePath(Path);
   FixupRelativePath(FilePath);
 
-  return FileSystemStatCache::get(FilePath.c_str(), StatBuf, FileDescriptor,
-                                  StatCache.get());
+  return FileSystemStatCache::get(FilePath.c_str(), StatBuf,
+                                  isFile, FileDescriptor, StatCache.get());
 }
 
 bool FileManager::getNoncachedStatValue(StringRef Path, 
@@ -624,6 +623,29 @@ void FileManager::modifyFileEntry(FileEntry *File,
   File->ModTime = ModificationTime;
 }
 
+StringRef FileManager::getCanonicalName(const DirectoryEntry *Dir) {
+  // FIXME: use llvm::sys::fs::canonical() when it gets implemented
+#ifdef LLVM_ON_UNIX
+  llvm::DenseMap<const DirectoryEntry *, llvm::StringRef>::iterator Known
+    = CanonicalDirNames.find(Dir);
+  if (Known != CanonicalDirNames.end())
+    return Known->second;
+
+  StringRef CanonicalName(Dir->getName());
+  char CanonicalNameBuf[PATH_MAX];
+  if (realpath(Dir->getName(), CanonicalNameBuf)) {
+    unsigned Len = strlen(CanonicalNameBuf);
+    char *Mem = static_cast<char *>(CanonicalNameStorage.Allocate(Len, 1));
+    memcpy(Mem, CanonicalNameBuf, Len);
+    CanonicalName = StringRef(Mem, Len);
+  }
+
+  CanonicalDirNames.insert(std::make_pair(Dir, CanonicalName));
+  return CanonicalName;
+#else
+  return StringRef(Dir->getName());
+#endif
+}
 
 void FileManager::PrintStats() const {
   llvm::errs() << "\n*** File Manager Stats:\n";

@@ -11,7 +11,8 @@
 #define CLANG_CODEGEN_ABIINFO_H
 
 #include "clang/AST/Type.h"
-#include "llvm/Type.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/CallingConv.h"
 
 namespace llvm {
   class Value;
@@ -21,6 +22,7 @@ namespace llvm {
 
 namespace clang {
   class ASTContext;
+  class TargetInfo;
 
   namespace CodeGen {
     class CGFunctionInfo;
@@ -102,8 +104,10 @@ namespace clang {
       return ABIArgInfo(Ignore, 0, 0, false, false, false, false, 0);
     }
     static ABIArgInfo getIndirect(unsigned Alignment, bool ByVal = true
-                                  , bool Realign = false) {
-      return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, false, false, 0);
+                                  , bool Realign = false
+                                  , llvm::Type *Padding = 0) {
+      return ABIArgInfo(Indirect, 0, Alignment, ByVal, Realign, false, false, 
+                        Padding);
     }
     static ABIArgInfo getIndirectInReg(unsigned Alignment, bool ByVal = true
                                   , bool Realign = false) {
@@ -182,13 +186,24 @@ namespace clang {
   class ABIInfo {
   public:
     CodeGen::CodeGenTypes &CGT;
+  protected:
+    llvm::CallingConv::ID RuntimeCC;
+  public:
+    ABIInfo(CodeGen::CodeGenTypes &cgt)
+      : CGT(cgt), RuntimeCC(llvm::CallingConv::C) {}
 
-    ABIInfo(CodeGen::CodeGenTypes &cgt) : CGT(cgt) {}
     virtual ~ABIInfo();
 
     ASTContext &getContext() const;
     llvm::LLVMContext &getVMContext() const;
     const llvm::DataLayout &getDataLayout() const;
+    const TargetInfo &getTarget() const;
+
+    /// Return the calling convention to use for system runtime
+    /// functions.
+    llvm::CallingConv::ID getRuntimeCC() const {
+      return RuntimeCC;
+    }
 
     virtual void computeInfo(CodeGen::CGFunctionInfo &FI) const = 0;
 

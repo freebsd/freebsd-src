@@ -15,8 +15,8 @@
 #define MIPS_MACHINE_FUNCTION_INFO_H
 
 #include "MipsSubtarget.h"
-#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include <utility>
@@ -53,10 +53,16 @@ class MipsFunctionInfo : public MachineFunctionInfo {
   /// Size of incoming argument area.
   unsigned IncomingArgSize;
 
+  /// CallsEhReturn - Whether the function calls llvm.eh.return.
+  bool CallsEhReturn;
+
+  /// Frame objects for spilling eh data registers.
+  int EhDataRegFI[4];
+
 public:
   MipsFunctionInfo(MachineFunction& MF)
    : MF(MF), SRetReturnReg(0), GlobalBaseReg(0), Mips16SPAliasReg(0),
-     VarArgsFrameIndex(0)
+     VarArgsFrameIndex(0), CallsEhReturn(false)
   {}
 
   unsigned getSRetReturnReg() const { return SRetReturnReg; }
@@ -78,6 +84,14 @@ public:
   }
 
   unsigned getIncomingArgSize() const { return IncomingArgSize; }
+
+  bool callsEhReturn() const { return CallsEhReturn; }
+  void setCallsEhReturn() { CallsEhReturn = true; }
+
+  void createEhDataRegsFI();
+  int getEhDataRegFI(unsigned Reg) const { return EhDataRegFI[Reg]; }
+  bool isEhDataRegFI(int FI) const;
+
 };
 
 } // end of namespace llvm

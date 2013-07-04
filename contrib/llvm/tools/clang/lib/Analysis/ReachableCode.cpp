@@ -12,16 +12,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/SmallVector.h"
+#include "clang/Analysis/Analyses/ReachableCode.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/StmtCXX.h"
-#include "clang/Analysis/Analyses/ReachableCode.h"
-#include "clang/Analysis/CFG.h"
 #include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/CFG.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/SmallVector.h"
 
 using namespace clang;
 
@@ -29,9 +29,9 @@ namespace {
 class DeadCodeScan {
   llvm::BitVector Visited;
   llvm::BitVector &Reachable;
-  llvm::SmallVector<const CFGBlock *, 10> WorkList;
+  SmallVector<const CFGBlock *, 10> WorkList;
   
-  typedef llvm::SmallVector<std::pair<const CFGBlock *, const Stmt *>, 12>
+  typedef SmallVector<std::pair<const CFGBlock *, const Stmt *>, 12>
       DeferredLocsTy;
   
   DeferredLocsTy DeferredLocs;
@@ -95,7 +95,7 @@ static bool isValidDeadStmt(const Stmt *S) {
 
 const Stmt *DeadCodeScan::findDeadCode(const clang::CFGBlock *Block) {
   for (CFGBlock::const_iterator I = Block->begin(), E = Block->end(); I!=E; ++I)
-    if (const CFGStmt *CS = I->getAs<CFGStmt>()) {
+    if (Optional<CFGStmt> CS = I->getAs<CFGStmt>()) {
       const Stmt *S = CS->getStmt();
       if (isValidDeadStmt(S))
         return S;

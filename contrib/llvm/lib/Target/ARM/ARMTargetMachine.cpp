@@ -11,11 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMTargetMachine.h"
-#include "ARMFrameLowering.h"
 #include "ARM.h"
-#include "llvm/PassManager.h"
+#include "ARMFrameLowering.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -27,6 +27,11 @@ static cl::opt<bool>
 EnableGlobalMerge("global-merge", cl::Hidden,
                   cl::desc("Enable global merge pass"),
                   cl::init(true));
+
+static cl::opt<bool>
+DisableA15SDOptimization("disable-a15-sd-optimization", cl::Hidden,
+                   cl::desc("Inhibit optimization of S->D register accesses on A15"),
+                   cl::init(false));
 
 extern "C" void LLVMInitializeARMTarget() {
   // Register the target.
@@ -43,13 +48,22 @@ ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T, StringRef TT,
                                            Reloc::Model RM, CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
-    Subtarget(TT, CPU, FS),
+    Subtarget(TT, CPU, FS, Options),
     JITInfo(),
     InstrItins(Subtarget.getInstrItineraryData()) {
   // Default to soft float ABI
   if (Options.FloatABIType == FloatABI::Default)
     this->Options.FloatABIType = FloatABI::Soft;
 }
+
+void ARMBaseTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
+  // Add first the target-independent BasicTTI pass, then our ARM pass. This
+  // allows the ARM pass to delegate to the target independent layer when
+  // appropriate.
+  PM.add(createBasicTargetTransformInfoPass(getTargetLowering()));
+  PM.add(createARMTargetTransformInfoPass(this));
+}
+
 
 void ARMTargetMachine::anchor() { }
 
@@ -70,8 +84,7 @@ ARMTargetMachine::ARMTargetMachine(const Target &T, StringRef TT,
                            "v128:64:128-v64:64:64-n32-S32")),
     TLInfo(*this),
     TSInfo(*this),
-    FrameLowering(Subtarget),
-    STTI(&TLInfo), VTTI(&TLInfo) {
+    FrameLowering(Subtarget) {
   if (!Subtarget.hasARMOps())
     report_fatal_error("CPU: '" + Subtarget.getCPUString() + "' does not "
                        "support ARM mode execution!");
@@ -103,8 +116,7 @@ ThumbTargetMachine::ThumbTargetMachine(const Target &T, StringRef TT,
     TSInfo(*this),
     FrameLowering(Subtarget.hasThumb2()
               ? new ARMFrameLowering(Subtarget)
-              : (ARMFrameLowering*)new Thumb1FrameLowering(Subtarget)),
-    STTI(&TLInfo), VTTI(&TLInfo) {
+              : (ARMFrameLowering*)new Thumb1FrameLowering(Subtarget)) {
 }
 
 namespace {
@@ -157,6 +169,12 @@ bool ARMPassConfig::addPreRegAlloc() {
     addPass(createARMLoadStoreOptimizationPass(true));
   if (getOptLevel() != CodeGenOpt::None && getARMSubtarget().isLikeA9())
     addPass(createMLxExpansionPass());
+  // Since the A15SDOptimizer pass can insert VDUP instructions, it can only be
+  // enabled when NEON is available.
+  if (getOptLevel() != CodeGenOpt::None && getARMSubtarget().isCortexA15() &&
+    getARMSubtarget().hasNEON() && !DisableA15SDOptimization) {
+    addPass(createA15SDOptimizerPass());
+  }
   return true;
 }
 

@@ -16,9 +16,10 @@
 //===          is guaranteed to work on *all* UNIX variants.
 //===----------------------------------------------------------------------===//
 
-#include <llvm/Config/config.h>
-#include "llvm/Support/FileSystem.h"
 #include "Unix.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/FileSystem.h"
+#include <llvm/Config/config.h>
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -30,6 +31,9 @@
 #endif
 #if HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#if HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 #ifdef HAVE_POSIX_SPAWN
 #include <spawn.h>
@@ -46,11 +50,6 @@ using namespace sys;
 Program::Program() : Data_(0) {}
 
 Program::~Program() {}
-
-unsigned Program::GetPid() const {
-  uint64_t pid = reinterpret_cast<uint64_t>(Data_);
-  return static_cast<unsigned>(pid);
-}
 
 // This function just uses the PATH environment variable to find the program.
 Path
@@ -169,10 +168,14 @@ static void SetMemoryLimits (unsigned size)
   setrlimit (RLIMIT_RSS, &r);
 #endif
 #ifdef RLIMIT_AS  // e.g. NetBSD doesn't have it.
+  // Don't set virtual memory limit if built with any Sanitizer. They need 80Tb
+  // of virtual memory for shadow memory mapping.
+#if !LLVM_MEMORY_SANITIZER_BUILD && !LLVM_ADDRESS_SANITIZER_BUILD
   // Virtual memory.
   getrlimit (RLIMIT_AS, &r);
   r.rlim_cur = limit;
   setrlimit (RLIMIT_AS, &r);
+#endif
 #endif
 #endif
 }
@@ -394,24 +397,6 @@ Program::Wait(const sys::Path &path,
 #endif
 }
 
-bool
-Program::Kill(std::string* ErrMsg) {
-  if (Data_ == 0) {
-    MakeErrMsg(ErrMsg, "Process not started!");
-    return true;
-  }
-
-  uint64_t pid64 = reinterpret_cast<uint64_t>(Data_);
-  pid_t pid = static_cast<pid_t>(pid64);
-
-  if (kill(pid, SIGKILL) != 0) {
-    MakeErrMsg(ErrMsg, "The process couldn't be killed!");
-    return true;
-  }
-
-  return false;
-}
-
 error_code Program::ChangeStdinToBinary(){
   // Do nothing, as Unix doesn't differentiate between text and binary.
   return make_error_code(errc::success);
@@ -425,6 +410,27 @@ error_code Program::ChangeStdoutToBinary(){
 error_code Program::ChangeStderrToBinary(){
   // Do nothing, as Unix doesn't differentiate between text and binary.
   return make_error_code(errc::success);
+}
+
+bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
+  static long ArgMax = sysconf(_SC_ARG_MAX);
+
+  // System says no practical limit.
+  if (ArgMax == -1)
+    return true;
+
+  // Conservatively account for space required by environment variables.
+  ArgMax /= 2;
+
+  size_t ArgLength = 0;
+  for (ArrayRef<const char*>::iterator I = Args.begin(), E = Args.end();
+       I != E; ++I) {
+    ArgLength += strlen(*I) + 1;
+    if (ArgLength > size_t(ArgMax)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 }

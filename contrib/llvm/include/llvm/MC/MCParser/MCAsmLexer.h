@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MC_MCASMLEXER_H
-#define LLVM_MC_MCASMLEXER_H
+#ifndef LLVM_MC_MCPARSER_MCASMLEXER_H
+#define LLVM_MC_MCPARSER_MCASMLEXER_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
@@ -33,9 +33,6 @@ public:
 
     // Real values.
     Real,
-
-    // Register values (stored in IntVal).  Only used by MCTargetAsmLexer.
-    Register,
 
     // No-value.
     EndOfStatement,
@@ -103,13 +100,6 @@ public:
   int64_t getIntVal() const {
     assert(Kind == Integer && "This token isn't an integer!");
     return IntVal;
-  }
-
-  /// getRegVal - Get the register number for the current token, which should
-  /// be a register.
-  unsigned getRegVal() const {
-    assert(Kind == Register && "This token isn't a register!");
-    return static_cast<unsigned>(IntVal);
   }
 };
 
