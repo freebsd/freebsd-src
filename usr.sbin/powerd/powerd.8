@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2009
+.Dd July 4, 2013
 .Dt POWERD 8
 .Os
 .Sh NAME
@@ -47,27 +47,43 @@ The
 .Nm
 utility monitors the system state and sets various power control options
 accordingly.
-It offers four modes (maximum, minimum, adaptive and hiadaptive) that can be
-individually selected while on AC power or batteries.
-The modes maximum, minimum, adaptive and hiadaptive may be abbreviated
-max, min, adp, hadp.
-.Pp
-Maximum mode chooses the highest performance values.
-Minimum mode selects the lowest performance values to get the most power
-savings.
-Adaptive mode attempts to strike a balance by degrading performance when
-the system appears idle and increasing it when the system is busy.
+It offers power-saving modes that can be
+individually selected for operation on AC power or batteries.
+.Bl -tag -width ".Ar hiadaptive"
+.It Ar maximum
+Choose the highest performance values.
+May be abbreviated as
+.Ar max .
+.It Ar minimum
+Choose the lowest performance values to get the most power savings.
+May be abbreviated as
+.Ar min .
+.It Ar adaptive
+Attempt to strike a balance by degrading performance when the system
+appears idle and increasing it when the system is busy.
 It offers a good balance between a small performance loss for greatly
 increased power savings.
-Hiadaptive mode is like adaptive mode, but tuned for systems where
-performance and interactivity are more important than power consumption.
-It increases frequency faster, reduces the frequency less aggressively and
+May be abbreviated as
+.Ar adp .
+.It Ar hiadaptive
+Like
+.Ar adaptive
+mode, but tuned for systems where performance and interactivity are
+more important than power consumption.
+It increases frequency faster, reduces frequency less aggressively, and
 will maintain full frequency for longer.
-The default mode is adaptive for battery power and hiadaptive for the rest.
+May be abbreviated as
+.Ar hadp .
+.El
 .Pp
-The
+The default mode is
+.Ar adaptive
+for battery power and
+.Ar hiadaptive
+for the rest.
+.Pp
 .Nm
-utility recognizes the following runtime options:
+recognizes these runtime options:
 .Bl -tag -width ".Fl r Ar percent"
 .It Fl a Ar mode
 Selects the
