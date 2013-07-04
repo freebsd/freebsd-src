@@ -1747,7 +1747,6 @@ vtnet_tx_offload(struct vtnet_softc *sc, struct mbuf *m,
 	uint8_t ip_proto, gso_type;
 
 	ifp = sc->vtnet_ifp;
-	M_ASSERTPKTHDR(m);
 
 	ip_offset = sizeof(struct ether_header);
 	if (m->m_len < ip_offset) {
@@ -1865,7 +1864,7 @@ vtnet_enqueue_txbuf(struct vtnet_softc *sc, struct mbuf **m_head,
 	sglist_init(&sg, VTNET_MAX_TX_SEGS, segs);
 	error = sglist_append(&sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
 	KASSERT(error == 0 && sg.sg_nseg == 1,
-	    ("cannot add header to sglist"));
+	    ("%s: cannot add header to sglist error %d", __func__, error));
 
 again:
 	error = sglist_append_mbuf(&sg, m);
@@ -1902,6 +1901,7 @@ vtnet_encap(struct vtnet_softc *sc, struct mbuf **m_head)
 	int error;
 
 	m = *m_head;
+	M_ASSERTPKTHDR(m);
 
 	txhdr = uma_zalloc(vtnet_tx_header_zone, M_NOWAIT | M_ZERO);
 	if (txhdr == NULL) {
