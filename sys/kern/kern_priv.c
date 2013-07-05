@@ -142,6 +142,15 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	}
 
 	/*
+	 * Writes to kernel memory are a typical root-only operation,
+	 * but non-root users are expected to be able to read it.
+	 */
+	if (priv == PRIV_KMEM_READ) {
+		error = 0;
+		goto out;
+	}
+
+	/*
 	 * Now check with MAC, if enabled, to see if a policy module grants
 	 * privilege.
 	 */
