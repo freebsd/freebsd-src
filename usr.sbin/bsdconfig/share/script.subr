@@ -34,6 +34,7 @@ f_dprintf "%s: loading includes..." script.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/media/any.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
 f_include $BSDCFG_SHARE/variable.subr
 
