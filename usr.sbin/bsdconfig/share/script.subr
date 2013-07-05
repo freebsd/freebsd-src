@@ -190,6 +190,7 @@ f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
 
 # packages/packages.subr
 f_resword_new configPackages	f_package_config
+f_resword_new packageAdd	f_package_add
 
 # variable.subr
 f_resword_new installVarDefaults	f_variable_set_defaults
