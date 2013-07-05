@@ -241,6 +241,7 @@ struct spa {
 	uint64_t	spa_deadman_calls;	/* number of deadman calls */
 	uint64_t	spa_sync_starttime;	/* starting time fo spa_sync */
 	uint64_t	spa_deadman_synctime;	/* deadman expiration timer */
+	hrtime_t	spa_ccw_fail_time;	/* Conf cache write fail time */
 	/*
 	 * spa_refcount & spa_config_lock must be the last elements
 	 * because refcount_t changes size based on compilation options.
