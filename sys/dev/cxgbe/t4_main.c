@@ -373,6 +373,7 @@ static int t4_sysctls(struct adapter *);
 static int cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_bitfield(SYSCTL_HANDLER_ARGS);
+static int sysctl_btphy(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
@@ -679,6 +680,7 @@ t4_attach(device_t dev)
 		}
 
 		pi->xact_addr_filt = -1;
+		pi->linkdnrc = -1;
 
 		pi->qsize_rxq = t4_qsize_rxq;
 		pi->qsize_txq = t4_qsize_txq;
@@ -2931,7 +2933,8 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 
 	pi->link_cfg.link_ok = 0;
 	pi->link_cfg.speed = 0;
-	t4_os_link_changed(sc, pi->port_id, 0);
+	pi->linkdnrc = -1;
+	t4_os_link_changed(sc, pi->port_id, 0, -1);
 
 	return (0);
 }
@@ -4408,6 +4411,16 @@ cxgbe_sysctls(struct port_info *pi)
 	oid = device_get_sysctl_tree(pi->dev);
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "linkdnrc", CTLFLAG_RD,
+	    &pi->linkdnrc, 0, "reason why link is down");
+	if (pi->port_type == FW_PORT_TYPE_BT_XAUI) {
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature",
+		    CTLTYPE_INT | CTLFLAG_RD, pi, 0, sysctl_btphy, "I",
+		    "PHY temperature (in Celsius)");
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fw_version",
+		    CTLTYPE_INT | CTLFLAG_RD, pi, 1, sysctl_btphy, "I",
+		    "PHY firmware version");
+	}
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nrxq", CTLFLAG_RD,
 	    &pi->nrxq, 0, "# of rx queues");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ntxq", CTLFLAG_RD,
@@ -4641,6 +4654,31 @@ sysctl_bitfield(SYSCTL_HANDLER_ARGS)
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
 
+	return (rc);
+}
+
+static int
+sysctl_btphy(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	int op = arg2;
+	struct adapter *sc = pi->adapter;
+	u_int v;
+	int rc;
+
+	rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4btt");
+	if (rc)
+		return (rc);
+	/* XXX: magic numbers */
+	rc = -t4_mdio_rd(sc, sc->mbox, pi->mdio_addr, 0x1e, op ? 0x20 : 0xc820,
+	    &v);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
+	if (op == 0)
+		v /= 256;
+
+	rc = sysctl_handle_int(oidp, &v, 0, req);
 	return (rc);
 }
 
@@ -7191,16 +7229,20 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 }
 
 void
-t4_os_link_changed(struct adapter *sc, int idx, int link_stat)
+t4_os_link_changed(struct adapter *sc, int idx, int link_stat, int reason)
 {
 	struct port_info *pi = sc->port[idx];
 	struct ifnet *ifp = pi->ifp;
 
 	if (link_stat) {
+		pi->linkdnrc = -1;
 		ifp->if_baudrate = IF_Mbps(pi->link_cfg.speed);
 		if_link_state_change(ifp, LINK_STATE_UP);
-	} else
+	} else {
+		if (reason >= 0)
+			pi->linkdnrc = reason;
 		if_link_state_change(ifp, LINK_STATE_DOWN);
+	}
 }
 
 void
