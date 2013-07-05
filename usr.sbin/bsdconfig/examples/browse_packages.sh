@@ -13,7 +13,8 @@ nonInteractive=1
 TMPDIR=/tmp
 if [ ! -e "$TMPDIR/packages/INDEX" ]; then
 	[ -d "$TMPDIR/packages" ] || mkdir -p "$TMPDIR/packages" || exit 1
-	_ftpPath=ftp://ftp-archive.freebsd.org
+	_ftpPath=ftp://ftp.freebsd.org
+	# For older releases, use ftp://ftp-archive.freebsd.org
 	mediaSetFTP
 	mediaOpen
 	f_show_info "Downloading packages/INDEX from %s" "$_ftpPath" 
