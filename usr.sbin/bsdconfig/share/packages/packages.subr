@@ -648,7 +648,7 @@ f_package_review()
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "R" ] || continue
 		f_dprintf "%s: Reinstalling %s package" $fname "$package"
-		# XXX Re-install package
+		f_package_reinstall "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
@@ -1184,6 +1184,15 @@ f_package_delete()
 		f_str2varname "$name" varpkg
 		setvar _mark_$varpkg ""
 	fi
+}
+
+# f_package_reinstall $name
+#
+# A simple wrapper to f_package_delete() + f_package_add()
+#
+f_package_reinstall()
+{
+	f_package_delete "$1" && f_package_add "$1"
 }
 
 ############################################################ MAIN
