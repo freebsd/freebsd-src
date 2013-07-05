@@ -45,6 +45,10 @@ SRCBRANCH="base/head"
 DOCBRANCH="doc/head"
 PORTBRANCH="ports/head"
 
+# Sometimes one needs to checkout src with --force svn option.
+# If custom kernel configs copied to src tree before checkout, e.g.
+SRC_FORCE_CHECKOUT=
+
 # The default src/, doc/, and ports/ revisions.
 SRCREVISION="-rHEAD"
 DOCREVISION="-rHEAD"
@@ -109,6 +113,25 @@ while getopts c: opt; do
 done
 shift $(($OPTIND - 1))
 
+# If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
+# is required to build the documentation set.
+if [ "x${NOPORTS}" != "x" ] && [ "x${NODOC}" = "x" ]; then
+	echo "*** NOTICE: Setting NODOC=1 since ports tree is required"
+	echo "            and NOPORTS is set."
+	NODOC=yes
+fi
+
+# If NOPORTS and/or NODOC are unset, they must not pass to make as variables.
+# The release makefile verifies definedness of NOPORTS/NODOC variables
+# instead of their values.
+DOCPORTS=
+if [ "x${NOPORTS}" != "x" ]; then
+ DOCPORTS="NOPORTS=yes "
+fi
+if [ "x${NODOC}" != "x" ]; then
+ DOCPORTS="${DOCPORTS}NODOC=yes"
+fi
+
 # The aggregated build-time flags based upon variables defined within
 # this file, unless overridden by release.conf.  In most cases, these
 # will not need to be changed.
@@ -118,16 +141,14 @@ CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
 CHROOT_IMAKEFLAGS="${CONF_FILES}"
 CHROOT_DMAKEFLAGS="${CONF_FILES}"
 RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
-RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=${KERNEL} ${ARCH_FLAGS} ${CONF_FILES}"
-RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=${KERNEL} ${CONF_FILES} \
-	NODOC=${NODOC} NOPORTS=${NOPORTS}"
+RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
+RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
+	${DOCPORTS}"
 
-# If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
-# is required to build the documentation set.
-if [ "x${NOPORTS}" != "x" ] && [ "x${NODOC}" = "x" ]; then
-	echo "*** NOTICE: Setting NODOC=1 since ports tree is required"
-	echo "            and NOPORTS is set."
-	NODOC=1
+# Force src checkout if configured
+FORCE_SRC_KEY=
+if [ "x${SRC_FORCE_CHECKOUT}" != "x" ]; then
+ FORCE_SRC_KEY="--force"
 fi
 
 if [ ! ${CHROOTDIR} ]; then
@@ -144,7 +165,7 @@ set -e # Everything must succeed
 
 mkdir -p ${CHROOTDIR}/usr
 
-svn co ${SVNROOT}/${SRCBRANCH} ${CHROOTDIR}/usr/src $SRCREVISION
+svn co ${FORCE_SRC_KEY} ${SVNROOT}/${SRCBRANCH} ${CHROOTDIR}/usr/src $SRCREVISION
 if [ "x${NODOC}" = "x" ]; then
 	svn co ${SVNROOT}/${DOCBRANCH} ${CHROOTDIR}/usr/doc $DOCREVISION
 fi
@@ -164,10 +185,10 @@ trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 build_doc_ports() {
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
-	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" != "x" ]; then
-		PBUILD_FLAGS="OSVERSION=${_OSVERSION} WITHOUT_JADETEX=yes BATCH=yes"
+	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} WITHOUT_JADETEX=yes WITHOUT_X11=yes BATCH=yes"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} install
+			${PBUILD_FLAGS} install clean distclean
 	fi
 }
 
@@ -191,11 +212,11 @@ if [ "x${RELSTRING}" = "x" ]; then
 	RELSTRING="$(chroot ${CHROOTDIR} uname -s)-${OSRELEASE}-${TARGET_ARCH}"
 fi
 
-chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
-chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
-chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
+eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
+eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
+eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
 	release RELSTRING=${RELSTRING}
-chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
+eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
 	install DESTDIR=/R RELSTRING=${RELSTRING}
 
 cd ${CHROOTDIR}/R
