@@ -641,7 +641,6 @@ f_package_review()
 		[ "$mark" = "I" ] || continue
 		f_dprintf "%s: Installing %s package" $fname "$package"
 		f_package_add "$package" || continue
-		f_package_deselect "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
@@ -650,7 +649,6 @@ f_package_review()
 		[ "$mark" = "R" ] || continue
 		f_dprintf "%s: Reinstalling %s package" $fname "$package"
 		# XXX Re-install package
-		f_package_deselect "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
