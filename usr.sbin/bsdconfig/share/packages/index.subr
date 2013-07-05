@@ -244,7 +244,7 @@ f_index_extract_pages()
 
 # f_index_search $var_to_get $name [$var_to_set]
 #
-# Search the package INDEX ($PACKAGE_INDEX by default if/when $var_to)get is
+# Search the package INDEX ($PACKAGE_INDEX by default if/when $var_to_get is
 # NULL; but should not be missing) for $name, returning the first match.
 # Matches are strict (not regular expressions) and must match the beginning
 # portion of the package name to be considered a match. If $var_to_set is
