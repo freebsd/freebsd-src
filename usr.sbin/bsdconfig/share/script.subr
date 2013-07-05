@@ -34,6 +34,8 @@ f_dprintf "%s: loading includes..." script.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/media/any.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/networking/services.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
 f_include $BSDCFG_SHARE/variable.subr
 
@@ -187,8 +189,12 @@ f_resword_new mediaSetHTTP	f_media_set_http
 # media/httpproxy.subr
 f_resword_new mediaSetHTTPProxy	f_media_set_http_proxy
 
+# networking/services.subr
+f_resword_new configPCNFSD	f_config_pcnfsd
+
 # packages/packages.subr
 f_resword_new configPackages	f_package_config
+f_resword_new packageAdd	f_package_add
 
 # variable.subr
 f_resword_new installVarDefaults	f_variable_set_defaults

@@ -2,14 +2,8 @@
  * EAP peer: Method registration
  * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_METHODS_H
@@ -91,6 +85,7 @@ static inline int eap_peer_method_unload(struct eap_method *method)
 /* EAP peer method registration calls for statically linked in methods */
 int eap_peer_md5_register(void);
 int eap_peer_tls_register(void);
+int eap_peer_unauth_tls_register(void);
 int eap_peer_mschapv2_register(void);
 int eap_peer_peap_register(void);
 int eap_peer_ttls_register(void);
@@ -109,5 +104,6 @@ int eap_peer_wsc_register(void);
 int eap_peer_ikev2_register(void);
 int eap_peer_vendor_test_register(void);
 int eap_peer_tnc_register(void);
+int eap_peer_pwd_register(void);
 
 #endif /* EAP_METHODS_H */

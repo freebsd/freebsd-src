@@ -69,7 +69,7 @@ typedef struct {
 #define	EXIT_FAILURE	1
 #define	EXIT_SUCCESS	0
 
-#define	RAND_MAX	0x7fffffff
+#define	RAND_MAX	0x7ffffffd
 
 __BEGIN_DECLS
 #ifdef _XLOCALE_H_

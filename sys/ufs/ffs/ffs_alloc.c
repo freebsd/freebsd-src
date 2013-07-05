@@ -1710,7 +1710,7 @@ ffs_alloccgblk(ip, bp, bpref, size)
 	cgp = (struct cg *)bp->b_data;
 	blksfree = cg_blksfree(cgp);
 	if (bpref == 0) {
-		bpref = cgp->cg_rotor;
+		bpref = cgbase(fs, cgp->cg_cgx) + cgp->cg_rotor + fs->fs_frag;
 	} else if ((cgbpref = dtog(fs, bpref)) != cgp->cg_cgx) {
 		/* map bpref to correct zone in this cg */
 		if (bpref < cgdata(fs, cgbpref))

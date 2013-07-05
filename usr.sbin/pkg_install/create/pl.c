@@ -140,7 +140,8 @@ copy_plist(const char *home, Package *plist)
     const char *there = NULL, *mythere;
     char *where_args, *prefix = NULL;
     const char *last_chdir, *root = "/";
-    int maxargs, where_count = 0, add_count;
+    long maxargs;
+    int where_count = 0, add_count;
     struct stat stb;
     dev_t curdir;
 

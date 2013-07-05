@@ -82,7 +82,7 @@ read_image_file(char *path, void **buf, ssize_t *size)
 		exit(EX_IOERR);
 	}
 	if ((*buf = malloc(sb.st_size)) == NULL) {
-		fprintf(stderr, "Unable to malloc %zd bytes.\n",
+		fprintf(stderr, "Unable to malloc %jd bytes.\n",
 		    sb.st_size);
 		close(fd);
 		exit(EX_IOERR);
@@ -95,7 +95,7 @@ read_image_file(char *path, void **buf, ssize_t *size)
 	}
 	if (*size != sb.st_size) {
 		fprintf(stderr, "Error reading '%s', "
-		    "read %zd bytes, requested %zd bytes\n",
+		    "read %zd bytes, requested %jd bytes\n",
 		    path, *size, sb.st_size);
 		close(fd);
 		exit(EX_IOERR);

@@ -174,7 +174,7 @@ arptimer(void *arg)
 	ifp = lle->lle_tbl->llt_ifp;
 	CURVNET_SET(ifp->if_vnet);
 
-	if (lle->la_flags != LLE_DELETED) {
+	if ((lle->la_flags & LLE_DELETED) == 0) {
 		int evt;
 
 		if (lle->la_flags & LLE_VALID)

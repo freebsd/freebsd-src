@@ -75,8 +75,8 @@
  * Note that angle brackets present in the original data must have been encoded
  * as &lt; and &gt; so they will not trouble us.
  */
-static int xml_next_tag(const char *in, const char **out,
-			const char **out_tagname, const char **end)
+int xml_next_tag(const char *in, const char **out,
+		 const char **out_tagname, const char **end)
 {
 	while (*in && *in != '<')
 		in++;

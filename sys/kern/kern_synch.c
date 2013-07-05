@@ -132,7 +132,7 @@ sleepinit(void)
 /*
  * General sleep call.  Suspends the current thread until a wakeup is
  * performed on the specified identifier.  The thread will then be made
- * runnable with the specified priority.  Sleeps at most timo/hz seconds
+ * runnable with the specified priority.  Sleeps at most sbt units of time
  * (0 means no timeout).  If pri includes the PCATCH flag, let signals
  * interrupt the sleep, otherwise ignore them while sleeping.  Returns 0 if
  * awakened, EWOULDBLOCK if the timeout expires.  If PCATCH is set and a

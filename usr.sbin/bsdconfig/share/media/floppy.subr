@@ -178,6 +178,8 @@ f_media_get_floppy()
 			f_media_init_floppy "$dev" || return $FAILURE
 			nretries=$(( $nretries - 1 ))
 		done
+	elif [ "$probe_only" ]; then
+		return $SUCCESS
 	fi
 	cat "$fp"
 }

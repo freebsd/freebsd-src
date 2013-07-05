@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+# Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,7 @@ CODE {
 	static int
 	virtio_default_config_change(device_t dev)
 	{
-		/* Return that we've handled the change. */
-		return (1);
+		return (0);
 	}
 };
 

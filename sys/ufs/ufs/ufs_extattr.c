@@ -399,20 +399,8 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 			return (error);
 		}
 
-		/*
-		 * XXXRW: While in UFS, we always get DIRBLKSIZ returns from
-		 * the directory code on success, on other file systems this
-		 * may not be the case.  For portability, we should check the
-		 * read length on return from ufs_readdir().
-		 */
-		edp = (struct dirent *)&dirbuf[DIRBLKSIZ];
+		edp = (struct dirent *)&dirbuf[DIRBLKSIZ - auio.uio_resid];
 		for (dp = (struct dirent *)dirbuf; dp < edp; ) {
-#if (BYTE_ORDER == LITTLE_ENDIAN)
-			dp->d_type = dp->d_namlen;
-			dp->d_namlen = 0;
-#else
-			dp->d_type = 0;
-#endif
 			if (dp->d_reclen == 0)
 				break;
 			error = ufs_extattr_lookup(dvp, UE_GETDIR_LOCKPARENT,
@@ -934,8 +922,8 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 		 * is to coerce this to undefined, and let it get cleaned
 		 * up by the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr_get (%s): inode number inconsistency (%d, %jd)\n",
-		    mp->mnt_stat.f_mntonname, ueh.ueh_i_gen, (intmax_t)ip->i_gen);
+		printf("ufs_extattr_get (%s): inode number inconsistency (%d, %ju)\n",
+		    mp->mnt_stat.f_mntonname, ueh.ueh_i_gen, (uintmax_t)ip->i_gen);
 		error = ENOATTR;
 		goto vopunlock_exit;
 	}

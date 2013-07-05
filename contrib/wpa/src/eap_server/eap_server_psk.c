@@ -2,14 +2,8 @@
  * hostapd / EAP-PSK (RFC 4764) server
  * Copyright (c) 2005-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * Note: EAP-PSK is an EAP authentication method and as such, completely
  * different from WPA-PSK. This file is not needed for WPA-PSK functionality.
@@ -19,6 +13,7 @@
 
 #include "common.h"
 #include "crypto/aes_wrap.h"
+#include "crypto/random.h"
 #include "eap_common/eap_psk_common.h"
 #include "eap_server/eap_i.h"
 
@@ -66,7 +61,7 @@ static struct wpabuf * eap_psk_build_1(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "EAP-PSK: PSK-1 (sending)");
 
-	if (os_get_random(data->rand_s, EAP_PSK_RAND_LEN)) {
+	if (random_get_bytes(data->rand_s, EAP_PSK_RAND_LEN)) {
 		wpa_printf(MSG_ERROR, "EAP-PSK: Failed to get random data");
 		data->state = FAILURE;
 		return NULL;
@@ -124,8 +119,10 @@ static struct wpabuf * eap_psk_build_3(struct eap_sm *sm,
 
 	os_memcpy(buf, data->id_s, data->id_s_len);
 	os_memcpy(buf + data->id_s_len, data->rand_p, EAP_PSK_RAND_LEN);
-	if (omac1_aes_128(data->ak, buf, buflen, psk->mac_s))
+	if (omac1_aes_128(data->ak, buf, buflen, psk->mac_s)) {
+		os_free(buf);
 		goto fail;
+	}
 	os_free(buf);
 
 	if (eap_psk_derive_keys(data->kdk, data->rand_p, data->tek, data->msk,

@@ -34,7 +34,8 @@ vsystem(const char *fmt, ...)
 {
     va_list args;
     char *cmd;
-    int ret, maxargs;
+    long maxargs;
+    int ret;
 
     maxargs = sysconf(_SC_ARG_MAX);
     maxargs -= 32;			/* some slop for the sh -c */
@@ -64,7 +65,7 @@ vpipe(const char *fmt, ...)
 {
    FILE *fp;
    char *cmd, *rp;
-   int maxargs;
+   long maxargs;
    va_list args;
 
     rp = malloc(MAXPATHLEN);

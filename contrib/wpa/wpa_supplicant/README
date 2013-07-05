@@ -1,37 +1,22 @@
 WPA Supplicant
 ==============
 
-Copyright (c) 2003-2010, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
-This program is dual-licensed under both the GPL version 2 and BSD
-license. Either license may be used at your option.
+This program is licensed under the BSD license (the one with
+advertisement clause removed).
+
+If you are submitting changes to the project, please see CONTRIBUTIONS
+file for more instructions.
 
 
 
 License
 -------
 
-GPL v2:
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 2 as
-published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
-(this copy of the license is in COPYING file)
-
-
-Alternatively, this software may be distributed, used, and modified
-under the terms of BSD license:
+This software may be distributed, used, and modified under the terms of
+BSD license:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -137,55 +122,6 @@ Current hardware/software requirements:
 	and driver_wext (-Dwext on wpa_supplicant command line) should be the
 	default option to start with before falling back to driver specific
 	interface.
-
-	Host AP driver for Prism2/2.5/3 (development snapshot/v0.2.x)
-	(http://hostap.epitest.fi/)
-	Driver need to be set in Managed mode ('iwconfig wlan0 mode managed').
-	Please note that station firmware version needs to be 1.7.0 or newer
-	to work in WPA mode.
-
-	Linuxant DriverLoader (http://www.linuxant.com/driverloader/)
-	with Windows NDIS driver for your wlan card supporting WPA.
-
-	Agere Systems Inc. Linux Driver
-	(http://www.agere.com/support/drivers/)
-	Please note that the driver interface file (driver_hermes.c) and
-	hardware specific include files are not included in the
-	wpa_supplicant distribution. You will need to copy these from the
-	source package of the Agere driver.
-
-	madwifi driver for cards based on Atheros chip set (ar521x)
-	(http://sourceforge.net/projects/madwifi/)
-	Please note that you will need to modify the wpa_supplicant .config
-	file to use the correct path for the madwifi driver root directory
-	(CFLAGS += -I../madwifi/wpa line in example defconfig).
-
-	ATMEL AT76C5XXx driver for USB and PCMCIA cards
-	(http://atmelwlandriver.sourceforge.net/).
-
-	Linux ndiswrapper (http://ndiswrapper.sourceforge.net/) with
-	Windows NDIS driver.
-
-	Broadcom wl.o driver (old version only)
-	This is a generic Linux driver for Broadcom IEEE 802.11a/g cards.
-	However, it is proprietary driver that is not publicly available
-	except for couple of exceptions, mainly Broadcom-based APs/wireless
-	routers that use Linux. The driver binary can be downloaded, e.g.,
-	from Linksys support site (http://www.linksys.com/support/gpl.asp)
-	for Linksys WRT54G. The GPL tarball includes cross-compiler and
-	the needed header file, wlioctl.h, for compiling wpa_supplicant.
-	This driver support in wpa_supplicant is expected to work also with
-	other devices based on Broadcom driver (assuming the driver includes
-	client mode support). Please note that the newer Broadcom driver
-	("hybrid Linux driver") supports Linux wireless extensions and does
-	not need (or even work) with the specific driver wrapper. Use -Dwext
-	with that driver.
-
-	Intel ipw2100 driver
-	(http://sourceforge.net/projects/ipw2100/)
-
-	Intel ipw2200 driver
-	(http://sourceforge.net/projects/ipw2200/)
 
 	In theory, any driver that supports Linux wireless extensions can be
 	used with IEEE 802.1X (i.e., not WPA) when using ap_scan=0 option in
@@ -363,7 +299,7 @@ and a list of available options and additional notes.
 The build time configuration can be used to select only the needed
 features and limit the binary size and requirements for external
 libraries. The main configuration parts are the selection of which
-driver interfaces (e.g., hostap, madwifi, ..) and which authentication
+driver interfaces (e.g., nl80211, wext, ..) and which authentication
 methods (e.g., EAP-TLS, EAP-PEAP, ..) are included.
 
 Following build time configuration options are used to control IEEE
@@ -396,32 +332,18 @@ authentication algorithm (for EAP-SIM/EAP-AKA). This requires pcsc-lite
 CONFIG_PCSC=y
 
 Following options can be added to .config to select which driver
-interfaces are included. Hermes driver interface needs to be downloaded
-from Agere (see above).
+interfaces are included.
 
-CONFIG_DRIVER_HOSTAP=y
-CONFIG_DRIVER_HERMES=y
-CONFIG_DRIVER_MADWIFI=y
-CONFIG_DRIVER_ATMEL=y
+CONFIG_DRIVER_NL80211=y
 CONFIG_DRIVER_WEXT=y
-CONFIG_DRIVER_RALINK=y
-CONFIG_DRIVER_NDISWRAPPER=y
-CONFIG_DRIVER_BROADCOM=y
-CONFIG_DRIVER_IPW=y
 CONFIG_DRIVER_BSD=y
 CONFIG_DRIVER_NDIS=y
 
-Following example includes all features and driver interfaces that are
-included in the wpa_supplicant package:
+Following example includes some more features and driver interfaces that
+are included in the wpa_supplicant package:
 
-CONFIG_DRIVER_HOSTAP=y
-CONFIG_DRIVER_HERMES=y
-CONFIG_DRIVER_MADWIFI=y
-CONFIG_DRIVER_ATMEL=y
+CONFIG_DRIVER_NL80211=y
 CONFIG_DRIVER_WEXT=y
-CONFIG_DRIVER_NDISWRAPPER=y
-CONFIG_DRIVER_BROADCOM=y
-CONFIG_DRIVER_IPW=y
 CONFIG_DRIVER_BSD=y
 CONFIG_DRIVER_NDIS=y
 CONFIG_IEEE8021X_EAPOL=y
@@ -503,7 +425,7 @@ options:
   -K = include keys (passwords, etc.) in debug output
   -t = include timestamp in debug messages
   -h = show this help text
-  -L = show license (GPL and BSD)
+  -L = show license (BSD)
   -p = driver parameters
   -P = PID file
   -q = decrease debugging verbosity (-qq even less)
@@ -514,16 +436,7 @@ options:
   -N = start describing new interface
 
 drivers:
-  hostap = Host AP driver (Intersil Prism2/2.5/3) [default]
-	(this can also be used with Linuxant DriverLoader)
-  hermes = Agere Systems Inc. driver (Hermes-I/Hermes-II)
-  madwifi = MADWIFI 802.11 support (Atheros, etc.) (deprecated; use wext)
-  atmel = ATMEL AT76C5XXx (USB, PCMCIA)
   wext = Linux wireless extensions (generic)
-  ralink = Ralink Client driver
-  ndiswrapper = Linux ndiswrapper (deprecated; use wext)
-  broadcom = Broadcom wl.o driver
-  ipw = Intel ipw2100/2200 driver (old; use wext with Linux 2.6.13 or newer)
   wired = wpa_supplicant wired Ethernet driver
   roboswitch = wpa_supplicant Broadcom switch driver
   bsd = BSD 802.11 support (Atheros, etc.)
@@ -556,15 +469,15 @@ separated with -N argument. As an example, following command would
 start wpa_supplicant for two interfaces:
 
 wpa_supplicant \
-	-c wpa1.conf -i wlan0 -D hostap -N \
-	-c wpa2.conf -i ath0 -D madwifi
+	-c wpa1.conf -i wlan0 -D nl80211 -N \
+	-c wpa2.conf -i wlan1 -D wext
 
 
 If the interface is added in a Linux bridge (e.g., br0), the bridge
 interface needs to be configured to wpa_supplicant in addition to the
 main interface:
 
-wpa_supplicant -cw.conf -Dmadwifi -iath0 -bbr0
+wpa_supplicant -cw.conf -Dwext -iwlan0 -bbr0
 
 
 Configuration file
@@ -894,13 +807,14 @@ script:
 IFNAME=$1
 CMD=$2
 
-if [ "$CMD" == "CONNECTED" ]; then
+if [ "$CMD" = "CONNECTED" ]; then
     SSID=`wpa_cli -i$IFNAME status | grep ^ssid= | cut -f2- -d=`
     # configure network, signal DHCP client, etc.
 fi
 
-if [ "$CMD" == "DISCONNECTED" ]; then
+if [ "$CMD" = "DISCONNECTED" ]; then
     # remove network configuration, if needed
+    SSID=
 fi
 
 

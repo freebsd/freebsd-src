@@ -80,6 +80,7 @@ SYSCTL_INT(_hw_usb_urtwn, OID_AUTO, debug, CTLFLAG_RW, &urtwn_debug, 0,
     "Debug level");
 #endif
 
+#define	URTWN_RSSI(r)  (r) - 110
 #define	IEEE80211_HAS_ADDR4(wh)	\
 	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 
@@ -418,6 +419,12 @@ urtwn_attach(device_t self)
 		| IEEE80211_C_WPA		/* 802.11i */
 		;
 
+	ic->ic_cryptocaps =
+	    IEEE80211_CRYPTO_WEP |
+	    IEEE80211_CRYPTO_AES_CCM |
+	    IEEE80211_CRYPTO_TKIPMIC |
+	    IEEE80211_CRYPTO_TKIP;
+
 	bands = 0;
 	setbit(&bands, IEEE80211_MODE_11B);
 	setbit(&bands, IEEE80211_MODE_11G);
@@ -610,6 +617,11 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		rssi = urtwn_get_rssi(sc, rate, &stat[1]);
 		/* Update our average RSSI. */
 		urtwn_update_avgrssi(sc, rate, rssi);
+		/*
+		 * Convert the RSSI to a range that will be accepted
+		 * by net80211.
+		 */
+		rssi = URTWN_RSSI(rssi);
 	}
 
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
@@ -1253,6 +1265,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	cmd.mask = htole32(mode << 28 | basicrates);
 	error = urtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
 	if (error != 0) {
+		ieee80211_free_node(ni);
 		device_printf(sc->sc_dev,
 		    "could not add broadcast station\n");
 		return (error);
@@ -1267,6 +1280,7 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	cmd.mask = htole32(mode << 28 | rates);
 	error = urtwn_fw_cmd(sc, R92C_CMD_MACID_CONFIG, &cmd, sizeof(cmd));
 	if (error != 0) {
+		ieee80211_free_node(ni);
 		device_printf(sc->sc_dev, "could not add BSS station\n");
 		return (error);
 	}
@@ -1276,7 +1290,9 @@ urtwn_ra_init(struct urtwn_softc *sc)
 	    maxrate);
 
 	/* Indicate highest supported rate. */
-	ni->ni_txrate = rs->rs_nrates - 1;
+	ni->ni_txrate = rs->rs_rates[rs->rs_nrates - 1];
+	ieee80211_free_node(ni);
+
 	return (0);
 }
 

@@ -353,6 +353,12 @@ upgt_attach(device_t dev)
 	        | IEEE80211_C_WPA		/* 802.11i */
 		;
 
+	ic->ic_cryptocaps =
+	    IEEE80211_CRYPTO_WEP |
+	    IEEE80211_CRYPTO_AES_CCM |
+	    IEEE80211_CRYPTO_TKIPMIC |
+	    IEEE80211_CRYPTO_TKIP;
+
 	bands = 0;
 	setbit(&bands, IEEE80211_MODE_11B);
 	setbit(&bands, IEEE80211_MODE_11G);

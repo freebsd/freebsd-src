@@ -1,15 +1,9 @@
 /*
  * RSN pre-authentication (supplicant)
- * Copyright (c) 2003-2010, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -22,7 +16,6 @@
 #include "preauth.h"
 #include "pmksa_cache.h"
 #include "wpa_i.h"
-#include "common/ieee802_11_defs.h"
 
 
 #if defined(IEEE8021X_EAPOL) && !defined(CONFIG_NO_WPA2)
@@ -312,7 +305,7 @@ void rsn_preauth_candidate_process(struct wpa_sm *sm)
 	dl_list_for_each_safe(candidate, n, &sm->pmksa_candidates,
 			      struct rsn_pmksa_candidate, list) {
 		struct rsn_pmksa_cache_entry *p = NULL;
-		p = pmksa_cache_get(sm->pmksa, candidate->bssid, NULL);
+		p = pmksa_cache_get(sm->pmksa, candidate->bssid, NULL, NULL);
 		if (os_memcmp(sm->bssid, candidate->bssid, ETH_ALEN) != 0 &&
 		    (p == NULL || p->opportunistic)) {
 			wpa_msg(sm->ctx->msg_ctx, MSG_DEBUG, "RSN: PMKSA "
@@ -459,7 +452,7 @@ void rsn_preauth_scan_result(struct wpa_sm *sm, const u8 *bssid,
 	if (wpa_parse_wpa_ie(rsn, 2 + rsn[1], &ie))
 		return;
 
-	pmksa = pmksa_cache_get(sm->pmksa, bssid, NULL);
+	pmksa = pmksa_cache_get(sm->pmksa, bssid, NULL, NULL);
 	if (pmksa && (!pmksa->opportunistic ||
 		      !(ie.capabilities & WPA_CAPABILITY_PREAUTH)))
 		return;

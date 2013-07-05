@@ -32,6 +32,8 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/media/common.subr
 f_include $BSDCFG_SHARE/packages/categories.subr
 f_include $BSDCFG_SHARE/packages/index.subr
 f_include $BSDCFG_SHARE/strings.subr
@@ -48,8 +50,17 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 ############################################################ GLOBALS
 
-PACKAGE_CATEGORIES=
-SELECTED_PACKAGES=
+#
+# Package extensions to try
+#
+PACKAGE_EXTENSIONS=".tbz .tbz2 .tgz"
+
+#
+# Variables used to track runtime states
+#
+PACKAGES_DETECTED=	# Boolean (NULL/non-NULL); detected installed packages?
+PACKAGE_CATEGORIES=	# List of package categories parsed from INDEX
+SELECTED_PACKAGES=	# Packages selected by user in [X]dialog(1) interface
 
 #
 # Options
@@ -157,6 +168,15 @@ f_package_deselect()
 f_package_detect_installed()
 {
 	local installed package varpkg
+	#
+	# XXX KLUDGE ALERT! This makes evil assumptions about how XXX
+	# packages register themselves and should *really* be done with
+	# `pkg_info -e <name>' except that this is too slow for an
+	# item check routine.. :-(
+	#
+	# NOTE: When transitioning to pkgng, make a single fork to `pkg' to
+	#       produce a list of all installed packages and parse _that_
+	#
 	installed=$( find -s /var/db/pkg -mindepth 1 -maxdepth 1 -type d |
 			sed -e 's:/var/db/pkg/::' )
 	for package in $installed; do
@@ -608,25 +628,16 @@ f_package_review()
 
 	#
 	# Process each of the selected packages:
-	# + First, process dependencies.
-	# + Second, process packages marked for Install.
-	# + Third, process packages marked for Re-install.
+	# + First, process packages marked for Install.
+	# + Second, process packages marked for Re-install.
 	# + Finally, process packages marked for Uninstall.
 	#
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
 		f_getvar _mark_$varpkg mark
-		[ "$mark" = "D" ] || continue
-		# XXX Install dependency
-		f_package_deselect "$package"
-	done
-	for package in $SELECTED_PACKAGES; do
-		mark=
-		f_str2varname "$package" varpkg
-		f_getvar _mark_$varpkg mark
 		[ "$mark" = "I" ] || continue
-		# XXX Install package
+		f_package_add "$package" || continue
 		f_package_deselect "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
@@ -645,9 +656,6 @@ f_package_review()
 		# XXX Uninstall package
 		f_package_deselect "$package"
 	done
-
-	# XXX
-	f_show_msg "Coming soon..."
 
 	return $SUCCESS
 }
@@ -810,6 +818,236 @@ f_package_config()
 				# NOTE: exported for awk(1) ENVIRON[]
 		done
 	done
+}
+
+# f_package_add $package_name [$depended]
+#
+# Like f_package_extract(), but assumes current media device and chases deps.
+# Note that $package_name should not contain the archive suffix (e.g., `.tbz').
+# If $depended is present and non-NULL, the package is treated as a dependency
+# (in this function, dependencies are not handled any differently, but the
+# f_package_extract() function is passed this value and it displays a different
+# message when installing a dependency versus non-dependency).
+#
+f_package_add()
+{
+	local name="$1" depended="$2" status=$SUCCESS retval
+
+	local alert=f_show_msg no_confirm=
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	if ! { [ "$name" ] || { f_getvar $VAR_PACKAGE name && [ "$name" ]; }; }
+	then
+		f_dprintf "packageAdd: %s" \
+		          "$msg_no_package_name_passed_in_package_variable"
+		return $FAILURE
+	fi
+
+	{ # Verify and initialize device media if-defined
+		f_media_verify &&
+		f_device_init media &&
+		f_index_initialize packages/INDEX
+	} || return $FAILURE
+
+	# Now we have (indirectly via f_index_read()):
+	#   CATEGORY_MENU_LIST _categories_{varpkg} _rundeps_{varpkg}
+	#   PACKAGE_CATEGORIES _npkgs
+
+	local varpkg
+	f_str2varname "$name" varpkg
+
+	# Just as-in the user-interface (opposed to scripted-use), only allow
+	# packages with at least one category to be recognized.
+	#
+	local pkgcat=
+	if ! f_getvar _categories_$varpkg pkgcat || [ ! "$pkgcat" ]; then
+		# $pkg may be a partial name, search the index (this is slow)
+		f_index_search PACKAGE_INDEX $name name
+		if [ ! "$name" ]; then
+			f_show_msg \
+			    "$msg_sorry_package_was_not_found_in_the_index" \
+			    "$name"
+			return $FAILURE
+		fi
+		f_str2varname "$name" varpkg
+	fi
+
+	# If invoked through the scripted interface, we likely have not yet
+	# detected the installed packages -- something we should do only once.
+	#
+	if [ ! "$PACKAGES_DETECTED" ]; then
+		f_package_detect_installed
+		export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
+	fi
+	# Now we have: _mark_{varpkg}=X for all installed packages
+
+	#
+	# Since we're maintaining data structures for installed packages,
+	# short-circuit the package dependency checks if the package is already
+	# installed. This prevents wasted cycles, minor delays between package
+	# extractions, and worst-case an infinite loop with a certain faulty
+	# INDEX file.
+	#
+	local mark=
+	f_getvar _mark_$varpkg mark && [ "$mark" = "X" ] && return $SUCCESS
+
+	local dep vardep rundeps=
+	f_getvar _rundeps_$varpkg rundeps
+	for dep in $rundeps; do
+		f_str2varname "$dep" vardep
+
+		# Skip dependency if already installed
+		mark=
+		f_getvar _mark_$vardep mark && [ "$mark" = "X" ] && continue
+
+		# Just as-in the user-interface (opposed to scripted-use), only
+		# allow packages with at least one category to be recognized.
+		#
+		local depcat=
+		if ! f_getvar _categories_$vardep depcat || [ ! "$depcat" ]
+		then
+			$alert "$msg_required_package_not_found" "$dep"
+			[ "$no_confirm" ] && sleep 2
+		fi
+
+		f_package_add "$dep"
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			status=$(( $status | $retval ))
+
+			# XXX package could be on a future disc volume
+			# XXX (not supporting multiple disc volumes yet)
+
+			$alert "$msg_loading_of_dependent_package_failed" \
+			       "$dep"
+			[ "$no_confirm" ] && sleep 2
+		fi
+	done
+	[ $status -eq $SUCCESS ] || return $status
+
+	#
+	# Done with the deps? Try to load the real m'coy.
+	#
+
+	f_package_extract media "$name" "$depended"
+	retval=$?
+	if [ $retval -ne $SUCCESS ]; then
+		status=$(( $status | $retval ))
+	else
+		setvar _mark_$varpkg X
+	fi
+
+	return $status
+}
+
+# f_package_extract $device $name [$depended]
+#
+# Extract a package based on a namespec and media device. If $depended is
+# present and non-NULL, the notification displayed while installing the package
+# has "as a dependency" appended.
+#
+f_package_extract()
+{
+	local device="$1" name="$2" depended="$3"
+
+	# Check to make sure it's not already there
+	local varpkg mark=
+	f_str2varname "$name" varpkg
+	f_getvar _mark_$varpkg mark
+	[ "$mark" = "X" ] && return $SUCCESS
+
+	if ! f_device_init $device; then
+		f_show_msg \
+		    "$msg_unable_to_initialize_media_type_for_package_extract"
+		return $FAILURE
+	fi
+
+	# If necessary, initialize the ldconfig hints
+	[ -f "/var/run/ld-elf.so.hints" ] ||
+		f_quietly ldconfig /usr/lib /usr/lib/compat /usr/local/lib
+
+	# Make a couple paranoid locations for temp
+	# files to live if user specified none
+	local tmpdir
+	f_getvar $VAR_PKG_TMPDIR:-/var/tmp tmpdir
+	f_quietly mkdir -p -m 1777 "$tmpdir"
+
+	local path
+	case "$name" in
+	*/*) path="$name" ;;
+	*)
+		case "$name" in
+		*-*|*_*) path="packages/All/$name" ;;
+		      *) path="packages/Latest/$name"
+		esac
+	esac
+
+	local fname=f_package_extract
+
+	# We have a path, call the device strategy routine to get the file
+	local pkg_ext probe_only=1 found=
+	for pkg_ext in "" $PACKAGE_EXTENSIONS; do
+		if f_device_get $device "$path$pkg_ext" $probe_only; then
+			path="$path$pkg_ext"
+			f_dprintf "%s: found path=[%s] dev=[%s]" \
+			          $fname "$path" "$device"
+			found=1
+			break
+		fi
+	done
+
+	local alert=f_show_msg no_confirm=
+	f_getvar $VAR_NO_CONFIRM no_confirm
+	[ "$no_confirm" ] && alert=f_show_info
+
+	if [ ! "$found" ]; then
+		f_dprintf "%s: No such %s file on %s device" \
+	                  $fname "$path" "$device"
+		$alert "$msg_unable_to_fetch_package_from_selected_media" \
+		       "$name"
+		[ "$no_confirm" ] && sleep 2
+		return $FAILURE
+	fi
+
+	local devname=
+	f_struct device_$device get name devname
+	if [ "$depended" ]; then
+		f_show_info "$msg_adding_package_as_a_dependency_from_media" \
+		            "$name" "$devname"
+	else
+		f_show_info "$msg_adding_package_from_media" "$name" "$devname"
+	fi
+
+	# Get package data and pipe into pkg_add(1) while providing feedback
+	{
+		if ! f_device_get $device "$path"; then
+			$alert "$msg_io_error_while_reading_in_the_package" \
+			       "$name" \
+			       >&$DIALOG_TERMINAL_PASSTHRU_FD 2> /dev/null
+			[ "$no_confirm" ] && sleep 2
+		else
+			f_show_info \
+			 "$msg_package_read_successfully_waiting_for_pkg_add" \
+			 "$name" >&$DIALOG_TERMINAL_PASSTHRU_FD 2> /dev/null
+		fi
+	} | {
+		if f_debugging; then
+			/usr/sbin/pkg_add -v -
+		else
+			f_quietly /usr/sbin/pkg_add -
+		fi
+	}
+	if [ $? -ne $SUCCESS ]; then
+		$alert "$msg_pkg_add_apparently_did_not_like_the_package" \
+		       "$name"
+		[ "$no_confirm" ] && sleep 2
+	else
+		f_show_info "$msg_package_was_added_successfully" "$name"
+		sleep 1
+	fi
+
+	return $SUCCESS
 }
 
 ############################################################ MAIN
