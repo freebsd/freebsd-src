@@ -588,12 +588,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 		nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
 	}
 
-	/* Clear NFSMNT_RESVPORT for NFSv4, since it is not required. */
-	if ((argp->flags & NFSMNT_NFSV4) != 0) {
-		argp->flags &= ~NFSMNT_RESVPORT;
-		nmp->nm_flag &= ~NFSMNT_RESVPORT;
-	}
-
 	/* Re-bind if rsrvd port requested and wasn't on one */
 	adjsock = !(nmp->nm_flag & NFSMNT_RESVPORT)
 		  && (argp->flags & NFSMNT_RESVPORT);
