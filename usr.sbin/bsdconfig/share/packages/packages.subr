@@ -658,9 +658,6 @@ f_package_review()
 		f_package_deselect "$package"
 	done
 
-	# XXX
-	f_show_msg "Coming soon..."
-
 	return $SUCCESS
 }
 
