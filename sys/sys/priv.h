@@ -494,6 +494,12 @@
 #define	PRIV_RCTL_REMOVE_RULE	674
 
 /*
+ * Kernel memory privileges.
+ */
+#define	PRIV_KMEM_READ		680	/* Read from kernel memory. */
+#define	PRIV_KMEM_WRITE		681	/* Write to kernel memory. */
+
+/*
  * Track end of privilege list.
  */
 #define	_PRIV_HIGHEST		675
