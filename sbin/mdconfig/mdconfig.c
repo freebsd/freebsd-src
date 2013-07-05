@@ -450,7 +450,8 @@ md_list(const char *units, int opt, const char *fflag)
 					continue;
 				else
 					ffound = 1;
-			}
+			} else if (fflag != NULL)
+					continue;
 			if (nflag && strncmp(pp->lg_name, MD_NAME, 2) == 0)
 				printf("%s", pp->lg_name + 2);
 			else

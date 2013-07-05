@@ -154,7 +154,7 @@ read_usage_times(int *load)
 	error = sysctl(cp_times_mib, 2, cp_times, &cp_times_len, NULL, 0);
 	if (error)
 		return (error);
-		
+
 	if (load) {
 		*load = 0;
 		for (cpu = 0; cpu < ncpus; cpu++) {
@@ -165,7 +165,7 @@ read_usage_times(int *load)
 			}
 			if (total == 0)
 				continue;
-			*load += 100 - (cp_times[cpu * CPUSTATES + CP_IDLE] - 
+			*load += 100 - (cp_times[cpu * CPUSTATES + CP_IDLE] -
 			    cp_times_old[cpu * CPUSTATES + CP_IDLE]) * 100 / total;
 		}
 	}
@@ -236,7 +236,7 @@ get_freq(void)
 {
 	size_t len;
 	int curfreq;
-	
+
 	len = sizeof(curfreq);
 	if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0) != 0) {
 		if (vflag)
@@ -262,7 +262,7 @@ static int
 get_freq_id(int freq, int *freqs, int numfreqs)
 {
 	int i = 1;
-	
+
 	while (i < numfreqs) {
 		if (freqs[i] < freq)
 			break;
@@ -717,7 +717,7 @@ main(int argc, char * argv[])
 				idle = 0;
 				if (set_freq(freq) != 0) {
 					warn("error setting CPU freq %d",
-				    	    freq);
+					    freq);
 					continue;
 				}
 			}
@@ -730,7 +730,7 @@ main(int argc, char * argv[])
 				warn("read_usage_times() failed");
 			continue;
 		}
-		
+
 		if (mode == MODE_ADAPTIVE) {
 			if (load > cpu_running_mark) {
 				if (load > 95 || load > cpu_running_mark * 2)
@@ -741,7 +741,7 @@ main(int argc, char * argv[])
 					freq = freqs[0];
 			} else if (load < cpu_idle_mark &&
 			    curfreq * load < freqs[get_freq_id(
-			    freq * 7 / 8, freqs, numfreqs)] * 
+			    freq * 7 / 8, freqs, numfreqs)] *
 			    cpu_running_mark) {
 				freq = freq * 7 / 8;
 				if (freq < freqs[numfreqs - 1])
@@ -757,7 +757,7 @@ main(int argc, char * argv[])
 					freq = freqs[0] * 2;
 			} else if (load < cpu_idle_mark / 2 &&
 			    curfreq * load < freqs[get_freq_id(
-			    freq * 31 / 32, freqs, numfreqs)] * 
+			    freq * 31 / 32, freqs, numfreqs)] *
 			    cpu_running_mark / 2) {
 				freq = freq * 31 / 32;
 				if (freq < freqs[numfreqs - 1])

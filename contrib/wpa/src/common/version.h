@@ -1,6 +1,10 @@
 #ifndef VERSION_H
 #define VERSION_H
 
-#define VERSION_STR "0.7.3"
+#ifndef VERSION_STR_POSTFIX
+#define VERSION_STR_POSTFIX ""
+#endif /* VERSION_STR_POSTFIX */
+
+#define VERSION_STR "2.0" VERSION_STR_POSTFIX
 
 #endif /* VERSION_H */

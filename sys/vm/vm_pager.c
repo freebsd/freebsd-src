@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -174,11 +175,10 @@ static const int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
  * cleaning requests (NPENDINGIO == 64) * the maximum swap cluster size
  * (MAXPHYS == 64k) if you want to get the most efficiency.
  */
-vm_map_t pager_map;
-static int bswneeded;
-static vm_offset_t swapbkva;		/* swap buffers kva */
-struct mtx pbuf_mtx;
+struct mtx_padalign pbuf_mtx;
 static TAILQ_HEAD(swqueue, buf) bswlist;
+static int bswneeded;
+vm_offset_t swapbkva;		/* swap buffers kva */
 
 void
 vm_pager_init()
@@ -215,10 +215,6 @@ vm_pager_bufferinit()
 
 	cluster_pbuf_freecnt = nswbuf / 2;
 	vnode_pbuf_freecnt = nswbuf / 2 + 1;
-
-	swapbkva = kmem_alloc_nofault(pager_map, nswbuf * MAXPHYS);
-	if (!swapbkva)
-		panic("Not enough pager_map VM space for physical buffers");
 }
 
 /*

@@ -1,15 +1,9 @@
 /*
  * TLSv1 server - read handshake message
- * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -17,6 +11,7 @@
 #include "common.h"
 #include "crypto/md5.h"
 #include "crypto/sha1.h"
+#include "crypto/sha256.h"
 #include "crypto/tls.h"
 #include "x509v3.h"
 #include "tlsv1_common.h"
@@ -85,14 +80,29 @@ static int tls_process_client_hello(struct tlsv1_server *conn, u8 ct,
 	conn->client_version = WPA_GET_BE16(pos);
 	wpa_printf(MSG_DEBUG, "TLSv1: Client version %d.%d",
 		   conn->client_version >> 8, conn->client_version & 0xff);
-	if (conn->client_version < TLS_VERSION) {
+	if (conn->client_version < TLS_VERSION_1) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Unexpected protocol version in "
-			   "ClientHello");
+			   "ClientHello %u.%u",
+			   conn->client_version >> 8,
+			   conn->client_version & 0xff);
 		tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
 				   TLS_ALERT_PROTOCOL_VERSION);
 		return -1;
 	}
 	pos += 2;
+
+	if (TLS_VERSION == TLS_VERSION_1)
+		conn->rl.tls_version = TLS_VERSION_1;
+#ifdef CONFIG_TLSV12
+	else if (conn->client_version >= TLS_VERSION_1_2)
+		conn->rl.tls_version = TLS_VERSION_1_2;
+#endif /* CONFIG_TLSV12 */
+	else if (conn->client_version > TLS_VERSION_1_1)
+		conn->rl.tls_version = TLS_VERSION_1_1;
+	else
+		conn->rl.tls_version = conn->client_version;
+	wpa_printf(MSG_DEBUG, "TLSv1: Using TLS v%s",
+		   tls_version_str(conn->rl.tls_version));
 
 	/* Random random */
 	if (end - pos < TLS_RANDOM_LEN)
@@ -424,7 +434,7 @@ static int tls_process_certificate(struct tlsv1_server *conn, u8 ct,
 	}
 
 	if (x509_certificate_chain_validate(conn->cred->trusted_certs, chain,
-					    &reason) < 0) {
+					    &reason, 0) < 0) {
 		int tls_reason;
 		wpa_printf(MSG_DEBUG, "TLSv1: Server certificate chain "
 			   "validation failed (reason=%d)", reason);
@@ -483,6 +493,14 @@ static int tls_process_client_key_exchange_rsa(
 
 	encr_len = WPA_GET_BE16(pos);
 	pos += 2;
+	if (pos + encr_len > end) {
+		wpa_printf(MSG_DEBUG, "TLSv1: Invalid ClientKeyExchange "
+			   "format: encr_len=%u left=%u",
+			   encr_len, (unsigned int) (end - pos));
+		tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+				   TLS_ALERT_DECODE_ERROR);
+		return -1;
+	}
 
 	outbuflen = outlen = end - pos;
 	out = os_malloc(outlen >= TLS_PRE_MASTER_SECRET_LEN ?
@@ -512,21 +530,21 @@ static int tls_process_client_key_exchange_rsa(
 	 */
 
 	if (crypto_private_key_decrypt_pkcs1_v15(conn->cred->key,
-						 pos, end - pos,
+						 pos, encr_len,
 						 out, &outlen) < 0) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Failed to decrypt "
-			   "PreMasterSecret (encr_len=%d outlen=%lu)",
-			   (int) (end - pos), (unsigned long) outlen);
+			   "PreMasterSecret (encr_len=%u outlen=%lu)",
+			   encr_len, (unsigned long) outlen);
 		use_random = 1;
 	}
 
-	if (outlen != TLS_PRE_MASTER_SECRET_LEN) {
+	if (!use_random && outlen != TLS_PRE_MASTER_SECRET_LEN) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Unexpected PreMasterSecret "
 			   "length %lu", (unsigned long) outlen);
 		use_random = 1;
 	}
 
-	if (WPA_GET_BE16(out) != conn->client_version) {
+	if (!use_random && WPA_GET_BE16(out) != conn->client_version) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Client version in "
 			   "ClientKeyExchange does not match with version in "
 			   "ClientHello");
@@ -822,6 +840,47 @@ static int tls_process_certificate_verify(struct tlsv1_server *conn, u8 ct,
 
 	hpos = hash;
 
+#ifdef CONFIG_TLSV12
+	if (conn->rl.tls_version == TLS_VERSION_1_2) {
+		/*
+		 * RFC 5246, 4.7:
+		 * TLS v1.2 adds explicit indication of the used signature and
+		 * hash algorithms.
+		 *
+		 * struct {
+		 *   HashAlgorithm hash;
+		 *   SignatureAlgorithm signature;
+		 * } SignatureAndHashAlgorithm;
+		 */
+		if (end - pos < 2) {
+			tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+					   TLS_ALERT_DECODE_ERROR);
+			return -1;
+		}
+		if (pos[0] != TLS_HASH_ALG_SHA256 ||
+		    pos[1] != TLS_SIGN_ALG_RSA) {
+			wpa_printf(MSG_DEBUG, "TLSv1.2: Unsupported hash(%u)/"
+				   "signature(%u) algorithm",
+				   pos[0], pos[1]);
+			tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+					   TLS_ALERT_INTERNAL_ERROR);
+			return -1;
+		}
+		pos += 2;
+
+		hlen = SHA256_MAC_LEN;
+		if (conn->verify.sha256_cert == NULL ||
+		    crypto_hash_finish(conn->verify.sha256_cert, hpos, &hlen) <
+		    0) {
+			conn->verify.sha256_cert = NULL;
+			tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+					   TLS_ALERT_INTERNAL_ERROR);
+			return -1;
+		}
+		conn->verify.sha256_cert = NULL;
+	} else {
+#endif /* CONFIG_TLSV12 */
+
 	if (alg == SIGN_ALG_RSA) {
 		hlen = MD5_MAC_LEN;
 		if (conn->verify.md5_cert == NULL ||
@@ -851,6 +910,10 @@ static int tls_process_certificate_verify(struct tlsv1_server *conn, u8 ct,
 
 	if (alg == SIGN_ALG_RSA)
 		hlen += MD5_MAC_LEN;
+
+#ifdef CONFIG_TLSV12
+	}
+#endif /* CONFIG_TLSV12 */
 
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: CertificateVerify hash", hash, hlen);
 
@@ -890,6 +953,41 @@ static int tls_process_certificate_verify(struct tlsv1_server *conn, u8 ct,
 
 	wpa_hexdump_key(MSG_MSGDUMP, "TLSv1: Decrypted Signature",
 			buf, buflen);
+
+#ifdef CONFIG_TLSV12
+	if (conn->rl.tls_version >= TLS_VERSION_1_2) {
+		/*
+		 * RFC 3447, A.2.4 RSASSA-PKCS1-v1_5
+		 *
+		 * DigestInfo ::= SEQUENCE {
+		 *   digestAlgorithm DigestAlgorithm,
+		 *   digest OCTET STRING
+		 * }
+		 *
+		 * SHA-256 OID: sha256WithRSAEncryption ::= {pkcs-1 11}
+		 *
+		 * DER encoded DigestInfo for SHA256 per RFC 3447:
+		 * 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20 ||
+		 * H
+		 */
+		if (buflen >= 19 + 32 &&
+		    os_memcmp(buf, "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01"
+			      "\x65\x03\x04\x02\x01\x05\x00\x04\x20", 19) == 0)
+		{
+			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = "
+				   "SHA-256");
+			os_memmove(buf, buf + 19, buflen - 19);
+			buflen -= 19;
+		} else {
+			wpa_printf(MSG_DEBUG, "TLSv1.2: Unrecognized "
+				   "DigestInfo");
+			os_free(buf);
+			tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+					   TLS_ALERT_DECRYPT_ERROR);
+			return -1;
+		}
+	}
+#endif /* CONFIG_TLSV12 */
 
 	if (buflen != hlen || os_memcmp(buf, hash, buflen) != 0) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Invalid Signature in "
@@ -1022,6 +1120,21 @@ static int tls_process_client_finished(struct tlsv1_server *conn, u8 ct,
 	wpa_hexdump(MSG_MSGDUMP, "TLSv1: verify_data in Finished",
 		    pos, TLS_VERIFY_DATA_LEN);
 
+#ifdef CONFIG_TLSV12
+	if (conn->rl.tls_version >= TLS_VERSION_1_2) {
+		hlen = SHA256_MAC_LEN;
+		if (conn->verify.sha256_client == NULL ||
+		    crypto_hash_finish(conn->verify.sha256_client, hash, &hlen)
+		    < 0) {
+			tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,
+					   TLS_ALERT_INTERNAL_ERROR);
+			conn->verify.sha256_client = NULL;
+			return -1;
+		}
+		conn->verify.sha256_client = NULL;
+	} else {
+#endif /* CONFIG_TLSV12 */
+
 	hlen = MD5_MAC_LEN;
 	if (conn->verify.md5_client == NULL ||
 	    crypto_hash_finish(conn->verify.md5_client, hash, &hlen) < 0) {
@@ -1043,9 +1156,15 @@ static int tls_process_client_finished(struct tlsv1_server *conn, u8 ct,
 		return -1;
 	}
 	conn->verify.sha1_client = NULL;
+	hlen = MD5_MAC_LEN + SHA1_MAC_LEN;
 
-	if (tls_prf(conn->master_secret, TLS_MASTER_SECRET_LEN,
-		    "client finished", hash, MD5_MAC_LEN + SHA1_MAC_LEN,
+#ifdef CONFIG_TLSV12
+	}
+#endif /* CONFIG_TLSV12 */
+
+	if (tls_prf(conn->rl.tls_version,
+		    conn->master_secret, TLS_MASTER_SECRET_LEN,
+		    "client finished", hash, hlen,
 		    verify_data, TLS_VERIFY_DATA_LEN)) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Failed to derive verify_data");
 		tlsv1_server_alert(conn, TLS_ALERT_LEVEL_FATAL,

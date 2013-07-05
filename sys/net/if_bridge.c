@@ -118,6 +118,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_ifattach.h>
 #endif
 #if defined(INET) || defined(INET6)
 #include <netinet/ip_carp.h>
@@ -1041,14 +1042,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (ifs->if_bridge != NULL)
 		return (EBUSY);
 
-	bif = malloc(sizeof(*bif), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (bif == NULL)
-		return (ENOMEM);
-
-	bif->bif_ifp = ifs;
-	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
-	bif->bif_savedcaps = ifs->if_capenable;
-
 	switch (ifs->if_type) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
@@ -1056,19 +1049,94 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		/* permitted interface types */
 		break;
 	default:
-		error = EINVAL;
-		goto out;
+		return (EINVAL);
 	}
 
+#ifdef INET6
+	/*
+	 * Two valid inet6 addresses with link-local scope must not be
+	 * on the parent interface and the member interfaces at the
+	 * same time.  This restriction is needed to prevent violation
+	 * of link-local scope zone.  Attempts to add a member
+	 * interface which has inet6 addresses when the parent has
+	 * inet6 triggers removal of all inet6 addresses on the member
+	 * interface.
+	 */
+
+	/* Check if the parent interface has a link-local scope addr. */
+	if (in6ifa_llaonifp(sc->sc_ifp) != NULL) {
+		/*
+		 * If any, remove all inet6 addresses from the member
+		 * interfaces.
+		 */
+		BRIDGE_XLOCK(sc);
+		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+ 			if (in6ifa_llaonifp(bif->bif_ifp)) {
+				BRIDGE_UNLOCK(sc);
+				in6_ifdetach(bif->bif_ifp);
+				BRIDGE_LOCK(sc);
+				if_printf(sc->sc_ifp,
+				    "IPv6 addresses on %s have been removed "
+				    "before adding it as a member to prevent "
+				    "IPv6 address scope violation.\n",
+				    bif->bif_ifp->if_xname);
+			}
+		}
+		BRIDGE_XDROP(sc);
+		if (in6ifa_llaonifp(ifs)) {
+			BRIDGE_UNLOCK(sc);
+			in6_ifdetach(ifs);
+			BRIDGE_LOCK(sc);
+			if_printf(sc->sc_ifp,
+			    "IPv6 addresses on %s have been removed "
+			    "before adding it as a member to prevent "
+			    "IPv6 address scope violation.\n",
+			    ifs->if_xname);
+		}
+	} else {
+		struct in6_ifaddr *ia6_m, *ia6_s;
+		/*
+		 * If not, check whether one of the existing member
+		 * interfaces have inet6 address.  If any, remove
+		 * inet6 addresses on the interface to be added.
+		 */
+		ia6_m = NULL;
+		BRIDGE_XLOCK(sc);
+		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+			ia6_m = in6ifa_llaonifp(bif->bif_ifp);
+			if (ia6_m != NULL)
+				break;
+		}
+		BRIDGE_XDROP(sc);
+		ia6_s = in6ifa_llaonifp(ifs);
+
+		if (ia6_m != NULL && ia6_s != NULL) {
+			BRIDGE_UNLOCK(sc);
+			in6_ifdetach(ifs);
+			BRIDGE_LOCK(sc);
+			if_printf(sc->sc_ifp, "IPv6 addresses on %s have "
+				  "been removed before adding it as a member "
+				  "to prevent IPv6 address scope violation.\n",
+				  ifs->if_xname);
+		}
+	}
+#endif
 	/* Allow the first Ethernet member to define the MTU */
 	if (LIST_EMPTY(&sc->sc_iflist))
 		sc->sc_ifp->if_mtu = ifs->if_mtu;
 	else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
 		if_printf(sc->sc_ifp, "invalid MTU: %lu(%s) != %lu\n",
 		    ifs->if_mtu, ifs->if_xname, sc->sc_ifp->if_mtu);
-		error = EINVAL;
-		goto out;
+		return (EINVAL);
 	}
+
+	bif = malloc(sizeof(*bif), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (bif == NULL)
+		return (ENOMEM);
+
+	bif->bif_ifp = ifs;
+	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
+	bif->bif_savedcaps = ifs->if_capenable;
 
 	/*
 	 * Assign the interface's MAC address to the bridge if it's the first
@@ -1104,12 +1172,10 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 			BRIDGE_LOCK(sc);
 			break;
 	}
-	if (error)
-		bridge_delete_member(sc, bif, 0);
-out:
+
 	if (error) {
-		if (bif != NULL)
-			free(bif, M_DEVBUF);
+		bridge_delete_member(sc, bif, 0);
+		free(bif, M_DEVBUF);
 	}
 	return (error);
 }
@@ -3408,7 +3474,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 				continue;
 			}
 			bcopy(eh, mtod(m0, caddr_t), ETHER_HDR_LEN);
-		} else 
+		} else
 			m_freem(m);
 	}
 

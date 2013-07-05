@@ -135,7 +135,7 @@ f_media_init_usb()
 # f_media_get_usb $device $file [$probe_only]
 #
 # Returns data from $file on a mounted USB disk device. Similar to cat(1).
-# $probe_only is currently unused by this media type.
+# If $probe_only is present and non-NULL, returns success if $file exists.
 #
 f_media_get_usb()
 {
@@ -144,7 +144,7 @@ f_media_get_usb()
 	f_dprintf "f_media_get_usb: dev=[%s] file=[%s] probe_only=%s" \
 	          "$dev" "$file" "$probe_only"
 
-	f_media_generic_get "$MOUNTPOINT" "$file"
+	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_only"
 }
 
 # f_media_shutdown_usb $device

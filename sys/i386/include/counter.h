@@ -67,6 +67,93 @@ counter_64_inc_8b(uint64_t *p, int64_t inc)
 	: "memory", "cc", "eax", "edx", "ebx", "ecx");
 }
 
+#ifdef IN_SUBR_COUNTER_C
+static inline uint64_t
+counter_u64_read_one_8b(uint64_t *p)
+{
+	uint32_t res_lo, res_high;
+
+	__asm __volatile(
+	"movl	%%eax,%%ebx\n\t"
+	"movl	%%edx,%%ecx\n\t"
+	"cmpxchg8b	(%2)"
+	: "=a" (res_lo), "=d"(res_high)
+	: "SD" (p)
+	: "cc", "ebx", "ecx");
+	return (res_lo + ((uint64_t)res_high << 32));
+}
+
+static inline uint64_t
+counter_u64_fetch_inline(uint64_t *p)
+{
+	uint64_t res;
+	int i;
+
+	res = 0;
+	if ((cpu_feature & CPUID_CX8) == 0) {
+		/*
+		 * The machines without cmpxchg8b are not SMP.
+		 * Disabling the preemption provides atomicity of the
+		 * counter reading, since update is done in the
+		 * critical section as well.
+		 */
+		critical_enter();
+		for (i = 0; i < mp_ncpus; i++) {
+			res += *(uint64_t *)((char *)p +
+			    sizeof(struct pcpu) * i);
+		}
+		critical_exit();
+	} else {
+		for (i = 0; i < mp_ncpus; i++)
+			res += counter_u64_read_one_8b((uint64_t *)((char *)p +
+			    sizeof(struct pcpu) * i));
+	}
+	return (res);
+}
+
+static inline void
+counter_u64_zero_one_8b(uint64_t *p)
+{
+
+	__asm __volatile(
+	"movl	(%0),%%eax\n\t"
+	"movl	4(%0),%%edx\n"
+	"xorl	%%ebx,%%ebx\n\t"
+	"xorl	%%ecx,%%ecx\n\t"
+"1:\n\t"
+	"cmpxchg8b	(%0)\n\t"
+	"jnz	1b"
+	:
+	: "SD" (p)
+	: "memory", "cc", "eax", "edx", "ebx", "ecx");
+}
+
+static void
+counter_u64_zero_one_cpu(void *arg)
+{
+	uint64_t *p;
+
+	p = (uint64_t *)((char *)arg + sizeof(struct pcpu) * PCPU_GET(cpuid));
+	counter_u64_zero_one_8b(p);
+}
+
+static inline void
+counter_u64_zero_inline(counter_u64_t c)
+{
+	int i;
+
+	if ((cpu_feature & CPUID_CX8) == 0) {
+		critical_enter();
+		for (i = 0; i < mp_ncpus; i++)
+			*(uint64_t *)((char *)c + sizeof(struct pcpu) * i) = 0;
+		critical_exit();
+	} else {
+		smp_rendezvous(smp_no_rendevous_barrier,
+		    counter_u64_zero_one_cpu, smp_no_rendevous_barrier, c);
+	}
+}
+#endif
+
 #define	counter_u64_add_protected(c, inc)	do {	\
 	if ((cpu_feature & CPUID_CX8) == 0) {		\
 		CRITICAL_ASSERT(curthread);		\

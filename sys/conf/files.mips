@@ -77,7 +77,7 @@ dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic
 crypto/blowfish/bf_enc.c		optional	crypto | ipsec 
-crypto/des/des_enc.c			optional	crypto | ipsec
+crypto/des/des_enc.c			optional	crypto | ipsec | netsmb
 
 # AP common nvram interface MIPS specific, but maybe should be more generic
 dev/nvram2env/nvram2env.c		optional	nvram2env

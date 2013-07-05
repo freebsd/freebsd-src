@@ -47,14 +47,14 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
     struct mbuf *dm);
 
 
-#define sctp_build_readq_entry_mac(_ctl, in_it, a, net, tsn, ppid, context, stream_no, stream_seq, flags, dm) do { \
+#define sctp_build_readq_entry_mac(_ctl, in_it, context, net, tsn, ppid, stream_no, stream_seq, flags, dm) do { \
 	if (_ctl) { \
 		atomic_add_int(&((net)->ref_count), 1); \
 		(_ctl)->sinfo_stream = stream_no; \
 		(_ctl)->sinfo_ssn = stream_seq; \
 		(_ctl)->sinfo_flags = (flags << 8); \
 		(_ctl)->sinfo_ppid = ppid; \
-		(_ctl)->sinfo_context = a; \
+		(_ctl)->sinfo_context = context; \
 		(_ctl)->sinfo_timetolive = 0; \
 		(_ctl)->sinfo_tsn = tsn; \
 		(_ctl)->sinfo_cumtsn = tsn; \
