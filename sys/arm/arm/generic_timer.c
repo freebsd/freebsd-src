@@ -60,28 +60,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
-#define	GENERIC_TIMER_CTRL_ENABLE	(1 << 0)
-#define	GENERIC_TIMER_CTRL_INT_MASK	(1 << 1)
-#define	GENERIC_TIMER_CTRL_INT_STAT	(1 << 2)
-#define	GENERIC_TIMER_REG_CTRL		0
-#define	GENERIC_TIMER_REG_TVAL		1
+#define	GT_CTRL_ENABLE		(1 << 0)
+#define	GT_CTRL_INT_MASK	(1 << 1)
+#define	GT_CTRL_INT_STAT	(1 << 2)
+#define	GT_REG_CTRL		0
+#define	GT_REG_TVAL		1
 
-#define	GENERIC_TIMER_CNTKCTL_PL0PTEN	(1 << 9) /* Physical timer registers
-						    access from PL0 */
-#define	GENERIC_TIMER_CNTKCTL_PL0VTEN	(1 << 8) /* Virtual timer registers
-						    access from PL0 */
-#define	GENERIC_TIMER_CNTKCTL_EVNTI	(1 << 4) /* Virtual counter
-						    event bits */
-#define	GENERIC_TIMER_CNTKCTL_EVNTDIR	(1 << 3) /* Virtual counter
-						    event transition */
-#define	GENERIC_TIMER_CNTKCTL_EVNTEN	(1 << 2) /* Enables events from
-						    the virtual counter */
-#define	GENERIC_TIMER_CNTKCTL_PL0VCTEN	(1 << 1) /* CNTVCT and CNTFRQ
-						    access from PL0 */
-#define	GENERIC_TIMER_CNTKCTL_PL0PCTEN	(1 << 0) /* CNTPCT and CNTFRQ
-						    access from PL0 */
+#define	GT_CNTKCTL_PL0PTEN	(1 << 9) /* PL0 Physical timer reg access */
+#define	GT_CNTKCTL_PL0VTEN	(1 << 8) /* PL0 Virtual timer reg access */
+#define	GT_CNTKCTL_EVNTI	(1 << 4) /* Virtual counter event bits */
+#define	GT_CNTKCTL_EVNTDIR	(1 << 3) /* Virtual counter event transition */
+#define	GT_CNTKCTL_EVNTEN	(1 << 2) /* Enables virtual counter events */
+#define	GT_CNTKCTL_PL0VCTEN	(1 << 1) /* PL0 CNTVCT and CNTFRQ access */
+#define	GT_CNTKCTL_PL0PCTEN	(1 << 0) /* PL0 CNTPCT and CNTFRQ access */
 
-#define	GENERIC_TIMER_CNTPSIRQ	29
+#define	GT_CNTPSIRQ	29
 
 struct arm_tmr_softc {
 	struct resource		*irq_res;
@@ -182,11 +175,8 @@ disable_user_access(void)
 	uint32_t cntkctl;
 
 	__asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
-	cntkctl &= ~(GENERIC_TIMER_CNTKCTL_PL0PTEN |
-		GENERIC_TIMER_CNTKCTL_PL0VTEN |
-		GENERIC_TIMER_CNTKCTL_EVNTEN |
-		GENERIC_TIMER_CNTKCTL_PL0VCTEN |
-		GENERIC_TIMER_CNTKCTL_PL0PCTEN);
+	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
+	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
 	__asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
 	isb();
 }
@@ -209,8 +199,8 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	if (first != 0) {
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
 		ctrl = get_ctrl();
-		ctrl &= ~GENERIC_TIMER_CTRL_INT_MASK;
-		ctrl |= GENERIC_TIMER_CTRL_ENABLE;
+		ctrl &= ~GT_CTRL_INT_MASK;
+		ctrl |= GT_CTRL_ENABLE;
 		set_tval(counts);
 		set_ctrl(ctrl);
 		return (0);
@@ -226,7 +216,7 @@ arm_tmr_stop(struct eventtimer *et)
 	int ctrl;
 
 	ctrl = get_ctrl();
-	ctrl &= GENERIC_TIMER_CTRL_ENABLE;
+	ctrl &= GT_CTRL_ENABLE;
 	set_ctrl(ctrl);
 
 	return (0);
@@ -240,8 +230,8 @@ arm_tmr_intr(void *arg)
 
 	sc = (struct arm_tmr_softc *)arg;
 	ctrl = get_ctrl();
-	if (ctrl & GENERIC_TIMER_CTRL_INT_STAT) {
-		ctrl |= GENERIC_TIMER_CTRL_INT_MASK;
+	if (ctrl & GT_CTRL_INT_STAT) {
+		ctrl |= GT_CTRL_INT_MASK;
 		set_ctrl(ctrl);
 	}
 
@@ -289,7 +279,7 @@ arm_tmr_attach(device_t dev)
 
 	rid = 0;
 	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-	    GENERIC_TIMER_CNTPSIRQ, GENERIC_TIMER_CNTPSIRQ,
+	    GT_CNTPSIRQ, GT_CNTPSIRQ,
 	    1, RF_SHAREABLE | RF_ACTIVE);
 
 	arm_tmr_sc = sc;
