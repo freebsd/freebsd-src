@@ -9,6 +9,7 @@ SUBDIR=	\
 	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
+	${_aacraid} \
 	accf_data \
 	accf_dns \
 	accf_http \
@@ -532,6 +533,7 @@ _zfs=		zfs
 .endif
 .if ${MACHINE} == "i386"
 _aac=		aac
+_aacraid=	aacraid
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
@@ -613,6 +615,7 @@ _snc=		snc
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
+_aacraid=	aacraid
 _aout=		aout
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -736,6 +739,7 @@ _zfs=		zfs
 
 .if ${MACHINE_CPUARCH} == "ia64"
 _aac=		aac
+_aacraid=	aacraid
 _aic=		aic
 _an=		an
 _arcnet=	arcnet
