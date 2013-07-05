@@ -15,6 +15,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130705:
+	hastctl(8)'s `status' command output changed to terse one-liner format.
+	Scripts using this should switch to `list' command or be rewritten.
+
 20130624:
 	Added ZFS TRIM support which is enabled by default. To disable
 	ZFS TRIM support set vfs.zfs.trim.enabled=0 in loader.conf.
