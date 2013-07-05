@@ -23,40 +23,6 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"            docsinstall
-.\"            password
-.\"            diskmgmt
-.\"            usermgmt
-.\"              useradd
-.\"              useredit
-.\"              userdel
-.\"            groupmgmt
-.\"              groupadd
-.\"              groupedit
-.\"              groupdel
-.\"            console
-.\"              syscons_font
-.\"              syscons_keymap
-.\"              syscons_repeat
-.\"              syscons_saver
-.\"              syscons_screenmap
-.\"              syscons_ttys
-.\"            timezone
-.\"            mouse
-.\"              mouse_enable
-.\"              mouse_type
-.\"              mouse_port
-.\"              mouse_flags
-.\"              mouse_disable
-.\"            networking
-.\"              defaultrouter
-.\"              hostname
-.\"              nameservers
-.\"              netdev
-.\"            security
-.\"            ttys
-.\"            [dot]
-.\"
 .\" $FreeBSD$
 .\"
 .Dd Jun 5, 2013
@@ -163,6 +129,8 @@ Shortcut to the Edit/View Groups menu under groupmgmt.
 Utilities to Add/Change/View/Delete Group Accounts.
 .It Cm hostname
 Shortcut to the Hostname/Domain menu under networking.
+.It Cm kern_securelevel
+Shortcut to the kern.securelevel menu under security.
 .It Cm mouse
 Utilities for configuring, exploring, and enabling console mouse support.
 .It Cm mouse_disable
@@ -182,12 +150,28 @@ Shortcut to the Network Interfaces menu under networking.
 .It Cm networking
 Utilities to set/change Hostname/Domain, Network Interfaces, Default
 Router/Gateway, and DNS Nameservers.
+.It Cm packages
+Browse, install, uninstall, or re-install packaged software.
 .It Cm password
 Set the system administrator
 .Pq root
 password.
 .It Cm security
 Configure various system security settings.
+.It Cm startup
+Configure various aspects of system startup.
+.It Cm startup_misc
+Shortcut to the Miscellaneous Startup Services menu under startup.
+.It Cm startup_rcadd
+Shortcut to the Add New menu under the View/Edit Startup Configuration menu
+(startup_rcconf) of startup.
+.It Cm startup_rcconf
+Shortcut to the View/Edit Startup Configuration menu under startup.
+.It Cm startup_rcdelete
+Shortcut to the Delete menu under the View/Edit Startup Configuration menu
+(startup_rcconf) of startup.
+.It Cm startup_rcvar
+Shortcut to the Toggle Startup Services menu under startup.
 .It Cm syscons_font
 Shortcut to the Font menu under console.
 .It Cm syscons_keymap
@@ -202,6 +186,10 @@ Shortcut to the Screenmap menu under console.
 Shortcut to the Ttys menu under console.
 .It Cm timezone
 Set the regional timezone of the local machine.
+.It Cm ttys
+Edit the
+.Xr ttys 5
+database with your favorite editor.
 .It Cm useradd
 Shortcut to the Add Users menu under usermgmt.
 .It Cm userdel
