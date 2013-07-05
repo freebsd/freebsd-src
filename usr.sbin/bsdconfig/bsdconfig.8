@@ -80,8 +80,9 @@ is used to set up many system configuration settings, both for new systems, as
 well as changing configuration settings of existing systems.
 .Pp
 .Nm
-takes a command as an argument. If invoked with no arguments, it will bring up
-a master menu listing the available commands.
+takes a command as an argument.
+If invoked with no arguments, it will bring up a master menu listing the
+available commands.
 .Pp
 The following options are available:
 .Bl -tag -width indent+
@@ -115,8 +116,8 @@ The following commands
 .Pq sorted alphabetically
 are currently included in the base
 .Nm
-program, with more to be added soon.  Other commands can be added, as detailed
-below in the
+program, with more to be added soon.
+Other commands can be added, as detailed below in the
 .Cm ADDING COMMANDS
 section, and once added, will appear in the master menu as well as in the
 .Cm -h
@@ -127,7 +128,8 @@ Utilities to customize the behavior of the system console.
 .It Cm defaultrouter
 Shortcut to the Default Router/Gateway menu under networking.
 .It Cm diskmgmt
-Manage disk partitions and/or labels. Executes
+Manage disk partitions and/or labels.
+Executes
 .Xr sade 8 .
 .It Cm docsinstall
 Executes the
@@ -141,7 +143,8 @@ language file
 .Pq printed on stdout
 visualizing the
 .Nm
-menu, include, and shortcut structure relationships.  See
+menu, include, and shortcut structure relationships.
+See
 .Dq bsdconfig dot -h
 for more details.
 .It Cm groupadd
@@ -210,8 +213,8 @@ In the absence of language-specific translation files, the default
 .Pq en_US.ISO8859-1
 files will be used.
 .Sh ADDING COMMANDS
-To be documented later. Document menu_selection="command|*" syntax of INDEX
-files.
+To be documented later.
+Document menu_selection="command|*" syntax of INDEX files.
 .Sh ENVIRONMENT VARIABLES
 The following environment variables affect the execution of
 .Nm :
@@ -219,7 +222,8 @@ The following environment variables affect the execution of
 .It Ev LANG
 If LANG is set, messages and index information will be read from files named
 messages.$LANG and INDEX.$LANG and fall back to files named messages and INDEX if
-messages.$LANG and INDEX.$LANG do not exist.  LANG takes precedence over LC_ALL.
+messages.$LANG and INDEX.$LANG do not exist.
+LANG takes precedence over LC_ALL.
 .It Ev LC_ALL
 If LC_ALL is set, messages and index information will be read from files named
 messages.$LC_ALL and INDEX.$LC_ALL and fall back to files named messages and INDEX if
