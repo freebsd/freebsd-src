@@ -117,7 +117,7 @@
 
 #define ROUNDUP(x) ((x) ? (1 + (((x) - 1) | (sizeof(long) - 1))) : sizeof(long))
 
-#if defined(__NetBSD__) || __FreeBSD__ < 3
+#ifdef __NetBSD__
 extern void randinit(void);
 #else
 #define random arc4random
