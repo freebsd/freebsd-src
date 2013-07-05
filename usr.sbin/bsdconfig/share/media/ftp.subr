@@ -630,8 +630,7 @@ f_media_init_ftp()
 			   ! f_getvar $VAR_FTP_PATH cp ||
 			   [ ! "$cp" ]
 			then
-				f_dialog_msgbox \
-					"$msg_unable_to_get_proper_ftp_path"
+				f_show_msg "$msg_unable_to_get_proper_ftp_path"
 				f_device_network_down $dev
 				return $FAILURE
 			fi
@@ -642,7 +641,7 @@ f_media_init_ftp()
 			f_getvar $VAR_FTP_HOST ftp_host &&
 			f_getvar $VAR_FTP_DIR ftp_dir
 		}; then
-			f_dialog_msgbox "$msg_missing_ftp_host_or_directory"
+			f_show_msg "$msg_missing_ftp_host_or_directory"
 			f_device_network_down $dev
 			return $FAILURE
 		fi

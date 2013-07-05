@@ -124,7 +124,7 @@ f_dialog_menu_netdev()
 		done
 	)
 	if [ ! "$interfaces" ]; then
-		f_dialog_msgbox "$msg_no_network_interfaces"
+		f_show_msg "$msg_no_network_interfaces"
 		return $FAILURE
 	fi
 

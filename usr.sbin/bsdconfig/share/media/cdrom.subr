@@ -61,7 +61,7 @@ f_media_set_cdrom()
 	ndevs=$( set -- $devs; echo $# )
 
 	if [ ${ndevs:=0} -eq 0 ]; then
-		f_interactive && f_dialog_msgbox "$msg_no_cd_dvd_devices_found"
+		f_interactive && f_show_msg "$msg_no_cd_dvd_devices_found"
 		return $FAILURE
 	elif [ $ndevs -gt 1 ]; then
 		local title="$msg_choose_a_cd_dvd_type"
