@@ -263,16 +263,15 @@ f_dialog_menu_netdev_edit()
 		case "$tag" in
 		X\ *) break ;;
 		2\ *) #
-		      # Do not proceed if/when there are NFS-mounts currently
-		      # active. If the network is changed while NFS-exported
-		      # directories are mounted, the system may hang (if any
-		      # NFS mounts are using that interface).
+		      # Proceed cautiously (confirm with the user) if/when NFS-
+		      # mounts are active. If the network on which these mounts
+		      # are made is changed parts of the system may hang.
 		      #
 		      if f_nfs_mounted && ! f_jailed; then
 		      	local setting="$( printf "$msg_current_dhcp_status" \
 		      	                         "$interface" "$dhcp_status" )"
-			f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
-		      	continue
+			f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+		      		continue
 		      fi
 
 		      #

@@ -146,8 +146,8 @@ f_dialog_input_ipaddr()
 	if f_nfs_mounted && ! f_jailed; then
 		local setting="$( printf "$msg_current_ipaddr" \
 		                         "$interface" "$_ipaddr" )"
-		f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
-		return $FAILURE
+		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+			return $FAILURE
 	fi
 
 	local msg="$( printf "$msg_please_enter_new_ip_addr" "$interface" )"
