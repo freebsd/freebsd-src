@@ -207,7 +207,8 @@ f_index_read()
 
 # f_index_extract_pages $var_to_get $var_basename $pagesize [$category]
 #
-# Extracts the package INDEX into a series of sequential variables
+# Extracts the package INDEX ($PACKAGE_INDEX by default if/when $var_to_get is
+# NULL; but should not be missing) into a series of sequential variables
 # corresponding to "pages" containing up to $pagesize packages. The package
 # INDEX data must be contained in the variable $var_to_get. The extracted pages
 # are stored in variables ${var_basename}_# -- where "#" is a the page number.
@@ -217,7 +218,7 @@ f_index_read()
 #
 f_index_extract_pages()
 {
-	local var_to_get="$1" var_basename="$2" pagesize="$3"
+	local var_to_get="${1:-PACKAGE_INDEX}" var_basename="$2" pagesize="$3"
 	local category="$4" # Optional
 
 	eval "$(
