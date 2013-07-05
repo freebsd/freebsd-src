@@ -881,6 +881,7 @@ f_package_add()
 	# detected the installed packages -- something we should do only once.
 	#
 	if [ ! "$PACKAGES_DETECTED" ]; then
+		f_dprintf "f_package_add: Detecting installed packages"
 		f_package_detect_installed
 		export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
 	fi
