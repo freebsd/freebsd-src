@@ -235,7 +235,7 @@ customized as needed.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
-.Xr sade 8
+.Xr bsdinstall 8
 .Sh HISTORY
 .Nm
 first appeared in
@@ -244,4 +244,6 @@ first appeared in
 .An Ron McDowell Aq rcm@FuzzWad.ORG
 .An Devin Teske Aq devinteske@hotmail.com
 .Sh BUGS
-Undoubtedly.
+The docsinstall and diskmgmt modules call bsdinstall.
+Bugs found in these modules should be considered those of bsdinstall, not
+.Nm .
