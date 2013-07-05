@@ -17,7 +17,11 @@
 	# TP_SHIFT_CNT
 	reg[0x7dc0] = 0x62f8849
 
+	# TP_GLOBAL_CONFIG
+	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
+
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+	filterMask = protocol, fcoe
 
 	# TP rx and tx channels (0 = auto).
 	tp_nrxch = 0
@@ -79,7 +83,7 @@
 	# TCAM iff there is room left (that is, the rest don't add up to 2048).
 	nroute = 32
 	nclip = 32
-	nfilter = 1456
+	nfilter = 1008
 	nserver = 512
 	nhash = 16384
 
@@ -141,7 +145,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x6cc2514b
+	checksum = 0xb2417251
 #
 # $FreeBSD$
 #

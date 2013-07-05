@@ -373,6 +373,7 @@ static int t4_sysctls(struct adapter *);
 static int cxgbe_sysctls(struct port_info *);
 static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_bitfield(SYSCTL_HANDLER_ARGS);
+static int sysctl_btphy(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
@@ -633,9 +634,6 @@ t4_attach(device_t dev)
 	if (rc != 0)
 		goto done; /* error message displayed already */
 
-	for (i = 0; i < NCHAN; i++)
-		sc->params.tp.tx_modq[i] = i;
-
 	rc = t4_create_dma_tag(sc);
 	if (rc != 0)
 		goto done; /* error message displayed already */
@@ -682,6 +680,7 @@ t4_attach(device_t dev)
 		}
 
 		pi->xact_addr_filt = -1;
+		pi->linkdnrc = -1;
 
 		pi->qsize_rxq = t4_qsize_rxq;
 		pi->qsize_txq = t4_qsize_txq;
@@ -1075,9 +1074,10 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 		if (rc)
 			return (rc);
 		ifp->if_mtu = mtu;
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (pi->flags & PORT_INIT_DONE) {
 			t4_update_fl_bufsize(ifp);
-			rc = update_mac_settings(pi, XGMAC_MTU);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+				rc = update_mac_settings(pi, XGMAC_MTU);
 		}
 		end_synchronized_op(sc, 0);
 		break;
@@ -1826,11 +1826,11 @@ allocate:
 }
 
 #define FW_VERSION(chip) ( \
-    V_FW_HDR_FW_VER_MAJOR(FW_VERSION_MAJOR_##chip) | \
-    V_FW_HDR_FW_VER_MINOR(FW_VERSION_MINOR_##chip) | \
-    V_FW_HDR_FW_VER_MICRO(FW_VERSION_MICRO_##chip) | \
-    V_FW_HDR_FW_VER_BUILD(FW_VERSION_BUILD_##chip))
-#define FW_INTFVER(chip, intf) (FW_HDR_INTFVER_##intf)
+    V_FW_HDR_FW_VER_MAJOR(chip##FW_VERSION_MAJOR) | \
+    V_FW_HDR_FW_VER_MINOR(chip##FW_VERSION_MINOR) | \
+    V_FW_HDR_FW_VER_MICRO(chip##FW_VERSION_MICRO) | \
+    V_FW_HDR_FW_VER_BUILD(chip##FW_VERSION_BUILD))
+#define FW_INTFVER(chip, intf) (chip##FW_HDR_INTFVER_##intf)
 
 struct fw_info {
 	uint8_t chip;
@@ -2089,6 +2089,7 @@ prep_firmware(struct adapter *sc)
 	    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
 	    G_FW_HDR_FW_VER_BUILD(sc->params.fw_vers));
+	t4_get_tp_version(sc, &sc->params.tp_vers);
 
 	/* Reset device */
 	if (need_fw_reset &&
@@ -2932,7 +2933,8 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 
 	pi->link_cfg.link_ok = 0;
 	pi->link_cfg.speed = 0;
-	t4_os_link_changed(sc, pi->port_id, 0);
+	pi->linkdnrc = -1;
+	t4_os_link_changed(sc, pi->port_id, 0, -1);
 
 	return (0);
 }
@@ -4383,6 +4385,10 @@ t4_sysctls(struct adapter *sc)
 		    G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2));
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ddp_thres", CTLFLAG_RW,
 		    &sc->tt.ddp_thres, 0, "DDP threshold");
+
+		sc->tt.rx_coalesce = 1;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_coalesce",
+		    CTLFLAG_RW, &sc->tt.rx_coalesce, 0, "receive coalescing");
 	}
 #endif
 
@@ -4405,6 +4411,16 @@ cxgbe_sysctls(struct port_info *pi)
 	oid = device_get_sysctl_tree(pi->dev);
 	children = SYSCTL_CHILDREN(oid);
 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "linkdnrc", CTLFLAG_RD,
+	    &pi->linkdnrc, 0, "reason why link is down");
+	if (pi->port_type == FW_PORT_TYPE_BT_XAUI) {
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature",
+		    CTLTYPE_INT | CTLFLAG_RD, pi, 0, sysctl_btphy, "I",
+		    "PHY temperature (in Celsius)");
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "fw_version",
+		    CTLTYPE_INT | CTLFLAG_RD, pi, 1, sysctl_btphy, "I",
+		    "PHY firmware version");
+	}
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nrxq", CTLFLAG_RD,
 	    &pi->nrxq, 0, "# of rx queues");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "ntxq", CTLFLAG_RD,
@@ -4642,12 +4658,40 @@ sysctl_bitfield(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+sysctl_btphy(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	int op = arg2;
+	struct adapter *sc = pi->adapter;
+	u_int v;
+	int rc;
+
+	rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4btt");
+	if (rc)
+		return (rc);
+	/* XXX: magic numbers */
+	rc = -t4_mdio_rd(sc, sc->mbox, pi->mdio_addr, 0x1e, op ? 0x20 : 0xc820,
+	    &v);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
+	if (op == 0)
+		v /= 256;
+
+	rc = sysctl_handle_int(oidp, &v, 0, req);
+	return (rc);
+}
+
+static int
 sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 {
 	struct port_info *pi = arg1;
 	struct adapter *sc = pi->adapter;
 	int idx, rc, i;
 	struct sge_rxq *rxq;
+#ifdef TCP_OFFLOAD
+	struct sge_ofld_rxq *ofld_rxq;
+#endif
 	uint8_t v;
 
 	idx = pi->tmr_idx;
@@ -4672,6 +4716,15 @@ sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 		rxq->iq.intr_params = v;
 #endif
 	}
+#ifdef TCP_OFFLOAD
+	for_each_ofld_rxq(pi, i, ofld_rxq) {
+#ifdef atomic_store_rel_8
+		atomic_store_rel_8(&ofld_rxq->iq.intr_params, v);
+#else
+		ofld_rxq->iq.intr_params = v;
+#endif
+	}
+#endif
 	pi->tmr_idx = idx;
 
 	end_synchronized_op(sc, LOCK_HELD);
@@ -6522,13 +6575,14 @@ get_filter_mode(struct adapter *sc, uint32_t *mode)
 	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &fconf, 1,
 	    A_TP_VLAN_PRI_MAP);
 
-	if (sc->filter_mode != fconf) {
+	if (sc->params.tp.vlan_pri_map != fconf) {
 		log(LOG_WARNING, "%s: cached filter mode out of sync %x %x.\n",
-		    device_get_nameunit(sc->dev), sc->filter_mode, fconf);
-		sc->filter_mode = fconf;
+		    device_get_nameunit(sc->dev), sc->params.tp.vlan_pri_map,
+		    fconf);
+		sc->params.tp.vlan_pri_map = fconf;
 	}
 
-	*mode = fconf_to_mode(sc->filter_mode);
+	*mode = fconf_to_mode(sc->params.tp.vlan_pri_map);
 
 	end_synchronized_op(sc, LOCK_HELD);
 	return (0);
@@ -6661,7 +6715,8 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	}
 
 	/* Validate against the global filter mode */
-	if ((sc->filter_mode | fspec_to_fconf(&t->fs)) != sc->filter_mode) {
+	if ((sc->params.tp.vlan_pri_map | fspec_to_fconf(&t->fs)) !=
+	    sc->params.tp.vlan_pri_map) {
 		rc = E2BIG;
 		goto done;
 	}
@@ -7174,16 +7229,20 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 }
 
 void
-t4_os_link_changed(struct adapter *sc, int idx, int link_stat)
+t4_os_link_changed(struct adapter *sc, int idx, int link_stat, int reason)
 {
 	struct port_info *pi = sc->port[idx];
 	struct ifnet *ifp = pi->ifp;
 
 	if (link_stat) {
+		pi->linkdnrc = -1;
 		ifp->if_baudrate = IF_Mbps(pi->link_cfg.speed);
 		if_link_state_change(ifp, LINK_STATE_UP);
-	} else
+	} else {
+		if (reason >= 0)
+			pi->linkdnrc = reason;
 		if_link_state_change(ifp, LINK_STATE_DOWN);
+	}
 }
 
 void
