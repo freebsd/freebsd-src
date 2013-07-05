@@ -4509,7 +4509,7 @@ ztest_dmu_commit_callbacks(ztest_ds_t *zd, uint64_t id)
 	 */
 	tmp_cb = list_head(&zcl.zcl_callbacks);
 	if (tmp_cb != NULL &&
-	    tmp_cb->zcd_txg > txg - ZTEST_COMMIT_CALLBACK_THRESH) {
+	    (txg - ZTEST_COMMIT_CALLBACK_THRESH) > tmp_cb->zcd_txg) {
 		fatal(0, "Commit callback threshold exceeded, oldest txg: %"
 		    PRIu64 ", open txg: %" PRIu64 "\n", tmp_cb->zcd_txg, txg);
 	}
