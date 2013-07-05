@@ -291,7 +291,7 @@ control_set_role(struct nv *nv, const char *newrole)
 }
 
 static int
-control_status(struct nv *nv)
+control_list(struct nv *nv)
 {
 	unsigned int ii;
 	const char *str;
@@ -351,6 +351,43 @@ control_status(struct nv *nv)
 		    (uintmax_t)nv_get_uint64(nv, "stat_write_error%u", ii),
 		    (uintmax_t)nv_get_uint64(nv, "stat_delete_error%u", ii),
 		    (uintmax_t)nv_get_uint64(nv, "stat_flush_error%u", ii));
+	}
+	return (ret);
+}
+
+static int
+control_status(struct nv *nv)
+{
+	unsigned int ii;
+	const char *str;
+	int error, hprinted, ret;
+
+	hprinted = 0;
+	ret = 0;
+
+	for (ii = 0; ; ii++) {
+		str = nv_get_string(nv, "resource%u", ii);
+		if (str == NULL)
+			break;
+		if (!hprinted) {
+			printf("Name\tStatus\t Role\t\tComponents\n");
+			hprinted = 1;
+		}
+		printf("%s\t", str);
+		error = nv_get_int16(nv, "error%u", ii);
+		if (error != 0) {
+			if (ret == 0)
+				ret = error;
+			printf("ERR%d\n", error);
+			continue;
+		}
+		str = nv_get_string(nv, "status%u", ii);
+		printf("%-9s", (str != NULL) ? str : "-");
+		printf("%-15s", nv_get_string(nv, "role%u", ii));
+		printf("%s\t",
+		    nv_get_string(nv, "localpath%u", ii));
+		printf("%s\n",
+		    nv_get_string(nv, "remoteaddr%u", ii));
 	}
 	return (ret);
 }
@@ -523,6 +560,8 @@ main(int argc, char *argv[])
 		error = control_set_role(nv, argv[0]);
 		break;
 	case CMD_LIST:
+		error = control_list(nv);
+		break;
 	case CMD_STATUS:
 		error = control_status(nv);
 		break;

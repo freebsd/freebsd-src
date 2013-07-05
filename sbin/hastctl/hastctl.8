@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2013
+.Dd July 5, 2013
 .Dt HASTCTL 8
 .Os
 .Sh NAME
@@ -145,18 +145,10 @@ GEOM provider
 will not be created on secondary node.
 .El
 .It Cm list
-.It Cm status
 Present verbose status of the configured resources.
-For now, list and status commands are equivalent.
-In the near future the output of 
-.Nm
-status command will change to more terse format.
-If you use `
-.Nm
-status' for parsing in your scripts, switch to `
-.Nm
-list'.
-
+.It Cm status
+Present terse (and more easy machine-parseable) status of the configured
+resources.
 .It Cm dump
 Dump metadata stored on local component for the configured resources.
 .El
