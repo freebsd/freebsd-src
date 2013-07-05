@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 MAN=	aac.4 \
+	aacraid.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
 	${_acpi_dock.4} \

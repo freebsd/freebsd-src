@@ -31,6 +31,7 @@
 # opt_<name-of-option-in-lower-case>.h
 
 AAC_DEBUG		opt_aac.h
+AACRAID_DEBUG		opt_aacraid.h
 AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_TMODE_ENABLE	opt_aic7xxx.h
 AHC_DUMP_EEPROM		opt_aic7xxx.h

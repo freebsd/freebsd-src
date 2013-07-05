@@ -105,6 +105,7 @@ device		ctl		# CAM Target Layer
 # RAID controllers
 device		aac		# Adaptec FSA RAID
 device		aacp		# SCSI passthrough for aac (requires CAM)
+device		aacraid		# Adaptec by PMC RAID
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family
 
