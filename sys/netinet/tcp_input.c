@@ -3393,7 +3393,7 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  */
 void
 tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
-    struct hc_metrics_lite *metricptr, int *mtuflags)
+    struct hc_metrics_lite *metricptr, struct tcp_ifcap *cap)
 {
 	int mss = 0;
 	u_long maxmtu = 0;
@@ -3420,7 +3420,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 	/* Initialize. */
 #ifdef INET6
 	if (isipv6) {
-		maxmtu = tcp_maxmtu6(&inp->inp_inc, mtuflags);
+		maxmtu = tcp_maxmtu6(&inp->inp_inc, cap);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_v6mssdflt;
 	}
 #endif
@@ -3429,7 +3429,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 #endif
 #ifdef INET
 	{
-		maxmtu = tcp_maxmtu(&inp->inp_inc, mtuflags);
+		maxmtu = tcp_maxmtu(&inp->inp_inc, cap);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_mssdflt;
 	}
 #endif
@@ -3571,11 +3571,12 @@ tcp_mss(struct tcpcb *tp, int offer)
 	struct inpcb *inp;
 	struct socket *so;
 	struct hc_metrics_lite metrics;
-	int mtuflags = 0;
+	struct tcp_ifcap cap;
 
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
-	
-	tcp_mss_update(tp, offer, -1, &metrics, &mtuflags);
+
+	bzero(&cap, sizeof(cap));
+	tcp_mss_update(tp, offer, -1, &metrics, &cap);
 
 	mss = tp->t_maxseg;
 	inp = tp->t_inpcb;
@@ -3620,8 +3621,10 @@ tcp_mss(struct tcpcb *tp, int offer)
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/* Check the interface for TSO capabilities. */
-	if (mtuflags & CSUM_TSO)
+	if (cap.ifcap & CSUM_TSO) {
 		tp->t_flags |= TF_TSO;
+		tp->t_tsomax = cap.tsomax;
+	}
 }
 
 /*
