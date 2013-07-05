@@ -502,7 +502,7 @@
 /*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		675
+#define	_PRIV_HIGHEST		682
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid
