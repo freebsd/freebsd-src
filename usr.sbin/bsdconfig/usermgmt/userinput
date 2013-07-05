@@ -84,7 +84,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_login_deleted"
+		f_show_msg "$msg_login_deleted"
 
 		if [ "$pw_group_delete" = "$msg_yes" ] &&
 		   f_quietly pw groupshow -g "$pw_gid"
@@ -122,7 +122,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_login_added"
+		f_show_msg "$msg_login_added"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" 2>&1 )
@@ -168,7 +168,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_login_updated"
+		f_show_msg "$msg_login_updated"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" )

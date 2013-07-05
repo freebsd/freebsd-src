@@ -82,7 +82,7 @@ f_media_set_nfs()
 	case "$nfs" in
 	*:*) : valid NFS path ;;
 	*)
-		f_dialog_msgbox "$msg_invalid_nfs_path_specification"
+		f_show_msg "$msg_invalid_nfs_path_specification"
 		return $FAILURE
 	esac
 

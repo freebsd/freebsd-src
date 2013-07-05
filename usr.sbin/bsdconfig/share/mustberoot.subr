@@ -330,7 +330,7 @@ f_authenticate_some_user()
 		unset user_pass # scrub memory
 		if [ ! "$user" ]; then
 			nfailures=$(( $nfailures + 1 ))
-			f_dialog_msgbox "$msg_no_username"
+			f_show_msg "$msg_no_username"
 			continue
 		fi
 		if [ ! "$SECURE_ALLOW_ROOT" ]; then

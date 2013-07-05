@@ -371,9 +371,9 @@ f_dialog_input_nameserver()
 		local retval=$?
 		case $retval in
 		1) f_die 1 "$msg_internal_error_nsindex_value" "$nsindex" ;;
-		2) f_dialog_msgbox "$msg_resolv_conf_changed_while_editing"
+		2) f_show_msg "$msg_resolv_conf_changed_while_editing"
 		   return $retval ;;
-		3) f_dialog_msgbox "$msg_resolv_conf_entry_no_longer_exists"
+		3) f_show_msg "$msg_resolv_conf_entry_no_longer_exists"
 		   return $retval ;;
 		esac
 

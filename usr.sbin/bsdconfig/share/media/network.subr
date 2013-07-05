@@ -110,7 +110,7 @@ f_media_init_network()
 			local rp
 			f_getvar $VAR_GATEWAY rp
 			if [ ! "$rp" ]; then
-				f_dialog_msgbox "$msg_no_gateway_has_been_set"
+				f_show_msg "$msg_no_gateway_has_been_set"
 			else
 				#
 				# Explicitly flush all routes to get back to a
@@ -121,7 +121,7 @@ f_media_init_network()
 				f_quietly route -n flush
 				f_dprintf "Adding default route to %s." "$rp"
 				if ! f_quietly route -n add default "$rp"; then
-					f_dialog_msgbox \
+					f_show_msg \
 					    "$msg_failed_to_add_default_route"
 					return $FAILURE
 				fi
