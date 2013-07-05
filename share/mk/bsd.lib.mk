@@ -43,6 +43,12 @@ CTFFLAGS+= -g
 STRIP?=	-s
 .endif
 
+.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
+    empty(DEBUG_FLAGS:M-gdwarf*)
+CFLAGS+= -g
+CTFFLAGS+= -g
+.endif
+
 .include <bsd.libnames.mk>
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
@@ -113,12 +119,29 @@ PO_FLAG=-pg
 
 all: objwarn
 
+.if defined(SHLIB_NAME)
+.if ${MK_DEBUG_FILES} != "no"
+SHLIB_NAME_FULL=${SHLIB_NAME}.full
+# Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
+.if ${SHLIBDIR} == "/boot" ||\
+    ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
+    ${SHLIBDIR:C%/usr/lib(32)?(/.*)?%/usr/lib%} == "/usr/lib"
+DEBUGFILEDIR=${DEBUGDIR}${SHLIBDIR}
+.else
+DEBUGFILEDIR=${SHLIBDIR}/.debug
+DEBUGMKDIR=
+.endif
+.else
+SHLIB_NAME_FULL=${SHLIB_NAME}
+.endif
+.endif
+
 .include <bsd.symver.mk>
 
 # Allow libraries to specify their own version map or have it
 # automatically generated (see bsd.symver.mk above).
 .if ${MK_SYMVER} == "yes" && !empty(VERSION_MAP)
-${SHLIB_NAME}:	${VERSION_MAP}
+${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
 
@@ -171,11 +194,12 @@ SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
-${SHLIB_NAME}: beforelinking
+beforelinking: ${SOBJS}
+${SHLIB_NAME_FULL}: beforelinking
 .endif
-${SHLIB_NAME}: ${SOBJS}
+${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
-	@rm -f ${.TARGET} ${SHLIB_LINK}
+	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
 	@${INSTALL_SYMLINK} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
@@ -190,6 +214,16 @@ ${SHLIB_NAME}: ${SOBJS}
 .endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
+.endif
+
+.if ${MK_DEBUG_FILES} != "no"
+CLEANFILES+=	${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
+	    ${SHLIB_NAME_FULL} ${.TARGET}
+
+${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
+	${OBJCOPY} --only-keep-debug ${SHLIB_NAME_FULL} ${.TARGET}
 .endif
 .endif
 
@@ -267,6 +301,14 @@ _libinstall:
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
+.if ${MK_DEBUG_FILES} != "no"
+.if defined(DEBUGMKDIR)
+	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}
+.endif
+	${INSTALL} -T debug -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
+	    ${_INSTALLFLAGS} \
+	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}
+.endif
 .if defined(SHLIB_LINK)
 # ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
 # and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
