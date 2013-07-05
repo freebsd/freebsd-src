@@ -1234,6 +1234,7 @@ zfsctl_shares_readdir(ap)
 
 /*
  * pvp is the '.zfs' directory (zfsctl_node_t).
+ *
  * Creates vp, which is '.zfs/snapshot' (zfsctl_snapdir_t).
  *
  * This function is the callback to create a GFS vnode for '.zfs/snapshot'
