@@ -640,7 +640,7 @@ f_package_review()
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "I" ] || continue
 		f_dprintf "%s: Installing %s package" $fname "$package"
-		f_package_add "$package" || continue
+		f_package_add "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
