@@ -240,6 +240,14 @@ amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
 	    amn->amn_txcnt,
 	    amn->amn_retrycnt);
 
+	/*
+	 * XXX This is totally bogus for 11n, as although high MCS
+	 * rates for each stream may be failing, the next stream
+	 * should be checked.
+	 *
+	 * Eg, if MCS5 is ok but MCS6/7 isn't, and we can go up to
+	 * MCS23, we should skip 6/7 and try 8 onwards.
+	 */
 	if (is_success(amn)) {
 		amn->amn_success++;
 		if (amn->amn_success >= amn->amn_success_threshold &&
