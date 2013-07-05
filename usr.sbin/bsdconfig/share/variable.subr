@@ -106,6 +106,8 @@ f_variable_get_value()
 #
 f_variable_set_defaults()
 {
+	f_dprintf "f_variable_set_defaults: Initializing defaults..."
+
 	#
 	# Initialize various user-edittable values to their defaults
 	#
@@ -119,6 +121,27 @@ f_variable_set_defaults()
 	setvar $VAR_NFS_V3		"YES"
 	setvar $VAR_PKG_TMPDIR		"/var/tmp"
 	setvar $VAR_RELNAME		"$UNAME_R"
+
+	#
+	# Debugging
+	#
+	if f_debugging; then
+		local var
+		for var in \
+			$VAR_EDITOR		\
+			$VAR_FTP_STATE		\
+			$VAR_FTP_USER		\
+			$VAR_HOSTNAME		\
+			$VAR_MEDIA_TIMEOUT	\
+			$VAR_NFS_SECURE		\
+			$VAR_NFS_TCP		\
+			$VAR_NFS_V3		\
+			$VAR_PKG_TMPDIR		\
+			$VAR_RELNAME		\
+		; do
+			f_quietly f_getvar $var
+		done
+	fi
 
 	f_dprintf "f_variable_set_defaults: Defaults initialized."
 }
