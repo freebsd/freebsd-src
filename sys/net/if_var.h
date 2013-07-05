@@ -205,7 +205,11 @@ struct ifnet {
 	 * be used with care where binary compatibility is required.
 	 */
 	char	if_cspare[3];
-	int	if_ispare[4];
+	u_int	if_hw_tsomax;		/* tso burst length limit, the minmum
+					 * is (IP_MAXPACKET / 8).
+					 * XXXAO: Have to find a better place
+					 * for it eventually. */
+	int	if_ispare[3];
 	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
 };
 
