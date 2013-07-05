@@ -681,6 +681,7 @@ f_package_config()
 
 	# Detect installed packages (updates marks/SELECTED_PACKAGES)
 	f_package_detect_installed
+	export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
 
 	local retval category varcat defaultitem category_defaultitem=""
 	while :; do
