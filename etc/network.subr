@@ -159,6 +159,9 @@ ifconfig_up()
 	if wpaif $1; then
 		/etc/rc.d/wpa_supplicant start $1
 		_cfg=0		# XXX: not sure this should count
+	elif hostapif $1; then
+		/etc/rc.d/hostapd start $1
+		_cfg=0
 	fi
 
 	if dhcpif $1; then
@@ -185,6 +188,9 @@ ifconfig_down()
 
 	if wpaif $1; then
 		/etc/rc.d/wpa_supplicant stop $1
+		_cfg=0
+	elif hostapif $1; then
+		/etc/rc.d/hostapd stop $1
 		_cfg=0
 	fi
 
@@ -264,6 +270,7 @@ ifconfig_getargs()
 		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
 		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
 		[Ww][Pp][Aa]) ;;
+		[Hh][Oo][Ss][Tt][Aa][Pp]) ;;
 		*)
 			_args="$_args $_arg"
 			;;
@@ -356,6 +363,24 @@ wpaif()
 	for _arg in $_tmpargs; do
 		case $_arg in
 		[Ww][Pp][Aa])
+			return 0
+			;;
+		esac
+	done
+
+	return 1
+}
+
+# hostapif if
+#	Returns 0 if the interface is a HOSTAP interface and 1 otherwise.
+hostapif()
+{
+	local _tmpargs _arg
+	_tmpargs=`_ifconfig_getargs $1`
+
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Hh][Oo][Ss][Tt][Aa][Pp])
 			return 0
 			;;
 		esac
