@@ -453,6 +453,16 @@ tcp_timer_persist(void *xtp)
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;
 	}
+	/*
+	 * If the user has closed the socket then drop a persisting
+	 * connection after a much reduced timeout.
+	 */
+	if (tp->t_state > TCPS_CLOSE_WAIT &&
+	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
+		TCPSTAT_INC(tcps_persistdrop);
+		tp = tcp_drop(tp, ETIMEDOUT);
+		goto out;
+	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
 	(void) tcp_output(tp);
@@ -578,13 +588,13 @@ tcp_timer_rexmt(void * xtp)
 		tp->t_flags &= ~TF_PREVVALID;
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if (tp->t_state == TCPS_SYN_SENT)
-		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];
+		rexmt = TCPTV_RTOBASE * tcp_syn_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
-	 * Disable rfc1323 if we haven't got any response to
+	 * Disable RFC1323 and SACK if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers
 	 * (most of which have hopefully been retired) that have bad VJ
 	 * header compression code which trashes TCP segments containing
@@ -592,7 +602,7 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	if (tcp_rexmit_drop_options && (tp->t_state == TCPS_SYN_SENT) &&
 	    (tp->t_rxtshift == 3))
-		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP);
+		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_SACK_PERMIT);
 	/*
 	 * If we backed off this far, our srtt estimate is probably bogus.
 	 * Clobber it so we'll take the next rtt measurement as our srtt;
@@ -603,7 +613,6 @@ tcp_timer_rexmt(void * xtp)
 #ifdef INET6
 		if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
 			in6_losing(tp->t_inpcb);
-		else
 #endif
 		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
 		tp->t_srtt = 0;
