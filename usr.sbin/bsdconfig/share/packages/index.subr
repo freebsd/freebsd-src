@@ -242,6 +242,44 @@ f_index_extract_pages()
 	)"
 }
 
+# f_index_search $var_to_get $name [$var_to_set]
+#
+# Search the package INDEX ($PACKAGE_INDEX by default if/when $var_to)get is
+# NULL; but should not be missing) for $name, returning the first match.
+# Matches are strict (not regular expressions) and must match the beginning
+# portion of the package name to be considered a match. If $var_to_set is
+# missing or NULL, output is sent to standard output. If a match is found,
+# returns success; otherwise failure.
+#
+f_index_search()
+{
+	local __var_to_get="${1:-PACKAGE_INDEX}" __pkg_basename="$2"
+	local __var_to_set="$3"
+
+	f_dprintf "f_index_search: Searching package data (in %s) for %s" \
+	          "$__var_to_get" "$__pkg_basename"
+
+	local __pkg=
+	__pkg=$( debug= f_getvar "$__var_to_get" |
+			awk -F'|' -v basename="$__pkg_basename" '
+		BEGIN { n = length(basename) }
+		substr($1, 0, n) == basename { print $1; exit }
+	' )
+	if [ ! "$__pkg" ]; then
+		f_dprintf "f_index_search: No packages matching %s found" \
+		          "$__pkg_basename"
+		return $FAILURE
+	fi
+
+	f_dprintf "f_index_search: Found package %s" "$__pkg"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__pkg"
+	else
+		echo "$__pkg"
+	fi
+	return $SUCCESS
+}
+
 ############################################################ MAIN
 
 f_dprintf "%s: Successfully loaded." packages/index.subr
