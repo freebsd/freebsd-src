@@ -5351,11 +5351,18 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 
 		if (link_ok != lc->link_ok || speed != lc->speed ||
 		    fc != lc->fc) {                    /* something changed */
+			int reason;
+
+			if (!link_ok && lc->link_ok)
+				reason = G_FW_PORT_CMD_LINKDNRC(stat);
+			else
+				reason = -1;
+
 			lc->link_ok = link_ok;
 			lc->speed = speed;
 			lc->fc = fc;
 			lc->supported = ntohs(p->u.info.pcap);
-			t4_os_link_changed(adap, i, link_ok);
+			t4_os_link_changed(adap, i, link_ok, reason);
 		}
 		if (mod != pi->mod_type) {
 			pi->mod_type = mod;
