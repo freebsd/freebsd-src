@@ -1142,6 +1142,7 @@ mesh_transmit_to_gate(struct ieee80211vap *vap, struct mbuf *m,
 		m = ieee80211_encap(vap, ni, m);
 		if (m == NULL) {
 			/* NB: stat+msg handled in ieee80211_encap */
+			IEEE80211_TX_UNLOCK(ic);
 			ieee80211_free_node(ni);
 			return;
 		}
