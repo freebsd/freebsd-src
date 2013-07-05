@@ -195,6 +195,7 @@ f_resword_new configPCNFSD	f_config_pcnfsd
 # packages/packages.subr
 f_resword_new configPackages	f_package_config
 f_resword_new packageAdd	f_package_add
+f_resword_new packageDelete	f_package_delete
 
 # variable.subr
 f_resword_new installVarDefaults	f_variable_set_defaults
