@@ -975,14 +975,14 @@ int t4_check_fw_version(struct adapter *adapter)
 
 	switch (chip_id(adapter)) {
 	case CHELSIO_T4:
-		exp_major = FW_VERSION_MAJOR_T4;
-		exp_minor = FW_VERSION_MINOR_T4;
-		exp_micro = FW_VERSION_MICRO_T4;
+		exp_major = T4FW_VERSION_MAJOR;
+		exp_minor = T4FW_VERSION_MINOR;
+		exp_micro = T4FW_VERSION_MICRO;
 		break;
 	case CHELSIO_T5:
-		exp_major = FW_VERSION_MAJOR_T5;
-		exp_minor = FW_VERSION_MINOR_T5;
-		exp_micro = FW_VERSION_MICRO_T5;
+		exp_major = T5FW_VERSION_MAJOR;
+		exp_minor = T5FW_VERSION_MINOR;
+		exp_micro = T5FW_VERSION_MICRO;
 		break;
 	default:
 		CH_ERR(adapter, "Unsupported chip type, %x\n",
@@ -1128,7 +1128,19 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	const u32 *p = (const u32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	unsigned int fw_start_sec;
+	unsigned int fw_start;
+	unsigned int fw_size;
 
+	if (ntohl(hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP) {
+		fw_start_sec = FLASH_FWBOOTSTRAP_START_SEC;
+		fw_start = FLASH_FWBOOTSTRAP_START;
+		fw_size = FLASH_FWBOOTSTRAP_MAX_SIZE;
+	} else {
+		fw_start_sec = FLASH_FW_START_SEC;
+ 		fw_start = FLASH_FW_START;
+		fw_size = FLASH_FW_MAX_SIZE;
+	}
 	if (!size) {
 		CH_ERR(adap, "FW image has no data\n");
 		return -EINVAL;
@@ -1141,9 +1153,8 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 		CH_ERR(adap, "FW image size differs from size in FW header\n");
 		return -EINVAL;
 	}
-	if (size > FLASH_FW_MAX_SIZE) {
-		CH_ERR(adap, "FW image too large, max is %u bytes\n",
-		       FLASH_FW_MAX_SIZE);
+	if (size > fw_size) {
+		CH_ERR(adap, "FW image too large, max is %u bytes\n", fw_size);
 		return -EFBIG;
 	}
 	if ((is_t4(adap) && hdr->chip != FW_HDR_CHIP_T4) ||
@@ -1164,8 +1175,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	i = DIV_ROUND_UP(size, sf_sec_size);        /* # of sectors spanned */
-	ret = t4_flash_erase_sectors(adap, FLASH_FW_START_SEC,
-	    FLASH_FW_START_SEC + i - 1);
+	ret = t4_flash_erase_sectors(adap, fw_start_sec, fw_start_sec + i - 1);
 	if (ret)
 		goto out;
 
@@ -1176,11 +1186,11 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = htonl(0xffffffff);
-	ret = t4_write_flash(adap, FLASH_FW_START, SF_PAGE_SIZE, first_page, 1);
+	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page, 1);
 	if (ret)
 		goto out;
 
-	addr = FLASH_FW_START;
+	addr = fw_start;
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
@@ -1190,7 +1200,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	ret = t4_write_flash(adap,
-			     FLASH_FW_START + offsetof(struct fw_hdr, fw_ver),
+			     fw_start + offsetof(struct fw_hdr, fw_ver),
 			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver, 1);
 out:
 	if (ret)
@@ -4622,14 +4632,17 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		  const u8 *fw_data, unsigned int size, int force)
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
+	unsigned int bootstrap = ntohl(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
 	int reset, ret;
 
-	ret = t4_fw_halt(adap, mbox, force);
-	if (ret < 0 && !force)
-		return ret;
+	if (!bootstrap) {
+		ret = t4_fw_halt(adap, mbox, force);
+		if (ret < 0 && !force)
+			return ret;
+	}
 
 	ret = t4_load_fw(adap, fw_data, size);
-	if (ret < 0)
+	if (ret < 0 || bootstrap)
 		return ret;
 
 	/*
@@ -5338,11 +5351,18 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 
 		if (link_ok != lc->link_ok || speed != lc->speed ||
 		    fc != lc->fc) {                    /* something changed */
+			int reason;
+
+			if (!link_ok && lc->link_ok)
+				reason = G_FW_PORT_CMD_LINKDNRC(stat);
+			else
+				reason = -1;
+
 			lc->link_ok = link_ok;
 			lc->speed = speed;
 			lc->fc = fc;
 			lc->supported = ntohs(p->u.info.pcap);
-			t4_os_link_changed(adap, i, link_ok);
+			t4_os_link_changed(adap, i, link_ok, reason);
 		}
 		if (mod != pi->mod_type) {
 			pi->mod_type = mod;
@@ -5506,6 +5526,91 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 	/* Set pci completion timeout value to 4 seconds. */
 	set_pcie_completion_timeout(adapter, 0xd);
 	return 0;
+}
+
+/**
+ *	t4_init_tp_params - initialize adap->params.tp
+ *	@adap: the adapter
+ *
+ *	Initialize various fields of the adapter's TP Parameters structure.
+ */
+int __devinit t4_init_tp_params(struct adapter *adap)
+{
+	int chan;
+	u32 v;
+
+	v = t4_read_reg(adap, A_TP_TIMER_RESOLUTION);
+	adap->params.tp.tre = G_TIMERRESOLUTION(v);
+	adap->params.tp.dack_re = G_DELAYEDACKRESOLUTION(v);
+
+	/* MODQ_REQ_MAP defaults to setting queues 0-3 to chan 0-3 */
+	for (chan = 0; chan < NCHAN; chan++)
+		adap->params.tp.tx_modq[chan] = chan;
+
+	/*
+	 * Cache the adapter's Compressed Filter Mode and global Incress
+	 * Configuration.
+	 */
+        t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+                         &adap->params.tp.vlan_pri_map, 1,
+                         A_TP_VLAN_PRI_MAP);
+	t4_read_indirect(adap, A_TP_PIO_ADDR, A_TP_PIO_DATA,
+			 &adap->params.tp.ingress_config, 1,
+			 A_TP_INGRESS_CONFIG);
+
+	/*
+	 * Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
+	 * shift positions of several elements of the Compressed Filter Tuple
+	 * for this adapter which we need frequently ...
+	 */
+	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, F_VLAN);
+	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, F_VNIC_ID);
+	adap->params.tp.port_shift = t4_filter_field_shift(adap, F_PORT);
+	adap->params.tp.protocol_shift = t4_filter_field_shift(adap, F_PROTOCOL);
+
+	/*
+	 * If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
+	 * represents the presense of an Outer VLAN instead of a VNIC ID.
+	 */
+	if ((adap->params.tp.ingress_config & F_VNIC) == 0)
+		adap->params.tp.vnic_shift = -1;
+
+	return 0;
+}
+
+/**
+ *	t4_filter_field_shift - calculate filter field shift
+ *	@adap: the adapter
+ *	@filter_sel: the desired field (from TP_VLAN_PRI_MAP bits)
+ *
+ *	Return the shift position of a filter field within the Compressed
+ *	Filter Tuple.  The filter field is specified via its selection bit
+ *	within TP_VLAN_PRI_MAL (filter mode).  E.g. F_VLAN.
+ */
+int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
+{
+	unsigned int filter_mode = adap->params.tp.vlan_pri_map;
+	unsigned int sel;
+	int field_shift;
+
+	if ((filter_mode & filter_sel) == 0)
+		return -1;
+
+	for (sel = 1, field_shift = 0; sel < filter_sel; sel <<= 1) {
+	    switch (filter_mode & sel) {
+		case F_FCOE:          field_shift += W_FT_FCOE;          break;
+		case F_PORT:          field_shift += W_FT_PORT;          break;
+		case F_VNIC_ID:       field_shift += W_FT_VNIC_ID;       break;
+		case F_VLAN:          field_shift += W_FT_VLAN;          break;
+		case F_TOS:           field_shift += W_FT_TOS;           break;
+		case F_PROTOCOL:      field_shift += W_FT_PROTOCOL;      break;
+		case F_ETHERTYPE:     field_shift += W_FT_ETHERTYPE;     break;
+		case F_MACMATCH:      field_shift += W_FT_MACMATCH;      break;
+		case F_MPSHITTYPE:    field_shift += W_FT_MPSHITTYPE;    break;
+		case F_FRAGMENTATION: field_shift += W_FT_FRAGMENTATION; break;
+	    }
+	}
+	return field_shift;
 }
 
 int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
