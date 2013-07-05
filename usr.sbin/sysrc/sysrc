@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2010-2012 Devin Teske
+# Copyright (c) 2010-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,13 +32,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 [ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
 [ "$_SYSRC_SUBR"  ] || f_include $BSDCFG_SHARE/sysrc.subr
 
-############################################################ CONFIGURATION
-
-#
-# Default verbosity.
-#
-: ${SYSRC_VERBOSE:=}
-
 ############################################################ GLOBALS
 
 #
@@ -55,6 +48,7 @@ SHOW_EQUALS=
 SHOW_FILE=
 SHOW_NAME=1
 SHOW_VALUE=1
+SYSRC_VERBOSE=
 
 ############################################################ FUNCTIONS
 
