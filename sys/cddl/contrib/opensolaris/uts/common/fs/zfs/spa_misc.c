@@ -1369,7 +1369,7 @@ zfs_panic_recover(const char *fmt, ...)
 
 /*
  * This is a stripped-down version of strtoull, suitable only for converting
- * lowercase hexidecimal numbers that don't overflow.
+ * lowercase hexadecimal numbers that don't overflow.
  */
 uint64_t
 zfs_strtonum(const char *str, char **nptr)
