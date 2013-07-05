@@ -11,6 +11,10 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130705:
+	hastctl(8)'s `status' command output changed to terse one-liner format.
+	Scripts using this should switch to `list' command or be rewritten.
+
 20130618:
         Fix a bug that allowed a tracing process (e.g. gdb) to write
         to a memory-mapped file in the traced process's address space
