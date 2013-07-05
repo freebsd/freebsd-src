@@ -48,8 +48,11 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 ############################################################ GLOBALS
 
-PACKAGE_CATEGORIES=
-SELECTED_PACKAGES=
+#
+# Variables used to track runtime states
+#
+PACKAGE_CATEGORIES=	# List of package categories parsed from INDEX
+SELECTED_PACKAGES=	# Packages selected by user in [X]dialog(1) interface
 
 #
 # Options
@@ -157,6 +160,15 @@ f_package_deselect()
 f_package_detect_installed()
 {
 	local installed package varpkg
+	#
+	# XXX KLUDGE ALERT! This makes evil assumptions about how XXX
+	# packages register themselves and should *really* be done with
+	# `pkg_info -e <name>' except that this is too slow for an
+	# item check routine.. :-(
+	#
+	# NOTE: When transitioning to pkgng, make a single fork to `pkg' to
+	#       produce a list of all installed packages and parse _that_
+	#
 	installed=$( find -s /var/db/pkg -mindepth 1 -maxdepth 1 -type d |
 			sed -e 's:/var/db/pkg/::' )
 	for package in $installed; do
