@@ -170,11 +170,8 @@ dialog_menu_main()
 	local menuitem menu_title menu_help menu_selection index=2
 	for menuitem in $( cd $BSDCFG_LIBE && ls -d [0-9][0-9][0-9].* ); do
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
-		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
 
-		menu_program=
-		menu_title=
-		menu_help=
+		menu_program= menu_title= menu_help=
 		f_include_lang $BSDCFG_LIBE/$menuitem/INDEX
 		[ "$menu_program" ] || continue
 
@@ -183,9 +180,11 @@ dialog_menu_main()
 		 *) menu_program="$menuitem/$menu_program"
 		esac
 
+		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+		setvar "menu_program$tag" "$menu_program"
+
 		f_shell_escape "$menu_title" menu_title
 		f_shell_escape "$menu_help" menu_help
-		setvar "menu_program$tag" "$menu_program"
 		menu_list="$menu_list '$tag' '$menu_title' '$menu_help'"
 
 		index=$(( $index + 1 ))
