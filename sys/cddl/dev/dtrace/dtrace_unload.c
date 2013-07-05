@@ -123,9 +123,6 @@ dtrace_unload()
 	mutex_destroy(&dtrace_lock);
 	mutex_destroy(&dtrace_errlock);
 
-	/* XXX Hack */
-	mutex_destroy(&mod_lock);
-
 	/* Reset our hook for exceptions. */
 	dtrace_invop_uninit();
 
