@@ -200,6 +200,7 @@ dialog_menu_main()
 	#
 	local menuitem menu_title menu_help menu_selection index=2
 	for menuitem in $( cd $BSDCFG_LIBE && ls -d [0-9][0-9][0-9].* ); do
+		[ -f "$BSDCFG_LIBE/$menuitem/INDEX" ] || continue
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
 
 		menu_program= menu_title= menu_help=
@@ -238,6 +239,7 @@ dialog_menu_main()
 		# Skip the module if it looks like a `base' module
 		case "$menuitem" in [0-9][0-9][0-9].*) continue;; esac
 
+		[ -f "$BSDCFG_LOCAL_LIBE/$menuitem/INDEX" ] || continue
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
 
 		menu_program= menu_title= menu_help=
