@@ -86,6 +86,12 @@ available commands.
 .Pp
 The following options are available:
 .Bl -tag -width indent+
+.It Fl d
+Provide lots of debugging info on standard-out when running.
+.It Fl D Ar file
+Send debugging info to file.
+If file begins with a plus-sign debug info is sent to both standard-out and
+file (minus the leading plus).
 .It Fl f Ar file
 Load
 .Ar file
