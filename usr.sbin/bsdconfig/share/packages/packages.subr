@@ -135,6 +135,7 @@ f_package_select()
 			[ "$package" = "$pkgsel" ] && return
 		done
 		SELECTED_PACKAGES="$SELECTED_PACKAGES $package"
+		f_dprintf "Added %s to selection list" "$package"
 	done
 	SELECTED_PACKAGES="${SELECTED_PACKAGES# }" # Trim leading space
 }
@@ -157,6 +158,7 @@ f_package_deselect()
 			new_list="$new_list${new_list:+ }$pkgsel"
 		done
 		SELECTED_PACKAGES="$new_list"
+		f_dprintf "Removed %s from selection list" "$package"
 	done
 }
 
@@ -584,8 +586,8 @@ f_package_review()
 	local menu_list # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 
-	f_dprintf "f_package_review: SELECTED_PACKAGES=[%s]" \
-	          "$SELECTED_PACKAGES"
+	local fname=f_package_review
+	f_dprintf "%s: SELECTED_PACKAGES=[%s]" $fname "$SELECTED_PACKAGES"
 
 	prompt=$( printf "$msg_reviewing_selected_packages" "$_All_nselected" )
 
@@ -635,24 +637,27 @@ f_package_review()
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
-		f_getvar _mark_$varpkg mark
+		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "I" ] || continue
+		f_dprintf "%s: Installing %s package" $fname "$package"
 		f_package_add "$package" || continue
 		f_package_deselect "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
-		f_getvar _mark_$varpkg mark
+		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "R" ] || continue
+		f_dprintf "%s: Reinstalling %s package" $fname "$package"
 		# XXX Re-install package
 		f_package_deselect "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
-		f_getvar _mark_$varpkg mark
+		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "U" ] || continue
+		f_dprintf "%s: Uninstalling %s package" $fname "$package"
 		# XXX Uninstall package
 		f_package_deselect "$package"
 	done
@@ -951,6 +956,10 @@ f_package_extract()
 {
 	local device="$1" name="$2" depended="$3"
 
+	local fname=f_package_extract
+	f_dprintf "%s: device=[%s] name=[%s] depended=[%s]" \
+	          $fname "$device" "$name" "$depended"
+
 	# Check to make sure it's not already there
 	local varpkg mark=
 	f_str2varname "$name" varpkg
@@ -982,8 +991,6 @@ f_package_extract()
 		      *) path="packages/Latest/$name"
 		esac
 	esac
-
-	local fname=f_package_extract
 
 	# We have a path, call the device strategy routine to get the file
 	local pkg_ext probe_only=1 found=
