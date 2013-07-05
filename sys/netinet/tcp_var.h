@@ -623,8 +623,6 @@ VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
 VNET_DECLARE(int, path_mtu_discovery);
-VNET_DECLARE(int, ss_fltsz);
-VNET_DECLARE(int, ss_fltsz_local);
 VNET_DECLARE(int, tcp_do_rfc3465);
 VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcb			VNET(tcb)
@@ -635,8 +633,6 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
-#define	V_ss_fltsz		VNET(ss_fltsz)
-#define	V_ss_fltsz_local	VNET(ss_fltsz_local)
 #define	V_tcp_do_rfc3465	VNET(tcp_do_rfc3465)
 #define	V_tcp_abc_l_var		VNET(tcp_abc_l_var)
 
