@@ -444,7 +444,6 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_IS_CC \
     CTF \
     DEBUG_FILES \
-    GPL_DTC \
     HESIOD \
     ICONV \
     IDEA \
