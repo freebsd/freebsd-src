@@ -633,6 +633,11 @@ static struct vop_vector zfsctl_ops_root = {
 	.vop_fid =	zfsctl_common_fid,
 };
 
+/*
+ * Gets the full dataset name that corresponds to the given snapshot name
+ * Example:
+ * 	zfsctl_snapshot_zname("snap1") -> "mypool/myfs@snap1"
+ */
 static int
 zfsctl_snapshot_zname(vnode_t *vp, const char *name, int len, char *zname)
 {
