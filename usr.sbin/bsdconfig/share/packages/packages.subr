@@ -656,7 +656,7 @@ f_package_review()
 		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "U" ] || continue
 		f_dprintf "%s: Uninstalling %s package" $fname "$package"
-		# XXX Uninstall package
+		f_package_delete "$package" || continue
 		f_package_deselect "$package"
 	done
 
@@ -1055,6 +1055,135 @@ f_package_extract()
 	fi
 
 	return $SUCCESS
+}
+
+# f_package_delete $name
+#
+# Delete package by full $name (lacks archive suffix; e.g., `.tbz').
+#
+f_package_delete()
+{
+	local name="$1"
+	local fname=f_package_delete
+
+	if ! { [ "$name" ] || { f_getvar $VAR_PACKAGE name && [ "$name" ]; }; }
+	then
+		f_dprintf "packageDelete: %s" \
+		          "$msg_no_package_name_passed_in_package_variable"
+		return $FAILURE
+	fi
+
+	f_dprintf "%s: name=[%s]" $fname "$name"
+
+	[ "$name" ] || return $FAILURE
+
+	{ # Verify and initialize device media if-defined
+		f_media_verify &&
+		f_device_init media &&
+		f_index_initialize packages/INDEX
+	} || return $FAILURE
+
+	# Now we have (indirectly via f_index_read()):
+	#   CATEGORY_MENU_LIST _categories_{varpkg} _rundeps_{varpkg}
+	#   PACKAGE_CATEGORIES _npkgs
+
+	local varpkg
+	f_str2varname "$name" varpkg
+
+	# Just as-in the user-interface (opposed to scripted-use), only allow
+	# packages with at least one category to be recognized.
+	#
+	local pkgcat=
+	if ! f_getvar _categories_$varpkg pkgcat || [ ! "$pkgcat" ]; then
+		# $pkg may be a partial name, search the index (this is slow)
+		f_index_search PACKAGE_INDEX "$name" name
+		if [ ! "$name" ]; then
+			f_show_msg \
+			    "$msg_sorry_package_was_not_found_in_the_index" \
+			    "$name"
+			return $FAILURE
+		fi
+		f_str2varname "$name" varpkg
+	fi
+
+	# If invoked through the scripted interface, we likely have not yet
+	# detected the installed packages -- something we should do only once.
+	#
+	if [ ! "$PACKAGES_DETECTED" ]; then
+		f_dprintf "%s: Detecting installed packages" $fname
+		f_package_detect_installed
+		export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
+	fi
+	# Now we have: _mark_{varpkg}=X for all installed packages
+
+	#
+	# Return failure if the package is not already installed.
+	#
+	local pkgmark=
+	f_getvar _mark_$varpkg pkgmark
+	if ! [ "$pkgmark" -a ! "${pkgmark#[XUR]}" ]; then
+		f_show_msg "$msg_package_not_installed_cannot_delete" "$name"
+		return $FAILURE
+	fi
+
+	#
+	# Check for dependencies
+	#
+	local pkgsel depc=0 udeps=
+	for pkgsel in $SELECTED_PACKAGES; do
+		local mark=
+		f_str2varname $pkgsel varpkg
+		debug= f_getvar _mark_$varpkg mark
+		[ "$mark" -a ! "${mark#[XUR]}" ] || continue
+		local dep rundeps=
+		debug= f_getvar _rundeps_$varpkg rundeps
+		for dep in $rundeps; do
+			if [ "$dep" = "$name" ]; then
+				# Maybe this package is marked for deletion too
+				if [ "$mark" = "U" ]; then
+					udeps="$udeps $pkgsel"
+				else
+					depc=$(( $depc + 1 ))
+				fi
+				break
+			fi
+		done
+	done
+	if [ $depc -gt 0 ]; then
+		local grammatical_s=
+		[ $depc -gt 1 ] && grammatical_s=s
+		f_show_msg \
+			"$msg_package_is_needed_by_other_installed_packages" \
+			"$name" "$depc" "$grammatical_s"
+		return $FAILURE
+	fi
+
+	#
+	# Chase dependencies that are marked for uninstallation
+	#
+	for pkgsel in $udeps; do
+		f_dprintf "%s: Uninstalling dependecy %s (marked for delete)" \
+		          $fname "$pkgsel"
+		f_package_delete "$pkgsel"
+	done
+
+	#
+	# OK to perform the delete (no other packages depend on it)...
+	#
+	f_show_info "$msg_uninstalling_package_waiting_for_pkg_delete" "$name"
+	if f_debugging; then
+		pkg_delete -v "$name"
+	else
+		f_quietly pkg_delete "$name"
+	fi
+	if [ $? -ne $SUCCESS ]; then
+		f_show_msg "$msg_pkg_delete_failed" "$name"
+		return $FAILURE
+	else
+		f_dprintf "%s: pkg_delete(1) of %s successful" $fname "$name"
+		f_str2varname "$name" varpkg
+		setvar _mark_$varpkg ""
+	fi
 }
 
 ############################################################ MAIN
