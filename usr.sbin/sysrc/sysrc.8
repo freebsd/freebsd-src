@@ -99,10 +99,9 @@ Show only variable values, not their names.
 Show only variable names, not their values.
 .It Fl q
 Quiet.
-Ignore previous
+Ignore previous occurrences of
 .Fl v
-and/or
-.Ev SYSRC_VERBOSE .
+flag.
 .It Fl R Ar dir
 Operate within the root directory
 .Pq Sq Ar dir
@@ -175,7 +174,7 @@ be called repeatedly).
 .Sh ENVIRONMENT
 The following environment variables are referenced by
 .Nm :
-.Bl -tag -width ".Ev SYSRC_VERBOSE"
+.Bl -tag -width ".Ev RC_DEFAULTS"
 .It Ev RC_CONFS
 Override default
 .Ql rc_conf_files
@@ -184,9 +183,6 @@ Override default
 Location of
 .Ql /etc/defaults/rc.conf
 file.
-.It Ev SYSRC_VERBOSE
-Default verbosity.
-Set to non-NULL to enable.
 .El
 .Sh DEPENDENCIES
 The following standard commands are required by
