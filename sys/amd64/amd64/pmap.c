@@ -2273,7 +2273,7 @@ pmap_release(pmap_t pmap)
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
-	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
+	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4));
 
 	pmap->pm_pml4[KPML4I] = 0;	/* KVA */
 	for (i = 0; i < NDMPML4E; i++)	/* Direct Map */
