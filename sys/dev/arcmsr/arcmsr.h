@@ -1182,6 +1182,7 @@ struct AdapterControlBlock {
 	u_int32_t					pktReturnCount;
 	u_int32_t					vendor_device_id;
 	u_int32_t					adapter_bus_speed;
+	u_int32_t					maxOutstanding;
 };/* HW_DEVICE_EXTENSION */
 /* acb_flags */
 #define ACB_F_SCSISTOPADAPTER           0x0001
