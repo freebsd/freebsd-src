@@ -142,8 +142,9 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	}
 
 	/*
-	 * Writes to kernel memory are a typical root-only operation,
-	 * but non-root users are expected to be able to read it.
+	 * Writes to kernel/physical memory are a typical root-only operation,
+	 * but non-root users are expected to be able to read it (provided they
+	 * have permission to access /dev/[k]mem).
 	 */
 	if (priv == PRIV_KMEM_READ) {
 		error = 0;
