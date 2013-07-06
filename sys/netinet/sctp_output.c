@@ -4114,10 +4114,6 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_m_freem(m);
 				return (ENOMEM);
 			}
-#ifdef  SCTP_PACKET_LOGGING
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
-				sctp_packet_log(m, packet_length);
-#endif
 			SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 			if (port) {
 #if defined(SCTP_WITH_NO_CSUM)
@@ -4138,6 +4134,10 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 			}
+#ifdef SCTP_PACKET_LOGGING
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
+				sctp_packet_log(o_pak);
+#endif
 			/* send it out.  table id is taken from stcb */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			if ((SCTP_BASE_SYSCTL(sctp_output_unlocked)) && (so_locked)) {
@@ -4463,10 +4463,6 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
 				return (ENOMEM);
 			}
-#ifdef  SCTP_PACKET_LOGGING
-			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
-				sctp_packet_log(m, packet_length);
-#endif
 			SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 			if (port) {
 #if defined(SCTP_WITH_NO_CSUM)
@@ -4493,6 +4489,10 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				so = SCTP_INP_SO(inp);
 				SCTP_SOCKET_UNLOCK(so, 0);
 			}
+#endif
+#ifdef SCTP_PACKET_LOGGING
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING)
+				sctp_packet_log(o_pak);
 #endif
 			SCTP_IP6_OUTPUT(ret, o_pak, (struct route_in6 *)ro, &ifp, stcb, vrf_id);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -11068,11 +11068,6 @@ sctp_send_resp_msg(struct mbuf *m, struct sctphdr *sh, uint32_t vtag,
 			}
 		}
 		iph_out->ip_len = len;
-#ifdef SCTP_PACKET_LOGGING
-		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING) {
-			sctp_packet_log(mout, len);
-		}
-#endif
 		if (port) {
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);
@@ -11092,17 +11087,17 @@ sctp_send_resp_msg(struct mbuf *m, struct sctphdr *sh, uint32_t vtag,
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 		}
+#ifdef SCTP_PACKET_LOGGING
+		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING) {
+			sctp_packet_log(o_pak);
+		}
+#endif
 		SCTP_IP_OUTPUT(ret, o_pak, NULL, NULL, vrf_id);
 	}
 #endif
 #ifdef INET6
 	if (ip6_out != NULL) {
 		ip6_out->ip6_plen = len - sizeof(struct ip6_hdr);
-#ifdef  SCTP_PACKET_LOGGING
-		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING) {
-			sctp_packet_log(mout, len);
-		}
-#endif
 		if (port) {
 #if defined(SCTP_WITH_NO_CSUM)
 			SCTP_STAT_INCR(sctps_sendnocrc);
@@ -11122,6 +11117,11 @@ sctp_send_resp_msg(struct mbuf *m, struct sctphdr *sh, uint32_t vtag,
 			SCTP_STAT_INCR(sctps_sendhwcrc);
 #endif
 		}
+#ifdef SCTP_PACKET_LOGGING
+		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING) {
+			sctp_packet_log(o_pak);
+		}
+#endif
 		SCTP_IP6_OUTPUT(ret, o_pak, NULL, NULL, NULL, vrf_id);
 	}
 #endif

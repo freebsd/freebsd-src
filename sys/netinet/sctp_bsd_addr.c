@@ -422,11 +422,12 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 
 #ifdef SCTP_PACKET_LOGGING
 void
-sctp_packet_log(struct mbuf *m, int length)
+sctp_packet_log(struct mbuf *m)
 {
 	int *lenat, thisone;
 	void *copyto;
 	uint32_t *tick_tock;
+	int length;
 	int total_len;
 	int grabbed_lock = 0;
 	int value, newval, thisend, thisbegin;
@@ -436,6 +437,7 @@ sctp_packet_log(struct mbuf *m, int length)
 	 * (value) -ticks of log      (ticks) o -ip packet o -as logged -
 	 * where this started (thisbegin) x <--end points here
 	 */
+	length = SCTP_HEADER_LEN(m);
 	total_len = SCTP_SIZE32((length + (4 * sizeof(int))));
 	/* Log a packet to the buffer. */
 	if (total_len > SCTP_PACKET_LOG_SIZE) {
