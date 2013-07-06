@@ -1237,7 +1237,7 @@ _kerberos5_bootstrap_tools= \
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
-bootstrap-tools:
+bootstrap-tools: .MAKE
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
@@ -1290,7 +1290,7 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 _rescue= rescue/rescue
 .endif
 
-build-tools:
+build-tools: .MAKE
 .for _tool in \
     bin/csh \
     bin/sh \
@@ -1352,7 +1352,7 @@ _cc=		gnu/usr.bin/cc
 .endif
 .endif
 
-cross-tools:
+cross-tools: .MAKE
 .for _tool in \
     ${_clang_libs} \
     ${_clang} \
@@ -1383,12 +1383,12 @@ hierarchy hier:
 # interdependencies (__L) are built automatically by the
 # ${.CURDIR}/tools/make_libdeps.sh script.
 #
-libraries:
-	cd ${.CURDIR}; \
-	    ${MAKE} -f Makefile.inc1 _prereq_libs; \
-	    ${MAKE} -f Makefile.inc1 _startup_libs; \
-	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
-	    ${MAKE} -f Makefile.inc1 _generic_libs;
+libraries: .MAKE
+	cd ${.CURDIR} && \
+	    ${MAKE} -f Makefile.inc1 _prereq_libs && \
+	    ${MAKE} -f Makefile.inc1 _startup_libs && \
+	    ${MAKE} -f Makefile.inc1 _prebuild_libs && \
+	    ${MAKE} -f Makefile.inc1 _generic_libs
 
 #
 # static libgcc.a prerequisite for shared libc
@@ -1542,7 +1542,7 @@ lib/libradius__L: lib/libmd__L
 .endif
 
 .for _lib in ${_prereq_libs}
-${_lib}__PL: .PHONY
+${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
@@ -1554,7 +1554,7 @@ ${_lib}__PL: .PHONY
 .endfor
 
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
-${_lib}__L: .PHONY
+${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
@@ -1568,7 +1568,7 @@ ${_lib}__L: .PHONY
 # libpam is special: we need to build static PAM modules before
 # static PAM library, and dynamic PAM library before dynamic PAM
 # modules.
-lib/libpam__L: .PHONY
+lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
 		cd ${.CURDIR}/lib/libpam && \
 		${MAKE} DIRPRFX=lib/libpam/ obj && \
@@ -1583,7 +1583,7 @@ _generic_libs: ${_generic_libs:S/$/__L/}
 
 .for __target in all clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
-${entry}.${__target}__D: .PHONY
+${entry}.${__target}__D: .PHONY .MAKE
 	${_+_}@set -e; if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
 		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH} (${__target})"; \
 		edir=${entry}.${MACHINE_ARCH}; \
