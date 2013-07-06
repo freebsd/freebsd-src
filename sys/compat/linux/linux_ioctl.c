@@ -85,10 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
-#include <compat/linux/linux_videodev.h>
+#include <contrib/v4l/videodev.h>
 #include <compat/linux/linux_videodev_compat.h>
 
-#include <compat/linux/linux_videodev2.h>
+#include <contrib/v4l/videodev2.h>
 #include <compat/linux/linux_videodev2_compat.h>
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
