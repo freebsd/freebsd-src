@@ -1327,7 +1327,7 @@ ti_mmchs_hw_init(device_t dev)
 	unsigned long timeout;
 	uint32_t sysctl;
 	uint32_t capa;
-	uint32_t con;
+	uint32_t con, sysconfig;
 
 	/* 1: Enable the controller and interface/functional clocks */
 	clk = MMC0_CLK + sc->device_id;
@@ -1344,7 +1344,9 @@ ti_mmchs_hw_init(device_t dev)
 	}
 
 	/* 2: Issue a softreset to the controller */
-	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, 0x0002);
+	sysconfig = ti_mmchs_read_4(sc, MMCHS_SYSCONFIG);
+	sysconfig |= MMCHS_SYSCONFIG_SRST;
+	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, sysconfig);
 	timeout = 100;
 	while ((ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & 0x01) == 0x0) {
 		DELAY(1000);
