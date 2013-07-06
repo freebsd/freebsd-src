@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Emulex
+ * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -727,12 +727,14 @@ oce_rss_itbl_init(POCE_SOFTC sc, struct mbx_config_nic_rss *fwcmd)
 {
 	int i = 0, j = 0, rc = 0;
 	uint8_t *tbl = fwcmd->params.req.cputable;
+	struct oce_rq *rq = NULL;
 
 
-	for (j = 0; j < sc->nrqs; j++) {
-		if (sc->rq[j]->cfg.is_rss_queue) {
-			tbl[i] = sc->rq[j]->rss_cpuid;
-			i = i + 1;
+	for (j = 0; j < INDIRECTION_TABLE_ENTRIES ; j += (sc->nrqs - 1)) {
+		for_all_rss_queues(sc, rq, i) {
+			if ((j + i) >= INDIRECTION_TABLE_ENTRIES)
+				break;
+			tbl[j + i] = rq->rss_cpuid;
 		}
 	}
 	if (i == 0) {
@@ -766,7 +768,7 @@ oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss)
 
 	bzero(&mbx, sizeof(struct oce_mbx));
 
-	if (IS_XE201(sc)) {
+	if (IS_XE201(sc) || IS_SH(sc)) {
 		version = OCE_MBX_VER_V1;
 		fwcmd->params.req.enable_rss = RSS_ENABLE_UDP_IPV4 |
 					       RSS_ENABLE_UDP_IPV6;
@@ -1674,8 +1676,11 @@ oce_mbox_create_wq(struct oce_wq *wq)
 	if (IS_XE201(sc)) {
 		version = OCE_MBX_VER_V1;
 		fwcmd->params.req.if_id = sc->if_id;
-	} else
-		version = OCE_MBX_VER_V0;
+	} else if(IS_BE(sc))
+		IS_PROFILE_SUPER_NIC(sc) ? (version = OCE_MBX_VER_V2) 
+					 : (version = OCE_MBX_VER_V0);
+	else
+		version = OCE_MBX_VER_V2;
 
 	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
 				MBX_SUBSYSTEM_NIC,
@@ -1703,6 +1708,10 @@ oce_mbox_create_wq(struct oce_wq *wq)
 		goto error;
 	}
 	wq->wq_id = LE_16(fwcmd->params.rsp.wq_id);
+	if (version == OCE_MBX_VER_V2)
+		wq->db_offset = LE_32(fwcmd->params.rsp.db_offset);
+	else
+		wq->db_offset = PD_TXULP_DB;
 error:
 	return rc;
 
@@ -1874,7 +1883,7 @@ oce_mbox_read_transrecv_data(POCE_SOFTC sc, uint32_t page_num)
 	/* command post */
 	rc = oce_mbox_post(sc, &mbx, NULL);
 	if (!rc)
-                rc = fwcmd->hdr.u0.rsp.status;
+		rc = fwcmd->hdr.u0.rsp.status;
 	if (rc) {
 		device_printf(sc->dev,"%s failed - cmd status: %d\n",
 			      __FUNCTION__, rc);
@@ -1894,6 +1903,7 @@ oce_mbox_read_transrecv_data(POCE_SOFTC sc, uint32_t page_num)
 				TRANSCEIVER_A2_SIZE);
 	}
 error:
+	oce_dma_free(sc, &dma);
 	return rc;
 }
 
@@ -1935,10 +1945,193 @@ oce_mbox_eqd_modify_periodic(POCE_SOFTC sc, struct oce_set_eqd *set_eqd,
 	rc = oce_mbox_post(sc, &mbx, NULL);
 
 	if (!rc)
-                rc = fwcmd->hdr.u0.rsp.status;
+		rc = fwcmd->hdr.u0.rsp.status;
 	if (rc)
 		device_printf(sc->dev,"%s failed - cmd status: %d\n",
 			      __FUNCTION__, rc);
 }
 
+int
+oce_get_profile_config(POCE_SOFTC sc)
+{
+	struct oce_mbx mbx;
+	struct mbx_common_get_profile_config *fwcmd;
+	int rc = 0;
+	int version = 0;
+	struct oce_mq_sge *sgl;
+	OCE_DMA_MEM dma;
+	uint32_t desc_count = 0;
+	struct oce_nic_resc_desc *nic_desc = NULL;
+	int i;
+	boolean_t nic_desc_valid = FALSE;
 
+	if (IS_BE2(sc))
+		return -1;
+
+	/* Allocate DMA mem*/
+	if (oce_dma_alloc(sc, sizeof(struct mbx_common_get_profile_config),
+			  &dma, 0))
+		return ENOMEM;
+
+	/* Initialize MODIFY_EQ_DELAY ioctl header */
+	fwcmd = OCE_DMAPTR(&dma, struct mbx_common_get_profile_config);
+	bzero(fwcmd, sizeof(struct mbx_common_get_profile_config));
+
+	if (IS_BE3(sc))
+		version = OCE_MBX_VER_V1;
+	else
+		version = OCE_MBX_VER_V0;
+
+	bzero(&mbx, sizeof(struct oce_mbx));
+	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
+				MBX_SUBSYSTEM_COMMON,
+				OPCODE_COMMON_GET_PROFILE_CONFIG,
+				MBX_TIMEOUT_SEC,
+				sizeof(struct mbx_common_get_profile_config),
+				version);
+	/* fill rest of mbx */
+	mbx.u0.s.embedded = 0;
+	mbx.payload_length = sizeof(struct mbx_common_get_profile_config);
+	mbx.u0.s.sge_count = 1;
+	sgl = &mbx.payload.u0.u1.sgl[0];
+	sgl->pa_hi = htole32(upper_32_bits(dma.paddr));
+	sgl->pa_lo = htole32((dma.paddr) & 0xFFFFFFFF);
+	sgl->length = htole32(mbx.payload_length);
+	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
+
+	fwcmd->params.req.type = ACTIVE_PROFILE;
+
+	/* command post */
+	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+		rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
+	}
+
+	nic_desc = (struct oce_nic_resc_desc *) fwcmd->params.rsp.resources;
+	desc_count = HOST_32(fwcmd->params.rsp.desc_count);
+	for (i = 0; i < desc_count; i++) {
+		if ((nic_desc->desc_type == NIC_RESC_DESC_TYPE_V0) || 
+		    (nic_desc->desc_type == NIC_RESC_DESC_TYPE_V1)) {
+			nic_desc_valid = TRUE;
+			break;
+		}
+		nic_desc = (struct oce_nic_resc_desc *) \
+				((char *)nic_desc + nic_desc->desc_len);
+	}
+	if (!nic_desc_valid) {
+		rc = -1;
+		goto error;
+	}
+	else { 
+		sc->nwqs = HOST_32(nic_desc->txq_count);
+		if (sc->nwqs)
+			sc->nwqs = MIN(sc->nwqs, OCE_MAX_WQ);
+		else
+			sc->nwqs = OCE_MAX_WQ;
+
+	}
+error:
+	oce_dma_free(sc, &dma);
+	return rc;
+
+}
+
+int
+oce_get_func_config(POCE_SOFTC sc)
+{
+	struct oce_mbx mbx;
+	struct mbx_common_get_func_config *fwcmd;
+	int rc = 0;
+	int version = 0;
+	struct oce_mq_sge *sgl;
+	OCE_DMA_MEM dma;
+	uint32_t desc_count = 0;
+	struct oce_nic_resc_desc *nic_desc = NULL;
+	int i;
+	boolean_t nic_desc_valid = FALSE;
+	uint32_t max_rss = 0;
+	
+	if ((IS_BE(sc) || IS_SH(sc)) && (!sc->be3_native))
+		max_rss = OCE_LEGACY_MODE_RSS;
+	else
+		max_rss = OCE_MAX_RSS;
+
+	/* Allocate DMA mem*/
+	if (oce_dma_alloc(sc, sizeof(struct mbx_common_get_func_config),
+			  &dma, 0))
+		return ENOMEM;
+
+	/* Initialize MODIFY_EQ_DELAY ioctl header */
+	fwcmd = OCE_DMAPTR(&dma, struct mbx_common_get_func_config);
+	bzero(fwcmd, sizeof(struct mbx_common_get_func_config));
+
+	if (IS_SH(sc))
+		version = OCE_MBX_VER_V1;
+	else
+		version = OCE_MBX_VER_V0;
+
+	bzero(&mbx, sizeof(struct oce_mbx));
+	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
+				MBX_SUBSYSTEM_COMMON,
+				OPCODE_COMMON_GET_FUNCTION_CONFIG,
+				MBX_TIMEOUT_SEC,
+				sizeof(struct mbx_common_get_func_config),
+				version);
+	/* fill rest of mbx */
+	mbx.u0.s.embedded = 0;
+	mbx.payload_length = sizeof(struct mbx_common_get_func_config);
+	mbx.u0.s.sge_count = 1;
+	sgl = &mbx.payload.u0.u1.sgl[0];
+	sgl->pa_hi = htole32(upper_32_bits(dma.paddr));
+	sgl->pa_lo = htole32((dma.paddr) & 0xFFFFFFFF);
+	sgl->length = htole32(mbx.payload_length);
+	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
+
+	/* command post */
+	rc = oce_mbox_post(sc, &mbx, NULL);
+	if (!rc)
+		rc = fwcmd->hdr.u0.rsp.status;
+	if (rc) {
+		device_printf(sc->dev,"%s failed - cmd status: %d\n",
+			      __FUNCTION__, rc);
+		goto error;
+	}
+
+	nic_desc = (struct oce_nic_resc_desc *) fwcmd->params.rsp.resources;
+	desc_count = HOST_32(fwcmd->params.rsp.desc_count);
+	for (i = 0; i < desc_count; i++) {
+		if ((nic_desc->desc_type == NIC_RESC_DESC_TYPE_V0) || 
+		    (nic_desc->desc_type == NIC_RESC_DESC_TYPE_V1)) {
+			nic_desc_valid = TRUE;
+			break;
+		}
+		nic_desc = (struct oce_nic_resc_desc *) \
+				((char *)nic_desc + nic_desc->desc_len);
+	}
+	if (!nic_desc_valid) {
+		rc = -1;
+		goto error;
+	}
+	else {
+		sc->nwqs = HOST_32(nic_desc->txq_count);
+                if (sc->nwqs)
+                        sc->nwqs = MIN(sc->nwqs, OCE_MAX_WQ);
+                else
+                        sc->nwqs = OCE_MAX_WQ;
+
+		sc->nrssqs = HOST_32(nic_desc->rssq_count);
+		if (sc->nrssqs)
+			sc->nrssqs = MIN(sc->nrssqs, max_rss);
+		else
+			sc->nrssqs = max_rss;
+		sc->nrqs =  sc->nrssqs + 1; /* 1 for def RX */;
+	}
+error:
+	oce_dma_free(sc, &dma);
+	return rc;
+
+}
