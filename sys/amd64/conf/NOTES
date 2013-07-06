@@ -418,6 +418,10 @@ device		hpt27xx
 device		hptmv
 
 #
+# Highpoint DC7280 and R750.
+device		hptnr
+
+#
 # Highpoint RocketRAID.  Supports RR172x, RR222x, RR2240, RR232x, RR2340,
 # RR2210, RR174x, RR2522, RR231x, RR230x.
 device		hptrr
