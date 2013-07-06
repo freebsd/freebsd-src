@@ -2392,7 +2392,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	uint8_t calc_sig[SCTP_SIGNATURE_SIZE], tmp_sig[SCTP_SIGNATURE_SIZE];
 	uint8_t *sig;
 	uint8_t cookie_ok = 0;
-	unsigned int size_of_pkt, sig_offset, cookie_offset;
+	unsigned int sig_offset, cookie_offset;
 	unsigned int cookie_len;
 	struct timeval now;
 	struct timeval time_expires;
@@ -2434,7 +2434,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			lsin->sin_len = sizeof(*lsin);
 			lsin->sin_port = sh->dest_port;
 			lsin->sin_addr.s_addr = iph->ip_dst.s_addr;
-			size_of_pkt = SCTP_GET_IPV4_LENGTH(iph);
 			break;
 		}
 #endif
@@ -2452,7 +2451,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			ip6 = mtod(m, struct ip6_hdr *);
 			lsin6->sin6_port = sh->dest_port;
 			lsin6->sin6_addr = ip6->ip6_dst;
-			size_of_pkt = SCTP_GET_IPV6_LENGTH(ip6) + iphlen;
 			break;
 		}
 #endif
@@ -2476,11 +2474,10 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		 */
 		return (NULL);
 	}
-	if (cookie_len > size_of_pkt ||
-	    cookie_len < sizeof(struct sctp_cookie_echo_chunk) +
+	if (cookie_len < sizeof(struct sctp_cookie_echo_chunk) +
 	    sizeof(struct sctp_init_chunk) +
 	    sizeof(struct sctp_init_ack_chunk) + SCTP_SIGNATURE_SIZE) {
-		/* cookie too long!  or too small */
+		/* cookie too small */
 		return (NULL);
 	}
 	/*
@@ -2488,11 +2485,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	 * calculated in the sctp_hmac_m() call).
 	 */
 	sig_offset = offset + cookie_len - SCTP_SIGNATURE_SIZE;
-	if (sig_offset > size_of_pkt) {
-		/* packet not correct size! */
-		/* XXX this may already be accounted for earlier... */
-		return (NULL);
-	}
 	m_sig = m_split(m, sig_offset, M_DONTWAIT);
 	if (m_sig == NULL) {
 		/* out of memory or ?? */
