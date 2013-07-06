@@ -2762,7 +2762,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		/*
 		 * we need to report rwnd overrun drops.
 		 */
-		sctp_send_packet_dropped(stcb, net, *mm, iphlen, 0);
+		sctp_send_packet_dropped(stcb, net, *mm, length, iphlen, 0);
 	}
 	if (num_chunks) {
 		/*
