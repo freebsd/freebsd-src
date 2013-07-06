@@ -1867,5 +1867,7 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_setdesc,
 	vmx_inject,
 	vmx_getcap,
-	vmx_setcap
+	vmx_setcap,
+	ept_vmspace_alloc,
+	ept_vmspace_free,
 };

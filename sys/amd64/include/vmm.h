@@ -39,6 +39,7 @@ struct seg_desc;
 struct vm_exit;
 struct vm_run;
 struct vlapic;
+struct vmspace;
 
 enum x2apic_state;
 
@@ -65,6 +66,8 @@ typedef int	(*vmi_inject_event_t)(void *vmi, int vcpu,
 				      uint32_t code, int code_valid);
 typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
+typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
+typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -82,6 +85,8 @@ struct vmm_ops {
 	vmi_inject_event_t	vminject;
 	vmi_get_cap_t		vmgetcap;
 	vmi_set_cap_t		vmsetcap;
+	vmi_vmspace_alloc	vmspace_alloc;
+	vmi_vmspace_free	vmspace_free;
 };
 
 extern struct vmm_ops vmm_ops_intel;

@@ -151,6 +151,22 @@ amdv_setcap(void *arg, int vcpu, int type, int val)
 	return (EINVAL);
 }
 
+static struct vmspace *
+amdv_vmspace_alloc(vm_offset_t min, vm_offset_t max)
+{
+
+	printf("amdv_vmspace_alloc: not implemented\n");
+	return (NULL);
+}
+
+static void
+amdv_vmspace_free(struct vmspace *vmspace)
+{
+
+	printf("amdv_vmspace_free: not implemented\n");
+	return;
+}
+
 struct vmm_ops vmm_ops_amd = {
 	amdv_init,
 	amdv_cleanup,
@@ -165,7 +181,9 @@ struct vmm_ops vmm_ops_amd = {
 	amdv_setdesc,
 	amdv_inject_event,
 	amdv_getcap,
-	amdv_setcap
+	amdv_setcap,
+	amdv_vmspace_alloc,
+	amdv_vmspace_free,
 };
 
 static int

@@ -44,11 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/vm.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
 #include <x86/apicreg.h>
+#include <machine/pmap.h>
+#include <machine/vmparam.h>
 
 #include <machine/vmm.h>
 #include "vmm_host.h"
@@ -90,6 +93,7 @@ struct vcpu {
 struct vm {
 	void		*cookie;	/* processor-specific data */
 	void		*iommu;		/* iommu-specific data */
+	struct vmspace	*vmspace;	/* guest's address space */
 	struct vcpu	vcpu[VM_MAXCPU];
 	int		num_mem_segs;
 	struct vm_memory_segment mem_segs[VM_MAX_MEMORY_SEGMENTS];
@@ -119,6 +123,10 @@ static struct vmm_ops *ops;
 	ENXIO)
 #define	VMMMAP_GET(vmi, gpa) \
 	(ops != NULL ? (*ops->vmmmap_get)(vmi, gpa) : ENXIO)
+#define	VMSPACE_ALLOC(min, max) \
+	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
+#define	VMSPACE_FREE(vmspace) \
+	(ops != NULL ? (*ops->vmspace_free)(vmspace) : ENXIO)
 #define	VMGETREG(vmi, vcpu, num, retval)		\
 	(ops != NULL ? (*ops->vmgetreg)(vmi, vcpu, num, retval) : ENXIO)
 #define	VMSETREG(vmi, vcpu, num, val)		\
@@ -259,6 +267,7 @@ vm_create(const char *name, struct vm **retvm)
 {
 	int i;
 	struct vm *vm;
+	struct vmspace *vmspace;
 	vm_paddr_t maxaddr;
 
 	const int BSP = 0;
@@ -273,6 +282,10 @@ vm_create(const char *name, struct vm **retvm)
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
 		return (EINVAL);
 
+	vmspace = VMSPACE_ALLOC(VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
+	if (vmspace == NULL)
+		return (ENOMEM);
+
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
 	vm->cookie = VMINIT(vm);
@@ -285,6 +298,7 @@ vm_create(const char *name, struct vm **retvm)
 	maxaddr = vmm_mem_maxaddr();
 	vm->iommu = iommu_create_domain(maxaddr);
 	vm_activate_cpu(vm, BSP);
+	vm->vmspace = vmspace;
 
 	*retvm = vm;
 	return (0);
@@ -344,6 +358,8 @@ vm_destroy(struct vm *vm)
 		vcpu_cleanup(&vm->vcpu[i]);
 
 	iommu_destroy_domain(vm->iommu);
+
+	VMSPACE_FREE(vm->vmspace);
 
 	VMCLEANUP(vm->cookie);
 

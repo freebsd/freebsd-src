@@ -40,4 +40,6 @@ int	ept_vmmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
 vm_paddr_t ept_vmmmap_get(void *arg, vm_paddr_t gpa);
 void	ept_invalidate_mappings(u_long ept_pml4);
 void	ept_vmcleanup(struct vmx *vmx);
+struct vmspace *ept_vmspace_alloc(vm_offset_t min, vm_offset_t max);
+void	ept_vmspace_free(struct vmspace *vmspace);
 #endif

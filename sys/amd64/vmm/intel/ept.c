@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
 
 #include <machine/param.h>
 #include <machine/cpufunc.h>
@@ -389,4 +391,32 @@ ept_invalidate_mappings(u_long pml4ept)
 	invept_desc.eptp = EPTP(pml4ept);
 
 	smp_rendezvous(NULL, invept_single_context, NULL, &invept_desc);
+}
+
+struct vmspace *
+ept_vmspace_alloc(vm_offset_t min, vm_offset_t max)
+{
+	pmap_t pmap;
+	int success;
+	struct vmspace *vmspace;
+
+	vmspace = vmspace_alloc(min, max);
+	if (vmspace != NULL) {
+		/*
+		 * Change the type of the pmap to PT_EPT.
+		 */
+		pmap = vmspace_pmap(vmspace);
+		pmap_release(pmap);
+		success = pmap_pinit_type(pmap, PT_EPT);
+		if (!success)
+			panic("ept_vmspace_alloc: pmap_pinit_type() failed!");
+	}
+	return (vmspace);
+}
+
+void
+ept_vmspace_free(struct vmspace *vmspace)
+{
+
+	vmspace_free(vmspace);
 }
