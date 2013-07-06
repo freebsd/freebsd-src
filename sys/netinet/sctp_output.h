@@ -162,7 +162,7 @@ void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
 
 void
 sctp_send_packet_dropped(struct sctp_tcb *, struct sctp_nets *, struct mbuf *,
-    int, int);
+    int, int, int);
 
 
 
