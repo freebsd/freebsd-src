@@ -399,6 +399,18 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		fs->e2fs_maxfilesize = 0x7fffffff;
 	else
 		fs->e2fs_maxfilesize = 0x7fffffffffffffff;
+
+	if (es->e4fs_flags & E2FS_UNSIGNED_HASH) {
+		fs->e2fs_uhash = 3;
+	} else if ((es->e4fs_flags & E2FS_SIGNED_HASH) == 0) {
+#ifdef __CHAR_UNSIGNED__
+		es->e4fs_flags |= E2FS_UNSIGNED_HASH;
+		fs->e2fs_uhash = 3;
+#else
+		es->e4fs_flags |= E2FS_SIGNED_HASH;
+#endif
+	}
+
 	return (0);
 }
 
