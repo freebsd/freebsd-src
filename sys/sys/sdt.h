@@ -210,6 +210,9 @@ struct sdt_provider {
 	    SI_SUB_KDTRACE, SI_ORDER_SECOND + 2, sdt_argtype_deregister,	\
 	    sdt_##prov##_##mod##_##func##_##name##num )
 
+#define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)			\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname)
+
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)		\
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
 	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0)
