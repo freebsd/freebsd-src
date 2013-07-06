@@ -220,9 +220,7 @@ reserve:
 	}
 	m->valid = VM_PAGE_BITS_ALL;
 	*mres = m;
-	vm_page_lock(m);
 	vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
-	vm_page_unlock(m);
 	vm_page_busy(m);
 
 	if (oldm != NULL) {
