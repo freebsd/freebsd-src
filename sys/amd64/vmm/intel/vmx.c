@@ -681,7 +681,7 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 #define	vmx_setup_cr4_shadow(vmcs)	vmx_setup_cr_shadow(4, (vmcs))
 
 static void *
-vmx_vminit(struct vm *vm)
+vmx_vminit(struct vm *vm, pmap_t pmap)
 {
 	uint16_t vpid;
 	int i, error, guest_msr_count;
@@ -694,6 +694,8 @@ vmx_vminit(struct vm *vm)
 	}
 	vmx->vm = vm;
 
+	vmx->eptphys = vtophys((vm_offset_t)pmap->pm_pml4);
+
 	/*
 	 * Clean up EPTP-tagged guest physical and combined mappings
 	 *
@@ -703,7 +705,7 @@ vmx_vminit(struct vm *vm)
 	 *
 	 * Combined mappings for this EP4TA are also invalidated for all VPIDs.
 	 */
-	ept_invalidate_mappings(vtophys(vmx->pml4ept));
+	ept_invalidate_mappings(vmx->eptphys);
 
 	msr_bitmap_initialize(vmx->msr_bitmap);
 
@@ -759,7 +761,7 @@ vmx_vminit(struct vm *vm)
 		error = vmcs_set_defaults(&vmx->vmcs[i],
 					  (u_long)vmx_longjmp,
 					  (u_long)&vmx->ctx[i],
-					  vtophys(vmx->pml4ept),
+					  vmx->eptphys,
 					  pinbased_ctls,
 					  procbased_ctls,
 					  procbased_ctls2,
@@ -1543,7 +1545,6 @@ vmx_vmcleanup(void *arg)
 	if (error != 0)
 		panic("vmx_vmcleanup: vmclear error %d on vcpu 0", error);
 
-	ept_vmcleanup(vmx);
 	free(vmx, M_VMX);
 
 	return;

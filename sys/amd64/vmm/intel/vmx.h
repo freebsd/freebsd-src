@@ -82,16 +82,15 @@ struct vmxstate {
 
 /* virtual machine softc */
 struct vmx {
-	pml4_entry_t	pml4ept[NPML4EPG];
 	struct vmcs	vmcs[VM_MAXCPU];	/* one vmcs per virtual cpu */
 	char		msr_bitmap[PAGE_SIZE];
 	struct msr_entry guest_msrs[VM_MAXCPU][GUEST_MSR_MAX_ENTRIES];
 	struct vmxctx	ctx[VM_MAXCPU];
 	struct vmxcap	cap[VM_MAXCPU];
 	struct vmxstate	state[VM_MAXCPU];
+	vm_paddr_t	eptphys;
 	struct vm	*vm;
 };
-CTASSERT((offsetof(struct vmx, pml4ept) & PAGE_MASK) == 0);
 CTASSERT((offsetof(struct vmx, vmcs) & PAGE_MASK) == 0);
 CTASSERT((offsetof(struct vmx, msr_bitmap) & PAGE_MASK) == 0);
 CTASSERT((offsetof(struct vmx, guest_msrs) & 15) == 0);

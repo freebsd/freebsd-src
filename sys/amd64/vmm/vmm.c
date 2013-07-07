@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/vm.h>
 #include <machine/pcb.h>
@@ -121,7 +122,7 @@ static struct vmm_ops *ops;
 #define	VMM_INIT()	(ops != NULL ? (*ops->init)() : 0)
 #define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
 
-#define	VMINIT(vm)	(ops != NULL ? (*ops->vminit)(vm): NULL)
+#define	VMINIT(vm, pmap) (ops != NULL ? (*ops->vminit)(vm, pmap): NULL)
 #define	VMRUN(vmi, vcpu, rip) \
 	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
@@ -290,7 +291,7 @@ vm_create(const char *name, struct vm **retvm)
 
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
-	vm->cookie = VMINIT(vm);
+	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu_init(vm, i);

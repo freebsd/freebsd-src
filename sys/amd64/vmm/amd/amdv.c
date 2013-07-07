@@ -54,7 +54,7 @@ amdv_cleanup(void)
 }
 
 static void *
-amdv_vminit(struct vm *vm)
+amdv_vminit(struct vm *vm, struct pmap *pmap)
 {
 
 	printf("amdv_vminit: not implemented\n");

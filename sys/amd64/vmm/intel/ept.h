@@ -36,7 +36,6 @@ struct vmx;
 
 int	ept_init(void);
 void	ept_invalidate_mappings(u_long ept_pml4);
-void	ept_vmcleanup(struct vmx *vmx);
 struct vmspace *ept_vmspace_alloc(vm_offset_t min, vm_offset_t max);
 void	ept_vmspace_free(struct vmspace *vmspace);
 #endif

@@ -41,12 +41,13 @@ struct vm_run;
 struct vlapic;
 struct vmspace;
 struct vm_object;
+struct pmap;
 
 enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(void);
 typedef int	(*vmm_cleanup_func_t)(void);
-typedef void *	(*vmi_init_func_t)(struct vm *vm); /* instance specific apis */
+typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
