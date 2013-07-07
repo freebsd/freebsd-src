@@ -313,7 +313,7 @@ error:
 }
 
 /*
- * Try to lookup an directory entry in HTree index
+ * Try to lookup a directory entry in HTree index
  */
 int
 ext2_htree_lookup(struct inode *ip, const char *name, int namelen,
@@ -458,7 +458,7 @@ ext2_htree_insert_entry(struct ext2fs_htree_lookup_info *info,
 }
 
 /*
- * Compare two entry sort descriptiors by name hash value.
+ * Compare two entry sort descriptors by name hash value.
  * This is used together with qsort.
  */
 static int
@@ -584,7 +584,7 @@ ext2_htree_split_dirblock(char *block1, char *block2, uint32_t blksize,
 		ep = (struct ext2fs_direct_2 *)(block1 + offset);
 		offset += ep->e2d_reclen;
 		if (last->e2d_ino) {
-			/* trim the existing slot */
+			/* Trim the existing slot */
 			last->e2d_reclen = entry_len;
 			last = (struct ext2fs_direct_2 *)
 			   ((char *)last + entry_len);
