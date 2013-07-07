@@ -4955,7 +4955,7 @@ sctp_get_ifa_hash_val(struct sockaddr *addr)
 		}
 #endif
 #ifdef INET6
-	case INET6:
+	case AF_INET6:
 		{
 			struct sockaddr_in6 *sin6;
 			uint32_t hash_of_addr;
