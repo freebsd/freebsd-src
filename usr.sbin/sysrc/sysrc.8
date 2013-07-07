@@ -1,0 +1,297 @@
+.\" Copyright (c) 2011-2013 Devin Teske
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Jul 5, 2013
+.Dt SYSRC 8
+.Os
+.Sh NAME
+.Nm sysrc
+.Nd safely edit system rc files
+.Sh SYNOPSIS
+.Nm
+.Op Fl dDeFhinNqvx
+.Op Fl f Ar file
+.Op Fl j Ar jail | Fl R Ar dir
+.Ar name Ns Op = Ns Ar value
+.Ar ...
+.Nm
+.Op Fl dDeFhinNqvx
+.Op Fl f Ar file
+.Op Fl j Ar jail | Fl R Ar dir
+.Fl a | A
+.Sh DESCRIPTION
+The
+.Nm
+utility retrieves
+.Xr rc.conf 5
+variables from the collection of system rc files and allows processes with
+appropriate privilege to change values in a safe and effective manner.
+.Pp
+The following options are available:
+.Bl -tag -width indent+
+.It Fl a
+Dump a list of all non-default configuration variables.
+.It Fl A
+Dump a list of all configuration variables
+.Pq incl. defaults .
+.It Fl d
+Print a description of the given variable.
+.It Fl D
+Show default value(s) only (this is the same as setting RC_CONFS to NULL or
+passing `-f' with a NULL file-argument).
+.It Fl e
+Print query results as
+.Ql var=value
+.Pq useful for producing output to be fed back in .
+Ignored if
+.Fl n
+is specified.
+.It Fl f Ar file
+Operate on the specified file(s) instead of the files obtained by reading the
+.Sq rc_conf_files
+entry in the
+.Ev RC_DEFAULTS
+file.
+This option can be specified multiple times for additional files.
+.It Fl F
+Show only the last
+.Xr rc.conf 5
+file each directive is in.
+.It Fl h
+Print a short usage message to stderr and exit.
+.It Fl -help
+Print a full usage statement to stderr and exit.
+.It Fl i
+Ignore unknown variables.
+.It Fl j Ar jail
+The
+.Ar jid
+or name of the
+.Ar jail
+to operate within
+.Pq overrides So Fl R Ar dir Sc ; requires Xr jexec 8 .
+.It Fl n
+Show only variable values, not their names.
+.It Fl N
+Show only variable names, not their values.
+.It Fl q
+Quiet.
+Ignore previous occurrences of
+.Fl v
+flag.
+.It Fl R Ar dir
+Operate within the root directory
+.Pq Sq Ar dir
+rather than
+.Pq Sq / .
+.It Fl v
+Verbose.
+Print the pathname of the specific
+.Xr rc.conf 5
+file where the directive was found.
+.It Fl x
+Remove variable(s) from specified file(s).
+.El
+.Pp
+This utility works similar to
+.Xr sysctl 8 .
+It shares the `-e' and `-n' options
+.Pq detailed above
+and also has the same
+.Ql name[=value]
+syntax for querying/setting configuration options.
+.Pp
+However, while
+.Xr sysctl 8
+serves to query/modify MIBs in the entrant kernel,
+.Nm
+instead works on values in the system
+.Xr rc.conf 5
+configuration files.
+.Pp
+The list of system configuration files is configured in the file
+.Ql /etc/defaults/rc.conf
+within the variable
+.Ql rc_conf_files ,
+which by-default contains a space-separated list of pathnames.
+On all FreeBSD
+systems, this defaults to the value "/etc/rc.conf /etc/rc.conf.local".
+Each
+pathname is sourced in-order upon startup.
+It is in the same fashion that
+.Nm
+sources the configuration files before returning the value of the given
+variable.
+.Pp
+When supplied a variable name,
+.Nm
+will return the value of the variable.
+If the variable does not appear in any
+of the configured
+.Ql rc_conf_files ,
+an error is printed and error status is returned.
+.Pp
+When changing values of a given variable, it does not matter if the variable
+appears in any of the
+.Ql rc_conf_files
+or not.
+If the variable does not appear in any of the files, it is appended to
+the end of the first pathname in the
+.Ql rc_conf_files
+variable.
+Otherwise,
+.Nm
+will replace only the last-occurrence in the last-file found to contain the
+variable.
+This gets the value to take effect next boot without heavily
+modifying these integral files (yet taking care not to allow the file to
+grow unwieldy should
+.Nm
+be called repeatedly).
+.Sh ENVIRONMENT
+The following environment variables are referenced by
+.Nm :
+.Bl -tag -width ".Ev RC_DEFAULTS"
+.It Ev RC_CONFS
+Override default
+.Ql rc_conf_files
+.Pq even if set to NULL .
+.It Ev RC_DEFAULTS
+Location of
+.Ql /etc/defaults/rc.conf
+file.
+.El
+.Sh DEPENDENCIES
+The following standard commands are required by
+.Nm :
+.Pp
+.Xr awk 1 ,
+.Xr cat 1 ,
+.Xr chmod 1 ,
+.Xr env 1 ,
+.Xr grep 1 ,
+.Xr jls 1 ,
+.Xr mktemp 1 ,
+.Xr mv 1 ,
+.Xr rm 1 ,
+.Xr sh 1 ,
+.Xr stat 1 ,
+.Xr tail 1 ,
+.Xr chown 8
+and
+.Xr jexec 8 .
+.Sh FILES
+.Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
+.It Pa /etc/defaults/rc.conf
+.It Pa /etc/rc.conf
+.It Pa /etc/rc.conf.local
+.El
+.Sh EXAMPLES
+Below are some simple examples of how
+.Nm
+can be used to query certain values from the
+.Xr rc.conf 5
+collection of system configuration files:
+.Pp
+.Nm
+sshd_enable
+.Dl returns the value of $sshd_enable, usually YES or NO .
+.Pp
+.Nm
+defaultrouter
+.Dl returns IP address of default router Pq if configured .
+.Pp
+Working on other files, such as
+.Xr crontab 5 :
+.Pp
+.Nm
+-f /etc/crontab MAILTO
+.Dl returns the value of the MAILTO setting Pq if configured .
+.Pp
+In addition to the above syntax,
+.Nm
+also supports inline
+.Xr sh 1
+PARAMETER expansion for changing the way values are reported, shown below:
+.Pp
+.Nm
+\&'hostname%%.*'
+.Dl returns $hostname up to (but not including) first `.' .
+.Pp
+.Nm
+\&'network_interfaces%%[$IFS]*'
+.Dl returns first word of $network_interfaces .
+.Pp
+.Nm
+\&'ntpdate_flags##*[$IFS]'
+.Dl returns last word of $ntpdate_flags (time server address) .
+.Pp
+.Nm
+usbd_flags-"default"
+.Dl returns $usbd_flags or "default" if unset or NULL .
+.Pp
+.Nm
+cloned_interfaces+"alternate"
+.Dl returns "alternate" if $cloned_interfaces is set .
+.Pp
+.Nm
+\&'#kern_securelevel'
+.Dl returns length in characters of $kern_securelevel .
+.Pp
+.Nm
+\&'hostname?'
+.Dl returns NULL and error status 2 if $hostname is unset Pq or if set, returns the value of $hostname with no error status .
+.Pp
+.Nm
+\&'hostname:?'
+.Dl returns NULL and error status 2 if $hostname is unset or NULL Pq or if set and non-NULL, returns value without error status .
+.Sh LIMITATIONS
+The
+.Nm
+utility presently does not support the
+.Ql rc.conf.d
+collection of system configuration files
+.Pq which requires a service name to be known during execution .
+.Pp
+This will be corrected by a future enhancement.
+.Sh SEE ALSO
+.Xr jls 1 ,
+.Xr rc.conf 5 ,
+.Xr jail 8 ,
+.Xr jexec 8 ,
+.Xr rc 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+A
+.Nm
+utility first appeared in
+.Fx 9.2 .
+.Sh AUTHORS
+.An Devin Teske Aq dteske@FreeBSD.org
+.Sh THANKS TO
+Brandon Gooch, Garrett Cooper, Julian Elischer, Pawel Jakub Dawidek,
+Cyrille Lefevre, Ross West, Stefan Esser, Marco Steinbach, and Jilles Tjoelker
+for suggestions and help.
