@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
 #include <machine/md_var.h>
@@ -47,22 +50,35 @@ vmm_mem_init(void)
 }
 
 vm_object_t
-vmm_mem_alloc(size_t size)
+vmm_mem_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
 {
+	int error;
 	vm_object_t obj;
 
-	if (size & PAGE_MASK)
-		panic("vmm_mem_alloc: invalid allocation size %lu", size);
+	if (gpa & PAGE_MASK)
+		panic("vmm_mem_alloc: invalid gpa %#lx", gpa);
 
-	obj = vm_object_allocate(OBJT_DEFAULT, size >> PAGE_SHIFT);
+	if (len == 0 || (len & PAGE_MASK) != 0)
+		panic("vmm_mem_alloc: invalid allocation size %lu", len);
+
+	obj = vm_object_allocate(OBJT_DEFAULT, len >> PAGE_SHIFT);
+	if (obj != NULL) {
+		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len,
+				    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		if (error != KERN_SUCCESS) {
+			vm_object_deallocate(obj);
+			obj = NULL;
+		}
+	}
+
 	return (obj);
 }
 
 void
-vmm_mem_free(vm_object_t obj)
+vmm_mem_free(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
 {
 
-	vm_object_deallocate(obj);
+	vm_map_remove(&vmspace->vm_map, gpa, gpa + len);
 }
 
 vm_paddr_t

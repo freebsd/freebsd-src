@@ -29,11 +29,12 @@
 #ifndef	_VMM_MEM_H_
 #define	_VMM_MEM_H_
 
+struct vmspace;
 struct vm_object;
 
 int		vmm_mem_init(void);
-struct vm_object *vmm_mem_alloc(size_t size);
-void		vmm_mem_free(struct vm_object *obj);
+struct vm_object *vmm_mem_alloc(struct vmspace *, vm_paddr_t gpa, size_t size);
+void		vmm_mem_free(struct vmspace *, vm_paddr_t gpa, size_t size);
 vm_paddr_t	vmm_mem_maxaddr(void);
 
 #endif

@@ -315,7 +315,7 @@ vm_free_mem_seg(struct vm *vm, struct mem_seg *seg)
 {
 
 	if (seg->object != NULL)
-		vmm_mem_free(seg->object);
+		vmm_mem_free(vm->vmspace, seg->gpa, seg->len);
 
 	bzero(seg, sizeof(*seg));
 }
@@ -430,7 +430,7 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 
 	seg = &vm->mem_segs[vm->num_mem_segs];
 
-	if ((object = vmm_mem_alloc(len)) == NULL)
+	if ((object = vmm_mem_alloc(vm->vmspace, gpa, len)) == NULL)
 		return (ENOMEM);
 
 	seg->gpa = gpa;
