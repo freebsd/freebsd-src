@@ -4485,8 +4485,8 @@ bdata2bio(struct buf *bp, struct bio *bip)
 		bip->bio_flags |= BIO_UNMAPPED;
 		KASSERT(round_page(bip->bio_ma_offset + bip->bio_length) /
 		    PAGE_SIZE == bp->b_npages,
-		    ("Buffer %p too short: %d %d %d", bp, bip->bio_ma_offset,
-		    bip->bio_length, bip->bio_ma_n));
+		    ("Buffer %p too short: %d %lld %d", bp, bip->bio_ma_offset,
+		    (long long)bip->bio_length, bip->bio_ma_n));
 	} else {
 		bip->bio_data = bp->b_data;
 		bip->bio_ma = NULL;
