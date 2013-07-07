@@ -3536,8 +3536,8 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	if (stcb->sctp_socket->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		return;
 	}
-	if (stcb && ((stcb->asoc.state & SCTP_STATE_COOKIE_WAIT) ||
-	    (stcb->asoc.state & SCTP_STATE_COOKIE_ECHOED))) {
+	if ((stcb->asoc.state & SCTP_STATE_COOKIE_WAIT) ||
+	    (stcb->asoc.state & SCTP_STATE_COOKIE_ECHOED)) {
 		if ((notification == SCTP_NOTIFY_INTERFACE_DOWN) ||
 		    (notification == SCTP_NOTIFY_INTERFACE_UP) ||
 		    (notification == SCTP_NOTIFY_INTERFACE_CONFIRMED)) {
@@ -3611,16 +3611,16 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 			break;
 		}
 	case SCTP_NOTIFY_ASSOC_LOC_ABORTED:
-		if ((stcb) && (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
-		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED))) {
+		if (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
+		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED)) {
 			sctp_notify_assoc_change(SCTP_CANT_STR_ASSOC, stcb, error, data, 0, so_locked);
 		} else {
 			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, data, 0, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_ASSOC_REM_ABORTED:
-		if ((stcb) && (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
-		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED))) {
+		if (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
+		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED)) {
 			sctp_notify_assoc_change(SCTP_CANT_STR_ASSOC, stcb, error, data, 1, so_locked);
 		} else {
 			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, data, 1, so_locked);
