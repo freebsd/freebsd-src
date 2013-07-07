@@ -46,7 +46,8 @@ sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_scoping *scope,
     struct mbuf *m_at,
-    int cnt_inits_to);
+    int cnt_inits_to,
+    uint16_t * padding_len, uint16_t * chunk_len);
 
 
 int sctp_is_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
