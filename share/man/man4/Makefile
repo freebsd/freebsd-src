@@ -76,6 +76,7 @@ MAN=	aac.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
+	cc_cdg.4 \
 	cc_chd.4 \
 	cc_cubic.4 \
 	cc_hd.4 \
