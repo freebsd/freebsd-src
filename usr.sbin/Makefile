@@ -7,6 +7,7 @@ SUBDIR=	adduser \
 	arp \
 	bootparamd \
 	burncd \
+	bsdconfig \
 	bsdinstall \
 	cdcontrol \
 	chkgrp \
@@ -80,6 +81,7 @@ SUBDIR=	adduser \
 	snapinfo \
 	spray \
 	syslogd \
+	sysrc \
 	tcpdchk \
 	tcpdmatch \
 	tcpdrop \

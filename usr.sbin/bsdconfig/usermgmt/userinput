@@ -1,0 +1,529 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/usermgmt/user_input.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+
+############################################################ CONFIGURATION
+
+# set some reasonable defaults if /etc/adduser.conf does not exist.
+[ -f /etc/adduser.conf ] && f_include /etc/adduser.conf
+: ${passwdtype:="yes"}
+: ${homeprefix:="/home"}
+: ${defaultshell:="/bin/sh"}
+: ${udotdir:="/usr/share/skel"}
+
+############################################################ FUNCTIONS
+
+# copy_dotfiles
+#
+# Copy `skel' dot-files to a new home directory.
+#
+copy_dotfiles()
+{
+	( # Operate within sub-shell to protect CWD/glob of parent
+		cd "$udotdir" || exit $?
+		set +f # glob
+		for file in dot.*; do
+			cp -n "$file" "$pw_home_dir/${file#dot}" || exit $?
+		done
+	)
+}
+
+# save_changes
+#
+# Save any/all settings (actions performed depend on $mode value).
+#
+save_changes()
+{
+	local err retval=$SUCCESS
+
+	case "$mode" in
+	Delete)
+		err=$( pw userdel -u "$pw_uid" 2>&1 )
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_dialog_msgbox "$msg_error $err\n"
+			return $retval
+		fi
+		f_show_msg "$msg_login_deleted"
+
+		if [ "$pw_group_delete" = "$msg_yes" ] &&
+		   f_quietly pw groupshow -g "$pw_gid"
+		then
+			err=$( pw groupdel -g "$pw_gid" 2>&1 ) ||
+				f_dialog_msgbox "$msg_warning $err\n"
+		fi
+
+		if [ "$pw_home_delete" = "$msg_yes" ]; then
+			f_dialog_info "$msg_deleting_home_directory"
+			err=$( rm -Rf "$pw_home_dir" 2>&1 ) ||
+				f_dialog_msgbox "$msg_warning $err\n"
+		fi
+		;;
+	Add)
+		local cmd="pw useradd -n '$pw_name'"
+		[ "$pw_member_groups"   ] && cmd="$cmd -G '$pw_member_groups'"
+		[ "$pw_class"           ] && cmd="$cmd -L '$pw_class'"
+		[ "$pw_gecos"           ] && cmd="$cmd -c '$pw_gecos'"
+		[ "$pw_home_dir"        ] && cmd="$cmd -d '$pw_home_dir'"
+		[ "$pw_account_expire"  ] && cmd="$cmd -e '$pw_account_expire'"
+		[ "$pw_gid"             ] && cmd="$cmd -g '$pw_gid'"
+		[ "$pw_password_expire" ] && cmd="$cmd -p '$pw_password_expire'"
+		[ "$pw_shell"           ] && cmd="$cmd -s '$pw_shell'"
+		[ "$pw_uid"             ] && cmd="$cmd -u '$pw_uid'"
+		if [ "$pw_password_disable" ]; then
+			cmd="$cmd -h -"
+		elif [ "$pw_password" ]; then
+			cmd="echo \"\$pw_password\" | $cmd -h 0"
+		fi
+		f_dprintf "cmd=%s" "$cmd"
+		err=$( eval $cmd 2>&1 )
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_dialog_msgbox "$msg_error $err\n"
+			return $retval
+		fi
+		f_show_msg "$msg_login_added"
+
+		if [ "$pw_home_create" = "$msg_yes" ]; then
+			err=$( mkdir -p "$pw_home_dir" 2>&1 )
+			if [ $? -ne $SUCCESS ]; then
+				f_dialog_msgbox "$msg_warning $err\n"
+			elif [ -e "$pw_home_dir" ]; then
+				err=$( chown -R "$pw_uid:$pw_gid" \
+				                "$pw_home_dir" 2>&1 )
+				[ $? -eq $SUCCESS ] ||
+					f_dialog_msgbox "$msg_warning $err\n"
+			fi
+		fi
+
+		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
+			err=$( copy_dotfiles 2>&1 ) ||
+				f_dialog_msgbox "$msg_warning $err\n"
+		fi
+
+		user="$pw_name"
+		f_quietly pw usershow -n "$pw_name" &&
+			mode="Edit/View" # Change mode
+		;;
+	Edit/View)
+		local cmd="pw usermod -n '$pw_name'"
+		[ "$pw_member_groups"   ] && cmd="$cmd -G '$pw_member_groups'"
+		[ "$pw_class"           ] && cmd="$cmd -L '$pw_class'"
+		[ "$pw_gecos"           ] && cmd="$cmd -c '$pw_gecos'"
+		[ "$pw_home_dir"        ] && cmd="$cmd -d '$pw_home_dir'"
+		[ "$pw_account_expire"  ] && cmd="$cmd -e '$pw_account_expire'"
+		[ "$pw_gid"             ] && cmd="$cmd -g '$pw_gid'"
+		[ "$pw_password_expire" ] && cmd="$cmd -p '$pw_password_expire'"
+		[ "$pw_shell"           ] && cmd="$cmd -s '$pw_shell'"
+		[ "$pw_uid"             ] && cmd="$cmd -u '$pw_uid'"
+		if [ "$pw_password_disable" ]; then
+			cmd="$cmd -h -"
+		elif [ "$pw_password" ]; then
+			cmd="echo \"\$pw_password\" | $cmd -h 0"
+		fi
+		f_dprintf "cmd=%s" "$cmd"
+		err=$( eval $cmd 2>&1 )
+		retval=$?
+		if [ $retval -ne $SUCCESS ]; then
+			f_dialog_msgbox "$msg_error $err\n"
+			return $retval
+		fi
+		f_show_msg "$msg_login_updated"
+
+		if [ "$pw_home_create" = "$msg_yes" ]; then
+			err=$( mkdir -p "$pw_home_dir" )
+			if [ $? -ne $SUCCESS ]; then
+				f_dialog_msgbox "$msg_warning $err\n"
+			elif [ -e "$pw_home_dir" ]; then
+				err=$( chown -R "$pw_uid:$pw_gid" \
+				                "$pw_home_dir" 2>&1 )
+				[ $? -eq $SUCCESS ] ||
+					f_dialog_msgbox "$msg_warning $err\n"
+			fi
+		fi
+
+		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
+			err=$( copy_dotfiles 2>&1 ) ||
+				f_dialog_msgbox "$msg_warning $err\n"
+		fi
+		;;
+	esac
+
+	save_flag=
+	return $SUCCESS
+}
+
+# dialog_title_update $mode
+#
+# Set the title based on the given $mode.
+#
+dialog_title_update()
+{
+	local mode="$1"
+	case "$mode" in
+	Add)       f_dialog_title "$msg_add $msg_user" ;;
+	Edit/View) f_dialog_title "$msg_edit_view $msg_user: $user" ;;
+	Delete)    f_dialog_title "$msg_delete $msg_user: $user" ;;
+	esac
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while [ $# -gt 0 ]; do
+	key="${1%%=*}"
+	value="${1#*=}"
+	f_dprintf "key=[%s] value=[%s]" "$key" "$value"
+	case "$key" in
+	mode) mode="$value" ;;
+	user) user="$value" ;;
+	esac
+	shift
+done
+f_dprintf "mode=[%s] user=[%s]" "$mode" "$user"
+
+#
+# Initialize
+#
+dialog_title_update "$mode"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+menu_text=
+save_flag=
+hline="$hline_arrows_tab_enter"
+
+if [ "$mode" = "Add" ]; then
+	f_dialog_input_name || exit 0
+
+	#
+	# Set some sensible defaults for account attributes
+	#
+	pw_gecos="${pw_gecos-$pw_name}"
+	pw_home_dir="${pw_home_dir:-$homeprefix/$pw_name}"
+	if [ -d "$pw_home_dir" ]; then
+		pw_home_create="${pw_home_create:-$msg_no}"
+		pw_dotfiles_create="${pw_dotfiles_create:-$msg_no}"
+	else
+		pw_home_create="${pw_home_create:-$msg_yes}"
+		pw_dotfiles_create="${pw_dotfiles_create:-$msg_yes}"
+	fi
+	pw_shell="${pw_shell:-$defaultshell}"
+
+	f_dialog_noyes "$msg_use_default_values_for_all_account_details"
+	retval=$?
+
+	if [ $retval -eq 255 ]; then # User pressed ESC
+		exit $SUCCESS
+	elif [ $retval -ne $SUCCESS ]; then
+		#
+		# Ask a series of questions to pre-fill the editor screen.
+		#
+		# The defaults used in each dialog should allow the user to
+		# simply hit ENTER to proceed, because cancelling a single
+		# dialog will cause them to be returned to the main usermenu.
+		#
+
+		f_dialog_input_gecos "$pw_gecos" || exit 0
+		[ "$passwdtype" = "yes" ] &&
+			{ f_dialog_input_password || exit 0; }
+		f_dialog_input_uid || exit 0
+		f_dialog_input_gid || exit 0
+		f_dialog_input_member_groups || exit 0
+		f_dialog_input_class || exit 0
+		f_dialog_input_expire_password || exit 0
+		f_dialog_input_expire_account || exit 0
+		f_dialog_input_home_dir "$pw_home_dir" || exit 0
+		if [ ! -d "$pw_home_dir" ]; then
+			f_dialog_input_home_create || exit 0
+			[ "$pw_home_create" = "$msg_yes" ] &&
+				{ f_dialog_input_dotfiles_create || exit 0; }
+		fi
+		f_dialog_input_shell "$pw_shell" || exit 0
+	fi
+fi
+
+if [ "$mode" = "Edit/View" -o "$mode" = "Delete" ]; then
+	f_input_user "$user" || f_die 1 "$msg_login_not_found"
+fi
+
+if [ "$mode" = "Edit/View" ]; then
+	[ -d "$pw_home_dir" ] || pw_home_create="$msg_no"
+	pw_dotfiles_create="$msg_no"
+fi
+
+if [ "$mode" = "Delete" ]; then
+	f_dialog_input_group_delete || exit 0
+	pw_home_delete="$msg_no"
+	[ -d "$pw_home_dir" ] &&
+		{ f_dialog_input_home_delete || exit 0; }
+fi
+
+cur_pw_name="$pw_name"
+cur_pw_password="$pw_password"
+cur_pw_uid="$pw_uid"
+cur_pw_gid="$pw_gid"
+cur_pw_member_groups="$pw_member_groups"
+cur_pw_class="$pw_class"
+cur_pw_password_expire="$pw_password_expire"
+cur_pw_account_expire="$pw_account_expire"
+cur_pw_gecos="$pw_gecos"
+cur_pw_home_dir="$pw_home_dir"
+cur_pw_shell="$pw_shell"
+cur_pw_group_delete="$pw_group_delete"
+cur_pw_home_create="$pw_home_create"
+cur_pw_home_delete="$pw_home_delete"
+cur_pw_dotfiles_create="$pw_dotfiles_create"
+
+[ "$mode" = "Delete" ] && save_flag=1
+
+#
+# Loop until the user decides to Exit, Cancel, or presses ESC
+#
+while :; do
+	dialog_title_update "$mode"
+
+	menu_text=
+	menu_exit="$msg_exit"
+	if [ "$save_flag" ]; then
+		if [ "$mode" = "Delete" ]; then
+			menu_exit="$msg_delete/$msg_exit"
+			menu_text="$msg_delete_exit_or_cancel"
+		else
+			menu_exit="$msg_save/$msg_exit"
+			menu_text="$msg_save_exit_or_cancel"
+		fi
+	fi
+
+	pw_password_expires_on="$pw_password_expire"
+	f_isinteger "$pw_password_expire" && [ $pw_password_expire -ne 0 ] &&
+		pw_password_expires_on=$(
+			date -r "$pw_password_expire" "+%F %T %Z"
+		)
+	pw_account_expires_on="$pw_account_expire"
+	f_isinteger "$pw_account_expire" && [ "$pw_account_expire" -ne 0 ] &&
+		pw_account_expires_on=$(
+			date -r "$pw_account_expire" "+%F %T %Z"
+		)
+
+	case "$mode" in
+	Delete)
+		menu_items="
+			'X' '$menu_exit'
+			'1' '$msg_login: $pw_name'
+			'-' '$msg_full_name: $pw_gecos'
+			'-' '$msg_password: -----'
+			'-' '$msg_user_id: $pw_uid'
+			'-' '$msg_group_id: $pw_gid'
+			'-' '$msg_member_of_groups: $pw_member_groups'
+			'-' '$msg_login_class: $pw_class'
+			'-' '$msg_password_expires_on: $pw_password_expires_on'
+			'-' '$msg_account_expires_on: $pw_account_expires_on'
+			'-' '$msg_home_directory: $pw_home_dir'
+			'-' '$msg_shell: $pw_shell'
+		" # END-QUOTE
+		;;
+	*)
+		menu_items="
+			'X' '$menu_exit'
+			'1' '$msg_login: $pw_name'
+			'2' '$msg_full_name: $pw_gecos'
+			'3' '$msg_password: -----'
+			'4' '$msg_user_id: $pw_uid'
+			'5' '$msg_group_id: $pw_gid'
+			'6' '$msg_member_of_groups: $pw_member_groups'
+			'7' '$msg_login_class: $pw_class'
+			'8' '$msg_password_expires_on: $pw_password_expires_on'
+			'9' '$msg_account_expires_on: $pw_account_expires_on'
+			'A' '$msg_home_directory: $pw_home_dir'
+			'B' '$msg_shell: $pw_shell'
+		" # END-QUOTE
+	esac
+
+	case "$mode" in
+	Add|Edit/View)
+		if [ -d "$pw_home_dir" ]; then menu_items="$menu_items
+			'-' '$msg_create_home_directory: $msg_n_a'
+			'D' '$msg_create_dotfiles: $pw_dotfiles_create'
+		"; else menu_items="$menu_items
+			'C' '$msg_create_home_directory: $pw_home_create'
+			'D' '$msg_create_dotfiles: $pw_dotfiles_create'
+		"; fi
+		;;
+	Delete)
+		if [ -d "$pw_home_dir" ]; then menu_items="$menu_items
+			'C' '$msg_delete_primary_group: $pw_group_delete'
+			'D' '$msg_delete_home_directory: $pw_home_delete'
+		"; else menu_items="$menu_items
+			'C' '$msg_delete_primary_group: $pw_group_delete'
+			'-' '$msg_delete_home_directory: $msg_n_a'
+		"; fi
+		;;
+	esac
+
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$menu_text\"        \
+	                        \"\$hline\"            \
+	                        $menu_items
+
+	f_dialog_default_fetch defaultitem
+	mtag=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$menu_text\"             \
+		$height $width $rows               \
+		$menu_items                        \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	retval=$?
+	f_dialog_data_sanitize mtag
+	f_dialog_default_store "$mtag"
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+
+	# Exit if user has either pressed ESC or chosen Cancel/No
+	[ $retval -eq $SUCCESS ] || f_die
+
+	case "$mtag" in
+	X) # Exit
+	   if [ "$save_flag" ]; then
+	   	save_changes || continue
+	   fi
+	   break
+	   ;;
+	1) # Login
+	   case "$mode" in
+	   Add) f_dialog_input_name "$pw_name" ;;
+	   Edit/View|Delete)
+	   	f_dialog_menu_user_list "$pw_name"
+	   	retval=$?
+	   	f_dialog_menutag_fetch mtag
+	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
+
+	   	# Loop if user has either pressed ESC or chosen Cancel/No
+	   	[ $retval -eq $SUCCESS ] || continue
+
+	   	[ "$mtag" = "X $msg_exit" ] && continue
+
+	   	user="$mtag"
+	   	f_input_user "$user" || f_die 1 "$msg_login_not_found"
+	   	cur_pw_name="$pw_name"
+	   	cur_pw_password="$pw_password"
+	   	cur_pw_uid="$pw_uid"
+	   	cur_pw_gid="$pw_gid"
+	   	cur_pw_member_groups="$pw_member_groups"
+	   	cur_pw_class="$pw_class"
+	   	cur_pw_password_expire="$pw_password_expire"
+	   	cur_pw_account_expire="$pw_account_expire"
+	   	cur_pw_gecos="$pw_gecos"
+	   	cur_pw_home_dir="$pw_home_dir"
+	   	cur_pw_shell="$pw_shell"
+	   	cur_pw_group_delete="$pw_group_delete"
+	   	cur_pw_home_create="$pw_home_create"
+	   	cur_pw_home_delete="$pw_home_delete"
+	   	cur_pw_dotfiles_create="$pw_dotfiles_create"
+	   	[ "$mode" != "Delete" ] && save_flag=
+	   esac
+	   ;;
+	2) # Full Name
+	   f_dialog_input_gecos "$pw_gecos" ;;
+	3) # Password
+	   f_dialog_input_password ;;
+	4) # UID
+	   f_dialog_input_uid "$pw_uid" ;;
+	5) # Default Group
+	   f_dialog_input_gid "$pw_gid" ;;
+	6) # Member of Groups
+	   f_dialog_input_member_groups "$pw_member_groups" ;;
+	7) # Login Class
+	   f_dialog_input_class "$pw_class" ;;
+	8) # Password Expire on
+	   f_dialog_input_expire_password "$pw_password_expire" ;;
+	9) # Account Expire on
+	   f_dialog_input_expire_account "$pw_account_expire" ;;
+	A) # Home Directory
+	   f_dialog_input_home_dir "$pw_home_dir" ;;
+	B) # Shell
+	   f_dialog_input_shell "$pw_shell" ;;
+	esac
+
+	case "$mode" in
+	Delete)
+		case "$mtag" in
+		C) # Delete Primary Group
+		   f_dialog_input_group_delete ;;
+		D) # Delete Home Directory
+		   f_dialog_input_home_delete ;;
+		esac
+		;;
+	Add|Edit/View)
+		case "$mtag" in
+		C) # Create Home Directory
+		   f_dialog_input_home_create
+		   [ "$pw_home_create" = "$msg_no" ] &&
+		   	pw_dotfiles_create="$msg_no"
+		   ;;
+		D) # Create Dotfiles
+		   f_dialog_input_dotfiles_create
+		   [ "$pw_dotfiles_create" = "$msg_yes" ] &&
+		   	pw_home_create="$msg_yes"
+		   ;;
+		esac
+		;;
+	esac
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################
