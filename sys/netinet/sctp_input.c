@@ -389,9 +389,10 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 		}
 		SCTP_FREE(asoc->strmin, SCTP_M_STRMI);
 	}
-	asoc->streamincnt = ntohs(init->num_outbound_streams);
-	if (asoc->streamincnt > MAX_SCTP_STREAMS) {
-		asoc->streamincnt = MAX_SCTP_STREAMS;
+	if (asoc->max_inbound_streams > ntohs(init->num_outbound_streams)) {
+		asoc->streamincnt = ntohs(init->num_outbound_streams);
+	} else {
+		asoc->streamincnt = asoc->max_inbound_streams;
 	}
 	SCTP_MALLOC(asoc->strmin, struct sctp_stream_in *, asoc->streamincnt *
 	    sizeof(struct sctp_stream_in), SCTP_M_STRMI);
@@ -403,11 +404,6 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 	for (i = 0; i < asoc->streamincnt; i++) {
 		asoc->strmin[i].stream_no = i;
 		asoc->strmin[i].last_sequence_delivered = 0xffff;
-		/*
-		 * U-stream ranges will be set when the cookie is unpacked.
-		 * Or for the INIT sender they are un set (if pr-sctp not
-		 * supported) when the INIT-ACK arrives.
-		 */
 		TAILQ_INIT(&asoc->strmin[i].inqueue);
 		asoc->strmin[i].delivery_started = 0;
 	}
