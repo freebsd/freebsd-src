@@ -5387,23 +5387,6 @@ process_control_chunks:
 				*offset = length;
 				return (NULL);
 			}
-			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-				/* We are not interested anymore */
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-				so = SCTP_INP_SO(inp);
-				atomic_add_int(&stcb->asoc.refcnt, 1);
-				SCTP_TCB_UNLOCK(stcb);
-				SCTP_SOCKET_LOCK(so, 1);
-				SCTP_TCB_LOCK(stcb);
-				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-#endif
-				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_30);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-				SCTP_SOCKET_UNLOCK(so, 1);
-#endif
-				*offset = length;
-				return (NULL);
-			}
 			if (stcb->asoc.peer_supports_strreset == 0) {
 				/*
 				 * hmm, peer should have announced this, but
