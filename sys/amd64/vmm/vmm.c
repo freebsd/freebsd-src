@@ -125,12 +125,6 @@ static struct vmm_ops *ops;
 #define	VMRUN(vmi, vcpu, rip) \
 	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
-#define	VMMMAP_SET(vmi, gpa, hpa, len, attr, prot, spm)			\
-    	(ops != NULL ? 							\
-    	(*ops->vmmmap_set)(vmi, gpa, hpa, len, attr, prot, spm) :	\
-	ENXIO)
-#define	VMMMAP_GET(vmi, gpa) \
-	(ops != NULL ? (*ops->vmmmap_get)(vmi, gpa) : ENXIO)
 #define	VMSPACE_ALLOC(min, max) \
 	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
 #define	VMSPACE_FREE(vmspace) \
@@ -358,19 +352,15 @@ vm_name(struct vm *vm)
 int
 vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
-	const boolean_t spok = TRUE;	/* superpage mappings are ok */
 
-	return (VMMMAP_SET(vm->cookie, gpa, hpa, len, VM_MEMATTR_UNCACHEABLE,
-			   VM_PROT_RW, spok));
+	return (ENXIO);		/* XXX fixme */
 }
 
 int
 vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
-	const boolean_t spok = TRUE;	/* superpage mappings are ok */
 
-	return (VMMMAP_SET(vm->cookie, gpa, 0, len, 0,
-			   VM_PROT_NONE, spok));
+	return (ENXIO);		/* XXX fixme */
 }
 
 /*
@@ -460,7 +450,7 @@ vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t len)
 	if (len > nextpage - gpa)
 		panic("vm_gpa2hpa: invalid gpa/len: 0x%016lx/%lu", gpa, len);
 
-	return (VMMMAP_GET(vm->cookie, gpa));
+	return ((vm_paddr_t)-1);	/* XXX fixme */
 }
 
 int

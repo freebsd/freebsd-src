@@ -1859,8 +1859,6 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_vminit,
 	vmx_run,
 	vmx_vmcleanup,
-	ept_vmmmap_set,
-	ept_vmmmap_get,
 	vmx_getreg,
 	vmx_setreg,
 	vmx_getdesc,
