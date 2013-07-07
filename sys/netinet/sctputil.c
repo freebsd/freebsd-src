@@ -1052,7 +1052,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		 * that were dropped must be notified to the upper layer as
 		 * failed to send.
 		 */
-		asoc->strmout[i].next_sequence_sent = 0x0;
+		asoc->strmout[i].next_sequence_send = 0x0;
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
 		asoc->strmout[i].stream_no = i;
 		asoc->strmout[i].last_msg_incomplete = 0;
@@ -2973,7 +2973,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 		/* not exactly what the user sent in, but should be close :) */
 		bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
 		ssf->ssf_info.sinfo_stream = sp->stream;
-		ssf->ssf_info.sinfo_ssn = sp->strseq;
+		ssf->ssf_info.sinfo_ssn = 0;
 		if (sp->some_taken) {
 			ssf->ssf_info.sinfo_flags = SCTP_DATA_LAST_FRAG;
 		} else {
@@ -4774,77 +4774,69 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 		 * Still no eom found. That means there is stuff left on the
 		 * stream out queue.. yuck.
 		 */
-		strq = &stcb->asoc.strmout[stream];
 		SCTP_TCB_SEND_LOCK(stcb);
-		TAILQ_FOREACH(sp, &strq->outqueue, next) {
-			/* FIXME: Shouldn't this be a serial number check? */
-			if (sp->strseq > seq) {
-				break;
-			}
-			/* Check if its our SEQ */
-			if (sp->strseq == seq) {
-				sp->discard_rest = 1;
-				/*
-				 * We may need to put a chunk on the queue
-				 * that holds the TSN that would have been
-				 * sent with the LAST bit.
-				 */
+		strq = &stcb->asoc.strmout[stream];
+		sp = TAILQ_FIRST(&strq->outqueue);
+		if (sp != NULL) {
+			sp->discard_rest = 1;
+			/*
+			 * We may need to put a chunk on the queue that
+			 * holds the TSN that would have been sent with the
+			 * LAST bit.
+			 */
+			if (chk == NULL) {
+				/* Yep, we have to */
+				sctp_alloc_a_chunk(stcb, chk);
 				if (chk == NULL) {
-					/* Yep, we have to */
-					sctp_alloc_a_chunk(stcb, chk);
-					if (chk == NULL) {
-						/*
-						 * we are hosed. All we can
-						 * do is nothing.. which
-						 * will cause an abort if
-						 * the peer is paying
-						 * attention.
-						 */
-						goto oh_well;
-					}
-					memset(chk, 0, sizeof(*chk));
-					chk->rec.data.rcv_flags = SCTP_DATA_LAST_FRAG;
-					chk->sent = SCTP_FORWARD_TSN_SKIP;
-					chk->asoc = &stcb->asoc;
-					chk->rec.data.stream_seq = sp->strseq;
-					chk->rec.data.stream_number = sp->stream;
-					chk->rec.data.payloadtype = sp->ppid;
-					chk->rec.data.context = sp->context;
-					chk->flags = sp->act_flags;
-					if (sp->net)
-						chk->whoTo = sp->net;
-					else
-						chk->whoTo = stcb->asoc.primary_destination;
-					atomic_add_int(&chk->whoTo->ref_count, 1);
-					chk->rec.data.TSN_seq = atomic_fetchadd_int(&stcb->asoc.sending_seq, 1);
-					stcb->asoc.pr_sctp_cnt++;
-					chk->pr_sctp_on = 1;
-					TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, chk, sctp_next);
-					stcb->asoc.sent_queue_cnt++;
-					stcb->asoc.pr_sctp_cnt++;
-				} else {
-					chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
-				}
-		oh_well:
-				if (sp->data) {
 					/*
-					 * Pull any data to free up the SB
-					 * and allow sender to "add more"
-					 * while we will throw away :-)
+					 * we are hosed. All we can do is
+					 * nothing.. which will cause an
+					 * abort if the peer is paying
+					 * attention.
 					 */
-					sctp_free_spbufspace(stcb, &stcb->asoc,
-					    sp);
-					ret_sz += sp->length;
-					do_wakeup_routine = 1;
-					sp->some_taken = 1;
-					sctp_m_freem(sp->data);
-					sp->data = NULL;
-					sp->tail_mbuf = NULL;
-					sp->length = 0;
+					goto oh_well;
 				}
-				break;
+				memset(chk, 0, sizeof(*chk));
+				chk->rec.data.rcv_flags = SCTP_DATA_LAST_FRAG;
+				chk->sent = SCTP_FORWARD_TSN_SKIP;
+				chk->asoc = &stcb->asoc;
+				chk->rec.data.stream_seq = strq->next_sequence_send;
+				chk->rec.data.stream_number = sp->stream;
+				chk->rec.data.payloadtype = sp->ppid;
+				chk->rec.data.context = sp->context;
+				chk->flags = sp->act_flags;
+				if (sp->net)
+					chk->whoTo = sp->net;
+				else
+					chk->whoTo = stcb->asoc.primary_destination;
+				atomic_add_int(&chk->whoTo->ref_count, 1);
+				chk->rec.data.TSN_seq = atomic_fetchadd_int(&stcb->asoc.sending_seq, 1);
+				stcb->asoc.pr_sctp_cnt++;
+				chk->pr_sctp_on = 1;
+				TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, chk, sctp_next);
+				stcb->asoc.sent_queue_cnt++;
+				stcb->asoc.pr_sctp_cnt++;
+			} else {
+				chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
 			}
-		}		/* End tailq_foreach */
+			strq->next_sequence_send++;
+	oh_well:
+			if (sp->data) {
+				/*
+				 * Pull any data to free up the SB and allow
+				 * sender to "add more" while we will throw
+				 * away :-)
+				 */
+				sctp_free_spbufspace(stcb, &stcb->asoc, sp);
+				ret_sz += sp->length;
+				do_wakeup_routine = 1;
+				sp->some_taken = 1;
+				sctp_m_freem(sp->data);
+				sp->data = NULL;
+				sp->tail_mbuf = NULL;
+				sp->length = 0;
+			}
+		}
 		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
 	if (do_wakeup_routine) {
