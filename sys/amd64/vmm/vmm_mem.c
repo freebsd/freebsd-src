@@ -30,39 +30,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/linker.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
 
 #include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_page.h>
-#include <vm/vm_pageout.h>
+#include <vm/vm_object.h>
 
 #include <machine/md_var.h>
-#include <machine/metadata.h>
-#include <machine/pc/bios.h>
-#include <machine/vmparam.h>
-#include <machine/pmap.h>
 
-#include "vmm_util.h"
 #include "vmm_mem.h"
-
-SYSCTL_DECL(_hw_vmm);
-
-static u_long pages_allocated;
-SYSCTL_ULONG(_hw_vmm, OID_AUTO, pages_allocated, CTLFLAG_RD,
-	     &pages_allocated, 0, "4KB pages allocated");
-
-static void
-update_pages_allocated(int howmany)
-{
-	pages_allocated += howmany;	/* XXX locking? */
-}
 
 int
 vmm_mem_init(void)
@@ -71,60 +46,23 @@ vmm_mem_init(void)
 	return (0);
 }
 
-vm_paddr_t
+vm_object_t
 vmm_mem_alloc(size_t size)
 {
-	int flags;
-	vm_page_t m;
-	vm_paddr_t pa;
+	vm_object_t obj;
 
-	if (size != PAGE_SIZE)
+	if (size & PAGE_MASK)
 		panic("vmm_mem_alloc: invalid allocation size %lu", size);
 
-	flags = VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		VM_ALLOC_ZERO;
-
-	while (1) {
-		/*
-		 * XXX need policy to determine when to back off the allocation
-		 */
-		m = vm_page_alloc(NULL, 0, flags);
-		if (m == NULL)
-			VM_WAIT;
-		else
-			break;
-	}
-
-	pa = VM_PAGE_TO_PHYS(m);
-	
-	if ((m->flags & PG_ZERO) == 0)
-		pagezero((void *)PHYS_TO_DMAP(pa));
-	m->valid = VM_PAGE_BITS_ALL;
-
-	update_pages_allocated(1);
-
-	return (pa);
+	obj = vm_object_allocate(OBJT_DEFAULT, size >> PAGE_SHIFT);
+	return (obj);
 }
 
 void
-vmm_mem_free(vm_paddr_t base, size_t length)
+vmm_mem_free(vm_object_t obj)
 {
-	vm_page_t m;
 
-	if (base & PAGE_MASK) {
-		panic("vmm_mem_free: base 0x%0lx must be aligned on a "
-		      "0x%0x boundary\n", base, PAGE_SIZE);
-	}
-
-	if (length != PAGE_SIZE)
-		panic("vmm_mem_free: invalid length %lu", length);
-
-	m = PHYS_TO_VM_PAGE(base);
-	m->wire_count--;
-	vm_page_free(m);
-	atomic_subtract_int(&cnt.v_wire_count, 1);
-
-	update_pages_allocated(-1);
+	vm_object_deallocate(obj);
 }
 
 vm_paddr_t

@@ -40,6 +40,7 @@ struct vm_exit;
 struct vm_run;
 struct vlapic;
 struct vmspace;
+struct vm_object;
 
 enum x2apic_state;
 
@@ -101,6 +102,8 @@ int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
 vm_paddr_t vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t size);
 int vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 	      struct vm_memory_segment *seg);
+int vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
+		  vm_offset_t *offset, struct vm_object **object);
 int vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vm *vm, int vcpu, int reg, uint64_t val);
 int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,

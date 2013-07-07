@@ -39,11 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/pmap.h>
 
 #include <machine/vm.h>
@@ -88,6 +91,11 @@ struct vcpu {
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
 #define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
 
+struct mem_seg {
+	vm_paddr_t	gpa;
+	size_t		len;
+	vm_object_t	object;
+};
 #define	VM_MAX_MEMORY_SEGMENTS	2
 
 struct vm {
@@ -96,7 +104,7 @@ struct vm {
 	struct vmspace	*vmspace;	/* guest's address space */
 	struct vcpu	vcpu[VM_MAXCPU];
 	int		num_mem_segs;
-	struct vm_memory_segment mem_segs[VM_MAX_MEMORY_SEGMENTS];
+	struct mem_seg	mem_segs[VM_MAX_MEMORY_SEGMENTS];
 	char		name[VM_MAX_NAMELEN];
 
 	/*
@@ -304,42 +312,17 @@ vm_create(const char *name, struct vm **retvm)
 	return (0);
 }
 
+/*
+ * XXX need to deal with iommu mappings
+ */
 static void
-vm_free_mem_seg(struct vm *vm, struct vm_memory_segment *seg)
+vm_free_mem_seg(struct vm *vm, struct mem_seg *seg)
 {
-	size_t len;
-	vm_paddr_t hpa;
-	void *host_domain;
 
-	host_domain = iommu_host_domain();
+	if (seg->object != NULL)
+		vmm_mem_free(seg->object);
 
-	len = 0;
-	while (len < seg->len) {
-		hpa = vm_gpa2hpa(vm, seg->gpa + len, PAGE_SIZE);
-		if (hpa == (vm_paddr_t)-1) {
-			panic("vm_free_mem_segs: cannot free hpa "
-			      "associated with gpa 0x%016lx", seg->gpa + len);
-		}
-
-		/*
-		 * Remove the 'gpa' to 'hpa' mapping in VMs domain.
-		 * And resurrect the 1:1 mapping for 'hpa' in 'host_domain'.
-		 */
-		iommu_remove_mapping(vm->iommu, seg->gpa + len, PAGE_SIZE);
-		iommu_create_mapping(host_domain, hpa, hpa, PAGE_SIZE);
-
-		vmm_mem_free(hpa, PAGE_SIZE);
-
-		len += PAGE_SIZE;
-	}
-
-	/*
-	 * Invalidate cached translations associated with 'vm->iommu' since
-	 * we have now moved some pages from it.
-	 */
-	iommu_invalidate_tlb(vm->iommu);
-
-	bzero(seg, sizeof(struct vm_memory_segment));
+	bzero(seg, sizeof(*seg));
 }
 
 void
@@ -412,15 +395,16 @@ vm_gpa_available(struct vm *vm, vm_paddr_t gpa)
 	return (TRUE);
 }
 
+/*
+ * XXX need to deal with iommu
+ */
 int
 vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
-	int error, available, allocated;
-	struct vm_memory_segment *seg;
-	vm_paddr_t g, hpa;
-	void *host_domain;
-
-	const boolean_t spok = TRUE;	/* superpage mappings are ok */
+	int available, allocated;
+	struct mem_seg *seg;
+	vm_object_t object;
+	vm_paddr_t g;
 
 	if ((gpa & PAGE_MASK) || (len & PAGE_MASK) || len == 0)
 		return (EINVAL);
@@ -453,45 +437,14 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	if (vm->num_mem_segs >= VM_MAX_MEMORY_SEGMENTS)
 		return (E2BIG);
 
-	host_domain = iommu_host_domain();
-
 	seg = &vm->mem_segs[vm->num_mem_segs];
 
-	error = 0;
+	if ((object = vmm_mem_alloc(len)) == NULL)
+		return (ENOMEM);
+
 	seg->gpa = gpa;
-	seg->len = 0;
-	while (seg->len < len) {
-		hpa = vmm_mem_alloc(PAGE_SIZE);
-		if (hpa == 0) {
-			error = ENOMEM;
-			break;
-		}
-
-		error = VMMMAP_SET(vm->cookie, gpa + seg->len, hpa, PAGE_SIZE,
-				   VM_MEMATTR_WRITE_BACK, VM_PROT_ALL, spok);
-		if (error)
-			break;
-
-		/*
-		 * Remove the 1:1 mapping for 'hpa' from the 'host_domain'.
-		 * Add mapping for 'gpa + seg->len' to 'hpa' in the VMs domain.
-		 */
-		iommu_remove_mapping(host_domain, hpa, PAGE_SIZE);
-		iommu_create_mapping(vm->iommu, gpa + seg->len, hpa, PAGE_SIZE);
-
-		seg->len += PAGE_SIZE;
-	}
-
-	if (error) {
-		vm_free_mem_seg(vm, seg);
-		return (error);
-	}
-
-	/*
-	 * Invalidate cached translations associated with 'host_domain' since
-	 * we have now moved some pages from it.
-	 */
-	iommu_invalidate_tlb(host_domain);
+	seg->len = len;
+	seg->object = object;
 
 	vm->num_mem_segs++;
 
@@ -518,11 +471,39 @@ vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 
 	for (i = 0; i < vm->num_mem_segs; i++) {
 		if (gpabase == vm->mem_segs[i].gpa) {
-			*seg = vm->mem_segs[i];
+			seg->gpa = vm->mem_segs[i].gpa;
+			seg->len = vm->mem_segs[i].len;
 			return (0);
 		}
 	}
 	return (-1);
+}
+
+int
+vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
+	      vm_offset_t *offset, struct vm_object **object)
+{
+	int i;
+	size_t seg_len;
+	vm_paddr_t seg_gpa;
+	vm_object_t seg_obj;
+
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		if ((seg_obj = vm->mem_segs[i].object) == NULL)
+			continue;
+
+		seg_gpa = vm->mem_segs[i].gpa;
+		seg_len = vm->mem_segs[i].len;
+
+		if (gpa >= seg_gpa && gpa < seg_gpa + seg_len) {
+			*offset = gpa - seg_gpa;
+			*object = seg_obj;
+			vm_object_reference(seg_obj);
+			return (0);
+		}
+	}
+
+	return (EINVAL);
 }
 
 int

@@ -365,21 +365,19 @@ done:
 }
 
 static int
-vmmdev_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int nprot, vm_memattr_t *memattr)
+vmmdev_mmap_single(struct cdev *cdev, vm_ooffset_t *offset,
+		   vm_size_t size, struct vm_object **object, int nprot)
 {
 	int error;
 	struct vmmdev_softc *sc;
 
-	error = -1;
 	mtx_lock(&vmmdev_mtx);
 
 	sc = vmmdev_lookup2(cdev);
-	if (sc != NULL && (nprot & PROT_EXEC) == 0) {
-		*paddr = vm_gpa2hpa(sc->vm, (vm_paddr_t)offset, PAGE_SIZE);
-		if (*paddr != (vm_paddr_t)-1)
-			error = 0;
-	}
+	if (sc != NULL && (nprot & PROT_EXEC) == 0)
+		error = vm_get_memobj(sc->vm, *offset, size, offset, object);
+	else
+		error = EINVAL;
 
 	mtx_unlock(&vmmdev_mtx);
 
@@ -446,7 +444,7 @@ static struct cdevsw vmmdevsw = {
 	.d_name		= "vmmdev",
 	.d_version	= D_VERSION,
 	.d_ioctl	= vmmdev_ioctl,
-	.d_mmap		= vmmdev_mmap,
+	.d_mmap_single	= vmmdev_mmap_single,
 	.d_read		= vmmdev_rw,
 	.d_write	= vmmdev_rw,
 };
