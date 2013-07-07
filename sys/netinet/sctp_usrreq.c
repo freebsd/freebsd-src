@@ -547,27 +547,21 @@ try_again:
 static int
 sctp_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 {
-	struct sctp_inpcb *inp = NULL;
-	int error;
+	struct sctp_inpcb *inp;
 
-#ifdef INET
-	if (addr && addr->sa_family != AF_INET) {
-		/* must be a v4 address! */
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-		return (EINVAL);
-	}
-#endif				/* INET6 */
-	if (addr && (addr->sa_len != sizeof(struct sockaddr_in))) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-		return (EINVAL);
-	}
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 		return (EINVAL);
 	}
-	error = sctp_inpcb_bind(so, addr, NULL, p);
-	return (error);
+	if (addr != NULL) {
+		if ((addr->sa_family != AF_INET) ||
+		    (addr->sa_len != sizeof(struct sockaddr_in))) {
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+			return (EINVAL);
+		}
+	}
+	return (sctp_inpcb_bind(so, addr, NULL, p));
 }
 
 #endif
