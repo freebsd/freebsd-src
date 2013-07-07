@@ -824,217 +824,6 @@ out_now:
 }
 
 
-static struct sctp_tcb *
-sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
-    struct sockaddr *to, struct sctp_nets **netp, uint32_t vrf_id)
-{
-	/**** ASSUMES THE CALLER holds the INP_INFO_RLOCK */
-	/*
-	 * If we support the TCP model, then we must now dig through to see
-	 * if we can find our endpoint in the list of tcp ep's.
-	 */
-	uint16_t lport, rport;
-	struct sctppcbhead *ephead;
-	struct sctp_inpcb *inp;
-	struct sctp_laddr *laddr;
-	struct sctp_tcb *stcb;
-	struct sctp_nets *net;
-
-	if ((to == NULL) || (from == NULL)) {
-		return (NULL);
-	}
-	switch (to->sa_family) {
-#ifdef INET
-	case AF_INET:
-		if (from->sa_family == AF_INET) {
-			lport = ((struct sockaddr_in *)to)->sin_port;
-			rport = ((struct sockaddr_in *)from)->sin_port;
-		} else {
-			return (NULL);
-		}
-		break;
-#endif
-#ifdef INET6
-	case AF_INET6:
-		if (from->sa_family == AF_INET6) {
-			lport = ((struct sockaddr_in6 *)to)->sin6_port;
-			rport = ((struct sockaddr_in6 *)from)->sin6_port;
-		} else {
-			return (NULL);
-		}
-		break;
-#endif
-	default:
-		return (NULL);
-	}
-	ephead = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport | rport), SCTP_BASE_INFO(hashtcpmark))];
-	/*
-	 * Ok now for each of the guys in this bucket we must look and see:
-	 * - Does the remote port match. - Does there single association's
-	 * addresses match this address (to). If so we update p_ep to point
-	 * to this ep and return the tcb from it.
-	 */
-	LIST_FOREACH(inp, ephead, sctp_hash) {
-		SCTP_INP_RLOCK(inp);
-		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
-			SCTP_INP_RUNLOCK(inp);
-			continue;
-		}
-		if (lport != inp->sctp_lport) {
-			SCTP_INP_RUNLOCK(inp);
-			continue;
-		}
-		if (inp->def_vrf_id != vrf_id) {
-			SCTP_INP_RUNLOCK(inp);
-			continue;
-		}
-		/* check to see if the ep has one of the addresses */
-		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
-			/* We are NOT bound all, so look further */
-			int match = 0;
-
-			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
-
-				if (laddr->ifa == NULL) {
-					SCTPDBG(SCTP_DEBUG_PCB1, "%s: NULL ifa\n", __FUNCTION__);
-					continue;
-				}
-				if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
-					SCTPDBG(SCTP_DEBUG_PCB1, "ifa being deleted\n");
-					continue;
-				}
-				if (laddr->ifa->address.sa.sa_family ==
-				    to->sa_family) {
-					/* see if it matches */
-
-#ifdef INET
-					if (from->sa_family == AF_INET) {
-						struct sockaddr_in *intf_addr,
-						           *sin;
-
-						intf_addr = &laddr->ifa->address.sin;
-						sin = (struct sockaddr_in *)to;
-						if (sin->sin_addr.s_addr ==
-						    intf_addr->sin_addr.s_addr) {
-							match = 1;
-							break;
-						}
-					}
-#endif
-#ifdef INET6
-					if (from->sa_family == AF_INET6) {
-						struct sockaddr_in6 *intf_addr6;
-						struct sockaddr_in6 *sin6;
-
-						sin6 = (struct sockaddr_in6 *)
-						    to;
-						intf_addr6 = &laddr->ifa->address.sin6;
-
-						if (SCTP6_ARE_ADDR_EQUAL(sin6,
-						    intf_addr6)) {
-							match = 1;
-							break;
-						}
-					}
-#endif
-				}
-			}
-			if (match == 0) {
-				/* This endpoint does not have this address */
-				SCTP_INP_RUNLOCK(inp);
-				continue;
-			}
-		}
-		/*
-		 * Ok if we hit here the ep has the address, does it hold
-		 * the tcb?
-		 */
-
-		stcb = LIST_FIRST(&inp->sctp_asoc_list);
-		if (stcb == NULL) {
-			SCTP_INP_RUNLOCK(inp);
-			continue;
-		}
-		SCTP_TCB_LOCK(stcb);
-		if (stcb->rport != rport) {
-			/* remote port does not match. */
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_INP_RUNLOCK(inp);
-			continue;
-		}
-		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_INP_RUNLOCK(inp);
-			continue;
-		}
-		/* Does this TCB have a matching address? */
-		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-
-			if (net->ro._l_addr.sa.sa_family != from->sa_family) {
-				/* not the same family, can't be a match */
-				continue;
-			}
-			switch (from->sa_family) {
-#ifdef INET
-			case AF_INET:
-				{
-					struct sockaddr_in *sin, *rsin;
-
-					sin = (struct sockaddr_in *)&net->ro._l_addr;
-					rsin = (struct sockaddr_in *)from;
-					if (sin->sin_addr.s_addr ==
-					    rsin->sin_addr.s_addr) {
-						/* found it */
-						if (netp != NULL) {
-							*netp = net;
-						}
-						/*
-						 * Update the endpoint
-						 * pointer
-						 */
-						*inp_p = inp;
-						SCTP_INP_RUNLOCK(inp);
-						return (stcb);
-					}
-					break;
-				}
-#endif
-#ifdef INET6
-			case AF_INET6:
-				{
-					struct sockaddr_in6 *sin6, *rsin6;
-
-					sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
-					rsin6 = (struct sockaddr_in6 *)from;
-					if (SCTP6_ARE_ADDR_EQUAL(sin6,
-					    rsin6)) {
-						/* found it */
-						if (netp != NULL) {
-							*netp = net;
-						}
-						/*
-						 * Update the endpoint
-						 * pointer
-						 */
-						*inp_p = inp;
-						SCTP_INP_RUNLOCK(inp);
-						return (stcb);
-					}
-					break;
-				}
-#endif
-			default:
-				/* TSNH */
-				break;
-			}
-		}
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_INP_RUNLOCK(inp);
-	}
-	return (NULL);
-}
-
-
 static int
 sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 {
@@ -1131,6 +920,10 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 		struct sctp_laddr *laddr;
 
 		LIST_FOREACH(laddr, &stcb->sctp_ep->sctp_addr_list, sctp_nxt_addr) {
+			if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
+				SCTPDBG(SCTP_DEBUG_PCB1, "ifa being deleted\n");
+				continue;
+			}
 			if (sctp_is_addr_restricted(stcb, laddr->ifa) &&
 			    (!sctp_is_addr_pending(stcb, laddr->ifa))) {
 				/*
@@ -1182,6 +975,226 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 	}
 	SCTP_IPI_ADDR_RUNLOCK();
 	return (0);
+}
+
+
+static struct sctp_tcb *
+sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
+    struct sockaddr *to, struct sctp_nets **netp, uint32_t vrf_id)
+{
+	/**** ASSUMES THE CALLER holds the INP_INFO_RLOCK */
+	/*
+	 * If we support the TCP model, then we must now dig through to see
+	 * if we can find our endpoint in the list of tcp ep's.
+	 */
+	uint16_t lport, rport;
+	struct sctppcbhead *ephead;
+	struct sctp_inpcb *inp;
+	struct sctp_laddr *laddr;
+	struct sctp_tcb *stcb;
+	struct sctp_nets *net;
+
+	if ((to == NULL) || (from == NULL)) {
+		return (NULL);
+	}
+	switch (to->sa_family) {
+#ifdef INET
+	case AF_INET:
+		if (from->sa_family == AF_INET) {
+			lport = ((struct sockaddr_in *)to)->sin_port;
+			rport = ((struct sockaddr_in *)from)->sin_port;
+		} else {
+			return (NULL);
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (from->sa_family == AF_INET6) {
+			lport = ((struct sockaddr_in6 *)to)->sin6_port;
+			rport = ((struct sockaddr_in6 *)from)->sin6_port;
+		} else {
+			return (NULL);
+		}
+		break;
+#endif
+	default:
+		return (NULL);
+	}
+	ephead = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport | rport), SCTP_BASE_INFO(hashtcpmark))];
+	/*
+	 * Ok now for each of the guys in this bucket we must look and see:
+	 * - Does the remote port match. - Does there single association's
+	 * addresses match this address (to). If so we update p_ep to point
+	 * to this ep and return the tcb from it.
+	 */
+	LIST_FOREACH(inp, ephead, sctp_hash) {
+		SCTP_INP_RLOCK(inp);
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		if (lport != inp->sctp_lport) {
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		if (inp->def_vrf_id != vrf_id) {
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		/* check to see if the ep has one of the addresses */
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
+			/* We are NOT bound all, so look further */
+			int match = 0;
+
+			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
+
+				if (laddr->ifa == NULL) {
+					SCTPDBG(SCTP_DEBUG_PCB1, "%s: NULL ifa\n", __FUNCTION__);
+					continue;
+				}
+				if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
+					SCTPDBG(SCTP_DEBUG_PCB1, "ifa being deleted\n");
+					continue;
+				}
+				if (laddr->ifa->address.sa.sa_family ==
+				    to->sa_family) {
+					/* see if it matches */
+#ifdef INET
+					if (from->sa_family == AF_INET) {
+						struct sockaddr_in *intf_addr,
+						           *sin;
+
+						intf_addr = &laddr->ifa->address.sin;
+						sin = (struct sockaddr_in *)to;
+						if (sin->sin_addr.s_addr ==
+						    intf_addr->sin_addr.s_addr) {
+							match = 1;
+							break;
+						}
+					}
+#endif
+#ifdef INET6
+					if (from->sa_family == AF_INET6) {
+						struct sockaddr_in6 *intf_addr6;
+						struct sockaddr_in6 *sin6;
+
+						sin6 = (struct sockaddr_in6 *)
+						    to;
+						intf_addr6 = &laddr->ifa->address.sin6;
+
+						if (SCTP6_ARE_ADDR_EQUAL(sin6,
+						    intf_addr6)) {
+							match = 1;
+							break;
+						}
+					}
+#endif
+				}
+			}
+			if (match == 0) {
+				/* This endpoint does not have this address */
+				SCTP_INP_RUNLOCK(inp);
+				continue;
+			}
+		}
+		/*
+		 * Ok if we hit here the ep has the address, does it hold
+		 * the tcb?
+		 */
+		/* XXX: Why don't we TAILQ_FOREACH through sctp_asoc_list? */
+		stcb = LIST_FIRST(&inp->sctp_asoc_list);
+		if (stcb == NULL) {
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		SCTP_TCB_LOCK(stcb);
+		if (!sctp_does_stcb_own_this_addr(stcb, to)) {
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		if (stcb->rport != rport) {
+			/* remote port does not match. */
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		if (!sctp_does_stcb_own_this_addr(stcb, to)) {
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
+		/* Does this TCB have a matching address? */
+		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+
+			if (net->ro._l_addr.sa.sa_family != from->sa_family) {
+				/* not the same family, can't be a match */
+				continue;
+			}
+			switch (from->sa_family) {
+#ifdef INET
+			case AF_INET:
+				{
+					struct sockaddr_in *sin, *rsin;
+
+					sin = (struct sockaddr_in *)&net->ro._l_addr;
+					rsin = (struct sockaddr_in *)from;
+					if (sin->sin_addr.s_addr ==
+					    rsin->sin_addr.s_addr) {
+						/* found it */
+						if (netp != NULL) {
+							*netp = net;
+						}
+						/*
+						 * Update the endpoint
+						 * pointer
+						 */
+						*inp_p = inp;
+						SCTP_INP_RUNLOCK(inp);
+						return (stcb);
+					}
+					break;
+				}
+#endif
+#ifdef INET6
+			case AF_INET6:
+				{
+					struct sockaddr_in6 *sin6, *rsin6;
+
+					sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
+					rsin6 = (struct sockaddr_in6 *)from;
+					if (SCTP6_ARE_ADDR_EQUAL(sin6,
+					    rsin6)) {
+						/* found it */
+						if (netp != NULL) {
+							*netp = net;
+						}
+						/*
+						 * Update the endpoint
+						 * pointer
+						 */
+						*inp_p = inp;
+						SCTP_INP_RUNLOCK(inp);
+						return (stcb);
+					}
+					break;
+				}
+#endif
+			default:
+				/* TSNH */
+				break;
+			}
+		}
+		SCTP_TCB_UNLOCK(stcb);
+		SCTP_INP_RUNLOCK(inp);
+	}
+	return (NULL);
 }
 
 
@@ -1906,20 +1919,20 @@ sctp_findassociation_addr_sa(struct sockaddr *from, struct sockaddr *to,
     uint32_t vrf_id)
 {
 	struct sctp_inpcb *inp = NULL;
-	struct sctp_tcb *retval;
+	struct sctp_tcb *stcb;
 
 	SCTP_INP_INFO_RLOCK();
 	if (find_tcp_pool) {
 		if (inp_p != NULL) {
-			retval = sctp_tcb_special_locate(inp_p, from, to, netp,
+			stcb = sctp_tcb_special_locate(inp_p, from, to, netp,
 			    vrf_id);
 		} else {
-			retval = sctp_tcb_special_locate(&inp, from, to, netp,
+			stcb = sctp_tcb_special_locate(&inp, from, to, netp,
 			    vrf_id);
 		}
-		if (retval != NULL) {
+		if (stcb != NULL) {
 			SCTP_INP_INFO_RUNLOCK();
-			return (retval);
+			return (stcb);
 		}
 	}
 	inp = sctp_pcb_findep(to, 0, 1, vrf_id);
@@ -1927,7 +1940,6 @@ sctp_findassociation_addr_sa(struct sockaddr *from, struct sockaddr *to,
 		*inp_p = inp;
 	}
 	SCTP_INP_INFO_RUNLOCK();
-
 	if (inp == NULL) {
 		return (NULL);
 	}
@@ -1938,13 +1950,13 @@ sctp_findassociation_addr_sa(struct sockaddr *from, struct sockaddr *to,
 	 * inbound packet side.
 	 */
 	if (inp_p != NULL) {
-		retval = sctp_findassociation_ep_addr(inp_p, from, netp, to,
+		stcb = sctp_findassociation_ep_addr(inp_p, from, netp, to,
 		    NULL);
 	} else {
-		retval = sctp_findassociation_ep_addr(&inp, from, netp, to,
+		stcb = sctp_findassociation_ep_addr(&inp, from, netp, to,
 		    NULL);
 	}
-	return retval;
+	return (stcb);
 }
 
 
@@ -1959,7 +1971,7 @@ sctp_findassociation_special_addr(struct mbuf *m, int offset,
     struct sockaddr *dst)
 {
 	struct sctp_paramhdr *phdr, parm_buf;
-	struct sctp_tcb *retval;
+	struct sctp_tcb *stcb;
 	uint32_t ptype, plen;
 
 #ifdef INET
@@ -1984,7 +1996,7 @@ sctp_findassociation_special_addr(struct mbuf *m, int offset,
 	sin6.sin6_port = sh->src_port;
 #endif
 
-	retval = NULL;
+	stcb = NULL;
 	offset += sizeof(struct sctp_init_chunk);
 
 	phdr = sctp_get_next_param(m, offset, &parm_buf, sizeof(parm_buf));
@@ -2009,10 +2021,10 @@ sctp_findassociation_special_addr(struct mbuf *m, int offset,
 			p4 = (struct sctp_ipv4addr_param *)phdr;
 			memcpy(&sin4.sin_addr, &p4->addr, sizeof(p4->addr));
 			/* look it up */
-			retval = sctp_findassociation_ep_addr(inp_p,
+			stcb = sctp_findassociation_ep_addr(inp_p,
 			    (struct sockaddr *)&sin4, netp, dst, NULL);
-			if (retval != NULL) {
-				return (retval);
+			if (stcb != NULL) {
+				return (stcb);
 			}
 		}
 #endif
@@ -2030,10 +2042,10 @@ sctp_findassociation_special_addr(struct mbuf *m, int offset,
 			p6 = (struct sctp_ipv6addr_param *)phdr;
 			memcpy(&sin6.sin6_addr, &p6->addr, sizeof(p6->addr));
 			/* look it up */
-			retval = sctp_findassociation_ep_addr(inp_p,
+			stcb = sctp_findassociation_ep_addr(inp_p,
 			    (struct sockaddr *)&sin6, netp, dst, NULL);
-			if (retval != NULL) {
-				return (retval);
+			if (stcb != NULL) {
+				return (stcb);
 			}
 		}
 #endif
@@ -2158,15 +2170,15 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
     struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint32_t vrf_id)
 {
 	int find_tcp_pool;
-	struct sctp_tcb *retval;
+	struct sctp_tcb *stcb;
 	struct sctp_inpcb *inp;
 
 	if (sh->v_tag) {
 		/* we only go down this path if vtag is non-zero */
-		retval = sctp_findassoc_by_vtag(src, dst, ntohl(sh->v_tag),
+		stcb = sctp_findassoc_by_vtag(src, dst, ntohl(sh->v_tag),
 		    inp_p, netp, sh->src_port, sh->dest_port, 0, vrf_id, 0);
-		if (retval) {
-			return (retval);
+		if (stcb) {
+			return (stcb);
 		}
 	}
 	find_tcp_pool = 0;
@@ -2178,15 +2190,15 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 		find_tcp_pool = 1;
 	}
 	if (inp_p) {
-		retval = sctp_findassociation_addr_sa(src, dst, inp_p, netp,
+		stcb = sctp_findassociation_addr_sa(src, dst, inp_p, netp,
 		    find_tcp_pool, vrf_id);
 		inp = *inp_p;
 	} else {
-		retval = sctp_findassociation_addr_sa(src, dst, &inp, netp,
+		stcb = sctp_findassociation_addr_sa(src, dst, &inp, netp,
 		    find_tcp_pool, vrf_id);
 	}
-	SCTPDBG(SCTP_DEBUG_PCB1, "retval:%p inp:%p\n", (void *)retval, (void *)inp);
-	if (retval == NULL && inp) {
+	SCTPDBG(SCTP_DEBUG_PCB1, "stcb:%p inp:%p\n", (void *)stcb, (void *)inp);
+	if (stcb == NULL && inp) {
 		/* Found a EP but not this address */
 		if ((ch->chunk_type == SCTP_INITIATION) ||
 		    (ch->chunk_type == SCTP_INITIATION_ACK)) {
@@ -2204,15 +2216,15 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 				}
 				return (NULL);
 			}
-			retval = sctp_findassociation_special_addr(m,
+			stcb = sctp_findassociation_special_addr(m,
 			    offset, sh, &inp, netp, dst);
 			if (inp_p != NULL) {
 				*inp_p = inp;
 			}
 		}
 	}
-	SCTPDBG(SCTP_DEBUG_PCB1, "retval is %p\n", (void *)retval);
-	return (retval);
+	SCTPDBG(SCTP_DEBUG_PCB1, "stcb is %p\n", (void *)stcb);
+	return (stcb);
 }
 
 /*
