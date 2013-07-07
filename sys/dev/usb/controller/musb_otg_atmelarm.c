@@ -94,6 +94,26 @@ musbotg_clocks_off(void *arg)
 #endif
 }
 
+static void
+musbotg_wrapper_interrupt(void *arg)
+{
+
+	/* 
+	 * Nothing to do.
+	 * Main driver takes care about everything 
+	 */
+	musbotg_interrupt(arg, 0, 0, 0);
+}
+
+static void
+musbotg_ep_int_set(struct musbotg_softc *sc, int ep, int on)
+{
+	/* 
+	 * Nothing to do.
+	 * Main driver takes care about everything 
+	 */
+}
+
 static int
 musbotg_probe(device_t dev)
 {
@@ -147,12 +167,16 @@ musbotg_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_otg.sc_bus.bdev, &sc->sc_otg.sc_bus);
 
+	sc->sc_otg.sc_id = 0;
+	sc->sc_otg.sc_platform_data = sc;
+	sc->sc_otg.sc_mode = MUSB2_DEVICE_MODE;
+
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    NULL, (driver_intr_t *)musbotg_wrapper_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)musbotg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	    (driver_intr_t *)musbotg_wrapper_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_otg.sc_intr_hdl = NULL;
