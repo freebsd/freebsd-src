@@ -2516,7 +2516,8 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	m->pre_open_stream_count = SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default);
 
 	/* Add adaptation cookie */
-	m->adaptation_layer_indicator = 0x504C5253;
+	m->adaptation_layer_indicator = 0;
+	m->adaptation_layer_indicator_provided = 0;
 
 	/* seed random number generator */
 	m->random_counter = 1;
