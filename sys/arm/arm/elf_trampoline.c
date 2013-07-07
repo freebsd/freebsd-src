@@ -93,7 +93,6 @@ extern void xscalec3_cache_purgeID(void);
 extern void armv6_idcache_wbinv_all(void);
 #else
 #define cpu_idcache_wbinv_all()	armadaxp_idcache_wbinv_all
-extern void armadaxp_idcache_wbinv_all(void);
 #endif
 #endif /* CPU_MV_PJ4B */
 #ifdef CPU_XSCALE_81342
@@ -109,6 +108,8 @@ extern void armv7_idcache_wbinv_all(void);
 #else
 #define cpu_l2cache_wbinv_all()	
 #endif
+
+static void armadaxp_idcache_wbinv_all(void);
 
 int     arm_picache_size;
 int     arm_picache_line_size;
