@@ -94,11 +94,10 @@ sctp_fill_pcbinfo(struct sctp_pcbinfo *spcb)
 	spcb->readq_count = SCTP_BASE_INFO(ipi_count_readq);
 	spcb->stream_oque = SCTP_BASE_INFO(ipi_count_strmoq);
 	spcb->free_chunks = SCTP_BASE_INFO(ipi_free_chunks);
-
 	SCTP_INP_INFO_RUNLOCK();
 }
 
-/*
+/*-
  * Addresses are added to VRF's (Virtual Router's). For BSD we
  * have only the default VRF 0. We maintain a hash list of
  * VRF's. Each VRF has its own list of sctp_ifn's. Each of
@@ -214,7 +213,6 @@ sctp_find_ifn(void *ifn, uint32_t ifn_index)
 }
 
 
-
 struct sctp_vrf *
 sctp_find_vrf(uint32_t vrf_id)
 {
@@ -229,6 +227,7 @@ sctp_find_vrf(uint32_t vrf_id)
 	}
 	return (NULL);
 }
+
 
 void
 sctp_free_vrf(struct sctp_vrf *vrf)
@@ -245,6 +244,7 @@ sctp_free_vrf(struct sctp_vrf *vrf)
 	}
 }
 
+
 void
 sctp_free_ifn(struct sctp_ifn *sctp_ifnp)
 {
@@ -257,6 +257,7 @@ sctp_free_ifn(struct sctp_ifn *sctp_ifnp)
 		atomic_subtract_int(&SCTP_BASE_INFO(ipi_count_ifns), 1);
 	}
 }
+
 
 void
 sctp_update_ifn_mtu(uint32_t ifn_index, uint32_t mtu)
@@ -283,6 +284,7 @@ sctp_free_ifa(struct sctp_ifa *sctp_ifap)
 	}
 }
 
+
 static void
 sctp_delete_ifn(struct sctp_ifn *sctp_ifnp, int hold_addr_lock)
 {
@@ -305,12 +307,13 @@ sctp_delete_ifn(struct sctp_ifn *sctp_ifnp, int hold_addr_lock)
 	sctp_free_ifn(sctp_ifnp);
 }
 
+
 void
 sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr,
     const char *if_name, uint32_t ifn_index)
 {
 	struct sctp_vrf *vrf;
-	struct sctp_ifa *sctp_ifap = NULL;
+	struct sctp_ifa *sctp_ifap;
 
 	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(vrf_id);
@@ -348,12 +351,13 @@ out:
 	SCTP_IPI_ADDR_RUNLOCK();
 }
 
+
 void
 sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr,
     const char *if_name, uint32_t ifn_index)
 {
 	struct sctp_vrf *vrf;
-	struct sctp_ifa *sctp_ifap = NULL;
+	struct sctp_ifa *sctp_ifap;
 
 	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(vrf_id);
@@ -391,6 +395,7 @@ out:
 	SCTP_IPI_ADDR_RUNLOCK();
 }
 
+
 /*-
  * Add an ifa to an ifn.
  * Register the interface as necessary.
@@ -427,6 +432,7 @@ sctp_add_ifa_to_ifn(struct sctp_ifn *sctp_ifnp, struct sctp_ifa *sctp_ifap)
 		sctp_ifnp->registered_af = ifa_af;
 	}
 }
+
 
 /*-
  * Remove an ifa from its ifn.
@@ -478,6 +484,7 @@ sctp_remove_ifa_from_ifn(struct sctp_ifa *sctp_ifap)
 		sctp_ifap->ifn_p = NULL;
 	}
 }
+
 
 struct sctp_ifa *
 sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
@@ -1027,6 +1034,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 	return (NULL);
 }
 
+
 static int
 sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 {
@@ -1036,19 +1044,12 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
 
-	loopback_scope = stcb->asoc.loopback_scope;
-	ipv4_local_scope = stcb->asoc.ipv4_local_scope;
-	local_scope = stcb->asoc.local_scope;
-	site_scope = stcb->asoc.site_scope;
-	ipv4_addr_legal = ipv6_addr_legal = 0;
-	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-		ipv6_addr_legal = 1;
-		if (SCTP_IPV6_V6ONLY(stcb->sctp_ep) == 0) {
-			ipv4_addr_legal = 1;
-		}
-	} else {
-		ipv4_addr_legal = 1;
-	}
+	loopback_scope = stcb->asoc.scope.loopback_scope;
+	ipv4_local_scope = stcb->asoc.scope.ipv4_local_scope;
+	local_scope = stcb->asoc.scope.local_scope;
+	site_scope = stcb->asoc.scope.site_scope;
+	ipv4_addr_legal = stcb->asoc.scope.ipv4_addr_legal;
+	ipv6_addr_legal = stcb->asoc.scope.ipv6_addr_legal;
 
 	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(stcb->asoc.vrf_id);
@@ -1182,6 +1183,7 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 	SCTP_IPI_ADDR_RUNLOCK();
 	return (0);
 }
+
 
 /*
  * rules for use
@@ -1471,11 +1473,11 @@ null_return:
 	return (NULL);
 }
 
+
 /*
  * Find an association for a specific endpoint using the association id given
  * out in the COMM_UP notification
  */
-
 struct sctp_tcb *
 sctp_findasoc_ep_asocid_locked(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int want_lock)
 {
@@ -1536,6 +1538,9 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int
 }
 
 
+/*
+ * Endpoint probe expects that the INP_INFO is locked.
+ */
 static struct sctp_inpcb *
 sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
     uint16_t lport, uint32_t vrf_id)
@@ -1552,12 +1557,8 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 	struct sockaddr_in6 *intf_addr6;
 
 #endif
-
 	int fnd;
 
-	/*
-	 * Endpoint probe expects that the INP_INFO is locked.
-	 */
 #ifdef INET
 	sin = NULL;
 #endif
@@ -1893,6 +1894,7 @@ sctp_pcb_findep(struct sockaddr *nam, int find_tcp_pool, int have_lock,
 	return (inp);
 }
 
+
 /*
  * Find an association for an endpoint with the pointer to whom you want to
  * send to and the endpoint pointer. The address can be IPv4 or IPv6. We may
@@ -2143,6 +2145,7 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
 	SCTP_INP_INFO_RUNLOCK();
 	return (NULL);
 }
+
 
 /*
  * Find an association with the pointer to the inbound IP packet. This can be
@@ -3743,13 +3746,13 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				stcb->ipv4_local_scope = 1;
 #else
 				if (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) {
-					stcb->asoc.ipv4_local_scope = 1;
+					stcb->asoc.scope.ipv4_local_scope = 1;
 				}
 #endif				/* SCTP_DONT_DO_PRIVADDR_SCOPE */
 			} else {
 				/* Validate the address is in scope */
 				if ((IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)) &&
-				    (stcb->asoc.ipv4_local_scope == 0)) {
+				    (stcb->asoc.scope.ipv4_local_scope == 0)) {
 					addr_inscope = 0;
 				}
 			}
@@ -3770,10 +3773,10 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			sin6->sin6_len = sizeof(struct sockaddr_in6);
 			if (set_scope) {
 				if (sctp_is_address_on_local_host(newaddr, stcb->asoc.vrf_id)) {
-					stcb->asoc.loopback_scope = 1;
-					stcb->asoc.local_scope = 0;
-					stcb->asoc.ipv4_local_scope = 1;
-					stcb->asoc.site_scope = 1;
+					stcb->asoc.scope.loopback_scope = 1;
+					stcb->asoc.scope.local_scope = 0;
+					stcb->asoc.scope.ipv4_local_scope = 1;
+					stcb->asoc.scope.site_scope = 1;
 				} else if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
 					/*
 					 * If the new destination is a
@@ -3785,26 +3788,26 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 					 * also be on our private network
 					 * for v4 too.
 					 */
-					stcb->asoc.ipv4_local_scope = 1;
-					stcb->asoc.site_scope = 1;
+					stcb->asoc.scope.ipv4_local_scope = 1;
+					stcb->asoc.scope.site_scope = 1;
 				} else if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)) {
 					/*
 					 * If the new destination is
 					 * SITE_LOCAL then we must have site
 					 * scope in common.
 					 */
-					stcb->asoc.site_scope = 1;
+					stcb->asoc.scope.site_scope = 1;
 				}
 			} else {
 				/* Validate the address is in scope */
 				if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr) &&
-				    (stcb->asoc.loopback_scope == 0)) {
+				    (stcb->asoc.scope.loopback_scope == 0)) {
 					addr_inscope = 0;
 				} else if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
-				    (stcb->asoc.local_scope == 0)) {
+				    (stcb->asoc.scope.local_scope == 0)) {
 					addr_inscope = 0;
 				} else if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr) &&
-				    (stcb->asoc.site_scope == 0)) {
+				    (stcb->asoc.scope.site_scope == 0)) {
 					addr_inscope = 0;
 				}
 			}
@@ -3839,10 +3842,10 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	}
 	net->addr_is_local = sctp_is_address_on_local_host(newaddr, stcb->asoc.vrf_id);
 	if (net->addr_is_local && ((set_scope || (from == SCTP_ADDR_IS_CONFIRMED)))) {
-		stcb->asoc.loopback_scope = 1;
-		stcb->asoc.ipv4_local_scope = 1;
-		stcb->asoc.local_scope = 0;
-		stcb->asoc.site_scope = 1;
+		stcb->asoc.scope.loopback_scope = 1;
+		stcb->asoc.scope.ipv4_local_scope = 1;
+		stcb->asoc.scope.local_scope = 0;
+		stcb->asoc.scope.site_scope = 1;
 		addr_inscope = 1;
 	}
 	net->failure_threshold = stcb->asoc.def_net_failure;
@@ -6071,7 +6074,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		switch (sa->sa_family) {
 #ifdef INET
 		case AF_INET:
-			if (stcb->asoc.ipv4_addr_legal) {
+			if (stcb->asoc.scope.ipv4_addr_legal) {
 				if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_2)) {
 					return (-1);
 				}
@@ -6080,7 +6083,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 #endif
 #ifdef INET6
 		case AF_INET6:
-			if (stcb->asoc.ipv6_addr_legal) {
+			if (stcb->asoc.scope.ipv6_addr_legal) {
 				if (sctp_add_remote_addr(stcb, sa, NULL, SCTP_DONOT_SETSCOPE, SCTP_LOAD_ADDR_3)) {
 					return (-2);
 				}
@@ -6127,7 +6130,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		}
 #ifdef INET
 		if (ptype == SCTP_IPV4_ADDRESS) {
-			if (stcb->asoc.ipv4_addr_legal) {
+			if (stcb->asoc.scope.ipv4_addr_legal) {
 				struct sctp_ipv4addr_param *p4, p4_buf;
 
 				/* ok get the v4 address and check/add */
@@ -6213,7 +6216,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 #endif
 #ifdef INET6
 		if (ptype == SCTP_IPV6_ADDRESS) {
-			if (stcb->asoc.ipv6_addr_legal) {
+			if (stcb->asoc.scope.ipv6_addr_legal) {
 				/* ok get the v6 address and check/add */
 				struct sctp_ipv6addr_param *p6, p6_buf;
 
