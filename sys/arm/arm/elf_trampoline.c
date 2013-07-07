@@ -51,6 +51,7 @@ void __startC(void);
 
 extern unsigned int cpufunc_id(void);
 extern void armv6_idcache_wbinv_all(void);
+extern void armv7_idcache_wbinv_all(void);
 extern void do_call(void *, void *, void *, int);
 
 #define GZ_HEAD	0xa
@@ -103,7 +104,6 @@ extern void xscalec3_l2cache_purge(void);
 extern void sheeva_l2cache_wbinv_all(void);
 #elif defined(CPU_CORTEXA)
 #define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
-extern void armv7_idcache_wbinv_all(void);
 #define cpu_l2cache_wbinv_all()
 #else
 #define cpu_l2cache_wbinv_all()	
