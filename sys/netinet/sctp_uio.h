@@ -1278,33 +1278,39 @@ void sctp_freeladdrs(struct sockaddr *);
 int sctp_opt_info(int, sctp_assoc_t, int, void *, socklen_t *);
 
 /* deprecated */
-ssize_t sctp_sendmsg 
-(int, const void *, size_t, const struct sockaddr *,
+ssize_t 
+sctp_sendmsg(int, const void *, size_t, const struct sockaddr *,
     socklen_t, uint32_t, uint32_t, uint16_t, uint32_t, uint32_t);
 
 /* deprecated */
-	ssize_t sctp_send(int, const void *, size_t,
-              const struct sctp_sndrcvinfo *, int);
+ssize_t 
+sctp_send(int, const void *, size_t,
+    const struct sctp_sndrcvinfo *, int);
 
 /* deprecated */
-	ssize_t sctp_sendx(int, const void *, size_t, struct sockaddr *,
-               int, struct sctp_sndrcvinfo *, int);
+ssize_t 
+sctp_sendx(int, const void *, size_t, struct sockaddr *,
+    int, struct sctp_sndrcvinfo *, int);
 
 /* deprecated */
-	ssize_t sctp_sendmsgx(int sd, const void *, size_t, struct sockaddr *,
-                  int, uint32_t, uint32_t, uint16_t, uint32_t, uint32_t);
+ssize_t 
+sctp_sendmsgx(int sd, const void *, size_t, struct sockaddr *,
+    int, uint32_t, uint32_t, uint16_t, uint32_t, uint32_t);
 
-	sctp_assoc_t sctp_getassocid(int, struct sockaddr *);
+sctp_assoc_t sctp_getassocid(int, struct sockaddr *);
 
 /* deprecated */
-	ssize_t sctp_recvmsg(int, void *, size_t, struct sockaddr *, socklen_t *,
-                 struct sctp_sndrcvinfo *, int *);
+ssize_t 
+sctp_recvmsg(int, void *, size_t, struct sockaddr *, socklen_t *,
+    struct sctp_sndrcvinfo *, int *);
 
-	ssize_t sctp_sendv(int, const struct iovec *, int, struct sockaddr *,
-               int, void *, socklen_t, unsigned int, int);
+ssize_t 
+sctp_sendv(int, const struct iovec *, int, struct sockaddr *,
+    int, void *, socklen_t, unsigned int, int);
 
-	ssize_t sctp_recvv(int, const struct iovec *, int, struct sockaddr *,
-               socklen_t *, void *, socklen_t *, unsigned int *, int *);
+ssize_t 
+sctp_recvv(int, const struct iovec *, int, struct sockaddr *,
+    socklen_t *, void *, socklen_t *, unsigned int *, int *);
 
 __END_DECLS
 
