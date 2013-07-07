@@ -32,6 +32,12 @@
 # targets             - Print a list of supported TARGET/TARGET_ARCH pairs
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
+# 
+# "quick" way to test all kernel builds:
+# 	_jflag=`sysctl -n hw.ncpu`
+# 	_jflag=$(($_jflag * 2))
+# 	[ $_jflag -gt 12 ] && _jflag=12
+# 	make universe -DMAKE_JUST_KERNELS JFLAG=${jflag}
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
