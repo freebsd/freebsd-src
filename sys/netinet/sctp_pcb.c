@@ -1226,7 +1226,8 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 		SCTP_TCB_UNLOCK(locked_tcb);
 	}
 	SCTP_INP_INFO_RLOCK();
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
 		/*-
 		 * Now either this guy is our listener or it's the
 		 * connector. If it is the one that issued the connect, then
