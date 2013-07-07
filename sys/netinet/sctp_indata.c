@@ -2975,9 +2975,10 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 					 * All chunks NOT UNSENT fall through here and are marked
 					 * (leave PR-SCTP ones that are to skip alone though)
 					 */
-					if (tp1->sent != SCTP_FORWARD_TSN_SKIP)
+					if ((tp1->sent != SCTP_FORWARD_TSN_SKIP) &&
+					    (tp1->sent != SCTP_DATAGRAM_NR_MARKED)) {
 						tp1->sent = SCTP_DATAGRAM_MARKED;
-
+					}
 					if (tp1->rec.data.chunk_was_revoked) {
 						/* deflate the cwnd */
 						tp1->whoTo->cwnd -= tp1->book_size;
@@ -2985,6 +2986,7 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 					}
 					/* NR Sack code here */
 					if (nr_sacking) {
+						tp1->sent = SCTP_DATAGRAM_NR_MARKED;
 						if (tp1->data) {
 							/*
 							 * sa_ignore
@@ -3600,12 +3602,14 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 	}
 	TAILQ_FOREACH_SAFE(tp1, &asoc->sent_queue, sctp_next, tp2) {
 		if (tp1->sent != SCTP_FORWARD_TSN_SKIP &&
-		    tp1->sent != SCTP_DATAGRAM_RESEND) {
+		    tp1->sent != SCTP_DATAGRAM_RESEND &&
+		    tp1->sent != SCTP_DATAGRAM_NR_MARKED) {
 			/* no chance to advance, out of here */
 			break;
 		}
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
-			if (tp1->sent == SCTP_FORWARD_TSN_SKIP) {
+			if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) ||
+			    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
 				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
 				    asoc->advanced_peer_ack_point,
 				    tp1->rec.data.TSN_seq, 0, 0);
@@ -3653,7 +3657,8 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 		 * the chunk, advance our peer ack point and we can check
 		 * the next chunk.
 		 */
-		if (tp1->sent == SCTP_FORWARD_TSN_SKIP) {
+		if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) ||
+		    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
 			/* advance PeerAckPoint goes forward */
 			if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, asoc->advanced_peer_ack_point)) {
 				asoc->advanced_peer_ack_point = tp1->rec.data.TSN_seq;
