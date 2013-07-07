@@ -136,6 +136,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/jail.h>
 #include <sys/syslog.h>
+#include <netinet/in.h>
 
 #include <net/vnet.h>
 
@@ -505,8 +506,12 @@ sonewconn(struct socket *head, int connstatus)
 	/*
 	 * The accept socket may be tearing down but we just
 	 * won a race on the ACCEPT_LOCK.
+	 * However, if sctp_peeloff() is called on a 1-to-many
+	 * style socket, the SO_ACCEPTCONN doesn't need to be set.
 	 */
-	if (!(head->so_options & SO_ACCEPTCONN)) {
+	if (!(head->so_options & SO_ACCEPTCONN) &&
+	    ((head->so_proto->pr_protocol != IPPROTO_SCTP) ||
+	     (head->so_type != SOCK_SEQPACKET))) {
 		SOCK_LOCK(so);
 		so->so_head = NULL;
 		sofree(so);		/* NB: returns ACCEPT_UNLOCK'ed. */
