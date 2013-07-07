@@ -10152,7 +10152,8 @@ sctp_fill_in_rest:
 		unsigned int cnt_of_skipped = 0;
 
 		TAILQ_FOREACH(at, &asoc->sent_queue, sctp_next) {
-			if (at->sent != SCTP_FORWARD_TSN_SKIP) {
+			if ((at->sent != SCTP_FORWARD_TSN_SKIP) &&
+			    (at->sent != SCTP_DATAGRAM_NR_MARKED)) {
 				/* no more to look at */
 				break;
 			}
