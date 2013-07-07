@@ -2320,8 +2320,10 @@ sctp_peeloff(td, uap)
 
 	CURVNET_SET(head->so_vnet);
 	so = sonewconn(head, SS_ISCONNECTED);
-	if (so == NULL) 
+	if (so == NULL) {
+		error = ENOMEM;
 		goto noconnection;
+	}
 	/*
 	 * Before changing the flags on the socket, we have to bump the
 	 * reference count.  Otherwise, if the protocol calls sofree(),
