@@ -6442,7 +6442,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			if (m) {
 				ph = mtod(m, struct sctp_paramhdr *);
 				ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
-				ph->param_length = htons(ca->sndlen);
+				ph->param_length = htons(sizeof(struct sctp_paramhdr) + ca->sndlen);
 			}
 			/*
 			 * We add one here to keep the assoc from
@@ -12498,7 +12498,7 @@ sctp_lower_sosend(struct socket *so,
 			/* now move forward the data pointer */
 			ph = mtod(mm, struct sctp_paramhdr *);
 			ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
-			ph->param_length = htons((sizeof(struct sctp_paramhdr) + tot_out));
+			ph->param_length = htons(sizeof(struct sctp_paramhdr) + tot_out);
 			ph++;
 			SCTP_BUF_LEN(mm) = tot_out + sizeof(struct sctp_paramhdr);
 			if (top == NULL) {
