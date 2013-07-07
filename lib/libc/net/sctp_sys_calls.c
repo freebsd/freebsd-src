@@ -583,36 +583,36 @@ sctp_sendmsg(int s,
 	if ((tolen > 0) &&
 	    ((to == NULL) || (tolen < sizeof(struct sockaddr)))) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 	if (to && (tolen > 0)) {
 		if (to->sa_family == AF_INET) {
 			if (tolen != sizeof(struct sockaddr_in)) {
 				errno = EINVAL;
-				return -1;
+				return (-1);
 			}
 			if ((to->sa_len > 0) &&
 			    (to->sa_len != sizeof(struct sockaddr_in))) {
 				errno = EINVAL;
-				return -1;
+				return (-1);
 			}
 			memcpy(&addr, to, sizeof(struct sockaddr_in));
 			addr.in.sin_len = sizeof(struct sockaddr_in);
 		} else if (to->sa_family == AF_INET6) {
 			if (tolen != sizeof(struct sockaddr_in6)) {
 				errno = EINVAL;
-				return -1;
+				return (-1);
 			}
 			if ((to->sa_len > 0) &&
 			    (to->sa_len != sizeof(struct sockaddr_in6))) {
 				errno = EINVAL;
-				return -1;
+				return (-1);
 			}
 			memcpy(&addr, to, sizeof(struct sockaddr_in6));
 			addr.in6.sin6_len = sizeof(struct sockaddr_in6);
 		} else {
 			errno = EAFNOSUPPORT;
-			return -1;
+			return (-1);
 		}
 		who = (struct sockaddr *)&addr;
 	}
@@ -836,7 +836,7 @@ sctp_sendmsgx(int sd,
 	sinfo.sinfo_ssn = stream_no;
 	sinfo.sinfo_timetolive = timetolive;
 	sinfo.sinfo_context = context;
-	return sctp_sendx(sd, msg, len, addrs, addrcnt, &sinfo, 0);
+	return (sctp_sendx(sd, msg, len, addrs, addrcnt, &sinfo, 0));
 }
 
 ssize_t
