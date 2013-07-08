@@ -479,11 +479,11 @@ static ssize_t set_port_type(struct device *dev,
 	int i;
 	int err = 0;
 
-	if (!strcmp(buf, "ib\n"))
+	if (!strcmp(buf, "ib"))
 		info->tmp_type = MLX4_PORT_TYPE_IB;
-	else if (!strcmp(buf, "eth\n"))
+	else if (!strcmp(buf, "eth"))
 		info->tmp_type = MLX4_PORT_TYPE_ETH;
-	else if (!strcmp(buf, "auto\n"))
+	else if (!strcmp(buf, "auto"))
 		info->tmp_type = MLX4_PORT_TYPE_AUTO;
 	else {
 		mlx4_err(mdev, "%s is not supported port type\n", buf);
