@@ -23,6 +23,12 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR=	vmxnet vmxnet3
+.PATH: ${.CURDIR}/../../../dev/vmware/vmxnet3
 
-.include <bsd.subdir.mk>
+KMOD=	if_vmx
+SRCS=	if_vmx.c
+SRCS+=	bus_if.h device_if.h
+
+MFILES=	kern/bus_if.m kern/device_if.m
+
+.include <bsd.kmod.mk>
