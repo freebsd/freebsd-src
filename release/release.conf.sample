@@ -14,6 +14,9 @@ SRCBRANCH="base/stable/9"
 DOCBRANCH="doc/head"
 PORTBRANCH="ports/head"
 
+## Run svn co --force for src checkout.
+#SRC_FORCE_CHECKOUT=yes
+
 ## Set the src/, ports/, and doc/ revisions.
 SRCREVISION="-rHEAD"
 DOCREVISION="-rHEAD"
@@ -23,6 +26,8 @@ PORTREVISION="-rHEAD"
 #TARGET="amd64"
 #TARGET_ARCH="amd64"
 #KERNEL="GENERIC"
+## Multiple kernels may be set.
+#KERNEL="GENERIC XENHVM"
 
 ## Set to specify a custom make.conf and/or src.conf
 #MAKE_CONF="/etc/local/make.conf"
