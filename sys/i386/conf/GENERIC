@@ -158,6 +158,7 @@ device		tws		# LSI 3ware 9750 SATA+SAS 6Gb/s RAID controller
 # RAID controllers
 device		aac		# Adaptec FSA RAID
 device		aacp		# SCSI passthrough for aac (requires CAM)
+device		aacraid		# Adaptec by PMC RAID
 device		ida		# Compaq Smart RAID
 device		mfi		# LSI MegaRAID SAS
 device		mlx		# Mylex DAC960 family
