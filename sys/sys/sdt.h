@@ -86,6 +86,7 @@
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)
 
+#define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)
 #define	SDT_PROBE_DEFINE2(prov, mod, func, name, sname, arg0, arg1)
 #define	SDT_PROBE_DEFINE3(prov, mod, func, name, sname, arg0, arg1, arg2)
