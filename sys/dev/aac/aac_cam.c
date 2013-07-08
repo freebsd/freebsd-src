@@ -129,7 +129,7 @@ aac_cam_rescan(struct aac_softc *sc, uint32_t channel, uint32_t target_id)
 			return;
 		}
 
-		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+		if (xpt_create_path(&ccb->ccb_h.path, NULL,
 		    cam_sim_path(camsc->sim),
 		    target_id, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 			xpt_free_ccb(ccb);

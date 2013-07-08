@@ -271,7 +271,7 @@ mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 		return;
 	}
 
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, pathid,
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid,
 		            targetid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		mps_dprint(sc, MPS_FAULT, "unable to create path for rescan\n");
 		xpt_free_ccb(ccb);
@@ -3318,7 +3318,7 @@ mpssas_check_eedp(struct mpssas_softc *sassc)
 				return;
 			}
 
-			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			if (xpt_create_path(&ccb->ccb_h.path, NULL,
 			    pathid, targetid, lunid) != CAM_REQ_CMP) {
 				mps_dprint(sc, MPS_FAULT, "Unable to create "
 				    "path for EEDP support\n");

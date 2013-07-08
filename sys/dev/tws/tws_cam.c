@@ -221,7 +221,7 @@ tws_bus_scan(struct tws_softc *sc)
     if ((ccb = xpt_alloc_ccb()) == NULL)
 		    return(ENOMEM);
 
-    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sc->sim),
+    if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(sc->sim),
                   CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
         xpt_free_ccb(ccb);
         return(EIO);

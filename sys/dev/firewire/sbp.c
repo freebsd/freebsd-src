@@ -1086,7 +1086,7 @@ END_DEBUG
 	sbp_xfer_free(xfer);
 
 	if (sdev->path == NULL)
-		xpt_create_path(&sdev->path, xpt_periph,
+		xpt_create_path(&sdev->path, NULL,
 			cam_sim_path(target->sbp->sim),
 			target->target_id, sdev->lun_id);
 
@@ -2039,7 +2039,7 @@ END_DEBUG
 	if (xpt_bus_register(sbp->sim, dev, /*bus*/0) != CAM_SUCCESS)
 		goto fail;
 
-	if (xpt_create_path(&sbp->path, xpt_periph, cam_sim_path(sbp->sim),
+	if (xpt_create_path(&sbp->path, NULL, cam_sim_path(sbp->sim),
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(sbp->sim));
 		goto fail;

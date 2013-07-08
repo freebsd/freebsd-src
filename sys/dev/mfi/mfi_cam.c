@@ -318,7 +318,7 @@ mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
 
 	sim = camsc->sim;
 	mtx_lock(&sc->mfi_io_lock);
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sim),
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(sim),
 	    tid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_free_ccb(ccb);
 		mtx_unlock(&sc->mfi_io_lock);

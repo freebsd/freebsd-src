@@ -497,7 +497,7 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			 * Create a path using the bus, target, and lun the
 			 * user passed in.
 			 */
-			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			if (xpt_create_path(&ccb->ccb_h.path, NULL,
 					    inccb->ccb_h.path_id,
 					    inccb->ccb_h.target_id,
 					    inccb->ccb_h.target_lun) !=
@@ -533,7 +533,7 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			 * Create a path using the bus, target, and lun the
 			 * user passed in.
 			 */
-			if (xpt_create_path(&ccb.ccb_h.path, xpt_periph,
+			if (xpt_create_path(&ccb.ccb_h.path, NULL,
 					    inccb->ccb_h.path_id,
 					    inccb->ccb_h.target_id,
 					    inccb->ccb_h.target_lun) !=
@@ -3062,7 +3062,7 @@ xpt_action_default(union ccb *start_ccb)
 			CAM_SIM_LOCK(xpt_path_sim(start_ccb->ccb_h.path));
 		}
 		if (start_ccb->cdbg.flags != CAM_DEBUG_NONE) {
-			if (xpt_create_path(&cam_dpath, xpt_periph,
+			if (xpt_create_path(&cam_dpath, NULL,
 					    start_ccb->ccb_h.path_id,
 					    start_ccb->ccb_h.target_id,
 					    start_ccb->ccb_h.target_lun) !=
@@ -4862,7 +4862,7 @@ xpt_config(void *arg)
 
 	/* Setup debugging path */
 	if (cam_dflags != CAM_DEBUG_NONE) {
-		if (xpt_create_path_unlocked(&cam_dpath, xpt_periph,
+		if (xpt_create_path_unlocked(&cam_dpath, NULL,
 				    CAM_DEBUG_BUS, CAM_DEBUG_TARGET,
 				    CAM_DEBUG_LUN) != CAM_REQ_CMP) {
 			printf("xpt_config: xpt_create_path() failed for debug"
