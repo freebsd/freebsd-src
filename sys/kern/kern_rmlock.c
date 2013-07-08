@@ -704,6 +704,10 @@ _rm_runlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 #endif
 
 #ifdef INVARIANT_SUPPORT
+#ifndef INVARIANTS
+#undef _rm_assert
+#endif
+
 /*
  * Note that this does not need to use witness_assert() for read lock
  * assertions since an exact count of read locks held by this thread
