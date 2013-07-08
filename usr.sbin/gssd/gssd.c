@@ -1196,7 +1196,7 @@ gssd_get_cc_from_keytab(const char *name)
 	ret = krb5_init_context(&context);
 	if (ret != 0)
 		return (ret);
-	opt_ret = cc_ret = kt_ret = cred_ret = 0;
+	opt_ret = cc_ret = kt_ret = cred_ret = 1;	/* anything non-zero */
 	princ_ret = ret = krb5_parse_name(context, name, &principal);
 	if (ret == 0)
 		opt_ret = ret = krb5_get_init_creds_opt_alloc(context, &opt);
