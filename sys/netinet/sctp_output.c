@@ -4487,6 +4487,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				/* Now if we had a temp route free it */
 				if (ro->ro_rt) {
 					RTFREE(ro->ro_rt);
+					ro->ro_rt = NULL;
 				}
 			} else {
 				/*
