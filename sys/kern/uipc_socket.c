@@ -175,10 +175,7 @@ static struct filterops sowrite_filtops = {
 	.f_event = filt_sowrite,
 };
 
-uma_zone_t socket_zone;
 so_gen_t	so_gencnt;	/* generation count for sockets */
-
-int	maxsockets;
 
 MALLOC_DEFINE(M_SONAME, "soname", "socket name");
 MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
@@ -187,15 +184,37 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 	VNET_ASSERT(curvnet != NULL,					\
 	    ("%s:%d curvnet is NULL, so=%p", __func__, __LINE__, (so)));
 
+/*
+ * Limit on the number of connections in the listen queue waiting
+ * for accept(2).
+ */
 static int somaxconn = SOMAXCONN;
-static int sysctl_somaxconn(SYSCTL_HANDLER_ARGS);
-/* XXX: we dont have SYSCTL_USHORT */
+
+static int
+sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int val;
+
+	val = somaxconn;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr )
+		return (error);
+
+	if (val < 1 || val > USHRT_MAX)
+		return (EINVAL);
+
+	somaxconn = val;
+	return (0);
+}
 SYSCTL_PROC(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLTYPE_UINT | CTLFLAG_RW,
-    0, sizeof(int), sysctl_somaxconn, "I", "Maximum pending socket connection "
-    "queue size");
+    0, sizeof(int), sysctl_somaxconn, "I",
+    "Maximum listen socket pending connection accept queue size");
+
 static int numopensockets;
 SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
     &numopensockets, 0, "Number of open sockets");
+
 #ifdef ZERO_COPY_SOCKETS
 /* These aren't static because they're used in other files. */
 int so_zero_copy_send = 1;
@@ -229,6 +248,45 @@ MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
 SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
 
 /*
+ * Initialize the socket subsystem and set up the socket
+ * memory allocator.
+ */
+uma_zone_t socket_zone;
+int	maxsockets;
+
+static void
+socket_zone_change(void *tag)
+{
+
+	uma_zone_set_max(socket_zone, maxsockets);
+}
+
+static void
+socket_init(void *tag)
+{
+
+        socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
+            NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+        uma_zone_set_max(socket_zone, maxsockets);
+        EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
+                EVENTHANDLER_PRI_FIRST);
+}
+SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
+
+/*
+ * Initialise maxsockets.  This SYSINIT must be run after
+ * tunable_mbinit().
+ */
+static void
+init_maxsockets(void *ignored)
+{
+
+	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
+	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
+}
+SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
+
+/*
  * Sysctl to get and set the maximum global sockets limit.  Notify protocols
  * of the change so that they can update their dependent limits as required.
  */
@@ -252,23 +310,9 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-
 SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
     &maxsockets, 0, sysctl_maxsockets, "IU",
     "Maximum number of sockets avaliable");
-
-/*
- * Initialise maxsockets.  This SYSINIT must be run after
- * tunable_mbinit().
- */
-static void
-init_maxsockets(void *ignored)
-{
-
-	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
-	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
-}
-SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
 
 /*
  * Socket operation routines.  These routines are called by the routines in
@@ -3293,24 +3337,6 @@ socheckuid(struct socket *so, uid_t uid)
 		return (EPERM);
 	if (so->so_cred->cr_uid != uid)
 		return (EPERM);
-	return (0);
-}
-
-static int
-sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	int val;
-
-	val = somaxconn;
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr )
-		return (error);
-
-	if (val < 1 || val > USHRT_MAX)
-		return (EINVAL);
-
-	somaxconn = val;
 	return (0);
 }
 
