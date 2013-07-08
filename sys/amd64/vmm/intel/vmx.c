@@ -1175,7 +1175,22 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 }
 
 static int
-vmx_ept_fault(struct vm *vm, int cpu,
+ept_fault_type(uint64_t ept_qual)
+{
+	int fault_type = 0;
+
+	if (ept_qual & EPT_VIOLATION_INST_FETCH)
+		fault_type |= VM_PROT_EXECUTE;
+	if (ept_qual & EPT_VIOLATION_DATA_READ)
+		fault_type |= VM_PROT_READ;
+	if (ept_qual & EPT_VIOLATION_DATA_WRITE)
+		fault_type |= VM_PROT_WRITE;
+
+	return (fault_type);
+}
+
+static int
+vmx_inst_emul(struct vm *vm, int cpu,
 	      uint64_t gla, uint64_t gpa, uint64_t rip, int inst_length,
 	      uint64_t cr3, uint64_t ept_qual, struct vie *vie)
 {
@@ -1223,7 +1238,7 @@ vmx_ept_fault(struct vm *vm, int cpu,
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
-	int error, handled;
+	int error, handled, emulation;
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx;
@@ -1334,15 +1349,30 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_EPT_FAULT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
-		gla = vmcs_gla();
+		/*
+		 * If 'gpa' lies within the address space allocated to
+		 * memory then this must be a nested page fault otherwise
+		 * this must be an instruction that accesses MMIO space.
+		 */
 		gpa = vmcs_gpa();
-		cr3 = vmcs_guest_cr3();
-		handled = vmx_ept_fault(vmx->vm, vcpu, gla, gpa,
-					vmexit->rip, vmexit->inst_length,
-					cr3, qual, &vmexit->u.paging.vie);
+		if (vm_mem_allocated(vmx->vm, gpa)) {
+			handled = 0;
+			emulation = 0;
+		} else {
+			emulation = 1;
+			gla = vmcs_gla();
+			cr3 = vmcs_guest_cr3();
+			vie_init(&vmexit->u.paging.vie);
+			handled = vmx_inst_emul(vmx->vm, vcpu, gla, gpa,
+					    vmexit->rip, vmexit->inst_length,
+					    cr3, qual, &vmexit->u.paging.vie);
+		}
+
 		if (!handled) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
+			vmexit->u.paging.inst_emulation = emulation;
+			vmexit->u.paging.fault_type = ept_fault_type(qual);
 		}
 		break;
 	default:

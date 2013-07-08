@@ -98,6 +98,7 @@ int vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 	      struct vm_memory_segment *seg);
 int vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
 		  vm_offset_t *offset, struct vm_object **object);
+boolean_t vm_mem_allocated(struct vm *vm, vm_paddr_t gpa);
 int vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vm *vm, int vcpu, int reg, uint64_t val);
 int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
@@ -269,6 +270,8 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			struct vie	vie;
+			int		inst_emulation;
+			int		fault_type;
 		} paging;
 		/*
 		 * VMX specific payload. Used when there is no "better"

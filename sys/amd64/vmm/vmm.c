@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_param.h>
 
 #include <machine/vm.h>
 #include <machine/pcb.h>
@@ -364,26 +366,20 @@ vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 	return (ENXIO);		/* XXX fixme */
 }
 
-/*
- * Returns TRUE if 'gpa' is available for allocation and FALSE otherwise
- */
-static boolean_t
-vm_gpa_available(struct vm *vm, vm_paddr_t gpa)
+boolean_t
+vm_mem_allocated(struct vm *vm, vm_paddr_t gpa)
 {
 	int i;
 	vm_paddr_t gpabase, gpalimit;
-
-	if (gpa & PAGE_MASK)
-		panic("vm_gpa_available: gpa (0x%016lx) not page aligned", gpa);
 
 	for (i = 0; i < vm->num_mem_segs; i++) {
 		gpabase = vm->mem_segs[i].gpa;
 		gpalimit = gpabase + vm->mem_segs[i].len;
 		if (gpa >= gpabase && gpa < gpalimit)
-			return (FALSE);
+			return (TRUE);
 	}
 
-	return (TRUE);
+	return (FALSE);
 }
 
 /*
@@ -403,10 +399,10 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	available = allocated = 0;
 	g = gpa;
 	while (g < gpa + len) {
-		if (vm_gpa_available(vm, g))
-			available++;
-		else
+		if (vm_mem_allocated(vm, g))
 			allocated++;
+		else
+			available++;
 
 		g += PAGE_SIZE;
 	}
@@ -657,11 +653,14 @@ restart:
 
 	critical_exit();
 
+	if (error)
+		goto done;
+
 	/*
 	 * Oblige the guest's desire to 'hlt' by sleeping until the vcpu
 	 * is ready to run.
 	 */
-	if (error == 0 && vme->exitcode == VM_EXITCODE_HLT) {
+	if (vme->exitcode == VM_EXITCODE_HLT) {
 		vcpu_lock(vcpu);
 
 		/*
@@ -699,6 +698,39 @@ restart:
 		goto restart;
 	}
 
+	if (vme->exitcode == VM_EXITCODE_PAGING &&
+	    vme->u.paging.inst_emulation == 0) {
+		int rv;
+		struct thread *td;
+		struct proc *p;
+		struct vm_map *map;
+		vm_prot_t ftype;
+
+		td = curthread;
+		p = td->td_proc;
+		map = &vm->vmspace->vm_map;
+		ftype = vme->u.paging.fault_type;
+
+		PROC_LOCK(p);
+		p->p_lock++;
+		PROC_UNLOCK(p);
+
+		rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL);
+
+		PROC_LOCK(p);
+		p->p_lock--;
+		PROC_UNLOCK(p);
+
+		if (rv == KERN_SUCCESS) {
+			rip = vme->rip;
+			goto restart;
+		} else {
+			/* XXX */
+			vme->inst_length = 0;
+		}
+	}
+
+done:
 	return (error);
 }
 

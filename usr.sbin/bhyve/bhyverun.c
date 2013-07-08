@@ -440,8 +440,11 @@ vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	int err;
 	stats.vmexit_paging++;
 
-	err = emulate_mem(ctx, *pvcpu, vmexit->u.paging.gpa,
-			  &vmexit->u.paging.vie);
+	if (vmexit->u.paging.inst_emulation) {
+		err = emulate_mem(ctx, *pvcpu, vmexit->u.paging.gpa,
+				  &vmexit->u.paging.vie);
+	} else
+		err = ESRCH;
 
 	if (err) {
 		if (err == EINVAL) {
