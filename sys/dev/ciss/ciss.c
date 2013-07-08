@@ -2913,7 +2913,7 @@ ciss_cam_rescan_target(struct ciss_softc *sc, int bus, int target)
 	return;
     }
 
-    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+    if (xpt_create_path(&ccb->ccb_h.path, NULL,
 	    cam_sim_path(sc->ciss_cam_sim[bus]),
 	    target, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 	ciss_printf(sc, "rescan failed (can't create path)\n");

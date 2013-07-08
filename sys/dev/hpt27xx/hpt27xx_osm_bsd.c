@@ -1347,7 +1347,7 @@ static int	hpt_rescan_bus(void)
 		{
 			return(ENOMEM);
 		}
-		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(vbus_ext->sim),
+		if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(vbus_ext->sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)	
 		{
 			xpt_free_ccb(ccb);
