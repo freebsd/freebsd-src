@@ -441,6 +441,9 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "%s: error %d returned from ctl_invalidate_lun() for "
 			 "LUN %d", __func__, retval, params->lun_id);
+		mtx_lock(&softc->lock);
+		be_lun->flags &= ~CTL_BE_RAMDISK_LUN_WAITING;
+		mtx_unlock(&softc->lock);
 		goto bailout_error;
 	}
 
@@ -475,14 +478,6 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 	return (retval);
 
 bailout_error:
-
-	/*
-	 * Don't leave the waiting flag set.
-	 */
-	mtx_lock(&softc->lock);
-	be_lun->flags &= ~CTL_BE_RAMDISK_LUN_WAITING;
-	mtx_unlock(&softc->lock);
-
 	req->status = CTL_LUN_ERROR;
 
 	return (0);
