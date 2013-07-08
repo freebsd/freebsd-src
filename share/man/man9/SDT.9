@@ -54,7 +54,6 @@
 .Fn SDT_PROBE6 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5
 .Fn SDT_PROBE7 prov mod func name arg0 arg1 arg2 arg3 arg4 arg5 arg6
 .Sh DESCRIPTION
-.Pp
 The
 .Nm
 macros allow programmers to define static trace points in kernel code.
@@ -158,7 +157,6 @@ trace points.
 They are meant to be added to executable code and can be used to instrument the
 code in which they are called.
 .Sh EXAMPLES
-.Pp
 The following probe definition will create a DTrace probe called
 .Ql icmp::unreach:pkt-receive ,
 which would hypothetically be triggered when the kernel receives an ICMP packet
@@ -216,7 +214,6 @@ framework were originally ported to FreeBSD from Solaris by
 This manual page was written by
 .An Mark Johnston Aq markj@FreeBSD.org .
 .Sh BUGS
-.Pp
 The
 .Nm
 macros allow the module name of a probe to be specified as part of a probe
