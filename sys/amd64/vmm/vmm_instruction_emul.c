@@ -399,7 +399,7 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 }
 
 #ifdef _KERNEL
-static void
+void
 vie_init(struct vie *vie)
 {
 
@@ -473,8 +473,6 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	if (inst_length > VIE_INST_SIZE)
 		panic("vmm_fetch_instruction: invalid length %d", inst_length);
-
-	vie_init(vie);
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
