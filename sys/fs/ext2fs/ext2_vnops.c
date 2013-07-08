@@ -1598,11 +1598,11 @@ ext2_read(struct vop_read_args *ap)
 	} else if (vp->v_type != VREG && vp->v_type != VDIR)
 		panic("%s: type %d", "ext2_read", vp->v_type);
 #endif
+	if (uio->uio_resid < 0 || uio->uio_offset < 0)
+		return (EINVAL);
 	orig_resid = uio->uio_resid;
-	KASSERT(orig_resid >= 0, ("ext2_read: uio->uio_resid < 0"));
 	if (orig_resid == 0)
 		return (0);
-	KASSERT(uio->uio_offset >= 0, ("ext2_read: uio->uio_offset < 0"));
 	fs = ip->i_e2fs;
 	if (uio->uio_offset < ip->i_size &&
 	    uio->uio_offset >= fs->e2fs_maxfilesize)
