@@ -213,10 +213,13 @@ ti_mmchs_reset_controller(struct ti_mmchs_softc *sc, uint32_t bit)
 	sysctl = ti_mmchs_read_4(sc, MMCHS_SYSCTL);
 	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl | bit);
 
-	if ((ti_chip() == CHIP_OMAP_4) && (ti_revision() > OMAP4430_REV_ES1_0)) {
-		/* OMAP4 ES2 and greater has an updated reset logic.
-		 * Monitor a 0->1 transition first
-		 */
+
+	/* 
+	 * AM335x and OMAP4 ES2 and greater has an updated reset logic.
+	 * Monitor a 0->1 transition first
+	 */
+	if ((ti_chip() == CHIP_AM335X) || 
+	    ((ti_chip() == CHIP_OMAP_4) && (ti_revision() > OMAP4430_REV_ES1_0))) {
 		attempts = 10000;
 		while (!(ti_mmchs_read_4(sc, MMCHS_SYSCTL) & bit) && (attempts-- > 0))
 			continue;
