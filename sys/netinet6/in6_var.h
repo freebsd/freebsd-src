@@ -534,8 +534,6 @@ extern struct rwlock in6_ifaddr_lock;
 #define	IN6_IFADDR_WLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_WLOCKED)
 #define	IN6_IFADDR_WUNLOCK()		rw_wunlock(&in6_ifaddr_lock)
 
-VNET_DECLARE(struct icmp6stat, icmp6stat);
-#define	V_icmp6stat			VNET(icmp6stat)
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\

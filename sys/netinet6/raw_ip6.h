@@ -48,10 +48,12 @@ struct rip6stat {
 };
 
 #ifdef _KERNEL
-#define	RIP6STAT_ADD(name, val)	V_rip6stat.name += (val)
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct rip6stat, rip6stat);
+#define	RIP6STAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct rip6stat, rip6stat, name, (val))
 #define	RIP6STAT_INC(name)	RIP6STAT_ADD(name, 1)
-VNET_DECLARE(struct rip6stat, rip6stat);
-#define	V_rip6stat			VNET(rip6stat)
-#endif
+#endif /* _KERNEL */
 
 #endif
