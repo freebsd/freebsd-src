@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
 
+#include <kgssapi/krb5/kcrypto.h>
+
 #include "rpcsec_gss_int.h"
 
 static void	rpc_gss_nextverf(AUTH*);
@@ -122,6 +124,7 @@ struct rpc_gss_data {
 	AUTH			*gd_auth;	/* link back to AUTH */
 	struct ucred		*gd_ucred;	/* matching local cred */
 	char			*gd_principal;	/* server principal name */
+	char			*gd_clntprincipal; /* client principal name */
 	rpc_gss_options_req_t	gd_options;	/* GSS context options */
 	enum rpcsec_gss_state	gd_state;	/* connection state */
 	gss_buffer_desc		gd_verf;	/* save GSS_S_COMPLETE
@@ -153,7 +156,7 @@ static struct sx rpc_gss_lock;
 static int rpc_gss_count;
 
 static AUTH *rpc_gss_seccreate_int(CLIENT *, struct ucred *, const char *,
-    gss_OID, rpc_gss_service_t, u_int, rpc_gss_options_req_t *,
+    const char *, gss_OID, rpc_gss_service_t, u_int, rpc_gss_options_req_t *,
     rpc_gss_options_ret_t *);
 
 static void
@@ -251,8 +254,8 @@ again:
 	/*
 	 * We missed in the cache - create a new association.
 	 */
-	auth = rpc_gss_seccreate_int(clnt, cred, principal, mech_oid, service,
-	    GSS_C_QOP_DEFAULT, NULL, NULL);
+	auth = rpc_gss_seccreate_int(clnt, cred, NULL, principal, mech_oid,
+	    service, GSS_C_QOP_DEFAULT, NULL, NULL);
 	if (!auth)
 		return (NULL);
 
@@ -304,9 +307,10 @@ rpc_gss_secpurge(CLIENT *clnt)
 }
 
 AUTH *
-rpc_gss_seccreate(CLIENT *clnt, struct ucred *cred, const char *principal,
-    const char *mechanism, rpc_gss_service_t service, const char *qop,
-    rpc_gss_options_req_t *options_req, rpc_gss_options_ret_t *options_ret)
+rpc_gss_seccreate(CLIENT *clnt, struct ucred *cred, const char *clnt_principal,
+    const char *principal, const char *mechanism, rpc_gss_service_t service,
+    const char *qop, rpc_gss_options_req_t *options_req,
+    rpc_gss_options_ret_t *options_ret)
 {
 	gss_OID			oid;
 	u_int			qop_num;
@@ -324,13 +328,33 @@ rpc_gss_seccreate(CLIENT *clnt, struct ucred *cred, const char *principal,
 		qop_num = GSS_C_QOP_DEFAULT;
 	}
 
-	return (rpc_gss_seccreate_int(clnt, cred, principal, oid, service,
-		qop_num, options_req, options_ret));
+	return (rpc_gss_seccreate_int(clnt, cred, clnt_principal, principal,
+		oid, service, qop_num, options_req, options_ret));
+}
+
+void
+rpc_gss_refresh_auth(AUTH *auth)
+{
+	struct rpc_gss_data	*gd;
+	rpc_gss_options_ret_t	options;
+
+	gd = AUTH_PRIVATE(auth);
+	/*
+	 * If the state != ESTABLISHED, try and initialize
+	 * the authenticator again. This will happen if the
+	 * user's credentials have expired. It may succeed now,
+	 * if they have done a kinit or similar.
+	 */
+	if (gd->gd_state != RPCSEC_GSS_ESTABLISHED) {
+		memset(&options, 0, sizeof (options));
+		(void) rpc_gss_init(auth, &options);
+	}
 }
 
 static AUTH *
-rpc_gss_seccreate_int(CLIENT *clnt, struct ucred *cred, const char *principal,
-    gss_OID mech_oid, rpc_gss_service_t service, u_int qop_num,
+rpc_gss_seccreate_int(CLIENT *clnt, struct ucred *cred,
+    const char *clnt_principal, const char *principal, gss_OID mech_oid,
+    rpc_gss_service_t service, u_int qop_num,
     rpc_gss_options_req_t *options_req, rpc_gss_options_ret_t *options_ret)
 {
 	AUTH			*auth;
@@ -379,6 +403,10 @@ rpc_gss_seccreate_int(CLIENT *clnt, struct ucred *cred, const char *principal,
 	gd->gd_auth = auth;
 	gd->gd_ucred = crdup(cred);
 	gd->gd_principal = strdup(principal, M_RPC);
+	if (clnt_principal != NULL)
+		gd->gd_clntprincipal = strdup(clnt_principal, M_RPC);
+	else
+		gd->gd_clntprincipal = NULL;
 
 
 	if (options_req) {
@@ -719,6 +747,8 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 	OM_uint32		 maj_stat, min_stat, call_stat;
 	const char		*mech;
 	struct rpc_callextra	 ext;
+	gss_OID			mech_oid;
+	gss_OID_set		mechlist;
 
 	rpc_gss_log_debug("in rpc_gss_refresh()");
 	
@@ -744,6 +774,65 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 
 	gd->gd_cred.gc_proc = RPCSEC_GSS_INIT;
 	gd->gd_cred.gc_seq = 0;
+
+	/*
+	 * For KerberosV, if there is a client principal name, that implies
+	 * that this is a host based initiator credential in the default
+	 * keytab file. For this case, it is necessary to do a
+	 * gss_acquire_cred(). When this is done, the gssd daemon will
+	 * do the equivalent of "kinit -k" to put a TGT for the name in
+	 * the credential cache file for the gssd daemon.
+	 */
+	if (gd->gd_clntprincipal != NULL &&
+	    rpc_gss_mech_to_oid("kerberosv5", &mech_oid) &&
+	    gd->gd_mech == mech_oid) {
+		/* Get rid of any old credential. */
+		if (gd->gd_options.my_cred != GSS_C_NO_CREDENTIAL) {
+			gss_release_cred(&min_stat, &gd->gd_options.my_cred);
+			gd->gd_options.my_cred = GSS_C_NO_CREDENTIAL;
+		}
+	
+		/*
+		 * The mechanism must be set to KerberosV for acquisition
+		 * of credentials to work reliably.
+		 */
+		maj_stat = gss_create_empty_oid_set(&min_stat, &mechlist);
+		if (maj_stat != GSS_S_COMPLETE) {
+			options_ret->major_status = maj_stat;
+			options_ret->minor_status = min_stat;
+			goto out;
+		}
+		maj_stat = gss_add_oid_set_member(&min_stat, gd->gd_mech,
+		    &mechlist);
+		if (maj_stat != GSS_S_COMPLETE) {
+			options_ret->major_status = maj_stat;
+			options_ret->minor_status = min_stat;
+			gss_release_oid_set(&min_stat, &mechlist);
+			goto out;
+		}
+	
+		principal_desc.value = (void *)gd->gd_clntprincipal;
+		principal_desc.length = strlen(gd->gd_clntprincipal);
+		maj_stat = gss_import_name(&min_stat, &principal_desc,
+		    GSS_C_NT_HOSTBASED_SERVICE, &name);
+		if (maj_stat != GSS_S_COMPLETE) {
+			options_ret->major_status = maj_stat;
+			options_ret->minor_status = min_stat;
+			gss_release_oid_set(&min_stat, &mechlist);
+			goto out;
+		}
+		/* Acquire the credentials. */
+		maj_stat = gss_acquire_cred(&min_stat, name, 0,
+		    mechlist, GSS_C_INITIATE,
+		    &gd->gd_options.my_cred, NULL, NULL);
+		gss_release_name(&min_stat, &name);
+		gss_release_oid_set(&min_stat, &mechlist);
+		if (maj_stat != GSS_S_COMPLETE) {
+			options_ret->major_status = maj_stat;
+			options_ret->minor_status = min_stat;
+			goto out;
+		}
+	}
 
 	principal_desc.value = (void *)gd->gd_principal;
 	principal_desc.length = strlen(gd->gd_principal);
@@ -1036,6 +1125,8 @@ rpc_gss_destroy(AUTH *auth)
 	CLNT_RELEASE(gd->gd_clnt);
 	crfree(gd->gd_ucred);
 	free(gd->gd_principal, M_RPC);
+	if (gd->gd_clntprincipal != NULL)
+		free(gd->gd_clntprincipal, M_RPC);
 	if (gd->gd_verf.value)
 		xdr_free((xdrproc_t) xdr_gss_buffer_desc,
 		    (char *) &gd->gd_verf);
