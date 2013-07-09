@@ -490,6 +490,7 @@ device_t pci_find_class(uint8_t class, uint8_t subclass);
 int	pci_pending_msix(device_t dev, u_int index);
 
 int	pci_msi_device_blacklisted(device_t dev);
+int	pci_msix_device_blacklisted(device_t dev);
 
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
