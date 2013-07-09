@@ -603,13 +603,8 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			warn("sysctl: net.inet.tcp.stats");
 			return;
 		}
-	} else {
-		u_long tcpstat_p[sizeof(struct tcpstat)/sizeof(uint64_t)];
- 
-		kread(off, &tcpstat_p, sizeof(tcpstat_p));
-		kread_counters(tcpstat_p, (uint64_t *)&tcpstat,
-		    sizeof(struct tcpstat)/sizeof(uint64_t));
-	}
+	} else
+		kread_counters(off, &tcpstat, len);
 
 	printf ("%s:\n", name);
 
@@ -863,13 +858,8 @@ ip_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			warn("sysctl: net.inet.ip.stats");
 			return;
 		}
-	} else {
-		u_long ipstat_p[sizeof(struct ipstat)/sizeof(uint64_t)];
-
-		kread(off, &ipstat_p, sizeof(ipstat_p));
-		kread_counters(ipstat_p, (uint64_t *)&ipstat,
-		    sizeof(struct ipstat)/sizeof(uint64_t));
-	}
+	} else
+		kread_counters(off, &ipstat, len);
 
 	printf("%s:\n", name);
 

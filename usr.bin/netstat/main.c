@@ -147,11 +147,11 @@ static struct nlist nl[] = {
 #define	N_IPCOMPSTAT	37
 	{ .n_name = "_ipcompstat" },
 #define	N_TCPSTAT	38
-	{ .n_name = "_tcpstatp" },
+	{ .n_name = "_tcpstat" },
 #define	N_UDPSTAT	39
 	{ .n_name = "_udpstat" },
 #define	N_IPSTAT	40
-	{ .n_name = "_ipstatp" },
+	{ .n_name = "_ipstat" },
 #define	N_ICMPSTAT	41
 	{ .n_name = "_icmpstat" },
 #define	N_IGMPSTAT	42
@@ -753,15 +753,21 @@ kread(u_long addr, void *buf, size_t size)
  * Read an array of N counters in kernel memory into array of N uint64_t's.
  */
 int
-kread_counters(u_long *addr, uint64_t *rval, size_t count)
+kread_counters(u_long addr, void *buf, size_t size)
 {
+	uint64_t *c = buf;
 
 	if (kvmd_init() < 0)
 		return (-1);
 
-	for (u_int i = 0; i < count; i++, addr++, rval++)
-		*rval = kvm_counter_u64_fetch(kvmd, *addr);
+	if (kread(addr, buf, size) < 0)
+		return (-1);
 
+	while (size != 0) {
+		*c = kvm_counter_u64_fetch(kvmd, *c);
+		size -= sizeof(*c);
+		c++;
+	}
 	return (0);
 }
 

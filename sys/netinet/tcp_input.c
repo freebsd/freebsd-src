@@ -240,67 +240,16 @@ static void inline	hhook_run_tcp_est_in(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to);
 
 /*
- * TCP statistics are stored in struct tcpstat_p, which is
- * an "array" of counter(9)s.  Although it isn't a real
- * array, we treat it as array to reduce code bloat.
+ * TCP statistics are stored in an "array" of counter(9)s.
  */
-VNET_DEFINE(struct tcpstat_p, tcpstatp);
-
-static void
-vnet_tcpstatp_init(const void *unused)
-{
-	counter_u64_t *c;
-	int i;
-
-	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
-	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
-	    i++, c++) {
-		*c = counter_u64_alloc(M_WAITOK);
-		counter_u64_zero(*c);
-	}
-}
-VNET_SYSINIT(vnet_tcpstatp_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
-	    vnet_tcpstatp_init, NULL);
+VNET_PCPUSTAT_DEFINE(struct tcpstat, tcpstat);
+VNET_PCPUSTAT_SYSINIT(tcpstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_tcp, TCPCTL_STATS, stats, struct tcpstat,
+    tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
 #ifdef VIMAGE
-static void
-vnet_tcpstatp_uninit(const void *unused)
-{
-	counter_u64_t *c;
-	int i;
-
-	for (i = 0, c = (counter_u64_t *)&V_tcpstatp;
-	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
-	    i++, c++)
-		counter_u64_free(*c);
-}
-VNET_SYSUNINIT(vnet_tcpstatp_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
-	    vnet_tcpstatp_uninit, NULL);
+VNET_PCPUSTAT_SYSUNINIT(tcpstat);
 #endif /* VIMAGE */
-
-static int
-tcpstat_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	struct tcpstat tcpstat;
-	counter_u64_t *c;
-	uint64_t *v;
-	int i;
-
-	for (i = 0, c = (counter_u64_t *)&V_tcpstatp, v = (uint64_t *)&tcpstat;
-	    i < sizeof(V_tcpstatp) / sizeof(counter_u64_t);
-	    i++, c++, v++) {
-		*v = counter_u64_fetch(*c);
-		if (req->newptr)
-			counter_u64_zero(*c);
-	}
-
-	return (SYSCTL_OUT(req, &tcpstat, sizeof(tcpstat)));
-}
-
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_STATS, stats, CTLTYPE_OPAQUE |
-    CTLFLAG_RW, NULL, 0, tcpstat_sysctl, "I", 
-    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
-
 /*
  * Kernel module interface for updating tcpstat.  The argument is an index
  * into tcpstat treated as an array.
@@ -309,7 +258,7 @@ void
 kmod_tcpstat_inc(int statnum)
 {
 
-	counter_u64_add(*((counter_u64_t *)&V_tcpstatp + statnum), 1);
+	counter_u64_add(VNET(tcpstat)[statnum], 1);
 }
 
 /*
