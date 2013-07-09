@@ -2090,7 +2090,7 @@ f_dialog_init()
 	#
 	# Read ~/.dialogrc (unless using Xdialog(1)) for properties
 	#
-	if [ -f ~/.dialogrc ]; then
+	if [ -f ~/.dialogrc -a ! "$USE_XDIALOG" ]; then
 		eval "$(
 			awk -v param=use_shadow -v expect=OFF \
 			    -v set="NO_SHADOW=1" '
