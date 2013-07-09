@@ -58,12 +58,14 @@ struct ipipstat {
 };
 
 #ifdef _KERNEL
-VNET_DECLARE(int, ipip_allow);
-VNET_DECLARE(struct ipipstat, ipipstat);
+#include <sys/counter.h>
 
-#define	IPIPSTAT_ADD(name, val)	V_ipipstat.name += (val)
+VNET_DECLARE(int, ipip_allow);
+VNET_PCPUSTAT_DECLARE(struct ipipstat, ipipstat);
+
+#define	IPIPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct ipipstat, ipipstat, name, (val))
 #define	IPIPSTAT_INC(name)	IPIPSTAT_ADD(name, 1)
 #define	V_ipip_allow		VNET(ipip_allow)
-#define	V_ipipstat		VNET(ipipstat)
 #endif /* _KERNEL */
 #endif /* _NETINET_IPIP_H_ */

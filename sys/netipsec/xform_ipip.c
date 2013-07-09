@@ -91,13 +91,19 @@
  * net.inet.ipip.allow value.  Zero means drop them, all else is acceptance.
  */
 VNET_DEFINE(int, ipip_allow) = 0;
-VNET_DEFINE(struct ipipstat, ipipstat);
+VNET_PCPUSTAT_DEFINE(struct ipipstat, ipipstat);
+VNET_PCPUSTAT_SYSINIT(ipipstat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(ipipstat);
+#endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_ipip);
 SYSCTL_VNET_INT(_net_inet_ipip, OID_AUTO,
 	ipip_allow,	CTLFLAG_RW,	&VNET_NAME(ipip_allow),	0, "");
-SYSCTL_VNET_STRUCT(_net_inet_ipip, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&VNET_NAME(ipipstat),	ipipstat, "");
+SYSCTL_VNET_PCPUSTAT(_net_inet_ipip, IPSECCTL_STATS, stats,
+    struct ipipstat, ipipstat,
+    "IPIP statistics (struct ipipstat, netipsec/ipip_var.h)");
 
 /* XXX IPCOMP */
 #define	M_IPSEC	(M_AUTHIPHDR|M_AUTHIPDGM|M_DECRYPTED)

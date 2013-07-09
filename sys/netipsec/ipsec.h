@@ -325,6 +325,8 @@ struct ipsecstat {
 }
 
 #ifdef _KERNEL
+#include <sys/counter.h>
+
 struct ipsec_output_state {
 	struct mbuf *m;
 	struct route *ro;
@@ -347,7 +349,7 @@ VNET_DECLARE(int, ipsec_integrity);
 #define	V_ipsec_integrity	VNET(ipsec_integrity)
 #endif
 
-VNET_DECLARE(struct ipsecstat, ipsec4stat);
+VNET_PCPUSTAT_DECLARE(struct ipsecstat, ipsec4stat);
 VNET_DECLARE(struct secpolicy, ip4_def_policy);
 VNET_DECLARE(int, ip4_esp_trans_deflev);
 VNET_DECLARE(int, ip4_esp_net_deflev);
@@ -359,8 +361,8 @@ VNET_DECLARE(int, ip4_ipsec_ecn);
 VNET_DECLARE(int, ip4_esp_randpad);
 VNET_DECLARE(int, crypto_support);
 
-#define	IPSECSTAT_INC(name)	V_ipsec4stat.name += 1
-#define	V_ipsec4stat		VNET(ipsec4stat)
+#define	IPSECSTAT_INC(name)	\
+    VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec4stat, name, 1)
 #define	V_ip4_def_policy	VNET(ip4_def_policy)
 #define	V_ip4_esp_trans_deflev	VNET(ip4_esp_trans_deflev)
 #define	V_ip4_esp_net_deflev	VNET(ip4_esp_net_deflev)
