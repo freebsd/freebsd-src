@@ -2749,12 +2749,13 @@ in6_domifattach(struct ifnet *ifp)
 	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);
 	bzero(ext, sizeof(*ext));
 
-	ext->in6_ifstat = malloc(sizeof(struct in6_ifstat), M_IFADDR,
-	    M_WAITOK);
+	ext->in6_ifstat = malloc(sizeof(counter_u64_t) *
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t), M_IFADDR, M_WAITOK);
 	COUNTER_ARRAY_ALLOC(ext->in6_ifstat,
 	    sizeof(struct in6_ifstat) / sizeof(uint64_t), M_WAITOK);
 
-	ext->icmp6_ifstat = malloc(sizeof(struct icmp6_ifstat), M_IFADDR,
+	ext->icmp6_ifstat = malloc(sizeof(counter_u64_t) *
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_IFADDR,
 	    M_WAITOK);
 	COUNTER_ARRAY_ALLOC(ext->icmp6_ifstat,
 	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_WAITOK);
