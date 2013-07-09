@@ -89,7 +89,12 @@
 
 VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
 VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
-VNET_DEFINE(struct ahstat, ahstat);
+VNET_PCPUSTAT_DEFINE(struct ahstat, ahstat);
+VNET_PCPUSTAT_SYSINIT(ahstat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(ahstat);
+#endif /* VIMAGE */
 
 #ifdef INET
 SYSCTL_DECL(_net_inet_ah);
@@ -97,8 +102,8 @@ SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
 	ah_enable,	CTLFLAG_RW,	&VNET_NAME(ah_enable),	0, "");
 SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
 	ah_cleartos,	CTLFLAG_RW,	&VNET_NAME(ah_cleartos), 0, "");
-SYSCTL_VNET_STRUCT(_net_inet_ah, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&VNET_NAME(ahstat), ahstat, "");
+SYSCTL_VNET_PCPUSTAT(_net_inet_ah, IPSECCTL_STATS, stats, struct ahstat,
+    ahstat, "AH statistics (struct ahstat, netipsec/ah_var.h)");
 #endif
 
 static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
