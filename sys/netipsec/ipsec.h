@@ -217,54 +217,54 @@ struct secspacq {
 
 /* statistics for ipsec processing */
 struct ipsecstat {
-	u_quad_t in_success;  /* succeeded inbound process */
-	u_quad_t in_polvio;
+	uint64_t in_success;  /* succeeded inbound process */
+	uint64_t in_polvio;
 			/* security policy violation for inbound process */
-	u_quad_t in_nosa;     /* inbound SA is unavailable */
-	u_quad_t in_inval;    /* inbound processing failed due to EINVAL */
-	u_quad_t in_nomem;    /* inbound processing failed due to ENOBUFS */
-	u_quad_t in_badspi;   /* failed getting a SPI */
-	u_quad_t in_ahreplay; /* AH replay check failed */
-	u_quad_t in_espreplay; /* ESP replay check failed */
-	u_quad_t in_ahauthsucc; /* AH authentication success */
-	u_quad_t in_ahauthfail; /* AH authentication failure */
-	u_quad_t in_espauthsucc; /* ESP authentication success */
-	u_quad_t in_espauthfail; /* ESP authentication failure */
-	u_quad_t in_esphist[256];
-	u_quad_t in_ahhist[256];
-	u_quad_t in_comphist[256];
-	u_quad_t out_success; /* succeeded outbound process */
-	u_quad_t out_polvio;
+	uint64_t in_nosa;     /* inbound SA is unavailable */
+	uint64_t in_inval;    /* inbound processing failed due to EINVAL */
+	uint64_t in_nomem;    /* inbound processing failed due to ENOBUFS */
+	uint64_t in_badspi;   /* failed getting a SPI */
+	uint64_t in_ahreplay; /* AH replay check failed */
+	uint64_t in_espreplay; /* ESP replay check failed */
+	uint64_t in_ahauthsucc; /* AH authentication success */
+	uint64_t in_ahauthfail; /* AH authentication failure */
+	uint64_t in_espauthsucc; /* ESP authentication success */
+	uint64_t in_espauthfail; /* ESP authentication failure */
+	uint64_t in_esphist[256];
+	uint64_t in_ahhist[256];
+	uint64_t in_comphist[256];
+	uint64_t out_success; /* succeeded outbound process */
+	uint64_t out_polvio;
 			/* security policy violation for outbound process */
-	u_quad_t out_nosa;    /* outbound SA is unavailable */
-	u_quad_t out_inval;   /* outbound process failed due to EINVAL */
-	u_quad_t out_nomem;    /* inbound processing failed due to ENOBUFS */
-	u_quad_t out_noroute; /* there is no route */
-	u_quad_t out_esphist[256];
-	u_quad_t out_ahhist[256];
-	u_quad_t out_comphist[256];
+	uint64_t out_nosa;    /* outbound SA is unavailable */
+	uint64_t out_inval;   /* outbound process failed due to EINVAL */
+	uint64_t out_nomem;    /* inbound processing failed due to ENOBUFS */
+	uint64_t out_noroute; /* there is no route */
+	uint64_t out_esphist[256];
+	uint64_t out_ahhist[256];
+	uint64_t out_comphist[256];
 
-	u_quad_t spdcachelookup;
-	u_quad_t spdcachemiss;
+	uint64_t spdcachelookup;
+	uint64_t spdcachemiss;
 
-	u_int32_t ips_in_polvio;	/* input: sec policy violation */
-	u_int32_t ips_out_polvio;	/* output: sec policy violation */
-	u_int32_t ips_out_nosa;		/* output: SA unavailable  */
-	u_int32_t ips_out_nomem;	/* output: no memory available */
-	u_int32_t ips_out_noroute;	/* output: no route available */
-	u_int32_t ips_out_inval;	/* output: generic error */
-	u_int32_t ips_out_bundlesa;	/* output: bundled SA processed */
-	u_int32_t ips_mbcoalesced;	/* mbufs coalesced during clone */
-	u_int32_t ips_clcoalesced;	/* clusters coalesced during clone */
-	u_int32_t ips_clcopied;		/* clusters copied during clone */
-	u_int32_t ips_mbinserted;	/* mbufs inserted during makespace */
+	uint64_t ips_in_polvio;		/* input: sec policy violation */
+	uint64_t ips_out_polvio;	/* output: sec policy violation */
+	uint64_t ips_out_nosa;		/* output: SA unavailable  */
+	uint64_t ips_out_nomem;		/* output: no memory available */
+	uint64_t ips_out_noroute;	/* output: no route available */
+	uint64_t ips_out_inval;		/* output: generic error */
+	uint64_t ips_out_bundlesa;	/* output: bundled SA processed */
+	uint64_t ips_mbcoalesced;	/* mbufs coalesced during clone */
+	uint64_t ips_clcoalesced;	/* clusters coalesced during clone */
+	uint64_t ips_clcopied;		/* clusters copied during clone */
+	uint64_t ips_mbinserted;	/* mbufs inserted during makespace */
 	/* 
 	 * Temporary statistics for performance analysis.
 	 */
 	/* See where ESP/AH/IPCOMP header land in mbuf on input */
-	u_int32_t ips_input_front;
-	u_int32_t ips_input_middle;
-	u_int32_t ips_input_end;
+	uint64_t ips_input_front;
+	uint64_t ips_input_middle;
+	uint64_t ips_input_end;
 };
 
 /*

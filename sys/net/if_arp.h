@@ -113,18 +113,18 @@ struct	arpcom {
 
 struct arpstat {
 	/* Normal things that happen: */
-	u_long txrequests;	/* # of ARP requests sent by this host. */
-	u_long txreplies;	/* # of ARP replies sent by this host. */
-	u_long rxrequests;	/* # of ARP requests received by this host. */
-	u_long rxreplies;	/* # of ARP replies received by this host. */
-	u_long received;	/* # of ARP packets received by this host. */
+	uint64_t txrequests;	/* # of ARP requests sent by this host. */
+	uint64_t txreplies;	/* # of ARP replies sent by this host. */
+	uint64_t rxrequests;	/* # of ARP requests received by this host. */
+	uint64_t rxreplies;	/* # of ARP replies received by this host. */
+	uint64_t received;	/* # of ARP packets received by this host. */
 
-	u_long arp_spares[4];	/* For either the upper or lower half. */
+	uint64_t arp_spares[4];	/* For either the upper or lower half. */
 	/* Abnormal event and error  counting: */
-	u_long dropped;		/* # of packets dropped waiting for a reply. */
-	u_long timeouts;	/* # of times with entries removed */
+	uint64_t dropped;	/* # of packets dropped waiting for a reply. */
+	uint64_t timeouts;	/* # of times with entries removed */
 				/* due to timeout. */
-	u_long dupips;		/* # of duplicate IPs detected. */
+	uint64_t dupips;	/* # of duplicate IPs detected. */
 };
 
 /*
