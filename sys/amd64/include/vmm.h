@@ -133,8 +133,9 @@ void *vm_iommu_domain(struct vm *vm);
 
 enum vcpu_state {
 	VCPU_IDLE,
+	VCPU_FROZEN,
 	VCPU_RUNNING,
-	VCPU_CANNOT_RUN,
+	VCPU_SLEEPING,
 };
 
 int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);

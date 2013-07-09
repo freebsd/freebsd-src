@@ -93,6 +93,7 @@ struct vcpu {
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
 #define	vcpu_lock(v)		mtx_lock_spin(&((v)->mtx))
 #define	vcpu_unlock(v)		mtx_unlock_spin(&((v)->mtx))
+#define	vcpu_assert_locked(v)	mtx_assert(&((v)->mtx), MA_OWNED)
 
 struct mem_seg {
 	vm_paddr_t	gpa;
@@ -611,6 +612,59 @@ save_guest_fpustate(struct vcpu *vcpu)
 
 static VMM_STAT(VCPU_IDLE_TICKS, "number of ticks vcpu was idle");
 
+static int
+vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
+{
+	int error;
+
+	vcpu_assert_locked(vcpu);
+
+	/*
+	 * The following state transitions are allowed:
+	 * IDLE -> FROZEN -> IDLE
+	 * FROZEN -> RUNNING -> FROZEN
+	 * FROZEN -> SLEEPING -> FROZEN
+	 */
+	switch (vcpu->state) {
+	case VCPU_IDLE:
+	case VCPU_RUNNING:
+	case VCPU_SLEEPING:
+		error = (newstate != VCPU_FROZEN);
+		break;
+	case VCPU_FROZEN:
+		error = (newstate == VCPU_FROZEN);
+		break;
+	default:
+		error = 1;
+		break;
+	}
+
+	if (error == 0)
+		vcpu->state = newstate;
+	else
+		error = EBUSY;
+
+	return (error);
+}
+
+static void
+vcpu_require_state(struct vm *vm, int vcpuid, enum vcpu_state newstate)
+{
+	int error;
+
+	if ((error = vcpu_set_state(vm, vcpuid, newstate)) != 0)
+		panic("Error %d setting state to %d\n", error, newstate);
+}
+
+static void
+vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
+{
+	int error;
+
+	if ((error = vcpu_set_state_locked(vcpu, newstate)) != 0)
+		panic("Error %d setting state to %d", error, newstate);
+}
+
 int
 vm_run(struct vm *vm, struct vm_run *vmrun)
 {
@@ -639,9 +693,11 @@ restart:
 	restore_guest_msrs(vm, vcpuid);	
 	restore_guest_fpustate(vcpu);
 
+	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
 	vcpu->hostcpu = curcpu;
 	error = VMRUN(vm->cookie, vcpuid, rip);
 	vcpu->hostcpu = NOCPU;
+	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
 	restore_host_msrs(vm, vcpuid);
@@ -688,7 +744,9 @@ restart:
 			if (sleepticks <= 0)
 				panic("invalid sleepticks %d", sleepticks);
 			t = ticks;
+			vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
 			msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
+			vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 			vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 		}
 
@@ -883,7 +941,7 @@ vm_iommu_domain(struct vm *vm)
 }
 
 int
-vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state state)
+vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state newstate)
 {
 	int error;
 	struct vcpu *vcpu;
@@ -894,20 +952,7 @@ vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state state)
 	vcpu = &vm->vcpu[vcpuid];
 
 	vcpu_lock(vcpu);
-
-	/*
-	 * The following state transitions are allowed:
-	 * IDLE -> RUNNING -> IDLE
-	 * IDLE -> CANNOT_RUN -> IDLE
-	 */
-	if ((vcpu->state == VCPU_IDLE && state != VCPU_IDLE) ||
-	    (vcpu->state != VCPU_IDLE && state == VCPU_IDLE)) {
-		error = 0;
-		vcpu->state = state;
-	} else {
-		error = EBUSY;
-	}
-
+	error = vcpu_set_state_locked(vcpu, newstate);
 	vcpu_unlock(vcpu);
 
 	return (error);
@@ -993,16 +1038,7 @@ vm_interrupt_hostcpu(struct vm *vm, int vcpuid)
 	vcpu_lock(vcpu);
 	hostcpu = vcpu->hostcpu;
 	if (hostcpu == NOCPU) {
-		/*
-		 * If the vcpu is 'RUNNING' but without a valid 'hostcpu' then
-		 * the host thread must be sleeping waiting for an event to
-		 * kick the vcpu out of 'hlt'.
-		 *
-		 * XXX this is racy because the condition exists right before
-		 * and after calling VMRUN() in vm_run(). The wakeup() is
-		 * benign in this case.
-		 */
-		if (vcpu->state == VCPU_RUNNING)
+		if (vcpu->state == VCPU_SLEEPING)
 			wakeup_one(vcpu);
 	} else {
 		if (vcpu->state != VCPU_RUNNING)

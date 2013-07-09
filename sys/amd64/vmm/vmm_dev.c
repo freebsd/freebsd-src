@@ -139,7 +139,6 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
 {
 	int error, vcpu, state_changed;
-	enum vcpu_state new_state;
 	struct vmmdev_softc *sc;
 	struct vm_memory_segment *seg;
 	struct vm_register *vmreg;
@@ -189,12 +188,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 		}
 
-		if (cmd == VM_RUN)
-			new_state = VCPU_RUNNING;
-		else
-			new_state = VCPU_CANNOT_RUN;
-
-		error = vcpu_set_state(sc->vm, vcpu, new_state);
+		error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
 		if (error)
 			goto done;
 
@@ -211,7 +205,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 */
 		error = 0;
 		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++) {
-			error = vcpu_set_state(sc->vm, vcpu, VCPU_CANNOT_RUN);
+			error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
 			if (error)
 				break;
 		}
