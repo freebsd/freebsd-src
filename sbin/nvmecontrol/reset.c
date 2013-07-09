@@ -30,12 +30,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/ioccom.h>
 
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -45,7 +44,7 @@ reset_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, RESET_USAGE);
-	exit(EX_USAGE);
+	exit(1);
 }
 
 void
@@ -65,11 +64,8 @@ reset(int argc, char *argv[])
 		reset_usage();
 
 	open_dev(argv[optind], &fd, 1, 1);
-	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0) {
-		printf("Reset request to %s failed. errno=%d (%s)\n",
-		    argv[optind], errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0)
+		err(1, "reset request to %s failed", argv[optind]);
 
-	exit(EX_OK);
+	exit(0);
 }
