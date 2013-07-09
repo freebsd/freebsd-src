@@ -274,6 +274,11 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		errno = EINVAL;
 		return (-1);
 	}
+	if ((id == SCTP_CURRENT_ASSOC) ||
+	    (id == SCTP_ALL_ASSOC)) {
+		errno = EINVAL;
+		return (-1);
+	}
 	switch (opt) {
 	case SCTP_RTOINFO:
 		((struct sctp_rtoinfo *)arg)->srto_assoc_id = id;
