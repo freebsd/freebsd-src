@@ -46,17 +46,17 @@
  * PIM statistics kept in the kernel
  */
 struct pimstat {
-	u_quad_t pims_rcv_total_msgs;	   /* total PIM messages received    */
-	u_quad_t pims_rcv_total_bytes;	   /* total PIM bytes received	     */
-	u_quad_t pims_rcv_tooshort;	   /* rcvd with too few bytes	     */
-	u_quad_t pims_rcv_badsum;	   /* rcvd with bad checksum	     */
-	u_quad_t pims_rcv_badversion;	   /* rcvd bad PIM version	     */
-	u_quad_t pims_rcv_registers_msgs;  /* rcvd regs. msgs (data only)    */
-	u_quad_t pims_rcv_registers_bytes; /* rcvd regs. bytes (data only)   */
-	u_quad_t pims_rcv_registers_wrongiif; /* rcvd regs. on wrong iif     */
-	u_quad_t pims_rcv_badregisters;	   /* rcvd invalid registers	     */
-	u_quad_t pims_snd_registers_msgs;  /* sent regs. msgs (data only)    */
-	u_quad_t pims_snd_registers_bytes; /* sent regs. bytes (data only)   */
+	uint64_t pims_rcv_total_msgs;	   /* total PIM messages received    */
+	uint64_t pims_rcv_total_bytes;	   /* total PIM bytes received	     */
+	uint64_t pims_rcv_tooshort;	   /* rcvd with too few bytes	     */
+	uint64_t pims_rcv_badsum;	   /* rcvd with bad checksum	     */
+	uint64_t pims_rcv_badversion;	   /* rcvd bad PIM version	     */
+	uint64_t pims_rcv_registers_msgs;  /* rcvd regs. msgs (data only)    */
+	uint64_t pims_rcv_registers_bytes; /* rcvd regs. bytes (data only)   */
+	uint64_t pims_rcv_registers_wrongiif; /* rcvd regs. on wrong iif     */
+	uint64_t pims_rcv_badregisters;	   /* rcvd invalid registers	     */
+	uint64_t pims_snd_registers_msgs;  /* sent regs. msgs (data only)    */
+	uint64_t pims_snd_registers_bytes; /* sent regs. bytes (data only)   */
 };
 
 #ifdef _KERNEL
