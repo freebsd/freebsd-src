@@ -649,12 +649,12 @@ nvme_ctrlr_async_event_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_async_event_request	*aer = arg;
 
-	if (cpl->status.sc == NVME_SC_ABORTED_SQ_DELETION) {
+	if (nvme_completion_is_error(cpl)) {
 		/*
-		 *  This is simulated when controller is being shut down, to
-		 *  effectively abort outstanding asynchronous event requests
-		 *  and make sure all memory is freed.  Do not repost the
-		 *  request in this case.
+		 *  Do not retry failed async event requests.  This avoids
+		 *  infinite loops where a new async event request is submitted
+		 *  to replace the one just failed, only to fail again and
+		 *  perpetuate the loop.
 		 */
 		return;
 	}
