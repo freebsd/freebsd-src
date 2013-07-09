@@ -246,8 +246,12 @@ struct	ip6stat {
 };
 
 #ifdef _KERNEL
-#define	IP6STAT_ADD(name, val)	V_ip6stat.name += (val)
-#define	IP6STAT_SUB(name, val)	V_ip6stat.name -= (val)
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct ip6stat, ip6stat);
+#define	IP6STAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct ip6stat, ip6stat, name, (val))
+#define	IP6STAT_SUB(name, val)	IP6STAT_ADD(name, -(val))
 #define	IP6STAT_INC(name)	IP6STAT_ADD(name, 1)
 #define	IP6STAT_DEC(name)	IP6STAT_SUB(name, 1)
 #endif
@@ -297,7 +301,6 @@ struct ip6aux {
 #define IP6_HDR_ALIGNED_P(ip)	((((intptr_t) (ip)) & 3) == 0)
 #endif
 
-VNET_DECLARE(struct ip6stat, ip6stat);	/* statistics */
 VNET_DECLARE(int, ip6_defhlim);		/* default hop limit */
 VNET_DECLARE(int, ip6_defmcasthlim);	/* default multicast hop limit */
 VNET_DECLARE(int, ip6_forwarding);	/* act as router? */
@@ -306,7 +309,6 @@ VNET_DECLARE(int, ip6_rr_prune);	/* router renumbering prefix
 					 * walk list every 5 sec.    */
 VNET_DECLARE(int, ip6_mcast_pmtu);	/* enable pMTU discovery for multicast? */
 VNET_DECLARE(int, ip6_v6only);
-#define	V_ip6stat			VNET(ip6stat)
 #define	V_ip6_defhlim			VNET(ip6_defhlim)
 #define	V_ip6_defmcasthlim		VNET(ip6_defmcasthlim)
 #define	V_ip6_forwarding		VNET(ip6_forwarding)
