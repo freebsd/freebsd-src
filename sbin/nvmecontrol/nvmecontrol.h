@@ -38,7 +38,7 @@
 "       nvmecontrol devlist\n"
 
 #define IDENTIFY_USAGE							       \
-"       nvmecontrol identify <controller id|namespace id>\n"
+"       nvmecontrol identify [-x [-v]] <controller id|namespace id>\n"
 
 #define PERFTEST_USAGE							       \
 "       nvmecontrol perftest <-n num_threads> <-o read|write>\n"	       \
