@@ -124,13 +124,11 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	printf("Thin Provisioning:           %s\n",
 		nsdata->nsfeat.thin_prov ? "Supported" : "Not Supported");
 	printf("Number of LBA Formats:       %d\n", nsdata->nlbaf+1);
-	printf("Current LBA Format:          LBA Format #%d\n",
+	printf("Current LBA Format:          LBA Format #%02d\n",
 		nsdata->flbas.format);
-	for (i = 0; i <= nsdata->nlbaf; i++) {
-		printf("LBA Format #%d:\n", i);
-		printf("  LBA Data Size:             %d\n",
-			1 << nsdata->lbaf[i].lbads);
-	}
+	for (i = 0; i <= nsdata->nlbaf; i++)
+		printf("LBA Format #%02d: Data Size: %5d  Metadata Size: %5d\n",
+		    i, 1 << nsdata->lbaf[i].lbads, nsdata->lbaf[i].ms);
 }
 
 static void
