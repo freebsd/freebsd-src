@@ -98,14 +98,28 @@ struct scope6_id;
 struct lltable;
 struct mld_ifinfo;
 
+#ifdef _KERNEL
+#include <sys/counter.h>
+
 struct in6_ifextra {
-	struct in6_ifstat *in6_ifstat;
-	struct icmp6_ifstat *icmp6_ifstat;
+	counter_u64_t *in6_ifstat;
+	counter_u64_t *icmp6_ifstat;
 	struct nd_ifinfo *nd_ifinfo;
 	struct scope6_id *scope6_id;
 	struct lltable *lltable;
 	struct mld_ifinfo *mld_ifinfo;
 };
+#else
+
+struct in6_ifextra {
+	void *in6_ifstat;
+	void *icmp6_ifstat;
+	struct nd_ifinfo *nd_ifinfo;
+	struct scope6_id *scope6_id;
+	struct lltable *lltable;
+	struct mld_ifinfo *mld_ifinfo;
+};
+#endif /* !_KERNEL */
 
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
 
@@ -537,7 +551,9 @@ extern struct rwlock in6_ifaddr_lock;
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
-		((struct in6_ifextra *)((ifp)->if_afdata[AF_INET6]))->in6_ifstat->tag++; \
+		counter_u64_add(((struct in6_ifextra *)		\
+		    ((ifp)->if_afdata[AF_INET6]))->in6_ifstat[	\
+		    offsetof(struct in6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
 
 extern u_char inet6ctlerrmap[];
