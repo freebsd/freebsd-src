@@ -692,7 +692,9 @@ void	icmp6_mtudisc_update(struct ip6ctlparam *, int);
 #define icmp6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
-		((struct in6_ifextra *)((ifp)->if_afdata[AF_INET6]))->icmp6_ifstat->tag++; \
+		counter_u64_add(((struct in6_ifextra *)		\
+		    ((ifp)->if_afdata[AF_INET6]))->icmp6_ifstat[\
+		    offsetof(struct icmp6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
 
 #define icmp6_ifoutstat_inc(ifp, type, code) \
