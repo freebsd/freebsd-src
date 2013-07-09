@@ -124,7 +124,8 @@ static int								\
 array##_sysctl(SYSCTL_HANDLER_ARGS)					\
 {									\
 	type s;								\
-	CTASSERT(sizeof(type) == sizeof(VNET(array)));			\
+	CTASSERT((sizeof(type) / sizeof(uint64_t)) ==			\
+	    (sizeof(VNET(array)) / sizeof(counter_u64_t)));		\
 	COUNTER_ARRAY_COPY(VNET(array), &s, sizeof(type) / sizeof(uint64_t));\
 	if (req->newptr)						\
 		COUNTER_ARRAY_ZERO(VNET(array),				\
