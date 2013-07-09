@@ -67,8 +67,10 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#if defined(__bsdi__) || defined(__FreeBSD__)
+#if defined(_KERNEL) && (defined(__bsdi__) || defined(__FreeBSD__))
 #define assert(x)
+#else
+#include <assert.h>
 #endif
 
 
