@@ -253,6 +253,9 @@ firmware(int argc, char *argv[])
 		    "of available images\n",
 		    slot, controller);
 
+	if (f_flag)
+		read_image_file(image, &buf, &size);
+
 	if (f_flag && a_flag)
 		printf("You are about to download and activate "
 		       "firmware image (%s) to controller %s.\n"
@@ -282,7 +285,6 @@ firmware(int argc, char *argv[])
 	}
 
 	if (f_flag) {
-		read_image_file(image, &buf, &size);
 		update_firmware(fd, buf, size);
 		if (a_flag)
 			activate_firmware(fd, slot,
