@@ -636,8 +636,6 @@ static void
 vnet_ipcomp_attach(const void *unused __unused)
 {
 
-	/* XXX */
-	V_ipcompstat.version = IPCOMPSTAT_VERSION;
 }
 
 VNET_SYSINIT(vnet_ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,

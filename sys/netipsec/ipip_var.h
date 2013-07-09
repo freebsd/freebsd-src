@@ -44,18 +44,17 @@
  * Not quite all the functionality of RFC-1853, but the main idea is there.
  */
 
-struct ipipstat
-{
-    u_int32_t	ipips_ipackets;		/* total input packets */
-    u_int32_t	ipips_opackets;		/* total output packets */
-    u_int32_t	ipips_hdrops;		/* packet shorter than header shows */
-    u_int32_t	ipips_qfull;
-    u_int64_t   ipips_ibytes;
-    u_int64_t   ipips_obytes;
-    u_int32_t	ipips_pdrops;		/* packet dropped due to policy */
-    u_int32_t	ipips_spoof;		/* IP spoofing attempts */
-    u_int32_t   ipips_family;		/* Protocol family mismatch */
-    u_int32_t   ipips_unspec;            /* Missing tunnel endpoint address */
+struct ipipstat {
+	uint64_t	ipips_ipackets;	/* total input packets */
+	uint64_t	ipips_opackets;	/* total output packets */
+	uint64_t	ipips_hdrops;	/* packet shorter than header shows */
+	uint64_t	ipips_qfull;
+	uint64_t	ipips_ibytes;
+	uint64_t	ipips_obytes;
+	uint64_t	ipips_pdrops;	/* packet dropped due to policy */
+	uint64_t	ipips_spoof;	/* IP spoofing attempts */
+	uint64_t	ipips_family;	/* Protocol family mismatch */
+	uint64_t	ipips_unspec;   /* Missing tunnel endpoint address */
 };
 
 #ifdef _KERNEL

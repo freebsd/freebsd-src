@@ -743,7 +743,7 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct udpstat udpstat, zerostat;
 	size_t len = sizeof udpstat;
-	u_long delivered;
+	uint64_t delivered;
 
 #ifdef INET6
 	if (udp_done != 0)
@@ -765,19 +765,19 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	printf("%s:\n", name);
 #define	p(f, m) if (udpstat.f || sflag <= 1) \
-    printf(m, udpstat.f, plural(udpstat.f))
+    printf("\t%ju " m, (uintmax_t)udpstat.f, plural(udpstat.f))
 #define	p1a(f, m) if (udpstat.f || sflag <= 1) \
-    printf(m, udpstat.f)
-	p(udps_ipackets, "\t%lu datagram%s received\n");
-	p1a(udps_hdrops, "\t%lu with incomplete header\n");
-	p1a(udps_badlen, "\t%lu with bad data length field\n");
-	p1a(udps_badsum, "\t%lu with bad checksum\n");
-	p1a(udps_nosum, "\t%lu with no checksum\n");
-	p1a(udps_noport, "\t%lu dropped due to no socket\n");
+    printf("\t%ju " m, (uintmax_t)udpstat.f)
+	p(udps_ipackets, "datagram%s received\n");
+	p1a(udps_hdrops, "with incomplete header\n");
+	p1a(udps_badlen, "with bad data length field\n");
+	p1a(udps_badsum, "with bad checksum\n");
+	p1a(udps_nosum, "with no checksum\n");
+	p1a(udps_noport, "dropped due to no socket\n");
 	p(udps_noportbcast,
-	    "\t%lu broadcast/multicast datagram%s undelivered\n");
-	p1a(udps_fullsock, "\t%lu dropped due to full socket buffers\n");
-	p1a(udpps_pcbhashmiss, "\t%lu not for hashed pcb\n");
+	    "broadcast/multicast datagram%s undelivered\n");
+	p1a(udps_fullsock, "dropped due to full socket buffers\n");
+	p1a(udpps_pcbhashmiss, "not for hashed pcb\n");
 	delivered = udpstat.udps_ipackets -
 		    udpstat.udps_hdrops -
 		    udpstat.udps_badlen -
@@ -786,11 +786,11 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		    udpstat.udps_noportbcast -
 		    udpstat.udps_fullsock;
 	if (delivered || sflag <= 1)
-		printf("\t%lu delivered\n", delivered);
-	p(udps_opackets, "\t%lu datagram%s output\n");
+		printf("\t%ju delivered\n", (uint64_t)delivered);
+	p(udps_opackets, "datagram%s output\n");
 	/* the next statistic is cumulative in udps_noportbcast */
 	p(udps_filtermcast,
-	    "\t%lu time%s multicast source filter matched\n");
+	    "time%s multicast source filter matched\n");
 #undef p
 #undef p1a
 }
@@ -938,18 +938,18 @@ arp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("%s:\n", name);
 
 #define	p(f, m) if (arpstat.f || sflag <= 1) \
-    printf(m, arpstat.f, plural(arpstat.f))
+    printf("\t%ju " m, (uintmax_t)arpstat.f, plural(arpstat.f))
 #define	p2(f, m) if (arpstat.f || sflag <= 1) \
-    printf(m, arpstat.f, pluralies(arpstat.f))
+    printf("\t%ju " m, (uintmax_t)arpstat.f, pluralies(arpstat.f))
 
-	p(txrequests, "\t%lu ARP request%s sent\n");
-	p2(txreplies, "\t%lu ARP repl%s sent\n");
-	p(rxrequests, "\t%lu ARP request%s received\n");
-	p2(rxreplies, "\t%lu ARP repl%s received\n");
-	p(received, "\t%lu ARP packet%s received\n");
-	p(dropped, "\t%lu total packet%s dropped due to no ARP entry\n");
-	p(timeouts, "\t%lu ARP entry%s timed out\n");
-	p(dupips, "\t%lu Duplicate IP%s seen\n");
+	p(txrequests, "ARP request%s sent\n");
+	p2(txreplies, "ARP repl%s sent\n");
+	p(rxrequests, "ARP request%s received\n");
+	p2(rxreplies, "ARP repl%s received\n");
+	p(received, "ARP packet%s received\n");
+	p(dropped, "total packet%s dropped due to no ARP entry\n");
+	p(timeouts, "ARP entry%s timed out\n");
+	p(dupips, "Duplicate IP%s seen\n");
 #undef p
 #undef p2
 }
