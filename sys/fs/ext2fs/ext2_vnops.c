@@ -1812,15 +1812,6 @@ ext2_write(struct vop_write_args *ap)
 		if (error != 0)
 			break;
 
-		/*
-		 * If the buffer is not valid and we did not clear garbage
-		 * out above, we have to do so here even though the write
-		 * covers the entire buffer in order to avoid a mmap()/write
-		 * race where another process may see the garbage prior to
-		 * the uiomove() for a write replacing it.
-		 */
-		if ((bp->b_flags & B_CACHE) == 0 && fs->e2fs_bsize <= xfersize)
-			vfs_bio_clrbuf(bp);
 		if ((ioflag & (IO_SYNC|IO_INVAL)) == (IO_SYNC|IO_INVAL))
 			bp->b_flags |= B_NOCACHE;
 		if (uio->uio_offset + xfersize > ip->i_size)
@@ -1831,6 +1822,26 @@ ext2_write(struct vop_write_args *ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		/*
+		 * If the buffer is not already filled and we encounter an
+		 * error while trying to fill it, we have to clear out any
+		 * garbage data from the pages instantiated for the buffer.
+		 * If we do not, a failed uiomove() during a write can leave
+		 * the prior contents of the pages exposed to a userland mmap.
+		 *
+		 * Note that we need only clear buffers with a transfer size
+		 * equal to the block size because buffers with a shorter
+		 * transfer size were cleared above by the call to ext2_balloc()
+		 * with the BA_CLRBUF flag set.
+		 *
+		 * If the source region for uiomove identically mmaps the
+		 * buffer, uiomove() performed the NOP copy, and the buffer
+		 * content remains valid because the page fault handler
+		 * validated the pages.
+		 */
+		if (error != 0 && (bp->b_flags & B_CACHE) == 0 &&
+		    fs->e2fs_bsize == xfersize)
+			vfs_bio_clrbuf(bp);
 		if (ioflag & (IO_VMIO|IO_DIRECT)) {
 			bp->b_flags |= B_RELBUF;
 		}
