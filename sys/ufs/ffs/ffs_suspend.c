@@ -206,7 +206,7 @@ ffs_susp_suspend(struct mount *mp)
 		return (EPERM);
 #endif
 
-	if ((error = vfs_write_suspend(mp)) != 0)
+	if ((error = vfs_write_suspend(mp, VS_SKIP_UNMOUNT)) != 0)
 		return (error);
 
 	ump->um_writesuspended = 1;
