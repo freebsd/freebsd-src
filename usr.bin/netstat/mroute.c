@@ -350,7 +350,7 @@ mrt_stats(u_long mstaddr)
 			return;
 		}
 	} else
-		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
+		kread_counters(mstaddr, &mrtstat, len);
 
 	printf("IPv4 multicast forwarding:\n");
 

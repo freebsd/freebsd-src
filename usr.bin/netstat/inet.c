@@ -756,7 +756,7 @@ udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &udpstat, len);
+		kread_counters(off, &udpstat, len);
 
 	printf("%s:\n", name);
 #define	p(f, m) if (udpstat.f || sflag <= 1) \
@@ -923,7 +923,7 @@ arp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &arpstat, len);
+		kread_counters(off, &arpstat, len);
 
 	printf("%s:\n", name);
 
@@ -1010,7 +1010,7 @@ icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &icmpstat, len);
+		kread_counters(off, &icmpstat, len);
 
 	printf("%s:\n", name);
 
@@ -1217,7 +1217,7 @@ pim_stats(u_long off __unused, const char *name, int af1 __unused,
 	} else {
 		if (off == 0)
 			return;
-		kread(off, &pimstat, len);
+		kread_counters(off, &pimstat, len);
 	}
 
 	printf("%s:\n", name);

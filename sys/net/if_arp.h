@@ -127,13 +127,21 @@ struct arpstat {
 	uint64_t dupips;	/* # of duplicate IPs detected. */
 };
 
+#ifdef _KERNEL
+#include <sys/counter.h>
+#include <net/vnet.h>
+
+VNET_PCPUSTAT_DECLARE(struct arpstat, arpstat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	ARPSTAT_ADD(name, val)	V_arpstat.name += (val)
-#define	ARPSTAT_SUB(name, val)	V_arpstat.name -= (val)
+#define	ARPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct arpstat, arpstat, name, (val))
+#define	ARPSTAT_SUB(name, val)	ARPSTAT_ADD(name, -(val))
 #define	ARPSTAT_INC(name)	ARPSTAT_ADD(name, 1)
 #define	ARPSTAT_DEC(name)	ARPSTAT_SUB(name, 1)
+
+#endif /* _KERNEL */
 
 #endif /* !_NET_IF_ARP_H_ */
