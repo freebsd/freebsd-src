@@ -222,7 +222,8 @@ struct mrtstat {
 };
 
 #ifdef _KERNEL
-#define	MRTSTAT_ADD(name, val)	V_mrtstat.name += (val)
+#define	MRTSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct mrtstat, mrtstat, name, (val))
 #define	MRTSTAT_INC(name)	MRTSTAT_ADD(name, 1)
 #endif
 
