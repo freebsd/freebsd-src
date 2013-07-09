@@ -268,7 +268,7 @@ ipsec_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	if (off == 0)
 		return;
 	printf ("%s:\n", name);
-	kread(off, (char *)&ipsecstat, sizeof(ipsecstat));
+	kread_counters(off, (char *)&ipsecstat, sizeof(ipsecstat));
 
 	print_ipsecstats(&ipsecstat);
 }
@@ -354,7 +354,7 @@ ah_stats(u_long off, const char *name, int family __unused, int proto __unused)
 	if (off == 0)
 		return;
 	printf ("%s:\n", name);
-	kread(off, (char *)&ahstat, sizeof(ahstat));
+	kread_counters(off, (char *)&ahstat, sizeof(ahstat));
 
 	print_ahstats(&ahstat);
 }
@@ -401,7 +401,7 @@ esp_stats(u_long off, const char *name, int family __unused, int proto __unused)
 	if (off == 0)
 		return;
 	printf ("%s:\n", name);
-	kread(off, (char *)&espstat, sizeof(espstat));
+	kread_counters(off, (char *)&espstat, sizeof(espstat));
 
 	print_espstats(&espstat);
 }
@@ -446,7 +446,7 @@ ipcomp_stats(u_long off, const char *name, int family __unused,
 	if (off == 0)
 		return;
 	printf ("%s:\n", name);
-	kread(off, (char *)&ipcompstat, sizeof(ipcompstat));
+	kread_counters(off, (char *)&ipcompstat, sizeof(ipcompstat));
 
 	print_ipcompstats(&ipcompstat);
 }

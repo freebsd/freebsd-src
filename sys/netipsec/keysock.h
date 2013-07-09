@@ -63,16 +63,18 @@ struct pfkeystat {
 #define KEY_SENDUP_REGISTERED	2
 
 #ifdef _KERNEL
+#include <sys/counter.h>
+
 struct keycb {
 	struct rawcb kp_raw;	/* rawcb */
 	int kp_promisc;		/* promiscuous mode */
 	int kp_registered;	/* registered socket */
 };
 
-VNET_DECLARE(struct pfkeystat, pfkeystat);
-#define	PFKEYSTAT_ADD(name, val)	V_pfkeystat.name += (val)
+VNET_PCPUSTAT_DECLARE(struct pfkeystat, pfkeystat);
+#define	PFKEYSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct pfkeystat, pfkeystat, name, (val))
 #define	PFKEYSTAT_INC(name)		PFKEYSTAT_ADD(name, 1)
-#define	V_pfkeystat		VNET(pfkeystat)
 
 extern int key_output(struct mbuf *m, struct socket *so);
 extern int key_usrreq __P((struct socket *,

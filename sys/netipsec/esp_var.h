@@ -72,12 +72,14 @@ struct espstat {
 };
 
 #ifdef _KERNEL
-VNET_DECLARE(int, esp_enable);
-VNET_DECLARE(struct espstat, espstat);
+#include <sys/counter.h>
 
-#define	ESPSTAT_ADD(name, val)	V_espstat.name += (val)
+VNET_DECLARE(int, esp_enable);
+VNET_PCPUSTAT_DECLARE(struct espstat, espstat);
+
+#define	ESPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct espstat, espstat, name, (val))
 #define	ESPSTAT_INC(name)	ESPSTAT_ADD(name, 1)
 #define	V_esp_enable	VNET(esp_enable)
-#define	V_espstat	VNET(espstat)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_ESP_VAR_H_*/

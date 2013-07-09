@@ -71,14 +71,16 @@ struct ahstat {
 };
 
 #ifdef _KERNEL
+#include <sys/counter.h>
+
 VNET_DECLARE(int, ah_enable);
 VNET_DECLARE(int, ah_cleartos);
-VNET_DECLARE(struct ahstat, ahstat);
+VNET_PCPUSTAT_DECLARE(struct ahstat, ahstat);
 
-#define	AHSTAT_ADD(name, val)	V_ahstat.name += (val)
+#define	AHSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct ahstat, ahstat, name , (val))
 #define	AHSTAT_INC(name)	AHSTAT_ADD(name, 1)
 #define	V_ah_enable		VNET(ah_enable)
 #define	V_ah_cleartos		VNET(ah_cleartos)
-#define	V_ahstat		VNET(ahstat)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_AH_VAR_H_*/
