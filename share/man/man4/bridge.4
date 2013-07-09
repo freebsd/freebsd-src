@@ -151,7 +151,7 @@ The following
 .Xr rc.conf 5
 variable configures an IPv6 link-local address on
 .Li bridge0
-interface: 
+interface:
 .Bd -literal -offset indent
 ifconfig_bridge0_ipv6="up"
 .Ed
@@ -186,7 +186,7 @@ and applications use both of them.
 To prevent this situation,
 .Nm
 checks whether an link-local scoped IPv6 address is configured on
-a member interface to be added and the 
+a member interface to be added and the
 .Nm
 interface.
 When the
@@ -214,7 +214,6 @@ and/or
 .Va net.inet6.ip6.auto_linklocal
 is set to
 .Li 1 .
-.Ed
 .Sh SPANNING TREE
 The
 .Nm
