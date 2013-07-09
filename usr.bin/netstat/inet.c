@@ -811,7 +811,7 @@ carp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	} else {
 		if (off == 0)
 			return;
-		kread(off, &carpstat, len);
+		kread_counters(off, &carpstat, len);
 	}
 
 	printf("%s:\n", name);
