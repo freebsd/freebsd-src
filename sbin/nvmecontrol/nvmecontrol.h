@@ -63,6 +63,7 @@ void logpage(int argc, char *argv[]);
 void firmware(int argc, char *argv[]);
 
 int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
+void parse_ns_str(const char *ns_str, char *ctrlr_str, int *nsid);
 void read_controller_data(int fd, struct nvme_controller_data *cdata);
 void read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata);
 void print_hex(void *data, uint32_t length);
