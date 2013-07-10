@@ -48,6 +48,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
+#include <sys/filio.h>
 #include <sys/stat.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -94,6 +95,7 @@ static vop_close_t	ext2_close;
 static vop_create_t	ext2_create;
 static vop_fsync_t	ext2_fsync;
 static vop_getattr_t	ext2_getattr;
+static vop_ioctl_t	ext2_ioctl;
 static vop_link_t	ext2_link;
 static vop_mkdir_t	ext2_mkdir;
 static vop_mknod_t	ext2_mknod;
@@ -124,6 +126,7 @@ struct vop_vector ext2_vnodeops = {
 	.vop_fsync =		ext2_fsync,
 	.vop_getattr =		ext2_getattr,
 	.vop_inactive =		ext2_inactive,
+	.vop_ioctl =		ext2_ioctl,
 	.vop_link =		ext2_link,
 	.vop_lookup =		vfs_cache_lookup,
 	.vop_mkdir =		ext2_mkdir,
@@ -1433,6 +1436,9 @@ ext2_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		return (0);
+	case _PC_MIN_HOLE_SIZE:
+		*ap->a_retval = ap->a_vp->v_mount->mnt_stat.f_iosize;
+		return(0);
 	default:
 		return (EINVAL);
 	}
@@ -1705,6 +1711,20 @@ ext2_read(struct vop_read_args *ap)
 	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		ip->i_flag |= IN_ACCESS;
 	return (error);
+}
+
+static int
+ext2_ioctl(struct vop_ioctl_args *ap)
+{
+
+	switch (ap->a_command) {
+	case FIOSEEKDATA:
+	case FIOSEEKHOLE:
+		return (vn_bmap_seekhole(ap->a_vp, ap->a_command,
+		    (off_t *)ap->a_data, ap->a_cred));
+	default:
+		return (ENOTTY);
+	}
 }
 
 /*
