@@ -6466,6 +6466,7 @@ struct bce_softc
 #define BCE_USING_MSIX_FLAG			0x00000100
 #define BCE_PCIE_FLAG				0x00000200
 #define BCE_USING_TX_FLOW_CONTROL		0x00000400
+#define BCE_USING_RX_FLOW_CONTROL		0x00000800
 
 	/* Controller capability flags. */
 	u32			bce_cap_flags;
