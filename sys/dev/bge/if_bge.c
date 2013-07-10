@@ -2400,7 +2400,7 @@ bge_blockinit(struct bge_softc *sc)
 	DELAY(40);
 
 	/* Set misc. local control, enable interrupts on attentions */
-	CSR_WRITE_4(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_ONATTN);
+	BGE_SETBIT(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_ONATTN);
 
 #ifdef notdef
 	/* Assert GPIO pins for PHY reset */
