@@ -427,7 +427,7 @@ struct v4l2_frmsizeenum {
 	union {					/* Frame size */
 		struct v4l2_frmsize_discrete	discrete;
 		struct v4l2_frmsize_stepwise	stepwise;
-	};
+	} x;
 
 	__u32   reserved[2];			/* Reserved space for future use */
 };
@@ -457,7 +457,7 @@ struct v4l2_frmivalenum {
 	union {					/* Frame interval */
 		struct v4l2_fract		discrete;
 		struct v4l2_frmival_stepwise	stepwise;
-	};
+	} x;
 
 	__u32	reserved[2];			/* Reserved space for future use */
 };
@@ -834,7 +834,7 @@ struct v4l2_dv_timings {
 	union {
 		struct v4l2_bt_timings	bt;
 		__u32	reserved[32];
-	};
+	} x;
 } __attribute__ ((packed));
 
 /* Values for the type field */
@@ -927,7 +927,7 @@ struct v4l2_ext_control {
 		__s32 value;
 		__s64 value64;
 		char *string;
-	};
+	} x;
 } __attribute__ ((packed));
 
 struct v4l2_ext_controls {
@@ -1475,7 +1475,7 @@ struct v4l2_encoder_cmd {
 		struct {
 			__u32 data[8];
 		} raw;
-	};
+	} x;
 };
 
 #endif
@@ -1597,7 +1597,7 @@ struct v4l2_mpeg_vbi_fmt_ivtv {
 	union {
 		struct v4l2_mpeg_vbi_itv0 itv0;
 		struct v4l2_mpeg_vbi_ITV0 ITV0;
-	};
+	} x;
 } __attribute__ ((packed));
 
 /*
@@ -1648,7 +1648,7 @@ struct v4l2_dbg_match {
 	union {     /* Match this chip, meaning determined by type */
 		__u32 addr;
 		char name[32];
-	};
+	} x;
 } __attribute__ ((packed));
 
 struct v4l2_dbg_register {
