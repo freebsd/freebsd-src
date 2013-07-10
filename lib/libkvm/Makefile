@@ -3,6 +3,7 @@
 
 LIB=	kvm
 SHLIBDIR?= /lib
+SHLIB_MAJOR=	6
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 
 .if exists(${.CURDIR}/kvm_${MACHINE_ARCH}.c)
