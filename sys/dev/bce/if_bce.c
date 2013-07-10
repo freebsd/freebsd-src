@@ -2097,10 +2097,12 @@ bce_miibus_statchg(device_t dev)
 		DBPRINT(sc, BCE_INFO_PHY,
 		    "%s(): Enabling RX flow control.\n", __FUNCTION__);
 		BCE_SETBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
+		sc->bce_flags |= BCE_USING_RX_FLOW_CONTROL;
 	} else {
 		DBPRINT(sc, BCE_INFO_PHY,
 		    "%s(): Disabling RX flow control.\n", __FUNCTION__);
 		BCE_CLRBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
+		sc->bce_flags &= ~BCE_USING_RX_FLOW_CONTROL;
 	}
 
 	if ((IFM_OPTIONS(media_active) & IFM_ETH_TXPAUSE) != 0) {
@@ -7889,18 +7891,42 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 bce_watchdog(struct bce_softc *sc)
 {
+	uint32_t status;
+
 	DBENTER(BCE_EXTREME_SEND);
 
 	BCE_LOCK_ASSERT(sc);
 
+	status = 0;
 	/* If the watchdog timer hasn't expired then just exit. */
 	if (sc->watchdog_timer == 0 || --sc->watchdog_timer)
 		goto bce_watchdog_exit;
 
+	status = REG_RD(sc, BCE_EMAC_RX_STATUS);
 	/* If pause frames are active then don't reset the hardware. */
-	/* ToDo: Should we reset the timer here? */
-	if (REG_RD(sc, BCE_EMAC_TX_STATUS) & BCE_EMAC_TX_STATUS_XOFFED)
-		goto bce_watchdog_exit;
+	if ((sc->bce_flags & BCE_USING_RX_FLOW_CONTROL) != 0) {
+		if ((status & BCE_EMAC_RX_STATUS_FFED) != 0) {
+			/*
+			 * If link partner has us in XOFF state then wait for
+			 * the condition to clear.
+			 */
+			sc->watchdog_timer = BCE_TX_TIMEOUT;
+			goto bce_watchdog_exit;
+		} else if ((status & BCE_EMAC_RX_STATUS_FF_RECEIVED) != 0 &&
+			(status & BCE_EMAC_RX_STATUS_N_RECEIVED) != 0) {
+			/*
+			 * If we're not currently XOFF'ed but have recently
+			 * been XOFF'd/XON'd then assume that's delaying TX
+			 * this time around.
+			 */
+			sc->watchdog_timer = BCE_TX_TIMEOUT;
+			goto bce_watchdog_exit;
+		}
+		/*
+		 * Any other condition is unexpected and the controller
+		 * should be reset.
+		 */
+	}
 
 	BCE_PRINTF("%s(%d): Watchdog timeout occurred, resetting!\n",
 	    __FILE__, __LINE__);
@@ -7924,6 +7950,7 @@ bce_watchdog(struct bce_softc *sc)
 	sc->bce_ifp->if_oerrors++;
 
 bce_watchdog_exit:
+	REG_WR(sc, BCE_EMAC_RX_STATUS, status);
 	DBEXIT(BCE_EXTREME_SEND);
 }
 
