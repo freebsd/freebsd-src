@@ -292,7 +292,31 @@ f_dialog_max_size()
 		__max_size=$( stty size 2> /dev/null ) # usually "24 80"
 		: ${__max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
-	[ "$__var_height" ] && setvar "$__var_height" "${__max_size%%[$IFS]*}"
+	if [ "$__var_height" ]; then
+		local __height="${__max_size%%[$IFS]*}"
+		#
+		# If we're not using Xdialog(1), we should assume that $DIALOG
+		# will render --backtitle behind the widget. In such a case, we
+		# should prevent a widget from obscuring the backtitle (unless
+		# $NO_BACKTITLE is set and non-NULL, allowing a trap-door).
+		#
+		if [ ! "$USE_XDIALOG" ] && [ ! "$NO_BACKTITLE" ]; then
+			#
+			# If use_shadow (in ~/.dialogrc) is OFF, we need to
+			# subtract 4, otherwise 5. However, don't check this
+			# every time, rely on an initialization variable set
+			# by f_dialog_init().
+			#
+			local __adjust=5
+			[ "$NO_SHADOW" ] && __adjust=4
+
+			# Don't adjust height if already too small (allowing
+			# obscured backtitle for small values of __height).
+			[ ${__height:-0} -gt 11 ] &&
+				__height=$(( $__height - $__adjust ))
+		fi
+		setvar "$__var_height" "$__height"
+	fi
 	[ "$__var_width" ] && setvar "$__var_width" "${__max_size##*[$IFS]}"
 }
 
@@ -1999,6 +2023,12 @@ f_dialog_menutag2index_with_help()
 # 	              that (while running as root) sudo(8) authentication is
 # 	              required to proceed.
 #
+# Also reads ~/.dialogrc for the following information:
+#
+# 	NO_SHADOW     Either NULL or Non-NULL. If use_shadow is OFF (case-
+# 	              insensitive) in ~/.dialogrc this is set to "1" (otherwise
+# 	              unset).
+#
 f_dialog_init()
 {
 	DIALOG_SELF_INITIALIZE=
@@ -2055,6 +2085,22 @@ f_dialog_init()
 		local failed_dialog="$DIALOG"
 		DIALOG=dialog
 		f_die 1 "$msg_no_such_file_or_directory" "$pgm" "$failed_dialog"
+	fi
+
+	#
+	# Read ~/.dialogrc (unless using Xdialog(1)) for properties
+	#
+	if [ -f ~/.dialogrc -a ! "$USE_XDIALOG" ]; then
+		eval "$(
+			awk -v param=use_shadow -v expect=OFF \
+			    -v set="NO_SHADOW=1" '
+			!/^[[:space:]]*(#|$)/ && \
+			tolower($1) ~ "^"param"(=|$)" && \
+			/[^#]*=/ {
+				sub(/^[^=]*=[[:space:]]*/, "")
+				if ( toupper($1) == expect ) print set";"
+			}' ~/.dialogrc
+		)"
 	fi
 
 	#
