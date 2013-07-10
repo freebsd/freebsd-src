@@ -195,8 +195,8 @@ f_dialog_line_sanitize()
 # argument is NULL, the current title is returned.
 #
 # Each time this function is called, a backup of the current values is made
-# allowing a one-time (single-level) restoration of the previous title using the
-# f_dialog_title_restore() function (below).
+# allowing a one-time (single-level) restoration of the previous title using
+# the f_dialog_title_restore() function (below).
 #
 f_dialog_title()
 {
