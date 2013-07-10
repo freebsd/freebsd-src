@@ -5296,7 +5296,7 @@ bge_start_locked(struct ifnet *ifp)
 		/*
 		 * Set a timeout in case the chip goes out to lunch.
 		 */
-		sc->bge_timer = 5;
+		sc->bge_timer = BGE_TX_TIMEOUT;
 	}
 }
 
@@ -5801,11 +5801,39 @@ static void
 bge_watchdog(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
+	uint32_t status;
 
 	BGE_LOCK_ASSERT(sc);
 
 	if (sc->bge_timer == 0 || --sc->bge_timer)
 		return;
+
+	/* If pause frames are active then don't reset the hardware. */
+	if ((CSR_READ_4(sc, BGE_RX_MODE) & BGE_RXMODE_FLOWCTL_ENABLE) != 0) {
+		status = CSR_READ_4(sc, BGE_RX_STS);
+		if ((status & BGE_RXSTAT_REMOTE_XOFFED) != 0) {
+			/*
+			 * If link partner has us in XOFF state then wait for
+			 * the condition to clear.
+			 */
+			CSR_WRITE_4(sc, BGE_RX_STS, status);
+			sc->bge_timer = BGE_TX_TIMEOUT;
+			return;
+		} else if ((status & BGE_RXSTAT_RCVD_XOFF) != 0 &&
+		    (status & BGE_RXSTAT_RCVD_XON) != 0) {
+			/*
+			 * If link partner has us in XOFF state then wait for
+			 * the condition to clear.
+			 */
+			CSR_WRITE_4(sc, BGE_RX_STS, status);
+			sc->bge_timer = BGE_TX_TIMEOUT;
+			return;
+		}
+		/*
+		 * Any other condition is unexpected and the controller
+		 * should be reset.
+		 */
+	}
 
 	ifp = sc->bge_ifp;
 
