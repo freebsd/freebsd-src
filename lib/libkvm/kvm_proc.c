@@ -712,3 +712,55 @@ kvm_getenvv(kvm_t *kd, const struct kinfo_proc *kp, int nchr)
 {
 	return (kvm_argv(kd, kp, 1, nchr));
 }
+
+/*
+ * Read from user space.  The user context is given by p.
+ */
+ssize_t
+kvm_uread(kvm_t *kd, const struct kinfo_proc *kp, u_long uva, char *buf,
+	size_t len)
+{
+	char *cp;
+	char procfile[MAXPATHLEN];
+	ssize_t amount;
+	int fd;
+
+	if (!ISALIVE(kd)) {
+		_kvm_err(kd, kd->program,
+		    "cannot read user space from dead kernel");
+		return (0);
+	}
+
+	sprintf(procfile, "/proc/%d/mem", kp->ki_pid);
+	fd = open(procfile, O_RDONLY, 0);
+	if (fd < 0) {
+		_kvm_err(kd, kd->program, "cannot open %s", procfile);
+		return (0);
+	}
+
+	cp = buf;
+	while (len > 0) {
+		errno = 0;
+		if (lseek(fd, (off_t)uva, 0) == -1 && errno != 0) {
+			_kvm_err(kd, kd->program, "invalid address (%lx) in %s",
+			    uva, procfile);
+			break;
+		}
+		amount = read(fd, cp, len);
+		if (amount < 0) {
+			_kvm_syserr(kd, kd->program, "error reading %s",
+			    procfile);
+			break;
+		}
+		if (amount == 0) {
+			_kvm_err(kd, kd->program, "EOF reading %s", procfile);
+			break;
+		}
+		cp += amount;
+		uva += amount;
+		len -= amount;
+	}
+
+	close(fd);
+	return ((ssize_t)(cp - buf));
+}
