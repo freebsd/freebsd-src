@@ -1446,6 +1446,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int thflags, acked, ourfinisacked, needoutput = 0;
 	int rstreason, todrop, win;
 	u_long tiwin;
+	char *s;
+	struct in_conninfo *inc;
 	struct tcpopt to;
 
 #ifdef TCPDEBUG
@@ -1458,6 +1460,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
 	thflags = th->th_flags;
+	inc = &tp->t_inpcb->inp_inc;
 	tp->sackhint.last_sack_ack = 0;
 
 	/*
@@ -1545,6 +1548,24 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		to.to_tsecr -= tp->ts_offset;
 		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
+	}
+	/*
+	 * If timestamps were negotiated during SYN/ACK they should
+	 * appear on every segment during this session and vice versa.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+	}
+	if (!(tp->t_flags & TF_RCVD_TSTMP) && (to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
 	}
 
 	/*
@@ -2213,15 +2234,14 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
-		char *s;
-
 		KASSERT(ti_locked == TI_WLOCKED, ("%s: SS_NOFDEREF && "
 		    "CLOSE_WAIT && tlen ti_locked %d", __func__, ti_locked));
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data after socket "
-			    "was closed, sending RST and removing tcpcb\n",
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data "
+			    "after socket was closed, "
+			    "sending RST and removing tcpcb\n",
 			    s, __func__, tcpstates[tp->t_state], tlen);
 			free(s, M_TCPLOG);
 		}
