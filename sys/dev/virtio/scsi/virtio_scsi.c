@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2012, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/callout.h>
-#include <sys/taskqueue.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 
@@ -172,13 +171,10 @@ static struct vtscsi_request * vtscsi_dequeue_request(struct vtscsi_softc *);
 
 static void	vtscsi_complete_request(struct vtscsi_request *);
 static void 	vtscsi_complete_vq(struct vtscsi_softc *, struct virtqueue *);
-static void	vtscsi_control_vq_task(void *, int);
-static void	vtscsi_event_vq_task(void *, int);
-static void	vtscsi_request_vq_task(void *, int);
 
-static int	vtscsi_control_vq_intr(void *);
-static int	vtscsi_event_vq_intr(void *);
-static int	vtscsi_request_vq_intr(void *);
+static void	vtscsi_control_vq_intr(void *);
+static void	vtscsi_event_vq_intr(void *);
+static void	vtscsi_request_vq_intr(void *);
 static void 	vtscsi_disable_vqs_intr(struct vtscsi_softc *);
 static void 	vtscsi_enable_vqs_intr(struct vtscsi_softc *);
 
@@ -333,29 +329,11 @@ vtscsi_attach(device_t dev)
 		goto fail;
 	}
 
-	TASK_INIT(&sc->vtscsi_control_intr_task, 0,
-	    vtscsi_control_vq_task, sc);
-	TASK_INIT(&sc->vtscsi_event_intr_task, 0,
-	    vtscsi_event_vq_task, sc);
-	TASK_INIT(&sc->vtscsi_request_intr_task, 0,
-	    vtscsi_request_vq_task, sc);
-
-	sc->vtscsi_tq = taskqueue_create_fast("vtscsi_taskq", M_NOWAIT,
-	    taskqueue_thread_enqueue, &sc->vtscsi_tq);
-	if (sc->vtscsi_tq == NULL) {
-		error = ENOMEM;
-		device_printf(dev, "cannot allocate taskqueue\n");
-		goto fail;
-	}
-
 	error = virtio_setup_intr(dev, INTR_TYPE_CAM);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupts\n");
 		goto fail;
 	}
-
-	taskqueue_start_threads(&sc->vtscsi_tq, 1, PI_DISK, "%s taskq",
-	    device_get_nameunit(dev));
 
 	vtscsi_enable_vqs_intr(sc);
 
@@ -388,14 +366,6 @@ vtscsi_detach(device_t dev)
 	if (device_is_attached(dev))
 		vtscsi_stop(sc);
 	VTSCSI_UNLOCK(sc);
-
-	if (sc->vtscsi_tq != NULL) {
-		taskqueue_drain(sc->vtscsi_tq, &sc->vtscsi_control_intr_task);
-		taskqueue_drain(sc->vtscsi_tq, &sc->vtscsi_event_intr_task);
-		taskqueue_drain(sc->vtscsi_tq, &sc->vtscsi_request_intr_task);
-		taskqueue_free(sc->vtscsi_tq);
-		sc->vtscsi_tq = NULL;
-	}
 
 	vtscsi_complete_vqs(sc);
 	vtscsi_drain_vqs(sc);
@@ -572,18 +542,13 @@ vtscsi_register_cam(struct vtscsi_softc *sc)
 		goto fail;
 	}
 
-	VTSCSI_UNLOCK(sc);
-
-	/*
-	 * The async register apparently needs to be done without
-	 * the lock held, otherwise it can recurse on the lock.
-	 */
 	if (vtscsi_register_async(sc) != CAM_REQ_CMP) {
 		error = EIO;
 		device_printf(dev, "cannot register async callback\n");
-		VTSCSI_LOCK(sc);
 		goto fail;
 	}
+
+	VTSCSI_UNLOCK(sc);
 
 	return (0);
 
@@ -651,8 +616,6 @@ static int
 vtscsi_register_async(struct vtscsi_softc *sc)
 {
 	struct ccb_setasync csa;
-
-	VTSCSI_LOCK_NOTOWNED(sc);
 
 	xpt_setup_ccb(&csa.ccb_h, sc->vtscsi_path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
@@ -1268,7 +1231,7 @@ vtscsi_scsi_cmd_cam_status(struct virtio_scsi_cmd_resp *cmd_resp)
 		status = CAM_REQ_ABORTED;
 		break;
 	case VIRTIO_SCSI_S_BAD_TARGET:
-		status = CAM_TID_INVALID;
+		status = CAM_SEL_TIMEOUT;
 		break;
 	case VIRTIO_SCSI_S_RESET:
 		status = CAM_SCSI_BUS_RESET;
@@ -2152,14 +2115,15 @@ vtscsi_complete_vq(struct vtscsi_softc *sc, struct virtqueue *vq)
 }
 
 static void
-vtscsi_control_vq_task(void *arg, int pending)
+vtscsi_control_vq_intr(void *xsc)
 {
 	struct vtscsi_softc *sc;
 	struct virtqueue *vq;
 
-	sc = arg;
+	sc = xsc;
 	vq = sc->vtscsi_control_vq;
 
+again:
 	VTSCSI_LOCK(sc);
 
 	vtscsi_complete_vq(sc, sc->vtscsi_control_vq);
@@ -2167,24 +2131,23 @@ vtscsi_control_vq_task(void *arg, int pending)
 	if (virtqueue_enable_intr(vq) != 0) {
 		virtqueue_disable_intr(vq);
 		VTSCSI_UNLOCK(sc);
-		taskqueue_enqueue_fast(sc->vtscsi_tq,
-		    &sc->vtscsi_control_intr_task);
-		return;
+		goto again;
 	}
 
 	VTSCSI_UNLOCK(sc);
 }
 
 static void
-vtscsi_event_vq_task(void *arg, int pending)
+vtscsi_event_vq_intr(void *xsc)
 {
 	struct vtscsi_softc *sc;
 	struct virtqueue *vq;
 	struct virtio_scsi_event *event;
 
-	sc = arg;
+	sc = xsc;
 	vq = sc->vtscsi_event_vq;
 
+again:
 	VTSCSI_LOCK(sc);
 
 	while ((event = virtqueue_dequeue(vq, NULL)) != NULL)
@@ -2193,23 +2156,22 @@ vtscsi_event_vq_task(void *arg, int pending)
 	if (virtqueue_enable_intr(vq) != 0) {
 		virtqueue_disable_intr(vq);
 		VTSCSI_UNLOCK(sc);
-		taskqueue_enqueue_fast(sc->vtscsi_tq,
-		    &sc->vtscsi_control_intr_task);
-		return;
+		goto again;
 	}
 
 	VTSCSI_UNLOCK(sc);
 }
 
 static void
-vtscsi_request_vq_task(void *arg, int pending)
+vtscsi_request_vq_intr(void *xsc)
 {
 	struct vtscsi_softc *sc;
 	struct virtqueue *vq;
 
-	sc = arg;
+	sc = xsc;
 	vq = sc->vtscsi_request_vq;
 
+again:
 	VTSCSI_LOCK(sc);
 
 	vtscsi_complete_vq(sc, sc->vtscsi_request_vq);
@@ -2217,54 +2179,10 @@ vtscsi_request_vq_task(void *arg, int pending)
 	if (virtqueue_enable_intr(vq) != 0) {
 		virtqueue_disable_intr(vq);
 		VTSCSI_UNLOCK(sc);
-		taskqueue_enqueue_fast(sc->vtscsi_tq,
-		    &sc->vtscsi_request_intr_task);
-		return;
+		goto again;
 	}
 
 	VTSCSI_UNLOCK(sc);
-}
-
-static int
-vtscsi_control_vq_intr(void *xsc)
-{
-	struct vtscsi_softc *sc;
-
-	sc = xsc;
-
-	virtqueue_disable_intr(sc->vtscsi_control_vq);
-	taskqueue_enqueue_fast(sc->vtscsi_tq,
-	    &sc->vtscsi_control_intr_task);
-
-	return (1);
-}
-
-static int
-vtscsi_event_vq_intr(void *xsc)
-{
-	struct vtscsi_softc *sc;
-
-	sc = xsc;
-
-	virtqueue_disable_intr(sc->vtscsi_event_vq);
-	taskqueue_enqueue_fast(sc->vtscsi_tq,
-	    &sc->vtscsi_event_intr_task);
-
-	return (1);
-}
-
-static int
-vtscsi_request_vq_intr(void *xsc)
-{
-	struct vtscsi_softc *sc;
-
-	sc = xsc;
-
-	virtqueue_disable_intr(sc->vtscsi_request_vq);
-	taskqueue_enqueue_fast(sc->vtscsi_tq,
-	    &sc->vtscsi_request_intr_task);
-
-	return (1);
 }
 
 static void
