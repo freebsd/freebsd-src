@@ -439,16 +439,48 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	return (0);
 }
 
-vm_paddr_t
-vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t len)
+void *
+vm_gpa_hold(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
+	    void **cookie)
 {
-	vm_paddr_t nextpage;
+	int rv, pageoff;
+	vm_page_t m;
+	struct proc *p;
 
-	nextpage = rounddown(gpa + PAGE_SIZE, PAGE_SIZE);
-	if (len > nextpage - gpa)
-		panic("vm_gpa2hpa: invalid gpa/len: 0x%016lx/%lu", gpa, len);
+	pageoff = gpa & PAGE_MASK;
+	if (len > PAGE_SIZE - pageoff)
+		panic("vm_gpa_hold: invalid gpa/len: 0x%016lx/%lu", gpa, len);
 
-	return ((vm_paddr_t)-1);	/* XXX fixme */
+	p = curthread->td_proc;
+
+	PROC_LOCK(p);
+	p->p_lock++;
+	PROC_UNLOCK(p);
+
+	rv = vm_fault_hold(&vm->vmspace->vm_map, trunc_page(gpa), reqprot,
+			   VM_FAULT_NORMAL, &m);
+
+	PROC_LOCK(p);
+	p->p_lock--;
+	PROC_UNLOCK(p);
+
+	if (rv == KERN_SUCCESS) {
+		*cookie = m;
+		return ((void *)(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)) + pageoff));
+	} else {
+		*cookie = NULL;
+		return (NULL);
+	}
+}
+
+void
+vm_gpa_release(void *cookie)
+{
+	vm_page_t m = cookie;
+
+	vm_page_lock(m);
+	vm_page_unhold(m);
+	vm_page_unlock(m);
 }
 
 int

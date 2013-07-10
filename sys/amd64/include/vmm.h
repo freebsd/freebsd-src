@@ -93,6 +93,9 @@ const char *vm_name(struct vm *vm);
 int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
+void *vm_gpa_hold(struct vm *, vm_paddr_t gpa, size_t len, int prot,
+		  void **cookie);
+void vm_gpa_release(void *cookie);
 vm_paddr_t vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t size);
 int vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 	      struct vm_memory_segment *seg);

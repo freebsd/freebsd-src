@@ -95,8 +95,9 @@ vmmdev_lookup2(struct cdev *cdev)
 static int
 vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 {
-	int error, off, c;
-	vm_paddr_t hpa, gpa;
+	int error, off, c, prot;
+	vm_paddr_t gpa;
+	void *hpa, *cookie;
 	struct vmmdev_softc *sc;
 
 	static char zerobuf[PAGE_SIZE];
@@ -107,6 +108,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	if (sc == NULL)
 		error = ENXIO;
 
+	prot = (uio->uio_rw == UIO_WRITE ? VM_PROT_WRITE : VM_PROT_READ);
 	while (uio->uio_resid > 0 && error == 0) {
 		gpa = uio->uio_offset;
 		off = gpa & PAGE_MASK;
@@ -120,14 +122,16 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 		 * Since this device does not support lseek(2), dd(1) will
 		 * read(2) blocks of data to simulate the lseek(2).
 		 */
-		hpa = vm_gpa2hpa(sc->vm, gpa, c);
-		if (hpa == (vm_paddr_t)-1) {
+		hpa = vm_gpa_hold(sc->vm, gpa, c, prot, &cookie);
+		if (hpa == NULL) {
 			if (uio->uio_rw == UIO_READ)
 				error = uiomove(zerobuf, c, uio);
 			else
 				error = EFAULT;
-		} else
-			error = uiomove((void *)PHYS_TO_DMAP(hpa), c, uio);
+		} else {
+			error = uiomove(hpa, c, uio);
+			vm_gpa_release(cookie);
+		}
 	}
 
 	mtx_unlock(&vmmdev_mtx);

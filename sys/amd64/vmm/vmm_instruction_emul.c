@@ -413,9 +413,9 @@ static int
 gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 	uint64_t *gpa, uint64_t *gpaend)
 {
-	vm_paddr_t hpa;
 	int nlevels, ptpshift, ptpindex;
 	uint64_t *ptpbase, pte, pgsize;
+	void *cookie;
 
 	/*
 	 * XXX assumes 64-bit guest with 4 page walk levels
@@ -425,17 +425,18 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 		/* Zero out the lower 12 bits and the upper 12 bits */
 		ptpphys >>= 12; ptpphys <<= 24; ptpphys >>= 12;
 
-		hpa = vm_gpa2hpa(vm, ptpphys, PAGE_SIZE);
-		if (hpa == -1)
+		ptpbase = vm_gpa_hold(vm, ptpphys, PAGE_SIZE, VM_PROT_READ,
+				      &cookie);
+		if (ptpbase == NULL)
 			goto error;
-
-		ptpbase = (uint64_t *)PHYS_TO_DMAP(hpa);
 
 		ptpshift = PAGE_SHIFT + nlevels * 9;
 		ptpindex = (gla >> ptpshift) & 0x1FF;
 		pgsize = 1UL << ptpshift;
 
 		pte = ptpbase[ptpindex];
+
+		vm_gpa_release(cookie);
 
 		if ((pte & PG_V) == 0)
 			goto error;
@@ -464,13 +465,15 @@ int
 vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 		      uint64_t cr3, struct vie *vie)
 {
-	int n, err;
-	uint64_t hpa, gpa, gpaend, off;
+	int n, err, prot;
+	uint64_t gpa, gpaend, off;
+	void *hpa, *cookie;
 
 	/*
 	 * XXX cache previously fetched instructions using 'rip' as the tag
 	 */
 
+	prot = VM_PROT_READ | VM_PROT_EXECUTE;
 	if (inst_length > VIE_INST_SIZE)
 		panic("vmm_fetch_instruction: invalid length %d", inst_length);
 
@@ -483,11 +486,12 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 		off = gpa & PAGE_MASK;
 		n = min(inst_length - vie->num_valid, PAGE_SIZE - off);
 
-		hpa = vm_gpa2hpa(vm, gpa, n);
-		if (hpa == -1)
+		if ((hpa = vm_gpa_hold(vm, gpa, n, prot, &cookie)) == NULL)
 			break;
 
-		bcopy((void *)PHYS_TO_DMAP(hpa), &vie->inst[vie->num_valid], n);
+		bcopy(hpa, &vie->inst[vie->num_valid], n);
+
+		vm_gpa_release(cookie);
 
 		rip += n;
 		vie->num_valid += n;
