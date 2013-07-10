@@ -99,40 +99,21 @@ void* operator new(size_t size)
 __attribute__((weak))
 void* operator new(size_t size, const std::nothrow_t &) throw()
 {
-	if (0 == size)
-	{
-		size = 1;
+	try {
+		return :: operator new(size);
+	} catch (...) {
+		// nothrow operator new should return NULL in case of
+		// std::bad_alloc exception in new handler
+		return NULL;
 	}
-	void *mem = malloc(size);
-	while (0 == mem)
-	{
-		new_handler h = std::get_new_handler();
-		if (0 != h)
-		{
-			try
-			{
-				h();
-			}
-			catch (...)
-			{
-				// nothrow operator new should return NULL in case of
-				// std::bad_alloc exception in new handler
-				return NULL;
-			}
-		}
-		else
-		{
-			return NULL;
-		}
-		mem = malloc(size);
-	}
-
-	return mem;
 }
 
 
 __attribute__((weak))
 void operator delete(void * ptr)
+#if __cplusplus < 201000L
+throw()
+#endif
 {
 	free(ptr);
 }
@@ -140,13 +121,32 @@ void operator delete(void * ptr)
 
 __attribute__((weak))
 void * operator new[](size_t size)
+#if __cplusplus < 201000L
+throw(std::bad_alloc)
+#endif
 {
 	return ::operator new(size);
 }
 
 
 __attribute__((weak))
-void operator delete[](void * ptr) throw()
+void * operator new[](size_t size, const std::nothrow_t &) throw()
+{
+	try {
+		return ::operator new[](size);
+	} catch (...) {
+		// nothrow operator new should return NULL in case of
+		// std::bad_alloc exception in new handler
+		return NULL;
+	}
+}
+
+
+__attribute__((weak))
+void operator delete[](void * ptr)
+#if __cplusplus < 201000L
+throw()
+#endif
 {
 	::operator delete(ptr);
 }
