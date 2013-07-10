@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/vmparam.h>
 
-#include <x86/apicreg.h>
-
 #include <machine/vmm.h>
 #include "vmm_host.h"
 #include "vmm_lapic.h"
@@ -1189,22 +1187,20 @@ ept_fault_type(uint64_t ept_qual)
 	return (fault_type);
 }
 
-static int
-vmx_inst_emul(struct vm *vm, int cpu,
-	      uint64_t gla, uint64_t gpa, uint64_t rip, int inst_length,
-	      uint64_t cr3, uint64_t ept_qual, struct vie *vie)
+static boolean_t
+ept_emulation_fault(uint64_t ept_qual)
 {
-	int read, write, error;
+	int read, write;
 
-	/* EPT violation on an instruction fetch doesn't make sense here */
+	/* EPT fault on an instruction fetch doesn't make sense here */
 	if (ept_qual & EPT_VIOLATION_INST_FETCH)
-		return (UNHANDLED);
+		return (FALSE);
 
-	/* EPT violation must be a read fault or a write fault */
+	/* EPT fault must be a read fault or a write fault */
 	read = ept_qual & EPT_VIOLATION_DATA_READ ? 1 : 0;
 	write = ept_qual & EPT_VIOLATION_DATA_WRITE ? 1 : 0;
 	if ((read | write) == 0)
-		return (UNHANDLED);
+		return (FALSE);
 
 	/*
 	 * The EPT violation must have been caused by accessing a
@@ -1213,36 +1209,20 @@ vmx_inst_emul(struct vm *vm, int cpu,
 	 */
 	if ((ept_qual & EPT_VIOLATION_GLA_VALID) == 0 ||
 	    (ept_qual & EPT_VIOLATION_XLAT_VALID) == 0) {
-		return (UNHANDLED);
+		return (FALSE);
 	}
 
-	/* Fetch, decode and emulate the faulting instruction */
-	if (vmm_fetch_instruction(vm, cpu, rip, inst_length, cr3, vie) != 0)
-		return (UNHANDLED);
-
-	if (vmm_decode_instruction(vm, cpu, gla, vie) != 0)
-		return (UNHANDLED);
-
-	/*
-	 * Check if this is a local apic access
-	 */
-	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE)
-		return (UNHANDLED);
-
-	error = vmm_emulate_instruction(vm, cpu, gpa, vie,
-					lapic_mmio_read, lapic_mmio_write, 0);
-
-	return (error ? UNHANDLED : HANDLED);
+	return (TRUE);
 }
 
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
-	int error, handled, emulation;
+	int error, handled;
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx;
-	uint64_t qual, gla, gpa, cr3, intr_info;
+	uint64_t qual, gpa, intr_info;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1356,23 +1336,14 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 */
 		gpa = vmcs_gpa();
 		if (vm_mem_allocated(vmx->vm, gpa)) {
-			handled = 0;
-			emulation = 0;
-		} else {
-			emulation = 1;
-			gla = vmcs_gla();
-			cr3 = vmcs_guest_cr3();
-			vie_init(&vmexit->u.paging.vie);
-			handled = vmx_inst_emul(vmx->vm, vcpu, gla, gpa,
-					    vmexit->rip, vmexit->inst_length,
-					    cr3, qual, &vmexit->u.paging.vie);
-		}
-
-		if (!handled) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
-			vmexit->u.paging.inst_emulation = emulation;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
+		} else if (ept_emulation_fault(qual)) {
+			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
+			vmexit->u.inst_emul.gpa = gpa;
+			vmexit->u.inst_emul.gla = vmcs_gla();
+			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
 		}
 		break;
 	default:
@@ -1394,14 +1365,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vm_exit_update_rip(vmexit);
 		vmexit->rip += vmexit->inst_length;
 		vmexit->inst_length = 0;
-
-		/*
-		 * Special case for spinning up an AP - exit to userspace to
-		 * give the controlling process a chance to intercept and
-		 * spin up a thread for the AP.
-		 */
-		if (vmexit->exitcode == VM_EXITCODE_SPINUP_AP)
-			handled = 0;
 	} else {
 		if (vmexit->exitcode == VM_EXITCODE_BOGUS) {
 			/*

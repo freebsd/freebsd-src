@@ -701,7 +701,7 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
  * Emulate a guest 'hlt' by sleeping until the vcpu is ready to run.
  */
 static int
-vcpu_sleep(struct vm *vm, int vcpuid, boolean_t *retu)
+vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t *retu)
 {
 	struct vcpu *vcpu;
 	int sleepticks, t;
@@ -745,7 +745,7 @@ vcpu_sleep(struct vm *vm, int vcpuid, boolean_t *retu)
 }
 
 static int
-vcpu_paging(struct vm *vm, int vcpuid, boolean_t *retu)
+vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 {
 	int rv;
 	struct thread *td;
@@ -757,12 +757,6 @@ vcpu_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
-
-	/* Return to userspace to do the instruction emulation */
-	if (vme->u.paging.inst_emulation) {
-		*retu = TRUE;
-		return (0);
-	}
 
 	td = curthread;
 	p = td->td_proc;
@@ -786,6 +780,52 @@ vcpu_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 	vme->inst_length = 0;
 
 	return (0);
+}
+
+
+static int
+vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
+{
+	struct vie *vie;
+	struct vcpu *vcpu;
+	struct vm_exit *vme;
+	int error, inst_length;
+	uint64_t rip, gla, gpa, cr3;
+
+	vcpu = &vm->vcpu[vcpuid];
+	vme = &vcpu->exitinfo;
+
+	rip = vme->rip;
+	inst_length = vme->inst_length;
+
+	gla = vme->u.inst_emul.gla;
+	gpa = vme->u.inst_emul.gpa;
+	cr3 = vme->u.inst_emul.cr3;
+	vie = &vme->u.inst_emul.vie;
+
+	vie_init(vie);
+
+	/* Fetch, decode and emulate the faulting instruction */
+	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3, vie) != 0)
+		return (EFAULT);
+
+	if (vmm_decode_instruction(vm, vcpuid, gla, vie) != 0)
+		return (EFAULT);
+
+	/* return to userland unless this is a local apic access */
+	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE) {
+		*retu = TRUE;
+		return (0);
+	}
+
+	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie,
+					lapic_mmio_read, lapic_mmio_write, 0);
+
+	/* return to userland to spin up the AP */
+	if (error == 0 && vme->exitcode == VM_EXITCODE_SPINUP_AP)
+		*retu = TRUE;
+
+	return (error);
 }
 
 int
@@ -834,10 +874,13 @@ restart:
 		retu = FALSE;
 		switch (vme->exitcode) {
 		case VM_EXITCODE_HLT:
-			error = vcpu_sleep(vm, vcpuid, &retu);
+			error = vm_handle_hlt(vm, vcpuid, &retu);
 			break;
 		case VM_EXITCODE_PAGING:
-			error = vcpu_paging(vm, vcpuid, &retu);
+			error = vm_handle_paging(vm, vcpuid, &retu);
+			break;
+		case VM_EXITCODE_INST_EMUL:
+			error = vm_handle_inst_emul(vm, vcpuid, &retu);
 			break;
 		default:
 			retu = TRUE;	/* handled in userland */

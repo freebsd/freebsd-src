@@ -96,7 +96,6 @@ int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
 void *vm_gpa_hold(struct vm *, vm_paddr_t gpa, size_t len, int prot,
 		  void **cookie);
 void vm_gpa_release(void *cookie);
-vm_paddr_t vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t size);
 int vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 	      struct vm_memory_segment *seg);
 int vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
@@ -254,6 +253,7 @@ enum vm_exitcode {
 	VM_EXITCODE_MTRAP,
 	VM_EXITCODE_PAUSE,
 	VM_EXITCODE_PAGING,
+	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
 	VM_EXITCODE_MAX
 };
@@ -273,10 +273,14 @@ struct vm_exit {
 		} inout;
 		struct {
 			uint64_t	gpa;
-			struct vie	vie;
-			int		inst_emulation;
 			int		fault_type;
 		} paging;
+		struct {
+			uint64_t	gpa;
+			uint64_t	gla;
+			uint64_t	cr3;
+			struct vie	vie;
+		} inst_emul;
 		/*
 		 * VMX specific payload. Used when there is no "better"
 		 * exitcode to represent the VM-exit.
