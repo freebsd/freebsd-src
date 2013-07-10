@@ -680,7 +680,7 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 		return (EINVAL);
 
 	vcpu = &vm->vcpu[vcpuid];
-	vme = &vmrun->vm_exit;
+	vme = &vcpu->exitinfo;
 	rip = vmrun->rip;
 restart:
 	critical_enter();
@@ -703,9 +703,6 @@ restart:
 	restore_host_msrs(vm, vcpuid);
 
 	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
-
-	/* copy the exit information */
-	bcopy(&vcpu->exitinfo, vme, sizeof(struct vm_exit));
 
 	critical_exit();
 
@@ -783,12 +780,15 @@ restart:
 			rip = vme->rip;
 			goto restart;
 		} else {
-			/* XXX */
-			vme->inst_length = 0;
+			error = EFAULT;
+			goto done;
 		}
 	}
 
 done:
+	/* copy the exit information */
+	bcopy(vme, &vmrun->vm_exit, sizeof(struct vm_exit));
+
 	return (error);
 }
 
