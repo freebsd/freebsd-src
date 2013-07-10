@@ -665,14 +665,106 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
 		panic("Error %d setting state to %d", error, newstate);
 }
 
+/*
+ * Emulate a guest 'hlt' by sleeping until the vcpu is ready to run.
+ */
+static int
+vcpu_sleep(struct vm *vm, int vcpuid, boolean_t *retu)
+{
+	struct vcpu *vcpu;
+	int sleepticks, t;
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	vcpu_lock(vcpu);
+
+	/*
+	 * Figure out the number of host ticks until the next apic
+	 * timer interrupt in the guest.
+	 */
+	sleepticks = lapic_timer_tick(vm, vcpuid);
+
+	/*
+	 * If the guest local apic timer is disabled then sleep for
+	 * a long time but not forever.
+	 */
+	if (sleepticks < 0)
+		sleepticks = hz;
+
+	/*
+	 * Do a final check for pending NMI or interrupts before
+	 * really putting this thread to sleep.
+	 *
+	 * These interrupts could have happened any time after we
+	 * returned from VMRUN() and before we grabbed the vcpu lock.
+	 */
+	if (!vm_nmi_pending(vm, vcpuid) && lapic_pending_intr(vm, vcpuid) < 0) {
+		if (sleepticks <= 0)
+			panic("invalid sleepticks %d", sleepticks);
+		t = ticks;
+		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
+		msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
+		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
+		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
+	}
+	vcpu_unlock(vcpu);
+
+	return (0);
+}
+
+static int
+vcpu_paging(struct vm *vm, int vcpuid, boolean_t *retu)
+{
+	int rv;
+	struct thread *td;
+	struct proc *p;
+	struct vm_map *map;
+	vm_prot_t ftype;
+	struct vcpu *vcpu;
+	struct vm_exit *vme;
+
+	vcpu = &vm->vcpu[vcpuid];
+	vme = &vcpu->exitinfo;
+
+	/* Return to userspace to do the instruction emulation */
+	if (vme->u.paging.inst_emulation) {
+		*retu = TRUE;
+		return (0);
+	}
+
+	td = curthread;
+	p = td->td_proc;
+	map = &vm->vmspace->vm_map;
+	ftype = vme->u.paging.fault_type;
+
+	PROC_LOCK(p);
+	p->p_lock++;
+	PROC_UNLOCK(p);
+
+	rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL);
+
+	PROC_LOCK(p);
+	p->p_lock--;
+	PROC_UNLOCK(p);
+
+	if (rv != KERN_SUCCESS)
+		return (EFAULT);
+
+	/* restart execution at the faulting instruction */
+	vme->inst_length = 0;
+
+	return (0);
+}
+
 int
 vm_run(struct vm *vm, struct vm_run *vmrun)
 {
-	int error, vcpuid, sleepticks, t;
+	int error, vcpuid;
 	struct vcpu *vcpu;
 	struct pcb *pcb;
 	uint64_t tscval, rip;
 	struct vm_exit *vme;
+	boolean_t retu;
 
 	vcpuid = vmrun->cpuid;
 
@@ -706,89 +798,28 @@ restart:
 
 	critical_exit();
 
-	if (error)
-		goto done;
-
-	/*
-	 * Oblige the guest's desire to 'hlt' by sleeping until the vcpu
-	 * is ready to run.
-	 */
-	if (vme->exitcode == VM_EXITCODE_HLT) {
-		vcpu_lock(vcpu);
-
-		/*
-		 * Figure out the number of host ticks until the next apic
-		 * timer interrupt in the guest.
-		 */
-		sleepticks = lapic_timer_tick(vm, vcpuid);
-
-		/*
-		 * If the guest local apic timer is disabled then sleep for
-		 * a long time but not forever.
-		 */
-		if (sleepticks < 0)
-			sleepticks = hz;
-
-		/*
-		 * Do a final check for pending NMI or interrupts before
-		 * really putting this thread to sleep.
-		 *
-		 * These interrupts could have happened any time after we
-		 * returned from VMRUN() and before we grabbed the vcpu lock.
-		 */
-		if (!vm_nmi_pending(vm, vcpuid) &&
-		    lapic_pending_intr(vm, vcpuid) < 0) {
-			if (sleepticks <= 0)
-				panic("invalid sleepticks %d", sleepticks);
-			t = ticks;
-			vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
-			msleep_spin(vcpu, &vcpu->mtx, "vmidle", sleepticks);
-			vcpu_require_state_locked(vcpu, VCPU_FROZEN);
-			vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
+	if (error == 0) {
+		retu = FALSE;
+		switch (vme->exitcode) {
+		case VM_EXITCODE_HLT:
+			error = vcpu_sleep(vm, vcpuid, &retu);
+			break;
+		case VM_EXITCODE_PAGING:
+			error = vcpu_paging(vm, vcpuid, &retu);
+			break;
+		default:
+			retu = TRUE;	/* handled in userland */
+			break;
 		}
+	}
 
-		vcpu_unlock(vcpu);
-
+	if (error == 0 && retu == FALSE) {
 		rip = vme->rip + vme->inst_length;
 		goto restart;
 	}
 
-	if (vme->exitcode == VM_EXITCODE_PAGING &&
-	    vme->u.paging.inst_emulation == 0) {
-		int rv;
-		struct thread *td;
-		struct proc *p;
-		struct vm_map *map;
-		vm_prot_t ftype;
-
-		td = curthread;
-		p = td->td_proc;
-		map = &vm->vmspace->vm_map;
-		ftype = vme->u.paging.fault_type;
-
-		PROC_LOCK(p);
-		p->p_lock++;
-		PROC_UNLOCK(p);
-
-		rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL);
-
-		PROC_LOCK(p);
-		p->p_lock--;
-		PROC_UNLOCK(p);
-
-		if (rv == KERN_SUCCESS) {
-			rip = vme->rip;
-			goto restart;
-		} else {
-			error = EFAULT;
-			goto done;
-		}
-	}
-
-done:
 	/* copy the exit information */
 	bcopy(vme, &vmrun->vm_exit, sizeof(struct vm_exit));
-
 	return (error);
 }
 
