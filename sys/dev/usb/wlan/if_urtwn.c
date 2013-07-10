@@ -3029,5 +3029,4 @@ DRIVER_MODULE(urtwn, uhub, urtwn_driver, urtwn_devclass, NULL, NULL);
 MODULE_DEPEND(urtwn, usb, 1, 1, 1);
 MODULE_DEPEND(urtwn, wlan, 1, 1, 1);
 MODULE_DEPEND(urtwn, firmware, 1, 1, 1);
-MODULE_DEPEND(urtwn, urtwn_fw, 1, 1, 1);
 MODULE_VERSION(urtwn, 1);
