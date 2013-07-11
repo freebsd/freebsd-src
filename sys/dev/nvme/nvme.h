@@ -765,10 +765,10 @@ struct nvme_pt_command {
 
 	/*
 	 * is_read = 1 if the passthrough command will read data into the
-	 *  supplied buffer.
+	 *  supplied buffer from the controller.
 	 *
-	 * is_read = 0 if the passthrough command will write data into the
-	 *  supplied buffer.
+	 * is_read = 0 if the passthrough command will write data from the
+	 *  supplied buffer to the controller.
 	 */
 	uint32_t		is_read;
 
