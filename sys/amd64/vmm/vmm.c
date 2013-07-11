@@ -445,24 +445,13 @@ vm_gpa_hold(struct vm *vm, vm_paddr_t gpa, size_t len, int reqprot,
 {
 	int rv, pageoff;
 	vm_page_t m;
-	struct proc *p;
 
 	pageoff = gpa & PAGE_MASK;
 	if (len > PAGE_SIZE - pageoff)
 		panic("vm_gpa_hold: invalid gpa/len: 0x%016lx/%lu", gpa, len);
 
-	p = curthread->td_proc;
-
-	PROC_LOCK(p);
-	p->p_lock++;
-	PROC_UNLOCK(p);
-
 	rv = vm_fault_hold(&vm->vmspace->vm_map, trunc_page(gpa), reqprot,
 			   VM_FAULT_NORMAL, &m);
-
-	PROC_LOCK(p);
-	p->p_lock--;
-	PROC_UNLOCK(p);
 
 	if (rv == KERN_SUCCESS) {
 		*cookie = m;
@@ -748,8 +737,6 @@ static int
 vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 {
 	int rv;
-	struct thread *td;
-	struct proc *p;
 	struct vm_map *map;
 	vm_prot_t ftype;
 	struct vcpu *vcpu;
@@ -758,20 +745,10 @@ vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
 
-	td = curthread;
-	p = td->td_proc;
 	map = &vm->vmspace->vm_map;
 	ftype = vme->u.paging.fault_type;
 
-	PROC_LOCK(p);
-	p->p_lock++;
-	PROC_UNLOCK(p);
-
 	rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL);
-
-	PROC_LOCK(p);
-	p->p_lock--;
-	PROC_UNLOCK(p);
 
 	if (rv != KERN_SUCCESS)
 		return (EFAULT);
