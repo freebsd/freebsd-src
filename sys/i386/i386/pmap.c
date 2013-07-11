@@ -680,7 +680,7 @@ pmap_ptelist_alloc(vm_offset_t *head)
 
 	va = *head;
 	if (va == 0)
-		return (va);	/* Out of memory */
+		panic("pmap_ptelist_alloc: exhausted ptelist KVA");
 	pte = vtopte(va);
 	*head = *pte;
 	if (*head & PG_V)
