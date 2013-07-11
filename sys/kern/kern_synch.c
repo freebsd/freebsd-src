@@ -578,7 +578,7 @@ int
 should_yield(void)
 {
 
-	return (ticks - curthread->td_swvoltick >= hogticks);
+	return ((unsigned int)(ticks - curthread->td_swvoltick) >= hogticks);
 }
 
 void
