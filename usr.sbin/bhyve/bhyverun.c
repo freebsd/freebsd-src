@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "xmsr.h"
 #include "ioapic.h"
 #include "spinup_ap.h"
+#include "rtc.h"
 
 #define	DEFAULT_GUEST_HZ	100
 #define	DEFAULT_GUEST_TSLICE	200
@@ -734,6 +735,8 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
+
+	rtc_init(ctx);
 
 	/*
 	 * Exit if a device emulation finds an error in it's initilization
