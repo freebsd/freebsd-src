@@ -32,7 +32,7 @@
 .\"     From: @(#)group.5	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd September 29, 1994
+.Dd February 8, 2013
 .Dt GROUP 5
 .Os
 .Sh NAME
@@ -139,6 +139,7 @@ may still have this limit.
 .It Pa /etc/group
 .El
 .Sh SEE ALSO
+.Xr newgrp 1 ,
 .Xr passwd 1 ,
 .Xr setgroups 2 ,
 .Xr crypt 3 ,
@@ -156,9 +157,14 @@ file format appeared in
 .At v6 .
 Support for comments first appeared in
 .Fx 3.0 .
-.Sh BUGS
+.Sh IMPLEMENTATION NOTES
 The
 .Xr passwd 1
 command does not change the
 .Nm
 passwords.
+The
+.Xr pw 8
+utility's
+.Cm groupmod
+command should be used instead.
