@@ -119,7 +119,8 @@ SipBuf(SIPHASH_CTX *ctx, const uint8_t **src, size_t len, int final)
 void
 SipHash_Update(SIPHASH_CTX *ctx, const void *src, size_t len)
 {
-	uint64_t m, *p;
+	uint64_t m;
+	const uint64_t *p;
 	const uint8_t *s;
 	size_t rem;
 
@@ -144,13 +145,13 @@ SipHash_Update(SIPHASH_CTX *ctx, const void *src, size_t len)
 
 	/* Optimze for 64bit aligned/unaligned access. */
 	if (((uintptr_t)s & 0x7) == 0) {
-		for (p = (uint64_t *)s; len > 0; len--, p++) {
+		for (p = (const uint64_t *)s; len > 0; len--, p++) {
 			m = le64toh(*p);
 			ctx->v[3] ^= m;
 			SipRounds(ctx, 0);
 			ctx->v[0] ^= m;
 		}
-		s = (uint8_t *)p;
+		s = (const uint8_t *)p;
 	} else {
 		for (; len > 0; len--, s += 8) {
 			m = le64dec(s);
