@@ -280,6 +280,19 @@ RetryFault:;
 		    (u_long)vaddr);
 	}
 
+	if (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION &&
+	    fs.entry->wiring_thread != curthread) {
+		vm_map_unlock_read(fs.map);
+		vm_map_lock(fs.map);
+		if (vm_map_lookup_entry(fs.map, vaddr, &fs.entry) &&
+		    (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION)) {
+			fs.entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
+			vm_map_unlock_and_wait(fs.map, 0);
+		} else
+			vm_map_unlock(fs.map);
+		goto RetryFault;
+	}
+
 	/*
 	 * Make a reference to this object to prevent its disposal while we
 	 * are messing with it.  Once we have the reference, the map is free
