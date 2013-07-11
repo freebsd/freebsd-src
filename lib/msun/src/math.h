@@ -81,12 +81,12 @@ extern const union __nan_un {
 #define	FP_SUBNORMAL	0x08
 #define	FP_ZERO		0x10
 
-#if __STDC_VERSION__ >= 201112L
+#if __STDC_VERSION__ >= 201112L && defined(__clang__)
 #define	__fp_type_select(x, f, d, ld) _Generic((x),     \
 	float: f(x),                                    \
 	double: d(x),                                   \
 	long double: ld(x))
-#elif __GNUC_PREREQ__(5, 1)
+#elif __GNUC_PREREQ__(3, 1)
 #define	__fp_type_select(x, f, d, ld) __builtin_choose_expr(              \
 	__builtin_types_compatible_p(__typeof(x), long double), ld(x),    \
 	__builtin_choose_expr(                                            \
@@ -101,7 +101,7 @@ extern const union __nan_un {
 #endif
 
 #define	fpclassify(x) \
-	__fp_type_select(x, __fpclassifyf, __fpclassifyd, __fpclassifyd)
+	__fp_type_select(x, __fpclassifyf, __fpclassifyd, __fpclassifyl)
 #define	isfinite(x) __fp_type_select(x, __isfinitef, __isfinite, __isfinitel)
 #define	isinf(x) __fp_type_select(x, __isinff, __isinf, __isinfl)
 #define	isnan(x) \
