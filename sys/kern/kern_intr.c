@@ -841,7 +841,7 @@ ok:
 		 * again and remove this handler if it has already passed
 		 * it on the list.
 		 */
-		ie->ie_thread->it_need = 1;
+		atomic_store_rel_int(&ie->ie_thread->it_need, 1);
 	} else
 		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
 	thread_unlock(ie->ie_thread->it_thread);
@@ -912,7 +912,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 	 * running.  Then, lock the thread and see if we actually need to
 	 * put it on the runqueue.
 	 */
-	it->it_need = 1;
+	atomic_store_rel_int(&it->it_need, 1);
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
@@ -990,7 +990,7 @@ ok:
 		 * again and remove this handler if it has already passed
 		 * it on the list.
 		 */
-		it->it_need = 1;
+		atomic_store_rel_int(&it->it_need, 1);
 	} else
 		TAILQ_REMOVE(&ie->ie_handlers, handler, ih_next);
 	thread_unlock(it->it_thread);
@@ -1066,7 +1066,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 	 * running.  Then, lock the thread and see if we actually need to
 	 * put it on the runqueue.
 	 */
-	it->it_need = 1;
+	atomic_store_rel_int(&it->it_need, 1);
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
@@ -1256,7 +1256,7 @@ intr_event_execute_handlers(struct proc *p, struct intr_event *ie)
 		 * interrupt threads always invoke all of their handlers.
 		 */
 		if (ie->ie_flags & IE_SOFT) {
-			if (!ih->ih_need)
+			if (atomic_load_acq_int(&ih->ih_need) == 0)
 				continue;
 			else
 				atomic_store_rel_int(&ih->ih_need, 0);
@@ -1358,7 +1358,7 @@ ithread_loop(void *arg)
 		 * we are running, it will set it_need to note that we
 		 * should make another pass.
 		 */
-		while (ithd->it_need) {
+		while (atomic_load_acq_int(&ithd->it_need) != 0) {
 			/*
 			 * This might need a full read and write barrier
 			 * to make sure that this write posts before any
@@ -1377,7 +1377,8 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if (!ithd->it_need && !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
+		if ((atomic_load_acq_int(&ithd->it_need) == 0) &&
+		    !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
@@ -1538,7 +1539,7 @@ ithread_loop(void *arg)
 		 * we are running, it will set it_need to note that we
 		 * should make another pass.
 		 */
-		while (ithd->it_need) {
+		while (atomic_load_acq_int(&ithd->it_need) != 0) {
 			/*
 			 * This might need a full read and write barrier
 			 * to make sure that this write posts before any
@@ -1560,7 +1561,8 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if (!ithd->it_need && !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
+		if ((atomic_load_acq_int(&ithd->it_need) == 0) &&
+		    !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
