@@ -10,6 +10,7 @@ FILES=	100.clean-disks \
 	220.backup-pkgdb \
 	330.news \
 	400.status-disks \
+	401.status-graid \
 	405.status-ata-raid \
 	406.status-gmirror \
 	407.status-graid3 \
