@@ -3943,7 +3943,7 @@ ixgbe_free_receive_ring(struct rx_ring *rxr)
 			rxbuf->buf->m_flags |= M_PKTHDR;
 			m_freem(rxbuf->buf);
 			rxbuf->buf = NULL;
-			rxbuf->flag = 0;
+			rxbuf->flags = 0;
 		}
 	}
 }
