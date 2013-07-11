@@ -167,8 +167,7 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 		if (newnmbclusters > nmbclusters &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbclusters = newnmbclusters;
-			uma_zone_set_max(zone_clust, nmbclusters);
-			nmbclusters = uma_zone_get_max(zone_clust);
+			nmbclusters = uma_zone_set_max(zone_clust, nmbclusters);
 			EVENTHANDLER_INVOKE(nmbclusters_change);
 		} else
 			error = EINVAL;
@@ -190,8 +189,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 		if (newnmbjumbop > nmbjumbop &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbop = newnmbjumbop;
-			uma_zone_set_max(zone_jumbop, nmbjumbop);
-			nmbjumbop = uma_zone_get_max(zone_jumbop);
+			nmbjumbop = uma_zone_set_max(zone_jumbop, nmbjumbop);
 		} else
 			error = EINVAL;
 	}
@@ -212,8 +210,7 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 		if (newnmbjumbo9 > nmbjumbo9 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo9 = newnmbjumbo9;
-			uma_zone_set_max(zone_jumbo9, nmbjumbo9);
-			nmbjumbo9 = uma_zone_get_max(zone_jumbo9);
+			nmbjumbo9 = uma_zone_set_max(zone_jumbo9, nmbjumbo9);
 		} else
 			error = EINVAL;
 	}
@@ -234,8 +231,7 @@ sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
 		if (newnmbjumbo16 > nmbjumbo16 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo16 = newnmbjumbo16;
-			uma_zone_set_max(zone_jumbo16, nmbjumbo16);
-			nmbjumbo16 = uma_zone_get_max(zone_jumbo16);
+			nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 		} else
 			error = EINVAL;
 	}
@@ -255,8 +251,7 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 	if (error == 0 && req->newptr) {
 		if (newnmbufs > nmbufs) {
 			nmbufs = newnmbufs;
-			uma_zone_set_max(zone_mbuf, nmbufs);
-			nmbufs = uma_zone_get_max(zone_mbuf);
+			nmbufs = uma_zone_set_max(zone_mbuf, nmbufs);
 			EVENTHANDLER_INVOKE(nmbufs_change);
 		} else
 			error = EINVAL;
