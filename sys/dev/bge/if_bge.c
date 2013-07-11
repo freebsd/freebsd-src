@@ -35,10 +35,10 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Broadcom BCM570x family gigabit ethernet driver for FreeBSD.
+ * Broadcom BCM57xx(x)/BCM590x NetXtreme and NetLink family Ethernet driver
  *
  * The Broadcom BCM5700 is based on technology originally developed by
- * Alteon Networks as part of the Tigon I and Tigon II gigabit ethernet
+ * Alteon Networks as part of the Tigon I and Tigon II Gigabit Ethernet
  * MAC chips. The BCM5700, sometimes referred to as the Tigon III, has
  * two on-board MIPS R4000 CPUs and can have as much as 16MB of external
  * SSRAM. The BCM5700 supports TCP, UDP and IP checksum offload, jumbo
@@ -367,8 +367,9 @@ static const struct bge_revision bge_majorrevs[] = {
 #define	BGE_IS_5717_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5717_PLUS)
 #define	BGE_IS_57765_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_57765_PLUS)
 
-const struct bge_revision * bge_lookup_rev(uint32_t);
-const struct bge_vendor * bge_lookup_vendor(uint16_t);
+static uint32_t bge_chipid(device_t);
+static const struct bge_vendor * bge_lookup_vendor(uint16_t);
+static const struct bge_revision * bge_lookup_rev(uint32_t);
 
 typedef int	(*bge_eaddr_fcn_t)(struct bge_softc *, uint8_t[]);
 
@@ -1916,7 +1917,7 @@ bge_chipinit(struct bge_softc *sc)
 	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD,
 	    PCIM_CMD_INTxDIS | PCIM_CMD_MWIEN, 4);
 
-	/* Set the timer prescaler (always 66Mhz) */
+	/* Set the timer prescaler (always 66 MHz). */
 	CSR_WRITE_4(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
 
 	/* XXX: The Linux tg3 driver does this at the start of brgphy_reset. */
@@ -2586,7 +2587,7 @@ bge_blockinit(struct bge_softc *sc)
 	return (0);
 }
 
-const struct bge_revision *
+static const struct bge_revision *
 bge_lookup_rev(uint32_t chipid)
 {
 	const struct bge_revision *br;
@@ -2604,7 +2605,7 @@ bge_lookup_rev(uint32_t chipid)
 	return (NULL);
 }
 
-const struct bge_vendor *
+static const struct bge_vendor *
 bge_lookup_vendor(uint16_t vid)
 {
 	const struct bge_vendor *v;
@@ -2613,8 +2614,45 @@ bge_lookup_vendor(uint16_t vid)
 		if (v->v_id == vid)
 			return (v);
 
-	panic("%s: unknown vendor %d", __func__, vid);
 	return (NULL);
+}
+
+static uint32_t
+bge_chipid(device_t dev)
+{
+	uint32_t id;
+
+	id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
+	    BGE_PCIMISCCTL_ASICREV_SHIFT;
+	if (BGE_ASICREV(id) == BGE_ASICREV_USE_PRODID_REG) {
+		/*
+		 * Find the ASCI revision.  Different chips use different
+		 * registers.
+		 */
+		switch (pci_get_device(dev)) {
+		case BCOM_DEVICEID_BCM5717:
+		case BCOM_DEVICEID_BCM5718:
+		case BCOM_DEVICEID_BCM5719:
+		case BCOM_DEVICEID_BCM5720:
+			id = pci_read_config(dev,
+			    BGE_PCI_GEN2_PRODID_ASICREV, 4);
+			break;
+		case BCOM_DEVICEID_BCM57761:
+		case BCOM_DEVICEID_BCM57762:
+		case BCOM_DEVICEID_BCM57765:
+		case BCOM_DEVICEID_BCM57766:
+		case BCOM_DEVICEID_BCM57781:
+		case BCOM_DEVICEID_BCM57785:
+		case BCOM_DEVICEID_BCM57791:
+		case BCOM_DEVICEID_BCM57795:
+			id = pci_read_config(dev,
+			    BGE_PCI_GEN15_PRODID_ASICREV, 4);
+			break;
+		default:
+			id = pci_read_config(dev, BGE_PCI_PRODID_ASICREV, 4);
+		}
+	}
+	return (id);
 }
 
 /*
@@ -2634,61 +2672,34 @@ bge_probe(device_t dev)
 	char model[64];
 	const struct bge_revision *br;
 	const char *pname;
-	struct bge_softc *sc = device_get_softc(dev);
+	struct bge_softc *sc;
 	const struct bge_type *t = bge_devs;
 	const struct bge_vendor *v;
 	uint32_t id;
 	uint16_t did, vid;
 
+	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
 	vid = pci_get_vendor(dev);
 	did = pci_get_device(dev);
 	while(t->bge_vid != 0) {
 		if ((vid == t->bge_vid) && (did == t->bge_did)) {
-			id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
-			    BGE_PCIMISCCTL_ASICREV_SHIFT;
-			if (BGE_ASICREV(id) == BGE_ASICREV_USE_PRODID_REG) {
-				/*
-				 * Find the ASCI revision.  Different chips
-				 * use different registers.
-				 */
-				switch (pci_get_device(dev)) {
-				case BCOM_DEVICEID_BCM5717:
-				case BCOM_DEVICEID_BCM5718:
-				case BCOM_DEVICEID_BCM5719:
-				case BCOM_DEVICEID_BCM5720:
-					id = pci_read_config(dev,
-					    BGE_PCI_GEN2_PRODID_ASICREV, 4);
-					break;
-				case BCOM_DEVICEID_BCM57761:
-				case BCOM_DEVICEID_BCM57762:
-				case BCOM_DEVICEID_BCM57765:
-				case BCOM_DEVICEID_BCM57766:
-				case BCOM_DEVICEID_BCM57781:
-				case BCOM_DEVICEID_BCM57785:
-				case BCOM_DEVICEID_BCM57791:
-				case BCOM_DEVICEID_BCM57795:
-					id = pci_read_config(dev,
-					    BGE_PCI_GEN15_PRODID_ASICREV, 4);
-					break;
-				default:
-					id = pci_read_config(dev,
-					    BGE_PCI_PRODID_ASICREV, 4);
-				}
-			}
+			id = bge_chipid(dev);
 			br = bge_lookup_rev(id);
-			v = bge_lookup_vendor(vid);
 			if (bge_has_eaddr(sc) &&
 			    pci_get_vpd_ident(dev, &pname) == 0)
-				snprintf(model, 64, "%s", pname);
-			else
-				snprintf(model, 64, "%s %s", v->v_name,
+				snprintf(model, sizeof(model), "%s", pname);
+			else {
+				v = bge_lookup_vendor(vid);
+				snprintf(model, sizeof(model), "%s %s",
+				    v != NULL ? v->v_name : "Unknown",
 				    br != NULL ? br->br_name :
-				    "NetXtreme Ethernet Controller");
-			snprintf(buf, 96, "%s, %sASIC rev. %#08x", model,
-			    br != NULL ? "" : "unknown ", id);
+				    "NetXtreme/NetLink Ethernet Controller");
+			}
+			snprintf(buf, sizeof(buf), "%s, %sASIC rev. %#08x",
+			    model, br != NULL ? "" : "unknown ", id);
 			device_set_desc_copy(dev, buf);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
@@ -3272,38 +3283,7 @@ bge_attach(device_t dev)
 
 	/* Save various chip information. */
 	sc->bge_func_addr = pci_get_function(dev);
-	sc->bge_chipid =
-	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
-	    BGE_PCIMISCCTL_ASICREV_SHIFT;
-	if (BGE_ASICREV(sc->bge_chipid) == BGE_ASICREV_USE_PRODID_REG) {
-		/*
-		 * Find the ASCI revision.  Different chips use different
-		 * registers.
-		 */
-		switch (pci_get_device(dev)) {
-		case BCOM_DEVICEID_BCM5717:
-		case BCOM_DEVICEID_BCM5718:
-		case BCOM_DEVICEID_BCM5719:
-		case BCOM_DEVICEID_BCM5720:
-			sc->bge_chipid = pci_read_config(dev,
-			    BGE_PCI_GEN2_PRODID_ASICREV, 4);
-			break;
-		case BCOM_DEVICEID_BCM57761:
-		case BCOM_DEVICEID_BCM57762:
-		case BCOM_DEVICEID_BCM57765:
-		case BCOM_DEVICEID_BCM57766:
-		case BCOM_DEVICEID_BCM57781:
-		case BCOM_DEVICEID_BCM57785:
-		case BCOM_DEVICEID_BCM57791:
-		case BCOM_DEVICEID_BCM57795:
-			sc->bge_chipid = pci_read_config(dev,
-			    BGE_PCI_GEN15_PRODID_ASICREV, 4);
-			break;
-		default:
-			sc->bge_chipid = pci_read_config(dev,
-			    BGE_PCI_PRODID_ASICREV, 4);
-		}
-	}
+	sc->bge_chipid = bge_chipid(dev);
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
@@ -3493,6 +3473,8 @@ bge_attach(device_t dev)
 	    pci_get_device(dev) == BCOM_DEVICEID_BCM5753F ||
 	    pci_get_device(dev) == BCOM_DEVICEID_BCM5787F)) ||
 	    pci_get_device(dev) == BCOM_DEVICEID_BCM57790 ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM57791 ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM57795 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5906) {
 		/* These chips are 10/100 only. */
 		capmask &= ~BMSR_EXTSTAT;
@@ -3504,8 +3486,8 @@ bge_attach(device_t dev)
 	 * TSO. But the firmware is not available to FreeBSD and Linux
 	 * claims that the TSO performed by the firmware is slower than
 	 * hardware based TSO. Moreover the firmware based TSO has one
-	 * known bug which can't handle TSO if ethernet header + IP/TCP
-	 * header is greater than 80 bytes. The workaround for the TSO
+	 * known bug which can't handle TSO if Ethernet header + IP/TCP
+	 * header is greater than 80 bytes. A workaround for the TSO
 	 * bug exist but it seems it's too expensive than not using
 	 * TSO at all. Some hardwares also have the TSO bug so limit
 	 * the TSO to the controllers that are not affected TSO issues
@@ -3878,8 +3860,13 @@ again:
 			error = ENOMEM;
 			goto fail;
 		}
-		taskqueue_start_threads(&sc->bge_tq, 1, PI_NET, "%s taskq",
-		    device_get_nameunit(sc->bge_dev));
+		error = taskqueue_start_threads(&sc->bge_tq, 1, PI_NET,
+		    "%s taskq", device_get_nameunit(sc->bge_dev));
+		if (error != 0) {
+			device_printf(dev, "could not start threads.\n");
+			ether_ifdetach(ifp);
+			goto fail;
+		}
 		error = bus_setup_intr(dev, sc->bge_irq,
 		    INTR_TYPE_NET | INTR_MPSAFE, bge_msi_intr, NULL, sc,
 		    &sc->bge_intrhand);
