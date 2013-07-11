@@ -116,6 +116,7 @@ struct vm_map_entry {
 	int wired_count;		/* can be paged if = 0 */
 	vm_pindex_t next_read;		/* index of the next sequential read */
 	struct ucred *cred;		/* tmp storage for creator ref */
+	struct thread *wiring_thread;
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
