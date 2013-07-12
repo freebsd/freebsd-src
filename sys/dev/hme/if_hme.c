@@ -742,6 +742,10 @@ hme_init_locked(struct hme_softc *sc)
 	u_int32_t n, v;
 
 	HME_LOCK_ASSERT(sc, MA_OWNED);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/*
 	 * Initialization sequence. The numbered steps below correspond
 	 * to the sequence outlined in section 6.3.5.1 in the Ethernet
@@ -1324,6 +1328,7 @@ hme_eint(struct hme_softc *sc, u_int status)
 	/* check for fatal errors that needs reset to unfreeze DMA engine */
 	if ((status & HME_SEB_STAT_FATAL_ERRORS) != 0) {
 		HME_WHINE(sc->sc_dev, "error signaled, status=%#x\n", status);
+		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		hme_init_locked(sc);
 	}
 }
@@ -1370,6 +1375,7 @@ hme_watchdog(struct hme_softc *sc)
 		device_printf(sc->sc_dev, "device timeout (no link)\n");
 	++ifp->if_oerrors;
 
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	hme_init_locked(sc);
 	hme_start_locked(ifp);
 	return (EJUSTRETURN);
