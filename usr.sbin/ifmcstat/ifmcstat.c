@@ -296,7 +296,8 @@ in_ifinfo(struct igmp_ifinfo *igi)
 		printf("igmpv?(%d)", igi->igi_version);
 		break;
 	}
-	printb(" flags", igi->igi_flags, "\020\1SILENT\2LOOPBACK");
+	if (igi->igi_flags)
+		printb(" flags", igi->igi_flags, "\020\1SILENT\2LOOPBACK");
 	if (igi->igi_version == IGMP_VERSION_3) {
 		printf(" rv %u qi %u qri %u uri %u",
 		    igi->igi_rv, igi->igi_qi, igi->igi_qri, igi->igi_uri);
@@ -751,7 +752,8 @@ in6_ifinfo(struct mld_ifinfo *mli)
 		printf("mldv?(%d)", mli->mli_version);
 		break;
 	}
-	printb(" flags", mli->mli_flags, "\020\1SILENT\2USEALLOW");
+	if (mli->mli_flags)
+		printb(" flags", mli->mli_flags, "\020\1SILENT\2USEALLOW");
 	if (mli->mli_version == MLD_VERSION_2) {
 		printf(" rv %u qi %u qri %u uri %u",
 		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
