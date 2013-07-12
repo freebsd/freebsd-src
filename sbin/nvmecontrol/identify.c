@@ -259,6 +259,10 @@ identify(int argc, char *argv[])
 
 	while (getopt(argc, argv, "vx") != -1) ;
 
+	/* Check that a controller or namespace was specified. */
+	if (optind >= argc)
+		identify_usage();
+
 	target = argv[optind];
 
 	optreset = 1;
