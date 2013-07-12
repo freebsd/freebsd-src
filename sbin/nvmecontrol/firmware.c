@@ -94,7 +94,7 @@ read_image_file(char *path, void **buf, int32_t *size)
 		    path, (intmax_t)sb.st_size);
 	filesize = (int32_t)sb.st_size;
 	if ((*buf = malloc(filesize)) == NULL)
-		errx(1, "unable to malloc %zd bytes", filesize);
+		errx(1, "unable to malloc %d bytes", filesize);
 	if ((*size = read(fd, *buf, filesize)) < 0)
 		err(1, "error reading '%s'", path);
 	/* XXX assuming no short reads */
