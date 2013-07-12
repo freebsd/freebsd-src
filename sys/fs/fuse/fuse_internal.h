@@ -223,6 +223,8 @@ fuse_internal_attr_fat2vat(struct mount *mp,
     vap->va_mtime.tv_nsec = fat->mtimensec;
     vap->va_ctime.tv_sec  = fat->ctime;
     vap->va_ctime.tv_nsec = fat->ctimensec;
+    vap->va_birthtime.tv_sec  = fat->crtime;
+    vap->va_birthtime.tv_nsec = fat->crtimensec;
     vap->va_blocksize = PAGE_SIZE;
     vap->va_type = IFTOVT(fat->mode);
 
