@@ -150,7 +150,7 @@ static da_delete_func_t da_delete_trim;
 static da_delete_func_t da_delete_unmap;
 static da_delete_func_t da_delete_ws;
 
-static void * da_delete_functions[] = {
+static const void * da_delete_functions[] = {
 	NULL,
 	NULL,
 	da_delete_trim,
@@ -1818,10 +1818,7 @@ dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
 
 	softc->delete_method = delete_method;
 	softc->disk->d_delmaxsize = dadeletemaxsize(softc, delete_method);
-	if (delete_method <= DA_DELETE_MAX)
-		softc->delete_func = da_delete_functions[delete_method];
-	else
-		softc->delete_func = NULL;
+	softc->delete_func = da_delete_functions[delete_method];
 
 	if (softc->delete_method > DA_DELETE_DISABLE)
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
