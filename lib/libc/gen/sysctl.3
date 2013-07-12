@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2012
+.Dd May 17, 2013
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -547,14 +547,14 @@ The length of each message is contained in the message header.
 The third level name is a protocol number, which is currently always 0.
 The fourth level name is an address family, which may be set to 0 to
 select all address families.
-The fifth and sixth level names are as follows:
-.Bl -column "Fifth level nameXXXXXX" "Sixth level is:XXX" -offset indent
-.It Sy "Fifth level name	Sixth level is:"
-.It "NET_RT_FLAGS	rtflags"
-.It "NET_RT_DUMP	None"
-.It "NET_RT_IFLIST	0 or if_index"
-.It "NET_RT_IFMALIST	0 or if_index"
-.It "NET_RT_IFLISTL	0 or if_index"
+The fifth, sixth, and seventh level names are as follows:
+.Bl -column "Fifth level	" "Sixth level	" -offset indent
+.It Sy "Fifth level	Sixth level	Seventh level"
+.It "NET_RT_FLAGS	rtflags			None"
+.It "NET_RT_DUMP	None			None or fib number"
+.It "NET_RT_IFLIST	0 or if_index		None"
+.It "NET_RT_IFMALIST	0 or if_index		None"
+.It "NET_RT_IFLISTL	0 or if_index		None"
 .El
 .Pp
 The
