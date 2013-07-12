@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -194,7 +193,6 @@ identify_ns(int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
 	char				path[64];
-	char				*nsloc;
 	int				ch, fd, hexflag = 0, hexlength, nsid;
 	int				verboseflag = 0;
 
@@ -224,22 +222,12 @@ identify_ns(int argc, char *argv[])
 	close(fd);
 
 	/*
-	 * Pull the namespace id from the string. +2 skips past the "ns" part
-	 *  of the string.  Don't search past 10 characters into the string,
-	 *  otherwise we know it is malformed.
-	 */
-	nsloc = strnstr(argv[optind], NVME_NS_PREFIX, 10);
-	if (nsloc != NULL)
-		nsid = strtol(nsloc + 2, NULL, 10);
-	if (nsloc == NULL || (nsid == 0 && errno != 0))
-		errx(1, "invalid namespace ID '%s'", argv[optind]);
-
-	/*
 	 * We send IDENTIFY commands to the controller, not the namespace,
-	 *  since it is an admin cmd.  So the path should only include the
-	 *  nvmeX part of the nvmeXnsY string.
+	 *  since it is an admin cmd.  The namespace ID will be specified in
+	 *  the IDENTIFY command itself.  So parse the namespace's device node
+	 *  string to get the controller substring and namespace ID.
 	 */
-	snprintf(path, nsloc - argv[optind] + 1, "%s", argv[optind]);
+	parse_ns_str(argv[optind], path, &nsid);
 	open_dev(path, &fd, 1, 1);
 	read_namespace_data(fd, nsid, &nsdata);
 	close(fd);

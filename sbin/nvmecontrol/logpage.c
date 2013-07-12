@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -242,12 +241,11 @@ logpage_usage(void)
 void
 logpage(int argc, char *argv[])
 {
-	int				fd, nsid, len;
+	int				fd, nsid;
 	int				log_page = 0, pageflag = false;
-	int				hexflag = false;
-	int				allow_ns = false;
-	char				ch, *p, *nsloc = NULL;
-	char				*cname = NULL;
+	int				hexflag = false, ns_specified;
+	char				ch, *p;
+	char				cname[64];
 	uint32_t			size;
 	void				*buf;
 	struct logpage_function		*f;
@@ -290,46 +288,31 @@ logpage(int argc, char *argv[])
 	if (optind >= argc)
 		logpage_usage();
 
+	if (strstr(argv[optind], NVME_NS_PREFIX) != NULL) {
+		ns_specified = true;
+		parse_ns_str(argv[optind], cname, &nsid);
+		open_dev(cname, &fd, 1, 1);
+	} else {
+		ns_specified = false;
+		nsid = NVME_GLOBAL_NAMESPACE_TAG;
+		open_dev(argv[optind], &fd, 1, 1);
+	}
+
 	/*
 	 * The log page attribtues indicate whether or not the controller
 	 * supports the SMART/Health information log page on a per
 	 * namespace basis.
 	 */
-	cname = malloc(strlen(NVME_CTRLR_PREFIX) + 2);
-	len = strlen(NVME_CTRLR_PREFIX) + 1;
-	cname = strncpy(cname, argv[optind], len);
-	open_dev(cname, &fd, 1, 1);
-	read_controller_data(fd, &cdata);
-
-	if (log_page == NVME_LOG_HEALTH_INFORMATION && cdata.lpa.ns_smart != 0)
-		allow_ns = true;
-
-	/* If a namespace id was specified, validate it's use */
-	if (strstr(argv[optind], NVME_NS_PREFIX) != NULL) {
-		if (!allow_ns) {
-			if (log_page != NVME_LOG_HEALTH_INFORMATION)
-				errx(1,
-				    "log page %d valid only at controller level",
-				    log_page);
-			else if (cdata.lpa.ns_smart == 0)
-				errx(1,
-				    "controller does not support per "
-				    "namespace smart/health information");
-		}
-		nsloc = strnstr(argv[optind], NVME_NS_PREFIX, 10);
-		if (nsloc != NULL)
-			nsid = strtol(nsloc + 2, NULL, 10);
-		if (nsloc == NULL || (nsid == 0 && errno != 0))
-			errx(1, "invalid namespace id '%s'", argv[optind]);
-
-		/*
-		 * User is asking for per namespace log page information
-		 * so close the controller and open up the namespace.
-		 */
-		close(fd);
-		open_dev(argv[optind], &fd, 1, 1);
-	} else
-		nsid = NVME_GLOBAL_NAMESPACE_TAG;
+	if (ns_specified) {
+		if (log_page != NVME_LOG_HEALTH_INFORMATION)
+			errx(1, "log page %d valid only at controller level",
+			    log_page);
+		read_controller_data(fd, &cdata);
+		if (cdata.lpa.ns_smart == 0)
+			errx(1,
+			    "controller does not support per namespace "
+			    "smart/health information");
+	}
 
 	print_fn = print_hex;
 	if (!hexflag) {

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -196,6 +197,29 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 	}
 
 	return (0);
+}
+
+void
+parse_ns_str(const char *ns_str, char *ctrlr_str, int *nsid)
+{
+	char	*nsloc;
+
+	/*
+	 * Pull the namespace id from the string. +2 skips past the "ns" part
+	 *  of the string.  Don't search past 10 characters into the string,
+	 *  otherwise we know it is malformed.
+	 */
+	nsloc = strnstr(ns_str, NVME_NS_PREFIX, 10);
+	if (nsloc != NULL)
+		*nsid = strtol(nsloc + 2, NULL, 10);
+	if (nsloc == NULL || (*nsid == 0 && errno != 0))
+		errx(1, "invalid namespace ID '%s'", ns_str);
+
+	/*
+	 * The controller string will include only the nvmX part of the
+	 *  nvmeXnsY string.
+	 */
+	snprintf(ctrlr_str, nsloc - ns_str + 1, "%s", ns_str);
 }
 
 int
