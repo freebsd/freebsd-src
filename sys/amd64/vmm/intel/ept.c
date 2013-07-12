@@ -29,26 +29,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/errno.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/smp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
-#include <machine/param.h>
-#include <machine/cpufunc.h>
-#include <machine/pmap.h>
-#include <machine/vmparam.h>
-
 #include <machine/vmm.h>
+
 #include "vmx_cpufunc.h"
 #include "vmx_msr.h"
-#include "vmx.h"
 #include "ept.h"
 
 #define	EPT_PWL4(cap)			((cap) & (1UL << 6))
@@ -65,17 +58,6 @@ __FBSDID("$FreeBSD$");
 #define	INVEPT_ALL_TYPES_MASK		0x6000000UL
 #define	INVEPT_ALL_TYPES_SUPPORTED(cap)		\
 	(((cap) & INVEPT_ALL_TYPES_MASK) == INVEPT_ALL_TYPES_MASK)
-
-#define	EPT_PG_RD			(1 << 0)
-#define	EPT_PG_WR			(1 << 1)
-#define	EPT_PG_EX			(1 << 2)
-#define	EPT_PG_MEMORY_TYPE(x)		((x) << 3)
-#define	EPT_PG_IGNORE_PAT		(1 << 6)
-#define	EPT_PG_SUPERPAGE		(1 << 7)
-
-#define	EPT_ADDR_MASK			((uint64_t)-1 << 12)
-
-MALLOC_DECLARE(M_VMX);
 
 static uint64_t page_sizes_mask;
 
