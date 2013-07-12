@@ -1961,6 +1961,32 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 }
 
 /*
+ * Find a link-local scoped address on ifp and return it if any.
+ */
+struct in6_ifaddr *
+in6ifa_llaonifp(struct ifnet *ifp)
+{
+	struct sockaddr_in6 *sin6;
+	struct ifaddr *ifa;
+
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+		return (NULL);
+	if_addr_rlock(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) ||
+		    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6->sin6_addr) ||
+		    IN6_IS_ADDR_MC_NODELOCAL(&sin6->sin6_addr))
+			break;
+	}
+	if_addr_runlock(ifp);
+
+	return ((struct in6_ifaddr *)ifa);
+}
+
+/*
  * Convert IP6 address to printable (loggable) representation. Caller
  * has to make sure that ip6buf is at least INET6_ADDRSTRLEN long.
  */
