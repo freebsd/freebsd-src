@@ -76,7 +76,6 @@ other than virtual memory.
 .\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 .Fn vmem_create
 creates a new vmem arena.
-.Pp
 .Bl -tag -width qcache_max
 .It Fa name
 The string to describe the vmem.
@@ -129,7 +128,6 @@ wait flag.
 .\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 .Fn vmem_xalloc
 allocates a resource from the arena.
-.Pp
 .Bl -tag -width nocross
 .It Fa vm
 The arena which we allocate from.
@@ -169,7 +167,7 @@ Specify the maximum address which can be allocated, or
 if the caller does not care.
 .It Fa flags
 A bitwise OR of an allocation strategy and a
-.Xr malloc 8
+.Xr malloc 9
 wait flag.
 The allocation strategy is one of
 .Dv M_FIRSTFIT
@@ -189,7 +187,6 @@ overwrites it with the start address of the allocated span.
 frees resource allocated by
 .Fn vmem_xalloc
 to the arena.
-.Pp
 .Bl -tag -width addr
 .It Fa vm
 The arena which we free to.
@@ -211,7 +208,6 @@ argument used for
 .\" - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 .Fn vmem_alloc
 allocates a resource from the arena.
-.Pp
 .Bl -tag -width flags
 .It Fa vm
 The arena which we allocate from.
@@ -237,7 +233,6 @@ overwrites it with the start address of the allocated span.
 frees resource allocated by
 .Fn vmem_alloc
 to the arena.
-.Pp
 .Bl -tag -width addr
 .It Fa vm
 The arena which we free to.
@@ -259,7 +254,6 @@ argument used for
 .\" ------------------------------------------------------------
 .Fn vmem_destroy
 destroys a vmem arena.
-.Pp
 .Bl -tag -width vm
 .It Fa vm
 The vmem arena being destroyed.
@@ -315,7 +309,6 @@ The
 port was made by
 .An "Jeff Roberson" .
 .Sh BUGS
-.Pp
 .Nm
 relies on
 .Xr malloc 9 ,
