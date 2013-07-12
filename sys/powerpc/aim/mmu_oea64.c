@@ -1978,7 +1978,7 @@ moea64_pvo_protect(mmu_t mmu,  pmap_t pm, struct pvo_entry *pvo, vm_prot_t prot)
 	 * removed write access.
 	 */
 	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED && 
-	    (oldlo & LPTE_PP) != LPTE_BR && !(prot && VM_PROT_WRITE)) {
+	    (oldlo & LPTE_PP) != LPTE_BR && !(prot & VM_PROT_WRITE)) {
 		if (pg != NULL) {
 			if (pvo->pvo_pte.lpte.pte_lo & LPTE_CHG)
 				vm_page_dirty(pg);
