@@ -100,7 +100,7 @@ static device_method_t pcib_methods[] = {
 static devclass_t pcib_devclass;
 
 DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
-DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, NULL, NULL);
 
 #ifdef NEW_PCIB
 /*
@@ -623,6 +623,9 @@ pcib_attach_common(device_t dev)
 
     if (pci_msi_device_blacklisted(dev))
 	sc->flags |= PCIB_DISABLE_MSI;
+
+    if (pci_msix_device_blacklisted(dev))
+	sc->flags |= PCIB_DISABLE_MSIX;
 
     /*
      * Intel 815, 845 and other chipsets say they are PCI-PCI bridges,
@@ -1379,7 +1382,7 @@ pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
 	struct pcib_softc *sc = device_get_softc(pcib);
 	device_t bus;
 
-	if (sc->flags & PCIB_DISABLE_MSI)
+	if (sc->flags & PCIB_DISABLE_MSIX)
 		return (ENXIO);
 	bus = device_get_parent(pcib);
 	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
