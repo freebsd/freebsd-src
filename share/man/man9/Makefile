@@ -339,6 +339,7 @@ MAN=	accept_filter.9 \
 	vm_page_wakeup.9 \
 	vm_page_wire.9 \
 	vm_set_page_size.9 \
+	vmem.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
 	vnode.9 \
