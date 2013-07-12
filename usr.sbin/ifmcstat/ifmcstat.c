@@ -751,7 +751,7 @@ in6_ifinfo(struct mld_ifinfo *mli)
 		printf("mldv?(%d)", mli->mli_version);
 		break;
 	}
-	printb(" flags", mli->mli_flags, "\020\1SILENT");
+	printb(" flags", mli->mli_flags, "\020\1SILENT\2USEALLOW");
 	if (mli->mli_version == MLD_VERSION_2) {
 		printf(" rv %u qi %u qri %u uri %u",
 		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
