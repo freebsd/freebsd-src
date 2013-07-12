@@ -835,7 +835,7 @@ swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
  * SWAP_PAGER_RESERVE() - reserve swap blocks in object
  *
  *	Assigns swap blocks to the specified range within the object.  The 
- *	swap blocks are not zerod.  Any previous swap assignment is destroyed.
+ *	swap blocks are not zeroed.  Any previous swap assignment is destroyed.
  *
  *	Returns 0 on success, -1 on failure.
  */
