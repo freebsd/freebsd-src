@@ -30,13 +30,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -139,7 +139,7 @@ identify_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, IDENTIFY_USAGE);
-	exit(EX_USAGE);
+	exit(1);
 }
 
 static void
@@ -177,16 +177,16 @@ identify_ctrlr(int argc, char *argv[])
 			hexlength = offsetof(struct nvme_controller_data,
 			    reserved5);
 		print_hex(&cdata, hexlength);
-		exit(EX_OK);
+		exit(0);
 	}
 
 	if (verboseflag == 1) {
-		printf("-v not currently supported without -x.\n");
+		fprintf(stderr, "-v not currently supported without -x\n");
 		identify_usage();
 	}
 
 	print_controller(&cdata);
-	exit(EX_OK);
+	exit(0);
 }
 
 static void
@@ -231,10 +231,8 @@ identify_ns(int argc, char *argv[])
 	nsloc = strnstr(argv[optind], NVME_NS_PREFIX, 10);
 	if (nsloc != NULL)
 		nsid = strtol(nsloc + 2, NULL, 10);
-	if (nsloc == NULL || (nsid == 0 && errno != 0)) {
-		printf("Invalid namespace ID %s.\n", argv[optind]);
-		exit(EX_IOERR);
-	}
+	if (nsloc == NULL || (nsid == 0 && errno != 0))
+		errx(1, "invalid namespace ID '%s'", argv[optind]);
 
 	/*
 	 * We send IDENTIFY commands to the controller, not the namespace,
@@ -253,16 +251,16 @@ identify_ns(int argc, char *argv[])
 			hexlength = offsetof(struct nvme_namespace_data,
 			    reserved6);
 		print_hex(&nsdata, hexlength);
-		exit(EX_OK);
+		exit(0);
 	}
 
 	if (verboseflag == 1) {
-		printf("-v not currently supported without -x.\n");
+		fprintf(stderr, "-v not currently supported without -x\n");
 		identify_usage();
 	}
 
 	print_namespace(&nsdata);
-	exit(EX_OK);
+	exit(0);
 }
 
 void

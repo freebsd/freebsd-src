@@ -32,14 +32,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -71,7 +70,7 @@ usage(void)
 		fprintf(stderr, "%s", f->usage);
 		f++;
 	}
-	exit(EX_USAGE);
+	exit(1);
 }
 
 static void
@@ -134,16 +133,11 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 	pt.len = sizeof(*cdata);
 	pt.is_read = 1;
 
-	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0) {
-		printf("Identify request failed. errno=%d (%s)\n",
-		    errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
+		err(1, "identify request failed");
 
-	if (nvme_completion_is_error(&pt.cpl)) {
-		printf("Passthrough command returned error.\n");
-		exit(EX_IOERR);
-	}
+	if (nvme_completion_is_error(&pt.cpl))
+		errx(1, "identify request returned error");
 }
 
 void
@@ -158,16 +152,11 @@ read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
 	pt.len = sizeof(*nsdata);
 	pt.is_read = 1;
 
-	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0) {
-		printf("Identify request failed. errno=%d (%s)\n",
-		    errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
+		err(1, "identify request failed");
 
-	if (nvme_completion_is_error(&pt.cpl)) {
-		printf("Passthrough command returned error.\n");
-		exit(EX_IOERR);
-	}
+	if (nvme_completion_is_error(&pt.cpl))
+		errx(1, "identify request returned error");
 }
 
 int
@@ -178,38 +167,35 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 
 	if (!strnstr(str, NVME_CTRLR_PREFIX, strlen(NVME_CTRLR_PREFIX))) {
 		if (show_error)
-			fprintf(stderr,
-			    "Controller/namespace IDs must begin with '%s'.\n",
+			warnx("controller/namespace ids must begin with '%s'",
 			    NVME_CTRLR_PREFIX);
 		if (exit_on_error)
-			exit(EX_USAGE);
+			exit(1);
 		else
-			return (EX_USAGE);
+			return (1);
 	}
 
 	snprintf(full_path, sizeof(full_path), "/dev/%s", str);
 	if (stat(full_path, &devstat) != 0) {
 		if (show_error)
-			fprintf(stderr, "Could not stat %s. errno=%d (%s)\n",
-			    full_path, errno, strerror(errno));
+			warn("could not stat %s", full_path);
 		if (exit_on_error)
-			exit(EX_NOINPUT);
+			exit(1);
 		else
-			return (EX_NOINPUT);
+			return (1);
 	}
 
 	*fd = open(full_path, O_RDWR);
 	if (*fd < 0) {
 		if (show_error)
-			fprintf(stderr, "Could not open %s. errno=%d (%s)\n",
-			    full_path, errno, strerror(errno));
+			warn("could not open %s", full_path);
 		if (exit_on_error)
-			exit(EX_NOPERM);
+			exit(1);
 		else
-			return (EX_NOPERM);
+			return (1);
 	}
 
-	return (EX_OK);
+	return (0);
 }
 
 int
