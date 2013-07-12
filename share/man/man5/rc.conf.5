@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2013
+.Dd July 12, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3875,6 +3875,11 @@ configure multiple jails.
 The names specified in this list will be used to
 identify settings common to an instance of a jail,
 and should contain alphanumeric characters only.
+The literal jail name of
+.Dq Li 0
+.Pq zero
+is not allowed.
+.Pp
 Assuming that the jail in question was named
 .Li vjail ,
 you would have the following dependent variables:
