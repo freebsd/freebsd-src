@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20130709:
+	pkg_install has been disconnected from the build if you really need it
+	you should add WITH_PKGTOOLS in your src.conf(5).
+
+20130709:
 	Most of network statistics structures were changed to be able
 	keep 64-bits counters. Thus all tools, that work with networking
 	statistics, must be rebuilded (netstat(1), bsnmpd(1), etc.)
