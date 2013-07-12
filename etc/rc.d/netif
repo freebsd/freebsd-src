@@ -46,6 +46,8 @@ set_rcvar_obsolete ipv6_prefer
 
 network_start()
 {
+	local _if
+
 	# Set the list of interfaces to work on.
 	#
 	cmdifn=$*
@@ -81,16 +83,29 @@ network_start()
 	if [ -f /etc/rc.d/bridge -a -n "$cmdifn" ] ; then
 		/etc/rc.d/bridge start $cmdifn
 	fi
+	if [ -f /etc/rc.d/routing -a -n "$cmdifn" ] ; then
+		for _if in $cmdifn; do
+			/etc/rc.d/routing start any $_if
+		done
+	fi
 }
 
 network_stop()
 {
+	local _if
+
 	# Set the list of interfaces to work on.
 	#
 	cmdifn=$*
 
 	# Deconfigure the interface(s)
 	network_common ifn_stop
+
+	if [ -f /etc/rc.d/routing -a -n "$cmdifn" ] ; then
+		for _if in $cmdifn; do
+			/etc/rc.d/routing stop any $_if
+		done
+	fi
 }
 
 # network_common routine
