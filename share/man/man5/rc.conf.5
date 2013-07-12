@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2012
+.Dd June 20, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1094,44 +1094,63 @@ Such keywords are removed before passing the value to
 .Xr ifconfig 8
 while the order of the other arguments is preserved.
 .Pp
-One can configure more than one IPv4 address with the
-.Va ipv4_addrs_ Ns Aq Ar interface
-variable.
-One or more IP addresses must be provided in Classless Inter-Domain
-Routing (CIDR) address notation, whose last byte can be a range like
-192.0.2.5-23/24.
-In this case the address 192.0.2.5 will be configured with the
-netmask /24 and the addresses 192.0.2.6 to 192.0.2.23 with
-the non-conflicting netmask /32 as explained in the
+It is possible to add IP alias entries using
 .Xr ifconfig 8
-alias section.
-With the interface in question being
-.Li ed0 ,
-an example could look like:
-.Bd -literal
-ipv4_addrs_ed0="192.0.2.129/27 192.0.2.1-5/28"
-.Ed
-.Pp
-It is also possible to add IP alias entries using
-.Xr ifconfig 8
-syntax with the
-.Dq Li inet
-keyword.
+syntax with the address family keyword such as
+.Li inet .
 Assuming that the interface in question was
 .Li ed0 ,
-it might look
-something like this:
+it might look something like this:
 .Bd -literal
 ifconfig_ed0_alias0="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias1="inet 127.0.0.254 netmask 0xffffffff"
 .Ed
 .Pp
-And so on.
+It also possible to configure multiple IP addresses in Classless
+Inter-Domain Routing
+.Pq CIDR
+address notation,
+whose each address component can be a range like
+.Li inet 192.0.2.5-23/24
+or
+.Li inet6 2001:db8:1-f::1/64 .
+This notation allows address and prefix length part only,
+not the other address modifiers.
+.Pp
+In the case of
+.Li 192.0.2.5-23/24 ,
+the address 192.0.2.5 will be configured with the
+netmask /24 and the addresses 192.0.2.6 to 192.0.2.23 with
+the non-conflicting netmask /32 as explained in the
+.Xr ifconfig 8
+alias section.
+Note that this special netmask handling is only for
+.Li inet ,
+not for the other address families such as
+.Li inet6 .
+.Pp
+With the interface in question being
+.Li ed0 ,
+an example could look like:
+.Bd -literal
+ifconfig_ed0_alias2="inet 192.0.2.129/27"
+ifconfig_ed0_alias3="inet 192.0.2.1-5/28"
+.Ed
+.Pp
+and so on.
+.Pp
+Note that
+.Va ipv4_addrs_ Ns Aq Ar interface
+variable was supported for IPv4 CIDR address notation.
+It is now deprecated because the functionality was integrated into
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
+though
+.Va ipv4_addrs_ Ns Aq Ar interface
+is still supported for backward compatibility.
+.Pp
 For each
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
-entry with the
-.Dq Li inet
-keyword that is found,
+entry with an address family keyword,
 its contents are passed to
 .Xr ifconfig 8 .
 Execution stops at the first unsuccessful access, so if
@@ -1152,6 +1171,20 @@ entry.
 Due to this difficult to manage behavior, the
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 form is deprecated.
+There is
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _aliases
+variable, which has the same functionality as
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
+and can have all of entries in a variable like the following:
+.Bd -literal
+ifconfig_ed0_aliases="\\
+	inet 127.0.0.251 netmask 0xffffffff \\
+	inet 127.0.0.252 netmask 0xffffffff \\
+	inet 127.0.0.253 netmask 0xffffffff \\
+	inet 127.0.0.254 netmask 0xffffffff"
+.Ed
+.Pp
+It also supports CIDR notation.
 .Pp
 If the
 .Pa /etc/start_if. Ns Aq Ar interface
