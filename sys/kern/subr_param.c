@@ -163,6 +163,7 @@ static const char *const vm_bnames[] = {
 	"Plex86",			/* Plex86 */
 	"Bochs",			/* Bochs */
 	"Xen",				/* Xen */
+	"BHYVE",			/* bhyve */
 	"Seabios",			/* KVM */
 	NULL
 };
