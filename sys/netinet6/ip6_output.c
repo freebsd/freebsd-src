@@ -1491,13 +1491,10 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			switch (sopt->sopt_name) {
 			case SO_REUSEADDR:
 				INP_WLOCK(in6p);
-				if (IN_MULTICAST(ntohl(in6p->inp_laddr.s_addr))) {
-					if ((so->so_options &
-					    (SO_REUSEADDR | SO_REUSEPORT)) != 0)
-						in6p->inp_flags2 |= INP_REUSEPORT;
-					else
-						in6p->inp_flags2 &= ~INP_REUSEPORT;
-				}
+				if ((so->so_options & SO_REUSEADDR) != 0)
+					in6p->inp_flags2 |= INP_REUSEADDR;
+				else
+					in6p->inp_flags2 &= ~INP_REUSEADDR;
 				INP_WUNLOCK(in6p);
 				error = 0;
 				break;
