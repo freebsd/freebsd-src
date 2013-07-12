@@ -255,6 +255,8 @@ nvme_attach(device_t dev)
 
 	nvme_sysctl_initialize_ctrlr(ctrlr);
 
+	pci_enable_busmaster(dev);
+
 	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;
 
@@ -269,6 +271,7 @@ nvme_detach (device_t dev)
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
 
 	nvme_ctrlr_destruct(ctrlr, dev);
+	pci_disable_busmaster(dev);
 	return (0);
 }
 
