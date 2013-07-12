@@ -118,7 +118,7 @@ struct tcp_syncache {
 	u_int	cache_limit;
 	u_int	rexmt_limit;
 	u_int	hash_secret;
-	struct vnet *sch_vnet;
+	struct vnet *vnet;
 	struct syncookie_secret secret;
 };
 
