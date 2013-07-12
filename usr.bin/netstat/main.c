@@ -363,10 +363,12 @@ main(int argc, char *argv[])
 {
 	struct protox *tp = NULL;  /* for printing cblocks & stats */
 	int ch;
+	int fib = -1;
+	char *endptr;
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdf:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case 'A':
@@ -383,6 +385,12 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			dflag = 1;
+			break;
+		case 'F':
+			fib = strtol(optarg, &endptr, 0);
+			if (*endptr != '\0' ||
+			    (fib == 0 && (errno == EINVAL || errno == ERANGE)))
+				errx(1, "%s: invalid fib", optarg);
 			break;
 		case 'f':
 			if (strcmp(optarg, "ipx") == 0)
@@ -571,7 +579,7 @@ main(int argc, char *argv[])
 		if (sflag)
 			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
 		else
-			routepr(nl[N_RTREE].n_value);
+			routepr(nl[N_RTREE].n_value, fib);
 		exit(0);
 	}
 	if (gflag) {
