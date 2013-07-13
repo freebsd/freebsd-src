@@ -134,7 +134,9 @@ OLD_FILES+=usr/share/man/man8/auditd.8.gz
 
 .if ${MK_AUTHPF} == no
 OLD_FILES+=usr/sbin/authpf
+OLD_FILES+=usr/sbin/authpf-noip
 OLD_FILES+=usr/share/man/man8/authpf.8.gz
+OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .endif
 
 .if ${MK_BIND} == no
