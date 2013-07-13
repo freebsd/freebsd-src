@@ -1092,10 +1092,7 @@ static __inline boolean_t
 pmap_ps_enabled(pmap_t pmap)
 {
 
-	if ((pmap->pm_flags & PMAP_PDE_SUPERPAGE) != 0)
-		return (TRUE);
-	else
-		return (FALSE);
+	return ((pmap->pm_flags & PMAP_PDE_SUPERPAGE) != 0);
 }
 
 static void
