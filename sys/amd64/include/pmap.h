@@ -259,7 +259,11 @@ struct pmap {
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */
 	long			pm_eptgen;	/* EPT pmap generation id */
+	int			pm_flags;
 };
+
+/* flags */
+#define	PMAP_PDE_SUPERPAGE	(1 << 0)	/* supports 2MB superpages */
 
 typedef struct pmap	*pmap_t;
 
@@ -278,7 +282,7 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
-int pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type);
+int pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags);
 #endif
 
 /*

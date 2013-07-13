@@ -59,12 +59,11 @@ __FBSDID("$FreeBSD$");
 #define	INVEPT_ALL_TYPES_SUPPORTED(cap)		\
 	(((cap) & INVEPT_ALL_TYPES_MASK) == INVEPT_ALL_TYPES_MASK)
 
-static uint64_t page_sizes_mask;
+static int ept_pmap_flags;
 
 int
 ept_init(void)
 {
-	int page_shift;
 	uint64_t cap;
 
 	cap = rdmsr(MSR_VMX_EPT_VPID_CAP);
@@ -84,17 +83,8 @@ ept_init(void)
 	    !INVEPT_ALL_TYPES_SUPPORTED(cap))
 		return (EINVAL);
 
-	/* Set bits in 'page_sizes_mask' for each valid page size */
-	page_shift = PAGE_SHIFT;
-	page_sizes_mask = 1UL << page_shift;		/* 4KB page */
-
-	page_shift += 9;
 	if (EPT_PDE_SUPERPAGE(cap))
-		page_sizes_mask |= 1UL << page_shift;	/* 2MB superpage */
-
-	page_shift += 9;
-	if (EPT_PDPTE_SUPERPAGE(cap))
-		page_sizes_mask |= 1UL << page_shift;	/* 1GB superpage */
+		ept_pmap_flags |= PMAP_PDE_SUPERPAGE;	/* 2MB superpage */
 
 	return (0);
 }
@@ -155,7 +145,7 @@ static int
 ept_pinit(pmap_t pmap)
 {
 
-	return (pmap_pinit_type(pmap, PT_EPT));
+	return (pmap_pinit_type(pmap, PT_EPT, ept_pmap_flags));
 }
 
 struct vmspace *

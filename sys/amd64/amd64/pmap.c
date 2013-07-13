@@ -773,6 +773,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
+	kernel_pmap->pm_flags = PMAP_PDE_SUPERPAGE;
 
  	/*
 	 * Initialize the global pv list lock.
@@ -1085,6 +1086,16 @@ pmap_cache_mask(pmap_t pmap, boolean_t is_pde)
 	}
 
 	return (mask);
+}
+
+static __inline boolean_t
+pmap_ps_enabled(pmap_t pmap)
+{
+
+	if ((pmap->pm_flags & PMAP_PDE_SUPERPAGE) != 0)
+		return (TRUE);
+	else
+		return (FALSE);
 }
 
 static void
@@ -1969,6 +1980,7 @@ pmap_pinit0(pmap_t pmap)
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	pmap->pm_flags = PMAP_PDE_SUPERPAGE;
 }
 
 /*
@@ -1976,7 +1988,7 @@ pmap_pinit0(pmap_t pmap)
  * such as one in a vmspace structure.
  */
 int
-pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type)
+pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 {
 	vm_page_t pml4pg;
 	pt_entry_t PG_A, PG_M;
@@ -2021,6 +2033,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type)
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	pmap->pm_flags = flags;
 
 	return (1);
 }
@@ -2029,7 +2042,7 @@ int
 pmap_pinit(pmap_t pmap)
 {
 
-	return (pmap_pinit_type(pmap, PT_X86));
+	return (pmap_pinit_type(pmap, PT_X86, PMAP_PDE_SUPERPAGE));
 }
 
 /*
@@ -3991,7 +4004,8 @@ unchanged:
 	 * populated, then attempt promotion.
 	 */
 	if ((mpte == NULL || mpte->wire_count == NPTEPG) &&
-	    pg_ps_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
+	    pg_ps_enabled && pmap_ps_enabled(pmap) &&
+	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		pmap_promote_pde(pmap, pde, va, &lock);
 
@@ -4105,7 +4119,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
 		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pg_ps_enabled && vm_reserv_level_iffullpop(m) == 0 &&
+		    pg_ps_enabled && pmap_ps_enabled(pmap) &&
+		    vm_reserv_level_iffullpop(m) == 0 &&
 		    pmap_enter_pde(pmap, va, m, prot, &lock))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else
@@ -4284,6 +4299,8 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 	if ((addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
+		if (!pmap_ps_enabled(pmap))
+			return;
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
 		p = vm_page_lookup(object, pindex);
