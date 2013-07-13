@@ -83,19 +83,10 @@ extern const union __nan_un {
 
 #if (__STDC_VERSION__ >= 201112L && defined(__clang__)) || \
     __has_extension(c_generic_selections)
-#define	__fp_type_select(x, f, d, ld) _Generic((x),			\
+#define	__fp_type_select(x, f, d, ld) _Generic((0,(x)),			\
     float: f(x),							\
     double: d(x),							\
-    long double: ld(x),							\
-    volatile float: f(x),						\
-    volatile double: d(x),						\
-    volatile long double: ld(x),					\
-    volatile const float: f(x),						\
-    volatile const double: d(x),					\
-    volatile const long double: ld(x),					\
-    const float: f(x),							\
-    const double: d(x),							\
-    const long double: ld(x))
+    long double: ld(x))
 #elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
 #define	__fp_type_select(x, f, d, ld) __builtin_choose_expr(		\
     __builtin_types_compatible_p(__typeof(x), long double), ld(x),	\
