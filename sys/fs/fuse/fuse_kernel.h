@@ -69,20 +69,17 @@ struct fuse_attr {
 	__u64	atime;
 	__u64	mtime;
 	__u64	ctime;
-#ifdef __FreeBSD__
 	__u64	crtime;
-#endif
 	__u32	atimensec;
 	__u32	mtimensec;
 	__u32	ctimensec;
-#ifdef __FreeBSD__
 	__u32	crtimensec;
-#endif
 	__u32	mode;
 	__u32	nlink;
 	__u32	uid;
 	__u32	gid;
 	__u32	rdev;
+	__u32	padding;
 };
 
 struct fuse_kstatfs {
