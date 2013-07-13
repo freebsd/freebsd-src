@@ -808,23 +808,24 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cfi=		cfi
 _cpufreq=	cpufreq
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_cyclic=	cyclic
+.endif
 _drm=		drm
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_dtrace=	dtrace
+.endif
 _exca=		exca
 _nvram=		powermac_nvram
 _pccard=	pccard
 _smbfs=		smbfs
 _sound=		sound
-_cyclic=	cyclic
-_dtrace=	dtrace
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_cyclic=	cyclic
-_dtrace=	dtrace
-_opensolaris=	opensolaris
-.endif
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
