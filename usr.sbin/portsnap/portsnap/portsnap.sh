@@ -809,8 +809,8 @@ fetch_update() {
 	echo "done."
 
 # Remove files which are no longer needed
-	cut -f 2 -d '|' tINDEX INDEX | sort > oldfiles
-	cut -f 2 -d '|' tINDEX.new INDEX.new | sort | comm -13 - oldfiles |
+	cut -f 2 -d '|' tINDEX INDEX | sort -u > oldfiles
+	cut -f 2 -d '|' tINDEX.new INDEX.new | sort -u | comm -13 - oldfiles |
 	    lam -s "files/" - -s ".gz" | xargs rm -f
 	rm patchlist filelist oldfiles
 
