@@ -88,7 +88,7 @@ struct vmx {
 	struct vmxctx	ctx[VM_MAXCPU];
 	struct vmxcap	cap[VM_MAXCPU];
 	struct vmxstate	state[VM_MAXCPU];
-	vm_paddr_t	eptphys;
+	uint64_t	eptp;
 	struct vm	*vm;
 };
 CTASSERT((offsetof(struct vmx, vmcs) & PAGE_MASK) == 0);

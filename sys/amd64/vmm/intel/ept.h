@@ -31,11 +31,9 @@
 
 struct vmx;
 
-#define	EPT_PWLEVELS	4		/* page walk levels */
-#define	EPTP(pml4)	((pml4) | (EPT_PWLEVELS - 1) << 3 | PAT_WRITE_BACK)
-
 int	ept_init(void);
-void	ept_invalidate_mappings(u_long ept_pml4);
+void	ept_invalidate_mappings(u_long eptp);
 struct vmspace *ept_vmspace_alloc(vm_offset_t min, vm_offset_t max);
 void	ept_vmspace_free(struct vmspace *vmspace);
+uint64_t eptp(uint64_t pml4);
 #endif

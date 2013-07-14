@@ -692,7 +692,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	}
 	vmx->vm = vm;
 
-	vmx->eptphys = vtophys((vm_offset_t)pmap->pm_pml4);
+	vmx->eptp = eptp(vtophys((vm_offset_t)pmap->pm_pml4));
 
 	/*
 	 * Clean up EPTP-tagged guest physical and combined mappings
@@ -703,7 +703,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 *
 	 * Combined mappings for this EP4TA are also invalidated for all VPIDs.
 	 */
-	ept_invalidate_mappings(vmx->eptphys);
+	ept_invalidate_mappings(vmx->eptp);
 
 	msr_bitmap_initialize(vmx->msr_bitmap);
 
@@ -759,7 +759,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		error = vmcs_set_defaults(&vmx->vmcs[i],
 					  (u_long)vmx_longjmp,
 					  (u_long)&vmx->ctx[i],
-					  vmx->eptphys,
+					  vmx->eptp,
 					  pinbased_ctls,
 					  procbased_ctls,
 					  procbased_ctls2,

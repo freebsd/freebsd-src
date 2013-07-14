@@ -48,8 +48,9 @@ __FBSDID("$FreeBSD$");
 #define	EPT_MEMORY_TYPE_WB(cap)		((cap) & (1UL << 14))
 #define	EPT_PDE_SUPERPAGE(cap)		((cap) & (1UL << 16))	/* 2MB pages */
 #define	EPT_PDPTE_SUPERPAGE(cap)	((cap) & (1UL << 17))	/* 1GB pages */
-#define	INVVPID_SUPPORTED(cap)		((cap) & (1UL << 32))
 #define	INVEPT_SUPPORTED(cap)		((cap) & (1UL << 20))
+#define	AD_BITS_SUPPORTED(cap)		((cap) & (1UL << 21))
+#define	INVVPID_SUPPORTED(cap)		((cap) & (1UL << 32))
 
 #define	INVVPID_ALL_TYPES_MASK		0xF0000000000UL
 #define	INVVPID_ALL_TYPES_SUPPORTED(cap)	\
@@ -59,7 +60,11 @@ __FBSDID("$FreeBSD$");
 #define	INVEPT_ALL_TYPES_SUPPORTED(cap)		\
 	(((cap) & INVEPT_ALL_TYPES_MASK) == INVEPT_ALL_TYPES_MASK)
 
+#define	EPT_PWLEVELS		4		/* page walk levels */
+#define	EPT_ENABLE_AD_BITS	(1 << 6)
+
 static int ept_pmap_flags;
+static int ept_enable_ad_bits;
 
 int
 ept_init(void)
@@ -85,6 +90,9 @@ ept_init(void)
 
 	if (EPT_PDE_SUPERPAGE(cap))
 		ept_pmap_flags |= PMAP_PDE_SUPERPAGE;	/* 2MB superpage */
+
+	if (AD_BITS_SUPPORTED(cap))
+		ept_enable_ad_bits = 1;
 
 	return (0);
 }
@@ -132,11 +140,11 @@ invept_single_context(void *arg)
 }
 
 void
-ept_invalidate_mappings(u_long pml4ept)
+ept_invalidate_mappings(u_long eptp)
 {
 	struct invept_desc invept_desc = { 0 };
 
-	invept_desc.eptp = EPTP(pml4ept);
+	invept_desc.eptp = eptp;
 
 	smp_rendezvous(NULL, invept_single_context, NULL, &invept_desc);
 }
@@ -160,4 +168,16 @@ ept_vmspace_free(struct vmspace *vmspace)
 {
 
 	vmspace_free(vmspace);
+}
+
+uint64_t
+eptp(uint64_t pml4)
+{
+	uint64_t eptp_val;
+
+	eptp_val = pml4 | (EPT_PWLEVELS - 1) << 3 | PAT_WRITE_BACK;
+	if (ept_enable_ad_bits)
+		eptp_val |= EPT_ENABLE_AD_BITS;
+
+	return (eptp_val);
 }

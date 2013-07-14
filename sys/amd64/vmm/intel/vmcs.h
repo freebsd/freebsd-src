@@ -47,7 +47,7 @@ struct msr_entry {
 
 int vmcs_set_msr_save(struct vmcs *vmcs, u_long g_area, u_int g_count);
 int	vmcs_set_defaults(struct vmcs *vmcs, u_long host_rip, u_long host_rsp,
-			  u_long ept_pml4,
+			  uint64_t eptp,
 			  uint32_t pinbased_ctls, uint32_t procbased_ctls,
 			  uint32_t procbased_ctls2, uint32_t exit_ctls,
 			  uint32_t entry_ctls, u_long msr_bitmap,
