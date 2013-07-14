@@ -126,8 +126,8 @@ static struct vmm_ops *ops;
 #define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
 
 #define	VMINIT(vm, pmap) (ops != NULL ? (*ops->vminit)(vm, pmap): NULL)
-#define	VMRUN(vmi, vcpu, rip) \
-	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip) : ENXIO)
+#define	VMRUN(vmi, vcpu, rip, pmap) \
+	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
 #define	VMSPACE_ALLOC(min, max) \
 	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
@@ -759,7 +759,6 @@ vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 	return (0);
 }
 
-
 static int
 vm_handle_inst_emul(struct vm *vm, int vcpuid, boolean_t *retu)
 {
@@ -814,17 +813,22 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	uint64_t tscval, rip;
 	struct vm_exit *vme;
 	boolean_t retu;
+	pmap_t pmap;
 
 	vcpuid = vmrun->cpuid;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
 
+	pmap = vmspace_pmap(vm->vmspace);
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
 	rip = vmrun->rip;
 restart:
 	critical_enter();
+
+	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
+		("vm_run: absurd pm_active"));
 
 	tscval = rdtsc();
 
@@ -836,7 +840,7 @@ restart:
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
 	vcpu->hostcpu = curcpu;
-	error = VMRUN(vm->cookie, vcpuid, rip);
+	error = VMRUN(vm->cookie, vcpuid, rip, pmap);
 	vcpu->hostcpu = NOCPU;
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 

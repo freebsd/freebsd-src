@@ -31,6 +31,8 @@
 
 #include "vmcs.h"
 
+struct pmap;
+
 #define	GUEST_MSR_MAX_ENTRIES	64		/* arbitrary */
 
 struct vmxctx {
@@ -68,6 +70,15 @@ struct vmxctx {
 	
 	int		launched;		/* vmcs launch state */
 	int		launch_error;
+
+	long		eptgen;			/* cached pmap->pm_eptgen */
+
+	/*
+	 * The 'eptp' and the 'pmap' do not change during the lifetime of
+	 * the VM so it is safe to keep a copy in each vcpu's vmxctx.
+	 */
+	vm_paddr_t	eptp;
+	struct pmap	*pmap;
 };
 
 struct vmxcap {
@@ -100,6 +111,7 @@ CTASSERT((offsetof(struct vmx, guest_msrs) & 15) == 0);
 #define	VMX_RETURN_VMRESUME	2
 #define	VMX_RETURN_VMLAUNCH	3
 #define	VMX_RETURN_AST		4
+#define	VMX_RETURN_INVEPT	5
 /*
  * vmx_setjmp() returns:
  * - 0 when it returns directly
@@ -107,6 +119,7 @@ CTASSERT((offsetof(struct vmx, guest_msrs) & 15) == 0);
  * - 2 when it returns from vmx_resume (which would only be in the error case)
  * - 3 when it returns from vmx_launch (which would only be in the error case)
  * - 4 when it returns from vmx_resume or vmx_launch because of AST pending
+ * - 5 when it returns from vmx_launch/vmx_resume because of invept error
  */
 int	vmx_setjmp(struct vmxctx *ctx);
 void	vmx_longjmp(void);			/* returns via vmx_setjmp */

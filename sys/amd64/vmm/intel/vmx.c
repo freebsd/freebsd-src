@@ -791,6 +791,9 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		error = vmx_setup_cr4_shadow(&vmx->vmcs[i]);
 		if (error != 0)
 			panic("vmx_setup_cr4_shadow %d", error);
+
+		vmx->ctx[i].pmap = pmap;
+		vmx->ctx[i].eptp = vmx->eptp;
 	}
 
 	return (vmx);
@@ -1384,7 +1387,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 }
 
 static int
-vmx_run(void *arg, int vcpu, register_t rip)
+vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 {
 	int error, vie, rc, handled, astpending;
 	uint32_t exit_reason;
@@ -1392,7 +1395,7 @@ vmx_run(void *arg, int vcpu, register_t rip)
 	struct vmxctx *vmxctx;
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
-	
+
 	vmx = arg;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
@@ -1400,6 +1403,11 @@ vmx_run(void *arg, int vcpu, register_t rip)
 
 	astpending = 0;
 	vmexit = vm_exitinfo(vmx->vm, vcpu);
+
+	KASSERT(vmxctx->pmap == pmap,
+		("pmap %p different than ctx pmap %p" pmap, vmxctx->pmap));
+	KASSERT(vmxctx->eptp == vmx->eptp,
+		("eptp %#lx different than ctx eptp %#lx", eptp, vmxctx->eptp));
 
 	/*
 	 * XXX Can we avoid doing this every time we do a vm run?
@@ -1463,6 +1471,9 @@ vmx_run(void *arg, int vcpu, register_t rip)
 				vmxctx->launch_error, vie);
 #endif
 			goto err_exit;
+		case VMX_RETURN_INVEPT:
+			panic("vm %s:%d invept error %d",
+			      vm_name(vmx->vm), vcpu, vmxctx->launch_error);
 		default:
 			panic("vmx_setjmp returned %d", rc);
 		}
