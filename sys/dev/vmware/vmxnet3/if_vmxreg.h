@@ -78,12 +78,14 @@ struct UPT1_RxStats {
 #define VMXNET3_CMD_RESET	0xCAFE0002	/* Reset device */
 #define VMXNET3_CMD_SET_RXMODE	0xCAFE0003	/* Set interface flags */
 #define VMXNET3_CMD_SET_FILTER	0xCAFE0004	/* Set address filter */
+#define VMXNET3_CMD_VLAN_FILTER	0xCAFE0005	/* Set VLAN filter */
 #define VMXNET3_CMD_GET_STATUS	0xF00D0000	/* Get queue errors */
 #define VMXNET3_CMD_GET_LINK	0xF00D0002	/* Get link status */
 #define VMXNET3_CMD_GET_MACL	0xF00D0003	/* Get MAC address low */
 #define VMXNET3_CMD_GET_MACH	0xF00D0004	/* Get MAC address high */
 
 #define VMXNET3_DMADESC_ALIGN	128
+#define VMXNET3_INIT_GEN	1
 
 struct vmxnet3_txdesc {
 	uint64_t	addr;
@@ -248,10 +250,12 @@ struct vmxnet3_driver_shared {
 } __packed;
 
 struct vmxnet3_txq_shared {
+	/* Control */
 	uint32_t	npending;
 	uint32_t	intr_threshold;
 	uint64_t	reserved1;
 
+	/* Config */
 	uint64_t	cmd_ring;
 	uint64_t	data_ring;
 	uint64_t	comp_ring;
@@ -264,6 +268,7 @@ struct vmxnet3_txq_shared {
 	uint8_t		intr_idx;
 	uint8_t		pad1[7];
 
+	/* Queue status */
 	uint8_t		stopped;
 	uint8_t		pad2[3];
 	uint32_t	error;
