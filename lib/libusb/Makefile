@@ -15,11 +15,12 @@ INCS+=		libusb20_desc.h
 MAN=		libusb.3 libusb20.3
 MKLINT=		no
 NOGCCERROR=
+PTHREAD_LIBS?=	-lpthread
 
 WARNS?=		2
 
 DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+LDADD=		${PTHREAD_LIBS}
 
 MLINKS+=	libusb.3 usb.3
 
@@ -42,7 +43,17 @@ CFLAGS+=	-DCOMPAT_32BIT
 #
 # Examples:
 # make LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h
-# make COMPAT_32BIT=YES LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h
+# make COMPAT_32BIT=YES \
+#   LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h \
+#   DEBUG_FLAGS="-g"
+#
+# From Ubuntu 10.04:
+# freebsd-make LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h \
+#    PTHREAD_LIBS="-lpthread -lrt"
+# freebsd-make COMPAT32_BIT=YES \
+#    LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h \
+#    PTHREAD_LIBS="-lpthread -lrt"
+#
 #
 .if defined(LIBUSB_GLOBAL_INCLUDE_FILE)
 CFLAGS+=	-DLIBUSB_GLOBAL_INCLUDE_FILE=\"${LIBUSB_GLOBAL_INCLUDE_FILE}\"
