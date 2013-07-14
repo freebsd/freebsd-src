@@ -3408,6 +3408,15 @@ linux_ioctl_fbsd_usb(struct thread *td, struct linux_ioctl_args *args)
 	case FBSD_LUSB_SET_TEMPLATE:
 		args->cmd = USB_SET_TEMPLATE;
 		break;
+	case FBSD_LUSB_FS_OPEN_STREAM:
+		args->cmd = USB_FS_OPEN_STREAM;
+		break;
+	case FBSD_LUSB_GET_DEV_PORT_PATH:
+		args->cmd = USB_GET_DEV_PORT_PATH;
+		break;
+	case FBSD_LUSB_GET_POWER_USAGE:
+		args->cmd = USB_GET_POWER_USAGE;
+		break;
 	default:
 		error = ENOIOCTL;
 	}
