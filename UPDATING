@@ -38,7 +38,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 20130709:
 	Most of network statistics structures were changed to be able
 	keep 64-bits counters. Thus all tools, that work with networking
-	statistics, must be rebuilded (netstat(1), bsnmpd(1), etc.)
+	statistics, must be rebuilt (netstat(1), bsnmpd(1), etc.)
 
 20130629:
 	Fix targets that run multiple make's to use && rather than ;
