@@ -401,8 +401,6 @@ mbuf_init(void *dummy)
 	mbstat.m_numtypes = MT_NTYPES;
 
 	mbstat.m_mcfail = mbstat.m_mpfail = 0;
-	mbstat.sf_iocnt = 0;
-	mbstat.sf_allocwait = mbstat.sf_allocfail = 0;
 }
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
 
