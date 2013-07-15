@@ -33,11 +33,8 @@
 /*$FreeBSD$*/
 
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#endif
-
 #include "ixgbe.h"
 
 /*********************************************************************
