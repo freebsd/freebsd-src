@@ -184,6 +184,8 @@ static struct nlist nl[] = {
 	{ .n_name = "_arpstat" },
 #define	N_UNP_SPHEAD	56
 	{ .n_name = "unp_sphead" },
+#define	N_SFSTAT	57
+	{ .n_name = "_sfstat"},
 	{ .n_name = NULL },
 };
 
@@ -543,7 +545,7 @@ main(int argc, char *argv[])
 	if (mflag) {
 		if (!live) {
 			if (kread(0, NULL, 0) == 0)
-				mbpr(kvmd, nl[N_MBSTAT].n_value);
+				mbpr(kvmd, nl[N_SFSTAT].n_value);
 		} else
 			mbpr(NULL, 0);
 		exit(0);
