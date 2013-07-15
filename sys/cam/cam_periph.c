@@ -1770,13 +1770,17 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		if (xpt_create_path(&newpath, NULL,
 				    xpt_path_path_id(ccb->ccb_h.path),
 				    xpt_path_target_id(ccb->ccb_h.path),
-				    -1) == CAM_REQ_CMP) {
+				    CAM_LUN_WILDCARD) == CAM_REQ_CMP) {
 
 			scan_ccb = xpt_alloc_ccb_nowait();
-			scan_ccb->ccb_h.path = newpath;
-			scan_ccb->ccb_h.func_code = XPT_SCAN_BUS;
-			scan_ccb->crcn.flags = 0;
-			xpt_rescan(scan_ccb);
+			if (scan_ccb != NULL) {
+				scan_ccb->ccb_h.path = newpath;
+				scan_ccb->ccb_h.func_code = XPT_SCAN_TGT;
+				scan_ccb->crcn.flags = 0;
+				xpt_rescan(scan_ccb);
+			} else
+				xpt_print(newpath,
+				    "Can't allocate CCB to rescan target\n");
 		}
 	}
 
