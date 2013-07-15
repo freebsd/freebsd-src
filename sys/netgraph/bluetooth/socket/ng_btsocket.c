@@ -46,6 +46,8 @@
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -285,4 +287,4 @@ ng_btsocket_modevent(module_t mod, int event, void *data)
 	return (error);
 } /* ng_btsocket_modevent */
 
-DOMAIN_SET(ng_btsocket_);
+VNET_DOMAIN_SET(ng_btsocket_);
