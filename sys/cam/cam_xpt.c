@@ -3900,10 +3900,13 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		xpt_async(AC_PATH_REGISTERED, path, &cpi);
 		/* Initiate bus rescan. */
 		scan_ccb = xpt_alloc_ccb_nowait();
-		scan_ccb->ccb_h.path = path;
-		scan_ccb->ccb_h.func_code = XPT_SCAN_BUS;
-		scan_ccb->crcn.flags = 0;
-		xpt_rescan(scan_ccb);
+		if (scan_ccb != NULL) {
+			scan_ccb->ccb_h.path = path;
+			scan_ccb->ccb_h.func_code = XPT_SCAN_BUS;
+			scan_ccb->crcn.flags = 0;
+			xpt_rescan(scan_ccb);
+		} else
+			xpt_print(path, "Can't allocate CCB to scan bus\n");
 	} else
 		xpt_free_path(path);
 	return (CAM_SUCCESS);
