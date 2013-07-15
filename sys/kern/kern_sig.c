@@ -3160,7 +3160,7 @@ nomem:
 		struct nameidata nd;
 		int error, n;
 		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
-		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+		int cmode = S_IRUSR | S_IWUSR;
 		int vfslocked;
 
 		for (n = 0; n < num_cores; n++) {
