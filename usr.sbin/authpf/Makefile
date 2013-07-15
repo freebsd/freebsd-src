@@ -19,4 +19,7 @@ CFLAGS+= -DENABLE_ALTQ
 LDADD+= -lm -lmd -lutil
 DPADD+= ${LIBM} ${LIBMD} ${LIBUTIL}
 
+LINKS=	${BINDIR}/authpf ${BINDIR}/authpf-noip
+MLINKS=	authpf.8 authpf-noip.8
+
 .include <bsd.prog.mk>
