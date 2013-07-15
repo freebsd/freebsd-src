@@ -93,6 +93,7 @@ struct vmxnet3_txqueue {
 	struct mtx			 vxtxq_mtx;
 	struct vmxnet3_softc		*vxtxq_sc;
 	int				 vxtxq_id;
+	int				 vxtxq_intr_idx;
 	struct vmxnet3_txring		 vxtxq_cmd_ring;
 	struct vmxnet3_comp_ring	 vxtxq_comp_ring;
 	struct vmxnet3_txq_shared	*vxtxq_ts;
@@ -111,6 +112,7 @@ struct vmxnet3_rxqueue {
 	struct mtx			 vxrxq_mtx;
 	struct vmxnet3_softc		*vxrxq_sc;
 	int				 vxrxq_id;
+	int				 vxrxq_intr_idx;
 	struct vmxnet3_rxring		 vxrxq_cmd_ring[VMXNET3_RXRINGS_PERQ];
 	struct vmxnet3_comp_ring	 vxrxq_comp_ring;
 	struct vmxnet3_rxq_shared	*vxrxq_rs;
@@ -124,24 +126,21 @@ struct vmxnet3_rxqueue {
 #define VMXNET3_RXQ_LOCK_ASSERT_NOTOWNED(_rxq)	\
     mtx_assert(&(_rxq)->vxrxq_mtx, MA_NOTOWNED)
 
+struct vmxnet3_interrupt {
+	struct resource		*vmxi_irq;
+	int			 vmxi_rid;
+	void			*vmxi_handler;
+};
+
 struct vmxnet3_softc {
 	device_t			 vmx_dev;
 	struct ifnet			*vmx_ifp;
+	struct vmxnet3_driver_shared	*vmx_ds;
 	uint32_t			 vmx_flags;
+#define VMXNET3_FLAG_NO_MSIX	0x0001
 
 	struct vmxnet3_rxqueue		*vmx_rxq;
 	struct vmxnet3_txqueue		*vmx_txq;
-
-	int				 vmx_watchdog_timer;
-	int				 vmx_if_flags;
-	int				 vmx_link_active;
-	int				 vmx_link_speed;
-
-	int				 vmx_ntxqueues;
-	int				 vmx_nrxqueues;
-	int				 vmx_ntxdescs;
-	int				 vmx_nrxdescs;
-	int				 vmx_max_rxsegs;
 
 	struct resource			*vmx_res0;
 	bus_space_tag_t			 vmx_iot0;
@@ -149,16 +148,30 @@ struct vmxnet3_softc {
 	struct resource			*vmx_res1;
 	bus_space_tag_t			 vmx_iot1;
 	bus_space_handle_t		 vmx_ioh1;
+	struct resource			*vmx_msix_res;
+
+	int				 vmx_link_active;
+	int				 vmx_link_speed;
+	int				 vmx_if_flags;
+	int				 vmx_ntxqueues;
+	int				 vmx_nrxqueues;
+	int				 vmx_ntxdescs;
+	int				 vmx_nrxdescs;
+	int				 vmx_watchdog_timer;
+	int				 vmx_max_rxsegs;
+
+	int				 vmx_intr_type;
+	int				 vmx_intr_mask_mode;
+	int				 vmx_event_intr_idx;
+	int				 vmx_nintrs;
+	struct vmxnet3_interrupt	 vmx_intrs[VMXNET3_MAX_INTRS];
 
 	struct mtx			 vmx_mtx;
-	struct callout			 vmx_tick;
-	struct vmxnet3_driver_shared	*vmx_ds;
-	struct vmxnet3_dma_alloc	 vmx_ds_dma;
-	void				*vmx_qs;
-	struct vmxnet3_dma_alloc	 vmx_qs_dma;
-	struct resource			*vmx_irq;
-	void				*vmx_intrhand;
 	uint8_t				*vmx_mcast;
+	void				*vmx_qs;
+	struct callout			 vmx_tick;
+	struct vmxnet3_dma_alloc	 vmx_ds_dma;
+	struct vmxnet3_dma_alloc	 vmx_qs_dma;
 	struct vmxnet3_dma_alloc	 vmx_mcast_dma;
 	struct ifmedia			 vmx_media;
 	eventhandler_tag		 vmx_vlan_attach;

@@ -83,6 +83,7 @@ struct UPT1_RxStats {
 #define VMXNET3_CMD_GET_LINK	0xF00D0002	/* Get link status */
 #define VMXNET3_CMD_GET_MACL	0xF00D0003	/* Get MAC address low */
 #define VMXNET3_CMD_GET_MACH	0xF00D0004	/* Get MAC address high */
+#define VMXNET3_CMD_GET_INTRCFG	0xF00D0008	/* Get interrupt config */
 
 #define VMXNET3_DMADESC_ALIGN	128
 #define VMXNET3_INIT_GEN	1
@@ -183,7 +184,6 @@ struct vmxnet3_rxcompdesc {
 
 #define VMXNET3_MAX_TX_QUEUES	8
 #define VMXNET3_MAX_RX_QUEUES	16
-#define VMXNET3_NINTR		1
 #define VMXNET3_MAX_INTRS \
     (VMXNET3_MAX_TX_QUEUES + VMXNET3_MAX_RX_QUEUES + 1)
 
@@ -203,6 +203,17 @@ struct vmxnet3_rxcompdesc {
 
 #define VMXNET3_MIN_MTU		60
 #define VMXNET3_MAX_MTU		9000
+
+/* Interrupt mask mode. */
+#define VMXNET3_IMM_AUTO	0x00
+#define VMXNET3_IMM_ACTIVE	0x01
+#define VMXNET3_IMM_LAZY	0x02
+
+/* Interrupt type. */
+#define VMXNET3_IT_AUTO		0x00
+#define VMXNET3_IT_LEGACY	0x01
+#define VMXNET3_IT_MSI		0x02
+#define VMXNET3_IT_MSIX		0x03
 
 struct vmxnet3_driver_shared {
 	uint32_t	magic;
