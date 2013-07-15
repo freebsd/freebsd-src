@@ -43,7 +43,6 @@
 	_averunnable
 	_boottime
 #netstat
-	_mbstat
 	_ipstat
 	_tcb
 	_tcpstat
