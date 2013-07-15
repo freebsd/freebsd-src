@@ -253,7 +253,7 @@ main(int argc, char *argv[])
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "adF:fLlo:prt:uvw")) != -1)
+	while ((ch = getopt(argc, argv, "adF:fLlno:prt:uvw")) != -1)
 		switch (ch) {
 		case 'a':
 			all = 1;
@@ -273,6 +273,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			late = 1;
+			break;
+		case 'n':
+			/* For compatibility with the Linux version of mount. */
 			break;
 		case 'o':
 			if (*optarg) {
