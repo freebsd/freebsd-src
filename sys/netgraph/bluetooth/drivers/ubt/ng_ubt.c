@@ -109,9 +109,7 @@
 #include <sys/unistd.h>
 #include <sys/callout.h>
 #include <sys/malloc.h>
-#include <sys/jail.h>
 #include <sys/priv.h>
-#include <sys/proc.h>
 
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
@@ -125,7 +123,6 @@
 #include <sys/mbuf.h>
 #include <sys/taskqueue.h>
 
-#include <net/vnet.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -490,14 +487,13 @@ ubt_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	sc->sc_debug = NG_UBT_WARN_LEVEL;
-	CURVNET_SET(TD_TO_VNET(curthread));
+
 	/* 
 	 * Create Netgraph node
 	 */
 
 	if (ng_make_node_common(&typestruct, &sc->sc_node) != 0) {
 		UBT_ALERT(sc, "could not create Netgraph node\n");
-		CURVNET_RESTORE();
 		return (ENXIO);
 	}
 
@@ -505,12 +501,10 @@ ubt_attach(device_t dev)
 	if (ng_name_node(sc->sc_node, device_get_nameunit(dev)) != 0) {
 		UBT_ALERT(sc, "could not name Netgraph node\n");
 		NG_NODE_UNREF(sc->sc_node);
-		CURVNET_RESTORE();
 		return (ENXIO);
 	}
 	NG_NODE_SET_PRIVATE(sc->sc_node, sc);
 	NG_NODE_FORCE_WRITER(sc->sc_node);
-	CURVNET_RESTORE();
 
 	/*
 	 * Initialize device softc structure
@@ -637,10 +631,8 @@ ubt_detach(device_t dev)
 	/* Destroy Netgraph node */
 	if (node != NULL) {
 		sc->sc_node = NULL;
-		CURVNET_SET(node->nd_vnet);
 		NG_NODE_REALLY_DIE(node);
 		ng_rmnode_self(node);
-		CURVNET_RESTORE();
 	}
 
 	/* Make sure ubt_task in gone */
