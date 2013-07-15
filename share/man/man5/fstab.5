@@ -32,7 +32,7 @@
 .\"     @(#)fstab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2013
+.Dd July 15, 2013
 .Dt FSTAB 5
 .Os
 .Sh NAME
@@ -239,6 +239,18 @@ an
 .Xr md 4
 device is created with the specified file used as backing store,
 and then the new device is used as swap space.
+Swap entries on
+.Pa .eli
+devices will cause automatic creation of encrypted devices.
+The
+.Dq ealgo ,
+.Dq aalgo ,
+.Dq keylength ,
+and
+.Dq sectorsize
+options may be passed to control those
+.Xr geli 8
+parameters.
 The fields other than
 .Fa fs_spec
 and
@@ -372,6 +384,7 @@ resides in
 .Xr ccd 4 ,
 .Xr dump 8 ,
 .Xr fsck 8 ,
+.Xr geli 8 ,
 .Xr mount 8 ,
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
