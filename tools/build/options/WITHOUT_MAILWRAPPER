@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to not build the
-.Xr mailwrapper 8
-MTA selector.

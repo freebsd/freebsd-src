@@ -1,9 +1,0 @@
-# $FreeBSD$
-set -e
-
-eval
-eval "" ""
-eval "true"
-! eval "false
-
-"

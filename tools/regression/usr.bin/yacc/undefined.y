@@ -1,5 +1,0 @@
-%type <int> rule
-%%
-rule:
-    ;
-%%

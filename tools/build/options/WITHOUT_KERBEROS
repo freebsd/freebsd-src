@@ -1,2 +1,0 @@
-.\" $FreeBSD$
-Set this if you do not want to build Kerberos 5 (KTH Heimdal).

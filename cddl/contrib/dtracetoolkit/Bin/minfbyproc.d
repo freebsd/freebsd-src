@@ -1,1 +1,0 @@
-../Mem/minfbyproc.d

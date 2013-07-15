@@ -1,9 +1,0 @@
-# $FreeBSD$
-f() {
-	[ $? = $1 ] || exit 1
-}
-
-true
-f 0
-false
-f 1

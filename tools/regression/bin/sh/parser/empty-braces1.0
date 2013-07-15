@@ -1,7 +1,0 @@
-# $FreeBSD$
-
-# Unfortunately, some scripts depend on the extension of allowing an empty
-# pair of braces.
-
-{ } &
-wait $!
