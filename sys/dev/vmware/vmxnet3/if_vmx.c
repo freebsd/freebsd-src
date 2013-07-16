@@ -112,6 +112,7 @@ static int	vmxnet3_alloc_queue_data(struct vmxnet3_softc *);
 static void	vmxnet3_free_queue_data(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_mcast_table(struct vmxnet3_softc *);
 static void	vmxnet3_init_shared_data(struct vmxnet3_softc *);
+static void	vmxnet3_reinit_interface(struct vmxnet3_softc *);
 static void	vmxnet3_reinit_shared_data(struct vmxnet3_softc *);
 static int	vmxnet3_alloc_data(struct vmxnet3_softc *);
 static void	vmxnet3_free_data(struct vmxnet3_softc *);
@@ -454,10 +455,8 @@ vmxnet3_alloc_msix_interrupts(struct vmxnet3_softc *sc)
 	if (nmsix < required)
 		return (1);
 
-	int error;
-
 	cnt = required;
-	if ((error = pci_alloc_msix(dev, &cnt)) == 0 && cnt >= required) {
+	if (pci_alloc_msix(dev, &cnt) == 0 && cnt >= required) {
 		sc->vmx_nintrs = required;
 		return (0);
 	}
@@ -502,7 +501,6 @@ vmxnet3_alloc_interrupt(struct vmxnet3_softc *sc, int rid, int flags,
     struct vmxnet3_interrupt *intr)
 {
 	struct resource *irq;
-	int old_rid = rid;
 
 	irq = bus_alloc_resource_any(sc->vmx_dev, SYS_RES_IRQ, &rid, flags);
 	if (irq == NULL)
@@ -927,10 +925,6 @@ vmxnet3_alloc_txq_data(struct vmxnet3_softc *sc)
 		txr = &txq->vxtxq_cmd_ring;
 		txc = &txq->vxtxq_comp_ring;
 
-		/*
-		 * XXX BMV Need better way to determine the maximum
-		 * size/segments/segsize arguments.
-		 */
 		error = bus_dma_tag_create(bus_get_dma_tag(dev),
 		    1, 0,			/* alignment, boundary */
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
@@ -938,7 +932,7 @@ vmxnet3_alloc_txq_data(struct vmxnet3_softc *sc)
 		    NULL, NULL,			/* filter, filterarg */
 		    VMXNET3_TSO_MAXSIZE,	/* maxsize */
 		    VMXNET3_TX_MAXSEGS,		/* nsegments */
-		    PAGE_SIZE,			/* maxsegsize */
+		    VMXNET3_TX_MAXSEGSIZE,	/* maxsegsize */
 		    0,				/* flags */
 		    NULL, NULL,			/* lockfunc, lockarg */
 		    &txr->vxtxr_txtag);
@@ -1294,6 +1288,28 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 }
 
 static void
+vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
+{
+	struct ifnet *ifp;
+
+	ifp = sc->vmx_ifp;
+
+	/* Use the current MAC address. */
+	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
+	vmxnet3_set_lladdr(sc);
+
+	ifp->if_hwassist = 0;
+	if (ifp->if_capenable & IFCAP_TXCSUM)
+		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD;
+	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
+		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
+	if (ifp->if_capenable & IFCAP_TSO4)
+		ifp->if_hwassist |= CSUM_TSO;
+	if (ifp->if_capenable & IFCAP_TSO6)
+		ifp->if_hwassist |= CSUM_TSO; /* No CSUM_TSO_IPV6. */
+}
+
+static void
 vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 {
 	struct ifnet *ifp;
@@ -1302,14 +1318,10 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 	ifp = sc->vmx_ifp;
 	ds = sc->vmx_ds;
 
-	/* Use the current MAC address. */
-	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
-	vmxnet3_set_lladdr(sc);
-
 	ds->upt_features = 0;
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
 		ds->upt_features |= UPT1_F_VLAN;
-	if (ifp->if_capenable & IFCAP_RXCSUM)
+	if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 		ds->upt_features |= UPT1_F_CSUM;
 
 	ds->mtu = ifp->if_mtu;
@@ -1380,9 +1392,11 @@ vmxnet3_setup_interface(struct vmxnet3_softc *sc)
 	vmxnet3_get_lladdr(sc);
 	ether_ifattach(ifp, sc->vmx_lladdr);
 
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
 	ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_TXCSUM;
-	ifp->if_hwassist |= VMXNET3_CSUM_FEATURES;
+	ifp->if_capabilities |= IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6;
+	ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
+	ifp->if_hwassist |= VMXNET3_CSUM_ALL_OFFLOAD;
 
 	ifp->if_capenable = ifp->if_capabilities;
 	
@@ -1644,9 +1658,8 @@ vmxnet3_rxeof(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 		m->m_pkthdr.len = m->m_len = length;
 		m->m_pkthdr.csum_flags = 0;
 
-		if (ifp->if_capenable & IFCAP_RXCSUM && !rxcd->no_csum)
+		if (!rxcd->no_csum)
 			vmxnet3_rx_csum(rxcd, m);
-
 		if (rxcd->vlan) {
 			m->m_flags |= M_VLANTAG;
 			m->m_pkthdr.ether_vtag = rxcd->vtag;
@@ -1965,6 +1978,8 @@ static int
 vmxnet3_reinit(struct vmxnet3_softc *sc)
 {
 
+	vmxnet3_reinit_interface(sc);
+
 	vmxnet3_reinit_shared_data(sc);
 
 	if (vmxnet3_reinit_queues(sc) != 0)
@@ -2063,6 +2078,28 @@ vmxnet3_encap_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 		return (EINVAL);
 	}
 
+	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+		struct tcphdr *tcp, tcphdr;
+
+		if (__predict_false(*proto != IPPROTO_TCP)) {
+			/* Likely failed to correctly parse the mbuf. */
+			return (EINVAL);
+		}
+
+		if (m->m_len < *start + sizeof(struct tcphdr)) {
+			m_copydata(m, offset, sizeof(struct tcphdr),
+			    (caddr_t) &tcphdr);
+			tcp = &tcphdr;
+		} else
+			tcp = (struct tcphdr *)(m->m_data + *start);
+
+		/*
+		 * For TSO, the size of the protocol header is also
+		 * included in the descriptor header size.
+		 */
+		*start += (tcp->th_off << 2);
+	}
+
 	return (0);
 }
 
@@ -2133,7 +2170,7 @@ vmxnet3_encap(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq,
 	if (VMXNET3_TXRING_AVAIL(txr) < nsegs) {
 		vmxnet3_encap_unload_mbuf(sc, txr, dmap);
 		return (ENOSPC);
-	} else if (m->m_pkthdr.csum_flags & VMXNET3_CSUM_FEATURES) {
+	} else if (m->m_pkthdr.csum_flags & VMXNET3_CSUM_ALL_OFFLOAD) {
 		error = vmxnet3_encap_offload_ctx(m, &etype, &proto, &start);
 		if (error) {
 			vmxnet3_encap_unload_mbuf(sc, txr, dmap);
@@ -2176,7 +2213,12 @@ vmxnet3_encap(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq,
 		sop->vtag = m->m_pkthdr.ether_vtag;
 	}
 
-	if (m->m_pkthdr.csum_flags & VMXNET3_CSUM_FEATURES) {
+	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+		sop->offload_mode = VMXNET3_OM_TSO;
+		sop->hlen = start;
+		sop->offload_pos = m->m_pkthdr.tso_segsz;
+	} else if (m->m_pkthdr.csum_flags & (VMXNET3_CSUM_OFFLOAD |
+	    VMXNET3_CSUM_OFFLOAD_IPV6)) {
 		sop->offload_mode = VMXNET3_OM_CSUM;
 		sop->hlen = start;
 		sop->offload_pos = start + m->m_pkthdr.csum_data;

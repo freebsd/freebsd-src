@@ -210,8 +210,14 @@ struct vmxnet3_softc {
  * Max descriptors per Tx packet. We must limit the size of the
  * any TSO packets based on the number of segments.
  */
-#define VMXNET3_TX_MAXSEGS		16
+#define VMXNET3_TX_MAXSEGS		32
 #define VMXNET3_TSO_MAXSIZE		65550
+
+/*
+ * Maximum support Tx segments size. The length field in the
+ * Tx descriptor is 14 bits.
+ */
+#define VMXNET3_TX_MAXSEGSIZE		(1 << 14)
 
 /*
  * Predetermined size of the multicast MACs filter table. If the
@@ -228,6 +234,10 @@ struct vmxnet3_softc {
 /*
  * IP protocols that we can perform Tx checksum offloading of.
  */
-#define VMXNET3_CSUM_FEATURES		(CSUM_UDP | CSUM_TCP)
+#define VMXNET3_CSUM_OFFLOAD		(CSUM_TCP | CSUM_UDP)
+#define VMXNET3_CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
+
+#define VMXNET3_CSUM_ALL_OFFLOAD	\
+    (VMXNET3_CSUM_OFFLOAD | VMXNET3_CSUM_OFFLOAD_IPV6 | CSUM_TSO)
 
 #endif /* _IF_VMXVAR_H */
