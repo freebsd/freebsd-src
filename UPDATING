@@ -31,6 +31,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130716:
+	The default ARM ABI has changed to the ARM EABI. The old ABI is
+	incompatible with the ARM EABI and all programs and modules will
+	need to be rebuilt to work with a new kernel.
+
+	To keep using the old ABI ensure the WITHOUT_ARM_EABI knob is set.
+
+	NOTE: Support for the old ABI will be removed in the future and
+	users are advised to upgrade.
+
 20130709:
 	pkg_install has been disconnected from the build if you really need it
 	you should add WITH_PKGTOOLS in your src.conf(5).
