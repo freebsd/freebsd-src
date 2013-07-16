@@ -811,6 +811,9 @@ APPLESTATIC void
 nfsrvd_refcache(struct nfsrvcache *rp)
 {
 
+	if (rp == NULL)
+		/* For NFSv4.1, there is no cache entry. */
+		return;
 	NFSLOCKCACHE();
 	if (rp->rc_refcnt < 0)
 		panic("nfs cache refcnt");
