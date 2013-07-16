@@ -67,10 +67,10 @@ SDT_PROBE_DEFINE2(vfs, namecache, enter_negative, done, done, "struct vnode *",
     "char *");
 SDT_PROBE_DEFINE1(vfs, namecache, fullpath, entry, entry, "struct vnode *");
 SDT_PROBE_DEFINE3(vfs, namecache, fullpath, hit, hit, "struct vnode *",
-    "struct char *", "struct vnode *");
+    "char *", "struct vnode *");
 SDT_PROBE_DEFINE1(vfs, namecache, fullpath, miss, miss, "struct vnode *");
 SDT_PROBE_DEFINE3(vfs, namecache, fullpath, return, return, "int",
-    "struct vnode *", "struct char *");
+    "struct vnode *", "char *");
 SDT_PROBE_DEFINE3(vfs, namecache, lookup, hit, hit, "struct vnode *", "char *",
     "struct vnode *");
 SDT_PROBE_DEFINE2(vfs, namecache, lookup, hit_negative, hit-negative,
