@@ -1041,9 +1041,12 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * reports of non-compliants stacks.
 	 */
 	if ((sc->sc_flags & SCF_TIMESTAMP) && !(to->to_flags & TOF_TS)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
 			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+			s = NULL;
+		}
 	}
 
 	/*
