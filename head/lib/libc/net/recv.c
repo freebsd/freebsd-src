@@ -33,12 +33,10 @@ static char sccsid[] = "@(#)recv.c	8.2 (Berkeley) 2/21/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 
 #include <stddef.h>
-#include "un-namespace.h"
 
 ssize_t
 recv(s, buf, len, flags)
@@ -46,5 +44,9 @@ recv(s, buf, len, flags)
 	size_t len;
 	void *buf;
 {
-	return (_recvfrom(s, buf, len, flags, NULL, 0));
+	/*
+	 * POSIX says recv() shall be a cancellation point, so call the
+	 * cancellation-enabled recvfrom() and not _recvfrom().
+	 */
+	return (recvfrom(s, buf, len, flags, NULL, 0));
 }

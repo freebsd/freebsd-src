@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 // Include all information about LLVM intrinsics.
-include "llvm/Intrinsics.td"
+include "llvm/IR/Intrinsics.td"
 
 //===----------------------------------------------------------------------===//
 // Register file description - These classes are used to fill in the target
@@ -367,8 +367,9 @@ class Instruction {
   //  hasSideEffects - The instruction has side effects that are not
   //    captured by any operands of the instruction or other flags.
   //
-  //  neverHasSideEffects - Set on an instruction with no pattern if it has no
-  //    side effects.
+  //  neverHasSideEffects (deprecated) - Set on an instruction with no pattern
+  //    if it has no side effects. This is now equivalent to setting
+  //    "hasSideEffects = 0".
   bit hasSideEffects = ?;
   bit neverHasSideEffects = 0;
 
@@ -395,6 +396,9 @@ class Instruction {
   bit isAsmParserOnly = 0;
 
   InstrItinClass Itinerary = NoItinerary;// Execution steps used for scheduling.
+
+  // Scheduling information from TargetSchedule.td.
+  list<SchedReadWrite> SchedRW;
 
   string Constraints = "";  // OperandConstraint, e.g. $src = $dst.
 
@@ -786,8 +790,8 @@ class AsmParser {
   // This can be used to perform target specific instruction post-processing.
   string AsmParserInstCleanup  = "";
 
-  //ShouldEmitMatchRegisterName - Set to false if the target needs a hand
-  //written register name matcher
+  // ShouldEmitMatchRegisterName - Set to false if the target needs a hand
+  // written register name matcher
   bit ShouldEmitMatchRegisterName = 1;
 }
 def DefaultAsmParser : AsmParser;
@@ -802,6 +806,9 @@ class AsmParserVariant {
   // used to support targets that need to parser multiple formats for the
   // assembly language.
   int Variant = 0;
+
+  // Name - The AsmParser variant name (e.g., AT&T vs Intel).
+  string Name = "";
 
   // CommentDelimiter - If given, the delimiter string used to recognize
   // comments which are hard coded in the .td assembler strings for individual
@@ -856,9 +863,16 @@ class TokenAlias<string From, string To> {
 ///  def : MnemonicAlias<"pushf", "pushfq">, Requires<[In64BitMode]>;
 ///  def : MnemonicAlias<"pushf", "pushfl">, Requires<[In32BitMode]>;
 ///
-class MnemonicAlias<string From, string To> {
+/// Mnemonic aliases can also be constrained to specific variants, e.g.:
+///
+///  def : MnemonicAlias<"pushf", "pushfq", "att">, Requires<[In64BitMode]>;
+///
+/// If no variant (e.g., "att" or "intel") is specified then the alias is
+/// applied unconditionally.
+class MnemonicAlias<string From, string To, string VariantName = ""> {
   string FromMnemonic = From;
   string ToMnemonic = To;
+  string AsmVariantName = VariantName;
 
   // Predicates - Predicates that must be true for this remapping to happen.
   list<Predicate> Predicates = [];

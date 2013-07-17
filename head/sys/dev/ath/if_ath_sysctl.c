@@ -361,11 +361,13 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, axq_fifo_depth=%d\n",
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, "
+			    "axq_fifo_depth=%d, holdingbf=%p\n",
 			    i,
 			    sc->sc_txq[i].axq_depth,
 			    sc->sc_txq[i].axq_aggr_depth,
-			    sc->sc_txq[i].axq_fifo_depth);
+			    sc->sc_txq[i].axq_fifo_depth,
+			    sc->sc_txq[i].axq_holdingbf);
 		}
 	}
 
@@ -394,6 +396,23 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	ATH_TXBUF_UNLOCK(sc);
 	printf("Total mgmt TX buffers: %d; Total mgmt TX buffers busy: %d\n",
 	    t, i);
+
+	ATH_RX_LOCK(sc);
+	for (i = 0; i < 2; i++) {
+		printf("%d: fifolen: %d/%d; head=%d; tail=%d\n",
+		    i,
+		    sc->sc_rxedma[i].m_fifo_depth,
+		    sc->sc_rxedma[i].m_fifolen,
+		    sc->sc_rxedma[i].m_fifo_head,
+		    sc->sc_rxedma[i].m_fifo_tail);
+	}
+	i = 0;
+	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
+		i++;
+	}
+	printf("Total RX buffers in free list: %d buffers\n",
+	    i);
+	ATH_RX_UNLOCK(sc);
 
 	return 0;
 }
@@ -703,8 +722,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"mask of error frames to pass when monitoring");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
-		"Hardware queue depth before software-queuing TX frames");
+		"hwq_limit_nonaggr", CTLFLAG_RW, &sc->sc_hwq_limit_nonaggr, 0,
+		"Hardware non-AMPDU queue depth before software-queuing TX frames");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hwq_limit_aggr", CTLFLAG_RW, &sc->sc_hwq_limit_aggr, 0,
+		"Hardware AMPDU queue depth before software-queuing TX frames");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
 		"");
@@ -729,11 +751,21 @@ ath_sysctlattach(struct ath_softc *sc)
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
 		0, "Minimum free buffers before adding a data frame"
 		" to the TX queue");
-
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_mcastq_maxdepth", CTLFLAG_RW,
 		&sc->sc_txq_mcastq_maxdepth, 0,
 		"Maximum buffer depth for multicast/broadcast frames");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_node_maxdepth", CTLFLAG_RW,
+		&sc->sc_txq_node_maxdepth, 0,
+		"Maximum buffer depth for a single node");
+
+#if 0
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"cabq_enable", CTLFLAG_RW,
+		&sc->sc_cabq_enable, 0,
+		"Whether to transmit on the CABQ or not");
+#endif
 
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
@@ -1047,6 +1079,9 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_keymiss, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swfiltered", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_swfiltered, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_stbc",
+	    CTLFLAG_RD, &sc->sc_stats.ast_rx_stbc, 0,
+	    "Number of STBC frames received");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

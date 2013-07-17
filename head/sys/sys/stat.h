@@ -293,6 +293,7 @@ struct nstat {
 __BEGIN_DECLS
 #if __BSD_VISIBLE
 int	chflags(const char *, unsigned long);
+int	chflagsat(int, const char *, unsigned long, int);
 #endif
 int	chmod(const char *, mode_t);
 #if __BSD_VISIBLE
@@ -306,7 +307,7 @@ int	fchmodat(int, const char *, mode_t, int);
 #endif
 int	fstat(int, struct stat *);
 #if __BSD_VISIBLE
-int	lchflags(const char *, int);
+int	lchflags(const char *, unsigned long);
 int	lchmod(const char *, mode_t);
 #endif
 #if __POSIX_VISIBLE >= 200112

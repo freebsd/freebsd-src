@@ -20,8 +20,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_WIN_COFF_H
-#define LLVM_SUPPORT_WIN_COFF_H
+#ifndef LLVM_SUPPORT_COFF_H
+#define LLVM_SUPPORT_COFF_H
 
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
@@ -321,7 +321,8 @@ namespace COFF {
     IMAGE_COMDAT_SELECT_SAME_SIZE,
     IMAGE_COMDAT_SELECT_EXACT_MATCH,
     IMAGE_COMDAT_SELECT_ASSOCIATIVE,
-    IMAGE_COMDAT_SELECT_LARGEST
+    IMAGE_COMDAT_SELECT_LARGEST,
+    IMAGE_COMDAT_SELECT_NEWEST
   };
 
   // Auxiliary Symbol Formats

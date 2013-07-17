@@ -1,4 +1,4 @@
-//===--- TransAutoreleasePool.cpp - Tranformations to ARC mode ------------===//
+//===--- TransAutoreleasePool.cpp - Transformations to ARC mode -----------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -30,8 +30,8 @@
 #include "Transforms.h"
 #include "Internals.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Sema/SemaDiagnostic.h"
 #include <map>
 
 using namespace clang;

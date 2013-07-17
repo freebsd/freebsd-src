@@ -2678,6 +2678,7 @@ set_error:
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
+		SOCK_LOCK(stcb->sctp_socket);
 		if (from_peer) {
 			if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT) {
 				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ECONNREFUSED);
@@ -2687,8 +2688,14 @@ set_error:
 				stcb->sctp_socket->so_error = ECONNRESET;
 			}
 		} else {
-			SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ECONNABORTED);
-			stcb->sctp_socket->so_error = ECONNABORTED;
+			if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT) ||
+			    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED)) {
+				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ETIMEDOUT);
+				stcb->sctp_socket->so_error = ETIMEDOUT;
+			} else {
+				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ECONNABORTED);
+				stcb->sctp_socket->so_error = ECONNABORTED;
+			}
 		}
 	}
 	/* Wake ANY sleepers */
@@ -2709,7 +2716,7 @@ set_error:
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
-		socantrcvmore(stcb->sctp_socket);
+		socantrcvmore_locked(stcb->sctp_socket);
 	}
 	sorwakeup(stcb->sctp_socket);
 	sowwakeup(stcb->sctp_socket);
@@ -3529,8 +3536,8 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	if (stcb->sctp_socket->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		return;
 	}
-	if (stcb && ((stcb->asoc.state & SCTP_STATE_COOKIE_WAIT) ||
-	    (stcb->asoc.state & SCTP_STATE_COOKIE_ECHOED))) {
+	if ((stcb->asoc.state & SCTP_STATE_COOKIE_WAIT) ||
+	    (stcb->asoc.state & SCTP_STATE_COOKIE_ECHOED)) {
 		if ((notification == SCTP_NOTIFY_INTERFACE_DOWN) ||
 		    (notification == SCTP_NOTIFY_INTERFACE_UP) ||
 		    (notification == SCTP_NOTIFY_INTERFACE_CONFIRMED)) {
@@ -3604,16 +3611,16 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 			break;
 		}
 	case SCTP_NOTIFY_ASSOC_LOC_ABORTED:
-		if ((stcb) && (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
-		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED))) {
+		if (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
+		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED)) {
 			sctp_notify_assoc_change(SCTP_CANT_STR_ASSOC, stcb, error, data, 0, so_locked);
 		} else {
 			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, data, 0, so_locked);
 		}
 		break;
 	case SCTP_NOTIFY_ASSOC_REM_ABORTED:
-		if ((stcb) && (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
-		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED))) {
+		if (((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_WAIT) ||
+		    ((stcb->asoc.state & SCTP_STATE_MASK) == SCTP_STATE_COOKIE_ECHOED)) {
 			sctp_notify_assoc_change(SCTP_CANT_STR_ASSOC, stcb, error, data, 1, so_locked);
 		} else {
 			sctp_notify_assoc_change(SCTP_COMM_LOST, stcb, error, data, 1, so_locked);
@@ -3966,7 +3973,7 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (stcb == NULL) {
 		/* Got to have a TCB */
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-			if (LIST_FIRST(&inp->sctp_asoc_list) == NULL) {
+			if (LIST_EMPTY(&inp->sctp_asoc_list)) {
 				sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 				    SCTP_CALLED_DIRECTLY_NOCMPSET);
 			}
@@ -4021,7 +4028,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
 	SCTP_STAT_INCR_COUNTER32(sctps_outoftheblue);
 	/* Generate a TO address for future reference */
 	if (inp && (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)) {
-		if (LIST_FIRST(&inp->sctp_asoc_list) == NULL) {
+		if (LIST_EMPTY(&inp->sctp_asoc_list)) {
 			sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 			    SCTP_CALLED_DIRECTLY_NOCMPSET);
 		}

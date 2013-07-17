@@ -20,22 +20,21 @@
 #ifndef LLVM_CODEGEN_LIVEINTERVAL_ANALYSIS_H
 #define LLVM_CODEGEN_LIVEINTERVAL_ANALYSIS_H
 
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/ADT/IndexedMap.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/SlotIndexes.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/IndexedMap.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <cmath>
 #include <iterator>
 
 namespace llvm {
 
   class AliasAnalysis;
+  class BitVector;
   class LiveRangeCalc;
   class LiveVariables;
   class MachineDominatorTree;
@@ -53,7 +52,6 @@ namespace llvm {
     const TargetRegisterInfo* TRI;
     const TargetInstrInfo* TII;
     AliasAnalysis *AA;
-    LiveVariables* LV;
     SlotIndexes* Indexes;
     MachineDominatorTree *DomTree;
     LiveRangeCalc *LRCalc;
@@ -215,6 +213,13 @@ namespace llvm {
       return Indexes->getMBBFromIndex(index);
     }
 
+    void insertMBBInMaps(MachineBasicBlock *MBB) {
+      Indexes->insertMBBInMaps(MBB);
+      assert(unsigned(MBB->getNumber()) == RegMaskBlocks.size() &&
+             "Blocks must be added in order.");
+      RegMaskBlocks.push_back(std::make_pair(RegMaskSlots.size(), 0));
+    }
+
     SlotIndex InsertMachineInstrInMaps(MachineInstr *MI) {
       return Indexes->insertMachineInstrInMaps(MI);
     }
@@ -274,6 +279,21 @@ namespace llvm {
     /// instruction in the Bundle.
     void handleMoveIntoBundle(MachineInstr* MI, MachineInstr* BundleStart,
                               bool UpdateFlags = false);
+
+    /// repairIntervalsInRange - Update live intervals for instructions in a
+    /// range of iterators. It is intended for use after target hooks that may
+    /// insert or remove instructions, and is only efficient for a small number
+    /// of instructions.
+    ///
+    /// OrigRegs is a vector of registers that were originally used by the
+    /// instructions in the range between the two iterators.
+    ///
+    /// Currently, the only only changes that are supported are simple removal
+    /// and addition of uses.
+    void repairIntervalsInRange(MachineBasicBlock *MBB,
+                                MachineBasicBlock::iterator Begin,
+                                MachineBasicBlock::iterator End,
+                                ArrayRef<unsigned> OrigRegs);
 
     // Register mask functions.
     //
@@ -347,36 +367,16 @@ namespace llvm {
       return RegUnitIntervals[Unit];
     }
 
-  private:
-    /// computeIntervals - Compute live intervals.
-    void computeIntervals();
+    const LiveInterval *getCachedRegUnit(unsigned Unit) const {
+      return RegUnitIntervals[Unit];
+    }
 
+  private:
     /// Compute live intervals for all virtual registers.
     void computeVirtRegs();
 
     /// Compute RegMaskSlots and RegMaskBits.
     void computeRegMasks();
-
-    /// handleRegisterDef - update intervals for a register def
-    /// (calls handleVirtualRegisterDef)
-    void handleRegisterDef(MachineBasicBlock *MBB,
-                           MachineBasicBlock::iterator MI,
-                           SlotIndex MIIdx,
-                           MachineOperand& MO, unsigned MOIdx);
-
-    /// isPartialRedef - Return true if the specified def at the specific index
-    /// is partially re-defining the specified live interval. A common case of
-    /// this is a definition of the sub-register.
-    bool isPartialRedef(SlotIndex MIIdx, MachineOperand &MO,
-                        LiveInterval &interval);
-
-    /// handleVirtualRegisterDef - update intervals for a virtual
-    /// register def
-    void handleVirtualRegisterDef(MachineBasicBlock *MBB,
-                                  MachineBasicBlock::iterator MI,
-                                  SlotIndex MIIdx, MachineOperand& MO,
-                                  unsigned MOIdx,
-                                  LiveInterval& interval);
 
     static LiveInterval* createInterval(unsigned Reg);
 

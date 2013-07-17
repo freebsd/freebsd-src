@@ -29,8 +29,6 @@
 #include <stdlib.h>
 #include "_libdwarf.h"
 
-static const char *anon_name = "__anon__";
-
 int
 dwarf_die_add(Dwarf_CU cu, int level, uint64_t offset, uint64_t abnum, Dwarf_Abbrev a, Dwarf_Die *diep, Dwarf_Error *err)
 {
@@ -57,7 +55,7 @@ dwarf_die_add(Dwarf_CU cu, int level, uint64_t offset, uint64_t abnum, Dwarf_Abb
 	die->die_abnum	= abnum;
 	die->die_a	= a;
 	die->die_cu	= cu;
-	die->die_name	= anon_name;
+	die->die_name	= "";
 
 	/* Initialise the list of attribute values. */
 	STAILQ_INIT(&die->die_attrval);

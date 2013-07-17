@@ -46,9 +46,6 @@ struct ssh_rijndael_ctx
 	u_char		r_iv[RIJNDAEL_BLOCKSIZE];
 };
 
-const EVP_CIPHER * evp_rijndael(void);
-void ssh_rijndael_iv(EVP_CIPHER_CTX *, int, u_char *, u_int);
-
 static int
 ssh_rijndael_init(EVP_CIPHER_CTX *ctx, const u_char *key, const u_char *iv,
     int enc)

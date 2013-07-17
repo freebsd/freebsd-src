@@ -105,8 +105,11 @@ struct cfi_qry {
 #define	CFI_BCS_READ_ARRAY	0xff
 
 /* Intel commands. */
+#define	CFI_INTEL_LB		0x01	/* Lock Block */
+#define	CFI_INTEL_LBS		0x60	/* Lock Block Setup */
 #define	CFI_INTEL_READ_ID	0x90	/* Read Identifier */
 #define	CFI_INTEL_PP_SETUP	0xc0	/* Protection Program Setup */
+#define	CFI_INTEL_UB		0xd0	/* Unlock Block */
 
 /* NB: these are addresses for 16-bit accesses */
 #define	CFI_INTEL_PLR		0x80	/* Protection Lock Register */

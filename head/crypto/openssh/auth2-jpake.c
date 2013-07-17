@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-jpake.c,v 1.4 2010/08/31 11:54:45 djm Exp $ */
+/* $OpenBSD: auth2-jpake.c,v 1.5 2012/12/02 20:34:09 djm Exp $ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *
@@ -556,7 +556,7 @@ input_userauth_jpake_client_confirm(int type, u_int32_t seq, void *ctxt)
 	authctxt->postponed = 0;
 	jpake_free(authctxt->jpake_ctx);
 	authctxt->jpake_ctx = NULL;
-	userauth_finish(authctxt, authenticated, method_jpake.name);
+	userauth_finish(authctxt, authenticated, method_jpake.name, NULL);
 }
 
 #endif /* JPAKE */

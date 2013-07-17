@@ -299,7 +299,7 @@ static device_method_t sbbc_pci_methods[] = {
 static devclass_t sbbc_devclass;
 
 DEFINE_CLASS_0(sbbc, sbbc_driver, sbbc_pci_methods, sizeof(struct sbbc_softc));
-DRIVER_MODULE(sbbc, pci, sbbc_driver, sbbc_devclass, 0, 0);
+DRIVER_MODULE(sbbc, pci, sbbc_driver, sbbc_devclass, NULL, NULL);
 
 static int
 sbbc_pci_probe(device_t dev)
@@ -358,8 +358,7 @@ sbbc_pci_attach(device_t dev)
 		if (error != 0)
 			device_printf(dev, "failed to attach UART device\n");
 	} else {
-		error = sbbc_parse_toc(rman_get_bustag(sc->sc_res),
-		    rman_get_bushandle(sc->sc_res));
+		error = sbbc_parse_toc(bst, bsh);
 		if (error != 0) {
 			device_printf(dev, "failed to parse TOC\n");
 			if (sbbc_console != 0) {
@@ -609,7 +608,7 @@ static device_method_t sbbc_uart_sbbc_methods[] = {
 
 DEFINE_CLASS_0(uart, sbbc_uart_driver, sbbc_uart_sbbc_methods,
     sizeof(struct uart_softc));
-DRIVER_MODULE(uart, sbbc, sbbc_uart_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart, sbbc, sbbc_uart_driver, uart_devclass, NULL, NULL);
 
 static int
 sbbc_uart_sbbc_probe(device_t dev)
@@ -836,13 +835,6 @@ sbbc_uart_bus_attach(struct uart_softc *sc)
 	bst = bas->bst;
 	bsh = bas->bsh;
 
-	sc->sc_rxfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_in_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_in_begin)) - 1;
-	sc->sc_txfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_out_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_out_begin)) - 1;
-
 	uart_lock(sc->sc_hwmtx);
 
 	/*
@@ -996,11 +988,24 @@ sbbc_uart_bus_param(struct uart_softc *sc __unused, int baudrate __unused,
 }
 
 static int
-sbbc_uart_bus_probe(struct uart_softc *sc __unused)
+sbbc_uart_bus_probe(struct uart_softc *sc)
 {
+	struct uart_bas *bas;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 
-	if (sbbc_console != 0)
+	if (sbbc_console != 0) {
+		bas = &sc->sc_bas;
+		bst = bas->bst;
+		bsh = bas->bsh;
+		sc->sc_rxfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_in_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_in_begin)) - 1;
+		sc->sc_txfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_out_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_out_begin)) - 1;
 		return (0);
+	}
 	return (ENXIO);
 }
 

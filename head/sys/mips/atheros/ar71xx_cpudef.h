@@ -117,10 +117,12 @@ static inline void ar71xx_device_ddr_flush_ip2(void)
 }
 
 /* XXX shouldn't be here! */
+extern uint32_t u_ar71xx_refclk;
 extern uint32_t u_ar71xx_cpu_freq;
 extern uint32_t u_ar71xx_ahb_freq;
 extern uint32_t u_ar71xx_ddr_freq;
 
+static inline uint64_t ar71xx_refclk(void) { return u_ar71xx_refclk; }
 static inline uint64_t ar71xx_cpu_freq(void) { return u_ar71xx_cpu_freq; }
 static inline uint64_t ar71xx_ahb_freq(void) { return u_ar71xx_ahb_freq; }
 static inline uint64_t ar71xx_ddr_freq(void) { return u_ar71xx_ddr_freq; }

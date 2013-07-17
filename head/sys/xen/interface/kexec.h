@@ -155,27 +155,6 @@ typedef struct xen_kexec_range {
     unsigned long start;
 } xen_kexec_range_t;
 
-/* vmcoreinfo stuff */
-#define VMCOREINFO_BYTES           (4096)
-#define VMCOREINFO_NOTE_NAME       "VMCOREINFO_XEN"
-void arch_crash_save_vmcoreinfo(void);
-void vmcoreinfo_append_str(const char *fmt, ...)
-       __attribute__ ((format (printf, 1, 2)));
-#define VMCOREINFO_PAGESIZE(value) \
-       vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
-#define VMCOREINFO_SYMBOL(name) \
-       vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
-#define VMCOREINFO_SYMBOL_ALIAS(alias, name) \
-       vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #alias, (unsigned long)&name)
-#define VMCOREINFO_STRUCT_SIZE(name) \
-       vmcoreinfo_append_str("SIZE(%s)=%zu\n", #name, sizeof(struct name))
-#define VMCOREINFO_OFFSET(name, field) \
-       vmcoreinfo_append_str("OFFSET(%s.%s)=%lu\n", #name, #field, \
-                             (unsigned long)offsetof(struct name, field))
-#define VMCOREINFO_OFFSET_ALIAS(name, field, alias) \
-       vmcoreinfo_append_str("OFFSET(%s.%s)=%lu\n", #name, #alias, \
-                             (unsigned long)offsetof(struct name, field))
-
 #endif /* _XEN_PUBLIC_KEXEC_H */
 
 /*

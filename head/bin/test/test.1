@@ -32,7 +32,7 @@
 .\"     @(#)test.1	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2012
+.Dd June 1, 2013
 .Dt TEST 1
 .Os
 .Sh NAME
@@ -169,65 +169,15 @@ True if
 .Ar file
 exists and is a socket.
 .It Ar file1 Fl nt Ar file2
-True if both
+True if
 .Ar file1
-and
-.Ar file2
-exist and
-.Ar file1
-is newer than
+exists and is newer than
 .Ar file2 .
-.It Ar file1 Fl nt Ns Ar X Ns Ar Y Ar file2
-True if both
-.Ar file1
-and
-.Ar file2
-exist and
-.Ar file1
-has a more recent last access time
-.Pq Ar X Ns = Ns Cm a ,
-inode creation time
-.Pq Ar X Ns = Ns Cm b ,
-change time
-.Pq Ar X Ns = Ns Cm c ,
-or modification time
-.Pq Ar X Ns = Ns Cm m
-than the last access time
-.Pq Ar Y Ns = Ns Cm a ,
-inode creation time
-.Pq Ar Y Ns = Ns Cm b ,
-change time
-.Pq Ar Y Ns = Ns Cm c ,
-or modification time
-.Pq Ar Y Ns = Ns Cm m
-of
-.Ar file2 .
-Note that
-.Ic -ntmm
-is equivalent to
-.Ic -nt .
 .It Ar file1 Fl ot Ar file2
-True if both
+True if
 .Ar file1
-and
-.Ar file2
-exist and
-.Ar file1
-is older than
+exists and is older than
 .Ar file2 .
-Note that
-.Ar file1
-.Ic -ot
-.Ar file2
-is equivalent to
-.Ar file2
-.Ic -nt
-.Ar file1
-.It Ar file1 Fl ot Ns Ar X Ns Ar Y Ar file2
-Equivalent to
-.Ar file2
-.Ic -nt Ns Ar Y Ns Ar X
-.Ar file1 .
 .It Ar file1 Fl ef Ar file2
 True if
 .Ar file1
@@ -381,6 +331,20 @@ missing.
 .It >1
 An error occurred.
 .El
+.Sh EXAMPLES
+Implement
+.Li test FILE1 -nt FILE2
+using only
+.Tn POSIX
+functionality:
+.Pp
+.Dl test -n \&"$(find -L -- FILE1 -prune -newer FILE2 2>/dev/null)\&"
+.Pp
+This can be modified using non-standard
+.Xr find 1
+primaries like
+.Cm -newerca
+to compare other timestamps.
 .Sh COMPATIBILITY
 For compatibility with some other implementations,
 the
@@ -391,7 +355,9 @@ with the same meaning.
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr expr 1 ,
+.Xr find 1 ,
 .Xr sh 1 ,
+.Xr stat 1 ,
 .Xr symlink 7
 .Sh STANDARDS
 The
@@ -399,6 +365,17 @@ The
 utility implements a superset of the
 .St -p1003.2
 specification.
+The primaries
+.Cm < ,
+.Cm == ,
+.Cm > ,
+.Fl ef ,
+.Fl nt ,
+.Fl ot ,
+.Fl G ,
+and
+.Fl O
+are extensions.
 .Sh BUGS
 Both sides are always evaluated in
 .Fl a

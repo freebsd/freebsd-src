@@ -125,8 +125,6 @@ struct	nfsmount {
 #define NFS_DEFAULT_NEGNAMETIMEO	60
 #endif
 
-#define	NFS_PCATCH	(PCATCH | PBDRY)
-
 #endif
 
 #endif

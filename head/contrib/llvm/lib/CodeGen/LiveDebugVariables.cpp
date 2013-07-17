@@ -21,11 +21,6 @@
 
 #define DEBUG_TYPE "livedebug"
 #include "LiveDebugVariables.h"
-#include "VirtRegMap.h"
-#include "llvm/Constants.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Metadata.h"
-#include "llvm/Value.h"
 #include "llvm/ADT/IntervalMap.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LexicalScopes.h"
@@ -35,6 +30,11 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/VirtRegMap.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -247,10 +247,6 @@ public:
                         LiveIntervals &LIS, MachineDominatorTree &MDT,
                         UserValueScopes &UVS);
 
-  /// renameRegister - Update locations to rewrite OldReg as NewReg:SubIdx.
-  void renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx,
-                      const TargetRegisterInfo *TRI);
-
   /// splitRegister - Replace OldReg ranges with NewRegs ranges where NewRegs is
   /// live. Returns true if any changes were made.
   bool splitRegister(unsigned OldLocNo, ArrayRef<LiveInterval*> NewRegs);
@@ -259,7 +255,7 @@ public:
   /// provided virtual register map.
   void rewriteLocations(VirtRegMap &VRM, const TargetRegisterInfo &TRI);
 
-  /// emitDebugVariables - Recreate DBG_VALUE instruction from data structures.
+  /// emitDebugValues - Recreate DBG_VALUE instruction from data structures.
   void emitDebugValues(VirtRegMap *VRM,
                        LiveIntervals &LIS, const TargetInstrInfo &TRI);
 
@@ -285,6 +281,11 @@ class LDVImpl {
   LexicalScopes LS;
   MachineDominatorTree *MDT;
   const TargetRegisterInfo *TRI;
+
+  /// Whether emitDebugValues is called.
+  bool EmitDone;
+  /// Whether the machine function is modified during the pass.
+  bool ModifiedMF;
 
   /// userValues - All allocated UserValue instances.
   SmallVector<UserValue*, 8> userValues;
@@ -320,27 +321,30 @@ class LDVImpl {
   void computeIntervals();
 
 public:
-  LDVImpl(LiveDebugVariables *ps) : pass(*ps) {}
+  LDVImpl(LiveDebugVariables *ps) : pass(*ps), EmitDone(false),
+                                    ModifiedMF(false) {}
   bool runOnMachineFunction(MachineFunction &mf);
 
-  /// clear - Relase all memory.
+  /// clear - Release all memory.
   void clear() {
     DeleteContainerPointers(userValues);
     userValues.clear();
     virtRegToEqClass.clear();
     userVarMap.clear();
+    // Make sure we call emitDebugValues if the machine function was modified.
+    assert((!ModifiedMF || EmitDone) &&
+           "Dbg values are not emitted in LDV");
+    EmitDone = false;
+    ModifiedMF = false;
   }
 
   /// mapVirtReg - Map virtual register to an equivalence class.
   void mapVirtReg(unsigned VirtReg, UserValue *EC);
 
-  /// renameRegister - Replace all references to OldReg with NewReg:SubIdx.
-  void renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx);
-
   /// splitRegister -  Replace all references to OldReg with NewRegs.
   void splitRegister(unsigned OldReg, ArrayRef<LiveInterval*> NewRegs);
 
-  /// emitDebugVariables - Recreate DBG_VALUE instruction from data structures.
+  /// emitDebugValues - Recreate DBG_VALUE instruction from data structures.
   void emitDebugValues(VirtRegMap *VRM);
 
   void print(raw_ostream&);
@@ -693,6 +697,7 @@ bool LDVImpl::runOnMachineFunction(MachineFunction &mf) {
   computeIntervals();
   DEBUG(print(dbgs()));
   LS.releaseMemory();
+  ModifiedMF = Changed;
   return Changed;
 }
 
@@ -712,45 +717,6 @@ void LiveDebugVariables::releaseMemory() {
 LiveDebugVariables::~LiveDebugVariables() {
   if (pImpl)
     delete static_cast<LDVImpl*>(pImpl);
-}
-
-void UserValue::
-renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx,
-               const TargetRegisterInfo *TRI) {
-  for (unsigned i = locations.size(); i; --i) {
-    unsigned LocNo = i - 1;
-    MachineOperand &Loc = locations[LocNo];
-    if (!Loc.isReg() || Loc.getReg() != OldReg)
-      continue;
-    if (TargetRegisterInfo::isPhysicalRegister(NewReg))
-      Loc.substPhysReg(NewReg, *TRI);
-    else
-      Loc.substVirtReg(NewReg, SubIdx, *TRI);
-    coalesceLocation(LocNo);
-  }
-}
-
-void LDVImpl::
-renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx) {
-  UserValue *UV = lookupVirtReg(OldReg);
-  if (!UV)
-    return;
-
-  if (TargetRegisterInfo::isVirtualRegister(NewReg))
-    mapVirtReg(NewReg, UV);
-  if (OldReg != NewReg)
-    virtRegToEqClass.erase(OldReg);
-
-  do {
-    UV->renameRegister(OldReg, NewReg, SubIdx, TRI);
-    UV = UV->getNext();
-  } while (UV);
-}
-
-void LiveDebugVariables::
-renameRegister(unsigned OldReg, unsigned NewReg, unsigned SubIdx) {
-  if (pImpl)
-    static_cast<LDVImpl*>(pImpl)->renameRegister(OldReg, NewReg, SubIdx);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1011,6 +977,7 @@ void LDVImpl::emitDebugValues(VirtRegMap *VRM) {
     userValues[i]->rewriteLocations(*VRM, *TRI);
     userValues[i]->emitDebugValues(VRM, *LIS, *TII);
   }
+  EmitDone = true;
 }
 
 void LiveDebugVariables::emitDebugValues(VirtRegMap *VRM) {

@@ -13,9 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "TargetAttributesSema.h"
-#include "clang/Sema/SemaInternal.h"
-#include "clang/Basic/TargetInfo.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/Sema/SemaInternal.h"
 #include "llvm/ADT/Triple.h"
 
 using namespace clang;
@@ -151,7 +151,8 @@ static void HandleX86ForceAlignArgPointerAttr(Decl *D,
                                                            S.Context));
 }
 
-DLLImportAttr *Sema::mergeDLLImportAttr(Decl *D, SourceRange Range) {
+DLLImportAttr *Sema::mergeDLLImportAttr(Decl *D, SourceRange Range,
+                                        unsigned AttrSpellingListIndex) {
   if (D->hasAttr<DLLExportAttr>()) {
     Diag(Range.getBegin(), diag::warn_attribute_ignored) << "dllimport";
     return NULL;
@@ -160,7 +161,8 @@ DLLImportAttr *Sema::mergeDLLImportAttr(Decl *D, SourceRange Range) {
   if (D->hasAttr<DLLImportAttr>())
     return NULL;
 
-  return ::new (Context) DLLImportAttr(Range, Context);
+  return ::new (Context) DLLImportAttr(Range, Context,
+                                       AttrSpellingListIndex);
 }
 
 static void HandleDLLImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
@@ -189,12 +191,14 @@ static void HandleDLLImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
     return;
   }
 
-  DLLImportAttr *NewAttr = S.mergeDLLImportAttr(D, Attr.getRange());
+  unsigned Index = Attr.getAttributeSpellingListIndex();
+  DLLImportAttr *NewAttr = S.mergeDLLImportAttr(D, Attr.getRange(), Index);
   if (NewAttr)
     D->addAttr(NewAttr);
 }
 
-DLLExportAttr *Sema::mergeDLLExportAttr(Decl *D, SourceRange Range) {
+DLLExportAttr *Sema::mergeDLLExportAttr(Decl *D, SourceRange Range,
+                                        unsigned AttrSpellingListIndex) {
   if (DLLImportAttr *Import = D->getAttr<DLLImportAttr>()) {
     Diag(Import->getLocation(), diag::warn_attribute_ignored) << "dllimport";
     D->dropAttr<DLLImportAttr>();
@@ -203,7 +207,8 @@ DLLExportAttr *Sema::mergeDLLExportAttr(Decl *D, SourceRange Range) {
   if (D->hasAttr<DLLExportAttr>())
     return NULL;
 
-  return ::new (Context) DLLExportAttr(Range, Context);
+  return ::new (Context) DLLExportAttr(Range, Context,
+                                       AttrSpellingListIndex);
 }
 
 static void HandleDLLExportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
@@ -229,7 +234,8 @@ static void HandleDLLExportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
     return;
   }
 
-  DLLExportAttr *NewAttr = S.mergeDLLExportAttr(D, Attr.getRange());
+  unsigned Index = Attr.getAttributeSpellingListIndex();
+  DLLExportAttr *NewAttr = S.mergeDLLExportAttr(D, Attr.getRange(), Index);
   if (NewAttr)
     D->addAttr(NewAttr);
 }
@@ -262,6 +268,57 @@ namespace {
   };
 }
 
+static void HandleMips16Attr(Decl *D, const AttributeList &Attr, Sema &S) {
+  // check the attribute arguments.
+  if (Attr.hasParameterOrArguments()) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+    return;
+  }
+  // Attribute can only be applied to function types.
+  if (!isa<FunctionDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_decl_type)
+      << Attr.getName() << /* function */0;
+    return;
+  }
+  D->addAttr(::new (S.Context) Mips16Attr(Attr.getRange(), S.Context,
+                                          Attr.getAttributeSpellingListIndex()));
+}
+
+static void HandleNoMips16Attr(Decl *D, const AttributeList &Attr, Sema &S) {
+  // check the attribute arguments.
+  if (Attr.hasParameterOrArguments()) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+    return;
+  }
+  // Attribute can only be applied to function types.
+  if (!isa<FunctionDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_decl_type)
+      << Attr.getName() << /* function */0;
+    return;
+  }
+  D->addAttr(::new (S.Context)
+             NoMips16Attr(Attr.getRange(), S.Context,
+                          Attr.getAttributeSpellingListIndex()));
+}
+
+namespace {
+  class MipsAttributesSema : public TargetAttributesSema {
+  public:
+    MipsAttributesSema() { }
+    bool ProcessDeclAttribute(Scope *scope, Decl *D, const AttributeList &Attr,
+                              Sema &S) const {
+      if (Attr.getName()->getName() == "mips16") {
+        HandleMips16Attr(D, Attr, S);
+        return true;
+      } else if (Attr.getName()->getName() == "nomips16") {
+        HandleNoMips16Attr(D, Attr, S);
+        return true;
+      }
+      return false;
+    }
+  };
+}
+
 const TargetAttributesSema &Sema::getTargetAttributesSema() const {
   if (TheTargetAttributesSema)
     return *TheTargetAttributesSema;
@@ -275,6 +332,9 @@ const TargetAttributesSema &Sema::getTargetAttributesSema() const {
   case llvm::Triple::x86:
   case llvm::Triple::x86_64:
     return *(TheTargetAttributesSema = new X86AttributesSema);
+  case llvm::Triple::mips:
+  case llvm::Triple::mipsel:
+    return *(TheTargetAttributesSema = new MipsAttributesSema);
   default:
     return *(TheTargetAttributesSema = new TargetAttributesSema);
   }

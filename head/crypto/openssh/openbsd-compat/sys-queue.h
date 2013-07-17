@@ -1,4 +1,4 @@
-/*	$OpenBSD: queue.h,v 1.32 2007/04/30 18:42:34 pedro Exp $	*/
+/*	$OpenBSD: queue.h,v 1.36 2012/04/11 13:29:14 naddy Exp $	*/
 /*	$NetBSD: queue.h,v 1.11 1996/05/16 05:17:14 mycroft Exp $	*/
 
 /*
@@ -202,10 +202,10 @@ struct {								\
 	    (var) != SLIST_END(head);					\
 	    (var) = SLIST_NEXT(var, field))
 
-#define	SLIST_FOREACH_PREVPTR(var, varp, head, field)			\
-	for ((varp) = &SLIST_FIRST((head));				\
-	    ((var) = *(varp)) != SLIST_END(head);			\
-	    (varp) = &SLIST_NEXT((var), field))
+#define	SLIST_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = SLIST_FIRST(head);				\
+	    (var) && ((tvar) = SLIST_NEXT(var, field), 1);		\
+	    (var) = (tvar))
 
 /*
  * Singly-linked List functions.
@@ -224,7 +224,7 @@ struct {								\
 	(head)->slh_first = (elm);					\
 } while (0)
 
-#define	SLIST_REMOVE_NEXT(head, elm, field) do {			\
+#define	SLIST_REMOVE_AFTER(elm, field) do {				\
 	(elm)->field.sle_next = (elm)->field.sle_next->field.sle_next;	\
 } while (0)
 
@@ -275,6 +275,11 @@ struct {								\
 	for((var) = LIST_FIRST(head);					\
 	    (var)!= LIST_END(head);					\
 	    (var) = LIST_NEXT(var, field))
+
+#define	LIST_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = LIST_FIRST(head);				\
+	    (var) && ((tvar) = LIST_NEXT(var, field), 1);		\
+	    (var) = (tvar))
 
 /*
  * List functions.
@@ -354,6 +359,11 @@ struct {								\
 	    (var) != SIMPLEQ_END(head);					\
 	    (var) = SIMPLEQ_NEXT(var, field))
 
+#define	SIMPLEQ_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = SIMPLEQ_FIRST(head);				\
+	    (var) && ((tvar) = SIMPLEQ_NEXT(var, field), 1);		\
+	    (var) = (tvar))
+
 /*
  * Simple queue functions.
  */
@@ -383,6 +393,12 @@ struct {								\
 #define SIMPLEQ_REMOVE_HEAD(head, field) do {			\
 	if (((head)->sqh_first = (head)->sqh_first->field.sqe_next) == NULL) \
 		(head)->sqh_last = &(head)->sqh_first;			\
+} while (0)
+
+#define SIMPLEQ_REMOVE_AFTER(head, elm, field) do {			\
+	if (((elm)->field.sqe_next = (elm)->field.sqe_next->field.sqe_next) \
+	    == NULL)							\
+		(head)->sqh_last = &(elm)->field.sqe_next;		\
 } while (0)
 
 /*
@@ -422,10 +438,23 @@ struct {								\
 	    (var) != TAILQ_END(head);					\
 	    (var) = TAILQ_NEXT(var, field))
 
+#define	TAILQ_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = TAILQ_FIRST(head);					\
+	    (var) != TAILQ_END(head) &&					\
+	    ((tvar) = TAILQ_NEXT(var, field), 1);			\
+	    (var) = (tvar))
+
+
 #define TAILQ_FOREACH_REVERSE(var, head, headname, field)		\
 	for((var) = TAILQ_LAST(head, headname);				\
 	    (var) != TAILQ_END(head);					\
 	    (var) = TAILQ_PREV(var, headname, field))
+
+#define	TAILQ_FOREACH_REVERSE_SAFE(var, head, headname, field, tvar)	\
+	for ((var) = TAILQ_LAST(head, headname);			\
+	    (var) != TAILQ_END(head) &&					\
+	    ((tvar) = TAILQ_PREV(var, headname, field), 1);		\
+	    (var) = (tvar))
 
 /*
  * Tail queue functions.
@@ -526,10 +555,22 @@ struct {								\
 	    (var) != CIRCLEQ_END(head);					\
 	    (var) = CIRCLEQ_NEXT(var, field))
 
+#define	CIRCLEQ_FOREACH_SAFE(var, head, field, tvar)			\
+	for ((var) = CIRCLEQ_FIRST(head);				\
+	    (var) != CIRCLEQ_END(head) &&				\
+	    ((tvar) = CIRCLEQ_NEXT(var, field), 1);			\
+	    (var) = (tvar))
+
 #define CIRCLEQ_FOREACH_REVERSE(var, head, field)			\
 	for((var) = CIRCLEQ_LAST(head);					\
 	    (var) != CIRCLEQ_END(head);					\
 	    (var) = CIRCLEQ_PREV(var, field))
+
+#define	CIRCLEQ_FOREACH_REVERSE_SAFE(var, head, headname, field, tvar)	\
+	for ((var) = CIRCLEQ_LAST(head, headname);			\
+	    (var) != CIRCLEQ_END(head) && 				\
+	    ((tvar) = CIRCLEQ_PREV(var, headname, field), 1);		\
+	    (var) = (tvar))
 
 /*
  * Circular queue functions.

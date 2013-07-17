@@ -2476,7 +2476,7 @@ validate(struct sockaddr *sa, const char *hname)
 static int
 p_open(const char *prog, pid_t *rpid)
 {
-	int pfd[2], nulldesc, i;
+	int pfd[2], nulldesc;
 	pid_t pid;
 	sigset_t omask, mask;
 	char *argv[4]; /* sh -c cmd NULL */
@@ -2526,8 +2526,7 @@ p_open(const char *prog, pid_t *rpid)
 		dup2(pfd[0], STDIN_FILENO);
 		dup2(nulldesc, STDOUT_FILENO);
 		dup2(nulldesc, STDERR_FILENO);
-		for (i = getdtablesize(); i > 2; i--)
-			(void)close(i);
+		closefrom(3);
 
 		(void)execvp(_PATH_BSHELL, argv);
 		_exit(255);

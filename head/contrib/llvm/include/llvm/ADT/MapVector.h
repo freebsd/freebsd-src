@@ -19,6 +19,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include <vector>
 
 namespace llvm {
@@ -63,6 +64,11 @@ public:
     return Vector.empty();
   }
 
+  std::pair<KeyT, ValueT>       &front()       { return Vector.front(); }
+  const std::pair<KeyT, ValueT> &front() const { return Vector.front(); }
+  std::pair<KeyT, ValueT>       &back()        { return Vector.back(); }
+  const std::pair<KeyT, ValueT> &back()  const { return Vector.back(); }
+
   void clear() {
     Map.clear();
     Vector.clear();
@@ -79,9 +85,45 @@ public:
     return Vector[I].second;
   }
 
+  ValueT lookup(const KeyT &Key) const {
+    typename MapType::const_iterator Pos = Map.find(Key);
+    return Pos == Map.end()? ValueT() : Vector[Pos->second].second;
+  }
+
+  std::pair<iterator, bool> insert(const std::pair<KeyT, ValueT> &KV) {
+    std::pair<KeyT, unsigned> Pair = std::make_pair(KV.first, 0);
+    std::pair<typename MapType::iterator, bool> Result = Map.insert(Pair);
+    unsigned &I = Result.first->second;
+    if (Result.second) {
+      Vector.push_back(std::make_pair(KV.first, KV.second));
+      I = Vector.size() - 1;
+      return std::make_pair(llvm::prior(end()), true);
+    }
+    return std::make_pair(begin() + I, false);
+  }
+
   unsigned count(const KeyT &Key) const {
     typename MapType::const_iterator Pos = Map.find(Key);
     return Pos == Map.end()? 0 : 1;
+  }
+
+  iterator find(const KeyT &Key) {
+    typename MapType::const_iterator Pos = Map.find(Key);
+    return Pos == Map.end()? Vector.end() :
+                            (Vector.begin() + Pos->second);
+  }
+
+  const_iterator find(const KeyT &Key) const {
+    typename MapType::const_iterator Pos = Map.find(Key);
+    return Pos == Map.end()? Vector.end() :
+                            (Vector.begin() + Pos->second);
+  }
+
+  /// \brief Remove the last element from the vector.
+  void pop_back() {
+    typename MapType::iterator Pos = Map.find(Vector.back().first);
+    Map.erase(Pos);
+    Vector.pop_back();
   }
 };
 

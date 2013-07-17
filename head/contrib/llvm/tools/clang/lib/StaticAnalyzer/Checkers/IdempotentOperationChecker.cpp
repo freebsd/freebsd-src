@@ -43,23 +43,24 @@
 // - Handling ~0 values
 
 #include "ClangSACheckers.h"
-#include "clang/Analysis/CFGStmtMap.h"
-#include "clang/Analysis/Analyses/PseudoConstantAnalysis.h"
+#include "clang/AST/Stmt.h"
 #include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
+#include "clang/Analysis/Analyses/PseudoConstantAnalysis.h"
+#include "clang/Analysis/CFGStmtMap.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerHelpers.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CoreEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
-#include "clang/AST/Stmt.h"
+#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/BitVector.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -172,11 +173,11 @@ void IdempotentOperationChecker::checkPreStmt(const BinaryOperator *B,
   case BO_ShrAssign:
   case BO_Assign:
   // Assign statements have one extra level of indirection
-    if (!isa<Loc>(LHSVal)) {
+    if (!LHSVal.getAs<Loc>()) {
       A = Impossible;
       return;
     }
-    LHSVal = state->getSVal(cast<Loc>(LHSVal), LHS->getType());
+    LHSVal = state->getSVal(LHSVal.castAs<Loc>(), LHS->getType());
   }
 
 
@@ -331,9 +332,9 @@ void IdempotentOperationChecker::checkPostStmt(const BinaryOperator *B,
   // Add the ExplodedNode we just visited
   BinaryOperatorData &Data = hash[B];
 
-  const Stmt *predStmt 
-    = cast<StmtPoint>(C.getPredecessor()->getLocation()).getStmt();
-  
+  const Stmt *predStmt =
+      C.getPredecessor()->getLocation().castAs<StmtPoint>().getStmt();
+
   // Ignore implicit calls to setters.
   if (!isa<BinaryOperator>(predStmt))
     return;
@@ -422,12 +423,12 @@ void IdempotentOperationChecker::checkEndAnalysis(ExplodedGraph &G,
       if (LHSRelevant) {
         const Expr *LHS = i->first->getLHS();
         report->addRange(LHS->getSourceRange());
-        FindLastStoreBRVisitor::registerStatementVarDecls(*report, LHS);
+        FindLastStoreBRVisitor::registerStatementVarDecls(*report, LHS, false);
       }
       if (RHSRelevant) {
         const Expr *RHS = i->first->getRHS();
         report->addRange(i->first->getRHS()->getSourceRange());
-        FindLastStoreBRVisitor::registerStatementVarDecls(*report, RHS);
+        FindLastStoreBRVisitor::registerStatementVarDecls(*report, RHS, false);
       }
 
       BR.emitReport(report);
@@ -581,16 +582,13 @@ IdempotentOperationChecker::pathWasCompletelyAnalyzed(AnalysisDeclContext *AC,
     virtual bool visit(const WorkListUnit &U) {
       ProgramPoint P = U.getNode()->getLocation();
       const CFGBlock *B = 0;
-      if (StmtPoint *SP = dyn_cast<StmtPoint>(&P)) {
+      if (Optional<StmtPoint> SP = P.getAs<StmtPoint>()) {
         B = CBM->getBlock(SP->getStmt());
-      }
-      else if (BlockEdge *BE = dyn_cast<BlockEdge>(&P)) {
+      } else if (Optional<BlockEdge> BE = P.getAs<BlockEdge>()) {
         B = BE->getDst();
-      }
-      else if (BlockEntrance *BEnt = dyn_cast<BlockEntrance>(&P)) {
+      } else if (Optional<BlockEntrance> BEnt = P.getAs<BlockEntrance>()) {
         B = BEnt->getBlock();
-      }
-      else if (BlockExit *BExit = dyn_cast<BlockExit>(&P)) {
+      } else if (Optional<BlockExit> BExit = P.getAs<BlockExit>()) {
         B = BExit->getBlock();
       }
       if (!B)

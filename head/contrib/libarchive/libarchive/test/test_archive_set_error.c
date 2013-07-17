@@ -47,5 +47,5 @@ DEFINE_TEST(test_archive_set_error)
 	test(a, -1, "tuvw");
 	test(a, 34, "XYZ");
 
-	archive_read_finish(a);
+	archive_read_free(a);
 }

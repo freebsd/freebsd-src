@@ -11,7 +11,7 @@ name="sysctl"
 command="/sbin/sysctl"
 stop_cmd=":"
 start_cmd="sysctl_start"
-reload_cmd="sysctl_start"
+reload_cmd="sysctl_start last"
 lastload_cmd="sysctl_start last"
 extra_commands="reload lastload"
 
@@ -19,10 +19,10 @@ sysctl_start()
 {
 	case $1 in
 	last)
-		command_args="-i -f"
+		command_args="-f"
 	;;
 	*)
-		command_args="-f"
+		command_args="-i -f"
 	;;
 	esac
 

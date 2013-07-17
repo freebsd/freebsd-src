@@ -68,12 +68,11 @@ main(int argc, char *argv[])
 	char source[MAXPATHLEN];
 	char target[MAXPATHLEN];
 	char errmsg[255];
-	int ch, mntflags, iovlen;
+	int ch, iovlen;
 	char nullfs[] = "nullfs";
 
 	iov = NULL;
 	iovlen = 0;
-	mntflags = 0;
 	errmsg[0] = '\0';
 	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch(ch) {
@@ -111,7 +110,7 @@ main(int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "fspath", source, (size_t)-1);
 	build_iovec(&iov, &iovlen, "target", target, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
-	if (nmount(iov, iovlen, mntflags) < 0) {
+	if (nmount(iov, iovlen, 0) < 0) {
 		if (errmsg[0] != 0)
 			err(1, "%s: %s", source, errmsg);
 		else

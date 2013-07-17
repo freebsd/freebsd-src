@@ -1,4 +1,4 @@
-/*	$NetBSD: setjmp.S,v 1.5 2003/04/05 23:08:51 bjh21 Exp $	*/
+/*	$NetBSD: setjmp.S,v 1.14 2013/04/19 13:45:45 matt Exp $	*/
 
 /*
  * Copyright (c) 1997 Mark Brinicombe
@@ -32,8 +32,19 @@
  * SUCH DAMAGE.
  */
 
+#if !defined(__SOFTFP__) && !defined(__VFP_FP__) && !defined(__ARM_PCS)
+#error FPA is not supported anymore
+#endif
+
+#ifdef __ARM_EABI__
+	.fpu	vfp
+#endif
+
 #include <machine/asm.h>
+#include <machine/setjmp.h>
+
 __FBSDID("$FreeBSD$");
+
 /*
  * C library -- setjmp, longjmp
  *
@@ -47,83 +58,95 @@ __FBSDID("$FreeBSD$");
 ENTRY(setjmp)
 	/* Block all signals and retrieve the old signal mask */
 	stmfd	sp!, {r0, r14}
-	add	r2, r0, #(25 * 4) /* oset */
-	mov	r0, #0x00000001 /* SIG_BLOCK */
-	mov	r1, #0 /* set */
-
+	add	r2, r0, #(_JB_SIGMASK * 4)	/* oset */
+	mov	r1, #0x00000000			/* set */
+	mov	r0, #0x00000001			/* SIG_BLOCK */
 	bl	PIC_SYM(_C_LABEL(sigprocmask), PLT)
-
 	ldmfd	sp!, {r0, r14}
 
 	ldr	r1, .Lsetjmp_magic
-	str	r1, [r0], #4
 
-#ifdef __SOFTFP__
-	add	r0, r0, #52
+#ifdef __ARM_EABI__
+	ldr	r2, .Lfpu_present
+#ifdef PIC
+	GOT_INIT(r3, .Lsetjmp_got, .Lsetjmp_gotinit)
+	ldr	r2, [r2, r3]
 #else
-	/* Store fp registers */
-	sfm	f4, 4, [r0], #48
-	/* Store fpsr */
-	rfs	r1
-	str	r1, [r0], #0x0004
-#endif	/* __SOFTFP__ */
+	ldr	r2, [r2]
+#endif
+	teq	r2, #0		/* do we have a FPU? */
+	beq	1f		/*   no, don't save VFP registers */
+
+	orr	r1, r1, #(_JB_MAGIC_SETJMP ^ _JB_MAGIC_SETJMP_VFP)
+				/* change magic to VFP magic */
+	add	r2, r0, #(_JB_REG_D8 * 4)
+	vstmia	r2, {d8-d15}
+	vmrs	r2, fpscr
+	str	r2, [r0, #(_JB_REG_FPSCR * 4)]
+1:
+#endif /* __ARM_EABI__ */
+
+	str	r1, [r0]		/* store magic */
+
 	/* Store integer registers */
+	add	r0, r0, #(_JB_REG_R4 * 4)
         stmia	r0, {r4-r14}
         mov	r0, #0x00000000
 	RET
 
 .Lsetjmp_magic:
 	.word	_JB_MAGIC_SETJMP
+#ifdef __ARM_EABI__
+	GOT_INITSYM(.Lsetjmp_got, .Lsetjmp_gotinit)
+.Lfpu_present:
+	.word	PIC_SYM(_libc_arm_fpu_present, GOTOFF)
+#endif /* __ARM_EABI__ */
 
 
 .weak _C_LABEL(longjmp)
 .set _C_LABEL(longjmp), _C_LABEL(__longjmp)
 ENTRY(__longjmp)
-	ldr	r2, .Lsetjmp_magic
-	ldr	r3, [r0]
-	teq	r2, r3
-	bne	botch
+	ldr	r2, [r0]
+	ldr	ip, .Lsetjmp_magic
+	bic	r3, r2, #(_JB_MAGIC_SETJMP ^ _JB_MAGIC_SETJMP_VFP)
+	teq	r3, ip
+	bne	.Lbotch
 
-
-	/* Set signal mask */
-	stmfd	sp!, {r0, r1, r14}
-	sub	sp, sp, #4	/* align the stack */
-
-	add	r1, r0, #(25 * 4) /* Signal mask */
-	mov	r0, #3 /* SIG_SETMASK */
-	mov	r2, #0
+	/* Restore the signal mask. */
+	stmfd	sp!, {r0-r2, r14}
+	mov	r2, #0x00000000
+	add	r1, r0, #(_JB_SIGMASK * 4)	/* Signal mask */
+	mov	r0, #3				/* SIG_SETMASK */
 	bl	PIC_SYM(_C_LABEL(sigprocmask), PLT)
+	ldmfd	sp!, {r0-r2, r14}
 
-	add	sp, sp, #4	/* unalign the stack */
-	ldmfd	sp!, {r0, r1, r14} 
+#ifdef __ARM_EABI__
+	tst	r2, #(_JB_MAGIC_SETJMP ^ _JB_MAGIC_SETJMP_VFP)
+						/* is this a VFP magic? */
+	beq	1f				/*   no, don't restore VFP */
+	add	ip, r0, #(_JB_REG_D8 * 4)
+	vldmia	ip, {d8-d15}
+	ldr	ip, [r0, #(_JB_REG_FPSCR * 4)]
+	vmsr	fpscr, ip
+1:
+#endif /* __ARM_EABI__ */
 
-	add	r0, r0, #4
-#ifdef __SOFTFP__
-	add	r0, r0, #52
-#else
-	/* Restore fp registers */
-	lfm	f4, 4, [r0], #48
-	/* Restore FPSR */
-	ldr	r4, [r0], #0x0004
-	wfs	r4
-#endif	/* __SOFTFP__ */
+	add	r0, r0, #(_JB_REG_R4 * 4)
 	/* Restore integer registers */
         ldmia	r0, {r4-r14}
 
 	/* Validate sp and r14 */
 	teq	sp, #0
 	teqne	r14, #0
-	beq	botch
+	beq	.Lbotch
 
 	/* Set return value */
-
-	mov	r0, r1
-	teq	r0, #0x00000000
+	movs	r0, r1
 	moveq	r0, #0x00000001
 	RET
 
 	/* validation failed, die die die. */
-botch:
+.Lbotch:
 	bl	PIC_SYM(_C_LABEL(longjmperror), PLT)
 	bl	PIC_SYM(_C_LABEL(abort), PLT)
 	b	. - 8		/* Cannot get here */

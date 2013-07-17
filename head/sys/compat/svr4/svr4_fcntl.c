@@ -265,14 +265,14 @@ fd_revoke(td, fd)
 	/*
 	 * If we ever want to support Capsicum on SVR4 processes (unlikely)
 	 * or FreeBSD grows a native frevoke() (more likely), we will need a
-	 * CAP_REVOKE here.
+	 * CAP_FREVOKE here.
 	 *
-	 * In the meantime, use CAP_MASK_VALID: if a SVR4 process wants to
+	 * In the meantime, use CAP_ALL: if a SVR4 process wants to
 	 * do an frevoke(), it needs to do it on either a regular file
 	 * descriptor or a fully-privileged capability (which is effectively
 	 * the same as a non-capability-restricted file descriptor).
 	 */
-	if ((error = fgetvp(td, fd, CAP_MASK_VALID, &vp)) != 0)
+	if ((error = fgetvp(td, fd, CAP_ALL, &vp)) != 0)
 		return (error);
 
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {

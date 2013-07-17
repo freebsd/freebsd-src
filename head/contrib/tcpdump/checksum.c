@@ -152,8 +152,6 @@ create_osi_cksum (const u_int8_t *pptr, int checksum_offset, int length)
     u_int16_t checksum;
     int index;
 
-    checksum = 0;
-
     c0 = 0;
     c1 = 0;
 

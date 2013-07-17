@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_HTTPPROXY_SUBR" ]; then _MEDIA_HTTPPROXY_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_HTTPPROXY_SUBR" ]; then _MEDIA_HTTPPROXY_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -32,9 +32,9 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/httpproxy.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/ftp.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -77,19 +77,33 @@ f_media_set_http_proxy()
 
 	local hostname="$proxy" port=3128
 	case "$hostname" in
-	"["*"]")
-		hostname="${hostname#\[}"
-		hostname="${hostname%\]}"
-		;;
-	"["*"]:")
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
 		hostname="${hostname#\[}"
 		port="${hostname#*\]:}"
 		port="${port%%[!0-9]*}"
 		hostname="${hostname%%\]:*}"
 		;;
-	*":"*)
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
 		port="${hostname#*:}"
 		hostname="${hostname%%:*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
 	esac
 
 	setvar $VAR_HTTP_PROXY_HOST "$hostname"
@@ -133,7 +147,7 @@ f_media_set_http_proxy()
 #
 f_http_proxy_check_access()
 {
-	local connect_only="$1" hosts=""
+	local connect_only="$1" hosts=
 
 	local proxy_host proxy_port
 	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
@@ -292,7 +306,7 @@ f_media_init_http_proxy()
 			;;
 		*)
 			local fdir fp
-			f_getvar $VAR_FTP_PATH fp
+			f_getvar $VAR_FTP_PATH%/ fp
 			for fdir in $FTP_DIRS; do
 				setvar $VAR_HTTP_PROXY_PATH "$fp/$fdir/$rel"
 				if f_http_proxy_check_access; then
@@ -315,12 +329,16 @@ f_media_init_http_proxy()
 	return $http_found
 }
 
-# f_media_get_http_proxy $device $file [$probe_only]
+# f_media_get_http_proxy $device $file [$probe_type]
 #
 # Returns data from $file on an FTP server via HTTP proxy using nc(1). Please
 # note that $device is unused but must be present (even if null). Information
-# is instead gathered from the environment. $probe_only is currently unused by
-# this media type.
+# is instead gathered from the environment. If $probe_type is both present and
+# non-NULL, this function exits after receiving the HTTP header response from
+# the proxy server (if the HTTP response code is 200, success is returned;
+# otherwise failure). If $probe_type is equal to $PROBE_SIZE, prints the
+# content-length in bytes from the response (or -1 if not found) to standard-
+# out.
 #
 # The variables used to configure the connection are as follows (all of which
 # are configured by f_media_set_http_proxy above):
@@ -342,10 +360,10 @@ f_media_init_http_proxy()
 #
 f_media_get_http_proxy()
 {
-	local dev="$1" file="$2" probe_only="$3" hosts=
+	local dev="$1" file="$2" probe_type="$3" hosts=
 
-	f_dprintf "f_media_get_http_proxy: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_http_proxy: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
 	local proxy_host proxy_port
 	f_getvar $VAR_HTTP_PROXY_HOST proxy_host
@@ -380,9 +398,9 @@ f_media_get_http_proxy()
 	fi
 
 	local proxy_path mode
-	f_getvar $VAR_HTTP_PROXY_PATH proxy_path
+	f_getvar $VAR_HTTP_PROXY_PATH%/ proxy_path
 	f_getvar $VAR_HTTP_FTP_MODE mode
-	local url="${proxy_path%/}/$file$mode" rx
+	local url="$proxy_path/$file$mode" rx
 
 	f_dprintf "sending http request for: %s" "$url"
 	printf "GET %s HTTP/1.0\r\n\r\n" "$url" | nc -n "$host" "$proxy_port" |
@@ -392,13 +410,19 @@ f_media_get_http_proxy()
 		# this is extremely quick'n dirty
 		#
 
-		rv=0
+		rv=0 length=-1
 		while read LINE; do
 			case "$LINE" in
 			HTTP*)
 				f_dprintf "received response: %s" "$LINE"
 				set -- $LINE; rv=$2
 				f_isinteger "$rv" || rv=0
+				;;
+			"Content-Length: "*)
+				length="${LINE%}"
+				length="${length#Content-Length: }"
+				f_dprintf "received content-length: %s" \
+				          "$length"
 				;;
 			*)
 				[ "${LINE%}" ] || break # End of headers
@@ -411,11 +435,17 @@ f_media_get_http_proxy()
 		[ $rv -ge 300 ] && exit 3
 		[ $rv -eq 200 ] || exit $FAILURE
 
-		cat # output the rest ``as-is''
+		if [ ! "$probe_type" ]; then
+			cat # output the rest ``as-is''
+		elif [ "$probe_type" = "$PROBE_SIZE" ]; then
+			f_isinteger "$length" || length=-1
+			echo "$length"
+		fi
 		exit 200
 	)
 	local retval=$?
 	[ $retval -eq 200 ] && return $SUCCESS
+	[ "$probe_type" ] && return $FAILURE
 
 	case "$retval" in
 	  5) f_show_msg "$msg_server_error_when_requesting_url" "$url" ;;

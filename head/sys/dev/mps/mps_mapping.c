@@ -331,6 +331,8 @@ _mapping_get_high_missing_mt_idx(struct mps_softc *sc)
 	u16 ioc_pg8_flags = le16toh(sc->ioc_pg8.Flags);
 
 	start_idx = 0;
+	start_idx_ir = 0;
+	end_idx_ir = 0;
 	end_idx = sc->max_devices;
 	if (ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_RESERVED_TARGETID_0)
 		start_idx = 1;

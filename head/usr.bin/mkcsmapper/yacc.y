@@ -203,7 +203,7 @@ static void
 warning(const char *s)
 {
 
-	fprintf(stderr, "%s in %d\n", s, line_number);
+	fprintf(stderr, "%s in %d\n", s, linenumber);
 }
 
 int

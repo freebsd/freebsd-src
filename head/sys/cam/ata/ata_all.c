@@ -367,7 +367,7 @@ void
 ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
     uint64_t lba, uint16_t sector_count)
 {
-	bzero(&ataio->cmd, sizeof(ataio->cmd));
+
 	ataio->cmd.flags = CAM_ATAIO_48BIT;
 	if (cmd == ATA_READ_DMA48 ||
 	    cmd == ATA_READ_DMA_QUEUED48 ||
@@ -391,13 +391,14 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 	ataio->cmd.features_exp = features >> 8;
 	ataio->cmd.sector_count = sector_count;
 	ataio->cmd.sector_count_exp = sector_count >> 8;
+	ataio->cmd.control = 0;
 }
 
 void
 ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
     uint64_t lba, uint16_t sector_count)
 {
-	bzero(&ataio->cmd, sizeof(ataio->cmd));
+
 	ataio->cmd.flags = CAM_ATAIO_48BIT | CAM_ATAIO_FPDMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = sector_count;
@@ -409,6 +410,9 @@ ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
 	ataio->cmd.lba_mid_exp = lba >> 32;
 	ataio->cmd.lba_high_exp = lba >> 40;
 	ataio->cmd.features_exp = sector_count >> 8;
+	ataio->cmd.sector_count = 0;
+	ataio->cmd.sector_count_exp = 0;
+	ataio->cmd.control = 0;
 }
 
 void

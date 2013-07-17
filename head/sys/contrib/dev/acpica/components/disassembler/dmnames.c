@@ -237,20 +237,24 @@ AcpiDmNamestring (
     switch (ACPI_GET8 (Name))
     {
     case 0:
+
         SegCount = 0;
         break;
 
     case AML_DUAL_NAME_PREFIX:
+
         SegCount = 2;
         Name++;
         break;
 
     case AML_MULTI_NAME_PREFIX_OP:
+
         SegCount = (UINT32) ACPI_GET8 (Name + 1);
         Name += 2;
         break;
 
     default:
+
         SegCount = 1;
         break;
     }

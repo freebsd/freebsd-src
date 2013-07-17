@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_APINT_H
-#define LLVM_APINT_H
+#ifndef LLVM_ADT_APINT_H
+#define LLVM_ADT_APINT_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Compiler.h"
@@ -274,7 +274,7 @@ public:
       initSlowCase(that);
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   /// @brief Move Constructor.
   APInt(APInt&& that) : BitWidth(that.BitWidth), VAL(that.VAL) {
     that.BitWidth = 0;
@@ -427,7 +427,7 @@ public:
   /// @returns the all-ones value for an APInt of the specified bit-width.
   /// @brief Get the all-ones value.
   static APInt getAllOnesValue(unsigned numBits) {
-    return APInt(numBits, -1ULL, true);
+    return APInt(numBits, UINT64_MAX, true);
   }
 
   /// @returns the '0' value for an APInt of the specified bit-width.
@@ -498,11 +498,22 @@ public:
     if (loBitsSet == 0)
       return APInt(numBits, 0);
     if (loBitsSet == APINT_BITS_PER_WORD)
-      return APInt(numBits, -1ULL);
+      return APInt(numBits, UINT64_MAX);
     // For small values, return quickly.
     if (loBitsSet <= APINT_BITS_PER_WORD)
-      return APInt(numBits, -1ULL >> (APINT_BITS_PER_WORD - loBitsSet));
+      return APInt(numBits, UINT64_MAX >> (APINT_BITS_PER_WORD - loBitsSet));
     return getAllOnesValue(numBits).lshr(numBits - loBitsSet);
+  }
+
+  /// \brief Return a value containing V broadcasted over NewLen bits.
+  static APInt getSplat(unsigned NewLen, const APInt &V) {
+    assert(NewLen >= V.getBitWidth() && "Can't splat to smaller bit width!");
+
+    APInt Val = V.zextOrSelf(NewLen);
+    for (unsigned I = V.getBitWidth(); I < NewLen; I <<= 1)
+      Val |= Val << I;
+
+    return Val;
   }
 
   /// \brief Determine if two APInts have the same value, after zero-extending
@@ -601,7 +612,7 @@ public:
     return AssignSlowCase(RHS);
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   /// @brief Move assignment operator.
   APInt& operator=(APInt&& that) {
     if (!isSingleWord())
@@ -799,16 +810,7 @@ public:
 
   /// Signed divide this APInt by APInt RHS.
   /// @brief Signed division function for APInt.
-  APInt sdiv(const APInt &RHS) const {
-    if (isNegative())
-      if (RHS.isNegative())
-        return (-(*this)).udiv(-RHS);
-      else
-        return -((-(*this)).udiv(RHS));
-    else if (RHS.isNegative())
-      return -(this->udiv(-RHS));
-    return this->udiv(RHS);
-  }
+  APInt sdiv(const APInt &RHS) const;
 
   /// Perform an unsigned remainder operation on this APInt with RHS being the
   /// divisor. Both this and RHS are treated as unsigned quantities for purposes
@@ -821,16 +823,7 @@ public:
 
   /// Signed remainder operation on APInt.
   /// @brief Function for signed remainder operation.
-  APInt srem(const APInt &RHS) const {
-    if (isNegative())
-      if (RHS.isNegative())
-        return -((-(*this)).urem(-RHS));
-      else
-        return -((-(*this)).urem(RHS));
-    else if (RHS.isNegative())
-      return this->urem(-RHS);
-    return this->urem(RHS);
-  }
+  APInt srem(const APInt &RHS) const;
 
   /// Sometimes it is convenient to divide two APInt values and obtain both the
   /// quotient and remainder. This function does both operations in the same
@@ -842,24 +835,9 @@ public:
                       APInt &Quotient, APInt &Remainder);
 
   static void sdivrem(const APInt &LHS, const APInt &RHS,
-                      APInt &Quotient, APInt &Remainder) {
-    if (LHS.isNegative()) {
-      if (RHS.isNegative())
-        APInt::udivrem(-LHS, -RHS, Quotient, Remainder);
-      else {
-        APInt::udivrem(-LHS, RHS, Quotient, Remainder);
-        Quotient = -Quotient;
-      }
-      Remainder = -Remainder;
-    } else if (RHS.isNegative()) {
-      APInt::udivrem(LHS, -RHS, Quotient, Remainder);
-      Quotient = -Quotient;
-    } else {
-      APInt::udivrem(LHS, RHS, Quotient, Remainder);
-    }
-  }
-  
-  
+                      APInt &Quotient, APInt &Remainder);
+
+
   // Operations that return overflow indicators.
   APInt sadd_ov(const APInt &RHS, bool &Overflow) const;
   APInt uadd_ov(const APInt &RHS, bool &Overflow) const;
@@ -1113,11 +1091,11 @@ public:
   /// @brief Set every bit to 1.
   void setAllBits() {
     if (isSingleWord())
-      VAL = -1ULL;
+      VAL = UINT64_MAX;
     else {
       // Set all the bits in all the words.
       for (unsigned i = 0; i < getNumWords(); ++i)
-        pVal[i] = -1ULL;
+        pVal[i] = UINT64_MAX;
     }
     // Clear the unused ones
     clearUnusedBits();
@@ -1142,10 +1120,10 @@ public:
   /// @brief Toggle every bit to its opposite value.
   void flipAllBits() {
     if (isSingleWord())
-      VAL ^= -1ULL;
+      VAL ^= UINT64_MAX;
     else {
       for (unsigned i = 0; i < getNumWords(); ++i)
-        pVal[i] ^= -1ULL;
+        pVal[i] ^= UINT64_MAX;
     }
     clearUnusedBits();
   }
@@ -1191,7 +1169,8 @@ public:
   /// APInt. This is used in conjunction with getActiveData to extract the raw
   /// value of the APInt.
   unsigned getActiveWords() const {
-    return whichWord(getActiveBits()-1) + 1;
+    unsigned numActiveBits = getActiveBits();
+    return numActiveBits ? whichWord(numActiveBits - 1) + 1 : 1;
   }
 
   /// Computes the minimum bit width for this APInt while considering it to be

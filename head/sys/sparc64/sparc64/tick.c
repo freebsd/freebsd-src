@@ -93,8 +93,8 @@ static timecounter_get_t stick_get_timecount_mp;
 static timecounter_get_t stick_get_timecount_up;
 static rd_tick_t stick_rd;
 static wr_tick_cmpr_t stick_wr_cmpr;
-static int tick_et_start(struct eventtimer *et, struct bintime *first,
-    struct bintime *period);
+static int tick_et_start(struct eventtimer *et, sbintime_t first,
+    sbintime_t period);
 static int tick_et_stop(struct eventtimer *et);
 #ifdef SMP
 static timecounter_get_t tick_get_timecount_mp;
@@ -227,10 +227,8 @@ cpu_initclocks(void)
 	    ET_FLAGS_PERCPU;
 	tick_et.et_quality = 1000;
 	tick_et.et_frequency = tick_et_use_stick ? sclock : clock;
-	tick_et.et_min_period.sec = 0;
-	tick_et.et_min_period.frac = 0x00010000LLU << 32; /* To be safe. */
-	tick_et.et_max_period.sec = 3600 * 24; /* No practical limit. */
-	tick_et.et_max_period.frac = 0;
+	tick_et.et_min_period = 0x00010000LLU; /* To be safe. */
+	tick_et.et_max_period = (0xfffffffeLLU << 32) / tick_et.et_frequency;
 	tick_et.et_start = tick_et_start;
 	tick_et.et_stop = tick_et_stop;
 	tick_et.et_priv = NULL;
@@ -355,23 +353,18 @@ tick_get_timecount_mp(struct timecounter *tc)
 #endif
 
 static int
-tick_et_start(struct eventtimer *et, struct bintime *first,
-    struct bintime *period)
+tick_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	u_long base, div, fdiv;
 	register_t s;
 
-	if (period != NULL) {
-		div = (tick_et.et_frequency * (period->frac >> 32)) >> 32;
-		if (period->sec != 0)
-			div += tick_et.et_frequency * period->sec;
-	} else
+	if (period != 0)
+		div = (tick_et.et_frequency * period) >> 32;
+	else
 		div = 0;
-	if (first != NULL) {
-		fdiv = (tick_et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			fdiv += tick_et.et_frequency * first->sec;
-	} else
+	if (first != 0)
+		fdiv = (tick_et.et_frequency * first) >> 32;
+	else
 		fdiv = div;
 	PCPU_SET(tickincrement, div);
 

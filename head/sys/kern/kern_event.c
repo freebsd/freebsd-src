@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/kthread.h>
 #include <sys/selinfo.h>
+#include <sys/stdatomic.h>
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/eventvar.h>
@@ -182,9 +183,9 @@ static struct filterops user_filtops = {
 };
 
 static uma_zone_t	knote_zone;
-static int 		kq_ncallouts = 0;
-static int 		kq_calloutmax = (4 * 1024);
-SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
+static atomic_uint	kq_ncallouts = ATOMIC_VAR_INIT(0);
+static unsigned int 	kq_calloutmax = 4 * 1024;
+SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
     &kq_calloutmax, 0, "Maximum number of callouts allocated for kqueue");
 
 /* XXX - ensure not KN_INFLUX?? */
@@ -517,39 +518,28 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
-static int
-timertoticks(intptr_t data)
+static __inline sbintime_t 
+timer2sbintime(intptr_t data)
 {
-	struct timeval tv;
-	int tticks;
 
-	tv.tv_sec = data / 1000;
-	tv.tv_usec = (data % 1000) * 1000;
-	tticks = tvtohz(&tv);
-
-	return tticks;
+	return (SBT_1MS * data);
 }
 
 static void
 filt_timerexpire(void *knx)
 {
-	struct knote *kn = knx;
 	struct callout *calloutp;
+	struct knote *kn;
 
+	kn = knx;
 	kn->kn_data++;
 	KNOTE_ACTIVATE(kn, 0);	/* XXX - handle locking */
 
-	/*
-	 * timertoticks() uses tvtohz() which always adds 1 to allow
-	 * for the time until the next clock interrupt being strictly
-	 * less than 1 clock tick.  We don't want that here since we
-	 * want to appear to be in sync with the clock interrupt even
-	 * when we're delayed.
-	 */
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata) - 1,
-		    filt_timerexpire, kn);
+		callout_reset_sbt_on(calloutp,
+		    timer2sbintime(kn->kn_sdata), 0 /* 1ms? */,
+		    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 	}
 }
 
@@ -560,21 +550,24 @@ static int
 filt_timerattach(struct knote *kn)
 {
 	struct callout *calloutp;
+	unsigned int ncallouts;
 
-	atomic_add_int(&kq_ncallouts, 1);
-
-	if (kq_ncallouts >= kq_calloutmax) {
-		atomic_add_int(&kq_ncallouts, -1);
-		return (ENOMEM);
-	}
+	ncallouts = atomic_load_explicit(&kq_ncallouts, memory_order_relaxed);
+	do {
+		if (ncallouts >= kq_calloutmax)
+			return (ENOMEM);
+	} while (!atomic_compare_exchange_weak_explicit(&kq_ncallouts,
+	    &ncallouts, ncallouts + 1, memory_order_relaxed,
+	    memory_order_relaxed));
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add usually sets it */
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata),
-	    filt_timerexpire, kn);
+	callout_reset_sbt_on(calloutp,
+	    timer2sbintime(kn->kn_sdata), 0 /* 1ms? */,
+	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 
 	return (0);
 }
@@ -583,11 +576,13 @@ static void
 filt_timerdetach(struct knote *kn)
 {
 	struct callout *calloutp;
+	unsigned int old;
 
 	calloutp = (struct callout *)kn->kn_hook;
 	callout_drain(calloutp);
 	free(calloutp, M_KQUEUE);
-	atomic_add_int(&kq_ncallouts, -1);
+	old = atomic_fetch_sub_explicit(&kq_ncallouts, 1, memory_order_relaxed);
+	KASSERT(old > 0, ("Number of callouts cannot become negative"));
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove usually clears it */
 }
 
@@ -1319,10 +1314,9 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
     const struct timespec *tsp, struct kevent *keva, struct thread *td)
 {
 	struct kevent *kevp;
-	struct timeval atv, rtv, ttv;
 	struct knote *kn, *marker;
-	int count, timeout, nkev, error, influx;
-	int haskqglobal, touch;
+	sbintime_t asbt, rsbt;
+	int count, error, haskqglobal, influx, nkev, touch;
 
 	count = maxevents;
 	nkev = 0;
@@ -1332,24 +1326,29 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	if (maxevents == 0)
 		goto done_nl;
 
+	rsbt = 0;
 	if (tsp != NULL) {
-		TIMESPEC_TO_TIMEVAL(&atv, tsp);
-		if (itimerfix(&atv)) {
+		if (tsp->tv_sec < 0 || tsp->tv_nsec < 0 ||
+		    tsp->tv_nsec >= 1000000000) {
 			error = EINVAL;
 			goto done_nl;
 		}
-		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
-			timeout = -1;
-		else
-			timeout = atv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&atv);
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-		timeout = 0;
-	}
+		if (timespecisset(tsp)) {
+			if (tsp->tv_sec <= INT32_MAX) {
+				rsbt = tstosbt(*tsp);
+				if (TIMESEL(&asbt, rsbt))
+					asbt += tc_tick_sbt;
+				if (asbt <= INT64_MAX - rsbt)
+					asbt += rsbt;
+				else
+					asbt = 0;
+				rsbt >>= tc_precexp;
+			} else
+				asbt = 0;
+		} else
+			asbt = -1;
+	} else
+		asbt = 0;
 	marker = knote_alloc(1);
 	if (marker == NULL) {
 		error = ENOMEM;
@@ -1357,28 +1356,16 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	}
 	marker->kn_status = KN_MARKER;
 	KQ_LOCK(kq);
-	goto start;
 
 retry:
-	if (atv.tv_sec || atv.tv_usec) {
-		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
-			goto done;
-		ttv = atv;
-		timevalsub(&ttv, &rtv);
-		timeout = ttv.tv_sec > 24 * 60 * 60 ?
-			24 * 60 * 60 * hz : tvtohz(&ttv);
-	}
-
-start:
 	kevp = keva;
 	if (kq->kq_count == 0) {
-		if (timeout < 0) {
+		if (asbt == -1) {
 			error = EWOULDBLOCK;
 		} else {
 			kq->kq_state |= KQ_SLEEP;
-			error = msleep(kq, &kq->kq_lock, PSOCK | PCATCH,
-			    "kqread", timeout);
+			error = msleep_sbt(kq, &kq->kq_lock, PSOCK | PCATCH,
+			    "kqread", asbt, rsbt, C_ABSOLUTE);
 		}
 		if (error == 0)
 			goto retry;

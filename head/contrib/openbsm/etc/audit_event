@@ -548,7 +548,7 @@
 43184:AUE_OPENAT:openat(2) - attr only:fa
 43185:AUE_POSIX_OPENPT:posix_openpt(2):ip
 43186:AUE_CAP_NEW:cap_new(2):fm
-43187:AUE_CAP_GETRIGHTS:cap_getrights(2):fm
+43187:AUE_CAP_RIGHTS_GET:cap_rights_get(2):fm
 43188:AUE_CAP_ENTER:cap_enter(2):pc
 43189:AUE_CAP_GETMODE:cap_getmode(2):pc
 43190:AUE_POSIX_SPAWN:posix_spawn(2):pc
@@ -563,6 +563,14 @@
 43199:AUE_PDGETPID:pdgetpid(2):pc
 43200:AUE_PDWAIT:pdwait(2):pc
 43201:AUE_WAIT6:wait6(2):pc
+43202:AUE_CAP_RIGHTS_LIMIT:cap_rights_limit(2):fm
+43203:AUE_CAP_IOCTLS_LIMIT:cap_ioctls_limit(2):fm
+43204:AUE_CAP_IOCTLS_GET:cap_ioctls_get(2):fm
+43205:AUE_CAP_FCNTLS_LIMIT:cap_fcntls_limit(2):fm
+43206:AUE_CAP_FCNTLS_GET:cap_fcntls_get(2):fm
+43207:AUE_BINDAT:bindat(2):nt
+43208:AUE_CONNECTAT:connectat(2):nt
+43209:AUE_CHFLAGSAT:chflagsat(2):fm
 #
 # Solaris userspace events.
 #

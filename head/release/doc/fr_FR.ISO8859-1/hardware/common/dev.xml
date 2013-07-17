@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
 <!--
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
@@ -104,7 +105,7 @@
 		<para>Promise Fasttrak-33, -66, -100, -100 TX2/TX4, -133 TX2/TX2000</para>
 	   </listitem>
 	   <listitem>
-		<para>Promise Ultra-33, -66, -100, -133 TX2/TX2000<</para>
+		<para>Promise Ultra-33, -66, -100, -133 TX2/TX2000</para>
 	   </listitem>
 	   <listitem>
 		<para>ServerWorks ROSB4 ATA33</para>
@@ -1028,7 +1029,7 @@
     &man.lnc.4; et &man.pcn.4;)
     <itemizedlist>
         <listitem arch="i386,alpha">
-          <para>AMD PCnet/PCI (79c970 & 53c974 ou 79c974)</para>
+          <para>AMD PCnet/PCI (79c970 &amp; 53c974 ou 79c974)</para>
         </listitem>
         <listitem arch="i386,alpha">
           <para>AMD PCnet/FAST</para>
@@ -2888,7 +2889,7 @@
       </itemizedlist>
     </para>
     <para arch="pc98">Port joystick des SoundBlaster(98) (gestionnaire
-    &man.joy.4)</para>
+    &man.joy.4;)</para>
   </sect2>
   <sect2>
     <title>P&eacute;riph&eacute;riques de capture vid&eacute;o et
@@ -2954,7 +2955,7 @@
 	  <para>AMD-756</para>
 	</listitem>
         <listitem arch="i386,alpha">
-	  <para>CMD Tech 670 & 673</para>
+	  <para>CMD Tech 670 &amp; 673</para>
 	</listitem>
         <listitem arch="i386,alpha">
 	  <para>Intel 82371SB (PIIX3)</para>

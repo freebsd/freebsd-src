@@ -1,7 +1,7 @@
 if [ ! "$_NETWORKING_RESOLV_SUBR" ]; then _NETWORKING_RESOLV_SUBR=1
 #
 # Copyright (c) 2006-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_NETWORKING_RESOLV_SUBR" ]; then _NETWORKING_RESOLV_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -32,10 +32,10 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." networking/resolv.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/networking/common.subr
 f_include $BSDCFG_SHARE/networking/ipaddr.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
@@ -311,9 +311,8 @@ f_dialog_input_nameserver()
 	# Loop until the user provides taint-free input.
 	#
 	while :; do
-		new_ns=$( f_dialog_input "$msg" "$ns" \
-		                         "$hline_num_punc_tab_enter"
-		        ) || return
+		f_dialog_input new_ns "$msg" "$ns" \
+		               "$hline_num_punc_tab_enter" || return
 
 		# Take only the first "word" of the user's input
 		new_ns="${new_ns%%[$IFS]*}"
@@ -371,11 +370,11 @@ f_dialog_input_nameserver()
 		#
 		local retval=$?
 		case $retval in
-		1) f_die 1 "$msg_internal_error_nsindex_value" "$nsindex";;
-		2) f_dialog_msgbox "$msg_resolv_conf_changed_while_editing"
-		   return $retval;;
-		3) f_dialog_msgbox "$msg_resolv_conf_entry_no_longer_exists"
-		   return $retval;;
+		1) f_die 1 "$msg_internal_error_nsindex_value" "$nsindex" ;;
+		2) f_show_msg "$msg_resolv_conf_changed_while_editing"
+		   return $retval ;;
+		3) f_show_msg "$msg_resolv_conf_entry_no_longer_exists"
+		   return $retval ;;
 		esac
 
 		#
@@ -393,21 +392,24 @@ f_dialog_input_nameserver()
 #
 f_dialog_menu_nameservers()
 {
+	local prompt="$msg_dns_configuration"
+	local menu_list # Calculated below
+	local hline="$hline_arrows_tab_enter"
+	local defaultitem=
+
+	local height width rows
 	local opt_exit="$msg_return_to_previous_menu"
 	local opt_add="$msg_add_nameserver"
-	local hline="$hline_arrows_tab_enter"
-	local prompt size
 
 	#
 	# Loop forever until the user has finished configuring nameservers
 	#
-	prompt="$msg_dns_configuration"
 	while :; do
 		#
 		# Re/Build list of nameservers
 		#
 		local nameservers="$( f_resolv_conf_nameservers )"
-		local menu_list="$(
+		menu_list=$(
 			index=1
 
 			echo "'X $msg_exit' '$opt_exit'" 
@@ -422,42 +424,48 @@ f_dialog_menu_nameservers()
 				echo "'$tag nameserver' '$ns'"
 				index=$(( $index + 1 ))
 			done
-		)"
+		)
 
 		#
 		# Display configuration-edit menu
 		#
-		size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$prompt\"           \
-		        	\"\$hline\"            \
-		        	$menu_list             )
-		local dialog_menu
-		dialog_menu=$( eval $DIALOG \
-			--clear --title \"\$DIALOG_TITLE\" \
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
+		local tag
+		tag=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$prompt\" $size          \
+			--default-item \"\$defaultitem\"   \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		local tag="$( f_dialog_menutag )" ns=""
+		f_dialog_data_sanitize tag
 
 		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
-		[ $retval -eq $SUCCESS ] || return $retval
+		if [ $retval -ne $SUCCESS ]; then
+			return $retval
+		else
+			# Only update default-item on success
+			defaultitem="$tag"
+		fi
 
 		case "$tag" in
-		"X $msg_exit") break;;
+		"X $msg_exit") break ;;
 		"A $msg_add")
 			f_dialog_input_nameserver
 			;;
 		*)
+			local n ns
 			n=$( eval f_dialog_menutag2index \"\$tag\" $menu_list )
 			ns=$( eval f_dialog_menutag2item \"\$tag\" $menu_list )
 			f_dialog_input_nameserver $(( $n - 2 )) "$ns"

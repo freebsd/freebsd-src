@@ -62,6 +62,15 @@
 /* if libnl exists and is version 2.x */
 /* #undef HAVE_LIBNL_2_x */
 
+/* if libnl exists and is version 3.x */
+/* #undef HAVE_LIBNL_3_x */
+
+/* libnl has NLE_FAILURE */
+/* #undef HAVE_LIBNL_NLE */
+
+/* libnl has new-style socket api */
+/* #undef HAVE_LIBNL_SOCKETS */
+
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
@@ -217,11 +226,14 @@
 /* path for device for USB sniffing */
 /* #undef LINUX_USB_MON_DEV */
 
+/* if we need a pcap_parse wrapper around yyparse */
+#define NEED_YYPARSE_WRAPPER
+
 /* Define to 1 if netinet/ether.h declares `ether_hostton' */
 /* #undef NETINET_ETHER_H_DECLARES_ETHER_HOSTTON */
 
 /* Define to 1 if netinet/if_ether.h declares `ether_hostton' */
-#define NETINET_IF_ETHER_H_DECLARES_ETHER_HOSTTON /**/
+#define NETINET_IF_ETHER_H_DECLARES_ETHER_HOSTTON 
 
 /* do not use protochain */
 /* #undef NO_PROTOCHAIN */
@@ -237,9 +249,6 @@
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME ""
-
-/* Define to the home page for this package. */
-#define PACKAGE_URL ""
 
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
@@ -264,6 +273,9 @@
 
 /* include ACN support */
 /* #undef SITA */
+
+/* if struct sockaddr_hci has hci_channel member */
+/* #undef SOCKADDR_HCI_HAS_HCI_CHANNEL */
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1

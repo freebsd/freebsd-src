@@ -399,6 +399,18 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		fs->e2fs_maxfilesize = 0x7fffffff;
 	else
 		fs->e2fs_maxfilesize = 0x7fffffffffffffff;
+
+	if (es->e4fs_flags & E2FS_UNSIGNED_HASH) {
+		fs->e2fs_uhash = 3;
+	} else if ((es->e4fs_flags & E2FS_SIGNED_HASH) == 0) {
+#ifdef __CHAR_UNSIGNED__
+		es->e4fs_flags |= E2FS_UNSIGNED_HASH;
+		fs->e2fs_uhash = 3;
+#else
+		es->e4fs_flags |= E2FS_SIGNED_HASH;
+#endif
+	}
+
 	return (0);
 }
 
@@ -747,7 +759,7 @@ ext2_flushfiles(struct mount *mp, int flags, struct thread *td)
 	return (error);
 }
 /*
- * Get file system statistics.
+ * Get filesystem statistics.
  */
 int
 ext2_statfs(struct mount *mp, struct statfs *sbp)
@@ -852,7 +864,7 @@ loop:
 	}
 
 	/*
-	 * Force stale file system control information to be flushed.
+	 * Force stale filesystem control information to be flushed.
 	 */
 	if (waitfor != MNT_LAZY) {
 		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
@@ -979,7 +991,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 * already have one. This should only happen on old filesystems.
 	 */
 	if (ip->i_gen == 0) {
-		ip->i_gen = random() / 2 + 1;
+		ip->i_gen = random() + 1;
 		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0)
 			ip->i_flag |= IN_MODIFIED;
 	}

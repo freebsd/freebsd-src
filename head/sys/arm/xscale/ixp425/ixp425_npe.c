@@ -419,7 +419,7 @@ ixpnpe_stop(struct ixpnpe_softc *sc)
 
 /*
  * Indicates the start of an NPE Image, in new NPE Image Library format.
- * 2 consecutive occurances indicates the end of the NPE Image Library
+ * 2 consecutive occurrences indicates the end of the NPE Image Library
  */
 #define NPE_IMAGE_MARKER 0xfeedf00d
 

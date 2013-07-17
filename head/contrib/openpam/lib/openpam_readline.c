@@ -62,11 +62,9 @@ openpam_readline(FILE *f, int *lineno, size_t *lenp)
 	size_t len, size;
 	int ch;
 
-	if ((line = malloc(size = MIN_LINE_LENGTH)) == NULL) {
-		openpam_log(PAM_LOG_ERROR, "malloc(): %m");
+	line = NULL;
+	if (openpam_straddch(&line, &size, &len, 0) != 0)
 		return (NULL);
-	}
-	len = 0;
 	for (;;) {
 		ch = fgetc(f);
 		/* strip comment */

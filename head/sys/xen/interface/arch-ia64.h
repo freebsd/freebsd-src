@@ -49,10 +49,11 @@
 #define XEN_GUEST_HANDLE(name)          __guest_handle_ ## name
 #define XEN_GUEST_HANDLE_64(name)       XEN_GUEST_HANDLE(name)
 #define uint64_aligned_t                uint64_t
-#define set_xen_guest_handle(hnd, val)  do { (hnd).p = val; } while (0)
+#define set_xen_guest_handle_raw(hnd, val)  do { (hnd).p = val; } while (0)
 #ifdef __XEN_TOOLS__
 #define get_xen_guest_handle(val, hnd)  do { val = (hnd).p; } while (0)
 #endif
+#define set_xen_guest_handle(hnd, val) set_xen_guest_handle_raw(hnd, val)
 
 #ifndef __ASSEMBLY__
 typedef unsigned long xen_pfn_t;
@@ -66,7 +67,7 @@ typedef unsigned long xen_pfn_t;
 
 /* Maximum number of virtual CPUs in multi-processor guests. */
 /* WARNING: before changing this, check that shared_info fits on a page */
-#define MAX_VIRT_CPUS 64
+#define XEN_LEGACY_MAX_VCPUS 64
 
 /* IO ports location for PV.  */
 #define IO_PORTS_PADDR          0x00000ffffc000000UL
@@ -198,6 +199,15 @@ struct mapped_regs {
             unsigned long rrs[8]; // region registers
             unsigned long krs[8]; // kernel registers
             unsigned long tmp[16]; // temp registers (e.g. for hyperprivops)
+
+            /* itc paravirtualization
+             * vAR.ITC = mAR.ITC + itc_offset
+             * itc_last is one which was lastly passed to
+             * the guest OS in order to prevent it from
+             * going backwords.
+             */
+            unsigned long itc_offset;
+            unsigned long itc_last;
         };
     };
 };
@@ -392,6 +402,7 @@ struct vcpu_guest_context {
 #define VGCF_EXTRA_REGS (1UL << 1)	/* Set extra regs.  */
 #define VGCF_SET_CR_IRR (1UL << 2)	/* Set cr_irr[0:3]. */
 #define VGCF_online     (1UL << 3)  /* make this vcpu online */
+#define VGCF_SET_AR_ITC (1UL << 4)  /* set pv ar.itc. itc_offset, itc_last */
     unsigned long flags;       /* VGCF_* flags */
 
     struct vcpu_guest_context_regs regs;
@@ -452,6 +463,11 @@ DEFINE_XEN_GUEST_HANDLE(vcpu_guest_context_t);
 
 /* unexpose the foreign domain's p2m table into privileged domain */
 #define IA64_DOM0VP_unexpose_foreign_p2m        13
+
+/* get memmap_info and memmap. It is possible to map the page directly
+   by foreign page mapping, but there is a race between writer.
+   This hypercall avoids such race. */
+#define IA64_DOM0VP_get_memmap          14
 
 // flags for page assignement to pseudo physical address space
 #define _ASSIGN_readonly                0

@@ -62,6 +62,48 @@ export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
 export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
 export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
 
+#
+# Default behavior is to call f_debug_init() automatically when loaded.
+#
+: ${DEBUG_SELF_INITIALIZE=1}
+
+#
+# Define standard optstring arguments that should be supported by all programs
+# using this include (unless DEBUG_SELF_INITIALIZE is set to NULL to prevent
+# f_debug_init() from autamatically processing "$@" for the below arguments):
+#
+# 	d	Sets $debug to 1
+# 	D:	Sets $debugFile to $OPTARG
+#
+GETOPTS_STDARGS="dD:"
+
+#
+# The getopts builtin will return 1 either when the end of "$@" or the first
+# invalid flag is reached. This makes it impossible to determine if you've
+# processed all the arguments or simply have hit an invalid flag. In the cases
+# where we want to tolerate invalid flags (f_debug_init() for example), the
+# following variable can be appended to your optstring argument to getopts,
+# preventing it from prematurely returning 1 before the end of the arguments.
+#
+# NOTE: This assumes that all unknown flags are argument-less.
+#
+GETOPTS_ALLFLAGS="abcdefghijklmnopqrstuvwxyz"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+GETOPTS_ALLFLAGS="${GETOPTS_ALLFLAGS}0123456789"
+
+#
+# When we get included, f_debug_init() will fire (unless $DEBUG_SELF_INITIALIZE
+# is set to disable automatic initialization) and process "$@" for a few global
+# options such as `-d' and/or `-D file'. However, if your program takes custom
+# flags that take arguments, this automatic processing may fail unexpectedly.
+#
+# The solution to this problem is to pre-define (before including this file)
+# the following variable (which defaults to NULL) to indicate that there are
+# extra flags that should be considered when performing automatic processing of
+# globally persistent flags.
+#
+: ${GETOPTS_EXTRA:=}
+
 ############################################################ FUNCTIONS
 
 # f_dprintf $fmt [ $opts ... ]
@@ -84,6 +126,62 @@ f_dprintf()
 	[ "${debugFile#+}" ] &&
 		printf "DEBUG: $fmt${fmt:+\n}" "$@" >> "${debugFile#+}"
 	return $SUCCESS
+}
+
+# f_debug_init
+#
+# Initialize debugging. Truncates $debugFile to zero bytes if set.
+#
+f_debug_init()
+{
+	#
+	# Process stored command-line arguments
+	#
+	set -- $ARGV
+	local OPTIND
+	f_dprintf "f_debug_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
+	          "$ARGV" "$GETOPTS_STDARGS"
+	while getopts "$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" flag \
+	> /dev/null; do
+		case "$flag" in
+		d) debug=1 ;;
+		D) debugFile="$OPTARG" ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	f_dprintf "f_debug_init: debug=[%s] debugFile=[%s]" \
+	          "$debug" "$debugFile"
+
+	#
+	# Automagically enable debugging if debugFile is set (and non-NULL)
+	#
+	[ "$debugFile" ] && { [ "${debug+set}" ] || debug=1; }
+
+	#
+	# Make debugging persistant if set
+	#
+	[ "$debug" ] && export debug
+	[ "$debugFile" ] && export debugFile
+
+	#
+	# Truncate the debug file upon. Note that we will trim a leading plus
+	# (`+') from the value of debugFile to support persistant meaning that
+	# f_dprintf() should print both to standard output and $debugFile
+	# (minus the leading plus, of course).
+	#
+	local _debug_file="${debugFile#+}"
+	if [ "$_debug_file" ]; then
+		if ( umask 022 && :> "$_debug_file" ); then
+			f_dprintf "Successfully initialized debugFile \`%s'" \
+			          "$_debug_file"
+			[ "${debug+set}" ] ||
+				debug=1 # turn debugging on if not set
+		else
+			unset debugFile
+			f_dprintf "Unable to initialize debugFile \`%s'" \
+			          "$_debug_file"
+		fi
+	fi
 }
 
 # f_err $fmt [ $opts ... ]
@@ -114,6 +212,35 @@ f_have()
 	f_quietly type "$@"
 }
 
+# f_which $anything [$var_to_set]
+#
+# A fast built-in replacement for syntaxes such as foo=$( which bar ). In a
+# comparison of 10,000 runs of this function versus which, this function
+# completed in under 3 seconds, while `which' took almost a full minute.
+#
+# If $var_to_set is missing or NULL, output is (like which) to standard out.
+# Returns success if a match was found, failure otherwise.
+#
+f_which()
+{
+	local __name="$1" __var_to_set="$2"
+	case "$__name" in */*|'') return $FAILURE; esac
+	local __p IFS=":" __found=
+	for __p in $PATH; do
+		local __exec="$__p/$__name"
+		[ -f "$__exec" -a -x "$__exec" ] && __found=1 && break
+	done
+	if [ "$__found" ]; then
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$__exec"
+		else
+			echo "$__exec"
+		fi
+		return $SUCCESS
+	fi
+	return $FAILURE
+}
+
 # f_getvar $var_to_get [$var_to_set]
 #
 # Utility function designed to go along with the already-builtin setvar.
@@ -136,6 +263,16 @@ f_getvar()
 		\"\$__var_to_get\" \"\$${__var_to_set:-value}\" \$__retval
 	[ "$__var_to_set" ] || { [ "$value" ] && echo "$value"; }
 	return $__retval
+}
+
+# f_isset $var
+#
+# Check if variable $var is set. Returns success if variable is set, otherwise
+# returns failure.
+#
+f_isset()
+{
+	eval [ \"\${${1%%[$IFS]*}+set}\" ]
 }
 
 # f_die [ $status [ $fmt [ $opts ... ]]]
@@ -423,12 +560,22 @@ f_index_file()
 
 	if [ "$lang" ]; then
 		awk -v keyword="$keyword" "$f_index_file_awk" \
-			$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX.$lang &&
-			return
+			$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX.$lang && return
 		# No match, fall-thru to non-i18n sources
 	fi
 	awk -v keyword="$keyword" "$f_index_file_awk" \
-		$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX
+		$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX && return
+
+	# No match? Fall-thru to `local' libexec sources (add-on modules)
+
+	[ "$BSDCFG_LOCAL_LIBE" ] || return $FAILURE
+	if [ "$lang" ]; then
+		awk -v keyword="$keyword" "$f_index_file_awk" \
+			$BSDCFG_LOCAL_LIBE/*/INDEX.$lang && return
+		# No match, fall-thru to non-i18n sources
+	fi
+	awk -v keyword="$keyword" "$f_index_file_awk" \
+		$BSDCFG_LOCAL_LIBE/*/INDEX
 }
 
 # f_index_menusel_keyword $indexfile $pgm
@@ -615,28 +762,14 @@ eval exec $TERMINAL_STDOUT_PASSTHRU\>\&1
 eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
 
 #
-# Make debugging persistant if set
+# Self-initialize unless requested otherwise
 #
-[ "$debug" ] && export debug
-
-#
-# Truncate the debug file upon initialization (now). Note that we will trim a
-# leading plus (`+') from the value of debugFile to support persistant meaning
-# that f_dprintf() should print both to standard output and $debugFile (minus
-# the leading plus, of course).
-#
-_debug_file="${debugFile#+}"
-if [ "$_debug_file" ]; then
-	if ( umask 022 && :> "$_debug_file" ); then
-		f_dprintf "Successfully initialized debugFile \`%s'" \
-		          "$_debug_file"
-	else
-		unset debugFile
-		f_dprintf "Unable to initialize debugFile \`%s'" \
-		          "$_debug_file"
-	fi
-fi
-unset _debug_file
+f_dprintf "%s: DEBUG_SELF_INITIALIZE=[%s]" \
+          dialog.subr "$DEBUG_SELF_INITIALIZE"
+case "$DEBUG_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_debug_init
+esac
 
 #
 # Log our operating environment for debugging purposes

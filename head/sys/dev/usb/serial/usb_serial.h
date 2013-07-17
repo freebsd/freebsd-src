@@ -146,7 +146,7 @@ struct ucom_super_softc {
 
 struct ucom_softc {
 	/*
-	 * NOTE: To avoid loosing level change information we use two
+	 * NOTE: To avoid losing level change information we use two
 	 * tasks instead of one for all commands.
 	 *
 	 * Level changes are transitions like:

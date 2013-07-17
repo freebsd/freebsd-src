@@ -36,6 +36,7 @@ const struct tok nlpid_values[] = {
     { NLPID_ISIS, "IS-IS" },
     { NLPID_CONS, "CONS" },
     { NLPID_IDRP, "IDRP" },
+    { NLPID_SPB, "ISIS_SPB" },
     { NLPID_MFR, "FRF.15" },
     { NLPID_IP, "IPv4" },
     { NLPID_PPP, "PPP" },

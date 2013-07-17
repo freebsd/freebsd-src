@@ -273,7 +273,7 @@ opencal(void)
 			_exit(1);
 		}
 		execl(_PATH_CPP, "cpp", "-P",
-		    "-traditional", "-nostdinc",	/* GCC specific opts */
+		    "-traditional-cpp", "-nostdinc",	/* GCC specific opts */
 		    "-I.", "-I", _PATH_INCLUDE, (char *)NULL);
 		warn(_PATH_CPP);
 		_exit(1);

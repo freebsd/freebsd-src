@@ -506,10 +506,31 @@ uint8_t *
 scif_cb_io_request_get_virtual_address_from_sgl(void * scif_user_io_request,
     uint32_t byte_offset)
 {
-	struct ISCI_IO_REQUEST *isci_request =
-	    (struct ISCI_IO_REQUEST *)scif_user_io_request;
+	struct ISCI_IO_REQUEST	*isci_request;
+	union ccb		*ccb;
 
-	return (isci_request->ccb->csio.data_ptr + byte_offset);
+
+	isci_request = scif_user_io_request;
+	ccb = isci_request->ccb;
+
+	/*
+	 * This callback is only invoked for SCSI/ATA translation of
+	 *  PIO commands such as INQUIRY and READ_CAPACITY, to allow
+	 *  the driver to write the translated data directly into the
+	 *  data buffer.  It is never invoked for READ/WRITE commands.
+	 *  The driver currently assumes only READ/WRITE commands will
+	 *  be unmapped.
+	 *
+	 * As a safeguard against future changes to unmapped commands,
+	 *  add an explicit panic here should the DATA_MASK != VADDR.
+	 *  Otherwise, we would return some garbage pointer back to the
+	 *  caller which would result in a panic or more subtle data
+	 *  corruption later on.
+	 */
+	if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+		panic("%s: requesting pointer into unmapped ccb", __func__);
+
+	return (ccb->csio.data_ptr + byte_offset);
 }
 
 /**
@@ -746,10 +767,6 @@ isci_io_request_execute_scsi_io(union ccb *ccb,
 	io_request->ccb = ccb;
 	io_request->current_sge_index = 0;
 	io_request->parent.remote_device_handle = device->sci_object;
-
-	if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
-		panic("Unexpected cam data format!  flags = 0x%x\n",
-		    ccb->ccb_h.flags);
 
 	error = bus_dmamap_load_ccb(io_request->parent.dma_tag,
 	    io_request->parent.dma_map, ccb,

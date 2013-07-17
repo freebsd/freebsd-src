@@ -84,7 +84,7 @@ main(int argc, char *argv[])
 	bool extended_regs = false, preproc_done = false;
 
 	/* accept and ignore a single dash to be 4.4BSD dc(1) compatible */
-	while ((ch = getopt_long(argc, argv, "e:f:Vx", long_options, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "e:f:hVx", long_options, NULL)) != -1) {
 		switch (ch) {
 		case 'e':
 			if (!preproc_done)

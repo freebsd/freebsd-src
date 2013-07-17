@@ -50,6 +50,7 @@ ENTRY(arm10_setttb)
 
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	bx	lr
+END(arm10_setttb)
 
 /*
  * TLB functions
@@ -58,11 +59,12 @@ ENTRY(arm10_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
 	bx	lr
+END(arm10_tlb_flushID_SE)
 
 ENTRY(arm10_tlb_flushI_SE)
 	mcr	p15, 0, r0, c8, c5, 1	/* flush I tlb single entry */
 	bx	lr
-	
+END(arm10_tlb_flushI_SE)
 
 /*
  * Cache operations.  For the entire cache we use the set/index
@@ -90,6 +92,7 @@ ENTRY_NP(arm10_icache_sync_range)
 	bhi	.Larm10_sync_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+END(arm10_icache_sync_range)
 
 ENTRY_NP(arm10_icache_sync_all)
 .Larm10_icache_sync_all:
@@ -114,6 +117,7 @@ ENTRY_NP(arm10_icache_sync_all)
 	bhs	.Lnext_set		/* Next set */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+END(arm10_icache_sync_all)
 
 .Larm10_line_size:
 	.word	_C_LABEL(arm_pdcache_line_size)
@@ -134,6 +138,7 @@ ENTRY(arm10_dcache_wb_range)
 	bhi	.Larm10_wb_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+END(arm10_dcache_wb_range)
 	
 ENTRY(arm10_dcache_wbinv_range)
 	ldr	ip, .Larm10_line_size
@@ -151,6 +156,7 @@ ENTRY(arm10_dcache_wbinv_range)
 	bhi	.Larm10_wbinv_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+END(arm10_dcache_wbinv_range)
 	
 /*
  * Note, we must not invalidate everything.  If the range is too big we
@@ -172,6 +178,7 @@ ENTRY(arm10_dcache_inv_range)
 	bhi	.Larm10_inv_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+END(arm10_dcache_inv_range)
 
 ENTRY(arm10_idcache_wbinv_range)
 	ldr	ip, .Larm10_line_size
@@ -190,6 +197,7 @@ ENTRY(arm10_idcache_wbinv_range)
 	bhi	.Larm10_id_wbinv_next
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+END(arm10_idcache_wbinv_range)
 
 ENTRY_NP(arm10_idcache_wbinv_all)
 .Larm10_idcache_wbinv_all:
@@ -215,6 +223,8 @@ ENTRY(arm10_dcache_wbinv_all)
 	bhs	.Lnext_set_inv		/* Next set */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+END(arm10_idcache_wbinv_all)
+END(arm10_dcache_wbinv_all)
 
 .Larm10_cache_data:
 	.word	_C_LABEL(arm10_dcache_sets_max)
@@ -242,6 +252,7 @@ ENTRY(arm10_context_switch)
 	nop
 	nop
 	bx	lr
+END(arm10_context_switch)
 
 	.bss
 

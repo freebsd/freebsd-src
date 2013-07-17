@@ -48,8 +48,11 @@ DEFINE_TEST(test_option_newer_than)
   assertMakeFile("a/b/new.txt", 0644, "new file in old directory");
 
   /* Test --newer-than on create */
-  assertEqualInt(0, systemf("%s -cf ../test1.tar --newer-than middle.txt *.txt a", testprog));
-  assertEqualInt(0, systemf("%s -cf ../test2.tar *.txt a", testprog));
+  assertEqualInt(0,
+	systemf("%s --format pax -cf ../test1.tar "
+		"--newer-than middle.txt *.txt a", testprog));
+  assertEqualInt(0,
+	systemf("%s --format pax -cf ../test2.tar *.txt a", testprog));
   assertChdir("..");
 
   /* Extract test1.tar to a clean dir and verify what got archived. */

@@ -341,7 +341,9 @@ g_journal_check_overflow(struct g_journal_softc *sc)
 	    (sc->sc_active.jj_offset > sc->sc_inactive.jj_offset &&
 	     sc->sc_journal_offset >= sc->sc_inactive.jj_offset &&
 	     sc->sc_journal_offset < sc->sc_active.jj_offset)) {
-		panic("Journal overflow (joffset=%jd active=%jd inactive=%jd)",
+		panic("Journal overflow "
+		    "(id = %u joffset=%jd active=%jd inactive=%jd)",
+		    (unsigned)sc->sc_id,
 		    (intmax_t)sc->sc_journal_offset,
 		    (intmax_t)sc->sc_active.jj_offset,
 		    (intmax_t)sc->sc_inactive.jj_offset);
@@ -2960,7 +2962,7 @@ g_journal_do_switch(struct g_class *classp)
 		GJ_TIMER_STOP(1, &bt, "BIO_FLUSH time of %s", sc->sc_name);
 
 		GJ_TIMER_START(1, &bt);
-		error = vfs_write_suspend(mp);
+		error = vfs_write_suspend(mp, VS_SKIP_UNMOUNT);
 		GJ_TIMER_STOP(1, &bt, "Suspend time of %s", mountpoint);
 		if (error != 0) {
 			GJ_DEBUG(0, "Cannot suspend file system %s (error=%d).",

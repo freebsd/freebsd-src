@@ -212,11 +212,12 @@ ti_mmchs_reset_controller(struct ti_mmchs_softc *sc, uint32_t bit)
 
 	sysctl = ti_mmchs_read_4(sc, MMCHS_SYSCTL);
 	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl | bit);
-
-	if ((ti_chip() == CHIP_OMAP_4) && (ti_revision() > OMAP4430_REV_ES1_0)) {
-		/* OMAP4 ES2 and greater has an updated reset logic.
-		 * Monitor a 0->1 transition first
-		 */
+	/* 
+	 * AM335x and OMAP4 >= ES2 have an updated reset logic.
+	 * Monitor a 0->1 transition first.
+	 */
+	if ((ti_chip() == CHIP_AM335X) || 
+	    ((ti_chip() == CHIP_OMAP_4) && (ti_revision() > OMAP4430_REV_ES1_0))) {
 		attempts = 10000;
 		while (!(ti_mmchs_read_4(sc, MMCHS_SYSCTL) & bit) && (attempts-- > 0))
 			continue;
@@ -1327,7 +1328,7 @@ ti_mmchs_hw_init(device_t dev)
 	unsigned long timeout;
 	uint32_t sysctl;
 	uint32_t capa;
-	uint32_t con;
+	uint32_t con, sysconfig;
 
 	/* 1: Enable the controller and interface/functional clocks */
 	clk = MMC0_CLK + sc->device_id;
@@ -1344,7 +1345,9 @@ ti_mmchs_hw_init(device_t dev)
 	}
 
 	/* 2: Issue a softreset to the controller */
-	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, 0x0002);
+	sysconfig = ti_mmchs_read_4(sc, MMCHS_SYSCONFIG);
+	sysconfig |= MMCHS_SYSCONFIG_SRST;
+	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, sysconfig);
 	timeout = 100;
 	while ((ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & 0x01) == 0x0) {
 		DELAY(1000);
@@ -1584,7 +1587,6 @@ static int
 ti_mmchs_activate(device_t dev)
 {
 	struct ti_mmchs_softc *sc = device_get_softc(dev);
-	unsigned long addr;
 	int rid;
 	int err;
 
@@ -1630,8 +1632,8 @@ ti_mmchs_activate(device_t dev)
 		panic("Unknown OMAP device\n");
 
 	/* Get the physical address of the MMC data register, needed for DMA */
-	addr = vtophys(rman_get_start(sc->sc_mem_res));
-	sc->sc_data_reg_paddr = addr + sc->sc_reg_off + MMCHS_DATA;
+	sc->sc_data_reg_paddr = BUS_SPACE_PHYSADDR(sc->sc_mem_res, 
+	    sc->sc_reg_off + MMCHS_DATA);
 
 	/* Set the initial power state to off */
 	sc->sc_cur_power_mode = power_off;

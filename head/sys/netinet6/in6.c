@@ -106,6 +106,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
 
+VNET_DECLARE(int, icmp6_nodeinfo_oldmcprefix);
+#define V_icmp6_nodeinfo_oldmcprefix	VNET(icmp6_nodeinfo_oldmcprefix)
+
 /*
  * Definitions of some costant IP6 addresses.
  */
@@ -195,10 +198,10 @@ in6_ifremloop(struct ifaddr *ifa)
 
 	ia = ifa2ia6(ifa);
 	ifp = ifa->ifa_ifp;
-	IF_AFDATA_LOCK(ifp);
-	lla_lookup(LLTABLE6(ifp), (LLE_DELETE | LLE_IFADDR),
-	    (struct sockaddr *)&ia->ia_addr);
-	IF_AFDATA_UNLOCK(ifp);
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	lltable_prefix_free(AF_INET6, (struct sockaddr *)&addr,
+	            (struct sockaddr *)&mask, LLE_STATIC);
 
 	/*
 	 * initialize for rtmsg generation
@@ -210,8 +213,6 @@ in6_ifremloop(struct ifaddr *ifa)
 	gateway.sdl_alen = ifp->if_addrlen;
 	bzero(&rt0, sizeof(rt0));
 	rt0.rt_gateway = (struct sockaddr *)&gateway;
-	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
-	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
 	rt_mask(&rt0) = (struct sockaddr *)&mask;
 	rt_key(&rt0) = (struct sockaddr *)&addr;
 	rt0.rt_flags = RTF_HOST | RTF_STATIC;
@@ -569,10 +570,10 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			error = EINVAL;
 			goto out;
 		}
-		bzero(&ifr->ifr_ifru.ifru_stat,
-		    sizeof(ifr->ifr_ifru.ifru_stat));
-		ifr->ifr_ifru.ifru_stat =
-		    *((struct in6_ifextra *)ifp->if_afdata[AF_INET6])->in6_ifstat;
+		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
+		    ifp->if_afdata[AF_INET6])->in6_ifstat,
+		    &ifr->ifr_ifru.ifru_stat,
+		    sizeof(struct in6_ifstat) / sizeof(uint64_t));
 		break;
 
 	case SIOCGIFSTAT_ICMP6:
@@ -580,10 +581,10 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			error = EINVAL;
 			goto out;
 		}
-		bzero(&ifr->ifr_ifru.ifru_icmp6stat,
-		    sizeof(ifr->ifr_ifru.ifru_icmp6stat));
-		ifr->ifr_ifru.ifru_icmp6stat =
-		    *((struct in6_ifextra *)ifp->if_afdata[AF_INET6])->icmp6_ifstat;
+		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
+		    ifp->if_afdata[AF_INET6])->icmp6_ifstat,
+		    &ifr->ifr_ifru.ifru_icmp6stat,
+		    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
 		break;
 
 	case SIOCGIFALIFETIME_IN6:
@@ -949,6 +950,17 @@ in6_update_ifa_join_mc(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		else
 			LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
 	}
+	if (V_icmp6_nodeinfo_oldmcprefix && 
+	     in6_nigroup_oldmcprefix(ifp, NULL, -1, &mltaddr.sin6_addr) == 0) {
+		imm = in6_joingroup(ifp, &mltaddr.sin6_addr, &error, delay);
+		if (imm == NULL)
+			nd6log((LOG_WARNING, "%s: addmulti failed for %s on %s "
+			    "(errno=%d)\n", __func__, ip6_sprintf(ip6buf,
+			    &mltaddr.sin6_addr), if_name(ifp), error));
+			/* XXX not very fatal, go on... */
+		else
+			LIST_INSERT_HEAD(&ia->ia6_memberships, imm, i6mm_chain);
+	}
 
 	/*
 	 * Join interface-local all-nodes address.
@@ -1174,6 +1186,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			goto unlink;
 		}
 		ia->ia_prefixmask = ifra->ifra_prefixmask;
+		ia->ia_prefixmask.sin6_family = AF_INET6;
 	}
 
 	/*
@@ -1974,6 +1987,32 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 }
 
 /*
+ * Find a link-local scoped address on ifp and return it if any.
+ */
+struct in6_ifaddr *
+in6ifa_llaonifp(struct ifnet *ifp)
+{
+	struct sockaddr_in6 *sin6;
+	struct ifaddr *ifa;
+
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+		return (NULL);
+	if_addr_rlock(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) ||
+		    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6->sin6_addr) ||
+		    IN6_IS_ADDR_MC_NODELOCAL(&sin6->sin6_addr))
+			break;
+	}
+	if_addr_runlock(ifp);
+
+	return ((struct in6_ifaddr *)ifa);
+}
+
+/*
  * Convert IP6 address to printable (loggable) representation. Caller
  * has to make sure that ip6buf is at least INET6_ADDRSTRLEN long.
  */
@@ -2604,10 +2643,14 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
 			lle->la_flags |= LLE_DELETED;
-			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 	}
@@ -2706,14 +2749,16 @@ in6_domifattach(struct ifnet *ifp)
 	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);
 	bzero(ext, sizeof(*ext));
 
-	ext->in6_ifstat = (struct in6_ifstat *)malloc(sizeof(struct in6_ifstat),
-	    M_IFADDR, M_WAITOK);
-	bzero(ext->in6_ifstat, sizeof(*ext->in6_ifstat));
+	ext->in6_ifstat = malloc(sizeof(counter_u64_t) *
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t), M_IFADDR, M_WAITOK);
+	COUNTER_ARRAY_ALLOC(ext->in6_ifstat,
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t), M_WAITOK);
 
-	ext->icmp6_ifstat =
-	    (struct icmp6_ifstat *)malloc(sizeof(struct icmp6_ifstat),
-	    M_IFADDR, M_WAITOK);
-	bzero(ext->icmp6_ifstat, sizeof(*ext->icmp6_ifstat));
+	ext->icmp6_ifstat = malloc(sizeof(counter_u64_t) *
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_IFADDR,
+	    M_WAITOK);
+	COUNTER_ARRAY_ALLOC(ext->icmp6_ifstat,
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_WAITOK);
 
 	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
@@ -2738,7 +2783,11 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 	scope6_ifdetach(ext->scope6_id);
 	nd6_ifdetach(ext->nd_ifinfo);
 	lltable_free(ext->lltable);
+	COUNTER_ARRAY_FREE(ext->in6_ifstat,
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t));
 	free(ext->in6_ifstat, M_IFADDR);
+	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
 	free(ext->icmp6_ifstat, M_IFADDR);
 	free(ext, M_IFADDR);
 }

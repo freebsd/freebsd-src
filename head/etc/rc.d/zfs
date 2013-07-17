@@ -23,7 +23,7 @@ zfs_start_jail()
 
 zfs_start_main()
 {
-	zfs mount -a
+	zfs mount -va
 	zfs share -a
 	if [ ! -r /etc/zfs/exports ]; then
 		touch /etc/zfs/exports

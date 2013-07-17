@@ -15,11 +15,12 @@ INCS+=		libusb20_desc.h
 MAN=		libusb.3 libusb20.3
 MKLINT=		no
 NOGCCERROR=
+PTHREAD_LIBS?=	-lpthread
 
 WARNS?=		2
 
 DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+LDADD=		${PTHREAD_LIBS}
 
 MLINKS+=	libusb.3 usb.3
 
@@ -35,6 +36,29 @@ SRCS+=		libusb10_io.c
 
 .if defined(COMPAT_32BIT)
 CFLAGS+=	-DCOMPAT_32BIT
+.endif
+
+#
+# Cross platform support
+#
+# Examples:
+# make LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h
+# make COMPAT_32BIT=YES \
+#   LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h \
+#   DEBUG_FLAGS="-g"
+#
+# From Ubuntu 10.04:
+# freebsd-make LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h \
+#    PTHREAD_LIBS="-lpthread -lrt"
+# freebsd-make COMPAT32_BIT=YES \
+#    LIBUSB_GLOBAL_INCLUDE_FILE=libusb_global_linux.h \
+#    PTHREAD_LIBS="-lpthread -lrt"
+#
+#
+.if defined(LIBUSB_GLOBAL_INCLUDE_FILE)
+CFLAGS+=	-DLIBUSB_GLOBAL_INCLUDE_FILE=\"${LIBUSB_GLOBAL_INCLUDE_FILE}\"
+CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"${LIBUSB_GLOBAL_INCLUDE_FILE}\"
+CFLAGS+=	-I ../../sys
 .endif
 
 .include <bsd.lib.mk>
@@ -190,6 +214,7 @@ MLINKS += libusb20.3 libusb20_dev_reset.3
 MLINKS += libusb20.3 libusb20_dev_check_connected.3
 MLINKS += libusb20.3 libusb20_dev_set_power_mode.3
 MLINKS += libusb20.3 libusb20_dev_get_power_mode.3
+MLINKS += libusb20.3 libusb20_dev_get_port_path.3
 MLINKS += libusb20.3 libusb20_dev_get_power_usage.3
 MLINKS += libusb20.3 libusb20_dev_set_alt_index.3
 MLINKS += libusb20.3 libusb20_dev_get_device_desc.3

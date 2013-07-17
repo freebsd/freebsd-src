@@ -145,6 +145,7 @@ mfip_attach(device_t dev)
 				MFI_SCSI_MAX_CMDS, sc->devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
 		device_printf(dev, "CAM SIM attach failed\n");
 		return (EINVAL);
 	}
@@ -155,7 +156,9 @@ mfip_attach(device_t dev)
 	if (xpt_bus_register(sc->sim, dev, 0) != 0) {
 		device_printf(dev, "XPT bus registration failed\n");
 		cam_sim_free(sc->sim, FALSE);
+		sc->sim = NULL;
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
 		mtx_unlock(&mfisc->mfi_io_lock);
 		return (EINVAL);
 	}
@@ -187,11 +190,14 @@ mfip_detach(device_t dev)
 		mtx_lock(&sc->mfi_sc->mfi_io_lock);
 		xpt_bus_deregister(cam_sim_path(sc->sim));
 		cam_sim_free(sc->sim, FALSE);
+		sc->sim = NULL;
 		mtx_unlock(&sc->mfi_sc->mfi_io_lock);
 	}
 
-	if (sc->devq != NULL)
+	if (sc->devq != NULL) {
 		cam_simq_free(sc->devq);
+		sc->devq = NULL;
+	}
 
 	return (0);
 }
@@ -312,13 +318,16 @@ mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
 	}
 
 	sim = camsc->sim;
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sim),
+	mtx_lock(&sc->mfi_io_lock);
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(sim),
 	    tid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_free_ccb(ccb);
+		mtx_unlock(&sc->mfi_io_lock);
 		device_printf(sc->mfi_dev,
 		    "Cannot create path for bus rescan.\n");
 		return;
 	}
+	mtx_unlock(&sc->mfi_io_lock);
 
 	xpt_rescan(ccb);
 

@@ -218,7 +218,7 @@ create_iso_image(unsigned char *buff, size_t buffsize, size_t *used,
 	/* ISO9660 format: Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_iso9660(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_add_filter_none(a));
 	assertA(0 == archive_write_set_option(a, NULL, "pad", NULL));
 	if (opt)
 		assertA(0 == archive_write_set_options(a, opt));
@@ -312,6 +312,8 @@ DEFINE_TEST(test_write_format_iso9660_filename)
 
 	buff = malloc(buffsize);
 	assert(buff != NULL);
+	if (buff == NULL)
+		return;
 	memset(&fns, 0, sizeof(fns));
 
 	/*
@@ -321,6 +323,10 @@ DEFINE_TEST(test_write_format_iso9660_filename)
 
 	fns.names = (char **)malloc(sizeof(char *) * fcnt);
 	assert(fns.names != NULL);
+	if (fns.names == NULL) {
+		free(buff);
+		return;
+	}
 	fns.alloc = fcnt;
 
 	/* Verify rockridge filenames. */

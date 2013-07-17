@@ -84,7 +84,7 @@ processed when reading a ``savefile''.
 \fIcnt\fP
 was 0 was undefined; different platforms and devices behaved
 differently, so code that must work with older versions of libpcap
-should use \-1, nor 0, as the value of
+should use \-1, not 0, as the value of
 \fIcnt\fP.)
 .ft R
 .PP
@@ -119,8 +119,9 @@ them.
 .B pcap_loop()
 returns 0 if
 .I cnt
-is exhausted, \-1 if an error occurs, or \-2 if the loop terminated due
-to a call to
+is exhausted or if, when reading from a ``savefile'', no more packets
+are available.  It returns \-1 if an error occurs or \-2 if the loop
+terminated due to a call to
 .B pcap_breakloop()
 before any packets were processed.
 It does

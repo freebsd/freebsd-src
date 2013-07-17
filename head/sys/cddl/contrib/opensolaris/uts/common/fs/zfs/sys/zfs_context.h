@@ -103,7 +103,6 @@ extern "C" {
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 /* There is clash. vm_map.h defines the two below and vdev_cache.c use them. */

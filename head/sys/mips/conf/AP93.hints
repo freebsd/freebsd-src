@@ -36,6 +36,9 @@ hint.arswitch.0.is_gmii=0	# No, not GMII
 hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff1000
 hint.pcib.0.bus.0.0.0.ath_fixup_size=4096
 
+# ath0 - eeprom comes from here
+hint.ath.0.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
 # Signal leds
 hint.gpioled.0.at="gpiobus0"
 hint.gpioled.0.name="sig1"

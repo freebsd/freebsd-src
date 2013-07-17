@@ -298,7 +298,7 @@ esac
 
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS(fcntl.h regex.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/param.h sys/sysctl.h net/if6.h,,,
+AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/param.h sys/sysctl.h net/if6.h,,,
 [$ac_includes_default
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>

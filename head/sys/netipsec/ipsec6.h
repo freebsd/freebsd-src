@@ -41,14 +41,17 @@
 #include <netipsec/keydb.h>
 
 #ifdef _KERNEL
-VNET_DECLARE(struct ipsecstat, ipsec6stat);
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct ipsecstat, ipsec6stat);
 VNET_DECLARE(int, ip6_esp_trans_deflev);
 VNET_DECLARE(int, ip6_esp_net_deflev);
 VNET_DECLARE(int, ip6_ah_trans_deflev);
 VNET_DECLARE(int, ip6_ah_net_deflev);
 VNET_DECLARE(int, ip6_ipsec_ecn);
 
-#define	V_ipsec6stat		VNET(ipsec6stat)
+#define	IPSEC6STAT_INC(name)	\
+    VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec6stat, name, 1)
 #define	V_ip6_esp_trans_deflev	VNET(ip6_esp_trans_deflev)
 #define	V_ip6_esp_net_deflev	VNET(ip6_esp_net_deflev)
 #define	V_ip6_ah_trans_deflev	VNET(ip6_ah_trans_deflev)

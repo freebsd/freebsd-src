@@ -13,17 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 
 using namespace clang;
 using namespace ento;
 
 namespace {
   class BoolAssignmentChecker : public Checker< check::Bind > {
-    mutable llvm::OwningPtr<BuiltinBug> BT;
+    mutable OwningPtr<BuiltinBug> BT;
     void emitReport(ProgramStateRef state, CheckerContext &C) const;
   public:
     void checkBind(SVal loc, SVal val, const Stmt *S, CheckerContext &C) const;
@@ -69,7 +69,7 @@ void BoolAssignmentChecker::checkBind(SVal loc, SVal val, const Stmt *S,
   // Get the value of the right-hand side.  We only care about values
   // that are defined (UnknownVals and UndefinedVals are handled by other
   // checkers).
-  const DefinedSVal *DV = dyn_cast<DefinedSVal>(&val);
+  Optional<DefinedSVal> DV = val.getAs<DefinedSVal>();
   if (!DV)
     return;
     
@@ -85,10 +85,10 @@ void BoolAssignmentChecker::checkBind(SVal loc, SVal val, const Stmt *S,
   SVal greaterThanOrEqualToZeroVal =
     svalBuilder.evalBinOp(state, BO_GE, *DV, zeroVal,
                           svalBuilder.getConditionType());
-  
-  DefinedSVal *greaterThanEqualToZero =
-    dyn_cast<DefinedSVal>(&greaterThanOrEqualToZeroVal);
-  
+
+  Optional<DefinedSVal> greaterThanEqualToZero =
+      greaterThanOrEqualToZeroVal.getAs<DefinedSVal>();
+
   if (!greaterThanEqualToZero) {
     // The SValBuilder cannot construct a valid SVal for this condition.
     // This means we cannot properly reason about it.    
@@ -121,10 +121,10 @@ void BoolAssignmentChecker::checkBind(SVal loc, SVal val, const Stmt *S,
   SVal lessThanEqToOneVal =
     svalBuilder.evalBinOp(state, BO_LE, *DV, OneVal,
                           svalBuilder.getConditionType());
-  
-  DefinedSVal *lessThanEqToOne =
-    dyn_cast<DefinedSVal>(&lessThanEqToOneVal);
-  
+
+  Optional<DefinedSVal> lessThanEqToOne =
+      lessThanEqToOneVal.getAs<DefinedSVal>();
+
   if (!lessThanEqToOne) {
     // The SValBuilder cannot construct a valid SVal for this condition.
     // This means we cannot properly reason about it.    

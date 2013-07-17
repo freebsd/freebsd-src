@@ -112,7 +112,7 @@ struct etherip_header {
 
 /* Prototypes */
 void gif_input(struct mbuf *, int, struct ifnet *);
-int gif_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+int gif_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	       struct route *);
 int gif_ioctl(struct ifnet *, u_long, caddr_t);
 int gif_set_tunnel(struct ifnet *, struct sockaddr *, struct sockaddr *);

@@ -36,7 +36,7 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
 	struct nvme_request	*req;
 	struct nvme_command	*cmd;
 
-	req = nvme_allocate_request(payload, lba_count*512, cb_fn, cb_arg);
+	req = nvme_allocate_request_vaddr(payload, lba_count*512, cb_fn, cb_arg);
 
 	if (req == NULL)
 		return (ENOMEM);
@@ -54,13 +54,43 @@ nvme_ns_cmd_read(struct nvme_namespace *ns, void *payload, uint64_t lba,
 }
 
 int
+nvme_ns_cmd_read_bio(struct nvme_namespace *ns, struct bio *bp,
+    nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request	*req;
+	struct nvme_command	*cmd;
+	uint64_t		lba;
+	uint64_t		lba_count;
+
+	req = nvme_allocate_request_bio(bp, cb_fn, cb_arg);
+
+	if (req == NULL)
+		return (ENOMEM);
+	cmd = &req->cmd;
+	cmd->opc = NVME_OPC_READ;
+	cmd->nsid = ns->id;
+
+	lba = bp->bio_offset / nvme_ns_get_sector_size(ns);
+	lba_count = bp->bio_bcount / nvme_ns_get_sector_size(ns);
+
+	/* TODO: create a read command data structure */
+	*(uint64_t *)&cmd->cdw10 = lba;
+	cmd->cdw12 = lba_count-1;
+
+	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
+
+	return (0);
+}
+
+int
 nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
     uint32_t lba_count, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request	*req;
 	struct nvme_command	*cmd;
 
-	req = nvme_allocate_request(payload, lba_count*512, cb_fn, cb_arg);
+	req = nvme_allocate_request_vaddr(payload, lba_count*512, cb_fn,
+	    cb_arg);
 
 	if (req == NULL)
 		return (ENOMEM);
@@ -79,13 +109,42 @@ nvme_ns_cmd_write(struct nvme_namespace *ns, void *payload, uint64_t lba,
 }
 
 int
+nvme_ns_cmd_write_bio(struct nvme_namespace *ns, struct bio *bp,
+    nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+	struct nvme_request	*req;
+	struct nvme_command	*cmd;
+	uint64_t		lba;
+	uint64_t		lba_count;
+
+	req = nvme_allocate_request_bio(bp, cb_fn, cb_arg);
+
+	if (req == NULL)
+		return (ENOMEM);
+	cmd = &req->cmd;
+	cmd->opc = NVME_OPC_WRITE;
+	cmd->nsid = ns->id;
+
+	lba = bp->bio_offset / nvme_ns_get_sector_size(ns);
+	lba_count = bp->bio_bcount / nvme_ns_get_sector_size(ns);
+
+	/* TODO: create a write command data structure */
+	*(uint64_t *)&cmd->cdw10 = lba;
+	cmd->cdw12 = lba_count-1;
+
+	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
+
+	return (0);
+}
+
+int
 nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
     uint8_t num_ranges, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request	*req;
 	struct nvme_command	*cmd;
 
-	req = nvme_allocate_request(payload,
+	req = nvme_allocate_request_vaddr(payload,
 	    num_ranges * sizeof(struct nvme_dsm_range), cb_fn, cb_arg);
 
 	if (req == NULL)
@@ -96,7 +155,7 @@ nvme_ns_cmd_deallocate(struct nvme_namespace *ns, void *payload,
 	cmd->nsid = ns->id;
 
 	/* TODO: create a delete command data structure */
-	cmd->cdw10 = num_ranges;
+	cmd->cdw10 = num_ranges - 1;
 	cmd->cdw11 = NVME_DSM_ATTR_DEALLOCATE;
 
 	nvme_ctrlr_submit_io_request(ns->ctrlr, req);
@@ -110,7 +169,7 @@ nvme_ns_cmd_flush(struct nvme_namespace *ns, nvme_cb_fn_t cb_fn, void *cb_arg)
 	struct nvme_request	*req;
 	struct nvme_command	*cmd;
 
-	req = nvme_allocate_request(NULL, 0, cb_fn, cb_arg);
+	req = nvme_allocate_request_null(cb_fn, cb_arg);
 
 	if (req == NULL)
 		return (ENOMEM);

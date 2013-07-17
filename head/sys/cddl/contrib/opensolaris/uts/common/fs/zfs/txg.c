@@ -132,6 +132,8 @@ txg_init(dsl_pool_t *dp, uint64_t txg)
 		int i;
 
 		mutex_init(&tx->tx_cpu[c].tc_lock, NULL, MUTEX_DEFAULT, NULL);
+		mutex_init(&tx->tx_cpu[c].tc_open_lock, NULL, MUTEX_DEFAULT,
+		    NULL);
 		for (i = 0; i < TXG_SIZE; i++) {
 			cv_init(&tx->tx_cpu[c].tc_cv[i], NULL, CV_DEFAULT,
 			    NULL);
@@ -174,6 +176,7 @@ txg_fini(dsl_pool_t *dp)
 	for (c = 0; c < max_ncpus; c++) {
 		int i;
 
+		mutex_destroy(&tx->tx_cpu[c].tc_open_lock);
 		mutex_destroy(&tx->tx_cpu[c].tc_lock);
 		for (i = 0; i < TXG_SIZE; i++) {
 			cv_destroy(&tx->tx_cpu[c].tc_cv[i]);
@@ -297,10 +300,12 @@ txg_hold_open(dsl_pool_t *dp, txg_handle_t *th)
 	tx_cpu_t *tc = &tx->tx_cpu[CPU_SEQID];
 	uint64_t txg;
 
-	mutex_enter(&tc->tc_lock);
-
+	mutex_enter(&tc->tc_open_lock);
 	txg = tx->tx_open_txg;
+
+	mutex_enter(&tc->tc_lock);
 	tc->tc_count[txg & TXG_MASK]++;
+	mutex_exit(&tc->tc_lock);
 
 	th->th_cpu = tc;
 	th->th_txg = txg;
@@ -313,7 +318,8 @@ txg_rele_to_quiesce(txg_handle_t *th)
 {
 	tx_cpu_t *tc = th->th_cpu;
 
-	mutex_exit(&tc->tc_lock);
+	ASSERT(!MUTEX_HELD(&tc->tc_lock));
+	mutex_exit(&tc->tc_open_lock);
 }
 
 void
@@ -342,6 +348,12 @@ txg_rele_to_sync(txg_handle_t *th)
 	th->th_cpu = NULL;	/* defensive */
 }
 
+/*
+ * Blocks until all transactions in the group are committed.
+ *
+ * On return, the transaction group has reached a stable state in which it can
+ * then be passed off to the syncing context.
+ */
 static void
 txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 {
@@ -350,10 +362,10 @@ txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 	int c;
 
 	/*
-	 * Grab all tx_cpu locks so nobody else can get into this txg.
+	 * Grab all tc_open_locks so nobody else can get into this txg.
 	 */
 	for (c = 0; c < max_ncpus; c++)
-		mutex_enter(&tx->tx_cpu[c].tc_lock);
+		mutex_enter(&tx->tx_cpu[c].tc_open_lock);
 
 	ASSERT(txg == tx->tx_open_txg);
 	tx->tx_open_txg++;
@@ -363,7 +375,7 @@ txg_quiesce(dsl_pool_t *dp, uint64_t txg)
 	 * enter the next transaction group.
 	 */
 	for (c = 0; c < max_ncpus; c++)
-		mutex_exit(&tx->tx_cpu[c].tc_lock);
+		mutex_exit(&tx->tx_cpu[c].tc_open_lock);
 
 	/*
 	 * Quiesce the transaction group by waiting for everyone to txg_exit().
@@ -391,6 +403,9 @@ txg_do_callbacks(void *arg)
 
 /*
  * Dispatch the commit callbacks registered on this txg to worker threads.
+ *
+ * If no callbacks are registered for a given TXG, nothing happens.
+ * This function creates a taskq for the associated pool, if needed.
  */
 static void
 txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
@@ -401,7 +416,10 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 
 	for (c = 0; c < max_ncpus; c++) {
 		tx_cpu_t *tc = &tx->tx_cpu[c];
-		/* No need to lock tx_cpu_t at this point */
+		/*
+		 * No need to lock tx_cpu_t at this point, since this can
+		 * only be called once a txg has been synced.
+		 */
 
 		int g = txg & TXG_MASK;
 
@@ -421,7 +439,7 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 		list_create(cb_list, sizeof (dmu_tx_callback_t),
 		    offsetof(dmu_tx_callback_t, dcb_node));
 
-		list_move_tail(&tc->tc_callbacks[g], cb_list);
+		list_move_tail(cb_list, &tc->tc_callbacks[g]);
 
 		(void) taskq_dispatch(tx->tx_commit_cb_taskq, (task_func_t *)
 		    txg_do_callbacks, cb_list, TQ_SLEEP);
@@ -552,8 +570,8 @@ txg_quiesce_thread(void *arg)
 
 /*
  * Delay this thread by 'ticks' if we are still in the open transaction
- * group and there is already a waiting txg quiesing or quiesced.  Abort
- * the delay if this txg stalls or enters the quiesing state.
+ * group and there is already a waiting txg quiescing or quiesced.
+ * Abort the delay if this txg stalls or enters the quiescing state.
  */
 void
 txg_delay(dsl_pool_t *dp, uint64_t txg, int ticks)
@@ -561,7 +579,7 @@ txg_delay(dsl_pool_t *dp, uint64_t txg, int ticks)
 	tx_state_t *tx = &dp->dp_tx;
 	clock_t timeout = ddi_get_lbolt() + ticks;
 
-	/* don't delay if this txg could transition to quiesing immediately */
+	/* don't delay if this txg could transition to quiescing immediately */
 	if (tx->tx_open_txg > txg ||
 	    tx->tx_syncing_txg == txg-1 || tx->tx_synced_txg == txg-1)
 		return;
@@ -585,6 +603,8 @@ txg_wait_synced(dsl_pool_t *dp, uint64_t txg)
 {
 	tx_state_t *tx = &dp->dp_tx;
 
+	ASSERT(!dsl_pool_config_held(dp));
+
 	mutex_enter(&tx->tx_sync_lock);
 	ASSERT(tx->tx_threads == 2);
 	if (txg == 0)
@@ -607,6 +627,8 @@ void
 txg_wait_open(dsl_pool_t *dp, uint64_t txg)
 {
 	tx_state_t *tx = &dp->dp_tx;
+
+	ASSERT(!dsl_pool_config_held(dp));
 
 	mutex_enter(&tx->tx_sync_lock);
 	ASSERT(tx->tx_threads == 2);
@@ -673,42 +695,43 @@ txg_list_empty(txg_list_t *tl, uint64_t txg)
 }
 
 /*
- * Add an entry to the list.
- * Returns 0 if it's a new entry, 1 if it's already there.
+ * Add an entry to the list (unless it's already on the list).
+ * Returns B_TRUE if it was actually added.
  */
-int
+boolean_t
 txg_list_add(txg_list_t *tl, void *p, uint64_t txg)
 {
 	int t = txg & TXG_MASK;
 	txg_node_t *tn = (txg_node_t *)((char *)p + tl->tl_offset);
-	int already_on_list;
+	boolean_t add;
 
 	mutex_enter(&tl->tl_lock);
-	already_on_list = tn->tn_member[t];
-	if (!already_on_list) {
+	add = (tn->tn_member[t] == 0);
+	if (add) {
 		tn->tn_member[t] = 1;
 		tn->tn_next[t] = tl->tl_head[t];
 		tl->tl_head[t] = tn;
 	}
 	mutex_exit(&tl->tl_lock);
 
-	return (already_on_list);
+	return (add);
 }
 
 /*
- * Add an entry to the end of the list (walks list to find end).
- * Returns 0 if it's a new entry, 1 if it's already there.
+ * Add an entry to the end of the list, unless it's already on the list.
+ * (walks list to find end)
+ * Returns B_TRUE if it was actually added.
  */
-int
+boolean_t
 txg_list_add_tail(txg_list_t *tl, void *p, uint64_t txg)
 {
 	int t = txg & TXG_MASK;
 	txg_node_t *tn = (txg_node_t *)((char *)p + tl->tl_offset);
-	int already_on_list;
+	boolean_t add;
 
 	mutex_enter(&tl->tl_lock);
-	already_on_list = tn->tn_member[t];
-	if (!already_on_list) {
+	add = (tn->tn_member[t] == 0);
+	if (add) {
 		txg_node_t **tp;
 
 		for (tp = &tl->tl_head[t]; *tp != NULL; tp = &(*tp)->tn_next[t])
@@ -720,7 +743,7 @@ txg_list_add_tail(txg_list_t *tl, void *p, uint64_t txg)
 	}
 	mutex_exit(&tl->tl_lock);
 
-	return (already_on_list);
+	return (add);
 }
 
 /*
@@ -771,13 +794,13 @@ txg_list_remove_this(txg_list_t *tl, void *p, uint64_t txg)
 	return (NULL);
 }
 
-int
+boolean_t
 txg_list_member(txg_list_t *tl, void *p, uint64_t txg)
 {
 	int t = txg & TXG_MASK;
 	txg_node_t *tn = (txg_node_t *)((char *)p + tl->tl_offset);
 
-	return (tn->tn_member[t]);
+	return (tn->tn_member[t] != 0);
 }
 
 /*

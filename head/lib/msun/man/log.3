@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2010
+.Dd June 3, 2013
 .Dt LOG 3
 .Os
 .Sh NAME
@@ -33,10 +33,13 @@
 .Nm logl ,
 .Nm log10 ,
 .Nm log10f ,
+.Nm log10l ,
 .Nm log2 ,
 .Nm log2f ,
+.Nm log2l ,
 .Nm log1p ,
-.Nm log1pf
+.Nm log1pf ,
+.Nm log1pl
 .Nd logarithm functions
 .Sh LIBRARY
 .Lb libm
@@ -46,43 +49,55 @@
 .Fn log "double x"
 .Ft float
 .Fn logf "float x"
+.Ft long double
+.Fn logl "long double x"
 .Ft double
 .Fn log10 "double x"
 .Ft float
 .Fn log10f "float x"
+.Ft long double
+.Fn log10l "long double x"
 .Ft double
 .Fn log2 "double x"
 .Ft float
 .Fn log2f "float x"
+.Ft long double
+.Fn log2l "long double x"
 .Ft double
 .Fn log1p "double x"
 .Ft float
 .Fn log1pf "float x"
+.Ft long double
+.Fn log1pl "long double x"
 .Sh DESCRIPTION
 The
-.Fn log
+.Fn log ,
+.Fn logf ,
 and
-.Fn logf
+.Fn logl
 functions compute the natural logarithm of
 .Fa x .
 .Pp
 The
-.Fn log10
+.Fn log10 ,
+.Fn log10f ,
 and
-.Fn log10f
+.Fn log10l
 functions compute the logarithm base 10 of
 .Fa x ,
 while
-.Fn log2
+.Fn log2 ,
+.Fn log2f ,
 and
-.Fn log2f
+.Fn log2l
 compute the logarithm base 2 of
 .Fa x .
 .Pp
 The
-.Fn log1p
+.Fn log1p ,
+.Fn log1pf ,
 and
-.Fn log1pf
+.Fn log1pl
 functions compute the natural logarithm of
 .No "1 + x" .
 Computing the natural logarithm as
@@ -107,12 +122,16 @@ results in an invalid exception and a return value of \*(Na.
 The
 .Fn log ,
 .Fn logf ,
+.Fn logl ,
 .Fn log10 ,
 .Fn log10f ,
+.Fn log10l ,
 .Fn log2 ,
 .Fn log2f ,
+.Fn log2l ,
 .Fn log1p ,
+.Fn log1pf ,
 and
-.Fn log1pf
+.Fn log1pl
 functions conform to
 .St -isoC-99 .

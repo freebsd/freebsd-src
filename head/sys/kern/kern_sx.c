@@ -228,9 +228,9 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 		flags |= LO_QUIET;
 
 	flags |= opts & SX_NOADAPTIVE;
+	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
 	sx->sx_lock = SX_LOCK_UNLOCKED;
 	sx->sx_recurse = 0;
-	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
 }
 
 void
@@ -362,11 +362,11 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_sunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SA_SLOCKED, file, line);
-	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
 	__sx_sunlock(sx, file, line);
 	LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_SUNLOCK_RELEASE, sx);
+	curthread->td_locks--;
 }
 
 void
@@ -378,13 +378,13 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_xunlock() of destroyed sx @ %s:%d", file, line));
 	_sx_assert(sx, SA_XLOCKED, file, line);
-	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("XUNLOCK", &sx->lock_object, 0, sx->sx_recurse, file,
 	    line);
 	if (!sx_recursed(sx))
 		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_SX_XUNLOCK_RELEASE, sx);
 	__sx_xunlock(sx, curthread, file, line);
+	curthread->td_locks--;
 }
 
 /*

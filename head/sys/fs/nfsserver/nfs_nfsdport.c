@@ -390,7 +390,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 
 	/*
 	 * Initialize for scan, set ni_startdir and bump ref on dp again
-	 * becuase lookup() will dereference ni_startdir.
+	 * because lookup() will dereference ni_startdir.
 	 */
 
 	cnp->cn_thread = p;
@@ -1267,9 +1267,9 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		 */
 		if (vp->v_object &&
 		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
-			VM_OBJECT_LOCK(vp->v_object);
+			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_UNLOCK(vp->v_object);
+			VM_OBJECT_WUNLOCK(vp->v_object);
 		}
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 	} else {
@@ -1298,10 +1298,10 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 
 		if (vp->v_object &&
 		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
-			VM_OBJECT_LOCK(vp->v_object);
+			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_clean(vp->v_object, off, off + cnt,
 			    OBJPC_SYNC);
-			VM_OBJECT_UNLOCK(vp->v_object);
+			VM_OBJECT_WUNLOCK(vp->v_object);
 		}
 
 		bo = &vp->v_bufobj;
@@ -1321,7 +1321,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 			 */
 			if ((bp = gbincore(&vp->v_bufobj, lblkno)) != NULL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
-				    LK_INTERLOCK, BO_MTX(bo)) == ENOLCK) {
+				    LK_INTERLOCK, BO_LOCKPTR(bo)) == ENOLCK) {
 					BO_LOCK(bo);
 					continue; /* retry */
 				}
@@ -1574,6 +1574,8 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 			nd->nd_repstat = NFSERR_BAD_COOKIE;
 #endif
 	}
+	if (!nd->nd_repstat && vp->v_type != VDIR)
+		nd->nd_repstat = NFSERR_NOTDIR;
 	if (nd->nd_repstat == 0 && cnt == 0) {
 		if (nd->nd_flag & ND_NFSV2)
 			/* NFSv2 does not have NFSERR_TOOSMALL */
@@ -2692,9 +2694,11 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 		goto out;
 	}
 
-	if (startwrite)
+	if (startwrite) {
 		vn_start_write(NULL, mpp, V_WAIT);
-
+		if (lktype == LK_SHARED && !(MNT_SHARED_WRITES(mp)))
+			lktype = LK_EXCLUSIVE;
+	}
 	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, lktype, vpp, exp,
 	    &credanon);
 	vfs_unbusy(mp);
@@ -2767,7 +2771,7 @@ out:
 /*
  * glue for fp.
  */
-int
+static int
 fp_getfvp(struct thread *p, int fd, struct file **fpp, struct vnode **vpp)
 {
 	struct filedesc *fdp;
@@ -2775,8 +2779,8 @@ fp_getfvp(struct thread *p, int fd, struct file **fpp, struct vnode **vpp)
 	int error = 0;
 
 	fdp = p->td_proc->p_fd;
-	if (fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL) {
+	if (fd < 0 || fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[fd].fde_file) == NULL) {
 		error = EBADF;
 		goto out;
 	}
@@ -3041,7 +3045,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, sockarg.sock, CAP_SOCK_ALL, &fp)) != 0)
+		if ((error = fget(td, sockarg.sock, CAP_SOCK_SERVER, &fp)) != 0)
 			goto out;
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);

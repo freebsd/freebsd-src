@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -707,10 +708,10 @@ shmget_allocate_segment(td, uap, mode)
 #endif
 		return (ENOMEM);
 	}
-	VM_OBJECT_LOCK(shm_object);
+	VM_OBJECT_WLOCK(shm_object);
 	vm_object_clear_flag(shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shm_object, OBJ_NOSPLIT);
-	VM_OBJECT_UNLOCK(shm_object);
+	VM_OBJECT_WUNLOCK(shm_object);
 
 	shmseg->object = shm_object;
 	shmseg->u.shm_perm.cuid = shmseg->u.shm_perm.uid = cred->cr_uid;

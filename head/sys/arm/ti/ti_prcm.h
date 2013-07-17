@@ -141,6 +141,14 @@ typedef enum {
 	EDMA_TPTC1_CLK,
 	EDMA_TPTC2_CLK,
 
+	/* LCD controller module */
+	LCDC_CLK = 1300,
+
+	/* PWM modules */
+	PWMSS0_CLK = 1400,
+	PWMSS1_CLK,
+	PWMSS2_CLK,
+
 	INVALID_CLK_IDENT
 
 } clk_ident_t;

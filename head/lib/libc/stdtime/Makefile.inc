@@ -11,6 +11,9 @@ SYM_MAPS+= ${.CURDIR}/stdtime/Symbol.map
 
 CFLAGS+= -I${.CURDIR}/../../contrib/tzcode/stdtime -I${.CURDIR}/stdtime
 
+CFLAGS.localtime.c= -fwrapv
+CFLAGS+= ${CFLAGS.${.IMPSRC:T}}
+
 MAN+=	ctime.3 strftime.3 strptime.3 time2posix.3
 MAN+=	tzfile.5
 

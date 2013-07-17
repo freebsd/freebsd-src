@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2013 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: fget.c,v 1.24 2001/09/11 04:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: fget.c,v 1.25 2013/03/12 15:24:50 ca Exp $")
 #include <stdlib.h>
 #include <string.h>
 #include <sm/io.h>
@@ -33,31 +33,32 @@ SM_RCSID("@(#)$Id: fget.c,v 1.24 2001/09/11 04:04:48 gshapiro Exp $")
 **		n -- size of 'buf'
 **
 **	Returns:
-**		success: returns value of 'buf'
-**		failure: NULL (no characters were read)
-**		timeout: NULL and errno set to EAGAIN
+**		success: number of characters
+**		failure: -1
+**		timeout: -1 and errno set to EAGAIN
 **
 **	Side Effects:
 **		may move the file pointer
 */
 
-char *
+int
 sm_io_fgets(fp, timeout, buf, n)
 	register SM_FILE_T *fp;
 	int timeout;
 	char *buf;
 	register int n;
 {
-	register int len;
-	register char *s;
-	register unsigned char *p, *t;
+	int len, r;
+	char *s;
+	unsigned char *p, *t;
 
 	SM_REQUIRE_ISA(fp, SmFileMagic);
 	if (n <= 0)		/* sanity check */
-		return NULL;
+		return -1;
 
 	s = buf;
 	n--;			/* leave space for NUL */
+	r = 0;
 	while (n > 0)
 	{
 		/* If the buffer is empty, refill it. */
@@ -73,7 +74,7 @@ sm_io_fgets(fp, timeout, buf, n)
 			{
 				/* EOF/error: stop with partial or no line */
 				if (s == buf)
-					return NULL;
+					return -1;
 				break;
 			}
 			len = fp->f_r;
@@ -93,18 +94,20 @@ sm_io_fgets(fp, timeout, buf, n)
 		if (t != NULL)
 		{
 			len = ++t - p;
+			r += len;
 			fp->f_r -= len;
 			fp->f_p = t;
 			(void) memcpy((void *) s, (void *) p, len);
 			s[len] = 0;
-			return buf;
+			return r;
 		}
 		fp->f_r -= len;
 		fp->f_p += len;
 		(void) memcpy((void *) s, (void *) p, len);
 		s += len;
+		r += len;
 		n -= len;
 	}
 	*s = 0;
-	return buf;
+	return r;
 }

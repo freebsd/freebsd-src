@@ -18,24 +18,23 @@
 
 #define DEBUG_TYPE "branchfolding"
 #include "BranchFolding.h"
-#include "llvm/Function.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -571,8 +570,8 @@ static bool ProfitableToMerge(MachineBasicBlock *MBB1,
   // instructions that would be deleted in the merge.
   MachineFunction *MF = MBB1->getParent();
   if (EffectiveTailLen >= 2 &&
-      MF->getFunction()->getFnAttributes().
-        hasAttribute(Attributes::OptimizeForSize) &&
+      MF->getFunction()->getAttributes().
+        hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize) &&
       (I1 == MBB1->begin() || I2 == MBB2->begin()))
     return true;
 

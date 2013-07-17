@@ -57,7 +57,7 @@ test(int pristine)
 	should(a, known_option_rv, NULL, "joliet", NULL);
 	should(a, known_option_rv, NULL, "joliet", NULL);
 
-	archive_write_finish(a);
+	archive_write_free(a);
 }
 
 DEFINE_TEST(test_archive_write_set_format_option)

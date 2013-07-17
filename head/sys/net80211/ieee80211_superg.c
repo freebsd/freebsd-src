@@ -501,15 +501,17 @@ static void
 ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	int error;
+
+	IEEE80211_TX_LOCK_ASSERT(vap->iv_ic);
 
 	/* encap and xmit */
 	m = ieee80211_encap(vap, ni, m);
 	if (m != NULL) {
 		struct ifnet *ifp = vap->iv_ifp;
-		struct ifnet *parent = ni->ni_ic->ic_ifp;
 
-		error = parent->if_transmit(parent, m);
+		error = ieee80211_parent_transmit(ic, m);;
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);
@@ -590,7 +592,9 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 		M_AGE_SUB(m, quanta);
 	IEEE80211_UNLOCK(ic);
 
+	IEEE80211_TX_LOCK(ic);
 	ff_flush(head, m);
+	IEEE80211_TX_UNLOCK(ic);
 }
 
 static void
@@ -679,6 +683,8 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	struct mbuf *mstaged;
 	uint32_t txtime, limit;
 
+	IEEE80211_TX_UNLOCK_ASSERT(ic);
+
 	/*
 	 * Check if the supplied frame can be aggregated.
 	 *
@@ -734,10 +740,12 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		IEEE80211_UNLOCK(ic);
 
 		if (mstaged != NULL) {
+			IEEE80211_TX_LOCK(ic);
 			IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
 			    "%s: flush staged frame", __func__);
 			/* encap and xmit */
 			ff_transmit(ni, mstaged);
+			IEEE80211_TX_UNLOCK(ic);
 		}
 		return m;		/* NB: original frame */
 	}

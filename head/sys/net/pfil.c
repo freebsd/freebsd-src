@@ -94,12 +94,13 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 
 /*
  * pfil_try_rlock() acquires rm reader lock for specified head
- * if this is immediately possible,
+ * if this is immediately possible.
  */
 int
 pfil_try_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
 {
-	return PFIL_TRY_RLOCK(ph, tracker);
+
+	return (PFIL_TRY_RLOCK(ph, tracker));
 }
 
 /*
@@ -108,6 +109,7 @@ pfil_try_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
 void
 pfil_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
 {
+
 	PFIL_RLOCK(ph, tracker);
 }
 
@@ -117,6 +119,7 @@ pfil_rlock(struct pfil_head *ph, struct rm_priotracker *tracker)
 void
 pfil_runlock(struct pfil_head *ph, struct rm_priotracker *tracker)
 {
+
 	PFIL_RUNLOCK(ph, tracker);
 }
 
@@ -126,6 +129,7 @@ pfil_runlock(struct pfil_head *ph, struct rm_priotracker *tracker)
 void
 pfil_wlock(struct pfil_head *ph)
 {
+
 	PFIL_WLOCK(ph);
 }
 
@@ -135,16 +139,19 @@ pfil_wlock(struct pfil_head *ph)
 void
 pfil_wunlock(struct pfil_head *ph)
 {
+
 	PFIL_WUNLOCK(ph);
 }
 
 /*
- * pfil_wowned() releases writer lock for specified head.
+ * pfil_wowned() returns a non-zero value if the current thread owns
+ * an exclusive lock.
  */
 int
 pfil_wowned(struct pfil_head *ph)
 {
-	return PFIL_WOWNED(ph);
+
+	return (PFIL_WOWNED(ph));
 }
 /*
  * pfil_head_register() registers a pfil_head with the packet filter hook

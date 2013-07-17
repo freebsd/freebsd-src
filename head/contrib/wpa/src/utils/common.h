@@ -2,14 +2,8 @@
  * wpa_supplicant/hostapd / common helper functions, etc.
  * Copyright (c) 2002-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef COMMON_H
@@ -68,12 +62,6 @@ static inline unsigned int bswap_32(unsigned int v)
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #endif
 #endif /* CONFIG_TI_COMPILER */
-
-#ifdef __SYMBIAN32__
-#define __BIG_ENDIAN 4321
-#define __LITTLE_ENDIAN 1234
-#define __BYTE_ORDER __LITTLE_ENDIAN
-#endif /* __SYMBIAN32__ */
 
 #ifdef CONFIG_NATIVE_WINDOWS
 #include <winsock.h>
@@ -137,16 +125,6 @@ typedef unsigned short u16;
 typedef unsigned char u8;
 #define WPA_TYPES_DEFINED
 #endif /* CONFIG_TI_COMPILER */
-
-#ifdef __SYMBIAN32__
-#define __REMOVE_PLATSEC_DIAGNOSTICS__
-#include <e32def.h>
-typedef TUint64 u64;
-typedef TUint32 u32;
-typedef TUint16 u16;
-typedef TUint8 u8;
-#define WPA_TYPES_DEFINED
-#endif /* __SYMBIAN32__ */
 
 #ifndef WPA_TYPES_DEFINED
 #ifdef CONFIG_USE_INTTYPES_H
@@ -320,6 +298,9 @@ static inline unsigned int wpa_swap_32(unsigned int v)
 #ifndef ETH_P_ALL
 #define ETH_P_ALL 0x0003
 #endif
+#ifndef ETH_P_80211_ENCAP
+#define ETH_P_80211_ENCAP 0x890d /* TDLS comes under this category */
+#endif
 #ifndef ETH_P_PAE
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
 #endif /* ETH_P_PAE */
@@ -402,6 +383,12 @@ void perror(const char *s);
 #ifndef MAC2STR
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+
+/*
+ * Compact form for string representation of MAC address
+ * To be used, e.g., for constructing dbus paths for P2P Devices
+ */
+#define COMPACT_MACSTR "%02x%02x%02x%02x%02x%02x"
 #endif
 
 #ifndef BIT
@@ -436,7 +423,9 @@ typedef u64 __bitwise le64;
 #endif /* __must_check */
 
 int hwaddr_aton(const char *txt, u8 *addr);
+int hwaddr_compact_aton(const char *txt, u8 *addr);
 int hwaddr_aton2(const char *txt, u8 *addr);
+int hex2byte(const char *hex);
 int hexstr2bin(const char *hex, u8 *buf, size_t len);
 void inc_byte_array(u8 *counter, size_t len);
 void wpa_get_ntp_timestamp(u8 *buf);
@@ -452,12 +441,28 @@ TCHAR * wpa_strdup_tchar(const char *str);
 #define wpa_strdup_tchar(s) strdup((s))
 #endif /* CONFIG_NATIVE_WINDOWS */
 
+void printf_encode(char *txt, size_t maxlen, const u8 *data, size_t len);
+size_t printf_decode(u8 *buf, size_t maxlen, const char *str);
+
 const char * wpa_ssid_txt(const u8 *ssid, size_t ssid_len);
+
+char * wpa_config_parse_string(const char *value, size_t *len);
+int is_hex(const u8 *data, size_t len);
+size_t merge_byte_arrays(u8 *res, size_t res_len,
+			 const u8 *src1, size_t src1_len,
+			 const u8 *src2, size_t src2_len);
 
 static inline int is_zero_ether_addr(const u8 *a)
 {
 	return !(a[0] | a[1] | a[2] | a[3] | a[4] | a[5]);
 }
+
+static inline int is_broadcast_ether_addr(const u8 *a)
+{
+	return (a[0] & a[1] & a[2] & a[3] & a[4] & a[5]) == 0xff;
+}
+
+#define broadcast_ether_addr (const u8 *) "\xff\xff\xff\xff\xff\xff"
 
 #include "wpa_debug.h"
 
@@ -473,5 +478,12 @@ static inline int is_zero_ether_addr(const u8 *a)
  */
 void * __hide_aliasing_typecast(void *foo);
 #define aliasing_hide_typecast(a,t) (t *) __hide_aliasing_typecast((a))
+
+#ifdef CONFIG_VALGRIND
+#include <valgrind/memcheck.h>
+#define WPA_MEM_DEFINED(ptr, len) VALGRIND_MAKE_MEM_DEFINED((ptr), (len))
+#else /* CONFIG_VALGRIND */
+#define WPA_MEM_DEFINED(ptr, len) do { } while (0)
+#endif /* CONFIG_VALGRIND */
 
 #endif /* COMMON_H */

@@ -95,7 +95,7 @@ struct sockaddr_in6 rcvfrom;
 static const char *pidfilename = _PATH_RTADVDPID;
 const char *conffile = _PATH_RTADVDCONF;
 static struct pidfh *pfh;
-int dflag = 0, sflag = 0;
+static int dflag, sflag;
 static int wait_shutdown;
 
 #define	PFD_RAWSOCK	0
@@ -139,7 +139,7 @@ union nd_opt {
 #define NDOPT_FLAG_RDNSS	(1 << 5)
 #define NDOPT_FLAG_DNSSL	(1 << 6)
 
-uint32_t ndopt_flags[] = {
+static uint32_t ndopt_flags[] = {
 	[ND_OPT_SOURCE_LINKADDR]	= NDOPT_FLAG_SRCLINKADDR,
 	[ND_OPT_TARGET_LINKADDR]	= NDOPT_FLAG_TGTLINKADDR,
 	[ND_OPT_PREFIX_INFORMATION]	= NDOPT_FLAG_PREFIXINFO,
@@ -1008,6 +1008,8 @@ set_short_delay(struct ifinfo *ifi)
 	long delay;	/* must not be greater than 1000000 */
 	struct timeval interval, now, min_delay, tm_tmp, *rest;
 
+	if (ifi->ifi_ra_timer == NULL)
+		return;
 	/*
 	 * Compute a random delay. If the computed value
 	 * corresponds to a time later than the time the next
@@ -1635,6 +1637,11 @@ struct ifinfo *
 if_indextoifinfo(int idx)
 {
 	struct ifinfo *ifi;
+	char *name, name0[IFNAMSIZ];
+
+	/* Check if the interface has a valid name or not. */
+	if (if_indextoname(idx, name0) == NULL)
+		return (NULL);
 
 	TAILQ_FOREACH(ifi, &ifilist, ifi_next) {
 		if (ifi->ifi_ifindex == idx)

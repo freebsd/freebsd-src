@@ -61,6 +61,8 @@ pass1(void)
 {
 	struct inostat *info;
 	struct inodesc idesc;
+	struct bufarea *cgbp;
+	struct cg *cgp;
 	ino_t inumber, inosused, mininos;
 	ufs2_daddr_t i, cgd;
 	u_int8_t *cp;
@@ -92,12 +94,13 @@ pass1(void)
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		inumber = c * sblock.fs_ipg;
 		setinodebuf(inumber);
-		getblk(&cgblk, cgtod(&sblock, c), sblock.fs_cgsize);
+		cgbp = cgget(c);
+		cgp = cgbp->b_un.b_cg;
 		rebuildcg = 0;
-		if (!check_cgmagic(c, &cgrp))
+		if (!check_cgmagic(c, cgbp))
 			rebuildcg = 1;
 		if (!rebuildcg && sblock.fs_magic == FS_UFS2_MAGIC) {
-			inosused = cgrp.cg_initediblk;
+			inosused = cgp->cg_initediblk;
 			if (inosused > sblock.fs_ipg) {
 				pfatal(
 "Too many initialized inodes (%ju > %d) in cylinder group %d\nReset to %d\n",
@@ -127,7 +130,7 @@ pass1(void)
 		 * read only those inodes in from disk.
 		 */
 		if ((preen || inoopt) && usedsoftdep && !rebuildcg) {
-			cp = &cg_inosused(&cgrp)[(inosused - 1) / CHAR_BIT];
+			cp = &cg_inosused(cgp)[(inosused - 1) / CHAR_BIT];
 			for ( ; inosused > 0; inosused -= CHAR_BIT, cp--) {
 				if (*cp == 0)
 					continue;
@@ -149,7 +152,7 @@ pass1(void)
 			inostathead[c].il_stat = 0;
 			continue;
 		}
-		info = calloc((unsigned)inosused, sizeof(struct inostat));
+		info = Calloc((unsigned)inosused, sizeof(struct inostat));
 		if (info == NULL)
 			errx(EEXIT, "cannot alloc %u bytes for inoinfo",
 			    (unsigned)(sizeof(struct inostat) * inosused));
@@ -169,7 +172,7 @@ pass1(void)
 			 * valid number for this cylinder group.
 			 */
 			if (checkinode(inumber, &idesc, rebuildcg) == 0 &&
-			    i > cgrp.cg_initediblk)
+			    i > cgp->cg_initediblk)
 				break;
 		}
 		/*
@@ -181,16 +184,16 @@ pass1(void)
 		mininos = roundup(inosused + INOPB(&sblock), INOPB(&sblock));
 		if (inoopt && !preen && !rebuildcg &&
 		    sblock.fs_magic == FS_UFS2_MAGIC &&
-		    cgrp.cg_initediblk > 2 * INOPB(&sblock) &&
-		    mininos < cgrp.cg_initediblk) {
-			i = cgrp.cg_initediblk;
+		    cgp->cg_initediblk > 2 * INOPB(&sblock) &&
+		    mininos < cgp->cg_initediblk) {
+			i = cgp->cg_initediblk;
 			if (mininos < 2 * INOPB(&sblock))
-				cgrp.cg_initediblk = 2 * INOPB(&sblock);
+				cgp->cg_initediblk = 2 * INOPB(&sblock);
 			else
-				cgrp.cg_initediblk = mininos;
+				cgp->cg_initediblk = mininos;
 			pwarn("CYLINDER GROUP %d: RESET FROM %ju TO %d %s\n",
-			    c, i, cgrp.cg_initediblk, "VALID INODES");
-			cgdirty();
+			    c, i, cgp->cg_initediblk, "VALID INODES");
+			dirty(cgbp);
 		}
 		if (inosused < sblock.fs_ipg)
 			continue;
@@ -199,11 +202,11 @@ pass1(void)
 			inosused = 0;
 		else
 			inosused = lastino - (c * sblock.fs_ipg);
-		if (rebuildcg && inosused > cgrp.cg_initediblk &&
+		if (rebuildcg && inosused > cgp->cg_initediblk &&
 		    sblock.fs_magic == FS_UFS2_MAGIC) {
-			cgrp.cg_initediblk = roundup(inosused, INOPB(&sblock));
+			cgp->cg_initediblk = roundup(inosused, INOPB(&sblock));
 			pwarn("CYLINDER GROUP %d: FOUND %d VALID INODES\n", c,
-			    cgrp.cg_initediblk);
+			    cgp->cg_initediblk);
 		}
 		/*
 		 * If we were not able to determine in advance which inodes
@@ -219,7 +222,7 @@ pass1(void)
 			inostathead[c].il_stat = 0;
 			continue;
 		}
-		info = calloc((unsigned)inosused, sizeof(struct inostat));
+		info = Calloc((unsigned)inosused, sizeof(struct inostat));
 		if (info == NULL)
 			errx(EEXIT, "cannot alloc %u bytes for inoinfo",
 			    (unsigned)(sizeof(struct inostat) * inosused));
@@ -482,7 +485,7 @@ pass1check(struct inodesc *idesc)
 				}
 				return (STOP);
 			}
-			new = (struct dups *)malloc(sizeof(struct dups));
+			new = (struct dups *)Malloc(sizeof(struct dups));
 			if (new == NULL) {
 				pfatal("DUP TABLE OVERFLOW.");
 				if (reply("CONTINUE") == 0) {

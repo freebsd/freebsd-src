@@ -28,6 +28,7 @@
 #include <sys/zfs_context.h>
 #include <sys/fm/fs/zfs.h>
 #include <sys/spa.h>
+#include <sys/fm/fs/zfs.h>
 #include <sys/spa_impl.h>
 #include <sys/nvpair.h>
 #include <sys/uio.h>
@@ -178,11 +179,12 @@ spa_config_write(spa_config_dirent_t *dp, nvlist_t *nvl)
 
 	err = vn_open(temp, UIO_SYSSPACE, oflags, 0644, &vp, CRCREAT, 0);
 	if (err == 0) {
-		if ((err = vn_rdwr(UIO_WRITE, vp, buf, buflen, 0, UIO_SYSSPACE,
-		    0, RLIM64_INFINITY, kcred, NULL)) == 0 &&
-		    (err = VOP_FSYNC(vp, FSYNC, kcred, NULL)) == 0) {
+		err = vn_rdwr(UIO_WRITE, vp, buf, buflen, 0, UIO_SYSSPACE,
+		    0, RLIM64_INFINITY, kcred, NULL);
+		if (err == 0)
+			err = VOP_FSYNC(vp, FSYNC, kcred, NULL);
+		if (err == 0)
 			err = vn_rename(temp, dp->scd_path, UIO_SYSSPACE);
-		}
 		(void) VOP_CLOSE(vp, oflags, 1, 0, kcred, NULL);
 	}
 
@@ -227,7 +229,15 @@ spa_config_sync(spa_t *target, boolean_t removing, boolean_t postsysevent)
 		 */
 		nvl = NULL;
 		while ((spa = spa_next(spa)) != NULL) {
-			if (spa == target && removing)
+			/*
+			 * Skip over our own pool if we're about to remove
+			 * ourselves from the spa namespace or any pool that
+			 * is readonly. Since we cannot guarantee that a
+			 * readonly pool would successfully import upon reboot,
+			 * we don't allow them to be written to the cache file.
+			 */
+			if ((spa == target && removing) ||
+			    !spa_writeable(spa))
 				continue;
 
 			mutex_enter(&spa->spa_props_lock);
@@ -249,26 +259,23 @@ spa_config_sync(spa_t *target, boolean_t removing, boolean_t postsysevent)
 		}
 
 		error = spa_config_write(dp, nvl);
-		if (error != 0) {
-	
-			printf("ZFS ERROR: Update of cache file %s failed: "
-			    "Errno %d\n", dp->scd_path, error);
+		if (error != 0)
 			ccw_failure = B_TRUE;
-		}
-
 		nvlist_free(nvl);
 	}
 
 	if (ccw_failure) {
 		/*
-		 * Keep trying so that configuration data is 
+		 * Keep trying so that configuration data is
 		 * written if/when any temporary filesystem
 		 * resource issues are resolved.
 		 */
-		target->spa_ccw_fail_time = ddi_get_lbolt64();
+		if (target->spa_ccw_fail_time == 0) {
+			zfs_ereport_post(FM_EREPORT_ZFS_CONFIG_CACHE_WRITE,
+			    target, NULL, NULL, 0, 0);
+		}
+		target->spa_ccw_fail_time = gethrtime();
 		spa_async_request(target, SPA_ASYNC_CONFIG_UPDATE);
-		zfs_ereport_post(FM_EREPORT_ZFS_CONFIG_CACHE_WRITE,
-		    target, NULL, NULL, 0, 0);
 	} else {
 		/*
 		 * Do not rate limit future attempts to update
@@ -339,6 +346,7 @@ spa_config_set(spa_t *spa, nvlist_t *config)
 
 /*
  * Generate the pool's configuration based on the current in-core state.
+ *
  * We infer whether to generate a complete config or just one top-level config
  * based on whether vd is the root vdev.
  */

@@ -173,7 +173,7 @@ gif_clone_create(ifc, unit, params)
 	if_initname(GIF2IFP(sc), gifname, unit);
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
-	sc->gif_options = GIF_ACCEPT_REVETHIP;
+	sc->gif_options = 0;
 
 	GIF2IFP(sc)->if_addrlen = 0;
 	GIF2IFP(sc)->if_mtu    = GIF_MTU;
@@ -422,11 +422,8 @@ gif_start(struct ifnet *ifp)
 }
 
 int
-gif_output(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	struct gif_softc *sc = ifp->if_softc;
 	struct m_tag *mtag;
@@ -440,6 +437,11 @@ gif_output(ifp, m, dst, ro)
 		goto end;
 	}
 #endif
+	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		error = ENETDOWN;
+		m_freem(m);
+		goto end;
+	}
 
 	/*
 	 * gif may cause infinite recursion calls when misconfigured.
@@ -482,11 +484,10 @@ gif_output(ifp, m, dst, ro)
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC) {
+	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-	af = dst->sa_family;
+	else
+		af = dst->sa_family;
 	/* 
 	 * Now save the af in the inbound pkt csum
 	 * data, this is a cheat since we are using
@@ -553,6 +554,13 @@ gif_input(m, af, ifp)
 	if (bpf_peers_present(ifp->if_bpf)) {
 		u_int32_t af1 = af;
 		bpf_mtap2(ifp->if_bpf, &af1, sizeof(af1), m);
+	}
+
+	if ((ifp->if_flags & IFF_MONITOR) != 0) {
+		ifp->if_ipackets++;
+		ifp->if_ibytes += m->m_pkthdr.len;
+		m_freem(m);
+		return;
 	}
 
 	if (ng_gif_input_p != NULL) {

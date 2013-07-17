@@ -118,16 +118,17 @@ static char cwd[FDT_CWD_LEN] = "/";
 static vm_offset_t
 fdt_find_static_dtb()
 {
-	Elf_Dyn dyn;
+	Elf_Ehdr *ehdr;
+	Elf_Shdr *shdr;
 	Elf_Sym sym;
-	vm_offset_t dyntab, esym, strtab, symtab, fdt_start;
+	vm_offset_t strtab, symtab, fdt_start;
 	uint64_t offs;
 	struct preloaded_file *kfp;
 	struct file_metadata *md;
 	char *strp;
-	int sym_count;
+	int i, sym_count;
 
-	symtab = strtab = dyntab = esym = 0;
+	sym_count = symtab = strtab = 0;
 	strp = NULL;
 
 	offs = __elfN(relocation_offset);
@@ -136,41 +137,25 @@ fdt_find_static_dtb()
 	if (kfp == NULL)
 		return (0);
 
-	md = file_findmetadata(kfp, MODINFOMD_ESYM);
+	/* Locate the dynamic symbols and strtab. */
+	md = file_findmetadata(kfp, MODINFOMD_ELFHDR);
 	if (md == NULL)
 		return (0);
-	bcopy(md->md_data, &esym, sizeof(esym));
-	/* esym is already offset */
+	ehdr = (Elf_Ehdr *)md->md_data;
 
-	md = file_findmetadata(kfp, MODINFOMD_DYNAMIC);
+	md = file_findmetadata(kfp, MODINFOMD_SHDR);
 	if (md == NULL)
 		return (0);
-	bcopy(md->md_data, &dyntab, sizeof(dyntab));
-	dyntab += offs;
+	shdr = (Elf_Shdr *)md->md_data;
 
-	/* Locate STRTAB and DYNTAB */
-	for (;;) {
-		COPYOUT(dyntab, &dyn, sizeof(dyn));
-		if (dyn.d_tag == DT_STRTAB) {
-			strtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
-		} else if (dyn.d_tag == DT_SYMTAB) {
-			symtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
-		} else if (dyn.d_tag == DT_NULL) {
-			break;
+	for (i = 0; i < ehdr->e_shnum; ++i) {
+		if (shdr[i].sh_type == SHT_DYNSYM && symtab == 0) {
+			symtab = shdr[i].sh_addr + offs;
+			sym_count = shdr[i].sh_size / sizeof(Elf_Sym);
+		} else if (shdr[i].sh_type == SHT_STRTAB && strtab == 0) {
+			strtab = shdr[i].sh_addr + offs;
 		}
-		dyntab += sizeof(dyn);
 	}
-
-	if (symtab == 0 || strtab == 0) {
-		/*
-		 * No symtab? No strtab? That should not happen here,
-		 * and should have been verified during __elfN(loadimage).
-		 * This must be some kind of a bug.
-		 */
-		return (0);
-	}
-
-	sym_count = (int)(esym - symtab) / sizeof(Elf_Sym);
 
 	/*
 	 * The most efficent way to find a symbol would be to calculate a

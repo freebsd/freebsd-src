@@ -12,12 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/PathV2.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#ifdef __APPLE__
+#include <unistd.h>
+#endif
 
 namespace {
   using llvm::StringRef;
@@ -44,7 +47,8 @@ namespace {
 
 #ifdef LLVM_ON_WIN32
     // C:
-    if (path.size() >= 2 && std::isalpha(path[0]) && path[1] == ':')
+    if (path.size() >= 2 && std::isalpha(static_cast<unsigned char>(path[0])) &&
+        path[1] == ':')
       return path.substr(0, 2);
 #endif
 
@@ -492,6 +496,27 @@ bool is_separator(char value) {
 void system_temp_directory(bool erasedOnReboot, SmallVectorImpl<char> &result) {
   result.clear();
 
+#ifdef __APPLE__
+  // On Darwin, use DARWIN_USER_TEMP_DIR or DARWIN_USER_CACHE_DIR.
+  int ConfName = erasedOnReboot? _CS_DARWIN_USER_TEMP_DIR
+                               : _CS_DARWIN_USER_CACHE_DIR;
+  size_t ConfLen = confstr(ConfName, 0, 0);
+  if (ConfLen > 0) {
+    do {
+      result.resize(ConfLen);
+      ConfLen = confstr(ConfName, result.data(), result.size());
+    } while (ConfLen > 0 && ConfLen != result.size());
+
+    if (ConfLen > 0) {
+      assert(result.back() == 0);
+      result.pop_back();
+      return;
+    }
+
+    result.clear();
+  }
+#endif
+
   // Check whether the temporary directory is specified by an environment
   // variable.
   const char *EnvironmentVariable;
@@ -764,8 +789,11 @@ file_magic identify_magic(StringRef magic) {
 
     case '\177':
       if (magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F') {
-        if (magic.size() >= 18 && magic[17] == 0)
-          switch (magic[16]) {
+        bool Data2MSB = magic[5] == 2;
+        unsigned high = Data2MSB ? 16 : 17;
+        unsigned low  = Data2MSB ? 17 : 16;
+        if (magic.size() >= 18 && magic[high] == 0)
+          switch (magic[low]) {
             default: break;
             case 1: return file_magic::elf_relocatable;
             case 2: return file_magic::elf_executable;

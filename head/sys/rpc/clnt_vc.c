@@ -162,7 +162,7 @@ clnt_vc_create(
 		interrupted = 0;
 		sleep_flag = PSOCK;
 		if (intrflag != 0)
-			sleep_flag |= (PCATCH | PBDRY);
+			sleep_flag |= PCATCH;
 		while ((so->so_state & SS_ISCONNECTING)
 		    && so->so_error == 0) {
 			error = msleep(&so->so_timeo, SOCK_MTX(so),
@@ -349,7 +349,7 @@ call_again:
 	/*
 	 * Leave space to pre-pend the record mark.
 	 */
-	MGETHDR(mreq, M_WAITOK, MT_DATA);
+	mreq = m_gethdr(M_WAITOK, MT_DATA);
 	mreq->m_data += sizeof(uint32_t);
 	KASSERT(ct->ct_mpos + sizeof(uint32_t) <= MHLEN,
 	    ("RPC header too big"));
@@ -470,7 +470,6 @@ call_again:
 		errp->re_errno = error;
 		switch (error) {
 		case EINTR:
-		case ERESTART:
 			stat = RPC_INTR;
 			break;
 		case EWOULDBLOCK:
@@ -704,7 +703,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 
 	case CLSET_INTERRUPTIBLE:
 		if (*(int *) info)
-			ct->ct_waitflag = PCATCH | PBDRY;
+			ct->ct_waitflag = PCATCH;
 		else
 			ct->ct_waitflag = 0;
 		break;

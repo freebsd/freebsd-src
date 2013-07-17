@@ -120,14 +120,12 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 			fmtbuff_length = length+1;
 		else if (fmtbuff_length < 8192)
 			fmtbuff_length *= 2;
-		else {
-			int old_length = fmtbuff_length;
+		else if (fmtbuff_length < 1000000)
 			fmtbuff_length += fmtbuff_length / 4;
-			if (old_length > fmtbuff_length) {
-				length = old_length;
-				fmtbuff_heap[length-1] = '\0';
-				break;
-			}
+		else {
+			length = fmtbuff_length;
+			fmtbuff_heap[length-1] = '\0';
+			break;
 		}
 		free(fmtbuff_heap);
 		fmtbuff_heap = malloc(fmtbuff_length);
@@ -148,7 +146,12 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 
 	/* Note: mbrtowc() has a cleaner API, but mbtowc() seems a bit
 	 * more portable, so we use that here instead. */
-	n = mbtowc(NULL, NULL, 1); /* Reset the shift state. */
+	if (mbtowc(NULL, NULL, 1) == -1) { /* Reset the shift state. */
+		/* mbtowc() should never fail in practice, but
+		 * handle the theoretical error anyway. */
+		free(fmtbuff_heap);
+		return;
+	}
 
 	/* Write data, expanding unprintable characters. */
 	p = fmtbuff;
@@ -188,8 +191,7 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 	fprintf(f, "%s", outbuff);
 
 	/* If we allocated a heap-based formatting buffer, free it now. */
-	if (fmtbuff_heap != NULL)
-		free(fmtbuff_heap);
+	free(fmtbuff_heap);
 }
 
 /*
@@ -380,7 +382,7 @@ int
 edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 {
 	const char *name = archive_entry_pathname(entry);
-#if HAVE_REGEX_H
+#if defined(HAVE_REGEX_H) || defined(HAVE_PCREPOSIX_H)
 	char *subst_name;
 	int r;
 

@@ -439,7 +439,6 @@ struct sis_type {
 #define SIS_TYPE_900	1
 #define SIS_TYPE_7016	2
 #define SIS_TYPE_83815	3
-#define SIS_TYPE_83816	4
 
 struct sis_txdesc {
 	struct mbuf		*tx_m;

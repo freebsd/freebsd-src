@@ -85,4 +85,22 @@ struct virtio_used {
 #define VTCFG_R_CFG1		24	/* With MSI-X */
 #define VTCFG_R_MSIX		20
 
+/* Feature flags */
+#define	VIRTIO_F_NOTIFY_ON_EMPTY	(1 << 24)
+
+/* From section 2.3, "Virtqueue Configuration", of the virtio specification */
+static inline u_int
+vring_size(u_int qsz)
+{
+	u_int size;
+
+	size = sizeof(struct virtio_desc) * qsz + sizeof(uint16_t) * (3 + qsz);
+	size = roundup2(size, VRING_ALIGN);
+
+	size += sizeof(uint16_t) * 3 + sizeof(struct virtio_used) * qsz;
+	size = roundup2(size, VRING_ALIGN);
+
+	return (size);
+}
+
 #endif	/* _VIRTIO_H_ */

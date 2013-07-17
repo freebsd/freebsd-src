@@ -24,15 +24,20 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/queue.h>
-
+#ifdef LIBUSB_GLOBAL_INCLUDE_FILE
+#include LIBUSB_GLOBAL_INCLUDE_FILE
+#else
 #include <errno.h>
 #include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/queue.h>
+#include <sys/endian.h>
+#endif
 
 #define	libusb_device_handle libusb20_device
 
@@ -392,7 +397,7 @@ libusb_set_pollfd_notifiers(libusb_context *ctx,
 	ctx->fd_cb_user_data = user_data;
 }
 
-struct libusb_pollfd **
+const struct libusb_pollfd **
 libusb_get_pollfds(libusb_context *ctx)
 {
 	struct libusb_super_pollfd *pollfd;
@@ -418,7 +423,7 @@ libusb_get_pollfds(libusb_context *ctx)
 
 done:
 	CTX_UNLOCK(ctx);
-	return (ret);
+	return ((const struct libusb_pollfd **)ret);
 }
 
 

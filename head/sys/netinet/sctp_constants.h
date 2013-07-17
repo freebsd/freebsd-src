@@ -521,9 +521,6 @@ __FBSDID("$FreeBSD$");
 /* How long a cookie lives in milli-seconds */
 #define SCTP_DEFAULT_COOKIE_LIFE	60000
 
-/* resource limit of streams */
-#define MAX_SCTP_STREAMS	2048
-
 /* Maximum the mapping array will  grow to (TSN mapping array) */
 #define SCTP_MAPPING_ARRAY	512
 
@@ -658,6 +655,7 @@ __FBSDID("$FreeBSD$");
 
 /* How many streams I request initally by default */
 #define SCTP_OSTREAM_INITIAL 10
+#define SCTP_ISTREAM_INITIAL 2048
 
 /*
  * How many smallest_mtu's need to increase before a window update sack is
@@ -996,6 +994,10 @@ __FBSDID("$FreeBSD$");
      (((uint8_t *)&(a)->s_addr)[1] == 0) && \
      (((uint8_t *)&(a)->s_addr)[2] == 0) && \
      (((uint8_t *)&(a)->s_addr)[3] == 1))
+
+#define IN4_ISLINKLOCAL_ADDRESS(a) \
+    ((((uint8_t *)&(a)->s_addr)[0] == 169) && \
+     (((uint8_t *)&(a)->s_addr)[1] == 254))
 
 
 #if defined(_KERNEL)

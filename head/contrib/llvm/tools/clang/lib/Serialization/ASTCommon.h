@@ -14,8 +14,8 @@
 #ifndef LLVM_CLANG_SERIALIZATION_LIB_AST_COMMON_H
 #define LLVM_CLANG_SERIALIZATION_LIB_AST_COMMON_H
 
-#include "clang/Serialization/ASTBitCodes.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/Serialization/ASTBitCodes.h"
 
 namespace clang {
 
@@ -57,6 +57,21 @@ TypeID MakeTypeID(ASTContext &Context, QualType T, IdxForTypeTy IdxForType) {
 }
 
 unsigned ComputeHash(Selector Sel);
+
+/// \brief Retrieve the "definitive" declaration that provides all of the
+/// visible entries for the given declaration context, if there is one.
+///
+/// The "definitive" declaration is the only place where we need to look to
+/// find information about the declarations within the given declaration
+/// context. For example, C++ and Objective-C classes, C structs/unions, and
+/// Objective-C protocols, categories, and extensions are all defined in a
+/// single place in the source code, so they have definitive declarations
+/// associated with them. C++ namespaces, on the other hand, can have
+/// multiple definitions.
+const DeclContext *getDefinitiveDeclContext(const DeclContext *DC);
+
+/// \brief Determine whether the given declaration kind is redeclarable.
+bool isRedeclarableDeclKind(unsigned Kind);
 
 } // namespace serialization
 

@@ -78,7 +78,7 @@ archive_set_format_option(struct archive *_a, const char *m, const char *o,
 	struct archive_write *a = (struct archive_write *)_a;
 
 	if (a->format_name == NULL)
-		return (ARCHIVE_FAILED);
+		return (m == NULL)?ARCHIVE_FAILED:ARCHIVE_WARN - 1;
 	/* If the format name didn't match, return a special code for
 	 * _archive_set_option[s]. */
 	if (m != NULL && strcmp(m, a->format_name) != 0)

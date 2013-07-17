@@ -3418,7 +3418,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		return err;
 	}
 
-	/* now allocate TX resouces */
+	/* now allocate TX resources */
 
 #ifndef IFNET_BUF_RING
 	/* only use a single TX ring for now */

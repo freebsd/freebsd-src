@@ -97,6 +97,9 @@
 #define _SYS_TIMEX_H_ 1
 #define NTP_API		4	/* NTP API version */
 
+#ifdef __FreeBSD__
+#include <sys/_timespec.h>
+#endif /* __FreeBSD__ */
 #ifndef MSDOS			/* Microsoft specific */
 #include <sys/syscall.h>
 #endif /* MSDOS */

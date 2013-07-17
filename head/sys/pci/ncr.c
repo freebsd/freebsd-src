@@ -4857,7 +4857,7 @@ static void ncr_getsync(ncb_p np, u_char sfac, u_char *fakp, u_char *scntl3p)
 	*/
 	fak = (kpc - 1) / div_10M[div] + 1;
 
-#if 0	/* You can #if 1 if you think this optimization is usefull */
+#if 0	/* You can #if 1 if you think this optimization is useful */
 
 	per = (fak * div_10M[div]) / clk;
 

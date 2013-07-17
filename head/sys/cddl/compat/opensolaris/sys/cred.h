@@ -46,6 +46,7 @@ typedef struct ucred ucred_t;
 #define	kcred	(thread0.td_ucred)
 
 #define	crgetuid(cred)		((cred)->cr_uid)
+#define	crgetruid(cred)		((cred)->cr_ruid)
 #define	crgetgid(cred)		((cred)->cr_gid)
 #define	crgetgroups(cred)	((cred)->cr_groups)
 #define	crgetngroups(cred)	((cred)->cr_ngroups)

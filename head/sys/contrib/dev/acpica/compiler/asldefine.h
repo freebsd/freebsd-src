@@ -120,6 +120,7 @@
 #define FILE_SUFFIX_ASM_INCLUDE     "inc"
 #define FILE_SUFFIX_C_INCLUDE       "h"
 #define FILE_SUFFIX_ASL_CODE        "asl"
+#define FILE_SUFFIX_C_OFFSET        "offset.h"
 
 
 /* Types for input files */
@@ -136,6 +137,11 @@
 #define ASL_ABORT                   TRUE
 #define ASL_NO_ABORT                FALSE
 #define ASL_EOF                     ACPI_UINT32_MAX
+
+
+/* Listings */
+
+#define ASL_LISTING_LINE_PREFIX         ":  "
 
 
 /* Support for reserved method names */

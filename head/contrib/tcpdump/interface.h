@@ -70,7 +70,10 @@ extern char *strsep(char **, const char *);
 #define PT_CNFP		7	/* Cisco NetFlow protocol */
 #define PT_TFTP		8	/* trivial file transfer protocol */
 #define PT_AODV		9	/* Ad-hoc On-demand Distance Vector Protocol */
-#define PT_CARP         10      /* Common Address Redundancy Protocol */
+#define PT_CARP		10	/* Common Address Redundancy Protocol */
+#define PT_RADIUS	11	/* RADIUS authentication Protocol */
+#define PT_ZMTP1	12	/* ZeroMQ Message Transport Protocol 1.0 */
+#define PT_VXLAN	13	/* Virtual eXtensible Local Area Network */
 
 #ifndef min
 #define min(a,b) ((a)>(b)?(b):(a))
@@ -216,6 +219,7 @@ extern void msdp_print(const unsigned char *, u_int);
 extern void nfsreply_print(const u_char *, u_int, const u_char *);
 extern void nfsreq_print(const u_char *, u_int, const u_char *);
 extern void ns_print(const u_char *, u_int, int);
+extern const u_char * ns_nprint (register const u_char *, register const u_char *);
 extern void ntp_print(const u_char *, u_int);
 extern u_int null_if_print(const struct pcap_pkthdr *, const u_char *);
 extern void ospf_print(const u_char *, u_int, const u_char *);
@@ -310,6 +314,7 @@ extern void forces_print(const u_char *, u_int);
 extern void mpls_print(const u_char *, u_int);
 extern void mpls_lsp_ping_print(const u_char *, u_int);
 extern void zephyr_print(const u_char *, int);
+extern void zmtp1_print(const u_char *, u_int);
 extern void hsrp_print(const u_char *, u_int);
 extern void bfd_print(const u_char *, u_int, u_int);
 extern void sip_print(const u_char *, u_int);
@@ -317,6 +322,8 @@ extern void syslog_print(const u_char *, u_int);
 extern u_int bt_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int usb_linux_48_byte_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int usb_linux_64_byte_print(const struct pcap_pkthdr *, const u_char *);
+extern void vxlan_print(const u_char *, u_int);
+extern void otv_print(const u_char *, u_int);
 
 
 #ifdef INET6

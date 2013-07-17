@@ -136,6 +136,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/jail.h>
 #include <sys/syslog.h>
+#include <netinet/in.h>
 
 #include <net/vnet.h>
 
@@ -514,7 +515,7 @@ sonewconn(struct socket *head, int connstatus)
 #endif
 		log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
 		    "%i already in queue awaiting acceptance\n",
-		    __func__, head->so_pcb, over);
+		    __func__, head->so_pcb, head->so_qlen);
 		return (NULL);
 	}
 	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
@@ -565,8 +566,12 @@ sonewconn(struct socket *head, int connstatus)
 	/*
 	 * The accept socket may be tearing down but we just
 	 * won a race on the ACCEPT_LOCK.
+	 * However, if sctp_peeloff() is called on a 1-to-many
+	 * style socket, the SO_ACCEPTCONN doesn't need to be set.
 	 */
-	if (!(head->so_options & SO_ACCEPTCONN)) {
+	if (!(head->so_options & SO_ACCEPTCONN) &&
+	    ((head->so_proto->pr_protocol != IPPROTO_SCTP) ||
+	     (head->so_type != SOCK_SEQPACKET))) {
 		SOCK_LOCK(so);
 		so->so_head = NULL;
 		sofree(so);		/* NB: returns ACCEPT_UNLOCK'ed. */
@@ -615,7 +620,18 @@ sobind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_bind)(so, nam, td);
 	CURVNET_RESTORE();
-	return error;
+	return (error);
+}
+
+int
+sobindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+	int error;
+
+	CURVNET_SET(so->so_vnet);
+	error = (*so->so_proto->pr_usrreqs->pru_bindat)(fd, so, nam, td);
+	CURVNET_RESTORE();
+	return (error);
 }
 
 /*
@@ -638,7 +654,7 @@ solisten(struct socket *so, int backlog, struct thread *td)
 	CURVNET_SET(so->so_vnet);
 	error = (*so->so_proto->pr_usrreqs->pru_listen)(so, backlog, td);
 	CURVNET_RESTORE();
-	return error;
+	return (error);
 }
 
 int
@@ -896,6 +912,13 @@ soaccept(struct socket *so, struct sockaddr **nam)
 int
 soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+
+	return (soconnectat(AT_FDCWD, so, nam, td));
+}
+
+int
+soconnectat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
+{
 	int error;
 
 	if (so->so_options & SO_ACCEPTCONN)
@@ -917,7 +940,13 @@ soconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * biting us.
 		 */
 		so->so_error = 0;
-		error = (*so->so_proto->pr_usrreqs->pru_connect)(so, nam, td);
+		if (fd == AT_FDCWD) {
+			error = (*so->so_proto->pr_usrreqs->pru_connect)(so,
+			    nam, td);
+		} else {
+			error = (*so->so_proto->pr_usrreqs->pru_connectat)(fd,
+			    so, nam, td);
+		}
 	}
 	CURVNET_RESTORE();
 
@@ -1698,7 +1727,7 @@ dontblock:
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				VNET_SO_ASSERT(so);
 				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp);
+				    (cm, controlp, flags);
 				SOCKBUF_LOCK(&so->so_rcv);
 			} else if (controlp != NULL)
 				*controlp = cm;
@@ -1831,6 +1860,7 @@ dontblock:
 				nextrecord = m->m_nextpkt;
 				sbfree(&so->so_rcv, m);
 				if (mp != NULL) {
+					m->m_nextpkt = NULL;
 					*mp = m;
 					mp = &m->m_next;
 					so->so_rcv.sb_mb = m = m->m_next;
@@ -2332,7 +2362,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			cm->m_next = NULL;
 			if (pr->pr_domain->dom_externalize != NULL) {
 				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp);
+				    (cm, controlp, flags);
 			} else if (controlp != NULL)
 				*controlp = cm;
 			else
@@ -2399,9 +2429,11 @@ soshutdown(struct socket *so, int how)
 		sorflush(so);
 	if (how != SHUT_RD) {
 		error = (*pr->pr_usrreqs->pru_shutdown)(so);
+		wakeup(&so->so_timeo);
 		CURVNET_RESTORE();
 		return (error);
 	}
+	wakeup(&so->so_timeo);
 	CURVNET_RESTORE();
 	return (0);
 }
@@ -3141,7 +3173,23 @@ pru_bind_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
 }
 
 int
+pru_bindat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
+{
+
+	return EOPNOTSUPP;
+}
+
+int
 pru_connect_notsupp(struct socket *so, struct sockaddr *nam, struct thread *td)
+{
+
+	return EOPNOTSUPP;
+}
+
+int
+pru_connectat_notsupp(int fd, struct socket *so, struct sockaddr *nam,
+    struct thread *td)
 {
 
 	return EOPNOTSUPP;

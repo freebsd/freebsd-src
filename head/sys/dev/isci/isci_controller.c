@@ -580,7 +580,7 @@ void isci_controller_domain_discovery_complete(
 			 */
 			union ccb *ccb = xpt_alloc_ccb_nowait();
 
-			xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			xpt_create_path(&ccb->ccb_h.path, NULL,
 			    cam_sim_path(isci_controller->sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 
@@ -673,7 +673,8 @@ void isci_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->version_num = 1;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 			cpi->target_sprt = 0;
-			cpi->hba_misc = PIM_NOBUSRESET | PIM_SEQSCAN;
+			cpi->hba_misc = PIM_NOBUSRESET | PIM_SEQSCAN |
+			    PIM_UNMAPPED;
 			cpi->hba_eng_cnt = 0;
 			cpi->max_target = SCI_MAX_REMOTE_DEVICES - 1;
 			cpi->max_lun = ISCI_MAX_LUN;

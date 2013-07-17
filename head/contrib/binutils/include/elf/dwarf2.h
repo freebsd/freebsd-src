@@ -189,6 +189,7 @@ enum dwarf_tag
     DW_TAG_imported_unit = 0x3d,
     DW_TAG_condition = 0x3f,
     DW_TAG_shared_type = 0x40,
+    DW_TAG_rvalue_reference_type = 0x42,
     /* SGI/MIPS Extensions.  */
     DW_TAG_MIPS_loop = 0x4081,
     /* HP extensions.  See: ftp://ftp.hp.com/pub/lang/tools/WDB/wdb-4.0.tar.gz .  */

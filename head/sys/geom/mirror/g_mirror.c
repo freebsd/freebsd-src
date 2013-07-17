@@ -2028,7 +2028,7 @@ static void
 g_mirror_launch_provider(struct g_mirror_softc *sc)
 {
 	struct g_mirror_disk *disk;
-	struct g_provider *pp;
+	struct g_provider *pp, *dp;
 
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
@@ -2038,11 +2038,24 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 	pp->sectorsize = sc->sc_sectorsize;
 	pp->stripesize = 0;
 	pp->stripeoffset = 0;
+
+	/* Splitting of unmapped BIO's could work but isn't implemented now */
+	if (sc->sc_balance != G_MIRROR_BALANCE_SPLIT)
+		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_consumer && disk->d_consumer->provider &&
-		    disk->d_consumer->provider->stripesize > pp->stripesize) {
-			pp->stripesize = disk->d_consumer->provider->stripesize;
-			pp->stripeoffset = disk->d_consumer->provider->stripeoffset;
+		if (disk->d_consumer && disk->d_consumer->provider) {
+			dp = disk->d_consumer->provider;
+			if (dp->stripesize > pp->stripesize) {
+				pp->stripesize = dp->stripesize;
+				pp->stripeoffset = dp->stripeoffset;
+			}
+			/* A provider underneath us doesn't support unmapped */
+			if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
+				G_MIRROR_DEBUG(0, "cancelling unmapped "
+				    "because of %s\n", dp->name);
+				pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
+			}
 		}
 	}
 	sc->sc_provider = pp;

@@ -85,15 +85,19 @@ MAN+=	abort2.2 \
 	adjtime.2 \
 	aio_cancel.2 \
 	aio_error.2 \
+	aio_mlock.2 \
 	aio_read.2 \
 	aio_return.2 \
 	aio_suspend.2 \
 	aio_waitcomplete.2 \
 	aio_write.2 \
 	bind.2 \
+	bindat.2 \
 	brk.2 \
 	cap_enter.2 \
-	cap_new.2 \
+	cap_fcntls_limit.2 \
+	cap_ioctls_limit.2 \
+	cap_rights_limit.2 \
 	chdir.2 \
 	chflags.2 \
 	chmod.2 \
@@ -103,6 +107,7 @@ MAN+=	abort2.2 \
 	close.2 \
 	closefrom.2 \
 	connect.2 \
+	connectat.2 \
 	cpuset.2 \
 	cpuset_getaffinity.2 \
 	dup.2 \
@@ -266,13 +271,17 @@ MAN+=	sctp_generic_recvmsg.2 \
 	wait.2 \
 	write.2
 
+MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
 	access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
 MLINKS+=cap_enter.2 cap_getmode.2
-MLINKS+=cap_new.2 cap_getrights.2
+MLINKS+=cap_fcntls_limit.2 cap_fcntls_get.2
+MLINKS+=cap_ioctls_limit.2 cap_ioctls_get.2
+MLINKS+=cap_rights_limit.2 cap_rights_get.2
 MLINKS+=chdir.2 fchdir.2
-MLINKS+=chflags.2 fchflags.2 \
+MLINKS+=chflags.2 chflagsat.2 \
+	chflags.2 fchflags.2 \
 	chflags.2 lchflags.2
 MLINKS+=chmod.2 fchmod.2 \
 	chmod.2 fchmodat.2 \
@@ -344,6 +353,7 @@ MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=pdfork.2 pdgetpid.2\
 	pdfork.2 pdkill.2 \
 	pdfork.2 pdwait4.2
+MLINKS+=pipe.2 pipe2.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2

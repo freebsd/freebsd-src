@@ -78,7 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmckern.h>
 PMC_SOFT_DEFINE( , , clock, hard);
 PMC_SOFT_DEFINE( , , clock, stat);
-PMC_SOFT_DEFINE( , , clock, prof);
+PMC_SOFT_DEFINE_EX( , , clock, prof, \
+    cpu_startprofclock, cpu_stopprofclock);
 #endif
 
 #ifdef DEVICE_POLLING
@@ -215,13 +216,8 @@ deadlkres(void)
 			}
 			FOREACH_THREAD_IN_PROC(p, td) {
 
-				/*
-				 * Once a thread is found in "interesting"
-				 * state a possible ticks wrap-up needs to be
-				 * checked.
-				 */
 				thread_lock(td);
-				if (TD_ON_LOCK(td) && ticks < td->td_blktick) {
+				if (TD_ON_LOCK(td)) {
 
 					/*
 					 * The thread should be blocked on a
@@ -246,8 +242,7 @@ deadlkres(void)
 						    __func__, td, tticks);
 					}
 				} else if (TD_IS_SLEEPING(td) &&
-				    TD_ON_SLEEPQ(td) &&
-				    ticks < td->td_blktick) {
+				    TD_ON_SLEEPQ(td)) {
 
 					/*
 					 * Check if the thread is sleeping on a
@@ -460,7 +455,7 @@ hardclock_cpu(int usermode)
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
-	callout_tick();
+	callout_process(sbinuptime());
 }
 
 /*
@@ -550,7 +545,6 @@ hardclock_cnt(int cnt, int usermode)
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
 #endif
-	callout_tick();
 	/* We are in charge to handle this tick duty. */
 	if (newticks > 0) {
 		/* Dangerous and no need to call these things concurrently. */

@@ -43,9 +43,8 @@
 # prefix=/home/ncvs
 #		This specifies where to place the requested files.  A
 #		setting of "/home/ncvs" will place all of the files
-#		requested in /home/ncvs (e.g., "/home/ncvs/src/bin",
-#		"/home/ncvs/ports/archivers").  The prefix directory
-#		must exist in order to run CVSup.
+#		requested in /home/ncvs (e.g., "/home/ncvs/src/bin").
+#		The prefix directory must exist in order to run CVSup.
 
 # Defaults that apply to all the collections
 #
@@ -67,13 +66,6 @@
 # The easiest way to get the main source tree is to use the "src-all"
 # mega-collection.  It includes all of the individual "src-*" collections.
 src-all
-
-## Ports Collection.
-#
-# The easiest way to get the ports tree is to use the "ports-all"
-# mega-collection.  It includes all of the individual "ports-*"
-# collections,
-ports-all
 
 ## Projects
 #

@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/syscallsubr.h>
@@ -181,6 +182,10 @@ SYSCTL_UINT(_hw_board, OID_AUTO, revision, CTLFLAG_RD,
     &board_revision, 0, "Board revision");
 SYSCTL_STRING(_hw_board, OID_AUTO, serial, CTLFLAG_RD,
     board_serial, 0, "Board serial");
+
+int vfp_exists;
+SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
+    &vfp_exists, 0, "Floating point support enabled");
 
 void
 board_set_serial(uint64_t serial)

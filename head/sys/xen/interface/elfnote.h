@@ -162,9 +162,39 @@
 #define XEN_ELFNOTE_SUSPEND_CANCEL 14
 
 /*
+ * The (non-default) location the initial phys-to-machine map should be
+ * placed at by the hypervisor (Dom0) or the tools (DomU).
+ * The kernel must be prepared for this mapping to be established using
+ * large pages, despite such otherwise not being available to guests.
+ * The kernel must also be able to handle the page table pages used for
+ * this mapping not being accessible through the initial mapping.
+ * (Only x86-64 supports this at present.)
+ */
+#define XEN_ELFNOTE_INIT_P2M      15
+
+/*
+ * Whether or not the guest can deal with being passed an initrd not
+ * mapped through its initial page tables.
+ */
+#define XEN_ELFNOTE_MOD_START_PFN 16
+
+/*
+ * The features supported by this kernel (numeric).
+ *
+ * Other than XEN_ELFNOTE_FEATURES on pre-4.2 Xen, this note allows a
+ * kernel to specify support for features that older hypervisors don't
+ * know about. The set of features 4.2 and newer hypervisors will
+ * consider supported by the kernel is the combination of the sets
+ * specified through this and the string note.
+ *
+ * LEGACY: FEATURES
+ */
+#define XEN_ELFNOTE_SUPPORTED_FEATURES 17
+
+/*
  * The number of the highest elfnote defined.
  */
-#define XEN_ELFNOTE_MAX XEN_ELFNOTE_SUSPEND_CANCEL
+#define XEN_ELFNOTE_MAX XEN_ELFNOTE_SUPPORTED_FEATURES
 
 /*
  * System information exported through crash notes.

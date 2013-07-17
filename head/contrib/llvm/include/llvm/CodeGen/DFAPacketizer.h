@@ -26,8 +26,8 @@
 #ifndef LLVM_CODEGEN_DFAPACKETIZER_H
 #define LLVM_CODEGEN_DFAPACKETIZER_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include <map>
 
 namespace llvm {
@@ -135,7 +135,7 @@ public:
   // initPacketizerState - perform initialization before packetizing
   // an instruction. This function is supposed to be overrided by
   // the target dependent packetizer.
-  virtual void initPacketizerState(void) { return; }
+  virtual void initPacketizerState() { return; }
 
   // ignorePseudoInstruction - Ignore bundling of pseudo instructions.
   virtual bool ignorePseudoInstruction(MachineInstr *I,

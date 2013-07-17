@@ -44,9 +44,49 @@
 using namespace llvm;
 using namespace sys;
 
-unsigned
-Process::GetPageSize()
-{
+
+process::id_type self_process::get_id() {
+  return getpid();
+}
+
+static std::pair<TimeValue, TimeValue> getRUsageTimes() {
+#if defined(HAVE_GETRUSAGE)
+  struct rusage RU;
+  ::getrusage(RUSAGE_SELF, &RU);
+  return std::make_pair(
+      TimeValue(
+          static_cast<TimeValue::SecondsType>(RU.ru_utime.tv_sec),
+          static_cast<TimeValue::NanoSecondsType>(
+              RU.ru_utime.tv_usec * TimeValue::NANOSECONDS_PER_MICROSECOND)),
+      TimeValue(
+          static_cast<TimeValue::SecondsType>(RU.ru_stime.tv_sec),
+          static_cast<TimeValue::NanoSecondsType>(
+              RU.ru_stime.tv_usec * TimeValue::NANOSECONDS_PER_MICROSECOND)));
+#else
+#warning Cannot get usage times on this platform
+  return std::make_pair(TimeValue(), TimeValue());
+#endif
+}
+
+TimeValue self_process::get_user_time() const {
+#if _POSIX_TIMERS > 0 && _POSIX_CPUTIME > 0
+  // Try to get a high resolution CPU timer.
+  struct timespec TS;
+  if (::clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &TS) == 0)
+    return TimeValue(static_cast<TimeValue::SecondsType>(TS.tv_sec),
+                     static_cast<TimeValue::NanoSecondsType>(TS.tv_nsec));
+#endif
+
+  // Otherwise fall back to rusage based timing.
+  return getRUsageTimes().first;
+}
+
+TimeValue self_process::get_system_time() const {
+  // We can only collect system time by inspecting the results of getrusage.
+  return getRUsageTimes().second;
+}
+
+static unsigned getPageSize() {
 #if defined(__CYGWIN__)
   // On Cygwin, getpagesize() returns 64k but the page size for the purposes of
   // memory protection and mmap() is 4k.
@@ -61,6 +101,12 @@ Process::GetPageSize()
 #endif
   return static_cast<unsigned>(page_size);
 }
+
+// This constructor guaranteed to be run exactly once on a single thread, and
+// sets up various process invariants that can be queried cheaply from then on.
+self_process::self_process() : PageSize(getPageSize()) {
+}
+
 
 size_t Process::GetMallocUsage() {
 #if defined(HAVE_MALLINFO)
@@ -86,49 +132,10 @@ size_t Process::GetMallocUsage() {
 #endif
 }
 
-size_t
-Process::GetTotalMemoryUsage()
-{
-#if defined(HAVE_MALLINFO)
-  struct mallinfo mi = ::mallinfo();
-  return mi.uordblks + mi.hblkhd;
-#elif defined(HAVE_MALLOC_ZONE_STATISTICS) && defined(HAVE_MALLOC_MALLOC_H)
-  malloc_statistics_t Stats;
-  malloc_zone_statistics(malloc_default_zone(), &Stats);
-  return Stats.size_allocated;   // darwin
-#elif defined(HAVE_GETRUSAGE) && !defined(__HAIKU__)
-  struct rusage usage;
-  ::getrusage(RUSAGE_SELF, &usage);
-  return usage.ru_maxrss;
-#else
-#warning Cannot get total memory size on this platform
-  return 0;
-#endif
-}
-
-void
-Process::GetTimeUsage(TimeValue& elapsed, TimeValue& user_time,
-                      TimeValue& sys_time)
-{
+void Process::GetTimeUsage(TimeValue &elapsed, TimeValue &user_time,
+                           TimeValue &sys_time) {
   elapsed = TimeValue::now();
-#if defined(HAVE_GETRUSAGE)
-  struct rusage usage;
-  ::getrusage(RUSAGE_SELF, &usage);
-  user_time = TimeValue(
-    static_cast<TimeValue::SecondsType>( usage.ru_utime.tv_sec ),
-    static_cast<TimeValue::NanoSecondsType>( usage.ru_utime.tv_usec *
-      TimeValue::NANOSECONDS_PER_MICROSECOND ) );
-  sys_time = TimeValue(
-    static_cast<TimeValue::SecondsType>( usage.ru_stime.tv_sec ),
-    static_cast<TimeValue::NanoSecondsType>( usage.ru_stime.tv_usec *
-      TimeValue::NANOSECONDS_PER_MICROSECOND ) );
-#else
-#warning Cannot get usage times on this platform
-  user_time.seconds(0);
-  user_time.microseconds(0);
-  sys_time.seconds(0);
-  sys_time.microseconds(0);
-#endif
+  llvm::tie(user_time, sys_time) = getRUsageTimes();
 }
 
 int Process::GetCurrentUserId() {
@@ -217,6 +224,8 @@ static unsigned getColumns(int FileID) {
 #if defined(HAVE_SYS_IOCTL_H) && defined(HAVE_TERMIOS_H)
   // Try to determine the width of the terminal.
   struct winsize ws;
+  // Zero-fill ws to avoid a false positive from MemorySanitizer.
+  memset(&ws, 0, sizeof(ws));
   if (ioctl(FileID, TIOCGWINSZ, &ws) == 0)
     Columns = ws.ws_col;
 #endif
@@ -318,7 +327,7 @@ static unsigned GetRandomNumberSeed() {
 
   // Otherwise, swizzle the current time and the process ID to form a reasonable
   // seed.
-  TimeValue Now = llvm::TimeValue::now();
+  TimeValue Now = TimeValue::now();
   return hash_combine(Now.seconds(), Now.nanoseconds(), ::getpid());
 }
 #endif
