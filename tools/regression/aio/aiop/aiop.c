@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <aio.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -186,7 +187,7 @@ main(int argc, char *argv[])
 		perror("unknown file type\n");
 		exit(1);
 	}
-	printf("File: %s; File size %qd bytes\n", fn, file_size);
+	printf("File: %s; File size %"PRId64" bytes\n", fn, file_size);
 
 	aio = calloc(aio_len, sizeof(struct aiocb));
 	abuf = calloc(aio_len, sizeof(char *));
