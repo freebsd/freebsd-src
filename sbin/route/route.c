@@ -118,7 +118,6 @@ static const char	*routename(struct sockaddr *);
 static int	rtmsg(int, int, int);
 static void	set_metric(char *, int);
 static int	set_sofib(int);
-static int	set_procfib(int);
 static void	sockaddr(char *, struct sockaddr *, size_t);
 static void	sodump(struct sockaddr *, const char *);
 extern	char *iso_ntoa(void);
@@ -233,15 +232,6 @@ set_sofib(int fib)
 		return (0);
 	return (setsockopt(s, SOL_SOCKET, SO_SETFIB, (void *)&fib,
 	    sizeof(fib)));
-}
-
-static int
-set_procfib(int fib)
-{
-	
-	if (fib < 0)
-		return (0);
-	return (setfib(fib));
 }
 
 static int
@@ -420,11 +410,10 @@ flushroutes_fib(int fib)
 	struct rt_msghdr *rtm;
 	size_t needed;
 	char *buf, *next, *lim;
-	int mib[6], rlen, seqno, count = 0;
+	int mib[7], rlen, seqno, count = 0;
 	int error;
 
 	error = set_sofib(fib);
-	error += set_procfib(fib);
 	if (error) {
 		warn("fib number %d is ignored", fib);
 		return (error);
@@ -437,6 +426,7 @@ retry:
 	mib[3] = AF_UNSPEC;
 	mib[4] = NET_RT_DUMP;
 	mib[5] = 0;		/* no flags */
+	mib[6] = fib;
 	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
 		err(EX_OSERR, "route-sysctl-estimate");
 	if ((buf = malloc(needed)) == NULL)
