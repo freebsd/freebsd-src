@@ -116,7 +116,7 @@ ifconfig_up()
 			if ! checkyesno ipv6_gateway_enable; then
 				_ipv6_opts="${_ipv6_opts} accept_rtadv"
 			fi
-			;;
+		;;
 		esac
 
 		case $ipv6_cpe_wanif in
@@ -498,6 +498,12 @@ ipv6if()
 			return 0
 		fi
 
+		# True if $ipv6_prefix_IF is defined.
+		_tmpargs=`get_if_var $_if ipv6_prefix_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+
 		# backward compatibility: True if $ipv6_ifconfig_IF is defined.
 		_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
 		if [ -n "${_tmpargs}" ]; then
@@ -615,10 +621,6 @@ ipv6_up()
 	ifalias ${_if} inet6 alias && _ret=0
 	ipv6_prefix_hostid_addr_common ${_if} alias && _ret=0
 	ipv6_accept_rtadv_up ${_if} && _ret=0
-
-	# wait for DAD
-	sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
-	sleep 1
 
 	return $_ret
 }
