@@ -10,11 +10,12 @@ WARNS?=	3
 CLEANFILES+=keywords.h
 
 CFLAGS+= -DNS
-
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+= -DINET
+.endif
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
-
 CFLAGS+= -I.
 
 keywords.h: keywords
