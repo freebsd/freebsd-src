@@ -45,7 +45,7 @@ main(int argc __unused, char **argv __unused)
 	if ((modid = modfind("sys/syscall")) == -1)
 		err(1, "modfind");
 	if (modstat(modid, &stat) != 0)
-		err(1, "mostat");
+		err(1, "modstat");
 	syscall_num = stat.data.intval;
 	return syscall (syscall_num);
 }
