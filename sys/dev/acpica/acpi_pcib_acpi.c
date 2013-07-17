@@ -287,6 +287,12 @@ acpi_pcib_acpi_attach(device_t dev)
     sc->ap_handle = acpi_get_handle(dev);
 
     /*
+     * Don't attach if we're not really there.
+     */
+    if (!acpi_DeviceIsPresent(dev))
+	return (ENXIO);
+
+    /*
      * Get our segment number by evaluating _SEG.
      * It's OK for this to not exist.
      */
@@ -353,7 +359,7 @@ acpi_pcib_acpi_attach(device_t dev)
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _BBN - %s\n",
 		AcpiFormatException(status));
-	    return_VALUE (ENXIO);
+	    return (ENXIO);
 	} else {
 	    /* If it's not found, assume 0. */
 	    sc->ap_bus = 0;
