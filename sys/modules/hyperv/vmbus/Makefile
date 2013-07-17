@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../contrib/dev/hyperv/vmbus \
-	${.CURDIR}/../../../contrib/dev/hyperv/utilities
+.PATH:	${.CURDIR}/../../../dev/hyperv/vmbus \
+	${.CURDIR}/../../../dev/hyperv/utilities
 
 KMOD=	 hv_vmbus
 
@@ -13,9 +13,8 @@ SRCS =  hv_channel.c \
 	hv_vmbus_drv_freebsd.c \
 	hv_vmbus_priv.h
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/dev/hyperv/include \
-	 -I${.CURDIR}/../../../contrib/dev/hyperv/vmbus \
-	 -I${.CURDIR}/../../../contrib/dev/hyperv/utilities \
-	 -I${.CURDIR}/../../../contrib
+CFLAGS+= -I${.CURDIR}/../../../dev/hyperv/include \
+	 -I${.CURDIR}/../../../dev/hyperv/vmbus \
+	 -I${.CURDIR}/../../../dev/hyperv/utilities
 
 .include <bsd.kmod.mk>
