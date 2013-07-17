@@ -89,7 +89,7 @@ devlist(int argc, char *argv[])
 
 		found++;
 		read_controller_data(fd, &cdata);
-		printf("%6s: %s\n", name, cdata.mn);
+		printf("%6s: %.*s\n", name, NVME_MODEL_NUMBER_LENGTH, cdata.mn);
 
 		for (i = 0; i < cdata.nn; i++) {
 			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
