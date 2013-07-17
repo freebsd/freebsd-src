@@ -74,18 +74,22 @@ struct shadow_time_info {
 	int	pc_resched_irq;						\
 	int	pc_callfunc_irq;					\
 	int	pc_virq_to_irq[NR_VIRQS];				\
-	int	pc_ipi_to_irq[NR_IPIS]	
+	int	pc_ipi_to_irq[NR_IPIS];					\
+	char	__pad[77]
 
 #elif defined(XENHVM)
 
 #define	PCPU_XEN_FIELDS							\
 	;								\
 	unsigned int pc_last_processed_l1i;				\
-	unsigned int pc_last_processed_l2i
+	unsigned int pc_last_processed_l2i;				\
+	char	__pad[229]
 
 #else /* !XEN && !XENHVM */
 
-#define PCPU_XEN_FIELDS
+#define PCPU_XEN_FIELDS							\
+	;								\
+	char	__pad[237]
 
 #endif
 

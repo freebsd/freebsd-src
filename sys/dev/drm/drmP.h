@@ -59,6 +59,7 @@ struct drm_file;
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/filio.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/queue.h>

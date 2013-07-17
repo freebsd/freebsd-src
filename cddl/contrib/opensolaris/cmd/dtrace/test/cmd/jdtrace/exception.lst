@@ -23,7 +23,6 @@
 # Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-# ident	"%Z%%M%	%I%	%E% SMI"
 
 # Exception list: names tests that are bypassed when running in Java
 # mode (relative to /opt/SUNWdtrt/tst)
@@ -52,14 +51,17 @@ common/usdt/tst.enabled.ksh
 common/usdt/tst.enabled2.ksh
 common/usdt/tst.entryreturn.ksh
 common/usdt/tst.fork.ksh
-common/usdt/tst.header.ksh
 common/usdt/tst.guess32.ksh
 common/usdt/tst.guess64.ksh
+common/usdt/tst.header.ksh
 common/usdt/tst.linkpriv.ksh
 common/usdt/tst.linkunpriv.ksh
 common/usdt/tst.multiple.ksh
 common/usdt/tst.nodtrace.ksh
+common/usdt/tst.noreap.ksh
+common/usdt/tst.noreapring.ksh
 common/usdt/tst.onlyenabled.ksh
+common/usdt/tst.reap.ksh
 common/usdt/tst.reeval.ksh
 common/usdt/tst.static.ksh
 common/usdt/tst.static2.ksh

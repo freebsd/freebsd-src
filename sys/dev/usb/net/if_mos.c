@@ -526,16 +526,15 @@ mos_ifmedia_upd(struct ifnet *ifp)
 	struct mos_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
+	int error;
 
 	MOS_LOCK_ASSERT(sc, MA_OWNED);
 
 	sc->mos_link = 0;
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-		    mii_phy_reset(miisc);
-	}
-	mii_mediachg(mii);
-	return (0);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
+	error = mii_mediachg(mii);
+	return (error);
 }
 
 /*

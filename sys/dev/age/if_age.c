@@ -2478,7 +2478,7 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 	    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_POSTWRITE);
 
 	for (prog = 0; rr_cons != rr_prod; prog++) {
-		if (count <= 0)
+		if (count-- <= 0)
 			break;
 		rxrd = &sc->age_rdata.age_rr_ring[rr_cons];
 		nsegs = AGE_RX_NSEGS(le32toh(rxrd->index));

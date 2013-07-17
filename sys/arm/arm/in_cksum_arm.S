@@ -90,13 +90,15 @@ ENTRY(in_cksum)
 	and	r0, r0, r1
 	eor	r0, r0, r1
 	ldmfd	sp!, {r4-r11,pc}
-
+END(in_cksum)
 
 ENTRY(do_cksum)
 	stmfd	sp!, {r4-r7, lr}
 	bl	L_cksumdata
 	mov	r0, r2
 	ldmfd	sp!, {r4-r7, pc}
+END(do_cksum)
+
 /*
  * The main in*_cksum() workhorse...
  *
@@ -337,3 +339,5 @@ ASENTRY_NP(L_cksumdata)
 	adds	r2, r2, r3
 	adc	r2, r2, #0x00
 	RET
+END(L_cksumdata)
+

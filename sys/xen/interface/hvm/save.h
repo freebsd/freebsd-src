@@ -61,13 +61,36 @@ struct hvm_save_descriptor {
  * ugliness.
  */
 
-#define DECLARE_HVM_SAVE_TYPE(_x, _code, _type)                   \
-  struct __HVM_SAVE_TYPE_##_x { _type t; char c[_code]; }
+#ifdef __XEN__
+# define DECLARE_HVM_SAVE_TYPE_COMPAT(_x, _code, _type, _ctype, _fix)     \
+    static inline int __HVM_SAVE_FIX_COMPAT_##_x(void *h) { return _fix(h); } \
+    struct __HVM_SAVE_TYPE_##_x { _type t; char c[_code]; char cpt[2];}; \
+    struct __HVM_SAVE_TYPE_COMPAT_##_x { _ctype t; }                   
+
+# include <xen/lib.h> /* BUG() */
+# define DECLARE_HVM_SAVE_TYPE(_x, _code, _type)                         \
+    static inline int __HVM_SAVE_FIX_COMPAT_##_x(void *h) { BUG(); return -1; } \
+    struct __HVM_SAVE_TYPE_##_x { _type t; char c[_code]; char cpt[1];}; \
+    struct __HVM_SAVE_TYPE_COMPAT_##_x { _type t; }                   
+#else
+# define DECLARE_HVM_SAVE_TYPE_COMPAT(_x, _code, _type, _ctype, _fix)     \
+    struct __HVM_SAVE_TYPE_##_x { _type t; char c[_code]; char cpt[2];} 
+
+# define DECLARE_HVM_SAVE_TYPE(_x, _code, _type)                         \
+    struct __HVM_SAVE_TYPE_##_x { _type t; char c[_code]; char cpt[1];} 
+#endif
 
 #define HVM_SAVE_TYPE(_x) typeof (((struct __HVM_SAVE_TYPE_##_x *)(0))->t)
 #define HVM_SAVE_LENGTH(_x) (sizeof (HVM_SAVE_TYPE(_x)))
 #define HVM_SAVE_CODE(_x) (sizeof (((struct __HVM_SAVE_TYPE_##_x *)(0))->c))
 
+#ifdef __XEN__
+# define HVM_SAVE_TYPE_COMPAT(_x) typeof (((struct __HVM_SAVE_TYPE_COMPAT_##_x *)(0))->t)
+# define HVM_SAVE_LENGTH_COMPAT(_x) (sizeof (HVM_SAVE_TYPE_COMPAT(_x)))
+
+# define HVM_SAVE_HAS_COMPAT(_x) (sizeof (((struct __HVM_SAVE_TYPE_##_x *)(0))->cpt)-1)
+# define HVM_SAVE_FIX_COMPAT(_x, _dst) __HVM_SAVE_FIX_COMPAT_##_x(_dst)
+#endif
 
 /* 
  * The series of save records is teminated by a zero-type, zero-length 
@@ -81,6 +104,8 @@ DECLARE_HVM_SAVE_TYPE(END, 0, struct hvm_save_end);
 #include "../arch-x86/hvm/save.h"
 #elif defined(__ia64__)
 #include "../arch-ia64/hvm/save.h"
+#elif defined(__arm__)
+#include "../arch-arm/hvm/save.h"
 #else
 #error "unsupported architecture"
 #endif

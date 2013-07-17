@@ -2,14 +2,8 @@
  * EAP peer method: EAP-FAST (RFC 4851)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -175,7 +169,7 @@ static void * eap_fast_init(struct eap_sm *sm)
 	data->phase2_type.vendor = EAP_VENDOR_IETF;
 	data->phase2_type.method = EAP_TYPE_NONE;
 
-	if (eap_peer_tls_ssl_init(sm, &data->ssl, config)) {
+	if (eap_peer_tls_ssl_init(sm, &data->ssl, config, EAP_TYPE_FAST)) {
 		wpa_printf(MSG_INFO, "EAP-FAST: Failed to initialize SSL.");
 		eap_fast_deinit(sm, data);
 		return NULL;
@@ -444,8 +438,9 @@ static int eap_fast_phase2_request(struct eap_sm *sm,
 		return 0;
 	}
 
-	if (data->phase2_priv == NULL &&
-	    eap_fast_init_phase2_method(sm, data) < 0) {
+	if ((data->phase2_priv == NULL &&
+	     eap_fast_init_phase2_method(sm, data) < 0) ||
+	    data->phase2_method == NULL) {
 		wpa_printf(MSG_INFO, "EAP-FAST: Failed to initialize "
 			   "Phase 2 EAP method %d", *pos);
 		ret->methodState = METHOD_DONE;
@@ -542,7 +537,7 @@ static struct wpabuf * eap_fast_tlv_pac_ack(void)
 
 static struct wpabuf * eap_fast_process_eap_payload_tlv(
 	struct eap_sm *sm, struct eap_fast_data *data,
-	struct eap_method_ret *ret, const struct eap_hdr *req,
+	struct eap_method_ret *ret,
 	u8 *eap_payload_tlv, size_t eap_payload_tlv_len)
 {
 	struct eap_hdr *hdr;
@@ -1037,11 +1032,15 @@ static struct wpabuf * eap_fast_process_pac(struct eap_sm *sm,
 	} else {
 		/*
 		 * This is PAC refreshing, i.e., normal authentication that is
-		 * expected to be completed with an EAP-Success.
+		 * expected to be completed with an EAP-Success. However,
+		 * RFC 5422, Section 3.5 allows EAP-Failure to be sent even
+		 * after protected success exchange in case of EAP-Fast
+		 * provisioning, so we better use DECISION_COND_SUCC here
+		 * instead of DECISION_UNCOND_SUCC.
 		 */
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Send PAC-Acknowledgement TLV "
 			   "- PAC refreshing completed successfully");
-		ret->decision = DECISION_UNCOND_SUCC;
+		ret->decision = DECISION_COND_SUCC;
 	}
 	ret->methodState = METHOD_DONE;
 	return eap_fast_tlv_pac_ack();
@@ -1184,7 +1183,7 @@ static int eap_fast_process_decrypted(struct eap_sm *sm,
 
 	if (tlv.eap_payload_tlv) {
 		tmp = eap_fast_process_eap_payload_tlv(
-			sm, data, ret, req, tlv.eap_payload_tlv,
+			sm, data, ret, tlv.eap_payload_tlv,
 			tlv.eap_payload_tlv_len);
 		resp = wpabuf_concat(resp, tmp);
 	}

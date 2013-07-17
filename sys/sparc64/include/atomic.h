@@ -133,12 +133,9 @@
 	t;								\
 })
 
-#define	atomic_load(p, sz)						\
-	atomic_cas((p), 0, 0, sz)
-
 #define	atomic_load_acq(p, sz) ({					\
 	itype(sz) v;							\
-	v = atomic_load((p), sz);					\
+	v = atomic_cas((p), 0, 0, sz);					\
 	__compiler_membar();						\
 	v;								\
 })
@@ -153,18 +150,14 @@
 	e;								\
 })
 
-#define	atomic_store(p, v, sz) do {					\
+#define	atomic_store_rel(p, v, sz) do {					\
 	itype(sz) e, r;							\
+	membar(LoadStore | StoreStore);					\
 	for (e = *(volatile itype(sz) *)(p);; e = r) {			\
 		r = atomic_cas((p), e, (v), sz);			\
 		if (r == e)						\
 			break;						\
 	}								\
-} while (0)
-
-#define	atomic_store_rel(p, v, sz) do {					\
-	membar(LoadStore | StoreStore);					\
-	atomic_store((p), (v), sz);					\
 } while (0)
 
 #define	ATOMIC_GEN(name, ptype, vtype, atype, sz)			\
@@ -266,11 +259,6 @@ atomic_subtract_rel_ ## name(volatile ptype p, atype v)			\
 	return ((vtype)atomic_op_rel((p), -, (v), sz));			\
 }									\
 									\
-static __inline void							\
-atomic_store_ ## name(volatile ptype p, vtype v)			\
-{									\
-	atomic_store((p), (v), sz);					\
-}									\
 static __inline void							\
 atomic_store_rel_ ## name(volatile ptype p, vtype v)			\
 {									\

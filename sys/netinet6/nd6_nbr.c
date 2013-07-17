@@ -419,17 +419,12 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		return;
 	}
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
-	if (m && max_linkhdr + maxlen >= MHLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			m = NULL;
-		}
-	}
+	if (max_linkhdr + maxlen > MHLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	else
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
-	m->m_pkthdr.rcvif = NULL;
 
 	bzero(&ro, sizeof(ro));
 
@@ -997,17 +992,12 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		return;
 	}
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
-	if (m && max_linkhdr + maxlen >= MHLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			m_free(m);
-			m = NULL;
-		}
-	}
+	if (max_linkhdr + maxlen > MHLEN)
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	else
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
-	m->m_pkthdr.rcvif = NULL;
 	M_SETFIB(m, fibnum);
 
 	if (IN6_IS_ADDR_MULTICAST(&daddr6)) {

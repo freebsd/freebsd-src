@@ -132,7 +132,12 @@ struct ath_hal_5416 {
 	struct ar5416NfLimits nf_2g;
 	struct ar5416NfLimits nf_5g;
 
+	/*
+	 * TX power configuration related structures
+	 */
 	int		initPDADC;
+	int		ah_ht40PowerIncForPdadc;
+	int16_t		ah_ratesArray[Ar5416RateSize];
 
 	int		ah_need_an_top2_fixup;	/* merlin or later chips that may need this workaround */
 
@@ -409,8 +414,9 @@ extern void ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds,
 		u_int aggrLen, u_int numDelims);
 extern	void ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims);
 extern void ar5416Set11nAggrLast(struct ath_hal *ah, struct ath_desc *ds);
-
 extern	void ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds);
+extern	void ar5416Set11nVirtualMoreFrag(struct ath_hal *ah,
+		struct ath_desc *ds, u_int vmf);
 
 extern	void ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds, u_int burstDuration);
 

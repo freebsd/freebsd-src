@@ -18,6 +18,7 @@
 #define LLVM_CODEGEN_MACHINEINSTRBUILDER_H
 
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
@@ -42,10 +43,14 @@ namespace RegState {
 }
 
 class MachineInstrBuilder {
+  MachineFunction *MF;
   MachineInstr *MI;
 public:
-  MachineInstrBuilder() : MI(0) {}
-  explicit MachineInstrBuilder(MachineInstr *mi) : MI(mi) {}
+  MachineInstrBuilder() : MF(0), MI(0) {}
+
+  /// Create a MachineInstrBuilder for manipulating an existing instruction.
+  /// F must be the machine function  that was used to allocate I.
+  MachineInstrBuilder(MachineFunction &F, MachineInstr *I) : MF(&F), MI(I) {}
 
   /// Allow automatic conversion to the machine instruction we are working on.
   ///
@@ -60,86 +65,94 @@ public:
                               unsigned SubReg = 0) const {
     assert((flags & 0x1) == 0 &&
            "Passing in 'true' to addReg is forbidden! Use enums instead.");
-    MI->addOperand(MachineOperand::CreateReg(RegNo,
-                                             flags & RegState::Define,
-                                             flags & RegState::Implicit,
-                                             flags & RegState::Kill,
-                                             flags & RegState::Dead,
-                                             flags & RegState::Undef,
-                                             flags & RegState::EarlyClobber,
-                                             SubReg,
-                                             flags & RegState::Debug,
-                                             flags & RegState::InternalRead));
+    MI->addOperand(*MF, MachineOperand::CreateReg(RegNo,
+                                               flags & RegState::Define,
+                                               flags & RegState::Implicit,
+                                               flags & RegState::Kill,
+                                               flags & RegState::Dead,
+                                               flags & RegState::Undef,
+                                               flags & RegState::EarlyClobber,
+                                               SubReg,
+                                               flags & RegState::Debug,
+                                               flags & RegState::InternalRead));
     return *this;
   }
 
   /// addImm - Add a new immediate operand.
   ///
   const MachineInstrBuilder &addImm(int64_t Val) const {
-    MI->addOperand(MachineOperand::CreateImm(Val));
+    MI->addOperand(*MF, MachineOperand::CreateImm(Val));
     return *this;
   }
 
   const MachineInstrBuilder &addCImm(const ConstantInt *Val) const {
-    MI->addOperand(MachineOperand::CreateCImm(Val));
+    MI->addOperand(*MF, MachineOperand::CreateCImm(Val));
     return *this;
   }
 
   const MachineInstrBuilder &addFPImm(const ConstantFP *Val) const {
-    MI->addOperand(MachineOperand::CreateFPImm(Val));
+    MI->addOperand(*MF, MachineOperand::CreateFPImm(Val));
     return *this;
   }
 
   const MachineInstrBuilder &addMBB(MachineBasicBlock *MBB,
                                     unsigned char TargetFlags = 0) const {
-    MI->addOperand(MachineOperand::CreateMBB(MBB, TargetFlags));
+    MI->addOperand(*MF, MachineOperand::CreateMBB(MBB, TargetFlags));
     return *this;
   }
 
   const MachineInstrBuilder &addFrameIndex(int Idx) const {
-    MI->addOperand(MachineOperand::CreateFI(Idx));
+    MI->addOperand(*MF, MachineOperand::CreateFI(Idx));
     return *this;
   }
 
   const MachineInstrBuilder &addConstantPoolIndex(unsigned Idx,
                                                   int Offset = 0,
                                           unsigned char TargetFlags = 0) const {
-    MI->addOperand(MachineOperand::CreateCPI(Idx, Offset, TargetFlags));
+    MI->addOperand(*MF, MachineOperand::CreateCPI(Idx, Offset, TargetFlags));
     return *this;
   }
 
   const MachineInstrBuilder &addTargetIndex(unsigned Idx, int64_t Offset = 0,
                                           unsigned char TargetFlags = 0) const {
-    MI->addOperand(MachineOperand::CreateTargetIndex(Idx, Offset, TargetFlags));
+    MI->addOperand(*MF, MachineOperand::CreateTargetIndex(Idx, Offset,
+                                                          TargetFlags));
     return *this;
   }
 
   const MachineInstrBuilder &addJumpTableIndex(unsigned Idx,
                                           unsigned char TargetFlags = 0) const {
-    MI->addOperand(MachineOperand::CreateJTI(Idx, TargetFlags));
+    MI->addOperand(*MF, MachineOperand::CreateJTI(Idx, TargetFlags));
     return *this;
   }
 
   const MachineInstrBuilder &addGlobalAddress(const GlobalValue *GV,
                                               int64_t Offset = 0,
                                           unsigned char TargetFlags = 0) const {
-    MI->addOperand(MachineOperand::CreateGA(GV, Offset, TargetFlags));
+    MI->addOperand(*MF, MachineOperand::CreateGA(GV, Offset, TargetFlags));
     return *this;
   }
 
   const MachineInstrBuilder &addExternalSymbol(const char *FnName,
                                           unsigned char TargetFlags = 0) const {
-    MI->addOperand(MachineOperand::CreateES(FnName, TargetFlags));
+    MI->addOperand(*MF, MachineOperand::CreateES(FnName, TargetFlags));
+    return *this;
+  }
+
+  const MachineInstrBuilder &addBlockAddress(const BlockAddress *BA,
+                                             int64_t Offset = 0,
+                                          unsigned char TargetFlags = 0) const {
+    MI->addOperand(*MF, MachineOperand::CreateBA(BA, Offset, TargetFlags));
     return *this;
   }
 
   const MachineInstrBuilder &addRegMask(const uint32_t *Mask) const {
-    MI->addOperand(MachineOperand::CreateRegMask(Mask));
+    MI->addOperand(*MF, MachineOperand::CreateRegMask(Mask));
     return *this;
   }
 
   const MachineInstrBuilder &addMemOperand(MachineMemOperand *MMO) const {
-    MI->addMemOperand(*MI->getParent()->getParent(), MMO);
+    MI->addMemOperand(*MF, MMO);
     return *this;
   }
 
@@ -151,17 +164,17 @@ public:
 
 
   const MachineInstrBuilder &addOperand(const MachineOperand &MO) const {
-    MI->addOperand(MO);
+    MI->addOperand(*MF, MO);
     return *this;
   }
 
   const MachineInstrBuilder &addMetadata(const MDNode *MD) const {
-    MI->addOperand(MachineOperand::CreateMetadata(MD));
+    MI->addOperand(*MF, MachineOperand::CreateMetadata(MD));
     return *this;
   }
   
   const MachineInstrBuilder &addSym(MCSymbol *Sym) const {
-    MI->addOperand(MachineOperand::CreateMCSymbol(Sym));
+    MI->addOperand(*MF, MachineOperand::CreateMCSymbol(Sym));
     return *this;
   }
 
@@ -196,6 +209,12 @@ public:
       }
     }
   }
+
+  /// Copy all the implicit operands from OtherMI onto this one.
+  const MachineInstrBuilder &copyImplicitOps(const MachineInstr *OtherMI) {
+    MI->copyImplicitOps(*MF, OtherMI);
+    return *this;
+  }
 };
 
 /// BuildMI - Builder interface.  Specify how to create the initial instruction
@@ -204,7 +223,7 @@ public:
 inline MachineInstrBuilder BuildMI(MachineFunction &MF,
                                    DebugLoc DL,
                                    const MCInstrDesc &MCID) {
-  return MachineInstrBuilder(MF.CreateMachineInstr(MCID, DL));
+  return MachineInstrBuilder(MF, MF.CreateMachineInstr(MCID, DL));
 }
 
 /// BuildMI - This version of the builder sets up the first operand as a
@@ -214,7 +233,7 @@ inline MachineInstrBuilder BuildMI(MachineFunction &MF,
                                    DebugLoc DL,
                                    const MCInstrDesc &MCID,
                                    unsigned DestReg) {
-  return MachineInstrBuilder(MF.CreateMachineInstr(MCID, DL))
+  return MachineInstrBuilder(MF, MF.CreateMachineInstr(MCID, DL))
            .addReg(DestReg, RegState::Define);
 }
 
@@ -227,9 +246,10 @@ inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
                                    DebugLoc DL,
                                    const MCInstrDesc &MCID,
                                    unsigned DestReg) {
-  MachineInstr *MI = BB.getParent()->CreateMachineInstr(MCID, DL);
+  MachineFunction &MF = *BB.getParent();
+  MachineInstr *MI = MF.CreateMachineInstr(MCID, DL);
   BB.insert(I, MI);
-  return MachineInstrBuilder(MI).addReg(DestReg, RegState::Define);
+  return MachineInstrBuilder(MF, MI).addReg(DestReg, RegState::Define);
 }
 
 inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
@@ -237,9 +257,10 @@ inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
                                    DebugLoc DL,
                                    const MCInstrDesc &MCID,
                                    unsigned DestReg) {
-  MachineInstr *MI = BB.getParent()->CreateMachineInstr(MCID, DL);
+  MachineFunction &MF = *BB.getParent();
+  MachineInstr *MI = MF.CreateMachineInstr(MCID, DL);
   BB.insert(I, MI);
-  return MachineInstrBuilder(MI).addReg(DestReg, RegState::Define);
+  return MachineInstrBuilder(MF, MI).addReg(DestReg, RegState::Define);
 }
 
 inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
@@ -264,18 +285,20 @@ inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
                                    MachineBasicBlock::iterator I,
                                    DebugLoc DL,
                                    const MCInstrDesc &MCID) {
-  MachineInstr *MI = BB.getParent()->CreateMachineInstr(MCID, DL);
+  MachineFunction &MF = *BB.getParent();
+  MachineInstr *MI = MF.CreateMachineInstr(MCID, DL);
   BB.insert(I, MI);
-  return MachineInstrBuilder(MI);
+  return MachineInstrBuilder(MF, MI);
 }
 
 inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
                                    MachineBasicBlock::instr_iterator I,
                                    DebugLoc DL,
                                    const MCInstrDesc &MCID) {
-  MachineInstr *MI = BB.getParent()->CreateMachineInstr(MCID, DL);
+  MachineFunction &MF = *BB.getParent();
+  MachineInstr *MI = MF.CreateMachineInstr(MCID, DL);
   BB.insert(I, MI);
-  return MachineInstrBuilder(MI);
+  return MachineInstrBuilder(MF, MI);
 }
 
 inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
@@ -330,6 +353,94 @@ inline unsigned getUndefRegState(bool B) {
 inline unsigned getInternalReadRegState(bool B) {
   return B ? RegState::InternalRead : 0;
 }
+inline unsigned getDebugRegState(bool B) {
+  return B ? RegState::Debug : 0;
+}
+
+
+/// Helper class for constructing bundles of MachineInstrs.
+///
+/// MIBundleBuilder can create a bundle from scratch by inserting new
+/// MachineInstrs one at a time, or it can create a bundle from a sequence of
+/// existing MachineInstrs in a basic block.
+class MIBundleBuilder {
+  MachineBasicBlock &MBB;
+  MachineBasicBlock::instr_iterator Begin;
+  MachineBasicBlock::instr_iterator End;
+
+public:
+  /// Create an MIBundleBuilder that inserts instructions into a new bundle in
+  /// BB above the bundle or instruction at Pos.
+  MIBundleBuilder(MachineBasicBlock &BB,
+                  MachineBasicBlock::iterator Pos)
+    : MBB(BB), Begin(Pos.getInstrIterator()), End(Begin) {}
+
+  /// Create a bundle from the sequence of instructions between B and E.
+  MIBundleBuilder(MachineBasicBlock &BB,
+                  MachineBasicBlock::iterator B,
+                  MachineBasicBlock::iterator E)
+    : MBB(BB), Begin(B.getInstrIterator()), End(E.getInstrIterator()) {
+    assert(B != E && "No instructions to bundle");
+    ++B;
+    while (B != E) {
+      MachineInstr *MI = B;
+      ++B;
+      MI->bundleWithPred();
+    }
+  }
+
+  /// Create an MIBundleBuilder representing an existing instruction or bundle
+  /// that has MI as its head.
+  explicit MIBundleBuilder(MachineInstr *MI)
+    : MBB(*MI->getParent()), Begin(MI), End(getBundleEnd(MI)) {}
+
+  /// Return a reference to the basic block containing this bundle.
+  MachineBasicBlock &getMBB() const { return MBB; }
+
+  /// Return true if no instructions have been inserted in this bundle yet.
+  /// Empty bundles aren't representable in a MachineBasicBlock.
+  bool empty() const { return Begin == End; }
+
+  /// Return an iterator to the first bundled instruction.
+  MachineBasicBlock::instr_iterator begin() const { return Begin; }
+
+  /// Return an iterator beyond the last bundled instruction.
+  MachineBasicBlock::instr_iterator end() const { return End; }
+
+  /// Insert MI into this bundle before I which must point to an instruction in
+  /// the bundle, or end().
+  MIBundleBuilder &insert(MachineBasicBlock::instr_iterator I,
+                          MachineInstr *MI) {
+    MBB.insert(I, MI);
+    if (I == Begin) {
+      if (!empty())
+        MI->bundleWithSucc();
+      Begin = MI;
+      return *this;
+    }
+    if (I == End) {
+      MI->bundleWithPred();
+      return *this;
+    }
+    // MI was inserted in the middle of the bundle, so its neighbors' flags are
+    // already fine. Update MI's bundle flags manually.
+    MI->setFlag(MachineInstr::BundledPred);
+    MI->setFlag(MachineInstr::BundledSucc);
+    return *this;
+  }
+
+  /// Insert MI into MBB by prepending it to the instructions in the bundle.
+  /// MI will become the first instruction in the bundle.
+  MIBundleBuilder &prepend(MachineInstr *MI) {
+    return insert(begin(), MI);
+  }
+
+  /// Insert MI into MBB by appending it to the instructions in the bundle.
+  /// MI will become the last instruction in the bundle.
+  MIBundleBuilder &append(MachineInstr *MI) {
+    return insert(end(), MI);
+  }
+};
 
 } // End llvm namespace
 

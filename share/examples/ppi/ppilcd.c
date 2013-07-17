@@ -269,7 +269,7 @@ do_char(struct lcd_driver *driver, char ch)
  * one of the ground pins (eg. pin 25).
  *
  * Note that the pinning on some LCD modules has the odd and even pins
- * arranged as though reversed; check carefully before conecting a module
+ * arranged as though reversed; check carefully before connecting a module
  * as it is possible to toast the HD44780 if the power is reversed.
  */
 

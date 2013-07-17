@@ -94,6 +94,22 @@ diskeditor_show(const char *title, const char *cprompt,
 		END_KEYS_BINDING
 	};
 
+	static DLG_KEYS_BINDING binding2[] = {
+		INPUTSTR_BINDINGS,
+		ENTERKEY_BINDINGS,
+		DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ),
+		DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_BTAB ),
+		DLG_KEYS_DATA( DLGK_ITEM_NEXT,  CHR_NEXT ),
+		DLG_KEYS_DATA( DLGK_ITEM_NEXT,  KEY_DOWN ),
+		DLG_KEYS_DATA( DLGK_ITEM_NEXT,  KEY_NEXT ),
+		DLG_KEYS_DATA( DLGK_ITEM_PREV,  CHR_PREVIOUS ),
+		DLG_KEYS_DATA( DLGK_ITEM_PREV,  KEY_PREVIOUS ),
+		DLG_KEYS_DATA( DLGK_ITEM_PREV,  KEY_UP ),
+		DLG_KEYS_DATA( DLGK_PAGE_NEXT,  KEY_NPAGE ),
+		DLG_KEYS_DATA( DLGK_PAGE_PREV,  KEY_PPAGE ),
+		END_KEYS_BINDING
+	};
+
 	/*
 	 * Set up editor window.
 	 */
@@ -125,7 +141,7 @@ diskeditor_show(const char *title, const char *cprompt,
 	/* Partition list sub-window */
 	partitions = dlg_sub_window(dialog, partlist_height, partlist_width,
 	    y + 3, x + 1);
-	dlg_register_window(partitions, "partlist", binding);
+	dlg_register_window(partitions, "partlist", binding2);
 	dlg_register_buttons(partitions, "partlist", buttons);
 	wattrset(partitions, menubox_attr);
 

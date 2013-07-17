@@ -273,21 +273,16 @@ one_event(void)
 void
 g_run_events()
 {
-	int i;
 
 	for (;;) {
 		g_topology_lock();
 		while (one_event())
 			;
 		mtx_assert(&g_eventlock, MA_OWNED);
-		i = g_wither_work;
-		if (i) {
+		if (g_wither_work) {
+			g_wither_work = 0;
 			mtx_unlock(&g_eventlock);
-			while (i) {
-				i = g_wither_washer();
-				g_wither_work = i & 1;
-				i &= 2;
-			}
+			g_wither_washer();
 			g_topology_unlock();
 		} else {
 			g_topology_unlock();

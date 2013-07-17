@@ -696,6 +696,8 @@ DEFINE_TEST(test_entry)
 	archive_entry_set_uid(e, 23);
 	/* Retrieve a stat structure. */
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	/* Check that the values match. */
 	assertEqualInt(pst->st_atime, 456789);
 	assertEqualInt(pst->st_ctime, 345678);
@@ -717,33 +719,53 @@ DEFINE_TEST(test_entry)
 	/* Changing any one value should update struct stat. */
 	archive_entry_set_atime(e, 456788, 0);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_atime, 456788);
 	archive_entry_set_ctime(e, 345677, 431);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_ctime, 345677);
 	archive_entry_set_dev(e, 122);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_dev, 122);
 	archive_entry_set_gid(e, 33);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_gid, 33);
 	archive_entry_set_ino(e, 233);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_ino, 233);
 	archive_entry_set_mode(e, 012344);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_mode, 012344);
 	archive_entry_set_mtime(e, 234566, 542);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_mtime, 234566);
 	archive_entry_set_nlink(e, 344);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_nlink, 344);
 	archive_entry_set_size(e, 123456788);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_size, 123456788);
 	archive_entry_set_uid(e, 22);
 	assert((pst = archive_entry_stat(e)) != NULL);
+	if (pst == NULL)
+		return;
 	assertEqualInt(pst->st_uid, 22);
 	/* We don't need to check high-res fields here. */
 

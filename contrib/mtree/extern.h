@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.37 2012/12/20 16:43:16 christos Exp $	*/
+/*	$NetBSD: extern.h,v 1.38 2013/02/03 19:15:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -42,6 +42,7 @@
 #include <err.h> 
 #include <fts.h>
 #include <util.h>
+#include <stdbool.h>
 
 #if HAVE_NETDB_H
 /* For MAXHOSTNAMELEN on some platforms. */
@@ -74,6 +75,8 @@ u_int	 parsetype(const char *);
 void	 read_excludes_file(const char *);
 const char *rlink(const char *);
 int	 verify(FILE *);
+void	 load_only(const char *fname);
+bool	 find_only(const char *path);
 
 extern int	bflag, dflag, eflag, iflag, jflag, lflag, mflag,
 		nflag, qflag, rflag, sflag, tflag, uflag;

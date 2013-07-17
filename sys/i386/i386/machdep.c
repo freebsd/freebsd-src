@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mp_watchdog.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
+#include "opt_platform.h"
 #include "opt_xbox.h"
 #include "opt_kdtrace.h"
 
@@ -81,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #ifdef SMP
@@ -136,6 +138,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef SMP
 #include <machine/smp.h>
+#endif
+#ifdef FDT
+#include <x86/fdt.h>
 #endif
 
 #ifdef DEV_APIC
@@ -1220,7 +1225,7 @@ cpu_halt(void)
 int scheduler_running;
 
 static void
-cpu_idle_hlt(int busy)
+cpu_idle_hlt(sbintime_t sbt)
 {
 
 	scheduler_running = 1;
@@ -1241,7 +1246,7 @@ cpu_halt(void)
 
 #endif
 
-void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
+void (*cpu_idle_hook)(sbintime_t) = NULL;	/* ACPI idle hook. */
 static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
 TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
@@ -1253,7 +1258,7 @@ SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
 #define	STATE_SLEEPING	0x2
 
 static void
-cpu_idle_acpi(int busy)
+cpu_idle_acpi(sbintime_t sbt)
 {
 	int *state;
 
@@ -1265,7 +1270,7 @@ cpu_idle_acpi(int busy)
 	if (sched_runnable())
 		enable_intr();
 	else if (cpu_idle_hook)
-		cpu_idle_hook();
+		cpu_idle_hook(sbt);
 	else
 		__asm __volatile("sti; hlt");
 	*state = STATE_RUNNING;
@@ -1273,7 +1278,7 @@ cpu_idle_acpi(int busy)
 
 #ifndef XEN
 static void
-cpu_idle_hlt(int busy)
+cpu_idle_hlt(sbintime_t sbt)
 {
 	int *state;
 
@@ -1315,7 +1320,7 @@ cpu_idle_hlt(int busy)
 #define	MWAIT_C4	0x30
 
 static void
-cpu_idle_mwait(int busy)
+cpu_idle_mwait(sbintime_t sbt)
 {
 	int *state;
 
@@ -1338,7 +1343,7 @@ cpu_idle_mwait(int busy)
 }
 
 static void
-cpu_idle_spin(int busy)
+cpu_idle_spin(sbintime_t sbt)
 {
 	int *state;
 	int i;
@@ -1388,9 +1393,9 @@ cpu_probe_amdc1e(void)
 }
 
 #ifdef XEN
-void (*cpu_idle_fn)(int) = cpu_idle_hlt;
+void (*cpu_idle_fn)(sbintime_t) = cpu_idle_hlt;
 #else
-void (*cpu_idle_fn)(int) = cpu_idle_acpi;
+void (*cpu_idle_fn)(sbintime_t) = cpu_idle_acpi;
 #endif
 
 void
@@ -1399,6 +1404,7 @@ cpu_idle(int busy)
 #ifndef XEN
 	uint64_t msr;
 #endif
+	sbintime_t sbt = -1;
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
@@ -1418,7 +1424,7 @@ cpu_idle(int busy)
 	/* If we have time - switch timers into idle mode. */
 	if (!busy) {
 		critical_enter();
-		cpu_idleclock();
+		sbt = cpu_idleclock();
 	}
 
 #ifndef XEN
@@ -1431,7 +1437,7 @@ cpu_idle(int busy)
 #endif
 
 	/* Call main idle method. */
-	cpu_idle_fn(busy);
+	cpu_idle_fn(sbt);
 
 	/* Switch timers mack into active mode. */
 	if (!busy) {
@@ -3111,6 +3117,10 @@ init386(first)
 
 	cpu_probe_amdc1e();
 	cpu_probe_cmpxchg8b();
+
+#ifdef FDT
+	x86_init_fdt();
+#endif
 }
 #endif
 
@@ -3478,7 +3488,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	bzero(mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 #else
 	mcp->mc_ownedfp = npxgetregs(td);
-	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
 #endif

@@ -447,7 +447,6 @@ AcpiPsGetNextSimpleArg (
         Length = 1;
         break;
 
-
     case ARGP_WORDDATA:
 
         /* Get 2 bytes from the AML stream */
@@ -456,7 +455,6 @@ AcpiPsGetNextSimpleArg (
         ACPI_MOVE_16_TO_64 (&Arg->Common.Value.Integer, Aml);
         Length = 2;
         break;
-
 
     case ARGP_DWORDDATA:
 
@@ -467,7 +465,6 @@ AcpiPsGetNextSimpleArg (
         Length = 4;
         break;
 
-
     case ARGP_QWORDDATA:
 
         /* Get 8 bytes from the AML stream */
@@ -476,7 +473,6 @@ AcpiPsGetNextSimpleArg (
         ACPI_MOVE_64_TO_64 (&Arg->Common.Value.Integer, Aml);
         Length = 8;
         break;
-
 
     case ARGP_CHARLIST:
 
@@ -495,14 +491,12 @@ AcpiPsGetNextSimpleArg (
         Length++;
         break;
 
-
     case ARGP_NAME:
     case ARGP_NAMESTRING:
 
         AcpiPsInitOp (Arg, AML_INT_NAMEPATH_OP);
         Arg->Common.Value.Name = AcpiPsGetNextNamestring (ParserState);
         return_VOID;
-
 
     default:
 
@@ -685,21 +679,25 @@ AcpiPsGetNextField (
                 switch (Opcode)
                 {
                 case AML_BYTE_OP:       /* AML_BYTEDATA_ARG */
+
                     BufferLength = ACPI_GET8 (ParserState->Aml);
                     ParserState->Aml += 1;
                     break;
 
                 case AML_WORD_OP:       /* AML_WORDDATA_ARG */
+
                     BufferLength = ACPI_GET16 (ParserState->Aml);
                     ParserState->Aml += 2;
                     break;
 
                 case AML_DWORD_OP:      /* AML_DWORDATA_ARG */
+
                     BufferLength = ACPI_GET32 (ParserState->Aml);
                     ParserState->Aml += 4;
                     break;
 
                 default:
+
                     BufferLength = 0;
                     break;
                 }
@@ -796,14 +794,12 @@ AcpiPsGetNextArg (
         AcpiPsGetNextSimpleArg (ParserState, ArgType, Arg);
         break;
 
-
     case ARGP_PKGLENGTH:
 
         /* Package length, nothing returned */
 
         ParserState->PkgEnd = AcpiPsGetNextPackageEnd (ParserState);
         break;
-
 
     case ARGP_FIELDLIST:
 
@@ -836,7 +832,6 @@ AcpiPsGetNextArg (
         }
         break;
 
-
     case ARGP_BYTELIST:
 
         if (ParserState->Aml < ParserState->PkgEnd)
@@ -860,7 +855,6 @@ AcpiPsGetNextArg (
             ParserState->Aml = ParserState->PkgEnd;
         }
         break;
-
 
     case ARGP_TARGET:
     case ARGP_SUPERNAME:
@@ -909,7 +903,6 @@ AcpiPsGetNextArg (
         }
         break;
 
-
     case ARGP_DATAOBJ:
     case ARGP_TERMARG:
 
@@ -917,7 +910,6 @@ AcpiPsGetNextArg (
 
         WalkState->ArgCount = 1;
         break;
-
 
     case ARGP_DATAOBJLIST:
     case ARGP_TERMLIST:
@@ -930,7 +922,6 @@ AcpiPsGetNextArg (
             WalkState->ArgCount = ACPI_VAR_ARGS;
         }
         break;
-
 
     default:
 

@@ -205,6 +205,11 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		bpf_mtap2(GRE2IFP(sc)->if_bpf, &af, sizeof(af), m);
 	}
 
+	if ((GRE2IFP(sc)->if_flags & IFF_MONITOR) != 0) {
+		m_freem(m);
+		return(NULL);
+	}
+
 	m->m_pkthdr.rcvif = GRE2IFP(sc);
 
 	netisr_queue(isr, m);
@@ -285,6 +290,11 @@ gre_mobile_input(struct mbuf *m, int hlen)
 	if (bpf_peers_present(GRE2IFP(sc)->if_bpf)) {
 		u_int32_t af = AF_INET;
 		bpf_mtap2(GRE2IFP(sc)->if_bpf, &af, sizeof(af), m);
+	}
+
+	if ((GRE2IFP(sc)->if_flags & IFF_MONITOR) != 0) {
+		m_freem(m);
+		return;
 	}
 
 	m->m_pkthdr.rcvif = GRE2IFP(sc);

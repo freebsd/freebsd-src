@@ -89,7 +89,7 @@ http://nlnetlabs.nl/projects/ldns/
 Autoconf:
 
 If you modify configure.ac or configure doesn't exist (eg if you checked
-the code out of CVS yourself) then you will need autoconf-2.61 to rebuild
+the code out of CVS yourself) then you will need autoconf-2.68 to rebuild
 the automatically generated files by running "autoreconf".  Earlier
 versions may also work but this is not guaranteed.
 
@@ -266,4 +266,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.87 2011/11/04 00:25:25 dtucker Exp $
+$Id: INSTALL,v 1.88 2013/03/07 01:33:35 dtucker Exp $

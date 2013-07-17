@@ -565,6 +565,11 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      `MAKEFLAGS' is re-exported whenever `_._M_A_K_E_O_V_E_R_R_I_D_E_S' is
                      modified.
 
+     _._M_A_K_E_._P_A_T_H___F_I_L_E_M_O_N
+                     If bbmmaakkee was built with filemon(4) support, this is set
+                     to the path of the device node.  This allows makefiles to
+                     test for this support.
+
      _._M_A_K_E_._P_I_D       The process-id of bbmmaakkee.
 
      _._M_A_K_E_._P_P_I_D      The parent process-id of bbmmaakkee.
@@ -1106,7 +1111,19 @@ SSPPEECCIIAALL SSOOUURRCCEESS ((AATTTTRRIIBBUUTTEESS))
                Ignore differences in commands when deciding if target is out
                of date.  This is useful if the command contains a value which
                always changes.  If the number of commands change, though, the
-               target will still be out of date.
+               target will still be out of date.  The same effect applies to
+               any command line that uses the variable _._O_O_D_A_T_E, which can be
+               used for that purpose even when not otherwise needed or
+               desired:
+
+
+                     skip-compare-for-some:
+                             @echo this will be compared
+                             @echo this will not ${.OODATE:M.NOMETA_CMP}
+                             @echo this will also be compared
+
+               The ::MM pattern suppresses any expansion of the unwanted vari-
+               able.
 
      ..NNOOPPAATTHH   Do not search for the target in the directories specified by
                ..PPAATTHH.
@@ -1278,6 +1295,9 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               sources are specified, the ..SSIILLEENNTT attribute is applied to every
               command in the file.
 
+     ..SSTTAALLEE   This target gets run when a dependency file contains stale
+              entries, having _._A_L_L_S_R_C set to the name of that dependency file.
+
      ..SSUUFFFFIIXXEESS
               Each source specifies a suffix to bbmmaakkee.  If no sources are
               specified, any previously specified suffixes are deleted.  It
@@ -1340,4 +1360,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                     January 23, 2013                     NetBSD 5.1
+NetBSD 5.1                      March 30, 2013                      NetBSD 5.1

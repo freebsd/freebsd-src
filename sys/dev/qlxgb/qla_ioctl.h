@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,28 @@ struct qla_rd_flash {
 };
 typedef struct qla_rd_flash qla_rd_flash_t;
 
+struct qla_wr_flash {
+	uint32_t off;
+	uint32_t size;
+	void *buffer;
+	uint32_t pattern;
+};
+typedef struct qla_wr_flash qla_wr_flash_t;
+
+struct qla_erase_flash {
+	uint32_t off;
+	uint32_t size;
+};
+typedef struct qla_erase_flash qla_erase_flash_t;
+
+struct qla_rd_pci_ids {
+	uint16_t ven_id;
+	uint16_t dev_id;
+	uint16_t subsys_ven_id;
+	uint16_t subsys_dev_id;
+	uint8_t rev_id;
+};
+typedef struct qla_rd_pci_ids qla_rd_pci_ids_t;
 
 /*
  * Read/Write Register
@@ -60,5 +82,20 @@ typedef struct qla_rd_flash qla_rd_flash_t;
  * Read Flash
  */
 #define QLA_RD_FLASH                    _IOWR('q', 2, qla_rd_flash_t)
+
+/*
+ * Write Flash
+ */
+#define QLA_WR_FLASH			_IOWR('q', 3, qla_wr_flash_t)
+
+/*
+ * Erase Flash
+ */
+#define QLA_ERASE_FLASH			_IOWR('q', 5, qla_erase_flash_t)
+
+/*
+ * Read PCI IDs 
+ */
+#define QLA_RD_PCI_IDS			_IOWR('q', 6, qla_rd_pci_ids_t)			
 
 #endif /* #ifndef _QLA_IOCTL_H_ */

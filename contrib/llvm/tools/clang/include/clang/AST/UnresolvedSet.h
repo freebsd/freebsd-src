@@ -15,9 +15,11 @@
 #ifndef LLVM_CLANG_AST_UNRESOLVEDSET_H
 #define LLVM_CLANG_AST_UNRESOLVEDSET_H
 
-#include <iterator>
-#include "llvm/ADT/SmallVector.h"
 #include "clang/AST/DeclAccessPair.h"
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
+#include <iterator>
 
 namespace clang {
 
@@ -25,12 +27,13 @@ namespace clang {
 /// non-const iterator.
 class UnresolvedSetIterator {
 private:
-  typedef SmallVectorImpl<DeclAccessPair> DeclsTy;
+  typedef llvm::MutableArrayRef<DeclAccessPair> DeclsTy;
   typedef DeclsTy::iterator IteratorTy;
 
   IteratorTy ir;
 
   friend class UnresolvedSetImpl;
+  friend class ASTUnresolvedSet;
   friend class OverloadExpr;
   explicit UnresolvedSetIterator(DeclsTy::iterator ir) : ir(ir) {}
   explicit UnresolvedSetIterator(DeclsTy::const_iterator ir) :
@@ -87,7 +90,7 @@ public:
 
 /// UnresolvedSet - A set of unresolved declarations.
 class UnresolvedSetImpl {
-  typedef UnresolvedSetIterator::DeclsTy DeclsTy;
+  typedef SmallVectorImpl<DeclAccessPair> DeclsTy;
 
   // Don't allow direct construction, and only permit subclassing by
   // UnresolvedSet.

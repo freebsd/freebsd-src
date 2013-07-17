@@ -140,10 +140,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 			struct page *page = sg_page(&chunk->page_list[i]);
 			if (umem->writable && dirty) {
 				if (object && object != page->object)
-					VM_OBJECT_UNLOCK(object);
+					VM_OBJECT_WUNLOCK(object);
 				if (object != page->object) {
 					object = page->object;
-					VM_OBJECT_LOCK(object);
+					VM_OBJECT_WLOCK(object);
 				}
 				vm_page_dirty(page);
 			}
@@ -151,7 +151,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 		kfree(chunk);
 	}
 	if (object)
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 
 #endif
 }

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -116,6 +117,9 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_VMX, "vmx", "vmx");
 
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW, NULL, NULL);
+
 int vmxon_enabled[MAXCPU];
 static char vmxon_region[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
 
@@ -123,11 +127,24 @@ static uint32_t pinbased_ctls, procbased_ctls, procbased_ctls2;
 static uint32_t exit_ctls, entry_ctls;
 
 static uint64_t cr0_ones_mask, cr0_zeros_mask;
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr0_ones_mask, CTLFLAG_RD,
+	     &cr0_ones_mask, 0, NULL);
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr0_zeros_mask, CTLFLAG_RD,
+	     &cr0_zeros_mask, 0, NULL);
+
 static uint64_t cr4_ones_mask, cr4_zeros_mask;
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_ones_mask, CTLFLAG_RD,
+	     &cr4_ones_mask, 0, NULL);
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_zeros_mask, CTLFLAG_RD,
+	     &cr4_zeros_mask, 0, NULL);
 
 static volatile u_int nextvpid;
 
 static int vmx_no_patmsr;
+
+static int vmx_initialized;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, initialized, CTLFLAG_RD,
+	   &vmx_initialized, 0, "Intel VMX initialized");
 
 /*
  * Virtual NMI blocking conditions.
@@ -153,10 +170,7 @@ static int cap_unrestricted_guest;
 static int cap_monitor_trap;
  
 /* statistics */
-static VMM_STAT_DEFINE(VCPU_MIGRATIONS, "vcpu migration across host cpus");
-static VMM_STAT_DEFINE(VMEXIT_EXTINT, "vm exits due to external interrupt");
-static VMM_STAT_DEFINE(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
-static VMM_STAT_DEFINE(VMEXIT_HLT, "number of times hlt was intercepted");
+static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
 
 #ifdef KTR
 static const char *
@@ -444,7 +458,8 @@ vmx_init(void)
 	 * are set (bits 0 and 2 respectively).
 	 */
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
-	if ((feature_control & 0x5) != 0x5) {
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
 		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
 	}
@@ -595,6 +610,8 @@ vmx_init(void)
 	/* enable VMX operation */
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
 
+	vmx_initialized = 1;
+
 	return (0);
 }
 
@@ -650,11 +667,11 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 		shadow_value = cr4_ones_mask;
 	}
 
-	error = vmcs_setreg(vmcs, VMCS_IDENT(mask_ident), mask_value);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(mask_ident), mask_value);
 	if (error)
 		return (error);
 
-	error = vmcs_setreg(vmcs, VMCS_IDENT(shadow_ident), shadow_value);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(shadow_ident), shadow_value);
 	if (error)
 		return (error);
 
@@ -1216,11 +1233,15 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	qual = vmexit->u.vmx.exit_qualification;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
 
+	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
+
 	switch (vmexit->u.vmx.exit_reason) {
 	case EXIT_REASON_CR_ACCESS:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
 		handled = vmx_emulate_cr_access(vmx, vcpu, qual);
 		break;
 	case EXIT_REASON_RDMSR:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
 		ecx = vmxctx->guest_rcx;
 		error = emulate_rdmsr(vmx->vm, vcpu, ecx);
 		if (error) {
@@ -1230,6 +1251,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			handled = 1;
 		break;
 	case EXIT_REASON_WRMSR:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_WRMSR, 1);
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
@@ -1259,15 +1281,18 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_HLT;
 		break;
 	case EXIT_REASON_MTF:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
 		vmexit->exitcode = VM_EXITCODE_MTRAP;
 		break;
 	case EXIT_REASON_PAUSE:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_PAUSE, 1);
 		vmexit->exitcode = VM_EXITCODE_PAUSE;
 		break;
 	case EXIT_REASON_INTR_WINDOW:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INTR_WINDOW, 1);
 		vmx_clear_int_window_exiting(vmx, vcpu);
 		VMM_CTR0(vmx->vm, vcpu, "Disabling interrupt window exiting");
-		/* FALLTHRU */
+		return (1);
 	case EXIT_REASON_EXT_INTR:
 		/*
 		 * External interrupts serve only to cause VM exits and allow
@@ -1287,10 +1312,12 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		return (1);
 	case EXIT_REASON_NMI_WINDOW:
 		/* Exit to allow the pending virtual NMI to be injected */
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NMI_WINDOW, 1);
 		vmx_clear_nmi_window_exiting(vmx, vcpu);
 		VMM_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
 		return (1);
 	case EXIT_REASON_INOUT:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INOUT, 1);
 		vmexit->exitcode = VM_EXITCODE_INOUT;
 		vmexit->u.inout.bytes = (qual & 0x7) + 1;
 		vmexit->u.inout.in = (qual & 0x8) ? 1 : 0;
@@ -1300,9 +1327,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
 		break;
 	case EXIT_REASON_CPUID:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);
 		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
 		break;
 	case EXIT_REASON_EPT_FAULT:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
 		gla = vmcs_gla();
 		gpa = vmcs_gpa();
 		cr3 = vmcs_guest_cr3();
@@ -1315,6 +1344,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		}
 		break;
 	default:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_UNKNOWN, 1);
 		break;
 	}
 
@@ -1456,6 +1486,7 @@ vmx_run(void *arg, int vcpu, register_t rip)
 			vmexit->inst_length = 0;
 			vmexit->exitcode = VM_EXITCODE_BOGUS;
 			vmx_astpending_trace(vmx, vcpu, rip);
+			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_ASTPENDING, 1);
 			break;
 		}
 
@@ -1473,6 +1504,9 @@ vmx_run(void *arg, int vcpu, register_t rip)
 		panic("Mismatch between handled (%d) and exitcode (%d)",
 		      handled, vmexit->exitcode);
 	}
+
+	if (!handled)
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_USERSPACE, 1);
 
 	VMM_CTR1(vmx->vm, vcpu, "goto userland: exitcode %d",vmexit->exitcode);
 
@@ -1583,49 +1617,34 @@ vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val)
 static int
 vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 {
+	int running, hostcpu;
 	struct vmx *vmx = arg;
+
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
 
 	if (vmxctx_getreg(&vmx->ctx[vcpu], reg, retval) == 0)
 		return (0);
 
-	/*
-	 * If the vcpu is running then don't mess with the VMCS.
-	 *
-	 * vmcs_getreg will VMCLEAR the vmcs when it is done which will cause
-	 * the subsequent vmlaunch/vmresume to fail.
-	 */
-	if (vcpu_is_running(vmx->vm, vcpu))
-		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
-
-	return (vmcs_getreg(&vmx->vmcs[vcpu], reg, retval));
+	return (vmcs_getreg(&vmx->vmcs[vcpu], running, reg, retval));
 }
 
 static int
 vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 {
-	int error;
+	int error, hostcpu, running;
 	uint64_t ctls;
 	struct vmx *vmx = arg;
 
-	/*
-	 * XXX Allow caller to set contents of the guest registers saved in
-	 * the 'vmxctx' even though the vcpu might be running. We need this
-	 * specifically to support the rdmsr emulation that will set the
-	 * %eax and %edx registers during vm exit processing.
-	 */
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
+
 	if (vmxctx_setreg(&vmx->ctx[vcpu], reg, val) == 0)
 		return (0);
 
-	/*
-	 * If the vcpu is running then don't mess with the VMCS.
-	 *
-	 * vmcs_setreg will VMCLEAR the vmcs when it is done which will cause
-	 * the subsequent vmlaunch/vmresume to fail.
-	 */
-	if (vcpu_is_running(vmx->vm, vcpu))
-		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
-
-	error = vmcs_setreg(&vmx->vmcs[vcpu], reg, val);
+	error = vmcs_setreg(&vmx->vmcs[vcpu], running, reg, val);
 
 	if (error == 0) {
 		/*
@@ -1635,13 +1654,13 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 		 */
 		if ((entry_ctls & VM_ENTRY_LOAD_EFER) != 0 &&
 		    (reg == VM_REG_GUEST_EFER)) {
-			vmcs_getreg(&vmx->vmcs[vcpu],
+			vmcs_getreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(VMCS_ENTRY_CTLS), &ctls);
 			if (val & EFER_LMA)
 				ctls |= VM_ENTRY_GUEST_LMA;
 			else
 				ctls &= ~VM_ENTRY_GUEST_LMA;
-			vmcs_setreg(&vmx->vmcs[vcpu],
+			vmcs_setreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(VMCS_ENTRY_CTLS), ctls);
 		}
 	}
@@ -1688,7 +1707,7 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	 * If there is already an exception pending to be delivered to the
 	 * vcpu then just return.
 	 */
-	error = vmcs_getreg(vmcs, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
+	error = vmcs_getreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
 	if (error)
 		return (error);
 
@@ -1697,12 +1716,12 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 
 	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
 	info |= VMCS_INTERRUPTION_INFO_VALID;
-	error = vmcs_setreg(vmcs, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
 	if (error != 0)
 		return (error);
 
 	if (code_valid) {
-		error = vmcs_setreg(vmcs,
+		error = vmcs_setreg(vmcs, 0,
 				    VMCS_IDENT(VMCS_ENTRY_EXCEPTION_ERROR),
 				    code);
 	}

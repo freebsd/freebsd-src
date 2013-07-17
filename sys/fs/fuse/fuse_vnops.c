@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
@@ -1758,7 +1758,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	 * can only occur at the file EOF.
 	 */
 
-	VM_OBJECT_LOCK(vp->v_object);
+	VM_OBJECT_WLOCK(vp->v_object);
 	fuse_vm_page_lock_queues();
 	if (pages[ap->a_reqpage]->valid != 0) {
 		for (i = 0; i < npages; ++i) {
@@ -1769,11 +1769,11 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 			}
 		}
 		fuse_vm_page_unlock_queues();
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 		return 0;
 	}
 	fuse_vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(vp->v_object);
+	VM_OBJECT_WUNLOCK(vp->v_object);
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
@@ -1803,7 +1803,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		FS_DEBUG("error %d\n", error);
-		VM_OBJECT_LOCK(vp->v_object);
+		VM_OBJECT_WLOCK(vp->v_object);
 		fuse_vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage) {
@@ -1813,7 +1813,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 			}
 		}
 		fuse_vm_page_unlock_queues();
-		VM_OBJECT_UNLOCK(vp->v_object);
+		VM_OBJECT_WUNLOCK(vp->v_object);
 		return VM_PAGER_ERROR;
 	}
 	/*
@@ -1823,7 +1823,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 	 */
 
 	size = count - uio.uio_resid;
-	VM_OBJECT_LOCK(vp->v_object);
+	VM_OBJECT_WLOCK(vp->v_object);
 	fuse_vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
@@ -1886,7 +1886,7 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 		}
 	}
 	fuse_vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(vp->v_object);
+	VM_OBJECT_WUNLOCK(vp->v_object);
 	return 0;
 }
 
@@ -1975,9 +1975,9 @@ fuse_vnop_putpages(struct vop_putpages_args *ap)
 
 		for (i = 0; i < nwritten; i++) {
 			rtvals[i] = VM_PAGER_OK;
-			VM_OBJECT_LOCK(pages[i]->object);
+			VM_OBJECT_WLOCK(pages[i]->object);
 			vm_page_undirty(pages[i]);
-			VM_OBJECT_UNLOCK(pages[i]->object);
+			VM_OBJECT_WUNLOCK(pages[i]->object);
 		}
 	}
 	return rtvals[0];

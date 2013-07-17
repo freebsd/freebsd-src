@@ -10,6 +10,7 @@
 #ifndef LLVM_DEBUGINFO_DWARFDEBUGLINE_H
 #define LLVM_DEBUGINFO_DWARFDEBUGLINE_H
 
+#include "DWARFRelocMap.h"
 #include "llvm/Support/DataExtractor.h"
 #include <map>
 #include <string>
@@ -21,6 +22,7 @@ class raw_ostream;
 
 class DWARFDebugLine {
 public:
+  DWARFDebugLine(const RelocAddrMap* LineInfoRelocMap) : RelocMap(LineInfoRelocMap) {}
   struct FileNameEntry {
     FileNameEntry() : Name(0), DirIdx(0), ModTime(0), Length(0) {}
 
@@ -176,6 +178,10 @@ public:
     // or -1 if there is no such row.
     uint32_t lookupAddress(uint64_t address) const;
 
+    bool lookupAddressRange(uint64_t address,
+                            uint64_t size, 
+                            std::vector<uint32_t>& result) const;
+
     // Extracts filename by its index in filename table in prologue.
     // Returns true on success.
     bool getFileNameByIndex(uint64_t FileIndex,
@@ -227,6 +233,7 @@ public:
                             Prologue *prologue);
   /// Parse a single line table (prologue and all rows).
   static bool parseStatementTable(DataExtractor debug_line_data,
+                                  const RelocAddrMap *RMap,
                                   uint32_t *offset_ptr, State &state);
 
   const LineTable *getLineTable(uint32_t offset) const;
@@ -238,6 +245,7 @@ private:
   typedef LineTableMapTy::iterator LineTableIter;
   typedef LineTableMapTy::const_iterator LineTableConstIter;
 
+  const RelocAddrMap *RelocMap;
   LineTableMapTy LineTableMap;
 };
 

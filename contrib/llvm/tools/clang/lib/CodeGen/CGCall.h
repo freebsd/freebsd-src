@@ -15,23 +15,20 @@
 #ifndef CLANG_CODEGEN_CGCALL_H
 #define CLANG_CODEGEN_CGCALL_H
 
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/Value.h"
-#include "clang/AST/Type.h"
-#include "clang/AST/CanonicalType.h"
-
 #include "CGValue.h"
+#include "clang/AST/CanonicalType.h"
+#include "clang/AST/Type.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/IR/Value.h"
 
 // FIXME: Restructure so we don't have to expose so much stuff.
 #include "ABIInfo.h"
 
 namespace llvm {
-  struct AttributeWithIndex;
+  class AttributeSet;
   class Function;
   class Type;
   class Value;
-
-  template<typename T, unsigned> class SmallVector;
 }
 
 namespace clang {
@@ -42,7 +39,7 @@ namespace clang {
   class VarDecl;
 
 namespace CodeGen {
-  typedef SmallVector<llvm::AttributeWithIndex, 8> AttributeListType;
+  typedef SmallVector<llvm::AttributeSet, 8> AttributeListType;
 
   struct CallArg {
     RValue RV;
@@ -59,14 +56,15 @@ namespace CodeGen {
     public SmallVector<CallArg, 16> {
   public:
     struct Writeback {
-      /// The original argument.
-      llvm::Value *Address;
-
-      /// The pointee type of the original argument.
-      QualType AddressType;
+      /// The original argument.  Note that the argument l-value
+      /// is potentially null.
+      LValue Source;
 
       /// The temporary alloca.
       llvm::Value *Temporary;
+
+      /// A value to "use" after the writeback, or null.
+      llvm::Value *ToUse;
     };
 
     void add(RValue rvalue, QualType type, bool needscopy = false) {
@@ -79,12 +77,12 @@ namespace CodeGen {
                         other.Writebacks.begin(), other.Writebacks.end());
     }
 
-    void addWriteback(llvm::Value *address, QualType addressType,
-                      llvm::Value *temporary) {
+    void addWriteback(LValue srcLV, llvm::Value *temporary,
+                      llvm::Value *toUse) {
       Writeback writeback;
-      writeback.Address = address;
-      writeback.AddressType = addressType;
+      writeback.Source = srcLV;
       writeback.Temporary = temporary;
+      writeback.ToUse = toUse;
       Writebacks.push_back(writeback);
     }
 
@@ -135,7 +133,7 @@ namespace CodeGen {
     }
 
     bool allowsOptionalArgs() const { return NumRequired != ~0U; }
-    bool getNumRequiredArgs() const {
+    unsigned getNumRequiredArgs() const {
       assert(allowsOptionalArgs());
       return NumRequired;
     }

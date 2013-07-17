@@ -30,7 +30,7 @@ coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\npgj"]
 doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
 doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\ngjb, blackend,\ngabor, hrs"]
 portscommitters [label="Ports Committers\nports-committers@FreeBSD.org"]
-portmgr [label="Port Management Team\nportmgr@FreeBSD.org\ntabthorpe, marcus, bapt, beat,\nerwin, linimon, pav,\nitetcu, miwi"]
+portmgr [label="Port Management Team\nportmgr@FreeBSD.org\ntabthorpe, marcus, bapt,\nerwin, bdrewery,\nitetcu, miwi"]
 portmgrsecretary [label="Port Management Team Secretary\nportmgr-secretary@FreeBSD.org\ntabthorpe"]
 re [label="Primary Release Engineering Team\nre@FreeBSD.org\nkib, blackend, jpaetzel, hrs, kensmith"]
 secteam [label="Security Team\nsecteam@FreeBSD.org\nsimon, qingli, delphij,\nremko, philip, stas, cperciva,\ncsjp, rwatson, miwi, bz"]
@@ -43,13 +43,12 @@ srccommitters [label="Src Committers\nsrc-committers@FreeBSD.org"]
 
 accounts [label="Accounts Team\naccounts@FreeBSD.org\nmarkm, simon, kensmith,\ndhw"]
 backups [label="Backup Administrators\nbackups@FreeBSD.org\nsimon, kensmith,\ndhw"]
-bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\neadler, gavin, gonzo, linimon"]
+bugmeister [label="Bugmeister Team\nbugmeister@FreeBSD.org\neadler, gavin, gonzo"]
 clusteradm [label="Cluster Administrators\nclusteradm@FreeBSD.org\nbrd, simon, ps,\nkensmith, peter"]
 cvsupmaster [label="CVSup Mirror Site Coordinators\ncvsup-master@FreeBSD.org\nkuriyama, jdp,\nkensmith"]
 dnsadm [label="DNS Administrators\ndnsadm@FreeBSD.org\nbillf, dg, ps,\nkensmith, peter"]
 mirroradmin [label="FTP/WWW Mirror Site Coordinators\nmirror-admin@FreeBSD.org\nkuriyama, kensmith"]
 ncvs [label="CVS src Repository Managers\nncvs@FreeBSD.org\njoe, kuriyama, markm,\nsimon, peter"]
-pcvs [label="CVS ports Repository Managers\npcvs@FreeBSD.org\nmarcus, joe, kuriyama,\nmarkm, simon"]
 perforceadmin [label="Perforce Repository Administrators\nperforce-admin@FreeBSD.org\nscottl, kensmith, gordon,\nrwatson, peter, dhw"]
 postmaster [label="Postmaster Team\npostmaster@FreeBSD.org\njmb, brd, sahil, dhw"]
 refadm [label="Reference Systems Administrators\nrefadm@FreeBSD.org\njake, billf, markm, simon,\nobrien, ps, kensmith,\npeter, dhw"]
@@ -70,8 +69,6 @@ _admin -> backups
 _admin -> bugmeister
 _admin -> clusteradm
 _admin -> ncvs
-_admin -> pcvs
-_admin -> dcvs
 _admin -> cvsupmaster
 _admin -> dnsadm
 _admin -> mirroradmin

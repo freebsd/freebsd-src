@@ -275,24 +275,24 @@ do {									\
 	if (((m)->m_flags & M_LOOP) &&					\
 	    ((m)->m_len < (off) + (hlen)) &&				\
 	    (((m) = m_pullup((m), (off) + (hlen))) == NULL)) {		\
-		V_ip6stat.ip6s_exthdrtoolong++;				\
+		IP6STAT_INC(ip6s_exthdrtoolong);				\
 		return ret;						\
 	} else if ((m)->m_flags & M_EXT) {				\
 		if ((m)->m_len < (off) + (hlen)) {			\
-			V_ip6stat.ip6s_exthdrtoolong++;			\
+			IP6STAT_INC(ip6s_exthdrtoolong);			\
 			m_freem(m);					\
 			return ret;					\
 		}							\
 	} else {							\
 		if ((m)->m_len < (off) + (hlen)) {			\
-			V_ip6stat.ip6s_exthdrtoolong++;			\
+			IP6STAT_INC(ip6s_exthdrtoolong);			\
 			m_freem(m);					\
 			return ret;					\
 		}							\
 	}								\
     } else {								\
 	if ((m)->m_len < (off) + (hlen)) {				\
-		V_ip6stat.ip6s_tooshort++;				\
+		IP6STAT_INC(ip6s_tooshort);				\
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);	\
 		m_freem(m);						\
 		return ret;						\

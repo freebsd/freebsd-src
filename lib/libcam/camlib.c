@@ -633,7 +633,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 			 "%s: %s", func_name, func_name, strerror(errno));
 		goto crod_bailout;
 	}
-	if (ccb.cts.protocol == XPORT_SPI) {
+	if (ccb.cts.transport == XPORT_SPI) {
 		struct ccb_trans_settings_spi *spi =
 		    &ccb.cts.xport_specific.spi;
 		device->sync_period = spi->sync_period;

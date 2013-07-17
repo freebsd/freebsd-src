@@ -249,8 +249,8 @@ tdesc_name(tdesc_t *tdp)
 	return (tdp->t_name == NULL ? "(anon)" : tdp->t_name);
 }
 
-char	*watch_address = NULL;
-int	watch_length = 0;
+static char	*watch_address = NULL;
+static int	watch_length = 0;
 
 void
 watch_set(void *addr, int len)

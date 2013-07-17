@@ -522,6 +522,8 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 		sc->sc_pp->stripesize = pp->stripesize;
 		sc->sc_pp->stripeoffset = pp->stripeoffset;
 	}
+	if (sc->sc_pp != NULL)
+		sc->sc_pp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	mtx_lock(&sc->sc_mtx);
 	cp->index = 0;
 	sc->sc_ndisks++;

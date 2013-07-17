@@ -80,7 +80,7 @@ struct aarptab {
 #define	AARPOP_PROBE	0x03
 
 #ifdef _KERNEL
-struct aarptab		*aarptnew(struct at_addr      *);
+struct aarptab		*aarptnew(const struct at_addr *);
 #endif
 
 #endif /* _NETATALK_AARP_H_ */

@@ -1691,7 +1691,7 @@ relock_DIOCKILLSTATES:
 			PF_RULES_RLOCK();
 			error = pfsync_state_import_ptr(sp, PFSYNC_SI_IOCTL);
 			PF_RULES_RUNLOCK();
-		}
+		} else
 			error = EOPNOTSUPP;
 		break;
 	}

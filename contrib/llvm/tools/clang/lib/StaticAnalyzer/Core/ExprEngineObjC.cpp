@@ -103,8 +103,8 @@ void ExprEngine::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S,
     // Handle the case where the container has no elements.
     SVal FalseV = svalBuilder.makeTruthVal(0);
     ProgramStateRef noElems = state->BindExpr(S, LCtx, FalseV);
-    
-    if (loc::MemRegionVal *MV = dyn_cast<loc::MemRegionVal>(&elementV))
+
+    if (Optional<loc::MemRegionVal> MV = elementV.getAs<loc::MemRegionVal>())
       if (const TypedValueRegion *R = 
           dyn_cast<TypedValueRegion>(MV->getRegion())) {
         // FIXME: The proper thing to do is to really iterate over the
@@ -161,8 +161,9 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
       SVal recVal = UpdatedMsg->getReceiverSVal();
       if (!recVal.isUndef()) {
         // Bifurcate the state into nil and non-nil ones.
-        DefinedOrUnknownSVal receiverVal = cast<DefinedOrUnknownSVal>(recVal);
-        
+        DefinedOrUnknownSVal receiverVal =
+            recVal.castAs<DefinedOrUnknownSVal>();
+
         ProgramStateRef notNilState, nilState;
         llvm::tie(notNilState, nilState) = State->assume(receiverVal);
         
@@ -179,13 +180,13 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
         if (ObjCNoRet.isImplicitNoReturn(ME)) {
           // If we raise an exception, for now treat it as a sink.
           // Eventually we will want to handle exceptions properly.
-          Bldr.generateSink(currStmt, Pred, State);
+          Bldr.generateSink(ME, Pred, State);
           continue;
         }
         
         // Generate a transition to non-Nil state.
         if (notNilState != State) {
-          Pred = Bldr.generateNode(currStmt, Pred, notNilState);
+          Pred = Bldr.generateNode(ME, Pred, notNilState);
           assert(Pred && "Should have cached out already!");
         }
       }
@@ -195,7 +196,7 @@ void ExprEngine::VisitObjCMessage(const ObjCMessageExpr *ME,
       if (ObjCNoRet.isImplicitNoReturn(ME)) {
         // If we raise an exception, for now treat it as a sink.
         // Eventually we will want to handle exceptions properly.
-        Bldr.generateSink(currStmt, Pred, Pred->getState());
+        Bldr.generateSink(ME, Pred, Pred->getState());
         continue;
       }
     }

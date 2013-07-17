@@ -164,7 +164,7 @@ and
 .Fn fpsetprec
 functions provide functionality unavailable on many platforms.
 At present, they are implemented only on the i386 and amd64 platforms.
-Changing precision isn't a supported feature:
+Changing precision is not a supported feature:
 it may be ineffective when code is compiled to take advantage of SSE,
 and many library functions and compiler optimizations depend upon the
 default precision for correct behavior.

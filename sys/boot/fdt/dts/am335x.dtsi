@@ -1,0 +1,223 @@
+/*-
+ * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&AINTC>;
+
+	SOC: am335x {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		AINTC: interrupt-controller@48200000 {
+			compatible = "ti,aintc";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg =	< 0x48200000 0x1000 >;
+		};
+
+		scm@44e10000 {
+			compatible = "ti,scm";
+			reg =	< 0x44e10000 0x2000 >;
+		};
+
+		prcm@44E00000 {
+			compatible = "am335x,prcm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x44E00000 0x1300 >;
+		};
+
+		dmtimers@44E05000 {
+			compatible = "ti,am335x-dmtimer";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg =	< 0x44E05000 0x1000
+				  0x44E31000 0x1000
+				  0x48040000 0x1000
+				  0x48042000 0x1000
+				  0x48044000 0x1000
+				  0x48046000 0x1000
+				  0x48048000 0x1000
+				  0x4804A000 0x1000 >;
+			interrupts = < 66 67 68 69 92 93 94 95 >;
+			interrupt-parent = <&AINTC>;
+		};
+
+		GPIO: gpio {
+			#gpio-cells = <3>;
+			compatible = "ti,gpio";
+			gpio-controller;
+			reg =<	0x44E07000 0x1000
+				0x4804C000 0x1000
+				0x481AC000 0x1000
+				0x481AE000 0x1000 >;
+			interrupts = < 96 97 98 99 32 33 62 63 >;
+			interrupt-parent = <&AINTC>;
+		};
+
+		uart0: serial@44E09000 {
+			compatible = "ns16550";
+			reg = <0x44E09000 0x1000>;
+			reg-shift = <2>;
+			interrupts = < 72 >;
+			interrupt-parent = <&AINTC>;
+			clock-frequency = < 48000000 >; /* FIXME */
+		};
+
+		edma3@49000000 {
+			compatible = "ti,edma3";
+			reg =<	0x49000000 0x100000	/* Channel Controller Regs */
+				0x49800000 0x100000	/* Transfer Controller 0 Regs */
+				0x49900000 0x100000	/* Transfer Controller 1 Regs */
+				0x49a00000 0x100000 >;	/* Transfer Controller 2 Regs */
+			interrupts = <12 13 14>;
+			interrupt-parent = <&AINTC>;
+		};
+
+		mmchs0@48060000 {
+			compatible = "ti,mmchs";
+			reg =<0x48060000 0x1000 >;
+			interrupts = <64>;
+			interrupt-parent = <&AINTC>;
+			mmchs-device-id = <0>;
+		};
+
+		mmchs1@481D8000 {
+			compatible = "ti,mmchs";
+			reg =<0x481D8000 0x1000 >;
+			interrupts = <28>;
+			interrupt-parent = <&AINTC>;
+			mmchs-device-id = <1>;
+			status = "disabled";
+		};
+
+		enet0: ethernet@4A100000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "ti,cpsw";
+			reg = <0x4A100000 0x4000>;
+			interrupts = <40 41 42 43>;
+			interrupt-parent = <&AINTC>;
+			phy-handle = <&phy0>;
+			mdio@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "ti,cpsw-mdio";
+				phy0: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+			};
+		};
+
+		i2c0: i2c@44e0b000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,i2c";
+			reg =<	0x44e0b000 0x1000 >;
+			interrupts = <70>;
+			interrupt-parent = <&AINTC>;
+			i2c-device-id = <0>;
+		};
+
+		pwm@48300000 {
+			compatible = "ti,am335x-pwm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x48300000 0x100	/* PWMSS0 */
+				0x48300100 0x80		/* eCAP0 */
+				0x48300180 0x80		/* eQEP0 */
+				0x48300200 0x60		/* ePWM0 */
+			>;
+			interrupts = <86 58>; /* ePWM0INT, ePWM0_TZINT */
+			interrupt-parent = <&AINTC>;
+			pwm-device-id = <0>;
+		};
+
+		pwm@48302000 {
+			compatible = "ti,am335x-pwm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x48302000 0x100	/* PWMSS1 */
+				0x48302100 0x80		/* eCAP1 */
+				0x48302180 0x80		/* eQEP1 */
+				0x48302200 0x60		/* ePWM1 */
+			>;
+			interrupts = <87 59>; /* ePWM1INT, ePWM1_TZINT */
+			interrupt-parent = <&AINTC>;
+			pwm-device-id = <1>;
+		};
+
+		pwm@48304000 {
+			compatible = "ti,am335x-pwm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x48304000 0x100	/* PWMSS2 */
+				0x48304100 0x80		/* eCAP2 */
+				0x48304180 0x80		/* eQEP2 */
+				0x48304200 0x60		/* ePWM2 */
+			>;
+			interrupts = <88 60>; /* ePWM2INT, ePWM2_TZINT */
+			interrupt-parent = <&AINTC>;
+			pwm-device-id = <2>;
+		};
+
+		lcd: lcd@4830e000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,am335x-lcd";
+			reg =<	0x4830e000 0x1000 >;
+			interrupts = <36>;
+			interrupt-parent = <&AINTC>;
+		};
+
+ 		usb@47400000 {
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			compatible = "ti,musb-am33xx";
+ 			reg =<	0x47400000 0x1000	/* USBSS */
+ 				0x47401000 0x300	/* USB0 */
+ 				0x47401300 0x100 	/* USB0_PHY */
+ 				0x47401400 0x400 	/* USB0_CORE */
+ 				0x47401800 0x300 	/* USB1 */
+ 				0x47401B00 0x100 	/* USB1_PHY */
+ 				0x47401C00 0x400 	/* USB1_CORE */
+ 			>;
+ 			interrupts = <17 18 19>;
+ 			interrupt-parent = <&AINTC>;
+ 			/* 1 - Host Mode, 0 - Device Mode */
+ 			modemask = <2>;
+ 		};
+	};
+};

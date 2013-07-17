@@ -20,6 +20,7 @@ SUBDIR+=	btxld
 SUBDIR+=	cpucontrol
 SUBDIR+=	kgmon
 SUBDIR+=	lptcontrol
+SUBDIR+=	mount_smbfs
 SUBDIR+=	mptable
 .if ${MK_NDIS} != "no"
 SUBDIR+=	ndiscvt

@@ -22,11 +22,12 @@
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 #ifndef	_SYS_RR_RW_LOCK_H
 #define	_SYS_RR_RW_LOCK_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -56,6 +57,7 @@ typedef struct rrwlock {
 	refcount_t	rr_anon_rcount;
 	refcount_t	rr_linked_rcount;
 	boolean_t	rr_writer_wanted;
+	boolean_t	rr_track_all;
 } rrwlock_t;
 
 /*
@@ -63,14 +65,19 @@ typedef struct rrwlock {
  * 'tag' must be the same in a rrw_enter() as in its
  * corresponding rrw_exit().
  */
-void rrw_init(rrwlock_t *rrl);
+void rrw_init(rrwlock_t *rrl, boolean_t track_all);
 void rrw_destroy(rrwlock_t *rrl);
 void rrw_enter(rrwlock_t *rrl, krw_t rw, void *tag);
+void rrw_enter_read(rrwlock_t *rrl, void *tag);
+void rrw_enter_write(rrwlock_t *rrl);
 void rrw_exit(rrwlock_t *rrl, void *tag);
 boolean_t rrw_held(rrwlock_t *rrl, krw_t rw);
+void rrw_tsd_destroy(void *arg);
 
 #define	RRW_READ_HELD(x)	rrw_held(x, RW_READER)
 #define	RRW_WRITE_HELD(x)	rrw_held(x, RW_WRITER)
+#define	RRW_LOCK_HELD(x) \
+	(rrw_held(x, RW_WRITER) || rrw_held(x, RW_READER))
 
 #ifdef	__cplusplus
 }

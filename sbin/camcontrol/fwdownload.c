@@ -370,16 +370,14 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 		}
 		if (!sim_mode) {
 			/* Execute the command. */
-			if (cam_send_ccb(cam_dev, ccb) < 0) {
+			if (cam_send_ccb(cam_dev, ccb) < 0 ||
+			    (ccb->ccb_h.status & CAM_STATUS_MASK) !=
+			    CAM_REQ_CMP) {
 				warnx("Error writing image to device");
 				if (printerrors)
 					cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
 						   CAM_EPF_ALL, stderr);
 				goto bailout;
-			}
-			if (ccb->ataio.res.status != 0 /*&& !last_pkt*/) {
-				cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
-					   CAM_EPF_ALL, stderr);
 			}
 		}
 		/* Prepare next round. */

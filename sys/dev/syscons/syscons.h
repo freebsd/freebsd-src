@@ -269,6 +269,8 @@ typedef struct sc_softc {
 #ifdef KDB
 	int		sc_altbrk;
 #endif
+	struct callout	ctimeout;
+	struct callout	cblink;
 } sc_softc_t;
 
 /* virtual screen */

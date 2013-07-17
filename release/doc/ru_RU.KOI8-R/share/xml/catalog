@@ -9,4 +9,4 @@
 PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
        "release.dsl"
 PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//RU"
-       "dev-auto-ru.xml"
+       "dev-auto-ru.ent"

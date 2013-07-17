@@ -617,6 +617,16 @@ static int
 fdtbus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
+	bus_space_handle_t p;
+	int error;
+
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		error = bus_space_map(rman_get_bustag(res),
+		    rman_get_bushandle(res), rman_get_size(res), 0, &p);
+		if (error)
+			return (error);
+		rman_set_bushandle(res, p);
+	}
 
 	return (rman_activate_resource(res));
 }

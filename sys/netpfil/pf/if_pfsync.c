@@ -255,8 +255,8 @@ static int	pfsync_clone_create(struct if_clone *, int, caddr_t);
 static void	pfsync_clone_destroy(struct ifnet *);
 static int	pfsync_alloc_scrub_memory(struct pfsync_state_peer *,
 		    struct pf_state_peer *);
-static int	pfsyncoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct route *);
+static int	pfsyncoutput(struct ifnet *, struct mbuf *,
+		    const struct sockaddr *, struct route *);
 static int	pfsyncioctl(struct ifnet *, u_long, caddr_t);
 
 static int	pfsync_defer(struct pf_state *, struct mbuf *);
@@ -408,9 +408,10 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 
 	PF_RULES_RASSERT();
 
-	if (sp->creatorid == 0 && V_pf_status.debug >= PF_DEBUG_MISC) {
-		printf("%s: invalid creator id: %08x\n", __func__,
-		    ntohl(sp->creatorid));
+	if (sp->creatorid == 0) {
+		if (V_pf_status.debug >= PF_DEBUG_MISC)
+			printf("%s: invalid creator id: %08x\n", __func__,
+			    ntohl(sp->creatorid));
 		return (EINVAL);
 	}
 
@@ -1247,7 +1248,7 @@ pfsync_in_error(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 }
 
 static int
-pfsyncoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+pfsyncoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct route *rt)
 {
 	m_freem(m);
@@ -1505,7 +1506,7 @@ pfsync_sendout(int schedswi)
 		return;
 	}
 
-	m = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR, max_linkhdr + sc->sc_len);
+	m = m_get2(max_linkhdr + sc->sc_len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		sc->sc_ifp->if_oerrors++;
 		V_pfsyncstats.pfsyncs_onomem++;
@@ -1643,7 +1644,7 @@ pfsync_insert_state(struct pf_state *st)
 	}
 
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
-		("%s: st->sync_state == PFSYNC_S_NONE", __func__));
+		("%s: st->sync_state %u", __func__, st->sync_state));
 
 	PFSYNC_LOCK(sc);
 	if (sc->sc_len == PFSYNC_MINPKT)
@@ -1966,7 +1967,7 @@ pfsync_q_ins(struct pf_state *st, int q)
 	PFSYNC_LOCK_ASSERT(sc);
 
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
-		("%s: st->sync_state == PFSYNC_S_NONE", __func__));
+		("%s: st->sync_state %u", __func__, st->sync_state));
 	KASSERT(sc->sc_len >= PFSYNC_MINPKT, ("pfsync pkt len is too low %zu",
 	    sc->sc_len));
 

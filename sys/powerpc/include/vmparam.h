@@ -163,13 +163,6 @@ struct pmap_physseg {
 #define	VM_NFREEORDER		11
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Disable superpage reservations.
  */
 #ifndef	VM_NRESERVLEVEL

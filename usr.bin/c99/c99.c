@@ -70,7 +70,7 @@ main(int argc, char *argv[])
 			usage();
 	}
 
-	addarg("cc");
+	addarg("/usr/bin/cc");
 	addarg("-std=iso9899:1999");
 	addarg("-pedantic");
 	for (i = 1; i < optind; i++)

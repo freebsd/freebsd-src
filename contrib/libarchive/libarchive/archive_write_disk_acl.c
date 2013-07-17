@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_write_disk.c 201159 2009-12-29 0
 #include "archive_acl_private.h"
 #include "archive_write_disk_private.h"
 
-#ifndef HAVE_POSIX_ACL
+#if !defined(HAVE_POSIX_ACL) || !defined(ACL_TYPE_NFS4)
 /* Default empty function body to satisfy mainline code. */
 int
 archive_write_disk_set_acls(struct archive *a, int fd, const char *name,

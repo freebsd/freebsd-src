@@ -192,14 +192,26 @@ static busdma_bufalloc_t standard_allocator;	/* Cache of standard buffers */
 static void
 busdma_init(void *dummy)
 {
+	int uma_flags;
+
+	uma_flags = 0;
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
 	standard_allocator = busdma_bufalloc_create("buffer", 
 	    arm_dcache_align,	/* minimum_alignment */
 	    NULL,		/* uma_alloc func */ 
 	    NULL,		/* uma_free func */
-	    0);			/* uma_zcreate_flags */
+	    uma_flags);		/* uma_zcreate_flags */
 
+#ifdef INVARIANTS
+	/* 
+	 * Force UMA zone to allocate service structures like
+	 * slabs using own allocator. uma_debug code performs
+	 * atomic ops on uma_slab_t fields and safety of this
+	 * operation is not guaranteed for write-back caches
+	 */
+	uma_flags = UMA_ZONE_OFFPAGE;
+#endif
 	/*
 	 * Create a cache of buffers in uncacheable memory, to implement the
 	 * BUS_DMA_COHERENT (and potentially BUS_DMA_NOCACHE) flag.
@@ -208,7 +220,7 @@ busdma_init(void *dummy)
 	    arm_dcache_align,	/* minimum_alignment */
 	    busdma_bufalloc_alloc_uncacheable, 
 	    busdma_bufalloc_free_uncacheable, 
-	    0);			/* uma_zcreate_flags */
+	    uma_flags);	/* uma_zcreate_flags */
 }
 
 /*
@@ -1007,6 +1019,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		} else {
 			sl = &map->slist[map->sync_count - 1];
 			if (map->sync_count == 0 ||
+#ifdef ARM_L2_PIPT
+			    curaddr != sl->busaddr + sl->datacount ||
+#endif
 			    vaddr != sl->vaddr + sl->datacount) {
 				if (++map->sync_count > dmat->nsegments)
 					goto cleanup;
@@ -1147,19 +1162,16 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	vm_offset_t bbuf;
 	char _tmp_cl[arm_dcache_align], _tmp_clend[arm_dcache_align];
 #endif
-		/* if buffer was from user space, it it possible that this
-		 * is not the same vm map. The fix is to map each page in
-		 * the buffer into the current address space (KVM) and then
-		 * do the bounce copy or sync list cache operation.
-		 *
-		 * The sync list entries are already broken into
-		 * their respective physical pages.
-		 */
-	if (!pmap_dmap_iscurrent(map->pmap))
-		printf("_bus_dmamap_sync: wrong user map: %p %x\n", map->pmap, op);
-
+	/*
+	 * If the buffer was from user space, it is possible that this is not
+	 * the same vm map, especially on a POST operation.  It's not clear that
+	 * dma on userland buffers can work at all right now, certainly not if a
+	 * partial cacheline flush has to be handled.  To be safe, until we're
+	 * able to test direct userland dma, panic on a map mismatch.
+	 */
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-
+		if (!pmap_dmap_iscurrent(map->pmap))
+			panic("_bus_dmamap_sync: wrong user map for bounce sync.");
 		/* Handle data bouncing. */
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
 		    "performing bounce", __func__, dmat, dmat->flags, op);
@@ -1185,9 +1197,6 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		}
 
 		if (op & BUS_DMASYNC_POSTREAD) {
-			if (!pmap_dmap_iscurrent(map->pmap))
-			    panic("_bus_dmamap_sync: wrong user map. apply fix");
-
 			cpu_dcache_inv_range((vm_offset_t)bpage->vaddr,
 					bpage->datacount);
 			l2cache_inv_range((vm_offset_t)bpage->vaddr,
@@ -1227,6 +1236,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		return;
 
 	if (map->sync_count != 0) {
+		if (!pmap_dmap_iscurrent(map->pmap))
+			panic("_bus_dmamap_sync: wrong user map for sync.");
 		/* ARM caches are not self-snooping for dma */
 
 		sl = &map->slist[0];
@@ -1300,8 +1311,6 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 #ifdef FIX_DMAP_BUS_DMASYNC_POSTREAD
 		case BUS_DMASYNC_POSTREAD:
-			if (!pmap_dmap_iscurrent(map->pmap))
-			     panic("_bus_dmamap_sync: wrong user map. apply fix");
 			while (sl != end) {
 					/* write back the unaligned portions */
 				vm_paddr_t physaddr;

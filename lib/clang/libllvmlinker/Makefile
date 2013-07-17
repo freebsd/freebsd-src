@@ -5,9 +5,6 @@
 LIB=	llvmlinker
 
 SRCDIR=	lib/Linker
-SRCS=	LinkArchives.cpp \
-	LinkItems.cpp \
-	LinkModules.cpp \
-	Linker.cpp
+SRCS=	LinkModules.cpp
 
 .include "../clang.lib.mk"

@@ -61,6 +61,7 @@ static driver_t cfi_fdt_driver = {
 };
 
 DRIVER_MODULE (cfi, lbc, cfi_fdt_driver, cfi_devclass, 0, 0);
+DRIVER_MODULE (cfi, simplebus, cfi_fdt_driver, cfi_devclass, 0, 0);
 
 static int
 cfi_fdt_probe(device_t dev)

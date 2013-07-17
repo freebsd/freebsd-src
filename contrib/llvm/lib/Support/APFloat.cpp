@@ -16,11 +16,12 @@
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
-#include <limits.h>
 #include <cstring>
+#include <limits.h>
 
 using namespace llvm;
 
@@ -99,26 +100,6 @@ static inline unsigned int
 decDigitValue(unsigned int c)
 {
   return c - '0';
-}
-
-static unsigned int
-hexDigitValue(unsigned int c)
-{
-  unsigned int r;
-
-  r = c - '0';
-  if (r <= 9)
-    return r;
-
-  r = c - 'A';
-  if (r <= 5)
-    return r + 10;
-
-  r = c - 'a';
-  if (r <= 5)
-    return r + 10;
-
-  return -1U;
 }
 
 /* Return the value of a decimal exponent of the form
@@ -694,6 +675,13 @@ APFloat::operator=(const APFloat &rhs)
   }
 
   return *this;
+}
+
+bool
+APFloat::isDenormal() const {
+  return isNormal() && (exponent == semantics->minExponent) &&
+         (APInt::tcExtractBit(significandParts(), 
+                              semantics->precision - 1) == 0);
 }
 
 bool
@@ -1925,6 +1913,12 @@ APFloat::convert(const fltSemantics &toSemantics,
     *losesInfo = (fs != opOK);
   } else if (category == fcNaN) {
     *losesInfo = lostFraction != lfExactlyZero || X86SpecialNan;
+
+    // For x87 extended precision, we want to make a NaN, not a special NaN if
+    // the input wasn't special either.
+    if (!X86SpecialNan && semantics == &APFloat::x87DoubleExtended)
+      APInt::tcSetBit(significandParts(), semantics->precision - 1);
+
     // gcc forces the Quiet bit on, which means (float)(double)(float_sNan)
     // does not give you back the same bits.  This is dubious, and we
     // don't currently do it.  You're really supposed to get
@@ -2761,9 +2755,11 @@ APFloat::convertPPCDoubleDoubleAPFloatToAPInt() const
   // normalize against the "double" minExponent first, and only *then*
   // truncate the mantissa.  The result of that second conversion
   // may be inexact, but should never underflow.
-  APFloat extended(*this);
+  // Declare fltSemantics before APFloat that uses it (and
+  // saves pointer to it) to ensure correct destruction order.
   fltSemantics extendedSemantics = *semantics;
   extendedSemantics.minExponent = IEEEdouble.minExponent;
+  APFloat extended(*this);
   fs = extended.convert(extendedSemantics, rmNearestTiesToEven, &losesInfo);
   assert(fs == opOK && !losesInfo);
   (void)fs;
@@ -3023,7 +3019,7 @@ APFloat::initFromPPCDoubleDoubleAPInt(const APInt &api)
 
   // Unless we have a special case, add in second double.
   if (category == fcNormal) {
-    APFloat v(APInt(64, i2));
+    APFloat v(IEEEdouble, APInt(64, i2));
     fs = v.convert(PPCDoubleDouble, rmNearestTiesToEven, &losesInfo);
     assert(fs == opOK && !losesInfo);
     (void)fs;
@@ -3176,27 +3172,43 @@ APFloat::initFromHalfAPInt(const APInt & api)
 /// isIEEE argument distinguishes between PPC128 and IEEE128 (not meaningful
 /// when the size is anything else).
 void
-APFloat::initFromAPInt(const APInt& api, bool isIEEE)
+APFloat::initFromAPInt(const fltSemantics* Sem, const APInt& api)
 {
-  if (api.getBitWidth() == 16)
+  if (Sem == &IEEEhalf)
     return initFromHalfAPInt(api);
-  else if (api.getBitWidth() == 32)
+  if (Sem == &IEEEsingle)
     return initFromFloatAPInt(api);
-  else if (api.getBitWidth()==64)
+  if (Sem == &IEEEdouble)
     return initFromDoubleAPInt(api);
-  else if (api.getBitWidth()==80)
+  if (Sem == &x87DoubleExtended)
     return initFromF80LongDoubleAPInt(api);
-  else if (api.getBitWidth()==128)
-    return (isIEEE ?
-            initFromQuadrupleAPInt(api) : initFromPPCDoubleDoubleAPInt(api));
-  else
-    llvm_unreachable(0);
+  if (Sem == &IEEEquad)
+    return initFromQuadrupleAPInt(api);
+  if (Sem == &PPCDoubleDouble)
+    return initFromPPCDoubleDoubleAPInt(api);
+
+  llvm_unreachable(0);
 }
 
 APFloat
 APFloat::getAllOnesValue(unsigned BitWidth, bool isIEEE)
 {
-  return APFloat(APInt::getAllOnesValue(BitWidth), isIEEE);
+  switch (BitWidth) {
+  case 16:
+    return APFloat(IEEEhalf, APInt::getAllOnesValue(BitWidth));
+  case 32:
+    return APFloat(IEEEsingle, APInt::getAllOnesValue(BitWidth));
+  case 64:
+    return APFloat(IEEEdouble, APInt::getAllOnesValue(BitWidth));
+  case 80:
+    return APFloat(x87DoubleExtended, APInt::getAllOnesValue(BitWidth));
+  case 128:
+    if (isIEEE)
+      return APFloat(IEEEquad, APInt::getAllOnesValue(BitWidth));
+    return APFloat(PPCDoubleDouble, APInt::getAllOnesValue(BitWidth));
+  default:
+    llvm_unreachable("Unknown floating bit width");
+  }
 }
 
 APFloat APFloat::getLargest(const fltSemantics &Sem, bool Negative) {
@@ -3254,16 +3266,16 @@ APFloat APFloat::getSmallestNormalized(const fltSemantics &Sem, bool Negative) {
   return Val;
 }
 
-APFloat::APFloat(const APInt& api, bool isIEEE) {
-  initFromAPInt(api, isIEEE);
+APFloat::APFloat(const fltSemantics &Sem, const APInt &API) {
+  initFromAPInt(&Sem, API);
 }
 
 APFloat::APFloat(float f) {
-  initFromAPInt(APInt::floatToBits(f));
+  initFromAPInt(&IEEEsingle, APInt::floatToBits(f));
 }
 
 APFloat::APFloat(double d) {
-  initFromAPInt(APInt::doubleToBits(d));
+  initFromAPInt(&IEEEdouble, APInt::doubleToBits(d));
 }
 
 namespace {
@@ -3299,10 +3311,8 @@ namespace {
 
     significand = significand.udiv(divisor);
 
-    // Truncate the significand down to its active bit count, but
-    // don't try to drop below 32.
-    unsigned newPrecision = std::max(32U, significand.getActiveBits());
-    significand = significand.trunc(newPrecision);
+    // Truncate the significand down to its active bit count.
+    significand = significand.trunc(significand.getActiveBits());
   }
 
 
@@ -3439,7 +3449,7 @@ void APFloat::toString(SmallVectorImpl<char> &Str,
 
   AdjustToPrecision(significand, exp, FormatPrecision);
 
-  llvm::SmallVector<char, 256> buffer;
+  SmallVector<char, 256> buffer;
 
   // Fill the buffer.
   unsigned precision = significand.getBitWidth();

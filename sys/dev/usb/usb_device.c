@@ -112,7 +112,11 @@ static void	usb_cdev_free(struct usb_device *);
 
 /* This variable is global to allow easy access to it: */
 
-int	usb_template = 0;
+#ifdef	USB_TEMPLATE
+int	usb_template = USB_TEMPLATE;
+#else
+int	usb_template;
+#endif
 
 TUNABLE_INT("hw.usb.usb_template", &usb_template);
 SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW | CTLFLAG_TUN,
@@ -489,7 +493,7 @@ usb_unconfigure(struct usb_device *udev, uint8_t flag)
 	/* free "cdesc" after "ifaces" and "endpoints", if any */
 	if (udev->cdesc != NULL) {
 		if (udev->flags.usb_mode != USB_MODE_DEVICE)
-			free(udev->cdesc, M_USB);
+			usbd_free_config_desc(udev, udev->cdesc);
 		udev->cdesc = NULL;
 	}
 	/* set unconfigured state */
@@ -548,7 +552,7 @@ usbd_set_config_index(struct usb_device *udev, uint8_t index)
 	} else {
 		/* normal request */
 		err = usbd_req_get_config_desc_full(udev,
-		    NULL, &cdp, M_USB, index);
+		    NULL, &cdp, index);
 	}
 	if (err) {
 		goto done;
@@ -725,10 +729,6 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 
 	while ((id = usb_idesc_foreach(udev->cdesc, &ips))) {
 
-		/* check for interface overflow */
-		if (ips.iface_index == USB_IFACE_MAX)
-			break;			/* crazy */
-
 		iface = udev->ifaces + ips.iface_index;
 
 		/* check for specific interface match */
@@ -775,8 +775,11 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		/* iterate all the endpoint descriptors */
 		while ((ed = usb_edesc_foreach(udev->cdesc, ed))) {
 
-			if (temp == USB_EP_MAX)
-				break;			/* crazy */
+			/* check if endpoint limit has been reached */
+			if (temp >= USB_MAX_EP_UNITS) {
+				DPRINTF("Endpoint limit reached\n");
+				break;
+			}
 
 			ep = udev->endpoints + temp;
 
@@ -796,9 +799,6 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 			/* find maximum number of endpoints */
 			if (ep_max < temp)
 				ep_max = temp;
-
-			/* optimalisation */
-			id = (struct usb_interface_descriptor *)ed;
 		}
 	}
 
@@ -806,6 +806,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 
 	if (cmd == USB_CFG_ALLOC) {
 		udev->ifaces_max = ips.iface_index;
+#if (USB_HAVE_FIXED_IFACE == 0)
 		udev->ifaces = NULL;
 		if (udev->ifaces_max != 0) {
 			udev->ifaces = malloc(sizeof(*iface) * udev->ifaces_max,
@@ -815,6 +816,8 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 				goto done;
 			}
 		}
+#endif
+#if (USB_HAVE_FIXED_ENDPOINT == 0)
 		if (ep_max != 0) {
 			udev->endpoints = malloc(sizeof(*ep) * ep_max,
 			        M_USB, M_WAITOK | M_ZERO);
@@ -825,14 +828,16 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 		} else {
 			udev->endpoints = NULL;
 		}
+#endif
 		USB_BUS_LOCK(udev->bus);
 		udev->endpoints_max = ep_max;
 		/* reset any ongoing clear-stall */
 		udev->ep_curr = NULL;
 		USB_BUS_UNLOCK(udev->bus);
 	}
-
+#if (USB_HAVE_FIXED_IFACE == 0) || (USB_HAVE_FIXED_ENDPOINT == 0) 
 done:
+#endif
 	if (err) {
 		if (cmd == USB_CFG_ALLOC) {
 cleanup:
@@ -842,14 +847,14 @@ cleanup:
 			udev->ep_curr = NULL;
 			USB_BUS_UNLOCK(udev->bus);
 
-			/* cleanup */
-			if (udev->ifaces != NULL)
-				free(udev->ifaces, M_USB);
-			if (udev->endpoints != NULL)
-				free(udev->endpoints, M_USB);
-
+#if (USB_HAVE_FIXED_IFACE == 0)
+			free(udev->ifaces, M_USB);
 			udev->ifaces = NULL;
+#endif
+#if (USB_HAVE_FIXED_ENDPOINT == 0)
+			free(udev->endpoints, M_USB);
 			udev->endpoints = NULL;
+#endif
 			udev->ifaces_max = 0;
 		}
 	}
@@ -1698,10 +1703,14 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	err = usbd_setup_device_desc(udev, NULL);
 
 	if (err != 0) {
-		/* XXX try to re-enumerate the device */
+		/* try to enumerate two more times */
 		err = usbd_req_re_enumerate(udev, NULL);
-		if (err)
-			goto done;
+		if (err != 0) {
+			err = usbd_req_re_enumerate(udev, NULL);
+			if (err != 0) {
+				goto done;
+			}
+		}
 	}
 
 	/*
@@ -1850,6 +1859,7 @@ repeat_set_config:
 			config_index++;
 			goto repeat_set_config;
 		}
+#if USB_HAVE_MSCTEST
 		if (config_index == 0) {
 			/*
 			 * Try to figure out if we have an
@@ -1862,7 +1872,9 @@ repeat_set_config:
 				goto repeat_set_config;
 			}
 		}
+#endif
 	}
+#if USB_HAVE_MSCTEST
 	if (set_config_failed == 0 && config_index == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_SYNC_CACHE) == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_GETMAXLUN) == 0) {
@@ -1878,6 +1890,7 @@ repeat_set_config:
 			goto repeat_set_config;
 		}
 	}
+#endif
 
 config_done:
 	DPRINTF("new dev (addr %d), udev=%p, parent_hub=%p\n",

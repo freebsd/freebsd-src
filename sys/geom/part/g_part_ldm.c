@@ -336,8 +336,6 @@ static const char *g_part_ldm_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_ldm_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_ldm_read(struct g_part_table *, struct g_consumer *);
-static int g_part_ldm_setunset(struct g_part_table *, struct g_part_entry *,
-    const char *, unsigned int);
 static const char *g_part_ldm_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_ldm_write(struct g_part_table *, struct g_consumer *);
@@ -356,7 +354,6 @@ static kobj_method_t g_part_ldm_methods[] = {
 	KOBJMETHOD(g_part_name,		g_part_ldm_name),
 	KOBJMETHOD(g_part_probe,	g_part_ldm_probe),
 	KOBJMETHOD(g_part_read,		g_part_ldm_read),
-	KOBJMETHOD(g_part_setunset,	g_part_ldm_setunset),
 	KOBJMETHOD(g_part_type,		g_part_ldm_type),
 	KOBJMETHOD(g_part_write,	g_part_ldm_write),
 	{ 0, 0 }
@@ -1474,14 +1471,6 @@ gpt_cleanup:
 	}
 	ldm_vmdb_free(&db);
 	return (error);
-}
-
-static int
-g_part_ldm_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
-    const char *attrib, unsigned int set)
-{
-
-	return (ENOSYS);
 }
 
 static const char *

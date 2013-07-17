@@ -226,7 +226,6 @@ struct spa {
 	kcondvar_t	spa_trim_cv;		/* used to notify TRIM thread */
 	boolean_t	spa_autoreplace;	/* autoreplace set in open */
 	int		spa_vdev_locks;		/* locks grabbed */
-	int64_t		spa_ccw_fail_time;	/* Conf cache write fail time */
 	uint64_t	spa_creation_version;	/* version at pool creation */
 	uint64_t	spa_prev_software_version; /* See ub_software_version */
 	uint64_t	spa_feat_for_write_obj;	/* required to write to pool */
@@ -242,8 +241,9 @@ struct spa {
 	uint64_t	spa_deadman_calls;	/* number of deadman calls */
 	uint64_t	spa_sync_starttime;	/* starting time fo spa_sync */
 	uint64_t	spa_deadman_synctime;	/* deadman expiration timer */
+	hrtime_t	spa_ccw_fail_time;	/* Conf cache write fail time */
 	/*
-	 * spa_refcnt & spa_config_lock must be the last elements
+	 * spa_refcount & spa_config_lock must be the last elements
 	 * because refcount_t changes size based on compilation options.
 	 * In order for the MDB module to function correctly, the other
 	 * fields must remain in the same location.

@@ -592,6 +592,7 @@ hwmp_send_action(struct ieee80211vap *vap,
 	struct ieee80211_bpf_params params;
 	struct mbuf *m;
 	uint8_t *frm;
+	int ret;
 
 	if (IEEE80211_IS_MULTICAST(da)) {
 		ni = ieee80211_ref_node(vap->iv_bss);
@@ -654,6 +655,9 @@ hwmp_send_action(struct ieee80211vap *vap,
 		vap->iv_stats.is_tx_nobuf++;
 		return ENOMEM;
 	}
+
+	IEEE80211_TX_LOCK(ic);
+
 	ieee80211_send_setup(ni, m,
 	    IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_ACTION,
 	    IEEE80211_NONQOS_TID, vap->iv_myaddr, da, vap->iv_myaddr);
@@ -669,7 +673,9 @@ hwmp_send_action(struct ieee80211vap *vap,
 	else
 		params.ibp_try0 = ni->ni_txparms->maxretry;
 	params.ibp_power = ni->ni_txpower;
-	return ic->ic_raw_xmit(ni, m, &params);
+	ret = ieee80211_raw_output(vap, ni, m, &params);
+	IEEE80211_TX_UNLOCK(ic);
+	return (ret);
 }
 
 #define ADDSHORT(frm, v) do {		\
@@ -1271,12 +1277,9 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211_mesh_route *rtext = NULL;
 	struct ieee80211_hwmp_route *hr;
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *ifp = vap->iv_ifp;
 	struct mbuf *m, *next;
 	uint32_t metric = 0;
 	const uint8_t *addr;
-	int is_encap;
-	struct ieee80211_node *ni_encap;
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 	    "received PREP, orig %6D, targ %6D", prep->prep_origaddr, ":",
@@ -1450,22 +1453,21 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	m = ieee80211_ageq_remove(&ic->ic_stageq,
 	    (struct ieee80211_node *)(uintptr_t)
 	    ieee80211_mac_hash(ic, addr)); /* either dest or ext_dest */
+
+	/*
+	 * All frames in the stageq here should be non-M_ENCAP; or things
+	 * will get very unhappy.
+	 */
 	for (; m != NULL; m = next) {
-		is_encap = !! (m->m_flags & M_ENCAP);
-		ni_encap = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		next = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 		    "flush queued frame %p len %d", m, m->m_pkthdr.len);
-
 		/*
 		 * If the mbuf has M_ENCAP set, ensure we free it.
 		 * Note that after if_transmit() is called, m is invalid.
 		 */
-		if (ifp->if_transmit(ifp, m) != 0) {
-			if (is_encap)
-				ieee80211_free_node(ni_encap);
-		}
+		(void) ieee80211_vap_transmit(vap, m);
 	}
 #undef	IS_PROXY
 #undef	PROXIED_BY_US

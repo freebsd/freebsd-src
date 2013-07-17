@@ -333,7 +333,8 @@ struct fs {
 	int32_t	 fs_maxbsize;		/* maximum blocking factor permitted */
 	int64_t	 fs_unrefs;		/* number of unreferenced inodes */
 	int64_t  fs_providersize;	/* size of underlying GEOM provider */
-	int64_t	 fs_sparecon64[15];	/* old rotation block list head */
+	int64_t	 fs_metaspace;		/* size of area reserved for metadata */
+	int64_t	 fs_sparecon64[14];	/* old rotation block list head */
 	int64_t	 fs_sblockloc;		/* byte offset of standard superblock */
 	struct	csum_total fs_cstotal;	/* (u) cylinder summary information */
 	ufs_time_t fs_time;		/* last time written */
@@ -525,6 +526,8 @@ struct cg {
  * They calc filesystem addresses of cylinder group data structures.
  */
 #define	cgbase(fs, c)	(((ufs2_daddr_t)(fs)->fs_fpg) * (c))
+#define	cgdata(fs, c)	(cgdmin(fs, c) + (fs)->fs_metaspace)	/* data zone */
+#define	cgmeta(fs, c)	(cgdmin(fs, c))				/* meta data */
 #define	cgdmin(fs, c)	(cgstart(fs, c) + (fs)->fs_dblkno)	/* 1st data */
 #define	cgimin(fs, c)	(cgstart(fs, c) + (fs)->fs_iblkno)	/* inode blk */
 #define	cgsblock(fs, c)	(cgstart(fs, c) + (fs)->fs_sblkno)	/* super blk */

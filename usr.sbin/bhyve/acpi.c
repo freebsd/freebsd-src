@@ -680,22 +680,26 @@ basl_end(struct basl_fio *in, struct basl_fio *out)
 }
 
 static int
-basl_load(int fd, uint64_t off)
+basl_load(struct vmctx *ctx, int fd, uint64_t off)
 {
-        struct stat sb;
-	int err;
+	struct stat sb;
+	void *gaddr;
 
-	err = 0;
+	if (fstat(fd, &sb) < 0)
+		return (errno);
+		
+	gaddr = paddr_guest2host(ctx, basl_acpi_base + off, sb.st_size);
+	if (gaddr == NULL)
+		return (EFAULT);
 
-	if (fstat(fd, &sb) < 0 ||
-	    read(fd, paddr_guest2host(basl_acpi_base + off), sb.st_size) < 0)
-			err = errno;
+	if (read(fd, gaddr, sb.st_size) < 0)
+		return (errno);
 
-	return (err);
+	return (0);
 }
 
 static int
-basl_compile(int (*fwrite_section)(FILE *fp), uint64_t offset)
+basl_compile(struct vmctx *ctx, int (*fwrite_section)(FILE *), uint64_t offset)
 {
 	struct basl_fio io[2];
 	static char iaslbuf[3*MAXPATHLEN + 10];
@@ -729,7 +733,7 @@ basl_compile(int (*fwrite_section)(FILE *fp), uint64_t offset)
 				 * Copy the aml output file into guest
 				 * memory at the specified location
 				 */
-				err = basl_load(io[1].fd, offset);
+				err = basl_load(ctx, io[1].fd, offset);
 			}
 		}
 		basl_end(&io[0], &io[1]);
@@ -835,7 +839,7 @@ acpi_build(struct vmctx *ctx, int ncpu, int ioapic)
 	 * copying them into guest memory
 	 */
 	while (!err && basl_ftables[i].wsect != NULL) {
-		err = basl_compile(basl_ftables[i].wsect,
+		err = basl_compile(ctx, basl_ftables[i].wsect,
 				   basl_ftables[i].offset);
 		i++;
 	}

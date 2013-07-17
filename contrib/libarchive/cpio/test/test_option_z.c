@@ -40,9 +40,8 @@ DEFINE_TEST(test_option_z)
 	p = slurpfile(&s, "archive.err");
 	p[s] = '\0';
 	if (r != 0) {
-		if (strstr(p, "compression not available") != NULL) {
-			skipping("This version of bsdcpio was compiled "
-			    "without gzip support");
+		if (!canGzip()) {
+			skipping("gzip is not supported on this platform");
 			return;
 		}
 		failure("-z option is broken");

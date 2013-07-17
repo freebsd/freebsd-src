@@ -152,7 +152,8 @@ typedef enum {
 	CES_INVERT	  = 0x040,	/* invert bit */
 	CES_SOURCE_VALID  = 0x080,	/* source address (ces_source) valid */
 	CES_SCSIID_VALID  = 0x100,	/* ces_scsi_id is valid */
-	CES_LUN_VALID	  = 0x200	/* ces_scsi_lun is valid */
+	CES_LUN_VALID	  = 0x200,	/* ces_scsi_lun is valid */
+	CES_PIV		  = 0x400	/* ces_protocol_id is valid */
 } ces_status_flags;
 
 struct changer_element_status {
@@ -181,6 +182,55 @@ struct changer_element_status {
 	changer_voltag_t	ces_avoltag;	  /* alternate volume tag */
 	u_int8_t		ces_scsi_id;	  /* SCSI id of element */
 	u_int8_t		ces_scsi_lun;	  /* SCSI lun of element */
+
+	/*
+	 * Data members for SMC3 and later versions
+	 */
+	u_int8_t		ces_medium_type;
+#define	CES_MEDIUM_TYPE_UNKNOWN		0	/* Medium type unspecified */
+#define	CES_MEDIUM_TYPE_DATA		1	/* Data medium */
+#define	CES_MEDIUM_TYPE_CLEANING	2	/* Cleaning medium */
+#define	CES_MEDIUM_TYPE_DIAGNOSTIC	3	/* Diagnostic medium */
+#define	CES_MEDIUM_TYPE_WORM		4	/* WORM medium */
+#define	CES_MEDIUM_TYPE_MICROCODE	5	/* Microcode image medium */
+
+	u_int8_t		ces_protocol_id;
+#define	CES_PROTOCOL_ID_FCP_4	0	/* Fiber channel */
+#define	CES_PROTOCOL_ID_SPI_5	1	/* Parallel SCSI */
+#define	CES_PROTOCOL_ID_SSA_S3P	2	/* SSA */
+#define	CES_PROTOCOL_ID_SBP_3	3	/* IEEE 1394 */
+#define	CES_PROTOCOL_ID_SRP	4	/* SCSI Remote DMA */
+#define	CES_PROTOCOL_ID_ISCSI	5	/* iSCSI */
+#define	CES_PROTOCOL_ID_SPL	6	/* SAS */
+#define	CES_PROTOCOL_ID_ADT_2	7	/* Automation/Drive Interface */
+#define	CES_PROTOCOL_ID_ACS_2	8	/* ATA */
+
+	u_int8_t		ces_assoc;
+#define	CES_ASSOC_LOGICAL_UNIT	0
+#define	CES_ASSOC_TARGET_PORT	1
+#define	CES_ASSOC_TARGET_DEVICE	2
+
+	u_int8_t		ces_designator_type;
+#define	CES_DESIGNATOR_TYPE_VENDOR_SPECIFIC	0
+#define	CES_DESIGNATOR_TYPE_T10_VENDOR_ID	1
+#define	CES_DESIGNATOR_TYPE_EUI_64		2
+#define	CES_DESIGNATOR_TYPE_NAA			3
+#define	CES_DESIGNATOR_TYPE_TARGET_PORT_ID	4
+#define	CES_DESIGNATOR_TYPE_TARGET_PORT_GRP	5
+#define	CES_DESIGNATOR_TYPE_LOGICAL_UNIT_GRP	6
+#define	CES_DESIGNATOR_TYPE_MD5_LOGICAL_UNIT_ID	7
+#define	CES_DESIGNATOR_TYPE_SCSI_NAME_STRING	8
+
+	u_int8_t		ces_code_set;
+#define	CES_CODE_SET_RESERVED	0
+#define	CES_CODE_SET_BINARY	1
+#define	CES_CODE_SET_ASCII	2
+#define	CES_CODE_SET_UTF_8	3
+
+	u_int8_t		ces_designator_length;
+
+#define	CES_MAX_DESIGNATOR_LENGTH (1 << 8)
+	u_int8_t		ces_designator[CES_MAX_DESIGNATOR_LENGTH + 1];
 };
 
 struct changer_element_status_request {
@@ -189,7 +239,7 @@ struct changer_element_status_request {
 	u_int16_t			cesr_element_count;
 
 	u_int16_t			cesr_flags;
-#define CESR_VOLTAGS	0x01
+#define	CESR_VOLTAGS	0x01
 
 	struct changer_element_status	*cesr_element_status;
 };
@@ -200,28 +250,29 @@ struct changer_set_voltag_request {
 	u_int16_t		csvr_addr;
 
 	u_int16_t		csvr_flags;
-#define CSVR_MODE_MASK		0x0f	/* mode mask, acceptable modes below: */
+#define	CSVR_MODE_MASK		0x0f	/* mode mask, acceptable modes below: */
 #define	CSVR_MODE_SET		0x00	/* set volume tag if not set */
-#define CSVR_MODE_REPLACE	0x01	/* unconditionally replace volume tag */
-#define CSVR_MODE_CLEAR		0x02	/* clear volume tag */
+#define	CSVR_MODE_REPLACE	0x01	/* unconditionally replace volume tag */
+#define	CSVR_MODE_CLEAR		0x02	/* clear volume tag */
 
-#define CSVR_ALTERNATE		0x10	/* set to work with alternate voltag */
+#define	CSVR_ALTERNATE		0x10	/* set to work with alternate voltag */
 
 	changer_voltag_t     	csvr_voltag;
 };
 
 
-#define CESTATUS_BITS	\
+#define	CESTATUS_BITS	\
 	"\20\6INEAB\5EXENAB\4ACCESS\3EXCEPT\2IMPEXP\1FULL"
 
-#define CHIOMOVE	_IOW('c', 0x01, struct changer_move)
-#define CHIOEXCHANGE	_IOW('c', 0x02, struct changer_exchange)
-#define CHIOPOSITION	_IOW('c', 0x03, struct changer_position)
-#define CHIOGPICKER	_IOR('c', 0x04, int)
-#define CHIOSPICKER	_IOW('c', 0x05, int)
-#define CHIOGPARAMS	_IOR('c', 0x06, struct changer_params)
-#define CHIOIELEM	_IOW('c', 0x07, u_int32_t)
-#define CHIOGSTATUS	_IOW('c', 0x08, struct changer_element_status_request)
-#define CHIOSETVOLTAG	_IOW('c', 0x09, struct changer_set_voltag_request)
+#define	CHIOMOVE	_IOW('c', 0x01, struct changer_move)
+#define	CHIOEXCHANGE	_IOW('c', 0x02, struct changer_exchange)
+#define	CHIOPOSITION	_IOW('c', 0x03, struct changer_position)
+#define	CHIOGPICKER	_IOR('c', 0x04, int)
+#define	CHIOSPICKER	_IOW('c', 0x05, int)
+#define	CHIOGPARAMS	_IOR('c', 0x06, struct changer_params)
+#define	CHIOIELEM	_IOW('c', 0x07, u_int32_t)
+#define	OCHIOGSTATUS	_IOW('c', 0x08, struct changer_element_status_request)
+#define	CHIOSETVOLTAG	_IOW('c', 0x09, struct changer_set_voltag_request)
+#define	CHIOGSTATUS	_IOW('c', 0x0A, struct changer_element_status_request)
 
 #endif /* !_SYS_CHIO_H_ */

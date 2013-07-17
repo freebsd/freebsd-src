@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2012
+.Dd July 8, 2013
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -118,6 +118,13 @@ for regular files, and 30 -> 60 seconds for directories.
 The algorithm to calculate the timeout is based on the age of the file.
 The older the file,
 the longer the cache is considered valid, subject to the limits above.
+.It Cm allgssname
+This option can be used along with
+.Fl o Cm gssname
+to specify that all operations should use the host-based initiator
+credential.
+This may be used for clients that run system daemons that need to
+access files on the NFSv4 mounted volume.
 .It Cm bg
 If an initial attempt to contact the server fails, fork off a child to keep
 trying the mount in the background.
@@ -138,6 +145,23 @@ short.
 .It Cm fg
 Same as not specifying
 .Cm bg .
+.It Cm gssname Ns = Ns Aq Ar service-principal-name
+This option can be used with the KerberosV security flavors for NFSv4 mounts
+to specify the
+.Dq "service-principal-name"
+of a host-based entry in the default
+keytab file that is used for system operations.
+It allows the mount to be performed by
+.Dq "root"
+and avoids problems with
+cached credentials for the system operations expiring.
+The
+.Dq "service-prinicpal-name"
+should be specified without instance or domain and is typically
+.Dq "host" ,
+.Dq "nfs"
+or
+.Dq "root" .
 .It Cm hard
 Same as not specifying
 .Cm soft .

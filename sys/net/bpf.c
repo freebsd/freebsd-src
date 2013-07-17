@@ -525,7 +525,7 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	if (len < hlen || len - hlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
-	m = m_get2(M_WAITOK, MT_DATA, M_PKTHDR, len);
+	m = m_get2(len, M_WAITOK, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (EIO);
 	m->m_pkthdr.len = m->m_len = len;
@@ -856,9 +856,14 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 		callout_stop(&d->bd_callout);
 	timed_out = (d->bd_state == BPF_TIMED_OUT);
 	d->bd_state = BPF_IDLE;
-	while (d->bd_hbuf_in_use)
-		mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
+	while (d->bd_hbuf_in_use) {
+		error = mtx_sleep(&d->bd_hbuf_in_use, &d->bd_lock,
 		    PRINET|PCATCH, "bd_hbuf", 0);
+		if (error != 0) {
+			BPFD_UNLOCK(d);
+			return (error);
+		}
+	}
 	/*
 	 * If the hold buffer is empty, then do a timed sleep, which
 	 * ends when the timeout expires or when enough packets

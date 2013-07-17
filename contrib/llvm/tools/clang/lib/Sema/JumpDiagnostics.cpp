@@ -16,8 +16,8 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
-#include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtObjC.h"
 #include "llvm/ADT/BitVector.h"
 using namespace clang;
 
@@ -511,8 +511,14 @@ void JumpScopeChecker::VerifyJumps() {
     for (SwitchCase *SC = SS->getSwitchCaseList(); SC;
          SC = SC->getNextSwitchCase()) {
       assert(LabelAndGotoScopes.count(SC) && "Case not visited?");
-      CheckJump(SS, SC, SC->getLocStart(),
-                diag::err_switch_into_protected_scope, 0,
+      SourceLocation Loc;
+      if (CaseStmt *CS = dyn_cast<CaseStmt>(SC))
+        Loc = CS->getLocStart();
+      else if (DefaultStmt *DS = dyn_cast<DefaultStmt>(SC))
+        Loc = DS->getLocStart();
+      else
+        Loc = SC->getLocStart();
+      CheckJump(SS, SC, Loc, diag::err_switch_into_protected_scope, 0,
                 diag::warn_cxx98_compat_switch_into_protected_scope);
     }
   }
@@ -668,7 +674,7 @@ static bool IsMicrosoftJumpWarning(unsigned JumpDiag, unsigned InDiagNote) {
 /// Return true if a particular note should be downgraded to a compatibility
 /// warning in C++11 mode.
 static bool IsCXX98CompatWarning(Sema &S, unsigned InDiagNote) {
-  return S.getLangOpts().CPlusPlus0x &&
+  return S.getLangOpts().CPlusPlus11 &&
          InDiagNote == diag::note_protected_by_variable_non_pod;
 }
 

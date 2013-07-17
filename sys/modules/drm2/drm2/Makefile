@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm2
+.PATH:	${.CURDIR}/../../../dev/drm2 ${.CURDIR}/../../../dev/drm2/ttm
 KMOD	= drm2
 SRCS	= \
 	drm_agpsupport.c \
@@ -18,6 +18,7 @@ SRCS	= \
 	drm_fops.c \
 	drm_gem.c \
 	drm_gem_names.c \
+	drm_global.c \
 	drm_hashtab.c \
 	drm_ioctl.c \
 	drm_irq.c \
@@ -31,7 +32,19 @@ SRCS	= \
 	drm_sman.c \
 	drm_stub.c \
 	drm_sysctl.c \
-	drm_vm.c
+	drm_vm.c \
+	ttm_lock.c \
+	ttm_object.c \
+	ttm_tt.c \
+	ttm_bo_util.c \
+	ttm_bo.c \
+	ttm_bo_manager.c \
+	ttm_execbuf_util.c \
+	ttm_memory.c \
+	ttm_page_alloc.c \
+	ttm_bo_vm.c
+#ttm_agp_backend.c
+#ttm_page_alloc_dma.c
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS	+= drm_ioc32.c

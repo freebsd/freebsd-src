@@ -40,6 +40,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #options 	OCTEON_VENDOR_LANNER		# Support for Lanner boards.
 #options 	OCTEON_VENDOR_RADISYS		# Support for Radisys boards.
 #options 	OCTEON_VENDOR_UBIQUITI		# Support for Ubiquiti boards.
+#options	OCTEON_VENDOR_GEFES		# Support for GE LANIC boards
 #options 	OCTEON_BOARD_CAPK_0100ND	# Support for CAPK-0100nd.
 
 # Compile for a specified Octeon model.  If not specified, support for
@@ -107,7 +108,6 @@ device		pci
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_CAM		# Handle legacy controllers with CAM
 options 	ATA_STATIC_ID	# Static device numbering
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA

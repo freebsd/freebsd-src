@@ -459,9 +459,7 @@ xdr_string_encode(char *str, int len)
 	if (mlen > MCLBYTES)		/* If too big, we just can't do it. */
 		return (NULL);
 
-	m = m_get(M_WAITOK, MT_DATA);
-	if (mlen > MLEN)
-		MCLGET(m, M_WAITOK);
+	m = m_get2(mlen, M_WAITOK, MT_DATA, 0);
 	xs = mtod(m, struct xdr_string *);
 	m->m_len = mlen;
 	xs->len = txdr_unsigned(len);

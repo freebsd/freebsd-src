@@ -81,16 +81,17 @@
 
 typedef struct asl_method_info
 {
-    UINT8                   NumArguments;
-    UINT8                   LocalInitialized[ACPI_METHOD_NUM_LOCALS];
-    UINT8                   ArgInitialized[ACPI_METHOD_NUM_ARGS];
+    ACPI_PARSE_OBJECT       *Op;
+    struct asl_method_info  *Next;
     UINT32                  ValidArgTypes[ACPI_METHOD_NUM_ARGS];
     UINT32                  ValidReturnTypes;
     UINT32                  NumReturnNoValue;
     UINT32                  NumReturnWithValue;
-    ACPI_PARSE_OBJECT       *Op;
-    struct asl_method_info  *Next;
+    UINT8                   NumArguments;
+    UINT8                   LocalInitialized[ACPI_METHOD_NUM_LOCALS];
+    UINT8                   ArgInitialized[ACPI_METHOD_NUM_ARGS];
     UINT8                   HasBeenTyped;
+    UINT8                   ShouldBeSerialized;
 
 } ASL_METHOD_INFO;
 
@@ -164,12 +165,13 @@ typedef enum
     ASL_FILE_ASM_SOURCE_OUTPUT,
     ASL_FILE_C_SOURCE_OUTPUT,
     ASL_FILE_ASM_INCLUDE_OUTPUT,
-    ASL_FILE_C_INCLUDE_OUTPUT
+    ASL_FILE_C_INCLUDE_OUTPUT,
+    ASL_FILE_C_OFFSET_OUTPUT
 
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       13
+#define ASL_MAX_FILE_TYPE       14
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 

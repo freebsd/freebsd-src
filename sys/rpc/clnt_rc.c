@@ -247,8 +247,7 @@ clnt_reconnect_call(
 			stat = clnt_reconnect_connect(cl);
 			if (stat == RPC_SYSTEMERROR) {
 				error = tsleep(&fake_wchan,
-				    rc->rc_intr ? PCATCH | PBDRY : 0, "rpccon",
-				    hz);
+				    rc->rc_intr ? PCATCH : 0, "rpccon", hz);
 				if (error == EINTR || error == ERESTART)
 					return (RPC_INTR);
 				tries++;

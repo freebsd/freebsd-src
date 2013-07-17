@@ -19,9 +19,9 @@
 #ifndef LLVM_CLANG_TOOLING_REFACTORING_H
 #define LLVM_CLANG_TOOLING_REFACTORING_H
 
-#include "llvm/ADT/StringRef.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Tooling/Tooling.h"
+#include "llvm/ADT/StringRef.h"
 #include <set>
 #include <string>
 
@@ -47,22 +47,22 @@ public:
   /// \param FilePath A source file accessible via a SourceManager.
   /// \param Offset The byte offset of the start of the range in the file.
   /// \param Length The length of the range in bytes.
-  Replacement(llvm::StringRef FilePath, unsigned Offset,
-              unsigned Length, llvm::StringRef ReplacementText);
+  Replacement(StringRef FilePath, unsigned Offset,
+              unsigned Length, StringRef ReplacementText);
 
   /// \brief Creates a Replacement of the range [Start, Start+Length) with
   /// ReplacementText.
   Replacement(SourceManager &Sources, SourceLocation Start, unsigned Length,
-              llvm::StringRef ReplacementText);
+              StringRef ReplacementText);
 
   /// \brief Creates a Replacement of the given range with ReplacementText.
   Replacement(SourceManager &Sources, const CharSourceRange &Range,
-              llvm::StringRef ReplacementText);
+              StringRef ReplacementText);
 
   /// \brief Creates a Replacement of the node with ReplacementText.
   template <typename Node>
   Replacement(SourceManager &Sources, const Node &NodeToReplace,
-              llvm::StringRef ReplacementText);
+              StringRef ReplacementText);
 
   /// \brief Returns whether this replacement can be applied to a file.
   ///
@@ -91,9 +91,9 @@ public:
 
  private:
   void setFromSourceLocation(SourceManager &Sources, SourceLocation Start,
-                             unsigned Length, llvm::StringRef ReplacementText);
+                             unsigned Length, StringRef ReplacementText);
   void setFromSourceRange(SourceManager &Sources, const CharSourceRange &Range,
-                          llvm::StringRef ReplacementText);
+                          StringRef ReplacementText);
 
   std::string FilePath;
   unsigned Offset;
@@ -105,41 +105,54 @@ public:
 /// FIXME: Change to a vector and deduplicate in the RefactoringTool.
 typedef std::set<Replacement, Replacement::Less> Replacements;
 
-/// \brief Apply all replacements on the Rewriter.
+/// \brief Apply all replacements in \p Replaces to the Rewriter \p Rewrite.
 ///
-/// If at least one Apply returns false, ApplyAll returns false. Every
-/// Apply will be executed independently of the result of other
-/// Apply operations.
+/// Replacement applications happen independently of the success of
+/// other applications.
+///
+/// \returns true if all replacements apply. false otherwise.
 bool applyAllReplacements(Replacements &Replaces, Rewriter &Rewrite);
 
 /// \brief A tool to run refactorings.
 ///
-/// This is a refactoring specific version of \see ClangTool.
-/// All text replacements added to getReplacements() during the run of the
-/// tool will be applied and saved after all translation units have been
-/// processed.
-class RefactoringTool {
+/// This is a refactoring specific version of \see ClangTool. FrontendActions
+/// passed to run() and runAndSave() should add replacements to
+/// getReplacements().
+class RefactoringTool : public ClangTool {
 public:
   /// \see ClangTool::ClangTool.
   RefactoringTool(const CompilationDatabase &Compilations,
                   ArrayRef<std::string> SourcePaths);
 
-  /// \brief Returns a set of replacements. All replacements added during the
-  /// run of the tool will be applied after all translation units have been
-  /// processed.
+  /// \brief Returns the set of replacements to which replacements should
+  /// be added during the run of the tool.
   Replacements &getReplacements();
 
-  /// \see ClangTool::run.
-  int run(FrontendActionFactory *ActionFactory);
+  /// \brief Call run(), apply all generated replacements, and immediately save
+  /// the results to disk.
+  ///
+  /// \returns 0 upon success. Non-zero upon failure.
+  int runAndSave(FrontendActionFactory *ActionFactory);
+
+  /// \brief Apply all stored replacements to the given Rewriter.
+  ///
+  /// Replacement applications happen independently of the success of other
+  /// applications.
+  ///
+  /// \returns true if all replacements apply. false otherwise.
+  bool applyAllReplacements(Rewriter &Rewrite);
 
 private:
-  ClangTool Tool;
+  /// \brief Write all refactored files to disk.
+  int saveRewrittenFiles(Rewriter &Rewrite);
+
+private:
   Replacements Replace;
 };
 
 template <typename Node>
 Replacement::Replacement(SourceManager &Sources, const Node &NodeToReplace,
-                         llvm::StringRef ReplacementText) {
+                         StringRef ReplacementText) {
   const CharSourceRange Range =
       CharSourceRange::getTokenRange(NodeToReplace->getSourceRange());
   setFromSourceRange(Sources, Range, ReplacementText);
@@ -149,4 +162,3 @@ Replacement::Replacement(SourceManager &Sources, const Node &NodeToReplace,
 } // end namespace clang
 
 #endif // end namespace LLVM_CLANG_TOOLING_REFACTORING_H
-

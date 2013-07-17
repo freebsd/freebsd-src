@@ -85,9 +85,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_RW,
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
-VNET_DECLARE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
-#define	V_arpstat		VNET(arpstat)
-
 /*
  * Return 1 if an internet address is for a ``local'' host
  * (one to which we have a connection).
@@ -1467,10 +1464,14 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			LLE_WLOCK(lle);
 			lle->la_flags |= LLE_DELETED;
 			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 

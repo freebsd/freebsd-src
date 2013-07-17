@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.749 2012/03/02 22:37:11 ca Exp $
+.\"	$Id: op.me,v 8.751 2013/04/08 21:41:25 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.749 $
+.Ve $Revision: 8.751 $
 .rm Ve
 .sp
 For Sendmail Version 8.14
@@ -5547,9 +5547,6 @@ It can have primary types
 or full types
 (such as
 .q text/plain ).
-The class is initialized to have
-.q text/plain
-only.
 .ip $=s
 contains the set of subtypes of message that can be treated recursively.
 By default it contains only
@@ -6609,8 +6606,13 @@ Modifier	Options (flags) for the client
 .)b
 The
 .i Addr ess
-mask may be a numeric address in dot notation
+mask may be a numeric address in IPv4 dot notation or IPv6 colon notation
 or a network name.
+Note that if a network name is specified,
+only the first IP address returned for it will be used.
+This may cause indeterminate behavior for network names
+that resolve to multiple addresses.
+Therefore, use of an address is recommended.
 .i Modifier
 can be the following character:
 .(b
@@ -6778,8 +6780,13 @@ The
 key is used for error messages and logging.
 The
 .i Addr ess
-mask may be a numeric address in dot notation
+mask may be a numeric address in IPv4 dot notation or IPv6 colon notation
 or a network name.
+Note that if a network name is specified,
+only the first IP address returned for it will be used.
+This may cause indeterminate behavior for network names
+that resolve to multiple addresses.
+Therefore, use of an address is recommended.
 The
 .i Family
 key defaults to INET (IPv4).
@@ -11471,7 +11478,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.749 $
+.\"Version $Revision: 8.751 $
 .\".ce 0
 .bp 3
 .ce

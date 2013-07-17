@@ -62,7 +62,18 @@ get_fs_line_xvars()
     echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2|3)?|spare|log|cache):" 2>/dev/null
     if [ $? -eq 0 ] ; then
        ZTYPE=`echo $ZFSVARS | cut -f1 -d:`
-       ZFSVARS=`echo $ZFSVARS | sed "s|$ZTYPE: ||g" | sed "s|$ZTYPE:||g"`
+       tmpVars=`echo $ZFSVARS | sed "s|$ZTYPE: ||g" | sed "s|$ZTYPE:||g"`
+       ZFSVARS=""
+       # make sure we have a '/dev' in front of the extra devices
+       for i in $tmpVars
+       do
+          echo $i | grep -q '/dev/'
+          if [ $? -ne 0 ] ; then
+             ZFSVARS="$ZFSVARS /dev/${i}"
+          else
+             ZFSVARS="$ZFSVARS $i"
+          fi
+       done
     fi
 
     # Return the ZFS options

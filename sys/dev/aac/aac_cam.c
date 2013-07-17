@@ -92,7 +92,7 @@ static device_method_t	aac_pass_methods[] = {
 	DEVMETHOD(device_probe,		aac_cam_probe),
 	DEVMETHOD(device_attach,	aac_cam_attach),
 	DEVMETHOD(device_detach,	aac_cam_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t	aac_pass_driver = {
@@ -101,7 +101,7 @@ static driver_t	aac_pass_driver = {
 	sizeof(struct aac_cam)
 };
 
-DRIVER_MODULE(aacp, aac, aac_pass_driver, aac_pass_devclass, 0, 0);
+DRIVER_MODULE(aacp, aac, aac_pass_driver, aac_pass_devclass, NULL, NULL);
 MODULE_DEPEND(aacp, cam, 1, 1, 1);
 
 static MALLOC_DEFINE(M_AACCAM, "aaccam", "AAC CAM info");
@@ -129,7 +129,7 @@ aac_cam_rescan(struct aac_softc *sc, uint32_t channel, uint32_t target_id)
 			return;
 		}
 
-		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+		if (xpt_create_path(&ccb->ccb_h.path, NULL,
 		    cam_sim_path(camsc->sim),
 		    target_id, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 			xpt_free_ccb(ccb);
@@ -163,8 +163,6 @@ aac_cam_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 		    event->ev_type);
 		break;
 	}
-
-	return;
 }
 
 static int
@@ -515,8 +513,6 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	aac_enqueue_ready(cm);
 	aac_startio(cm->cm_sc);
-
-	return;
 }
 
 static void
@@ -625,8 +621,6 @@ aac_cam_complete(struct aac_command *cm)
 
 	aac_release_command(cm);
 	xpt_done(ccb);
-
-	return;
 }
 
 static u_int32_t
@@ -685,4 +679,3 @@ aac_cam_term_io(struct cam_sim *sim, union ccb *ccb)
 {
 	return (CAM_UA_TERMIO);
 }
-

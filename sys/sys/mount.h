@@ -351,6 +351,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNTK_VGONE_WAITER	0x00000400
 #define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
 #define	MNTK_MARKER		0x00001000
+#define	MNTK_UNMAPPED_BUFS	0x00002000
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
@@ -607,7 +608,7 @@ typedef	int vfs_mount_t(struct mount *mp);
 typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 		    struct sysctl_req *req);
 typedef void vfs_susp_clean_t(struct mount *mp);
-typedef void vfs_reclaim_lowervp_t(struct mount *mp, struct vnode *lowervp);
+typedef void vfs_notify_lowervp_t(struct mount *mp, struct vnode *lowervp);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -625,7 +626,8 @@ struct vfsops {
 	vfs_extattrctl_t	*vfs_extattrctl;
 	vfs_sysctl_t		*vfs_sysctl;
 	vfs_susp_clean_t	*vfs_susp_clean;
-	vfs_reclaim_lowervp_t	*vfs_reclaim_lowervp;
+	vfs_notify_lowervp_t	*vfs_reclaim_lowervp;
+	vfs_notify_lowervp_t	*vfs_unlink_lowervp;
 };
 
 vfs_statfs_t	__vfs_statfs;
@@ -746,6 +748,14 @@ vfs_statfs_t	__vfs_statfs;
 	}								\
 } while (0)
 
+#define	VFS_UNLINK_LOWERVP(MP, VP) do {					\
+	if (*(MP)->mnt_op->vfs_unlink_lowervp != NULL) {		\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_unlink_lowervp)((MP), (VP));	\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
+
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
@@ -757,6 +767,9 @@ vfs_statfs_t	__vfs_statfs;
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
 		VN_KNOTE((vp), (hint), 0);				\
 } while (0)
+
+#define	VFS_NOTIFY_UPPER_RECLAIM	1
+#define	VFS_NOTIFY_UPPER_UNLINK		2
 
 #include <sys/module.h>
 
@@ -839,6 +852,7 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
+void	vfs_notify_upper(struct vnode *, int);
 void	vfs_oexport_conv(const struct oexport_args *oexp,
 	    struct export_args *exp);
 void	vfs_ref(struct mount *);

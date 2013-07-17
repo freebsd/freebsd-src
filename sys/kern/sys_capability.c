@@ -1,10 +1,14 @@
 /*-
  * Copyright (c) 2008-2011 Robert N. M. Watson
  * Copyright (c) 2010-2011 Jonathan Anderson
+ * Copyright (c) 2012 FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed at the University of Cambridge Computer
  * Laboratory with support from a grant from Google, Inc.
+ *
+ * Portions of this software were developed by Pawel Jakub Dawidek under
+ * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -139,90 +144,50 @@ sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 
 FEATURE(security_capabilities, "Capsicum Capabilities");
 
-/*
- * struct capability describes a capability, and is hung off of its struct
- * file f_data field.  cap_file and cap_rightss are static once hooked up, as
- * neither the object it references nor the rights it encapsulates are
- * permitted to change.
- */
-struct capability {
-	struct file	*cap_object;	/* Underlying object's file. */
-	struct file	*cap_file;	/* Back-pointer to cap's file. */
-	cap_rights_t	 cap_rights;	/* Mask of rights on object. */
-};
+MALLOC_DECLARE(M_FILECAPS);
 
-/*
- * Capabilities have a fileops vector, but in practice none should ever be
- * called except for fo_close, as the capability will normally not be
- * returned during a file descriptor lookup in the system call code.
- */
-static fo_rdwr_t capability_read;
-static fo_rdwr_t capability_write;
-static fo_truncate_t capability_truncate;
-static fo_ioctl_t capability_ioctl;
-static fo_poll_t capability_poll;
-static fo_kqfilter_t capability_kqfilter;
-static fo_stat_t capability_stat;
-static fo_close_t capability_close;
-static fo_chmod_t capability_chmod;
-static fo_chown_t capability_chown;
-
-static struct fileops capability_ops = {
-	.fo_read = capability_read,
-	.fo_write = capability_write,
-	.fo_truncate = capability_truncate,
-	.fo_ioctl = capability_ioctl,
-	.fo_poll = capability_poll,
-	.fo_kqfilter = capability_kqfilter,
-	.fo_stat = capability_stat,
-	.fo_close = capability_close,
-	.fo_chmod = capability_chmod,
-	.fo_chown = capability_chown,
-	.fo_flags = DFLAG_PASSABLE,
-};
-
-static struct fileops capability_ops_unpassable = {
-	.fo_read = capability_read,
-	.fo_write = capability_write,
-	.fo_truncate = capability_truncate,
-	.fo_ioctl = capability_ioctl,
-	.fo_poll = capability_poll,
-	.fo_kqfilter = capability_kqfilter,
-	.fo_stat = capability_stat,
-	.fo_close = capability_close,
-	.fo_chmod = capability_chmod,
-	.fo_chown = capability_chown,
-	.fo_flags = 0,
-};
-
-static uma_zone_t capability_zone;
-
-static void
-capability_init(void *dummy __unused)
+static inline int
+_cap_check(cap_rights_t have, cap_rights_t need, enum ktr_cap_fail_type type)
 {
 
-	capability_zone = uma_zcreate("capability", sizeof(struct capability),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	if (capability_zone == NULL)
-		panic("capability_init: capability_zone not initialized");
-}
-SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, capability_init, NULL);
 
-/*
- * Test whether a capability grants the requested rights.
- */
-static int
-cap_check(struct capability *c, cap_rights_t rights)
-{
-
-	if ((c->cap_rights | rights) != c->cap_rights) {
+	if ((need & ~have) != 0) {
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_CAPFAIL))
-			ktrcapfail(CAPFAIL_NOTCAPABLE, rights, c->cap_rights);
+			ktrcapfail(type, need, have);
 #endif
 		return (ENOTCAPABLE);
 	}
 	return (0);
+}
+
+/*
+ * Test whether a capability grants the requested rights.
+ */
+int
+cap_check(cap_rights_t have, cap_rights_t need)
+{
+
+	return (_cap_check(have, need, CAPFAIL_NOTCAPABLE));
+}
+
+/*
+ * Convert capability rights into VM access flags.
+ */
+u_char
+cap_rights_to_vmprot(cap_rights_t have)
+{
+	u_char maxprot;
+
+	maxprot = VM_PROT_NONE;
+	if (have & CAP_MMAP_R)
+		maxprot |= VM_PROT_READ;
+	if (have & CAP_MMAP_W)
+		maxprot |= VM_PROT_WRITE;
+	if (have & CAP_MMAP_X)
+		maxprot |= VM_PROT_EXECUTE;
+
+	return (maxprot);
 }
 
 /*
@@ -231,43 +196,49 @@ cap_check(struct capability *c, cap_rights_t rights)
  * this one file.
  */
 cap_rights_t
-cap_rights(struct file *fp_cap)
+cap_rights(struct filedesc *fdp, int fd)
 {
-	struct capability *c;
 
-	KASSERT(fp_cap->f_type == DTYPE_CAPABILITY,
-	    ("cap_rights: !capability"));
-
-	c = fp_cap->f_data;
-	return (c->cap_rights);
+	return (fdp->fd_ofiles[fd].fde_rights);
 }
 
 /*
- * System call to create a new capability reference to either an existing
- * file object or an an existing capability.
+ * System call to limit rights of the given capability.
  */
 int
-sys_cap_new(struct thread *td, struct cap_new_args *uap)
+sys_cap_rights_limit(struct thread *td, struct cap_rights_limit_args *uap)
 {
-	int error, capfd;
-	int fd = uap->fd;
-	struct file *fp;
-	cap_rights_t rights = uap->rights;
+	struct filedesc *fdp;
+	cap_rights_t rights;
+	int error, fd;
+
+	fd = uap->fd;
+	rights = uap->rights;
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_RIGHTS(rights);
-	error = fget(td, fd, rights, &fp);
-	if (error)
-		return (error);
-	AUDIT_ARG_FILE(td->td_proc, fp);
-	error = kern_capwrap(td, fp, rights, &capfd);
-	/*
-	 * Release our reference to the file (kern_capwrap has held a reference
-	 * for the filedesc array).
-	 */
-	fdrop(fp, td);
-	if (error == 0)
-		td->td_retval[0] = capfd;
+
+	if ((rights & ~CAP_ALL) != 0)
+		return (EINVAL);
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
+	if (fget_locked(fdp, fd) == NULL) {
+		FILEDESC_XUNLOCK(fdp);
+		return (EBADF);
+	}
+	error = _cap_check(cap_rights(fdp, fd), rights, CAPFAIL_INCREASE);
+	if (error == 0) {
+		fdp->fd_ofiles[fd].fde_rights = rights;
+		if ((rights & CAP_IOCTL) == 0) {
+			free(fdp->fd_ofiles[fd].fde_ioctls, M_FILECAPS);
+			fdp->fd_ofiles[fd].fde_ioctls = NULL;
+			fdp->fd_ofiles[fd].fde_nioctls = 0;
+		}
+		if ((rights & CAP_FCNTL) == 0)
+			fdp->fd_ofiles[fd].fde_fcntls = 0;
+	}
+	FILEDESC_XUNLOCK(fdp);
 	return (error);
 }
 
@@ -275,247 +246,321 @@ sys_cap_new(struct thread *td, struct cap_new_args *uap)
  * System call to query the rights mask associated with a capability.
  */
 int
-sys_cap_getrights(struct thread *td, struct cap_getrights_args *uap)
+sys_cap_rights_get(struct thread *td, struct cap_rights_get_args *uap)
 {
-	struct capability *cp;
-	struct file *fp;
-	int error;
+	struct filedesc *fdp;
+	cap_rights_t rights;
+	int fd;
 
-	AUDIT_ARG_FD(uap->fd);
-	error = fgetcap(td, uap->fd, &fp);
-	if (error)
-		return (error);
-	cp = fp->f_data;
-	error = copyout(&cp->cap_rights, uap->rightsp, sizeof(*uap->rightsp));
-	fdrop(fp, td);
+	fd = uap->fd;
+
+	AUDIT_ARG_FD(fd);
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	if (fget_locked(fdp, fd) == NULL) {
+		FILEDESC_SUNLOCK(fdp);
+		return (EBADF);
+	}
+	rights = cap_rights(fdp, fd);
+	FILEDESC_SUNLOCK(fdp);
+	return (copyout(&rights, uap->rightsp, sizeof(*uap->rightsp)));
+}
+
+/*
+ * Test whether a capability grants the given ioctl command.
+ * If descriptor doesn't have CAP_IOCTL, then ioctls list is empty and
+ * ENOTCAPABLE will be returned.
+ */
+int
+cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd)
+{
+	u_long *cmds;
+	ssize_t ncmds;
+	long i;
+
+	FILEDESC_LOCK_ASSERT(fdp);
+	KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
+	    ("%s: invalid fd=%d", __func__, fd));
+
+	ncmds = fdp->fd_ofiles[fd].fde_nioctls;
+	if (ncmds == -1)
+		return (0);
+
+	cmds = fdp->fd_ofiles[fd].fde_ioctls;
+	for (i = 0; i < ncmds; i++) {
+		if (cmds[i] == cmd)
+			return (0);
+	}
+
+	return (ENOTCAPABLE);
+}
+
+/*
+ * Check if the current ioctls list can be replaced by the new one.
+ */
+static int
+cap_ioctl_limit_check(struct filedesc *fdp, int fd, const u_long *cmds,
+    size_t ncmds)
+{
+	u_long *ocmds;
+	ssize_t oncmds;
+	u_long i;
+	long j;
+
+	oncmds = fdp->fd_ofiles[fd].fde_nioctls;
+	if (oncmds == -1)
+		return (0);
+	if (oncmds < (ssize_t)ncmds)
+		return (ENOTCAPABLE);
+
+	ocmds = fdp->fd_ofiles[fd].fde_ioctls;
+	for (i = 0; i < ncmds; i++) {
+		for (j = 0; j < oncmds; j++) {
+			if (cmds[i] == ocmds[j])
+				break;
+		}
+		if (j == oncmds)
+			return (ENOTCAPABLE);
+	}
+
+	return (0);
+}
+
+int
+sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
+{
+	struct filedesc *fdp;
+	u_long *cmds, *ocmds;
+	size_t ncmds;
+	int error, fd;
+
+	fd = uap->fd;
+	ncmds = uap->ncmds;
+
+	AUDIT_ARG_FD(fd);
+
+	if (ncmds > 256)	/* XXX: Is 256 sane? */
+		return (EINVAL);
+
+	if (ncmds == 0) {
+		cmds = NULL;
+	} else {
+		cmds = malloc(sizeof(cmds[0]) * ncmds, M_FILECAPS, M_WAITOK);
+		error = copyin(uap->cmds, cmds, sizeof(cmds[0]) * ncmds);
+		if (error != 0) {
+			free(cmds, M_FILECAPS);
+			return (error);
+		}
+	}
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
+
+	if (fget_locked(fdp, fd) == NULL) {
+		error = EBADF;
+		goto out;
+	}
+
+	error = cap_ioctl_limit_check(fdp, fd, cmds, ncmds);
+	if (error != 0)
+		goto out;
+
+	ocmds = fdp->fd_ofiles[fd].fde_ioctls;
+	fdp->fd_ofiles[fd].fde_ioctls = cmds;
+	fdp->fd_ofiles[fd].fde_nioctls = ncmds;
+
+	cmds = ocmds;
+	error = 0;
+out:
+	FILEDESC_XUNLOCK(fdp);
+	free(cmds, M_FILECAPS);
+	return (error);
+}
+
+int
+sys_cap_ioctls_get(struct thread *td, struct cap_ioctls_get_args *uap)
+{
+	struct filedesc *fdp;
+	struct filedescent *fdep;
+	u_long *cmds;
+	size_t maxcmds;
+	int error, fd;
+
+	fd = uap->fd;
+	cmds = uap->cmds;
+	maxcmds = uap->maxcmds;
+
+	AUDIT_ARG_FD(fd);
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+
+	if (fget_locked(fdp, fd) == NULL) {
+		error = EBADF;
+		goto out;
+	}
+
+	/*
+	 * If all ioctls are allowed (fde_nioctls == -1 && fde_ioctls == NULL)
+	 * the only sane thing we can do is to not populate the given array and
+	 * return CAP_IOCTLS_ALL.
+	 */
+
+	fdep = &fdp->fd_ofiles[fd];
+	if (cmds != NULL && fdep->fde_ioctls != NULL) {
+		error = copyout(fdep->fde_ioctls, cmds,
+		    sizeof(cmds[0]) * MIN(fdep->fde_nioctls, maxcmds));
+		if (error != 0)
+			goto out;
+	}
+	if (fdep->fde_nioctls == -1)
+		td->td_retval[0] = CAP_IOCTLS_ALL;
+	else
+		td->td_retval[0] = fdep->fde_nioctls;
+
+	error = 0;
+out:
+	FILEDESC_SUNLOCK(fdp);
 	return (error);
 }
 
 /*
- * Create a capability to wrap around an existing file.
+ * Test whether a capability grants the given fcntl command.
  */
 int
-kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
-    int *capfdp)
+cap_fcntl_check(struct filedesc *fdp, int fd, int cmd)
 {
-	struct capability *cp, *cp_old;
-	struct file *fp_object, *fcapp;
-	int error;
+	uint32_t fcntlcap;
 
-	if ((rights | CAP_MASK_VALID) != CAP_MASK_VALID)
+	KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
+	    ("%s: invalid fd=%d", __func__, fd));
+
+	fcntlcap = (1 << cmd);
+	KASSERT((CAP_FCNTL_ALL & fcntlcap) != 0,
+	    ("Unsupported fcntl=%d.", cmd));
+
+	if ((fdp->fd_ofiles[fd].fde_fcntls & fcntlcap) != 0)
+		return (0);
+
+	return (ENOTCAPABLE);
+}
+
+int
+sys_cap_fcntls_limit(struct thread *td, struct cap_fcntls_limit_args *uap)
+{
+	struct filedesc *fdp;
+	uint32_t fcntlrights;
+	int fd;
+
+	fd = uap->fd;
+	fcntlrights = uap->fcntlrights;
+
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_FCNTL_RIGHTS(fcntlrights);
+
+	if ((fcntlrights & ~CAP_FCNTL_ALL) != 0)
 		return (EINVAL);
 
-	/*
-	 * If a new capability is being derived from an existing capability,
-	 * then the new capability rights must be a subset of the existing
-	 * rights.
-	 */
-	if (fp->f_type == DTYPE_CAPABILITY) {
-		cp_old = fp->f_data;
-		if ((cp_old->cap_rights | rights) != cp_old->cap_rights) {
-#ifdef KTRACE
-			if (KTRPOINT(curthread, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_INCREASE,
-				    rights, cp_old->cap_rights);
-#endif
-			return (ENOTCAPABLE);
-		}
+	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
+
+	if (fget_locked(fdp, fd) == NULL) {
+		FILEDESC_XUNLOCK(fdp);
+		return (EBADF);
 	}
 
-	/*
-	 * Allocate a new file descriptor to hang the capability off of.
-	 */
-	error = falloc(td, &fcapp, capfdp, fp->f_flag);
-	if (error)
-		return (error);
+	if ((fcntlrights & ~fdp->fd_ofiles[fd].fde_fcntls) != 0) {
+		FILEDESC_XUNLOCK(fdp);
+		return (ENOTCAPABLE);
+	}
 
-	/*
-	 * Rather than nesting capabilities, directly reference the object an
-	 * existing capability references.  There's nothing else interesting
-	 * to preserve for future use, as we've incorporated the previous
-	 * rights mask into the new one.  This prevents us from having to
-	 * deal with capability chains.
-	 */
-	if (fp->f_type == DTYPE_CAPABILITY)
-		fp_object = ((struct capability *)fp->f_data)->cap_object;
-	else
-		fp_object = fp;
-	fhold(fp_object);
-	cp = uma_zalloc(capability_zone, M_WAITOK | M_ZERO);
-	cp->cap_rights = rights;
-	cp->cap_object = fp_object;
-	cp->cap_file = fcapp;
-	if (fp->f_flag & DFLAG_PASSABLE)
-		finit(fcapp, fp->f_flag, DTYPE_CAPABILITY, cp,
-		    &capability_ops);
-	else
-		finit(fcapp, fp->f_flag, DTYPE_CAPABILITY, cp,
-		    &capability_ops_unpassable);
+	fdp->fd_ofiles[fd].fde_fcntls = fcntlrights;
+	FILEDESC_XUNLOCK(fdp);
 
-	/*
-	 * Release our private reference (the proc filedesc still has one).
-	 */
-	fdrop(fcapp, td);
 	return (0);
 }
 
-/*
- * Given a file descriptor, test it against a capability rights mask and then
- * return the file descriptor on which to actually perform the requested
- * operation.  As long as the reference to fp_cap remains valid, the returned
- * pointer in *fp will remain valid, so no extra reference management is
- * required, and the caller should fdrop() fp_cap as normal when done with
- * both.
- */
 int
-cap_funwrap(struct file *fp_cap, cap_rights_t rights, struct file **fpp)
+sys_cap_fcntls_get(struct thread *td, struct cap_fcntls_get_args *uap)
 {
-	struct capability *c;
-	int error;
+	struct filedesc *fdp;
+	uint32_t rights;
+	int fd;
 
-	if (fp_cap->f_type != DTYPE_CAPABILITY) {
-		*fpp = fp_cap;
-		return (0);
+	fd = uap->fd;
+
+	AUDIT_ARG_FD(fd);
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	if (fget_locked(fdp, fd) == NULL) {
+		FILEDESC_SUNLOCK(fdp);
+		return (EBADF);
 	}
-	c = fp_cap->f_data;
-	error = cap_check(c, rights);
-	if (error)
-		return (error);
-	*fpp = c->cap_object;
-	return (0);
+	rights = fdp->fd_ofiles[fd].fde_fcntls;
+	FILEDESC_SUNLOCK(fdp);
+
+	return (copyout(&rights, uap->fcntlrightsp, sizeof(rights)));
 }
 
 /*
- * Slightly different routine for memory mapping file descriptors: unwrap the
- * capability and check CAP_MMAP, but also return a bitmask representing the
- * maximum mapping rights the capability allows on the object.
+ * For backward compatibility.
  */
 int
-cap_funwrap_mmap(struct file *fp_cap, cap_rights_t rights, u_char *maxprotp,
-    struct file **fpp)
+sys_cap_new(struct thread *td, struct cap_new_args *uap)
 {
-	struct capability *c;
-	u_char maxprot;
-	int error;
+	struct filedesc *fdp;
+	cap_rights_t rights;
+	register_t newfd;
+	int error, fd;
 
-	if (fp_cap->f_type != DTYPE_CAPABILITY) {
-		*fpp = fp_cap;
-		*maxprotp = VM_PROT_ALL;
-		return (0);
+	fd = uap->fd;
+	rights = uap->rights;
+
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_RIGHTS(rights);
+
+	if ((rights & ~CAP_ALL) != 0)
+		return (EINVAL);
+
+	fdp = td->td_proc->p_fd;
+	FILEDESC_SLOCK(fdp);
+	if (fget_locked(fdp, fd) == NULL) {
+		FILEDESC_SUNLOCK(fdp);
+		return (EBADF);
 	}
-	c = fp_cap->f_data;
-	error = cap_check(c, rights | CAP_MMAP);
-	if (error)
+	error = _cap_check(cap_rights(fdp, fd), rights, CAPFAIL_INCREASE);
+	FILEDESC_SUNLOCK(fdp);
+	if (error != 0)
 		return (error);
-	*fpp = c->cap_object;
-	maxprot = 0;
-	if (c->cap_rights & CAP_READ)
-		maxprot |= VM_PROT_READ;
-	if (c->cap_rights & CAP_WRITE)
-		maxprot |= VM_PROT_WRITE;
-	if (c->cap_rights & CAP_MAPEXEC)
-		maxprot |= VM_PROT_EXECUTE;
-	*maxprotp = maxprot;
+
+	error = do_dup(td, 0, fd, 0, &newfd);
+	if (error != 0)
+		return (error);
+
+	FILEDESC_XLOCK(fdp);
+	/*
+	 * We don't really care about the race between checking capability
+	 * rights for the source descriptor and now. If capability rights
+	 * were ok at that earlier point, the process had this descriptor
+	 * with those rights, so we don't increase them in security sense,
+	 * the process might have done the cap_new(2) a bit earlier to get
+	 * the same effect.
+	 */
+	fdp->fd_ofiles[newfd].fde_rights = rights;
+	if ((rights & CAP_IOCTL) == 0) {
+		free(fdp->fd_ofiles[newfd].fde_ioctls, M_FILECAPS);
+		fdp->fd_ofiles[newfd].fde_ioctls = NULL;
+		fdp->fd_ofiles[newfd].fde_nioctls = 0;
+	}
+	if ((rights & CAP_FCNTL) == 0)
+		fdp->fd_ofiles[newfd].fde_fcntls = 0;
+	FILEDESC_XUNLOCK(fdp);
+
+	td->td_retval[0] = newfd;
+
 	return (0);
-}
-
-/*
- * When a capability is closed, simply drop the reference on the underlying
- * object and free the capability.  fdrop() will handle the case where the
- * underlying object also needs to close, and the caller will have already
- * performed any object-specific lock or mqueue handling.
- */
-static int
-capability_close(struct file *fp, struct thread *td)
-{
-	struct capability *c;
-	struct file *fp_object;
-
-	KASSERT(fp->f_type == DTYPE_CAPABILITY,
-	    ("capability_close: !capability"));
-
-	c = fp->f_data;
-	fp->f_ops = &badfileops;
-	fp->f_data = NULL;
-	fp_object = c->cap_object;
-	uma_zfree(capability_zone, c);
-	return (fdrop(fp_object, td));
-}
-
-/*
- * In general, file descriptor operations should never make it to the
- * capability, only the underlying file descriptor operation vector, so panic
- * if we do turn up here.
- */
-static int
-capability_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	panic("capability_read");
-}
-
-static int
-capability_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	panic("capability_write");
-}
-
-static int
-capability_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	panic("capability_truncate");
-}
-
-static int
-capability_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	panic("capability_ioctl");
-}
-
-static int
-capability_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	panic("capability_poll");
-}
-
-static int
-capability_kqfilter(struct file *fp, struct knote *kn)
-{
-
-	panic("capability_kqfilter");
-}
-
-static int
-capability_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	panic("capability_stat");
-}
-
-int
-capability_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	panic("capability_chmod");
-}
-
-int
-capability_chown(struct file *fp, uid_t uid, gid_t gid,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	panic("capability_chown");
 }
 
 #else /* !CAPABILITIES */
@@ -524,42 +569,54 @@ capability_chown(struct file *fp, uid_t uid, gid_t gid,
  * Stub Capability functions for when options CAPABILITIES isn't compiled
  * into the kernel.
  */
+
+int
+sys_cap_rights_limit(struct thread *td, struct cap_rights_limit_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+sys_cap_rights_get(struct thread *td, struct cap_rights_get_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+sys_cap_ioctls_get(struct thread *td, struct cap_ioctls_get_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+sys_cap_fcntls_limit(struct thread *td, struct cap_fcntls_limit_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+sys_cap_fcntls_get(struct thread *td, struct cap_fcntls_get_args *uap)
+{
+
+	return (ENOSYS);
+}
+
 int
 sys_cap_new(struct thread *td, struct cap_new_args *uap)
 {
 
 	return (ENOSYS);
-}
-
-int
-sys_cap_getrights(struct thread *td, struct cap_getrights_args *uap)
-{
-
-	return (ENOSYS);
-}
-
-int
-cap_funwrap(struct file *fp_cap, cap_rights_t rights, struct file **fpp)
-{
-
-	KASSERT(fp_cap->f_type != DTYPE_CAPABILITY,
-	    ("cap_funwrap: saw capability"));
-
-	*fpp = fp_cap;
-	return (0);
-}
-
-int
-cap_funwrap_mmap(struct file *fp_cap, cap_rights_t rights, u_char *maxprotp,
-    struct file **fpp)
-{
-
-	KASSERT(fp_cap->f_type != DTYPE_CAPABILITY,
-	    ("cap_funwrap_mmap: saw capability"));
-
-	*fpp = fp_cap;
-	*maxprotp = VM_PROT_ALL;
-	return (0);
 }
 
 #endif /* CAPABILITIES */

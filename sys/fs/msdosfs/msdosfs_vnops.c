@@ -600,7 +600,7 @@ msdosfs_read(ap)
 			error = bread(vp, lbn, blsize, NOCRED, &bp);
 		} else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			error = cluster_read(vp, dep->de_FileSize, lbn, blsize,
-			    NOCRED, on + uio->uio_resid, seqcount, &bp);
+			    NOCRED, on + uio->uio_resid, seqcount, 0, &bp);
 		} else if (seqcount > 1) {
 			rasize = blsize;
 			error = breadn(vp, lbn,
@@ -820,7 +820,7 @@ msdosfs_write(ap)
 		else if (n + croffset == pmp->pm_bpcluster) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
 				cluster_write(vp, bp, dep->de_FileSize,
-				    seqcount);
+				    seqcount, 0);
 			else
 				bawrite(bp);
 		} else
@@ -850,9 +850,6 @@ errexit:
 
 /*
  * Flush the blocks of a file to disk.
- *
- * This function is worthless for vnodes that represent directories. Maybe we
- * could just do a sync if they try an fsync on a directory file.
  */
 static int
 msdosfs_fsync(ap)
@@ -863,9 +860,35 @@ msdosfs_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	struct vnode *devvp;
+	int allerror, error;
 
 	vop_stdfsync(ap);
-	return (deupdat(VTODE(ap->a_vp), ap->a_waitfor == MNT_WAIT));
+
+	/*
+	* If the syncing request comes from fsync(2), sync the entire
+	* FAT and any other metadata that happens to be on devvp.  We
+	* need this mainly for the FAT.  We write the FAT sloppily, and
+	* syncing it all now is the best we can easily do to get all
+	* directory entries associated with the file (not just the file)
+	* fully synced.  The other metadata includes critical metadata
+	* for all directory entries, but only in the MNT_ASYNC case.  We
+	* will soon sync all metadata in the file's directory entry.
+	* Non-critical metadata for associated directory entries only
+	* gets synced accidentally, as in most file systems.
+	*/
+	if (ap->a_waitfor == MNT_WAIT) {
+		devvp = VTODE(ap->a_vp)->de_pmp->pm_devvp;
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+		allerror = VOP_FSYNC(devvp, MNT_WAIT, ap->a_td);
+		VOP_UNLOCK(devvp, 0);
+	} else
+		allerror = 0;
+
+	error = deupdat(VTODE(ap->a_vp), ap->a_waitfor == MNT_WAIT);
+	if (allerror == 0)
+		allerror = error;
+	return (allerror);
 }
 
 static int

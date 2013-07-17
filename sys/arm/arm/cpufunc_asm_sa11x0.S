@@ -95,7 +95,7 @@ ENTRY(sa11x0_cpu_sleep)
 	/* Restore interrupts (which will cause them to be serviced). */
 	msr	cpsr_all, r3
 	RET
-
+END(sa11x0_cpu_sleep)
 
 /*
  * This function is the same as sa110_context_switch for now, the plan
@@ -119,7 +119,10 @@ ENTRY(sa11x0_context_switch)
 	mov	r0, r0
 	mov	r0, r0
 	RET
+END(sa11x0_context_switch)
 
 ENTRY(sa11x0_drain_readbuf)
 	mcr	p15, 0, r0, c9, c0, 0		/* drain read buffer */
 	RET
+END(sa11x0_drain_readbuf)
+

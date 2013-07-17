@@ -108,7 +108,7 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 static int	coredump(struct thread *);
 static int	killpg1(struct thread *td, int sig, int pgid, int all,
 		    ksiginfo_t *ksi);
-static int	issignal(struct thread *td, int stop_allowed);
+static int	issignal(struct thread *td);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
@@ -560,19 +560,17 @@ sigqueue_delete_stopmask_proc(struct proc *p)
 }
 
 /*
- * Determine signal that should be delivered to process p, the current
- * process, 0 if none.  If there is a pending stop signal with default
+ * Determine signal that should be delivered to thread td, the current
+ * thread, 0 if none.  If there is a pending stop signal with default
  * action, the process stops in issignal().
  */
 int
-cursig(struct thread *td, int stop_allowed)
+cursig(struct thread *td)
 {
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
-	KASSERT(stop_allowed == SIG_STOP_ALLOWED ||
-	    stop_allowed == SIG_STOP_NOT_ALLOWED, ("cursig: stop_allowed"));
 	mtx_assert(&td->td_proc->p_sigacts->ps_mtx, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
-	return (SIGPENDING(td) ? issignal(td, stop_allowed) : 0);
+	return (SIGPENDING(td) ? issignal(td) : 0);
 }
 
 /*
@@ -1202,7 +1200,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	SIGSETNAND(td->td_sigmask, waitset);
 	for (;;) {
 		mtx_lock(&ps->ps_mtx);
-		sig = cursig(td, SIG_STOP_ALLOWED);
+		sig = cursig(td);
 		mtx_unlock(&ps->ps_mtx);
 		if (sig != 0 && SIGISMEMBER(waitset, sig)) {
 			if (sigqueue_get(&td->td_sigqueue, sig, ksi) != 0 ||
@@ -1465,7 +1463,7 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 			/* void */;
 		thread_suspend_check(0);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td, SIG_STOP_ALLOWED)) != 0)
+		while ((sig = cursig(td)) != 0)
 			has_sig += postsig(sig);
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 	}
@@ -2150,9 +2148,9 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * Some signals have a process-wide effect and a per-thread
 	 * component.  Most processing occurs when the process next
 	 * tries to cross the user boundary, however there are some
-	 * times when processing needs to be done immediatly, such as
+	 * times when processing needs to be done immediately, such as
 	 * waking up threads so that they can cross the user boundary.
-	 * We try do the per-process part here.
+	 * We try to do the per-process part here.
 	 */
 	if (P_SHOULDSTOP(p)) {
 		KASSERT(!(p->p_flag & P_WEXIT),
@@ -2399,12 +2397,10 @@ static void
 sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 {
 	struct thread *td2;
-	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
-	wakeup_swapper = 0;
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
@@ -2431,8 +2427,6 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 		}
 		thread_unlock(td2);
 	}
-	if (wakeup_swapper)
-		kick_proc0();
 }
 
 int
@@ -2584,7 +2578,7 @@ sigallowstop()
  *		postsig(sig);
  */
 static int
-issignal(struct thread *td, int stop_allowed)
+issignal(struct thread *td)
 {
 	struct proc *p;
 	struct sigacts *ps;
@@ -3279,6 +3273,7 @@ restart:
 			goto out;
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
 			goto out;
+		free(name, M_TEMP);
 		goto restart;
 	}
 

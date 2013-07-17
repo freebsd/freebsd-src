@@ -33,12 +33,28 @@
 
 #include <machine/pte.h>
 
-#define	PCPU_MD_FIELDS							\
+#define	PCPU_MD_COMMON_FIELDS						\
 	pd_entry_t	*pc_segbase;		/* curthread segbase */	\
 	struct	pmap	*pc_curpmap;		/* pmap of curthread */	\
 	u_int32_t	pc_next_asid;		/* next ASID to alloc */ \
 	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
 	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */
+
+#ifdef	__mips_n64
+#define	PCPU_MD_MIPS64_FIELDS						\
+	PCPU_MD_COMMON_FIELDS						\
+	char		__pad[61]
+#else
+#define	PCPU_MD_MIPS32_FIELDS						\
+	PCPU_MD_COMMON_FIELDS						\
+	char		__pad[133]
+#endif
+
+#ifdef	__mips_n64
+#define	PCPU_MD_FIELDS	PCPU_MD_MIPS64_FIELDS
+#else
+#define	PCPU_MD_FIELDS	PCPU_MD_MIPS32_FIELDS
+#endif
 
 #ifdef _KERNEL
 

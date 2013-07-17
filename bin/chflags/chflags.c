@@ -117,11 +117,7 @@ main(int argc, char *argv[])
 	} else
 		fts_options = hflag ? FTS_PHYSICAL : FTS_LOGICAL;
 
-	/* XXX: Why don't chflags and lchflags have compatible prototypes? */
-	if (hflag)
-		change_flags = (int (*)(const char *, unsigned long))lchflags;
-	else
-		change_flags = chflags;
+	change_flags = hflag ? lchflags : chflags;
 
 	flags = *argv;
 	if (*flags >= '0' && *flags <= '7') {

@@ -75,14 +75,13 @@ struct req_t {
 { 1, "out ipsec ah/transport esp/use" },
 { 1, "in ipsec ah/transport esp/tunnel" },
 { 0, "in ipsec ah/transport esp/tunnel/::1-::1" },
-{ 0, "in ipsec
-	ah / transport
-	esp / tunnel / ::1-::2" },
-{ 0, "out ipsec
-	ah/transport/::1-::2 esp/tunnel/::3-::4/use ah/transport/::5-::6/require
-	ah/transport/::1-::2 esp/tunnel/::3-::4/use ah/transport/::5-::6/require
-	ah/transport/::1-::2 esp/tunnel/::3-::4/use ah/transport/::5-::6/require
-	" },
+{ 0, "in ipsec\n"
+	"ah / transport\n"
+	"esp / tunnel / ::1-::2" },
+{ 0, "out ipsec\n"
+	"ah/transport/::1-::2 esp/tunnel/::3-::4/use ah/transport/::5-::6/require\n"
+	"ah/transport/::1-::2 esp/tunnel/::3-::4/use ah/transport/::5-::6/require\n"
+	"ah/transport/::1-::2 esp/tunnel/::3-::4/use ah/transport/::5-::6/require\n" },
 { 0, "out ipsec esp/transport/fec0::10-fec0::11/use" },
 };
 

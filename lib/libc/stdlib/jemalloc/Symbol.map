@@ -26,6 +26,17 @@ FBSD_1.3 {
 	sallocm;
 	dallocm;
 	nallocm;
+	__malloc;
+	__calloc;
+	__realloc;
+	__free;
+	__posix_memalign;
+	__malloc_usable_size;
+	__allocm;
+	__rallocm;
+	__sallocm;
+	__dallocm;
+	__nallocm;
 };
 
 FBSDprivate_1.0 {

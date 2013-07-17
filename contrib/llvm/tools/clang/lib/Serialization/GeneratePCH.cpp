@@ -13,11 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Serialization/ASTWriter.h"
-#include "clang/Sema/SemaConsumer.h"
-#include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTConsumer.h"
-#include "clang/Lex/Preprocessor.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/SemaConsumer.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string>
@@ -53,10 +53,6 @@ void PCHGenerator::HandleTranslationUnit(ASTContext &Ctx) {
 
   // Free up some memory, in case the process is kept alive.
   Buffer.clear();
-}
-
-PPMutationListener *PCHGenerator::GetPPMutationListener() {
-  return &Writer;
 }
 
 ASTMutationListener *PCHGenerator::GetASTMutationListener() {

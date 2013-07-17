@@ -14,10 +14,10 @@
 #ifndef LLVM_CLANG_AST_COMMENT_H
 #define LLVM_CLANG_AST_COMMENT_H
 
-#include "clang/Basic/SourceLocation.h"
-#include "clang/AST/Type.h"
 #include "clang/AST/CommentCommandTraits.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/Type.h"
+#include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -28,6 +28,26 @@ class TemplateParameterList;
 
 namespace comments {
 class FullComment;
+
+/// Describes the syntax that was used in a documentation command.
+///
+/// Exact values of this enumeration are important because they used to select
+/// parts of diagnostic messages.  Audit diagnostics before changing or adding
+/// a new value.
+enum CommandMarkerKind {
+  /// Command started with a backslash character:
+  /// \code
+  ///   \foo
+  /// \endcode
+  CMK_Backslash = 0,
+
+  /// Command started with an 'at' character:
+  /// \code
+  ///   @foo
+  /// \endcode
+  CMK_At = 1
+};
+
 /// Any part of the comment.
 /// Abstract class.
 class Comment {
@@ -110,8 +130,12 @@ protected:
     unsigned : NumCommentBits;
 
     unsigned CommandID : 8;
+
+    /// Describes the syntax that was used in a documentation command.
+    /// Contains values from CommandMarkerKind enum.
+    unsigned CommandMarker : 1;
   };
-  enum { NumBlockCommandCommentBits = NumCommentBits + 8 };
+  enum { NumBlockCommandCommentBits = NumCommentBits + 9 };
 
   class ParamCommandCommentBitfields {
     friend class ParamCommandComment;
@@ -171,8 +195,9 @@ public:
   const char *getCommentKindName() const;
 
   LLVM_ATTRIBUTE_USED void dump() const;
+  LLVM_ATTRIBUTE_USED void dumpColor() const;
   LLVM_ATTRIBUTE_USED void dump(const ASTContext &Context) const;
-  void dump(llvm::raw_ostream &OS, const CommandTraits *Traits,
+  void dump(raw_ostream &OS, const CommandTraits *Traits,
             const SourceManager *SM) const;
 
   SourceRange getSourceRange() const LLVM_READONLY { return Range; }
@@ -282,14 +307,14 @@ public:
 
 protected:
   /// Command arguments.
-  llvm::ArrayRef<Argument> Args;
+  ArrayRef<Argument> Args;
 
 public:
   InlineCommandComment(SourceLocation LocBegin,
                        SourceLocation LocEnd,
                        unsigned CommandID,
                        RenderKind RK,
-                       llvm::ArrayRef<Argument> Args) :
+                       ArrayRef<Argument> Args) :
       InlineContentComment(InlineCommandCommentKind, LocBegin, LocEnd),
       Args(Args) {
     InlineCommandCommentBits.RenderKind = RK;
@@ -504,10 +529,10 @@ public:
 
 /// A single paragraph that contains inline content.
 class ParagraphComment : public BlockContentComment {
-  llvm::ArrayRef<InlineContentComment *> Content;
+  ArrayRef<InlineContentComment *> Content;
 
 public:
-  ParagraphComment(llvm::ArrayRef<InlineContentComment *> Content) :
+  ParagraphComment(ArrayRef<InlineContentComment *> Content) :
       BlockContentComment(ParagraphCommentKind,
                           SourceLocation(),
                           SourceLocation()),
@@ -565,7 +590,7 @@ public:
 
 protected:
   /// Word-like arguments.
-  llvm::ArrayRef<Argument> Args;
+  ArrayRef<Argument> Args;
 
   /// Paragraph argument.
   ParagraphComment *Paragraph;
@@ -573,21 +598,25 @@ protected:
   BlockCommandComment(CommentKind K,
                       SourceLocation LocBegin,
                       SourceLocation LocEnd,
-                      unsigned CommandID) :
+                      unsigned CommandID,
+                      CommandMarkerKind CommandMarker) :
       BlockContentComment(K, LocBegin, LocEnd),
       Paragraph(NULL) {
     setLocation(getCommandNameBeginLoc());
     BlockCommandCommentBits.CommandID = CommandID;
+    BlockCommandCommentBits.CommandMarker = CommandMarker;
   }
 
 public:
   BlockCommandComment(SourceLocation LocBegin,
                       SourceLocation LocEnd,
-                      unsigned CommandID) :
+                      unsigned CommandID,
+                      CommandMarkerKind CommandMarker) :
       BlockContentComment(BlockCommandCommentKind, LocBegin, LocEnd),
       Paragraph(NULL) {
     setLocation(getCommandNameBeginLoc());
     BlockCommandCommentBits.CommandID = CommandID;
+    BlockCommandCommentBits.CommandMarker = CommandMarker;
   }
 
   static bool classof(const Comment *C) {
@@ -633,7 +662,7 @@ public:
     return Args[Idx].Range;
   }
 
-  void setArgs(llvm::ArrayRef<Argument> A) {
+  void setArgs(ArrayRef<Argument> A) {
     Args = A;
     if (Args.size() > 0) {
       SourceLocation NewLocEnd = Args.back().Range.getEnd();
@@ -656,6 +685,11 @@ public:
     if (NewLocEnd.isValid())
       setSourceRange(SourceRange(getLocStart(), NewLocEnd));
   }
+
+  CommandMarkerKind getCommandMarker() const LLVM_READONLY {
+    return static_cast<CommandMarkerKind>(
+        BlockCommandCommentBits.CommandMarker);
+  }
 };
 
 /// Doxygen \\param command.
@@ -669,9 +703,10 @@ public:
 
   ParamCommandComment(SourceLocation LocBegin,
                       SourceLocation LocEnd,
-                      unsigned CommandID) :
+                      unsigned CommandID,
+                      CommandMarkerKind CommandMarker) :
       BlockCommandComment(ParamCommandCommentKind, LocBegin, LocEnd,
-                          CommandID),
+                          CommandID, CommandMarker),
       ParamIndex(InvalidParamIndex) {
     ParamCommandCommentBits.Direction = In;
     ParamCommandCommentBits.IsDirectionExplicit = false;
@@ -746,13 +781,15 @@ private:
   /// For C:  Position = { 0 }
   /// For TT: Position = { 1 }
   /// For T:  Position = { 1, 0 }
-  llvm::ArrayRef<unsigned> Position;
+  ArrayRef<unsigned> Position;
 
 public:
   TParamCommandComment(SourceLocation LocBegin,
                        SourceLocation LocEnd,
-                       unsigned CommandID) :
-      BlockCommandComment(TParamCommandCommentKind, LocBegin, LocEnd, CommandID)
+                       unsigned CommandID,
+                       CommandMarkerKind CommandMarker) :
+      BlockCommandComment(TParamCommandCommentKind, LocBegin, LocEnd, CommandID,
+                          CommandMarker)
   { }
 
   static bool classof(const Comment *C) {
@@ -826,14 +863,15 @@ class VerbatimBlockComment : public BlockCommandComment {
 protected:
   StringRef CloseName;
   SourceLocation CloseNameLocBegin;
-  llvm::ArrayRef<VerbatimBlockLineComment *> Lines;
+  ArrayRef<VerbatimBlockLineComment *> Lines;
 
 public:
   VerbatimBlockComment(SourceLocation LocBegin,
                        SourceLocation LocEnd,
                        unsigned CommandID) :
       BlockCommandComment(VerbatimBlockCommentKind,
-                          LocBegin, LocEnd, CommandID)
+                          LocBegin, LocEnd, CommandID,
+                          CMK_At) // FIXME: improve source fidelity.
   { }
 
   static bool classof(const Comment *C) {
@@ -853,7 +891,7 @@ public:
     CloseNameLocBegin = LocBegin;
   }
 
-  void setLines(llvm::ArrayRef<VerbatimBlockLineComment *> L) {
+  void setLines(ArrayRef<VerbatimBlockLineComment *> L) {
     Lines = L;
   }
 
@@ -886,7 +924,8 @@ public:
                       StringRef Text) :
       BlockCommandComment(VerbatimLineCommentKind,
                           LocBegin, LocEnd,
-                          CommandID),
+                          CommandID,
+                          CMK_At), // FIXME: improve source fidelity.
       Text(Text),
       TextBegin(TextBegin)
   { }
@@ -1021,11 +1060,11 @@ struct DeclInfo {
 
 /// A full comment attached to a declaration, contains block content.
 class FullComment : public Comment {
-  llvm::ArrayRef<BlockContentComment *> Blocks;
+  ArrayRef<BlockContentComment *> Blocks;
   DeclInfo *ThisDeclInfo;
 
 public:
-  FullComment(llvm::ArrayRef<BlockContentComment *> Blocks, DeclInfo *D) :
+  FullComment(ArrayRef<BlockContentComment *> Blocks, DeclInfo *D) :
       Comment(FullCommentKind, SourceLocation(), SourceLocation()),
       Blocks(Blocks), ThisDeclInfo(D) {
     if (Blocks.empty())
@@ -1062,7 +1101,7 @@ public:
     return ThisDeclInfo;
   }
   
-  llvm::ArrayRef<BlockContentComment *> getBlocks() const { return Blocks; }
+  ArrayRef<BlockContentComment *> getBlocks() const { return Blocks; }
   
 };
 } // end namespace comments

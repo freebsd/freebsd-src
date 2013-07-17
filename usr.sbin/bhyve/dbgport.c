@@ -105,6 +105,7 @@ again:
 static struct inout_port dbgport = {
 	"bvmdbg",
 	BVM_DBG_PORT,
+	1,
 	IOPORT_F_INOUT,
 	dbg_handler
 };

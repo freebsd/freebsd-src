@@ -2392,7 +2392,9 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	 * ic_raw_xmit will free the node reference
 	 * regardless of queue/TX success or failure.
 	 */
-	ret = ic->ic_raw_xmit(ni, m, NULL);
+	IEEE80211_TX_LOCK(ic);
+	ret = ieee80211_raw_output(vap, ni, m, NULL);
+	IEEE80211_TX_UNLOCK(ic);
 	if (ret != 0) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_11N,
 		    ni, "send BAR: failed: (ret = %d)\n",
@@ -2771,10 +2773,14 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 	struct ieee80211_beacon_offsets *bo)
 {
 #define	PROTMODE	(IEEE80211_HTINFO_OPMODE|IEEE80211_HTINFO_NONHT_PRESENT)
-	const struct ieee80211_channel *bsschan = vap->iv_bss->ni_chan;
+	struct ieee80211_node *ni;
+	const struct ieee80211_channel *bsschan;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_ie_htinfo *ht =
 	   (struct ieee80211_ie_htinfo *) bo->bo_htinfo;
+
+	ni = ieee80211_ref_node(vap->iv_bss);
+	bsschan = ni->ni_chan;
 
 	/* XXX only update on channel change */
 	ht->hi_ctrlchannel = ieee80211_chan2ieee(ic, bsschan);
@@ -2793,6 +2799,8 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 
 	/* protection mode */
 	ht->hi_byte2 = (ht->hi_byte2 &~ PROTMODE) | ic->ic_curhtprotmode;
+
+	ieee80211_free_node(ni);
 
 	/* XXX propagate to vendor ie's */
 #undef PROTMODE

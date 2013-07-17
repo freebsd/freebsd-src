@@ -36,7 +36,6 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device scbus"
 .Cd "device ata"
-.Cd "options ATA_CAM"
 .Ed
 .Pp
 Alternatively, to load the driver as set of modules at boot time,
@@ -79,12 +78,6 @@ prerequisite for the other modules.
 The next three lines are generic bus-specific drivers.
 Of the rest, ataahci is the AHCI driver.
 The others are vendor-specific PCI drivers.
-The
-.Dv ATA_CAM
-option should always remain in the kernel configuration, to make
-the driver work as a
-.Xr CAM 4
-subsystem module.
 .Pp
 The following tunables are settable from the
 .Xr loader 8 :

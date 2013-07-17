@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.56 2011/10/18 05:00:48 djm Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.58 2012/12/03 08:33:02 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 18 2011
+.Dd December 3, 2012
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -98,10 +98,10 @@ Deletes all identities from the agent.
 Instead of adding identities, removes identities from the agent.
 If
 .Nm
-has been run without arguments, the keys for the default identities will
-be removed.
+has been run without arguments, the keys for the default identities and
+their corresponding certificates will be removed.
 Otherwise, the argument list will be interpreted as a list of paths to
-public key files and matching keys will be removed from the agent.
+public key files to specify keys and certificates to be removed from the agent.
 If no public key is found at a given path,
 .Nm
 will append
@@ -111,8 +111,8 @@ and retry.
 Remove keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
 .It Fl k
-When loading keys into the agent, load plain private keys only and skip
-certificates.
+When loading keys into or deleting keys from the agent, process plain private
+keys only and skip certificates.
 .It Fl L
 Lists public key parameters of all identities currently represented
 by the agent.

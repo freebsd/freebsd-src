@@ -302,7 +302,7 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
 }
 
 /*
- * free_range: Traverse the indicated range of the provided file
+ * Traverse the indicated range of the provided file
  * and "free" all the blocks contained there.
  */
 static void
@@ -370,7 +370,7 @@ dnode_sync_free_range(dnode_t *dn, uint64_t blkid, uint64_t nblks, dmu_tx_t *tx)
 }
 
 /*
- * Try to kick all the dnodes dbufs out of the cache...
+ * Try to kick all the dnode's dbufs out of the cache...
  */
 void
 dnode_evict_dbufs(dnode_t *dn)
@@ -480,6 +480,7 @@ dnode_sync_free(dnode_t *dn, dmu_tx_t *tx)
 	dnode_undirty_dbufs(&dn->dn_dirty_records[txgoff]);
 	dnode_evict_dbufs(dn);
 	ASSERT3P(list_head(&dn->dn_dbufs), ==, NULL);
+	ASSERT3P(dn->dn_bonus, ==, NULL);
 
 	/*
 	 * XXX - It would be nice to assert this, but we may still

@@ -17,12 +17,12 @@
 #include "CriticalAntiDepBreaker.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
 
@@ -57,23 +57,7 @@ void CriticalAntiDepBreaker::StartBlock(MachineBasicBlock *BB) {
 
   bool IsReturnBlock = (BBSize != 0 && BB->back().isReturn());
 
-  // Determine the live-out physregs for this block.
-  if (IsReturnBlock) {
-    // In a return block, examine the function live-out regs.
-    for (MachineRegisterInfo::liveout_iterator I = MRI.liveout_begin(),
-         E = MRI.liveout_end(); I != E; ++I) {
-      for (MCRegAliasIterator AI(*I, TRI, true); AI.isValid(); ++AI) {
-        unsigned Reg = *AI;
-        Classes[Reg] = reinterpret_cast<TargetRegisterClass *>(-1);
-        KillIndices[Reg] = BBSize;
-        DefIndices[Reg] = ~0u;
-      }
-    }
-  }
-
-  // In a non-return block, examine the live-in regs of all successors.
-  // Note a return block can have successors if the return instruction is
-  // predicated.
+  // Examine the live-in regs of all successors.
   for (MachineBasicBlock::succ_iterator SI = BB->succ_begin(),
          SE = BB->succ_end(); SI != SE; ++SI)
     for (MachineBasicBlock::livein_iterator I = (*SI)->livein_begin(),
@@ -371,14 +355,15 @@ CriticalAntiDepBreaker::isNewRegClobberedByRefs(RegRefIter RegRefBegin,
   return false;
 }
 
-unsigned
-CriticalAntiDepBreaker::findSuitableFreeRegister(RegRefIter RegRefBegin,
-                                                 RegRefIter RegRefEnd,
-                                                 unsigned AntiDepReg,
-                                                 unsigned LastNewReg,
-                                                 const TargetRegisterClass *RC)
+unsigned CriticalAntiDepBreaker::
+findSuitableFreeRegister(RegRefIter RegRefBegin,
+                         RegRefIter RegRefEnd,
+                         unsigned AntiDepReg,
+                         unsigned LastNewReg,
+                         const TargetRegisterClass *RC,
+                         SmallVector<unsigned, 2> &Forbid)
 {
-  ArrayRef<unsigned> Order = RegClassInfo.getOrder(RC);
+  ArrayRef<MCPhysReg> Order = RegClassInfo.getOrder(RC);
   for (unsigned i = 0; i != Order.size(); ++i) {
     unsigned NewReg = Order[i];
     // Don't replace a register with itself.
@@ -401,6 +386,15 @@ CriticalAntiDepBreaker::findSuitableFreeRegister(RegRefIter RegRefBegin,
         Classes[NewReg] == reinterpret_cast<TargetRegisterClass *>(-1) ||
         KillIndices[AntiDepReg] > DefIndices[NewReg])
       continue;
+    // If NewReg overlaps any of the forbidden registers, we can't use it.
+    bool Forbidden = false;
+    for (SmallVector<unsigned, 2>::iterator it = Forbid.begin(),
+           ite = Forbid.end(); it != ite; ++it)
+      if (TRI->regsOverlap(NewReg, *it)) {
+        Forbidden = true;
+        break;
+      }
+    if (Forbidden) continue;
     return NewReg;
   }
 
@@ -564,6 +558,8 @@ BreakAntiDependencies(const std::vector<SUnit>& SUnits,
 
     PrescanInstruction(MI);
 
+    SmallVector<unsigned, 2> ForbidRegs;
+
     // If MI's defs have a special allocation requirement, don't allow
     // any def registers to be changed. Also assume all registers
     // defined in a call must not be changed (ABI).
@@ -574,7 +570,9 @@ BreakAntiDependencies(const std::vector<SUnit>& SUnits,
       AntiDepReg = 0;
     else if (AntiDepReg) {
       // If this instruction has a use of AntiDepReg, breaking it
-      // is invalid.
+      // is invalid.  If the instruction defines other registers,
+      // save a list of them so that we don't pick a new register
+      // that overlaps any of them.
       for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
         MachineOperand &MO = MI->getOperand(i);
         if (!MO.isReg()) continue;
@@ -584,6 +582,8 @@ BreakAntiDependencies(const std::vector<SUnit>& SUnits,
           AntiDepReg = 0;
           break;
         }
+        if (MO.isDef() && Reg != AntiDepReg)
+          ForbidRegs.push_back(Reg);
       }
     }
 
@@ -606,7 +606,7 @@ BreakAntiDependencies(const std::vector<SUnit>& SUnits,
       if (unsigned NewReg = findSuitableFreeRegister(Range.first, Range.second,
                                                      AntiDepReg,
                                                      LastNewReg[AntiDepReg],
-                                                     RC)) {
+                                                     RC, ForbidRegs)) {
         DEBUG(dbgs() << "Breaking anti-dependence edge on "
               << TRI->getName(AntiDepReg)
               << " with " << RegRefs.count(AntiDepReg) << " references"

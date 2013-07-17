@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+# Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -49,9 +49,6 @@ METHOD int alloc_virtqueues {
 	int		flags;
 	int		nvqs;
 	struct vq_alloc_info *info;
-};
-HEADER {
-#define VIRTIO_ALLOC_VQS_DISABLE_MSIX 0x1
 };
 
 METHOD int setup_intr {

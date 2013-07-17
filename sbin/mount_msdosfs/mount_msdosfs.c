@@ -69,7 +69,7 @@ main(int argc, char **argv)
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	struct stat sb;
-	int c, mntflags, set_gid, set_uid, set_mask, set_dirmask;
+	int c, set_gid, set_uid, set_mask, set_dirmask;
 	char *dev, *dir, mntpath[MAXPATHLEN], *csp;
 	char fstype[] = "msdosfs";
 	char errmsg[255] = {0};
@@ -78,9 +78,8 @@ main(int argc, char **argv)
 	mode_t mask = 0, dirmask = 0;
 	uid_t uid = 0;
 	gid_t gid = 0;
-	getmnt_silent = 1;
 
-	mntflags = set_gid = set_uid = set_mask = set_dirmask = 0;
+	set_gid = set_uid = set_mask = set_dirmask = 0;
 
 	while ((c = getopt(argc, argv, "sl9u:g:m:M:o:L:D:W:")) != -1) {
 		switch (c) {
@@ -219,7 +218,7 @@ main(int argc, char **argv)
 	build_iovec_argf(&iov, &iovlen, "mask", "%u", mask);
 	build_iovec_argf(&iov, &iovlen, "dirmask", "%u", dirmask);
 
-	if (nmount(iov, iovlen, mntflags) < 0) {
+	if (nmount(iov, iovlen, 0) < 0) {
 		if (errmsg[0])
 			err(1, "%s: %s", dev, errmsg);
 		else

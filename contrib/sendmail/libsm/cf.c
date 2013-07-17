@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: cf.c,v 1.6 2001/09/11 04:04:47 gshapiro Exp $")
+SM_RCSID("@(#)$Id: cf.c,v 1.7 2013/03/12 15:24:50 ca Exp $")
 
 #include <ctype.h>
 #include <errno.h>
@@ -54,7 +54,7 @@ sm_cf_getopt(path, optc, optv)
 	if (cfp == NULL)
 		return errno;
 
-	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		p = strchr(buf, '\n');
 		if (p != NULL)

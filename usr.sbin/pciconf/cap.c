@@ -276,6 +276,18 @@ cap_ht(int fd, struct pci_conf *p, uint8_t ptr)
 		case PCIM_HTCAP_X86_ENCODING:
 			printf("X86 encoding");
 			break;
+		case PCIM_HTCAP_GEN3:
+			printf("Gen3");
+			break;
+		case PCIM_HTCAP_FLE:
+			printf("function-level extension");
+			break;
+		case PCIM_HTCAP_PM:
+			printf("power management");
+			break;
+		case PCIM_HTCAP_HIGH_NODE_COUNT:
+			printf("high node count");
+			break;
 		default:
 			printf("unknown %02x", command);
 			break;

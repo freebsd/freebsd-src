@@ -1,0 +1,3 @@
+.\" $FreeBSD$
+Set to not build a cross compiler in the cross-tools stage of
+buildworld, buildkernel, etc.

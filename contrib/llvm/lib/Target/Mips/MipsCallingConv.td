@@ -96,6 +96,12 @@ def RetCC_MipsN : CallingConv<[
   CCIfType<[f64], CCAssignToReg<[D0_64, D2_64]>>
 ]>;
 
+// In soft-mode, register A0_64, instead of V1_64, is used to return a long
+// double value.
+def RetCC_F128Soft : CallingConv<[
+  CCIfType<[i64], CCAssignToReg<[V0_64, A0_64]>>
+]>;
+
 //===----------------------------------------------------------------------===//
 // Mips EABI Calling Convention
 //===----------------------------------------------------------------------===//
@@ -136,17 +142,6 @@ def RetCC_MipsEABI : CallingConv<[
 
   // f64 are returned in register D0
   CCIfType<[f64], CCIfSubtarget<"isNotSingleFloat()", CCAssignToReg<[D0]>>>
-]>;
-
-//===----------------------------------------------------------------------===//
-// Mips Android Calling Convention
-//===----------------------------------------------------------------------===//
-
-def RetCC_MipsAndroid : CallingConv<[
-  // f32 are returned in registers F0, F2, F1, F3
-  CCIfType<[f32], CCAssignToReg<[F0, F2, F1, F3]>>,
-
-  CCDelegateTo<RetCC_MipsO32>
 ]>;
 
 //===----------------------------------------------------------------------===//
@@ -209,7 +204,6 @@ def RetCC_Mips : CallingConv<[
   CCIfSubtarget<"isABI_EABI()", CCDelegateTo<RetCC_MipsEABI>>,
   CCIfSubtarget<"isABI_N32()", CCDelegateTo<RetCC_MipsN>>,
   CCIfSubtarget<"isABI_N64()", CCDelegateTo<RetCC_MipsN>>,
-  CCIfSubtarget<"isAndroid()", CCDelegateTo<RetCC_MipsAndroid>>,
   CCDelegateTo<RetCC_MipsO32>
 ]>;
 

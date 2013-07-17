@@ -21,6 +21,10 @@ ARCH_SUBDIR= ${MACHINE_CPUARCH}
 .include "${ARCH_SUBDIR}/Makefile.inc"
 
 .PATH:	${.CURDIR}/${ARCH_SUBDIR}
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.PATH:	${.CURDIR}/x86
+CFLAGS+=	-I${.CURDIR}/x86
+.endif
 
 # long double format
 .if ${LDBL_PREC} == 64
@@ -90,18 +94,19 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
-	e_hypotl.c e_remainderl.c e_sqrtl.c \
+COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
+	e_fmodl.c e_hypotl.c e_remainderl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
+	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
 	s_csqrtl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
-	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
-	s_remquol.c s_rintl.c s_scalbnl.c \
+	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
+	s_nexttoward.c s_remquol.c s_rintl.c s_scalbnl.c \
 	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
 .endif
 
 # C99 complex functions
-COMMON_SRCS+=	s_ccosh.c s_ccoshf.c s_cexp.c s_cexpf.c \
+COMMON_SRCS+=	catrig.c catrigf.c \
+	s_ccosh.c s_ccoshf.c s_cexp.c s_cexpf.c \
 	s_cimag.c s_cimagf.c s_cimagl.c \
 	s_conj.c s_conjf.c s_conjl.c \
 	s_cproj.c s_cprojf.c s_creal.c s_crealf.c s_creall.c \
@@ -117,18 +122,12 @@ COMMON_SRCS:=  ${COMMON_SRCS:N${i:R}.c}
 .endfor
 .endif
 
-# Some files need certain gcc built-in functions to be disabled, since gcc's
-# model of the functions bogusly assumes -fno-trapping-math.
-XRINT_CFLAGS=	-fno-builtin-rint -fno-builtin-rintf -fno-builtin-rintl
-CFLAGS+=	${XRINT_CFLAGS}
-XRINT_CFLAGS:=	${.IMPSRC:M*/s_nearbyint.c:C/^.+$/${XRINT_CFLAGS}/:C/^$//}
-
 SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS+=	fenv.h math.h
 
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
-	ceil.3 ccos.3 ccosh.3 cexp.3 \
+	ceil.3 cacos.3 ccos.3 ccosh.3 cexp.3 \
 	cimag.3 copysign.3 cos.3 cosh.3 csqrt.3 erf.3 exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
@@ -139,13 +138,16 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	complex.3
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
-MLINKS+=acosh.3 acoshf.3
+MLINKS+=acosh.3 acoshf.3 acosh.3 acoshl.3
 MLINKS+=asin.3 asinf.3 asin.3 asinl.3
-MLINKS+=asinh.3 asinhf.3
+MLINKS+=asinh.3 asinhf.3 asinh.3 asinhl.3
 MLINKS+=atan.3 atanf.3 atan.3 atanl.3
-MLINKS+=atanh.3 atanhf.3
+MLINKS+=atanh.3 atanhf.3 atanh.3 atanhl.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
+MLINKS+=cacos.3 cacosf.3 cacos.3 cacosh.3 cacos.3 cacoshf.3 \
+	cacos.3 casin.3 cacos.3 casinf.3 cacos.3 casinh.3 cacos.3 casinhf.3 \
+	cacos.3 catan.3 cacos.3 catanf.3 cacos.3 catanh.3 cacos.3 catanhf.3
 MLINKS+=ccos.3 ccosf.3 ccos.3 csin.3 ccos.3 csinf.3 ccos.3 ctan.3 ccos.3 ctanf.3
 MLINKS+=ccosh.3 ccoshf.3 ccosh.3 csinh.3 ccosh.3 csinhf.3 \
 	ccosh.3 ctanh.3 ccosh.3 ctanhf.3
@@ -160,8 +162,8 @@ MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3
 MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
-MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 pow.3 exp.3 powf.3 \
-	exp.3 exp2.3 exp.3 exp2f.3 exp.3 exp2l.3 exp.3 expf.3
+MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 expm1l.3 exp.3 pow.3 exp.3 powf.3 \
+	exp.3 exp2.3 exp.3 exp2f.3 exp.3 exp2l.3 exp.3 expf.3 exp.3 expl.3
 MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3
 MLINKS+=fdim.3 fdimf.3 fdim.3 fdiml.3
 MLINKS+=feclearexcept.3 fegetexceptflag.3 feclearexcept.3 feraiseexcept.3 \
@@ -185,7 +187,10 @@ MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 \
 	lgamma.3 tgamma.3 lgamma.3 tgammaf.3
-MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log1p.3 log.3 log1pf.3 log.3 logf.3 log.3 log2.3 log.3 log2f.3
+MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log10l.3 \
+	log.3 log1p.3 log.3 log1pf.3 log.3 log1pl.3 \
+	log.3 logf.3 log.3 logl.3 \
+	log.3 log2.3 log.3 log2f.3 log.3 log2l.3
 MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 llrintl.3 \
 	lrint.3 lrintf.3 lrint.3 lrintl.3
 MLINKS+=lround.3 llround.3 lround.3 llroundf.3 lround.3 llroundl.3 \

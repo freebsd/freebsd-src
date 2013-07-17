@@ -73,6 +73,7 @@ static int	p4tcc_features(driver_t *driver, u_int *features);
 static void	p4tcc_identify(driver_t *driver, device_t parent);
 static int	p4tcc_probe(device_t dev);
 static int	p4tcc_attach(device_t dev);
+static int	p4tcc_detach(device_t dev);
 static int	p4tcc_settings(device_t dev, struct cf_setting *sets,
 		    int *count);
 static int	p4tcc_set(device_t dev, const struct cf_setting *set);
@@ -84,6 +85,7 @@ static device_method_t p4tcc_methods[] = {
 	DEVMETHOD(device_identify,	p4tcc_identify),
 	DEVMETHOD(device_probe,		p4tcc_probe),
 	DEVMETHOD(device_attach,	p4tcc_attach),
+	DEVMETHOD(device_detach,	p4tcc_detach),
 
 	/* cpufreq interface */
 	DEVMETHOD(cpufreq_drv_set,	p4tcc_set),
@@ -210,6 +212,24 @@ p4tcc_attach(device_t dev)
 
 	cpufreq_register(dev);
 	return (0);
+}
+
+static int
+p4tcc_detach(device_t dev)
+{
+	struct cf_setting set;
+	int error;
+
+	error = cpufreq_unregister(dev);
+	if (error)
+		return (error);
+
+	/*
+	 * Before we finish detach, switch to Automatic mode.
+	 */
+	set.freq = 10000;
+	p4tcc_set(dev, &set);
+	return(0);
 }
 
 static int

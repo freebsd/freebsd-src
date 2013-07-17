@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2009 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2009, 2012, 2013 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.279 2012/11/16 20:25:03 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.280 2013/01/16 18:48:36 ca Exp $")
 
 #if MILTER
 # include <sm/sendmail.h>
@@ -2184,7 +2184,7 @@ milter_send_command(m, cmd, data, sz, e, state, where)
 **		cmd -- command to send.
 **		data -- optional command data.
 **		sz -- length of buf.
-**		macros -- macros to send for filter smfi_getsymval().
+**		stage -- index of macros to send for filter smfi_getsymval().
 **		e -- current envelope (for macro access).
 **		state -- return state word.
 **		where -- description of calling function (logging).
@@ -2328,7 +2328,6 @@ milter_getsymlist(m, buf, rlen, offset)
 		  case SMFIM_DATA:
 			SM_ASSERT(m->mf_idx > 0 && m->mf_idx < MAXFILTERS);
 			macros = MilterMacros[i][m->mf_idx];
-
 			m->mf_lflags |= MI_LFLAGS_SYM(i);
 			len = strlen(buf + offset);
 			if (len > 0)

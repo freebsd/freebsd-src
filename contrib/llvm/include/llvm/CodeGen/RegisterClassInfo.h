@@ -29,10 +29,15 @@ class RegisterClassInfo {
     unsigned Tag;
     unsigned NumRegs;
     bool ProperSubClass;
-    OwningArrayPtr<unsigned> Order;
+    uint8_t MinCost;
+    uint16_t LastCostChange;
+    OwningArrayPtr<MCPhysReg> Order;
 
-    RCInfo() : Tag(0), NumRegs(0), ProperSubClass(false) {}
-    operator ArrayRef<unsigned>() const {
+    RCInfo()
+      : Tag(0), NumRegs(0), ProperSubClass(false), MinCost(0),
+        LastCostChange(0) {}
+
+    operator ArrayRef<MCPhysReg>() const {
       return makeArrayRef(Order.get(), NumRegs);
     }
   };
@@ -84,7 +89,7 @@ public:
   /// getOrder - Returns the preferred allocation order for RC. The order
   /// contains no reserved registers, and registers that alias callee saved
   /// registers come last.
-  ArrayRef<unsigned> getOrder(const TargetRegisterClass *RC) const {
+  ArrayRef<MCPhysReg> getOrder(const TargetRegisterClass *RC) const {
     return get(RC);
   }
 
@@ -105,6 +110,21 @@ public:
     if (unsigned N = CSRNum[PhysReg])
       return CalleeSaved[N-1];
     return 0;
+  }
+
+  /// Get the minimum register cost in RC's allocation order.
+  /// This is the smallest value returned by TRI->getCostPerUse(Reg) for all
+  /// the registers in getOrder(RC).
+  unsigned getMinCost(const TargetRegisterClass *RC) {
+    return get(RC).MinCost;
+  }
+
+  /// Get the position of the last cost change in getOrder(RC).
+  ///
+  /// All registers in getOrder(RC).slice(getLastCostChange(RC)) will have the
+  /// same cost according to TRI->getCostPerUse().
+  unsigned getLastCostChange(const TargetRegisterClass *RC) {
+    return get(RC).LastCostChange;
   }
 };
 } // end namespace llvm

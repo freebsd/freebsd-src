@@ -2,14 +2,8 @@
  * WPA Supplicant / UNIX domain socket -based control interface
  * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -17,6 +11,11 @@
 #include <sys/stat.h>
 #include <grp.h>
 #include <stddef.h>
+#include <unistd.h>
+#include <fcntl.h>
+#ifdef ANDROID
+#include <cutils/sockets.h>
+#endif /* ANDROID */
 
 #include "utils/common.h"
 #include "utils/eloop.h"
@@ -132,7 +131,7 @@ static void wpa_supplicant_ctrl_iface_receive(int sock, void *eloop_ctx,
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
 	struct ctrl_iface_priv *priv = sock_ctx;
-	char buf[256];
+	char buf[4096];
 	int res;
 	struct sockaddr_un from;
 	socklen_t fromlen = sizeof(from);
@@ -262,6 +261,7 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 	char *buf, *dir = NULL, *gid_str = NULL;
 	struct group *grp;
 	char *endp;
+	int flags;
 
 	priv = os_zalloc(sizeof(*priv));
 	if (priv == NULL)
@@ -276,6 +276,13 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 	buf = os_strdup(wpa_s->conf->ctrl_interface);
 	if (buf == NULL)
 		goto fail;
+#ifdef ANDROID
+	os_snprintf(addr.sun_path, sizeof(addr.sun_path), "wpa_%s",
+		    wpa_s->conf->ctrl_interface);
+	priv->sock = android_get_control_socket(addr.sun_path);
+	if (priv->sock >= 0)
+		goto havesock;
+#endif /* ANDROID */
 	if (os_strncmp(buf, "DIR=", 4) == 0) {
 		dir = buf + 4;
 		gid_str = os_strstr(dir, " GROUP=");
@@ -297,6 +304,22 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 			goto fail;
 		}
 	}
+
+#ifdef ANDROID
+	/*
+	 * wpa_supplicant is started from /init.*.rc on Android and that seems
+	 * to be using umask 0077 which would leave the control interface
+	 * directory without group access. This breaks things since Wi-Fi
+	 * framework assumes that this directory can be accessed by other
+	 * applications in the wifi group. Fix this by adding group access even
+	 * if umask value would prevent this.
+	 */
+	if (chmod(dir, S_IRWXU | S_IRWXG) < 0) {
+		wpa_printf(MSG_ERROR, "CTRL: Could not chmod directory: %s",
+			   strerror(errno));
+		/* Try to continue anyway */
+	}
+#endif /* ANDROID */
 
 	if (gid_str) {
 		grp = getgrnam(gid_str);
@@ -371,7 +394,7 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 			}
 			if (bind(priv->sock, (struct sockaddr *) &addr,
 				 sizeof(addr)) < 0) {
-				perror("bind(PF_UNIX)");
+				perror("supp-ctrl-iface-init: bind(PF_UNIX)");
 				goto fail;
 			}
 			wpa_printf(MSG_DEBUG, "Successfully replaced leftover "
@@ -397,6 +420,23 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 		goto fail;
 	}
 	os_free(fname);
+
+#ifdef ANDROID
+havesock:
+#endif /* ANDROID */
+
+	/*
+	 * Make socket non-blocking so that we don't hang forever if
+	 * target dies unexpectedly.
+	 */
+	flags = fcntl(priv->sock, F_GETFL);
+	if (flags >= 0) {
+		flags |= O_NONBLOCK;
+		if (fcntl(priv->sock, F_SETFL, flags) < 0) {
+			perror("fcntl(ctrl, O_NONBLOCK)");
+			/* Not fatal, continue on.*/
+		}
+	}
 
 	eloop_register_read_sock(priv->sock, wpa_supplicant_ctrl_iface_receive,
 				 wpa_s, priv);
@@ -637,6 +677,12 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 	if (global->params.ctrl_interface == NULL)
 		return priv;
 
+#ifdef ANDROID
+	priv->sock = android_get_control_socket(global->params.ctrl_interface);
+	if (priv->sock >= 0)
+		goto havesock;
+#endif /* ANDROID */
+
 	wpa_printf(MSG_DEBUG, "Global control interface '%s'",
 		   global->params.ctrl_interface);
 
@@ -654,7 +700,8 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 	os_strlcpy(addr.sun_path, global->params.ctrl_interface,
 		   sizeof(addr.sun_path));
 	if (bind(priv->sock, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind(PF_UNIX)");
+		perror("supp-global-ctrl-iface-init (will try fixup): "
+		       "bind(PF_UNIX)");
 		if (connect(priv->sock, (struct sockaddr *) &addr,
 			    sizeof(addr)) < 0) {
 			wpa_printf(MSG_DEBUG, "ctrl_iface exists, but does not"
@@ -669,7 +716,7 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 			}
 			if (bind(priv->sock, (struct sockaddr *) &addr,
 				 sizeof(addr)) < 0) {
-				perror("bind(PF_UNIX)");
+				perror("supp-glb-iface-init: bind(PF_UNIX)");
 				goto fail;
 			}
 			wpa_printf(MSG_DEBUG, "Successfully replaced leftover "
@@ -685,6 +732,9 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 		}
 	}
 
+#ifdef ANDROID
+havesock:
+#endif /* ANDROID */
 	eloop_register_read_sock(priv->sock,
 				 wpa_supplicant_global_ctrl_iface_receive,
 				 global, NULL);

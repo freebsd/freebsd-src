@@ -71,7 +71,7 @@ test_read_format_zip_filename_CP932_eucJP(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -144,7 +144,7 @@ test_read_format_zip_filename_CP932_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -211,7 +211,7 @@ test_read_format_zip_filename_UTF8_eucJP(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -299,7 +299,7 @@ test_read_format_zip_filename_UTF8_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -350,7 +350,7 @@ test_read_format_zip_filename_CP866_KOI8R(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -401,7 +401,7 @@ test_read_format_zip_filename_CP866_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -453,7 +453,7 @@ test_read_format_zip_filename_KOI8R_CP866(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -504,7 +504,7 @@ test_read_format_zip_filename_KOI8R_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -561,7 +561,7 @@ test_read_format_zip_filename_UTF8_KOI8R(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -621,7 +621,7 @@ test_read_format_zip_filename_UTF8_CP866(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -669,7 +669,7 @@ test_read_format_zip_filename_UTF8_UTF8_ru(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -722,7 +722,7 @@ test_read_format_zip_filename_CP932_CP932(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -792,7 +792,7 @@ test_read_format_zip_filename_UTF8_CP932(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -844,7 +844,7 @@ test_read_format_zip_filename_CP866_CP1251(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -896,7 +896,7 @@ test_read_format_zip_filename_CP866_CP1251_win(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -947,7 +947,7 @@ test_read_format_zip_filename_KOI8R_CP1251(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -1006,7 +1006,7 @@ test_read_format_zip_filename_UTF8_CP1251(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -1071,7 +1071,7 @@ test_read_format_zip_filename_KOI8R_UTF8_2(const char *refname)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
@@ -1112,7 +1112,7 @@ next_test:
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */

@@ -134,6 +134,7 @@ static const int MODPARM_rx_flip = 0;
  * to mirror the Linux MAX_SKB_FRAGS constant.
  */
 #define	MAX_TX_REQ_FRAGS (65536 / PAGE_SIZE + 2)
+#define	NF_TSO_MAXBURST ((IP_MAXPACKET / PAGE_SIZE) * MCLBYTES)
 
 #define RX_COPY_THRESHOLD 256
 
@@ -2122,6 +2123,7 @@ create_netdev(device_t dev)
 	
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_hw_tsomax = NF_TSO_MAXBURST;
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);
@@ -2171,10 +2173,17 @@ netfront_detach(device_t dev)
 static void
 netif_free(struct netfront_info *info)
 {
+	XN_LOCK(info);
+	xn_stop(info);
+	XN_UNLOCK(info);
+	callout_drain(&info->xn_stat_ch);
 	netif_disconnect_backend(info);
-#if 0
-	close_netdev(info);
-#endif
+	if (info->xn_ifp != NULL) {
+		ether_ifdetach(info->xn_ifp);
+		if_free(info->xn_ifp);
+		info->xn_ifp = NULL;
+	}
+	ifmedia_removeall(&info->sc_media);
 }
 
 static void

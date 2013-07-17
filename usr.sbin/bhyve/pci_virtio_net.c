@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/select.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
+#include <net/ethernet.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -46,13 +47,14 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <md5.h>
 #include <pthread.h>
+#include <pthread_np.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
 #include "mevent.h"
 #include "virtio.h"
 
-#define VTNET_RINGSZ	256
+#define VTNET_RINGSZ	1024
 
 #define VTNET_MAXSEGS	32
 
@@ -77,7 +79,8 @@ __FBSDID("$FreeBSD$");
 #define VTNET_S_HOSTCAPS      \
   ( 0x00000020 |	/* host supplies MAC */ \
     0x00008000 |	/* host can merge Rx buffers */ \
-    0x00010000 )	/* config status available */
+    0x00010000 |	/* config status available */ \
+    VIRTIO_F_NOTIFY_ON_EMPTY)
 
 /*
  * Queue definitions.
@@ -139,7 +142,7 @@ struct pci_vtnet_softc {
 	int		vsc_isr;
 	int		vsc_tapfd;
 	int		vsc_rx_ready;
-	int		vsc_rxpend;
+	int		resetting;
 
 	uint32_t	vsc_features;
 	uint8_t		vsc_macaddr[6];
@@ -147,7 +150,17 @@ struct pci_vtnet_softc {
 	uint64_t	vsc_pfn[VTNET_MAXQ];
 	struct	vring_hqueue vsc_hq[VTNET_MAXQ];
 	uint16_t	vsc_msix_table_idx[VTNET_MAXQ];
+
+	pthread_mutex_t	rx_mtx;
+	int		rx_in_progress;
+
+	pthread_t 	tx_tid;
+	pthread_mutex_t	tx_mtx;
+	pthread_cond_t	tx_cond;
+	int		tx_in_progress;
 };
+#define	vtnet_ctx(sc)		((sc)->vsc_pi->pi_vmctx)
+#define	notify_on_empty(sc)	((sc)->vsc_features & VIRTIO_F_NOTIFY_ON_EMPTY)
 
 /*
  * Return the size of IO BAR that maps virtio header and device specific
@@ -170,14 +183,19 @@ pci_vtnet_iosize(struct pci_devinst *pi)
 static int
 hq_num_avail(struct vring_hqueue *hq)
 {
-	int ndesc;
+	uint16_t ndesc;
 
-	if (*hq->hq_avail_idx >= hq->hq_cur_aidx)
-		ndesc = *hq->hq_avail_idx - hq->hq_cur_aidx;
-	else
-		ndesc = UINT16_MAX - hq->hq_cur_aidx + *hq->hq_avail_idx + 1;
+	/*
+	 * We're just computing (a-b) mod 2^16
+	 *
+	 * The only glitch here is that in standard C,
+	 * uint16_t promotes to (signed) int when int has
+	 * more than 16 bits (pretty much always now), so
+	 * we have to force it back to unsigned.
+	 */
+	ndesc = (unsigned)*hq->hq_avail_idx - (unsigned)hq->hq_cur_aidx;
 
-	assert(ndesc >= 0 && ndesc <= hq->hq_size);
+	assert(ndesc <= hq->hq_size);
 
 	return (ndesc);
 }
@@ -209,18 +227,81 @@ pci_vtnet_ring_reset(struct pci_vtnet_softc *sc, int ring)
 	hq->hq_cur_aidx = 0;
 }
 
+/*
+ * If the transmit thread is active then stall until it is done.
+ */
+static void
+pci_vtnet_txwait(struct pci_vtnet_softc *sc)
+{
+
+	pthread_mutex_lock(&sc->tx_mtx);
+	while (sc->tx_in_progress) {
+		pthread_mutex_unlock(&sc->tx_mtx);
+		usleep(10000);
+		pthread_mutex_lock(&sc->tx_mtx);
+	}
+	pthread_mutex_unlock(&sc->tx_mtx);
+}
+
+/*
+ * If the receive thread is active then stall until it is done.
+ */
+static void
+pci_vtnet_rxwait(struct pci_vtnet_softc *sc)
+{
+
+	pthread_mutex_lock(&sc->rx_mtx);
+	while (sc->rx_in_progress) {
+		pthread_mutex_unlock(&sc->rx_mtx);
+		usleep(10000);
+		pthread_mutex_lock(&sc->rx_mtx);
+	}
+	pthread_mutex_unlock(&sc->rx_mtx);
+}
+
 static void
 pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 {
+	int i;
 
 	if (value == 0) {
 		DPRINTF(("vtnet: device reset requested !\n"));
+		
+		sc->resetting = 1;
+
+		/*
+		 * Wait for the transmit and receive threads to finish their
+		 * processing.
+		 */
+		pci_vtnet_txwait(sc);
+		pci_vtnet_rxwait(sc);
+
+		sc->vsc_rx_ready = 0;
 		pci_vtnet_ring_reset(sc, VTNET_RXQ);
 		pci_vtnet_ring_reset(sc, VTNET_TXQ);
-		sc->vsc_rx_ready = 0;
+
+		for (i = 0; i < VTNET_MAXQ; i++)
+			sc->vsc_msix_table_idx[i] = VIRTIO_MSI_NO_VECTOR;
+
+		sc->vsc_isr = 0;
+		sc->vsc_features = 0;
+
+		sc->resetting = 0;
 	}
 
 	sc->vsc_status = value;
+}
+
+static void
+vtnet_generate_interrupt(struct pci_vtnet_softc *sc, int qidx)
+{
+
+	if (use_msix) {
+		pci_generate_msix(sc->vsc_pi, sc->vsc_msix_table_idx[qidx]);
+	} else {
+		sc->vsc_isr |= 1;
+		pci_generate_msi(sc->vsc_pi, 0);
+	}
 }
 
 /*
@@ -278,9 +359,9 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 
 	/*
 	 * But, will be called when the rx ring hasn't yet
-	 * been set up. 
+	 * been set up or the guest is resetting the device.
 	 */
-	if (sc->vsc_rx_ready == 0) {
+	if (!sc->vsc_rx_ready || sc->resetting) {
 		/*
 		 * Drop the packet and try later.
 		 */
@@ -297,17 +378,13 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 
 	if (ndescs == 0) {
 		/*
-		 * Need to wait for host notification to read
-		 */
-		if (sc->vsc_rxpend == 0) {
-			WPRINTF(("vtnet: no rx descriptors !\n"));
-			sc->vsc_rxpend = 1;
-		}
-
-		/*
 		 * Drop the packet and try later
 		 */
 		(void) read(sc->vsc_tapfd, dummybuf, sizeof(dummybuf));
+
+		if (notify_on_empty(sc))
+			vtnet_generate_interrupt(sc, VTNET_RXQ);
+
 		return;
 	}
 
@@ -326,7 +403,7 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 		 * Get a pointer to the rx header, and use the
 		 * data immediately following it for the packet buffer.
 		 */
-		vrx = (struct virtio_net_rxhdr *)paddr_guest2host(vd->vd_addr);
+		vrx = paddr_guest2host(vtnet_ctx(sc), vd->vd_addr, vd->vd_len);
 		buf = (uint8_t *)(vrx + 1);
 
 		len = read(sc->vsc_tapfd, buf,
@@ -360,15 +437,8 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 	*hq->hq_used_idx = uidx;
 	hq->hq_cur_aidx = aidx;
 
-	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-		if (use_msix) {
-			pci_generate_msix(sc->vsc_pi,
-					  sc->vsc_msix_table_idx[VTNET_RXQ]);
-		} else {
-			sc->vsc_isr |= 1;
-			pci_generate_msi(sc->vsc_pi, 0);
-		}
-	}
+	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0)
+		vtnet_generate_interrupt(sc, VTNET_RXQ);
 }
 
 static void
@@ -376,9 +446,11 @@ pci_vtnet_tap_callback(int fd, enum ev_type type, void *param)
 {
 	struct pci_vtnet_softc *sc = param;
 
-	pthread_mutex_lock(&sc->vsc_mtx);
+	pthread_mutex_lock(&sc->rx_mtx);
+	sc->rx_in_progress = 1;
 	pci_vtnet_tap_rx(sc);
-	pthread_mutex_unlock(&sc->vsc_mtx);
+	sc->rx_in_progress = 0;
+	pthread_mutex_unlock(&sc->rx_mtx);
 
 }
 
@@ -390,17 +462,6 @@ pci_vtnet_ping_rxq(struct pci_vtnet_softc *sc)
 	 */
 	if (sc->vsc_rx_ready == 0) {
 		sc->vsc_rx_ready = 1;
-	}
-
-	/*
-	 * If the rx queue was empty, attempt to receive a
-	 * packet that was previously blocked due to no rx bufs
-	 * available
-	 */
-	if (sc->vsc_rxpend) {
-		WPRINTF(("vtnet: rx resumed\n\r"));
-		sc->vsc_rxpend = 0;
-		pci_vtnet_tap_rx(sc);
 	}
 }
 
@@ -434,7 +495,8 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vring_hqueue *hq)
 	for (i = 0, plen = 0;
 	     i < VTNET_MAXSEGS;
 	     i++, vd = &hq->hq_dtable[vd->vd_next]) {
-		iov[i].iov_base = paddr_guest2host(vd->vd_addr);
+		iov[i].iov_base = paddr_guest2host(vtnet_ctx(sc),
+						   vd->vd_addr, vd->vd_len);
 		iov[i].iov_len = vd->vd_len;
 		plen += vd->vd_len;
 		tlen += vd->vd_len;
@@ -455,26 +517,12 @@ pci_vtnet_proctx(struct pci_vtnet_softc *sc, struct vring_hqueue *hq)
 	vu->vu_tlen = tlen;
 	hq->hq_cur_aidx = aidx + 1;
 	*hq->hq_used_idx = uidx + 1;
-
-	/*
-	 * Generate an interrupt if able
-	 */
-	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
-		if (use_msix) {
-			pci_generate_msix(sc->vsc_pi,
-					  sc->vsc_msix_table_idx[VTNET_TXQ]);
-		} else {
-			sc->vsc_isr |= 1;
-			pci_generate_msi(sc->vsc_pi, 0);
-		}
-	}	
 }
 
 static void
 pci_vtnet_ping_txq(struct pci_vtnet_softc *sc)
 {
 	struct vring_hqueue *hq = &sc->vsc_hq[VTNET_TXQ];
-	int i;
 	int ndescs;
 
 	/*
@@ -485,13 +533,70 @@ pci_vtnet_ping_txq(struct pci_vtnet_softc *sc)
 	if (ndescs == 0)
 		return;
 
-	/*
-	 * Run through all the entries, placing them into iovecs and
-	 * sending when an end-of-packet is found
-	 */
-	for (i = 0; i < ndescs; i++)
-		pci_vtnet_proctx(sc, hq);
+	/* Signal the tx thread for processing */
+	pthread_mutex_lock(&sc->tx_mtx);
+	if (sc->tx_in_progress == 0)
+		pthread_cond_signal(&sc->tx_cond);
+	pthread_mutex_unlock(&sc->tx_mtx);
 }
+
+/*
+ * Thread which will handle processing of TX desc
+ */
+static void *
+pci_vtnet_tx_thread(void *param)
+{
+	struct pci_vtnet_softc *sc = (struct pci_vtnet_softc *) param;
+	struct vring_hqueue *hq; 
+	int i, ndescs, error;
+	
+	hq = &sc->vsc_hq[VTNET_TXQ];
+	
+	/* 
+	 * Let us wait till the tx queue pointers get initialised & 
+	 * first tx signaled 
+	 */
+	pthread_mutex_lock(&sc->tx_mtx);
+	error = pthread_cond_wait(&sc->tx_cond, &sc->tx_mtx);
+	assert(error == 0);
+	
+	for (;;) {
+		pthread_mutex_lock(&sc->tx_mtx);
+		for (;;) {
+			if (sc->resetting)
+				ndescs = 0;
+			else
+				ndescs = hq_num_avail(hq);
+			
+			if (ndescs != 0) 
+				break;
+
+			sc->tx_in_progress = 0;
+			error = pthread_cond_wait(&sc->tx_cond, &sc->tx_mtx);
+			assert(error == 0);
+		}
+		sc->tx_in_progress = 1;
+		pthread_mutex_unlock(&sc->tx_mtx);
+
+		while (ndescs > 0) {
+			/*
+			 * Run through all the entries, placing them into
+			 * iovecs and sending when an end-of-packet is found
+			 */
+			for (i = 0; i < ndescs; i++)
+				pci_vtnet_proctx(sc, hq);
+
+			ndescs = hq_num_avail(hq);
+		}
+
+		/*
+		 * Generate an interrupt if needed.
+		 */
+		if (notify_on_empty(sc) ||
+		    (*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0)
+			vtnet_generate_interrupt(sc, VTNET_TXQ);
+	}
+}	
 
 static void
 pci_vtnet_ping_ctlq(struct pci_vtnet_softc *sc)
@@ -517,7 +622,8 @@ pci_vtnet_ring_init(struct pci_vtnet_softc *sc, uint64_t pfn)
 	hq = &sc->vsc_hq[qnum];
 	hq->hq_size = pci_vtnet_qsize(qnum);
 
-	hq->hq_dtable = paddr_guest2host(pfn << VRING_PFN);
+	hq->hq_dtable = paddr_guest2host(vtnet_ctx(sc), pfn << VRING_PFN,
+					 vring_size(hq->hq_size));
 	hq->hq_avail_flags =  (uint16_t *)(hq->hq_dtable + hq->hq_size);
 	hq->hq_avail_idx = hq->hq_avail_flags + 1;
 	hq->hq_avail_ring = hq->hq_avail_flags + 2;
@@ -533,20 +639,41 @@ pci_vtnet_ring_init(struct pci_vtnet_softc *sc, uint64_t pfn)
 }
 
 static int
+pci_vtnet_parsemac(char *mac_str, uint8_t *mac_addr)
+{
+        struct ether_addr *ea;
+        char *tmpstr;
+        char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
+
+        tmpstr = strsep(&mac_str,"=");
+       
+        if ((mac_str != NULL) && (!strcmp(tmpstr,"mac"))) {
+                ea = ether_aton(mac_str);
+
+                if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
+                    memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
+			fprintf(stderr, "Invalid MAC %s\n", mac_str);
+                        return (EINVAL);
+                } else
+                        memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);
+        }
+
+        return (0);
+}
+
+
+static int
 pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	MD5_CTX mdctx;
 	unsigned char digest[16];
 	char nstr[80];
+	char tname[MAXCOMLEN + 1];
 	struct pci_vtnet_softc *sc;
 	const char *env_msi;
-
-	/*
-	 * Access to guest memory is required. Fail if
-	 * memory not mapped
-	 */
-	if (paddr_guest2host(0) == NULL)
-		return (1);
+	char *devname;
+	char *vtopts;
+	int mac_provided;
 
 	sc = malloc(sizeof(struct pci_vtnet_softc));
 	memset(sc, 0, sizeof(struct pci_vtnet_softc));
@@ -565,14 +692,31 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 
 	/*
-	 * Attempt to open the tap device
+	 * Attempt to open the tap device and read the MAC address
+	 * if specified
 	 */
+	mac_provided = 0;
 	sc->vsc_tapfd = -1;
 	if (opts != NULL) {
 		char tbuf[80];
+		int err;
+
+		devname = vtopts = strdup(opts);
+		(void) strsep(&vtopts, ",");
+
+		if (vtopts != NULL) {
+			err = pci_vtnet_parsemac(vtopts, sc->vsc_macaddr);
+			if (err != 0) {
+				free(devname);
+				return (err);
+			}
+			mac_provided = 1;
+		}
 
 		strcpy(tbuf, "/dev/");
-		strlcat(tbuf, opts, sizeof(tbuf));
+		strlcat(tbuf, devname, sizeof(tbuf));
+
+		free(devname);
 
 		sc->vsc_tapfd = open(tbuf, O_RDWR);
 		if (sc->vsc_tapfd == -1) {
@@ -602,28 +746,24 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 
 	/*
-	 * The MAC address is the standard NetApp OUI of 00-a0-98,
-	 * followed by an MD5 of the vm name. The slot/func number is
-	 * prepended to this for slots other than 1:0, so that 
-	 * a bootloader can netboot from the equivalent of slot 1.
+	 * The default MAC address is the standard NetApp OUI of 00-a0-98,
+	 * followed by an MD5 of the PCI slot/func number and dev name
 	 */
-	if (pi->pi_slot == 1 && pi->pi_func == 0) {
-		strncpy(nstr, vmname, sizeof(nstr));
-	} else {
+	if (!mac_provided) {
 		snprintf(nstr, sizeof(nstr), "%d-%d-%s", pi->pi_slot,
-		    pi->pi_func, vmname);
+	            pi->pi_func, vmname);
+
+		MD5Init(&mdctx);
+		MD5Update(&mdctx, nstr, strlen(nstr));
+		MD5Final(digest, &mdctx);
+
+		sc->vsc_macaddr[0] = 0x00;
+		sc->vsc_macaddr[1] = 0xa0;
+		sc->vsc_macaddr[2] = 0x98;
+		sc->vsc_macaddr[3] = digest[0];
+		sc->vsc_macaddr[4] = digest[1];
+		sc->vsc_macaddr[5] = digest[2];
 	}
-
-	MD5Init(&mdctx);
-	MD5Update(&mdctx, nstr, strlen(nstr));
-	MD5Final(digest, &mdctx);
-
-	sc->vsc_macaddr[0] = 0x00;
-	sc->vsc_macaddr[1] = 0xa0;
-	sc->vsc_macaddr[2] = 0x98;
-	sc->vsc_macaddr[3] = digest[0];
-	sc->vsc_macaddr[4] = digest[1];
-	sc->vsc_macaddr[5] = digest[2];
 
 	/* initialize config space */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, VIRTIO_DEV_NET);
@@ -649,6 +789,23 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 	
 	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTNET_REGSZ);
+
+	sc->resetting = 0;
+
+	sc->rx_in_progress = 0;
+	pthread_mutex_init(&sc->rx_mtx, NULL); 
+
+	/* 
+	 * Initialize tx semaphore & spawn TX processing thread
+	 * As of now, only one thread for TX desc processing is
+	 * spawned. 
+	 */
+	sc->tx_in_progress = 0;
+	pthread_mutex_init(&sc->tx_mtx, NULL);
+	pthread_cond_init(&sc->tx_cond, NULL);
+	pthread_create(&sc->tx_tid, NULL, pci_vtnet_tx_thread, (void *)sc);
+        snprintf(tname, sizeof(tname), "%s vtnet%d tx", vmname, pi->pi_slot);
+        pthread_set_name_np(sc->tx_tid, tname);
 
 	return (0);
 }

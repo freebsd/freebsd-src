@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.73 2011/06/17 21:44:31 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.75 2013/01/08 18:49:04 markus Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -491,25 +491,24 @@ mm_newkeys_from_blob(u_char *blob, int blen)
 	enc->enabled = buffer_get_int(&b);
 	enc->block_size = buffer_get_int(&b);
 	enc->key = buffer_get_string(&b, &enc->key_len);
-	enc->iv = buffer_get_string(&b, &len);
-	if (len != enc->block_size)
-		fatal("%s: bad ivlen: expected %u != %u", __func__,
-		    enc->block_size, len);
+	enc->iv = buffer_get_string(&b, &enc->iv_len);
 
 	if (enc->name == NULL || cipher_by_name(enc->name) != enc->cipher)
 		fatal("%s: bad cipher name %s or pointer %p", __func__,
 		    enc->name, enc->cipher);
 
 	/* Mac structure */
-	mac->name = buffer_get_string(&b, NULL);
-	if (mac->name == NULL || mac_setup(mac, mac->name) == -1)
-		fatal("%s: can not setup mac %s", __func__, mac->name);
-	mac->enabled = buffer_get_int(&b);
-	mac->key = buffer_get_string(&b, &len);
-	if (len > mac->key_len)
-		fatal("%s: bad mac key length: %u > %d", __func__, len,
-		    mac->key_len);
-	mac->key_len = len;
+	if (cipher_authlen(enc->cipher) == 0) {
+		mac->name = buffer_get_string(&b, NULL);
+		if (mac->name == NULL || mac_setup(mac, mac->name) == -1)
+			fatal("%s: can not setup mac %s", __func__, mac->name);
+		mac->enabled = buffer_get_int(&b);
+		mac->key = buffer_get_string(&b, &len);
+		if (len > mac->key_len)
+			fatal("%s: bad mac key length: %u > %d", __func__, len,
+			    mac->key_len);
+		mac->key_len = len;
+	}
 
 	/* Comp structure */
 	comp->type = buffer_get_int(&b);
@@ -551,13 +550,15 @@ mm_newkeys_to_blob(int mode, u_char **blobp, u_int *lenp)
 	buffer_put_int(&b, enc->enabled);
 	buffer_put_int(&b, enc->block_size);
 	buffer_put_string(&b, enc->key, enc->key_len);
-	packet_get_keyiv(mode, enc->iv, enc->block_size);
-	buffer_put_string(&b, enc->iv, enc->block_size);
+	packet_get_keyiv(mode, enc->iv, enc->iv_len);
+	buffer_put_string(&b, enc->iv, enc->iv_len);
 
 	/* Mac structure */
-	buffer_put_cstring(&b, mac->name);
-	buffer_put_int(&b, mac->enabled);
-	buffer_put_string(&b, mac->key, mac->key_len);
+	if (cipher_authlen(enc->cipher) == 0) {
+		buffer_put_cstring(&b, mac->name);
+		buffer_put_int(&b, mac->enabled);
+		buffer_put_string(&b, mac->key, mac->key_len);
+	}
 
 	/* Comp structure */
 	buffer_put_int(&b, comp->type);
@@ -621,7 +622,7 @@ mm_send_keystate(struct monitor *monitor)
 		ivlen = packet_get_keyiv_len(MODE_OUT);
 		packet_get_keyiv(MODE_OUT, iv, ivlen);
 		buffer_put_string(&m, iv, ivlen);
-		ivlen = packet_get_keyiv_len(MODE_OUT);
+		ivlen = packet_get_keyiv_len(MODE_IN);
 		packet_get_keyiv(MODE_IN, iv, ivlen);
 		buffer_put_string(&m, iv, ivlen);
 		goto skip;

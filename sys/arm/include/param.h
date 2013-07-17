@@ -56,7 +56,7 @@
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#ifdef __FreeBSD_ARCH_armv6__
+#if defined(__FreeBSD_ARCH_armv6__) || (defined(__ARM_ARCH) && __ARM_ARCH >= 6)
 #ifdef __ARMEB__
 #define	MACHINE_ARCH	"armv6eb"
 #else
@@ -79,6 +79,10 @@
 #else
 #define	MAXCPU		1
 #endif /* SMP || KLD_MODULE */
+
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)

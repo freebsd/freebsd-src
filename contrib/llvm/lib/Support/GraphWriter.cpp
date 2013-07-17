@@ -11,11 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/GraphWriter.h"
+#include "llvm/Config/config.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
-#include "llvm/Config/config.h"
 using namespace llvm;
 
 static cl::opt<bool> ViewBackground("view-background", cl::Hidden,
@@ -51,6 +51,17 @@ std::string llvm::DOT::EscapeString(const std::string &Label) {
       break;
   }
   return Str;
+}
+
+/// \brief Get a color string for this node number. Simply round-robin selects
+/// from a reasonable number of colors.
+StringRef llvm::DOT::getColorString(unsigned ColorNumber) {
+  static const int NumColors = 20;
+  static const char* Colors[NumColors] = {
+    "aaaaaa", "aa0000", "00aa00", "aa5500", "0055ff", "aa00aa", "00aaaa",
+    "555555", "ff5555", "55ff55", "ffff55", "5555ff", "ff55ff", "55ffff",
+    "ffaaaa", "aaffaa", "ffffaa", "aaaaff", "ffaaff", "aaffff"};
+  return Colors[ColorNumber % NumColors];
 }
 
 // Execute the graph viewer. Return true if successful.

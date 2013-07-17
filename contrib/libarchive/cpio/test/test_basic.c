@@ -148,7 +148,7 @@ DEFINE_TEST(test_basic)
 		strncat(result,
 		    "bsdcpio: file: large inode number truncated: "
 		    "Numerical result out of range\n",
-		    sizeof(result) - strlen(result));
+		    sizeof(result) - strlen(result) -1);
 
 	/* hardlink to above file. */
 	assertMakeHardlink("linkfile", "file");
@@ -157,7 +157,7 @@ DEFINE_TEST(test_basic)
 		strncat(result,
 		    "bsdcpio: linkfile: large inode number truncated: "
 		    "Numerical result out of range\n",
-		    sizeof(result) - strlen(result));
+		    sizeof(result) - strlen(result) -1);
 
 	/* Symlink to above file. */
 	if (canSymlink()) {
@@ -167,7 +167,7 @@ DEFINE_TEST(test_basic)
 			strncat(result,
 			    "bsdcpio: symlink: large inode number truncated: "
 				"Numerical result out of range\n",
-			    sizeof(result) - strlen(result));
+			    sizeof(result) - strlen(result) -1);
 	}
 
 	/* Another file with different permissions. */
@@ -177,7 +177,7 @@ DEFINE_TEST(test_basic)
 		strncat(result,
 		    "bsdcpio: file2: large inode number truncated: "
 		    "Numerical result out of range\n",
-		    sizeof(result) - strlen(result));
+		    sizeof(result) - strlen(result) -1);
 
 	/* Directory. */
 	assertMakeDir("dir", 0775);
@@ -186,8 +186,8 @@ DEFINE_TEST(test_basic)
 		strncat(result,
 		    "bsdcpio: dir: large inode number truncated: "
 		    "Numerical result out of range\n",
-		    sizeof(result) - strlen(result));
-	strncat(result, "2 blocks\n", sizeof(result) - strlen(result));
+		    sizeof(result) - strlen(result) -1);
+	strncat(result, "2 blocks\n", sizeof(result) - strlen(result) -1);
 
 	/* All done. */
 	fclose(filelist);

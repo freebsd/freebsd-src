@@ -824,7 +824,8 @@ cas_disable_rx(struct cas_softc *sc)
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (cas_bitwait(sc, CAS_MAC_RX_CONF, CAS_MAC_RX_CONF_EN, 0))
 		return (1);
-	device_printf(sc->sc_dev, "cannot disable RX MAC\n");
+	if (bootverbose)
+		device_printf(sc->sc_dev, "cannot disable RX MAC\n");
 	return (0);
 }
 
@@ -838,7 +839,8 @@ cas_disable_tx(struct cas_softc *sc)
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (cas_bitwait(sc, CAS_MAC_TX_CONF, CAS_MAC_TX_CONF_EN, 0))
 		return (1);
-	device_printf(sc->sc_dev, "cannot disable TX MAC\n");
+	if (bootverbose)
+		device_printf(sc->sc_dev, "cannot disable TX MAC\n");
 	return (0);
 }
 
@@ -1041,7 +1043,8 @@ cas_init_locked(struct cas_softc *sc)
 	/*
 	 * Enable infinite bursts for revisions without PCI issues if
 	 * applicable.  Doing so greatly improves the TX performance on
-	 * !__sparc64__.
+	 * !__sparc64__ (on sparc64, setting CAS_INF_BURST improves TX
+	 * performance only marginally but hurts RX throughput quite a bit).
 	 */
 	CAS_WRITE_4(sc, CAS_INF_BURST,
 #if !defined(__sparc64__)
@@ -2691,7 +2694,10 @@ cas_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	pci_enable_busmaster(dev);
+	/* PCI configuration */
+	pci_write_config(dev, PCIR_COMMAND,
+	    pci_read_config(dev, PCIR_COMMAND, 2) | PCIM_CMD_BUSMASTEREN |
+	    PCIM_CMD_MWRICEN | PCIM_CMD_PERRESPEN | PCIM_CMD_SERRESPEN, 2);
 
 	sc->sc_dev = dev;
 	if (sc->sc_variant == CAS_CAS && pci_get_devid(dev) < 0x02)

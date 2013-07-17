@@ -72,8 +72,8 @@ static struct lpc_timer_softc *timer_softc = NULL;
 static int lpc_timer_initialized = 0;
 static int lpc_timer_probe(device_t);
 static int lpc_timer_attach(device_t);
-static int lpc_timer_start(struct eventtimer *, struct bintime *first,
-    struct bintime *);
+static int lpc_timer_start(struct eventtimer *,
+    sbintime_t first, sbintime_t period);
 static int lpc_timer_stop(struct eventtimer *et);
 static unsigned lpc_get_timecount(struct timecounter *);
 static int lpc_hardclock(void *);
@@ -173,12 +173,8 @@ lpc_timer_attach(device_t dev)
 	sc->lt_et.et_name = "LPC32x0 Timer0";
 	sc->lt_et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
 	sc->lt_et.et_quality = 1000;
-	sc->lt_et.et_min_period.sec = 0;
-	sc->lt_et.et_min_period.frac =
-	    ((0x00000002LLU << 32) / sc->lt_et.et_frequency) << 32;
-	sc->lt_et.et_max_period.sec = 0xfffffff0U / sc->lt_et.et_frequency;
-	sc->lt_et.et_max_period.frac =
-	    ((0xfffffffeLLU << 32) / sc->lt_et.et_frequency) << 32;
+	sc->lt_et.et_min_period = (0x00000002LLU << 32) / sc->lt_et.et_frequency;
+	sc->lt_et.et_max_period = (0xfffffffeLLU << 32) / sc->lt_et.et_frequency;
 	sc->lt_et.et_start = lpc_timer_start;
 	sc->lt_et.et_stop = lpc_timer_stop;
 	sc->lt_et.et_priv = sc;
@@ -199,27 +195,23 @@ lpc_timer_attach(device_t dev)
 }
 
 static int
-lpc_timer_start(struct eventtimer *et, struct bintime *first,
-    struct bintime *period)
+lpc_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct lpc_timer_softc *sc = (struct lpc_timer_softc *)et->et_priv;
 	uint32_t ticks;
 
-	if (period == NULL)
+	if (period == 0) {
 		sc->lt_oneshot = 1;
-	else {
+		sc->lt_period = 0;
+	} else {
 		sc->lt_oneshot = 0;
-		sc->lt_period = (sc->lt_et.et_frequency * (first->frac >> 32)) >> 32;
-			sc->lt_period += sc->lt_et.et_frequency * first->sec;
+		sc->lt_period = ((uint32_t)et->et_frequency * period) >> 32;
 	}
 
-	if (first == NULL)
+	if (first == 0)
 		ticks = sc->lt_period;
-	else {
-		ticks = (sc->lt_et.et_frequency * (first->frac >> 32)) >> 32;
-		if (first->sec != 0)
-			ticks += sc->lt_et.et_frequency * first->sec;
-	}
+	else
+		ticks = ((uint32_t)et->et_frequency * first) >> 32;
 
 	/* Reset timer */
 	timer0_write_4(sc, LPC_TIMER_TCR, LPC_TIMER_TCR_RESET);

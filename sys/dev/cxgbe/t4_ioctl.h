@@ -60,6 +60,7 @@ struct t4_reg {
 };
 
 #define T4_REGDUMP_SIZE  (160 * 1024)
+#define T5_REGDUMP_SIZE  (332 * 1024)
 struct t4_regdump {
 	uint32_t version;
 	uint32_t len; /* bytes */

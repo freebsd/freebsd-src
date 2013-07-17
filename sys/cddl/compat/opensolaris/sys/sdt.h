@@ -41,6 +41,8 @@
 #define	DTRACE_PROBE1(name, type1, arg1)
 #define	DTRACE_PROBE2(name, type1, arg1, type2, arg2)
 #define	DTRACE_PROBE3(name, type1, arg1, type2, arg2, type3, arg3)
-#define	DTRACE_PROBE4(name, type1, arg1, type2, arg2, type3, arg3, type4, arg4) 
+#define	DTRACE_PROBE4(name, type1, arg1, type2, arg2, type3, arg3, type4, arg4)
+
+#define	SET_ERROR(err)	(err)
 
 #endif	/* _OPENSOLARIS_SYS_SDT_H_ */
