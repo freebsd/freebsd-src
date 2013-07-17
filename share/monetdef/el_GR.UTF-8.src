@@ -6,7 +6,7 @@
 # int_curr_symbol (last character always SPACE)
 EUR 
 # currency_symbol
-Eu
+€
 # mon_decimal_point
 ,
 # mon_thousands_sep
