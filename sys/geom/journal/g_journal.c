@@ -339,7 +339,9 @@ g_journal_check_overflow(struct g_journal_softc *sc)
 	    (sc->sc_active.jj_offset > sc->sc_inactive.jj_offset &&
 	     sc->sc_journal_offset >= sc->sc_inactive.jj_offset &&
 	     sc->sc_journal_offset < sc->sc_active.jj_offset)) {
-		panic("Journal overflow (joffset=%jd active=%jd inactive=%jd)",
+		panic("Journal overflow "
+		    "(id = %u joffset=%jd active=%jd inactive=%jd)",
+		    (unsigned)sc->sc_id,
 		    (intmax_t)sc->sc_journal_offset,
 		    (intmax_t)sc->sc_active.jj_offset,
 		    (intmax_t)sc->sc_inactive.jj_offset);
