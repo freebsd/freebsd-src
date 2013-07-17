@@ -166,6 +166,8 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 	struct stat	devstat;
 	char		full_path[64];
 
+	*fd = 0;
+
 	if (!strnstr(str, NVME_CTRLR_PREFIX, strlen(NVME_CTRLR_PREFIX))) {
 		if (show_error)
 			warnx("controller/namespace ids must begin with '%s'",
