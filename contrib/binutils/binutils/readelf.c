@@ -9250,7 +9250,7 @@ process_note (Elf_Internal_Note *pnote)
        note type strings.  */
       nt = get_note_type (pnote->type);
 
-  printf ("  %s\t\t0x%08lx\t%s\n",
+  printf ("  %-13s 0x%08lx\t%s\n",
 	  pnote->namesz ? pnote->namedata : "(NONE)",
 	  pnote->descsz, nt);
   return 1;
