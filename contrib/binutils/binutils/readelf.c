@@ -9140,19 +9140,19 @@ get_freebsd_elfcore_note_type (unsigned e_type)
       case NT_PROCSTAT_FILES:
 	return _("NT_PROCSTAT_FILES (files data)");
       case NT_PROCSTAT_VMMAP:
-	return _("NT_PROCSTAT_VMMAP: (vmmap data)");
+	return _("NT_PROCSTAT_VMMAP (vmmap data)");
       case NT_PROCSTAT_GROUPS:
-	return _("NT_PROCSTAT_GROUPS: (groups data)");
+	return _("NT_PROCSTAT_GROUPS (groups data)");
       case NT_PROCSTAT_UMASK:
-	return _("NT_PROCSTAT_UMASK: (umask data)");
+	return _("NT_PROCSTAT_UMASK (umask data)");
       case NT_PROCSTAT_RLIMIT:
-	return _("NT_PROCSTAT_RLIMIT: (rlimit data)");
+	return _("NT_PROCSTAT_RLIMIT (rlimit data)");
       case NT_PROCSTAT_OSREL:
-	return _("NT_PROCSTAT_OSREL: (osreldate data)");
+	return _("NT_PROCSTAT_OSREL (osreldate data)");
       case NT_PROCSTAT_PSSTRINGS:
-	return _("NT_PROCSTAT_PSSTRINGS: (ps_strings data)");
+	return _("NT_PROCSTAT_PSSTRINGS (ps_strings data)");
       case NT_PROCSTAT_AUXV:
-	return _("NT_PROCSTAT_AUXV: (auxv data)");
+	return _("NT_PROCSTAT_AUXV (auxv data)");
       default:
 	break;
       }
