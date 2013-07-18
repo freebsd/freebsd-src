@@ -509,6 +509,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
 	cpuset_t mask;
 	int error, rc, prevcpu;
+	enum vm_exitcode exitcode;
 
 	if (guest_vcpu_mux)
 		setup_timeslice();
@@ -538,8 +539,16 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 		}
 
 		prevcpu = vcpu;
-                rc = (*handler[vmexit[vcpu].exitcode])(ctx, &vmexit[vcpu],
-                                                       &vcpu);		
+
+		exitcode = vmexit[vcpu].exitcode;
+		if (exitcode >= VM_EXITCODE_MAX || handler[exitcode] == NULL) {
+			fprintf(stderr, "vm_loop: unexpected exitcode 0x%x\n",
+			    exitcode);
+			exit(1);
+		}
+
+                rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
+
 		switch (rc) {
                 case VMEXIT_SWITCH:
 			assert(guest_vcpu_mux);
