@@ -39,6 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -50,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <aio.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
