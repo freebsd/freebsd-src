@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -80,7 +81,7 @@ devlist(int argc, char *argv[])
 		ret = open_dev(name, &fd, 0, 0);
 
 		if (ret != 0) {
-			if (fd < 0) {
+			if (ret == EACCES) {
 				warnx("could not open /dev/%s\n", name);
 				continue;
 			} else
