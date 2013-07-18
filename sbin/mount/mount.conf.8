@@ -43,7 +43,7 @@ using the logic in the
 function in
 .Pa src/sys/kern/vfs_mountroot.c .
 The root mount logic can be described as follows:
-.Bl -enum 
+.Bl -enum
 .It
 The kernel will synthesize in memory a config file
 with default directives for mounting
@@ -58,7 +58,7 @@ as the root file system.
 Next, the kernel will parse the in-memory config file created in step 1
 and try to mount the actual root file system.
 See
-.Sx FILE FORMAT 
+.Sx FILE FORMAT
 for the format of the config file.
 .It
 When the actual root file system is mounted,
@@ -67,7 +67,7 @@ will be re-mounted on the
 .Pa /dev
 directory.
 .It
-If a 
+If a
 .Pa /.mount.conf
 file does not exist in the root file system which was
 just mounted, the root mount logic stops here.
@@ -110,7 +110,7 @@ mount -t {FS} -o {OPTIONS} {MOUNTPOINT} /
 .Ed
 .Pp
 If this is successfully mounted,
-further lines in 
+further lines in
 .Pa .mount.conf
 are ignored.
 If all lines in
@@ -164,7 +164,7 @@ can manually enter the root file system to mount.
 Finally if that does not work, the kernel will panic.
 .Bd -literal -offset indent
 .Li .onfail panic
-.LI .timeout 3
+.Li .timeout 3
 cd9660:/dev/cd0 ro
 .Li .timeout 0
 cd9660:/dev/acd0 ro
@@ -211,7 +211,7 @@ The following example
 will direct the kernel to do a unionfs
 mount on a directory
 .Pa /jail/freebsd-8-stable
-which has a 
+which has a
 .Xr chroot 2
 environment.
 .Bd -literal -offset indent
@@ -228,13 +228,13 @@ exist so that the root mount logic can properly re-mount
 If this directory does not exist, the system
 may hang during the bootup process.
 .Sh SEE ALSO
-.Xr boot 8 ,
+.Xr nmount 2 ,
+.Xr md 4 ,
 .Xr boot.config 5 ,
 .Xr fstab 5 ,
+.Xr boot 8 ,
 .Xr loader 8 ,
-.Xr mount 8 ,
-.Xr md 4 ,
-.Xr nmount 2
+.Xr mount 8
 .Sh HISTORY
 The
 .Nm
