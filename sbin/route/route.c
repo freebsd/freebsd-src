@@ -1457,7 +1457,10 @@ rtmsg(int cmd, int flags, int fib)
 
 #define NEXTADDR(w, u)							\
 	if (rtm_addrs & (w)) {						\
-		l = SA_SIZE((struct sockaddr *)&(u));			\
+		l = (((struct sockaddr *)&(u))->sa_len == 0) ?		\
+		    sizeof(long) :					\
+		    1 + ((((struct sockaddr *)&(u))->sa_len - 1)	\
+			| (sizeof(long) - 1));				\
 		memmove(cp, (char *)&(u), l);				\
 		cp += l;						\
 		if (verbose)						\
