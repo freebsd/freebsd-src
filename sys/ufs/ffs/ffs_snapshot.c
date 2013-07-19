@@ -790,7 +790,7 @@ out1:
 		brelse(nbp);
 	} else {
 		loc = blkoff(fs, fs->fs_sblockloc);
-		bcopy((char *)copy_fs, &nbp->b_data[loc], fs->fs_bsize);
+		bcopy((char *)copy_fs, &nbp->b_data[loc], (u_int)fs->fs_sbsize);
 		bawrite(nbp);
 	}
 	/*
