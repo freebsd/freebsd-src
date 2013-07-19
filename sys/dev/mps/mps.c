@@ -81,7 +81,8 @@ static int mps_transition_operational(struct mps_softc *sc);
 static void mps_startup(void *arg);
 static int mps_send_iocinit(struct mps_softc *sc);
 static int mps_attach_log(struct mps_softc *sc);
-static __inline void mps_complete_command(struct mps_command *cm);
+static __inline void mps_complete_command(struct mps_softc *sc,
+    struct mps_command *cm);
 static void mps_dispatch_event(struct mps_softc *sc, uintptr_t data,
     MPI2_EVENT_NOTIFICATION_REPLY *reply);
 static void mps_config_complete(struct mps_softc *sc, struct mps_command *cm);
@@ -195,7 +196,7 @@ static int
 mps_message_unit_reset(struct mps_softc *sc, int sleep_flag)
 {
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	MPS_FUNCTRACE(sc);
 
 	mps_regwrite(sc, MPI2_DOORBELL_OFFSET,
 	    MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET <<
@@ -217,14 +218,14 @@ mps_transition_ready(struct mps_softc *sc)
 	int error, tries = 0;
 	int sleep_flags;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	MPS_FUNCTRACE(sc);
 	/* If we are in attach call, do not sleep */
 	sleep_flags = (sc->mps_flags & MPS_FLAGS_ATTACH_DONE)
 					? CAN_SLEEP:NO_SLEEP;
 	error = 0;
 	while (tries++ < 5) {
 		reg = mps_regread(sc, MPI2_DOORBELL_OFFSET);
-		mps_dprint(sc, MPS_INFO, "Doorbell= 0x%x\n", reg);
+		mps_dprint(sc, MPS_INIT, "Doorbell= 0x%x\n", reg);
 
 		/*
 		 * Ensure the IOC is ready to talk.  If it's not, try
@@ -250,7 +251,7 @@ mps_transition_ready(struct mps_softc *sc)
 			error = 0;
 			break;
 		} else if (state == MPI2_IOC_STATE_FAULT) {
-			mps_dprint(sc, MPS_INFO, "IOC in fault state 0x%x\n",
+			mps_dprint(sc, MPS_FAULT, "IOC in fault state 0x%x, resetting\n",
 			    state & MPI2_DOORBELL_FAULT_CODE_MASK);
 			mps_diag_reset(sc, sleep_flags);
 		} else if (state == MPI2_IOC_STATE_OPERATIONAL) {
@@ -283,11 +284,11 @@ mps_transition_operational(struct mps_softc *sc)
 	uint32_t reg, state;
 	int error;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	MPS_FUNCTRACE(sc);
 
 	error = 0;
 	reg = mps_regread(sc, MPI2_DOORBELL_OFFSET);
-	mps_dprint(sc, MPS_INFO, "Doorbell= 0x%x\n", reg);
+	mps_dprint(sc, MPS_INIT, "Doorbell= 0x%x\n", reg);
 
 	state = reg & MPI2_IOC_STATE_MASK;
 	if (state != MPI2_IOC_STATE_READY) {
@@ -318,25 +319,28 @@ mps_reinit(struct mps_softc *sc)
 	int error;
 	uint32_t db;
 
-	mps_printf(sc, "%s sc %p\n", __func__, sc);
+	MPS_FUNCTRACE(sc);
 
 	mtx_assert(&sc->mps_mtx, MA_OWNED);
 
 	if (sc->mps_flags & MPS_FLAGS_DIAGRESET) {
-		mps_printf(sc, "%s reset already in progress\n", __func__);
+		mps_dprint(sc, MPS_INIT, "%s reset already in progress\n",
+			   __func__);
 		return 0;
 	}
 
+	mps_dprint(sc, MPS_INFO, "Reinitializing controller,\n");
 	/* make sure the completion callbacks can recognize they're getting
 	 * a NULL cm_reply due to a reset.
 	 */
 	sc->mps_flags |= MPS_FLAGS_DIAGRESET;
 
-	mps_printf(sc, "%s mask interrupts\n", __func__);
+	mps_dprint(sc, MPS_INIT, "%s mask interrupts\n", __func__);
 	mps_mask_intr(sc);
 
 	error = mps_diag_reset(sc, CAN_SLEEP);
 	if (error != 0) {
+		/* XXXSL No need to panic here */
 		panic("%s hard reset failed with error %d\n",
 		    __func__, error);
 	}
@@ -354,6 +358,7 @@ mps_reinit(struct mps_softc *sc)
 	/* get the chip out of the reset state */
 	error = mps_transition_operational(sc);
 	if (error != 0)
+		/* XXXSL No need to panic here */
 		panic("%s transition operational failed with error %d\n",
 		    __func__, error);
 
@@ -368,14 +373,14 @@ mps_reinit(struct mps_softc *sc)
 	mps_regwrite(sc, MPI2_REPLY_POST_HOST_INDEX_OFFSET, sc->replypostindex);
 
 	db = mps_regread(sc, MPI2_DOORBELL_OFFSET);
-	mps_printf(sc, "%s doorbell 0x%08x\n", __func__, db);
+	mps_dprint(sc, MPS_INIT, "%s doorbell 0x%08x\n", __func__, db);
 
-	mps_printf(sc, "%s unmask interrupts post %u free %u\n", __func__,
-	    sc->replypostindex, sc->replyfreeindex);
+	mps_dprint(sc, MPS_INIT, "%s unmask interrupts post %u free %u\n",
+		   __func__, sc->replypostindex, sc->replyfreeindex);
 
 	mps_unmask_intr(sc);
 
-	mps_printf(sc, "%s restarting post %u free %u\n", __func__,
+	mps_dprint(sc, MPS_INIT, "%s restarting post %u free %u\n", __func__,
 	    sc->replypostindex, sc->replyfreeindex);
 
 	/* restart will reload the event masks clobbered by the reset, and
@@ -384,9 +389,8 @@ mps_reinit(struct mps_softc *sc)
 	mps_reregister_events(sc);
 
 	/* the end of discovery will release the simq, so we're done. */
-	mps_printf(sc, "%s finished sc %p post %u free %u\n", 
-	    __func__, sc, 
-	    sc->replypostindex, sc->replyfreeindex);
+	mps_dprint(sc, MPS_INFO, "%s finished sc %p post %u free %u\n", 
+	    __func__, sc, sc->replypostindex, sc->replyfreeindex);
 
 	sc->mps_flags &= ~MPS_FLAGS_DIAGRESET;
 
@@ -411,7 +415,7 @@ mps_wait_db_ack(struct mps_softc *sc, int timeout, int sleep_flag)
 	do {
 		int_status = mps_regread(sc, MPI2_HOST_INTERRUPT_STATUS_OFFSET);
 		if (!(int_status & MPI2_HIS_SYS2IOC_DB_STATUS)) {
-			mps_dprint(sc, MPS_INFO, 
+			mps_dprint(sc, MPS_INIT, 
 			"%s: successfull count(%d), timeout(%d)\n",
 			__func__, count, timeout);
 		return 0;
@@ -546,7 +550,7 @@ mps_request_sync(struct mps_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 	count = MIN((reply_sz / 4), ioc_sz) * 2;
 	if (count < ioc_sz * 2) {
 		residual = ioc_sz * 2 - count;
-		mps_dprint(sc, MPS_FAULT, "Driver error, throwing away %d "
+		mps_dprint(sc, MPS_ERROR, "Driver error, throwing away %d "
 		    "residual message words\n", residual);
 	}
 
@@ -592,7 +596,8 @@ static void
 mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm)
 {
 	reply_descriptor rd;
-	mps_dprint(sc, MPS_TRACE, "%s SMID %u cm %p ccb %p\n", __func__,
+	MPS_FUNCTRACE(sc);
+	mps_dprint(sc, MPS_TRACE, "SMID %u cm %p ccb %p\n",
 	    cm->cm_desc.Default.SMID, cm, cm->cm_ccb);
 
 	if (sc->mps_flags & MPS_FLAGS_ATTACH_DONE && !(sc->mps_flags & MPS_FLAGS_SHUTDOWN))
@@ -620,7 +625,7 @@ mps_get_iocfacts(struct mps_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	MPI2_IOC_FACTS_REQUEST request;
 	int error, req_sz, reply_sz;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	MPS_FUNCTRACE(sc);
 
 	req_sz = sizeof(MPI2_IOC_FACTS_REQUEST);
 	reply_sz = sizeof(MPI2_IOC_FACTS_REPLY);
@@ -641,7 +646,7 @@ mps_get_portfacts(struct mps_softc *sc, MPI2_PORT_FACTS_REPLY *facts, int port)
 	struct mps_command *cm;
 	int error;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	MPS_FUNCTRACE(sc);
 
 	if ((cm = mps_alloc_command(sc)) == NULL)
 		return (EBUSY);
@@ -677,7 +682,7 @@ mps_send_iocinit(struct mps_softc *sc)
 	MPI2_DEFAULT_REPLY	reply;
 	int req_sz, reply_sz, error;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	MPS_FUNCTRACE(sc);
 
 	req_sz = sizeof(MPI2_IOC_INIT_REQUEST);
 	reply_sz = sizeof(MPI2_IOC_INIT_REPLY);
@@ -711,7 +716,7 @@ mps_send_iocinit(struct mps_softc *sc)
 	if ((reply.IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
 		error = ENXIO;
 
-	mps_dprint(sc, MPS_INFO, "IOCInit status= 0x%x\n", reply.IOCStatus);
+	mps_dprint(sc, MPS_INIT, "IOCInit status= 0x%x\n", reply.IOCStatus);
 	return (error);
 }
 
@@ -1008,7 +1013,7 @@ mps_get_tunables(struct mps_softc *sc)
 	char tmpstr[80];
 
 	/* XXX default to some debugging for now */
-	sc->mps_debug = MPS_FAULT;
+	sc->mps_debug = MPS_INFO|MPS_FAULT;
 	sc->disable_msix = 0;
 	sc->disable_msi = 0;
 	sc->max_chains = MPS_CHAIN_FRAMES;
@@ -1123,7 +1128,7 @@ mps_attach(struct mps_softc *sc)
 
 	mps_get_tunables(sc);
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	MPS_FUNCTRACE(sc);
 
 	mtx_init(&sc->mps_mtx, "MPT2SAS lock", NULL, MTX_DEF);
 	callout_init_mtx(&sc->periodic, &sc->mps_mtx, 0);
@@ -1297,7 +1302,7 @@ mps_attach(struct mps_softc *sc)
 	sc->mps_ich.ich_func = mps_startup;
 	sc->mps_ich.ich_arg = sc;
 	if (config_intrhook_establish(&sc->mps_ich) != 0) {
-		mps_dprint(sc, MPS_FAULT, "Cannot establish MPS config hook\n");
+		mps_dprint(sc, MPS_ERROR, "Cannot establish MPS config hook\n");
 		error = EINVAL;
 	}
 
@@ -1308,7 +1313,7 @@ mps_attach(struct mps_softc *sc)
 	    mpssas_ir_shutdown, sc, SHUTDOWN_PRI_DEFAULT);
 
 	if (sc->shutdown_eh == NULL)
-		mps_dprint(sc, MPS_FAULT, "shutdown event registration "
+		mps_dprint(sc, MPS_ERROR, "shutdown event registration "
 		    "failed\n");
 
 	mps_setup_sysctl(sc);
@@ -1347,8 +1352,7 @@ mps_periodic(void *arg)
 
 	db = mps_regread(sc, MPI2_DOORBELL_OFFSET);
 	if ((db & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
-		device_printf(sc->mps_dev, "IOC Fault 0x%08x, Resetting\n", db);
-
+		mps_dprint(sc, MPS_FAULT, "IOC Fault 0x%08x, Resetting\n", db);
 		mps_reinit(sc);
 	}
 
@@ -1365,12 +1369,13 @@ mps_log_evt_handler(struct mps_softc *sc, uintptr_t data,
 
 	switch (event->Event) {
 	case MPI2_EVENT_LOG_DATA:
-		device_printf(sc->mps_dev, "MPI2_EVENT_LOG_DATA:\n");
-		hexdump(event->EventData, event->EventDataLength, NULL, 0);
+		mps_dprint(sc, MPS_EVENT, "MPI2_EVENT_LOG_DATA:\n");
+		if (sc->mps_debug & MPS_EVENT)
+			hexdump(event->EventData, event->EventDataLength, NULL, 0);
 		break;
 	case MPI2_EVENT_LOG_ENTRY_ADDED:
 		entry = (MPI2_EVENT_DATA_LOG_ENTRY_ADDED *)event->EventData;
-		mps_dprint(sc, MPS_INFO, "MPI2_EVENT_LOG_ENTRY_ADDED event "
+		mps_dprint(sc, MPS_EVENT, "MPI2_EVENT_LOG_ENTRY_ADDED event "
 		    "0x%x Sequence %d:\n", entry->LogEntryQualifier,
 		     entry->LogSequence);
 		break;
@@ -1504,29 +1509,35 @@ mps_free(struct mps_softc *sc)
 }
 
 static __inline void
-mps_complete_command(struct mps_command *cm)
+mps_complete_command(struct mps_softc *sc, struct mps_command *cm)
 {
+	MPS_FUNCTRACE(sc);
+
+	if (cm == NULL) {
+		mps_dprint(sc, MPS_ERROR, "Completing NULL command\n");
+		return;
+	}
+
 	if (cm->cm_flags & MPS_CM_FLAGS_POLLED)
 		cm->cm_flags |= MPS_CM_FLAGS_COMPLETE;
 
 	if (cm->cm_complete != NULL) {
-		mps_dprint(cm->cm_sc, MPS_TRACE,
+		mps_dprint(sc, MPS_TRACE,
 			   "%s cm %p calling cm_complete %p data %p reply %p\n",
 			   __func__, cm, cm->cm_complete, cm->cm_complete_data,
 			   cm->cm_reply);
-		cm->cm_complete(cm->cm_sc, cm);
+		cm->cm_complete(sc, cm);
 	}
 
 	if (cm->cm_flags & MPS_CM_FLAGS_WAKEUP) {
-		mps_dprint(cm->cm_sc, MPS_TRACE, "%s: waking up %p\n",
-			   __func__, cm);
+		mps_dprint(sc, MPS_TRACE, "waking up %p\n", cm);
 		wakeup(cm);
 	}
 
 	if (cm->cm_sc->io_cmds_active != 0) {
 		cm->cm_sc->io_cmds_active--;
 	} else {
-		mps_dprint(cm->cm_sc, MPS_INFO, "Warning: io_cmds_active is "
+		mps_dprint(sc, MPS_ERROR, "Warning: io_cmds_active is "
 		    "out of sync - resynching to 0\n");
 	}
 }
@@ -1572,7 +1583,7 @@ mps_sas_log_info(struct mps_softc *sc , u32 log_info)
 		break;
 }
 
-	mps_dprint(sc, MPS_INFO, "log_info(0x%08x): originator(%s), "
+	mps_dprint(sc, MPS_LOG, "log_info(0x%08x): originator(%s), "
 	"code(0x%02x), sub_code(0x%04x)\n", log_info,
 	originator_str, sas_loginfo.dw.code,
 	sas_loginfo.dw.subcode);
@@ -1750,7 +1761,7 @@ mps_intr_locked(void *data)
 		case MPI2_RPY_DESCRIPT_FLAGS_RAID_ACCELERATOR_SUCCESS:
 		default:
 			/* Unhandled */
-			device_printf(sc->mps_dev, "Unhandled reply 0x%x\n",
+			mps_dprint(sc, MPS_ERROR, "Unhandled reply 0x%x\n",
 			    desc->Default.ReplyFlags);
 			cm = NULL;
 			break;
@@ -1761,7 +1772,7 @@ mps_intr_locked(void *data)
 			// Print Error reply frame
 			if (cm->cm_reply)
 				mps_display_reply_info(sc,cm->cm_reply);
-			mps_complete_command(cm);
+			mps_complete_command(sc, cm);
 		}
 
 		desc->Words.Low = 0xffffffff;
@@ -1794,7 +1805,7 @@ mps_dispatch_event(struct mps_softc *sc, uintptr_t data,
 	}
 
 	if (handled == 0)
-		device_printf(sc->mps_dev, "Unhandled event 0x%x\n", le16toh(event));
+		mps_dprint(sc, MPS_EVENT, "Unhandled event 0x%x\n", le16toh(event));
 
 	/*
 	 * This is the only place that the event/reply should be freed.
@@ -2197,7 +2208,8 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * user they did the wrong thing.
 	 */
 	if ((cm->cm_max_segs != 0) && (nsegs > cm->cm_max_segs)) {
-		mps_printf(sc, "%s: warning: busdma returned %d segments, "
+		mps_dprint(sc, MPS_ERROR,
+			   "%s: warning: busdma returned %d segments, "
 			   "more than the %d allowed\n", __func__, nsegs,
 			   cm->cm_max_segs);
 	}
@@ -2243,9 +2255,10 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		    sflags, nsegs - i);
 		if (error != 0) {
 			/* Resource shortage, roll back! */
-			mps_dprint(sc, MPS_INFO, "out of chain frames\n");
+			mps_dprint(sc, MPS_INFO, "Out of chain frames, "
+			    "consider increasing hw.mps.max_chains.\n");
 			cm->cm_flags |= MPS_CM_FLAGS_CHAIN_FAILED;
-			mps_complete_command(cm);
+			mps_complete_command(sc, cm);
 			return;
 		}
 	}
@@ -2444,6 +2457,7 @@ mps_config_complete(struct mps_softc *sc, struct mps_command *cm)
 	MPI2_CONFIG_REPLY *reply;
 	struct mps_config_params *params;
 
+	MPS_FUNCTRACE(sc);
 	params = cm->cm_complete_data;
 
 	if (cm->cm_data != NULL) {

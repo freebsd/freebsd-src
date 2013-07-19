@@ -927,8 +927,9 @@ _mapping_get_dev_info(struct mps_softc *sc,
 					sas_address = (sas_address << 32) |
 					    sas_device_pg0.SASAddress.Low;
 				}
-				mps_dprint(sc, MPS_INFO, "SAS Address for SATA "
-					   "device = %jx\n", sas_address);
+				mps_dprint(sc, MPS_MAPPING,
+				    "SAS Address for SATA device = %jx\n",
+				    sas_address);
 			} else {
 				sas_address =
 					sas_device_pg0.SASAddress.High;
