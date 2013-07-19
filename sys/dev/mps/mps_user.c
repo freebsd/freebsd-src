@@ -677,7 +677,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 
 	hdr = (MPI2_REQUEST_HEADER *)cm->cm_req;
 
-	mps_dprint(sc, MPS_INFO, "mps_user_command: req %p %d  rpl %p %d\n",
+	mps_dprint(sc, MPS_USER, "mps_user_command: req %p %d  rpl %p %d\n",
 		    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len );
 
 	if (cmd->req_len > (int)sc->facts->IOCRequestFrameSize * 4) {
@@ -688,7 +688,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	if (err != 0)
 		goto RetFreeUnlocked;
 
-	mps_dprint(sc, MPS_INFO, "mps_user_command: Function %02X  "
+	mps_dprint(sc, MPS_USER, "mps_user_command: Function %02X  "
 	    "MsgFlags %02X\n", hdr->Function, hdr->MsgFlags );
 
 	if (cmd->len > 0) {
@@ -742,7 +742,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	copyout(rpl, cmd->rpl, sz);
 	if (buf != NULL)
 		copyout(buf, cmd->buf, cmd->len);
-	mps_dprint(sc, MPS_INFO, "mps_user_command: reply size %d\n", sz );
+	mps_dprint(sc, MPS_USER, "mps_user_command: reply size %d\n", sz );
 
 RetFreeUnlocked:
 	mps_lock(sc);
@@ -771,7 +771,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	 */
 	mps_lock(sc);
 	if (sc->mps_flags & MPS_FLAGS_BUSY) {
-		mps_dprint(sc, MPS_INFO, "%s: Only one passthru command "
+		mps_dprint(sc, MPS_USER, "%s: Only one passthru command "
 		    "allowed at a single time.", __func__);
 		mps_unlock(sc);
 		return (EBUSY);
@@ -803,7 +803,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	} else
 		return (EINVAL);
 
-	mps_dprint(sc, MPS_INFO, "%s: req 0x%jx %d  rpl 0x%jx %d "
+	mps_dprint(sc, MPS_USER, "%s: req 0x%jx %d  rpl 0x%jx %d "
 	    "data in 0x%jx %d data out 0x%jx %d data dir %d\n", __func__,
 	    data->PtrRequest, data->RequestSize, data->PtrReply,
 	    data->ReplySize, data->PtrData, data->DataSize,
@@ -823,7 +823,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	}
 
 	function = tmphdr.Function;
-	mps_dprint(sc, MPS_INFO, "%s: Function %02X MsgFlags %02X\n", __func__,
+	mps_dprint(sc, MPS_USER, "%s: Function %02X MsgFlags %02X\n", __func__,
 	    function, tmphdr.MsgFlags);
 
 	/*
@@ -1252,7 +1252,7 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	 */
 	*return_code = MPS_FW_DIAG_ERROR_RELEASE_FAILED;
 	if (!pBuffer->enabled) {
-		mps_dprint(sc, MPS_INFO, "%s: This buffer type is not supported "
+		mps_dprint(sc, MPS_USER, "%s: This buffer type is not supported "
 		    "by the IOC", __func__);
 		return (MPS_DIAG_FAILURE);
 	}
@@ -1795,7 +1795,7 @@ mps_user_diag_action(struct mps_softc *sc, mps_diag_action_t *data)
 	 * Only allow one diag action at one time.
 	 */
 	if (sc->mps_flags & MPS_FLAGS_BUSY) {
-		mps_dprint(sc, MPS_INFO, "%s: Only one FW diag command "
+		mps_dprint(sc, MPS_USER, "%s: Only one FW diag command "
 		    "allowed at a single time.", __func__);
 		return (EBUSY);
 	}
@@ -1982,7 +1982,7 @@ mps_user_reg_access(struct mps_softc *sc, mps_reg_access_t *data)
 		 */
 		case REG_IO_READ:
 		case REG_IO_WRITE:
-			mps_dprint(sc, MPS_INFO, "IO access is not supported. "
+			mps_dprint(sc, MPS_USER, "IO access is not supported. "
 			    "Use memory access.");
 			status = EINVAL;
 			break;
@@ -2170,7 +2170,7 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 			printf("Port Enable did not complete after Diag "
 			    "Reset msleep error %d.\n", msleep_ret);
 		else
-			mps_dprint(sc, MPS_INFO,
+			mps_dprint(sc, MPS_USER,
 				"Hard Reset with Port Enable completed in %d seconds.\n",
 				 (uint32_t) (time_uptime - reinit_start));
 		break;
