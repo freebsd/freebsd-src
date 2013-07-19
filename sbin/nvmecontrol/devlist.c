@@ -53,7 +53,7 @@ static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
 {
 
-	return (1 << nsdata->lbaf[0].lbads);
+	return (1 << nsdata->lbaf[nsdata->flbas.format].lbads);
 }
 
 void
