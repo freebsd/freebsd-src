@@ -238,7 +238,7 @@ data_abort_handler(trapframe_t *tf)
 	int error = 0;
 	struct ksig ksig;
 	struct proc *p;
-	
+
 
 	/* Grab FAR/FSR before enabling interrupts */
 	far = cpu_faultaddress();
@@ -262,10 +262,10 @@ data_abort_handler(trapframe_t *tf)
 
 	if (user) {
 		td->td_pticks = 0;
-		td->td_frame = tf;		
+		td->td_frame = tf;
 		if (td->td_ucred != td->td_proc->p_ucred)
 			cred_update_thread(td);
-		
+
 	}
 	/* Grab the current pcb */
 	pcb = td->td_pcb;
@@ -276,7 +276,7 @@ data_abort_handler(trapframe_t *tf)
 		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
 			enable_interrupts(F32_bit);
 	}
-		
+
 
 	/* Invoke the appropriate handler, if necessary */
 	if (__predict_false(data_aborts[fsr & FAULT_TYPE_MASK].func != NULL)) {
@@ -720,7 +720,7 @@ prefetch_abort_handler(trapframe_t *tf)
 	printf("prefetch abort handler: %p %p\n", (void*)tf->tf_pc,
 	    (void*)tf->tf_usr_lr);
 #endif
-	
+
  	td = curthread;
 	p = td->td_proc;
 	PCPU_INC(cnt.v_trap);
@@ -937,7 +937,7 @@ swi_handler(trapframe_t *frame)
 	struct thread *td = curthread;
 
 	td->td_frame = frame;
-	
+
 	td->td_pticks = 0;
 	/*
       	 * Make sure the program counter is correctly aligned so we

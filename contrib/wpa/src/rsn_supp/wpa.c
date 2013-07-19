@@ -1348,7 +1348,7 @@ static void wpa_supplicant_process_1_of_2(struct wpa_sm *sm,
 		goto failed;
 
 	if (rekey) {
-		wpa_msg(sm->ctx->msg_ctx, MSG_INFO, "WPA: Group rekeying "
+		wpa_msg(sm->ctx->msg_ctx, MSG_DEBUG, "WPA: Group rekeying "
 			"completed with " MACSTR " [GTK=%s]",
 			MAC2STR(sm->bssid), wpa_cipher_txt(sm->group_cipher));
 		wpa_sm_cancel_auth_timeout(sm);

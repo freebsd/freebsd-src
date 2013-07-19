@@ -30,13 +30,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -48,9 +47,12 @@ print_controller(struct nvme_controller_data *cdata)
 	printf("================================\n");
 	printf("Vendor ID:                  %04x\n", cdata->vid);
 	printf("Subsystem Vendor ID:        %04x\n", cdata->ssvid);
-	printf("Serial Number:              %s\n", cdata->sn);
-	printf("Model Number:               %s\n", cdata->mn);
-	printf("Firmware Version:           %s\n", cdata->fr);
+	printf("Serial Number:              %.*s\n",
+	    NVME_SERIAL_NUMBER_LENGTH, cdata->sn);
+	printf("Model Number:               %.*s\n",
+	    NVME_MODEL_NUMBER_LENGTH, cdata->mn);
+	printf("Firmware Version:           %.*s\n",
+	    NVME_FIRMWARE_REVISION_LENGTH, cdata->fr);
 	printf("Recommended Arb Burst:      %d\n", cdata->rab);
 	printf("IEEE OUI Identifier:        %02x %02x %02x\n",
 		cdata->ieee[0], cdata->ieee[1], cdata->ieee[2]);
@@ -125,13 +127,11 @@ print_namespace(struct nvme_namespace_data *nsdata)
 	printf("Thin Provisioning:           %s\n",
 		nsdata->nsfeat.thin_prov ? "Supported" : "Not Supported");
 	printf("Number of LBA Formats:       %d\n", nsdata->nlbaf+1);
-	printf("Current LBA Format:          LBA Format #%d\n",
+	printf("Current LBA Format:          LBA Format #%02d\n",
 		nsdata->flbas.format);
-	for (i = 0; i <= nsdata->nlbaf; i++) {
-		printf("LBA Format #%d:\n", i);
-		printf("  LBA Data Size:             %d\n",
-			1 << nsdata->lbaf[i].lbads);
-	}
+	for (i = 0; i <= nsdata->nlbaf; i++)
+		printf("LBA Format #%02d: Data Size: %5d  Metadata Size: %5d\n",
+		    i, 1 << nsdata->lbaf[i].lbads, nsdata->lbaf[i].ms);
 }
 
 static void
@@ -139,7 +139,7 @@ identify_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, IDENTIFY_USAGE);
-	exit(EX_USAGE);
+	exit(1);
 }
 
 static void
@@ -177,16 +177,16 @@ identify_ctrlr(int argc, char *argv[])
 			hexlength = offsetof(struct nvme_controller_data,
 			    reserved5);
 		print_hex(&cdata, hexlength);
-		exit(EX_OK);
+		exit(0);
 	}
 
 	if (verboseflag == 1) {
-		printf("-v not currently supported without -x.\n");
+		fprintf(stderr, "-v not currently supported without -x\n");
 		identify_usage();
 	}
 
 	print_controller(&cdata);
-	exit(EX_OK);
+	exit(0);
 }
 
 static void
@@ -194,7 +194,6 @@ identify_ns(int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
 	char				path[64];
-	char				*nsloc;
 	int				ch, fd, hexflag = 0, hexlength, nsid;
 	int				verboseflag = 0;
 
@@ -224,24 +223,12 @@ identify_ns(int argc, char *argv[])
 	close(fd);
 
 	/*
-	 * Pull the namespace id from the string. +2 skips past the "ns" part
-	 *  of the string.  Don't search past 10 characters into the string,
-	 *  otherwise we know it is malformed.
-	 */
-	nsloc = strnstr(argv[optind], NVME_NS_PREFIX, 10);
-	if (nsloc != NULL)
-		nsid = strtol(nsloc + 2, NULL, 10);
-	if (nsloc == NULL || (nsid == 0 && errno != 0)) {
-		printf("Invalid namespace ID %s.\n", argv[optind]);
-		exit(EX_IOERR);
-	}
-
-	/*
 	 * We send IDENTIFY commands to the controller, not the namespace,
-	 *  since it is an admin cmd.  So the path should only include the
-	 *  nvmeX part of the nvmeXnsY string.
+	 *  since it is an admin cmd.  The namespace ID will be specified in
+	 *  the IDENTIFY command itself.  So parse the namespace's device node
+	 *  string to get the controller substring and namespace ID.
 	 */
-	snprintf(path, nsloc - argv[optind] + 1, "%s", argv[optind]);
+	parse_ns_str(argv[optind], path, &nsid);
 	open_dev(path, &fd, 1, 1);
 	read_namespace_data(fd, nsid, &nsdata);
 	close(fd);
@@ -253,16 +240,16 @@ identify_ns(int argc, char *argv[])
 			hexlength = offsetof(struct nvme_namespace_data,
 			    reserved6);
 		print_hex(&nsdata, hexlength);
-		exit(EX_OK);
+		exit(0);
 	}
 
 	if (verboseflag == 1) {
-		printf("-v not currently supported without -x.\n");
+		fprintf(stderr, "-v not currently supported without -x\n");
 		identify_usage();
 	}
 
 	print_namespace(&nsdata);
-	exit(EX_OK);
+	exit(0);
 }
 
 void
@@ -274,6 +261,10 @@ identify(int argc, char *argv[])
 		identify_usage();
 
 	while (getopt(argc, argv, "vx") != -1) ;
+
+	/* Check that a controller or namespace was specified. */
+	if (optind >= argc)
+		identify_usage();
 
 	target = argv[optind];
 

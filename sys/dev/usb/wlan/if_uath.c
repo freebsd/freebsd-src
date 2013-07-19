@@ -457,12 +457,6 @@ uath_attach(device_t dev)
 	    IEEE80211_C_BGSCAN |	/* capable of bg scanning */
 	    IEEE80211_C_TXFRAG;		/* handle tx frags */
 
-	ic->ic_cryptocaps =
-	    IEEE80211_CRYPTO_WEP |
-	    IEEE80211_CRYPTO_AES_CCM |
-	    IEEE80211_CRYPTO_TKIPMIC |
-	    IEEE80211_CRYPTO_TKIP;
-
 	/* put a regulatory domain to reveal informations.  */
 	uath_regdomain = sc->sc_devcap.regDomain;
 

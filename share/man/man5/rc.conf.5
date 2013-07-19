@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2013
+.Dd July 12, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -161,12 +161,6 @@ Setting this option will bypass that check at boot time and
 always test whether or not the service is actually running.
 Enabling this option is likely to increase your boot time if
 services are enabled that utilize the force_depend check.
-.It Va swapfile
-.Pq Vt str
-If set to
-.Dq Li NO ,
-no swapfile is installed, otherwise the value is used as the full
-pathname to a file to use for additional swap space.
 .It Ao Ar name Ac Ns Va _chroot
 .Pq Vt str
 .Xr chroot
@@ -1890,12 +1884,6 @@ Default is
 This can be changed for every device separately by defining
 .Va geli_ Ns Ao Ar device Ac Ns Va _autodetach
 variable.
-.It Va geli_swap_flags
-Options passed to the
-.Xr geli 8
-utility when encrypted GEOM providers for swap partitions are created.
-The default is
-.Dq Li "-e aes -l 256 -s 4096 -d" .
 .It Va root_rw_mount
 .Pq Vt bool
 Set to
@@ -3887,6 +3875,11 @@ configure multiple jails.
 The names specified in this list will be used to
 identify settings common to an instance of a jail,
 and should contain alphanumeric characters only.
+The literal jail name of
+.Dq Li 0
+.Pq zero
+is not allowed.
+.Pp
 Assuming that the jail in question was named
 .Li vjail ,
 you would have the following dependent variables:

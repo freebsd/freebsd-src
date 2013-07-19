@@ -77,13 +77,19 @@
 #include <opencrypto/xform.h>
 
 VNET_DEFINE(int, esp_enable) = 1;
-VNET_DEFINE(struct espstat, espstat);
+VNET_PCPUSTAT_DEFINE(struct espstat, espstat);
+VNET_PCPUSTAT_SYSINIT(espstat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(espstat);
+#endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_esp);
 SYSCTL_VNET_INT(_net_inet_esp, OID_AUTO,
 	esp_enable,	CTLFLAG_RW,	&VNET_NAME(esp_enable),	0, "");
-SYSCTL_VNET_STRUCT(_net_inet_esp, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&VNET_NAME(espstat),	espstat, "");
+SYSCTL_VNET_PCPUSTAT(_net_inet_esp, IPSECCTL_STATS, stats,
+    struct espstat, espstat,
+    "ESP statistics (struct espstat, netipsec/esp_var.h");
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);

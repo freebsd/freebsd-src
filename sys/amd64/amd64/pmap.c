@@ -2234,6 +2234,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	if (m_pc == NULL && free != NULL) {
 		m_pc = free;
 		free = (void *)m_pc->object;
+		m_pc->object = NULL;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);

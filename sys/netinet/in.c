@@ -85,9 +85,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_RW,
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
 
-VNET_DECLARE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
-#define	V_arpstat		VNET(arpstat)
-
 /*
  * Return 1 if an internet address is for a ``local'' host
  * (one to which we have a connection).

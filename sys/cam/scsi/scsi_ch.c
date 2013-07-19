@@ -102,7 +102,7 @@ static const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
 static const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 100000;
 static const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 100000;
 static const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 100000;
-static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 10000;
+static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 60000;
 static const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
 static const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
 
@@ -122,12 +122,14 @@ typedef enum {
 
 typedef enum {
 	CH_Q_NONE	= 0x00,
-	CH_Q_NO_DBD	= 0x01
+	CH_Q_NO_DBD	= 0x01,
+	CH_Q_NO_DVCID	= 0x02
 } ch_quirks;
 
 #define CH_Q_BIT_STRING	\
 	"\020"		\
-	"\001NO_DBD"
+	"\001NO_DBD"	\
+	"\002NO_DVCID"
 
 #define ccb_state	ppriv_field0
 #define ccb_bp		ppriv_ptr1
@@ -395,6 +397,14 @@ chregister(struct cam_periph *periph, void *arg)
 	softc->state = CH_STATE_PROBE;
 	periph->softc = softc;
 	softc->quirks = CH_Q_NONE;
+
+	/*
+	 * The DVCID and CURDATA bits were not introduced until the SMC
+	 * spec.  If this device claims SCSI-2 or earlier support, then it
+	 * very likely does not support these bits.
+	 */
+	if (cgd->inq_data.version <= SCSI_REV_2)
+		softc->quirks |= CH_Q_NO_DVCID;
 
 	bzero(&cpi, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
@@ -1208,6 +1218,8 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 	caddr_t data = NULL;
 	size_t size, desclen;
 	int avail, i, error = 0;
+	int curdata, dvcid, sense_flags;
+	int try_no_dvcid = 0;
 	struct changer_element_status *user_data = NULL;
 	struct ch_softc *softc;
 	union ccb *ccb;
@@ -1239,14 +1251,31 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 	cam_periph_lock(periph);
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
+	sense_flags = SF_RETRY_UA;
+	if (softc->quirks & CH_Q_NO_DVCID) {
+		dvcid = 0;
+		curdata = 0;
+	} else {
+		dvcid = 1;
+		curdata = 1;
+		/*
+		 * Don't print anything for an Illegal Request, because
+		 * these flags can cause some changers to complain.  We'll
+		 * retry without them if we get an error.
+		 */
+		sense_flags |= SF_QUIET_IR;
+	}
+
+retry_einval:
+
 	scsi_read_element_status(&ccb->csio,
 				 /* retries */ 1,
 				 /* cbfcnp */ chdone,
 				 /* tag_action */ MSG_SIMPLE_Q_TAG,
 				 /* voltag */ want_voltags,
 				 /* sea */ softc->sc_firsts[chet],
-				 /* dvcid */ 1,
-				 /* curdata */ 1,
+				 /* curdata */ curdata,
+				 /* dvcid */ dvcid,
 				 /* count */ 1,
 				 /* data_ptr */ data,
 				 /* dxfer_len */ 1024,
@@ -1254,8 +1283,37 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 				 /* timeout */ CH_TIMEOUT_READ_ELEMENT_STATUS);
 
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
-				  /*sense_flags*/ SF_RETRY_UA,
+				  /*sense_flags*/ sense_flags,
 				  softc->device_stats);
+
+	/*
+	 * An Illegal Request sense key (only used if there is no asc/ascq)
+	 * or 0x24,0x00 for an ASC/ASCQ both map to EINVAL.  If dvcid or
+	 * curdata are set (we set both or neither), try turning them off
+	 * and see if the command is successful.
+	 */
+	if ((error == EINVAL)
+	 && (dvcid || curdata))  {
+		dvcid = 0;
+		curdata = 0;
+		error = 0;
+		/* At this point we want to report any Illegal Request */
+		sense_flags &= ~SF_QUIET_IR;
+		try_no_dvcid = 1;
+		goto retry_einval;
+	}
+
+	/*
+	 * In this case, we tried a read element status with dvcid and
+	 * curdata set, and it failed.  We retried without those bits, and
+	 * it succeeded.  Suggest to the user that he set a quirk, so we
+	 * don't go through the retry process the first time in the future.
+	 * This should only happen on changers that claim SCSI-3 or higher,
+	 * but don't support these bits.
+	 */
+	if ((try_no_dvcid != 0)
+	 && (error == 0))
+		softc->quirks |= CH_Q_NO_DVCID;
 
 	if (error)
 		goto done;
@@ -1284,8 +1342,8 @@ chgetelemstatus(struct cam_periph *periph, int scsi_version, u_long cmd,
 				 /* voltag */ want_voltags,
 				 /* sea */ softc->sc_firsts[chet]
 				 + cesr->cesr_element_base,
-				 /* dvcid */ 1,
-				 /* curdata */ 1,
+				 /* curdata */ curdata,
+				 /* dvcid */ dvcid,
 				 /* count */ cesr->cesr_element_count,
 				 /* data_ptr */ data,
 				 /* dxfer_len */ size,

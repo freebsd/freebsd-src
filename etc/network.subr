@@ -1052,16 +1052,12 @@ ifalias_af_common()
 #
 ipv6_prefix_hostid_addr_common()
 {
-	local _if _action prefix laddr hostid j address
+	local _if _action prefix j
 	_if=$1
 	_action=$2
 	prefix=`get_if_var ${_if} ipv6_prefix_IF`
 
 	if [ -n "${prefix}" ]; then
-		laddr=`network6_getladdr ${_if}`
-		hostid=${laddr#fe80::}
-		hostid=${hostid%\%*}
-
 		for j in ${prefix}; do
 			# The default prefixlen is 64.
 			plen=${j#*/}
@@ -1071,18 +1067,10 @@ ipv6_prefix_hostid_addr_common()
 			esac
 
 			# Normalize the last part by removing ":"
-			j=${j%:*}
+			j=${j%::*}
 			j=${j%:}
-			OIFS=$IFS; IFS=":"; set -- $j; nj=$#; IFS=$OIFS
-			OIFS=$IFS; IFS=":"; set -- $hostid; nh=$#; IFS=$OIFS
-			if [ $(($nj + $nh)) -eq 8 ]; then
-				address=$j\:$hostid
-			else
-				address=$j\::$hostid
-			fi
-
-			${IFCONFIG_CMD} ${_if} inet6 ${address} \
-				prefixlen $plen ${_action}
+			${IFCONFIG_CMD} ${_if} inet6 $j:: \
+				prefixlen $plen eui64 ${_action}
 
 			# if I am a router, add subnet router
 			# anycast address (RFC 2373).

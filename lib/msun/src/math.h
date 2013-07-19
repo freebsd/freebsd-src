@@ -80,27 +80,34 @@ extern const union __nan_un {
 #define	FP_NORMAL	0x04
 #define	FP_SUBNORMAL	0x08
 #define	FP_ZERO		0x10
-#define	fpclassify(x) \
-    ((sizeof (x) == sizeof (float)) ? __fpclassifyf(x) \
-    : (sizeof (x) == sizeof (double)) ? __fpclassifyd(x) \
-    : __fpclassifyl(x))
 
-#define	isfinite(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isfinitef(x)	\
-    : (sizeof (x) == sizeof (double)) ? __isfinite(x)	\
-    : __isfinitel(x))
-#define	isinf(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isinff(x)	\
-    : (sizeof (x) == sizeof (double)) ? isinf(x)	\
-    : __isinfl(x))
-#define	isnan(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isnanf(x)	\
-    : (sizeof (x) == sizeof (double)) ? isnan(x)	\
-    : __isnanl(x))
-#define	isnormal(x)					\
-    ((sizeof (x) == sizeof (float)) ? __isnormalf(x)	\
-    : (sizeof (x) == sizeof (double)) ? __isnormal(x)	\
-    : __isnormall(x))
+#if (__STDC_VERSION__ >= 201112L && defined(__clang__)) || \
+    __has_extension(c_generic_selections)
+#define	__fp_type_select(x, f, d, ld) _Generic((0,(x)),			\
+    float: f(x),							\
+    double: d(x),							\
+    long double: ld(x))
+#elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
+#define	__fp_type_select(x, f, d, ld) __builtin_choose_expr(		\
+    __builtin_types_compatible_p(__typeof(x), long double), ld(x),	\
+    __builtin_choose_expr(						\
+    __builtin_types_compatible_p(__typeof(x), double), d(x),		\
+    __builtin_choose_expr(						\
+    __builtin_types_compatible_p(__typeof(x), float), f(x), (void)0)))
+#else
+#define	 __fp_type_select(x, f, d, ld)					\
+    ((sizeof(x) == sizeof(float)) ? f(x)				\
+    : (sizeof(x) == sizeof(double)) ? d(x)				\
+    : ld(x))
+#endif
+
+#define	fpclassify(x) \
+	__fp_type_select(x, __fpclassifyf, __fpclassifyd, __fpclassifyl)
+#define	isfinite(x) __fp_type_select(x, __isfinitef, __isfinite, __isfinitel)
+#define	isinf(x) __fp_type_select(x, __isinff, __isinf, __isinfl)
+#define	isnan(x) \
+	__fp_type_select(x, __inline_isnanf, __inline_isnan, __inline_isnanl)
+#define	isnormal(x) __fp_type_select(x, __isnormalf, __isnormal, __isnormall)
 
 #ifdef __MATH_BUILTIN_RELOPS
 #define	isgreater(x, y)		__builtin_isgreater((x), (y))
@@ -119,10 +126,7 @@ extern const union __nan_un {
 #define	isunordered(x, y)	(isnan(x) || isnan(y))
 #endif /* __MATH_BUILTIN_RELOPS */
 
-#define	signbit(x)					\
-    ((sizeof (x) == sizeof (float)) ? __signbitf(x)	\
-    : (sizeof (x) == sizeof (double)) ? __signbit(x)	\
-    : __signbitl(x))
+#define	signbit(x) __fp_type_select(x, __signbitf, __signbit, __signbitl)
 
 typedef	__double_t	double_t;
 typedef	__float_t	float_t;
@@ -175,15 +179,35 @@ int	__isfinitef(float) __pure2;
 int	__isfinite(double) __pure2;
 int	__isfinitel(long double) __pure2;
 int	__isinff(float) __pure2;
+int	__isinf(double) __pure2;
 int	__isinfl(long double) __pure2;
-int	__isnanf(float) __pure2;
-int	__isnanl(long double) __pure2;
 int	__isnormalf(float) __pure2;
 int	__isnormal(double) __pure2;
 int	__isnormall(long double) __pure2;
 int	__signbit(double) __pure2;
 int	__signbitf(float) __pure2;
 int	__signbitl(long double) __pure2;
+
+static __inline int
+__inline_isnan(__const double __x)
+{
+
+	return (__x != __x);
+}
+
+static __inline int
+__inline_isnanf(__const float __x)
+{
+
+	return (__x != __x);
+}
+
+static __inline int
+__inline_isnanl(__const long double __x)
+{
+
+	return (__x != __x);
+}
 
 double	acos(double);
 double	asin(double);
@@ -227,8 +251,6 @@ double	expm1(double);
 double	fma(double, double, double);
 double	hypot(double, double);
 int	ilogb(double) __pure2;
-int	(isinf)(double) __pure2;
-int	(isnan)(double) __pure2;
 double	lgamma(double);
 long long llrint(double);
 long long llround(double);

@@ -547,6 +547,8 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
 crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
 					 sctp | zfs
+crypto/siphash/siphash.c	optional inet | inet6
+crypto/siphash/siphash_test.c	optional inet | inet6
 ddb/db_access.c			optional ddb
 ddb/db_break.c			optional ddb
 ddb/db_capture.c		optional ddb
@@ -2327,6 +2329,35 @@ dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
 dev/usb/wlan/if_urtwn.c		optional urtwn
+urtwn-rtl8192cfwT.c		optional urtwn-rtl8192cfwT | urtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwT.fw:urtwn-rtl8192cfwT:111 -murtwn-rtl8192cfwT -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"urtwn-rtl8192cfwT.c"
+urtwn-rtl8192cfwT.fwo		optional urtwn-rtl8192cfwT | urtwnfw	\
+	dependency	"urtwn-rtl8192cfwT.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwT.fwo"
+urtwn-rtl8192cfwT.fw		optional urtwn-rtl8192cfwT | urtwnfw	\
+	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwT.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwT.fw"
+urtwn-rtl8192cfwU.c		optional urtwn-rtl8192cfwU | urtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwU.fw:urtwn-rtl8192cfwU:111 -murtwn-rtl8192cfwU -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"urtwn-rtl8192cfwU.c"
+urtwn-rtl8192cfwU.fwo		optional urtwn-rtl8192cfwU | urtwnfw	\
+	dependency	"urtwn-rtl8192cfwU.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwU.fwo"
+urtwn-rtl8192cfwU.fw		optional urtwn-rtl8192cfwU | urtwnfw	\
+	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwU.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"urtwn-rtl8192cfwU.fw"
+
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
@@ -2666,6 +2697,8 @@ fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
+fs/ext2fs/ext2_hash.c		optional ext2fs
+fs/ext2fs/ext2_htree.c		optional ext2fs
 fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs

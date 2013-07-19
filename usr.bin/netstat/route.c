@@ -143,17 +143,20 @@ static void domask(char *, in_addr_t, u_long);
  * Print routing tables.
  */
 void
-routepr(u_long rtree)
+routepr(u_long rtree, int fibnum)
 {
 	struct radix_node_head **rnhp, *rnh, head;
 	size_t intsize;
-	int fam, fibnum, numfibs;
+	int fam, numfibs;
 
 	intsize = sizeof(int);
-	if (sysctlbyname("net.my_fibnum", &fibnum, &intsize, NULL, 0) == -1)
+	if (fibnum == -1 &&
+	    sysctlbyname("net.my_fibnum", &fibnum, &intsize, NULL, 0) == -1)
 		fibnum = 0;
 	if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		numfibs = 1;
+	if (fibnum < 0 || fibnum > numfibs - 1)
+		errx(EX_USAGE, "%d: invalid fib", fibnum);
 	rt_tables = calloc(numfibs * (AF_MAX+1),
 	    sizeof(struct radix_node_head *));
 	if (rt_tables == NULL)
@@ -166,7 +169,10 @@ routepr(u_long rtree)
 	if (clock_gettime(CLOCK_UPTIME, &uptime) < 0)
 		err(EX_OSERR, "clock_gettime() failed");
 
-	printf("Routing tables\n");
+	printf("Routing tables");
+	if (fibnum)
+		printf(" (fib: %d)", fibnum);
+	printf("\n");
 
 	if (Aflag == 0 && NewTree)
 		ntreestuff();

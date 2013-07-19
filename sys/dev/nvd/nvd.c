@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -306,12 +306,16 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	disk->d_flags |= DISKFLAG_UNMAPPED_BIO;
 #endif
 
+	/*
+	 * d_ident and d_descr are both far bigger than the length of either
+	 *  the serial or model number strings.
+	 */
 	strlcpy(disk->d_ident, nvme_ns_get_serial_number(ns),
-	    sizeof(disk->d_ident));
+	    min(sizeof(disk->d_ident), NVME_SERIAL_NUMBER_LENGTH));
 
 #if __FreeBSD_version >= 900034
 	strlcpy(disk->d_descr, nvme_ns_get_model_number(ns),
-	    sizeof(disk->d_descr));
+	    min(sizeof(disk->d_descr), NVME_MODEL_NUMBER_LENGTH));
 #endif
 
 	disk_create(disk, DISK_VERSION);

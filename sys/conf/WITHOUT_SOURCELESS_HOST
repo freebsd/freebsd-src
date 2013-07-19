@@ -6,5 +6,6 @@
 
 nodevice	hpt27xx
 nodevice	hptmv
+nodevice	hptnr
 nodevice	hptrr
 nodevice	nve
