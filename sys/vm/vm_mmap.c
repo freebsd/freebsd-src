@@ -1603,7 +1603,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	else if (fitit)
 		rv = vm_map_find(map, object, foff, addr, size,
 		    object != NULL && object->type == OBJT_DEVICE ?
-		    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, prot, maxprot, docow);
+		    VMFS_ALIGNED_SPACE : VMFS_OPTIMAL_SPACE, prot, maxprot,
+		    docow);
 	else
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);
