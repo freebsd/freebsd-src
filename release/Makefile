@@ -161,10 +161,18 @@ bootonly: packagesystem
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 
-release.iso: system
+release/cdrom.inf: system
+	echo "CD_VERSION = ${REVISION}-${BRANCH}" > ${.TARGET}
+	echo "CD_VOLUME = 1" >> ${.TARGET}
+
+release.iso: system release/cdrom.inf
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
 
-bootonly.iso: bootonly
+bootonly/cdrom.inf: bootonly
+	echo "CD_VERSION = ${REVISION}-${BRANCH}" > ${.TARGET}
+	echo "CD_VOLUME = 1" >> ${.TARGET}
+
+bootonly.iso: bootonly bootonly/cdrom.inf
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
 
 memstick: system
