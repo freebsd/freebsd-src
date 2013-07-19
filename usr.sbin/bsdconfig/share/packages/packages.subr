@@ -1,7 +1,7 @@
 if [ ! "$_PACKAGES_PACKAGES_SUBR" ]; then _PACKAGES_PACKAGES_SUBR=1
 #
 # Copyright (c) 2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_PACKAGES_PACKAGES_SUBR" ]; then _PACKAGES_PACKAGES_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -135,6 +135,7 @@ f_package_select()
 			[ "$package" = "$pkgsel" ] && return
 		done
 		SELECTED_PACKAGES="$SELECTED_PACKAGES $package"
+		f_dprintf "Added %s to selection list" "$package"
 	done
 	SELECTED_PACKAGES="${SELECTED_PACKAGES# }" # Trim leading space
 }
@@ -157,6 +158,7 @@ f_package_deselect()
 			new_list="$new_list${new_list:+ }$pkgsel"
 		done
 		SELECTED_PACKAGES="$new_list"
+		f_dprintf "Removed %s from selection list" "$package"
 	done
 }
 
@@ -584,8 +586,8 @@ f_package_review()
 	local menu_list # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
 
-	f_dprintf "f_package_review: SELECTED_PACKAGES=[%s]" \
-	          "$SELECTED_PACKAGES"
+	local fname=f_package_review
+	f_dprintf "%s: SELECTED_PACKAGES=[%s]" $fname "$SELECTED_PACKAGES"
 
 	prompt=$( printf "$msg_reviewing_selected_packages" "$_All_nselected" )
 
@@ -635,25 +637,26 @@ f_package_review()
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
-		f_getvar _mark_$varpkg mark
+		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "I" ] || continue
-		f_package_add "$package" || continue
-		f_package_deselect "$package"
+		f_dprintf "%s: Installing %s package" $fname "$package"
+		f_package_add "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
-		f_getvar _mark_$varpkg mark
+		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "R" ] || continue
-		# XXX Re-install package
-		f_package_deselect "$package"
+		f_dprintf "%s: Reinstalling %s package" $fname "$package"
+		f_package_reinstall "$package"
 	done
 	for package in $SELECTED_PACKAGES; do
 		mark=
 		f_str2varname "$package" varpkg
-		f_getvar _mark_$varpkg mark
+		debug= f_getvar _mark_$varpkg mark
 		[ "$mark" = "U" ] || continue
-		# XXX Uninstall package
+		f_dprintf "%s: Uninstalling %s package" $fname "$package"
+		f_package_delete "$package" || continue
 		f_package_deselect "$package"
 	done
 
@@ -678,6 +681,7 @@ f_package_config()
 
 	# Detect installed packages (updates marks/SELECTED_PACKAGES)
 	f_package_detect_installed
+	export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
 
 	local retval category varcat defaultitem category_defaultitem=""
 	while :; do
@@ -877,6 +881,7 @@ f_package_add()
 	# detected the installed packages -- something we should do only once.
 	#
 	if [ ! "$PACKAGES_DETECTED" ]; then
+		f_dprintf "f_package_add: Detecting installed packages"
 		f_package_detect_installed
 		export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
 	fi
@@ -951,6 +956,10 @@ f_package_extract()
 {
 	local device="$1" name="$2" depended="$3"
 
+	local fname=f_package_extract
+	f_dprintf "%s: device=[%s] name=[%s] depended=[%s]" \
+	          $fname "$device" "$name" "$depended"
+
 	# Check to make sure it's not already there
 	local varpkg mark=
 	f_str2varname "$name" varpkg
@@ -983,12 +992,10 @@ f_package_extract()
 		esac
 	esac
 
-	local fname=f_package_extract
-
 	# We have a path, call the device strategy routine to get the file
-	local pkg_ext probe_only=1 found=
+	local pkg_ext found=
 	for pkg_ext in "" $PACKAGE_EXTENSIONS; do
-		if f_device_get $device "$path$pkg_ext" $probe_only; then
+		if f_device_get $device "$path$pkg_ext" $PROBE_EXIST; then
 			path="$path$pkg_ext"
 			f_dprintf "%s: found path=[%s] dev=[%s]" \
 			          $fname "$path" "$device"
@@ -1048,6 +1055,144 @@ f_package_extract()
 	fi
 
 	return $SUCCESS
+}
+
+# f_package_delete $name
+#
+# Delete package by full $name (lacks archive suffix; e.g., `.tbz').
+#
+f_package_delete()
+{
+	local name="$1"
+	local fname=f_package_delete
+
+	if ! { [ "$name" ] || { f_getvar $VAR_PACKAGE name && [ "$name" ]; }; }
+	then
+		f_dprintf "packageDelete: %s" \
+		          "$msg_no_package_name_passed_in_package_variable"
+		return $FAILURE
+	fi
+
+	f_dprintf "%s: name=[%s]" $fname "$name"
+
+	[ "$name" ] || return $FAILURE
+
+	{ # Verify and initialize device media if-defined
+		f_media_verify &&
+		f_device_init media &&
+		f_index_initialize packages/INDEX
+	} || return $FAILURE
+
+	# Now we have (indirectly via f_index_read()):
+	#   CATEGORY_MENU_LIST _categories_{varpkg} _rundeps_{varpkg}
+	#   PACKAGE_CATEGORIES _npkgs
+
+	local varpkg
+	f_str2varname "$name" varpkg
+
+	# Just as-in the user-interface (opposed to scripted-use), only allow
+	# packages with at least one category to be recognized.
+	#
+	local pkgcat=
+	if ! f_getvar _categories_$varpkg pkgcat || [ ! "$pkgcat" ]; then
+		# $pkg may be a partial name, search the index (this is slow)
+		f_index_search PACKAGE_INDEX "$name" name
+		if [ ! "$name" ]; then
+			f_show_msg \
+			    "$msg_sorry_package_was_not_found_in_the_index" \
+			    "$name"
+			return $FAILURE
+		fi
+		f_str2varname "$name" varpkg
+	fi
+
+	# If invoked through the scripted interface, we likely have not yet
+	# detected the installed packages -- something we should do only once.
+	#
+	if [ ! "$PACKAGES_DETECTED" ]; then
+		f_dprintf "%s: Detecting installed packages" $fname
+		f_package_detect_installed
+		export PACKAGES_DETECTED=1 # exported for awk(1) ENVIRON[]
+	fi
+	# Now we have: _mark_{varpkg}=X for all installed packages
+
+	#
+	# Return failure if the package is not already installed.
+	#
+	local pkgmark=
+	f_getvar _mark_$varpkg pkgmark
+	if ! [ "$pkgmark" -a ! "${pkgmark#[XUR]}" ]; then
+		f_show_msg "$msg_package_not_installed_cannot_delete" "$name"
+		return $FAILURE
+	fi
+
+	#
+	# Check for dependencies
+	#
+	local pkgsel depc=0 udeps=
+	for pkgsel in $SELECTED_PACKAGES; do
+		local mark=
+		f_str2varname $pkgsel varpkg
+		debug= f_getvar _mark_$varpkg mark
+		[ "$mark" -a ! "${mark#[XUR]}" ] || continue
+		local dep rundeps=
+		debug= f_getvar _rundeps_$varpkg rundeps
+		for dep in $rundeps; do
+			if [ "$dep" = "$name" ]; then
+				# Maybe this package is marked for deletion too
+				if [ "$mark" = "U" ]; then
+					udeps="$udeps $pkgsel"
+				else
+					depc=$(( $depc + 1 ))
+				fi
+				break
+			fi
+		done
+	done
+	if [ $depc -gt 0 ]; then
+		local grammatical_s=
+		[ $depc -gt 1 ] && grammatical_s=s
+		f_show_msg \
+			"$msg_package_is_needed_by_other_installed_packages" \
+			"$name" "$depc" "$grammatical_s"
+		return $FAILURE
+	fi
+
+	#
+	# Chase dependencies that are marked for uninstallation
+	#
+	for pkgsel in $udeps; do
+		f_dprintf "%s: Uninstalling dependecy %s (marked for delete)" \
+		          $fname "$pkgsel"
+		f_package_delete "$pkgsel"
+	done
+
+	#
+	# OK to perform the delete (no other packages depend on it)...
+	#
+	f_show_info "$msg_uninstalling_package_waiting_for_pkg_delete" "$name"
+	if f_debugging; then
+		pkg_delete -v "$name"
+	else
+		f_quietly pkg_delete "$name"
+	fi
+	if [ $? -ne $SUCCESS ]; then
+		f_show_msg "$msg_pkg_delete_failed" "$name"
+		return $FAILURE
+	else
+		f_dprintf "%s: pkg_delete(1) of %s successful" $fname "$name"
+		f_str2varname "$name" varpkg
+		setvar _mark_$varpkg ""
+	fi
+}
+
+# f_package_reinstall $name
+#
+# A simple wrapper to f_package_delete() + f_package_add()
+#
+f_package_reinstall()
+{
+	f_package_delete "$1" && f_package_add "$1"
 }
 
 ############################################################ MAIN

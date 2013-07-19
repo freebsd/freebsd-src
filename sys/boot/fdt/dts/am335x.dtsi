@@ -201,5 +201,23 @@
 			interrupts = <36>;
 			interrupt-parent = <&AINTC>;
 		};
+
+ 		usb@47400000 {
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			compatible = "ti,musb-am33xx";
+ 			reg =<	0x47400000 0x1000	/* USBSS */
+ 				0x47401000 0x300	/* USB0 */
+ 				0x47401300 0x100 	/* USB0_PHY */
+ 				0x47401400 0x400 	/* USB0_CORE */
+ 				0x47401800 0x300 	/* USB1 */
+ 				0x47401B00 0x100 	/* USB1_PHY */
+ 				0x47401C00 0x400 	/* USB1_CORE */
+ 			>;
+ 			interrupts = <17 18 19>;
+ 			interrupt-parent = <&AINTC>;
+ 			/* 1 - Host Mode, 0 - Device Mode */
+ 			modemask = <2>;
+ 		};
 	};
 };

@@ -165,6 +165,31 @@ struct proc_info
 
 TAILQ_HEAD(trace_procs, proc_info) trace_procs;
 
+static void
+strerror_init(void)
+{
+
+	/*
+	 * Cache NLS data before entering capability mode.
+	 * XXXPJD: There should be strerror_init() and strsignal_init() in libc.
+	 */
+	(void)catopen("libc", NL_CAT_LOCALE);
+}
+
+static void
+localtime_init(void)
+{
+	time_t ltime;
+
+	/*
+	 * Allow localtime(3) to cache /etc/localtime content before entering
+	 * capability mode.
+	 * XXXPJD: There should be localtime_init() in libc.
+	 */
+	(void)time(&ltime);
+	(void)localtime(&ltime);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -236,11 +261,9 @@ main(int argc, char *argv[])
 	if (!freopen(tracefile, "r", stdin))
 		err(1, "%s", tracefile);
 
-	/*
-	 * Cache NLS data before entering capability mode.
-	 * XXXPJD: There should be strerror_init() and strsignal_init() in libc.
-	 */
-	(void)catopen("libc", NL_CAT_LOCALE);
+	strerror_init();
+	localtime_init();
+
 	if (resolv == 0) {
 		if (cap_enter() < 0 && errno != ENOSYS)
 			err(1, "unable to enter capability mode");

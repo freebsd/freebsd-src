@@ -297,14 +297,9 @@ get_cputime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		PROC_UNLOCK(td2->td_proc);
 	} else {
 		pid = clock_id & CPUCLOCK_ID_MASK;
-		p2 = pfind(pid);
-		if (p2 == NULL)
+		error = pget(pid, PGET_CANSEE, &p2);
+		if (error != 0)
 			return (EINVAL);
-		error = p_cansee(td, p2);
-		if (error) {
-			PROC_UNLOCK(p2);
-			return (EINVAL);
-		}
 		get_process_cputime(p2, ats);
 		PROC_UNLOCK(p2);
 	}

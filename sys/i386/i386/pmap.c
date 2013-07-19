@@ -680,7 +680,7 @@ pmap_ptelist_alloc(vm_offset_t *head)
 
 	va = *head;
 	if (va == 0)
-		return (va);	/* Out of memory */
+		panic("pmap_ptelist_alloc: exhausted ptelist KVA");
 	pte = vtopte(va);
 	*head = *pte;
 	if (*head & PG_V)
@@ -2311,6 +2311,7 @@ out:
 	if (m_pc == NULL && pv_vafree != 0 && free != NULL) {
 		m_pc = free;
 		free = (void *)m_pc->object;
+		m_pc->object = NULL;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);

@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130710: libkvm version bump 
+OLD_LIBS+=lib/libkvm.so.5
+OLD_LIBS+=usr/lib32/libkvm.so.5
 # 20130623: dialog update from 1.1 to 1.2
 OLD_LIBS+=usr/lib/libdialog.so.7
 OLD_LIBS+=usr/lib32/libdialog.so.7

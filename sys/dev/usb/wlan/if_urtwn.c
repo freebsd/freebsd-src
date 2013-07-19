@@ -419,12 +419,6 @@ urtwn_attach(device_t self)
 		| IEEE80211_C_WPA		/* 802.11i */
 		;
 
-	ic->ic_cryptocaps =
-	    IEEE80211_CRYPTO_WEP |
-	    IEEE80211_CRYPTO_AES_CCM |
-	    IEEE80211_CRYPTO_TKIPMIC |
-	    IEEE80211_CRYPTO_TKIP;
-
 	bands = 0;
 	setbit(&bands, IEEE80211_MODE_11B);
 	setbit(&bands, IEEE80211_MODE_11G);
@@ -3029,5 +3023,4 @@ DRIVER_MODULE(urtwn, uhub, urtwn_driver, urtwn_devclass, NULL, NULL);
 MODULE_DEPEND(urtwn, usb, 1, 1, 1);
 MODULE_DEPEND(urtwn, wlan, 1, 1, 1);
 MODULE_DEPEND(urtwn, firmware, 1, 1, 1);
-MODULE_DEPEND(urtwn, urtwn_fw, 1, 1, 1);
 MODULE_VERSION(urtwn, 1);

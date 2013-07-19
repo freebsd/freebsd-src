@@ -122,6 +122,7 @@ static void	lagg_media_status(struct ifnet *, struct ifmediareq *);
 static struct lagg_port *lagg_link_active(struct lagg_softc *,
 	    struct lagg_port *);
 static const void *lagg_gethdr(struct mbuf *, u_int, u_int, void *);
+static int	lagg_sysctl_active(SYSCTL_HANDLER_ARGS);
 
 /* Simple round robin */
 static int	lagg_rr_attach(struct lagg_softc *);
@@ -171,7 +172,7 @@ static const struct {
 };
 
 SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0,
     "Link Aggregation");
 
 static int lagg_failover_rx_all = 0; /* Allow input on any failover links */
@@ -298,6 +299,12 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"count", CTLTYPE_INT|CTLFLAG_RD, &sc->sc_count, sc->sc_count,
 		"Total number of ports");
+	SYSCTL_ADD_PROC(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"active", CTLTYPE_INT|CTLFLAG_RD, sc, 0, lagg_sysctl_active,
+		"I", "Total number of active ports");
+	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"flapping", CTLTYPE_INT|CTLFLAG_RD, &sc->sc_flapping,
+		sc->sc_flapping, "Total number of port change events");
 	/* Hash all layers by default */
 	sc->sc_flags = LAGG_F_HASHL2|LAGG_F_HASHL3|LAGG_F_HASHL4;
 
@@ -1486,6 +1493,27 @@ lagg_gethdr(struct mbuf *m, u_int off, u_int len, void *buf)
 		return (buf);
 	}
 	return (mtod(m, char *) + off);
+}
+
+static int
+lagg_sysctl_active(SYSCTL_HANDLER_ARGS)
+{
+	struct lagg_softc *sc = (struct lagg_softc *)arg1;
+	struct lagg_port *lp;
+	int error;
+
+	/* LACP tracks active links automatically, the others do not */
+	if (sc->sc_proto != LAGG_PROTO_LACP) {
+		sc->sc_active = 0;
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+			sc->sc_active += LAGG_PORTACTIVE(lp);
+	}
+
+	error = sysctl_handle_int(oidp, &sc->sc_active, 0, req);
+	if ((error) || (req->newptr == NULL))
+		return (error);
+
+	return (0);
 }
 
 uint32_t

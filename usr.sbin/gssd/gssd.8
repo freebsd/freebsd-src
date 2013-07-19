@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2013
+.Dd July 7, 2013
 .Dt GSSD 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl d
+.Op Fl h
 .Op Fl o
 .Op Fl v
 .Op Fl s Ar dir-list
@@ -51,6 +52,15 @@ Run in debug mode.
 In this mode,
 .Nm
 will not fork when it starts.
+.It Fl h
+Enable support for host-based initiator credentials.
+This permits a kerberized NFS mount to use a service principal in
+the default Kerberos 5 keytab file for access.
+Such access is enabled via the
+gssname
+option for the
+.Xr mount_nfs 8
+command.
 .It Fl o
 Force use of DES and the associated old style GSS-API initialization token.
 This may be required to make kerberized NFS mounts work against some
@@ -96,6 +106,7 @@ by kernel GSS-API services.
 .Ex -std
 .Sh SEE ALSO
 .Xr gssapi 3 ,
+.Xr mount_nfs 8 ,
 .Xr syslog 3
 .Sh HISTORY
 The

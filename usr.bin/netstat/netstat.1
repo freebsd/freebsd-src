@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2013
+.Dd May 17, 2013
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -217,14 +217,29 @@ states.
 .Nm
 .Fl r
 .Op Fl AanW
+.Op Fl F Ar fibnum
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Ek
 .Xc
-Display the contents of all routing tables,
-or a routing table for a particular
-.Ar address_family .
+Display the contents of routing tables.
+When
+.Fl f
+is specified, a routing table for a particular
+.Ar address_family
+is displayed.
+When
+.Fl F
+is specified, a routing table with the number
+.Ar fibnum
+is displayed.
+If the specified
+.Ar fibnum
+is -1 or
+.Fl F
+is not specified,
+the default routing table is displayed.
 If
 .Fl A
 is also present,

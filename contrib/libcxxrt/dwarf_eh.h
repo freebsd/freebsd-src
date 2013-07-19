@@ -57,6 +57,8 @@ typedef unsigned char *dw_eh_ptr_t;
 /// DWARF data encoding types.  
 enum dwarf_data_encoding
 {
+	/// Absolute pointer value
+	DW_EH_PE_absptr   = 0x00,
 	/// Unsigned, little-endian, base 128-encoded (variable length).
 	DW_EH_PE_uleb128 = 0x01,
 	/// Unsigned 16-bit integer.
@@ -95,8 +97,6 @@ enum dwarf_data_relative
 {
 	/// Value is omitted
 	DW_EH_PE_omit     = 0xff,
-	/// Absolute pointer value
-	DW_EH_PE_absptr   = 0x00,
 	/// Value relative to program counter
 	DW_EH_PE_pcrel    = 0x10,
 	/// Value relative to the text segment

@@ -70,13 +70,19 @@
 #include <opencrypto/xform.h>
 
 VNET_DEFINE(int, ipcomp_enable) = 1;
-VNET_DEFINE(struct ipcompstat, ipcompstat);
+VNET_PCPUSTAT_DEFINE(struct ipcompstat, ipcompstat);
+VNET_PCPUSTAT_SYSINIT(ipcompstat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(ipcompstat);
+#endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_ipcomp);
 SYSCTL_VNET_INT(_net_inet_ipcomp, OID_AUTO,
 	ipcomp_enable,	CTLFLAG_RW,	&VNET_NAME(ipcomp_enable),	0, "");
-SYSCTL_VNET_STRUCT(_net_inet_ipcomp, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&VNET_NAME(ipcompstat),	ipcompstat, "");
+SYSCTL_VNET_PCPUSTAT(_net_inet_ipcomp, IPSECCTL_STATS, stats,
+    struct ipcompstat, ipcompstat,
+    "IPCOMP statistics (struct ipcompstat, netipsec/ipcomp_var.h");
 
 static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
@@ -631,14 +637,3 @@ ipcomp_attach(void)
 }
 
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);
-
-static void
-vnet_ipcomp_attach(const void *unused __unused)
-{
-
-	/* XXX */
-	V_ipcompstat.version = IPCOMPSTAT_VERSION;
-}
-
-VNET_SYSINIT(vnet_ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE,
-    vnet_ipcomp_attach, NULL);

@@ -206,23 +206,24 @@ struct bw_upcall {
  * The kernel's multicast routing statistics.
  */
 struct mrtstat {
-    u_long	mrts_mfc_lookups;	/* # forw. cache hash table hits   */
-    u_long	mrts_mfc_misses;	/* # forw. cache hash table misses */
-    u_long	mrts_upcalls;		/* # calls to multicast routing daemon */
-    u_long	mrts_no_route;		/* no route for packet's origin    */
-    u_long	mrts_bad_tunnel;	/* malformed tunnel options        */
-    u_long	mrts_cant_tunnel;	/* no room for tunnel options      */
-    u_long	mrts_wrong_if;		/* arrived on wrong interface	   */
-    u_long	mrts_upq_ovflw;		/* upcall Q overflow		   */
-    u_long	mrts_cache_cleanups;	/* # entries with no upcalls	   */
-    u_long	mrts_drop_sel;		/* pkts dropped selectively        */
-    u_long	mrts_q_overflow;	/* pkts dropped - Q overflow       */
-    u_long	mrts_pkt2large;		/* pkts dropped - size > BKT SIZE  */
-    u_long	mrts_upq_sockfull;	/* upcalls dropped - socket full */
+	uint64_t mrts_mfc_lookups;    /* # forw. cache hash table hits   */
+	uint64_t mrts_mfc_misses;     /* # forw. cache hash table misses */
+	uint64_t mrts_upcalls;	      /* # calls to multicast routing daemon */
+	uint64_t mrts_no_route;	      /* no route for packet's origin    */
+	uint64_t mrts_bad_tunnel;     /* malformed tunnel options        */
+	uint64_t mrts_cant_tunnel;    /* no room for tunnel options      */
+	uint64_t mrts_wrong_if;	      /* arrived on wrong interface	 */
+	uint64_t mrts_upq_ovflw;      /* upcall Q overflow		 */
+	uint64_t mrts_cache_cleanups; /* # entries with no upcalls	 */
+	uint64_t mrts_drop_sel;	      /* pkts dropped selectively        */
+	uint64_t mrts_q_overflow;     /* pkts dropped - Q overflow       */
+	uint64_t mrts_pkt2large;      /* pkts dropped - size > BKT SIZE  */
+	uint64_t mrts_upq_sockfull;   /* upcalls dropped - socket full   */
 };
 
 #ifdef _KERNEL
-#define	MRTSTAT_ADD(name, val)	V_mrtstat.name += (val)
+#define	MRTSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct mrtstat, mrtstat, name, (val))
 #define	MRTSTAT_INC(name)	MRTSTAT_ADD(name, 1)
 #endif
 

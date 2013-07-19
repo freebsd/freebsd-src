@@ -242,13 +242,13 @@ f_dialog_input_name()
 
 		# Check for NULL entry
 		if [ ! "$_input" ]; then
-			f_dialog_msgbox "$msg_login_is_empty"
+			f_show_msg "$msg_login_is_empty"
 			continue
 		fi
 
 		# Check for invalid entry
 		if ! echo "$_input" | grep -q "^[[:alpha:]]"; then
-			f_dialog_msgbox "$msg_login_must_start_with_letter"
+			f_show_msg "$msg_login_must_start_with_letter"
 			continue
 		fi
 
@@ -328,7 +328,7 @@ f_dialog_input_password()
 
 		# Check for password mismatch
 		if [ "$_password1" != "$_password2" ]; then
-			f_dialog_msgbox "$msg_passwords_do_not_match"
+			f_show_msg "$msg_passwords_do_not_match"
 			continue
 		fi
 
@@ -584,7 +584,7 @@ f_dialog_input_expire_password()
 
 			# Taint-check the user's input
 			if ! f_isinteger "$ret_days"; then
-				f_dialog_msgbox "$msg_invalid_number_of_days"
+				f_show_msg "$msg_invalid_number_of_days"
 				continue
 			fi
 
@@ -610,8 +610,7 @@ f_dialog_input_expire_password()
 
 			# Taint-check the user's input
 			if ! f_isinteger "${_input:-0}"; then
-				f_dialog_msgbox \
-					"$msg_invalid_number_of_seconds"
+				f_show_msg "$msg_invalid_number_of_seconds"
 				continue
 			fi
 
@@ -769,7 +768,7 @@ f_dialog_input_expire_account()
 
 			# Taint-check the user's input
 			if ! f_isinteger "$ret_days"; then
-				f_dialog_msgbox "$msg_invalid_number_of_days"
+				f_show_msg "$msg_invalid_number_of_days"
 				continue
 			fi
 
@@ -795,8 +794,7 @@ f_dialog_input_expire_account()
 
 			# Taint-check the user's input
 			if ! f_isinteger "${_input:-0}"; then
-				f_dialog_msgbox \
-					"$msg_invalid_number_of_seconds"
+				f_show_msg "$msg_invalid_number_of_seconds"
 				continue
 			fi
 

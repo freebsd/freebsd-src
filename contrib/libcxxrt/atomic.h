@@ -27,3 +27,4 @@
 #define ATOMIC_LOAD(addr)\
 	(__sync_synchronize(), *addr)
 #endif
+

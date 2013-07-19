@@ -448,13 +448,13 @@ struct {
 	{0xb000, "Chelsio Terminator 5 FPGA"},
 	{0x5400, "Chelsio T580-dbg"},
 	{0x5401,  "Chelsio T520-CR"},
+	{0x5403,  "Chelsio T540-CR"},		/* 4 x 10G */
 	{0x5407,  "Chelsio T520-SO"},
 	{0x5408,  "Chelsio T520-CX"},
 	{0x5410,  "Chelsio T580-LP-CR"},	/* 2 x 40G */
 	{0x5411,  "Chelsio T520-LL-CR"},
 #ifdef notyet
 	{0x5402,  "Chelsio T522-CR"},
-	{0x5403,  "Chelsio T540-CR"},
 	{0x5404,  "Chelsio T520-BCH"},
 	{0x5405,  "Chelsio T540-BCH"},
 	{0x5406,  "Chelsio T540-CH"},

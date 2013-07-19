@@ -89,7 +89,12 @@ VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
 static VNET_DEFINE(int, arp_proxyall) = 0;
 static VNET_DEFINE(int, arpt_down) = 20;	/* keep incomplete entries for
 						 * 20 seconds */
-VNET_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
+VNET_PCPUSTAT_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
+VNET_PCPUSTAT_SYSINIT(arpstat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(arpstat);
+#endif /* VIMAGE */
 
 static VNET_DEFINE(int, arp_maxhold) = 1;
 
@@ -97,7 +102,6 @@ static VNET_DEFINE(int, arp_maxhold) = 1;
 #define	V_arpt_down		VNET(arpt_down)
 #define	V_arp_maxtries		VNET(arp_maxtries)
 #define	V_arp_proxyall		VNET(arp_proxyall)
-#define	V_arpstat		VNET(arpstat)
 #define	V_arp_maxhold		VNET(arp_maxhold)
 
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
@@ -115,9 +119,8 @@ SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, wait, CTLFLAG_RW,
 	&VNET_NAME(arpt_down), 0,
 	"Incomplete ARP entry lifetime in seconds");
-SYSCTL_VNET_STRUCT(_net_link_ether_arp, OID_AUTO, stats, CTLFLAG_RW,
-	&VNET_NAME(arpstat), arpstat,
-	"ARP statistics (struct arpstat, net/if_arp.h)");
+SYSCTL_VNET_PCPUSTAT(_net_link_ether_arp, OID_AUTO, stats, struct arpstat,
+    arpstat, "ARP statistics (struct arpstat, net/if_arp.h)");
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
 	&VNET_NAME(arp_maxhold), 0,
 	"Number of packets to hold per ARP entry");
