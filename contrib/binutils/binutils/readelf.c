@@ -9128,8 +9128,10 @@ get_note_type (unsigned e_type)
 }
 
 static const char *
-get_freebsd_elfcore_note_type (unsigned e_type)
+get_freebsd_note_type (unsigned e_type)
 {
+  static char buff[64];
+
   if (elf_header.e_type == ET_CORE)
     switch (e_type)
       {
@@ -9154,10 +9156,21 @@ get_freebsd_elfcore_note_type (unsigned e_type)
       case NT_PROCSTAT_AUXV:
 	return _("NT_PROCSTAT_AUXV (auxv data)");
       default:
+	return get_note_type(e_type);
+      }
+  else
+    switch (e_type)
+      {
+      case NT_FREEBSD_ABI_TAG:
+	return _("NT_FREEBSD_ABI_TAG");
+      case NT_FREEBSD_NOINIT_TAG:
+	return _("NT_FREEBSD_NOINIT_TAG");
+      default:
 	break;
       }
 
-  return get_note_type(e_type);
+  snprintf (buff, sizeof(buff), _("Unknown note type: (0x%08x)"), e_type);
+  return buff;
 }
 
 static const char *
@@ -9239,7 +9252,7 @@ process_note (Elf_Internal_Note *pnote)
 
   else if (const_strneq (pnote->namedata, "FreeBSD"))
     /* FreeBSD-specific core file notes.  */
-    nt = get_freebsd_elfcore_note_type (pnote->type);
+    nt = get_freebsd_note_type (pnote->type);
 
   else if (const_strneq (pnote->namedata, "NetBSD-CORE"))
     /* NetBSD-specific core file notes.  */
