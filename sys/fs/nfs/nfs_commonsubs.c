@@ -761,21 +761,21 @@ nfsrv_getattrbits(struct nfsrv_descript *nd, nfsattrbit_t *attrbitp, int *cntp,
 		error = NFSERR_BADXDR;
 		goto nfsmout;
 	}
-	if (cnt > NFSATTRBIT_MAXWORDS) {
+	if (cnt > NFSATTRBIT_MAXWORDS)
 		outcnt = NFSATTRBIT_MAXWORDS;
-		if (retnotsupp)
-			*retnotsupp = NFSERR_ATTRNOTSUPP;
-	} else {
+	else
 		outcnt = cnt;
-	}
 	NFSZERO_ATTRBIT(attrbitp);
 	if (outcnt > 0) {
 		NFSM_DISSECT(tl, u_int32_t *, outcnt * NFSX_UNSIGNED);
 		for (i = 0; i < outcnt; i++)
 			attrbitp->bits[i] = fxdr_unsigned(u_int32_t, *tl++);
 	}
-	if (cnt > outcnt)
-		error = nfsm_advance(nd, (cnt - outcnt) * NFSX_UNSIGNED, -1);
+	for (i = 0; i < (cnt - outcnt); i++) {
+		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+		if (retnotsupp != NULL && *tl != 0)
+			*retnotsupp = NFSERR_ATTRNOTSUPP;
+	}
 	if (cntp)
 		*cntp = NFSX_UNSIGNED + (cnt * NFSX_UNSIGNED);
 nfsmout:
