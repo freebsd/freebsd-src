@@ -825,35 +825,35 @@ newroute(int argc, char **argv)
 			case K_IFA:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTA_IFA, *++argv, 0, nrflags);
+				getaddr(RTAX_IFA, *++argv, 0, nrflags);
 				break;
 			case K_IFP:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTA_IFP, *++argv, 0, nrflags);
+				getaddr(RTAX_IFP, *++argv, 0, nrflags);
 				break;
 			case K_GENMASK:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTA_GENMASK, *++argv, 0, nrflags);
+				getaddr(RTAX_GENMASK, *++argv, 0, nrflags);
 				break;
 			case K_GATEWAY:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTA_GATEWAY, *++argv, 0, nrflags);
+				getaddr(RTAX_GATEWAY, *++argv, 0, nrflags);
 				gateway = *argv;
 				break;
 			case K_DST:
 				if (!--argc)
 					usage(NULL);
-				if (getaddr(RTA_DST, *++argv, &hp, nrflags))
+				if (getaddr(RTAX_DST, *++argv, &hp, nrflags))
 					nrflags |= F_ISHOST;
 				dest = *argv;
 				break;
 			case K_NETMASK:
 				if (!--argc)
 					usage(NULL);
-				getaddr(RTA_NETMASK, *++argv, 0, nrflags);
+				getaddr(RTAX_NETMASK, *++argv, 0, nrflags);
 				/* FALLTHROUGH */
 			case K_NET:
 				nrflags |= F_FORCENET;
@@ -888,13 +888,13 @@ newroute(int argc, char **argv)
 		} else {
 			if ((rtm_addrs & RTA_DST) == 0) {
 				dest = *argv;
-				if (getaddr(RTA_DST, *argv, &hp, nrflags))
+				if (getaddr(RTAX_DST, *argv, &hp, nrflags))
 					nrflags |= F_ISHOST;
 			} else if ((rtm_addrs & RTA_GATEWAY) == 0) {
 				gateway = *argv;
-				getaddr(RTA_GATEWAY, *argv, &hp, nrflags);
+				getaddr(RTAX_GATEWAY, *argv, &hp, nrflags);
 			} else {
-				getaddr(RTA_NETMASK, *argv, 0, nrflags);
+				getaddr(RTAX_NETMASK, *argv, 0, nrflags);
 				nrflags |= F_FORCENET;
 			}
 		}
@@ -1105,7 +1105,7 @@ inet6_makenetandmask(struct sockaddr_in6 *sin6, const char *plen)
  * returning 1 if a host address, 0 if a network address.
  */
 static int
-getaddr(int which, char *str, struct hostent **hpp, int nrflags)
+getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 {
 	struct sockaddr *sa;
 #if defined(INET)
@@ -1130,36 +1130,16 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 		aflen = sizeof(struct sockaddr_dl);
 #endif
 	}
-	rtm_addrs |= which;
+	rtm_addrs |= (1 << idx);
 
-	switch (which) {
-	case RTA_DST:
-		sa = (struct sockaddr *)&so[RTAX_DST];
-		break;
-	case RTA_GATEWAY:
-		sa = (struct sockaddr *)&so[RTAX_GATEWAY];
-		break;
-	case RTA_NETMASK:
-		sa = (struct sockaddr *)&so[RTAX_NETMASK];
-		break;
-	case RTA_GENMASK:
-		sa = (struct sockaddr *)&so[RTAX_GENMASK];
-		break;
-	case RTA_IFA:
-		sa = (struct sockaddr *)&so[RTAX_IFA];
-		break;
-	case RTA_IFP:
-		sa = (struct sockaddr *)&so[RTAX_IFP];
-		break;
-	default:
+	if (idx > RTAX_MAX)
 		usage("internal error");
-		/*NOTREACHED*/
-	}
+	sa = (struct sockaddr *)&so[idx];
 	sa->sa_family = af;
 	sa->sa_len = aflen;
 
-	switch (which) {
-	case RTA_GATEWAY:
+	switch (idx) {
+	case RTAX_GATEWAY:
 		if (nrflags & F_INTERFACE) {
 			struct ifaddrs *ifap, *ifa;
 			struct sockaddr_dl *sdl0 = (struct sockaddr_dl *)(void *)sa;
@@ -1190,7 +1170,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 				return(1);
 		}
 		break;
-	case RTA_IFP:
+	case RTAX_IFP:
 		sa->sa_family = AF_LINK;
 		break;
 	}
@@ -1198,10 +1178,10 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 		/*
 		 * Default is net 0.0.0.0/0
 		 */
-		switch (which) {
-		case RTA_DST:
+		switch (idx) {
+		case RTAX_DST:
 			forcenet++;
-			getaddr(RTA_NETMASK, str, 0, nrflags);
+			getaddr(RTAX_NETMASK, str, 0, nrflags);
 			break;
 		}
 		return (0);
@@ -1214,7 +1194,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 		int ecode;
 
 		q = NULL;
-		if (which == RTA_DST && (q = strchr(str, '/')) != NULL)
+		if (idx == RTAX_DST && (q = strchr(str, '/')) != NULL)
 			*q = '\0';
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = sa->sa_family;
@@ -1227,7 +1207,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 		freeaddrinfo(res);
 		if (q != NULL)
 			*q++ = '/';
-		if (which == RTA_DST)
+		if (idx == RTAX_DST)
 			return (inet6_makenetandmask((struct sockaddr_in6 *)(void *)sa, q));
 		return (0);
 	}
@@ -1263,7 +1243,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 	*hpp = NULL;
 
 	q = strchr(str,'/');
-	if (q != NULL && which == RTA_DST) {
+	if (q != NULL && idx == RTAX_DST) {
 		*q = '\0';
 		if ((val = inet_network(str)) != INADDR_NONE) {
 			inet_makenetandmask(val, sin,
@@ -1273,10 +1253,10 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 		}
 		*q = '/';
 	}
-	if ((which != RTA_DST || forcenet == 0) &&
+	if ((idx != RTAX_DST || forcenet == 0) &&
 	    inet_aton(str, &sin->sin_addr)) {
 		val = sin->sin_addr.s_addr;
-		if (which != RTA_DST || forcehost ||
+		if (idx != RTAX_DST || forcehost ||
 		    inet_lnaof(sin->sin_addr) != INADDR_ANY)
 			return (1);
 		else {
@@ -1284,7 +1264,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 			goto netdone;
 		}
 	}
-	if (which == RTA_DST && forcehost == 0 &&
+	if (idx == RTAX_DST && forcehost == 0 &&
 	    ((val = inet_network(str)) != INADDR_NONE ||
 	    ((np = getnetbyname(str)) != NULL && (val = np->n_net) != 0))) {
 netdone:
@@ -1665,12 +1645,11 @@ badlen:
 static void
 print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 {
-	struct sockaddr *dst = NULL, *gate = NULL, *mask = NULL;
-	struct sockaddr_dl *ifp = NULL;
-	struct sockaddr *sa;
+	struct sockaddr *sp[RTAX_MAX];
 	char *cp;
 	int i;
 
+	memset(sp, 0, sizeof(sp));
 	(void)printf("   route to: %s\n",
 	    routename((struct sockaddr *)&so[RTAX_DST]));
 	if (rtm->rtm_version != RTM_VERSION) {
@@ -1688,41 +1667,30 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 		return;
 	}
 	cp = ((char *)(rtm + 1));
-	if (rtm->rtm_addrs)
-		for (i = 1; i; i <<= 1)
-			if (i & rtm->rtm_addrs) {
-				sa = (struct sockaddr *)cp;
-				switch (i) {
-				case RTA_DST:
-					dst = sa;
-					break;
-				case RTA_GATEWAY:
-					gate = sa;
-					break;
-				case RTA_NETMASK:
-					mask = sa;
-					break;
-				case RTA_IFP:
-					if (sa->sa_family == AF_LINK &&
-					   ((struct sockaddr_dl *)(void *)sa)->sdl_nlen)
-						ifp = (struct sockaddr_dl *)(void *)sa;
-					break;
-				}
-				cp += SA_SIZE(sa);
-			}
-	if (dst && mask)
-		mask->sa_family = dst->sa_family;	/* XXX */
-	if (dst)
-		(void)printf("destination: %s\n", routename(dst));
-	if (mask)
-		(void)printf("       mask: %s\n", routename(mask));
-	if (gate && rtm->rtm_flags & RTF_GATEWAY)
-		(void)printf("    gateway: %s\n", routename(gate));
+	for (i = 0; i < RTAX_MAX; i++) {
+		if (rtm->rtm_addrs & (1 << i))
+			sp[i] = (struct sockaddr *)cp;
+		cp += SA_SIZE((struct sockaddr *)cp);
+	}
+	if (rtm->rtm_addrs & RTA_IFP) {
+		if (sp[RTAX_IFP]->sa_family != AF_LINK ||
+		   ((struct sockaddr_dl *)(void *)sp[RTAX_IFP])->sdl_nlen == 0)
+			sp[RTAX_IFP] = NULL;
+	}
+	if (sp[RTAX_DST] && sp[RTAX_NETMASK])
+		sp[RTAX_NETMASK]->sa_family = sp[RTAX_DST]->sa_family; /* XXX */
+	if (sp[RTAX_DST])
+		(void)printf("destination: %s\n", routename(sp[RTAX_DST]));
+	if (sp[RTAX_NETMASK])
+		(void)printf("       mask: %s\n", routename(sp[RTAX_NETMASK]));
+	if (sp[RTAX_GATEWAY] && (rtm->rtm_flags & RTF_GATEWAY))
+		(void)printf("    gateway: %s\n", routename(sp[RTAX_GATEWAY]));
 	if (fib >= 0)
 		(void)printf("        fib: %u\n", (unsigned int)fib);
-	if (ifp)
+	if (sp[RTAX_IFP])
 		(void)printf("  interface: %.*s\n",
-		    ifp->sdl_nlen, ifp->sdl_data);
+		    ((struct sockaddr_dl *)(void *)sp[RTAX_IFP])->sdl_nlen,
+		    ((struct sockaddr_dl *)(void *)sp[RTAX_IFP])->sdl_data);
 	(void)printf("      flags: ");
 	printb(rtm->rtm_flags, routeflags);
 
