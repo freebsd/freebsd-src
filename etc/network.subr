@@ -721,9 +721,14 @@ ifalias()
 #
 ifalias_expand_addr()
 {
+	local _af _action
 
-	afexists $1 || return
-	ifalias_expand_addr_$1 $2 $3
+	_af=$1
+	_action=$2
+	shift 2
+
+	afexists $_af || return
+	ifalias_expand_addr_$_af $_action $*
 }
 
 # ifalias_expand_addr_inet action addr
@@ -731,19 +736,34 @@ ifalias_expand_addr()
 #
 ifalias_expand_addr_inet()
 {
-	local _action _arg _cidr _cidr_addr
+	local _action _arg _cidr _cidr_addr _exargs
 	local _ipaddr _plen _range _iphead _iptail _iplow _iphigh _ipcount
 	local _retstr _c
 	_action=$1
 	_arg=$2
+	shift 2
+	_exargs=$*
 	_retstr=
 
-	case $_action:$_arg in
-	*:*--*)		return ;;			# invalid
-	tmp:*)		echo $_arg && return ;;		# already expanded
-	tmp:*-*)	_action="alias"	;;		# to be expanded
-	*:*-*)		;;				# to be expanded
-	*:*)		echo inet $_arg && return ;;	# already expanded
+	case $_action:$_arg:$_exargs in
+	*:*--*)		return ;;	# invalid
+	tmp:*[0-9]-[0-9]*:*)		# to be expanded
+		_action="alias"
+	;;
+	*:*[0-9]-[0-9]*:*)		# to be expanded
+	;;
+	tmp:*:*netmask*)		# already expanded w/ netmask option
+		echo ${_arg%/[0-9]*} $_exargs && return
+	;;
+	tmp:*:*)			# already expanded w/o netmask option
+		echo $_arg $_exargs && return
+	;;
+	*:*:*netmask*)			# already expanded w/ netmask option
+		echo inet ${_arg%/[0-9]*} $_exargs && return
+	;;
+	*:*:*)				# already expanded w/o netmask option
+		echo inet $_arg $_exargs && return
+	;;
 	esac
 
 	for _cidr in $_arg; do
@@ -796,7 +816,7 @@ ifalias_expand_addr_inet()
 	done
 
 	for _c in $_retstr; do
-		ifalias_expand_addr_inet $_action $_c
+		ifalias_expand_addr_inet $_action $_c $_exargs
 	done
 }
 
@@ -805,20 +825,35 @@ ifalias_expand_addr_inet()
 #
 ifalias_expand_addr_inet6()
 {
-	local _action _arg _cidr _cidr_addr
+	local _action _arg _cidr _cidr_addr _exargs
 	local _ipaddr _plen _ipleft _ipright _iplow _iphigh _ipcount
 	local _ipv4part
 	local _retstr _c
 	_action=$1
 	_arg=$2
+	shift 2
+	_exargs=$*
 	_retstr=
 
-	case $_action:$_arg in
-	*:*--*)		return ;;			# invalid
-	tmp:*)		echo $_arg && return ;;
-	tmp:*-*)	_action="alias"	;;
-	*:*-*)		;;
-	*:*)		echo inet6 $_arg && return ;;
+	case $_action:$_arg:$_exargs in
+	*:*--*:*)	return ;;	# invalid
+	tmp:*[0-9a-zA-Z]-[0-9a-zA-Z]*:*)# to be expanded
+		_action="alias"
+	;;
+	*:*[0-9a-zA-Z]-[0-9a-zA-Z]*:*)	# to be expanded
+	;;
+	tmp:*:*prefixlen*)	# already expanded w/ prefixlen option
+		echo ${_arg%/[0-9]*} $_exargs && return
+	;;
+	tmp:*:*)		# already expanded w/o prefixlen option
+		echo $_arg $_exargs && return
+	;;
+	*:*:*prefixlen*)	# already expanded w/ prefixlen option
+		echo inet6 ${_arg%/[0-9]*} $_exargs && return
+	;;
+	*:*:*)			# already expanded w/o prefixlen option
+		echo inet6 $_arg $_exargs && return
+	;;
 	esac
 
 	for _cidr in $_arg; do
@@ -872,7 +907,7 @@ ifalias_expand_addr_inet6()
 			fi
 
 			for _c in $_retstr; do
-				ifalias_expand_addr_inet6 $_action $_c
+				ifalias_expand_addr_inet6 $_action $_c $_exargs
 			done
 		else
 			# v4mapped/v4compat should handle as an IPv4 alias
@@ -888,7 +923,7 @@ ifalias_expand_addr_inet6()
 			_retstr=`ifalias_expand_addr_inet \
 			    tmp ${_ipv4part}${_plen:+/}${_plen}`
 			for _c in $_retstr; do
-				ifalias_expand_addr_inet $_action $_c
+				ifalias_expand_addr_inet $_action $_c $_exargs
 			done
 		fi
 	done
