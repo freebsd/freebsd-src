@@ -81,17 +81,16 @@ struct fuse_attr {
 	__u64	atime;
 	__u64	mtime;
 	__u64	ctime;
-	__u64	crtime;
 	__u32	atimensec;
 	__u32	mtimensec;
 	__u32	ctimensec;
-	__u32	crtimensec;
 	__u32	mode;
 	__u32	nlink;
 	__u32	uid;
 	__u32	gid;
 	__u32	rdev;
 	__u32	blksize;
+	__u32	padding;
 };
 
 struct fuse_kstatfs {
@@ -222,7 +221,7 @@ enum fuse_opcode {
 /* The read buffer is required to be at least 8k, but may be much larger */
 #define FUSE_MIN_READ_BUFFER 8192
 
-#define FUSE_COMPAT_ENTRY_OUT_SIZE 128
+#define FUSE_COMPAT_ENTRY_OUT_SIZE 120
 
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */
@@ -245,7 +244,7 @@ struct fuse_getattr_in {
 	__u64	fh;
 };
 
-#define FUSE_COMPAT_ATTR_OUT_SIZE 104
+#define FUSE_COMPAT_ATTR_OUT_SIZE 96
 
 struct fuse_attr_out {
 	__u64	attr_valid;	/* Cache timeout for the attributes */
