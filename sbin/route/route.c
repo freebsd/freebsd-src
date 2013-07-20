@@ -445,7 +445,7 @@ retry:
 		(void)printf("Examining routing table from sysctl\n");
 	seqno = 0;		/* ??? */
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
-		rtm = (struct rt_msghdr *)next;
+		rtm = (struct rt_msghdr *)(void *)next;
 		if (verbose)
 			print_rtmsg(rtm, rtm->rtm_msglen);
 		if ((rtm->rtm_flags & RTF_GATEWAY) == 0)
@@ -521,7 +521,7 @@ routename(struct sockaddr *sa)
 	{
 		struct in_addr in;
 
-		in = ((struct sockaddr_in *)sa)->sin_addr;
+		in = ((struct sockaddr_in *)(void *)sa)->sin_addr;
 		cp = NULL;
 		if (in.s_addr == INADDR_ANY || sa->sa_len < 4)
 			cp = "default";
@@ -568,16 +568,16 @@ routename(struct sockaddr *sa)
 
 	case AF_APPLETALK:
 		(void)snprintf(line, sizeof(line), "atalk %s",
-		    atalk_ntoa(((struct sockaddr_at *)sa)->sat_addr));
+		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr));
 		break;
 
 	case AF_LINK:
-		return (link_ntoa((struct sockaddr_dl *)sa));
+		return (link_ntoa((struct sockaddr_dl *)(void *)sa));
 		break;
 
 	default:
 	    {
-		u_short *sp = (u_short *)sa;
+		u_short *sp = (u_short *)(void *)sa;
 		u_short *splim = sp + ((sa->sa_len + 1) >> 1);
 		char *cps = line + sprintf(line, "(%d)", sa->sa_family);
 		char *cpe = line + sizeof(line);
@@ -614,7 +614,7 @@ netname(struct sockaddr *sa)
 	{
 		struct in_addr in;
 
-		in = ((struct sockaddr_in *)sa)->sin_addr;
+		in = ((struct sockaddr_in *)(void *)sa)->sin_addr;
 		i = in.s_addr = ntohl(in.s_addr);
 		if (in.s_addr == 0)
 			cp = "default";
@@ -664,16 +664,16 @@ netname(struct sockaddr *sa)
 
 	case AF_APPLETALK:
 		(void)snprintf(line, sizeof(line), "atalk %s",
-		    atalk_ntoa(((struct sockaddr_at *)sa)->sat_addr));
+		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr));
 		break;
 
 	case AF_LINK:
-		return (link_ntoa((struct sockaddr_dl *)sa));
+		return (link_ntoa((struct sockaddr_dl *)(void *)sa));
 		break;
 
 	default:
 	    {
-		u_short *sp = (u_short *)sa->sa_data;
+		u_short *sp = (u_short *)(void *)sa->sa_data;
 		u_short *splim = sp + ((sa->sa_len + 1)>>1);
 		char *cps = line + sprintf(line, "af %d:", sa->sa_family);
 		char *cpe = line + sizeof(line);
@@ -1160,7 +1160,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 	case RTA_GATEWAY:
 		if (nrflags & F_INTERFACE) {
 			struct ifaddrs *ifap, *ifa;
-			struct sockaddr_dl *sdl0 = (struct sockaddr_dl *)sa;
+			struct sockaddr_dl *sdl0 = (struct sockaddr_dl *)(void *)sa;
 			struct sockaddr_dl *sdl = NULL;
 
 			if (getifaddrs(&ifap))
@@ -1173,7 +1173,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 				if (strcmp(str, ifa->ifa_name) != 0)
 					continue;
 
-				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+				sdl = (struct sockaddr_dl *)(void *)ifa->ifa_addr;
 			}
 			/* If we found it, then use it */
 			if (sdl != NULL) {
@@ -1226,15 +1226,14 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 		if (q != NULL)
 			*q++ = '/';
 		if (which == RTA_DST)
-			return (inet6_makenetandmask((struct sockaddr_in6 *)sa,
-			    q));
+			return (inet6_makenetandmask((struct sockaddr_in6 *)(void *)sa, q));
 		return (0);
 	}
 #endif /* INET6 */
 
 	case AF_APPLETALK:
 	{
-		struct sockaddr_at *sat = (struct sockaddr_at *)sa;
+		struct sockaddr_at *sat = (struct sockaddr_at *)(void *)sa;
 
 		if (!atalk_aton(str, &sat->sat_addr))
 			errx(EX_NOHOST, "bad address: %s", str);
@@ -1242,7 +1241,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 		return(forcehost || sat->sat_addr.s_node != 0);
 	}
 	case AF_LINK:
-		link_addr(str, (struct sockaddr_dl *)sa);
+		link_addr(str, (struct sockaddr_dl *)(void *)sa);
 		return (1);
 
 	case PF_ROUTE:
@@ -1256,7 +1255,7 @@ getaddr(int which, char *str, struct hostent **hpp, int nrflags)
 	}
 
 #ifdef INET
-	sin = (struct sockaddr_in *)sa;
+	sin = (struct sockaddr_in *)(void *)sa;
 	if (hpp == NULL)
 		hpp = &hp;
 	*hpp = NULL;
@@ -1388,7 +1387,7 @@ retry2:
 	}
 	lim = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
-		rtm = (struct rt_msghdr *)next;
+		rtm = (struct rt_msghdr *)(void *)next;
 		print_rtmsg(rtm, rtm->rtm_msglen);
 	}
 }
@@ -1438,7 +1437,7 @@ monitor(int argc, char *argv[])
 		n = read(s, msg, 2048);
 		now = time(NULL);
 		(void)printf("\ngot message of size %d on %s", n, ctime(&now));
-		print_rtmsg((struct rt_msghdr *)msg, n);
+		print_rtmsg((struct rt_msghdr *)(void *)msg, n);
 	}
 }
 
@@ -1703,8 +1702,8 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 					break;
 				case RTA_IFP:
 					if (sa->sa_family == AF_LINK &&
-					   ((struct sockaddr_dl *)sa)->sdl_nlen)
-						ifp = (struct sockaddr_dl *)sa;
+					   ((struct sockaddr_dl *)(void *)sa)->sdl_nlen)
+						ifp = (struct sockaddr_dl *)(void *)sa;
 					break;
 				}
 				cp += SA_SIZE(sa);
@@ -1846,24 +1845,24 @@ sodump(struct sockaddr *sa, const char *which)
 	switch (sa->sa_family) {
 	case AF_LINK:
 		(void)printf("%s: link %s; ", which,
-		    link_ntoa((struct sockaddr_dl *)sa));
+		    link_ntoa((struct sockaddr_dl *)(void *)sa));
 		break;
 #ifdef INET
 	case AF_INET:
 		(void)printf("%s: inet %s; ", which,
-		    inet_ntoa(((struct sockaddr_in *)sa)->sin_addr));
+		    inet_ntoa(((struct sockaddr_in *)(void *)sa)->sin_addr));
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
 		(void)printf("%s: inet6 %s; ", which, inet_ntop(sa->sa_family,
-		    &((struct sockaddr_in6 *)sa)->sin6_addr, nbuf,
+		    &((struct sockaddr_in6 *)(void *)sa)->sin6_addr, nbuf,
 		    sizeof(nbuf)));
 		break;
 #endif
 	case AF_APPLETALK:
 		(void)printf("%s: atalk %s; ", which,
-		    atalk_ntoa(((struct sockaddr_at *)sa)->sat_addr));
+		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr));
 		break;
 	}
 	(void)fflush(stdout);
