@@ -222,7 +222,7 @@ enum fuse_opcode {
 /* The read buffer is required to be at least 8k, but may be much larger */
 #define FUSE_MIN_READ_BUFFER 8192
 
-#define FUSE_COMPAT_ENTRY_OUT_SIZE 122
+#define FUSE_COMPAT_ENTRY_OUT_SIZE 128
 
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */
@@ -245,7 +245,7 @@ struct fuse_getattr_in {
 	__u64	fh;
 };
 
-#define FUSE_COMPAT_ATTR_OUT_SIZE 98
+#define FUSE_COMPAT_ATTR_OUT_SIZE 104
 
 struct fuse_attr_out {
 	__u64	attr_valid;	/* Cache timeout for the attributes */
