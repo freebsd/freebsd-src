@@ -511,10 +511,8 @@ routename(struct sockaddr *sa)
 			domain[0] = '\0';
 	}
 
-	if (sa->sa_len == 0) {
-		strcpy(line, "default");
-		return (line);
-	}
+	if (sa->sa_len == 0 && nflag == 0)
+		return ("default");
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -523,9 +521,9 @@ routename(struct sockaddr *sa)
 
 		in = ((struct sockaddr_in *)(void *)sa)->sin_addr;
 		cp = NULL;
-		if (in.s_addr == INADDR_ANY || sa->sa_len < 4)
-			cp = "default";
-		if (cp == NULL && !nflag) {
+		if (in.s_addr == INADDR_ANY && nflag == 0)
+			return ("default");
+		if (nflag != 0) {
 			hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
 				AF_INET);
 			if (hp != NULL) {
@@ -552,6 +550,10 @@ routename(struct sockaddr *sa)
 		struct sockaddr_in6 sin6; /* use static var for safety */
 		int niflags = 0;
 
+		/* Check if the address is ::.  If true, use "default". */
+		if (nflag == 0 &&
+		    IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)(void *)sa)->sin6_addr))
+			return("default");
 		memset(&sin6, 0, sizeof(sin6));
 		memcpy(&sin6, sa, sa->sa_len);
 		sin6.sin6_len = sizeof(struct sockaddr_in6);
@@ -1712,13 +1714,8 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 		mask->sa_family = dst->sa_family;	/* XXX */
 	if (dst)
 		(void)printf("destination: %s\n", routename(dst));
-	if (mask) {
-		int savenflag = nflag;
-
-		nflag = 1;
+	if (mask)
 		(void)printf("       mask: %s\n", routename(mask));
-		nflag = savenflag;
-	}
 	if (gate && rtm->rtm_flags & RTF_GATEWAY)
 		(void)printf("    gateway: %s\n", routename(gate));
 	if (fib >= 0)
