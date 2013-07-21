@@ -120,7 +120,6 @@ static void	set_metric(char *, int);
 static int	set_sofib(int);
 static void	sockaddr(char *, struct sockaddr *, size_t);
 static void	sodump(struct sockaddr *, const char *);
-extern	char *iso_ntoa(void);
 
 struct fibl {
 	TAILQ_ENTRY(fibl)	fl_next;
@@ -493,6 +492,7 @@ retry:
 const char *
 routename(struct sockaddr *sa)
 {
+	struct sockaddr_dl *sdl;
 	const char *cp;
 	static char line[MAXHOSTNAMELEN + 1];
 #ifdef INET
@@ -523,7 +523,7 @@ routename(struct sockaddr *sa)
 		cp = NULL;
 		if (in.s_addr == INADDR_ANY && nflag == 0)
 			return ("default");
-		if (nflag != 0) {
+		if (nflag == 0) {
 			hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
 				AF_INET);
 			if (hp != NULL) {
@@ -574,7 +574,18 @@ routename(struct sockaddr *sa)
 		break;
 
 	case AF_LINK:
-		return (link_ntoa((struct sockaddr_dl *)(void *)sa));
+		sdl = (struct sockaddr_dl *)(void *)sa;
+
+		if (sdl->sdl_nlen == 0 &&
+		    sdl->sdl_alen == 0 &&
+		    sdl->sdl_slen == 0) {
+			n = snprintf(line, sizeof(line), "link#%d",
+			    sdl->sdl_index);
+			if (n > (int)sizeof(line))
+			    line[0] = '\0';
+			return (line);
+		} else
+			return (link_ntoa(sdl));
 		break;
 
 	default:
@@ -602,6 +613,7 @@ routename(struct sockaddr *sa)
 const char *
 netname(struct sockaddr *sa)
 {
+	struct sockaddr_dl *sdl;
 	static char line[MAXHOSTNAMELEN + 1];
 	int n;
 #ifdef INET
@@ -670,7 +682,18 @@ netname(struct sockaddr *sa)
 		break;
 
 	case AF_LINK:
-		return (link_ntoa((struct sockaddr_dl *)(void *)sa));
+		sdl = (struct sockaddr_dl *)(void *)sa;
+
+		if (sdl->sdl_nlen == 0 &&
+		    sdl->sdl_alen == 0 &&
+		    sdl->sdl_slen == 0) {
+			n = snprintf(line, sizeof(line), "link#%d",
+			    sdl->sdl_index);
+			if (n > (int)sizeof(line))
+			    line[0] = '\0';
+			return (line);
+		} else
+			return (link_ntoa(sdl));
 		break;
 
 	default:
@@ -1560,7 +1583,7 @@ print_rtmsg(struct rt_msghdr *rtm, size_t msglen)
 		    rtm->rtm_version);
 		return;
 	}
-	if (rtm->rtm_type < sizeof(msgtypes) / sizeof(msgtypes[0]))
+	if (rtm->rtm_type < nitems(msgtypes))
 		(void)printf("%s: ", msgtypes[rtm->rtm_type]);
 	else
 		(void)printf("unknown type %d: ", rtm->rtm_type);
@@ -1660,6 +1683,7 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 	if (rtm->rtm_msglen > msglen) {
 		warnx("message length mismatch, in packet %d, returned %d",
 		      rtm->rtm_msglen, msglen);
+		return;
 	}
 	if (rtm->rtm_errno)  {
 		errno = rtm->rtm_errno;
@@ -1696,9 +1720,8 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 
 #define lock(f)	((rtm->rtm_rmx.rmx_locks & __CONCAT(RTV_,f)) ? 'L' : ' ')
 #define msec(u)	(((u) + 500) / 1000)		/* usec to msec */
-
-	printf("\n%s\n", "\
- recvpipe  sendpipe  ssthresh  rtt,msec    mtu        weight    expire");
+	printf("\n%9s %9s %9s %9s %9s %10s %9s\n", "recvpipe",
+	    "sendpipe", "ssthresh", "rtt,msec", "mtu   ", "weight", "expire");
 	printf("%8ld%c ", rtm->rtm_rmx.rmx_recvpipe, lock(RPIPE));
 	printf("%8ld%c ", rtm->rtm_rmx.rmx_sendpipe, lock(SPIPE));
 	printf("%8ld%c ", rtm->rtm_rmx.rmx_ssthresh, lock(SSTHRESH));
@@ -1749,8 +1772,8 @@ pmsg_addrs(char *cp, int addrs, size_t len)
 	(void)printf("\nsockaddrs: ");
 	printb(addrs, addrnames);
 	putchar('\n');
-	for (i = 1; i != 0; i <<= 1)
-		if (i & addrs) {
+	for (i = 0; i < RTAX_MAX; i++)
+		if (addrs & (1 << i)) {
 			sa = (struct sockaddr *)cp;
 			if (len == 0 || len < SA_SIZE(sa)) {
 				(void)printf(errfmt, __func__, len);
