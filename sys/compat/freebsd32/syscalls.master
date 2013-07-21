@@ -825,8 +825,8 @@
 				    const char *msg_ptr, size_t msg_len,\
 				    unsigned msg_prio,			\
 				    const struct timespec32 *abs_timeout);}
-461	AUE_NULL	NOPROTO|NOSTD	{ int kmq_notify(int mqd,	\
-				    const struct sigevent *sigev); }
+461	AUE_NULL	NOSTD	{ int freebsd32_kmq_notify(int mqd,	\
+				    const struct sigevent32 *sigev); }
 462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
