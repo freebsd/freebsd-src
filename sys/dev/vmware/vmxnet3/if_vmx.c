@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
-
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -93,7 +90,7 @@ static int	vmxnet3_alloc_interrupts(struct vmxnet3_softc *);
 
 static void	vmxnet3_free_interrupt(struct vmxnet3_softc *,
 		    struct vmxnet3_interrupt *);
-static void 	vmxnet3_free_interrupts(struct vmxnet3_softc *);
+static void	vmxnet3_free_interrupts(struct vmxnet3_softc *);
 
 static int	vmxnet3_init_rxq(struct vmxnet3_softc *, int);
 static int	vmxnet3_init_txq(struct vmxnet3_softc *, int);
@@ -119,10 +116,12 @@ static void	vmxnet3_free_data(struct vmxnet3_softc *);
 static int	vmxnet3_setup_interface(struct vmxnet3_softc *);
 
 static void	vmxnet3_evintr(struct vmxnet3_softc *);
-static void	vmxnet3_txeof(struct vmxnet3_softc *, struct vmxnet3_txqueue *);
+static void	vmxnet3_txq_eof(struct vmxnet3_txqueue *);
 static void	vmxnet3_rx_csum(struct vmxnet3_rxcompdesc *, struct mbuf *);
 static int	vmxnet3_newbuf(struct vmxnet3_softc *, struct vmxnet3_rxring *);
-static void	vmxnet3_rxeof(struct vmxnet3_softc *, struct vmxnet3_rxqueue *);
+static void	vmxnet3_rxq_eof_discard(struct vmxnet3_rxqueue *,
+		    struct vmxnet3_rxring *, int);
+static void	vmxnet3_rxq_eof(struct vmxnet3_rxqueue *);
 static void	vmxnet3_legacy_intr(void *);
 static void	vmxnet3_txq_intr(void *);
 static void	vmxnet3_rxq_intr(void *);
@@ -141,14 +140,11 @@ static int	vmxnet3_reinit(struct vmxnet3_softc *);
 static void	vmxnet3_init_locked(struct vmxnet3_softc *);
 static void	vmxnet3_init(void *);
 
-static int	vmxnet3_encap_offload_ctx(struct mbuf *, int *, int *, int *);
-static int	vmxnet3_encap_load_mbuf(struct vmxnet3_softc *,
-		    struct vmxnet3_txring *, struct mbuf **, bus_dmamap_t,
-		    bus_dma_segment_t [], int *);
-static void	vmxnet3_encap_unload_mbuf(struct vmxnet3_softc *,
-		    struct vmxnet3_txring *, bus_dmamap_t);
-static int	vmxnet3_encap(struct vmxnet3_softc *, struct vmxnet3_txqueue *,
-		    struct mbuf **);
+static int	vmxnet3_txq_offload_ctx(struct mbuf *, int *, int *, int *);
+static int	vmxnet3_txq_load_mbuf(struct vmxnet3_txring *, struct mbuf **,
+		    bus_dmamap_t, bus_dma_segment_t [], int *);
+static void	vmxnet3_txq_unload_mbuf(struct vmxnet3_txring *, bus_dmamap_t);
+static int	vmxnet3_txq_encap(struct vmxnet3_txqueue *, struct mbuf **);
 static void	vmxnet3_start_locked(struct ifnet *);
 static void	vmxnet3_start(struct ifnet *);
 
@@ -232,6 +228,8 @@ vmxnet3_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->vmx_dev = dev;
 
+	pci_enable_busmaster(dev);
+
 	VMXNET3_CORE_LOCK_INIT(sc, device_get_nameunit(dev));
 	callout_init_mtx(&sc->vmx_tick, &sc->vmx_mtx, 0);
 
@@ -281,7 +279,7 @@ static int
 vmxnet3_detach(device_t dev)
 {
 	struct vmxnet3_softc *sc;
-	struct ifnet *ifp;	
+	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->vmx_ifp;
@@ -434,7 +432,7 @@ vmxnet3_initial_config(struct vmxnet3_softc *sc)
 	sc->vmx_nrxqueues = 1;
 	sc->vmx_ntxdescs = VMXNET3_MAX_TX_NDESC;
 	sc->vmx_nrxdescs = VMXNET3_MAX_RX_NDESC;
-	sc->vmx_max_rxsegs = 1;
+	sc->vmx_max_rxsegs = VMXNET3_MAX_RX_SEGS;
 }
 
 static int
@@ -1323,6 +1321,8 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 		ds->upt_features |= UPT1_F_VLAN;
 	if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 		ds->upt_features |= UPT1_F_CSUM;
+	if (ifp->if_capenable & IFCAP_LRO)
+		ds->upt_features |= UPT1_F_LRO;
 
 	ds->mtu = ifp->if_mtu;
 	ds->ntxqueue = sc->vmx_ntxqueues;
@@ -1399,10 +1399,12 @@ vmxnet3_setup_interface(struct vmxnet3_softc *sc)
 	ifp->if_hwassist |= VMXNET3_CSUM_ALL_OFFLOAD;
 
 	ifp->if_capenable = ifp->if_capabilities;
-	
+
 	/*
 	 * Capabilities after here are not enabled by default.
 	 */
+
+	ifp->if_capabilities |= IFCAP_LRO;
 
 	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 	sc->vmx_vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
@@ -1432,8 +1434,9 @@ vmxnet3_evintr(struct vmxnet3_softc *sc)
 	ifp = sc->vmx_ifp;
 	reset = 0;
 
-	/* Clear events. */
 	VMXNET3_CORE_LOCK(sc);
+
+	/* Clear events. */
 	event = sc->vmx_ds->event;
 	vmxnet3_write_bar1(sc, VMXNET3_BAR1_EVENT, event);
 
@@ -1466,14 +1469,16 @@ vmxnet3_evintr(struct vmxnet3_softc *sc)
 }
 
 static void
-vmxnet3_txeof(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq)
+vmxnet3_txq_eof(struct vmxnet3_txqueue *txq)
 {
+	struct vmxnet3_softc *sc;
 	struct ifnet *ifp;
 	struct vmxnet3_txring *txr;
 	struct vmxnet3_comp_ring *txc;
 	struct vmxnet3_txcompdesc *txcd;
 	u_int sop;
 
+	sc = txq->vxtxq_sc;
 	ifp = sc->vmx_ifp;
 	txr = &txq->vxtxq_cmd_ring;
 	txc = &txq->vxtxq_comp_ring;
@@ -1510,22 +1515,6 @@ vmxnet3_txeof(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq)
 		sc->vmx_watchdog_timer = 0;
 }
 
-static void
-vmxnet3_rx_csum(struct vmxnet3_rxcompdesc *rxcd, struct mbuf *m)
-{
-
-	if (rxcd->ipv4 && rxcd->ipcsum_ok)
-		m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED | CSUM_IP_VALID;
-
-	if (!rxcd->fragment) {
-		if (rxcd->csum_ok && (rxcd->tcp || rxcd->udp)) {
-			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
-			    CSUM_PSEUDO_HDR;
-			m->m_pkthdr.csum_data = 0xFFFF;
-		}
-	}
-}
-
 static int
 vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 {
@@ -1535,25 +1524,33 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	bus_dma_tag_t tag;
 	bus_dmamap_t dmap;
 	bus_dma_segment_t segs[1];
-	int nsegs, idx, btype, error;
+	int idx, clsize, btype, flags, nsegs, error;
 
 	ifp = sc->vmx_ifp;
 	tag = rxr->vxrxr_rxtag;
 	dmap = rxr->vxrxr_spare_dmap;
 	idx = rxr->vxrxr_fill;
 	rxd = &rxr->vxrxr_rxd[idx];
-	btype = rxr->vxrxr_rid == 0 ? VMXNET3_BTYPE_HEAD : VMXNET3_BTYPE_BODY;
 
-	/* XXX Do not populate ring 2 yet. */
-	if (rxr->vxrxr_rid != 0)
-		return (0);
+	if (rxr->vxrxr_rid == 0 && (idx % sc->vmx_rx_max_chain) == 0) {
+		flags = M_PKTHDR;
+		clsize = MCLBYTES;
+		btype = VMXNET3_BTYPE_HEAD;
+	} else {
+		flags = 0;
+		clsize = MJUMPAGESIZE;
+		btype = VMXNET3_BTYPE_BODY;
+	}
 
-	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MCLBYTES);
+	m = m_getjcl(M_NOWAIT, MT_DATA, flags, clsize);
 	if (m == NULL)
 		return (ENOBUFS);
-	m->m_pkthdr.len = m->m_len = MCLBYTES;
-	if (btype == VMXNET3_BTYPE_BODY)
+
+	if (flags == M_PKTHDR) {
+		m->m_len = m->m_pkthdr.len = clsize;
 		m_adj(m, ETHER_ALIGN);
+	} else
+		m->m_len = clsize;
 
 	error = bus_dmamap_load_mbuf_sg(tag, dmap, m, &segs[0], &nsegs,
 	    BUS_DMA_NOWAIT);
@@ -1565,7 +1562,8 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	    ("%s: mbuf %p with too many segments %d", __func__, m, nsegs));
 
 	if (rxr->vxrxr_m[idx] != NULL) {
-		bus_dmamap_sync(tag, rxr->vxrxr_dmap[idx], BUS_DMASYNC_POSTREAD);
+		bus_dmamap_sync(tag, rxr->vxrxr_dmap[idx],
+		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(tag, rxr->vxrxr_dmap[idx]);
 	}
 
@@ -1578,40 +1576,117 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	rxd->btype = btype;
 	rxd->gen = rxr->vxrxr_gen;
 
-	if (++idx == rxr->vxrxr_ndesc) {
-		idx = 0;
-		rxr->vxrxr_gen ^= 1;
-	}
-	rxr->vxrxr_fill = idx;
-
+	vmxnet3_rxr_increment_fill(rxr);
 	return (0);
 }
 
 static void
-vmxnet3_rxeof_discard(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq,
-   struct vmxnet3_rxring *rxr, int idx)
+vmxnet3_rxq_eof_discard(struct vmxnet3_rxqueue *rxq,
+    struct vmxnet3_rxring *rxr, int idx)
 {
 	struct vmxnet3_rxdesc *rxd;
 
 	rxd = &rxr->vxrxr_rxd[idx];
-
 	rxd->gen = rxr->vxrxr_gen;
+	vmxnet3_rxr_increment_fill(rxr);
 }
 
 static void
-vmxnet3_rxeof(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
+vmxnet3_rxq_discard_chain(struct vmxnet3_rxqueue *rxq)
 {
+	struct vmxnet3_softc *sc;
+	struct vmxnet3_rxring *rxr;
+	struct vmxnet3_comp_ring *rxc;
+	struct vmxnet3_rxcompdesc *rxcd;
+	int idx, eof;
+
+	sc = rxq->vxrxq_sc;
+	rxc = &rxq->vxrxq_comp_ring;
+
+	do {
+		rxcd = &rxc->vxcr_u.rxcd[rxc->vxcr_next];
+		if (rxcd->gen != rxc->vxcr_gen)
+			break;		/* Not expected. */
+
+		if (++rxc->vxcr_next == rxc->vxcr_ndesc) {
+			rxc->vxcr_next = 0;
+			rxc->vxcr_gen ^= 1;
+		}
+
+		idx = rxcd->rxd_idx;
+		eof = rxcd->eop;
+		if (rxcd->qid < sc->vmx_nrxqueues)
+			rxr = &rxq->vxrxq_cmd_ring[0];
+		else
+			rxr = &rxq->vxrxq_cmd_ring[1];
+		vmxnet3_rxq_eof_discard(rxq, rxr, idx);
+	} while (!eof);
+}
+
+static void
+vmxnet3_rx_csum(struct vmxnet3_rxcompdesc *rxcd, struct mbuf *m)
+{
+
+	if (rxcd->ipv4) {
+		m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+		if (rxcd->ipcsum_ok)
+			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+	}
+
+	if (!rxcd->fragment) {
+		if (rxcd->csum_ok && (rxcd->tcp || rxcd->udp)) {
+			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+			    CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xFFFF;
+		}
+	}
+}
+
+static void
+vmxnet3_rxq_input(struct vmxnet3_rxqueue *rxq,
+    struct vmxnet3_rxcompdesc *rxcd, struct mbuf *m)
+{
+	struct vmxnet3_softc *sc;
+	struct ifnet *ifp;
+
+	sc = rxq->vxrxq_sc;
+	ifp = sc->vmx_ifp;
+
+	if (rxcd->error) {
+		ifp->if_ierrors++;
+		m_freem(m);
+		return;
+	}
+
+	if (!rxcd->no_csum)
+		vmxnet3_rx_csum(rxcd, m);
+	if (rxcd->vlan) {
+		m->m_flags |= M_VLANTAG;
+		m->m_pkthdr.ether_vtag = rxcd->vtag;
+	}
+
+	ifp->if_ipackets++;
+	VMXNET3_RXQ_UNLOCK(rxq);
+	(*ifp->if_input)(ifp, m);
+	VMXNET3_RXQ_LOCK(rxq);
+}
+
+static void
+vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
+{
+	struct vmxnet3_softc *sc;
 	struct ifnet *ifp;
 	struct vmxnet3_rxring *rxr;
 	struct vmxnet3_comp_ring *rxc;
 	struct vmxnet3_rxdesc *rxd;
 	struct vmxnet3_rxcompdesc *rxcd;
-	struct mbuf *m;
+	struct mbuf *m, *m_head, *m_tail;
 	int idx, length;
 
+	sc = rxq->vxrxq_sc;
 	ifp = sc->vmx_ifp;
-	rxr = &rxq->vxrxq_cmd_ring[0];
 	rxc = &rxq->vxrxq_comp_ring;
+	m_head = NULL;
 
 	VMXNET3_RXQ_LOCK_ASSERT(rxq);
 
@@ -1640,48 +1715,85 @@ vmxnet3_rxeof(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 		KASSERT(m != NULL, ("%s: queue %d idx %d without mbuf",
 		    __func__, rxcd->qid, idx));
 
-		if (rxd->btype != VMXNET3_BTYPE_HEAD) {
-			vmxnet3_rxeof_discard(sc, rxq, rxr, idx);
-			ifp->if_iqdrops++;
-			goto nextp;
-		} else if (rxcd->error) {
-			vmxnet3_rxeof_discard(sc, rxq, rxr, idx);
-			ifp->if_ierrors++;
-			goto nextp;
-		} else if (vmxnet3_newbuf(sc, rxr) != 0) {
-			vmxnet3_rxeof_discard(sc, rxq, rxr, idx);
-			ifp->if_iqdrops++;
-			goto nextp;
+		/*
+		 * The host may skip descriptors. We detect this when this
+		 * descriptor does not match the previous fill index. Catch
+		 * up with the host now.
+		 */
+		if (__predict_false(rxr->vxrxr_fill != idx)) {
+			while (rxr->vxrxr_fill != idx) {
+				rxr->vxrxr_rxd[rxr->vxrxr_fill].gen =
+				    rxr->vxrxr_gen;
+				vmxnet3_rxr_increment_fill(rxr);
+			}
 		}
 
-		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = length;
-		m->m_pkthdr.csum_flags = 0;
+		if (rxcd->sop) {
+			KASSERT(rxd->btype == VMXNET3_BTYPE_HEAD,
+			    ("%s: start of frame w/o head buffer", __func__));
+			KASSERT(rxr == &rxq->vxrxq_cmd_ring[0],
+			    ("%s: start of frame not in ring 0", __func__));
+			KASSERT((idx % sc->vmx_rx_max_chain) == 0,
+			    ("%s: start of frame at unexcepted index %d (%d)",
+			     __func__, idx, sc->vmx_rx_max_chain));
+			KASSERT(m_head == NULL,
+			    ("%s: duplicate start of frame?", __func__));
 
-		if (!rxcd->no_csum)
-			vmxnet3_rx_csum(rxcd, m);
-		if (rxcd->vlan) {
-			m->m_flags |= M_VLANTAG;
-			m->m_pkthdr.ether_vtag = rxcd->vtag;
+			if (length == 0) {
+				/* Just ignore this descriptor. */
+				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
+				goto nextp;
+			}
+
+			if (vmxnet3_newbuf(sc, rxr) != 0) {
+				ifp->if_iqdrops++;
+				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
+				if (!rxcd->eop)
+					vmxnet3_rxq_discard_chain(rxq);
+				goto nextp;
+			}
+
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = m->m_len = length;
+			m->m_pkthdr.csum_flags = 0;
+			m_head = m_tail = m;
+
+		} else {
+			KASSERT(rxd->btype == VMXNET3_BTYPE_BODY,
+			    ("%s: non start of frame w/o body buffer", __func__));
+			KASSERT(m_head != NULL,
+			    ("%s: frame not started?", __func__));
+
+			if (vmxnet3_newbuf(sc, rxr) != 0) {
+				ifp->if_iqdrops++;
+				vmxnet3_rxq_eof_discard(rxq, rxr, idx);
+				if (!rxcd->eop)
+					vmxnet3_rxq_discard_chain(rxq);
+				m_freem(m_head);
+				m_head = m_tail = NULL;
+				goto nextp;
+			}
+
+			m->m_len = length;
+			m_head->m_pkthdr.len += length;
+			m_tail->m_next = m;
+			m_tail = m;
 		}
 
-		ifp->if_ipackets++;
-		VMXNET3_RXQ_UNLOCK(rxq);
-		(*ifp->if_input)(ifp, m);
-		VMXNET3_RXQ_LOCK(rxq);
+		if (rxcd->eop) {
+			vmxnet3_rxq_input(rxq, rxcd, m_head);
+			m_head = m_tail = NULL;
 
-		/* Must recheck the state after dropping the Rx lock. */
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-			break;
+			/* Must recheck after dropping the Rx lock. */
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+				break;
+		}
 
 nextp:
 		if (rxq->vxrxq_rs->update_rxhead) {
 			int qid = rxcd->qid;
 			bus_size_t r;
 
-			/*
-			 * XXX BMV This looks pretty odd.
-			 */
 			idx = (idx + 1) % rxr->vxrxr_ndesc;
 			if (qid >= sc->vmx_nrxqueues) {
 				qid -= sc->vmx_nrxqueues;
@@ -1715,11 +1827,11 @@ vmxnet3_legacy_intr(void *xsc)
 		vmxnet3_evintr(sc);
 
 	VMXNET3_RXQ_LOCK(rxq);
-	vmxnet3_rxeof(sc, rxq);
+	vmxnet3_rxq_eof(rxq);
 	VMXNET3_RXQ_UNLOCK(rxq);
 
 	VMXNET3_TXQ_LOCK(txq);
-	vmxnet3_txeof(sc, txq);
+	vmxnet3_txq_eof(txq);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		vmxnet3_start_locked(ifp);
 	VMXNET3_TXQ_UNLOCK(txq);
@@ -1739,8 +1851,7 @@ vmxnet3_txq_intr(void *xtxq)
 	ifp = sc->vmx_ifp;
 
 	VMXNET3_TXQ_LOCK(txq);
-	vmxnet3_txeof(sc, txq);
-	/* XXX We are not really multiqueue yet. */
+	vmxnet3_txq_eof(txq);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		vmxnet3_start_locked(ifp);
 	VMXNET3_TXQ_UNLOCK(txq);
@@ -1758,7 +1869,7 @@ vmxnet3_rxq_intr(void *xrxq)
 	sc = rxq->vxrxq_sc;
 
 	VMXNET3_RXQ_LOCK(rxq);
-	vmxnet3_rxeof(sc, rxq);
+	vmxnet3_rxq_eof(rxq);
 	VMXNET3_RXQ_UNLOCK(rxq);
 
 	vmxnet3_enable_intr(sc, rxq->vxrxq_intr_idx);
@@ -1888,9 +1999,26 @@ vmxnet3_txinit(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq)
 static int
 vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 {
+	struct ifnet *ifp;
 	struct vmxnet3_rxring *rxr;
 	struct vmxnet3_comp_ring *rxc;
-	int i, idx, error;
+	int i, idx, frame_size, error;
+
+	ifp = sc->vmx_ifp;
+	frame_size = ifp->if_mtu + sizeof(struct ether_vlan_header);
+
+	/*
+	 * If the MTU causes us to exceed what a regular sized cluster
+	 * can handle, we allocate a second MJUMPAGESIZE cluster after
+	 * it in ring 0. Ring 1 always contains MJUMPAGESIZE clusters.
+	 *
+	 * XXX BMV Keep rx_man_chain a divisor of the maximum Rx ring
+	 * size to make our life easier.
+	 */
+	if (frame_size <= MCLBYTES)
+		sc->vmx_rx_max_chain = 1;
+	else
+		sc->vmx_rx_max_chain = 2;
 
 	for (i = 0; i < VMXNET3_RXRINGS_PERQ; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
@@ -1920,7 +2048,7 @@ vmxnet3_reinit_queues(struct vmxnet3_softc *sc)
 {
 	device_t dev;
 	int q, error;
-	
+
 	dev = sc->vmx_dev;
 
 	for (q = 0; q < sc->vmx_ntxqueues; q++)
@@ -1979,7 +2107,6 @@ vmxnet3_reinit(struct vmxnet3_softc *sc)
 {
 
 	vmxnet3_reinit_interface(sc);
-
 	vmxnet3_reinit_shared_data(sc);
 
 	if (vmxnet3_reinit_queues(sc) != 0)
@@ -2034,7 +2161,7 @@ vmxnet3_init(void *xsc)
  * the mbuf packet header. Bug andre@.
  */
 static int
-vmxnet3_encap_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
+vmxnet3_txq_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 {
 	struct ether_vlan_header *evh;
 	int offset;
@@ -2104,8 +2231,8 @@ vmxnet3_encap_offload_ctx(struct mbuf *m, int *etype, int *proto, int *start)
 }
 
 static int
-vmxnet3_encap_load_mbuf(struct vmxnet3_softc *sc, struct vmxnet3_txring *txr,
-    struct mbuf **m0, bus_dmamap_t dmap, bus_dma_segment_t segs[], int *nsegs)
+vmxnet3_txq_load_mbuf(struct vmxnet3_txring *txr, struct mbuf **m0,
+    bus_dmamap_t dmap, bus_dma_segment_t segs[], int *nsegs)
 {
 	struct mbuf *m;
 	bus_dma_tag_t tag;
@@ -2135,17 +2262,16 @@ vmxnet3_encap_load_mbuf(struct vmxnet3_softc *sc, struct vmxnet3_txring *txr,
 }
 
 static void
-vmxnet3_encap_unload_mbuf(struct vmxnet3_softc *sc, struct vmxnet3_txring *txr,
-    bus_dmamap_t dmap)
+vmxnet3_txq_unload_mbuf(struct vmxnet3_txring *txr, bus_dmamap_t dmap)
 {
 
 	bus_dmamap_unload(txr->vxtxr_txtag, dmap);
 }
 
 static int
-vmxnet3_encap(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq,
-    struct mbuf **m0)
+vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 {
+	struct vmxnet3_softc *sc;
 	struct ifnet *ifp;
 	struct vmxnet3_txring *txr;
 	struct vmxnet3_txdesc *txd, *sop;
@@ -2154,11 +2280,12 @@ vmxnet3_encap(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq,
 	bus_dma_segment_t segs[VMXNET3_TX_MAXSEGS];
 	int i, gen, nsegs, etype, proto, start, error;
 
+	sc = txq->vxtxq_sc;
 	ifp = sc->vmx_ifp;
 	txr = &txq->vxtxq_cmd_ring;
 	dmap = txr->vxtxr_dmap[txr->vxtxr_head];
 
-	error = vmxnet3_encap_load_mbuf(sc, txr, m0, dmap, segs, &nsegs);
+	error = vmxnet3_txq_load_mbuf(txr, m0, dmap, segs, &nsegs);
 	if (error)
 		return (error);
 
@@ -2168,12 +2295,12 @@ vmxnet3_encap(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq,
 	    ("%s: mbuf %p with too many segments %d", __func__, m, nsegs));
 
 	if (VMXNET3_TXRING_AVAIL(txr) < nsegs) {
-		vmxnet3_encap_unload_mbuf(sc, txr, dmap);
+		vmxnet3_txq_unload_mbuf(txr, dmap);
 		return (ENOSPC);
 	} else if (m->m_pkthdr.csum_flags & VMXNET3_CSUM_ALL_OFFLOAD) {
-		error = vmxnet3_encap_offload_ctx(m, &etype, &proto, &start);
+		error = vmxnet3_txq_offload_ctx(m, &etype, &proto, &start);
 		if (error) {
-			vmxnet3_encap_unload_mbuf(sc, txr, dmap);
+			vmxnet3_txq_unload_mbuf(txr, dmap);
 			m_freem(m);
 			*m0 = NULL;
 			return (error);
@@ -2255,7 +2382,7 @@ vmxnet3_start_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
-		if (vmxnet3_encap(sc, txq, &m_head) != 0) {
+		if (vmxnet3_txq_encap(txq, &m_head) != 0) {
 			if (m_head == NULL)
 				break;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
@@ -2342,11 +2469,9 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 	struct vmxnet3_driver_shared *ds;
 	struct ifmultiaddr *ifma;
 	u_int mode;
-	int cnt;
 
 	ifp = sc->vmx_ifp;
 	ds = sc->vmx_ds;
-	cnt = 0;
 
 	mode = VMXNET3_RXMODE_UCAST;
 	if (ifp->if_flags & IFF_BROADCAST)
@@ -2356,12 +2481,16 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 	if (ifp->if_flags & IFF_ALLMULTI)
 		mode |= VMXNET3_RXMODE_ALLMULTI;
 	else {
+		int cnt = 0, overflow = 0;
+
 		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-			else if (cnt == VMXNET3_MULTICAST_MAX)
+			else if (cnt == VMXNET3_MULTICAST_MAX) {
+				overflow = 1;
 				break;
+			}
 
 			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 			   &sc->vmx_mcast[cnt*ETHER_ADDR_LEN], ETHER_ADDR_LEN);
@@ -2369,7 +2498,7 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 		}
 		if_maddr_runlock(ifp);
 
-		if (cnt >= VMXNET3_MULTICAST_MAX) {
+		if (overflow != 0) {
 			cnt = 0;
 			mode |= VMXNET3_RXMODE_ALLMULTI;
 		} else if (cnt > 0)
@@ -2393,7 +2522,6 @@ vmxnet3_change_mtu(struct vmxnet3_softc *sc, int mtu)
 		return (EINVAL);
 
 	ifp->if_mtu = mtu;
-	sc->vmx_ds->mtu = mtu;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

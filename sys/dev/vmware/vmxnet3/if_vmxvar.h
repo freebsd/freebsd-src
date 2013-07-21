@@ -44,11 +44,18 @@ struct vmxnet3_dma_alloc {
 /*
  * The maximum number of descriptors in each Rx/Tx ring.
  */
-#define VMXNET3_MAX_TX_NDESC		128
-#define VMXNET3_MAX_RX_NDESC		128
+#define VMXNET3_MAX_TX_NDESC		512
+#define VMXNET3_MAX_RX_NDESC		256
 #define VMXNET3_MAX_TX_NCOMPDESC	VMXNET3_MAX_TX_NDESC
 #define VMXNET3_MAX_RX_NCOMPDESC \
     (VMXNET3_MAX_RX_NDESC * VMXNET3_RXRINGS_PERQ)
+
+/*
+ * The maximum number of Rx segments we accept. When LRO is enabled,
+ * this allows us to receive the maximum sized frame with one MCLBYTES
+ * cluster followed by 16 MJUMPAGESIZE clusters.
+ */
+#define VMXNET3_MAX_RX_SEGS		17
 
 struct vmxnet3_txring {
 	struct mbuf		*vxtxr_m[VMXNET3_MAX_TX_NDESC];
@@ -77,6 +84,16 @@ struct vmxnet3_rxring {
 	struct vmxnet3_dma_alloc vxrxr_dma;
 	bus_dmamap_t		 vxrxr_spare_dmap;
 };
+
+static inline void
+vmxnet3_rxr_increment_fill(struct vmxnet3_rxring *rxr)
+{
+
+	if (++rxr->vxrxr_fill == rxr->vxrxr_ndesc) {
+		rxr->vxrxr_fill = 0;
+		rxr->vxrxr_gen ^= 1;
+	}
+}
 
 struct vmxnet3_comp_ring {
 	union {
@@ -159,6 +176,7 @@ struct vmxnet3_softc {
 	int				 vmx_nrxdescs;
 	int				 vmx_watchdog_timer;
 	int				 vmx_max_rxsegs;
+	int				 vmx_rx_max_chain;
 
 	int				 vmx_intr_type;
 	int				 vmx_intr_mask_mode;
