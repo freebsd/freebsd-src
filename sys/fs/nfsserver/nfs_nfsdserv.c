@@ -3697,7 +3697,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 		    strlen(nd->nd_cred->cr_prison->pr_hostuuid)); /* Major */
 		NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
 		*tl++ = txdr_unsigned(NFSX_UNSIGNED);
-		NFSBCOPY(&time_uptime, tl++, NFSX_UNSIGNED);
+		*tl++ = time_uptime;		/* Make scope a unique value. */
 		*tl = txdr_unsigned(1);
 		(void)nfsm_strtom(nd, "freebsd.org", strlen("freebsd.org"));
 		(void)nfsm_strtom(nd, version, strlen(version));
