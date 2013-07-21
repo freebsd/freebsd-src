@@ -98,9 +98,6 @@ static int	realtimer_settime(struct itimer *, int,
 static int	realtimer_delete(struct itimer *);
 static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
-static int	kern_timer_create(struct thread *, clockid_t,
-			struct sigevent *, int *, int);
-static int	kern_timer_delete(struct thread *, int);
 
 int		register_posix_clock(int, struct kclock *);
 void		itimer_fire(struct itimer *it);
@@ -1067,31 +1064,30 @@ struct ktimer_create_args {
 int
 sys_ktimer_create(struct thread *td, struct ktimer_create_args *uap)
 {
-	struct sigevent *evp1, ev;
+	struct sigevent *evp, ev;
 	int id;
 	int error;
 
-	if (uap->evp != NULL) {
+	if (uap->evp == NULL) {
+		evp = NULL;
+	} else {
 		error = copyin(uap->evp, &ev, sizeof(ev));
 		if (error != 0)
 			return (error);
-		evp1 = &ev;
-	} else
-		evp1 = NULL;
-
-	error = kern_timer_create(td, uap->clock_id, evp1, &id, -1);
-
+		evp = &ev;
+	}
+	error = kern_ktimer_create(td, uap->clock_id, evp, &id, -1);
 	if (error == 0) {
 		error = copyout(&id, uap->timerid, sizeof(int));
 		if (error != 0)
-			kern_timer_delete(td, id);
+			kern_ktimer_delete(td, id);
 	}
 	return (error);
 }
 
-static int
-kern_timer_create(struct thread *td, clockid_t clock_id,
-	struct sigevent *evp, int *timerid, int preset_id)
+int
+kern_ktimer_create(struct thread *td, clockid_t clock_id, struct sigevent *evp,
+    int *timerid, int preset_id)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1206,7 +1202,8 @@ struct ktimer_delete_args {
 int
 sys_ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
 {
-	return (kern_timer_delete(td, uap->timerid));
+
+	return (kern_ktimer_delete(td, uap->timerid));
 }
 
 static struct itimer *
@@ -1228,8 +1225,8 @@ itimer_find(struct proc *p, int timerid)
 	return (it);
 }
 
-static int
-kern_timer_delete(struct thread *td, int timerid)
+int
+kern_ktimer_delete(struct thread *td, int timerid)
 {
 	struct proc *p = td->td_proc;
 	struct itimer *it;
@@ -1271,35 +1268,40 @@ struct ktimer_settime_args {
 int
 sys_ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct itimer *it;
 	struct itimerspec val, oval, *ovalp;
 	int error;
 
 	error = copyin(uap->value, &val, sizeof(val));
 	if (error != 0)
 		return (error);
-	
-	if (uap->ovalue != NULL)
-		ovalp = &oval;
-	else
-		ovalp = NULL;
+	ovalp = uap->ovalue != NULL ? &oval : NULL;
+	error = kern_ktimer_settime(td, uap->timerid, uap->flags, &val, ovalp);
+	if (error == 0 && uap->ovalue != NULL)
+		error = copyout(ovalp, uap->ovalue, sizeof(*ovalp));
+	return (error);
+}
 
+int
+kern_ktimer_settime(struct thread *td, int timer_id, int flags,
+    struct itimerspec *val, struct itimerspec *oval)
+{
+	struct proc *p;
+	struct itimer *it;
+	int error;
+
+	p = td->td_proc;
 	PROC_LOCK(p);
-	if (uap->timerid < 3 ||
-	    (it = itimer_find(p, uap->timerid)) == NULL) {
+	if (timer_id < 3 || (it = itimer_find(p, timer_id)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
 		PROC_UNLOCK(p);
 		itimer_enter(it);
-		error = CLOCK_CALL(it->it_clockid, timer_settime,
-				(it, uap->flags, &val, ovalp));
+		error = CLOCK_CALL(it->it_clockid, timer_settime, (it,
+		    flags, val, oval));
 		itimer_leave(it);
 		ITIMER_UNLOCK(it);
 	}
-	if (error == 0 && uap->ovalue != NULL)
-		error = copyout(ovalp, uap->ovalue, sizeof(*ovalp));
 	return (error);
 }
 
@@ -1312,26 +1314,34 @@ struct ktimer_gettime_args {
 int
 sys_ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct itimer *it;
 	struct itimerspec val;
 	int error;
 
+	error = kern_ktimer_gettime(td, uap->timerid, &val);
+	if (error == 0)
+		error = copyout(&val, uap->value, sizeof(val));
+	return (error);
+}
+
+int
+kern_ktimer_gettime(struct thread *td, int timer_id, struct itimerspec *val)
+{
+	struct proc *p;
+	struct itimer *it;
+	int error;
+
+	p = td->td_proc;
 	PROC_LOCK(p);
-	if (uap->timerid < 3 ||
-	   (it = itimer_find(p, uap->timerid)) == NULL) {
+	if (timer_id < 3 || (it = itimer_find(p, timer_id)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
 		PROC_UNLOCK(p);
 		itimer_enter(it);
-		error = CLOCK_CALL(it->it_clockid, timer_gettime,
-				(it, &val));
+		error = CLOCK_CALL(it->it_clockid, timer_gettime, (it, val));
 		itimer_leave(it);
 		ITIMER_UNLOCK(it);
 	}
-	if (error == 0)
-		error = copyout(&val, uap->value, sizeof(val));
 	return (error);
 }
 
@@ -1626,7 +1636,7 @@ itimers_event_hook_exit(void *arg, struct proc *p)
 			panic("unhandled event");
 		for (; i < TIMER_MAX; ++i) {
 			if ((it = its->its_timers[i]) != NULL)
-				kern_timer_delete(curthread, i);
+				kern_ktimer_delete(curthread, i);
 		}
 		if (its->its_timers[0] == NULL &&
 		    its->its_timers[1] == NULL &&
