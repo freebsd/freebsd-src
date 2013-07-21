@@ -1732,6 +1732,23 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			}
 			attrsum += NFSX_HYPER;
 			break;
+		case NFSATTRBIT_SUPPATTREXCLCREAT:
+			retnotsup = 0;
+			error = nfsrv_getattrbits(nd, &retattrbits,
+			    &cnt, &retnotsup);
+			if (error)
+			    goto nfsmout;
+			if (compare && !(*retcmpp)) {
+			   NFSSETSUPP_ATTRBIT(&checkattrbits);
+			   NFSCLRNOTSETABLE_ATTRBIT(&checkattrbits);
+			   NFSCLRBIT_ATTRBIT(&checkattrbits,
+				NFSATTRBIT_TIMEACCESSSET);
+			   if (!NFSEQUAL_ATTRBIT(&retattrbits, &checkattrbits)
+			       || retnotsup)
+				*retcmpp = NFSERR_NOTSAME;
+			}
+			attrsum += cnt;
+			break;
 		default:
 			printf("EEK! nfsv4_loadattr unknown attr=%d\n",
 				bitpos);
@@ -2462,6 +2479,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 				uquad = (u_int64_t)vap->va_fileid;
 			txdr_hyper(uquad, tl);
 			retnum += NFSX_HYPER;
+			break;
+		case NFSATTRBIT_SUPPATTREXCLCREAT:
+			NFSSETSUPP_ATTRBIT(&attrbits);
+			NFSCLRNOTSETABLE_ATTRBIT(&attrbits);
+			NFSCLRBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
+			retnum += nfsrv_putattrbit(nd, &attrbits);
 			break;
 		default:
 			printf("EEK! Bad V4 attribute bitpos=%d\n", bitpos);
@@ -3647,6 +3670,9 @@ nfsmout:
 
 /*
  * Handle an NFSv4.1 Sequence request for the session.
+ * If reply != NULL, use it to return the cached reply, as required.
+ * The client gets a cached reply via this call for callbacks, however the
+ * server gets a cached reply via the nfsv4_seqsess_cachereply() call.
  */
 int
 nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
@@ -3655,7 +3681,8 @@ nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
 	int error;
 
 	error = 0;
-	*reply = NULL;
+	if (reply != NULL)
+		*reply = NULL;
 	if (slotid > maxslot)
 		return (NFSERR_BADSLOT);
 	if (seqid == slots[slotid].nfssl_seq) {
@@ -3663,13 +3690,18 @@ nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
 		if (slots[slotid].nfssl_inprog != 0)
 			error = NFSERR_DELAY;
 		else if (slots[slotid].nfssl_reply != NULL) {
-			*reply = slots[slotid].nfssl_reply;
-			slots[slotid].nfssl_reply = NULL;
+			if (reply != NULL) {
+				*reply = slots[slotid].nfssl_reply;
+				slots[slotid].nfssl_reply = NULL;
+			}
 			slots[slotid].nfssl_inprog = 1;
+			error = NFSERR_REPLYFROMCACHE;
 		} else
-			error = NFSERR_SEQMISORDERED;
+			/* No reply cached, so just do it. */
+			slots[slotid].nfssl_inprog = 1;
 	} else if ((slots[slotid].nfssl_seq + 1) == seqid) {
-		m_freem(slots[slotid].nfssl_reply);
+		if (slots[slotid].nfssl_reply != NULL)
+			m_freem(slots[slotid].nfssl_reply);
 		slots[slotid].nfssl_reply = NULL;
 		slots[slotid].nfssl_inprog = 1;
 		slots[slotid].nfssl_seq++;
@@ -3680,12 +3712,22 @@ nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
 
 /*
  * Cache this reply for the slot.
+ * Use the "rep" argument to return the cached reply if repstat is set to
+ * NFSERR_REPLYFROMCACHE. The client never sets repstat to this value.
  */
 void
-nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, struct mbuf *rep)
+nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, int repstat,
+   struct mbuf **rep)
 {
 
-	slots[slotid].nfssl_reply = rep;
+	if (repstat == NFSERR_REPLYFROMCACHE) {
+		*rep = slots[slotid].nfssl_reply;
+		slots[slotid].nfssl_reply = NULL;
+	} else {
+		if (slots[slotid].nfssl_reply != NULL)
+			m_freem(slots[slotid].nfssl_reply);
+		slots[slotid].nfssl_reply = *rep;
+	}
 	slots[slotid].nfssl_inprog = 0;
 }
 

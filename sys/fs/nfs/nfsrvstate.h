@@ -42,6 +42,8 @@ LIST_HEAD(nfsclienthashhead, nfsclient);
 LIST_HEAD(nfsstatehead, nfsstate);
 LIST_HEAD(nfslockhead, nfslock);
 LIST_HEAD(nfslockhashhead, nfslockfile);
+LIST_HEAD(nfssessionhead, nfsdsession);
+LIST_HEAD(nfssessionhashhead, nfsdsession);
 
 /*
  * List head for nfsusrgrp.
@@ -64,6 +66,13 @@ TAILQ_HEAD(nfsuserlruhead, nfsusrgrp);
 	(&nfsgroupnamehash[((l)>=4?(*(p)+*((p)+1)+*((p)+2)+*((p)+3)):*(p)) \
 		% NFSGROUPHASHSIZE])
 
+struct nfssessionhash {
+	struct mtx			mtx;
+	struct nfssessionhashhead	list;
+};
+#define	NFSSESSIONHASH(f) 						\
+	(&nfssessionhash[nfsrv_hashsessionid(f) % NFSSESSIONHASHSIZE])
+
 /*
  * Client server structure for V4. It is doubly linked into two lists.
  * The first is a hash table based on the clientid and the second is a
@@ -76,6 +85,7 @@ struct nfsclient {
 	struct nfsstatehead lc_open;		/* Open owner list */
 	struct nfsstatehead lc_deleg;		/* Delegations */
 	struct nfsstatehead lc_olddeleg;	/* and old delegations */
+	struct nfssessionhead lc_session;	/* List of NFSv4.1 sessions */
 	time_t		lc_expiry;		/* Expiry time (sec) */
 	time_t		lc_delegtime;		/* Old deleg expiry (sec) */
 	nfsquad_t	lc_clientid;		/* 64 bit clientid */
@@ -99,6 +109,29 @@ struct nfsclient {
 #define	CLOPS_CONFIRM		0x0001
 #define	CLOPS_RENEW		0x0002
 #define	CLOPS_RENEWOP		0x0004
+
+/*
+ * Structure for an NFSv4.1 session.
+ */
+struct nfsdsession {
+	LIST_ENTRY(nfsdsession)	sess_hash;	/* Hash list of sessions. */
+	LIST_ENTRY(nfsdsession)	sess_list;	/* List of client sessions. */
+	struct nfsslot		sess_slots[NFSV4_SLOTS];
+	struct nfsclient	*sess_clp;	/* Associated clientid. */
+	uint32_t		sess_crflags;
+	uint32_t		sess_cbprogram;
+	uint32_t		sess_maxreq;
+	uint32_t		sess_maxresp;
+	uint32_t		sess_maxrespcached;
+	uint32_t		sess_maxops;
+	uint32_t		sess_maxslots;
+	uint32_t		sess_cbmaxreq;
+	uint32_t		sess_cbmaxresp;
+	uint32_t		sess_cbmaxrespcached;
+	uint32_t		sess_cbmaxops;
+	uint32_t		sess_cbmaxslots;
+	uint8_t			sess_sessionid[NFSX_V4SESSIONID];
+};
 
 /*
  * Nfs state structure. I couldn't resist overloading this one, since
