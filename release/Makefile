@@ -4,7 +4,7 @@
 # 
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (release.iso)
-#  memstick: Builds memory stick image (memstick)
+#  memstick: Builds memory stick image (memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
 #  install: Copies all release media into ${DESTDIR}
@@ -73,8 +73,8 @@ RELEASE_TARGETS+= cdrom
 IMAGES+=	release.iso bootonly.iso
 .endif
 .if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
-RELEASE_TARGETS+= memstick
-IMAGES+=	memstick
+RELEASE_TARGETS+= memstick.img
+IMAGES+=	memstick.img
 .endif
 
 .include <bsd.obj.mk>
@@ -167,7 +167,8 @@ release.iso: system
 bootonly.iso: bootonly
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
 
-memstick: system
+memstick: memstick.img
+memstick.img: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh release ${.TARGET}
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
@@ -191,7 +192,7 @@ clean:
 	rm -f *.txz MANIFEST
 	rm -f system
 	rm -rf release bootonly
-	rm -f release.iso bootonly.iso memstick
+	rm -f release.iso bootonly.iso memstick.img
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)
