@@ -228,6 +228,13 @@ int	kern_symlink(struct thread *td, char *path, char *link,
 	    enum uio_seg segflg);
 int	kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 	    enum uio_seg segflg);
+int	kern_ktimer_create(struct thread *td, clockid_t clock_id,
+	    struct sigevent *evp, int *timerid, int preset_id);
+int	kern_ktimer_delete(struct thread *, int);
+int	kern_ktimer_settime(struct thread *td, int timer_id, int flags,
+	    struct itimerspec *val, struct itimerspec *oval);
+int	kern_ktimer_gettime(struct thread *td, int timer_id,
+	    struct itimerspec *val);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
 int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,
