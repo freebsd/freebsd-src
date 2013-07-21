@@ -476,7 +476,7 @@
 				    struct aiocb32 *aiocbp); }
 257	AUE_NULL	NOSTD	{ int freebsd32_lio_listio(int mode, \
 				    struct aiocb32 * const *acb_list, \
-				    int nent, struct sigevent *sig); }
+				    int nent, struct sigevent32 *sig); }
 258	AUE_NULL	UNIMPL	nosys
 259	AUE_NULL	UNIMPL	nosys
 260	AUE_NULL	UNIMPL	nosys
