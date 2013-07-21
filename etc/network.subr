@@ -113,9 +113,18 @@ ifconfig_up()
 		# backward compatibility: $ipv6_enable
 		case $ipv6_enable in
 		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-			if ! checkyesno ipv6_gateway_enable; then
-				_ipv6_opts="${_ipv6_opts} accept_rtadv"
-			fi
+			case $1 in
+			bridge[0-9]*)
+				# No accept_rtadv by default on if_bridge(4)
+				# to avoid a conflict with the member
+				# interfaces.
+			;;
+			*)
+				if ! checkyesno ipv6_gateway_enable; then
+					_ipv6_opts="${_ipv6_opts} accept_rtadv"
+				fi
+			;;
+			esac
 		;;
 		esac
 
@@ -550,9 +559,18 @@ ipv6_autoconfif()
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		if checkyesno ipv6_gateway_enable; then
 			return 1
-		else
-			return 0
 		fi
+		case $1 in
+		bridge[0-9]*)
+			# No accept_rtadv by default on if_bridge(4)
+			# to avoid a conflict with the member
+			# interfaces.
+			return 1
+		;;
+		*)
+			return 0
+		;;
+		esac
 	;;
 	esac
 
