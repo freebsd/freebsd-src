@@ -135,7 +135,7 @@ static int	fiboptlist_range(const char *, struct fibl_head_t *);
 
 static void usage(const char *) __dead2;
 
-void
+static void
 usage(const char *cp)
 {
 	if (cp != NULL)
@@ -489,15 +489,12 @@ retry:
 	return (error);
 }
 
-const char *
+static const char *
 routename(struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 	const char *cp;
-	static char line[MAXHOSTNAMELEN + 1];
-#ifdef INET
-	struct hostent *hp;
-#endif
+	static char line[NI_MAXHOST];
 	static char domain[MAXHOSTNAMELEN + 1];
 	static int first = 1, n;
 
@@ -511,63 +508,71 @@ routename(struct sockaddr *sa)
 			domain[0] = '\0';
 	}
 
+	/* If the address is zero-filled, use "default". */
 	if (sa->sa_len == 0 && nflag == 0)
 		return ("default");
+#if defined(INET) || defined(INET6)
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
-	{
-		struct in_addr in;
-
-		in = ((struct sockaddr_in *)(void *)sa)->sin_addr;
-		cp = NULL;
-		if (in.s_addr == INADDR_ANY && nflag == 0)
-			return ("default");
-		if (nflag == 0) {
-			hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
-				AF_INET);
-			if (hp != NULL) {
-				char *cptr;
-				cptr = strchr(hp->h_name, '.');
-				if (cptr != NULL &&
-				    strcmp(cptr + 1, domain) == 0)
-					*cptr = '\0';
-				cp = hp->h_name;
-			}
-		}
-		if (cp != NULL) {
-			strncpy(line, cp, sizeof(line) - 1);
-			line[sizeof(line) - 1] = '\0';
-		} else
-			(void)sprintf(line, "%s", inet_ntoa(in));
+		/* If the address is zero-filled, use "default". */
+		if (nflag == 0 &&
+		    ((struct sockaddr_in *)(void *)sa)->sin_addr.s_addr ==
+		    INADDR_ANY)
+			return("default");
 		break;
-	}
-
 #endif
 #ifdef INET6
 	case AF_INET6:
-	{
-		struct sockaddr_in6 sin6; /* use static var for safety */
-		int niflags = 0;
-
-		/* Check if the address is ::.  If true, use "default". */
+		/* If the address is zero-filled, use "default". */
 		if (nflag == 0 &&
 		    IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)(void *)sa)->sin6_addr))
 			return("default");
-		memset(&sin6, 0, sizeof(sin6));
-		memcpy(&sin6, sa, sa->sa_len);
-		sin6.sin6_len = sizeof(struct sockaddr_in6);
-		sin6.sin6_family = AF_INET6;
-		if (nflag)
-			niflags |= NI_NUMERICHOST;
-		if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
-		    line, sizeof(line), NULL, 0, niflags) != 0)
-			strncpy(line, "invalid", sizeof(line));
-
-		return (line);
+		break;
+#endif
 	}
 #endif
 
+	switch (sa->sa_family) {
+#if defined(INET) || defined(INET6)
+#ifdef INET
+	case AF_INET:
+#endif
+#ifdef INET6
+	case AF_INET6:
+#endif
+	{
+		struct sockaddr_storage ss;
+		int error;
+		char *p;
+
+		memset(&ss, 0, sizeof(ss));
+		if (sa->sa_len == 0)
+			ss.ss_family = sa->sa_family;
+		else
+			memcpy(&ss, sa, sa->sa_len);
+		/* Expand sa->sa_len because it could be shortened. */
+		if (sa->sa_family == AF_INET)
+			ss.ss_len = sizeof(struct sockaddr_in);
+		else if (sa->sa_family == AF_INET6)
+			ss.ss_len = sizeof(struct sockaddr_in6);
+		error = getnameinfo((struct sockaddr *)&ss, ss.ss_len,
+		    line, sizeof(line), NULL, 0,
+		    (nflag == 0) ? 0 : NI_NUMERICHOST);
+		if (error) {
+			warnx("getnameinfo(): %s", gai_strerror(error));
+			strncpy(line, "invalid", sizeof(line));
+		}
+
+		/* Remove the domain part if any. */
+		p = strchr(line, '.');
+		if (p != NULL && strcmp(p + 1, domain) == 0)
+			*p = '\0';
+
+		return (line);
+		break;
+	}
+#endif
 	case AF_APPLETALK:
 		(void)snprintf(line, sizeof(line), "atalk %s",
 		    atalk_ntoa(((struct sockaddr_at *)(void *)sa)->sat_addr));
@@ -610,7 +615,7 @@ routename(struct sockaddr *sa)
  * Return the name of the network whose address is given.
  * The address is assumed to be that of a net, not a host.
  */
-const char *
+static const char *
 netname(struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
@@ -1153,6 +1158,9 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 		aflen = sizeof(struct sockaddr_dl);
 #endif
 	}
+#ifndef INET
+	hpp = NULL;
+#endif
 	rtm_addrs |= (1 << idx);
 
 	if (idx > RTAX_MAX)
