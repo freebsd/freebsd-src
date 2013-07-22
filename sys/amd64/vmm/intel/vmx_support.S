@@ -92,15 +92,20 @@
 	movq	VMXCTX_GUEST_R15(%rdi),%r15;				\
 	movq	VMXCTX_GUEST_RDI(%rdi),%rdi; /* restore rdi the last */
 
-#define	VM_INSTRUCTION_ERROR(reg)					\
+/*
+ * Check for an error after executing a VMX instruction.
+ * 'errreg' will be zero on success and non-zero otherwise.
+ * 'ctxreg' points to the 'struct vmxctx' associated with the vcpu.
+ */
+#define	VM_INSTRUCTION_ERROR(errreg, ctxreg)				\
 	jnc 	1f;							\
-	movl 	$VM_FAIL_INVALID,reg;		/* CF is set */		\
+	movl 	$VM_FAIL_INVALID,errreg;		/* CF is set */	\
 	jmp 	3f;							\
 1:	jnz 	2f;							\
-	movl 	$VM_FAIL_VALID,reg;		/* ZF is set */		\
+	movl 	$VM_FAIL_VALID,errreg;		/* ZF is set */		\
 	jmp 	3f;							\
-2:	movl 	$VM_SUCCESS,reg;					\
-3:	movl	reg,VMXCTX_LAUNCH_ERROR(%rsp)
+2:	movl 	$VM_SUCCESS,errreg;					\
+3:	movl	errreg,VMXCTX_LAUNCH_ERROR(ctxreg)
 
 /*
  * set or clear the appropriate bit in 'pm_active'
@@ -143,7 +148,7 @@
 	invept	-16(%r11), %rax;					\
 									\
 	/* Check for invept error */					\
-	VM_INSTRUCTION_ERROR(%eax);					\
+	VM_INSTRUCTION_ERROR(%eax, %rdi);				\
 	testl	%eax, %eax;						\
 	jz	9f;							\
 									\
@@ -268,7 +273,7 @@ ENTRY(vmx_resume)
 	/*
 	 * Capture the reason why vmresume failed.
 	 */
-	VM_INSTRUCTION_ERROR(%eax)
+	VM_INSTRUCTION_ERROR(%eax, %rsp)
 
 	/* Return via vmx_setjmp with return value of VMX_RETURN_VMRESUME */
 	movq	%rsp,%rdi
@@ -304,7 +309,7 @@ ENTRY(vmx_launch)
 	/*
 	 * Capture the reason why vmlaunch failed.
 	 */
-	VM_INSTRUCTION_ERROR(%eax)
+	VM_INSTRUCTION_ERROR(%eax, %rsp)
 
 	/* Return via vmx_setjmp with return value of VMX_RETURN_VMLAUNCH */
 	movq	%rsp,%rdi
