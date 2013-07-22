@@ -87,7 +87,6 @@ struct mpssas_softc {
 #define MPSSAS_DISCOVERY_TIMEOUT_PENDING	(1 << 2)
 #define MPSSAS_QUEUE_FROZEN	(1 << 3)
 #define	MPSSAS_SHUTDOWN		(1 << 4)
-#define	MPSSAS_SCANTHREAD	(1 << 5)
 	struct mpssas_target	*targets;
 	struct cam_devq		*devq;
 	struct cam_sim		*sim;
@@ -100,9 +99,6 @@ struct mpssas_softc {
 	u_int                   startup_refcount;
 	u_int                   tm_count;
 	struct proc             *sysctl_proc;
-
-	TAILQ_HEAD(, ccb_hdr) ccb_scanq;
-	struct proc		*rescan_thread;
 
 	struct taskqueue	*ev_tq;
 	struct task		ev_task;
