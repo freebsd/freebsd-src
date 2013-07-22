@@ -1217,12 +1217,12 @@ _mapping_add_new_device(struct mps_softc *sc,
 						phy_change->is_processed = 1;
 					} else {
 						phy_change->is_processed = 1;
-						printf("%s: failed to add the "
-						    "device with handle 0x%04x "
-						    "to persistent table "
-						    "because there is no free "
-						    "space available\n",
-						    __func__,
+						mps_dprint(sc, MPS_INFO, "%s: "
+						    "failed to add the device "
+						    "with handle 0x%04x to "
+						    "persistent table because "
+						    "there is no free space "
+						    "available\n", __func__,
 						    phy_change->dev_handle);
 					}
 				} else {
@@ -1319,12 +1319,12 @@ _mapping_add_new_device(struct mps_softc *sc,
 					phy_change->is_processed = 1;
 				} else if (dpm_idx == MPS_DPM_BAD_IDX) {
 						phy_change->is_processed = 1;
-						printf("%s: failed to add the "
-						    "device with handle 0x%04x "
-						    "to persistent table "
-						    "because there is no free "
-						    "space available\n",
-						    __func__,
+						mps_dprint(sc, MPS_INFO, "%s: "
+						    "failed to add the device "
+						    "with handle 0x%04x to "
+						    "persistent table because "
+						    "there is no free space "
+						    "available\n", __func__,
 						    phy_change->dev_handle);
 				}
 			}
