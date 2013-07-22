@@ -32,7 +32,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"14.00.00.02-fbsd"
+#define MPS_DRIVER_VERSION	"16.00.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -304,7 +304,6 @@ struct mps_softc {
 	bus_dma_tag_t			buffer_dmat;
 
 	MPI2_IOC_FACTS_REPLY		*facts;
-	MPI2_PORT_FACTS_REPLY		*pfacts;
 	int				num_reqs;
 	int				num_replies;
 	int				fqdepth;	/* Free queue */
@@ -695,7 +694,8 @@ void mpssas_record_event(struct mps_softc *sc,
     MPI2_EVENT_NOTIFICATION_REPLY *event_reply);
 
 int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
-int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout);
+int mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout,
+    int sleep_flag);
 int mps_request_polled(struct mps_softc *sc, struct mps_command *cm);
 
 int mps_config_get_bios_pg3(struct mps_softc *sc, Mpi2ConfigReply_t

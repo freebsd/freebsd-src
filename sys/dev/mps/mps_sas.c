@@ -281,7 +281,7 @@ mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 	}
 
 	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid,
-		            targetid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	    targetid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		mps_dprint(sc, MPS_ERROR, "unable to create path for rescan\n");
 		xpt_free_ccb(ccb);
 		return;
@@ -1644,9 +1644,20 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		return;
 	}
 	if (targ->flags & MPS_TARGET_FLAGS_RAID_COMPONENT) {
-		mps_dprint(sc, MPS_ERROR, "%s Raid component no SCSI IO supported %u\n", 
-		    __func__, csio->ccb_h.target_id);
+		mps_dprint(sc, MPS_ERROR, "%s Raid component no SCSI IO "
+		    "supported %u\n", __func__, csio->ccb_h.target_id);
 		csio->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+	/*
+	 * Sometimes, it is possible to get a command that is not "In
+	 * Progress" and was actually aborted by the upper layer.  Check for
+	 * this here and complete the command without error.
+	 */
+	if (ccb->ccb_h.status != CAM_REQ_INPROG) {
+		mps_dprint(sc, MPS_TRACE, "%s Command is not in progress for "
+		    "target %u\n", __func__, csio->ccb_h.target_id);
 		xpt_done(ccb);
 		return;
 	}
@@ -1718,7 +1729,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		break;
 	}
  
-  if (csio->cdb_len == 32)
+	if (csio->cdb_len == 32)
                 mpi_control |= 4 << MPI2_SCSIIO_CONTROL_ADDCDBLEN_SHIFT;
 	/*
 	 * It looks like the hardware doesn't require an explicit tag
@@ -1846,6 +1857,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	targ->issued++;
 	targ->outstanding++;
 	TAILQ_INSERT_TAIL(&targ->commands, cm, cm_link);
+	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
 	mpssas_log_command(cm, MPS_XINFO, "%s cm %p ccb %p outstanding %u\n",
 	    __func__, cm, ccb, targ->outstanding);
@@ -2028,8 +2040,8 @@ mps_sc_failed_io_info(struct mps_softc *sc, struct ccb_scsiio *csio,
 	 * TO-DO
 	 * */
 	mps_dprint(sc, MPS_XINFO, "\tscsi_status(%s)(0x%02x), "
-	    "scsi_state(%s)(0x%02x)\n", desc_scsi_status,
-	    scsi_status, desc_scsi_state, scsi_state);
+	    "scsi_state(%s)(0x%02x)\n", desc_scsi_status, scsi_status,
+	    desc_scsi_state, scsi_state);
 
 	if (sc->mps_debug & MPS_XINFO &&
 		scsi_state & MPI2_SCSI_STATE_AUTOSENSE_VALID) {
@@ -2087,6 +2099,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	cm->cm_targ->completed++;
 	cm->cm_targ->outstanding--;
 	TAILQ_REMOVE(&cm->cm_targ->commands, cm, cm_link);
+	ccb->ccb_h.status |= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
 
 	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
@@ -2162,7 +2175,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 				sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
 				mps_dprint(sc, MPS_XINFO,
-					   "Unfreezing SIM queue\n");
+				    "Unfreezing SIM queue\n");
 			}
 		} 
 
@@ -2388,7 +2401,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
 		mps_dprint(sc, MPS_XINFO, "Command completed, "
-			   "unfreezing SIM queue\n");
+		    "unfreezing SIM queue\n");
 	}
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -2704,7 +2717,8 @@ mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm)
 	sasaddr = le32toh(req->SASAddress.Low);
 	sasaddr |= ((uint64_t)(le32toh(req->SASAddress.High))) << 32;
 
-	if ((le16toh(rpl->IOCStatus) & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS ||
+	if ((le16toh(rpl->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS ||
 	    rpl->SASStatus != MPI2_SASSTATUS_SUCCESS) {
 		mps_dprint(sc, MPS_XINFO, "%s: IOCStatus %04x SASStatus %02x\n",
 		    __func__, le16toh(rpl->IOCStatus), rpl->SASStatus);
@@ -2829,7 +2843,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	    MPI2_SGLFLAGS_SYSTEM_ADDRESS_SPACE | MPI2_SGLFLAGS_SGL_TYPE_MPI;
 
 	mps_dprint(sc, MPS_XINFO, "%s: sending SMP request to SAS "
-		   "address %#jx\n", __func__, (uintmax_t)sasaddr);
+	    "address %#jx\n", __func__, (uintmax_t)sasaddr);
 
 	mpi_init_sge(cm, req, &req->SGL);
 
@@ -3422,6 +3436,10 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		if (rcap_buf->protect & 0x01) {
+			mps_dprint(sassc->sc, MPS_INFO, "LUN %d for "
+ 			    "target ID %d is formatted for EEDP "
+ 			    "support.\n", done_ccb->ccb_h.target_lun,
+ 			    done_ccb->ccb_h.target_id);
 			lun->eedp_formatted = TRUE;
 			lun->eedp_block_size = scsi_4btoul(rcap_buf->length);
 		}
