@@ -699,7 +699,10 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	mps_dprint(sc, MPS_MAPPING, "Found device <%s> <%s> <0x%04x> <%d/%d>\n", devstring,
 	    mps_describe_table(mps_linkrate_names, targ->linkrate),
 	    targ->handle, targ->encl_handle, targ->encl_slot);
+
+#if __FreeBSD_version < 1000039
 	if ((sassc->flags & MPSSAS_IN_STARTUP) == 0)
+#endif
 		mpssas_rescan_target(sc, targ);
 	mps_dprint(sc, MPS_MAPPING, "Target id 0x%x added\n", targ->tid);
 out:
