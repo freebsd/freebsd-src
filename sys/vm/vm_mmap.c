@@ -1224,6 +1224,7 @@ sys_munlock(td, uap)
 {
 	vm_offset_t addr, end, last, start;
 	vm_size_t size;
+	vm_map_t map;
 	int error;
 
 	error = priv_check(td, PRIV_VM_MUNLOCK);
@@ -1241,7 +1242,9 @@ sys_munlock(td, uap)
 #ifdef RACCT
 	if (error == KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
-		racct_sub(td->td_proc, RACCT_MEMLOCK, ptoa(end - start));
+		map = &td->td_proc->p_vmspace->vm_map;
+		racct_set(td->td_proc, RACCT_MEMLOCK,
+		    ptoa(pmap_wired_count(map->pmap)));
 		PROC_UNLOCK(td->td_proc);
 	}
 #endif
