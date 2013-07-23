@@ -170,8 +170,8 @@ state3:
 	if (minusc) {
 		evalstring(minusc, sflag ? 0 : EV_EXIT);
 	}
+state4:
 	if (sflag || minusc == NULL) {
-state4:	/* XXX ??? - why isn't this before the "if" statement */
 		cmdloop(1);
 	}
 	exitshell(exitstatus);

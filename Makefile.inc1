@@ -1131,11 +1131,11 @@ legacy:
 .endif
 .for _tool in tools/build
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,depend,all,install)"; \
-	    cd ${.CURDIR}/${_tool}; \
-	    ${MAKE} DIRPRFX=${_tool}/ obj; \
-	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes; \
-	    ${MAKE} DIRPRFX=${_tool}/ depend; \
-	    ${MAKE} DIRPRFX=${_tool}/ all; \
+	    cd ${.CURDIR}/${_tool} && \
+	    ${MAKE} DIRPRFX=${_tool}/ obj && \
+	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy includes && \
+	    ${MAKE} DIRPRFX=${_tool}/ depend && \
+	    ${MAKE} DIRPRFX=${_tool}/ all && \
 	    ${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
@@ -1237,7 +1237,7 @@ _kerberos5_bootstrap_tools= \
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
-bootstrap-tools:
+bootstrap-tools: .MAKE
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
@@ -1264,10 +1264,10 @@ bootstrap-tools:
     ${_crunch} \
     ${_nmtree}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
-		${MAKE} DIRPRFX=${_tool}/ all; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
 .endfor
 
@@ -1290,7 +1290,7 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 _rescue= rescue/rescue
 .endif
 
-build-tools:
+build-tools: .MAKE
 .for _tool in \
     bin/csh \
     bin/sh \
@@ -1305,16 +1305,16 @@ build-tools:
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ build-tools
 .endfor
 .for _tool in \
     ${_gcc_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
 
@@ -1352,7 +1352,7 @@ _cc=		gnu/usr.bin/cc
 .endif
 .endif
 
-cross-tools:
+cross-tools: .MAKE
 .for _tool in \
     ${_clang_libs} \
     ${_clang} \
@@ -1363,10 +1363,10 @@ cross-tools:
     ${_crunchide} \
     ${_kgzip}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool}; \
-		${MAKE} DIRPRFX=${_tool}/ obj; \
-		${MAKE} DIRPRFX=${_tool}/ depend; \
-		${MAKE} DIRPRFX=${_tool}/ all; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
 .endfor
 
@@ -1383,12 +1383,12 @@ hierarchy hier:
 # interdependencies (__L) are built automatically by the
 # ${.CURDIR}/tools/make_libdeps.sh script.
 #
-libraries:
-	cd ${.CURDIR}; \
-	    ${MAKE} -f Makefile.inc1 _prereq_libs; \
-	    ${MAKE} -f Makefile.inc1 _startup_libs; \
-	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
-	    ${MAKE} -f Makefile.inc1 _generic_libs;
+libraries: .MAKE
+	cd ${.CURDIR} && \
+	    ${MAKE} -f Makefile.inc1 _prereq_libs && \
+	    ${MAKE} -f Makefile.inc1 _startup_libs && \
+	    ${MAKE} -f Makefile.inc1 _prebuild_libs && \
+	    ${MAKE} -f Makefile.inc1 _generic_libs
 
 #
 # static libgcc.a prerequisite for shared libc
@@ -1542,25 +1542,25 @@ lib/libradius__L: lib/libmd__L
 .endif
 
 .for _lib in ${_prereq_libs}
-${_lib}__PL: .PHONY
+${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib}; \
-		${MAKE} DIRPRFX=${_lib}/ obj; \
-		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
+		cd ${.CURDIR}/${_lib} && \
+		${MAKE} DIRPRFX=${_lib}/ obj && \
+		${MAKE} DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all && \
 		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
 .for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
-${_lib}__L: .PHONY
+${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_lib}; \
-		${MAKE} DIRPRFX=${_lib}/ obj; \
-		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} DIRPRFX=${_lib}/ all; \
+		cd ${.CURDIR}/${_lib} && \
+		${MAKE} DIRPRFX=${_lib}/ obj && \
+		${MAKE} DIRPRFX=${_lib}/ depend && \
+		${MAKE} DIRPRFX=${_lib}/ all && \
 		${MAKE} DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -1568,12 +1568,12 @@ ${_lib}__L: .PHONY
 # libpam is special: we need to build static PAM modules before
 # static PAM library, and dynamic PAM library before dynamic PAM
 # modules.
-lib/libpam__L: .PHONY
+lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
-		cd ${.CURDIR}/lib/libpam; \
-		${MAKE} DIRPRFX=lib/libpam/ obj; \
-		${MAKE} DIRPRFX=lib/libpam/ depend; \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
+		cd ${.CURDIR}/lib/libpam && \
+		${MAKE} DIRPRFX=lib/libpam/ obj && \
+		${MAKE} DIRPRFX=lib/libpam/ depend && \
+		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all && \
 		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
@@ -1583,8 +1583,8 @@ _generic_libs: ${_generic_libs:S/$/__L/}
 
 .for __target in all clean cleandepend cleandir depend includes obj
 .for entry in ${SUBDIR}
-${entry}.${__target}__D: .PHONY
-	${_+_}@if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
+${entry}.${__target}__D: .PHONY .MAKE
+	${_+_}@set -e; if test -d ${.CURDIR}/${entry}.${MACHINE_ARCH}; then \
 		${ECHODIR} "===> ${DIRPRFX}${entry}.${MACHINE_ARCH} (${__target})"; \
 		edir=${entry}.${MACHINE_ARCH}; \
 		cd ${.CURDIR}/$${edir}; \
@@ -1822,10 +1822,10 @@ _xb-bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-	cd ${.CURDIR}/${_tool}; \
-	${CDMAKE} DIRPRFX=${_tool}/ obj; \
-	${CDMAKE} DIRPRFX=${_tool}/ depend; \
-	${CDMAKE} DIRPRFX=${_tool}/ all; \
+	cd ${.CURDIR}/${_tool} && \
+	${CDMAKE} DIRPRFX=${_tool}/ obj && \
+	${CDMAKE} DIRPRFX=${_tool}/ depend && \
+	${CDMAKE} DIRPRFX=${_tool}/ all && \
 	${CDMAKE} DIRPRFX=${_tool}/ DESTDIR=${CDTMP} install
 .endfor
 
@@ -1841,9 +1841,9 @@ _xb-cross-tools:
     ${_clang_libs} \
     ${_clang}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
-	cd ${.CURDIR}/${_tool}; \
-	${CDMAKE} DIRPRFX=${_tool}/ obj; \
-	${CDMAKE} DIRPRFX=${_tool}/ depend; \
+	cd ${.CURDIR}/${_tool} && \
+	${CDMAKE} DIRPRFX=${_tool}/ obj && \
+	${CDMAKE} DIRPRFX=${_tool}/ depend && \
 	${CDMAKE} DIRPRFX=${_tool}/ all
 .endfor
 

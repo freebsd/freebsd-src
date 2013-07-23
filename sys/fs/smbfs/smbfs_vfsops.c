@@ -324,11 +324,6 @@ smbfs_root(struct mount *mp, int flags, struct vnode **vpp)
 	td = curthread;
 	cred = td->td_ucred;
 
-	if (smp == NULL) {
-		SMBERROR("smp == NULL (bug in umount)\n");
-		vfs_mount_error(mp, "smp == NULL (bug in umount)");
-		return EINVAL;
-	}
 	if (smp->sm_root) {
 		*vpp = SMBTOV(smp->sm_root);
 		return vget(*vpp, LK_EXCLUSIVE | LK_RETRY, td);

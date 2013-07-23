@@ -37,7 +37,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm \
+	netipsec ${_netipx} netnatm netsmb \
 	nfs nfsclient nfsserver \
 	sys vm
 
@@ -48,7 +48,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
-	fs/procfs fs/udf fs/unionfs \
+	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
@@ -80,6 +80,7 @@ INCS+=	iconv.h
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
+# XXX unconditionally needed by <netsmb/netbios.h>
 #.if ${MK_IPX} != "no"
 _netipx=	netipx
 #.endif

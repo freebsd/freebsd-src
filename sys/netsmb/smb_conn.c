@@ -530,7 +530,6 @@ smb_vc_free(struct smb_connobj *cp)
 
 /*
  * Called when use count of VC dropped to zero.
- * VC should be locked on enter with LK_DRAIN.
  */
 static void
 smb_vc_gone(struct smb_connobj *cp, struct smb_cred *scred)

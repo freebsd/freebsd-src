@@ -345,10 +345,13 @@ page_busy(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				vm_page_sleep(pp, "zfsmwb");
 				continue;
 			}
-		} else {
+		} else if (pp == NULL) {
 			pp = vm_page_alloc(obj, OFF_TO_IDX(start),
 			    VM_ALLOC_SYSTEM | VM_ALLOC_IFCACHED |
 			    VM_ALLOC_NOBUSY);
+		} else {
+			ASSERT(pp != NULL && !pp->valid);
+			pp = NULL;
 		}
 
 		if (pp != NULL) {
@@ -543,7 +546,9 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 			vm_page_io_finish(pp);
 			vm_page_lock(pp);
 			if (error) {
-				vm_page_free(pp);
+				if (pp->wire_count == 0 && pp->valid == 0 &&
+				    pp->busy == 0 && !(pp->oflags & VPO_BUSY))
+					vm_page_free(pp);
 			} else {
 				pp->valid = VM_PAGE_BITS_ALL;
 				vm_page_activate(pp);

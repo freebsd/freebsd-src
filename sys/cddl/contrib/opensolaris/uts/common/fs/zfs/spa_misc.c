@@ -1697,6 +1697,10 @@ spa_boot_init()
 	spa_config_load();
 }
 
+#ifdef _KERNEL
+EVENTHANDLER_DEFINE(mountroot, spa_boot_init, NULL, 0);
+#endif
+
 void
 spa_init(int mode)
 {

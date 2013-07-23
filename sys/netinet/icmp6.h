@@ -555,39 +555,39 @@ do {								\
  * of the internet control message protocol version 6.
  */
 struct icmp6errstat {
-	u_quad_t icp6errs_dst_unreach_noroute;
-	u_quad_t icp6errs_dst_unreach_admin;
-	u_quad_t icp6errs_dst_unreach_beyondscope;
-	u_quad_t icp6errs_dst_unreach_addr;
-	u_quad_t icp6errs_dst_unreach_noport;
-	u_quad_t icp6errs_packet_too_big;
-	u_quad_t icp6errs_time_exceed_transit;
-	u_quad_t icp6errs_time_exceed_reassembly;
-	u_quad_t icp6errs_paramprob_header;
-	u_quad_t icp6errs_paramprob_nextheader;
-	u_quad_t icp6errs_paramprob_option;
-	u_quad_t icp6errs_redirect; /* we regard redirect as an error here */
-	u_quad_t icp6errs_unknown;
+	uint64_t icp6errs_dst_unreach_noroute;
+	uint64_t icp6errs_dst_unreach_admin;
+	uint64_t icp6errs_dst_unreach_beyondscope;
+	uint64_t icp6errs_dst_unreach_addr;
+	uint64_t icp6errs_dst_unreach_noport;
+	uint64_t icp6errs_packet_too_big;
+	uint64_t icp6errs_time_exceed_transit;
+	uint64_t icp6errs_time_exceed_reassembly;
+	uint64_t icp6errs_paramprob_header;
+	uint64_t icp6errs_paramprob_nextheader;
+	uint64_t icp6errs_paramprob_option;
+	uint64_t icp6errs_redirect; /* we regard redirect as an error here */
+	uint64_t icp6errs_unknown;
 };
 
 struct icmp6stat {
 /* statistics related to icmp6 packets generated */
-	u_quad_t icp6s_error;		/* # of calls to icmp6_error */
-	u_quad_t icp6s_canterror;	/* no error 'cuz old was icmp */
-	u_quad_t icp6s_toofreq;		/* no error 'cuz rate limitation */
-	u_quad_t icp6s_outhist[256];
+	uint64_t icp6s_error;		/* # of calls to icmp6_error */
+	uint64_t icp6s_canterror;	/* no error 'cuz old was icmp */
+	uint64_t icp6s_toofreq;		/* no error 'cuz rate limitation */
+	uint64_t icp6s_outhist[256];
 /* statistics related to input message processed */
-	u_quad_t icp6s_badcode;		/* icmp6_code out of range */
-	u_quad_t icp6s_tooshort;	/* packet < sizeof(struct icmp6_hdr) */
-	u_quad_t icp6s_checksum;	/* bad checksum */
-	u_quad_t icp6s_badlen;		/* calculated bound mismatch */
+	uint64_t icp6s_badcode;		/* icmp6_code out of range */
+	uint64_t icp6s_tooshort;	/* packet < sizeof(struct icmp6_hdr) */
+	uint64_t icp6s_checksum;	/* bad checksum */
+	uint64_t icp6s_badlen;		/* calculated bound mismatch */
 	/*
 	 * number of responses: this member is inherited from netinet code, but
 	 * for netinet6 code, it is already available in icp6s_outhist[].
 	 */
-	u_quad_t icp6s_reflect;
-	u_quad_t icp6s_inhist[256];	
-	u_quad_t icp6s_nd_toomanyopt;	/* too many ND options */
+	uint64_t icp6s_reflect;
+	uint64_t icp6s_inhist[256];	
+	uint64_t icp6s_nd_toomanyopt;	/* too many ND options */
 	struct icmp6errstat icp6s_outerrhist;
 #define icp6s_odst_unreach_noroute \
 	icp6s_outerrhist.icp6errs_dst_unreach_noroute
@@ -607,29 +607,33 @@ struct icmp6stat {
 #define icp6s_oparamprob_option icp6s_outerrhist.icp6errs_paramprob_option
 #define icp6s_oredirect icp6s_outerrhist.icp6errs_redirect
 #define icp6s_ounknown icp6s_outerrhist.icp6errs_unknown
-	u_quad_t icp6s_pmtuchg;		/* path MTU changes */
-	u_quad_t icp6s_nd_badopt;	/* bad ND options */
-	u_quad_t icp6s_badns;		/* bad neighbor solicitation */
-	u_quad_t icp6s_badna;		/* bad neighbor advertisement */
-	u_quad_t icp6s_badrs;		/* bad router advertisement */
-	u_quad_t icp6s_badra;		/* bad router advertisement */
-	u_quad_t icp6s_badredirect;	/* bad redirect message */
+	uint64_t icp6s_pmtuchg;		/* path MTU changes */
+	uint64_t icp6s_nd_badopt;	/* bad ND options */
+	uint64_t icp6s_badns;		/* bad neighbor solicitation */
+	uint64_t icp6s_badna;		/* bad neighbor advertisement */
+	uint64_t icp6s_badrs;		/* bad router advertisement */
+	uint64_t icp6s_badra;		/* bad router advertisement */
+	uint64_t icp6s_badredirect;	/* bad redirect message */
 };
 
 #ifdef _KERNEL
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct icmp6stat, icmp6stat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	ICMP6STAT_ADD(name, val)	V_icmp6stat.name += (val)
+#define	ICMP6STAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct icmp6stat, icmp6stat, name, (val))
 #define	ICMP6STAT_INC(name)		ICMP6STAT_ADD(name, 1)
 
 /*
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_icmp6stat_inc(int statnum);
-#define	KMOD_ICMP6STAT_INC(name)					\
-	kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(u_quad_t))
+#define	KMOD_ICMP6STAT_INC(name)	\
+    kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(uint64_t))
 #endif
 
 /*
@@ -688,7 +692,9 @@ void	icmp6_mtudisc_update(struct ip6ctlparam *, int);
 #define icmp6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
-		((struct in6_ifextra *)((ifp)->if_afdata[AF_INET6]))->icmp6_ifstat->tag++; \
+		counter_u64_add(((struct in6_ifextra *)		\
+		    ((ifp)->if_afdata[AF_INET6]))->icmp6_ifstat[\
+		    offsetof(struct icmp6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
 
 #define icmp6_ifoutstat_inc(ifp, type, code) \

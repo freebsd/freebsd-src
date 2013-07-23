@@ -57,7 +57,7 @@
  * the inode and the logical block number in a file.
  */
 int
-ext2_balloc(struct inode *ip, int32_t lbn, int size, struct ucred *cred,
+ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
     struct buf **bpp, int flags)
 {
 	struct m_ext2fs *fs;

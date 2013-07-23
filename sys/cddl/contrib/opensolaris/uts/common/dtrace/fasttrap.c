@@ -2283,13 +2283,6 @@ fasttrap_load(void)
 		return (ret);
 	}
 
-	/*
-	 * Install our hooks into fork(2), exec(2), and exit(2).
-	 */
-	dtrace_fasttrap_fork = &fasttrap_fork;
-	dtrace_fasttrap_exit = &fasttrap_exec_exit;
-	dtrace_fasttrap_exec = &fasttrap_exec_exit;
-
 #if defined(sun)
 	fasttrap_max = ddi_getprop(DDI_DEV_T_ANY, devi, DDI_PROP_DONTPASS,
 	    "fasttrap-max-probes", FASTTRAP_MAX_DEFAULT);
@@ -2366,6 +2359,13 @@ fasttrap_load(void)
 	}
 #endif
 
+	/*
+	 * Install our hooks into fork(2), exec(2), and exit(2).
+	 */
+	dtrace_fasttrap_fork = &fasttrap_fork;
+	dtrace_fasttrap_exit = &fasttrap_exec_exit;
+	dtrace_fasttrap_exec = &fasttrap_exec_exit;
+
 	(void) dtrace_meta_register("fasttrap", &fasttrap_mops, NULL,
 	    &fasttrap_meta_id);
 
@@ -2435,6 +2435,7 @@ fasttrap_unload(void)
 	mtx_sleep(&fasttrap_cleanup_drain, &fasttrap_cleanup_mtx, 0, "ftcld",
 	    0);
 	fasttrap_cleanup_proc = NULL;
+	mtx_destroy(&fasttrap_cleanup_mtx);
 
 #ifdef DEBUG
 	mutex_enter(&fasttrap_count_mtx);

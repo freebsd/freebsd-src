@@ -2,26 +2,28 @@
  * OS specific functions for UNIX/POSIX systems
  * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
+
+#include <time.h>
+
+#ifdef ANDROID
+#include <linux/capability.h>
+#include <linux/prctl.h>
+#include <private/android_filesystem_config.h>
+#endif /* ANDROID */
 
 #include "os.h"
 
 #ifdef WPA_TRACE
 
 #include "common.h"
-#include "list.h"
 #include "wpa_debug.h"
 #include "trace.h"
+#include "list.h"
 
 static struct dl_list alloc_list;
 
@@ -98,6 +100,24 @@ int os_mktime(int year, int month, int day, int hour, int min, int sec,
 }
 
 
+int os_gmtime(os_time_t t, struct os_tm *tm)
+{
+	struct tm *tm2;
+	time_t t2 = t;
+
+	tm2 = gmtime(&t2);
+	if (tm2 == NULL)
+		return -1;
+	tm->sec = tm2->tm_sec;
+	tm->min = tm2->tm_min;
+	tm->hour = tm2->tm_hour;
+	tm->day = tm2->tm_mday;
+	tm->month = tm2->tm_mon + 1;
+	tm->year = tm2->tm_year + 1900;
+	return 0;
+}
+
+
 #ifdef __APPLE__
 #include <fcntl.h>
 static int os_daemon(int nochdir, int noclose)
@@ -135,9 +155,9 @@ static int os_daemon(int nochdir, int noclose)
 
 int os_daemonize(const char *pid_file)
 {
-#ifdef __uClinux__
+#if defined(__uClinux__) || defined(__sun__)
 	return -1;
-#else /* __uClinux__ */
+#else /* defined(__uClinux__) || defined(__sun__) */
 	if (os_daemon(0, 0)) {
 		perror("daemon");
 		return -1;
@@ -152,7 +172,7 @@ int os_daemonize(const char *pid_file)
 	}
 
 	return -0;
-#endif /* __uClinux__ */
+#endif /* defined(__uClinux__) || defined(__sun__) */
 }
 
 
@@ -232,6 +252,30 @@ char * os_rel2abs_path(const char *rel_path)
 
 int os_program_init(void)
 {
+#ifdef ANDROID
+	/*
+	 * We ignore errors here since errors are normal if we
+	 * are already running as non-root.
+	 */
+	gid_t groups[] = { AID_INET, AID_WIFI, AID_KEYSTORE };
+	struct __user_cap_header_struct header;
+	struct __user_cap_data_struct cap;
+
+	setgroups(sizeof(groups)/sizeof(groups[0]), groups);
+
+	prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0);
+
+	setgid(AID_WIFI);
+	setuid(AID_WIFI);
+
+	header.version = _LINUX_CAPABILITY_VERSION;
+	header.pid = 0;
+	cap.effective = cap.permitted =
+		(1 << CAP_NET_ADMIN) | (1 << CAP_NET_RAW);
+	cap.inheritable = 0;
+	capset(&header, &cap);
+#endif /* ANDROID */
+
 #ifdef WPA_TRACE
 	dl_list_init(&alloc_list);
 #endif /* WPA_TRACE */
@@ -285,14 +329,21 @@ char * os_readfile(const char *name, size_t *len)
 {
 	FILE *f;
 	char *buf;
+	long pos;
 
 	f = fopen(name, "rb");
 	if (f == NULL)
 		return NULL;
 
-	fseek(f, 0, SEEK_END);
-	*len = ftell(f);
-	fseek(f, 0, SEEK_SET);
+	if (fseek(f, 0, SEEK_END) < 0 || (pos = ftell(f)) < 0) {
+		fclose(f);
+		return NULL;
+	}
+	*len = pos;
+	if (fseek(f, 0, SEEK_SET) < 0) {
+		fclose(f);
+		return NULL;
+	}
 
 	buf = os_malloc(*len);
 	if (buf == NULL) {

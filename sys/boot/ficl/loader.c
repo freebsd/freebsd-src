@@ -404,6 +404,34 @@ static void displayCellNoPad(FICL_VM *pVM)
     return;
 }
 
+/*      isdir? - Return whether an fd corresponds to a directory.
+ *
+ * isdir? ( fd -- bool )
+ */
+static void isdirQuestion(FICL_VM *pVM)
+{
+    struct stat sb;
+    FICL_INT flag;
+    int fd;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 1);
+#endif
+
+    fd = stackPopINT(pVM->pStack);
+    flag = FICL_FALSE;
+    do {
+        if (fd < 0)
+            break;
+        if (fstat(fd, &sb) < 0)
+            break;
+        if (!S_ISDIR(sb.st_mode))
+            break;
+        flag = FICL_TRUE;
+    } while (0);
+    stackPushINT(pVM->pStack, flag);
+}
+
 /*          fopen - open a file and return new fd on stack.
  *
  * fopen ( ptr count mode -- fd )
@@ -475,6 +503,30 @@ static void pfread(FICL_VM *pVM)
     else
 	stackPushINT(pVM->pStack, -1);
     return;
+}
+
+/*      freaddir - read directory contents
+ *
+ * freaddir ( fd -- ptr len TRUE | FALSE )
+ */
+static void pfreaddir(FICL_VM *pVM)
+{
+    struct dirent *d;
+    int fd;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 3);
+#endif
+
+    fd = stackPopINT(pVM->pStack);
+    d = readdirfd(fd);
+    if (d != NULL) {
+        stackPushPtr(pVM->pStack, d->d_name);
+        stackPushINT(pVM->pStack, strlen(d->d_name));
+        stackPushINT(pVM->pStack, FICL_TRUE);
+    } else {
+        stackPushINT(pVM->pStack, FICL_FALSE);
+    }
 }
 
 /*          fload - interpret file contents
@@ -653,9 +705,11 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     assert (dp);
 
     dictAppendWord(dp, ".#",        displayCellNoPad,    FW_DEFAULT);
+    dictAppendWord(dp, "isdir?",    isdirQuestion,  FW_DEFAULT);
     dictAppendWord(dp, "fopen",	    pfopen,	    FW_DEFAULT);
     dictAppendWord(dp, "fclose",    pfclose,	    FW_DEFAULT);
     dictAppendWord(dp, "fread",	    pfread,	    FW_DEFAULT);
+    dictAppendWord(dp, "freaddir",  pfreaddir,	    FW_DEFAULT);
     dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
     dictAppendWord(dp, "fkey",	    fkey,	    FW_DEFAULT);
     dictAppendWord(dp, "fseek",     pfseek,	    FW_DEFAULT);

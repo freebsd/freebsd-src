@@ -57,7 +57,8 @@ cXXrtomb_l(char * __restrict s, charXX_t c, mbstate_t * __restrict ps,
 {
 	_ConversionState *cs;
 	struct _citrus_iconv *handle;
-	char *src, *dst;
+	const char *src;
+	char *dst;
 	size_t srcleft, dstleft, invlen;
 	int err;
 

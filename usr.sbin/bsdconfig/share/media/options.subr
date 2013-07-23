@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_OPTIONS_SUBR" ]; then _MEDIA_OPTIONS_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_OPTIONS_SUBR" ]; then _MEDIA_OPTIONS_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -158,14 +158,15 @@ f_media_options_menu()
 			case "$cp" in
 			$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK)
 				cp="$msg_file_system" ;;
-			$DEVICE_TYPE_DIRECTORY)  cp="$msg_directory"  ;;
-			$DEVICE_TYPE_FLOPPY)     cp="$msg_floppy"     ;;
-			$DEVICE_TYPE_FTP)        cp="$msg_ftp"        ;;
-			$DEVICE_TYPE_HTTP_PROXY) cp="$msg_http_proxy" ;;
-			$DEVICE_TYPE_CDROM)      cp="$msg_cdrom"      ;;
-			$DEVICE_TYPE_USB)        cp="$msg_usb"        ;;
-			$DEVICE_TYPE_DOS)        cp="$msg_dos"        ;;
-			$DEVICE_TYPE_NFS)        cp="$msg_nfs"        ;;
+			$DEVICE_TYPE_DIRECTORY)  cp="$msg_directory"   ;;
+			$DEVICE_TYPE_FLOPPY)     cp="$msg_floppy"      ;;
+			$DEVICE_TYPE_FTP)        cp="$msg_ftp"         ;;
+			$DEVICE_TYPE_HTTP_PROXY) cp="$msg_http_proxy"  ;;
+			$DEVICE_TYPE_HTTP)       cp="$msg_http_direct" ;;
+			$DEVICE_TYPE_CDROM)      cp="$msg_cdrom"       ;;
+			$DEVICE_TYPE_USB)        cp="$msg_usb"         ;;
+			$DEVICE_TYPE_DOS)        cp="$msg_dos"         ;;
+			$DEVICE_TYPE_NFS)        cp="$msg_nfs"         ;;
 			*)
 				cp="<$msg_unknown>"
 			esac

@@ -74,6 +74,9 @@
 				"MMC0_DAT1", "mmc0_dat1", "input_pullup",
 				"MMC0_DAT2", "mmc0_dat2", "input_pullup",
 				"MMC0_DAT3", "mmc0_dat3", "input_pullup",
+				/* USB0 and USB1 */
+				"USB0_DRVVBUS", "USB0_DRVVBUS", "output",
+				"USB1_DRVVBUS", "USB1_DRVVBUS", "output",
 				/* GPIO */
 				"ECAP0_IN_PWM0_OUT", "gpio0_7", "input_pulldown",
 				"GPMC_AD10", "gpio0_26", "input_pulldown",

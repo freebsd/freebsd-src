@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/counter.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -145,11 +146,11 @@ static struct mtx mrouter_mtx;
 static int ip_mrouter_cnt;	/* # of vnets with active mrouters */
 static int ip_mrouter_unloading; /* Allow no more V_ip_mrouter sockets */
 
-static VNET_DEFINE(struct mrtstat, mrtstat);
-#define	V_mrtstat		VNET(mrtstat)
-SYSCTL_VNET_STRUCT(_net_inet_ip, OID_AUTO, mrtstat, CTLFLAG_RW,
-    &VNET_NAME(mrtstat), mrtstat,
-    "IPv4 Multicast Forwarding Statistics (struct mrtstat, "
+static VNET_PCPUSTAT_DEFINE(struct mrtstat, mrtstat);
+VNET_PCPUSTAT_SYSINIT(mrtstat);
+VNET_PCPUSTAT_SYSUNINIT(mrtstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_ip, OID_AUTO, mrtstat, struct mrtstat,
+    mrtstat, "IPv4 Multicast Forwarding Statistics (struct mrtstat, "
     "netinet/ip_mroute.h)");
 
 static VNET_DEFINE(u_long, mfchash);
@@ -225,13 +226,13 @@ static VNET_DEFINE(struct callout, bw_upcalls_ch);
 
 #define BW_UPCALLS_PERIOD (hz)		/* periodical flush of bw upcalls */
 
-static VNET_DEFINE(struct pimstat, pimstat);
-#define	V_pimstat		VNET(pimstat)
+static VNET_PCPUSTAT_DEFINE(struct pimstat, pimstat);
+VNET_PCPUSTAT_SYSINIT(pimstat);
+VNET_PCPUSTAT_SYSUNINIT(pimstat);
 
 SYSCTL_NODE(_net_inet, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
-SYSCTL_VNET_STRUCT(_net_inet_pim, PIMCTL_STATS, stats, CTLFLAG_RD,
-    &VNET_NAME(pimstat), pimstat,
-    "PIM Statistics (struct pimstat, netinet/pim_var.h)");
+SYSCTL_VNET_PCPUSTAT(_net_inet_pim, PIMCTL_STATS, stats, struct pimstat,
+    pimstat, "PIM Statistics (struct pimstat, netinet/pim_var.h)");
 
 static u_long	pim_squelch_wholepkt = 0;
 SYSCTL_ULONG(_net_inet_pim, OID_AUTO, squelch_wholepkt, CTLFLAG_RW,

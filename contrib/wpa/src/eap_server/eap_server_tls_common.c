@@ -2,14 +2,8 @@
  * EAP-TLS/PEAP/TTLS/FAST server common functions
  * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -22,6 +16,18 @@
 
 
 static void eap_server_tls_free_in_buf(struct eap_ssl_data *data);
+
+
+struct wpabuf * eap_tls_msg_alloc(EapType type, size_t payload_len,
+				  u8 code, u8 identifier)
+{
+	if (type == EAP_UNAUTH_TLS_TYPE)
+		return eap_msg_alloc(EAP_VENDOR_UNAUTH_TLS,
+				     EAP_VENDOR_TYPE_UNAUTH_TLS, payload_len,
+				     code, identifier);
+	return eap_msg_alloc(EAP_VENDOR_IETF, type, payload_len, code,
+			     identifier);
+}
 
 
 int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
@@ -45,8 +51,7 @@ int eap_server_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 		return -1;
 	}
 
-	/* TODO: make this configurable */
-	data->tls_out_limit = 1398;
+	data->tls_out_limit = sm->fragment_size > 0 ? sm->fragment_size : 1398;
 	if (data->phase2) {
 		/* Limit the fragment size in the inner TLS authentication
 		 * since the outer authentication with EAP-PEAP does not yet
@@ -95,9 +100,9 @@ u8 * eap_server_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
 	os_memcpy(rnd + keys.client_random_len, keys.server_random,
 		  keys.server_random_len);
 
-	if (tls_prf(keys.master_key, keys.master_key_len,
-		    label, rnd, keys.client_random_len +
-		    keys.server_random_len, out, len))
+	if (tls_prf_sha1_md5(keys.master_key, keys.master_key_len,
+			     label, rnd, keys.client_random_len +
+			     keys.server_random_len, out, len))
 		goto fail;
 
 	os_free(rnd);
@@ -138,8 +143,7 @@ struct wpabuf * eap_server_tls_build_msg(struct eap_ssl_data *data,
 	if (flags & EAP_TLS_FLAGS_LENGTH_INCLUDED)
 		plen += 4;
 
-	req = eap_msg_alloc(EAP_VENDOR_IETF, eap_type, plen,
-			    EAP_CODE_REQUEST, id);
+	req = eap_tls_msg_alloc(eap_type, plen, EAP_CODE_REQUEST, id);
 	if (req == NULL)
 		return NULL;
 
@@ -175,8 +179,7 @@ struct wpabuf * eap_server_tls_build_ack(u8 id, int eap_type, int version)
 {
 	struct wpabuf *req;
 
-	req = eap_msg_alloc(EAP_VENDOR_IETF, eap_type, 1, EAP_CODE_REQUEST,
-			    id);
+	req = eap_tls_msg_alloc(eap_type, 1, EAP_CODE_REQUEST, id);
 	if (req == NULL)
 		return NULL;
 	wpa_printf(MSG_DEBUG, "SSL: Building ACK");
@@ -294,6 +297,13 @@ static int eap_server_tls_reassemble(struct eap_ssl_data *data, u8 flags,
 			   tls_msg_len);
 		*pos += 4;
 		*left -= 4;
+
+		if (*left > tls_msg_len) {
+			wpa_printf(MSG_INFO, "SSL: TLS Message Length (%d "
+				   "bytes) smaller than this fragment (%d "
+				   "bytes)", (int) tls_msg_len, (int) *left);
+			return -1;
+		}
 	}
 
 	wpa_printf(MSG_DEBUG, "SSL: Received packet: Flags 0x%x "
@@ -374,7 +384,13 @@ int eap_server_tls_process(struct eap_sm *sm, struct eap_ssl_data *data,
 	size_t left;
 	int ret, res = 0;
 
-	pos = eap_hdr_validate(EAP_VENDOR_IETF, eap_type, respData, &left);
+	if (eap_type == EAP_UNAUTH_TLS_TYPE)
+		pos = eap_hdr_validate(EAP_VENDOR_UNAUTH_TLS,
+				       EAP_VENDOR_TYPE_UNAUTH_TLS, respData,
+				       &left);
+	else
+		pos = eap_hdr_validate(EAP_VENDOR_IETF, eap_type, respData,
+				       &left);
 	if (pos == NULL || left < 1)
 		return 0; /* Should not happen - frame already validated */
 	flags = *pos++;

@@ -143,11 +143,14 @@ static VNET_DEFINE(uma_zone_t, udpcb_zone);
 #define	UDBHASHSIZE	128
 #endif
 
-VNET_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
-SYSCTL_VNET_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(udpstat), udpstat,
-    "UDP statistics (struct udpstat, netinet/udp_var.h)");
+VNET_PCPUSTAT_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
+VNET_PCPUSTAT_SYSINIT(udpstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_udp, UDPCTL_STATS, stats, struct udpstat,
+    udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(udpstat);
+#endif /* VIMAGE */
 #ifdef INET
 static void	udp_detach(struct socket *so);
 static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
@@ -207,7 +210,7 @@ void
 kmod_udpstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_udpstat + statnum))++;
+	counter_u64_add(VNET(udpstat)[statnum], 1);
 }
 
 int

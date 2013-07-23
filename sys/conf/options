@@ -85,6 +85,7 @@ COMPRESS_USER_CORES opt_core.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
 DIRECTIO
+FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
 IPI_PREEMPTION	opt_sched.h
@@ -222,9 +223,11 @@ NULLFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h
+SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
+ZFS		opt_dontuse.h
 
 # Pseudofs debugging
 PSEUDOFS_TRACE	opt_pseudofs.h
@@ -286,6 +289,9 @@ UFS_GJOURNAL	opt_ufs.h
 # allows these options to be present in config files already (though
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
+
+# SMB/CIFS requester
+NETSMB		opt_netsmb.h
 
 # Options used only in subr_param.c.
 HZ		opt_param.h
@@ -785,6 +791,10 @@ AH_SUPPORT_AR5416	opt_ah.h
 # XXX when actually targetting AR9130.
 AH_SUPPORT_AR9130	opt_ah.h
 
+# This is required for AR933x SoC support
+AH_SUPPORT_AR9330	opt_ah.h
+AH_SUPPORT_AR9340	opt_ah.h
+
 AH_DEBUG		opt_ah.h
 AH_ASSERT		opt_ah.h
 AH_DEBUG_ALQ		opt_ah.h
@@ -831,8 +841,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
-
-ZFS			opt_dontuse.h
 
 # Interrupt filtering
 INTR_FILTER

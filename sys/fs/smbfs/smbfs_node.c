@@ -89,7 +89,7 @@ smbfs_vnode_cmp(struct vnode *vp, void *_sc)
 	struct smbnode *np;
 	struct smbcmp *sc;
 
-	np = (struct smbnode *) vp;
+	np = (struct smbnode *) vp->v_data;
 	sc = (struct smbcmp *) _sc;
 	if (np->n_parent != sc->n_parent || np->n_nmlen != sc->n_nmlen ||
 	    bcmp(sc->n_name, np->n_name, sc->n_nmlen) != 0)

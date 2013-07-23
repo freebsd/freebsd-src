@@ -633,7 +633,7 @@ AcpiDmDisassembleOneOp (
 
     case AML_STRING_OP:
 
-        AcpiUtPrintString (Op->Common.Value.String, ACPI_UINT8_MAX);
+        AcpiUtPrintString (Op->Common.Value.String, ACPI_UINT16_MAX);
         break;
 
     case AML_BUFFER_OP:

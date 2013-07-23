@@ -155,7 +155,7 @@
 			compatible = "ti,am335x-pwm";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			reg = < 0x48300000 0x100	/* PWMSS */
+			reg = < 0x48300000 0x100	/* PWMSS0 */
 				0x48300100 0x80		/* eCAP0 */
 				0x48300180 0x80		/* eQEP0 */
 				0x48300200 0x60		/* ePWM0 */
@@ -163,6 +163,34 @@
 			interrupts = <86 58>; /* ePWM0INT, ePWM0_TZINT */
 			interrupt-parent = <&AINTC>;
 			pwm-device-id = <0>;
+		};
+
+		pwm@48302000 {
+			compatible = "ti,am335x-pwm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x48302000 0x100	/* PWMSS1 */
+				0x48302100 0x80		/* eCAP1 */
+				0x48302180 0x80		/* eQEP1 */
+				0x48302200 0x60		/* ePWM1 */
+			>;
+			interrupts = <87 59>; /* ePWM1INT, ePWM1_TZINT */
+			interrupt-parent = <&AINTC>;
+			pwm-device-id = <1>;
+		};
+
+		pwm@48304000 {
+			compatible = "ti,am335x-pwm";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x48304000 0x100	/* PWMSS2 */
+				0x48304100 0x80		/* eCAP2 */
+				0x48304180 0x80		/* eQEP2 */
+				0x48304200 0x60		/* ePWM2 */
+			>;
+			interrupts = <88 60>; /* ePWM2INT, ePWM2_TZINT */
+			interrupt-parent = <&AINTC>;
+			pwm-device-id = <2>;
 		};
 
 		lcd: lcd@4830e000 {
@@ -173,5 +201,23 @@
 			interrupts = <36>;
 			interrupt-parent = <&AINTC>;
 		};
+
+ 		usb@47400000 {
+ 			#address-cells = <1>;
+ 			#size-cells = <0>;
+ 			compatible = "ti,musb-am33xx";
+ 			reg =<	0x47400000 0x1000	/* USBSS */
+ 				0x47401000 0x300	/* USB0 */
+ 				0x47401300 0x100 	/* USB0_PHY */
+ 				0x47401400 0x400 	/* USB0_CORE */
+ 				0x47401800 0x300 	/* USB1 */
+ 				0x47401B00 0x100 	/* USB1_PHY */
+ 				0x47401C00 0x400 	/* USB1_CORE */
+ 			>;
+ 			interrupts = <17 18 19>;
+ 			interrupt-parent = <&AINTC>;
+ 			/* 1 - Host Mode, 0 - Device Mode */
+ 			modemask = <2>;
+ 		};
 	};
 };

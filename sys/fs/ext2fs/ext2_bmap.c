@@ -99,8 +99,8 @@ ext2_bmaparray(struct vnode *vp, int32_t bn, int32_t *bnp, int *runp, int *runb)
 	struct mount *mp;
 	struct vnode *devvp;
 	struct indir a[NIADDR+1], *ap;
-	int32_t daddr;
-	long metalbn;
+	daddr_t daddr;
+	e2fs_lbn_t metalbn;
 	int error, num, maxrun = 0, bsize;
 	int *nump;
 
@@ -241,7 +241,8 @@ ext2_bmaparray(struct vnode *vp, int32_t bn, int32_t *bnp, int *runp, int *runb)
 int
 ext2_getlbns(struct vnode *vp, int32_t bn, struct indir *ap, int *nump)
 {
-	long blockcnt, metalbn, realbn;
+	long blockcnt;
+	e2fs_lbn_t metalbn, realbn;
 	struct ext2mount *ump;
 	int i, numlevels, off;
 	int64_t qblockcnt;

@@ -94,8 +94,11 @@
 
 typedef enum {
 	XBDCF_Q_MASK		= 0xFF,
+	/* This command has contributed to xbd_qfrozen_cnt. */
 	XBDCF_FROZEN		= 1<<8,
-	XBDCF_POLLED		= 1<<9,
+	/* Freeze the command queue on dispatch (i.e. single step command). */
+	XBDCF_Q_FREEZE		= 1<<9,
+	/* Bus DMA returned EINPROGRESS for this command. */
 	XBDCF_ASYNC_MAPPING	= 1<<10,
 	XBDCF_INITIALIZER	= XBDCF_Q_MASK
 } xbdc_flag_t;
@@ -147,9 +150,14 @@ typedef enum {
 	XBDF_NONE	  = 0,
 	XBDF_OPEN	  = 1 << 0, /* drive is open (can't shut down) */
 	XBDF_BARRIER	  = 1 << 1, /* backend supports barriers */
-	XBDF_READY	  = 1 << 2, /* Is ready */
-	XBDF_CM_SHORTAGE  = 1 << 3, /* Free cm resource shortage active. */
-	XBDF_GNT_SHORTAGE = 1 << 4  /* Grant ref resource shortage active */
+	XBDF_FLUSH	  = 1 << 2, /* backend supports flush */
+	XBDF_READY	  = 1 << 3, /* Is ready */
+	XBDF_CM_SHORTAGE  = 1 << 4, /* Free cm resource shortage active. */
+	XBDF_GNT_SHORTAGE = 1 << 5, /* Grant ref resource shortage active */
+	XBDF_WAIT_IDLE	  = 1 << 6  /*
+				     * No new work until oustanding work
+				     * completes.
+				     */
 } xbd_flag_t;
 
 /*
@@ -204,6 +212,12 @@ static inline void
 xbd_removed_qentry(struct xbd_softc *sc, xbd_q_index_t index)
 {
 	sc->xbd_cm_q[index].q_length--;
+}
+
+static inline uint32_t
+xbd_queue_length(struct xbd_softc *sc, xbd_q_index_t index)
+{
+	return (sc->xbd_cm_q[index].q_length);
 }
 
 static inline void
@@ -289,27 +303,27 @@ xbd_remove_cm(struct xbd_command *cm, xbd_q_index_t expected_index)
 	xbd_removed_qentry(cm->cm_sc, index);
 }
 
-static __inline void
+static inline void
 xbd_initq_bio(struct xbd_softc *sc)
 {
 	bioq_init(&sc->xbd_bioq);
 }
 
-static __inline void
+static inline void
 xbd_enqueue_bio(struct xbd_softc *sc, struct bio *bp)
 {
 	bioq_insert_tail(&sc->xbd_bioq, bp);
 	xbd_added_qentry(sc, XBD_Q_BIO);
 }
 
-static __inline void
+static inline void
 xbd_requeue_bio(struct xbd_softc *sc, struct bio *bp)
 {
 	bioq_insert_head(&sc->xbd_bioq, bp);
 	xbd_added_qentry(sc, XBD_Q_BIO);
 }
 
-static __inline struct bio *
+static inline struct bio *
 xbd_dequeue_bio(struct xbd_softc *sc)
 {
 	struct bio *bp;

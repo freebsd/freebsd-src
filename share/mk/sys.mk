@@ -332,10 +332,6 @@ SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
 
-# Default executable format
-# XXX hint for bsd.port.mk
-OBJFORMAT?=	elf
-
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 

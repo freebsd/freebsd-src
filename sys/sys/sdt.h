@@ -86,6 +86,7 @@
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
 #define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)
 
+#define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)
 #define	SDT_PROBE_DEFINE2(prov, mod, func, name, sname, arg0, arg1)
 #define	SDT_PROBE_DEFINE3(prov, mod, func, name, sname, arg0, arg1, arg2)
@@ -209,6 +210,9 @@ struct sdt_provider {
 	SYSUNINIT(sdt_##prov##_##mod##_##func##_##name##num##_uninit, 		\
 	    SI_SUB_KDTRACE, SI_ORDER_SECOND + 2, sdt_argtype_deregister,	\
 	    sdt_##prov##_##mod##_##func##_##name##num )
+
+#define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)			\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname)
 
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)		\
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\

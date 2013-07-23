@@ -1,15 +1,9 @@
 /*
- * TLSv1 client (RFC 2246)
- * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
+ * TLS v1.0/v1.1/v1.2 client (RFC 2246, RFC 4346, RFC 5246)
+ * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef TLSV1_CLIENT_H
@@ -29,13 +23,13 @@ int tlsv1_client_prf(struct tlsv1_client *conn, const char *label,
 u8 * tlsv1_client_handshake(struct tlsv1_client *conn,
 			    const u8 *in_data, size_t in_len,
 			    size_t *out_len, u8 **appl_data,
-			    size_t *appl_data_len);
+			    size_t *appl_data_len, int *need_more_data);
 int tlsv1_client_encrypt(struct tlsv1_client *conn,
 			 const u8 *in_data, size_t in_len,
 			 u8 *out_data, size_t out_len);
-int tlsv1_client_decrypt(struct tlsv1_client *conn,
-			 const u8 *in_data, size_t in_len,
-			 u8 *out_data, size_t out_len);
+struct wpabuf * tlsv1_client_decrypt(struct tlsv1_client *conn,
+				     const u8 *in_data, size_t in_len,
+				     int *need_more_data);
 int tlsv1_client_get_cipher(struct tlsv1_client *conn, char *buf,
 			    size_t buflen);
 int tlsv1_client_shutdown(struct tlsv1_client *conn);
@@ -47,6 +41,7 @@ int tlsv1_client_get_keyblock_size(struct tlsv1_client *conn);
 int tlsv1_client_set_cipher_list(struct tlsv1_client *conn, u8 *ciphers);
 int tlsv1_client_set_cred(struct tlsv1_client *conn,
 			  struct tlsv1_credentials *cred);
+void tlsv1_client_set_time_checks(struct tlsv1_client *conn, int enabled);
 
 typedef int (*tlsv1_client_session_ticket_cb)
 (void *ctx, const u8 *ticket, size_t len, const u8 *client_random,

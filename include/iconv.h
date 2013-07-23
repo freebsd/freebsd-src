@@ -43,7 +43,7 @@
 
 #define iconv_open		libiconv_open
 #define iconv_close		libiconv_close
-#define iconv(cd, in, insize, out, outsize)	libiconv(cd, __DECONST(char **, in), insize, out, outsize)
+#define iconv			libiconv
 #define iconv_t			libiconv_t
 
 struct __tag_iconv_t;
@@ -51,7 +51,7 @@ typedef	struct __tag_iconv_t	*iconv_t;
 
 __BEGIN_DECLS
 iconv_t	libiconv_open(const char *, const char *);
-size_t	libiconv(iconv_t, char ** __restrict,
+size_t	libiconv(iconv_t, const char ** __restrict,
 		     size_t * __restrict, char ** __restrict,
 		     size_t * __restrict);
 int	libiconv_close(iconv_t);
@@ -60,7 +60,7 @@ int	libiconv_close(iconv_t);
  */
 int	__iconv_get_list(char ***, size_t *, bool);
 void	__iconv_free_list(char **, size_t);
-size_t	__iconv(iconv_t, char **, size_t *, char **,
+size_t	__iconv(iconv_t, const char **, size_t *, char **,
 		     size_t *, __uint32_t, size_t *);
 #define __ICONV_F_HIDE_INVALID	0x0001
 

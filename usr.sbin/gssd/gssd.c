@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <krb5.h>
 #endif
 #include <pwd.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #ifndef _PATH_GSSDSOCK
 #define _PATH_GSSDSOCK	"/var/run/gssd.sock"
 #endif
+#define GSSD_CREDENTIAL_CACHE_FILE	"/tmp/krb5cc_gssd"
 
 struct gss_resource {
 	LIST_ENTRY(gss_resource) gr_link;
@@ -73,11 +75,29 @@ int debug_level;
 static char ccfile_dirlist[PATH_MAX + 1], ccfile_substring[NAME_MAX + 1];
 static char pref_realm[1024];
 static int verbose;
+static int use_old_des;
+static int hostbased_initiator_cred;
+#ifndef WITHOUT_KERBEROS
+/* 1.2.752.43.13.14 */
+static gss_OID_desc gss_krb5_set_allowable_enctypes_x_desc =
+{6, (void *) "\x2a\x85\x70\x2b\x0d\x0e"};
+static gss_OID GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X =
+    &gss_krb5_set_allowable_enctypes_x_desc;
+static gss_OID_desc gss_krb5_mech_oid_x_desc =
+{9, (void *) "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
+static gss_OID GSS_KRB5_MECH_OID_X =
+    &gss_krb5_mech_oid_x_desc;
+#endif
 
 static void gssd_load_mech(void);
 static int find_ccache_file(const char *, uid_t, char *);
 static int is_a_valid_tgt_cache(const char *, uid_t, int *, time_t *);
 static void gssd_verbose_out(const char *, ...);
+#ifndef WITHOUT_KERBEROS
+static krb5_error_code gssd_get_cc_from_keytab(const char *);
+static OM_uint32 gssd_get_user_cred(OM_uint32 *, uid_t, gss_cred_id_t *);
+#endif
+void gssd_terminate(int);
 
 extern void gssd_1(struct svc_req *rqstp, SVCXPRT *transp);
 extern int gssd_syscall(char *path);
@@ -103,10 +123,33 @@ main(int argc, char **argv)
 	pref_realm[0] = '\0';
 	debug = 0;
 	verbose = 0;
-	while ((ch = getopt(argc, argv, "dvs:c:r:")) != -1) {
+	while ((ch = getopt(argc, argv, "dhovs:c:r:")) != -1) {
 		switch (ch) {
 		case 'd':
 			debug_level++;
+			break;
+		case 'h':
+#ifndef WITHOUT_KERBEROS
+			/*
+			 * Enable use of a host based initiator credential
+			 * in the default keytab file.
+			 */
+			hostbased_initiator_cred = 1;
+#else
+			errx(1, "This option not available when built"
+			    " without MK_KERBEROS\n");
+#endif
+			break;
+		case 'o':
+#ifndef WITHOUT_KERBEROS
+			/*
+			 * Force use of DES and the old type of GSSAPI token.
+			 */
+			use_old_des = 1;
+#else
+			errx(1, "This option not available when built"
+			    " without MK_KERBEROS\n");
+#endif
 			break;
 		case 'v':
 			verbose = 1;
@@ -149,8 +192,13 @@ main(int argc, char **argv)
 
 	gssd_load_mech();
 
-	if (!debug_level)
+	if (!debug_level) {
 		daemon(0, 0);
+		signal(SIGINT, SIG_IGN);
+		signal(SIGQUIT, SIG_IGN);
+		signal(SIGHUP, SIG_IGN);
+	}
+	signal(SIGTERM, gssd_terminate);
 
 	memset(&sun, 0, sizeof sun);
 	sun.sun_family = AF_LOCAL;
@@ -336,10 +384,27 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 	gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;
 	gss_name_t name = GSS_C_NO_NAME;
 	char ccname[PATH_MAX + 5 + 1], *cp, *cp2;
-	int gotone;
+	int gotone, gotcred;
+	OM_uint32 min_stat;
+#ifndef WITHOUT_KERBEROS
+	gss_buffer_desc principal_desc;
+	char enctype[sizeof(uint32_t)];
+	int key_enctype;
+	OM_uint32 maj_stat;
+#endif
 
 	memset(result, 0, sizeof(*result));
-	if (ccfile_dirlist[0] != '\0' && argp->cred == 0) {
+	if (hostbased_initiator_cred != 0 && argp->cred != 0 &&
+	    argp->uid == 0) {
+		/*
+		 * These credentials are for a host based initiator name
+		 * in a keytab file, which should now have credentials
+		 * in /tmp/krb5cc_gssd, because gss_acquire_cred() did
+		 * the equivalent of "kinit -k".
+		 */
+		snprintf(ccname, sizeof(ccname), "FILE:%s",
+		    GSSD_CREDENTIAL_CACHE_FILE);
+	} else if (ccfile_dirlist[0] != '\0' && argp->cred == 0) {
 		/*
 		 * For the "-s" case and no credentials provided as an
 		 * argument, search the directory list for an appropriate
@@ -411,7 +476,46 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 			return (TRUE);
 		}
 	}
+	gotcred = 0;
 
+#ifndef WITHOUT_KERBEROS
+	if (use_old_des != 0) {
+		if (cred == GSS_C_NO_CREDENTIAL) {
+			/* Acquire a credential for the uid. */
+			maj_stat = gssd_get_user_cred(&min_stat, argp->uid,
+			    &cred);
+			if (maj_stat == GSS_S_COMPLETE)
+				gotcred = 1;
+			else
+				gssd_verbose_out("gssd_init_sec_context: "
+				    "get user cred failed uid=%d major=0x%x "
+				    "minor=%d\n", (int)argp->uid,
+				    (unsigned int)maj_stat, (int)min_stat);
+		}
+		if (cred != GSS_C_NO_CREDENTIAL) {
+			key_enctype = ETYPE_DES_CBC_CRC;
+			enctype[0] = (key_enctype >> 24) & 0xff;
+			enctype[1] = (key_enctype >> 16) & 0xff;
+			enctype[2] = (key_enctype >> 8) & 0xff;
+			enctype[3] = key_enctype & 0xff;
+			principal_desc.length = sizeof(enctype);
+			principal_desc.value = enctype;
+			result->major_status = gss_set_cred_option(
+			    &result->minor_status, &cred,
+			    GSS_KRB5_SET_ALLOWABLE_ENCTYPES_X,
+			    &principal_desc);
+			gssd_verbose_out("gssd_init_sec_context: set allowable "
+			    "enctype major=0x%x minor=%d\n",
+			    (unsigned int)result->major_status,
+			    (int)result->minor_status);
+			if (result->major_status != GSS_S_COMPLETE) {
+				if (gotcred != 0)
+					gss_release_cred(&min_stat, &cred);
+				return (TRUE);
+			}
+		}
+	}
+#endif
 	result->major_status = gss_init_sec_context(&result->minor_status,
 	    cred, &ctx, name, argp->mech_type,
 	    argp->req_flags, argp->time_req, argp->input_chan_bindings,
@@ -420,6 +524,8 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 	gssd_verbose_out("gssd_init_sec_context: done major=0x%x minor=%d"
 	    " uid=%d\n", (unsigned int)result->major_status,
 	    (int)result->minor_status, (int)argp->uid);
+	if (gotcred != 0)
+		gss_release_cred(&min_stat, &cred);
 
 	if (result->major_status == GSS_S_COMPLETE
 	    || result->major_status == GSS_S_CONTINUE_NEEDED) {
@@ -687,8 +793,58 @@ gssd_acquire_cred_1_svc(acquire_cred_args *argp, acquire_cred_res *result, struc
 	gss_cred_id_t cred;
 	char ccname[PATH_MAX + 5 + 1], *cp, *cp2;
 	int gotone;
+#ifndef WITHOUT_KERBEROS
+	gss_buffer_desc namebuf;
+	uint32_t minstat;
+	krb5_error_code kret;
+#endif
 
 	memset(result, 0, sizeof(*result));
+	if (argp->desired_name) {
+		desired_name = gssd_find_resource(argp->desired_name);
+		if (!desired_name) {
+			result->major_status = GSS_S_BAD_NAME;
+			gssd_verbose_out("gssd_acquire_cred: no desired name"
+			    " found\n");
+			return (TRUE);
+		}
+	}
+
+#ifndef WITHOUT_KERBEROS
+	if (hostbased_initiator_cred != 0 && argp->desired_name != 0 &&
+	    argp->uid == 0 && argp->cred_usage == GSS_C_INITIATE) {
+		/* This is a host based initiator name in the keytab file. */
+		snprintf(ccname, sizeof(ccname), "FILE:%s",
+		    GSSD_CREDENTIAL_CACHE_FILE);
+		setenv("KRB5CCNAME", ccname, TRUE);
+		result->major_status = gss_display_name(&result->minor_status,
+		    desired_name, &namebuf, NULL);
+		gssd_verbose_out("gssd_acquire_cred: desired name for host "
+		    "based initiator cred major=0x%x minor=%d\n",
+		    (unsigned int)result->major_status,
+		    (int)result->minor_status);
+		if (result->major_status != GSS_S_COMPLETE)
+			return (TRUE);
+		if (namebuf.length > PATH_MAX + 5) {
+			result->minor_status = 0;
+			result->major_status = GSS_S_FAILURE;
+			return (TRUE);
+		}
+		memcpy(ccname, namebuf.value, namebuf.length);
+		ccname[namebuf.length] = '\0';
+		if ((cp = strchr(ccname, '@')) != NULL)
+			*cp = '/';
+		kret = gssd_get_cc_from_keytab(ccname);
+		gssd_verbose_out("gssd_acquire_cred: using keytab entry for "
+		    "%s, kerberos ret=%d\n", ccname, (int)kret);
+		gss_release_buffer(&minstat, &namebuf);
+		if (kret != 0) {
+			result->minor_status = kret;
+			result->major_status = GSS_S_FAILURE;
+			return (TRUE);
+		}
+	} else
+#endif /* !WITHOUT_KERBEROS */
 	if (ccfile_dirlist[0] != '\0' && argp->desired_name == 0) {
 		/*
 		 * For the "-s" case and no name provided as an
@@ -714,6 +870,7 @@ gssd_acquire_cred_1_svc(acquire_cred_args *argp, acquire_cred_res *result, struc
 			    " file found\n");
 			return (TRUE);
 		}
+		setenv("KRB5CCNAME", ccname, TRUE);
 	} else {
 		/*
 		 * If there wasn't a "-s" option or the name has
@@ -731,17 +888,7 @@ gssd_acquire_cred_1_svc(acquire_cred_args *argp, acquire_cred_res *result, struc
 		}
 		snprintf(ccname, sizeof(ccname), "FILE:/tmp/krb5cc_%d",
 		    (int) argp->uid);
-	}
-	setenv("KRB5CCNAME", ccname, TRUE);
-
-	if (argp->desired_name) {
-		desired_name = gssd_find_resource(argp->desired_name);
-		if (!desired_name) {
-			result->major_status = GSS_S_BAD_NAME;
-			gssd_verbose_out("gssd_acquire_cred: no desired name"
-			    " found\n");
-			return (TRUE);
-		}
+		setenv("KRB5CCNAME", ccname, TRUE);
 	}
 
 	result->major_status = gss_acquire_cred(&result->minor_status,
@@ -880,6 +1027,8 @@ find_ccache_file(const char *dirpath, uid_t uid, char *rpath)
 		len = snprintf(namepath, sizeof(namepath), "%s/%s", dirpath,
 		    dp->d_name);
 		if (len < sizeof(namepath) &&
+		    (hostbased_initiator_cred == 0 || strcmp(namepath,
+		     GSSD_CREDENTIAL_CACHE_FILE) != 0) &&
 		    strstr(dp->d_name, ccfile_substring) != NULL &&
 		    lstat(namepath, &sb) >= 0 &&
 		    sb.st_uid == uid &&
@@ -1024,5 +1173,117 @@ is_a_valid_tgt_cache(const char *filepath, uid_t uid, int *retrating,
 #else /* WITHOUT_KERBEROS */
 	return (0);
 #endif /* !WITHOUT_KERBEROS */
+}
+
+#ifndef WITHOUT_KERBEROS
+/*
+ * This function attempts to do essentially a "kinit -k" for the principal
+ * name provided as the argument, so that there will be a TGT in the
+ * credential cache.
+ */
+static krb5_error_code
+gssd_get_cc_from_keytab(const char *name)
+{
+	krb5_error_code ret, opt_ret, princ_ret, cc_ret, kt_ret, cred_ret;
+	krb5_context context;
+	krb5_principal principal;
+	krb5_keytab kt;
+	krb5_creds cred;
+	krb5_get_init_creds_opt *opt;
+	krb5_deltat start_time = 0;
+	krb5_ccache ccache;
+
+	ret = krb5_init_context(&context);
+	if (ret != 0)
+		return (ret);
+	opt_ret = cc_ret = kt_ret = cred_ret = 1;	/* anything non-zero */
+	princ_ret = ret = krb5_parse_name(context, name, &principal);
+	if (ret == 0)
+		opt_ret = ret = krb5_get_init_creds_opt_alloc(context, &opt);
+	if (ret == 0)
+		cc_ret = ret = krb5_cc_default(context, &ccache);
+	if (ret == 0)
+		ret = krb5_cc_initialize(context, ccache, principal);
+	if (ret == 0) {
+		krb5_get_init_creds_opt_set_default_flags(context, "gssd",
+		    krb5_principal_get_realm(context, principal), opt);
+		kt_ret = ret = krb5_kt_default(context, &kt);
+	}
+	if (ret == 0)
+		cred_ret = ret = krb5_get_init_creds_keytab(context, &cred,
+		    principal, kt, start_time, NULL, opt);
+	if (ret == 0)
+		ret = krb5_cc_store_cred(context, ccache, &cred);
+	if (kt_ret == 0)
+		krb5_kt_close(context, kt);
+	if (cc_ret == 0)
+		krb5_cc_close(context, ccache);
+	if (opt_ret == 0)
+		krb5_get_init_creds_opt_free(context, opt);
+	if (princ_ret == 0)
+		krb5_free_principal(context, principal);
+	if (cred_ret == 0)
+		krb5_free_cred_contents(context, &cred);
+	krb5_free_context(context);
+	return (ret);
+}
+
+/*
+ * Acquire a gss credential for a uid.
+ */
+static OM_uint32
+gssd_get_user_cred(OM_uint32 *min_statp, uid_t uid, gss_cred_id_t *credp)
+{
+	gss_buffer_desc principal_desc;
+	gss_name_t name;
+	OM_uint32 maj_stat, min_stat;
+	gss_OID_set mechlist;
+	struct passwd *pw;
+
+	pw = getpwuid(uid);
+	if (pw == NULL) {
+		*min_statp = 0;
+		return (GSS_S_FAILURE);
+	}
+
+	/*
+	 * The mechanism must be set to KerberosV for acquisition
+	 * of credentials to work reliably.
+	 */
+	maj_stat = gss_create_empty_oid_set(min_statp, &mechlist);
+	if (maj_stat != GSS_S_COMPLETE)
+		return (maj_stat);
+	maj_stat = gss_add_oid_set_member(min_statp, GSS_KRB5_MECH_OID_X,
+	    &mechlist);
+	if (maj_stat != GSS_S_COMPLETE) {
+		gss_release_oid_set(&min_stat, &mechlist);
+		return (maj_stat);
+	}
+
+	principal_desc.value = (void *)pw->pw_name;
+	principal_desc.length = strlen(pw->pw_name);
+	maj_stat = gss_import_name(min_statp, &principal_desc,
+	    GSS_C_NT_USER_NAME, &name);
+	if (maj_stat != GSS_S_COMPLETE) {
+		gss_release_oid_set(&min_stat, &mechlist);
+		return (maj_stat);
+	}
+	/* Acquire the credentials. */
+	maj_stat = gss_acquire_cred(min_statp, name, 0, mechlist,
+	    GSS_C_INITIATE, credp, NULL, NULL);
+	gss_release_name(&min_stat, &name);
+	gss_release_oid_set(&min_stat, &mechlist);
+	return (maj_stat);
+}
+#endif /* !WITHOUT_KERBEROS */
+
+void gssd_terminate(int sig __unused)
+{
+
+#ifndef WITHOUT_KERBEROS
+	if (hostbased_initiator_cred != 0)
+		unlink(GSSD_CREDENTIAL_CACHE_FILE);
+#endif
+	exit(0);
 }
 

@@ -50,6 +50,11 @@
 #define	NIADDR	3			/* Indirect addresses in inode. */
 
 /*
+ * The size of physical and logical block numbers and time fields in UFS.
+ */
+typedef int32_t	e2fs_lbn_t;
+ 
+/*
  * The inode is used to describe each active (or recently active) file in the
  * EXT2FS filesystem. It is composed of two types of information. The first
  * part is the information that is needed only while the file is active (such
@@ -148,7 +153,7 @@ struct inode {
  * ext2_getlbns and used by truncate and bmap code.
  */
 struct indir {
-	int32_t in_lbn;			/* Logical block number. */
+	e2fs_lbn_t in_lbn;		/* Logical block number. */
 	int	in_off;			/* Offset in buffer. */
 };
 

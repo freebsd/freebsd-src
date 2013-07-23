@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
+#include <sys/vmem.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <geom/geom.h>
@@ -473,10 +474,12 @@ runningbufwakeup(struct buf *bp)
 {
 	long space, bspace;
 
-	if (bp->b_runningbufspace == 0)
-		return;
-	space = atomic_fetchadd_long(&runningbufspace, -bp->b_runningbufspace);
 	bspace = bp->b_runningbufspace;
+	if (bspace == 0)
+		return;
+	space = atomic_fetchadd_long(&runningbufspace, -bspace);
+	KASSERT(space >= bspace, ("runningbufspace underflow %ld %ld",
+	    space, bspace));
 	bp->b_runningbufspace = 0;
 	/*
 	 * Only acquire the lock and wakeup on the transition from exceeding
@@ -560,7 +563,7 @@ waitrunningbufspace(void)
 
 	mtx_lock(&rbreqlock);
 	while (runningbufspace > hirunningspace) {
-		++runningbufreq;
+		runningbufreq = 1;
 		msleep(&runningbufreq, &rbreqlock, PVM, "wdrain", 0);
 	}
 	mtx_unlock(&rbreqlock);
@@ -920,13 +923,13 @@ bfreekva(struct buf *bp)
 	atomic_subtract_long(&bufspace, bp->b_kvasize);
 	if ((bp->b_flags & B_UNMAPPED) == 0) {
 		BUF_CHECK_MAPPED(bp);
-		vm_map_remove(buffer_map, (vm_offset_t)bp->b_kvabase,
-		    (vm_offset_t)bp->b_kvabase + bp->b_kvasize);
+		vmem_free(buffer_arena, (vm_offset_t)bp->b_kvabase,
+		    bp->b_kvasize);
 	} else {
 		BUF_CHECK_UNMAPPED(bp);
 		if ((bp->b_flags & B_KVAALLOC) != 0) {
-			vm_map_remove(buffer_map, (vm_offset_t)bp->b_kvaalloc,
-			    (vm_offset_t)bp->b_kvaalloc + bp->b_kvasize);
+			vmem_free(buffer_arena, (vm_offset_t)bp->b_kvaalloc,
+			    bp->b_kvasize);
 		}
 		atomic_subtract_long(&unmapped_bufspace, bp->b_kvasize);
 		bp->b_flags &= ~(B_UNMAPPED | B_KVAALLOC);
@@ -1691,7 +1694,8 @@ brelse(struct buf *bp)
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
 				VM_OBJECT_WLOCK(obj);
-				vm_page_set_invalid(m, poffset, presid);
+				if (pmap_page_wired_mappings(m) == 0)
+					vm_page_set_invalid(m, poffset, presid);
 				VM_OBJECT_WUNLOCK(obj);
 				if (had_bogus)
 					printf("avoided corruption bug in bogus_page/brelse code\n");
@@ -2019,15 +2023,11 @@ static int
 allocbufkva(struct buf *bp, int maxsize, int gbflags)
 {
 	vm_offset_t addr;
-	int rv;
 
 	bfreekva(bp);
 	addr = 0;
 
-	vm_map_lock(buffer_map);
-	if (vm_map_findspace(buffer_map, vm_map_min(buffer_map), maxsize,
-	    &addr)) {
-		vm_map_unlock(buffer_map);
+	if (vmem_alloc(buffer_arena, maxsize, M_BESTFIT | M_NOWAIT, &addr)) {
 		/*
 		 * Buffer map is too fragmented.  Request the caller
 		 * to defragment the map.
@@ -2035,10 +2035,6 @@ allocbufkva(struct buf *bp, int maxsize, int gbflags)
 		atomic_add_int(&bufdefragcnt, 1);
 		return (1);
 	}
-	rv = vm_map_insert(buffer_map, NULL, 0, addr, addr + maxsize,
-	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
-	KASSERT(rv == KERN_SUCCESS, ("vm_map_insert(buffer_map) rv %d", rv));
-	vm_map_unlock(buffer_map);
 	setbufkva(bp, addr, maxsize, gbflags);
 	atomic_add_long(&bufspace, bp->b_kvasize);
 	return (0);
@@ -2389,7 +2385,7 @@ restart:
  *	We block if:
  *		We have insufficient buffer headers
  *		We have insufficient buffer space
- *		buffer_map is too fragmented ( space reservation fails )
+ *		buffer_arena is too fragmented ( space reservation fails )
  *		If we have to flush dirty buffers ( but we try to avoid this )
  */
 static struct buf *
@@ -3593,7 +3589,7 @@ biodone(struct bio *bp)
 		done(bp);
 	if (transient) {
 		pmap_qremove(start, OFF_TO_IDX(end - start));
-		vm_map_remove(bio_transient_map, start, end);
+		vmem_free(transient_arena, start, end - start);
 		atomic_add_int(&inflight_transient_maps, -1);
 	}
 }
@@ -4492,8 +4488,8 @@ bdata2bio(struct buf *bp, struct bio *bip)
 		bip->bio_flags |= BIO_UNMAPPED;
 		KASSERT(round_page(bip->bio_ma_offset + bip->bio_length) /
 		    PAGE_SIZE == bp->b_npages,
-		    ("Buffer %p too short: %d %d %d", bp, bip->bio_ma_offset,
-		    bip->bio_length, bip->bio_ma_n));
+		    ("Buffer %p too short: %d %lld %d", bp, bip->bio_ma_offset,
+		    (long long)bip->bio_length, bip->bio_ma_n));
 	} else {
 		bip->bio_data = bp->b_data;
 		bip->bio_ma = NULL;

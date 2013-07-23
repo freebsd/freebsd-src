@@ -173,13 +173,13 @@ _citrus_HZ_unpack_state(_HZEncodingInfo * __restrict ei __unused,
 
 static int
 _citrus_HZ_mbrtowc_priv(_HZEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _HZState * __restrict psenc, size_t * __restrict nresult)
 {
 	escape_t *candidate, *init;
 	graphic_t *graphic;
 	const range_t *range;
-	char *s0;
+	const char *s0;
 	wchar_t wc;
 	int bit, ch, head, len, tail;
 
