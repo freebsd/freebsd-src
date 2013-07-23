@@ -166,84 +166,18 @@ static struct val2str ipsec_compnames[] = {
 	{ -1, NULL },
 };
 
-static void ipsec_hist(const u_quad_t *hist, size_t histmax,
-		       const struct val2str *name, const char *title);
 static void print_ipsecstats(const struct ipsecstat *ipsecstat);
-
-
-/*
- * Dump IPSEC statistics structure.
- */
-static void
-ipsec_hist(const u_quad_t *hist, size_t histmax, const struct val2str *name,
-	   const char *title)
-{
-	int first;
-	size_t proto;
-	const struct val2str *p;
-
-	first = 1;
-	for (proto = 0; proto < histmax; proto++) {
-		if (hist[proto] <= 0)
-			continue;
-		if (first) {
-			printf("\t%s histogram:\n", title);
-			first = 0;
-		}
-		for (p = name; p && p->str; p++) {
-			if (p->val == (int)proto)
-				break;
-		}
-		if (p && p->str) {
-			printf("\t\t%s: %ju\n", p->str, (uintmax_t)hist[proto]);
-		} else {
-			printf("\t\t#%ld: %ju\n", (long)proto,
-			    (uintmax_t)hist[proto]);
-		}
-	}
-}
 
 static void
 print_ipsecstats(const struct ipsecstat *ipsecstat)
 {
 #define	p(f, m) if (ipsecstat->f || sflag <= 1) \
     printf(m, (uintmax_t)ipsecstat->f, plural(ipsecstat->f))
-#define	pes(f, m) if (ipsecstat->f || sflag <= 1) \
-    printf(m, (uintmax_t)ipsecstat->f, plurales(ipsecstat->f))
-#define	hist(f, n, t) \
-    ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), (t));
-
-	p(in_success, "\t%ju inbound packet%s processed successfully\n");
-	p(in_polvio, "\t%ju inbound packet%s violated process security "
-	    "policy\n");
-	p(in_nosa, "\t%ju inbound packet%s with no SA available\n");
-	p(in_inval, "\t%ju invalid inbound packet%s\n");
-	p(in_nomem, "\t%ju inbound packet%s failed due to insufficient memory\n");
-	p(in_badspi, "\t%ju inbound packet%s failed getting SPI\n");
-	p(in_ahreplay, "\t%ju inbound packet%s failed on AH replay check\n");
-	p(in_espreplay, "\t%ju inbound packet%s failed on ESP replay check\n");
-	p(in_ahauthsucc, "\t%ju inbound packet%s considered authentic\n");
-	p(in_ahauthfail, "\t%ju inbound packet%s failed on authentication\n");
-	hist(ipsecstat->in_ahhist, ipsec_ahnames, "AH input");
-	hist(ipsecstat->in_esphist, ipsec_espnames, "ESP input");
-	hist(ipsecstat->in_comphist, ipsec_compnames, "IPComp input");
-
-	p(out_success, "\t%ju outbound packet%s processed successfully\n");
-	p(out_polvio, "\t%ju outbound packet%s violated process security "
-	    "policy\n");
-	p(out_nosa, "\t%ju outbound packet%s with no SA available\n");
-	p(out_inval, "\t%ju invalid outbound packet%s\n");
-	p(out_nomem, "\t%ju outbound packet%s failed due to insufficient memory\n");
-	p(out_noroute, "\t%ju outbound packet%s with no route\n");
-	hist(ipsecstat->out_ahhist, ipsec_ahnames, "AH output");
-	hist(ipsecstat->out_esphist, ipsec_espnames, "ESP output");
-	hist(ipsecstat->out_comphist, ipsec_compnames, "IPComp output");
-	p(spdcachelookup, "\t%ju SPD cache lookup%s\n");
-	pes(spdcachemiss, "\t%ju SPD cache miss%s\n");
-#undef pes
-#undef hist
 	p(ips_in_polvio, "\t%ju inbound packet%s violated process "
 		"security policy\n");
+	p(ips_in_nomem, "\t%ju inbound packet%s failed due to "
+		"insufficient memory\n");
+	p(ips_in_inval, "\t%ju invalid inbound packet%s\n");
 	p(ips_out_polvio, "\t%ju outbound packet%s violated process "
 		"security policy\n");
 	p(ips_out_nosa, "\t%ju outbound packet%s with no SA available\n");
