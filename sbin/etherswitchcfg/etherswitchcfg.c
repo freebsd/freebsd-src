@@ -471,8 +471,9 @@ print_vlangroup(struct cfg *cfg, int vlangroup)
 	vg.es_vlangroup = vlangroup;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETVLANGROUP, &vg) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETVLANGROUP)");
-	if (vg.es_vid == 0 && vg.es_member_ports == 0)
+	if ((vg.es_vid & ETHERSWITCH_VID_VALID) == 0)
 		return;
+	vg.es_vid &= ETHERSWITCH_VID_MASK;
 	printf("vlangroup%d:\n", vlangroup);
 	if (cfg->conf.vlan_mode == ETHERSWITCH_VLAN_PORT)
 		printf("\tport: %d\n", vg.es_vid);
