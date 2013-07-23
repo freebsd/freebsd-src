@@ -626,7 +626,9 @@ main(int argc, char *argv[])
 				newmode(&cfg, MODE_PORT);
 			} else if (sscanf(argv[0], "vlangroup%d", &cfg.unit) == 1) {
 				if (cfg.unit < 0 || cfg.unit >= cfg.info.es_nvlangroups)
-					errx(EX_USAGE, "port unit must be between 0 and %d", cfg.info.es_nvlangroups);
+					errx(EX_USAGE,
+					    "vlangroup unit must be between 0 and %d",
+					    cfg.info.es_nvlangroups - 1);
 				newmode(&cfg, MODE_VLANGROUP);
 			} else if (strcmp(argv[0], "config") == 0) {
 				newmode(&cfg, MODE_CONFIG);
