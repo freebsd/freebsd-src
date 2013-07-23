@@ -42,8 +42,6 @@ typedef enum {
 #define	AR8X16_IS_SWITCH(_sc, _type) \
 	    (!!((_sc)->sc_switchtype == AR8X16_SWITCH_ ## _type))
 
-struct arswitch_softc;
-
 struct arswitch_softc {
 	struct mtx	sc_mtx;		/* serialize access to softc */
 	device_t	sc_dev;
