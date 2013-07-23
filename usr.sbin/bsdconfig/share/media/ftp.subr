@@ -174,7 +174,6 @@ f_dialog_menu_media_ftp()
 		' $msg_taiwan #4'         'ftp4.tw.freebsd.org'
 		' $msg_taiwan #6'         'ftp6.tw.freebsd.org'
 		' $msg_taiwan #11'        'ftp11.tw.freebsd.org'
-		'$msg_turkey'             'ftp2.tr.freebsd.org'
 		'$msg_uk'                 'ftp.uk.freebsd.org'
 		' $msg_uk #2'             'ftp2.uk.freebsd.org'
 		' $msg_uk #3'             'ftp3.uk.freebsd.org'
