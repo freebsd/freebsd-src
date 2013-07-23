@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Luiz Otavio O Souza.
  * Copyright (c) 2011-2012 Stefan Bethke.
  * All rights reserved.
  *
@@ -25,21 +26,13 @@
  *
  * $FreeBSD$
  */
-#ifndef	__ARSWITCH_REG_H__
-#define	__ARSWITCH_REG_H__
+#ifndef	__ARSWITCH_VLANS_H__
+#define	__ARSWITCH_VLANS_H__
 
-extern	void arswitch_writedbg(device_t dev, int phy, uint16_t dbg_addr,
-	    uint16_t dbg_data);
+void arswitch_reset_vlans(struct arswitch_softc *);
+int arswitch_getvgroup(device_t, etherswitch_vlangroup_t *);
+int arswitch_setvgroup(device_t, etherswitch_vlangroup_t *);
+int arswitch_get_pvid(struct arswitch_softc *, int, int *);
+int arswitch_set_pvid(struct arswitch_softc *, int, int);
 
-extern	int arswitch_readreg(device_t dev, int addr);
-extern	int arswitch_writereg(device_t dev, int addr, int value);
-extern	int arswitch_modifyreg(device_t dev, int addr, int mask, int set);
-extern	int arswitch_waitreg(device_t, int, int, int, int);
-
-extern	int arswitch_readreg_lsb(device_t dev, int addr);
-extern	int arswitch_readreg_msb(device_t dev, int addr);
-
-extern	int arswitch_writereg_lsb(device_t dev, int addr, int data);
-extern	int arswitch_writereg_msb(device_t dev, int addr, int data);
-
-#endif	/* __ARSWITCH_REG_H__ */
+#endif	/* __ARSWITCH_VLANS_H__ */

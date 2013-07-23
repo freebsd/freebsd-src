@@ -178,3 +178,24 @@ arswitch_modifyreg(device_t dev, int addr, int mask, int set)
 	value |= set;
 	return (arswitch_writereg(dev, addr, value));
 }
+
+int
+arswitch_waitreg(device_t dev, int addr, int mask, int val, int timeout)
+{
+	int err, v;
+
+	err = -1;
+	while (1) {
+		v = arswitch_readreg(dev, addr);
+		v &= mask;
+		if (v == val) {
+			err = 0;
+			break;
+		}
+		if (!timeout)
+			break;
+		DELAY(1);
+		timeout--;
+	}
+	return (err);
+}
