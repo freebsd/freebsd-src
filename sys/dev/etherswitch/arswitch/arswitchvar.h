@@ -57,6 +57,10 @@ struct arswitch_softc {
 	struct callout	callout_tick;
 	etherswitch_info_t info;
 
+	/* VLANs support */
+	int		vid[AR8X16_MAX_VLANS];
+	uint32_t	vlan_mode;
+
 	struct {
 		int (* arswitch_hw_setup) (struct arswitch_softc *);
 		int (* arswitch_hw_global_setup) (struct arswitch_softc *);
