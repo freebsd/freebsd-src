@@ -75,12 +75,6 @@ ar7240_hw_setup(struct arswitch_softc *sc)
 	arswitch_writereg(sc->sc_dev, AR8X16_REG_CPU_PORT,
 	    AR8X16_CPU_PORT_EN | AR8X16_CPU_MIRROR_DIS);
 
-	/*
-	 * Let things settle; probing PHY4 doesn't seem reliable
-	 * without a litle delay.
-	 */
-	DELAY(1000);
-
 	return (0);
 }
 
