@@ -1178,16 +1178,31 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 static int
 ept_fault_type(uint64_t ept_qual)
 {
-	int fault_type = 0;
+	int fault_type;
 
-	if (ept_qual & EPT_VIOLATION_INST_FETCH)
-		fault_type |= VM_PROT_EXECUTE;
-	if (ept_qual & EPT_VIOLATION_DATA_READ)
-		fault_type |= VM_PROT_READ;
 	if (ept_qual & EPT_VIOLATION_DATA_WRITE)
-		fault_type |= VM_PROT_WRITE;
+		fault_type = VM_PROT_WRITE;
+	else if (ept_qual & EPT_VIOLATION_INST_FETCH)
+		fault_type = VM_PROT_EXECUTE;
+	else
+		fault_type= VM_PROT_READ;
 
 	return (fault_type);
+}
+
+static int
+ept_protection(uint64_t ept_qual)
+{
+	int prot = 0;
+
+	if (ept_qual & EPT_VIOLATION_GPA_READABLE)
+		prot |= VM_PROT_READ;
+	if (ept_qual & EPT_VIOLATION_GPA_WRITEABLE)
+		prot |= VM_PROT_WRITE;
+	if (ept_qual & EPT_VIOLATION_GPA_EXECUTABLE)
+		prot |= VM_PROT_EXECUTE;
+
+	return (prot);
 }
 
 static boolean_t
@@ -1342,6 +1357,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
+			vmexit->u.paging.protection = ept_protection(qual);
 		} else if (ept_emulation_fault(qual)) {
 			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 			vmexit->u.inst_emul.gpa = gpa;
