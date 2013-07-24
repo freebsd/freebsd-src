@@ -447,6 +447,15 @@ iwn_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
+#ifdef	IWN_DEBUG
+	error = resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev), "debug", &(sc->sc_debug));
+	if (error != 0)
+		sc->sc_debug = 0;
+#else
+	sc->sc_debug = 0;
+#endif
+
 	/*
 	 * Get the offset of the PCI Express Capability Structure in PCI
 	 * Configuration Space.
@@ -846,13 +855,13 @@ iwn_radiotap_attach(struct iwn_softc *sc)
 static void
 iwn_sysctlattach(struct iwn_softc *sc)
 {
+#ifdef	IWN_DEBUG
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
-#ifdef IWN_DEBUG
-	sc->sc_debug = 0;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "debug", CTLFLAG_RW, &sc->sc_debug, 0, "control debugging printfs");
+	    "debug", CTLFLAG_RW, &sc->sc_debug, sc->sc_debug,
+		"control debugging printfs");
 #endif
 }
 
