@@ -163,7 +163,6 @@ read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
 int
 open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 {
-	struct stat	devstat;
 	char		full_path[64];
 
 	if (!strnstr(str, NVME_CTRLR_PREFIX, strlen(NVME_CTRLR_PREFIX))) {
@@ -173,19 +172,10 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 		if (exit_on_error)
 			exit(1);
 		else
-			return (1);
+			return (EINVAL);
 	}
 
 	snprintf(full_path, sizeof(full_path), "/dev/%s", str);
-	if (stat(full_path, &devstat) != 0) {
-		if (show_error)
-			warn("could not stat %s", full_path);
-		if (exit_on_error)
-			exit(1);
-		else
-			return (1);
-	}
-
 	*fd = open(full_path, O_RDWR);
 	if (*fd < 0) {
 		if (show_error)
@@ -193,7 +183,7 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 		if (exit_on_error)
 			exit(1);
 		else
-			return (1);
+			return (errno);
 	}
 
 	return (0);
