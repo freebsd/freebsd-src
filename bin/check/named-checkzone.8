@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2007, 2009, 2010 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007, 2009, 2010, 2013 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -33,9 +33,9 @@
 named\-checkzone, named\-compilezone \- zone file validity checking or converting tool
 .SH "SYNOPSIS"
 .HP 16
-\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-h\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-M\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-S\ \fR\fB\fImode\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
+\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-h\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-M\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-S\ \fR\fB\fImode\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-T\ \fR\fB\fImode\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
 .HP 18
-\fBnamed\-compilezone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-C\ \fR\fB\fImode\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {\fB\-o\ \fR\fB\fIfilename\fR\fR} {zonename} {filename}
+\fBnamed\-compilezone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-C\ \fR\fB\fImode\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-T\ \fR\fB\fImode\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {\fB\-o\ \fR\fB\fIfilename\fR\fR} {zonename} {filename}
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-checkzone\fR
@@ -236,6 +236,14 @@ Chroot to
 so that include directives in the configuration file are processed as if run by a similarly chrooted named.
 .RE
 .PP
+\-T \fImode\fR
+.RS 4
+Check if Sender Policy Framework records (TXT and SPF) both exist or both don't exist. A warning is issued if they don't match. Possible modes are
+\fB"warn"\fR
+(default),
+\fB"ignore"\fR.
+.RE
+.PP
 \-w \fIdirectory\fR
 .RS 4
 chdir to
@@ -281,7 +289,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2007, 2009, 2010 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007, 2009, 2010, 2013 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2002 Internet Software Consortium.
 .br

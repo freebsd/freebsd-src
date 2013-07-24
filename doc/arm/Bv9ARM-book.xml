@@ -2,7 +2,7 @@
               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -33,6 +33,7 @@
       <year>2010</year>
       <year>2011</year>
       <year>2012</year>
+      <year>2013</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -1480,7 +1481,7 @@ zone "eng.example.com" {
                      <optional><replaceable>view</replaceable></optional></term>
                     <listitem>
                       <para>
-                        Delete a given TKEY-negotated key from the server.
+                        Delete a given TKEY-negotiated key from the server.
                         (This does not apply to statically configured TSIG
                         keys.)
                       </para>
@@ -3274,31 +3275,45 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
               </entry>
               <entry colname="2">
                 <para>
-                  A number, the word <userinput>unlimited</userinput>,
-                  or the word <userinput>default</userinput>.
-                </para>
-		<para>
-                  An <varname>unlimited</varname> <varname>size_spec</varname> requests unlimited
-                  use, or the maximum available amount. A <varname>default size_spec</varname> uses
-                  the limit that was in force when the server was started.
+                  A 64-bit unsigned integer, or the keywords
+                  <userinput>unlimited</userinput> or
+                  <userinput>default</userinput>.
                 </para>
                 <para>
-                  A <varname>number</varname> can optionally be
-		  followed by a scaling factor:
+                  Integers may take values
+                  0 &lt;= value &lt;= 18446744073709551615, though
+                  certain parameters may use a more limited range
+                  within these extremes.  In most cases, setting a
+                  value to 0 does not literally mean zero; it means
+                  "undefined" or "as big as psosible", depending on
+                  the context. See the expalantions of particular
+                  parameters that use <varname>size_spec</varname>
+                  for details on how they interpret its use. 
+                </para>
+                <para>
+                  Numeric values can optionally be followed by a
+                  scaling factor:
 		  <userinput>K</userinput> or <userinput>k</userinput>
 		  for kilobytes,
 		  <userinput>M</userinput> or <userinput>m</userinput>
 		  for megabytes, and
-		  <userinput>G</userinput> or <userinput>g</userinput> for gigabytes,
-                  which scale by 1024, 1024*1024, and 1024*1024*1024
-                  respectively.
+                  <userinput>G</userinput> or <userinput>g</userinput>
+                  for gigabytes, which scale by 1024, 1024*1024, and
+                  1024*1024*1024 respectively.
                 </para>
-                <para>
-                  The value must be representable as a 64-bit unsigned integer
-                  (0 to 18446744073709551615, inclusive).
-                  Using <varname>unlimited</varname> is the best
-                  way
-                  to safely set a really large number.
+		<para>
+                  <varname>unlimited</varname> generally means
+                  "as big as possible", though in certain contexts,
+                  (including <option>max-cache-size</option>), it may
+                  mean the largest possible 32-bit unsigned integer
+                  (0xffffffff); this distinction can be important when
+                  dealing with larger quantities. 
+                  <varname>unlimited</varname> is usually the best way
+                  to safely set a very large number.
+                </para>
+		<para>
+                  <varname>default</varname> 
+                  uses the limit that was in force when the server was started.
                 </para>
               </entry>
             </row>
@@ -4031,7 +4046,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
    [ <command>channel</command> <replaceable>channel_name</replaceable> {
      ( <command>file</command> <replaceable>path_name</replaceable>
          [ <command>versions</command> ( <replaceable>number</replaceable> | <command>unlimited</command> ) ]
-         [ <command>size</command> <replaceable>size spec</replaceable> ]
+         [ <command>size</command> <replaceable>size_spec</replaceable> ]
        | <command>syslog</command> <replaceable>syslog_facility</replaceable>
        | <command>stderr</command>
        | <command>null</command> );
@@ -5057,6 +5072,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> multiple-cnames <replaceable>yes_or_no</replaceable>; </optional>
     <optional> notify <replaceable>yes_or_no</replaceable> | <replaceable>explicit</replaceable> | <replaceable>master-only</replaceable>; </optional>
     <optional> recursion <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> request-nsid <replaceable>yes_or_no</replaceable>; </optional>
     <optional> rfc2308-type1 <replaceable>yes_or_no</replaceable>; </optional>
     <optional> use-id-pool <replaceable>yes_or_no</replaceable>; </optional>
     <optional> maintain-ixfr-base <replaceable>yes_or_no</replaceable>; </optional>
@@ -5083,6 +5099,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> check-mx-cname ( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
     <optional> check-srv-cname ( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
     <optional> check-sibling <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> check-spf ( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
     <optional> allow-new-zones { <replaceable>yes_or_no</replaceable> }; </optional>
     <optional> allow-notify { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
@@ -5216,7 +5233,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<optional> policy given | disabled | passthru | nxdomain | nodata | cname <replaceable>domain</replaceable> </optional>
 	<optional> recursive-only <replaceable>yes_or_no</replaceable> </optional> <optional> max-policy-ttl <replaceable>number</replaceable> </optional> ;
     } <optional> recursive-only <replaceable>yes_or_no</replaceable> </optional> <optional> max-policy-ttl <replaceable>number</replaceable> </optional>
-	<optional> break-dnssec <replaceable>yes_or_no</replaceable> </optional> ; </optional>
+	<optional> break-dnssec <replaceable>yes_or_no</replaceable> </optional> <optional> min-ns-dots <replaceable>number</replaceable> </optional> ; </optional>
 };
 </programlisting>
 
@@ -5374,11 +5391,18 @@ badresp:1,adberr:0,findfail:0,valfail:0]
             <term><command>managed-keys-directory</command></term>
             <listitem>
               <para>
-		The directory used to hold the files used to track managed keys.
-		By default it is the working directory.  It there are no
-		views then the file <filename>managed-keys.bind</filename>
-		otherwise a SHA256 hash of the view name is used with
-		<filename>.mkeys</filename> extension added.
+                Specifies the directory in which to store the files that
+                track managed DNSSEC keys.  By default, this is the working
+                directory.
+              </para>
+              <para>
+                If <command>named</command> is not configured to use views,
+                then managed keys for the server will be tracked in a single
+                file called <filename>managed-keys.bind</filename>.
+                Otherwise, managed keys will be tracked in separate files,
+                one file per view; each file name will be the SHA256 hash
+                of the view name, followed by the extension
+                <filename>.mkeys</filename>.
               </para>
             </listitem>
           </varlistentry>
@@ -5760,7 +5784,8 @@ options {
                 installed along with <acronym>BIND</acronym> 9, and is
                 current as of the release date.  If the DLV key expires, a
                 new copy of <filename>bind.keys</filename> can be downloaded
-                from <ulink>https://www.isc.org/solutions/dlv</ulink>.
+                from <ulink url="https://www.isc.org/solutions/dlv/"
+		>https://www.isc.org/solutions/dlv/</ulink>.
               </para>
               <para>
                 (To prevent problems if <filename>bind.keys</filename> is
@@ -6349,6 +6374,22 @@ options {
             </varlistentry>
 
             <varlistentry>
+              <term><command>request-nsid</command></term>
+              <listitem>
+                <para>
+                  If <userinput>yes</userinput>, then an empty EDNS(0)
+                  NSID (Name Server Identifier) option is sent with all 
+                  queries to authoritative name servers during iterative
+                  resolution. If the authoritative server returns an NSID
+                  option in its response, then its contents are logged in
+                  the <command>resolver</command> category at level
+                  <command>info</command>.
+                  The default is <userinput>no</userinput>.
+                </para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
               <term><command>rfc2308-type1</command></term>
               <listitem>
                 <para>
@@ -6808,6 +6849,13 @@ options {
 		  checks use <command>named-checkzone</command>).
 	          The default is <command>yes</command>.
 		</para>
+		<para>
+		  Check that the two forms of Sender Policy Framework
+		  records (TXT records starting with "v=spf1" and SPF) either
+		  both exist or both don't exist.  Warnings are
+		  emitted it they don't and be suppressed with
+		  <command>check-spf</command>.
+		</para>
 	      </listitem>
 	    </varlistentry>
 
@@ -6839,6 +6887,19 @@ options {
 		<para>
 		  When performing integrity checks, also check that
 		  sibling glue exists.  The default is <command>yes</command>.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>check-spf</command></term>
+	      <listitem>
+		<para>
+		  When performing integrity checks, check that the
+		  two forms of Sender Policy Framwork records (TXT
+		  records starting with "v=spf1" and SPF) both exist
+		  or both don't exist and issue a warning if not
+		  met.  The default is <command>warn</command>.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -7104,6 +7165,12 @@ options {
 		  to allow queries on internal-facing interfaces but
 		  disallow them on external-facing ones, without
 		  necessarily knowing the internal network's addresses.
+		</para>
+		<para>
+                  Note that <command>allow-query-on</command> is only
+                  checked for queries that are permitted by
+                  <command>allow-query</command>.  A query must be
+                  allowed by both ACLs, or it will be refused.
 		</para>
 		<para>
 		  <command>allow-query-on</command> may
@@ -8819,12 +8886,16 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
             built-in view (see <xref linkend="view_statement_grammar"/>) of
             class
             <command>CHAOS</command> which is separate from the
-            default view of
-            class <command>IN</command>; therefore, any global
-            server options
-            such as <command>allow-query</command> do not apply
-            the these zones.
-            If you feel the need to disable these zones, use the options
+            default view of class <command>IN</command>. Most global
+            configuration options (<command>allow-query</command>,
+            etc) will apply to this view, but some are locally
+            overridden: <command>notify</command>,
+            <command>recursion</command> and
+            <command>allow-new-zones</command> are
+            always set to <userinput>no</userinput>.
+          </para>
+          <para>
+            If you need to disable these zones, use the options
             below, or hide the built-in <command>CHAOS</command>
             view by
             defining an explicit view of class <command>CHAOS</command>
@@ -8897,7 +8968,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	    servers.  The official servers which cover these namespaces
 	    return NXDOMAIN responses to these queries.  In particular,
             these cover the reverse namespaces for addresses from
-            RFC 1918, RFC 4193, and RFC 5737.  They also include the
+            RFC 1918, RFC 4193, RFC 5737 and RFC 6598.  They also include the
             reverse namespace for IPv6 local address (locally assigned),
             IPv6 link local addresses, the IPv6 loopback address and the
             IPv6 unknown address.
@@ -8928,6 +8999,70 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	      <listitem>30.172.IN-ADDR.ARPA</listitem>
 	      <listitem>31.172.IN-ADDR.ARPA</listitem>
 	      <listitem>168.192.IN-ADDR.ARPA</listitem>
+	      <listitem>64.100.IN-ADDR.ARPA</listitem>
+	      <listitem>65.100.IN-ADDR.ARPA</listitem>
+	      <listitem>66.100.IN-ADDR.ARPA</listitem>
+	      <listitem>67.100.IN-ADDR.ARPA</listitem>
+	      <listitem>68.100.IN-ADDR.ARPA</listitem>
+	      <listitem>69.100.IN-ADDR.ARPA</listitem>
+	      <listitem>70.100.IN-ADDR.ARPA</listitem>
+	      <listitem>71.100.IN-ADDR.ARPA</listitem>
+	      <listitem>72.100.IN-ADDR.ARPA</listitem>
+	      <listitem>73.100.IN-ADDR.ARPA</listitem>
+	      <listitem>74.100.IN-ADDR.ARPA</listitem>
+	      <listitem>75.100.IN-ADDR.ARPA</listitem>
+	      <listitem>76.100.IN-ADDR.ARPA</listitem>
+	      <listitem>77.100.IN-ADDR.ARPA</listitem>
+	      <listitem>78.100.IN-ADDR.ARPA</listitem>
+	      <listitem>79.100.IN-ADDR.ARPA</listitem>
+	      <listitem>80.100.IN-ADDR.ARPA</listitem>
+	      <listitem>81.100.IN-ADDR.ARPA</listitem>
+	      <listitem>82.100.IN-ADDR.ARPA</listitem>
+	      <listitem>83.100.IN-ADDR.ARPA</listitem>
+	      <listitem>84.100.IN-ADDR.ARPA</listitem>
+	      <listitem>85.100.IN-ADDR.ARPA</listitem>
+	      <listitem>86.100.IN-ADDR.ARPA</listitem>
+	      <listitem>87.100.IN-ADDR.ARPA</listitem>
+	      <listitem>88.100.IN-ADDR.ARPA</listitem>
+	      <listitem>89.100.IN-ADDR.ARPA</listitem>
+	      <listitem>90.100.IN-ADDR.ARPA</listitem>
+	      <listitem>91.100.IN-ADDR.ARPA</listitem>
+	      <listitem>92.100.IN-ADDR.ARPA</listitem>
+	      <listitem>93.100.IN-ADDR.ARPA</listitem>
+	      <listitem>94.100.IN-ADDR.ARPA</listitem>
+	      <listitem>95.100.IN-ADDR.ARPA</listitem>
+	      <listitem>96.100.IN-ADDR.ARPA</listitem>
+	      <listitem>97.100.IN-ADDR.ARPA</listitem>
+	      <listitem>98.100.IN-ADDR.ARPA</listitem>
+	      <listitem>99.100.IN-ADDR.ARPA</listitem>
+	      <listitem>100.100.IN-ADDR.ARPA</listitem>
+	      <listitem>101.100.IN-ADDR.ARPA</listitem>
+	      <listitem>102.100.IN-ADDR.ARPA</listitem>
+	      <listitem>103.100.IN-ADDR.ARPA</listitem>
+	      <listitem>104.100.IN-ADDR.ARPA</listitem>
+	      <listitem>105.100.IN-ADDR.ARPA</listitem>
+	      <listitem>106.100.IN-ADDR.ARPA</listitem>
+	      <listitem>107.100.IN-ADDR.ARPA</listitem>
+	      <listitem>108.100.IN-ADDR.ARPA</listitem>
+	      <listitem>109.100.IN-ADDR.ARPA</listitem>
+	      <listitem>110.100.IN-ADDR.ARPA</listitem>
+	      <listitem>111.100.IN-ADDR.ARPA</listitem>
+	      <listitem>112.100.IN-ADDR.ARPA</listitem>
+	      <listitem>113.100.IN-ADDR.ARPA</listitem>
+	      <listitem>114.100.IN-ADDR.ARPA</listitem>
+	      <listitem>115.100.IN-ADDR.ARPA</listitem>
+	      <listitem>116.100.IN-ADDR.ARPA</listitem>
+	      <listitem>117.100.IN-ADDR.ARPA</listitem>
+	      <listitem>118.100.IN-ADDR.ARPA</listitem>
+	      <listitem>119.100.IN-ADDR.ARPA</listitem>
+	      <listitem>120.100.IN-ADDR.ARPA</listitem>
+	      <listitem>121.100.IN-ADDR.ARPA</listitem>
+	      <listitem>122.100.IN-ADDR.ARPA</listitem>
+	      <listitem>123.100.IN-ADDR.ARPA</listitem>
+	      <listitem>124.100.IN-ADDR.ARPA</listitem>
+	      <listitem>125.100.IN-ADDR.ARPA</listitem>
+	      <listitem>126.100.IN-ADDR.ARPA</listitem>
+	      <listitem>127.100.IN-ADDR.ARPA</listitem>
 	      <listitem>0.IN-ADDR.ARPA</listitem>
 	      <listitem>127.IN-ADDR.ARPA</listitem>
 	      <listitem>254.169.IN-ADDR.ARPA</listitem>
@@ -9188,7 +9323,7 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	    to get access to an internal node of your local network
 	    that couldn't be externally accessed otherwise.
 	    See the paper available at
-	    <ulink>
+	    <ulink url="http://portal.acm.org/citation.cfm?id=1315245.1315298">
 	    http://portal.acm.org/citation.cfm?id=1315245.1315298
 	    </ulink>
 	    for more details about the attacks.
@@ -9328,14 +9463,15 @@ deny-answer-aliases { "example.net"; };
 	    They are encoded as subdomains of
 	    <userinput>rpz-nsdomain</userinput> relativized
 	    to the RPZ origin name.
-	  </para>
-
-	  <para>
 	    NSIP triggers match IP addresses in A and
 	    AAAA RRsets for domains that can be checked against NSDNAME
 	    policy records.
 	    NSIP triggers are encoded like IP triggers except as subdomains of
 	    <userinput>rpz-nsip</userinput>.
+	    NSDNAME and NSIP triggers are checked only for names with at
+	    least <command>min-ns-dots</command> dots.
+	    The default value of <command>min-ns-dots</command> is 1 to
+	    exclude top level domains.
 	  </para>
 
 	  <para>
@@ -9375,17 +9511,6 @@ deny-answer-aliases { "example.net"; };
 	  </para>
 
 	  <para>
-	    Authority verification issues and variations in authority data
-	    can cause inconsistent results for NSIP and NSDNAME policy records.
-	    Glue NS records often differ from authoritative NS records.
-	    So they are available
-	    only when <acronym>BIND</acronym> is built with the
-	    <userinput>--enable-rpz-nsip</userinput> or
-	    <userinput>--enable-rpz-nsdname</userinput> options
-	    on the "configure" command line.
-	  </para>
-
-	  <para>
 	    RPZ record sets are sets of any types of DNS record except
 	    DNAME or DNSSEC that encode actions or responses to queries.
 	    <itemizedlist>
@@ -9409,7 +9534,7 @@ deny-answer-aliases { "example.net"; };
 		walled garden's authority DNS server.
 	      </listitem>
 	      <listitem>The <command>PASSTHRU</command> policy is specified
-		by a CNAME whose target is <command>rpz_passthru.</command>
+		by a CNAME whose target is <command>rpz-passthru.</command>
 		It causes the response to not be rewritten
 		and is most often used to "poke holes" in policies for
 		CIDR blocks.
@@ -9523,6 +9648,26 @@ bzone.domain.com        CNAME   garden.example.com.
 ns.domain.com.rpz-nsdname   CNAME   .
 48.zz.2.2001.rpz-nsip       CNAME   .
 </programlisting>
+          <para>
+            RPZ can affect server performance.
+            Each configured response policy zone requires the server to
+            perform one to four additional database lookups before a
+            query can be answered.
+            For example, a DNS server with four policy zones, each with all
+            four kinds of response triggers, QNAME, IP, NSIP, and
+            NSDNAME, requires a total of 17 times as many database
+            lookups as a similar DNS server with no response policy zones.
+            A <acronym>BIND9</acronym> server with adequate memory and one
+            response policy zone with QNAME and IP triggers might achieve a
+            maximum queries-per-second rate about 20% lower.
+            A server with four response policy zones with QNAME and IP
+            triggers might have a maximum QPS rate about 50% lower.
+          </para>
+
+          <para>
+            Responses rewritten by RPZ are counted in the
+            <command>RPZRewrites</command> statistics.
+          </para>
         </sect3>
       </sect2>
 
@@ -9864,8 +10009,8 @@ ns.domain.com.rpz-nsdname   CNAME   .
           <title><command>managed-keys</command> Statement Grammar</title>
 
 <programlisting><command>managed-keys</command> {
-    <replaceable>string</replaceable> initial-key <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ;
-    <optional> <replaceable>string</replaceable> initial-key <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ; <optional>...</optional></optional>
+    <replaceable>name</replaceable> <literal>initial-key</literal> <replaceable>flags</replaceable> <replaceable>protocol</replaceable> <replaceable>algorithm</replaceable> <replaceable>key-data</replaceable> ;
+    <optional> <replaceable>name</replaceable> <literal>initial-key</literal> <replaceable>flags</replaceable> <replaceable>protocol</replaceable> <replaceable>algorithm</replaceable> <replaceable>key-data</replaceable> ; <optional>...</optional></optional>
 };
 </programlisting>
 
@@ -9973,13 +10118,16 @@ ns.domain.com.rpz-nsdname   CNAME   .
             <command>named</command>.)
 	  </para>
 	  <para>
-	    If the <command>dnssec-lookaside</command> option is
+	    If the <command>dnssec-validation</command> option is
 	    set to <userinput>auto</userinput>, <command>named</command>
 	    will automatically initialize a managed key for the
-	    zone <literal>dlv.isc.org</literal>.  The key that is
-	    used to initialize the key maintenance process is built
-	    into <command>named</command>, and can be overridden
-	    from <command>bindkeys-file</command>.
+            root zone.  Similarly, if the <command>dnssec-lookaside</command>
+            option is set to <userinput>auto</userinput>,
+            <command>named</command> will automatically initialize
+            a managed key for the zone <literal>dlv.isc.org</literal>.
+            In both cases, the key that is used to initialize the key
+            maintenance process is built into <command>named</command>,
+            and can be overridden from <command>bindkeys-file</command>.
 	  </para>
 	</sect2>
 
@@ -10141,6 +10289,7 @@ view "external" {
     <optional> check-names (<constant>warn</constant>|<constant>fail</constant>|<constant>ignore</constant>) ; </optional>
     <optional> check-mx (<constant>warn</constant>|<constant>fail</constant>|<constant>ignore</constant>) ; </optional>
     <optional> check-wildcard <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> check-spf ( <replaceable>warn</replaceable> | <replaceable>fail</replaceable> | <replaceable>ignore</replaceable> ); </optional>
     <optional> check-integrity <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> dialup <replaceable>dialup_option</replaceable> ; </optional>
     <optional> file <replaceable>string</replaceable> ; </optional>
@@ -10702,6 +10851,16 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     See the description of
                     <command>check-mx</command> in <xref linkend="boolean_options"/>.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+              <varlistentry>
+                <term><command>check-spf</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>check-spf</command> in <xref linkend="boolean_options"/>.
                   </para>
                 </listitem>
               </varlistentry>
@@ -14094,6 +14253,19 @@ HOST-127.EXAMPLE. MX 0 .
 		      </para>
 		    </entry>
 		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para><command>RPZRewrites</command></para>
+		    </entry>
+		    <entry colname="2">
+		      <para><command></command></para>
+		    </entry>
+		    <entry colname="3">
+		      <para>
+			Response policy zone rewrites.
+		      </para>
+		    </entry>
+		  </row>
 		</tbody>
               </tgroup>
             </informaltable>
@@ -14914,14 +15086,6 @@ zone "example.com" {
         <para>
           This allows recursive queries of the server from the outside
           unless recursion has been previously disabled.
-        </para>
-        <para>
-          For more information on how to use ACLs to protect your server,
-          see the <emphasis>AUSCERT</emphasis> advisory at:
-        </para>
-        <para>
-          <ulink url="ftp://ftp.auscert.org.au/pub/auscert/advisory/AL-1999.004.dns_dos"
-	             >ftp://ftp.auscert.org.au/pub/auscert/advisory/AL-1999.004.dns_dos</ulink>
         </para>
       </sect1>
       <sect1>

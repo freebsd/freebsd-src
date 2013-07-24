@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -56,6 +56,7 @@
 typedef enum {
 	allow_notify,
 	allow_query,
+	allow_query_on,
 	allow_transfer,
 	allow_update,
 	allow_update_forwarding
@@ -103,6 +104,11 @@ configure_zone_acl(const cfg_obj_t *zconfig, const cfg_obj_t *vconfig,
 		if (view != NULL)
 			aclp = &view->queryacl;
 		aclname = "allow-query";
+		break;
+	    case allow_query_on:
+		if (view != NULL)
+			aclp = &view->queryonacl;
+		aclname = "allow-query-on";
 		break;
 	    case allow_transfer:
 		if (view != NULL)
@@ -269,7 +275,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 
 		dns_fixedname_init(&fident);
 		str = cfg_obj_asstring(identity);
-		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_constinit(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		result = dns_name_fromtext(dns_fixedname_name(&fident), &b,
 					   dns_rootname, 0, NULL);
@@ -292,7 +298,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 			}
 		} else {
 			str = cfg_obj_asstring(dname);
-			isc_buffer_init(&b, str, strlen(str));
+			isc_buffer_constinit(&b, str, strlen(str));
 			isc_buffer_add(&b, strlen(str));
 			result = dns_name_fromtext(dns_fixedname_name(&fname),
 						   &b, dns_rootname, 0, NULL);
@@ -525,7 +531,7 @@ configure_staticstub_servernames(const cfg_obj_t *zconfig, dns_zone_t *zone,
 		dns_fixedname_init(&fixed_name);
 		nsname = dns_fixedname_name(&fixed_name);
 
-		isc_buffer_init(&b, str, strlen(str));
+		isc_buffer_constinit(&b, str, strlen(str));
 		isc_buffer_add(&b, strlen(str));
 		result = dns_name_fromtext(nsname, &b, dns_rootname, 0, NULL);
 		if (result != ISC_R_SUCCESS) {
@@ -934,6 +940,11 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 				  dns_zone_setqueryacl,
 				  dns_zone_clearqueryacl));
 
+	RETERR(configure_zone_acl(zconfig, vconfig, config,
+				  allow_query_on, ac, zone,
+				  dns_zone_setqueryonacl,
+				  dns_zone_clearqueryonacl));
+
 	obj = NULL;
 	result = ns_config_get(maps, "dialup", &obj);
 	INSIST(result == ISC_R_SUCCESS && obj != NULL);
@@ -1110,6 +1121,17 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		INSIST(result == ISC_R_SUCCESS && obj != NULL);
 		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKSIBLING,
 				   cfg_obj_asboolean(obj));
+
+		obj = NULL;
+		result = ns_config_get(maps, "check-spf", &obj);
+		INSIST(result == ISC_R_SUCCESS && obj != NULL);
+		if (strcasecmp(cfg_obj_asstring(obj), "warn") == 0) {
+			check = ISC_TRUE;
+		} else if (strcasecmp(cfg_obj_asstring(obj), "ignore") == 0) {
+			check = ISC_FALSE;
+		} else
+			INSIST(0);
+		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKSPF, check);
 
 		obj = NULL;
 		result = ns_config_get(maps, "zero-no-soa-ttl", &obj);

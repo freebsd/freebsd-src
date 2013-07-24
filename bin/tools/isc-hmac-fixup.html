@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2013 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">isc-hmac-fixup</code>  {<em class="replaceable"><code>algorithm</code></em>} {<em class="replaceable"><code>secret</code></em>}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543352"></a><h2>DESCRIPTION</h2>
+<a name="id2543355"></a><h2>DESCRIPTION</h2>
 <p>
       Versions of BIND 9 up to and including BIND 9.6 had a bug causing
       HMAC-SHA* TSIG keys which were longer than the digest length of the
@@ -57,7 +57,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543376"></a><h2>SECURITY CONSIDERATIONS</h2>
+<a name="id2543379"></a><h2>SECURITY CONSIDERATIONS</h2>
 <p>
       Secrets that have been converted by <span><strong class="command">isc-hmac-fixup</strong></span>
       are shortened, but as this is how the HMAC protocol works in
@@ -68,14 +68,14 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543389"></a><h2>SEE ALSO</h2>
+<a name="id2543393"></a><h2>SEE ALSO</h2>
 <p>
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 2104</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543406"></a><h2>AUTHOR</h2>
+<a name="id2543410"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
