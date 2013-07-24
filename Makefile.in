@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -61,9 +61,21 @@ tags:
 	rm -f TAGS
 	find lib bin -name "*.[ch]" -print | @ETAGS@ -
 
-check: test
+test check:
+	@if test -n "`${PERL} ${top_srcdir}/bin/tests/system/testsock.pl 2>&- || echo fail`"; then \
+	echo I: NOTE: The tests were not run because they require that; \
+	echo I:	the IP addresses 10.53.0.1 through 10.53.0.8 are configured; \
+	echo I:	as alias addresses on the loopback interface.  Please run; \
+	echo I:	\'bin/tests/system/ifconfig.sh up\' as root to configure; \
+	echo I:	them, then rerun the tests. Run make force-test to run the; \
+	echo I:	tests anyway.; \
+	exit 1; \
+	fi
+	${MAKE} test-force
 
-test:
+force-test: test-force
+
+test-force:
 	status=0; \
 	(cd bin/tests && ${MAKE} ${MAKEDEFS} test) || status=1; \
 	(test -f unit/unittest.sh && $(SHELL) unit/unittest.sh) || status=1; \

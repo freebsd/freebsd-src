@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -21,6 +21,7 @@
 
 #include <config.h>
 
+#include <isc/log.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
@@ -274,4 +275,162 @@ dns_nsec_nseconly(dns_db_t *db, dns_dbversion_t *version,
 		result = ISC_R_SUCCESS;
 	}
 	return (result);
+}
+
+/*%
+ * Return ISC_R_SUCCESS if we can determine that the name doesn't exist
+ * or we can determine whether there is data or not at the name.
+ * If the name does not exist return the wildcard name.
+ *
+ * Return ISC_R_IGNORE when the NSEC is not the appropriate one.
+ */
+isc_result_t
+dns_nsec_noexistnodata(dns_rdatatype_t type, dns_name_t *name,
+		       dns_name_t *nsecname, dns_rdataset_t *nsecset,
+		       isc_boolean_t *exists, isc_boolean_t *data,
+		       dns_name_t *wild, dns_nseclog_t logit, void *arg)
+{
+	int order;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	isc_result_t result;
+	dns_namereln_t relation;
+	unsigned int olabels, nlabels, labels;
+	dns_rdata_nsec_t nsec;
+	isc_boolean_t atparent;
+	isc_boolean_t ns;
+	isc_boolean_t soa;
+
+	REQUIRE(exists != NULL);
+	REQUIRE(data != NULL);
+	REQUIRE(nsecset != NULL &&
+		nsecset->type == dns_rdatatype_nsec);
+
+	result = dns_rdataset_first(nsecset);
+	if (result != ISC_R_SUCCESS) {
+		(*logit)(arg, ISC_LOG_DEBUG(3), "failure processing NSEC set");
+		return (result);
+	}
+	dns_rdataset_current(nsecset, &rdata);
+
+	(*logit)(arg, ISC_LOG_DEBUG(3), "looking for relevant NSEC");
+	relation = dns_name_fullcompare(name, nsecname, &order, &olabels);
+
+	if (order < 0) {
+		/*
+		 * The name is not within the NSEC range.
+		 */
+		(*logit)(arg, ISC_LOG_DEBUG(3),
+			      "NSEC does not cover name, before NSEC");
+		return (ISC_R_IGNORE);
+	}
+
+	if (order == 0) {
+		/*
+		 * The names are the same.   If we are validating "."
+		 * then atparent should not be set as there is no parent.
+		 */
+		atparent = (olabels != 1) && dns_rdatatype_atparent(type);
+		ns = dns_nsec_typepresent(&rdata, dns_rdatatype_ns);
+		soa = dns_nsec_typepresent(&rdata, dns_rdatatype_soa);
+		if (ns && !soa) {
+			if (!atparent) {
+				/*
+				 * This NSEC record is from somewhere higher in
+				 * the DNS, and at the parent of a delegation.
+				 * It can not be legitimately used here.
+				 */
+				(*logit)(arg, ISC_LOG_DEBUG(3),
+					      "ignoring parent nsec");
+				return (ISC_R_IGNORE);
+			}
+		} else if (atparent && ns && soa) {
+			/*
+			 * This NSEC record is from the child.
+			 * It can not be legitimately used here.
+			 */
+			(*logit)(arg, ISC_LOG_DEBUG(3),
+				      "ignoring child nsec");
+			return (ISC_R_IGNORE);
+		}
+		if (type == dns_rdatatype_cname || type == dns_rdatatype_nxt ||
+		    type == dns_rdatatype_nsec || type == dns_rdatatype_key ||
+		    !dns_nsec_typepresent(&rdata, dns_rdatatype_cname)) {
+			*exists = ISC_TRUE;
+			*data = dns_nsec_typepresent(&rdata, type);
+			(*logit)(arg, ISC_LOG_DEBUG(3),
+				      "nsec proves name exists (owner) data=%d",
+				      *data);
+			return (ISC_R_SUCCESS);
+		}
+		(*logit)(arg, ISC_LOG_DEBUG(3), "NSEC proves CNAME exists");
+		return (ISC_R_IGNORE);
+	}
+
+	if (relation == dns_namereln_subdomain &&
+	    dns_nsec_typepresent(&rdata, dns_rdatatype_ns) &&
+	    !dns_nsec_typepresent(&rdata, dns_rdatatype_soa))
+	{
+		/*
+		 * This NSEC record is from somewhere higher in
+		 * the DNS, and at the parent of a delegation.
+		 * It can not be legitimately used here.
+		 */
+		(*logit)(arg, ISC_LOG_DEBUG(3), "ignoring parent nsec");
+		return (ISC_R_IGNORE);
+	}
+
+	result = dns_rdata_tostruct(&rdata, &nsec, NULL);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+	relation = dns_name_fullcompare(&nsec.next, name, &order, &nlabels);
+	if (order == 0) {
+		dns_rdata_freestruct(&nsec);
+		(*logit)(arg, ISC_LOG_DEBUG(3),
+			      "ignoring nsec matches next name");
+		return (ISC_R_IGNORE);
+	}
+
+	if (order < 0 && !dns_name_issubdomain(nsecname, &nsec.next)) {
+		/*
+		 * The name is not within the NSEC range.
+		 */
+		dns_rdata_freestruct(&nsec);
+		(*logit)(arg, ISC_LOG_DEBUG(3),
+			    "ignoring nsec because name is past end of range");
+		return (ISC_R_IGNORE);
+	}
+
+	if (order > 0 && relation == dns_namereln_subdomain) {
+		(*logit)(arg, ISC_LOG_DEBUG(3),
+			      "nsec proves name exist (empty)");
+		dns_rdata_freestruct(&nsec);
+		*exists = ISC_TRUE;
+		*data = ISC_FALSE;
+		return (ISC_R_SUCCESS);
+	}
+	if (wild != NULL) {
+		dns_name_t common;
+		dns_name_init(&common, NULL);
+		if (olabels > nlabels) {
+			labels = dns_name_countlabels(nsecname);
+			dns_name_getlabelsequence(nsecname, labels - olabels,
+						  olabels, &common);
+		} else {
+			labels = dns_name_countlabels(&nsec.next);
+			dns_name_getlabelsequence(&nsec.next, labels - nlabels,
+						  nlabels, &common);
+		}
+		result = dns_name_concatenate(dns_wildcardname, &common,
+					       wild, NULL);
+		if (result != ISC_R_SUCCESS) {
+			dns_rdata_freestruct(&nsec);
+			(*logit)(arg, ISC_LOG_DEBUG(3),
+				    "failure generating wildcard name");
+			return (result);
+		}
+	}
+	dns_rdata_freestruct(&nsec);
+	(*logit)(arg, ISC_LOG_DEBUG(3), "nsec range ok");
+	*exists = ISC_FALSE;
+	return (ISC_R_SUCCESS);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -794,6 +794,7 @@ make_empty_lookup(void) {
 	dns_fixedname_init(&looknew->fdomain);
 	ISC_LINK_INIT(looknew, link);
 	ISC_LIST_INIT(looknew->q);
+	ISC_LIST_INIT(looknew->connecting);
 	ISC_LIST_INIT(looknew->my_server_list);
 	return (looknew);
 }
@@ -815,11 +816,11 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 
 	looknew = make_empty_lookup();
 	INSIST(looknew != NULL);
-	strncpy(looknew->textname, lookold->textname, MXNAME);
+	strlcpy(looknew->textname, lookold->textname, MXNAME);
 #if DIG_SIGCHASE_TD
-	strncpy(looknew->textnamesigchase, lookold->textnamesigchase, MXNAME);
+	strlcpy(looknew->textnamesigchase, lookold->textnamesigchase, MXNAME);
 #endif
-	strncpy(looknew->cmdline, lookold->cmdline, MXNAME);
+	strlcpy(looknew->cmdline, lookold->cmdline, MXNAME);
 	looknew->textname[MXNAME-1] = 0;
 	looknew->rdtype = lookold->rdtype;
 	looknew->qrdtype = lookold->qrdtype;
@@ -998,7 +999,7 @@ parse_hmac(const char *hmac) {
 	len = strlen(hmac);
 	if (len >= (int) sizeof(buf))
 		fatal("unknown key type '%.*s'", len, hmac);
-	strncpy(buf, hmac, sizeof(buf));
+	strlcpy(buf, hmac, sizeof(buf));
 
 	digestbits = 0;
 
@@ -1080,8 +1081,8 @@ read_confkey(void) {
 	secretstr = cfg_obj_asstring(secretobj);
 	algorithm = cfg_obj_asstring(algorithmobj);
 
-	strncpy(keynametext, keyname, sizeof(keynametext));
-	strncpy(keysecret, secretstr, sizeof(keysecret));
+	strlcpy(keynametext, keyname, sizeof(keynametext));
+	strlcpy(keysecret, secretstr, sizeof(keysecret));
 	parse_hmac(algorithm);
 	setup_text_key();
 
@@ -1164,7 +1165,7 @@ make_searchlist_entry(char *domain) {
 	if (search == NULL)
 		fatal("memory allocation failure in %s:%d",
 		      __FILE__, __LINE__);
-	strncpy(search->origin, domain, MXNAME);
+	strlcpy(search->origin, domain, MXNAME);
 	search->origin[MXNAME-1] = 0;
 	ISC_LINK_INIT(search, link);
 	return (search);
@@ -1473,7 +1474,10 @@ clear_query(dig_query_t *query) {
 	if (lookup->current_query == query)
 		lookup->current_query = NULL;
 
-	ISC_LIST_UNLINK(lookup->q, query, link);
+	if (ISC_LINK_LINKED(query, link))
+		ISC_LIST_UNLINK(lookup->q, query, link);
+	if (ISC_LINK_LINKED(query, clink))
+		ISC_LIST_UNLINK(lookup->connecting, query, clink);
 	if (ISC_LINK_LINKED(&query->recvbuf, link))
 		ISC_LIST_DEQUEUE(query->recvlist, &query->recvbuf,
 				 link);
@@ -1481,6 +1485,7 @@ clear_query(dig_query_t *query) {
 		ISC_LIST_DEQUEUE(query->lengthlist, &query->lengthbuf,
 				 link);
 	INSIST(query->recvspace != NULL);
+
 	if (query->sock != NULL) {
 		isc_socket_detach(&query->sock);
 		sockcount--;
@@ -1508,12 +1513,21 @@ try_clear_lookup(dig_lookup_t *lookup) {
 
 	debug("try_clear_lookup(%p)", lookup);
 
-	if (ISC_LIST_HEAD(lookup->q) != NULL) {
+	if (ISC_LIST_HEAD(lookup->q) != NULL ||
+	    ISC_LIST_HEAD(lookup->connecting) != NULL)
+	{
 		if (debugging) {
 			q = ISC_LIST_HEAD(lookup->q);
 			while (q != NULL) {
 				debug("query to %s still pending", q->servname);
 				q = ISC_LIST_NEXT(q, link);
+			}
+
+			q = ISC_LIST_HEAD(lookup->connecting);
+			while (q != NULL) {
+				debug("query to %s still connecting",
+				      q->servname);
+				q = ISC_LIST_NEXT(q, clink);
 			}
 		}
 		return (ISC_FALSE);
@@ -1642,7 +1656,7 @@ start_lookup(void) {
 				= current_lookup->rdclassset;
 			current_lookup->rdclass = dns_rdataclass_in;
 
-			strncpy(current_lookup->textnamesigchase,
+			strlcpy(current_lookup->textnamesigchase,
 				current_lookup->textname, MXNAME);
 
 			current_lookup->trace_root_sigchase = ISC_TRUE;
@@ -1654,7 +1668,7 @@ start_lookup(void) {
 			check_result(result, "dns_name_totext");
 			isc_buffer_usedregion(b, &r);
 			r.base[r.length] = '\0';
-			strncpy(current_lookup->textname, (char*)r.base,
+			strlcpy(current_lookup->textname, (char*)r.base,
 				MXNAME);
 			isc_buffer_free(&b);
 
@@ -2290,7 +2304,6 @@ setup_lookup(dig_lookup_t *lookup) {
 		query->rr_count = 0;
 		query->msg_count = 0;
 		query->byte_count = 0;
-		ISC_LINK_INIT(query, link);
 		ISC_LIST_INIT(query->recvlist);
 		ISC_LIST_INIT(query->lengthlist);
 		query->sock = NULL;
@@ -2303,6 +2316,7 @@ setup_lookup(dig_lookup_t *lookup) {
 		isc_buffer_init(&query->slbuf, query->slspace, 2);
 		query->sendbuf = lookup->renderbuf;
 
+		ISC_LINK_INIT(query, clink);
 		ISC_LINK_INIT(query, link);
 		ISC_LIST_ENQUEUE(lookup->q, query, link);
 	}
@@ -2424,6 +2438,7 @@ static void
 force_timeout(dig_lookup_t *l, dig_query_t *query) {
 	isc_event_t *event;
 
+	debug("force_timeout ()");
 	event = isc_event_allocate(mctx, query, ISC_TIMEREVENT_IDLE,
 				   connect_timeout, l,
 				   sizeof(isc_event_t));
@@ -2491,6 +2506,7 @@ send_tcp_connect(dig_query_t *query) {
 		send_tcp_connect(next);
 		return;
 	}
+
 	INSIST(query->sock == NULL);
 	result = isc_socket_create(socketmgr,
 				   isc_sockaddr_pf(&query->sockaddr),
@@ -2521,6 +2537,9 @@ send_tcp_connect(dig_query_t *query) {
 	if (l->ns_search_only && !l->trace_root) {
 		debug("sending next, since searching");
 		next = ISC_LIST_NEXT(query, link);
+		if (ISC_LINK_LINKED(query, link))
+			ISC_LIST_DEQUEUE(l->q, query, link);
+		ISC_LIST_ENQUEUE(l->connecting, query, clink);
 		if (next != NULL)
 			send_tcp_connect(next);
 	}
@@ -2601,7 +2620,7 @@ send_udp(dig_query_t *query) {
 static void
 connect_timeout(isc_task_t *task, isc_event_t *event) {
 	dig_lookup_t *l = NULL;
-	dig_query_t *query = NULL, *cq;
+	dig_query_t *query = NULL, *next, *cq;
 
 	UNUSED(task);
 	REQUIRE(event->ev_type == ISC_TIMEREVENT_IDLE);
@@ -2625,7 +2644,9 @@ connect_timeout(isc_task_t *task, isc_event_t *event) {
 			if (query->sock != NULL)
 				isc_socket_cancel(query->sock, NULL,
 						  ISC_SOCKCANCEL_ALL);
-			send_tcp_connect(ISC_LIST_NEXT(cq, link));
+			next = ISC_LIST_NEXT(cq, link);
+			if (next != NULL)
+				send_tcp_connect(next);
 		}
 		UNLOCK_LOOKUP;
 		return;
@@ -2868,9 +2889,8 @@ connect_done(isc_task_t *task, isc_event_t *event) {
 		if (next != NULL) {
 			bringup_timer(next, TCP_TIMEOUT);
 			send_tcp_connect(next);
-		} else {
+		} else
 			check_next_lookup(l);
-		}
 		UNLOCK_LOOKUP;
 		return;
 	}
@@ -3427,6 +3447,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 				if (n == 0)
 					docancel = ISC_TRUE;
 				l->trace_root = ISC_FALSE;
+				usesearch = ISC_FALSE;
 			} else
 #ifdef DIG_SIGCHASE
 				if (!do_sigchase)
@@ -3603,15 +3624,19 @@ getaddresses(dig_lookup_t *lookup, const char *host, isc_result_t *resultp) {
  */
 void
 do_lookup(dig_lookup_t *lookup) {
+	dig_query_t *query;
 
 	REQUIRE(lookup != NULL);
 
 	debug("do_lookup()");
 	lookup->pending = ISC_TRUE;
-	if (lookup->tcp_mode)
-		send_tcp_connect(ISC_LIST_HEAD(lookup->q));
-	else
-		send_udp(ISC_LIST_HEAD(lookup->q));
+	query = ISC_LIST_HEAD(lookup->q);
+	if (query != NULL) {
+		if (lookup->tcp_mode)
+			send_tcp_connect(query);
+		else
+			send_udp(query);
+	}
 }
 
 /*%
@@ -4083,7 +4108,7 @@ sigchase_scanname(dns_rdatatype_t type, dns_rdatatype_t covers,
 	check_result(result, "dns_name_totext");
 	isc_buffer_usedregion(b, &r);
 	r.base[r.length] = '\0';
-	strcpy(lookup->textname, (char*)r.base);
+	strlcpy(lookup->textname, (char*)r.base, sizeof(lookup->textname));
 	isc_buffer_free(&b);
 
 	if (type ==  dns_rdatatype_rrsig)
@@ -4208,7 +4233,7 @@ opentmpkey(isc_mem_t *mctx, const char *file, char **tempp, FILE **fp) {
 			return (ISC_R_NOMEMORY);
 
 		memset(tempnamekey, 0, tempnamekeylen);
-		strncpy(tempnamekey, tempname, tempnamelen);
+		strlcpy(tempnamekey, tempname, tempnamelen);
 		strcat(tempnamekey ,".key");
 
 
@@ -4342,7 +4367,7 @@ prepare_lookup(dns_name_t *name)
 	lookup->new_search = ISC_TRUE;
 	lookup->trace_root_sigchase = ISC_FALSE;
 
-	strncpy(lookup->textname, lookup->textnamesigchase, MXNAME);
+	strlcpy(lookup->textname, lookup->textnamesigchase, MXNAME);
 
 	lookup->rdtype = lookup->rdtype_sigchase;
 	lookup->rdtypeset = ISC_TRUE;
@@ -4401,7 +4426,7 @@ prepare_lookup(dns_name_t *name)
 				dns_rdata_totext(&aaaa, &ns.name, b);
 				isc_buffer_usedregion(b, &r);
 				r.base[r.length] = '\0';
-				strncpy(namestr, (char*)r.base,
+				strlcpy(namestr, (char*)r.base,
 					DNS_NAME_FORMATSIZE);
 				isc_buffer_free(&b);
 				dns_rdata_reset(&aaaa);
@@ -4430,7 +4455,7 @@ prepare_lookup(dns_name_t *name)
 				dns_rdata_totext(&a, &ns.name, b);
 				isc_buffer_usedregion(b, &r);
 				r.base[r.length] = '\0';
-				strncpy(namestr, (char*)r.base,
+				strlcpy(namestr, (char*)r.base,
 					DNS_NAME_FORMATSIZE);
 				isc_buffer_free(&b);
 				dns_rdata_reset(&a);
@@ -4609,7 +4634,6 @@ contains_trusted_key(dns_name_t *name, dns_rdataset_t *rdataset,
 {
 	isc_result_t result;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
-	dst_key_t *trustedKey = NULL;
 	dst_key_t *dnsseckey = NULL;
 	int i;
 
@@ -4652,10 +4676,6 @@ contains_trusted_key(dns_name_t *name, dns_rdataset_t *rdataset,
 		if (dnsseckey != NULL)
 			dst_key_free(&dnsseckey);
 	} while (dns_rdataset_next(rdataset) == ISC_R_SUCCESS);
-
-	if (trustedKey != NULL)
-		dst_key_free(&trustedKey);
-	trustedKey = NULL;
 
 	return (ISC_R_NOTFOUND);
 }
