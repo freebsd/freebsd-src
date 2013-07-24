@@ -47,9 +47,12 @@ print_controller(struct nvme_controller_data *cdata)
 	printf("================================\n");
 	printf("Vendor ID:                  %04x\n", cdata->vid);
 	printf("Subsystem Vendor ID:        %04x\n", cdata->ssvid);
-	printf("Serial Number:              %s\n", cdata->sn);
-	printf("Model Number:               %s\n", cdata->mn);
-	printf("Firmware Version:           %s\n", cdata->fr);
+	printf("Serial Number:              %.*s\n",
+	    NVME_SERIAL_NUMBER_LENGTH, cdata->sn);
+	printf("Model Number:               %.*s\n",
+	    NVME_MODEL_NUMBER_LENGTH, cdata->mn);
+	printf("Firmware Version:           %.*s\n",
+	    NVME_FIRMWARE_REVISION_LENGTH, cdata->fr);
 	printf("Recommended Arb Burst:      %d\n", cdata->rab);
 	printf("IEEE OUI Identifier:        %02x %02x %02x\n",
 		cdata->ieee[0], cdata->ieee[1], cdata->ieee[2]);
