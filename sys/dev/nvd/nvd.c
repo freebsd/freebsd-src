@@ -318,8 +318,6 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 	    min(sizeof(disk->d_descr), NVME_MODEL_NUMBER_LENGTH));
 #endif
 
-	disk_create(disk, DISK_VERSION);
-
 	ndisk->ns = ns;
 	ndisk->disk = disk;
 	ndisk->cur_depth = 0;
@@ -334,6 +332,8 @@ nvd_new_disk(struct nvme_namespace *ns, void *ctrlr_arg)
 
 	TAILQ_INSERT_TAIL(&disk_head, ndisk, global_tailq);
 	TAILQ_INSERT_TAIL(&ctrlr->disk_head, ndisk, ctrlr_tailq);
+
+	disk_create(disk, DISK_VERSION);
 
 	return (NULL);
 }
