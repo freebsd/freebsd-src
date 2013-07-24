@@ -26,8 +26,10 @@ else:
 # List of packages for dvd1.
 def dvd1_packages():
     pkgs = ['archivers/unzip',
+	    'devel/subversion',
+	    'devel/subversion-static',
 	    'emulators/linux_base-f10',
-	    'lang/perl5.12',
+	    'lang/perl5.14',
 	    'misc/freebsd-doc-all',
 	    'net/mpd5',
 	    'net/rsync',
