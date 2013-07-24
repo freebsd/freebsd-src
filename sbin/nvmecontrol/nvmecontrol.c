@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -175,7 +176,7 @@ open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 			return (EINVAL);
 	}
 
-	snprintf(full_path, sizeof(full_path), "/dev/%s", str);
+	snprintf(full_path, sizeof(full_path), _PATH_DEV"%s", str);
 	*fd = open(full_path, O_RDWR);
 	if (*fd < 0) {
 		if (show_error)
