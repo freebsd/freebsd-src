@@ -200,8 +200,7 @@ sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 int
 uuid_ether_add(const uint8_t *addr)
 {
-	int i;
-	uint8_t c;
+	int i, sum;
 
 	/*
 	 * Validate input. No multicast addresses and no addresses that
@@ -209,10 +208,10 @@ uuid_ether_add(const uint8_t *addr)
 	 */
 	if (addr[0] & 0x01)
 		return (EINVAL);
-	c = 0;
+	sum = 0;
 	for (i = 0; i < UUID_NODE_LEN; i++)
-		c += addr[i];
-	if (c == 0)
+		sum += addr[i];
+	if (sum == 0)
 		return (EINVAL);
 
 	mtx_lock(&uuid_mutex);
