@@ -455,7 +455,7 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 	nvme_ctrlr_cmd_identify_controller(ctrlr, &ctrlr->cdata,
 	    nvme_completion_poll_cb, &status);
 	while (status.done == FALSE)
-		DELAY(5);
+		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_identify_controller failed!\n");
 		return (ENXIO);
@@ -487,7 +487,7 @@ nvme_ctrlr_set_num_qpairs(struct nvme_controller *ctrlr)
 	nvme_ctrlr_cmd_set_num_queues(ctrlr, ctrlr->num_io_queues,
 	    nvme_completion_poll_cb, &status);
 	while (status.done == FALSE)
-		DELAY(5);
+		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_set_num_queues failed!\n");
 		return (ENXIO);
@@ -540,7 +540,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		nvme_ctrlr_cmd_create_io_cq(ctrlr, qpair, qpair->vector,
 		    nvme_completion_poll_cb, &status);
 		while (status.done == FALSE)
-			DELAY(5);
+			pause("nvme", 1);
 		if (nvme_completion_is_error(&status.cpl)) {
 			nvme_printf(ctrlr, "nvme_create_io_cq failed!\n");
 			return (ENXIO);
@@ -550,7 +550,7 @@ nvme_ctrlr_create_qpairs(struct nvme_controller *ctrlr)
 		nvme_ctrlr_cmd_create_io_sq(qpair->ctrlr, qpair,
 		    nvme_completion_poll_cb, &status);
 		while (status.done == FALSE)
-			DELAY(5);
+			pause("nvme", 1);
 		if (nvme_completion_is_error(&status.cpl)) {
 			nvme_printf(ctrlr, "nvme_create_io_sq failed!\n");
 			return (ENXIO);
