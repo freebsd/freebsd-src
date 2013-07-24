@@ -157,7 +157,6 @@ static int vm_pageout_stats;
 static int vm_pageout_stats_interval;
 static int vm_pageout_full_stats;
 static int vm_pageout_full_stats_interval;
-static int vm_pageout_algorithm;
 static int defer_swap_pageouts;
 static int disable_swap_pageouts;
 
@@ -168,9 +167,6 @@ static int vm_swap_idle_enabled = 0;
 static int vm_swap_enabled = 1;
 static int vm_swap_idle_enabled = 0;
 #endif
-
-SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,
-	CTLFLAG_RW, &vm_pageout_algorithm, 0, "LRU page mgmt");
 
 SYSCTL_INT(_vm, OID_AUTO, max_launder,
 	CTLFLAG_RW, &vm_max_launder, 0, "Limit dirty flushes in pageout");
@@ -756,9 +752,7 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 				if (actcount == 0) {
 					p->act_count -= min(p->act_count,
 					    ACT_DECLINE);
-					if (!remove_mode &&
-					    (vm_pageout_algorithm ||
-					    p->act_count == 0)) {
+					if (!remove_mode && p->act_count == 0) {
 						pmap_remove_all(p);
 						vm_page_deactivate(p);
 					} else
@@ -1356,8 +1350,7 @@ relock_queues:
 			vm_page_requeue_locked(m);
 		else {
 			m->act_count -= min(m->act_count, ACT_DECLINE);
-			if (vm_pageout_algorithm ||
-			    object->ref_count == 0 ||
+			if (object->ref_count == 0 ||
 			    m->act_count == 0) {
 				page_shortage--;
 				/* Dequeue to avoid later lock recursion. */
