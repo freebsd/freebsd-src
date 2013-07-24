@@ -203,10 +203,10 @@ uuid_ether_add(const uint8_t *addr)
 	int i, sum;
 
 	/*
-	 * Validate input. No multicast addresses and no addresses that
-	 * are all zeroes.
+	 * Validate input. No multicast (flag 0x1), no locally administered
+	 * (flag 0x2) and no 'all-zeroes' addresses.
 	 */
-	if (addr[0] & 0x01)
+	if (addr[0] & 0x03)
 		return (EINVAL);
 	sum = 0;
 	for (i = 0; i < UUID_NODE_LEN; i++)
