@@ -132,7 +132,7 @@ if [ -n "$git_cmd" ] ; then
 	else
 		svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
 		     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
-		if [ -n $svn ] ; then
+		if [ -n "$svn" ] ; then
 			svn=" r${svn}"
 			git="+${git}"
 		else
