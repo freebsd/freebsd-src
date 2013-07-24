@@ -246,7 +246,7 @@ firmware(int argc, char *argv[])
 		    "slot %d specified but controller only supports %d slots",
 		    slot, cdata.frmw.num_slots);
 
-	if (!slot_has_valid_firmware(fd, slot))
+	if (a_flag && !f_flag && !slot_has_valid_firmware(fd, slot))
 		errx(1,
 		    "slot %d does not contain valid firmware,\n"
 		    "try 'nvmecontrol logpage -p 3 %s' to get a list "
