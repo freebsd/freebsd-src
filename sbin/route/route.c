@@ -1699,16 +1699,15 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 		return;
 	}
 	cp = ((char *)(rtm + 1));
-	for (i = 0; i < RTAX_MAX; i++) {
-		if (rtm->rtm_addrs & (1 << i))
+	for (i = 0; i < RTAX_MAX; i++)
+		if (rtm->rtm_addrs & (1 << i)) {
 			sp[i] = (struct sockaddr *)cp;
-		cp += SA_SIZE((struct sockaddr *)cp);
-	}
-	if (rtm->rtm_addrs & RTA_IFP) {
-		if (sp[RTAX_IFP]->sa_family != AF_LINK ||
-		   ((struct sockaddr_dl *)(void *)sp[RTAX_IFP])->sdl_nlen == 0)
+			cp += SA_SIZE((struct sockaddr *)cp);
+		}
+	if ((rtm->rtm_addrs & RTA_IFP) &&
+	    (sp[RTAX_IFP]->sa_family != AF_LINK ||
+	     ((struct sockaddr_dl *)(void *)sp[RTAX_IFP])->sdl_nlen == 0))
 			sp[RTAX_IFP] = NULL;
-	}
 	if (sp[RTAX_DST] && sp[RTAX_NETMASK])
 		sp[RTAX_NETMASK]->sa_family = sp[RTAX_DST]->sa_family; /* XXX */
 	if (sp[RTAX_DST])
