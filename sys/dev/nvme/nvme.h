@@ -404,10 +404,10 @@ struct nvme_controller_data {
 	uint16_t		ssvid;
 
 	/** serial number */
-	int8_t			sn[NVME_SERIAL_NUMBER_LENGTH];
+	uint8_t			sn[NVME_SERIAL_NUMBER_LENGTH];
 
 	/** model number */
-	int8_t			mn[NVME_MODEL_NUMBER_LENGTH];
+	uint8_t			mn[NVME_MODEL_NUMBER_LENGTH];
 
 	/** firmware revision */
 	uint8_t			fr[NVME_FIRMWARE_REVISION_LENGTH];
@@ -785,6 +785,8 @@ struct nvme_pt_command {
 
 #define nvme_completion_is_error(cpl)					\
 	((cpl)->status.sc != 0 || (cpl)->status.sct != 0)
+
+void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
 
 #ifdef _KERNEL
 
