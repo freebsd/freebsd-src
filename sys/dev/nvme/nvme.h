@@ -389,6 +389,10 @@ enum nvme_activate_action {
 	NVME_AA_ACTIVATE			= 0x2,
 };
 
+#define NVME_SERIAL_NUMBER_LENGTH	20
+#define NVME_MODEL_NUMBER_LENGTH	40
+#define NVME_FIRMWARE_REVISION_LENGTH	8
+
 struct nvme_controller_data {
 
 	/* bytes 0-255: controller capabilities and features */
@@ -400,13 +404,13 @@ struct nvme_controller_data {
 	uint16_t		ssvid;
 
 	/** serial number */
-	int8_t			sn[20];
+	int8_t			sn[NVME_SERIAL_NUMBER_LENGTH];
 
 	/** model number */
-	int8_t			mn[40];
+	int8_t			mn[NVME_MODEL_NUMBER_LENGTH];
 
 	/** firmware revision */
-	uint8_t			fr[8];
+	uint8_t			fr[NVME_FIRMWARE_REVISION_LENGTH];
 
 	/** recommended arbitration burst */
 	uint8_t			rab;
