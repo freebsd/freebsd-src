@@ -155,7 +155,7 @@ nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns)
 uint32_t
 nvme_ns_get_sector_size(struct nvme_namespace *ns)
 {
-	return (1 << ns->data.lbaf[0].lbads);
+	return (1 << ns->data.lbaf[ns->data.flbas.format].lbads);
 }
 
 uint64_t
@@ -309,6 +309,16 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 #ifdef CHATHAM2
 	}
 #endif
+
+	/*
+	 * Note: format is a 0-based value, so > is appropriate here,
+	 *  not >=.
+	 */
+	if (ns->data.flbas.format > ns->data.nlbaf) {
+		printf("lba format %d exceeds number supported (%d)\n",
+		    ns->data.flbas.format, ns->data.nlbaf+1);
+		return (1);
+	}
 
 	if (ctrlr->cdata.oncs.dsm)
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
