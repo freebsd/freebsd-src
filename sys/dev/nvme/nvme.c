@@ -383,4 +383,3 @@ nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
 	wmb();
 	status->done = TRUE;
 }
-
