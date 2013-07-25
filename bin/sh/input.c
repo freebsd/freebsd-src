@@ -108,15 +108,12 @@ static void pushfile(void);
 static int preadfd(void);
 static void popstring(void);
 
-#ifdef mkinit
-INCLUDE "input.h"
-INCLUDE "error.h"
-
-RESET {
+void
+resetinput(void)
+{
 	popallfiles();
 	parselleft = parsenleft = 0;	/* clear input buffer */
 }
-#endif
 
 
 /*

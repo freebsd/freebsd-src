@@ -1819,13 +1819,13 @@ parsearith: {
 } /* end of readtoken */
 
 
-
-#ifdef mkinit
-RESET {
+void
+resetparser(void)
+{
 	tokpushback = 0;
 	checkkwd = 0;
 }
-#endif
+
 
 /*
  * Returns true if the text contains nothing to expand (no dollar signs
