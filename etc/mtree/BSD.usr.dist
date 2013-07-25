@@ -38,6 +38,8 @@
         ..
         lint
         ..
+        pkgconfig
+        ..
     ..
     libexec
         bsdinstall
