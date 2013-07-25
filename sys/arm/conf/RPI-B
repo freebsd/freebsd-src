@@ -20,7 +20,6 @@
 ident		RPI-B
 
 include		"../broadcom/bcm2835/std.rpi"
-makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	HZ=100
