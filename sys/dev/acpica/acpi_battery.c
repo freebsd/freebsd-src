@@ -360,6 +360,18 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
     int error, unit;
     device_t dev;
 
+
+    /*
+     * Giant is acquired to work around a reference counting bug in ACPICA
+     * versions prior to 20130328.  If not for that bug this function could
+     * be executed concurrently without any problems.
+     * The bug is in acpi_BatteryIsPresent -> AcpiGetObjectInfo call tree,
+     * where AcpiUtExecute_HID, AcpiUtExecute_UID, etc are executed without
+     * protection of any ACPICA lock and may concurrently call
+     * AcpiUtRemoveReference on a battery object.
+     */
+    mtx_lock(&Giant);
+
     /* For commands that use the ioctl_arg struct, validate it first. */
     error = ENXIO;
     unit = 0;
@@ -417,6 +429,7 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
 	error = EINVAL;
     }
 
+    mtx_unlock(&Giant);
     return (error);
 }
 
