@@ -92,7 +92,7 @@ struct parsefile {
 
 int plinno = 1;			/* input line number */
 int parsenleft;			/* copy of parsefile->nleft */
-MKINIT int parselleft;		/* copy of parsefile->lleft */
+static int parselleft;		/* copy of parsefile->lleft */
 const char *parsenextc;		/* copy of parsefile->nextc */
 static char basebuf[BUFSIZ + 1];/* buffer for top level input file */
 static struct parsefile basepf = {	/* top level input file */
