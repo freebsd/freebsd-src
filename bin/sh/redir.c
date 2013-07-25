@@ -324,16 +324,13 @@ popredir(void)
  * Undo all redirections.  Called on error or interrupt.
  */
 
-#ifdef mkinit
-
-INCLUDE "redir.h"
-
-RESET {
+void
+resetredir(void)
+{
 	while (redirlist)
 		popredir();
 }
 
-#endif
 
 /* Return true if fd 0 has already been redirected at least once.  */
 int
