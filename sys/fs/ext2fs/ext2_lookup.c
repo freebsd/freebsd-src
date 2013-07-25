@@ -170,10 +170,7 @@ ext2_readdir(struct vop_readdir_args *ap)
 	 * size is a little larger than DIRBLKSIZ to allow for expansion
 	 * of directory entries, but some callers just use 512.
 	 */
-	if (uio->uio_offset < 0)
-		offset = startoffset = uio->uio_offset + DIRBLKSIZ;
-	else
-		offset = startoffset = uio->uio_offset;
+	offset = startoffset = uio->uio_offset;
 	startresid = uio->uio_resid;
 	error = 0;
 	while (error == 0 && uio->uio_resid > 0 &&
