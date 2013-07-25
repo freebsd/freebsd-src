@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.40 2010/09/13 15:36:57 sjg Exp $	*/
+/*	$NetBSD: job.h,v 1.41 2013/03/05 22:01:44 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -268,5 +268,6 @@ void Job_TokenReturn(void);
 Boolean Job_TokenWithdraw(void);
 void Job_ServerStart(int, int, int);
 void Job_SetPrefix(void);
+Boolean Job_RunTarget(const char *, const char *);
 
 #endif /* _JOB_H_ */

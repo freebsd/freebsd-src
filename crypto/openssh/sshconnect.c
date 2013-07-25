@@ -1,5 +1,5 @@
 /* $OpenBSD: sshconnect.c,v 1.236 2012/09/14 16:51:34 markus Exp $ */
-/* $FreeBSD$ */
+/* $OpenBSD: sshconnect.c,v 1.237 2013/02/22 19:13:56 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -89,6 +89,13 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	int pin[2], pout[2];
 	pid_t pid;
 	char *shell, strport[NI_MAXSERV];
+
+	if (!strcmp(proxy_command, "-")) {
+		packet_set_connection(STDIN_FILENO, STDOUT_FILENO);
+		packet_set_timeout(options.server_alive_interval,
+		    options.server_alive_count_max);
+		return 0;
+	}
 
 	if ((shell = getenv("SHELL")) == NULL || *shell == '\0')
 		shell = _PATH_BSHELL;

@@ -54,7 +54,7 @@ static int faketypenumber = 100000000;
 static tdesc_t *hash_table[BUCKETS];
 static tdesc_t *name_table[BUCKETS];
 
-list_t *typedbitfldmems;
+static list_t *typedbitfldmems;
 
 static void reset(void);
 static jmp_buf	resetbuf;

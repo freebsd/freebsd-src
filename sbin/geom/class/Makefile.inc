@@ -6,6 +6,8 @@ LINKS=	${BINDIR}/geom ${BINDIR}/g${GEOM_CLASS}
 MAN=	g${GEOM_CLASS}.8
 SRCS+=	geom_${GEOM_CLASS}.c subr.c
 
+NO_WMISSING_VARIABLE_DECLARATIONS=
+
 CFLAGS+= -I${.CURDIR}/../..
 
 .include "../Makefile.inc"

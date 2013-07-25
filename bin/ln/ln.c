@@ -65,8 +65,8 @@ static int	wflag;			/* Warn if symlink target does not
 					 * exist, and -f is not enabled. */
 static char	linkch;
 
-int	linkit(const char *, const char *, int);
-void	usage(void);
+static int	linkit(const char *, const char *, int);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -219,7 +219,7 @@ samedirent(const char *path1, const char *path2)
 	return sb1.st_dev == sb2.st_dev && sb1.st_ino == sb2.st_ino;
 }
 
-int
+static int
 linkit(const char *source, const char *target, int isdir)
 {
 	struct stat sb;
@@ -347,7 +347,7 @@ linkit(const char *source, const char *target, int isdir)
 	return (0);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",

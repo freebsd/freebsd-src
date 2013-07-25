@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/cpuset.h>
 
+#include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -44,7 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #define	CPUID_VM_HIGH		0x40000000
 
-static const char bhyve_id[12] = "BHyVE BHyVE ";
+static const char bhyve_id[12] = "bhyve bhyve ";
+
+static uint64_t bhyve_xcpuids;
 
 int
 x86_emulate_cpuid(struct vm *vm, int vcpu_id,
@@ -76,22 +79,45 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 	 * no multi-core or SMT.
 	 */
 	switch (func) {
+		/*
+		 * Pass these through to the guest
+		 */
 		case CPUID_0000_0000:
 		case CPUID_0000_0002:
 		case CPUID_0000_0003:
-		case CPUID_0000_000A:
-			cpuid_count(*eax, *ecx, regs);
-			break;
-
 		case CPUID_8000_0000:
-		case CPUID_8000_0001:
 		case CPUID_8000_0002:
 		case CPUID_8000_0003:
 		case CPUID_8000_0004:
 		case CPUID_8000_0006:
-		case CPUID_8000_0007:
 		case CPUID_8000_0008:
 			cpuid_count(*eax, *ecx, regs);
+			break;
+
+		case CPUID_8000_0001:
+			/*
+			 * Hide rdtscp/ia32_tsc_aux until we know how
+			 * to deal with them.
+			 */
+			cpuid_count(*eax, *ecx, regs);
+			regs[3] &= ~AMDID_RDTSCP;
+			break;
+
+		case CPUID_8000_0007:
+			cpuid_count(*eax, *ecx, regs);
+			/*
+			 * If the host TSCs are not synchronized across
+			 * physical cpus then we cannot advertise an
+			 * invariant tsc to a vcpu.
+			 *
+			 * XXX This still falls short because the vcpu
+			 * can observe the TSC moving backwards as it
+			 * migrates across physical cpus. But at least
+			 * it should discourage the guest from using the
+			 * TSC to keep track of time.
+			 */
+			if (!smp_tsc)
+				regs[3] &= ~AMDPM_TSC_INVARIANT;
 			break;
 
 		case CPUID_0000_0001:
@@ -133,6 +159,11 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 */
 			regs[2] &= ~CPUID2_MON;
 
+                        /*
+			 * Hide the performance and debug features.
+			 */
+			regs[2] &= ~CPUID2_PDCM;
+			
 			/*
 			 * Hide thermal monitoring
 			 */
@@ -143,6 +174,11 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * Hide MTRR capability.
 			 */
 			regs[3] &= ~(CPUID_MCA | CPUID_MCE | CPUID_MTRR);
+
+                        /*
+                        * Hide the debug store capability.
+                        */
+			regs[3] &= ~CPUID_DS;
 
 			/*
 			 * Disable multi-core.
@@ -163,6 +199,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 		case CPUID_0000_0006:
 		case CPUID_0000_0007:
+		case CPUID_0000_000A:
 			/*
 			 * Handle the access, but report 0 for
 			 * all options
@@ -186,17 +223,25 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case 0x40000000:
 			regs[0] = CPUID_VM_HIGH;
 			bcopy(bhyve_id, &regs[1], 4);
-			bcopy(bhyve_id, &regs[2], 4);
-			bcopy(bhyve_id, &regs[3], 4);
+			bcopy(bhyve_id + 4, &regs[2], 4);
+			bcopy(bhyve_id + 8, &regs[3], 4);
 			break;
+
 		default:
-			/* XXX: Leaf 5? */
-			return (0);
+			/*
+			 * The leaf value has already been clamped so
+			 * simply pass this through, keeping count of
+			 * how many unhandled leaf values have been seen.
+			 */
+			atomic_add_long(&bhyve_xcpuids, 1);
+			cpuid_count(*eax, *ecx, regs);
+			break;
 	}
 
 	*eax = regs[0];
 	*ebx = regs[1];
 	*ecx = regs[2];
 	*edx = regs[3];
+
 	return (1);
 }

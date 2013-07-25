@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <sstream>
 #include "clang/Tooling/FileMatchTrie.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/PathV2.h"
 #include "llvm/Support/raw_ostream.h"
+#include <sstream>
 
 namespace clang {
 namespace tooling {
@@ -172,7 +172,7 @@ void FileMatchTrie::insert(StringRef NewPath) {
 }
 
 StringRef FileMatchTrie::findEquivalent(StringRef FileName,
-                                        llvm::raw_ostream &Error) const {
+                                        raw_ostream &Error) const {
   if (llvm::sys::path::is_relative(FileName)) {
     Error << "Cannot resolve relative paths";
     return StringRef();

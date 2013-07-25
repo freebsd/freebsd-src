@@ -270,8 +270,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 			continue;
 
 		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
-		    &state) != 0 || state == POOL_STATE_DESTROYED ||
-		    state > POOL_STATE_L2CACHE) {
+		    &state) != 0 || state > POOL_STATE_L2CACHE) {
 			nvlist_free(*config);
 			*config = NULL;
 			continue;

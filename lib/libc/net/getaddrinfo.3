@@ -26,9 +26,9 @@
 .Nm freeaddrinfo
 .Nd socket address structure to host and service name
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
-.Fd #include <netdb.h>
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
 .Ft int
 .Fo getaddrinfo
 .Fa "const char *hostname" "const char *servname"
@@ -255,7 +255,7 @@ member points to a filled-in socket address structure of length
 This implementation of
 .Fn getaddrinfo
 allows numeric IPv6 address notation with scope identifier,
-as documented in chapter 11 of draft-ietf-ipv6-scoping-arch-02.txt.
+as documented in chapter 11 of RFC 4007.
 By appending the percent character and scope identifier to addresses,
 one can fill the
 .Li sin6_scope_id
@@ -441,9 +441,8 @@ freeaddrinfo(res0);
 .%A E. Nordmark
 .%A B. Zill
 .%T "IPv6 Scoped Address Architecture"
-.%R internet draft
-.%N draft-ietf-ipv6-scoping-arch-02.txt
-.%O work in progress material
+.%R RFC 4007
+.%D March 2005
 .Re
 .Rs
 .%A Craig Metz

@@ -138,7 +138,7 @@ random_yarrow_init(void)
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "seeded", CTLTYPE_INT | CTLFLAG_RW,
-	    &random_systat.seeded, 1, random_check_boolean, "I",
+	    &random_systat->seeded, 1, random_check_boolean, "I",
 	    "Seeded State");
 
 	random_sys_harvest_o = SYSCTL_ADD_NODE(&random_clist,
@@ -362,11 +362,13 @@ random_yarrow_write(void *buf, int count)
 void
 random_yarrow_unblock(void)
 {
-	if (!random_systat.seeded) {
-		random_systat.seeded = 1;
-		selwakeuppri(&random_systat.rsel, PUSER);
-		wakeup(&random_systat);
+	if (!random_systat->seeded) {
+		random_systat->seeded = 1;
+		selwakeuppri(&random_systat->rsel, PUSER);
+		wakeup(random_systat);
 	}
+	(void)atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_NONE,
+	    ARC4_ENTR_HAVE);
 }
 
 static int
@@ -375,10 +377,10 @@ random_yarrow_poll(int events, struct thread *td)
 	int revents = 0;
 	mtx_lock(&random_reseed_mtx);
 
-	if (random_systat.seeded)
+	if (random_systat->seeded)
 		revents = events & (POLLIN | POLLRDNORM);
 	else
-		selrecord(td, &random_systat.rsel);
+		selrecord(td, &random_systat->rsel);
 
 	mtx_unlock(&random_reseed_mtx);
 	return revents;
@@ -392,12 +394,12 @@ random_yarrow_block(int flag)
 	mtx_lock(&random_reseed_mtx);
 
 	/* Blocking logic */
-	while (!random_systat.seeded && !error) {
+	while (!random_systat->seeded && !error) {
 		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {
 			printf("Entropy device is blocking.\n");
-			error = msleep(&random_systat,
+			error = msleep(random_systat,
 			    &random_reseed_mtx,
 			    PUSER | PCATCH, "block", 0);
 		}

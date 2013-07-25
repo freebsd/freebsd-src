@@ -1,9 +1,9 @@
 /*
- *  $Id: prgbox.c,v 1.7 2011/06/30 20:44:13 tom Exp $
+ *  $Id: prgbox.c,v 1.9 2012/12/02 23:40:30 tom Exp $
  *
  *  prgbox.c -- implements the prg box
  *
- *  Copyright 2011	Thomas E. Dickey
+ *  Copyright 2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -23,6 +23,12 @@
 
 #include <dialog.h>
 
+static void
+reapchild(int sig)
+{
+    (void) sig;
+}
+
 /*
  * Open a pipe which ties stderr and stdout together.
  */
@@ -31,11 +37,11 @@ dlg_popen(const char *command, const char *type)
 {
     FILE *result = 0;
     int fd[2];
-    int pid;
-    const char *argv[4];
+    char *blob;
+    char **argv;
 
     if ((*type == 'r' || *type != 'w') && pipe(fd) == 0) {
-	switch (pid = fork()) {
+	switch (fork()) {
 	case -1:		/* Error. */
 	    (void) close(fd[0]);
 	    (void) close(fd[1]);
@@ -61,11 +67,11 @@ dlg_popen(const char *command, const char *type)
 	     * given command.  Also, it needs the command to be parsed into
 	     * tokens.
 	     */
-	    argv[0] = "sh";
-	    argv[1] = "-c";
-	    argv[2] = command;
-	    argv[3] = NULL;
-	    execvp("sh", (char **)argv);
+	    if ((blob = malloc(4 + strlen(command))) != 0) {
+		sprintf(blob, "-c %s", command);
+		argv = dlg_string_to_argv(blob);
+		execvp("sh", argv);
+	    }
 	    _exit(127);
 	    /* NOTREACHED */
 	default:		/* parent */
@@ -96,6 +102,7 @@ dialog_prgbox(const char *title,
 {
     int code;
     FILE *fp;
+    void (*oldreaper) (int) = signal(SIGCHLD, reapchild);
 
     fp = dlg_popen(command, "r");
     if (fp == NULL)
@@ -104,6 +111,7 @@ dialog_prgbox(const char *title,
     code = dlg_progressbox(title, cprompt, height, width, pauseopt, fp);
 
     pclose(fp);
+    signal(SIGCHLD, oldreaper);
 
     return code;
 }

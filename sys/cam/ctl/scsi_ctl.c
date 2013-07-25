@@ -225,38 +225,25 @@ static struct periph_driver ctlfe_driver =
 	ctlfeinit, "ctl",
 	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0
 };
-PERIPHDRIVER_DECLARE(ctl, ctlfe_driver);
+
+static int ctlfe_module_event_handler(module_t, int /*modeventtype_t*/, void *);
+
+/*
+ * We're not using PERIPHDRIVER_DECLARE(), because it runs at SI_SUB_DRIVERS,
+ * and that happens before CTL gets initialised.
+ */
+static moduledata_t ctlfe_moduledata = {
+	"ctlfe",
+	ctlfe_module_event_handler,
+	NULL
+};
+
+DECLARE_MODULE(ctlfe, ctlfe_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
+MODULE_VERSION(ctlfe, 1);
+MODULE_DEPEND(ctlfe, ctl, 1, 1, 1);
+MODULE_DEPEND(ctlfe, cam, 1, 1, 1);
 
 extern struct ctl_softc *control_softc;
-extern int ctl_disable;
-
-int
-ctlfeinitialize(void)
-{
-	cam_status status;
-
-	/* Don't initialize if we're disabled */
-	if (ctl_disable != 0)
-		return (0);
-
-	STAILQ_INIT(&ctlfe_softc_list);
-
-	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
-
-	xpt_lock_buses();
-	periphdriver_register(&ctlfe_driver);
-	xpt_unlock_buses();
-
-	status = xpt_register_async(AC_PATH_REGISTERED | AC_PATH_DEREGISTERED | 
-				    AC_CONTRACT, ctlfeasync, NULL, NULL);
-
-	if (status != CAM_REQ_CMP) {
-		printf("ctl: Failed to attach async callback due to CAM "
-		       "status 0x%x!\n", status);
-	}
-
-	return (0);
-}
 
 void
 ctlfeshutdown(void)
@@ -268,10 +255,6 @@ void
 ctlfeinit(void)
 {
 	cam_status status;
-
-	/* Don't initialize if we're disabled */
-	if (ctl_disable != 0)
-		return;
 
 	STAILQ_INIT(&ctlfe_softc_list);
 
@@ -285,6 +268,21 @@ ctlfeinit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("ctl: Failed to attach async callback due to CAM "
 		       "status 0x%x!\n", status);
+	}
+}
+
+static int
+ctlfe_module_event_handler(module_t mod, int what, void *arg)
+{
+
+	switch (what) {
+	case MOD_LOAD:
+		periphdriver_register(&ctlfe_driver);
+		return (0);
+	case MOD_UNLOAD:
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
 	}
 }
 
@@ -913,7 +911,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
 					flags |= CAM_DATA_SG_PADDR;
 				else
-					flags &= ~CAM_DATA_SG;
+					flags |= CAM_DATA_SG;
 				data_ptr = (uint8_t *)cam_sglist;
 				dxfer_len = io->scsiio.kern_data_len;
 			} else {
@@ -935,6 +933,10 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				data_ptr = sglist[*ti].addr;
 				dxfer_len = sglist[*ti].len;
 				csio->sglist_cnt = 0;
+				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+					flags |= CAM_DATA_PADDR;
+				else
+					flags |= CAM_DATA_VADDR;
 				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
 				(*ti)++;
 			}
@@ -1971,7 +1973,6 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 	struct cam_sim *sim;
 	cam_status status;
 
-	
 	bus_softc = (struct ctlfe_softc *)arg;
 	sim = bus_softc->sim;
 
@@ -2059,7 +2060,6 @@ ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
 static void
 ctlfe_dump_sim(struct cam_sim *sim)
 {
-	int i;
 
 	printf("%s%d: max tagged openings: %d, max dev openings: %d\n",
 	       sim->sim_name, sim->unit_number,
@@ -2070,14 +2070,6 @@ ctlfe_dump_sim(struct cam_sim *sim)
 	printf("%s%d: ccb_freeq is %sempty\n",
 	       sim->sim_name, sim->unit_number,
 	       (SLIST_FIRST(&sim->ccb_freeq) == NULL) ? "" : "NOT ");
-	printf("%s%d: alloc_queue.entries %d, alloc_openings %d\n",
-	       sim->sim_name, sim->unit_number,
-	       sim->devq->alloc_queue.entries, sim->devq->alloc_openings);
-	printf("%s%d: qfrozen_cnt:", sim->sim_name, sim->unit_number);
-	for (i = 0; i < CAM_RL_VALUES; i++) {
-		printf("%s%u", (i != 0) ? ":" : "",
-		sim->devq->alloc_queue.qfrozen_cnt[i]);
-	}
 	printf("\n");
 }
 
@@ -2145,7 +2137,7 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 
 	xpt_print(periph->path, "%d requests total waiting for CCBs\n",
 		  num_items);
-	xpt_print(periph->path, "%ju CCBs oustanding (%ju allocated, %ju "
+	xpt_print(periph->path, "%ju CCBs outstanding (%ju allocated, %ju "
 		  "freed)\n", (uintmax_t)(softc->ccbs_alloced -
 		  softc->ccbs_freed), (uintmax_t)softc->ccbs_alloced,
 		  (uintmax_t)softc->ccbs_freed);

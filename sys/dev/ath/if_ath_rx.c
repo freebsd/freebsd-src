@@ -119,6 +119,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_alq.h>
 #endif
 
+#include <dev/ath/if_ath_lna_div.h>
+
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -502,12 +504,20 @@ ath_handle_micerror(struct ieee80211com *ic,
 	}
 }
 
+/*
+ * Process a single packet.
+ *
+ * The mbuf must already be synced, unmapped and removed from bf->bf_m
+ * by this stage.
+ *
+ * The mbuf must be consumed by this routine - either passed up the
+ * net80211 stack, put on the holding queue, or freed.
+ */
 int
 ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
-    uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf)
+    uint64_t tsf, int nf, HAL_RX_QUEUE qtype, struct ath_buf *bf,
+    struct mbuf *m)
 {
-	struct ath_hal *ah = sc->sc_ah;
-	struct mbuf *m = bf->bf_m;
 	uint64_t rstamp;
 	int len, type;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -536,6 +546,8 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 		sc->sc_stats.ast_rx_decrypt_busy_err++;
 	if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
 		sc->sc_stats.ast_rx_hi_rx_chain++;
+	if (rs->rs_flags & HAL_RX_STBC)
+		sc->sc_stats.ast_rx_stbc++;
 #endif /* AH_SUPPORT_AR5416 */
 
 	if (rs->rs_status != 0) {
@@ -548,10 +560,6 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 			/* Process DFS radar events */
 			if ((rs->rs_phyerr == HAL_PHYERR_RADAR) ||
 			    (rs->rs_phyerr == HAL_PHYERR_FALSE_RADAR_EXT)) {
-				/* Since we're touching the frame data, sync it */
-				bus_dmamap_sync(sc->sc_dmat,
-				    bf->bf_dmamap,
-				    BUS_DMASYNC_POSTREAD);
 				/* Now pass it to the radar processing code */
 				ath_dfs_process_phy_err(sc, m, rstamp, rs);
 			}
@@ -593,9 +601,6 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 			/* XXX frag's and qos frames */
 			len = rs->rs_datalen;
 			if (len >= sizeof (struct ieee80211_frame)) {
-				bus_dmamap_sync(sc->sc_dmat,
-				    bf->bf_dmamap,
-				    BUS_DMASYNC_POSTREAD);
 				ath_handle_micerror(ic,
 				    mtod(m, struct ieee80211_frame *),
 				    sc->sc_splitmic ?
@@ -619,34 +624,20 @@ rx_error:
 		 */
 		if (ieee80211_radiotap_active(ic) &&
 		    (rs->rs_status & sc->sc_monpass)) {
-			bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-			    BUS_DMASYNC_POSTREAD);
 			/* NB: bpf needs the mbuf length setup */
 			len = rs->rs_datalen;
 			m->m_pkthdr.len = m->m_len = len;
-			bf->bf_m = NULL;
 			ath_rx_tap(ifp, m, rs, rstamp, nf);
 #ifdef	ATH_ENABLE_RADIOTAP_VENDOR_EXT
 			ath_rx_tap_vendor(ifp, m, rs, rstamp, nf);
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 			ieee80211_radiotap_rx_all(ic, m);
-			m_freem(m);
 		}
 		/* XXX pass MIC errors up for s/w reclaculation */
+		m_freem(m); m = NULL;
 		goto rx_next;
 	}
 rx_accept:
-	/*
-	 * Sync and unmap the frame.  At this point we're
-	 * committed to passing the mbuf somewhere so clear
-	 * bf_m; this means a new mbuf must be allocated
-	 * when the rx descriptor is setup again to receive
-	 * another frame.
-	 */
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTREAD);
-	bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
-	bf->bf_m = NULL;
-
 	len = rs->rs_datalen;
 	m->m_len = len;
 
@@ -664,6 +655,7 @@ rx_accept:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = len;
 		re->m_rxpending = m;
+		m = NULL;
 		goto rx_next;
 	} else if (re->m_rxpending != NULL) {
 		/*
@@ -713,6 +705,34 @@ rx_accept:
 		rs->rs_antenna = 0;	/* XXX better than nothing */
 	}
 
+	/*
+	 * If this is an AR9285/AR9485, then the receive and LNA
+	 * configuration is stored in RSSI[2] / EXTRSSI[2].
+	 * We can extract this out to build a much better
+	 * receive antenna profile.
+	 *
+	 * Yes, this just blurts over the above RX antenna field
+	 * for now.  It's fine, the AR9285 doesn't really use
+	 * that.
+	 *
+	 * Later on we should store away the fine grained LNA
+	 * information and keep separate counters just for
+	 * that.  It'll help when debugging the AR9285/AR9485
+	 * combined diversity code.
+	 */
+	if (sc->sc_rx_lnamixer) {
+		rs->rs_antenna = 0;
+
+		/* Bits 0:1 - the LNA configuration used */
+		rs->rs_antenna |=
+		    ((rs->rs_rssi_ctl[2] & HAL_RX_LNA_CFG_USED)
+		      >> HAL_RX_LNA_CFG_USED_S);
+
+		/* Bit 2 - the external RX antenna switch */
+		if (rs->rs_rssi_ctl[2] & HAL_RX_LNA_EXTCFG)
+			rs->rs_antenna |= 0x4;
+	}
+
 	ifp->if_ipackets++;
 	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
@@ -743,7 +763,7 @@ rx_accept:
 			/* NB: in particular this captures ack's */
 			ieee80211_radiotap_rx_all(ic, m);
 		}
-		m_freem(m);
+		m_freem(m); m = NULL;
 		goto rx_next;
 	}
 
@@ -787,6 +807,7 @@ rx_accept:
 		 */
 		type = ieee80211_input(ni, m, rs->rs_rssi, nf);
 		ieee80211_free_node(ni);
+		m = NULL;
 		/*
 		 * Arrange to update the last rx timestamp only for
 		 * frames from our ap when operating in station mode.
@@ -798,7 +819,14 @@ rx_accept:
 			is_good = 1;
 	} else {
 		type = ieee80211_input_all(ic, m, rs->rs_rssi, nf);
+		m = NULL;
 	}
+
+	/*
+	 * At this point we have passed the frame up the stack; thus
+	 * the mbuf is no longer ours.
+	 */
+
 	/*
 	 * Track rx rssi and do any rx antenna management.
 	 */
@@ -816,10 +844,10 @@ rx_accept:
 			sc->sc_rxotherant = 0;
 	}
 
-	/* Newer school diversity - kite specific for now */
-	/* XXX perhaps migrate the normal diversity code to this? */
-	if ((ah)->ah_rxAntCombDiversity)
-		(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
+	/* Handle slow diversity if enabled */
+	if (sc->sc_dolnadiv) {
+		ath_lna_rx_comb_scan(sc, rs, ticks, hz);
+	}
 
 	if (sc->sc_softled) {
 		/*
@@ -836,6 +864,16 @@ rx_accept:
 			ath_led_event(sc, 0);
 		}
 rx_next:
+	/*
+	 * Debugging - complain if we didn't NULL the mbuf pointer
+	 * here.
+	 */
+	if (m != NULL) {
+		device_printf(sc->sc_dev,
+		    "%s: mbuf %p should've been freed!\n",
+		    __func__,
+		    m);
+	}
 	return (is_good);
 }
 
@@ -951,7 +989,10 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		/*
 		 * Process a single frame.
 		 */
-		if (ath_rx_pkt(sc, rs, status, tsf, nf, HAL_RX_QUEUE_HP, bf))
+		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
+		bf->bf_m = NULL;
+		if (ath_rx_pkt(sc, rs, status, tsf, nf, HAL_RX_QUEUE_HP, bf, m))
 			ngood++;
 rx_proc_next:
 		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);

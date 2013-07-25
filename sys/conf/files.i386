@@ -61,9 +61,15 @@ hpt27xx_lib.o			optional	hpt27xx			\
 	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
 	no-implicit-rule
+#
 hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/i386-elf.raid.o.uu"		\
 	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu"	\
+	no-implicit-rule
+#
+hptnr_lib.o			optional	hptnr			\
+	dependency	"$S/dev/hptnr/i386-elf.hptnr_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/hptnr/i386-elf.hptnr_lib.o.uu" \
 	no-implicit-rule
 #
 hptrr_lib.o			optional	hptrr			\
@@ -122,7 +128,7 @@ crypto/aesni/aesencdec_i386.S	optional aesni
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 crypto/aesni/aesni_wrap.c	optional aesni
-crypto/des/arch/i386/des_enc.S	optional crypto | ipsec
+crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
@@ -176,18 +182,22 @@ dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
 dev/fdc/fdc_isa.c		optional fdc isa
 dev/fdc/fdc_pccard.c		optional fdc pccard
+dev/fdt/fdt_x86.c		optional fdt
 dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
-dev/hpt27xx/os_bsd.c		optional hpt27xx
-dev/hpt27xx/osm_bsd.c		optional hpt27xx
+dev/hpt27xx/hpt27xx_os_bsd.c	optional hpt27xx
+dev/hpt27xx/hpt27xx_osm_bsd.c	optional hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
 dev/hptmv/entry.c		optional hptmv
 dev/hptmv/mv.c			optional hptmv
 dev/hptmv/gui_lib.c		optional hptmv
 dev/hptmv/hptproc.c		optional hptmv
 dev/hptmv/ioctl.c		optional hptmv
+dev/hptnr/hptnr_os_bsd.c	optional hptnr
+dev/hptnr/hptnr_osm_bsd.c	optional hptnr
+dev/hptnr/hptnr_config.c	optional hptnr
 dev/hptrr/hptrr_os_bsd.c	optional hptrr
 dev/hptrr/hptrr_osm_bsd.c	optional hptrr
 dev/hptrr/hptrr_config.c	optional hptrr
@@ -216,7 +226,7 @@ dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
-dev/kbd/kbd.c			optional atkbd | sc | ukbd
+dev/kbd/kbd.c			optional atkbd | sc | ukbd | vt
 dev/le/if_le_isa.c		optional le isa
 dev/lindev/full.c		optional lindev
 dev/lindev/lindev.c		optional lindev
@@ -233,7 +243,7 @@ dev/nvme/nvme_ns_cmd.c		optional nvme
 dev/nvme/nvme_qpair.c		optional nvme
 dev/nvme/nvme_sysctl.c		optional nvme
 dev/nvme/nvme_test.c		optional nvme
-dev/nvme/nvme_uio.c		optional nvme
+dev/nvme/nvme_util.c		optional nvme
 dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/ivy.c		optional random rdrand_rng
@@ -547,6 +557,7 @@ x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/fdt_machdep.c		optional fdt
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		optional native

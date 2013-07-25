@@ -93,8 +93,10 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, 0x0091, "Intel Centrino Advanced-N 6230"		},
 	{ 0x8086, 0x0885, "Intel Centrino Wireless-N + WiMAX 6150"	},
 	{ 0x8086, 0x0886, "Intel Centrino Wireless-N + WiMAX 6150"	},
+	{ 0x8086, 0x0887, "Intel Centrino Wireless-N 2230"		},
+	{ 0x8086, 0x0888, "Intel Centrino Wireless-N 2230"		},
 	{ 0x8086, 0x0896, "Intel Centrino Wireless-N 130"		},
-	{ 0x8086, 0x0887, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, 0x0897, "Intel Centrino Wireless-N 130"		},
 	{ 0x8086, 0x08ae, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, 0x08af, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, 0x4229, "Intel Wireless WiFi Link 4965"		},
@@ -335,6 +337,8 @@ enum {
 	IWN_DEBUG_NODE		= 0x00000400,	/* node management */
 	IWN_DEBUG_LED		= 0x00000800,	/* led management */
 	IWN_DEBUG_CMD		= 0x00001000,	/* cmd submission */
+	IWN_DEBUG_TXRATE	= 0x00002000,	/* TX rate debugging */
+	IWN_DEBUG_PWRSAVE	= 0x00004000,	/* Power save operations */
 	IWN_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	IWN_DEBUG_ANY		= 0xffffffff
 };
@@ -442,6 +446,15 @@ iwn_attach(device_t dev)
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
+
+#ifdef	IWN_DEBUG
+	error = resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev), "debug", &(sc->sc_debug));
+	if (error != 0)
+		sc->sc_debug = 0;
+#else
+	sc->sc_debug = 0;
+#endif
 
 	/*
 	 * Get the offset of the PCI Express Capability Structure in PCI
@@ -585,6 +598,7 @@ iwn_attach(device_t dev)
 		| IEEE80211_C_IBSS		/* ibss/adhoc mode */
 #endif
 		| IEEE80211_C_WME		/* WME */
+		| IEEE80211_C_PMGT		/* Station-side power mgmt */
 		;
 
 	/* Read MAC address, channels, etc from EEPROM. */
@@ -841,13 +855,13 @@ iwn_radiotap_attach(struct iwn_softc *sc)
 static void
 iwn_sysctlattach(struct iwn_softc *sc)
 {
+#ifdef	IWN_DEBUG
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 
-#ifdef IWN_DEBUG
-	sc->sc_debug = 0;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "debug", CTLFLAG_RW, &sc->sc_debug, 0, "control debugging printfs");
+	    "debug", CTLFLAG_RW, &sc->sc_debug, sc->sc_debug,
+		"control debugging printfs");
 #endif
 }
 
@@ -2097,54 +2111,104 @@ rate2plcp(int rate)
 	return 0;
 }
 
-static void
-iwn_newassoc(struct ieee80211_node *ni, int isnew)
+/*
+ * Calculate the required PLCP value from the given rate,
+ * to the given node.
+ *
+ * This will take the node configuration (eg 11n, rate table
+ * setup, etc) into consideration.
+ */
+static uint32_t
+iwn_rate_to_plcp(struct iwn_softc *sc, struct ieee80211_node *ni,
+    uint8_t rate)
 {
 #define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = ni->ni_ic;
-	struct iwn_softc *sc = ic->ic_ifp->if_softc;
-	struct iwn_node *wn = (void *)ni;
 	uint8_t txant1, txant2;
-	int i, plcp, rate, ridx;
+	uint32_t plcp = 0;
+	int ridx;
 
 	/* Use the first valid TX antenna. */
 	txant1 = IWN_LSB(sc->txchainmask);
 	txant2 = IWN_LSB(sc->txchainmask & ~txant1);
 
+	/*
+	 * If it's an MCS rate, let's set the plcp correctly
+	 * and set the relevant flags based on the node config.
+	 */
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
-		ridx = ni->ni_rates.rs_nrates - 1;
-		for (i = ni->ni_htrates.rs_nrates - 1; i >= 0; i--) {
-			plcp = RV(ni->ni_htrates.rs_rates[i]) | IWN_RFLAG_MCS;
-			if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
-				plcp |= IWN_RFLAG_HT40;
-				if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
-					plcp |= IWN_RFLAG_SGI;
-			} else if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
+		/*
+		 * Set the initial PLCP value to be between 0->31 for
+		 * MCS 0 -> MCS 31, then set the "I'm an MCS rate!"
+		 * flag.
+		 */
+		plcp = RV(rate) | IWN_RFLAG_MCS;
+
+		/*
+		 * XXX the following should only occur if both
+		 * the local configuration _and_ the remote node
+		 * advertise these capabilities.  Thus this code
+		 * may need fixing!
+		 */
+
+		/*
+		 * Set the channel width and guard interval.
+		 */
+		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+			plcp |= IWN_RFLAG_HT40;
+			if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
 				plcp |= IWN_RFLAG_SGI;
-			if (RV(ni->ni_htrates.rs_rates[i]) > 7)
-				plcp |= IWN_RFLAG_ANT(txant1 | txant2);
-			else
-				plcp |= IWN_RFLAG_ANT(txant1);
-			if (ridx >= 0) {
-				rate = RV(ni->ni_rates.rs_rates[ridx]);
-				wn->ridx[rate] = plcp;
-			}
-			wn->ridx[IEEE80211_RATE_MCS | i] = plcp;
-			ridx--;
+		} else if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20) {
+			plcp |= IWN_RFLAG_SGI;
 		}
-	} else {
-		for (i = 0; i < ni->ni_rates.rs_nrates; i++) {
-			rate = RV(ni->ni_rates.rs_rates[i]);
-			plcp = rate2plcp(rate);
-			ridx = ic->ic_rt->rateCodeToIndex[rate];
-			if (ridx < IWN_RIDX_OFDM6 &&
-			    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
-				plcp |= IWN_RFLAG_CCK;
+
+		/*
+		 * If it's a two stream rate, enable TX on both
+		 * antennas.
+		 *
+		 * XXX three stream rates?
+		 */
+		if (rate > 0x87)
+			plcp |= IWN_RFLAG_ANT(txant1 | txant2);
+		else
 			plcp |= IWN_RFLAG_ANT(txant1);
-			wn->ridx[rate] = htole32(plcp);
-		}
+	} else {
+		/*
+		 * Set the initial PLCP - fine for both
+		 * OFDM and CCK rates.
+		 */
+		plcp = rate2plcp(rate);
+
+		/* Set CCK flag if it's CCK */
+
+		/* XXX It would be nice to have a method
+		 * to map the ridx -> phy table entry
+		 * so we could just query that, rather than
+		 * this hack to check against IWN_RIDX_OFDM6.
+		 */
+		ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
+		    rate & IEEE80211_RATE_VAL);
+		if (ridx < IWN_RIDX_OFDM6 &&
+		    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
+			plcp |= IWN_RFLAG_CCK;
+
+		/* Set antenna configuration */
+		plcp |= IWN_RFLAG_ANT(txant1);
 	}
+
+	DPRINTF(sc, IWN_DEBUG_TXRATE, "%s: rate=0x%02x, plcp=0x%08x\n",
+	    __func__,
+	    rate,
+	    plcp);
+
+	return (htole32(plcp));
 #undef	RV
+}
+
+static void
+iwn_newassoc(struct ieee80211_node *ni, int isnew)
+{
+	/* Doesn't do anything at the moment */
 }
 
 static int
@@ -3400,7 +3464,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
 		rate = ni->ni_txrate;
 	}
-	ridx = ic->ic_rt->rateCodeToIndex[rate];
+	ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
+	    rate & IEEE80211_RATE_VAL);
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
@@ -3506,7 +3571,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	tx->rts_ntries = 60;
 	tx->data_ntries = 15;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
-	tx->rate = wn->ridx[rate];
+	tx->rate = iwn_rate_to_plcp(sc, ni, rate);
 	if (tx->id == sc->broadcast_id) {
 		/* Group or management frame. */
 		tx->linkq = 0;
@@ -3637,7 +3702,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 
 	/* Choose a TX rate index. */
 	rate = params->ibp_rate0;
-	ridx = ic->ic_rt->rateCodeToIndex[rate];
+	ridx = ieee80211_legacy_rate_lookup(ic->ic_rt,
+	    rate & IEEE80211_RATE_VAL);
 	if (ridx == (uint8_t)-1) {
 		/* XXX fall back to mcast/mgmt rate? */
 		m_freem(m);
@@ -3713,14 +3779,18 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	tx->rts_ntries = params->ibp_try1;
 	tx->data_ntries = params->ibp_try0;
 	tx->lifetime = htole32(IWN_LIFETIME_INFINITE);
+
+	/* XXX should just use  iwn_rate_to_plcp() */
 	tx->rate = htole32(rate2plcp(rate));
 	if (ridx < IWN_RIDX_OFDM6 &&
 	    IEEE80211_IS_CHAN_2GHZ(ni->ni_chan))
 		tx->rate |= htole32(IWN_RFLAG_CCK);
+
 	/* Group or management frame. */
 	tx->linkq = 0;
 	txant = IWN_LSB(sc->txchainmask);
 	tx->rate |= htole32(IWN_RFLAG_ANT(txant));
+
 	/* Set physical address of "scratch area". */
 	tx->loaddr = htole32(IWN_LOADDR(data->scratch_paddr));
 	tx->hiaddr = IWN_HIADDR(data->scratch_paddr);
@@ -4076,14 +4146,20 @@ iwn_set_link_quality(struct iwn_softc *sc, struct ieee80211_node *ni)
 	else
 		txrate = rs->rs_nrates - 1;
 	for (i = 0; i < IWN_MAX_TX_RETRIES; i++) {
+		uint32_t plcp;
+
 		if (IEEE80211_IS_CHAN_HT(ni->ni_chan))
 			rate = IEEE80211_RATE_MCS | txrate;
 		else
 			rate = RV(rs->rs_rates[txrate]);
-		linkq.retry[i] = wn->ridx[rate];
 
-		if ((le32toh(wn->ridx[rate]) & IWN_RFLAG_MCS) &&
-		    RV(le32toh(wn->ridx[rate])) > 7)
+		/* Do rate -> PLCP config mapping */
+		plcp = iwn_rate_to_plcp(sc, ni, rate);
+		linkq.retry[i] = plcp;
+
+		/* Special case for dual-stream rates? */
+		if ((le32toh(plcp) & IWN_RFLAG_MCS) &&
+		    RV(le32toh(plcp)) > 7)
 			linkq.mimo = i + 1;
 
 		/* Next retry at immediate lower bit-rate. */
@@ -4585,6 +4661,8 @@ iwn_collect_noise(struct iwn_softc *sc,
 {
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_calib_state *calib = &sc->calib;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
 	uint32_t val;
 	int i;
 
@@ -4623,12 +4701,9 @@ iwn_collect_noise(struct iwn_softc *sc,
 	(void)iwn_cmd(sc, IWN_CMD_RXON, &sc->rxon, sc->rxonsz, 1);
 #endif
 
-#if 0
-	/* XXX: not yet */
 	/* Enable power-saving mode if requested by user. */
-	if (sc->sc_ic.ic_flags & IEEE80211_F_PMGTON)
+	if (ic->ic_flags & IEEE80211_F_PMGTON)
 		(void)iwn_set_pslevel(sc, 0, 3, 1);
-#endif
 }
 
 static int
@@ -4939,6 +5014,13 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 	uint32_t max, skip_dtim;
 	uint32_t reg;
 	int i;
+
+	DPRINTF(sc, IWN_DEBUG_PWRSAVE,
+	    "%s: dtim=%d, level=%d, async=%d\n",
+	    __func__,
+	    dtim,
+	    level,
+	    async);
 
 	/* Select which PS parameters to use. */
 	if (dtim <= 2)

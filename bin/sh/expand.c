@@ -460,7 +460,7 @@ expbackq(union node *cmd, int quoted, int flag)
 	int startloc = dest - stackblock();
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
-	int nnl;
+	size_t nnl;
 
 	INTOFF;
 	saveifs = ifsfirst;
@@ -1163,9 +1163,9 @@ nometa:
 static void
 expmeta(char *enddir, char *name)
 {
-	char *p;
-	char *q;
-	char *start;
+	const char *p;
+	const char *q;
+	const char *start;
 	char *endname;
 	int metaflag;
 	struct stat statb;
@@ -1229,7 +1229,7 @@ expmeta(char *enddir, char *name)
 			addfname(expdir);
 		return;
 	}
-	endname = p;
+	endname = name + (p - name);
 	if (start != name) {
 		p = name;
 		while (p < start) {
@@ -1412,7 +1412,8 @@ match_charclass(const char *p, wchar_t chr, const char **end)
 	*end = NULL;
 	p++;
 	nameend = strstr(p, ":]");
-	if (nameend == NULL || nameend - p >= sizeof(name) || nameend == p)
+	if (nameend == NULL || (size_t)(nameend - p) >= sizeof(name) ||
+	    nameend == p)
 		return 0;
 	memcpy(name, p, nameend - p);
 	name[nameend - p] = '\0';

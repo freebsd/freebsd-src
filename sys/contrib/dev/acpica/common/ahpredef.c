@@ -61,7 +61,7 @@
 const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
 {
     AH_PREDEF ("_ACx",    "Active Cooling", "Returns the active cooling policy threshold values"),
-    AH_PREDEF ("_ADR",    "Address", "Returns the address of a device on its parent bus"),
+    AH_PREDEF ("_ADR",    "Address", "Returns address of a device on parent bus, and resource field"),
     AH_PREDEF ("_AEI",    "ACPI Event Interrupts", "Returns a list of GPIO events to be used as ACPI events"),
     AH_PREDEF ("_ALC",    "Ambient Light Chromaticity", "Returns the ambient light color chromaticity"),
     AH_PREDEF ("_ALI",    "Ambient Light Illuminance", "Returns the ambient light brightness"),
@@ -113,7 +113,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_DGS",    "Display Graphics State", "Return the current state of the output device"),
     AH_PREDEF ("_DIS",    "Disable Device", "Disables a device"),
     AH_PREDEF ("_DLM",    "Device Lock Mutex", "Defines mutex for OS/AML sharing"),
-    AH_PREDEF ("_DMA",    "Direct Memory Access", "Returns a device's current resources for DMA transactions"),
+    AH_PREDEF ("_DMA",    "Direct Memory Access", "Returns device current resources for DMA transactions, and resource field"),
     AH_PREDEF ("_DOD",    "Display Output Devices", "Enumerate all devices attached to the display adapter"),
     AH_PREDEF ("_DOS",    "Disable Output Switching", "Sets the display output switching mode"),
     AH_PREDEF ("_DPL",    "Device Selection Polarity", "Polarity of Device Selection signal, Resource Descriptor field"),

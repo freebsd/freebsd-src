@@ -1,22 +1,40 @@
-#!/usr/local/bin/perl -w
+#!/usr/perl5/bin/perl -w
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
 #
 # Copyright (c) 1996-2000 by John T. Beck <john@beck.org>
 # All rights reserved.
 #
-# Copyright (c) 2000 by Sun Microsystems, Inc.
-# All rights reserved.
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
 #
-#ident	"@(#)etrn.pl	1.1	00/09/06 SMI"
 
-require 5.005;				# minimal Perl version required
+require 5.8.4;				# minimal Perl version required
 use strict;
+use warnings;
 use English;
 
-# hardcoded constants, should work fine for BSD-based systems
 use Socket;
 use Getopt::Std;
-use vars qw($opt_v);
-my $sockaddr = 'S n a4 x8';
+our ($opt_v, $opt_b);
 
 # system requirements:
 # 	must have 'hostname' program.
@@ -26,11 +44,12 @@ select(STDERR);
 
 chop(my $name = `hostname || uname -n`);
 
-(my $hostname, my $aliases, my $type, my $len, undef) = gethostbyname($name);
+my ($hostname) = (gethostbyname($name))[0];
 
-my $usage = "Usage: $PROGRAM_NAME [-v] host [args]";
-getopts('v');
+my $usage = "Usage: $PROGRAM_NAME [-bv] host [args]";
+getopts('bv');
 my $verbose = $opt_v;
+my $boot_check = $opt_b;
 my $server = shift(@ARGV);
 my @hosts = @ARGV;
 die $usage unless $server;
@@ -86,24 +105,60 @@ if (!@hosts) {
 			die "open $cwfile: $ERRNO";
 		}
 	}
+	# Do this automatically if no client hosts are specified.
+	$boot_check = "yes";
 }
 
-($name, $aliases, my $proto) = getprotobyname('tcp');
-($name, $aliases, $port) = getservbyname($port, 'tcp')
+my ($proto) = (getprotobyname('tcp'))[2];
+($port) = (getservbyname($port, 'tcp'))[2]
 	unless $port =~ /^\d+/;
+
+if ($boot_check) {
+	# first connect to localhost to verify that we can accept connections
+	print "verifying that localhost is accepting SMTP connections\n"
+		if ($verbose);
+	my $localhost_ok = 0;
+	($name, my $laddr) = (gethostbyname('localhost'))[0, 4];
+	(!defined($name)) && die "gethostbyname failed, unknown host localhost";
+
+	# get a connection
+	my $sinl = sockaddr_in($port, $laddr);
+	my $save_errno = 0;
+	for (my $num_tries = 1; $num_tries < 5; $num_tries++) {
+		socket(S, &PF_INET, &SOCK_STREAM, $proto)
+			|| die "socket: $ERRNO";
+		if (connect(S, $sinl)) {
+			&alarm("sending 'quit' to $server");
+			print S "quit\n";
+			alarm(0);
+			$localhost_ok = 1;
+			close(S);
+			alarm(0);
+			last;
+		}
+		print STDERR "localhost connect failed ($num_tries)\n";
+		$save_errno = $ERRNO;
+		sleep(1 << $num_tries);
+		close(S);
+		alarm(0);
+	}
+	if (! $localhost_ok) {
+		die "could not connect to localhost: $save_errno\n";
+	}
+}
 
 # look it up
 
-($name, $aliases, $type, $len, my $thataddr) = gethostbyname($server);
+($name, my $thataddr) = (gethostbyname($server))[0, 4];
 (!defined($name)) && die "gethostbyname failed, unknown host $server";
-				
+
 # get a connection
-my $that = pack($sockaddr, &AF_INET, $port, $thataddr);
-socket(S, &AF_INET, &SOCK_STREAM, $proto)
+my $sinr = sockaddr_in($port, $thataddr);
+socket(S, &PF_INET, &SOCK_STREAM, $proto)
 	|| die "socket: $ERRNO";
 print "server = $server\n" if (defined($verbose));
 &alarm("connect to $server");
-if (! connect(S, $that)) {
+if (! connect(S, $sinr)) {
 	die "cannot connect to $server: $ERRNO\n";
 }
 alarm(0);

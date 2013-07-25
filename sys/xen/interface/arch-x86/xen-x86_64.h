@@ -29,22 +29,12 @@
 
 /*
  * Hypercall interface:
- *  Input:  %rdi, %rsi, %rdx, %r10, %r8 (arguments 1-5)
+ *  Input:  %rdi, %rsi, %rdx, %r10, %r8, %r9 (arguments 1-6)
  *  Output: %rax
  * Access is via hypercall page (set up by guest loader or via a Xen MSR):
  *  call hypercall_page + hypercall-number * 32
  * Clobbered: argument registers (e.g., 2-arg hypercall clobbers %rdi,%rsi)
  */
-
-#if __XEN_INTERFACE_VERSION__ < 0x00030203
-/*
- * Legacy hypercall interface:
- * As above, except the entry sequence to the hypervisor is:
- *  mov $hypercall-number*32,%eax ; syscall
- * Clobbered: %rcx, %r11, argument registers (as above)
- */
-#define TRAP_INSTR "syscall"
-#endif
 
 /*
  * 64-bit segment selectors

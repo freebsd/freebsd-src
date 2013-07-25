@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #else
 #include <errno.h>
@@ -53,8 +56,15 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt.h>
 #include <cam/scsi/scsi_all.h>
+#include <sys/ata.h>
 #include <sys/sbuf.h>
-#ifndef _KERNEL
+
+#ifdef _KERNEL
+#include <cam/cam_periph.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
+#else
 #include <camlib.h>
 #include <stddef.h>
 
@@ -655,6 +665,10 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 	if (pd_type == T_RBC)
 		pd_type = T_DIRECT;
 
+	/* Map NODEVICE to Direct Access Device to handle REPORT LUNS, etc. */
+	if (pd_type == T_NODEVICE)
+		pd_type = T_DIRECT;
+
 	opmask = 1 << pd_type;
 
 	for (j = 0; j < num_tables; j++) {
@@ -698,10 +712,7 @@ const struct sense_key_table_entry sense_key_table[] =
 {
 	{ SSD_KEY_NO_SENSE, SS_NOP, "NO SENSE" },
 	{ SSD_KEY_RECOVERED_ERROR, SS_NOP|SSQ_PRINT_SENSE, "RECOVERED ERROR" },
-	{
-	  SSD_KEY_NOT_READY, SS_TUR|SSQ_MANY|SSQ_DECREMENT_COUNT|EBUSY,
-	  "NOT READY"
-	},
+	{ SSD_KEY_NOT_READY, SS_RDEF, "NOT READY" },
 	{ SSD_KEY_MEDIUM_ERROR, SS_RDEF, "MEDIUM ERROR" },
 	{ SSD_KEY_HARDWARE_ERROR, SS_RDEF, "HARDWARE FAILURE" },
 	{ SSD_KEY_ILLEGAL_REQUEST, SS_FATAL|EINVAL, "ILLEGAL REQUEST" },
@@ -730,6 +741,172 @@ static struct asc_table_entry sony_mo_entries[] = {
 	     "Logical unit not ready, cause not reportable") }
 };
 
+static struct asc_table_entry hgst_entries[] = {
+	{ SST(0x04, 0xF0, SS_RDEF,
+	    "Vendor Unique - Logical Unit Not Ready") },
+	{ SST(0x0A, 0x01, SS_RDEF,
+	    "Unrecovered Super Certification Log Write Error") },
+	{ SST(0x0A, 0x02, SS_RDEF,
+	    "Unrecovered Super Certification Log Read Error") },
+	{ SST(0x15, 0x03, SS_RDEF,
+	    "Unrecovered Sector Error") },
+	{ SST(0x3E, 0x04, SS_RDEF,
+	    "Unrecovered Self-Test Hard-Cache Test Fail") },
+	{ SST(0x3E, 0x05, SS_RDEF,
+	    "Unrecovered Self-Test OTF-Cache Fail") },
+	{ SST(0x40, 0x00, SS_RDEF,
+	    "Unrecovered SAT No Buffer Overflow Error") },
+	{ SST(0x40, 0x01, SS_RDEF,
+	    "Unrecovered SAT Buffer Overflow Error") },
+	{ SST(0x40, 0x02, SS_RDEF,
+	    "Unrecovered SAT No Buffer Overflow With ECS Fault") },
+	{ SST(0x40, 0x03, SS_RDEF,
+	    "Unrecovered SAT Buffer Overflow With ECS Fault") },
+	{ SST(0x40, 0x81, SS_RDEF,
+	    "DRAM Failure") },
+	{ SST(0x44, 0x0B, SS_RDEF,
+	    "Vendor Unique - Internal Target Failure") },
+	{ SST(0x44, 0xF2, SS_RDEF,
+	    "Vendor Unique - Internal Target Failure") },
+	{ SST(0x44, 0xF6, SS_RDEF,
+	    "Vendor Unique - Internal Target Failure") },
+	{ SST(0x44, 0xF9, SS_RDEF,
+	    "Vendor Unique - Internal Target Failure") },
+	{ SST(0x44, 0xFA, SS_RDEF,
+	    "Vendor Unique - Internal Target Failure") },
+	{ SST(0x5D, 0x22, SS_RDEF,
+	    "Extreme Over-Temperature Warning") },
+	{ SST(0x5D, 0x50, SS_RDEF,
+	    "Load/Unload cycle Count Warning") },
+	{ SST(0x81, 0x00, SS_RDEF,
+	    "Vendor Unique - Internal Logic Error") },
+	{ SST(0x85, 0x00, SS_RDEF,
+	    "Vendor Unique - Internal Key Seed Error") },
+};
+
+static struct asc_table_entry seagate_entries[] = {
+	{ SST(0x04, 0xF0, SS_RDEF,
+	    "Logical Unit Not Ready, super certify in Progress") },
+	{ SST(0x08, 0x86, SS_RDEF,
+	    "Write Fault Data Corruption") },
+	{ SST(0x09, 0x0D, SS_RDEF,
+	    "Tracking Failure") },
+	{ SST(0x09, 0x0E, SS_RDEF,
+	    "ETF Failure") },
+	{ SST(0x0B, 0x5D, SS_RDEF,
+	    "Pre-SMART Warning") },
+	{ SST(0x0B, 0x85, SS_RDEF,
+	    "5V Voltage Warning") },
+	{ SST(0x0B, 0x8C, SS_RDEF,
+	    "12V Voltage Warning") },
+	{ SST(0x0C, 0xFF, SS_RDEF,
+	    "Write Error - Too many error recovery revs") },
+	{ SST(0x11, 0xFF, SS_RDEF,
+	    "Unrecovered Read Error - Too many error recovery revs") },
+	{ SST(0x19, 0x0E, SS_RDEF,
+	    "Fewer than 1/2 defect list copies") },
+	{ SST(0x20, 0xF3, SS_RDEF,
+	    "Illegal CDB linked to skip mask cmd") },
+	{ SST(0x24, 0xF0, SS_RDEF,
+	    "Illegal byte in CDB, LBA not matching") },
+	{ SST(0x24, 0xF1, SS_RDEF,
+	    "Illegal byte in CDB, LEN not matching") },
+	{ SST(0x24, 0xF2, SS_RDEF,
+	    "Mask not matching transfer length") },
+	{ SST(0x24, 0xF3, SS_RDEF,
+	    "Drive formatted without plist") },
+	{ SST(0x26, 0x95, SS_RDEF,
+	    "Invalid Field Parameter - CAP File") },
+	{ SST(0x26, 0x96, SS_RDEF,
+	    "Invalid Field Parameter - RAP File") },
+	{ SST(0x26, 0x97, SS_RDEF,
+	    "Invalid Field Parameter - TMS Firmware Tag") },
+	{ SST(0x26, 0x98, SS_RDEF,
+	    "Invalid Field Parameter - Check Sum") },
+	{ SST(0x26, 0x99, SS_RDEF,
+	    "Invalid Field Parameter - Firmware Tag") },
+	{ SST(0x29, 0x08, SS_RDEF,
+	    "Write Log Dump data") },
+	{ SST(0x29, 0x09, SS_RDEF,
+	    "Write Log Dump data") },
+	{ SST(0x29, 0x0A, SS_RDEF,
+	    "Reserved disk space") },
+	{ SST(0x29, 0x0B, SS_RDEF,
+	    "SDBP") },
+	{ SST(0x29, 0x0C, SS_RDEF,
+	    "SDBP") },
+	{ SST(0x31, 0x91, SS_RDEF,
+	    "Format Corrupted World Wide Name (WWN) is Invalid") },
+	{ SST(0x32, 0x03, SS_RDEF,
+	    "Defect List - Length exceeds Command Allocated Length") },
+	{ SST(0x33, 0x00, SS_RDEF,
+	    "Flash not ready for access") },
+	{ SST(0x3F, 0x70, SS_RDEF,
+	    "Invalid RAP block") },
+	{ SST(0x3F, 0x71, SS_RDEF,
+	    "RAP/ETF mismatch") },
+	{ SST(0x3F, 0x90, SS_RDEF,
+	    "Invalid CAP block") },
+	{ SST(0x3F, 0x91, SS_RDEF,
+	    "World Wide Name (WWN) Mismatch") },
+	{ SST(0x40, 0x01, SS_RDEF,
+	    "DRAM Parity Error") },
+	{ SST(0x40, 0x02, SS_RDEF,
+	    "DRAM Parity Error") },
+	{ SST(0x42, 0x0A, SS_RDEF,
+	    "Loopback Test") },
+	{ SST(0x42, 0x0B, SS_RDEF,
+	    "Loopback Test") },
+	{ SST(0x44, 0xF2, SS_RDEF,
+	    "Compare error during data integrity check") },
+	{ SST(0x44, 0xF6, SS_RDEF,
+	    "Unrecoverable error during data integrity check") },
+	{ SST(0x47, 0x80, SS_RDEF,
+	    "Fibre Channel Sequence Error") },
+	{ SST(0x4E, 0x01, SS_RDEF,
+	    "Information Unit Too Short") },
+	{ SST(0x80, 0x00, SS_RDEF,
+	    "General Firmware Error / Command Timeout") },
+	{ SST(0x80, 0x01, SS_RDEF,
+	    "Command Timeout") },
+	{ SST(0x80, 0x02, SS_RDEF,
+	    "Command Timeout") },
+	{ SST(0x80, 0x80, SS_RDEF,
+	    "FC FIFO Error During Read Transfer") },
+	{ SST(0x80, 0x81, SS_RDEF,
+	    "FC FIFO Error During Write Transfer") },
+	{ SST(0x80, 0x82, SS_RDEF,
+	    "DISC FIFO Error During Read Transfer") },
+	{ SST(0x80, 0x83, SS_RDEF,
+	    "DISC FIFO Error During Write Transfer") },
+	{ SST(0x80, 0x84, SS_RDEF,
+	    "LBA Seeded LRC Error on Read") },
+	{ SST(0x80, 0x85, SS_RDEF,
+	    "LBA Seeded LRC Error on Write") },
+	{ SST(0x80, 0x86, SS_RDEF,
+	    "IOEDC Error on Read") },
+	{ SST(0x80, 0x87, SS_RDEF,
+	    "IOEDC Error on Write") },
+	{ SST(0x80, 0x88, SS_RDEF,
+	    "Host Parity Check Failed") },
+	{ SST(0x80, 0x89, SS_RDEF,
+	    "IOEDC error on read detected by formatter") },
+	{ SST(0x80, 0x8A, SS_RDEF,
+	    "Host Parity Errors / Host FIFO Initialization Failed") },
+	{ SST(0x80, 0x8B, SS_RDEF,
+	    "Host Parity Errors") },
+	{ SST(0x80, 0x8C, SS_RDEF,
+	    "Host Parity Errors") },
+	{ SST(0x80, 0x8D, SS_RDEF,
+	    "Host Parity Errors") },
+	{ SST(0x81, 0x00, SS_RDEF,
+	    "LA Check Failed") },
+	{ SST(0x82, 0x00, SS_RDEF,
+	    "Internal client detected insufficient buffer") },
+	{ SST(0x84, 0x00, SS_RDEF,
+	    "Scheduled Diagnostic And Repair") },
+};
+
 static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 	{
 		/*
@@ -752,6 +929,26 @@ static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 		sizeof(sony_mo_entries)/sizeof(struct asc_table_entry),
 		/*sense key entries*/NULL,
 		sony_mo_entries
+	},
+	{
+		/*
+		 * HGST vendor-specific error codes
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "HGST", "*", "*"},
+		/*num_sense_keys*/0,
+		sizeof(hgst_entries)/sizeof(struct asc_table_entry),
+		/*sense key entries*/NULL,
+		hgst_entries
+	},
+	{
+		/*
+		 * SEAGATE vendor-specific error codes
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "SEAGATE", "*", "*"},
+		/*num_sense_keys*/0,
+		sizeof(seagate_entries)/sizeof(struct asc_table_entry),
+		/*sense key entries*/NULL,
+		seagate_entries
 	}
 };
 
@@ -876,7 +1073,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x03, 0x02, SS_RDEF,
 	    "Excessive write errors") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x00, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EIO,
+	{ SST(0x04, 0x00, SS_RDEF,
 	    "Logical unit not ready, cause not reportable") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x04, 0x01, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | EBUSY,
@@ -1452,7 +1649,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x24, 0x08, SS_RDEF,	/* XXX TBD */
 	    "Invalid XCDB") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x25, 0x00, SS_FATAL | ENXIO,
+	{ SST(0x25, 0x00, SS_FATAL | ENXIO | SSQ_LOST,
 	    "Logical unit not supported") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x26, 0x00, SS_FATAL | EINVAL,
@@ -1970,7 +2167,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x3F, 0x0D, SS_RDEF,
 	    "Volume set reassigned") },
 	/* DTLPWROMAE     */
-	{ SST(0x3F, 0x0E, SS_RDEF,	/* XXX TBD */
+	{ SST(0x3F, 0x0E, SS_RDEF | SSQ_RESCAN ,
 	    "Reported LUNs data has changed") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x3F, 0x0F, SS_RDEF,	/* XXX TBD */
@@ -3070,6 +3267,7 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 				action |= SS_RETRY|SSQ_DECREMENT_COUNT|
 					  SSQ_PRINT_SENSE;
 			}
+			action |= SSQ_UA;
 		}
 	}
 	if ((action & SS_MASK) >= SS_START &&
@@ -5166,7 +5364,59 @@ scsi_devid_is_sas_target(uint8_t *bufp)
 	return 1;
 }
 
-uint8_t *
+int
+scsi_devid_is_lun_eui64(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_EUI64)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_naa(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_NAA)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_t10(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_T10)
+		return 0;
+	return 1;
+}
+
+int
+scsi_devid_is_lun_name(uint8_t *bufp)
+{
+	struct scsi_vpd_id_descriptor *descr;
+
+	descr = (struct scsi_vpd_id_descriptor *)bufp;
+	if ((descr->id_type & SVPD_ID_ASSOC_MASK) != SVPD_ID_ASSOC_LUN)
+		return 0;
+	if ((descr->id_type & SVPD_ID_TYPE_MASK) != SVPD_ID_TYPE_SCSI_NAME)
+		return 0;
+	return 1;
+}
+
+struct scsi_vpd_id_descriptor *
 scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
     scsi_devid_checkfn_t ck_fn)
 {
@@ -5187,7 +5437,7 @@ scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
 						    + desc->length)) {
 
 		if (ck_fn == NULL || ck_fn((uint8_t *)desc) != 0)
-			return (desc->identifier);
+			return (desc);
 	}
 
 	return (NULL);
@@ -5855,6 +6105,101 @@ scsi_write_same(struct ccb_scsiio *csio, u_int32_t retries,
 }
 
 void
+scsi_ata_identify(struct ccb_scsiio *csio, u_int32_t retries,
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  u_int8_t tag_action, u_int8_t *data_ptr,
+		  u_int16_t dxfer_len, u_int8_t sense_len,
+		  u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_IN,
+			 tag_action,
+			 /*protocol*/AP_PROTO_PIO_IN,
+			 /*ata_flags*/AP_FLAG_TDIR_FROM_DEV|
+				AP_FLAG_BYT_BLOK_BYTES|AP_FLAG_TLEN_SECT_CNT,
+			 /*features*/0,
+			 /*sector_count*/dxfer_len,
+			 /*lba*/0,
+			 /*command*/ATA_ATA_IDENTIFY,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
+scsi_ata_trim(struct ccb_scsiio *csio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int8_t tag_action, u_int16_t block_count,
+	      u_int8_t *data_ptr, u_int16_t dxfer_len, u_int8_t sense_len,
+	      u_int32_t timeout)
+{
+	scsi_ata_pass_16(csio,
+			 retries,
+			 cbfcnp,
+			 /*flags*/CAM_DIR_OUT,
+			 tag_action,
+			 /*protocol*/AP_EXTEND|AP_PROTO_DMA,
+			 /*ata_flags*/AP_FLAG_TLEN_SECT_CNT|AP_FLAG_BYT_BLOK_BLOCKS,
+			 /*features*/ATA_DSM_TRIM,
+			 /*sector_count*/block_count,
+			 /*lba*/0,
+			 /*command*/ATA_DATA_SET_MANAGEMENT,
+			 /*control*/0,
+			 data_ptr,
+			 dxfer_len,
+			 sense_len,
+			 timeout);
+}
+
+void
+scsi_ata_pass_16(struct ccb_scsiio *csio, u_int32_t retries,
+		 void (*cbfcnp)(struct cam_periph *, union ccb *),
+		 u_int32_t flags, u_int8_t tag_action,
+		 u_int8_t protocol, u_int8_t ata_flags, u_int16_t features,
+		 u_int16_t sector_count, uint64_t lba, u_int8_t command,
+		 u_int8_t control, u_int8_t *data_ptr, u_int16_t dxfer_len,
+		 u_int8_t sense_len, u_int32_t timeout)
+{
+	struct ata_pass_16 *ata_cmd;
+
+	ata_cmd = (struct ata_pass_16 *)&csio->cdb_io.cdb_bytes;
+	ata_cmd->opcode = ATA_PASS_16;
+	ata_cmd->protocol = protocol;
+	ata_cmd->flags = ata_flags;
+	ata_cmd->features_ext = features >> 8;
+	ata_cmd->features = features;
+	ata_cmd->sector_count_ext = sector_count >> 8;
+	ata_cmd->sector_count = sector_count;
+	ata_cmd->lba_low = lba;
+	ata_cmd->lba_mid = lba >> 8;
+	ata_cmd->lba_high = lba >> 16;
+	ata_cmd->device = ATA_DEV_LBA;
+	if (protocol & AP_EXTEND) {
+		ata_cmd->lba_low_ext = lba >> 24;
+		ata_cmd->lba_mid_ext = lba >> 32;
+		ata_cmd->lba_high_ext = lba >> 40;
+	} else
+		ata_cmd->device |= (lba >> 24) & 0x0f;
+	ata_cmd->command = command;
+	ata_cmd->control = control;
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      flags,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*ata_cmd),
+		      timeout);
+}
+
+void
 scsi_unmap(struct ccb_scsiio *csio, u_int32_t retries,
 	   void (*cbfcnp)(struct cam_periph *, union ccb *),
 	   u_int8_t tag_action, u_int8_t byte2,
@@ -6164,6 +6509,28 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 }
 
 #ifdef _KERNEL
+int
+scsi_vpd_supported_page(struct cam_periph *periph, uint8_t page_id)
+{
+	struct cam_ed *device;
+	struct scsi_vpd_supported_pages *vpds;
+	int i, num_pages;
+
+	device = periph->path->device;
+	vpds = (struct scsi_vpd_supported_pages *)device->supported_vpds;
+
+	if (vpds != NULL) {
+		num_pages = device->supported_vpds_len -
+		    SVPD_SUPPORTED_PAGES_HDR_LEN;
+		for (i = 0; i < num_pages; i++) {
+			if (vpds->page_list[i] == page_id)
+				return (1);
+		}
+	}
+
+	return (0);
+}
+
 static void
 init_scsi_delay(void)
 {

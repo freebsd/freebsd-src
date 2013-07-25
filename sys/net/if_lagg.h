@@ -21,8 +21,6 @@
 #ifndef _NET_LAGG_H
 #define _NET_LAGG_H
 
-#include <sys/sysctl.h>
-
 /*
  * Global definitions
  */
@@ -137,6 +135,9 @@ struct lagg_reqflags {
 #define	SIOCSLAGGHASH		 _IOW('i', 146, struct lagg_reqflags)
 
 #ifdef _KERNEL
+
+#include <sys/counter.h>
+
 /*
  * Internal kernel part
  */
@@ -189,11 +190,19 @@ struct lagg_softc {
 	struct rwlock			sc_mtx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
+	u_int				sc_active;	/* active port count */
+	u_int				sc_flapping;	/* number of flapping
+							 * events */
 	struct lagg_port		*sc_primary;	/* primary port */
 	struct ifmedia			sc_media;	/* media config */
 	caddr_t				sc_psc;		/* protocol data */
 	uint32_t			sc_seq;		/* sequence counter */
 	uint32_t			sc_flags;
+
+	counter_u64_t			sc_ipackets;
+	counter_u64_t			sc_opackets;
+	counter_u64_t			sc_ibytes;
+	counter_u64_t			sc_obytes;
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
@@ -217,6 +226,7 @@ struct lagg_softc {
 	void	(*sc_portreq)(struct lagg_port *, caddr_t);
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
+	struct callout			sc_callout;
 	struct sysctl_ctx_list		ctx;		/* sysctl variables */
 	int				use_flowid;	/* use M_FLOWID */
 };
@@ -238,8 +248,8 @@ struct lagg_port {
 
 	/* Redirected callbacks */
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
-	int	(*lp_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
-		     struct route *);
+	int	(*lp_output)(struct ifnet *, struct mbuf *,
+		     const struct sockaddr *, struct route *);
 
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };
@@ -258,6 +268,8 @@ extern void	(*lagg_linkstate_p)(struct ifnet *, int );
 
 int		lagg_enqueue(struct ifnet *, struct mbuf *);
 uint32_t	lagg_hashmbuf(struct lagg_softc *, struct mbuf *, uint32_t);
+
+SYSCTL_DECL(_net_link_lagg);
 
 #endif /* _KERNEL */
 

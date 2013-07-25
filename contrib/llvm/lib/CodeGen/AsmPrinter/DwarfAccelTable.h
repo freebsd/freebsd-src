@@ -14,18 +14,18 @@
 #ifndef CODEGEN_ASMPRINTER_DWARFACCELTABLE_H__
 #define CODEGEN_ASMPRINTER_DWARFACCELTABLE_H__
 
-#include "llvm/ADT/StringMap.h"
+#include "DIE.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
-#include "DIE.h"
-#include <vector>
 #include <map>
+#include <vector>
 
 // The dwarf accelerator tables are an indirect hash table optimized
 // for null lookup rather than access to known data. They are output into
@@ -51,7 +51,7 @@
 // section contains all of the 32-bit hash values in contiguous memory, and
 // the offsets contain the offset into the data area for the particular
 // hash.
-// 
+//
 // For a lookup example, we could hash a function name and take it modulo the
 // number of buckets giving us our bucket. From there we take the bucket value
 // as an index into the hashes table and look at each successive hash as long
@@ -63,8 +63,8 @@ namespace llvm {
 
 class AsmPrinter;
 class DIE;
-class DwarfDebug;
-  
+class DwarfUnits;
+
 class DwarfAccelTable {
 
   enum HashFunctionType {
@@ -81,7 +81,7 @@ class DwarfAccelTable {
   // Helper function to compute the number of buckets needed based on
   // the number of unique hashes.
   void ComputeBucketCount (void);
-  
+
   struct TableHeader {
     uint32_t   magic;           // 'HASH' magic value to allow endian detection
     uint16_t   version;         // Version number.
@@ -94,7 +94,7 @@ class DwarfAccelTable {
     // Also written to disk is the implementation specific header data.
 
     static const uint32_t MagicHash = 0x48415348;
-    
+
     TableHeader (uint32_t data_len) :
       magic (MagicHash), version (1), hash_function (eHashFunctionDJB),
       bucket_count (0), hashes_count (0), header_data_len (data_len)
@@ -123,7 +123,7 @@ public:
   //
   // uint32_t die_offset_base
   // uint32_t atom_count
-  // atom_count Atoms  
+  // atom_count Atoms
   enum AtomType {
     eAtomTypeNULL       = 0u,
     eAtomTypeDIEOffset  = 1u,   // DIE offset, check form for encoding
@@ -138,12 +138,12 @@ public:
 
   enum TypeFlags {
     eTypeFlagClassMask = 0x0000000fu,
-    
+
     // Always set for C++, only set for ObjC if this is the
     // @implementation for a class.
     eTypeFlagClassIsImplementation  = ( 1u << 1 )
-  };  
-  
+  };
+
   // Make these public so that they can be used as a general interface to
   // the class.
   struct Atom {
@@ -245,7 +245,7 @@ private:
   void EmitBuckets(AsmPrinter *);
   void EmitHashes(AsmPrinter *);
   void EmitOffsets(AsmPrinter *, MCSymbol *);
-  void EmitData(AsmPrinter *, DwarfDebug *D);
+  void EmitData(AsmPrinter *, DwarfUnits *D);
 
   // Allocator for HashData and HashDataContents.
   BumpPtrAllocator Allocator;
@@ -265,14 +265,14 @@ private:
   typedef std::vector<HashList> BucketList;
   BucketList Buckets;
   HashList Hashes;
-  
+
   // Public Implementation
  public:
   DwarfAccelTable(ArrayRef<DwarfAccelTable::Atom>);
   ~DwarfAccelTable();
   void AddName(StringRef, DIE*, char = 0);
   void FinalizeTable(AsmPrinter *, const char *);
-  void Emit(AsmPrinter *, MCSymbol *, DwarfDebug *);
+  void Emit(AsmPrinter *, MCSymbol *, DwarfUnits *);
 #ifndef NDEBUG
   void print(raw_ostream &O);
   void dump() { print(dbgs()); }

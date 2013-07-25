@@ -66,7 +66,7 @@ options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ue0
 #
-options 	ROOTDEVNAME=\"ufs:ada0s2a\"
+#options 	ROOTDEVNAME=\"ufs:ada0s2a\"
 
 
 # kernel/memory size reduction
@@ -111,7 +111,6 @@ options 	ALT_BREAK_TO_DEBUGGER
 device		ata
 device		atapci		# Only for helper functions
 device		imxata
-options 	ATA_CAM
 options 	ATA_STATIC_ID	# Static device numbering
 
 device		iomux		# IO Multiplexor
@@ -168,10 +167,12 @@ makeoptions     FDT_DTS_FILE=efikamx.dts
 
 # NOTE: serial console will be disabled if syscons enabled
 # Uncomment following lines for framebuffer/syscons support
-device		sc
+device		vt
+#options		SC_OFWFB
+device		vkbd
 device		kbdmux
-options         SC_DFLT_FONT    # compile font in
-makeoptions     SC_DFLT_FONT=cp437
+#options         SC_DFLT_FONT    # compile font in
+#makeoptions     SC_DFLT_FONT=cp437
 device		ukbd		# Allow keyboard like HIDs to control console
 
 device		ums

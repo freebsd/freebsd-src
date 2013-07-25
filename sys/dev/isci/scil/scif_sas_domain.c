@@ -637,7 +637,7 @@ void scif_sas_domain_terminate_requests(
       SCIF_SAS_REQUEST_T      * request = NULL;
 
       // Cycle through the fast list of IO requests.  Terminate each
-      // oustanding requests that matches the criteria supplied by the
+      // outstanding requests that matches the criteria supplied by the
       // caller.
       while (element != NULL)
       {
@@ -1275,7 +1275,7 @@ U8 scif_sas_domain_get_smp_request_count(
    SCIC_TRANSPORT_PROTOCOL   protocol;
 
    // Cycle through the fast list of IO requests.  Terminate each
-   // oustanding requests that matches the criteria supplied by the
+   // outstanding requests that matches the criteria supplied by the
    // caller.
    while (element != NULL)
    {

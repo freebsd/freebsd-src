@@ -981,7 +981,7 @@ main(int argc, char *argv[])
 			printf("vcpu%d\n", vcpu);
 			for (i = 0; i < num_stats; i++) {
 				desc = vm_get_stat_desc(ctx, i);
-				printf("%-32s\t%ld\n", desc, stats[i]);
+				printf("%-40s\t%ld\n", desc, stats[i]);
 			}
 		}
 	}

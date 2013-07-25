@@ -31,20 +31,20 @@
 
 #define DEBUG_TYPE "ctrloops"
 #include "PPC.h"
-#include "PPCTargetMachine.h"
 #include "MCTargetDesc/PPCPredicates.h"
-#include "llvm/Constants.h"
-#include "llvm/PassSupport.h"
+#include "PPCTargetMachine.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/PassSupport.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -53,6 +53,10 @@
 using namespace llvm;
 
 STATISTIC(NumCTRLoops, "Number of loops converted to CTR loops");
+
+namespace llvm {
+  void initializePPCCTRLoopsPass(PassRegistry&);
+}
 
 namespace {
   class CountValue;
@@ -64,7 +68,9 @@ namespace {
   public:
     static char ID;   // Pass identification, replacement for typeid
 
-    PPCCTRLoops() : MachineFunctionPass(ID) {}
+    PPCCTRLoops() : MachineFunctionPass(ID) {
+      initializePPCCTRLoopsPass(*PassRegistry::getPassRegistry());
+    }
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
 
@@ -174,15 +180,32 @@ namespace {
   };
 } // end anonymous namespace
 
+INITIALIZE_PASS_BEGIN(PPCCTRLoops, "ppc-ctr-loops", "PowerPC CTR Loops",
+                      false, false)
+INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
+INITIALIZE_PASS_END(PPCCTRLoops, "ppc-ctr-loops", "PowerPC CTR Loops",
+                    false, false)
 
 /// isCompareEquals - Returns true if the instruction is a compare equals
 /// instruction with an immediate operand.
-static bool isCompareEqualsImm(const MachineInstr *MI, bool &SignedCmp) {
-  if (MI->getOpcode() == PPC::CMPWI || MI->getOpcode() == PPC::CMPDI) {
+static bool isCompareEqualsImm(const MachineInstr *MI, bool &SignedCmp,
+                               bool &Int64Cmp) {
+  if (MI->getOpcode() == PPC::CMPWI) {
     SignedCmp = true;
+    Int64Cmp = false;
     return true;
-  } else if (MI->getOpcode() == PPC::CMPLWI || MI->getOpcode() == PPC::CMPLDI) {
+  } else if (MI->getOpcode() == PPC::CMPDI) {
+    SignedCmp = true;
+    Int64Cmp = true;
+    return true;
+  } else if (MI->getOpcode() == PPC::CMPLWI) {
     SignedCmp = false;
+    Int64Cmp = false;
+    return true;
+  } else if (MI->getOpcode() == PPC::CMPLDI) {
+    SignedCmp = false;
+    Int64Cmp = true;
     return true;
   }
 
@@ -341,9 +364,9 @@ CountValue *PPCCTRLoops::getTripCount(MachineLoop *L,
          RI = MRI->reg_begin(IV_Opnd->getReg()), RE = MRI->reg_end();
          RI != RE; ++RI) {
       IV_Opnd = &RI.getOperand();
-      bool SignedCmp;
+      bool SignedCmp, Int64Cmp;
       MachineInstr *MI = IV_Opnd->getParent();
-      if (L->contains(MI) && isCompareEqualsImm(MI, SignedCmp) &&
+      if (L->contains(MI) && isCompareEqualsImm(MI, SignedCmp, Int64Cmp) &&
           MI->getOperand(0).getReg() == PredReg) {
 
         OldInsts.push_back(MI);
@@ -368,14 +391,14 @@ CountValue *PPCCTRLoops::getTripCount(MachineLoop *L,
         assert(InitialValue->isReg() && "Expecting register for init value");
         unsigned InitialValueReg = InitialValue->getReg();
   
-        const MachineInstr *DefInstr = MRI->getVRegDef(InitialValueReg);
+        MachineInstr *DefInstr = MRI->getVRegDef(InitialValueReg);
   
         // Here we need to look for an immediate load (an li or lis/ori pair).
         if (DefInstr && (DefInstr->getOpcode() == PPC::ORI8 ||
                          DefInstr->getOpcode() == PPC::ORI)) {
-          int64_t start = (short) DefInstr->getOperand(2).getImm();
-          const MachineInstr *DefInstr2 =
-            MRI->getVRegDef(DefInstr->getOperand(0).getReg());
+          int64_t start = DefInstr->getOperand(2).getImm();
+          MachineInstr *DefInstr2 =
+            MRI->getVRegDef(DefInstr->getOperand(1).getReg());
           if (DefInstr2 && (DefInstr2->getOpcode() == PPC::LIS8 ||
                             DefInstr2->getOpcode() == PPC::LIS)) {
             DEBUG(dbgs() << "  initial constant: " << *DefInstr);
@@ -387,17 +410,33 @@ CountValue *PPCCTRLoops::getTripCount(MachineLoop *L,
             if ((count % iv_value) != 0) {
               return 0;
             }
-            return new CountValue(count/iv_value);
+
+            OldInsts.push_back(DefInstr);
+            OldInsts.push_back(DefInstr2);
+
+            // count/iv_value, the trip count, should be positive here. If it
+            // is negative, that indicates that the counter will wrap.
+            if (Int64Cmp)
+              return new CountValue(count/iv_value);
+            else
+              return new CountValue(uint32_t(count/iv_value));
           }
         } else if (DefInstr && (DefInstr->getOpcode() == PPC::LI8 ||
                                 DefInstr->getOpcode() == PPC::LI)) {
           DEBUG(dbgs() << "  initial constant: " << *DefInstr);
 
-          int64_t count = ImmVal - int64_t(short(DefInstr->getOperand(1).getImm()));
+          int64_t count = ImmVal -
+            int64_t(short(DefInstr->getOperand(1).getImm()));
           if ((count % iv_value) != 0) {
             return 0;
           }
-          return new CountValue(count/iv_value);
+
+          OldInsts.push_back(DefInstr);
+
+          if (Int64Cmp)
+            return new CountValue(count/iv_value);
+          else
+            return new CountValue(uint32_t(count/iv_value));
         } else if (iv_value == 1 || iv_value == -1) {
           // We can't determine a constant starting value.
           if (ImmVal == 0) {
@@ -405,8 +444,8 @@ CountValue *PPCCTRLoops::getTripCount(MachineLoop *L,
           }
           // FIXME: handle non-zero end value.
         }
-        // FIXME: handle non-unit increments (we might not want to introduce division
-        // but we can handle some 2^n cases with shifts).
+        // FIXME: handle non-unit increments (we might not want to introduce
+        // division but we can handle some 2^n cases with shifts).
   
       }
     }
@@ -477,9 +516,10 @@ bool PPCCTRLoops::isDead(const MachineInstr *MI,
     if (MO.isReg() && MO.isDef()) {
       unsigned Reg = MO.getReg();
       if (!MRI->use_nodbg_empty(Reg)) {
-        // This instruction has users, but if the only user is the phi node for the
-        // parent block, and the only use of that phi node is this instruction, then
-        // this instruction is dead: both it (and the phi node) can be removed.
+        // This instruction has users, but if the only user is the phi node for
+        // the parent block, and the only use of that phi node is this
+        // instruction, then this instruction is dead: both it (and the phi
+        // node) can be removed.
         MachineRegisterInfo::use_iterator I = MRI->use_begin(Reg);
         if (llvm::next(I) == MRI->use_end() &&
             I.getOperand().getParent()->isPHI()) {
@@ -582,6 +622,16 @@ bool PPCCTRLoops::convertToCTRLoop(MachineLoop *L) {
     DEBUG(dbgs() << "failed to get trip count!\n");
     return false;
   }
+
+  if (TripCount->isImm()) {
+    DEBUG(dbgs() << "constant trip count: " << TripCount->getImm() << "\n");
+
+    // FIXME: We currently can't form 64-bit constants
+    // (including 32-bit unsigned constants)
+    if (!isInt<32>(TripCount->getImm()))
+      return false;
+  }
+
   // Does the loop contain any invalid instructions?
   if (containsInvalidInstruction(L)) {
     return false;
@@ -635,7 +685,7 @@ bool PPCCTRLoops::convertToCTRLoop(MachineLoop *L) {
     const TargetRegisterClass *SrcRC =
       MF->getRegInfo().getRegClass(TripCount->getReg());
     CountReg = MF->getRegInfo().createVirtualRegister(RC);
-    unsigned CopyOp = (isPPC64 && SrcRC == GPRC) ?
+    unsigned CopyOp = (isPPC64 && GPRC->hasSubClassEq(SrcRC)) ?
                         (unsigned) PPC::EXTSW_32_64 :
                         (unsigned) TargetOpcode::COPY;
     BuildMI(*Preheader, InsertPos, dl,
@@ -652,13 +702,14 @@ bool PPCCTRLoops::convertToCTRLoop(MachineLoop *L) {
     // Put the trip count in a register for transfer into the count register.
 
     int64_t CountImm = TripCount->getImm();
-    assert(!TripCount->isNeg() && "Constant trip count must be positive");
+    if (TripCount->isNeg())
+      CountImm = -CountImm;
 
     CountReg = MF->getRegInfo().createVirtualRegister(RC);
-    if (CountImm > 0xFFFF) {
+    if (abs64(CountImm) > 0x7FFF) {
       BuildMI(*Preheader, InsertPos, dl,
               TII->get(isPPC64 ? PPC::LIS8 : PPC::LIS),
-              CountReg).addImm(CountImm >> 16);
+              CountReg).addImm((CountImm >> 16) & 0xFFFF);
       unsigned CountReg1 = CountReg;
       CountReg = MF->getRegInfo().createVirtualRegister(RC);
       BuildMI(*Preheader, InsertPos, dl,

@@ -31,6 +31,7 @@
 # opt_<name-of-option-in-lower-case>.h
 
 AAC_DEBUG		opt_aac.h
+AACRAID_DEBUG		opt_aacraid.h
 AHC_ALLOW_MEMIO		opt_aic7xxx.h
 AHC_TMODE_ENABLE	opt_aic7xxx.h
 AHC_DUMP_EEPROM		opt_aic7xxx.h
@@ -68,6 +69,8 @@ TEXTDUMP_VERBOSE	opt_ddb.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+BOOTHOWTO	opt_global.h
+BOOTVERBOSE	opt_global.h
 CALLOUT_PROFILING
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
@@ -82,6 +85,7 @@ COMPRESS_USER_CORES opt_core.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
 DIRECTIO
+FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
 IPI_PREEMPTION	opt_sched.h
@@ -219,9 +223,11 @@ NULLFS		opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h
+SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
+ZFS		opt_dontuse.h
 
 # Pseudofs debugging
 PSEUDOFS_TRACE	opt_pseudofs.h
@@ -284,6 +290,9 @@ UFS_GJOURNAL	opt_ufs.h
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
 
+# SMB/CIFS requester
+NETSMB		opt_netsmb.h
+
 # Options used only in subr_param.c.
 HZ		opt_param.h
 MAXFILES	opt_param.h
@@ -305,12 +314,14 @@ CAM_DEBUG_BUS		opt_cam.h
 CAM_DEBUG_TARGET	opt_cam.h
 CAM_DEBUG_LUN		opt_cam.h
 CAM_DEBUG_FLAGS		opt_cam.h
+CAM_BOOT_DELAY		opt_cam.h
 SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
 
 # Options used only in cam/ata/ata_da.c
-ADA_TEST_FAILURE       opt_ada.h
+ADA_TEST_FAILURE	opt_ada.h
+ATA_STATIC_ID		opt_ada.h
 
 # Options used only in cam/scsi/scsi_cd.c
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
@@ -328,9 +339,6 @@ SCSI_PT_DEFAULT_TIMEOUT	opt_pt.h
 
 # Options used only in cam/scsi/scsi_ses.c
 SES_ENABLE_PASSTHROUGH	opt_ses.h
-
-# Options used only in cam/ctl
-CTL_DISABLE		opt_ctl.h
 
 # Options used in dev/sym/ (Symbios SCSI driver).
 SYM_SETUP_LP_PROBE_MAP	opt_sym.h	#-Low Priority Probe Map (bits)
@@ -359,12 +367,6 @@ ISP_INTERNAL_TARGET	opt_isp.h
 
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
-
-# Options used in the 'ata' ATA/ATAPI driver
-ATA_STATIC_ID		opt_ata.h
-ATA_NOPCI		opt_ata.h
-ATA_REQUEST_TIMEOUT	opt_ata.h
-ATA_CAM			opt_ata.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA
@@ -537,9 +539,6 @@ NATM
 
 # DPT driver debug flags
 DPT_MEASURE_PERFORMANCE	opt_dpt.h
-DPT_HANDLE_TIMEOUTS	opt_dpt.h
-DPT_TIMEOUT_FACTOR	opt_dpt.h
-DPT_LOST_IRQ		opt_dpt.h
 DPT_RESET_HBA		opt_dpt.h
 
 # Misc debug flags.  Most of these should probably be replaced with
@@ -576,6 +575,7 @@ DIAGNOSTIC		opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
 MAXCPU			opt_global.h
+MAXMEMDOM		opt_global.h
 MAXPHYS			opt_global.h
 MCLSHIFT		opt_global.h
 MUTEX_DEBUG		opt_global.h
@@ -592,7 +592,6 @@ VFS_BIO_DEBUG		opt_global.h
 VM_KMEM_SIZE		opt_vm.h
 VM_KMEM_SIZE_SCALE	opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
-VM_NDOMAIN		opt_vm.h
 VM_NRESERVLEVEL		opt_vm.h
 VM_LEVEL_0_ORDER	opt_vm.h
 NO_SWAPPING		opt_vm.h
@@ -652,6 +651,7 @@ BUS_DEBUG		opt_bus.h
 USB_DEBUG		opt_usb.h
 USB_HOST_ALIGN		opt_usb.h
 USB_REQ_DEBUG		opt_usb.h
+USB_TEMPLATE		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
@@ -679,6 +679,7 @@ KTR_ENTRIES		opt_global.h
 KTR_VERBOSE		opt_ktr.h
 WITNESS			opt_global.h
 WITNESS_KDB		opt_witness.h
+WITNESS_NO_VNODE	opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
 
 # options for ACPI support
@@ -790,6 +791,10 @@ AH_SUPPORT_AR5416	opt_ah.h
 # XXX when actually targetting AR9130.
 AH_SUPPORT_AR9130	opt_ah.h
 
+# This is required for AR933x SoC support
+AH_SUPPORT_AR9330	opt_ah.h
+AH_SUPPORT_AR9340	opt_ah.h
+
 AH_DEBUG		opt_ah.h
 AH_ASSERT		opt_ah.h
 AH_DEBUG_ALQ		opt_ah.h
@@ -836,8 +841,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
-
-ZFS			opt_dontuse.h
 
 # Interrupt filtering
 INTR_FILTER

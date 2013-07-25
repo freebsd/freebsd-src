@@ -154,11 +154,21 @@ struct vm_object {
 		/*
 		 * Swap pager
 		 *
+		 *	swp_tmpfs - back-pointer to the tmpfs vnode,
+		 *		     if any, which uses the vm object
+		 *		     as backing store.  The handle
+		 *		     cannot be reused for linking,
+		 *		     because the vnode can be
+		 *		     reclaimed and recreated, making
+		 *		     the handle changed and hash-chain
+		 *		     invalid.
+		 *
 		 *	swp_bcount - number of swap 'swblock' metablocks, each
 		 *		     contains up to 16 swapblk assignments.
 		 *		     see vm/swap_pager.h
 		 */
 		struct {
+			void *swp_tmpfs;
 			int swp_bcount;
 		} swp;
 	} un_pager;
@@ -179,6 +189,7 @@ struct vm_object {
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */
+#define	OBJ_TMPFS	0x8000
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
@@ -194,6 +205,7 @@ struct vm_object {
  */
 #define	OBJPR_CLEANONLY	0x1		/* Don't remove dirty pages. */
 #define	OBJPR_NOTMAPPED	0x2		/* Don't unmap pages. */
+#define	OBJPR_NOTWIRED	0x4		/* Don't remove wired pages. */
 
 TAILQ_HEAD(object_q, vm_object);
 
@@ -212,6 +224,8 @@ extern struct vm_object kmem_object_store;
 	rw_assert(&(object)->lock, RA_RLOCKED)
 #define	VM_OBJECT_ASSERT_WLOCKED(object)				\
 	rw_assert(&(object)->lock, RA_WLOCKED)
+#define	VM_OBJECT_LOCK_DOWNGRADE(object)				\
+	rw_downgrade(&(object)->lock)
 #define	VM_OBJECT_RLOCK(object)						\
 	rw_rlock(&(object)->lock)
 #define	VM_OBJECT_RUNLOCK(object)					\

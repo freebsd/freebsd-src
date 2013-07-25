@@ -441,11 +441,17 @@
 				    const struct timespec32 *tp); }
 234	AUE_NULL	STD	{ int freebsd32_clock_getres(clockid_t clock_id, \
 				    struct timespec32 *tp); }
-235	AUE_NULL	UNIMPL	timer_create
-236	AUE_NULL	UNIMPL	timer_delete
-237	AUE_NULL	UNIMPL	timer_settime
-238	AUE_NULL	UNIMPL	timer_gettime
-239	AUE_NULL	UNIMPL	timer_getoverrun
+235	AUE_NULL	STD	{ int freebsd32_ktimer_create(\
+				    clockid_t clock_id, \
+				    struct sigevent32 *evp, int *timerid); }
+236	AUE_NULL	NOPROTO	{ int ktimer_delete(int timerid); }
+237	AUE_NULL	STD	{ int freebsd32_ktimer_settime(int timerid,\
+				    int flags, \
+				    const struct itimerspec32 *value, \
+				    struct itimerspec32 *ovalue); }
+238	AUE_NULL	STD	{ int freebsd32_ktimer_gettime(int timerid,\
+				    struct itimerspec32 *value); }
+239	AUE_NULL	NOPROTO	{ int ktimer_getoverrun(int timerid); }
 240	AUE_NULL	STD	{ int freebsd32_nanosleep( \
 				    const struct timespec32 *rqtp, \
 				    struct timespec32 *rmtp); }
@@ -457,8 +463,9 @@
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
-247	AUE_NULL	NOPROTO	{ int clock_getcpuclockid2(id_t id,\
-					int which, clockid_t *clock_id); }
+247	AUE_NULL	STD	{ int freebsd32_clock_getcpuclockid2(\
+				    uint32_t id1, uint32_t id2,\
+				    int which, clockid_t *clock_id); }
 248	AUE_NULL	UNIMPL	ntp_gettime
 249	AUE_NULL	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD
@@ -475,7 +482,7 @@
 				    struct aiocb32 *aiocbp); }
 257	AUE_NULL	NOSTD	{ int freebsd32_lio_listio(int mode, \
 				    struct aiocb32 * const *acb_list, \
-				    int nent, struct sigevent *sig); }
+				    int nent, struct sigevent32 *sig); }
 258	AUE_NULL	UNIMPL	nosys
 259	AUE_NULL	UNIMPL	nosys
 260	AUE_NULL	UNIMPL	nosys
@@ -634,7 +641,7 @@
 355	AUE_EXTATTRCTL	NOPROTO	{ int extattrctl(const char *path, int cmd, \
 				    const char *filename, int attrnamespace, \
 				    const char *attrname); }
-356	AUE_EXTATTR_SET_FILE	NOPROTO	{ int extattr_set_file( \
+356	AUE_EXTATTR_SET_FILE	NOPROTO	{ ssize_t extattr_set_file( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname, void *data, \
 				    size_t nbytes); }
@@ -665,7 +672,7 @@
 368	AUE_NULL	UNIMPL	__cap_set_fd
 369	AUE_NULL	UNIMPL	__cap_set_file
 370	AUE_NULL	UNIMPL	nosys
-371	AUE_EXTATTR_SET_FD	NOPROTO	{ int extattr_set_fd(int fd, \
+371	AUE_EXTATTR_SET_FD	NOPROTO	{ ssize_t extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
 372	AUE_EXTATTR_GET_FD	NOPROTO	{ ssize_t extattr_get_fd(int fd, \
@@ -726,7 +733,7 @@
 409	AUE_NULL	UNIMPL	__mac_get_pid
 410	AUE_NULL	UNIMPL	__mac_get_link
 411	AUE_NULL	UNIMPL	__mac_set_link
-412	AUE_EXTATTR_SET_LINK	NOPROTO	{ int extattr_set_link( \
+412	AUE_EXTATTR_SET_LINK	NOPROTO	{ ssize_t extattr_set_link( \
 				    const char *path, int attrnamespace, \
 				    const char *attrname, void *data, \
 				    size_t nbytes); }
@@ -824,8 +831,8 @@
 				    const char *msg_ptr, size_t msg_len,\
 				    unsigned msg_prio,			\
 				    const struct timespec32 *abs_timeout);}
-461	AUE_NULL	NOPROTO|NOSTD	{ int kmq_notify(int mqd,	\
-				    const struct sigevent *sigev); }
+461	AUE_NULL	NOSTD	{ int freebsd32_kmq_notify(int mqd,	\
+				    const struct sigevent32 *sigev); }
 462	AUE_NULL	NOPROTO|NOSTD	{ int kmq_unlink(const char *path); }
 463	AUE_NULL	NOPROTO	{ int abort2(const char *why, int nargs, void **args); }
 464	AUE_NULL 	NOPROTO	{ int thr_set_name(long id, const char *name); }
@@ -994,6 +1001,22 @@
 529	AUE_NULL	NOPROTO	{ int rctl_remove_rule(const void *inbufp, \
 				    size_t inbuflen, void *outbufp, \
 				    size_t outbuflen); }
+#ifdef PAD64_REQUIRED
+530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd, \
+				    int pad, \
+				    uint32_t offset1, uint32_t offset2,\
+				    uint32_t len1, uint32_t len2); }
+531	AUE_NULL	STD	{ int freebsd32_posix_fadvise(int fd, \
+				    int pad, \
+				    uint32_t offset1, uint32_t offset2,\
+				    uint32_t len1, uint32_t len2, \
+				    int advice); }
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, int pad, \
+				    uint32_t id1, uint32_t id2, \
+				    int *status, int options, \
+				    struct wrusage32 *wrusage, \
+				    siginfo_t *info); }
+#else
 530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2); }
@@ -1001,11 +1024,12 @@
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2, \
 				    int advice); }
-532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, int id, \
+532	AUE_WAIT6	STD	{ int freebsd32_wait6(int idtype, \
+				    uint32_t id1, uint32_t id2, \
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
-
+#endif
 533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ int cap_rights_limit(int fd, \
 				    uint64_t rights); }
 534	AUE_CAP_IOCTLS_LIMIT	NOPROTO	{ int cap_ioctls_limit(int fd, \
@@ -1022,3 +1046,10 @@
 				    int namelen); }
 540	AUE_CHFLAGSAT	NOPROTO	{ int chflagsat(int fd, const char *path, \
 				    u_long flags, int atflag); }
+541	AUE_ACCEPT	NOPROTO	{ int accept4(int s, \
+				    struct sockaddr * __restrict name, \
+				    __socklen_t * __restrict anamelen, \
+				    int flags); }
+542	AUE_PIPE	NOPROTO	{ int pipe2(int *fildes, int flags); }
+543	AUE_NULL	NOSTD	{ int freebsd32_aio_mlock( \
+				    struct aiocb32 *aiocbp); }

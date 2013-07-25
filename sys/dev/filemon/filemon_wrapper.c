@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #if __FreeBSD_version > 800032
 #define FILEMON_HAS_LINKAT
 #endif

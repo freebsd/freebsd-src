@@ -1,4 +1,4 @@
-/*	$NetBSD: create.c,v 1.68 2012/12/20 16:43:16 christos Exp $	*/
+/*	$NetBSD: create.c,v 1.69 2013/02/03 19:15:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: create.c,v 1.68 2012/12/20 16:43:16 christos Exp $");
+__RCSID("$NetBSD: create.c,v 1.69 2013/02/03 19:15:17 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -131,6 +131,10 @@ cwalk(void)
 		if (jflag)
 			indent = p->fts_level * 4;
 		if (check_excludes(p->fts_name, p->fts_path)) {
+			fts_set(t, p, FTS_SKIP);
+			continue;
+		}
+		if (!find_only(p->fts_path)) {
 			fts_set(t, p, FTS_SKIP);
 			continue;
 		}

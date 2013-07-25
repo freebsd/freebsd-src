@@ -197,15 +197,15 @@ dumpfs(const char *name)
 		    "maxbsize", afs.fs_maxbsize, afs.fs_maxbpg,
 		    afs.fs_maxcontig, afs.fs_contigsumsize);
 		printf("nbfree\t%jd\tndir\t%jd\tnifree\t%jd\tnffree\t%jd\n",
-		    (intmax_t)afs.fs_cstotal.cs_nbfree, 
+		    (intmax_t)afs.fs_cstotal.cs_nbfree,
 		    (intmax_t)afs.fs_cstotal.cs_ndir,
-		    (intmax_t)afs.fs_cstotal.cs_nifree, 
+		    (intmax_t)afs.fs_cstotal.cs_nifree,
 		    (intmax_t)afs.fs_cstotal.cs_nffree);
 		printf("bpg\t%d\tfpg\t%d\tipg\t%d\tunrefs\t%jd\n",
 		    afs.fs_fpg / afs.fs_frag, afs.fs_fpg, afs.fs_ipg,
 		    (intmax_t)afs.fs_unrefs);
 		printf("nindir\t%d\tinopb\t%d\tmaxfilesize\t%ju\n",
-		    afs.fs_nindir, afs.fs_inopb, 
+		    afs.fs_nindir, afs.fs_inopb,
 		    (uintmax_t)afs.fs_maxfilesize);
 		printf("sbsize\t%d\tcgsize\t%d\tcsaddr\t%jd\tcssize\t%d\n",
 		    afs.fs_sbsize, afs.fs_cgsize, (intmax_t)afs.fs_csaddr,
@@ -417,12 +417,15 @@ marshal(const char *name)
 	printf("-f %d ", fs->fs_fsize);
 	printf("-g %d ", fs->fs_avgfilesize);
 	printf("-h %d ", fs->fs_avgfpdir);
-	/* -i is dumb */
+	printf("-i %jd ", fragroundup(fs, lblktosize(fs, fragstoblks(fs,
+	    fs->fs_fpg)) / fs->fs_ipg));
 	if (fs->fs_flags & FS_SUJ)
 		printf("-j ");
 	if (fs->fs_flags & FS_GJOURNAL)
 		printf("-J ");
-	/* -k..l unimplemented */
+	printf("-k %jd ", fs->fs_metaspace);
+	if (fs->fs_flags & FS_MULTILABEL)
+		printf("-l ");
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */
 	printf("-o ");

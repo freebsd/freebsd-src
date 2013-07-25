@@ -2357,6 +2357,10 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		vol = pp->private;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
+		sbuf_printf(sb, "%s<descr>%s %s volume</descr>\n", indent,
+		    sc->sc_md->mdo_class->name,
+		    g_raid_volume_level2str(vol->v_raid_level,
+		    vol->v_raid_level_qualifier));
 		sbuf_printf(sb, "%s<Label>%s</Label>\n", indent,
 		    vol->v_name);
 		sbuf_printf(sb, "%s<RAIDLevel>%s</RAIDLevel>\n", indent,

@@ -187,9 +187,6 @@ imx_uart_bus_attach(struct uart_softc *sc)
 		imx_uart_init(bas, 115200, 8, 1, 0);
 	}
 
-	sc->sc_rxfifosz = 1;
-	sc->sc_txfifosz = 1;
-
 	(void)imx_uart_bus_getsig(sc);
 
 	/* XXX workaround to have working console on manut prompt */
@@ -352,6 +349,9 @@ imx_uart_bus_probe(struct uart_softc *sc)
 	error = imx_uart_probe(&sc->sc_bas);
 	if (error)
 		return (error);
+
+	sc->sc_rxfifosz = 1;
+	sc->sc_txfifosz = 1;
 
 	device_set_desc(sc->sc_dev, "imx_uart");
 	return (0);

@@ -19,10 +19,6 @@ MK_SSP=	no
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
-.if ${TARGET_CPUARCH} == "mips"
-LIB=		gcc
-.endif
-
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}/config ${GCCDIR}
 
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \

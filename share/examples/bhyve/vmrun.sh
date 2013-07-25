@@ -39,11 +39,12 @@ DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
 
 usage() {
-	echo "Usage: vmrun.sh [-hai][-m <memsize>][-d <disk file>][-I <location of installation iso>][-t <tapdev>] <vmname>"
+	echo "Usage: vmrun.sh [-hai][-g <gdbport>][-m <memsize>][-d <disk file>][-I <location of installation iso>][-t <tapdev>] <vmname>"
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local apic access"
 	echo "       -c: number of virtual cpus (default is ${DEFAULT_CPUS})"
 	echo "       -d: virtio diskdev file (default is ${DEFAULT_VIRTIO_DISK})"
+	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
 	echo "       -m: memory size in MB (default is ${DEFAULT_MEMSIZE}MB)"
@@ -71,8 +72,9 @@ cpus=${DEFAULT_CPUS}
 virtio_diskdev=${DEFAULT_VIRTIO_DISK}
 tapdev=${DEFAULT_TAPDEV}
 apic_opt=""
+gdbport=0
 
-while getopts haic:I:m:d:t: c ; do
+while getopts haic:g:I:m:d:t: c ; do
 	case $c in
 	h)
 		usage
@@ -82,6 +84,8 @@ while getopts haic:I:m:d:t: c ; do
 		;;
 	d)
 		virtio_diskdev=${OPTARG}
+		;;
+	g)	gdbport=${OPTARG}
 		;;
 	i)
 		force_install=1
@@ -164,7 +168,8 @@ while [ 1 ]; do
 		break
 	fi
 
-	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -AI -H -P -g 0	\
+	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -AI -H -P	\
+		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
 		-s 1:0,virtio-net,${tapdev}				\
 		-s 2:0,virtio-blk,${virtio_diskdev}			\

@@ -221,27 +221,28 @@ enum IIT_Info {
   IIT_I16  = 3,
   IIT_I32  = 4,
   IIT_I64  = 5,
-  IIT_F32  = 6,
-  IIT_F64  = 7,
-  IIT_V2   = 8,
-  IIT_V4   = 9,
-  IIT_V8   = 10,
-  IIT_V16  = 11,
-  IIT_V32  = 12,
-  IIT_MMX  = 13,
+  IIT_F16  = 6,
+  IIT_F32  = 7,
+  IIT_F64  = 8,
+  IIT_V2   = 9,
+  IIT_V4   = 10,
+  IIT_V8   = 11,
+  IIT_V16  = 12,
+  IIT_V32  = 13,
   IIT_PTR  = 14,
   IIT_ARG  = 15,
-  
+
   // Values from 16+ are only encodable with the inefficient encoding.
-  IIT_METADATA = 16,
-  IIT_EMPTYSTRUCT = 17,
-  IIT_STRUCT2 = 18,
-  IIT_STRUCT3 = 19,
-  IIT_STRUCT4 = 20,
-  IIT_STRUCT5 = 21,
-  IIT_EXTEND_VEC_ARG = 22,
-  IIT_TRUNC_VEC_ARG = 23,
-  IIT_ANYPTR = 24
+  IIT_MMX  = 16,
+  IIT_METADATA = 17,
+  IIT_EMPTYSTRUCT = 18,
+  IIT_STRUCT2 = 19,
+  IIT_STRUCT3 = 20,
+  IIT_STRUCT4 = 21,
+  IIT_STRUCT5 = 22,
+  IIT_EXTEND_VEC_ARG = 23,
+  IIT_TRUNC_VEC_ARG = 24,
+  IIT_ANYPTR = 25
 };
 
 
@@ -261,6 +262,7 @@ static void EncodeFixedValueType(MVT::SimpleValueType VT,
   
   switch (VT) {
   default: PrintFatalError("unhandled MVT in intrinsic!");
+  case MVT::f16: return Sig.push_back(IIT_F16);
   case MVT::f32: return Sig.push_back(IIT_F32);
   case MVT::f64: return Sig.push_back(IIT_F64);
   case MVT::Metadata: return Sig.push_back(IIT_METADATA);
@@ -511,10 +513,10 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
   OS << "// Add parameter attributes that are not common to all intrinsics.\n";
   OS << "#ifdef GET_INTRINSIC_ATTRIBUTES\n";
   if (TargetOnly)
-    OS << "static AttrListPtr getAttributes(LLVMContext &C, " << TargetPrefix
+    OS << "static AttributeSet getAttributes(LLVMContext &C, " << TargetPrefix
        << "Intrinsic::ID id) {\n";
   else
-    OS << "AttrListPtr Intrinsic::getAttributes(LLVMContext &C, ID id) {\n";
+    OS << "AttributeSet Intrinsic::getAttributes(LLVMContext &C, ID id) {\n";
 
   // Compute the maximum number of attribute arguments and the map
   typedef std::map<const CodeGenIntrinsic*, unsigned,
@@ -532,9 +534,8 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
     N = ++AttrNum;
   }
 
-  // Emit an array of AttributeWithIndex.  Most intrinsics will have
-  // at least one entry, for the function itself (index ~1), which is
-  // usually nounwind.
+  // Emit an array of AttributeSet.  Most intrinsics will have at least one
+  // entry, for the function itself (index ~1), which is usually nounwind.
   OS << "  static const uint8_t IntrinsicsToAttributesMap[] = {\n";
 
   for (unsigned i = 0, e = Ints.size(); i != e; ++i) {
@@ -545,10 +546,10 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
   }
   OS << "  };\n\n";
 
-  OS << "  AttributeWithIndex AWI[" << maxArgAttrs+1 << "];\n";
+  OS << "  AttributeSet AS[" << maxArgAttrs+1 << "];\n";
   OS << "  unsigned NumAttrs = 0;\n";
   OS << "  if (id != 0) {\n";
-  OS << "    SmallVector<Attributes::AttrVal, 8> AttrVec;\n";
+  OS << "    SmallVector<Attribute::AttrKind, 8> AttrVec;\n";
   OS << "    switch(IntrinsicsToAttributesMap[id - ";
   if (TargetOnly)
     OS << "Intrinsic::num_intrinsics";
@@ -576,14 +577,14 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
         do {
           switch (intrinsic.ArgumentAttributes[ai].second) {
           case CodeGenIntrinsic::NoCapture:
-            OS << "      AttrVec.push_back(Attributes::NoCapture);\n";
+            OS << "      AttrVec.push_back(Attribute::NoCapture);\n";
             break;
           }
 
           ++ai;
         } while (ai != ae && intrinsic.ArgumentAttributes[ai].first == argNo);
 
-        OS << "      AWI[" << numAttrs++ << "] = AttributeWithIndex::get(C, "
+        OS << "      AS[" << numAttrs++ << "] = AttributeSet::get(C, "
            << argNo+1 << ", AttrVec);\n";
       }
     }
@@ -594,34 +595,34 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
       OS << "      AttrVec.clear();\n";
 
       if (!intrinsic.canThrow)
-        OS << "      AttrVec.push_back(Attributes::NoUnwind);\n";
+        OS << "      AttrVec.push_back(Attribute::NoUnwind);\n";
       if (intrinsic.isNoReturn)
-        OS << "      AttrVec.push_back(Attributes::NoReturn);\n";
+        OS << "      AttrVec.push_back(Attribute::NoReturn);\n";
 
       switch (modRef) {
       case MRK_none: break;
       case MRK_readonly:
-        OS << "      AttrVec.push_back(Attributes::ReadOnly);\n";
+        OS << "      AttrVec.push_back(Attribute::ReadOnly);\n";
         break;
       case MRK_readnone:
-        OS << "      AttrVec.push_back(Attributes::ReadNone);\n"; 
+        OS << "      AttrVec.push_back(Attribute::ReadNone);\n"; 
         break;
       }
-      OS << "      AWI[" << numAttrs++ << "] = AttributeWithIndex::get(C, "
-         << "AttrListPtr::FunctionIndex, AttrVec);\n";
+      OS << "      AS[" << numAttrs++ << "] = AttributeSet::get(C, "
+         << "AttributeSet::FunctionIndex, AttrVec);\n";
     }
 
     if (numAttrs) {
       OS << "      NumAttrs = " << numAttrs << ";\n";
       OS << "      break;\n";
     } else {
-      OS << "      return AttrListPtr();\n";
+      OS << "      return AttributeSet();\n";
     }
   }
   
   OS << "    }\n";
   OS << "  }\n";
-  OS << "  return AttrListPtr::get(C, ArrayRef<AttributeWithIndex>(AWI, "
+  OS << "  return AttributeSet::get(C, ArrayRef<AttributeSet>(AS, "
              "NumAttrs));\n";
   OS << "}\n";
   OS << "#endif // GET_INTRINSIC_ATTRIBUTES\n\n";

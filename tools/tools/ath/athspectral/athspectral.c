@@ -67,7 +67,7 @@ spectral_opendev(struct spectralhandler *spectral, const char *devid)
 	spectral->atd.ad_out_data = (caddr_t) &revs;
 	spectral->atd.ad_out_size = sizeof(revs);
 	if (ioctl(spectral->s, SIOCGATHDIAG, &spectral->atd) < 0) {
-		warn(spectral->atd.ad_name);
+		warn("%s", spectral->atd.ad_name);
 		return 0;
 	}
 	spectral->ah_devid = revs.ah_devid;
@@ -116,7 +116,7 @@ spectralset(struct spectralhandler *spectral, int op, u_int32_t param)
 	spectral->atd.ad_in_data = (caddr_t) &pe;
 	spectral->atd.ad_in_size = sizeof(HAL_SPECTRAL_PARAM);
 	if (ioctl(spectral->s, SIOCGATHSPECTRAL, &spectral->atd) < 0)
-		err(1, spectral->atd.ad_name);
+		err(1, "%s", spectral->atd.ad_name);
 }
 
 static void
@@ -133,7 +133,7 @@ spectral_get(struct spectralhandler *spectral)
 	spectral->atd.ad_out_size = sizeof(pe);
 
 	if (ioctl(spectral->s, SIOCGATHSPECTRAL, &spectral->atd) < 0)
-		err(1, spectral->atd.ad_name);
+		err(1, "%s", spectral->atd.ad_name);
 
 	printf("Spectral parameters (raw):\n");
 	printf("   ss_enabled: %d\n", pe.ss_enabled);
@@ -163,7 +163,7 @@ spectral_start(struct spectralhandler *spectral)
 	spectral->atd.ad_out_size = sizeof(pe);
 
 	if (ioctl(spectral->s, SIOCGATHSPECTRAL, &spectral->atd) < 0)
-		err(1, spectral->atd.ad_name);
+		err(1, "%s", spectral->atd.ad_name);
 }
 
 static void
@@ -184,7 +184,7 @@ spectral_stop(struct spectralhandler *spectral)
 	spectral->atd.ad_out_size = sizeof(pe);
 
 	if (ioctl(spectral->s, SIOCGATHSPECTRAL, &spectral->atd) < 0)
-		err(1, spectral->atd.ad_name);
+		err(1, "%s", spectral->atd.ad_name);
 }
 
 static void
@@ -207,7 +207,7 @@ spectral_enable_at_reset(struct spectralhandler *spectral, int val)
 	printf("%s: val=%d\n", __func__, v);
 
 	if (ioctl(spectral->s, SIOCGATHSPECTRAL, &spectral->atd) < 0)
-		err(1, spectral->atd.ad_name);
+		err(1, "%s", spectral->atd.ad_name);
 }
 
 static int

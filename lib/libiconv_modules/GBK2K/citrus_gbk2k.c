@@ -147,10 +147,10 @@ _mb_count(wchar_t v)
 
 static int
 _citrus_GBK2K_mbrtowc_priv(_GBK2KEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _GBK2KState * __restrict psenc, size_t * __restrict nresult)
 {
-	char *s0, *s1;
+	const char *s0, *s1;
 	wchar_t wc;
 	int chlenbak, len;
 

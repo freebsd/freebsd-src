@@ -333,9 +333,7 @@ ar9287SetTransmitPower(struct ath_hal *ah,
 
 	const struct modal_eep_ar9287_header *pModal;
 	struct ath_hal_5212 *ahp = AH5212(ah);
-	int16_t	     ratesArray[Ar5416RateSize];
 	int16_t	     txPowerIndexOffset = 0;
-	uint8_t	     ht40PowerIncForPdadc = 2;
 	int		 i;
 
 	uint16_t	    cfgCtl;
@@ -346,8 +344,11 @@ ar9287SetTransmitPower(struct ath_hal *ah,
 	HAL_EEPROM_9287 *ee = AH_PRIVATE(ah)->ah_eeprom;
 	struct ar9287_eeprom *pEepData = &ee->ee_base;
 
+	AH5416(ah)->ah_ht40PowerIncForPdadc = 2;
+
 	/* Setup info for the actual eeprom */
-	OS_MEMZERO(ratesArray, sizeof(ratesArray));
+	OS_MEMZERO(AH5416(ah)->ah_ratesArray,
+	  sizeof(AH5416(ah)->ah_ratesArray));
 	cfgCtl = ath_hal_getctl(ah, chan);
 	powerLimit = chan->ic_maxregpower * 2;
 	twiceAntennaReduction = chan->ic_maxantgain;
@@ -358,11 +359,12 @@ ar9287SetTransmitPower(struct ath_hal *ah,
 	    __func__,chan->ic_freq, cfgCtl );
 
 	/* XXX Assume Minor is v2 or later */
-	ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
+	AH5416(ah)->ah_ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
 
 	/* Fetch per-rate power table for the given channel */
 	if (! ar9287SetPowerPerRateTable(ah, pEepData,  chan,
-	    &ratesArray[0],cfgCtl,
+	    &AH5416(ah)->ah_ratesArray[0],
+	    cfgCtl,
 	    twiceAntennaReduction,
 	    twiceMaxRegulatoryPower, powerLimit)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
@@ -374,11 +376,14 @@ ar9287SetTransmitPower(struct ath_hal *ah,
 	ar9287SetPowerCalTable(ah, chan, &txPowerIndexOffset);
 
 	/* Calculate maximum power level */
-	maxPower = AH_MAX(ratesArray[rate6mb], ratesArray[rateHt20_0]);
-	maxPower = AH_MAX(maxPower, ratesArray[rate1l]);
+	maxPower = AH_MAX(AH5416(ah)->ah_ratesArray[rate6mb],
+	    AH5416(ah)->ah_ratesArray[rateHt20_0]);
+	maxPower = AH_MAX(maxPower,
+	    AH5416(ah)->ah_ratesArray[rate1l]);
 
 	if (IEEE80211_IS_CHAN_HT40(chan))
-		maxPower = AH_MAX(maxPower, ratesArray[rateHt40_0]);
+		maxPower = AH_MAX(maxPower,
+		    AH5416(ah)->ah_ratesArray[rateHt40_0]);
 
 	ahp->ah_tx6PowerInHalfDbm = maxPower;
 	AH_PRIVATE(ah)->ah_maxPowerLevel = maxPower;
@@ -389,18 +394,20 @@ ar9287SetTransmitPower(struct ath_hal *ah,
 	 *  adjust the rate table (0 offset if rates EEPROM not loaded)
 	 */
 	/* XXX what about the pwrTableOffset? */
-	for (i = 0; i < N(ratesArray); i++) {
-		ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
+	for (i = 0; i < N(AH5416(ah)->ah_ratesArray); i++) {
+		AH5416(ah)->ah_ratesArray[i] =
+		    (int16_t)(txPowerIndexOffset +
+		      AH5416(ah)->ah_ratesArray[i]);
 		/* -5 dBm offset for Merlin and later; this includes Kiwi */
-		ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
-		if (ratesArray[i] > AR5416_MAX_RATE_POWER)
-			ratesArray[i] = AR5416_MAX_RATE_POWER;
-		if (ratesArray[i] < 0)
-			ratesArray[i] = 0;
+		AH5416(ah)->ah_ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
+		if (AH5416(ah)->ah_ratesArray[i] > AR5416_MAX_RATE_POWER)
+			AH5416(ah)->ah_ratesArray[i] = AR5416_MAX_RATE_POWER;
+		if (AH5416(ah)->ah_ratesArray[i] < 0)
+			AH5416(ah)->ah_ratesArray[i] = 0;
 	}
 
 #ifdef AH_EEPROM_DUMP
-	ar5416PrintPowerPerRate(ah, ratesArray);
+	ar5416PrintPowerPerRate(ah, AH5416(ah)->ah_ratesArray);
 #endif
 
 	/*
@@ -411,18 +418,26 @@ ar9287SetTransmitPower(struct ath_hal *ah,
 	 * XXX handle overflow/too high power level?
 	 */
 	if (IEEE80211_IS_CHAN_HT40(chan)) {
-		ratesArray[rateHt40_0] += ht40PowerIncForPdadc;
-		ratesArray[rateHt40_1] += ht40PowerIncForPdadc;
-		ratesArray[rateHt40_2] += ht40PowerIncForPdadc;
-		ratesArray[rateHt40_3] += ht40PowerIncForPdadc;
-		ratesArray[rateHt40_4] += ht40PowerIncForPdadc;
-		ratesArray[rateHt40_5] += ht40PowerIncForPdadc;
-		ratesArray[rateHt40_6] += ht40PowerIncForPdadc;
-		ratesArray[rateHt40_7] += ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_0] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_1] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_2] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_3] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_4] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_5] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_6] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
+		AH5416(ah)->ah_ratesArray[rateHt40_7] +=
+		  AH5416(ah)->ah_ht40PowerIncForPdadc;
 	}
 
 	/* Write the TX power rate registers */
-	ar5416WriteTxPowerRateRegisters(ah, chan, ratesArray);
+	ar5416WriteTxPowerRateRegisters(ah, chan, AH5416(ah)->ah_ratesArray);
 
 	return AH_TRUE;
 #undef POW_SM

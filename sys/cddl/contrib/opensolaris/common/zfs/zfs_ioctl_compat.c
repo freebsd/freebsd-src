@@ -577,12 +577,18 @@ zcmd_ioctl_compat(int fd, int request, zfs_cmd_t *zc, const int cflag)
 	int nc, ret;
 	void *zc_c;
 	unsigned long ncmd;
+	zfs_iocparm_t zp;
 
 	switch (cflag) {
 	case ZFS_CMD_COMPAT_NONE:
+		ncmd = _IOWR('Z', request, struct zfs_iocparm);
+		zp.zfs_cmd = (uint64_t)zc;
+		zp.zfs_cmd_size = sizeof(zfs_cmd_t);
+		zp.zfs_ioctl_version = ZFS_IOCVER_CURRENT;
+		return (ioctl(fd, ncmd, &zp));
+	case ZFS_CMD_COMPAT_LZC:
 		ncmd = _IOWR('Z', request, struct zfs_cmd);
-		ret = ioctl(fd, ncmd, zc);
-		return (ret);
+		return (ioctl(fd, ncmd, zc));
 	case ZFS_CMD_COMPAT_DEADMAN:
 		zc_c = malloc(sizeof(zfs_cmd_deadman_t));
 		ncmd = _IOWR('Z', request, struct zfs_cmd_deadman);
@@ -677,7 +683,7 @@ zfs_ioctl_compat_innvl(zfs_cmd_t *zc, nvlist_t * innvl, const int vec,
 	char *poolname, *snapname;
 	int err;
 
-	if (cflag == ZFS_CMD_COMPAT_NONE)
+	if (cflag == ZFS_CMD_COMPAT_NONE || cflag == ZFS_CMD_COMPAT_LZC)
 		goto out;
 
 	switch (vec) {
@@ -828,7 +834,7 @@ zfs_ioctl_compat_outnvl(zfs_cmd_t *zc, nvlist_t * outnvl, const int vec,
 {
 	nvlist_t *tmpnvl;
 
-	if (cflag == ZFS_CMD_COMPAT_NONE)
+	if (cflag == ZFS_CMD_COMPAT_NONE || cflag == ZFS_CMD_COMPAT_LZC)
 		return (outnvl);
 
 	switch (vec) {

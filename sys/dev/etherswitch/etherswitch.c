@@ -200,6 +200,7 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 	struct etherswitch_softc *sc = cdev->si_drv1;
 	device_t dev = sc->sc_dev;
 	device_t etherswitch = device_get_parent(dev);
+	etherswitch_conf_t conf;
 	etherswitch_info_t *info;
 	etherswitch_reg_t *reg;
 	etherswitch_phyreg_t *phyreg;
@@ -249,6 +250,16 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 	case IOETHERSWITCHSETPHYREG:
 		phyreg = (etherswitch_phyreg_t *)data;
 		error = ETHERSWITCH_WRITEPHYREG(etherswitch, phyreg->phy, phyreg->reg, phyreg->val);
+		break;
+
+	case IOETHERSWITCHGETCONF:
+		bzero(&conf, sizeof(etherswitch_conf_t));
+		error = ETHERSWITCH_GETCONF(etherswitch, &conf);
+		bcopy(&conf, data, sizeof(etherswitch_conf_t));
+		break;
+
+	case IOETHERSWITCHSETCONF:
+		error = ETHERSWITCH_SETCONF(etherswitch, (etherswitch_conf_t *)data);
 		break;
 
 	default:

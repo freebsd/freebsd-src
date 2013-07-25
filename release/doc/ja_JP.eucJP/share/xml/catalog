@@ -6,7 +6,7 @@
 PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
        "release.dsl"
 PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//JA"
-       "dev-auto-ja.xml"
+       "dev-auto-ja.ent"
 
 
 

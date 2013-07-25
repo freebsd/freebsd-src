@@ -40,6 +40,21 @@ struct	ext2fs_direct {
 	uint16_t e2d_namlen;		/* length of string in e2d_name */
 	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
 };
+
+enum slotstatus {
+	NONE,
+	COMPACT,
+	FOUND
+};
+
+struct ext2fs_searchslot {
+	enum slotstatus slotstatus;
+	doff_t slotoffset;	/* offset of area with free space */
+	int slotsize;		/* size of area at slotoffset */
+	int slotfreespace;	/* amount of space free in slot */
+	int slotneeded;		/* sizeof the entry we are seeking */
+};
+
 /*
  * The new version of the directory entry.  Since EXT2 structures are
  * stored in intel byte order, and the name_len field could never be
@@ -53,6 +68,12 @@ struct	ext2fs_direct_2 {
 	uint8_t e2d_type;		/* file type */
 	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
 };
+
+/*
+ * Maximal count of links to a file
+ */
+#define EXT2_LINK_MAX	32000
+
 /*
  * Ext2 directory file types.  Only the low 3 bits are used.  The
  * other bits are reserved for now.

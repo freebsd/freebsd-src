@@ -67,6 +67,12 @@
 #define AM335X_MMCHS_REG_OFFSET     0x100
 
 /* Register bit settings */
+#define	MMCHS_SYSCONFIG_CLK_FUN	    (2 << 8)
+#define	MMCHS_SYSCONFIG_CLK_IFC	    (1 << 8)
+#define	MMCHS_SYSCONFIG_SIDL	    (2 << 3)
+#define	MMCHS_SYSCONFIG_ENW	    (1 << 2)
+#define	MMCHS_SYSCONFIG_SRST	    (1 << 1)
+#define	MMCHS_SYSCONFIG_AIDL	    (1 << 0)
 #define MMCHS_STAT_BADA             (1UL << 29)
 #define MMCHS_STAT_CERR             (1UL << 28)
 #define MMCHS_STAT_ACE              (1UL << 24)

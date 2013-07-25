@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/fcntl.h>
 #include <sys/dirent.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/priv.h>
 
@@ -556,7 +557,7 @@ restart_locked:
 			continue;
 		if (BUF_LOCK(bp,
 		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-		    BO_MTX(bo)) == ENOLCK)
+		    BO_LOCKPTR(bo)) == ENOLCK)
 			goto restart;
 		bp->b_flags |= (B_INVAL | B_RELBUF);
 		bp->b_flags &= ~(B_ASYNC | B_MANAGED);

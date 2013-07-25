@@ -68,7 +68,7 @@ static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
 static int rval;
 static const char *filename;
 
-static void usage(void);
+static void usage(void) __dead2;
 static void scanfiles(char *argv[], int cooked);
 static void cook_cat(FILE *);
 static void raw_cat(int);
@@ -153,6 +153,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: cat [-belnstuv] [file ...]\n");
 	exit(1);
 	/* NOTREACHED */

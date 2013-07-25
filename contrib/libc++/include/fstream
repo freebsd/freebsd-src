@@ -180,7 +180,7 @@ typedef basic_fstream<wchar_t> wfstream;
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _CharT, class _Traits>
-class _LIBCPP_VISIBLE basic_filebuf
+class _LIBCPP_TYPE_VIS basic_filebuf
     : public basic_streambuf<_CharT, _Traits>
 {
 public:
@@ -807,9 +807,15 @@ basic_filebuf<_CharT, _Traits>::seekoff(off_type __off, ios_base::seekdir __way,
     default:
         return pos_type(off_type(-1));
     }
+#if _WIN32
+    if (fseek(__file_, __width > 0 ? __width * __off : 0, __whence))
+        return pos_type(off_type(-1));
+    pos_type __r = ftell(__file_);
+#else
     if (fseeko(__file_, __width > 0 ? __width * __off : 0, __whence))
         return pos_type(off_type(-1));
     pos_type __r = ftello(__file_);
+#endif
     __r.state(__st_);
     return __r;
 }
@@ -820,8 +826,13 @@ basic_filebuf<_CharT, _Traits>::seekpos(pos_type __sp, ios_base::openmode)
 {
     if (__file_ == 0 || sync())
         return pos_type(off_type(-1));
+#if _WIN32
+    if (fseek(__file_, __sp, SEEK_SET))
+        return pos_type(off_type(-1));
+#else
     if (fseeko(__file_, __sp, SEEK_SET))
         return pos_type(off_type(-1));
+#endif
     __st_ = __sp.state();
     return __sp;
 }
@@ -880,8 +891,13 @@ basic_filebuf<_CharT, _Traits>::sync()
                 }
             }
         }
+#if _WIN32
+        if (fseek(__file_, -__c, SEEK_CUR))
+            return -1;
+#else
         if (fseeko(__file_, -__c, SEEK_CUR))
             return -1;
+#endif
         if (__update_st)
             __st_ = __state;
         __extbufnext_ = __extbufend_ = __extbuf_;
@@ -978,7 +994,7 @@ basic_filebuf<_CharT, _Traits>::__write_mode()
 // basic_ifstream
 
 template <class _CharT, class _Traits>
-class _LIBCPP_VISIBLE basic_ifstream
+class _LIBCPP_TYPE_VIS basic_ifstream
     : public basic_istream<_CharT, _Traits>
 {
 public:
@@ -1123,7 +1139,7 @@ basic_ifstream<_CharT, _Traits>::close()
 // basic_ofstream
 
 template <class _CharT, class _Traits>
-class _LIBCPP_VISIBLE basic_ofstream
+class _LIBCPP_TYPE_VIS basic_ofstream
     : public basic_ostream<_CharT, _Traits>
 {
 public:
@@ -1268,7 +1284,7 @@ basic_ofstream<_CharT, _Traits>::close()
 // basic_fstream
 
 template <class _CharT, class _Traits>
-class _LIBCPP_VISIBLE basic_fstream
+class _LIBCPP_TYPE_VIS basic_fstream
     : public basic_iostream<_CharT, _Traits>
 {
 public:

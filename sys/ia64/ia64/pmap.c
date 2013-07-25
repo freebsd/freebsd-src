@@ -1802,7 +1802,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m;
 	vm_pindex_t diff, psize;
 
-	VM_OBJECT_ASSERT_WLOCKED(m_start->object);
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
+
 	psize = atop(end - start);
 	m = m_start;
 	rw_wlock(&pvh_global_lock);
@@ -2450,7 +2451,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t sz)
 	if (md == NULL) {
 		printf("%s: [%#lx..%#lx] not covered by memory descriptor\n",
 		    __func__, pa, pa + sz - 1);
-		return (NULL);
+		return ((void *)IA64_PHYS_TO_RR6(pa));
 	}
 
 	if (md->md_type == EFI_MD_TYPE_FREE) {

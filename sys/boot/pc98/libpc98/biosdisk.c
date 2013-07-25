@@ -296,7 +296,7 @@ display_size(uint64_t size)
 	size /= 1024;
 	unit = 'M';
     }
-    sprintf(buf, "%.6ld%cB", (long)size, unit);
+    sprintf(buf, "%6ld%cB", (long)size, unit);
     return (buf);
 }
 

@@ -74,7 +74,7 @@ extern int vm_guest;		/* Running as virtual machine guest? */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
 #if defined(WITNESS) || defined(INVARIANTS)
-void	kassert_panic(const char *fmt, ...);
+void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #endif
 
 #ifdef	INVARIANTS		/* The option is always available */
@@ -111,6 +111,12 @@ void	kassert_panic(const char *fmt, ...);
 	KASSERT(sizeof(var) == sizeof(void *) &&			\
 	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
 
+/*
+ * Assert that a thread is in critical(9) section.
+ */
+#define	CRITICAL_ASSERT(td)						\
+	KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
+ 
 /*
  * If we have already panic'd and this is the thread that called
  * panic(), then don't block on any mutexes but silently succeed.

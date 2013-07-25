@@ -13,15 +13,15 @@
 
 // We might split this into multiple files if it gets too unwieldy
 
+#include "CodeGenModule.h"
 #include "CGCXXABI.h"
 #include "CodeGenFunction.h"
-#include "CodeGenModule.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/RecordLayout.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Mangle.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/StringExtras.h"
@@ -183,14 +183,16 @@ void CodeGenModule::EmitCXXConstructors(const CXXConstructorDecl *D) {
 
   // The constructor used for constructing this as a base class;
   // ignores virtual bases.
-  EmitGlobal(GlobalDecl(D, Ctor_Base));
+  if (getTarget().getCXXABI().hasConstructorVariants())
+    EmitGlobal(GlobalDecl(D, Ctor_Base));
 }
 
 void CodeGenModule::EmitCXXConstructor(const CXXConstructorDecl *ctor,
                                        CXXCtorType ctorType) {
   // The complete constructor is equivalent to the base constructor
   // for classes with no virtual bases.  Try to emit it as an alias.
-  if (ctorType == Ctor_Complete &&
+  if (getTarget().getCXXABI().hasConstructorVariants() &&
+      ctorType == Ctor_Complete &&
       !ctor->getParent()->getNumVBases() &&
       !TryEmitDefinitionAsAlias(GlobalDecl(ctor, Ctor_Complete),
                                 GlobalDecl(ctor, Ctor_Base)))

@@ -8,7 +8,7 @@
 #define O_CEDIT 7
 #define O_COLUMNS 8
 #define O_COMMENT 9
-#define O_DIRECTORY 10
+#define O_TMP_DIRECTORY 10
 #define O_EDCOMPATIBLE 11
 #define O_ESCAPETIME 12
 #define O_ERRORBELLS 13

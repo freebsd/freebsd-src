@@ -1,6 +1,7 @@
-# $Id: setup-edit,v 1.1 2010/01/13 01:56:07 tom Exp $
+#!/bin/sh
+# $Id: setup-edit,v 1.2 2012/06/29 09:31:49 tom Exp $
 # vile:shmode
 
 input=`tempfile 2>/dev/null` || input=/tmp/input$$
 output=`tempfile 2>/dev/null` || output=/tmp/test$$
-trap "rm -f $input $output" 0 1 2 5 15
+trap "rm -f $input $output" $SIG_NONE $SIG_HUP $SIG_INT $SIG_TRAP $SIG_TERM

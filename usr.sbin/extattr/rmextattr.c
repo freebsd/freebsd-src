@@ -102,6 +102,8 @@ main(int argc, char *argv[])
 	char	*buf, *visbuf, *p;
 
 	const char *options, *attrname;
+	size_t	len;
+	ssize_t	ret;
 	int	 buflen, visbuflen, ch, error, i, arg_counter, attrnamespace,
 		 minargc;
 
@@ -200,80 +202,84 @@ main(int argc, char *argv[])
 				continue;
 			break;
 		case EASET:
+			len = strlen(buf) + flag_null;
 			if (flag_nofollow)
-				error = extattr_set_link(argv[arg_counter],
-				    attrnamespace, attrname, buf,
-				    strlen(buf) + flag_null);
+				ret = extattr_set_link(argv[arg_counter],
+				    attrnamespace, attrname, buf, len);
 			else
-				error = extattr_set_file(argv[arg_counter],
-				    attrnamespace, attrname, buf,
-				    strlen(buf) + flag_null);
-			if (error >= 0)
+				ret = extattr_set_file(argv[arg_counter],
+				    attrnamespace, attrname, buf, len);
+			if (ret >= 0) {
+				if ((size_t)ret != len && !flag_quiet) {
+					warnx("Set %zd bytes of %zu for %s",
+					    ret, len, attrname);
+				}
 				continue;
+			}
 			break;
 		case EALS:
 			if (flag_nofollow)
-				error = extattr_list_link(argv[arg_counter],
+				ret = extattr_list_link(argv[arg_counter],
 				    attrnamespace, NULL, 0);
 			else
-				error = extattr_list_file(argv[arg_counter],
+				ret = extattr_list_file(argv[arg_counter],
 				    attrnamespace, NULL, 0);
-			if (error < 0)
+			if (ret < 0)
 				break;
-			mkbuf(&buf, &buflen, error);
+			mkbuf(&buf, &buflen, ret);
 			if (flag_nofollow)
-				error = extattr_list_link(argv[arg_counter],
+				ret = extattr_list_link(argv[arg_counter],
 				    attrnamespace, buf, buflen);
 			else
-				error = extattr_list_file(argv[arg_counter],
+				ret = extattr_list_file(argv[arg_counter],
 				    attrnamespace, buf, buflen);
-			if (error < 0)
+			if (ret < 0)
 				break;
 			if (!flag_quiet)
 				printf("%s\t", argv[arg_counter]);
-			for (i = 0; i < error; i += ch + 1) {
+			for (i = 0; i < ret; i += ch + 1) {
 			    /* The attribute name length is unsigned. */
 			    ch = (unsigned char)buf[i];
 			    printf("%s%*.*s", i ? "\t" : "",
 				ch, ch, buf + i + 1);
 			}
-			if (!flag_quiet || error > 0)
+			if (!flag_quiet || ret > 0)
 				printf("\n");
 			continue;
 		case EAGET:
 			if (flag_nofollow)
-				error = extattr_get_link(argv[arg_counter],
+				ret = extattr_get_link(argv[arg_counter],
 				    attrnamespace, attrname, NULL, 0);
 			else
-				error = extattr_get_file(argv[arg_counter],
+				ret = extattr_get_file(argv[arg_counter],
 				    attrnamespace, attrname, NULL, 0);
-			if (error < 0)
+			if (ret < 0)
 				break;
-			mkbuf(&buf, &buflen, error);
+			mkbuf(&buf, &buflen, ret);
 			if (flag_nofollow)
-				error = extattr_get_link(argv[arg_counter],
+				ret = extattr_get_link(argv[arg_counter],
 				    attrnamespace, attrname, buf, buflen);
 			else
-				error = extattr_get_file(argv[arg_counter],
+				ret = extattr_get_file(argv[arg_counter],
 				    attrnamespace, attrname, buf, buflen);
-			if (error < 0)
+			if (ret < 0)
 				break;
 			if (!flag_quiet)
 				printf("%s\t", argv[arg_counter]);
 			if (flag_string) {
-				mkbuf(&visbuf, &visbuflen, error * 4 + 1);
-				strvisx(visbuf, buf, error,
+				mkbuf(&visbuf, &visbuflen, ret * 4 + 1);
+				strvisx(visbuf, buf, ret,
 				    VIS_SAFE | VIS_WHITE);
 				printf("\"%s\"\n", visbuf);
 				continue;
 			} else if (flag_hex) {
-				for (i = 0; i < error; i++)
+				for (i = 0; i < ret; i++)
 					printf("%s%02x", i ? " " : "",
 					    buf[i]);
 				printf("\n");
 				continue;
 			} else {
-				fwrite(buf, error, 1, stdout);
+				fwrite(buf, ret, 1, stdout);
 				printf("\n");
 				continue;
 			}

@@ -325,7 +325,7 @@ do_rr(int len, struct icmp6_router_renum *rr)
 		if ((size_t)len < sizeof(struct rr_pco_match)) {
 		    tooshort:
 			syslog(LOG_ERR, "<%s> pkt too short. left len = %d. "
-			    "gabage at end of pkt?", __func__, len);
+			    "garbage at end of pkt?", __func__, len);
 			return (1);
 		}
 		rpmlen = rpm->rpm_len << 3;

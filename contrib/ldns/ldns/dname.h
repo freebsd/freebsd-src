@@ -150,6 +150,7 @@ bool ldns_dname_is_subdomain(const ldns_rdf *sub, const ldns_rdf *parent);
  * \return -1 if dname1 comes before dname2, 1 if dname1 comes after dname2, and 0 if they are equal.
  */
 int ldns_dname_compare(const ldns_rdf *dname1, const ldns_rdf *dname2);
+int ldns_dname_compare_v(const void *, const void *);
 
 /**
  * Checks whether the dname matches the given wildcard

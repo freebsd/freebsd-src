@@ -474,6 +474,12 @@ generic_elf_osabi_sniff_abi_tag_sections: unknown OS number %d",
 	  *osabi = GDB_OSABI_FREEBSD_ELF;
 	  return;
 	}
+      if (check_note (abfd, sect, note, "FreeBSD", 4, NT_FREEBSD_NOINIT_TAG))
+	{
+	  /* There is no need to check the version yet.  */
+	  *osabi = GDB_OSABI_FREEBSD_ELF;
+	  return;
+	}
 
       return;
     }

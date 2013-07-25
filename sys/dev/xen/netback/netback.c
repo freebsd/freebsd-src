@@ -1811,12 +1811,12 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 	if (num_consumed == 0)
 		return 0;	/* Nothing to receive */
 
-	/* update statistics indepdent of errors */
+	/* update statistics independent of errors */
 	ifnet->if_ipackets++;
 
 	/*
 	 * if we got here, then 1 or more requests was consumed, but the packet
-	 * is not necesarily valid.
+	 * is not necessarily valid.
 	 */
 	if (xnb_pkt_is_valid(&pkt) == 0) {
 		/* got a garbage packet, respond and drop it */

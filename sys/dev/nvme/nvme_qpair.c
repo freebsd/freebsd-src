@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -336,7 +336,7 @@ nvme_qpair_complete_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr,
 		req->retries++;
 		nvme_qpair_submit_tracker(qpair, tr);
 	} else {
-		if (req->payload_size > 0 || req->uio != NULL)
+		if (req->type != NVME_REQUEST_NULL)
 			bus_dmamap_unload(qpair->dma_tag,
 			    tr->payload_dma_map);
 
@@ -460,7 +460,7 @@ nvme_qpair_msix_handler(void *arg)
 void
 nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
     uint16_t vector, uint32_t num_entries, uint32_t num_trackers,
-    uint32_t max_xfer_size, struct nvme_controller *ctrlr)
+    struct nvme_controller *ctrlr)
 {
 	struct nvme_tracker	*tr;
 	uint32_t		i;
@@ -478,7 +478,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 		num_trackers = min(num_trackers, 64);
 #endif
 	qpair->num_trackers = num_trackers;
-	qpair->max_xfer_size = max_xfer_size;
 	qpair->ctrlr = ctrlr;
 
 	if (ctrlr->msix_enabled) {
@@ -501,8 +500,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair, uint32_t id,
 
 	bus_dma_tag_create(bus_get_dma_tag(ctrlr->dev),
 	    sizeof(uint64_t), PAGE_SIZE, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, qpair->max_xfer_size,
-	    (qpair->max_xfer_size/PAGE_SIZE)+1, PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR, NULL, NULL, NVME_MAX_XFER_SIZE,
+	    (NVME_MAX_XFER_SIZE/PAGE_SIZE)+1, PAGE_SIZE, 0,
 	    NULL, NULL, &qpair->dma_tag);
 
 	qpair->num_cmds = 0;
@@ -699,10 +698,47 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 }
 
 static void
+nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
+{
+	struct nvme_tracker 	*tr = arg;
+	uint32_t		cur_nseg;
+
+	/*
+	 * If the mapping operation failed, return immediately.  The caller
+	 *  is responsible for detecting the error status and failing the
+	 *  tracker manually.
+	 */
+	if (error != 0)
+		return;
+
+	/*
+	 * Note that we specified PAGE_SIZE for alignment and max
+	 *  segment size when creating the bus dma tags.  So here
+	 *  we can safely just transfer each segment to its
+	 *  associated PRP entry.
+	 */
+	tr->req->cmd.prp1 = seg[0].ds_addr;
+
+	if (nseg == 2) {
+		tr->req->cmd.prp2 = seg[1].ds_addr;
+	} else if (nseg > 2) {
+		cur_nseg = 1;
+		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
+		while (cur_nseg < nseg) {
+			tr->prp[cur_nseg-1] =
+			    (uint64_t)seg[cur_nseg].ds_addr;
+			cur_nseg++;
+		}
+	}
+
+	nvme_qpair_submit_tracker(tr->qpair, tr);
+}
+
+static void
 _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 {
 	struct nvme_tracker	*tr;
-	int			err;
+	int			err = 0;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
@@ -740,22 +776,50 @@ _nvme_qpair_submit_request(struct nvme_qpair *qpair, struct nvme_request *req)
 	TAILQ_INSERT_TAIL(&qpair->outstanding_tr, tr, tailq);
 	tr->req = req;
 
-	if (req->uio == NULL) {
-		if (req->payload_size > 0) {
-			err = bus_dmamap_load(tr->qpair->dma_tag,
-					      tr->payload_dma_map, req->payload,
-					      req->payload_size,
-					      nvme_payload_map, tr, 0);
-			if (err != 0)
-				panic("bus_dmamap_load returned non-zero!\n");
-		} else
-			nvme_qpair_submit_tracker(tr->qpair, tr);
-	} else {
-		err = bus_dmamap_load_uio(tr->qpair->dma_tag,
-					  tr->payload_dma_map, req->uio,
-					  nvme_payload_map_uio, tr, 0);
+	switch (req->type) {
+	case NVME_REQUEST_VADDR:
+		KASSERT(req->payload_size <= qpair->ctrlr->max_xfer_size,
+		    ("payload_size (%d) exceeds max_xfer_size (%d)\n",
+		    req->payload_size, qpair->ctrlr->max_xfer_size));
+		err = bus_dmamap_load(tr->qpair->dma_tag, tr->payload_dma_map,
+		    req->u.payload, req->payload_size, nvme_payload_map, tr, 0);
 		if (err != 0)
-			panic("bus_dmamap_load returned non-zero!\n");
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load returned 0x%x!\n", err);
+		break;
+	case NVME_REQUEST_NULL:
+		nvme_qpair_submit_tracker(tr->qpair, tr);
+		break;
+#ifdef NVME_UNMAPPED_BIO_SUPPORT
+	case NVME_REQUEST_BIO:
+		KASSERT(req->u.bio->bio_bcount <= qpair->ctrlr->max_xfer_size,
+		    ("bio->bio_bcount (%jd) exceeds max_xfer_size (%d)\n",
+		    (intmax_t)req->u.bio->bio_bcount,
+		    qpair->ctrlr->max_xfer_size));
+		err = bus_dmamap_load_bio(tr->qpair->dma_tag,
+		    tr->payload_dma_map, req->u.bio, nvme_payload_map, tr, 0);
+		if (err != 0)
+			nvme_printf(qpair->ctrlr,
+			    "bus_dmamap_load_bio returned 0x%x!\n", err);
+		break;
+#endif
+	default:
+		panic("unknown nvme request type 0x%x\n", req->type);
+		break;
+	}
+
+	if (err != 0) {
+		/*
+		 * The dmamap operation failed, so we manually fail the
+		 *  tracker here with DATA_TRANSFER_ERROR status.
+		 *
+		 * nvme_qpair_manual_complete_tracker must not be called
+		 *  with the qpair lock held.
+		 */
+		mtx_unlock(&qpair->lock);
+		nvme_qpair_manual_complete_tracker(qpair, tr, NVME_SCT_GENERIC,
+		    NVME_SC_DATA_TRANSFER_ERROR, 1 /* do not retry */, TRUE);
+		mtx_lock(&qpair->lock);
 	}
 }
 

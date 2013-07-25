@@ -233,14 +233,6 @@ static kobj_method_t s3c2410_methods[] = {
 int
 s3c2410_bus_probe(struct uart_softc *sc)
 {
-	return (0);
-}
-
-static int
-s3c2410_bus_attach(struct uart_softc *sc)
-{
-	uintptr_t irq;
-
 	switch(s3c2xx0_softc->sc_cpu) {
 	case CPU_S3C2410:
 		sc->sc_txfifosz = 16;
@@ -253,7 +245,15 @@ s3c2410_bus_attach(struct uart_softc *sc)
 	default:
 		return (ENXIO);
 	}
-		
+
+	return (0);
+}
+
+static int
+s3c2410_bus_attach(struct uart_softc *sc)
+{
+	uintptr_t irq;
+
 	sc->sc_hwiflow = 0;
 	sc->sc_hwoflow = 0;
 

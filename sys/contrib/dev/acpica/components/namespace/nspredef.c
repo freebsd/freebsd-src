@@ -63,12 +63,12 @@
  * There are several areas that are validated:
  *
  *  1) The number of input arguments as defined by the method/object in the
- *      ASL is validated against the ACPI specification.
+ *     ASL is validated against the ACPI specification.
  *  2) The type of the return object (if any) is validated against the ACPI
- *      specification.
+ *     specification.
  *  3) For returned package objects, the count of package elements is
- *      validated, as well as the type of each package element. Nested
- *      packages are supported.
+ *     validated, as well as the type of each package element. Nested
+ *     packages are supported.
  *
  * For any problems found, a warning message is issued.
  *
@@ -79,38 +79,20 @@
 
 static ACPI_STATUS
 AcpiNsCheckReference (
-    ACPI_PREDEFINED_DATA        *Data,
+    ACPI_EVALUATE_INFO          *Info,
     ACPI_OPERAND_OBJECT         *ReturnObject);
-
-static void
-AcpiNsGetExpectedTypes (
-    char                        *Buffer,
-    UINT32                      ExpectedBtypes);
 
 static UINT32
 AcpiNsGetBitmappedType (
     ACPI_OPERAND_OBJECT         *ReturnObject);
 
 
-/*
- * Names for the types that can be returned by the predefined objects.
- * Used for warning messages. Must be in the same order as the ACPI_RTYPEs
- */
-static const char   *AcpiRtypeNames[] =
-{
-    "/Integer",
-    "/String",
-    "/Buffer",
-    "/Package",
-    "/Reference",
-};
-
-
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsCheckPredefinedNames
+ * FUNCTION:    AcpiNsCheckReturnValue
  *
  * PARAMETERS:  Node            - Namespace node for the method/object
+ *              Info            - Method execution information block
  *              UserParamCount  - Number of parameters actually passed
  *              ReturnStatus    - Status from the object evaluation
  *              ReturnObjectPtr - Pointer to the object returned from the
@@ -118,56 +100,38 @@ static const char   *AcpiRtypeNames[] =
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Check an ACPI name for a match in the predefined name list.
+ * DESCRIPTION: Check the value returned from a predefined name.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiNsCheckPredefinedNames (
+AcpiNsCheckReturnValue (
     ACPI_NAMESPACE_NODE         *Node,
+    ACPI_EVALUATE_INFO          *Info,
     UINT32                      UserParamCount,
     ACPI_STATUS                 ReturnStatus,
     ACPI_OPERAND_OBJECT         **ReturnObjectPtr)
 {
-    ACPI_STATUS                 Status = AE_OK;
+    ACPI_STATUS                 Status;
     const ACPI_PREDEFINED_INFO  *Predefined;
-    char                        *Pathname;
-    ACPI_PREDEFINED_DATA        *Data;
 
-
-    /* Match the name for this method/object against the predefined list */
-
-    Predefined = AcpiNsCheckForPredefinedName (Node);
-
-    /* Get the full pathname to the object, for use in warning messages */
-
-    Pathname = AcpiNsGetExternalPathname (Node);
-    if (!Pathname)
-    {
-        return (AE_OK); /* Could not get pathname, ignore */
-    }
-
-    /*
-     * Check that the parameter count for this method matches the ASL
-     * definition. For predefined names, ensure that both the caller and
-     * the method itself are in accordance with the ACPI specification.
-     */
-    AcpiNsCheckParameterCount (Pathname, Node, UserParamCount, Predefined);
 
     /* If not a predefined name, we cannot validate the return object */
 
+    Predefined = Info->Predefined;
     if (!Predefined)
     {
-        goto Cleanup;
+        return (AE_OK);
     }
 
     /*
      * If the method failed or did not actually return an object, we cannot
      * validate the return object
      */
-    if ((ReturnStatus != AE_OK) && (ReturnStatus != AE_CTRL_RETURN_VALUE))
+    if ((ReturnStatus != AE_OK) &&
+        (ReturnStatus != AE_CTRL_RETURN_VALUE))
     {
-        goto Cleanup;
+        return (AE_OK);
     }
 
     /*
@@ -187,27 +151,15 @@ AcpiNsCheckPredefinedNames (
         (!Predefined->Info.ExpectedBtypes) ||
         (Predefined->Info.ExpectedBtypes == ACPI_RTYPE_ALL))
     {
-        goto Cleanup;
+        return (AE_OK);
     }
-
-    /* Create the parameter data block for object validation */
-
-    Data = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_PREDEFINED_DATA));
-    if (!Data)
-    {
-        goto Cleanup;
-    }
-    Data->Predefined = Predefined;
-    Data->Node = Node;
-    Data->NodeFlags = Node->Flags;
-    Data->Pathname = Pathname;
 
     /*
      * Check that the type of the main return object is what is expected
      * for this predefined name
      */
-    Status = AcpiNsCheckObjectType (Data, ReturnObjectPtr,
-                Predefined->Info.ExpectedBtypes, ACPI_NOT_PACKAGE_ELEMENT);
+    Status = AcpiNsCheckObjectType (Info, ReturnObjectPtr,
+        Predefined->Info.ExpectedBtypes, ACPI_NOT_PACKAGE_ELEMENT);
     if (ACPI_FAILURE (Status))
     {
         goto Exit;
@@ -219,11 +171,17 @@ AcpiNsCheckPredefinedNames (
      */
     if ((*ReturnObjectPtr)->Common.Type == ACPI_TYPE_PACKAGE)
     {
-        Data->ParentPackage = *ReturnObjectPtr;
-        Status = AcpiNsCheckPackage (Data, ReturnObjectPtr);
+        Info->ParentPackage = *ReturnObjectPtr;
+        Status = AcpiNsCheckPackage (Info, ReturnObjectPtr);
         if (ACPI_FAILURE (Status))
         {
-            goto Exit;
+            /* We might be able to fix some errors */
+
+            if ((Status != AE_AML_OPERAND_TYPE) &&
+                (Status != AE_AML_OPERAND_VALUE))
+            {
+                goto Exit;
+            }
         }
     }
 
@@ -235,7 +193,7 @@ AcpiNsCheckPredefinedNames (
      * performed on a per-name basis, i.e., the code is specific to
      * particular predefined names.
      */
-    Status = AcpiNsComplexRepairs (Data, Node, Status, ReturnObjectPtr);
+    Status = AcpiNsComplexRepairs (Info, Node, Status, ReturnObjectPtr);
 
 Exit:
     /*
@@ -243,163 +201,13 @@ Exit:
      * or more objects, mark the parent node to suppress further warning
      * messages during the next evaluation of the same method/object.
      */
-    if (ACPI_FAILURE (Status) || (Data->Flags & ACPI_OBJECT_REPAIRED))
+    if (ACPI_FAILURE (Status) ||
+       (Info->ReturnFlags & ACPI_OBJECT_REPAIRED))
     {
         Node->Flags |= ANOBJ_EVALUATED;
     }
-    ACPI_FREE (Data);
 
-Cleanup:
-    ACPI_FREE (Pathname);
     return (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsCheckParameterCount
- *
- * PARAMETERS:  Pathname        - Full pathname to the node (for error msgs)
- *              Node            - Namespace node for the method/object
- *              UserParamCount  - Number of args passed in by the caller
- *              Predefined      - Pointer to entry in predefined name table
- *
- * RETURN:      None
- *
- * DESCRIPTION: Check that the declared (in ASL/AML) parameter count for a
- *              predefined name is what is expected (i.e., what is defined in
- *              the ACPI specification for this predefined name.)
- *
- ******************************************************************************/
-
-void
-AcpiNsCheckParameterCount (
-    char                        *Pathname,
-    ACPI_NAMESPACE_NODE         *Node,
-    UINT32                      UserParamCount,
-    const ACPI_PREDEFINED_INFO  *Predefined)
-{
-    UINT32                      ParamCount;
-    UINT32                      RequiredParamsCurrent;
-    UINT32                      RequiredParamsOld;
-
-
-    /* Methods have 0-7 parameters. All other types have zero. */
-
-    ParamCount = 0;
-    if (Node->Type == ACPI_TYPE_METHOD)
-    {
-        ParamCount = Node->Object->Method.ParamCount;
-    }
-
-    if (!Predefined)
-    {
-        /*
-         * Check the parameter count for non-predefined methods/objects.
-         *
-         * Warning if too few or too many arguments have been passed by the
-         * caller. An incorrect number of arguments may not cause the method
-         * to fail. However, the method will fail if there are too few
-         * arguments and the method attempts to use one of the missing ones.
-         */
-        if (UserParamCount < ParamCount)
-        {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Pathname, ACPI_WARN_ALWAYS,
-                "Insufficient arguments - needs %u, found %u",
-                ParamCount, UserParamCount));
-        }
-        else if (UserParamCount > ParamCount)
-        {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Pathname, ACPI_WARN_ALWAYS,
-                "Excess arguments - needs %u, found %u",
-                ParamCount, UserParamCount));
-        }
-        return;
-    }
-
-    /*
-     * Validate the user-supplied parameter count.
-     * Allow two different legal argument counts (_SCP, etc.)
-     */
-    RequiredParamsCurrent = Predefined->Info.ParamCount & 0x0F;
-    RequiredParamsOld = Predefined->Info.ParamCount >> 4;
-
-    if (UserParamCount != ACPI_UINT32_MAX)
-    {
-        if ((UserParamCount != RequiredParamsCurrent) &&
-            (UserParamCount != RequiredParamsOld))
-        {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Pathname, ACPI_WARN_ALWAYS,
-                "Parameter count mismatch - "
-                "caller passed %u, ACPI requires %u",
-                UserParamCount, RequiredParamsCurrent));
-        }
-    }
-
-    /*
-     * Check that the ASL-defined parameter count is what is expected for
-     * this predefined name (parameter count as defined by the ACPI
-     * specification)
-     */
-    if ((ParamCount != RequiredParamsCurrent) &&
-        (ParamCount != RequiredParamsOld))
-    {
-        ACPI_WARN_PREDEFINED ((AE_INFO, Pathname, Node->Flags,
-            "Parameter count mismatch - ASL declared %u, ACPI requires %u",
-            ParamCount, RequiredParamsCurrent));
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsCheckForPredefinedName
- *
- * PARAMETERS:  Node            - Namespace node for the method/object
- *
- * RETURN:      Pointer to entry in predefined table. NULL indicates not found.
- *
- * DESCRIPTION: Check an object name against the predefined object list.
- *
- ******************************************************************************/
-
-const ACPI_PREDEFINED_INFO *
-AcpiNsCheckForPredefinedName (
-    ACPI_NAMESPACE_NODE         *Node)
-{
-    const ACPI_PREDEFINED_INFO  *ThisName;
-
-
-    /* Quick check for a predefined name, first character must be underscore */
-
-    if (Node->Name.Ascii[0] != '_')
-    {
-        return (NULL);
-    }
-
-    /* Search info table for a predefined method/object name */
-
-    ThisName = PredefinedNames;
-    while (ThisName->Info.Name[0])
-    {
-        if (ACPI_COMPARE_NAME (Node->Name.Ascii, ThisName->Info.Name))
-        {
-            return (ThisName);
-        }
-
-        /*
-         * Skip next entry in the table if this name returns a Package
-         * (next entry contains the package info)
-         */
-        if (ThisName->Info.ExpectedBtypes & ACPI_RTYPE_PACKAGE)
-        {
-            ThisName++;
-        }
-
-        ThisName++;
-    }
-
-    return (NULL); /* Not found */
 }
 
 
@@ -407,7 +215,7 @@ AcpiNsCheckForPredefinedName (
  *
  * FUNCTION:    AcpiNsCheckObjectType
  *
- * PARAMETERS:  Data            - Pointer to validation data structure
+ * PARAMETERS:  Info            - Method execution information block
  *              ReturnObjectPtr - Pointer to the object returned from the
  *                                evaluation of a method or object
  *              ExpectedBtypes  - Bitmap of expected return type(s)
@@ -424,7 +232,7 @@ AcpiNsCheckForPredefinedName (
 
 ACPI_STATUS
 AcpiNsCheckObjectType (
-    ACPI_PREDEFINED_DATA        *Data,
+    ACPI_EVALUATE_INFO          *Info,
     ACPI_OPERAND_OBJECT         **ReturnObjectPtr,
     UINT32                      ExpectedBtypes,
     UINT32                      PackageIndex)
@@ -439,7 +247,7 @@ AcpiNsCheckObjectType (
     if (ReturnObject &&
         ACPI_GET_DESCRIPTOR_TYPE (ReturnObject) == ACPI_DESC_TYPE_NAMED)
     {
-        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
             "Invalid return type - Found a Namespace node [%4.4s] type %s",
             ReturnObject->Node.Name.Ascii,
             AcpiUtGetTypeName (ReturnObject->Node.Type)));
@@ -454,8 +262,8 @@ AcpiNsCheckObjectType (
      * from all of the predefined names (including elements of returned
      * packages)
      */
-    Data->ReturnBtype = AcpiNsGetBitmappedType (ReturnObject);
-    if (Data->ReturnBtype == ACPI_RTYPE_ANY)
+    Info->ReturnBtype = AcpiNsGetBitmappedType (ReturnObject);
+    if (Info->ReturnBtype == ACPI_RTYPE_ANY)
     {
         /* Not one of the supported objects, must be incorrect */
         goto TypeErrorExit;
@@ -463,34 +271,37 @@ AcpiNsCheckObjectType (
 
     /* For reference objects, check that the reference type is correct */
 
-    if ((Data->ReturnBtype & ExpectedBtypes) == ACPI_RTYPE_REFERENCE)
+    if ((Info->ReturnBtype & ExpectedBtypes) == ACPI_RTYPE_REFERENCE)
     {
-        Status = AcpiNsCheckReference (Data, ReturnObject);
+        Status = AcpiNsCheckReference (Info, ReturnObject);
         return (Status);
     }
 
     /* Attempt simple repair of the returned object if necessary */
 
-    Status = AcpiNsSimpleRepair (Data, ExpectedBtypes,
-                PackageIndex, ReturnObjectPtr);
-    return (Status);
+    Status = AcpiNsSimpleRepair (Info, ExpectedBtypes,
+        PackageIndex, ReturnObjectPtr);
+    if (ACPI_SUCCESS (Status))
+    {
+        return (AE_OK); /* Successful repair */
+    }
 
 
 TypeErrorExit:
 
     /* Create a string with all expected types for this predefined object */
 
-    AcpiNsGetExpectedTypes (TypeBuffer, ExpectedBtypes);
+    AcpiUtGetExpectedReturnTypes (TypeBuffer, ExpectedBtypes);
 
     if (PackageIndex == ACPI_NOT_PACKAGE_ELEMENT)
     {
-        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
             "Return type mismatch - found %s, expected %s",
             AcpiUtGetObjectTypeName (ReturnObject), TypeBuffer));
     }
     else
     {
-        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
             "Return Package type mismatch at index %u - "
             "found %s, expected %s", PackageIndex,
             AcpiUtGetObjectTypeName (ReturnObject), TypeBuffer));
@@ -504,7 +315,7 @@ TypeErrorExit:
  *
  * FUNCTION:    AcpiNsCheckReference
  *
- * PARAMETERS:  Data            - Pointer to validation data structure
+ * PARAMETERS:  Info            - Method execution information block
  *              ReturnObject    - Object returned from the evaluation of a
  *                                method or object
  *
@@ -518,7 +329,7 @@ TypeErrorExit:
 
 static ACPI_STATUS
 AcpiNsCheckReference (
-    ACPI_PREDEFINED_DATA        *Data,
+    ACPI_EVALUATE_INFO          *Info,
     ACPI_OPERAND_OBJECT         *ReturnObject)
 {
 
@@ -532,7 +343,7 @@ AcpiNsCheckReference (
         return (AE_OK);
     }
 
-    ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+    ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
         "Return type mismatch - unexpected reference object type [%s] %2.2X",
         AcpiUtGetReferenceName (ReturnObject),
         ReturnObject->Reference.Class));
@@ -572,26 +383,32 @@ AcpiNsGetBitmappedType (
     switch (ReturnObject->Common.Type)
     {
     case ACPI_TYPE_INTEGER:
+
         ReturnBtype = ACPI_RTYPE_INTEGER;
         break;
 
     case ACPI_TYPE_BUFFER:
+
         ReturnBtype = ACPI_RTYPE_BUFFER;
         break;
 
     case ACPI_TYPE_STRING:
+
         ReturnBtype = ACPI_RTYPE_STRING;
         break;
 
     case ACPI_TYPE_PACKAGE:
+
         ReturnBtype = ACPI_RTYPE_PACKAGE;
         break;
 
     case ACPI_TYPE_LOCAL_REFERENCE:
+
         ReturnBtype = ACPI_RTYPE_REFERENCE;
         break;
 
     default:
+
         /* Not one of the supported objects, must be incorrect */
 
         ReturnBtype = ACPI_RTYPE_ANY;
@@ -599,46 +416,4 @@ AcpiNsGetBitmappedType (
     }
 
     return (ReturnBtype);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsGetExpectedTypes
- *
- * PARAMETERS:  Buffer          - Pointer to where the string is returned
- *              ExpectedBtypes  - Bitmap of expected return type(s)
- *
- * RETURN:      Buffer is populated with type names.
- *
- * DESCRIPTION: Translate the expected types bitmap into a string of ascii
- *              names of expected types, for use in warning messages.
- *
- ******************************************************************************/
-
-static void
-AcpiNsGetExpectedTypes (
-    char                        *Buffer,
-    UINT32                      ExpectedBtypes)
-{
-    UINT32                      ThisRtype;
-    UINT32                      i;
-    UINT32                      j;
-
-
-    j = 1;
-    Buffer[0] = 0;
-    ThisRtype = ACPI_RTYPE_INTEGER;
-
-    for (i = 0; i < ACPI_NUM_RTYPES; i++)
-    {
-        /* If one of the expected types, concatenate the name of this type */
-
-        if (ExpectedBtypes & ThisRtype)
-        {
-            ACPI_STRCAT (Buffer, &AcpiRtypeNames[i][j]);
-            j = 0;              /* Use name separator from now on */
-        }
-        ThisRtype <<= 1;    /* Next Rtype */
-    }
 }

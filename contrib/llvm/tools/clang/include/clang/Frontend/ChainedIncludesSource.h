@@ -26,9 +26,9 @@ public:
 
   static ChainedIncludesSource *create(CompilerInstance &CI);
 
-private:
   ExternalSemaSource &getFinalReader() const { return *FinalReader; }
 
+private:
   std::vector<CompilerInstance *> CIs;
   OwningPtr<ExternalSemaSource> FinalReader;
 
@@ -44,8 +44,8 @@ protected:
   virtual uint32_t GetNumExternalSelectors();
   virtual Stmt *GetExternalDeclStmt(uint64_t Offset);
   virtual CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset);
-  virtual DeclContextLookupResult
-  FindExternalVisibleDeclsByName(const DeclContext *DC, DeclarationName Name);
+  virtual bool FindExternalVisibleDeclsByName(const DeclContext *DC,
+                                              DeclarationName Name);
   virtual ExternalLoadResult FindExternalLexicalDecls(const DeclContext *DC,
                                         bool (*isKindWeWant)(Decl::Kind),
                                         SmallVectorImpl<Decl*> &Result);

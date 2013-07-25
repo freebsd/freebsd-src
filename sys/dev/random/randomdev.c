@@ -70,7 +70,7 @@ static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 };
 
-struct random_systat random_systat;
+struct random_systat *random_systat;
 
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
@@ -88,8 +88,8 @@ random_close(struct cdev *dev __unused, int flags, int fmt __unused,
 {
 	if ((flags & FWRITE) && (priv_check(td, PRIV_RANDOM_RESEED) == 0)
 	    && (securelevel_gt(td->td_ucred, 0) == 0)) {
-		(*random_systat.reseed)();
-		random_systat.seeded = 1;
+		(*random_systat->reseed)();
+		random_systat->seeded = 1;
 		arc4rand(NULL, 0, 1);	/* Reseed arc4random as well. */
 	}
 
@@ -104,8 +104,8 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 	void *random_buf;
 
 	/* Blocking logic */
-	if (!random_systat.seeded)
-		error = (*random_systat.block)(flag);
+	if (!random_systat->seeded)
+		error = (*random_systat->block)(flag);
 
 	/* The actual read */
 	if (!error) {
@@ -114,7 +114,7 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 
 		while (uio->uio_resid > 0 && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
-			c = (*random_systat.read)(random_buf, c);
+			c = (*random_systat->read)(random_buf, c);
 			error = uiomove(random_buf, c, uio);
 		}
 
@@ -139,7 +139,7 @@ random_write(struct cdev *dev __unused, struct uio *uio, int flag __unused)
 		error = uiomove(random_buf, c, uio);
 		if (error)
 			break;
-		(*random_systat.write)(random_buf, c);
+		(*random_systat->write)(random_buf, c);
 	}
 
 	free(random_buf, M_TEMP);
@@ -172,10 +172,10 @@ random_poll(struct cdev *dev __unused, int events, struct thread *td)
 	int revents = 0;
 
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (random_systat.seeded)
+		if (random_systat->seeded)
 			revents = events & (POLLIN | POLLRDNORM);
 		else
-			revents = (*random_systat.poll) (events,td);
+			revents = (*random_systat->poll) (events,td);
 	}
 	return (revents);
 }
@@ -189,11 +189,11 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 	switch (type) {
 	case MOD_LOAD:
 		random_ident_hardware(&random_systat);
-		(*random_systat.init)();
+		(*random_systat->init)();
 
 		if (bootverbose)
 			printf("random: <entropy source, %s>\n",
-			    random_systat.ident);
+			    random_systat->ident);
 
 		random_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD, &random_cdevsw,
 		    RANDOM_MINOR, NULL, UID_ROOT, GID_WHEEL, 0666, "random");
@@ -202,7 +202,7 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 		break;
 
 	case MOD_UNLOAD:
-		(*random_systat.deinit)();
+		(*random_systat->deinit)();
 
 		destroy_dev(random_dev);
 

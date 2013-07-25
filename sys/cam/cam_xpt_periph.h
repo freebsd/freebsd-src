@@ -46,6 +46,8 @@ void		xpt_remove_periph(struct cam_periph *periph,
 				  int topology_lock_held);
 void		xpt_announce_periph(struct cam_periph *periph,
 				    char *announce_string);
+void		xpt_announce_quirks(struct cam_periph *periph,
+				    int quirks, char *bit_string);
 #endif
 
 #endif /* _CAM_CAM_XPT_PERIPH_H */

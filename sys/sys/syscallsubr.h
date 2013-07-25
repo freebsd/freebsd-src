@@ -60,6 +60,8 @@ int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,
 	    socklen_t *namelen, struct file **fp);
+int	kern_accept4(struct thread *td, int s, struct sockaddr **name,
+	    socklen_t *namelen, int flags, struct file **fp);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
 int	kern_accessat(struct thread *td, int fd, char *path,
@@ -74,6 +76,8 @@ int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode);
 int	kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
 	    int gid);
+int	kern_clock_getcpuclockid2(struct thread *td, id_t id, int which,
+	    clockid_t *clk_id);
 int	kern_clock_getres(struct thread *td, clockid_t clock_id,
 	    struct timespec *ts);
 int	kern_clock_gettime(struct thread *td, clockid_t clock_id,
@@ -156,6 +160,7 @@ int	kern_openat(struct thread *td, int fd, char *path,
 int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
 	    int name, u_long flags);
 int	kern_pipe(struct thread *td, int fildes[2]);
+int	kern_pipe2(struct thread *td, int fildes[2], int flags);
 int	kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	    int advice);
 int	kern_posix_fallocate(struct thread *td, int fd, off_t offset,
@@ -223,6 +228,13 @@ int	kern_symlink(struct thread *td, char *path, char *link,
 	    enum uio_seg segflg);
 int	kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 	    enum uio_seg segflg);
+int	kern_ktimer_create(struct thread *td, clockid_t clock_id,
+	    struct sigevent *evp, int *timerid, int preset_id);
+int	kern_ktimer_delete(struct thread *, int);
+int	kern_ktimer_settime(struct thread *td, int timer_id, int flags,
+	    struct itimerspec *val, struct itimerspec *oval);
+int	kern_ktimer_gettime(struct thread *td, int timer_id,
+	    struct itimerspec *val);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
 int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,

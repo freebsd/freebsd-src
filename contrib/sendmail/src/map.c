@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: map.c,v 8.709 2012/04/20 18:47:09 ca Exp $")
+SM_RCSID("@(#)$Id: map.c,v 8.711 2013/03/12 15:24:52 ca Exp $")
 
 #if LDAPMAP
 # include <sm/ldap.h>
@@ -2883,6 +2883,9 @@ nis_getcanonname(name, hbsize, statp)
 # undef T_UNSPEC	/* symbol conflict in nis.h -> ... -> sys/tiuser.h */
 # include <rpcsvc/nis.h>
 # include <rpcsvc/nislib.h>
+# ifndef NIS_TABLE_OBJ
+#  define NIS_TABLE_OBJ TABLE_OBJ
+# endif /* NIS_TABLE_OBJ */
 
 # define EN_col(col)	zo_data.objdata_u.en_data.en_cols.en_cols_val[(col)].ec_value.ec_value_val
 # define COL_NAME(res,i)	((res->objects.objects_val)->TA_data.ta_cols.ta_cols_val)[i].tc_name
@@ -2970,7 +2973,7 @@ nisplus_map_open(map, mode)
 	}
 
 	if (NIS_RES_NUMOBJ(res) != 1 ||
-	    (NIS_RES_OBJECT(res)->zo_data.zo_type != TABLE_OBJ))
+	    (NIS_RES_OBJECT(res)->zo_data.zo_type != NIS_TABLE_OBJ))
 	{
 		if (tTd(38, 10))
 			sm_dprintf("nisplus_map_open: %s is not a table\n", qbuf);
@@ -5834,7 +5837,7 @@ text_map_lookup(map, name, av, statp)
 	key_idx = map->map_keycolno;
 	delim = map->map_coldelim;
 	while (sm_io_fgets(f, SM_TIME_DEFAULT,
-			   linebuf, sizeof(linebuf)) != NULL)
+			   linebuf, sizeof(linebuf)) >= 0)
 	{
 		char *p;
 
@@ -5908,7 +5911,7 @@ text_getcanonname(name, hbsize, statp)
 	found = false;
 	while (!found &&
 		sm_io_fgets(f, SM_TIME_DEFAULT,
-			    linebuf, sizeof(linebuf)) != NULL)
+			    linebuf, sizeof(linebuf)) >= 0)
 	{
 		char *p = strpbrk(linebuf, "#\n");
 

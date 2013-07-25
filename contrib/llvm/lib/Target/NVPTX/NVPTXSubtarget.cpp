@@ -22,27 +22,23 @@ using namespace llvm;
 // Select Driver Interface
 #include "llvm/Support/CommandLine.h"
 namespace {
-cl::opt<NVPTX::DrvInterface>
-DriverInterface(cl::desc("Choose driver interface:"),
-                cl::values(
-                    clEnumValN(NVPTX::NVCL, "drvnvcl", "Nvidia OpenCL driver"),
-                    clEnumValN(NVPTX::CUDA, "drvcuda", "Nvidia CUDA driver"),
-                    clEnumValN(NVPTX::TEST, "drvtest", "Plain Test"),
-                    clEnumValEnd),
-                    cl::init(NVPTX::NVCL));
+cl::opt<NVPTX::DrvInterface> DriverInterface(
+    cl::desc("Choose driver interface:"),
+    cl::values(clEnumValN(NVPTX::NVCL, "drvnvcl", "Nvidia OpenCL driver"),
+               clEnumValN(NVPTX::CUDA, "drvcuda", "Nvidia CUDA driver"),
+               clEnumValN(NVPTX::TEST, "drvtest", "Plain Test"), clEnumValEnd),
+    cl::init(NVPTX::NVCL));
 }
 
 NVPTXSubtarget::NVPTXSubtarget(const std::string &TT, const std::string &CPU,
                                const std::string &FS, bool is64Bit)
-: NVPTXGenSubtargetInfo(TT, CPU, FS),
-  Is64Bit(is64Bit),
-  PTXVersion(0),
-  SmVersion(10) {
+    : NVPTXGenSubtargetInfo(TT, CPU, FS), Is64Bit(is64Bit), PTXVersion(0),
+      SmVersion(20) {
 
   drvInterface = DriverInterface;
 
   // Provide the default CPU if none
-  std::string defCPU = "sm_10";
+  std::string defCPU = "sm_20";
 
   ParseSubtargetFeatures((CPU.empty() ? defCPU : CPU), FS);
 

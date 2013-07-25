@@ -1286,7 +1286,7 @@ make_prefix(struct rainfo *rai, int ifindex, struct in6_addr *addr, int plen)
 
 	memset(&ipr, 0, sizeof(ipr));
 	if (if_indextoname(ifindex, ipr.ipr_name) == NULL) {
-		syslog(LOG_ERR, "<%s> Prefix added interface No.%d doesn't"
+		syslog(LOG_ERR, "<%s> Prefix added interface No.%d doesn't "
 		    "exist. This should not happen! %s", __func__,
 		    ifindex, strerror(errno));
 		exit(1);

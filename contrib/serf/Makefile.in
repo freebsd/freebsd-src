@@ -1,0 +1,171 @@
+#
+# Makefile for Serf
+#
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+SERF_MAJOR_VERSION=@SERF_MAJOR_VERSION@
+SERF_DOTTED_VERSION=@SERF_DOTTED_VERSION@
+
+OBJECTS = buckets/aggregate_buckets.lo buckets/request_buckets.lo context.lo \
+          buckets/buckets.lo buckets/simple_buckets.lo buckets/file_buckets.lo \
+          buckets/mmap_buckets.lo buckets/socket_buckets.lo \
+          buckets/response_body_buckets.lo buckets/response_buckets.lo \
+          buckets/headers_buckets.lo \
+          buckets/allocator.lo buckets/dechunk_buckets.lo \
+          buckets/deflate_buckets.lo buckets/limit_buckets.lo \
+          buckets/ssl_buckets.lo buckets/barrier_buckets.lo \
+          buckets/chunk_buckets.lo buckets/bwtp_buckets.lo \
+	  buckets/iovec_buckets.lo \
+          incoming.lo outgoing.lo ssltunnel.lo \
+          auth/auth.lo auth/auth_basic.lo auth/auth_digest.lo \
+          auth/auth_kerb.lo auth/auth_kerb_gss.lo
+
+TARGET_LIB=libserf-$(SERF_MAJOR_VERSION).la
+
+TEST_OBJECTS = test/serf_get.lo test/serf_response.lo test/serf_request.lo \
+               test/serf_spider.lo test/serf_server.lo test/serf_bwtp.lo
+
+TEST_SUITE_OBJECTS = test/CuTest.lo test/test_all.lo test/test_util.lo \
+                     test/test_buckets.lo test/test_context.lo \
+                     test/test_ssl.lo test/server/test_server.lo \
+                     test/server/test_sslserver.lo
+
+PROGRAMS = $(TEST_OBJECTS:.lo=) test/test_all
+
+TESTCASES = test/testcases/simple.response \
+  test/testcases/chunked-empty.response test/testcases/chunked.response \
+  test/testcases/chunked-trailers.response \
+  test/testcases/deflate.response
+
+HEADERS = serf.h serf_bucket_types.h serf_bucket_util.h
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+pkgconfigdir=$(libdir)/pkgconfig
+
+LIBTOOL = @APR_LIBTOOL@
+LTFLAGS = @LTFLAGS@ --tag=CC
+CC = @CC@
+CFLAGS =  @EXTRA_CFLAGS@ @CFLAGS@
+CPPFLAGS = @EXTRA_CPPFLAGS@ @CPPFLAGS@
+INCLUDES = -I$(srcdir) @APR_INCLUDES@ @APU_INCLUDES@ @EXTRA_INCLUDES@
+MKDIR = @mkdir_p@
+INSTALL = @INSTALL@
+
+LDFLAGS = @EXTRA_LDFLAGS@ @LDFLAGS@
+LIBS = @EXTRA_LIBS@  @SERF_LIBS@ -lz -lssl -lcrypto
+
+all: $(TARGET_LIB) $(PROGRAMS)
+
+context.lo: context.c $(HEADERS)
+incoming.lo: incoming.c $(HEADERS)
+outgoing.lo: outgoing.c $(HEADERS)
+ssltunnel.lo: ssltunnel.c $(HEADERS)
+buckets/aggregate_buckets.lo: buckets/aggregate_buckets.c $(HEADERS)
+buckets/request_buckets.lo: buckets/request_buckets.c $(HEADERS)
+buckets/buckets.lo: buckets/buckets.c $(HEADERS)
+buckets/simple_buckets.lo: buckets/simple_buckets.c $(HEADERS)
+buckets/file_buckets.lo: buckets/file_buckets.c $(HEADERS)
+buckets/mmap_buckets.lo: buckets/mmap_buckets.c $(HEADERS)
+buckets/socket_buckets.lo: buckets/socket_buckets.c $(HEADERS)
+buckets/response_body_buckets.lo: buckets/response_body_buckets.c $(HEADERS)
+buckets/response_buckets.lo: buckets/response_buckets.c $(HEADERS)
+buckets/headers_buckets.lo: buckets/headers_buckets.c $(HEADERS)
+buckets/allocator.lo: buckets/allocator.c $(HEADERS)
+buckets/dechunk_buckets.lo: buckets/dechunk_buckets.c $(HEADERS)
+buckets/deflate_buckets.lo: buckets/deflate_buckets.c $(HEADERS)
+buckets/limit_buckets.lo: buckets/limit_buckets.c $(HEADERS)
+buckets/ssl_buckets.lo: buckets/ssl_buckets.c $(HEADERS)
+buckets/barrier_buckets.lo: buckets/barrier_buckets.c $(HEADERS)
+buckets/chunk_buckets.lo: buckets/chunk_buckets.c $(HEADERS)
+buckets/bwtp_buckets.lo: buckets/bwtp_buckets.c $(HEADERS)
+buckets/iovec_buckets.lo: buckets/iovec_buckets.c $(HEADERS)
+
+test/serf_get.lo: test/serf_get.c $(HEADERS)
+test/serf_response.lo: test/serf_response.c $(HEADERS)
+test/serf_request.lo: test/serf_request.c $(HEADERS)
+test/serf_server.lo: test/serf_server.c $(HEADERS)
+test/serf_spider.lo: test/serf_spider.c $(HEADERS)
+test/serf_bwtp.lo: test/serf_bwtp.c $(HEADERS)
+
+test/CuTest.lo: test/CuTest.c $(HEADERS)
+test/test_all.lo: test/test_all.c $(HEADERS)
+test/test_util.lo: test/test_util.c $(HEADERS)
+test/test_buckets.lo: test/test_buckets.c $(HEADERS)
+test/test_context.lo: test/test_context.c $(HEADERS)
+test/test_ssl.lo: test/test_ssl.c $(HEADERS)
+
+$(TARGET_LIB): $(OBJECTS)
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -rpath $(libdir) -o $@ $(OBJECTS) $(LIBS)
+
+test/serf_get: $(TARGET_LIB) test/serf_get.lo
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -static -o $@ $(TARGET_LIB) test/serf_get.lo $(LIBS)
+
+test/serf_response: $(TARGET_LIB) test/serf_response.lo
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -static -o $@ $(TARGET_LIB) test/serf_response.lo $(LIBS)
+
+test/serf_request: $(TARGET_LIB) test/serf_request.lo
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -static -o $@ $(TARGET_LIB) test/serf_request.lo $(LIBS)
+
+test/serf_server: $(TARGET_LIB) test/serf_server.lo
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -static -o $@ $(TARGET_LIB) test/serf_server.lo $(LIBS)
+
+test/serf_spider: $(TARGET_LIB) test/serf_spider.lo
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -static -o $@ $(TARGET_LIB) test/serf_spider.lo $(LIBS)
+
+test/serf_bwtp: $(TARGET_LIB) test/serf_bwtp.lo
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -static -o $@ $(TARGET_LIB) test/serf_bwtp.lo $(LIBS)
+
+test/test_all: $(TARGET_LIB) $(TEST_SUITE_OBJECTS)
+	$(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LDFLAGS) -static -o $@ $(TARGET_LIB) $(TEST_SUITE_OBJECTS) $(LIBS)
+
+check: test/serf_response test/test_all
+	@for i in $(TESTCASES); \
+		 do echo "== Testing $$i =="; \
+		 ./test/serf_response $(srcdir)/$$i; \
+	done;
+	@echo "== Running test_all ==";
+	@./test/test_all
+
+install: $(TARGET_LIB)
+	$(MKDIR) $(DESTDIR)$(libdir) $(DESTDIR)$(includedir) $(DESTDIR)$(pkgconfigdir)
+	$(LIBTOOL) $(LTFLAGS) --mode=install $(INSTALL) -m 644 $(TARGET_LIB) $(DESTDIR)$(libdir)
+	for i in $(HEADERS); do \
+		$(INSTALL) -m 644 $(srcdir)/$$i $(DESTDIR)$(includedir); \
+	done
+	$(INSTALL) -m 644 serf.pc $(DESTDIR)$(pkgconfigdir)/serf-$(SERF_MAJOR_VERSION).pc
+
+clean:
+	rm -f $(TARGET_LIB) $(OBJECTS) $(OBJECTS:.lo=.o) $(PROGRAMS) $(TEST_OBJECTS) $(TEST_OBJECTS:.lo=.o) $(TEST_SUITE_OBJECTS) $(TEST_SUITE_OBJECTS:.lo=.o)
+	for subdir in . buckets test; do \
+		(cd $$subdir && rm -rf .libs) ; \
+	done
+
+distclean: clean
+	rm -f Makefile serf.pc config.log config.status
+
+.SUFFIXES:
+.SUFFIXES: .c .lo .o
+
+mkdir-vpath:
+	@if [ ! -d auth ]; then \
+		$(MKDIR) auth; \
+	fi;
+	@if [ ! -d buckets ]; then \
+		$(MKDIR) buckets; \
+	fi;
+	@if [ ! -d test ]; then \
+		$(MKDIR) test; \
+	fi;
+	@if [ ! -d test/server ]; then \
+		$(MKDIR) test/server; \
+	fi;
+	@if [ ! -r test/serftestca.pem ]; then \
+		cp -f $(srcdir)/test/serftestca.pem test/; \
+	fi;
+
+.c.lo:
+	$(LIBTOOL) $(LTFLAGS) --mode=compile $(CC) $(INCLUDES) $(CFLAGS) $(CPPFLAGS) -c -o $@ $< && touch $@

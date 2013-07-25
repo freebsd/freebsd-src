@@ -12,26 +12,30 @@ SUBDIR+=	share/xml
 
 RELN_ROOT?= ${.CURDIR}
 
-.if defined(SUPHOST)
-SUPFLAGS+=	-h ${SUPHOST}
-.endif
+SVN?=		/usr/local/bin/svn
+SVNFLAGS?=	-r HEAD
+
 update:
-.if defined(SUP_UPDATE)
-.if !defined(DOCSUPFILE)
-	@echo "Error: Please define DOCSUPFILE before doing make update."
+.if (defined(CVS_UPDATE) || defined(SUP_UPDATE)) && !defined(SVN_UPDATE)
+	@echo "--------------------------------------------------------------"
+	@echo "CVS_UPDATE and SUP_UPDATE are no longer supported."
+	@echo "Please see: https://wiki.freebsd.org/CvsIsDeprecated"
+	@echo "--------------------------------------------------------------"
 	@exit 1
 .endif
+.if defined(SVN_UPDATE)
+. if !exists(${SVN})
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Running ${SUP}"
+	@echo ">>> Updating ${RELN_ROOT} requires ${SVN}."
 	@echo "--------------------------------------------------------------"
-	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
-.elif defined(CVS_UPDATE)
+	@exit 1
+. endif
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
+	@echo ">>> Updating ${.CURDIR} using Subversion"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; cvs -q update -P -d
+	@(cd ${.CURDIR} && ${SVN} update ${SVNFLAGS})
 .else
-	@echo "Error: Please define either SUP_UPDATE or CVS_UPDATE first."
+	@echo "Error: Please define SVN_UPDATE first."
 .endif
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"

@@ -6,7 +6,6 @@
 # XXX MISSING:		icheck ncheck
 
 SUBDIR=adjkerntz \
-	atacontrol \
 	badsect \
 	camcontrol \
 	ccdconfig \

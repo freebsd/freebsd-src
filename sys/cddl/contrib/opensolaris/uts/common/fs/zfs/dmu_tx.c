@@ -160,7 +160,7 @@ dmu_tx_check_ioerr(zio_t *zio, dnode_t *dn, int level, uint64_t blkid)
 	db = dbuf_hold_level(dn, level, blkid, FTAG);
 	rw_exit(&dn->dn_struct_rwlock);
 	if (db == NULL)
-		return (EIO);
+		return (SET_ERROR(EIO));
 	err = dbuf_read(db, zio, DB_RF_CANFAIL | DB_RF_NOPREFETCH);
 	dbuf_rele(db, FTAG);
 	return (err);
@@ -370,7 +370,7 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 out:
 	if (txh->txh_space_towrite + txh->txh_space_tooverwrite >
 	    2 * DMU_MAX_ACCESS)
-		err = EFBIG;
+		err = SET_ERROR(EFBIG);
 
 	if (err)
 		txh->txh_tx->tx_err = err;
@@ -922,9 +922,9 @@ dmu_tx_try_assign(dmu_tx_t *tx, txg_how_t txg_how)
 		 */
 		if (spa_get_failmode(spa) == ZIO_FAILURE_MODE_CONTINUE &&
 		    txg_how != TXG_WAIT)
-			return (EIO);
+			return (SET_ERROR(EIO));
 
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 
 	tx->tx_txg = txg_hold_open(tx->tx_pool, &tx->tx_txgh);
@@ -945,7 +945,7 @@ dmu_tx_try_assign(dmu_tx_t *tx, txg_how_t txg_how)
 			if (dn->dn_assigned_txg == tx->tx_txg - 1) {
 				mutex_exit(&dn->dn_mtx);
 				tx->tx_needassign_txh = txh;
-				return (ERESTART);
+				return (SET_ERROR(ERESTART));
 			}
 			if (dn->dn_assigned_txg == 0)
 				dn->dn_assigned_txg = tx->tx_txg;
@@ -1014,6 +1014,10 @@ dmu_tx_unassign(dmu_tx_t *tx)
 
 	txg_rele_to_quiesce(&tx->tx_txgh);
 
+	/*
+	 * Walk the transaction's hold list, removing the hold on the
+	 * associated dnode, and notifying waiters if the refcount drops to 0.
+	 */
 	for (txh = list_head(&tx->tx_holds); txh != tx->tx_needassign_txh;
 	    txh = list_next(&tx->tx_holds, txh)) {
 		dnode_t *dn = txh->txh_dnode;
@@ -1126,6 +1130,10 @@ dmu_tx_commit(dmu_tx_t *tx)
 
 	ASSERT(tx->tx_txg != 0);
 
+	/*
+	 * Go through the transaction's hold list and remove holds on
+	 * associated dnodes, notifying waiters if no holds remain.
+	 */
 	while (txh = list_head(&tx->tx_holds)) {
 		dnode_t *dn = txh->txh_dnode;
 

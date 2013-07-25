@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2005 M. Warner Losh
  * Copyright (c) 2005 Olivier Houchard
+ * Copyright (c) 2012 Ian Lepore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,12 +43,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <arm/at91/at91_usartreg.h>
 #include <arm/at91/at91_pdcreg.h>
+#include <arm/at91/at91_piovar.h>
+#include <arm/at91/at91_pioreg.h>
+#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91var.h>
 
 #include "uart_if.h"
 
-#define DEFAULT_RCLK		at91_master_clock
-#define	USART_BUFFER_SIZE	128
+#define	DEFAULT_RCLK			at91_master_clock
+#define	USART_DEFAULT_FIFO_BYTES	128
+
+#define	USART_DCE_CHANGE_BITS	(USART_CSR_CTSIC | USART_CSR_DCDIC | \
+				 USART_CSR_DSRIC | USART_CSR_RIIC)
 
 /*
  * High-level UART interface.
@@ -63,7 +70,8 @@ struct at91_usart_softc {
 	bus_dma_tag_t tx_tag;
 	bus_dmamap_t tx_map;
 	uint32_t flags;
-#define	HAS_TIMEOUT	1
+#define	HAS_TIMEOUT		0x1
+#define	USE_RTS0_WORKAROUND	0x2
 	bus_dma_tag_t rx_tag;
 	struct at91_usart_rx ping_pong[2];
 	struct at91_usart_rx *ping;
@@ -193,6 +201,20 @@ at91_usart_param(struct uart_bas *bas, int baudrate, int databits,
 	if (DEFAULT_RCLK != 0)
 		WR4(bas, USART_BRGR, BAUD2DIVISOR(baudrate));
 
+	/*
+	 * Set the receive timeout based on the baud rate.  The idea is to
+	 * compromise between being responsive on an interactive connection and
+	 * giving a bulk data sender a bit of time to queue up a new buffer
+	 * without mistaking it for a stopping point in the transmission.  For
+	 * 19.2kbps and below, use 20 * bit time (2 characters).  For faster
+	 * connections use 500 microseconds worth of bits.
+	 */
+	if (baudrate <= 19200)
+		WR4(bas, USART_RTOR, 20);
+	else 
+		WR4(bas, USART_RTOR, baudrate / 2000);
+	WR4(bas, USART_CR, USART_CR_STTTO);
+
 	/* XXX Need to take possible synchronous mode into account */
 	return (0);
 }
@@ -243,7 +265,7 @@ at91_usart_term(struct uart_bas *bas)
 
 /*
  * Put a character of console output (so we do it here polling rather than
- * interrutp driven).
+ * interrupt driven).
  */
 static void
 at91_usart_putc(struct uart_bas *bas, int c)
@@ -312,9 +334,14 @@ static kobj_method_t at91_usart_methods[] = {
 int
 at91_usart_bus_probe(struct uart_softc *sc)
 {
+	int value;
 
-	sc->sc_txfifosz = USART_BUFFER_SIZE;
-	sc->sc_rxfifosz = USART_BUFFER_SIZE;
+	value = USART_DEFAULT_FIFO_BYTES;
+	resource_int_value(device_get_name(sc->sc_dev), 
+	    device_get_unit(sc->sc_dev), "fifo_bytes", &value);
+	value = roundup2(value, arm_dcache_align);
+	sc->sc_txfifosz = value;
+	sc->sc_rxfifosz = value;
 	sc->sc_hwiflow = 0;
 	return (0);
 }
@@ -329,6 +356,41 @@ at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static int
+at91_usart_requires_rts0_workaround(struct uart_softc *sc)
+{
+	int value;
+	int unit;
+
+	unit = device_get_unit(sc->sc_dev);
+
+	/*
+	 * On the rm9200 chips, the PA21/RTS0 pin is not correctly wired to the
+	 * usart device interally (so-called 'erratum 39', but it's 41.14 in rev
+	 * I of the manual).  This prevents use of the hardware flow control
+	 * feature in the usart itself.  It also means that if we are to
+	 * implement RTS/CTS flow via the tty layer logic, we must use pin PA21
+	 * as a gpio and manually manipulate it in at91_usart_bus_setsig().  We
+	 * can only safely do so if we've been given permission via a hint,
+	 * otherwise we might manipulate a pin that's attached to who-knows-what
+	 * and Bad Things could happen.
+	 */
+	if (at91_is_rm92() && unit == 1) {
+		value = 0;
+		resource_int_value(device_get_name(sc->sc_dev), unit,
+		    "use_rts0_workaround", &value);
+		if (value != 0) {
+			at91_pio_use_gpio(AT91RM92_PIOA_BASE, AT91C_PIO_PA21);
+			at91_pio_gpio_output(AT91RM92_PIOA_BASE, 
+			    AT91C_PIO_PA21, 1);
+			at91_pio_use_periph_a(AT91RM92_PIOA_BASE, 
+			    AT91C_PIO_PA20, 0);
+			return (1);
+		}
+	}
+	return (0);
+}
+
+static int
 at91_usart_bus_attach(struct uart_softc *sc)
 {
 	int err;
@@ -337,6 +399,9 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	struct at91_usart_softc *atsc;
 
 	atsc = (struct at91_usart_softc *)sc;
+
+	if (at91_usart_requires_rts0_workaround(sc))
+		atsc->flags |= USE_RTS0_WORKAROUND;
 
 	/*
 	 * See if we have a TIMEOUT bit.  We disable all interrupts as
@@ -427,7 +492,11 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	} else {
 		WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
 	}
-	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXBRK);
+	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXBRK | USART_DCE_CHANGE_BITS);
+
+	/* Prime sc->hwsig with the initial hw line states. */
+	at91_usart_bus_getsig(sc);
+
 errout:
 	return (err);
 }
@@ -466,7 +535,9 @@ static int
 at91_usart_bus_setsig(struct uart_softc *sc, int sig)
 {
 	uint32_t new, old, cr;
-	struct uart_bas *bas;
+	struct at91_usart_softc *atsc;
+
+	atsc = (struct at91_usart_softc *)sc;
 
 	do {
 		old = sc->sc_hwsig;
@@ -476,8 +547,7 @@ at91_usart_bus_setsig(struct uart_softc *sc, int sig)
 		if (sig & SER_DRTS)
 			SIGCHG(sig & SER_RTS, new, SER_RTS, SER_DRTS);
 	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
-	bas = &sc->sc_bas;
-	uart_lock(sc->sc_hwmtx);
+
 	cr = 0;
 	if (new & SER_DTR)
 		cr |= USART_CR_DTREN;
@@ -487,8 +557,18 @@ at91_usart_bus_setsig(struct uart_softc *sc, int sig)
 		cr |= USART_CR_RTSEN;
 	else
 		cr |= USART_CR_RTSDIS;
-	WR4(bas, USART_CR, cr);
+
+	uart_lock(sc->sc_hwmtx);
+	WR4(&sc->sc_bas, USART_CR, cr);
+	if (atsc->flags & USE_RTS0_WORKAROUND) {
+		/* Signal is active-low. */
+		if (new & SER_RTS)
+			at91_pio_gpio_clear(AT91RM92_PIOA_BASE, AT91C_PIO_PA21);
+		else
+			at91_pio_gpio_set(AT91RM92_PIOA_BASE,AT91C_PIO_PA21);
+	}
 	uart_unlock(sc->sc_hwmtx);
+
 	return (0);
 }
 
@@ -531,6 +611,15 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	atsc = (struct at91_usart_softc *)sc;
 	uart_lock(sc->sc_hwmtx);
 	csr = RD4(&sc->sc_bas, USART_CSR);
+
+	if (csr & USART_CSR_OVRE) {
+		WR4(&sc->sc_bas, USART_CR, USART_CR_RSTSTA);
+		ipend |= SER_INT_OVERRUN;
+	}
+
+	if (csr & USART_DCE_CHANGE_BITS)
+		ipend |= SER_INT_SIGCHG;
+
 	if (csr & USART_CSR_ENDTX) {
 		bus_dmamap_sync(atsc->tx_tag, atsc->tx_map,
 		    BUS_DMASYNC_POSTWRITE);
@@ -552,36 +641,37 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 	if (atsc->flags & HAS_TIMEOUT) {
 		if (csr & USART_CSR_RXBUFF) {
 			/*
-			 * We have a buffer overflow.  Copy all data from both
-			 * ping and pong.  Insert overflow character.  Reset
-			 * ping and pong and re-enable the PDC to receive
-			 * characters again.
+			 * We have a buffer overflow.  Consume data from ping
+			 * and give it back to the hardware before worrying
+			 * about pong, to minimze data loss.  Insert an overrun
+			 * marker after the contents of the pong buffer.
 			 */
+			WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTDIS);
 			bus_dmamap_sync(atsc->rx_tag, atsc->ping->map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_sync(atsc->rx_tag, atsc->pong->map,
 			    BUS_DMASYNC_POSTREAD);
 			for (i = 0; i < sc->sc_rxfifosz; i++)
 				at91_rx_put(sc, atsc->ping->buffer[i]);
-			for (i = 0; i < sc->sc_rxfifosz; i++)
-				at91_rx_put(sc, atsc->pong->buffer[i]);
-			uart_rx_put(sc, UART_STAT_OVERRUN);
 			bus_dmamap_sync(atsc->rx_tag, atsc->ping->map,
-			    BUS_DMASYNC_PREREAD);
-			bus_dmamap_sync(atsc->rx_tag, atsc->pong->map,
 			    BUS_DMASYNC_PREREAD);
 			WR4(&sc->sc_bas, PDC_RPR, atsc->ping->pa);
 			WR4(&sc->sc_bas, PDC_RCR, sc->sc_rxfifosz);
+			WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTEN);
+			bus_dmamap_sync(atsc->rx_tag, atsc->pong->map,
+			    BUS_DMASYNC_POSTREAD);
+			for (i = 0; i < sc->sc_rxfifosz; i++)
+				at91_rx_put(sc, atsc->pong->buffer[i]);
+			uart_rx_put(sc, UART_STAT_OVERRUN);
+			bus_dmamap_sync(atsc->rx_tag, atsc->pong->map,
+			    BUS_DMASYNC_PREREAD);
 			WR4(&sc->sc_bas, PDC_RNPR, atsc->pong->pa);
 			WR4(&sc->sc_bas, PDC_RNCR, sc->sc_rxfifosz);
-			WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTEN);
 			ipend |= SER_INT_RXREADY;
 		} else if (csr & USART_CSR_ENDRX) {
 			/*
-			 * Shuffle data from ping of ping pong buffer, but
-			 * leave current pong in place, as it has become the
-			 * new ping.  We need to copy data and setup the old
-			 * ping as the new pong when we're done.
+			 * Consume data from ping of ping pong buffer, but leave
+			 * current pong in place, as it has become the new ping.
+			 * We need to copy data and setup the old ping as the
+			 * new pong when we're done.
 			 */
 			bus_dmamap_sync(atsc->rx_tag, atsc->ping->map,
 			    BUS_DMASYNC_POSTREAD);
@@ -597,25 +687,49 @@ at91_usart_bus_ipend(struct uart_softc *sc)
 			ipend |= SER_INT_RXREADY;
 		} else if (csr & USART_CSR_TIMEOUT) {
 			/*
-			 * We have one partial buffer.  We need to stop the
-			 * PDC, get the number of characters left and from
-			 * that compute number of valid characters.  We then
-			 * need to reset ping and pong and reenable the PDC.
-			 * Not sure if there's a race here at fast baud rates
-			 * we need to worry about.
+			 * On a timeout, one of the following applies:
+			 * 1. Two empty buffers.  The last received byte exactly
+			 *    filled a buffer, causing an ENDTX that got
+			 *    processed earlier; no new bytes have arrived.
+			 * 2. Ping buffer contains some data and pong is empty.
+			 *    This should be the most common timeout condition.
+			 * 3. Ping buffer is full and pong is now being filled.
+			 *    This is exceedingly rare; it can happen only if
+			 *    the ping buffer is almost full when a timeout is
+			 *    signaled, and then dataflow resumes and the ping
+			 *    buffer filled up between the time we read the
+			 *    status register above and the point where the
+			 *    RXTDIS takes effect here.  Yes, it can happen.
+			 * Because dataflow can resume at any time following a
+			 * timeout (it may have already resumed before we get
+			 * here), it's important to minimize the time the PDC is
+			 * disabled -- just long enough to take the ping buffer
+			 * out of service (so we can consume it) and install the
+			 * pong buffer as the active one.  Note that in case 3
+			 * the hardware has already done the ping-pong swap.
 			 */
 			WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTDIS);
+			if (RD4(&sc->sc_bas, PDC_RNCR) == 0) {
+				len = sc->sc_rxfifosz;
+			} else {
+				len = sc->sc_rxfifosz - RD4(&sc->sc_bas, PDC_RCR);
+				WR4(&sc->sc_bas, PDC_RPR, atsc->pong->pa);
+				WR4(&sc->sc_bas, PDC_RCR, sc->sc_rxfifosz);
+				WR4(&sc->sc_bas, PDC_RNCR, 0);
+			}
+			WR4(&sc->sc_bas, USART_CR, USART_CR_STTTO);
+			WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTEN);
 			bus_dmamap_sync(atsc->rx_tag, atsc->ping->map,
 			    BUS_DMASYNC_POSTREAD);
-			len = sc->sc_rxfifosz - RD4(&sc->sc_bas, PDC_RCR);
 			for (i = 0; i < len; i++)
 				at91_rx_put(sc, atsc->ping->buffer[i]);
 			bus_dmamap_sync(atsc->rx_tag, atsc->ping->map,
 			    BUS_DMASYNC_PREREAD);
-			WR4(&sc->sc_bas, PDC_RPR, atsc->ping->pa);
-			WR4(&sc->sc_bas, PDC_RCR, sc->sc_rxfifosz);
-			WR4(&sc->sc_bas, USART_CR, USART_CR_STTTO);
-			WR4(&sc->sc_bas, PDC_PTCR, PDC_PTCR_RXTEN);
+			p = atsc->ping;
+			atsc->ping = atsc->pong;
+			atsc->pong = p;
+			WR4(&sc->sc_bas, PDC_RNPR, atsc->pong->pa);
+			WR4(&sc->sc_bas, PDC_RNCR, sc->sc_rxfifosz);
 			ipend |= SER_INT_RXREADY;
 		}
 	} else if (csr & USART_CSR_RXRDY) {
@@ -645,22 +759,24 @@ at91_usart_bus_flush(struct uart_softc *sc, int what)
 static int
 at91_usart_bus_getsig(struct uart_softc *sc)
 {
-	uint32_t csr, new, sig;
+	uint32_t csr, new, old, sig;
 
-	uart_lock(sc->sc_hwmtx);
-	csr = RD4(&sc->sc_bas, USART_CSR);
-	sig = 0;
-	if (csr & USART_CSR_CTS)
-		sig |= SER_CTS;
-	if (csr & USART_CSR_DCD)
-		sig |= SER_DCD;
-	if (csr & USART_CSR_DSR)
-		sig |= SER_DSR;
-	if (csr & USART_CSR_RI)
-		sig |= SER_RI;
-	new = sig & ~SER_MASK_DELTA;
-	sc->sc_hwsig = new;
-	uart_unlock(sc->sc_hwmtx);
+	/*
+	 * Note that the atmel channel status register DCE status bits reflect
+	 * the electrical state of the lines, not the logical state.  Since they
+	 * are logically active-low signals, we invert the tests here.
+	 */
+	do {
+		old = sc->sc_hwsig;
+		sig = old;
+		csr = RD4(&sc->sc_bas, USART_CSR);
+		SIGCHG(!(csr & USART_CSR_DSR), sig, SER_DSR, SER_DDSR);
+		SIGCHG(!(csr & USART_CSR_CTS), sig, SER_CTS, SER_DCTS);
+		SIGCHG(!(csr & USART_CSR_DCD), sig, SER_DCD, SER_DDCD);
+		SIGCHG(!(csr & USART_CSR_RI),  sig, SER_RI,  SER_DRI);
+		new = sig & ~SER_MASK_DELTA;
+	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
+
 	return (sig);
 }
 

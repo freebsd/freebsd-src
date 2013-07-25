@@ -31,7 +31,7 @@
 /*$FreeBSD$*/
 
 #ifndef	_VXGE_H_
-#define	__VXGE_H_
+#define	_VXGE_H_
 
 #include <dev/vxge/vxgehal/vxgehal.h>
 #include <dev/vxge/vxge-osdep.h>

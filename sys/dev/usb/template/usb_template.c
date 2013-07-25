@@ -69,6 +69,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_request.h>
 #include <dev/usb/template/usb_template.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
@@ -1267,7 +1268,7 @@ usb_temp_setup(struct usb_device *udev,
 		goto done;
 	}
 	/* allocate zeroed memory */
-	uts->buf = malloc(uts->size, M_USB, M_WAITOK | M_ZERO);
+	uts->buf = usbd_alloc_config_desc(udev, uts->size);
 	/*
 	 * Allow malloc() to return NULL regardless of M_WAITOK flag.
 	 * This helps when porting the software to non-FreeBSD
@@ -1336,12 +1337,8 @@ done:
 void
 usb_temp_unsetup(struct usb_device *udev)
 {
-	if (udev->usb_template_ptr) {
-
-		free(udev->usb_template_ptr, M_USB);
-
-		udev->usb_template_ptr = NULL;
-	}
+	usbd_free_config_desc(udev, udev->usb_template_ptr);
+	udev->usb_template_ptr = NULL;
 }
 
 static usb_error_t

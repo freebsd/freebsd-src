@@ -15,7 +15,10 @@ SRCS=	ARMException.cpp \
 	DwarfCompileUnit.cpp \
 	DwarfDebug.cpp \
 	DwarfException.cpp \
+	ErlangGCPrinter.cpp \
 	OcamlGCPrinter.cpp \
 	Win64Exception.cpp
+
+TGHDRS=	Intrinsics
 
 .include "../clang.lib.mk"

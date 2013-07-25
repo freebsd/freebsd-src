@@ -140,7 +140,7 @@ SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RW | CTLFLAG_TUN,
  * XXX: Return a pointer with 16-bit aligned.  Don't cast it to
  * struct in_addr *; use bcopy() instead.
  */
-#define GET_V4(x)	((caddr_t)(&(x)->s6_addr16[1]))
+#define GET_V4(x)	(&(x)->s6_addr16[1])
 
 struct stf_softc {
 	struct ifnet	*sc_ifp;
@@ -181,7 +181,7 @@ static char *stfnames[] = {"stf0", "stf", "6to4", NULL};
 static int stfmodevent(module_t, int, void *);
 static int stf_encapcheck(const struct mbuf *, int, int, void *);
 static struct in6_ifaddr *stf_getsrcifa6(struct ifnet *);
-static int stf_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int stf_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	struct route *);
 static int isrfc1918addr(struct in_addr *);
 static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
@@ -413,23 +413,19 @@ stf_getsrcifa6(ifp)
 }
 
 static int
-stf_output(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	struct stf_softc *sc;
-	struct sockaddr_in6 *dst6;
+	const struct sockaddr_in6 *dst6;
 	struct route *cached_route;
 	struct in_addr in4;
-	caddr_t ptr;
+	const void *ptr;
 	struct sockaddr_in *dst4;
 	u_int8_t tos;
 	struct ip *ip;
 	struct ip6_hdr *ip6;
 	struct in6_ifaddr *ia6;
-	u_int32_t af;
 	int error;
 
 #ifdef MAC
@@ -441,7 +437,7 @@ stf_output(ifp, m, dst, ro)
 #endif
 
 	sc = ifp->if_softc;
-	dst6 = (struct sockaddr_in6 *)dst;
+	dst6 = (const struct sockaddr_in6 *)dst;
 
 	/* just in case */
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -474,15 +470,6 @@ stf_output(ifp, m, dst, ro)
 	tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 
 	/*
-	 * BPF writes need to be handled specially.
-	 * This is a null operation, nothing here checks dst->sa_family.
-	 */
-	if (dst->sa_family == AF_UNSPEC) {
-		bcopy(dst->sa_data, &af, sizeof(af));
-		dst->sa_family = af;
-	}
-
-	/*
 	 * Pickup the right outer dst addr from the list of candidates.
 	 * ip6_dst has priority as it may be able to give us shorter IPv4 hops.
 	 */
@@ -507,7 +494,7 @@ stf_output(ifp, m, dst, ro)
 		 * will only read from the mbuf (i.e., it won't
 		 * try to free it or keep a pointer a to it).
 		 */
-		af = AF_INET6;
+		u_int af = AF_INET6;
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 

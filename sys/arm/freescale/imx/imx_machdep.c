@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  *
@@ -90,9 +90,10 @@ initarm_late_init(void)
 
 }
 
-#define FDT_DEVMAP_MAX	2
+#define FDT_DEVMAP_MAX	3
 static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, 0, 0, },
+	{ 0, 0, 0, 0, 0, }
 	{ 0, 0, 0, 0, 0, }
 };
 
@@ -111,6 +112,11 @@ platform_devmap_init(void)
 	fdt_devmap[0].pd_size = 0x00100000;
 	fdt_devmap[0].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
 	fdt_devmap[0].pd_cache = PTE_NOCACHE;
+	fdt_devmap[1].pd_va = IMX51_DEV_VIRT_BASE;
+	fdt_devmap[1].pd_pa = IPU_CPMEM_BASE;
+	fdt_devmap[1].pd_size = 0x00100000;
+	fdt_devmap[1].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
+	fdt_devmap[1].pd_cache = PTE_NOCACHE;
 
 	pmap_devmap_bootstrap_table = &fdt_devmap[0];
 	return (0);

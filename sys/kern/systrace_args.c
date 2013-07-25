@@ -3278,7 +3278,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 532: {
 		struct wait6_args *p = params;
 		iarg[0] = p->idtype; /* int */
-		iarg[1] = p->id; /* int */
+		iarg[1] = p->id; /* id_t */
 		uarg[2] = (intptr_t) p->status; /* int * */
 		iarg[3] = p->options; /* int */
 		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
@@ -3356,6 +3356,31 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[2] = p->flags; /* u_long */
 		iarg[3] = p->atflag; /* int */
 		*n_args = 4;
+		break;
+	}
+	/* accept4 */
+	case 541: {
+		struct accept4_args *p = params;
+		iarg[0] = p->s; /* int */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr *__restrict */
+		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t *__restrict */
+		iarg[3] = p->flags; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* pipe2 */
+	case 542: {
+		struct pipe2_args *p = params;
+		uarg[0] = (intptr_t) p->fildes; /* int * */
+		iarg[1] = p->flags; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* aio_mlock */
+	case 543: {
+		struct aio_mlock_args *p = params;
+		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb * */
+		*n_args = 1;
 		break;
 	}
 	default:
@@ -8799,7 +8824,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "int";
+			p = "id_t";
 			break;
 		case 2:
 			p = "int *";
@@ -8940,6 +8965,48 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 3:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* accept4 */
+	case 541:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct sockaddr *__restrict";
+			break;
+		case 2:
+			p = "__socklen_t *__restrict";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pipe2 */
+	case 542:
+		switch(ndx) {
+		case 0:
+			p = "int *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_mlock */
+	case 543:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb *";
 			break;
 		default:
 			break;
@@ -10077,7 +10144,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_file */
 	case 356:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_file */
 	case 357:
@@ -10114,7 +10181,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_fd */
 	case 371:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_fd */
 	case 372:
@@ -10284,7 +10351,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_link */
 	case 412:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_link */
 	case 413:
@@ -10875,6 +10942,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* chflagsat */
 	case 540:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* accept4 */
+	case 541:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pipe2 */
+	case 542:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* aio_mlock */
+	case 543:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

@@ -515,7 +515,7 @@ sonewconn(struct socket *head, int connstatus)
 #endif
 		log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
 		    "%i already in queue awaiting acceptance\n",
-		    __func__, head->so_pcb, over);
+		    __func__, head->so_pcb, head->so_qlen);
 		return (NULL);
 	}
 	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
@@ -1860,6 +1860,7 @@ dontblock:
 				nextrecord = m->m_nextpkt;
 				sbfree(&so->so_rcv, m);
 				if (mp != NULL) {
+					m->m_nextpkt = NULL;
 					*mp = m;
 					mp = &m->m_next;
 					so->so_rcv.sb_mb = m = m->m_next;
@@ -2428,9 +2429,11 @@ soshutdown(struct socket *so, int how)
 		sorflush(so);
 	if (how != SHUT_RD) {
 		error = (*pr->pr_usrreqs->pru_shutdown)(so);
+		wakeup(&so->so_timeo);
 		CURVNET_RESTORE();
 		return (error);
 	}
+	wakeup(&so->so_timeo);
 	CURVNET_RESTORE();
 	return (0);
 }
