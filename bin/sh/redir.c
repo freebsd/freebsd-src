@@ -66,14 +66,13 @@ __FBSDID("$FreeBSD$");
 #define CLOSED -1		/* fd was not open before redir */
 
 
-MKINIT
 struct redirtab {
 	struct redirtab *next;
 	int renamed[10];
 };
 
 
-MKINIT struct redirtab *redirlist;
+static struct redirtab *redirlist;
 
 /*
  * We keep track of whether or not fd0 has been redirected.  This is for
