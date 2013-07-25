@@ -146,6 +146,8 @@ ext2_readdir(struct vop_readdir_args *ap)
 	int DIRBLKSIZ = VTOI(ap->a_vp)->i_e2fs->e2fs_bsize;
 	int error;
 
+	if (uio->uio_offset < 0)
+		return (EINVAL);
 	ip = VTOI(vp);
 	if (ap->a_ncookies != NULL) {
 		ncookies = uio->uio_resid;
@@ -162,14 +164,6 @@ ext2_readdir(struct vop_readdir_args *ap)
 		ncookies = 0;
 		cookies = NULL;
 	}
-	/*
-	 * Avoid complications for partial directory entries by adjusting
-	 * the i/o to end at a block boundary.  Don't give up (like ufs
-	 * does) if the initial adjustment gives a negative count, since
-	 * many callers don't supply a large enough buffer.  The correct
-	 * size is a little larger than DIRBLKSIZ to allow for expansion
-	 * of directory entries, but some callers just use 512.
-	 */
 	offset = startoffset = uio->uio_offset;
 	startresid = uio->uio_resid;
 	error = 0;
