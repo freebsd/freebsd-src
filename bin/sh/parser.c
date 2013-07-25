@@ -98,7 +98,7 @@ static int needprompt;		/* true if interactive and at start of line */
 static int lasttoken;		/* last token read */
 int tokpushback;		/* last token pushed back */
 static char *wordtext;		/* text of last word returned by readtoken */
-static int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
+static int checkkwd;
 static struct nodelist *backquotelist;
 static union node *redirnode;
 static struct heredoc *heredoc;
