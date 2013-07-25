@@ -1343,7 +1343,7 @@ re_eval:
 	case LACP_MUX_DISTRIBUTING:
 		if (selected != LACP_SELECTED || !p_sync || !p_collecting) {
 			new_state = LACP_MUX_COLLECTING;
-			lacp_dprintf(lp, "Interface stopped DISTRIBUTING, possible flaping\n");
+			lacp_dprintf(lp, "Interface stopped DISTRIBUTING, possible flapping\n");
 			sc->sc_flapping++;
 		}
 		break;
