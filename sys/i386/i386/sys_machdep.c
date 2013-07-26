@@ -164,8 +164,9 @@ sysarch(td, uap)
 		break;
 	case I386_SET_LDT:
 		if (kargs.largs.descs != NULL) {
-			lp = (union descriptor *)kmem_alloc(kernel_map,
-			    kargs.largs.num * sizeof(union descriptor));
+			lp = (union descriptor *)kmem_malloc(kernel_map,
+			    kargs.largs.num * sizeof(union descriptor),
+			    M_WAITOK);
 			if (lp == NULL) {
 				error = ENOMEM;
 				break;
@@ -298,7 +299,8 @@ i386_extend_pcb(struct thread *td)
 		0			/* granularity */
 	};
 
-	ext = (struct pcb_ext *)kmem_alloc(kernel_map, ctob(IOPAGES+1));
+	ext = (struct pcb_ext *)kmem_malloc(kernel_map, ctob(IOPAGES+1),
+	    M_WAITOK);
 	if (ext == 0)
 		return (ENOMEM);
 	bzero(ext, sizeof(struct pcb_ext)); 
@@ -471,8 +473,8 @@ user_ldt_alloc(struct mdproc *mdp, int len)
                 M_SUBPROC, M_WAITOK); 
  
         new_ldt->ldt_len = len = NEW_MAX_LD(len); 
-        new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map, 
-                round_page(len * sizeof(union descriptor))); 
+        new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_map, 
+                round_page(len * sizeof(union descriptor)), M_WAITOK);
         if (new_ldt->ldt_base == NULL) { 
                 free(new_ldt, M_SUBPROC);
 		mtx_lock_spin(&dt_lock);
@@ -511,8 +513,8 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 		M_SUBPROC, M_WAITOK);
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
-	new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map,
-		len * sizeof(union descriptor));
+	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_map,
+		len * sizeof(union descriptor), M_WAITOK);
 	if (new_ldt->ldt_base == NULL) {
 		free(new_ldt, M_SUBPROC);
 		mtx_lock_spin(&dt_lock);
