@@ -113,9 +113,18 @@ ifconfig_up()
 		# backward compatibility: $ipv6_enable
 		case $ipv6_enable in
 		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-			if ! checkyesno ipv6_gateway_enable; then
-				_ipv6_opts="${_ipv6_opts} accept_rtadv"
-			fi
+			case $1 in
+			bridge[0-9]*)
+				# No accept_rtadv by default on if_bridge(4)
+				# to avoid a conflict with the member
+				# interfaces.
+			;;
+			*)
+				if ! checkyesno ipv6_gateway_enable; then
+					_ipv6_opts="${_ipv6_opts} accept_rtadv"
+				fi
+			;;
+			esac
 		;;
 		esac
 
@@ -550,9 +559,18 @@ ipv6_autoconfif()
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		if checkyesno ipv6_gateway_enable; then
 			return 1
-		else
-			return 0
 		fi
+		case $1 in
+		bridge[0-9]*)
+			# No accept_rtadv by default on if_bridge(4)
+			# to avoid a conflict with the member
+			# interfaces.
+			return 1
+		;;
+		*)
+			return 0
+		;;
+		esac
 	;;
 	esac
 
@@ -721,9 +739,14 @@ ifalias()
 #
 ifalias_expand_addr()
 {
+	local _af _action
 
-	afexists $1 || return
-	ifalias_expand_addr_$1 $2 $3
+	_af=$1
+	_action=$2
+	shift 2
+
+	afexists $_af || return
+	ifalias_expand_addr_$_af $_action $*
 }
 
 # ifalias_expand_addr_inet action addr
@@ -731,19 +754,34 @@ ifalias_expand_addr()
 #
 ifalias_expand_addr_inet()
 {
-	local _action _arg _cidr _cidr_addr
+	local _action _arg _cidr _cidr_addr _exargs
 	local _ipaddr _plen _range _iphead _iptail _iplow _iphigh _ipcount
 	local _retstr _c
 	_action=$1
 	_arg=$2
+	shift 2
+	_exargs=$*
 	_retstr=
 
-	case $_action:$_arg in
-	*:*--*)		return ;;			# invalid
-	tmp:*)		echo $_arg && return ;;		# already expanded
-	tmp:*-*)	_action="alias"	;;		# to be expanded
-	*:*-*)		;;				# to be expanded
-	*:*)		echo inet $_arg && return ;;	# already expanded
+	case $_action:$_arg:$_exargs in
+	*:*--*)		return ;;	# invalid
+	tmp:*[0-9]-[0-9]*:*)		# to be expanded
+		_action="alias"
+	;;
+	*:*[0-9]-[0-9]*:*)		# to be expanded
+	;;
+	tmp:*:*netmask*)		# already expanded w/ netmask option
+		echo ${_arg%/[0-9]*} $_exargs && return
+	;;
+	tmp:*:*)			# already expanded w/o netmask option
+		echo $_arg $_exargs && return
+	;;
+	*:*:*netmask*)			# already expanded w/ netmask option
+		echo inet ${_arg%/[0-9]*} $_exargs && return
+	;;
+	*:*:*)				# already expanded w/o netmask option
+		echo inet $_arg $_exargs && return
+	;;
 	esac
 
 	for _cidr in $_arg; do
@@ -796,7 +834,7 @@ ifalias_expand_addr_inet()
 	done
 
 	for _c in $_retstr; do
-		ifalias_expand_addr_inet $_action $_c
+		ifalias_expand_addr_inet $_action $_c $_exargs
 	done
 }
 
@@ -805,20 +843,35 @@ ifalias_expand_addr_inet()
 #
 ifalias_expand_addr_inet6()
 {
-	local _action _arg _cidr _cidr_addr
+	local _action _arg _cidr _cidr_addr _exargs
 	local _ipaddr _plen _ipleft _ipright _iplow _iphigh _ipcount
 	local _ipv4part
 	local _retstr _c
 	_action=$1
 	_arg=$2
+	shift 2
+	_exargs=$*
 	_retstr=
 
-	case $_action:$_arg in
-	*:*--*)		return ;;			# invalid
-	tmp:*)		echo $_arg && return ;;
-	tmp:*-*)	_action="alias"	;;
-	*:*-*)		;;
-	*:*)		echo inet6 $_arg && return ;;
+	case $_action:$_arg:$_exargs in
+	*:*--*:*)	return ;;	# invalid
+	tmp:*[0-9a-zA-Z]-[0-9a-zA-Z]*:*)# to be expanded
+		_action="alias"
+	;;
+	*:*[0-9a-zA-Z]-[0-9a-zA-Z]*:*)	# to be expanded
+	;;
+	tmp:*:*prefixlen*)	# already expanded w/ prefixlen option
+		echo ${_arg%/[0-9]*} $_exargs && return
+	;;
+	tmp:*:*)		# already expanded w/o prefixlen option
+		echo $_arg $_exargs && return
+	;;
+	*:*:*prefixlen*)	# already expanded w/ prefixlen option
+		echo inet6 ${_arg%/[0-9]*} $_exargs && return
+	;;
+	*:*:*)			# already expanded w/o prefixlen option
+		echo inet6 $_arg $_exargs && return
+	;;
 	esac
 
 	for _cidr in $_arg; do
@@ -872,7 +925,7 @@ ifalias_expand_addr_inet6()
 			fi
 
 			for _c in $_retstr; do
-				ifalias_expand_addr_inet6 $_action $_c
+				ifalias_expand_addr_inet6 $_action $_c $_exargs
 			done
 		else
 			# v4mapped/v4compat should handle as an IPv4 alias
@@ -888,7 +941,7 @@ ifalias_expand_addr_inet6()
 			_retstr=`ifalias_expand_addr_inet \
 			    tmp ${_ipv4part}${_plen:+/}${_plen}`
 			for _c in $_retstr; do
-				ifalias_expand_addr_inet $_action $_c
+				ifalias_expand_addr_inet $_action $_c $_exargs
 			done
 		fi
 	done
@@ -1052,16 +1105,12 @@ ifalias_af_common()
 #
 ipv6_prefix_hostid_addr_common()
 {
-	local _if _action prefix laddr hostid j address
+	local _if _action prefix j
 	_if=$1
 	_action=$2
 	prefix=`get_if_var ${_if} ipv6_prefix_IF`
 
 	if [ -n "${prefix}" ]; then
-		laddr=`network6_getladdr ${_if}`
-		hostid=${laddr#fe80::}
-		hostid=${hostid%\%*}
-
 		for j in ${prefix}; do
 			# The default prefixlen is 64.
 			plen=${j#*/}
@@ -1071,18 +1120,10 @@ ipv6_prefix_hostid_addr_common()
 			esac
 
 			# Normalize the last part by removing ":"
-			j=${j%:*}
+			j=${j%::*}
 			j=${j%:}
-			OIFS=$IFS; IFS=":"; set -- $j; nj=$#; IFS=$OIFS
-			OIFS=$IFS; IFS=":"; set -- $hostid; nh=$#; IFS=$OIFS
-			if [ $(($nj + $nh)) -eq 8 ]; then
-				address=$j\:$hostid
-			else
-				address=$j\::$hostid
-			fi
-
-			${IFCONFIG_CMD} ${_if} inet6 ${address} \
-				prefixlen $plen ${_action}
+			${IFCONFIG_CMD} ${_if} inet6 $j:: \
+				prefixlen $plen eui64 ${_action}
 
 			# if I am a router, add subnet router
 			# anycast address (RFC 2373).
