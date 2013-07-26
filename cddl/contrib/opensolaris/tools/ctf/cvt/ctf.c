@@ -52,7 +52,7 @@ static char *curfile;
 #define	CTF_BUF_CHUNK_SIZE	(64 * 1024)
 #define	RES_BUF_CHUNK_SIZE	(64 * 1024)
 
-static int ntypes=0;		/* The number of types. */
+static int ntypes = 0;		/* The number of types. */
 
 struct ctf_buf {
 	strtab_t ctb_strtab;	/* string table */
