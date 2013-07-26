@@ -1408,7 +1408,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 		http_get_reply(conn);
 	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
-	    fetch_ssl(conn, verbose) == -1) {
+	    fetch_ssl(conn, URL, verbose) == -1) {
 		fetch_close(conn);
 		/* grrr */
 		errno = EAUTH;
