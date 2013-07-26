@@ -276,7 +276,6 @@ t4_init_sge_cpl_handlers(struct adapter *sc)
 	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
 	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
 	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
-
 	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 }
 
