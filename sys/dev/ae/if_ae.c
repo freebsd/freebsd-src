@@ -586,6 +586,9 @@ ae_init_locked(ae_softc_t *sc)
 	val = eaddr[0] << 8 | eaddr[1];
 	AE_WRITE_4(sc, AE_EADDR1_REG, val);
 
+	bzero(sc->rxd_base_dma, AE_RXD_COUNT_DEFAULT * 1536 + 120);
+	bzero(sc->txd_base, AE_TXD_BUFSIZE_DEFAULT);
+	bzero(sc->txs_base, AE_TXS_COUNT_DEFAULT * 4);
 	/*
 	 * Set ring buffers base addresses.
 	 */
@@ -1116,7 +1119,7 @@ ae_alloc_rings(ae_softc_t *sc)
 	 * Create DMA tag for TxD.
 	 */
 	error = bus_dma_tag_create(sc->dma_parent_tag,
-	    4, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    8, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, AE_TXD_BUFSIZE_DEFAULT, 1,
 	    AE_TXD_BUFSIZE_DEFAULT, 0, NULL, NULL,
 	    &sc->dma_txd_tag);
@@ -1129,7 +1132,7 @@ ae_alloc_rings(ae_softc_t *sc)
 	 * Create DMA tag for TxS.
 	 */
 	error = bus_dma_tag_create(sc->dma_parent_tag,
-	    4, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+	    8, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, AE_TXS_COUNT_DEFAULT * 4, 1,
 	    AE_TXS_COUNT_DEFAULT * 4, 0, NULL, NULL,
 	    &sc->dma_txs_tag);
@@ -1762,6 +1765,10 @@ ae_int_task(void *arg, int pending)
 	ifp = sc->ifp;
 
 	val = AE_READ_4(sc, AE_ISR_REG);	/* Read interrupt status. */
+	if (val == 0) {
+		AE_UNLOCK(sc);
+		return;
+	}
 
 	/*
 	 * Clear interrupts and disable them.
@@ -1784,12 +1791,16 @@ ae_int_task(void *arg, int pending)
 			ae_tx_intr(sc);
 		if ((val & AE_ISR_RX_EVENT) != 0)
 			ae_rx_intr(sc);
-	}
+		/*
+		 * Re-enable interrupts.
+		 */
+		AE_WRITE_4(sc, AE_ISR_REG, 0);
 
-	/*
-	 * Re-enable interrupts.
-	 */
-	AE_WRITE_4(sc, AE_ISR_REG, 0);
+		if ((sc->flags & AE_FLAG_TXAVAIL) != 0) {
+			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+				ae_start_locked(ifp);
+		}
+	}
 
 	AE_UNLOCK(sc);
 }
@@ -1850,10 +1861,10 @@ ae_tx_intr(ae_softc_t *sc)
 			ifp->if_oerrors++;
 
 		sc->tx_inproc--;
-
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
+	if ((sc->flags & AE_FLAG_TXAVAIL) != 0)
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	if (sc->tx_inproc < 0) {
 		if_printf(ifp, "Received stray Tx interrupt(s).\n");
 		sc->tx_inproc = 0;
@@ -1861,11 +1872,6 @@ ae_tx_intr(ae_softc_t *sc)
 
 	if (sc->tx_inproc == 0)
 		sc->wd_timer = 0;	/* Unarm watchdog. */
-	
-	if ((sc->flags & AE_FLAG_TXAVAIL) != 0) {
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			ae_start_locked(ifp);
-	}
 
 	/*
 	 * Syncronize DMA buffers.
@@ -1924,7 +1930,7 @@ ae_rx_intr(ae_softc_t *sc)
 	ae_rxd_t *rxd;
 	struct ifnet *ifp;
 	uint16_t flags;
-	int error;
+	int count, error;
 
 	KASSERT(sc != NULL, ("[ae, %d]: sc is NULL!", __LINE__));
 
@@ -1938,7 +1944,7 @@ ae_rx_intr(ae_softc_t *sc)
 	bus_dmamap_sync(sc->dma_rxd_tag, sc->dma_rxd_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	for (;;) {
+	for (count = 0;; count++) {
 		rxd = (ae_rxd_t *)(sc->rxd_base + sc->rxd_cur);
 		flags = le16toh(rxd->flags);
 		if ((flags & AE_RXD_UPDATE) == 0)
@@ -1965,10 +1971,14 @@ ae_rx_intr(ae_softc_t *sc)
 		}
 	}
 
-	/*
-	 * Update Rx index.
-	 */
-	AE_WRITE_2(sc, AE_MB_RXD_IDX_REG, sc->rxd_cur);
+	if (count > 0) {
+		bus_dmamap_sync(sc->dma_rxd_tag, sc->dma_rxd_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		/*
+		 * Update Rx index.
+		 */
+		AE_WRITE_2(sc, AE_MB_RXD_IDX_REG, sc->rxd_cur);
+	}
 }
 
 static void
