@@ -82,9 +82,8 @@
 #define	VM_V_CACHE_MIN		7	/* cnt.v_cache_min */
 #define	VM_V_CACHE_MAX		8	/* cnt.v_cache_max */
 #define VM_V_PAGEOUT_FREE_MIN	9	/* cnt.v_pageout_free_min */
-#define	VM_PAGEOUT_ALGORITHM	10	/* pageout algorithm */
-#define VM_SWAPPING_ENABLED	11	/* swapping enabled */
-#define	VM_MAXID		12	/* number of valid vm ids */
+#define VM_SWAPPING_ENABLED	10	/* swapping enabled */
+#define	VM_MAXID		11	/* number of valid vm ids */
 
 #define CTL_VM_NAMES { \
 	{ 0, 0 }, \
@@ -97,7 +96,6 @@
 	{ "v_cache_min", CTLTYPE_UINT }, \
 	{ "v_cache_max", CTLTYPE_UINT }, \
 	{ "v_pageout_free_min", CTLTYPE_UINT}, \
-	{ "pageout_algorithm", CTLTYPE_INT}, \
 	{ "swap_enabled", CTLTYPE_INT},\
 }
 
