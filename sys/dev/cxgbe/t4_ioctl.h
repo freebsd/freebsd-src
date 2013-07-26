@@ -51,6 +51,9 @@ enum {
 	T4_GET_MEM,			/* read memory */
 	T4_GET_I2C,			/* read from i2c addressible device */
 	T4_CLEAR_STATS,			/* clear a port's MAC statistics */
+	T4_SET_OFLD_POLICY,		/* Set offload policy */
+	T4_SET_SCHED_CLASS,             /* set sched class */
+	T4_SET_SCHED_QUEUE,             /* set queue class */
 };
 
 struct t4_reg {
