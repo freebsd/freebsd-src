@@ -291,7 +291,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sysctl_ctx_init(&sc->ctx);
 	snprintf(num, sizeof(num), "%u", unit);
 	sc->use_flowid = def_use_flowid;
-	oid = SYSCTL_ADD_NODE(&sc->ctx, &SYSCTL_NODE_CHILDREN(_net_link, lagg),
+	sc->sc_oid = oid = SYSCTL_ADD_NODE(&sc->ctx,
+		&SYSCTL_NODE_CHILDREN(_net_link, lagg),
 		OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"use_flowid", CTLTYPE_INT|CTLFLAG_RW, &sc->use_flowid, sc->use_flowid,
