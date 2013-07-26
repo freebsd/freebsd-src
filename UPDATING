@@ -15,6 +15,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130726:	p2	FreeBSD-SA-13:07.bind
+	Fix Denial of Service vulnerability in named(8).
+
 20130628:	p1	FreeBSD-EN-13:01.fxp
 			FreeBSD-EN-13:02.vtnet
 	Fix a problem where dhclient(8) utility tries to initilaize an
