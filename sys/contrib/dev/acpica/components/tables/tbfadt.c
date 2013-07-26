@@ -132,7 +132,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
         ACPI_FADT_OFFSET (PmTimerBlock),
         ACPI_FADT_OFFSET (PmTimerLength),
         ACPI_PM_TIMER_WIDTH,
-        ACPI_FADT_REQUIRED},
+        ACPI_FADT_SEPARATE_LENGTH},         /* ACPI 5.0A: Timer is optional */
 
     {"Gpe0Block",
         ACPI_FADT_OFFSET (XGpe0Block),
@@ -606,7 +606,7 @@ AcpiTbValidateFadt (
         if (FadtInfoTable[i].Type & ACPI_FADT_REQUIRED)
         {
             /*
-             * Field is required (PM1aEvent, PM1aControl, PmTimer).
+             * Field is required (PM1aEvent, PM1aControl).
              * Both the address and length must be non-zero.
              */
             if (!Address64->Address || !Length)
