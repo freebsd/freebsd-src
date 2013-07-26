@@ -499,6 +499,40 @@ ACPI_EXPORT_SYMBOL (AcpiInstallInterfaceHandler)
 
 /*****************************************************************************
  *
+ * FUNCTION:    AcpiUpdateInterfaces
+ *
+ * PARAMETERS:  Action              - Actions to be performed during the
+ *                                    update
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Update _OSI interface strings, disabling or enabling OS vendor
+ *              string or/and feature group strings.
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiUpdateInterfaces (
+    UINT8                   Action)
+{
+    ACPI_STATUS             Status;
+
+
+    Status = AcpiOsAcquireMutex (AcpiGbl_OsiMutex, ACPI_WAIT_FOREVER);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    Status = AcpiUtUpdateInterfaces (Action);
+
+    AcpiOsReleaseMutex (AcpiGbl_OsiMutex);
+    return (Status);
+}
+
+
+/*****************************************************************************
+ *
  * FUNCTION:    AcpiCheckAddressRange
  *
  * PARAMETERS:  SpaceId             - Address space ID

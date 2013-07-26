@@ -140,6 +140,12 @@ UINT8       ACPI_INIT_GLOBAL (AcpiGbl_DisableAutoRepair, FALSE);
  */
 UINT8       ACPI_INIT_GLOBAL (AcpiGbl_DisableSsdtTableLoad, FALSE);
 
+/*
+ * We keep track of the latest version of Windows that has been requested by
+ * the BIOS.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_OsiData, 0);
+
 
 /* AcpiGbl_FADT is a local copy of the FADT, converted to a common format. */
 
@@ -290,7 +296,6 @@ ACPI_EXTERN UINT8                       AcpiGbl_DebuggerConfiguration;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_StepToNextCall;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_AcpiHardwarePresent;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_EventsInitialized;
-ACPI_EXTERN UINT8                       AcpiGbl_OsiData;
 ACPI_EXTERN ACPI_INTERFACE_INFO        *AcpiGbl_SupportedInterfaces;
 ACPI_EXTERN ACPI_ADDRESS_RANGE         *AcpiGbl_AddressRangeList[ACPI_ADDRESS_RANGE_MAX];
 

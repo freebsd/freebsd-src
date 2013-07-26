@@ -6,7 +6,11 @@
 # Get the OS machine architecture. Anything with a "64" in the returned
 # string will be treated as a 64-bit OS. Otherwise, the default is 32-bit.
 #
+ifeq ($(HOST), _FreeBSD)
+HARDWARE_NAME := $(shell uname -p)
+else
 HARDWARE_NAME := $(shell uname -m)
+endif
 
 #
 # Main rule will only generate versions that are appropriate for the running

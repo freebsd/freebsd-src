@@ -719,33 +719,53 @@ AcpiDmEmitExternals (
 
     AcpiDmUnresolvedWarning (1);
 
+    /* Emit any unresolved method externals in a single text block */
+
+    NextExternal = AcpiGbl_ExternalList;
+    while (NextExternal)
+    {
+        if ((NextExternal->Type == ACPI_TYPE_METHOD) &&
+            (!NextExternal->Resolved))
+        {
+            AcpiOsPrintf ("    External (%s%s",
+                NextExternal->Path,
+                AcpiDmGetObjectTypeName (NextExternal->Type));
+
+            AcpiOsPrintf (")    // Warning: Unresolved Method, "
+                "guessing %u arguments (may be incorrect, see warning above)\n",
+                NextExternal->Value);
+
+            NextExternal->Emitted = TRUE;
+        }
+
+        NextExternal = NextExternal->Next;
+    }
+
+    AcpiOsPrintf ("\n");
+
     /*
      * Walk the list of externals (unresolved references)
      * found during the AML parsing
      */
     while (AcpiGbl_ExternalList)
     {
-        AcpiOsPrintf ("    External (%s%s",
-            AcpiGbl_ExternalList->Path,
-            AcpiDmGetObjectTypeName (AcpiGbl_ExternalList->Type));
-
-        if (AcpiGbl_ExternalList->Type == ACPI_TYPE_METHOD)
+        if (!AcpiGbl_ExternalList->Emitted)
         {
-            if (AcpiGbl_ExternalList->Resolved)
+            AcpiOsPrintf ("    External (%s%s",
+                AcpiGbl_ExternalList->Path,
+                AcpiDmGetObjectTypeName (AcpiGbl_ExternalList->Type));
+
+            /* For methods, add a comment with the number of arguments */
+
+            if (AcpiGbl_ExternalList->Type == ACPI_TYPE_METHOD)
             {
                 AcpiOsPrintf (")    // %u Arguments\n",
                     AcpiGbl_ExternalList->Value);
             }
             else
             {
-                AcpiOsPrintf (")    // Warning: unresolved Method, "
-                    "assuming %u arguments (may be incorrect, see warning above)\n",
-                    AcpiGbl_ExternalList->Value);
+                AcpiOsPrintf (")\n");
             }
-        }
-        else
-        {
-            AcpiOsPrintf (")\n");
         }
 
         /* Free this external info block and move on to next external */
@@ -931,5 +951,4 @@ AcpiDmUnresolvedWarning (
                 (AcpiGbl_NumExternalMethods - AcpiGbl_ResolvedExternalMethods));
         }
     }
-
 }

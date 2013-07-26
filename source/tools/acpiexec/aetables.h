@@ -214,6 +214,30 @@ unsigned char EcdtCode[] =
     0x49,0x30,0x2E,0x45,0x43,0x00             /* 00000048    "I0.EC."   */
 };
 
+/* Test for multiple UEFI tables */
+
+unsigned char Uefi1Code[] =
+{
+    0x55,0x45,0x46,0x49,0x36,0x00,0x00,0x00,  /* 00000000    "UEFI6..." */
+    0x01,0x03,0x20,0x49,0x6E,0x74,0x65,0x6C,  /* 00000008    ".. Intel" */
+    0x54,0x65,0x6D,0x70,0x6C,0x61,0x74,0x65,  /* 00000010    "Template" */
+    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
+    0x26,0x06,0x13,0x20,0x00,0x01,0x02,0x03,  /* 00000020    "&.. ...." */
+    0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,  /* 00000028    "........" */
+    0x0C,0x0D,0x0E,0x0F,0x36,0x00             /* 00000030    "....6."   */
+};
+
+unsigned char Uefi2Code[] =
+{
+    0x55,0x45,0x46,0x49,0x36,0x00,0x00,0x00,  /* 00000000    "UEFI6..." */
+    0x01,0xEB,0x20,0x49,0x6E,0x74,0x65,0x6C,  /* 00000008    ".. Intel" */
+    0x54,0x65,0x6D,0x70,0x6C,0x61,0x74,0x65,  /* 00000010    "Template" */
+    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
+    0x26,0x06,0x13,0x20,0x06,0x07,0x08,0x09,  /* 00000020    "&.. ...." */
+    0x04,0x05,0x06,0x07,0x08,0x09,0x0A,0x0B,  /* 00000028    "........" */
+    0x0C,0x0D,0x0E,0x0F,0x36,0x00             /* 00000030    "....6."   */
+};
+
 
 /*
  * Example installable control method
@@ -413,6 +437,36 @@ DefinitionBlock ("ssdt4.aml", "SSDT", 2, "Intel", "ssdt4", 0x00000004)
 [03Ch 0060   4]                          UID : 00000000
 [040h 0064   1]                   GPE Number : 09
 [041h 0065  13]                     Namepath : "\_SB.PCI0.EC"
+
+
+/* Test multiple UEFI support */
+
+[0004]                          Signature : "UEFI"    [UEFI Boot Optimization Table]
+[0004]                       Table Length : 00000036
+[0001]                           Revision : 01
+[0001]                           Checksum : 9B
+[0006]                             Oem ID : " Intel"
+[0008]                       Oem Table ID : "Template"
+[0004]                       Oem Revision : 00000001
+[0004]                    Asl Compiler ID : "INTL"
+[0004]              Asl Compiler Revision : 20100528
+
+[0016]                    UUID Identifier : 03020100-0504-0706-0809-0A0B0C0D0E0F
+[0002]                        Data Offset : 0000
+
+
+[0004]                          Signature : "UEFI"    [UEFI Boot Optimization Table]
+[0004]                       Table Length : 00000036
+[0001]                           Revision : 01
+[0001]                           Checksum : 9B
+[0006]                             Oem ID : " Intel"
+[0008]                       Oem Table ID : "Template"
+[0004]                       Oem Revision : 00000001
+[0004]                    Asl Compiler ID : "INTL"
+[0004]              Asl Compiler Revision : 20100528
+
+[0016]                    UUID Identifier : 09080706-0504-0706-0809-0A0B0C0D0E0F
+[0002]                        Data Offset : 0000
 
 #endif
 
