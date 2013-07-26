@@ -964,28 +964,15 @@ OslMapTable (
 
     *Table = MappedTable;
 
-    /* Checksum for RSDP */
+    /*
+     * Checksum for RSDP.
+     * Note: Other checksums are computed during the table dump.
+     */
 
-    if (!ACPI_STRNCMP (MappedTable->Signature, ACPI_SIG_RSDP,
-        sizeof (ACPI_SIG_RSDP) - 1))
+    if (AcpiTbValidateRsdp (ACPI_CAST_PTR (ACPI_TABLE_RSDP, MappedTable)) ==
+        AE_BAD_CHECKSUM)
     {
-        /* Check the standard checksum */
-
-        if (AcpiTbChecksum ((UINT8 *) MappedTable, ACPI_RSDP_CHECKSUM_LENGTH))
-        {
-            fprintf (stderr, "Warning: wrong checksum for RSDP\n");
-        }
-
-        /* Check extended checksum if table version >= 2 */
-
-        if (MappedTable->Revision)
-        {
-            if (AcpiTbChecksum ((UINT8 *) MappedTable,
-                ACPI_RSDP_XCHECKSUM_LENGTH))
-            {
-                fprintf (stderr, "Warning: wrong checksum for RSDP\n");
-            }
-        }
+        fprintf (stderr, "Warning: wrong checksum for RSDP\n");
     }
 
     return (AE_OK);
