@@ -1811,6 +1811,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	u_int	namelen = arg2;
 	struct radix_node_head *rnh = NULL; /* silence compiler. */
 	int	i, lim, error = EINVAL;
+	int	fib = 0;
 	u_char	af;
 	struct	walkarg w;
 
@@ -1818,7 +1819,17 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	namelen--;
 	if (req->newptr)
 		return (EPERM);
-	if (namelen != 3)
+	if (name[1] == NET_RT_DUMP) {
+		if (namelen == 3)
+			fib = req->td->td_proc->p_fibnum;
+		else if (namelen == 4)
+			fib = (name[3] == -1) ?
+			    req->td->td_proc->p_fibnum : name[3];
+		else
+			return ((namelen < 3) ? EISDIR : ENOTDIR);
+		if (fib < 0 || fib >= rt_numfibs)
+			return (EINVAL);
+	} else if (namelen != 3)
 		return ((namelen < 3) ? EISDIR : ENOTDIR);
 	af = name[0];
 	if (af > AF_MAX)
@@ -1857,7 +1868,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		 * take care of routing entries
 		 */
 		for (error = 0; error == 0 && i <= lim; i++) {
-			rnh = rt_tables_get_rnh(req->td->td_proc->p_fibnum, i);
+			rnh = rt_tables_get_rnh(fib, i);
 			if (rnh != NULL) {
 				RADIX_NODE_HEAD_RLOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
