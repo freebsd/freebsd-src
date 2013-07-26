@@ -64,6 +64,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	even if neither the traced process nor the tracing process had
 	write access to that file.
 
+201306XX:
+	Behavior of devfs rules path matching has been changed.
+	Pattern is now always matched against fully qualified devfs
+	path and slash characters must be explicitly matched by
+	slashes in pattern (FNM_PATHNAME). Rulesets involving devfs
+	subdirectories must be reviewed.
+
 20130615:
 	CVS has been removed from the base system.  An exact copy
 	of the code is available from the devel/cvs port.
