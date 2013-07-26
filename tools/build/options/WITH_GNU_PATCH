@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Install GNU-licensed patch as 'patch' instead of BSD patch.
