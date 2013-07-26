@@ -9,6 +9,13 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130726:	p5	FreeBSD-SA-13:07.bind FreeBSD-SA-13:08.nfsserver
+	Fix Denial of Service vulnerability in named(8). [13:07]
+
+	Fix a bug that allows remote client bypass the normal
+	access checks when when -network or -host restrictions are
+	used at the same time with -mapall. [13:08]
+
 20130618:	p4	FreeBSD-SA-13:06.mmap
         Fix a bug that allowed a tracing process (e.g. gdb) to write
         to a memory-mapped file in the traced process's address space
