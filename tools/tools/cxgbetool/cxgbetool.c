@@ -98,6 +98,9 @@ usage(FILE *fp)
 	    "\tregdump [<module>] ...              dump registers\n"
 	    "\tstdio                               interactive mode\n"
 	    "\ttcb <tid>                           read TCB\n"
+	    "\ttracer <idx> tx<n>|rx<n>            set and enable a tracer)\n"
+	    "\ttracer <idx> disable|enable         disable or enable a tracer\n"
+	    "\ttracer list                         list all tracers\n"
 	    );
 }
 
@@ -1658,6 +1661,203 @@ clearstats(int argc, const char *argv[])
 }
 
 static int
+show_tracers(void)
+{
+	struct t4_tracer t;
+	char *s;
+	int rc, port_idx, i;
+	long long val;
+
+	/* Magic values: MPS_TRC_CFG = 0x9800. MPS_TRC_CFG[1:1] = TrcEn */
+	rc = read_reg(0x9800, 4, &val);
+	if (rc != 0)
+		return (rc);
+	printf("tracing is %s\n", val & 2 ? "ENABLED" : "DISABLED");
+
+	t.idx = 0;
+	for (t.idx = 0; ; t.idx++) {
+		rc = doit(CHELSIO_T4_GET_TRACER, &t);
+		if (rc != 0 || t.idx == 0xff)
+			break;
+
+		if (t.tp.port < 4) {
+			s = "Rx";
+			port_idx = t.tp.port;
+		} else if (t.tp.port < 8) {
+			s = "Tx";
+			port_idx = t.tp.port - 4;
+		} else if (t.tp.port < 12) {
+			s = "loopback";
+			port_idx = t.tp.port - 8;
+		} else if (t.tp.port < 16) {
+			s = "MPS Rx";
+			port_idx = t.tp.port - 12;
+		} else if (t.tp.port < 20) {
+			s = "MPS Tx";
+			port_idx = t.tp.port - 16;
+		} else {
+			s = "unknown";
+			port_idx = t.tp.port;
+		}
+
+		printf("\ntracer %u (currently %s) captures ", t.idx,
+		    t.enabled ? "ENABLED" : "DISABLED");
+		if (t.tp.port < 8)
+			printf("port %u %s, ", port_idx, s);
+		else
+			printf("%s %u, ", s, port_idx);
+		printf("snap length: %u, min length: %u\n", t.tp.snap_len,
+		    t.tp.min_len);
+		printf("packets captured %smatch filter\n",
+		    t.tp.invert ? "do not " : "");
+		if (t.tp.skip_ofst) {
+			printf("filter pattern: ");
+			for (i = 0; i < t.tp.skip_ofst * 2; i += 2)
+				printf("%08x%08x", t.tp.data[i],
+				    t.tp.data[i + 1]);
+			printf("/");
+			for (i = 0; i < t.tp.skip_ofst * 2; i += 2)
+				printf("%08x%08x", t.tp.mask[i],
+				    t.tp.mask[i + 1]);
+			printf("@0\n");
+		}
+		printf("filter pattern: ");
+		for (i = t.tp.skip_ofst * 2; i < T4_TRACE_LEN / 4; i += 2)
+			printf("%08x%08x", t.tp.data[i], t.tp.data[i + 1]);
+		printf("/");
+		for (i = t.tp.skip_ofst * 2; i < T4_TRACE_LEN / 4; i += 2)
+			printf("%08x%08x", t.tp.mask[i], t.tp.mask[i + 1]);
+		printf("@%u\n", (t.tp.skip_ofst + t.tp.skip_len) * 8);
+	}
+
+	return (rc);
+}
+
+static int
+tracer_onoff(uint8_t idx, int enabled)
+{
+	struct t4_tracer t;
+
+	t.idx = idx;
+	t.enabled = enabled;
+	t.valid = 0;
+
+	return doit(CHELSIO_T4_SET_TRACER, &t);
+}
+
+static void
+create_tracing_ifnet()
+{
+	char *cmd[] = {
+		"/sbin/ifconfig", __DECONST(char *, nexus), "create", NULL
+	};
+	char *env[] = {NULL};
+
+	if (vfork() == 0) {
+		close(STDERR_FILENO);
+		execve(cmd[0], cmd, env);
+		_exit(0);
+	}
+}
+
+/*
+ * XXX: Allow user to specify snaplen, minlen, and pattern (including inverted
+ * matching).  Right now this is a quick-n-dirty implementation that traces the
+ * first 128B of all tx or rx on a port
+ */
+static int
+set_tracer(uint8_t idx, int argc, const char *argv[])
+{
+	struct t4_tracer t;
+	int len, port;
+
+	bzero(&t, sizeof (t));
+	t.idx = idx;
+	t.enabled = 1;
+	t.valid = 1;
+
+	if (argc != 1) {
+		warnx("must specify tx<n> or rx<n>.");
+		return (EINVAL);
+	}
+
+	len = strlen(argv[0]);
+	if (len != 3) {
+		warnx("argument must be 3 characters (tx<n> or rx<n>)");
+		return (EINVAL);
+	}
+
+	if (strncmp(argv[0], "tx", 2) == 0) {
+		port = argv[0][2] - '0';
+		if (port < 0 || port > 3) {
+			warnx("'%c' in %s is invalid", argv[0][2], argv[0]);
+			return (EINVAL);
+		}
+		port += 4;
+	} else if (strncmp(argv[0], "rx", 2) == 0) {
+		port = argv[0][2] - '0';
+		if (port < 0 || port > 3) {
+			warnx("'%c' in %s is invalid", argv[0][2], argv[0]);
+			return (EINVAL);
+		}
+	} else {
+		warnx("argument '%s' isn't tx<n> or rx<n>", argv[0]);
+		return (EINVAL);
+	}
+
+	t.tp.snap_len = 128;
+	t.tp.min_len = 0;
+	t.tp.skip_ofst = 0;
+	t.tp.skip_len = 0;
+	t.tp.invert = 0;
+	t.tp.port = port;
+
+	create_tracing_ifnet();
+	return doit(CHELSIO_T4_SET_TRACER, &t);
+}
+
+static int
+tracer_cmd(int argc, const char *argv[])
+{
+	long long val;
+	uint8_t idx;
+	char *s;
+
+	if (argc == 0) {
+		warnx("tracer: no arguments.");
+		return (EINVAL);
+	};
+
+	/* list */
+	if (strcmp(argv[0], "list") == 0) {
+		if (argc != 1)
+			warnx("trailing arguments after \"list\" ignored.");
+
+		return show_tracers();
+	}
+
+	/* <idx> ... */
+	s = str_to_number(argv[0], NULL, &val);
+	if (*s || val > 0xff) {
+		warnx("\"%s\" is neither an index nor a tracer subcommand.",
+		    argv[0]);
+		return (EINVAL);
+	}
+	idx = (int8_t)val;
+
+	/* <idx> disable */
+	if (argc == 2 && strcmp(argv[1], "disable") == 0)
+		return tracer_onoff(idx, 0);
+
+	/* <idx> enable */
+	if (argc == 2 && strcmp(argv[1], "enable") == 0)
+		return tracer_onoff(idx, 1);
+
+	/* <idx> ... */
+	return set_tracer(idx, argc - 1, argv + 1);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -1687,6 +1887,8 @@ run_cmd(int argc, const char *argv[])
 		rc = read_i2c(argc, argv);
 	else if (!strcmp(cmd, "clearstats"))
 		rc = clearstats(argc, argv);
+	else if (!strcmp(cmd, "tracer"))
+		rc = tracer_cmd(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);

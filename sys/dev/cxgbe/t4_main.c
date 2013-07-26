@@ -557,6 +557,11 @@ t4_attach(device_t dev)
 		pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
 	}
 
+	sc->traceq = -1;
+	mtx_init(&sc->ifp_lock, sc->ifp_lockname, 0, MTX_DEF);
+	snprintf(sc->ifp_lockname, sizeof(sc->ifp_lockname), "%s tracer",
+	    device_get_nameunit(dev));
+
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
 	    device_get_nameunit(dev));
 	mtx_init(&sc->sc_lock, sc->lockname, 0, MTX_DEF);
@@ -588,7 +593,10 @@ t4_attach(device_t dev)
 	for (i = 0; i < nitems(sc->fw_msg_handler); i++)
 		sc->fw_msg_handler[i] = fw_msg_not_handled;
 	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
+	t4_register_cpl_handler(sc, CPL_TRACE_PKT, t4_trace_pkt);
+	t4_register_cpl_handler(sc, CPL_TRACE_PKT_T5, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
+
 
 	/* Prepare the adapter for operation */
 	rc = -t4_prep_adapter(sc);
@@ -668,6 +676,7 @@ t4_attach(device_t dev)
 		snprintf(pi->lockname, sizeof(pi->lockname), "%sp%d",
 		    device_get_nameunit(dev), i);
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
+		sc->chan_map[pi->tx_chan] = i;
 
 		if (is_10G_port(pi) || is_40G_port(pi)) {
 			n10g++;
@@ -916,6 +925,8 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->tids.ftid_lock);
 	if (mtx_initialized(&sc->sfl_lock))
 		mtx_destroy(&sc->sfl_lock);
+	if (mtx_initialized(&sc->ifp_lock))
+		mtx_destroy(&sc->ifp_lock);
 
 	bzero(sc, sizeof(*sc));
 
@@ -1017,6 +1028,11 @@ cxgbe_detach(device_t dev)
 	sc->last_op_thr = curthread;
 #endif
 	ADAPTER_UNLOCK(sc);
+
+	if (pi->flags & HAS_TRACEQ) {
+		sc->traceq = -1;	/* cloner should not create ifnet */
+		t4_tracer_port_detach(sc);
+	}
 
 	if (pi->vlan_c)
 		EVENTHANDLER_DEREGISTER(vlan_config, pi->vlan_c);
@@ -2885,6 +2901,17 @@ cxgbe_init_synchronized(struct port_info *pi)
 	if (rc != 0) {
 		if_printf(ifp, "enable_vi failed: %d\n", rc);
 		goto done;
+	}
+
+	/*
+	 * The first iq of the first port to come up is used for tracing.
+	 */
+	if (sc->traceq < 0) {
+		sc->traceq = sc->sge.rxq[pi->first_rxq].iq.abs_id;
+		t4_write_reg(sc, is_t4(sc) ?  A_MPS_TRC_RSS_CONTROL :
+		    A_MPS_T5_TRC_RSS_CONTROL, V_RSSCONTROL(pi->tx_chan) |
+		    V_QUEUENUMBER(sc->traceq));
+		pi->flags |= HAS_TRACEQ;
 	}
 
 	/* all ok */
@@ -7414,6 +7441,12 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		}
 		break;
 	}
+	case CHELSIO_T4_GET_TRACER:
+		rc = t4_get_tracer(sc, (struct t4_tracer *)data);
+		break;
+	case CHELSIO_T4_SET_TRACER:
+		rc = t4_set_tracer(sc, (struct t4_tracer *)data);
+		break;
 	default:
 		rc = EINVAL;
 	}
@@ -7650,12 +7683,14 @@ mod_event(module_t mod, int cmd, void *arg)
 		mtx_init(&t4_uld_list_lock, "T4 ULDs", 0, MTX_DEF);
 		SLIST_INIT(&t4_uld_list);
 #endif
+		t4_tracer_modload();
 		tweak_tunables();
 		break;
 
 	case MOD_UNLOAD:
 		if (atomic_fetchadd_int(&loaded, -1) > 1)
 			break;
+		t4_tracer_modunload();
 #ifdef TCP_OFFLOAD
 		mtx_lock(&t4_uld_list_lock);
 		if (!SLIST_EMPTY(&t4_uld_list)) {
