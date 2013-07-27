@@ -447,26 +447,27 @@ struct {
 }, t5_pciids[] = {
 	{0xb000, "Chelsio Terminator 5 FPGA"},
 	{0x5400, "Chelsio T580-dbg"},
-	{0x5401,  "Chelsio T520-CR"},
+	{0x5401,  "Chelsio T520-CR"},		/* 2 x 10G */
+	{0x5402,  "Chelsio T522-CR"},		/* 2 x 10G, 2 X 1G */
 	{0x5403,  "Chelsio T540-CR"},		/* 4 x 10G */
-	{0x5407,  "Chelsio T520-SO"},
-	{0x5408,  "Chelsio T520-CX"},
+	{0x5407,  "Chelsio T520-SO"},		/* 2 x 10G, nomem */
+	{0x5409,  "Chelsio T520-BT"},		/* 2 x 10GBaseT */
+	{0x540a,  "Chelsio T504-BT"},		/* 4 x 1G */
+	{0x540d,  "Chelsio T580-CR"},		/* 2 x 40G */
+	{0x540e,  "Chelsio T540-LP-CR"},	/* 4 x 10G */
 	{0x5410,  "Chelsio T580-LP-CR"},	/* 2 x 40G */
-	{0x5411,  "Chelsio T520-LL-CR"},
+	{0x5411,  "Chelsio T520-LL-CR"},	/* 2 x 10G */
+	{0x5412,  "Chelsio T560-CR"},		/* 1 x 40G, 2 x 10G */
+	{0x5414,  "Chelsio T580-LP-SO-CR"},	/* 2 x 40G, nomem */
 #ifdef notyet
-	{0x5402,  "Chelsio T522-CR"},
 	{0x5404,  "Chelsio T520-BCH"},
 	{0x5405,  "Chelsio T540-BCH"},
 	{0x5406,  "Chelsio T540-CH"},
-	{0x5409,  "Chelsio T520-BT"},
-	{0x540a,  "Chelsio T504-BT"},
+	{0x5408,  "Chelsio T520-CX"},
 	{0x540b,  "Chelsio B520-SR"},
 	{0x540c,  "Chelsio B504-BT"},
-	{0x540d,  "Chelsio T580-CR"},
-	{0x540e,  "Chelsio T540-LP-CR"},
 	{0x540f,  "Chelsio Amsterdam"},
-	{0x5412,  "Chelsio T560-CR"},
-	{0x5413,  "Chelsio T580-CR"},
+	{0x5413,  "Chelsio T580-CHR"},
 #endif
 };
 
