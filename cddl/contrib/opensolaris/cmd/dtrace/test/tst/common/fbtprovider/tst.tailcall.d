@@ -36,7 +36,7 @@
 #pragma D option quiet
 #pragma D option statusrate=10ms
 
-fbt::ioctl:entry
+fbt::kern_ioctl:entry
 {
 	self->traceme = 1;
 }
@@ -47,7 +47,7 @@ fbt:::entry
 	printf("called %s\n", probefunc);
 }
 
-fbt::ioctl:return
+fbt::kern_ioctl:return
 /self->traceme/
 {
 	self->traceme = 0;
