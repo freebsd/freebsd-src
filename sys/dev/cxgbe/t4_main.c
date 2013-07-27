@@ -392,6 +392,7 @@ static int sysctl_devlog(SYSCTL_HANDLER_ARGS);
 static int sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_sched(SYSCTL_HANDLER_ARGS);
 static int sysctl_lb_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_linkdnrc(SYSCTL_HANDLER_ARGS);
 static int sysctl_meminfo(SYSCTL_HANDLER_ARGS);
 static int sysctl_mps_tcam(SYSCTL_HANDLER_ARGS);
 static int sysctl_path_mtus(SYSCTL_HANDLER_ARGS);
@@ -4439,8 +4440,8 @@ cxgbe_sysctls(struct port_info *pi)
 	oid = device_get_sysctl_tree(pi->dev);
 	children = SYSCTL_CHILDREN(oid);
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "linkdnrc", CTLFLAG_RD,
-	    &pi->linkdnrc, 0, "reason why link is down");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "linkdnrc", CTLTYPE_STRING |
+	   CTLFLAG_RD, pi, 0, sysctl_linkdnrc, "A", "reason why link is down");
 	if (pi->port_type == FW_PORT_TYPE_BT_XAUI) {
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature",
 		    CTLTYPE_INT | CTLFLAG_RD, pi, 0, sysctl_btphy, "I",
@@ -5479,6 +5480,37 @@ sysctl_lb_stats(SYSCTL_HANDLER_ARGS)
 			sbuf_printf(sb, "\n%-17s %20ju %20ju", stat_name[j],
 				   *p0++, *p1++);
 	}
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_linkdnrc(SYSCTL_HANDLER_ARGS)
+{
+	int rc = 0;
+	struct port_info *pi = arg1;
+	struct sbuf *sb;
+	static const char *linkdnreasons[] = {
+		"non-specific", "remote fault", "autoneg failed", "reserved3",
+		"PHY overheated", "unknown", "rx los", "reserved7"
+	};
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 64, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	if (pi->linkdnrc < 0)
+		sbuf_printf(sb, "n/a");
+	else if (pi->linkdnrc < nitems(linkdnreasons))
+		sbuf_printf(sb, "%s", linkdnreasons[pi->linkdnrc]);
+	else
+		sbuf_printf(sb, "%d", pi->linkdnrc);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
