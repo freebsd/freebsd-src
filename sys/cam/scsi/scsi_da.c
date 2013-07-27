@@ -535,7 +535,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "TOSHIBA", "TransMemory",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
-#if 0
 	{
 		/*
 		 * PNY USB Flash keys
@@ -544,7 +543,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "*" , "USB DISK*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
-#endif
 	{
 		/*
 		 * Genesys 6-in-1 Card Reader
