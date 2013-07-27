@@ -509,6 +509,7 @@ if_free_type(struct ifnet *ifp, u_char type)
 
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	IFNET_WLOCK();
 	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
@@ -516,9 +517,9 @@ if_free_type(struct ifnet *ifp, u_char type)
 	ifindex_free_locked(ifp->if_index);
 	IFNET_WUNLOCK();
 
-	if (!refcount_release(&ifp->if_refcount))
-		return;
-	if_free_internal(ifp);
+	if (refcount_release(&ifp->if_refcount))
+		if_free_internal(ifp);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -830,7 +831,9 @@ void
 if_detach(struct ifnet *ifp)
 {
 
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	if_detach_internal(ifp, 0);
+	CURVNET_RESTORE();
 }
 
 static void

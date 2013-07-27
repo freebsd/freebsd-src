@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 
+#include <net/vnet.h>
+
 #include <machine/stdarg.h>
 
 #include <vm/uma.h>
@@ -2727,7 +2729,11 @@ device_probe_and_attach(device_t dev)
 		return (0);
 	else if (error != 0)
 		return (error);
-	return (device_attach(dev));
+
+	CURVNET_SET_QUIET(vnet0);
+	error = device_attach(dev);
+	CURVNET_RESTORE();
+	return error;
 }
 
 /**
