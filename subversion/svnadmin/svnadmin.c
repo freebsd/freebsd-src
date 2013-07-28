@@ -685,6 +685,18 @@ subcommand_create(apr_getopt_t *os, void *baton, apr_pool_t *pool)
         svn_hash_sets(fs_config, SVN_FS_CONFIG_PRE_1_8_COMPATIBLE, "1");
     }
 
+  if (opt_state->compatible_version
+      && ! svn_version__at_least(opt_state->compatible_version, 1, 1, 0)
+      /* ### TODO: this NULL check hard-codes knowledge of the library's
+                   default fs-type value */
+      && (opt_state->fs_type == NULL
+          || !strcmp(opt_state->fs_type, SVN_FS_TYPE_FSFS)))
+    {
+      return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                              _("Repositories compatible with 1.0.x must use "
+                                "--fs-type=bdb"));
+    }
+
   SVN_ERR(svn_repos_create(&repos, opt_state->repository_path,
                            NULL, NULL, NULL, fs_config, pool));
   svn_fs_set_warning_func(svn_repos_fs(repos), warning_func, NULL);

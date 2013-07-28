@@ -434,6 +434,8 @@ svn_wc__db_wcroot_parse_local_abspath(svn_wc__db_wcroot_t **wcroot,
   svn_boolean_t always_check = FALSE;
   int wc_format = 0;
   const char *adm_relpath;
+  /* Non-NULL if WCROOT is found through a symlink: */
+  const char *symlink_wcroot_abspath = NULL;
 
   /* ### we need more logic for finding the database (if it is located
      ### outside of the wcroot) and then managing all of that within DB.
@@ -611,6 +613,7 @@ svn_wc__db_wcroot_parse_local_abspath(svn_wc__db_wcroot_t **wcroot,
                   if (found_wcroot)
                     break;
 
+                  symlink_wcroot_abspath = local_abspath;
                   SVN_ERR(read_link_target(&local_abspath, local_abspath,
                                            scratch_pool));
 try_symlink_as_dir:
@@ -632,6 +635,7 @@ try_symlink_as_dir:
       local_abspath = svn_dirent_dirname(local_abspath, scratch_pool);
 
       moved_upwards = TRUE;
+      symlink_wcroot_abspath = NULL;
 
       /* Is the parent directory recorded in our hash?  */
       found_wcroot = svn_hash_gets(db->dir_data, local_abspath);
@@ -669,7 +673,10 @@ try_symlink_as_dir:
          (ie. where we found it).  */
 
       err = svn_wc__db_pdh_create_wcroot(wcroot,
-                            apr_pstrdup(db->state_pool, local_abspath),
+                            apr_pstrdup(db->state_pool,
+                                        symlink_wcroot_abspath
+                                          ? symlink_wcroot_abspath
+                                          : local_abspath),
                             sdb, wc_id, FORMAT_FROM_SDB,
                             db->verify_format, db->enforce_empty_wq,
                             db->state_pool, scratch_pool);
@@ -737,7 +744,10 @@ try_symlink_as_dir:
         }
 
       SVN_ERR(svn_wc__db_pdh_create_wcroot(wcroot,
-                            apr_pstrdup(db->state_pool, local_abspath),
+                            apr_pstrdup(db->state_pool,
+                                        symlink_wcroot_abspath
+                                          ? symlink_wcroot_abspath
+                                          : local_abspath),
                             NULL, UNKNOWN_WC_ID, wc_format,
                             db->verify_format, db->enforce_empty_wq,
                             db->state_pool, scratch_pool));
@@ -746,6 +756,13 @@ try_symlink_as_dir:
   if (*wcroot)
     {
       const char *dir_relpath;
+
+      if (symlink_wcroot_abspath)
+        {
+          /* The WCROOT was found through a symlink pointing at the root of
+           * the WC. Cache the WCROOT under the symlink's path. */
+          local_dir_abspath = symlink_wcroot_abspath;
+        }
 
       /* The subdirectory's relpath is easily computed relative to the
          wcroot that we just found.  */
@@ -809,6 +826,7 @@ try_symlink_as_dir:
                                              scratch_pool));
           if (resolved_kind == svn_node_dir)
             {
+              symlink_wcroot_abspath = original_abspath;
               SVN_ERR(read_link_target(&local_abspath, original_abspath,
                                        scratch_pool));
               /* This handle was opened in this function but is not going
