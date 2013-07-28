@@ -57,7 +57,6 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <sys/socket.h>
 #include <sys/tty.h>
 
-#include <machine/cpu.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
