@@ -90,6 +90,11 @@ svn_stream__set_is_buffered(svn_stream_t *stream,
 svn_boolean_t
 svn_stream__is_buffered(svn_stream_t *stream);
 
+/** Return the underlying file, if any, associated with the stream, or
+ * NULL if not available.  Accessing the file bypasses the stream.
+ */
+apr_file_t *
+svn_stream__aprfile(svn_stream_t *stream);
 
 #ifdef __cplusplus
 }

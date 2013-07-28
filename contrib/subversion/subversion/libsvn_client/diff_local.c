@@ -607,7 +607,10 @@ svn_client__arbitrary_nodes_diff(const char *local_abspath1,
   if (kind1 != kind2)
     return svn_error_createf(SVN_ERR_NODE_UNEXPECTED_KIND, NULL,
                              _("'%s' is not the same node kind as '%s'"),
-                             local_abspath1, local_abspath2);
+                             svn_dirent_local_style(local_abspath1,
+                                                    scratch_pool),
+                             svn_dirent_local_style(local_abspath2,
+                                                    scratch_pool));
 
   if (depth == svn_depth_unknown)
     depth = svn_depth_infinity;
@@ -627,7 +630,10 @@ svn_client__arbitrary_nodes_diff(const char *local_abspath1,
   else
     return svn_error_createf(SVN_ERR_NODE_UNEXPECTED_KIND, NULL,
                              _("'%s' is not a file or directory"),
-                             kind1 == svn_node_none ?
-                              local_abspath1 : local_abspath2);
+                             kind1 == svn_node_none
+                               ? svn_dirent_local_style(local_abspath1,
+                                                        scratch_pool)
+                               : svn_dirent_local_style(local_abspath2,
+                                                        scratch_pool));
   return SVN_NO_ERROR;
 }
