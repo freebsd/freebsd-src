@@ -115,7 +115,7 @@ will terminate.
 The
 .Nm
 utility recognizes the following runtime options:
-.Bl -tag -width ".Fl -softtimeout-action Ar action  "
+.Bl -tag -width 30m
 .It Fl I Ar file
 Write the process ID of the
 .Nm
@@ -204,15 +204,22 @@ and the kernel
 .Xr log 4
 device for
 .Xr syslog 8 .
+.Sh FILES
+.Bl -tag -width ".Pa /var/run/watchdogd.pid" -compact
+.It Pa /var/run/watchdogd.pid
+.El
 .Sh EXAMPLES
 .Ss Debugging watchdogd and/or your watchdog script.
+This is a useful recipe for debugging
+.Nm
+and your watchdog script.
 .Pp
-This is a useful recipe for debugging watchdogd and your watchdog
-script.
-.Pp
-(Note that ^C works oddly because watchdogd calls system(3) so the
+(Note that ^C works oddly because
+.Nm
+calls
+.Xr system 3
+so the
 first ^C will terminate the "sleep" command.)
-.Pp
 .Pp
 Explanation of options used:
 .Bl -enum -offset indent -compact
@@ -224,17 +231,29 @@ Set the watchdog to trip at 30 seconds. (-t 30)
 Use of a softtimeout:
 .Bl -enum -offset indent -compact -nested
 .It
-Use a softtimeout (don't arm the hardware watchdog) (--softtimeout)
+Use a softtimeout (do not arm the hardware watchdog).
+(--softtimeout)
 .It
-Set the softtimeout action to do both kernel printf(9) and log(9) when it trips. (--softtimeout-action log,printf)
+Set the softtimeout action to do both kernel
+.Xr printf 9
+and
+.Xr log 9
+when it trips.
+(--softtimeout-action log,printf)
 .El
 .It
 Use of a pre-timeout:
 .Bl -enum -offset indent -compact -nested
 .It
-Set a pre-timeout of 15 seconds (this will later trigger a panic/dump) (--pretimeout 15)
+Set a pre-timeout of 15 seconds (this will later trigger a panic/dump).
+(--pretimeout 15)
 .It
-Set the action to also kernel printf(9) and log(9) when it trips. (--pretimeout-action log,printf)
+Set the action to also kernel
+.Xr printf 9
+and
+.Xr log 9
+when it trips.
+(--pretimeout-action log,printf)
 .El
 .It
 Use of a script:
@@ -279,10 +298,6 @@ watchdogd  -t 120 \\
   --pretimeout 60 --pretimeout-action log,printf,panic \\
   -e '/path/to/your/script 60' -w -T 15
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /var/run/watchdogd.pid" -compact
-.It Pa /var/run/watchdogd.pid
-.El
 .Sh SEE ALSO
 .Xr watchdog 4 ,
 .Xr watchdog 8 ,
