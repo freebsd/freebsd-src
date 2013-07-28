@@ -40,14 +40,14 @@
 #include <machine/frame.h>
 #include <machine/tstate.h>
 
+#ifdef _KERNEL
+
 #define	TRAPF_PC(tfp)		((tfp)->tf_tpc)
 #define	TRAPF_USERMODE(tfp)	(((tfp)->tf_tstate & TSTATE_PRIV) == 0)
 
 #define	cpu_getstack(td)	((td)->td_frame->tf_sp)
 #define	cpu_setstack(td, sp)	((td)->td_frame->tf_sp = (sp))
 #define	cpu_spinwait()		/* nothing */
-
-#ifdef _KERNEL
 
 extern	char btext[];
 extern	char etext[];
