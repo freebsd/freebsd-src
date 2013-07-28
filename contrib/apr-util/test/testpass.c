@@ -34,6 +34,12 @@
 #define CRYPT_ALGO_SUPPORTED 1
 #endif
 
+#if defined __GLIBC_PREREQ
+#if __GLIBC_PREREQ(2,7)
+#define GLIBCSHA_ALGO_SUPPORTED
+#endif
+#endif
+
 #if CRYPT_ALGO_SUPPORTED
 
 static struct {
@@ -117,24 +123,79 @@ static void test_threadsafe(abts_case *tc, void *data)
 static void test_shapass(abts_case *tc, void *data)
 {
     const char *pass = "hellojed";
+    const char *pass2 = "hellojed2";
     char hash[100];
 
     apr_sha1_base64(pass, strlen(pass), hash);
 
     apr_assert_success(tc, "SHA1 password validated",
                        apr_password_validate(pass, hash));
+    APR_ASSERT_FAILURE(tc, "wrong SHA1 password should not validate",
+                       apr_password_validate(pass2, hash));
 }
 
 static void test_md5pass(abts_case *tc, void *data)
 {
     const char *pass = "hellojed", *salt = "sardine";
+    const char *pass2 = "hellojed2";
     char hash[100];
 
     apr_md5_encode(pass, salt, hash, sizeof hash);
 
     apr_assert_success(tc, "MD5 password validated",
                        apr_password_validate(pass, hash));
+    APR_ASSERT_FAILURE(tc, "wrong MD5 password should not validate",
+                       apr_password_validate(pass2, hash));
 }
+
+#ifdef GLIBCSHA_ALGO_SUPPORTED
+
+static struct {
+    const char *password;
+    const char *hash;
+} glibc_sha_pws[] = {
+    /* SHA256 */
+    { "secret1", "$5$0123456789abcdef$SFX.CooXBS8oXsbAPgU/UyiCodhrLQ19sBgvcA3Zh1D" },
+    { "secret2", "$5$rounds=100000$0123456789abcdef$dLXfO5m4d.xv8G66kpz2LyL0.Mi5wjLlH0m7rtgyhyB" },
+    /* SHA512 */
+    { "secret3", "$6$0123456789abcdef$idOsOfoWwnCQkJm9hd2hxS4NnEs9nBA9poOFXsvtrYSoSHaOToCfyUoZwKe.ZCZnq7D95tGVoi2jxZZMyVwTL1" },
+    { "secret4", "$6$rounds=100000$0123456789abcdef$ZiAMjbeA.iIGTWxq2oks9Bvz9sfxaoGPgAtpwimPEwFwkSNMTK7lLwABzzldds/n4UgCQ16HqawPrCrePr4YX1" },
+    { NULL, NULL }
+};
+
+static void test_glibc_shapass(abts_case *tc, void *data)
+{
+    int i = 0;
+    while (glibc_sha_pws[i].password) {
+        apr_assert_success(tc, "check for valid glibc crypt-sha password",
+                           apr_password_validate(glibc_sha_pws[i].password,
+                                                 glibc_sha_pws[i].hash));
+        i++;
+    }
+}
+#endif
+
+static void test_bcryptpass(abts_case *tc, void *data)
+{
+    const char *pass = "hellojed";
+    const char *pass2 = "hellojed2";
+    unsigned char salt[] = "sardine_sardine";
+    char hash[100];
+    const char *hash2 = "$2a$08$qipUJiI9fySUN38hcbz.lucXvAmtgowKOWYtB9y3CXyl6lTknruou";
+    const char *pass3 = "foobar";
+
+    apr_assert_success(tc, "bcrypt encode password", 
+                       apr_bcrypt_encode(pass, 5, salt, sizeof(salt), hash,
+                                         sizeof(hash)));
+
+    apr_assert_success(tc, "bcrypt password validated",
+                       apr_password_validate(pass, hash));
+    APR_ASSERT_FAILURE(tc, "wrong bcrypt password should not validate",
+                       apr_password_validate(pass2, hash));
+    apr_assert_success(tc, "bcrypt password validated",
+                       apr_password_validate(pass3, hash2));
+}
+
 
 abts_suite *testpass(abts_suite *suite)
 {
@@ -148,6 +209,10 @@ abts_suite *testpass(abts_suite *suite)
 #endif /* CRYPT_ALGO_SUPPORTED */
     abts_run_test(suite, test_shapass, NULL);
     abts_run_test(suite, test_md5pass, NULL);
+    abts_run_test(suite, test_bcryptpass, NULL);
+#ifdef GLIBCSHA_ALGO_SUPPORTED
+    abts_run_test(suite, test_glibc_shapass, NULL);
+#endif
     
     return suite;
 }
