@@ -19,7 +19,7 @@
 
 ident		EFIKA_MX
 
-include 	"../freescale/imx/std.imx"
+include 	"../freescale/imx/std.imx51"
 
 makeoptions 	WITHOUT_MODULES="ahc"
 
