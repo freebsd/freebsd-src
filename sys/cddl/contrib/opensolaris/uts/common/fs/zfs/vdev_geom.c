@@ -69,6 +69,8 @@ vdev_geom_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	vd = cp->private;
+	if (vd == NULL)
+		return;
 
 	/*
 	 * Orphan callbacks occur from the GEOM event thread.
@@ -689,6 +691,7 @@ vdev_geom_close(vdev_t *vd)
 		return;
 	vd->vdev_tsd = NULL;
 	vd->vdev_delayed_close = B_FALSE;
+	cp->private = NULL;	/* XXX locking */
 	g_post_event(vdev_geom_detach, cp, M_WAITOK, NULL);
 }
 
