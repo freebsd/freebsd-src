@@ -51,6 +51,7 @@
 #include "private/svn_wc_private.h"
 #include "private/svn_diff_private.h"
 #include "private/svn_subr_private.h"
+#include "private/svn_io_private.h"
 
 #include "svn_private_config.h"
 
@@ -807,14 +808,23 @@ diff_content_changed(svn_boolean_t *wrote_header,
        * ### a non-git compatible diff application.*/
 
       /* We deal in streams, but svn_io_run_diff2() deals in file handles,
-         unfortunately, so we need to make these temporary files, and then
-         copy the contents to our stream. */
-      SVN_ERR(svn_io_open_unique_file3(&outfile, &outfilename, NULL,
-                                       svn_io_file_del_on_pool_cleanup,
-                                       scratch_pool, scratch_pool));
-      SVN_ERR(svn_io_open_unique_file3(&errfile, &errfilename, NULL,
-                                       svn_io_file_del_on_pool_cleanup,
-                                       scratch_pool, scratch_pool));
+         so we may need to make temporary files and then copy the contents
+         to our stream. */
+      outfile = svn_stream__aprfile(outstream);
+      if (outfile)
+        outfilename = NULL;
+      else
+        SVN_ERR(svn_io_open_unique_file3(&outfile, &outfilename, NULL,
+                                         svn_io_file_del_on_pool_cleanup,
+                                         scratch_pool, scratch_pool));
+
+      errfile = svn_stream__aprfile(errstream);
+      if (errfile)
+        errfilename = NULL;
+      else
+        SVN_ERR(svn_io_open_unique_file3(&errfile, &errfilename, NULL,
+                                         svn_io_file_del_on_pool_cleanup,
+                                         scratch_pool, scratch_pool));
 
       SVN_ERR(svn_io_run_diff2(".",
                                diff_cmd_baton->options.for_external.argv,
@@ -824,20 +834,25 @@ diff_content_changed(svn_boolean_t *wrote_header,
                                &exitcode, outfile, errfile,
                                diff_cmd_baton->diff_cmd, scratch_pool));
 
-      SVN_ERR(svn_io_file_close(outfile, scratch_pool));
-      SVN_ERR(svn_io_file_close(errfile, scratch_pool));
-
       /* Now, open and copy our files to our output streams. */
-      SVN_ERR(svn_stream_open_readonly(&stream, outfilename,
-                                       scratch_pool, scratch_pool));
-      SVN_ERR(svn_stream_copy3(stream, svn_stream_disown(outstream,
-                               scratch_pool),
-                               NULL, NULL, scratch_pool));
-      SVN_ERR(svn_stream_open_readonly(&stream, errfilename,
-                                       scratch_pool, scratch_pool));
-      SVN_ERR(svn_stream_copy3(stream, svn_stream_disown(errstream,
-                                                         scratch_pool),
-                               NULL, NULL, scratch_pool));
+      if (outfilename)
+        {
+          SVN_ERR(svn_io_file_close(outfile, scratch_pool));
+          SVN_ERR(svn_stream_open_readonly(&stream, outfilename,
+                                           scratch_pool, scratch_pool));
+          SVN_ERR(svn_stream_copy3(stream, svn_stream_disown(outstream,
+                                                             scratch_pool),
+                                   NULL, NULL, scratch_pool));
+        }
+      if (errfilename)
+        {
+          SVN_ERR(svn_io_file_close(errfile, scratch_pool));
+          SVN_ERR(svn_stream_open_readonly(&stream, errfilename,
+                                           scratch_pool, scratch_pool));
+          SVN_ERR(svn_stream_copy3(stream, svn_stream_disown(errstream,
+                                                             scratch_pool),
+                                   NULL, NULL, scratch_pool));
+        }
 
       /* We have a printed a diff for this path, mark it as visited. */
       *wrote_header = TRUE;

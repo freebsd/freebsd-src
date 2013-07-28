@@ -806,23 +806,6 @@ svn_cl__local_style_skip_ancestor(const char *parent_path,
                                   const char *path,
                                   apr_pool_t *pool);
 
-/* Check that PATH_OR_URL1@REVISION1 is related to PATH_OR_URL2@REVISION2.
- * Raise an error if not.
- *
- * ### Ideally we would also check that they are on different lines of
- * history.  That is easy in common cases, but to give a correct answer in
- * general we need to know the operative revision(s) as well.  For example,
- * when one location is the branch point from which the other branch was
- * copied.
- */
-svn_error_t *
-svn_cl__check_related_source_and_target(const char *path_or_url1,
-                                        const svn_opt_revision_t *revision1,
-                                        const char *path_or_url2,
-                                        const svn_opt_revision_t *revision2,
-                                        svn_client_ctx_t *ctx,
-                                        apr_pool_t *pool);
-
 /* If the user is setting a mime-type to mark one of the TARGETS as binary,
  * as determined by property name PROPNAME and value PROPVAL, then check
  * whether Subversion's own binary-file detection recognizes the target as
