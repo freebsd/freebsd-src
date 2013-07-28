@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
-#include <machine/cpu.h>
 #include <machine/perfmon.h>
 
 #include <stdio.h>

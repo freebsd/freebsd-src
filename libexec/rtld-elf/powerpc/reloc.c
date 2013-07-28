@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <machine/cpu.h>
 #include <machine/atomic.h>
 #include <machine/md_var.h>
 
