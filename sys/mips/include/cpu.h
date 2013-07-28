@@ -49,6 +49,8 @@
 
 #include <machine/endian.h>
 
+#if defined(_KERNEL)
+
 /* BEGIN: these are going away */
 
 #define	soft_int_mask(softintr)	(1 << ((softintr) + 8))
@@ -74,9 +76,7 @@
  * A machine-independent interface to the CPU's counter.
  */
 #define get_cyclecount()	mips_rd_count()
-#endif				/* !_LOCORE */
 
-#if defined(_KERNEL) && !defined(_LOCORE)
 
 extern char btext[];
 extern char etext[];
@@ -85,5 +85,6 @@ void swi_vm(void *);
 void cpu_halt(void);
 void cpu_reset(void);
 
+#endif				/* !_LOCORE */
 #endif				/* _KERNEL */
 #endif				/* !_MACHINE_CPU_H_ */
