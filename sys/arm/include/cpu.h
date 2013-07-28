@@ -6,11 +6,10 @@
 
 #include <machine/armreg.h>
 
-#ifdef _KERNEL
-
 void	cpu_halt(void);
 void	swi_vm(void *);
 
+#ifdef _KERNEL
 static __inline uint64_t
 get_cyclecount(void)
 {
@@ -20,6 +19,7 @@ get_cyclecount(void)
 	return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
 			
 }
+#endif
 
 #define TRAPF_USERMODE(frame)	((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE)
 
@@ -50,5 +50,4 @@ void	*initarm(struct arm_boot_params *);
 extern char btext[];
 extern char etext[];
 int badaddr_read(void *, size_t, void *);
-#endif
 #endif /* !MACHINE_CPU_H */

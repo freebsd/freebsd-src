@@ -39,8 +39,6 @@
 #include <machine/pcb.h>
 #include <machine/psl.h>
 
-#ifdef _KERNEL
-
 /*
  * CPU Feature Attributes
  *
@@ -100,5 +98,4 @@ void	cpu_reset(void);
 void	fork_trampoline(void);
 void	swi_vm(void *);
 
-#endif	/* _KERNEL */
 #endif	/* _MACHINE_CPU_H_ */
