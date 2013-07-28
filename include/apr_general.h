@@ -76,7 +76,7 @@ typedef int               apr_signum_t;
  * @return offset
  */
 
-#if defined(CRAY) || (defined(__arm) && !defined(LINUX))
+#if defined(CRAY) || (defined(__arm) && !(defined(LINUX) || defined(__FreeBSD__)))
 #ifdef __STDC__
 #define APR_OFFSET(p_type,field) _Offsetof(p_type,field)
 #else

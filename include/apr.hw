@@ -36,6 +36,12 @@
  * for Win32 or Netware by those build environments, respectively.
  */
 
+/* Make sure we have our platform identifier macro defined we ask for later.
+ */
+#if defined(_WIN32) && !defined(WIN32)
+#define WIN32 1
+#endif
+
 #if defined(WIN32) || defined(DOXYGEN)
 
 /* Ignore most warnings (back down to /W3) for poorly constructed headers
@@ -377,7 +383,7 @@ typedef  int         apr_off_t;
 typedef  int         apr_socklen_t;
 typedef  apr_uint64_t      apr_ino_t;
 
-#ifdef WIN64
+#ifdef _WIN64
 #define APR_SIZEOF_VOIDP   8
 #else
 #define APR_SIZEOF_VOIDP   4
@@ -552,7 +558,7 @@ typedef  apr_uint32_t            apr_uintptr_t;
 #define APR_DECLARE_DATA             __declspec(dllimport)
 #endif
 
-#ifdef WIN64
+#ifdef _WIN64
 #define APR_SSIZE_T_FMT          "I64d"
 #define APR_SIZE_T_FMT           "I64u"
 #else
