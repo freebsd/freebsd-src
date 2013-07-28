@@ -291,6 +291,39 @@ svn_client__copy_foreign(const char *url,
                          svn_client_ctx_t *ctx,
                          apr_pool_t *scratch_pool);
 
+/* Same as the public svn_client_mergeinfo_log2 API, except for the addition
+ * of the TARGET_MERGEINFO_CATALOG and RESULT_POOL parameters.
+ *
+ * If TARGET_MERGEINFO_CATALOG is NULL then this acts exactly as the public
+ * API.  If *TARGET_MERGEINFO_CATALOG is NULL, then *TARGET_MERGEINFO_CATALOG
+ * is set to the a mergeinfo catalog representing the mergeinfo on
+ * TARGET_PATH_OR_URL@TARGET_PEG_REVISION at DEPTH, (like the public API only
+ * depths of svn_depth_empty or svn_depth_infinity are supported) allocated in
+ * RESULT_POOL.  Finally, if *TARGET_MERGEINFO_CATALOG is non-NULL, then it is
+ * assumed to be a mergeinfo catalog representing the mergeinfo on
+ * TARGET_PATH_OR_URL@TARGET_PEG_REVISION at DEPTH.
+ *
+ * The keys for the subtree mergeinfo are the repository root-relative
+ * paths of TARGET_PATH_OR_URL and/or its subtrees, regardless of whether
+ * TARGET_PATH_OR_URL is a URL or WC path.
+ */
+svn_error_t *
+svn_client__mergeinfo_log(svn_boolean_t finding_merged,
+                          const char *target_path_or_url,
+                          const svn_opt_revision_t *target_peg_revision,
+                          svn_mergeinfo_catalog_t *target_mergeinfo_catalog,
+                          const char *source_path_or_url,
+                          const svn_opt_revision_t *source_peg_revision,
+                          const svn_opt_revision_t *source_start_revision,
+                          const svn_opt_revision_t *source_end_revision,
+                          svn_log_entry_receiver_t log_receiver,
+                          void *log_receiver_baton,
+                          svn_boolean_t discover_changed_paths,
+                          svn_depth_t depth,
+                          const apr_array_header_t *revprops,
+                          svn_client_ctx_t *ctx,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }
