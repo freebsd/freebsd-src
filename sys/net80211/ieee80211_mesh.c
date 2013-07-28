@@ -1040,10 +1040,9 @@ mesh_transmit_to_gate(struct ieee80211vap *vap, struct mbuf *m,
     struct ieee80211_mesh_route *rt_gate)
 {
 	struct ifnet *ifp = vap->iv_ifp;
-	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni;
 
-	IEEE80211_TX_UNLOCK_ASSERT(ic);
+	IEEE80211_TX_UNLOCK_ASSERT(vap->iv_ic);
 
 	ni = ieee80211_mesh_find_txnode(vap, rt_gate->rt_dest);
 	if (ni == NULL) {
