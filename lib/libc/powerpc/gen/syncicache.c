@@ -44,7 +44,6 @@ static const char rcsid[] =
 #endif
 #include <sys/sysctl.h>
 
-#include <machine/cpu.h>
 #include <machine/md_var.h>
 
 #ifdef _STANDALONE
