@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -230,10 +231,10 @@ parse_timeout_to_pow2ns(char opt, const char *longopt, const char *myoptarg)
 	if (debugging) {
 		printf("Timeout for %s%s "
 		    "is 2^%d nanoseconds "
-		    "(in: %s sec -> out: %ld sec %ld ns -> %d ticks)\n",
+		    "(in: %s sec -> out: %jd sec %ld ns -> %d ticks)\n",
 		    longopt ? "-" : "", longopt ? longopt : shortopt,
 		    rv,
-		    myoptarg, ts.tv_sec, ts.tv_nsec, ticks);
+		    myoptarg, (intmax_t)ts.tv_sec, ts.tv_nsec, ticks);
 	}
 	if (ticks <= 0) {
 		errx(1, "Timeout for %s%s is too small, please choose a higher timeout.", longopt ? "-" : "", longopt ? longopt : shortopt);
