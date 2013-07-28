@@ -43,8 +43,6 @@
 #include <machine/frame.h>
 #include <machine/segments.h>
 
-#ifdef _KERNEL
-
 #define	cpu_exec(p)	/* nothing */
 #define	cpu_swapin(p)	/* nothing */
 #define	cpu_getstack(td)		((td)->td_frame->tf_esp)
@@ -55,6 +53,7 @@
 	((ISPL((framep)->tf_cs) == SEL_UPL) || ((framep)->tf_eflags & PSL_VM))
 #define	TRAPF_PC(framep)	((framep)->tf_eip)
 
+#ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
 

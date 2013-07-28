@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#include <machine/cpu.h>
 #include <sys/sysctl.h>
 
 #include "pathnames.h"

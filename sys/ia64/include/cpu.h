@@ -44,11 +44,11 @@
 
 #include <machine/frame.h>
 
-#ifdef _KERNEL
-
 #define	TRAPF_PC(tf)		((tf)->tf_special.iip)
 #define	TRAPF_CPL(tf)		((tf)->tf_special.psr & IA64_PSR_CPL)
 #define	TRAPF_USERMODE(tf)	(TRAPF_CPL(tf) != IA64_PSR_CPL_KERN)
+
+#ifdef _KERNEL
 
 #ifdef GPROF
 extern char btext[];
