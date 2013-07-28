@@ -11,5 +11,5 @@ makeoptions	KERNPHYSADDR=0x90100000
 options		PHYSADDR=0x90000000
 options		STARTUP_PAGETABLE_ADDR=0x91000000
 
-files "../freescale/imx/imx.files"
+files "../freescale/imx/files.imx51"
 
