@@ -2921,7 +2921,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp->bio_flags |= BIO_ERROR;
 				}
 			} else if (bp != NULL) {
-				bp->bio_resid = csio->resid;
+				if (state == DA_CCB_DELETE)
+					bp->bio_resid = 0;
+				else
+					bp->bio_resid = csio->resid;
 				bp->bio_error = 0;
 				if (bp->bio_resid != 0)
 					bp->bio_flags |= BIO_ERROR;
@@ -2935,7 +2938,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else if (bp != NULL) {
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				panic("REQ_CMP with QFRZN");
-			bp->bio_resid = csio->resid;
+			if (state == DA_CCB_DELETE)
+				bp->bio_resid = 0;
+			else
+				bp->bio_resid = csio->resid;
 			if (csio->resid > 0)
 				bp->bio_flags |= BIO_ERROR;
 			if (softc->error_inject != 0) {
@@ -2944,7 +2950,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				bp->bio_flags |= BIO_ERROR;
 				softc->error_inject = 0;
 			}
-
 		}
 
 		/*
@@ -2959,10 +2964,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (state == DA_CCB_DELETE) {
 			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))
 			    != NULL) {
-				bp1->bio_resid = bp->bio_resid;
 				bp1->bio_error = bp->bio_error;
-				if (bp->bio_flags & BIO_ERROR)
+				if (bp->bio_flags & BIO_ERROR) {
 					bp1->bio_flags |= BIO_ERROR;
+					bp1->bio_resid = bp1->bio_bcount;
+				} else
+					bp1->bio_resid = 0;
 				biodone(bp1);
 			}
 			softc->delete_running = 0;
