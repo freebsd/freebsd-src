@@ -36,6 +36,8 @@
 #ifndef _MACHINE_CPU_H_
 #define	_MACHINE_CPU_H_
 
+#ifdef _KERNEL
+
 /*
  * Definitions unique to i386 cpu support.
  */
@@ -53,7 +55,6 @@
 	(ISPL((framep)->tf_cs) == SEL_UPL)
 #define	TRAPF_PC(framep)	((framep)->tf_rip)
 
-#ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
 
