@@ -43,6 +43,7 @@
 #include <net/if_vlan_var.h>
 #include <sys/sockio.h>
 
+static void mlx4_en_init_locked(struct mlx4_en_priv *priv);
 static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv);
 
 static void mlx4_en_vlan_rx_add_vid(void *arg, struct net_device *dev, u16 vid)
