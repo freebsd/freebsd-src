@@ -2044,7 +2044,9 @@ zfs_vget(vfs_t *vfsp, vnode_t **vpp, fid_t *fidp)
  * Block out VOPs and close zfsvfs_t::z_os
  *
  * Note, if successful, then we return with the 'z_teardown_lock' and
- * 'z_teardown_inactive_lock' write held.
+ * 'z_teardown_inactive_lock' write held.  We leave ownership of the underlying
+ * dataset and objset intact so that they can be atomically handed off during
+ * a subsequent rollback or recv operation and the resume thereafter.
  */
 int
 zfs_suspend_fs(zfsvfs_t *zfsvfs)
@@ -2053,71 +2055,76 @@ zfs_suspend_fs(zfsvfs_t *zfsvfs)
 
 	if ((error = zfsvfs_teardown(zfsvfs, B_FALSE)) != 0)
 		return (error);
-	dmu_objset_disown(zfsvfs->z_os, zfsvfs);
 
 	return (0);
 }
 
 /*
- * Reopen zfsvfs_t::z_os and release VOPs.
+ * Rebuild SA and release VOPs.  Note that ownership of the underlying dataset
+ * is an invariant across any of the operations that can be performed while the
+ * filesystem was suspended.  Whether it succeeded or failed, the preconditions
+ * are the same: the relevant objset and associated dataset are owned by
+ * zfsvfs, held, and long held on entry.
  */
 int
 zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
 {
 	int err;
+	znode_t *zp;
+	uint64_t sa_obj = 0;
 
 	ASSERT(RRW_WRITE_HELD(&zfsvfs->z_teardown_lock));
 	ASSERT(RW_WRITE_HELD(&zfsvfs->z_teardown_inactive_lock));
 
-	err = dmu_objset_own(osname, DMU_OST_ZFS, B_FALSE, zfsvfs,
-	    &zfsvfs->z_os);
-	if (err) {
-		zfsvfs->z_os = NULL;
-	} else {
-		znode_t *zp;
-		uint64_t sa_obj = 0;
+	/*
+	 * We already own this, so just hold and rele it to update the
+	 * objset_t, as the one we had before may have been evicted.
+	 */
+	VERIFY0(dmu_objset_hold(osname, zfsvfs, &zfsvfs->z_os));
+	VERIFY3P(zfsvfs->z_os->os_dsl_dataset->ds_owner, ==, zfsvfs);
+	VERIFY(dsl_dataset_long_held(zfsvfs->z_os->os_dsl_dataset));
+	dmu_objset_rele(zfsvfs->z_os, zfsvfs);
 
-		/*
-		 * Make sure version hasn't changed
-		 */
+	/*
+	 * Make sure version hasn't changed
+	 */
 
-		err = zfs_get_zplprop(zfsvfs->z_os, ZFS_PROP_VERSION,
-		    &zfsvfs->z_version);
+	err = zfs_get_zplprop(zfsvfs->z_os, ZFS_PROP_VERSION,
+	    &zfsvfs->z_version);
 
-		if (err)
-			goto bail;
+	if (err)
+		goto bail;
 
-		err = zap_lookup(zfsvfs->z_os, MASTER_NODE_OBJ,
-		    ZFS_SA_ATTRS, 8, 1, &sa_obj);
+	err = zap_lookup(zfsvfs->z_os, MASTER_NODE_OBJ,
+	    ZFS_SA_ATTRS, 8, 1, &sa_obj);
 
-		if (err && zfsvfs->z_version >= ZPL_VERSION_SA)
-			goto bail;
+	if (err && zfsvfs->z_version >= ZPL_VERSION_SA)
+		goto bail;
 
-		if ((err = sa_setup(zfsvfs->z_os, sa_obj,
-		    zfs_attr_table,  ZPL_END, &zfsvfs->z_attr_table)) != 0)
-			goto bail;
+	if ((err = sa_setup(zfsvfs->z_os, sa_obj,
+	    zfs_attr_table,  ZPL_END, &zfsvfs->z_attr_table)) != 0)
+		goto bail;
 
-		if (zfsvfs->z_version >= ZPL_VERSION_SA)
-			sa_register_update_callback(zfsvfs->z_os,
-			    zfs_sa_upgrade);
+	if (zfsvfs->z_version >= ZPL_VERSION_SA)
+		sa_register_update_callback(zfsvfs->z_os,
+		    zfs_sa_upgrade);
 
-		VERIFY(zfsvfs_setup(zfsvfs, B_FALSE) == 0);
+	VERIFY(zfsvfs_setup(zfsvfs, B_FALSE) == 0);
 
-		zfs_set_fuid_feature(zfsvfs);
+	zfs_set_fuid_feature(zfsvfs);
 
-		/*
-		 * Attempt to re-establish all the active znodes with
-		 * their dbufs.  If a zfs_rezget() fails, then we'll let
-		 * any potential callers discover that via ZFS_ENTER_VERIFY_VP
-		 * when they try to use their znode.
-		 */
-		mutex_enter(&zfsvfs->z_znodes_lock);
-		for (zp = list_head(&zfsvfs->z_all_znodes); zp;
-		    zp = list_next(&zfsvfs->z_all_znodes, zp)) {
-			(void) zfs_rezget(zp);
-		}
-		mutex_exit(&zfsvfs->z_znodes_lock);
+	/*
+	 * Attempt to re-establish all the active znodes with
+	 * their dbufs.  If a zfs_rezget() fails, then we'll let
+	 * any potential callers discover that via ZFS_ENTER_VERIFY_VP
+	 * when they try to use their znode.
+	 */
+	mutex_enter(&zfsvfs->z_znodes_lock);
+	for (zp = list_head(&zfsvfs->z_all_znodes); zp;
+	    zp = list_next(&zfsvfs->z_all_znodes, zp)) {
+		(void) zfs_rezget(zp);
 	}
+	mutex_exit(&zfsvfs->z_znodes_lock);
 
 bail:
 	/* release the VOPs */
@@ -2126,8 +2133,8 @@ bail:
 
 	if (err) {
 		/*
-		 * Since we couldn't reopen zfsvfs::z_os, or
-		 * setup the sa framework force unmount this file system.
+		 * Since we couldn't setup the sa framework, try to force
+		 * unmount this file system.
 		 */
 		if (vn_vfswlock(zfsvfs->z_vfs->vfs_vnodecovered) == 0)
 			(void) dounmount(zfsvfs->z_vfs, MS_FORCE, CRED());
