@@ -12,6 +12,9 @@
 	rss_glb_config_mode = basicvirtual
 	rss_glb_config_options = tnlmapen, hashtoeplitz, tnlalllkp
 
+	# PL_TIMEOUT register
+	pl_timeout_value = 200		# the timeout value in units of us
+
 	sge_timer_value = 1, 5, 10, 50, 100, 200	# usecs
 
 	# TP_SHIFT_CNT
@@ -145,7 +148,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xb2417251
+	checksum = 0x93f11b53
 #
 # $FreeBSD$
 #
