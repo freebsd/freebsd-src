@@ -76,6 +76,7 @@ options 	NO_SWAPPING
 #options 	DIAGNOSTIC
 
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		loop
 device		bpf
 device		ether

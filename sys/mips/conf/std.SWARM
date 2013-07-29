@@ -42,6 +42,7 @@ device		loop
 device		ether
 device		md
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 
 options		USB_DEBUG
 device usb
