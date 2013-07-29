@@ -1197,11 +1197,6 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		}
 
 		if (op & BUS_DMASYNC_POSTREAD) {
-			cpu_dcache_inv_range((vm_offset_t)bpage->vaddr,
-					bpage->datacount);
-			l2cache_inv_range((vm_offset_t)bpage->vaddr,
-			    (vm_offset_t)bpage->busaddr,
-			    bpage->datacount);
 			while (bpage != NULL) {
 				vm_offset_t startv;
 				vm_paddr_t startp;
