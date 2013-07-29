@@ -62,6 +62,7 @@ options 	SX_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 device		random
+options 	YARROW_RNG	# Yarrow software RNG
 
 device		loop
 device		ether
@@ -83,4 +84,3 @@ device		ohci
 device		umass
 device		scbus		# SCSI bus (required for da)
 device		da		# Direct Access (disks)
-

@@ -65,6 +65,7 @@ makeoptions	FDT_DTS_FILE=xlp-basic.dts
 # Pseudo
 device		loop
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		md
 device		bpf
 

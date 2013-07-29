@@ -256,6 +256,7 @@ device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
+options 	YARROW_RNG	# Yarrow software RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
