@@ -495,11 +495,6 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 		queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
 	}
-	if (mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port]) {
-		panic("mlx4_en_do_get_stats: Unexpected mac removed for %d\n",
-		    priv->port);
-		mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port] = 0;
-	}
 	mutex_unlock(&mdev->state_lock);
 }
 
@@ -688,8 +683,8 @@ int mlx4_en_start_port(struct net_device *dev)
 	mlx4_en_set_multicast(dev);
 
 	/* Enable the queues. */
-	atomic_clear_int(&dev->if_drv_flags, IFF_DRV_OACTIVE);
-	atomic_set_int(&dev->if_drv_flags, IFF_DRV_RUNNING);
+	dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	dev->if_drv_flags |= IFF_DRV_RUNNING;
 
 	callout_reset(&priv->watchdog_timer, MLX4_EN_WATCHDOG_TIMEOUT,
 	    mlx4_en_watchdog_timeout, priv);
@@ -761,7 +756,7 @@ void mlx4_en_stop_port(struct net_device *dev)
 
 	callout_stop(&priv->watchdog_timer);
 
-	atomic_clear_int(&dev->if_drv_flags, IFF_DRV_RUNNING);
+	dev->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 static void mlx4_en_restart(struct work_struct *work)
@@ -802,19 +797,30 @@ mlx4_en_init(void *arg)
 {
 	struct mlx4_en_priv *priv;
 	struct mlx4_en_dev *mdev;
+
+	priv = arg;
+	mdev = priv->mdev;
+	mutex_lock(&mdev->state_lock);
+	mlx4_en_init_locked(priv);
+	mutex_unlock(&mdev->state_lock);
+}
+
+static void
+mlx4_en_init_locked(struct mlx4_en_priv *priv)
+{
+
+	struct mlx4_en_dev *mdev;
 	struct ifnet *dev;
 	int i;
 
-	priv = arg;
 	dev = priv->dev;
 	mdev = priv->mdev;
-	mutex_lock(&mdev->state_lock);
 	if (dev->if_drv_flags & IFF_DRV_RUNNING)
 		mlx4_en_stop_port(dev);
 
 	if (!mdev->device_up) {
 		en_err(priv, "Cannot open - device down/disabled\n");
-		goto out;
+		return;
 	}
 
 	/* Reset HW statistics and performance counters */
@@ -835,9 +841,6 @@ mlx4_en_init(void *arg)
 	mlx4_en_set_default_moderation(priv);
 	if (mlx4_en_start_port(dev))
 		en_err(priv, "Failed starting port:%d\n", priv->port);
-
-out:
-	mutex_unlock(&mdev->state_lock);
 }
 
 void mlx4_en_free_resources(struct mlx4_en_priv *priv)
@@ -927,9 +930,14 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	if (priv->sysctl)
 		sysctl_ctx_free(&priv->conf_ctx);
 
+	mutex_lock(&mdev->state_lock);
+	mlx4_en_stop_port(dev);
+	mutex_unlock(&mdev->state_lock);
+
 	cancel_delayed_work(&priv->stats_task);
 	/* flush any pending task for this netdev */
 	flush_workqueue(mdev->workqueue);
+	callout_drain(&priv->watchdog_timer);
 
 	/* Detach the netdev so tasks would not attempt to access it */
 	mutex_lock(&mdev->state_lock);
@@ -1091,31 +1099,32 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		error = -mlx4_en_change_mtu(dev, ifr->ifr_mtu);
 		break;
 	case SIOCSIFFLAGS:
+		mutex_lock(&mdev->state_lock);
 		if (dev->if_flags & IFF_UP) {
-			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-				mutex_lock(&mdev->state_lock);
+			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				mlx4_en_start_port(dev);
-				mutex_unlock(&mdev->state_lock);
-			} else
+			else
 				mlx4_en_set_multicast(dev);
 		} else {
-			mutex_lock(&mdev->state_lock);
 			if (dev->if_drv_flags & IFF_DRV_RUNNING) {
 				mlx4_en_stop_port(dev);
 				if_link_state_change(dev, LINK_STATE_DOWN);
 			}
-			mutex_unlock(&mdev->state_lock);
 		}
+		mutex_unlock(&mdev->state_lock);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		mutex_lock(&mdev->state_lock);
 		mlx4_en_set_multicast(dev);
+		mutex_unlock(&mdev->state_lock);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(dev, ifr, &priv->media, command);
 		break;
 	case SIOCSIFCAP:
+		mutex_lock(&mdev->state_lock);
 		mask = ifr->ifr_reqcap ^ dev->if_capenable;
 		if (mask & IFCAP_HWCSUM)
 			dev->if_capenable ^= IFCAP_HWCSUM;
@@ -1130,7 +1139,8 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		if (mask & IFCAP_WOL_MAGIC)
 			dev->if_capenable ^= IFCAP_WOL_MAGIC;
 		if (dev->if_drv_flags & IFF_DRV_RUNNING)
-			mlx4_en_init(priv);
+			mlx4_en_init_locked(priv);
+		mutex_unlock(&mdev->state_lock);
 		VLAN_CAPABILITIES(dev);
 		break;
 	default:
