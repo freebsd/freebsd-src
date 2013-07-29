@@ -209,6 +209,21 @@ __inline_isnanl(__const long double __x)
 	return (__x != __x);
 }
 
+/*
+ * Version 2 of the Single UNIX Specification (UNIX98) defined isnan() and
+ * isinf() as functions taking double.  C99, and the subsequent POSIX revisions
+ * (SUSv3, POSIX.1-2001, define it as a macro that accepts any real floating
+ * point type.  If we are targeting SUSv2 and C99 or C11 (or C++11) then we
+ * expose the newer definition, assuming that the language spec takes
+ * precedence over the operating system interface spec.
+ */
+#if	__XSI_VISIBLE > 0 && __XSI_VISIBLE < 600 && __ISO_C_VISIBLE < 1999
+#undef isinf
+#undef isnan
+int	isinf(double);
+int	isnan(double);
+#endif
+
 double	acos(double);
 double	asin(double);
 double	atan(double);
