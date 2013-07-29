@@ -4,6 +4,7 @@
 #define _MACHINE_SMP_H_
 
 #include <sys/_cpuset.h>
+#include <machine/pcb.h>
 
 #define IPI_AST		0
 #define IPI_PREEMPT	2
