@@ -11,7 +11,5 @@ FIRMWS=	${_FIRM}:${KMOD}:120
 
 FIRMWARE_LICENSE=	realtek
 
-#${_FIRM}: ${.CURDIR}/../../../../contrib/dev/rsu/${_FIRM}.uu
-#	uudecode -p $? > ${.TARGET}
-${_FIRM}: ${.CURDIR}/${_FIRM}.uu
+${_FIRM}: ${.CURDIR}/../../../../contrib/dev/rsu/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}
