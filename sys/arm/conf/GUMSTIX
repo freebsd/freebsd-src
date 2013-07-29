@@ -88,3 +88,4 @@ options 	DDB			#Enable the kernel debugger
 
 device		md
 device		random		# Entropy device
+options 	YARROW_RNG	# Yarrow software RNG

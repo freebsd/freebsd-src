@@ -94,6 +94,7 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 
 device		md
 device		random		# Entropy device
+options 	YARROW_RNG	# Yarrow software RNG
 
 # Flattened Device Tree
 options         FDT

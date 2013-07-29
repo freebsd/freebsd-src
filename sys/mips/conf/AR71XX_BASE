@@ -24,7 +24,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Build these as modules so small platform builds will have the
 # modules already built.
-makeoptions	MODULES_OVERRIDE="random gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_pci"
+makeoptions	MODULES_OVERRIDE="random yarrow_rng gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_pci"
 
 options		DDB
 options		KDB
@@ -115,6 +115,7 @@ device		ether
 device		md
 device		bpf
 device		random
+options 	YARROW_RNG	# Yarrow software RNG
 device		if_bridge
 device		gif		# ip[46] in ip[46] tunneling protocol
 device		gre		# generic encapsulation - only for IPv4 in IPv4 though atm

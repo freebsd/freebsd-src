@@ -254,6 +254,7 @@ SUBDIR=	\
 	${_opensolaris} \
 	oce \
 	${_padlock} \
+	${_padlock_rng} \
 	patm \
 	${_pccard} \
 	${_pcfclock} \
@@ -280,6 +281,7 @@ SUBDIR=	\
 	${_random} \
 	rc4 \
 	${_rdma} \
+	${_rdrand_rng} \
 	re \
 	reiserfs \
 	rl \
@@ -364,11 +366,14 @@ SUBDIR=	\
 	${_x86bios} \
 	${_xe} \
 	xl \
+	yarrow_rng \
 	${_zfs} \
 	zlib \
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
+_padlock_rng=	padlock_rng
+_rdrand_rng=	rdrand_rng
 .endif
 
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \

@@ -61,6 +61,7 @@ options 	KDB_TRACE
 
 # Pseudo devices
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		pty
 device		loop
 device		md

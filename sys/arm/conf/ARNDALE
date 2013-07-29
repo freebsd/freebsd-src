@@ -88,6 +88,7 @@ options		ROOTDEVNAME=\"ufs:/dev/da0\"
 
 device		loop
 device		random
+options 	YARROW_RNG		# Yarrow software RNG
 device		pty
 device		md
 device		gpio
