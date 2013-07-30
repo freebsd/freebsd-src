@@ -2077,7 +2077,7 @@ rsu_power_off(struct rsu_softc *sc)
 }
 
 static int
-rsu_fw_loadsection(struct rsu_softc *sc, uint8_t *buf, int len)
+rsu_fw_loadsection(struct rsu_softc *sc, const uint8_t *buf, int len)
 {
 	struct rsu_data *data;
 	struct r92s_tx_desc *txd;
@@ -2111,9 +2111,9 @@ rsu_fw_loadsection(struct rsu_softc *sc, uint8_t *buf, int len)
 static int
 rsu_load_firmware(struct rsu_softc *sc)
 {
-	struct r92s_fw_hdr *hdr;
+	const struct r92s_fw_hdr *hdr;
 	struct r92s_fw_priv *dmem;
-	uint8_t *imem, *emem;
+	const uint8_t *imem, *emem;
 	int imemsz, ememsz;
 	const struct firmware *fw;
 	size_t size;
@@ -2136,7 +2136,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 		error = EINVAL;
 		goto fail;
 	}
-	hdr = (struct r92s_fw_hdr *)fw->data;
+	hdr = (const struct r92s_fw_hdr *)fw->data;
 	if (hdr->signature != htole16(0x8712) &&
 	    hdr->signature != htole16(0x8192)) {
 		device_printf(sc->sc_dev,
@@ -2163,7 +2163,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 		error = EINVAL;
 		goto fail;
 	}
-	imem = (uint8_t *)&hdr[1];
+	imem = (const uint8_t *)&hdr[1];
 	emem = imem + imemsz;
 
 	/* Load IMEM section. */
@@ -2238,7 +2238,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 
 	/* Update DMEM section before loading. */
-	dmem = &hdr->priv;
+	dmem = __DECONST(struct r92s_fw_priv *, &hdr->priv);
 	memset(dmem, 0, sizeof(*dmem));
 	dmem->hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
 	dmem->nendpoints = sc->npipes;
