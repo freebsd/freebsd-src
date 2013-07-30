@@ -56,15 +56,8 @@ ipmi_isa_identify(driver_t *driver, device_t parent)
 	struct ipmi_get_info info;
 	uint32_t devid;
 
-	/*
-	 * Give other drivers precedence.  Unfortunately, this doesn't
-	 * work if we have an SMBIOS table that duplicates a PCI device
-	 * that's later on the bus than the PCI-ISA bridge.
-	 */
-	if (ipmi_attached)
-		return;
-
-	if (ipmi_smbios_identify(&info) && info.iface_type != SSIF_MODE) {
+	if (ipmi_smbios_identify(&info) && info.iface_type != SSIF_MODE &&
+	    device_find_child(parent, "ipmi", -1) == NULL) {
 		/*
 		 * XXX: Hack alert.  On some broken systems, the IPMI
 		 * interface is described via SMBIOS, but the actual
@@ -181,6 +174,14 @@ ipmi_isa_attach(device_t dev)
 	if (!ipmi_smbios_identify(&info) &&
 	    !ipmi_hint_identify(dev, &info))
 		return (ENXIO);
+
+	/*
+	 * Give other drivers precedence.  Unfortunately, this doesn't
+	 * work if we have an SMBIOS table that duplicates a PCI device
+	 * that's later on the bus than the PCI-ISA bridge.
+	 */
+	if (ipmi_attached)
+		return (EBUSY);
 
 	switch (info.iface_type) {
 	case KCS_MODE:
