@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
@@ -74,5 +74,6 @@ int dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp,
 #endif
     int cleanup_fd, uint64_t *action_handlep);
 int dmu_recv_end(dmu_recv_cookie_t *drc, void *owner);
+boolean_t dmu_objset_is_receiving(objset_t *os);
 
 #endif /* _DMU_SEND_H */
