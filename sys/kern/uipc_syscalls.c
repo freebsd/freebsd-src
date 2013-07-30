@@ -122,6 +122,7 @@ counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 int nsfbufs;
 int nsfbufspeak;
 int nsfbufsused;
+static int sfreadahead = MAXPHYS / MAXBSIZE;
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
     "Maximum number of sendfile(2) sf_bufs available");
@@ -129,6 +130,9 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
     "Number of sendfile(2) sf_bufs at peak usage");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
     "Number of sendfile(2) sf_bufs in use");
+SYSCTL_INT(_kern_ipc, OID_AUTO, sfreadahead, CTLFLAG_RW, &sfreadahead, 0,
+    "Number of sendfile(2) read-ahead MAXBSIZE blocks");
+
 
 static void
 sfstat_init(const void *unused)
@@ -2240,6 +2244,7 @@ retry_space:
 				error = EBUSY;
 			else {
 				ssize_t resid;
+				int readahead = sfreadahead * MAXBSIZE;
 
 				/*
 				 * Ensure that our page is still around
@@ -2255,9 +2260,9 @@ retry_space:
 				 * wrong, but is consistent with our original
 				 * implementation.
 				 */
-				error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
+				error = vn_rdwr(UIO_READ, vp, NULL, readahead,
 				    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
-				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
+				    IO_VMIO | ((readahead / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
 				VM_OBJECT_WLOCK(obj);
 				vm_page_io_finish(pg);
