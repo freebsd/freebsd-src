@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
 #ifdef SOCKET_SEND_COW
 #include <vm/vm_object.h>
@@ -122,7 +123,12 @@ retry:
 		if (uobject->backing_object != NULL)
 			pmap_remove(map->pmap, uaddr, uaddr + PAGE_SIZE);
 	}
-	vm_page_insert(kern_pg, uobject, upindex);
+	if (vm_page_insert(kern_pg, uobject, upindex)) {
+		VM_OBJECT_WUNLOCK(uobject);
+		VM_WAIT;
+		VM_OBJECT_WLOCK(uobject);
+		goto retry;
+	}
 	vm_page_dirty(kern_pg);
 	VM_OBJECT_WUNLOCK(uobject);
 	vm_map_lookup_done(map, entry);
