@@ -2312,6 +2312,21 @@ dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
 #
+dev/usb/wlan/if_rsu.c		optional rsu
+rsu-rtl8712fw.c			optional rsu-rtl8712fw | rsufw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rsu-rtl8712fw.fw:rsu-rtl8712fw:120 -mrsu-rtl8712fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rsu-rtl8712fw.c"
+rsu-rtl8712fw.fwo		optional rsu-rtl8712fw | rsufw		\
+	dependency	"rsu-rtl8712fw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rsu-rtl8712fw.fwo"
+rsu-rtl8712fw.fw		optional rsu-rtl8712.fw | rsufw		\
+	dependency	"$S/contrib/dev/rsu/rsu-rtl8712fw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rsu-rtl8712fw.fw"
 dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_run.c		optional run
 runfw.c				optional runfw							\
