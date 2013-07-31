@@ -29,7 +29,7 @@
 .\"	@(#)fsck.8	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2012
+.Dd July 30, 2013
 .Dt FSCK_FFS 8
 .Os
 .Sh NAME
@@ -275,6 +275,11 @@ and frees up space that can allocated to files.
 The
 .Fl r
 option is ignored when running in preen mode.
+.It Fl S
+Surrender on error.
+With this flag enabled, a hard error returned on disk i/o will cause
+.Nm
+to abort instead of continuing on and possibly tripping over more i/o errors.
 .It Fl y
 Assume a yes response to all questions asked by
 .Nm ;
