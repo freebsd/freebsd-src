@@ -1,3 +1,9 @@
+	--- 9.8.5-P2 released ---
+
+3621.	[security]	Incorrect bounds checking on private type 'keydata'
+			can lead to a remotely triggerable REQUIRE failure
+			(CVE-2013-4854). [RT #34238]
+
 	--- 9.8.5-P1 released ---
 
 3584.	[security]	Caching data from an incompletely signed zone could
