@@ -37,15 +37,10 @@ static io_buf in_buf;
 static io_buf out_buf;
 
 /// Number of filters. Zero indicates that we are using a preset.
-static size_t filters_count = 0;
+static uint32_t filters_count = 0;
 
 /// Number of the preset (0-9)
-static size_t preset_number = 6;
-
-/// If a preset is used (no custom filter chain) and preset_extreme is true,
-/// a significantly slower compression is used to achieve slightly better
-/// compression ratio.
-static bool preset_extreme = false;
+static uint32_t preset_number = LZMA_PRESET_DEFAULT;
 
 /// Integrity check type
 static lzma_check check;
@@ -63,11 +58,9 @@ coder_set_check(lzma_check new_check)
 }
 
 
-extern void
-coder_set_preset(size_t new_preset)
+static void
+forget_filter_chain(void)
 {
-	preset_number = new_preset;
-
 	// Setting a preset makes us forget a possibly defined custom
 	// filter chain.
 	while (filters_count > 0) {
@@ -81,9 +74,20 @@ coder_set_preset(size_t new_preset)
 
 
 extern void
+coder_set_preset(uint32_t new_preset)
+{
+	preset_number &= ~LZMA_PRESET_LEVEL_MASK;
+	preset_number |= new_preset;
+	forget_filter_chain();
+	return;
+}
+
+
+extern void
 coder_set_extreme(void)
 {
-	preset_extreme = true;
+	preset_number |= LZMA_PRESET_EXTREME;
+	forget_filter_chain();
 	return;
 }
 
@@ -97,6 +101,12 @@ coder_add_filter(lzma_vli id, void *options)
 	filters[filters_count].id = id;
 	filters[filters_count].options = options;
 	++filters_count;
+
+	// Setting a custom filter chain makes us forget the preset options.
+	// This makes a difference if one specifies e.g. "xz -9 --lzma2 -e"
+	// where the custom filter chain resets the preset level back to
+	// the default 6, making the example equivalent to "xz -6e".
+	preset_number = LZMA_PRESET_DEFAULT;
 
 	return;
 }
@@ -134,9 +144,6 @@ coder_set_compression_settings(void)
 		}
 
 		// Get the preset for LZMA1 or LZMA2.
-		if (preset_extreme)
-			preset_number |= LZMA_PRESET_EXTREME;
-
 		if (lzma_lzma_preset(&opt_lzma, preset_number))
 			message_bug();
 

@@ -26,9 +26,19 @@ xrealloc(void *ptr, size_t size)
 {
 	assert(size > 0);
 
+	// Save ptr so that we can free it if realloc fails.
+	// The point is that message_fatal ends up calling stdio functions
+	// which in some libc implementations might allocate memory from
+	// the heap. Freeing ptr improves the chances that there's free
+	// memory for stdio functions if they need it.
+	void *p = ptr;
 	ptr = realloc(ptr, size);
-	if (ptr == NULL)
-		message_fatal("%s", strerror(errno));
+
+	if (ptr == NULL) {
+		const int saved_errno = errno;
+		free(p);
+		message_fatal("%s", strerror(saved_errno));
+	}
 
 	return ptr;
 }

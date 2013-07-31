@@ -5,16 +5,17 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZ 1 "2012-05-27" "Tukaani" "XZ Utils"
+.TH XZ 1 "2013-06-21" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
 .
 .SH SYNOPSIS
 .B xz
-.RI [ option ]...
-.RI [ file ]...
-.PP
+.RI [ option... ]
+.RI [ file... ]
+.
+.SH COMMAND ALIASES
 .B unxz
 is equivalent to
 .BR "xz \-\-decompress" .
@@ -708,7 +709,7 @@ be dramatically higher than that of the single-threaded mode.
 DecMem contains the decompressor memory requirements.
 That is, the compression settings determine
 the memory requirements of the decompressor.
-The exact decompressor memory usage is slighly more than
+The exact decompressor memory usage is slightly more than
 the LZMA2 dictionary size, but the values in the table
 have been rounded up to the next full MiB.
 .RE
@@ -897,11 +898,14 @@ if threading will be enabled by default.
 .SS "Custom compressor filter chains"
 A custom filter chain allows specifying
 the compression settings in detail instead of relying on
-the settings associated to the preset levels.
+the settings associated to the presets.
 When a custom filter chain is specified,
-the compression preset level options
-(\fB\-0\fR ... \fB\-9\fR and \fB\-\-extreme\fR) are
-silently ignored.
+preset options (\fB\-0\fR ... \fB\-9\fR and \fB\-\-extreme\fR)
+earlier on the command line are forgotten.
+If a preset option is specified
+after one or more custom filter chain options,
+the new preset takes effect and
+the custom filter chain options specified earlier are forgotten.
 .PP
 A filter chain is comparable to piping on the command line.
 When compressing, the uncompressed input goes to the first filter,
@@ -934,6 +938,15 @@ Extra commas in
 are ignored.
 Every option has a default value, so you need to
 specify only those you want to change.
+.PP
+To see the whole filter chain and
+.IR options ,
+use
+.B "xz \-vv"
+(that is, use
+.B \-\-verbose
+twice).
+This works also for viewing the filter chain options used by presets.
 .TP
 \fB\-\-lzma1\fR[\fB=\fIoptions\fR]
 .PD 0
@@ -976,13 +989,12 @@ The only supported modifier is currently
 .BR e ,
 which matches
 .BR \-\-extreme .
-The default
-.I preset
-is
-.BR 6 ,
-from which the default values for the rest of the LZMA1 or LZMA2
+If no
+.B preset
+is specified, the default values of LZMA1 or LZMA2
 .I options
-are taken.
+are taken from the preset
+.BR 6 .
 .TP
 .BI dict= size
 Dictionary (history buffer)
@@ -1578,7 +1590,7 @@ is supported only together with
 .BR \-\-info\-memory ,
 and
 .BR \-\-list .
-It will be supported for normal compression and
+It will be supported for compression and
 decompression in the future.
 .
 .SS Version
@@ -2179,14 +2191,15 @@ The output can vary even between different
 builds of the same XZ Utils version,
 if different build options are used.
 .PP
-The above means that implementing
+The above means that once
 .B \-\-rsyncable
-to create rsyncable
-.B .xz
-files is not going to happen without
-freezing a part of the encoder
-implementation, which can then be used with
-.BR \-\-rsyncable .
+has been implemented,
+the resulting files won't necessarily be rsyncable
+unless both old and new files have been compressed
+with the same xz version.
+This problem can be fixed if a part of the encoder
+implementation is frozen to keep rsyncable output
+stable across xz versions.
 .
 .SS "Embedded .xz decompressors"
 Embedded
