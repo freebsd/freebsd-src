@@ -498,6 +498,24 @@ t4_create_dma_tag(struct adapter *sc)
 	return (rc);
 }
 
+void
+t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *children)
+{
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pktshift", CTLFLAG_RD,
+	    NULL, fl_pktshift, "payload DMA offset in rx buffer (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pad", CTLFLAG_RD,
+	    NULL, fl_pad, "payload pad boundary (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "spg_len", CTLFLAG_RD,
+	    NULL, spg_len, "status page size (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_drop", CTLFLAG_RD,
+	    NULL, cong_drop, "congestion drop setting");
+}
+
 int
 t4_destroy_dma_tag(struct adapter *sc)
 {
