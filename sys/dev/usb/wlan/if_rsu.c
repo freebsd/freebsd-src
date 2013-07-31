@@ -323,7 +323,7 @@ rsu_attach(device_t self)
 		device_printf(sc->sc_dev,
 		    "could not allocate USB transfers, err=%s\n", 
 		    usbd_errstr(error));
-		goto detach;
+		goto fail_usb;
 	}
 	RSU_LOCK(sc);
 	/* Read chip revision. */
@@ -333,7 +333,7 @@ rsu_attach(device_t self)
 	error = rsu_read_rom(sc);
 	if (error != 0) {
 		device_printf(self, "could not read ROM\n");
-		goto detach;
+		goto fail_rom;
 	}
 	RSU_UNLOCK(sc);
 	IEEE80211_ADDR_COPY(sc->sc_bssid, &sc->rom[0x12]);
@@ -341,7 +341,7 @@ rsu_attach(device_t self)
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
 		device_printf(self, "cannot allocate interface\n");
-		goto detach;
+		goto fail_ifalloc;
 	}
 	ic = ifp->if_l2com;
 	ifp->if_softc = sc;
@@ -407,8 +407,11 @@ rsu_attach(device_t self)
 
 	return (0);
 
-detach:
-	rsu_detach(self);
+fail_ifalloc:
+fail_rom:
+	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
+fail_usb:
+	mtx_destroy(&sc->sc_mtx);
 	return (ENXIO);
 }
 
