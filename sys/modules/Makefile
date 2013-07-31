@@ -826,6 +826,7 @@ _sound=		sound
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+_wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
