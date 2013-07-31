@@ -128,3 +128,6 @@ sysdoc		trhodes		Pre-commit review preferred.
 sh(1)		jilles		Pre-commit review requested. This also applies
 				to kill(1), printf(1) and test(1) which are
 				compiled in as builtins.
+nvme(4)		jimharris	Pre-commit review requested.
+nvd(4)		jimharris	Pre-commit review requested.
+nvmecontrol(8)	jimharris	Pre-commit review requested.
