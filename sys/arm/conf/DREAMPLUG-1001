@@ -62,7 +62,6 @@ device		loop			#Network loopback
 device  	md			#Memory/malloc disk
 device		pty			#BSD-style compatibility pseudo ttys
 device		random			#Entropy device
-options 	YARROW_RNG		# Yarrow software RNG
 device  	tun			#Packet tunnel.
 device		ether			#Required for all ethernet devices
 device  	vlan			#802.1Q VLAN support

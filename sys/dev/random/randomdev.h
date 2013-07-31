@@ -38,7 +38,7 @@ typedef void random_write_func_t(void *, int);
 typedef int random_poll_func_t(int, struct thread *);
 typedef void random_reseed_func_t(void);
 
-struct random_adaptor {
+struct random_systat {
 	struct selinfo		rsel;
 	const char		*ident;
 	int			seeded;
@@ -51,5 +51,7 @@ struct random_adaptor {
 	random_reseed_func_t	*reseed;
 };
 
-extern void random_ident_hardware(struct random_adaptor **);
+extern struct random_systat *random_systat;
+
+extern void random_ident_hardware(struct random_systat **);
 extern void random_null_func(void);

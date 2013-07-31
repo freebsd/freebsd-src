@@ -55,7 +55,6 @@ device		pci
 device		loop
 device		md
 device		random
-options 	YARROW_RNG		# Yarrow software RNG
 
 # Serial ports
 device		uart
