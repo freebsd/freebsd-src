@@ -215,7 +215,6 @@ device		ath_rate_sample	# SampleRate tx rate control for ath
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
-options 	YARROW_RNG	# Yarrow software RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.

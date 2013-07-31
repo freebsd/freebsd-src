@@ -905,6 +905,3 @@ RACCT		opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
-
-# Software random number generators for random(4)
-YARROW_RNG	opt_dontuse.h

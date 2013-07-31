@@ -198,7 +198,6 @@ device		loop		# Network loopback
 device		md		# Memory "disks"
 device		puc		# Multi I/O cards and multi-channel UARTs
 device		random		# Entropy device
-options 	YARROW_RNG	# Yarrow software RNG
 device		tun		# Packet tunnel.
 device		uart		# Serial port (UART)
 device		vlan		# 802.1Q VLAN support

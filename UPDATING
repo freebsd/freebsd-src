@@ -31,19 +31,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20130729:
-	random(4) and actual RNG implementations (aka, adaptors) have been
-	further decoupled.  If you are running a custom kernel, you may
-	need to explicitly enable at least one RNG adaptor in your kernel
-	config.  For example, to use Yarrow, add "options YARROW_RNG" to
-	your kernel config.  For hardware backed RNGs, use either
-	"RDRAND_RNG" or "PADLOCK_RNG" options.
-	If you use random.ko via 'random_load="YES"' in /boot/loader.conf
-	instead of "device random", you will need to change that to
-	'yarrow_rng_load="YES"', 'rdrand_rng_load="YES"', or
-	'padlock_rng_load="YES"'.  random.ko will be loaded automatically
-	as a dependency module.
-
 20130726:
 	Behavior of devfs rules path matching has been changed.
 	Pattern is now always matched against fully qualified devfs

@@ -76,7 +76,6 @@ device		pass
 device		pci
 device		quicc
 device		random
-options 	YARROW_RNG	# Yarrow software RNG
 #device		rl
 device		scbus
 device		scc

@@ -1132,9 +1132,6 @@ options 	VFS_AIO
 # Cryptographically secure random number generator; /dev/random
 device		random
 
-# Yarrow software RNG adapter for random
-options 	YARROW_RNG
-
 # The system memory devices; /dev/mem, /dev/kmem
 device		mem
 
