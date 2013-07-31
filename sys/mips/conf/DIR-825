@@ -20,7 +20,6 @@ hints		"DIR-825.hints"
 # Since the kernel image must fit inside 1024KiB, we have to build almost
 # everything as modules.
 nodevice random
-nooptions YARROW_RNG
 nodevice gpio
 nodevice gpioled
 nodevice gif

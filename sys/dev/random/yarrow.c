@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
-#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev_soft.h>
 #include <dev/random/yarrow.h>
 
@@ -102,7 +101,7 @@ random_process_event(struct harvest *event)
 }
 
 void
-random_yarrow_init_alg(struct sysctl_ctx_list *clist)
+random_yarrow_init_alg(struct sysctl_ctx_list *clist, struct sysctl_oid *in_o)
 {
 	int i;
 	struct sysctl_oid *random_yarrow_o;
@@ -111,7 +110,7 @@ random_yarrow_init_alg(struct sysctl_ctx_list *clist)
 	 * have a very good clue about what they do!
 	 */
 	random_yarrow_o = SYSCTL_ADD_NODE(clist,
-		SYSCTL_STATIC_CHILDREN(_kern_random),
+		SYSCTL_CHILDREN(in_o),
 		OID_AUTO, "yarrow", CTLFLAG_RW, 0,
 		"Yarrow Parameters");
 

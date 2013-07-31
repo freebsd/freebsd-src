@@ -61,7 +61,6 @@ options 	MUTEX_DEBUG
 
 # Pseudo devices
 device		random
-options 	YARROW_RNG		# Yarrow software RNG
 device		pty
 device		loop
 device		md

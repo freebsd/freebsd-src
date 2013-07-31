@@ -105,7 +105,6 @@ device		loop
 
 device		md
 device		random		# Entropy device
-options 	YARROW_RNG	# Yarrow software RNG
 
 #options 	ARM_USE_SMALL_ALLOC
 

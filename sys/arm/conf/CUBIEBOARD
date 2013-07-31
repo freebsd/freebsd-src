@@ -92,7 +92,6 @@ device		pty
 device		snp
 device		md
 device		random			# Entropy device
-options 	YARROW_RNG		# Yarrow software RNG
 
 # I2C support
 #device		iicbus
@@ -131,3 +130,4 @@ device		miibus
 options		FDT
 options		FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=cubieboard.dts
+

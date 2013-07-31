@@ -67,7 +67,6 @@ options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 device		random
-options 	YARROW_RNG		# Yarrow software RNG
 device		loop
 device		ether
 device		uart
@@ -130,3 +129,4 @@ device		pass		# Passthrough device (direct SCSI access)
 #device		wlan_tkip	# 802.11 TKIP support
 #device		wlan_amrr	# AMRR transmit rate control algorithm
 options 	ROOTDEVNAME=\"ufs:da0s1a\"
+

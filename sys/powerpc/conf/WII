@@ -72,7 +72,6 @@ makeoptions	SC_DFLT_FONT=cp437
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
-options 	YARROW_RNG	# Yarrow software RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.

@@ -85,7 +85,6 @@ device 		uart
 # Pseudo
 device 		loop
 device 		random
-options 	YARROW_RNG	# Yarrow software RNG
 device 		md
 device		bpf
 

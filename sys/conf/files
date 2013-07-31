@@ -540,8 +540,8 @@ crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
-					 ipsec | yarrow_rng | wlan_ccmp
-crypto/rijndael/rijndael-api-fst.c optional geom_bde | yarrow_rng
+					 ipsec | random | wlan_ccmp
+crypto/rijndael/rijndael-api-fst.c optional geom_bde | random
 crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
@@ -2030,12 +2030,11 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
 dev/random/harvest.c		standard
-dev/random/hash.c		optional yarrow_rng
+dev/random/hash.c		optional random
 dev/random/probe.c		optional random
-dev/random/random_adaptors.c	standard
 dev/random/randomdev.c		optional random
-dev/random/randomdev_soft.c	optional yarrow_rng
-dev/random/yarrow.c		optional yarrow_rng
+dev/random/randomdev_soft.c	optional random
+dev/random/yarrow.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rndtest/rndtest.c		optional rndtest
