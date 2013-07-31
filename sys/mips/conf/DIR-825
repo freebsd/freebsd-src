@@ -25,7 +25,7 @@ nodevice gpio
 nodevice gpioled
 nodevice gif
 nodevice gre
-nodevice bridge
+nodevice if_bridge
 nodevice usb
 nodevice ehci
 nodevice wlan
