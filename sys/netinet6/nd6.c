@@ -1227,6 +1227,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct nd_prefix *pr;
 	int i = 0, error = 0;
 
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return (EPFNOSUPPORT);
 	switch (cmd) {
 	case SIOCGDRLST_IN6:
 		/*
@@ -1801,6 +1803,8 @@ nd6_slowtimo(void *arg)
 	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+		if (ifp->if_afdata[AF_INET6] == NULL)
+			continue;
 		nd6if = ND_IFINFO(ifp);
 		if (nd6if->basereachable && /* already initialized */
 		    (nd6if->recalctm -= ND6_SLOWTIMER_INTERVAL) <= 0) {
