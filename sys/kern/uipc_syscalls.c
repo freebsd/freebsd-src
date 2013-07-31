@@ -122,7 +122,7 @@ counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 int nsfbufs;
 int nsfbufspeak;
 int nsfbufsused;
-static int sfreadahead = MAXPHYS / MAXBSIZE;
+static int sfreadahead = 1;
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
     "Maximum number of sendfile(2) sf_bufs available");
