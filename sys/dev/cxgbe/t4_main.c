@@ -4223,6 +4223,8 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
 
+	t4_sge_sysctls(sc, ctx, children);
+
 #ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
