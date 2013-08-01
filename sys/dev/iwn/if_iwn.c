@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_wlan.h"
+#include "opt_iwn.h"
 
 #include <sys/param.h>
 #include <sys/sockio.h>
