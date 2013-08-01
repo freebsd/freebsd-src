@@ -39,8 +39,6 @@ nodevice	ncv
 nodevice	nsp
 nodevice	stg
 
-nodevice	ctl
-
 nodevice	asr
 nodevice	dpt
 nodevice	mly
