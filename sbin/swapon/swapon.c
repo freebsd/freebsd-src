@@ -446,7 +446,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 	FILE *sfd;
 	int fd, mdunit, error;
 	const char *ret;
-	char mdpath[PATH_MAX], linebuf[PATH_MAX];
+	static char mdpath[PATH_MAX], linebuf[PATH_MAX];
 	char *p, *vnodefile;
 	size_t linelen;
 	u_long ul;

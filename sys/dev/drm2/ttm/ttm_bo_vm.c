@@ -102,7 +102,7 @@ ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
 	struct ttm_buffer_object *bo = vm_obj->handle;
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_tt *ttm = NULL;
-	vm_page_t m, oldm;
+	vm_page_t m, m1, oldm;
 	int ret;
 	int retval = VM_PAGER_OK;
 	struct ttm_mem_type_manager *man =
@@ -220,7 +220,14 @@ reserve:
 	}
 	m->valid = VM_PAGE_BITS_ALL;
 	*mres = m;
-	vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
+	m1 = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	if (m1 == NULL) {
+		vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
+	} else {
+		KASSERT(m == m1,
+		    ("inconsistent insert bo %p m %p m1 %p offset %jx",
+		    bo, m, m1, (uintmax_t)offset));
+	}
 	vm_page_busy(m);
 
 	if (oldm != NULL) {

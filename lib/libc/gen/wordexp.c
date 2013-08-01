@@ -251,7 +251,8 @@ we_check(const char *words, int flags)
 	while ((c = *words++) != '\0') {
 		switch (c) {
 		case '\\':
-			quote ^= 1;
+			if (squote == 0)
+				quote ^= 1;
 			continue;
 		case '\'':
 			if (quote + dquote == 0)

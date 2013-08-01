@@ -148,6 +148,7 @@ process_committed_leaf(svn_wc__db_t *db,
                                 db, local_abspath,
                                 FALSE /* keep_as_working */,
                                 FALSE /* queue_deletes */,
+                                TRUE  /* remove_locks */,
                                 (! via_recurse)
                                     ? new_revnum : SVN_INVALID_REVNUM,
                                 NULL, NULL,

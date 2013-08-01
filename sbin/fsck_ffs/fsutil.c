@@ -549,7 +549,18 @@ blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 			slowio_end();
 		return (0);
 	}
-	rwerror("READ BLK", blk);
+
+	/*
+	 * This is handled specially here instead of in rwerror because
+	 * rwerror is used for all sorts of errors, not just true read/write
+	 * errors.  It should be refactored and fixed.
+	 */
+	if (surrender) {
+		pfatal("CANNOT READ_BLK: %ld", (long)blk);
+		errx(EEXIT, "ABORTING DUE TO READ ERRORS");
+	} else
+		rwerror("READ BLK", blk);
+
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK BLK", blk);
 	errs = 0;

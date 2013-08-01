@@ -75,25 +75,6 @@ struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
 
-
-
-#ifdef mkinit
-
-INCLUDE "output.h"
-INCLUDE "memalloc.h"
-
-RESET {
-	out1 = &output;
-	out2 = &errout;
-	if (memout.buf != NULL) {
-		ckfree(memout.buf);
-		memout.buf = NULL;
-	}
-}
-
-#endif
-
-
 void
 outcslow(int c, struct output *file)
 {

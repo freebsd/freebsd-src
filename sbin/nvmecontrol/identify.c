@@ -43,16 +43,18 @@ __FBSDID("$FreeBSD$");
 static void
 print_controller(struct nvme_controller_data *cdata)
 {
+	uint8_t str[128];
+
 	printf("Controller Capabilities/Features\n");
 	printf("================================\n");
 	printf("Vendor ID:                  %04x\n", cdata->vid);
 	printf("Subsystem Vendor ID:        %04x\n", cdata->ssvid);
-	printf("Serial Number:              %.*s\n",
-	    NVME_SERIAL_NUMBER_LENGTH, cdata->sn);
-	printf("Model Number:               %.*s\n",
-	    NVME_MODEL_NUMBER_LENGTH, cdata->mn);
-	printf("Firmware Version:           %.*s\n",
-	    NVME_FIRMWARE_REVISION_LENGTH, cdata->fr);
+	nvme_strvis(str, cdata->sn, sizeof(str), NVME_SERIAL_NUMBER_LENGTH);
+	printf("Serial Number:              %s\n", str);
+	nvme_strvis(str, cdata->mn, sizeof(str), NVME_MODEL_NUMBER_LENGTH);
+	printf("Model Number:               %s\n", str);
+	nvme_strvis(str, cdata->fr, sizeof(str), NVME_FIRMWARE_REVISION_LENGTH);
+	printf("Firmware Version:           %s\n", str);
 	printf("Recommended Arb Burst:      %d\n", cdata->rab);
 	printf("IEEE OUI Identifier:        %02x %02x %02x\n",
 		cdata->ieee[0], cdata->ieee[1], cdata->ieee[2]);

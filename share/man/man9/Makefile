@@ -954,7 +954,9 @@ MLINKS+=microuptime.9 binuptime.9 \
 	microuptime.9 getbinuptime.9 \
 	microuptime.9 getmicrouptime.9 \
 	microuptime.9 getnanouptime.9 \
-	microuptime.9 nanouptime.9
+	microuptime.9 getsbinuptime.9 \
+	microuptime.9 nanouptime.9 \
+	microuptime.9 sbinuptime.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
 	mi_switch.9 cpu_throw.9
 MLINKS+=mtx_pool.9 mtx_pool_alloc.9 \

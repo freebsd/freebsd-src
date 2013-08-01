@@ -1108,46 +1108,6 @@ svn_cl__local_style_skip_ancestor(const char *parent_path,
   return svn_dirent_local_style(relpath ? relpath : path, pool);
 }
 
-/* Return a string of the form "PATH_OR_URL@REVISION". */
-static const char *
-path_for_display(const char *path_or_url,
-                 const svn_opt_revision_t *revision,
-                 apr_pool_t *pool)
-{
-  const char *rev_str = svn_opt__revision_to_string(revision, pool);
-
-  if (! svn_path_is_url(path_or_url))
-    path_or_url = svn_dirent_local_style(path_or_url, pool);
-  return apr_psprintf(pool, "%s@%s", path_or_url, rev_str);
-}
-
-svn_error_t *
-svn_cl__check_related_source_and_target(const char *path_or_url1,
-                                        const svn_opt_revision_t *revision1,
-                                        const char *path_or_url2,
-                                        const svn_opt_revision_t *revision2,
-                                        svn_client_ctx_t *ctx,
-                                        apr_pool_t *pool)
-{
-  const char *ancestor_url;
-  svn_revnum_t ancestor_rev;
-
-  SVN_ERR(svn_client__youngest_common_ancestor(
-            &ancestor_url, &ancestor_rev,
-            path_or_url1, revision1, path_or_url2, revision2,
-            ctx, pool, pool));
-
-  if (ancestor_url == NULL)
-    {
-      return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                               _("Source and target have no common ancestor: "
-                                 "'%s' and '%s'"),
-                               path_for_display(path_or_url1, revision1, pool),
-                               path_for_display(path_or_url2, revision2, pool));
-    }
-  return SVN_NO_ERROR;
-}
-
 svn_error_t *
 svn_cl__propset_print_binary_mime_type_warning(apr_array_header_t *targets,
                                                const char *propname,

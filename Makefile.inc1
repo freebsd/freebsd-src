@@ -833,6 +833,18 @@ distributeworld installworld: installcheck installcheck_UGID
 	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.meta
 .endfor
+.if ${MK_DEBUG_FILES} != "no"
+. for dist in base ${EXTRA_DISTRIBUTIONS}
+	@# For each file that exists in this dist, print the corresponding
+	@# line from the METALOG.  This relies on the fact that
+	@# a line containing only the filename will sort immediatly before
+	@# the relevant mtree line.
+	cd ${DESTDIR}/${DISTDIR}; \
+	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
+	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
+	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
+. endfor
+.endif
 .endif
 .endif
 
@@ -841,12 +853,28 @@ packageworld:
 .if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
+	    --exclude usr/lib/debug \
 	    @${DESTDIR}/${DISTDIR}/${dist}.meta
 .else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz .
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz \
+	    --exclude usr/lib/debug .
 .endif
 .endfor
+
+.if ${MK_DEBUG_FILES} != "no"
+. for dist in base ${EXTRA_DISTRIBUTIONS}
+.  if defined(NO_ROOT)
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
+.  else
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    usr/lib/debug
+.  endif
+. endfor
+.endif
 
 #
 # reinstall

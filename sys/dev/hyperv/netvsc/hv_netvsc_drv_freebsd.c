@@ -943,6 +943,6 @@ static devclass_t netvsc_devclass;
 DRIVER_MODULE(hn, vmbus, netvsc_driver, netvsc_devclass, 0, 0);
 MODULE_VERSION(hn, 1);
 MODULE_DEPEND(hn, vmbus, 1, 1, 1);
-SYSINIT(netvsc_initx, SI_SUB_RUN_SCHEDULER, SI_ORDER_MIDDLE + 1, netvsc_init,
+SYSINIT(netvsc_initx, SI_SUB_KTHREAD_IDLE, SI_ORDER_MIDDLE + 1, netvsc_init,
      NULL);
 

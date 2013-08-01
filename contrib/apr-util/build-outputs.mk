@@ -15,8 +15,10 @@ buckets/apr_buckets_simple.lo: buckets/apr_buckets_simple.c .make.dirs include/a
 buckets/apr_buckets_socket.lo: buckets/apr_buckets_socket.c .make.dirs include/apr_buckets.h
 crypto/apr_crypto.lo: crypto/apr_crypto.c .make.dirs include/apr_crypto.h include/apu_errno.h include/apu_version.h include/private/apr_crypto_internal.h include/private/apu_internal.h
 crypto/apr_md4.lo: crypto/apr_md4.c .make.dirs include/apr_md4.h include/apr_xlate.h
-crypto/apr_md5.lo: crypto/apr_md5.c .make.dirs include/apr_md5.h include/apr_sha1.h include/apr_xlate.h
+crypto/apr_md5.lo: crypto/apr_md5.c .make.dirs include/apr_md5.h include/apr_xlate.h
+crypto/apr_passwd.lo: crypto/apr_passwd.c .make.dirs include/apr_md5.h include/apr_sha1.h include/apr_xlate.h
 crypto/apr_sha1.lo: crypto/apr_sha1.c .make.dirs include/apr_base64.h include/apr_sha1.h include/apr_xlate.h
+crypto/crypt_blowfish.lo: crypto/crypt_blowfish.c .make.dirs 
 crypto/getuuid.lo: crypto/getuuid.c .make.dirs include/apr_md5.h include/apr_uuid.h include/apr_xlate.h
 crypto/uuid.lo: crypto/uuid.c .make.dirs include/apr_uuid.h
 dbd/apr_dbd.lo: dbd/apr_dbd.c .make.dirs include/apr_dbd.h include/apu_version.h include/private/apr_dbd_internal.h include/private/apu_internal.h
@@ -43,7 +45,7 @@ uri/apr_uri.lo: uri/apr_uri.c .make.dirs include/apr_uri.h
 xlate/xlate.lo: xlate/xlate.c .make.dirs include/apr_xlate.h
 xml/apr_xml.lo: xml/apr_xml.c .make.dirs include/apr_xlate.h include/apr_xml.h
 
-OBJECTS_all = buckets/apr_brigade.lo buckets/apr_buckets.lo buckets/apr_buckets_alloc.lo buckets/apr_buckets_eos.lo buckets/apr_buckets_file.lo buckets/apr_buckets_flush.lo buckets/apr_buckets_heap.lo buckets/apr_buckets_mmap.lo buckets/apr_buckets_pipe.lo buckets/apr_buckets_pool.lo buckets/apr_buckets_refcount.lo buckets/apr_buckets_simple.lo buckets/apr_buckets_socket.lo crypto/apr_crypto.lo crypto/apr_md4.lo crypto/apr_md5.lo crypto/apr_sha1.lo crypto/getuuid.lo crypto/uuid.lo dbd/apr_dbd.lo dbm/apr_dbm.lo dbm/apr_dbm_sdbm.lo dbm/sdbm/sdbm.lo dbm/sdbm/sdbm_hash.lo dbm/sdbm/sdbm_lock.lo dbm/sdbm/sdbm_pair.lo encoding/apr_base64.lo hooks/apr_hooks.lo ldap/apr_ldap_stub.lo ldap/apr_ldap_url.lo memcache/apr_memcache.lo misc/apr_date.lo misc/apr_queue.lo misc/apr_reslist.lo misc/apr_rmm.lo misc/apr_thread_pool.lo misc/apu_dso.lo misc/apu_version.lo strmatch/apr_strmatch.lo uri/apr_uri.lo xlate/xlate.lo xml/apr_xml.lo
+OBJECTS_all = buckets/apr_brigade.lo buckets/apr_buckets.lo buckets/apr_buckets_alloc.lo buckets/apr_buckets_eos.lo buckets/apr_buckets_file.lo buckets/apr_buckets_flush.lo buckets/apr_buckets_heap.lo buckets/apr_buckets_mmap.lo buckets/apr_buckets_pipe.lo buckets/apr_buckets_pool.lo buckets/apr_buckets_refcount.lo buckets/apr_buckets_simple.lo buckets/apr_buckets_socket.lo crypto/apr_crypto.lo crypto/apr_md4.lo crypto/apr_md5.lo crypto/apr_passwd.lo crypto/apr_sha1.lo crypto/crypt_blowfish.lo crypto/getuuid.lo crypto/uuid.lo dbd/apr_dbd.lo dbm/apr_dbm.lo dbm/apr_dbm_sdbm.lo dbm/sdbm/sdbm.lo dbm/sdbm/sdbm_hash.lo dbm/sdbm/sdbm_lock.lo dbm/sdbm/sdbm_pair.lo encoding/apr_base64.lo hooks/apr_hooks.lo ldap/apr_ldap_stub.lo ldap/apr_ldap_url.lo memcache/apr_memcache.lo misc/apr_date.lo misc/apr_queue.lo misc/apr_reslist.lo misc/apr_rmm.lo misc/apr_thread_pool.lo misc/apu_dso.lo misc/apu_version.lo strmatch/apr_strmatch.lo uri/apr_uri.lo xlate/xlate.lo xml/apr_xml.lo
 
 OBJECTS_unix = $(OBJECTS_all)
 

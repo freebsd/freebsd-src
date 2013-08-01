@@ -31,20 +31,36 @@
 # MK_SOURCELESS_UCODE option (see below).
 
 SUBDIR = usb
-SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} ${_atmegadci} ${_avr32dci}
-SUBDIR += ${_rum} run ${_uath} upgt usie ural ${_zyd} ${_urtw} urtwn urtwnfw
+SUBDIR += ${_dwc_otg} ehci ${_musb} ohci uhci xhci ${_uss820dci} ${_at91dci} \
+	  ${_atmegadci} ${_avr32dci} ${_rsu} ${_rsufw}
+SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw} 
+SUBDIR += ${_urtwn} ${_urtwnfw}
 SUBDIR += atp uhid ukbd ums udbp ufm uep
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
 SUBDIR += uether aue axe cdce cue ${_kue} mos rue smsc udav uhso ipheth
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
+SUBDIR += ${_g_audio} ${_g_keyboard} ${_g_modem} ${_g_mouse}
+
+.if ${MK_USB_GADGET_EXAMPLES} == "yes"
+_g_audio=	g_audio
+_g_keyboard=	g_keyboard
+_g_modem=	g_modem
+_g_mouse=	g_mouse
+.endif
 
 .if ${MK_SOURCELESS_UCODE} != "no"
 _rum=		rum
 _uath=		uath
 _zyd=		zyd
 _kue=		kue
+_urtwn=		urtwn
+_urtwnfw=	urtwnfw
+_run=		run
+_runfw=		runfw
+_rsu=		rsu
+_rsufw=		rsufw
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"

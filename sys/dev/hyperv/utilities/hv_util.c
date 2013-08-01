@@ -488,5 +488,5 @@ DRIVER_MODULE(hv_utils, vmbus, util_driver, util_devclass, hv_util_modevent, 0);
 MODULE_VERSION(hv_utils, 1);
 MODULE_DEPEND(hv_utils, vmbus, 1, 1, 1);
 
-SYSINIT(hv_util_initx, SI_SUB_RUN_SCHEDULER, SI_ORDER_MIDDLE + 1,
+SYSINIT(hv_util_initx, SI_SUB_KTHREAD_IDLE, SI_ORDER_MIDDLE + 1,
 	hv_util_init, NULL);

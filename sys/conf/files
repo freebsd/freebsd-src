@@ -1155,6 +1155,8 @@ dev/cxgbe/t4_sge.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_l2t.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/t4_tracer.c		optional cxgbe pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/common/t4_hw.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 t4fw_cfg.c		optional cxgbe					\
@@ -1368,6 +1370,7 @@ dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
 dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_vlans.c	optional arswitch
 dev/etherswitch/etherswitch.c		optional etherswitch
 dev/etherswitch/etherswitch_if.m	optional etherswitch
 dev/etherswitch/ip17x/ip17x.c		optional ip17x
@@ -2308,6 +2311,21 @@ dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
 #
+dev/usb/wlan/if_rsu.c		optional rsu
+rsu-rtl8712fw.c			optional rsu-rtl8712fw | rsufw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rsu-rtl8712fw.fw:rsu-rtl8712fw:120 -mrsu-rtl8712fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rsu-rtl8712fw.c"
+rsu-rtl8712fw.fwo		optional rsu-rtl8712fw | rsufw		\
+	dependency	"rsu-rtl8712fw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rsu-rtl8712fw.fwo"
+rsu-rtl8712fw.fw		optional rsu-rtl8712.fw | rsufw		\
+	dependency	"$S/contrib/dev/rsu/rsu-rtl8712fw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rsu-rtl8712fw.fw"
 dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_run.c		optional run
 runfw.c				optional runfw							\
@@ -2973,6 +2991,7 @@ libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
+libkern/flsll.c                 standard
 libkern/fnmatch.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv

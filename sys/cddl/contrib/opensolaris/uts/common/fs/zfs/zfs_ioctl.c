@@ -3566,13 +3566,13 @@ zfs_ioc_rollback(zfs_cmd_t *zc)
 		if (error == 0) {
 			int resume_err;
 
-			error = dsl_dataset_rollback(zc->zc_name);
+			error = dsl_dataset_rollback(zc->zc_name, zfsvfs);
 			resume_err = zfs_resume_fs(zfsvfs, zc->zc_name);
 			error = error ? error : resume_err;
 		}
 		VFS_RELE(zfsvfs->z_vfs);
 	} else {
-		error = dsl_dataset_rollback(zc->zc_name);
+		error = dsl_dataset_rollback(zc->zc_name, NULL);
 	}
 	return (error);
 }
@@ -4101,13 +4101,13 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 			 * If the suspend fails, then the recv_end will
 			 * likely also fail, and clean up after itself.
 			 */
-			end_err = dmu_recv_end(&drc);
+			end_err = dmu_recv_end(&drc, zfsvfs);
 			if (error == 0)
 				error = zfs_resume_fs(zfsvfs, tofs);
 			error = error ? error : end_err;
 			VFS_RELE(zfsvfs->z_vfs);
 		} else {
-			error = dmu_recv_end(&drc);
+			error = dmu_recv_end(&drc, NULL);
 		}
 	}
 
@@ -4598,8 +4598,11 @@ zfs_ioc_userspace_upgrade(zfs_cmd_t *zc)
 			 * objset_phys_t).  Suspend/resume the fs will do that.
 			 */
 			error = zfs_suspend_fs(zfsvfs);
-			if (error == 0)
+			if (error == 0) {
+				dmu_objset_refresh_ownership(zfsvfs->z_os,
+				    zfsvfs);
 				error = zfs_resume_fs(zfsvfs, zc->zc_name);
+			}
 		}
 		if (error == 0)
 			error = dmu_objset_userspace_upgrade(zfsvfs->z_os);
@@ -5495,10 +5498,10 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_read, B_FALSE, POOL_CHECK_NONE);
 
 	zfs_ioctl_register_pool(ZFS_IOC_ERROR_LOG, zfs_ioc_error_log,
-	    zfs_secpolicy_inject, B_FALSE, POOL_CHECK_SUSPENDED);
+	    zfs_secpolicy_inject, B_FALSE, POOL_CHECK_NONE);
 	zfs_ioctl_register_pool(ZFS_IOC_DSOBJ_TO_DSNAME,
 	    zfs_ioc_dsobj_to_dsname,
-	    zfs_secpolicy_diff, B_FALSE, POOL_CHECK_SUSPENDED);
+	    zfs_secpolicy_diff, B_FALSE, POOL_CHECK_NONE);
 	zfs_ioctl_register_pool(ZFS_IOC_POOL_GET_HISTORY,
 	    zfs_ioc_pool_get_history,
 	    zfs_secpolicy_config, B_FALSE, POOL_CHECK_SUSPENDED);
@@ -5507,7 +5510,7 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_NONE);
 
 	zfs_ioctl_register_pool(ZFS_IOC_CLEAR, zfs_ioc_clear,
-	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_SUSPENDED);
+	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_NONE);
 	zfs_ioctl_register_pool(ZFS_IOC_POOL_REOPEN, zfs_ioc_pool_reopen,
 	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_SUSPENDED);
 
@@ -6187,54 +6190,96 @@ _info(struct modinfo *modinfop)
 }
 #endif	/* sun */
 
+static int zfs__init(void);
+static int zfs__fini(void);
+static void zfs_shutdown(void *, int);
+
+static eventhandler_tag zfs_shutdown_event_tag;
+
+int
+zfs__init(void)
+{
+
+	zfs_root_token = root_mount_hold("ZFS");
+
+	mutex_init(&zfs_share_lock, NULL, MUTEX_DEFAULT, NULL);
+
+	spa_init(FREAD | FWRITE);
+	zfs_init();
+	zvol_init();
+	zfs_ioctl_init();
+
+	tsd_create(&zfs_fsyncer_key, NULL);
+	tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
+	tsd_create(&zfs_allow_log_key, zfs_allow_log_destroy);
+
+	printf("ZFS storage pool version: features support (" SPA_VERSION_STRING ")\n");
+	root_mount_rel(zfs_root_token);
+
+	zfsdev_init();
+
+	return (0);
+}
+
+int
+zfs__fini(void)
+{
+	if (spa_busy() || zfs_busy() || zvol_busy() ||
+	    zio_injection_enabled) {
+		return (EBUSY);
+	}
+
+	zfsdev_fini();
+	zvol_fini();
+	zfs_fini();
+	spa_fini();
+
+	tsd_destroy(&zfs_fsyncer_key);
+	tsd_destroy(&rrw_tsd_key);
+	tsd_destroy(&zfs_allow_log_key);
+
+	mutex_destroy(&zfs_share_lock);
+
+	return (0);
+}
+
+static void
+zfs_shutdown(void *arg __unused, int howto __unused)
+{
+
+	/*
+	 * ZFS fini routines can not properly work in a panic-ed system.
+	 */
+	if (panicstr == NULL)
+		(void)zfs__fini();
+}
+
+
 static int
 zfs_modevent(module_t mod, int type, void *unused __unused)
 {
-	int error = 0;
+	int err;
 
 	switch (type) {
 	case MOD_LOAD:
-		zfs_root_token = root_mount_hold("ZFS");
-
-		mutex_init(&zfs_share_lock, NULL, MUTEX_DEFAULT, NULL);
-
-		spa_init(FREAD | FWRITE);
-		zfs_init();
-		zvol_init();
-		zfs_ioctl_init();
-
-		tsd_create(&zfs_fsyncer_key, NULL);
-		tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
-		tsd_create(&zfs_allow_log_key, zfs_allow_log_destroy);
-
-		printf("ZFS storage pool version: features support (" SPA_VERSION_STRING ")\n");
-		root_mount_rel(zfs_root_token);
-
-		zfsdev_init();
-		break;
+		err = zfs__init();
+		if (err == 0)
+			zfs_shutdown_event_tag = EVENTHANDLER_REGISTER(
+			    shutdown_post_sync, zfs_shutdown, NULL,
+			    SHUTDOWN_PRI_FIRST);
+		return (err);
 	case MOD_UNLOAD:
-		if (spa_busy() || zfs_busy() || zvol_busy() ||
-		    zio_injection_enabled) {
-			error = EBUSY;
-			break;
-		}
-
-		zfsdev_fini();
-		zvol_fini();
-		zfs_fini();
-		spa_fini();
-
-		tsd_destroy(&zfs_fsyncer_key);
-		tsd_destroy(&rrw_tsd_key);
-		tsd_destroy(&zfs_allow_log_key);
-
-		mutex_destroy(&zfs_share_lock);
-		break;
+		err = zfs__fini();
+		if (err == 0 && zfs_shutdown_event_tag != NULL)
+			EVENTHANDLER_DEREGISTER(shutdown_post_sync,
+			    zfs_shutdown_event_tag);
+		return (err);
+	case MOD_SHUTDOWN:
+		return (0);
 	default:
-		error = EOPNOTSUPP;
 		break;
 	}
-	return (error);
+	return (EOPNOTSUPP);
 }
 
 static moduledata_t zfs_mod = {
