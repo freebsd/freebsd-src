@@ -1146,6 +1146,8 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 	char *q;
 #endif
 
+	if (idx < 0 || idx >= RTAX_MAX)
+		usage("internal error");
 	if (af == 0) {
 #if defined(INET)
 		af = AF_INET;
@@ -1162,9 +1164,6 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 	hpp = NULL;
 #endif
 	rtm_addrs |= (1 << idx);
-
-	if (idx > RTAX_MAX)
-		usage("internal error");
 	sa = (struct sockaddr *)&so[idx];
 	sa->sa_family = af;
 	sa->sa_len = aflen;
