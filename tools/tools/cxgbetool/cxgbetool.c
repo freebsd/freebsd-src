@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #define	max(x, y) ((x) > (y) ? (x) : (y))
 
 static const char *progname, *nexus;
+static int chip_id;	/* 4 for T4, 5 for T5 */
 
 struct reg_info {
 	const char *name;
@@ -125,6 +126,7 @@ real_doit(unsigned long cmd, void *data, const char *cmdstr)
 			rc = errno;
 			return (rc);
 		}
+		chip_id = nexus[1] - '0';
 	}
 
 	rc = ioctl(fd, cmd, data);
@@ -1365,6 +1367,15 @@ show_sge_context(const struct t4_sge_context *p)
 		FIELD("CngChMap:", 0, 3),
 		{ NULL }
 	};
+	static struct field_desc t5_conm[] = {
+		FIELD1("CngMPSEnable:", 21),
+		FIELD("CngTPMode:", 19, 20),
+		FIELD1("CngDBPHdr:", 18),
+		FIELD1("CngDBPData:", 17),
+		FIELD1("CngIMSG:", 16),
+		FIELD("CngChMap:", 0, 15),
+		{ NULL }
+	};
 
 	if (p->mem_id == SGE_CONTEXT_EGRESS)
 		show_struct(p->data, 6, (p->data[0] & 2) ? fl : egress);
@@ -1373,7 +1384,7 @@ show_sge_context(const struct t4_sge_context *p)
 	else if (p->mem_id == SGE_CONTEXT_INGRESS)
 		show_struct(p->data, 5, ingress);
 	else if (p->mem_id == SGE_CONTEXT_CNM)
-		show_struct(p->data, 1, conm);
+		show_struct(p->data, 1, chip_id == 5 ? t5_conm : conm);
 }
 
 #undef FIELD
