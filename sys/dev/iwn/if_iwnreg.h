@@ -62,6 +62,7 @@
 #define IWN_INT			0x008
 #define IWN_INT_MASK		0x00c
 #define IWN_FH_INT		0x010
+#define IWN_GPIO_IN		0x018	/* read external chip pins */
 #define IWN_RESET		0x020
 #define IWN_GP_CNTRL		0x024
 #define IWN_HW_REV		0x028
@@ -69,8 +70,12 @@
 #define IWN_EEPROM_GP		0x030
 #define IWN_OTP_GP		0x034
 #define IWN_GIO			0x03c
+#define IWN_GP_UCODE		0x048
 #define IWN_GP_DRIVER		0x050
+#define IWN_UCODE_GP1		0x054
+#define IWN_UCODE_GP1_SET	0x058
 #define IWN_UCODE_GP1_CLR	0x05c
+#define IWN_UCODE_GP2		0x060
 #define IWN_LED			0x094
 #define IWN_DRAM_INT_TBL	0x0a0
 #define IWN_SHADOW_REG_CTRL	0x0a8
@@ -79,6 +84,7 @@
 #define IWN_HW_REV_WA		0x22c
 #define IWN_DBG_HPET_MEM	0x240
 #define IWN_DBG_LINK_PWR_MGMT	0x250
+/* Need nic_lock for use above */
 #define IWN_MEM_RADDR		0x40c
 #define IWN_MEM_WADDR		0x410
 #define IWN_MEM_WDATA		0x418
