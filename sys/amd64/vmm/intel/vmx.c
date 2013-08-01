@@ -167,9 +167,6 @@ static int cap_pause_exit;
 static int cap_unrestricted_guest;
 static int cap_monitor_trap;
  
-/* statistics */
-static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
-
 #ifdef KTR
 static const char *
 exit_reason_to_str(int reason)
@@ -1239,18 +1236,47 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	int error, handled;
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
-	uint32_t eax, ecx, edx;
-	uint64_t qual, gpa, intr_info;
+	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, reason;
+	uint64_t qual, gpa;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
 	qual = vmexit->u.vmx.exit_qualification;
+	reason = vmexit->u.vmx.exit_reason;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
 
 	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
 
-	switch (vmexit->u.vmx.exit_reason) {
+	/*
+	 * VM exits that could be triggered during event injection on the
+	 * previous VM entry need to be handled specially by re-injecting
+	 * the event.
+	 *
+	 * See "Information for VM Exits During Event Delivery" in Intel SDM
+	 * for details.
+	 */
+	switch (reason) {
+	case EXIT_REASON_EPT_FAULT:
+	case EXIT_REASON_EPT_MISCONFIG:
+	case EXIT_REASON_APIC:
+	case EXIT_REASON_TASK_SWITCH:
+	case EXIT_REASON_EXCEPTION:
+		idtvec_info = vmcs_idt_vectoring_info();
+		if (idtvec_info & VMCS_IDT_VEC_VALID) {
+			idtvec_info &= ~(1 << 12); /* clear undefined bit */
+			vmwrite(VMCS_ENTRY_INTR_INFO, idtvec_info);
+			if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
+				idtvec_err = vmcs_idt_vectoring_err();
+				vmwrite(VMCS_ENTRY_EXCEPTION_ERROR, idtvec_err);
+			}
+			vmwrite(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
+		}
+	default:
+		break;
+	}
+
+	switch (reason) {
 	case EXIT_REASON_CR_ACCESS:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
 		handled = vmx_emulate_cr_access(vmx, vcpu, qual);
@@ -1281,19 +1307,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
-		/*
-		 * If there is an event waiting to be injected then there is
-		 * no need to 'hlt'.
-		 */
-		error = vmread(VMCS_ENTRY_INTR_INFO, &intr_info);
-		if (error)
-			panic("vmx_exit_process: vmread(intrinfo) %d", error);
-
-		if (intr_info & VMCS_INTERRUPTION_INFO_VALID) {
-			handled = 1;
-			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT_IGNORED, 1);
-		} else
-			vmexit->exitcode = VM_EXITCODE_HLT;
+		vmexit->exitcode = VM_EXITCODE_HLT;
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);

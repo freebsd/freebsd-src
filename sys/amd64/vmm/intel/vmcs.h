@@ -68,6 +68,8 @@ uint64_t vmcs_read(uint32_t encoding);
 #define	vmcs_guest_cr3()		vmcs_read(VMCS_GUEST_CR3)
 #define	vmcs_gpa()			vmcs_read(VMCS_GUEST_PHYSICAL_ADDRESS)
 #define	vmcs_gla()			vmcs_read(VMCS_GUEST_LINEAR_ADDRESS)
+#define	vmcs_idt_vectoring_info()	vmcs_read(VMCS_IDT_VECTORING_INFO)
+#define	vmcs_idt_vectoring_err()	vmcs_read(VMCS_IDT_VECTORING_ERROR)
 
 #endif	/* _KERNEL */
 
@@ -312,6 +314,12 @@ uint64_t vmcs_read(uint32_t encoding);
 #define	VMCS_INTERRUPTION_INFO_VALID	(1U << 31)
 #define	VMCS_INTERRUPTION_INFO_HW_INTR	(0 << 8)
 #define	VMCS_INTERRUPTION_INFO_NMI	(2 << 8)
+
+/*
+ * VMCS IDT-Vectoring information fields
+ */
+#define	VMCS_IDT_VEC_VALID		(1 << 31)
+#define	VMCS_IDT_VEC_ERRCODE_VALID	(1 << 11)
 
 /*
  * VMCS Guest interruptibility field
