@@ -82,6 +82,8 @@ int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 int	atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
+int	atomic_testandset_int(volatile u_int *p, int v);
+int	atomic_testandset_long(volatile u_long *p, int v);
 
 #define	ATOMIC_LOAD(TYPE, LOP)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
@@ -209,6 +211,42 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 	: "m" (*p)			/* 2 */
 	: "cc");
 	return (v);
+}
+
+static __inline int
+atomic_testandset_int(volatile u_int *p, int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btsl	%2, %1 ;	"
+	"	setc	%0 ;		"
+	"# atomic_testandset_int"
+	: "=r" (res),			/* 0 */
+	  "=m" (*p)			/* 1 */
+	: "r" (v),			/* 2 */
+	  "m" (*p)			/* 3 */
+	: "cc");
+	return (res);
+}
+
+static __inline int
+atomic_testandset_long(volatile u_long *p, int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btsq	%2, %1 ;	"
+	"	setc	%0 ;		"
+	"# atomic_testandset_long"
+	: "=r" (res),			/* 0 */
+	  "=m" (*p)			/* 1 */
+	: "r" ((u_long)v),		/* 2 */
+	  "m" (*p)			/* 3 */
+	: "cc");
+	return (res);
 }
 
 /*
@@ -435,6 +473,7 @@ u_long	atomic_swap_long(volatile u_long *, u_long);
 #define	atomic_swap_32		atomic_swap_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
+#define	atomic_testandset_32	atomic_testandset_int
 
 /* Operations on 64-bit quad words. */
 #define	atomic_set_64		atomic_set_long
@@ -456,6 +495,7 @@ u_long	atomic_swap_long(volatile u_long *, u_long);
 #define	atomic_cmpset_rel_64	atomic_cmpset_rel_long
 #define	atomic_swap_64		atomic_swap_long
 #define	atomic_readandclear_64	atomic_readandclear_long
+#define	atomic_testandset_64	atomic_testandset_long
 
 /* Operations on pointers. */
 #define	atomic_set_ptr		atomic_set_long

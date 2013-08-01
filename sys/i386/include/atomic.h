@@ -80,6 +80,7 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
+int	atomic_testandset_int(volatile u_int *p, int v);
 
 #define	ATOMIC_LOAD(TYPE, LOP)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
@@ -282,6 +283,24 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 	return (v);
 }
 
+static __inline int
+atomic_testandset_int(volatile u_int *p, int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btsl	%2, %1 ;	"
+	"	setc	%0 ;		"
+	"# atomic_testandset_int"
+	: "=r" (res),			/* 0 (result) */
+	  "=m" (*p)			/* 1 */
+	: "r" (v),			/* 2 */
+	  "m" (*p)			/* 3 */
+	: "cc");
+	return (res);
+}
+
 /*
  * We assume that a = b will do atomic loads and stores.  Due to the
  * IA32 memory model, a simple store guarantees release semantics.
@@ -392,6 +411,13 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 {
 
 	return (atomic_fetchadd_int((volatile u_int *)p, (u_int)v));
+}
+
+static __inline int
+atomic_testandset_long(volatile u_long *p, int v)
+{
+
+	return (atomic_testandset_int((volatile u_int *)p, v));
 }
 
 /* Read the current value and store a new value in the destination. */
@@ -520,6 +546,7 @@ u_long	atomic_swap_long(volatile u_long *, u_long);
 #define	atomic_swap_32		atomic_swap_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
+#define	atomic_testandset_32	atomic_testandset_int
 
 /* Operations on pointers. */
 #define	atomic_set_ptr(p, v) \
