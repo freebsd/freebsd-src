@@ -33,7 +33,13 @@
 *******************************************************************/
 
 #ifdef TESTMAIN
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #else
 #include <stand.h>
 #endif
@@ -135,9 +141,9 @@ void
 ficlGetenv(FICL_VM *pVM)
 {
 #ifndef TESTMAIN
-	char	*name;
+	char	*name, *value;
 #endif
-	char	*namep, *value;
+	char	*namep;
 	int	names;
 
 #if FICL_ROBUST > 1
@@ -243,9 +249,9 @@ void
 ficlFindfile(FICL_VM *pVM)
 {
 #ifndef TESTMAIN
-	char	*name;
+	char	*name, *type;
 #endif
-	char	*type, *namep, *typep;
+	char	*namep, *typep;
 	struct	preloaded_file* fp;
 	int	names, types;
 
@@ -511,6 +517,14 @@ static void pfread(FICL_VM *pVM)
  */
 static void pfreaddir(FICL_VM *pVM)
 {
+#ifdef TESTMAIN
+    static union { 
+	struct dirent dirent;
+	char buf[512];
+    } u;
+    off_t off;
+    int len;
+#endif
     struct dirent *d;
     int fd;
 
@@ -519,7 +533,20 @@ static void pfreaddir(FICL_VM *pVM)
 #endif
 
     fd = stackPopINT(pVM->pStack);
+#if TESTMAIN
+    /*
+     * The readdirfd() function is specific to the loader environment.
+     * We do the best we can to make freaddir work, but it's not at
+     * all guaranteed.
+     */
+    off = lseek(fd, 0LL, SEEK_CUR);
+    len = getdents(fd, u.buf, sizeof(u.buf));
+    d = (len != -1) ? &u.dirent : NULL;
+    if (d != NULL)
+	lseek(fd, off + d->d_reclen, SEEK_SET);
+#else
     d = readdirfd(fd);
+#endif
     if (d != NULL) {
         stackPushPtr(pVM->pStack, d->d_name);
         stackPushINT(pVM->pStack, strlen(d->d_name));
