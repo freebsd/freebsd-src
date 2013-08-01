@@ -49,14 +49,6 @@
  * 10% memory waste we potentially allocate a separate uma_slab_t if this will
  * improve the number of items per slab that will fit.  
  *
- * Other potential space optimizations are storing the 8bit of linkage in space
- * wasted between items due to alignment problems.  This may yield a much better
- * memory footprint for certain sizes of objects.  Another alternative is to
- * increase the UMA_SLAB_SIZE, or allow for dynamic slab sizes.  I prefer
- * dynamic slab sizes because we could stick with 8 bit indices and only use
- * large slab sizes for zones with a lot of waste per slab.  This may create
- * inefficiencies in the vm subsystem due to fragmentation in the address space.
- *
  * The only really gross cases, with regards to memory waste, are for those
  * items that are just over half the page size.   You can get nearly 50% waste,
  * so you fall back to the memory footprint of the power of two allocator. I

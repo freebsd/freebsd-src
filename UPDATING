@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130726:
+	Behavior of devfs rules path matching has been changed.
+	Pattern is now always matched against fully qualified devfs
+	path and slash characters must be explicitly matched by
+	slashes in pattern (FNM_PATHNAME). Rulesets involving devfs
+	subdirectories must be reviewed.
+
 20130716:
 	The default ARM ABI has changed to the ARM EABI. The old ABI is
 	incompatible with the ARM EABI and all programs and modules will

@@ -149,6 +149,14 @@ typedef enum {
 	PWMSS1_CLK,
 	PWMSS2_CLK,
 
+	/* Mailbox modules */
+	MAILBOX0_CLK = 1500,
+
+	/* Spinlock modules */
+	SPINLOCK0_CLK = 1600,
+
+	PRUSS_CLK = 1700,
+
 	INVALID_CLK_IDENT
 
 } clk_ident_t;

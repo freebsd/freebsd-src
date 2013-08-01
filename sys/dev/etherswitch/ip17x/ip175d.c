@@ -94,7 +94,8 @@ ip175d_hw_setup(struct ip17x_softc *sc)
 		striptag[i] = 0;
 
 		v = &sc->vlan[i];
-		if (v->vlanid == 0 || sc->vlan_mode == 0) {
+		if ((v->vlanid & ETHERSWITCH_VID_VALID) == 0 ||
+		    sc->vlan_mode == 0) {
 			/* Vlangroup disabled.  Reset the filter. */
 			ip17x_writephy(sc->sc_dev, 22, 14 + i, i + 1);
 			ports[i] = 0x3f;
@@ -105,7 +106,8 @@ ip175d_hw_setup(struct ip17x_softc *sc)
 		ports[i] = v->ports;
 
 		/* Setup the filter, write the VLAN id. */
-		ip17x_writephy(sc->sc_dev, 22, 14 + i, v->vlanid);
+		ip17x_writephy(sc->sc_dev, 22, 14 + i,
+		    v->vlanid & ETHERSWITCH_VID_MASK);
 
 		for (j = 0; j < MII_NPHY; j++) {
 			if ((ports[i] & (1 << j)) == 0)

@@ -114,6 +114,10 @@ ar933x_chip_detect_sys_frequency(void)
 		     AR933X_PLL_CLOCK_CTRL_AHB_DIV_MASK) + 1;
 		u_ar71xx_ahb_freq = freq / t;
 	}
+
+	/* XXX uart should be the refclk, no? */
+	u_ar71xx_uart_freq = u_ar71xx_ahb_freq;
+	u_ar71xx_wdt_freq = u_ar71xx_ahb_freq;
 }
 
 static void

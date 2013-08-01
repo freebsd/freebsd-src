@@ -84,6 +84,8 @@ ar91xx_chip_detect_sys_frequency(void)
 
 	div = (((pll >> AR91XX_AHB_DIV_SHIFT) & AR91XX_AHB_DIV_MASK) + 1) * 2;
 	u_ar71xx_ahb_freq = u_ar71xx_cpu_freq / div;
+	u_ar71xx_uart_freq = u_ar71xx_cpu_freq / div;
+	u_ar71xx_wdt_freq = u_ar71xx_cpu_freq / div;
 }
 
 static void

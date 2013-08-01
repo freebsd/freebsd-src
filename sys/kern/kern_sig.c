@@ -2063,10 +2063,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	if (td == NULL) {
 		td = sigtd(p, sig, prop);
 		sigqueue = &p->p_sigqueue;
-	} else {
-		KASSERT(td->td_proc == p, ("invalid thread"));
+	} else
 		sigqueue = &td->td_sigqueue;
-	}
 
 	SDT_PROBE(proc, kernel, , signal_send, td, p, sig, 0, 0 );
 

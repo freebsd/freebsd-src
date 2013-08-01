@@ -172,7 +172,7 @@ extern void ddt_object_name(ddt_t *ddt, enum ddt_type type,
 extern int ddt_object_walk(ddt_t *ddt, enum ddt_type type,
     enum ddt_class cls, uint64_t *walk, ddt_entry_t *dde);
 extern int ddt_object_count(ddt_t *ddt, enum ddt_type type,
-    enum ddt_class class, uint64_t *count);
+    enum ddt_class cls, uint64_t *count);
 extern int ddt_object_info(ddt_t *ddt, enum ddt_type type,
     enum ddt_class cls, dmu_object_info_t *);
 extern boolean_t ddt_object_exists(ddt_t *ddt, enum ddt_type type,

@@ -24,7 +24,6 @@ ident		BEAGLEBONE
 
 include		"../ti/am335x/std.beaglebone"
 
-makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
 
 options 	HZ=100

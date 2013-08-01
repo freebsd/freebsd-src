@@ -282,7 +282,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		m_freem(n);
-		IPSECSTAT_INC(in_polvio);
+		IPSECSTAT_INC(ips_in_polvio);
 		return;
 	}
 #ifdef IPSEC_NAT_T
@@ -1294,7 +1294,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	if (minlen > m->m_pkthdr.len)
 		minlen = m->m_pkthdr.len;
 	if ((m = m_pullup(m, minlen)) == NULL) {
-		IPSECSTAT_INC(in_inval);
+		IPSECSTAT_INC(ips_in_inval);
 		return (NULL);		/* Bypass caller processing. */
 	}
 	data = mtod(m, caddr_t);	/* Points to ip header. */
@@ -1334,7 +1334,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 		uint32_t spi;
 
 		if (payload <= sizeof(struct esp)) {
-			IPSECSTAT_INC(in_inval);
+			IPSECSTAT_INC(ips_in_inval);
 			m_freem(m);
 			return (NULL);	/* Discard. */
 		}
@@ -1355,7 +1355,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	tag = m_tag_get(PACKET_TAG_IPSEC_NAT_T_PORTS,
 		2 * sizeof(uint16_t), M_NOWAIT);
 	if (tag == NULL) {
-		IPSECSTAT_INC(in_nomem);
+		IPSECSTAT_INC(ips_in_nomem);
 		m_freem(m);
 		return (NULL);		/* Discard. */
 	}

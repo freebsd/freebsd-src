@@ -385,6 +385,8 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
+	rsu.4 \
+	rsufw.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \

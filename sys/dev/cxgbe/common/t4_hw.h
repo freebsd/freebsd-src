@@ -45,6 +45,7 @@ enum {
 	NTX_SCHED       = 8,     /* # of HW Tx scheduling queues */
 	PM_NSTATS       = 5,     /* # of PM stats */
 	MBOX_LEN        = 64,    /* mailbox size in bytes */
+	NTRACE          = 4,     /* # of tracing filters */
 	TRACE_LEN       = 112,   /* length of trace data and mask */
 	FILTER_OPT_LEN  = 36,    /* filter tuple width of optional components */
 	NWOL_PAT        = 8,     /* # of WoL patterns */

@@ -101,15 +101,6 @@ run_merge(svn_boolean_t two_sources_specified,
           && (first_range_end.kind == svn_opt_revision_unspecified))
         {
           ranges_to_merge = NULL;
-
-          /* This must be a 'sync' merge so check branch relationship. */
-          if (opt_state->verbose)
-            SVN_ERR(svn_cmdline_printf(
-                      scratch_pool, _("--- Checking branch relationship\n")));
-          SVN_ERR_W(svn_cl__check_related_source_and_target(
-                      sourcepath1, &peg_revision1,
-                      targetpath, &unspecified_revision, ctx, scratch_pool),
-                _("Source and target must be different but related branches"));
         }
 
       if (opt_state->verbose)

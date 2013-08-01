@@ -699,7 +699,10 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	mps_dprint(sc, MPS_MAPPING, "Found device <%s> <%s> <0x%04x> <%d/%d>\n", devstring,
 	    mps_describe_table(mps_linkrate_names, targ->linkrate),
 	    targ->handle, targ->encl_handle, targ->encl_slot);
+
+#if __FreeBSD_version < 1000039
 	if ((sassc->flags & MPSSAS_IN_STARTUP) == 0)
+#endif
 		mpssas_rescan_target(sc, targ);
 	mps_dprint(sc, MPS_MAPPING, "Target id 0x%x added\n", targ->tid);
 out:
@@ -818,12 +821,15 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	cm->cm_data = buffer;
 	cm->cm_length = htole32(sz);
-	error = mps_request_polled(sc, cm);
+ 	error = mps_wait_command(sc, cm, 60, CAN_SLEEP);
 	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
-		/* If the poll returns error then we need to do diag reset */ 
-		printf("%s: poll for page completed with error %d",
+ 		/*
+ 		 * If the request returns an error then we need to do a diag
+ 		 * reset
+ 		 */ 
+ 		printf("%s: request for page completed with error %d",
 		    __func__, error);
 		error = ENXIO;
 		goto out;
@@ -955,7 +961,7 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 	mps_lock(sc);
-	mps_request_polled(sc, cm);
+ 	mps_wait_command(sc, cm, 5, CAN_SLEEP);
 	mps_unlock(sc);
 
 	/*

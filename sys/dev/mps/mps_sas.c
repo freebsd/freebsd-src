@@ -136,14 +136,12 @@ static void mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb);
 static void mpssas_resetdev_complete(struct mps_softc *, struct mps_command *);
 static int  mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_command *cm);
 static int  mpssas_send_reset(struct mps_softc *sc, struct mps_command *tm, uint8_t type);
-static void mpssas_rescan(struct mpssas_softc *sassc, union ccb *ccb);
-static void mpssas_rescan_done(struct cam_periph *periph, union ccb *done_ccb);
-static void mpssas_scanner_thread(void *arg);
-#if __FreeBSD_version >= 1000006
 static void mpssas_async(void *callback_arg, uint32_t code,
 			 struct cam_path *path, void *arg);
-#else
-static void mpssas_check_eedp(struct mpssas_softc *sassc);
+#if (__FreeBSD_version < 901503) || \
+    ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000006))
+static void mpssas_check_eedp(struct mps_softc *sc, struct cam_path *path,
+			      struct ccb_getdev *cgd);
 static void mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb);
 #endif
 static int mpssas_send_portenable(struct mps_softc *sc);
@@ -202,8 +200,12 @@ mpssas_startup_decrement(struct mpssas_softc *sassc)
 			mps_dprint(sassc->sc, MPS_INIT,
 			    "%s releasing simq\n", __func__);
 			sassc->flags &= ~MPSSAS_IN_STARTUP;
+#if __FreeBSD_version >= 1000039
+			xpt_release_boot();
+#else
 			xpt_release_simq(sassc->sim, 1);
 			mpssas_rescan_target(sassc->sc, NULL);
+#endif
 		}
 		mps_dprint(sassc->sc, MPS_INIT, "%s refcount %u\n", __func__,
 		    sassc->startup_refcount);
@@ -254,7 +256,6 @@ mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 	mps_free_high_priority_command(sc, tm);
 }
 
-
 void
 mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 {
@@ -280,7 +281,7 @@ mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 	}
 
 	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid,
-		            targetid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	    targetid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		mps_dprint(sc, MPS_ERROR, "unable to create path for rescan\n");
 		xpt_free_ccb(ccb);
 		return;
@@ -292,7 +293,7 @@ mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ)
 		ccb->ccb_h.func_code = XPT_SCAN_TGT;     
 
 	mps_dprint(sc, MPS_TRACE, "%s targetid %u\n", __func__, targetid);
-	mpssas_rescan(sassc, ccb);
+	xpt_rescan(ccb);
 }
 
 static void
@@ -690,9 +691,7 @@ int
 mps_attach_sas(struct mps_softc *sc)
 {
 	struct mpssas_softc *sassc;
-#if __FreeBSD_version >= 1000006
 	cam_status status;
-#endif
 	int unit, error = 0;
 
 	MPS_FUNCTRACE(sc);
@@ -740,16 +739,7 @@ mps_attach_sas(struct mps_softc *sc)
 	taskqueue_start_threads(&sassc->ev_tq, 1, 255, "%s taskq", 
 	    device_get_nameunit(sc->mps_dev));
 
-	TAILQ_INIT(&sassc->ccb_scanq);
-	error = mps_kproc_create(mpssas_scanner_thread, sassc,
-	    &sassc->rescan_thread, 0, 0, "mps_scan%d", unit);
-	if (error) {
-		mps_printf(sc, "Error %d starting rescan thread\n", error);
-		goto out;
-	}
-
 	mps_lock(sc);
-	sassc->flags |= MPSSAS_SCANTHREAD;
 
 	/*
 	 * XXX There should be a bus for every port on the adapter, but since
@@ -764,12 +754,16 @@ mps_attach_sas(struct mps_softc *sc)
 	}
 
 	/*
-	 * Assume that discovery events will start right away.  Freezing
-	 * the simq will prevent the CAM boottime scanner from running
-	 * before discovery is complete.
+	 * Assume that discovery events will start right away.
+	 *
+	 * Hold off boot until discovery is complete.
 	 */
 	sassc->flags |= MPSSAS_IN_STARTUP | MPSSAS_IN_DISCOVERY;
+#if __FreeBSD_version >= 1000039
+	xpt_hold_boot();
+#else
 	xpt_freeze_simq(sassc->sim, 1);
+#endif
 	sc->sassc->startup_refcount = 0;
 
 	callout_init(&sassc->discovery_callout, 1 /*mpsafe*/);
@@ -777,14 +771,42 @@ mps_attach_sas(struct mps_softc *sc)
 
 	sassc->tm_count = 0;
 
-#if __FreeBSD_version >= 1000006
-	status = xpt_register_async(AC_ADVINFO_CHANGED, mpssas_async, sc, NULL);
+	/*
+	 * Register for async events so we can determine the EEDP
+	 * capabilities of devices.
+	 */
+	status = xpt_create_path(&sassc->path, /*periph*/NULL,
+	    cam_sim_path(sc->sassc->sim), CAM_TARGET_WILDCARD,
+	    CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
-		mps_dprint(sc, MPS_ERROR,
-		    "Error %#x registering async handler for "
-		    "AC_ADVINFO_CHANGED events\n", status);
-	}
+		mps_printf(sc, "Error %#x creating sim path\n", status);
+		sassc->path = NULL;
+	} else {
+		int event;
+
+#if (__FreeBSD_version >= 1000006) || \
+    ((__FreeBSD_version >= 901503) && (__FreeBSD_version < 1000000))
+		event = AC_ADVINFO_CHANGED;
+#else
+		event = AC_FOUND_DEVICE;
 #endif
+		status = xpt_register_async(event, mpssas_async, sc,
+					    sassc->path);
+		if (status != CAM_REQ_CMP) {
+			mps_dprint(sc, MPS_ERROR,
+			    "Error %#x registering async handler for "
+			    "AC_ADVINFO_CHANGED events\n", status);
+			xpt_free_path(sassc->path);
+			sassc->path = NULL;
+		}
+	}
+	if (status != CAM_REQ_CMP) {
+		/*
+		 * EEDP use is the exception, not the rule.
+		 * Warn the user, but do not fail to attach.
+		 */
+		mps_printf(sc, "EEDP capabilities disabled.\n");
+	}
 
 	mps_unlock(sc);
 
@@ -823,9 +845,11 @@ mps_detach_sas(struct mps_softc *sc)
 	mps_lock(sc);
 
 	/* Deregister our async handler */
-#if __FreeBSD_version >= 1000006
-	xpt_register_async(0, mpssas_async, sc, NULL);
-#endif
+	if (sassc->path != NULL) {
+		xpt_register_async(0, mpssas_async, sc, sassc->path);
+		xpt_free_path(sassc->path);
+		sassc->path = NULL;
+	}
 
 	if (sassc->flags & MPSSAS_IN_STARTUP)
 		xpt_release_simq(sassc->sim, 1);
@@ -835,15 +859,7 @@ mps_detach_sas(struct mps_softc *sc)
 		cam_sim_free(sassc->sim, FALSE);
 	}
 
-	if (sassc->flags & MPSSAS_SCANTHREAD) {
-		sassc->flags |= MPSSAS_SHUTDOWN;
-		wakeup(&sassc->ccb_scanq);
-		
-		if (sassc->flags & MPSSAS_SCANTHREAD) {
-			msleep(&sassc->flags, &sc->mps_mtx, PRIBIO,
-			       "mps_shutdown", 30 * hz);
-		}
-	}
+	sassc->flags |= MPSSAS_SHUTDOWN;
 	mps_unlock(sc);
 
 	if (sassc->devq != NULL)
@@ -934,7 +950,11 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
+#if __FreeBSD_version >= 1000039
+		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED | PIM_NOSCAN;
+#else
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
+#endif
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
 		cpi->max_lun = 255;
@@ -1624,9 +1644,20 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		return;
 	}
 	if (targ->flags & MPS_TARGET_FLAGS_RAID_COMPONENT) {
-		mps_dprint(sc, MPS_ERROR, "%s Raid component no SCSI IO supported %u\n", 
-		    __func__, csio->ccb_h.target_id);
+		mps_dprint(sc, MPS_ERROR, "%s Raid component no SCSI IO "
+		    "supported %u\n", __func__, csio->ccb_h.target_id);
 		csio->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+	/*
+	 * Sometimes, it is possible to get a command that is not "In
+	 * Progress" and was actually aborted by the upper layer.  Check for
+	 * this here and complete the command without error.
+	 */
+	if (ccb->ccb_h.status != CAM_REQ_INPROG) {
+		mps_dprint(sc, MPS_TRACE, "%s Command is not in progress for "
+		    "target %u\n", __func__, csio->ccb_h.target_id);
 		xpt_done(ccb);
 		return;
 	}
@@ -1698,7 +1729,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		break;
 	}
  
-  if (csio->cdb_len == 32)
+	if (csio->cdb_len == 32)
                 mpi_control |= 4 << MPI2_SCSIIO_CONTROL_ADDCDBLEN_SHIFT;
 	/*
 	 * It looks like the hardware doesn't require an explicit tag
@@ -1826,6 +1857,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	targ->issued++;
 	targ->outstanding++;
 	TAILQ_INSERT_TAIL(&targ->commands, cm, cm_link);
+	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
 	mpssas_log_command(cm, MPS_XINFO, "%s cm %p ccb %p outstanding %u\n",
 	    __func__, cm, ccb, targ->outstanding);
@@ -2008,8 +2040,8 @@ mps_sc_failed_io_info(struct mps_softc *sc, struct ccb_scsiio *csio,
 	 * TO-DO
 	 * */
 	mps_dprint(sc, MPS_XINFO, "\tscsi_status(%s)(0x%02x), "
-	    "scsi_state(%s)(0x%02x)\n", desc_scsi_status,
-	    scsi_status, desc_scsi_state, scsi_state);
+	    "scsi_state(%s)(0x%02x)\n", desc_scsi_status, scsi_status,
+	    desc_scsi_state, scsi_state);
 
 	if (sc->mps_debug & MPS_XINFO &&
 		scsi_state & MPI2_SCSI_STATE_AUTOSENSE_VALID) {
@@ -2067,6 +2099,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	cm->cm_targ->completed++;
 	cm->cm_targ->outstanding--;
 	TAILQ_REMOVE(&cm->cm_targ->commands, cm, cm_link);
+	ccb->ccb_h.status |= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
 
 	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
@@ -2142,7 +2175,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 				sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
 				mps_dprint(sc, MPS_XINFO,
-					   "Unfreezing SIM queue\n");
+				    "Unfreezing SIM queue\n");
 			}
 		} 
 
@@ -2368,7 +2401,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
 		mps_dprint(sc, MPS_XINFO, "Command completed, "
-			   "unfreezing SIM queue\n");
+		    "unfreezing SIM queue\n");
 	}
 
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
@@ -2684,7 +2717,8 @@ mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm)
 	sasaddr = le32toh(req->SASAddress.Low);
 	sasaddr |= ((uint64_t)(le32toh(req->SASAddress.High))) << 32;
 
-	if ((le16toh(rpl->IOCStatus) & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS ||
+	if ((le16toh(rpl->IOCStatus) & MPI2_IOCSTATUS_MASK) !=
+	    MPI2_IOCSTATUS_SUCCESS ||
 	    rpl->SASStatus != MPI2_SASSTATUS_SUCCESS) {
 		mps_dprint(sc, MPS_XINFO, "%s: IOCStatus %04x SASStatus %02x\n",
 		    __func__, le16toh(rpl->IOCStatus), rpl->SASStatus);
@@ -2809,7 +2843,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	    MPI2_SGLFLAGS_SYSTEM_ADDRESS_SPACE | MPI2_SGLFLAGS_SGL_TYPE_MPI;
 
 	mps_dprint(sc, MPS_XINFO, "%s: sending SMP request to SAS "
-		   "address %#jx\n", __func__, (uintmax_t)sasaddr);
+	    "address %#jx\n", __func__, (uintmax_t)sasaddr);
 
 	mpi_init_sge(cm, req, &req->SGL);
 
@@ -3036,7 +3070,7 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	tm = mps_alloc_command(sc);
 	if (tm == NULL) {
 		mps_dprint(sc, MPS_ERROR,
-		    "comand alloc failure in mpssas_action_resetdev\n");
+		    "command alloc failure in mpssas_action_resetdev\n");
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
 		return;
@@ -3126,114 +3160,6 @@ mpssas_poll(struct cam_sim *sim)
 }
 
 static void
-mpssas_rescan_done(struct cam_periph *periph, union ccb *done_ccb)
-{
-	struct mpssas_softc *sassc;
-	char path_str[64];
-
-	if (done_ccb == NULL)
-		return;
-
-	sassc = (struct mpssas_softc *)done_ccb->ccb_h.ppriv_ptr1;
-
-	mtx_assert(&sassc->sc->mps_mtx, MA_OWNED);
-
-	xpt_path_string(done_ccb->ccb_h.path, path_str, sizeof(path_str));
-	mps_dprint(sassc->sc, MPS_XINFO, "Completing rescan for %s\n", path_str);
-
-	xpt_free_path(done_ccb->ccb_h.path);
-	xpt_free_ccb(done_ccb);
-
-#if __FreeBSD_version < 1000006
-	/*
-	 * Before completing scan, get EEDP stuff for all of the existing
-	 * targets.
-	 */
-	mpssas_check_eedp(sassc);
-#endif
-
-}
-
-/* thread to handle bus rescans */
-static void
-mpssas_scanner_thread(void *arg)
-{
-	struct mpssas_softc *sassc;
-	struct mps_softc *sc;
-	union ccb	*ccb;
-
-	sassc = (struct mpssas_softc *)arg;
-	sc = sassc->sc;
-
-	MPS_FUNCTRACE(sc);
-
-	mps_lock(sc);
-	for (;;) {
-		/* Sleep for 1 second and check the queue status*/
-		msleep(&sassc->ccb_scanq, &sc->mps_mtx, PRIBIO,
-		       "mps_scanq", 1 * hz);
-		if (sassc->flags & MPSSAS_SHUTDOWN) {
-			mps_dprint(sc, MPS_XINFO, "Scanner shutting down\n");
-			break;
-		}
-next_work:
-		// Get first work.
-		ccb = (union ccb *)TAILQ_FIRST(&sassc->ccb_scanq);
-		if (ccb == NULL)
-			continue;
-		// Got first work.
-		TAILQ_REMOVE(&sassc->ccb_scanq, &ccb->ccb_h, sim_links.tqe);
-		xpt_action(ccb);
-		if (sassc->flags & MPSSAS_SHUTDOWN) {
-			mps_dprint(sc, MPS_XINFO, "Scanner shutting down\n");
-			break;
-		}
-		goto next_work;
-	}
-
-	sassc->flags &= ~MPSSAS_SCANTHREAD;
-	wakeup(&sassc->flags);
-	mps_unlock(sc);
-	mps_dprint(sc, MPS_TRACE, "Scanner exiting\n");
-	mps_kproc_exit(0);
-}
-
-/*
- * This function will send READ_CAP_16 to find out EEDP protection mode.
- * It will check inquiry data before sending READ_CAP_16.
- * Callback for READ_CAP_16 is "mpssas_read_cap_done".
- * This is insternal scsi command and we need to take care release of devq, if
- * CAM_DEV_QFRZN is set. Driver needs to release devq if it has frozen any.
- * xpt_release_devq is called from mpssas_read_cap_done.
- *
- * All other commands will be handled by periph layer and there it will 
- * check for "CAM_DEV_QFRZN" and release of devq will be done.
- */
-static void
-mpssas_rescan(struct mpssas_softc *sassc, union ccb *ccb)
-{
-	char path_str[64];
-
-	MPS_FUNCTRACE(sassc->sc);
-
-	mtx_assert(&sassc->sc->mps_mtx, MA_OWNED);
-
-	if (ccb == NULL)
-		return;
-
-	xpt_path_string(ccb->ccb_h.path, path_str, sizeof(path_str));
-	mps_dprint(sassc->sc, MPS_XINFO, "Queueing rescan for %s\n", path_str);
-
-	/* Prepare request */
-	ccb->ccb_h.ppriv_ptr1 = sassc;
-	ccb->ccb_h.cbfcnp = mpssas_rescan_done;
-	xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, MPS_PRIORITY_XPT);
-	TAILQ_INSERT_TAIL(&sassc->ccb_scanq, &ccb->ccb_h, sim_links.tqe);
-	wakeup(&sassc->ccb_scanq);
-}
-
-#if __FreeBSD_version >= 1000006
-static void
 mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 	     void *arg)
 {
@@ -3242,6 +3168,8 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 	sc = (struct mps_softc *)callback_arg;
 
 	switch (code) {
+#if (__FreeBSD_version >= 1000006) || \
+    ((__FreeBSD_version >= 901503) && (__FreeBSD_version < 1000000))
 	case AC_ADVINFO_CHANGED: {
 		struct mpssas_target *target;
 		struct mpssas_softc *sassc;
@@ -3261,13 +3189,6 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		 * We're only interested in read capacity data changes.
 		 */
 		if (buftype != CDAI_TYPE_RCAPLONG)
-			break;
-
-		/*
-		 * We're only interested in devices that are attached to
-		 * this controller.
-		 */
-		if (xpt_path_path_id(path) != sassc->sim->path_id)
 			break;
 
 		/*
@@ -3321,177 +3242,147 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		}
 		break;
 	}
+#else
+	case AC_FOUND_DEVICE: {
+		struct ccb_getdev *cgd;
+
+		cgd = arg;
+		mpssas_check_eedp(sc, path, cgd);
+		break;
+	}
+#endif
 	default:
 		break;
 	}
 }
-#else /* __FreeBSD_version >= 1000006 */
 
+#if (__FreeBSD_version < 901503) || \
+    ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000006))
 static void
-mpssas_check_eedp(struct mpssas_softc *sassc)
+mpssas_check_eedp(struct mps_softc *sc, struct cam_path *path,
+		  struct ccb_getdev *cgd)
 {
-	struct mps_softc *sc = sassc->sc;
+	struct mpssas_softc *sassc = sc->sassc;
 	struct ccb_scsiio *csio;
 	struct scsi_read_capacity_16 *scsi_cmd;
 	struct scsi_read_capacity_eedp *rcap_buf;
-	union ccb *ccb;
-	path_id_t pathid = cam_sim_path(sassc->sim);
+	path_id_t pathid;
 	target_id_t targetid;
 	lun_id_t lunid;
-	struct cam_periph *found_periph;
+	union ccb *ccb;
+	struct cam_path *local_path;
 	struct mpssas_target *target;
 	struct mpssas_lun *lun;
 	uint8_t	found_lun;
-	struct ccb_getdev cgd;
 	char path_str[64];
 
+	sassc = sc->sassc;
+	pathid = cam_sim_path(sassc->sim);
+	targetid = xpt_path_target_id(path);
+	lunid = xpt_path_lun_id(path);
+
+	target = &sassc->targets[targetid];
+	if (target->handle == 0x0)
+		return;
+
 	/*
-	 * Issue a READ CAPACITY 16 command to each LUN of each target.  This
-	 * info is used to determine if the LUN is formatted for EEDP support.
+	 * Determine if the device is EEDP capable.
+	 *
+	 * If this flag is set in the inquiry data, 
+	 * the device supports protection information,
+	 * and must support the 16 byte read
+	 * capacity command, otherwise continue without
+	 * sending read cap 16
 	 */
-	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
-		target = &sassc->targets[targetid];
-		if (target->handle == 0x0) {
-			continue;
-		}
+	if ((cgd->inq_data.spc3_flags & SPC3_SID_PROTECT) == 0)
+		return;
 
-		lunid = 0;
-		do {
-			ccb = xpt_alloc_ccb_nowait();
-			if (ccb == NULL) {
-				mps_dprint(sc, MPS_ERROR, "Unable to alloc CCB "
-				    "for EEDP support.\n");
-				return;
-			}
-
-			if (xpt_create_path(&ccb->ccb_h.path, NULL,
-			    pathid, targetid, lunid) != CAM_REQ_CMP) {
-				mps_dprint(sc, MPS_ERROR, "Unable to create "
-				    "path for EEDP support\n");
-				xpt_free_ccb(ccb);
-				return;
-			}
-
-			/*
-			 * If a periph is returned, the LUN exists.  Create an
-			 * entry in the target's LUN list.
-			 */
-			if ((found_periph = cam_periph_find(ccb->ccb_h.path,
-			    NULL)) != NULL) {
-				/*
-				 * If LUN is already in list, don't create a new
-				 * one.
-				 */
-				found_lun = FALSE;
-				SLIST_FOREACH(lun, &target->luns, lun_link) {
-					if (lun->lun_id == lunid) {
-						found_lun = TRUE;
-						break;
-					}
-				}
-				if (!found_lun) {
-					lun = malloc(sizeof(struct mpssas_lun),
-					    M_MPT2, M_NOWAIT | M_ZERO);
-					if (lun == NULL) {
-						mps_dprint(sc, MPS_ERROR,
-						    "Unable to alloc LUN for "
-						    "EEDP support.\n");
-						xpt_free_path(ccb->ccb_h.path);
-						xpt_free_ccb(ccb);
-						return;
-					}
-					lun->lun_id = lunid;
-					SLIST_INSERT_HEAD(&target->luns, lun,
-					    lun_link);
-				}
-				lunid++;
-				/* Before Issuing READ CAPACITY 16, 
-				 * check Device type. 
- 				 */
-				xpt_setup_ccb(&cgd.ccb_h, ccb->ccb_h.path, 
-					CAM_PRIORITY_NORMAL);
-				cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-				xpt_action((union ccb *)&cgd);
-
-				/*
-				 * If this flag is set in the inquiry data, 
-				 * the device supports protection information,
-				 * and must support the 16 byte read
-				 * capacity command, otherwise continue without
-				 * sending read cap 16
-				 */
-
-				xpt_path_string(ccb->ccb_h.path, path_str, 
-					sizeof(path_str));
-
-				if ((cgd.inq_data.spc3_flags & 
-				SPC3_SID_PROTECT) == 0) {
-					xpt_free_path(ccb->ccb_h.path);
-					xpt_free_ccb(ccb);
-					continue;
-				}
-				
-				mps_dprint(sc, MPS_XINFO,
-				"Sending read cap: path %s"
-				" handle %d\n", path_str, target->handle );
-			
-				/*
-				 * Issue a READ CAPACITY 16 command for the LUN.
-				 * The mpssas_read_cap_done function will load
-				 * the read cap info into the LUN struct.
-				 */
-				rcap_buf =
-					malloc(sizeof(struct scsi_read_capacity_eedp),
-					M_MPT2, M_NOWAIT| M_ZERO);
-				if (rcap_buf == NULL) {
-					mps_dprint(sc, MPS_ERROR, "Unable to alloc read "
-						"capacity buffer for EEDP support.\n");
-					xpt_free_path(ccb->ccb_h.path);
-					xpt_free_ccb(ccb);
-					return;
-				}
-				csio = &ccb->csio;
-				csio->ccb_h.func_code = XPT_SCSI_IO;
-				csio->ccb_h.flags = CAM_DIR_IN;
-				csio->ccb_h.retry_count = 4;	
-				csio->ccb_h.cbfcnp = mpssas_read_cap_done;
-				csio->ccb_h.timeout = 60000;
-				csio->data_ptr = (uint8_t *)rcap_buf;
-				csio->dxfer_len = sizeof(struct
-				    scsi_read_capacity_eedp);
-				csio->sense_len = MPS_SENSE_LEN;
-				csio->cdb_len = sizeof(*scsi_cmd);
-				csio->tag_action = MSG_SIMPLE_Q_TAG;
-
-				scsi_cmd = (struct scsi_read_capacity_16 *)
-				    &csio->cdb_io.cdb_bytes;
-				bzero(scsi_cmd, sizeof(*scsi_cmd));
-				scsi_cmd->opcode = 0x9E;
-				scsi_cmd->service_action = SRC16_SERVICE_ACTION;
-				((uint8_t *)scsi_cmd)[13] = sizeof(struct
-				    scsi_read_capacity_eedp);
-
-				/*
-				 * Set the path, target and lun IDs for the READ
-				 * CAPACITY request.
-				 */
-				ccb->ccb_h.path_id =
-				    xpt_path_path_id(ccb->ccb_h.path);
-				ccb->ccb_h.target_id =
-				    xpt_path_target_id(ccb->ccb_h.path);
-				ccb->ccb_h.target_lun =
-				    xpt_path_lun_id(ccb->ccb_h.path);
-
-				ccb->ccb_h.ppriv_ptr1 = sassc;
-				xpt_action(ccb);
-			} else {
-				xpt_free_path(ccb->ccb_h.path);
-				xpt_free_ccb(ccb);
-			}
-		} while (found_periph);
+	/*
+	 * Issue a READ CAPACITY 16 command.  This info
+	 * is used to determine if the LUN is formatted
+	 * for EEDP support.
+	 */
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		mps_dprint(sc, MPS_ERROR, "Unable to alloc CCB "
+		    "for EEDP support.\n");
+		return;
 	}
-}
 
+	if (xpt_create_path(&local_path, xpt_periph,
+	    pathid, targetid, lunid) != CAM_REQ_CMP) {
+		mps_dprint(sc, MPS_ERROR, "Unable to create "
+		    "path for EEDP support\n");
+		xpt_free_ccb(ccb);
+		return;
+	}
+
+	/*
+	 * If LUN is already in list, don't create a new
+	 * one.
+	 */
+	found_lun = FALSE;
+	SLIST_FOREACH(lun, &target->luns, lun_link) {
+		if (lun->lun_id == lunid) {
+			found_lun = TRUE;
+			break;
+		}
+	}
+	if (!found_lun) {
+		lun = malloc(sizeof(struct mpssas_lun), M_MPT2,
+		    M_NOWAIT | M_ZERO);
+		if (lun == NULL) {
+			mps_dprint(sc, MPS_ERROR,
+			    "Unable to alloc LUN for EEDP support.\n");
+			xpt_free_path(local_path);
+			xpt_free_ccb(ccb);
+			return;
+		}
+		lun->lun_id = lunid;
+		SLIST_INSERT_HEAD(&target->luns, lun,
+		    lun_link);
+	}
+
+	xpt_path_string(local_path, path_str, sizeof(path_str));
+	mps_dprint(sc, MPS_INFO, "Sending read cap: path %s handle %d\n",
+	    path_str, target->handle);
+
+	/*
+	 * Issue a READ CAPACITY 16 command for the LUN.
+	 * The mpssas_read_cap_done function will load
+	 * the read cap info into the LUN struct.
+	 */
+	rcap_buf = malloc(sizeof(struct scsi_read_capacity_eedp),
+	    M_MPT2, M_NOWAIT | M_ZERO);
+	if (rcap_buf == NULL) {
+		mps_dprint(sc, MPS_FAULT,
+		    "Unable to alloc read capacity buffer for EEDP support.\n");
+		xpt_free_path(ccb->ccb_h.path);
+		xpt_free_ccb(ccb);
+		return;
+	}
+	xpt_setup_ccb(&ccb->ccb_h, local_path, CAM_PRIORITY_XPT);
+	csio = &ccb->csio;
+	csio->ccb_h.func_code = XPT_SCSI_IO;
+	csio->ccb_h.flags = CAM_DIR_IN;
+	csio->ccb_h.retry_count = 4;	
+	csio->ccb_h.cbfcnp = mpssas_read_cap_done;
+	csio->ccb_h.timeout = 60000;
+	csio->data_ptr = (uint8_t *)rcap_buf;
+	csio->dxfer_len = sizeof(struct scsi_read_capacity_eedp);
+	csio->sense_len = MPS_SENSE_LEN;
+	csio->cdb_len = sizeof(*scsi_cmd);
+	csio->tag_action = MSG_SIMPLE_Q_TAG;
+
+	scsi_cmd = (struct scsi_read_capacity_16 *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = 0x9E;
+	scsi_cmd->service_action = SRC16_SERVICE_ACTION;
+	((uint8_t *)scsi_cmd)[13] = sizeof(struct scsi_read_capacity_eedp);
+
+	ccb->ccb_h.ppriv_ptr1 = sassc;
+	xpt_action(ccb);
+}
 
 static void
 mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
@@ -3545,6 +3436,10 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		if (rcap_buf->protect & 0x01) {
+			mps_dprint(sassc->sc, MPS_INFO, "LUN %d for "
+ 			    "target ID %d is formatted for EEDP "
+ 			    "support.\n", done_ccb->ccb_h.target_lun,
+ 			    done_ccb->ccb_h.target_id);
 			lun->eedp_formatted = TRUE;
 			lun->eedp_block_size = scsi_4btoul(rcap_buf->length);
 		}
@@ -3556,7 +3451,8 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 	xpt_free_path(done_ccb->ccb_h.path);
 	xpt_free_ccb(done_ccb);
 }
-#endif /* __FreeBSD_version >= 1000006 */
+#endif /* (__FreeBSD_version < 901503) || \
+          ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000006)) */
 
 int
 mpssas_startup(struct mps_softc *sc)
