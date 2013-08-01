@@ -71,7 +71,7 @@ struct vmxctx {
 	int		launched;		/* vmcs launch state */
 	int		launch_error;
 
-	long		eptgen;			/* cached pmap->pm_eptgen */
+	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
 
 	/*
 	 * The 'eptp' and the 'pmap' do not change during the lifetime of

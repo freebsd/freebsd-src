@@ -123,20 +123,21 @@
 	LK btrl	%eax, PM_ACTIVE(%r11)
 
 /*
- * If 'vmxctx->eptgen' is not identical to 'pmap->pm_eptgen' then
- * we must invalidate all mappings associated with this eptp.
+ * If 'vmxctx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
+ * then we must invalidate all mappings associated with this eptp.
  *
  * %rdi = vmxctx
- * %rax, %r11 = scratch registers
+ * %rax, %rbx, %r11 = scratch registers
  */
 #define	VMX_CHECK_EPTGEN						\
+	movl	PCPU(CPUID), %ebx;					\
 	movq	VMXCTX_PMAP(%rdi), %r11;				\
 	movq	PM_EPTGEN(%r11), %rax;					\
-	cmpq	%rax, VMXCTX_EPTGEN(%rdi);				\
+	cmpq	%rax, VMXCTX_EPTGEN(%rdi, %rbx, 8);			\
 	je	9f;							\
 									\
-	/* Refresh 'vmxctx->eptgen' */					\
-	movq	%rax, VMXCTX_EPTGEN(%rdi);				\
+	/* Refresh 'vmxctx->eptgen[curcpu]' */				\
+	movq	%rax, VMXCTX_EPTGEN(%rdi, %rbx, 8);			\
 									\
 	/* Setup the invept descriptor at the top of tmpstk */		\
 	mov	%rdi, %r11;						\
