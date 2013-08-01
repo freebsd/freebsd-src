@@ -1872,6 +1872,22 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		iq->flags |= IQ_HAS_FL;
 	}
 
+	if (is_t5(sc) && cong >= 0) {
+		uint32_t param, val;
+
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(iq->cntxt_id);
+		val = cong ? cong | 2 << 19 : 1 << 19;
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			/* report error but carry on */
+			device_printf(sc->dev,
+			    "failed to set congestion manager context for "
+			    "ingress queue %d: %d\n", iq->cntxt_id, rc);
+		}
+	}
+
 	/* Enable IQ interrupts */
 	atomic_store_rel_int(&iq->state, IQS_IDLE);
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(iq->intr_params) |
