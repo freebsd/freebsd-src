@@ -54,12 +54,14 @@
  * atomic_clear_int(P, V)	(*(u_int *)(P) &= ~(V))
  * atomic_add_int(P, V)		(*(u_int *)(P) += (V))
  * atomic_subtract_int(P, V)	(*(u_int *)(P) -= (V))
+ * atomic_swap_int(P, V)	(return (*(u_int *)(P)); *(u_int *)(P) = (V);)
  * atomic_readandclear_int(P)	(return (*(u_int *)(P)); *(u_int *)(P) = 0;)
  *
  * atomic_set_long(P, V)	(*(u_long *)(P) |= (V))
  * atomic_clear_long(P, V)	(*(u_long *)(P) &= ~(V))
  * atomic_add_long(P, V)	(*(u_long *)(P) += (V))
  * atomic_subtract_long(P, V)	(*(u_long *)(P) -= (V))
+ * atomic_swap_long(P, V)	(return (*(u_long *)(P)); *(u_long *)(P) = (V);)
  * atomic_readandclear_long(P)	(return (*(u_long *)(P)); *(u_long *)(P) = 0;)
  */
 
@@ -392,45 +394,33 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 	return (atomic_fetchadd_int((volatile u_int *)p, (u_int)v));
 }
 
-/* Read the current value and store a zero in the destination. */
+/* Read the current value and store a new value in the destination. */
 #ifdef __GNUCLIKE_ASM
 
 static __inline u_int
-atomic_readandclear_int(volatile u_int *addr)
+atomic_swap_int(volatile u_int *p, u_int v)
 {
-	u_int res;
 
-	res = 0;
 	__asm __volatile(
-	"	xchgl	%1,%0 ;		"
-	"# atomic_readandclear_int"
-	: "+r" (res),			/* 0 */
-	  "=m" (*addr)			/* 1 */
-	: "m" (*addr));
-
-	return (res);
+	"	xchgl	%1, %0 ;	"
+	"# atomic_swap_int"
+	: "+r" (v),			/* 0 */
+	  "=m" (*p)			/* 1 */
+	: "m" (*p));
+	return (v);
 }
 
 static __inline u_long
-atomic_readandclear_long(volatile u_long *addr)
+atomic_swap_long(volatile u_long *p, u_long v)
 {
-	u_long res;
 
-	res = 0;
-	__asm __volatile(
-	"	xchgl	%1,%0 ;		"
-	"# atomic_readandclear_long"
-	: "+r" (res),			/* 0 */
-	  "=m" (*addr)			/* 1 */
-	: "m" (*addr));
-
-	return (res);
+	return (atomic_swap_int((volatile u_int *)p, (u_int)v));
 }
 
 #else /* !__GNUCLIKE_ASM */
 
-u_int	atomic_readandclear_int(volatile u_int *addr);
-u_long	atomic_readandclear_long(volatile u_long *addr);
+u_int	atomic_swap_int(volatile u_int *, u_int);
+u_long	atomic_swap_long(volatile u_long *, u_long);
 
 #endif /* __GNUCLIKE_ASM */
 
@@ -473,6 +463,9 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_subtract_rel_long	atomic_subtract_barr_long
 #define	atomic_cmpset_acq_long		atomic_cmpset_long
 #define	atomic_cmpset_rel_long		atomic_cmpset_long
+
+#define	atomic_readandclear_int(p)	atomic_swap_int(p, 0)
+#define	atomic_readandclear_long(p)	atomic_swap_long(p, 0)
 
 /* Operations on 8-bit bytes. */
 #define	atomic_set_8		atomic_set_char
@@ -524,6 +517,7 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_cmpset_32	atomic_cmpset_int
 #define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+#define	atomic_swap_32		atomic_swap_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
 
@@ -564,6 +558,8 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_cmpset_rel_ptr(dst, old, new) \
 	atomic_cmpset_rel_int((volatile u_int *)(dst), (u_int)(old), \
 	    (u_int)(new))
+#define	atomic_swap_ptr(p, v) \
+	atomic_swap_int((volatile u_int *)(p), (u_int)(v))
 #define	atomic_readandclear_ptr(p) \
 	atomic_readandclear_int((volatile u_int *)(p))
 
