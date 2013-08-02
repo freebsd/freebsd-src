@@ -135,6 +135,12 @@ struct vm_x2apic {
 	enum x2apic_state	state;
 };
 
+struct vm_gpa_pte {
+	uint64_t	gpa;				/* in */
+	uint64_t	pte[4];				/* out */
+	int		ptenum;
+};
+
 enum {
 	IOCNUM_RUN,
 	IOCNUM_MAP_MEMORY,
@@ -157,6 +163,7 @@ enum {
 	IOCNUM_VM_STAT_DESC,
 	IOCNUM_SET_X2APIC_STATE,
 	IOCNUM_GET_X2APIC_STATE,
+	IOCNUM_GET_GPA_PMAP,
 };
 
 #define	VM_RUN		\
@@ -201,4 +208,6 @@ enum {
 	_IOW('v', IOCNUM_SET_X2APIC_STATE, struct vm_x2apic)
 #define	VM_GET_X2APIC_STATE \
 	_IOWR('v', IOCNUM_GET_X2APIC_STATE, struct vm_x2apic)
+#define	VM_GET_GPA_PMAP \
+	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #endif

@@ -152,7 +152,7 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 
 void *vcpu_stats(struct vm *vm, int vcpu);
 void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
-
+struct vmspace *vm_get_vmspace(struct vm *vm);
 #endif	/* KERNEL */
 
 #include <machine/vmm_instruction_emul.h>

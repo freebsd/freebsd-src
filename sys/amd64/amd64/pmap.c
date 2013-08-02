@@ -5921,6 +5921,41 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
+void
+pmap_get_mapping(pmap_t pmap, vm_offset_t va, uint64_t *ptr, int *num)
+{
+	pml4_entry_t *pml4;
+	pdp_entry_t *pdp;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+	int idx;
+
+	idx = 0;
+	PMAP_LOCK(pmap);
+
+	pml4 = pmap_pml4e(pmap, va);
+	ptr[idx++] = *pml4;
+	if ((*pml4 & PG_V) == 0)
+		goto done;
+
+	pdp = pmap_pml4e_to_pdpe(pml4, va);
+	ptr[idx++] = *pdp;
+	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0)
+		goto done;
+
+	pde = pmap_pdpe_to_pde(pdp, va);
+	ptr[idx++] = *pde;
+	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0)
+		goto done;
+	
+	pte = pmap_pde_to_pte(pde, va);
+	ptr[idx++] = *pte;
+
+done:
+	PMAP_UNLOCK(pmap);
+	*num = idx;
+}
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>

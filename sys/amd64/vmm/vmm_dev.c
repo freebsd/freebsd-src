@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
@@ -159,6 +160,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stats *vmstats;
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
+	struct vm_gpa_pte *gpapte;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -345,6 +347,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		x2apic = (struct vm_x2apic *)data;
 		error = vm_get_x2apic_state(sc->vm,
 					    x2apic->cpuid, &x2apic->state);
+		break;
+	case VM_GET_GPA_PMAP:
+		gpapte = (struct vm_gpa_pte *)data;
+		pmap_get_mapping(vmspace_pmap(vm_get_vmspace(sc->vm)),
+				 gpapte->gpa, gpapte->pte, &gpapte->ptenum);
+		error = 0;
 		break;
 	default:
 		error = ENOTTY;

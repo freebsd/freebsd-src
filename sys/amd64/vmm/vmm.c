@@ -1135,3 +1135,10 @@ vm_interrupt_hostcpu(struct vm *vm, int vcpuid)
 	}
 	vcpu_unlock(vcpu);
 }
+
+struct vmspace *
+vm_get_vmspace(struct vm *vm)
+{
+
+	return (vm->vmspace);
+}

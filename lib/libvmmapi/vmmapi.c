@@ -741,3 +741,23 @@ vcpu_reset(struct vmctx *vmctx, int vcpu)
 done:
 	return (error);
 }
+
+int
+vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
+{
+	int error, i;
+	struct vm_gpa_pte gpapte;
+
+	bzero(&gpapte, sizeof(gpapte));
+	gpapte.gpa = gpa;
+
+	error = ioctl(ctx->fd, VM_GET_GPA_PMAP, &gpapte);
+
+	if (error == 0) {
+		*num = gpapte.ptenum;
+		for (i = 0; i < gpapte.ptenum; i++)
+			pte[i] = gpapte.pte[i];
+	}
+
+	return (error);
+}

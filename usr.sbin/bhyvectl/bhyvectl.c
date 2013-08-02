@@ -188,12 +188,13 @@ usage(void)
 	"       [--unassign-pptdev=<bus/slot/func>]\n"
 	"       [--set-mem=<memory in units of MB>]\n"
 	"       [--get-lowmem]\n"
-	"       [--get-highmem]\n",
+	"       [--get-highmem]\n"
+	"       [--get-gpa-pmap]\n",
 	progname);
 	exit(1);
 }
 
-static int get_stats, getcap, setcap, capval;
+static int get_stats, getcap, setcap, capval, get_gpa_pmap;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
 static uint64_t memsize;
@@ -377,17 +378,18 @@ enum {
 	SET_CAP,
 	CAPNAME,
 	UNASSIGN_PPTDEV,
+	GET_GPA_PMAP,
 };
 
 int
 main(int argc, char *argv[])
 {
 	char *vmname;
-	int error, ch, vcpu;
-	vm_paddr_t gpa;
+	int error, ch, vcpu, ptenum;
+	vm_paddr_t gpa, gpa_pmap;
 	size_t len;
 	struct vm_exit vmexit;
-	uint64_t ctl, eptp, bm, addr, u64;
+	uint64_t ctl, eptp, bm, addr, u64, pteval[4], *pte;
 	struct vmctx *ctx;
 
 	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer, pat;
@@ -427,6 +429,7 @@ main(int argc, char *argv[])
 		{ "capname",	REQ_ARG,	0,	CAPNAME },
 		{ "unassign-pptdev", REQ_ARG,	0,	UNASSIGN_PPTDEV },
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
+		{ "get-gpa-pmap", REQ_ARG,	0,	GET_GPA_PMAP },
 		{ "getcap",	NO_ARG,		&getcap,	1 },
 		{ "get-stats",	NO_ARG,		&get_stats,	1 },
 		{ "get-desc-ds",NO_ARG,		&get_desc_ds,	1 },
@@ -665,6 +668,10 @@ main(int argc, char *argv[])
 		case SET_CAP:
 			capval = strtoul(optarg, NULL, 0);
 			setcap = 1;
+			break;
+		case GET_GPA_PMAP:
+			gpa_pmap = strtoul(optarg, NULL, 0);
+			get_gpa_pmap = 1;
 			break;
 		case CAPNAME:
 			capname = optarg;
@@ -1455,6 +1462,17 @@ main(int argc, char *argv[])
 		error = vm_set_capability(ctx, vcpu, captype, capval);
 		if (error != 0 && errno == ENOENT)
 			printf("Capability \"%s\" is not available\n", capname);
+	}
+
+	if (!error && get_gpa_pmap) {
+		error = vm_get_gpa_pmap(ctx, gpa_pmap, pteval, &ptenum);
+		if (error == 0) {
+			printf("gpa %#lx:", gpa_pmap);
+			pte = &pteval[0];
+			while (ptenum-- > 0)
+				printf(" %#lx", *pte++);
+			printf("\n");
+		}
 	}
 
 	if (!error && (getcap || get_all)) {
