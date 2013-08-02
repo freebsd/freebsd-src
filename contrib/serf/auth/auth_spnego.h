@@ -13,32 +13,34 @@
  * limitations under the License.
  */
 
-#ifndef AUTH_KERB_H
-#define AUTH_KERB_H
+#ifndef AUTH_SPNEGO_H
+#define AUTH_SPNEGO_H
 
 #include <apr.h>
 #include <apr_pools.h>
+#include "serf.h"
+#include "serf_private.h"
 
 #if defined(SERF_HAVE_SSPI)
-#define SERF_HAVE_KERB
+#define SERF_HAVE_SPNEGO
 #define SERF_USE_SSPI
 #elif defined(SERF_HAVE_GSSAPI)
-#define SERF_HAVE_KERB
+#define SERF_HAVE_SPNEGO
 #define SERF_USE_GSSAPI
 #endif
 
-#ifdef SERF_HAVE_KERB
+#ifdef SERF_HAVE_SPNEGO
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct serf__kerb_context_t serf__kerb_context_t;
+typedef struct serf__spnego_context_t serf__spnego_context_t;
 
-typedef struct serf__kerb_buffer_t {
+typedef struct serf__spnego_buffer_t {
     apr_size_t length;
     void *value;
-} serf__kerb_buffer_t;
+} serf__spnego_buffer_t;
 
 /* Create outbound security context.
  *
@@ -48,9 +50,10 @@ typedef struct serf__kerb_buffer_t {
  *
  */
 apr_status_t
-serf__kerb_create_sec_context(serf__kerb_context_t **ctx_p,
-                              apr_pool_t *scratch_pool,
-                              apr_pool_t *result_pool);
+serf__spnego_create_sec_context(serf__spnego_context_t **ctx_p,
+                                const serf__authn_scheme_t *scheme,
+                                apr_pool_t *result_pool,
+                                apr_pool_t *scratch_pool);
 
 /* Initialize outbound security context.
  *
@@ -58,7 +61,7 @@ serf__kerb_create_sec_context(serf__kerb_context_t **ctx_p,
  * application and a remote peer.
  *
  * CTX is pointer to existing context created using
- * serf__kerb_create_sec_context() function.
+ * serf__spnego_create_sec_context() function.
  *
  * SERVICE is name of Kerberos service name. Usually 'HTTP'. HOSTNAME is
  * canonical name of destination server. Caller should resolve server's alias
@@ -78,21 +81,21 @@ serf__kerb_create_sec_context(serf__kerb_context_t **ctx_p,
  *   for a return token.
  *
  * - APR_SUCCESS The security context was successfully initialized. There is no
- *   need for another serf__kerb_init_sec_context call. If the function returns
+ *   need for another serf__spnego_init_sec_context call. If the function returns
  *   an output token, that is, if the OUTPUT_BUF is of nonzero length, that
  *   token must be sent to the server.
  *
  * Other returns values indicates error.
  */
 apr_status_t
-serf__kerb_init_sec_context(serf__kerb_context_t *ctx,
-                            const char *service,
-                            const char *hostname,
-                            serf__kerb_buffer_t *input_buf,
-                            serf__kerb_buffer_t *output_buf,
-                            apr_pool_t *scratch_pool,
-                            apr_pool_t *result_pool
-                            );
+serf__spnego_init_sec_context(serf__spnego_context_t *ctx,
+                             const char *service,
+                             const char *hostname,
+                             serf__spnego_buffer_t *input_buf,
+                             serf__spnego_buffer_t *output_buf,
+                             apr_pool_t *result_pool,
+                             apr_pool_t *scratch_pool
+                             );
 
 /*
  * Reset a previously created security context so we can start with a new one.
@@ -101,12 +104,12 @@ serf__kerb_init_sec_context(serf__kerb_context_t *ctx,
  * where each request requires a new security context.
  */
 apr_status_t
-serf__kerb_reset_sec_context(serf__kerb_context_t *ctx);
+serf__spnego_reset_sec_context(serf__spnego_context_t *ctx);
     
 #ifdef __cplusplus
 }
 #endif
 
-#endif    /* SERF_HAVE_KERB */
+#endif    /* SERF_HAVE_SPNEGO */
 
-#endif    /* !AUTH_KERB_H */
+#endif    /* !AUTH_SPNEGO_H */
