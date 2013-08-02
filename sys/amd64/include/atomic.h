@@ -225,7 +225,7 @@ atomic_testandset_int(volatile u_int *p, int v)
 	"# atomic_testandset_int"
 	: "=r" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
-	: "Ir" (v % 32),		/* 2 */
+	: "ir" (v),			/* 2 */
 	  "m" (*p)			/* 3 */
 	: "cc");
 	return (res);
@@ -243,7 +243,7 @@ atomic_testandset_long(volatile u_long *p, int v)
 	"# atomic_testandset_long"
 	: "=r" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
-	: "Jr" ((u_long)v % 64),	/* 2 */
+	: "ir" ((u_long)v),		/* 2 */
 	  "m" (*p)			/* 3 */
 	: "cc");
 	return (res);
