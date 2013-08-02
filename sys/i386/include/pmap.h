@@ -327,7 +327,6 @@ pmap_kextract(vm_offset_t va)
 #if defined(PAE) && !defined(XEN)
 
 #define	pde_cmpset(pdep, old, new)	atomic_cmpset_64_i586(pdep, old, new)
-#define	pte_load(ptep)			atomic_load_acq_64_i586(ptep)
 #define	pte_load_store(ptep, pte)	atomic_swap_64_i586(ptep, pte)
 #define	pte_load_clear(ptep)		atomic_swap_64_i586(ptep, 0)
 #define	pte_store(ptep, pte)		atomic_store_rel_64_i586(ptep, pte)
@@ -337,10 +336,12 @@ extern pt_entry_t pg_nx;
 #elif !defined(PAE) && !defined(XEN)
 
 #define	pde_cmpset(pdep, old, new)	atomic_cmpset_int(pdep, old, new)
-#define	pte_load(ptep)			atomic_load_acq_int(ptep)
 #define	pte_load_store(ptep, pte)	atomic_swap_int(ptep, pte)
-#define	pte_load_clear(pte)		atomic_swap_int(pte, 0)
-#define	pte_store(ptep, pte)		atomic_store_rel_int(ptep, pte)
+#define	pte_load_clear(ptep)		atomic_swap_int(ptep, 0)
+#define	pte_store(ptep, pte) \
+    do { \
+	*(pt_entry_t *)(ptep) = (pt_entry_t)(pte);
+    while (0)
 
 #endif /* PAE */
 

@@ -185,13 +185,18 @@ extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 pt_entry_t *vtopte(vm_offset_t);
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
-#define	pte_load(ptep)			atomic_load_acq_long(ptep)
 #define	pte_load_store(ptep, pte)	atomic_swap_long(ptep, pte)
-#define	pte_load_clear(pte)		atomic_swap_long(pte, 0)
-#define	pte_store(ptep, pte)		atomic_store_rel_long(ptep, pte)
-#define	pte_clear(ptep)			atomic_store_rel_long(ptep, 0)
+#define	pte_load_clear(ptep)		atomic_swap_long(ptep, 0)
+#define	pte_store(ptep, pte) \
+    do { \
+	*(pt_entry_t *)(ptep) = (pt_entry_t)(pte); \
+    } while (0)
+#define	pte_clear(ptep)			pte_store(ptep, 0)
 
-#define	pde_store(pdep, pde)		atomic_store_rel_long(pdep, pde)
+#define	pde_store(pdep, pde) \
+    do { \
+	*(pd_entry_t *)(pdep) = (pd_entry_t)(pde); \
+    } while (0)
 
 extern pt_entry_t pg_nx;
 
