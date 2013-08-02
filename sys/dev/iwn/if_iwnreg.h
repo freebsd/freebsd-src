@@ -200,19 +200,6 @@
 #define IWN_GP_CNTRL_SLEEP		(1 << 4)
 #define IWN_GP_CNTRL_RFKILL		(1 << 27)
 
-/* Possible flags for register IWN_HW_REV. */
-#define IWN_HW_REV_TYPE_SHIFT	4
-#define IWN_HW_REV_TYPE_MASK	0x000000f0
-#define IWN_HW_REV_TYPE_4965	0
-#define IWN_HW_REV_TYPE_5300	2
-#define IWN_HW_REV_TYPE_5350	3
-#define IWN_HW_REV_TYPE_5150	4
-#define IWN_HW_REV_TYPE_5100	5
-#define IWN_HW_REV_TYPE_1000	6
-#define IWN_HW_REV_TYPE_6000	7
-#define IWN_HW_REV_TYPE_6050	8
-#define IWN_HW_REV_TYPE_6005	11
-
 /* Possible flags for register IWN_GIO_CHICKEN. */
 #define IWN_GIO_CHICKEN_L1A_NO_L0S_RX	(1 << 23)
 #define IWN_GIO_CHICKEN_DIS_L0S_TIMER	(1 << 29)
