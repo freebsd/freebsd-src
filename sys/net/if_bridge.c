@@ -384,6 +384,12 @@ SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac, CTLFLAG_RW,
     &bridge_inherit_mac, 0,
     "Inherit MAC address from the first bridge member");
 
+static VNET_DEFINE(int, allow_llz_overlap) = 0;
+#define	V_allow_llz_overlap	VNET(allow_llz_overlap)
+SYSCTL_VNET_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap, CTLFLAG_RW,
+    &VNET_NAME(allow_llz_overlap), 0, "Allow overlap of link-local scope "
+    "zones of a bridge interface and the member interfaces");
+
 struct bridge_control {
 	int	(*bc_func)(struct bridge_softc *, void *);
 	int	bc_argsize;
@@ -1064,7 +1070,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	 */
 
 	/* Check if the parent interface has a link-local scope addr. */
-	if (in6ifa_llaonifp(sc->sc_ifp) != NULL) {
+	if (V_allow_llz_overlap == 0 &&
+	    in6ifa_llaonifp(sc->sc_ifp) != NULL) {
 		/*
 		 * If any, remove all inet6 addresses from the member
 		 * interfaces.
@@ -1092,32 +1099,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 			    "before adding it as a member to prevent "
 			    "IPv6 address scope violation.\n",
 			    ifs->if_xname);
-		}
-	} else {
-		struct in6_ifaddr *ia6_m, *ia6_s;
-		/*
-		 * If not, check whether one of the existing member
-		 * interfaces have inet6 address.  If any, remove
-		 * inet6 addresses on the interface to be added.
-		 */
-		ia6_m = NULL;
-		BRIDGE_XLOCK(sc);
-		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
-			ia6_m = in6ifa_llaonifp(bif->bif_ifp);
-			if (ia6_m != NULL)
-				break;
-		}
-		BRIDGE_XDROP(sc);
-		ia6_s = in6ifa_llaonifp(ifs);
-
-		if (ia6_m != NULL && ia6_s != NULL) {
-			BRIDGE_UNLOCK(sc);
-			in6_ifdetach(ifs);
-			BRIDGE_LOCK(sc);
-			if_printf(sc->sc_ifp, "IPv6 addresses on %s have "
-				  "been removed before adding it as a member "
-				  "to prevent IPv6 address scope violation.\n",
-				  ifs->if_xname);
 		}
 	}
 #endif
