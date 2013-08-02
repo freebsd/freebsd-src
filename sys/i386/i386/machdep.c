@@ -1548,10 +1548,16 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
 
+int (*atomic_cmpset_64)(volatile uint64_t *, uint64_t, uint64_t) =
+    atomic_cmpset_64_i386;
 uint64_t (*atomic_load_acq_64)(volatile uint64_t *) =
     atomic_load_acq_64_i386;
 void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t) =
     atomic_store_rel_64_i386;
+uint64_t (*atomic_swap_64)(volatile uint64_t *, uint64_t) =
+    atomic_swap_64_i386;
+int (*atomic_testandset_64)(volatile uint64_t *, int) =
+    atomic_testandset_64_i386;
 
 static void
 cpu_probe_cmpxchg8b(void)
@@ -1559,8 +1565,11 @@ cpu_probe_cmpxchg8b(void)
 
 	if ((cpu_feature & CPUID_CX8) != 0 ||
 	    cpu_vendor_id == CPU_VENDOR_RISE) {
+		atomic_cmpset_64 = atomic_cmpset_64_i586;
 		atomic_load_acq_64 = atomic_load_acq_64_i586;
 		atomic_store_rel_64 = atomic_store_rel_64_i586;
+		atomic_swap_64 = atomic_swap_64_i586;
+		atomic_testandset_64 = atomic_testandset_64_i586;
 	}
 }
 
