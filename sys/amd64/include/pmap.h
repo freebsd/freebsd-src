@@ -189,14 +189,11 @@ pt_entry_t *vtopte(vm_offset_t);
 #define	pte_load_clear(ptep)		atomic_swap_long(ptep, 0)
 #define	pte_store(ptep, pte) \
     do { \
-	*(pt_entry_t *)(ptep) = (pt_entry_t)(pte); \
+	*(u_long *)(ptep) = (u_long)(pte); \
     } while (0)
 #define	pte_clear(ptep)			pte_store(ptep, 0)
 
-#define	pde_store(pdep, pde) \
-    do { \
-	*(pd_entry_t *)(pdep) = (pd_entry_t)(pde); \
-    } while (0)
+#define	pde_store(pdep, pde)		pte_store(pdep, pde)
 
 extern pt_entry_t pg_nx;
 

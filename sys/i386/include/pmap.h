@@ -340,8 +340,8 @@ extern pt_entry_t pg_nx;
 #define	pte_load_clear(ptep)		atomic_swap_int(ptep, 0)
 #define	pte_store(ptep, pte) \
     do { \
-	*(pt_entry_t *)(ptep) = (pt_entry_t)(pte);
-    while (0)
+	*(u_int *)(ptep) = (u_int)(pte); \
+    } while (0)
 
 #endif /* PAE */
 
