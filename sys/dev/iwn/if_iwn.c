@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwn/if_iwnreg.h>
 #include <dev/iwn/if_iwnvar.h>
+#include <dev/iwn/if_iwn_devid.h>
 
 struct iwn_ident {
 	uint16_t	vendor;
@@ -82,40 +83,40 @@ struct iwn_ident {
 };
 
 static const struct iwn_ident iwn_ident_table[] = {
-	{ 0x8086, 0x0082, "Intel Centrino Advanced-N 6205"		},
-	{ 0x8086, 0x0083, "Intel Centrino Wireless-N 1000"		},
-	{ 0x8086, 0x0084, "Intel Centrino Wireless-N 1000"		},
-	{ 0x8086, 0x0085, "Intel Centrino Advanced-N 6205"		},
-	{ 0x8086, 0x0087, "Intel Centrino Advanced-N + WiMAX 6250"	},
-	{ 0x8086, 0x0089, "Intel Centrino Advanced-N + WiMAX 6250"	},
-	{ 0x8086, 0x008a, "Intel Centrino Wireless-N 1030"		},
-	{ 0x8086, 0x008b, "Intel Centrino Wireless-N 1030"		},
-	{ 0x8086, 0x0090, "Intel Centrino Advanced-N 6230"		},
-	{ 0x8086, 0x0091, "Intel Centrino Advanced-N 6230"		},
-	{ 0x8086, 0x0885, "Intel Centrino Wireless-N + WiMAX 6150"	},
-	{ 0x8086, 0x0886, "Intel Centrino Wireless-N + WiMAX 6150"	},
-	{ 0x8086, 0x0887, "Intel Centrino Wireless-N 2230"		},
-	{ 0x8086, 0x0888, "Intel Centrino Wireless-N 2230"		},
-	{ 0x8086, 0x0896, "Intel Centrino Wireless-N 130"		},
-	{ 0x8086, 0x0897, "Intel Centrino Wireless-N 130"		},
-	{ 0x8086, 0x08ae, "Intel Centrino Wireless-N 100"		},
-	{ 0x8086, 0x08af, "Intel Centrino Wireless-N 100"		},
-	{ 0x8086, 0x4229, "Intel Wireless WiFi Link 4965"		},
-	{ 0x8086, 0x422b, "Intel Centrino Ultimate-N 6300"		},
-	{ 0x8086, 0x422c, "Intel Centrino Advanced-N 6200"		},
-	{ 0x8086, 0x422d, "Intel Wireless WiFi Link 4965"		},
-	{ 0x8086, 0x4230, "Intel Wireless WiFi Link 4965"		},
-	{ 0x8086, 0x4232, "Intel WiFi Link 5100"			},
-	{ 0x8086, 0x4233, "Intel Wireless WiFi Link 4965"		},
-	{ 0x8086, 0x4235, "Intel Ultimate N WiFi Link 5300"		},
-	{ 0x8086, 0x4236, "Intel Ultimate N WiFi Link 5300"		},
-	{ 0x8086, 0x4237, "Intel WiFi Link 5100"			},
-	{ 0x8086, 0x4238, "Intel Centrino Ultimate-N 6300"		},
-	{ 0x8086, 0x4239, "Intel Centrino Advanced-N 6200"		},
-	{ 0x8086, 0x423a, "Intel WiMAX/WiFi Link 5350"			},
-	{ 0x8086, 0x423b, "Intel WiMAX/WiFi Link 5350"			},
-	{ 0x8086, 0x423c, "Intel WiMAX/WiFi Link 5150"			},
-	{ 0x8086, 0x423d, "Intel WiMAX/WiFi Link 5150"			},
+	{ 0x8086, IWN_DID_6x05_1, "Intel Centrino Advanced-N 6205"		},
+	{ 0x8086, IWN_DID_1000_1, "Intel Centrino Wireless-N 1000"		},
+	{ 0x8086, IWN_DID_1000_2, "Intel Centrino Wireless-N 1000"		},
+	{ 0x8086, IWN_DID_6x05_2, "Intel Centrino Advanced-N 6205"		},
+	{ 0x8086, IWN_DID_6050_1, "Intel Centrino Advanced-N + WiMAX 6250"	},
+	{ 0x8086, IWN_DID_6050_2, "Intel Centrino Advanced-N + WiMAX 6250"	},
+	{ 0x8086, IWN_DID_x030_1, "Intel Centrino Wireless-N 1030"		},
+	{ 0x8086, IWN_DID_x030_2, "Intel Centrino Wireless-N 1030"		},
+	{ 0x8086, IWN_DID_x030_3, "Intel Centrino Advanced-N 6230"		},
+	{ 0x8086, IWN_DID_x030_4, "Intel Centrino Advanced-N 6230"		},
+	{ 0x8086, IWN_DID_6150_1, "Intel Centrino Wireless-N + WiMAX 6150"	},
+	{ 0x8086, IWN_DID_6150_2, "Intel Centrino Wireless-N + WiMAX 6150"	},
+	{ 0x8086, IWN_DID_2x30_1, "Intel Centrino Wireless-N 2230"		},
+	{ 0x8086, IWN_DID_2x30_2, "Intel Centrino Wireless-N 2230"		},
+	{ 0x8086, IWN_DID_130_1, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, IWN_DID_130_2, "Intel Centrino Wireless-N 130"		},
+	{ 0x8086, IWN_DID_100_1, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, IWN_DID_100_2, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, IWN_DID_4965_1, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, IWN_DID_6x00_1, "Intel Centrino Ultimate-N 6300"		},
+	{ 0x8086, IWN_DID_6x00_2, "Intel Centrino Advanced-N 6200"		},
+	{ 0x8086, IWN_DID_4965_2, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, IWN_DID_4965_3, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, IWN_DID_5x00_1, "Intel WiFi Link 5100"			},
+	{ 0x8086, IWN_DID_4965_4, "Intel Wireless WiFi Link 4965"		},
+	{ 0x8086, IWN_DID_5x00_3, "Intel Ultimate N WiFi Link 5300"		},
+	{ 0x8086, IWN_DID_5x00_4, "Intel Ultimate N WiFi Link 5300"		},
+	{ 0x8086, IWN_DID_5x00_2, "Intel WiFi Link 5100"			},
+	{ 0x8086, IWN_DID_6x00_3, "Intel Centrino Ultimate-N 6300"		},
+	{ 0x8086, IWN_DID_6x00_4, "Intel Centrino Advanced-N 6200"		},
+	{ 0x8086, IWN_DID_5x50_1, "Intel WiMAX/WiFi Link 5350"			},
+	{ 0x8086, IWN_DID_5x50_2, "Intel WiMAX/WiFi Link 5350"			},
+	{ 0x8086, IWN_DID_5x50_3, "Intel WiMAX/WiFi Link 5150"			},
+	{ 0x8086, IWN_DID_5x50_4, "Intel WiMAX/WiFi Link 5150"			},
 	{ 0, 0, NULL }
 };
 
@@ -518,7 +519,8 @@ iwn_attach(device_t dev)
 	IWN_LOCK_INIT(sc);
 
 	/* Read hardware revision and attach. */
-	sc->hw_type = (IWN_READ(sc, IWN_HW_REV) >> 4) & 0xf;
+	sc->hw_type = (IWN_READ(sc, IWN_HW_REV) >> IWN_HW_REV_TYPE_SHIFT)
+	    & IWN_HW_REV_TYPE_MASK;
 	if (sc->hw_type == IWN_HW_REV_TYPE_4965)
 		error = iwn4965_attach(sc, pci_get_device(dev));
 	else
