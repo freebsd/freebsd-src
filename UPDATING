@@ -31,6 +31,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130802:
+	find -delete can now delete the pathnames given as arguments,
+	instead of only files found below them or if the pathname did
+	not contain any slashes. Formerly, the following error message
+	would result:
+
+	find: -delete: <path>: relative path potentially not safe
+
+	Deleting the pathnames given as arguments can be prevented
+	without error messages using -mindepth 1 or by changing
+	directory and passing "." as argument to find. This works in the
+	old as well as the new version of find.
+
 20130726:
 	Behavior of devfs rules path matching has been changed.
 	Pattern is now always matched against fully qualified devfs
