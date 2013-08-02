@@ -19,7 +19,7 @@
 
 #include "serf.h"
 #include "serf_bucket_util.h"
-
+#include "serf_private.h"
 
 typedef struct {
     serf_bucket_t *stream;

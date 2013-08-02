@@ -13,8 +13,9 @@
  * limitations under the License.
  */
 
-#include "auth_kerb.h"
+#include "auth_spnego.h"
 #include "serf.h"
+#include "serf_private.h"
 
 #ifdef SERF_USE_SSPI
 #include <apr.h>
@@ -28,11 +29,18 @@
 #define SEC_E_MUTUAL_AUTH_FAILED _HRESULT_TYPEDEF_(0x80090363L)
 #endif
 
-struct serf__kerb_context_t
+struct serf__spnego_context_t
 {
     CredHandle sspi_credentials;
     CtxtHandle sspi_context;
     BOOL initalized;
+    apr_pool_t *pool;
+
+    /* Service Principal Name (SPN) used for authentication. */
+    const char *target_name;
+
+    /* One of SERF_AUTHN_* authentication types.*/
+    int authn_type;
 };
 
 /* Map SECURITY_STATUS from SSPI to APR error code. Some error codes mapped
@@ -79,7 +87,7 @@ map_sspi_status(SECURITY_STATUS sspi_status)
 static apr_status_t
 cleanup_ctx(void *data)
 {
-    serf__kerb_context_t *ctx = data;
+    serf__spnego_context_t *ctx = data;
 
     if (SecIsValidHandle(&ctx->sspi_context)) {
         DeleteSecurityContext(&ctx->sspi_context);
@@ -103,25 +111,35 @@ cleanup_sec_buffer(void *data)
 }
 
 apr_status_t
-serf__kerb_create_sec_context(serf__kerb_context_t **ctx_p,
-                              apr_pool_t *scratch_pool,
-                              apr_pool_t *result_pool)
+serf__spnego_create_sec_context(serf__spnego_context_t **ctx_p,
+                                const serf__authn_scheme_t *scheme,
+                                apr_pool_t *result_pool,
+                                apr_pool_t *scratch_pool)
 {
     SECURITY_STATUS sspi_status;
-    serf__kerb_context_t *ctx;
+    serf__spnego_context_t *ctx;
+    const char *sspi_package;
 
     ctx = apr_pcalloc(result_pool, sizeof(*ctx));
 
     SecInvalidateHandle(&ctx->sspi_context);
     SecInvalidateHandle(&ctx->sspi_credentials);
     ctx->initalized = FALSE;
+    ctx->pool = result_pool;
+    ctx->target_name = NULL;
+    ctx->authn_type = scheme->type;
 
     apr_pool_cleanup_register(result_pool, ctx,
                               cleanup_ctx,
                               apr_pool_cleanup_null);
 
+    if (ctx->authn_type == SERF_AUTHN_NEGOTIATE)
+        sspi_package = "Negotiate";
+    else
+        sspi_package = "NTLM";
+
     sspi_status = AcquireCredentialsHandle(
-        NULL, "Negotiate", SECPKG_CRED_OUTBOUND,
+        NULL, sspi_package, SECPKG_CRED_OUTBOUND,
         NULL, NULL, NULL, NULL,
         &ctx->sspi_credentials, NULL);
 
@@ -161,7 +179,7 @@ get_canonical_hostname(const char **canonname,
 }
 
 apr_status_t
-serf__kerb_reset_sec_context(serf__kerb_context_t *ctx)
+serf__spnego_reset_sec_context(serf__spnego_context_t *ctx)
 {
     if (SecIsValidHandle(&ctx->sspi_context)) {
         DeleteSecurityContext(&ctx->sspi_context);
@@ -174,14 +192,14 @@ serf__kerb_reset_sec_context(serf__kerb_context_t *ctx)
 }
 
 apr_status_t
-serf__kerb_init_sec_context(serf__kerb_context_t *ctx,
-                            const char *service,
-                            const char *hostname,
-                            serf__kerb_buffer_t *input_buf,
-                            serf__kerb_buffer_t *output_buf,
-                            apr_pool_t *scratch_pool,
-                            apr_pool_t *result_pool
-                            )
+serf__spnego_init_sec_context(serf__spnego_context_t *ctx,
+                              const char *service,
+                              const char *hostname,
+                              serf__spnego_buffer_t *input_buf,
+                              serf__spnego_buffer_t *output_buf,
+                              apr_pool_t *result_pool,
+                              apr_pool_t *scratch_pool
+                              )
 {
     SECURITY_STATUS status;
     ULONG actual_attr;
@@ -189,15 +207,26 @@ serf__kerb_init_sec_context(serf__kerb_context_t *ctx,
     SecBufferDesc sspi_in_buffer_desc;
     SecBuffer sspi_out_buffer;
     SecBufferDesc sspi_out_buffer_desc;
-    char *target_name;
     apr_status_t apr_status;
     const char *canonname;
 
-    apr_status = get_canonical_hostname(&canonname, hostname, scratch_pool);
-    if (apr_status) {
-        return apr_status;
+    if (!ctx->initalized && ctx->authn_type == SERF_AUTHN_NEGOTIATE) {
+        apr_status = get_canonical_hostname(&canonname, hostname, scratch_pool);
+        if (apr_status) {
+            return apr_status;
+        }
+
+        ctx->target_name = apr_pstrcat(scratch_pool, service, "/", canonname,
+                                       NULL);
+
+        serf__log(AUTH_VERBOSE, __FILE__,
+                  "Using SPN '%s' for '%s'\n", ctx->target_name, hostname);
     }
-    target_name = apr_pstrcat(scratch_pool, service, "/", canonname, NULL);
+    else if (ctx->authn_type == SERF_AUTHN_NTLM)
+    {
+        /* Target name is not used for NTLM authentication. */
+        ctx->target_name = NULL;
+    }
 
     /* Prepare input buffer description. */
     sspi_in_buffer.BufferType = SECBUFFER_TOKEN;
@@ -220,7 +249,7 @@ serf__kerb_init_sec_context(serf__kerb_context_t *ctx,
     status = InitializeSecurityContext(
         &ctx->sspi_credentials,
         ctx->initalized ? &ctx->sspi_context : NULL,
-        target_name,
+        ctx->target_name,
         ISC_REQ_ALLOCATE_MEMORY
         | ISC_REQ_MUTUAL_AUTH
         | ISC_REQ_CONFIDENTIALITY,
