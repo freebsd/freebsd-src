@@ -1878,7 +1878,16 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
 		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
 		    V_FW_PARAMS_PARAM_YZ(iq->cntxt_id);
-		val = cong ? cong | 2 << 19 : 1 << 19;
+		if (cong == 0)
+			val = 1 << 19;
+		else {
+			val = 2 << 19;
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |= 1 << (i << 2);
+			}
+		}
+
 		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
 		if (rc != 0) {
 			/* report error but carry on */
