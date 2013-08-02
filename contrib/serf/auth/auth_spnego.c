@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 
-#include "auth_kerb.h"
+#include "auth_spnego.h"
 
-#ifdef SERF_HAVE_KERB
+#ifdef SERF_HAVE_SPNEGO
 
 /** These functions implement SPNEGO-based Kerberos and NTLM authentication,
  *  using either GSS-API (RFC 2743) or SSPI on Windows.
@@ -31,8 +31,6 @@
 #include <apr_strings.h>
 
 /** TODO:
- ** - This implements the SPNEGO mechanism, not Kerberos directly. Adapt
- **   filename, functions & comments.
  ** - send session key directly on new connections where we already know
  **   the server requires Kerberos authn.
  ** - Add a way for serf to give detailed error information back to the
@@ -166,7 +164,7 @@ typedef struct
     apr_pool_t *pool;
 
     /* GSSAPI context */
-    serf__kerb_context_t *gss_ctx;
+    serf__spnego_context_t *gss_ctx;
 
     /* Current state of the authentication cycle. */
     gss_api_auth_state state;
@@ -188,8 +186,8 @@ gss_api_get_credentials(char *token, apr_size_t token_len,
                         const char **buf, apr_size_t *buf_len,
                         gss_authn_info_t *gss_info)
 {
-    serf__kerb_buffer_t input_buf;
-    serf__kerb_buffer_t output_buf;
+    serf__spnego_buffer_t input_buf;
+    serf__spnego_buffer_t output_buf;
     apr_status_t status = APR_SUCCESS;
 
     /* If the server sent us a token, pass it to gss_init_sec_token for
@@ -203,8 +201,8 @@ gss_api_get_credentials(char *token, apr_size_t token_len,
     }
 
     /* Establish a security context to the server. */
-    status = serf__kerb_init_sec_context
-        (gss_info->gss_ctx,
+    status = serf__spnego_init_sec_context(
+         gss_info->gss_ctx,
          KRB_HTTP_SERVICE, hostname,
          &input_buf,
          &output_buf,
@@ -248,12 +246,17 @@ do_auth(peer_t peer,
         apr_pool_t *pool)
 {
     serf_context_t *ctx = conn->ctx;
-    serf__authn_info_t *authn_info = (peer == HOST) ? &ctx->authn_info :
-        &ctx->proxy_authn_info;
+    serf__authn_info_t *authn_info;
     const char *tmp = NULL;
     char *token = NULL;
     apr_size_t tmp_len = 0, token_len = 0;
     apr_status_t status;
+
+    if (peer == HOST) {
+        authn_info = serf__get_authn_info_for_server(conn);
+    } else {
+        authn_info = &ctx->proxy_authn_info;
+    }
 
     /* Is this a response from a host/proxy? auth_hdr should always be set. */
     if (code && auth_hdr) {
@@ -306,7 +309,7 @@ do_auth(peer_t peer,
     /* If the server didn't provide us with a token, start with a new initial
        step in the SPNEGO authentication. */
     if (!token) {
-        serf__kerb_reset_sec_context(gss_info->gss_ctx);
+        serf__spnego_reset_sec_context(gss_info->gss_ctx);
         gss_info->state = gss_api_auth_not_started;
     }
 
@@ -339,9 +342,9 @@ do_auth(peer_t peer,
 }
 
 apr_status_t
-serf__init_kerb(int code,
-                serf_context_t *ctx,
-                apr_pool_t *pool)
+serf__init_spnego(int code,
+                  serf_context_t *ctx,
+                  apr_pool_t *pool)
 {
     return APR_SUCCESS;
 }
@@ -349,19 +352,20 @@ serf__init_kerb(int code,
 /* A new connection is created to a server that's known to use
    Kerberos. */
 apr_status_t
-serf__init_kerb_connection(int code,
-                           serf_connection_t *conn,
-                           apr_pool_t *pool)
+serf__init_spnego_connection(const serf__authn_scheme_t *scheme,
+                             int code,
+                             serf_connection_t *conn,
+                             apr_pool_t *pool)
 {
     gss_authn_info_t *gss_info;
     apr_status_t status;
 
-    gss_info = apr_pcalloc(pool, sizeof(*gss_info));
+    gss_info = apr_pcalloc(conn->pool, sizeof(*gss_info));
     gss_info->pool = conn->pool;
     gss_info->state = gss_api_auth_not_started;
     gss_info->pstate = pstate_init;
-    status = serf__kerb_create_sec_context(&gss_info->gss_ctx, pool,
-                                           gss_info->pool);
+    status = serf__spnego_create_sec_context(&gss_info->gss_ctx, scheme,
+                                             gss_info->pool, pool);
 
     if (status) {
         return status;
@@ -384,13 +388,13 @@ serf__init_kerb_connection(int code,
 
 /* A 40x response was received, handle the authentication. */
 apr_status_t
-serf__handle_kerb_auth(int code,
-                       serf_request_t *request,
-                       serf_bucket_t *response,
-                       const char *auth_hdr,
-                       const char *auth_attr,
-                       void *baton,
-                       apr_pool_t *pool)
+serf__handle_spnego_auth(int code,
+                         serf_request_t *request,
+                         serf_bucket_t *response,
+                         const char *auth_hdr,
+                         const char *auth_attr,
+                         void *baton,
+                         apr_pool_t *pool)
 {
     serf_connection_t *conn = request->conn;
     gss_authn_info_t *gss_info = (code == 401) ? conn->authn_baton :
@@ -406,13 +410,13 @@ serf__handle_kerb_auth(int code,
 
 /* Setup the authn headers on this request message. */
 apr_status_t
-serf__setup_request_kerb_auth(peer_t peer,
-                              int code,
-                              serf_connection_t *conn,
-                              serf_request_t *request,
-                              const char *method,
-                              const char *uri,
-                              serf_bucket_t *hdrs_bkt)
+serf__setup_request_spnego_auth(peer_t peer,
+                                int code,
+                                serf_connection_t *conn,
+                                serf_request_t *request,
+                                const char *method,
+                                const char *uri,
+                                serf_bucket_t *hdrs_bkt)
 {
     gss_authn_info_t *gss_info = (peer == HOST) ? conn->authn_baton :
         conn->proxy_authn_baton;
@@ -488,12 +492,12 @@ serf__setup_request_kerb_auth(peer_t peer,
  * data which should be validated by the client (mutual authentication).
  */
 apr_status_t
-serf__validate_response_kerb_auth(peer_t peer,
-                                  int code,
-                                  serf_connection_t *conn,
-                                  serf_request_t *request,
-                                  serf_bucket_t *response,
-                                  apr_pool_t *pool)
+serf__validate_response_spnego_auth(peer_t peer,
+                                    int code,
+                                    serf_connection_t *conn,
+                                    serf_request_t *request,
+                                    serf_bucket_t *response,
+                                    apr_pool_t *pool)
 {
     gss_authn_info_t *gss_info;
     const char *auth_hdr_name;
@@ -549,4 +553,4 @@ serf__validate_response_kerb_auth(peer_t peer,
     return APR_SUCCESS;
 }
 
-#endif /* SERF_HAVE_GSSAPI */
+#endif /* SERF_HAVE_SPNEGO */

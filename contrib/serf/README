@@ -14,25 +14,67 @@ kept to a minimum to provide high performance operation.
 
 ----
 
-Quick guide for the impatient
+1. INSTALL
 
-  (Unix)
-  % ./configure
-  % make
-  % make install
+1.1. SCons build system
 
-----
+serf uses SCons 2.x for its build system. If it is not installed on
+your system, then you can install it onto your system. If you do not
+have permissions, then you can download and install the "local"
+version into your home directory. When installed privately, simply
+create a symlink for 'scons' in your PATH to /path/to/scons/scons.py.
 
-Building serf from a Subversion checkout (non-packaged releases)
+Fetch the scons-local package:
+  http://prdownloads.sourceforge.net/scons/scons-local-2.0.1.tar.gz
 
-We suggest that you try out 'serfmake'.
 
- % ./serfmake --prefix=/usr/local/serf --with-apr=/usr/local/apr install
+1.2 Building serf
 
-If you want to use the autoconf build system and are using a Subversion
-checkout, you need to run buildconf and have APR and APR-util sources handy.
+To build serf:
 
- % ./buildconf --with-apr=/path/to/apr --with-apr-util=/path/to/apr-util
- (By default, buildconf will look in . and ../ for apr and apr-util.)
+$ scons APR=/path/to/apr APU=/path/to/apu OPENSSL=/openssl/base PREFIX=/path/to/prefix
 
-Then, you can use ./configure, make, etc.
+The switches are recorded into .saved_config, so they only need to be
+specified the first time scons is run.
+
+PREFIX should specify where serf should be installed.  PREFIX defaults to
+/usr/local.
+
+The default for the other three switches (APR, APU, OPENSSL) is /usr.
+
+The build system looks for apr-1-config at $APR/bin/apr-1-config, or
+the path should indicate apr-1-config itself. Similarly for the path
+to apu-1-config.
+
+OPENSSL should specify the root of the install (eg. /opt/local). The
+includes will be found OPENSSL/include and libraries at OPENSSL/lib.
+
+If you wish to use VPATH-style builds (where objects are created in a
+distinct directory from the source), you can use:
+
+$ scons -Y /path/to/serf/source
+
+At any point, the current settings can be examined:
+
+$ scons --help
+
+
+1.3 Running the test suite
+
+$ scons check
+
+
+1.4 Installing serf
+
+$ scons install
+
+Note that the PREFIX variable should have been specified in a previous
+invocation of scons (and saved into .saved_config), or it can be
+specified on the install command line:
+
+$ scons PREFIX=/some/path install
+
+
+1.4 Cleaning up the build
+
+$ scons -c
