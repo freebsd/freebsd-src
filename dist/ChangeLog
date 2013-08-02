@@ -1,3 +1,36 @@
+2013-07-30  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130730
+	  Merge with NetBSD make, pick up
+	  o Allow suppression of --- job -- tokens by setting
+	    .MAKE.JOB.PREFIX empty.
+
+2013-07-16  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20130716
+	  Merge with NetBSD make, pick up
+	  o number of gmake compatability tweaks
+	    -w for gmake style entering/leaving messages
+	    if .MAKE.LEVEL > 0 indicate it in progname "make[1]" etc.
+	    handle MAKEFLAGS containing only letters.
+	  o when overriding a GLOBAL variable on the command line,
+	    delete it from GLOBAL context so -V doesn't show the wrong
+	    value.
+	
+2013-07-06  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* configure.in: We don't need MAKE_LEVEL_SAFE anymore.
+
+	* Makefile (MAKE_VERSION): 20130706
+	  Merge with NetBSD make, pick up
+	  o Shell_Init(): export shellErrFlag if commandShell hasErrCtl is
+	    true so that CompatRunCommand() can use it, to ensure
+	    consistent behavior with jobs mode.
+	  o use MAKE_LEVEL_ENV to define the variable to propagate
+	    .MAKE.LEVEL - currently set to MAKELEVEL (same as gmake).
+	  o meta.c: use .MAKE.META.IGNORE_PATHS to allow customization of
+	    paths to ignore.
+
 2013-06-04  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20130604
