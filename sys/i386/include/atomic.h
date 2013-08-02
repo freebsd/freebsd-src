@@ -364,9 +364,9 @@ atomic_testandset_int(volatile u_int *p, int v)
 	"	btsl	%2, %1 ;	"
 	"	setc	%0 ;		"
 	"# atomic_testandset_int"
-	: "=r" (res),			/* 0 (result) */
+	: "=r" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
-	: "r" (v),			/* 2 */
+	: "Ir" (v % 32),		/* 2 */
 	  "m" (*p)			/* 3 */
 	: "cc");
 	return (res);
