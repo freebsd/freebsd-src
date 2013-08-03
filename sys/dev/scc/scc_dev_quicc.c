@@ -44,9 +44,13 @@ __FBSDID("$FreeBSD$");
 
 #define	quicc_read2(bas, reg)		\
 	bus_space_read_2((bas)->bst, (bas)->bsh, reg)
+#define	quicc_read4(bas, reg)		\
+	bus_space_read_4((bas)->bst, (bas)->bsh, reg)
 
 #define	quicc_write2(bas, reg, val)	\
 	bus_space_write_2((bas)->bst, (bas)->bsh, reg, val)
+#define	quicc_write4(bas, reg, val)	\
+	bus_space_write_4((bas)->bst, (bas)->bsh, reg, val)
 
 static int quicc_bfe_attach(struct scc_softc *, int);
 static int quicc_bfe_enabled(struct scc_softc *, struct scc_chan *);
