@@ -206,7 +206,7 @@ atomic_cmpset_64_i586(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 	"	" MPLOCKED "		"
 	"	cmpxchg8b %1 ;		"
 	"	sete	%0"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "=m" (*dst),			/* 1 */
 	  "+A" (expect)			/* 2 */
 	: "b" ((uint32_t)src),		/* 3 */
@@ -320,7 +320,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	"	cmpxchgl %3, %1 ;	"
 	"       sete	%0 ; "
 	"# atomic_cmpset_int"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "=m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
 	: "r" (src),			/* 3 */
@@ -364,7 +364,7 @@ atomic_testandset_int(volatile u_int *p, u_int v)
 	"	btsl	%2, %1 ;	"
 	"	setc	%0 ;		"
 	"# atomic_testandset_int"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
 	: "Ir" (v & 0x1f),		/* 2 */
 	  "m" (*p)			/* 3 */

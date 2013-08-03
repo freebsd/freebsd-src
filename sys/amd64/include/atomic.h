@@ -145,7 +145,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	"	cmpxchgl %3, %1 ;	"
 	"       sete	%0 ;		"
 	"# atomic_cmpset_int"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "=m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
 	: "r" (src),			/* 3 */
@@ -165,7 +165,7 @@ atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 	"	cmpxchgq %3, %1 ;	"
 	"       sete	%0 ;		"
 	"# atomic_cmpset_long"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "=m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
 	: "r" (src),			/* 3 */
@@ -223,7 +223,7 @@ atomic_testandset_int(volatile u_int *p, u_int v)
 	"	btsl	%2, %1 ;	"
 	"	setc	%0 ;		"
 	"# atomic_testandset_int"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
 	: "Ir" (v & 0x1f),		/* 2 */
 	  "m" (*p)			/* 3 */
@@ -241,7 +241,7 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 	"	btsq	%2, %1 ;	"
 	"	setc	%0 ;		"
 	"# atomic_testandset_long"
-	: "=r" (res),			/* 0 */
+	: "=q" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
 	: "Jr" ((u_long)(v & 0x3f)),	/* 2 */
 	  "m" (*p)			/* 3 */
