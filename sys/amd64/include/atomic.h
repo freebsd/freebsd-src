@@ -82,8 +82,8 @@ int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 int	atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
-int	atomic_testandset_int(volatile u_int *p, int v);
-int	atomic_testandset_long(volatile u_long *p, int v);
+int	atomic_testandset_int(volatile u_int *p, u_int v);
+int	atomic_testandset_long(volatile u_long *p, u_int v);
 
 #define	ATOMIC_LOAD(TYPE, LOP)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
@@ -214,7 +214,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 }
 
 static __inline int
-atomic_testandset_int(volatile u_int *p, int v)
+atomic_testandset_int(volatile u_int *p, u_int v)
 {
 	u_char res;
 
@@ -225,14 +225,14 @@ atomic_testandset_int(volatile u_int *p, int v)
 	"# atomic_testandset_int"
 	: "=r" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
-	: "ir" (v),			/* 2 */
+	: "Ir" (v & 0x1f),		/* 2 */
 	  "m" (*p)			/* 3 */
 	: "cc");
 	return (res);
 }
 
 static __inline int
-atomic_testandset_long(volatile u_long *p, int v)
+atomic_testandset_long(volatile u_long *p, u_int v)
 {
 	u_char res;
 
@@ -243,7 +243,7 @@ atomic_testandset_long(volatile u_long *p, int v)
 	"# atomic_testandset_long"
 	: "=r" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
-	: "ir" ((u_long)v),		/* 2 */
+	: "Jr" ((u_long)(v & 0x3f)),	/* 2 */
 	  "m" (*p)			/* 3 */
 	: "cc");
 	return (res);

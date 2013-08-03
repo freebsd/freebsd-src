@@ -80,7 +80,7 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
-int	atomic_testandset_int(volatile u_int *p, int v);
+int	atomic_testandset_int(volatile u_int *p, u_int v);
 
 #define	ATOMIC_LOAD(TYPE, LOP)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
@@ -184,9 +184,9 @@ atomic_swap_64_i386(volatile uint64_t *p, uint64_t v)
 }
 
 static __inline int
-atomic_testandset_64_i386(volatile uint64_t *p, int v)
+atomic_testandset_64_i386(volatile uint64_t *p, u_int v)
 {
-	const uint64_t s = 1ULL << v % 64;
+	const uint64_t s = 1ULL << (v & 0x3f);
 	int res;
 	register_t lock;
 
@@ -269,9 +269,9 @@ atomic_swap_64_i586(volatile uint64_t *p, uint64_t v)
 }
 
 static __inline int
-atomic_testandset_64_i586(volatile uint64_t *p, int v)
+atomic_testandset_64_i586(volatile uint64_t *p, u_int v)
 {
-	const uint64_t s = 1ULL << v % 64;
+	const uint64_t s = 1ULL << (v & 0x3f);
 	uint64_t n;
 
 	do {
@@ -355,7 +355,7 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 }
 
 static __inline int
-atomic_testandset_int(volatile u_int *p, int v)
+atomic_testandset_int(volatile u_int *p, u_int v)
 {
 	u_char res;
 
@@ -366,7 +366,7 @@ atomic_testandset_int(volatile u_int *p, int v)
 	"# atomic_testandset_int"
 	: "=r" (res),			/* 0 */
 	  "=m" (*p)			/* 1 */
-	: "ir" (v),			/* 2 */
+	: "Ir" (v & 0x1f),		/* 2 */
 	  "m" (*p)			/* 3 */
 	: "cc");
 	return (res);
@@ -469,7 +469,7 @@ extern int (*atomic_cmpset_64)(volatile uint64_t *, uint64_t, uint64_t);
 extern uint64_t (*atomic_load_acq_64)(volatile uint64_t *);
 extern void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t);
 extern uint64_t (*atomic_swap_64)(volatile uint64_t *, uint64_t);
-extern int (*atomic_testandset_64)(volatile uint64_t *, int);
+extern int (*atomic_testandset_64)(volatile uint64_t *, u_int);
 #endif
 
 static __inline int
@@ -488,7 +488,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 }
 
 static __inline int
-atomic_testandset_long(volatile u_long *p, int v)
+atomic_testandset_long(volatile u_long *p, u_int v)
 {
 
 	return (atomic_testandset_int((volatile u_int *)p, v));
