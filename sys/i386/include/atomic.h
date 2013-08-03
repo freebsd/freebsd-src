@@ -260,7 +260,7 @@ atomic_swap_64_i586(volatile uint64_t *p, uint64_t v)
 	"	jne	1b"
 	: "+m" (*p),			/* 0 */
 	  "+A" (v)			/* 1 */
-	: : "ebx", "ecx", "memory", "cc");
+	: : "ebx", "ecx", "cc");
 	return (v);
 }
 
@@ -320,7 +320,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	  "+m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
 	: "r" (src)			/* 3 */
-	: "memory", "cc");
+	: "cc");
 
 	return (res);
 }
