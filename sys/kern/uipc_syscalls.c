@@ -2246,11 +2246,6 @@ retry_space:
 				ssize_t resid;
 				int readahead = sfreadahead * MAXBSIZE;
 
-				/*
-				 * Ensure that our page is still around
-				 * when the I/O completes.
-				 */
-				vm_page_io_start(pg);
 				VM_OBJECT_WUNLOCK(obj);
 
 				/*
@@ -2264,11 +2259,9 @@ retry_space:
 				    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
 				    IO_VMIO | ((readahead / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
-				VM_OBJECT_WLOCK(obj);
-				vm_page_io_finish(pg);
-				if (!error)
-					VM_OBJECT_WUNLOCK(obj);
 				SFSTAT_INC(sf_iocnt);
+				if (error)
+					VM_OBJECT_WLOCK(obj);
 			}
 			if (error) {
 				vm_page_lock(pg);
