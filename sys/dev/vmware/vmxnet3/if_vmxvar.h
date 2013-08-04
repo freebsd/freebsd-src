@@ -57,13 +57,17 @@ struct vmxnet3_dma_alloc {
  */
 #define VMXNET3_MAX_RX_SEGS		17
 
+struct vmxnet3_txbuf {
+	bus_dmamap_t		 vtxb_dmamap;
+	struct mbuf		*vtxb_m;
+};
+
 struct vmxnet3_txring {
-	struct mbuf		*vxtxr_m[VMXNET3_MAX_TX_NDESC];
-	bus_dmamap_t		 vxtxr_dmap[VMXNET3_MAX_TX_NDESC];
+	struct vmxnet3_txbuf	*vxtxr_txbuf;
 	u_int			 vxtxr_head;
 	u_int			 vxtxr_next;
 	u_int			 vxtxr_ndesc;
-	uint8_t			 vxtxr_gen;
+	int			 vxtxr_gen;
 	bus_dma_tag_t		 vxtxr_txtag;
 	struct vmxnet3_txdesc	*vxtxr_txd;
 	struct vmxnet3_dma_alloc vxtxr_dma;
@@ -72,14 +76,18 @@ struct vmxnet3_txring {
 #define VMXNET3_TXRING_AVAIL(_txr) \
     (((_txr)->vxtxr_head - (_txr)->vxtxr_head - 1) % VMXNET3_MAX_TX_NDESC)
 
+struct vmxnet3_rxbuf {
+	bus_dmamap_t		 vrxb_dmamap;
+	struct mbuf		*vrxb_m;
+};
+
 struct vmxnet3_rxring {
-	struct mbuf		*vxrxr_m[VMXNET3_MAX_RX_NDESC];
-	bus_dmamap_t		 vxrxr_dmap[VMXNET3_MAX_RX_NDESC];
+	struct vmxnet3_rxbuf	*vxrxr_rxbuf;
 	struct vmxnet3_rxdesc	*vxrxr_rxd;
 	u_int			 vxrxr_fill;
 	u_int			 vxrxr_ndesc;
-	uint8_t			 vxrxr_gen;
-	uint8_t			 vxrxr_rid;
+	int			 vxrxr_gen;
+	int			 vxrxr_rid;
 	bus_dma_tag_t		 vxrxr_rxtag;
 	struct vmxnet3_dma_alloc vxrxr_dma;
 	bus_dmamap_t		 vxrxr_spare_dmap;
@@ -102,8 +110,13 @@ struct vmxnet3_comp_ring {
 	}			 vxcr_u;
 	u_int			 vxcr_next;
 	u_int			 vxcr_ndesc;
-	uint8_t			 vxcr_gen;
+	int			 vxcr_gen;
 	struct vmxnet3_dma_alloc vxcr_dma;
+};
+
+struct vmxnet3_txq_stats {
+	uint64_t		vtxrs_full;
+
 };
 
 struct vmxnet3_txqueue {
@@ -111,9 +124,12 @@ struct vmxnet3_txqueue {
 	struct vmxnet3_softc		*vxtxq_sc;
 	int				 vxtxq_id;
 	int				 vxtxq_intr_idx;
+	int				 vxtxq_watchdog;
 	struct vmxnet3_txring		 vxtxq_cmd_ring;
 	struct vmxnet3_comp_ring	 vxtxq_comp_ring;
+	struct vmxnet3_txq_stats	 vxtxq_stats;
 	struct vmxnet3_txq_shared	*vxtxq_ts;
+	struct sysctl_oid_list		*vxtxq_sysctl;
 	char				 vxtxq_name[16];
 };
 
@@ -125,6 +141,10 @@ struct vmxnet3_txqueue {
 #define VMXNET3_TXQ_LOCK_ASSERT_NOTOWNED(_txq)	\
     mtx_assert(&(_txq)->vxtxq_mtx, MA_NOTOWNED)
 
+struct vmxnet3_rxq_stats {
+
+};
+
 struct vmxnet3_rxqueue {
 	struct mtx			 vxrxq_mtx;
 	struct vmxnet3_softc		*vxrxq_sc;
@@ -132,7 +152,9 @@ struct vmxnet3_rxqueue {
 	int				 vxrxq_intr_idx;
 	struct vmxnet3_rxring		 vxrxq_cmd_ring[VMXNET3_RXRINGS_PERQ];
 	struct vmxnet3_comp_ring	 vxrxq_comp_ring;
+	struct vmxnet3_rxq_stats	 vxrxq_stats;
 	struct vmxnet3_rxq_shared	*vxrxq_rs;
+	struct sysctl_oid_list		*vxrxq_sysctl;
 	char				 vxrxq_name[16];
 };
 
@@ -142,6 +164,11 @@ struct vmxnet3_rxqueue {
     mtx_assert(&(_rxq)->vxrxq_mtx, MA_OWNED)
 #define VMXNET3_RXQ_LOCK_ASSERT_NOTOWNED(_rxq)	\
     mtx_assert(&(_rxq)->vxrxq_mtx, MA_NOTOWNED)
+
+struct vmxnet3_statistics {
+	uint64_t		vmst_collapsed;
+
+};
 
 struct vmxnet3_interrupt {
 	struct resource		*vmxi_irq;
@@ -174,9 +201,10 @@ struct vmxnet3_softc {
 	int				 vmx_nrxqueues;
 	int				 vmx_ntxdescs;
 	int				 vmx_nrxdescs;
-	int				 vmx_watchdog_timer;
 	int				 vmx_max_rxsegs;
 	int				 vmx_rx_max_chain;
+
+	struct vmxnet3_statistics	 vmx_stats;
 
 	int				 vmx_intr_type;
 	int				 vmx_intr_mask_mode;

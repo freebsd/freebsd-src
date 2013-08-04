@@ -80,6 +80,7 @@ struct UPT1_RxStats {
 #define VMXNET3_CMD_SET_FILTER	0xCAFE0004	/* Set address filter */
 #define VMXNET3_CMD_VLAN_FILTER	0xCAFE0005	/* Set VLAN filter */
 #define VMXNET3_CMD_GET_STATUS	0xF00D0000	/* Get queue errors */
+#define VMXNET3_CMD_GET_STATS	0xF00D0001	/* Get queue statistics */
 #define VMXNET3_CMD_GET_LINK	0xF00D0002	/* Get link status */
 #define VMXNET3_CMD_GET_MACL	0xF00D0003	/* Get MAC address low */
 #define VMXNET3_CMD_GET_MACH	0xF00D0004	/* Get MAC address high */

@@ -27,8 +27,19 @@
 
 KMOD=	if_vmx
 SRCS=	if_vmx.c
-SRCS+=	bus_if.h device_if.h
+SRCS+=	bus_if.h device_if.h pci_if.h opt_inet.h opt_inet6.h
+MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m
 
-MFILES=	kern/bus_if.m kern/device_if.m
+.if !defined(KERNBUILDDIR)
+.if ${MK_INET_SUPPORT} != "no"
+opt_inet.h:
+	@echo "#define INET 1" > ${.TARGET}
+.endif
+
+.if ${MK_INET6_SUPPORT} != "no"
+opt_inet6.h:
+	@echo "#define INET6 1" > ${.TARGET}
+.endif
+.endif
 
 .include <bsd.kmod.mk>
