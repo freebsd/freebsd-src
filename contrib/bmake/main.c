@@ -1026,7 +1026,6 @@ main(int argc, char **argv)
 		snprintf(pn, sizeof(pn), "%s[%d]", progname, makelevel);
 		progname = bmake_strdup(pn);
 	}
-	Job_SetPrefix();
 
 #ifdef USE_META
 	meta_init();

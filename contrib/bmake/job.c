@@ -2214,6 +2214,7 @@ Job_SetPrefix(void)
 void
 Job_Init(void)
 {
+    Job_SetPrefix();
     /* Allocate space for all the job info */
     job_table = bmake_malloc(maxJobs * sizeof *job_table);
     memset(job_table, 0, maxJobs * sizeof *job_table);
