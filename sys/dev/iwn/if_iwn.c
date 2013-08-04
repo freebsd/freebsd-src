@@ -7489,7 +7489,7 @@ iwn_hw_reset(void *arg0, int pending)
 #define	COUNTOF(array) (sizeof(array) / sizeof(array[0]))
 
 /*
- * Transate CSR code to string
+ * Translate CSR code to string
  */
 static char *iwn_get_csr_string(int csr)
 {
