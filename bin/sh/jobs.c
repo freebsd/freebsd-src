@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 
 static struct job *jobtab;	/* array of jobs */
 static int njobs;		/* size of array */
-MKINIT pid_t backgndpid = -1;	/* pid of last background process */
-MKINIT struct job *bgjob = NULL; /* last background process */
+static pid_t backgndpid = -1;	/* pid of last background process */
+static struct job *bgjob = NULL; /* last background process */
 #if JOBS
 static struct job *jobmru;	/* most recently used job list */
 static pid_t initialpgrp;	/* pgrp of shell on invocation */
@@ -116,7 +116,7 @@ static void showjob(struct job *, int);
  * Turn job control on and off.
  */
 
-MKINIT int jobctl;
+static int jobctl;
 
 #if JOBS
 void

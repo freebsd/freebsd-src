@@ -51,6 +51,11 @@ enum {
 	T4_GET_MEM,			/* read memory */
 	T4_GET_I2C,			/* read from i2c addressible device */
 	T4_CLEAR_STATS,			/* clear a port's MAC statistics */
+	T4_SET_OFLD_POLICY,		/* Set offload policy */
+	T4_SET_SCHED_CLASS,             /* set sched class */
+	T4_SET_SCHED_QUEUE,             /* set queue class */
+	T4_GET_TRACER,			/* get information about a tracer */
+	T4_SET_TRACER,			/* program a tracer */
 };
 
 struct t4_reg {
@@ -223,6 +228,25 @@ struct t4_mem_range {
 	uint32_t *data;
 };
 
+#define T4_TRACE_LEN 112
+struct t4_trace_params {
+	uint32_t data[T4_TRACE_LEN / 4];
+	uint32_t mask[T4_TRACE_LEN / 4];
+	uint16_t snap_len;
+	uint16_t min_len;
+	uint8_t skip_ofst;
+	uint8_t skip_len;
+	uint8_t invert;
+	uint8_t port;
+};
+
+struct t4_tracer {
+	uint8_t idx;
+	uint8_t enabled;
+	uint8_t valid;
+	struct t4_trace_params tp;
+};
+
 #define CHELSIO_T4_GETREG	_IOWR('f', T4_GETREG, struct t4_reg)
 #define CHELSIO_T4_SETREG	_IOW('f', T4_SETREG, struct t4_reg)
 #define CHELSIO_T4_REGDUMP	_IOWR('f', T4_REGDUMP, struct t4_regdump)
@@ -237,4 +261,6 @@ struct t4_mem_range {
 #define CHELSIO_T4_GET_MEM	_IOW('f', T4_GET_MEM, struct t4_mem_range)
 #define CHELSIO_T4_GET_I2C	_IOWR('f', T4_GET_I2C, struct t4_i2c_data)
 #define CHELSIO_T4_CLEAR_STATS	_IOW('f', T4_CLEAR_STATS, uint32_t)
+#define CHELSIO_T4_GET_TRACER	_IOWR('f', T4_GET_TRACER, struct t4_tracer)
+#define CHELSIO_T4_SET_TRACER	_IOW('f', T4_SET_TRACER, struct t4_tracer)
 #endif

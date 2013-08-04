@@ -127,16 +127,13 @@ arswitch_writephy(device_t dev, int phy, int reg, int data)
 		return (ENXIO);
 
 	ARSWITCH_LOCK(sc);
-	err = arswitch_writereg_lsb(dev, AR8X16_REG_MDIO_CTRL,
-	    (data & AR8X16_MDIO_CTRL_DATA_MASK));
-	if (err != 0)
-		goto out;
-	err = arswitch_writereg_msb(dev, AR8X16_REG_MDIO_CTRL,
+	err = arswitch_writereg(dev, AR8X16_REG_MDIO_CTRL,
 	    AR8X16_MDIO_CTRL_BUSY |
 	    AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_WRITE |
 	    (phy << AR8X16_MDIO_CTRL_PHY_ADDR_SHIFT) |
-	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT));
+	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT) |
+	    (data & AR8X16_MDIO_CTRL_DATA_MASK));
 	if (err != 0)
 		goto out;
 	for (timeout = 100; timeout--; ) {

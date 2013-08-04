@@ -2234,6 +2234,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	if (m_pc == NULL && free != NULL) {
 		m_pc = free;
 		free = (void *)m_pc->object;
+		m_pc->object = NULL;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
@@ -4400,6 +4401,7 @@ pmap_remove_pages(pmap_t pmap)
 	int64_t bit;
 	uint64_t inuse, bitmask;
 	int allfree, field, freed, idx;
+	boolean_t superpage;
 	vm_paddr_t pa;
 
 	if (pmap != PCPU_GET(curpmap)) {
@@ -4426,12 +4428,26 @@ pmap_remove_pages(pmap_t pmap)
 				pte = pmap_pdpe_to_pde(pte, pv->pv_va);
 				tpte = *pte;
 				if ((tpte & (PG_PS | PG_V)) == PG_V) {
+					superpage = FALSE;
 					ptepde = tpte;
 					pte = (pt_entry_t *)PHYS_TO_DMAP(tpte &
 					    PG_FRAME);
 					pte = &pte[pmap_pte_index(pv->pv_va)];
 					tpte = *pte;
+				} else {
+					/*
+					 * Keep track whether 'tpte' is a
+					 * superpage explicitly instead of
+					 * relying on PG_PS being set.
+					 *
+					 * This is because PG_PS is numerically
+					 * identical to PG_PTE_PAT and thus a
+					 * regular page could be mistaken for
+					 * a superpage.
+					 */
+					superpage = TRUE;
 				}
+
 				if ((tpte & PG_V) == 0) {
 					panic("bad pte va %lx pte %lx",
 					    pv->pv_va, tpte);
@@ -4445,7 +4461,7 @@ pmap_remove_pages(pmap_t pmap)
 					continue;
 				}
 
-				if (tpte & PG_PS)
+				if (superpage)
 					pa = tpte & PG_PS_FRAME;
 				else
 					pa = tpte & PG_FRAME;
@@ -4467,7 +4483,7 @@ pmap_remove_pages(pmap_t pmap)
 				 * Update the vm_page_t clean/reference bits.
 				 */
 				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
-					if ((tpte & PG_PS) != 0) {
+					if (superpage) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							vm_page_dirty(mt);
 					} else
@@ -4478,7 +4494,7 @@ pmap_remove_pages(pmap_t pmap)
 
 				/* Mark free */
 				pc->pc_map[field] |= bitmask;
-				if ((tpte & PG_PS) != 0) {
+				if (superpage) {
 					pmap_resident_count_dec(pmap, NBPDR / PAGE_SIZE);
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);

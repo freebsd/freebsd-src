@@ -32,14 +32,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -71,7 +72,7 @@ usage(void)
 		fprintf(stderr, "%s", f->usage);
 		f++;
 	}
-	exit(EX_USAGE);
+	exit(1);
 }
 
 static void
@@ -134,16 +135,11 @@ read_controller_data(int fd, struct nvme_controller_data *cdata)
 	pt.len = sizeof(*cdata);
 	pt.is_read = 1;
 
-	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0) {
-		printf("Identify request failed. errno=%d (%s)\n",
-		    errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
+		err(1, "identify request failed");
 
-	if (nvme_completion_is_error(&pt.cpl)) {
-		printf("Passthrough command returned error.\n");
-		exit(EX_IOERR);
-	}
+	if (nvme_completion_is_error(&pt.cpl))
+		errx(1, "identify request returned error");
 }
 
 void
@@ -158,58 +154,63 @@ read_namespace_data(int fd, int nsid, struct nvme_namespace_data *nsdata)
 	pt.len = sizeof(*nsdata);
 	pt.is_read = 1;
 
-	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0) {
-		printf("Identify request failed. errno=%d (%s)\n",
-		    errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
+		err(1, "identify request failed");
 
-	if (nvme_completion_is_error(&pt.cpl)) {
-		printf("Passthrough command returned error.\n");
-		exit(EX_IOERR);
-	}
+	if (nvme_completion_is_error(&pt.cpl))
+		errx(1, "identify request returned error");
 }
 
 int
 open_dev(const char *str, int *fd, int show_error, int exit_on_error)
 {
-	struct stat	devstat;
 	char		full_path[64];
 
 	if (!strnstr(str, NVME_CTRLR_PREFIX, strlen(NVME_CTRLR_PREFIX))) {
 		if (show_error)
-			fprintf(stderr,
-			    "Controller/namespace IDs must begin with '%s'.\n",
+			warnx("controller/namespace ids must begin with '%s'",
 			    NVME_CTRLR_PREFIX);
 		if (exit_on_error)
-			exit(EX_USAGE);
+			exit(1);
 		else
-			return (EX_USAGE);
+			return (EINVAL);
 	}
 
-	snprintf(full_path, sizeof(full_path), "/dev/%s", str);
-	if (stat(full_path, &devstat) != 0) {
-		if (show_error)
-			fprintf(stderr, "Could not stat %s. errno=%d (%s)\n",
-			    full_path, errno, strerror(errno));
-		if (exit_on_error)
-			exit(EX_NOINPUT);
-		else
-			return (EX_NOINPUT);
-	}
-
+	snprintf(full_path, sizeof(full_path), _PATH_DEV"%s", str);
 	*fd = open(full_path, O_RDWR);
 	if (*fd < 0) {
 		if (show_error)
-			fprintf(stderr, "Could not open %s. errno=%d (%s)\n",
-			    full_path, errno, strerror(errno));
+			warn("could not open %s", full_path);
 		if (exit_on_error)
-			exit(EX_NOPERM);
+			exit(1);
 		else
-			return (EX_NOPERM);
+			return (errno);
 	}
 
-	return (EX_OK);
+	return (0);
+}
+
+void
+parse_ns_str(const char *ns_str, char *ctrlr_str, int *nsid)
+{
+	char	*nsloc;
+
+	/*
+	 * Pull the namespace id from the string. +2 skips past the "ns" part
+	 *  of the string.  Don't search past 10 characters into the string,
+	 *  otherwise we know it is malformed.
+	 */
+	nsloc = strnstr(ns_str, NVME_NS_PREFIX, 10);
+	if (nsloc != NULL)
+		*nsid = strtol(nsloc + 2, NULL, 10);
+	if (nsloc == NULL || (*nsid == 0 && errno != 0))
+		errx(1, "invalid namespace ID '%s'", ns_str);
+
+	/*
+	 * The controller string will include only the nvmX part of the
+	 *  nvmeXnsY string.
+	 */
+	snprintf(ctrlr_str, nsloc - ns_str + 1, "%s", ns_str);
 }
 
 int

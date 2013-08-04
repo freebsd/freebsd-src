@@ -15,11 +15,11 @@ hint.arge.1.media=1000
 hint.arge.1.fduplex=1
 
 # ath0 - slot 17
-hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1fff1000
+hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1f661000
 hint.pcib.0.bus.0.17.0.ath_fixup_size=4096
 
 # ath1 - slot 18
-hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1fff5000
+hint.pcib.0.bus.0.18.0.ath_fixup_addr=0x1f665000
 hint.pcib.0.bus.0.18.0.ath_fixup_size=4096
 
 # .. and now, telling each ath(4) NIC where to find the firmware

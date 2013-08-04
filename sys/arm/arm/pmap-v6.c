@@ -3336,7 +3336,7 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				m = PHYS_TO_VM_PAGE(l2pte_pa(*ptep));
 				KASSERT((vm_offset_t)m >= KERNBASE,
 				    ("Trying to access non-existent page "
-				     "va %x pte %x in %s", va, *ptep));
+				     "va %x pte %x", va, *ptep));
 				*ptep = 0;
 				PTE_SYNC(ptep);
 				pmap_nuke_pv(m, pmap, pv);

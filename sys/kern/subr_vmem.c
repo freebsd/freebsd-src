@@ -650,7 +650,7 @@ vmem_start_callout(void *unused)
 SYSINIT(vfs, SI_SUB_CONFIGURE, SI_ORDER_ANY, vmem_start_callout, NULL);
 
 static void
-vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int flags, int type)
+vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int type)
 {
 	bt_t *btspan;
 	bt_t *btfree;
@@ -726,7 +726,7 @@ vmem_import(vmem_t *vm, vmem_size_t size, int flags)
 	if (error)
 		return ENOMEM;
 
-	vmem_add1(vm, addr, size, flags, BT_TYPE_SPAN);
+	vmem_add1(vm, addr, size, BT_TYPE_SPAN);
 
 	return 0;
 }
@@ -1176,7 +1176,7 @@ vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int flags)
 	flags &= VMEM_FLAGS;
 	VMEM_LOCK(vm);
 	if (vm->vm_nfreetags >= BT_MAXALLOC || bt_fill(vm, flags) == 0)
-		vmem_add1(vm, addr, size, flags, BT_TYPE_SPAN_STATIC);
+		vmem_add1(vm, addr, size, BT_TYPE_SPAN_STATIC);
 	else
 		error = ENOMEM;
 	VMEM_UNLOCK(vm);

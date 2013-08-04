@@ -389,9 +389,10 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 		}
 		SCTP_FREE(asoc->strmin, SCTP_M_STRMI);
 	}
-	asoc->streamincnt = ntohs(init->num_outbound_streams);
-	if (asoc->streamincnt > MAX_SCTP_STREAMS) {
-		asoc->streamincnt = MAX_SCTP_STREAMS;
+	if (asoc->max_inbound_streams > ntohs(init->num_outbound_streams)) {
+		asoc->streamincnt = ntohs(init->num_outbound_streams);
+	} else {
+		asoc->streamincnt = asoc->max_inbound_streams;
 	}
 	SCTP_MALLOC(asoc->strmin, struct sctp_stream_in *, asoc->streamincnt *
 	    sizeof(struct sctp_stream_in), SCTP_M_STRMI);
@@ -403,11 +404,6 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 	for (i = 0; i < asoc->streamincnt; i++) {
 		asoc->strmin[i].stream_no = i;
 		asoc->strmin[i].last_sequence_delivered = 0xffff;
-		/*
-		 * U-stream ranges will be set when the cookie is unpacked.
-		 * Or for the INIT sender they are un set (if pr-sctp not
-		 * supported) when the INIT-ACK arrives.
-		 */
 		TAILQ_INIT(&asoc->strmin[i].inqueue);
 		asoc->strmin[i].delivery_started = 0;
 	}
@@ -4568,8 +4564,10 @@ __attribute__((noinline))
 		if ((ch->chunk_type == SCTP_ABORT_ASSOCIATION) ||
 		    (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) ||
 		    (ch->chunk_type == SCTP_PACKET_DROPPED)) {
-			if ((vtag_in == asoc->my_vtag) ||
-			    ((ch->chunk_flags & SCTP_HAD_NO_TCB) &&
+			/* Take the T-bit always into account. */
+			if ((((ch->chunk_flags & SCTP_HAD_NO_TCB) == 0) &&
+			    (vtag_in == asoc->my_vtag)) ||
+			    (((ch->chunk_flags & SCTP_HAD_NO_TCB) == SCTP_HAD_NO_TCB) &&
 			    (vtag_in == asoc->peer_vtag))) {
 				/* this is valid */
 			} else {
@@ -5707,7 +5705,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 #ifdef INET
 		case AF_INET:
 			if (ipsec4_in_reject(m, &inp->ip_inp.inp)) {
-				MODULE_GLOBAL(ipsec4stat).in_polvio++;
+				IPSECSTAT_INC(ips_in_polvio);
 				SCTP_STAT_INCR(sctps_hdrops);
 				goto out;
 			}
@@ -5716,7 +5714,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 #ifdef INET6
 		case AF_INET6:
 			if (ipsec6_in_reject(m, &inp->ip_inp.inp)) {
-				MODULE_GLOBAL(ipsec6stat).in_polvio++;
+				IPSEC6STAT_INC(ips_in_polvio);
 				SCTP_STAT_INCR(sctps_hdrops);
 				goto out;
 			}

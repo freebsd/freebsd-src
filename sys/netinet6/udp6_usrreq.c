@@ -141,7 +141,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec6_in_reject(n, inp)) {
 		m_freem(n);
-		IPSEC6STAT_INC(in_polvio);
+		IPSEC6STAT_INC(ips_in_polvio);
 		return;
 	}
 #endif /* IPSEC */

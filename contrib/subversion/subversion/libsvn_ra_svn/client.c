@@ -977,6 +977,28 @@ static svn_error_t *ra_svn_commit(svn_ra_session_t *session,
   const svn_string_t *log_msg = svn_hash_gets(revprop_table,
                                               SVN_PROP_REVISION_LOG);
 
+  if (log_msg == NULL &&
+      ! svn_ra_svn_has_capability(conn, SVN_RA_SVN_CAP_COMMIT_REVPROPS))
+    {
+      return svn_error_createf(SVN_ERR_BAD_PROPERTY_VALUE, NULL,
+                               _("ra_svn does not support not specifying "
+                                 "a log message with pre-1.5 servers; "
+                                 "consider passing an empty one, or upgrading "
+                                 "the server"));
+    } 
+  else if (log_msg == NULL)
+    /* 1.5+ server.  Set LOG_MSG to something, since the 'logmsg' argument
+       to the 'commit' protocol command is non-optional; on the server side,
+       only REVPROP_TABLE will be used, and LOG_MSG will be ignored.  The 
+       "svn:log" member of REVPROP_TABLE table is NULL, therefore the commit
+       will have a NULL log message (not just "", really NULL).
+
+       svnserve 1.5.x+ has always ignored LOG_MSG when REVPROP_TABLE was
+       present; this was elevated to a protocol promise in r1498550 (and
+       later documented in this comment) in order to fix the segmentation
+       fault bug described in the log message of r1498550.*/
+    log_msg = svn_string_create("", pool);
+
   /* If we're sending revprops other than svn:log, make sure the server won't
      silently ignore them. */
   if (apr_hash_count(revprop_table) > 1 &&
@@ -1456,16 +1478,19 @@ static svn_error_t *ra_svn_diff(svn_ra_session_t *session,
 }
 
 
-static svn_error_t *ra_svn_log(svn_ra_session_t *session,
-                               const apr_array_header_t *paths,
-                               svn_revnum_t start, svn_revnum_t end,
-                               int limit,
-                               svn_boolean_t discover_changed_paths,
-                               svn_boolean_t strict_node_history,
-                               svn_boolean_t include_merged_revisions,
-                               const apr_array_header_t *revprops,
-                               svn_log_entry_receiver_t receiver,
-                               void *receiver_baton, apr_pool_t *pool)
+static svn_error_t *
+perform_ra_svn_log(svn_error_t **outer_error,
+                   svn_ra_session_t *session,
+                   const apr_array_header_t *paths,
+                   svn_revnum_t start, svn_revnum_t end,
+                   int limit,
+                   svn_boolean_t discover_changed_paths,
+                   svn_boolean_t strict_node_history,
+                   svn_boolean_t include_merged_revisions,
+                   const apr_array_header_t *revprops,
+                   svn_log_entry_receiver_t receiver,
+                   void *receiver_baton,
+                   apr_pool_t *pool)
 {
   svn_ra_svn__session_baton_t *sess_baton = session->priv;
   svn_ra_svn_conn_t *conn = sess_baton->conn;
@@ -1606,8 +1631,10 @@ static svn_error_t *ra_svn_log(svn_ra_session_t *session,
         cphash = NULL;
 
       nreceived = 0;
-      if (! (limit && (nest_level == 0) && (++nreceived > limit)))
+      if (! (limit && (nest_level == 0) && (++nreceived > limit))
+          && ! *outer_error)
         {
+          svn_error_t *err;
           log_entry = svn_log_entry_create(iterpool);
 
           log_entry->changed_paths = cphash;
@@ -1650,7 +1677,15 @@ static svn_error_t *ra_svn_log(svn_ra_session_t *session,
                                   SVN_PROP_REVISION_LOG, message);
                 }
             }
-          SVN_ERR(receiver(receiver_baton, log_entry, iterpool));
+          err = receiver(receiver_baton, log_entry, iterpool);
+          if (err && err->apr_err == SVN_ERR_CEASE_INVOCATION)
+            {
+              *outer_error = svn_error_trace(
+                                svn_error_compose_create(*outer_error, err));
+            }
+          else
+            SVN_ERR(err);
+
           if (log_entry->has_children)
             {
               nest_level++;
@@ -1665,8 +1700,39 @@ static svn_error_t *ra_svn_log(svn_ra_session_t *session,
   svn_pool_destroy(iterpool);
 
   /* Read the response. */
-  return svn_ra_svn__read_cmd_response(conn, pool, "");
+  return svn_error_trace(svn_ra_svn__read_cmd_response(conn, pool, ""));
 }
+
+static svn_error_t *
+ra_svn_log(svn_ra_session_t *session,
+           const apr_array_header_t *paths,
+           svn_revnum_t start, svn_revnum_t end,
+           int limit,
+           svn_boolean_t discover_changed_paths,
+           svn_boolean_t strict_node_history,
+           svn_boolean_t include_merged_revisions,
+           const apr_array_header_t *revprops,
+           svn_log_entry_receiver_t receiver,
+           void *receiver_baton, apr_pool_t *pool)
+{
+  svn_error_t *outer_error = NULL;
+  svn_error_t *err;
+
+  err = svn_error_trace(perform_ra_svn_log(&outer_error,
+                                           session, paths,
+                                           start, end,
+                                           limit,
+                                           discover_changed_paths,
+                                           strict_node_history,
+                                           include_merged_revisions,
+                                           revprops,
+                                           receiver, receiver_baton,
+                                           pool));
+  return svn_error_trace(
+            svn_error_compose_create(outer_error,
+                                     err));
+}
+
 
 
 static svn_error_t *ra_svn_check_path(svn_ra_session_t *session,

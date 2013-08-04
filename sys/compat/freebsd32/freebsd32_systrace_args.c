@@ -1195,6 +1195,47 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* freebsd32_ktimer_create */
+	case 235: {
+		struct freebsd32_ktimer_create_args *p = params;
+		iarg[0] = p->clock_id; /* clockid_t */
+		uarg[1] = (intptr_t) p->evp; /* struct sigevent32 * */
+		uarg[2] = (intptr_t) p->timerid; /* int * */
+		*n_args = 3;
+		break;
+	}
+	/* ktimer_delete */
+	case 236: {
+		struct ktimer_delete_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* freebsd32_ktimer_settime */
+	case 237: {
+		struct freebsd32_ktimer_settime_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		iarg[1] = p->flags; /* int */
+		uarg[2] = (intptr_t) p->value; /* const struct itimerspec32 * */
+		uarg[3] = (intptr_t) p->ovalue; /* struct itimerspec32 * */
+		*n_args = 4;
+		break;
+	}
+	/* freebsd32_ktimer_gettime */
+	case 238: {
+		struct freebsd32_ktimer_gettime_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		uarg[1] = (intptr_t) p->value; /* struct itimerspec32 * */
+		*n_args = 2;
+		break;
+	}
+	/* ktimer_getoverrun */
+	case 239: {
+		struct ktimer_getoverrun_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		*n_args = 1;
+		break;
+	}
 	/* freebsd32_nanosleep */
 	case 240: {
 		struct freebsd32_nanosleep_args *p = params;
@@ -1224,13 +1265,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247: {
-		struct clock_getcpuclockid2_args *p = params;
-		iarg[0] = p->id; /* id_t */
-		iarg[1] = p->which; /* int */
-		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
-		*n_args = 3;
+		struct freebsd32_clock_getcpuclockid2_args *p = params;
+		uarg[0] = p->id1; /* uint32_t */
+		uarg[1] = p->id2; /* uint32_t */
+		iarg[2] = p->which; /* int */
+		uarg[3] = (intptr_t) p->clock_id; /* clockid_t * */
+		*n_args = 4;
 		break;
 	}
 	/* minherit */
@@ -1292,7 +1334,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->mode; /* int */
 		uarg[1] = (intptr_t) p->acb_list; /* struct aiocb32 *const * */
 		iarg[2] = p->nent; /* int */
-		uarg[3] = (intptr_t) p->sig; /* struct sigevent * */
+		uarg[3] = (intptr_t) p->sig; /* struct sigevent32 * */
 		*n_args = 4;
 		break;
 	}
@@ -2405,11 +2447,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461: {
-		struct kmq_notify_args *p = params;
+		struct freebsd32_kmq_notify_args *p = params;
 		iarg[0] = p->mqd; /* int */
-		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent * */
+		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent32 * */
 		*n_args = 2;
 		break;
 	}
@@ -5109,6 +5151,74 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_ktimer_create */
+	case 235:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "struct sigevent32 *";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_delete */
+	case 236:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_ktimer_settime */
+	case 237:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const struct itimerspec32 *";
+			break;
+		case 3:
+			p = "struct itimerspec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_ktimer_gettime */
+	case 238:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct itimerspec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_getoverrun */
+	case 239:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* freebsd32_nanosleep */
 	case 240:
 		switch(ndx) {
@@ -5152,16 +5262,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247:
 		switch(ndx) {
 		case 0:
-			p = "id_t";
+			p = "uint32_t";
 			break;
 		case 1:
-			p = "int";
+			p = "uint32_t";
 			break;
 		case 2:
+			p = "int";
+			break;
+		case 3:
 			p = "clockid_t *";
 			break;
 		default:
@@ -5262,7 +5375,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "struct sigevent *";
+			p = "struct sigevent32 *";
 			break;
 		default:
 			break;
@@ -7117,14 +7230,14 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "const struct sigevent *";
+			p = "const struct sigevent32 *";
 			break;
 		default:
 			break;
@@ -9332,6 +9445,31 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+	/* freebsd32_ktimer_create */
+	case 235:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ktimer_delete */
+	case 236:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ktimer_settime */
+	case 237:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_ktimer_gettime */
+	case 238:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ktimer_getoverrun */
+	case 239:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* freebsd32_nanosleep */
 	case 240:
 		if (ndx == 0 || ndx == 1)
@@ -9352,7 +9490,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10052,7 +10190,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

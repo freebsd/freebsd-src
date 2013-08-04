@@ -124,7 +124,8 @@ static volatile sig_atomic_t romeo_must_die = 0;
 
 static const char *configfile = CF;
 
-static void devdlog(int priority, const char* message, ...);
+static void devdlog(int priority, const char* message, ...)
+	__printflike(2, 3);
 static void event_loop(void);
 static void usage(void);
 
@@ -969,7 +970,7 @@ event_loop(void)
 		}
 		rv = select(max_fd, &fds, NULL, NULL, &tv);
 		if (got_siginfo) {
-			devdlog(LOG_INFO, "Events received so far=%ld\n",
+			devdlog(LOG_INFO, "Events received so far=%u\n",
 			    total_events);
 			got_siginfo = 0;
 		}

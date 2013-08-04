@@ -96,16 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
-/*
- * System initialization
- *
- * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
- *
- * Note: run scheduling should be divorced from the vm system.
- */
-static void scheduler(void *);
-SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL);
-
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
 static void swapclear(struct proc *);
@@ -233,7 +223,7 @@ vsunlock(void *addr, size_t len)
  * Return the pinned page if successful; otherwise, return NULL.
  */
 static vm_page_t
-vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
+vm_imgact_page_iostart(vm_object_t object, vm_ooffset_t offset)
 {
 	vm_page_t m, ma[1];
 	vm_pindex_t pindex;
@@ -259,9 +249,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 		}
 		vm_page_wakeup(m);
 	}
-	vm_page_lock(m);
-	vm_page_hold(m);
-	vm_page_unlock(m);
+	vm_page_io_start(m);
 out:
 	VM_OBJECT_WUNLOCK(object);
 	return (m);
@@ -276,7 +264,7 @@ vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset)
 {
 	vm_page_t m;
 
-	m = vm_imgact_hold_page(object, offset);
+	m = vm_imgact_page_iostart(object, offset);
 	if (m == NULL)
 		return (NULL);
 	sched_pin();
@@ -287,16 +275,16 @@ vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset)
  * Destroy the given CPU private mapping and unpin the page that it mapped.
  */
 void
-vm_imgact_unmap_page(struct sf_buf *sf)
+vm_imgact_unmap_page(vm_object_t object, struct sf_buf *sf)
 {
 	vm_page_t m;
 
 	m = sf_buf_page(sf);
 	sf_buf_free(sf);
 	sched_unpin();
-	vm_page_lock(m);
-	vm_page_unhold(m);
-	vm_page_unlock(m);
+	VM_OBJECT_WLOCK(object);
+	vm_page_io_finish(m);
+	VM_OBJECT_WUNLOCK(object);
 }
 
 void
@@ -695,10 +683,8 @@ faultin(p)
  *
  * Giant is held on entry.
  */
-/* ARGSUSED*/
-static void
-scheduler(dummy)
-	void *dummy;
+void
+swapper(void)
 {
 	struct proc *p;
 	struct thread *td;
@@ -707,9 +693,6 @@ scheduler(dummy)
 	int swtime;
 	int ppri;
 	int pri;
-
-	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
-	mtx_unlock(&Giant);
 
 loop:
 	if (vm_page_count_min()) {
@@ -761,7 +744,7 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		tsleep(&proc0, PVM, "sched", MAXSLP * hz / 2);
+		tsleep(&proc0, PVM, "swapin", MAXSLP * hz / 2);
 		goto loop;
 	}
 	PROC_LOCK(p);

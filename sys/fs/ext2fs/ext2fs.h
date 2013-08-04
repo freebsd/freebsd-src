@@ -147,6 +147,7 @@ struct m_ext2fs {
 	int32_t  e2fs_contigsumsize;    /* size of cluster summary array */
 	int32_t *e2fs_maxcluster;       /* max cluster in each cyl group */
 	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
+	int32_t  e2fs_uhash;	  /* 3 if hash should be signed, 0 if not */
 };
 
 /* cluster summary information */
@@ -227,6 +228,12 @@ struct csum {
  */
 #define	E2FS_ISCLEAN			0x0001	/* Unmounted cleanly */
 #define	E2FS_ERRORS			0x0002	/* Errors detected */
+
+/*
+ * Filesystem miscellaneous flags
+ */
+#define E2FS_SIGNED_HASH	0x0001
+#define E2FS_UNSIGNED_HASH	0x0002
 
 /* ext2 file system block group descriptor */
 

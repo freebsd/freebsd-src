@@ -2736,6 +2736,8 @@ device		mos
 # HSxPA devices from Option N.V
 device		uhso
 
+# Realtek RTL8188SU/RTL8191SU/RTL8192SU wireless driver
+device		rsu
 #
 # Ralink Technology RT2501USB/RT2601USB wireless driver
 device		rum

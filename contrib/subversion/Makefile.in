@@ -903,5 +903,5 @@ INSTALL_EXTRA_TOOLS=\
   test -n "$$SVN_SVNMUCC_IS_SVNSYITF" && \
   ln -sf svnmucc$(EXEEXT) $(DESTDIR)$(bindir)/svnsyitf$(EXEEXT); \
   if test "$(DESTDIR)$(bindir)" != "$(DESTDIR)$(toolsdir)"; then \
-    ln -sf $(DESTDIR)$(bindir)/svnmucc$(EXEEXT) $(DESTDIR)$(toolsdir)/svnmucc$(EXEEXT); \
+    ln -sf $(bindir)/svnmucc$(EXEEXT) $(DESTDIR)$(toolsdir)/svnmucc$(EXEEXT); \
   fi

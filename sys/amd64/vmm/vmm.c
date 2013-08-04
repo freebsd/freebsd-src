@@ -224,8 +224,13 @@ vmm_handler(module_t mod, int what, void *arg)
 			iommu_cleanup();
 			vmm_ipi_cleanup();
 			error = VMM_CLEANUP();
+			/*
+			 * Something bad happened - prevent new
+			 * VMs from being created
+			 */
+			if (error)
+				vmm_initialized = 0;
 		}
-		vmm_initialized = 0;
 		break;
 	default:
 		error = 0;

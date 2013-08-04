@@ -141,7 +141,11 @@ VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
 
 VNET_DEFINE(struct pfil_head, inet6_pfil_hook);
 
-VNET_DEFINE(struct ip6stat, ip6stat);
+VNET_PCPUSTAT_DEFINE(struct ip6stat, ip6stat);
+VNET_PCPUSTAT_SYSINIT(ip6stat);
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(ip6stat);
+#endif /* VIMAGE */
 
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");

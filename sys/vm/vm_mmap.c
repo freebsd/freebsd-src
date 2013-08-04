@@ -1224,6 +1224,9 @@ sys_munlock(td, uap)
 {
 	vm_offset_t addr, end, last, start;
 	vm_size_t size;
+#ifdef RACCT
+	vm_map_t map;
+#endif
 	int error;
 
 	error = priv_check(td, PRIV_VM_MUNLOCK);
@@ -1241,7 +1244,9 @@ sys_munlock(td, uap)
 #ifdef RACCT
 	if (error == KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
-		racct_sub(td->td_proc, RACCT_MEMLOCK, ptoa(end - start));
+		map = &td->td_proc->p_vmspace->vm_map;
+		racct_set(td->td_proc, RACCT_MEMLOCK,
+		    ptoa(pmap_wired_count(map->pmap)));
 		PROC_UNLOCK(td->td_proc);
 	}
 #endif
@@ -1603,7 +1608,8 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	else if (fitit)
 		rv = vm_map_find(map, object, foff, addr, size,
 		    object != NULL && object->type == OBJT_DEVICE ?
-		    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, prot, maxprot, docow);
+		    VMFS_ALIGNED_SPACE : VMFS_OPTIMAL_SPACE, prot, maxprot,
+		    docow);
 	else
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);

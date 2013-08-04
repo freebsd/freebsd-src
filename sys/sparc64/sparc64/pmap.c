@@ -765,7 +765,6 @@ pmap_page_init(vm_page_t m)
 
 	TAILQ_INIT(&m->md.tte_list);
 	m->md.color = DCACHE_COLOR(VM_PAGE_TO_PHYS(m));
-	m->md.flags = 0;
 	m->md.pmap = NULL;
 }
 

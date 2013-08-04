@@ -158,7 +158,8 @@
 #define	PRIV_PROC_SETRLIMIT	162	/* Can raise resources limits. */
 #define	PRIV_PROC_SETLOGINCLASS	163	/* Can call setloginclass(2). */
 
-/* System V IPC privileges.
+/*
+ * System V IPC privileges.
  */
 #define	PRIV_IPC_READ		170	/* Can override IPC read perm. */
 #define	PRIV_IPC_WRITE		171	/* Can override IPC write perm. */
@@ -494,9 +495,15 @@
 #define	PRIV_RCTL_REMOVE_RULE	674
 
 /*
+ * mem(4) privileges.
+ */
+#define	PRIV_KMEM_READ		680	/* Open mem/kmem for reading. */
+#define	PRIV_KMEM_WRITE		681	/* Open mem/kmem for writing. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		675
+#define	_PRIV_HIGHEST		682
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

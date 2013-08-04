@@ -113,37 +113,12 @@ extern struct vop_vector zfs_vnodeops;
 extern struct vop_vector zfs_fifoops;
 extern struct vop_vector zfs_shareops;
 
-/*
- * XXX: We cannot use this function as a cache constructor, because
- *      there is one global cache for all file systems and we need
- *      to pass vfsp here, which is not possible, because argument
- *      'cdrarg' is defined at kmem_cache_create() time.
- */
-/*ARGSUSED*/
 static int
 zfs_znode_cache_constructor(void *buf, void *arg, int kmflags)
 {
 	znode_t *zp = buf;
-	vnode_t *vp;
-	vfs_t *vfsp = arg;
-	int error;
 
 	POINTER_INVALIDATE(&zp->z_zfsvfs);
-	ASSERT(!POINTER_IS_VALID(zp->z_zfsvfs));
-
-	if (vfsp != NULL) {
-		error = getnewvnode("zfs", vfsp, &zfs_vnodeops, &vp);
-		if (error != 0 && (kmflags & KM_NOSLEEP))
-			return (-1);
-		ASSERT(error == 0);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		zp->z_vnode = vp;
-		vp->v_data = (caddr_t)zp;
-		VN_LOCK_AREC(vp);
-		VN_LOCK_ASHARE(vp);
-	} else {
-		zp->z_vnode = NULL;
-	}
 
 	list_link_init(&zp->z_link_node);
 
@@ -158,6 +133,7 @@ zfs_znode_cache_constructor(void *buf, void *arg, int kmflags)
 
 	zp->z_dirlocks = NULL;
 	zp->z_acl_cached = NULL;
+	zp->z_vnode = NULL;
 	zp->z_moved = 0;
 	return (0);
 }
@@ -377,7 +353,7 @@ zfs_znode_init(void)
 	rw_init(&zfsvfs_lock, NULL, RW_DEFAULT, NULL);
 	ASSERT(znode_cache == NULL);
 	znode_cache = kmem_cache_create("zfs_znode_cache",
-	    sizeof (znode_t), 0, /* zfs_znode_cache_constructor */ NULL,
+	    sizeof (znode_t), 0, zfs_znode_cache_constructor,
 	    zfs_znode_cache_destructor, NULL, NULL, NULL, 0);
 	kmem_cache_set_move(znode_cache, zfs_znode_move);
 }
@@ -501,7 +477,6 @@ zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
 	zfs_acl_ids_t acl_ids;
 	vattr_t vattr;
 	znode_t *sharezp;
-	vnode_t *vp, vnode;
 	znode_t *zp;
 	int error;
 
@@ -512,19 +487,12 @@ zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
 	vattr.va_gid = crgetgid(kcred);
 
 	sharezp = kmem_cache_alloc(znode_cache, KM_SLEEP);
-	zfs_znode_cache_constructor(sharezp, zfsvfs->z_parent->z_vfs, 0);
 	ASSERT(!POINTER_IS_VALID(sharezp->z_zfsvfs));
 	sharezp->z_moved = 0;
 	sharezp->z_unlinked = 0;
 	sharezp->z_atime_dirty = 0;
 	sharezp->z_zfsvfs = zfsvfs;
 	sharezp->z_is_sa = zfsvfs->z_use_sa;
-
-	sharezp->z_vnode = &vnode;
-	vnode.v_data = sharezp;
-
-	vp = ZTOV(sharezp);
-	vp->v_type = VDIR;
 
 	VERIFY(0 == zfs_acl_ids_create(sharezp, IS_ROOT_NODE, &vattr,
 	    kcred, NULL, &acl_ids));
@@ -536,12 +504,7 @@ zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
 	zfsvfs->z_shares_dir = sharezp->z_id;
 
 	zfs_acl_ids_free(&acl_ids);
-	ZTOV(sharezp)->v_data = NULL;
-	ZTOV(sharezp)->v_count = 0;
-	ZTOV(sharezp)->v_holdcnt = 0;
-	zp->z_vnode = NULL;
 	sa_handle_destroy(sharezp->z_sa_hdl);
-	sharezp->z_vnode = NULL;
 	kmem_cache_free(znode_cache, sharezp);
 
 	return (error);
@@ -657,9 +620,17 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	uint64_t parent;
 	sa_bulk_attr_t bulk[9];
 	int count = 0;
+	int error;
 
 	zp = kmem_cache_alloc(znode_cache, KM_SLEEP);
-	zfs_znode_cache_constructor(zp, zfsvfs->z_parent->z_vfs, 0);
+
+	error = getnewvnode("zfs", zfsvfs->z_parent->z_vfs, &zfs_vnodeops, &vp);
+	if (error != 0) {
+		kmem_cache_free(znode_cache, zp);
+		return (NULL);
+	}
+	zp->z_vnode = vp;
+	vp->v_data = zp;
 
 	ASSERT(zp->z_dirlocks == NULL);
 	ASSERT(!POINTER_IS_VALID(zp->z_zfsvfs));
@@ -749,8 +720,6 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 		break;
 #endif	/* sun */
 	}
-	if (vp->v_type != VFIFO)
-		VN_LOCK_ASHARE(vp);
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
 	list_insert_tail(&zfsvfs->z_all_znodes, zp);
@@ -761,6 +730,14 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	 */
 	zp->z_zfsvfs = zfsvfs;
 	mutex_exit(&zfsvfs->z_znodes_lock);
+
+	/*
+	 * Acquire vnode lock before making it available to the world.
+	 */
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	VN_LOCK_AREC(vp);
+	if (vp->v_type != VFIFO)
+		VN_LOCK_ASHARE(vp);
 
 	VFS_HOLD(zfsvfs->z_vfs);
 	return (zp);
@@ -1830,7 +1807,6 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	int		error;
 	int		i;
 	znode_t		*rootzp = NULL;
-	vnode_t		vnode;
 	vattr_t		vattr;
 	znode_t		*zp;
 	zfs_acl_ids_t	acl_ids;
@@ -1909,16 +1885,11 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	bzero(&zfsvfs, sizeof (zfsvfs_t));
 
 	rootzp = kmem_cache_alloc(znode_cache, KM_SLEEP);
-	zfs_znode_cache_constructor(rootzp, NULL, 0);
 	ASSERT(!POINTER_IS_VALID(rootzp->z_zfsvfs));
 	rootzp->z_moved = 0;
 	rootzp->z_unlinked = 0;
 	rootzp->z_atime_dirty = 0;
 	rootzp->z_is_sa = USE_SA(version, os);
-
-	vnode.v_type = VDIR;
-	vnode.v_data = rootzp;
-	rootzp->z_vnode = &vnode;
 
 	zfsvfs.z_os = os;
 	zfsvfs.z_parent = &zfsvfs;
@@ -1957,7 +1928,6 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	POINTER_INVALIDATE(&rootzp->z_zfsvfs);
 
 	sa_handle_destroy(rootzp->z_sa_hdl);
-	rootzp->z_vnode = NULL;
 	kmem_cache_free(znode_cache, rootzp);
 
 	/*

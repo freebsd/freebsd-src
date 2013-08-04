@@ -117,11 +117,6 @@ struct carpstats {
 	uint64_t	carps_preempt;		/* if enabled, preemptions */
 };
 
-#ifdef _KERNEL
-#define	CARPSTATS_ADD(name, val)	carpstats.name += (val)
-#define	CARPSTATS_INC(name)		CARPSTATS_ADD(name, 1)
-#endif
-
 /*
  * Configuration structure for SIOCSVH SIOCGVH
  */
