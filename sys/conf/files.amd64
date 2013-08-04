@@ -294,6 +294,7 @@ dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
 dev/vmware/vmxnet/if_vic.c	optional	vic pci
+dev/vmware/vmxnet3/if_vmx.c	optional	vmx pci
 dev/wbwd/wbwd.c			optional	wbwd
 dev/wpi/if_wpi.c		optional	wpi
 dev/isci/isci.c							optional isci
