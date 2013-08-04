@@ -378,7 +378,7 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		off = offset - trunc_page(offset);
 		error = copyout((caddr_t)sf_buf_kva(sf) + off, (caddr_t)start,
 		    end - start);
-		vm_imgact_unmap_page(sf);
+		vm_imgact_unmap_page(object, sf);
 		if (error) {
 			return (KERN_FAILURE);
 		}
@@ -433,7 +433,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 					sz = PAGE_SIZE - off;
 				error = copyout((caddr_t)sf_buf_kva(sf) + off,
 				    (caddr_t)start, sz);
-				vm_imgact_unmap_page(sf);
+				vm_imgact_unmap_page(object, sf);
 				if (error) {
 					return (KERN_FAILURE);
 				}
@@ -553,7 +553,7 @@ __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
 		    trunc_page(offset + filsz);
 		error = copyout((caddr_t)sf_buf_kva(sf) + off,
 		    (caddr_t)map_addr, copy_len);
-		vm_imgact_unmap_page(sf);
+		vm_imgact_unmap_page(object, sf);
 		if (error) {
 			return (error);
 		}
