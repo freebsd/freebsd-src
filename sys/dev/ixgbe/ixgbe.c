@@ -1581,7 +1581,7 @@ ixgbe_msix_link(void *arg)
 	/* First get the cause */
 	reg_eicr = IXGBE_READ_REG(hw, IXGBE_EICS);
 	/* Be sure the queue bits are not cleared */
-	reg_eicr = ~IXGBE_EICR_RTX_QUEUE;
+	reg_eicr &= ~IXGBE_EICR_RTX_QUEUE;
 	/* Clear interrupt with write */
 	IXGBE_WRITE_REG(hw, IXGBE_EICR, reg_eicr);
 
