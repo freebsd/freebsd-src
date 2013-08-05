@@ -116,7 +116,7 @@ if [ -d "${SYSDIR}/../.git" ] ; then
 fi
 
 if [ -n "$svnversion" ] ; then
-	svn=`cd ${SYSDIR} && $svnversion`
+	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
 	case "$svn" in
 	[0-9]*)	svn=" r${svn}" ;;
 	*)	unset svn ;;
