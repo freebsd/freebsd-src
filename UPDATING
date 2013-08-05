@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130806:
+	Timer values in IPv6 data structures now use time_uptime instead
+	of time_second.  Although this is not a user-visible functional
+	change, userland utilities which directly use them---ndp(8),
+	rtadvd(8), and rtsold(8) in the base system---need to be updated
+	to r253970 or later.
+
 20130802:
 	find -delete can now delete the pathnames given as arguments,
 	instead of only files found below them or if the pathname did
