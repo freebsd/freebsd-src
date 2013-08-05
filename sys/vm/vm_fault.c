@@ -221,8 +221,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	if (map != kernel_map && KTRPOINT(td, KTR_FAULT))
 		ktrfault(vaddr, fault_type);
 #endif
-	result = vm_fault_handle(map, trunc_page(vaddr), fault_type,
-	    fault_flags, NULL);
+	result = vm_fault_hold(map, trunc_page(vaddr), fault_type, fault_flags,
+	    NULL);
 #ifdef KTRACE
 	if (map != kernel_map && KTRPOINT(td, KTR_FAULTEND))
 		ktrfaultend(result);
@@ -231,7 +231,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 }
 
 int
-vm_fault_handle(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
+vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
 	vm_prot_t prot;
@@ -943,10 +943,7 @@ vnode_locked:
 		vm_page_activate(fs.m);
 	if (m_hold != NULL) {
 		*m_hold = fs.m;
-		if (fault_flags & VM_FAULT_IOBUSY)
-			vm_page_io_start(fs.m);
-		else
-			vm_page_hold(fs.m);
+		vm_page_hold(fs.m);
 	}
 	vm_page_unlock(fs.m);
 	vm_page_wakeup(fs.m);
@@ -1148,7 +1145,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 		 * and hold these pages.
 		 */
 		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE)
-			if (*mp == NULL && vm_fault_handle(map, va, prot,
+			if (*mp == NULL && vm_fault_hold(map, va, prot,
 			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS)
 				goto error;
 	}
