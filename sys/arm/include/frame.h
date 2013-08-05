@@ -62,7 +62,7 @@
 typedef struct trapframe {
 	register_t tf_spsr; /* Zero on arm26 */
 	register_t tf_r0;
- 	register_t tf_r1;
+	register_t tf_r1;
 	register_t tf_r2;
 	register_t tf_r3;
 	register_t tf_r4;
@@ -78,7 +78,8 @@ typedef struct trapframe {
 	register_t tf_usr_lr;
 	register_t tf_svc_sp; /* Not used on arm26 */
 	register_t tf_svc_lr; /* Not used on arm26 */
-        register_t tf_pc;
+	register_t tf_pc;
+	register_t tf_pad;
 } trapframe_t;
 
 /* Register numbers */

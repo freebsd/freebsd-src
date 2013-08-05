@@ -74,10 +74,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 /*
- * struct switchframe must be a multiple of 8 for correct stack alignment
+ * struct switchframe and trapframe must both be a multiple of 8
+ * for correct stack alignment.
  */
 CTASSERT(sizeof(struct switchframe) == 24);
-CTASSERT(sizeof(struct trapframe) == 76);
+CTASSERT(sizeof(struct trapframe) == 80);
 
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
