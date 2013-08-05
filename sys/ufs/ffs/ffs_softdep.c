@@ -2393,7 +2393,7 @@ softdep_initialize()
 	max_softdeps = desiredvnodes * 4;
 	pagedep_hashtbl = hashinit(desiredvnodes / 5, M_PAGEDEP, &pagedep_hash);
 	inodedep_hashtbl = hashinit(desiredvnodes, M_INODEDEP, &inodedep_hash);
-	newblk_hashtbl = hashinit(desiredvnodes / 5,  M_NEWBLK, &newblk_hash);
+	newblk_hashtbl = hashinit(max_softdeps / 2,  M_NEWBLK, &newblk_hash);
 	bmsafemap_hashtbl = hashinit(1024, M_BMSAFEMAP, &bmsafemap_hash);
 	i = 1 << (ffs(desiredvnodes / 10) - 1);
 	indir_hashtbl = malloc(i * sizeof(indir_hashtbl[0]), M_FREEWORK,
