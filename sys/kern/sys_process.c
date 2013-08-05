@@ -263,7 +263,6 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	writing = uio->uio_rw == UIO_WRITE;
 	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL;
-	fault_flags |= VM_FAULT_IOBUSY;
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -288,9 +287,9 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		len = min(PAGE_SIZE - page_offset, uio->uio_resid);
 
 		/*
-		 * Fault and busy the page on behalf of the process.
+		 * Fault and hold the page on behalf of the process.
 		 */
-		error = vm_fault_handle(map, pageno, reqprot, fault_flags, &m);
+		error = vm_fault_hold(map, pageno, reqprot, fault_flags, &m);
 		if (error != KERN_SUCCESS) {
 			if (error == KERN_RESOURCE_SHORTAGE)
 				error = ENOMEM;
@@ -316,9 +315,9 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Release the page.
 		 */
-		VM_OBJECT_WLOCK(m->object);
-		vm_page_io_finish(m);
-		VM_OBJECT_WUNLOCK(m->object);
+		vm_page_lock(m);
+		vm_page_unhold(m);
+		vm_page_unlock(m);
 
 	} while (error == 0 && uio->uio_resid > 0);
 
