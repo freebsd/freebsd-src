@@ -41,6 +41,9 @@ enum ar71xx_soc_type {
 	AR71XX_SOC_AR9132,
 	AR71XX_SOC_AR9330,
 	AR71XX_SOC_AR9331,
+	AR71XX_SOC_AR9341,
+	AR71XX_SOC_AR9342,
+	AR71XX_SOC_AR9344,
 };
 extern enum ar71xx_soc_type ar71xx_soc;   
 

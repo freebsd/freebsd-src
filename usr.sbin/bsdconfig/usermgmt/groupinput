@@ -66,7 +66,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_group_deleted"
+		f_show_msg "$msg_group_deleted"
 		;;
 	Add)
 		local cmd="pw groupadd -n '$group_name'"
@@ -85,7 +85,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_group_added"
+		f_show_msg "$msg_group_added"
 		;;
 	Edit/View)
 		local cmd="pw groupmod -n '$group_name'"
@@ -104,7 +104,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_group_updated"
+		f_show_msg "$msg_group_updated"
 		;;
 	esac
 

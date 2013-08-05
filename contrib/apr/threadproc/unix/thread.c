@@ -96,7 +96,7 @@ APR_DECLARE(apr_status_t) apr_threadattr_detach_get(apr_threadattr_t *attr)
 #else
     pthread_attr_getdetachstate(&attr->attr, &state);
 #endif
-    if (state == 1)
+    if (state == DETACH_ARG(1))
         return APR_DETACH;
     return APR_NOTDETACH;
 }

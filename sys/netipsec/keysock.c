@@ -77,7 +77,12 @@ static struct sockaddr key_src = { 2, PF_KEY, };
 
 static int key_sendup0 __P((struct rawcb *, struct mbuf *, int));
 
-VNET_DEFINE(struct pfkeystat, pfkeystat);
+VNET_PCPUSTAT_DEFINE(struct pfkeystat, pfkeystat);
+VNET_PCPUSTAT_SYSINIT(pfkeystat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(pfkeystat);
+#endif /* VIMAGE */
 
 /*
  * key_output()

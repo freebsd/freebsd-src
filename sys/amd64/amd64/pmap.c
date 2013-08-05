@@ -2234,6 +2234,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	if (m_pc == NULL && free != NULL) {
 		m_pc = free;
 		free = (void *)m_pc->object;
+		m_pc->object = NULL;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
@@ -2794,6 +2795,44 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 }
 
 /*
+ * pmap_remove_kernel_pde: Remove a kernel superpage mapping.
+ */
+static void
+pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
+{
+	pd_entry_t newpde;
+	vm_paddr_t mptepa;
+	vm_page_t mpte;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mpte = pmap_lookup_pt_page(pmap, va);
+	if (mpte == NULL)
+		panic("pmap_remove_kernel_pde: Missing pt page.");
+
+	pmap_remove_pt_page(pmap, mpte);
+	mptepa = VM_PAGE_TO_PHYS(mpte);
+	newpde = mptepa | PG_M | PG_A | PG_RW | PG_V;
+
+	/*
+	 * Initialize the page table page.
+	 */
+	pagezero((void *)PHYS_TO_DMAP(mptepa));
+
+	/*
+	 * Demote the mapping.
+	 */
+	if (workaround_erratum383)
+		pmap_update_pde(pmap, va, pde, newpde);
+	else
+		pde_store(pde, newpde);
+
+	/*
+	 * Invalidate a stale recursive mapping of the page table page.
+	 */
+	pmap_invalidate_page(pmap, (vm_offset_t)vtopte(va));
+}
+
+/*
  * pmap_remove_pde: do the things to unmap a superpage in a process
  */
 static int
@@ -2836,8 +2875,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		}
 	}
 	if (pmap == kernel_pmap) {
-		if (!pmap_demote_pde_locked(pmap, pdq, sva, lockp))
-			panic("pmap_remove_pde: failed demotion");
+		pmap_remove_kernel_pde(pmap, pdq, sva);
 	} else {
 		mpte = pmap_lookup_pt_page(pmap, sva);
 		if (mpte != NULL) {
@@ -4400,6 +4438,8 @@ pmap_remove_pages(pmap_t pmap)
 	int64_t bit;
 	uint64_t inuse, bitmask;
 	int allfree, field, freed, idx;
+	boolean_t superpage;
+	vm_paddr_t pa;
 
 	if (pmap != PCPU_GET(curpmap)) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
@@ -4425,12 +4465,26 @@ pmap_remove_pages(pmap_t pmap)
 				pte = pmap_pdpe_to_pde(pte, pv->pv_va);
 				tpte = *pte;
 				if ((tpte & (PG_PS | PG_V)) == PG_V) {
+					superpage = FALSE;
 					ptepde = tpte;
 					pte = (pt_entry_t *)PHYS_TO_DMAP(tpte &
 					    PG_FRAME);
 					pte = &pte[pmap_pte_index(pv->pv_va)];
-					tpte = *pte & ~PG_PTE_PAT;
+					tpte = *pte;
+				} else {
+					/*
+					 * Keep track whether 'tpte' is a
+					 * superpage explicitly instead of
+					 * relying on PG_PS being set.
+					 *
+					 * This is because PG_PS is numerically
+					 * identical to PG_PTE_PAT and thus a
+					 * regular page could be mistaken for
+					 * a superpage.
+					 */
+					superpage = TRUE;
 				}
+
 				if ((tpte & PG_V) == 0) {
 					panic("bad pte va %lx pte %lx",
 					    pv->pv_va, tpte);
@@ -4444,8 +4498,13 @@ pmap_remove_pages(pmap_t pmap)
 					continue;
 				}
 
-				m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
-				KASSERT(m->phys_addr == (tpte & PG_FRAME),
+				if (superpage)
+					pa = tpte & PG_PS_FRAME;
+				else
+					pa = tpte & PG_FRAME;
+
+				m = PHYS_TO_VM_PAGE(pa);
+				KASSERT(m->phys_addr == pa,
 				    ("vm_page_t %p phys_addr mismatch %016jx %016jx",
 				    m, (uintmax_t)m->phys_addr,
 				    (uintmax_t)tpte));
@@ -4461,7 +4520,7 @@ pmap_remove_pages(pmap_t pmap)
 				 * Update the vm_page_t clean/reference bits.
 				 */
 				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
-					if ((tpte & PG_PS) != 0) {
+					if (superpage) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							vm_page_dirty(mt);
 					} else
@@ -4472,7 +4531,7 @@ pmap_remove_pages(pmap_t pmap)
 
 				/* Mark free */
 				pc->pc_map[field] |= bitmask;
-				if ((tpte & PG_PS) != 0) {
+				if (superpage) {
 					pmap_resident_count_dec(pmap, NBPDR / PAGE_SIZE);
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);

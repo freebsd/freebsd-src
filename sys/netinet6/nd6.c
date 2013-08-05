@@ -176,13 +176,25 @@ nd6_ifattach(struct ifnet *ifp)
 
 	nd->flags = ND6_IFF_PERFORMNUD;
 
-	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL. */
-	if (V_ip6_auto_linklocal || (ifp->if_flags & IFF_LOOPBACK))
+	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL.
+	 * XXXHRS: Clear ND6_IFF_AUTO_LINKLOCAL on an IFT_BRIDGE interface by
+	 * default regardless of the V_ip6_auto_linklocal configuration to
+	 * give a reasonable default behavior.
+	 */
+	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) ||
+	    (ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_AUTO_LINKLOCAL;
-
-	/* A loopback interface does not need to accept RTADV. */
-	if (V_ip6_accept_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
-		nd->flags |= ND6_IFF_ACCEPT_RTADV;
+	/*
+	 * A loopback interface does not need to accept RTADV.
+	 * XXXHRS: Clear ND6_IFF_ACCEPT_RTADV on an IFT_BRIDGE interface by
+	 * default regardless of the V_ip6_accept_rtadv configuration to
+	 * prevent the interface from accepting RA messages arrived
+	 * on one of the member interfaces with ND6_IFF_ACCEPT_RTADV.
+	 */
+	if (V_ip6_accept_rtadv &&
+	    !(ifp->if_flags & IFF_LOOPBACK) &&
+	    (ifp->if_type != IFT_BRIDGE))
+			nd->flags |= ND6_IFF_ACCEPT_RTADV;
 	if (V_ip6_no_radr && !(ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_NO_RADR;
 
@@ -1215,6 +1227,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct nd_prefix *pr;
 	int i = 0, error = 0;
 
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return (EPFNOSUPPORT);
 	switch (cmd) {
 	case SIOCGDRLST_IN6:
 		/*
@@ -1789,6 +1803,8 @@ nd6_slowtimo(void *arg)
 	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+		if (ifp->if_afdata[AF_INET6] == NULL)
+			continue;
 		nd6if = ND_IFINFO(ifp);
 		if (nd6if->basereachable && /* already initialized */
 		    (nd6if->recalctm -= ND6_SLOWTIMER_INTERVAL) <= 0) {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Emulex
+ * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -140,7 +140,7 @@ oce_add_sysctls(POCE_SOFTC sc)
 	stats_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats",
 				CTLFLAG_RD, NULL, "Ethernet Statistics");
 
-	if (IS_BE(sc))
+	if (IS_BE(sc) || IS_SH(sc))
 		oce_add_stats_sysctls_be3(sc, ctx, stats_node);
 	else
 		oce_add_stats_sysctls_xe201(sc, ctx, stats_node);
@@ -223,7 +223,7 @@ oce_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
 		return ENOENT;
 	}
 
-	if (IS_BE(sc)) {
+	if (IS_BE(sc) || IS_SH(sc)) {
 		if ((sc->flags & OCE_FLAGS_BE2)) {
 			device_printf(sc->dev, 
 				"Flashing not supported for BE2 yet.\n");
@@ -1270,7 +1270,7 @@ oce_stats_init(POCE_SOFTC sc)
 {
 	int rc = 0, sz;
 	
-	if (IS_BE(sc)) {
+	if (IS_BE(sc) || IS_SH(sc)) {
 		if (sc->flags & OCE_FLAGS_BE2)
 			sz = sizeof(struct mbx_get_nic_stats_v0);
 		else 
@@ -1298,7 +1298,7 @@ oce_refresh_nic_stats(POCE_SOFTC sc)
 {
 	int rc = 0, reset = 0;
 
-	if (IS_BE(sc)) {
+	if (IS_BE(sc) || IS_SH(sc)) {
 		if (sc->flags & OCE_FLAGS_BE2) {
 			rc = oce_mbox_get_nic_stats_v0(sc, &sc->stats_mem);
 			if (!rc)

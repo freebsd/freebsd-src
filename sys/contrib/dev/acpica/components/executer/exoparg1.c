@@ -1009,10 +1009,17 @@ AcpiExOpcode_1A_0T_1R (
                      * add another reference to the referenced object, however.
                      */
                     ReturnDesc = *(Operand[0]->Reference.Where);
-                    if (ReturnDesc)
+                    if (!ReturnDesc)
                     {
-                        AcpiUtAddReference (ReturnDesc);
+                        /*
+                         * Element is NULL, do not allow the dereference.
+                         * This provides compatibility with other ACPI
+                         * implementations.
+                         */
+                        return_ACPI_STATUS (AE_AML_UNINITIALIZED_ELEMENT);
                     }
+
+                    AcpiUtAddReference (ReturnDesc);
                     break;
 
                 default:
@@ -1030,15 +1037,44 @@ AcpiExOpcode_1A_0T_1R (
                 ReturnDesc = Operand[0]->Reference.Object;
 
                 if (ACPI_GET_DESCRIPTOR_TYPE (ReturnDesc) ==
-                        ACPI_DESC_TYPE_NAMED)
+                    ACPI_DESC_TYPE_NAMED)
                 {
                     ReturnDesc = AcpiNsGetAttachedObject (
-                                    (ACPI_NAMESPACE_NODE *) ReturnDesc);
+                        (ACPI_NAMESPACE_NODE *) ReturnDesc);
+                    if (!ReturnDesc)
+                    {
+                        break;
+                    }
+
+                   /*
+                    * June 2013:
+                    * BufferFields/FieldUnits require additional resolution
+                    */
+                    switch (ReturnDesc->Common.Type)
+                    {
+                    case ACPI_TYPE_BUFFER_FIELD:
+                    case ACPI_TYPE_LOCAL_REGION_FIELD:
+                    case ACPI_TYPE_LOCAL_BANK_FIELD:
+                    case ACPI_TYPE_LOCAL_INDEX_FIELD:
+
+                        Status = AcpiExReadDataFromField (WalkState,
+                            ReturnDesc, &TempDesc);
+                        if (ACPI_FAILURE (Status))
+                        {
+                            goto Cleanup;
+                        }
+
+                        ReturnDesc = TempDesc;
+                        break;
+
+                    default:
+
+                        /* Add another reference to the object */
+
+                        AcpiUtAddReference (ReturnDesc);
+                        break;
+                    }
                 }
-
-                /* Add another reference to the object! */
-
-                AcpiUtAddReference (ReturnDesc);
                 break;
 
             default:

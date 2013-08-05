@@ -61,11 +61,11 @@ extern struct random_systat random_ivy;
 #endif
 
 void
-random_ident_hardware(struct random_systat *systat)
+random_ident_hardware(struct random_systat **systat)
 {
 
 	/* Set default to software */
-	*systat = random_yarrow;
+	*systat = &random_yarrow;
 
 	/* Then go looking for hardware */
 #if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
@@ -76,7 +76,7 @@ random_ident_hardware(struct random_systat *systat)
 		enable = 1;
 		TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
 		if (enable)
-			*systat = random_nehemiah;
+			*systat = &random_nehemiah;
 	}
 #endif
 #ifdef RDRAND_RNG
@@ -86,7 +86,7 @@ random_ident_hardware(struct random_systat *systat)
 		enable = 1;
 		TUNABLE_INT_FETCH("hw.ivy_rng_enable", &enable);
 		if (enable)
-			*systat = random_ivy;
+			*systat = &random_ivy;
 	}
 #endif
 #endif

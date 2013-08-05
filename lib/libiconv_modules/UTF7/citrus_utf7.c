@@ -149,11 +149,11 @@ static const char spaces[] = " \t\r\n";
 
 static int
 _citrus_UTF7_mbtoutf16(_UTF7EncodingInfo * __restrict ei,
-    uint16_t * __restrict u16, char ** __restrict s, size_t n,
+    uint16_t * __restrict u16, const char ** __restrict s, size_t n,
     _UTF7State * __restrict psenc, size_t * __restrict nresult)
 {
 	_UTF7State sv;
-	char *s0;
+	const char *s0;
 	int done, i, len;
 
 	s0 = *s;
@@ -238,10 +238,10 @@ ilseq:
 
 static int
 _citrus_UTF7_mbrtowc_priv(_UTF7EncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _UTF7State * __restrict psenc, size_t * __restrict nresult)
 {
-	char *s0;
+	const char *s0;
 	uint32_t u32;
 	uint16_t hi, lo;
 	size_t nr, siz;

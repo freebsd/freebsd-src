@@ -120,7 +120,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 * before forwarding packet actually.
 	 */
 	if (ipsec6_in_reject(m, NULL)) {
-		IPSEC6STAT_INC(in_polvio);
+		IPSEC6STAT_INC(ips_in_polvio);
 		m_freem(m);
 		return;
 	}
@@ -182,7 +182,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
 	    IP_FORWARDING, &error);
 	if (sp == NULL) {
-		IPSEC6STAT_INC(out_inval);
+		IPSEC6STAT_INC(ips_out_inval);
 		IP6STAT_INC(ip6s_cantforward);
 		if (mcopy) {
 #if 0
@@ -203,7 +203,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 		/*
 		 * This packet is just discarded.
 		 */
-		IPSEC6STAT_INC(out_polvio);
+		IPSEC6STAT_INC(ips_out_polvio);
 		IP6STAT_INC(ip6s_cantforward);
 		KEY_FREESP(&sp);
 		if (mcopy) {

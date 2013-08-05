@@ -34,14 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -52,14 +51,13 @@ __FBSDID("$FreeBSD$");
 typedef void (*print_fn_t)(void *buf, uint32_t size);
 
 static void *
-get_log_buffer(size_t size)
+get_log_buffer(uint32_t size)
 {
 	void	*buf;
 
-	if ((buf = malloc(size)) == NULL) {
-		fprintf(stderr, "Unable to malloc %zd bytes\n", size);
-		exit(EX_IOERR);
-	}
+	if ((buf = malloc(size)) == NULL)
+		errx(1, "unable to malloc %u bytes", size);
+
 	memset(buf, 0, size);
 	return (buf);
 }
@@ -79,16 +77,11 @@ read_logpage(int fd, uint8_t log_page, int nsid, void *payload,
 	pt.len = payload_size;
 	pt.is_read = 1;
 
-	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0) {
-		printf("Get log page request failed. errno=%d (%s)\n",
-		    errno, strerror(errno));
-		exit(EX_IOERR);
-	}
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
+		err(1, "get log page request failed");
 
-	if (nvme_completion_is_error(&pt.cpl)) {
-		printf("Passthrough command returned error.\n");
-		exit(EX_IOERR);
-	}
+	if (nvme_completion_is_error(&pt.cpl))
+		errx(1, "get log page request returned error");
 }
 
 static void
@@ -242,19 +235,18 @@ logpage_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, LOGPAGE_USAGE);
-	exit(EX_USAGE);
+	exit(1);
 }
 
 void
 logpage(int argc, char *argv[])
 {
-	int				fd, nsid, len;
+	int				fd, nsid;
 	int				log_page = 0, pageflag = false;
-	int				hexflag = false;
-	int				allow_ns = false;
-	char				ch, *p, *nsloc = NULL;
-	char				*cname = NULL;
-	size_t				size;
+	int				hexflag = false, ns_specified;
+	char				ch, *p;
+	char				cname[64];
+	uint32_t			size;
 	void				*buf;
 	struct logpage_function		*f;
 	struct nvme_controller_data	cdata;
@@ -296,54 +288,31 @@ logpage(int argc, char *argv[])
 	if (optind >= argc)
 		logpage_usage();
 
+	if (strstr(argv[optind], NVME_NS_PREFIX) != NULL) {
+		ns_specified = true;
+		parse_ns_str(argv[optind], cname, &nsid);
+		open_dev(cname, &fd, 1, 1);
+	} else {
+		ns_specified = false;
+		nsid = NVME_GLOBAL_NAMESPACE_TAG;
+		open_dev(argv[optind], &fd, 1, 1);
+	}
+
 	/*
 	 * The log page attribtues indicate whether or not the controller
 	 * supports the SMART/Health information log page on a per
 	 * namespace basis.
 	 */
-	cname = malloc(strlen(NVME_CTRLR_PREFIX) + 2);
-	len = strlen(NVME_CTRLR_PREFIX) + 1;
-	cname = strncpy(cname, argv[optind], len);
-	open_dev(cname, &fd, 1, 1);
-	read_controller_data(fd, &cdata);
-
-	if (log_page == NVME_LOG_HEALTH_INFORMATION && cdata.lpa.ns_smart != 0)
-		allow_ns = true;
-
-	/* If a namespace id was specified, validate it's use */
-	if (strstr(argv[optind], NVME_NS_PREFIX) != NULL) {
-		if (!allow_ns) {
-			if (log_page != NVME_LOG_HEALTH_INFORMATION) {
-				fprintf(stderr,
-				    "Namespace ID not valid for log page %d.\n",
-				    log_page);
-			} else if (cdata.lpa.ns_smart == 0) {
-				fprintf(stderr,
-				    "Controller does not support per "
-				    "namespace SMART/Health information.\n");
-			}
-			close(fd);
-			exit(EX_IOERR);
-		}
-		nsloc = strnstr(argv[optind], NVME_NS_PREFIX, 10);
-		if (nsloc != NULL)
-			nsid = strtol(nsloc + 2, NULL, 10);
-		if (nsloc == NULL || (nsid == 0 && errno != 0)) {
-			fprintf(stderr,
-			    "Invalid namespace ID %s.\n",
-			    argv[optind]);
-			close(fd);
-			exit(EX_IOERR);
-		}
-
-		/*
-		 * User is asking for per namespace log page information
-		 * so close the controller and open up the namespace.
-		 */
-		close(fd);
-		open_dev(argv[optind], &fd, 1, 1);
-	} else
-		nsid = NVME_GLOBAL_NAMESPACE_TAG;
+	if (ns_specified) {
+		if (log_page != NVME_LOG_HEALTH_INFORMATION)
+			errx(1, "log page %d valid only at controller level",
+			    log_page);
+		read_controller_data(fd, &cdata);
+		if (cdata.lpa.ns_smart == 0)
+			errx(1,
+			    "controller does not support per namespace "
+			    "smart/health information");
+	}
 
 	print_fn = print_hex;
 	if (!hexflag) {
@@ -384,5 +353,5 @@ logpage(int argc, char *argv[])
 	print_fn(buf, size);
 
 	close(fd);
-	exit(EX_OK);
+	exit(0);
 }

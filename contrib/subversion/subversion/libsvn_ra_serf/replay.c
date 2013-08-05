@@ -696,7 +696,7 @@ svn_ra_serf__replay(svn_ra_session_t *ra_session,
   err = svn_ra_serf__context_run_wait(&replay_ctx->done, session, pool);
 
   SVN_ERR(svn_error_compose_create(
-              svn_ra_serf__error_on_status(handler->sline.code,
+              svn_ra_serf__error_on_status(handler->sline,
                                            handler->path,
                                            handler->location),
               err));
@@ -905,7 +905,7 @@ svn_ra_serf__replay_range(svn_ra_session_t *ra_session,
           svn_ra_serf__handler_t *done_handler = ctx->report_handler;
 
           done_list = done_list->next;
-          SVN_ERR(svn_ra_serf__error_on_status(done_handler->sline.code,
+          SVN_ERR(svn_ra_serf__error_on_status(done_handler->sline,
                                                done_handler->path,
                                                done_handler->location));
           svn_pool_destroy(ctx->src_rev_pool);

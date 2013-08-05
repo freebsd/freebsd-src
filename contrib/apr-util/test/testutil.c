@@ -37,6 +37,18 @@ void apr_assert_success(abts_case* tc, const char* context, apr_status_t rv)
     }
 }
 
+void apr_assert_failure(abts_case* tc, const char* context, apr_status_t rv,
+                        int lineno)
+{
+    if (rv == APR_ENOTIMPL) {
+        abts_not_impl(tc, context, lineno);
+    } else if (rv == APR_SUCCESS) {
+        char buf[STRING_MAX];
+        sprintf(buf, "%s (%d): expected failure, got success\n", context, rv);
+        abts_fail(tc, buf, lineno);
+    }
+}
+
 void initialize(void) {
     if (apr_initialize() != APR_SUCCESS) {
         abort();

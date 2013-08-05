@@ -24,7 +24,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
+ */
 
 /*
  * ASSERTION: Demonstrating valid memory access.
@@ -40,10 +42,11 @@
 BEGIN
 {
 	x = (int *)alloca(sizeof (int));
-	printf("Address x: %x\n", (int) x);
-	y = (int *) (x - 2);
+	printf("Address x: %x\n", (int)x);
+	y = (int *)(x - 2);
 	*y = 3;
-	printf("Address y: %x\tValue: %d\n", (int) y, *y);
+	printf("Address y: %x\tValue: %d\n", (int)y, *y);
+	exit(0);
 }
 
 ERROR

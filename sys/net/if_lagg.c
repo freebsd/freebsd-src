@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/in6_ifattach.h>
 #endif
 
 #include <net/if_vlan_var.h>
@@ -120,6 +122,7 @@ static void	lagg_media_status(struct ifnet *, struct ifmediareq *);
 static struct lagg_port *lagg_link_active(struct lagg_softc *,
 	    struct lagg_port *);
 static const void *lagg_gethdr(struct mbuf *, u_int, u_int, void *);
+static int	lagg_sysctl_active(SYSCTL_HANDLER_ARGS);
 
 /* Simple round robin */
 static int	lagg_rr_attach(struct lagg_softc *);
@@ -169,7 +172,7 @@ static const struct {
 };
 
 SYSCTL_DECL(_net_link);
-static SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0,
+SYSCTL_NODE(_net_link, OID_AUTO, lagg, CTLFLAG_RW, 0,
     "Link Aggregation");
 
 static int lagg_failover_rx_all = 0; /* Allow input on any failover links */
@@ -288,7 +291,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sysctl_ctx_init(&sc->ctx);
 	snprintf(num, sizeof(num), "%u", unit);
 	sc->use_flowid = def_use_flowid;
-	oid = SYSCTL_ADD_NODE(&sc->ctx, &SYSCTL_NODE_CHILDREN(_net_link, lagg),
+	sc->sc_oid = oid = SYSCTL_ADD_NODE(&sc->ctx,
+		&SYSCTL_NODE_CHILDREN(_net_link, lagg),
 		OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"use_flowid", CTLTYPE_INT|CTLFLAG_RW, &sc->use_flowid, sc->use_flowid,
@@ -296,6 +300,12 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 		"count", CTLTYPE_INT|CTLFLAG_RD, &sc->sc_count, sc->sc_count,
 		"Total number of ports");
+	SYSCTL_ADD_PROC(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"active", CTLTYPE_INT|CTLFLAG_RD, sc, 0, lagg_sysctl_active,
+		"I", "Total number of active ports");
+	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"flapping", CTLTYPE_INT|CTLFLAG_RD, &sc->sc_flapping,
+		sc->sc_flapping, "Total number of port change events");
 	/* Hash all layers by default */
 	sc->sc_flags = LAGG_F_HASHL2|LAGG_F_HASHL3|LAGG_F_HASHL4;
 
@@ -543,6 +553,34 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	if (ifp->if_type != IFT_ETHER)
 		return (EPROTONOSUPPORT);
 
+#ifdef INET6
+	/*
+	 * The member interface should not have inet6 address because
+	 * two interfaces with a valid link-local scope zone must not be
+	 * merged in any form.  This restriction is needed to
+	 * prevent violation of link-local scope zone.  Attempts to
+	 * add a member interface which has inet6 addresses triggers
+	 * removal of all inet6 addresses on the member interface.
+	 */
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		if (in6ifa_llaonifp(lp->lp_ifp)) {
+			in6_ifdetach(lp->lp_ifp);
+			if_printf(sc->sc_ifp,
+			    "IPv6 addresses on %s have been removed "
+			    "before adding it as a member to prevent "
+			    "IPv6 address scope violation.\n",
+			    lp->lp_ifp->if_xname);
+		}
+	}
+	if (in6ifa_llaonifp(ifp)) {
+		in6_ifdetach(ifp);
+		if_printf(sc->sc_ifp,
+		    "IPv6 addresses on %s have been removed "
+		    "before adding it as a member to prevent "
+		    "IPv6 address scope violation.\n",
+		    ifp->if_xname);
+	}
+#endif
 	/* Allow the first Ethernet member to define the MTU */
 	if (SLIST_EMPTY(&sc->sc_ports))
 		sc->sc_ifp->if_mtu = ifp->if_mtu;
@@ -1456,6 +1494,27 @@ lagg_gethdr(struct mbuf *m, u_int off, u_int len, void *buf)
 		return (buf);
 	}
 	return (mtod(m, char *) + off);
+}
+
+static int
+lagg_sysctl_active(SYSCTL_HANDLER_ARGS)
+{
+	struct lagg_softc *sc = (struct lagg_softc *)arg1;
+	struct lagg_port *lp;
+	int error;
+
+	/* LACP tracks active links automatically, the others do not */
+	if (sc->sc_proto != LAGG_PROTO_LACP) {
+		sc->sc_active = 0;
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+			sc->sc_active += LAGG_PORTACTIVE(lp);
+	}
+
+	error = sysctl_handle_int(oidp, &sc->sc_active, 0, req);
+	if ((error) || (req->newptr == NULL))
+		return (error);
+
+	return (0);
 }
 
 uint32_t

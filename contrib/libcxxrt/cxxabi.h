@@ -193,6 +193,8 @@ __cxa_eh_globals *__cxa_get_globals(void);
  */
 __cxa_eh_globals *__cxa_get_globals_fast(void);
 
+std::type_info * __cxa_current_exception_type();
+
 /**
  * Throws an exception returned by __cxa_current_primary_exception().  This
  * exception may have been caught in another thread.

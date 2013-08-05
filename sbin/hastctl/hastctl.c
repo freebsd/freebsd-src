@@ -293,6 +293,7 @@ control_set_role(struct nv *nv, const char *newrole)
 static int
 control_list(struct nv *nv)
 {
+	pid_t pid;
 	unsigned int ii;
 	const char *str;
 	int error, ret;
@@ -331,6 +332,9 @@ control_list(struct nv *nv)
 		str = nv_get_string(nv, "status%u", ii);
 		if (str != NULL)
 			printf("  status: %s\n", str);
+		pid = nv_get_int32(nv, "workerpid%u", ii);
+		if (pid != 0)
+			printf("  workerpid: %d\n", pid);
 		printf("  dirty: %ju (%NB)\n",
 		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii),
 		    (intmax_t)nv_get_uint64(nv, "dirty%u", ii));

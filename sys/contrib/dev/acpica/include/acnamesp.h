@@ -117,8 +117,8 @@ AcpiNsWalkNamespace (
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
     UINT32                  Flags,
-    ACPI_WALK_CALLBACK      PreOrderVisit,
-    ACPI_WALK_CALLBACK      PostOrderVisit,
+    ACPI_WALK_CALLBACK      DescendingCallback,
+    ACPI_WALK_CALLBACK      AscendingCallback,
     void                    *Context,
     void                    **ReturnValue);
 

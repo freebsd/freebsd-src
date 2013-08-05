@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Emulex
+ * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,12 +53,12 @@ oce_POST(POCE_SOFTC sc)
 	int tmo = 60000;
 
 	/* read semaphore CSR */
-	post_status.dw0 = OCE_READ_REG32(sc, csr, MPU_EP_SEMAPHORE(sc));
+	post_status.dw0 = OCE_READ_CSR_MPU(sc, csr, MPU_EP_SEMAPHORE(sc));
 
 	/* if host is ready then wait for fw ready else send POST */
 	if (post_status.bits.stage <= POST_STAGE_AWAITING_HOST_RDY) {
 		post_status.bits.stage = POST_STAGE_CHIP_RESET;
-		OCE_WRITE_REG32(sc, csr, MPU_EP_SEMAPHORE(sc), post_status.dw0);
+		OCE_WRITE_CSR_MPU(sc, csr, MPU_EP_SEMAPHORE(sc), post_status.dw0);
 	}
 
 	/* wait for FW ready */
@@ -68,7 +68,7 @@ oce_POST(POCE_SOFTC sc)
 
 		DELAY(1000);
 
-		post_status.dw0 = OCE_READ_REG32(sc, csr, MPU_EP_SEMAPHORE(sc));
+		post_status.dw0 = OCE_READ_CSR_MPU(sc, csr, MPU_EP_SEMAPHORE(sc));
 		if (post_status.bits.error) {
 			device_printf(sc->dev,
 				  "POST failed: %x\n", post_status.dw0);
@@ -129,7 +129,7 @@ oce_hw_init(POCE_SOFTC sc)
 	if (rc)
 		goto error;
 	
-	if (IS_BE(sc) && (sc->flags & OCE_FLAGS_BE3)) {
+	if ((IS_BE(sc) && (sc->flags & OCE_FLAGS_BE3)) || IS_SH(sc)) {
 		rc = oce_mbox_check_native_mode(sc);
 		if (rc)
 			goto error;
@@ -258,7 +258,7 @@ oce_hw_pci_alloc(POCE_SOFTC sc)
 		
 	rr = PCIR_BAR(pci_cfg_barnum);
 
-	if (IS_BE(sc))
+	if (IS_BE(sc) || IS_SH(sc)) 
 		sc->devcfg_res = bus_alloc_resource_any(sc->dev,
 				SYS_RES_MEMORY, &rr,
 				RF_ACTIVE|RF_SHAREABLE);
@@ -298,7 +298,7 @@ oce_hw_pci_alloc(POCE_SOFTC sc)
 		sc->flags |= OCE_FLAGS_VIRTUAL_PORT;
 
 	/* Lancer has one BAR (CFG) but BE3 has three (CFG, CSR, DB) */
-	if (IS_BE(sc)) {
+	if (IS_BE(sc) || IS_SH(sc)) {
 		/* set up CSR region */
 		rr = PCIR_BAR(OCE_PCI_CSR_BAR);
 		sc->csr_res = bus_alloc_resource_any(sc->dev,
@@ -387,7 +387,7 @@ oce_create_nw_interface(POCE_SOFTC sc)
 	}
 
 	/* enable capabilities controlled via driver startup parameters */
-	if (sc->rss_enable)
+	if (is_rss_enabled(sc))
 		capab_en_flags |= MBX_RX_IFACE_FLAGS_RSS;
 	else {
 		capab_en_flags &= ~MBX_RX_IFACE_FLAGS_RSS;
@@ -447,9 +447,9 @@ oce_pci_soft_reset(POCE_SOFTC sc)
 	int rc;
 	mpu_ep_control_t ctrl;
 
-	ctrl.dw0 = OCE_READ_REG32(sc, csr, MPU_EP_CONTROL);
+	ctrl.dw0 = OCE_READ_CSR_MPU(sc, csr, MPU_EP_CONTROL);
 	ctrl.bits.cpu_reset = 1;
-	OCE_WRITE_REG32(sc, csr, MPU_EP_CONTROL, ctrl.dw0);
+	OCE_WRITE_CSR_MPU(sc, csr, MPU_EP_CONTROL, ctrl.dw0);
 	DELAY(50);
 	rc=oce_POST(sc);
 

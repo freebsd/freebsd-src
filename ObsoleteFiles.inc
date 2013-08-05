@@ -38,10 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130710: libkvm version bump 
+OLD_LIBS+=lib/libkvm.so.5
+OLD_LIBS+=usr/lib32/libkvm.so.5
 # 20130623: dialog update from 1.1 to 1.2
 OLD_LIBS+=usr/lib/libdialog.so.7
 OLD_LIBS+=usr/lib32/libdialog.so.7
-# 20130616: vfs_mounted.9 removed
+# 20130616: vfs_mount.9 removed
 OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
 # 20130614: remove CVS from base
 OLD_FILES+=usr/bin/cvs

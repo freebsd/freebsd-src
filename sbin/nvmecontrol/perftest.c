@@ -31,14 +31,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -72,7 +71,7 @@ perftest_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, PERFTEST_USAGE);
-	exit(EX_USAGE);
+	exit(1);
 }
 
 void
@@ -168,14 +167,10 @@ perftest(int argc, char *argv[])
 		perftest_usage();
 
 	open_dev(argv[optind], &fd, 1, 1);
-	if (ioctl(fd, ioctl_cmd, &io_test) < 0) {
-		fprintf(stderr, "NVME_IO_TEST failed. errno=%d (%s)\n", errno,
-		    strerror(errno));
-		close(fd);
-		exit(EX_IOERR);
-	}
+	if (ioctl(fd, ioctl_cmd, &io_test) < 0)
+		err(1, "ioctl NVME_IO_TEST failed");
 
 	close(fd);
 	print_perftest(&io_test, perthread);
-	exit(EX_OK);
+	exit(0);
 }

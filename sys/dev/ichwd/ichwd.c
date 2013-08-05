@@ -195,6 +195,7 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_LPT1,     "Intel Lynx Point watchdog timer",		10 },
 	{ DEVICEID_LPT2,     "Intel Lynx Point watchdog timer",		10 },
 	{ DEVICEID_DH89XXCC_LPC,  "Intel DH89xxCC watchdog timer",	10 },
+	{ DEVICEID_COLETOCRK_LPC, "Intel Coleto Creek watchdog timer",  10 },
 	{ 0, NULL, 0 },
 };
 

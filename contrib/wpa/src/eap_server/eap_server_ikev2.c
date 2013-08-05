@@ -2,14 +2,8 @@
  * EAP-IKEv2 server (RFC 5106)
  * Copyright (c) 2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -93,7 +87,8 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	if (data == NULL)
 		return NULL;
 	data->state = MSG;
-	data->fragment_size = IKEV2_FRAGMENT_SIZE;
+	data->fragment_size = sm->fragment_size > 0 ? sm->fragment_size :
+		IKEV2_FRAGMENT_SIZE;
 	data->ikev2.state = SA_INIT;
 	data->ikev2.peer_auth = PEER_AUTH_SECRET;
 	data->ikev2.key_pad = (u8 *) os_strdup("Key Pad for EAP-IKEv2");

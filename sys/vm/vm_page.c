@@ -645,6 +645,7 @@ vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
 	/* Fictitious pages don't use "order" or "pool". */
 	m->oflags = VPO_BUSY | VPO_UNMANAGED;
 	m->wire_count = 1;
+	pmap_page_init(m);
 memattr:
 	pmap_page_set_memattr(m, memattr);
 }
@@ -2630,8 +2631,6 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 	vm_page_bits_t bits;
 
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	KASSERT((m->oflags & VPO_BUSY) == 0,
-	    ("vm_page_set_invalid: page %p is busy", m));
 	bits = vm_page_bits(base, size);
 	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
 		pmap_remove_all(m);

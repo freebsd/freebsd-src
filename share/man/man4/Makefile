@@ -81,6 +81,7 @@ MAN=	aac.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
+	cc_cdg.4 \
 	cc_chd.4 \
 	cc_cubic.4 \
 	cc_hd.4 \
@@ -162,6 +163,7 @@ MAN=	aac.4 \
 	${_hpt27xx.4} \
 	${_hptiop.4} \
 	${_hptmv.4} \
+	${_hptnr.4} \
 	${_hptrr.4} \
 	hwpmc.4 \
 	ichsmb.4 \
@@ -383,6 +385,8 @@ MAN=	aac.4 \
 	rndtest.4 \
 	route.4 \
 	rp.4 \
+	rsu.4 \
+	rsufw.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
@@ -744,6 +748,7 @@ _dpms.4=	dpms.4
 _hpt27xx.4=	hpt27xx.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
+_hptnr.4=	hptnr.4
 _hptrr.4=	hptrr.4
 _i8254.4=	i8254.4
 _ichwd.4=	ichwd.4

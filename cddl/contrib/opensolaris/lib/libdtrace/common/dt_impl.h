@@ -468,7 +468,6 @@ enum {
 	EDT_VERSREDUCED,	/* requested API version has been reduced */
 	EDT_CTF,		/* libctf called failed (dt_ctferr has more) */
 	EDT_COMPILER,		/* error in D program compilation */
-	EDT_NOREG,		/* register allocation failure */
 	EDT_NOTUPREG,		/* tuple register allocation failure */
 	EDT_NOMEM,		/* memory allocation failure */
 	EDT_INT2BIG,		/* integer limit exceeded */

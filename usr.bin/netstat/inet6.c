@@ -376,7 +376,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &ip6stat, len);
+		kread_counters(off, &ip6stat, len);
 
 	printf("%s:\n", name);
 
@@ -858,7 +858,7 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &icmp6stat, len);
+		kread_counters(off, &icmp6stat, len);
 
 	printf("%s:\n", name);
 
@@ -1052,7 +1052,7 @@ rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 			return;
 		}
 	} else
-		kread(off, &rip6stat, len);
+		kread_counters(off, &rip6stat, len);
 
 	printf("%s:\n", name);
 

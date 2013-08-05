@@ -24,7 +24,6 @@ ident		BEAGLEBONE
 
 include		"../ti/am335x/std.beaglebone"
 
-makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
 
 options 	HZ=100
@@ -122,6 +121,10 @@ device		bpf
 # USB ethernet support, requires miibus
 device		miibus
 device		axe			# ASIX Electronics USB Ethernet
+
+# Device mode support and USFS template
+device		usb_template    # Control of the gadget
+device		usfs
 
 # Flattened Device Tree
 options         FDT

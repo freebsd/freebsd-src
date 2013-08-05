@@ -918,8 +918,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		}
 		break;
 	case P_JAILID:
-		if (p->p_ucred->cr_prison == NULL ||
-		    (p->p_ucred->cr_prison->pr_id != (int)id)) {
+		if (p->p_ucred->cr_prison->pr_id != (int)id) {
 			PROC_UNLOCK(p);
 			return (0);
 		}

@@ -276,7 +276,6 @@ t4_init_sge_cpl_handlers(struct adapter *sc)
 	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
 	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
 	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
-
 	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 }
 
@@ -474,15 +473,10 @@ t4_read_chip_settings(struct adapter *sc)
 		s->s_qpp = r & M_QUEUESPERPAGEPF0;
 	}
 
-	r = t4_read_reg(sc, A_TP_TIMER_RESOLUTION);
-	sc->params.tp.tre = G_TIMERRESOLUTION(r);
-	sc->params.tp.dack_re = G_DELAYEDACKRESOLUTION(r);
+	t4_init_tp_params(sc);
 
 	t4_read_mtu_tbl(sc, sc->params.mtus, NULL);
 	t4_load_mtus(sc, sc->params.mtus, sc->params.a_wnd, sc->params.b_wnd);
-
-	t4_read_indirect(sc, A_TP_PIO_ADDR, A_TP_PIO_DATA, &sc->filter_mode, 1,
-	    A_TP_VLAN_PRI_MAP);
 
 	return (rc);
 }
@@ -502,6 +496,24 @@ t4_create_dma_tag(struct adapter *sc)
 	}
 
 	return (rc);
+}
+
+void
+t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *children)
+{
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pktshift", CTLFLAG_RD,
+	    NULL, fl_pktshift, "payload DMA offset in rx buffer (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pad", CTLFLAG_RD,
+	    NULL, fl_pad, "payload pad boundary (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "spg_len", CTLFLAG_RD,
+	    NULL, spg_len, "status page size (bytes)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_drop", CTLFLAG_RD,
+	    NULL, cong_drop, "congestion drop setting");
 }
 
 int
@@ -664,6 +676,18 @@ mtu_to_bufsize(int mtu)
 	return (bufsize);
 }
 
+#ifdef TCP_OFFLOAD
+static inline int
+mtu_to_bufsize_toe(struct adapter *sc, int mtu)
+{
+
+	if (sc->tt.rx_coalesce)
+		return (G_RXCOALESCESIZE(t4_read_reg(sc, A_TP_PARA_REG2)));
+
+	return (mtu);
+}
+#endif
+
 int
 t4_setup_port_queues(struct port_info *pi)
 {
@@ -678,9 +702,10 @@ t4_setup_port_queues(struct port_info *pi)
 #endif
 	char name[16];
 	struct adapter *sc = pi->adapter;
+	struct ifnet *ifp = pi->ifp;
 	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
-	int bufsize = mtu_to_bufsize(pi->ifp->if_mtu);
+	int bufsize;
 
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq", CTLFLAG_RD,
 	    NULL, "rx queues");
@@ -701,6 +726,7 @@ t4_setup_port_queues(struct port_info *pi)
 	 * a) initialize iq and fl
 	 * b) allocate queue iff it will take direct interrupts.
 	 */
+	bufsize = mtu_to_bufsize(ifp->if_mtu);
 	for_each_rxq(pi, i, rxq) {
 
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
@@ -724,6 +750,7 @@ t4_setup_port_queues(struct port_info *pi)
 	}
 
 #ifdef TCP_OFFLOAD
+	bufsize = mtu_to_bufsize_toe(sc, ifp->if_mtu);
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
 		init_iq(&ofld_rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
@@ -731,7 +758,7 @@ t4_setup_port_queues(struct port_info *pi)
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(&ofld_rxq->fl, pi->qsize_rxq / 8, OFLD_BUF_SIZE, name);
+		init_fl(&ofld_rxq->fl, pi->qsize_rxq / 8, bufsize, name);
 
 		if (sc->flags & INTR_DIRECT ||
 		    (sc->intr_count > 1 && pi->nofldrxq > pi->nrxq)) {
@@ -1342,7 +1369,7 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct wrqe *wr)
 			eq->pidx -= eq->cap;
 
 		eq->pending += ndesc;
-		if (eq->pending > 16)
+		if (eq->pending >= 8)
 			ring_eq_db(sc, eq);
 
 		wrq->tx_wrs++;
@@ -1513,8 +1540,8 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 		if (sgl.nsegs == 0)
 			m_freem(m);
 doorbell:
-		if (eq->pending >= 64)
-		    ring_eq_db(sc, eq);
+		if (eq->pending >= 8)
+			ring_eq_db(sc, eq);
 
 		can_reclaim = reclaimable(eq);
 		if (can_reclaim >= 32)
@@ -1562,9 +1589,13 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 {
 	struct port_info *pi = ifp->if_softc;
 	struct sge_rxq *rxq;
+#ifdef TCP_OFFLOAD
+	struct sge_ofld_rxq *ofld_rxq;
+#endif
 	struct sge_fl *fl;
-	int i, bufsize = mtu_to_bufsize(ifp->if_mtu);
+	int i, bufsize;
 
+	bufsize = mtu_to_bufsize(ifp->if_mtu);
 	for_each_rxq(pi, i, rxq) {
 		fl = &rxq->fl;
 
@@ -1572,6 +1603,16 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 		set_fl_tag_idx(fl, bufsize);
 		FL_UNLOCK(fl);
 	}
+#ifdef TCP_OFFLOAD
+	bufsize = mtu_to_bufsize_toe(pi->adapter, ifp->if_mtu);
+	for_each_ofld_rxq(pi, i, ofld_rxq) {
+		fl = &ofld_rxq->fl;
+
+		FL_LOCK(fl);
+		set_fl_tag_idx(fl, bufsize);
+		FL_UNLOCK(fl);
+	}
+#endif
 }
 
 int
@@ -1829,6 +1870,31 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		FL_UNLOCK(fl);
 
 		iq->flags |= IQ_HAS_FL;
+	}
+
+	if (is_t5(sc) && cong >= 0) {
+		uint32_t param, val;
+
+		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
+		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+		    V_FW_PARAMS_PARAM_YZ(iq->cntxt_id);
+		if (cong == 0)
+			val = 1 << 19;
+		else {
+			val = 2 << 19;
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |= 1 << (i << 2);
+			}
+		}
+
+		rc = -t4_set_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+		if (rc != 0) {
+			/* report error but carry on */
+			device_printf(sc->dev,
+			    "failed to set congestion manager context for "
+			    "ingress queue %d: %d\n", iq->cntxt_id, rc);
+		}
 	}
 
 	/* Enable IQ interrupts */

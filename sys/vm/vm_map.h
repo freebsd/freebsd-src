@@ -116,6 +116,7 @@ struct vm_map_entry {
 	int wired_count;		/* can be paged if = 0 */
 	vm_pindex_t next_read;		/* index of the next sequential read */
 	struct ucred *cred;		/* tmp storage for creator ref */
+	struct thread *wiring_thread;
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
@@ -328,6 +329,7 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define VM_FAULT_NORMAL 0		/* Nothing special */
 #define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
 #define	VM_FAULT_DIRTY 2		/* Dirty the page; use w/VM_PROT_COPY */
+#define	VM_FAULT_IOBUSY 4		/* Busy the faulted page */
 
 /*
  * Initially, mappings are slightly sequential.  The maximum window size must
@@ -342,9 +344,10 @@ long vmspace_resident_count(struct vmspace *vmspace);
  */
 #define	VMFS_NO_SPACE		0	/* don't find; use the given range */
 #define	VMFS_ANY_SPACE		1	/* find a range with any alignment */
-#define	VMFS_ALIGNED_SPACE	2	/* find a superpage-aligned range */
+#define	VMFS_OPTIMAL_SPACE	2	/* find a range with optimal alignment*/
+#define	VMFS_ALIGNED_SPACE	3	/* find a superpage-aligned range */
 #if defined(__mips__)
-#define	VMFS_TLB_ALIGNED_SPACE	3	/* find a TLB entry aligned range */
+#define	VMFS_TLB_ALIGNED_SPACE	4	/* find a TLB entry aligned range */
 #endif
 
 /*

@@ -158,11 +158,6 @@ vnode_destroy_vobject(struct vnode *vp)
 	VM_OBJECT_WLOCK(obj);
 	if (obj->ref_count == 0) {
 		/*
-		 * vclean() may be called twice. The first time
-		 * removes the primary reference to the object,
-		 * the second time goes one further and is a
-		 * special-case to terminate the object.
-		 *
 		 * don't double-terminate the object
 		 */
 		if ((obj->flags & OBJ_DEAD) == 0)

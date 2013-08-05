@@ -1,15 +1,9 @@
 /*
- * TLSv1 client (RFC 2246)
- * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
+ * TLS v1.0/v1.1/v1.2 client (RFC 2246, RFC 4346, RFC 5246)
+ * Copyright (c) 2006-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -67,7 +61,8 @@ int tls_derive_keys(struct tlsv1_client *conn,
 		os_memcpy(seed, conn->client_random, TLS_RANDOM_LEN);
 		os_memcpy(seed + TLS_RANDOM_LEN, conn->server_random,
 			  TLS_RANDOM_LEN);
-		if (tls_prf(pre_master_secret, pre_master_secret_len,
+		if (tls_prf(conn->rl.tls_version,
+			    pre_master_secret, pre_master_secret_len,
 			    "master secret", seed, 2 * TLS_RANDOM_LEN,
 			    conn->master_secret, TLS_MASTER_SECRET_LEN)) {
 			wpa_printf(MSG_DEBUG, "TLSv1: Failed to derive "
@@ -80,9 +75,11 @@ int tls_derive_keys(struct tlsv1_client *conn,
 
 	os_memcpy(seed, conn->server_random, TLS_RANDOM_LEN);
 	os_memcpy(seed + TLS_RANDOM_LEN, conn->client_random, TLS_RANDOM_LEN);
-	key_block_len = 2 * (conn->rl.hash_size + conn->rl.key_material_len +
-			     conn->rl.iv_size);
-	if (tls_prf(conn->master_secret, TLS_MASTER_SECRET_LEN,
+	key_block_len = 2 * (conn->rl.hash_size + conn->rl.key_material_len);
+	if (conn->rl.tls_version == TLS_VERSION_1)
+		key_block_len += 2 * conn->rl.iv_size;
+	if (tls_prf(conn->rl.tls_version,
+		    conn->master_secret, TLS_MASTER_SECRET_LEN,
 		    "key expansion", seed, 2 * TLS_RANDOM_LEN,
 		    key_block, key_block_len)) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Failed to derive key_block");
@@ -107,12 +104,21 @@ int tls_derive_keys(struct tlsv1_client *conn,
 	os_memcpy(conn->rl.read_key, pos, conn->rl.key_material_len);
 	pos += conn->rl.key_material_len;
 
-	/* client_write_IV */
-	os_memcpy(conn->rl.write_iv, pos, conn->rl.iv_size);
-	pos += conn->rl.iv_size;
-	/* server_write_IV */
-	os_memcpy(conn->rl.read_iv, pos, conn->rl.iv_size);
-	pos += conn->rl.iv_size;
+	if (conn->rl.tls_version == TLS_VERSION_1) {
+		/* client_write_IV */
+		os_memcpy(conn->rl.write_iv, pos, conn->rl.iv_size);
+		pos += conn->rl.iv_size;
+		/* server_write_IV */
+		os_memcpy(conn->rl.read_iv, pos, conn->rl.iv_size);
+		pos += conn->rl.iv_size;
+	} else {
+		/*
+		 * Use IV field to set the mask value for TLS v1.1. A fixed
+		 * mask of zero is used per the RFC 4346, 6.2.3.2 CBC Block
+		 * Cipher option 2a.
+		 */
+		os_memset(conn->rl.write_iv, 0, conn->rl.iv_size);
+	}
 
 	return 0;
 }
@@ -126,22 +132,41 @@ int tls_derive_keys(struct tlsv1_client *conn,
  * @out_len: Length of the output buffer.
  * @appl_data: Pointer to application data pointer, or %NULL if dropped
  * @appl_data_len: Pointer to variable that is set to appl_data length
+ * @need_more_data: Set to 1 if more data would be needed to complete
+ *	processing
  * Returns: Pointer to output data, %NULL on failure
  */
 u8 * tlsv1_client_handshake(struct tlsv1_client *conn,
 			    const u8 *in_data, size_t in_len,
 			    size_t *out_len, u8 **appl_data,
-			    size_t *appl_data_len)
+			    size_t *appl_data_len, int *need_more_data)
 {
 	const u8 *pos, *end;
-	u8 *msg = NULL, *in_msg, *in_pos, *in_end, alert, ct;
+	u8 *msg = NULL, *in_msg = NULL, *in_pos, *in_end, alert, ct;
 	size_t in_msg_len;
 	int no_appl_data;
+	int used;
+
+	if (need_more_data)
+		*need_more_data = 0;
 
 	if (conn->state == CLIENT_HELLO) {
 		if (in_len)
 			return NULL;
 		return tls_send_client_hello(conn, out_len);
+	}
+
+	if (conn->partial_input) {
+		if (wpabuf_resize(&conn->partial_input, in_len) < 0) {
+			wpa_printf(MSG_DEBUG, "TLSv1: Failed to allocate "
+				   "memory for pending record");
+			tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+				  TLS_ALERT_INTERNAL_ERROR);
+			goto failed;
+		}
+		wpabuf_put_data(conn->partial_input, in_data, in_len);
+		in_data = wpabuf_head(conn->partial_input);
+		in_len = wpabuf_len(conn->partial_input);
 	}
 
 	if (in_data == NULL || in_len == 0)
@@ -156,12 +181,32 @@ u8 * tlsv1_client_handshake(struct tlsv1_client *conn,
 	/* Each received packet may include multiple records */
 	while (pos < end) {
 		in_msg_len = in_len;
-		if (tlsv1_record_receive(&conn->rl, pos, end - pos,
-					 in_msg, &in_msg_len, &alert)) {
+		used = tlsv1_record_receive(&conn->rl, pos, end - pos,
+					    in_msg, &in_msg_len, &alert);
+		if (used < 0) {
 			wpa_printf(MSG_DEBUG, "TLSv1: Processing received "
 				   "record failed");
 			tls_alert(conn, TLS_ALERT_LEVEL_FATAL, alert);
 			goto failed;
+		}
+		if (used == 0) {
+			struct wpabuf *partial;
+			wpa_printf(MSG_DEBUG, "TLSv1: Need more data");
+			partial = wpabuf_alloc_copy(pos, end - pos);
+			wpabuf_free(conn->partial_input);
+			conn->partial_input = partial;
+			if (conn->partial_input == NULL) {
+				wpa_printf(MSG_DEBUG, "TLSv1: Failed to "
+					   "allocate memory for pending "
+					   "record");
+				tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
+					  TLS_ALERT_INTERNAL_ERROR);
+				goto failed;
+			}
+			os_free(in_msg);
+			if (need_more_data)
+				*need_more_data = 1;
+			return NULL;
 		}
 		ct = pos[0];
 
@@ -180,7 +225,7 @@ u8 * tlsv1_client_handshake(struct tlsv1_client *conn,
 			in_pos += in_msg_len;
 		}
 
-		pos += TLS_RECORD_HEADER_LEN + WPA_GET_BE16(pos + 3);
+		pos += used;
 	}
 
 	os_free(in_msg);
@@ -192,6 +237,8 @@ u8 * tlsv1_client_handshake(struct tlsv1_client *conn,
 failed:
 	os_free(in_msg);
 	if (conn->alert_level) {
+		wpabuf_free(conn->partial_input);
+		conn->partial_input = NULL;
 		conn->state = FAILED;
 		os_free(msg);
 		msg = tlsv1_client_send_alert(conn, conn->alert_level,
@@ -200,6 +247,11 @@ failed:
 	} else if (msg == NULL) {
 		msg = os_zalloc(1);
 		*out_len = 0;
+	}
+
+	if (need_more_data == NULL || !(*need_more_data)) {
+		wpabuf_free(conn->partial_input);
+		conn->partial_input = NULL;
 	}
 
 	return msg;
@@ -227,10 +279,8 @@ int tlsv1_client_encrypt(struct tlsv1_client *conn,
 	wpa_hexdump_key(MSG_MSGDUMP, "TLSv1: Plaintext AppData",
 			in_data, in_len);
 
-	os_memcpy(out_data + TLS_RECORD_HEADER_LEN, in_data, in_len);
-
 	if (tlsv1_record_send(&conn->rl, TLS_CONTENT_TYPE_APPLICATION_DATA,
-			      out_data, out_len, in_len, &rlen) < 0) {
+			      out_data, out_len, in_data, in_len, &rlen) < 0) {
 		wpa_printf(MSG_DEBUG, "TLSv1: Failed to create a record");
 		tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
 			  TLS_ALERT_INTERNAL_ERROR);
@@ -246,58 +296,116 @@ int tlsv1_client_encrypt(struct tlsv1_client *conn,
  * @conn: TLSv1 client connection data from tlsv1_client_init()
  * @in_data: Pointer to input buffer (encrypted TLS data)
  * @in_len: Input buffer length
- * @out_data: Pointer to output buffer (decrypted data from TLS tunnel)
- * @out_len: Maximum out_data length
- * Returns: Number of bytes written to out_data, -1 on failure
+ * @need_more_data: Set to 1 if more data would be needed to complete
+ *	processing
+ * Returns: Decrypted data or %NULL on failure
  *
  * This function is used after TLS handshake has been completed successfully to
  * receive data from the encrypted tunnel.
  */
-int tlsv1_client_decrypt(struct tlsv1_client *conn,
-			 const u8 *in_data, size_t in_len,
-			 u8 *out_data, size_t out_len)
+struct wpabuf * tlsv1_client_decrypt(struct tlsv1_client *conn,
+				     const u8 *in_data, size_t in_len,
+				     int *need_more_data)
 {
 	const u8 *in_end, *pos;
-	int res;
-	u8 alert, *out_end, *out_pos;
+	int used;
+	u8 alert, *out_pos, ct;
 	size_t olen;
+	struct wpabuf *buf = NULL;
+
+	if (need_more_data)
+		*need_more_data = 0;
+
+	if (conn->partial_input) {
+		if (wpabuf_resize(&conn->partial_input, in_len) < 0) {
+			wpa_printf(MSG_DEBUG, "TLSv1: Failed to allocate "
+				   "memory for pending record");
+			alert = TLS_ALERT_INTERNAL_ERROR;
+			goto fail;
+		}
+		wpabuf_put_data(conn->partial_input, in_data, in_len);
+		in_data = wpabuf_head(conn->partial_input);
+		in_len = wpabuf_len(conn->partial_input);
+	}
 
 	pos = in_data;
 	in_end = in_data + in_len;
-	out_pos = out_data;
-	out_end = out_data + out_len;
 
 	while (pos < in_end) {
-		if (pos[0] != TLS_CONTENT_TYPE_APPLICATION_DATA) {
-			wpa_printf(MSG_DEBUG, "TLSv1: Unexpected content type "
-				   "0x%x", pos[0]);
-			tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
-				  TLS_ALERT_UNEXPECTED_MESSAGE);
-			return -1;
+		ct = pos[0];
+		if (wpabuf_resize(&buf, in_end - pos) < 0) {
+			alert = TLS_ALERT_INTERNAL_ERROR;
+			goto fail;
 		}
-
-		olen = out_end - out_pos;
-		res = tlsv1_record_receive(&conn->rl, pos, in_end - pos,
-					   out_pos, &olen, &alert);
-		if (res < 0) {
+		out_pos = wpabuf_put(buf, 0);
+		olen = wpabuf_tailroom(buf);
+		used = tlsv1_record_receive(&conn->rl, pos, in_end - pos,
+					    out_pos, &olen, &alert);
+		if (used < 0) {
 			wpa_printf(MSG_DEBUG, "TLSv1: Record layer processing "
 				   "failed");
-			tls_alert(conn, TLS_ALERT_LEVEL_FATAL, alert);
-			return -1;
+			goto fail;
 		}
-		out_pos += olen;
-		if (out_pos > out_end) {
-			wpa_printf(MSG_DEBUG, "TLSv1: Buffer not large enough "
-				   "for processing the received record");
-			tls_alert(conn, TLS_ALERT_LEVEL_FATAL,
-				  TLS_ALERT_INTERNAL_ERROR);
-			return -1;
+		if (used == 0) {
+			struct wpabuf *partial;
+			wpa_printf(MSG_DEBUG, "TLSv1: Need more data");
+			partial = wpabuf_alloc_copy(pos, in_end - pos);
+			wpabuf_free(conn->partial_input);
+			conn->partial_input = partial;
+			if (conn->partial_input == NULL) {
+				wpa_printf(MSG_DEBUG, "TLSv1: Failed to "
+					   "allocate memory for pending "
+					   "record");
+				alert = TLS_ALERT_INTERNAL_ERROR;
+				goto fail;
+			}
+			if (need_more_data)
+				*need_more_data = 1;
+			return buf;
 		}
 
-		pos += TLS_RECORD_HEADER_LEN + WPA_GET_BE16(pos + 3);
+		if (ct == TLS_CONTENT_TYPE_ALERT) {
+			if (olen < 2) {
+				wpa_printf(MSG_DEBUG, "TLSv1: Alert "
+					   "underflow");
+				alert = TLS_ALERT_DECODE_ERROR;
+				goto fail;
+			}
+			wpa_printf(MSG_DEBUG, "TLSv1: Received alert %d:%d",
+				   out_pos[0], out_pos[1]);
+			if (out_pos[0] == TLS_ALERT_LEVEL_WARNING) {
+				/* Continue processing */
+				pos += used;
+				continue;
+			}
+
+			alert = out_pos[1];
+			goto fail;
+		}
+
+		if (ct != TLS_CONTENT_TYPE_APPLICATION_DATA) {
+			wpa_printf(MSG_DEBUG, "TLSv1: Unexpected content type "
+				   "0x%x when decrypting application data",
+				   pos[0]);
+			alert = TLS_ALERT_UNEXPECTED_MESSAGE;
+			goto fail;
+		}
+
+		wpabuf_put(buf, olen);
+
+		pos += used;
 	}
 
-	return out_pos - out_data;
+	wpabuf_free(conn->partial_input);
+	conn->partial_input = NULL;
+	return buf;
+
+fail:
+	wpabuf_free(buf);
+	wpabuf_free(conn->partial_input);
+	conn->partial_input = NULL;
+	tls_alert(conn, TLS_ALERT_LEVEL_FATAL, alert);
+	return NULL;
 }
 
 
@@ -351,14 +459,16 @@ struct tlsv1_client * tlsv1_client_init(void)
 
 	count = 0;
 	suites = conn->cipher_suites;
-#ifndef CONFIG_CRYPTO_INTERNAL
+	suites[count++] = TLS_RSA_WITH_AES_256_CBC_SHA256;
 	suites[count++] = TLS_RSA_WITH_AES_256_CBC_SHA;
-#endif /* CONFIG_CRYPTO_INTERNAL */
+	suites[count++] = TLS_RSA_WITH_AES_128_CBC_SHA256;
 	suites[count++] = TLS_RSA_WITH_AES_128_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_3DES_EDE_CBC_SHA;
 	suites[count++] = TLS_RSA_WITH_RC4_128_SHA;
 	suites[count++] = TLS_RSA_WITH_RC4_128_MD5;
 	conn->num_cipher_suites = count;
+
+	conn->rl.tls_version = TLS_VERSION;
 
 	return conn;
 }
@@ -378,6 +488,7 @@ void tlsv1_client_deinit(struct tlsv1_client *conn)
 	os_free(conn->client_hello_ext);
 	tlsv1_client_free_dh(conn);
 	tlsv1_cred_free(conn->cred);
+	wpabuf_free(conn->partial_input);
 	os_free(conn);
 }
 
@@ -421,7 +532,8 @@ int tlsv1_client_prf(struct tlsv1_client *conn, const char *label,
 			  TLS_RANDOM_LEN);
 	}
 
-	return tls_prf(conn->master_secret, TLS_MASTER_SECRET_LEN,
+	return tls_prf(conn->rl.tls_version,
+		       conn->master_secret, TLS_MASTER_SECRET_LEN,
 		       label, seed, 2 * TLS_RANDOM_LEN, out, out_len);
 }
 
@@ -453,14 +565,23 @@ int tlsv1_client_get_cipher(struct tlsv1_client *conn, char *buf,
 	case TLS_RSA_WITH_3DES_EDE_CBC_SHA:
 		cipher = "DES-CBC3-SHA";
 		break;
+	case TLS_DH_anon_WITH_AES_128_CBC_SHA256:
+		cipher = "ADH-AES-128-SHA256";
+		break;
 	case TLS_DH_anon_WITH_AES_128_CBC_SHA:
 		cipher = "ADH-AES-128-SHA";
 		break;
 	case TLS_RSA_WITH_AES_256_CBC_SHA:
 		cipher = "AES-256-SHA";
 		break;
+	case TLS_RSA_WITH_AES_256_CBC_SHA256:
+		cipher = "AES-256-SHA256";
+		break;
 	case TLS_RSA_WITH_AES_128_CBC_SHA:
 		cipher = "AES-128-SHA";
+		break;
+	case TLS_RSA_WITH_AES_128_CBC_SHA256:
+		cipher = "AES-128-SHA256";
 		break;
 	default:
 		return -1;
@@ -612,9 +733,9 @@ int tlsv1_client_set_cipher_list(struct tlsv1_client *conn, u8 *ciphers)
 	if (ciphers[0] == TLS_CIPHER_ANON_DH_AES128_SHA) {
 		count = 0;
 		suites = conn->cipher_suites;
-#ifndef CONFIG_CRYPTO_INTERNAL
+		suites[count++] = TLS_DH_anon_WITH_AES_256_CBC_SHA256;
 		suites[count++] = TLS_DH_anon_WITH_AES_256_CBC_SHA;
-#endif /* CONFIG_CRYPTO_INTERNAL */
+		suites[count++] = TLS_DH_anon_WITH_AES_128_CBC_SHA256;
 		suites[count++] = TLS_DH_anon_WITH_AES_128_CBC_SHA;
 		suites[count++] = TLS_DH_anon_WITH_3DES_EDE_CBC_SHA;
 		suites[count++] = TLS_DH_anon_WITH_RC4_128_MD5;
@@ -653,6 +774,12 @@ int tlsv1_client_set_cred(struct tlsv1_client *conn,
 	tlsv1_cred_free(conn->cred);
 	conn->cred = cred;
 	return 0;
+}
+
+
+void tlsv1_client_set_time_checks(struct tlsv1_client *conn, int enabled)
+{
+	conn->disable_time_checks = !enabled;
 }
 
 

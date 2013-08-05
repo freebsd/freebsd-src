@@ -324,6 +324,7 @@ char	skipclean;		/* skip clean file systems if preening */
 int	fsmodified;		/* 1 => write done to file system */
 int	fsreadfd;		/* file descriptor for reading file system */
 int	fswritefd;		/* file descriptor for writing file system */
+int	surrender;		/* Give up if reads fail */
 
 ufs2_daddr_t maxfsblock;	/* number of blocks in the file system */
 char	*blockmap;		/* ptr to primary blk allocation map */

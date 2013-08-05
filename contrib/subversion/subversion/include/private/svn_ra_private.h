@@ -39,14 +39,22 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/* Return an error with code SVN_ERR_UNSUPPORTED_FEATURE, and an error
-   message referencing PATH_OR_URL, if the "server" pointed to by
-   RA_SESSION doesn't support Merge Tracking (e.g. is pre-1.5).
-   Perform temporary allocations in POOL. */
+/* Equivalent to svn_ra__assert_capable_server()
+   for SVN_RA_CAPABILITY_MERGEINFO. */
 svn_error_t *
 svn_ra__assert_mergeinfo_capable_server(svn_ra_session_t *ra_session,
                                         const char *path_or_url,
                                         apr_pool_t *pool);
+
+/* Return an error with code SVN_ERR_UNSUPPORTED_FEATURE, and an error
+   message referencing PATH_OR_URL, if the "server" pointed to by
+   RA_SESSION doesn't support CAPABILITY (an SVN_RA_CAPABILITY_* constant).
+   Perform temporary allocations in POOL. */
+svn_error_t *
+svn_ra__assert_capable_server(svn_ra_session_t *ra_session,
+                              const char *capability,
+                              const char *path_or_url,
+                              apr_pool_t *pool);
 
 
 /*** Operational Locks ***/

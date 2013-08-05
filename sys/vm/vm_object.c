@@ -1054,9 +1054,9 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 			 */
 			flags = OBJPR_NOTMAPPED;
 		else if (old_msync)
-			flags = 0;
+			flags = OBJPR_NOTWIRED;
 		else
-			flags = OBJPR_CLEANONLY;
+			flags = OBJPR_CLEANONLY | OBJPR_NOTWIRED;
 		vm_object_page_remove(object, OFF_TO_IDX(offset),
 		    OFF_TO_IDX(offset + size + PAGE_MASK), flags);
 	}
@@ -1892,7 +1892,8 @@ again:
 		vm_page_lock(p);
 		if ((wirings = p->wire_count) != 0 &&
 		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
-			if ((options & OBJPR_NOTMAPPED) == 0) {
+			if ((options & (OBJPR_NOTWIRED | OBJPR_NOTMAPPED)) ==
+			    0) {
 				pmap_remove_all(p);
 				/* Account for removal of wired mappings. */
 				if (wirings != 0)
@@ -1902,8 +1903,7 @@ again:
 				p->valid = 0;
 				vm_page_undirty(p);
 			}
-			vm_page_unlock(p);
-			continue;
+			goto next;
 		}
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
 			goto again;
@@ -1912,12 +1912,12 @@ again:
 		if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
 			if ((options & OBJPR_NOTMAPPED) == 0)
 				pmap_remove_write(p);
-			if (p->dirty) {
-				vm_page_unlock(p);
-				continue;
-			}
+			if (p->dirty)
+				goto next;
 		}
 		if ((options & OBJPR_NOTMAPPED) == 0) {
+			if ((options & OBJPR_NOTWIRED) != 0 && wirings != 0)
+				goto next;
 			pmap_remove_all(p);
 			/* Account for removal of wired mappings. */
 			if (wirings != 0) {
@@ -1929,6 +1929,7 @@ again:
 			}
 		}
 		vm_page_free(p);
+next:
 		vm_page_unlock(p);
 	}
 	vm_object_pip_wakeup(object);

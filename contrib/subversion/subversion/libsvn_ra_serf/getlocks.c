@@ -266,7 +266,7 @@ svn_ra_serf__get_locks(svn_ra_session_t *ra_session,
      have existed earlier (E.g. 'svn ls http://s/svn/trunk/file@1' */
   if (handler->sline.code != 404)
     {
-      SVN_ERR(svn_ra_serf__error_on_status(handler->sline.code,
+      SVN_ERR(svn_ra_serf__error_on_status(handler->sline,
                                            handler->path,
                                            handler->location));
     }

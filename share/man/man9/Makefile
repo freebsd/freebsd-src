@@ -236,6 +236,7 @@ MAN=	accept_filter.9 \
 	rwlock.9 \
 	sbuf.9 \
 	scheduler.9 \
+	SDT.9 \
 	securelevel_gt.9 \
 	selrecord.9 \
 	sema.9 \
@@ -338,6 +339,7 @@ MAN=	accept_filter.9 \
 	vm_page_wakeup.9 \
 	vm_page_wire.9 \
 	vm_set_page_size.9 \
+	vmem.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
 	vnode.9 \
@@ -952,7 +954,9 @@ MLINKS+=microuptime.9 binuptime.9 \
 	microuptime.9 getbinuptime.9 \
 	microuptime.9 getmicrouptime.9 \
 	microuptime.9 getnanouptime.9 \
-	microuptime.9 nanouptime.9
+	microuptime.9 getsbinuptime.9 \
+	microuptime.9 nanouptime.9 \
+	microuptime.9 sbinuptime.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
 	mi_switch.9 cpu_throw.9
 MLINKS+=mtx_pool.9 mtx_pool_alloc.9 \
@@ -1147,6 +1151,11 @@ MLINKS+=scheduler.9 curpriority_cmp.9 \
 	scheduler.9 sched_setup.9 \
 	scheduler.9 setrunnable.9 \
 	scheduler.9 updatepri.9
+MLINKS+=SDT.9 SDT_PROVIDER_DECLARE.9 \
+	SDT.9 SDT_PROVIDER_DEFINE.9 \
+	SDT.9 SDT_PROBE_DECLARE.9 \
+	SDT.9 SDT_PROBE_DEFINE.9 \
+	SDT.9 SDT_PROBE.9
 MLINKS+=securelevel_gt.9 securelevel_ge.9
 MLINKS+=selrecord.9 seldrain.9 \
 	selrecord.9 selwakeup.9

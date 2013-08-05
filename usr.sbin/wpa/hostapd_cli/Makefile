@@ -5,7 +5,7 @@
 .PATH.c:${HOSTAPD_DISTDIR}
 
 PROG=	hostapd_cli
-SRCS=	hostapd_cli.c wpa_ctrl.c os_unix.c
+SRCS=	common.c edit.c eloop.c hostapd_cli.c os_unix.c wpa_ctrl.c wpa_debug.c
 
 CFLAGS+= -DCONFIG_CTRL_IFACE
 CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX

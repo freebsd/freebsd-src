@@ -243,6 +243,7 @@ nlms :: libs $(TARGET_nlm)
 #
 install :: nlms FORCE
 	$(call COPY,$(OBJDIR)/*.nlm,$(INSTALLBASE))
+	$(call COPYR,data,$(INSTALLBASE)/data/)
 
 #
 # Any specialized rules here

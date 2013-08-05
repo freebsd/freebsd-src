@@ -448,10 +448,8 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	VM_OBJECT_WLOCK(tobj);
 
 	/*
-	 * The kern_sendfile() code calls vn_rdwr() with the page
-	 * soft-busied.  Ignore the soft-busy state here. Parallel
-	 * reads of the page content from disk are prevented by
-	 * VPO_BUSY.
+	 * Parallel reads of the page content from disk are prevented
+	 * by VPO_BUSY.
 	 *
 	 * Although the tmpfs vnode lock is held here, it is
 	 * nonetheless safe to sleep waiting for a free page.  The
@@ -460,7 +458,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	 * type object.
 	 */
 	m = vm_page_grab(tobj, idx, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
-	    VM_ALLOC_IGN_SBUSY | VM_ALLOC_NOBUSY);
+	    VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		vm_page_busy(m);
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
@@ -487,13 +485,13 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 			vm_page_zero_invalid(m, TRUE);
 		vm_page_wakeup(m);
 	}
-	vm_page_lock(m);
-	vm_page_hold(m);
-	vm_page_unlock(m);
+	vm_page_io_start(m);
 	VM_OBJECT_WUNLOCK(tobj);
 	error = uiomove_fromphys(&m, offset, tlen, uio);
+	VM_OBJECT_WLOCK(tobj);
+	vm_page_io_finish(m);
+	VM_OBJECT_WUNLOCK(tobj);
 	vm_page_lock(m);
-	vm_page_unhold(m);
 	if (m->queue == PQ_NONE) {
 		vm_page_deactivate(m);
 	} else {
@@ -604,16 +602,14 @@ tmpfs_mappedwrite(vm_object_t tobj, size_t len, struct uio *uio)
 			vm_page_zero_invalid(tpg, TRUE);
 		vm_page_wakeup(tpg);
 	}
-	vm_page_lock(tpg);
-	vm_page_hold(tpg);
-	vm_page_unlock(tpg);
+	vm_page_io_start(tpg);
 	VM_OBJECT_WUNLOCK(tobj);
 	error = uiomove_fromphys(&tpg, offset, tlen, uio);
 	VM_OBJECT_WLOCK(tobj);
+	vm_page_io_finish(tpg);
 	if (error == 0)
 		vm_page_dirty(tpg);
 	vm_page_lock(tpg);
-	vm_page_unhold(tpg);
 	if (tpg->queue == PQ_NONE) {
 		vm_page_deactivate(tpg);
 	} else {

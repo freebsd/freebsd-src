@@ -325,7 +325,6 @@
 #define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
 #define	SPR_970MMCR1		0x31e	/* ... Monitor Mode Control Register 1 (PPC 970) */
 #define	SPR_970MMCRA		0x312	/* ... Monitor Mode Control Register 2 (PPC 970) */
-#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
 #define	SPR_970PMC1		0x313	/* ... PMC 1 */
 #define	SPR_970PMC2		0x314	/* ... PMC 2 */
 #define	SPR_970PMC3		0x315	/* ... PMC 3 */
