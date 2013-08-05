@@ -31,27 +31,29 @@
  */
 
 #define	SSBUFLEN	1024
-#define MILLION 1000000
 
-/* a < b */
-#define	TIMEVAL_LT(a, b)				\
-		(((a)->tv_sec < (b)->tv_sec) ||		\
-		    (((a)->tv_sec == (b)->tv_sec) &&	\
-		    ((a)->tv_usec < (b)->tv_usec)))
+#define TS_CMP(tsp, usp, cmp)						\
+	(((tsp)->tv_sec == (usp)->tv_sec) ?				\
+	    ((tsp)->tv_nsec cmp (usp)->tv_nsec) :			\
+	    ((tsp)->tv_sec cmp (usp)->tv_sec))
+#define TS_ADD(tsp, usp, vsp)						\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec + (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec + (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec >= 1000000000L) {			\
+			(vsp)->tv_sec++;				\
+			(vsp)->tv_nsec -= 1000000000L;			\
+		}							\
+	} while (0)
+#define TS_SUB(tsp, usp, vsp)						\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec < 0) {				\
+			(vsp)->tv_sec--;				\
+			(vsp)->tv_nsec += 1000000000L;			\
+		}							\
+	} while (0)
 
-/* a <= b */
-#define	TIMEVAL_LEQ(a, b)				\
-		(((a)->tv_sec < (b)->tv_sec) ||		\
-		    (((a)->tv_sec == (b)->tv_sec) &&	\
-		    ((a)->tv_usec <= (b)->tv_usec)))
-
-#define	TIMEVAL_EQUAL(a,b)				\
-		(((a)->tv_sec == (b)->tv_sec) &&	\
-		    ((a)->tv_usec == (b)->tv_usec))
-
-struct timeval	*rtadvd_timer_rest(struct rtadvd_timer *);
-void		TIMEVAL_ADD(struct timeval *, struct timeval *,
-		    struct timeval *);
-void		TIMEVAL_SUB(struct timeval *, struct timeval *,
-		    struct timeval *);
+struct timespec *rtadvd_timer_rest(struct rtadvd_timer *);
 char		*sec2str(uint32_t, char *buf);

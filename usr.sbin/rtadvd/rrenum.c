@@ -49,6 +49,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <syslog.h>
 #include "rtadvd.h"
 #include "rrenum.h"
@@ -215,7 +216,7 @@ do_use_prefix(int len, struct rr_pco_match *rpm,
 			rai = ifi->ifi_rainfo;
 
 			TAILQ_FOREACH(pfx, &rai->rai_prefix, pfx_next) {
-				struct timeval now;
+				struct timespec now;
 
 				if (prefix_match(&pfx->pfx_prefix,
 				    pfx->pfx_prefixlen, &rpm->rpm_prefix,
@@ -226,14 +227,16 @@ do_use_prefix(int len, struct rr_pco_match *rpm,
 					pfx->pfx_preflifetime =
 					    ntohl(rpu->rpu_pltime);
 					if (irr->irr_rrf_decrvalid) {
-						gettimeofday(&now, 0);
+						clock_gettime(CLOCK_MONOTONIC_FAST,
+						    &now);
 						pfx->pfx_vltimeexpire =
 						    now.tv_sec +
 						    pfx->pfx_validlifetime;
 					} else
 						pfx->pfx_vltimeexpire = 0;
 					if (irr->irr_rrf_decrprefd) {
-						gettimeofday(&now, 0);
+						clock_gettime(CLOCK_MONOTONIC_FAST,
+						    &now);
 						pfx->pfx_pltimeexpire =
 						    now.tv_sec +
 						    pfx->pfx_preflifetime;
