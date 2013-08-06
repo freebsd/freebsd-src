@@ -3060,6 +3060,10 @@ spa_add_feature_stats(spa_t *spa, nvlist_t *config)
 	ASSERT(spa_config_held(spa, SCL_CONFIG, RW_READER));
 	VERIFY(nvlist_alloc(&features, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 
+	/* We may be unable to read features if pool is suspended. */
+	if (spa_suspended(spa))
+		goto out;
+
 	if (spa->spa_feat_for_read_obj != 0) {
 		for (zap_cursor_init(&zc, spa->spa_meta_objset,
 		    spa->spa_feat_for_read_obj);
@@ -3086,6 +3090,7 @@ spa_add_feature_stats(spa_t *spa, nvlist_t *config)
 		zap_cursor_fini(&zc);
 	}
 
+out:
 	VERIFY(nvlist_add_nvlist(config, ZPOOL_CONFIG_FEATURE_STATS,
 	    features) == 0);
 	nvlist_free(features);
