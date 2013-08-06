@@ -283,8 +283,14 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <net/if6.h> header file. */
 #undef HAVE_NET_IF6_H
 
+/* Define if your OpenSSL version supports ECDSA. */
+#undef HAVE_OPENSSL_ECDSA
+
 /* Define if your OpenSSL version supports GOST. */
 #undef HAVE_OPENSSL_GOST
+
+/* Define to 1 if you have the <regex.h> header file. */
+#undef HAVE_REGEX_H
 
 /* Define to 1 if you have the `setegid' function. */
 #undef HAVE_SETEGID
@@ -366,6 +372,10 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to allow building of objects for dlopen(). */
 #undef ISC_DLZ_DLOPEN
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
 
 /* Defined if extern char *optarg is not declared. */
 #undef NEED_OPTARG

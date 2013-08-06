@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -165,7 +165,9 @@ enum {
 	dns_nsstatscounter_updatefail = 34,
 	dns_nsstatscounter_updatebadprereq = 35,
 
-	dns_nsstatscounter_max = 36
+	dns_nsstatscounter_rpz_rewrites = 36,
+
+	dns_nsstatscounter_max = 37
 };
 
 void

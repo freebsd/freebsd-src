@@ -21,6 +21,7 @@
 #define DST_OPENSSL_H 1
 
 #include <isc/lang.h>
+#include <isc/log.h>
 #include <isc/result.h>
 
 #include <openssl/err.h>
@@ -41,6 +42,10 @@ dst__openssl_toresult(isc_result_t fallback);
 
 isc_result_t
 dst__openssl_toresult2(const char *funcname, isc_result_t fallback);
+
+isc_result_t
+dst__openssl_toresult3(isc_logcategory_t *category,
+		       const char *funcname, isc_result_t fallback);
 
 #ifdef USE_ENGINE
 ENGINE *

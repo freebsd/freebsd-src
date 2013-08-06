@@ -219,13 +219,12 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only) {
 		break;
 	case AF_INET6:
 		in6 = &sockaddr->type.sin6.sin6_addr;
+		s = (const unsigned char *)in6;
 		if (IN6_IS_ADDR_V4MAPPED(in6)) {
-			s = (const unsigned char *)&in6[12];
+			s += 12;
 			length = sizeof(sockaddr->type.sin.sin_addr.s_addr);
-		} else {
-			s = (const unsigned char *)in6;
+		} else
 			length = sizeof(sockaddr->type.sin6.sin6_addr);
-		}
 		p = ntohs(sockaddr->type.sin6.sin6_port);
 		break;
 	default:
