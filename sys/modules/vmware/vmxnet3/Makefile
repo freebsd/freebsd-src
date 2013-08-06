@@ -28,7 +28,6 @@
 KMOD=	if_vmx
 SRCS=	if_vmx.c
 SRCS+=	bus_if.h device_if.h pci_if.h opt_inet.h opt_inet6.h
-MFILES=	kern/bus_if.m kern/device_if.m dev/pci/pci_if.m
 
 .if !defined(KERNBUILDDIR)
 .if ${MK_INET_SUPPORT} != "no"

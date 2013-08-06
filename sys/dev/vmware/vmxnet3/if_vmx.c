@@ -1394,7 +1394,7 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 
 	vmxnet3_write_bar1(sc, VMXNET3_BAR1_DSL, sc->vmx_ds_dma.dma_paddr);
 	vmxnet3_write_bar1(sc, VMXNET3_BAR1_DSH,
-	    sc->vmx_ds_dma.dma_paddr >> 32);
+	    (uint64_t) sc->vmx_ds_dma.dma_paddr >> 32);
 }
 
 static int

@@ -29,6 +29,4 @@ KMOD=	if_vic
 SRCS=	if_vic.c
 SRCS+=	bus_if.h device_if.h
 
-MFILES=	kern/bus_if.m kern/device_if.m
-
 .include <bsd.kmod.mk>
