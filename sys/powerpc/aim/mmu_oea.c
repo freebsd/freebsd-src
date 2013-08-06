@@ -2161,9 +2161,6 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 		    "pvo but no valid pte", pvo);
 	}
 
-	if (pvo->pvo_pte.pte.pte_hi != pt->pte_hi) {
-		panic("moea_pvo_to_pte: pvo does not match pte: pvo hi: %8x, pte hi: %8x", pvo->pvo_pte.pte.pte_hi, pt->pte_hi);
-	}
 	if ((pt->pte_hi ^ (pvo->pvo_pte.pte.pte_hi & ~PTE_VALID)) == PTE_VALID) {
 		if ((pvo->pvo_pte.pte.pte_hi & PTE_VALID) == 0) {
 			panic("moea_pvo_to_pte: pvo %p has valid pte in "
