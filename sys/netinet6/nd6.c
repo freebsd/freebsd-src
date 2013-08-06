@@ -1243,7 +1243,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 
 			drl->defrouter[i].flags = dr->flags;
 			drl->defrouter[i].rtlifetime = dr->rtlifetime;
-			drl->defrouter[i].expire = dr->expire;
+			drl->defrouter[i].expire = dr->expire +
+			    (time_second - time_uptime);
 			drl->defrouter[i].if_index = dr->ifp->if_index;
 			i++;
 		}
@@ -1287,7 +1288,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				    maxexpire - pr->ndpr_lastupdate) {
 					oprl->prefix[i].expire =
 					    pr->ndpr_lastupdate +
-					    pr->ndpr_vltime;
+					    pr->ndpr_vltime +
+					    (time_second - time_uptime);
 				} else
 					oprl->prefix[i].expire = maxexpire;
 			}
@@ -1506,7 +1508,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		nbi->state = ln->ln_state;
 		nbi->asked = ln->la_asked;
 		nbi->isrouter = ln->ln_router;
-		nbi->expire = ln->la_expire;
+		nbi->expire = ln->la_expire + (time_second - time_uptime);
 		LLE_RUNLOCK(ln);
 		break;
 	}
@@ -2286,7 +2288,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 			return (error);
 		d.flags = dr->flags;
 		d.rtlifetime = dr->rtlifetime;
-		d.expire = dr->expire;
+		d.expire = dr->expire + (time_second - time_uptime);
 		d.if_index = dr->ifp->if_index;
 		error = SYSCTL_OUT(req, &d, sizeof(d));
 		if (error != 0)
@@ -2338,7 +2340,8 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			    ~((time_t)1 << ((sizeof(maxexpire) * 8) - 1));
 			if (pr->ndpr_vltime < maxexpire - pr->ndpr_lastupdate)
 				p.expire = pr->ndpr_lastupdate +
-				    pr->ndpr_vltime;
+				    pr->ndpr_vltime +
+				    (time_second - time_uptime);
 			else
 				p.expire = maxexpire;
 		}
