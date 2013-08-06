@@ -79,6 +79,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 #include <sys/queue.h>
 
 #include <net/if.h>
@@ -104,7 +105,6 @@
 #include <paths.h>
 #include <err.h>
 #include <stdlib.h>
-#include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include "gmt2local.h"
@@ -125,7 +125,6 @@ static int tflag;
 static int32_t thiszone;	/* time difference with gmt */
 static int s = -1;
 static int repeat = 0;
-static struct timespec ts, ts0;
 
 char ntop_buf[INET6_ADDRSTRLEN];	/* inet_ntop() */
 char host_buf[NI_MAXHOST];		/* getnameinfo() */
@@ -154,7 +153,7 @@ static void getdefif(void);
 static void setdefif(char *);
 #endif
 static char *sec2str(time_t);
-static void ts_print(const struct timespec *);
+static void ts_print(const struct timeval *);
 
 #ifdef ICMPV6CTL_ND6_DRLIST
 static char *rtpref_str[] = {
@@ -165,16 +164,6 @@ static char *rtpref_str[] = {
 };
 #endif
 
-#define	TS_SUB(tsp, usp, vsp)						\
-	do {								\
-		(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
-		(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
-		if ((vsp)->tv_nsec < 0) {				\
-			(vsp)->tv_sec--;				\
-			(vsp)->tv_nsec += 1000000000L;			\
-		}							\
-	} while (0)
-
 int mode = 0;
 char *arg = NULL;
 
@@ -183,14 +172,10 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	struct timespec now;
 	int ch;
 
 	pid = getpid();
 	thiszone = gmt2local(0);
-	clock_gettime(CLOCK_REALTIME_FAST, &now);
-	clock_gettime(CLOCK_MONOTONIC_FAST, &ts);
-	TS_SUB(&now, &ts, &ts0);
 	while ((ch = getopt(argc, argv, "acd:f:Ii:nprstA:HPR")) != -1)
 		switch (ch) {
 		case 'a':
@@ -382,8 +367,8 @@ getsocket()
 struct	sockaddr_in6 so_mask = {sizeof(so_mask), AF_INET6 };
 struct	sockaddr_in6 blank_sin = {sizeof(blank_sin), AF_INET6 }, sin_m;
 struct	sockaddr_dl blank_sdl = {sizeof(blank_sdl), AF_LINK }, sdl_m;
-static time_t expire_time;
-static int flags, found_entry;
+time_t	expire_time;
+int	flags, found_entry;
 struct	{
 	struct	rt_msghdr m_rtm;
 	char	m_space[512];
@@ -428,9 +413,9 @@ set(argc, argv)
 	flags = expire_time = 0;
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
-			struct timespec now;
+			struct timeval now;
 
-			clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+			gettimeofday(&now, 0);
 			expire_time = now.tv_sec + 20 * 60;
 		} else if (strncmp(argv[0], "proxy", 5) == 0)
 			flags |= RTF_ANNOUNCE;
@@ -582,7 +567,7 @@ dump(addr, cflag)
 	struct sockaddr_dl *sdl;
 	extern int h_errno;
 	struct in6_nbrinfo *nbi;
-	struct timespec now;
+	struct timeval now;
 	int addrwidth;
 	int llwidth;
 	int ifwidth;
@@ -669,7 +654,7 @@ again:;
 #endif
 			continue;
 		}
-		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		gettimeofday(&now, 0);
 		if (tflag)
 			ts_print(&now);
 
@@ -1091,7 +1076,7 @@ rtrlist()
 	char *buf;
 	struct in6_defrouter *p, *ep;
 	size_t l;
-	struct timespec now;
+	struct timeval now;
 
 	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), NULL, &l, NULL, 0) < 0) {
 		err(1, "sysctl(ICMPV6CTL_ND6_DRLIST)");
@@ -1126,7 +1111,7 @@ rtrlist()
 		rtpref = ((p->flags & ND_RA_FLAG_RTPREF_MASK) >> 3) & 0xff;
 		printf(", pref=%s", rtpref_str[rtpref]);
 
-		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		gettimeofday(&now, 0);
 		if (p->expire == 0)
 			printf(", expire=Never\n");
 		else
@@ -1137,7 +1122,7 @@ rtrlist()
 #else
 	struct in6_drlist dr;
 	int s, i;
-	struct timespec now;
+	struct timeval now;
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		err(1, "socket");
@@ -1166,7 +1151,7 @@ rtrlist()
 		printf(", flags=%s%s",
 		    DR.flags & ND_RA_FLAG_MANAGED ? "M" : "",
 		    DR.flags & ND_RA_FLAG_OTHER   ? "O" : "");
-		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		gettimeofday(&now, 0);
 		if (DR.expire == 0)
 			printf(", expire=Never\n");
 		else
@@ -1187,7 +1172,7 @@ plist()
 	struct in6_prefix *p, *ep, *n;
 	struct sockaddr_in6 *advrtr;
 	size_t l;
-	struct timespec now;
+	struct timeval now;
 	const int niflags = NI_NUMERICHOST;
 	int ninflags = nflag ? NI_NUMERICHOST : 0;
 	char namebuf[NI_MAXHOST];
@@ -1218,7 +1203,7 @@ plist()
 		printf("%s/%d if=%s\n", namebuf, p->prefixlen,
 		    if_indextoname(p->if_index, ifix_buf));
 
-		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		gettimeofday(&now, 0);
 		/*
 		 * meaning of fields, especially flags, is very different
 		 * by origin.  notify the difference to the users.
@@ -1294,9 +1279,9 @@ plist()
 #else
 	struct in6_prlist pr;
 	int s, i;
-	struct timespec now;
+	struct timeval now;
 
-	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+	gettimeofday(&now, 0);
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		err(1, "socket");
@@ -1332,7 +1317,7 @@ plist()
 		printf("%s/%d if=%s\n", namebuf, PR.prefixlen,
 		    if_indextoname(PR.if_index, ifix_buf));
 
-		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		gettimeofday(&now, 0);
 		/*
 		 * meaning of fields, especially flags, is very different
 		 * by origin.  notify the difference to the users.
@@ -1593,15 +1578,15 @@ sec2str(total)
  * from tcpdump/util.c
  */
 static void
-ts_print(tsp)
-	const struct timespec *tsp;
+ts_print(tvp)
+	const struct timeval *tvp;
 {
 	int s;
 
 	/* Default */
-	s = (tsp->tv_sec + thiszone + ts0.tv_sec) % 86400;
+	s = (tvp->tv_sec + thiszone) % 86400;
 	(void)printf("%02d:%02d:%02d.%06u ",
-	    s / 3600, (s % 3600) / 60, s % 60, (u_int32_t)tsp->tv_nsec / 1000);
+	    s / 3600, (s % 3600) / 60, s % 60, (u_int32_t)tvp->tv_usec);
 }
 
 #undef NEXTADDR
