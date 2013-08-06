@@ -52,3 +52,4 @@ dtrace_asm.o:  assym.s
 
 CWARNFLAGS+=	-Wno-parentheses
 CWARNFLAGS+=	-Wno-uninitialized
+CWARNFLAGS+=	-Wno-cast-qual
