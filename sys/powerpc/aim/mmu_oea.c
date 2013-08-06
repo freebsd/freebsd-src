@@ -548,7 +548,7 @@ moea_pte_set(struct pte *pt, struct pte *pvo_pt)
 
 	/*
 	 * Update the PTE as defined in section 7.6.3.1.
-	 * Note that the REF/CHG bits are from pvo_pt and thus should havce
+	 * Note that the REF/CHG bits are from pvo_pt and thus should have
 	 * been saved so this routine can restore them (if desired).
 	 */
 	pt->pte_lo = pvo_pt->pte_lo;
@@ -2021,10 +2021,8 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		pm->pm_stats.wired_count++;
 	pm->pm_stats.resident_count++;
 
-	/*
-	 * We hope this succeeds but it isn't required.
-	 */
 	i = moea_pte_insert(ptegidx, &pvo->pvo_pte.pte);
+	KASSERT(i < 8, ("Invalid PTE index"));
 	if (i >= 0) {
 		PVO_PTEGIDX_SET(pvo, i);
 	} else {
@@ -2163,6 +2161,9 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 		    "pvo but no valid pte", pvo);
 	}
 
+	if (pvo->pvo_pte.pte.pte_hi != pt->pte_hi) {
+		panic("moea_pvo_to_pte: pvo does not match pte: pvo hi: %8x, pte hi: %8x", pvo->pvo_pte.pte.pte_hi, pt->pte_hi);
+	}
 	if ((pt->pte_hi ^ (pvo->pvo_pte.pte.pte_hi & ~PTE_VALID)) == PTE_VALID) {
 		if ((pvo->pvo_pte.pte.pte_hi & PTE_VALID) == 0) {
 			panic("moea_pvo_to_pte: pvo %p has valid pte in "
@@ -2181,7 +2182,7 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 
 	if (pvo->pvo_pte.pte.pte_hi & PTE_VALID) {
 		panic("moea_pvo_to_pte: pvo %p has invalid pte %p in "
-		    "moea_pteg_table but valid in pvo", pvo, pt);
+		    "moea_pteg_table but valid in pvo: %8x, %8x", pvo, pt, pvo->pvo_pte.pte.pte_hi, pt->pte_hi);
 	}
 
 	mtx_unlock(&moea_table_mutex);
@@ -2305,11 +2306,42 @@ moea_pte_spill(vm_offset_t addr)
 	return (1);
 }
 
+static __inline struct pvo_entry *
+moea_pte_spillable_ident(u_int ptegidx)
+{
+	struct	pte *pt;
+	struct	pvo_entry *pvo_walk, *pvo = NULL;
+
+	LIST_FOREACH(pvo_walk, &moea_pvo_table[ptegidx], pvo_olink) {
+		if (pvo_walk->pvo_vaddr & PVO_WIRED)
+			continue;
+
+		if (!(pvo_walk->pvo_pte.pte.pte_hi & PTE_VALID))
+			continue;
+
+		pt = moea_pvo_to_pte(pvo_walk, -1);
+
+		if (pt == NULL)
+			continue;
+
+		pvo = pvo_walk;
+
+		mtx_unlock(&moea_table_mutex);
+		if (!(pt->pte_lo & PTE_REF))
+			return (pvo_walk);
+	}
+	
+	return (pvo);
+}
+
 static int
 moea_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 {
 	struct	pte *pt;
+	struct	pvo_entry *victim_pvo;
 	int	i;
+	int	victim_idx;
+	u_int	pteg_bkpidx = ptegidx;
 
 	mtx_assert(&moea_table_mutex, MA_OWNED);
 
@@ -2337,8 +2369,46 @@ moea_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 		}
 	}
 
-	panic("moea_pte_insert: overflow");
-	return (-1);
+	/* Try again, but this time try to force a PTE out. */
+	ptegidx = pteg_bkpidx;
+
+	victim_pvo = moea_pte_spillable_ident(ptegidx);
+	if (victim_pvo == NULL) {
+		ptegidx ^= moea_pteg_mask;
+		victim_pvo = moea_pte_spillable_ident(ptegidx);
+	}
+
+	if (victim_pvo == NULL) {
+		panic("moea_pte_insert: overflow");
+		return (-1);
+	}
+
+	victim_idx = moea_pvo_pte_index(victim_pvo, ptegidx);
+
+	if (pteg_bkpidx == ptegidx)
+		pvo_pt->pte_hi &= ~PTE_HID;
+	else
+		pvo_pt->pte_hi |= PTE_HID;
+
+	/*
+	 * Synchronize the sacrifice PTE with its PVO, then mark both
+	 * invalid. The PVO will be reused when/if the VM system comes
+	 * here after a fault.
+	 */
+	pt = &moea_pteg_table[victim_idx >> 3].pt[victim_idx & 7];
+
+	if (pt->pte_hi != victim_pvo->pvo_pte.pte.pte_hi)
+	    panic("Victim PVO doesn't match PTE! PVO: %8x, PTE: %8x", victim_pvo->pvo_pte.pte.pte_hi, pt->pte_hi);
+
+	/*
+	 * Set the new PTE.
+	 */
+	moea_pte_unset(pt, &victim_pvo->pvo_pte.pte, victim_pvo->pvo_vaddr);
+	PVO_PTEGIDX_CLR(victim_pvo);
+	moea_pte_overflow++;
+	moea_pte_set(pt, pvo_pt);
+
+	return (victim_idx & 7);
 }
 
 static boolean_t
