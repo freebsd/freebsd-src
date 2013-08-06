@@ -1572,6 +1572,10 @@ igb_msix_que(void *arg)
 	u32		newitr = 0;
 	bool		more_rx;
 
+	/* Ignore spurious interrupts */
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
 	E1000_WRITE_REG(&adapter->hw, E1000_EIMC, que->eims);
 	++que->irqs;
 
