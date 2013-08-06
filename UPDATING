@@ -32,6 +32,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20130806:
+	INVARIANTS option now enables DEBUG for code with OpenSolaris and
+	Illumos origin, including ZFS.  If you have INVARIANTS in your
+	kernel configuration, then there is no need to set DEBUG or ZFS_DEBUG
+	explicitly.
+	DEBUG used to enable witness(9) tracking of OpenSolaris (mostly ZFS)
+	locks if WITNESS option was set.  Because that generated a lot of
+	witness(9) reports and all of them were believed to be false
+	positives, this is no longer done.  New option OPENSOLARIS_WITNESS
+	can be used to achieve the previous behavior.
+
+20130806:
 	Timer values in IPv6 data structures now use time_uptime instead
 	of time_second.  Although this is not a user-visible functional
 	change, userland utilities which directly use them---ndp(8),
