@@ -79,7 +79,7 @@ ux_socket_connect(const char *path) {
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, path, sizeof(addr.sun_path));
+	strlcpy(addr.sun_path, path, sizeof(addr.sun_path));
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd == -1) {

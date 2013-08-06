@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -44,6 +44,7 @@
       <year>2009</year>
       <year>2010</year>
       <year>2011</year>
+      <year>2013</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -218,7 +219,7 @@ options {
 	random-device <replaceable>quoted_string</replaceable>;
 	recursive-clients <replaceable>integer</replaceable>;
 	serial-query-rate <replaceable>integer</replaceable>;
-	server-id ( <replaceable>quoted_string</replaceable> | none |;
+	server-id ( <replaceable>quoted_string</replaceable> | none );
 	stacksize <replaceable>size</replaceable>;
 	statistics-file <replaceable>quoted_string</replaceable>;
 	statistics-interval <replaceable>integer</replaceable>; // not yet implemented

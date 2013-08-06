@@ -16,11 +16,13 @@
 
 top_srcdir =	@top_srcdir@
 srcdir =	@top_srcdir@/lib/isc/pthreads
+export_srcdir = @top_srcdir@/lib/export
 
 @BIND9_MAKE_INCLUDES@
 
 CINCLUDES =	-I${srcdir}/include \
 		-I${srcdir}/../unix/include \
+		-I${export_srcdir}/isc/include \
 		-I../include \
 		-I${srcdir}/../include \
 		-I${srcdir}/..
