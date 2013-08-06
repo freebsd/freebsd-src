@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -533,7 +533,7 @@ dns_peer_setkeybycharp(dns_peer_t *peer, const char *keyval) {
 	isc_result_t result;
 
 	dns_fixedname_init(&fname);
-	isc_buffer_init(&b, keyval, strlen(keyval));
+	isc_buffer_constinit(&b, keyval, strlen(keyval));
 	isc_buffer_add(&b, strlen(keyval));
 	result = dns_name_fromtext(dns_fixedname_name(&fname), &b,
 				   dns_rootname, 0, NULL);

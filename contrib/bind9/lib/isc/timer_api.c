@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -96,7 +96,7 @@ isc_timermgr_destroy(isc_timermgr_t **managerp) {
 
 isc_result_t
 isc_timer_create(isc_timermgr_t *manager, isc_timertype_t type,
-		 isc_time_t *expires, isc_interval_t *interval,
+		 const isc_time_t *expires, const isc_interval_t *interval,
 		 isc_task_t *task, isc_taskaction_t action, const void *arg,
 		 isc_timer_t **timerp)
 {
@@ -128,7 +128,7 @@ isc_timer_detach(isc_timer_t **timerp) {
 
 isc_result_t
 isc_timer_reset(isc_timer_t *timer, isc_timertype_t type,
-		isc_time_t *expires, isc_interval_t *interval,
+		const isc_time_t *expires, const isc_interval_t *interval,
 		isc_boolean_t purge)
 {
 	REQUIRE(ISCAPI_TIMER_VALID(timer));

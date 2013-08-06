@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id$ */
 
 /*! \file */
 
@@ -124,6 +122,15 @@ txt_fromtext(isc_textregion_t *source, isc_buffer_t *target);
 static isc_result_t
 txt_fromwire(isc_buffer_t *source, isc_buffer_t *target);
 
+static isc_result_t
+multitxt_totext(isc_region_t *source, isc_buffer_t *target);
+
+static isc_result_t
+multitxt_fromtext(isc_textregion_t *source, isc_buffer_t *target);
+
+static isc_result_t
+multitxt_fromwire(isc_buffer_t *source, isc_buffer_t *target);
+
 static isc_boolean_t
 name_prefix(dns_name_t *name, dns_name_t *origin, dns_name_t *target);
 
@@ -211,6 +218,70 @@ uint16_consume_fromregion(isc_region_t *region);
 static isc_result_t
 unknown_totext(dns_rdata_t *rdata, dns_rdata_textctx_t *tctx,
 	       isc_buffer_t *target);
+
+/*% INT16 Size */
+#define NS_INT16SZ	2
+/*% IPv6 Address Size */
+#define NS_LOCATORSZ	8
+
+/*%
+ *	convert presentation level address to network order binary form.
+ * \return
+ *	1 if `src' is a valid [RFC1884 2.2] address, else 0.
+ * \note
+ *	(1) does not touch `dst' unless it's returning 1.
+ */
+static inline int
+locator_pton(const char *src, unsigned char *dst) {
+	static const char xdigits_l[] = "0123456789abcdef",
+			  xdigits_u[] = "0123456789ABCDEF";
+	unsigned char tmp[NS_LOCATORSZ];
+	unsigned char *tp = tmp, *endp;
+	const char *xdigits;
+	int ch, seen_xdigits;
+	unsigned int val;
+
+	memset(tp, '\0', NS_LOCATORSZ);
+	endp = tp + NS_LOCATORSZ;
+	seen_xdigits = 0;
+	val = 0;
+	while ((ch = *src++) != '\0') {
+		const char *pch;
+
+		pch = strchr((xdigits = xdigits_l), ch);
+		if (pch == NULL)
+			pch = strchr((xdigits = xdigits_u), ch);
+		if (pch != NULL) {
+			val <<= 4;
+			val |= (pch - xdigits);
+			if (++seen_xdigits > 4)
+				return (0);
+			continue;
+		}
+		if (ch == ':') {
+			if (!seen_xdigits)
+				return (0);
+			if (tp + NS_INT16SZ > endp)
+				return (0);
+			*tp++ = (unsigned char) (val >> 8) & 0xff;
+			*tp++ = (unsigned char) val & 0xff;
+			seen_xdigits = 0;
+			val = 0;
+			continue;
+		}
+		return (0);
+	}
+	if (seen_xdigits) {
+		if (tp + NS_INT16SZ > endp)
+			return (0);
+		*tp++ = (unsigned char) (val >> 8) & 0xff;
+		*tp++ = (unsigned char) val & 0xff;
+	}
+	if (tp != endp)
+		return (0);
+	memcpy(dst, tmp, NS_LOCATORSZ);
+	return (1);
+}
 
 static inline int
 getquad(const void *src, struct in_addr *dst,
@@ -559,9 +630,9 @@ unknown_fromtext(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	if (type == 0 || dns_rdatatype_ismeta(type))
 		return (DNS_R_METATYPE);
 
-	result = isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
-					ISC_FALSE);
-	if (result == ISC_R_SUCCESS && token.value.as_ulong > 65535U)
+	RETERR(isc_lex_getmastertoken(lexer, &token, isc_tokentype_number,
+					ISC_FALSE));
+	if (token.value.as_ulong > 65535U)
 		return (ISC_R_RANGE);
 	result = isc_buffer_allocate(mctx, &buf, token.value.as_ulong);
 	if (result != ISC_R_SUCCESS)
@@ -611,6 +682,7 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	void (*callback)(dns_rdatacallbacks_t *, const char *, ...);
 	isc_result_t tresult;
 	size_t length;
+	isc_boolean_t unknown;
 
 	REQUIRE(origin == NULL || dns_name_isabsolute(origin) == ISC_TRUE);
 	if (rdata != NULL) {
@@ -638,13 +710,33 @@ dns_rdata_fromtext(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 		return (result);
 	}
 
-	if (strcmp(DNS_AS_STR(token), "\\#") == 0)
-		result = unknown_fromtext(rdclass, type, lexer, mctx, target);
-	else {
+	unknown = ISC_FALSE;
+	if (token.type == isc_tokentype_string &&
+	    strcmp(DNS_AS_STR(token), "\\#") == 0) {
+		/*
+		 * If this is a TXT record '\#' could be a escaped '#'.
+		 * Look to see if the next token is a number and if so
+		 * treat it as a unknown record format.
+		 */
+		if (type == dns_rdatatype_txt) {
+			result = isc_lex_getmastertoken(lexer, &token,
+							isc_tokentype_number,
+							ISC_FALSE);
+			if (result == ISC_R_SUCCESS)
+				isc_lex_ungettoken(lexer, &token);
+		}
+
+		if (result == ISC_R_SUCCESS) {
+			unknown = ISC_TRUE;
+			result = unknown_fromtext(rdclass, type, lexer,
+						  mctx, target);
+		} else
+			options |= DNS_RDATA_UNKNOWNESCAPE;
+	} else
 		isc_lex_ungettoken(lexer, &token);
 
+	if (!unknown)
 		FROMTEXTSWITCH
-	}
 
 	/*
 	 * Consume to end of line / file.
@@ -1171,6 +1263,157 @@ txt_fromwire(isc_buffer_t *source, isc_buffer_t *target) {
 		memcpy(tregion.base, sregion.base, n);
 	isc_buffer_forward(source, n);
 	isc_buffer_add(target, n);
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+multitxt_totext(isc_region_t *source, isc_buffer_t *target) {
+	unsigned int tl;
+	unsigned int n0, n;
+	unsigned char *sp;
+	char *tp;
+	isc_region_t region;
+
+	isc_buffer_availableregion(target, &region);
+	sp = source->base;
+	tp = (char *)region.base;
+	tl = region.length;
+
+	if (tl < 1)
+		return (ISC_R_NOSPACE);
+	*tp++ = '"';
+	tl--;
+	do {
+		n0 = n = *sp++;
+
+		REQUIRE(n0 + 1 <= source->length);
+
+		while (n--) {
+			if (*sp < 0x20 || *sp >= 0x7f) {
+				if (tl < 4)
+					return (ISC_R_NOSPACE);
+				*tp++ = 0x5c;
+				*tp++ = 0x30 + ((*sp / 100) % 10);
+				*tp++ = 0x30 + ((*sp / 10) % 10);
+				*tp++ = 0x30 + (*sp % 10);
+				sp++;
+				tl -= 4;
+				continue;
+			}
+			/* double quote, semi-colon, backslash */
+			if (*sp == 0x22 || *sp == 0x3b || *sp == 0x5c) {
+				if (tl < 2)
+					return (ISC_R_NOSPACE);
+				*tp++ = '\\';
+				tl--;
+			}
+			if (tl < 1)
+				return (ISC_R_NOSPACE);
+			*tp++ = *sp++;
+			tl--;
+		}
+		isc_region_consume(source, n0 + 1);
+	} while (source->length != 0);
+	if (tl < 1)
+		return (ISC_R_NOSPACE);
+	*tp++ = '"';
+	tl--;
+	isc_buffer_add(target, tp - (char *)region.base);
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+multitxt_fromtext(isc_textregion_t *source, isc_buffer_t *target) {
+	isc_region_t tregion;
+	isc_boolean_t escape;
+	unsigned int n, nrem;
+	char *s;
+	unsigned char *t0, *t;
+	int d;
+	int c;
+
+	s = source->base;
+	n = source->length;
+	escape = ISC_FALSE;
+
+	do {
+		isc_buffer_availableregion(target, &tregion);
+		t0 = tregion.base;
+		nrem = tregion.length;
+		if (nrem < 1)
+			return (ISC_R_NOSPACE);
+		/* length byte */
+		t = t0;
+		nrem--;
+		t++;
+		/* 255 byte character-string slice */
+		if (nrem > 255)
+			nrem = 255;
+		while (n != 0) {
+			--n;
+			c = (*s++) & 0xff;
+			if (escape && (d = decvalue((char)c)) != -1) {
+				c = d;
+				if (n == 0)
+					return (DNS_R_SYNTAX);
+				n--;
+				if ((d = decvalue(*s++)) != -1)
+					c = c * 10 + d;
+				else
+					return (DNS_R_SYNTAX);
+				if (n == 0)
+					return (DNS_R_SYNTAX);
+				n--;
+				if ((d = decvalue(*s++)) != -1)
+					c = c * 10 + d;
+				else
+					return (DNS_R_SYNTAX);
+				if (c > 255)
+					return (DNS_R_SYNTAX);
+			} else if (!escape && c == '\\') {
+				escape = ISC_TRUE;
+				continue;
+			}
+			escape = ISC_FALSE;
+			*t++ = c;
+			nrem--;
+			if (nrem == 0)
+				break;
+		}
+		if (escape)
+			return (DNS_R_SYNTAX);
+		*t0 = t - t0 - 1;
+		isc_buffer_add(target, *t0 + 1);
+	} while (n != 0);
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+multitxt_fromwire(isc_buffer_t *source, isc_buffer_t *target) {
+	unsigned int n;
+	isc_region_t sregion;
+	isc_region_t tregion;
+
+	isc_buffer_activeregion(source, &sregion);
+	if (sregion.length == 0)
+		return(ISC_R_UNEXPECTEDEND);
+	n = 256U;
+	do {
+		if (n != 256U)
+			return (DNS_R_SYNTAX);
+		n = *sregion.base + 1;
+		if (n > sregion.length)
+			return (ISC_R_UNEXPECTEDEND);
+
+		isc_buffer_availableregion(target, &tregion);
+		if (n > tregion.length)
+			return (ISC_R_NOSPACE);
+
+		memcpy(tregion.base, sregion.base, n);
+		isc_buffer_forward(source, n);
+		isc_buffer_add(target, n);
+		isc_buffer_activeregion(source, &sregion);
+	} while (sregion.length != 0);
 	return (ISC_R_SUCCESS);
 }
 

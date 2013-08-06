@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -276,6 +276,13 @@ dst_algorithm_supported(unsigned int alg) {
 
 isc_result_t
 dst_context_create(dst_key_t *key, isc_mem_t *mctx, dst_context_t **dctxp) {
+	return (dst_context_create2(key, mctx,
+				    DNS_LOGCATEGORY_GENERAL, dctxp));
+}
+
+isc_result_t
+dst_context_create2(dst_key_t *key, isc_mem_t *mctx,
+		    isc_logcategory_t *category, dst_context_t **dctxp) {
 	dst_context_t *dctx;
 	isc_result_t result;
 
@@ -294,6 +301,7 @@ dst_context_create(dst_key_t *key, isc_mem_t *mctx, dst_context_t **dctxp) {
 		return (ISC_R_NOMEMORY);
 	dctx->key = key;
 	dctx->mctx = mctx;
+	dctx->category = category;
 	result = key->func->createctx(key, dctx);
 	if (result != ISC_R_SUCCESS) {
 		isc_mem_put(mctx, dctx, sizeof(dst_context_t));
@@ -495,8 +503,7 @@ dst_key_fromnamedfile(const char *filename, const char *dirname,
 	result = dst_key_read_public(newfilename, type, mctx, &pubkey);
 	isc_mem_put(mctx, newfilename, newfilenamelen);
 	newfilename = NULL;
-	if (result != ISC_R_SUCCESS)
-		return (result);
+	RETERR(result);
 
 	if ((type & (DST_TYPE_PRIVATE | DST_TYPE_PUBLIC)) == DST_TYPE_PUBLIC ||
 	    (pubkey->key_flags & DNS_KEYFLAG_TYPEMASK) == DNS_KEYTYPE_NOKEY) {
@@ -560,7 +567,8 @@ dst_key_fromnamedfile(const char *filename, const char *dirname,
 		isc_mem_put(mctx, newfilename, newfilenamelen);
 	if (lex != NULL)
 		isc_lex_destroy(&lex);
-	dst_key_free(&key);
+	if (key != NULL)
+		dst_key_free(&key);
 	return (result);
 }
 
@@ -1190,7 +1198,7 @@ dst_key_dump(dst_key_t *key, isc_mem_t *mctx, char **buffer, int *length) {
 	REQUIRE(length != NULL && *length == 0);
 	REQUIRE(VALID_KEY(key));
 
-	if (key->func->isprivate == NULL)
+	if (key->func->dump == NULL)
 		return (ISC_R_NOTIMPLEMENTED);
 	return (key->func->dump(key, mctx, buffer, length));
 }
@@ -1247,24 +1255,24 @@ get_key_struct(dns_name_t *name, unsigned int alg,
 		return (NULL);
 
 	memset(key, 0, sizeof(dst_key_t));
-	key->magic = KEY_MAGIC;
-
-	result = isc_refcount_init(&key->refs, 1);
-	if (result != ISC_R_SUCCESS) {
-		isc_mem_put(mctx, key, sizeof(dst_key_t));
-		return (NULL);
-	}
 
 	key->key_name = isc_mem_get(mctx, sizeof(dns_name_t));
 	if (key->key_name == NULL) {
-		isc_refcount_destroy(&key->refs);
 		isc_mem_put(mctx, key, sizeof(dst_key_t));
 		return (NULL);
 	}
+
 	dns_name_init(key->key_name, NULL);
 	result = dns_name_dup(name, mctx, key->key_name);
 	if (result != ISC_R_SUCCESS) {
-		isc_refcount_destroy(&key->refs);
+		isc_mem_put(mctx, key->key_name, sizeof(dns_name_t));
+		isc_mem_put(mctx, key, sizeof(dst_key_t));
+		return (NULL);
+	}
+
+	result = isc_refcount_init(&key->refs, 1);
+	if (result != ISC_R_SUCCESS) {
+		dns_name_free(key->key_name, mctx);
 		isc_mem_put(mctx, key->key_name, sizeof(dns_name_t));
 		isc_mem_put(mctx, key, sizeof(dst_key_t));
 		return (NULL);
@@ -1283,6 +1291,7 @@ get_key_struct(dns_name_t *name, unsigned int alg,
 		key->times[i] = 0;
 		key->timeset[i] = ISC_FALSE;
 	}
+	key->magic = KEY_MAGIC;
 	return (key);
 }
 
