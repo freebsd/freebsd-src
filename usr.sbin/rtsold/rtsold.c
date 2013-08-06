@@ -188,10 +188,8 @@ main(int argc, char **argv)
 	}
 
 	/* Generate maximum time in timespec. */
-	memset(&tm_max.tv_sec, 0xff, sizeof(tm_max.tv_sec));
-	memset(&tm_max.tv_nsec, 0xff, sizeof(tm_max.tv_nsec));
-	tm_max.tv_sec &= ~(1UL << (sizeof(tm_max.tv_sec) * 8 - 1));
-	tm_max.tv_nsec &= ~(1UL << (sizeof(tm_max.tv_nsec) * 8 - 1));
+	tm_max.tv_sec = (-1) & ~((time_t)1 << ((sizeof(tm_max.tv_sec) * 8) - 1));
+	tm_max.tv_nsec = (-1) & ~((long)1 << ((sizeof(tm_max.tv_nsec) * 8) - 1));
 
 	/* set log level */
 	if (dflag > 1)

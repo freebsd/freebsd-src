@@ -59,11 +59,8 @@ void
 rtadvd_timer_init(void)
 {
 	/* Generate maximum time in timespec. */
-	memset(&tm_limit.tv_sec, 0xff, sizeof(tm_limit.tv_sec));
-	memset(&tm_limit.tv_nsec, 0xff, sizeof(tm_limit.tv_nsec));
-	tm_limit.tv_sec &= ~(1UL << (sizeof(tm_limit.tv_sec) * 8 - 1));
-	tm_limit.tv_nsec &= ~(1UL << (sizeof(tm_limit.tv_nsec) * 8 - 1));
-
+	tm_limit.tv_sec = (-1) & ~((time_t)1 << ((sizeof(tm_max.tv_sec) * 8) - 1));
+	tm_limit.tv_nsec = (-1) & ~((long)1 << ((sizeof(tm_max.tv_nsec) * 8) - 1));
 	tm_max = tm_limit;
 	TAILQ_INIT(&ra_timer);
 }
