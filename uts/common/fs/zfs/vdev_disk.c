@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -129,18 +130,34 @@ vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
 	return (avail_space);
 }
 
+/*
+ * We want to be loud in DEBUG kernels when DKIOCGMEDIAINFOEXT fails, or when
+ * even a fallback to DKIOCGMEDIAINFO fails.
+ */
+#ifdef DEBUG
+#define	VDEV_DEBUG(...)	cmn_err(CE_NOTE, __VA_ARGS__)
+#else
+#define	VDEV_DEBUG(...)	/* Nothing... */
+#endif
+
 static int
 vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
     uint64_t *ashift)
 {
 	spa_t *spa = vd->vdev_spa;
 	vdev_disk_t *dvd;
-	struct dk_minfo_ext dkmext;
+	union {
+		struct dk_minfo_ext ude;
+		struct dk_minfo ud;
+	} dks;
+	struct dk_minfo_ext *dkmext = &dks.ude;
+	struct dk_minfo *dkm = &dks.ud;
 	int error;
 	dev_t dev;
 	int otyp;
 	boolean_t validate_devid = B_FALSE;
 	ddi_devid_t devid;
+	uint64_t capacity = 0, blksz = 0, pbsize;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
@@ -325,33 +342,56 @@ skip_open:
 		return (SET_ERROR(EINVAL));
 	}
 
+	*max_psize = *psize;
+
 	/*
 	 * Determine the device's minimum transfer size.
 	 * If the ioctl isn't supported, assume DEV_BSIZE.
 	 */
-	if (ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFOEXT, (intptr_t)&dkmext,
-	    FKIOCTL, kcred, NULL) != 0)
-		dkmext.dki_pbsize = DEV_BSIZE;
+	if ((error = ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFOEXT,
+	    (intptr_t)dkmext, FKIOCTL, kcred, NULL)) == 0) {
+		capacity = dkmext->dki_capacity - 1;
+		blksz = dkmext->dki_lbsize;
+		pbsize = dkmext->dki_pbsize;
+	} else if ((error = ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFO,
+	    (intptr_t)dkm, FKIOCTL, kcred, NULL)) == 0) {
+		VDEV_DEBUG(
+		    "vdev_disk_open(\"%s\"): fallback to DKIOCGMEDIAINFO\n",
+		    vd->vdev_path);
+		capacity = dkm->dki_capacity - 1;
+		blksz = dkm->dki_lbsize;
+		pbsize = blksz;
+	} else {
+		VDEV_DEBUG("vdev_disk_open(\"%s\"): "
+		    "both DKIOCGMEDIAINFO{,EXT} calls failed, %d\n",
+		    vd->vdev_path, error);
+		pbsize = DEV_BSIZE;
+	}
 
-	*ashift = highbit(MAX(dkmext.dki_pbsize, SPA_MINBLOCKSIZE)) - 1;
+	*ashift = highbit(MAX(pbsize, SPA_MINBLOCKSIZE)) - 1;
 
 	if (vd->vdev_wholedisk == 1) {
-		uint64_t capacity = dkmext.dki_capacity - 1;
-		uint64_t blksz = dkmext.dki_lbsize;
 		int wce = 1;
 
+		if (error == 0) {
+			/*
+			 * If we have the capability to expand, we'd have
+			 * found out via success from DKIOCGMEDIAINFO{,EXT}.
+			 * Adjust max_psize upward accordingly since we know
+			 * we own the whole disk now.
+			 */
+			*max_psize += vdev_disk_get_space(vd, capacity, blksz);
+			zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
+			    "max_psize %llu", vd->vdev_path, *psize,
+			    *max_psize);
+		}
+
 		/*
-		 * If we own the whole disk, try to enable disk write caching.
-		 * We ignore errors because it's OK if we can't do it.
+		 * Since we own the whole disk, try to enable disk write
+		 * caching.  We ignore errors because it's OK if we can't do it.
 		 */
 		(void) ldi_ioctl(dvd->vd_lh, DKIOCSETWCE, (intptr_t)&wce,
 		    FKIOCTL, kcred, NULL);
-
-		*max_psize = *psize + vdev_disk_get_space(vd, capacity, blksz);
-		zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
-		    "max_psize %llu", vd->vdev_path, *psize, *max_psize);
-	} else {
-		*max_psize = *psize;
 	}
 
 	/*
