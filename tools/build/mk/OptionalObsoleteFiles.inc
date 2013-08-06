@@ -4347,3 +4347,7 @@ OLD_FILES+=usr/bin/svnserve
 OLD_FILES+=usr/bin/svnsync
 OLD_FILES+=usr/bin/svnversion
 .endif
+
+.if ${MK_ICONV} == no
+OLD_FILES+=usr/bin/iconv
+.endif
