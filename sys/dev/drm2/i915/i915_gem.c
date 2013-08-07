@@ -1290,7 +1290,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	DRM_UNLOCK(dev);
 	rv = vm_map_find(map, obj->vm_obj, args->offset, &addr, args->size,
 	    VMFS_ANY_SPACE, VM_PROT_READ | VM_PROT_WRITE,
-	    VM_PROT_READ | VM_PROT_WRITE, MAP_SHARED);
+	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(obj->vm_obj);
 		error = -vm_mmap_to_errno(rv);
