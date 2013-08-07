@@ -1210,8 +1210,7 @@ pmap_pinit(pmap_t pm)
 	 * Allocate KVA space for the TSB.
 	 */
 	if (pm->pm_tsb == NULL) {
-		pm->pm_tsb = (struct tte *)kmem_alloc_nofault(kernel_map,
-		    TSB_BSIZE);
+		pm->pm_tsb = (struct tte *)kva_alloc(TSB_BSIZE);
 		if (pm->pm_tsb == NULL) {
 			PMAP_LOCK_DESTROY(pm);
 			return (0);

@@ -3015,7 +3015,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 		offset = pa & PAGE_MASK;
 		size = roundup(size + offset, PAGE_SIZE);
         
-		va = kmem_alloc_nofault(kernel_map, size);
+		va = kva_alloc(size);
 		if (!va)
 			panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 		pa = trunc_page(pa);
@@ -3043,7 +3043,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(size + offset, PAGE_SIZE);
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 #endif
 }
 
@@ -3147,21 +3147,6 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		*addr = (*addr & ~SEGMASK) + superpage_offset;
 	else
 		*addr = ((*addr + SEGMASK) & ~SEGMASK) + superpage_offset;
-}
-
-/*
- * 	Increase the starting virtual address of the given mapping so
- * 	that it is aligned to not be the second page in a TLB entry.
- * 	This routine assumes that the length is appropriately-sized so
- * 	that the allocation does not share a TLB entry at all if required.
- */
-void
-pmap_align_tlb(vm_offset_t *addr)
-{
-	if ((*addr & PAGE_SIZE) == 0)
-		return;
-	*addr += PAGE_SIZE;
-	return;
 }
 
 #ifdef DDB

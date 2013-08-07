@@ -342,7 +342,7 @@ cpu_thread_clean(struct thread *td)
 	 * Clean TSS/iomap
 	 */
 	if (pcb->pcb_tssp != NULL) {
-		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_tssp,
+		kva_free((vm_offset_t)pcb->pcb_tssp,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_tssp = NULL;
 	}

@@ -1192,7 +1192,7 @@ int
 exec_alloc_args(struct image_args *args)
 {
 
-	args->buf = (char *)kmem_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
+	args->buf = (char *)kmap_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
 	return (args->buf != NULL ? 0 : ENOMEM);
 }
 
@@ -1201,7 +1201,7 @@ exec_free_args(struct image_args *args)
 {
 
 	if (args->buf != NULL) {
-		kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
+		kmap_free_wakeup(exec_map, (vm_offset_t)args->buf,
 		    PATH_MAX + ARG_MAX);
 		args->buf = NULL;
 	}

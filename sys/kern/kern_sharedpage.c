@@ -112,7 +112,7 @@ shared_page_init(void *dummy __unused)
 	    VM_ALLOC_ZERO);
 	m->valid = VM_PAGE_BITS_ALL;
 	VM_OBJECT_WUNLOCK(shared_page_obj);
-	addr = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	addr = kva_alloc(PAGE_SIZE);
 	pmap_qenter(addr, &m, 1);
 	shared_page_mapping = (char *)addr;
 }

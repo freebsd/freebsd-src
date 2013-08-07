@@ -959,8 +959,10 @@ start_all_aps(void)
 
 		/* allocate and set up a boot stack data page */
 		bootstacks[cpu] =
-		    (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		    (char *)kmem_malloc(kernel_arena, KSTACK_PAGES * PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);

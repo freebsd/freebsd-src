@@ -146,7 +146,7 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 
 	error = copyout(data_buf, (caddr_t) map_addr, copy_len);
 
-	kmem_free_wakeup(exec_map, (vm_offset_t)data_buf, PAGE_SIZE);
+	kmap_free_wakeup(exec_map, (vm_offset_t)data_buf, PAGE_SIZE);
 
 	return error;
 }
@@ -280,7 +280,7 @@ coff_load_file(struct thread *td, char *name)
   	error = 0;
 
  dealloc_and_fail:
-	kmem_free_wakeup(exec_map, (vm_offset_t)ptr,  PAGE_SIZE);
+	kmap_free_wakeup(exec_map, (vm_offset_t)ptr,  PAGE_SIZE);
  fail:
 	VOP_UNLOCK(vp, 0);
  unlocked_fail:
@@ -417,7 +417,7 @@ exec_coff_imgact(imgp)
 		    	}
 			free(libbuf, M_TEMP);
 		}
-		kmem_free_wakeup(exec_map, (vm_offset_t)buf, len);
+		kmap_free_wakeup(exec_map, (vm_offset_t)buf, len);
 	    	if (error)
 	      		goto fail;
 	  	}

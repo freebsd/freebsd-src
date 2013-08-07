@@ -461,11 +461,6 @@ proc0_init(void *dummy __unused)
 	sleepinit();
 
 	/*
-	 * additional VM structures
-	 */
-	vm_init2();
-
-	/*
 	 * Create process 0 (the swapper).
 	 */
 	LIST_INSERT_HEAD(&allproc, p, p_list);

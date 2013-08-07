@@ -210,7 +210,7 @@ sf_buf_init(void *arg)
 		
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
 	TAILQ_INIT(&sf_buf_freelist);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
+	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
@@ -667,7 +667,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		if (zone == l2zone &&
 		    pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt) {
 			*flags = UMA_SLAB_KMEM;
-			ret = ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
+			ret = ((void *)kmem_malloc(kmem_arena, bytes,
+			    M_NOWAIT));
 			return (ret);
 		}
 		pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
@@ -701,7 +702,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	pt_entry_t *pt;
 
 	if (flags & UMA_SLAB_KMEM)
-		kmem_free(kmem_map, (vm_offset_t)mem, size);
+		kmem_free(kmem_arena, (vm_offset_t)mem, size);
 	else {
 		struct arm_small_page *sp;
 

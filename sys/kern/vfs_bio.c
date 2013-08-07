@@ -856,7 +856,7 @@ bufinit(void)
 
 	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
-	unmapped_buf = (caddr_t)kmem_alloc_nofault(kernel_map, MAXPHYS);
+	unmapped_buf = (caddr_t)kva_alloc(MAXPHYS);
 }
 
 #ifdef INVARIANTS

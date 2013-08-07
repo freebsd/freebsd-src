@@ -2591,7 +2591,7 @@ moea_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 			return ((void *) pa);
 	}
 
-	va = kmem_alloc_nofault(kernel_map, size);
+	va = kva_alloc(size);
 	if (!va)
 		panic("moea_mapdev: Couldn't alloc kernel virtual memory");
 
@@ -2619,7 +2619,7 @@ moea_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 		base = trunc_page(va);
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
-		kmem_free(kernel_map, base, size);
+		kva_free(base, size);
 	}
 }
 
