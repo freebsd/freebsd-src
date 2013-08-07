@@ -64,8 +64,7 @@
  *			GENERAL RULES ON VM_PAGE MANIPULATION
  *
  *	- A page queue lock is required when adding or removing a page from a
- *	  page queue (vm_pagequeues[]), regardless of other locks or the
- *	  busy state of a page.
+ *	  page queue regardless of other locks or the busy state of a page.
  *
  *		* In general, no thread besides the page daemon can acquire or
  *		  hold more than one page queue lock at a time.
@@ -124,20 +123,7 @@ __FBSDID("$FreeBSD$");
  *	page structure.
  */
 
-struct vm_pagequeue vm_pagequeues[PQ_COUNT] = {
-	[PQ_INACTIVE] = {
-		.pq_pl = TAILQ_HEAD_INITIALIZER(
-		    vm_pagequeues[PQ_INACTIVE].pq_pl),
-		.pq_cnt = &cnt.v_inactive_count,
-		.pq_name = "vm inactive pagequeue"
-	},
-	[PQ_ACTIVE] = {
-		.pq_pl = TAILQ_HEAD_INITIALIZER(
-		    vm_pagequeues[PQ_ACTIVE].pq_pl),
-		.pq_cnt = &cnt.v_active_count,
-		.pq_name = "vm active pagequeue"
-	}
-};
+struct vm_domain vm_dom[MAXMEMDOM];
 struct mtx_padalign vm_page_queue_free_mtx;
 
 struct mtx_padalign pa_lock[PA_LOCK_COUNT];
@@ -256,6 +242,34 @@ vm_page_blacklist_lookup(char *list, vm_paddr_t pa)
 	return (0);
 }
 
+static void
+vm_page_domain_init(struct vm_domain *vmd)
+{
+	struct vm_pagequeue *pq;
+	int i;
+
+	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_name) =
+	    "vm inactive pagequeue";
+	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_vcnt) =
+	    &cnt.v_inactive_count;
+	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_name) =
+	    "vm active pagequeue";
+	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_vcnt) =
+	    &cnt.v_active_count;
+	vmd->vmd_fullintervalcount = 0;
+	vmd->vmd_page_count = 0;
+	vmd->vmd_free_count = 0;
+	vmd->vmd_segs = 0;
+	vmd->vmd_oom = FALSE;
+	vmd->vmd_pass = 0;
+	for (i = 0; i < PQ_COUNT; i++) {
+		pq = &vmd->vmd_pagequeues[i];
+		TAILQ_INIT(&pq->pq_pl);
+		mtx_init(&pq->pq_mutex, pq->pq_name, "vm pagequeue",
+		    MTX_DEF | MTX_DUPOK);
+	}
+}
+
 /*
  *	vm_page_startup:
  *
@@ -319,8 +333,8 @@ vm_page_startup(vm_offset_t vaddr)
 	mtx_init(&vm_page_queue_free_mtx, "vm page free queue", NULL, MTX_DEF);
 	for (i = 0; i < PA_LOCK_COUNT; i++)
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
-	for (i = 0; i < PQ_COUNT; i++)
-		vm_pagequeue_init_lock(&vm_pagequeues[i]);
+	for (i = 0; i < vm_ndomains; i++)
+		vm_page_domain_init(&vm_dom[i]);
 
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
@@ -1055,7 +1069,7 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		KASSERT((m->flags & (PG_CACHED | PG_FREE)) == PG_FREE,
 		    ("vm_page_cache_free: page %p has inconsistent flags", m));
 		cnt.v_cache_count--;
-		cnt.v_free_count++;
+		vm_phys_freecnt_adj(m, 1);
 	}
 	empty = vm_radix_is_empty(&object->cache);
 	mtx_unlock(&vm_page_queue_free_mtx);
@@ -1311,7 +1325,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		    ("vm_page_alloc: page %p is not free", m));
 		KASSERT(m->valid == 0,
 		    ("vm_page_alloc: free page %p is valid", m));
-		cnt.v_free_count--;
+		vm_phys_freecnt_adj(m, -1);
 	}
 
 	/*
@@ -1569,7 +1583,7 @@ vm_page_alloc_init(vm_page_t m)
 		    ("vm_page_alloc_init: page %p is not free", m));
 		KASSERT(m->valid == 0,
 		    ("vm_page_alloc_init: free page %p is valid", m));
-		cnt.v_free_count--;
+		vm_phys_freecnt_adj(m, -1);
 		if ((m->flags & PG_ZERO) != 0)
 			vm_page_zero_count--;
 	}
@@ -1711,6 +1725,13 @@ vm_waitpfault(void)
 	    "pfault", 0);
 }
 
+struct vm_pagequeue *
+vm_page_pagequeue(vm_page_t m)
+{
+
+	return (&vm_phys_domain(m)->vmd_pagequeues[m->queue]);
+}
+
 /*
  *	vm_page_dequeue:
  *
@@ -1726,11 +1747,11 @@ vm_page_dequeue(vm_page_t m)
 	vm_page_lock_assert(m, MA_OWNED);
 	KASSERT(m->queue != PQ_NONE,
 	    ("vm_page_dequeue: page %p is not queued", m));
-	pq = &vm_pagequeues[m->queue];
+	pq = vm_page_pagequeue(m);
 	vm_pagequeue_lock(pq);
 	m->queue = PQ_NONE;
 	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
-	(*pq->pq_cnt)--;
+	vm_pagequeue_cnt_dec(pq);
 	vm_pagequeue_unlock(pq);
 }
 
@@ -1747,11 +1768,11 @@ vm_page_dequeue_locked(vm_page_t m)
 	struct vm_pagequeue *pq;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	pq = &vm_pagequeues[m->queue];
+	pq = vm_page_pagequeue(m);
 	vm_pagequeue_assert_locked(pq);
 	m->queue = PQ_NONE;
 	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
-	(*pq->pq_cnt)--;
+	vm_pagequeue_cnt_dec(pq);
 }
 
 /*
@@ -1767,11 +1788,11 @@ vm_page_enqueue(int queue, vm_page_t m)
 	struct vm_pagequeue *pq;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	pq = &vm_pagequeues[queue];
+	pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
-	++*pq->pq_cnt;
+	vm_pagequeue_cnt_inc(pq);
 	vm_pagequeue_unlock(pq);
 }
 
@@ -1790,7 +1811,7 @@ vm_page_requeue(vm_page_t m)
 	vm_page_lock_assert(m, MA_OWNED);
 	KASSERT(m->queue != PQ_NONE,
 	    ("vm_page_requeue: page %p is not queued", m));
-	pq = &vm_pagequeues[m->queue];
+	pq = vm_page_pagequeue(m);
 	vm_pagequeue_lock(pq);
 	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
@@ -1811,7 +1832,7 @@ vm_page_requeue_locked(vm_page_t m)
 
 	KASSERT(m->queue != PQ_NONE,
 	    ("vm_page_requeue_locked: page %p is not queued", m));
-	pq = &vm_pagequeues[m->queue];
+	pq = vm_page_pagequeue(m);
 	vm_pagequeue_assert_locked(pq);
 	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
@@ -1948,7 +1969,7 @@ vm_page_free_toq(vm_page_t m)
 		 */
 		mtx_lock(&vm_page_queue_free_mtx);
 		m->flags |= PG_FREE;
-		cnt.v_free_count++;
+		vm_phys_freecnt_adj(m, 1);
 #if VM_NRESERVLEVEL > 0
 		if (!vm_reserv_free_page(m))
 #else
@@ -2081,14 +2102,14 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		if (queue != PQ_NONE)
 			vm_page_dequeue(m);
 		m->flags &= ~PG_WINATCFLS;
-		pq = &vm_pagequeues[PQ_INACTIVE];
+		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
 		vm_pagequeue_lock(pq);
 		m->queue = PQ_INACTIVE;
 		if (athead)
 			TAILQ_INSERT_HEAD(&pq->pq_pl, m, pageq);
 		else
 			TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
-		cnt.v_inactive_count++;
+		vm_pagequeue_cnt_inc(pq);
 		vm_pagequeue_unlock(pq);
 	}
 }
@@ -2888,18 +2909,20 @@ DB_SHOW_COMMAND(page, vm_page_print_page_info)
 
 DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 {
-		
-	db_printf("PQ_FREE:");
-	db_printf(" %d", cnt.v_free_count);
-	db_printf("\n");
-		
-	db_printf("PQ_CACHE:");
-	db_printf(" %d", cnt.v_cache_count);
-	db_printf("\n");
+	int dom;
 
-	db_printf("PQ_ACTIVE: %d, PQ_INACTIVE: %d\n",
-		*vm_pagequeues[PQ_ACTIVE].pq_cnt,
-		*vm_pagequeues[PQ_INACTIVE].pq_cnt);
+	db_printf("pq_free %d pq_cache %d\n",
+	    cnt.v_free_count, cnt.v_cache_count);
+	for (dom = 0; dom < vm_ndomains; dom++) {
+		db_printf(
+	"dom %d page_cnt %d free %d pq_act %d pq_inact %d pass %d\n",
+		    dom,
+		    vm_dom[dom].vmd_page_count,
+		    vm_dom[dom].vmd_free_count,
+		    vm_dom[dom].vmd_pagequeues[PQ_ACTIVE].pq_cnt,
+		    vm_dom[dom].vmd_pagequeues[PQ_INACTIVE].pq_cnt,
+		    vm_dom[dom].vmd_pass);
+	}
 }
 
 DB_SHOW_COMMAND(pginfo, vm_page_print_pginfo)
