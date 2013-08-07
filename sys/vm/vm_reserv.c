@@ -476,12 +476,15 @@ found:
 /*
  * Allocates a page from an existing or newly-created reservation.
  *
+ * The page "mpred" must immediately precede the offset "pindex" within the
+ * specified object.
+ *
  * The object and free page queue must be locked.
  */
 vm_page_t
-vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
+vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, vm_page_t mpred)
 {
-	vm_page_t m, mpred, msucc;
+	vm_page_t m, msucc;
 	vm_pindex_t first, leftcap, rightcap;
 	vm_reserv_t rv;
 
@@ -498,10 +501,12 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Look for an existing reservation.
 	 */
-	mpred = vm_radix_lookup_le(&object->rtree, pindex);
 	if (mpred != NULL) {
+		KASSERT(mpred->object == object ||
+		    (mpred->flags & PG_SLAB) != 0,
+		    ("vm_reserv_alloc_page: object doesn't contain mpred"));
 		KASSERT(mpred->pindex < pindex,
-		    ("vm_reserv_alloc_page: pindex already allocated"));
+		    ("vm_reserv_alloc_page: mpred doesn't precede pindex"));
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
@@ -510,7 +515,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 		msucc = TAILQ_FIRST(&object->memq);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex > pindex,
-		    ("vm_reserv_alloc_page: pindex already allocated"));
+		    ("vm_reserv_alloc_page: msucc doesn't succeed pindex"));
 		rv = vm_reserv_from_page(msucc);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;

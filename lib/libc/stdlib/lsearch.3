@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2002
+.Dd April 21, 2013
 .Dt LSEARCH 3
 .Os
 .Sh NAME
@@ -81,6 +81,47 @@ returns
 Both functions return
 .Dv NULL
 if an error occurs.
+.Sh EXAMPLES
+.Bd -literal
+#include <search.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static int
+element_compare(const void *p1, const void *p2)
+{
+	int left = *(const int *)p1;
+	int right = *(const int *)p2;
+
+	return (left - right);
+}
+
+int
+main(int argc, char **argv)
+{
+	const int array[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+	size_t element_size = sizeof(array[0]);
+	size_t array_size = sizeof(array) / element_size;
+	int key;
+	void *element;
+
+	printf("Enter a number: ");
+	if (scanf("%d", &key) != 1) {
+		printf("Bad input\n");
+		return (EXIT_FAILURE);
+	}
+
+	element = lfind(&key, array, &array_size, element_size,
+	    element_compare);
+
+	if (element != NULL)
+		printf("Element found: %d\n", *(int *)element);
+	else
+		printf("Element not found\n");
+
+	return (EXIT_SUCCESS);
+}
+.Ed
 .Sh SEE ALSO
 .Xr bsearch 3 ,
 .Xr hsearch 3 ,

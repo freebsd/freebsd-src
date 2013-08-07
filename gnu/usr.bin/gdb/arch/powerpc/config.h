@@ -439,9 +439,6 @@
 /* Name of this package.  */
 #define PACKAGE "gdb"
 
-/* Global directory for separate debug files.  */
-#define DEBUGDIR "/usr/local/lib/debug"
-
 /* Define to BFD's default architecture.  */
 #define DEFAULT_BFD_ARCH bfd_rs6000_arch
 

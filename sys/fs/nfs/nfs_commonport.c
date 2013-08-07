@@ -132,11 +132,11 @@ static int nfssvc_call(struct thread *, struct nfssvc_args *, struct ucred *);
 /*
  * These architectures don't need re-alignment, so just return.
  */
-void
-newnfs_realign(struct mbuf **pm)
+int
+newnfs_realign(struct mbuf **pm, int how)
 {
 
-	return;
+	return (0);
 }
 #else	/* !__NO_STRICT_ALIGNMENT */
 /*
@@ -155,8 +155,8 @@ newnfs_realign(struct mbuf **pm)
  *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
  *
  */
-void
-newnfs_realign(struct mbuf **pm)
+int
+newnfs_realign(struct mbuf **pm, int how)
 {
 	struct mbuf *m, *n;
 	int off, space;
@@ -173,11 +173,11 @@ newnfs_realign(struct mbuf **pm)
 			space = m_length(m, NULL);
 			if (space >= MINCLSIZE) {
 				/* NB: m_copyback handles space > MCLBYTES */
-				n = m_getcl(M_WAITOK, MT_DATA, 0);
+				n = m_getcl(how, MT_DATA, 0);
 			} else
-				n = m_get(M_WAITOK, MT_DATA);
+				n = m_get(how, MT_DATA);
 			if (n == NULL)
-				return;
+				return (ENOMEM);
 			/*
 			 * Align the remainder of the mbuf chain.
 			 */
@@ -195,6 +195,8 @@ newnfs_realign(struct mbuf **pm)
 		}
 		pm = &m->m_next;
 	}
+
+	return (0);
 }
 #endif	/* __NO_STRICT_ALIGNMENT */
 

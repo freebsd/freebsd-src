@@ -85,10 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
-#include <compat/linux/linux_videodev.h>
+#include <contrib/v4l/videodev.h>
 #include <compat/linux/linux_videodev_compat.h>
 
-#include <compat/linux/linux_videodev2.h>
+#include <contrib/v4l/videodev2.h>
 #include <compat/linux/linux_videodev2_compat.h>
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
@@ -3407,6 +3407,15 @@ linux_ioctl_fbsd_usb(struct thread *td, struct linux_ioctl_args *args)
 		break;
 	case FBSD_LUSB_SET_TEMPLATE:
 		args->cmd = USB_SET_TEMPLATE;
+		break;
+	case FBSD_LUSB_FS_OPEN_STREAM:
+		args->cmd = USB_FS_OPEN_STREAM;
+		break;
+	case FBSD_LUSB_GET_DEV_PORT_PATH:
+		args->cmd = USB_GET_DEV_PORT_PATH;
+		break;
+	case FBSD_LUSB_GET_POWER_USAGE:
+		args->cmd = USB_GET_POWER_USAGE;
 		break;
 	default:
 		error = ENOIOCTL;

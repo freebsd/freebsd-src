@@ -27,6 +27,8 @@
 #ifndef __XEN_PUBLIC_VCPU_H__
 #define __XEN_PUBLIC_VCPU_H__
 
+#include "xen.h"
+
 /*
  * Prototype for this hypercall is:
  *  int vcpu_op(int cmd, int vcpuid, void *extra_args)
@@ -185,8 +187,7 @@ DEFINE_XEN_GUEST_HANDLE(vcpu_register_vcpu_info_t);
 /* 
  * Get the physical ID information for a pinned vcpu's underlying physical
  * processor.  The physical ID informmation is architecture-specific.
- * On x86: id[31:0]=apic_id, id[63:32]=acpi_id, and all values 0xff and
- *         greater are reserved.
+ * On x86: id[31:0]=apic_id, id[63:32]=acpi_id.
  * This command returns -EINVAL if it is not a valid operation for this VCPU.
  */
 #define VCPUOP_get_physid           12 /* arg == vcpu_get_physid_t */
@@ -195,10 +196,36 @@ struct vcpu_get_physid {
 };
 typedef struct vcpu_get_physid vcpu_get_physid_t;
 DEFINE_XEN_GUEST_HANDLE(vcpu_get_physid_t);
-#define xen_vcpu_physid_to_x86_apicid(physid) \
-    ((((uint32_t)(physid)) >= 0xff) ? 0xff : ((uint8_t)(physid)))
-#define xen_vcpu_physid_to_x86_acpiid(physid) \
-    ((((uint32_t)((physid)>>32)) >= 0xff) ? 0xff : ((uint8_t)((physid)>>32)))
+#define xen_vcpu_physid_to_x86_apicid(physid) ((uint32_t)(physid))
+#define xen_vcpu_physid_to_x86_acpiid(physid) ((uint32_t)((physid) >> 32))
+
+/* 
+ * Register a memory location to get a secondary copy of the vcpu time
+ * parameters.  The master copy still exists as part of the vcpu shared
+ * memory area, and this secondary copy is updated whenever the master copy
+ * is updated (and using the same versioning scheme for synchronisation).
+ *
+ * The intent is that this copy may be mapped (RO) into userspace so
+ * that usermode can compute system time using the time info and the
+ * tsc.  Usermode will see an array of vcpu_time_info structures, one
+ * for each vcpu, and choose the right one by an existing mechanism
+ * which allows it to get the current vcpu number (such as via a
+ * segment limit).  It can then apply the normal algorithm to compute
+ * system time from the tsc.
+ *
+ * @extra_arg == pointer to vcpu_register_time_info_memory_area structure.
+ */
+#define VCPUOP_register_vcpu_time_memory_area   13
+DEFINE_XEN_GUEST_HANDLE(vcpu_time_info_t);
+struct vcpu_register_time_memory_area {
+    union {
+        XEN_GUEST_HANDLE(vcpu_time_info_t) h;
+        struct vcpu_time_info *v;
+        uint64_t p;
+    } addr;
+};
+typedef struct vcpu_register_time_memory_area vcpu_register_time_memory_area_t;
+DEFINE_XEN_GUEST_HANDLE(vcpu_register_time_memory_area_t);
 
 #endif /* __XEN_PUBLIC_VCPU_H__ */
 

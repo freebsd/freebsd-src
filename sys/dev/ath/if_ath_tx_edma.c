@@ -409,7 +409,7 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		wh = mtod(bf_last->bf_m, struct ieee80211_frame *);
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
 
-		/* sync descriptor to memory */
+		/* re-sync buffer to memory */
 		bus_dmamap_sync(sc->sc_dmat, bf_last->bf_dmamap,
 		   BUS_DMASYNC_PREWRITE);
 
@@ -551,6 +551,22 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	 */
 	if (reset_type == ATH_RESET_NOLOSS) {
 		ath_edma_tx_processq(sc, 0);
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				/*
+				 * Free the holding buffer; DMA is now
+				 * stopped.
+				 */
+				ath_txq_freeholdingbuf(sc, &sc->sc_txq[i]);
+				/*
+				 * Reset the link pointer to NULL; there's
+				 * no frames to chain DMA to.
+				 */
+				sc->sc_txq[i].axq_link = NULL;
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
 	} else {
 		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i))
@@ -636,7 +652,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 			break;
 		}
 
-#ifdef	ATH_DEBUG_ALQ
+#if defined(ATH_DEBUG_ALQ) && defined(ATH_DEBUG)
 		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS))
 			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS,
 			    sc->sc_tx_statuslen,
@@ -734,9 +750,9 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		 * buffer any longer.
 		 */
 		if (bf->bf_flags & ATH_BUF_FIFOEND) {
-			ATH_TXBUF_LOCK(sc);
+			ATH_TXQ_LOCK(txq);
 			ath_txq_freeholdingbuf(sc, txq);
-			ATH_TXBUF_UNLOCK(sc);
+			ATH_TXQ_UNLOCK(txq);
 		}
 
 		/*

@@ -2,14 +2,8 @@
  * wpa_supplicant/hostapd / Internal implementation of OS specific functions
  * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This file is an example of operating system specific  wrapper functions.
  * This version implements many of the functions internally, so it can be used
@@ -66,6 +60,24 @@ int os_mktime(int year, int month, int day, int hour, int min, int sec,
 	tm.tm_sec = sec;
 
 	*t = (os_time_t) mktime(&tm);
+	return 0;
+}
+
+
+int os_gmtime(os_time_t t, struct os_tm *tm)
+{
+	struct tm *tm2;
+	time_t t2 = t;
+
+	tm2 = gmtime(&t2);
+	if (tm2 == NULL)
+		return -1;
+	tm->sec = tm2->tm_sec;
+	tm->min = tm2->tm_min;
+	tm->hour = tm2->tm_hour;
+	tm->day = tm2->tm_mday;
+	tm->month = tm2->tm_mon + 1;
+	tm->year = tm2->tm_year + 1900;
 	return 0;
 }
 

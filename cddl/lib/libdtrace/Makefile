@@ -31,6 +31,7 @@ SRCS=		dt_aggregate.c \
 		dt_parser.c \
 		dt_pcb.c \
 		dt_pid.c \
+		dt_pq.c \
 		dt_pragma.c \
 		dt_print.c \
 		dt_printf.c \

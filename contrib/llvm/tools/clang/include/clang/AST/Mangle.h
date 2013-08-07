@@ -17,8 +17,8 @@
 #include "clang/AST/Type.h"
 #include "clang/Basic/ABI.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace clang {
@@ -141,6 +141,16 @@ public:
                                           raw_ostream &) {
     llvm_unreachable("Target does not support mangling guard variables");
   }
+  // FIXME: Revisit this once we know what we need to do for MSVC compatibility.
+  virtual void mangleItaniumThreadLocalInit(const VarDecl *D,
+                                            raw_ostream &) {
+    llvm_unreachable("Target does not support mangling thread_local variables");
+  }
+  virtual void mangleItaniumThreadLocalWrapper(const VarDecl *D,
+                                               raw_ostream &) {
+    llvm_unreachable("Target does not support mangling thread_local variables");
+  }
+
   /// @}
 };
 

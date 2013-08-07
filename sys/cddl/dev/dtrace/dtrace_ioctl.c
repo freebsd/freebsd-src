@@ -274,6 +274,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			desc.dtbd_drops = buf->dtb_drops;
 			desc.dtbd_errors = buf->dtb_errors;
 			desc.dtbd_oldest = buf->dtb_xamot_offset;
+			desc.dtbd_timestamp = dtrace_gethrtime();
 
 			mutex_exit(&dtrace_lock);
 
@@ -328,6 +329,7 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		desc.dtbd_drops = buf->dtb_xamot_drops;
 		desc.dtbd_errors = buf->dtb_xamot_errors;
 		desc.dtbd_oldest = 0;
+		desc.dtbd_timestamp = buf->dtb_switched;
 
 		mutex_exit(&dtrace_lock);
 
@@ -578,19 +580,25 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			return (EINVAL);
 
 		mutex_enter(&dtrace_provider_lock);
+#if defined(sun)
 		mutex_enter(&mod_lock);
+#endif
 		mutex_enter(&dtrace_lock);
 
 		if (desc->dtargd_id > dtrace_nprobes) {
 			mutex_exit(&dtrace_lock);
+#if defined(sun)
 			mutex_exit(&mod_lock);
+#endif
 			mutex_exit(&dtrace_provider_lock);
 			return (EINVAL);
 		}
 
 		if ((probe = dtrace_probes[desc->dtargd_id - 1]) == NULL) {
 			mutex_exit(&dtrace_lock);
+#if defined(sun)
 			mutex_exit(&mod_lock);
+#endif
 			mutex_exit(&dtrace_provider_lock);
 			return (EINVAL);
 		}
@@ -614,7 +622,9 @@ dtrace_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 			    probe->dtpr_id, probe->dtpr_arg, desc);
 		}
 
+#if defined(sun)
 		mutex_exit(&mod_lock);
+#endif
 		mutex_exit(&dtrace_provider_lock);
 
 		return (0);

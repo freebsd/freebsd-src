@@ -581,13 +581,18 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 					args[i].str = (void *)0xdeadc0de;
 				else
 					args[i].str = argv[i];
-			} else if ((scall->sd_args[i] & TYPE_MASK) == TYPE_NUMBER) {
+			} else if ((scall->sd_args[i] & TYPE_MASK) ==
+			    TYPE_NUMBER) {
 				args[i].num = strtoll(argv[i], &endp, 0);
-				if (*endp != '\0' && !isspace((unsigned char)*endp)) {
-					fprintf(stderr, "invalid argument %u, number expected [%s]\n", i, endp);
+				if (*endp != '\0' &&
+				    !isspace((unsigned char)*endp)) {
+					fprintf(stderr,
+					    "invalid argument %u, number expected [%s]\n",
+					    i, endp);
 					exit(1);
 				}
-			} else if ((scall->sd_args[i] & TYPE_MASK) == TYPE_DESCRIPTOR) {
+			} else if ((scall->sd_args[i] & TYPE_MASK) ==
+			    TYPE_DESCRIPTOR) {
 				if (strcmp(argv[i], "AT_FDCWD") == 0) {
 					args[i].num = AT_FDCWD;
 				} else if (strcmp(argv[i], "BADFD") == 0) {
@@ -600,8 +605,11 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 					int pos;
 
 					pos = strtoll(argv[i], &endp, 0);
-					if (*endp != '\0' && !isspace((unsigned char)*endp)) {
-						fprintf(stderr, "invalid argument %u, number expected [%s]\n", i, endp);
+					if (*endp != '\0' &&
+					    !isspace((unsigned char)*endp)) {
+						fprintf(stderr,
+						    "invalid argument %u, number expected [%s]\n",
+						    i, endp);
 						exit(1);
 					}
 					args[i].num = descriptor_get(pos);
@@ -640,7 +648,8 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 				fprintf(stderr, "too few arguments\n");
 				exit(1);
 			}
-			rval = openat(NUM(0), STR(1), (int)flags, (mode_t)NUM(3));
+			rval = openat(NUM(0), STR(1), (int)flags,
+			    (mode_t)NUM(3));
 		} else {
 			if (i == 4) {
 				fprintf(stderr, "too many arguments\n");
@@ -716,7 +725,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		}
 
 		dev = makedev(NUM(fa + 3), NUM(fa + 4));
-		if (strcmp(STR(fa + 1), "c") == 0)		/* character device */
+		if (strcmp(STR(fa + 1), "c") == 0)	/* character device */
 			ntype = S_IFCHR;
 		else if (strcmp(STR(fa + 1), "b") == 0)	/* block device */
 			ntype = S_IFBLK;
@@ -988,7 +997,8 @@ set_gids(char *gids)
 	assert(ngroups > 0);
 	gidset = malloc(sizeof(*gidset) * ngroups);
 	assert(gidset != NULL);
-	for (i = 0, g = strtok(gids, ","); g != NULL; g = strtok(NULL, ","), i++) {
+	for (i = 0, g = strtok(gids, ","); g != NULL;
+	    g = strtok(NULL, ","), i++) {
 		if (i >= ngroups) {
 			fprintf(stderr, "too many gids\n");
 			exit(1);
@@ -1005,7 +1015,8 @@ set_gids(char *gids)
 		exit(1);
 	}
 	if (setegid(gidset[0]) < 0) {
-		fprintf(stderr, "cannot change effective gid: %s\n", strerror(errno));
+		fprintf(stderr, "cannot change effective gid: %s\n",
+		    strerror(errno));
 		exit(1);
 	}
 	free(gidset);
@@ -1075,7 +1086,8 @@ main(int argc, char *argv[])
 	for (;;) {
 		scall = find_syscall(argv[0]);
 		if (scall == NULL) {
-			fprintf(stderr, "syscall '%s' not supported\n", argv[0]);
+			fprintf(stderr, "syscall '%s' not supported\n",
+			    argv[0]);
 			exit(1);
 		}
 		argc++;

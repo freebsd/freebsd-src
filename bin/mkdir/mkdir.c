@@ -135,7 +135,7 @@ main(int argc, char *argv[])
  * Returns 1 if a directory has been created,
  * 2 if it already existed, and 0 on failure.
  */
-int
+static int
 build(char *path, mode_t omode)
 {
 	struct stat sb;
@@ -208,7 +208,7 @@ build(char *path, mode_t omode)
 	return (retval);
 }
 
-void
+static void
 usage(void)
 {
 

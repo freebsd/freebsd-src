@@ -4,7 +4,7 @@
  */
 
 /*-
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Oleksandr Rybalko

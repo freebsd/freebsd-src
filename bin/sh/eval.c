@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 int evalskip;			/* set if we are skipping commands */
 int skipcount;			/* number of levels to skip */
-MKINIT int loopnest;		/* current loop nesting level */
+static int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
 static int builtin_flags;	/* evalcommand flags for builtins */
 
@@ -104,16 +104,13 @@ static void prehash(union node *);
  * Called to reset things after an exception.
  */
 
-#ifdef mkinit
-INCLUDE "eval.h"
-
-RESET {
+void
+reseteval(void)
+{
 	evalskip = 0;
 	loopnest = 0;
 	funcnest = 0;
 }
-#endif
-
 
 
 /*
@@ -279,6 +276,8 @@ evaltree(union node *n, int flags)
 			break;
 		case NNOT:
 			evaltree(n->nnot.com, EV_TESTED);
+			if (evalskip)
+				goto out;
 			exitstatus = !exitstatus;
 			break;
 
@@ -587,7 +586,8 @@ evalpipe(union node *n)
 		pip[1] = -1;
 		if (lp->next) {
 			if (pipe(pip) < 0) {
-				close(prevfd);
+				if (prevfd >= 0)
+					close(prevfd);
 				error("Pipe call failed: %s", strerror(errno));
 			}
 		}

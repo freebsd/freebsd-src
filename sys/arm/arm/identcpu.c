@@ -236,6 +236,8 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_ARM1026EJS,	CPU_CLASS_ARM10EJ,	"ARM1026EJ-S",
 	  generic_steppings },
 
+	{ CPU_ID_CORTEXA7,	CPU_CLASS_CORTEXA,	"Cortex A7",
+	  generic_steppings },
 	{ CPU_ID_CORTEXA8R1,	CPU_CLASS_CORTEXA,	"Cortex A8-r1",
 	  generic_steppings },
 	{ CPU_ID_CORTEXA8R2,	CPU_CLASS_CORTEXA,	"Cortex A8-r2",
@@ -245,6 +247,10 @@ const struct cpuidtab cpuids[] = {
 	{ CPU_ID_CORTEXA9R1,	CPU_CLASS_CORTEXA,	"Cortex A9-r1",
 	  generic_steppings },
 	{ CPU_ID_CORTEXA9R2,	CPU_CLASS_CORTEXA,	"Cortex A9-r2",
+	  generic_steppings },
+	{ CPU_ID_CORTEXA9R3,	CPU_CLASS_CORTEXA,	"Cortex A9-r3",
+	  generic_steppings },
+	{ CPU_ID_CORTEXA15,     CPU_CLASS_CORTEXA,      "Cortex A15",
 	  generic_steppings },
 
 	{ CPU_ID_SA110,		CPU_CLASS_SA1,		"SA-110",

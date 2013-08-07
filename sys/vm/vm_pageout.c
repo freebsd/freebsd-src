@@ -157,7 +157,6 @@ static int vm_pageout_stats;
 static int vm_pageout_stats_interval;
 static int vm_pageout_full_stats;
 static int vm_pageout_full_stats_interval;
-static int vm_pageout_algorithm;
 static int defer_swap_pageouts;
 static int disable_swap_pageouts;
 
@@ -168,9 +167,6 @@ static int vm_swap_idle_enabled = 0;
 static int vm_swap_enabled = 1;
 static int vm_swap_idle_enabled = 0;
 #endif
-
-SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,
-	CTLFLAG_RW, &vm_pageout_algorithm, 0, "LRU page mgmt");
 
 SYSCTL_INT(_vm, OID_AUTO, max_launder,
 	CTLFLAG_RW, &vm_max_launder, 0, "Limit dirty flushes in pageout");
@@ -712,15 +708,15 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 {
 	vm_object_t backing_object, object;
 	vm_page_t p;
-	int actcount, remove_mode;
+	int act_delta, remove_mode;
 
-	VM_OBJECT_ASSERT_WLOCKED(first_object);
+	VM_OBJECT_ASSERT_LOCKED(first_object);
 	if ((first_object->flags & OBJ_FICTITIOUS) != 0)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
 			goto unlock_return;
-		VM_OBJECT_ASSERT_WLOCKED(object);
+		VM_OBJECT_ASSERT_LOCKED(object);
 		if ((object->flags & OBJ_UNMANAGED) != 0 ||
 		    object->paging_in_progress != 0)
 			goto unlock_return;
@@ -743,22 +739,20 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 				vm_page_unlock(p);
 				continue;
 			}
-			actcount = pmap_ts_referenced(p);
+			act_delta = pmap_ts_referenced(p);
 			if ((p->aflags & PGA_REFERENCED) != 0) {
-				if (actcount == 0)
-					actcount = 1;
+				if (act_delta == 0)
+					act_delta = 1;
 				vm_page_aflag_clear(p, PGA_REFERENCED);
 			}
-			if (p->queue != PQ_ACTIVE && actcount != 0) {
+			if (p->queue != PQ_ACTIVE && act_delta != 0) {
 				vm_page_activate(p);
-				p->act_count += actcount;
+				p->act_count += act_delta;
 			} else if (p->queue == PQ_ACTIVE) {
-				if (actcount == 0) {
+				if (act_delta == 0) {
 					p->act_count -= min(p->act_count,
 					    ACT_DECLINE);
-					if (!remove_mode &&
-					    (vm_pageout_algorithm ||
-					    p->act_count == 0)) {
+					if (!remove_mode && p->act_count == 0) {
 						pmap_remove_all(p);
 						vm_page_deactivate(p);
 					} else
@@ -776,13 +770,13 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 		}
 		if ((backing_object = object->backing_object) == NULL)
 			goto unlock_return;
-		VM_OBJECT_WLOCK(backing_object);
+		VM_OBJECT_RLOCK(backing_object);
 		if (object != first_object)
-			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_RUNLOCK(object);
 	}
 unlock_return:
 	if (object != first_object)
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 }
 
 /*
@@ -812,15 +806,15 @@ vm_pageout_map_deactivate_pages(map, desired)
 	while (tmpe != &map->header) {
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
-			if (obj != NULL && VM_OBJECT_TRYWLOCK(obj)) {
+			if (obj != NULL && VM_OBJECT_TRYRLOCK(obj)) {
 				if (obj->shadow_count <= 1 &&
 				    (bigobj == NULL ||
 				     bigobj->resident_page_count < obj->resident_page_count)) {
 					if (bigobj != NULL)
-						VM_OBJECT_WUNLOCK(bigobj);
+						VM_OBJECT_RUNLOCK(bigobj);
 					bigobj = obj;
 				} else
-					VM_OBJECT_WUNLOCK(obj);
+					VM_OBJECT_RUNLOCK(obj);
 			}
 		}
 		if (tmpe->wired_count > 0)
@@ -830,7 +824,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 
 	if (bigobj != NULL) {
 		vm_pageout_object_deactivate_pages(map->pmap, bigobj, desired);
-		VM_OBJECT_WUNLOCK(bigobj);
+		VM_OBJECT_RUNLOCK(bigobj);
 	}
 	/*
 	 * Next, hunt around for other pages to deactivate.  We actually
@@ -843,9 +837,9 @@ vm_pageout_map_deactivate_pages(map, desired)
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
 			if (obj != NULL) {
-				VM_OBJECT_WLOCK(obj);
+				VM_OBJECT_RLOCK(obj);
 				vm_pageout_object_deactivate_pages(map->pmap, obj, desired);
-				VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(obj);
 			}
 		}
 		tmpe = tmpe->next;
@@ -875,7 +869,7 @@ vm_pageout_scan(int pass)
 	int page_shortage, maxscan, pcount;
 	int addl_page_shortage;
 	vm_object_t object;
-	int actcount;
+	int act_delta;
 	int vnodes_skipped = 0;
 	int maxlaunder;
 	boolean_t queues_locked;
@@ -995,45 +989,41 @@ vm_pageout_scan(int pass)
 		queues_locked = FALSE;
 
 		/*
-		 * If the object is not being used, we ignore previous 
-		 * references.
-		 */
-		if (object->ref_count == 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			KASSERT(!pmap_page_is_mapped(m),
-			    ("vm_pageout_scan: page %p is mapped", m));
-
-		/*
-		 * Otherwise, if the page has been referenced while in the 
-		 * inactive queue, we bump the "activation count" upwards, 
-		 * making it less likely that the page will be added back to 
-		 * the inactive queue prematurely again.  Here we check the 
+		 * We bump the activation count if the page has been
+		 * referenced while in the inactive queue.  This makes
+		 * it less likely that the page will be added back to the
+		 * inactive queue prematurely again.  Here we check the 
 		 * page tables (or emulated bits, if any), given the upper 
 		 * level VM system not knowing anything about existing 
 		 * references.
 		 */
-		} else if ((m->aflags & PGA_REFERENCED) == 0 &&
-		    (actcount = pmap_ts_referenced(m)) != 0) {
-			vm_page_activate(m);
-			vm_page_unlock(m);
-			m->act_count += actcount + ACT_ADVANCE;
-			VM_OBJECT_WUNLOCK(object);
-			goto relock_queues;
+		act_delta = 0;
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta = 1;
+		}
+		if (object->ref_count != 0) {
+			act_delta += pmap_ts_referenced(m);
+		} else {
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("vm_pageout_scan: page %p is mapped", m));
 		}
 
 		/*
 		 * If the upper level VM system knows about any page 
-		 * references, we activate the page.  We also set the 
-		 * "activation count" higher than normal so that we will less 
-		 * likely place pages back onto the inactive queue again.
+		 * references, we reactivate the page or requeue it.
 		 */
-		if ((m->aflags & PGA_REFERENCED) != 0) {
-			vm_page_aflag_clear(m, PGA_REFERENCED);
-			actcount = pmap_ts_referenced(m);
-			vm_page_activate(m);
-			vm_page_unlock(m);
-			m->act_count += actcount + ACT_ADVANCE + 1;
+		if (act_delta != 0) {
+			if (object->ref_count) {
+				vm_page_activate(m);
+				m->act_count += act_delta + ACT_ADVANCE;
+			} else {
+				vm_pagequeue_lock(pq);
+				queues_locked = TRUE;
+				vm_page_requeue_locked(m);
+			}
 			VM_OBJECT_WUNLOCK(object);
+			vm_page_unlock(m);
 			goto relock_queues;
 		}
 
@@ -1330,51 +1320,40 @@ relock_queues:
 		/*
 		 * Check to see "how much" the page has been used.
 		 */
-		actcount = 0;
-		if (object->ref_count != 0) {
-			if (m->aflags & PGA_REFERENCED) {
-				actcount += 1;
-			}
-			actcount += pmap_ts_referenced(m);
-			if (actcount) {
-				m->act_count += ACT_ADVANCE + actcount;
-				if (m->act_count > ACT_MAX)
-					m->act_count = ACT_MAX;
-			}
+		act_delta = 0;
+		if (m->aflags & PGA_REFERENCED) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
+			act_delta += 1;
 		}
+		if (object->ref_count != 0)
+			act_delta += pmap_ts_referenced(m);
 
 		/*
-		 * Since we have "tested" this bit, we need to clear it now.
+		 * Advance or decay the act_count based on recent usage.
 		 */
-		vm_page_aflag_clear(m, PGA_REFERENCED);
-
-		/*
-		 * Only if an object is currently being used, do we use the
-		 * page activation count stats.
-		 */
-		if (actcount != 0 && object->ref_count != 0)
-			vm_page_requeue_locked(m);
-		else {
+		if (act_delta) {
+			m->act_count += ACT_ADVANCE + act_delta;
+			if (m->act_count > ACT_MAX)
+				m->act_count = ACT_MAX;
+		} else {
 			m->act_count -= min(m->act_count, ACT_DECLINE);
-			if (vm_pageout_algorithm ||
-			    object->ref_count == 0 ||
-			    m->act_count == 0) {
-				page_shortage--;
-				/* Dequeue to avoid later lock recursion. */
-				vm_page_dequeue_locked(m);
-				if (object->ref_count == 0) {
-					KASSERT(!pmap_page_is_mapped(m),
-				    ("vm_pageout_scan: page %p is mapped", m));
-					if (m->dirty == 0)
-						vm_page_cache(m);
-					else
-						vm_page_deactivate(m);
-				} else {
-					vm_page_deactivate(m);
-				}
-			} else
-				vm_page_requeue_locked(m);
+			act_delta = m->act_count;
 		}
+
+		/*
+		 * Move this page to the tail of the active or inactive
+		 * queue depending on usage.
+		 */
+		if (act_delta == 0) {
+			KASSERT(object->ref_count != 0 ||
+			    !pmap_page_is_mapped(m),
+			    ("vm_pageout_scan: page %p is mapped", m));
+			/* Dequeue to avoid later lock recursion. */
+			vm_page_dequeue_locked(m);
+			vm_page_deactivate(m);
+			page_shortage--;
+		} else
+			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
 		m = next;

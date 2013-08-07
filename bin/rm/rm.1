@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2013
+.Dd April 25, 2013
 .Dt RM 1
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f | i
-.Op Fl dIPRrvW
+.Op Fl dIPRrvWx
 .Ar
 .Nm unlink
 .Ar file
@@ -132,6 +132,8 @@ Attempt to undelete the named files.
 Currently, this option can only be used to recover
 files covered by whiteouts in a union file system (see
 .Xr undelete 2 ) .
+.It Fl x
+When removing a hierarchy, do not cross mount points.
 .El
 .Pp
 The

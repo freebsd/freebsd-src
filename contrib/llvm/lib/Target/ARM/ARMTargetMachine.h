@@ -14,20 +14,19 @@
 #ifndef ARMTARGETMACHINE_H
 #define ARMTARGETMACHINE_H
 
-#include "ARMInstrInfo.h"
 #include "ARMFrameLowering.h"
-#include "ARMJITInfo.h"
-#include "ARMSubtarget.h"
 #include "ARMISelLowering.h"
+#include "ARMInstrInfo.h"
+#include "ARMJITInfo.h"
 #include "ARMSelectionDAGInfo.h"
-#include "Thumb1InstrInfo.h"
+#include "ARMSubtarget.h"
 #include "Thumb1FrameLowering.h"
+#include "Thumb1InstrInfo.h"
 #include "Thumb2InstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetTransformImpl.h"
-#include "llvm/DataLayout.h"
-#include "llvm/MC/MCStreamer.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/MC/MCStreamer.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
@@ -47,9 +46,16 @@ public:
 
   virtual       ARMJITInfo       *getJITInfo()         { return &JITInfo; }
   virtual const ARMSubtarget  *getSubtargetImpl() const { return &Subtarget; }
+  virtual const ARMTargetLowering *getTargetLowering() const {
+    // Implemented by derived classes
+    llvm_unreachable("getTargetLowering not implemented");
+  }
   virtual const InstrItineraryData *getInstrItineraryData() const {
     return &InstrItins;
   }
+
+  /// \brief Register ARM analysis passes with a pass manager.
+  virtual void addAnalysisPasses(PassManagerBase &PM);
 
   // Pass Pipeline Configuration
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
@@ -66,8 +72,6 @@ class ARMTargetMachine : public ARMBaseTargetMachine {
   ARMTargetLowering   TLInfo;
   ARMSelectionDAGInfo TSInfo;
   ARMFrameLowering    FrameLowering;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
  public:
   ARMTargetMachine(const Target &T, StringRef TT,
                    StringRef CPU, StringRef FS,
@@ -89,12 +93,6 @@ class ARMTargetMachine : public ARMBaseTargetMachine {
   virtual const ARMFrameLowering *getFrameLowering() const {
     return &FrameLowering;
   }
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
-  }
   virtual const ARMInstrInfo     *getInstrInfo() const { return &InstrInfo; }
   virtual const DataLayout       *getDataLayout() const { return &DL; }
 };
@@ -112,8 +110,6 @@ class ThumbTargetMachine : public ARMBaseTargetMachine {
   ARMSelectionDAGInfo TSInfo;
   // Either Thumb1FrameLowering or ARMFrameLowering.
   OwningPtr<ARMFrameLowering> FrameLowering;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
 public:
   ThumbTargetMachine(const Target &T, StringRef TT,
                      StringRef CPU, StringRef FS,
@@ -141,12 +137,6 @@ public:
   /// returns either Thumb1FrameLowering or ARMFrameLowering
   virtual const ARMFrameLowering *getFrameLowering() const {
     return FrameLowering.get();
-  }
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
   }
   virtual const DataLayout       *getDataLayout() const { return &DL; }
 };

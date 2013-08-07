@@ -155,22 +155,28 @@ struct smbioc_rw {
 STAILQ_HEAD(smbrqh, smb_rq);
 
 struct smb_dev {
+	struct cdev *	dev;
 	int		sd_opened;
 	int		sd_level;
 	struct smb_vc * sd_vc;		/* reference to VC */
 	struct smb_share *sd_share;	/* reference to share if any */
 	int		sd_poll;
 	int		sd_seq;
-/*	struct ifqueue	sd_rdqueue;
-	struct ifqueue	sd_wrqueue;
-	struct selinfo	sd_pollinfo;
-	struct smbrqh	sd_rqlist;
-	struct smbrqh	sd_rplist;
-	struct ucred 	*sd_owner;*/
 	int		sd_flags;
+	int		refcount;
+	int		usecount;
 };
 
+extern struct sx smb_lock;
+#define	SMB_LOCK()		sx_xlock(&smb_lock)
+#define	SMB_UNLOCK() 		sx_unlock(&smb_lock)
+#define	SMB_LOCKASSERT()	sx_assert(&smb_lock, SA_XLOCKED)
+
 struct smb_cred;
+
+void sdp_dtor(void *arg);
+void sdp_trydestroy(struct smb_dev *dev);
+
 /*
  * Compound user interface
  */
@@ -185,7 +191,7 @@ int  smb_usr_simplerequest(struct smb_share *ssp, struct smbioc_rq *data,
 int  smb_usr_t2request(struct smb_share *ssp, struct smbioc_t2rq *data,
 	struct smb_cred *scred);
 int  smb_dev2share(int fd, int mode, struct smb_cred *scred,
-	struct smb_share **sspp);
+	struct smb_share **sspp, struct smb_dev **ssdp);
 
 
 #endif /* _KERNEL */

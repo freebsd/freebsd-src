@@ -20,7 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -134,23 +135,41 @@ vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
 	return (avail_space);
 }
 
+/*
+ * We want to be loud in DEBUG kernels when DKIOCGMEDIAINFOEXT fails, or when
+ * even a fallback to DKIOCGMEDIAINFO fails.
+ */
+#ifdef DEBUG
+#define	VDEV_DEBUG(...)	cmn_err(CE_NOTE, __VA_ARGS__)
+#else
+#define	VDEV_DEBUG(...)	/* Nothing... */
+#endif
+
 static int
 vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
     uint64_t *ashift)
 {
 	spa_t *spa = vd->vdev_spa;
 	vdev_disk_t *dvd;
-	struct dk_minfo_ext dkmext;
+	union {
+		struct dk_minfo_ext ude;
+		struct dk_minfo ud;
+	} dks;
+	struct dk_minfo_ext *dkmext = &dks.ude;
+	struct dk_minfo *dkm = &dks.ud;
 	int error;
 	dev_t dev;
 	int otyp;
+	boolean_t validate_devid = B_FALSE;
+	ddi_devid_t devid;
+	uint64_t capacity = 0, blksz = 0, pbsize;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
 	 */
 	if (vd->vdev_path == NULL || vd->vdev_path[0] != '/') {
 		vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 
 	/*
@@ -185,14 +204,13 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		if (ddi_devid_str_decode(vd->vdev_devid, &dvd->vd_devid,
 		    &dvd->vd_minor) != 0) {
 			vd->vdev_stat.vs_aux = VDEV_AUX_BAD_LABEL;
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 		}
 	}
 
 	error = EINVAL;		/* presume failure */
 
 	if (vd->vdev_path != NULL) {
-		ddi_devid_t devid;
 
 		if (vd->vdev_wholedisk == -1ULL) {
 			size_t len = strlen(vd->vdev_path) + 3;
@@ -221,7 +239,7 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 		if (error == 0 && vd->vdev_devid != NULL &&
 		    ldi_get_devid(dvd->vd_lh, &devid) == 0) {
 			if (ddi_devid_compare(devid, dvd->vd_devid) != 0) {
-				error = EINVAL;
+				error = SET_ERROR(EINVAL);
 				(void) ldi_close(dvd->vd_lh, spa_mode(spa),
 				    kcred);
 				dvd->vd_lh = NULL;
@@ -241,9 +259,10 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	 * If we were unable to open by path, or the devid check fails, open by
 	 * devid instead.
 	 */
-	if (error != 0 && vd->vdev_devid != NULL)
+	if (error != 0 && vd->vdev_devid != NULL) {
 		error = ldi_open_by_devid(dvd->vd_devid, dvd->vd_minor,
 		    spa_mode(spa), kcred, &dvd->vd_lh, zfs_li);
+	}
 
 	/*
 	 * If all else fails, then try opening by physical path (if available)
@@ -252,6 +271,9 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	 * level vdev validation will prevent us from opening the wrong device.
 	 */
 	if (error) {
+		if (vd->vdev_devid != NULL)
+			validate_devid = B_TRUE;
+
 		if (vd->vdev_physpath != NULL &&
 		    (dev = ddi_pathname_to_dev_t(vd->vdev_physpath)) != NODEV)
 			error = ldi_open_by_dev(&dev, OTYP_BLK, spa_mode(spa),
@@ -270,6 +292,25 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	if (error) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);
+	}
+
+	/*
+	 * Now that the device has been successfully opened, update the devid
+	 * if necessary.
+	 */
+	if (validate_devid && spa_writeable(spa) &&
+	    ldi_get_devid(dvd->vd_lh, &devid) == 0) {
+		if (ddi_devid_compare(devid, dvd->vd_devid) != 0) {
+			char *vd_devid;
+
+			vd_devid = ddi_devid_str_encode(devid, dvd->vd_minor);
+			zfs_dbgmsg("vdev %s: update devid from %s, "
+			    "to %s", vd->vdev_path, vd->vdev_devid, vd_devid);
+			spa_strfree(vd->vdev_devid);
+			vd->vdev_devid = spa_strdup(vd_devid);
+			ddi_devid_str_free(vd_devid);
+		}
+		ddi_devid_free(devid);
 	}
 
 	/*
@@ -303,36 +344,59 @@ skip_open:
 	 */
 	if (ldi_get_size(dvd->vd_lh, psize) != 0) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
+
+	*max_psize = *psize;
 
 	/*
 	 * Determine the device's minimum transfer size.
 	 * If the ioctl isn't supported, assume DEV_BSIZE.
 	 */
-	if (ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFOEXT, (intptr_t)&dkmext,
-	    FKIOCTL, kcred, NULL) != 0)
-		dkmext.dki_pbsize = DEV_BSIZE;
+	if ((error = ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFOEXT,
+	    (intptr_t)dkmext, FKIOCTL, kcred, NULL)) == 0) {
+		capacity = dkmext->dki_capacity - 1;
+		blksz = dkmext->dki_lbsize;
+		pbsize = dkmext->dki_pbsize;
+	} else if ((error = ldi_ioctl(dvd->vd_lh, DKIOCGMEDIAINFO,
+	    (intptr_t)dkm, FKIOCTL, kcred, NULL)) == 0) {
+		VDEV_DEBUG(
+		    "vdev_disk_open(\"%s\"): fallback to DKIOCGMEDIAINFO\n",
+		    vd->vdev_path);
+		capacity = dkm->dki_capacity - 1;
+		blksz = dkm->dki_lbsize;
+		pbsize = blksz;
+	} else {
+		VDEV_DEBUG("vdev_disk_open(\"%s\"): "
+		    "both DKIOCGMEDIAINFO{,EXT} calls failed, %d\n",
+		    vd->vdev_path, error);
+		pbsize = DEV_BSIZE;
+	}
 
-	*ashift = highbit(MAX(dkmext.dki_pbsize, SPA_MINBLOCKSIZE)) - 1;
+	*ashift = highbit(MAX(pbsize, SPA_MINBLOCKSIZE)) - 1;
 
 	if (vd->vdev_wholedisk == 1) {
-		uint64_t capacity = dkmext.dki_capacity - 1;
-		uint64_t blksz = dkmext.dki_lbsize;
 		int wce = 1;
 
+		if (error == 0) {
+			/*
+			 * If we have the capability to expand, we'd have
+			 * found out via success from DKIOCGMEDIAINFO{,EXT}.
+			 * Adjust max_psize upward accordingly since we know
+			 * we own the whole disk now.
+			 */
+			*max_psize += vdev_disk_get_space(vd, capacity, blksz);
+			zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
+			    "max_psize %llu", vd->vdev_path, *psize,
+			    *max_psize);
+		}
+
 		/*
-		 * If we own the whole disk, try to enable disk write caching.
-		 * We ignore errors because it's OK if we can't do it.
+		 * Since we own the whole disk, try to enable disk write
+		 * caching.  We ignore errors because it's OK if we can't do it.
 		 */
 		(void) ldi_ioctl(dvd->vd_lh, DKIOCSETWCE, (intptr_t)&wce,
 		    FKIOCTL, kcred, NULL);
-
-		*max_psize = *psize + vdev_disk_get_space(vd, capacity, blksz);
-		zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
-		    "max_psize %llu", vd->vdev_path, *psize, *max_psize);
-	} else {
-		*max_psize = *psize;
 	}
 
 	/*
@@ -374,7 +438,7 @@ vdev_disk_physio(ldi_handle_t vd_lh, caddr_t data, size_t size,
 	int error = 0;
 
 	if (vd_lh == NULL)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	ASSERT(flags & B_READ || flags & B_WRITE);
 
@@ -388,7 +452,7 @@ vdev_disk_physio(ldi_handle_t vd_lh, caddr_t data, size_t size,
 	error = ldi_strategy(vd_lh, bp);
 	ASSERT(error == 0);
 	if ((error = biowait(bp)) == 0 && bp->b_resid != 0)
-		error = EIO;
+		error = SET_ERROR(EIO);
 	freerbuf(bp);
 
 	return (error);
@@ -408,7 +472,7 @@ vdev_disk_io_intr(buf_t *bp)
 	zio->io_error = (geterror(bp) != 0 ? EIO : 0);
 
 	if (zio->io_error == 0 && bp->b_resid != 0)
-		zio->io_error = EIO;
+		zio->io_error = SET_ERROR(EIO);
 
 	kmem_free(vdb, sizeof (vdev_disk_buf_t));
 
@@ -449,7 +513,7 @@ vdev_disk_io_start(zio_t *zio)
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
 		/* XXPOLICY */
 		if (!vdev_readable(vd)) {
-			zio->io_error = ENXIO;
+			zio->io_error = SET_ERROR(ENXIO);
 			return (ZIO_PIPELINE_CONTINUE);
 		}
 
@@ -461,7 +525,7 @@ vdev_disk_io_start(zio_t *zio)
 				break;
 
 			if (vd->vdev_nowritecache) {
-				zio->io_error = ENOTSUP;
+				zio->io_error = SET_ERROR(ENOTSUP);
 				break;
 			}
 
@@ -499,7 +563,7 @@ vdev_disk_io_start(zio_t *zio)
 			break;
 
 		default:
-			zio->io_error = ENOTSUP;
+			zio->io_error = SET_ERROR(ENOTSUP);
 		}
 
 		return (ZIO_PIPELINE_CONTINUE);
@@ -604,7 +668,7 @@ vdev_disk_read_rootlabel(char *devpath, char *devid, nvlist_t **config)
 
 	if (ldi_get_size(vd_lh, &s)) {
 		(void) ldi_close(vd_lh, FREAD, kcred);
-		return (EIO);
+		return (SET_ERROR(EIO));
 	}
 
 	size = P2ALIGN_TYPED(s, sizeof (vdev_label_t), uint64_t);
@@ -646,7 +710,7 @@ vdev_disk_read_rootlabel(char *devpath, char *devid, nvlist_t **config)
 	kmem_free(label, sizeof (vdev_label_t));
 	(void) ldi_close(vd_lh, FREAD, kcred);
 	if (*config == NULL)
-		error = EIDRM;
+		error = SET_ERROR(EIDRM);
 
 	return (error);
 }

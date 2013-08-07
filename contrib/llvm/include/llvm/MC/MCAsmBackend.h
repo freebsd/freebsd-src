@@ -22,7 +22,7 @@ class MCELFObjectTargetWriter;
 struct MCFixupKindInfo;
 class MCFragment;
 class MCInst;
-class MCInstFragment;
+class MCRelaxableFragment;
 class MCObjectWriter;
 class MCSection;
 class MCValue;
@@ -40,6 +40,9 @@ protected: // Can only create subclasses.
 
 public:
   virtual ~MCAsmBackend();
+
+  /// lifetime management
+  virtual void reset() { }
 
   /// createObjectWriter - Create a new MCObjectWriter instance for use by the
   /// assembler backend to emit the final object file.
@@ -127,7 +130,7 @@ public:
   /// fixup requires the associated instruction to be relaxed.
   virtual bool fixupNeedsRelaxation(const MCFixup &Fixup,
                                     uint64_t Value,
-                                    const MCInstFragment *DF,
+                                    const MCRelaxableFragment *DF,
                                     const MCAsmLayout &Layout) const = 0;
 
   /// RelaxInstruction - Relax the instruction in the given fragment to the next

@@ -68,10 +68,10 @@ __FBSDID("$FreeBSD$");
 #include "show.h"
 #include "memalloc.h"
 #include "error.h"
-#include "init.h"
 #include "mystring.h"
 #include "exec.h"
 #include "cd.h"
+#include "redir.h"
 #include "builtins.h"
 
 int rootpid;
@@ -79,6 +79,7 @@ int rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
+static void reset(void);
 static void cmdloop(int);
 static void read_profile(const char *);
 static char *find_dot_file(char *);
@@ -170,8 +171,8 @@ state3:
 	if (minusc) {
 		evalstring(minusc, sflag ? 0 : EV_EXIT);
 	}
+state4:
 	if (sflag || minusc == NULL) {
-state4:	/* XXX ??? - why isn't this before the "if" statement */
 		cmdloop(1);
 	}
 	exitshell(exitstatus);
@@ -179,6 +180,14 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
 	return 0;
 }
 
+static void
+reset(void)
+{
+	reseteval();
+	resetinput();
+	resetparser();
+	resetredir();
+}
 
 /*
  * Read and execute commands.  "Top" is nonzero for the top level command
@@ -248,7 +257,7 @@ read_profile(const char *name)
 	if (expandedname == NULL)
 		return;
 	INTOFF;
-	if ((fd = open(expandedname, O_RDONLY)) >= 0)
+	if ((fd = open(expandedname, O_RDONLY | O_CLOEXEC)) >= 0)
 		setinputfd(fd, 1);
 	INTON;
 	if (fd < 0)

@@ -62,10 +62,17 @@ hpt27xx_lib.o			optional	hpt27xx			\
 	dependency	"$S/dev/hpt27xx/amd64-elf.hpt27xx_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/hpt27xx/amd64-elf.hpt27xx_lib.o.uu" \
 	no-implicit-rule
+#
 hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/amd64-elf.raid.o.uu"	\
 	compile-with	"uudecode < $S/dev/hptmv/amd64-elf.raid.o.uu" \
 	no-implicit-rule
+#
+hptnr_lib.o			optional	hptnr			\
+	dependency	"$S/dev/hptnr/amd64-elf.hptnr_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/hptnr/amd64-elf.hptnr_lib.o.uu" \
+	no-implicit-rule
+#
 hptrr_lib.o			optional	hptrr			\
 	dependency	"$S/dev/hptrr/amd64-elf.hptrr_lib.o.uu"		\
 	compile-with	"uudecode < $S/dev/hptrr/amd64-elf.hptrr_lib.o.uu" \
@@ -136,7 +143,7 @@ crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 crypto/aesni/aesni_wrap.c	optional aesni
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
@@ -189,14 +196,18 @@ dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
-dev/hpt27xx/os_bsd.c		optional	hpt27xx
-dev/hpt27xx/osm_bsd.c		optional	hpt27xx
+dev/fdt/fdt_x86.c		optional	fdt
+dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
+dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
 dev/hptmv/entry.c		optional	hptmv
 dev/hptmv/mv.c			optional	hptmv
 dev/hptmv/gui_lib.c		optional	hptmv
 dev/hptmv/hptproc.c		optional	hptmv
 dev/hptmv/ioctl.c		optional	hptmv
+dev/hptnr/hptnr_os_bsd.c	optional	hptnr
+dev/hptnr/hptnr_osm_bsd.c	optional	hptnr
+dev/hptnr/hptnr_config.c	optional	hptnr
 dev/hptrr/hptrr_os_bsd.c	optional	hptrr
 dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
 dev/hptrr/hptrr_config.c	optional	hptrr
@@ -211,6 +222,8 @@ dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
+dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
+dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb ntb_hw
 dev/nvd/nvd.c			optional	nvd nvme
 dev/nve/if_nve.c		optional	nve pci
 dev/nvme/nvme.c			optional	nvme
@@ -221,16 +234,29 @@ dev/nvme/nvme_ns_cmd.c		optional	nvme
 dev/nvme/nvme_qpair.c		optional	nvme
 dev/nvme/nvme_sysctl.c		optional	nvme
 dev/nvme/nvme_test.c		optional	nvme
-dev/nvme/nvme_uio.c		optional	nvme
+dev/nvme/nvme_util.c		optional	nvme
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	random rdrand_rng
 dev/random/nehemiah.c		optional	random padlock_rng
+dev/qlxge/qls_dbg.c		optional	qlxge pci
+dev/qlxge/qls_dump.c		optional	qlxge pci
+dev/qlxge/qls_hw.c		optional	qlxge pci
+dev/qlxge/qls_ioctl.c		optional	qlxge pci
+dev/qlxge/qls_isr.c		optional	qlxge pci
+dev/qlxge/qls_os.c		optional	qlxge pci
 dev/qlxgb/qla_dbg.c		optional	qlxgb pci
 dev/qlxgb/qla_hw.c		optional	qlxgb pci
 dev/qlxgb/qla_ioctl.c		optional	qlxgb pci
 dev/qlxgb/qla_isr.c		optional	qlxgb pci
 dev/qlxgb/qla_misc.c		optional	qlxgb pci
 dev/qlxgb/qla_os.c		optional	qlxgb pci
+dev/qlxgbe/ql_dbg.c		optional	qlxgbe pci
+dev/qlxgbe/ql_hw.c		optional	qlxgbe pci
+dev/qlxgbe/ql_ioctl.c		optional	qlxgbe pci
+dev/qlxgbe/ql_isr.c		optional	qlxgbe pci
+dev/qlxgbe/ql_misc.c		optional	qlxgbe pci
+dev/qlxgbe/ql_os.c		optional	qlxgbe pci
+dev/qlxgbe/ql_reset.c		optional	qlxgbe pci
 dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
 dev/sfxge/common/efx_ev.c	optional sfxge inet pci
 dev/sfxge/common/efx_filter.c	optional sfxge inet pci
@@ -493,6 +519,7 @@ x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/fdt_machdep.c		optional	fdt
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
 x86/x86/legacy.c		standard

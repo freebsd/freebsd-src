@@ -2,14 +2,8 @@
  * EAP method registration
  * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -17,6 +11,7 @@
 #include "common.h"
 #include "eap_peer/eap_methods.h"
 #include "eap_server/eap_methods.h"
+#include "wpa_supplicant_i.h"
 
 
 /**
@@ -39,6 +34,11 @@ int eap_register_methods(void)
 	if (ret == 0)
 		ret = eap_peer_tls_register();
 #endif /* EAP_TLS */
+
+#ifdef EAP_UNAUTH_TLS
+	if (ret == 0)
+		ret = eap_peer_unauth_tls_register();
+#endif /* EAP_UNAUTH_TLS */
 
 #ifdef EAP_MSCHAPv2
 	if (ret == 0)
@@ -130,6 +130,10 @@ int eap_register_methods(void)
 		ret = eap_peer_tnc_register();
 #endif /* EAP_TNC */
 
+#ifdef EAP_PWD
+	if (ret == 0)
+		ret = eap_peer_pwd_register();
+#endif /* EAP_PWD */
 
 #ifdef EAP_SERVER_IDENTITY
 	if (ret == 0)
@@ -145,6 +149,11 @@ int eap_register_methods(void)
 	if (ret == 0)
 		ret = eap_server_tls_register();
 #endif /* EAP_SERVER_TLS */
+
+#ifdef EAP_SERVER_UNAUTH_TLS
+	if (ret == 0)
+		ret = eap_server_unauth_tls_register();
+#endif /* EAP_SERVER_UNAUTH_TLS */
 
 #ifdef EAP_SERVER_MSCHAPV2
 	if (ret == 0)
@@ -230,6 +239,11 @@ int eap_register_methods(void)
 	if (ret == 0)
 		ret = eap_server_tnc_register();
 #endif /* EAP_SERVER_TNC */
+
+#ifdef EAP_SERVER_PWD
+	if (ret == 0)
+		ret = eap_server_pwd_register();
+#endif /* EAP_SERVER_PWD */
 
 	return ret;
 }

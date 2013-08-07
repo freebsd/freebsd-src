@@ -149,6 +149,7 @@ LIBRT?=		${DESTDIR}${LIBDIR}/librt.a
 LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
+LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
 LIBSSH?=	${DESTDIR}${LIBDIR}/libssh.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a

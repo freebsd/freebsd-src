@@ -32,6 +32,12 @@
 # targets             - Print a list of supported TARGET/TARGET_ARCH pairs
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
+# 
+# "quick" way to test all kernel builds:
+# 	_jflag=`sysctl -n hw.ncpu`
+# 	_jflag=$(($_jflag * 2))
+# 	[ $_jflag -gt 12 ] && _jflag=12
+# 	make universe -DMAKE_JUST_KERNELS JFLAG=-j${_jflag}
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -65,8 +71,8 @@
 #  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
-#  8.  `make delete-old'
-#  9.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  8.  `mergemaster'		(you may wish to use -i, along with -U or -F).
+#  9.  `make delete-old'
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
@@ -124,11 +130,34 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 .error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
 	(in make.conf(5)) or command-line variable.
 .endif
-MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
-BINMAKE= \
-	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
+
+# We often need to use the tree's version of make to build it.
+# Choices add to complexity though.
+# We cannot blindly use a make which may not be the one we want
+# so be exlicit - until all choice is removed.
+.if !defined(WITHOUT_BMAKE)
+WANT_MAKE=	bmake
+.else
+WANT_MAKE=	fmake
+.endif
+MYMAKE=		${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}/${WANT_MAKE}
+.if defined(.PARSEDIR)
+HAVE_MAKE=	bmake
+.else
+HAVE_MAKE=	fmake
+.endif
+.if exists(${MYMAKE})
+SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
+.elif ${WANT_MAKE} != ${HAVE_MAKE} || ${WANT_MAKE} != "bmake"
+# It may not exist yet but we may cause it to.
+# In the case of fmake, upgrade_checks may cause a newer version to be built.
+SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 	-m ${.CURDIR}/share/mk
-_MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+.else
+SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
+.endif
+
+_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
@@ -209,6 +238,12 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
+.if empty(.MAKEFLAGS:M-n)
+# skip this for -n to avoid changing previous behavior of 
+# 'make -n buildworld' etc.
+${TGTS}: .MAKE
+.endif
+
 ${TGTS}:
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
@@ -279,8 +314,13 @@ kernel: buildkernel installkernel
 # Perform a few tests to determine if the installed tools are adequate
 # for building the world.
 #
+# Note: if we ever need to care about the version of bmake, simply testing
+# MAKE_VERSION against a required version should suffice.
+#
 upgrade_checks:
-.if !defined(.PARSEDIR)
+.if ${HAVE_MAKE} != ${WANT_MAKE}
+	@(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
+.elif ${WANT_MAKE} == "fmake"
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
@@ -294,7 +334,7 @@ upgrade_checks:
 # headers, libraries and tools.  Also, allow the location of
 # the system bsdmake-like utility to be overridden.
 #
-MMAKEENV=	MAKEOBJDIRPREFIX=${MAKEPATH} \
+MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 		DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
 MMAKE=		${MMAKEENV} ${MAKE} \
@@ -302,16 +342,16 @@ MMAKE=		${MMAKEENV} ${MAKE} \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR
 
-make: .PHONY
+make bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/make; \
+	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
+		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= PROGNAME=${MYMAKE:T}
 
 tinderbox:
 	@cd ${.CURDIR} && ${MAKE} DOING_TINDERBOX=YES universe
@@ -361,6 +401,7 @@ MAKEFAIL=tee -a ${FAILFILE}
 MAKEFAIL=cat
 .endif
 
+universe_prologue:  upgrade_checks
 universe: universe_prologue
 universe_prologue:
 	@echo "--------------------------------------------------------------"
@@ -371,9 +412,9 @@ universe_prologue:
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}
-.ORDER: universe_prologue universe_${target} universe_epilogue
+universe_epilogue: universe_${target}
 universe_${target}: universe_${target}_prologue
-universe_${target}_prologue:
+universe_${target}_prologue: universe_prologue
 	@echo ">> ${target} started on `LC_ALL=C date`"
 .if !defined(MAKE_JUST_KERNELS)
 .for target_arch in ${TARGET_ARCHES_${target}}
@@ -381,7 +422,7 @@ universe_${target}: universe_${target}_${target_arch}
 universe_${target}_${target_arch}: universe_${target}_prologue
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
+	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
 	    TARGET=${target} \
 	    TARGET_ARCH=${target_arch} \
 	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
@@ -402,11 +443,11 @@ universe_${target}: universe_${target}_kernels
 universe_${target}_kernels: universe_${target}_prologue
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
-	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
+	    ${SUB_MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
 .endif
-	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} TARGET=${target} \
+	@cd ${.CURDIR} && ${SUB_MAKE} ${.MAKEFLAGS} TARGET=${target} \
 	    universe_kernels
 .endif
 	@echo ">> ${target} completed on `LC_ALL=C date`"
@@ -429,7 +470,7 @@ TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
 universe_kernconf_${TARGET}_${kernel}:
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} buildkernel \
+	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
 	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
 	    KERNCONF=${kernel} \

@@ -1,6 +1,6 @@
 $FreeBSD$
 
-sendmail 8.14.6
+sendmail 8.14.7
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
 For the import of sendmail, the following directories were renamed:
@@ -97,4 +97,4 @@ infrastructure in FreeBSD:
 	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
-29-December-2012
+21-April-2013

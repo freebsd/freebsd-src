@@ -208,7 +208,7 @@ cpu_mp_setmaxid(void)
 	platform_cpu_mask(&cpumask);
 	mp_ncpus = 0;
 	last = 1;
-	while ((cpu = cpusetobj_ffs(&cpumask)) != 0) {
+	while ((cpu = CPU_FFS(&cpumask)) != 0) {
 		last = cpu;
 		cpu--;
 		CPU_CLR(cpu, &cpumask);
@@ -251,7 +251,7 @@ cpu_mp_start(void)
 	platform_cpu_mask(&cpumask);
 
 	while (!CPU_EMPTY(&cpumask)) {
-		cpuid = cpusetobj_ffs(&cpumask) - 1;
+		cpuid = CPU_FFS(&cpumask) - 1;
 		CPU_CLR(cpuid, &cpumask);
 
 		if (cpuid >= MAXCPU) {

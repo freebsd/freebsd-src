@@ -75,7 +75,7 @@ static g_dumpconf_t g_disk_dumpconf;
 static g_provgone_t g_disk_providergone;
 
 static struct g_class g_disk_class = {
-	.name = "DISK",
+	.name = G_DISK_CLASS_NAME,
 	.version = G_VERSION,
 	.start = g_disk_start,
 	.access = g_disk_access,
@@ -138,17 +138,26 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 				printf("Opened disk %s -> %d\n",
 				    pp->name, error);
 			g_disk_unlock_giant(dp);
+			if (error != 0)
+				return (error);
 		}
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
-		pp->stripeoffset = dp->d_stripeoffset;
-		pp->stripesize = dp->d_stripesize;
-		dp->d_flags |= DISKFLAG_OPEN;
 		if (dp->d_maxsize == 0) {
 			printf("WARNING: Disk drive %s%d has no d_maxsize\n",
 			    dp->d_name, dp->d_unit);
 			dp->d_maxsize = DFLTPHYS;
 		}
+		if (dp->d_delmaxsize == 0) {
+			if (bootverbose && dp->d_flags & DISKFLAG_CANDELETE) {
+				printf("WARNING: Disk drive %s%d has no "
+				    "d_delmaxsize\n", dp->d_name, dp->d_unit);
+			}
+			dp->d_delmaxsize = dp->d_maxsize;
+		}
+		pp->stripeoffset = dp->d_stripeoffset;
+		pp->stripesize = dp->d_stripesize;
+		dp->d_flags |= DISKFLAG_OPEN;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
 		if (dp->d_close != NULL) {
 			g_disk_lock_giant(dp);
@@ -293,6 +302,10 @@ g_disk_start(struct bio *bp)
 			break;
 		}
 		do {
+			off_t d_maxsize;
+
+			d_maxsize = (bp->bio_cmd == BIO_DELETE) ?
+			    dp->d_delmaxsize : dp->d_maxsize;
 			bp2->bio_offset += off;
 			bp2->bio_length -= off;
 			if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
@@ -307,18 +320,20 @@ g_disk_start(struct bio *bp)
 				bp2->bio_ma_offset %= PAGE_SIZE;
 				bp2->bio_ma_n -= off / PAGE_SIZE;
 			}
-			if (bp2->bio_length > dp->d_maxsize) {
+			if (bp2->bio_length > d_maxsize) {
 				/*
 				 * XXX: If we have a stripesize we should really
-				 * use it here.
+				 * use it here. Care should be taken in the delete
+				 * case if this is done as deletes can be very 
+				 * sensitive to size given how they are processed.
 				 */
-				bp2->bio_length = dp->d_maxsize;
+				bp2->bio_length = d_maxsize;
 				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 					bp2->bio_ma_n = howmany(
 					    bp2->bio_ma_offset +
 					    bp2->bio_length, PAGE_SIZE);
 				}
-				off += dp->d_maxsize;
+				off += d_maxsize;
 				/*
 				 * To avoid a race, we need to grab the next bio
 				 * before we schedule this one.  See "notes".
@@ -410,8 +425,11 @@ g_disk_start(struct bio *bp)
 static void
 g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
+	struct bio *bp;
 	struct disk *dp;
 	struct g_disk_softc *sc;
+	char *buf;
+	int res = 0;
 
 	sc = gp->softc;
 	if (sc == NULL || (dp = sc->dp) == NULL)
@@ -426,7 +444,27 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		    indent, dp->d_fwheads);
 		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n",
 		    indent, dp->d_fwsectors);
-		sbuf_printf(sb, "%s<ident>%s</ident>\n", indent, dp->d_ident);
+		if (dp->d_getattr != NULL) {
+			buf = g_malloc(DISK_IDENT_SIZE, M_WAITOK);
+			bp = g_alloc_bio();
+			bp->bio_disk = dp;
+			bp->bio_attribute = "GEOM::ident";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			res = dp->d_getattr(bp);
+			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
+			    res == 0 ? buf: dp->d_ident);
+			bp->bio_attribute = "GEOM::lunid";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			if (dp->d_getattr(bp) == 0)
+				sbuf_printf(sb, "%s<lunid>%s</lunid>\n",
+				    indent, buf);
+			g_destroy_bio(bp);
+			g_free(buf);
+		} else
+			sbuf_printf(sb, "%s<ident>%s</ident>\n", indent,
+			    dp->d_ident);
 		sbuf_printf(sb, "%s<descr>%s</descr>\n", indent, dp->d_descr);
 	}
 }
@@ -589,7 +627,7 @@ void
 disk_create(struct disk *dp, int version)
 {
 
-	if (version != DISK_VERSION_02) {
+	if (version != DISK_VERSION) {
 		printf("WARNING: Attempt to add disk %s%d %s",
 		    dp->d_name, dp->d_unit,
 		    " using incompatible ABI version of disk(9)\n");
@@ -658,8 +696,12 @@ disk_media_changed(struct disk *dp, int flag)
 
 	gp = dp->d_geom;
 	if (gp != NULL) {
-		LIST_FOREACH(pp, &gp->provider, provider)
+		pp = LIST_FIRST(&gp->provider);
+		if (pp != NULL) {
+			KASSERT(LIST_NEXT(pp, provider) == NULL,
+			    ("geom %p has more than one provider", gp));
 			g_media_changed(pp, flag);
+		}
 	}
 }
 
@@ -671,8 +713,12 @@ disk_media_gone(struct disk *dp, int flag)
 
 	gp = dp->d_geom;
 	if (gp != NULL) {
-		LIST_FOREACH(pp, &gp->provider, provider)
+		pp = LIST_FIRST(&gp->provider);
+		if (pp != NULL) {
+			KASSERT(LIST_NEXT(pp, provider) == NULL,
+			    ("geom %p has more than one provider", gp));
 			g_media_gone(pp, flag);
+		}
 	}
 }
 

@@ -563,7 +563,7 @@ mpt_pci_attach(device_t dev)
 	}
 
 	mpt->eh = EVENTHANDLER_REGISTER(shutdown_post_sync, mpt_pci_shutdown,
-	    dev, SHUTDOWN_PRI_DEFAULT);
+	    dev, SHUTDOWN_PRI_LAST);
 
 	if (mpt->eh == NULL) {
 		mpt_prt(mpt, "shutdown event registration failed\n");

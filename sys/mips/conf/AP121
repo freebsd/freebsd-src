@@ -18,7 +18,7 @@ ident           AP121
 hints           "AP121.hints"
 
 # Force the board memory - the base AP121 only has 16MB RAM
-options         AR71XX_REALMEM=16*1024*1024
+options         AR71XX_REALMEM=(16*1024*1024)
 
 # i2c GPIO bus
 #device		gpioiic
@@ -26,11 +26,12 @@ options         AR71XX_REALMEM=16*1024*1024
 #device		iicbus
 #device		iic
 
-# ethernet switch device
-#device		etherswitch
+# Options required for miiproxy and mdiobus
+options 	ARGE_MDIO	# Export an MDIO bus separate from arge
+device		miiproxy	# MDIO bus <-> MII PHY rendezvous
 
-# RTL8366RB support
-#device		rtl8366rb
+device		etherswitch
+device		arswitch
 
 # read MSDOS formatted disks - USB
 #options		MSDOSFS
@@ -40,11 +41,11 @@ options         AR71XX_REALMEM=16*1024*1024
 options		AR71XX_ENV_UBOOT
 
 # uzip - to boot natively from flash
-#device		geom_uzip
-#options		GEOM_UZIP
+device		geom_uncompress
+options 	GEOM_UNCOMPRESS
 
 # Used for the static uboot partition map
 device          geom_map
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options		ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+options		ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"

@@ -3942,7 +3942,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			sctp_hmaclist_t *hmaclist;
 			uint16_t hmacid;
 			uint32_t i;
-			size_t found;
 
 			SCTP_CHECK_AND_CAST(shmac, optval, struct sctp_hmacalgo, optsize);
 			if (optsize < sizeof(struct sctp_hmacalgo) + shmac->shmac_number_of_idents * sizeof(uint16_t)) {
@@ -3966,14 +3965,14 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					goto sctp_set_hmac_done;
 				}
 			}
-			found = 0;
 			for (i = 0; i < hmaclist->num_algo; i++) {
 				if (hmaclist->hmac[i] == SCTP_AUTH_HMAC_ID_SHA1) {
 					/* already in list */
-					found = 1;
+					break;
 				}
 			}
-			if (!found) {
+			if (i == hmaclist->num_algo) {
+				/* not found in list */
 				sctp_free_hmaclist(hmaclist);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;

@@ -10,23 +10,32 @@
 #include "llvm/MC/MCMachObjectWriter.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmLayout.h"
+#include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixupKindInfo.h"
+#include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Object/MachOFormat.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-
 #include <vector>
 using namespace llvm;
 using namespace llvm::object;
+
+void MachObjectWriter::reset() {
+  Relocations.clear();
+  IndirectSymBase.clear();
+  StringTable.clear();
+  LocalSymbolData.clear();
+  ExternalSymbolData.clear();
+  UndefinedSymbolData.clear();
+  MCObjectWriter::reset();
+}
 
 bool MachObjectWriter::
 doesSymbolRequireExternRelocation(const MCSymbolData *SD) {
@@ -367,6 +376,39 @@ void MachObjectWriter::WriteLinkeditLoadCommand(uint32_t Type,
   assert(OS.tell() - Start == macho::LinkeditLoadCommandSize);
 }
 
+static unsigned ComputeLinkerOptionsLoadCommandSize(
+  const std::vector<std::string> &Options, bool is64Bit)
+{
+  unsigned Size = sizeof(macho::LinkerOptionsLoadCommand);
+  for (unsigned i = 0, e = Options.size(); i != e; ++i)
+    Size += Options[i].size() + 1;
+  return RoundUpToAlignment(Size, is64Bit ? 8 : 4);
+}
+
+void MachObjectWriter::WriteLinkerOptionsLoadCommand(
+  const std::vector<std::string> &Options)
+{
+  unsigned Size = ComputeLinkerOptionsLoadCommandSize(Options, is64Bit());
+  uint64_t Start = OS.tell();
+  (void) Start;
+
+  Write32(macho::LCT_LinkerOptions);
+  Write32(Size);
+  Write32(Options.size());
+  uint64_t BytesWritten = sizeof(macho::LinkerOptionsLoadCommand);
+  for (unsigned i = 0, e = Options.size(); i != e; ++i) {
+    // Write each string, including the null byte.
+    const std::string &Option = Options[i];
+    WriteBytes(Option.c_str(), Option.size() + 1);
+    BytesWritten += Option.size() + 1;
+  }
+
+  // Pad to a multiple of the pointer size.
+  WriteBytes("", OffsetToAlignment(BytesWritten, is64Bit() ? 8 : 4));
+
+  assert(OS.tell() - Start == Size);
+}
+
 
 void MachObjectWriter::RecordRelocation(const MCAssembler &Asm,
                                         const MCAsmLayout &Layout,
@@ -684,6 +726,13 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
     macho::SegmentLoadCommand64Size + NumSections * macho::Section64Size :
     macho::SegmentLoadCommand32Size + NumSections * macho::Section32Size;
 
+  // Add the data-in-code load command size, if used.
+  unsigned NumDataRegions = Asm.getDataRegions().size();
+  if (NumDataRegions) {
+    ++NumLoadCommands;
+    LoadCommandsSize += macho::LinkeditLoadCommandSize;
+  }
+
   // Add the symbol table load command sizes, if used.
   unsigned NumSymbols = LocalSymbolData.size() + ExternalSymbolData.size() +
     UndefinedSymbolData.size();
@@ -693,13 +742,15 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
                          macho::DysymtabLoadCommandSize);
   }
 
-  // Add the data-in-code load command size, if used.
-  unsigned NumDataRegions = Asm.getDataRegions().size();
-  if (NumDataRegions) {
+  // Add the linker option load commands sizes.
+  const std::vector<std::vector<std::string> > &LinkerOptions =
+    Asm.getLinkerOptions();
+  for (unsigned i = 0, e = LinkerOptions.size(); i != e; ++i) {
     ++NumLoadCommands;
-    LoadCommandsSize += macho::LinkeditLoadCommandSize;
+    LoadCommandsSize += ComputeLinkerOptionsLoadCommandSize(LinkerOptions[i],
+                                                            is64Bit());
   }
-
+  
   // Compute the total size of the section data, as well as its file size and vm
   // size.
   uint64_t SectionDataStart = (is64Bit() ? macho::Header64Size :
@@ -788,6 +839,11 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
                              FirstExternalSymbol, NumExternalSymbols,
                              FirstUndefinedSymbol, NumUndefinedSymbols,
                              IndirectSymbolOffset, NumIndirectSymbols);
+  }
+
+  // Write the linker options load commands.
+  for (unsigned i = 0, e = LinkerOptions.size(); i != e; ++i) {
+    WriteLinkerOptionsLoadCommand(LinkerOptions[i]);
   }
 
   // Write the actual section data.

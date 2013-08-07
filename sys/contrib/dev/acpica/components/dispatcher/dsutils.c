@@ -264,7 +264,6 @@ AcpiDsIsResultUsed (
 
         case AML_IF_OP:
         case AML_WHILE_OP:
-
             /*
              * If we are executing the predicate AND this is the predicate op,
              * we will use the return value
@@ -277,7 +276,9 @@ AcpiDsIsResultUsed (
             break;
 
         default:
+
             /* Ignore other control opcodes */
+
             break;
         }
 
@@ -285,15 +286,12 @@ AcpiDsIsResultUsed (
 
         goto ResultNotUsed;
 
-
     case AML_CLASS_CREATE:
-
         /*
          * These opcodes allow TermArg(s) as operands and therefore
          * the operands can be method calls. The result is used.
          */
         goto ResultUsed;
-
 
     case AML_CLASS_NAMED_OBJECT:
 
@@ -314,9 +312,7 @@ AcpiDsIsResultUsed (
 
         goto ResultNotUsed;
 
-
     default:
-
         /*
          * In all other cases. the parent will actually use the return
          * object, so keep it.

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/kthread.h>
 #include <sys/selinfo.h>
+#include <sys/stdatomic.h>
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/eventvar.h>
@@ -182,9 +183,9 @@ static struct filterops user_filtops = {
 };
 
 static uma_zone_t	knote_zone;
-static int 		kq_ncallouts = 0;
-static int 		kq_calloutmax = (4 * 1024);
-SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
+static atomic_uint	kq_ncallouts = ATOMIC_VAR_INIT(0);
+static unsigned int 	kq_calloutmax = 4 * 1024;
+SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
     &kq_calloutmax, 0, "Maximum number of callouts allocated for kqueue");
 
 /* XXX - ensure not KN_INFLUX?? */
@@ -549,13 +550,15 @@ static int
 filt_timerattach(struct knote *kn)
 {
 	struct callout *calloutp;
+	unsigned int ncallouts;
 
-	atomic_add_int(&kq_ncallouts, 1);
-
-	if (kq_ncallouts >= kq_calloutmax) {
-		atomic_add_int(&kq_ncallouts, -1);
-		return (ENOMEM);
-	}
+	ncallouts = atomic_load_explicit(&kq_ncallouts, memory_order_relaxed);
+	do {
+		if (ncallouts >= kq_calloutmax)
+			return (ENOMEM);
+	} while (!atomic_compare_exchange_weak_explicit(&kq_ncallouts,
+	    &ncallouts, ncallouts + 1, memory_order_relaxed,
+	    memory_order_relaxed));
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add usually sets it */
@@ -573,11 +576,13 @@ static void
 filt_timerdetach(struct knote *kn)
 {
 	struct callout *calloutp;
+	unsigned int old;
 
 	calloutp = (struct callout *)kn->kn_hook;
 	callout_drain(calloutp);
 	free(calloutp, M_KQUEUE);
-	atomic_add_int(&kq_ncallouts, -1);
+	old = atomic_fetch_sub_explicit(&kq_ncallouts, 1, memory_order_relaxed);
+	KASSERT(old > 0, ("Number of callouts cannot become negative"));
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove usually clears it */
 }
 

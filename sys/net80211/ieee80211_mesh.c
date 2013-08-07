@@ -1040,14 +1040,10 @@ mesh_transmit_to_gate(struct ieee80211vap *vap, struct mbuf *m,
     struct ieee80211_mesh_route *rt_gate)
 {
 	struct ifnet *ifp = vap->iv_ifp;
-	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni;
-	struct ether_header *eh;
-	int error;
 
-	IEEE80211_TX_UNLOCK_ASSERT(ic);
+	IEEE80211_TX_UNLOCK_ASSERT(vap->iv_ic);
 
-	eh = mtod(m, struct ether_header *);
 	ni = ieee80211_mesh_find_txnode(vap, rt_gate->rt_dest);
 	if (ni == NULL) {
 		ifp->if_oerrors++;
@@ -1055,105 +1051,13 @@ mesh_transmit_to_gate(struct ieee80211vap *vap, struct mbuf *m,
 		return;
 	}
 
-	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
-	    (m->m_flags & M_PWR_SAV) == 0) {
-		/*
-		 * Station in power save mode; pass the frame
-		 * to the 802.11 layer and continue.  We'll get
-		 * the frame back when the time is right.
-		 * XXX lose WDS vap linkage?
-		 */
-		(void) ieee80211_pwrsave(ni, m);
-		ieee80211_free_node(ni);
-		return;
-	}
-
-	/* calculate priority so drivers can find the tx queue */
-	if (ieee80211_classify(ni, m)) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
-			eh->ether_dhost, NULL,
-			"%s", "classification failure");
-		vap->iv_stats.is_tx_classify++;
-		ifp->if_oerrors++;
-		m_freem(m);
-		ieee80211_free_node(ni);
-		return;
-	}
 	/*
-	 * Stash the node pointer.  Note that we do this after
-	 * any call to ieee80211_dwds_mcast because that code
-	 * uses any existing value for rcvif to identify the
-	 * interface it (might have been) received on.
+	 * Send through the VAP packet transmit path.
+	 * This consumes the node ref grabbed above and
+	 * the mbuf, regardless of whether there's a problem
+	 * or not.
 	 */
-	m->m_pkthdr.rcvif = (void *)ni;
-
-	BPF_MTAP(ifp, m);		/* 802.3 tx */
-
-	/*
-	 * Check if A-MPDU tx aggregation is setup or if we
-	 * should try to enable it.  The sta must be associated
-	 * with HT and A-MPDU enabled for use.  When the policy
-	 * routine decides we should enable A-MPDU we issue an
-	 * ADDBA request and wait for a reply.  The frame being
-	 * encapsulated will go out w/o using A-MPDU, or possibly
-	 * it might be collected by the driver and held/retransmit.
-	 * The default ic_ampdu_enable routine handles staggering
-	 * ADDBA requests in case the receiver NAK's us or we are
-	 * otherwise unable to establish a BA stream.
-	 */
-	if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
-	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
-	    (m->m_flags & M_EAPOL) == 0) {
-		int tid = WME_AC_TO_TID(M_WME_GETAC(m));
-		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
-
-		ieee80211_txampdu_count_packet(tap);
-		if (IEEE80211_AMPDU_RUNNING(tap)) {
-			/*
-			 * Operational, mark frame for aggregation.
-			 *
-			 * XXX do tx aggregation here
-			 */
-			m->m_flags |= M_AMPDU_MPDU;
-		} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
-			ic->ic_ampdu_enable(ni, tap)) {
-			/*
-			 * Not negotiated yet, request service.
-			 */
-			ieee80211_ampdu_request(ni, tap);
-			/* XXX hold frame for reply? */
-		}
-	}
-#ifdef IEEE80211_SUPPORT_SUPERG
-	else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
-		m = ieee80211_ff_check(ni, m);
-		if (m == NULL) {
-			/* NB: any ni ref held on stageq */
-			return;
-		}
-	}
-#endif /* IEEE80211_SUPPORT_SUPERG */
-
-	IEEE80211_TX_LOCK(ic);
-	if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
-		/*
-		 * Encapsulate the packet in prep for transmission.
-		 */
-		m = ieee80211_encap(vap, ni, m);
-		if (m == NULL) {
-			/* NB: stat+msg handled in ieee80211_encap */
-			ieee80211_free_node(ni);
-			return;
-		}
-	}
-	error = ieee80211_parent_transmit(ic, m);
-	IEEE80211_TX_UNLOCK(ic);
-	if (error != 0) {
-		ieee80211_free_node(ni);
-	} else {
-		ifp->if_opackets++;
-	}
-	ic->ic_lastdata = ticks;
+	(void) ieee80211_vap_pkt_send_dest(vap, m, ni);
 }
 
 /*

@@ -96,7 +96,6 @@ device		cambria_gpio	# GPIO pins on J11
 
 device		ata
 device		avila_ata	# Gateworks CF/IDE support
-options 	ATA_CAM
 
 device		npe		# Network Processing Engine
 device		npe_fw

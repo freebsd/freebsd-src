@@ -97,6 +97,10 @@ struct securenet *securenets;
 
 #define LINEBUFSZ 1024
 
+#ifdef TCP_WRAPPER
+int hosts_ctl(char *, char *, char *, char *);
+#endif
+
 /*
  * Read /var/yp/securenets file and initialize the securenets
  * list. If the file doesn't exist, we set up a dummy entry that

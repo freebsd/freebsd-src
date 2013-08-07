@@ -56,6 +56,7 @@ blackend [label="Marc Fonvieille\nblackend@FreeBSD.org\n2002/06/16"]
 brd [label="Brad Davis\nbrd@FreeBSD.org\n2005/06/01"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2003/01/13"]
 chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20"]
+crees [label="Chris Rees\ncrees@FreeBSD.org\n2013/05/27"]
 danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
 dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22"]
@@ -95,6 +96,7 @@ bcr -> gavin
 bcr -> wblock
 bcr -> eadler
 bcr -> dru
+bcr -> crees
 
 blackend -> ale
 
@@ -120,6 +122,7 @@ gabor -> ebrandi
 gjb -> wblock
 gjb -> rene
 gjb -> dru
+gjb -> crees
 
 hrs -> ryusuke
 hrs -> dru

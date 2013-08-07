@@ -243,7 +243,7 @@ null_transmit(struct ifnet *ifp, struct mbuf *m)
 
 static int
 null_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	if_printf(ifp, "discard raw packet\n");
 	return null_transmit(ifp, m);

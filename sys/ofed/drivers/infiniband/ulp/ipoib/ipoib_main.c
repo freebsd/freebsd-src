@@ -88,7 +88,7 @@ static void ipoib_add_one(struct ib_device *device);
 static void ipoib_remove_one(struct ib_device *device);
 static void ipoib_start(struct ifnet *dev);
 static int ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	    struct sockaddr *dst, struct route *ro);
+	    const struct sockaddr *dst, struct route *ro);
 static int ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static void ipoib_input(struct ifnet *ifp, struct mbuf *m);
 
@@ -1252,7 +1252,7 @@ ipoib_cleanup_module(void)
  */
 static int
 ipoib_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	u_char edst[INFINIBAND_ALEN];
 	struct llentry *lle = NULL;

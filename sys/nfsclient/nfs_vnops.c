@@ -1379,8 +1379,8 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 	while (tsiz > 0) {
 		nfsstats.rpccnt[NFSPROC_WRITE]++;
 		len = (tsiz > wsize) ? wsize : tsiz;
-		mreq = m_get2(NFSX_FH(v3) + 5 * NFSX_UNSIGNED + nfsm_rndup(len),
-		    M_WAITOK, MT_DATA, 0);
+		mreq = m_get2(NFSX_FH(v3) + 5 * NFSX_UNSIGNED, M_WAITOK,
+		    MT_DATA, 0);
 		mb = mreq;
 		bpos = mtod(mb, caddr_t);
 		nfsm_fhtom(vp, v3);
@@ -3177,7 +3177,7 @@ loop:
 
 			error = BUF_TIMELOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_MTX(bo), "nfsfsync", slpflag, slptimeo);
+			    BO_LOCKPTR(bo), "nfsfsync", slpflag, slptimeo);
 			if (error == 0) {
 				BUF_UNLOCK(bp);
 				goto loop;

@@ -44,6 +44,7 @@
 /* structure prototypes */
 
 struct usb_proc_msg;
+struct usb_device;
 
 /*
  * The following structure defines the USB process.
@@ -80,5 +81,10 @@ void	usb_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
 void	usb_proc_free(struct usb_process *up);
 void   *usb_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
 void	usb_proc_rewakeup(struct usb_process *up);
+
+void	usb_proc_explore_mwait(struct usb_device *, void *, void *);
+void   *usb_proc_explore_msignal(struct usb_device *, void *, void *);
+void	usb_proc_explore_lock(struct usb_device *);
+void	usb_proc_explore_unlock(struct usb_device *);
 
 #endif					/* _USB_PROCESS_H_ */

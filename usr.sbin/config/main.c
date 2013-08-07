@@ -706,17 +706,11 @@ kernconfdump(const char *file)
 		r = fgetc(fp);
 		if (r == EOF)
 			break;
-		/* 
-		 * If '\0' is present in the middle of the configuration
-		 * string, this means something very weird is happening.
-		 * Make such case very visible.  However, some architectures
-		 * pad the length of the section with NULs to a multiple of
-		 * sh_addralign, allow a NUL in that part of the section.
-		 */
-		if (r == '\0' && (size - i) < align)
+		if (r == '\0') {
+			assert(i == size - 1 &&
+			    ("\\0 found in the middle of a file"));
 			break;
-		assert(r != '\0' && ("Char present in the configuration "
-		    "string mustn't be equal to 0"));
+		}
 		fputc(r, stdout);
 	}
 	fclose(fp);

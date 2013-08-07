@@ -1,4 +1,4 @@
-# $Id: options.mk,v 1.6 2013/01/28 19:28:52 sjg Exp $
+# $Id: options.mk,v 1.7 2013/04/17 20:32:38 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -13,7 +13,7 @@
 #	sjg@crufty.net
 #
 
-# Inspired by FreeBSD bsd.own.mk, but intentionally simpler.
+# Inspired by FreeBSD bsd.own.mk, but intentionally simpler and more flexible.
 
 # Options are normally listed in either OPTIONS_DEFAULT_{YES,NO}
 # We convert these to ${OPTION}/{yes,no} in OPTIONS_DEFAULT_VALUES.
@@ -24,35 +24,36 @@
 # ${OPTION}/yes in OPTIONS_DEFAULT_VALUES.
 # A makefile may set NO_* (or NO*) to indicate it cannot do something.
 # User sets WITH_* and WITHOUT_* to indicate what they want.
-# We set MK_* which is then all we need care about.
+# We set ${OPTION_PREFIX:UMK_}* which is then all we need care about.
 OPTIONS_DEFAULT_VALUES += \
 	${OPTIONS_DEFAULT_NO:O:u:S,$,/no,} \
 	${OPTIONS_DEFAULT_YES:O:u:S,$,/yes,}
 
+OPTION_PREFIX ?= MK_
 .for o in ${OPTIONS_DEFAULT_VALUES:M*/*}
 .if ${o:T:tl} == "no"
 .if defined(WITH_${o:H}) && !defined(NO_${o:H}) && !defined(NO${o:H})
-MK_${o:H} ?= yes
+${OPTION_PREFIX}${o:H} ?= yes
 .else
-MK_${o:H} ?= no
+${OPTION_PREFIX}${o:H} ?= no
 .endif
 .else
 .if defined(WITHOUT_${o:H}) || defined(NO_${o:H}) || defined(NO${o:H})
-MK_${o:H} ?= no
+${OPTION_PREFIX}${o:H} ?= no
 .else
-MK_${o:H} ?= yes
+${OPTION_PREFIX}${o:H} ?= yes
 .endif
 .endif
 .endfor
 
 # OPTIONS_DEFAULT_DEPENDENT += FOO_UTILS/FOO
-# if neither WITH[OUT]_FOO_UTILS is set, use value of MK_FOO
+# if neither WITH[OUT]_FOO_UTILS is set, use value of ${OPTION_PREFIX}FOO
 .for o in ${OPTIONS_DEFAULT_DEPENDENT:M*/*:O:u}
 .if defined(WITH_${o:H}) && !defined(NO_${o:H}) && !defined(NO${o:H})
-MK_${o:H} ?= yes
+${OPTION_PREFIX}${o:H} ?= yes
 .elif defined(WITHOUT_${o:H}) || defined(NO_${o:H}) || defined(NO${o:H})
-MK_${o:H} ?= no
+${OPTION_PREFIX}${o:H} ?= no
 .else
-MK_${o:H} ?= ${MK_${o:T}}
+${OPTION_PREFIX}${o:H} ?= ${${OPTION_PREFIX}${o:T}}
 .endif
 .endfor

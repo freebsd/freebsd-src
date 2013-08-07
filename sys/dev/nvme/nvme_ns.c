@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,39 +45,22 @@ static int
 nvme_ns_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
-	struct nvme_completion_poll_status	status;
 	struct nvme_namespace			*ns;
 	struct nvme_controller			*ctrlr;
+	struct nvme_pt_command			*pt;
 
 	ns = cdev->si_drv1;
 	ctrlr = ns->ctrlr;
 
 	switch (cmd) {
-	case NVME_IDENTIFY_NAMESPACE:
-#ifdef CHATHAM2
-		/*
-		 * Don't refresh data on Chatham, since Chatham returns
-		 *  garbage on IDENTIFY anyways.
-		 */
-		if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID) {
-			memcpy(arg, &ns->data, sizeof(ns->data));
-			break;
-		}
-#endif
-		/* Refresh data before returning to user. */
-		status.done = FALSE;
-		nvme_ctrlr_cmd_identify_namespace(ctrlr, ns->id, &ns->data,
-		    nvme_completion_poll_cb, &status);
-		while (status.done == FALSE)
-			DELAY(5);
-		if (nvme_completion_is_error(&status.cpl))
-			return (ENXIO);
-		memcpy(arg, &ns->data, sizeof(ns->data));
-		break;
 	case NVME_IO_TEST:
 	case NVME_BIO_TEST:
 		nvme_ns_test(ns, cmd, arg);
 		break;
+	case NVME_PASSTHROUGH_CMD:
+		pt = (struct nvme_pt_command *)arg;
+		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, ns->id, 
+		    1 /* is_user_buffer */, 0 /* is_admin_cmd */));
 	case DIOCGMEDIASIZE:
 		*(off_t *)arg = (off_t)nvme_ns_get_size(ns);
 		break;
@@ -152,13 +135,11 @@ static struct cdevsw nvme_ns_cdevsw = {
 	.d_version =	D_VERSION,
 #ifdef NVME_UNMAPPED_BIO_SUPPORT
 	.d_flags =	D_DISK | D_UNMAPPED_IO,
-	.d_read =	physread,
-	.d_write =	physwrite,
 #else
 	.d_flags =	D_DISK,
-	.d_read =	nvme_ns_physio,
-	.d_write =	nvme_ns_physio,
 #endif
+	.d_read =	physread,
+	.d_write =	physwrite,
 	.d_open =	nvme_ns_open,
 	.d_close =	nvme_ns_close,
 	.d_strategy =	nvme_ns_strategy,
@@ -174,7 +155,7 @@ nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns)
 uint32_t
 nvme_ns_get_sector_size(struct nvme_namespace *ns)
 {
-	return (1 << ns->data.lbaf[0].lbads);
+	return (1 << ns->data.lbaf[ns->data.flbas.format].lbads);
 }
 
 uint64_t
@@ -300,6 +281,17 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	ns->ctrlr = ctrlr;
 	ns->id = id;
 
+	/*
+	 * Namespaces are reconstructed after a controller reset, so check
+	 *  to make sure we only call mtx_init once on each mtx.
+	 *
+	 * TODO: Move this somewhere where it gets called at controller
+	 *  construction time, which is not invoked as part of each
+	 *  controller reset.
+	 */
+	if (!mtx_initialized(&ns->lock))
+		mtx_init(&ns->lock, "nvme ns lock", NULL, MTX_DEF);
+
 #ifdef CHATHAM2
 	if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID)
 		nvme_ns_populate_chatham_data(ns);
@@ -317,6 +309,16 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 #ifdef CHATHAM2
 	}
 #endif
+
+	/*
+	 * Note: format is a 0-based value, so > is appropriate here,
+	 *  not >=.
+	 */
+	if (ns->data.flbas.format > ns->data.nlbaf) {
+		printf("lba format %d exceeds number supported (%d)\n",
+		    ns->data.flbas.format, ns->data.nlbaf+1);
+		return (1);
+	}
 
 	if (ctrlr->cdata.oncs.dsm)
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;

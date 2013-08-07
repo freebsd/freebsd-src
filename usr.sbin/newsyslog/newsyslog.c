@@ -1083,7 +1083,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 		 * at any time, etc).
 		 */
 		if (strcasecmp(DEBUG_MARKER, q) == 0) {
-			q = parse = missing_field(sob(++parse), errline);
+			q = parse = missing_field(sob(parse + 1), errline);
 			parse = son(parse);
 			if (!*parse)
 				warnx("debug line specifies no option:\n%s",
@@ -1096,7 +1096,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 		} else if (strcasecmp(INCLUDE_MARKER, q) == 0) {
 			if (verbose)
 				printf("Found: %s", errline);
-			q = parse = missing_field(sob(++parse), errline);
+			q = parse = missing_field(sob(parse + 1), errline);
 			parse = son(parse);
 			if (!*parse) {
 				warnx("include line missing argument:\n%s",
@@ -1138,7 +1138,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			defconf_p = working;
 		}
 
-		q = parse = missing_field(sob(++parse), errline);
+		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
 		if (!*parse)
 			errx(1, "malformed line (missing fields):\n%s",
@@ -1172,7 +1172,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			} else
 				working->gid = (gid_t)-1;
 
-			q = parse = missing_field(sob(++parse), errline);
+			q = parse = missing_field(sob(parse + 1), errline);
 			parse = son(parse);
 			if (!*parse)
 				errx(1, "malformed line (missing fields):\n%s",
@@ -1187,7 +1187,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			errx(1, "error in config file; bad permissions:\n%s",
 			    errline);
 
-		q = parse = missing_field(sob(++parse), errline);
+		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
 		if (!*parse)
 			errx(1, "malformed line (missing fields):\n%s",
@@ -1197,7 +1197,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			errx(1, "error in config file; bad value for count of logs to save:\n%s",
 			    errline);
 
-		q = parse = missing_field(sob(++parse), errline);
+		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
 		if (!*parse)
 			errx(1, "malformed line (missing fields):\n%s",
@@ -1215,7 +1215,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 
 		working->flags = 0;
 		working->compress = COMPRESS_NONE;
-		q = parse = missing_field(sob(++parse), errline);
+		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
 		eol = !*parse;
 		*parse = '\0';
@@ -1257,7 +1257,7 @@ no_trimat:
 		if (eol)
 			q = NULL;
 		else {
-			q = parse = sob(++parse);	/* Optional field */
+			q = parse = sob(parse + 1);	/* Optional field */
 			parse = son(parse);
 			if (!*parse)
 				eol = 1;
@@ -1327,7 +1327,7 @@ no_trimat:
 		if (eol)
 			q = NULL;
 		else {
-			q = parse = sob(++parse);	/* Optional field */
+			q = parse = sob(parse + 1);	/* Optional field */
 			parse = son(parse);
 			if (!*parse)
 				eol = 1;
@@ -1348,7 +1348,7 @@ no_trimat:
 		if (eol)
 			q = NULL;
 		else {
-			q = parse = sob(++parse);	/* Optional field */
+			q = parse = sob(parse + 1);	/* Optional field */
 			*(parse = son(parse)) = '\0';
 		}
 
@@ -1452,16 +1452,27 @@ oldlog_entry_compare(const void *a, const void *b)
  * tm if this is the case; otherwise return false.
  */
 static int
-validate_old_timelog(const struct dirent *dp, const char *logfname, struct tm *tm)
+validate_old_timelog(int fd, const struct dirent *dp, const char *logfname,
+    struct tm *tm)
 {
+	struct stat sb;
 	size_t logfname_len;
 	char *s;
 	int c;
 
 	logfname_len = strlen(logfname);
 
-	if (dp->d_type != DT_REG)
-		return (0);
+	if (dp->d_type != DT_REG) {
+		/*
+		 * Some filesystems (e.g. NFS) don't fill out the d_type field
+		 * and leave it set to DT_UNKNOWN; in this case we must obtain
+		 * the file type ourselves.
+		 */
+		if (dp->d_type != DT_UNKNOWN ||
+		    fstatat(fd, dp->d_name, &sb, AT_SYMLINK_NOFOLLOW) != 0 ||
+		    !S_ISREG(sb.st_mode))
+			return (0);
+	}
 	/* Ignore everything but files with our logfile prefix. */
 	if (strncmp(dp->d_name, logfname, logfname_len) != 0)
 		return (0);
@@ -1547,7 +1558,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		err(1, "Cannot open log directory '%s'", dir);
 	dir_fd = dirfd(dirp);
 	while ((dp = readdir(dirp)) != NULL) {
-		if (validate_old_timelog(dp, logfname, &tm) == 0)
+		if (validate_old_timelog(dir_fd, dp, logfname, &tm) == 0)
 			continue;
 
 		/*
@@ -2312,10 +2323,10 @@ mtime_old_timelog(const char *file)
 	dir_fd = dirfd(dirp);
 	/* Open the archive dir and find the most recent archive of logfname. */
 	while ((dp = readdir(dirp)) != NULL) {
-		if (validate_old_timelog(dp, logfname, &tm) == 0)
+		if (validate_old_timelog(dir_fd, dp, logfname, &tm) == 0)
 			continue;
 
-		if (fstatat(dir_fd, logfname, &sb, 0) == -1) {
+		if (fstatat(dir_fd, dp->d_name, &sb, AT_SYMLINK_NOFOLLOW) == -1) {
 			warn("Cannot stat '%s'", file);
 			continue;
 		}

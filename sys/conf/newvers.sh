@@ -88,16 +88,26 @@ v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep 'version')
 
-for dir in /bin /usr/bin /usr/local/bin; do
+if [ -x /usr/bin/svnliteversion ] ; then
+	svnversion=/usr/bin/svnliteversion
+fi
+
+for dir in /usr/bin /usr/local/bin; do
+	if [ ! -z "${svnversion}" ] ; then
+		break
+	fi
 	if [ -x "${dir}/svnversion" ] && [ -z ${svnversion} ] ; then
 		svnversion=${dir}/svnversion
+		break
 	fi
+done
+for dir in /usr/bin /usr/local/bin; do
 	if [ -x "${dir}/p4" ] && [ -z ${p4_cmd} ] ; then
 		p4_cmd=${dir}/p4
 	fi
 done
 if [ -d "${SYSDIR}/../.git" ] ; then
-	for dir in /bin /usr/bin /usr/local/bin; do
+	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/git" ] ; then
 			git_cmd="${dir}/git --git-dir=${SYSDIR}/../.git"
 			break
@@ -106,7 +116,7 @@ if [ -d "${SYSDIR}/../.git" ] ; then
 fi
 
 if [ -n "$svnversion" ] ; then
-	svn=`cd ${SYSDIR} && $svnversion`
+	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
 	case "$svn" in
 	[0-9]*)	svn=" r${svn}" ;;
 	*)	unset svn ;;
@@ -122,7 +132,12 @@ if [ -n "$git_cmd" ] ; then
 	else
 		svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
 		     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
-		if [ -n $svn ] ; then
+		if [ -z "$svn" ] ; then
+			svn=`$git_cmd log --format='format:%N' | \
+			     grep '^svn ' | head -1 | \
+			     sed -n 's/^.*revision=\([0-9][0-9]*\).*$/\1/p'`
+		fi
+		if [ -n "$svn" ] ; then
 			svn=" r${svn}"
 			git="+${git}"
 		else

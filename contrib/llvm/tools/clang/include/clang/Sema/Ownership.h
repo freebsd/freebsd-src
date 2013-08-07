@@ -23,13 +23,10 @@
 //===----------------------------------------------------------------------===//
 
 namespace clang {
-  class Attr;
   class CXXCtorInitializer;
   class CXXBaseSpecifier;
   class Decl;
-  class DeclGroupRef;
   class Expr;
-  class NestedNameSpecifier;
   class ParsedTemplateArgument;
   class QualType;
   class Stmt;
@@ -210,6 +207,15 @@ namespace clang {
       assert((PtrWithInvalid & 0x01) == 0 && "Badly aligned pointer");
       return *this;
     }
+
+    // For types where we can fit a flag in with the pointer, provide
+    // conversions to/from pointer type.
+    static ActionResult getFromOpaquePointer(void *P) {
+      ActionResult Result;
+      Result.PtrWithInvalid = (uintptr_t)P;
+      return Result;
+    }
+    void *getAsOpaquePointer() const { return (void*)PtrWithInvalid; }
   };
 
   /// An opaque type for threading parsed type information through the

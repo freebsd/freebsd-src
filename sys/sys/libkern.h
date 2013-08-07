@@ -70,6 +70,11 @@ static __inline int abs(int a) { return (a < 0 ? -a : a); }
 static __inline long labs(long a) { return (a < 0 ? -a : a); }
 static __inline quad_t qabs(quad_t a) { return (a < 0 ? -a : a); }
 
+#define	ARC4_ENTR_NONE	0	/* Don't have entropy yet. */
+#define	ARC4_ENTR_HAVE	1	/* Have entropy. */
+#define	ARC4_ENTR_SEED	2	/* Reseeding. */
+extern int arc4rand_iniseed_state;
+
 /* Prototypes for non-quad routines. */
 struct malloc_type;
 uint32_t arc4random(void);
@@ -89,6 +94,10 @@ int	 fls(int);
 #ifndef	HAVE_INLINE_FLSL
 int	 flsl(long);
 #endif
+#ifndef	HAVE_INLINE_FLSLL
+int	 flsll(long long);
+#endif
+
 int	 fnmatch(const char *, const char *, int);
 int	 locc(int, char *, u_int);
 void	*memchr(const void *s, int c, size_t n);

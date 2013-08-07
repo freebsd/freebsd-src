@@ -382,7 +382,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 
 		obj = entry->object.vm_object;
 		if (obj != NULL)
-			VM_OBJECT_WLOCK(obj);
+			VM_OBJECT_RLOCK(obj);
 	} while (0);
 
 	vm_map_unlock_read(map);
@@ -395,9 +395,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		lobj = obj;
 		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 			pve->pve_offset += tobj->backing_object_offset;
 		}
@@ -405,8 +405,8 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
-			VM_OBJECT_WUNLOCK(lobj);
-		VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(lobj);
+		VM_OBJECT_RUNLOCK(obj);
 
 		if (vp != NULL) {
 			freepath = NULL;

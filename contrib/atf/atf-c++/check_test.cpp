@@ -61,7 +61,7 @@ std::auto_ptr< atf::check::check_result >
 do_exec(const atf::tests::tc* tc, const char* helper_name)
 {
     std::vector< std::string > argv;
-    argv.push_back(get_process_helpers_path(*tc).str());
+    argv.push_back(get_process_helpers_path(*tc, false).str());
     argv.push_back(helper_name);
     std::cout << "Executing " << argv[0] << " " << argv[1] << "\n";
 
@@ -74,7 +74,7 @@ std::auto_ptr< atf::check::check_result >
 do_exec(const atf::tests::tc* tc, const char* helper_name, const char *carg2)
 {
     std::vector< std::string > argv;
-    argv.push_back(get_process_helpers_path(*tc).str());
+    argv.push_back(get_process_helpers_path(*tc, false).str());
     argv.push_back(helper_name);
     argv.push_back(carg2);
     std::cout << "Executing " << argv[0] << " " << argv[1] << " "

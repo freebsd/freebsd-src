@@ -4704,8 +4704,6 @@ enable_trackpoint(KBDC kbdc, struct psm_softc *sc)
 {
 	int id;
 
-	kbdc = sc->kbdc;
-
 	if (send_aux_command(kbdc, 0xe1) != PSM_ACK ||
 	    read_aux_data(kbdc) != 0x01)
 		return (FALSE);

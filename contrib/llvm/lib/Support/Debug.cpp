@@ -23,10 +23,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/circular_raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/circular_raw_ostream.h"
 
 using namespace llvm;
 
@@ -44,7 +44,7 @@ Debug("debug", cl::desc("Enable debug output"), cl::Hidden,
 //until program termination.
 static cl::opt<unsigned>
 DebugBufferSize("debug-buffer-size",
-                cl::desc("Buffer the last N characters of debug output"
+                cl::desc("Buffer the last N characters of debug output "
                          "until program termination. "
                          "[default 0 -- immediate print-out]"),
                 cl::Hidden,

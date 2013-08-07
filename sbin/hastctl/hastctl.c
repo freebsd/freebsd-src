@@ -293,6 +293,7 @@ control_set_role(struct nv *nv, const char *newrole)
 static int
 control_list(struct nv *nv)
 {
+	pid_t pid;
 	unsigned int ii;
 	const char *str;
 	int error, ret;
@@ -331,6 +332,9 @@ control_list(struct nv *nv)
 		str = nv_get_string(nv, "status%u", ii);
 		if (str != NULL)
 			printf("  status: %s\n", str);
+		pid = nv_get_int32(nv, "workerpid%u", ii);
+		if (pid != 0)
+			printf("  workerpid: %d\n", pid);
 		printf("  dirty: %ju (%NB)\n",
 		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii),
 		    (intmax_t)nv_get_uint64(nv, "dirty%u", ii));
@@ -504,18 +508,8 @@ main(int argc, char *argv[])
 			nv_add_string(nv, argv[ii + 1], "resource%d", ii);
 		break;
 	case CMD_LIST:
-		/* Obtain verbose status of the given resources. */
-		nv = nv_alloc();
-		nv_add_uint8(nv, HASTCTL_CMD_STATUS, "cmd");
-		if (argc == 0)
-			nv_add_string(nv, "all", "resource%d", 0);
-		else {
-			for (ii = 0; ii < argc; ii++)
-				nv_add_string(nv, argv[ii], "resource%d", ii);
-		}
-		break;
 	case CMD_STATUS:
-		/* Obtain brief status of the given resources. */
+		/* Obtain status of the given resources. */
 		nv = nv_alloc();
 		nv_add_uint8(nv, HASTCTL_CMD_STATUS, "cmd");
 		if (argc == 0)

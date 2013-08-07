@@ -58,11 +58,15 @@ struct	icmpstat {
 };
 
 #ifdef _KERNEL
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct icmpstat, icmpstat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	ICMPSTAT_ADD(name, val)	V_icmpstat.name += (val)
+#define	ICMPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct icmpstat, icmpstat, name, (val))
 #define	ICMPSTAT_INC(name)	ICMPSTAT_ADD(name, 1)
 
 /*
@@ -70,7 +74,7 @@ struct	icmpstat {
  */
 void	kmod_icmpstat_inc(int statnum);
 #define	KMOD_ICMPSTAT_INC(name)						\
-	kmod_icmpstat_inc(offsetof(struct icmpstat, name) / sizeof(u_long))
+    kmod_icmpstat_inc(offsetof(struct icmpstat, name) / sizeof(uint64_t))
 #endif
 
 /*
@@ -90,9 +94,6 @@ void	kmod_icmpstat_inc(int statnum);
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_icmp);
-
-VNET_DECLARE(struct icmpstat, icmpstat);	/* icmp statistics. */
-#define	V_icmpstat	VNET(icmpstat)
 
 extern int badport_bandlim(int);
 #define BANDLIM_UNLIMITED -1

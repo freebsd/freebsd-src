@@ -36,13 +36,13 @@
 #pragma D option quiet
 #pragma D option statusrate=10ms
 
-fbt::ioctl:entry
+fbt::kern_ioctl:entry
 {
 	printf("Entering the ioctl function\n");
 	printf("The few arguments are %u %u %u %u\n", arg0, arg1, arg2, arg3);
 }
 
-fbt::ioctl:return
+fbt::kern_ioctl:return
 {
 	printf("Returning from ioctl function\n");
 	printf("The few arguments are %u %u %u %u\n", arg0, arg1, arg2, arg3);

@@ -1355,32 +1355,32 @@ vn_ioctl(fp, com, data, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct vnode *vp = fp->f_vnode;
 	struct vattr vattr;
+	struct vnode *vp;
 	int error;
 
-	error = ENOTTY;
+	vp = fp->f_vnode;
 	switch (vp->v_type) {
-	case VREG:
 	case VDIR:
-		if (com == FIONREAD) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	case VREG:
+		switch (com) {
+		case FIONREAD:
+			vn_lock(vp, LK_SHARED | LK_RETRY);
 			error = VOP_GETATTR(vp, &vattr, active_cred);
 			VOP_UNLOCK(vp, 0);
-			if (!error)
+			if (error == 0)
 				*(int *)data = vattr.va_size - fp->f_offset;
+			return (error);
+		case FIONBIO:
+		case FIOASYNC:
+			return (0);
+		default:
+			return (VOP_IOCTL(vp, com, data, fp->f_flag,
+			    active_cred, td));
 		}
-		if (com == FIONBIO || com == FIOASYNC)	/* XXX */
-			error = 0;
-		else
-			error = VOP_IOCTL(vp, com, data, fp->f_flag,
-			    active_cred, td);
-		break;
-
 	default:
-		break;
+		return (ENOTTY);
 	}
-	return (error);
 }
 
 /*
@@ -1668,8 +1668,7 @@ vn_finished_secondary_write(mp)
  * Request a filesystem to suspend write operations.
  */
 int
-vfs_write_suspend(mp)
-	struct mount *mp;
+vfs_write_suspend(struct mount *mp, int flags)
 {
 	int error;
 
@@ -1680,6 +1679,21 @@ vfs_write_suspend(mp)
 	}
 	while (mp->mnt_kern_flag & MNTK_SUSPEND)
 		msleep(&mp->mnt_flag, MNT_MTX(mp), PUSER - 1, "wsuspfs", 0);
+
+	/*
+	 * Unmount holds a write reference on the mount point.  If we
+	 * own busy reference and drain for writers, we deadlock with
+	 * the reference draining in the unmount path.  Callers of
+	 * vfs_write_suspend() must specify VS_SKIP_UNMOUNT if
+	 * vfs_busy() reference is owned and caller is not in the
+	 * unmount context.
+	 */
+	if ((flags & VS_SKIP_UNMOUNT) != 0 &&
+	    (mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
+		MNT_IUNLOCK(mp);
+		return (EBUSY);
+	}
+
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
 	mp->mnt_susp_owner = curthread;
 	if (mp->mnt_writeopcount > 0)

@@ -132,7 +132,6 @@ enum {
 #else
 	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
-	OFLD_BUF_SIZE = MJUM16BYTES,	/* size of fl buffer for TOE rxq */
 
 	CTRL_EQ_QSIZE = 128,
 
@@ -173,6 +172,7 @@ enum {
 	DOOMED		= (1 << 0),
 	PORT_INIT_DONE	= (1 << 1),
 	PORT_SYSCTL_CTX	= (1 << 2),
+	HAS_TRACEQ	= (1 << 3),
 };
 
 #define IS_DOOMED(pi)	((pi)->flags & DOOMED)
@@ -219,6 +219,7 @@ struct port_info {
 	int qsize_rxq;
 	int qsize_txq;
 
+	int linkdnrc;
 	struct link_config link_cfg;
 	struct port_stats stats;
 
@@ -319,7 +320,7 @@ enum {
 };
 
 /* Listed in order of preference.  Update t4_sysctls too if you change these */
-enum {DOORBELL_UDB, DOORBELL_WRWC, DOORBELL_UDBWC, DOORBELL_KDB};
+enum {DOORBELL_UDB, DOORBELL_WCWR, DOORBELL_UDBWC, DOORBELL_KDB};
 
 /*
  * Egress Queue: driver is producer, T4 is consumer.
@@ -562,7 +563,6 @@ struct adapter {
 	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
-	uint32_t filter_mode;
 
 #ifdef TCP_OFFLOAD
 	void *tom_softc;	/* (struct tom_data *) */
@@ -577,6 +577,14 @@ struct adapter {
 	int offload_map;
 #endif
 	int flags;
+
+	char ifp_lockname[16];
+	struct mtx ifp_lock;
+	struct ifnet *ifp;	/* tracer ifp */
+	struct ifmedia media;
+	int traceq;		/* iq used by all tracers, -1 if none */
+	int tracer_valid;	/* bitmap of valid tracers */
+	int tracer_enabled;	/* bitmap of enabled tracers */
 
 	char fw_version[32];
 	char cfg_file[32];
@@ -757,6 +765,13 @@ is_10G_port(const struct port_info *pi)
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
+static inline bool
+is_40G_port(const struct port_info *pi)
+{
+
+	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G) != 0);
+}
+
 static inline int
 tx_resume_threshold(struct sge_eq *eq)
 {
@@ -771,7 +786,7 @@ int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
-void t4_os_link_changed(struct adapter *, int, int);
+void t4_os_link_changed(struct adapter *, int, int, int);
 void t4_iterate(void (*)(struct adapter *, void *), void *);
 int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 int t4_register_an_handler(struct adapter *, an_handler_t);
@@ -786,6 +801,8 @@ void t4_init_sge_cpl_handlers(struct adapter *);
 void t4_tweak_chip_settings(struct adapter *);
 int t4_read_chip_settings(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
+void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
+    struct sysctl_oid_list *);
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
@@ -801,6 +818,16 @@ void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
 int can_resume_tx(struct sge_eq *);
+
+/* t4_tracer.c */
+struct t4_tracer;
+void t4_tracer_modload(void);
+void t4_tracer_modunload(void);
+void t4_tracer_port_detach(struct adapter *);
+int t4_get_tracer(struct adapter *, struct t4_tracer *);
+int t4_set_tracer(struct adapter *, struct t4_tracer *);
+int t4_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t5_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 static inline struct wrqe *
 alloc_wrqe(int wr_len, struct sge_wrq *wrq)

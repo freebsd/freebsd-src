@@ -2,17 +2,12 @@
  * hostapd / State dump
  * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "utils/includes.h"
+#include <time.h>
 
 #include "utils/common.h"
 #include "radius/radius_client.h"
@@ -106,7 +101,8 @@ static void hostapd_dump_state(struct hostapd_data *hapd)
 		fprintf(f, "\nSTA=" MACSTR "\n", MAC2STR(sta->addr));
 
 		fprintf(f,
-			"  AID=%d flags=0x%x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n"
+			"  AID=%d flags=0x%x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+			"\n"
 			"  capability=0x%x listen_interval=%d\n",
 			sta->aid,
 			sta->flags,
@@ -115,8 +111,7 @@ static void hostapd_dump_state(struct hostapd_data *hapd)
 			(sta->flags & WLAN_STA_PS ? "[PS]" : ""),
 			(sta->flags & WLAN_STA_TIM ? "[TIM]" : ""),
 			(sta->flags & WLAN_STA_PERM ? "[PERM]" : ""),
-			(sta->flags & WLAN_STA_AUTHORIZED ? "[AUTHORIZED]" :
-			 ""),
+			(ap_sta_is_authorized(sta) ? "[AUTHORIZED]" : ""),
 			(sta->flags & WLAN_STA_PENDING_POLL ? "[PENDING_POLL" :
 			 ""),
 			(sta->flags & WLAN_STA_SHORT_PREAMBLE ?
@@ -128,6 +123,7 @@ static void hostapd_dump_state(struct hostapd_data *hapd)
 			(sta->flags & WLAN_STA_MAYBE_WPS ? "[MAYBE_WPS]" : ""),
 			(sta->flags & WLAN_STA_WDS ? "[WDS]" : ""),
 			(sta->flags & WLAN_STA_NONERP ? "[NonERP]" : ""),
+			(sta->flags & WLAN_STA_WPS2 ? "[WPS2]" : ""),
 			sta->capability,
 			sta->listen_interval);
 

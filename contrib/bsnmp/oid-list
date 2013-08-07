@@ -24,6 +24,7 @@ enterprises
       204	pingData		bsnmp-ping (Nate Nielsen <nielsen@memberwebs.com>)
       205	begemotBridge		bridge module
       210	begemotWlan		WLAN module
+      220	begemotHast		HAST module
 
       300	BEGEMOT-ACM		DLR ACM project
       303	BEGEMOT-WLINK		DLR WLINK simulator

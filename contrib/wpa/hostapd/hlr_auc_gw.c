@@ -1,15 +1,9 @@
 /*
  * HLR/AuC testing gateway for hostapd EAP-SIM/AKA database/authenticator
- * Copyright (c) 2005-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2007, 2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  *
  * This is an example implementation of the EAP-SIM/AKA database/authentication
  * gateway interface to HLR/AuC. It is expected to be replaced with an
@@ -40,18 +34,30 @@
  * text file in IMSI:Kc:SRES:RAND format, IMSI in ASCII, other fields as hex
  * strings. This is used to simulate an HLR/AuC. As such, it is not very useful
  * for real life authentication, but it is useful both as an example
- * implementation and for EAP-SIM testing.
+ * implementation and for EAP-SIM/AKA/AKA' testing.
+ *
+ * SQN generation follows the not time-based Profile 2 described in
+ * 3GPP TS 33.102 Annex C.3.2. The length of IND is 5 bits by default, but this
+ * can be changed with a command line options if needed.
  */
 
 #include "includes.h"
 #include <sys/un.h>
+#ifdef CONFIG_SQLITE
+#include <sqlite3.h>
+#endif /* CONFIG_SQLITE */
 
 #include "common.h"
 #include "crypto/milenage.h"
+#include "crypto/random.h"
 
 static const char *default_socket_path = "/tmp/hlr_auc_gw.sock";
 static const char *socket_path;
 static int serv_sock = -1;
+static char *milenage_file = NULL;
+static int update_milenage = 0;
+static int sqn_changes = 0;
+static int ind_len = 5;
 
 /* GSM triplets */
 struct gsm_triplet {
@@ -72,6 +78,7 @@ struct milenage_parameters {
 	u8 opc[16];
 	u8 amf[2];
 	u8 sqn[6];
+	int set;
 };
 
 static struct milenage_parameters *milenage_db = NULL;
@@ -84,6 +91,144 @@ static struct milenage_parameters *milenage_db = NULL;
 #define EAP_AKA_RES_MAX_LEN 16
 #define EAP_AKA_IK_LEN 16
 #define EAP_AKA_CK_LEN 16
+
+
+#ifdef CONFIG_SQLITE
+
+static sqlite3 *sqlite_db = NULL;
+static struct milenage_parameters db_tmp_milenage;
+
+
+static int db_table_exists(sqlite3 *db, const char *name)
+{
+	char cmd[128];
+	os_snprintf(cmd, sizeof(cmd), "SELECT 1 FROM %s;", name);
+	return sqlite3_exec(db, cmd, NULL, NULL, NULL) == SQLITE_OK;
+}
+
+
+static int db_table_create_milenage(sqlite3 *db)
+{
+	char *err = NULL;
+	const char *sql =
+		"CREATE TABLE milenage("
+		"  imsi INTEGER PRIMARY KEY NOT NULL,"
+		"  ki CHAR(32) NOT NULL,"
+		"  opc CHAR(32) NOT NULL,"
+		"  amf CHAR(4) NOT NULL,"
+		"  sqn CHAR(12) NOT NULL"
+		");";
+
+	printf("Adding database table for milenage information\n");
+	if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
+		printf("SQLite error: %s\n", err);
+		sqlite3_free(err);
+		return -1;
+	}
+
+	return 0;
+}
+
+
+static sqlite3 * db_open(const char *db_file)
+{
+	sqlite3 *db;
+
+	if (sqlite3_open(db_file, &db)) {
+		printf("Failed to open database %s: %s\n",
+		       db_file, sqlite3_errmsg(db));
+		sqlite3_close(db);
+		return NULL;
+	}
+
+	if (!db_table_exists(db, "milenage") &&
+	    db_table_create_milenage(db) < 0) {
+		sqlite3_close(db);
+		return NULL;
+	}
+
+	return db;
+}
+
+
+static int get_milenage_cb(void *ctx, int argc, char *argv[], char *col[])
+{
+	struct milenage_parameters *m = ctx;
+	int i;
+
+	m->set = 1;
+
+	for (i = 0; i < argc; i++) {
+		if (os_strcmp(col[i], "ki") == 0 && argv[i] &&
+		    hexstr2bin(argv[i], m->ki, sizeof(m->ki))) {
+			printf("Invalid ki value in database\n");
+			return -1;
+		}
+
+		if (os_strcmp(col[i], "opc") == 0 && argv[i] &&
+		    hexstr2bin(argv[i], m->opc, sizeof(m->opc))) {
+			printf("Invalid opcvalue in database\n");
+			return -1;
+		}
+
+		if (os_strcmp(col[i], "amf") == 0 && argv[i] &&
+		    hexstr2bin(argv[i], m->amf, sizeof(m->amf))) {
+			printf("Invalid amf value in database\n");
+			return -1;
+		}
+
+		if (os_strcmp(col[i], "sqn") == 0 && argv[i] &&
+		    hexstr2bin(argv[i], m->sqn, sizeof(m->sqn))) {
+			printf("Invalid sqn value in database\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+
+static struct milenage_parameters * db_get_milenage(const char *imsi_txt)
+{
+	char cmd[128];
+	unsigned long long imsi;
+
+	os_memset(&db_tmp_milenage, 0, sizeof(db_tmp_milenage));
+	imsi = atoll(imsi_txt);
+	os_snprintf(db_tmp_milenage.imsi, sizeof(db_tmp_milenage.imsi),
+		    "%llu", imsi);
+	os_snprintf(cmd, sizeof(cmd),
+		    "SELECT ki,opc,amf,sqn FROM milenage WHERE imsi=%llu;",
+		    imsi);
+	if (sqlite3_exec(sqlite_db, cmd, get_milenage_cb, &db_tmp_milenage,
+			 NULL) != SQLITE_OK)
+		return NULL;
+
+	if (!db_tmp_milenage.set)
+		return NULL;
+	return &db_tmp_milenage;
+}
+
+
+static int db_update_milenage_sqn(struct milenage_parameters *m)
+{
+	char cmd[128], val[13], *pos;
+
+	pos = val;
+	pos += wpa_snprintf_hex(pos, sizeof(val), m->sqn, 6);
+	*pos = '\0';
+	os_snprintf(cmd, sizeof(cmd),
+		    "UPDATE milenage SET sqn='%s' WHERE imsi=%s;",
+		    val, m->imsi);
+	if (sqlite3_exec(sqlite_db, cmd, NULL, NULL, NULL) != SQLITE_OK) {
+		printf("Failed to update SQN in database for IMSI %s\n",
+		       m->imsi);
+		return -1;
+	}
+	return 0;
+}
+
+#endif /* CONFIG_SQLITE */
 
 
 static int open_socket(const char *path)
@@ -101,7 +246,7 @@ static int open_socket(const char *path)
 	addr.sun_family = AF_UNIX;
 	os_strlcpy(addr.sun_path, path, sizeof(addr.sun_path));
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		perror("bind(PF_UNIX)");
+		perror("hlr-auc-gw: bind(PF_UNIX)");
 		close(s);
 		return -1;
 	}
@@ -215,7 +360,7 @@ static int read_gsm_triplets(const char *fname)
 		gsm_db = g;
 		g = NULL;
 	}
-	free(g);
+	os_free(g);
 
 	fclose(f);
 
@@ -365,11 +510,85 @@ static int read_milenage(const char *fname)
 		milenage_db = m;
 		m = NULL;
 	}
-	free(m);
+	os_free(m);
 
 	fclose(f);
 
 	return ret;
+}
+
+
+static void update_milenage_file(const char *fname)
+{
+	FILE *f, *f2;
+	char buf[500], *pos;
+	char *end = buf + sizeof(buf);
+	struct milenage_parameters *m;
+	size_t imsi_len;
+
+	f = fopen(fname, "r");
+	if (f == NULL) {
+		printf("Could not open Milenage data file '%s'\n", fname);
+		return;
+	}
+
+	snprintf(buf, sizeof(buf), "%s.new", fname);
+	f2 = fopen(buf, "w");
+	if (f2 == NULL) {
+		printf("Could not write Milenage data file '%s'\n", buf);
+		fclose(f);
+		return;
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		/* IMSI Ki OPc AMF SQN */
+		buf[sizeof(buf) - 1] = '\0';
+
+		pos = strchr(buf, ' ');
+		if (buf[0] == '#' || pos == NULL || pos - buf >= 20)
+			goto no_update;
+
+		imsi_len = pos - buf;
+
+		for (m = milenage_db; m; m = m->next) {
+			if (strncmp(buf, m->imsi, imsi_len) == 0 &&
+			    m->imsi[imsi_len] == '\0')
+				break;
+		}
+
+		if (!m)
+			goto no_update;
+
+		pos = buf;
+		pos += snprintf(pos, end - pos, "%s ", m->imsi);
+		pos += wpa_snprintf_hex(pos, end - pos, m->ki, 16);
+		*pos++ = ' ';
+		pos += wpa_snprintf_hex(pos, end - pos, m->opc, 16);
+		*pos++ = ' ';
+		pos += wpa_snprintf_hex(pos, end - pos, m->amf, 2);
+		*pos++ = ' ';
+		pos += wpa_snprintf_hex(pos, end - pos, m->sqn, 6);
+		*pos++ = '\n';
+
+	no_update:
+		fprintf(f2, "%s", buf);
+	}
+
+	fclose(f2);
+	fclose(f);
+
+	snprintf(buf, sizeof(buf), "%s.bak", fname);
+	if (rename(fname, buf) < 0) {
+		perror("rename");
+		return;
+	}
+
+	snprintf(buf, sizeof(buf), "%s.new", fname);
+	if (rename(buf, fname) < 0) {
+		perror("rename");
+		return;
+	}
+
 }
 
 
@@ -382,6 +601,11 @@ static struct milenage_parameters * get_milenage(const char *imsi)
 			break;
 		m = m->next;
 	}
+
+#ifdef CONFIG_SQLITE
+	if (!m)
+		m = db_get_milenage(imsi);
+#endif /* CONFIG_SQLITE */
 
 	return m;
 }
@@ -418,7 +642,7 @@ static void sim_req_auth(int s, struct sockaddr_un *from, socklen_t fromlen,
 	if (m) {
 		u8 _rand[16], sres[4], kc[8];
 		for (count = 0; count < max_chal; count++) {
-			if (os_get_random(_rand, 16) < 0)
+			if (random_get_bytes(_rand, 16) < 0)
 				return;
 			gsm_milenage(m->opc, m->ki, _rand, sres, kc);
 			*rpos++ = ' ';
@@ -465,6 +689,28 @@ send:
 }
 
 
+static void inc_sqn(u8 *sqn)
+{
+	u64 val, seq, ind;
+
+	/*
+	 * SQN = SEQ | IND = SEQ1 | SEQ2 | IND
+	 *
+	 * The mechanism used here is not time-based, so SEQ2 is void and
+	 * SQN = SEQ1 | IND. The length of IND is ind_len bits and the length
+	 * of SEQ1 is 48 - ind_len bits.
+	 */
+
+	/* Increment both SEQ and IND by one */
+	val = ((u64) WPA_GET_BE32(sqn) << 16) | ((u64) WPA_GET_BE16(sqn + 4));
+	seq = (val >> ind_len) + 1;
+	ind = (val + 1) & ((1 << ind_len) - 1);
+	val = (seq << ind_len) | ind;
+	WPA_PUT_BE32(sqn, val >> 16);
+	WPA_PUT_BE16(sqn + 4, val & 0xffff);
+}
+
+
 static void aka_req_auth(int s, struct sockaddr_un *from, socklen_t fromlen,
 			 char *imsi)
 {
@@ -478,13 +724,18 @@ static void aka_req_auth(int s, struct sockaddr_un *from, socklen_t fromlen,
 	size_t res_len;
 	int ret;
 	struct milenage_parameters *m;
+	int failed = 0;
 
 	m = get_milenage(imsi);
 	if (m) {
-		if (os_get_random(_rand, EAP_AKA_RAND_LEN) < 0)
+		if (random_get_bytes(_rand, EAP_AKA_RAND_LEN) < 0)
 			return;
 		res_len = EAP_AKA_RES_MAX_LEN;
-		inc_byte_array(m->sqn, 6);
+		inc_sqn(m->sqn);
+#ifdef CONFIG_SQLITE
+		db_update_milenage_sqn(m);
+#endif /* CONFIG_SQLITE */
+		sqn_changes = 1;
 		printf("AKA: Milenage with SQN=%02x%02x%02x%02x%02x%02x\n",
 		       m->sqn[0], m->sqn[1], m->sqn[2],
 		       m->sqn[3], m->sqn[4], m->sqn[5]);
@@ -501,7 +752,7 @@ static void aka_req_auth(int s, struct sockaddr_un *from, socklen_t fromlen,
 		memset(res, '2', EAP_AKA_RES_MAX_LEN);
 		res_len = EAP_AKA_RES_MAX_LEN;
 #else /* AKA_USE_FIXED_TEST_VALUES */
-		return;
+		failed = 1;
 #endif /* AKA_USE_FIXED_TEST_VALUES */
 	}
 
@@ -511,6 +762,13 @@ static void aka_req_auth(int s, struct sockaddr_un *from, socklen_t fromlen,
 	if (ret < 0 || ret >= end - pos)
 		return;
 	pos += ret;
+	if (failed) {
+		ret = snprintf(pos, end - pos, "FAILURE");
+		if (ret < 0 || ret >= end - pos)
+			return;
+		pos += ret;
+		goto done;
+	}
 	pos += wpa_snprintf_hex(pos, end - pos, _rand, EAP_AKA_RAND_LEN);
 	*pos++ = ' ';
 	pos += wpa_snprintf_hex(pos, end - pos, autn, EAP_AKA_AUTN_LEN);
@@ -521,6 +779,7 @@ static void aka_req_auth(int s, struct sockaddr_un *from, socklen_t fromlen,
 	*pos++ = ' ';
 	pos += wpa_snprintf_hex(pos, end - pos, res, res_len);
 
+done:
 	printf("Send: %s\n", reply);
 
 	if (sendto(s, reply, pos - reply, 0, (struct sockaddr *) from,
@@ -568,6 +827,10 @@ static void aka_auts(int s, struct sockaddr_un *from, socklen_t fromlen,
 		printf("AKA-AUTS: Re-synchronized: "
 		       "SQN=%02x%02x%02x%02x%02x%02x\n",
 		       sqn[0], sqn[1], sqn[2], sqn[3], sqn[4], sqn[5]);
+#ifdef CONFIG_SQLITE
+		db_update_milenage_sqn(m);
+#endif /* CONFIG_SQLITE */
+		sqn_changes = 1;
 	}
 }
 
@@ -614,22 +877,32 @@ static void cleanup(void)
 	struct gsm_triplet *g, *gprev;
 	struct milenage_parameters *m, *prev;
 
+	if (update_milenage && milenage_file && sqn_changes)
+		update_milenage_file(milenage_file);
+
 	g = gsm_db;
 	while (g) {
 		gprev = g;
 		g = g->next;
-		free(gprev);
+		os_free(gprev);
 	}
 
 	m = milenage_db;
 	while (m) {
 		prev = m;
 		m = m->next;
-		free(prev);
+		os_free(prev);
 	}
 
 	close(serv_sock);
 	unlink(socket_path);
+
+#ifdef CONFIG_SQLITE
+	if (sqlite_db) {
+		sqlite3_close(sqlite_db);
+		sqlite_db = NULL;
+	}
+#endif /* CONFIG_SQLITE */
 }
 
 
@@ -644,18 +917,22 @@ static void usage(void)
 {
 	printf("HLR/AuC testing gateway for hostapd EAP-SIM/AKA "
 	       "database/authenticator\n"
-	       "Copyright (c) 2005-2007, Jouni Malinen <j@w1.fi>\n"
+	       "Copyright (c) 2005-2007, 2012, Jouni Malinen <j@w1.fi>\n"
 	       "\n"
 	       "usage:\n"
-	       "hlr_auc_gw [-h] [-s<socket path>] [-g<triplet file>] "
-	       "[-m<milenage file>]\n"
+	       "hlr_auc_gw [-hu] [-s<socket path>] [-g<triplet file>] "
+	       "[-m<milenage file>] \\\n"
+	       "        [-D<DB file>] [-i<IND len in bits>]\n"
 	       "\n"
 	       "options:\n"
 	       "  -h = show this usage help\n"
+	       "  -u = update SQN in Milenage file on exit\n"
 	       "  -s<socket path> = path for UNIX domain socket\n"
 	       "                    (default: %s)\n"
 	       "  -g<triplet file> = path for GSM authentication triplets\n"
-	       "  -m<milenage file> = path for Milenage keys\n",
+	       "  -m<milenage file> = path for Milenage keys\n"
+	       "  -D<DB file> = path to SQLite database\n"
+	       "  -i<IND len in bits> = IND length for SQN (default: 5)\n",
 	       default_socket_path);
 }
 
@@ -663,33 +940,64 @@ static void usage(void)
 int main(int argc, char *argv[])
 {
 	int c;
-	char *milenage_file = NULL;
 	char *gsm_triplet_file = NULL;
+	char *sqlite_db_file = NULL;
+
+	if (os_program_init())
+		return -1;
 
 	socket_path = default_socket_path;
 
 	for (;;) {
-		c = getopt(argc, argv, "g:hm:s:");
+		c = getopt(argc, argv, "D:g:hi:m:s:u");
 		if (c < 0)
 			break;
 		switch (c) {
+		case 'D':
+#ifdef CONFIG_SQLITE
+			sqlite_db_file = optarg;
+			break;
+#else /* CONFIG_SQLITE */
+			printf("No SQLite support included in the build\n");
+			return -1;
+#endif /* CONFIG_SQLITE */
 		case 'g':
 			gsm_triplet_file = optarg;
 			break;
 		case 'h':
 			usage();
 			return 0;
+		case 'i':
+			ind_len = atoi(optarg);
+			if (ind_len < 0 || ind_len > 32) {
+				printf("Invalid IND length\n");
+				return -1;
+			}
+			break;
 		case 'm':
 			milenage_file = optarg;
 			break;
 		case 's':
 			socket_path = optarg;
 			break;
+		case 'u':
+			update_milenage = 1;
+			break;
 		default:
 			usage();
 			return -1;
 		}
 	}
+
+	if (!gsm_triplet_file && !milenage_file && !sqlite_db_file) {
+		usage();
+		return -1;
+	}
+
+#ifdef CONFIG_SQLITE
+	if (sqlite_db_file && (sqlite_db = db_open(sqlite_db_file)) == NULL)
+		return -1;
+#endif /* CONFIG_SQLITE */
 
 	if (gsm_triplet_file && read_gsm_triplets(gsm_triplet_file) < 0)
 		return -1;
@@ -709,6 +1017,15 @@ int main(int argc, char *argv[])
 
 	for (;;)
 		process(serv_sock);
+
+#ifdef CONFIG_SQLITE
+	if (sqlite_db) {
+		sqlite3_close(sqlite_db);
+		sqlite_db = NULL;
+	}
+#endif /* CONFIG_SQLITE */
+
+	os_program_deinit();
 
 	return 0;
 }

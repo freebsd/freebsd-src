@@ -10,11 +10,11 @@
 #include "DAGISelMatcher.h"
 #include "CodeGenDAGPatterns.h"
 #include "CodeGenRegisters.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include <utility>
 using namespace llvm;
 
@@ -211,6 +211,12 @@ void MatcherGen::EmitLeafMatchCode(const TreePatternNode *N) {
     return AddMatcher(new CheckIntegerMatcher(II->getValue()));
   }
 
+  // An UnsetInit represents a named node without any constraints.
+  if (N->getLeafValue() == UnsetInit::get()) {
+    assert(N->hasName() && "Unnamed ? leaf");
+    return;
+  }
+
   DefInit *DI = dyn_cast<DefInit>(N->getLeafValue());
   if (DI == 0) {
     errs() << "Unknown leaf kind: " << *N << "\n";
@@ -218,6 +224,17 @@ void MatcherGen::EmitLeafMatchCode(const TreePatternNode *N) {
   }
 
   Record *LeafRec = DI->getDef();
+
+  // A ValueType leaf node can represent a register when named, or itself when
+  // unnamed.
+  if (LeafRec->isSubClassOf("ValueType")) {
+    // A named ValueType leaf always matches: (add i32:$a, i32:$b).
+    if (N->hasName())
+      return;
+    // An unnamed ValueType as in (sext_inreg GPR:$foo, i8).
+    return AddMatcher(new CheckValueTypeMatcher(LeafRec->getName()));
+  }
+
   if (// Handle register references.  Nothing to do here, they always match.
       LeafRec->isSubClassOf("RegisterClass") ||
       LeafRec->isSubClassOf("RegisterOperand") ||
@@ -235,9 +252,6 @@ void MatcherGen::EmitLeafMatchCode(const TreePatternNode *N) {
     PhysRegInputs.push_back(std::make_pair(LeafRec, NextRecordedOperandNo++));
     return;
   }
-
-  if (LeafRec->isSubClassOf("ValueType"))
-    return AddMatcher(new CheckValueTypeMatcher(LeafRec->getName()));
 
   if (LeafRec->isSubClassOf("CondCode"))
     return AddMatcher(new CheckCondCodeMatcher(LeafRec->getName()));
@@ -734,20 +748,33 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
       continue;
     }
 
-    const TreePatternNode *Child = N->getChild(ChildNo);
-
     // Otherwise this is a normal operand or a predicate operand without
     // 'execute always'; emit it.
-    unsigned BeforeAddingNumOps = InstOps.size();
-    EmitResultOperand(Child, InstOps);
-    assert(InstOps.size() > BeforeAddingNumOps && "Didn't add any operands");
 
-    // If the operand is an instruction and it produced multiple results, just
-    // take the first one.
-    if (!Child->isLeaf() && Child->getOperator()->isSubClassOf("Instruction"))
-      InstOps.resize(BeforeAddingNumOps+1);
+    // For operands with multiple sub-operands we may need to emit
+    // multiple child patterns to cover them all.  However, ComplexPattern
+    // children may themselves emit multiple MI operands.
+    unsigned NumSubOps = 1;
+    if (OperandNode->isSubClassOf("Operand")) {
+      DagInit *MIOpInfo = OperandNode->getValueAsDag("MIOperandInfo");
+      if (unsigned NumArgs = MIOpInfo->getNumArgs())
+        NumSubOps = NumArgs;
+    }
 
-    ++ChildNo;
+    unsigned FinalNumOps = InstOps.size() + NumSubOps;
+    while (InstOps.size() < FinalNumOps) {
+      const TreePatternNode *Child = N->getChild(ChildNo);
+      unsigned BeforeAddingNumOps = InstOps.size();
+      EmitResultOperand(Child, InstOps);
+      assert(InstOps.size() > BeforeAddingNumOps && "Didn't add any operands");
+
+      // If the operand is an instruction and it produced multiple results, just
+      // take the first one.
+      if (!Child->isLeaf() && Child->getOperator()->isSubClassOf("Instruction"))
+        InstOps.resize(BeforeAddingNumOps+1);
+
+      ++ChildNo;
+    }
   }
 
   // If this node has input glue or explicitly specified input physregs, we

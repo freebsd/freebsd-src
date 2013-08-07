@@ -97,7 +97,9 @@ int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 int	ieee80211_output(struct ifnet *, struct mbuf *,
-               struct sockaddr *, struct route *ro);
+               const struct sockaddr *, struct route *ro);
+int	ieee80211_vap_pkt_send_dest(struct ieee80211vap *, struct mbuf *,
+		struct ieee80211_node *);
 int	ieee80211_raw_output(struct ieee80211vap *, struct ieee80211_node *,
 		struct mbuf *, const struct ieee80211_bpf_params *);
 void	ieee80211_send_setup(struct ieee80211_node *, struct mbuf *, int, int,
@@ -136,6 +138,9 @@ struct mbuf *ieee80211_alloc_cts(struct ieee80211com *,
 
 uint8_t *ieee80211_add_rates(uint8_t *, const struct ieee80211_rateset *);
 uint8_t *ieee80211_add_xrates(uint8_t *, const struct ieee80211_rateset *);
+uint8_t *ieee80211_add_wpa(uint8_t *, const struct ieee80211vap *);
+uint8_t *ieee80211_add_rsn(uint8_t *, const struct ieee80211vap *);
+uint8_t *ieee80211_add_qos(uint8_t *, const struct ieee80211_node *);
 uint16_t ieee80211_getcapinfo(struct ieee80211vap *,
 		struct ieee80211_channel *);
 

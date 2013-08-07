@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1994-1998 Mark Brinicombe.
  * Copyright (c) 1994 Brini.
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  *

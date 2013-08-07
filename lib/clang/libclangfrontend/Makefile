@@ -38,6 +38,7 @@ SRCS=	ASTConsumers.cpp \
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \

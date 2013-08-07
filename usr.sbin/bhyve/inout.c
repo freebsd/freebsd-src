@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker_set.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <assert.h>
 
 #include "inout.h"
@@ -40,6 +41,9 @@ __FBSDID("$FreeBSD$");
 SET_DECLARE(inout_port_set, struct inout_port);
 
 #define	MAX_IOPORTS	(1 << 16)
+
+#define	VERIFY_IOPORT(port, size) \
+	assert((port) >= 0 && (size) > 0 && ((port) + (size)) <= MAX_IOPORTS)
 
 static struct {
 	const char	*name;
@@ -67,6 +71,23 @@ default_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
         }
         
         return (0);
+}
+
+static void 
+register_default_iohandler(int start, int size)
+{
+	struct inout_port iop;
+	
+	VERIFY_IOPORT(start, size);
+
+	bzero(&iop, sizeof(iop));
+	iop.name = "default";
+	iop.port = start;
+	iop.size = size;
+	iop.flags = IOPORT_F_INOUT;
+	iop.handler = default_inout;
+
+	register_inout(&iop);
 }
 
 int
@@ -113,17 +134,11 @@ void
 init_inout(void)
 {
 	struct inout_port **iopp, *iop;
-	int i;
 
 	/*
 	 * Set up the default handler for all ports
 	 */
-	for (i = 0; i < MAX_IOPORTS; i++) {
-		inout_handlers[i].name = "default";
-		inout_handlers[i].flags = IOPORT_F_IN | IOPORT_F_OUT;
-		inout_handlers[i].handler = default_inout;
-		inout_handlers[i].arg = NULL;
-	}
+	register_default_iohandler(0, MAX_IOPORTS);
 
 	/*
 	 * Overwrite with specified handlers
@@ -141,11 +156,28 @@ init_inout(void)
 int
 register_inout(struct inout_port *iop)
 {
-	assert(iop->port < MAX_IOPORTS);
-	inout_handlers[iop->port].name = iop->name;
-	inout_handlers[iop->port].flags = iop->flags;
-	inout_handlers[iop->port].handler = iop->handler;
-	inout_handlers[iop->port].arg = iop->arg;
+	int i;
+
+	VERIFY_IOPORT(iop->port, iop->size);
+	
+	for (i = iop->port; i < iop->port + iop->size; i++) {
+		inout_handlers[i].name = iop->name;
+		inout_handlers[i].flags = iop->flags;
+		inout_handlers[i].handler = iop->handler;
+		inout_handlers[i].arg = iop->arg;
+	}
+
+	return (0);
+}
+
+int
+unregister_inout(struct inout_port *iop)
+{
+
+	VERIFY_IOPORT(iop->port, iop->size);
+	assert(inout_handlers[iop->port].name == iop->name);
+
+	register_default_iohandler(iop->port, iop->size);
 
 	return (0);
 }

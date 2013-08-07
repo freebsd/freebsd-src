@@ -14,12 +14,12 @@
 
 #include "CodeGenRegisters.h"
 #include "CodeGenTarget.h"
-#include "llvm/TableGen/Error.h"
 #include "llvm/ADT/IntEqClasses.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/TableGen/Error.h"
 
 using namespace llvm;
 
@@ -636,8 +636,10 @@ struct TupleExpander : SetTheory::Expander {
       Elts.insert(NewReg);
 
       // Copy Proto super-classes.
-      for (unsigned i = 0, e = Proto->getSuperClasses().size(); i != e; ++i)
-        NewReg->addSuperClass(Proto->getSuperClasses()[i]);
+      ArrayRef<Record *> Supers = Proto->getSuperClasses();
+      ArrayRef<SMRange> Ranges = Proto->getSuperClassRanges();
+      for (unsigned i = 0, e = Supers.size(); i != e; ++i)
+        NewReg->addSuperClass(Supers[i], Ranges[i]);
 
       // Copy Proto fields.
       for (unsigned i = 0, e = Proto->getValues().size(); i != e; ++i) {
@@ -701,7 +703,9 @@ CodeGenRegisterClass::CodeGenRegisterClass(CodeGenRegBank &RegBank, Record *R)
   // Rename anonymous register classes.
   if (R->getName().size() > 9 && R->getName()[9] == '.') {
     static unsigned AnonCounter = 0;
-    R->setName("AnonRegClass_"+utostr(AnonCounter++));
+    R->setName("AnonRegClass_" + utostr(AnonCounter));
+    // MSVC2012 ICEs if AnonCounter++ is directly passed to utostr.
+    ++AnonCounter;
   }
 
   std::vector<Record*> TypeList = R->getValueAsListOfDefs("RegTypes");
@@ -1196,6 +1200,12 @@ void CodeGenRegBank::computeSubRegIndexLaneMasks() {
     if (Idx->getComposites().empty()) {
       Idx->LaneMask = 1u << Bit;
       // Share bit 31 in the unlikely case there are more than 32 leafs.
+      //
+      // Sharing bits is harmless; it allows graceful degradation in targets
+      // with more than 32 vector lanes. They simply get a limited resolution
+      // view of lanes beyond the 32nd.
+      //
+      // See also the comment for getSubRegIndexLaneMask().
       if (Bit < 31) ++Bit;
     } else {
       Idx->LaneMask = 0;
@@ -1588,6 +1598,35 @@ void CodeGenRegBank::computeRegUnitSets() {
         RegClassUnitSets[RCIdx].push_back(USIdx);
     }
     assert(!RegClassUnitSets[RCIdx].empty() && "missing unit set for regclass");
+  }
+
+  // For each register unit, ensure that we have the list of UnitSets that
+  // contain the unit. Normally, this matches an existing list of UnitSets for a
+  // register class. If not, we create a new entry in RegClassUnitSets as a
+  // "fake" register class.
+  for (unsigned UnitIdx = 0, UnitEnd = NumNativeRegUnits;
+       UnitIdx < UnitEnd; ++UnitIdx) {
+    std::vector<unsigned> RUSets;
+    for (unsigned i = 0, e = RegUnitSets.size(); i != e; ++i) {
+      RegUnitSet &RUSet = RegUnitSets[i];
+      if (std::find(RUSet.Units.begin(), RUSet.Units.end(), UnitIdx)
+          == RUSet.Units.end())
+        continue;
+      RUSets.push_back(i);
+    }
+    unsigned RCUnitSetsIdx = 0;
+    for (unsigned e = RegClassUnitSets.size();
+         RCUnitSetsIdx != e; ++RCUnitSetsIdx) {
+      if (RegClassUnitSets[RCUnitSetsIdx] == RUSets) {
+        break;
+      }
+    }
+    RegUnits[UnitIdx].RegClassUnitSetsIdx = RCUnitSetsIdx;
+    if (RCUnitSetsIdx == RegClassUnitSets.size()) {
+      // Create a new list of UnitSets as a "fake" register class.
+      RegClassUnitSets.resize(RCUnitSetsIdx + 1);
+      RegClassUnitSets[RCUnitSetsIdx].swap(RUSets);
+    }
   }
 }
 

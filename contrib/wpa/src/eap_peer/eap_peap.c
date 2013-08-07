@@ -2,14 +2,8 @@
  * EAP peer method: EAP-PEAP (draft-josefsson-pppext-eap-tls-eap-10.txt)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -165,7 +159,7 @@ static void * eap_peap_init(struct eap_sm *sm)
 	data->phase2_type.vendor = EAP_VENDOR_IETF;
 	data->phase2_type.method = EAP_TYPE_NONE;
 
-	if (eap_peer_tls_ssl_init(sm, &data->ssl, config)) {
+	if (eap_peer_tls_ssl_init(sm, &data->ssl, config, EAP_TYPE_PEAP)) {
 		wpa_printf(MSG_INFO, "EAP-PEAP: Failed to initialize SSL.");
 		eap_peap_deinit(sm, data);
 		return NULL;
@@ -196,7 +190,7 @@ static void eap_peap_deinit(struct eap_sm *sm, void *priv)
  * @nak_type: TLV type (EAP_TLV_*)
  * Returns: Buffer to the allocated EAP-TLV NAK message or %NULL on failure
  *
- * This funtion builds an EAP-TLV NAK message. The caller is responsible for
+ * This function builds an EAP-TLV NAK message. The caller is responsible for
  * freeing the returned buffer.
  */
 static struct wpabuf * eap_tlv_build_nak(int id, u16 nak_type)
@@ -285,8 +279,10 @@ static int eap_peap_derive_cmk(struct eap_sm *sm, struct eap_peap_data *data)
 	 * in the end of the label just before ISK; is that just a typo?)
 	 */
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: TempKey", tk, 40);
-	peap_prfplus(data->peap_version, tk, 40, "Inner Methods Compound Keys",
-		     isk, sizeof(isk), imck, sizeof(imck));
+	if (peap_prfplus(data->peap_version, tk, 40,
+			 "Inner Methods Compound Keys",
+			 isk, sizeof(isk), imck, sizeof(imck)) < 0)
+		return -1;
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: IMCK (IPMKj)",
 			imck, sizeof(imck));
 
@@ -346,8 +342,8 @@ static int eap_tlv_add_cryptobinding(struct eap_sm *sm,
  * @status: Status (EAP_TLV_RESULT_SUCCESS or EAP_TLV_RESULT_FAILURE)
  * Returns: Buffer to the allocated EAP-TLV Result message or %NULL on failure
  *
- * This funtion builds an EAP-TLV Result message. The caller is responsible for
- * freeing the returned buffer.
+ * This function builds an EAP-TLV Result message. The caller is responsible
+ * for freeing the returned buffer.
  */
 static struct wpabuf * eap_tlv_build_result(struct eap_sm *sm,
 					    struct eap_peap_data *data,
@@ -1247,9 +1243,12 @@ static u8 * eap_peap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 		 * termination for this label while the one used for deriving
 		 * IPMK|CMK did not use null termination.
 		 */
-		peap_prfplus(data->peap_version, data->ipmk, 40,
-			     "Session Key Generating Function",
-			     (u8 *) "\00", 1, csk, sizeof(csk));
+		if (peap_prfplus(data->peap_version, data->ipmk, 40,
+				 "Session Key Generating Function",
+				 (u8 *) "\00", 1, csk, sizeof(csk)) < 0) {
+			os_free(key);
+			return NULL;
+		}
 		wpa_hexdump_key(MSG_DEBUG, "EAP-PEAP: CSK", csk, sizeof(csk));
 		os_memcpy(key, csk, EAP_TLS_KEY_LEN);
 		wpa_hexdump(MSG_DEBUG, "EAP-PEAP: Derived key",

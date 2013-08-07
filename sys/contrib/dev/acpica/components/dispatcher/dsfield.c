@@ -599,21 +599,25 @@ AcpiDsInitFieldObjects (
     switch (WalkState->Opcode)
     {
     case AML_FIELD_OP:
+
         Arg = AcpiPsGetArg (Op, 2);
         Type = ACPI_TYPE_LOCAL_REGION_FIELD;
         break;
 
     case AML_BANK_FIELD_OP:
+
         Arg = AcpiPsGetArg (Op, 4);
         Type = ACPI_TYPE_LOCAL_BANK_FIELD;
         break;
 
     case AML_INDEX_FIELD_OP:
+
         Arg = AcpiPsGetArg (Op, 3);
         Type = ACPI_TYPE_LOCAL_INDEX_FIELD;
         break;
 
     default:
+
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 

@@ -104,7 +104,10 @@ ahci_em_attach(device_t dev)
 	} else
 		enc->r_memr = NULL;
 	mtx_lock(&enc->mtx);
-	ahci_em_reset(dev);
+	if (ahci_em_reset(dev) != 0) {
+	    error = ENXIO;
+	    goto err1;
+	}
 	rid = ATA_IRQ_RID;
 	/* Create the device queue for our SIM. */
 	devq = cam_simq_alloc(1);

@@ -6,7 +6,7 @@
 SUBDIR=	adduser \
 	arp \
 	bootparamd \
-	burncd \
+	bsdconfig \
 	bsdinstall \
 	cdcontrol \
 	chkgrp \
@@ -81,6 +81,7 @@ SUBDIR=	adduser \
 	snapinfo \
 	spray \
 	syslogd \
+	sysrc \
 	tcpdchk \
 	tcpdmatch \
 	tcpdrop \
@@ -145,11 +146,6 @@ SUBDIR+=	rndc-confgen
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
-.endif
-
-.if ${MK_BSDCONFIG} != "no"
-SUBDIR+=	bsdconfig
-SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"

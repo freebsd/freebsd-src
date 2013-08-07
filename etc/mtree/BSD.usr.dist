@@ -38,6 +38,8 @@
         ..
         lint
         ..
+        pkgconfig
+        ..
     ..
     libexec
         bsdinstall
@@ -148,8 +150,6 @@
                 ..
                 27.nfsrfc
                 ..
-                28.cvs
-                ..
             ..
             smm
                 01.setup
@@ -222,10 +222,6 @@
             bootforth
             ..
             csh
-            ..
-            cvs
-                contrib
-                ..
             ..
             cvsup
             ..
@@ -313,6 +309,10 @@
                 setobjstat
                 ..
                 srcs
+                ..
+            ..
+            smbfs
+                print
                 ..
             ..
             sunrpc

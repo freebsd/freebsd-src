@@ -12,18 +12,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "TGLexer.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Config/config.h" // for strtoull()/strtoll() define
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SourceMgr.h"
+#include "llvm/TableGen/Error.h"
 #include <cctype>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cerrno>
-
-#include "llvm/Config/config.h" // for strtoull()/strtoll() define
 
 using namespace llvm;
 
@@ -310,7 +309,15 @@ bool TGLexer::LexInclude() {
     return true;
   }
   
-  Dependencies.push_back(IncludedFile);
+  DependenciesMapTy::const_iterator Found = Dependencies.find(IncludedFile);
+  if (Found != Dependencies.end()) {
+    PrintError(getLoc(),
+               "File '" + IncludedFile + "' has already been included.");
+    SrcMgr.PrintMessage(Found->second, SourceMgr::DK_Note,
+                        "previously included here");
+    return true;
+  }
+  Dependencies.insert(std::make_pair(IncludedFile, getLoc()));
   // Save the line number and lex buffer of the includer.
   CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
   CurPtr = CurBuf->getBufferStart();
@@ -463,6 +470,7 @@ tgtok::TokKind TGLexer::LexExclaim() {
     .Case("head", tgtok::XHead)
     .Case("tail", tgtok::XTail)
     .Case("con", tgtok::XConcat)
+    .Case("add", tgtok::XADD)
     .Case("shl", tgtok::XSHL)
     .Case("sra", tgtok::XSRA)
     .Case("srl", tgtok::XSRL)
