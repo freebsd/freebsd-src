@@ -544,7 +544,9 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 			vm_page_io_finish(pp);
 			vm_page_lock(pp);
 			if (error) {
-				vm_page_free(pp);
+				if (pp->wire_count == 0 && pp->valid == 0 &&
+				    pp->busy == 0 && !(pp->oflags & VPO_BUSY))
+					vm_page_free(pp);
 			} else {
 				pp->valid = VM_PAGE_BITS_ALL;
 				vm_page_activate(pp);
