@@ -655,7 +655,7 @@ pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait, 0x0ULL,
+	return ((void *)kmem_alloc_contig(kernel_arena, bytes, wait, 0x0ULL,
 	    0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
 }
 #endif
@@ -783,13 +783,13 @@ pmap_init(void)
 	 */
 	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
 	s = round_page(s);
-	pv_table = (struct md_page *)kmem_alloc(kernel_map, s);
+	pv_table = (struct md_page *)kmem_malloc(kernel_arena, s,
+	    M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
-	    PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
 	pmap_ptelist_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
@@ -1747,8 +1747,7 @@ pmap_pinit(pmap_t pmap)
 	 * page directory table.
 	 */
 	if (pmap->pm_pdir == NULL) {
-		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_nofault(kernel_map,
-		    NBPTD);
+		pmap->pm_pdir = (pd_entry_t *)kva_alloc(NBPTD);
 		if (pmap->pm_pdir == NULL) {
 			PMAP_LOCK_DESTROY(pmap);
 			return (0);
@@ -5044,7 +5043,7 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (pa < KERNLOAD && pa + size <= KERNLOAD)
 		va = KERNBASE + pa;
 	else
-		va = kmem_alloc_nofault(kernel_map, size);
+		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
@@ -5079,7 +5078,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = round_page(offset + size);
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 }
 
 /*

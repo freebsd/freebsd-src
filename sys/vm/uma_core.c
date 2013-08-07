@@ -1015,7 +1015,7 @@ page_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
 	void *p;	/* Returned page */
 
 	*pflag = UMA_SLAB_KMEM;
-	p = (void *) kmem_malloc(kmem_map, bytes, wait);
+	p = (void *) kmem_malloc(kmem_arena, bytes, wait);
 
 	return (p);
 }
@@ -1097,16 +1097,16 @@ noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
 static void
 page_free(void *mem, int size, uint8_t flags)
 {
-	vm_map_t map;
+	struct vmem *vmem;
 
 	if (flags & UMA_SLAB_KMEM)
-		map = kmem_map;
+		vmem = kmem_arena;
 	else if (flags & UMA_SLAB_KERNEL)
-		map = kernel_map;
+		vmem = kernel_arena;
 	else
 		panic("UMA: page_free used with invalid flags %d", flags);
 
-	kmem_free(map, (vm_offset_t)mem, size);
+	kmem_free(vmem, (vm_offset_t)mem, size);
 }
 
 /*
@@ -2983,7 +2983,7 @@ uma_zone_reserve_kva(uma_zone_t zone, int count)
 #else
 	if (1) {
 #endif
-		kva = kmem_alloc_nofault(kernel_map, pages * UMA_SLAB_SIZE);
+		kva = kva_alloc(pages * UMA_SLAB_SIZE);
 		if (kva == 0)
 			return (0);
 	} else

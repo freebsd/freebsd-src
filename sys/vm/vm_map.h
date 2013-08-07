@@ -345,9 +345,6 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	VMFS_ANY_SPACE		1	/* find a range with any alignment */
 #define	VMFS_OPTIMAL_SPACE	2	/* find a range with optimal alignment*/
 #define	VMFS_ALIGNED_SPACE	3	/* find a superpage-aligned range */
-#if defined(__mips__)
-#define	VMFS_TLB_ALIGNED_SPACE	4	/* find a TLB entry aligned range */
-#endif
 
 /*
  * vm_map_wire and vm_map_unwire option flags
@@ -387,7 +384,6 @@ int vm_map_submap (vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
 int vm_map_sync(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_map_madvise (vm_map_t, vm_offset_t, vm_offset_t, int);
 void vm_map_simplify_entry (vm_map_t, vm_map_entry_t);
-void vm_init2 (void);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,

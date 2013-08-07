@@ -1255,8 +1255,7 @@ pmap_init(void)
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
-	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
-	    PAGE_SIZE * pv_maxchunks);
+	pv_chunkbase = (struct pv_chunk *)kva_alloc(PAGE_SIZE * pv_maxchunks);
 
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
@@ -4103,7 +4102,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 
 	GIANT_REQUIRED;
 
-	va = kmem_alloc_nofault(kernel_map, size);
+	va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 	for (tmpva = va; size > 0;) {

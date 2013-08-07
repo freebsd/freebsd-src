@@ -2544,7 +2544,7 @@ moea64_mapdev_attr(mmu_t mmu, vm_offset_t pa, vm_size_t size, vm_memattr_t ma)
 	offset = pa & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
-	va = kmem_alloc_nofault(kernel_map, size);
+	va = kva_alloc(size);
 
 	if (!va)
 		panic("moea64_mapdev: Couldn't alloc kernel virtual memory");
@@ -2575,7 +2575,7 @@ moea64_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 	offset = va & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
-	kmem_free(kernel_map, base, size);
+	kva_free(base, size);
 }
 
 void
