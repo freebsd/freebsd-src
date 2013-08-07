@@ -112,7 +112,8 @@ cpu_mp_start(void)
 
 	/* Reserve memory for application processors */
 	for(i = 0; i < (mp_ncpus - 1); i++)
-		dpcpu[i] = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		dpcpu[i] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 	temp_pagetable_va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE,
 	    M_TEMP, 0, 0x0, 0xffffffff, L1_TABLE_SIZE, 0);
 	addr = KERNPHYSADDR;

@@ -4718,7 +4718,7 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	
 	GIANT_REQUIRED;
 	
-	va = kmem_alloc_nofault(kernel_map, size);
+	va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 	for (tmpva = va; size > 0;) {

@@ -2775,7 +2775,7 @@ xbb_free_communication_mem(struct xbb_softc *xbb)
 {
 	if (xbb->kva != 0) {
 #ifndef XENHVM
-		kmem_free(kernel_map, xbb->kva, xbb->kva_size);
+		kva_free(xbb->kva, xbb->kva_size);
 #else
 		if (xbb->pseudo_phys_res != NULL) {
 			bus_release_resource(xbb->dev, SYS_RES_MEMORY,
@@ -3014,7 +3014,7 @@ xbb_alloc_communication_mem(struct xbb_softc *xbb)
 		device_get_nameunit(xbb->dev), xbb->kva_size,
 		xbb->reqlist_kva_size);
 #ifndef XENHVM
-	xbb->kva = kmem_alloc_nofault(kernel_map, xbb->kva_size);
+	xbb->kva = kva_alloc(xbb->kva_size);
 	if (xbb->kva == 0)
 		return (ENOMEM);
 	xbb->gnt_base_addr = xbb->kva;
