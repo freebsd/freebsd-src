@@ -3577,12 +3577,21 @@ vfs_msync(struct mount *mp, int flags)
 }
 
 static void
-destroy_vpollinfo(struct vpollinfo *vi)
+destroy_vpollinfo_free(struct vpollinfo *vi)
 {
-	seldrain(&vi->vpi_selinfo);
+
 	knlist_destroy(&vi->vpi_selinfo.si_note);
 	mtx_destroy(&vi->vpi_lock);
 	uma_zfree(vnodepoll_zone, vi);
+}
+
+static void
+destroy_vpollinfo(struct vpollinfo *vi)
+{
+
+	knlist_clear(&vi->vpi_selinfo.si_note, 1);
+	seldrain(&vi->vpi_selinfo);
+	destroy_vpollinfo_free(vi);
 }
 
 /*
@@ -3602,7 +3611,7 @@ v_addpollinfo(struct vnode *vp)
 	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
 		VI_UNLOCK(vp);
-		destroy_vpollinfo(vi);
+		destroy_vpollinfo_free(vi);
 		return;
 	}
 	vp->v_pollinfo = vi;
