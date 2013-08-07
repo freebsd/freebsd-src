@@ -540,7 +540,9 @@ again:
 			vm_page_io_finish(pp);
 			vm_page_lock_queues();
 			if (error) {
-				vm_page_free(pp);
+				if (pp->wire_count == 0 && pp->valid == 0 &&
+				    pp->busy == 0 && !(pp->oflags & VPO_BUSY))
+					vm_page_free(pp);
 			} else {
 				pp->valid = VM_PAGE_BITS_ALL;
 				vm_page_activate(pp);
