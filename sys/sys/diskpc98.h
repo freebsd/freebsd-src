@@ -35,15 +35,12 @@
 
 #include <sys/ioccom.h>
 
-#define	DOSBBSECTOR	0	/* DOS boot block relative sector number */
-#undef DOSPARTOFF
-#define	DOSPARTOFF	0
-#undef DOSPARTSIZE
-#define	DOSPARTSIZE	32
-#undef NDOSPART
-#define	NDOSPART	16
-#define	DOSMAGICOFFSET	510
-#define	DOSMAGIC	0xAA55
+#define	PC98_BBSECTOR	1	/* DOS boot block relative sector number */
+#define	PC98_PARTOFF	0
+#define	PC98_PARTSIZE	32
+#define	PC98_NPARTS	16
+#define	PC98_MAGICOFS	510
+#define	PC98_MAGIC	0xAA55
 
 #define	PC98_MID_BOOTABLE	0x80
 #define	PC98_MID_MASK		0x7f
@@ -55,8 +52,7 @@
 
 #define	DOSMID_386BSD		(PC98_MID_386BSD | PC98_MID_BOOTABLE)
 #define	DOSSID_386BSD		(PC98_SID_386BSD | PC98_SID_ACTIVE)
-#undef DOSPTYP_386BSD
-#define	DOSPTYP_386BSD		(DOSSID_386BSD << 8 | DOSMID_386BSD)
+#define	PC98_PTYP_386BSD	(DOSSID_386BSD << 8 | DOSMID_386BSD)
 
 struct pc98_partition {
     	unsigned char	dp_mid;
@@ -75,7 +71,7 @@ struct pc98_partition {
 	unsigned char	dp_name[16];
 };
 #ifdef CTASSERT
-CTASSERT(sizeof (struct pc98_partition) == DOSPARTSIZE);
+CTASSERT(sizeof (struct pc98_partition) == PC98_PARTSIZE);
 #endif
 
 void pc98_partition_dec(void const *pp, struct pc98_partition *d);
