@@ -121,7 +121,7 @@ LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_ARCH} == amd64
-CFLAGS+=	-fno-omit-frame-pointer
+CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
