@@ -621,7 +621,7 @@ xnb_free_communication_mem(struct xnb_softc *xnb)
 {
 	if (xnb->kva != 0) {
 #ifndef XENHVM
-		kmem_free(kernel_map, xnb->kva, xnb->kva_size);
+		kva_free(xnb->kva, xnb->kva_size);
 #else
 		if (xnb->pseudo_phys_res != NULL) {
 			bus_release_resource(xnb->dev, SYS_RES_MEMORY,
@@ -811,7 +811,7 @@ xnb_alloc_communication_mem(struct xnb_softc *xnb)
 		xnb->kva_size += xnb->ring_configs[i].ring_pages * PAGE_SIZE;
 	}
 #ifndef XENHVM
-	xnb->kva = kmem_alloc_nofault(kernel_map, xnb->kva_size);
+	xnb->kva = kva_alloc(xnb->kva_size);
 	if (xnb->kva == 0)
 		return (ENOMEM);
 	xnb->gnt_base_addr = xnb->kva;

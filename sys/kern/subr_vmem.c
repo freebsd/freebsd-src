@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
@@ -213,8 +214,12 @@ static LIST_HEAD(, vmem) vmem_list = LIST_HEAD_INITIALIZER(vmem_list);
 static uma_zone_t vmem_bt_zone;
 
 /* boot time arena storage. */
+static struct vmem kernel_arena_storage;
+static struct vmem kmem_arena_storage;
 static struct vmem buffer_arena_storage;
 static struct vmem transient_arena_storage;
+vmem_t *kernel_arena = &kernel_arena_storage;
+vmem_t *kmem_arena = &kmem_arena_storage;
 vmem_t *buffer_arena = &buffer_arena_storage;
 vmem_t *transient_arena = &transient_arena_storage;
 
@@ -229,6 +234,14 @@ bt_fill(vmem_t *vm, int flags)
 	bt_t *bt;
 
 	VMEM_ASSERT_LOCKED(vm);
+
+	/*
+	 * Only allow the kmem arena to dip into reserve tags.  It is the
+	 * vmem where new tags come from.
+	 */
+	flags &= BT_FLAGS;
+	if (vm != kmem_arena)
+		flags &= ~M_USE_RESERVE;
 
 	/*
 	 * Loop until we meet the reserve.  To minimize the lock shuffle
@@ -545,6 +558,77 @@ qc_drain(vmem_t *vm)
 		zone_drain(vm->vm_qcache[i].qc_cache);
 }
 
+#ifndef UMA_MD_SMALL_ALLOC
+
+static struct mtx_padalign vmem_bt_lock;
+
+/*
+ * vmem_bt_alloc:  Allocate a new page of boundary tags.
+ *
+ * On architectures with uma_small_alloc there is no recursion; no address
+ * space need be allocated to allocate boundary tags.  For the others, we
+ * must handle recursion.  Boundary tags are necessary to allocate new
+ * boundary tags.
+ *
+ * UMA guarantees that enough tags are held in reserve to allocate a new
+ * page of kva.  We dip into this reserve by specifying M_USE_RESERVE only
+ * when allocating the page to hold new boundary tags.  In this way the
+ * reserve is automatically filled by the allocation that uses the reserve.
+ * 
+ * We still have to guarantee that the new tags are allocated atomically since
+ * many threads may try concurrently.  The bt_lock provides this guarantee.
+ * We convert WAITOK allocations to NOWAIT and then handle the blocking here
+ * on failure.  It's ok to return NULL for a WAITOK allocation as UMA will
+ * loop again after checking to see if we lost the race to allocate.
+ *
+ * There is a small race between vmem_bt_alloc() returning the page and the
+ * zone lock being acquired to add the page to the zone.  For WAITOK
+ * allocations we just pause briefly.  NOWAIT may experience a transient
+ * failure.  To alleviate this we permit a small number of simultaneous
+ * fills to proceed concurrently so NOWAIT is less likely to fail unless
+ * we are really out of KVA.
+ */
+static void *
+vmem_bt_alloc(uma_zone_t zone, int bytes, uint8_t *pflag, int wait)
+{
+	vmem_addr_t addr;
+
+	*pflag = UMA_SLAB_KMEM;
+
+	/*
+	 * Single thread boundary tag allocation so that the address space
+	 * and memory are added in one atomic operation.
+	 */
+	mtx_lock(&vmem_bt_lock);
+	if (vmem_xalloc(kmem_arena, bytes, 0, 0, 0, VMEM_ADDR_MIN,
+	    VMEM_ADDR_MAX, M_NOWAIT | M_NOVM | M_USE_RESERVE | M_BESTFIT,
+	    &addr) == 0) {
+		if (kmem_back(kmem_object, addr, bytes,
+		    M_NOWAIT | M_USE_RESERVE) == 0) {
+			mtx_unlock(&vmem_bt_lock);
+			return ((void *)addr);
+		}
+		vmem_xfree(kmem_arena, addr, bytes);
+		mtx_unlock(&vmem_bt_lock);
+		/*
+		 * Out of memory, not address space.  This may not even be
+		 * possible due to M_USE_RESERVE page allocation.
+		 */
+		if (wait & M_WAITOK)
+			VM_WAIT;
+		return (NULL);
+	}
+	mtx_unlock(&vmem_bt_lock);
+	/*
+	 * We're either out of address space or lost a fill race.
+	 */
+	if (wait & M_WAITOK)
+		pause("btalloc", 1);
+
+	return (NULL);
+}
+#endif
+
 void
 vmem_startup(void)
 {
@@ -553,6 +637,17 @@ vmem_startup(void)
 	vmem_bt_zone = uma_zcreate("vmem btag",
 	    sizeof(struct vmem_btag), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_VM);
+#ifndef UMA_MD_SMALL_ALLOC
+	mtx_init(&vmem_bt_lock, "btag lock", NULL, MTX_DEF);
+	uma_prealloc(vmem_bt_zone, BT_MAXALLOC);
+	/*
+	 * Reserve enough tags to allocate new tags.  We allow multiple
+	 * CPUs to attempt to allocate new tags concurrently to limit
+	 * false restarts in UMA.
+	 */
+	uma_zone_reserve(vmem_bt_zone, BT_MAXALLOC * (mp_ncpus + 1) / 2);
+	uma_zone_set_allocf(vmem_bt_zone, vmem_bt_alloc);
+#endif
 }
 
 /* ---- rehash */
@@ -661,15 +756,15 @@ vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int type)
 	btspan->bt_type = type;
 	btspan->bt_start = addr;
 	btspan->bt_size = size;
+	bt_insseg_tail(vm, btspan);
 
 	btfree = bt_alloc(vm);
 	btfree->bt_type = BT_TYPE_FREE;
 	btfree->bt_start = addr;
 	btfree->bt_size = size;
-
-	bt_insseg_tail(vm, btspan);
 	bt_insseg(vm, btfree, btspan);
 	bt_insfree(vm, btfree);
+
 	vm->vm_size += size;
 }
 

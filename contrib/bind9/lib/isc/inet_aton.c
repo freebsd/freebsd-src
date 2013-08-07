@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2005, 2007, 2008, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1996-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -91,7 +91,7 @@ static char rcsid[] = "$Id: inet_aton.c,v 1.23 2008/12/01 23:47:45 tbox Exp $";
  */
 int
 isc_net_aton(const char *cp, struct in_addr *addr) {
-	unsigned long val;
+	isc_uint32_t val;
 	int base, n;
 	unsigned char c;
 	isc_uint8_t parts[4];

@@ -574,6 +574,7 @@ filemon_wrapper_sys_exit(struct thread *td, struct sys_exit_args *uap)
 			    (uintmax_t)now.tv_sec, (uintmax_t)now.tv_usec);
 
 			filemon_output(filemon, filemon->msgbufr, len);
+			filemon->pid = -1;
 		}
 
 		/* Unlock the found filemon structure. */

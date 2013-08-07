@@ -169,7 +169,7 @@ static int user_frac_sysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr )
 		return (error);
-	if (val < 0 || val > 99)
+	if (val > 99)
 		return (EINVAL);
 
 	mtx_lock(&poll_mtx);

@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sf_buf.h>
 #include <sys/shm.h>
 #include <sys/vmmeter.h>
+#include <sys/vmem.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/_kstack_cache.h>
@@ -359,11 +361,13 @@ vm_thread_new(struct thread *td, int pages)
 	 * We need to align the kstack's mapped address to fit within
 	 * a single TLB entry.
 	 */
-	ks = kmem_alloc_nofault_space(kernel_map,
-	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE, VMFS_TLB_ALIGNED_SPACE);
+	if (vmem_xalloc(kernel_arena, (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE,
+	    PAGE_SIZE * 2, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
+	    M_BESTFIT | M_NOWAIT, &ks)) {
+		ks = 0;
+	}
 #else
-	ks = kmem_alloc_nofault(kernel_map,
-	   (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+	ks = kva_alloc((pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
 #endif
 	if (ks == 0) {
 		printf("vm_thread_new: kstack allocation failed\n");
@@ -422,7 +426,7 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 	}
 	VM_OBJECT_WUNLOCK(ksobj);
 	vm_object_deallocate(ksobj);
-	kmem_free(kernel_map, ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
+	kva_free(ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
 	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
 }
 
