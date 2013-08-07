@@ -258,7 +258,7 @@ failure:
 		break;
 	case 3:
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
-		xpt_remove_periph(periph, /*topology_lock_held*/ 0);
+		xpt_remove_periph(periph);
 		/* FALLTHROUGH */
 	case 2:
 		xpt_lock_buses();
@@ -645,7 +645,7 @@ camperiphfree(struct cam_periph *periph)
 	TAILQ_REMOVE(&(*p_drv)->units, periph, unit_links);
 	(*p_drv)->generation++;
 
-	xpt_remove_periph(periph, /*topology_lock_held*/ 1);
+	xpt_remove_periph(periph);
 
 	xpt_unlock_buses();
 	CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Periph destroyed\n"));
