@@ -23,6 +23,12 @@ SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	wcwidth.c\
 	xlocale.c
 
+.if ${MK_ICONV} != "no"
+SRCS+=	c16rtomb_iconv.c c32rtomb_iconv.c mbrtoc16_iconv.c mbrtoc32_iconv.c
+.else
+SRCS+=	c16rtomb.c c32rtomb.c mbrtoc16.c mbrtoc32.c
+.endif
+
 SYM_MAPS+=${.CURDIR}/locale/Symbol.map
 
 MAN+=	btowc.3 \
@@ -72,7 +78,9 @@ MLINKS+=iswalnum_l.3 iswalpha_l.3 iswalnum_l.3 iswcntrl_l.3 \
 	iswalnum_l.3 iswspecial_l.3 iswalnum_l.3 nextwctype_l.3 \
 	iswalnum_l.3 towctrans_l.3 iswalnum_l.3 wctrans_l.3
 MLINKS+=isxdigit.3 ishexnumber.3
+MLINKS+=mbrtowc.3 mbrtoc16.3 mbrtowc.3 mbrtoc32.3
 MLINKS+=mbsrtowcs.3 mbsnrtowcs.3
+MLINKS+=wcrtomb.3 c16rtomb.3 wcrtomb.3 c32rtomb.3
 MLINKS+=wcsrtombs.3 wcsnrtombs.3
 MLINKS+=wcstod.3 wcstof.3 wcstod.3 wcstold.3
 MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \

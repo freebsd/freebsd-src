@@ -4132,6 +4132,26 @@ SYSCTL_PROC(_security_jail, OID_AUTO, jailed,
     CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_jail_jailed, "I", "Process in jail?");
 
+static int
+sysctl_jail_vnet(SYSCTL_HANDLER_ARGS)
+{
+	int error, havevnet;
+#ifdef VIMAGE
+	struct ucred *cred = req->td->td_ucred;
+
+	havevnet = jailed(cred) && prison_owns_vnet(cred);
+#else
+	havevnet = 0;
+#endif
+	error = SYSCTL_OUT(req, &havevnet, sizeof(havevnet));
+
+	return (error);
+}
+
+SYSCTL_PROC(_security_jail, OID_AUTO, vnet,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_jail_vnet, "I", "Jail owns VNET?");
+
 #if defined(INET) || defined(INET6)
 SYSCTL_UINT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
     &jail_max_af_ips, 0,

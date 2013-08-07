@@ -554,12 +554,12 @@ at91_pio_gpio_clear(uint32_t pio, uint32_t data_mask)
 	PIO[PIO_CODR / 4] = data_mask;
 }
 
-uint8_t
+uint32_t
 at91_pio_gpio_get(uint32_t pio, uint32_t data_mask)
 {
 	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
-	return ((PIO[PIO_PDSR / 4] & data_mask));
+	return (PIO[PIO_PDSR / 4] & data_mask);
 }
 
 void

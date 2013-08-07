@@ -13,13 +13,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenDAGPatterns.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Record.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include <algorithm>
 #include <cstdio>
 #include <set>
@@ -57,7 +57,7 @@ EEVT::TypeSet::TypeSet(MVT::SimpleValueType VT, TreePattern &TP) {
 }
 
 
-EEVT::TypeSet::TypeSet(const std::vector<MVT::SimpleValueType> &VTList) {
+EEVT::TypeSet::TypeSet(ArrayRef<MVT::SimpleValueType> VTList) {
   assert(!VTList.empty() && "empty list?");
   TypeVec.append(VTList.begin(), VTList.end());
 
@@ -76,7 +76,7 @@ bool EEVT::TypeSet::FillWithPossibleTypes(TreePattern &TP,
                                           bool (*Pred)(MVT::SimpleValueType),
                                           const char *PredicateName) {
   assert(isCompletelyUnknown());
-  const std::vector<MVT::SimpleValueType> &LegalTypes =
+  ArrayRef<MVT::SimpleValueType> LegalTypes =
     TP.getDAGPatterns().getTargetInfo().getLegalValueTypes();
 
   if (TP.hasError())
@@ -956,6 +956,40 @@ bool SDTypeConstraint::ApplyTypeConstraint(TreePatternNode *N,
   llvm_unreachable("Invalid ConstraintType!");
 }
 
+// Update the node type to match an instruction operand or result as specified
+// in the ins or outs lists on the instruction definition. Return true if the
+// type was actually changed.
+bool TreePatternNode::UpdateNodeTypeFromInst(unsigned ResNo,
+                                             Record *Operand,
+                                             TreePattern &TP) {
+  // The 'unknown' operand indicates that types should be inferred from the
+  // context.
+  if (Operand->isSubClassOf("unknown_class"))
+    return false;
+
+  // The Operand class specifies a type directly.
+  if (Operand->isSubClassOf("Operand"))
+    return UpdateNodeType(ResNo, getValueType(Operand->getValueAsDef("Type")),
+                          TP);
+
+  // PointerLikeRegClass has a type that is determined at runtime.
+  if (Operand->isSubClassOf("PointerLikeRegClass"))
+    return UpdateNodeType(ResNo, MVT::iPTR, TP);
+
+  // Both RegisterClass and RegisterOperand operands derive their types from a
+  // register class def.
+  Record *RC = 0;
+  if (Operand->isSubClassOf("RegisterClass"))
+    RC = Operand;
+  else if (Operand->isSubClassOf("RegisterOperand"))
+    RC = Operand->getValueAsDef("RegClass");
+
+  assert(RC && "Unknown operand type");
+  CodeGenTarget &Tgt = TP.getDAGPatterns().getTargetInfo();
+  return UpdateNodeType(ResNo, Tgt.getRegisterClass(RC).getValueTypes(), TP);
+}
+
+
 //===----------------------------------------------------------------------===//
 // SDNodeInfo implementation
 //
@@ -1287,8 +1321,18 @@ TreePatternNode *TreePatternNode::InlinePatternFragments(TreePattern &TP) {
 /// type which should be applied to it.  This will infer the type of register
 /// references from the register file information, for example.
 ///
+/// When Unnamed is set, return the type of a DAG operand with no name, such as
+/// the F8RC register class argument in:
+///
+///   (COPY_TO_REGCLASS GPR:$src, F8RC)
+///
+/// When Unnamed is false, return the type of a named DAG operand such as the
+/// GPR:$src operand above.
+///
 static EEVT::TypeSet getImplicitType(Record *R, unsigned ResNo,
-                                     bool NotRegisters, TreePattern &TP) {
+                                     bool NotRegisters,
+                                     bool Unnamed,
+                                     TreePattern &TP) {
   // Check to see if this is a register operand.
   if (R->isSubClassOf("RegisterOperand")) {
     assert(ResNo == 0 && "Regoperand ref only has one result!");
@@ -1302,6 +1346,13 @@ static EEVT::TypeSet getImplicitType(Record *R, unsigned ResNo,
   // Check to see if this is a register or a register class.
   if (R->isSubClassOf("RegisterClass")) {
     assert(ResNo == 0 && "Regclass ref only has one result!");
+    // An unnamed register class represents itself as an i32 immediate, for
+    // example on a COPY_TO_REGCLASS instruction.
+    if (Unnamed)
+      return EEVT::TypeSet(MVT::i32, TP);
+
+    // In a named operand, the register class provides the possible set of
+    // types.
     if (NotRegisters)
       return EEVT::TypeSet(); // Unknown.
     const CodeGenTarget &T = TP.getDAGPatterns().getTargetInfo();
@@ -1327,9 +1378,27 @@ static EEVT::TypeSet getImplicitType(Record *R, unsigned ResNo,
     return EEVT::TypeSet();
   }
 
-  if (R->isSubClassOf("ValueType") || R->isSubClassOf("CondCode")) {
+  if (R->isSubClassOf("ValueType")) {
     assert(ResNo == 0 && "This node only has one result!");
-    // Using a VTSDNode or CondCodeSDNode.
+    // An unnamed VTSDNode represents itself as an MVT::Other immediate.
+    //
+    //   (sext_inreg GPR:$src, i16)
+    //                         ~~~
+    if (Unnamed)
+      return EEVT::TypeSet(MVT::Other, TP);
+    // With a name, the ValueType simply provides the type of the named
+    // variable.
+    //
+    //   (sext_inreg i32:$src, i16)
+    //               ~~~~~~~~
+    if (NotRegisters)
+      return EEVT::TypeSet(); // Unknown.
+    return EEVT::TypeSet(getValueType(R), TP);
+  }
+
+  if (R->isSubClassOf("CondCode")) {
+    assert(ResNo == 0 && "This node only has one result!");
+    // Using a CondCodeSDNode.
     return EEVT::TypeSet(MVT::Other, TP);
   }
 
@@ -1435,7 +1504,8 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
       bool MadeChange = false;
       for (unsigned i = 0, e = Types.size(); i != e; ++i)
         MadeChange |= UpdateNodeType(i, getImplicitType(DI->getDef(), i,
-                                                        NotRegisters, TP), TP);
+                                                        NotRegisters,
+                                                        !hasName(), TP), TP);
       return MadeChange;
     }
 
@@ -1498,25 +1568,6 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
     return MadeChange;
   }
 
-  if (getOperator()->getName() == "COPY_TO_REGCLASS") {
-    bool MadeChange = false;
-    MadeChange |= getChild(0)->ApplyTypeConstraints(TP, NotRegisters);
-    MadeChange |= getChild(1)->ApplyTypeConstraints(TP, NotRegisters);
-
-    assert(getChild(0)->getNumTypes() == 1 &&
-           getChild(1)->getNumTypes() == 1 && "Unhandled case");
-
-    // child #1 of COPY_TO_REGCLASS should be a register class.  We don't care
-    // what type it gets, so if it didn't get a concrete type just give it the
-    // first viable type from the reg class.
-    if (!getChild(1)->hasTypeSet(0) &&
-        !getChild(1)->getExtType(0).isCompletelyUnknown()) {
-      MVT::SimpleValueType RCVT = getChild(1)->getExtType(0).getTypeList()[0];
-      MadeChange |= getChild(1)->UpdateNodeType(0, RCVT, TP);
-    }
-    return MadeChange;
-  }
-
   if (const CodeGenIntrinsic *Int = getIntrinsicInfo(CDP)) {
     bool MadeChange = false;
 
@@ -1575,26 +1626,8 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
     // (outs) list of the instruction.
     // FIXME: Cap at one result so far.
     unsigned NumResultsToAdd = InstInfo.Operands.NumDefs ? 1 : 0;
-    for (unsigned ResNo = 0; ResNo != NumResultsToAdd; ++ResNo) {
-      Record *ResultNode = Inst.getResult(ResNo);
-
-      if (ResultNode->isSubClassOf("PointerLikeRegClass")) {
-        MadeChange |= UpdateNodeType(ResNo, MVT::iPTR, TP);
-      } else if (ResultNode->isSubClassOf("RegisterOperand")) {
-        Record *RegClass = ResultNode->getValueAsDef("RegClass");
-        const CodeGenRegisterClass &RC =
-          CDP.getTargetInfo().getRegisterClass(RegClass);
-        MadeChange |= UpdateNodeType(ResNo, RC.getValueTypes(), TP);
-      } else if (ResultNode->isSubClassOf("unknown_class")) {
-        // Nothing to do.
-      } else {
-        assert(ResultNode->isSubClassOf("RegisterClass") &&
-               "Operands should be register classes!");
-        const CodeGenRegisterClass &RC =
-          CDP.getTargetInfo().getRegisterClass(ResultNode);
-        MadeChange |= UpdateNodeType(ResNo, RC.getValueTypes(), TP);
-      }
-    }
+    for (unsigned ResNo = 0; ResNo != NumResultsToAdd; ++ResNo)
+      MadeChange |= UpdateNodeTypeFromInst(ResNo, Inst.getResult(ResNo), TP);
 
     // If the instruction has implicit defs, we apply the first one as a result.
     // FIXME: This sucks, it should apply all implicit defs.
@@ -1636,30 +1669,44 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
         return false;
       }
 
-      MVT::SimpleValueType VT;
       TreePatternNode *Child = getChild(ChildNo++);
       unsigned ChildResNo = 0;  // Instructions always use res #0 of their op.
 
-      if (OperandNode->isSubClassOf("RegisterClass")) {
-        const CodeGenRegisterClass &RC =
-          CDP.getTargetInfo().getRegisterClass(OperandNode);
-        MadeChange |= Child->UpdateNodeType(ChildResNo, RC.getValueTypes(), TP);
-      } else if (OperandNode->isSubClassOf("RegisterOperand")) {
-        Record *RegClass = OperandNode->getValueAsDef("RegClass");
-        const CodeGenRegisterClass &RC =
-          CDP.getTargetInfo().getRegisterClass(RegClass);
-        MadeChange |= Child->UpdateNodeType(ChildResNo, RC.getValueTypes(), TP);
-      } else if (OperandNode->isSubClassOf("Operand")) {
-        VT = getValueType(OperandNode->getValueAsDef("Type"));
-        MadeChange |= Child->UpdateNodeType(ChildResNo, VT, TP);
-      } else if (OperandNode->isSubClassOf("PointerLikeRegClass")) {
-        MadeChange |= Child->UpdateNodeType(ChildResNo, MVT::iPTR, TP);
-      } else if (OperandNode->isSubClassOf("unknown_class")) {
-        // Nothing to do.
-      } else
-        llvm_unreachable("Unknown operand type!");
+      // If the operand has sub-operands, they may be provided by distinct
+      // child patterns, so attempt to match each sub-operand separately.
+      if (OperandNode->isSubClassOf("Operand")) {
+        DagInit *MIOpInfo = OperandNode->getValueAsDag("MIOperandInfo");
+        if (unsigned NumArgs = MIOpInfo->getNumArgs()) {
+          // But don't do that if the whole operand is being provided by
+          // a single ComplexPattern.
+          const ComplexPattern *AM = Child->getComplexPatternInfo(CDP);
+          if (!AM || AM->getNumOperands() < NumArgs) {
+            // Match first sub-operand against the child we already have.
+            Record *SubRec = cast<DefInit>(MIOpInfo->getArg(0))->getDef();
+            MadeChange |=
+              Child->UpdateNodeTypeFromInst(ChildResNo, SubRec, TP);
 
-      MadeChange |= Child->ApplyTypeConstraints(TP, NotRegisters);
+            // And the remaining sub-operands against subsequent children.
+            for (unsigned Arg = 1; Arg < NumArgs; ++Arg) {
+              if (ChildNo >= getNumChildren()) {
+                TP.error("Instruction '" + getOperator()->getName() +
+                         "' expects more operands than were provided.");
+                return false;
+              }
+              Child = getChild(ChildNo++);
+
+              SubRec = cast<DefInit>(MIOpInfo->getArg(Arg))->getDef();
+              MadeChange |=
+                Child->UpdateNodeTypeFromInst(ChildResNo, SubRec, TP);
+            }
+            continue;
+          }
+        }
+      }
+
+      // If we didn't match by pieces above, attempt to match the whole
+      // operand now.
+      MadeChange |= Child->UpdateNodeTypeFromInst(ChildResNo, OperandNode, TP);
     }
 
     if (ChildNo != getNumChildren()) {
@@ -1668,6 +1715,8 @@ bool TreePatternNode::ApplyTypeConstraints(TreePattern &TP, bool NotRegisters) {
       return false;
     }
 
+    for (unsigned i = 0, e = getNumChildren(); i != e; ++i)
+      MadeChange |= getChild(i)->ApplyTypeConstraints(TP, NotRegisters);
     return MadeChange;
   }
 
@@ -1813,6 +1862,16 @@ TreePatternNode *TreePattern::ParseTreePattern(Init *TheInit, StringRef OpName){
       Args.push_back(OpName);
     }
 
+    Res->setName(OpName);
+    return Res;
+  }
+
+  // ?:$name or just $name.
+  if (TheInit == UnsetInit::get()) {
+    if (OpName.empty())
+      error("'?' argument requires a name to match with operand list");
+    TreePatternNode *Res = new TreePatternNode(TheInit, 1);
+    Args.push_back(OpName);
     Res->setName(OpName);
     return Res;
   }
@@ -2383,6 +2442,7 @@ FindPatternInputsAndOutputs(TreePattern *I, TreePatternNode *Pat,
       I->error("set destination should be a register!");
 
     if (Val->getDef()->isSubClassOf("RegisterClass") ||
+        Val->getDef()->isSubClassOf("ValueType") ||
         Val->getDef()->isSubClassOf("RegisterOperand") ||
         Val->getDef()->isSubClassOf("PointerLikeRegClass")) {
       if (Dest->getName().empty())
@@ -2599,6 +2659,25 @@ getInstructionsInTree(TreePatternNode *Tree, SmallVectorImpl<Record*> &Instrs) {
     getInstructionsInTree(Tree->getChild(i), Instrs);
 }
 
+/// Check the class of a pattern leaf node against the instruction operand it
+/// represents.
+static bool checkOperandClass(CGIOperandList::OperandInfo &OI,
+                              Record *Leaf) {
+  if (OI.Rec == Leaf)
+    return true;
+
+  // Allow direct value types to be used in instruction set patterns.
+  // The type will be checked later.
+  if (Leaf->isSubClassOf("ValueType"))
+    return true;
+
+  // Patterns can also be ComplexPattern instances.
+  if (Leaf->isSubClassOf("ComplexPattern"))
+    return true;
+
+  return false;
+}
+
 /// ParseInstructions - Parse all of the instructions, inlining and resolving
 /// any fragments involved.  This populates the Instructions list with fully
 /// resolved instructions.
@@ -2708,7 +2787,7 @@ void CodeGenDAGPatterns::ParseInstructions() {
         I->error("Operand $" + OpName + " should be a set destination: all "
                  "outputs must occur before inputs in operand list!");
 
-      if (CGI.Operands[i].Rec != R)
+      if (!checkOperandClass(CGI.Operands[i], R))
         I->error("Operand $" + OpName + " class mismatch!");
 
       // Remember the return type.
@@ -2747,7 +2826,7 @@ void CodeGenDAGPatterns::ParseInstructions() {
 
       if (InVal->isLeaf() && isa<DefInit>(InVal->getLeafValue())) {
         Record *InRec = static_cast<DefInit*>(InVal->getLeafValue())->getDef();
-        if (Op.Rec != InRec && !InRec->isSubClassOf("ComplexPattern"))
+        if (!checkOperandClass(Op, InRec))
           I->error("Operand $" + OpName + "'s register class disagrees"
                    " between the operand and pattern");
       }

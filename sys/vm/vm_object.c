@@ -505,6 +505,7 @@ void
 vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
+	struct vnode *vp;
 
 	while (object != NULL) {
 		VM_OBJECT_WLOCK(object);
@@ -527,15 +528,36 @@ vm_object_deallocate(vm_object_t object)
 			VM_OBJECT_WUNLOCK(object);
 			return;
 		} else if (object->ref_count == 1) {
+			if (object->type == OBJT_SWAP &&
+			    (object->flags & OBJ_TMPFS) != 0) {
+				vp = object->un_pager.swp.swp_tmpfs;
+				vhold(vp);
+				VM_OBJECT_WUNLOCK(object);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				vdrop(vp);
+				VM_OBJECT_WLOCK(object);
+				if (object->type == OBJT_DEAD ||
+				    object->ref_count != 1) {
+					VM_OBJECT_WUNLOCK(object);
+					VOP_UNLOCK(vp, 0);
+					return;
+				}
+				if ((object->flags & OBJ_TMPFS) != 0)
+					VOP_UNSET_TEXT(vp);
+				VOP_UNLOCK(vp, 0);
+			}
 			if (object->shadow_count == 0 &&
 			    object->handle == NULL &&
 			    (object->type == OBJT_DEFAULT ||
-			     object->type == OBJT_SWAP)) {
+			    (object->type == OBJT_SWAP &&
+			    (object->flags & OBJ_TMPFS) == 0))) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
 			} else if ((object->shadow_count == 1) &&
 			    (object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
+				KASSERT((object->flags & OBJ_TMPFS) == 0,
+				    ("shadowed tmpfs v_object %p", object));
 				vm_object_t robject;
 
 				robject = LIST_FIRST(&object->shadow_head);
@@ -820,7 +842,12 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 	boolean_t clearobjflags, eio, res;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
+
+	/*
+	 * The OBJ_MIGHTBEDIRTY flag is only set for OBJT_VNODE
+	 * objects.  The check below prevents the function from
+	 * operating on non-vnode objects.
+	 */
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0 ||
 	    object->resident_page_count == 0)
 		return (TRUE);
@@ -1027,9 +1054,9 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 			 */
 			flags = OBJPR_NOTMAPPED;
 		else if (old_msync)
-			flags = 0;
+			flags = OBJPR_NOTWIRED;
 		else
-			flags = OBJPR_CLEANONLY;
+			flags = OBJPR_CLEANONLY | OBJPR_NOTWIRED;
 		vm_object_page_remove(object, OFF_TO_IDX(offset),
 		    OFF_TO_IDX(offset + size + PAGE_MASK), flags);
 	}
@@ -1148,28 +1175,8 @@ shadowlookup:
 		}
 		if (advise == MADV_WILLNEED) {
 			vm_page_activate(m);
-		} else if (advise == MADV_DONTNEED) {
-			vm_page_dontneed(m);
-		} else if (advise == MADV_FREE) {
-			/*
-			 * Mark the page clean.  This will allow the page
-			 * to be freed up by the system.  However, such pages
-			 * are often reused quickly by malloc()/free()
-			 * so we do not do anything that would cause
-			 * a page fault if we can help it.
-			 *
-			 * Specifically, we do not try to actually free
-			 * the page now nor do we try to put it in the
-			 * cache (which would cause a page fault on reuse).
-			 *
-			 * But we do make the page is freeable as we
-			 * can without actually taking the step of unmapping
-			 * it.
-			 */
-			pmap_clear_modify(m);
-			m->dirty = 0;
-			m->act_count = 0;
-			vm_page_dontneed(m);
+		} else {
+			vm_page_advise(m, advise);
 		}
 		vm_page_unlock(m);
 		if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
@@ -1363,7 +1370,8 @@ retry:
 		vm_page_rename(m, new_object, idx);
 		vm_page_unlock(m);
 		/* page automatically made dirty by rename and cache handled */
-		vm_page_busy(m);
+		if (orig_object->type == OBJT_SWAP)
+			vm_page_busy(m);
 	}
 	if (orig_object->type == OBJT_SWAP) {
 		/*
@@ -1371,6 +1379,8 @@ retry:
 		 * and new_object's locks are released and reacquired. 
 		 */
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
+		TAILQ_FOREACH(m, &new_object->memq, listq)
+			vm_page_wakeup(m);
 
 		/*
 		 * Transfer any cached pages from orig_object to new_object.
@@ -1386,8 +1396,6 @@ retry:
 			    new_object);
 	}
 	VM_OBJECT_WUNLOCK(orig_object);
-	TAILQ_FOREACH(m, &new_object->memq, listq)
-		vm_page_wakeup(m);
 	VM_OBJECT_WUNLOCK(new_object);
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
@@ -1884,7 +1892,8 @@ again:
 		vm_page_lock(p);
 		if ((wirings = p->wire_count) != 0 &&
 		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
-			if ((options & OBJPR_NOTMAPPED) == 0) {
+			if ((options & (OBJPR_NOTWIRED | OBJPR_NOTMAPPED)) ==
+			    0) {
 				pmap_remove_all(p);
 				/* Account for removal of wired mappings. */
 				if (wirings != 0)
@@ -1894,8 +1903,7 @@ again:
 				p->valid = 0;
 				vm_page_undirty(p);
 			}
-			vm_page_unlock(p);
-			continue;
+			goto next;
 		}
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
 			goto again;
@@ -1904,12 +1912,12 @@ again:
 		if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
 			if ((options & OBJPR_NOTMAPPED) == 0)
 				pmap_remove_write(p);
-			if (p->dirty) {
-				vm_page_unlock(p);
-				continue;
-			}
+			if (p->dirty)
+				goto next;
 		}
 		if ((options & OBJPR_NOTMAPPED) == 0) {
+			if ((options & OBJPR_NOTWIRED) != 0 && wirings != 0)
+				goto next;
 			pmap_remove_all(p);
 			/* Account for removal of wired mappings. */
 			if (wirings != 0) {
@@ -1921,6 +1929,7 @@ again:
 			}
 		}
 		vm_page_free(p);
+next:
 		vm_page_unlock(p);
 	}
 	vm_object_pip_wakeup(object);
@@ -2222,12 +2231,6 @@ vm_object_in_map(vm_object_t object)
 	}
 	/* sx_sunlock(&allproc_lock); */
 	if (_vm_object_in_map(kernel_map, object, 0))
-		return 1;
-	if (_vm_object_in_map(kmem_map, object, 0))
-		return 1;
-	if (_vm_object_in_map(pager_map, object, 0))
-		return 1;
-	if (_vm_object_in_map(buffer_map, object, 0))
 		return 1;
 	return 0;
 }

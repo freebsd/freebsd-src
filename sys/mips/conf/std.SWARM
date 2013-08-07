@@ -57,5 +57,4 @@ device da
 device pass
 
 device		ata
-options 	ATA_CAM
 options 	ATA_STATIC_ID	# Static device numbering

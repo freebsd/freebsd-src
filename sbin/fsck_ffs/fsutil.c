@@ -549,7 +549,18 @@ blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 			slowio_end();
 		return (0);
 	}
-	rwerror("READ BLK", blk);
+
+	/*
+	 * This is handled specially here instead of in rwerror because
+	 * rwerror is used for all sorts of errors, not just true read/write
+	 * errors.  It should be refactored and fixed.
+	 */
+	if (surrender) {
+		pfatal("CANNOT READ_BLK: %ld", (long)blk);
+		errx(EEXIT, "ABORTING DUE TO READ ERRORS");
+	} else
+		rwerror("READ BLK", blk);
+
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK BLK", blk);
 	errs = 0;
@@ -616,6 +627,35 @@ blerase(int fd, ufs2_daddr_t blk, long size)
 	ioctl(fd, DIOCGDELETE, ioarg);
 	/* we don't really care if we succeed or not */
 	return;
+}
+
+void
+blzero(int fd, ufs2_daddr_t blk, long size)
+{
+	static char *zero;
+	off_t offset, len;
+
+	if (fd < 0)
+		return;
+	len = ZEROBUFSIZE;
+	if (zero == NULL) {
+		zero = calloc(len, 1);
+		if (zero == NULL)
+			errx(EEXIT, "cannot allocate buffer pool");
+	}
+	offset = blk * dev_bsize;
+	if (lseek(fd, offset, 0) < 0)
+		rwerror("SEEK BLK", blk);
+	while (size > 0) {
+		if (size > len)
+			size = len;
+		else
+			len = size;
+		if (write(fd, zero, len) != len)
+			rwerror("WRITE BLK", blk);
+		blk += len / dev_bsize;
+		size -= len;
+	}
 }
 
 /*

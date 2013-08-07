@@ -1,5 +1,5 @@
 ;; GCC machine description for SSE instructions
-;; Copyright (C) 2005, 2006
+;; Copyright (C) 2005, 2006, 2007
 ;; Free Software Foundation, Inc.
 ;;
 ;; This file is part of GCC.
@@ -920,6 +920,7 @@
   "cvtsi2ss\t{%2, %0|%0, %2}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "vector,double")
+   (set_attr "amdfam10_decode" "vector,double")
    (set_attr "mode" "SF")])
 
 (define_insn "sse_cvtsi2ssq"
@@ -933,6 +934,7 @@
   "cvtsi2ssq\t{%2, %0|%0, %2}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "vector,double")
+   (set_attr "amdfam10_decode" "vector,double")
    (set_attr "mode" "SF")])
 
 (define_insn "sse_cvtss2si"
@@ -946,6 +948,7 @@
   "cvtss2si\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")
    (set_attr "mode" "SI")])
 
 (define_insn "sse_cvtss2siq"
@@ -959,6 +962,7 @@
   "cvtss2siq\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")
    (set_attr "mode" "DI")])
 
 (define_insn "sse_cvttss2si"
@@ -971,6 +975,7 @@
   "cvttss2si\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")
    (set_attr "mode" "SI")])
 
 (define_insn "sse_cvttss2siq"
@@ -983,6 +988,7 @@
   "cvttss2siq\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")
    (set_attr "mode" "DI")])
 
 (define_insn "sse2_cvtdq2ps"
@@ -1852,7 +1858,8 @@
   "cvtsi2sd\t{%2, %0|%0, %2}"
   [(set_attr "type" "sseicvt")
    (set_attr "mode" "DF")
-   (set_attr "athlon_decode" "double,direct")])
+   (set_attr "athlon_decode" "double,direct")
+   (set_attr "amdfam10_decode" "vector,double")])
 
 (define_insn "sse2_cvtsi2sdq"
   [(set (match_operand:V2DF 0 "register_operand" "=x,x")
@@ -1865,7 +1872,8 @@
   "cvtsi2sdq\t{%2, %0|%0, %2}"
   [(set_attr "type" "sseicvt")
    (set_attr "mode" "DF")
-   (set_attr "athlon_decode" "double,direct")])
+   (set_attr "athlon_decode" "double,direct")
+   (set_attr "amdfam10_decode" "vector,double")])
 
 (define_insn "sse2_cvtsd2si"
   [(set (match_operand:SI 0 "register_operand" "=r,r")
@@ -1878,6 +1886,7 @@
   "cvtsd2si\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")
    (set_attr "mode" "SI")])
 
 (define_insn "sse2_cvtsd2siq"
@@ -1891,6 +1900,7 @@
   "cvtsd2siq\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")
    (set_attr "mode" "DI")])
 
 (define_insn "sse2_cvttsd2si"
@@ -1903,7 +1913,8 @@
   "cvttsd2si\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "mode" "SI")
-   (set_attr "athlon_decode" "double,vector")])
+   (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")])
 
 (define_insn "sse2_cvttsd2siq"
   [(set (match_operand:DI 0 "register_operand" "=r,r")
@@ -1915,7 +1926,8 @@
   "cvttsd2siq\t{%1, %0|%0, %1}"
   [(set_attr "type" "sseicvt")
    (set_attr "mode" "DI")
-   (set_attr "athlon_decode" "double,vector")])
+   (set_attr "athlon_decode" "double,vector")
+   (set_attr "amdfam10_decode" "double,double")])
 
 (define_insn "sse2_cvtdq2pd"
   [(set (match_operand:V2DF 0 "register_operand" "=x")
@@ -1946,7 +1958,8 @@
   "TARGET_SSE2"
   "cvtpd2dq\t{%1, %0|%0, %1}"
   [(set_attr "type" "ssecvt")
-   (set_attr "mode" "TI")])
+   (set_attr "mode" "TI")
+   (set_attr "amdfam10_decode" "double")])
 
 (define_expand "sse2_cvttpd2dq"
   [(set (match_operand:V4SI 0 "register_operand" "")
@@ -1964,7 +1977,8 @@
   "TARGET_SSE2"
   "cvttpd2dq\t{%1, %0|%0, %1}"
   [(set_attr "type" "ssecvt")
-   (set_attr "mode" "TI")])
+   (set_attr "mode" "TI")
+   (set_attr "amdfam10_decode" "double")])
 
 (define_insn "sse2_cvtsd2ss"
   [(set (match_operand:V4SF 0 "register_operand" "=x,x")
@@ -1978,20 +1992,22 @@
   "cvtsd2ss\t{%2, %0|%0, %2}"
   [(set_attr "type" "ssecvt")
    (set_attr "athlon_decode" "vector,double")
+   (set_attr "amdfam10_decode" "vector,double")
    (set_attr "mode" "SF")])
 
 (define_insn "sse2_cvtss2sd"
-  [(set (match_operand:V2DF 0 "register_operand" "=x")
+  [(set (match_operand:V2DF 0 "register_operand" "=x,x")
 	(vec_merge:V2DF
 	  (float_extend:V2DF
 	    (vec_select:V2SF
-	      (match_operand:V4SF 2 "nonimmediate_operand" "xm")
+	      (match_operand:V4SF 2 "nonimmediate_operand" "x,m")
 	      (parallel [(const_int 0) (const_int 1)])))
-	  (match_operand:V2DF 1 "register_operand" "0")
+	  (match_operand:V2DF 1 "register_operand" "0,0")
 	  (const_int 1)))]
   "TARGET_SSE2"
   "cvtss2sd\t{%2, %0|%0, %2}"
   [(set_attr "type" "ssecvt")
+   (set_attr "amdfam10_decode" "vector,double")
    (set_attr "mode" "DF")])
 
 (define_expand "sse2_cvtpd2ps"
@@ -2012,7 +2028,8 @@
   "TARGET_SSE2"
   "cvtpd2ps\t{%1, %0|%0, %1}"
   [(set_attr "type" "ssecvt")
-   (set_attr "mode" "V4SF")])
+   (set_attr "mode" "V4SF")
+   (set_attr "amdfam10_decode" "double")])
 
 (define_insn "sse2_cvtps2pd"
   [(set (match_operand:V2DF 0 "register_operand" "=x")
@@ -2023,7 +2040,8 @@
   "TARGET_SSE2"
   "cvtps2pd\t{%1, %0|%0, %1}"
   [(set_attr "type" "ssecvt")
-   (set_attr "mode" "V2DF")])
+   (set_attr "mode" "V2DF")
+   (set_attr "amdfam10_decode" "direct")])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -4524,3 +4542,92 @@
   "pabs<mmxvecsize>\t{%1, %0|%0, %1}";
   [(set_attr "type" "sselog1")
    (set_attr "mode" "DI")])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; AMD SSE4A instructions
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define_insn "sse4a_vmmovntv2df"
+  [(set (match_operand:DF 0 "memory_operand" "=m")
+        (unspec:DF [(vec_select:DF 
+                      (match_operand:V2DF 1 "register_operand" "x")
+                      (parallel [(const_int 0)]))]
+                   UNSPEC_MOVNT))]
+  "TARGET_SSE4A"
+  "movntsd\t{%1, %0|%0, %1}"
+  [(set_attr "type" "ssemov")
+   (set_attr "mode" "DF")])
+
+(define_insn "sse4a_movntdf"
+  [(set (match_operand:DF 0 "memory_operand" "=m")
+        (unspec:DF [(match_operand:DF 1 "register_operand" "x")]
+                   UNSPEC_MOVNT))]
+  "TARGET_SSE4A"
+  "movntsd\t{%1, %0|%0, %1}"
+  [(set_attr "type" "ssemov")
+   (set_attr "mode" "DF")])
+
+(define_insn "sse4a_vmmovntv4sf"
+  [(set (match_operand:SF 0 "memory_operand" "=m")
+	(unspec:SF [(vec_select:SF 
+	              (match_operand:V4SF 1 "register_operand" "x")
+		      (parallel [(const_int 0)]))]
+		   UNSPEC_MOVNT))]
+  "TARGET_SSE4A"
+  "movntss\t{%1, %0|%0, %1}"
+  [(set_attr "type" "ssemov")
+   (set_attr "mode" "SF")])
+
+(define_insn "sse4a_movntsf"
+  [(set (match_operand:SF 0 "memory_operand" "=m")
+	(unspec:SF [(match_operand:SF 1 "register_operand" "x")]
+		   UNSPEC_MOVNT))]
+  "TARGET_SSE4A"
+  "movntss\t{%1, %0|%0, %1}"
+  [(set_attr "type" "ssemov")
+   (set_attr "mode" "SF")])
+
+(define_insn "sse4a_extrqi"
+  [(set (match_operand:V2DI 0 "register_operand" "=x")
+        (unspec:V2DI [(match_operand:V2DI 1 "register_operand" "0")
+                      (match_operand 2 "const_int_operand" "")
+                      (match_operand 3 "const_int_operand" "")]
+                     UNSPEC_EXTRQI))]
+  "TARGET_SSE4A"
+  "extrq\t{%3, %2, %0|%0, %2, %3}"
+  [(set_attr "type" "sse")
+   (set_attr "mode" "TI")])
+
+(define_insn "sse4a_extrq"
+  [(set (match_operand:V2DI 0 "register_operand" "=x")
+        (unspec:V2DI [(match_operand:V2DI 1 "register_operand" "0")
+                      (match_operand:V16QI 2 "register_operand" "x")]
+                     UNSPEC_EXTRQ))]
+  "TARGET_SSE4A"
+  "extrq\t{%2, %0|%0, %2}"
+  [(set_attr "type" "sse")
+   (set_attr "mode" "TI")])
+
+(define_insn "sse4a_insertqi"
+  [(set (match_operand:V2DI 0 "register_operand" "=x")
+        (unspec:V2DI [(match_operand:V2DI 1 "register_operand" "0")
+        	      (match_operand:V2DI 2 "register_operand" "x")
+                      (match_operand 3 "const_int_operand" "")
+                      (match_operand 4 "const_int_operand" "")]
+                     UNSPEC_INSERTQI))]
+  "TARGET_SSE4A"
+  "insertq\t{%4, %3, %2, %0|%0, %2, %3, %4}"
+  [(set_attr "type" "sseins")
+   (set_attr "mode" "TI")])
+
+(define_insn "sse4a_insertq"
+  [(set (match_operand:V2DI 0 "register_operand" "=x")
+        (unspec:V2DI [(match_operand:V2DI 1 "register_operand" "0")
+        	      (match_operand:V2DI 2 "register_operand" "x")]
+        	     UNSPEC_INSERTQ))]
+  "TARGET_SSE4A"
+  "insertq\t{%2, %0|%0, %2}"
+  [(set_attr "type" "sseins")
+   (set_attr "mode" "TI")])

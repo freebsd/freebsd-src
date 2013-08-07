@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 456: 08 Nov 2012"
+.TH LESS 1 "Version 458: 04 Apr 2013"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -461,8 +461,12 @@ For example, you can set two \-D options on MS-DOS like this:
 .sp
 LESS="Dn9.1$Ds4.1"
 .sp
-A dollar sign or backslash may be included literally in an option string
+If the --use-backslash option appears earlier in the options, then
+a dollar sign or backslash may be included literally in an option string
 by preceding it with a backslash.
+If the --use-backslash option is not in effect, then backslashes are
+not treated specially, and there is no way to include a dollar sign 
+in the option string.
 .IP "\-? or \-\-help"
 This option displays a summary of the commands accepted by
 .I less
@@ -891,11 +895,6 @@ If the number is specified as a fraction, the actual number of
 scroll positions is recalculated if the terminal window is resized, 
 so that the actual scroll remains at the specified fraction 
 of the screen width.
-.IP "\-\-no-keypad"
-Disables sending the keypad initialization and deinitialization strings
-to the terminal.
-This is sometimes useful if the keypad strings make the numeric
-keypad behave in an undesirable manner.
 .IP "\-\-follow-name"
 Normally, if the input file is renamed while an F command is executing, 
 .I less
@@ -909,6 +908,16 @@ If the reopen succeeds and the file is a different file from the original
 with the same name as the original (now renamed) file),
 .I less
 will display the contents of that new file.
+.IP "\-\-no-keypad"
+Disables sending the keypad initialization and deinitialization strings
+to the terminal.
+This is sometimes useful if the keypad strings make the numeric
+keypad behave in an undesirable manner.
+.IP "\-\-use-backslash"
+This option changes the interpretations of options which follow this one.
+After the \-\-use-backslash option, any backslash in an option string is
+removed and the following character is taken literally.
+This allows a dollar sign to be included in option strings.
 .IP \-\-
 A command line argument of "\-\-" marks the end of option arguments.
 Any arguments following this are interpreted as filenames.

@@ -36,16 +36,18 @@ __FBSDID("$FreeBSD$");
 #include "jailp.h"
 #include "y.tab.h"
 
-#define YY_NO_INPUT
-#define YY_NO_UNPUT
-
 extern int yynerrs;
 
 static ssize_t text2lval(size_t triml, size_t trimr, int tovar);
 
 static int instr;
 static int lineno = 1;
+
+#define YY_DECL int yylex(void)
 %}
+
+%option noinput
+%option nounput
 
 %start _ DQ
 

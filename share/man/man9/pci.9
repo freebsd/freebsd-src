@@ -485,13 +485,13 @@ A driver is only allowed to use either MSI or MSI-X,
 but not both.
 .Pp
 The
-.Fn pci_count_msi
+.Fn pci_msi_count
 function returns the maximum number of MSI messages supported by the
 device
 .Fa dev .
 If the device does not support MSI,
 then
-.Fn pci_count_msi
+.Fn pci_msi_count
 returns zero.
 .Pp
 The
@@ -538,13 +538,13 @@ The
 function returns zero on success and an error on failure.
 .Pp
 The
-.Fn pci_count_msix
+.Fn pci_msix_count
 function returns the maximum number of MSI-X messages supported by the
 device
 .Fa dev .
 If the device does not support MSI-X,
 then
-.Fn pci_count_msix
+.Fn pci_msix_count
 returns zero.
 .Pp
 The

@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -84,7 +84,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_login_deleted"
+		f_show_msg "$msg_login_deleted"
 
 		if [ "$pw_group_delete" = "$msg_yes" ] &&
 		   f_quietly pw groupshow -g "$pw_gid"
@@ -122,7 +122,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_login_added"
+		f_show_msg "$msg_login_added"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" 2>&1 )
@@ -168,7 +168,7 @@ save_changes()
 			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_dialog_msgbox "$msg_login_updated"
+		f_show_msg "$msg_login_updated"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" )
@@ -220,8 +220,8 @@ while [ $# -gt 0 ]; do
 	value="${1#*=}"
 	f_dprintf "key=[%s] value=[%s]" "$key" "$value"
 	case "$key" in
-	mode) mode="$value";;
-	user) user="$value";;
+	mode) mode="$value" ;;
+	user) user="$value" ;;
 	esac
 	shift
 done
@@ -238,32 +238,53 @@ save_flag=
 hline="$hline_arrows_tab_enter"
 
 if [ "$mode" = "Add" ]; then
-	#
-	# Ask a series of questions to pre-fill the editor screen.
-	#
-	# The defaults used in each dialog should allow the user to simply
-	#   hit ENTER to proceed, because cancelling a single dialog will
-	#   cause them to be returned to the main usermenu.
-	#
-
 	f_dialog_input_name || exit 0
-	f_dialog_input_gecos "$pw_name" || exit 0
-	[ "$passwdtype" = "yes" ] &&
-		{ f_dialog_input_password || exit 0; }
-	f_dialog_input_uid || exit 0
-	f_dialog_input_gid || exit 0
-	f_dialog_input_member_groups || exit 0
-	f_dialog_input_class || exit 0
-	f_dialog_input_change || exit 0
-	f_dialog_input_expire || exit 0
-	f_dialog_input_home_dir "$homeprefix/$pw_name" || exit 0
-	pw_dotfiles_create="$msg_no"
-	if [ ! -d "$homeprefix/$pw_name" ]; then
-		f_dialog_input_home_create || exit 0
-		[ "$pw_home_create" = "$msg_yes" ] &&
-			{ f_dialog_input_dotfiles_create || exit 0; }
+
+	#
+	# Set some sensible defaults for account attributes
+	#
+	pw_gecos="${pw_gecos-$pw_name}"
+	pw_home_dir="${pw_home_dir:-$homeprefix/$pw_name}"
+	if [ -d "$pw_home_dir" ]; then
+		pw_home_create="${pw_home_create:-$msg_no}"
+		pw_dotfiles_create="${pw_dotfiles_create:-$msg_no}"
+	else
+		pw_home_create="${pw_home_create:-$msg_yes}"
+		pw_dotfiles_create="${pw_dotfiles_create:-$msg_yes}"
 	fi
-	f_dialog_input_shell "$defaultshell" || exit 0
+	pw_shell="${pw_shell:-$defaultshell}"
+
+	f_dialog_noyes "$msg_use_default_values_for_all_account_details"
+	retval=$?
+
+	if [ $retval -eq 255 ]; then # User pressed ESC
+		exit $SUCCESS
+	elif [ $retval -ne $SUCCESS ]; then
+		#
+		# Ask a series of questions to pre-fill the editor screen.
+		#
+		# The defaults used in each dialog should allow the user to
+		# simply hit ENTER to proceed, because cancelling a single
+		# dialog will cause them to be returned to the main usermenu.
+		#
+
+		f_dialog_input_gecos "$pw_gecos" || exit 0
+		[ "$passwdtype" = "yes" ] &&
+			{ f_dialog_input_password || exit 0; }
+		f_dialog_input_uid || exit 0
+		f_dialog_input_gid || exit 0
+		f_dialog_input_member_groups || exit 0
+		f_dialog_input_class || exit 0
+		f_dialog_input_expire_password || exit 0
+		f_dialog_input_expire_account || exit 0
+		f_dialog_input_home_dir "$pw_home_dir" || exit 0
+		if [ ! -d "$pw_home_dir" ]; then
+			f_dialog_input_home_create || exit 0
+			[ "$pw_home_create" = "$msg_yes" ] &&
+				{ f_dialog_input_dotfiles_create || exit 0; }
+		fi
+		f_dialog_input_shell "$pw_shell" || exit 0
+	fi
 fi
 
 if [ "$mode" = "Edit/View" -o "$mode" = "Delete" ]; then
@@ -384,27 +405,29 @@ while :; do
 		;;
 	esac
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$menu_text\"        \
-	        	\"\$hline\"            \
-	        	$menu_items            )
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$menu_text\"        \
+	                        \"\$hline\"            \
+	                        $menu_items
 
-	dialog_menu=$( eval $DIALOG \
+	f_dialog_default_fetch defaultitem
+	mtag=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$menu_text\" $size       \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$menu_text\"             \
+		$height $width $rows               \
 		$menu_items                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
-
 	retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
-	mtag=$( f_dialog_menutag )
+	f_dialog_data_sanitize mtag
+	f_dialog_default_store "$mtag"
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
@@ -421,9 +444,9 @@ while :; do
 	   case "$mode" in
 	   Add) f_dialog_input_name "$pw_name" ;;
 	   Edit/View|Delete)
-	   	f_dialog_menu_user_list
+	   	f_dialog_menu_user_list "$pw_name"
 	   	retval=$?
-	   	mtag=$( f_dialog_menutag )
+	   	f_dialog_menutag_fetch mtag
 	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No
@@ -452,35 +475,25 @@ while :; do
 	   esac
 	   ;;
 	2) # Full Name
-	   f_dialog_input_gecos "$pw_gecos"
-	   ;;
+	   f_dialog_input_gecos "$pw_gecos" ;;
 	3) # Password
-	   f_dialog_input_password
-	   ;;
+	   f_dialog_input_password ;;
 	4) # UID
-	   f_dialog_input_uid "$pw_uid"
-	   ;;
+	   f_dialog_input_uid "$pw_uid" ;;
 	5) # Default Group
-	   f_dialog_input_gid "$pw_gid"
-	   ;;
+	   f_dialog_input_gid "$pw_gid" ;;
 	6) # Member of Groups
-	   f_dialog_input_member_groups "$pw_member_groups"
-	   ;;
+	   f_dialog_input_member_groups "$pw_member_groups" ;;
 	7) # Login Class
-	   f_dialog_input_class "$pw_class"
-	   ;;
+	   f_dialog_input_class "$pw_class" ;;
 	8) # Password Expire on
-	   f_dialog_input_change "$pw_password_expire"
-	   ;;
+	   f_dialog_input_expire_password "$pw_password_expire" ;;
 	9) # Account Expire on
-	   f_dialog_input_expire "$pw_account_expire"
-	   ;;
+	   f_dialog_input_expire_account "$pw_account_expire" ;;
 	A) # Home Directory
-	   f_dialog_input_home_dir "$pw_home_dir"
-	   ;;
+	   f_dialog_input_home_dir "$pw_home_dir" ;;
 	B) # Shell
-	   f_dialog_input_shell "$pw_shell"
-	   ;;
+	   f_dialog_input_shell "$pw_shell" ;;
 	esac
 
 	case "$mode" in
@@ -507,7 +520,6 @@ while :; do
 		esac
 		;;
 	esac
-
 done
 
 exit $SUCCESS

@@ -134,7 +134,6 @@ struct msp3400c {
 
 	/* thread */
 	struct proc	    *kthread;
-	char                *threaddesc;
 
 	int                  active,restart,rmmod;
 
@@ -1147,12 +1146,6 @@ int msp_attach(bktr_ptr_t bktr)
 	msp->bass   = 32768;
 	msp->treble = 32768;
 	msp->input  = -1;
-	msp->threaddesc = malloc(15 * sizeof(char), M_DEVBUF, M_NOWAIT);
-	if (msp->threaddesc == NULL) {
-		free(msp, M_DEVBUF);
-                return ENOMEM;
-	}
-	snprintf(msp->threaddesc, 14, "%s_msp34xx_thread", bktr->bktr_xname);
 
 	for (i = 0; i < DFP_COUNT; i++)
 		msp->dfp_regs[i] = -1;
@@ -1163,7 +1156,6 @@ int msp_attach(bktr_ptr_t bktr)
 	if (-1 != rev1)
 		rev2 = msp3400c_read(bktr, I2C_MSP3400C_DFP, 0x1f);
 	if ((-1 == rev1) || (0 == rev1 && 0 == rev2)) {
-		free(msp->threaddesc, M_DEVBUF);
 		free(msp, M_DEVBUF);
 		bktr->msp3400c_info = NULL;
 		printf("%s: msp3400: error while reading chip version\n", bktr_name(bktr));
@@ -1199,10 +1191,9 @@ int msp_attach(bktr_ptr_t bktr)
 	/* startup control thread */
 	err = kproc_create(msp->simple ? msp3410d_thread : msp3400c_thread,
 			     bktr, &msp->kthread, (RFFDG | RFPROC), 0,
-			     msp->threaddesc);
+			     "%s_msp34xx_thread", bktr->bktr_xname);
 	if (err) {
 		printf("%s: Error returned by kproc_create: %d", bktr_name(bktr), err);
-		free(msp->threaddesc, M_DEVBUF);
 		free(msp, M_DEVBUF);
 		bktr->msp3400c_info = NULL;
 		return ENXIO;

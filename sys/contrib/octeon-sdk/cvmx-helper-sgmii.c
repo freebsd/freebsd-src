@@ -116,7 +116,13 @@ static int __cvmx_helper_sgmii_hardware_init_one_time(int interface, int index)
         interval. */
     pcsx_miscx_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
     pcsx_linkx_timer_count_reg.u64 = cvmx_read_csr(CVMX_PCSX_LINKX_TIMER_COUNT_REG(index, interface));
-    if (pcsx_miscx_ctl_reg.s.mode)
+    if (pcsx_miscx_ctl_reg.s.mode
+#if defined(OCTEON_VENDOR_GEFES)
+	/* GEF Fiber SFP testing on W5650 showed this to cause link issues for 1000BASE-X*/
+	&& (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CUST_W5650)
+	&& (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CUST_W63XX)
+#endif
+	)
     {
         /* 1000BASE-X */
         pcsx_linkx_timer_count_reg.s.count = (10000ull * clock_mhz) >> 10;
@@ -200,7 +206,15 @@ static int __cvmx_helper_need_g15618(void)
 static int __cvmx_helper_sgmii_hardware_init_link(int interface, int index)
 {
     cvmx_pcsx_mrx_control_reg_t control_reg;
+    uint64_t link_timeout;
 
+#if defined(OCTEON_VENDOR_GEFES)
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_TNPA5651X) {
+	    return 0;  /* no auto-negotiation */
+    }
+#endif
+
+ 
     /* Take PCS through a reset sequence.
         PCS*_MR*_CONTROL_REG[PWR_DN] should be cleared to zero.
         Write PCS*_MR*_CONTROL_REG[RESET]=1 (while not changing the value of
@@ -211,9 +225,16 @@ static int __cvmx_helper_sgmii_hardware_init_link(int interface, int index)
     /* Errata G-15618 requires disabling PCS soft reset in CN63XX pass upto 2.1. */
     if (!__cvmx_helper_need_g15618())
     {
+    	link_timeout = 200000;
+#if defined(OCTEON_VENDOR_GEFES)
+        if( (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_TNPA56X4) && (interface == 0) )
+        {
+    	    link_timeout = 5000000;
+        } 
+#endif
         control_reg.s.reset = 1;
         cvmx_write_csr(CVMX_PCSX_MRX_CONTROL_REG(index, interface), control_reg.u64);
-        if (CVMX_WAIT_FOR_FIELD64(CVMX_PCSX_MRX_CONTROL_REG(index, interface), cvmx_pcsx_mrx_control_reg_t, reset, ==, 0, 10000))
+        if (CVMX_WAIT_FOR_FIELD64(CVMX_PCSX_MRX_CONTROL_REG(index, interface), cvmx_pcsx_mrx_control_reg_t, reset, ==, 0, link_timeout))
         {
             cvmx_dprintf("SGMII%d: Timeout waiting for port %d to finish reset\n", interface, index);
             return -1;
@@ -255,6 +276,11 @@ static int __cvmx_helper_sgmii_hardware_init_link_speed(int interface, int index
     int is_enabled;
     cvmx_gmxx_prtx_cfg_t gmxx_prtx_cfg;
     cvmx_pcsx_miscx_ctl_reg_t pcsx_miscx_ctl_reg;
+
+#if defined(OCTEON_VENDOR_GEFES)
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_TNPA5651X)
+	    return 0;  /* no auto-negotiation */
+#endif
 
     /* Disable GMX before we make any changes. Remember the enable state */
     gmxx_prtx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
@@ -586,8 +612,42 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
     pcsx_miscx_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
     if (pcsx_miscx_ctl_reg.s.mode)
     {
+#if defined(OCTEON_VENDOR_GEFES)
         /* 1000BASE-X */
-        // FIXME
+        int interface = cvmx_helper_get_interface_num(ipd_port);
+        int index = cvmx_helper_get_interface_index_num(ipd_port);
+        cvmx_pcsx_miscx_ctl_reg_t mode_type;
+        cvmx_pcsx_anx_results_reg_t inband_status;
+        cvmx_pcsx_mrx_status_reg_t mrx_status;
+        cvmx_pcsx_anx_adv_reg_t anxx_adv;
+
+        anxx_adv.u64 = cvmx_read_csr(CVMX_PCSX_ANX_ADV_REG(index, interface));
+        mrx_status.u64 = cvmx_read_csr(CVMX_PCSX_MRX_STATUS_REG(index, interface));
+        mode_type.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
+
+        /* Read Octeon's inband status */
+        inband_status.u64 = cvmx_read_csr(CVMX_PCSX_ANX_RESULTS_REG(index, interface));
+
+        result.s.link_up = inband_status.s.link_ok;/* this is only accurate for 1000-base x */
+        
+        result.s.full_duplex = inband_status.s.dup;
+        switch (inband_status.s.spd)
+        {
+        case 0: /* 10 Mbps */
+            result.s.speed = 10;
+            break;
+        case 1: /* 100 Mbps */
+            result.s.speed = 100;
+            break;
+        case 2: /* 1 Gbps */
+            result.s.speed = 1000;
+            break;
+        case 3: /* Illegal */
+            result.s.speed = 0;
+            result.s.link_up = 0;
+            break;
+        }
+#endif /* Actually not 100% this is GEFES specific */
     }
     else
     {

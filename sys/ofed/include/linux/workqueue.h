@@ -184,9 +184,9 @@ cancel_delayed_work(struct delayed_work *work)
 {
 
 	callout_stop(&work->timer);
-	if (work->work.taskqueue &&
-	    taskqueue_cancel(work->work.taskqueue, &work->work.work_task, NULL))
-		taskqueue_drain(work->work.taskqueue, &work->work.work_task);
+	if (work->work.taskqueue)
+		return (taskqueue_cancel(work->work.taskqueue,
+		    &work->work.work_task, NULL) == 0);
 	return 0;
 }
 

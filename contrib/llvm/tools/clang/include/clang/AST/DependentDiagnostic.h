@@ -18,11 +18,11 @@
 #ifndef LLVM_CLANG_AST_DEPENDENT_DIAGNOSTIC_H
 #define LLVM_CLANG_AST_DEPENDENT_DIAGNOSTIC_H
 
-#include "clang/Basic/PartialDiagnostic.h"
-#include "clang/Basic/SourceLocation.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclContextInternals.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/PartialDiagnostic.h"
+#include "clang/Basic/SourceLocation.h"
 
 namespace clang {
 
@@ -108,16 +108,14 @@ private:
 
   PartialDiagnostic Diag;
 
-  union {
-    struct {
-      unsigned Loc;
-      unsigned Access : 2;
-      unsigned IsMember : 1;
-      NamedDecl *TargetDecl;
-      CXXRecordDecl *NamingClass;
-      void *BaseObjectType;
-    } AccessData;
-  };
+  struct {
+    unsigned Loc;
+    unsigned Access : 2;
+    unsigned IsMember : 1;
+    NamedDecl *TargetDecl;
+    CXXRecordDecl *NamingClass;
+    void *BaseObjectType;
+  } AccessData;
 };
 
 /// 

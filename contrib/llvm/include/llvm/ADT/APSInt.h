@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_APSINT_H
-#define LLVM_APSINT_H
+#ifndef LLVM_ADT_APSINT_H
+#define LLVM_ADT_APSINT_H
 
 #include "llvm/ADT/APInt.h"
 
@@ -23,7 +23,7 @@ class APSInt : public APInt {
   bool IsUnsigned;
 public:
   /// Default constructor that creates an uninitialized APInt.
-  explicit APSInt() {}
+  explicit APSInt() : IsUnsigned(false) {}
 
   /// APSInt ctor - Create an APSInt with the specified width, default to
   /// unsigned.
@@ -161,11 +161,11 @@ public:
   }
 
   APSInt& operator++() {
-    static_cast<APInt&>(*this)++;
+    ++(static_cast<APInt&>(*this));
     return *this;
   }
   APSInt& operator--() {
-    static_cast<APInt&>(*this)--;
+    --(static_cast<APInt&>(*this));
     return *this;
   }
   APSInt operator++(int) {

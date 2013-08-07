@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd September 10, 2010
-.Dt CPUSET 2
+.Dt CPUSET_GETAFFINITY 2
 .Os
 .Sh NAME
 .Nm cpuset_getaffinity ,
@@ -69,7 +69,7 @@ All resources, however, have a mask which may be manipulated with
 Masks of type
 .Ft cpuset_t
 are composed using the
-.Xr CPU_SET 2
+.Dv CPU_SET
 macros.
 The kernel tolerates large sets as long as all CPUs specified
 in the set exist.
@@ -152,7 +152,6 @@ operation.
 .Xr cpuset 2 ,
 .Xr cpuset_getid 2 ,
 .Xr cpuset_setid 2 ,
-.Xr CPU_SET 3 ,
 .Xr pthread_affinity_np 3 ,
 .Xr pthread_attr_affinity_np 3
 .Sh HISTORY

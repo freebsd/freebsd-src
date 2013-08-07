@@ -1,4 +1,4 @@
-/*	$NetBSD: suff.c,v 1.69 2011/09/29 23:38:04 sjg Exp $	*/
+/*	$NetBSD: suff.c,v 1.70 2013/05/18 13:13:34 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: suff.c,v 1.69 2011/09/29 23:38:04 sjg Exp $";
+static char rcsid[] = "$NetBSD: suff.c,v 1.70 2013/05/18 13:13:34 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)suff.c	8.4 (Berkeley) 3/21/94";
 #else
-__RCSID("$NetBSD: suff.c,v 1.69 2011/09/29 23:38:04 sjg Exp $");
+__RCSID("$NetBSD: suff.c,v 1.70 2013/05/18 13:13:34 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -2058,118 +2058,124 @@ SuffFindNormalDeps(GNode *gn, Lst slst)
      * children, then look for any overriding transformations they imply.
      * Should we find one, we discard the one we found before.
      */
+    bottom = NULL;
+    targ = NULL;
 
-    while (ln != NULL) {
-	/*
-	 * Look for next possible suffix...
-	 */
-	ln = Lst_FindFrom(sufflist, ln, &sd, SuffSuffIsSuffixP);
+    if (!(gn->type & OP_PHONY)) {
 
-	if (ln != NULL) {
-	    int	    prefLen;	    /* Length of the prefix */
-
+	while (ln != NULL) {
 	    /*
-	     * Allocate a Src structure to which things can be transformed
+	     * Look for next possible suffix...
 	     */
+	    ln = Lst_FindFrom(sufflist, ln, &sd, SuffSuffIsSuffixP);
+
+	    if (ln != NULL) {
+		int	    prefLen;	    /* Length of the prefix */
+
+		/*
+		 * Allocate a Src structure to which things can be transformed
+		 */
+		targ = bmake_malloc(sizeof(Src));
+		targ->file = bmake_strdup(gn->name);
+		targ->suff = (Suff *)Lst_Datum(ln);
+		targ->suff->refCount++;
+		targ->node = gn;
+		targ->parent = NULL;
+		targ->children = 0;
+#ifdef DEBUG_SRC
+		targ->cp = Lst_Init(FALSE);
+#endif
+
+		/*
+		 * Allocate room for the prefix, whose end is found by
+		 * subtracting the length of the suffix from
+		 * the end of the name.
+		 */
+		prefLen = (eoname - targ->suff->nameLen) - sopref;
+		targ->pref = bmake_malloc(prefLen + 1);
+		memcpy(targ->pref, sopref, prefLen);
+		targ->pref[prefLen] = '\0';
+
+		/*
+		 * Add nodes from which the target can be made
+		 */
+		SuffAddLevel(srcs, targ);
+
+		/*
+		 * Record the target so we can nuke it
+		 */
+		(void)Lst_AtEnd(targs, targ);
+
+		/*
+		 * Search from this suffix's successor...
+		 */
+		ln = Lst_Succ(ln);
+	    }
+	}
+
+	/*
+	 * Handle target of unknown suffix...
+	 */
+	if (Lst_IsEmpty(targs) && suffNull != NULL) {
+	    if (DEBUG(SUFF)) {
+		fprintf(debug_file, "\tNo known suffix on %s. Using .NULL suffix\n", gn->name);
+	    }
+
 	    targ = bmake_malloc(sizeof(Src));
 	    targ->file = bmake_strdup(gn->name);
-	    targ->suff = (Suff *)Lst_Datum(ln);
+	    targ->suff = suffNull;
 	    targ->suff->refCount++;
 	    targ->node = gn;
 	    targ->parent = NULL;
 	    targ->children = 0;
+	    targ->pref = bmake_strdup(sopref);
 #ifdef DEBUG_SRC
 	    targ->cp = Lst_Init(FALSE);
 #endif
 
 	    /*
-	     * Allocate room for the prefix, whose end is found by subtracting
-	     * the length of the suffix from the end of the name.
+	     * Only use the default suffix rules if we don't have commands
+	     * defined for this gnode; traditional make programs used to
+	     * not define suffix rules if the gnode had children but we
+	     * don't do this anymore.
 	     */
-	    prefLen = (eoname - targ->suff->nameLen) - sopref;
-	    targ->pref = bmake_malloc(prefLen + 1);
-	    memcpy(targ->pref, sopref, prefLen);
-	    targ->pref[prefLen] = '\0';
+	    if (Lst_IsEmpty(gn->commands))
+		SuffAddLevel(srcs, targ);
+	    else {
+		if (DEBUG(SUFF))
+		    fprintf(debug_file, "not ");
+	    }
 
-	    /*
-	     * Add nodes from which the target can be made
-	     */
-	    SuffAddLevel(srcs, targ);
-
-	    /*
-	     * Record the target so we can nuke it
-	     */
-	    (void)Lst_AtEnd(targs, targ);
-
-	    /*
-	     * Search from this suffix's successor...
-	     */
-	    ln = Lst_Succ(ln);
-	}
-    }
-
-    /*
-     * Handle target of unknown suffix...
-     */
-    if (Lst_IsEmpty(targs) && suffNull != NULL) {
-	if (DEBUG(SUFF)) {
-	    fprintf(debug_file, "\tNo known suffix on %s. Using .NULL suffix\n", gn->name);
-	}
-
-	targ = bmake_malloc(sizeof(Src));
-	targ->file = bmake_strdup(gn->name);
-	targ->suff = suffNull;
-	targ->suff->refCount++;
-	targ->node = gn;
-	targ->parent = NULL;
-	targ->children = 0;
-	targ->pref = bmake_strdup(sopref);
-#ifdef DEBUG_SRC
-	targ->cp = Lst_Init(FALSE);
-#endif
-
-	/*
-	 * Only use the default suffix rules if we don't have commands
-	 * defined for this gnode; traditional make programs used to
-	 * not define suffix rules if the gnode had children but we
-	 * don't do this anymore.
-	 */
-	if (Lst_IsEmpty(gn->commands))
-	    SuffAddLevel(srcs, targ);
-	else {
 	    if (DEBUG(SUFF))
-		fprintf(debug_file, "not ");
+		fprintf(debug_file, "adding suffix rules\n");
+
+	    (void)Lst_AtEnd(targs, targ);
 	}
 
-	if (DEBUG(SUFF))
-	    fprintf(debug_file, "adding suffix rules\n");
-
-	(void)Lst_AtEnd(targs, targ);
-    }
-
-    /*
-     * Using the list of possible sources built up from the target suffix(es),
-     * try and find an existing file/target that matches.
-     */
-    bottom = SuffFindThem(srcs, slst);
-
-    if (bottom == NULL) {
 	/*
-	 * No known transformations -- use the first suffix found for setting
-	 * the local variables.
+	 * Using the list of possible sources built up from the target
+	 * suffix(es), try and find an existing file/target that matches.
 	 */
-	if (!Lst_IsEmpty(targs)) {
-	    targ = (Src *)Lst_Datum(Lst_First(targs));
+	bottom = SuffFindThem(srcs, slst);
+
+	if (bottom == NULL) {
+	    /*
+	     * No known transformations -- use the first suffix found
+	     * for setting the local variables.
+	     */
+	    if (!Lst_IsEmpty(targs)) {
+		targ = (Src *)Lst_Datum(Lst_First(targs));
+	    } else {
+		targ = NULL;
+	    }
 	} else {
-	    targ = NULL;
+	    /*
+	     * Work up the transformation path to find the suffix of the
+	     * target to which the transformation was made.
+	     */
+	    for (targ = bottom; targ->parent != NULL; targ = targ->parent)
+		continue;
 	}
-    } else {
-	/*
-	 * Work up the transformation path to find the suffix of the
-	 * target to which the transformation was made.
-	 */
-	for (targ = bottom; targ->parent != NULL; targ = targ->parent)
-	    continue;
     }
 
     Var_Set(TARGET, gn->path ? gn->path : gn->name, gn, 0);
@@ -2419,12 +2425,7 @@ SuffFindDeps(GNode *gn, Lst slst)
      */
     Var_Set(TARGET, gn->path ? gn->path : gn->name, gn, 0);
     Var_Set(PREFIX, gn->name, gn, 0);
-    if (gn->type & OP_PHONY) {
-	/*
-	 * If this is a .PHONY target, we do not apply suffix rules.
-	 */
-	return;
-    }
+
     if (DEBUG(SUFF)) {
 	fprintf(debug_file, "SuffFindDeps (%s)\n", gn->name);
     }

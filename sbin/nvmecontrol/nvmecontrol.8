@@ -58,6 +58,18 @@
 .Nm
 .Ic reset
 .Aq controller id
+.Nm
+.Ic logpage
+.Aq Fl p Ar page_id
+.Op Fl x
+.Aq device id
+.Aq namespace id
+.Nm
+.Ic firmware
+.Op Fl s Ar slot
+.Op Fl f Ar path_to_firmware
+.Op Fl a
+.Aq device id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
@@ -84,6 +96,30 @@ stdout when 30 seconds expires.
 .Dl nvmecontrol reset nvme0
 .Pp
 Perform a controller-level reset of the nvme0 controller.
+.Pp
+.Dl nvmecontrol logpage -p 1 nvme0
+.Pp
+Display a human-readable summary of the nvme0 controller's Error Information Log.
+Log pages defined by the NVMe specification include Error Information Log (ID=1),
+SMART/Health Information Log (ID=2), and Firmware Slot Log (ID=3).
+.Pp
+.Dl nvmecontrol logpage -p 1 -x nvme0
+.Pp
+Display a hexidecimal dump of the nvme0 controller's Error Information Log.
+.Pp
+.Dl nvmecontrol firmware -s 2 -f /tmp/nvme_firmware nvme0
+.Pp
+Download the firmware image contained in "/tmp/nvme_firmware" to slot 2 of the
+nvme0 controller, but do not activate the image.
+.Pp
+.Dl nvmecontrol firmware -s 4 -a nvme0
+.Pp
+Activate the firmware in slot 4 of the nvme0 controller on the next reset.
+.Pp
+.Dl nvmecontrol firmware -s 7 -f /tmp/nvme_firmware -a nvme0
+.Pp
+Download the firmware image contained in "/tmp/nvme_firmware" to slot 7 of the
+nvme0 controller and activate it on the next reset.
 .Sh AUTHORS
 .An -nosplit
 .Nm

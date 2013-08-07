@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "TableGenBackends.h" // Declares all backends.
-
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
@@ -25,15 +24,18 @@ using namespace clang;
 
 enum ActionType {
   GenClangAttrClasses,
+  GenClangAttrExprArgsList,
   GenClangAttrImpl,
   GenClangAttrList,
   GenClangAttrPCHRead,
   GenClangAttrPCHWrite,
   GenClangAttrSpellingList,
+  GenClangAttrSpellingListIndex,
   GenClangAttrLateParsedList,
   GenClangAttrTemplateInstantiate,
   GenClangAttrParsedAttrList,
   GenClangAttrParsedAttrKinds,
+  GenClangAttrDump,
   GenClangDiagsDefs,
   GenClangDiagGroups,
   GenClangDiagsIndexName,
@@ -43,7 +45,9 @@ enum ActionType {
   GenClangSACheckers,
   GenClangCommentHTMLTags,
   GenClangCommentHTMLTagsProperties,
+  GenClangCommentHTMLNamedCharacterReferences,
   GenClangCommentCommandInfo,
+  GenClangCommentCommandList,
   GenOptParserDefs, GenOptParserImpl,
   GenArmNeon,
   GenArmNeonSema,
@@ -59,6 +63,10 @@ namespace {
                                "Generate option parser implementation"),
                     clEnumValN(GenClangAttrClasses, "gen-clang-attr-classes",
                                "Generate clang attribute clases"),
+                    clEnumValN(GenClangAttrExprArgsList,
+                               "gen-clang-attr-expr-args-list",
+                               "Generate a clang attribute expression "
+                               "arguments list"),
                     clEnumValN(GenClangAttrImpl, "gen-clang-attr-impl",
                                "Generate clang attribute implementations"),
                     clEnumValN(GenClangAttrList, "gen-clang-attr-list",
@@ -70,6 +78,9 @@ namespace {
                     clEnumValN(GenClangAttrSpellingList,
                                "gen-clang-attr-spelling-list",
                                "Generate a clang attribute spelling list"),
+                    clEnumValN(GenClangAttrSpellingListIndex,
+                               "gen-clang-attr-spelling-index",
+                               "Generate a clang attribute spelling index"),
                     clEnumValN(GenClangAttrLateParsedList,
                                "gen-clang-attr-late-parsed-list",
                                "Generate a clang attribute LateParsed list"),
@@ -82,6 +93,8 @@ namespace {
                     clEnumValN(GenClangAttrParsedAttrKinds,
                                "gen-clang-attr-parsed-attr-kinds",
                                "Generate a clang parsed attribute kinds"),
+                    clEnumValN(GenClangAttrDump, "gen-clang-attr-dump",
+                               "Generate clang attribute dumper"),
                     clEnumValN(GenClangDiagsDefs, "gen-clang-diags-defs",
                                "Generate Clang diagnostics definitions"),
                     clEnumValN(GenClangDiagGroups, "gen-clang-diag-groups",
@@ -105,8 +118,16 @@ namespace {
                                "gen-clang-comment-html-tags-properties",
                                "Generate efficient matchers for HTML tag "
                                "properties"),
+                    clEnumValN(GenClangCommentHTMLNamedCharacterReferences,
+                               "gen-clang-comment-html-named-character-references",
+                               "Generate function to translate named character "
+                               "references to UTF-8 sequences"),
                     clEnumValN(GenClangCommentCommandInfo,
                                "gen-clang-comment-command-info",
+                               "Generate command properties for commands that "
+                               "are used in documentation comments"),
+                    clEnumValN(GenClangCommentCommandList,
+                               "gen-clang-comment-command-list",
                                "Generate list of commands that are used in "
                                "documentation comments"),
                     clEnumValN(GenArmNeon, "gen-arm-neon",
@@ -127,6 +148,9 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenClangAttrClasses:
     EmitClangAttrClass(Records, OS);
     break;
+  case GenClangAttrExprArgsList:
+    EmitClangAttrExprArgsList(Records, OS);
+    break;
   case GenClangAttrImpl:
     EmitClangAttrImpl(Records, OS);
     break;
@@ -142,6 +166,9 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenClangAttrSpellingList:
     EmitClangAttrSpellingList(Records, OS);
     break;
+  case GenClangAttrSpellingListIndex:
+    EmitClangAttrSpellingListIndex(Records, OS);
+    break;
   case GenClangAttrLateParsedList:
     EmitClangAttrLateParsedList(Records, OS);
     break;
@@ -153,6 +180,9 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
     break;
   case GenClangAttrParsedAttrKinds:
     EmitClangAttrParsedAttrKinds(Records, OS);
+    break;
+  case GenClangAttrDump:
+    EmitClangAttrDump(Records, OS);
     break;
   case GenClangDiagsDefs:
     EmitClangDiagsDefs(Records, OS, ClangComponent);
@@ -182,8 +212,14 @@ bool ClangTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenClangCommentHTMLTagsProperties:
     EmitClangCommentHTMLTagsProperties(Records, OS);
     break;
+  case GenClangCommentHTMLNamedCharacterReferences:
+    EmitClangCommentHTMLNamedCharacterReferences(Records, OS);
+    break;
   case GenClangCommentCommandInfo:
     EmitClangCommentCommandInfo(Records, OS);
+    break;
+  case GenClangCommentCommandList:
+    EmitClangCommentCommandList(Records, OS);
     break;
   case GenOptParserDefs:
     EmitOptParser(Records, OS, true);

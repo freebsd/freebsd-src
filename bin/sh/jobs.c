@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 
 static struct job *jobtab;	/* array of jobs */
 static int njobs;		/* size of array */
-MKINIT pid_t backgndpid = -1;	/* pid of last background process */
-MKINIT struct job *bgjob = NULL; /* last background process */
+static pid_t backgndpid = -1;	/* pid of last background process */
+static struct job *bgjob = NULL; /* last background process */
 #if JOBS
 static struct job *jobmru;	/* most recently used job list */
 static pid_t initialpgrp;	/* pgrp of shell on invocation */
@@ -95,6 +95,8 @@ static int ttyfd = -1;
 static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
+static int waitcmdloop(struct job *);
+static struct job *getjob_nonotfound(char *);
 static struct job *getjob(char *);
 pid_t getjobpgrp(char *);
 static pid_t dowait(int, struct job *);
@@ -114,7 +116,7 @@ static void showjob(struct job *, int);
  * Turn job control on and off.
  */
 
-MKINIT int jobctl;
+static int jobctl;
 
 #if JOBS
 void
@@ -127,11 +129,12 @@ setjobctl(int on)
 	if (on) {
 		if (ttyfd != -1)
 			close(ttyfd);
-		if ((ttyfd = open(_PATH_TTY, O_RDWR)) < 0) {
+		if ((ttyfd = open(_PATH_TTY, O_RDWR | O_CLOEXEC)) < 0) {
 			i = 0;
 			while (i <= 2 && !isatty(i))
 				i++;
-			if (i > 2 || (ttyfd = fcntl(i, F_DUPFD, 10)) < 0)
+			if (i > 2 ||
+			    (ttyfd = fcntl(i, F_DUPFD_CLOEXEC, 10)) < 0)
 				goto out;
 		}
 		if (ttyfd < 10) {
@@ -139,18 +142,13 @@ setjobctl(int on)
 			 * Keep our TTY file descriptor out of the way of
 			 * the user's redirections.
 			 */
-			if ((i = fcntl(ttyfd, F_DUPFD, 10)) < 0) {
+			if ((i = fcntl(ttyfd, F_DUPFD_CLOEXEC, 10)) < 0) {
 				close(ttyfd);
 				ttyfd = -1;
 				goto out;
 			}
 			close(ttyfd);
 			ttyfd = i;
-		}
-		if (fcntl(ttyfd, F_SETFD, FD_CLOEXEC) < 0) {
-			close(ttyfd);
-			ttyfd = -1;
-			goto out;
 		}
 		do { /* while we are in the background */
 			initialpgrp = tcgetpgrp(ttyfd);
@@ -417,13 +415,15 @@ showjobs(int change, int mode)
 		if (change && ! jp->changed)
 			continue;
 		showjob(jp, mode);
-		jp->changed = 0;
-		/* Hack: discard jobs for which $! has not been referenced
-		 * in interactive mode when they terminate.
-		 */
-		if (jp->state == JOBDONE && !jp->remembered &&
-				(iflag || jp != bgjob)) {
-			freejob(jp);
+		if (mode == SHOWJOBS_DEFAULT || mode == SHOWJOBS_VERBOSE) {
+			jp->changed = 0;
+			/* Hack: discard jobs for which $! has not been
+			 * referenced in interactive mode when they terminate.
+			 */
+			if (jp->state == JOBDONE && !jp->remembered &&
+					(iflag || jp != bgjob)) {
+				freejob(jp);
+			}
 		}
 	}
 }
@@ -461,15 +461,29 @@ int
 waitcmd(int argc __unused, char **argv __unused)
 {
 	struct job *job;
-	int status, retval;
-	struct job *jp;
+	int retval;
 
 	nextopt("");
-	if (*argptr != NULL) {
-		job = getjob(*argptr);
-	} else {
-		job = NULL;
-	}
+	if (*argptr == NULL)
+		return (waitcmdloop(NULL));
+
+	do {
+		job = getjob_nonotfound(*argptr);
+		if (job == NULL)
+			retval = 127;
+		else
+			retval = waitcmdloop(job);
+		argptr++;
+	} while (*argptr != NULL);
+
+	return (retval);
+}
+
+static int
+waitcmdloop(struct job *job)
+{
+	int status, retval;
+	struct job *jp;
 
 	/*
 	 * Loop until a process is terminated or stopped, or a SIGINT is
@@ -548,7 +562,7 @@ jobidcmd(int argc __unused, char **argv)
  */
 
 static struct job *
-getjob(char *name)
+getjob_nonotfound(char *name)
 {
 	int jobno;
 	struct job *found, *jp;
@@ -613,9 +627,19 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 				return jp;
 		}
 	}
-	error("No such job: %s", name);
-	/*NOTREACHED*/
 	return NULL;
+}
+
+
+static struct job *
+getjob(char *name)
+{
+	struct job *jp;
+
+	jp = getjob_nonotfound(name);
+	if (jp == NULL)
+		error("No such job: %s", name);
+	return (jp);
 }
 
 

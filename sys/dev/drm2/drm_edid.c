@@ -264,12 +264,12 @@ drm_do_probe_ddc_edid(device_t adapter, unsigned char *buf,
 	do {
 		struct iic_msg msgs[] = {
 			{
-				.slave	= DDC_ADDR,
+				.slave	= DDC_ADDR << 1,
 				.flags	= IIC_M_WR,
 				.len	= 1,
 				.buf	= &start,
 			}, {
-				.slave	= DDC_ADDR,
+				.slave	= DDC_ADDR << 1,
 				.flags	= IIC_M_RD,
 				.len	= len,
 				.buf	= buf,

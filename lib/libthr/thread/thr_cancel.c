@@ -87,7 +87,8 @@ _pthread_setcancelstate(int state, int *oldstate)
 		break;
 	case PTHREAD_CANCEL_ENABLE:
 		curthread->cancel_enable = 1;
-		testcancel(curthread);
+		if (curthread->cancel_async)
+			testcancel(curthread);
 		break;
 	default:
 		return (EINVAL);

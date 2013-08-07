@@ -2121,6 +2121,7 @@ igmp_v1v2_process_querier_timers(struct igmp_ifinfo *igi)
 				    __func__, igi->igi_version, IGMP_VERSION_2,
 				    igi->igi_ifp, igi->igi_ifp->if_xname);
 				igi->igi_version = IGMP_VERSION_2;
+				igmp_v3_cancel_link_timers(igi);
 			}
 		}
 	} else if (igi->igi_v1_timer > 0) {

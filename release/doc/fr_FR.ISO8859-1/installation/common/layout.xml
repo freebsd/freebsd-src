@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
 <!--
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
@@ -32,7 +33,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
     suivre les instructions. Le reste des donn&eacute;es
     n&eacute;cessaires a l'installation serontcharg&eacute;es
     automatiquement en fonction de vos s&eacute;lections. Si vous n'avez
-    jamais install&eacute; &os, pr&eacute;cedemment, il est
+    jamais install&eacute; &os;, pr&eacute;cedemment, il est
     n&eacute;cessaire de lire enti&egrave;rement ce document.</para>
 
 

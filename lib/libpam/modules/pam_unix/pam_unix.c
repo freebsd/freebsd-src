@@ -460,14 +460,14 @@ to64(char *s, long v, int n)
 }
 
 /* Salt suitable for traditional DES and MD5 */
-void
-makesalt(char salt[SALTSIZE])
+static void
+makesalt(char salt[SALTSIZE + 1])
 {
 	int i;
 
 	/* These are not really random numbers, they are just
 	 * numbers that change to thwart construction of a
-	 * dictionary. This is exposed to the public.
+	 * dictionary.
 	 */
 	for (i = 0; i < SALTSIZE; i += 4)
 		to64(&salt[i], arc4random(), 4);

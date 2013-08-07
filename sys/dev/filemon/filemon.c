@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/systm.h>
@@ -148,6 +150,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 {
 	int error = 0;
 	struct filemon *filemon;
+	struct proc *p;
 
 	devfs_get_cdevpriv((void **) &filemon);
 
@@ -161,7 +164,12 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 
 	/* Set the monitored process ID. */
 	case FILEMON_SET_PID:
-		filemon->pid = *((pid_t *)data);
+		error = pget(*((pid_t *)data), PGET_CANDEBUG | PGET_NOTWEXIT,
+		    &p);
+		if (error == 0) {
+			filemon->pid = p->p_pid;
+			PROC_UNLOCK(p);
+		}
 		break;
 
 	default:

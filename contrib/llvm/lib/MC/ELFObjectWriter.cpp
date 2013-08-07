@@ -1,4 +1,4 @@
-//===- lib/MC/ELFObjectWriter.cpp - ELF File Writer -------------------===//
+//===- lib/MC/ELFObjectWriter.cpp - ELF File Writer -----------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,17 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCELF.h"
+#include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/MC/MCELFObjectWriter.h"
+#include "llvm/MC/MCELF.h"
 #include "llvm/MC/MCELFSymbolFlags.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCFixupKindInfo.h"
@@ -29,9 +29,8 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ELF.h"
-
+#include "llvm/Support/ErrorHandling.h"
 #include <vector>
 using namespace llvm;
 
@@ -136,15 +135,13 @@ class ELFObjectWriter : public MCObjectWriter {
     const MCSymbol *undefinedExplicitRelSym(const MCValue &Target,
                                             const MCFixup &Fixup,
                                             bool IsPCRel) const {
-      return TargetObjectWriter->undefinedExplicitRelSym(Target, Fixup, IsPCRel);
+      return TargetObjectWriter->undefinedExplicitRelSym(Target, Fixup,
+                                                         IsPCRel);
     }
 
     bool is64Bit() const { return TargetObjectWriter->is64Bit(); }
     bool hasRelocationAddend() const {
       return TargetObjectWriter->hasRelocationAddend();
-    }
-    unsigned getEFlags() const {
-      return TargetObjectWriter->getEFlags();
     }
     unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
                           bool IsPCRel, bool IsRelocWithSymbol,
@@ -153,13 +150,12 @@ class ELFObjectWriter : public MCObjectWriter {
                                               IsRelocWithSymbol, Addend);
     }
 
-
   public:
     ELFObjectWriter(MCELFObjectTargetWriter *MOTW,
                     raw_ostream &_OS, bool IsLittleEndian)
       : MCObjectWriter(_OS, IsLittleEndian),
         TargetObjectWriter(MOTW),
-        NeedsGOT(false), NeedsSymtabShndx(false){
+        NeedsGOT(false), NeedsSymtabShndx(false) {
     }
 
     virtual ~ELFObjectWriter();
@@ -204,7 +200,7 @@ class ELFObjectWriter : public MCObjectWriter {
     void String8(MCDataFragment &F, uint8_t Value) {
       char buf[1];
       buf[0] = Value;
-      F.getContents() += StringRef(buf, 1);
+      F.getContents().append(&buf[0], &buf[1]);
     }
 
     void String16(MCDataFragment &F, uint16_t Value) {
@@ -213,7 +209,7 @@ class ELFObjectWriter : public MCObjectWriter {
         StringLE16(buf, Value);
       else
         StringBE16(buf, Value);
-      F.getContents() += StringRef(buf, 2);
+      F.getContents().append(&buf[0], &buf[2]);
     }
 
     void String32(MCDataFragment &F, uint32_t Value) {
@@ -222,7 +218,7 @@ class ELFObjectWriter : public MCObjectWriter {
         StringLE32(buf, Value);
       else
         StringBE32(buf, Value);
-      F.getContents() += StringRef(buf, 4);
+      F.getContents().append(&buf[0], &buf[4]);
     }
 
     void String64(MCDataFragment &F, uint64_t Value) {
@@ -231,10 +227,11 @@ class ELFObjectWriter : public MCObjectWriter {
         StringLE64(buf, Value);
       else
         StringBE64(buf, Value);
-      F.getContents() += StringRef(buf, 8);
+      F.getContents().append(&buf[0], &buf[8]);
     }
 
-    void WriteHeader(uint64_t SectionDataSize,
+    void WriteHeader(const MCAssembler &Asm,
+                     uint64_t SectionDataSize,
                      unsigned NumberOfSections);
 
     void WriteSymbolEntry(MCDataFragment *SymtabF,
@@ -374,7 +371,8 @@ ELFObjectWriter::~ELFObjectWriter()
 {}
 
 // Emit the ELF header.
-void ELFObjectWriter::WriteHeader(uint64_t SectionDataSize,
+void ELFObjectWriter::WriteHeader(const MCAssembler &Asm,
+                                  uint64_t SectionDataSize,
                                   unsigned NumberOfSections) {
   // ELF Header
   // ----------
@@ -412,7 +410,7 @@ void ELFObjectWriter::WriteHeader(uint64_t SectionDataSize,
             sizeof(ELF::Elf32_Ehdr)));  // e_shoff = sec hdr table off in bytes
 
   // e_flags = whatever the target wants
-  Write32(getEFlags());
+  Write32(Asm.getELFHeaderEFlags());
 
   // e_ehsize = ELF header size
   Write16(is64Bit() ? sizeof(ELF::Elf64_Ehdr) : sizeof(ELF::Elf32_Ehdr));
@@ -548,12 +546,17 @@ void ELFObjectWriter::WriteSymbol(MCDataFragment *SymtabF,
   bool IsReserved = Data.isCommon() || Data.getSymbol().isAbsolute() ||
     Data.getSymbol().isVariable();
 
+  // Binding and Type share the same byte as upper and lower nibbles
   uint8_t Binding = MCELF::GetBinding(OrigData);
-  uint8_t Visibility = MCELF::GetVisibility(OrigData);
   uint8_t Type = MCELF::GetType(Data);
-
   uint8_t Info = (Binding << ELF_STB_Shift) | (Type << ELF_STT_Shift);
-  uint8_t Other = Visibility;
+
+  // Other and Visibility share the same byte with Visability using the lower
+  // 2 bits
+  uint8_t Visibility = MCELF::GetVisibility(OrigData);
+  uint8_t Other = MCELF::getOther(OrigData) <<
+    (ELF_Other_Shift - ELF_STV_Shift);
+  Other |= Visibility;
 
   uint64_t Value = SymbolValue(Data, Layout);
   uint64_t Size = 0;
@@ -866,7 +869,7 @@ void ELFObjectWriter::ComputeSymbolTable(MCAssembler &Asm,
   // FIXME: Is this the correct place to do this?
   // FIXME: Why is an undefined reference to _GLOBAL_OFFSET_TABLE_ needed?
   if (NeedsGOT) {
-    llvm::StringRef Name = "_GLOBAL_OFFSET_TABLE_";
+    StringRef Name = "_GLOBAL_OFFSET_TABLE_";
     MCSymbol *Sym = Asm.getContext().GetOrCreateSymbol(Name);
     MCSymbolData &Data = Asm.getOrCreateSymbolData(*Sym);
     Data.setExternal(true);
@@ -975,7 +978,7 @@ void ELFObjectWriter::ComputeSymbolTable(MCAssembler &Asm,
   for (unsigned i = 0, e = UndefinedSymbolData.size(); i != e; ++i)
     UndefinedSymbolData[i].SymbolData->setIndex(Index++);
 
-  if (NumRegularSections > ELF::SHN_LORESERVE)
+  if (Index >= ELF::SHN_LORESERVE)
     NeedsSymtabShndx = true;
 }
 
@@ -1187,7 +1190,7 @@ void ELFObjectWriter::CreateMetadataSections(MCAssembler &Asm,
   // The first entry of a string table holds a null character so skip
   // section 0.
   uint64_t Index = 1;
-  F->getContents() += '\x00';
+  F->getContents().push_back('\x00');
 
   for (unsigned int I = 0, E = Sections.size(); I != E; ++I) {
     const MCSectionELF &Section = *Sections[I];
@@ -1205,8 +1208,8 @@ void ELFObjectWriter::CreateMetadataSections(MCAssembler &Asm,
     SectionStringTableIndex[&Section] = Index;
 
     Index += Name.size() + 1;
-    F->getContents() += Name;
-    F->getContents() += '\x00';
+    F->getContents().append(Name.begin(), Name.end());
+    F->getContents().push_back('\x00');
   }
 }
 
@@ -1320,6 +1323,8 @@ void ELFObjectWriter::WriteSection(MCAssembler &Asm,
   case ELF::SHT_FINI_ARRAY:
   case ELF::SHT_PREINIT_ARRAY:
   case ELF::SHT_X86_64_UNWIND:
+  case ELF::SHT_MIPS_REGINFO:
+  case ELF::SHT_MIPS_OPTIONS:
     // Nothing to do.
     break;
 
@@ -1331,6 +1336,24 @@ void ELFObjectWriter::WriteSection(MCAssembler &Asm,
   default:
     assert(0 && "FIXME: sh_type value not supported!");
     break;
+  }
+
+  if (TargetObjectWriter->getEMachine() == ELF::EM_ARM &&
+      Section.getType() == ELF::SHT_ARM_EXIDX) {
+    StringRef SecName(Section.getSectionName());
+    if (SecName == ".ARM.exidx") {
+      sh_link = SectionIndexMap.lookup(
+        Asm.getContext().getELFSection(".text",
+                                       ELF::SHT_PROGBITS,
+                                       ELF::SHF_EXECINSTR | ELF::SHF_ALLOC,
+                                       SectionKind::getText()));
+    } else if (SecName.startswith(".ARM.exidx")) {
+      sh_link = SectionIndexMap.lookup(
+        Asm.getContext().getELFSection(SecName.substr(sizeof(".ARM.exidx") - 1),
+                                       ELF::SHT_PROGBITS,
+                                       ELF::SHF_EXECINSTR | ELF::SHF_ALLOC,
+                                       SectionKind::getText()));
+    }
   }
 
   WriteSecHdrEntry(SectionStringTableIndex[&Section], Section.getType(),
@@ -1381,7 +1404,7 @@ void ELFObjectWriter::WriteDataSectionData(MCAssembler &Asm,
          ++i) {
       const MCFragment &F = *i;
       assert(F.getKind() == MCFragment::FT_Data);
-      WriteBytes(cast<MCDataFragment>(F).getContents().str());
+      WriteBytes(cast<MCDataFragment>(F).getContents());
     }
   } else {
     Asm.writeSectionData(&SD, Layout);
@@ -1533,7 +1556,7 @@ void ELFObjectWriter::WriteObject(MCAssembler &Asm,
   }
 
   // Write out the ELF header ...
-  WriteHeader(SectionHeaderOffset, NumSections + 1);
+  WriteHeader(Asm, SectionHeaderOffset, NumSections + 1);
 
   // ... then the regular sections ...
   // + because of .shstrtab

@@ -132,7 +132,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		privateresident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_WLOCK(obj);
+			VM_OBJECT_RLOCK(obj);
 			if (obj->shadow_count == 1)
 				privateresident = obj->resident_page_count;
 		}
@@ -148,9 +148,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 		last_timestamp = map->timestamp;
@@ -181,12 +181,12 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				break;
 			}
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
-			VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			if (vp != NULL) {
 				vn_fullpath(td, vp, &fullpath, &freepath);
 				vrele(vp);

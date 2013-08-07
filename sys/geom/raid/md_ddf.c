@@ -515,7 +515,7 @@ ddf_meta_find_disk(struct ddf_vol_meta *vmeta, uint32_t PD_Reference,
 	int i, bvd, pos;
 
 	i = 0;
-	for (bvd = 0; bvd < GET16(vmeta, vdc->Secondary_Element_Count); bvd++) {
+	for (bvd = 0; bvd < GET8(vmeta, vdc->Secondary_Element_Count); bvd++) {
 		if (vmeta->bvdc[bvd] == NULL) {
 			i += GET16(vmeta, vdc->Primary_Element_Count); // XXX
 			continue;

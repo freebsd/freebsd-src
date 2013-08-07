@@ -13,16 +13,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Transforms/IPO.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
-#include "llvm/Module.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/TypeFinder.h"
 #include "llvm/Pass.h"
-#include "llvm/Type.h"
-#include "llvm/TypeFinder.h"
-
 using namespace llvm;
 
 namespace {
@@ -37,7 +36,7 @@ namespace {
       next = seed;
     }
 
-    int rand(void) {
+    int rand() {
       next = next * 1103515245 + 12345;
       return (unsigned int)(next / 65536) % 32768;
     }
@@ -73,13 +72,23 @@ namespace {
 
       // Rename all aliases
       for (Module::alias_iterator AI = M.alias_begin(), AE = M.alias_end();
-           AI != AE; ++AI)
-        AI->setName("alias");
+           AI != AE; ++AI) {
+        StringRef Name = AI->getName();
+        if (Name.startswith("llvm.") || (!Name.empty() && Name[0] == 1))
+          continue;
 
+        AI->setName("alias");
+      }
+      
       // Rename all global variables
       for (Module::global_iterator GI = M.global_begin(), GE = M.global_end();
-           GI != GE; ++GI)
+           GI != GE; ++GI) {
+        StringRef Name = GI->getName();
+        if (Name.startswith("llvm.") || (!Name.empty() && Name[0] == 1))
+          continue;
+
         GI->setName("global");
+      }
 
       // Rename all struct types
       TypeFinder StructTypes;
@@ -96,6 +105,10 @@ namespace {
       // Rename all functions
       for (Module::iterator FI = M.begin(), FE = M.end();
            FI != FE; ++FI) {
+        StringRef Name = FI->getName();
+        if (Name.startswith("llvm.") || (!Name.empty() && Name[0] == 1))
+          continue;
+
         FI->setName(metaNames[prng.rand() % array_lengthof(metaNames)]);
         runOnFunction(*FI);
       }

@@ -84,8 +84,8 @@ static void sbdirty(void);
 int
 main(int argc, char *argv[])
 {
-	char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
-	char *tvalue;
+	const char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
+	const char *tvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
@@ -174,7 +174,7 @@ main(int argc, char *argv[])
 			found_arg = 1;
 			name = "space to hold for metadata blocks";
 			kvalue = atoi(optarg);
-			if (mvalue < 0)
+			if (kvalue < 0)
 				errx(10, "bad %s (%s)", name, optarg);
 			kflag = 1;
 			break;
@@ -711,7 +711,7 @@ journal_findfile(void)
 }
 
 static void
-dir_clear_block(char *block, off_t off)
+dir_clear_block(const char *block, off_t off)
 {
 	struct direct *dp;
 

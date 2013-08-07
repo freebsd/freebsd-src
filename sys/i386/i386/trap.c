@@ -767,10 +767,10 @@ trap(struct trapframe *frame)
 	ksi.ksi_trapno = type;
 	if (uprintf_signal) {
 		uprintf("pid %d comm %s: signal %d err %x code %d type %d "
-		    "addr 0x%x eip 0x%08x "
+		    "addr 0x%x esp 0x%08x eip 0x%08x "
 		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
 		    p->p_pid, p->p_comm, i, frame->tf_err, ucode, type, addr,
-		    frame->tf_eip,
+		    frame->tf_esp, frame->tf_eip,
 		    fubyte((void *)(frame->tf_eip + 0)),
 		    fubyte((void *)(frame->tf_eip + 1)),
 		    fubyte((void *)(frame->tf_eip + 2)),
@@ -780,6 +780,7 @@ trap(struct trapframe *frame)
 		    fubyte((void *)(frame->tf_eip + 6)),
 		    fubyte((void *)(frame->tf_eip + 7)));
 	}
+	KASSERT((read_eflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 
 #ifdef DEBUG

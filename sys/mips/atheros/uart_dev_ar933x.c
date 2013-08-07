@@ -53,99 +53,55 @@ __FBSDID("$FreeBSD$");
 	bus_space_write_4((bas)->bst, (bas)->bsh, reg, value)
 
 
-#if 0
-/*
- * Clear pending interrupts. THRE is cleared by reading IIR. Data
- * that may have been received gets lost here.
- */
-static void
-ar933x_clrint(struct uart_bas *bas)
-{
-	uint8_t iir, lsr;
 
-	iir = uart_getreg(bas, REG_IIR);
-	while ((iir & IIR_NOPEND) == 0) {
-		iir &= IIR_IMASK;
-		if (iir == IIR_RLS) {
-			lsr = uart_getreg(bas, REG_LSR);
-			if (lsr & (LSR_BI|LSR_FE|LSR_PE))
-				(void)uart_getreg(bas, REG_DATA);
-		} else if (iir == IIR_RXRDY || iir == IIR_RXTOUT)
-			(void)uart_getreg(bas, REG_DATA);
-		else if (iir == IIR_MLSC)
-			(void)uart_getreg(bas, REG_MSR);
-		uart_barrier(bas);
-		iir = uart_getreg(bas, REG_IIR);
-	}
-}
-#endif
-
-#if 0
 static int
 ar933x_drain(struct uart_bas *bas, int what)
 {
-	int delay, limit;
-
-	delay = ar933x_delay(bas);
+	int limit;
 
 	if (what & UART_DRAIN_TRANSMITTER) {
-		/*
-		 * Pick an arbitrary high limit to avoid getting stuck in
-		 * an infinite loop when the hardware is broken. Make the
-		 * limit high enough to handle large FIFOs.
-		 */
 		limit = 10*1024;
-		while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0 && --limit)
-			DELAY(delay);
+
+		/* Loop over until the TX FIFO shows entirely clear */
+		while (--limit) {
+			if ((ar933x_getreg(bas, AR933X_UART_CS_REG)
+			    & AR933X_UART_CS_TX_BUSY) == 0)
+				break;
+		}
 		if (limit == 0) {
-			/* printf("ns8250: transmitter appears stuck... "); */
 			return (EIO);
 		}
 	}
 
 	if (what & UART_DRAIN_RECEIVER) {
-		/*
-		 * Pick an arbitrary high limit to avoid getting stuck in
-		 * an infinite loop when the hardware is broken. Make the
-		 * limit high enough to handle large FIFOs and integrated
-		 * UARTs. The HP rx2600 for example has 3 UARTs on the
-		 * management board that tend to get a lot of data send
-		 * to it when the UART is first activated.
-		 */
 		limit=10*4096;
-		while ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) && --limit) {
-			(void)uart_getreg(bas, REG_DATA);
+		while (--limit) {
+
+			/* XXX duplicated from ar933x_getc() */
+			/* XXX TODO: refactor! */
+
+			/* If there's nothing to read, stop! */
+			if ((ar933x_getreg(bas, AR933X_UART_DATA_REG) &
+			    AR933X_UART_DATA_RX_CSR) == 0) {
+				break;
+			}
+
+			/* Read the top of the RX FIFO */
+			(void) ar933x_getreg(bas, AR933X_UART_DATA_REG);
+
+			/* Remove that entry from said RX FIFO */
+			ar933x_setreg(bas, AR933X_UART_DATA_REG,
+			    AR933X_UART_DATA_RX_CSR);
+
 			uart_barrier(bas);
-			DELAY(delay << 2);
+			DELAY(2);
 		}
 		if (limit == 0) {
-			/* printf("ns8250: receiver appears broken... "); */
 			return (EIO);
 		}
 	}
 	return (0);
 }
-#endif
-
-#if 0
-/*
- * We can only flush UARTs with FIFOs. UARTs without FIFOs should be
- * drained. WARNING: this function clobbers the FIFO setting!
- */
-static void
-ar933x_flush(struct uart_bas *bas, int what)
-{
-	uint8_t fcr;
-
-	fcr = FCR_ENABLE;
-	if (what & UART_FLUSH_TRANSMITTER)
-		fcr |= FCR_XMT_RST;
-	if (what & UART_FLUSH_RECEIVER)
-		fcr |= FCR_RCV_RST;
-	uart_setreg(bas, REG_FCR, fcr);
-	uart_barrier(bas);
-}
-#endif
 
 /*
  * Calculate the baud from the given chip configuration parameters.
@@ -404,122 +360,81 @@ struct uart_class uart_ar933x_class = {
 static int
 ar933x_bus_attach(struct uart_softc *sc)
 {
-#if 0
-	struct ar933x_softc *ns8250 = (struct ar933x_softc*)sc;
-	struct uart_bas *bas;
-	unsigned int ivar;
+	struct ar933x_softc *u = (struct ar933x_softc *)sc;
+	struct uart_bas *bas = &sc->sc_bas;
+	uint32_t reg;
 
-	bas = &sc->sc_bas;
+	/* XXX TODO: flush transmitter */
 
-	ns8250->mcr = uart_getreg(bas, REG_MCR);
-	ns8250->fcr = FCR_ENABLE;
-	if (!resource_int_value("uart", device_get_unit(sc->sc_dev), "flags",
-	    &ivar)) {
-		if (UART_FLAGS_FCR_RX_LOW(ivar)) 
-			ns8250->fcr |= FCR_RX_LOW;
-		else if (UART_FLAGS_FCR_RX_MEDL(ivar)) 
-			ns8250->fcr |= FCR_RX_MEDL;
-		else if (UART_FLAGS_FCR_RX_HIGH(ivar)) 
-			ns8250->fcr |= FCR_RX_HIGH;
-		else
-			ns8250->fcr |= FCR_RX_MEDH;
-	} else 
-		ns8250->fcr |= FCR_RX_MEDH;
-	
-	/* Get IER mask */
-	ivar = 0xf0;
-	resource_int_value("uart", device_get_unit(sc->sc_dev), "ier_mask",
-	    &ivar);
-	ns8250->ier_mask = (uint8_t)(ivar & 0xff);
-	
-	/* Get IER RX interrupt bits */
-	ivar = IER_EMSC | IER_ERLS | IER_ERXRDY;
-	resource_int_value("uart", device_get_unit(sc->sc_dev), "ier_rxbits",
-	    &ivar);
-	ns8250->ier_rxbits = (uint8_t)(ivar & 0xff);
-	
-	uart_setreg(bas, REG_FCR, ns8250->fcr);
-	uart_barrier(bas);
-	ar933x_bus_flush(sc, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
+	/*
+	 * Setup initial interrupt notifications.
+	 *
+	 * XXX for now, just RX FIFO valid.
+	 * Later on (when they're handled), also handle
+	 * RX errors/overflow.
+	 */
+	u->u_ier = AR933X_UART_INT_RX_VALID;
 
-	if (ns8250->mcr & MCR_DTR)
-		sc->sc_hwsig |= SER_DTR;
-	if (ns8250->mcr & MCR_RTS)
-		sc->sc_hwsig |= SER_RTS;
-	ar933x_bus_getsig(sc);
+	/* Enable RX interrupts to kick-start things */
+	ar933x_setreg(bas, AR933X_UART_INT_EN_REG, u->u_ier);
 
-	ar933x_clrint(bas);
-	ns8250->ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
-	ns8250->ier |= ns8250->ier_rxbits;
-	uart_setreg(bas, REG_IER, ns8250->ier);
-	uart_barrier(bas);
-#endif
+	/* Enable the host interrupt now */
+	reg = ar933x_getreg(bas, AR933X_UART_CS_REG);
+	reg |= AR933X_UART_CS_HOST_INT_EN;
+	ar933x_setreg(bas, AR933X_UART_CS_REG, reg);
+
 	return (0);
 }
 
 static int
 ar933x_bus_detach(struct uart_softc *sc)
 {
-#if 0
-	struct ar933x_softc *ns8250;
-	struct uart_bas *bas;
-	u_char ier;
+	struct uart_bas *bas = &sc->sc_bas;
+	uint32_t reg;
 
-	ns8250 = (struct ar933x_softc *)sc;
-	bas = &sc->sc_bas;
-	ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
-	uart_setreg(bas, REG_IER, ier);
+	/* Disable all interrupts */
+	ar933x_setreg(bas, AR933X_UART_INT_EN_REG, 0x00000000);
+
+	/* Disable the host interrupt */
+	reg = ar933x_getreg(bas, AR933X_UART_CS_REG);
+	reg &= ~AR933X_UART_CS_HOST_INT_EN;
+	ar933x_setreg(bas, AR933X_UART_CS_REG, reg);
 	uart_barrier(bas);
-	ar933x_clrint(bas);
-#endif
+
 	return (0);
 }
 
 static int
 ar933x_bus_flush(struct uart_softc *sc, int what)
 {
-#if 0
-	struct ar933x_softc *ns8250 = (struct ar933x_softc*)sc;
 	struct uart_bas *bas;
-	int error;
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	if (sc->sc_rxfifosz > 1) {
-		ar933x_flush(bas, what);
-		uart_setreg(bas, REG_FCR, ns8250->fcr);
-		uart_barrier(bas);
-		error = 0;
-	} else
-		error = ar933x_drain(bas, what);
+	ar933x_drain(bas, what);
 	uart_unlock(sc->sc_hwmtx);
-	return (error);
-#endif
-	return (ENXIO);
+
+	return (0);
 }
 
 static int
 ar933x_bus_getsig(struct uart_softc *sc)
 {
-#if 0
-	uint32_t new, old, sig;
-	uint8_t msr;
+	uint32_t sig = sc->sc_hwsig;
 
-	do {
-		old = sc->sc_hwsig;
-		sig = old;
-		uart_lock(sc->sc_hwmtx);
-		msr = uart_getreg(&sc->sc_bas, REG_MSR);
-		uart_unlock(sc->sc_hwmtx);
-		SIGCHG(msr & MSR_DSR, sig, SER_DSR, SER_DDSR);
-		SIGCHG(msr & MSR_CTS, sig, SER_CTS, SER_DCTS);
-		SIGCHG(msr & MSR_DCD, sig, SER_DCD, SER_DDCD);
-		SIGCHG(msr & MSR_RI,  sig, SER_RI,  SER_DRI);
-		new = sig & ~SER_MASK_DELTA;
-	} while (!atomic_cmpset_32(&sc->sc_hwsig, old, new));
+	/*
+	 * For now, let's just return that DSR/DCD/CTS is asserted.
+	 *
+	 * XXX TODO: actually verify whether this is correct!
+	 */
+	SIGCHG(1, sig, SER_DSR, SER_DDSR);
+	SIGCHG(1, sig, SER_CTS, SER_DCTS);
+	SIGCHG(1, sig, SER_DCD, SER_DDCD);
+	SIGCHG(1, sig,  SER_RI,  SER_DRI);
+
+	sc->sc_hwsig = sig & ~SER_MASK_DELTA;
+
 	return (sig);
-#endif
-	return (0);
 }
 
 static int
@@ -598,52 +513,87 @@ ar933x_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	return (ENXIO);
 }
 
+/*
+ * Bus interrupt handler.
+ *
+ * For now, system interrupts are disabled.
+ * So this is just called from a callout in uart_core.c
+ * to poll various state.
+ */
 static int
 ar933x_bus_ipend(struct uart_softc *sc)
 {
-#if 0
-	struct uart_bas *bas;
-	struct ar933x_softc *ns8250;
-	int ipend;
-	uint8_t iir, lsr;
+	struct ar933x_softc *u = (struct ar933x_softc *)sc;
+	struct uart_bas *bas = &sc->sc_bas;
+	int ipend = 0;
+	uint32_t isr;
 
-	ns8250 = (struct ar933x_softc *)sc;
-	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	iir = uart_getreg(bas, REG_IIR);
-	if (iir & IIR_NOPEND) {
-		uart_unlock(sc->sc_hwmtx);
-		return (0);
+
+	/*
+	 * Fetch/ACK the ISR status.
+	 */
+	isr = ar933x_getreg(bas, AR933X_UART_INT_REG);
+	ar933x_setreg(bas, AR933X_UART_INT_REG, isr);
+	uart_barrier(bas);
+
+	/*
+	 * RX ready - notify upper layer.
+	 */
+	if (isr & AR933X_UART_INT_RX_VALID) {
+		ipend |= SER_INT_RXREADY;
 	}
-	ipend = 0;
-	if (iir & IIR_RXRDY) {
-		lsr = uart_getreg(bas, REG_LSR);
-		if (lsr & LSR_OE)
-			ipend |= SER_INT_OVERRUN;
-		if (lsr & LSR_BI)
-			ipend |= SER_INT_BREAK;
-		if (lsr & LSR_RXRDY)
-			ipend |= SER_INT_RXREADY;
-	} else {
-		if (iir & IIR_TXRDY) {
+
+	/*
+	 * If we get this interrupt, we should disable
+	 * it from the interrupt mask and inform the uart
+	 * driver appropriately.
+	 *
+	 * We can't keep setting SER_INT_TXIDLE or SER_INT_SIGCHG
+	 * all the time or IO stops working.  So we will always
+	 * clear this interrupt if we get it, then we only signal
+	 * the upper layer if we were doing active TX in the
+	 * first place.
+	 *
+	 * Also, the name is misleading.  This actually means
+	 * "the FIFO is almost empty."  So if we just write some
+	 * more data to the FIFO without checking whether it can
+	 * take said data, we'll overflow the thing.
+	 *
+	 * Unfortunately the FreeBSD uart device has no concept of
+	 * partial UART writes - it expects that the whole buffer
+	 * is written to the hardware.  Thus for now, ar933x_bus_transmit()
+	 * will wait for the FIFO to finish draining before it pushes
+	 * more frames into it.
+	 */
+	if (isr & AR933X_UART_INT_TX_EMPTY) {
+		/*
+		 * Update u_ier to disable TX notifications; update hardware
+		 */
+		u->u_ier &= ~AR933X_UART_INT_TX_EMPTY;
+		ar933x_setreg(bas, AR933X_UART_INT_EN_REG, u->u_ier);
+		uart_barrier(bas);
+	}
+
+	/*
+	 * Only signal TX idle if we're not busy transmitting.
+	 */
+	if (sc->sc_txbusy) {
+		if (isr & AR933X_UART_INT_TX_EMPTY) {
 			ipend |= SER_INT_TXIDLE;
-			uart_setreg(bas, REG_IER, ns8250->ier);
-		} else
+		} else {
 			ipend |= SER_INT_SIGCHG;
+		}
 	}
-	if (ipend == 0)
-		ar933x_clrint(bas);
+
 	uart_unlock(sc->sc_hwmtx);
 	return (ipend);
-#endif
-	return (0);
 }
 
 static int
 ar933x_bus_param(struct uart_softc *sc, int baudrate, int databits,
     int stopbits, int parity)
 {
-#if 0
 	struct uart_bas *bas;
 	int error;
 
@@ -652,193 +602,64 @@ ar933x_bus_param(struct uart_softc *sc, int baudrate, int databits,
 	error = ar933x_param(bas, baudrate, databits, stopbits, parity);
 	uart_unlock(sc->sc_hwmtx);
 	return (error);
-#endif
-	return (ENXIO);
 }
 
 static int
 ar933x_bus_probe(struct uart_softc *sc)
 {
-#if 0
-	struct ar933x_softc *ns8250;
 	struct uart_bas *bas;
-	int count, delay, error, limit;
-	uint8_t lsr, mcr, ier;
+	int error;
 
-	ns8250 = (struct ar933x_softc *)sc;
 	bas = &sc->sc_bas;
 
 	error = ar933x_probe(bas);
 	if (error)
 		return (error);
 
-	mcr = MCR_IE;
-	if (sc->sc_sysdev == NULL) {
-		/* By using ar933x_init() we also set DTR and RTS. */
-		ar933x_init(bas, 115200, 8, 1, UART_PARITY_NONE);
-	} else
-		mcr |= MCR_DTR | MCR_RTS;
-
-	error = ar933x_drain(bas, UART_DRAIN_TRANSMITTER);
-	if (error)
-		return (error);
-
-	/*
-	 * Set loopback mode. This avoids having garbage on the wire and
-	 * also allows us send and receive data. We set DTR and RTS to
-	 * avoid the possibility that automatic flow-control prevents
-	 * any data from being sent.
-	 */
-	uart_setreg(bas, REG_MCR, MCR_LOOPBACK | MCR_IE | MCR_DTR | MCR_RTS);
-	uart_barrier(bas);
-
-	/*
-	 * Enable FIFOs. And check that the UART has them. If not, we're
-	 * done. Since this is the first time we enable the FIFOs, we reset
-	 * them.
-	 */
-	uart_setreg(bas, REG_FCR, FCR_ENABLE);
-	uart_barrier(bas);
-	if (!(uart_getreg(bas, REG_IIR) & IIR_FIFO_MASK)) {
-		/*
-		 * NS16450 or INS8250. We don't bother to differentiate
-		 * between them. They're too old to be interesting.
-		 */
-		uart_setreg(bas, REG_MCR, mcr);
-		uart_barrier(bas);
-		sc->sc_rxfifosz = sc->sc_txfifosz = 1;
-		device_set_desc(sc->sc_dev, "8250 or 16450 or compatible");
-		return (0);
-	}
-
-	uart_setreg(bas, REG_FCR, FCR_ENABLE | FCR_XMT_RST | FCR_RCV_RST);
-	uart_barrier(bas);
-
-	count = 0;
-	delay = ar933x_delay(bas);
-
-	/* We have FIFOs. Drain the transmitter and receiver. */
-	error = ar933x_drain(bas, UART_DRAIN_RECEIVER|UART_DRAIN_TRANSMITTER);
-	if (error) {
-		uart_setreg(bas, REG_MCR, mcr);
-		uart_setreg(bas, REG_FCR, 0);
-		uart_barrier(bas);
-		goto describe;
-	}
-
-	/*
-	 * We should have a sufficiently clean "pipe" to determine the
-	 * size of the FIFOs. We send as much characters as is reasonable
-	 * and wait for the overflow bit in the LSR register to be
-	 * asserted, counting the characters as we send them. Based on
-	 * that count we know the FIFO size.
-	 */
-	do {
-		uart_setreg(bas, REG_DATA, 0);
-		uart_barrier(bas);
-		count++;
-
-		limit = 30;
-		lsr = 0;
-		/*
-		 * LSR bits are cleared upon read, so we must accumulate
-		 * them to be able to test LSR_OE below.
-		 */
-		while (((lsr |= uart_getreg(bas, REG_LSR)) & LSR_TEMT) == 0 &&
-		    --limit)
-			DELAY(delay);
-		if (limit == 0) {
-			ier = uart_getreg(bas, REG_IER) & ns8250->ier_mask;
-			uart_setreg(bas, REG_IER, ier);
-			uart_setreg(bas, REG_MCR, mcr);
-			uart_setreg(bas, REG_FCR, 0);
-			uart_barrier(bas);
-			count = 0;
-			goto describe;
-		}
-	} while ((lsr & LSR_OE) == 0 && count < 130);
-	count--;
-
-	uart_setreg(bas, REG_MCR, mcr);
-
 	/* Reset FIFOs. */
-	ar933x_flush(bas, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
+	ar933x_drain(bas, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);
 
- describe:
-	if (count >= 14 && count <= 16) {
-		sc->sc_rxfifosz = 16;
-		device_set_desc(sc->sc_dev, "16550 or compatible");
-	} else if (count >= 28 && count <= 32) {
-		sc->sc_rxfifosz = 32;
-		device_set_desc(sc->sc_dev, "16650 or compatible");
-	} else if (count >= 56 && count <= 64) {
-		sc->sc_rxfifosz = 64;
-		device_set_desc(sc->sc_dev, "16750 or compatible");
-	} else if (count >= 112 && count <= 128) {
-		sc->sc_rxfifosz = 128;
-		device_set_desc(sc->sc_dev, "16950 or compatible");
-	} else {
-		sc->sc_rxfifosz = 16;
-		device_set_desc(sc->sc_dev,
-		    "Non-standard ns8250 class UART with FIFOs");
-	}
-
-	/*
-	 * Force the Tx FIFO size to 16 bytes for now. We don't program the
-	 * Tx trigger. Also, we assume that all data has been sent when the
-	 * interrupt happens.
-	 */
+	/* XXX TODO: actually find out what the FIFO depth is! */
+	sc->sc_rxfifosz = 16;
 	sc->sc_txfifosz = 16;
 
-#if 0
-	/*
-	 * XXX there are some issues related to hardware flow control and
-	 * it's likely that uart(4) is the cause. This basicly needs more
-	 * investigation, but we avoid using for hardware flow control
-	 * until then.
-	 */
-	/* 16650s or higher have automatic flow control. */
-	if (sc->sc_rxfifosz > 16) {
-		sc->sc_hwiflow = 1;
-		sc->sc_hwoflow = 1;
-	}
-#endif
-#endif
 	return (0);
 }
 
 static int
 ar933x_bus_receive(struct uart_softc *sc)
 {
-#if 0
-	struct uart_bas *bas;
+	struct uart_bas *bas = &sc->sc_bas;
 	int xc;
-	uint8_t lsr;
 
-	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	lsr = uart_getreg(bas, REG_LSR);
-	while (lsr & LSR_RXRDY) {
+
+	/* Loop over until we are full, or no data is available */
+	while (ar933x_rxready(bas)) {
 		if (uart_rx_full(sc)) {
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
 		}
-		xc = uart_getreg(bas, REG_DATA);
-		if (lsr & LSR_FE)
-			xc |= UART_STAT_FRAMERR;
-		if (lsr & LSR_PE)
-			xc |= UART_STAT_PARERR;
-		uart_rx_put(sc, xc);
-		lsr = uart_getreg(bas, REG_LSR);
-	}
-	/* Discard everything left in the Rx FIFO. */
-	while (lsr & LSR_RXRDY) {
-		(void)uart_getreg(bas, REG_DATA);
+
+		/* Read the top of the RX FIFO */
+		xc = ar933x_getreg(bas, AR933X_UART_DATA_REG) & 0xff;
+
+		/* Remove that entry from said RX FIFO */
+		ar933x_setreg(bas, AR933X_UART_DATA_REG,
+		    AR933X_UART_DATA_RX_CSR);
 		uart_barrier(bas);
-		lsr = uart_getreg(bas, REG_LSR);
+
+		/* XXX frame, parity error */
+		uart_rx_put(sc, xc);
 	}
+
+	/*
+	 * XXX TODO: Discard everything left in the Rx FIFO?
+	 * XXX only if we've hit an overrun condition?
+	 */
+
 	uart_unlock(sc->sc_hwmtx);
-#endif
+
 	return (0);
 }
 
@@ -876,26 +697,58 @@ ar933x_bus_setsig(struct uart_softc *sc, int sig)
 	return (0);
 }
 
+/*
+ * Write the current transmit buffer to the TX FIFO.
+ *
+ * Unfortunately the FreeBSD uart device has no concept of
+ * partial UART writes - it expects that the whole buffer
+ * is written to the hardware.  Thus for now, this will wait for
+ * the FIFO to finish draining before it pushes more frames into it.
+ *
+ * If non-blocking operation is truely needed here, either
+ * the FreeBSD uart device will need to handle partial writes
+ * in xxx_bus_transmit(), or we'll need to do TX FIFO buffering
+ * of our own here.
+ */
 static int
 ar933x_bus_transmit(struct uart_softc *sc)
 {
-#if 0
-	struct ar933x_softc *ns8250 = (struct ar933x_softc*)sc;
-	struct uart_bas *bas;
+	struct uart_bas *bas = &sc->sc_bas;
+	struct ar933x_softc *u = (struct ar933x_softc *)sc;
 	int i;
 
-	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	while ((uart_getreg(bas, REG_LSR) & LSR_THRE) == 0)
+
+	/* Wait for the FIFO to be clear - see above */
+	while (ar933x_getreg(bas, AR933X_UART_CS_REG) &
+	    AR933X_UART_CS_TX_BUSY)
 		;
-	uart_setreg(bas, REG_IER, ns8250->ier | IER_ETXRDY);
-	uart_barrier(bas);
+
+	/*
+	 * Write some data!
+	 */
 	for (i = 0; i < sc->sc_txdatasz; i++) {
-		uart_setreg(bas, REG_DATA, sc->sc_txbuf[i]);
+		/* Write the TX data */
+		ar933x_setreg(bas, AR933X_UART_DATA_REG,
+		    (sc->sc_txbuf[i] & 0xff) | AR933X_UART_DATA_TX_CSR);
 		uart_barrier(bas);
 	}
+
+	/*
+	 * Now that we're transmitting, get interrupt notification
+	 * when the FIFO is (almost) empty - see above.
+	 */
+	u->u_ier |= AR933X_UART_INT_TX_EMPTY;
+	ar933x_setreg(bas, AR933X_UART_INT_EN_REG, u->u_ier);
+	uart_barrier(bas);
+
+	/*
+	 * Inform the upper layer that we are presently transmitting
+	 * data to the hardware; this will be cleared when the
+	 * TXIDLE interrupt occurs.
+	 */
 	sc->sc_txbusy = 1;
 	uart_unlock(sc->sc_hwmtx);
-#endif
+
 	return (0);
 }

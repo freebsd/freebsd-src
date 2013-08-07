@@ -160,7 +160,11 @@ static const struct data_abort data_aborts[] = {
 	{dab_align,	"Alignment Fault 3"},
 	{dab_buserr,	"External Linefetch Abort (S)"},
 	{NULL,		"Translation Fault (S)"},
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
+	{NULL,		"Translation Flag Fault"},
+#else
 	{dab_buserr,	"External Linefetch Abort (P)"},
+#endif
 	{NULL,		"Translation Fault (P)"},
 	{dab_buserr,	"External Non-Linefetch Abort (S)"},
 	{NULL,		"Domain Fault (S)"},
@@ -234,14 +238,14 @@ data_abort_handler(trapframe_t *tf)
 	int error = 0;
 	struct ksig ksig;
 	struct proc *p;
-	
+
 
 	/* Grab FAR/FSR before enabling interrupts */
 	far = cpu_faultaddress();
 	fsr = cpu_faultstatus();
 #if 0
-	printf("data abort: %p (from %p %p)\n", (void*)far, (void*)tf->tf_pc,
-	    (void*)tf->tf_svc_lr);
+	printf("data abort: fault address=%p (from pc=%p lr=%p)\n",
+	       (void*)far, (void*)tf->tf_pc, (void*)tf->tf_svc_lr);
 #endif
 
 	/* Update vmmeter statistics */
@@ -258,10 +262,10 @@ data_abort_handler(trapframe_t *tf)
 
 	if (user) {
 		td->td_pticks = 0;
-		td->td_frame = tf;		
+		td->td_frame = tf;
 		if (td->td_ucred != td->td_proc->p_ucred)
 			cred_update_thread(td);
-		
+
 	}
 	/* Grab the current pcb */
 	pcb = td->td_pcb;
@@ -272,7 +276,7 @@ data_abort_handler(trapframe_t *tf)
 		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
 			enable_interrupts(F32_bit);
 	}
-		
+
 
 	/* Invoke the appropriate handler, if necessary */
 	if (__predict_false(data_aborts[fsr & FAULT_TYPE_MASK].func != NULL)) {
@@ -387,22 +391,21 @@ data_abort_handler(trapframe_t *tf)
 	 * Otherwise we need to disassemble the instruction
 	 * responsible to determine if it was a write.
 	 */
-	if (IS_PERMISSION_FAULT(fsr)) {
+	if (IS_PERMISSION_FAULT(fsr))
 		ftype = VM_PROT_WRITE;
-	} else {
+	else {
 		u_int insn = ReadWord(tf->tf_pc);
 
 		if (((insn & 0x0c100000) == 0x04000000) ||	/* STR/STRB */
 		    ((insn & 0x0e1000b0) == 0x000000b0) ||	/* STRH/STRD */
-		    ((insn & 0x0a100000) == 0x08000000))	/* STM/CDT */
-		{
+		    ((insn & 0x0a100000) == 0x08000000)) {	/* STM/CDT */
 			ftype = VM_PROT_WRITE;
-	}
-		else
-		if ((insn & 0x0fb00ff0) == 0x01000090)		/* SWP */
-			ftype = VM_PROT_READ | VM_PROT_WRITE;
-		else
-			ftype = VM_PROT_READ;
+		} else {
+			if ((insn & 0x0fb00ff0) == 0x01000090)	/* SWP */
+				ftype = VM_PROT_READ | VM_PROT_WRITE;
+			else
+				ftype = VM_PROT_READ;
+		}
 	}
 
 	/*
@@ -717,7 +720,7 @@ prefetch_abort_handler(trapframe_t *tf)
 	printf("prefetch abort handler: %p %p\n", (void*)tf->tf_pc,
 	    (void*)tf->tf_usr_lr);
 #endif
-	
+
  	td = curthread;
 	p = td->td_proc;
 	PCPU_INC(cnt.v_trap);
@@ -934,7 +937,7 @@ swi_handler(trapframe_t *frame)
 	struct thread *td = curthread;
 
 	td->td_frame = frame;
-	
+
 	td->td_pticks = 0;
 	/*
       	 * Make sure the program counter is correctly aligned so we

@@ -33,10 +33,11 @@
 /*$FreeBSD$*/
 
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_device_polling.h"
 #include "opt_altq.h"
 #endif
 
@@ -100,7 +101,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.9";
+char igb_driver_version[] = "version - 2.3.10";
 
 
 /*********************************************************************
@@ -374,8 +375,9 @@ SYSCTL_INT(_hw_igb, OID_AUTO, header_split, CTLFLAG_RDTUN, &igb_header_split, 0,
     "Enable receive mbuf header split");
 
 /*
-** This will autoconfigure based on
-** the number of CPUs if left at 0.
+** This will autoconfigure based on the
+** number of CPUs and max supported
+** MSIX messages if left at 0.
 */
 static int igb_num_queues = 0;
 TUNABLE_INT("hw.igb.num_queues", &igb_num_queues);
@@ -1570,6 +1572,10 @@ igb_msix_que(void *arg)
 	u32		newitr = 0;
 	bool		more_rx;
 
+	/* Ignore spurious interrupts */
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
 	E1000_WRITE_REG(&adapter->hw, E1000_EIMC, que->eims);
 	++que->irqs;
 
@@ -2095,7 +2101,9 @@ static void
 igb_disable_promisc(struct adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	struct ifnet	*ifp = adapter->ifp;
 	u32		reg;
+	int		mcnt = 0;
 
 	if (adapter->vf_ifp) {
 		e1000_promisc_set_vf(hw, e1000_promisc_disabled);
@@ -2103,7 +2111,31 @@ igb_disable_promisc(struct adapter *adapter)
 	}
 	reg = E1000_READ_REG(hw, E1000_RCTL);
 	reg &=  (~E1000_RCTL_UPE);
-	reg &=  (~E1000_RCTL_MPE);
+	if (ifp->if_flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else {
+		struct  ifmultiaddr *ifma;
+#if __FreeBSD_version < 800000
+		IF_ADDR_LOCK(ifp);
+#else   
+		if_maddr_rlock(ifp);
+#endif
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+				break;
+			mcnt++;
+		}
+#if __FreeBSD_version < 800000
+		IF_ADDR_UNLOCK(ifp);
+#else
+		if_maddr_runlock(ifp);
+#endif
+	}
+	/* Don't disable if in MAX groups */
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg &=  (~E1000_RCTL_MPE);
 	E1000_WRITE_REG(hw, E1000_RCTL, reg);
 }
 
@@ -2447,7 +2479,6 @@ igb_allocate_legacy(struct adapter *adapter)
 {
 	device_t		dev = adapter->dev;
 	struct igb_queue	*que = adapter->queues;
-	struct tx_ring		*txr = adapter->tx_rings;
 	int			error, rid = 0;
 
 	/* Turn off all interrupts */
@@ -2467,7 +2498,7 @@ igb_allocate_legacy(struct adapter *adapter)
 	}
 
 #ifndef IGB_LEGACY_TX
-	TASK_INIT(&txr->txq_task, 0, igb_deferred_mq_start, txr);
+	TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start, que->txr);
 #endif
 
 	/*
@@ -2811,21 +2842,16 @@ igb_setup_msix(struct adapter *adapter)
 		goto msi;
 
 	/* First try MSI/X */
+	msgs = pci_msix_count(dev); 
+	if (msgs == 0)
+		goto msi;
 	rid = PCIR_BAR(IGB_MSIX_BAR);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       	if (!adapter->msix_mem) {
+       	if (adapter->msix_mem == NULL) {
 		/* May not be enabled */
 		device_printf(adapter->dev,
 		    "Unable to map MSIX table \n");
-		goto msi;
-	}
-
-	msgs = pci_msix_count(dev); 
-	if (msgs == 0) { /* system has msix disabled */
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
-		adapter->msix_mem = NULL;
 		goto msi;
 	}
 
@@ -2871,20 +2897,27 @@ igb_setup_msix(struct adapter *adapter)
 		    "MSIX Configuration Problem, "
 		    "%d vectors configured, but %d queues wanted!\n",
 		    msgs, want);
-		return (0);
+		goto msi;
 	}
-	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
+	if (pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
 		adapter->num_queues = queues;
 		return (msgs);
 	}
+	/* Fallback to MSI configuration */
 msi:
-       	msgs = pci_msi_count(dev);
-	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0) {
+       	if (adapter->msix_mem != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
+		adapter->msix_mem = NULL;
+	}
+       	msgs = 1;
+	if (pci_alloc_msi(dev, &msgs) == 0) {
 		device_printf(adapter->dev," Using MSI interrupt\n");
 		return (msgs);
 	}
+	/* Default to a legacy interrupt */
 	return (0);
 }
 
@@ -3871,17 +3904,9 @@ igb_txeof(struct tx_ring *txr)
 	IGB_TX_LOCK_ASSERT(txr);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
-		IGB_TX_UNLOCK(txr);
-		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_si, PI_NET);
-		IGB_CORE_UNLOCK(adapter);
-		IGB_TX_LOCK(txr);
-		return FALSE;
-	}
+	if (netmap_tx_irq(ifp, txr->me |
+	    (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
+		return (FALSE);
 #endif /* DEV_NETMAP */
         if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = IGB_QUEUE_IDLE;
@@ -4735,17 +4760,8 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 #ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-
-		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
-		IGB_RX_UNLOCK(rxr);
-		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_si, PI_NET);
-		IGB_CORE_UNLOCK(adapter);
-		return (0);
-	}
+	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+		return (FALSE);
 #endif /* DEV_NETMAP */
 
 	/* Main clean loop */

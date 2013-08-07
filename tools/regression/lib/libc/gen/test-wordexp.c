@@ -195,6 +195,18 @@ main(int argc, char *argv[])
 	r = wordexp("test } test", &we, 0);
 	assert(r == WRDE_BADCHAR);
 
+	/* WRDE_SYNTAX */
+	r = wordexp("'", &we, 0);
+	assert(r == WRDE_SYNTAX);
+	r = wordexp("'", &we, WRDE_UNDEF);
+	assert(r == WRDE_SYNTAX);
+	r = wordexp("'\\'", &we, 0);
+	assert(r == 0);
+	assert(we.we_wordc == 1);
+	assert(strcmp(we.we_wordv[0], "\\") == 0);
+	assert(we.we_wordv[1] == NULL);
+	wordfree(&we);
+
 	/* With a SIGCHLD handler that reaps all zombies. */
 	sa.sa_flags = 0;
 	sigemptyset(&sa.sa_mask);
@@ -208,6 +220,25 @@ main(int argc, char *argv[])
 	assert(strcmp(we.we_wordv[1], "world") == 0);
 	assert(we.we_wordv[2] == NULL);
 	wordfree(&we);
+	sa.sa_handler = SIG_DFL;
+	r = sigaction(SIGCHLD, &sa, NULL);
+	assert(r == 0);
+
+	/*
+	 * With IFS set to a non-default value (without depending on whether
+	 * IFS is inherited or not).
+	 */
+	r = setenv("IFS", ":", 1);
+	assert(r == 0);
+	r = wordexp("hello world", &we, 0);
+	assert(r == 0);
+	assert(we.we_wordc == 2);
+	assert(strcmp(we.we_wordv[0], "hello") == 0);
+	assert(strcmp(we.we_wordv[1], "world") == 0);
+	assert(we.we_wordv[2] == NULL);
+	wordfree(&we);
+	r = unsetenv("IFS");
+	assert(r == 0);
 
 	printf("PASS wordexp()\n");
 	printf("PASS wordfree()\n");

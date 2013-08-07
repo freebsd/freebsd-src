@@ -176,7 +176,7 @@ fromwire_keydata(ARGS_FROMWIRE) {
 	UNUSED(options);
 
 	isc_buffer_activeregion(source, &sr);
-	if (sr.length < 4)
+	if (sr.length < 16)
 		return (ISC_R_UNEXPECTEDEND);
 
 	isc_buffer_forward(source, sr.length);

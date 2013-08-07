@@ -241,6 +241,29 @@
 #define	CPUID_LOCAL_APIC_ID	0xff000000
 
 /*
+ * CPUID instruction 5 info
+ */
+#define	CPUID5_MON_MIN_SIZE	0x0000ffff	/* eax */
+#define	CPUID5_MON_MAX_SIZE	0x0000ffff	/* ebx */
+#define	CPUID5_MON_MWAIT_EXT	0x00000001	/* ecx */
+#define	CPUID5_MWAIT_INTRBREAK	0x00000002	/* ecx */
+
+/*
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+/*
+ * MWAIT extensions.
+ */
+/* Interrupt breaks MWAIT even when masked. */
+#define	MWAIT_INTRBREAK		0x00000001
+
+/*
  * CPUID instruction 6 ecx info
  */
 #define	CPUID_PERF_STAT		0x00000001
@@ -279,11 +302,22 @@
 #define	AMDID_COREID_SIZE	0x0000f000
 #define	AMDID_COREID_SIZE_SHIFT	12
 
+/*
+ * Structured Extended Features
+ */
 #define	CPUID_STDEXT_FSGSBASE	0x00000001
 #define	CPUID_STDEXT_TSC_ADJUST	0x00000002
+#define	CPUID_STDEXT_BMI1	0x00000008
+#define	CPUID_STDEXT_HLE	0x00000010
+#define	CPUID_STDEXT_AVX2	0x00000020
 #define	CPUID_STDEXT_SMEP	0x00000080
+#define	CPUID_STDEXT_BMI2	0x00000100
 #define	CPUID_STDEXT_ENH_MOVSB	0x00000200
+#define	CPUID_STDEXT_RTM	0x00000800
 #define	CPUID_STDEXT_INVPCID	0x00000400
+#define	CPUID_STDEXT_RDSEED	0x00040000
+#define	CPUID_STDEXT_ADX	0x00080000
+#define	CPUID_STDEXT_SMAP	0x00100000
 
 /*
  * CPUID manufacturers identifiers
@@ -418,6 +452,11 @@
 #define	APICBASE_X2APIC		0x00000400
 #define	APICBASE_ENABLED	0x00000800
 #define	APICBASE_ADDRESS	0xfffff000
+
+/* MSR_IA32_FEATURE_CONTROL related */
+#define	IA32_FEATURE_CONTROL_LOCK	0x01	/* lock bit */
+#define	IA32_FEATURE_CONTROL_SMX_EN	0x02	/* enable VMX inside SMX */
+#define	IA32_FEATURE_CONTROL_VMX_EN	0x04	/* enable VMX outside SMX */
 
 /*
  * PAT modes.

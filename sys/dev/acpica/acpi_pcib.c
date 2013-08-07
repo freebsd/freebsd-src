@@ -135,15 +135,6 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
-     * Don't attach if we're not really there.
-     *
-     * XXX: This isn't entirely correct since we may be a PCI bus
-     * on a hot-plug docking station, etc.
-     */
-    if (!acpi_DeviceIsPresent(dev))
-	return_VALUE(ENXIO);
-
-    /*
      * Get the PCI interrupt routing table for this bus.  If we can't
      * get it, this is not an error but may reduce functionality.  There
      * are several valid bridges in the field that do not have a _PRT, so

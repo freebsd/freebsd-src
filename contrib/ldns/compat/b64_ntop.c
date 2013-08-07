@@ -40,6 +40,7 @@
  * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  */
 #include <ldns/config.h>
+#ifndef HAVE_B64_NTOP
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -58,6 +59,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <ldns/util.h>
 
 #define Assert(Cond) if (!(Cond)) abort()
 
@@ -200,3 +203,5 @@ ldns_b64_ntop(uint8_t const *src, size_t srclength, char *target, size_t targsiz
 	target[datalength] = '\0';	/* Returned value doesn't count \0. */
 	return (int) (datalength);
 }
+
+#endif /* !HAVE_B64_NTOP */

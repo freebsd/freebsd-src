@@ -133,6 +133,9 @@ main(int argc, char **argv)
 						printf("%s on %s\n%s\n",
 						    mntbuf->f_mntfromname,
 						    mntbuf->f_mntonname, buf);
+					else if (errno == EPERM)
+						errx(1, "Only priviledged users"
+						    " can use the -m option");
 				}
 				mntbuf++;
 			}

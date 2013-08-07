@@ -92,7 +92,7 @@
         ..
     ..
     clang
-        3.2
+        3.3
         ..
     ..
     crypto
@@ -175,6 +175,8 @@
         nullfs
         ..
         procfs
+        ..
+        smbfs
         ..
         udf
         ..

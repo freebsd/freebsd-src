@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/xen_intr.h>
 
 #include <xen/interface/hvm/params.h>
+#include <xen/hvm.h>
 
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xenstore/xenstore_internal.h>
@@ -307,7 +308,8 @@ split(char *strings, u_int len, u_int *num)
 	const char **ret;
 
 	/* Protect against unterminated buffers. */
-	strings[len - 1] = '\0';
+	if (len > 0)
+		strings[len - 1] = '\0';
 
 	/* Count the strings. */
 	*num = extract_strings(strings, /*dest*/NULL, len);

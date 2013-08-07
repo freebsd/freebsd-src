@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/taskqueue.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -57,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "common/t4_regs_values.h"
+#include "common/t4_tcb.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -89,8 +92,15 @@ static int add_lip(struct adapter *, struct in6_addr *);
 static int delete_lip(struct adapter *, struct in6_addr *);
 static struct clip_entry *search_lip(struct tom_data *, struct in6_addr *);
 static void init_clip_table(struct adapter *, struct tom_data *);
+static void update_clip(struct adapter *, void *);
+static void t4_clip_task(void *, int);
+static void update_clip_table(struct adapter *, struct tom_data *);
 static void destroy_clip_table(struct adapter *, struct tom_data *);
 static void free_tom_data(struct adapter *, struct tom_data *);
+
+static int in6_ifaddr_gen;
+static eventhandler_tag ifaddr_evhandler;
+static struct timeout_task clip_task;
 
 struct toepcb *
 alloc_toepcb(struct port_info *pi, int txqid, int rxqid, int flags)
@@ -322,6 +332,30 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 }
 
 /*
+ * setsockopt handler.
+ */
+static void
+t4_ctloutput(struct toedev *tod, struct tcpcb *tp, int dir, int name)
+{
+	struct adapter *sc = tod->tod_softc;
+	struct toepcb *toep = tp->t_toe;
+
+	if (dir == SOPT_GET)
+		return;
+
+	CTR4(KTR_CXGBE, "%s: tp %p, dir %u, name %u", __func__, tp, dir, name);
+
+	switch (name) {
+	case TCP_NODELAY:
+		t4_set_tcb_field(sc, toep, 1, W_TCB_T_FLAGS, V_TF_NAGLE(1),
+		    V_TF_NAGLE(tp->t_flags & TF_NODELAY ? 0 : 1));
+		break;
+	default:
+		break;
+	}
+}
+
+/*
  * The TOE driver will not receive any more CPLs for the tid associated with the
  * toepcb; release the hold on the inpcb.
  */
@@ -505,38 +539,38 @@ calc_opt0(struct socket *so, struct port_info *pi, struct l2t_entry *e,
 	return htobe64(opt0);
 }
 
-#define FILTER_SEL_WIDTH_P_FC (3 + 1)
-#define FILTER_SEL_WIDTH_VIN_P_FC (6 + 7 + FILTER_SEL_WIDTH_P_FC)
-#define FILTER_SEL_WIDTH_TAG_P_FC (3 + FILTER_SEL_WIDTH_VIN_P_FC)
-#define FILTER_SEL_WIDTH_VLD_TAG_P_FC (1 + FILTER_SEL_WIDTH_TAG_P_FC)
-#define VLAN_NONE 0xfff
-#define FILTER_SEL_VLAN_NONE 0xffff
-
 uint64_t
-select_ntuple(struct port_info *pi, struct l2t_entry *e, uint32_t filter_mode)
+select_ntuple(struct port_info *pi, struct l2t_entry *e)
 {
+	struct adapter *sc = pi->adapter;
+	struct tp_params *tp = &sc->params.tp;
 	uint16_t viid = pi->viid;
-	uint32_t ntuple = 0;
+	uint64_t ntuple = 0;
 
-	if (filter_mode == HW_TPL_FR_MT_PR_IV_P_FC) {
-                if (e->vlan == VLAN_NONE)
-			ntuple |= FILTER_SEL_VLAN_NONE << FILTER_SEL_WIDTH_P_FC;
-                else {
-                        ntuple |= e->vlan << FILTER_SEL_WIDTH_P_FC;
-                        ntuple |= 1 << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
-                }
-                ntuple |= e->lport << S_PORT;
-		ntuple |= IPPROTO_TCP << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
-	} else if (filter_mode == HW_TPL_FR_MT_PR_OV_P_FC) {
-                ntuple |= G_FW_VIID_VIN(viid) << FILTER_SEL_WIDTH_P_FC;
-                ntuple |= G_FW_VIID_PFN(viid) << FILTER_SEL_WIDTH_VIN_P_FC;
-                ntuple |= G_FW_VIID_VIVLD(viid) << FILTER_SEL_WIDTH_TAG_P_FC;
-                ntuple |= e->lport << S_PORT;
-		ntuple |= IPPROTO_TCP << FILTER_SEL_WIDTH_VLD_TAG_P_FC;
-        }
+	/*
+	 * Initialize each of the fields which we care about which are present
+	 * in the Compressed Filter Tuple.
+	 */
+	if (tp->vlan_shift >= 0 && e->vlan != CPL_L2T_VLAN_NONE)
+		ntuple |= (uint64_t)(F_FT_VLAN_VLD | e->vlan) << tp->vlan_shift;
 
-	if (is_t4(pi->adapter))
-		return (htobe32(ntuple));
+	if (tp->port_shift >= 0)
+		ntuple |= (uint64_t)e->lport << tp->port_shift;
+
+	if (tp->protocol_shift >= 0)
+		ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;
+
+	if (tp->vnic_shift >= 0) {
+		uint32_t vf = G_FW_VIID_VIN(viid);
+		uint32_t pf = G_FW_VIID_PFN(viid);
+		uint32_t vld = G_FW_VIID_VIVLD(viid);
+
+		ntuple |= (uint64_t)(V_FT_VNID_ID_VF(vf) | V_FT_VNID_ID_PF(pf) |
+		    V_FT_VNID_ID_VLD(vld)) << tp->vnic_shift;
+	}
+
+	if (is_t4(sc))
+		return (htobe32((uint32_t)ntuple));
 	else
 		return (htobe64(V_FILTER_TUPLE(ntuple)));
 }
@@ -626,7 +660,7 @@ add_lip(struct adapter *sc, struct in6_addr *lip)
         c.ip_hi = *(uint64_t *)&lip->s6_addr[0];
         c.ip_lo = *(uint64_t *)&lip->s6_addr[8];
 
-	return (t4_wr_mbox_ns(sc, sc->mbox, &c, sizeof(c), &c));
+	return (-t4_wr_mbox_ns(sc, sc->mbox, &c, sizeof(c), &c));
 }
 
 static int
@@ -644,7 +678,7 @@ delete_lip(struct adapter *sc, struct in6_addr *lip)
         c.ip_hi = *(uint64_t *)&lip->s6_addr[0];
         c.ip_lo = *(uint64_t *)&lip->s6_addr[8];
 
-	return (t4_wr_mbox_ns(sc, sc->mbox, &c, sizeof(c), &c));
+	return (-t4_wr_mbox_ns(sc, sc->mbox, &c, sizeof(c), &c));
 }
 
 static struct clip_entry *
@@ -692,16 +726,56 @@ release_lip(struct tom_data *td, struct clip_entry *ce)
 static void
 init_clip_table(struct adapter *sc, struct tom_data *td)
 {
-	struct in6_ifaddr *ia;
-	struct in6_addr *lip, tlip;
-	struct clip_entry *ce;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
 	mtx_init(&td->clip_table_lock, "CLIP table lock", NULL, MTX_DEF);
 	TAILQ_INIT(&td->clip_table);
+	td->clip_gen = -1;
+
+	update_clip_table(sc, td);
+}
+
+static void
+update_clip(struct adapter *sc, void *arg __unused)
+{
+
+	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4tomuc"))
+		return;
+
+	if (sc->flags & TOM_INIT_DONE)
+		update_clip_table(sc, sc->tom_softc);
+
+	end_synchronized_op(sc, LOCK_HELD);
+}
+
+static void
+t4_clip_task(void *arg, int count)
+{
+
+	t4_iterate(update_clip, NULL);
+}
+
+static void
+update_clip_table(struct adapter *sc, struct tom_data *td)
+{
+	struct in6_ifaddr *ia;
+	struct in6_addr *lip, tlip;
+	struct clip_head stale;
+	struct clip_entry *ce, *ce_temp;
+	int rc, gen = atomic_load_acq_int(&in6_ifaddr_gen);
+
+	ASSERT_SYNCHRONIZED_OP(sc);
 
 	IN6_IFADDR_RLOCK();
+	mtx_lock(&td->clip_table_lock);
+
+	if (gen == td->clip_gen)
+		goto done;
+
+	TAILQ_INIT(&stale);
+	TAILQ_CONCAT(&stale, &td->clip_table, link);
+
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		lip = &ia->ia_addr.sin6_addr;
 
@@ -721,18 +795,70 @@ init_clip_table(struct adapter *sc, struct tom_data *td)
 		 * interface?  It's fe80::1 usually (always?).
 		 */
 
-		mtx_lock(&td->clip_table_lock);
-		if (search_lip(td, lip) == NULL) {
-			ce = malloc(sizeof(*ce), M_CXGBE, M_NOWAIT);
-			memcpy(&ce->lip, lip, sizeof(ce->lip));
-			ce->refcount = 0;
-			if (add_lip(sc, lip) == 0)
-				TAILQ_INSERT_TAIL(&td->clip_table, ce, link);
-			else
-				free(ce, M_CXGBE);
+		/*
+		 * If it's in the main list then we already know it's not stale.
+		 */
+		TAILQ_FOREACH(ce, &td->clip_table, link) {
+			if (IN6_ARE_ADDR_EQUAL(&ce->lip, lip))
+				goto next;
 		}
-		mtx_unlock(&td->clip_table_lock);
+
+		/*
+		 * If it's in the stale list we should move it to the main list.
+		 */
+		TAILQ_FOREACH(ce, &stale, link) {
+			if (IN6_ARE_ADDR_EQUAL(&ce->lip, lip)) {
+				TAILQ_REMOVE(&stale, ce, link);
+				TAILQ_INSERT_TAIL(&td->clip_table, ce, link);
+				goto next;
+			}
+		}
+
+		/* A new IP6 address; add it to the CLIP table */
+		ce = malloc(sizeof(*ce), M_CXGBE, M_NOWAIT);
+		memcpy(&ce->lip, lip, sizeof(ce->lip));
+		ce->refcount = 0;
+		rc = add_lip(sc, lip);
+		if (rc == 0)
+			TAILQ_INSERT_TAIL(&td->clip_table, ce, link);
+		else {
+			char ip[INET6_ADDRSTRLEN];
+
+			inet_ntop(AF_INET6, &ce->lip, &ip[0], sizeof(ip));
+			log(LOG_ERR, "%s: could not add %s (%d)\n",
+			    __func__, ip, rc);
+			free(ce, M_CXGBE);
+		}
+next:
+		continue;
 	}
+
+	/*
+	 * Remove stale addresses (those no longer in V_in6_ifaddrhead) that are
+	 * no longer referenced by the driver.
+	 */
+	TAILQ_FOREACH_SAFE(ce, &stale, link, ce_temp) {
+		if (ce->refcount == 0) {
+			rc = delete_lip(sc, &ce->lip);
+			if (rc == 0) {
+				TAILQ_REMOVE(&stale, ce, link);
+				free(ce, M_CXGBE);
+			} else {
+				char ip[INET6_ADDRSTRLEN];
+
+				inet_ntop(AF_INET6, &ce->lip, &ip[0],
+				    sizeof(ip));
+				log(LOG_ERR, "%s: could not delete %s (%d)\n",
+				    __func__, ip, rc);
+			}
+		}
+	}
+	/* The ones that are still referenced need to stay in the CLIP table */
+	TAILQ_CONCAT(&td->clip_table, &stale, link);
+
+	td->clip_gen = gen;
+done:
+	mtx_unlock(&td->clip_table_lock);
 	IN6_IFADDR_RUNLOCK();
 }
 
@@ -845,6 +971,7 @@ t4_tom_activate(struct adapter *sc)
 	tod->tod_syncache_removed = t4_syncache_removed;
 	tod->tod_syncache_respond = t4_syncache_respond;
 	tod->tod_offload_socket = t4_offload_socket;
+	tod->tod_ctloutput = t4_ctloutput;
 
 	for_each_port(sc, i)
 		TOEDEV(sc->port[i]->ifp) = &td->tod;
@@ -893,6 +1020,14 @@ t4_tom_deactivate(struct adapter *sc)
 	return (rc);
 }
 
+static void
+t4_tom_ifaddr_event(void *arg __unused, struct ifnet *ifp)
+{
+
+	atomic_add_rel_int(&in6_ifaddr_gen, 1);
+	taskqueue_enqueue_timeout(taskqueue_thread, &clip_task, -hz / 4);
+}
+
 static int
 t4_tom_mod_load(void)
 {
@@ -914,6 +1049,10 @@ t4_tom_mod_load(void)
 	bcopy(tcp6_protosw->pr_usrreqs, &ddp6_usrreqs, sizeof(ddp6_usrreqs));
 	ddp6_usrreqs.pru_soreceive = t4_soreceive_ddp;
 	ddp6_protosw.pr_usrreqs = &ddp6_usrreqs;
+
+	TIMEOUT_TASK_INIT(taskqueue_thread, &clip_task, 0, t4_clip_task, NULL);
+	ifaddr_evhandler = EVENTHANDLER_REGISTER(ifaddr_event,
+	    t4_tom_ifaddr_event, NULL, EVENTHANDLER_PRI_ANY);
 
 	rc = t4_register_uld(&tom_uld_info);
 	if (rc != 0)
@@ -942,6 +1081,11 @@ t4_tom_mod_unload(void)
 
 	if (t4_unregister_uld(&tom_uld_info) == EBUSY)
 		return (EBUSY);
+
+	if (ifaddr_evhandler) {
+		EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_evhandler);
+		taskqueue_cancel_timeout(taskqueue_thread, &clip_task, NULL);
+	}
 
 	return (0);
 }

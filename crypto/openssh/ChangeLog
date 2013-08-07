@@ -1,3 +1,39 @@
+20130510
+ - (djm) OpenBSD CVS Cherrypick
+   - djm@cvs.openbsd.org 2013/04/11 02:27:50
+     [packet.c]
+     quiet disconnect notifications on the server from error() back to logit()
+     if it is a normal client closure; bz#2057 ok+feedback dtucker@
+ - (djm) [version.h contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] Crank version numbers for release.
+
+20130404
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2013/02/17 23:16:57
+     [readconf.c ssh.c readconf.h sshconnect2.c]
+     Keep track of which IndentityFile options were manually supplied and which
+     were default options, and don't warn if the latter are missing.
+     ok markus@
+   - dtucker@cvs.openbsd.org 2013/02/19 02:12:47
+     [krl.c]
+     Remove bogus include.  ok djm
+   - dtucker@cvs.openbsd.org 2013/02/22 04:45:09
+     [ssh.c readconf.c readconf.h]
+     Don't complain if IdentityFiles specified in system-wide configs are
+     missing.  ok djm, deraadt.
+   - markus@cvs.openbsd.org 2013/02/22 19:13:56
+     [sshconnect.c]
+     support ProxyCommand=- (stdin/out already point to the proxy); ok djm@
+   - djm@cvs.openbsd.org 2013/02/22 22:09:01
+     [ssh.c]
+     Allow IdenityFile=none; ok markus deraadt (and dtucker for an earlier
+     version)
+
+20130401
+ - (dtucker) [openbsd-compat/bsd-cygwin_util.{c,h}] Don't include windows.h
+   to avoid conflicting definitions of __int64, adding the required bits.
+   Patch from Corinna Vinschen.
+
 20120322
  - (djm) [contrib/ssh-copy-id contrib/ssh-copy-id.1] Updated to Phil
    Hands' greatly revised version.

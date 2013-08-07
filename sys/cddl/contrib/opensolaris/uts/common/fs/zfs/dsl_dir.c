@@ -22,7 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -255,12 +255,12 @@ getcomponent(const char *path, char *component, const char **nextp)
 	char *p;
 
 	if ((path == NULL) || (path[0] == '\0'))
-		return (ENOENT);
+		return (SET_ERROR(ENOENT));
 	/* This would be a good place to reserve some namespace... */
 	p = strpbrk(path, "/@");
 	if (p && (p[1] == '/' || p[1] == '@')) {
 		/* two separators in a row */
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 	if (p == NULL || p == path) {
 		/*
@@ -270,14 +270,14 @@ getcomponent(const char *path, char *component, const char **nextp)
 		 */
 		if (p != NULL &&
 		    (p[0] != '@' || strpbrk(path+1, "/@") || p[1] == '\0'))
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 		if (strlen(path) >= MAXNAMELEN)
-			return (ENAMETOOLONG);
+			return (SET_ERROR(ENAMETOOLONG));
 		(void) strcpy(component, path);
 		p = NULL;
 	} else if (p[0] == '/') {
 		if (p - path >= MAXNAMELEN)
-			return (ENAMETOOLONG);
+			return (SET_ERROR(ENAMETOOLONG));
 		(void) strncpy(component, path, p - path);
 		component[p - path] = '\0';
 		p++;
@@ -287,9 +287,9 @@ getcomponent(const char *path, char *component, const char **nextp)
 		 * any more slashes.
 		 */
 		if (strchr(path, '/'))
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 		if (p - path >= MAXNAMELEN)
-			return (ENAMETOOLONG);
+			return (SET_ERROR(ENAMETOOLONG));
 		(void) strncpy(component, path, p - path);
 		component[p - path] = '\0';
 	} else {
@@ -323,7 +323,7 @@ dsl_dir_hold(dsl_pool_t *dp, const char *name, void *tag,
 	/* Make sure the name is in the specified pool. */
 	spaname = spa_name(dp->dp_spa);
 	if (strcmp(buf, spaname) != 0)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	ASSERT(dsl_pool_config_held(dp));
 
@@ -374,7 +374,7 @@ dsl_dir_hold(dsl_pool_t *dp, const char *name, void *tag,
 		/* bad path name */
 		dsl_dir_rele(dd, tag);
 		dprintf("next=%p (%s) tail=%p\n", next, next?next:"", tailp);
-		err = ENOENT;
+		err = SET_ERROR(ENOENT);
 	}
 	if (tailp != NULL)
 		*tailp = next;
@@ -683,7 +683,7 @@ dsl_dir_tempreserve_impl(dsl_dir_t *dd, uint64_t asize, boolean_t netfree,
 		    used_on_disk>>10, est_inflight>>10,
 		    quota>>10, asize>>10, retval);
 		mutex_exit(&dd->dd_lock);
-		return (retval);
+		return (SET_ERROR(retval));
 	}
 
 	/* We need to up our estimated delta before dropping dd_lock */
@@ -745,7 +745,7 @@ dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t lsize, uint64_t asize,
 	} else {
 		if (err == EAGAIN) {
 			txg_delay(dd->dd_pool, tx->tx_txg, 1);
-			err = ERESTART;
+			err = SET_ERROR(ERESTART);
 		}
 		dsl_pool_memory_pressure(dd->dd_pool);
 	}
@@ -955,7 +955,7 @@ dsl_dir_set_quota_check(void *arg, dmu_tx_t *tx)
 	if ((dmu_tx_is_syncing(tx) || towrite == 0) &&
 	    (newval < ds->ds_dir->dd_phys->dd_reserved ||
 	    newval < ds->ds_dir->dd_phys->dd_used_bytes + towrite)) {
-		error = ENOSPC;
+		error = SET_ERROR(ENOSPC);
 	}
 	mutex_exit(&ds->ds_dir->dd_lock);
 	dsl_dataset_rele(ds, FTAG);
@@ -972,12 +972,18 @@ dsl_dir_set_quota_sync(void *arg, dmu_tx_t *tx)
 
 	VERIFY0(dsl_dataset_hold(dp, ddsqra->ddsqra_name, FTAG, &ds));
 
-	dsl_prop_set_sync_impl(ds, zfs_prop_to_name(ZFS_PROP_QUOTA),
-	    ddsqra->ddsqra_source, sizeof (ddsqra->ddsqra_value), 1,
-	    &ddsqra->ddsqra_value, tx);
+	if (spa_version(dp->dp_spa) >= SPA_VERSION_RECVD_PROPS) {
+		dsl_prop_set_sync_impl(ds, zfs_prop_to_name(ZFS_PROP_QUOTA),
+		    ddsqra->ddsqra_source, sizeof (ddsqra->ddsqra_value), 1,
+		    &ddsqra->ddsqra_value, tx);
 
-	VERIFY0(dsl_prop_get_int_ds(ds,
-	    zfs_prop_to_name(ZFS_PROP_QUOTA), &newval));
+		VERIFY0(dsl_prop_get_int_ds(ds,
+		    zfs_prop_to_name(ZFS_PROP_QUOTA), &newval));
+	} else {
+		newval = ddsqra->ddsqra_value;
+		spa_history_log_internal_ds(ds, "set", tx, "%s=%lld",
+		    zfs_prop_to_name(ZFS_PROP_QUOTA), (longlong_t)newval);
+	}
 
 	dmu_buf_will_dirty(ds->ds_dir->dd_dbuf, tx);
 	mutex_enter(&ds->ds_dir->dd_lock);
@@ -1049,7 +1055,7 @@ dsl_dir_set_reservation_check(void *arg, dmu_tx_t *tx)
 		if (delta > avail ||
 		    (dd->dd_phys->dd_quota > 0 &&
 		    newval > dd->dd_phys->dd_quota))
-			error = ENOSPC;
+			error = SET_ERROR(ENOSPC);
 	}
 
 	dsl_dataset_rele(ds, FTAG);
@@ -1087,12 +1093,20 @@ dsl_dir_set_reservation_sync(void *arg, dmu_tx_t *tx)
 
 	VERIFY0(dsl_dataset_hold(dp, ddsqra->ddsqra_name, FTAG, &ds));
 
-	dsl_prop_set_sync_impl(ds, zfs_prop_to_name(ZFS_PROP_RESERVATION),
-	    ddsqra->ddsqra_source, sizeof (ddsqra->ddsqra_value), 1,
-	    &ddsqra->ddsqra_value, tx);
+	if (spa_version(dp->dp_spa) >= SPA_VERSION_RECVD_PROPS) {
+		dsl_prop_set_sync_impl(ds,
+		    zfs_prop_to_name(ZFS_PROP_RESERVATION),
+		    ddsqra->ddsqra_source, sizeof (ddsqra->ddsqra_value), 1,
+		    &ddsqra->ddsqra_value, tx);
 
-	VERIFY0(dsl_prop_get_int_ds(ds,
-	    zfs_prop_to_name(ZFS_PROP_RESERVATION), &newval));
+		VERIFY0(dsl_prop_get_int_ds(ds,
+		    zfs_prop_to_name(ZFS_PROP_RESERVATION), &newval));
+	} else {
+		newval = ddsqra->ddsqra_value;
+		spa_history_log_internal_ds(ds, "set", tx, "%s=%lld",
+		    zfs_prop_to_name(ZFS_PROP_RESERVATION),
+		    (longlong_t)newval);
+	}
 
 	dsl_dir_set_reservation_sync_impl(ds->ds_dir, newval, tx);
 	dsl_dataset_rele(ds, FTAG);
@@ -1156,7 +1170,7 @@ dsl_valid_rename(dsl_pool_t *dp, dsl_dataset_t *ds, void *arg)
 	dsl_dataset_name(ds, namebuf);
 
 	if (strlen(namebuf) + *deltap >= MAXNAMELEN)
-		return (ENAMETOOLONG);
+		return (SET_ERROR(ENAMETOOLONG));
 	return (0);
 }
 
@@ -1187,14 +1201,14 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 	if (dd->dd_pool != newparent->dd_pool) {
 		dsl_dir_rele(newparent, FTAG);
 		dsl_dir_rele(dd, FTAG);
-		return (ENXIO);
+		return (SET_ERROR(ENXIO));
 	}
 
 	/* new name should not already exist */
 	if (mynewname == NULL) {
 		dsl_dir_rele(newparent, FTAG);
 		dsl_dir_rele(dd, FTAG);
-		return (EEXIST);
+		return (SET_ERROR(EEXIST));
 	}
 
 	/* if the name length is growing, validate child name lengths */
@@ -1217,7 +1231,7 @@ dsl_dir_rename_check(void *arg, dmu_tx_t *tx)
 		if (closest_common_ancestor(dd, newparent) == dd) {
 			dsl_dir_rele(newparent, FTAG);
 			dsl_dir_rele(dd, FTAG);
-			return (EINVAL);
+			return (SET_ERROR(EINVAL));
 		}
 
 		error = dsl_dir_transfer_possible(dd->dd_parent,
@@ -1243,8 +1257,6 @@ dsl_dir_rename_sync(void *arg, dmu_tx_t *tx)
 	const char *mynewname;
 	int error;
 	objset_t *mos = dp->dp_meta_objset;
-
-	ASSERT(dmu_buf_refcount(dd->dd_dbuf) <= 2);
 
 	VERIFY0(dsl_dir_hold(dp, ddra->ddra_oldname, FTAG, &dd, NULL));
 	VERIFY0(dsl_dir_hold(dp, ddra->ddra_newname, FTAG, &newparent,
@@ -1328,7 +1340,7 @@ dsl_dir_transfer_possible(dsl_dir_t *sdd, dsl_dir_t *tdd, uint64_t space)
 	adelta = would_change(sdd, -space, ancestor);
 	avail = dsl_dir_space_available(tdd, ancestor, adelta, FALSE);
 	if (avail < space)
-		return (ENOSPC);
+		return (SET_ERROR(ENOSPC));
 
 	return (0);
 }

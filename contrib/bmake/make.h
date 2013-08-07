@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.89 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: make.h,v 1.91 2013/06/18 20:06:09 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -103,7 +103,7 @@
 	((__GNUC__ == (x) && __GNUC_MINOR__ >= (y)) ||			\
 	 (__GNUC__ > (x)))
 #else /* defined(__GNUC__) */
-#define	MAKE_GNUC_PREREQx, y)	0
+#define	MAKE_GNUC_PREREQ(x, y)	0
 #endif /* defined(__GNUC__) */
 
 #if MAKE_GNUC_PREREQ(2, 7)
@@ -442,9 +442,8 @@ extern pid_t	myPid;
 #define MAKEFILE_PREFERENCE ".MAKE.MAKEFILE_PREFERENCE"
 #define MAKE_DEPENDFILE	".MAKE.DEPENDFILE" /* .depend */
 #define MAKE_MODE	".MAKE.MODE"
-
-#ifdef NEED_MAKE_LEVEL_SAFE
-# define MAKE_LEVEL_SAFE "_MAKE_LEVEL"	/* some shells will not pass .MAKE. */
+#ifndef MAKE_LEVEL_ENV
+# define MAKE_LEVEL_ENV	"MAKELEVEL"
 #endif
 
 /*

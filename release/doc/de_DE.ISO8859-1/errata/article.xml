@@ -1,9 +1,8 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//DE">
-%entities;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
-%release;
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+ %release;
 ]>
 
 <!--
@@ -23,14 +22,7 @@
 <article lang="de">
   <articleinfo>
 
-    <title>&os;
-<![ %release.type.snapshot [
-    &release.prev;
-]]>
-<![ %release.type.release [
-    &release.current;
-]]>
-    Errata</title>
+    <title>&os; &release; Errata</title>
 
     <authorgroup>
       <corpauthor>Das &os; Projekt</corpauthor>
@@ -55,16 +47,7 @@
   </articleinfo>
 
   <abstract>
-    <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os;
-<![ %release.type.current [
-      &release.prev;,
-]]>
-<![ %release.type.snapshot [
-      &release.prev;,
-]]>
-<![ %release.type.release [
-      &release.current;,
-]]>
+    <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os; &release;,
       also wichtige Informationen, die kurz vor bzw. erst nach
       der Ver&ouml;ffentlichung bekannt wurden.  Dazu geh&ouml;ren
       Ratschl&auml;ge zur Sicherheit sowie &Auml;nderungen in der
@@ -73,16 +56,7 @@
       die aktuelle Version dieses Dokumentes lesen, bevor sie diese
       Version von &os; installieren.</para>
 
-    <para>Diese Errata f&uuml;r &os;
-<![ %release.type.current [
-      &release.prev;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
+    <para>Diese Errata f&uuml;r &os; &release;
       werden bis zum
       Erscheinen von &os; 5.1-RELEASE weiter aktualisiert
       werden.</para>
@@ -92,16 +66,7 @@
     <title>Einleitung</title>
 
     <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
-      Informationen &uuml;ber &os;
-<![ %release.type.current [
-      &release.prev;.
-]]>
-<![ %release.type.snapshot [
-      &release.prev;.
-]]>
-<![ %release.type.release [
-      &release.current;.
-]]>
+      Informationen &uuml;ber &os; &release;.
       Bevor Sie diese
       Version installieren, sollten Sie auf jeden Fall dieses Dokument
       lesen, um &uuml;ber Probleme informiert zu werden, die erst nach

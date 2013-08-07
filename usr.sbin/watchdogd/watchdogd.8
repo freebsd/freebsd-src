@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2013
+.Dd July 27, 2013
 .Dt WATCHDOGD 8
 .Os
 .Sh NAME
@@ -115,7 +115,7 @@ will terminate.
 The
 .Nm
 utility recognizes the following runtime options:
-.Bl -tag -width ".Fl -softtimeout-action Ar action  "
+.Bl -tag -width 30m
 .It Fl I Ar file
 Write the process ID of the
 .Nm
@@ -208,6 +208,96 @@ device for
 .Bl -tag -width ".Pa /var/run/watchdogd.pid" -compact
 .It Pa /var/run/watchdogd.pid
 .El
+.Sh EXAMPLES
+.Ss Debugging watchdogd and/or your watchdog script.
+This is a useful recipe for debugging
+.Nm
+and your watchdog script.
+.Pp
+(Note that ^C works oddly because
+.Nm
+calls
+.Xr system 3
+so the
+first ^C will terminate the "sleep" command.)
+.Pp
+Explanation of options used:
+.Bl -enum -offset indent -compact
+.It
+Set Debug on (--debug)
+.It
+Set the watchdog to trip at 30 seconds. (-t 30)
+.It
+Use of a softtimeout:
+.Bl -enum -offset indent -compact -nested
+.It
+Use a softtimeout (do not arm the hardware watchdog).
+(--softtimeout)
+.It
+Set the softtimeout action to do both kernel
+.Xr printf 9
+and
+.Xr log 9
+when it trips.
+(--softtimeout-action log,printf)
+.El
+.It
+Use of a pre-timeout:
+.Bl -enum -offset indent -compact -nested
+.It
+Set a pre-timeout of 15 seconds (this will later trigger a panic/dump).
+(--pretimeout 15)
+.It
+Set the action to also kernel
+.Xr printf 9
+and
+.Xr log 9
+when it trips.
+(--pretimeout-action log,printf)
+.El
+.It
+Use of a script:
+.Bl -enum -offset indent -compact -nested
+.It
+Run "sleep 60" as a shell command that acts as the watchdog (-e 'sleep 60')
+.It
+Warn us when the script takes longer than 1 second to run (-w)
+.El
+.El
+.Bd -literal
+watchdogd --debug -t 30 \\
+  --softtimeout --softtimeout-action log,printf \\
+  --pretimeout 15 --pretimeout-action log,printf \\
+  -e 'sleep 60' -w
+.Ed
+.Ss Production use of example
+.Bl -enum -offset indent -compact
+.It
+Set hard timeout to 120 seconds (-t 120)
+.It
+Set a panic to happen at 60 seconds (to trigger a
+.Xr crash 8
+for dump analysis):
+.Bl -enum -offset indent -compact -nested
+.It
+Use of pre-timeout (--pretimeout 60)
+.It
+Specify pre-timeout action (--pretimeout-action log,printf,panic )
+.El
+.It
+Use of a script:
+.Bl -enum -offset indent -compact -nested
+.It
+Run your script (-e '/path/to/your/script 60')
+.It
+Log if your script takes a longer than 15 seconds to run time. (-w -T 15)
+.El
+.El
+.Bd -literal
+watchdogd  -t 120 \\
+  --pretimeout 60 --pretimeout-action log,printf,panic \\
+  -e '/path/to/your/script 60' -w -T 15
+.Ed
 .Sh SEE ALSO
 .Xr watchdog 4 ,
 .Xr watchdog 8 ,

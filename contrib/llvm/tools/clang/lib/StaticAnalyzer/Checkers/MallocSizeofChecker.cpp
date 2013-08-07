@@ -14,13 +14,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/StmtVisitor.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
-#include "clang/AST/StmtVisitor.h"
-#include "clang/AST/TypeLoc.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -187,7 +188,7 @@ public:
 
       for (CallExpr::const_arg_iterator ai = i->AllocCall->arg_begin(),
            ae = i->AllocCall->arg_end(); ai != ae; ++ai) {
-        if (!(*ai)->getType()->isIntegerType())
+        if (!(*ai)->getType()->isIntegralOrUnscopedEnumerationType())
           continue;
 
         SizeofFinder SFinder;
@@ -225,7 +226,7 @@ public:
         OS << " is converted to a pointer of type '"
             << PointeeType.getAsString() << "', which is incompatible with "
             << "sizeof operand type '" << SizeofType.getAsString() << "'";
-        llvm::SmallVector<SourceRange, 4> Ranges;
+        SmallVector<SourceRange, 4> Ranges;
         Ranges.push_back(i->AllocCall->getCallee()->getSourceRange());
         Ranges.push_back(SFinder.Sizeofs[0]->getSourceRange());
         if (TSI)

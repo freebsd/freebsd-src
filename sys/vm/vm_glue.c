@@ -96,16 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
-/*
- * System initialization
- *
- * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
- *
- * Note: run scheduling should be divorced from the vm system.
- */
-static void scheduler(void *);
-SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL);
-
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
 static void swapclear(struct proc *);
@@ -241,8 +231,10 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 
 	VM_OBJECT_WLOCK(object);
 	pindex = OFF_TO_IDX(offset);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
+	    VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_busy(m);
 		ma[0] = m;
 		rv = vm_pager_get_pages(object, ma, 1, 0);
 		m = vm_page_lookup(object, pindex);
@@ -255,11 +247,11 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 			m = NULL;
 			goto out;
 		}
+		vm_page_wakeup(m);
 	}
 	vm_page_lock(m);
 	vm_page_hold(m);
 	vm_page_unlock(m);
-	vm_page_wakeup(m);
 out:
 	VM_OBJECT_WUNLOCK(object);
 	return (m);
@@ -693,10 +685,8 @@ faultin(p)
  *
  * Giant is held on entry.
  */
-/* ARGSUSED*/
-static void
-scheduler(dummy)
-	void *dummy;
+void
+swapper(void)
 {
 	struct proc *p;
 	struct thread *td;
@@ -705,9 +695,6 @@ scheduler(dummy)
 	int swtime;
 	int ppri;
 	int pri;
-
-	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
-	mtx_unlock(&Giant);
 
 loop:
 	if (vm_page_count_min()) {
@@ -759,7 +746,7 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		tsleep(&proc0, PVM, "sched", MAXSLP * hz / 2);
+		tsleep(&proc0, PVM, "swapin", MAXSLP * hz / 2);
 		goto loop;
 	}
 	PROC_LOCK(p);

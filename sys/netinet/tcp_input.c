@@ -120,11 +120,6 @@ __FBSDID("$FreeBSD$");
 
 const int tcprexmtthresh = 3;
 
-VNET_DEFINE(struct tcpstat, tcpstat);
-SYSCTL_VNET_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(tcpstat), tcpstat,
-    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
-
 int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0,
@@ -245,17 +240,25 @@ static void inline	hhook_run_tcp_est_in(struct tcpcb *tp,
 			    struct tcphdr *th, struct tcpopt *to);
 
 /*
+ * TCP statistics are stored in an "array" of counter(9)s.
+ */
+VNET_PCPUSTAT_DEFINE(struct tcpstat, tcpstat);
+VNET_PCPUSTAT_SYSINIT(tcpstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_tcp, TCPCTL_STATS, stats, struct tcpstat,
+    tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(tcpstat);
+#endif /* VIMAGE */
+/*
  * Kernel module interface for updating tcpstat.  The argument is an index
- * into tcpstat treated as an array of u_long.  While this encodes the
- * general layout of tcpstat into the caller, it doesn't encode its location,
- * so that future changes to add, for example, per-CPU stats support won't
- * cause binary compatibility problems for kernel modules.
+ * into tcpstat treated as an array.
  */
 void
 kmod_tcpstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_tcpstat + statnum))++;
+	counter_u64_add(VNET(tcpstat)[statnum], 1);
 }
 
 /*
@@ -896,12 +899,12 @@ findpcb:
 #ifdef IPSEC
 #ifdef INET6
 	if (isipv6 && ipsec6_in_reject(m, inp)) {
-		V_ipsec6stat.in_polvio++;
+		IPSEC6STAT_INC(ips_in_polvio);
 		goto dropunlock;
 	} else
 #endif /* INET6 */
 	if (ipsec4_in_reject(m, inp) != 0) {
-		V_ipsec4stat.in_polvio++;
+		IPSECSTAT_INC(ips_in_polvio);
 		goto dropunlock;
 	}
 #endif /* IPSEC */
@@ -1351,6 +1354,15 @@ relocked:
 		 */
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		return;
+	} else if (tp->t_state == TCPS_LISTEN) {
+		/*
+		 * When a listen socket is torn down the SO_ACCEPTCONN
+		 * flag is removed first while connections are drained
+		 * from the accept queue in a unlock/lock cycle of the
+		 * ACCEPT_LOCK, opening a race condition allowing a SYN
+		 * attempt go through unhandled.
+		 */
+		goto dropunlock;
 	}
 
 #ifdef TCP_SIGNATURE
@@ -1434,6 +1446,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	int thflags, acked, ourfinisacked, needoutput = 0;
 	int rstreason, todrop, win;
 	u_long tiwin;
+	char *s;
+	struct in_conninfo *inc;
 	struct tcpopt to;
 
 #ifdef TCPDEBUG
@@ -1446,6 +1460,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
 	thflags = th->th_flags;
+	inc = &tp->t_inpcb->inp_inc;
 	tp->sackhint.last_sack_ack = 0;
 
 	/*
@@ -1533,6 +1548,24 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		to.to_tsecr -= tp->ts_offset;
 		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
+	}
+	/*
+	 * If timestamps were negotiated during SYN/ACK they should
+	 * appear on every segment during this session and vice versa.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
+	}
+	if (!(tp->t_flags & TF_RCVD_TSTMP) && (to.to_flags & TOF_TS)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
+			    "no action\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
 	}
 
 	/*
@@ -2201,15 +2234,14 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
-		char *s;
-
 		KASSERT(ti_locked == TI_WLOCKED, ("%s: SS_NOFDEREF && "
 		    "CLOSE_WAIT && tlen ti_locked %d", __func__, ti_locked));
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data after socket "
-			    "was closed, sending RST and removing tcpcb\n",
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: %s: Received %d bytes of data "
+			    "after socket was closed, "
+			    "sending RST and removing tcpcb\n",
 			    s, __func__, tcpstates[tp->t_state], tlen);
 			free(s, M_TCPLOG);
 		}
@@ -2501,6 +2533,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					u_long oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
 					u_int sent;
+					int avail;
 
 					KASSERT(tp->t_dupacks == 1 ||
 					    tp->t_dupacks == 2,
@@ -2522,7 +2555,17 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						 */
 						break;
 					}
-					(void) tcp_output(tp);
+					/*
+					 * Only call tcp_output when there
+					 * is new data available to be sent.
+					 * Otherwise we would send pure ACKs.
+					 */
+					SOCKBUF_LOCK(&so->so_snd);
+					avail = so->so_snd.sb_cc -
+					    (tp->snd_nxt - tp->snd_una);
+					SOCKBUF_UNLOCK(&so->so_snd);
+					if (avail > 0)
+						(void) tcp_output(tp);
 					sent = tp->snd_max - oldsndmax;
 					if (sent > tp->t_maxseg) {
 						KASSERT((tp->t_dupacks == 2 &&
@@ -3360,7 +3403,7 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  */
 void
 tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
-    struct hc_metrics_lite *metricptr, int *mtuflags)
+    struct hc_metrics_lite *metricptr, struct tcp_ifcap *cap)
 {
 	int mss = 0;
 	u_long maxmtu = 0;
@@ -3387,7 +3430,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 	/* Initialize. */
 #ifdef INET6
 	if (isipv6) {
-		maxmtu = tcp_maxmtu6(&inp->inp_inc, mtuflags);
+		maxmtu = tcp_maxmtu6(&inp->inp_inc, cap);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_v6mssdflt;
 	}
 #endif
@@ -3396,7 +3439,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 #endif
 #ifdef INET
 	{
-		maxmtu = tcp_maxmtu(&inp->inp_inc, mtuflags);
+		maxmtu = tcp_maxmtu(&inp->inp_inc, cap);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_mssdflt;
 	}
 #endif
@@ -3531,11 +3574,12 @@ tcp_mss(struct tcpcb *tp, int offer)
 	struct inpcb *inp;
 	struct socket *so;
 	struct hc_metrics_lite metrics;
-	int mtuflags = 0;
+	struct tcp_ifcap cap;
 
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
-	
-	tcp_mss_update(tp, offer, -1, &metrics, &mtuflags);
+
+	bzero(&cap, sizeof(cap));
+	tcp_mss_update(tp, offer, -1, &metrics, &cap);
 
 	mss = tp->t_maxseg;
 	inp = tp->t_inpcb;
@@ -3580,8 +3624,10 @@ tcp_mss(struct tcpcb *tp, int offer)
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/* Check the interface for TSO capabilities. */
-	if (mtuflags & CSUM_TSO)
+	if (cap.ifcap & CSUM_TSO) {
 		tp->t_flags |= TF_TSO;
+		tp->t_tsomax = cap.tsomax;
+	}
 }
 
 /*

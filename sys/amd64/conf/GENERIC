@@ -102,7 +102,6 @@ device		fdc
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_CAM		# Handle legacy controllers with CAM
 options 	ATA_STATIC_ID	# Static device numbering
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
@@ -138,10 +137,7 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# Enclosure Services (SES and SAF-TE)
-device		ctl		# CAM Target Layer
-options		CTL_DISABLE	# Disable CTL by default to save memory.
-				# Re-enable with kern.cam.ctl.disable=0 in
-				# /boot/loader.conf
+#device		ctl		# CAM Target Layer
 
 # RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID
@@ -151,6 +147,7 @@ device		arcmsr		# Areca SATA II RAID
 device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		hptmv		# Highpoint RocketRAID 182x
+device		hptnr		# Highpoint DC7280, R750
 device		hptrr		# Highpoint RocketRAID 17xx, 22xx, 23xx, 25xx
 device		hpt27xx		# Highpoint RocketRAID 27xx
 device		iir		# Intel Integrated RAID
@@ -162,6 +159,7 @@ device		tws		# LSI 3ware 9750 SATA+SAS 6Gb/s RAID controller
 # RAID controllers
 device		aac		# Adaptec FSA RAID
 device		aacp		# SCSI passthrough for aac (requires CAM)
+device		aacraid		# Adaptec by PMC RAID
 device		ida		# Compaq Smart RAID
 device		mfi		# LSI MegaRAID SAS
 device		mlx		# Mylex DAC960 family

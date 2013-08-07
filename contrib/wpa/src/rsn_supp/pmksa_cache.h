@@ -1,15 +1,9 @@
 /*
  * wpa_supplicant - WPA2/RSN PMKSA cache functions
- * Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2009, 2011-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef PMKSA_CACHE_H
@@ -44,20 +38,26 @@ struct rsn_pmksa_cache_entry {
 
 struct rsn_pmksa_cache;
 
+enum pmksa_free_reason {
+	PMKSA_FREE,
+	PMKSA_REPLACE,
+	PMKSA_EXPIRE,
+};
+
 #if defined(IEEE8021X_EAPOL) && !defined(CONFIG_NO_WPA2)
 
 struct rsn_pmksa_cache *
 pmksa_cache_init(void (*free_cb)(struct rsn_pmksa_cache_entry *entry,
-				 void *ctx, int replace),
+				 void *ctx, enum pmksa_free_reason reason),
 		 void *ctx, struct wpa_sm *sm);
 void pmksa_cache_deinit(struct rsn_pmksa_cache *pmksa);
 struct rsn_pmksa_cache_entry * pmksa_cache_get(struct rsn_pmksa_cache *pmksa,
-					       const u8 *aa, const u8 *pmkid);
+					       const u8 *aa, const u8 *pmkid,
+					       const void *network_ctx);
 int pmksa_cache_list(struct rsn_pmksa_cache *pmksa, char *buf, size_t len);
 struct rsn_pmksa_cache_entry *
 pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 		const u8 *aa, const u8 *spa, void *network_ctx, int akmp);
-void pmksa_cache_notify_reconfig(struct rsn_pmksa_cache *pmksa);
 struct rsn_pmksa_cache_entry * pmksa_cache_get_current(struct wpa_sm *sm);
 void pmksa_cache_clear_current(struct wpa_sm *sm);
 int pmksa_cache_set_current(struct wpa_sm *sm, const u8 *pmkid,
@@ -66,12 +66,13 @@ int pmksa_cache_set_current(struct wpa_sm *sm, const u8 *pmkid,
 struct rsn_pmksa_cache_entry *
 pmksa_cache_get_opportunistic(struct rsn_pmksa_cache *pmksa,
 			      void *network_ctx, const u8 *aa);
+void pmksa_cache_flush(struct rsn_pmksa_cache *pmksa, void *network_ctx);
 
 #else /* IEEE8021X_EAPOL and !CONFIG_NO_WPA2 */
 
 static inline struct rsn_pmksa_cache *
 pmksa_cache_init(void (*free_cb)(struct rsn_pmksa_cache_entry *entry,
-				 void *ctx, int replace),
+				 void *ctx, int reason),
 		 void *ctx, struct wpa_sm *sm)
 {
 	return (void *) -1;
@@ -82,7 +83,8 @@ static inline void pmksa_cache_deinit(struct rsn_pmksa_cache *pmksa)
 }
 
 static inline struct rsn_pmksa_cache_entry *
-pmksa_cache_get(struct rsn_pmksa_cache *pmksa, const u8 *aa, const u8 *pmkid)
+pmksa_cache_get(struct rsn_pmksa_cache *pmksa, const u8 *aa, const u8 *pmkid,
+		const void *network_ctx)
 {
 	return NULL;
 }
@@ -106,10 +108,6 @@ pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 	return NULL;
 }
 
-static inline void pmksa_cache_notify_reconfig(struct rsn_pmksa_cache *pmksa)
-{
-}
-
 static inline void pmksa_cache_clear_current(struct wpa_sm *sm)
 {
 }
@@ -120,6 +118,11 @@ static inline int pmksa_cache_set_current(struct wpa_sm *sm, const u8 *pmkid,
 					  int try_opportunistic)
 {
 	return -1;
+}
+
+static inline void pmksa_cache_flush(struct rsn_pmksa_cache *pmksa,
+				     void *network_ctx)
+{
 }
 
 #endif /* IEEE8021X_EAPOL and !CONFIG_NO_WPA2 */

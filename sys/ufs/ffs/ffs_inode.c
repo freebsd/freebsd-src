@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/vmmeter.h>
 #include <sys/stat.h>
 

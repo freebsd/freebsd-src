@@ -388,11 +388,30 @@ printcpuinfo(void)
 				printf("\n  Standard Extended Features=0x%b",
 				    cpu_stdext_feature,
 				       "\020"
+				       /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
 				       "\001GSFSBASE"
 				       "\002TSCADJ"
+				       /* Bit Manipulation Instructions */
+				       "\004BMI1"
+				       /* Hardware Lock Elision */
+				       "\005HLE"
+				       /* Advanced Vector Instructions 2 */
+				       "\006AVX2"
+				       /* Supervisor Mode Execution Prot. */
 				       "\010SMEP"
+				       /* Bit Manipulation Instructions */
+				       "\011BMI2"
 				       "\012ENHMOVSB"
+				       /* Invalidate Processor Context ID */
 				       "\013INVPCID"
+				       /* Restricted Transactional Memory */
+				       "\014RTM"
+				       /* Enhanced NRBG */
+				       "\023RDSEED"
+				       /* ADCX + ADOX */
+				       "\024ADX"
+				       /* Supervisor Mode Access Prevention */
+				       "\025SMAP"
 				       );
 			}
 
@@ -511,6 +530,13 @@ identify_cpu(void)
 			do_cpuid(0, regs);
 			cpu_high = regs[0];
 		}
+	}
+
+	if (cpu_high >= 5 && (cpu_feature2 & CPUID2_MON) != 0) {
+		do_cpuid(5, regs);
+		cpu_mon_mwait_flags = regs[2];
+		cpu_mon_min_size = regs[0] &  CPUID5_MON_MIN_SIZE;
+		cpu_mon_max_size = regs[1] &  CPUID5_MON_MAX_SIZE;
 	}
 
 	if (cpu_high >= 7) {

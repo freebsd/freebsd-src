@@ -22,15 +22,21 @@ namespace llvm {
   class SparcSubtarget;
 
 class SparcFrameLowering : public TargetFrameLowering {
+  const SparcSubtarget &SubTarget;
 public:
-  explicit SparcFrameLowering(const SparcSubtarget &/*sti*/)
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 8, 0) {
-  }
+  explicit SparcFrameLowering(const SparcSubtarget &ST)
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown,
+                          ST.is64Bit() ? 16 : 8, 0, ST.is64Bit() ? 16 : 8),
+      SubTarget(ST) {}
 
   /// emitProlog/emitEpilog - These methods insert prolog and epilog code into
   /// the function.
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
+
+  void eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                     MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I) const;
 
   bool hasFP(const MachineFunction &MF) const { return false; }
 };

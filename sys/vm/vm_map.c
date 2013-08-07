@@ -239,8 +239,7 @@ vm_map_zinit(void *mem, int size, int flags)
 	vm_map_t map;
 
 	map = (vm_map_t)mem;
-	map->nentries = 0;
-	map->size = 0;
+	memset(map, 0, sizeof(*map));
 	mtx_init(&map->system_mtx, "vm map (system)", NULL, MTX_DEF | MTX_DUPOK);
 	sx_init(&map->lock, "vm map (user)");
 	return (0);
@@ -1444,19 +1443,29 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    vm_size_t length, int find_space, vm_prot_t prot,
 	    vm_prot_t max, int cow)
 {
-	vm_offset_t start;
+	vm_offset_t start, initial_addr;
 	int result;
 
-	start = *addr;
+	if (find_space == VMFS_OPTIMAL_SPACE && (object == NULL ||
+	    (object->flags & OBJ_COLORED) == 0))
+			find_space = VMFS_ANY_SPACE;
+	initial_addr = *addr;
+again:
+	start = initial_addr;
 	vm_map_lock(map);
 	do {
 		if (find_space != VMFS_NO_SPACE) {
 			if (vm_map_findspace(map, start, length, addr)) {
 				vm_map_unlock(map);
+				if (find_space == VMFS_OPTIMAL_SPACE) {
+					find_space = VMFS_ANY_SPACE;
+					goto again;
+				}
 				return (KERN_NO_SPACE);
 			}
 			switch (find_space) {
 			case VMFS_ALIGNED_SPACE:
+			case VMFS_OPTIMAL_SPACE:
 				pmap_align_superpage(object, offset, addr,
 				    length);
 				break;
@@ -1473,11 +1482,11 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		}
 		result = vm_map_insert(map, object, offset, start, start +
 		    length, prot, max, cow);
-	} while (result == KERN_NO_SPACE && (find_space == VMFS_ALIGNED_SPACE
+	} while (result == KERN_NO_SPACE && (find_space == VMFS_ALIGNED_SPACE ||
 #ifdef VMFS_TLB_ALIGNED_SPACE
-	    || find_space == VMFS_TLB_ALIGNED_SPACE
+	    find_space == VMFS_TLB_ALIGNED_SPACE ||
 #endif
-	    ));
+	    find_space == VMFS_OPTIMAL_SPACE));
 	vm_map_unlock(map);
 	return (result);
 }
@@ -1806,18 +1815,27 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
-	VM_OBJECT_WLOCK(object);
+	VM_OBJECT_RLOCK(object);
 	if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
-		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
-		goto unlock_return;
+		VM_OBJECT_RUNLOCK(object);
+		VM_OBJECT_WLOCK(object);
+		if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
+			pmap_object_init_pt(map->pmap, addr, object, pindex,
+			    size);
+			VM_OBJECT_WUNLOCK(object);
+			return;
+		}
+		VM_OBJECT_LOCK_DOWNGRADE(object);
 	}
 
 	psize = atop(size);
 	if (psize > MAX_INIT_PT && (flags & MAP_PREFAULT_PARTIAL) != 0)
 		psize = MAX_INIT_PT;
 	if (psize + pindex > object->size) {
-		if (object->size < pindex)
-			goto unlock_return;
+		if (object->size < pindex) {
+			VM_OBJECT_RUNLOCK(object);
+			return;
+		}
 		psize = object->size - pindex;
 	}
 
@@ -1856,8 +1874,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	if (p_start != NULL)
 		pmap_enter_object(map->pmap, start, addr + ptoa(psize),
 		    p_start, prot);
-unlock_return:
-	VM_OBJECT_WUNLOCK(object);
+	VM_OBJECT_RUNLOCK(object);
 }
 
 /*
@@ -2273,6 +2290,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * above.)
 		 */
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
+		entry->wiring_thread = curthread;
 		/*
 		 * Check the map for holes in the specified region.
 		 * If VM_MAP_WIRE_HOLESOK was specified, skip this check.
@@ -2305,8 +2323,24 @@ done:
 		else
 			KASSERT(result, ("vm_map_unwire: lookup failed"));
 	}
-	entry = first_entry;
-	while (entry != &map->header && entry->start < end) {
+	for (entry = first_entry; entry != &map->header && entry->start < end;
+	    entry = entry->next) {
+		/*
+		 * If VM_MAP_WIRE_HOLESOK was specified, an empty
+		 * space in the unwired region could have been mapped
+		 * while the map lock was dropped for draining
+		 * MAP_ENTRY_IN_TRANSITION.  Moreover, another thread
+		 * could be simultaneously wiring this new mapping
+		 * entry.  Detect these cases and skip any entries
+		 * marked as in transition by us.
+		 */
+		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 ||
+		    entry->wiring_thread != curthread) {
+			KASSERT((flags & VM_MAP_WIRE_HOLESOK) != 0,
+			    ("vm_map_unwire: !HOLESOK and new/changed entry"));
+			continue;
+		}
+
 		if (rv == KERN_SUCCESS && (!user_unwire ||
 		    (entry->eflags & MAP_ENTRY_USER_WIRED))) {
 			if (user_unwire)
@@ -2322,15 +2356,15 @@ done:
 				    OBJ_FICTITIOUS) != 0);
 			}
 		}
-		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
-			("vm_map_unwire: in-transition flag missing"));
+		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
+		    ("vm_map_unwire: in-transition flag missing"));
 		entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
+		entry->wiring_thread = NULL;
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
 			need_wakeup = TRUE;
 		}
 		vm_map_simplify_entry(map, entry);
-		entry = entry->next;
 	}
 	vm_map_unlock(map);
 	if (need_wakeup)
@@ -2424,6 +2458,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * above.)
 		 */
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
+		entry->wiring_thread = curthread;
 		if ((entry->protection & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0
 		    || (entry->protection & prot) != prot) {
 			entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
@@ -2515,10 +2550,27 @@ done:
 		else
 			KASSERT(result, ("vm_map_wire: lookup failed"));
 	}
-	entry = first_entry;
-	while (entry != &map->header && entry->start < end) {
+	for (entry = first_entry; entry != &map->header && entry->start < end;
+	    entry = entry->next) {
 		if ((entry->eflags & MAP_ENTRY_WIRE_SKIPPED) != 0)
 			goto next_entry_done;
+
+		/*
+		 * If VM_MAP_WIRE_HOLESOK was specified, an empty
+		 * space in the unwired region could have been mapped
+		 * while the map lock was dropped for faulting in the
+		 * pages or draining MAP_ENTRY_IN_TRANSITION.
+		 * Moreover, another thread could be simultaneously
+		 * wiring this new mapping entry.  Detect these cases
+		 * and skip any entries marked as in transition by us.
+		 */
+		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) == 0 ||
+		    entry->wiring_thread != curthread) {
+			KASSERT((flags & VM_MAP_WIRE_HOLESOK) != 0,
+			    ("vm_map_wire: !HOLESOK and new/changed entry"));
+			continue;
+		}
+
 		if (rv == KERN_SUCCESS) {
 			if (user_wire)
 				entry->eflags |= MAP_ENTRY_USER_WIRED;
@@ -2543,15 +2595,18 @@ done:
 			}
 		}
 	next_entry_done:
-		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
-			("vm_map_wire: in-transition flag missing"));
-		entry->eflags &= ~(MAP_ENTRY_IN_TRANSITION|MAP_ENTRY_WIRE_SKIPPED);
+		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
+		    ("vm_map_wire: in-transition flag missing %p", entry));
+		KASSERT(entry->wiring_thread == curthread,
+		    ("vm_map_wire: alien wire %p", entry));
+		entry->eflags &= ~(MAP_ENTRY_IN_TRANSITION |
+		    MAP_ENTRY_WIRE_SKIPPED);
+		entry->wiring_thread = NULL;
 		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
 			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
 			need_wakeup = TRUE;
 		}
 		vm_map_simplify_entry(map, entry);
-		entry = entry->next;
 	}
 	vm_map_unlock(map);
 	if (need_wakeup)
@@ -3160,6 +3215,22 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				object->charge = old_entry->end - old_entry->start;
 				old_entry->cred = NULL;
 			}
+
+			/*
+			 * Assert the correct state of the vnode
+			 * v_writecount while the object is locked, to
+			 * not relock it later for the assertion
+			 * correctness.
+			 */
+			if (old_entry->eflags & MAP_ENTRY_VN_WRITECNT &&
+			    object->type == OBJT_VNODE) {
+				KASSERT(((struct vnode *)object->handle)->
+				    v_writecount > 0,
+				    ("vmspace_fork: v_writecount %p", object));
+				KASSERT(object->un_pager.vnp.writemappings > 0,
+				    ("vmspace_fork: vnp.writecount %p",
+				    object));
+			}
 			VM_OBJECT_WUNLOCK(object);
 
 			/*
@@ -3169,14 +3240,9 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			*new_entry = *old_entry;
 			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
 			    MAP_ENTRY_IN_TRANSITION);
+			new_entry->wiring_thread = NULL;
 			new_entry->wired_count = 0;
 			if (new_entry->eflags & MAP_ENTRY_VN_WRITECNT) {
-				object = new_entry->object.vm_object;
-				KASSERT(((struct vnode *)object->handle)->
-				    v_writecount > 0,
-				    ("vmspace_fork: v_writecount"));
-				KASSERT(object->un_pager.vnp.writemappings > 0,
-				    ("vmspace_fork: vnp.writecount"));
 				vnode_pager_update_writecount(object,
 				    new_entry->start, new_entry->end);
 			}
@@ -3209,6 +3275,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			 */
 			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
 			    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_VN_WRITECNT);
+			new_entry->wiring_thread = NULL;
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
 			new_entry->cred = NULL;
@@ -3786,6 +3853,12 @@ RetryLookup:;
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
 	    (fault_type & VM_PROT_WRITE)) {
+		vm_map_unlock_read(map);
+		return (KERN_PROTECTION_FAILURE);
+	}
+	if ((fault_typea & VM_PROT_COPY) != 0 &&
+	    (entry->max_protection & VM_PROT_WRITE) == 0 &&
+	    (entry->eflags & MAP_ENTRY_COW) == 0) {
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}

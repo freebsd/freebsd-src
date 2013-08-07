@@ -128,6 +128,8 @@ static int
 vlapic_timer_divisor(uint32_t dcr)
 {
 	switch (dcr & 0xB) {
+	case APIC_TDCR_1:
+		return (1);
 	case APIC_TDCR_2:
 		return (2);
 	case APIC_TDCR_4:
@@ -428,6 +430,8 @@ vlapic_fire_timer(struct vlapic *vlapic)
 	}
 }
 
+static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
+
 static int
 lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 {
@@ -459,14 +463,19 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 			dmask = vm_active_cpus(vlapic->vm);
 			CPU_CLR(vlapic->vcpuid, &dmask);
 			break;
+		default:
+			CPU_ZERO(&dmask);	/* satisfy gcc */
+			break;
 		}
 
-		while ((i = cpusetobj_ffs(&dmask)) != 0) {
+		while ((i = CPU_FFS(&dmask)) != 0) {
 			i--;
 			CPU_CLR(i, &dmask);
-			if (mode == APIC_DELMODE_FIXED)
+			if (mode == APIC_DELMODE_FIXED) {
 				lapic_set_intr(vlapic->vm, i, vec);
-			else
+				vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
+						    IPIS_SENT, i, 1);
+			} else
 				vm_inject_nmi(vlapic->vm, i);
 		}
 

@@ -13,15 +13,14 @@
 //===----------------------------------------------------------------------===//
 #define DEBUG_TYPE "path-profile-verifier"
 
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/ProfileInfoTypes.h"
 #include "llvm/Analysis/PathProfileInfo.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/Analysis/ProfileInfoTypes.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-
 #include <stdio.h>
 
 using namespace llvm;
@@ -85,7 +84,7 @@ bool PathProfileVerifier::runOnModule (Module &M) {
   for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
     if (F->isDeclaration()) continue;
 
-    arrayMap[0][F->begin()][0] = i++;
+    arrayMap[(BasicBlock*)0][F->begin()][0] = i++;
 
     for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
       TerminatorInst *TI = BB->getTerminator();
@@ -126,7 +125,7 @@ bool PathProfileVerifier::runOnModule (Module &M) {
             << currentPath->getCount() << "\n");
       // setup the entry edge (normally path profiling doesn't care about this)
       if (currentPath->getFirstBlockInPath() == &F->getEntryBlock())
-        edgeArray[arrayMap[0][currentPath->getFirstBlockInPath()][0]]
+        edgeArray[arrayMap[(BasicBlock*)0][currentPath->getFirstBlockInPath()][0]]
           += currentPath->getCount();
 
       for( ProfilePathEdgeIterator nextEdge = pev->begin(),

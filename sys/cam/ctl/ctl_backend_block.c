@@ -950,6 +950,7 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
 	case SYNCHRONIZE_CACHE_16:
+		beio->bio_cmd = BIO_FLUSH;
 		beio->ds_trans_type = DEVSTAT_NO_DATA;
 		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
 		beio->io_len = 0;
@@ -1658,7 +1659,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (be_lun->ctl_be_lun.lun_type == T_DIRECT) {
 		for (i = 0; i < req->num_be_args; i++) {
-			if (strcmp(req->kern_be_args[i].name, "file") == 0) {
+			if (strcmp(req->kern_be_args[i].kname, "file") == 0) {
 				file_arg = &req->kern_be_args[i];
 				break;
 			}
@@ -1673,7 +1674,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->dev_path = malloc(file_arg->vallen, M_CTLBLK,
 					  M_WAITOK | M_ZERO);
 
-		strlcpy(be_lun->dev_path, (char *)file_arg->value,
+		strlcpy(be_lun->dev_path, (char *)file_arg->kvalue,
 			file_arg->vallen);
 
 		retval = ctl_be_block_open(softc, be_lun, req);
@@ -1712,7 +1713,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 * the loop above,
 	 */
 	for (i = 0; i < req->num_be_args; i++) {
-		if (strcmp(req->kern_be_args[i].name, "num_threads") == 0) {
+		if (strcmp(req->kern_be_args[i].kname, "num_threads") == 0) {
 			struct ctl_be_arg *thread_arg;
 			char num_thread_str[16];
 			int tmp_num_threads;
@@ -1720,7 +1721,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 			thread_arg = &req->kern_be_args[i];
 
-			strlcpy(num_thread_str, (char *)thread_arg->value,
+			strlcpy(num_thread_str, (char *)thread_arg->kvalue,
 				min(thread_arg->vallen,
 				sizeof(num_thread_str)));
 

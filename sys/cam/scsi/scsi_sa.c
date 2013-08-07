@@ -173,6 +173,17 @@ typedef enum {
 	SA_QUIRK_NO_CPAGE	= 0x80	/* Don't use DEVICE COMPRESSION page */
 } sa_quirks;
 
+#define SA_QUIRK_BIT_STRING	\
+	"\020"			\
+	"\001NOCOMP"		\
+	"\002FIXED"		\
+	"\003VARIABLE"		\
+	"\0042FM"		\
+	"\0051FM"		\
+	"\006NODREAD"		\
+	"\007NO_MODESEL"	\
+	"\010NO_CPAGE"
+
 #define	SAMODE(z)	(dev2unit(z) & 0x3)
 #define	SADENSITY(z)	((dev2unit(z) >> 2) & 0x3)
 #define	SA_IS_CTRL(z)	(dev2unit(z) & (1 << 4))
@@ -1546,6 +1557,7 @@ saregister(struct cam_periph *periph, void *arg)
 	xpt_register_async(AC_LOST_DEVICE, saasync, periph, periph->path);
 
 	xpt_announce_periph(periph, NULL);
+	xpt_announce_quirks(periph, softc->quirks, SA_QUIRK_BIT_STRING);
 
 	return (CAM_REQ_CMP);
 }

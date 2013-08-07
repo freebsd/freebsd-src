@@ -123,8 +123,8 @@ struct cam_sim {
 
 };
 
-#define CAM_SIM_LOCK(sim)	mtx_lock((sim)->mtx);
-#define CAM_SIM_UNLOCK(sim)	mtx_unlock((sim)->mtx);
+#define CAM_SIM_LOCK(sim)	mtx_lock((sim)->mtx)
+#define CAM_SIM_UNLOCK(sim)	mtx_unlock((sim)->mtx)
 
 static __inline u_int32_t
 cam_sim_path(struct cam_sim *sim)

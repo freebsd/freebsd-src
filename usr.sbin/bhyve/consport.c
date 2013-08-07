@@ -128,6 +128,7 @@ console_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 static struct inout_port consport = {
 	"bvmcons",
 	BVM_CONSOLE_PORT,
+	1,
 	IOPORT_F_INOUT,
 	console_handler
 };

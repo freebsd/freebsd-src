@@ -13,7 +13,6 @@ SRCS+=	X86DisassemblerDecoder.c
 .endif
 
 TGHDRS=	X86GenDisassemblerTables \
-	X86GenEDInfo \
 	X86GenInstrInfo \
 	X86GenRegisterInfo
 

@@ -58,9 +58,11 @@ static int		wii_probe(platform_t);
 static int		wii_attach(platform_t);
 static void		wii_mem_regions(platform_t, struct mem_region **,
 			    int *, struct mem_region **, int *);
-static unsigned long	wii_timebase_freq(platform_t, struct cpuref *cpuref);
+static unsigned long	wii_timebase_freq(platform_t, struct cpuref *);
 static void		wii_reset(platform_t);
-static void		wii_cpu_idle(sbintime_t sbt);
+static void		wii_cpu_idle(sbintime_t);
+
+extern void		 wiibus_reset_system(void);
 
 static platform_method_t wii_methods[] = {
 	PLATFORMMETHOD(platform_probe,		wii_probe),
@@ -150,8 +152,10 @@ wii_timebase_freq(platform_t plat, struct cpuref *cpuref)
 }
 
 static void
-wii_reset(platform_t plat)
+wii_reset(platform_t plat __unused)
 {
+
+	wiibus_reset_system();
 }
 
 static void

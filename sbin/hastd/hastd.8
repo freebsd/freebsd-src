@@ -70,18 +70,18 @@ hastd: <resource name> (<role>)
 .Pp
 If (and only if)
 .Nm
-operates in primary role for the given resource, corresponding
+operates in primary role for the given resource, a corresponding
 .Pa /dev/hast/<name>
 disk-like device (GEOM provider) is created.
 File systems and applications can use this provider to send I/O
 requests to.
 Every write, delete and flush operation
 .Dv ( BIO_WRITE , BIO_DELETE , BIO_FLUSH )
-is send to local component and replicated to the remote (secondary) node if it
-is available.
+is sent to the local component and replicated on the remote (secondary) node
+if it is available.
 Read operations
 .Dv ( BIO_READ )
-are handled locally unless I/O error occurs or local version of the data
+are handled locally unless an I/O error occurs or the local version of the data
 is not up-to-date yet (synchronization is in progress).
 .Pp
 The
@@ -100,38 +100,38 @@ The connection between two
 .Nm
 daemons is always initiated from the one running as primary to the one
 running as secondary.
-When primary
+When the primary
 .Nm
-is unable to connect or connection fails, it will try to re-establish
-connection every few seconds.
-Once connection is established, primary
+is unable to connect or the connection fails, it will try to re-establish
+the connection every few seconds.
+Once the connection is established, the primary
 .Nm
 will synchronize every extent that was modified during connection outage
 to the secondary
 .Nm .
 .Pp
-It is possible that in case of connection outage between the nodes
+It is possible that in the case of a connection outage between the nodes the
 .Nm
 primary role for the given resource will be configured on both nodes.
 This in turn leads to incompatible data modifications.
-Such condition is called split-brain and cannot be automatically
+Such a condition is called a split-brain and cannot be automatically
 resolved by the
 .Nm
-daemon as this will lead most likely to data corruption or lost of
+daemon as this will lead most likely to data corruption or loss of
 important changes.
 Even though it cannot be fixed by
 .Nm
-itself, it will be detected and further connection between independently
+itself, it will be detected and a further connection between independently
 modified nodes will not be possible.
-Once this situation is manually resolved by an administrator, resource
+Once this situation is manually resolved by an administrator, the resource
 on one of the nodes can be initialized (erasing local data), which makes
-connection to the remote node possible again.
-Connection of freshly initialized component will trigger full resource
+a connection to the remote node possible again.
+Connection of the freshly initialized component will trigger full resource
 synchronization.
 .Pp
-The
+A
 .Nm
-daemon itself never picks his role up automatically.
+daemon never picks its role automatically.
 The role has to be configured with the
 .Xr hastctl 8
 control utility by additional software like
@@ -139,7 +139,7 @@ control utility by additional software like
 or
 .Nm heartbeat
 that can reliably manage role separation and switch secondary node to
-primary role in case of original primary failure.
+primary role in case of the primary's failure.
 .Pp
 The
 .Nm

@@ -24,8 +24,24 @@ CTFFLAGS+= -g
 .endif
 .endif
 
+.if defined(PROG_CXX)
+PROG=	${PROG_CXX}
+.endif
+
+.if defined(PROG) && target(${PROG})
+MK_DEBUG_FILES=	no
+.elif !empty(LDFLAGS:M-Wl,*--oformat,*) || !empty(LDFLAGS:M-static)
+MK_DEBUG_FILES=	no
+.endif
+
 .if defined(CRUNCH_CFLAGS)
 CFLAGS+=${CRUNCH_CFLAGS}
+.else
+.if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
+    empty(DEBUG_FLAGS:M-gdwarf-*)
+CFLAGS+= -g
+CTFFLAGS+= -g
+.endif
 .endif
 
 .if !defined(DEBUG_FLAGS)
@@ -36,21 +52,36 @@ STRIP?=	-s
 LDFLAGS+= -static
 .endif
 
-.if defined(PROG_CXX)
-PROG=	${PROG_CXX}
+.if ${MK_DEBUG_FILES} != "no"
+PROG_FULL=${PROG}.full
+# Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
+.if defined(BINDIR) && (\
+    ${BINDIR} == "/bin" ||\
+    ${BINDIR} == "/libexec" ||\
+    ${BINDIR} == "/sbin" ||\
+    ${BINDIR:C%/usr/(bin|bsdinstall|games|libexec|lpr|sendmail|sm.bin|sbin)(/.*)?%/usr/bin%} == "/usr/bin"\
+     )
+DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
+.else
+DEBUGFILEDIR?=	${BINDIR}/.debug
+DEBUGMKDIR=
+.endif
+.else
+PROG_FULL=	${PROG}
 .endif
 
 .if defined(PROG)
 PROGNAME?=	${PROG}
+
 .if defined(SRCS)
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if target(beforelinking)
 beforelinking: ${OBJS}
-${PROG}: beforelinking
+${PROG_FULL}: beforelinking
 .endif
-${PROG}: ${OBJS}
+${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
@@ -78,9 +109,9 @@ OBJS+=	${PROG}.o
 
 .if target(beforelinking)
 beforelinking: ${OBJS}
-${PROG}: beforelinking
+${PROG_FULL}: beforelinking
 .endif
-${PROG}: ${OBJS}
+${PROG_FULL}: ${OBJS}
 .if defined(PROG_CXX)
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
@@ -89,9 +120,18 @@ ${PROG}: ${OBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
-.endif
+.endif # !target(${PROG})
 
 .endif # !defined(SRCS)
+
+.if ${MK_DEBUG_FILES} != "no"
+${PROG}: ${PROG_FULL} ${PROGNAME}.debug
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${PROGNAME}.debug \
+	    ${PROG_FULL} ${.TARGET}
+
+${PROGNAME}.debug: ${PROG_FULL}
+	${OBJCOPY} --only-keep-debug ${PROG_FULL} ${.TARGET}
+.endif
 
 .if	${MK_MAN} != "no" && !defined(MAN) && \
 	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
@@ -109,6 +149,9 @@ all: _manpages
 
 .if defined(PROG)
 CLEANFILES+= ${PROG}
+.if ${MK_DEBUG_FILES} != "no"
+CLEANFILES+=	${PROG_FULL} ${PROGNAME}.debug
+.endif
 .endif
 
 .if defined(OBJS)
@@ -156,6 +199,13 @@ _proginstall:
 .if defined(PROG)
 	${INSTALL} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROGNAME}
+.if ${MK_DEBUG_FILES} != "no"
+.if defined(DEBUGMKDIR)
+	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}
+.endif
+	${INSTALL} -T debug -o ${BINOWN} -g ${BINGRP} -m ${DEBUGMODE} \
+	    ${PROGNAME}.debug ${DESTDIR}${DEBUGFILEDIR}/${PROGNAME}.debug
+.endif
 .endif
 .endif	# !target(realinstall)
 

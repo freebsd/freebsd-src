@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_TCPIP_SUBR" ]; then _MEDIA_TCPIP_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_TCPIP_SUBR" ]; then _MEDIA_TCPIP_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -31,9 +31,9 @@ if [ ! "$_MEDIA_TCPIP_SUBR" ]; then _MEDIA_TCPIP_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/tcpip.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
@@ -411,8 +411,8 @@ f_validate_netmask()
 
 		# Return error if the field is an invalid integer
 		case "$field" in
-		0|128|192|224|240|248|252|254|255) :;;
-		*) return 5;;
+		0|128|192|224|240|248|252|254|255) : ;;
+		*) return 5 ;;
 		esac
 
 		nfields=$(( $nfields + 1 ))
@@ -456,20 +456,20 @@ f_dialog_validate_tcpip()
 	local ipnum masknum
 
 	if [ ! "$hostname" ]; then
-		f_dialog_msgbox "$msg_must_specify_a_host_name_of_some_sort"
+		f_show_msg "$msg_must_specify_a_host_name_of_some_sort"
 	elif ! f_validate_hostname "$hostname"; then
-		f_dialog_msgbox "$msg_invalid_hostname_value"
+		f_show_msg "$msg_invalid_hostname_value"
 	elif [ "$netmask" ] && ! f_validate_netmask "$netmask"; then
-		f_dialog_msgbox "$msg_invalid_netmask_value"
+		f_show_msg "$msg_invalid_netmask_value"
 	elif [ "$nameserver" ] &&
-	      ! f_validate_ipaddr "$nameserver" &&
-	      ! f_validate_ipaddr6 "$nameserver"; then
-		f_dialog_msgbox "$msg_invalid_name_server_ip_address_specified"
+	     ! f_validate_ipaddr "$nameserver" &&
+	     ! f_validate_ipaddr6 "$nameserver"; then
+		f_show_msg "$msg_invalid_name_server_ip_address_specified"
 	elif [ "$ipaddr" ] && ! f_validate_ipaddr "$ipaddr" "$netmask"; then
-		f_dialog_msgbox "$msg_invalid_ipv4_address"
+		f_show_msg "$msg_invalid_ipv4_address"
 	elif [ "$gateway" -a "$gateway" != "NO" ] &&
-	      ! f_validate_gateway "$gateway" "$ipaddr" "$netmask"; then
-		f_dialog_msgbox "$msg_invalid_gateway_ipv4_address_specified"
+	     ! f_validate_gateway "$gateway" "$ipaddr" "$netmask"; then
+		f_show_msg "$msg_invalid_gateway_ipv4_address_specified"
 	else
 		return $SUCCESS
 	fi
@@ -593,7 +593,7 @@ f_ifconfig_netmask()
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
 #
-f_route_get_default='
+f_route_get_default_awk='
 BEGIN { found = 0 }
 ( $1 == "gateway:" ) \
 {
@@ -1133,11 +1133,12 @@ f_device_dialog_tcp()
 		# Otherwise, ask the question interactively.
 		#
 		local try6
-		if ! f_quietly f_getvar $VAR_NO_INET6 && {
+		if ! f_isset $VAR_NO_INET6 && {
 		   { f_getvar $VAR_TRY_RTSOL try6 && [ "$try6" = "YES" ]; } ||
 		   {
-			! f_quietly f_getvar $VAR_TRY_RTSOL &&
-			f_dialog_noyes "$msg_try_ipv6_configuration"
+			# Only prompt the user when VAR_TRY_RTSOL is unset
+			! f_isset $VAR_TRY_RTSOL &&
+				f_dialog_noyes "$msg_try_ipv6_configuration"
 		   }
 		}; then
 			local i
@@ -1169,8 +1170,9 @@ f_device_dialog_tcp()
 		#
 		local try4
 		if { f_getvar $VAR_TRY_DHCP try4 && [ "$try4" = "YES" ]; } || {
-			! f_quietly f_getvar $VAR_TRY_DHCP &&
-			f_dialog_noyes "$msg_try_dhcp_configuration"
+			# Only prompt the user when VAR_TRY_DHCP is unset
+			! f_isset $VAR_TRY_DHCP &&
+				f_dialog_noyes "$msg_try_dhcp_configuration"
 		}; then
 			f_quietly ifconfig $dev delete
 			f_quietly mkdir -p /var/db
@@ -1262,7 +1264,7 @@ f_device_dialog_tcp()
 	if f_netinteractive || f_interactive || [ ! "$_hostname" ]
 	then
 		[ ! "$_hostname" ] && f_interactive &&
-			f_dialog_msgbox "$msg_hostname_variable_not_set"
+			f_show_msg "$msg_hostname_variable_not_set"
 
 		local title=" $msg_network_configuration "
 		local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -1369,7 +1371,7 @@ f_device_dialog_tcp()
 			# Create a persistent menu instead
 
 			f_dialog_title "$msg_network_configuration"
-			local prompt=""
+			local prompt=
 
 			while :; do
 				cp=$( $DIALOG \
@@ -1399,6 +1401,7 @@ f_device_dialog_tcp()
 					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 				)
 				local retval=$?
+				f_dialog_data_sanitize cp
 				f_dprintf "retval=%u mtag=[%s]" $retval "$cp"
 
 				if [ $retval -eq 2 ]; then
@@ -1421,29 +1424,23 @@ f_device_dialog_tcp()
 						"$_netmask" \
 						&& break ;;
 				"$msg_host_name_including_domain:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_hostname"
-					    ) && _hostname="$cp" ;;
+					f_dialog_input cp "$cp" "$_hostname" \
+						&& _hostname="$cp" ;;
 				"$msg_ipv4_gateway:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_gateway"
-					    ) && _gateway="$cp" ;;
+					f_dialog_input cp "$cp" "$_gateway" \
+						&& _gateway="$cp" ;;
 				"$msg_name_server:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_nameserver"
-					    ) && _nameserver="$cp" ;;
+					f_dialog_input cp "$cp" "$_nameserver" \
+						&& _nameserver="$cp" ;;
 				"$msg_ipv4_address:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_ipaddr"
-					    ) && _ipaddr="$cp" ;;
+					f_dialog_input cp "$cp" "$_ipaddr" \
+						&& _ipaddr="$cp" ;;
 				"$msg_netmask:")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_netmask"
-					    ) && _netmask="$cp" ;;
+					f_dialog_input cp "$cp" "$_netmask" \
+						&& _netmask="$cp" ;;
 				"$msg_extra_options_to_ifconfig")
-					cp=$( f_dialog_input "$cp" \
-					                     "$_extras"
-					    ) && _extras="$cp" ;;
+					f_dialog_input cp "$cp" "$_extras" \
+						&& _extras="$cp" ;;
 				esac
 			done
 
@@ -1596,7 +1593,7 @@ f_device_select_tcp()
 			fi
 		done
 
-		f_interactive && f_dialog_msgbox "$msg_no_network_devices"
+		f_interactive && f_show_msg "$msg_no_network_devices"
 		return $FAILURE
 
 	fi # $network_dev
@@ -1619,7 +1616,7 @@ f_device_select_tcp()
 
 	local retval=$SUCCESS
 	if [ ${cnt:=0} -eq 0 ]; then
-		f_dialog_msgbox "$msg_no_network_devices"
+		f_show_msg "$msg_no_network_devices"
 		retval=$FAILURE
 	elif [ $cnt -eq 1 ]; then
 		f_device_dialog_tcp $dev

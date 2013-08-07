@@ -1,9 +1,9 @@
 /*
- *  $Id: msgbox.c,v 1.66 2011/06/27 08:36:28 tom Exp $
+ *  $Id: msgbox.c,v 1.75 2012/12/01 01:48:08 tom Exp $
  *
  *  msgbox.c -- implements the message box and info box
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -39,20 +39,14 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
     static DLG_KEYS_BINDING binding[] = {
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
-	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
+	TRAVERSE_BINDINGS,
 	SCROLLKEY_BINDINGS,
-	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_DOWN ),
-	DLG_KEYS_DATA( DLGK_FIELD_NEXT, KEY_RIGHT ),
-	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ),
-	DLG_KEYS_DATA( DLGK_FIELD_PREV,	KEY_UP ),
-	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_BTAB ),
-	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_LEFT ),
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
 
     int x, y, last = 0, page;
-    int button = 0;
+    int button;
     int key = 0, fkey;
     int result = DLG_EXIT_UNKNOWN;
     WINDOW *dialog = 0;
@@ -62,10 +56,18 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
     int check;
     bool show = TRUE;
     int min_width = (pauseopt == 1 ? 12 : 0);
+    int save_nocancel = dialog_vars.nocancel;
+#ifdef KEY_RESIZE
+    int req_high;
+    int req_wide;
+#endif
+
+    dialog_vars.nocancel = TRUE;
+    button = dlg_default_button();
 
 #ifdef KEY_RESIZE
-    int req_high = height;
-    int req_wide = width;
+    req_high = height;
+    req_wide = width;
   restart:
 #endif
 
@@ -95,13 +97,13 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 
     dlg_mouse_setbase(x, y);
 
-    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
+    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
     dlg_draw_title(dialog, title);
 
-    wattrset(dialog, dialog_attr);
+    (void) wattrset(dialog, dialog_attr);
 
     if (pauseopt) {
-	dlg_draw_bottom_box(dialog);
+	dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
 	mouse_mkbutton(height - 2, width / 2 - 4, 6, '\n');
 	dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
 	dlg_draw_helpline(dialog, FALSE);
@@ -110,6 +112,7 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 	    if (show) {
 		last = dlg_print_scrolled(dialog, prompt, offset,
 					  page, width, pauseopt);
+		dlg_trace_win(dialog);
 		show = FALSE;
 	    }
 	    key = dlg_mouse_wgetch(dialog, &fkey);
@@ -117,7 +120,7 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 		break;
 
 	    if (!fkey && (check = dlg_char_to_button(key, buttons)) >= 0) {
-		result = check ? DLG_EXIT_HELP : DLG_EXIT_OK;
+		result = dlg_ok_buttoncode(check);
 		break;
 	    }
 
@@ -150,22 +153,21 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 				     FALSE, width);
 		    break;
 		case DLGK_ENTER:
-		    result = button ? DLG_EXIT_HELP : DLG_EXIT_OK;
-		    break;
-		case DLGK_MOUSE(0):
-		    result = DLG_EXIT_OK;
-		    break;
-		case DLGK_MOUSE(1):
-		    result = DLG_EXIT_HELP;
+		    result = dlg_ok_buttoncode(button);
 		    break;
 		default:
-		    if (dlg_check_scrolled(key,
-					   last,
-					   page,
-					   &show,
-					   &offset) == 0)
-			break;
-		    beep();
+		    if (is_DLGK_MOUSE(key)) {
+			result = dlg_ok_buttoncode(key - M_EVENT);
+			if (result < 0)
+			    result = DLG_EXIT_OK;
+		    } else if (dlg_check_scrolled(key,
+						  last,
+						  page,
+						  &show,
+						  &offset) == 0) {
+		    } else {
+			beep();
+		    }
 		    break;
 		}
 	    } else {
@@ -176,11 +178,15 @@ dialog_msgbox(const char *title, const char *cprompt, int height, int width,
 	dlg_print_scrolled(dialog, prompt, offset, page, width, pauseopt);
 	dlg_draw_helpline(dialog, FALSE);
 	wrefresh(dialog);
+	dlg_trace_win(dialog);
 	result = DLG_EXIT_OK;
     }
 
     dlg_del_window(dialog);
     dlg_mouse_free_regions();
     free(prompt);
+
+    dialog_vars.nocancel = save_nocancel;
+
     return result;
 }

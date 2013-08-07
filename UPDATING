@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
+from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
+head, and then rebuild without this option. The bootstrap process from
+older version of current is a bit fragile.
+
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	FreeBSD 10.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
@@ -25,6 +30,145 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20130806:
+	INVARIANTS option now enables DEBUG for code with OpenSolaris and
+	Illumos origin, including ZFS.  If you have INVARIANTS in your
+	kernel configuration, then there is no need to set DEBUG or ZFS_DEBUG
+	explicitly.
+	DEBUG used to enable witness(9) tracking of OpenSolaris (mostly ZFS)
+	locks if WITNESS option was set.  Because that generated a lot of
+	witness(9) reports and all of them were believed to be false
+	positives, this is no longer done.  New option OPENSOLARIS_WITNESS
+	can be used to achieve the previous behavior.
+
+20130806:
+	Timer values in IPv6 data structures now use time_uptime instead
+	of time_second.  Although this is not a user-visible functional
+	change, userland utilities which directly use them---ndp(8),
+	rtadvd(8), and rtsold(8) in the base system---need to be updated
+	to r253970 or later.
+
+20130802:
+	find -delete can now delete the pathnames given as arguments,
+	instead of only files found below them or if the pathname did
+	not contain any slashes. Formerly, the following error message
+	would result:
+
+	find: -delete: <path>: relative path potentially not safe
+
+	Deleting the pathnames given as arguments can be prevented
+	without error messages using -mindepth 1 or by changing
+	directory and passing "." as argument to find. This works in the
+	old as well as the new version of find.
+
+20130726:
+	Behavior of devfs rules path matching has been changed.
+	Pattern is now always matched against fully qualified devfs
+	path and slash characters must be explicitly matched by
+	slashes in pattern (FNM_PATHNAME). Rulesets involving devfs
+	subdirectories must be reviewed.
+
+20130716:
+	The default ARM ABI has changed to the ARM EABI. The old ABI is
+	incompatible with the ARM EABI and all programs and modules will
+	need to be rebuilt to work with a new kernel.
+
+	To keep using the old ABI ensure the WITHOUT_ARM_EABI knob is set.
+
+	NOTE: Support for the old ABI will be removed in the future and
+	users are advised to upgrade.
+
+20130709:
+	pkg_install has been disconnected from the build if you really need it
+	you should add WITH_PKGTOOLS in your src.conf(5).
+
+20130709:
+	Most of network statistics structures were changed to be able
+	keep 64-bits counters. Thus all tools, that work with networking
+	statistics, must be rebuilt (netstat(1), bsnmpd(1), etc.)
+
+20130629:
+	Fix targets that run multiple make's to use && rather than ;
+	so that subsequent steps depend on success of previous.
+
+	NOTE: if building 'universe' with -j* on stable/8 or stable/9
+	it would be better to start the build using bmake, to avoid
+	overloading the machine.
+
+20130618:
+	Fix a bug that allowed a tracing process (e.g. gdb) to write
+	to a memory-mapped file in the traced process's address space
+	even if neither the traced process nor the tracing process had
+	write access to that file.
+
+20130615:
+	CVS has been removed from the base system.  An exact copy
+	of the code is available from the devel/cvs port.
+
+20130613:
+	Some people report the following error after the switch to bmake:
+
+		make: illegal option -- J
+		usage: make [-BPSXeiknpqrstv] [-C directory] [-D variable]
+			...
+		*** [buildworld] Error code 2
+
+	this likely due to an old instance of make in
+	${MAKEPATH} (${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE})
+	which src/Makefile will use that blindly, if it exists, so if
+	you see the above error:
+
+		rm -rf `make -V MAKEPATH`
+
+	should resolve it.
+
+20130516:
+	Use bmake by default.
+	Whereas before one could choose to build with bmake via
+	-DWITH_BMAKE one must now use -DWITHOUT_BMAKE to use the old
+	make. The goal is to remove these knobs for 10-RELEASE.
+
+	It is worth noting that bmake (like gmake) treats the command
+	line as the unit of failure, rather than statements within the
+	command line.  Thus '(cd some/where && dosomething)' is safer
+	than 'cd some/where; dosomething'. The '()' allows consistent
+	behavior in parallel build.
+
+20130429:
+        Fix a bug that allows NFS clients to issue READDIR on files.
+
+20130426:
+	The WITHOUT_IDEA option has been removed because
+	the IDEA patent expired.
+
+20130426:
+	The sysctl which controls TRIM support under ZFS has been renamed
+	from vfs.zfs.trim_disable -> vfs.zfs.trim.enabled and has been
+	enabled by default.
+
+20130425:
+	The mergemaster command now uses the default MAKEOBJDIRPREFIX
+	rather than creating it's own in the temporary directory in
+	order allow access to bootstrapped versions of tools such as
+	install and mtree.  When upgrading from version of FreeBSD where
+	the install command does not support -l, you will need to
+	install a new mergemaster command if mergemaster -p is required.
+	This can be accomplished with the command (cd src/usr.sbin/mergemaster
+	&& make install).
+
+20130404:
+	Legacy ATA stack, disabled and replaced by new CAM-based one since
+	FreeBSD 9.0, completely removed from the sources.  Kernel modules
+	atadisk and atapi*, user-level tools atacontrol and burncd are
+	removed.  Kernel option `options ATA_CAM` is now permanently enabled
+	and removed.
+
+20130319:
+	SOCK_CLOEXEC and SOCK_NONBLOCK flags have been added to socket(2)
+	and socketpair(2). Software, in particular Kerberos, may
+	automatically detect and use these during building. The resulting
+	binaries will not work on older kernels.
 
 20130308:
 	CTL_DISABLE has also been added to the sparc64 GENERIC (for further
@@ -63,6 +207,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	To inverse the logic and use the BSD-licensed one as default,
 	while having the GNU version installed as gnupatch, rebuild
 	and install world with the WITH_BSD_PATCH knob set.
+
+20130121:
+	Due to the use of the new -l option to install(1) during build
+	and install, you must take care not to directly set the INSTALL
+	make variable in your /etc/make.conf, /etc/src.conf, or on the
+	command line.  If you wish to use the -C flag for all installs
+	you may be able to add INSTALL+=-C to /etc/make.conf or
+	/etc/src.conf.
 
 20130118:
 	The install(1) option -M has changed meaning and now takes an
@@ -109,7 +261,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	This means that the world and kernel will be compiled with clang
 	and that clang will be installed as /usr/bin/cc, /usr/bin/c++,
 	and /usr/bin/cpp.  To disable this behavior and revert to building
-	with gcc, compile with WITHOUT_CLANG_IS_CC.
+	with gcc, compile with WITHOUT_CLANG_IS_CC. Really old versions
+	of current may need to bootstrap WITHOUT_CLANG first if the clang
+	build fails (its compatibility window doesn't extend to the 9 stable
+	branch point).
 
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
@@ -240,7 +395,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	is now spelled mips64.  mipsn32eb is now spelled mipsn32.  mipseb is
 	now spelled mips.  This is to aid compatibility with third-party
 	software that expects this naming scheme in uname(3).  Little-endian
-	settings are unchanged.
+	settings are unchanged. If you are updating a big-endian mips64 machine
+	from before this change, you may need to set MACHINE_ARCH=mips64 in
+	your environment before the new build system will recognize your machine.
 
 20120306:
 	Disable by default the option VFS_ALLOW_NONMPSAFE for all supported
@@ -1591,6 +1748,11 @@ COMMON ITEMS:
 	path, and has the highest probability of being successful.  Please try
 	this approach before reporting problems with a major version upgrade.
 
+	When upgrading a live system, having a root shell around before
+	installing anything can help undo problems. Not having a root shell
+	around can lead to problems if pam has changed too much from your
+	starting point to allow continued authentication after the upgrade.
+
 	ZFS notes
 	---------
 	When upgrading the boot ZFS pool to a new version, always follow
@@ -1655,7 +1817,6 @@ COMMON ITEMS:
 	mergemaster -i					[4]
 	make delete-old					[6]
 	<reboot>
-
 
 	To cross-install current onto a separate partition
 	--------------------------------------------------
@@ -1732,7 +1893,7 @@ COMMON ITEMS:
 	step.  It never hurts to do it all the time.  You may need to
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
-	from current before 20020224 or from -stable before 20020408.
+	from current before 20130425 or from -stable before 20130430.
 
 	[6] This only deletes old files and directories. Old libraries
 	can be deleted by "make delete-old-libs", but you have to make

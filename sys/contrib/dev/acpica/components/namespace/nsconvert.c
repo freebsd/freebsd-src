@@ -111,6 +111,7 @@ AcpiNsConvertToInteger (
         break;
 
     default:
+
         return (AE_AML_OPERAND_TYPE);
     }
 
@@ -208,6 +209,7 @@ AcpiNsConvertToString (
         break;
 
     default:
+
         return (AE_AML_OPERAND_TYPE);
     }
 
@@ -317,6 +319,7 @@ AcpiNsConvertToBuffer (
         break;
 
     default:
+
         return (AE_AML_OPERAND_TYPE);
     }
 

@@ -48,6 +48,7 @@ struct mem_affinity {
 };
 
 extern struct mem_affinity *mem_affinity;
+extern int vm_ndomains;
 
 /*
  * The following functions are only to be used by the virtual memory system.

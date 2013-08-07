@@ -65,6 +65,16 @@
 #define MAXMNTLEN	512
 
 /*
+ * A summary of contiguous blocks of various sizes is maintained
+ * in each cylinder group. Normally this is set by the initial
+ * value of fs_maxcontig.
+ *
+ * XXX:FS_MAXCONTIG is set to 16 to conserve space. Here we set
+ * EXT2_MAXCONTIG to 32 for better performance.
+ */
+#define EXT2_MAXCONTIG	32
+
+/*
  * Grigoriy Orlov <gluk@ptci.ru> has done some extensive work to fine
  * tune the layout preferences for directories within a filesystem.
  * His algorithm can be tuned by adjusting the following parameters
@@ -88,8 +98,8 @@
  * Turn file system block numbers into disk block addresses.
  * This maps file system blocks to device size blocks.
  */
-#define fsbtodb(fs, b)	((b) << ((fs)->e2fs_fsbtodb))
-#define	dbtofsb(fs, b)	((b) >> ((fs)->e2fs_fsbtodb))
+#define fsbtodb(fs, b)	((daddr_t)(b) << (fs)->e2fs_fsbtodb)
+#define	dbtofsb(fs, b)	((b) >> (fs)->e2fs_fsbtodb)
 
 /* get group containing inode */
 #define ino_to_cg(fs, x)	(((x) - 1) / (fs->e2fs_ipg))

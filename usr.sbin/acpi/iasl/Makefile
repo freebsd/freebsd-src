@@ -11,18 +11,19 @@ SRCS+=	ahpredef.c dmextern.c dmrestag.c dmtable.c dmtbdump.c	\
 SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslerror.c aslfileio.c aslfiles.c aslfold.c aslhex.c	\
-	asllength.c asllisting.c aslload.c asllookup.c		\
-	aslmain.c aslmap.c aslmethod.c aslnamesp.c aslopcodes.c	\
-	asloperands.c aslopt.c aslpredef.c aslprepkg.c		\
-	aslresource.c aslrestype1.c aslrestype1i.c		\
-	aslrestype2.c aslrestype2d.c aslrestype2e.c		\
-	aslrestype2q.c aslrestype2s.c aslrestype2w.c		\
-	aslstartup.c aslstubs.c asltransform.c asltree.c	\
-	aslutils.c asluuid.c aslwalks.c aslxref.c dtcompile.c	\
-	dtexpress.c dtfield.c dtio.c dtparser.y.h dtparserlex.c	\
-	dtparserparse.c dtsubtable.c dttable.c dttemplate.c	\
-	dtutils.c prexpress.c prmacros.c prparser.y.h		\
-	prparserlex.c prparserparse.c prscan.c prutils.c
+	asllength.c asllisting.c asllistsup.c aslload.c		\
+	asllookup.c aslmain.c aslmap.c aslmethod.c aslnamesp.c	\
+	asloffset.c aslopcodes.c asloperands.c aslopt.c		\
+	asloptions.c aslpredef.c aslprepkg.c aslresource.c	\
+	aslrestype1.c aslrestype1i.c aslrestype2.c		\
+	aslrestype2d.c aslrestype2e.c aslrestype2q.c		\
+	aslrestype2s.c aslrestype2w.c aslstartup.c aslstubs.c	\
+	asltransform.c asltree.c aslutils.c asluuid.c		\
+	aslwalks.c aslxref.c dtcompile.c dtexpress.c dtfield.c	\
+	dtio.c dtparser.y.h dtparserlex.c dtparserparse.c	\
+	dtsubtable.c dttable.c dttemplate.c dtutils.c		\
+	prexpress.c prmacros.c prparser.y.h prparserlex.c	\
+	prparserparse.c prscan.c prutils.c
 
 # components/debugger
 SRCS+=	dbfileio.c
@@ -51,14 +52,14 @@ SRCS+=	nsaccess.c nsalloc.c nsdump.c nsnames.c nsobject.c	\
 	nsparse.c nssearch.c nsutils.c nswalk.c
 
 # components/tables
-SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
+SRCS+=	tbfadt.c tbinstal.c tbprint.c tbutils.c tbxface.c
 
 # components/utilities
-SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
-	utdecode.c utdelete.c utexcep.c utglobal.c utinit.c	\
-	utlock.c utmath.c utmisc.c utmutex.c utobject.c		\
-	utownerid.c utresrc.c utstate.c utstring.c utxface.c	\
-	utxferror.c
+SRCS+=	utaddress.c utalloc.c utbuffer.c utcache.c utcopy.c	\
+	utdebug.c utdecode.c utdelete.c uterror.c utexcep.c	\
+	utglobal.c utinit.c utlock.c utmath.c utmisc.c		\
+	utmutex.c utobject.c utownerid.c utpredef.c utresrc.c	\
+	utstate.c utstring.c utxface.c utxferror.c
 
 # os_specific/service_layers
 SRCS+=	osunixxf.c
@@ -73,7 +74,8 @@ YFLAGS= -d
 
 CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
-	dtparserparse.c dtparserparse.h
+	dtparserparse.c dtparserparse.h prparser.y.h		\
+	prparserlex.c prparserparse.c prparserparse.h
 
 aslcompilerlex.c: aslcompiler.l aslsupport.l
 	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} \

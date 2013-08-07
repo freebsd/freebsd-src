@@ -74,10 +74,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 /*
- * struct switchframe must be a multiple of 8 for correct stack alignment
+ * struct switchframe and trapframe must both be a multiple of 8
+ * for correct stack alignment.
  */
 CTASSERT(sizeof(struct switchframe) == 24);
-CTASSERT(sizeof(struct trapframe) == 76);
+CTASSERT(sizeof(struct trapframe) == 80);
 
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
@@ -251,7 +252,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		if (flags & SFB_NOWAIT)
 			goto done;
 		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
+		SFSTAT_INC(sf_allocwait);
 		error = msleep(&sf_buf_freelist, &sf_buf_lock,
 		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;

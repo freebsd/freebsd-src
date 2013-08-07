@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.61 2012/07/07 15:33:02 haesbaert Exp $
+.\"     $OpenBSD: nc.1,v 1.62 2013/03/20 09:27:56 sthen Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2012
+.Dd July 7, 2012
 .Dt NC 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm nc
 .Bk -words
-.Op Fl 46DdEhklnrStUuvz
+.Op Fl 46DdEhklNnrStUuvz
 .Op Fl e Ar IPsec_policy
 .Op Fl I Ar length
 .Op Fl i Ar interval
@@ -155,6 +155,10 @@ options.
 Additionally, any timeouts specified with the
 .Fl w
 option are ignored.
+.It Fl N
+.Xr shutdown 2
+the network socket after EOF on the input.
+Some servers require this to finish their work.
 .It Fl n
 Do not do any DNS or service lookups on any specified addresses,
 hostnames or ports.

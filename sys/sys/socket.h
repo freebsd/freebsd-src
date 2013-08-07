@@ -352,6 +352,7 @@ struct sockproto {
 #define PF_SCLUSTER	AF_SCLUSTER
 #define	PF_ARP		AF_ARP
 #define	PF_BLUETOOTH	AF_BLUETOOTH
+#define	PF_IEEE80211	AF_IEEE80211
 
 #define	PF_MAX		AF_MAX
 
@@ -634,6 +635,7 @@ int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
 #if __BSD_VISIBLE
+int	accept4(int, struct sockaddr * __restrict, socklen_t * __restrict, int);
 int	bindat(int, int, const struct sockaddr *, socklen_t);
 int	connectat(int, int, const struct sockaddr *, socklen_t);
 #endif

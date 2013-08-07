@@ -17,6 +17,7 @@
 // Only pay for this in code size in assertions-enabled builds.
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclFriend.h"
@@ -37,8 +38,6 @@
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/TypeLocVisitor.h"
 #include "clang/AST/TypeVisitor.h"
-#include "clang/AST/Expr.h"
-#include "clang/AST/ExprCXX.h"
 #include "llvm/ADT/SmallString.h"
 
 using namespace clang;
@@ -500,8 +499,8 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     for (FunctionDecl::param_iterator
            I = D->param_begin(), E = D->param_end(); I != E; ++I)
       dispatch(*I);
-    for (llvm::ArrayRef<NamedDecl*>::iterator
-           I = D->getDeclsInPrototypeScope().begin(), E = D->getDeclsInPrototypeScope().end();
+    for (ArrayRef<NamedDecl *>::iterator I = D->getDeclsInPrototypeScope().begin(),
+                                         E = D->getDeclsInPrototypeScope().end();
          I != E; ++I)
       dispatch(*I);
     if (D->doesThisDeclarationHaveABody())
@@ -749,14 +748,6 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     visitDeclContext(D);
   }
 
-  // ObjCInterfaceDecl
-  void visitCategoryList(ObjCCategoryDecl *D) {
-    if (!D) return;
-
-    TemporaryContainer C(*this, "categories");
-    for (; D; D = D->getNextClassCategory())
-      visitDeclRef(D);
-  }
   void visitObjCInterfaceDeclAttrs(ObjCInterfaceDecl *D) {
     setPointer("typeptr", D->getTypeForDecl());
     setFlag("forward_decl", !D->isThisDeclarationADefinition());
@@ -771,7 +762,17 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
              I = D->protocol_begin(), E = D->protocol_end(); I != E; ++I)
         visitDeclRef(*I);
     }
-    visitCategoryList(D->getCategoryList());
+
+    if (!D->visible_categories_empty()) {
+      TemporaryContainer C(*this, "categories");
+
+      for (ObjCInterfaceDecl::visible_categories_iterator
+               Cat = D->visible_categories_begin(),
+             CatEnd = D->visible_categories_end();
+           Cat != CatEnd; ++Cat) {
+        visitDeclRef(*Cat);
+      }
+    }
   }
   void visitObjCInterfaceDeclAsContext(ObjCInterfaceDecl *D) {
     visitDeclContext(D);
@@ -923,6 +924,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     case CC_AAPCS: return set("cc", "aapcs");
     case CC_AAPCS_VFP: return set("cc", "aapcs_vfp");
     case CC_PnaclCall: return set("cc", "pnaclcall");
+    case CC_IntelOclBicc: return set("cc", "intel_ocl_bicc");
     }
   }
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: dsopcode - Dispatcher suport for regions and fields
+ * Module Name: dsopcode - Dispatcher support for regions and fields
  *
  *****************************************************************************/
 
@@ -680,6 +680,7 @@ AcpiDsEvalDataObjectOperands (
         break;
 
     default:
+
         return_ACPI_STATUS (AE_AML_BAD_OPCODE);
     }
 

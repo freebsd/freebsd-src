@@ -1,0 +1,215 @@
+/*-
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
+ * $FreeBSD$
+ */
+
+/dts-v1/;
+
+/ {
+	model = "zedboard";
+	compatible = "digilent,zedboard";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&GIC>;
+
+	// cpus {
+	//	#address-cells = <1>;
+	//	#size-cells = <0>;
+	//	cpu@0 {
+	//		device-type = "cpu";
+	//		model = "ARM Cortex-A9";
+	//	};
+	// };
+
+	memory {
+		// First megabyte isn't accessible by all interconnect masters.
+		device_type = "memory";
+		reg = <0x100000 0x1ff00000>;	/* 511MB RAM at 0x100000 */
+	};
+
+	// Zynq PS System registers.
+	//
+ 	ps7sys@f8000000 {
+		device_type = "soc";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0xf8000000 0xf10000>;
+
+		// SLCR block
+		slcr: slcr@7000 {
+			compatible = "xlnx,zy7_slcr";
+			reg = <0x0 0x1000>;
+		};
+
+		// Interrupt controller
+		GIC: gic {
+			compatible = "arm,gic";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0xf01000 0x1000>, // distributer registers
+			      <0xf00100 0x0100>; // CPU if registers
+		};
+
+		// L2 cache controller
+		pl310@f02000 {
+			compatible = "arm,pl310";
+			reg = <0xf02000 0x1000>;
+			interrupts = <34>;
+			interrupt-parent = <&GIC>;
+		};
+
+		// Device Config
+		devcfg: devcfg@7000 {
+			compatible = "xlnx,zy7_devcfg";
+			reg = <0x7000 0x1000>;
+			interrupts = <40>;
+			interrupt-parent = <&GIC>;
+		};
+
+		// triple timer counters0,1
+		ttc0: ttc@1000 {
+		 	compatible = "xlnx,ttc";
+			reg = <0x1000 0x1000>;
+		};
+		ttc1: ttc@2000 {
+		 	compatible = "xlnx,ttc";
+		 	reg = <0x2000 0x1000>;
+		};
+
+		// ARM Cortex A9 TWD Timer
+		timer@f00600 {
+			compatible = "arm,mpcore-timers";
+			clock-frequency = <333333333>; // 333Mhz
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xf00200 0x100>,	// Global Timer Regs
+			      <0xf00600 0x20>;	// Private Timer Regs
+			interrupts = < 27 29 >;
+			interrupt-parent = <&GIC>;
+		};
+
+		// system watch-dog timer
+		swdt@5000 {
+			device_type = "watchdog";
+		 	compatible = "xlnx,zy7_wdt";
+		 	reg = <0x5000 0x1000>;
+		 	interrupts = <41>;
+		 	interrupt-parent = <&GIC>;
+		};
+
+		scuwdt@f00620 {
+		 	device_type = "watchdog";
+		 	compatible = "arm,mpcore_wdt";
+		 	reg = <0xf00620 0x20>;
+		 	interrupts = <30>;
+		 	interrupt-parent = <&GIC>;
+		 	reset = <1>;
+		};
+	}; // pssys@f8000000
+
+	// Zynq PS I/O Peripheral registers.
+	//
+	ps7io@e0000000 {
+		device_type = "soc";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0xe0000000 0x300000>;
+
+		// uart0: uart@0000 {
+		// 	device_type = "serial";
+		// 	compatible = "cadence,uart";
+		// 	reg = <0x0000 0x1000>;
+		// 	interrupts = <59>;
+		// 	interrupt-parent = <&GIC>;
+		// 	clock-frequency = <50000000>;
+		// };
+
+		uart1: uart@1000 {
+			device_type = "serial";
+			compatible = "cadence,uart";
+			reg = <0x1000 0x1000>;
+			interrupts = <82>;
+			interrupt-parent = <&GIC>;
+			clock-frequency = <50000000>;
+			current-speed = <115200>;
+		};
+
+		gpio: gpio@a000 {
+			compatible = "xlnx,zy7_gpio";
+			reg = <0xa000 0x1000>;
+		 	interrupts = <52>;
+		 	interrupt-parent = <&GIC>;
+		};
+
+		// GigE
+		eth0: eth@b000 {
+		        // device_type = "network";
+
+		 	compatible = "cadence,gem";
+		 	reg = <0xb000 0x1000>;
+			interrupts = <54 55>;
+			interrupt-parent = <&GIC>;
+		};
+
+		// SDIO
+		sdhci0: sdhci@100000 {
+			compatible = "xlnx,zy7_sdhci";
+			reg = <0x100000 0x1000>;
+			interrupts = <56>;
+			interrupt-parent = <&GIC>;
+			clock-frequency = <50000000>;
+		};
+
+		// QSPI
+		qspi0: qspi@d000 {
+			compatible = "xlnx,zy7_qspi";
+			reg = <0xd000 0x1000>;
+			interrupts = <51>;
+			interrupt-parent = <&GIC>;
+			spi-clock = <50000000>;
+			ref-clock = <190476000>;
+		};
+
+		// USB
+		ehci0: ehci@2000 {
+			compatible = "xlnx,zy7_ehci";
+			reg = <0x2000 0x1000>;
+			interrupts = <53>;
+			interrupt-parent = <&GIC>;
+			phy_vbus_ext;
+		};
+
+	}; // ps7io@e0000000
+
+	chosen {
+		stdin = &uart1;
+		stdout = &uart1;
+	};
+};
+

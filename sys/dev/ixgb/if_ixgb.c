@@ -72,8 +72,8 @@ char            ixgb_copyright[] = "Copyright (c) 2001-2004 Intel Corporation.";
 static ixgb_vendor_info_t ixgb_vendor_info_array[] =
 {
 	/* Intel(R) PRO/10000 Network Connection */
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX, PCI_ANY_ID, PCI_ANY_ID, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{IXGB_VENDOR_ID, IXGB_DEVICE_ID_82597EX, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{IXGB_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };

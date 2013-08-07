@@ -1,23 +1,408 @@
 ChangeLog for wpa_supplicant
 
-2010-09-07 - v0.7.3
-	* fixed fallback from failed PMKSA caching into full EAP authentication
-	  [Bug 355]
-	* fixed issue with early D-Bus signals during initialization
-	* fixed X.509 name handling in internal TLS
-	* fixed WPS ER to use corrent Enrollee MAC Address in Credential
-	* fixed scanning routines ot improve AP selection for WPS
-	* added WPS workaround for open networks
-	* fixed WPS Diffie-Hellman derivation to use correct public key length
-	* fixed wpa_supplicant AP mode operations to ignore Supplicant and
-	  scan result events
-	* improved SME operations with nl80211
-	* fixed WPS ER event_id handling in some cases
-	* fixed some issues with bgscan simple to avoid unnecessary scans
-	* fixed issue with l2_packet_ndis overlapped writes corrupting stack
-	  [Bug 328]
-	* updated WinPcap to the latest stable version 4.1.2 in Windows
-	  installer
+2013-01-12 - v2.0
+	* removed Qt3-based wpa_gui (obsoleted by wpa_qui-qt4)
+	* removed unmaintained driver wrappers broadcom, iphone, osx, ralink,
+	  hostap, madwifi (hostap and madwifi remain available for hostapd;
+	  their wpa_supplicant functionality is obsoleted by wext)
+	* improved debug logging (human readable event names, interface name
+	  included in more entries)
+	* changed AP mode behavior to enable WPS only for open and
+	  WPA/WPA2-Personal configuration
+	* improved P2P concurrency operations
+	  - better coordination of concurrent scan and P2P search operations
+	  - avoid concurrent remain-on-channel operation requests by canceling
+	    previous operations prior to starting a new one
+	  - reject operations that would require multi-channel concurrency if
+	    the driver does not support it
+	  - add parameter to select whether STA or P2P connection is preferred
+	    if the driver cannot support both at the same time
+	  - allow driver to indicate channel changes
+	  - added optional delay=<search delay in milliseconds> parameter for
+	    p2p_find to avoid taking all radio resources
+	  - use 500 ms p2p_find search delay by default during concurrent
+	    operations
+	  - allow all channels in GO Negotiation if the driver supports
+	    multi-channel concurrency
+	* added number of small changes to make it easier for static analyzers
+	  to understand the implementation
+	* fixed number of small bugs (see git logs for more details)
+	* nl80211: number of updates to use new cfg80211/nl80211 functionality
+	  - replace monitor interface with nl80211 commands for AP mode
+	  - additional information for driver-based AP SME
+	  - STA entry authorization in RSN IBSS
+	* EAP-pwd:
+	  - fixed KDF for group 21 and zero-padding
+	  - added support for fragmentation
+	  - increased maximum number of hunting-and-pecking iterations
+	* avoid excessive Probe Response retries for broadcast Probe Request
+	  frames (only with drivers using wpa_supplicant AP mode SME/MLME)
+	* added "GET country" ctrl_iface command
+	* do not save an invalid network block in wpa_supplicant.conf to avoid
+	  problems reading the file on next start
+	* send STA connected/disconnected ctrl_iface events to both the P2P
+	  group and parent interfaces
+	* added preliminary support for using TLS v1.2 (CONFIG_TLSV12=y)
+	* added "SET pno <1/0>" ctrl_iface command to start/stop preferred
+	  network offload with sched_scan driver command
+	* merged in number of changes from Android repository for P2P, nl80211,
+	  and build parameters
+	* changed P2P GO mode configuration to use driver capabilities to
+	  automatically enable HT operations when supported
+	* added "wpa_cli status wps" command to fetch WPA2-Personal passhrase
+	  for WPS use cases in AP mode
+	* EAP-AKA: keep pseudonym identity across EAP exchanges to match EAP-SIM
+	  behavior
+	* improved reassociation behavior in cases where association is rejected
+	  or when an AP disconnects us to handle common load balancing
+	  mechanisms
+	  - try to avoid extra scans when the needed information is available
+	* added optional "join" argument for p2p_prov_disc ctrl_iface command
+	* added group ifname to P2P-PROV-DISC-* events
+	* added P2P Device Address to AP-STA-DISCONNECTED event and use
+	  p2p_dev_addr parameter name with AP-STA-CONNECTED
+	* added workarounds for WPS PBC overlap detection for some P2P use cases
+	  where deployed stations work incorrectly
+	* optimize WPS connection speed by disconnecting prior to WPS scan and
+	  by using single channel scans when AP channel is known
+	* PCSC and SIM/USIM improvements:
+	  - accept 0x67 (Wrong length) as a response to READ RECORD to fix
+	    issues with some USIM cards
+	  - try to read MNC length from SIM/USIM
+	  - build realm according to 3GPP TS 23.003 with identity from the SIM
+	  - allow T1 protocol to be enabled
+	* added more WPS and P2P information available through D-Bus
+	* improve P2P negotiation robustness
+	  - extra waits to get ACK frames through
+	  - longer timeouts for cases where deployed devices have been
+	    identified have issues meeting the specification requirements
+	  - more retries for some P2P frames
+	  - handle race conditions in GO Negotiation start by both devices
+	  - ignore unexpected GO Negotiation Response frame
+	* added support for libnl 3.2 and newer
+	* added P2P persistent group info to P2P_PEER data
+	* maintain a list of P2P Clients for persistent group on GO
+	* AP: increased initial group key handshake retransmit timeout to 500 ms
+	* added optional dev_id parameter for p2p_find
+	* added P2P-FIND-STOPPED ctrl_iface event
+	* fixed issues in WPA/RSN element validation when roaming with ap_scan=1
+	  and driver-based BSS selection
+	* do not expire P2P peer entries while connected with the peer in a
+	  group
+	* fixed WSC element inclusion in cases where P2P is disabled
+	* AP: added a WPS workaround for mixed mode AP Settings with Windows 7
+	* EAP-SIM: fixed AT_COUNTER_TOO_SMALL use
+	* EAP-SIM/AKA: append realm to pseudonym identity
+	* EAP-SIM/AKA: store pseudonym identity in network configuration to
+	  allow it to persist over multiple EAP sessions and wpa_supplicant
+	  restarts
+	* EAP-AKA': updated to RFC 5448 (username prefixes changed); note: this
+	  breaks interoperability with older versions
+	* added support for WFA Hotspot 2.0
+	  - GAS/ANQP to fetch network information
+	  - credential configuration and automatic network selections based on
+	    credential match with ANQP information
+	* limited PMKSA cache entries to be used only with the network context
+	  that was used to create them
+	* improved PMKSA cache expiration to avoid unnecessary disconnections
+	* adjusted bgscan_simple fast-scan backoff to avoid too frequent
+	  background scans
+	* removed ctrl_iface event on P2P PD Response in join-group case
+	* added option to fetch BSS table entry based on P2P Device Address
+	  ("BSS p2p_dev_addr=<P2P Device Address>")
+	* added BSS entry age to ctrl_iface BSS command output
+	* added optional MASK=0xH option for ctrl_iface BSS command to select
+	  which fields are included in the response
+	* added optional RANGE=ALL|N1-N2 option for ctrl_iface BSS command to
+	  fetch information about several BSSes in one call
+	* simplified licensing terms by selecting the BSD license as the only
+	  alternative
+	* added "P2P_SET disallow_freq <freq list>" ctrl_iface command to
+	  disable channels from P2P use
+	* added p2p_pref_chan configuration parameter to allow preferred P2P
+	  channels to be specified
+	* added support for advertising immediate availability of a WPS
+	  credential for P2P use cases
+	* optimized scan operations for P2P use cases (use single channel scan
+	  for a specific SSID when possible)
+	* EAP-TTLS: fixed peer challenge generation for MSCHAPv2
+	* SME: do not use reassociation after explicit disconnection request
+	  (local or a notification from an AP)
+	* added support for sending debug info to Linux tracing (-T on command
+	  line)
+	* added support for using Deauthentication reason code 3 as an
+	  indication of P2P group termination
+	* added wps_vendor_ext_m1 configuration parameter to allow vendor
+	  specific attributes to be added to WPS M1
+	* started using separate TLS library context for tunneled TLS
+	  (EAP-PEAP/TLS, EAP-TTLS/TLS, EAP-FAST/TLS) to support different CA
+	  certificate configuration between Phase 1 and Phase 2
+	* added optional "auto" parameter for p2p_connect to request automatic
+	  GO Negotiation vs. join-a-group selection
+	* added disabled_scan_offload parameter to disable automatic scan
+	  offloading (sched_scan)
+	* added optional persistent=<network id> parameter for p2p_connect to
+	  allow forcing of a specific SSID/passphrase for GO Negotiation
+	* added support for OBSS scan requests and 20/40 BSS coexistence reports
+	* reject PD Request for unknown group
+	* removed scripts and notes related to Windows binary releases (which
+	  have not been used starting from 1.x)
+	* added initial support for WNM operations
+	  - Keep-alive based on BSS max idle period
+	  - WNM-Sleep Mode
+	  - minimal BSS Transition Management processing
+	* added autoscan module to control scanning behavior while not connected
+	  - autoscan_periodic and autoscan_exponential modules
+	* added new WPS NFC ctrl_iface mechanism
+	  - added initial support NFC connection handover
+	  - removed obsoleted WPS_OOB command (including support for deprecated
+	    UFD config_method)
+	* added optional framework for external password storage ("ext:<name>")
+	* wpa_cli: added optional support for controlling wpa_supplicant
+	  remotely over UDP (CONFIG_CTRL_IFACE=udp-remote) for testing purposes
+	* wpa_cli: extended tab completion to more commands
+	* changed SSID output to use printf-escaped strings instead of masking
+	  of non-ASCII characters
+	  - SSID can now be configured in the same format: ssid=P"abc\x00test"
+	* removed default ACM=1 from AC_VO and AC_VI
+	* added optional "ht40" argument for P2P ctrl_iface commands to allow
+	  40 MHz channels to be requested on the 5 GHz band
+	* added optional parameters for p2p_invite command to specify channel
+	  when reinvoking a persistent group as the GO
+	* improved FIPS mode builds with OpenSSL
+	  - "make fips" with CONFIG_FIPS=y to build wpa_supplicant with the
+	    OpenSSL FIPS object module
+	  - replace low level OpenSSL AES API calls to use EVP
+	  - use OpenSSL keying material exporter when possible
+	  - do not export TLS keys in FIPS mode
+	  - remove MD5 from CONFIG_FIPS=y builds
+	  - use OpenSSL function for PKBDF2 passphrase-to-PSK
+	  - use OpenSSL HMAC implementation
+	  - mix RAND_bytes() output into random_get_bytes() to force OpenSSL
+	    DRBG to be used in FIPS mode
+	  - use OpenSSL CMAC implementation
+	* added mechanism to disable TLS Session Ticket extension
+	  - a workaround for servers that do not support TLS extensions that
+	    was enabled by default in recent OpenSSL versions
+	  - tls_disable_session_ticket=1
+	  - automatically disable TLS Session Ticket extension by default when
+	    using EAP-TLS/PEAP/TTLS (i.e., only use it with EAP-FAST)
+	* changed VENDOR-TEST EAP method to use proper private enterprise number
+	  (this will not interoperate with older versions)
+	* disable network block temporarily on authentication failures
+	* improved WPS AP selection during WPS PIN iteration
+	* added support for configuring GCMP cipher for IEEE 802.11ad
+	* added support for Wi-Fi Display extensions
+	  - WFD_SUBELEMENT_SET ctrl_iface command to configure WFD subelements
+	  - SET wifi_display <0/1> to disable/enable WFD support
+	  - WFD service discovery
+	  - an external program is needed to manage the audio/video streaming
+	    and codecs
+	* optimized scan result use for network selection
+	  - use the internal BSS table instead of raw scan results
+	  - allow unnecessary scans to be skipped if fresh information is
+	    available (e.g., after GAS/ANQP round for Interworking)
+	* added support for 256-bit AES with internal TLS implementation
+	* allow peer to propose channel in P2P invitation process for a
+	  persistent group
+	* added disallow_aps parameter to allow BSSIDs/SSIDs to be disallowed
+	  from network selection
+	* re-enable the networks disabled during WPS operations
+	* allow P2P functionality to be disabled per interface (p2p_disabled=1)
+	* added secondary device types into P2P_PEER output
+	* added an option to disable use of a separate P2P group interface
+	  (p2p_no_group_iface=1)
+	* fixed P2P Bonjour SD to match entries with both compressed and not
+	  compressed domain name format and support multiple Bonjour PTR matches
+	  for the same key
+	* use deauthentication instead of disassociation for all disconnection
+	  operations; this removes the now unused disassociate() wpa_driver_ops
+	  callback
+	* optimized PSK generation on P2P GO by caching results to avoid
+	  multiple PBKDF2 operations
+	* added okc=1 global configuration parameter to allow OKC to be enabled
+	  by default for all network blocks
+	* added a workaround for WPS PBC session overlap detection to avoid
+	  interop issues with deployed station implementations that do not
+	  remove active PBC indication from Probe Request frames properly
+	* added basic support for 60 GHz band
+	* extend EAPOL frames processing workaround for roaming cases
+	  (postpone processing of unexpected EAPOL frame until association
+	  event to handle reordered events)
+
+2012-05-10 - v1.0
+	* bsd: Add support for setting HT values in IFM_MMASK.
+	* Delay STA entry removal until Deauth/Disassoc TX status in AP mode.
+	  This allows the driver to use PS buffering of Deauthentication and
+	  Disassociation frames when the STA is in power save sleep. Only
+	  available with drivers that provide TX status events for Deauth/
+	  Disassoc frames (nl80211).
+	* Drop oldest unknown BSS table entries first. This makes it less
+	  likely to hit connection issues in environments with huge number
+	  of visible APs.
+	* Add systemd support.
+	* Add support for setting the syslog facility from the config file
+	  at build time.
+	* atheros: Add support for IEEE 802.11w configuration.
+	* AP mode: Allow enable HT20 if driver supports it, by setting the
+	  config parameter ieee80211n.
+	* Allow AP mode to disconnect STAs based on low ACK condition (when
+	  the data connection is not working properly, e.g., due to the STA
+	  going outside the range of the AP). Disabled by default, enable by
+	  config option disassoc_low_ack.
+	* nl80211:
+	  - Support GTK rekey offload.
+	  - Support PMKSA candidate events. This adds support for RSN
+	    pre-authentication with nl80211 interface and drivers that handle
+	    roaming internally.
+	* dbus:
+	  - Add a DBus signal for EAP SM requests, emitted on the Interface
+	    object.
+	  - Export max scan ssids supported by the driver as MaxScanSSID.
+	  - Add signal Certification for information about server certification.
+	  - Add BSSExpireAge and BSSExpireCount interface properties and
+	    support set/get, which allows for setting BSS cache expiration age
+	    and expiration scan count.
+	  - Add ConfigFile to AddInterface properties.
+	  - Add Interface.Country property and support to get/set the value.
+	  - Add DBus property CurrentAuthMode.
+	  - P2P DBus API added.
+	  - Emit property changed events (for property BSSs) when adding/
+	    removing BSSs.
+	  - Treat '' in SSIDs of Interface.Scan as a request for broadcast
+	    scan, instead of ignoring it.
+	  - Add DBus getter/setter for FastReauth.
+	  - Raise PropertiesChanged on org.freedesktop.DBus.Properties.
+	* wpa_cli:
+	  - Send AP-STA-DISCONNECTED event when an AP disconnects a station
+	    due to inactivity.
+	  - Make second argument to set command optional. This can be used to
+	    indicate a zero length value.
+	  - Add signal_poll command.
+	  - Add bss_expire_age and bss_expire_count commands to set/get BSS
+	    cache expiration age and expiration scan count.
+	  - Add ability to set scan interval (the time in seconds wpa_s waits
+	    before requesting a new scan after failing to find a suitable
+	    network in scan results) using scan_interval command.
+	  - Add event CTRL-EVENT-ASSOC-REJECT for association rejected.
+	  - Add command get version, that returns wpa_supplicant version string.
+	  - Add command sta_autoconnect for disabling automatic reconnection
+	    on receiving disconnection event.
+	  - Setting bssid parameter to an empty string "" or any can now be
+	    used to clear the bssid_set flag in a network block, i.e., to remove
+	    bssid filtering.
+	  - Add tdls_testing command to add a special testing feature for
+	    changing TDLS behavior. Build param CONFIG_TDLS_TESTING must be
+	    enabled as well.
+	  - For interworking, add wpa_cli commands interworking_select,
+	    interworking_connect, anqp_get, fetch_anqp, and stop_fetch_anqp.
+	  - Many P2P commands were added. See README-P2P.
+	  - Many WPS/WPS ER commands - see WPS/WPS ER sections for details.
+	  - Allow set command to change global config parameters.
+	  - Add log_level command, which can be used to display the current
+	    debugging level and to change the log level during run time.
+	  - Add note command, which can be used to insert notes to the debug
+	    log.
+	  - Add internal line edit implementation. CONFIG_WPA_CLI_EDIT=y
+	    can now be used to build wpa_cli with internal implementation of
+	    line editing and history support. This can be used as a replacement
+	    for CONFIG_READLINE=y.
+	* AP mode: Add max_num_sta config option, which can be used to limit
+	  the number of stations allowed to connect to the AP.
+	* Add WPA_IGNORE_CONFIG_ERRORS build option to continue in case of bad
+	  config file.
+	* wext: Increase scan timeout from 5 to 10 seconds.
+	* Add blacklist command, allowing an external program to
+	  manage the BSS blacklist and display its current contents.
+	* WPS:
+	  - Add wpa_cli wps_pin get command for generating random PINs. This can
+	    be used in a UI to generate a PIN without starting WPS (or P2P)
+	    operation.
+	  - Set RF bands based on driver capabilities, instead of hardcoding
+	    them.
+	  - Add mechanism for indicating non-standard WPS errors.
+	  - Add CONFIG_WPS_REG_DISABLE_OPEN=y option to disable open networks
+	    by default.
+	  - Add wps_ap_pin cli command for wpa_supplicant AP mode.
+	  - Add wps_check_pin cli command for processing PIN from user input.
+	    UIs can use this command to process a PIN entered by a user and to
+	    validate the checksum digit (if present).
+	  - Cancel WPS operation on PBC session overlap detection.
+	  - New wps_cancel command in wpa_cli will cancel a pending WPS
+	    operation.
+	  - wpa_cli action: Add WPS_EVENT_SUCCESS and WPS_EVENT_FAIL handlers.
+	  - Trigger WPS config update on Manufacturer, Model Name, Model
+	    Number, and Serial Number changes.
+	  - Fragment size is now configurable for EAP-WSC peer. Use
+	    wpa_cli set wps_fragment_size <val>.
+	  - Disable AP PIN after 10 consecutive failures. Slow down attacks on
+	    failures up to 10.
+	  - Allow AP to start in Enrollee mode without AP PIN for probing, to
+	    be compatible with Windows 7.
+	  - Add Config Error into WPS-FAIL events to provide more info to the
+	    user on how to resolve the issue.
+	  - Label and Display config methods are not allowed to be enabled
+	    at the same time, since it is unclear which PIN to use if both
+	    methods are advertised.
+	  - When controlling multiple interfaces:
+	     - apply WPS commands to all interfaces configured to use WPS
+	     - apply WPS config changes to all interfaces that use WPS
+	     - when an attack is detected on any interface, disable AP PIN on
+	       all interfaces
+	* WPS ER:
+	  - Add special AP Setup Locked mode to allow read only ER.
+	    ap_setup_locked=2 can now be used to enable a special mode where
+	    WPS ER can learn the current AP settings, but cannot change them.
+	  - Show SetSelectedRegistrar events as ctrl_iface events
+	  - Add wps_er_set_config to enroll a network based on a local
+	    network configuration block instead of having to (re-)learn the
+	    current AP settings with wps_er_learn.
+	  - Allow AP filtering based on IP address, add ctrl_iface event for
+	    learned AP settings, add wps_er_config command to configure an AP.
+	* WPS 2.0: Add support for WPS 2.0 (CONFIG_WPS2)
+	  - Add build option CONFIG_WPS_EXTENSIBILITY_TESTING to enable tool
+	    for testing protocol extensibility.
+	  - Add build option CONFIG_WPS_STRICT to allow disabling of WPS
+	    workarounds.
+	  - Add support for AuthorizedMACs attribute.
+	* TDLS:
+	  - Propogate TDLS related nl80211 capability flags from kernel and
+	    add them as driver capability flags. If the driver doesn't support
+	    capabilities, assume TDLS is supported internally. When TDLS is
+	    explicitly not supported, disable all user facing TDLS operations.
+	  - Allow TDLS to be disabled at runtime (mostly for testing).
+	    Use set tdls_disabled.
+	  - Honor AP TDLS settings that prohibit/allow TDLS.
+	  - Add a special testing feature for changing TDLS behavior. Use
+	    CONFIG_TDLS_TESTING build param to enable. Configure at runtime
+	    with tdls_testing cli command.
+	  - Add support for TDLS 802.11z.
+	* wlantest: Add a tool wlantest for IEEE802.11 protocol testing.
+	  wlantest can be used to capture frames from a monitor interface
+	  for realtime capturing or from pcap files for offline analysis.
+	* Interworking: Support added for 802.11u. Enable in .config with
+	  CONFIG_INTERWORKING. See wpa_supplicant.conf for config parameters
+	  for interworking. wpa_cli commands added to support this are
+	  interworking_select, interworking_connect, anqp_get, fetch_anqp,
+	  and stop_fetch_anqp.
+	* Android: Add build and runtime support for Android wpa_supplicant.
+	* bgscan learn: Add new bgscan that learns BSS information based on
+	  previous scans, and uses that information to dynamically generate
+	  the list of channels for background scans.
+	* Add a new debug message level for excessive information. Use
+	  -ddd to enable.
+	* TLS: Add support for tls_disable_time_checks=1 in client mode.
+	* Internal TLS:
+	  - Add support for TLS v1.1 (RFC 4346). Enable with build parameter
+	    CONFIG_TLSV11.
+	  - Add domainComponent parser for X.509 names.
+	* Linux: Add RFKill support by adding an interface state "disabled".
+	* Reorder some IEs to get closer to IEEE 802.11 standard. Move
+	  WMM into end of Beacon, Probe Resp and (Re)Assoc Resp frames.
+	  Move HT IEs to be later in (Re)Assoc Resp.
+	* Solaris: Add support for wired 802.1X client.
+	* Wi-Fi Direct support. See README-P2P for more information.
+	* Many bugfixes.
 
 2010-04-18 - v0.7.2
 	* nl80211: fixed number of issues with roaming

@@ -69,6 +69,8 @@ vdev_geom_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	vd = cp->private;
+	if (vd == NULL)
+		return;
 
 	/*
 	 * Orphan callbacks occur from the GEOM event thread.
@@ -270,8 +272,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 			continue;
 
 		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
-		    &state) != 0 || state == POOL_STATE_DESTROYED ||
-		    state > POOL_STATE_L2CACHE) {
+		    &state) != 0 || state > POOL_STATE_L2CACHE) {
 			nvlist_free(*config);
 			*config = NULL;
 			continue;
@@ -690,6 +691,7 @@ vdev_geom_close(vdev_t *vd)
 		return;
 	vd->vdev_tsd = NULL;
 	vd->vdev_delayed_close = B_FALSE;
+	cp->private = NULL;	/* XXX locking */
 	g_post_event(vdev_geom_detach, cp, M_WAITOK, NULL);
 }
 

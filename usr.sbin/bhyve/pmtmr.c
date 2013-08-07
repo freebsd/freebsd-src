@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <assert.h>
 #include <pthread.h>
@@ -53,35 +54,108 @@ __FBSDID("$FreeBSD$");
 #define PMTMR_FREQ	3579545  /* 3.579545MHz */
 
 static pthread_mutex_t pmtmr_mtx;
-static uint64_t	pmtmr_tscf;
+
 static uint64_t	pmtmr_old;
+
+static uint64_t	pmtmr_tscf;
 static uint64_t	pmtmr_tsc_old;
+
+static clockid_t clockid = CLOCK_UPTIME_FAST;
+static struct timespec pmtmr_uptime_old;
+
+#define	timespecsub(vvp, uvp)						\
+	do {								\
+		(vvp)->tv_sec -= (uvp)->tv_sec;				\
+		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+
+static uint64_t
+timespec_to_pmtmr(const struct timespec *tsnew, const struct timespec *tsold)
+{
+	struct timespec tsdiff;
+	int64_t nsecs;
+
+	tsdiff = *tsnew;
+	timespecsub(&tsdiff, tsold);
+	nsecs = tsdiff.tv_sec * 1000000000 + tsdiff.tv_nsec;
+	assert(nsecs >= 0);
+
+	return (nsecs * PMTMR_FREQ / 1000000000 + pmtmr_old);
+}
+
+static uint64_t
+tsc_to_pmtmr(uint64_t tsc_new, uint64_t tsc_old)
+{
+
+	return ((tsc_new - tsc_old) * PMTMR_FREQ / pmtmr_tscf + pmtmr_old);
+}
+
+static void
+pmtmr_init(void)
+{
+	size_t len;
+	int smp_tsc, err;
+	struct timespec tsnew, tsold = { 0 };
+
+	len = sizeof(smp_tsc);
+	err = sysctlbyname("kern.timecounter.smp_tsc", &smp_tsc, &len, NULL, 0);
+	assert(err == 0);
+
+	if (smp_tsc) {
+		len = sizeof(pmtmr_tscf);
+		err = sysctlbyname("machdep.tsc_freq", &pmtmr_tscf, &len,
+				   NULL, 0);
+		assert(err == 0);
+
+		pmtmr_tsc_old = rdtsc();
+		pmtmr_old = tsc_to_pmtmr(pmtmr_tsc_old, 0);
+	} else {
+		if (getenv("BHYVE_PMTMR_PRECISE") != NULL)
+			clockid = CLOCK_UPTIME;
+
+		err = clock_gettime(clockid, &tsnew);
+		assert(err == 0);
+
+		pmtmr_uptime_old = tsnew;
+		pmtmr_old = timespec_to_pmtmr(&tsnew, &tsold);
+	}
+}
 
 static uint32_t
 pmtmr_val(void)
 {
+	struct timespec	tsnew;
 	uint64_t	pmtmr_tsc_new;
 	uint64_t	pmtmr_new;
+	int		error;
+
 	static int	inited = 0;
 
 	if (!inited) {
-		size_t len;
-
-		inited = 1;
 		pthread_mutex_init(&pmtmr_mtx, NULL);
-		len = sizeof(pmtmr_tscf);
-		sysctlbyname("machdep.tsc_freq", &pmtmr_tscf, &len,
-		    NULL, 0);
-		pmtmr_tsc_old = rdtsc();
-		pmtmr_old = pmtmr_tsc_old / pmtmr_tscf * PMTMR_FREQ;
+		pmtmr_init();
+		inited = 1;
 	}
 
 	pthread_mutex_lock(&pmtmr_mtx);
-	pmtmr_tsc_new = rdtsc();
-	pmtmr_new = (pmtmr_tsc_new - pmtmr_tsc_old) * PMTMR_FREQ / pmtmr_tscf +
-	    pmtmr_old;
+
+	if (pmtmr_tscf) {
+		pmtmr_tsc_new = rdtsc();
+		pmtmr_new = tsc_to_pmtmr(pmtmr_tsc_new, pmtmr_tsc_old);
+		pmtmr_tsc_old = pmtmr_tsc_new;
+	} else {
+		error = clock_gettime(clockid, &tsnew);
+		assert(error == 0);
+
+		pmtmr_new = timespec_to_pmtmr(&tsnew, &pmtmr_uptime_old);
+		pmtmr_uptime_old = tsnew;
+	}
 	pmtmr_old = pmtmr_new;
-	pmtmr_tsc_old = pmtmr_tsc_new;
+
 	pthread_mutex_unlock(&pmtmr_mtx);
 
 	return (pmtmr_new); 
@@ -102,4 +176,3 @@ pmtmr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 }
 
 INOUT_PORT(pmtmr, IO_PMTMR, IOPORT_F_IN, pmtmr_handler);
-
