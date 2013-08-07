@@ -233,6 +233,7 @@ struct	pv_chunk;
 
 struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
+	int			pv_gen;
 	int			pat_mode;
 };
 
