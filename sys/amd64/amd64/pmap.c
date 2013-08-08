@@ -531,6 +531,10 @@ static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
 	int i, j, ndm1g, nkpdpe;
+	pt_entry_t *pt_p;
+	pd_entry_t *pd_p;
+	pdp_entry_t *pdp_p;
+	pml4_entry_t *p4_p;
 
 	/* Allocate page table pages for the direct map */
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
@@ -561,32 +565,26 @@ create_pagetables(vm_paddr_t *firstaddr)
 	KPDphys = allocpages(firstaddr, nkpdpe);
 
 	/* Fill in the underlying page table pages */
-	/* Read-only from zero to physfree */
+	/* Nominally read-only (but really R/W) from zero to physfree */
 	/* XXX not fully used, underneath 2M pages */
-	for (i = 0; (i << PAGE_SHIFT) < *firstaddr; i++) {
-		((pt_entry_t *)KPTphys)[i] = i << PAGE_SHIFT;
-		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V | PG_G;
-	}
+	pt_p = (pt_entry_t *)KPTphys;
+	for (i = 0; ptoa(i) < *firstaddr; i++)
+		pt_p[i] = ptoa(i) | PG_RW | PG_V | PG_G;
 
 	/* Now map the page tables at their location within PTmap */
-	for (i = 0; i < nkpt; i++) {
-		((pd_entry_t *)KPDphys)[i] = KPTphys + (i << PAGE_SHIFT);
-		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V;
-	}
+	pd_p = (pd_entry_t *)KPDphys;
+	for (i = 0; i < nkpt; i++)
+		pd_p[i] = (KPTphys + ptoa(i)) | PG_RW | PG_V;
 
 	/* Map from zero to end of allocations under 2M pages */
 	/* This replaces some of the KPTphys entries above */
-	for (i = 0; (i << PDRSHIFT) < *firstaddr; i++) {
-		((pd_entry_t *)KPDphys)[i] = i << PDRSHIFT;
-		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V | PG_PS | PG_G;
-	}
+	for (i = 0; (i << PDRSHIFT) < *firstaddr; i++)
+		pd_p[i] = (i << PDRSHIFT) | PG_RW | PG_V | PG_PS | PG_G;
 
 	/* And connect up the PD to the PDP */
-	for (i = 0; i < nkpdpe; i++) {
-		((pdp_entry_t *)KPDPphys)[i + KPDPI] = KPDphys +
-		    (i << PAGE_SHIFT);
-		((pdp_entry_t *)KPDPphys)[i + KPDPI] |= PG_RW | PG_V | PG_U;
-	}
+	pdp_p = (pdp_entry_t *)KPDPphys;
+	for (i = 0; i < nkpdpe; i++)
+		pdp_p[i + KPDPI] = (KPDphys + ptoa(i)) | PG_RW | PG_V | PG_U;
 
 	/*
 	 * Now, set up the direct map region using 2MB and/or 1GB pages.  If
@@ -596,37 +594,39 @@ create_pagetables(vm_paddr_t *firstaddr)
 	 * memory, pmap_change_attr() will demote any 2MB or 1GB page mappings
 	 * that are partially used. 
 	 */
+	pd_p = (pd_entry_t *)DMPDphys;
 	for (i = NPDEPG * ndm1g, j = 0; i < NPDEPG * ndmpdp; i++, j++) {
-		((pd_entry_t *)DMPDphys)[j] = (vm_paddr_t)i << PDRSHIFT;
+		pd_p[j] = (vm_paddr_t)i << PDRSHIFT;
 		/* Preset PG_M and PG_A because demotion expects it. */
-		((pd_entry_t *)DMPDphys)[j] |= PG_RW | PG_V | PG_PS | PG_G |
+		pd_p[j] |= PG_RW | PG_V | PG_PS | PG_G |
 		    PG_M | PG_A;
 	}
+	pdp_p = (pdp_entry_t *)DMPDPphys;
 	for (i = 0; i < ndm1g; i++) {
-		((pdp_entry_t *)DMPDPphys)[i] = (vm_paddr_t)i << PDPSHIFT;
+		pdp_p[i] = (vm_paddr_t)i << PDPSHIFT;
 		/* Preset PG_M and PG_A because demotion expects it. */
-		((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_PS | PG_G |
+		pdp_p[i] |= PG_RW | PG_V | PG_PS | PG_G |
 		    PG_M | PG_A;
 	}
 	for (j = 0; i < ndmpdp; i++, j++) {
-		((pdp_entry_t *)DMPDPphys)[i] = DMPDphys + (j << PAGE_SHIFT);
-		((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_U;
+		pdp_p[i] = DMPDphys + ptoa(j);
+		pdp_p[i] |= PG_RW | PG_V | PG_U;
 	}
 
 	/* And recursively map PML4 to itself in order to get PTmap */
-	((pdp_entry_t *)KPML4phys)[PML4PML4I] = KPML4phys;
-	((pdp_entry_t *)KPML4phys)[PML4PML4I] |= PG_RW | PG_V | PG_U;
+	p4_p = (pml4_entry_t *)KPML4phys;
+	p4_p[PML4PML4I] = KPML4phys;
+	p4_p[PML4PML4I] |= PG_RW | PG_V | PG_U;
 
 	/* Connect the Direct Map slot(s) up to the PML4. */
 	for (i = 0; i < NDMPML4E; i++) {
-		((pdp_entry_t *)KPML4phys)[DMPML4I + i] = DMPDPphys +
-		    (i << PAGE_SHIFT);
-		((pdp_entry_t *)KPML4phys)[DMPML4I + i] |= PG_RW | PG_V | PG_U;
+		p4_p[DMPML4I + i] = DMPDPphys + ptoa(i);
+		p4_p[DMPML4I + i] |= PG_RW | PG_V | PG_U;
 	}
 
 	/* Connect the KVA slot up to the PML4 */
-	((pdp_entry_t *)KPML4phys)[KPML4I] = KPDPphys;
-	((pdp_entry_t *)KPML4phys)[KPML4I] |= PG_RW | PG_V | PG_U;
+	p4_p[KPML4I] = KPDPphys;
+	p4_p[KPML4I] |= PG_RW | PG_V | PG_U;
 }
 
 /*
