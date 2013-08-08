@@ -1614,7 +1614,8 @@ brelse(struct buf *bp)
 					(PAGE_SIZE - poffset) : resid;
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
-				vm_page_set_invalid(m, poffset, presid);
+				if (pmap_page_wired_mappings(m) == 0)
+					vm_page_set_invalid(m, poffset, presid);
 				if (had_bogus)
 					printf("avoided corruption bug in bogus_page/brelse code\n");
 			}
