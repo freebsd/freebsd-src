@@ -110,7 +110,8 @@ int	ieee80211_raw_output(struct ieee80211vap *, struct ieee80211_node *,
 void	ieee80211_send_setup(struct ieee80211_node *, struct mbuf *, int, int,
         const uint8_t [IEEE80211_ADDR_LEN], const uint8_t [IEEE80211_ADDR_LEN],
         const uint8_t [IEEE80211_ADDR_LEN]);
-void	ieee80211_start(struct ifnet *ifp);
+int	ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m);
+void	ieee80211_vap_qflush(struct ifnet *ifp);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);
 struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,
