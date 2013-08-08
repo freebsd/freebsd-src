@@ -1,6 +1,6 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -218,7 +218,7 @@ create init_text8 255 allot
 		\ NOTE: no need to check toggle_stateN since the first time we
 		\ are called, we will populate init_textN. Further, we don't
 		\ need to test whether menu_caption[x] (ansi_caption[x] when
-		\ loader_color=1) is available since we would not have been
+		\ loader_color?=1) is available since we would not have been
 		\ called if the caption was NULL.
 
 		\ base name of environment variable
