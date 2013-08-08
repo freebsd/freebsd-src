@@ -1243,7 +1243,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	 * to do here; we'll have to re-think this soon.
 	 */
 	IEEE80211_TX_LOCK(ic);
-	err = ieee80211_parent_transmit(ic, mcopy);
+	err = ieee80211_parent_xmitpkt(ic, mcopy);
 	IEEE80211_TX_UNLOCK(ic);
 	if (err != 0) {
 		/* NB: IFQ_HANDOFF reclaims mbuf */
