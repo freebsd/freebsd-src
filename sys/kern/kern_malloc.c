@@ -116,8 +116,6 @@ MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
 static void kmeminit(void *);
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL);
 
-static MALLOC_DEFINE(M_FREE, "free", "should be on free list");
-
 static struct malloc_type *kmemstatistics;
 static vm_offset_t kmembase;
 static vm_offset_t kmemlimit;
