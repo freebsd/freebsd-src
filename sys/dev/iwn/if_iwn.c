@@ -638,6 +638,20 @@ iwn_attach(device_t dev)
 	if (sc->sc_flags & IWN_FLAG_HAS_11N) {
 		ic->ic_rxstream = sc->nrxchains;
 		ic->ic_txstream = sc->ntxchains;
+
+		/*
+		 * The NICs we currently support cap out at 2x2 support
+		 * separate from the chains being used.
+		 *
+		 * This is a total hack to work around that until some
+		 * per-device method is implemented to return the
+		 * actual stream support.
+		 */
+		if (ic->ic_rxstream > 2)
+			ic->ic_rxstream = 2;
+		if (ic->ic_txstream > 2)
+			ic->ic_txstream = 2;
+
 		ic->ic_htcaps =
 			  IEEE80211_HTCAP_SMPS_OFF	/* SMPS mode disabled */
 			| IEEE80211_HTCAP_SHORTGI20	/* short GI in 20MHz */
