@@ -2639,8 +2639,6 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 	vm_page_bits_t bits;
 
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
-	KASSERT((m->oflags & VPO_BUSY) == 0,
-	    ("vm_page_set_invalid: page %p is busy", m));
 	bits = vm_page_bits(base, size);
 	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
 		pmap_remove_all(m);
