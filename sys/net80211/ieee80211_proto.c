@@ -1784,15 +1784,11 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 * Note this can also happen as a result of SLEEP->RUN
 		 * (i.e. coming out of power save mode).
 		 */
-		IF_LOCK(&vap->iv_ifp->if_snd);
 		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		IF_UNLOCK(&vap->iv_ifp->if_snd);
 
 		/*
-		 * XXX Kick-start a VAP queue - this should be a method,
-		 * not if_start()!
+		 * XXX TODO Kick-start a VAP queue - this should be a method!
 		 */
-		if_start(vap->iv_ifp);
 
 		/* bring up any vaps waiting on us */
 		wakeupwaiting(vap);
@@ -1805,8 +1801,9 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 */
 		ieee80211_scan_flush(vap);
 
-		/* XXX NB: cast for altq */
-		ieee80211_flush_ifq((struct ifqueue *)&ic->ic_ifp->if_snd, vap);
+		/*
+		 * XXX TODO: ic/vap queue flush
+		 */
 	}
 done:
 	IEEE80211_UNLOCK(ic);
