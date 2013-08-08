@@ -1,6 +1,6 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2011 Devin Teske <devinteske@hotmail.com>
+\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,6 @@
 
 marker task-beastie.4th
 
-include /boot/color.4th
 include /boot/delay.4th
 
 variable logoX
@@ -182,8 +181,8 @@ variable logoY
 \ 	beastie     Color ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	beastiebw   B/W ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	fbsdbw      "FreeBSD" logo in B/W (13 rows x 21 columns)
-\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns)
-\ 	orbbw       B/W ``Orb'' mascot (15 rows x 32 columns) (default)
+\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns) (default)
+\ 	orbbw       B/W ``Orb'' mascot (15 rows x 32 columns)
 \ 
 \ NOTE: Setting `loader_logo' to an undefined value (such as "none") will
 \       prevent beastie from being drawn.
