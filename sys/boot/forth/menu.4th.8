@@ -123,6 +123,14 @@ The command to be executed after
 seconds if a key is not pressed.
 The default is
 .Ic boot .
+.It Va loader_menu_frame
+Sets the desired box style to draw around the boot menu.
+Possible values are:
+.Dq Li single
+.Pq the default ,
+.Dq Li double ,
+and
+.Dq Li none .
 .It Va loader_menu_timeout_x
 Sets the desired column position of the timeout countdown text.
 Default is 4.
@@ -130,9 +138,24 @@ Default is 4.
 Sets the desired row position of the timeout countdown text.
 Default is 23.
 .It Va loader_menu_title
-The text to display centered above the menu.
+The text to display above the menu.
 Default is
 .Dq Li "Welcome to FreeBSD" .
+.It Va loader_menu_title_align
+Default is to align
+.Ic loader_menu_title
+centered above the menu. This can be set to
+.Dq Li left
+or
+.Dq Li right
+to instead display the title left-or-right justified
+.Pq respectively .
+.It Va loader_menu_x
+Sets the desired column position of the boot menu.
+Default is 5.
+.It Va loader_menu_y
+Sets the desired row position of the boot menu.
+Default is 10.
 .It Va menu_caption[x]
 The text to be displayed for the numbered menuitem
 .Dq Li x .
