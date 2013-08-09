@@ -412,8 +412,12 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 		if (oidp->oid_refcnt == 1) {
 			SLIST_FOREACH_SAFE(p,
 			    SYSCTL_CHILDREN(oidp), oid_link, tmp) {
-				if (!recurse)
+				if (!recurse) {
+					printf("Warning: failed attempt to "
+					    "remove oid %s with child %s\n",
+					    oidp->oid_name, p->oid_name);
 					return (ENOTEMPTY);
+				}
 				error = sysctl_remove_oid_locked(p, del,
 				    recurse);
 				if (error)
