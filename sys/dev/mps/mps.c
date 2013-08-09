@@ -1371,6 +1371,11 @@ mps_get_tunables(struct mps_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.max_chains",
 	    device_get_unit(sc->mps_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->max_chains);
+
+	bzero(sc->exclude_ids, sizeof(sc->exclude_ids));
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mps.%d.exclude_ids",
+	    device_get_unit(sc->mps_dev));
+	TUNABLE_STR_FETCH(tmpstr, sc->exclude_ids, sizeof(sc->exclude_ids));
 }
 
 static void
