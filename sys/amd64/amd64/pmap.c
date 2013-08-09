@@ -283,7 +283,7 @@ static boolean_t pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m,
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
-static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
+static int pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static boolean_t pmap_is_referenced_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
@@ -1526,12 +1526,12 @@ pmap_add_delayed_free_list(vm_page_t m, vm_page_t *free, boolean_t set_PG_ZERO)
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
  */
-static __inline void
+static __inline int
 pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	vm_radix_insert(&pmap->pm_root, mpte);
+	return (vm_radix_insert(&pmap->pm_root, mpte));
 }
 
 /*
@@ -3439,7 +3439,13 @@ setpte:
 	    ("pmap_promote_pde: page table page is out of range"));
 	KASSERT(mpte->pindex == pmap_pde_pindex(va),
 	    ("pmap_promote_pde: page table page's pindex is wrong"));
-	pmap_insert_pt_page(pmap, mpte);
+	if (pmap_insert_pt_page(pmap, mpte)) {
+		atomic_add_long(&pmap_pde_p_failures, 1);
+		CTR2(KTR_PMAP,
+		    "pmap_promote_pde: failure for va %#lx in pmap %p", va,
+		    pmap);
+		return;
+	}
 
 	/*
 	 * Promote the pv entries.
