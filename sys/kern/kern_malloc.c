@@ -740,6 +740,7 @@ kmeminit(void)
 	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
+	vm_kmem_size = round_page(vm_kmem_size);
 #ifdef DEBUG_MEMGUARD
 	tmp = memguard_fudge(vm_kmem_size, kernel_map);
 #else
