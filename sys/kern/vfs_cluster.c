@@ -466,7 +466,7 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
-			vm_page_io_start(m);
+			vm_page_sbusy(m);
 			vm_object_pip_add(m->object, 1);
 			if ((bp->b_npages == 0) ||
 				(bp->b_pages[bp->b_npages-1] != m)) {
@@ -947,7 +947,7 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 				if (i != 0) { /* if not first buffer */
 					for (j = 0; j < tbp->b_npages; j += 1) {
 						m = tbp->b_pages[j];
-						if (m->oflags & VPO_BUSY) {
+						if (vm_page_xbusied(m)) {
 							VM_OBJECT_WUNLOCK(
 							    tbp->b_object);
 							bqrelse(tbp);
@@ -957,7 +957,7 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 				}
 				for (j = 0; j < tbp->b_npages; j += 1) {
 					m = tbp->b_pages[j];
-					vm_page_io_start(m);
+					vm_page_sbusy(m);
 					vm_object_pip_add(m->object, 1);
 					if ((bp->b_npages == 0) ||
 					  (bp->b_pages[bp->b_npages - 1] != m)) {

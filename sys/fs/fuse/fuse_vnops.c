@@ -1854,36 +1854,8 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 			 */
 			;
 		}
-		if (i != ap->a_reqpage) {
-			/*
-			 * Whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere (it already is in the object).  Result:
-			 * It appears that emperical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * Just in case someone was asking for this page we
-			 * now tell them that it is ok to use.
-			 */
-			if (!error) {
-				if (m->oflags & VPO_WANTED) {
-					fuse_vm_page_lock(m);
-					vm_page_activate(m);
-					fuse_vm_page_unlock(m);
-				} else {
-					fuse_vm_page_lock(m);
-					vm_page_deactivate(m);
-					fuse_vm_page_unlock(m);
-				}
-				vm_page_wakeup(m);
-			} else {
-				fuse_vm_page_lock(m);
-				vm_page_free(m);
-				fuse_vm_page_unlock(m);
-			}
-		}
+		if (i != ap->a_reqpage)
+			vm_page_readahead_finish(m);
 	}
 	fuse_vm_page_unlock_queues();
 	VM_OBJECT_WUNLOCK(vp->v_object);

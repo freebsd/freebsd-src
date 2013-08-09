@@ -212,8 +212,11 @@ reserve:
 	}
 
 	VM_OBJECT_WLOCK(vm_obj);
-	if ((m->flags & VPO_BUSY) != 0) {
-		vm_page_sleep(m, "ttmpbs");
+	if (vm_page_busied(m)) {
+		vm_page_lock(m);
+		VM_OBJECT_WUNLOCK(vm_obj);
+		vm_page_busy_sleep(m, "ttmpbs");
+		VM_OBJECT_WLOCK(vm_obj);
 		ttm_mem_io_unlock(man);
 		ttm_bo_unreserve(bo);
 		goto retry;
@@ -228,7 +231,7 @@ reserve:
 		    ("inconsistent insert bo %p m %p m1 %p offset %jx",
 		    bo, m, m1, (uintmax_t)offset));
 	}
-	vm_page_busy(m);
+	vm_page_xbusy(m);
 
 	if (oldm != NULL) {
 		vm_page_lock(oldm);
