@@ -482,7 +482,7 @@ static void log_report(const char *fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
-	printf(buf);
+	printf("%s", buf);
 	cl_log_event("OpenSM", CL_LOG_INFO, buf, NULL, 0);
 }
 
@@ -500,7 +500,7 @@ static void log_config_value(char *name, const char *fmt, ...)
 		n = sizeof(buf);
 	snprintf(buf + n, sizeof(buf) - n, "\n");
 	va_end(args);
-	printf(buf);
+	printf("%s", buf);
 	cl_log_event("OpenSM", CL_LOG_INFO, buf, NULL, 0);
 }
 
