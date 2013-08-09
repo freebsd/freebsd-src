@@ -1174,6 +1174,8 @@ vm_page_prev(vm_page_t m)
 /*
  * Uses the page mnew as a replacement for an existing page at index
  * pindex which must be already present in the object.
+ *
+ * The existing page must not be on a paging queue.
  */
 vm_page_t
 vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
@@ -1198,16 +1200,14 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 	mnew->object = object;
 	mnew->pindex = pindex;
 	mold = vm_radix_replace(&object->rtree, mnew, pindex);
+	KASSERT(mold->queue == PQ_NONE,
+	    ("vm_page_replace: mold is on a paging queue"));
 
 	/* Detach the old page from the resident tailq. */
 	TAILQ_REMOVE(&object->memq, mold, listq);
-	vm_page_lock(mold);
-	if (mold->oflags & VPO_BUSY) {
-		mold->oflags &= ~VPO_BUSY;
-		vm_page_flash(mold);
-	}
+
 	mold->object = NULL;
-	vm_page_unlock(mold);
+	vm_page_xunbusy(mold);
 
 	/* Insert the new page in the resident tailq. */
 	if (mpred != NULL)
