@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Mark R V Murray
+ * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,40 +23,44 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef __RANDOM_ADAPTORS_H__
+#define __RANDOM_ADAPTORS_H__
 
-#if defined(__amd64__) || defined(__i386__)
-#include "opt_cpu.h"
-#endif
+#include <sys/eventhandler.h>
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/selinfo.h>
+struct random_adaptors {
+	LIST_ENTRY(random_adaptors) entries;	/* list of providers */
+	const char		*name;		/* name of random adaptor */
+	struct random_adaptor	*rsp;
+};
 
-#include <dev/random/random_adaptors.h>
-#include <dev/random/randomdev.h>
+struct random_adaptor *random_adaptor_get(const char *);
+int random_adaptor_register(const char *, struct random_adaptor *);
 
-void
-random_ident_hardware(struct random_adaptor **adaptor)
-{
-	struct random_adaptor *tmp;
-	int enable;
+/*
+ * random_adaptor's should be registered prior to
+ * random module (SI_SUB_DRIVERS/SI_ORDER_MIDDLE)
+ */
+#define RANDOM_ADAPTOR_MODULE(name, modevent, ver)		\
+    static moduledata_t name##_mod = {				\
+	#name,							\
+	modevent,						\
+	0							\
+    };								\
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS,		\
+		   SI_ORDER_SECOND);				\
+    MODULE_VERSION(name, ver);					\
+    MODULE_DEPEND(name, random, 1, 1, 1);
 
-	/* Set default to software (yarrow) */
-	*adaptor = random_adaptor_get("yarrow");
+typedef void (*random_adaptor_attach_hook)(void *, struct random_adaptor *);
+EVENTHANDLER_DECLARE(random_adaptor_attach, random_adaptor_attach_hook);
 
-	/* Then go looking for hardware */
-	enable = 1;
-	TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
-	if (enable && (tmp = random_adaptor_get("nehemiah")))
-		*adaptor = tmp;
+/* kern.random sysctls */
+#ifdef SYSCTL_DECL	/* from sysctl.h */
+SYSCTL_DECL(_kern_random);
+#endif /* SYSCTL_DECL */
 
-	enable = 1;
-	TUNABLE_INT_FETCH("hw.ivy_rng_enable", &enable);
-	if (enable && (tmp = random_adaptor_get("rdrand")))
-		*adaptor = tmp;
-}
+#endif /* __RANDOM_ADAPTORS_H__ */
