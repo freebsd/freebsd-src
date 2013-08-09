@@ -2885,3 +2885,29 @@ freebsd32_posix_fadvise(struct thread *td,
 	return (kern_posix_fadvise(td, uap->fd, PAIR32TO64(off_t, uap->offset),
 	    PAIR32TO64(off_t, uap->len), uap->advice));
 }
+
+int
+convert_sigevent32(struct sigevent32 *sig32, struct sigevent *sig)
+{
+
+	CP(*sig32, *sig, sigev_notify);
+	switch (sig->sigev_notify) {
+	case SIGEV_NONE:
+		break;
+	case SIGEV_THREAD_ID:
+		CP(*sig32, *sig, sigev_notify_thread_id);
+		/* FALLTHROUGH */
+	case SIGEV_SIGNAL:
+		CP(*sig32, *sig, sigev_signo);
+		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
+		break;
+	case SIGEV_KEVENT:
+		CP(*sig32, *sig, sigev_notify_kqueue);
+		CP(*sig32, *sig, sigev_notify_kevent_flags);
+		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
