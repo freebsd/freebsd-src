@@ -139,7 +139,7 @@ static const struct aac_ident
 	 "Adaptec SATA RAID 21610SA"},
 	{0x9005, 0x0285, 0x103c, 0x3227, AAC_HWIF_I960RX, AAC_FLAGS_NO4GB,
 	 "HP ML110 G2 (Adaptec 2610SA)"},
-	{0x9005, 0x0286, 0x9005, 0x028c, AAC_HWIF_RKT, 0,
+	{0x9005, 0x0286, 0x9005, 0x028c, AAC_HWIF_RKT, AAC_FLAGS_NOMSI,
 	 "Adaptec SCSI RAID 2230S"},
 	{0x9005, 0x0286, 0x9005, 0x028d, AAC_HWIF_RKT, 0,
 	 "Adaptec SCSI RAID 2130S"},
@@ -157,7 +157,7 @@ static const struct aac_ident
 	 "Adaptec SCSI RAID 2020ZCR"},
 	{0x9005, 0x0285, 0x9005, 0x028b, AAC_HWIF_I960RX, 0,
 	 "Adaptec SCSI RAID 2025ZCR"},
-	{0x9005, 0x0286, 0x9005, 0x029b, AAC_HWIF_RKT, 0,
+	{0x9005, 0x0286, 0x9005, 0x029b, AAC_HWIF_RKT, AAC_FLAGS_NOMSI,
 	 "Adaptec SATA RAID 2820SA"},
 	{0x9005, 0x0286, 0x9005, 0x029c, AAC_HWIF_RKT, 0,
 	 "Adaptec SATA RAID 2620SA"},
@@ -311,7 +311,6 @@ aac_find_ident(device_t dev)
 		if ((m->vendor == vendid) && (m->device == devid))
 			return (m);
 	}
-
 	return (NULL);
 }
 
@@ -340,7 +339,7 @@ aac_pci_attach(device_t dev)
 {
 	struct aac_softc *sc;
 	const struct aac_ident *id;
-	int count, error, reg, rid;
+	int count, error, rid;
 
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
@@ -361,6 +360,38 @@ aac_pci_attach(device_t dev)
 		device_printf(dev, "can't enable bus-master feature\n");
 		goto out;
 	}
+
+	/*
+	 * Detect the hardware interface version, set up the bus interface
+	 * indirection.
+	 */
+	id = aac_find_ident(dev);
+	sc->aac_hwif = id->hwif;
+	switch(sc->aac_hwif) {
+	case AAC_HWIF_I960RX:
+	case AAC_HWIF_NARK:
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B,
+		    "set hardware up for i960Rx/NARK");
+		sc->aac_if = &aac_rx_interface;
+		break;
+	case AAC_HWIF_STRONGARM:
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B,
+		    "set hardware up for StrongARM");
+		sc->aac_if = &aac_sa_interface;
+		break;
+	case AAC_HWIF_RKT:
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B,
+		    "set hardware up for Rocket/MIPS");
+		sc->aac_if = &aac_rkt_interface;
+		break;
+	default:
+		sc->aac_hwif = AAC_HWIF_UNKNOWN;
+		device_printf(dev, "unknown hardware type\n");
+		goto out;
+	}
+
+	/* Set up quirks */
+	sc->flags = id->quirks;
 
 	/*
 	 * Allocate the PCI register window(s).
@@ -395,8 +426,8 @@ aac_pci_attach(device_t dev)
 	 */
 	rid = 0;
 	count = 0;
-	if (aac_enable_msi != 0 && pci_find_cap(dev, PCIY_MSI, &reg) == 0) {
-		count = pci_msi_count(dev);
+	if (aac_enable_msi != 0 && (sc->flags & AAC_FLAGS_NOMSI) == 0 &&
+	    (count = pci_msi_count(dev)) != 0) {
 		if (count > 1)
 			count = 1;
 		else
@@ -429,36 +460,6 @@ aac_pci_attach(device_t dev)
 		device_printf(dev, "can't allocate parent DMA tag\n");
 		goto out;
 	}
-
-	/*
-	 * Detect the hardware interface version, set up the bus interface
-	 * indirection.
-	 */
-	id = aac_find_ident(dev);
-	sc->aac_hwif = id->hwif;
-	switch(sc->aac_hwif) {
-	case AAC_HWIF_I960RX:
-	case AAC_HWIF_NARK:
-		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for i960Rx/NARK");
-		sc->aac_if = &aac_rx_interface;
-		break;
-	case AAC_HWIF_STRONGARM:
-		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for StrongARM");
-		sc->aac_if = &aac_sa_interface;
-		break;
-	case AAC_HWIF_RKT:
-		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for Rocket/MIPS");
-		sc->aac_if = &aac_rkt_interface;
-		break;
-	default:
-		sc->aac_hwif = AAC_HWIF_UNKNOWN;
-		device_printf(dev, "unknown hardware type\n");
-		error = ENXIO;
-		goto out;
-	}
-
-	/* Set up quirks */
-	sc->flags = id->quirks;
 
 	/*
 	 * Do bus-independent initialisation.
