@@ -2375,11 +2375,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461: {
-		struct kmq_notify_args *p = params;
+		struct freebsd32_kmq_notify_args *p = params;
 		iarg[0] = p->mqd; /* int */
-		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent * */
+		uarg[1] = (intptr_t) p->sigev; /* const struct sigevent32 * */
 		*n_args = 2;
 		break;
 	}
@@ -6944,14 +6944,14 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kmq_notify */
+	/* freebsd32_kmq_notify */
 	case 461:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "const struct sigevent *";
+			p = "const struct sigevent32 *";
 			break;
 		default:
 			break;
