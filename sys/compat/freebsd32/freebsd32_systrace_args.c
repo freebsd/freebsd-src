@@ -1262,7 +1262,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->mode; /* int */
 		uarg[1] = (intptr_t) p->acb_list; /* struct aiocb32 *const * */
 		iarg[2] = p->nent; /* int */
-		uarg[3] = (intptr_t) p->sig; /* struct sigevent * */
+		uarg[3] = (intptr_t) p->sig; /* struct sigevent32 * */
 		*n_args = 4;
 		break;
 	}
@@ -5089,7 +5089,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "struct sigevent *";
+			p = "struct sigevent32 *";
 			break;
 		default:
 			break;
