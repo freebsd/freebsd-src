@@ -639,6 +639,7 @@ proberegister(struct cam_periph *periph, void *arg)
 		return (status);
 	}
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
+	scsi_devise_transport(periph->path);
 
 	/*
 	 * Ensure we've waited at least a bus settle
@@ -2289,7 +2290,6 @@ xptscandone(struct cam_periph *periph, union ccb *done_ccb)
 static struct cam_ed *
 scsi_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
-	struct cam_path path;
 	struct scsi_quirk_entry *quirk;
 	struct cam_ed *device;
 
@@ -2314,17 +2314,6 @@ scsi_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	device->device_id_len = 0;
 	device->supported_vpds = NULL;
 	device->supported_vpds_len = 0;
-
-	if (lun_id != CAM_LUN_WILDCARD) {
-		xpt_compile_path(&path,
-				 NULL,
-				 bus->path_id,
-				 target->target_id,
-				 lun_id);
-		scsi_devise_transport(&path);
-		xpt_release_path(&path);
-	}
-
 	return (device);
 }
 

@@ -249,6 +249,7 @@ proberegister(struct cam_periph *periph, void *arg)
 		return (status);
 	}
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
+	ata_device_transport(periph->path);
 	probeschedule(periph);
 	return(CAM_REQ_CMP);
 }
@@ -1553,7 +1554,6 @@ xptscandone(struct cam_periph *periph, union ccb *done_ccb)
 static struct cam_ed *
 ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
-	struct cam_path path;
 	struct ata_quirk_entry *quirk;
 	struct cam_ed *device;
 
@@ -1574,17 +1574,6 @@ ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	device->queue_flags = 0;
 	device->serial_num = NULL;
 	device->serial_num_len = 0;
-
-	if (lun_id != CAM_LUN_WILDCARD) {
-		xpt_compile_path(&path,
-				 NULL,
-				 bus->path_id,
-				 target->target_id,
-				 lun_id);
-		ata_device_transport(&path);
-		xpt_release_path(&path);
-	}
-
 	return (device);
 }
 
