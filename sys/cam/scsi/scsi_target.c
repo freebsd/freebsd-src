@@ -239,10 +239,10 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		struct cam_sim		*sim;
 
 		new_lun = (struct ioc_enable_lun *)addr;
-		status = xpt_create_path_unlocked(&path, /*periph*/NULL,
-						  new_lun->path_id,
-						  new_lun->target_id,
-						  new_lun->lun_id);
+		status = xpt_create_path(&path, /*periph*/NULL,
+					  new_lun->path_id,
+					  new_lun->target_id,
+					  new_lun->lun_id);
 		if (status != CAM_REQ_CMP) {
 			printf("Couldn't create path, status %#x\n", status);
 			break;

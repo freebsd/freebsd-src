@@ -77,10 +77,6 @@ cam_status		xpt_create_path(struct cam_path **new_path_ptr,
 					struct cam_periph *perph,
 					path_id_t path_id,
 					target_id_t target_id, lun_id_t lun_id);
-cam_status		xpt_create_path_unlocked(struct cam_path **new_path_ptr,
-					struct cam_periph *perph,
-					path_id_t path_id,
-					target_id_t target_id, lun_id_t lun_id);
 int			xpt_getattr(char *buf, size_t len, const char *attr,
 				    struct cam_path *path);
 void			xpt_free_path(struct cam_path *path);
@@ -106,6 +102,7 @@ void			xpt_hold_boot(void);
 void			xpt_release_boot(void);
 void			xpt_lock_buses(void);
 void			xpt_unlock_buses(void);
+void			xpt_assert_buses(int what);
 cam_status		xpt_register_async(int event, ac_callback_t *cbfunc,
 					   void *cbarg, struct cam_path *path);
 cam_status		xpt_compile_path(struct cam_path *new_path,

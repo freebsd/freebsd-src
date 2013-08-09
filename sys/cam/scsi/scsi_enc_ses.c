@@ -901,10 +901,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	       device_pattern->data.devid_pat.id_len);
 
 	memset(&cdm, 0, sizeof(cdm));
-	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
-				     CAM_XPT_PATH_ID,
-				     CAM_TARGET_WILDCARD,
-				     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
+			     CAM_XPT_PATH_ID,
+			     CAM_TARGET_WILDCARD,
+			     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 		return;
 
 	cdm.ccb_h.func_code = XPT_DEV_MATCH;
@@ -927,10 +927,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 		return;
 
 	device_match = &match_result.result.device_result;
-	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
-				     device_match->path_id,
-				     device_match->target_id,
-				     device_match->target_lun) != CAM_REQ_CMP)
+	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
+			     device_match->path_id,
+			     device_match->target_id,
+			     device_match->target_lun) != CAM_REQ_CMP)
 		return;
 
 	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);

@@ -162,6 +162,7 @@ struct cam_eb {
 	u_int		     generation;
 	device_t	     parent_dev;
 	struct xpt_xport     *xport;
+	struct mtx	     eb_mtx;	/* Bus topology mutex. */
 };
 
 struct cam_path {

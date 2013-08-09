@@ -1962,9 +1962,9 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 	bus_softc = (struct ctlfe_softc *)arg;
 	sim = bus_softc->sim;
 
-	status = xpt_create_path_unlocked(&path, /*periph*/ NULL,
-					  bus_softc->path_id,
-					  targ_id.id, lun_id);
+	status = xpt_create_path(&path, /*periph*/ NULL,
+				  bus_softc->path_id,
+				  targ_id.id, lun_id);
 	/* XXX KDM need some way to return status to CTL here? */
 	if (status != CAM_REQ_CMP) {
 		printf("%s: could not create path, status %#x\n", __func__,
