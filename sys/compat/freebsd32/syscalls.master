@@ -441,11 +441,17 @@
 				    const struct timespec32 *tp); }
 234	AUE_NULL	STD	{ int freebsd32_clock_getres(clockid_t clock_id, \
 				    struct timespec32 *tp); }
-235	AUE_NULL	UNIMPL	timer_create
-236	AUE_NULL	UNIMPL	timer_delete
-237	AUE_NULL	UNIMPL	timer_settime
-238	AUE_NULL	UNIMPL	timer_gettime
-239	AUE_NULL	UNIMPL	timer_getoverrun
+235	AUE_NULL	STD	{ int freebsd32_ktimer_create(\
+				    clockid_t clock_id, \
+				    struct sigevent32 *evp, int *timerid); }
+236	AUE_NULL	NOPROTO	{ int ktimer_delete(int timerid); }
+237	AUE_NULL	STD	{ int freebsd32_ktimer_settime(int timerid,\
+				    int flags, \
+				    const struct itimerspec32 *value, \
+				    struct itimerspec32 *ovalue); }
+238	AUE_NULL	STD	{ int freebsd32_ktimer_gettime(int timerid,\
+				    struct itimerspec32 *value); }
+239	AUE_NULL	NOPROTO	{ int ktimer_getoverrun(int timerid); }
 240	AUE_NULL	STD	{ int freebsd32_nanosleep( \
 				    const struct timespec32 *rqtp, \
 				    struct timespec32 *rmtp); }
