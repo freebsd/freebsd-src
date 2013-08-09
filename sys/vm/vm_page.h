@@ -144,11 +144,12 @@ struct vm_page {
 	uint8_t oflags;			/* page VPO_* flags (O) */
 	uint16_t flags;			/* page PG_* flags (P) */
 	u_char	act_count;		/* page usage count (P) */
-	u_char	busy;			/* page busy count (O) */
+	u_char __pad0;			/* unused padding */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 	vm_page_bits_t valid;		/* map of valid DEV_BSIZE chunks (O) */
 	vm_page_bits_t dirty;		/* map of dirty DEV_BSIZE chunks (M) */
+	volatile u_int busy_lock;	/* busy owners lock */
 };
 
 /*
@@ -165,11 +166,34 @@ struct vm_page {
  * 	 mappings, and such pages are also not on any PQ queue.
  *
  */
-#define	VPO_BUSY	0x01		/* page is in transit */
-#define	VPO_WANTED	0x02		/* someone is waiting for page */
+#define	VPO_UNUSED01	0x01		/* --available-- */
+#define	VPO_SWAPSLEEP	0x02		/* waiting for swap to finish */
 #define	VPO_UNMANAGED	0x04		/* no PV management for page */
 #define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x10		/* do not collect for syncer */
+
+/*
+ * Busy page implementation details.
+ * The algorithm is taken mostly by rwlock(9) and sx(9) locks implementation,
+ * even if the support for owner identity is removed because of size
+ * constraints.  Checks on lock recursion are then not possible, while the
+ * lock assertions effectiveness is someway reduced.
+ */
+#define	VPB_BIT_SHARED		0x01
+#define	VPB_BIT_EXCLUSIVE	0x02
+#define	VPB_BIT_WAITERS		0x04
+#define	VPB_BIT_FLAGMASK						\
+	(VPB_BIT_SHARED | VPB_BIT_EXCLUSIVE | VPB_BIT_WAITERS)
+
+#define	VPB_SHARERS_SHIFT	3
+#define	VPB_SHARERS(x)							\
+	(((x) & ~VPB_BIT_FLAGMASK) >> VPB_SHARERS_SHIFT)
+#define	VPB_SHARERS_WORD(x)	((x) << VPB_SHARERS_SHIFT | VPB_BIT_SHARED)
+#define	VPB_ONE_SHARER		(1 << VPB_SHARERS_SHIFT)
+
+#define	VPB_SINGLE_EXCLUSIVER	VPB_BIT_EXCLUSIVE
+
+#define	VPB_UNBUSIED		VPB_SHARERS_WORD(0)
 
 #define	PQ_NONE		255
 #define	PQ_INACTIVE	0
@@ -274,8 +298,9 @@ extern struct mtx_padalign pa_lock[];
  * directly set this flag.  They should call vm_page_reference() instead.
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
- * does so, the page must be VPO_BUSY.  The MI VM layer must never access this
- * flag directly.  Instead, it should call pmap_page_is_write_mapped().
+ * does so, the page must be exclusive busied.  The MI VM layer must never
+ * access this flag directly.  Instead, it should call
+ * pmap_page_is_write_mapped().
  *
  * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
  * at least one executable mapping.  It is not consumed by the MI VM layer.
@@ -362,6 +387,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
 #define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
 #define	VM_ALLOC_NODUMP		0x2000	/* don't include in dump */
+#define	VM_ALLOC_SBUSY		0x4000	/* Shared busy the page */
 
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
@@ -385,15 +411,13 @@ malloc2vm_flags(int malloc_flags)
 }
 #endif
 
-void vm_page_busy(vm_page_t m);
+void vm_page_busy_downgrade(vm_page_t m);
+void vm_page_busy_sleep(vm_page_t m, const char *msg);
 void vm_page_flash(vm_page_t m);
-void vm_page_io_start(vm_page_t m);
-void vm_page_io_finish(vm_page_t m);
 void vm_page_hold(vm_page_t mem);
 void vm_page_unhold(vm_page_t mem);
 void vm_page_free(vm_page_t m);
 void vm_page_free_zero(vm_page_t m);
-void vm_page_wakeup(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 void vm_page_advise(vm_page_t m, int advice);
@@ -428,13 +452,17 @@ void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_requeue(vm_page_t m);
 void vm_page_requeue_locked(vm_page_t m);
+int vm_page_sbusied(vm_page_t m);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
-void vm_page_sleep(vm_page_t m, const char *msg);
+int vm_page_sleep_if_busy(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
+void vm_page_sunbusy(vm_page_t m);
+int vm_page_trysbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unwire (vm_page_t, int);
 void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire (vm_page_t);
+void vm_page_xunbusy_hard(vm_page_t m);
 void vm_page_set_validclean (vm_page_t, int, int);
 void vm_page_clear_dirty (vm_page_t, int, int);
 void vm_page_set_invalid (vm_page_t, int, int);
@@ -456,6 +484,48 @@ int vm_page_trylock_KBI(vm_page_t m, const char *file, int line);
 void vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line);
 void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #endif
+
+#define	vm_page_assert_sbusied(m)					\
+	KASSERT(vm_page_sbusied(m),					\
+	    ("vm_page_assert_sbusied: page %p not shared busy @ %s:%d", \
+	    (void *)m, __FILE__, __LINE__));
+
+#define	vm_page_assert_unbusied(m)					\
+	KASSERT(!vm_page_busied(m),					\
+	    ("vm_page_assert_unbusied: page %p busy @ %s:%d",		\
+	    (void *)m, __FILE__, __LINE__));
+
+#define	vm_page_assert_xbusied(m)					\
+	KASSERT(vm_page_xbusied(m),					\
+	    ("vm_page_assert_xbusied: page %p not exclusive busy @ %s:%d", \
+	    (void *)m, __FILE__, __LINE__));
+
+#define	vm_page_busied(m)						\
+	((m)->busy_lock != VPB_UNBUSIED)
+
+#define	vm_page_sbusy(m) do {						\
+	if (!vm_page_trysbusy(m))					\
+		panic("%s: page %p failed shared busing", __func__, m);	\
+} while (0)
+
+#define	vm_page_tryxbusy(m)						\
+	(atomic_cmpset_acq_int(&m->busy_lock, VPB_UNBUSIED,		\
+	    VPB_SINGLE_EXCLUSIVER))
+
+#define	vm_page_xbusied(m)						\
+	((m->busy_lock & VPB_SINGLE_EXCLUSIVER) != 0)
+
+#define	vm_page_xbusy(m) do {						\
+	if (!vm_page_tryxbusy(m))					\
+		panic("%s: page %p failed exclusive busing", __func__,	\
+		    m);							\
+} while (0)
+
+#define	vm_page_xunbusy(m) do {						\
+	if (!atomic_cmpset_rel_int(&(m)->busy_lock,			\
+	    VPB_SINGLE_EXCLUSIVER, VPB_UNBUSIED))			\
+		vm_page_xunbusy_hard(m);				\
+} while (0)
 
 #ifdef INVARIANTS
 void vm_page_object_lock_assert(vm_page_t m);
@@ -511,11 +581,11 @@ vm_page_aflag_set(vm_page_t m, uint8_t bits)
 
 	/*
 	 * The PGA_WRITEABLE flag can only be set if the page is managed and
-	 * VPO_BUSY.  Currently, this flag is only set by pmap_enter().
+	 * exclusive busied.  Currently, this flag is only set by pmap_enter().
 	 */
 	KASSERT((bits & PGA_WRITEABLE) == 0 ||
-	    (m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == VPO_BUSY,
-	    ("vm_page_aflag_set: PGA_WRITEABLE and !VPO_BUSY"));
+	    ((m->oflags & VPO_UNMANAGED) == 0 && vm_page_xbusied(m)),
+	    ("vm_page_aflag_set: PGA_WRITEABLE and not exclusive busy"));
 
 	/*
 	 * Access the whole 32-bit word containing the aflags field with an
@@ -568,27 +638,6 @@ vm_page_remque(vm_page_t m)
 
 	if (m->queue != PQ_NONE)
 		vm_page_dequeue(m);
-}
-
-/*
- *	vm_page_sleep_if_busy:
- *
- *	Sleep and release the page queues lock if VPO_BUSY is set or,
- *	if also_m_busy is TRUE, busy is non-zero.  Returns TRUE if the
- *	thread slept and the page queues lock was released.
- *	Otherwise, retains the page queues lock and returns FALSE.
- *
- *	The object containing the given page must be locked.
- */
-static __inline int
-vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
-{
-
-	if ((m->oflags & VPO_BUSY) || (also_m_busy && m->busy)) {
-		vm_page_sleep(m, msg);
-		return (TRUE);
-	}
-	return (FALSE);
 }
 
 /*

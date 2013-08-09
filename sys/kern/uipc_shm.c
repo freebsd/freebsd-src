@@ -281,11 +281,8 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 retry:
 			m = vm_page_lookup(object, idx);
 			if (m != NULL) {
-				if ((m->oflags & VPO_BUSY) != 0 ||
-				    m->busy != 0) {
-					vm_page_sleep(m, "shmtrc");
+				if (vm_page_sleep_if_busy(m, "shmtrc"))
 					goto retry;
-				}
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
 				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
@@ -305,7 +302,7 @@ retry:
 				if (rv == VM_PAGER_OK) {
 					vm_page_deactivate(m);
 					vm_page_unlock(m);
-					vm_page_wakeup(m);
+					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
