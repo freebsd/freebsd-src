@@ -165,8 +165,8 @@
  * Ceiling on the size of the kmem submap: 40% of the kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(((vm_max_kernel_address - \
-    VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5) &~ PAGE_MASK)
+#define	VM_KMEM_SIZE_MAX	((vm_max_kernel_address - \
+    VM_MIN_KERNEL_ADDRESS + 1) * 2 / 5)
 #endif
 
 #ifdef ARM_USE_SMALL_ALLOC
