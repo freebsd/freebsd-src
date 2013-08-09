@@ -86,21 +86,6 @@
 #define VM_SWAPPING_ENABLED	11	/* swapping enabled */
 #define	VM_MAXID		12	/* number of valid vm ids */
 
-#define CTL_VM_NAMES { \
-	{ 0, 0 }, \
-	{ "vmtotal", CTLTYPE_STRUCT }, \
-	{ "loadavg", CTLTYPE_STRUCT }, \
-	{ "v_free_min", CTLTYPE_UINT }, \
-	{ "v_free_target", CTLTYPE_UINT }, \
-	{ "v_free_reserved", CTLTYPE_UINT }, \
-	{ "v_inactive_target", CTLTYPE_UINT }, \
-	{ "v_cache_min", CTLTYPE_UINT }, \
-	{ "v_cache_max", CTLTYPE_UINT }, \
-	{ "v_pageout_free_min", CTLTYPE_UINT}, \
-	{ "obsolete_pageout_algorithm", CTLTYPE_INT}, \
-	{ "swap_enabled", CTLTYPE_INT},\
-}
-
 /*
  * Structure for swap device statistics
  */
