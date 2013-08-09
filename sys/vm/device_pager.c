@@ -348,11 +348,12 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 */
 		page = vm_page_getfake(paddr, memattr);
 		VM_OBJECT_WLOCK(object);
+		if (vm_page_replace(page, object, (*mres)->pindex) != *mres)
+			panic("old_dev_pager_fault: invalid page replacement");
 		vm_page_lock(*mres);
 		vm_page_free(*mres);
 		vm_page_unlock(*mres);
 		*mres = page;
-		vm_page_insert(page, object, pidx);
 	}
 	page->valid = VM_PAGE_BITS_ALL;
 	return (VM_PAGER_OK);

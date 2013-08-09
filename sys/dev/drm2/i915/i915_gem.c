@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 
+#include <vm/vm.h>
+#include <vm/vm_pageout.h>
+
 static void i915_gem_object_flush_cpu_write_domain(
     struct drm_i915_gem_object *obj);
 static uint32_t i915_gem_get_gtt_size(struct drm_device *dev, uint32_t size,
@@ -1443,8 +1446,14 @@ retry:
 		vm_page_busy_sleep(m, "915pbs");
 		goto retry;
 	}
+	if (vm_page_insert(m, vm_obj, OFF_TO_IDX(offset))) {
+		DRM_UNLOCK(dev);
+		VM_OBJECT_WUNLOCK(vm_obj);
+		VM_WAIT;
+		VM_OBJECT_WLOCK(vm_obj);
+		goto retry;
+	}
 	m->valid = VM_PAGE_BITS_ALL;
-	vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
 have_page:
 	*mres = m;
 	vm_page_xbusy(m);
