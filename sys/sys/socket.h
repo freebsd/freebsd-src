@@ -230,7 +230,9 @@ struct accept_filter_arg {
 #define	AF_ARP		35
 #define	AF_BLUETOOTH	36		/* Bluetooth sockets */
 #define	AF_IEEE80211	37		/* IEEE 802.11 protocol */
-#define	AF_MAX		38
+#define	AF_INET_SDP	40		/* OFED Socket Direct Protocol ipv4 */
+#define	AF_INET6_SDP	42		/* OFED Socket Direct Protocol ipv6 */
+#define	AF_MAX		42
 /*
  * When allocating a new AF_ constant, please only allocate
  * even numbered constants for FreeBSD until 134 as odd numbered AF_
@@ -353,6 +355,8 @@ struct sockproto {
 #define	PF_ARP		AF_ARP
 #define	PF_BLUETOOTH	AF_BLUETOOTH
 #define	PF_IEEE80211	AF_IEEE80211
+#define	PF_INET_SDP	AF_INET_SDP
+#define	PF_INET6_SDP	AF_INET6_SDP
 
 #define	PF_MAX		AF_MAX
 
