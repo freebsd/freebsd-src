@@ -145,11 +145,14 @@ SYSCTL_INT(_vm, OID_AUTO, tryrelock_restart, CTLFLAG_RD,
 static uma_zone_t fakepg_zone;
 
 static struct vnode *vm_page_alloc_init(vm_page_t m);
+static void vm_page_cache_turn_free(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
 static void vm_page_enqueue(int queue, vm_page_t m);
 static void vm_page_init_fakepg(void *dummy);
-static void vm_page_insert_after(vm_page_t m, vm_object_t object,
+static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
+static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object,
+    vm_page_t mpred);
 
 SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init_fakepg, NULL);
 
@@ -930,14 +933,14 @@ vm_page_dirty_KBI(vm_page_t m)
  *
  *	The object must be locked.
  */
-void
+int
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t mpred;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	mpred = vm_radix_lookup_le(&object->rtree, pindex);
-	vm_page_insert_after(m, object, pindex, mpred);
+	return (vm_page_insert_after(m, object, pindex, mpred));
 }
 
 /*
@@ -950,10 +953,12 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
  *
  *	The object must be locked.
  */
-static void
+static int
 vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mpred)
 {
+	vm_pindex_t sidx;
+	vm_object_t sobj;
 	vm_page_t msucc;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
@@ -975,17 +980,53 @@ vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 	/*
 	 * Record the object/offset pair in this page
 	 */
+	sobj = m->object;
+	sidx = m->pindex;
 	m->object = object;
 	m->pindex = pindex;
 
 	/*
 	 * Now link into the object's ordered list of backed pages.
 	 */
+	if (vm_radix_insert(&object->rtree, m)) {
+		m->object = sobj;
+		m->pindex = sidx;
+		return (1);
+	}
+	vm_page_insert_radixdone(m, object, mpred);
+	return (0);
+}
+
+/*
+ *	vm_page_insert_radixdone:
+ *
+ *	Complete page "m" insertion into the specified object after the
+ *	radix trie hooking.
+ *
+ *	The page "mpred" must precede the offset "m->pindex" within the
+ *	specified object.
+ *
+ *	The object must be locked.
+ */
+static void
+vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(object != NULL && m->object == object,
+	    ("vm_page_insert_radixdone: page %p has inconsistent object", m));
+	if (mpred != NULL) {
+		KASSERT(mpred->object == object ||
+		    (mpred->flags & PG_SLAB) != 0,
+		    ("vm_page_insert_after: object doesn't contain mpred"));
+		KASSERT(mpred->pindex < m->pindex,
+		    ("vm_page_insert_after: mpred doesn't precede pindex"));
+	}
+
 	if (mpred != NULL)
 		TAILQ_INSERT_AFTER(&object->memq, mpred, m, listq);
 	else
 		TAILQ_INSERT_HEAD(&object->memq, m, listq);
-	vm_radix_insert(&object->rtree, m);
 
 	/*
 	 * Show that the object has one more resident page.
@@ -1131,6 +1172,54 @@ vm_page_prev(vm_page_t m)
 }
 
 /*
+ * Uses the page mnew as a replacement for an existing page at index
+ * pindex which must be already present in the object.
+ */
+vm_page_t
+vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
+{
+	vm_page_t mold, mpred;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
+	/*
+	 * This function mostly follows vm_page_insert() and
+	 * vm_page_remove() without the radix, object count and vnode
+	 * dance.  Double check such functions for more comments.
+	 */
+	mpred = vm_radix_lookup(&object->rtree, pindex);
+	KASSERT(mpred != NULL,
+	    ("vm_page_replace: replacing page not present with pindex"));
+	mpred = TAILQ_PREV(mpred, respgs, listq);
+	if (mpred != NULL)
+		KASSERT(mpred->pindex < pindex,
+		    ("vm_page_insert_after: mpred doesn't precede pindex"));
+
+	mnew->object = object;
+	mnew->pindex = pindex;
+	mold = vm_radix_replace(&object->rtree, mnew, pindex);
+
+	/* Detach the old page from the resident tailq. */
+	TAILQ_REMOVE(&object->memq, mold, listq);
+	vm_page_lock(mold);
+	if (mold->oflags & VPO_BUSY) {
+		mold->oflags &= ~VPO_BUSY;
+		vm_page_flash(mold);
+	}
+	mold->object = NULL;
+	vm_page_unlock(mold);
+
+	/* Insert the new page in the resident tailq. */
+	if (mpred != NULL)
+		TAILQ_INSERT_AFTER(&object->memq, mpred, mnew, listq);
+	else
+		TAILQ_INSERT_HEAD(&object->memq, mnew, listq);
+	if (pmap_page_is_write_mapped(mnew))
+		vm_object_set_writeable_dirty(object);
+	return (mold);
+}
+
+/*
  *	vm_page_rename:
  *
  *	Move the given memory entry from its
@@ -1148,15 +1237,47 @@ vm_page_prev(vm_page_t m)
  *	      or vm_page_dirty() will panic.  Dirty pages are not allowed
  *	      on the cache.
  *
- *	The objects must be locked.  The page must be locked if it is managed.
+ *	The objects must be locked.
  */
-void
+int
 vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 {
+	vm_page_t mpred;
+	vm_pindex_t opidx;
 
+	VM_OBJECT_ASSERT_WLOCKED(new_object);
+
+	mpred = vm_radix_lookup_le(&new_object->rtree, new_pindex);
+	KASSERT(mpred == NULL || mpred->pindex != new_pindex,
+	    ("vm_page_rename: pindex already renamed"));
+
+	/*
+	 * Create a custom version of vm_page_insert() which does not depend
+	 * by m_prev and can cheat on the implementation aspects of the
+	 * function.
+	 */
+	opidx = m->pindex;
+	m->pindex = new_pindex;
+	if (vm_radix_insert(&new_object->rtree, m)) {
+		m->pindex = opidx;
+		return (1);
+	}
+
+	/*
+	 * The operation cannot fail anymore.  The removal must happen before
+	 * the listq iterator is tainted.
+	 */
+	m->pindex = opidx;
+	vm_page_lock(m);
 	vm_page_remove(m);
-	vm_page_insert(m, new_object, new_pindex);
+
+	/* Return back to the new pindex to complete vm_page_insert(). */
+	m->pindex = new_pindex;
+	m->object = new_object;
+	vm_page_unlock(m);
+	vm_page_insert_radixdone(m, new_object, mpred);
 	vm_page_dirty(m);
+	return (0);
 }
 
 /*
@@ -1182,14 +1303,7 @@ vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		if (end != 0 && m->pindex >= end)
 			break;
 		vm_radix_remove(&object->cache, m->pindex);
-		m->object = NULL;
-		m->valid = 0;
-		/* Clear PG_CACHED and set PG_FREE. */
-		m->flags ^= PG_CACHED | PG_FREE;
-		KASSERT((m->flags & (PG_CACHED | PG_FREE)) == PG_FREE,
-		    ("vm_page_cache_free: page %p has inconsistent flags", m));
-		cnt.v_cache_count--;
-		vm_phys_freecnt_adj(m, 1);
+		vm_page_cache_turn_free(m);
 	}
 	empty = vm_radix_is_empty(&object->cache);
 	mtx_unlock(&vm_page_queue_free_mtx);
@@ -1269,7 +1383,8 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 		/* Update the page's object and offset. */
 		m->object = new_object;
 		m->pindex -= offidxstart;
-		vm_radix_insert(&new_object->cache, m);
+		if (vm_radix_insert(&new_object->cache, m))
+			vm_page_cache_turn_free(m);
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
 }
@@ -1361,7 +1476,13 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		KASSERT(mpred == NULL || mpred->pindex != pindex,
 		   ("vm_page_alloc: pindex already allocated"));
 	}
-	mtx_lock(&vm_page_queue_free_mtx);
+
+	/*
+	 * The page allocation request can came from consumers which already
+	 * hold the free page queue mutex, like vm_page_insert() in
+	 * vm_page_cache().
+	 */
+	mtx_lock_flags(&vm_page_queue_free_mtx, MTX_RECURSE);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
@@ -1486,11 +1607,20 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	m->act_count = 0;
 
 	if (object != NULL) {
+		if (vm_page_insert_after(m, object, pindex, mpred)) {
+			/* See the comment below about hold count. */
+			if (vp != NULL)
+				vdrop(vp);
+			pagedaemon_wakeup();
+			m->object = NULL;
+			vm_page_free(m);
+			return (NULL);
+		}
+
 		/* Ignore device objects; the pager sets "memattr" for them. */
 		if (object->memattr != VM_MEMATTR_DEFAULT &&
 		    (object->flags & OBJ_FICTITIOUS) == 0)
 			pmap_page_set_memattr(m, object->memattr);
-		vm_page_insert_after(m, object, pindex, mpred);
 	} else
 		m->pindex = pindex;
 
@@ -1557,7 +1687,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
 	struct vnode *drop;
-	vm_page_t deferred_vdrop_list, m, m_ret;
+	vm_page_t deferred_vdrop_list, m, m_tmp, m_ret;
 	u_int flags, oflags;
 	int req_class;
 
@@ -1660,12 +1790,29 @@ retry:
 			m->wire_count = 1;
 		/* Unmanaged pages don't use "act_count". */
 		m->oflags = oflags;
+		if (object != NULL) {
+			if (vm_page_insert(m, object, pindex)) {
+				while (deferred_vdrop_list != NULL) {
+		vdrop((struct vnode *)deferred_vdrop_list->pageq.tqe_prev);
+					deferred_vdrop_list =
+					    deferred_vdrop_list->pageq.tqe_next;
+				}
+				if (vm_paging_needed())
+					pagedaemon_wakeup();
+				for (m = m_ret, m_tmp = m_ret;
+				    m < &m_ret[npages]; m++) {
+					if (m_tmp < m)
+						m_tmp++;
+					else
+						m->object = NULL;
+					vm_page_free(m);
+				}
+				return (NULL);
+			}
+		} else
+			m->pindex = pindex;
 		if (memattr != VM_MEMATTR_DEFAULT)
 			pmap_page_set_memattr(m, memattr);
-		if (object != NULL)
-			vm_page_insert(m, object, pindex);
-		else
-			m->pindex = pindex;
 		pindex++;
 	}
 	while (deferred_vdrop_list != NULL) {
@@ -2042,6 +2189,28 @@ vm_page_free_wakeup(void)
 }
 
 /*
+ *	Turn a cached page into a free page, by changing its attributes.
+ *	Keep the statistics up-to-date.
+ *
+ *	The free page queue must be locked.
+ */
+static void
+vm_page_cache_turn_free(vm_page_t m)
+{
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+
+	m->object = NULL;
+	m->valid = 0;
+	/* Clear PG_CACHED and set PG_FREE. */
+	m->flags ^= PG_CACHED | PG_FREE;
+	KASSERT((m->flags & (PG_CACHED | PG_FREE)) == PG_FREE,
+	    ("vm_page_cache_free: page %p has inconsistent flags", m));
+	cnt.v_cache_count--;
+	vm_phys_freecnt_adj(m, 1);
+}
+
+/*
  *	vm_page_free_toq:
  *
  *	Returns the given page to the free list,
@@ -2343,7 +2512,6 @@ vm_page_cache(vm_page_t m)
 	}
 	KASSERT((m->flags & PG_CACHED) == 0,
 	    ("vm_page_cache: page %p is already cached", m));
-	PCPU_INC(cnt.v_tcached);
 
 	/*
 	 * Remove the page from the paging queues.
@@ -2370,10 +2538,18 @@ vm_page_cache(vm_page_t m)
 	 */
 	m->flags &= ~PG_ZERO;
 	mtx_lock(&vm_page_queue_free_mtx);
+	cache_was_empty = vm_radix_is_empty(&object->cache);
+	if (vm_radix_insert(&object->cache, m)) {
+		mtx_unlock(&vm_page_queue_free_mtx);
+		if (object->resident_page_count == 0)
+			vdrop(object->handle);
+		m->object = NULL;
+		vm_page_free(m);
+		return;
+	}
 	m->flags |= PG_CACHED;
 	cnt.v_cache_count++;
-	cache_was_empty = vm_radix_is_empty(&object->cache);
-	vm_radix_insert(&object->cache, m);
+	PCPU_INC(cnt.v_tcached);
 #if VM_NRESERVLEVEL > 0
 	if (!vm_reserv_free_page(m)) {
 #else
@@ -2946,11 +3122,8 @@ vm_page_cowfault(vm_page_t m)
 	pindex = m->pindex;
 
  retry_alloc:
-	pmap_remove_all(m);
-	vm_page_remove(m);
-	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
+	mnew = vm_page_alloc(NULL, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
 	if (mnew == NULL) {
-		vm_page_insert(m, object, pindex);
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
 		VM_WAIT;
@@ -2976,8 +3149,14 @@ vm_page_cowfault(vm_page_t m)
 		vm_page_lock(mnew);
 		vm_page_free(mnew);
 		vm_page_unlock(mnew);
-		vm_page_insert(m, object, pindex);
 	} else { /* clear COW & copy page */
+		pmap_remove_all(m);
+		mnew->object = object;
+		if (object->memattr != VM_MEMATTR_DEFAULT &&
+		    (object->flags & OBJ_FICTITIOUS) == 0)
+			pmap_page_set_memattr(mnew, object->memattr);
+		if (vm_page_replace(mnew, object, pindex) != m)
+			panic("vm_page_cowfault: invalid page replacement");
 		if (!so_zerocp_fullpage)
 			pmap_copy_page(m, mnew);
 		mnew->valid = VM_PAGE_BITS_ALL;
