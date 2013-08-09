@@ -1195,6 +1195,47 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* freebsd32_ktimer_create */
+	case 235: {
+		struct freebsd32_ktimer_create_args *p = params;
+		iarg[0] = p->clock_id; /* clockid_t */
+		uarg[1] = (intptr_t) p->evp; /* struct sigevent32 * */
+		uarg[2] = (intptr_t) p->timerid; /* int * */
+		*n_args = 3;
+		break;
+	}
+	/* ktimer_delete */
+	case 236: {
+		struct ktimer_delete_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* freebsd32_ktimer_settime */
+	case 237: {
+		struct freebsd32_ktimer_settime_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		iarg[1] = p->flags; /* int */
+		uarg[2] = (intptr_t) p->value; /* const struct itimerspec32 * */
+		uarg[3] = (intptr_t) p->ovalue; /* struct itimerspec32 * */
+		*n_args = 4;
+		break;
+	}
+	/* freebsd32_ktimer_gettime */
+	case 238: {
+		struct freebsd32_ktimer_gettime_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		uarg[1] = (intptr_t) p->value; /* struct itimerspec32 * */
+		*n_args = 2;
+		break;
+	}
+	/* ktimer_getoverrun */
+	case 239: {
+		struct ktimer_getoverrun_args *p = params;
+		iarg[0] = p->timerid; /* int */
+		*n_args = 1;
+		break;
+	}
 	/* freebsd32_nanosleep */
 	case 240: {
 		struct freebsd32_nanosleep_args *p = params;
@@ -4977,6 +5018,74 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "struct timespec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_ktimer_create */
+	case 235:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "struct sigevent32 *";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_delete */
+	case 236:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_ktimer_settime */
+	case 237:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "const struct itimerspec32 *";
+			break;
+		case 3:
+			p = "struct itimerspec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_ktimer_gettime */
+	case 238:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct itimerspec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ktimer_getoverrun */
+	case 239:
+		switch(ndx) {
+		case 0:
+			p = "int";
 			break;
 		default:
 			break;
