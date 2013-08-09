@@ -233,10 +233,8 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 
 	VM_OBJECT_WLOCK(object);
 	pindex = OFF_TO_IDX(offset);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY |
-	    VM_ALLOC_NOBUSY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_busy(m);
 		ma[0] = m;
 		rv = vm_pager_get_pages(object, ma, 1, 0);
 		m = vm_page_lookup(object, pindex);
@@ -249,8 +247,8 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 			m = NULL;
 			goto out;
 		}
-		vm_page_wakeup(m);
 	}
+	vm_page_xunbusy(m);
 	vm_page_lock(m);
 	vm_page_hold(m);
 	vm_page_unlock(m);
@@ -533,13 +531,11 @@ vm_thread_swapin(struct thread *td)
 		    VM_ALLOC_WIRED);
 	for (i = 0; i < pages; i++) {
 		if (ma[i]->valid != VM_PAGE_BITS_ALL) {
-			KASSERT(ma[i]->oflags & VPO_BUSY,
-			    ("lost busy 1"));
+			vm_page_assert_xbusied(ma[i]);
 			vm_object_pip_add(ksobj, 1);
 			for (j = i + 1; j < pages; j++) {
-				KASSERT(ma[j]->valid == VM_PAGE_BITS_ALL ||
-				    (ma[j]->oflags & VPO_BUSY),
-				    ("lost busy 2"));
+				if (ma[j]->valid != VM_PAGE_BITS_ALL)
+					vm_page_assert_xbusied(ma[j]);
 				if (ma[j]->valid == VM_PAGE_BITS_ALL)
 					break;
 			}
@@ -550,9 +546,9 @@ vm_thread_swapin(struct thread *td)
 			vm_object_pip_wakeup(ksobj);
 			for (k = i; k < j; k++)
 				ma[k] = vm_page_lookup(ksobj, k);
-			vm_page_wakeup(ma[i]);
-		} else if (ma[i]->oflags & VPO_BUSY)
-			vm_page_wakeup(ma[i]);
+			vm_page_xunbusy(ma[i]);
+		} else if (vm_page_xbusied(ma[i]))
+			vm_page_xunbusy(ma[i]);
 	}
 	VM_OBJECT_WUNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);

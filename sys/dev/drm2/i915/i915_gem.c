@@ -1356,9 +1356,8 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 		*mres = NULL;
 	} else
 		oldm = NULL;
-retry:
 	VM_OBJECT_WUNLOCK(vm_obj);
-unlocked_vmobj:
+retry:
 	cause = ret = 0;
 	m = NULL;
 
@@ -1379,9 +1378,11 @@ unlocked_vmobj:
 	VM_OBJECT_WLOCK(vm_obj);
 	m = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
 	if (m != NULL) {
-		if ((m->flags & VPO_BUSY) != 0) {
+		if (vm_page_busied(m)) {
 			DRM_UNLOCK(dev);
-			vm_page_sleep(m, "915pee");
+			vm_page_lock(m);
+			VM_OBJECT_WUNLOCK(vm_obj);
+			vm_page_busy_sleep(m, "915pee");
 			goto retry;
 		}
 		goto have_page;
@@ -1435,16 +1436,18 @@ unlocked_vmobj:
 	    ("not fictitious %p", m));
 	KASSERT(m->wire_count == 1, ("wire_count not 1 %p", m));
 
-	if ((m->flags & VPO_BUSY) != 0) {
+	if (vm_page_busied(m)) {
 		DRM_UNLOCK(dev);
-		vm_page_sleep(m, "915pbs");
+		vm_page_lock(m);
+		VM_OBJECT_WUNLOCK(vm_obj);
+		vm_page_busy_sleep(m, "915pbs");
 		goto retry;
 	}
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
 have_page:
 	*mres = m;
-	vm_page_busy(m);
+	vm_page_xbusy(m);
 
 	CTR4(KTR_DRM, "fault %p %jx %x phys %x", gem_obj, offset, prot,
 	    m->phys_addr);
@@ -1465,7 +1468,7 @@ out:
 	    -ret, cause);
 	if (ret == -EAGAIN || ret == -EIO || ret == -EINTR) {
 		kern_yield(PRI_USER);
-		goto unlocked_vmobj;
+		goto retry;
 	}
 	VM_OBJECT_WLOCK(vm_obj);
 	vm_object_pip_wakeup(vm_obj);
@@ -2330,7 +2333,7 @@ retry:
 			m = vm_page_lookup(devobj, i);
 			if (m == NULL)
 				continue;
-			if (vm_page_sleep_if_busy(m, true, "915unm"))
+			if (vm_page_sleep_if_busy(m, "915unm"))
 				goto retry;
 			cdev_pager_free_page(devobj, m);
 		}
@@ -2504,10 +2507,8 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 	int rv;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_busy(m);
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &m, 1, 0);
 			m = vm_page_lookup(object, pindex);
@@ -2524,11 +2525,11 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 			m->valid = VM_PAGE_BITS_ALL;
 			m->dirty = 0;
 		}
-		vm_page_wakeup(m);
 	}
 	vm_page_lock(m);
 	vm_page_wire(m);
 	vm_page_unlock(m);
+	vm_page_xunbusy(m);
 	atomic_add_long(&i915_gem_wired_pages_cnt, 1);
 	return (m);
 }
