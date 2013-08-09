@@ -121,13 +121,19 @@ SDT_PROBE_DEFINE(sched, , , schedctl_nopreempt, schedctl-nopreempt);
 SDT_PROBE_DEFINE(sched, , , schedctl_preempt, schedctl-preempt);
 SDT_PROBE_DEFINE(sched, , , schedctl_yield, schedctl-yield);
 
-void
-sleepinit(void)
+static void
+sleepinit(void *unused)
 {
 
 	hogticks = (hz / 10) * 2;	/* Default only. */
 	init_sleepqueues();
 }
+
+/*
+ * vmem tries to lock the sleepq mutexes when free'ing kva, so make sure
+ * it is available.
+ */
+SYSINIT(sleepinit, SI_SUB_KMEM, SI_ORDER_ANY, sleepinit, 0);
 
 /*
  * General sleep call.  Suspends the current thread until a wakeup is
