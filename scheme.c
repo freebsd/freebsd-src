@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskmbr.h>
+#include <sys/diskpc98.h>
 #include <sys/vtoc.h>
 #include <err.h>
 #include <errno.h>
@@ -125,10 +126,10 @@ scheme_max_parts(void)
 		parts = 4096;
 		break;
 	case SCHEME_MBR:
-		parts = 4;
+		parts = NDOSPART;
 		break;
 	case SCHEME_PC98:
-		parts = 16;
+		parts = PC98_NPARTS;
 		break;
 	case SCHEME_VTOC8:
 		parts = VTOC8_NPARTS;
