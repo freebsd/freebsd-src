@@ -228,11 +228,13 @@ static void	 xpt_run_allocq(struct cam_periph *periph);
 static void	 xpt_run_devq(struct cam_devq *devq);
 static timeout_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
+static void	 xpt_acquire_bus(struct cam_eb *bus);
 static void	 xpt_release_bus(struct cam_eb *bus);
 static int	 xpt_release_devq_device(struct cam_ed *dev, u_int count,
 		    int run_queue);
 static struct cam_et*
 		 xpt_alloc_target(struct cam_eb *bus, target_id_t target_id);
+static void	 xpt_acquire_target(struct cam_et *target);
 static void	 xpt_release_target(struct cam_et *target);
 static struct cam_eb*
 		 xpt_find_bus(path_id_t path_id);
@@ -3407,6 +3409,32 @@ xpt_compile_path(struct cam_path *new_path, struct cam_periph *perph,
 	return (status);
 }
 
+cam_status
+xpt_clone_path(struct cam_path **new_path_ptr, struct cam_path *path)
+{
+	struct	   cam_path *new_path;
+
+	new_path = (struct cam_path *)malloc(sizeof(*path), M_CAMPATH, M_NOWAIT);
+	if (new_path == NULL)
+		return(CAM_RESRC_UNAVAIL);
+	xpt_copy_path(new_path, path);
+	*new_path_ptr = new_path;
+	return (CAM_REQ_CMP);
+}
+
+void
+xpt_copy_path(struct cam_path *new_path, struct cam_path *path)
+{
+
+	*new_path = *path;
+	if (path->bus != NULL)
+		xpt_acquire_bus(path->bus);
+	if (path->target != NULL)
+		xpt_acquire_target(path->target);
+	if (path->device != NULL)
+		xpt_acquire_device(path->device);
+}
+
 void
 xpt_release_path(struct cam_path *path)
 {
@@ -4326,6 +4354,15 @@ cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 }
 
 static void
+xpt_acquire_bus(struct cam_eb *bus)
+{
+
+	xpt_lock_buses();
+	bus->refcount++;
+	xpt_unlock_buses();
+}
+
+static void
 xpt_release_bus(struct cam_eb *bus)
 {
 
@@ -4381,6 +4418,16 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 	}
 	bus->generation++;
 	return (target);
+}
+
+static void
+xpt_acquire_target(struct cam_et *target)
+{
+	struct cam_eb *bus = target->bus;
+
+	mtx_lock(&bus->eb_mtx);
+	target->refcount++;
+	mtx_unlock(&bus->eb_mtx);
 }
 
 static void
