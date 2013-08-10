@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/../../crypto/sha2
 
 KMOD=	random
-SRCS=	randomdev.c probe.c
+SRCS=	randomdev.c random_adaptors.c probe.c
 .if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 SRCS+=	nehemiah.c
 SRCS+=	ivy.c
