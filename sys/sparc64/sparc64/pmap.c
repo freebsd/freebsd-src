@@ -2254,7 +2254,7 @@ pmap_activate(struct thread *td)
 	pm->pm_context[curcpu] = context;
 #ifdef SMP
 	CPU_SET_ATOMIC(PCPU_GET(cpuid), &pm->pm_active);
-	atomic_store_ptr((uintptr_t *)PCPU_PTR(pmap), (uintptr_t)pm);
+	atomic_store_acq_ptr((uintptr_t *)PCPU_PTR(pmap), (uintptr_t)pm);
 #else
 	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(pmap, pm);
