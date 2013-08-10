@@ -70,7 +70,7 @@ static __inline void
 mips_barrier(void)
 {
 #ifdef CPU_CNMIPS
-	__asm __volatile("" : : : "memory");
+	__compiler_membar();
 #else
 	__asm __volatile (".set noreorder\n\t"
 			  "nop\n\t"
