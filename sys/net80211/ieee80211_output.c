@@ -396,6 +396,9 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
  * Start method for vap's.  All packets from the stack come
  * through here.  We handle common processing of the packets
  * before dispatching them to the underlying device.
+ *
+ * if_transmit() requires that the mbuf be consumed by this call
+ * regardless of the return condition.
  */
 int
 ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
@@ -410,6 +413,7 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 		    "%s: ignore queue, parent %s not up+running\n",
 		    __func__, parent->if_xname);
 		/* XXX stat */
+		m_freem(m);
 		return (EINVAL);
 	}
 	if (vap->iv_state == IEEE80211_S_SLEEP) {
@@ -417,6 +421,7 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 		 * In power save, wakeup device for transmit.
 		 */
 		ieee80211_new_state(vap, IEEE80211_S_RUN, 0);
+		m_freem(m);
 		return (0);
 	}
 	/*
@@ -435,6 +440,7 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 			vap->iv_stats.is_tx_badstate++;
 			IEEE80211_UNLOCK(ic);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			m_freem(m);
 			return (EINVAL);
 		}
 		IEEE80211_UNLOCK(ic);
