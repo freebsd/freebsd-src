@@ -718,18 +718,6 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 			keg->uk_fini(slab->us_data + (keg->uk_rsize * i),
 			    keg->uk_size);
 	}
-	if (keg->uk_flags & UMA_ZONE_VTOSLAB) {
-		vm_object_t obj;
-
-		if (flags & UMA_SLAB_KMEM)
-			obj = kmem_object;
-		else if (flags & UMA_SLAB_KERNEL)
-			obj = kernel_object;
-		else
-			obj = NULL;
-		for (i = 0; i < keg->uk_ppera; i++)
-			vsetobj((vm_offset_t)mem + (i * PAGE_SIZE), obj);
-	}
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 		zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
 #ifdef UMA_DEBUG
@@ -3112,7 +3100,7 @@ uma_large_malloc(int size, int wait)
 void
 uma_large_free(uma_slab_t slab)
 {
-	vsetobj((vm_offset_t)slab->us_data, kmem_object);
+
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
 	zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 }

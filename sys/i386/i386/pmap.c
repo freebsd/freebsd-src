@@ -317,12 +317,12 @@ static boolean_t pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva,
     vm_prot_t prot);
 static void pmap_pte_attr(pt_entry_t *pte, int cache_bits);
 static void pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
-    vm_page_t *free);
+    struct spglist *free);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
-    vm_page_t *free);
+    struct spglist *free);
 static void pmap_remove_pt_page(pmap_t pmap, vm_page_t mpte);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va,
-    vm_page_t *free);
+    struct spglist *free);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 					vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
@@ -335,10 +335,10 @@ static void pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, u_int ptepindex, int flags);
-static void _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free);
+static void _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static void pmap_pte_release(pt_entry_t *pte);
-static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t *);
+static int pmap_unuse_pt(pmap_t, vm_offset_t, struct spglist *);
 #ifdef PAE
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #endif
@@ -1568,14 +1568,12 @@ pmap_qremove(vm_offset_t sva, int count)
  * Page table page management routines.....
  ***************************************************/
 static __inline void
-pmap_free_zero_pages(vm_page_t free)
+pmap_free_zero_pages(struct spglist *free)
 {
 	vm_page_t m;
 
-	while (free != NULL) {
-		m = free;
-		free = (void *)m->object;
-		m->object = NULL;
+	while ((m = SLIST_FIRST(free)) != NULL) {
+		SLIST_REMOVE_HEAD(free, plinks.s.ss);
 		/* Preserve the page's PG_ZERO setting. */
 		vm_page_free_toq(m);
 	}
@@ -1587,15 +1585,15 @@ pmap_free_zero_pages(vm_page_t free)
  * physical memory manager after the TLB has been updated.
  */
 static __inline void
-pmap_add_delayed_free_list(vm_page_t m, vm_page_t *free, boolean_t set_PG_ZERO)
+pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
+    boolean_t set_PG_ZERO)
 {
 
 	if (set_PG_ZERO)
 		m->flags |= PG_ZERO;
 	else
 		m->flags &= ~PG_ZERO;
-	m->object = (void *)*free;
-	*free = m;
+	SLIST_INSERT_HEAD(free, m, plinks.s.ss);
 }
 
 /*
@@ -1645,7 +1643,7 @@ pmap_remove_pt_page(pmap_t pmap, vm_page_t mpte)
  * page table page was unmapped and FALSE otherwise.
  */
 static inline boolean_t
-pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
+pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 {
 
 	--m->wire_count;
@@ -1657,7 +1655,7 @@ pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
 }
 
 static void
-_pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
+_pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 {
 	vm_offset_t pteva;
 
@@ -1693,7 +1691,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
  * conditionally free the page, and manage the hold/wire counts.
  */
 static int
-pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t *free)
+pmap_unuse_pt(pmap_t pmap, vm_offset_t va, struct spglist *free)
 {
 	pd_entry_t ptepde;
 	vm_page_t mpte;
@@ -2193,16 +2191,18 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 	pt_entry_t *pte, tpte;
 	pv_entry_t pv;
 	vm_offset_t va;
-	vm_page_t free, m, m_pc;
+	vm_page_t m, m_pc;
+	struct spglist free;
 	uint32_t inuse;
 	int bit, field, freed;
 
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
 	pmap = NULL;
-	free = m_pc = NULL;
+	m_pc = NULL;
+	SLIST_INIT(&free);
 	TAILQ_INIT(&newtail);
 	while ((pc = TAILQ_FIRST(&pv_chunks)) != NULL && (pv_vafree == 0 ||
-	    free == NULL)) {
+	    SLIST_EMPTY(&free))) {
 		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 		if (pmap != pc->pc_pmap) {
 			if (pmap != NULL) {
@@ -2307,15 +2307,14 @@ out:
 		if (pmap != locked_pmap)
 			PMAP_UNLOCK(pmap);
 	}
-	if (m_pc == NULL && pv_vafree != 0 && free != NULL) {
-		m_pc = free;
-		free = (void *)m_pc->object;
-		m_pc->object = NULL;
+	if (m_pc == NULL && pv_vafree != 0 && SLIST_EMPTY(&free)) {
+		m_pc = SLIST_FIRST(&free);
+		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
 	}
-	pmap_free_zero_pages(free);
+	pmap_free_zero_pages(&free);
 	return (m_pc);
 }
 
@@ -2636,7 +2635,8 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	pd_entry_t newpde, oldpde;
 	pt_entry_t *firstpte, newpte;
 	vm_paddr_t mptepa;
-	vm_page_t free, mpte;
+	vm_page_t mpte;
+	struct spglist free;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpde = *pde;
@@ -2658,10 +2658,10 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc(NULL,
 		    va >> PDRSHIFT, VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL |
 		    VM_ALLOC_WIRED)) == NULL) {
-			free = NULL;
+			SLIST_INIT(&free);
 			pmap_remove_pde(pmap, pde, trunc_4mpage(va), &free);
 			pmap_invalidate_page(pmap, trunc_4mpage(va));
-			pmap_free_zero_pages(free);
+			pmap_free_zero_pages(&free);
 			CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#x"
 			    " in pmap %p", va, pmap);
 			return (FALSE);
@@ -2814,7 +2814,7 @@ pmap_remove_kernel_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
  */
 static void
 pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
-    vm_page_t *free)
+    struct spglist *free)
 {
 	struct md_page *pvh;
 	pd_entry_t oldpde;
@@ -2870,7 +2870,8 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
  * pmap_remove_pte: do the things to unmap a page in a process
  */
 static int
-pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
+pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
+    struct spglist *free)
 {
 	pt_entry_t oldpte;
 	vm_page_t m;
@@ -2904,7 +2905,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
  * Remove a single page from a process address space
  */
 static void
-pmap_remove_page(pmap_t pmap, vm_offset_t va, vm_page_t *free)
+pmap_remove_page(pmap_t pmap, vm_offset_t va, struct spglist *free)
 {
 	pt_entry_t *pte;
 
@@ -2929,7 +2930,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t pdnxt;
 	pd_entry_t ptpaddr;
 	pt_entry_t *pte;
-	vm_page_t free = NULL;
+	struct spglist free;
 	int anyvalid;
 
 	/*
@@ -2939,6 +2940,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 
 	anyvalid = 0;
+	SLIST_INIT(&free);
 
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
@@ -3031,7 +3033,7 @@ out:
 		pmap_invalidate_all(pmap);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
-	pmap_free_zero_pages(free);
+	pmap_free_zero_pages(&free);
 }
 
 /*
@@ -3056,11 +3058,11 @@ pmap_remove_all(vm_page_t m)
 	pt_entry_t *pte, tpte;
 	pd_entry_t *pde;
 	vm_offset_t va;
-	vm_page_t free;
+	struct spglist free;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
-	free = NULL;
+	SLIST_INIT(&free);
 	rw_wlock(&pvh_global_lock);
 	sched_pin();
 	if ((m->flags & PG_FICTITIOUS) != 0)
@@ -3105,7 +3107,7 @@ small_mappings:
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
-	pmap_free_zero_pages(free);
+	pmap_free_zero_pages(&free);
 }
 
 /*
@@ -3769,7 +3771,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	pt_entry_t *pte;
 	vm_paddr_t pa;
-	vm_page_t free;
+	struct spglist free;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
@@ -3838,10 +3840,10 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0 &&
 	    !pmap_try_insert_pv_entry(pmap, va, m)) {
 		if (mpte != NULL) {
-			free = NULL;
+			SLIST_INIT(&free);
 			if (pmap_unwire_ptp(pmap, mpte, &free)) {
 				pmap_invalidate_page(pmap, va);
-				pmap_free_zero_pages(free);
+				pmap_free_zero_pages(&free);
 			}
 			
 			mpte = NULL;
@@ -4024,7 +4026,7 @@ void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
     vm_offset_t src_addr)
 {
-	vm_page_t   free;
+	struct spglist free;
 	vm_offset_t addr;
 	vm_offset_t end_addr = src_addr + len;
 	vm_offset_t pdnxt;
@@ -4107,12 +4109,12 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					    PG_A);
 					dst_pmap->pm_stats.resident_count++;
 	 			} else {
-					free = NULL;
+					SLIST_INIT(&free);
 					if (pmap_unwire_ptp(dst_pmap, dstmpte,
 					    &free)) {
 						pmap_invalidate_page(dst_pmap,
 						    addr);
-						pmap_free_zero_pages(free);
+						pmap_free_zero_pages(&free);
 					}
 					goto out;
 				}
@@ -4419,11 +4421,11 @@ void
 pmap_remove_pages(pmap_t pmap)
 {
 	pt_entry_t *pte, tpte;
-	vm_page_t free = NULL;
 	vm_page_t m, mpte, mt;
 	pv_entry_t pv;
 	struct md_page *pvh;
 	struct pv_chunk *pc, *npc;
+	struct spglist free;
 	int field, idx;
 	int32_t bit;
 	uint32_t inuse, bitmask;
@@ -4433,6 +4435,7 @@ pmap_remove_pages(pmap_t pmap)
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
+	SLIST_INIT(&free);
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	sched_pin();
@@ -4541,7 +4544,7 @@ pmap_remove_pages(pmap_t pmap)
 	pmap_invalidate_all(pmap);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
-	pmap_free_zero_pages(free);
+	pmap_free_zero_pages(&free);
 }
 
 /*

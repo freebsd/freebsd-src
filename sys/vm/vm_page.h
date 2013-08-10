@@ -126,10 +126,19 @@ typedef uint64_t vm_page_bits_t;
 #endif
 
 struct vm_page {
-	TAILQ_ENTRY(vm_page) pageq;	/* page queue or free list (Q)	*/
-	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
-
-	vm_object_t object;		/* which object am I in (O,P)*/
+	union {
+		TAILQ_ENTRY(vm_page) q; /* page queue or free list (Q) */
+		struct {
+			SLIST_ENTRY(vm_page) ss; /* private slists */
+			void *pv;
+		} s;
+		struct {
+			u_long p;
+			u_long v;
+		} memguard;
+	} plinks;
+	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
+	vm_object_t object;		/* which object am I in (O,P) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
@@ -145,7 +154,7 @@ struct vm_page {
 	uint16_t flags;			/* page PG_* flags (P) */
 	u_char	act_count;		/* page usage count (P) */
 	u_char __pad0;			/* unused padding */
-	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
+	/* NOTE that these must support one bit per DEV_BSIZE in a page */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 	vm_page_bits_t valid;		/* map of valid DEV_BSIZE chunks (O) */
 	vm_page_bits_t dirty;		/* map of dirty DEV_BSIZE chunks (M) */
@@ -201,6 +210,7 @@ struct vm_page {
 #define	PQ_COUNT	2
 
 TAILQ_HEAD(pglist, vm_page);
+SLIST_HEAD(spglist, vm_page);
 
 struct vm_pagequeue {
 	struct mtx	pq_mutex;
