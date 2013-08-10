@@ -17,7 +17,7 @@ CLEANFILES+= bootstrap
 #	$Id: Makefile,v 1.17 2013/07/30 19:13:53 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20130730
+MAKE_VERSION= 20130810
 
 PROG?=	${.CURDIR:T}
 
