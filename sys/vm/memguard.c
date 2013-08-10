@@ -261,7 +261,7 @@ v2sizep(vm_offset_t va)
 	p = PHYS_TO_VM_PAGE(pa);
 	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
-	return ((u_long *)&p->pageq.tqe_next);
+	return (&p->plinks.memguard.p);
 }
 
 static u_long *
@@ -276,7 +276,7 @@ v2sizev(vm_offset_t va)
 	p = PHYS_TO_VM_PAGE(pa);
 	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
-	return ((u_long *)&p->pageq.tqe_prev);
+	return (&p->plinks.memguard.v);
 }
 
 /*

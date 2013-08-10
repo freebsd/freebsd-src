@@ -407,7 +407,7 @@ vtoslab(vm_offset_t va)
 	uma_slab_t slab;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	slab = (uma_slab_t )p->object;
+	slab = (uma_slab_t )p->plinks.s.pv;
 
 	if (p->flags & PG_SLAB)
 		return (slab);
@@ -421,18 +421,8 @@ vsetslab(vm_offset_t va, uma_slab_t slab)
 	vm_page_t p;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	p->object = (vm_object_t)slab;
+	p->plinks.s.pv = slab;
 	p->flags |= PG_SLAB;
-}
-
-static __inline void
-vsetobj(vm_offset_t va, vm_object_t obj)
-{
-	vm_page_t p;
-
-	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	p->object = obj;
-	p->flags &= ~PG_SLAB;
 }
 
 /*
