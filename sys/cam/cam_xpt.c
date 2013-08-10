@@ -3966,13 +3966,42 @@ xpt_async_string(u_int32_t async_code)
 	return ("AC_UNKNOWN");
 }
 
-void
-xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
+static int
+xpt_async_size(u_int32_t async_code)
+{
+
+	switch (async_code) {
+	case AC_BUS_RESET: return (0);
+	case AC_UNSOL_RESEL: return (0);
+	case AC_SCSI_AEN: return (0);
+	case AC_SENT_BDR: return (0);
+	case AC_PATH_REGISTERED: return (sizeof(struct ccb_pathinq));
+	case AC_PATH_DEREGISTERED: return (0);
+	case AC_FOUND_DEVICE: return (sizeof(struct ccb_getdev));
+	case AC_LOST_DEVICE: return (0);
+	case AC_TRANSFER_NEG: return (sizeof(struct ccb_trans_settings));
+	case AC_INQ_CHANGED: return (0);
+	case AC_GETDEV_CHANGED: return (0);
+	case AC_CONTRACT: return (sizeof(struct ac_contract));
+	case AC_ADVINFO_CHANGED: return (-1);
+	case AC_UNIT_ATTENTION: return (sizeof(struct ccb_scsiio));
+	}
+	return (0);
+}
+
+static void
+xpt_async_process(struct cam_periph *periph, union ccb *ccb)
 {
 	struct cam_eb *bus;
 	struct cam_et *target, *next_target;
 	struct cam_ed *device, *next_device;
+	struct cam_path *path;
+	void *async_arg;
+	u_int32_t async_code;
 
+	path = ccb->ccb_h.path;
+	async_code = ccb->casync.async_code;
+	async_arg = ccb->casync.async_arg_ptr;
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
 	CAM_DEBUG(path, CAM_DEBUG_TRACE | CAM_DEBUG_INFO,
 	    ("xpt_async(%s)\n", xpt_async_string(async_code)));
@@ -4040,6 +4069,14 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 	if (bus != xpt_periph->path->bus)
 		xpt_async_bcast(&xpt_periph->path->device->asyncs, async_code,
 				path, async_arg);
+	if (path->device != NULL)
+		xpt_release_devq(path, 1, TRUE);
+	else
+		xpt_release_simq(path->bus->sim, TRUE);
+	if (ccb->casync.async_arg_size > 0)
+		free(async_arg, M_CAMXPT);
+	xpt_free_path(path);
+	xpt_free_ccb(ccb);
 }
 
 static void
@@ -4064,6 +4101,51 @@ xpt_async_bcast(struct async_list *async_head,
 					    async_arg);
 		cur_entry = next_entry;
 	}
+}
+
+void
+xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
+{
+	union ccb *ccb;
+	int size;
+
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		xpt_print(path, "Can't allocate CCB to send %s\n",
+		    xpt_async_string(async_code));
+		return;
+	}
+
+	if (xpt_clone_path(&ccb->ccb_h.path, path) != CAM_REQ_CMP) {
+		xpt_print(path, "Can't allocate path to send %s\n",
+		    xpt_async_string(async_code));
+		xpt_free_ccb(ccb);
+		return;
+	}
+	ccb->ccb_h.path->periph = NULL;
+	ccb->ccb_h.func_code = XPT_ASYNC;
+	ccb->ccb_h.cbfcnp = xpt_async_process;
+	ccb->casync.async_code = async_code;
+	ccb->casync.async_arg_size = 0;
+	size = xpt_async_size(async_code);
+	if (size > 0 && async_arg != NULL) {
+		ccb->casync.async_arg_ptr = malloc(size, M_CAMXPT, M_NOWAIT);
+		if (ccb->casync.async_arg_ptr == NULL) {
+			xpt_print(path, "Can't allocate argument to send %s\n",
+			    xpt_async_string(async_code));
+			xpt_free_path(ccb->ccb_h.path);
+			xpt_free_ccb(ccb);
+			return;
+		}
+		memcpy(ccb->casync.async_arg_ptr, async_arg, size);
+		ccb->casync.async_arg_size = size;
+	} else if (size < 0)
+		ccb->casync.async_arg_size = size;
+	if (path->device != NULL)
+		xpt_freeze_devq(path, 1);
+	else
+		xpt_freeze_simq(path->bus->sim, 1);
+	xpt_done(ccb);
 }
 
 static void
