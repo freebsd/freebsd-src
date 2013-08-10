@@ -1643,6 +1643,16 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	return (m);
 }
 
+static void
+vm_page_alloc_contig_vdrop(struct spglist *lst)
+{
+
+	while (!SLIST_EMPTY(lst)) {
+		vdrop((struct vnode *)SLIST_FIRST(lst)-> plinks.s.pv);
+		SLIST_REMOVE_HEAD(lst, plinks.s.ss);
+	}
+}
+
 /*
  *	vm_page_alloc_contig:
  *
@@ -1687,7 +1697,8 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
 	struct vnode *drop;
-	vm_page_t deferred_vdrop_list, m, m_tmp, m_ret;
+	struct spglist deferred_vdrop_list;
+	vm_page_t m, m_tmp, m_ret;
 	u_int flags, oflags;
 	int req_class;
 
@@ -1712,7 +1723,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
 		req_class = VM_ALLOC_SYSTEM;
 
-	deferred_vdrop_list = NULL;
+	SLIST_INIT(&deferred_vdrop_list);
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count >= npages +
 	    cnt.v_free_reserved || (req_class == VM_ALLOC_SYSTEM &&
@@ -1744,9 +1755,9 @@ retry:
 				 * page list, "pageq" can be safely abused to
 				 * construct a short-lived list of vnodes.
 				 */
-				m->pageq.tqe_prev = (void *)drop;
-				m->pageq.tqe_next = deferred_vdrop_list;
-				deferred_vdrop_list = m;
+				m->plinks.s.pv = drop;
+				SLIST_INSERT_HEAD(&deferred_vdrop_list, m,
+				    plinks.s.ss);
 			}
 		}
 	else {
@@ -1792,11 +1803,8 @@ retry:
 		m->oflags = oflags;
 		if (object != NULL) {
 			if (vm_page_insert(m, object, pindex)) {
-				while (deferred_vdrop_list != NULL) {
-		vdrop((struct vnode *)deferred_vdrop_list->pageq.tqe_prev);
-					deferred_vdrop_list =
-					    deferred_vdrop_list->pageq.tqe_next;
-				}
+				vm_page_alloc_contig_vdrop(
+				    &deferred_vdrop_list);
 				if (vm_paging_needed())
 					pagedaemon_wakeup();
 				for (m = m_ret, m_tmp = m_ret;
@@ -1815,10 +1823,7 @@ retry:
 			pmap_page_set_memattr(m, memattr);
 		pindex++;
 	}
-	while (deferred_vdrop_list != NULL) {
-		vdrop((struct vnode *)deferred_vdrop_list->pageq.tqe_prev);
-		deferred_vdrop_list = deferred_vdrop_list->pageq.tqe_next;
-	}
+	vm_page_alloc_contig_vdrop(&deferred_vdrop_list);
 	if (vm_paging_needed())
 		pagedaemon_wakeup();
 	return (m_ret);
@@ -2035,7 +2040,7 @@ vm_page_dequeue(vm_page_t m)
 	pq = vm_page_pagequeue(m);
 	vm_pagequeue_lock(pq);
 	m->queue = PQ_NONE;
-	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
+	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
 	vm_pagequeue_cnt_dec(pq);
 	vm_pagequeue_unlock(pq);
 }
@@ -2056,7 +2061,7 @@ vm_page_dequeue_locked(vm_page_t m)
 	pq = vm_page_pagequeue(m);
 	vm_pagequeue_assert_locked(pq);
 	m->queue = PQ_NONE;
-	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
+	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
 	vm_pagequeue_cnt_dec(pq);
 }
 
@@ -2076,7 +2081,7 @@ vm_page_enqueue(int queue, vm_page_t m)
 	pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
-	TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
+	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 	vm_pagequeue_cnt_inc(pq);
 	vm_pagequeue_unlock(pq);
 }
@@ -2098,8 +2103,8 @@ vm_page_requeue(vm_page_t m)
 	    ("vm_page_requeue: page %p is not queued", m));
 	pq = vm_page_pagequeue(m);
 	vm_pagequeue_lock(pq);
-	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
-	TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
+	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 	vm_pagequeue_unlock(pq);
 }
 
@@ -2119,8 +2124,8 @@ vm_page_requeue_locked(vm_page_t m)
 	    ("vm_page_requeue_locked: page %p is not queued", m));
 	pq = vm_page_pagequeue(m);
 	vm_pagequeue_assert_locked(pq);
-	TAILQ_REMOVE(&pq->pq_pl, m, pageq);
-	TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
+	TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
+	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 }
 
 /*
@@ -2413,9 +2418,9 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		vm_pagequeue_lock(pq);
 		m->queue = PQ_INACTIVE;
 		if (athead)
-			TAILQ_INSERT_HEAD(&pq->pq_pl, m, pageq);
+			TAILQ_INSERT_HEAD(&pq->pq_pl, m, plinks.q);
 		else
-			TAILQ_INSERT_TAIL(&pq->pq_pl, m, pageq);
+			TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 		vm_pagequeue_cnt_inc(pq);
 		vm_pagequeue_unlock(pq);
 	}
