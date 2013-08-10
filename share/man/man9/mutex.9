@@ -226,7 +226,7 @@ lock, respectively, and also accept a
 .Fa flags
 argument.
 In both cases, the only flags presently available for lock acquires are
-.Dv MTX_QUIET 
+.Dv MTX_QUIET
 and
 .Dv MTX_RECURSE .
 If the
@@ -242,7 +242,6 @@ If the
 bit is turned on in the
 .Fa flags
 argument, then the mutex can be acquired recursively.
-.Pp
 .Pp
 The
 .Fn mtx_trylock
