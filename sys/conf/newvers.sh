@@ -105,7 +105,7 @@ for dir in /usr/bin /usr/local/bin; do
 done
 
 if [ -z "${svnversion}" ] && [ -x /usr/bin/svnliteversion ] ; then
-	/usr/bin/svnversion $(basename ${0}) >/dev/null 2>&1
+	/usr/bin/svnliteversion $(basename ${0}) >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		svnversion=/usr/bin/svnliteversion
 	else
