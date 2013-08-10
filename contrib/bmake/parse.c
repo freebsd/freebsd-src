@@ -2582,6 +2582,16 @@ ParseGetLine(int flags, int *length)
 		if (cf->P_end == NULL)
 		    /* End of string (aka for loop) data */
 		    break;
+		/* see if there is more we can parse */
+		while (ptr++ < cf->P_end) {
+		    if ((ch = *ptr) == '\n') {
+			if (ptr > line && ptr[-1] == '\\')
+			    continue;
+			Parse_Error(PARSE_WARNING,
+			    "Zero byte read from file, skipping rest of line.");
+			break;
+		    }
+		}
 		if (cf->nextbuf != NULL) {
 		    /*
 		     * End of this buffer; return EOF and outer logic
