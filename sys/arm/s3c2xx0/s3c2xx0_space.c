@@ -214,7 +214,7 @@ s3c2xx0_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	kva_free(va, endva - origva);
+	kva_free(origva, endva - origva);
 }
 
 int
