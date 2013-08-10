@@ -354,7 +354,7 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 */
 		status = cam_periph_alloc(chregister, choninvalidate,
 					  chcleanup, chstart, "ch",
-					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  CAM_PERIPH_BIO, path,
 					  chasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP

@@ -380,7 +380,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 */
 		status = cam_periph_alloc(ptctor, ptoninvalidate, ptdtor,
 					  ptstart, "pt", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, ptasync,
+					  path, ptasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP

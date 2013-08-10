@@ -246,7 +246,7 @@ enc_async(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 
 		status = cam_periph_alloc(enc_ctor, enc_oninvalidate,
 		    enc_dtor, NULL, "ses", CAM_PERIPH_BIO,
-		    cgd->ccb_h.path, enc_async, AC_FOUND_DEVICE, cgd);
+		    path, enc_async, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP && status != CAM_REQ_INPROG) {
 			printf("enc_async: Unable to probe new device due to "

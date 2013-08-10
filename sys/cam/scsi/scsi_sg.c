@@ -281,7 +281,7 @@ sgasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 */
 		status = cam_periph_alloc(sgregister, sgoninvalidate,
 					  sgcleanup, NULL, "sg",
-					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  CAM_PERIPH_BIO, path,
 					  sgasync, AC_FOUND_DEVICE, cgd);
 		if ((status != CAM_REQ_CMP) && (status != CAM_REQ_INPROG)) {
 			const struct cam_status_entry *entry;

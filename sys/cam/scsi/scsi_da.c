@@ -1592,7 +1592,7 @@ daasync(void *callback_arg, u_int32_t code,
 		status = cam_periph_alloc(daregister, daoninvalidate,
 					  dacleanup, dastart,
 					  "da", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, daasync,
+					  path, daasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP

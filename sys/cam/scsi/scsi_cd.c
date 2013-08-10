@@ -551,7 +551,7 @@ cdasync(void *callback_arg, u_int32_t code,
 		status = cam_periph_alloc(cdregister, cdoninvalidate,
 					  cdcleanup, cdstart,
 					  "cd", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, cdasync,
+					  path, cdasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
