@@ -10,6 +10,7 @@
 .\"
 .\"     @(#)vi.ref	8.88 (Berkeley) 10/19/96
 .\"
+.\" $FreeBSD$
 .\"
 .so ref.so
 .tp
@@ -27,7 +28,6 @@ Department of Electrical Engineering and Computer Science
 University of California, Berkeley
 Berkeley, California  94720
 .sp 1
-\*(td
 .)l
 .sp 3
 .(l C
