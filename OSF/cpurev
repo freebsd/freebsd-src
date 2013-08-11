@@ -1,0 +1,6 @@
+#!/bin/sh
+rev=`uname -r`
+build=`uname -v`
+model=`uname -m`
+echo $rev.$build.$model
+exit 0

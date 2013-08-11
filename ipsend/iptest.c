@@ -6,7 +6,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptest.c,v 2.6 2004/01/08 13:34:31 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
@@ -61,7 +61,7 @@ int	main __P((int, char **));
 
 
 static void usage(prog)
-char *prog;
+	char *prog;
 {
 	fprintf(stderr, "Usage: %s [options] dest\n\
 \toptions:\n\
@@ -83,8 +83,8 @@ char *prog;
 
 
 int main(argc, argv)
-int argc;
-char **argv;
+	int argc;
+	char **argv;
 {
 	struct	tcpiphdr *ti;
 	struct	in_addr	gwip;

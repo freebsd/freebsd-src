@@ -1,0 +1,28 @@
+*** /sys/i386/conf/ioconf.c.i386.orig	Fri Aug 28 11:31:07 1998
+--- /sys/i386/conf/ioconf.c.i386	Fri Aug 28 11:32:27 1998
+***************
+*** 30,35 ****
+--- 30,38 ----
+  extern struct devsw cnsw, cttysw, mmsw, swapsw, logsw, devfdsw;
+  extern struct devsw ptssw, ptcsw;
+  extern struct devsw pcsw, kbdsw;
++ #if defined(IPFILTER)
++ extern struct devsw iplsw;
++ #endif
+  
+  %DECLSW
+  
+***************
+*** 81,87 ****
+--- 84,94 ----
+  	%DEVSW(rd),		/* 44 = ram disk driver */
+  	%DEVSW(tun),		/* 45 = Tunnel Network Interface */
+  	%DEVSW(cr),		/* 46 = SMART 2 Driver */
++ #if defined(IPFILTER)
++ 	&iplsw,			/* 47 = IP Filter */
++ #else
+  	NULL,			/* 47 = (unused) */
++ #endif
+  	NULL,			/* 48 = (unused) */
+  	NULL,			/* 49 = (unused) */
+  	%DEVSW(apm),		/* 50 = APM Interface module */

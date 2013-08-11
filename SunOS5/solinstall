@@ -1,0 +1,48 @@
+#!/bin/csh -f
+#
+echo "This script should not be used"
+#
+exit 0
+#
+set dir=`pwd`
+umask 077
+if ( $dir =~ */SunOS5 ) cd ..
+echo "Creating directory /opt/ipf"
+mkdir -p /opt/ipf
+echo "Copying files to /opt/ipf..."
+cp rules/example.sr /opt/ipf/ipf.rules.eg
+cp -p SunOS5/ipfboot /opt/ipf/ipfboot
+cp -p SunOS5/ipf.conf /opt/ipf/ipf.conf
+cp SunOS5/ipf /opt/ipf/ipf.lkm
+echo "Copying ipf and ipf.conf to /usr/kernel/drv"...
+cp SunOS5/ipf /usr/kernel/drv/ipf
+cp SunOS5/ipf.conf /usr/kernel/drv/ipf.conf
+echo "Running add_drv..."
+add_drv -m '* 0600 root root' ipf
+sync
+echo "Installing ipf bootstrap into /etc/init.d/ipfboot...."
+cp -p SunOS5/ipfboot /etc/init.d/ipfboot
+echo "linking to /etc/rc1.d/S90ipfboot...."
+ln /etc/init.d/ipfboot /etc/rc1.d/S90ipfboot
+echo "linking to /etc/rcS.d/S90ipfboot."
+ln /etc/init.d/ipfboot /etc/rcS.d/S90ipfboot
+echo "installing ipf into /sbin and /opt/ipf"
+/bin/cp SunOS5/ipf.exe /sbin/ipf
+strip /sbin/ipf
+chmod 711 /sbin/ipf
+/bin/cp SunOS5/ipf.exe /opt/ipf/ipf
+strip /opt/ipf/ipf
+chmod 711 /opt/ipf/ipf
+echo "Adding /dev/ipf to /etc/devlink.tab"
+if ( x"`grep name=ipf /etc/devlink.tab`" == x) then
+	echo "type=ddi_pseudo;name=ipf;minor=ipf	\M0" >>/etc/devlink.tab
+endif
+if ( x"`grep name=ipnat /etc/devlink.tab`" == x) then
+	echo "type=ddi_pseudo;name=ipnat;minor=ipnat	\M0" >>/etc/devlink.tab
+endif
+if ( x"`grep name=ipstate /etc/devlink.tab`" == x) then
+	echo "type=ddi_pseudo;name=ipstate;minor=ipstate	\M0" >>/etc/devlink.tab
+endif
+echo "Running devlinks..."
+/usr/sbin/devlinks
+/usr/ucb/ucblinks

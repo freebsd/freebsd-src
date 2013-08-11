@@ -1,29 +1,30 @@
 #!/bin/sh
-mkdir -p results
-if [ -f /usr/ucb/touch ] ; then
-	TOUCH=/usr/ucb/touch
-else
-	if [ -f /usr/bin/touch ] ; then
-		TOUCH=/usr/bin/touch
-	else
-		if [ -f /bin/touch ] ; then
-			TOUCH=/bin/touch
-		fi
-	fi
-fi
-echo "$1...";
-/bin/cp /dev/null results/$1
+name=$1
+
+. ./ipflib.sh
+
+test_init
+
+echo "$name...";
+/bin/cp /dev/null results/$name
 case $3 in
 ipf)
-	../ipf -Rnvf regress/$1 2>/dev/null > results/$1
+	../ipf -Rnvf regress/$name 2>/dev/null > results/$name
+	status=$?
+	if [ $status -ne 0 ] ; then
+		echo "ERROR: ../ipf -Rnvf regress/$name"
+	fi
 	;;
 ipftest)
-	../ipftest -D -r regress/$1 -i /dev/null > results/$1
+	unset FINDLEAKS
+	../ipftest -D -r regress/$name -i /dev/null > results/$name
+	status=$?
+	if [ $status -ne 0 ] ; then
+		echo "ERROR: ../ipftest -D -r regress/$name"
+	fi
 	;;
 esac
-cmp expected/$1 results/$1
-status=$?
-if [ $status = 0 ] ; then
-	$TOUCH $1
+if [ $status -eq 0 ] ; then
+	check_results $name
 fi
 exit $status

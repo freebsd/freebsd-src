@@ -67,5 +67,5 @@ rdr ge0 9.8.7.6/32 port 21 -> 1.1.1.1 port 21 tcp proxy ftp
 rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1 port 5555 tcp
 rdr le0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1 port = 5555 tcp
 rdr le0 0/0 -> test.host.dots
-rdr le0 0/0 -> test.host.dots,test.host.dots
-rdr adsl0,ppp0 0/0 port 25 -> 127.0.0.1 port 25
+rdr le0 any -> test.host.dots,test.host.dots
+rdr adsl0,ppp0 9.8.7.6/32 port 1000-2000 -> 1.1.1.1 port 5555-7777 tcp

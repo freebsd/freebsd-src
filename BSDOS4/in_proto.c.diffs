@@ -1,0 +1,16 @@
+*** /sys/netinet/in_proto.c.orig	Fri Aug 28 11:28:56 1998
+--- /sys/netinet/in_proto.c	Fri Aug 28 11:30:16 1998
+***************
+*** 131,136 ****
+--- 131,141 ----
+  #endif /* IPSEC_ESP */
+  #endif /* IPSEC */
+  
++ #ifdef IPFILTER
++ void	iplinit();
++ #define	ip_init	iplinit
++ #endif
++ 
+  extern	struct domain inetdomain;
+  
+  struct protosw inetsw[] = {

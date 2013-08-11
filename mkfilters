@@ -60,7 +60,7 @@ foreach $i (keys %ifaces) {
 sub irix_mkfilters
 {
     open(NETSTAT, "/usr/etc/netstat -i|") || return 0;
-    
+
     while (defined($line = <NETSTAT>))
     {
 	if ($line =~ m/^Name/)
@@ -113,4 +113,4 @@ sub scan_ifconfig
 	}
     }
 }
-    
+

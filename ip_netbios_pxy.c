@@ -1,9 +1,7 @@
-/*	$NetBSD$	*/
-
 /*
  * Simple netbios-dgm transparent proxy for in-kernel use.
  * For use with the NAT code.
- * Id: ip_netbios_pxy.c,v 2.8 2003/12/01 02:52:16 darrenr Exp
+ * $Id$
  */
 
 /*-
@@ -31,14 +29,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Id: ip_netbios_pxy.c,v 2.8 2003/12/01 02:52:16 darrenr Exp
+ * $Id$
  */
 
 #define	IPF_NETBIOS_PROXY
 
-int ippr_netbios_init __P((void));
-void ippr_netbios_fini __P((void));
-int ippr_netbios_out __P((fr_info_t *, ap_session_t *, nat_t *));
+void ipf_p_netbios_main_load __P((void));
+void ipf_p_netbios_main_unload __P((void));
+int ipf_p_netbios_out __P((void *, fr_info_t *, ap_session_t *, nat_t *));
 
 static	frentry_t	netbiosfr;
 
@@ -47,19 +45,19 @@ int	netbios_proxy_init = 0;
 /*
  * Initialize local structures.
  */
-int ippr_netbios_init()
+void
+ipf_p_netbios_main_load()
 {
 	bzero((char *)&netbiosfr, sizeof(netbiosfr));
 	netbiosfr.fr_ref = 1;
 	netbiosfr.fr_flags = FR_INQUE|FR_PASS|FR_QUICK|FR_KEEPSTATE;
 	MUTEX_INIT(&netbiosfr.fr_lock, "NETBIOS proxy rule lock");
 	netbios_proxy_init = 1;
-
-	return 0;
 }
 
 
-void ippr_netbios_fini()
+void
+ipf_p_netbios_main_unload()
 {
 	if (netbios_proxy_init == 1) {
 		MUTEX_DESTROY(&netbiosfr.fr_lock);
@@ -68,10 +66,12 @@ void ippr_netbios_fini()
 }
 
 
-int ippr_netbios_out(fin, aps, nat)
-fr_info_t *fin;
-ap_session_t *aps;
-nat_t *nat;
+int
+ipf_p_netbios_out(arg, fin, aps, nat)
+	void *arg;
+	fr_info_t *fin;
+	ap_session_t *aps;
+	nat_t *nat;
 {
 	char dgmbuf[6];
 	int off, dlen;
@@ -82,19 +82,17 @@ nat_t *nat;
 	aps = aps;	/* LINT */
 	nat = nat;	/* LINT */
 
-	ip = fin->fin_ip;
-	m = *(mb_t **)fin->fin_mp;
-	off = fin->fin_hlen + sizeof(udphdr_t);
-	dlen = M_LEN(m);
-	dlen -= off;
-
+	m = fin->fin_m;
+	dlen = fin->fin_dlen - sizeof(*udp);
 	/*
 	 * no net bios datagram could possibly be shorter than this
 	 */
 	if (dlen < 11)
 		return 0;
 
+	ip = fin->fin_ip;
 	udp = (udphdr_t *)fin->fin_dp;
+	off = (char *)udp - (char *)ip + sizeof(*udp) + fin->fin_ipoff;
 
 	/*
 	 * move past the

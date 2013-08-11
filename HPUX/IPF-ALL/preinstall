@@ -1,0 +1,50 @@
+#! /sbin/sh
+########
+#  Product: IP Filter
+#  Fileset: IPF-ALL
+#  preinstall
+########
+#
+# (c) Copyright (C) 2012 by Darren Reed.
+#
+########
+
+########
+# Source control script environment
+########
+
+UTILS="/usr/lbin/sw/control_utils"
+if [[ ! -f $UTILS ]] ; then
+	echo "ERROR: Cannot find $UTILS"
+	exit 1
+fi
+. $UTILS
+exitval=$SUCCESS
+
+CONTRIBDIR=/usr/contrib/ipf
+ETCDIR=/etc/opt/ipf
+
+########
+# Create directories so that installation can take place
+########
+
+if [[ ! -d ${ETCDIR} ]]; then
+	mkdir -m 755 -p ${ETCDIR}
+fi
+
+for i in ipf.conf ipnat.conf; do
+	touch ${ETCDIR}/$i
+	chmod 444 ${ETCDIR}/$i
+done
+
+if [[ ! -d ${CONTRIBDIR} ]]; then
+	mkdir -m 755 -p ${CONTRIBDIR}
+fi
+
+for i in bin man include examples; do
+	if [[ ! -d ${CONTRIBDIR}/$i ]]; then
+		mkdir -m 755 -p ${CONTRIBDIR}/$i
+	fi
+done
+
+exit $exitval

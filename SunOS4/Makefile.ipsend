@@ -1,0 +1,77 @@
+MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
+	"CC=$(CC)" "CFLAGS=$(CFLAGS)" "DEBUG=$(DEBUG)" \
+	"IPFLKM=$(IPFLKM)" "IPFLOG=$(IPFLOG)" "LOOKUP=$(LOOKUP)" \
+	"LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)"
+
+OBJS=ipsend.o ip.o ipsopt.o iplang_y.o iplang_l.o
+ROBJS=ipresend.o ip.o resend.o
+TOBJS=iptest.o iptests.o ip.o
+BPF=sbpf.o
+UNIXOBJS=snit.o sock.o arp.o
+OBJ=.
+DEST=.
+LIBSRC=../lib
+LIBS=-L$(OBJ) -lipf
+
+CC=/usr/5bin/cc
+CFLAGS=-g -I..
+
+include $(TOP)/lib/Makefile
+
+all nit build sunos4 sunos4-nit : libipf.a ipsend ipresend iptest
+
+iplang_y.o: $(TOP)/iplang/iplang_y.y
+	(cd $(TOP)/iplang; $(MAKE) 'DESTDIR=../SunOS4' )
+
+iplang_l.o: $(TOP)/iplang/iplang_l.l
+	(cd $(TOP)/iplang; $(MAKE) 'DESTDIR=../SunOS4' )
+
+.c.o:
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/$< -o $@
+
+ipsend: $(OBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(OBJS) $(UNIXOBJS) -o $@ $(LIBS) -ll
+
+ipresend: $(ROBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(ROBJS) $(UNIXOBJS) -o $@ $(LIBS)
+
+iptest: $(TOBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(TOBJS) $(UNIXOBJS) -o $@ $(LIBS)
+
+clean:
+	rm -rf *.o core a.out ipsend ipresend iptest iplang_l.* iplang_y.*
+
+ipsend.o: ../ipsend/ipsend.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/ipsend.c -o $@
+ipsopt.o: ../ipsend/ipsopt.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/ipsopt.c -o $@
+ipresend.o: ../ipsend/ipresend.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/ipresend.c -o $@
+ip.o: ../ipsend/ip.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/ip.c -o $@
+resend.o: ../ipsend/resend.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/resend.c -o $@
+iptest.o: ../ipsend/iptest.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/iptest.c -o $@
+iptests.o: ../ipsend/iptests.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/iptests.c -o $@
+sbpf.o: ../ipsend/sbpf.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/sbpf.c -o $@
+snit.o: ../ipsend/snit.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/snit.c -o $@
+sock.o: ../ipsend/sock.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/sock.c -o $@
+arp.o: ../ipsend/arp.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/arp.c -o $@
+44arp.o: ../ipsend/44arp.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/44arp.c -o $@
+lsock.o: ../ipsend/lsock.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/lsock.c -o $@
+slinux.o: ../ipsend/slinux.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/slinux.c -o $@
+larp.o: ../ipsend/larp.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/larp.c -o $@
+dlcommon.o: ../ipsend/dlcommon.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/dlcommon.c -o $@
+sdlpi.o: ../ipsend/sdlpi.c
+	$(CC) $(DEBUG) $(CFLAGS) -c ../ipsend/sdlpi.c -o $@

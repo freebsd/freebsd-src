@@ -1,0 +1,18 @@
+#!/bin/sh
+
+dir=`pwd`
+karch=`uname -m`
+
+if [ `basename $dir` = Linux ] ; then cd ..; fi
+echo "Creating device files..."
+
+minor=0
+major=`awk ' /ipf/ { print $1; } ' /proc/devices`
+
+for i in ipl ipnat ipstate ipauth ipsync ipscan iplookup; do
+	echo ".../dev/$i"
+	mknod /dev/$i c $major $minor
+	minor=`expr $minor + 1`
+done
+
+exit 0

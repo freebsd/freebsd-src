@@ -83,7 +83,7 @@ sub expand {
 
 	return @retlines;
 }
-				
+
 __END__
 
 =head1 NAME
@@ -164,7 +164,7 @@ block in from UNWANTED to any
 pass  in from NOC to WEBSERVERS port = MGMT-PORTS
 
 pass  out all
- 
+
 I<Run>
 
 ipfmeta ipf.objs <ipf.metarules >ipf.rules

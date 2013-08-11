@@ -1,0 +1,52 @@
+*** sys/arch/i386/i386/conf.c-ORIG	Mon May 27 11:14:49 1996
+--- sys/arch/i386/i386/conf.c	Mon May 27 16:29:25 1996
+***************
+*** 179,184 ****
+--- 179,210 ----
+  #include "joy.h"
+  cdev_decl(joy);
+  
++ cdev_decl(ipl);
++ 
++ #ifdef IPFILTER_LOG
++ /* open, close, read, ioctl */
++ # define cdev_ipf_init(c,n) { \
++ 	dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
++ 	(dev_type_write((*))) enodev, dev_init(c,n,ioctl), \
++ 	(dev_type_stop((*))) nullop, 0, (dev_type_select((*))) enodev, \
++ 	(dev_type_mmap((*))) enodev, 0 }
++ #else /* IPFILTER_LOG */
++ /* XXX same as cdev_ch_init */
++ /* open, close, ioctl */
++ # define cdev_ipf_init(c,n) { \
++ 	dev_init(c,n,open), dev_init(c,n,close), (dev_type_read((*))) enodev, \
++ 	(dev_type_write((*))) enodev, dev_init(c,n,ioctl), \
++ 	(dev_type_stop((*))) nullop, 0, (dev_type_select((*))) enodev, \
++ 	(dev_type_mmap((*))) enodev, 0 }
++ #endif /* IPFILTER_LOG */
++ 
++ /* make up for missing "ipl.h" */
++ #ifdef IPFILTER
++ # define NIPF	1
++ #else
++ # define NIPF	0
++ #endif
++ 
+  struct cdevsw	cdevsw[] =
+  {
+  	cdev_cn_init(1,cn),		/* 0: virtual console */
+***************
+*** 229,234 ****
+--- 255,266 ----
+  #else
+  	cdev_notdef(),			/* 43 */
+  #endif
++ 	cdev_notdef(),			/* 44 */
++ 	cdev_notdef(),			/* 45 */
++ 	cdev_notdef(),			/* 46 */
++ 	cdev_notdef(),			/* 47 */
++ 	cdev_notdef(),			/* 48 */
++ 	cdev_ipf_init(NIPF,ipl),	/* 49 */
+  };
+  int	nchrdev = sizeof(cdevsw) / sizeof(cdevsw[0]);
+  

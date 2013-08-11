@@ -1,0 +1,52 @@
+#! /bin/sh
+#
+#	kinstall/minstall - install patch -Res to kernel sources
+#
+# WARNING:  This script should be run exactly once on a virgin system
+#
+PATH=/sbin:/usr/sbin:/bin:/usr/bin; export PATH
+
+# try to bomb out fast if anything fails....
+set -e
+
+argv0=`basename $0`
+dir=`pwd`
+karch=`uname -m`
+archdir="/sys/arch/$karch"
+confdir="$archdir/conf"
+
+case "$dir" in
+*/NetBSD )
+	 cd ..
+	 ;;
+esac
+
+echo "Unpatching ip_input.c, ip_output.c and in_proto.c ..."
+cat NetBSD/i*.c.diffs | (cd /sys/netinet; patch -R)
+
+if [ -f /sys/conf/files.newconf ]; then
+	echo "Unpatching /sys/conf/files.newconf ..."
+	cat NetBSD/files.newconf.diffs | (cd /sys/conf; patch -R)
+	echo "Unpatching /sys/conf/files ..."
+	cat NetBSD/files.diffs | (cd /sys/conf; patch -R)
+fi
+if [ -f /sys/conf/files.oldconf ]; then
+	echo "Unpatching /sys/conf/files.oldconf ..."
+	cat NetBSD/files.oldconf.diffs | (cd /sys/conf; patch -R)
+	echo "Unpatching /sys/conf/files ..."
+	cat NetBSD/filez.diffs | (cd /sys/conf; patch -R)
+fi
+
+echo -n "Kernel configuration to update [GENERIC] "
+read newconfig junk
+
+if [ -n "$newconfig" ] ; then
+	config="$confdir/$newconfig"
+else
+	newconfig="$confdir/GENERIC"
+fi
+
+mv $confdir/$newconfig $confdir/$newconfig.bak
+egrep -v IPFILTER $confdir/$newconfig > $confdir/$newconfig
+echo 'You will now need to run "config" and build a new kernel.'
+exit 0

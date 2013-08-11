@@ -1,0 +1,91 @@
+diff -c tmp/etc/netstart etc/netstart
+*** tmp/etc/netstart	16 Feb 2003 23:25:40 -0000	1.86
+--- etc/netstart	8 Jun 2003 07:40:21 -0000
+***************
+*** 181,186 ****
+--- 181,196 ----
+  	domainname `cat /etc/defaultdomain`
+  fi
+  
++ # Configure the IP filter before configuring network interfaces
++ if [ X"${ipfilter}" = X"YES" -a -f "${ipfilter_rules}" ]; then
++ 	echo 'configuring IP filter'
++ 	ipf -Fa -f ${ipfilter_rules}
++ 	ipfresync="ipf -y"
++ else
++ 	ipfilter=NO
++ 	ipfresync=NO
++ fi
++ 
+  # Set the address for the loopback interface.
+  # It will also initialize IPv6 address for lo0 (::1 and others).
+  ifconfig lo0 inet localhost
+***************
+*** 337,339 ****
+--- 347,362 ----
+  
+  	bridgestart $if
+  done
++ 
++ # Configure NAT after configuring network interfaces
++ if [ "${ipnat}" = "YES" -a "${ipfilter}" = "YES" -a -f "${ipnat_rules}" ]; then
++ 	echo 'configuring NAT'
++ 	ipnat -CF -f ${ipnat_rules}
++ else
++ 	ipnat=NO
++ fi
++ 
++ # Interfaces have come up so we should do an ipf -y if we're using IP filter.
++ if [ "${ipfresync}" != "NO" ]; then
++ 	${ipfresync}
++ fi
+diff -c tmp/etc/rc etc/rc
+*** tmp/etc/rc	23 Mar 2003 18:45:34 -0000	1.225
+--- etc/rc	8 Jun 2003 07:40:22 -0000
+***************
+*** 220,225 ****
+--- 220,229 ----
+  	echo 'starting named';		named $named_flags
+  fi
+  
++ if [ X"${ipfilter}" = X"YES" -a X"${ipmon_flags}" != X"NO" ]; then
++ 	echo 'starting ipmon';	ipmon ${ipmon_flags}
++ fi
++ 
+  # $isakmpd_flags is imported from /etc/rc.conf;
+  # If $isakmpd_flags == NO or /etc/isakmpd/isakmpd.policy doesn't exist, then
+  # isakmpd isn't run.
+diff -c tmp/etc/rc.conf etc/rc.conf
+*** tmp/etc/rc.conf	10 Mar 2003 01:05:28 -0000	1.86
+--- etc/rc.conf	8 Jun 2003 07:40:24 -0000
+***************
+*** 52,58 ****
+  lockd=NO
+  gated=NO
+  amd=NO
+! pf=NO			# Packet filter / NAT
+  portmap=NO		# Note: inetd(8) rpc services need portmap too
+  inetd=YES		# almost always needed
+  check_quotas=YES	# NO may be desirable in some YP environments
+--- 52,60 ----
+  lockd=NO
+  gated=NO
+  amd=NO
+! ipfilter=NO		# To enable ipfilter, set to YES
+! ipnat=NO		# for "YES", ipfilter must also be "YES"
+! pf=NO			# Enable pf(4) Packet filter / NAT
+  portmap=NO		# Note: inetd(8) rpc services need portmap too
+  inetd=YES		# almost always needed
+  check_quotas=YES	# NO may be desirable in some YP environments
+***************
+*** 76,81 ****
+--- 78,86 ----
+  nfsd_flags="-tun 4"		# Crank the 4 for a busy NFS fileserver
+  amd_dir=/tmp_mnt		# AMD's mount directory
+  amd_master=/etc/amd/master	# AMD 'master' map
++ ipfilter_rules=/etc/ipf.rules	# Rules for IP packet filtering with IP Filter
++ ipnat_rules=/etc/ipnat.rules	# Rules for Network Address Translation
++ ipmon_flags=-Ds			# To disable logging, use ipmon_flags=NO
+  syslogd_flags=			# add more flags, ie. "-u -a /chroot/dev/log"
+  pf_rules=/etc/pf.conf		# Packet filter rules file
+  pflogd_flags=			# add more flags, ie. "-s 256"

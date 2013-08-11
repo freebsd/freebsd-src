@@ -1,13 +1,10 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.  The author accepts no
- * responsibility and is not changed in any way.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * I hate legaleese, don't you ?
- * $Id: linux.h,v 2.1 1999/08/04 17:30:10 darrenr Exp $
+ * $Id$
  */
 
 #include <linux/config.h>

@@ -1,54 +1,68 @@
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: genmask.c,v 1.7 2003/11/11 13:40:15 darrenr Exp $
+ * $Id$
  */
 
 #include "ipf.h"
 
 
-int genmask(msk, mskp)
-char *msk;
-u_32_t *mskp;
+int genmask(family, msk, mskp)
+	int family;
+	char *msk;
+	i6addr_t *mskp;
 {
 	char *endptr = 0L;
+	u_32_t addr;
 	int bits;
 
 	if (strchr(msk, '.') || strchr(msk, 'x') || strchr(msk, ':')) {
 		/* possibly of the form xxx.xxx.xxx.xxx
 		 * or 0xYYYYYYYY */
-#ifdef	USE_INET6
-		if (use_inet6) {
-			if (inet_pton(AF_INET6, msk, mskp) != 1)
+		switch (family)
+		{
+#ifdef USE_INET6
+		case AF_INET6 :
+			if (inet_pton(AF_INET6, msk, &mskp->in4) != 1)
 				return -1;
-		} else
+			break;
 #endif
-		if (inet_aton(msk, (struct in_addr *)mskp) == 0)
+		case AF_INET :
+			if (inet_aton(msk, &mskp->in4) == 0)
+				return -1;
+			break;
+		default :
 			return -1;
+			/*NOTREACHED*/
+		}
 	} else {
 		/*
 		 * set x most significant bits
 		 */
 		bits = (int)strtol(msk, &endptr, 0);
-#ifdef	USE_INET6
-		if ((*endptr != '\0') ||
-		    ((bits > 32) && !use_inet6) || (bits < 0) ||
-		    ((bits > 128) && use_inet6))
-#else
-		if (*endptr != '\0' || bits > 32 || bits < 0)
-#endif
+
+		switch (family)
+		{
+		case AF_INET6 :
+			if ((*endptr != '\0') || (bits < 0) || (bits > 128))
+				return -1;
+			fill6bits(bits, mskp->i6);
+			break;
+		case AF_INET :
+			if (*endptr != '\0' || bits > 32 || bits < 0)
+				return -1;
+			if (bits == 0)
+				addr = 0;
+			else
+				addr = htonl(0xffffffff << (32 - bits));
+			mskp->in4.s_addr = addr;
+			break;
+		default :
 			return -1;
-#ifdef	USE_INET6
-		if (use_inet6)
-			fill6bits(bits, mskp);
-		else
-#endif
-		if (bits == 0)
-			*mskp = 0;
-		else
-			*mskp = htonl(0xffffffff << (32 - bits));
+			/*NOTREACHED*/
+		}
 	}
 	return 0;
 }

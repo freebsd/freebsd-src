@@ -1,0 +1,10 @@
+#!/bin/sh
+
+pid=`ps -e | awk ' { if ($4 == "ipmon") { print $1; } } ' -`
+
+while [ "$pid" != "" ] ; do
+	echo "Stopping ipmon..."
+	kill $pid
+	pid=`ps -e | awk ' { if ($4 == "ipmon") { print $1; } } ' -`
+done
+exit 0

@@ -1,0 +1,115 @@
+#!/sbin/sh
+#
+PATH=/sbin:/usr/bin:/usr/sbin:/opt/ipf/bin
+#
+pid=`ps -e | grep ipmon | awk ' { print $1 } ' -`
+. /etc/rc.config
+
+block_default_workaround() {
+      ipf -F a
+      echo "constructing minimal name resolution rules..."
+      NAMESERVERS=`cat /etc/resolv.conf | awk '/nameserver/ {printf "%s ", $2}'`
+      for NS in $NAMESERVERS
+      do
+	      IF_TO_NS=`/usr/sbin/route -n get $NS | awk '/interface/ {print $NF}'`
+	      IP_TO_NS=any
+	      echo "pass out quick proto udp from $IP_TO_NS to $NS port = 53 keep state" | \
+		      ipf -f -
+      done
+}
+
+set_device_files() {
+	input=`kmadmin -Q ipf | grep 'Character Major'`
+	set $input
+	major=$3
+	/bin/rm -f /dev/ipl /dev/ipnat /dev/ipstate /dev/ipauth
+	/bin/rm -f /dev/ipsync /dev/ipscan /dev/iplookup
+	mknod /dev/ipl c $major 0
+	mknod /dev/ipnat c $major 1
+	mknod /dev/ipstate c $major 2
+	mknod /dev/ipauth c $major 3
+	mknod /dev/ipsync c $major 4
+	mknod /dev/ipscan c $major 5
+	mknod /dev/iplookup c $major 6
+}
+
+case "$1" in
+	start_msg)
+		echo "Starting IP Filter"
+		;;
+
+	stop_msg)
+		echo "Stopping IP Filter"
+		;;
+
+	start)
+		if [ ${IPF_START} -eq 1 ] ; then
+			if [ x$pid != x ] ; then
+				kill -TERM $pid
+			fi
+			kmadmin -L ipf
+			set_device_files
+			ipf -E
+			if [ -r ${IPF_CONF} ]; then
+				BLOCK_DEFAULT=`/sbin/ipf -V | grep Default | \
+					       awk '{print $2}'`
+				if [ x$BLOCK_DEFAULT = "xblock" ] ; then
+					block_default_workaround
+				fi
+				ipf -IFa -f ${IPF_CONF}
+				if [ $? != 0 ]; then
+					echo "$0: load of ${IPF_CONF} into alternate set failed"
+				else
+					ipf -s
+				fi
+			fi
+			if [ -r ${IPNAT_CONF} ]; then
+				ipnat -CF -f ${IPNAT_CONF}
+				if [ $? != 0 ]; then
+					echo "$0: load of ${IPNAT_CONF} failed"
+				fi
+			fi
+			if [ ${IPMON_START} -eq 1 ] ; then
+				ipmon ${IPMON_FLAGS}
+			fi
+		else
+			exit 2
+		fi
+		;;
+
+	stop)
+		if [ x$pid != x ] ; then
+			kill -TERM $pid
+		fi
+		ipf -D
+		kmadmin -U ipf
+		;;
+
+	reload)
+		if [ -r ${IPF_CONF} ]; then
+			ipf -I -Fa -f ${IPF_CONF}
+			if [ $? != 0 ]; then
+				echo "$0: reload of ${IPF_CONF} into alternate set failed"
+			else
+				ipf -s
+			fi
+		fi
+		if [ -r ${IPNAT_CONF} ]; then
+			ipnat -CF -f ${IPNAT_CONF}
+			if [ $? != 0 ]; then
+				echo "$0: reload of ${IPNAT_CONF} failed"
+			fi
+		fi
+		;;
+
+	setdevs)
+		set_device_files
+		;;
+
+	*)
+		echo "Usage: $0 (start|stop|reload)" >&2
+		exit 1
+		;;
+
+esac
+exit 0

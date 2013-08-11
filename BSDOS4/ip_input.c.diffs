@@ -1,0 +1,38 @@
+*** /sys/netinet/ip_input.c.orig	Fri Aug 28 11:33:27 1998
+--- /sys/netinet/ip_input.c	Fri Aug 28 13:49:37 1998
+***************
+*** 107,112 ****
+--- 107,116 ----
+  int	ipqmaxlen;
+  struct	in_ifaddr *in_ifaddr;			/* first inet address */
+  struct	ifqueue ipintrq;
++ #if defined(IPFILTER)
++ extern int    fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ int   (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ #endif
+  
+  /*
+   * We need to save the IP options in case a protocol wants to respond
+***************
+*** 406,411 ****
+--- 410,429 ----
+  		} else
+  			m_adj(m, ip->ip_len - m->m_pkthdr.len);
+  	}
++ 
++ #if defined(IPFILTER)
++ 	/*
++ 	 * Check if we want to allow this packet to be processed.
++ 	 * Consider it to be bad if not.
++ 	 */
++ 	if (fr_checkp) {
++ 		struct mbuf *m1 = m;
++ 
++ 		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)
++ 			goto next;
++ 		ip = mtod(m = m1, struct ip *);
++ 	}
++ #endif
+  
+  	/*
+  	 * Process options and, if not destined for us,

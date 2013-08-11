@@ -1,0 +1,60 @@
+#!/bin/csh -f
+#
+set dir=`pwd`
+if ($dir =~ */SunOS4) cd ..
+echo -n "Installing "
+foreach i (ip_fil.h ip_nat.[ch] ip_frag.[ch] ip_state.[ch] ip_auth.[ch] \
+	   ip_proxy.[ch] ip_sync.[ch] ip_scan.[ch] ip_pool.[ch] ip_*_pxy.c \
+	   ip_lookup.[ch] ip_htable.[ch] fil.c ip_compat.h ip_log.c ipl.h)
+	echo -n "$i "
+	cp $i /sys/netinet
+	chmod 644 /sys/netinet/$i
+	switch ($i)
+	case *.h:
+		/bin/cp $i /usr/include/netinet/$i
+		chmod 644 /usr/include/netinet/$i
+		breaksw
+	endsw
+end
+cp ip_fil_sunos4.c /sys/netinet/ip_fil.c
+chmod 644 /sys/netinet/ip_fil.c
+echo "ip_fil.c(ip_fil_sunos4.c)";
+
+echo "Installing ip_input.c and ip_output.c"
+cp SunOS4/{ip_input.c,ip_output.c} /sys/netinet
+chmod 644 /sys/netinet/{ip_input.c,ip_output.c}
+
+echo "Patching /sys/sun/conf.c"
+cat SunOS4/conf.c.diff | (cd /sys/sun; patch)
+echo "Patching /sys/conf.common/files.cmn"
+cat SunOS4/files.cmn.diff | (cd /sys/conf.common; patch)
+echo "Patching /sys/netinet/in_proto.c"
+cat SunOS4/in_proto.c.diffs | (cd /sys/netinet; patch)
+
+set karch=`/bin/arch -k`
+set confdir="/sys/$karch/conf"
+set config=`/bin/ls -1t $confdir | head -1`
+
+echo -n "Kernel configuration to update [$config] "
+set newconfig=$<
+if ( "$newconfig" == "" ) then
+	set newconfig=$config
+endif
+echo "Updating $newconfig..."
+if ( -d /sys/$karch/$newconfig ) then
+	mv /sys/$karch/$newconfig /sys/$karch/$newconfig.bak
+endif
+mv $confdir/$newconfig $confdir/$newconfig.bak
+awk '{print $0;if($2=="INET"){print"options IPFILTER\noptions IPFILTER_LOG"}}' \
+	$confdir/$newconfig.bak > $confdir/$newconfig
+echo "Running config $newconfig"
+cd $confdir
+config $newconfig
+echo "Building a new kernel"
+cd ../$newconfig
+make
+if ($status == 0) then
+	echo "New kernel is: /sys/$karch/$newconfig/vmunix"
+	ls -ls /sys/$karch/$newconfig/vmunix
+endif
+exit 0

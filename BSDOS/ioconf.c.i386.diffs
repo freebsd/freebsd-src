@@ -1,0 +1,28 @@
+*** ioconf.c.i386.orig	Tue Mar 19 16:20:07 1996
+--- ioconf.c.i386	Fri Mar  8 15:12:59 1996
+***************
+*** 21,26 ****
+--- 21,29 ----
+  extern struct devsw cnsw, cttysw, mmsw, swapsw, logsw, devfdsw;
+  extern struct devsw ptssw, ptcsw;
+  extern struct devsw pcsw, kbdsw;
++ #if defined(IPFILTER)
++ extern struct devsw iplsw;
++ #endif
+  
+  %DECLSW
+  
+***************
+*** 62,67 ****
+--- 65,75 ----
+  	%DEVSW(sr),		/* 34 = SCSI removeable disks (clone of sd) */
+  	%DEVSW(rp),		/* 35 = Comtrol Rocketport */
+  	%DEVSW(cy),		/* 36 = Cyclades async mux */
++ #if defined(IPFILTER)
++ 	&iplsw,			/* 37 = IP Filter */
++ #else
++ 	NULL,			/* 37 = IP Filter */
++ #endif
+  };
+  #define	NDEVSW (sizeof(devsw) / sizeof(*devsw))
+  int	ndevsw = NDEVSW;

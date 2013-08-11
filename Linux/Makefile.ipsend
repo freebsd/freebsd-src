@@ -1,0 +1,79 @@
+OBJS=ipsend.o ip.o ipsopt.o iplang_y.o iplang_l.o
+IPFTO=ipft_ef.o ipft_hx.o ipft_pc.o ipft_sn.o ipft_td.o ipft_tx.o
+ROBJS=ipresend.o ip.o resend.o $(IPFTO) opt.o
+TOBJS=iptest.o iptests.o ip.o
+UNIXOBJS=lsock.o slinux.o larp.o
+INC=-I/usr/include -I/usr/src/linux/include
+
+CC=cc
+#-Wuninitialized -Wstrict-prototypes -O
+CFLAGS=-g -I$(TOP)
+#
+MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
+	'CFLAGS=$(CFLAGS) $(SOLARIS2)' "IPFLKM=$(IPFLKM)" \
+	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
+	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
+	"CPUDIR=$(CPUDIR)"
+#
+all build bsd-bpf : ipsend ipresend iptest
+
+iplang_y.o: $(TOP)/iplang/iplang_y.y
+	(cd $(TOP)/iplang; $(MAKE) ../Linux/$(CPUDIR)/iplang_y.o $(MFLAGS) "LINUX=$(INC) $(LINUXK)" 'DESTDIR=../Linux/$(CPUDIR)' )
+
+iplang_l.o: $(TOP)/iplang/iplang_l.l
+	(cd $(TOP)/iplang; $(MAKE) ../Linux/$(CPUDIR)/iplang_l.o $(MFLAGS) "LINUX=$(INC) $(LINUXK)" 'DESTDIR=../Linux/$(CPUDIR)' )
+
+.c.o:
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $< -o $@
+
+ipsend: $(OBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(OBJS) $(UNIXOBJS) -o $@ $(LIBS) -lfl -lelf
+
+ipresend: $(ROBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(ROBJS) $(UNIXOBJS) -o $@ $(LIBS) -lfl -lelf
+
+iptest: $(TOBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(TOBJS) $(UNIXOBJS) -o $@ $(LIBS) -lfl -lelf
+
+clean:
+	rm -rf $(TOBJS) $(OBJS) $(ROBJS) $(UNIXOBJS) core a.out ipsend ipresend iptest
+
+ipsend.o: $(TOP)/ipsend/ipsend.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/ipsend.c -o $@
+
+ipsopt.o: $(TOP)/ipsend/ipsopt.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/ipsopt.c -o $@
+
+ipresend.o: $(TOP)/ipsend/ipresend.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/ipresend.c -o $@
+
+ip.o: $(TOP)/ipsend/ip.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/ip.c -o $@
+
+resend.o: $(TOP)/ipsend/resend.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/resend.c -o $@
+
+ipft_sn.o: $(TOP)/ipft_sn.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipft_sn.c -o $@
+
+ipft_pc.o: $(TOP)/ipft_pc.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipft_pc.c -o $@
+
+iptest.o: $(TOP)/ipsend/iptest.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/iptest.c -o $@
+
+iptests.o: $(TOP)/ipsend/iptests.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/iptests.c -o $@
+
+lsock.o: $(TOP)/ipsend/lsock.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/lsock.c -o $@
+
+slinux.o: $(TOP)/ipsend/slinux.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/slinux.c -o $@
+
+larp.o: $(TOP)/ipsend/larp.c
+	$(CC) $(DEBUG) $(CFLAGS) $(INC) $(LINUXK) -c $(TOP)/ipsend/larp.c -o $@
+
+install:
+	-$(INSTALL) -cs -g wheel -m 755 -o root ipsend ipresend iptest $(BINDEST)
+

@@ -1,0 +1,38 @@
+*** ip_input.c.orig	Sun Apr 23 17:17:05 1995
+--- ip_input.c	Sun Apr 23 17:30:03 1995
+***************
+*** 80,85 ****
+--- 80,90 ----
+  int	ipqmaxlen = IFQ_MAXLEN;
+  struct	in_ifaddr *in_ifaddr;			/* first inet address */
+  struct	ifqueue ipintrq;
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ int	fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf *));
++ int	(*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf *));
++ #endif
+  
+  /*
+   * We need to save the IP options in case a protocol wants to respond
+***************
+*** 225,231 ****
+--- 233,252 ----
+  			m_adj(m, ip->ip_len - m->m_pkthdr.len);
+  	}
+  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
+  	/*
++ 	 * Check if we want to allow this packet to be processed.
++ 	 * Consider it to be bad if not.
++ 	 */
++ 	if (fr_checkp) {
++ 		struct mbuf *m1 = m;
++ 
++ 		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)
++ 			goto next;
++ 		ip = mtod(m = m1, struct ip *);
++ 	}
++ #endif
++ 	/*
+  	 * Process options and, if not destined for us,
+  	 * ship it on.  ip_dooptions returns 1 when an
+  	 * error was detected (causing an icmp message

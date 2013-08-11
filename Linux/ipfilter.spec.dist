@@ -1,0 +1,98 @@
+Summary: IP Filter Software
+Name: ipfilter
+Version: 5.1.2
+Release: 1
+License: GPLv2
+Group: System Environment/Base
+BuildRoot: /usr/src/redhat/BUILD/ipfilter
+
+%description
+Packet Filtering and NAT for firewall applications
+
+%files
+%defattr(-,root,root)
+
+/lib/modules/KERNELBUILD/kernel/net/ipv4/ipfilter.MODEXT
+/etc/init.d/ipfilter
+/etc/sysconfig/ipfilter
+/sbin/ipf
+/sbin/ipfs
+/sbin/ipnat
+/sbin/ippool
+/sbin/ipfstat
+/usr/bin/ipmon
+/usr/bin/ipftest
+/usr/share/man/man1/ipftest.1
+/usr/share/man/man4/ipfilter.4
+/usr/share/man/man4/ipf.4
+/usr/share/man/man4/ipl.4
+/usr/share/man/man4/ipnat.4
+/usr/share/man/man5/ipf.5
+/usr/share/man/man5/ipnat.5
+/usr/share/man/man5/ipfilter.5
+/usr/share/man/man5/ipmon.5
+/usr/share/man/man5/ippool.5
+/usr/share/man/man5/ipscan.5
+/usr/share/man/man8/ipscan.8
+/usr/share/man/man8/ipf.8
+/usr/share/man/man8/ipfs.8
+/usr/share/man/man8/ipmon.8
+/usr/share/man/man8/ipnat.8
+/usr/share/man/man8/ippool.8
+/usr/share/man/man8/ipfstat.8
+/usr/include/netinet/ip_fil.h
+/usr/include/netinet/ip_nat.h
+/usr/include/netinet/ip_frag.h
+/usr/include/netinet/ip_auth.h
+/usr/include/netinet/ip_pool.h
+/usr/include/netinet/ip_proxy.h
+/usr/include/netinet/ip_state.h
+/usr/include/netinet/ip_compat.h
+/usr/include/netinet/ip_htable.h
+/usr/include/netinet/ip_lookup.h
+/usr/include/netinet/ip_scan.h
+/usr/include/netinet/ip_sync.h
+/usr/include/netinet/ipl.h
+/usr/share/ipfilter/examples/ip_rules
+/usr/share/ipfilter/examples/ipmon.conf
+/usr/share/ipfilter/examples/pool.conf
+/usr/share/ipfilter/examples/example.1
+/usr/share/ipfilter/examples/example.2
+/usr/share/ipfilter/examples/example.3
+/usr/share/ipfilter/examples/example.4
+/usr/share/ipfilter/examples/example.5
+/usr/share/ipfilter/examples/example.6
+/usr/share/ipfilter/examples/example.7
+/usr/share/ipfilter/examples/example.8
+/usr/share/ipfilter/examples/example.9
+/usr/share/ipfilter/examples/example.10
+/usr/share/ipfilter/examples/example.11
+/usr/share/ipfilter/examples/example.12
+/usr/share/ipfilter/examples/example.13
+/usr/share/ipfilter/examples/example.sr
+/usr/share/ipfilter/examples/nat.eg
+/usr/share/ipfilter/examples/server
+/usr/share/ipfilter/examples/tcpstate
+/usr/share/ipfilter/examples/BASIC.NAT
+/usr/share/ipfilter/examples/BASIC_1.FW
+/usr/share/ipfilter/examples/BASIC_2.FW
+/usr/share/ipfilter/examples/firewall
+/usr/share/ipfilter/examples/ftp-proxy
+/usr/share/ipfilter/examples/ftppxy
+/usr/share/ipfilter/examples/nat-setup
+
+%pre
+if [ -f /etc/init.d/ipfilter ] ; then
+        /sbin/chkconfig --del ipfilter
+fi
+
+%post
+/sbin/chkconfig --add ipfilter
+/sbin/chkconfig TURNONIPFILTER
+/sbin/depmod -A
+
+%preun
+/etc/init.d/ipfilter stop
+/sbin/chkconfig --del ipfilter
+
+%changelog

@@ -1,0 +1,16 @@
+*** in_proto.c.orig	Mon Oct 28 11:58:19 1996
+--- in_proto.c	Mon Oct 28 12:00:02 1996
+***************
+*** 82,87 ****
+--- 82,92 ----
+  void	ipip_input();
+  #endif /* MROUTING */
+  
++ #ifdef	IPFILTER
++ void	iplinit();
++ #define	ip_init iplinit
++ #endif
++ 
+  extern	struct domain inetdomain;
+  
+  struct protosw inetsw[] = {

@@ -1,0 +1,10 @@
+#!/bin/sh
+rev=`uname -R 2>/dev/null`
+if [ $? -eq 0 ] ; then
+	rev=`echo $rev | awk ' { print $NF; } ' -`
+else
+	rev=`uname -r`
+fi
+model=`uname -m|sed -e 's!/!.!'`
+echo $rev.$model
+exit 0

@@ -1,0 +1,33 @@
+*** ip_output.c.orig	Sat Nov  1 04:53:02 1997
+--- ip_output.c	Sat Nov  1 04:56:47 1997
+***************
+*** 60,65 ****
+--- 60,69 ----
+  static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
+  static void ip_mloopback
+  	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *));
++ #if defined(IPFILTER)
++ extern int fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ #endif
+  
+  /*
+   * IP output.  The packet in mbuf chain m contains a skeletal IP
+***************
+*** 313,318 ****
+--- 317,331 ----
+  	} else
+  		mtu = ifp->if_mtu;
+  
++ #if defined(IPFILTER)
++ 	if (fr_checkp) {
++ 		struct mbuf *m1 = m;
++ 
++ 		if ((error = (*fr_checkp)(ip, hlen, ifp, 1, &m1)) || !m1)
++ 			goto done;
++ 		ip = mtod(m = m1, struct ip *);
++ 	}
++ #endif
+  	/*
+  	 * If small enough for route, can just send directly.
+  	 */

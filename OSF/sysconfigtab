@@ -1,0 +1,15 @@
+# /usr/sys/io/IPFILTER/sysconfigtab
+# sysconfigtab file fragment for ipfilter driver
+#
+# Merge with /etc/sysconfigtab using sysconfigdb -a -f [this file] ipfilter
+
+ipfilter:
+	Module_Config_Name = ipfilter
+	Subsystem_Description = IPFilter driver
+	Device_User = root
+	Device_Group = 0
+	Device_Major_Req = Same
+	Device_Char_Major = ANY
+	Device_Char_Files = ipl,ipnat,ipstate,ipauth,ipsync,ipscan,ippool,ipcount
+	Device_Char_Minor = 0,[1-6],7
+	Device_Mode = 600

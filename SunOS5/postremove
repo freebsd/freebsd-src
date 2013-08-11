@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+rem_drv -b ${BASEDIR:-/} ipf
+egrep -v 'name=ipf' ${BASEDIR}/etc/devlink.tab > ${BASEDIR}/etc/devlink.tab.new
+mv ${BASEDIR}/etc/devlink.tab ${BASEDIR}/etc/devlink.tab.bak
+cp -p ${BASEDIR}/etc/devlink.tab.bak ${BASEDIR}/etc/devlink.tab
+cp ${BASEDIR}/etc/devlink.tab.new ${BASEDIR}/etc/devlink.tab
+/usr/sbin/devlinks -r ${BASEDIR:-/}
+if [ -d /usr/ucb -a -f /usr/ucb/ucblinks ] ; then
+	/usr/ucb/ucblinks -r ${BASEDIR:-/}
+fi
+exit 0

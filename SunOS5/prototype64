@@ -1,0 +1,16 @@
+i pkginfo
+i copyright=../copyright
+!default 0755 root root
+d none /usr ? ? ?
+d none /usr/kernel ? ? ?
+d none /usr/kernel/drv ? ? ?
+d none /usr/kernel/drv/sparcv9 ? ? ?
+f none /usr/kernel/drv/sparcv9/ipf=root/usr/kernel/drv/sparcv9/ipf
+d none /usr/sbin ? ? ?
+d none /usr/sbin/sparcv9 ? ? ?
+f none /usr/sbin/sparcv9/ipfstat=root/sbin/sparcv9/ipfstat
+f none /usr/sbin/sparcv9/ipf=root/sbin/sparcv9/ipf
+f none /usr/sbin/sparcv9/ipfs=root/sbin/sparcv9/ipfs
+f none /usr/sbin/sparcv9/ipnat=root/sbin/sparcv9/ipnat
+f none /usr/sbin/sparcv9/ippool=root/sbin/sparcv9/ippool
+f none /usr/sbin/sparcv9/ipmon=root/opt/ipf/bin/sparcv9/ipmon

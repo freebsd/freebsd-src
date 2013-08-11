@@ -1,0 +1,18 @@
+
+Versions of Tru64 (aka OSF1) earlier than 5.1 aren't supported since
+the relevant interfaces don't exist.  Tru64 5.1 and 5.1a have been
+tested.
+
+        1. do a "make tru64" (or "make osf") in this directory
+
+        2. run "make install-osf", in the same directory, to install
+
+To enable IPFilter, you then need to do:
+sysconfig -c ipfilter
+
+Tru64 checkpoints:
+- enable ipforwarding and ipgateway with "iprsetup -s"
+
+Darren Reed
+darrenr@pobox.com
+

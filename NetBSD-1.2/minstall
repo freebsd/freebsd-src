@@ -1,0 +1,135 @@
+#! /bin/sh -e
+# $Id$
+# install ip-filter & patches to kernel sources
+#
+# Heavily hacked by vax@linkdead.paranoia.com (VaX-n8)
+# NOTE: There is an "-e" option on the first line; bomb out quickly if errors
+# WARNING:  This script should be run exactly once on a virgin system.
+# NOTE: Once you have configured a kernel with this device, it will default
+# to being enabled.  Use "ipf -D" in /etc/netstart (before configuring
+# interfaces) to disable it.
+#
+PATH=/sbin:/usr/sbin:/bin:/usr/bin; export PATH
+
+# there's some brain damage in ash that won't handle non-argument flags,
+# so I have a -m which should really be a boolean here
+export optstring="d:c:a:m:"
+export supparches="i386"
+export argv0=$(basename "$0")
+export destdir=""	# assume $destdir/sys is a symlink to the src tree
+export architecture=$(uname -m)		# take a good guess at architecture
+# do some rather tedious guesswork at the kernel config location
+kconfull="$(IFS=:; set -- $(uname -v); eval echo \"\$$#\")"
+export kconfull
+if [ -n "$kconfull" ]; then
+	kconfdir=$(dirname $(dirname "$kconfull"))/conf
+	export newconfig="$(basename "$kconfull")"
+else
+	kconfdir="/sys/arch/${architecture}/conf"
+fi
+export kconfdir
+while getopts "$optstring" name; do
+	# ash is broken; case statements don't work right, calls * every time
+	# seems ash requires quotes on the patterns -- strange
+	case "$name" in
+		#( root of the source tree, a la DESTDIR in NetBSD Makefiles
+		'd') destdir="$OPTARG";;
+		#( name of new config file
+		'c') newconfig="$OPTARG";;
+		#( name of architecture
+		'a') architecture="$OPTARG";;
+		#( if we want it as a loadable kernel module or not
+		'm') modload="_LKM";;
+		#( default... bad arg, missing option, etc
+		*)
+		export OLDIFS="$IFS"		# save IFS
+		echo -n "Usage: $argv0 [-"
+		# I would use IFS="."; echo "$@" except ash screws it up
+		# I have submitted a send-pr to fix it.  Until then...
+		IFS=":"
+		set -- $optstring
+		while [ "$#" -gt 0 ]; do echo -n "$1"; shift; done; echo "]"
+		IFS="$OLDIFS"
+		expln="\
+OPT:ARG:DEFAULT:MEANING:\
+-d:destdir:\"$destdir\":parent dir of \"sys\", no slash:\
+-c:configfile:\"$newconfig\":kernel config filename, no dir:\
+-k:kconfdir:\"$kconfdir\":kernel config directory:\
+-a:arch:\"$architecture\":architecture, e.g. $supparches:\
+-m:boolean:\"$modload\":install as loadable module:\
+-?:::this help screen"
+		IFS=$(printf ":\012\015"); set -- $expln; IFS="$OLDIFS"
+		for i in 1 2 3; do eval "maxsz$i=0"; done
+		while [ "$#" -ge 4 ]; do for i in 1 2 3; do
+			eval j=\"\$$i\ \" \; len=\${#j} \; \
+				if test \"\$maxsz$i\" -lt \"\$len\" \; then \
+				maxsz$i=\"\$len\" \; fi
+			done; shift 4; done
+		IFS=$(printf ":\012\015"); set -- $expln; IFS="$OLDIFS"
+		while [ "$#" -ge 4 ]; do for i in 1 2 3; do
+			eval j=\"\$$i\ \" \; printf \"%-\${maxsz$i}s\" \"\$j\"
+			done; echo "$4"; shift 4; done
+		exit 127 ;;
+	esac
+done
+
+archdir="$destdir/sys/arch/$architecture"
+
+case "$architecture" in
+i386)
+	echo "Patching $archdir/$architecture/conf.c"
+	(cd "$archdir/$architecture" && patch) < conf.c-PATCH
+	;;
+*)
+	echo "$argv0: target architecture not supported: $architecture" 1>&2
+	exit 2
+	;;
+esac
+
+(cd ..
+files="ip_nat.[ch] ip_fil.[ch] ip_frag.[ch] ip_state.[ch] fil.c ip_compat.h"
+echo "Installing $files"
+install -c -m 644 $files "$destdir/sys/netinet"
+)
+
+set -- i*.c-PATCH
+echo "Patching $(echo "$@" | sed -n 's/\([a-zA-Z]*\)-PATCH/\1/gp')"
+while [ -n "$1" ]; do
+	(cd "$destdir/sys/netinet" && patch) < "$1"
+	shift
+done
+
+set -- files*-PATCH
+echo "Patching $(echo "$@" | sed -n 's/\([a-zA-Z]*\)-PATCH/\1/gp')"
+while [ -n "$1" ]; do
+	(cd "$destdir/" && patch) < "$1"
+	shift
+done
+
+# get this kernel's name from uname version string as a good guess for kconfig
+set -- $(uname -v | sed -n '/.*(\([^ ][^ ]*\)).*/s//\1/p; 1q') "GENERIC"
+while [ ! -f "$kconfdir/$newconfig" ]; do
+	eval ${newconfig:+"echo $kconfdir/$newconfig not found 1>&2"}
+	read -p "Kernel configuration to update [$1] " newconfig junk
+	: ${newconfig:=$1} # set to default if not set
+done
+
+if tmp=`grep IPFILTER "$kconfdir/$newconfig"`; then
+	echo "$newconfig already contains \"$tmp\"..."
+	echo 'You will now need to build a new kernel.'
+else
+	echo "Saving $newconfig as $newconfig.bak"
+	mv -i "$kconfdir/$newconfig" "$kconfdir/$newconfig.bak"
+	compdir="$archdir/compile"
+	if [ -d "$compdir/$newconfig" ]; then
+		echo "Saving $compdir/$newconfig as $compdir/$newconfig.bak"
+		mv -i "$compdir/$newconfig" "$compdir/$newconfig.bak"
+	fi
+	modload="options	IPFILTER${modload}"
+	echo "Modifying $newconfig, adding $modload"
+	awk "{print \$0} \$2==\"INET\"{print \"$modload\"}" \
+		 "$kconfdir/$newconfig.bak" > "$kconfdir/$newconfig"
+	echo 'You will now need to run "config" and build a new kernel.'
+fi
+
+exit 0

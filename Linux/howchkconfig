@@ -1,0 +1,8 @@
+#!/bin/sh
+level=`/sbin/chkconfig --help 2>& 1 | grep level`
+if [ "$level" = "" ] ; then
+	echo '-s ipfilter 2345'
+else
+	echo '--level 2345 ipfilter on'
+fi
+exit 0

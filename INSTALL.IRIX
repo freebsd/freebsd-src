@@ -1,7 +1,7 @@
 
-IP Filter has been mostly tested under IRIX 6.2. It should work under IRIX 6.3
-as well. Under IRIX 5.3, it has been successfully compiled and linked in the
-kernel, but not tested. Compilation under IRIX >= 6.4 is not yet supported.
+IP Filter has been mostly tested under IRIX 6.2 and 6.5.
+Under IRIX 5.3, it has been successfully compiled and linked in the kernel,
+but not tested.
 
 To build a kernel with the IP filter and install it on your system,
 follow these steps:
@@ -17,13 +17,6 @@ follow these steps:
 				CC=gcc
 			to
 				CC=cc
-		b) enable full optimization
-			This means changing the lines reading:
-				DEBUG=-g
-				CFLAGS=-I$$(TOP)
-			to
-				DEBUG=
-				CFLAGS=-O2 -I$$(TOP)
 
         1. do "make irix" (Warning: GNU make is not supported, so if it has
 	been installed on your system, verify your path and/or do "which make"
@@ -80,11 +73,10 @@ ADDITIONAL NOTES:
 	the same major device number.
 
 	- We have not tested IP Filter on a multiprocessor machine yet.
-	However, feel free to try it and send your experiences/patches
-	back to marc@CAM.ORG. SGI prescribes that kernel code be built on such
-	systems with -D_MP_NETLOCKS -DMP. Therefore, these flags should
-	probably be uncommented on the DFLAGS line of IRIX/Makefile if your
-	machine has more than one processor.
+	SGI prescribes that kernel code be built on such systems with
+	-D_MP_NETLOCKS -DMP. Therefore, these flags should probably be
+	uncommented on the DFLAGS line of IRIX/Makefile if your machine
+	has more than one processor.
 
 	- It is also possible to build IP Filter as a dynamically loadable
 	kernel module (by retaining the IPFLKM=-DIPFILTER_LKM definition in the
@@ -94,7 +86,6 @@ ADDITIONAL NOTES:
 	on the processor architecture. The code provided has only been tested
 	with IP22 CPU boards and can sometime cause panics during loading due
 	to a potential race condition.
-
 
 CREDITS:
 

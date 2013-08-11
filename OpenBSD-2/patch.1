@@ -1,0 +1,21 @@
+*** net/if_bridge.c.orig	Sat Mar 20 07:47:33 1999
+--- net/if_bridge.c	Wed Sep 15 22:44:16 1999
+***************
+*** 55,62 ****
+  #include <netinet/in_var.h>
+  #include <netinet/ip.h>
+  #include <netinet/if_ether.h>
+! #ifdef IPFILTER
+! #include <netinet/ip_fil_compat.h>
+  #include <netinet/ip_fil.h>
+  #endif
+  #endif
+--- 55,62 ----
+  #include <netinet/in_var.h>
+  #include <netinet/ip.h>
+  #include <netinet/if_ether.h>
+! #if (defined(IPFILTER) || defined(IPFILTER_LKM))
+! #include <netinet/ip_compat.h>
+  #include <netinet/ip_fil.h>
+  #endif
+  #endif

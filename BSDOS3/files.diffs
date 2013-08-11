@@ -1,0 +1,23 @@
+*** /sys/conf/files.orig	Sat Nov  1 05:14:50 1997
+--- /sys/conf/files	Sat Nov  1 05:13:12 1997
+***************
+*** 230,235 ****
+--- 230,247 ----
+  file	netinet/tcp_timer.c	inet
+  file	netinet/tcp_usrreq.c	inet
+  file	netinet/udp_usrreq.c	inet
++ file	netinet/ip_fil.c	ipfilter always-source
++ file	netinet/fil.c		ipfilter always-source
++ file	netinet/ip_nat.c	ipfilter always-source
++ file	netinet/ip_frag.c	ipfilter always-source
++ file	netinet/ip_state.c	ipfilter always-source
++ file	netinet/ip_auth.c	ipfilter always-source
++ file	netinet/ip_proxy.c	ipfilter always-source
++ file	netinet/ip_log.c	ipfilter always-source
++ file	netinet/ip_scan.c	ipfilter always-source
++ file	netinet/ip_sync.c	ipfilter always-source
++ file	netinet/ip_pool.c	ipfilter_pool always-source
++ file	netinet/ip_rules.c	ipfilter_compiled always-source
+  file	netiso/clnp_debug.c	iso
+  file	netiso/clnp_er.c	iso
+  file	netiso/clnp_frag.c	iso

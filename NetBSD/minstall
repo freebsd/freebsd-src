@@ -1,0 +1,67 @@
+#! /bin/sh
+#
+#	kinstall/minstall - install patches to kernel sources
+#
+# WARNING:  This script should be run exactly once on a virgin system
+#
+PATH=/sbin:/usr/sbin:/bin:/usr/bin; export PATH
+
+# try to bomb out fast if anything fails....
+set -e
+
+argv0=`basename $0`
+dir=`pwd`
+karch=`uname -m`
+archdir="/sys/arch/$karch"
+confdir="$archdir/conf"
+
+case "$dir" in
+*/NetBSD )
+	 cd ..
+	 ;;
+esac
+
+echo "Patching ip_input.c, ip_output.c and in_proto.c ..."
+cat NetBSD/i*.c.diffs | (cd /sys/netinet; patch)
+
+if [ -f /sys/conf/files.newconf ]; then
+	echo "Patching /sys/conf/files.newconf ..."
+	cat NetBSD/files.newconf.diffs | (cd /sys/conf; patch)
+	echo "Patching /sys/conf/files ..."
+	cat NetBSD/files.diffs | (cd /sys/conf; patch)
+fi
+if [ -f /sys/conf/files.oldconf ]; then
+	echo "Patching /sys/conf/files.oldconf ..."
+	cat NetBSD/files.oldconf.diffs | (cd /sys/conf; patch)
+	echo "Patching /sys/conf/files ..."
+	cat NetBSD/filez.diffs | (cd /sys/conf; patch)
+fi
+
+echo -n "Kernel configuration to update [GENERIC] "
+read newconfig junk
+
+if [ -n "$newconfig" ] ; then
+	config="$confdir/$newconfig"
+else
+	newconfig="$confdir/GENERIC"
+fi
+
+if egrep '^options.*IPFILTER_LKM' $confdir/$newconfig > /dev/null 2>&1 ; then
+	echo "$newconfig already contains proper options statement..."
+	echo 'You will now need to build a new kernel.'
+else
+	echo "Backing up $newconfig to .bak and adding IPFILTER options..."
+	if [ -f $confdir/$newconfig ]; then
+		mv $confdir/$newconfig $confdir/$newconfig.bak
+	fi
+	if [ -d $archdir/compile/$newconfig ]; then
+		mv $archdir/compile/$newconfig $archdir/compile/$newconfig.bak
+	fi
+	grep -v IPFILTER $confdir/$newconfig.bak | \
+	awk '{print $0} $2=="INET"{print "options IPFILTER_LKM"}' \
+	> $confdir/$newconfig
+
+	echo 'You will now need to run "config" and build a new kernel.'
+fi
+
+exit 0

@@ -1,0 +1,89 @@
+diff -d -c -r tmp/etc/netstart etc/netstart
+*** tmp/etc/netstart	Sun Apr 21 22:16:44 2002
+--- etc/netstart	Thu Apr 25 04:33:59 2002
+***************
+*** 181,186 ****
+--- 181,196 ----
+  	domainname `cat /etc/defaultdomain`
+  fi
+  
++ # Configure the IP filter before configuring network interfaces
++ if [ X"${ipfilter}" = X"YES" -a -f "${ipfilter_rules}" ]; then
++ 	echo 'configuring IP filter'
++ 	ipf -Fa -f ${ipfilter_rules}
++ 	ipfresync="ipf -y"
++ else
++ 	ipfilter=NO
++ 	ipfresync=NO
++ fi
++ 
+  # Set the address for the loopback interface.
+  # It will also initialize IPv6 address for lo0 (::1 and others).
+  ifconfig lo0 inet localhost
+***************
+*** 333,335 ****
+--- 343,358 ----
+  
+  	bridgestart $if
+  done
++ 
++ # Configure NAT after configuring network interfaces
++ if [ "${ipnat}" = "YES" -a "${ipfilter}" = "YES" -a -f "${ipnat_rules}" ]; then
++ 	echo 'configuring NAT'
++ 	ipnat -CF -f ${ipnat_rules}
++ else
++ 	ipnat=NO
++ fi
++ 
++ # Interfaces have come up so we should do an ipf -y if we're using IP filter.
++ if [ "${ipfresync}" != "NO" ]; then
++ 	${ipfresync}
++ fi
+diff -d -c -r tmp/etc/rc etc/rc
+*** tmp/etc/rc	Sun Apr 21 22:16:44 2002
+--- etc/rc	Thu Apr 25 04:34:44 2002
+***************
+*** 215,220 ****
+--- 215,224 ----
+  	echo 'starting named';		named $named_flags
+  fi
+  
++ if [ X"${ipfilter}" = X"YES" -a X"${ipmon_flags}" != X"NO" ]; then
++ 	echo 'starting ipmon';	ipmon ${ipmon_flags}
++ fi
++ 
+  # $photurisd_flags is imported from /etc/rc.conf;
+  # If $photurisd_flags == NO or /etc/photuris/photuris.conf doesn't exist, then
+  # photurisd isn't run.
+diff -d -c -r tmp/etc/rc.conf etc/rc.conf
+*** tmp/etc/rc.conf	Sun Apr 21 22:16:44 2002
+--- etc/rc.conf	Thu Apr 25 04:35:43 2002
+***************
+*** 53,58 ****
+  lockd=NO
+  gated=NO
+  amd=NO
+! pf=NO			# Packet filter / NAT
+  portmap=YES		# almost always needed
+  inetd=YES		# almost always needed
+--- 53,60 ----
+  lockd=NO
+  gated=NO
+  amd=NO
++ ipfilter=NO		# To enable ipfilter, set to YES
++ ipnat=NO		# for "YES", ipfilter must also be "YES"
+! pf=NO			# Enable pf(4) Packet filter / NAT
+  portmap=YES		# almost always needed
+  inetd=YES		# almost always needed
+***************
+*** 79,84 ****
+--- 81,89 ----
+  nfsd_flags="-tun 4"		# Crank the 4 for a busy NFS fileserver
+  amd_dir=/tmp_mnt		# AMD's mount directory
+  amd_master=/etc/amd/master	# AMD 'master' map
++ ipfilter_rules=/etc/ipf.rules	# Rules for IP packet filtering with IP Filter
++ ipnat_rules=/etc/ipnat.rules	# Rules for Network Address Translation
++ ipmon_flags=-Ds			# To disable logging, use ipmon_flags=NO
+  syslogd_flags=			# add more flags, ie. "-u -a /chroot/dev/log"
+  named_user=named		# Named should not run as root unless necessary
+  named_chroot=/var/named		# Where to chroot named if not empty

@@ -1,0 +1,40 @@
+#!/bin/sh
+DEVLINK=${BASEDIR}/etc/devlink.tab
+PATH=${PATH}:/sbin:/usr/sbin:/usr/ucb
+if [ x"`grep minor=ipf ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=ipf	\M0" >> ${DEVLINK}
+fi
+if [ x"`grep 'minor=ipf	ipl' ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=ipf	ipl" >> ${DEVLINK}
+fi
+if [ x"`grep minor=ipnat ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=ipnat	\M0" >> ${DEVLINK}
+fi
+if [ x"`grep minor=ipstate ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=ipstate	\M0" >> ${DEVLINK}
+fi
+if [ x"`grep minor=ipauth ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=ipauth	\M0" >> ${DEVLINK}
+fi
+if [ x"`grep minor=iplookup ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=iplookup	\M0" >> ${DEVLINK}
+fi
+if [ x"`grep minor=ipsync ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=ipsync	\M0" >> ${DEVLINK}
+fi
+if [ x"`grep minor=ipscan ${DEVLINK}`" = x ] ; then
+	echo "type=ddi_pseudo;name=ipf;minor=ipscan	\M0" >> ${DEVLINK}
+fi
+if [ x${BASEDIR} = x -o x${BASEDIR} = x/ ] ; then
+	add_drv -m '* 0600 root root' ipf
+else
+	add_drv -m '* 0600 root root' -b ${BASEDIR:-/} ipf
+fi
+/usr/sbin/devlinks -r ${BASEDIR:-/}
+if [ -d /usr/ucb -a -f /usr/ucb/ucblinks ] ; then
+	/usr/ucb/ucblinks -r ${BASEDIR:-/}
+fi
+if [ ! -f ${BASEDIR}/etc/opt/ipf/ipf.conf ] ; then
+	touch ${BASEDIR}/etc/opt/ipf/ipf.conf
+fi
+exit 0

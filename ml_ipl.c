@@ -1,10 +1,7 @@
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
- * responsibility and is not changed in any way.
- *
- * I hate legaleese, don't you ?
  */
 /*
  * 29/12/94 Added code from Marc Huber <huber@fzi.de> to allow it to allocate
@@ -29,47 +26,47 @@
 #endif
 
 #ifndef	IPL_NAME
-#define	IPL_NAME	"/dev/ipl"
+#define	IPL_NAME	"/dev/ipf"
 #endif
 
-extern	int	iplattach(), iplopen(), iplclose(), iplioctl(), iplread();
-extern	int	nulldev(), iplidentify(), errno;
+extern	int	ipfattach(), ipfopen(), ipfclose(), ipfioctl(), ipfread();
+extern	int	nulldev(), ipfidentify(), errno;
 
-struct	cdevsw	ipldevsw = 
+struct	cdevsw	ipfdevsw =
 {
-	iplopen, iplclose, iplread, nulldev,
-	iplioctl, nulldev, nulldev, nulldev,
+	ipfopen, ipfclose, ipfread, nulldev,
+	ipfioctl, nulldev, nulldev, nulldev,
 	0, nulldev,
 };
 
 
-struct	dev_ops	ipl_ops = 
+struct	dev_ops	ipf_ops =
 {
 	1,
-	iplidentify,
-	iplattach,
-	iplopen,
-	iplclose,
-	iplread,
+	ipfidentify,
+	ipfattach,
+	ipfopen,
+	ipfclose,
+	ipfread,
 	NULL,		/* write */
 	NULL,		/* strategy */
 	NULL,		/* dump */
 	0,		/* psize */
-        iplioctl,
+        ipfioctl,
 	NULL,		/* reset */
 	NULL		/* mmap */
 };
 
-int	ipl_major = 0;
+int	ipf_major = 0;
 
 #ifdef sun4m
-struct	vdldrv	vd = 
+struct	vdldrv	vd =
 {
 	VDMAGIC_PSEUDO,
-	"ipl",
-	&ipl_ops,
+	"ipf",
+	&ipf_ops,
 	NULL,
-	&ipldevsw,
+	&ipfdevsw,
 	0,
 	0,
 	NULL,
@@ -82,9 +79,9 @@ struct	vdldrv	vd =
 struct vdldrv vd =
 {
 	VDMAGIC_PSEUDO,	/* magic */
-	"ipl",		/* name */
+	"ipf",		/* name */
 #ifdef sun4c
-	&ipl_ops,	/* dev_ops */
+	&ipf_ops,	/* dev_ops */
 #else
 	NULL,		/* struct mb_ctlr *mb_ctlr */
 	NULL,		/* struct mb_driver *mb_driver */
@@ -93,7 +90,7 @@ struct vdldrv vd =
 	1,		/* numdevs */
 #endif /* sun4c */
 	NULL,		/* bdevsw */
-	&ipldevsw,	/* cdevsw */
+	&ipfdevsw,	/* cdevsw */
 	0,		/* block major */
 	0,		/* char major */
 };
@@ -104,10 +101,10 @@ extern struct cdevsw cdevsw[];
 extern int nchrdev;
 
 xxxinit(fc, vdp, vdi, vds)
-u_int	fc;
-struct	vddrv	*vdp;
-caddr_t	vdi;
-struct	vdstat	*vds;
+	u_int	fc;
+	struct	vddrv	*vdp;
+	caddr_t	vdi;
+	struct	vdstat	*vds;
 {
 	struct	vdlinkage *v;
 	int	i;
@@ -115,17 +112,17 @@ struct	vdstat	*vds;
 	switch (fc)
 	{
 	case VDLOAD:
-		while (ipl_major < nchrdev &&
-		       cdevsw[ipl_major].d_open != vd_unuseddev)
-			ipl_major++;
-		if (ipl_major == nchrdev)
+		while (ipf_major < nchrdev &&
+		       cdevsw[ipf_major].d_open != vd_unuseddev)
+			ipf_major++;
+		if (ipf_major == nchrdev)
 			return ENODEV;
-		vd.Drv_charmajor = ipl_major;
+		vd.Drv_charmajor = ipf_major;
 		vdp->vdd_vdtab = (struct vdlinkage *)&vd;
-		return ipl_attach(vdi);
+		return ipf_attach(vdi);
 	case VDUNLOAD:
 		return unload(vdp, vdi);
-		
+
 	case VDSTAT:
 		return 0;
 
@@ -141,11 +138,11 @@ static unload(vdp, vdi)
 	int	i;
 
 	(void) vn_remove(IPL_NAME, UIO_SYSSPACE, FILE);
-	return ipldetach();
+	return ipfdetach();
 }
 
 
-static	int	ipl_attach(vdi)
+static	int	ipf_attach(vdi)
 struct	vdioctl_load	*vdi;
 {
 	struct	vnode	*vp;
@@ -156,10 +153,10 @@ struct	vdioctl_load	*vdi;
 	vattr_null(&vattr);
 	vattr.va_type = MFTOVT(fmode);
 	vattr.va_mode = (fmode & 07777);
-	vattr.va_rdev = ipl_major<<8;
+	vattr.va_rdev = ipf_major<<8;
 
 	error = vn_create(IPL_NAME, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
 	if (error == 0)
 		VN_RELE(vp);
-	return iplattach(0);
+	return ipfattach(0);
 }

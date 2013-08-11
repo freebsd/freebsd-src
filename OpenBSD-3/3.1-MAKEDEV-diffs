@@ -1,0 +1,349 @@
+diff -r -c -d /tmp/etc/MAKEDEV.mi etc/MAKEDEV.mi
+*** /tmp/etc/MAKEDEV.mi	Thu Apr 11 13:28:49 2002
+--- etc/MAKEDEV.mi	Mon Apr 29 05:09:27 2002
+***************
+*** 153,158 ****
+--- 153,162 ----
+  target(all, pctr0)dnl
+  target(all, altq)dnl
+  target(all, pf)dnl
++ target(all, ipl)dnl
++ target(all, ipnat)dnl
++ target(all, ipstate)dnl
++ target(all, ipauth)dnl
+  twrget(all, cry, crypto)dnl
+  target(all, apm)dnl
+  twrget(all, tth, ttyh, 0, 1)dnl
+***************
+*** 1029,1034 ****
+--- 1033,1052 ----
+  _mkdev(cry, crypto, {-M crypto c major_cry_c-} 0)dnl
+  __devitem(pf, pf*, Packet Filter)dnl
+  _mkdev(pf, {-pf*-}, {-M pf c major_pf_c 0 600-})dnl
++ __devitem(ipl, ipl*, Packet Filter log)dnl
++ _mkdev(ipl, {-ipl*-}, {-M ipl c major_ipl_c 0 600-})dnl
++ __devitem(ipnat, ipnat*, Packet Filter NAT)dnl
++ _mkdev(ipnat, {-ipnat*-}, {-M ipnat c major_ipnat_c 1 600-})dnl
++ __devitem(ipstate, ipstate*, Packet Filter state)dnl
++ _mkdev(ipstate, {-ipstate*-}, {-M ipstate c major_ipstate_c 2 600-})dnl
++ __devitem(ipauth, ipauth*, Packet Filter auth)dnl
++ _mkdev(ipauth, {-ipauth*-}, {-M ipauth c major_ipauth_c 3 600-})dnl
++ __devitem(ipauth, ipauth*, Packet Filter auth)dnl
++ _mkdev(ipsync, {-ipsync*-}, {-M ipsync c major_ipsync_c 4 600-})dnl
++ __devitem(ipsync, ipsync*, Packet Filter sync)dnl
++ _mkdev(ipscan, {-ipscan*-}, {-M ipscan c major_ipscan_c 5 600-})dnl
++ __devitem(ipscan, ipscan*, Packet Filter scan)dnl
++ _mkdev(iplookup, {-iplookup*-}, {-M iplookup c major_iplookup_c 6 600-})dnl
+  __devitem(bpf, bpf*, Berkeley Packet Filter)dnl
+  _mkdev(bpf, {-bpf*-}, {-M bpf$U c major_bpf_c $U 600-}, 600)dnl
+  _mkdev(tun, {-tun*-}, {-M tun$U c major_tun_c $U 600-}, 600)dnl
+diff -r -c -d /tmp/etc/etc.alpha/MAKEDEV.md etc/etc.alpha/MAKEDEV.md
+*** /tmp/etc/etc.alpha/MAKEDEV.md	Tue Apr  9 23:09:43 2002
+--- etc/etc.alpha/MAKEDEV.md	Mon Apr 29 05:21:18 2002
+***************
+*** 66,71 ****
+--- 66,78 ----
+  _TITLE(spec)
+  _DEV(ch, 14)
+  _DEV(pf, 35)
++ _DEV(ipl, 44)
++ _DEV(ipnat, 44)
++ _DEV(ipstate, 44)
++ _DEV(ipauth, 44)
++ _DEV(ipscan, 44)
++ _DEV(ipsync, 44)
++ _DEV(iplookup, 44)
+  _DEV(bpf, 11)
+  _DEV(altq, 53)
+  _DEV(iop, 54)
+diff -r -c -d /tmp/etc/etc.amiga/MAKEDEV.md etc/etc.amiga/MAKEDEV.md
+*** /tmp/etc/etc.amiga/MAKEDEV.md	Thu Feb 21 10:36:55 2002
+--- etc/etc.amiga/MAKEDEV.md	Mon Apr 29 05:21:45 2002
+***************
+*** 65,70 ****
+--- 65,77 ----
+  _DEV(bpf, 22)
+  _DEV(tun, 23)
+  _DEV(pf, 34)
++ _DEV(ipl, 38)
++ _DEV(ipnat, 38)
++ _DEV(ipstate, 38)
++ _DEV(ipauth, 38)
++ _DEV(ipsync, 38)
++ _DEV(ipscan, 38)
++ _DEV(iplookup, 38)
+  _DEV(ss, 25)
+  _DEV(uk, 36)
+  _DEV(rnd, 35)
+diff -r -c -d /tmp/etc/etc.hp300/MAKEDEV.md etc/etc.hp300/MAKEDEV.md
+*** /tmp/etc/etc.hp300/MAKEDEV.md	Sun Apr 14 16:26:45 2002
+--- etc/etc.hp300/MAKEDEV.md	Mon Apr 29 05:22:05 2002
+***************
+*** 57,62 ****
+--- 57,69 ----
+  _DEV(bpf, 22)
+  _DEV(tun, 23)
+  _DEV(pf, 33)
++ _DEV(ipl, 37)
++ _DEV(ipnat, 37)
++ _DEV(ipstate, 37)
++ _DEV(ipauth, 37)
++ _DEV(ipsync, 37)
++ _DEV(ipscan, 37)
++ _DEV(iplookup, 37)
+  _DEV(lkm, 24)
+  _DEV(rnd, 32)
+  _DEV(xfs, 51)
+diff -r -c -d /tmp/etc/etc.hppa/MAKEDEV.md etc/etc.hppa/MAKEDEV.md
+*** /tmp/etc/etc.hppa/MAKEDEV.md	Mon Feb 25 11:46:36 2002
+--- etc/etc.hppa/MAKEDEV.md	Mon Apr 29 05:22:24 2002
+***************
+*** 51,56 ****
+--- 51,63 ----
+  _DEV(bpf, 17)
+  _DEV(tun, 18)
+  _DEV(pf, 21)
++ _DEV(ipl, 34)
++ _DEV(ipnat, 34)
++ _DEV(ipstate, 34)
++ _DEV(ipauth, 34)
++ _DEV(ipsync, 34)
++ _DEV(ipscan, 34)
++ _DEV(iplookup, 34)
+  _DEV(lkm, 19)
+  _DEV(altq, 33)
+  _DEV(rnd, 20)
+diff -r -c -d /tmp/etc/etc.i386/MAKEDEV.md etc/etc.i386/MAKEDEV.md
+*** /tmp/etc/etc.i386/MAKEDEV.md	Thu Apr 11 19:13:21 2002
+--- etc/etc.i386/MAKEDEV.md	Mon Apr 29 05:09:51 2002
+***************
+*** 74,79 ****
+--- 74,86 ----
+  _DEV(fdesc, 22)
+  _DEV(cry, 70)
+  _DEV(pf, 73)
++ _DEV(ipl, 78)
++ _DEV(ipnat, 78)
++ _DEV(ipstate, 78)
++ _DEV(ipauth, 78)
++ _DEV(ipsync, 78)
++ _DEV(ipscan, 78)
++ _DEV(iplookup, 78)
+  _DEV(bpf, 23)
+  _DEV(speak, 27)
+  _DEV(lkm, 28)
+diff -r -c -d /tmp/etc/etc.mac68k/MAKEDEV.md etc/etc.mac68k/MAKEDEV.md
+*** /tmp/etc/etc.mac68k/MAKEDEV.md	Thu Feb 14 05:29:20 2002
+--- etc/etc.mac68k/MAKEDEV.md	Mon Apr 29 05:24:15 2002
+***************
+*** 49,54 ****
+--- 49,61 ----
+  _DEV(bpf, 22)
+  _DEV(tun, 24)
+  _DEV(pf, 35)
++ _DEV(ipl, 38)
++ _DEV(ipnat, 38)
++ _DEV(ipstate, 38)
++ _DEV(ipauth, 38)
++ _DEV(ipsync, 38)
++ _DEV(ipscan, 38)
++ _DEV(iplookup, 38)
+  _DEV(altq, 52)
+  _DEV(lkm, 25)
+  _DEV(rnd, 32)
+diff -r -c -d /tmp/etc/etc.macppc/MAKEDEV.md etc/etc.macppc/MAKEDEV.md
+*** /tmp/etc/etc.macppc/MAKEDEV.md	Sat Feb 23 09:02:03 2002
+--- etc/etc.macppc/MAKEDEV.md	Mon Apr 29 05:24:41 2002
+***************
+*** 75,80 ****
+--- 75,87 ----
+  _DEV(altq, 72)
+  _DEV(iop, 73)
+  _DEV(pf, 39)
++ _DEV(ipl, 45)
++ _DEV(ipnat, 45)
++ _DEV(ipstate, 45)
++ _DEV(ipauth, 45)
++ _DEV(ipsync, 45)
++ _DEV(ipscan, 45)
++ _DEV(iplookup, 45)
+  _DEV(cry, 47)
+  _DEV(usbs)
+  _DEV(pci, 71)
+diff -r -c -d /tmp/etc/etc.mvme68k/MAKEDEV.md etc/etc.mvme68k/MAKEDEV.md
+*** /tmp/etc/etc.mvme68k/MAKEDEV.md	Sat Feb  9 08:59:50 2002
+--- etc/etc.mvme68k/MAKEDEV.md	Mon Apr 29 05:29:52 2002
+***************
+*** 94,100 ****
+  	sh MAKEDEV vnd0 vnd1 pty0 cd0
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh MAKEDEV ccd0 ccd1 ccd2 ccd3
+! 	sh MAKEDEV pf tun0 tun1 lkm local
+  	sh MAKEDEV sram0 nvram0 flash0 vmel0 vmes0
+  	#sh MAKEDEV lp0 lptwo0
+  	sh MAKEDEV random
+--- 94,100 ----
+  	sh MAKEDEV vnd0 vnd1 pty0 cd0
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh MAKEDEV ccd0 ccd1 ccd2 ccd3
+! 	sh MAKEDEV ipl pf tun0 tun1 lkm local
+  	sh MAKEDEV sram0 nvram0 flash0 vmel0 vmes0
+  	#sh MAKEDEV lp0 lptwo0
+  	sh MAKEDEV random
+***************
+*** 406,411 ****
+--- 406,423 ----
+  	chown root.wheel pf
+  	chmod 600 pf
+  	;;
++ 
++ ipl)
++       rm -f ipl ipnat ipstate ipauth
++       mknod ipl c 44 0
++       mknod ipnat c 44 1
++       mknod ipstate c 44 2
++       mknod ipauth c 44 3
++       mknod ipsync c 44 4
++       mknod ipscan c 44 5
++       mknod iplookup c 44 6
++       chown root.wheel ipl ipnat ipstate ipauth ipsync ipscan iplookup
++       ;;
+  
+  tun*)
+  	unit=`expr $i : 'tun\(.*\)'`
+diff -r -c -d /tmp/etc/etc.mvme88k/MAKEDEV.md etc/etc.mvme88k/MAKEDEV.md
+*** /tmp/etc/etc.mvme88k/MAKEDEV.md	Sat Feb  9 08:59:50 2002
+--- etc/etc.mvme88k/MAKEDEV.md	Mon Apr 29 05:30:58 2002
+***************
+*** 81,87 ****
+  	sh $this vnd0 vnd1 pty0 cd0
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh $this ccd0 ccd1 ccd2 ccd3
+! 	sh $this pf tun0 tun1 lkm local
+  	sh $this sram0 nvram0 flash0 vmel0 vmes0
+  	#sh $this lp0 lptwo0
+  	sh $this random
+--- 81,87 ----
+  	sh $this vnd0 vnd1 pty0 cd0
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh $this ccd0 ccd1 ccd2 ccd3
+! 	sh $this ipl pf tun0 tun1 lkm local
+  	sh $this sram0 nvram0 flash0 vmel0 vmes0
+  	#sh $this lp0 lptwo0
+  	sh $this random
+***************
+*** 285,290 ****
+--- 285,302 ----
+  	chown root.wheel pf
+  	chmod 600 pf
+  	;;
++ 
++ ipl)
++       rm -f ipl ipnat ipstate ipauth
++       mknod ipl c 41 0
++       mknod ipnat c 41 1
++       mknod ipstate c 41 2
++       mknod ipauth c 41 3
++       mknod ipsync c 41 4
++       mknod ipscan c 41 5
++       mknod iplookup c 41 6
++       chown root.wheel ipl ipnat ipstate ipauth ipsync ipscan iplookup
++       ;;
+  
+  bpf*|tun*)
+  	case $i in
+diff -r -c -d /tmp/etc/etc.mvmeppc/MAKEDEV.md etc/etc.mvmeppc/MAKEDEV.md
+*** /tmp/etc/etc.mvmeppc/MAKEDEV.md	Thu Apr 11 13:29:42 2002
+--- etc/etc.mvmeppc/MAKEDEV.md	Mon Apr 29 05:25:43 2002
+***************
+*** 68,73 ****
+--- 68,80 ----
+  _DEV(rnd)
+  _DEV(altq)
+  _DEV(pf, 39)
++ _DEV(ipl, 44)
++ _DEV(ipnat, 44)
++ _DEV(ipstate, 44)
++ _DEV(ipauth, 44)
++ _DEV(ipsync, 44)
++ _DEV(ipscan, 44)
++ _DEV(iplookup, 44)
+  _DEV(usbs)
+  #
+  dnl
+diff -r -c -d /tmp/etc/etc.sparc/MAKEDEV.md etc/etc.sparc/MAKEDEV.md
+*** /tmp/etc/etc.sparc/MAKEDEV.md	Sun Apr 14 16:20:55 2002
+--- etc/etc.sparc/MAKEDEV.md	Mon Apr 29 05:26:11 2002
+***************
+*** 63,68 ****
+--- 63,75 ----
+  _DEV(tcx, 109)
+  _DEV(bpf, 105)
+  _DEV(pf, 59)
++ _DEV(ipl, 60)
++ _DEV(ipnat, 60)
++ _DEV(ipstate, 60)
++ _DEV(ipauth, 60)
++ _DEV(ipsync, 60)
++ _DEV(ipscan, 60)
++ _DEV(iplookup, 60)
+  _DEV(altq, 125)
+  _DEV(lkm, 112)
+  _DEV(tun, 111)
+diff -r -c -d /tmp/etc/etc.sparc64/MAKEDEV.md etc/etc.sparc64/MAKEDEV.md
+*** /tmp/etc/etc.sparc64/MAKEDEV.md	Tue Apr  9 23:09:43 2002
+--- etc/etc.sparc64/MAKEDEV.md	Mon Apr 29 05:26:30 2002
+***************
+*** 82,87 ****
+--- 82,94 ----
+  _DEV(uk, 60)
+  _DEV(au, 69)
+  _DEV(pf, 73)
++ _DEV(ipl, 82)
++ _DEV(ipnat, 82)
++ _DEV(ipstate, 82)
++ _DEV(ipauth, 82)
++ _DEV(ipsync, 82)
++ _DEV(ipscan, 82)
++ _DEV(iplookup, 82)
+  _DEV(altq, 74)
+  _DEV(bpf, 105)
+  _DEV(tun, 111)
+diff -r -c -d /tmp/etc/etc.sun3/MAKEDEV.md etc/etc.sun3/MAKEDEV.md
+*** /tmp/etc/etc.sun3/MAKEDEV.md	Sun Apr 14 16:26:46 2002
+--- etc/etc.sun3/MAKEDEV.md	Mon Apr 29 05:27:01 2002
+***************
+*** 52,57 ****
+--- 52,64 ----
+  _DEV(cfr, 39)
+  _DEV(bpf, 36)
+  _DEV(pf, 75)
++ _DEV(ipl, 86)
++ _DEV(ipnat, 86)
++ _DEV(ipstate, 86)
++ _DEV(ipauth, 86)
++ _DEV(ipsync, 86)
++ _DEV(ipscan, 86)
++ _DEV(iplookup, 86)
+  _DEV(tun, 24)
+  _DEV(rd, 52, 13)
+  _DEV(rnd, 72)
+diff -r -c -d /tmp/etc/etc.vax/MAKEDEV.md etc/etc.vax/MAKEDEV.md
+*** /tmp/etc/etc.vax/MAKEDEV.md	Thu Feb 21 10:36:55 2002
+--- etc/etc.vax/MAKEDEV.md	Mon Apr 29 05:27:21 2002
+***************
+*** 70,75 ****
+--- 70,82 ----
+  _DEV(oppr)
+  _DEV(bpf, 56)
+  _DEV(pf, 42)
++ _DEV(ipl, 47)
++ _DEV(ipnat, 47)
++ _DEV(ipstate, 47)
++ _DEV(ipauth, 47)
++ _DEV(ipsync, 47)
++ _DEV(ipscan, 47)
++ _DEV(iplookup, 47)
+  _DEV(altq, 75)
+  _DEV(lkm, 28)
+  _DEV(tun, 57)
