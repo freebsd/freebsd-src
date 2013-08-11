@@ -124,21 +124,31 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 void
 cam_sim_release(struct cam_sim *sim)
 {
-	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
-	mtx_assert(sim->mtx, MA_OWNED);
+	int lock;
 
+	lock = (mtx_owned(sim->mtx) == 0);
+	if (lock)
+		CAM_SIM_LOCK(sim);
+	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
 	sim->refcount--;
 	if (sim->refcount == 0)
 		wakeup(sim);
+	if (lock)
+		CAM_SIM_UNLOCK(sim);
 }
 
 void
 cam_sim_hold(struct cam_sim *sim)
 {
-	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
-	mtx_assert(sim->mtx, MA_OWNED);
+	int lock;
 
+	lock = (mtx_owned(sim->mtx) == 0);
+	if (lock)
+		CAM_SIM_LOCK(sim);
+	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
 	sim->refcount++;
+	if (lock)
+		CAM_SIM_UNLOCK(sim);
 }
 
 void
