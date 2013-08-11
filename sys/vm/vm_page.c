@@ -1807,11 +1807,9 @@ retry:
 				    &deferred_vdrop_list);
 				if (vm_paging_needed())
 					pagedaemon_wakeup();
-				for (m = m_ret, m_tmp = m_ret;
+				for (m_tmp = m, m = m_ret;
 				    m < &m_ret[npages]; m++) {
-					if (m_tmp < m)
-						m_tmp++;
-					else
+					if (m >= m_tmp)
 						m->object = NULL;
 					vm_page_free(m);
 				}
