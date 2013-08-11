@@ -1,0 +1,818 @@
+diff -cr etc/MAKEDEV.mi.orig etc/MAKEDEV.mi
+*** etc/MAKEDEV.mi.orig	Fri Aug 30 09:43:16 2002
+--- etc/MAKEDEV.mi	Wed Nov 13 12:02:53 2002
+***************
+*** 153,158 ****
+--- 153,162 ----
+  target(all, pctr0)dnl
+  target(all, altq)dnl
+  target(all, pf)dnl
++ target(all, ipl)dnl
++ target(all, ipnat)dnl
++ target(all, ipstate)dnl
++ target(all, ipauth)dnl
+  twrget(all, cry, crypto)dnl
+  target(all, apm)dnl
+  twrget(all, tth, ttyh, 0, 1)dnl
+***************
+*** 1037,1042 ****
+--- 1041,1054 ----
+  _mkdev(cry, crypto, {-M crypto c major_cry_c-} 0)dnl
+  __devitem(pf, pf*, Packet Filter)dnl
+  _mkdev(pf, {-pf*-}, {-M pf c major_pf_c 0 600-})dnl
++ __devitem(ipl, ipl*, Packet Filter log)dnl
++ _mkdev(ipl, {-ipl*-}, {-M ipl c major_ipl_c 0 600-})dnl
++ __devitem(ipnat, ipnat*, Packet Filter NAT)dnl
++ _mkdev(ipnat, {-ipnat*-}, {-M ipnat c major_ipnat_c 1 600-})dnl
++ __devitem(ipstate, ipstate*, Packet Filter state)dnl
++ _mkdev(ipstate, {-ipstate*-}, {-M ipstate c major_ipstate_c 2 600-})dnl
++ __devitem(ipauth, ipauth*, Packet Filter auth)dnl
++ _mkdev(ipauth, {-ipauth*-}, {-M ipauth c major_ipauth_c 3 600-})dnl
+  __devitem(bpf, bpf*, Berkeley Packet Filter)dnl
+  _mkdev(bpf, {-bpf*-}, {-M bpf$U c major_bpf_c $U 600-}, 600)dnl
+  _mkdev(tun, {-tun*-}, {-M tun$U c major_tun_c $U 600-}, 600)dnl
+diff -cr etc/etc.alpha/MAKEDEV.orig etc/etc.alpha/MAKEDEV
+*** etc/etc.alpha/MAKEDEV.orig	Sun Aug 25 03:25:28 2002
+--- etc/etc.alpha/MAKEDEV	Wed Nov 13 12:04:34 2002
+***************
+*** 71,76 ****
+--- 71,77 ----
+  #	utty*	Serial ports
+  # Special purpose devices:
+  #	ch*	SCSI media changer
++ #	ipl	IP Filter
+  #	pf*	Packet Filter
+  #	bpf*	Berkeley Packet Filter
+  #	altq/	ALTQ control interface
+***************
+*** 339,344 ****
+--- 340,352 ----
+  	M bpf$U c 11 $U 600
+  	;;
+  
++ ipl)
++ 	M ipl c 44 0 600
++ 	M ipnat c 44 1 600
++ 	M ipstate c 44 2 600
++ 	M ipauth c 44 2 600
++ 	;;
++ 
+  pf*)
+  	M pf c 35 0 600
+  	;;
+***************
+*** 503,509 ****
+  	R tty00 tty01 tty02 tty03 ttyc0 ttyc1 ttyc2 ttyc3 ttyc4 ttyc5
+  	R ttyc6 ttyc7 ttyB0 ttyB1 ttyB2 ttyB3 ttyB4 ttyB5 pf altq
+  	R systrace wd0 wd1 wd2 wd3 raid0 raid1 raid2 raid3 std st0 st1
+! 	R fd
+  	;;
+  
+  wd*|sd*|raid*|ccd*)
+--- 511,517 ----
+  	R tty00 tty01 tty02 tty03 ttyc0 ttyc1 ttyc2 ttyc3 ttyc4 ttyc5
+  	R ttyc6 ttyc7 ttyB0 ttyB1 ttyB2 ttyB3 ttyB4 ttyB5 pf altq
+  	R systrace wd0 wd1 wd2 wd3 raid0 raid1 raid2 raid3 std st0 st1
+! 	R fd ipl
+  	;;
+  
+  wd*|sd*|raid*|ccd*)
+diff -cr etc/etc.alpha/MAKEDEV.md.orig etc/etc.alpha/MAKEDEV.md
+*** etc/etc.alpha/MAKEDEV.md.orig	Sun Aug 25 03:21:44 2002
+--- etc/etc.alpha/MAKEDEV.md	Wed Nov 13 12:02:53 2002
+***************
+*** 66,71 ****
+--- 66,75 ----
+  _TITLE(spec)
+  _DEV(ch, 14)
+  _DEV(pf, 35)
++ _DEV(ipl, 44)
++ _DEV(ipnat, 44)
++ _DEV(ipstate, 44)
++ _DEV(ipauth, 44)
+  _DEV(bpf, 11)
+  _DEV(altq, 53)
+  _DEV(iop, 54)
+diff -cr etc/etc.amiga/MAKEDEV.orig etc/etc.amiga/MAKEDEV
+*** etc/etc.amiga/MAKEDEV.orig	Tue Jun 18 10:56:04 2002
+--- etc/etc.amiga/MAKEDEV	Wed Nov 13 12:05:12 2002
+***************
+*** 70,75 ****
+--- 70,76 ----
+  #	lkm	loadable kernel modules interface
+  #	bpf*	Berkeley Packet Filter
+  #	tun*	network tunnel driver
++ #	ipl	IP Filter
+  #	pf*	Packet Filter
+  #	ss*	SCSI scanners
+  #	uk*	SCSI Unknown device
+***************
+*** 351,356 ****
+--- 352,364 ----
+  	MKlist="$MKlist;umask 77;ln -s ss$U scan$U"
+  	;;
+  
++ ipl)
++ 	M ipl c 38 0 600
++ 	M ipnat c 38 1 600
++ 	M ipstate c 38 2 600
++ 	M ipauth c 38 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 34 0 600
+  	;;
+***************
+*** 453,458 ****
+--- 461,467 ----
+  	R ttye6 tty00 tty01 tty02 tty03 ttyB0 ttyB1 ttyB2 ttyB3 ttyB4
+  	R ttyA0 ttyA1 pf altq systrace fd0 fd1 fd2 fd3 wd0 wd1 wd2 wd3
+  	R std st0 st1 fd
++ 	R ipl
+  	;;
+  
+  wd*|sd*|ccd*)
+diff -cr etc/etc.amiga/MAKEDEV.md.orig etc/etc.amiga/MAKEDEV.md
+*** etc/etc.amiga/MAKEDEV.md.orig	Sun Jun  9 16:15:14 2002
+--- etc/etc.amiga/MAKEDEV.md	Wed Nov 13 12:02:53 2002
+***************
+*** 65,70 ****
+--- 65,74 ----
+  _DEV(bpf, 22)
+  _DEV(tun, 23)
+  _DEV(pf, 34)
++ _DEV(ipl, 38)
++ _DEV(ipnat, 38)
++ _DEV(ipstate, 38)
++ _DEV(ipauth, 38)
+  _DEV(ss, 25)
+  _DEV(uk, 36)
+  _DEV(rnd, 35)
+diff -cr etc/etc.hp300/MAKEDEV.orig etc/etc.hp300/MAKEDEV
+*** etc/etc.hp300/MAKEDEV.orig	Sat Sep  7 07:48:48 2002
+--- etc/etc.hp300/MAKEDEV	Wed Nov 13 12:06:09 2002
+***************
+*** 61,66 ****
+--- 61,67 ----
+  #	ite*	terminal emulator interface to HP300 graphics devices
+  #	hil	HP300 HIL input devices
+  #	bpf*	Berkeley Packet Filter
++ #	ipl	IP Filter
+  #	tun*	network tunnel driver
+  #	pf*	Packet Filter
+  #	lkm	loadable kernel modules interface
+***************
+*** 325,330 ****
+--- 326,338 ----
+  	M lkm c 24 0 640 kmem
+  	;;
+  
++ ipl)
++ 	M ipl c 37 0 600
++ 	M ipnat c 37 1 600
++ 	M ipstate c 37 2 600
++ 	M ipauth c 37 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 33 0 600
+  	;;
+***************
+*** 404,409 ****
+--- 412,418 ----
+  	R sd2 sd3 sd4 rd0 tun0 tun1 tun2 tun3 bpf0 bpf1 bpf2 bpf3 bpf4
+  	R bpf5 bpf6 bpf7 bpf8 bpf9 pty0 pty1 pty2 xfs0 local ppi0
+  	R apci0 random lkm pf altq systrace std fd
++ 	R ipl
+  	;;
+  
+  sd*|hd*|ccd*)
+diff -cr etc/etc.hp300/MAKEDEV.md.orig etc/etc.hp300/MAKEDEV.md
+*** etc/etc.hp300/MAKEDEV.md.orig	Sat Sep  7 07:48:34 2002
+--- etc/etc.hp300/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 57,62 ****
+--- 57,66 ----
+  _DEV(bpf, 22)
+  _DEV(tun, 23)
+  _DEV(pf, 33)
++ _DEV(ipl, 37)
++ _DEV(ipnat, 37)
++ _DEV(ipstate, 37)
++ _DEV(ipauth, 37)
+  _DEV(lkm, 24)
+  _DEV(rnd, 32)
+  _DEV(xfs, 51)
+diff -cr etc/etc.hppa/MAKEDEV.orig etc/etc.hppa/MAKEDEV
+*** etc/etc.hppa/MAKEDEV.orig	Wed Oct  2 11:33:04 2002
+--- etc/etc.hppa/MAKEDEV	Wed Nov 13 12:06:15 2002
+***************
+*** 55,60 ****
+--- 55,61 ----
+  # Special purpose devices:
+  #	fd	makes fd/* for the fdescfs
+  #	bpf*	Berkeley Packet Filter
++ #	ipl	IP Filter
+  #	tun*	network tunnel driver
+  #	pf*	Packet Filter
+  #	lkm	loadable kernel modules interface
+***************
+*** 268,273 ****
+--- 269,281 ----
+  	M lkm c 19 0 640 kmem
+  	;;
+  
++ ipl)
++ 	M ipl c 38 0 600
++ 	M ipnat c 38 1 600
++ 	M ipstate c 38 2 600
++ 	M ipauth c 38 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 21 0 600
+  	;;
+***************
+*** 380,385 ****
+--- 388,394 ----
+  	R xfs0 ss0 ss1 ch0 ses0 audio0 uk0 random lpa0 lpa1 lpa2 lpt0
+  	R lpt1 lpt2 lkm tty00 tty01 tty02 tty03 crypto pf altq
+  	R systrace std st0 st1 fd
++ 	R ipl
+  	;;
+  
+  sd*|ccd*)
+diff -cr etc/etc.hppa/MAKEDEV.md.orig etc/etc.hppa/MAKEDEV.md
+*** etc/etc.hppa/MAKEDEV.md.orig	Wed Oct  2 11:33:04 2002
+--- etc/etc.hppa/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 51,56 ****
+--- 51,60 ----
+  _DEV(bpf, 17)
+  _DEV(tun, 18)
+  _DEV(pf, 21)
++ _DEV(ipl, 38)
++ _DEV(ipnat, 38)
++ _DEV(ipstate, 38)
++ _DEV(ipauth, 38)
+  _DEV(lkm, 19)
+  _DEV(altq, 33)
+  _DEV(rnd, 20)
+diff -cr etc/etc.i386/MAKEDEV.orig etc/etc.i386/MAKEDEV
+*** etc/etc.i386/MAKEDEV.orig	Tue Jun 18 10:56:04 2002
+--- etc/etc.i386/MAKEDEV	Wed Nov 13 12:06:31 2002
+***************
+*** 79,84 ****
+--- 79,85 ----
+  # Special purpose devices:
+  #	fd	makes fd/* for the fdescfs
+  #	crypto	hardware crypto access driver
++ #	ipl	IP Filter
+  #	pf*	Packet Filter
+  #	bpf*	Berkeley Packet Filter
+  #	speaker	pc speaker
+***************
+*** 382,387 ****
+--- 383,395 ----
+  	M bpf$U c 23 $U 600
+  	;;
+  
++ ipl)
++ 	M ipl c 81 0 600
++ 	M ipnat c 81 1 600
++ 	M ipstate c 81 2 600
++ 	M ipauth c 81 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 73 0 600
+  	;;
+***************
+*** 578,583 ****
+--- 586,592 ----
+  	R tty03 ttyc0 ttyc1 ttyc2 ttyc3 ttyc4 ttyc5 ttyc6 ttyc7 apm
+  	R crypto pf altq pctr systrace wd0 wd1 wd2 wd3 raid0 raid1
+  	R raid2 raid3 std st0 st1 fd mcd0
++ 	R ipl
+  	;;
+  
+  wd*|sd*|raid*|ccd*)
+diff -cr etc/etc.i386/MAKEDEV.md.orig etc/etc.i386/MAKEDEV.md
+*** etc/etc.i386/MAKEDEV.md.orig	Tue Jun 18 10:33:00 2002
+--- etc/etc.i386/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 74,79 ****
+--- 74,83 ----
+  _DEV(fdesc, 22)
+  _DEV(cry, 70)
+  _DEV(pf, 73)
++ _DEV(ipl, 81)
++ _DEV(ipnat, 81)
++ _DEV(ipstate, 81)
++ _DEV(ipauth, 81)
+  _DEV(bpf, 23)
+  _DEV(speak, 27)
+  _DEV(lkm, 28)
+diff -cr etc/etc.mac68k/MAKEDEV.orig etc/etc.mac68k/MAKEDEV
+*** etc/etc.mac68k/MAKEDEV.orig	Tue Jun 18 10:56:04 2002
+--- etc/etc.mac68k/MAKEDEV	Wed Nov 13 12:06:50 2002
+***************
+*** 56,61 ****
+--- 56,62 ----
+  #		CyberVision 64 (grf5)
+  # Special purpose devices:
+  #	bpf*	Berkeley Packet Filter
++ #	ipl	IP Filter
+  #	tun*	network tunnel driver
+  #	pf*	Packet Filter
+  #	altq/	ALTQ control interface
+***************
+*** 286,291 ****
+--- 287,299 ----
+  	done
+  	;;
+  
++ ipl)
++ 	M ipl c 38 0 600
++ 	M ipnat c 38 1 600
++ 	M ipstate c 38 2 600
++ 	M ipauth c 38 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 35 0 600
+  	;;
+***************
+*** 364,369 ****
+--- 372,378 ----
+  	R xfs0 ss0 ss1 ch0 vnd0 vnd1 vnd2 vnd3 sd0 sd1 sd2 sd3 sd4
+  	R local grf0 grf1 grf2 grf3 adb asc0 uk0 random lkm ttye0
+  	R tty00 tty01 pf altq systrace std st0 st1 fd
++ 	R ipl
+  	;;
+  
+  sd*|ccd*)
+diff -cr etc/etc.mac68k/MAKEDEV.md.orig etc/etc.mac68k/MAKEDEV.md
+*** etc/etc.mac68k/MAKEDEV.md.orig	Fri May 17 07:11:20 2002
+--- etc/etc.mac68k/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 50,55 ****
+--- 50,59 ----
+  _DEV(bpf, 22)
+  _DEV(tun, 24)
+  _DEV(pf, 35)
++ _DEV(ipl, 38)
++ _DEV(ipnat, 38)
++ _DEV(ipstate, 38)
++ _DEV(ipauth, 38)
+  _DEV(altq, 52)
+  _DEV(lkm, 25)
+  _DEV(rnd, 32)
+diff -cr etc/etc.macppc/MAKEDEV.orig etc/etc.macppc/MAKEDEV
+*** etc/etc.macppc/MAKEDEV.orig	Tue Jun 18 10:56:04 2002
+--- etc/etc.macppc/MAKEDEV	Wed Nov 13 12:07:02 2002
+***************
+*** 72,77 ****
+--- 72,78 ----
+  #	audio*	audio device
+  #	apm		power management device
+  #	bpf*	Berkeley Packet Filter
++ #	ipl	IP Filter
+  #	tun*	network tunnel driver
+  #	lkm	loadable kernel modules interface
+  #	*random	inkernel random data source
+***************
+*** 241,246 ****
+--- 242,254 ----
+  	M crypto c 47 0
+  	;;
+  
++ ipl)
++ 	M ipl c 45 0 600
++ 	M ipnat c 45 1 600
++ 	M ipstate c 45 2 600
++ 	M ipauth c 45 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 39 0 600
+  	;;
+***************
+*** 449,454 ****
+--- 457,463 ----
+  	R local wscons pci iop0 iop1 usbs audio0 uk0 random lkm tty00
+  	R tty01 tty02 tty03 apm crypto pf altq systrace wd0 wd1 wd2
+  	R wd3 raid0 raid1 raid2 raid3 std st0 st1 fd
++ 	R ipl
+  	;;
+  
+  wd*|sd*|raid*|ccd*)
+diff -cr etc/etc.macppc/MAKEDEV.md.orig etc/etc.macppc/MAKEDEV.md
+*** etc/etc.macppc/MAKEDEV.md.orig	Fri May 17 07:11:20 2002
+--- etc/etc.macppc/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 75,80 ****
+--- 75,84 ----
+  _DEV(altq, 72)
+  _DEV(iop, 73)
+  _DEV(pf, 39)
++ _DEV(ipl, 45)
++ _DEV(ipnat, 45)
++ _DEV(ipstate, 45)
++ _DEV(ipauth, 45)
+  _DEV(cry, 47)
+  _DEV(usbs)
+  _DEV(pci, 71)
+diff -cr etc/etc.mvme68k/MAKEDEV.orig etc/etc.mvme68k/MAKEDEV
+*** etc/etc.mvme68k/MAKEDEV.orig	Thu Aug 22 08:08:01 2002
+--- etc/etc.mvme68k/MAKEDEV	Wed Nov 13 12:13:20 2002
+***************
+*** 60,65 ****
+--- 60,66 ----
+  #	fd	makes fd/* for the fdescfs
+  #	bpf*	Berkeley Packet Filter
+  #	tun*	network tunnel driver
++ #	ipl	IP Packet Filter
+  #	pf*	Packet Filter
+  #	lkm	loadable kernel modules interface
+  #	*random	inkernel random data source
+***************
+*** 262,267 ****
+--- 263,275 ----
+  	M bpf$U c 22 $U 600
+  	;;
+  
++ ipl)
++ 	M ipl c 44 0 600
++ 	M ipnat c 44 1 600
++ 	M ipstate c 44 2 600
++ 	M ipauth c 44 3 600
++ 	;;
++ 
+  fd)
+  	RMlist="mkdir -p fd;$RMlist" n=0
+  	while [ $n -lt 64 ];do M fd/$n c 21 $n;n=$(($n+1));done
+***************
+*** 398,403 ****
+--- 406,412 ----
+  	R tun3 bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9 pty0
+  	R pty1 pty2 xfs0 ss0 ss1 vmel0 vmes0 flash0 nvram0 sram0 uk0
+  	R random lkm pf altq systrace std st0 st1 fd
++ 	R ipl
+  	;;
+  
+  sd*|ccd*)
+diff -cr etc/etc.mvme68k/MAKEDEV.md.orig etc/etc.mvme68k/MAKEDEV.md
+*** etc/etc.mvme68k/MAKEDEV.md.orig	Thu Aug 22 08:07:43 2002
+--- etc/etc.mvme68k/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 176,178 ****
+--- 176,187 ----
+  _std(1, 2, 43, 3, 6)
+  	;;
+  
++ ipl)
++       rm -f ipl ipnat ipstate ipauth
++       mknod ipl c 44 0
++       mknod ipnat c 44 1
++       mknod ipstate c 44 2
++       mknod ipauth c 44 3
++       chown root.wheel ipl ipnat ipstate ipauth
++       ;;
++ 
+diff -cr etc/etc.mvme88k/MAKEDEV.orig etc/etc.mvme88k/MAKEDEV
+*** etc/etc.mvme88k/MAKEDEV.orig	Thu Aug 22 08:08:03 2002
+--- etc/etc.mvme88k/MAKEDEV	Wed Nov 13 12:23:17 2002
+***************
+*** 55,60 ****
+--- 55,61 ----
+  #	fd	makes fd/* for the fdescfs
+  #	bpf*	Berkeley Packet Filter
+  #	tun*	network tunnel driver
++ #	ipl	IP Packet Filter
+  #	pf*	Packet Filter
+  #	lkm	loadable kernel modules interface
+  #	*random	inkernel random data source
+***************
+*** 252,257 ****
+--- 253,265 ----
+  	M bpf$U c 22 $U 600
+  	;;
+  
++ ipl)
++ 	M ipl c 41 0 600
++ 	M ipnat c 41 1 600
++ 	M ipstate c 41 2 600
++ 	M ipauth c 41 3 600
++ 	;;
++ 
+  fd)
+  	RMlist="mkdir -p fd;$RMlist" n=0
+  	while [ $n -lt 64 ];do M fd/$n c 21 $n;n=$(($n+1));done
+***************
+*** 354,359 ****
+--- 362,368 ----
+  	R tun2 tun3 bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	R pty0 pty1 pty2 xfs0 vmel0 vmes0 nvram0 sram0 random lkm pf
+  	R altq systrace std st0 st1 fd
++ 	R ipl
+  	;;
+  
+  sd*|ccd*)
+diff -cr etc/etc.mvme88k/MAKEDEV.md.orig etc/etc.mvme88k/MAKEDEV.md
+*** etc/etc.mvme88k/MAKEDEV.md.orig	Thu Aug 22 08:07:44 2002
+--- etc/etc.mvme88k/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 145,147 ****
+--- 145,156 ----
+  _std(1, 2, 43, 3, 6)
+  	;;
+  
++ ipl)
++       rm -f ipl ipnat ipstate ipauth
++       mknod ipl c 41 0
++       mknod ipnat c 41 1
++       mknod ipstate c 41 2
++       mknod ipauth c 41 3
++       chown root.wheel ipl ipnat ipstate ipauth
++       ;;
++ 
+diff -cr etc/etc.mvmeppc/MAKEDEV.orig etc/etc.mvmeppc/MAKEDEV
+*** etc/etc.mvmeppc/MAKEDEV.orig	Sun Jun  9 15:58:39 2002
+--- etc/etc.mvmeppc/MAKEDEV	Wed Nov 13 12:15:06 2002
+***************
+*** 73,78 ****
+--- 73,79 ----
+  #	audio*  audio
+  #	ch*	SCSI media changer
+  #	bpf*	Berkeley Packet Filter
++ #	ipl	IP Filter
+  #	tun*	network tunnel driver
+  #	lkm	loadable kernel modules interface
+  #	*random	inkernal random data source
+***************
+*** 157,163 ****
+  	sh $this ttyC0 ttyCcfg
+  	sh $this tty00 tty01 tty02 tty03 pty0 pty1
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh $this pf tun0 tun1 tun2 tun3
+  	sh $this audio0
+  	sh $this random uk0 uk1 ss0 ss1
+  	sh $this wscons
+--- 158,164 ----
+  	sh $this ttyC0 ttyCcfg
+  	sh $this tty00 tty01 tty02 tty03 pty0 pty1
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh $this ipl pf tun0 tun1 tun2 tun3
+  	sh $this audio0
+  	sh $this random uk0 uk1 ss0 ss1
+  	sh $this wscons
+***************
+*** 523,528 ****
+--- 524,539 ----
+  	rm -f bpf${unit}
+  	mknod bpf${unit} c 22 ${unit}
+  	chown root.wheel bpf${unit}
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 44 0
++ 	mknod ipnat c 44 1
++ 	mknod ipstate c 44 2
++ 	mknod ipauth c 44 3
++ 	chown root.wheel ipl ipnat ipstate ipauth
++ 	chmod 600 ipl ipnat ipstate ipauth
+  	;;
+  
+  pf)
+diff -cr etc/etc.sparc/MAKEDEV.orig etc/etc.sparc/MAKEDEV
+*** etc/etc.sparc/MAKEDEV.orig	Fri Aug 30 09:43:41 2002
+--- etc/etc.sparc/MAKEDEV	Wed Nov 13 12:15:27 2002
+***************
+*** 67,72 ****
+--- 67,73 ----
+  #	audio*	audio device
+  #	openprom	
+  #	bpf*	Berkeley Packet Filter
++ #	ipl	IP Filter
+  #	pf*	Packet Filter
+  #	altq/	ALTQ control interface
+  #	lkm	loadable kernel modules interface
+***************
+*** 297,302 ****
+--- 298,310 ----
+  	done
+  	;;
+  
++ ipl)
++ 	M ipl c 60 0 600
++ 	M ipnat c 60 1 600
++ 	M ipstate c 60 2 600
++ 	M ipauth c 60 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 59 0 600
+  	;;
+***************
+*** 483,489 ****
+  	R fd1F fd1G fd1H fd0 fd0B fd0C fd0D fd0E fd0F fd0G fd0H xfs0
+  	R ss0 ss1 ch0 ses0 wscons audio0 uk0 random lkm pf altq
+  	R systrace xd0 xd1 xd2 xd3 raid0 raid1 raid2 raid3 std st0 st1
+! 	R fd
+  	;;
+  
+  xd*|xy*|sd*|raid*|ccd*)
+--- 491,497 ----
+  	R fd1F fd1G fd1H fd0 fd0B fd0C fd0D fd0E fd0F fd0G fd0H xfs0
+  	R ss0 ss1 ch0 ses0 wscons audio0 uk0 random lkm pf altq
+  	R systrace xd0 xd1 xd2 xd3 raid0 raid1 raid2 raid3 std st0 st1
+! 	R ipl fd
+  	;;
+  
+  xd*|xy*|sd*|raid*|ccd*)
+diff -cr etc/etc.sparc/MAKEDEV.md.orig etc/etc.sparc/MAKEDEV.md
+*** etc/etc.sparc/MAKEDEV.md.orig	Mon Aug 12 20:45:06 2002
+--- etc/etc.sparc/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 94,99 ****
+--- 94,103 ----
+  _DEV(oppr)
+  _DEV(bpf, 105)
+  _DEV(pf, 59)
++ _DEV(ipl, 60)
++ _DEV(ipnat, 60)
++ _DEV(ipstate, 60)
++ _DEV(ipauth, 60)
+  _DEV(altq, 125)
+  _DEV(lkm, 112)
+  _DEV(tun, 111)
+diff -cr etc/etc.sparc64/MAKEDEV.orig etc/etc.sparc64/MAKEDEV
+*** etc/etc.sparc64/MAKEDEV.orig	Fri Aug 30 09:43:41 2002
+--- etc/etc.sparc64/MAKEDEV	Wed Nov 13 12:15:43 2002
+***************
+*** 84,89 ****
+--- 84,90 ----
+  #	ss*	SCSI scanners
+  #	uk*	SCSI Unknown device
+  #	audio*	audio device
++ #	ipl	IP Filter
+  #	pf*	Packet Filter
+  #	altq/	ALTQ control interface
+  #	bpf*	Berkeley Packet Filter
+***************
+*** 326,331 ****
+--- 327,339 ----
+  	done
+  	;;
+  
++ ipl)
++ 	M ipl c 82 0 600
++ 	M ipnat c 82 1 600
++ 	M ipstate c 82 2 600
++ 	M ipauth c 82 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 73 0 600
+  	;;
+***************
+*** 571,576 ****
+--- 579,585 ----
+  	R lpt1 lpt2 lkm tty00 tty01 tty02 tty03 ttyh0 ttyh1 crypto pf
+  	R altq systrace wd0 wd1 wd2 wd3 raid0 raid1 raid2 raid3 std
+  	R st0 st1 fd
++ 	R ipl
+  	;;
+  
+  wd*|sd*|raid*|ccd*)
+diff -cr etc/etc.sparc64/MAKEDEV.md.orig etc/etc.sparc64/MAKEDEV.md
+*** etc/etc.sparc64/MAKEDEV.md.orig	Thu Aug  1 02:47:50 2002
+--- etc/etc.sparc64/MAKEDEV.md	Wed Nov 13 12:02:54 2002
+***************
+*** 82,87 ****
+--- 82,91 ----
+  _DEV(uk, 60)
+  _DEV(au, 69)
+  _DEV(pf, 73)
++ _DEV(ipl, 82)
++ _DEV(ipnat, 82)
++ _DEV(ipstate, 82)
++ _DEV(ipauth, 82)
+  _DEV(altq, 74)
+  _DEV(bpf, 105)
+  _DEV(tun, 111)
+diff -cr etc/etc.sun3/MAKEDEV.orig etc/etc.sun3/MAKEDEV
+*** etc/etc.sun3/MAKEDEV.orig	Tue Jun 18 10:56:04 2002
+--- etc/etc.sun3/MAKEDEV	Wed Nov 13 12:15:55 2002
+***************
+*** 57,62 ****
+--- 57,63 ----
+  #	cgtwo*	
+  #	cgfour*	
+  #	bpf*	Berkeley Packet Filter
++ #	ipl	IP Filter
+  #	pf*	Packet Filter
+  #	tun*	network tunnel driver
+  #	rd*	"rd" pseudo-disks
+***************
+*** 267,272 ****
+--- 268,280 ----
+  	M tun$U c 24 $U 600
+  	;;
+  
++ ipl)
++ 	M ipl c 87 0 600
++ 	M ipnat c 87 1 600
++ 	M ipstate c 87 2 600
++ 	M ipauth c 87 3 600
++ 	;;
++ 
+  pf*)
+  	M pf c 75 0 600
+  	;;
+***************
+*** 346,351 ****
+--- 354,360 ----
+  	R bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9 pty0 pty1 pty2 xfs0
+  	R ss0 ss1 local cgfour0 cgtwo0 bwtwo0 uk0 random ttya ttyb
+  	R ttyc ttyd pf altq systrace xd0 xd1 xd2 xd3 std st0 st1 fd
++ 	R ipl
+  	;;
+  
+  xd*|xy*|sd*|ccd*)
+diff -cr etc/etc.sun3/MAKEDEV.md.orig etc/etc.sun3/MAKEDEV.md
+*** etc/etc.sun3/MAKEDEV.md.orig	Sun Jun  9 16:15:15 2002
+--- etc/etc.sun3/MAKEDEV.md	Wed Nov 13 12:02:55 2002
+***************
+*** 52,57 ****
+--- 52,61 ----
+  _DEV(cfr, 39)
+  _DEV(bpf, 36)
+  _DEV(pf, 75)
++ _DEV(ipl, 87)
++ _DEV(ipnat, 87)
++ _DEV(ipstate, 87)
++ _DEV(ipauth, 87)
+  _DEV(tun, 24)
+  _DEV(rd, 52, 13)
+  _DEV(rnd, 72)
+diff -cr etc/etc.vax/MAKEDEV.orig etc/etc.vax/MAKEDEV
+*** etc/etc.vax/MAKEDEV.orig	Mon Jun 24 20:43:31 2002
+--- etc/etc.vax/MAKEDEV	Wed Nov 13 12:16:11 2002
+***************
+*** 56,61 ****
+--- 56,62 ----
+  #	qv*	qvss (microvax) display
+  #	lkm	loadable kernel modules
+  #	bpf*	berkeley packet filter
++ #	ipl	IP Filter
+  #	tun*	network tunnel device
+  #	ss*	SCSI scanner
+  #	uk*	SCSI unknown
+***************
+*** 79,84 ****
+--- 80,86 ----
+  	sh $0 dz0 dl0 dhu0 rx0 rx1 raid0 raid1 raid2 raid3
+  	sh $0 ttyg0 ttyg1 ttyg2 ttyg3
+  	sh $0 crl std-extra systrace
++ 	sh $0 ipl
+  	;;
+  
+  floppy)
+***************
+*** 616,621 ****
+--- 618,633 ----
+  	mknod bpf$unit c 56 $unit
+  	chmod 600 bpf$unit
+  	chown root.wheel bpf$unit
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 47 0
++ 	mknod ipnat c 47 1
++ 	mknod ipstate c 47 2
++ 	mknod ipauth c 47 3
++ 	chown root.wheel ipl ipnat ipstate ipauth
++ 	chmod 600 ipl ipnat ipstate ipauth
+  	;;
+  
+  qd*)
+diff -cr etc/etc.vax/MAKEDEV.md.orig etc/etc.vax/MAKEDEV.md
+*** etc/etc.vax/MAKEDEV.md.orig	Fri May 17 07:11:21 2002
+--- etc/etc.vax/MAKEDEV.md	Wed Nov 13 12:02:55 2002
+***************
+*** 70,75 ****
+--- 70,79 ----
+  _DEV(oppr)
+  _DEV(bpf, 56)
+  _DEV(pf, 42)
++ _DEV(ipl, 47)
++ _DEV(ipnat, 47)
++ _DEV(ipstate, 47)
++ _DEV(ipauth, 47)
+  _DEV(altq, 75)
+  _DEV(lkm, 28)
+  _DEV(tun, 57)

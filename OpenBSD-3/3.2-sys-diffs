@@ -1,0 +1,1056 @@
+diff -d -c -r /tmp/sys/arch/alpha/alpha/conf.c sys/arch/alpha/alpha/conf.c
+*** /tmp/sys/arch/alpha/alpha/conf.c	Thu Jul 11 00:08:47 2002
+--- sys/arch/alpha/alpha/conf.c	Sat Nov  2 12:10:33 2002
+***************
+*** 107,112 ****
+--- 107,117 ----
+  #include "lpt.h"
+  cdev_decl(lpt);
+  cdev_decl(prom);			/* XXX XXX XXX */
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
+  cdev_decl(wd);
+  cdev_decl(fd);
+  #include "cy.h"
+***************
+*** 179,185 ****
+  	cdev_midi_init(NMIDI,midi),     /* 41: MIDI I/O */
+          cdev_midi_init(NSEQUENCER,sequencer),   /* 42: sequencer I/O */
+  	cdev_disk_init(NRAID,raid),	/* 43: RAIDframe disk driver */
+! 	cdev_notdef(),			/* 44 */
+  	cdev_usb_init(NUSB,usb),	/* 45: USB controller */
+  	cdev_usbdev_init(NUHID,uhid),	/* 46: USB generic HID */
+  	cdev_ulpt_init(NULPT,ulpt),	/* 47: USB printer */
+--- 184,190 ----
+  	cdev_midi_init(NMIDI,midi),     /* 41: MIDI I/O */
+          cdev_midi_init(NSEQUENCER,sequencer),   /* 42: sequencer I/O */
+  	cdev_disk_init(NRAID,raid),	/* 43: RAIDframe disk driver */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 44: IP filter log */
+  	cdev_usb_init(NUSB,usb),	/* 45: USB controller */
+  	cdev_usbdev_init(NUHID,uhid),	/* 46: USB generic HID */
+  	cdev_ulpt_init(NULPT,ulpt),	/* 47: USB printer */
+diff -d -c -r /tmp/sys/arch/amiga/amiga/conf.c sys/arch/amiga/amiga/conf.c
+*** /tmp/sys/arch/amiga/amiga/conf.c	Tue Jun 11 05:25:30 2002
+--- sys/arch/amiga/amiga/conf.c	Sat Nov  2 12:10:34 2002
+***************
+*** 159,165 ****
+  	cdev_random_init(1,random),	/* 35: random data source */
+  	cdev_uk_init(NUK,uk),		/* 36: unknown SCSI */
+  	cdev_disk_init(NWD,wd),		/* 37: ST506/ESDI/IDE disk */
+! 	cdev_notdef(),			/* 38 */
+  	cdev_audio_init(NAUDIO,audio),	/* 39: cc audio interface */
+  	cdev_ch_init(NCH,ch),		/* 40: SCSI autochanger */
+  	cdev_disk_init(NRD,rd),		/* 41: RAM disk */
+--- 159,165 ----
+  	cdev_random_init(1,random),	/* 35: random data source */
+  	cdev_uk_init(NUK,uk),		/* 36: unknown SCSI */
+  	cdev_disk_init(NWD,wd),		/* 37: ST506/ESDI/IDE disk */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 38: IP filter log */
+  	cdev_audio_init(NAUDIO,audio),	/* 39: cc audio interface */
+  	cdev_ch_init(NCH,ch),		/* 40: SCSI autochanger */
+  	cdev_disk_init(NRD,rd),		/* 41: RAM disk */
+diff -d -c -r /tmp/sys/arch/hp300/hp300/conf.c sys/arch/hp300/hp300/conf.c
+*** /tmp/sys/arch/hp300/hp300/conf.c	Thu Jul 11 00:08:47 2002
+--- sys/arch/hp300/hp300/conf.c	Sat Nov  2 12:10:34 2002
+***************
+*** 126,131 ****
+--- 126,137 ----
+  cdev_decl(xfs_dev);
+  #endif
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 171,177 ****
+  	cdev_disk_init(NRD,rd),		/* 34: RAM disk */
+  	cdev_tty_init(NAPCI,apci),	/* 35: Apollo APCI UARTs */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 36: Kernel symbols device */
+! 	cdev_notdef(),			/* 37 */
+  	cdev_notdef(),			/* 38 */
+  	cdev_notdef(),			/* 39 */
+  	cdev_notdef(),			/* 40 */
+--- 177,183 ----
+  	cdev_disk_init(NRD,rd),		/* 34: RAM disk */
+  	cdev_tty_init(NAPCI,apci),	/* 35: Apollo APCI UARTs */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 36: Kernel symbols device */
+! 	cdev_pf_init(NIPF,ipl),		/* 37: packet filter */
+  	cdev_notdef(),			/* 38 */
+  	cdev_notdef(),			/* 39 */
+  	cdev_notdef(),			/* 40 */
+diff -d -c -r /tmp/sys/arch/hppa/hppa/conf.c sys/arch/hppa/hppa/conf.c
+*** /tmp/sys/arch/hppa/hppa/conf.c	Wed Oct  2 03:42:11 2002
+--- sys/arch/hppa/hppa/conf.c	Sun Nov  3 08:07:21 2002
+***************
+*** 107,112 ****
+--- 107,118 ----
+  #include "com.h"
+  cdev_decl(com);
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 158,163 ****
+--- 164,170 ----
+  	cdev_audio_init(NAUDIO,audio),	/* 35: /dev/audio */
+  	cdev_crypto_init(NCRYPTO,crypto), /* 36: /dev/crypto */
+  	cdev_ses_init(NSES,ses),	/* 37: SCSI SES/SAF-TE */
++  	cdev_gen_ipf(NIPF,ipl),		/* 38: ip filtering */
+  	cdev_lkm_dummy(),
+  	cdev_lkm_dummy(),
+  	cdev_lkm_dummy(),
+diff -d -c -r /tmp/sys/arch/i386/i386/conf.c sys/arch/i386/i386/conf.c
+*** /tmp/sys/arch/i386/i386/conf.c	Thu Jul 11 00:21:30 2002
+--- sys/arch/i386/i386/conf.c	Sun Nov  3 13:49:00 2002
+***************
+*** 196,201 ****
+--- 196,207 ----
+  #include "radio.h"
+  #include "gpr.h"
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  /* XXX -- this needs to be supported by config(8)! */
+  #if (NCOM > 0) && (NPCCOM > 0)
+  #error com and pccom are mutually exclusive.  Sorry.
+***************
+*** 321,327 ****
+  	cdev_usbdev_init(NUSCANNER,uscanner),	/* 77: USB scanners */
+  	cdev_systrace_init(NSYSTRACE,systrace),	/* 78: system call tracing */
+   	cdev_oci_init(NBIO,bio),	/* 79: ioctl tunnel */
+! 	cdev_ch_init(NGPR,gpr)		/* 80: GPR400 SmartCard reader */
+  };
+  int	nchrdev = sizeof(cdevsw) / sizeof(cdevsw[0]);
+  
+--- 327,335 ----
+  	cdev_usbdev_init(NUSCANNER,uscanner),	/* 77: USB scanners */
+  	cdev_systrace_init(NSYSTRACE,systrace),	/* 78: system call tracing */
+   	cdev_oci_init(NBIO,bio),	/* 79: ioctl tunnel */
+! 	cdev_ch_init(NGPR,gpr),		/* 80: GPR400 SmartCard reader */
+!  	cdev_gen_ipf(NIPF,ipl)		/* 81: ip filtering */
+! 
+  };
+  int	nchrdev = sizeof(cdevsw) / sizeof(cdevsw[0]);
+  
+diff -d -c -r /tmp/sys/arch/mac68k/mac68k/conf.c sys/arch/mac68k/mac68k/conf.c
+*** /tmp/sys/arch/mac68k/mac68k/conf.c	Thu Jul 11 00:08:47 2002
+--- sys/arch/mac68k/mac68k/conf.c	Sat Nov  2 12:10:35 2002
+***************
+*** 108,113 ****
+--- 108,119 ----
+  cdev_decl(xfs_dev);
+  #endif
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 154,160 ****
+  	cdev_pf_init(NPF,pf),		/* 35: packet filter */
+  	cdev_audio_init(NASC,asc),      /* 36: ASC audio device */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 37: Kernel symbols device */
+! 	cdev_notdef(),			/* 38 */
+  	cdev_notdef(),			/* 39 */
+  	cdev_notdef(),			/* 40 */
+  	cdev_notdef(),			/* 41 */
+--- 160,166 ----
+  	cdev_pf_init(NPF,pf),		/* 35: packet filter */
+  	cdev_audio_init(NASC,asc),      /* 36: ASC audio device */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 37: Kernel symbols device */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 38: IP filter log */
+  	cdev_notdef(),			/* 39 */
+  	cdev_notdef(),			/* 40 */
+  	cdev_notdef(),			/* 41 */
+diff -d -c -r /tmp/sys/arch/macppc/macppc/conf.c sys/arch/macppc/macppc/conf.c
+*** /tmp/sys/arch/macppc/macppc/conf.c	Sun Sep 15 11:01:58 2002
+--- sys/arch/macppc/macppc/conf.c	Sat Nov  2 12:10:35 2002
+***************
+*** 105,110 ****
+--- 105,116 ----
+  
+  #include "tun.h"
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #ifdef XFS
+  #include <xfs/nxfs.h>
+  cdev_decl(xfs_dev);
+***************
+*** 190,196 ****
+  	cdev_ss_init(NSS,ss),		/* 42: SCSI scanner */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 43: Kernel symbols device */
+  	cdev_audio_init(NAUDIO,audio),	/* 44: generic audio I/O */
+! 	cdev_notdef(),			/* 45 */
+  	cdev_notdef(),			/* 46 */
+  	cdev_crypto_init(NCRYPTO,crypto), /* 47: /dev/crypto */
+  	cdev_notdef(),			/* 48 */
+--- 196,202 ----
+  	cdev_ss_init(NSS,ss),		/* 42: SCSI scanner */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 43: Kernel symbols device */
+  	cdev_audio_init(NAUDIO,audio),	/* 44: generic audio I/O */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 45: IP filter */
+  	cdev_notdef(),			/* 46 */
+  	cdev_crypto_init(NCRYPTO,crypto), /* 47: /dev/crypto */
+  	cdev_notdef(),			/* 48 */
+diff -d -c -r /tmp/sys/arch/mvme68k/mvme68k/conf.c sys/arch/mvme68k/mvme68k/conf.c
+*** /tmp/sys/arch/mvme68k/mvme68k/conf.c	Thu Jul 11 00:08:47 2002
+--- sys/arch/mvme68k/mvme68k/conf.c	Sat Nov  2 12:10:35 2002
+***************
+*** 158,163 ****
+--- 158,169 ----
+  #include "bpfilter.h"
+  #include "tun.h"
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 214,220 ****
+  	cdev_uk_init(NUK,uk),		/* 41: unknown SCSI */
+  	cdev_ss_init(NSS,ss),           /* 42: SCSI scanner */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 43: Kernel symbols device */
+! 	cdev_lkm_dummy(),		/* 44 */
+  	cdev_lkm_dummy(),		/* 45 */
+  	cdev_lkm_dummy(),		/* 46 */
+  	cdev_lkm_dummy(),		/* 47 */
+--- 220,226 ----
+  	cdev_uk_init(NUK,uk),		/* 41: unknown SCSI */
+  	cdev_ss_init(NSS,ss),           /* 42: SCSI scanner */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 43: Kernel symbols device */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 44: IP filter */
+  	cdev_lkm_dummy(),		/* 45 */
+  	cdev_lkm_dummy(),		/* 46 */
+  	cdev_lkm_dummy(),		/* 47 */
+diff -d -c -r /tmp/sys/arch/mvme88k/mvme88k/conf.c sys/arch/mvme88k/mvme88k/conf.c
+*** /tmp/sys/arch/mvme88k/mvme88k/conf.c	Thu Jul 11 00:08:47 2002
+--- sys/arch/mvme88k/mvme88k/conf.c	Sat Nov  2 12:10:35 2002
+***************
+*** 101,106 ****
+--- 101,112 ----
+  cdev_decl(lptwo);
+  #endif /* notyet */
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 189,195 ****
+  	cdev_lkm_dummy(),                /* 38 */
+  	cdev_pf_init(NPF,pf),		 /* 39: packet filter */
+  	cdev_random_init(1,random),	 /* 40: random data source */
+! 	cdev_notdef(),                   /* 41 */
+  	cdev_notdef(),                   /* 42 */
+  	cdev_ksyms_init(NKSYMS,ksyms),	 /* 43: Kernel symbols device */
+  	cdev_notdef(),                   /* 44 */
+--- 195,201 ----
+  	cdev_lkm_dummy(),                /* 38 */
+  	cdev_pf_init(NPF,pf),		 /* 39: packet filter */
+  	cdev_random_init(1,random),	 /* 40: random data source */
+! 	cdev_gen_ipf(NIPF,ipl),		 /* 41: IP filter */
+  	cdev_notdef(),                   /* 42 */
+  	cdev_ksyms_init(NKSYMS,ksyms),	 /* 43: Kernel symbols device */
+  	cdev_notdef(),                   /* 44 */
+diff -d -c -r /tmp/sys/arch/mvmeppc/mvmeppc/conf.c sys/arch/mvmeppc/mvmeppc/conf.c
+*** /tmp/sys/arch/mvmeppc/mvmeppc/conf.c	Thu Jul 11 00:08:47 2002
+--- sys/arch/mvmeppc/mvmeppc/conf.c	Sat Nov  2 12:10:36 2002
+***************
+*** 114,119 ****
+--- 114,125 ----
+   
+  #include "ksyms.h"
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 169,175 ****
+  	cdev_uk_init(NUK,uk),		/* 41: unknown SCSI */
+  	cdev_ss_init(NSS,ss),           /* 42: SCSI scanner */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 43: Kernel symbols device */
+!         cdev_notdef(),                  /* 44 */
+          cdev_notdef(),                  /* 45 */
+          cdev_notdef(),                  /* 46 */
+          cdev_notdef(),                  /* 47 */
+--- 175,181 ----
+  	cdev_uk_init(NUK,uk),		/* 41: unknown SCSI */
+  	cdev_ss_init(NSS,ss),           /* 42: SCSI scanner */
+  	cdev_ksyms_init(NKSYMS,ksyms),	/* 43: Kernel symbols device */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 44: IP filter */
+          cdev_notdef(),                  /* 45 */
+          cdev_notdef(),                  /* 46 */
+          cdev_notdef(),                  /* 47 */
+diff -d -c -r /tmp/sys/arch/sparc/sparc/conf.c sys/arch/sparc/sparc/conf.c
+*** /tmp/sys/arch/sparc/sparc/conf.c	Mon Aug 12 12:44:04 2002
+--- sys/arch/sparc/sparc/conf.c	Sat Nov  2 12:10:36 2002
+***************
+*** 126,131 ****
+--- 126,137 ----
+  };
+  int	nblkdev = sizeof(bdevsw) / sizeof(bdevsw[0]);
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 198,204 ****
+  	cdev_notdef(),			/* 57 */
+  	cdev_disk_init(NCD,cd),		/* 58: SCSI CD-ROM */
+  	cdev_pf_init(NPF,pf),		/* 59: packet filter */
+! 	cdev_notdef(),			/* 60 */
+  	cdev_notdef(),			/* 61 */
+  	cdev_notdef(),			/* 62 */
+  	cdev_notdef(),			/* 63 */
+--- 204,210 ----
+  	cdev_notdef(),			/* 57 */
+  	cdev_disk_init(NCD,cd),		/* 58: SCSI CD-ROM */
+  	cdev_pf_init(NPF,pf),		/* 59: packet filter */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 60: ip filtering log */
+  	cdev_notdef(),			/* 61 */
+  	cdev_notdef(),			/* 62 */
+  	cdev_notdef(),			/* 63 */
+diff -d -c -r /tmp/sys/arch/sparc64/sparc64/conf.c sys/arch/sparc64/sparc64/conf.c
+*** /tmp/sys/arch/sparc64/sparc64/conf.c	Wed Jun 19 04:52:24 2002
+--- sys/arch/sparc64/sparc64/conf.c	Sat Nov  2 12:10:36 2002
+***************
+*** 114,119 ****
+--- 114,125 ----
+  #include "ucom.h"
+  #include "uscanner.h"
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 252,258 ****
+  	cdev_mouse_init(NWSKBD, wskbd),	/* 79: keyboards */
+  	cdev_mouse_init(NWSMOUSE, wsmouse), /* 80: mice */
+  	cdev_mouse_init(NWSMUX, wsmux),	/* 81: ws multiplexor */
+! 	cdev_notdef(),			/* 82 */
+  	cdev_notdef(),			/* 83 */
+  	cdev_notdef(),			/* 84 */
+  	cdev_notdef(),			/* 85 */
+--- 258,264 ----
+  	cdev_mouse_init(NWSKBD, wskbd),	/* 79: keyboards */
+  	cdev_mouse_init(NWSMOUSE, wsmouse), /* 80: mice */
+  	cdev_mouse_init(NWSMUX, wsmux),	/* 81: ws multiplexor */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 82: IP filter */
+  	cdev_notdef(),			/* 83 */
+  	cdev_notdef(),			/* 84 */
+  	cdev_notdef(),			/* 85 */
+diff -d -c -r /tmp/sys/arch/sun3/sun3/conf.c sys/arch/sun3/sun3/conf.c
+*** /tmp/sys/arch/sun3/sun3/conf.c	Thu May 16 23:11:18 2002
+--- sys/arch/sun3/sun3/conf.c	Sun Nov  3 08:09:08 2002
+***************
+*** 109,114 ****
+--- 109,120 ----
+  };
+  int	nblkdev = sizeof(bdevsw) / sizeof(bdevsw[0]);
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 208,213 ****
+--- 214,220 ----
+  	cdev_ses_init(NSES,ses),	/* 84: SCSI SES or SAF-TE device */
+  	cdev_altq_init(NALTQ,altq),	/* 85: ALTQ control interface */
+  	cdev_systrace_init(NSYSTRACE,systrace),	/* 86: system call tracing */
++  	cdev_gen_ipf(NIPF,ipl),		/* 87: IP filter */
+  };
+  int	nchrdev = sizeof(cdevsw) / sizeof(cdevsw[0]);
+  
+diff -d -c -r /tmp/sys/arch/vax/vax/conf.c sys/arch/vax/vax/conf.c
+*** /tmp/sys/arch/vax/vax/conf.c	Thu Jul 11 00:08:47 2002
+--- sys/arch/vax/vax/conf.c	Sat Nov  2 12:10:37 2002
+***************
+*** 357,362 ****
+--- 357,368 ----
+  #include "wskbd.h"
+  #include "wsmouse.h"
+  
++ #ifdef IPFILTER
++ #define NIPF 1
++ #else
++ #define NIPF 0
++ #endif
++ 
+  #include "pf.h"
+  
+  #include <altq/altqconf.h>
+***************
+*** 412,418 ****
+  	cdev_notdef(),			/* 44  was Datakit */
+  	cdev_notdef(),			/* 45  was Datakit */
+  	cdev_notdef(),			/* 46  was Datakit */
+! 	cdev_notdef(),			/* 47 */
+  	cdev_notdef(),			/* 48 */
+  	cdev_systrace_init(NSYSTRACE,systrace),	/* 49: system call tracing */
+  	cdev_ksyms_init(NKSYMS,ksyms),  /* 50: Kernel symbols device */
+--- 418,424 ----
+  	cdev_notdef(),			/* 44  was Datakit */
+  	cdev_notdef(),			/* 45  was Datakit */
+  	cdev_notdef(),			/* 46  was Datakit */
+! 	cdev_gen_ipf(NIPF,ipl),		/* 47: IP filter */
+  	cdev_notdef(),			/* 48 */
+  	cdev_systrace_init(NSYSTRACE,systrace),	/* 49: system call tracing */
+  	cdev_ksyms_init(NKSYMS,ksyms),  /* 50: Kernel symbols device */
+diff -d -c -r /tmp/sys/conf/GENERIC sys/conf/GENERIC
+*** /tmp/sys/conf/GENERIC	Thu Sep 26 23:53:11 2002
+--- sys/conf/GENERIC	Sat Nov  2 12:10:37 2002
+***************
+*** 71,76 ****
+--- 71,78 ----
+  #option		EON		# OSI tunneling over IP
+  #option		NETATALK	# AppleTalk
+  #option		CCITT,LLC,HDLC	# X.25
++ option		IPFILTER	# IP packet filter for security
++ option		IPFILTER_LOG	# use /dev/ipl to log IPF
+  option		PPP_BSDCOMP	# PPP BSD compression
+  option		PPP_DEFLATE
+  #option		MROUTING	# Multicast router
+diff -d -c -r /tmp/sys/conf/files sys/conf/files
+*** /tmp/sys/conf/files	Tue Sep  3 18:30:54 2002
+--- sys/conf/files	Sat Nov  2 12:10:37 2002
+***************
+*** 688,693 ****
+--- 688,701 ----
+  file netinet/tcp_usrreq.c		inet
+  file netinet/udp_usrreq.c		inet
+  file netinet/ip_gre.c			inet
++ file netinet/ip_fil.c			ipfilter
++ file netinet/fil.c			ipfilter
++ file netinet/ip_nat.c			ipfilter
++ file netinet/ip_frag.c			ipfilter
++ file netinet/ip_state.c			ipfilter
++ file netinet/ip_proxy.c			ipfilter
++ file netinet/ip_auth.c			ipfilter
++ file netinet/ip_log.c			ipfilter
+  file netinet/ip_ipsp.c			(inet | inet6) & (ipsec | tcp_signature)
+  file netinet/ip_spd.c			(inet | inet6) & (ipsec | tcp_signature)
+  file netinet/ip_ipip.c			inet | inet6
+diff -d -c -r /tmp/sys/net/bridgestp.c sys/net/bridgestp.c
+*** /tmp/sys/net/bridgestp.c	Tue Sep 24 21:52:20 2002
+--- sys/net/bridgestp.c	Sat Nov  2 12:10:37 2002
+***************
+*** 63,68 ****
+--- 63,73 ----
+  #include <netinet/in_var.h>
+  #include <netinet/ip.h>
+  #include <netinet/if_ether.h>
++ 
++ #ifdef IPFILTER
++ #include <netinet/ip_compat.h>
++ #include <netinet/ip_fil.h>
++ #endif
+  #endif
+  
+  #if NBPFILTER > 0
+diff -d -c -r /tmp/sys/net/if.c sys/net/if.c
+*** /tmp/sys/net/if.c	Wed Sep 11 07:38:47 2002
+--- sys/net/if.c	Sat Nov  2 12:10:37 2002
+***************
+*** 101,106 ****
+--- 101,112 ----
+  #include <netinet6/nd6.h>
+  #endif
+  
++ #ifdef IPFILTER
++ #include <netinet/ip_compat.h>
++ #include <netinet/ip_fil.h>
++ #include <netinet/ip_nat.h>
++ #endif
++ 
+  #if NBPFILTER > 0
+  #include <net/bpf.h>
+  #endif
+***************
+*** 468,473 ****
+--- 474,484 ----
+  
+  	/* Remove the interface from the list of all interfaces.  */
+  	TAILQ_REMOVE(&ifnet, ifp, if_list);
++ 
++ #ifdef IPFILTER
++ 	/* XXX More ipf & ipnat cleanup needed.  */
++ 	frsync(ifp);
++ #endif
+  
+  	/*
+  	 * Deallocate private resources.
+diff -d -c -r /tmp/sys/net/if_bridge.c sys/net/if_bridge.c
+*** /tmp/sys/net/if_bridge.c	Wed Aug  7 20:44:39 2002
+--- sys/net/if_bridge.c	Sat Nov  2 12:10:37 2002
+***************
+*** 70,75 ****
+--- 70,79 ----
+  #include <netinet/ip_ipsp.h>
+  
+  #include <net/if_enc.h>
++ #if (defined(IPFILTER) || defined(IPFILTER_LKM))
++ #include <netinet/ip_compat.h>
++ #include <netinet/ip_fil.h>
++ #endif
+  #endif
+  
+  #ifdef INET6
+***************
+*** 155,161 ****
+  int		bridge_flushrule(struct bridge_iflist *);
+  int	bridge_brlconf(struct bridge_softc *, struct ifbrlconf *);
+  u_int8_t bridge_filterrule(struct brl_head *, struct ether_header *);
+! #if NPF > 0
+  struct mbuf *bridge_filter(struct bridge_softc *, int, struct ifnet *,
+      struct ether_header *, struct mbuf *m);
+  #endif
+--- 159,165 ----
+  int		bridge_flushrule(struct bridge_iflist *);
+  int	bridge_brlconf(struct bridge_softc *, struct ifbrlconf *);
+  u_int8_t bridge_filterrule(struct brl_head *, struct ether_header *);
+! #if (NPF > 0) || (defined(IPFILTER) || defined(IPFILTER_LKM))
+  struct mbuf *bridge_filter(struct bridge_softc *, int, struct ifnet *,
+      struct ether_header *, struct mbuf *m);
+  #endif
+***************
+*** 1144,1150 ****
+  		m_freem(m);
+  		return;
+  	}
+! #if NPF > 0
+  	m = bridge_filter(sc, BRIDGE_IN, src_if, &eh, m);
+  	if (m == NULL)
+  		return;
+--- 1148,1154 ----
+  		m_freem(m);
+  		return;
+  	}
+! #if (NPF > 0) || (defined(IPFILTER) || defined(IPFILTER_LKM))
+  	m = bridge_filter(sc, BRIDGE_IN, src_if, &eh, m);
+  	if (m == NULL)
+  		return;
+***************
+*** 1187,1193 ****
+  		m_freem(m);
+  		return;
+  	}
+! #if NPF > 0
+  	m = bridge_filter(sc, BRIDGE_OUT, dst_if, &eh, m);
+  	if (m == NULL)
+  		return;
+--- 1191,1197 ----
+  		m_freem(m);
+  		return;
+  	}
+! #if (NPF > 0) || (defined(IPFILTER) || defined(IPFILTER_LKM))
+  	m = bridge_filter(sc, BRIDGE_OUT, dst_if, &eh, m);
+  	if (m == NULL)
+  		return;
+***************
+*** 1441,1447 ****
+  			mc = m1;
+  		}
+  
+! #if NPF > 0
+  		mc = bridge_filter(sc, BRIDGE_OUT, dst_if, eh, mc);
+  		if (mc == NULL)
+  			continue;
+--- 1445,1451 ----
+  			mc = m1;
+  		}
+  
+! #if (NPF > 0) || (defined(IPFILTER) || defined(IPFILTER_LKM))
+  		mc = bridge_filter(sc, BRIDGE_OUT, dst_if, eh, mc);
+  		if (mc == NULL)
+  			continue;
+***************
+*** 2220,2226 ****
+  			 * We don't need to do loop detection, the
+  			 * bridge will do that for us.
+  			 */
+! #if NFP > 0
+  			switch (af) {
+  #ifdef INET
+  			case AF_INET:
+--- 2224,2236 ----
+  			 * We don't need to do loop detection, the
+  			 * bridge will do that for us.
+  			 */
+! #if defined(IPFILTER) || defined(IPFILTER_LKM)
+! 			if (dir == BRIDGE_OUT && fr_checkp &&
+! 			    ((*fr_checkp)(ip, hlen, &encif[0].sc_if,
+! 					  dir, &m) || !m))
+! 				return 1;
+! #endif
+! #if NPF > 0
+  			switch (af) {
+  #ifdef INET
+  			case AF_INET:
+***************
+*** 2244,2249 ****
+--- 2254,2265 ----
+  			if (m == NULL)
+  				return (1);
+  #endif /* NPF */
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 			if (dir == BRIDGE_IN && fr_checkp &&
++ 			    ((*fr_checkp)(ip, hlen, &encif[0].sc_if,
++ 					  dir, &m) || !m))
++ 				return 1;
++ #endif
+  #ifdef INET
+  			if (af == AF_INET) {
+  				ip = mtod(m, struct ip *);
+***************
+*** 2262,2268 ****
+  }
+  #endif /* IPSEC */
+  
+! #if NPF > 0
+  /*
+   * Filter IP packets by peeking into the ethernet frame.  This violates
+   * the ISO model, but allows us to act as a IP filter at the data link
+--- 2278,2284 ----
+  }
+  #endif /* IPSEC */
+  
+! #if (NPF > 0) || (defined(IPFILTER) || defined(IPFILTER_LKM))
+  /*
+   * Filter IP packets by peeking into the ethernet frame.  This violates
+   * the ISO model, but allows us to act as a IP filter at the data link
+***************
+*** 2372,2377 ****
+--- 2388,2401 ----
+  			return (NULL);
+  #endif /* IPSEC */
+  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 		if (dir == BRIDGE_OUT) {
++ 			if (fr_checkp && (*fr_checkp)(ip, hlen, ifp, dir, &m))
++ 				goto dropit;
++ 			if (m == NULL)
++ 				goto dropit;
++ 		}
++ #endif
+  #if NPF > 0
+  		/* Finally, we get to filter the packet! */
+  		m->m_pkthdr.rcvif = ifp;
+***************
+*** 2380,2385 ****
+--- 2404,2417 ----
+  		if (m == NULL)
+  			goto dropit;
+  #endif /* NPF */
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 		if (dir == BRIDGE_IN) {
++ 			if (fr_checkp && (*fr_checkp)(ip, hlen, ifp, dir, &m))
++ 				goto dropit;
++ 			if (m == NULL)
++ 				goto dropit;
++ 		}
++ #endif
+  
+  		/* Rebuild the IP header */
+  		if (m->m_len < hlen && ((m = m_pullup(m, hlen)) == NULL))
+***************
+*** 2423,2434 ****
+--- 2455,2482 ----
+  			return (NULL);
+  #endif /* IPSEC */
+  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 		if (dir == BRIDGE_OUT) {
++ 			if (fr_checkp && (*fr_checkp)(ip, hlen, ifp, dir, &m))
++ 				goto dropit;
++ 			if (m == NULL)
++ 				return (NULL);
++ 		}
++ #endif
+  #if NPF > 0
+  		if (pf_test6(dir, ifp, &m) != PF_PASS)
+  			goto dropit;
+  		if (m == NULL)
+  			return (NULL);
+  #endif /* NPF */
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 		if (dir == BRIDGE_IN) {
++ 			if (fr_checkp && (*fr_checkp)(ip, hlen, ifp, dir, &m))
++ 				goto dropit;
++ 			if (m == NULL)
++ 				return (NULL);
++ 		}
++ #endif
+  
+  		break;
+  	}
+***************
+*** 2460,2466 ****
+  		m_freem(m);
+  	return (NULL);
+  }
+! #endif /* NPF > 0 */
+  
+  void
+  bridge_fragment(sc, ifp, eh, m)
+--- 2508,2514 ----
+  		m_freem(m);
+  	return (NULL);
+  }
+! #endif /* (NPF > 0) || (defined(IPFILTER) || defined(IPFILTER_LKM)) */
+  
+  void
+  bridge_fragment(sc, ifp, eh, m)
+diff -d -c -r /tmp/sys/netinet/in_proto.c sys/netinet/in_proto.c
+*** /tmp/sys/netinet/in_proto.c	Sun Jun  9 18:26:10 2002
+--- sys/netinet/in_proto.c	Sat Nov  2 12:10:38 2002
+***************
+*** 163,168 ****
+--- 163,173 ----
+  #include <netinet/ip_mroute.h>
+  #endif /* MROUTING */
+  
++ #ifdef IPFILTER
++ void iplinit __P((void));
++ #define ip_init iplinit
++ #endif
++ 
+  #ifdef INET6
+  #include <netinet6/ip6_var.h>
+  #endif /* INET6 */
+diff -d -c -r /tmp/sys/netinet/ip_input.c sys/netinet/ip_input.c
+*** /tmp/sys/netinet/ip_input.c	Wed Sep  4 21:04:38 2002
+--- sys/netinet/ip_input.c	Sat Nov  2 12:10:38 2002
+***************
+*** 149,154 ****
+--- 149,158 ----
+  struct	in_ifaddrhead in_ifaddr;
+  struct	ifqueue ipintrq;
+  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ int	(*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ #endif
++ 
+  int	ipq_locked;
+  static __inline int ipq_lock_try(void);
+  static __inline void ipq_unlock(void);
+***************
+*** 399,404 ****
+--- 403,425 ----
+  
+  	ip = mtod(m, struct ip *);
+  	hlen = ip->ip_hl << 2;
++ #endif
++ 
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 	/*
++ 	* Check if we want to allow this packet to be processed.
++ 	* Consider it to be bad if not.
++ 	*/
++ 	{
++ 		struct mbuf *m0 = m;
++ 		if (fr_checkp && (*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m0)) {
++ 			return;
++ 		}
++ 		if (m0 == 0) {  /* in case of 'fastroute' */
++ 			return;
++ 		}
++ 		ip = mtod(m = m0, struct ip *);
++ 	}
+  #endif
+  
+  #ifdef ALTQ
+diff -d -c -r /tmp/sys/netinet/ip_output.c sys/netinet/ip_output.c
+*** /tmp/sys/netinet/ip_output.c	Tue Jun 25 01:57:28 2002
+--- sys/netinet/ip_output.c	Sat Nov  2 12:10:38 2002
+***************
+*** 90,95 ****
+--- 90,99 ----
+  static struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
+  static void ip_mloopback(struct ifnet *, struct mbuf *, struct sockaddr_in *);
+  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ #endif
++ 
+  /*
+   * IP output.  The packet in mbuf chain m contains a skeletal IP
+   * header (with len, off, ttl, proto, tos, src, dst).
+***************
+*** 563,568 ****
+--- 567,596 ----
+  	if (sproto != 0) {
+  		s = splnet();
+  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 		if (fr_checkp) {
++ 		/*
++ 		 * Ok, it's time for a simple round-trip to the IPF/NAT
++ 		 * code with the enc0 interface.
++ 		 */
++ 			struct mbuf *m1 = m;
++ 			void *ifp = (void *)&encif[0].sc_if;
++ 
++ 			if ((*fr_checkp)(ip, hlen, ifp, 1, &m1)) {
++ 				error = EHOSTUNREACH;
++ 				splx(s);
++ 				goto done;
++ 			}
++ 			if (m1 == 0) { /* in case of 'fastroute' */
++ 				error = 0;
++ 				splx(s);
++ 				goto done;
++ 			}
++ 			ip = mtod(m = m1, struct ip *);
++ 			hlen = ip->ip_hl << 2;
++ 		}
++ #endif /* IPFILTER */
++ 
+  		/*
+  		 * Packet filter
+  		 */
+***************
+*** 665,670 ****
+--- 693,717 ----
+  			m->m_pkthdr.csum &= ~M_UDPV4_CSUM_OUT; /* Clear */
+  		}
+  	}
++ 
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 	/*
++ 	 * looks like most checking has been done now...do a filter check
++ 	 */
++ 	{
++ 		struct mbuf *m1 = m;
++ 
++ 		if (fr_checkp && (*fr_checkp)(ip, hlen, ifp, 1, &m1)) {
++ 			error = EHOSTUNREACH;
++ 			goto done;
++ 		}
++ 		if (m1 == 0) { /* in case of 'fastroute' */
++ 			error = 0;
++ 			goto done;
++ 		}
++ 		ip = mtod(m = m1, struct ip *);
++ 	}
++ #endif
+  
+  	/*
+  	 * Packet filter
+diff -d -c -r /tmp/sys/netinet6/ip6_input.c sys/netinet6/ip6_input.c
+*** /tmp/sys/netinet6/ip6_input.c	Wed Sep 11 05:27:30 2002
+--- sys/netinet6/ip6_input.c	Sat Nov  2 12:10:38 2002
+***************
+*** 134,139 ****
+--- 134,143 ----
+  static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
+  #endif
+  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ #endif
++ 
+  /*
+   * IP6 initialization: fill in IP6 protocol switch table.
+   * All protocols not implemented in kernel go to raw IP6 protocol handler.
+***************
+*** 251,256 ****
+--- 255,280 ----
+  		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
+  		goto bad;
+  	}
++ 
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 	/*
++ 	 * Check if we want to allow this packet to be processed.
++ 	 * Consider it to be bad if not.
++ 	 */
++ 	if (fr_checkp != NULL) {
++ 		struct mbuf *m0 = m;
++ 
++ 		if ((*fr_checkp)((struct ip *)ip6, sizeof(*ip6),
++ 				m->m_pkthdr.rcvif, 0, &m0)) {
++ 			return;
++ 		}
++ 		m = m0;
++ 		if (m == 0) {  /* in case of 'fastroute' */
++ 			return;
++ 		}
++ 		ip6 = mtod(m, struct ip6_hdr *);
++ 	}
++ #endif
+  
+  #if NPF > 0 
+          /*
+diff -d -c -r /tmp/sys/netinet6/ip6_output.c sys/netinet6/ip6_output.c
+*** /tmp/sys/netinet6/ip6_output.c	Tue Sep 24 01:03:31 2002
+--- sys/netinet6/ip6_output.c	Sun Nov  3 08:14:44 2002
+***************
+*** 120,132 ****
+  
+  static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *, struct socket *);
+  static int ip6_setmoptions(int, struct ip6_moptions **, struct mbuf *);
+  static int ip6_getmoptions(int, struct ip6_moptions *, struct mbuf **);
+  static int ip6_copyexthdr(struct mbuf **, caddr_t, int);
+  static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
+  	struct ip6_frag **);
+  static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
+  static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
+! static int ip6_getpmtu(struct route_in6 *, struct route_in6 *,
+  	struct ifnet *, struct in6_addr *, u_long *);
+  
+  /*
+--- 120,135 ----
+  
+  static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *, struct socket *);
+  static int ip6_setmoptions(int, struct ip6_moptions **, struct mbuf *);
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **));
++ #endif
+  static int ip6_getmoptions(int, struct ip6_moptions *, struct mbuf **);
+  static int ip6_copyexthdr(struct mbuf **, caddr_t, int);
+  static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
+  	struct ip6_frag **);
+  static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
+  static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
+! int ip6_getpmtu(struct route_in6 *, struct route_in6 *,
+  	struct ifnet *, struct in6_addr *, u_long *);
+  
+  /*
+***************
+*** 796,801 ****
+--- 799,823 ----
+  		goto done;
+  	ip6 = mtod(m, struct ip6_hdr *);
+  #endif
++  
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)     
++  	/* 
++  	 * looks like most checking has been done now...do a filter check
++  	 */
++  	if (fr_checkp != NULL) {
++  		struct mbuf *m1 = m;
++  		if ((*fr_checkp)((struct ip *)ip6, sizeof(*ip6), ifp, 1, &m1)) {
++  			error = EHOSTUNREACH;
++  			goto done;
++  		}
++  		m = m1;
++  		if (m1 == 0) { /* in case of 'fastroute' */
++  			error = 0;
++  			goto done;
++  		}
++  		ip6 = mtod(m, struct ip6_hdr *);
++  	}
++ #endif
+  
+  	/*
+  	 * Send the packet to the outgoing interface.
+***************
+*** 1120,1126 ****
+  	return (0);
+  }
+  
+! static int
+  ip6_getpmtu(ro_pmtu, ro, ifp, dst, mtup)
+  	struct route_in6 *ro_pmtu, *ro;
+  	struct ifnet *ifp;
+--- 1142,1148 ----
+  	return (0);
+  }
+  
+! int
+  ip6_getpmtu(ro_pmtu, ro, ifp, dst, mtup)
+  	struct route_in6 *ro_pmtu, *ro;
+  	struct ifnet *ifp;
+diff -d -c -r /tmp/sys/sys/conf.h sys/sys/conf.h
+*** /tmp/sys/sys/conf.h	Thu Jul 11 00:21:30 2002
+--- sys/sys/conf.h	Sun Nov  3 08:17:26 2002
+***************
+*** 358,363 ****
+--- 358,370 ----
+        (dev_type_ioctl((*))) enodev, (dev_type_stop((*))) nullop, \
+        0, (dev_type_select((*))) enodev, (dev_type_mmap((*))) enodev }
+  
++ /* open, close, read, ioctl */
++ #define cdev_gen_ipf(c, n) { \
++ dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
++ 	(dev_type_write((*))) enodev, dev_init(c,n,ioctl), \
++ 	(dev_type_stop((*))) enodev, 0, (dev_type_select((*))) enodev, \
++ 	(dev_type_mmap((*))) enodev }
++ 
+  /* open, close, read, write, ioctl, select, nokqfilter */
+  #define cdev_xfs_init(c, n) { \
+  	dev_init(c,n,open), dev_init(c,n,close), dev_init(c,n,read), \
+***************
+*** 560,565 ****
+--- 567,573 ----
+  
+  cdev_decl(bpf);
+  
++ cdev_decl(ipl);
+  cdev_decl(pf);
+  
+  cdev_decl(tun);

@@ -1,0 +1,45 @@
+Installation instructions:
+=========================
+
+1. Update HP-UX Kernel
+----------------------
+General instructions on preparation for installing and proceeding with an
+installation of IPFilter on HP-UX can be found at:
+http://coombs.anu.edu.au/~avalon/ipf-mentat.html
+
+You are required to at least install the latest jumbo patches from HP,
+for HP-UX 11.  A summary of those that I used can be found at:
+At http://coombs.anu.edu.au/~avalon/ipf-hp11.html
+
+I do not recommend using anything less than as many of these as will apply
+to your own system.
+
+2. Build and Install pfil
+-------------------------
+Next, you need to download and install "pfil".  This is a STREAMS interface
+for packet filtering that removes the need for packet filtering code to be
+written as a STREAMS module.  This can be downloaded from
+
+http://coombs.anu.edu.au/~avalon/pfil-2.1.1.tar.gz
+
+Unpack this and type "make" in the pfil directory.  Once compelte, type
+"make install" to kick off the installation.
+
+3. Build and Install IP Filter
+------------------------------
+Having got this far, you now need to download the latest IP Filter package
+and compile/install that.  The source code for IP Filter can be obtained
+from:
+http://coombs.anu.edu.au/~avalon/ip-filter.html
+
+Download the latest version that is 4.1 or greater.
+
+This should be unpacked into the same directory as "pfil" is.  The
+directory layout will look like this:
+
+/directory/ip_fil4.*
+/directory/pfil
+
+This complete, do a "make hpux" in the ip_fil4.* directory, followed
+by a "make install".  You will need to reboot for it to become active.
+

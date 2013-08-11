@@ -1,0 +1,6 @@
+#!/bin/sh
+bits=`getconf KERNEL_BITS`
+rev=`uname -r`
+model=`uname -m|sed -e 's!/!.!'`
+echo $rev.$model.$bits
+exit 0

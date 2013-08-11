@@ -1,13 +1,11 @@
-/*	$NetBSD$	*/
-
 /*
- * Copyright (C) 1993-2003 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)Id: ip_fil_freebsd.c,v 2.53.2.25 2005/02/01 03:15:56 darrenr Exp";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #if defined(KERNEL) || defined(_KERNEL)
@@ -55,14 +53,21 @@ static const char rcsid[] = "@(#)Id: ip_fil_freebsd.c,v 2.53.2.25 2005/02/01 03:
 #if !defined(__hpux)
 # include <sys/mbuf.h>
 #endif
-#include <sys/protosw.h>
+#if (__FreeBSD_version < 800000)
+# include <netinet/ipprotosw.h>
+#endif
 #include <sys/socket.h>
+#if __FreeBSD_version >= 500043
+# include <sys/selinfo.h>
+#else
+# include <sys/select.h>
+#endif
 
 #include <net/if.h>
 #if __FreeBSD_version >= 300000
 # include <net/if_var.h>
-# if !defined(IPFILTER_LKM)
-#  include "opt_ipfilter.h"
+# if __FreeBSD_version >= 500043
+#  include <net/netisr.h>
 # endif
 #endif
 #include <net/route.h>
@@ -78,9 +83,6 @@ static const char rcsid[] = "@(#)Id: ip_fil_freebsd.c,v 2.53.2.25 2005/02/01 03:
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#ifndef _KERNEL
-# include "netinet/ipf.h"
-#endif
 #include "netinet/ip_compat.h"
 #ifdef USE_INET6
 # include <netinet/icmp6.h>
@@ -91,9 +93,9 @@ static const char rcsid[] = "@(#)Id: ip_fil_freebsd.c,v 2.53.2.25 2005/02/01 03:
 #include "netinet/ip_state.h"
 #include "netinet/ip_proxy.h"
 #include "netinet/ip_auth.h"
-#ifdef	IPFILTER_SYNC
 #include "netinet/ip_sync.h"
-#endif
+#include "netinet/ip_lookup.h"
+#include "netinet/ip_dstlist.h"
 #ifdef	IPFILTER_SCAN
 #include "netinet/ip_scan.h"
 #endif
@@ -116,60 +118,76 @@ MALLOC_DEFINE(M_IPFILTER, "IP Filter", "IP Filter packet filter data structures"
 # endif
 
 
-#if !defined(__osf__)
-extern	struct	protosw	inetsw[];
-#endif
-
-static	int	(*fr_savep) __P((ip_t *, int, void *, int, struct mbuf **));
-static	int	fr_send_ip __P((fr_info_t *, mb_t *, mb_t **));
-# ifdef USE_MUTEXES
-ipfmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_stinsert;
-ipfmutex_t	ipf_nat_new, ipf_natio, ipf_timeoutlock;
-ipfrwlock_t	ipf_mutex, ipf_global, ipf_ipidfrag;
-ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
-# endif
+static	u_short	ipid = 0;
+static	int	(*ipf_savep) __P((void *, ip_t *, int, void *, int, struct mbuf **));
+static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
+static void	ipf_timer_func __P((void *arg));
 int		ipf_locks_done = 0;
 
-#if (__FreeBSD_version >= 300000)
-struct callout_handle fr_slowtimer_ch;
-#endif
+ipf_main_softc_t ipfmain;
 
 #if (__FreeBSD_version >= 500011)
 # include <sys/conf.h>
 # if defined(NETBSD_PF)
 #  include <net/pfil.h>
-#  include <netinet/ipprotosw.h>
-/*
- * We provide the fr_checkp name just to minimize changes later.
- */
-int (*fr_checkp) __P((ip_t *ip, int hlen, void *ifp, int out, mb_t **mp));
 # endif /* NETBSD_PF */
 #endif /* __FreeBSD_version >= 500011 */
+/*
+ * We provide the ipf_checkp name just to minimize changes later.
+ */
+int (*ipf_checkp) __P((void *, ip_t *ip, int hlen, void *ifp, int out, mb_t **mp));
 
 
-#if (__FreeBSD_version >= 501108) && defined(_KERNEL)
+#if (__FreeBSD_version >= 502103)
+static eventhandler_tag ipf_arrivetag, ipf_departtag, ipf_clonetag;
+
+static void ipf_ifevent(void *arg);
+
+static void ipf_ifevent(arg)
+	void *arg;
+{
+        ipf_sync(arg, NULL);
+}
+#endif
+
+
+#if (__FreeBSD_version >= 501108)
 
 static int
-fr_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
+ipf_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 {
 	struct ip *ip = mtod(*mp, struct ip *);
-	return fr_check(ip, ip->ip_hl << 2, ifp, (dir == PFIL_OUT), mp);
+	int rv;
+
+	/*
+	 * IPFilter expects evreything in network byte order
+	 */
+	ip->ip_len = htons(ip->ip_len);
+	ip->ip_off = htons(ip->ip_off);
+	rv = ipf_check(&ipfmain, ip, ip->ip_hl << 2, ifp, (dir == PFIL_OUT),
+		       mp);
+	if ((rv == 0) && (*mp != NULL)) {
+		ip = mtod(*mp, struct ip *);
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
+	}
+	return rv;
 }
 
 # ifdef USE_INET6
 #  include <netinet/ip6.h>
 
 static int
-fr_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
+ipf_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 {
-	return (fr_check(mtod(*mp, struct ip *), sizeof(struct ip6_hdr),
-	    ifp, (dir == PFIL_OUT), mp));
+	return (ipf_check(&ipfmain, mtod(*mp, struct ip *),
+			  sizeof(struct ip6_hdr), ifp, (dir == PFIL_OUT), mp));
 }
 # endif
 #endif /* __FreeBSD_version >= 501108 */
 #if	defined(IPFILTER_LKM)
-int iplidentify(s)
-char *s;
+int ipf_identify(s)
+	char *s;
 {
 	if (strcmp(s, "ipl") == 0)
 		return 1;
@@ -178,116 +196,70 @@ char *s;
 #endif /* IPFILTER_LKM */
 
 
-int iplattach()
+static void
+ipf_timer_func(arg)
+	void *arg;
+{
+	ipf_main_softc_t *softc = arg;
+	SPL_INT(s);
+
+	SPL_NET(s);
+	READ_ENTER(&softc->ipf_global);
+
+        if (softc->ipf_running > 0)
+		ipf_slowtimer(softc);
+
+	if (softc->ipf_running == -1 || softc->ipf_running == 1) {
+#if FREEBSD_GE_REV(300000)
+		softc->ipf_slow_ch = timeout(ipf_timer_func, softc, hz/2);
+#else
+		timeout(ipf_timer_func, softc, hz/2);
+#endif
+	}
+	RWLOCK_EXIT(&softc->ipf_global);
+	SPL_X(s);
+}
+
+
+int
+ipfattach(softc)
+	ipf_main_softc_t *softc;
 {
 #ifdef USE_SPL
 	int s;
 #endif
-#if defined(NETBSD_PF) && (__FreeBSD_version >= 500011)
-	int error = 0;
-# if __FreeBSD_version >= 501108
-	struct pfil_head *ph_inet;
-#  ifdef USE_INET6
-	struct pfil_head *ph_inet6;
-#  endif
-# endif
-#endif
 
 	SPL_NET(s);
-	if (fr_running > 0) {
+	if (softc->ipf_running > 0) {
 		SPL_X(s);
 		return EBUSY;
 	}
 
-	MUTEX_INIT(&ipf_rw, "ipf rw mutex");
-	RWLOCK_INIT(&ipf_global, "ipf filter load/unload mutex");
-	MUTEX_INIT(&ipf_timeoutlock, "ipf timeout queue mutex");
-	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock");
-	RWLOCK_INIT(&ipf_ipidfrag, "ipf IP NAT-Frag rwlock");
-	ipf_locks_done = 1;
-
-	if (fr_initialise() < 0) {
+	if (ipf_init_all(softc) < 0) {
 		SPL_X(s);
 		return EIO;
 	}
 
 
-# ifdef NETBSD_PF
-#  if __FreeBSD_version >= 500011
-#   if __FreeBSD_version >= 501108
-	ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
-#    ifdef USE_INET6
-	ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
-#    endif
-	if (ph_inet == NULL
-#    ifdef USE_INET6
-	    && ph_inet6 == NULL
-#    endif
-	   )
-		return ENODEV;
-
-	if (ph_inet != NULL)
-		error = pfil_add_hook((void *)fr_check_wrapper, NULL,
-				      PFIL_IN|PFIL_OUT, ph_inet);
-	else
-		error = 0;
-#  else
-	error = pfil_add_hook((void *)fr_check, PFIL_IN|PFIL_OUT,
-			      &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-#  endif
-	if (error) {
-#   ifdef USE_INET6
-		goto pfil_error;
-#   else
-		fr_deinitialise();
-		SPL_X(s);
-		return error;
-#   endif
-	}
-#  else
-	pfil_add_hook((void *)fr_check, PFIL_IN|PFIL_OUT);
-#  endif
-#  ifdef USE_INET6
-#   if __FreeBSD_version >= 501108
-	if (ph_inet6 != NULL)
-		error = pfil_add_hook((void *)fr_check_wrapper6, NULL,
-				      PFIL_IN|PFIL_OUT, ph_inet6);
-	else
-		error = 0;
-	if (error) {
-		pfil_remove_hook((void *)fr_check_wrapper6, NULL,
-				 PFIL_IN|PFIL_OUT, ph_inet6);
-#   else
-	error = pfil_add_hook((void *)fr_check, PFIL_IN|PFIL_OUT,
-			      &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
-	if (error) {
-		pfil_remove_hook((void *)fr_check, PFIL_IN|PFIL_OUT,
-				 &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-#   endif
-pfil_error:
-		fr_deinitialise();
-		SPL_X(s);
-		return error;
-	}
-#  endif
-# endif
-	if (fr_checkp != fr_check) {
-		fr_savep = fr_checkp;
-		fr_checkp = fr_check;
+	if (ipf_checkp != ipf_check) {
+		ipf_savep = ipf_checkp;
+		ipf_checkp = ipf_check;
 	}
 
-	bzero((char *)frcache, sizeof(frcache));
-	fr_running = 1;
+	bzero((char *)ipfmain.ipf_selwait, sizeof(ipfmain.ipf_selwait));
+	softc->ipf_running = 1;
 
-	if (fr_control_forwarding & 1)
+	if (softc->ipf_control_forwarding & 1)
 		ipforwarding = 1;
+
+	ipid = 0;
 
 	SPL_X(s);
 #if (__FreeBSD_version >= 300000)
-	fr_slowtimer_ch = timeout(fr_slowtimer, NULL,
-				    (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
+	softc->ipf_slow_ch = timeout(ipf_timer_func, softc,
+				     (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
 #else
-	timeout(fr_slowtimer, NULL, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
+	timeout(ipf_timer_func, softc, (hz / IPF_HZ_DIVIDE) * IPF_HZ_MULT);
 #endif
 	return 0;
 }
@@ -297,93 +269,36 @@ pfil_error:
  * Disable the filter by removing the hooks from the IP input/output
  * stream.
  */
-int ipldetach()
+int
+ipfdetach(softc)
+	ipf_main_softc_t *softc;
 {
 #ifdef USE_SPL
 	int s;
 #endif
-#if defined(NETBSD_PF) && (__FreeBSD_version >= 500011)
-	int error = 0;
-# if __FreeBSD_version >= 501108
-	struct pfil_head *ph_inet;
-#  ifdef USE_INET6
-	struct pfil_head *ph_inet6;
-#  endif
-# endif
-#endif
 
-	if (fr_control_forwarding & 2)
+	if (softc->ipf_control_forwarding & 2)
 		ipforwarding = 0;
 
 	SPL_NET(s);
 
 #if (__FreeBSD_version >= 300000)
-	if (fr_slowtimer_ch.callout != NULL)
-		untimeout(fr_slowtimer, NULL, fr_slowtimer_ch);
-	bzero(&fr_slowtimer_ch, sizeof(fr_slowtimer_ch));
+	if (softc->ipf_slow_ch.callout != NULL)
+		untimeout(ipf_timer_func, softc, softc->ipf_slow_ch);
+	bzero(&softc->ipf_slow, sizeof(softc->ipf_slow));
 #else
-	untimeout(fr_slowtimer, NULL);
+	untimeout(ipf_timer_func, softc);
 #endif /* FreeBSD */
 
 #ifndef NETBSD_PF
-	if (fr_checkp != NULL)
-		fr_checkp = fr_savep;
-	fr_savep = NULL;
+	if (ipf_checkp != NULL)
+		ipf_checkp = ipf_savep;
+	ipf_savep = NULL;
 #endif
 
-#ifdef NETBSD_PF
-# if (__FreeBSD_version >= 500011)
-#  if (__FreeBSD_version >= 501108)
-	ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
-	if (ph_inet != NULL)
-		error = pfil_remove_hook((void *)fr_check_wrapper, NULL,
-					 PFIL_IN|PFIL_OUT, ph_inet);
-	else
-		error = 0;
-#  else
-	error = pfil_remove_hook((void *)fr_check, PFIL_IN|PFIL_OUT,
-				 &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-#  endif
-	if (error) {
-		SPL_X(s);
-		return error;
-	}
-# else
-	pfil_remove_hook((void *)fr_check, PFIL_IN|PFIL_OUT);
-# endif
-# ifdef USE_INET6
-#  if (__FreeBSD_version >= 501108)
-	ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
-	if (ph_inet6 != NULL)
-		error = pfil_remove_hook((void *)fr_check_wrapper6, NULL,
-					 PFIL_IN|PFIL_OUT, ph_inet6);
-	else
-		error = 0;
-#  else
-	error = pfil_remove_hook((void *)fr_check, PFIL_IN|PFIL_OUT,
-				 &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
-#  endif
-	if (error) {
-		SPL_X(s);
-		return error;
-	}
-# endif
-#endif
-	fr_deinitialise();
+	ipf_fini_all(softc);
 
-	fr_running = -2;
-
-	(void) frflush(IPL_LOGIPF, 0, FR_INQUE|FR_OUTQUE|FR_INACTIVE);
-	(void) frflush(IPL_LOGIPF, 0, FR_INQUE|FR_OUTQUE);
-
-	if (ipf_locks_done == 1) {
-		MUTEX_DESTROY(&ipf_timeoutlock);
-		MUTEX_DESTROY(&ipf_rw);
-		RW_DESTROY(&ipf_mutex);
-		RW_DESTROY(&ipf_ipidfrag);
-		RW_DESTROY(&ipf_global);
-		ipf_locks_done = 0;
-	}
+	softc->ipf_running = -2;
 
 	SPL_X(s);
 
@@ -394,365 +309,89 @@ int ipldetach()
 /*
  * Filter ioctl interface.
  */
-int iplioctl(dev, cmd, data, mode
-# if defined(_KERNEL) && ((BSD >= 199506) || (__FreeBSD_version >= 220000))
+int
+ipfioctl(dev, cmd, data, mode
+# if ((BSD >= 199506) || (__FreeBSD_version >= 220000))
 , p)
 #  if (__FreeBSD_version >= 500024)
-struct thread *p;
+	struct thread *p;
+#   if (__FreeBSD_version >= 500043)
+#    define	p_uid	td_ucred->cr_ruid
+#   else
+#    define	p_uid	t_proc->p_cred->p_ruid
+#   endif
 #  else
-struct proc *p;
+	struct proc *p;
+#   define	p_uid	p_cred->p_ruid
 #  endif /* __FreeBSD_version >= 500024 */
 # else
 )
 # endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 502116)
-struct cdev *dev;
+#if (__FreeBSD_version >= 502116)
+	struct cdev *dev;
 #else
-dev_t dev;
+	dev_t dev;
 #endif
-ioctlcmd_t cmd;
-caddr_t data;
-int mode;
+	ioctlcmd_t cmd;
+	caddr_t data;
+	int mode;
 {
-#ifdef USE_SPL
-	int s;
-#endif
-	int error = 0, unit = 0, tmp;
-	friostat_t fio;
+	int error = 0, unit = 0;
+	SPL_INT(s);
 
-#if (BSD >= 199306) && defined(_KERNEL)
-	if ((securelevel >= 2) && (mode & FWRITE))
+#if (BSD >= 199306)
+# if (__FreeBSD_version >= 500034)
+        if (securelevel_ge(p->p_cred, 3) && (mode & FWRITE))
+# else
+	if ((securelevel >= 3) && (mode & FWRITE))
+# endif
+	{
+		ipfmain.ipf_interror = 130001;
 		return EPERM;
+	}
 #endif
 
 	unit = GET_MINOR(dev);
-	if ((IPL_LOGMAX < unit) || (unit < 0))
+	if ((IPL_LOGMAX < unit) || (unit < 0)) {
+		ipfmain.ipf_interror = 130002;
 		return ENXIO;
+	}
 
-	if (fr_running <= 0) {
-		if (unit != IPL_LOGIPF)
+	if (ipfmain.ipf_running <= 0) {
+		if (unit != IPL_LOGIPF && cmd != SIOCIPFINTERROR) {
+			ipfmain.ipf_interror = 130003;
 			return EIO;
+		}
 		if (cmd != SIOCIPFGETNEXT && cmd != SIOCIPFGET &&
-		    cmd != SIOCIPFSET && cmd != SIOCFRENB && 
-		    cmd != SIOCGETFS && cmd != SIOCGETFF)
+		    cmd != SIOCIPFSET && cmd != SIOCFRENB &&
+		    cmd != SIOCGETFS && cmd != SIOCGETFF &&
+		    cmd != SIOCIPFINTERROR) {
+			ipfmain.ipf_interror = 130004;
 			return EIO;
+		}
 	}
 
 	SPL_NET(s);
 
-	error = fr_ioctlswitch(unit, data, cmd, mode);
+	error = ipf_ioctlswitch(&ipfmain, unit, data, cmd, mode, p->p_uid, p);
 	if (error != -1) {
 		SPL_X(s);
 		return error;
 	}
-	error = 0;
 
-	switch (cmd)
-	{
-	case FIONREAD :
-#ifdef IPFILTER_LOG
-		BCOPYOUT(&iplused[IPL_LOGIPF], (caddr_t)data,
-			 sizeof(iplused[IPL_LOGIPF]));
-#endif
-		break;
-	case SIOCFRENB :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			BCOPYIN(data, &tmp, sizeof(tmp));
-			if (tmp) {
-				if (fr_running > 0)
-					error = 0;
-				else
-					error = iplattach();
-				if (error == 0)
-					fr_running = 1;
-				else
-					(void) ipldetach();
-			} else {
-				error = ipldetach();
-				if (error == 0)
-					fr_running = -1;
-			}
-		}
-		break;
-	case SIOCIPFSET :
-		if (!(mode & FWRITE)) {
-			error = EPERM;
-			break;
-		}
-	case SIOCIPFGETNEXT :
-	case SIOCIPFGET :
-		error = fr_ipftune(cmd, data);
-		break;
-	case SIOCSETFF :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			BCOPYIN(data, &fr_flags, sizeof(fr_flags));
-		break;
-	case SIOCGETFF :
-		BCOPYOUT(&fr_flags, data, sizeof(fr_flags));
-		break;
-	case SIOCFUNCL :
-		error = fr_resolvefunc(data);
-		break;
-	case SIOCINAFR :
-	case SIOCRMAFR :
-	case SIOCADAFR :
-	case SIOCZRLST :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			error = frrequest(unit, cmd, data, fr_active, 1);
-		break;
-	case SIOCINIFR :
-	case SIOCRMIFR :
-	case SIOCADIFR :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			error = frrequest(unit, cmd, data, 1 - fr_active, 1);
-		break;
-	case SIOCSWAPA :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			bzero((char *)frcache, sizeof(frcache[0]) * 2);
-			*(u_int *)data = fr_active;
-			fr_active = 1 - fr_active;
-		}
-		break;
-	case SIOCGETFS :
-		fr_getstat(&fio);
-		error = fr_outobj(data, &fio, IPFOBJ_IPFSTAT);
-		break;
-	case SIOCFRZST :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			error = fr_zerostats(data);
-		break;
-	case SIOCIPFFL :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			BCOPYIN(data, &tmp, sizeof(tmp));
-			tmp = frflush(unit, 4, tmp);
-			BCOPYOUT(&tmp, data, sizeof(tmp));
-		}
-		break;
-#ifdef USE_INET6
-	case SIOCIPFL6 :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			BCOPYIN(data, &tmp, sizeof(tmp));
-			tmp = frflush(unit, 6, tmp);
-			BCOPYOUT(&tmp, data, sizeof(tmp));
-		}
-		break;
-#endif
-	case SIOCSTLCK :
-		BCOPYIN(data, &tmp, sizeof(tmp));
-		fr_state_lock = tmp;
-		fr_nat_lock = tmp;
-		fr_frag_lock = tmp;
-		fr_auth_lock = tmp;
-		break;
-#ifdef IPFILTER_LOG
-	case SIOCIPFFB :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else
-			*(int *)data = ipflog_clear(unit);
-		break;
-#endif /* IPFILTER_LOG */
-	case SIOCGFRST :
-		error = fr_outobj(data, fr_fragstats(), IPFOBJ_FRAGSTAT);
-		break;
-	case SIOCFRSYN :
-		if (!(mode & FWRITE))
-			error = EPERM;
-		else {
-			frsync(NULL);
-		}
-		break;
-	default :
-		error = EINVAL;
-		break;
-	}
 	SPL_X(s);
+
 	return error;
 }
 
 
-#if 0
-void fr_forgetifp(ifp)
-void *ifp;
-{
-	register frentry_t *f;
-
-	WRITE_ENTER(&ipf_mutex);
-	for (f = ipacct[0][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-	for (f = ipacct[1][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-	for (f = ipfilter[0][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-	for (f = ipfilter[1][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-#ifdef USE_INET6
-	for (f = ipacct6[0][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-	for (f = ipacct6[1][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-	for (f = ipfilter6[0][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-	for (f = ipfilter6[1][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == ifp)
-			f->fr_ifa = (void *)-1;
-#endif
-	RWLOCK_EXIT(&ipf_mutex);
-	fr_natsync(ifp);
-}
-#endif
-
-
 /*
- * routines below for saving IP headers to buffer
- */
-int iplopen(dev, flags
-#if ((BSD >= 199506) || (__FreeBSD_version >= 220000)) && defined(_KERNEL)
-, devtype, p)
-int devtype;
-# if (__FreeBSD_version >= 500024)
-struct thread *p;
-# else
-struct proc *p;
-# endif /* __FreeBSD_version >= 500024 */
-#else
-)
-#endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 502116)
-struct cdev *dev;
-#else
-dev_t dev;
-#endif
-int flags;
-{
-	u_int min = GET_MINOR(dev);
-
-	if (IPL_LOGMAX < min)
-		min = ENXIO;
-	else
-		min = 0;
-	return min;
-}
-
-
-int iplclose(dev, flags
-#if ((BSD >= 199506) || (__FreeBSD_version >= 220000)) && defined(_KERNEL)
-, devtype, p)
-int devtype;
-# if (__FreeBSD_version >= 500024)
-struct thread *p;
-# else
-struct proc *p;
-# endif /* __FreeBSD_version >= 500024 */
-#else
-)
-#endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 502116)
-struct cdev *dev;
-#else
-dev_t dev;
-#endif
-int flags;
-{
-	u_int	min = GET_MINOR(dev);
-
-	if (IPL_LOGMAX < min)
-		min = ENXIO;
-	else
-		min = 0;
-	return min;
-}
-
-/*
- * iplread/ipllog
- * both of these must operate with at least splnet() lest they be
- * called during packet processing and cause an inconsistancy to appear in
- * the filter lists.
- */
-#if (BSD >= 199306)
-int iplread(dev, uio, ioflag)
-int ioflag;
-#else
-int iplread(dev, uio)
-#endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 502116)
-struct cdev *dev;
-#else
-dev_t dev;
-#endif
-register struct uio *uio;
-{
-
-# ifdef	IPFILTER_SYNC
-	if (GET_MINOR(dev) == IPL_LOGSYNC)
-		return ipfsync_read(uio);
-# endif
-
-#ifdef IPFILTER_LOG
-	return ipflog_read(GET_MINOR(dev), uio);
-#else
-	return ENXIO;
-#endif
-}
-
-
-/*
- * iplwrite
- * both of these must operate with at least splnet() lest they be
- * called during packet processing and cause an inconsistancy to appear in
- * the filter lists.
- */
-#if (BSD >= 199306)
-int iplwrite(dev, uio, ioflag)
-int ioflag;
-#else
-int iplwrite(dev, uio)
-#endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 502116)
-struct cdev *dev;
-#else
-dev_t dev;
-#endif
-register struct uio *uio;
-{
-
-#ifdef	IPFILTER_SYNC
-	if (GET_MINOR(dev) == IPL_LOGSYNC)
-		return ipfsync_write(uio);
-#endif
-	return ENXIO;
-}
-
-
-/*
- * fr_send_reset - this could conceivably be a call to tcp_respond(), but that
+ * ipf_send_reset - this could conceivably be a call to tcp_respond(), but that
  * requires a large amount of setting up and isn't any more efficient.
  */
-int fr_send_reset(fin)
-fr_info_t *fin;
+int
+ipf_send_reset(fin)
+	fr_info_t *fin;
 {
 	struct tcphdr *tcp, *tcp2;
 	int tlen = 0, hlen;
@@ -766,10 +405,8 @@ fr_info_t *fin;
 	if (tcp->th_flags & TH_RST)
 		return -1;		/* feedback loop */
 
-#ifndef	IPFILTER_CKSUM
-	if (fr_checkl4sum(fin) == -1)
+	if (ipf_checkl4sum(fin) == -1)
 		return -1;
-#endif
 
 	tlen = fin->fin_dlen - (TCP_OFF(tcp) << 2) +
 			((tcp->th_flags & TH_SYN) ? 1 : 0) +
@@ -833,11 +470,11 @@ fr_info_t *fin;
 		ip6->ip6_plen = htons(sizeof(struct tcphdr));
 		ip6->ip6_nxt = IPPROTO_TCP;
 		ip6->ip6_hlim = 0;
-		ip6->ip6_src = fin->fin_dst6;
-		ip6->ip6_dst = fin->fin_src6;
+		ip6->ip6_src = fin->fin_dst6.in6;
+		ip6->ip6_dst = fin->fin_src6.in6;
 		tcp2->th_sum = in6_cksum(m, IPPROTO_TCP,
 					 sizeof(*ip6), sizeof(*tcp2));
-		return fr_send_ip(fin, m, &m);
+		return ipf_send_ip(fin, m);
 	}
 #endif
 	ip->ip_p = IPPROTO_TCP;
@@ -845,14 +482,18 @@ fr_info_t *fin;
 	ip->ip_src.s_addr = fin->fin_daddr;
 	ip->ip_dst.s_addr = fin->fin_saddr;
 	tcp2->th_sum = in_cksum(m, hlen + sizeof(*tcp2));
-	ip->ip_len = hlen + sizeof(*tcp2);
-	return fr_send_ip(fin, m, &m);
+	ip->ip_len = htons(hlen + sizeof(*tcp2));
+	return ipf_send_ip(fin, m);
 }
 
 
-static int fr_send_ip(fin, m, mpp)
-fr_info_t *fin;
-mb_t *m, **mpp;
+/*
+ * ip_len must be in network byte order when called.
+ */
+static int
+ipf_send_ip(fin, m)
+	fr_info_t *fin;
+	mb_t *m;
 {
 	fr_info_t fnew;
 	ip_t *ip, *oip;
@@ -860,24 +501,27 @@ mb_t *m, **mpp;
 
 	ip = mtod(m, ip_t *);
 	bzero((char *)&fnew, sizeof(fnew));
+	fnew.fin_main_soft = fin->fin_main_soft;
 
 	IP_V_A(ip, fin->fin_v);
 	switch (fin->fin_v)
 	{
 	case 4 :
-		fnew.fin_v = 4;
 		oip = fin->fin_ip;
+		hlen = sizeof(*oip);
+		fnew.fin_v = 4;
+		fnew.fin_p = ip->ip_p;
+		fnew.fin_plen = ntohs(ip->ip_len);
 		IP_HL_A(ip, sizeof(*oip) >> 2);
 		ip->ip_tos = oip->ip_tos;
 		ip->ip_id = fin->fin_ip->ip_id;
 #if (__FreeBSD_version > 460000)
-		ip->ip_off = path_mtu_discovery ? IP_DF : 0;
+		ip->ip_off = htons(path_mtu_discovery ? IP_DF : 0);
 #else
 		ip->ip_off = 0;
 #endif
 		ip->ip_ttl = ip_defttl;
 		ip->ip_sum = 0;
-		hlen = sizeof(*oip);
 		break;
 #ifdef USE_INET6
 	case 6 :
@@ -887,8 +531,10 @@ mb_t *m, **mpp;
 		ip6->ip6_vfc = 0x60;
 		ip6->ip6_hlim = IPDEFTTL;
 
-		fnew.fin_v = 6;
 		hlen = sizeof(*ip6);
+		fnew.fin_p = ip6->ip6_nxt;
+		fnew.fin_v = 6;
+		fnew.fin_plen = ntohs(ip6->ip6_plen) + hlen;
 		break;
 	}
 #endif
@@ -903,32 +549,33 @@ mb_t *m, **mpp;
 	fnew.fin_flx = FI_NOCKSUM;
 	fnew.fin_m = m;
 	fnew.fin_ip = ip;
-	fnew.fin_mp = mpp;
+	fnew.fin_mp = &m;
 	fnew.fin_hlen = hlen;
 	fnew.fin_dp = (char *)ip + hlen;
-	(void) fr_makefrip(hlen, ip, &fnew);
+	(void) ipf_makefrip(hlen, ip, &fnew);
 
-	return fr_fastroute(m, mpp, &fnew, NULL);
+	return ipf_fastroute(m, &m, &fnew, NULL);
 }
 
 
-int fr_send_icmp_err(type, fin, dst)
-int type;
-fr_info_t *fin;
-int dst;
+int
+ipf_send_icmp_err(type, fin, dst)
+	int type;
+	fr_info_t *fin;
+	int dst;
 {
 	int err, hlen, xtra, iclen, ohlen, avail, code;
 	struct in_addr dst4;
 	struct icmp *icmp;
 	struct mbuf *m;
+	i6addr_t dst6;
 	void *ifp;
 #ifdef USE_INET6
 	ip6_t *ip6;
-	struct in6_addr dst6;
 #endif
 	ip_t *ip, *ip2;
 
-	if ((type < 0) || (type > ICMP_MAXTYPE))
+	if ((type < 0) || (type >= ICMP_MAXTYPE))
 		return -1;
 
 	code = fin->fin_icode;
@@ -937,10 +584,8 @@ int dst;
 		return -1;
 #endif
 
-#ifndef	IPFILTER_CKSUM
-	if (fr_checkl4sum(fin) == -1)
+	if (ipf_checkl4sum(fin) == -1)
 		return -1;
-#endif
 #ifdef MGETHDR
 	MGETHDR(m, M_DONTWAIT, MT_HEADER);
 #else
@@ -953,10 +598,10 @@ int dst;
 	xtra = 0;
 	hlen = 0;
 	ohlen = 0;
+	dst4.s_addr = 0;
 	ifp = fin->fin_ifp;
 	if (fin->fin_v == 4) {
-		if ((fin->fin_p == IPPROTO_ICMP) &&
-		    !(fin->fin_flx & FI_SHORT))
+		if ((fin->fin_p == IPPROTO_ICMP) && !(fin->fin_flx & FI_SHORT))
 			switch (ntohs(fin->fin_data[0]) >> 8)
 			{
 			case ICMP_ECHO :
@@ -970,16 +615,18 @@ int dst;
 			}
 
 		if (dst == 0) {
-			if (fr_ifpaddr(4, FRI_NORMAL, ifp,
-				       &dst4, NULL) == -1) {
+			if (ipf_ifpaddr(&ipfmain, 4, FRI_NORMAL, ifp,
+					&dst6, NULL) == -1) {
 				FREE_MB_T(m);
 				return -1;
 			}
+			dst4 = dst6.in4;
 		} else
 			dst4.s_addr = fin->fin_daddr;
 
 		hlen = sizeof(ip_t);
 		ohlen = fin->fin_hlen;
+		iclen = hlen + offsetof(struct icmp, icmp_ip) + ohlen;
 		if (fin->fin_hlen < fin->fin_plen)
 			xtra = MIN(fin->fin_dlen, 8);
 		else
@@ -990,12 +637,12 @@ int dst;
 	else if (fin->fin_v == 6) {
 		hlen = sizeof(ip6_t);
 		ohlen = sizeof(ip6_t);
+		iclen = hlen + offsetof(struct icmp, icmp_ip) + ohlen;
 		type = icmptoicmp6types[type];
 		if (type == ICMP6_DST_UNREACH)
 			code = icmptoicmp6unreach[code];
 
-		if (hlen + sizeof(*icmp) + max_linkhdr +
-		    fin->fin_plen > avail) {
+		if (iclen + max_linkhdr + fin->fin_plen > avail) {
 			MCLGET(m, M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				FREE_MB_T(m);
@@ -1003,11 +650,11 @@ int dst;
 			}
 			avail = MCLBYTES;
 		}
-		xtra = MIN(fin->fin_plen,
-			   avail - hlen - sizeof(*icmp) - max_linkhdr);
+		xtra = MIN(fin->fin_plen, avail - iclen - max_linkhdr);
+		xtra = MIN(xtra, IPV6_MMTU - iclen);
 		if (dst == 0) {
-			if (fr_ifpaddr(6, FRI_NORMAL, ifp,
-				       (struct in_addr *)&dst6, NULL) == -1) {
+			if (ipf_ifpaddr(&ipfmain, 6, FRI_NORMAL, ifp,
+					&dst6, NULL) == -1) {
 				FREE_MB_T(m);
 				return -1;
 			}
@@ -1020,7 +667,6 @@ int dst;
 		return -1;
 	}
 
-	iclen = hlen + sizeof(*icmp);
 	avail -= (max_linkhdr + iclen);
 	if (avail < 0) {
 		FREE_MB_T(m);
@@ -1041,9 +687,17 @@ int dst;
 	icmp->icmp_code = fin->fin_icode;
 	icmp->icmp_cksum = 0;
 #ifdef icmp_nextmtu
-	if (type == ICMP_UNREACH &&
-	    fin->fin_icode == ICMP_UNREACH_NEEDFRAG && ifp)
-		icmp->icmp_nextmtu = htons(((struct ifnet *)ifp)->if_mtu);
+	if (type == ICMP_UNREACH && fin->fin_icode == ICMP_UNREACH_NEEDFRAG) {
+		if (fin->fin_mtu != 0) {
+			icmp->icmp_nextmtu = htons(fin->fin_mtu);
+
+		} else if (ifp != NULL) {
+			icmp->icmp_nextmtu = htons(GETIFMTU_4(ifp));
+
+		} else {	/* make up a number... */
+			icmp->icmp_nextmtu = htons(fin->fin_plen - 20);
+		}
+	}
 #endif
 
 	bcopy((char *)fin->fin_ip, (char *)ip2, ohlen);
@@ -1055,8 +709,8 @@ int dst;
 		ip6->ip6_plen = htons(iclen - hlen);
 		ip6->ip6_nxt = IPPROTO_ICMPV6;
 		ip6->ip6_hlim = 0;
-		ip6->ip6_src = dst6;
-		ip6->ip6_dst = fin->fin_src6;
+		ip6->ip6_src = dst6.in6;
+		ip6->ip6_dst = fin->fin_src6.in6;
 		if (xtra > 0)
 			bcopy((char *)fin->fin_ip + ohlen,
 			      (char *)&icmp->icmp_ip + ohlen, xtra);
@@ -1065,8 +719,6 @@ int dst;
 	} else
 #endif
 	{
-		ip2->ip_len = htons(ip2->ip_len);
-		ip2->ip_off = htons(ip2->ip_off);
 		ip->ip_p = IPPROTO_ICMP;
 		ip->ip_src.s_addr = dst4.s_addr;
 		ip->ip_dst.s_addr = fin->fin_saddr;
@@ -1076,10 +728,10 @@ int dst;
 			      (char *)&icmp->icmp_ip + ohlen, xtra);
 		icmp->icmp_cksum = ipf_cksum((u_short *)icmp,
 					     sizeof(*icmp) + 8);
-		ip->ip_len = iclen;
+		ip->ip_len = htons(iclen);
 		ip->ip_p = IPPROTO_ICMP;
 	}
-	err = fr_send_ip(fin, m, &m);
+	err = ipf_send_ip(fin, m);
 	return err;
 }
 
@@ -1096,27 +748,35 @@ void
 # endif
 iplinit()
 {
-	if (iplattach() != 0)
+	if (ipfattach() != 0)
 		printf("IP Filter failed to attach\n");
 	ip_init();
 }
 #endif /* __FreeBSD_version < 300000 */
 
 
-int fr_fastroute(m0, mpp, fin, fdp)
-mb_t *m0, **mpp;
-fr_info_t *fin;
-frdest_t *fdp;
+/*
+ * m0 - pointer to mbuf where the IP packet starts
+ * mpp - pointer to the mbuf pointer that is the start of the mbuf chain
+ */
+int
+ipf_fastroute(m0, mpp, fin, fdp)
+	mb_t *m0, **mpp;
+	fr_info_t *fin;
+	frdest_t *fdp;
 {
 	register struct ip *ip, *mhip;
-	register struct mbuf *m = m0;
+	register struct mbuf *m = *mpp;
 	register struct route *ro;
 	int len, off, error = 0, hlen, code;
 	struct ifnet *ifp, *sifp;
 	struct sockaddr_in *dst;
 	struct route iproute;
 	u_short ip_off;
+	frdest_t node;
 	frentry_t *fr;
+
+	ro = NULL;
 
 #ifdef M_WRITABLE
 	/*
@@ -1131,15 +791,15 @@ frdest_t *fdp;
 	* problem.
 	*/
 	if (M_WRITABLE(m) == 0) {
-		if ((m0 = m_dup(m, M_DONTWAIT)) != 0) {
+		m0 = m_dup(m, M_DONTWAIT);
+		if (m0 != 0) {
 			FREE_MB_T(m);
 			m = m0;
 			*mpp = m;
 		} else {
 			error = ENOBUFS;
 			FREE_MB_T(m);
-			*mpp = NULL;
-			fr_frouteok[1]++;
+			goto done;
 		}
 	}
 #endif
@@ -1151,48 +811,45 @@ frdest_t *fdp;
 		 * for IPv6
 		 */
 #if  (__FreeBSD_version >= 490000)
-		return ip6_output(m0, NULL, NULL, 0, NULL, NULL, NULL);
+		return ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 #else
-		return ip6_output(m0, NULL, NULL, 0, NULL, NULL);
+		return ip6_output(m, NULL, NULL, 0, NULL, NULL);
 #endif
 	}
 #endif
 
 	hlen = fin->fin_hlen;
 	ip = mtod(m0, struct ip *);
+	ifp = NULL;
 
 	/*
 	 * Route packet.
 	 */
 	ro = &iproute;
-	bzero((caddr_t)ro, sizeof (*ro));
+	bzero(ro, sizeof (*ro));
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 	dst->sin_family = AF_INET;
 	dst->sin_addr = ip->ip_dst;
 
 	fr = fin->fin_fr;
+	if ((fr != NULL) && !(fr->fr_flags & FR_KEEPSTATE) && (fdp != NULL) &&
+	    (fdp->fd_type == FRD_DSTLIST)) {
+		if (ipf_dstlist_select_node(fin, fdp->fd_ptr, NULL, &node) == 0)
+			fdp = &node;
+	}
+
 	if (fdp != NULL)
-		ifp = fdp->fd_ifp;
+		ifp = fdp->fd_ptr;
 	else
 		ifp = fin->fin_ifp;
 
-	if ((ifp == NULL) && (!fr || !(fr->fr_flags & FR_FASTROUTE))) {
+	if ((ifp == NULL) && ((fr == NULL) || !(fr->fr_flags & FR_FASTROUTE))) {
 		error = -2;
 		goto bad;
 	}
 
-	/*
-	 * In case we're here due to "to <if>" being used with "keep state",
-	 * check that we're going in the correct direction.
-	 */
-	if ((fr != NULL) && (fin->fin_rev != 0)) {
-		if ((ifp != NULL) && (fdp == &fr->fr_tif))
-			return -1;
-	}
-	if (fdp != NULL) {
-		if (fdp->fd_ip.s_addr != 0)
-			dst->sin_addr = fdp->fd_ip;
-	}
+	if ((fdp != NULL) && (fdp->fd_ip.s_addr != 0))
+		dst->sin_addr = fdp->fd_ip;
 
 	dst->sin_len = sizeof(*dst);
 	rtalloc(ro);
@@ -1215,21 +872,23 @@ frdest_t *fdp;
 	/*
 	 * For input packets which are being "fastrouted", they won't
 	 * go back through output filtering and miss their chance to get
-	 * NAT'd and counted.
+	 * NAT'd and counted.  Duplicated packets aren't considered to be
+	 * part of the normal packet stream, so do not NAT them or pass
+	 * them through stateful checking, etc.
 	 */
-	if (fin->fin_out == 0) {
+	if ((fdp != &fr->fr_dif) && (fin->fin_out == 0)) {
 		sifp = fin->fin_ifp;
 		fin->fin_ifp = ifp;
 		fin->fin_out = 1;
-		(void) fr_acctpkt(fin, NULL);
+		(void) ipf_acctpkt(fin, NULL);
 		fin->fin_fr = NULL;
 		if (!fr || !(fr->fr_flags & FR_RETMASK)) {
 			u_32_t pass;
 
-			(void) fr_checkstate(fin, &pass);
+			(void) ipf_state_check(fin, &pass);
 		}
 
-		switch (fr_checknatout(fin, NULL))
+		switch (ipf_nat_checkout(fin, NULL))
 		{
 		case 0 :
 			break;
@@ -1238,7 +897,7 @@ frdest_t *fdp;
 			break;
 		case -1 :
 			error = -1;
-			goto done;
+			goto bad;
 			break;
 		}
 
@@ -1249,14 +908,17 @@ frdest_t *fdp;
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
-	if (ip->ip_len <= ifp->if_mtu) {
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
+	if (ntohs(ip->ip_len) <= ifp->if_mtu) {
 
 		if (!ip->ip_sum)
 			ip->ip_sum = in_cksum(m, hlen);
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
-					  ro->ro_rt);
+#if (__FreeBSD_version < 800000)
+			    ro->ro_rt
+#else
+			    ro
+#endif
+			);
 		goto done;
 	}
 	/*
@@ -1284,7 +946,7 @@ frdest_t *fdp;
 	 */
 	m0 = m;
 	mhlen = sizeof (struct ip);
-	for (off = hlen + len; off < ip->ip_len; off += len) {
+	for (off = hlen + len; off < ntohs(ip->ip_len); off += len) {
 #ifdef MGETHDR
 		MGETHDR(m, M_DONTWAIT, MT_HEADER);
 #else
@@ -1304,11 +966,12 @@ frdest_t *fdp;
 		}
 		m->m_len = mhlen;
 		mhip->ip_off = ((off - hlen) >> 3) + ip_off;
-		if (off + len >= ip->ip_len)
-			len = ip->ip_len - off;
+		if (off + len >= ntohs(ip->ip_len))
+			len = ntohs(ip->ip_len) - off;
 		else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
+		*mnext = m;
 		m->m_next = m_copy(m0, off, len);
 		if (m->m_next == 0) {
 			error = ENOBUFS;	/* ??? */
@@ -1319,7 +982,6 @@ frdest_t *fdp;
 		mhip->ip_off = htons((u_short)mhip->ip_off);
 		mhip->ip_sum = 0;
 		mhip->ip_sum = in_cksum(m, mhlen);
-		*mnext = m;
 		mnext = &m->m_act;
 	}
 	/*
@@ -1337,21 +999,26 @@ sendorfree:
 		m->m_act = 0;
 		if (error == 0)
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst, ro->ro_rt);
+			    (struct sockaddr *)dst,
+#if (__FreeBSD_version < 800000)
+			    ro->ro_rt
+#else
+			    ro
+#endif
+			    );
 		else
 			FREE_MB_T(m);
 	}
-    }	
+    }
 done:
 	if (!error)
-		fr_frouteok[0]++;
+		ipfmain.ipf_frouteok[0]++;
 	else
-		fr_frouteok[1]++;
+		ipfmain.ipf_frouteok[1]++;
 
-	if (ro->ro_rt) {
+	if ((ro != NULL) && (ro->ro_rt != NULL)) {
 		RTFREE(ro->ro_rt);
 	}
-	*mpp = NULL;
 	return 0;
 bad:
 	if (error == EMSGSIZE) {
@@ -1359,7 +1026,7 @@ bad:
 		code = fin->fin_icode;
 		fin->fin_icode = ICMP_UNREACH_NEEDFRAG;
 		fin->fin_ifp = ifp;
-		(void) fr_send_icmp_err(ICMP_UNREACH, fin, 1);
+		(void) ipf_send_icmp_err(ICMP_UNREACH, fin, 1);
 		fin->fin_ifp = sifp;
 		fin->fin_icode = code;
 	}
@@ -1368,8 +1035,9 @@ bad:
 }
 
 
-int fr_verifysrc(fin)
-fr_info_t *fin;
+int
+ipf_verifysrc(fin)
+	fr_info_t *fin;
 {
 	struct sockaddr_in *dst;
 	struct route iproute;
@@ -1389,10 +1057,12 @@ fr_info_t *fin;
 /*
  * return the first IP Address associated with an interface
  */
-int fr_ifpaddr(v, atype, ifptr, inp, inpmask)
-int v, atype;
-void *ifptr;
-struct in_addr *inp, *inpmask;
+int
+ipf_ifpaddr(softc, v, atype, ifptr, inp, inpmask)
+	ipf_main_softc_t *softc;
+	int v, atype;
+	void *ifptr;
+	i6addr_t *inp, *inpmask;
 {
 #ifdef USE_INET6
 	struct in6_addr *inp6 = NULL;
@@ -1409,10 +1079,10 @@ struct in_addr *inp, *inpmask;
 	ifp = ifptr;
 
 	if (v == 4)
-		inp->s_addr = 0;
+		inp->in4.s_addr = 0;
 #ifdef USE_INET6
 	else if (v == 6)
-		bzero((char *)inp, sizeof(struct in6_addr));
+		bzero((char *)inp, sizeof(*inp));
 #endif
 #if  (__FreeBSD_version >= 300000)
 	ifa = TAILQ_FIRST(&ifp->if_addrhead);
@@ -1451,20 +1121,25 @@ struct in_addr *inp, *inpmask;
 	else if (atype == FRI_PEERADDR)
 		sock = ifa->ifa_dstaddr;
 
+	if (sock == NULL)
+		return -1;
+
 #ifdef USE_INET6
 	if (v == 6) {
-		return fr_ifpfillv6addr(atype, (struct sockaddr_in6 *)sock,
-					(struct sockaddr_in6 *)mask,
-					inp, inpmask);
+		return ipf_ifpfillv6addr(atype, (struct sockaddr_in6 *)sock,
+					 (struct sockaddr_in6 *)mask,
+					 inp, inpmask);
 	}
 #endif
-	return fr_ifpfillv4addr(atype, (struct sockaddr_in *)sock,
-				(struct sockaddr_in *)mask, inp, inpmask);
+	return ipf_ifpfillv4addr(atype, (struct sockaddr_in *)sock,
+				 (struct sockaddr_in *)mask,
+				 &inp->in4, &inpmask->in4);
 }
 
 
-u_32_t fr_newisn(fin)
-fr_info_t *fin;
+u_32_t
+ipf_newisn(fin)
+	fr_info_t *fin;
 {
 	u_32_t newiss;
 #if  (__FreeBSD_version >= 400000)
@@ -1507,25 +1182,23 @@ fr_info_t *fin;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_nextipid                                                 */
+/* Function:    ipf_nextipid                                                */
 /* Returns:     int - 0 == success, -1 == error (packet should be droppped) */
 /* Parameters:  fin(I) - pointer to packet information                      */
 /*                                                                          */
 /* Returns the next IPv4 ID to use for this packet.                         */
 /* ------------------------------------------------------------------------ */
-u_short fr_nextipid(fin)
-fr_info_t *fin;
+u_short
+ipf_nextipid(fin)
+	fr_info_t *fin;
 {
+	u_short id;
+
 #ifndef	RANDOM_IP_ID
-	static u_short ipid = 0;
-	u_short id;
-
-	MUTEX_ENTER(&ipf_rw);
+	MUTEX_ENTER(&ipfmain.ipf_rw);
 	id = ipid++;
-	MUTEX_EXIT(&ipf_rw);
+	MUTEX_EXIT(&ipfmain.ipf_rw);
 #else
-	u_short id;
-
 	id = ip_randomid();
 #endif
 
@@ -1533,8 +1206,9 @@ fr_info_t *fin;
 }
 
 
-INLINE void fr_checkv4sum(fin)
-fr_info_t *fin;
+INLINE int
+ipf_checkv4sum(fin)
+	fr_info_t *fin;
 {
 #ifdef CSUM_DATA_VALID
 	int manual = 0;
@@ -1543,7 +1217,13 @@ fr_info_t *fin;
 	mb_t *m;
 
 	if ((fin->fin_flx & FI_NOCKSUM) != 0)
-		return;
+		return 0;
+
+	if ((fin->fin_flx & FI_SHORT) != 0)
+		return 1;
+
+	if (fin->fin_cksum != FI_CK_NEEDED)
+		return (fin->fin_cksum > FI_CK_NEEDED) ? 0 : -1;
 
 	m = fin->fin_m;
 	if (m == NULL) {
@@ -1552,50 +1232,88 @@ fr_info_t *fin;
 	}
 	ip = fin->fin_ip;
 
+	if ((m->m_pkthdr.csum_flags & (CSUM_IP_CHECKED|CSUM_IP_VALID)) ==
+	    CSUM_IP_CHECKED) {
+		fin->fin_cksum = FI_CK_BAD;
+		fin->fin_flx |= FI_BAD;
+		return -1;
+	}
 	if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
 		if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR)
 			sum = m->m_pkthdr.csum_data;
 		else
 			sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 					htonl(m->m_pkthdr.csum_data +
-					fin->fin_ip->ip_len + fin->fin_p));
+					fin->fin_ip->ip_len -
+					(fin->fin_ip->ip_hl << 2) +
+					fin->fin_p));
 		sum ^= 0xffff;
-		if (sum != 0)
+		if (sum != 0) {
+			fin->fin_cksum = FI_CK_BAD;
 			fin->fin_flx |= FI_BAD;
-	} else
-		manual = 1;
+		} else {
+			fin->fin_cksum = FI_CK_SUMOK;
+			return 0;
+		}
+	} else {
+		if (m->m_pkthdr.csum_flags == CSUM_DELAY_DATA) {
+			fin->fin_cksum = FI_CK_L4FULL;
+			return 0;
+		} else if (m->m_pkthdr.csum_flags == CSUM_TCP ||
+			   m->m_pkthdr.csum_flags == CSUM_UDP) {
+			fin->fin_cksum = FI_CK_L4PART;
+			return 0;
+		} else if (m->m_pkthdr.csum_flags == CSUM_IP) {
+			fin->fin_cksum = FI_CK_L4PART;
+			return 0;
+		} else {
+			manual = 1;
+		}
+	}
 skipauto:
-# ifdef IPFILTER_CKSUM
-	if (manual != 0)
-		if (fr_checkl4sum(fin) == -1)
+	if (manual != 0) {
+		if (ipf_checkl4sum(fin) == -1) {
 			fin->fin_flx |= FI_BAD;
-# else
-	;
-# endif
+			return -1;
+		}
+	}
 #else
-# ifdef IPFILTER_CKSUM
-	if (fr_checkl4sum(fin) == -1)
+	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
-# endif
+		return -1;
+	}
 #endif
+	return 0;
 }
 
 
 #ifdef USE_INET6
-INLINE void fr_checkv6sum(fin)
-fr_info_t *fin;
+INLINE int
+ipf_checkv6sum(fin)
+	fr_info_t *fin;
 {
-# ifdef IPFILTER_CKSUM
-	if (fr_checkl4sum(fin) == -1)
+	if ((fin->fin_flx & FI_NOCKSUM) != 0)
+		return 0;
+
+	if ((fin->fin_flx & FI_SHORT) != 0)
+		return 1;
+
+	if (fin->fin_cksum != FI_CK_NEEDED)
+		return (fin->fin_cksum > FI_CK_NEEDED) ? 0 : -1;
+
+	if (ipf_checkl4sum(fin) == -1) {
 		fin->fin_flx |= FI_BAD;
-# endif
+		return -1;
+	}
+	return 0;
 }
 #endif /* USE_INET6 */
 
 
-size_t mbufchainlen(m0)
-struct mbuf *m0;
-{
+size_t
+mbufchainlen(m0)
+	struct mbuf *m0;
+	{
 	size_t len;
 
 	if ((m0->m_flags & M_PKTHDR) != 0) {
@@ -1611,29 +1329,30 @@ struct mbuf *m0;
 
 
 /* ------------------------------------------------------------------------ */
-/* Function:    fr_pullup                                                   */
+/* Function:    ipf_pullup                                                  */
 /* Returns:     NULL == pullup failed, else pointer to protocol header      */
-/* Parameters:  m(I)   - pointer to buffer where data packet starts         */
+/* Parameters:  xmin(I)- pointer to buffer where data packet starts         */
 /*              fin(I) - pointer to packet information                      */
 /*              len(I) - number of bytes to pullup                          */
 /*                                                                          */
 /* Attempt to move at least len bytes (from the start of the buffer) into a */
 /* single buffer for ease of access.  Operating system native functions are */
 /* used to manage buffers - if necessary.  If the entire packet ends up in  */
-/* a single buffer, set the FI_COALESCE flag even though fr_coalesce() has  */
+/* a single buffer, set the FI_COALESCE flag even though ipf_coalesce() has */
 /* not been called.  Both fin_ip and fin_dp are updated before exiting _IF_ */
 /* and ONLY if the pullup succeeds.                                         */
 /*                                                                          */
-/* We assume that 'min' is a pointer to a buffer that is part of the chain  */
+/* We assume that 'xmin' is a pointer to a buffer that is part of the chain */
 /* of buffers that starts at *fin->fin_mp.                                  */
 /* ------------------------------------------------------------------------ */
-void *fr_pullup(min, fin, len)
-mb_t *min;
-fr_info_t *fin;
-int len;
+void *
+ipf_pullup(xmin, fin, len)
+	mb_t *xmin;
+	fr_info_t *fin;
+	int len;
 {
-	int out = fin->fin_out, dpoff, ipoff;
-	mb_t *m = min;
+	int dpoff, ipoff;
+	mb_t *m = xmin;
 	char *ip;
 
 	if (m == NULL)
@@ -1650,12 +1369,25 @@ int len;
 		dpoff = 0;
 
 	if (M_LEN(m) < len) {
-#ifdef MHLEN
+		mb_t *n = *fin->fin_mp;
 		/*
 		 * Assume that M_PKTHDR is set and just work with what is left
 		 * rather than check..
 		 * Should not make any real difference, anyway.
 		 */
+		if (m != n) {
+			/*
+			 * Record the mbuf that points to the mbuf that we're
+			 * about to go to work on so that we can update the
+			 * m_next appropriately later.
+			 */
+			for (; n->m_next != m; n = n->m_next)
+				;
+		} else {
+			n = NULL;
+		}
+
+#ifdef MHLEN
 		if (len > MHLEN)
 #else
 		if (len > MLEN)
@@ -1667,26 +1399,250 @@ int len;
 #else
 			FREE_MB_T(*fin->fin_mp);
 			m = NULL;
+			n = NULL;
 #endif
 		} else
 		{
 			m = m_pullup(m, len);
 		}
-		*fin->fin_mp = m;
-		fin->fin_m = m;
+		if (n != NULL)
+			n->m_next = m;
 		if (m == NULL) {
-			ATOMIC_INCL(frstats[out].fr_pull[1]);
+			/*
+			 * When n is non-NULL, it indicates that m pointed to
+			 * a sub-chain (tail) of the mbuf and that the head
+			 * of this chain has not yet been free'd.
+			 */
+			if (n != NULL) {
+				FREE_MB_T(*fin->fin_mp);
+			}
+
+			*fin->fin_mp = NULL;
+			fin->fin_m = NULL;
 			return NULL;
 		}
-		ip = MTOD(m, char *) + ipoff;
-	}
 
-	ATOMIC_INCL(frstats[out].fr_pull[0]);
-	fin->fin_ip = (ip_t *)ip;
-	if (fin->fin_dp != NULL)
-		fin->fin_dp = (char *)fin->fin_ip + dpoff;
+		if (n == NULL)
+			*fin->fin_mp = m;
+
+		while (M_LEN(m) == 0) {
+			m = m->m_next;
+		}
+		fin->fin_m = m;
+		ip = MTOD(m, char *) + ipoff;
+
+		fin->fin_ip = (ip_t *)ip;
+		if (fin->fin_dp != NULL)
+			fin->fin_dp = (char *)fin->fin_ip + dpoff;
+		if (fin->fin_fraghdr != NULL)
+			fin->fin_fraghdr = (char *)ip +
+					   ((char *)fin->fin_fraghdr -
+					    (char *)fin->fin_ip);
+	}
 
 	if (len == fin->fin_plen)
 		fin->fin_flx |= FI_COALESCE;
 	return ip;
+}
+
+
+int
+ipf_inject(fin, m)
+	fr_info_t *fin;
+	mb_t *m;
+{
+	int error = 0;
+
+	if (fin->fin_out == 0) {
+#if (__FreeBSD_version >= 501000)
+		netisr_dispatch(NETISR_IP, m);
+#else
+		struct ifqueue *ifq;
+
+		ifq = &ipintrq;
+
+# ifdef _IF_QFULL
+		if (_IF_QFULL(ifq))
+# else
+		if (IF_QFULL(ifq))
+# endif
+		{
+# ifdef _IF_DROP
+			_IF_DROP(ifq);
+# else
+			IF_DROP(ifq);
+# endif
+			FREE_MB_T(m);
+			error = ENOBUFS;
+		} else {
+			IF_ENQUEUE(ifq, m);
+		}
+#endif
+	} else {
+		fin->fin_ip->ip_len = ntohs(fin->fin_ip->ip_len);
+		fin->fin_ip->ip_off = ntohs(fin->fin_ip->ip_off);
+#if (__FreeBSD_version >= 470102)
+		error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
+#else
+		error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL);
+#endif
+	}
+
+	return error;
+}
+
+int ipf_pfil_unhook(void) {
+#if defined(NETBSD_PF) && (__FreeBSD_version >= 500011)
+# if __FreeBSD_version >= 501108
+	struct pfil_head *ph_inet;
+#  ifdef USE_INET6
+	struct pfil_head *ph_inet6;
+#  endif
+# endif
+#endif
+
+#ifdef NETBSD_PF
+# if (__FreeBSD_version >= 500011)
+#  if (__FreeBSD_version >= 501108)
+	ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	if (ph_inet != NULL)
+		pfil_remove_hook((void *)ipf_check_wrapper, NULL,
+		    PFIL_IN|PFIL_OUT|PFIL_WAITOK, ph_inet);
+#  else
+	pfil_remove_hook((void *)ipf_check, PFIL_IN|PFIL_OUT|PFIL_WAITOK,
+	    &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+#  endif
+# else
+	pfil_remove_hook((void *)ipf_check, PFIL_IN|PFIL_OUT|PFIL_WAITOK);
+# endif
+# ifdef USE_INET6
+#  if (__FreeBSD_version >= 501108)
+	ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	if (ph_inet6 != NULL)
+		pfil_remove_hook((void *)ipf_check_wrapper6, NULL,
+		    PFIL_IN|PFIL_OUT|PFIL_WAITOK, ph_inet6);
+#  else
+	pfil_remove_hook((void *)ipf_check, PFIL_IN|PFIL_OUT|PFIL_WAITOK,
+				 &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
+#  endif
+# endif
+#endif
+
+	return (0);
+}
+
+int ipf_pfil_hook(void) {
+#if defined(NETBSD_PF) && (__FreeBSD_version >= 500011)
+# if __FreeBSD_version >= 501108
+	struct pfil_head *ph_inet;
+#  ifdef USE_INET6
+	struct pfil_head *ph_inet6;
+#  endif
+# endif
+#endif
+
+# ifdef NETBSD_PF
+#  if __FreeBSD_version >= 500011
+#   if __FreeBSD_version >= 501108
+	ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+#    ifdef USE_INET6
+	ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+#    endif
+	if (ph_inet == NULL
+#    ifdef USE_INET6
+	    && ph_inet6 == NULL
+#    endif
+	   ) {
+		return ENODEV;
+	}
+
+	if (ph_inet != NULL)
+		pfil_add_hook((void *)ipf_check_wrapper, NULL,
+		    PFIL_IN|PFIL_OUT|PFIL_WAITOK, ph_inet);
+#  else
+	pfil_add_hook((void *)ipf_check, PFIL_IN|PFIL_OUT|PFIL_WAITOK,
+			      &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+#  endif
+#  else
+	pfil_add_hook((void *)ipf_check, PFIL_IN|PFIL_OUT|PFIL_WAITOK);
+#  endif
+#  ifdef USE_INET6
+#   if __FreeBSD_version >= 501108
+	if (ph_inet6 != NULL)
+		pfil_add_hook((void *)ipf_check_wrapper6, NULL,
+				      PFIL_IN|PFIL_OUT|PFIL_WAITOK, ph_inet6);
+#   else
+	pfil_add_hook((void *)ipf_check, PFIL_IN|PFIL_OUT|PFIL_WAITOK,
+			      &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
+#   endif
+#  endif
+# endif
+	return (0);
+}
+
+void
+ipf_event_reg(void)
+{
+#if (__FreeBSD_version >= 502103)
+	ipf_arrivetag = EVENTHANDLER_REGISTER(ifnet_arrival_event, \
+					       ipf_ifevent, &ipfmain, \
+					       EVENTHANDLER_PRI_ANY);
+	ipf_departtag = EVENTHANDLER_REGISTER(ifnet_departure_event, \
+					       ipf_ifevent, &ipfmain, \
+					       EVENTHANDLER_PRI_ANY);
+	ipf_clonetag  = EVENTHANDLER_REGISTER(if_clone_event, ipf_ifevent, \
+					      NULL, EVENTHANDLER_PRI_ANY);
+#endif
+}
+
+void
+ipf_event_dereg(void)
+{
+#if (__FreeBSD_version >= 502103)
+	if (ipf_arrivetag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_arrival_event, ipf_arrivetag);
+	}
+	if (ipf_departtag != NULL) {
+		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ipf_departtag);
+	}
+	if (ipf_clonetag != NULL) {
+		EVENTHANDLER_DEREGISTER(if_clone_event, ipf_clonetag);
+	}
+#endif
+}
+
+
+u_32_t
+ipf_random()
+{
+	return arc4random();
+}
+
+
+u_int
+ipf_pcksum(fin, hlen, sum)
+	fr_info_t *fin;
+	int hlen;
+	u_int sum;
+{
+	struct mbuf *m;
+	u_int sum2;
+	int off;
+
+	m = fin->fin_m;
+	off = (char *)fin->fin_dp - (char *)fin->fin_ip;
+	m->m_data += hlen;
+	m->m_len -= hlen;
+	sum2 = in_cksum(fin->fin_m, fin->fin_plen - off);
+	m->m_len += hlen;
+	m->m_data -= hlen;
+
+	/*
+	 * Both sum and sum2 are partial sums, so combine them together.
+	 */
+	sum += ~sum2 & 0xffff;
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum2 = ~sum & 0xffff;
+	return sum2;
 }

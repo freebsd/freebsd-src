@@ -1,0 +1,27 @@
+#!/bin/ksh
+(kmadmin -U ipf)
+(kminstall -d ipf)
+kminstall -u ipf
+if [[ $? -ne 0 ]] ; then
+	exit 1
+fi
+config -M ipf -u
+if [[ $? -ne 0 ]] ; then
+	exit 1
+fi
+kmadmin -L ipf
+kmadmin -Q ipf
+if [[ $? -ne 0 ]] ; then
+	exit 1
+fi
+input=`kmadmin -Q ipf | grep 'Character Major'`
+set $input
+major=$3
+/bin/rm -f /dev/ipl /dev/ipnat /dev/ipstate /dev/ipauth
+mknod /dev/ipl c $major 0
+mknod /dev/ipnat c $major 1
+mknod /dev/ipstate c $major 2
+mknod /dev/ipauth c $major 3
+mknod /dev/ipsync c $major 4
+mknod /dev/ipscan c $major 5
+exit 0

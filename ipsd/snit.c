@@ -53,7 +53,7 @@ static	int	timeout;
 
 
 int	ack_recv(ep)
-char	*ep;
+	char	*ep;
 {
 	struct	tcpiphdr	tip;
 	struct	tcphdr	*tcp;
@@ -72,8 +72,8 @@ char	*ep;
 
 
 int	readloop(fd, dst)
-int 	fd;
-struct	in_addr dst;
+	int 	fd;
+	struct	in_addr dst;
 {
 	static	u_char	buf[BUFSPACE];
 	register u_char	*bp, *cp, *bufend;
@@ -112,8 +112,8 @@ struct	in_addr dst;
 }
 
 int	initdevice(device, tout)
-char	*device;
-int	tout;
+	char	*device;
+	int	tout;
 {
 	struct	strioctl si;
 	struct	timeval to;

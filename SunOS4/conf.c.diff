@@ -1,0 +1,45 @@
+*** conf.c.orig	Thu Oct  7 10:16:27 1993
+--- conf.c	Tue Aug  8 11:53:10 1995
+***************
+*** 823,828 ****
+--- 823,843 ----
+  #define lightpentab   0
+  #endif
+  
++ #ifdef	IPFILTER
++ # ifdef IPFILTER_LOG
++ extern	int	iplopen(), iplclose(), iplread(), iplioctl();
++ # else
++ extern	int	iplopen(), iplclose(), iplioctl();
++ # define iplread	vd_unuseddev
++ # endif
++ #else
++ #define	iplopen		vd_unuseddev
++ #define	iplclose	vd_unuseddev
++ #define	iplread		vd_unuseddev
++ #define	iplioctl	vd_unuseddev
++ #endif
++ 
++ 
+  extern int seltrue();
+  
+  struct cdevsw	cdevsw[] =
+***************
+*** 1123,1130 ****
+  	0,		0,
+      },
+      {
+! 	vd_unuseddev,	vd_unuseddev,	vd_unuseddev,	vd_unuseddev,	/*59*/
+! 	vd_unuseddev,	vd_unuseddev,	vd_unuseddev, 	0,
+  	0,		0,
+      },
+      {
+--- 1138,1145 ----
+  	0,		0,
+      },
+      {
+! 	iplopen,	iplclose,	iplread,	nulldev,	/*59*/
+! 	iplioctl,	nulldev,	nulldev, 	0,
+  	0,		0,
+      },
+      {

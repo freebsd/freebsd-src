@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */

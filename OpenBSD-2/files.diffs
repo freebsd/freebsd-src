@@ -1,0 +1,14 @@
+*** files.FCS	Thu May  1 06:21:14 1997
+--- files	Mon Oct 27 14:08:53 1997
+***************
+*** 299,304 ****
+--- 299,307 ----
+  file netinet/ip_nat.c			ipfilter
+  file netinet/ip_frag.c			ipfilter
+  file netinet/ip_state.c			ipfilter
++ file netinet/ip_proxy.c			ipfilter
++ file netinet/ip_auth.c			ipfilter
++ file netinet/ip_log.c			ipfilter
+  file netinet/ip_ah.c			inet & ipsec
+  file netinet/ip_esp.c			inet & ipsec
+  file netinet/ip_espdes.c		inet & ipsec

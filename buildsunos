@@ -3,7 +3,7 @@ if [ ! -f netinet/done ] ; then
 	echo "Do NOT run this script directly, do 'make solaris'!"
 	exit 1
 fi
-# Id: buildsunos,v 2.20 2004/02/07 18:08:46 darrenr Exp
+# $Id$
 :
 rev=`uname -r | sed -e 's/^\([^\.]*\)\..*/\1/'`
 if [ -d /usr/ccs/bin ] ; then
@@ -11,8 +11,21 @@ if [ -d /usr/ccs/bin ] ; then
 	export PATH
 fi
 
+testcc()
+{
+	if echo '' | $1 -E - >/dev/null 2>&1 ; then
+		CC=$1
+		return 0
+	fi
+	return 1
+}
+
+if [ -f /usr/include/sys/neti.h ] ; then
+	INST='-DINSTANCES=1'
+fi
+
 if [ $rev = 5 ] ; then
-	if [ ! -d ../pfil ] ; then
+	if [ ! -f /usr/include/sys/neti.h -a ! -d ../pfil ] ; then
 		cat << __EOF__
 pfil directory in .. missing, please download pfil package and extract that
 into the parent directory.
@@ -42,43 +55,79 @@ __EOF__
 	# Default C compiler is "cc", override on make commandline
 	#
 	if [ "x$CC" = "x" ] ; then
-		if echo '' | cc -E - >/dev/null 2>&1 ; then
-			CC=cc
-		else
-			if echo '' | gcc -E - >/dev/null 2>&1 ; then
-				CC=gcc
-			else
-				echo "No working compiler found"
+		testcc cc
+		if [ $? -ne 0 ] ; then
+			testcc gcc
+			if [ $? -ne 0 ] ; then
+				echo 'No working compiler found'
 				exit 1
 			fi
 		fi
+	else
+		testcc $CC
+		if [ $? -ne 0 ] ; then
+			case $CC in
+			*gcc*)
+				echo 'No working compiler found'
+				exit 1
+				;;
+			*)
+				testcc gcc
+				if [ $? -ne 0 ] ; then
+					echo 'No working compiler found'
+					exit 1
+				fi
+				;;
+			esac
+		fi
 	fi
-	v=`echo '__GNUC__' | 2>&1 ${CC} -E - | 2>&1 sed -ne '/^[0-9]* *$/p'`
+	v=`echo '__GNUC__' 2>&1 | ${CC} -E - 2>&1 | sed -ne '/^[0-9]* *$/p'`
 	if [ x$v != x ] ; then
 		CC=gcc
 	fi
 
 	case "$CC" in
 	*gcc*)	# gcc
-		XARCH32=""
-		XARCH64="-m64 -mcmodel=medlow"
+		XARCH32_i386=""
+		XARCH32_sparc=""
+		XARCH64_sparc="-m64 -mcmodel=medlow"
+		XARCH64_i386="-m64 -mcmodel=kernel -mno-red-zone -ffreestanding"
 		;;
 	*)	# Sun C
-		XARCH32="-Xa -xildoff"
-		XARCH64="$XARCH32 -xarch=v9 -xchip=ultra -dalign -xcode=abs32"
+		XARCH32_i386="-Xa -xildoff"
+		XARCH32_sparc="-Xa -xildoff -xarch=v8 -xmemalign=8s"
+		if [ `cc -xarch=amd64 -xarch=v9 2>&1 | grep -c deprec` -eq 1 ] ; then
+			XARCH64_sparc="-Xa -xildoff -m64 -xmemalign=8s"
+			XARCH64_i386="$XARCH32 -m64"
+		else
+			XARCH64_sparc="-Xa -xildoff -xarch=v9 -xchip=ultra -xmemalign=8s -xcode=abs32"
+			XARCH64_i386="$XARCH32 -xarch=amd64 -xcode=abs32"
+		fi
 		;;
 	esac
+	XARCH32="`eval echo '$XARCH32_'$cpu`"
+	XARCH64="`eval echo '$XARCH64_'$cpu`"
+	OBJ32_sparc=sparcv7
+	OBJ64_sparc=sparcv9
+	OBJ32_i386=i86
+	OBJ64_i386=amd64
 
 	export CC
 
 	ISABITS=32
 
-	OBJ32=sparcv7
+	OBJ32=`eval echo '$OBJ32_'$cpu`
+	OBJ64=`eval echo '$OBJ64_'$cpu`
 	ARCHINC32=
-	OBJ64=sparcv9
-	ARCHINC64="-I/usr/include/v9"
+	ARCHINC64_sparc="-I/usr/include/v9"
+	ARCHINC64_i386=""
+	ARCHINC64="`eval echo '$ARCHINC_'$cpu`"
 
-	if [ $solrev -ge 7 ] && /bin/optisa sparcv8plus > /dev/null
+	if [ $solrev -ge 10 ] && /bin/optisa sparcv8plus amd64 > /dev/null
+	then
+		# Introducing amd64
+		BUILDBOTH=true
+	elif [ $solrev -ge 7 ] && /bin/optisa sparcv8plus > /dev/null
 	then
 		# We run Solaris 7+ on 64 bit capable hardware.
 		BUILDBOTH=true
@@ -143,11 +192,11 @@ fi
 # Default $MAKE to make
 : ${MAKE:=make}
 
-if [ $cpu = i386 ] ; then
+if [ $cpu = i386 -a $solrev -lt 10 ] ; then
 	if [ -n "$BPFILTER" ] ; then
 		BPF="BPFILTER=./$BPFILTER"
 	fi
-	$MAKE $MAKEFLAGS ${1+"$@"} sunos5x86 SOLARIS2="-DSOLARIS2=$solrev" CPU= CPUDIR=${cpudir} CC="$CC $XARCH32" XARCH="$XARCH32" ARCHINC="$ARCHINC32" BITS=32 OBJ=. $BPF
+	$MAKE $MAKEFLAGS ${1+"$@"} sunos5 SOLARIS2="-DSOLARIS2=$solrev" CPU= CPUDIR=${cpudir} CC="$CC $XARCH32" XARCH="$XARCH32" ARCHINC="$ARCHINC32" BITS=32 OBJ=. $BPF
 	exit $?
 fi
 if [ x$solrev = x ] ; then
@@ -156,13 +205,14 @@ if [ x$solrev = x ] ; then
 fi
 for b in $ISABITS
 do
-    echo build $b bit binaries.
-    for v in OBJ ARCHINC XARCH
-    do
-	eval $v=\"\$$v$b\"
-    done
-    if [ -n "$BPFILTER" ] ; then
-	BPF="BPFILTER=$OBJ/$BPFILTER"
-    fi
-    $MAKE $MAKEFLAGS ${1+"$@"} sunos$rev SOLARIS2="-DSOLARIS2=$solrev" CPU= CPUDIR=${cpudir} CC="$CC $XARCH" XARCH="$XARCH" ARCHINC="$ARCHINC" BITS=$b OBJ=$OBJ $BPF || exit $?
+	echo build $b bit binaries.
+	for v in OBJ ARCHINC XARCH
+	do
+		eval $v=\"\$$v$b\"
+	done
+	eval B=\"\$OBJ${b}_`uname -p`\"
+	if [ -n "$BPFILTER" ] ; then
+		BPF="BPFILTER=$OBJ/$BPFILTER"
+	fi
+	$MAKE $MAKEFLAGS ${1+"$@"} sunos$rev SOLARIS2="-DSOLARIS2=$solrev" CPU= CPUDIR=${cpudir} CC="$CC $XARCH" XARCH="$XARCH" INSTANCE="$INST" ARCHINC="$ARCHINC" BITS=$b OBJ=$B $BPF || exit $?
 done

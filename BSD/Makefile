@@ -1,9 +1,8 @@
 #
-# Copyright (C) 1993-1998 by Darren Reed.
+# Copyright (C) 2012 by Darren Reed.
 #
 # See the IPFILTER.LICENCE file for details on licencing.
 #
-TOP=../..
 BINDEST=/usr/sbin
 SBINDEST=/sbin
 MANDIR=/usr/share/man
@@ -17,13 +16,14 @@ CFLAGS=-g -I$(TOP)
 #
 DEVFS!=/usr/bin/lsvfs 2>&1 | sed -n 's/.*devfs.*/-DDEVFS/p'
 CPU!=uname -m
-INC=-I/usr/include -I/sys -I/sys/sys -I/sys/arch
+COMPDIR!=/bin/ls -1tr /usr/src/sys/arch/${CPU}/compile | tail -1
+INC=-I/usr/include -I/sys -I/sys/sys -I/sys/arch -I/usr/src/sys/arch/${CPU}/compile/${COMPDIR}
 DEF=-D$(CPU) -D__$(CPU)__ -DINET -DKERNEL -D_KERNEL $(INC) $(DEVFS) -fno-builtin
 IPDEF=$(DEF) -DGATEWAY -DDIRECTED_BROADCAST
 VNODESHDIR=/sys/kern
 MLD=$(ML)
 ML=mln_ipl.c
-LKM=if_ipl.o
+LKM=ipflkm.o
 LKMR=ipfrule.o
 DLKM=
 OBJ=.
@@ -44,15 +44,15 @@ INSTALL=install
 #
 MODOBJS=ip_fil.o fil.o ml_ipl.o ip_nat.o ip_frag.o ip_state.o ip_proxy.o \
 	ip_auth.o ip_log.o ip_pool.o ip_htable.o ip_lookup.o ip_rules.o \
-	ip_scan.o ip_sync.o
+	ip_scan.o ip_sync.o ip_nat6.o ip_dstlist.o radix_ipf.o
 #	ip_trafcon.o
 DFLAGS=$(IPFLKM) $(IPFLOG) $(LOOKUP) $(SYNC) $(DEF) $(DLKM) $(IPFBPF)
-IPF=ipf.o ipfcomp.o ipf_y.o ipf_l.o bpf_filter_u.o
-IPT=ipftest.o fil_u.o ip_frag_u.o ip_state_u.o ip_nat_u.o \
+IPF=ipf.o ipfcomp.o ipf_y.o ipf_l.o
+IPT=ipftest.o fil_u.o ip_frag_u.o ip_state_u.o ip_nat_u.o ip_nat6_u.o \
     ip_proxy_u.o ip_auth_u.o ip_htable_u.o ip_lookup_u.o ip_pool_u.o \
     ip_scan_u.o ip_sync_u.o ip_rules_u.o ip_fil_u.o ip_log_u.o \
     ippool_y.o ippool_l.o ipf_y.o ipf_l.o ipnat_y.o ipnat_l.o \
-    md5_u.o radix_u.o bpf_filter_u.o
+    md5_u.o radix_ipf_u.o ip_dstlist_u.o
 #   ip_syn_u.o
 #ip_trafcon_u.o
 TOOL=$(TOP)/tools
@@ -60,9 +60,9 @@ IPNAT=ipnat.o ipnat_y.o ipnat_l.o
 IPMON=ipmon.o ipmon_y.o ipmon_l.o
 IPPOOL=ippool_y.o ippool_l.o kmem.o ippool.o
 IPTRAFCON=iptrafcon.o
-PROXYLIST=$(TOP)/ip_ftp_pxy.c $(TOP)/ip_ipsec_pxy.c $(TOP)/ip_irc_pxy.c \
-	  $(TOP)/ip_netbios_pxy.c $(TOP)/ip_raudio_pxy.c $(TOP)/ip_rcmd_pxy.c \
-	  $(TOP)/ip_rpcb_pxy.c $(TOP)/ip_pptp_pxy.c
+PROXYLIST=$(TOP)/ip_dns_pxy.c $(TOP)/ip_ftp_pxy.c $(TOP)/ip_ipsec_pxy.c \
+	  $(TOP)/ip_irc_pxy.c $(TOP)/ip_netbios_pxy.c $(TOP)/ip_raudio_pxy.c \
+	  $(TOP)/ip_rcmd_pxy.c $(TOP)/ip_rpcb_pxy.c $(TOP)/ip_pptp_pxy.c 
 FILS=ipfstat.o
 LIBSRC=$(TOP)/lib
 RANLIB=ranlib
@@ -70,6 +70,11 @@ AROPTS=cq
 HERE!=pwd
 CCARGS=-I. $(DEBUG) $(CFLAGS) $(UFLAGS)
 KCARGS=-I. $(DEBUG) $(CFLAGS)
+.if ${MACHINE_ARCH} == amd64
+KCARGS+=-mcmodel=kernel -mno-red-zone -fno-omit-frame-pointer \
+	-mfpmath=387 -mno-sse -mno-sse2 -mno-mmx -mno-3dnow \
+	-msoft-float -fno-asynchronous-unwind-tables
+.endif
 #
 # Extra is option kernel things we always want in user space.
 #
@@ -77,9 +82,11 @@ EXTRA=$(ALLOPTS)
 
 include $(TOP)/lib/Makefile
 
-build all: machine $(OBJ)/libipf.a ipf ipfs ipfstat ipftest ipmon ipnat \
-	   ippool ipscan ipsyncm ipsyncs $(LKM) $(LKMR)
-	-sh -c 'for i in ipf ipftest ipmon ippool ipnat ipscan ipsyncm ipsyncs; do /bin/rm -f $(TOP)/$$i; ln -s `pwd`/$$i $(TOP); done'
+build all: machine $(OBJ)/libipf.a tools $(LKM) $(LKMR)
+
+tools: ipf ipfs ipfstat ipftest ipmon ipnat ippool ipscan ipsyncm \
+       ipsyncs ipfsyncd
+	-sh -c 'for i in ipf ipftest ipmon ippool ipnat ipscan ipsyncm ipsyncs ipfsyncd; do /bin/rm -f $(TOP)/$$i; ln -s `pwd`/$$i $(TOP); done'
 	-/bin/rm -f ../tools ./tools
 	-ln -s ../tools .
 	-ln -s ../tools ..
@@ -122,11 +129,17 @@ ipsyncm: ipsyncm.o $(OBJ)/libipf.a
 ipsyncs: ipsyncs.o $(OBJ)/libipf.a
 	$(CC) $(CCARGS) ipsyncs.o -o $@ $(LIBS)
 
+ipfsyncd: ipfsyncd.o $(OBJ)/libipf.a
+	$(CC) $(CCARGS) ipfsyncd.o -o $@ $(LIBS)
+
 ipsyncm.o: $(TOOL)/ipsyncm.c $(TOP)/ip_sync.h
 	$(CC) $(CCARGS) -c $(TOOL)/ipsyncm.c -o $@
 
 ipsyncs.o: $(TOOL)/ipsyncs.c $(TOP)/ip_sync.h
 	$(CC) $(CCARGS) -c $(TOOL)/ipsyncs.c -o $@
+
+ipfsyncd.o: $(TOOL)/ipfsyncd.c $(TOP)/ip_sync.h
+	$(CC) $(CCARGS) -c $(TOOL)/ipfsyncd.c -o $@
 
 tests:
 	(cd test; make )
@@ -146,7 +159,7 @@ fil_u.o: $(TOP)/fil.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/ip_compat.h \
 
 fil.o: $(TOP)/fil.c $(TOP)/ip_fil.h $(TOP)/ip_compat.h $(TOP)/ipl.h \
 	    $(TOP)/ip_rules.h
-	$(CC) $(KCARGS) $(POLICY) $(DFLAGS) $(IPFBPF) $(COMPIPF) \
+	$(CC) $(KCARGS) $(POLICY) $(DFLAGS) $(IPFBPF) $(COMPIPF) $(COMPATIPF) \
 	    -c $(TOP)/fil.c -o $@
 
 ipf.o: $(TOOL)/ipf.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/opts.h
@@ -163,7 +176,7 @@ ipnat.o: $(TOOL)/ipnat.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/ip_nat.h \
 	    $(TOP)/opts.h
 	$(CC) $(CCARGS) -c $(TOOL)/ipnat.c -o $@
 
-ipnat_y.o: ipnat_y.c ipnat_y.h ipnat_l.h
+ipnat_y.o: ipnat_y.c ipnat_y.h ipnat_l.h $(TOP)/ip_fil.h $(TOP)/ip_nat.h
 	$(CC) $(CCARGS) -c ipnat_y.c -o $@
 
 ipnat_l.o: ipnat_l.c ipnat_y.h
@@ -182,6 +195,9 @@ ipnat_l.h: $(TOOL)/lexer.h
 
 ip_nat_u.o: $(TOP)/ip_nat.c $(TOP)/ip_nat.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h
 	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/ip_nat.c -o $@
+
+ip_nat6_u.o: $(TOP)/ip_nat6.c $(TOP)/ip_nat.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h
+	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/ip_nat6.c -o $@
 
 ip_proxy_u.o: $(TOP)/ip_proxy.c $(TOP)/ip_proxy.h $(TOP)/ip_compat.h \
 	$(TOP)/ip_fil.h $(PROXYLIST) $(TOP)/ip_nat.h
@@ -222,8 +238,13 @@ ip_htable_u.o: $(TOP)/ip_htable.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 	$(TOP)/ip_htable.h
 	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/ip_htable.c -o $@
 
+ip_dstlist_u.o: $(TOP)/ip_dstlist.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
+	$(TOP)/ip_dstlist.h
+	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/ip_dstlist.c -o $@
+
 ip_lookup_u.o: $(TOP)/ip_lookup.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
-	$(TOP)/ip_lookup.h $(TOP)/ip_pool.h $(TOP)/ip_htable.h
+	$(TOP)/ip_lookup.h $(TOP)/ip_pool.h $(TOP)/ip_htable.h \
+	$(TOP)/ip_dstlist.h
 	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/ip_lookup.c -o $@
 
 ip_trafcon_u.o: $(TOP)/ip_trafcon.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
@@ -236,19 +257,28 @@ ip_log_u.o: $(TOP)/ip_log.c $(TOP)/ip_fil.h $(TOP)/ip_compat.h
 md5_u.o: $(TOP)/md5.c $(TOP)/md5.h
 	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/md5.c -o $@
 
-radix_u.o: $(TOP)/md5.c $(TOP)/radix_ipf.h
-	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/radix.c -o $@
+radix_ipf_u.o: $(TOP)/md5.c $(TOP)/radix_ipf.h
+	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/radix_ipf.c -o $@
 
 bpf_filter_u.o: $(TOP)/bpf_filter.c $(TOP)/pcap-ipf.h
 	$(CC) $(CCARGS) $(EXTRA) -c $(TOP)/bpf_filter.c -o $@
 
-if_ipl.o: $(MODOBJS) 
+ipflkm.o: $(MODOBJS)
 	ld -r $(MODOBJS) -o $(LKM)
-	${RM} -f if_ipl
+	${RM} -f ipflkm
 
 ipfrule.ko.5: ip_rulesx.o $(MLR)
+.if ${MACHINE_ARCH} != amd64
 	ld -warn-common -r -d -o $(.TARGET:S/.ko/.kld/) ip_rulesx.o $(MLR)
-	ld -Bshareable -d -warn-common -o $(LKMR:S/.5$//) $(.TARGET:S/.ko/.kld/) 
+	ld -Bshareable -d -warn-common -o $(LKMR:S/.5$//) $(.TARGET:S/.ko/.kld/)
+.else
+	ld -warn-common -r -d -o $(.TARGET:S/.5$//) ip_rulesx.o $(MLR)
+	nm -g $(.TARGET:S/.5$//) | \
+	    awk '/^[^[:space:]]+ [^AU] (.*)$$/ { print ($$2=="C" ? "-N" : "-L") $$3 }' | \
+	    xargs -J% objcopy % $(.TARGET:S/.5$//)
+
+.endif
+
 ipfrule.ko: ip_rulesx.o $(MLR)
 	gensetdefs ip_rulesx.o $(MLR)
 	$(CC) $(KCARGS) -c setdef0.c
@@ -256,10 +286,17 @@ ipfrule.ko: ip_rulesx.o $(MLR)
 	ld -Bshareable -o $@ setdef0.o ip_rulesx.o $(MLR) setdef1.o
 
 ipf.ko.5 ipl.ko.5: $(MODOBJS)
+.if ${MACHINE_ARCH} != amd64
 	ld -warn-common -r -d -o $(.TARGET:S/.ko/.kld/) $(MODOBJS)
 	ld -Bshareable -d -warn-common -o $(LKM:S/.5$//) $(.TARGET:S/.ko/.kld/)
+.else
+	ld -warn-common -r -d -o $(.TARGET:S/.5$//) $(MODOBJS)
+	nm -g $(.TARGET:S/.5$//) | \
+	    awk '/^[^[:space:]]+ [^AU] (.*)$$/ { print ($$2=="C" ? "-N" : "-L") $$3 }' | \
+	    xargs -J% objcopy % $(.TARGET:S/.5$//)
+.endif
 
-ipf.ko ipl.ko: $(MODOBJS) 
+ipf.ko ipl.ko: $(MODOBJS)
 	gensetdefs $(MODOBJS)
 	$(CC) $(KCARGS) -c setdef0.c
 	$(CC) $(KCARGS) -c setdef1.c
@@ -267,6 +304,9 @@ ipf.ko ipl.ko: $(MODOBJS)
 
 ip_nat.o: $(TOP)/ip_nat.c $(TOP)/ip_nat.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h
 	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_nat.c -o $@
+
+ip_nat6.o: $(TOP)/ip_nat6.c $(TOP)/ip_nat.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_nat6.c -o $@
 
 ip_frag.o: $(TOP)/ip_frag.c $(TOP)/ip_frag.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h
 	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_frag.c -o $@
@@ -290,6 +330,11 @@ ip_fil.c:
 ip_fil.o: ip_fil.c $(TOP)/ip_fil.h $(TOP)/ip_compat.h $(TOP)/ip_nat.h
 	$(CC) $(KCARGS) $(DFLAGS) $(COMPIPF) -c ip_fil.c -o $@
 
+ip_fil_compat.o: $(TOP)/ip_fil_compat.c $(TOP)/ipl.h $(TOP)/ip_fil.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_nat.h $(TOP)/ip_state.h
+	$(CC) $(KCARGS) $(DFLAGS) $(COMPIPF) $(COMPATIPF) \
+	-c $(TOP)/ip_fil_compat.c -o $@
+
 ip_log.o: $(TOP)/ip_log.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h
 	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_log.c -o $@
 
@@ -307,9 +352,17 @@ ip_htable.o: $(TOP)/ip_htable.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 	$(TOP)/ip_lookup.h $(TOP)/ip_htable.h
 	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_htable.c -o $@
 
+ip_dstlist.o: $(TOP)/ip_dstlist.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
+	$(TOP)/ip_lookup.h $(TOP)/ip_dstlist.h
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_dstlist.c -o $@
+
 ip_lookup.o: $(TOP)/ip_lookup.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
-	$(TOP)/ip_pool.h $(TOP)/ip_htable.h $(TOP)/ip_lookup.h
+	$(TOP)/ip_pool.h $(TOP)/ip_htable.h $(TOP)/ip_lookup.h \
+	$(TOP)/ip_dstlist.h
 	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/ip_lookup.c -o $@
+
+radix_ipf.o: $(TOP)/md5.c $(TOP)/radix_ipf.h
+	$(CC) $(KCARGS) $(DFLAGS) -c $(TOP)/radix_ipf.c -o $@
 
 ip_trafcon.o: $(TOP)/ip_trafcon.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 	      $(TOP)/ip_trafcon.h
@@ -317,6 +370,8 @@ ip_trafcon.o: $(TOP)/ip_trafcon.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
 
 vnode_if.h: $(VNODESHDIR)/vnode_if.src
 	mkdir -p ../sys
+	mkdir -p ../rump/include/rump
+	mkdir -p ../rump/librump/rumpvfs
 	if [ -f $(VNODESHDIR)/vnode_if.sh ] ; then \
 		sh $(VNODESHDIR)/vnode_if.sh $(VNODESHDIR)/vnode_if.src; \
 	fi
@@ -325,10 +380,11 @@ vnode_if.h: $(VNODESHDIR)/vnode_if.src
 	fi
 	if [ -f ../sys/vnode_if.h ] ; then mv ../sys/vnode_if.h .; fi
 	rmdir ../sys
+	rm -rf ../rump
 
 ml_ipl.o: vnode_if.h $(TOP)/$(MLD) $(TOP)/ipl.h
 	-/bin/rm -f vnode_if.c
-	$(CC) -I. $(CFLAGS) $(DFLAGS) -c $(TOP)/$(ML) -o $@
+	$(CC) -I. $(KCARGS) $(DFLAGS) -c $(TOP)/$(ML) -o $@
 
 ip_rules.o: ip_rules.c $(TOP)/ip_rules.h
 	$(CC) -I. $(CFLAGS) $(DFLAGS) $(COMPIPF) -c ip_rules.c -o $@
@@ -344,7 +400,7 @@ $(TOP)/ip_rules.h: ip_rules.c
 	fi
 
 ip_rulesx.o: ip_rules.c $(TOP)/ip_rules.h
-	$(CC) -I. $(CFLAGS) $(DFLAGS) -DIPFILTER_COMPILED -c ip_rules.c -o $@
+	$(CC) -I. $(KCARGS) $(DFLAGS) -DIPFILTER_COMPILED -c ip_rules.c -o $@
 
 mlf_rule.o: $(TOP)/mlf_rule.c $(TOP)/ip_rules.h
 	$(CC) -I. $(CFLAGS) $(DFLAGS) -c $(TOP)/mlf_rule.c -o $@
@@ -356,7 +412,7 @@ mlo_rule.o: $(TOP)/mlo_rule.c $(TOP)/ip_rules.h
 	$(CC) -I. $(CFLAGS) $(DFLAGS) -c $(TOP)/mlo_rule.c -o $@
 
 mlfk_rule.o: $(TOP)/mlfk_rule.c $(TOP)/ip_rules.h
-	$(CC) -I. $(CFLAGS) $(DFLAGS) -c $(TOP)/mlfk_rule.c -o $@
+	$(CC) -I. $(KCARGS) $(DFLAGS) -c $(TOP)/mlfk_rule.c -o $@
 
 ipf_y.o: ipf_y.c ipf_y.h $(TOP)/ipf.h ipf_l.h $(TOP)/opts.h
 	$(CC) $(CCARGS) $(IPFBPF) -c ipf_y.c -o $@
@@ -427,10 +483,11 @@ ippool_y.o: ippool_y.c ippool_y.h $(TOP)/ip_pool.h ippool_l.h
 ippool_l.o: ippool_l.c ippool_y.h $(TOP)/ip_pool.h
 	$(CC) $(CCARGS) -I. -c ippool_l.c -o $@
 
-ippool_y.c: $(TOOL)/ippool_y.y $(TOP)/ip_pool.h ippool_l.h
+ippool_y.c: $(TOOL)/ippool_y.y $(TOP)/ip_pool.h ippool_l.h ippool_y.h
 	(cd $(TOOL); make "DEST=$(HERE)" $(HERE)/$@)
 
-ippool_y.h: ippool_y.c
+ippool_y.h: $(TOOL)/ippool_y.y
+	(cd $(TOOL); make "DEST=$(HERE)" $(HERE)/$@)
 
 ippool_l.c: $(TOOL)/lexer.c $(TOP)/ip_pool.h
 	(cd $(TOOL); make "DEST=$(HERE)" $(HERE)/$@)
@@ -449,10 +506,10 @@ iptrafcon: $(IPTRAFCON) $(OBJ)/libipf.a
 .l.c:
 
 clean:
-	${RM} -f ../ipf ../ipnat ../ipmon ../ippool ../ipftest 
+	${RM} -f ../ipf ../ipnat ../ipmon ../ippool ../ipftest
 	${RM} -f ../ipscan ../ipsyncm ../ipsyncs
 	${RM} -f *.core *.o *.a ipt ipfstat ipf ipfstat ipftest ipmon
-	${RM} -f if_ipl ipnat ipfrule.ko* ipf.kld* ipfrule.kld*
+	${RM} -f ipflkm ipnat ipfrule.ko* ipf.kld* ipfrule.kld*
 	${RM} -f vnode_if.h $(LKM) ioconf.h *.ko setdef1.c setdef0.c setdefs.h
 	${RM} -f ip_fil.c ipf_l.c ipf_y.c ipf_y.h ipf_l.h
 	${RM} -f ipscan ipscan_y.c ipscan_y.h ipscan_l.c ipscan_l.h
@@ -481,8 +538,8 @@ install:
 		/bin/cp $(TOP)/$$i /usr/include/netinet/; \
 		$(CHMOD) 444 /usr/include/netinet/$$i; \
 	done
-	-if [ -d /lkm -a -f if_ipl.o ] ; then \
-		cp if_ipl.o /lkm; \
+	-if [ -d /lkm -a -f ipflkm.o ] ; then \
+		cp ipflkm.o /lkm; \
 	fi
 	-if [ -d /modules -a -f ipf.ko ] ; then \
 		if [ -f /modules/ipl.ko ] ; then \
@@ -494,6 +551,7 @@ install:
 	-if [ -d /modules -a -f ipfrule.ko ] ; then \
 		cp ipfrule.ko /modules; \
 	fi
+.if ${MACHINE_ARCH} != amd64
 	-if [ -d /boot/kernel -a -f ipf.ko ] ; then \
 		if [ -f /boot/kernel/ipl.ko ] ; then \
 			cp ipf.ko /boot/kernel/ipl.ko; \
@@ -504,8 +562,29 @@ install:
 	-if [ -d /boot/kernel -a -f ipfrule.ko ] ; then \
 		cp ipfrule.ko /boot/kernel; \
 	fi
-	-if [ -d /usr/lkm -a -f if_ipl.o ] ; then \
-		cp if_ipl.o /usr/lkm; \
+.else
+	-if [ -d /boot/kernel -a -f ipf.ko ] ; then \
+		if [ -f /boot/kernel/ipl.ko ] ; then \
+			objcopy --only-keep-debug ipf.ko 
+			    /boot/kernel/ipl.ko.symbols; \
+			objcopy --strip-debug \
+			    --add-gnu-debuglink=ipl.ko.symbols  \
+			    ipf.ko /boot/kernel/ipl.ko; \
+		else \
+			objcopy --only-keep-debug ipf.ko \
+			    /boot/kernel/ipf.ko.symbols; \
+			objcopy --strip-debug \
+			    --add-gnu-debuglink=ipl.ko.symbols \
+			    ipf.ko /boot/kernel/ipf.ko; \
+		fi \
+	fi
+	-if [ -d /boot/kernel -a -f ipfrule.ko ] ; then \
+		objcopy --only-keep-debug ipfrule.ko /boot/kernel/ipfrule.ko.symbols; \
+		objcopy --strip-debug --add-gnu-debuglink=ipfrule.ko.symbols ipfrule.ko /boot/kernel/ipfrule.ko; \
+	fi
+.endif
+	-if [ -d /usr/lkm -a -f ipflkm.o ] ; then \
+		cp ipflkm.o /usr/lkm; \
 	fi
 	-$(INSTALL) -cs -g wheel -m 755 -o root ipscan $(SBINDEST)
 	(cd $(TOP)/man; make INSTALL=$(INSTALL) MANDIR=$(MANDIR) install; cd $(TOP))
@@ -533,8 +612,8 @@ install:
 	(cd $(TOP)/man; make INSTALL=$(INSTALL) MANDIR=$(MANDIR) install; cd $(TOP))
 
 coverage:
-	ksh -c 'for i in *.da; do j=$${i%%.da}.c; gcov $$j 2>&1 | egrep -v "y.tab.c|Could|Creating|_l\.c|\.h"; done'  | sort -k 1n -k 3n > report
-	sort -k 1n -k 3n report | perl -e 'while(<>) { next if (/^0.00/); s/\%//g; @F=split;$$lc+=$$F[2];$$t += ($$F[0]/100)*$$F[2];}  printf "%d of %d = %d%%\n", $$t, $$lc,($$t/$$lc)*100;' >> report
+	ksh -c 'for i in *.da; do j=$${i%%.da}.c; gcov $$j 2>&1 | egrep -v "y.tab.c|Could|Creating|_l\.c|\.h"; done'  | sort -n > report
+	sort -n report | perl -e 'while(<>) { next if (/^0.00/); s/\%//g; @F=split;$$lc+=$$F[2];$$t += $$F[0]/100*$$F[2];}  printf "%d of %d = %d%%\n", $$t, $$lc,$$t/$$lc*100;' >> report
 
 clean-coverage:
 	/bin/rm -f *.gcov *.da

@@ -1,0 +1,16 @@
+*** sys/netinet/in_proto.c-ORIG	Wed Apr 24 22:49:02 1996
+--- sys/netinet/in_proto.c	Wed Apr 24 22:50:30 1996
+***************
+*** 83,88 ****
+--- 83,93 ----
+  #include <netinet/ip_mroute.h>
+  #endif /* MROUTING */
+  
++ #ifdef IPFILTER
++ void	iplinit();
++ #define ip_init	iplinit
++ #endif
++ 
+  extern	struct domain inetdomain;
+  
+  struc protosw inetsw[] = {

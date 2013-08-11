@@ -32,7 +32,7 @@
 
 #ifndef	lint
 static const char sccsid[] = "@(#)ipsd.c	1.3 12/3/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsd.c,v 2.2 2001/06/09 17:09:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 extern	char	*optarg;
@@ -64,7 +64,7 @@ int	writes = 0;
 
 
 int	ipcmp(sh1, sh2)
-sdhit_t	*sh1, *sh2;
+	sdhit_t	*sh1, *sh2;
 {
 	return sh1->sh_ip.s_addr - sh2->sh_ip.s_addr;
 }
@@ -75,9 +75,9 @@ sdhit_t	*sh1, *sh2;
  * port.
  */
 int	findhit(ihp, src, dport)
-ipsd_t	*ihp;
-struct	in_addr	src;
-u_short	dport;
+	ipsd_t	*ihp;
+	struct	in_addr	src;
+	u_short	dport;
 {
 	int	i, j, k;
 	sdhit_t	*sh;
@@ -108,8 +108,8 @@ u_short	dport;
  * interested in.
  */
 int	detect(ip, tcp)
-ip_t	*ip;
-tcphdr_t	*tcp;
+	ip_t	*ip;
+	tcphdr_t	*tcp;
 {
 	ipsd_t	*ihp;
 	sdhit_t	*sh;
@@ -177,7 +177,7 @@ waiter()
  * Write statistics out to a file
  */
 writestats(nwrites)
-int	nwrites;
+	int	nwrites;
 {
 	ipsd_t	**ipsd, *ips;
 	char	fname[32];
@@ -217,7 +217,7 @@ void writenow()
 
 
 void	usage(prog)
-char	*prog;
+	char	*prog;
 {
 	fprintf(stderr, "Usage: %s [-d device]\n", prog);
 	exit(1);
@@ -225,7 +225,7 @@ char	*prog;
 
 
 void detecthits(fd, writecount)
-int fd, writecount;
+	int fd, writecount;
 {
 	struct	in_addr	ip;
 	int	hits = 0;
@@ -241,8 +241,8 @@ int fd, writecount;
 
 
 main(argc, argv)
-int	argc;
-char	*argv[];
+	int	argc;
+	char	*argv[];
 {
 	char	*name =  argv[0], *dev = NULL;
 	int	fd, writeafter = 10000, angelic = 0, c;

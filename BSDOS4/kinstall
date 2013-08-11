@@ -1,0 +1,80 @@
+#!/bin/csh -f
+#
+set major=47
+set minor=0
+set dir=`pwd`
+set karch=`uname -m`
+if ( -d /sys/arch/$karch ) set archdir="/sys/arch/$karch"
+if ( -d /sys/$karch ) set archdir="/sys/$karch"
+set confdir="$archdir/conf"
+
+if ( $dir =~ */BSDOS4 ) cd ..
+foreach i (ip_{auth,fil,frag,nat,proxy,scan,state,sync}.[ch] fil.c ipl.h \
+	   ip_compat.h ip_log.c ip_*_pxy.c )
+	echo -n "$i ";
+	cp $i /sys/netinet
+	chmod 664 /sys/netinet/$i
+	switch ($i)
+	case *.h:
+		/bin/cp $i /usr/include/netinet/$i
+		chmod 644 /usr/include/netinet/$i
+		breaksw
+	endsw
+end
+echo ""
+if ( -f /sys/netinet/ip_input.c ) then
+	echo "Patching ip_input.c, ip_output.c, in_proto.c"
+	cat BSDOS4/ip_{in,out}put.c.diffs BSDOS4/in_proto.c.diffs | \
+	(cd /sys/netinet; patch)
+else
+	echo "Patching in_proto.c"
+	cat BSDOS4/in_proto.c.diffs | (cd /sys/netinet; patch)
+	echo "Installing new object files ip_input.o, ip_output.o"
+	foreach i (ip_input.o ip_output.o)
+		if ( ! -f $archdir/OBJ/$i.preipf ) then
+			mv $archdir/OBJ/$i $archdir/OBJ/$i.preipf
+		endif
+		cp -p BSDOS4/OBJS/$i $archdir/OBJ/$i
+		chmod 644 $archdir/OBJ/$i
+	end
+endif
+
+echo "Patching /sys/conf/files, $archdir/conf/ioconf.c.i386"
+cat BSDOS4/files.diffs | (cd /sys/conf; patch)
+cat BSDOS4/ioconf.c.i386.diffs | (cd $archdir/conf; patch)
+
+echo "Creating device files..."
+foreach i (/dev/ipl /dev/ipnat /dev/ipstate /dev/ipauth /dev/ipsync /dev/ipscan)
+	if ( -f $i ) then
+		/bin/rm -f $i
+	endif
+	echo "$i - character device major $major, minor $minor"
+	mknod $i c $major $minor
+	set minor=`expr $minor + 1`
+end
+
+set confpath=`/bin/ls -1t $confdir/[0-9A-Z_]* | head -1`
+set config=`basename $confpath`
+
+echo -n "Kernel configuration to update [$config] "
+set newconfig=$<
+if ( "$newconfig" != "" ) then
+	set config="$confdir/$newconfig"
+else
+	set newconfig=$config
+endif
+echo "Re-config'ing $newconfig..."
+if ( -f $confdir/$newconfig ) then
+	mv $confdir/$newconfig $confdir/$newconfig.bak
+endif
+if ( -d $archdir/$newconfig ) then
+	mv $archdir/$newconfig $archdir/$newconfig.bak
+endif
+awk '{ print $0; if($2=="INET") \
+	{ \
+	print "options \tIPFILTER\t\t# IP Filtering"; \
+	print "# options \tIPFILTER_LOG\t\t# IP Filter logging"; \
+	} \
+    }' $confdir/$newconfig.bak > $confdir/$newconfig
+echo 'You will now need to run "config" and build a new kernel.'
+exit 0

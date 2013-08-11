@@ -1,0 +1,70 @@
+#!/bin/sh
+
+platform=`uname -m`
+
+case $platform in
+	alpha)
+		major=44
+		;;
+	amiga)
+		major=38
+		;;
+	hp300)
+		major=37
+		;;
+	hppa)
+		major=38
+		;;
+	i386)
+		major=81
+		;;
+	mac68k)
+		major=38
+		;;
+	macppc)
+		major=45
+		;;
+	mvme68k)
+		major=44
+		;;
+	mvme88k)
+		major=41
+		;;
+	mvmeppc)
+		major=44
+		;;
+	sparc)
+		major=60
+		;;
+	sparc64)
+		major=82
+		;;
+	sun3)
+		major=87
+		;;
+	vax)
+		major=47
+		;;
+	*)
+		echo "Unrecognised platform $platform"
+		exit 1
+		;;
+esac
+
+minor=0
+echo
+echo "Creating IPFilter device files in /dev."
+echo
+echo -n "Platform $platform Major Number $major: "
+for i in ipl ipnat ipstate ipauth ipsync ipscan ippool; do
+	/bin/rm -f /dev/$i
+	mknod /dev/$i c $major $minor
+	chown root.wheel /dev/$i
+	chmod 600 /dev/$i
+	echo -n "$i($minor) "
+	minor=`expr $minor + 1`
+done
+echo
+echo Done.
+echo
+exit 0

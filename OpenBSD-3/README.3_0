@@ -1,0 +1,75 @@
+
+Installing IPFilter into OpenBSD 3.0 Kernel
+===========================================
+The installation of IPFilter should be as easy as following the steps
+below.  In cases where "i386" is mentioned, if you are working on a
+different platform, substitute that name there and it should work equally
+as well.  The patches include enabling IPFilter for IPv4 filtering, IPv6
+filtering and bridge filtering.
+
+The commands given below are intended as guides rather than exact matches
+on what needs to be typed.  In many cases, paths to files or directories
+may bear little resemblence to what is presented below.
+
+You may encounter difficulties with step 7 if you have made changes to the
+rc files which cause "patch" to not be able to work out how to apply the
+changes correctly.
+
+If the below steps are followed with no problems then it should be safe to
+perform step 8 and reboot with the new kernel.  Of course if you are not
+using GENERIC then substitute GENERIC for your kernel name.  If your kernel
+config file includes the "GENERIC" one then you will not need to add explicit
+options for IPFilter.
+
+1. Extract your source tree into /usr/src, creating /usr/src/sys.
+
+cd /usr/src
+gunzip -c sys.tar.gz | tar xpf -
+
+2. Unpack IPFilter and apply the patches to the kernel source 
+
+cd ~
+gunzip -c ip_fil4next.tar.gz | tar xpf -
+cd /usr/src
+patch < ~/ip_fil4.1.14/OpenBSD-3/3.0-sys-diffs
+
+3. Add IPFilter to the source code tree:
+
+cd ~/ip_fil4next
+BSD/kupgrade
+
+4. Build a new OpenBSD kernel
+
+/bin/rm -rf /sys/arch/i386/compile/GENERIC
+cd /sys/arch/i386/conf
+config GENERIC
+cd ../compile/GENERIC
+make depend && make
+cp bsd /bsd
+
+5. Build and install IPFilter
+
+cd ip_fil4next
+make openbsd
+make install-bsd
+OpenBSD-3/makedevs-3.0
+
+6. Patch rc scripts in /etc
+
+cd /etc
+patch < ~/ip_fil4.1.14/OpenBSD-3/3.0-rc-diffs
+
+7. Reboot
+
+
+IPFilter device files
+=====================
+Patches to include making IPFilter devices can be found in the file
+3.0-MAKEDEV-diffs.  These diffs are generally only of interested if
+you are going to be building a distribution for others and want the
+correct MAKEDEV scripts to be built.  You may also wish to use this
+to patch /dev/MAKEDEV on your machine to be correct.  Pre-fab'd MAKEDEV
+scripts (or individual patches) for each architecture are not provided.
+You will need to have extracted "./etc" from src.tar.gz to use these
+patches.
+

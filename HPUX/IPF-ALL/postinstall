@@ -1,0 +1,70 @@
+#!/usr/bin/sh
+########
+#  Product: IP Fitler
+#  Fileset: IPF-ALL
+#  postinstall
+########
+#
+# (c) Copyright (C) 2012 by Darren Reed.
+#
+########
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+export PATH
+########
+# Source control script environment
+########
+ETCDIR=/etc/opt/ipf
+
+UTILS="/usr/lbin/sw/control_utils"
+if [[ ! -f $UTILS ]] ; then
+    echo "ERROR: Cannot find $UTILS"
+    exit 1
+fi
+. $UTILS
+exitval=$SUCCESS
+
+########
+# Restore original header files
+# The script checkremove has verified that it exists.
+########
+
+#    exit $GLOBAL_ERROR
+
+for i in ipf.conf ipnat.conf; do
+	/bin/touch ${ETCDIR}/$i
+	/bin/chmod 444 ${ETCDIR}/$i
+done
+(kmadmin -U ipf)
+(kminstall -d ipf)
+
+cd ${SW_ROOT_DIRECTORY}var/tmp/build
+
+kminstall -u ipf
+if [[ $? -ne 0 ]] ; then
+	exit 1
+fi
+config -M ipf -u
+if [[ $? -ne 0 ]] ; then
+	exit 1
+fi
+kmadmin -L ipf
+kmadmin -Q ipf
+if [[ $? -ne 0 ]] ; then
+	exit 1
+fi
+input=`kmadmin -Q ipf | grep 'Character Major'`
+set $input
+major=$3
+j=0
+for i in ipl ipnat ipstate ipauth ipsync ipscan; do
+	/bin/rm -f /dev/$i
+	mknod /dev/$i c $major $j
+	j=$((j + 1))
+done
+ln -s /sbin/init.d/ipfboot /sbin/rc2.d/S020ipfboot
+
+. /usr/lbin/sw/control_utils
+mod_pathfile -a MP /opt/ipf/man
+mod_pathfile -a P /opt/ipf/bin
+
+exit $exitval

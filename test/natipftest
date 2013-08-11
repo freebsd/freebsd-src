@@ -3,6 +3,12 @@ mode=$1
 name=$2
 input=$3
 output=$4
+n=1
+
+. ./ipflib.sh
+
+test_init
+
 shift
 if [ $output = hex ] ; then
 	format="-xF $input"
@@ -21,51 +27,33 @@ while [ $# -ge 1 ] ; do
 	fi
 	shift
 done
-mkdir -p results
-if [ -f /usr/ucb/touch ] ; then
-	TOUCH=/usr/ucb/touch
-else
-	if [ -f /usr/bin/touch ] ; then
-		TOUCH=/usr/bin/touch
-	else
-		if [ -f /bin/touch ] ; then
-			TOUCH=/bin/touch
-		fi
-	fi
-fi
 
 case $mode in
 single)
 	echo "$name...";
 	/bin/cp /dev/null results/$name
 	( while read rule; do
+		set_core $name $n
 		echo "$rule" | ../ipftest -R $format -b -r regress/$name.ipf -N - -i input/$name >> \
-			results/$name;
-		if [ $? -ne 0 ] ; then
-			exit 1;
-		fi
+			results/$name &
+		back=$!
+		wait $back
+		test_end_leak $?
+		n=`expr $n + 1`
 		echo "-------------------------------" >> results/$name
 	done ) < regress/$name.nat
-	cmp expected/$name results/$name
-	status=$?
-	if [ $status = 0 ] ; then
-		$TOUCH $name
-	fi
+	check_results $name
 	;;
 multi)
 	echo "$name...";
 	/bin/cp /dev/null results/$name
 	../ipftest -R $format -b -r regress/$name.ipf -N regress/$name.nat \
-		-i input/$name >> results/$name;
-	if [ $? -ne 0 ] ; then
-		exit 2;
-	fi
+		-i input/$name >> results/$name &
+	back=$!
+	wait $back
+	test_end_leak $?
 	echo "-------------------------------" >> results/$name
-	cmp expected/$name results/$name
-	status=$?
-	if [ $status = 0 ] ; then
-		$TOUCH $name
-	fi
+	check_results $name
 	;;
 esac
 exit $status

@@ -1,0 +1,16 @@
+*** in_proto.c.prog	Fri Oct 14 06:23:23 1994
+--- in_proto.c	Mon Mar 11 22:45:29 1996
+***************
+*** 41,46 ****
+--- 41,51 ----
+  int	idpip_input(), nsip_ctlinput();
+  #endif
+  
++ #ifdef IPFILTER
++ extern	int	iplinit();
++ #define	ip_init	iplinit
++ #endif
++ 
+  extern	struct domain inetdomain;
+  
+  struct protosw inetsw[] = {

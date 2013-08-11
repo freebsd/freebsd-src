@@ -1,0 +1,33 @@
+*
+* master file for "ipf" module
+*
+
+$VERSION
+* Should start from 1, currently only 1 is correct value
+1
+$$$
+
+$DRIVER_INSTALL
+*
+* Driver	Block major	Char major	required for minimal system
+*
+ipf		-1		-1
+$$$
+
+$LOADABLE
+$$$
+
+$INTERFACE
+base
+$$$
+
+$DRIVER_DEPENDENCY
+ipf	pfil
+$$$
+
+$TYPE
+ipf	wsio_class	pseudo	cpmi	-1	-1
+$$$
+
+$TUNABLE
+$$$

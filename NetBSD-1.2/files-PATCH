@@ -1,0 +1,21 @@
+*** sys/conf/files-ORIG	Mon May 20 08:03:42 1996
+--- sys/conf/files	Mon May 27 13:44:27 1996
+***************
+*** 257,262 ****
+--- 257,272 ----
+  file netinet/tcp_timer.c		inet
+  file netinet/tcp_usrreq.c		inet
+  file netinet/udp_usrreq.c		inet
++ file netinet/ip_fil.c			ipfilter
++ file netinet/fil.c			ipfilter
++ file netinet/ip_nat.c			ipfilter
++ file netinet/ip_frag.c		ipfilter
++ file netinet/ip_state.c		ipfilter
++ file netinet/ip_proxy.c		ipfilter
++ file netinet/ip_auth.c		ipfilter
++ file netinet/ip_log.c			ipfilter
++ file netinet/ip_scan.c		ipfilter
++ file netinet/ip_sync.c		ipfilter
+  file netiso/clnp_debug.c		iso
+  file netiso/clnp_er.c			iso
+  file netiso/clnp_frag.c			iso

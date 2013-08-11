@@ -1,6 +1,6 @@
-#test input-format output-format
+#test input-format output-format options
 bpf-f1 text text
-bpf1 text ipf
+bpf1 text text
 f1 text text
 f2 text text
 f3 text text
@@ -18,9 +18,11 @@ f14 text text
 f15 text text
 f16 text text
 f17 hex hex
-f18 text text
-f19 text text fr_statemax=3
+f18 text text -D
+f19 text text state_max=3
 f20 text text
+f21 hex text
+f22 hex text
 i1 text ipf
 i2 text ipf
 i3 text ipf
@@ -42,17 +44,26 @@ i18 text ipf
 i19 text ipf
 i20 text ipf
 i21 text ipf
+i22 text ipf
+i23 text ipf
 in1 text text
 in2 text text
 in3 text text
 in4 text text
 in5 text text
 in6 text text
+in7 text text
+in8 text text
+in100 text text
+in101 text text
+in102 text text
 ip1 text text
 ip2 text text
+ip3 text text
 ipv6.1 hex hex
 ipv6.2 hex hex
 ipv6.3 hex hex
+ipv6.4 hex hex
 ipv6.5 hex hex
 l1 hex hex
 n1 text text
@@ -62,31 +73,40 @@ n4 text text
 n5 text text
 n6 text text
 n7 text text
-n8 hex hex fr_update_ipid=0
-n9 hex hex fr_update_ipid=0
-n10 hex hex fr_update_ipid=0
+n8 hex hex update_ipid=0
+n9 hex hex update_ipid=0
+n10 hex hex update_ipid=0
 n11 text text
-n12 hex hex fr_update_ipid=0
-n13 text text
-n14 text text
-ni1 hex hex fr_update_ipid=1
-ni2 hex hex fr_update_ipid=1
-ni3 hex hex fr_update_ipid=1
-ni4 hex hex fr_update_ipid=1
-ni5 hex hex fr_update_ipid=1
-ni6 hex hex fr_update_ipid=1
-ni7 hex hex fr_update_ipid=1
-ni8 hex hex fr_update_ipid=1
-ni9 hex hex fr_update_ipid=1
-ni10 hex hex fr_update_ipid=1
-ni11 hex hex fr_update_ipid=1
-ni12 hex hex fr_update_ipid=1
-ni13 hex hex fr_update_ipid=1
-ni14 hex hex fr_update_ipid=1
-ni15 hex hex fr_update_ipid=1
-ni16 hex hex fr_update_ipid=1
-ni19 hex hex fr_update_ipid=0
-ni20 hex hex fr_update_ipid=0
+n12 hex hex update_ipid=0 -v
+n15 text text update_ipid=0
+n100 text text
+n101 text text
+n102 text text
+n103 text text
+n104 hex hex update_ipid=0
+n105 hex hex update_ipid=0
+n106 hex hex update_ipid=0
+n200 hex hex update_ipid=0
+ni1 hex hex update_ipid=1
+ni2 hex hex update_ipid=1
+ni3 hex hex update_ipid=1
+ni4 hex hex update_ipid=1
+ni5 hex hex update_ipid=1
+ni6 hex text update_ipid=1 -D
+ni7 hex hex update_ipid=1
+ni8 hex hex update_ipid=1
+ni9 hex hex update_ipid=1
+ni10 hex hex update_ipid=1
+ni11 hex hex update_ipid=1
+ni12 hex hex update_ipid=1
+ni13 hex hex update_ipid=1
+ni14 hex hex update_ipid=1
+ni15 hex hex update_ipid=1
+ni16 hex hex update_ipid=1
+ni17 text text
+ni18 text text
+ni19 hex hex update_ipid=0
+ni20 hex hex update_ipid=0 -D
 ni21 text text
 ni23 text text -D
 p1 text text
@@ -94,6 +114,35 @@ p2 text text
 p3 text text
 p4 text text
 p5 text text
+p6 text text
+p7 text text
+p9 text text
+p10 text text
+p11 text text
+p12 text text
+p13 text text
 n16 hex hex -D
+n17 hex hex -D
 f24 hex text
 ipv6.6 hex text
+f25 hex text -D
+f26 text text
+f27 hex text
+n1_6 text text -6
+n2_6 text text -6
+n4_6 text text -6
+n5_6 text text -6
+n6_6 text text -6
+n7_6 text text -6
+n8_6 hex hex -6D
+n9_6 hex hex -6D
+n11_6 text text -6
+n12_6 hex hex -D6
+n15_6 text text -6
+n17_6 hex hex -6
+n13 text text
+n14 text text
+n18 text text -D
+f28 text text
+f29 text text
+f30 text text

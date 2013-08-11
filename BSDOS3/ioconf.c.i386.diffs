@@ -1,0 +1,28 @@
+*** ioconf.c.i386.orig	Mon Nov  3 15:50:55 1997
+--- ioconf.c.i386	Mon Nov  3 16:14:36 1997
+***************
+*** 30,35 ****
+--- 30,38 ----
+  extern struct devsw cnsw, cttysw, mmsw, swapsw, logsw, devfdsw;
+  extern struct devsw ptssw, ptcsw;
+  extern struct devsw pcsw, kbdsw;
++ #if defined(IPFILTER)
++ extern struct devsw iplsw;
++ #endif
+  
+  %DECLSW
+  
+***************
+*** 80,86 ****
+--- 83,93 ----
+  	%DEVSW(qcam),		/* 43 = Connectix QuickCam */
+  	%DEVSW(rd),		/* 44 = ram disk driver */
+  	%DEVSW(tun),		/* 45 = Tunnel Network Interface */
++ #if defined(IPFILTER)
++ 	&iplsw,			/* 46 = IP Filter */
++ #else
+  	NULL,			/* 46 = (unused) */
++ #endif
+  	NULL,			/* 47 = (unused) */
+  	NULL,			/* 48 = (unused) */
+  	NULL,			/* 49 = (unused) */

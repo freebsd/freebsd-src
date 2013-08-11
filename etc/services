@@ -228,7 +228,7 @@ qmtp            209/tcp	# The Quick Mail Transfer Protocol
 qmtp            209/udp	# The Quick Mail Transfer Protocol
 anet            212/tcp	# ATEXSSTR
 anet            212/udp	# ATEXSSTR
-ipx             213/tcp	# IPX         
+ipx             213/tcp	# IPX
 ipx             213/udp	# IPX
 vmpwscs         214/tcp	# VM PWSCS
 vmpwscs         214/udp	# VM PWSCS
@@ -1104,8 +1104,8 @@ shockwave	1626/tcp	# Shockwave
 shockwave	1626/udp	# Shockwave
 oraclenet8cman	1630/tcp	# Oracle Net8 Cman
 oraclenet8cman	1630/udp	# Oracle Net8 Cman
-visitview	1631/tcp	# Visit view 
-visitview	1631/udp	# Visit view 
+visitview	1631/tcp	# Visit view
+visitview	1631/udp	# Visit view
 pammratc	1632/tcp	# PAMMRATC
 pammratc	1632/udp	# PAMMRATC
 pammrpc		1633/tcp	# PAMMRPC

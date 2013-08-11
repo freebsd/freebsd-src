@@ -1,10 +1,10 @@
 %{
 /*
- * Copyright (C) 1997-1998 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: iplang_y.y,v 2.9.2.5 2007/02/17 12:41:48 darrenr Exp $
+ * $Id$
  */
 
 #include <stdio.h>
@@ -23,17 +23,13 @@
 #include <unistd.h>
 #include <stddef.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #ifndef	linux
 # include <netinet/ip_var.h>
-#endif
-#ifdef __osf__
-# include "radix_ipf_local.h"
-#endif
-#include <net/if.h>
-#ifndef	linux
+# include <net/route.h>
 # include <netinet/if_ether.h>
 #endif
 #include <netdb.h>
@@ -602,7 +598,7 @@ struct	statetoopt	tosecopts[] = {
 #ifdef	bsdi
 struct ether_addr *
 ether_aton(s)
-	char *s;   
+	char *s;
 {
 	static struct ether_addr n;
 	u_int i[6];
@@ -1327,7 +1323,7 @@ void packet_done()
 				sprintf((char *)t, "	");
 				t += 8;
 				for (k = 16; k; k--, s++)
-					*t++ = (ISPRINT(*s) ? *s : '.');
+					*t++ = (isprint(*s) ? *s : '.');
 				s--;
 			}
 
@@ -1345,7 +1341,7 @@ void packet_done()
 			t += 7;
 			s -= j & 0xf;
 			for (k = j & 0xf; k; k--, s++)
-				*t++ = (ISPRINT(*s) ? *s : '.');
+				*t++ = (isprint(*s) ? *s : '.');
 			*t++ = '\n';
 			*t = '\0';
 		}
@@ -1837,7 +1833,7 @@ u_long	init;
 {
 	u_long	sum = init;
 	int	nwords = len >> 1;
- 
+
 	for(; nwords > 0; nwords--)
 		sum += *buf++;
 	sum = (sum>>16) + (sum & 0xffff);
@@ -1852,7 +1848,7 @@ u_int	len;
 {
 	u_long	sum = 0;
 	int	nwords = len >> 1;
- 
+
 	for(; nwords > 0; nwords--)
 		sum += *buf++;
 	return sum;

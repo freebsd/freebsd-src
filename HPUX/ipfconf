@@ -1,0 +1,26 @@
+#
+# Directory where IP Filter configuration files are kept
+#
+IPF_CONFDIR=/etc/opt/ipf
+#
+# Packet filtering configuration file
+#
+IPF_CONF=${IPF_CONFDIR}/ipf.conf
+#
+# Network address translation configuration file
+#
+IPNAT_CONF=${IPF_CONFDIR}/ipnat.conf
+#
+# Load the ipfilter module ?
+# 1 = Start, 0 = Do not start
+#
+IPF_START=1
+#
+# Start ipmon ?
+# 1 = Start, 0 = Do not start
+#
+IPMON_START=1
+#
+# Options to start ipmon with
+#
+IPMON_FLAGS=-sD

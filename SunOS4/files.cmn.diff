@@ -1,0 +1,25 @@
+*** files.cmn.orig	Sun Apr 23 18:34:17 1995
+--- files.cmn	Sun Apr 23 18:34:08 1995
+***************
+*** 59,64 ****
+--- 59,78 ----
+  netinet/tcp_timer.c	optional INET
+  netinet/tcp_usrreq.c	optional INET
+  netinet/udp_usrreq.c	optional INET
++ netinet/ip_fil.c	optional INET IPFILTER
++ netinet/fil.c		optional INET IPFILTER
++ netinet/ip_nat.c		optional INET IPFILTER
++ netinet/ip_frag.c		optional INET IPFILTER
++ netinet/ip_state.c		optional INET IPFILTER
++ netinet/ip_proxy.c		optional INET IPFILTER
++ netinet/ip_auth.c		optional INET IPFILTER
++ netinet/ip_log.c		optional INET IPFILTER IPFILTER_LOG
++ netinet/ip_scan.c		optional INET IPFILTER IPFILTER_SCAN
++ netinet/ip_sync.c		optional INET IPFILTER IPFILTER_SYNC
++ netinet/ip_pool.c		optional INET IPFILTER
++ netinet/ip_htable.c		optional INET IPFILTER
++ netinet/ip_lookup.c		optional INET IPFILTER
++ netinet/ip_rules.c		optional INET IPFILTER IPFILTER_COMPILED
+  netns/idp_usrreq.c	optional xns
+  netns/ns_error.c	optional xns
+  netns/ns_ether.c	optional xns

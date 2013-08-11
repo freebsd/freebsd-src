@@ -1,0 +1,106 @@
+#!/bin/sh
+#
+# chkconfig: 2345 26 74
+# description: ipfilter
+# processname: ipfilter
+# config: /etc/sysconfig/ipfilter
+
+CONFIG=/etc/sysconfig/ipfilter
+LOGPRI=user.info
+IPFCONF=/etc/ipf.conf
+IPNATCONF=/etc/ipnat.conf
+IPPOOLCONF=/etc/ippool.conf
+
+# Source function library.
+. /etc/rc.status
+if [ ! -f /etc/ipf.conf -a ! -f /etc/ipnat.conf ] ; then
+	exit 0
+fi
+rc_reset
+rc=0
+
+logit() {
+	if [ $1 -ne 0 ] ; then
+		logger -t $2 -p $LOGPRI "$3"
+	fi
+}
+
+start() {
+	modprobe ipfilter
+	rc=$?
+	if [ ${rc} -ne 0 ] ; then
+		rc_status -v
+		exit $rc
+	fi
+	echo -n $"Starting IPFilter: "
+
+	minor=0
+	ipfdev=`awk ' /ipf/ { print $1; } ' /proc/devices`
+	for i in ipl ipnat ipstate ipauth ipsync ipscan iplookup; do
+		/bin/rm -f /dev/$i
+		mknod /dev/$i c $ipfdev $minor
+		minor=`expr $minor + 1`
+	done
+	/sbin/ipf -E
+	if [ -f $IPFCONF ] ; then
+		msg=`/sbin/ipf -f $IPFCONF 2>&1`
+		rc=$?
+		logit $rc ipf "$msg"
+	fi
+	if [ $rc -eq 0 -a -f $IPNATCONF ] ; then
+		msg=`/sbin/ipnat -f $IPNATCONF 2>&1`
+		rc=$?
+		logit $rc ipnat "$msg"
+	fi
+	if [ $rc -eq 0 -a -f $IPPOOLCONF ] ; then
+		msg=`/sbin/ippool -f $IPPOOLCONF 2>&1`
+		rc=$?
+		logit $rc ippool "$msg"
+	fi
+	if [ $rc -eq 0 ] ; then
+		/usr/bin/ipmon -Das
+		rc=$?
+	fi
+	rc_status -v
+	return $rc
+}
+
+stop() {
+	echo -n $"Shutting down IPFilter: "
+	killproc ipmon
+	rc=$?
+	[ $rc -eq 0 ] && /sbin/modprobe -r ipfilter 2>&1 >/dev/null
+	rc_status -v
+}
+
+dostatus() {
+#	status ipmon
+	rc=$?
+}
+
+restart() {
+	stop
+	start
+	rc=$?
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+	dostatus
+	;;
+  restart|reload)
+	restart
+	;;
+  *)
+	echo "Usage: ipfilter {start|stop|status|restart|reload}"
+	rc=1
+esac
+rc_status -v
+exit $?

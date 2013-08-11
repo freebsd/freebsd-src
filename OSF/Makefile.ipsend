@@ -1,0 +1,78 @@
+MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
+	"CC=$(CC)" "CFLAGS=$(CFLAGS)" "DEBUG=$(DEBUG)" \
+	"IPFLKM=$(IPFLKM)" "IPFLOG=$(IPFLOG)" \
+	"LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" "LOOKUP=$(LOOKUP)"
+FIXRADIX=-Dradix_node=ipf_radix_node -Dradix_node_head=ipf_radix_node_head
+OBJS=ipsend.o ip.o ipsopt.o iplang_y.o iplang_l.o
+IPFTO=ipft_ef.o ipft_hx.o ipft_pc.o ipft_sn.o ipft_td.o ipft_tx.o
+ROBJS=ipresend.o ip.o resend.o
+TOBJS=iptest.o iptests.o ip.o
+UNIXOBJS=dlcommon.o sdlpi.o arp.o
+OBJ=.
+LIBS=-L$(OBJ) -lipf
+
+CC=cc -std1 -msg_disable expandeddefined,badsubscript
+CFLAGS=-g -I$(TOP)
+CCARGS=$(DEBUG) $(CFLAGS) -I.
+
+all nit sunos4 sunos4-nit build : ipsend ipresend iptest
+
+iplang_y.o: $(TOP)/iplang/iplang_y.y
+	(cd $(TOP)/iplang; $(MAKE) 'DESTDIR=../OSF/$(OSREV)' )
+
+iplang_l.o: $(TOP)/iplang/iplang_l.l
+	(cd $(TOP)/iplang; $(MAKE) 'DESTDIR=../OSF/$(OSREV)' )
+
+.c.o:
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/$< -o $@
+
+ipsend: $(OBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(OBJS) $(UNIXOBJS) -o $@ $(LIBS) -ll
+
+ipresend: $(ROBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(ROBJS) $(UNIXOBJS) -o $@ $(LIBS)
+
+iptest: $(TOBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(TOBJS) $(UNIXOBJS) -o $@ $(LIBS)
+
+clean:
+	rm -rf *.o core a.out ipsend ipresend iptest iplang_y.* iplang_l.*
+
+ipsend.o: $(TOP)/ipsend/ipsend.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/ipsend.c -o $@
+ipsopt.o: $(TOP)/ipsend/ipsopt.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/ipsopt.c -o $@
+ipresend.o: $(TOP)/ipsend/ipresend.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/ipresend.c -o $@
+ip.o: $(TOP)/ipsend/ip.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/ip.c -o $@
+resend.o: $(TOP)/ipsend/resend.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/resend.c -o $@
+ipft_sn.o: $(TOP)/ipft_sn.c
+	$(CC) $(CCARGS) -c $(TOP)/ipft_sn.c -o $@
+ipft_pc.o: $(TOP)/ipft_pc.c
+	$(CC) $(CCARGS) -c $(TOP)/ipft_pc.c -o $@
+iptest.o: $(TOP)/ipsend/iptest.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/iptest.c -o $@
+iptests.o: $(TOP)/ipsend/iptests.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/iptests.c -o $@
+sbpf.o: $(TOP)/ipsend/sbpf.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/sbpf.c -o $@
+snit.o: $(TOP)/ipsend/snit.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/snit.c -o $@
+sock.o: $(TOP)/ipsend/sock.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/sock.c -o $@
+arp.o: $(TOP)/ipsend/arp.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/arp.c -o $@
+44arp.o: $(TOP)/ipsend/44arp.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/44arp.c -o $@
+lsock.o: $(TOP)/ipsend/lsock.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/lsock.c -o $@
+slinux.o: $(TOP)/ipsend/slinux.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/slinux.c -o $@
+larp.o: $(TOP)/ipsend/larp.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/larp.c -o $@
+dlcommon.o: $(TOP)/ipsend/dlcommon.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/dlcommon.c -o $@
+sdlpi.o: $(TOP)/ipsend/sdlpi.c
+	$(CC) $(CCARGS) -c $(TOP)/ipsend/sdlpi.c -o $@

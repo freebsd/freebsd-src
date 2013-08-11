@@ -1,0 +1,33 @@
+#!/bin/csh -f
+#
+set dir=`pwd`
+if ($dir =~ */SunOS4) cd ..
+echo "De-installing ip_input.c and ip_output.c"
+/bin/rm -f /sys/netinet/{ip_input.c,ip_output.c}
+
+set karch=`/bin/arch -k`
+set confdir="/sys/$karch/conf"
+set config=`/bin/ls -1t $confdir | head -1`
+
+echo -n "Kernel configuration to update [$config] "
+set newconfig=$<
+if ( "$newconfig" == "" ) then
+	set newconfig=$config
+endif
+echo "Updating $newconfig..."
+if ( -d /sys/$karch/$newconfig ) then
+	mv /sys/$karch/$newconfig /sys/$karch/$newconfig.bak
+endif
+mv $confdir/$newconfig $confdir/$newconfig.bak
+egrep -v 'options.*IPFILTER' $confdir/$newconfig.bak > $confdir/$newconfig
+echo "Running config $newconfig"
+cd $confdir
+config $newconfig
+echo "Building a new kernel"
+cd ../$newconfig
+make
+if ($status == 0) then
+	echo "New kernel is: /sys/$karch/$newconfig/vmunix"
+	ls -ls /sys/$karch/$newconfig/vmunix
+endif
+exit 0

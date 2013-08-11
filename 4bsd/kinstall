@@ -1,0 +1,55 @@
+#!/bin/csh -f
+#
+set dir=`pwd`
+set karch=`uname -m`
+set archdir="/sys/arch/$karch"
+set confdir="$archdir/conf"
+
+if ( $dir =~ *fil/4bsd ) cd ..
+if ($0 =~ *kinstall) then
+	echo "Installing ip_fil.c and ip_fil.h"
+	cp ip_fil.{c,h} /sys/netinet
+	echo "Patching $archdir/$karch/conf.c"
+	cat conf.c.diffs | (cd $archdir/$karch; patch)
+endif
+echo "Patching ip_input.c and ip_output.c"
+cat 4bsd/ip_{in,out}put.c.diffs | (cd /sys/netinet; patch)
+
+if ( -f /sys/conf/files.newconf ) then
+	echo "Patching /sys/conf/files.newconf"
+	cat 4bsd/files.newconf.diffs | (cd /sys/conf; patch)
+	echo "Patching /sys/conf/files"
+	cat 4bsd/files.diffs | (cd /sys/conf; patch)
+endif
+if ( -f /sys/conf/files.oldconf ) then
+	echo "Patching /sys/conf/files.oldconf"
+	cat 4bsd/files.oldconf.diffs | (cd /sys/conf; patch)
+	echo "Patching /sys/conf/files"
+	cat 4bsd/filez.diffs | (cd /sys/conf; patch)
+endif
+
+set config=`/bin/ls -1t $confdir [0-9A-Z_]* | head -1`
+
+echo -n "Kernel configuration to update [$config] "
+set newconfig=$<
+if ( "$newconfig" != "" ) then
+	set config="$confdir/$newconfig"
+else
+	set newconfig=$config
+endif
+echo "Re-config'ing $newconfig..."
+if ( -f $confdir/$newconfig ) then
+	mv $confdir/$newconfig $confdir/$newconfig.bak
+endif
+if ( -d $archdir/$newconfig ) then
+	mv $archdir/$newconfig $archdir/$newconfig.bak
+endif
+if ($0 =~ *kinstall) then
+	awk '{print $0;if($2=="INET"){print"options IPFILTER"}}}' \
+		$confdir/$newconfig.bak > $confdir/$newconfig
+else
+	awk '{print $0;if($2=="INET"){print"options IPFILTER_LKM"}}' \
+		$confdir/$newconfig.bak > $confdir/$newconfig
+endif
+echo 'You will now need to run "config" and build a new kernel.'
+exit 0

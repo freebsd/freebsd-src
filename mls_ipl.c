@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -40,61 +40,65 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)mls_ipl.c	2.6 10/15/95 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: mls_ipl.c,v 2.2.2.2 2002/04/10 05:05:54 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
-extern	int	ipldetach __P((void));
+extern	int	ipfdetach __P((void));
 #ifndef	IPFILTER_LOG
-#define	iplread	nulldev
+#define	ipfread	nulldev
 #endif
 extern	int	nulldev __P((void));
 extern	int	errno;
-extern	int	iplidentify __P((char *));
 
 extern int nodev __P((void));
 
 static	int	unload __P((void));
-static	int	ipl_attach __P((void));
+static	int	ipf_attach __P((void));
 int	xxxinit __P((u_int, struct vddrv *, caddr_t, struct vdstat *));
-static	char	*ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH,
-				    NULL };
+static	char	*ipf_devfiles[] = { IPL_NAME, IPNAT_NAME, IPSTATE_NAME,
+				    IPAUTH_NAME, IPSYNC_NAME, IPSCAN_NAME,
+				    IPLOOKUP_NAME, NULL };
+static	int	ipfopen __P((dev_t, int));
+static	int	ipfclose __P((dev_t, int));
+static	int	ipfread __P((dev_t, struct uio *));
+static	int	ipfwrite __P((dev_t, struct uio *));
 
 
-struct	cdevsw	ipldevsw = 
+struct	cdevsw	ipfdevsw =
 {
-	iplopen, iplclose, iplread, nulldev,
-	iplioctl, nulldev, nulldev, nulldev,
+	ipfopen, ipfclose, ipfread, nulldev,
+	ipfioctl, nulldev, nulldev, nulldev,
 	0, nulldev,
 };
 
 
-struct	dev_ops	ipl_ops = 
+struct	dev_ops	ipf_ops =
 {
 	1,
-	iplidentify,
-	iplattach,
-	iplopen,
-	iplclose,
-	iplread,
-	NULL,		/* write */
+	ipfidentify,
+	ipfattach,
+	ipfopen,
+	ipfclose,
+	ipfread,
+	ipfwrite,
 	NULL,		/* strategy */
 	NULL,		/* dump */
 	0,		/* psize */
-        iplioctl,
+        ipfioctl,
 	NULL,		/* reset */
 	NULL		/* mmap */
 };
 
-int	ipl_major = 0;
+int	ipf_major = 0;
 
 #ifdef sun4m
-struct	vdldrv	vd = 
+struct	vdldrv	vd =
 {
 	VDMAGIC_PSEUDO,
 	IPL_VERSION,
-	&ipl_ops,
+	&ipf_ops,
 	NULL,
-	&ipldevsw,
+	&ipfdevsw,
 	0,
 	0,
 	NULL,
@@ -109,7 +113,7 @@ struct vdldrv vd =
 	VDMAGIC_PSEUDO,	/* magic */
 	IPL_VERSION,
 #ifdef sun4c
-	&ipl_ops,	/* dev_ops */
+	&ipf_ops,	/* dev_ops */
 #else
 	NULL,		/* struct mb_ctlr *mb_ctlr */
 	NULL,		/* struct mb_driver *mb_driver */
@@ -118,7 +122,7 @@ struct vdldrv vd =
 	1,		/* numdevs */
 #endif /* sun4c */
 	NULL,		/* bdevsw */
-	&ipldevsw,	/* cdevsw */
+	&ipfdevsw,	/* cdevsw */
 	0,		/* block major */
 	0,		/* char major */
 };
@@ -129,10 +133,10 @@ extern struct cdevsw cdevsw[];
 extern int nchrdev;
 
 xxxinit(fc, vdp, data, vds)
-u_int	fc;
-struct	vddrv	*vdp;
-caddr_t	data;
-struct	vdstat	*vds;
+	u_int	fc;
+	struct	vddrv	*vdp;
+	caddr_t	data;
+	struct	vdstat	*vds;
 {
 	struct vdioctl_load *vdi = (struct vdioctl_load *)data;
 
@@ -144,20 +148,20 @@ struct	vdstat	*vds;
 		if (vdi && vdi->vdi_userconf)
 			for (vdc = vdi->vdi_userconf; vdc->vdc_type; vdc++)
 				if (vdc->vdc_type == VDCCHARMAJOR) {
-					ipl_major = vdc->vdc_data;
+					ipf_major = vdc->vdc_data;
 					break;
 				}
 
-		if (!ipl_major) {
-			while (ipl_major < nchrdev &&
-			       cdevsw[ipl_major].d_open != vd_unuseddev)
-				ipl_major++;
-			if (ipl_major == nchrdev)
+		if (!ipf_major) {
+			while (ipf_major < nchrdev &&
+			       cdevsw[ipf_major].d_open != vd_unuseddev)
+				ipf_major++;
+			if (ipf_major == nchrdev)
 				return ENODEV;
 		}
 		vdp->vdd_vdtab = (struct vdlinkage *)&vd;
-		vd.Drv_charmajor = ipl_major;
-		return ipl_attach();
+		vd.Drv_charmajor = ipf_major;
+		return ipf_attach();
 	    }
 	case VDUNLOAD:
 		return unload();
@@ -169,28 +173,36 @@ struct	vdstat	*vds;
 }
 
 
-static	int	unload()
+static int
+unload()
 {
+	int err = 0, i;
 	char *name;
-	int err, i;
 
-	err = ipldetach();
+	if (ipf_refcnt != 0)
+		err = EBUSY;
+	else if (ipf_running >= 0)
+		err = ipfdetach();
 	if (err)
 		return err;
+
+	ipf_running = -2;
 	for (i = 0; (name = ipf_devfiles[i]); i++)
 		(void) vn_remove(name, UIO_SYSSPACE, FILE);
+	printf("%s unloaded\n", ipfilter_version);
 	return 0;
 }
 
 
-static	int	ipl_attach()
+static int
+ipf_attach()
 {
 	struct vnode *vp;
 	struct vattr vattr;
 	int error = 0, fmode = S_IFCHR|0600, i;
 	char *name;
 
-	error = iplattach();
+	error = ipfattach();
 	if (error)
 		return error;
 
@@ -199,7 +211,7 @@ static	int	ipl_attach()
 		vattr_null(&vattr);
 		vattr.va_type = MFTOVT(fmode);
 		vattr.va_mode = (fmode & 07777);
-		vattr.va_rdev = (ipl_major << 8) | i;
+		vattr.va_rdev = (ipf_major << 8) | i;
 
 		error = vn_create(name, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
 		if (error) {
@@ -209,5 +221,129 @@ static	int	ipl_attach()
 			VN_RELE(vp);
 		}
 	}
+
+	if (error == 0) {
+		char *defpass;
+
+		if (FR_ISPASS(ipf_pass))
+			defpass = "pass";
+		else if (FR_ISBLOCK(ipf_pass))
+			defpass = "block";
+		else
+			defpass = "no-match -> block";
+
+		printf("%s initialized.  Default = %s all, Logging = %s%s\n",
+			ipfilter_version, defpass,
+#ifdef IPFILTER_LOG
+			"enabled",
+#else
+			"disabled",
+#endif
+#ifdef IPFILTER_COMPILED
+			" (COMPILED)"
+#else
+			""
+#endif
+			);
+		ipf_running = 1;
+	}
 	return error;
+}
+
+
+/*
+ * routines below for saving IP headers to buffer
+ */
+static int
+ipfopen(dev, flags)
+	dev_t dev;
+	int flags;
+{
+	u_int unit = GET_MINOR(dev);
+	int error;
+
+	if (IPL_LOGMAX < unit) {
+		error = ENXIO;
+	} else {
+		switch (unit)
+		{
+		case IPL_LOGIPF :
+		case IPL_LOGNAT :
+		case IPL_LOGSTATE :
+		case IPL_LOGAUTH :
+		case IPL_LOGLOOKUP :
+		case IPL_LOGSYNC :
+#ifdef IPFILTER_SCAN
+		case IPL_LOGSCAN :
+#endif
+			error = 0;
+			break;
+		default :
+			error = ENXIO;
+			break;
+		}
+	}
+	return error;
+}
+
+
+static int
+ipfclose(dev, flags)
+	dev_t dev;
+	int flags;
+{
+	u_int	unit = GET_MINOR(dev);
+
+	if (IPL_LOGMAX < unit)
+		unit = ENXIO;
+	else
+		unit = 0;
+	return unit;
+}
+
+
+/*
+ * ipfread/ipflog
+ * both of these must operate with at least splnet() lest they be
+ * called during packet processing and cause an inconsistancy to appear in
+ * the filter lists.
+ */
+static int
+ipfread(dev, uio)
+	dev_t dev;
+	register struct uio *uio;
+{
+
+	if (ipf_running < 1) {
+		ipfmain.ipf_interror = 130006;
+		return EIO;
+	}
+
+#ifdef IPFILTER_LOG
+	return ipflog_read(GET_MINOR(dev), uio);
+#else
+	ipfmain.ipf_interror = 130007;
+	return ENXIO;
+#endif
+}
+
+
+/*
+ * ipfwrite
+ */
+static int
+ipfwrite(dev, uio)
+	dev_t dev;
+	register struct uio *uio;
+{
+
+	if (ipf_running < 1) {
+		ipfmain.ipf_interror = 130008;
+		return EIO;
+	}
+
+	if (getminor(dev) == IPL_LOGSYNC)
+		return ipfsync_write(uio);
+	ipfmain.ipf_interror = 130009;
+	return ENXIO;
 }

@@ -1,0 +1,495 @@
+#!/bin/sh
+#
+# Install IPFilter into the source tree of OpenBSD 3.2
+#
+
+if [ $# -eq 1 ] ; then
+	if [ "$1" = "-d" ] ; then
+		debug=echo
+	fi
+fi
+
+copyfiles() {
+	while [ $# -gt 0 ] ; do
+		if [ X"$1" = X"\\" ] ; then
+			:
+		elif [ -f $IPFDIR/$1 ] ; then
+			$debug cp -p $IPFDIR/$1 .
+		elif [ -f $IPFDIR/man/$1 ] ; then
+			$debug cp -p $IPFDIR/man/$1 .
+		elif [ -f $IPFDIR/iplang/$1 ] ; then
+			$debug cp -p $IPFDIR/iplang/$1 .
+		elif [ -f $IPFDIR/ipsend/$1 ] ; then
+			$debug cp -p $IPFDIR/ipsend/$1 .
+		else
+			echo "Could not find $IPFDIR/$1"
+		fi
+		shift
+	done
+}
+
+prep() {
+	$debug mkdir $1
+	$debug cd $1
+}
+
+IPFDIR=`pwd`
+SRC=/usr/src
+
+#
+# 3 Programs into /sbin: ipf, ipfstat, ipnat
+#
+cd $SRC/sbin
+/bin/rm -rf ipf ipfstat ipnat
+
+prep ipf
+MFILES="ipf.8 ipf.4 ipf.5 ipl.4"
+SFILES="ipf.c parse.c opt.c facpri.c common.c"
+IFILES="ipf.h facpri.h"
+if [ X$debug = X ] ; then
+	OFILE=Makefile
+else
+	OFILE=/dev/tty
+fi
+cat > ${OFILE} << __EOF__
+#	$OpenBSD: Makefile,v 1.10 2001/01/17 05:00:57 fgsch Exp $
+
+PROG=	ipf
+MAN=	${MFILES}
+SRCS=	${SFILES}
+CFLAGS+=-DUSE_INET6 -I\${.CURDIR}/../../sys/netinet
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+#
+# Setup ipfstat(8)
+#
+prep ../ipfstat
+MFILES=ipfstat.8
+SFILES="fils.c parse.c opt.c kmem.c facpri.c common.c printstate.c"
+IFILES=kmem.h
+cat > ${OFILE} << __EOF__
+#	$OpenBSD: Makefile,v 1.8 2001/02/13 01:12:33 fgsch Exp $
+
+PROG=	ipfstat
+MAN=	${MFILES}
+SRCS=	${SFILES}
+.PATH:	\${.CURDIR}/../../sbin/ipf
+CFLAGS+=-DUSE_INET6 -I\${.CURDIR}/../../sbin/ipf -DSTATETOP \\
+	-I\${.CURDIR}/../../sys/netinet
+DPADD=	\${LIBCURSES}
+LDADD=	-lcurses -lkvm
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+#
+# Setup ipnat(8)
+#
+prep ../ipnat
+MFILES="ipnat.8 ipnat.4 ipnat.5"
+SFILES="ipnat.c kmem.c natparse.c common.c printnat.c"
+IFILES=
+cat > ${OFILE} << __EOF__
+#	$OpenBSD: Makefile,v 1.10 2001/01/17 05:01:01 fgsch Exp $
+
+PROG=	ipnat
+MAN=	${MFILES}
+SRCS=	${SFILES}
+.PATH:	\${.CURDIR}/../ipfstat \${.CURDIR}/../ipf
+CFLAGS+=-DUSE_INET6 -I\${.CURDIR}/../../sbin/ipfstat -I\${.CURDIR}/../ipf \\
+	-I\${.CURDIR}/../../sys/netinet
+LDADD=	-lkvm
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES
+echo "`pwd` done"
+
+#
+# Now fix up the top level Makefile
+#
+cd $SRC/sbin
+grep -q ipf Makefile
+if [ $? -ne 0 ] ; then
+	cat <<__EOF__ | patch
+*** Makefile.orig	Sat Sep  7 07:15:55 2002
+--- Makefile	Wed Nov 13 12:33:36 2002
+***************
+*** 33,36 ****
+--- 33,39 ----
+  # Man pages (and manpages to do)
+  SUBDIR+= fdisk pdisk ancontrol wicontrol wsconsctl
+
++ # IPFilter
++ SUBDIR+= ipf ipfstat ipnat
++
+  .include <bsd.subdir.mk>
+__EOF__
+fi
+
+
+#
+# 3 Programs into /usr/sbin: ipfs, ipfstat, ipmon
+# Also, include ipsend suite of tools.
+#
+cd $SRC/usr.sbin
+/bin/rm -rf ipfs ipftest ipmon ipsend
+
+#
+# Create directory for ipftest
+#
+prep ipftest
+MFILES=ipftest.1
+SFILES="ipt.c fil.c ipft_hx.c ipft_sn.c ipft_ef.c ipft_td.c ipft_pc.c \\
+        ipft_tx.c misc.c parse.c opt.c ip_frag.c ip_nat.c ip_state.c \\
+        ip_auth.c ip_fil.c ip_proxy.c facpri.c natparse.c common.c \\
+	printnat.c printstate.c ip_log.c"
+IFILES="ipt.h pcap.h snoop.h kmem.h bpf.h"
+cat > ${OFILE} << __EOF__
+#       $OpenBSD: Makefile,v 1.9 2001/01/17 06:01:21 fgsch Exp $
+
+PROG=	ipftest
+MAN=	${MFILES}
+SRCS=	${SFILES}
+
+.PATH:	\${.CURDIR}/../../sbin/ipf \${.CURDIR}/../../sbin/ipfstat \\
+	\${.CURDIR}/../../sys/netinet \${.CURDIR}/../../sbin/ipnat
+
+CFLAGS+=-DUSE_INET6 -I\${.CURDIR}/../../sbin/ipf -DIPFILTER_LOG \\
+	-I\${.CURDIR}/../../sys/netinet -I\${.CURDIR}/../../sys -I\${.CURDIR}
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+
+#
+# Create directory for ipfs
+#
+prep ../ipfs
+MFILES=ipfs.8
+SFILES=ipfs.c
+IFILES=
+cat > ${OFILE} << __EOF__
+#	\$OpenBSD: Makefile,v 1.1 2001/01/17 06:31:06 fgsch Exp \$
+
+PROG=	ipfs
+MAN=	${MFILES}
+SRCS=	${SFILES}
+
+CFLAGS+=-DUSE_INET6 -I\${.CURDIR}/../../sbin/ipf \\
+	-I\${.CURDIR}/../../sys/netinet
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+
+#
+#
+#
+prep ../ipmon
+MFILES=ipmon.8
+SFILES=ipmon.c
+IFILES=
+cat > ${OFILE} << __EOF__
+#	\$OpenBSD: Makefile,v 1.4 1998/09/15 10:01:38 pattonme Exp \$
+
+PROG=	ipmon
+MAN=	${MFILES}
+SRCS=	${SFILES}
+CFLAGS+=-DUSE_INET6 -I\${.CURDIR}/../../sys/netinet
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+
+#
+# Create top level directories for ipsend
+#
+prep ../ipsend
+cat > ${OFILE} << __EOF__
+#	$OpenBSD: Makefile,v 1.4 1997/09/21 11:43:47 deraadt Exp $
+
+SUBDIR=	ipsend ipresend iptest
+
+.include <bsd.subdir.mk>
+__EOF__
+echo "`pwd` done"
+
+prep iplang
+copyfiles iplang.h
+
+#
+# 1st ipsend program - ipsend itself
+#
+prep ../ipsend
+MFILES="ipsend.1 ipsend.5"
+SFILES="ipsend.c ip.c ipsopt.c sbpf.c sock.c 44arp.c iplang_y.y iplang_l.l"
+IFILES="ipsend.h iplang.h"
+cat > ${OFILE} << __EOF__
+#	$OpenBSD: Makefile,v 1.3 1998/01/26 19:46:23 weingart Exp $
+
+PROG=	ipsend
+BINDIR=	/usr/sbin
+MAN=	${MFILES}
+SRCS=	${SFILES}
+CFLAGS+=  -DDOSOCKET -I\${.CURDIR}/../common -I\${.CURDIR}/../../ipftest \\
+	-I\${.CURDIR}/../../../sbin/ipf -I\${.CURDIR}/../../../sys/netinet \\
+	-I\${.CURDIR}/.. -I\${.OBJDIR}
+
+LDADD=	-lfl
+CLEANFILES+=y.tab.h
+
+.PATH:	\${.CURDIR}/../common
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+
+#
+# 2nd ipsend program - ipresend
+#
+prep ../ipresend
+MFILES=ipresend.1
+SFILES="ipresend.c resend.c \\
+	ipft_ef.c ipft_hx.c ipft_pc.c ipft_sn.c ipft_td.c ipft_tx.c opt.c \\
+	sock.c 44arp.c sbpf.c ip.c"
+IFILES="ipsend.h bpf.h"
+cat > ${OFILE} << __EOF__
+#	\$OpenBSD: Makefile,v 1.4 1999/02/21 23:11:05 tholo Exp \$
+
+PROG=	ipresend
+BINDIR=	/usr/sbin
+MAN=	${MFILES}
+SRCS=	${SFILES}
+CFLAGS+=-DDOSOCKET -I\${.CURDIR}/../common -I\${.CURDIR}/../../ipftest \\
+	-I\${.CURDIR}/../../../sbin/ipf \\
+	-I\${.CURDIR}/../../../sys/netinet -I\${.CURDIR}/..
+.PATH:	\${.CURDIR}/../common \${.CURDIR}/../../ipftest \\
+	\${.CURDIR}/../../../sbin/ipf
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+
+#
+# 3rd ipsend program - iptest
+#
+prep ../iptest
+MFILES=iptest.1
+SFILES="iptest.c iptests.c ip.c sbpf.c sock.c 44arp.c"
+IFILES="ipsend.h"
+cat > ${OFILE} << __EOF__
+#	\$OpenBSD: Makefile,v 1.2 1998/01/26 04:17:08 dgregor Exp \$
+
+PROG=	iptest
+BINDIR=	/usr/sbin
+MAN=	${MFILES}
+SRCS=	${SFILES}
+CFLAGS+=-DDOSOCKET -I\${.CURDIR}/../common -I\${.CURDIR}/../../ipftest \\
+	-I\${.CURDIR}/../../../sys/netinet \\
+	-I\${.CURDIR}/../../../sbin/ipf -I\${.CURDIR}/..
+.PATH:	\${.CURDIR}/../common
+
+.include <bsd.prog.mk>
+__EOF__
+copyfiles $MFILES $SFILES $IFILES
+echo "`pwd` done"
+
+cd $SRC/usr.sbin
+grep -q ipmon Makefile
+if [ $? -ne 0 ] ; then
+	cat << __EOF__ | patch
+*** Makefile.orig	Fri Jun 21 16:22:20 2002
+--- Makefile	Wed Nov 13 12:33:43 2002
+***************
+*** 40,43 ****
+--- 40,46 ----
+  SUBDIR+=ypbind yppoll ypset ypserv
+  .endif
+
++ # IPFilter
++ SUBDIR+=ipftest ipfs ipmon ipsend
++
+  .include <bsd.subdir.mk>
+__EOF__
+fi
+
+echo "Patching base install set"
+cd $SRC
+cd distrib/sets/lists/base
+grep -q ipfstat mi
+if [ $? -ne 0 ] ; then
+	cat << __EOF__ | patch
+*** mi.orig	Mon Sep 30 04:28:45 2002
+--- mi	Wed Nov 13 12:33:44 2002
+***************
+*** 90,95 ****
+--- 90,98 ----
+  ./sbin/halt
+  ./sbin/ifconfig
+  ./sbin/init
++ ./sbin/ipf
++ ./sbin/ipfstat
++ ./sbin/ipnat
+  ./sbin/ipsecadm
+  ./sbin/isakmpd
+  ./sbin/lmccontrol
+***************
+*** 1273,1278 ****
+--- 1276,1287 ----
+  ./usr/sbin/httpd
+  ./usr/sbin/inetd
+  ./usr/sbin/iostat
++ ./usr/sbin/ipfs
++ ./usr/sbin/ipftest
++ ./usr/sbin/ipmon
++ ./usr/sbin/ipresend
++ ./usr/sbin/ipsend
++ ./usr/sbin/iptest
+  ./usr/sbin/kadmin
+  ./usr/sbin/kdb_destroy
+  ./usr/sbin/kdb_edit
+__EOF__
+fi
+
+echo "Patching etc Makefile"
+cd $SRC
+cd etc
+grep -q ipf.conf Makefile
+if [ $? -ne 0 ] ; then
+	cat << __EOF__ | patch
+*** Makefile.orig	Sat Sep  7 07:30:22 2002
+--- Makefile	Wed Nov 13 12:38:44 2002
+***************
+*** 14,20 ****
+  BINGRP= wheel
+  BIN1=	bootptab changelist ccd.conf csh.cshrc csh.login csh.logout \\
+  	daily dhcpd.conf dhcpd.interfaces exports ftpusers \\
+! 	ftpchroot gettytab group hosts hosts.lpd inetd.conf \\
+  	ksh.kshrc locate.rc man.conf monthly motd mrouted.conf \\
+  	myname netstart networks newsyslog.conf pf.conf \\
+  	phones printcap protocols rbootd.conf rc rc.conf rc.local \\
+--- 14,20 ----
+  BINGRP= wheel
+  BIN1=	bootptab changelist ccd.conf csh.cshrc csh.login csh.logout \\
+  	daily dhcpd.conf dhcpd.interfaces exports ftpusers \\
+! 	ftpchroot gettytab group hosts hosts.lpd inetd.conf ipf.conf \\
+  	ksh.kshrc locate.rc man.conf monthly motd mrouted.conf \\
+  	myname netstart networks newsyslog.conf pf.conf \\
+  	phones printcap protocols rbootd.conf rc rc.conf rc.local \\
+__EOF__
+fi
+
+echo "Patching etc mi install set"
+cd $SRC
+cd distrib/sets/lists/etc
+grep -q ipf.conf mi
+if [ $? -ne 0 ] ; then
+	cat << __EOF__ | patch
+*** mi.orig	Sat Sep 28 20:23:13 2002
+--- mi	Wed Nov 13 12:33:44 2002
+***************
+*** 29,34 ****
+--- 29,35 ----
+  ./etc/hosts.equiv
+  ./etc/hosts.lpd
+  ./etc/inetd.conf
++ ./etc/ipf.conf
+  ./etc/kerberosIV/README
+  ./etc/kerberosIV/krb.conf
+  ./etc/kerberosIV/krb.equiv
+__EOF__
+fi
+
+echo "Patching man install set"
+cd $SRC
+cd distrib/sets/lists/man
+grep -q ipfstat mi
+if [ $? -ne 0 ] ; then
+	cat << __EOF__ | patch
+*** mi.orig	Thu Oct  3 09:49:02 2002
+--- mi	Wed Nov 13 12:33:45 2002
+***************
+*** 322,327 ****
+--- 322,331 ----
+  ./usr/share/man/cat1/intro.0
+  ./usr/share/man/cat1/ipcrm.0
+  ./usr/share/man/cat1/ipcs.0
++ ./usr/share/man/cat1/ipftest.0
++ ./usr/share/man/cat1/ipresend.0
++ ./usr/share/man/cat1/ipsend.0
++ ./usr/share/man/cat1/iptest.0
+  ./usr/share/man/cat1/jobs.0
+  ./usr/share/man/cat1/join.0
+  ./usr/share/man/cat1/jot.0
+***************
+*** 1063,1068 ****
+--- 1067,1075 ----
+  ./usr/share/man/cat4/ip.0
+  ./usr/share/man/cat4/ip6.0
+  ./usr/share/man/cat4/ipcomp.0
++ ./usr/share/man/cat4/ipf.0
++ ./usr/share/man/cat4/ipl.0
++ ./usr/share/man/cat4/ipnat.0
+  ./usr/share/man/cat4/ipsec.0
+  ./usr/share/man/cat4/isa.0
+  ./usr/share/man/cat4/isapnp.0
+***************
+*** 1434,1439 ****
+--- 1441,1449 ----
+  ./usr/share/man/cat5/info.0
+  ./usr/share/man/cat5/inode.0
+  ./usr/share/man/cat5/intro.0
++ ./usr/share/man/cat5/ipf.0
++ ./usr/share/man/cat5/ipnat.0
++ ./usr/share/man/cat5/ipsend.0
+  ./usr/share/man/cat5/isakmpd.conf.0
+  ./usr/share/man/cat5/isakmpd.policy.0
+  ./usr/share/man/cat5/keynote.0
+***************
+*** 1681,1686 ****
+--- 1691,1701 ----
+  ./usr/share/man/cat8/intro.0
+  ./usr/share/man/cat8/iopctl.0
+  ./usr/share/man/cat8/iostat.0
++ ./usr/share/man/cat8/ipf.0
++ ./usr/share/man/cat8/ipfs.0
++ ./usr/share/man/cat8/ipfstat.0
++ ./usr/share/man/cat8/ipmon.0
++ ./usr/share/man/cat8/ipnat.0
+  ./usr/share/man/cat8/ipsecadm.0
+  ./usr/share/man/cat8/isakmpd.0
+  ./usr/share/man/cat8/kadmin.0
+__EOF__
+fi
+
+echo Creating etc/ipf.conf
+cd $SRC
+cd etc
+if [ ! -f ipf.conf ] ; then
+	cat > ipf.conf << __EOF__
+#
+# See ipf(5) for syntax and examples.
+#
+# Pass all packets in and out (these are the implicit first two rules.)
+# pass in all
+# pass out all
+__EOF__
+fi
+exit 0

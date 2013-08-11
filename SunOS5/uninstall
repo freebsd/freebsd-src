@@ -1,0 +1,13 @@
+#!/bin/csh -f
+#
+set dir=`pwd`
+umask 077
+if ( $dir =~ */Solaris ) cd ..
+/bin/rm -f /usr/kernel/drv/ipf.conf
+/bin/rm -f /usr/kernel/drv/ipf
+(rem_drv ipf)
+sync
+/bin/rm -f /etc/rc1.d/S06ipfboot
+/bin/rm -f /etc/rcS.d/S06ipfboot
+/bin/rm -f /sbin/ipf
+/bin/rm -rf /opt/ipf

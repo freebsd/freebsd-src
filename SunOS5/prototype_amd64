@@ -1,0 +1,16 @@
+i pkginfo
+i copyright=../copyright
+!default 0755 root root
+d none /usr ? ? ?
+d none /usr/kernel ? ? ?
+d none /usr/kernel/drv ? ? ?
+d none /usr/kernel/drv/amd64 ? ? ?
+f none /usr/kernel/drv/amd64/ipf=root/usr/kernel/drv/amd64/ipf
+d none /usr/sbin ? ? ?
+d none /usr/sbin/amd64 ? ? ?
+f none /usr/sbin/amd64/ipfstat=root/sbin/amd64/ipfstat
+f none /usr/sbin/amd64/ipf=root/sbin/amd64/ipf
+f none /usr/sbin/amd64/ipfs=root/sbin/amd64/ipfs
+f none /usr/sbin/amd64/ipnat=root/sbin/amd64/ipnat
+f none /usr/sbin/amd64/ippool=root/sbin/amd64/ippool
+f none /usr/sbin/amd64/ipmon=root/opt/ipf/bin/amd64/ipmon

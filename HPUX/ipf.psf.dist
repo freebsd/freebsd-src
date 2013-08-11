@@ -1,0 +1,161 @@
+# File:		psf
+#
+# Purpose:	IP Filter Product Specification File (PSF) for swpackage
+#
+# Copyright (C) 2012 by Darren Reed.
+#
+# Description:	PSF for IP FIlter 5.1.0
+#
+# $Id$
+
+
+# The vendor definition here applies to all subsequently defined products.
+vendor
+	tag		IPFilter
+	title 		IPFilter Products
+	description	Firewall/NAT Products
+end
+
+category
+	tag		HPUXAdditions
+	title		IP Filter
+end
+
+# Bundle definition(s):
+bundle
+	tag		IPF
+	title		IP Filter 5.1.0
+	description	Firewall/NAT
+	revision	A.05.01.00
+	architecture	HP-UX_HPREV_32/64
+	machine_type	9000/[678]??:*
+	os_name		HP-UX
+	os_release	HPREV
+	os_version	*
+	category_tag	HPUXAdditions
+	is_protected	false
+	is_reference	false
+	vendor_tag	IPFilter
+	hp_srdo		swtype=O;user=B;bundle_type=O
+	contents	IPF-RUN,r=A.05.01.00,a=HP-UX_HPREV_32/64,v=IPFilter
+end # bundle IPF
+
+# Product definition(s):
+product
+	tag		IPF-RUN
+	title		IP Filter 5.1.0
+	description	Firewall/NAT
+	copyright	< ../../SunOS5/copyright
+	revision	A.05.01.00
+	architecture	HP-UX_HPREV_32/64
+	machine_type	9000/[678]??:*
+	os_name		HP-UX
+	os_release	HPREV
+	os_version	*
+	directory	/
+	is_locatable	false
+	vendor_tag	IPFilter
+
+#	configure	doc/configure
+#	unconfigure	doc/unconfigure
+
+    ########################################################################
+    #									   #
+    #   The following filesets already exist on the system.		   #
+    #									   #
+    ########################################################################
+
+    # InternetSrvcs.IPF-ALL
+    fileset
+	tag		IPF-ALL
+	title		IP Filter 5.1.0 : IPF-ALL
+	description	< ../IPF-ALL/description
+	revision	A.05.01.00
+	architecture	HP-UX_HPREV_32/64
+	machine_type	9000/[678]??:*
+	os_name		HP-UX
+	os_release	HPREV
+	os_version	*
+	is_kernel	false
+	is_reboot	false
+
+#	prerequisites	PHKL_18543.NET-KRN,a=HP-UX_HPREV_32/64,v=HP
+
+	checkinstall	../IPF-ALL/checkinstall
+	preinstall	../IPF-ALL/preinstall
+	postinstall	../IPF-ALL/postinstall
+	verify		../IPF-ALL/verify
+	checkremove	../IPF-ALL/checkremove
+	preremove	../IPF-ALL/preremove
+	postremove	../IPF-ALL/postremove
+
+	directory	. = /
+	file_permissions  -m 555 -o bin -g bin
+	file	mod.o			var/tmp/build/mod.o
+	file	../master		var/tmp/build/master
+	file	../system		var/tmp/build/system
+	file	../space.h		var/tmp/build/space.h
+	file	../ipfboot		sbin/init.d/ipfboot
+	file	../ipfconf		etc/rc.config.d/ipfconf
+	file	ipf			sbin/ipf
+	file	ipfs			sbin/ipfs
+	file	ipnat			sbin/ipnat
+	file	ipfstat			sbin/ipfstat
+	file	ipmon			opt/ipf/bin/ipmon
+	file	ipsend			opt/ipf/bin/ipsend
+	file	ipftest			opt/ipf/bin/ipftest
+	file	ipresend		opt/ipf/bin/ipresend
+#	file	ipscan			opt/ipf/bin/ipscan
+#	file	ipsyncs			opt/ipf/bin/ipsyncs
+#	file	ipsyncm			opt/ipf/bin/ipsyncm
+	file	../../mkfilters		opt/ipf/bin/mkfilters
+	file_permissions  -m 444 -o bin -g bin
+	file	../../ip_fil.h		opt/ipf/include/ip_fil.h
+	file   	../../ip_nat.h		opt/ipf/include/ip_nat.h
+	file   	../../ip_state.h	opt/ipf/include/ip_state.h
+	file   	../../ip_compat.h	opt/ipf/include/ip_compat.h
+	file   	../../ip_proxy.h	opt/ipf/include/ip_proxy.h
+	file   	../../ip_frag.h		opt/ipf/include/ip_frag.h
+	file   	../../ip_auth.h		opt/ipf/include/ip_auth.h
+	file	../../man/ipf.8		opt/ipf/man/man8/ipf.8
+	file	../../man/ipnat.8	opt/ipf/man/man1/ipnat.8
+	file	../../man/ipmon.8	opt/ipf/man/man8/ipmon.8
+	file	../../man/ipfstat.8	opt/ipf/man/man8/ipfstat.8
+	file	../../man/ipftest.1	opt/ipf/man/man1/ipftest.1
+	file	../../man/ipfs.8	opt/ipf/man/man8/ipfs.8
+	file	../../man/mkfilters.1	opt/ipf/man/man1/mkfilters.1
+	file	../../man/ipf.4		opt/ipf/man/man4/ipf.4
+	file	../../man/ipfilter.4	opt/ipf/man/man4/ipfilter.4
+	file	../../man/ipl.4		opt/ipf/man/man4/ipl.4
+	file	../../man/ipnat.4	opt/ipf/man/man4/ipnat.4
+	file	../../man/ipf.5		opt/ipf/man/man5/ipf.5
+	file	../../man/ipfilter.5	opt/ipf/man/man4/ipfilter.5
+	file	../../man/ipnat.5	opt/ipf/man/man5/ipnat.5
+	file	../../rules/example.1	opt/ipf/examples/example.1
+	file	../../rules/example.2	opt/ipf/examples/example.2
+	file	../../rules/example.3	opt/ipf/examples/example.3
+	file	../../rules/example.4	opt/ipf/examples/example.4
+	file	../../rules/example.5	opt/ipf/examples/example.5
+	file	../../rules/example.6	opt/ipf/examples/example.6
+	file	../../rules/example.7	opt/ipf/examples/example.7
+	file	../../rules/example.8	opt/ipf/examples/example.8
+	file	../../rules/example.9	opt/ipf/examples/example.9
+	file	../../rules/example.10	opt/ipf/examples/example.10
+	file	../../rules/example.11	opt/ipf/examples/example.11
+	file	../../rules/example.12	opt/ipf/examples/example.12
+	file	../../rules/example.13	opt/ipf/examples/example.13
+	file	../../rules/example.sr	opt/ipf/examples/example.sr
+	file	../../rules/nat.eg	opt/ipf/examples/nat.eg
+	file	../../rules/server	opt/ipf/examples/server
+	file	../../rules/tcpstate	opt/ipf/examples/tcpstate
+	file	../../rules/BASIC.NAT	opt/ipf/examples/BASIC.NAT
+	file	../../rules/BASIC_1.FW	opt/ipf/examples/BASIC_1.FW
+	file	../../rules/BASIC_2.FW	opt/ipf/examples/BASIC_2.FW
+	file	../../rules/firewall	opt/ipf/examples/firewall
+	file	../../rules/ftp-proxy	opt/ipf/examples/ftp-proxy
+	file	../../rules/ftppxy	opt/ipf/examples/ftppxy
+	file	../../rules/nat-setup	opt/ipf/examples/nat-setup
+    end # fileset IPF-ALL
+
+end # product IPF-RUN
+

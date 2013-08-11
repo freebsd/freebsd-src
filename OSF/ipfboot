@@ -1,0 +1,181 @@
+#!/bin/sh
+#
+IPFBASE=/etc
+
+PATH=/bin:/sbin:/usr/sbin:${PATH}
+IPFILCONF=${IPFBASE}/ipf.conf
+IP6FILCONF=${IPFBASE}/ipf6.conf
+IPNATCONF=${IPFBASE}/ipnat.conf
+IPPOOLCONF=${IPFBASE}/ippool.conf
+PFILCHECKED=no
+if [ -d /var/run ] ; then
+	PIDFILE=/var/run/ipmon.pid
+else
+	PIDFILE=${IPFBASE}/ipmon.pid
+fi
+
+
+logmsg()
+{
+	logger -p local0.emerg -t ipfilter "$1"
+	echo "$1" >&2
+}
+
+
+getids()
+{
+	if [ -f $PIDFILE ] ; then
+		pid=`cat $PIDFILE 2>/dev/null`
+	else
+		pid=`pgrep ipmon`
+	fi
+}
+
+
+block_default_workaround() {
+	ipf -F a
+	echo "constructing minimal name resolution rules..."
+	NAMESERVERS=`cat /etc/resolv.conf  2>/dev/null| \
+		     nawk '/nameserver/ {printf "%s ", $2}' 2>/dev/null`
+	if [ -z "$NAMESERVERS" ] ; then
+		return
+	fi
+	for NS in $NAMESERVERS ; do
+		IF_TO_NS=`route -n get $NS  2>/dev/null| \
+			  nawk '$1 == "interface:" { print $NF ; exit }' \
+			  2>/dev/null`
+		if [ -z "$IF_TO_NS" ] ; then
+			continue
+		fi
+		IP_TO_NS=`ifconfig $IF_TO_NS  2>/dev/null| \
+			nawk 'NR == "2" { print $2 ; exit }' 2>/dev/null`
+		if [ -z "$IP_TO_NS" ] ; then
+			continue
+		fi
+		echo "pass out quick on $IF_TO_NS proto udp from $IP_TO_NS to $NS port = 53 keep state" | \
+		ipf -f -
+	done
+}
+
+
+load_ipf_config() {
+	bad=0
+	if [ -r ${IPFILCONF} ]; then
+		if `ipf -V | \
+		      nawk '$1 == "Default:" && $2 == "pass" { exit 1 }'` ; then
+			block_default_workaround
+		fi
+		ipf -IFa -f ${IPFILCONF}
+		if [ $? != 0 ]; then
+			echo "$0: load of ${IPFILCONF} into alternate set failed"
+			bad=1
+		fi
+	fi
+	if [ -r ${IP6FILCONF} ]; then
+		ipf -6IFa -f ${IP6FILCONF}
+		if [ $? != 0 ]; then
+			echo "$0: load of ${IPFILCONF} into alternate set failed"
+			bad=1
+		fi
+	fi
+	if [ $bad -eq 0 ] ; then
+		ipf -s -y
+	else
+		echo Not switching config due to load error.
+	fi
+}
+
+
+load_ipnat_config() {
+	if [ -r ${IPNATCONF} ]; then
+		ipnat -CF -f ${IPNATCONF}
+		if [ $? != 0 ]; then
+			echo "$0: load of ${IPNATCONF} failed"
+		else
+			ipf -y
+		fi
+	fi
+}
+
+
+load_ippool_config() {
+	if [ -r ${IPPOOLCONF} ]; then
+		ippool -F
+		ippool -f ${IPPOOLCONF}
+		if [ $? != 0 ]; then
+			echo "$0: load of ${IPPOOLCONF} failed"
+		fi
+	fi
+}
+
+
+case "$1" in
+	start)
+		getids
+		[ -n "$pid" ] && kill -TERM $pid 2>/dev/null
+#		[ -n "$ipfruleid" ] && modunload -i $ipfruleid 2>/dev/null
+#		[ -n "$ipfid" ] && modunload -i $ipfid 2>/dev/null
+		/sbin/sysconfig -c ipfilter
+		ipf -E
+		load_ippool_config
+		load_ipf_config
+		load_ipnat_config
+		ipmon -Ds
+		;;
+
+	stop)
+		getids
+		[ -n "$pid" ] && kill -TERM $pid
+		/bin/rm -f $PIDFILE
+		ipf -D
+#		[ -n "$ipfruleid" ] && modunload -i $ipfruleid 2>/dev/null
+#		[ -n "$ipfid" ] && modunload -i $ipfid
+		;;
+
+	pause)
+		getids
+		ipfs -l
+		ipfs -NS -w
+		ipf -D
+		if [ -f $PIDFILE ] ; then
+			if kill -0 $pid; then
+				kill -TERM $pid
+			else
+				cp /dev/null $PIDFILE
+			fi
+		fi
+		;;
+
+	resume)
+		getids
+		ipf -E
+		ipfs -R
+		load_ippool_config
+		load_ipf_config
+		load_ipnat_config
+		if [ -f $PIDFILE -a x$pid != x ] ; then
+			ipmon -Ds
+		fi
+		;;
+
+	reload)
+		load_ippool_config
+		load_ipf_config
+		load_ipnat_config
+		;;
+
+	reipf)
+		load_ipf_config
+		;;
+
+	reipnat)
+		load_ipnat_config
+		;;
+
+	*)
+		echo "Usage: $0 (start|stop|reload|reipf|reipnat|pause|resume)" >&2
+		exit 1
+		;;
+
+esac
+exit 0

@@ -1,0 +1,66 @@
+#!smake
+#
+# Copyright (C) 2012 by Darren Reed.
+# Copyright (C) 1997 by Marc Boucher.
+#
+# Redistribution and use in source and binary forms are permitted
+# provided that this notice is preserved and due credit is given
+# to the original authors and the contributors.
+#
+# For IRIX
+#
+# Automatically determine compiler switches and defines for kernel compilation
+# based on our current CPU:
+#
+DCPU=`uname -m`
+KFLAGS=`$(TOP)/IRIX/getkflags`
+#
+BINDEST=/usr/sbin
+SBINDEST=/sbin
+MANDIR=/usr/share/man/local
+INCDEST=/usr/include/netinet
+LKMDEST=/var/sysgen/boot
+HERE=IRIX/$(CPUDIR)
+CPUDIR=`uname -s|sed -e 's@/@@g'`-`uname -r`-`uname -m`
+RANLIB=echo
+AROPTS=crs
+OBJ=.
+DEST=.
+TOP=..
+TOOL=$(TOP)/tools
+LIBS=-L. -lipf
+#CC=cc -Wall -Wuninitialized -Wstrict-prototypes -Werror -O
+CFLAGS=-g -I$(TOP)
+#
+ML=mli_ipl.c
+MLD=$(ML)
+#if defined(IPFLKM) && !empty(IPFLKM)
+MLFLAGS= -G 0
+LKM=ipflkm.o
+#else
+MLFLAGS= -G 8
+LKM=ipfilter.o
+#endif
+MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
+	'CFLAGS=$(CFLAGS) $(SOLARIS2)' "IPFLKM=$(IPFLKM)" \
+	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
+	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
+	"CPUDIR=$(CPUDIR)" "LOOKUP=$(LOOKUP)"
+#
+CCARGS=-D_STANDALONE $(DEBUG) $(CFLAGS) -D_KMEMUSER -DIPFILTER_LOG
+#
+########## ########## ########## ########## ########## ########## ##########
+#
+CP=/bin/cp
+RM=/bin/rm
+CHMOD=/bin/chmod
+INSTALL=/sbin/install
+LIBSRC=$(TOP)/lib
+#
+DFLAGS=$(IPFLKM) $(IPFLOG) $(KFLAGS) $(MLFLAGS) -jalr #-D_MP_NETLOCKS -DMP \
+	$(LOOKUP)
+
+include $(TOP)/lib/Makefile
+
+include Makefile.common
+

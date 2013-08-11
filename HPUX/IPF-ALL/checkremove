@@ -1,0 +1,28 @@
+#! /sbin/sh
+########
+#  Product: IP Filter
+#  Fileset: IPF-ALL
+#  checkremove
+########
+#
+# (c) Copyright (C) 2012 by Darren Reed.
+#
+########
+
+########
+# Source control script environment
+########
+
+UTILS="/usr/lbin/sw/control_utils"
+if [[ ! -f $UTILS ]] ; then
+    echo "ERROR: Cannot find $UTILS"
+    exit 1
+fi
+. $UTILS
+exitval=$SUCCESS
+
+########
+#
+########
+
+exit $exitval

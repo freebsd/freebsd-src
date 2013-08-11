@@ -1,0 +1,82 @@
+#! /bin/sh
+#
+#	kinstall/minstall - install patches to kernel sources
+#
+# WARNING:  This script should be run exactly once on a virgin system
+#
+PATH=/sbin:/usr/sbin:/bin:/usr/bin; export PATH
+
+argv0=`basename $0`
+dir=`pwd`
+karch=`uname -m`
+archdir="/sys/arch/$karch"
+confdir="$archdir/conf"
+
+case "$dir" in
+*/OpenBSD )
+	 cd ..
+	 ;;
+esac
+
+echo -n "Backing up existing kernel sources ..."
+backup=""
+for i in fil.c ip_fil.[ch] ip_frag.[ch] ip_nat.[ch] ip_state.[ch] ip_fil_compat.h; do
+	if [ -e /sys/netinet/$i ] ; then
+		backup="${backup} ${i}"
+	fi
+done
+if [ -n "$backup" ] ; then
+	( cd /sys/netinet ; tar cf ipfbackup.tar $backup )
+fi
+echo
+
+echo -n "Installing "
+for i in ip_fil.[ch] fil.c ip_nat.[ch] ip_frag.[ch] ip_state.[ch] ip_proxy.[ch] ip_auth.[ch] ip_log.c ip_compat.h ipl.h ip_ftp_pxy.c ip_rcmd_pxy.c ip_raudio_pxy.c; do
+	echo -n "$i "
+	cp $i /sys/netinet/
+	chmod 644 /sys/netinet/$i
+done
+echo
+
+if [ -f /sys/conf/files ] ; then
+	echo "Patching /sys/conf/files ..."
+	cat OpenBSD/files.diffs | (cd /sys/conf; patch)
+	ip_files=`egrep '^file.*ipfilter' /sys/conf/files | wc -l`
+	if [ $ip_files -lt 8 ] ; then
+		echo "Patching /sys/conf/files ..."
+		cat OpenBSD/files.diffs | (cd /sys/conf; patch)
+	fi
+fi
+if [ -f /sys/netinet/ip_fil_compat.h ] ; then
+	echo "Linking /sys/netinet/ip_compat.h to /sys/netinet/ip_fil_compat.h"
+	rm /sys/netinet/ip_fil_compat.h
+	ln -s /sys/netinet/ip_compat.h /sys/netinet/ip_fil_compat.h
+fi
+
+echo -n "Kernel configuration to update [GENERIC] "
+read newconfig junk
+
+if [ -n "$newconfig" ] ; then
+	config="$confdir/$newconfig"
+else
+	newconfig="$confdir/GENERIC"
+fi
+
+if egrep 'option.*IPFILTER' $confdir/$newconfig > /dev/null 2>&1 ; then
+	echo "$newconfig already contains proper options statement..."
+	echo 'You will now need to build a new kernel.'
+else
+	echo "Backing up $newconfig to .bak and adding IPFILTER options..."
+	if [ -f $confdir/$newconfig ]; then
+		mv $confdir/$newconfig $confdir/$newconfig.bak
+	fi
+	if [ -d $archdir/compile/$newconfig ]; then
+		mv $archdir/compile/$newconfig $archdir/compile/$newconfig.bak
+	fi
+	awk '{print $0} $2=="INET"{print "options IPFILTER"}' \
+	 $confdir/$newconfig.bak > $confdir/$newconfig
+
+	echo 'You will now need to run "config" and build a new kernel.'
+fi
+
+exit 0

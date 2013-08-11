@@ -1,0 +1,85 @@
+#!/bin/sh
+#
+# Major device number definition from /dev/MAKEDEV:
+C_IPL=79	# IP packet filtering device
+#
+PATH=/sbin:/usr/etc:/usr/sbin:${PATH}
+if [ -r /var/sysgen/boot/ipflkm.o ]; then
+	ipflkm=true
+else
+	ipflkm=false
+fi
+id=`ml list | grep ipl | awk ' { print $2; } ' -`
+pid=`ps -e | grep ipmon | awk ' { print $1 } ' -`
+
+IPFILCONF=/etc/ipf.conf
+IPNATCONF=/etc/ipnat.conf
+
+case "$1" in
+	start)
+		if [ x$pid != x ] ; then
+			kill -TERM $pid
+		fi
+		if [ x$id != x ] ; then
+			/sbin/ml unld $id
+		fi
+		if ${ipflkm}; then
+			/sbin/ml ld -v -c /var/sysgen/boot/ipflkm.o -p ipl -s $C_IPL
+		fi
+		(cd /dev && rm -f ipf ipl ipnat ipstate ipauth)
+		(cd /dev && rm -f ipsync ipscan iplookup)
+		mknod /dev/ipf c $C_IPL 0
+		mknod /dev/ipl c $C_IPL 0
+		mknod /dev/ipnat c $C_IPL 1
+		mknod /dev/ipstate c $C_IPL 2
+		mknod /dev/ipauth c $C_IPL 3
+		mknod /dev/ipsync c $C_IPL 4
+		mknod /dev/ipscan c $C_IPL 5
+		mknod /dev/iplookup c $C_IPL 7
+		(cd /dev && chmod 600 ipf ipl ipnat ipstate ipauth)
+		(cd /dev && chmod 600 ipsync ipscan iplookup)
+		ipf -E
+		[ -r ${IPFILCONF} ] && ipf -Fa -f ${IPFILCONF}
+		[ -r ${IPNATCONF} ] && ipnat -CF -f ${IPNATCONF}
+		ipmon -sn </dev/null >/dev/null 2>&1 &
+		;;
+
+	stop)
+		if [ "x$pid" != "x" ] ; then
+			kill -TERM $pid
+		fi
+		if ${ipflkm}; then
+			if [ x$id != x ] ; then
+			    /sbin/ml unld $id && \
+				(cd /dev && rm -f ipf ipl ipnat ipstate ipauth)
+				(cd /dev && rm -f ipsync ipscan iplookup)
+			fi
+		else
+			ipf -D
+		fi
+		;;
+
+	reload)
+		if [ -r ${IPFILCONF} ]; then
+			ipf -I -Fa -f ${IPFILCONF}
+			if [ $? != 0 ]; then
+				echo "$0: reload of ${IPFILCONF} into alternate set failed"
+			else
+				ipf -s
+			fi
+		fi
+		if [ -r ${IPNATCONF} ]; then
+			ipnat -CF -f ${IPNATCONF}
+			if [ $? != 0 ]; then
+				echo "$0: reload of ${IPNATCONF} failed"
+			fi
+		fi
+		;;
+
+	*)
+		echo "Usage: $0 (start|stop|reload)" >&2
+		exit 1
+		;;
+
+esac
+exit 0

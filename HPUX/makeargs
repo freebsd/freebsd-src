@@ -1,0 +1,10 @@
+#!/bin/ksh
+dir=${0%makeargs}
+hprev=`uname -r | sed -e 's/^[A-Z]\.\([0-9]*\)\.\([0-9]\)/\1\2/'`
+if [ $hprev -lt 1111 ] ; then
+	lib=' LLIB=-ll'
+	dcpu=' SPU="-Dspustate_t=u_long"'
+fi
+cpu=`$dir/cpurev`
+echo 'CPUDIR='$cpu' HPUXREV='$hprev''$lib$dcpu
+exit 0

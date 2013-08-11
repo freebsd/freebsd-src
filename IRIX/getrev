@@ -1,0 +1,13 @@
+#!/bin/sh
+uname -R 2>/dev/null >/dev/null
+if [ $? -eq 0 ] ; then
+	osrev=`uname -R| awk ' { print $NF; } ' -`
+	sub=`expr $osrev : '[0-9]*\.[0-9]*\.\([0-9]*\).*'`
+else
+	osrev=`uname -r`
+	sub=0
+fi
+major=`expr $osrev : '\([0-9]\)\..*'`
+minor=`expr $osrev : '[0-9]*\.\([0-9]*\).*'`
+printf '%d%02d%02d' $major $minor $sub
+exit 0

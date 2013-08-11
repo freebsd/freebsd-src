@@ -1,0 +1,612 @@
+diff -cr src.30/etc/etc.alpha/MAKEDEV src/etc/etc.alpha/MAKEDEV
+*** src.30/etc/etc.alpha/MAKEDEV	Thu Jul  5 12:54:06 2001
+--- src/etc/etc.alpha/MAKEDEV	Fri Dec 28 12:43:16 2001
+***************
+*** 83,88 ****
+--- 83,89 ----
+  #	*random	inkernal random data source
+  #	uk*	SCSI Unknown device
+  #	ss*	SCSI scanners
++ #	ipl	IP filter log
+  #	altq	ALTQ control interface
+  #	iop	I2O controller device
+  
+***************
+*** 161,167 ****
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	sh $this pf audio0 tun0 tun1 tun2 tun3
+  	sh $this ttyB0 ttyB1 tty00 tty01 lkm
+! 	sh $this mmclock lpa0 lpt0 random
+  	sh $this uk0 uk1 ss0 ss1
+  	sh $this ttyc0 ttyc1 ttyc2 ttyc3 ttyc4 ttyc5 ttyc6 ttyc7
+  	sh $this local xfs0 altq
+--- 162,168 ----
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	sh $this pf audio0 tun0 tun1 tun2 tun3
+  	sh $this ttyB0 ttyB1 tty00 tty01 lkm
+! 	sh $this mmclock lpa0 lpt0 random ipl
+  	sh $this uk0 uk1 ss0 ss1
+  	sh $this ttyc0 ttyc1 ttyc2 ttyc3 ttyc4 ttyc5 ttyc6 ttyc7
+  	sh $this local xfs0 altq
+***************
+*** 495,500 ****
+--- 496,513 ----
+  	mknod pf c 35 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 37 0
++ 	mknod ipnat c 37 1
++ 	mknod ipstate c 37 2
++ 	mknod ipauth c 37 3
++ 	mknod ipsync c 37 4
++ 	mknod ipscan c 37 5
++ 	mknod iplookup c 37 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.amiga/MAKEDEV src/etc/etc.amiga/MAKEDEV
+*** src.30/etc/etc.amiga/MAKEDEV	Thu Jun 28 12:58:53 2001
+--- src/etc/etc.amiga/MAKEDEV	Fri Dec 28 12:45:25 2001
+***************
+*** 86,91 ****
+--- 86,92 ----
+  #	lkm	loadable kernel modules interface
+  #	bpf*	Berkeley Packet Filter
+  #	tun*	network tunnel driver
++ #	ipf	IP filter
+  #	ss*	SCSI scanners
+  #	uk*	SCSI Unknown device
+  #	*random	inkernal random data source
+***************
+*** 168,174 ****
+  	sh $this vnd0 vnd1 vnd2 vnd3 vnd4 vnd5 vnd6 cd0 cd1 fd0 fd1 fd2 fd3
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	sh $this view00 view01 view02 view03 view04 view05 pty0 pty1
+! 	sh $this lpa0 lpa1 lpt0 lpt1 lpt2
+  	sh $this ccd0 ccd1 ccd2 ccd3 wd0 wd1 ch0 uk0 uk1
+  	sh $this pf tun0 tun1 par0 lkm ss0 random audio0 xfs0 altq local
+  	;;
+--- 169,175 ----
+  	sh $this vnd0 vnd1 vnd2 vnd3 vnd4 vnd5 vnd6 cd0 cd1 fd0 fd1 fd2 fd3
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	sh $this view00 view01 view02 view03 view04 view05 pty0 pty1
+! 	sh $this lpa0 lpa1 lpt0 lpt1 lpt2 ipl
+  	sh $this ccd0 ccd1 ccd2 ccd3 wd0 wd1 ch0 uk0 uk1
+  	sh $this pf tun0 tun1 par0 lkm ss0 random audio0 xfs0 altq local
+  	;;
+***************
+*** 182,188 ****
+  
+  std)
+  	rm -f console drum kmem mem reload null zero tty
+! 	rm -f klog stdin stdout stderr ksyms
+  	mknod console		c 0 0
+  	mknod drum		c 3 0	; chmod 640 drum ; chown root.kmem drum
+  	mknod kmem		c 2 1	; chmod 640 kmem ; chown root.kmem kmem
+--- 183,189 ----
+  
+  std)
+  	rm -f console drum kmem mem reload null zero tty
+! 	rm -f klog stdin stdout stderr ipf ksyms
+  	mknod console		c 0 0
+  	mknod drum		c 3 0	; chmod 640 drum ; chown root.kmem drum
+  	mknod kmem		c 2 1	; chmod 640 kmem ; chown root.kmem kmem
+***************
+*** 195,200 ****
+--- 196,202 ----
+  	mknod stdin		c 21 0	; chmod 666 stdin
+  	mknod stdout		c 21 1	; chmod 666 stdout
+  	mknod stderr		c 21 2	; chmod 666 stderr
++ 	mknod ipf		c 35 0  ; chmod 444 ipf
+  	mknod ksyms		c 42 0  ; chmod 640 ksyms ; chown root.kmem ksyms
+  	;;
+  
+***************
+*** 602,607 ****
+--- 604,621 ----
+  	rm -f $name$unit
+  	mknod $name$unit c 33 `expr $unit + $flags`
+  	chown root.wheel $name$unit
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 38 0
++ 	mknod ipnat c 38 1
++ 	mknod ipstate c 38 2
++ 	mknod ipauth c 38 3
++ 	mknod ipsync c 38 4
++ 	mknod ipscan c 38 5
++ 	mknod iplookup c 38 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.hp300/MAKEDEV src/etc/etc.hp300/MAKEDEV
+*** src.30/etc/etc.hp300/MAKEDEV	Thu Jun 28 12:58:53 2001
+--- src/etc/etc.hp300/MAKEDEV	Fri Dec 28 12:47:17 2001
+***************
+*** 103,109 ****
+  	sh MAKEDEV sd0 sd1 sd2 rd0 rd1 pty0 vnd0 vnd1 vnd2 vnd3
+  	sh MAKEDEV hil grf0 apci0 ppi0 ite0 dca0 dcm0 dcm1 dcm2 dcm3
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh MAKEDEV pf tun0 tun1 tun2 tun3 lkm random xfs0 altq
+  	sh MAKEDEV local
+  	;;
+  
+--- 103,109 ----
+  	sh MAKEDEV sd0 sd1 sd2 rd0 rd1 pty0 vnd0 vnd1 vnd2 vnd3
+  	sh MAKEDEV hil grf0 apci0 ppi0 ite0 dca0 dcm0 dcm1 dcm2 dcm3
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh MAKEDEV ipl pf tun0 tun1 tun2 tun3 lkm random xfs0 altq
+  	sh MAKEDEV local
+  	;;
+  
+***************
+*** 195,200 ****
+--- 195,212 ----
+  	mknod pf c 33 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 37 0
++ 	mknod ipnat c 37 1
++ 	mknod ipstate c 37 2
++ 	mknod ipauth c 37 3
++ 	mknod ipsync c 37 4
++ 	mknod ipscan c 37 5
++ 	mknod iplookup c 37 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.hppa/MAKEDEV src/etc/etc.hppa/MAKEDEV
+*** src.30/etc/etc.hppa/MAKEDEV	Fri Sep  7 05:40:21 2001
+--- src/etc/etc.hppa/MAKEDEV	Fri Dec 28 12:49:46 2001
+***************
+*** 106,112 ****
+  	sh MAKEDEV sd0 sd1 sd2 rd0 rd1 pty0 vnd0 vnd1 vnd2 vnd3
+  	sh MAKEDEV tty00 tty01 tty02 tty03 
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh MAKEDEV pf tun0 tun1 tun2 tun3 lkm random xfs0 altq
+  	sh MAKEDEV local
+  	;;
+  
+--- 106,112 ----
+  	sh MAKEDEV sd0 sd1 sd2 rd0 rd1 pty0 vnd0 vnd1 vnd2 vnd3
+  	sh MAKEDEV tty00 tty01 tty02 tty03 
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh MAKEDEV ipl pf tun0 tun1 tun2 tun3 lkm random xfs0 altq
+  	sh MAKEDEV local
+  	;;
+  
+***************
+*** 187,192 ****
+--- 187,204 ----
+  	mknod pf c 21 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 34 0
++ 	mknod ipnat c 34 1
++ 	mknod ipstate c 34 2
++ 	mknod ipauth c 34 3
++ 	mknod ipsync c 34 4
++ 	mknod ipscan c 34 5
++ 	mknod iplookup c 34 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.i386/MAKEDEV src/etc/etc.i386/MAKEDEV
+*** src.30/etc/etc.i386/MAKEDEV	Fri Oct  5 08:38:13 2001
+--- src/etc/etc.i386/MAKEDEV	Fri Dec 28 12:50:50 2001
+***************
+*** 193,199 ****
+  	sh $this ttyC0 ttyC1 ttyC2 ttyC3 ttyC4 ttyC5 ttyC6 ttyC7 ttyC8 ttyC9
+  	sh $this ttyCa ttyCb
+  	sh $this wscons
+! 	sh $this pf tun0 tun1 tun2
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	sh $this speaker lkm audio0 radio0 joy0 joy1 apm local
+  	sh $this random ses0 uk0 uk1 ss0 ss1 pctr bktr0 tuner0 wdt0
+--- 193,199 ----
+  	sh $this ttyC0 ttyC1 ttyC2 ttyC3 ttyC4 ttyC5 ttyC6 ttyC7 ttyC8 ttyC9
+  	sh $this ttyCa ttyCb
+  	sh $this wscons
+! 	sh $this pf ipl tun0 tun1 tun2
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	sh $this speaker lkm audio0 radio0 joy0 joy1 apm local
+  	sh $this random ses0 uk0 uk1 ss0 ss1 pctr bktr0 tuner0 wdt0
+***************
+*** 587,592 ****
+--- 587,604 ----
+  	mknod pf c 73 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 77 0
++ 	mknod ipnat c 77 1
++ 	mknod ipstate c 77 2
++ 	mknod ipauth c 77 3
++ 	mknod ipauth c 77 3
++ 	mknod ipsync c 77 4
++ 	mknod ipscan c 77 5
++ 	mknod iplookup c 77 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  speaker)					# (XXX - installed)
+diff -cr src.30/etc/etc.mac68k/MAKEDEV src/etc/etc.mac68k/MAKEDEV
+*** src.30/etc/etc.mac68k/MAKEDEV	Thu Jun 28 12:58:54 2001
+--- src/etc/etc.mac68k/MAKEDEV	Fri Dec 28 12:52:19 2001
+***************
+*** 140,145 ****
+--- 140,146 ----
+  	sh $this adb asc0 grf0 grf1 grf2 grf3 ttye0
+  	sh $this tty00 tty01 pty0
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
++ 	sh $this ipl
+  	sh $this pf tun0 tun1 tun2 tun3
+  	sh $this lkm
+  	sh $this random
+***************
+*** 427,432 ****
+--- 428,445 ----
+  	mknod pf c 35 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 38 0
++ 	mknod ipnat c 38 1
++ 	mknod ipstate c 38 2
++ 	mknod ipauth c 38 3
++ 	mknod ipsync c 38 4
++ 	mknod ipscan c 38 5
++ 	mknod iplookup c 38 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.macppc/MAKEDEV src/etc/etc.macppc/MAKEDEV
+*** src.30/etc/etc.macppc/MAKEDEV	Thu Oct  4 00:50:38 2001
+--- src/etc/etc.macppc/MAKEDEV	Fri Dec 28 12:53:20 2001
+***************
+*** 160,166 ****
+  	sh $this ttyC0 ttyCcfg
+  	sh $this tty00 tty01 tty02 tty03 pty0 pty1
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh $this pf tun0 tun1 tun2 tun3
+  	sh $this audio0
+  	sh $this random uk0 uk1 ss0 ss1
+  	sh $this wscons
+--- 160,166 ----
+  	sh $this ttyC0 ttyCcfg
+  	sh $this tty00 tty01 tty02 tty03 pty0 pty1
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh $this ipl pf tun0 tun1 tun2 tun3
+  	sh $this audio0
+  	sh $this random uk0 uk1 ss0 ss1
+  	sh $this wscons
+***************
+*** 551,556 ****
+--- 551,568 ----
+  	mknod pf c 39 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 45 0
++ 	mknod ipnat c 45 1
++ 	mknod ipstate c 45 2
++ 	mknod ipauth c 45 3
++ 	mknod ipsync c 45 4
++ 	mknod ipscan c 45 5
++ 	mknod iplookup c 45 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.mvme68k/MAKEDEV src/etc/etc.mvme68k/MAKEDEV
+*** src.30/etc/etc.mvme68k/MAKEDEV	Thu Jun 28 12:58:55 2001
+--- src/etc/etc.mvme68k/MAKEDEV	Fri Dec 28 12:55:33 2001
+***************
+*** 91,97 ****
+  	sh MAKEDEV tty00 tty01 tty02 tty03
+  	sh MAKEDEV ttyw0
+  	sh MAKEDEV sd0 sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9
+! 	sh MAKEDEV vnd0 vnd1 pty0 cd0
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh MAKEDEV ccd0 ccd1 ccd2 ccd3
+  	sh MAKEDEV pf tun0 tun1 lkm local
+--- 91,97 ----
+  	sh MAKEDEV tty00 tty01 tty02 tty03
+  	sh MAKEDEV ttyw0
+  	sh MAKEDEV sd0 sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9
+! 	sh MAKEDEV vnd0 vnd1 pty0 cd0 ipl
+  	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh MAKEDEV ccd0 ccd1 ccd2 ccd3
+  	sh MAKEDEV pf tun0 tun1 lkm local
+***************
+*** 431,436 ****
+--- 431,448 ----
+          chown root.kmem lkm
+          chmod 640 lkm
+          ;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 44 0
++ 	mknod ipnat c 44 1
++ 	mknod ipstate c 44 2
++ 	mknod ipauth c 44 3
++ 	mknod ipsync c 44 4
++ 	mknod ipscan c 44 5
++ 	mknod iplookup c 44 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
++ 	;;
+  
+  sram*|nvram*|flash*|vmel*|vmes*)
+          rm -f $i
+diff -cr src.30/etc/etc.mvme88k/MAKEDEV src/etc/etc.mvme88k/MAKEDEV
+*** src.30/etc/etc.mvme88k/MAKEDEV	Thu Jun 28 12:58:55 2001
+--- src/etc/etc.mvme88k/MAKEDEV	Fri Dec 28 12:29:24 2001
+***************
+*** 78,84 ****
+  	sh $this tty00 tty01 tty02 tty03
+  	sh $this ttyw0
+  	sh $this sd0 sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9
+! 	sh $this vnd0 vnd1 pty0 cd0
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh $this ccd0 ccd1 ccd2 ccd3
+  	sh $this pf tun0 tun1 lkm local
+--- 78,84 ----
+  	sh $this tty00 tty01 tty02 tty03
+  	sh $this ttyw0
+  	sh $this sd0 sd1 sd2 sd3 sd4 sd5 sd6 sd7 sd8 sd9
+! 	sh $this vnd0 vnd1 pty0 cd0 ipl
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+  	#sh $this ccd0 ccd1 ccd2 ccd3
+  	sh $this pf tun0 tun1 lkm local
+***************
+*** 293,298 ****
+--- 293,310 ----
+  	mknod pf c 39 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 41 0
++ 	mknod ipnat c 41 1
++ 	mknod ipstate c 41 2
++ 	mknod ipauth c 41 3
++ 	mknod ipsync c 41 4
++ 	mknod ipscan c 41 5
++ 	mknod iplookup c 41 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  bpf*|tun*)
+diff -cr src.30/etc/etc.mvmeppc/MAKEDEV src/etc/etc.mvmeppc/MAKEDEV
+*** src.30/etc/etc.mvmeppc/MAKEDEV	Mon Jul  2 12:37:13 2001
+--- src/etc/etc.mvmeppc/MAKEDEV	Fri Dec 28 12:57:54 2001
+***************
+*** 158,164 ****
+  	sh $this ttyC0 ttyCcfg
+  	sh $this tty00 tty01 tty02 tty03 pty0 pty1
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh $this pf tun0 tun1 tun2 tun3
+  	sh $this audio0
+  	sh $this random uk0 uk1 ss0 ss1
+  	sh $this wscons
+--- 158,164 ----
+  	sh $this ttyC0 ttyCcfg
+  	sh $this tty00 tty01 tty02 tty03 pty0 pty1
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	sh $this ipl pf tun0 tun1 tun2 tun3
+  	sh $this audio0
+  	sh $this random uk0 uk1 ss0 ss1
+  	sh $this wscons
+***************
+*** 532,537 ****
+--- 532,549 ----
+  	mknod pf c 39 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 44 0
++ 	mknod ipnat c 44 1
++ 	mknod ipstate c 44 2
++ 	mknod ipauth c 44 3
++ 	mknod ipsync c 44 4
++ 	mknod ipscan c 44 5
++ 	mknod iplookup c 44 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.sparc/MAKEDEV src/etc/etc.sparc/MAKEDEV
+*** src.30/etc/etc.sparc/MAKEDEV	Fri Sep  7 05:45:34 2001
+--- src/etc/etc.sparc/MAKEDEV	Fri Dec 28 12:30:46 2001
+***************
+*** 86,91 ****
+--- 86,92 ----
+  #	spif*	spif card (makes 8 tty and 1 bpp)
+  #	bpp*	bpp
+  #	xfs*	XFS filesystem devices
++ #	ipl	IP filter log
+  #	altq	ALTQ control interface
+  
+  PATH=/sbin:/bin:/usr/bin:/usr/sbin
+***************
+*** 206,211 ****
+--- 207,213 ----
+  	sh $this ccd0 ccd1 ccd2 ccd3
+  	sh $this raid0 raid1 raid2 raid3
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
++ 	sh $this ipl
+  	sh $this bwtwo0 cgtwo0 cgthree0 cgfour0 cgsix0
+  	sh $this cgeight0 cgfourteen0 tcx0
+  	sh $this lkm random local
+***************
+*** 341,346 ****
+--- 343,360 ----
+  	mknod pf c 59 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 60 0
++ 	mknod ipnat c 60 1
++ 	mknod ipstate c 60 2
++ 	mknod ipauth c 60 3
++ 	mknod ipsync c 60 4
++ 	mknod ipscan c 60 5
++ 	mknod iplookup c 60 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.sparc64/MAKEDEV src/etc/etc.sparc64/MAKEDEV
+*** src.30/etc/etc.sparc64/MAKEDEV	Sat Sep 22 03:58:56 2001
+--- src/etc/etc.sparc64/MAKEDEV	Fri Dec 28 12:33:35 2001
+***************
+*** 188,194 ****
+  	R vnd0 vnd1 ccd0 ccd1 ccd2 ccd3
+  	R raid0 raid1 raid2 raid3
+  	R bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	R pf altq tun0 tun1 tun2 random ses0 uk0 uk1 ss0 ss1
+  	R fd0 fd0B fd0C fd0D fd0E fd0F fd0G fd0H
+  	R fd1 fd1B fd1C fd1D fd1E fd1F fd1G fd1H
+  	R xfs0 tcx0 lkm audio0 local
+--- 188,194 ----
+  	R vnd0 vnd1 ccd0 ccd1 ccd2 ccd3
+  	R raid0 raid1 raid2 raid3
+  	R bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
+! 	R ipl pf altq tun0 tun1 tun2 random ses0 uk0 uk1 ss0 ss1
+  	R fd0 fd0B fd0C fd0D fd0E fd0F fd0G fd0H
+  	R fd1 fd1B fd1C fd1D fd1E fd1F fd1G fd1H
+  	R xfs0 tcx0 lkm audio0 local
+***************
+*** 243,248 ****
+--- 243,256 ----
+  		U=$(($U+1))
+  	done;;
+  pf*)M pf c 73 0 600;;
++ ipl*)M ipl c 75 0 600 root.wheel
++ 	M ipnat c 75 1 root.wheel
++ 	M ipstate c 75 2 root.wheel
++ 	M ipauth c 75 3 root.wheel
++ 	M ipsync c 75 4 root.wheel
++ 	M ipscan c 75 5 root.wheel
++ 	M iplookup c 75 6 root.wheel
++ 	;;
+  cgsix*)M cgsix$U c 67 $U 666;;
+  audio*)M sound$U	c 69 $U
+  	M mixer$U	c 69 $(($U+16))
+diff -cr src.30/etc/etc.sun3/MAKEDEV src/etc/etc.sun3/MAKEDEV
+*** src.30/etc/etc.sun3/MAKEDEV	Fri Sep  7 05:45:34 2001
+--- src/etc/etc.sun3/MAKEDEV	Fri Dec 28 13:01:23 2001
+***************
+*** 70,75 ****
+--- 70,76 ----
+  #	tun*	network tunnel driver
+  #	*random	inkernal random data source
+  #	xfs*	XFS filesystem devices
++ #	ipl	IP filter log
+  #	altq	ALTQ control interface
+  
+  PATH=/sbin:/bin:/usr/bin:/usr/sbin
+***************
+*** 187,192 ****
+--- 188,194 ----
+  	sh $this pty0 vnd0 vnd1 vnd2 vnd3 pf tun0 tun1 tun2 tun3
+  	sh $this ccd0 ccd1 ccd2 ccd3
+  	sh $this bpf0 bpf1 bpf2 bpf3 bpf4 bpf5 bpf6 bpf7 bpf8 bpf9
++ 	sh $this ipl
+  	sh $this bwtwo0 cgtwo0 cgfour0
+  	sh $this random local
+  	sh $this xfs0 altq
+***************
+*** 277,282 ****
+--- 279,296 ----
+  	mknod pf c 75 0
+  	chown root.wheel pf
+  	chmod 600 pf
++ 	;;
++ 
++ ipl)
++ 	rm -f ipl ipnat ipstate ipauth
++ 	mknod ipl c 86 0
++ 	mknod ipnat c 86 1
++ 	mknod ipstate c 86 2
++ 	mknod ipauth c 86 3
++ 	mknod ipsync c 86 4
++ 	mknod ipscan c 86 5
++ 	mknod iplookup c 86 6
++ 	chown root.wheel ipl ipnat ipstate ipauth
+  	;;
+  
+  tun*)
+diff -cr src.30/etc/etc.vax/MAKEDEV src/etc/etc.vax/MAKEDEV
+*** src.30/etc/etc.vax/MAKEDEV	Fri Jul 13 10:06:30 2001
+--- src/etc/etc.vax/MAKEDEV	Fri Dec 28 13:02:17 2001
+***************
+*** 93,99 ****
+  std)
+  	rm -f console drum floppy crl csa1 csa2 tu0 tu1
+  	rm -f kUmem kmem mem null zero tty klog ttyg[0-3]
+! 	rm -f stdin stdout stderr ksyms
+  	mknod console		c 0 0
+  	mknod ttyg0		c 25 0
+  	mknod ttyg1		c 25 1
+--- 93,99 ----
+  std)
+  	rm -f console drum floppy crl csa1 csa2 tu0 tu1
+  	rm -f kUmem kmem mem null zero tty klog ttyg[0-3]
+! 	rm -f stdin stdout stderr ksyms ipl ipnat ipstate ipauth
+  	mknod console		c 0 0
+  	mknod ttyg0		c 25 0
+  	mknod ttyg1		c 25 1
+***************
+*** 117,122 ****
+--- 117,129 ----
+  	mknod stdout		c 53 1	; chmod 666 stdout
+  	mknod stderr		c 53 2	; chmod 666 stderr
+  	mknod ksyms		c 50 0	; chmod 640 ksyms ; chown root.kmem ksyms
++ 	mknod ipl               c 47 0  ; chmod 600 ipl
++ 	mknod ipnat             c 47 1  ; chmod 600 ipnat
++ 	mknod ipstate           c 47 2  ; chmod 600 ipstate
++ 	mknod ipauth            c 47 3  ; chmod 600 ipauth
++ 	mknod ipsync            c 47 4  ; chmod 600 ipsync
++ 	mknod ipscan            c 47 5  ; chmod 600 ipscan
++ 	mknod iplookup            c 47 6  ; chmod 600 iplookup
+  	;;
+  
+  fd)

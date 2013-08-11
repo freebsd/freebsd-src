@@ -1,0 +1,198 @@
+#
+# Copyright (C) 2012 by Darren Reed.
+#
+# See the IPFILTER.LICENCE file for details on licencing.
+#
+CONFIG_IPFILTER=m
+#
+# For Linux
+#
+CPUTYPE:=$(shell uname -m | sed -e 's/i.86/i386/' -e 's/sun4u/sparc64/' -e 's/arm.*/arm/' -e 's/sa110/arm/')
+ARCH:=$(shell uname -m | sed -e 's/i.86/i386/')
+OBJ=.
+TOP=../..
+CPU:=$(shell uname -i)
+KREV:=$(shell uname -r)
+MODDIR=/lib/modules/$(KREV)
+IPV4DIR=$(MODDIR)/kernel/net/ipv4/
+CPUDIR=
+DEBUG=-g
+#
+########## ########## ########## ########## ########## ########## ##########
+#
+#
+MODOBJS=$(OBJ)/linuxm.o $(OBJ)/ip_film.o $(OBJ)/fil.o $(OBJ)/ip_nat.o \
+	$(OBJ)/ip_frag.o $(OBJ)/ip_scan.o $(OBJ)/ip_sync.o \
+	$(OBJ)/ip_state.o $(OBJ)/ip_proxy.o $(OBJ)/ip_auth.o \
+	$(OBJ)/ip_lookup.o $(OBJ)/ip_pool.o $(OBJ)/ip_htable.o \
+	$(OBJ)/ip_dstlist.o $(OBJ)/ip_log.o $(OBJ)/radix.o $(OBJ)/md5.o
+
+obj-$(CONFIG_IPFILTER) += ipfilter.o
+ipfilter-objs =$(MODOBJS)
+
+all: ipflkm
+
+ipflkm:
+	if [ $(LINUX) -lt 20499 ] ; then \
+		make $(OBJ)/ipfilter.o ; \
+	else \
+		make $(OBJ)/ipflkm.o ; \
+	fi
+
+$(OBJ)/ipfilter.o: $(MODOBJS)
+	ld -r $(MODOBJS) -o $(OBJ)/ipfilter.o
+	${RM} -f $(OBJ)/ipfilter
+
+
+fil.c $(obj)//fil.c: $(TOP)/fil.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_nat.c $(obj)//ip_nat.c: $(TOP)/ip_nat.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_frag.c $(obj)//ip_frag.c: $(TOP)/ip_frag.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_state.c $(obj)//ip_state.c: $(TOP)/ip_state.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_proxy.c $(obj)//ip_proxy.c: $(TOP)/ip_proxy.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_auth.c $(obj)//ip_auth.c: $(TOP)/ip_auth.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_lookup.c $(obj)//ip_lookup.c: $(TOP)/ip_lookup.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_htable.c $(obj)//ip_htable.c: $(TOP)/ip_htable.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_dstlist.c $(obj)//ip_dstlist.c: $(TOP)/ip_dstlist.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_pool.c $(obj)//ip_pool.c: $(TOP)/ip_pool.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_scan.c $(obj)//ip_scan.c: $(TOP)/ip_scan.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_sync.c $(obj)//ip_sync.c: $(TOP)/ip_sync.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_log.c $(obj)//ip_log.c: $(TOP)/ip_log.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+radix.c $(obj)//radix.c: $(TOP)/radix.c Makefile
+	sed -e '/^#/,$$d' $< > $@
+	echo '#include "ipf-linux.h"' >> $@
+	sed -ne '/END OF INCLUDES/,$$p' $< >> $@
+
+ip_rules.c: $(TOP)/rules/ip_rules $(TOP)/tools/ipfcomp.o $(OBJ)/ipf
+	$(OBJ)/ipf -cc -nf $(TOP)/rules/ip_rules
+
+md5.c $(obj)//md5.c: $(TOP)/md5.c Makefile
+	/bin/rm -f md5.c
+	cp $< $(obj)//md5.c
+
+$(TOP)/ip_rules.h: ip_rules.c
+	if [ ! -f $(TOP)/ip_rules.h ] ; then \
+		/bin/mv -f ip_rules.h $(TOP); \
+	else \
+		touch $(TOP)/ip_rules.h; \
+	fi
+
+$(OBJ)/ip_log.o: ip_log.c $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
+	$(obj)/../ipf-linux.h
+$(obj)//linuxm.o: $(obj)/linuxm.c
+$(obj)//fil.o: $(obj)/fil.c $(TOP)/ip_fil.h $(TOP)/ipf.h $(TOP)/ip_compat.h \
+	$(obj)/../ipf-linux.h
+$(obj)//ip_auth.o: $(obj)/ip_auth.c $(TOP)/ip_auth.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_film.o: $(obj)/ip_film.c
+$(obj)//ip_frag.o: $(obj)/ip_frag.c $(TOP)/ip_frag.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_htable.o: $(obj)/ip_htable.c $(TOP)/ip_htable.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_dstlist.o: $(obj)/ip_dstlist.c $(TOP)/ip_dstlist.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_lookup.o: $(obj)/ip_lookup.c $(TOP)/ip_lookup.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_nat.o: $(obj)/ip_nat.c $(TOP)/ip_nat.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_pool.o: $(obj)/ip_pool.c $(TOP)/ip_pool.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_proxy.o: $(obj)/ip_proxy.c $(TOP)/ip_proxy.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_scan.o: $(obj)/ip_scan.c $(TOP)/ip_scan.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//ip_state.o: $(obj)/ip_state.c $(TOP)/ip_state.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(TOP)/ip_nat.h $(obj)/../ipf-linux.h
+$(obj)//ip_sync.o: $(obj)/ip_sync.c $(TOP)/ip_sync.h $(TOP)/ip_compat.h \
+	$(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)//radix.o: $(obj)/radix.c $(TOP)/radix_ipf.h $(obj)/../ipf-linux.h
+$(obj)//md5.o: md5.c $(TOP)/md5.h
+$(obj)/$(CPUDIR)/linux.o: $(obj)/$(CPUDIR)/linux.c
+$(obj)/$(CPUDIR)/fil.o: $(obj)/$(CPUDIR)/fil.c $(TOP)/ip_fil.h $(TOP)/ipf.h \
+	$(TOP)/ip_compat.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_auth.o: $(obj)/$(CPUDIR)/ip_auth.c $(TOP)/ip_auth.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_film.o: $(obj)/$(CPUDIR)/ip_film.c
+$(obj)/$(CPUDIR)/ip_frag.o: $(obj)/$(CPUDIR)/ip_frag.c $(TOP)/ip_frag.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_htable.o: $(obj)/$(CPUDIR)/ip_htable.c $(TOP)/ip_htable.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_dstlist.o: $(obj)/$(CPUDIR)/ip_dstlist.c \
+	$(TOP)/ip_dstlist.h $(TOP)/ip_compat.h $(TOP)/ip_fil.h \
+	$(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_lookup.o: $(obj)/$(CPUDIR)/ip_lookup.c $(TOP)/ip_lookup.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_nat.o: $(obj)/$(CPUDIR)/ip_nat.c $(TOP)/ip_nat.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_pool.o: $(obj)/$(CPUDIR)/ip_pool.c $(TOP)/ip_pool.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_proxy.o: $(obj)/$(CPUDIR)/ip_proxy.c $(TOP)/ip_proxy.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_scan.o: $(obj)/$(CPUDIR)/ip_scan.c $(TOP)/ip_scan.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_state.o: $(obj)/$(CPUDIR)/ip_state.c $(TOP)/ip_state.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(TOP)/ip_nat.h \
+	$(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/ip_sync.o: $(obj)/$(CPUDIR)/ip_sync.c $(TOP)/ip_sync.h \
+	$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(obj)/../ipf-linux.h
+$(obj)/$(CPUDIR)/radix.o: $(obj)/$(CPUDIR)/radix.c $(TOP)/radix_ipf.h \
+	ipf-linux.h
+$(obj)/$(CPUDIR)/md5.o: md5.c $(TOP)/md5.h
+
+$(obj)/$(CPUDIR)/linuxm.c $(obj)//linuxm.c: $(TOP)/linux.c
+	@if [ ! -h $@ ] ; then ln -s $< $@; fi
+
+$(obj)/$(CPUDIR)/ip_film.c $(obj)//ip_film.c: $(TOP)/ip_fil_linux.c
+	@if [ ! -h $@ ] ; then ln -s $< $@; fi
+

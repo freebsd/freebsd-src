@@ -1,0 +1,35 @@
+#!/usr/local/bin/perl
+# for best results, bring up all your interfaces before running this
+open(I, "ifconfig -a|") || die $!;
+while (<I>) {
+	chop;
+	if (/^[a-zA-Z]+\d+:/) {
+		($iface = $_) =~ s/^([a-zA-Z]+\d+).*/$1/;
+		$ifaces{$iface} = $iface;
+		next;
+	}
+	if (/inet/) {
+		if (/\-\-\>/) { # PPP, (SLIP?)
+			($inet{$iface} = $_) =~ s/.*inet ([^ ]+) \-\-\> ([^ ]+).*/$1/;
+			($ppp{$iface} = $_) =~ s/.*inet ([^ ]+) \-\-\> ([^ ]+).*/$2/;
+		} else {
+			($inet{$iface} = $_) =~ s/.*inet ([^ ]+).*/$1/;
+		}
+	}
+	if (/netmask/) {
+		($mask = $_) =~ s/.*netmask ([^ ]+).*/$1/;
+		$mask =~ s/^/0x/ if ($mask =~ /^[0-9a-f]*$/);
+		$netmask{$iface} = $mask;
+	}
+	if (/broadcast/) {
+		($bcast{$iface} = $_) =~ s/.*broadcast ([^ ]+).*/$1/;
+	}
+}
+foreach $i (keys %ifaces) {
+	$net{$i} = $inet{$i}."/".$netmask{$i} if (defined($inet{$i}));
+}
+foreach $i (keys %ifaces) {
+	next if (($i =~ /lo/) || !defined($net{$i}));
+# 8/25/97; removed  || defined($ppp{$i})
+	system("route add $inet{$i} localhost 0");
+}

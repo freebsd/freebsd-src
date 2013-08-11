@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -8,17 +8,16 @@
 #include "ipf.h"
 #include "netinet/ipl.h"
 
-#define	PRINTF	(void)printf
-#define	FPRINTF	(void)fprintf
 
-
-ip_pool_t *printpool_live(pool, fd, name, opts)
-ip_pool_t *pool;
-int fd;
-char *name;
-int opts;
+ip_pool_t *
+printpool_live(pool, fd, name, opts, fields)
+	ip_pool_t *pool;
+	int fd;
+	char *name;
+	int opts;
+	wordtab_t *fields;
 {
-	ip_pool_node_t entry, *top, *node;
+	ip_pool_node_t entry;
 	ipflookupiter_t iter;
 	int printed, last;
 	ipfobj_t obj;
@@ -26,7 +25,8 @@ int opts;
 	if ((name != NULL) && strncmp(name, pool->ipo_name, FR_GROUPLEN))
 		return pool->ipo_next;
 
-	printpooldata(pool, opts);
+	if (fields == NULL)
+		printpooldata(pool, opts);
 
 	if ((pool->ipo_flags & IPOOL_DELETE) != 0)
 		PRINTF("# ");
@@ -46,28 +46,17 @@ int opts;
 	strncpy(iter.ili_name, pool->ipo_name, FR_GROUPLEN);
 
 	last = 0;
-	top = NULL;
 	printed = 0;
 
-	while (!last && (ioctl(fd, SIOCLOOKUPITER, &obj) == 0)) {
-		if (entry.ipn_next == NULL)
-			last = 1;
-		node = malloc(sizeof(*top));
-		if (node == NULL)
-			break;
-		bcopy(&entry, node, sizeof(entry));
-		node->ipn_next = top;
-		top = node;
-	}
-
-	while (top != NULL) {
-		node = top;
-		(void) printpoolnode(node, opts);
-		if ((opts & OPT_DEBUG) == 0)
-			putchar(';');
-		top = node->ipn_next;
-		free(node);
-		printed++;
+	if (pool->ipo_list != NULL) {
+		while (!last && (ioctl(fd, SIOCLOOKUPITER, &obj) == 0)) {
+			if (entry.ipn_next == NULL)
+				last = 1;
+			(void) printpoolnode(&entry, opts, fields);
+			if ((opts & OPT_DEBUG) == 0)
+				putchar(';');
+			printed++;
+		}
 	}
 
 	if (printed == 0)
@@ -76,8 +65,7 @@ int opts;
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
 
-	if (ioctl(fd, SIOCIPFDELTOK, &iter.ili_key) != 0)
-		perror("SIOCIPFDELTOK");
+	(void) ioctl(fd,SIOCIPFDELTOK, &iter.ili_key);
 
 	return pool->ipo_next;
 }

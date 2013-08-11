@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000-2005 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -42,7 +42,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)kmem.c	1.4 1/12/96 (C) 1992 Darren Reed";
-static const char rcsid[] = "@(#)$Id: kmem.c,v 1.16.2.3 2006/06/16 17:21:04 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 
@@ -68,9 +68,9 @@ kvm_t kvm_open __P((char *, char *, char *, int, char *));
 int kvm_read __P((kvm_t, u_long, char *, size_t));
 
 kvm_t kvm_open(kernel, core, swap, mode, errstr)
-char *kernel, *core, *swap;
-int mode;
-char *errstr;
+	char *kernel, *core, *swap;
+	int mode;
+	char *errstr;
 {
 	kvm_t k;
 	int fd;
@@ -91,10 +91,10 @@ char *errstr;
 }
 
 int kvm_read(kvm, pos, buffer, size)
-kvm_t kvm;
-u_long pos;
-char *buffer;
-size_t size;
+	kvm_t kvm;
+	u_long pos;
+	char *buffer;
+	size_t size;
 {
 	int r = 0, left;
 	char *bufp;
@@ -125,7 +125,7 @@ size_t size;
 #endif /* !defined(__sgi) && !defined(__hpux) && !defined(__osf__) */
 
 int	openkmem(kern, core)
-char	*kern, *core;
+	char	*kern, *core;
 {
 	kvm_f = kvm_open(kern, core, NULL, O_RDONLY, NULL);
 	if (kvm_f == NULL)
@@ -137,9 +137,9 @@ char	*kern, *core;
 }
 
 int	kmemcpy(buf, pos, n)
-register char	*buf;
-long	pos;
-register int	n;
+	register char	*buf;
+	long	pos;
+	register int	n;
 {
 	register int	r;
 
@@ -167,9 +167,9 @@ register int	n;
 }
 
 int	kstrncpy(buf, pos, n)
-register char	*buf;
-long	pos;
-register int	n;
+	register char	*buf;
+	long	pos;
+	register int	n;
 {
 	register int	r;
 

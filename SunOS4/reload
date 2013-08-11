@@ -1,0 +1,21 @@
+#!/bin/sh
+# $Id$
+
+DIR=/usr/local/ip_fil
+
+if [ -f $DIR/mkroutes ]; then
+	$DIR/mkroutes >/dev/null 2>&1
+fi
+
+#LOG=none
+LOG=nomatch
+
+# perform changes to inactive filter set
+# clear all filters
+# load filters
+# select log flags
+# swap filter sets
+/usr/local/etc/ipf -I -Fa -f $DIR/filters -l $LOG -s
+
+# load ip translations
+/usr/local/etc/ipnat -Cf $DIR/trans

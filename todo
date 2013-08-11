@@ -21,14 +21,6 @@ time permitting:
 
 * record buffering for TCP/UDP
 
-* modular application proxying
--done
-
-* allow multiple ip addresses in a source route list for ipsend
-
-* port IP Filter to Linux
-Not in this century.
-
 * document bimap
 
 * document NAT rule order processing
@@ -56,14 +48,14 @@ I would also love to see a more extensive NAT.  It can choose to do
 rdr and map based on saddr, daddr, sport and dport.  (Does the kernel
 module already have functionality for that and it just needs support in
 the userland ipnat?)
--sort of done
+-done
 
-        * intrusion detection 
-                detection of port scans 
+        * intrusion detection
+                detection of port scans
                 detection of multiple connection attempts
-                
+
         * support for multiple log files
-                i.e. all connections to ftp and telnet logged to 
+                i.e. all connections to ftp and telnet logged to
                         a seperate log file
 
         * multiple levels of log severity with E-mail notification

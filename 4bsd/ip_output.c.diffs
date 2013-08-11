@@ -1,0 +1,36 @@
+*** ip_output.c.orig	Sun Apr 23 17:17:05 1995
+--- ip_output.c	Sun Apr 23 17:32:11 1995
+***************
+*** 60,65 ****
+--- 60,69 ----
+  static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
+  static void ip_mloopback
+  	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *));
++ #if defined(IPFILTER_LKM) || defined(IPFILTER)
++ extern int fr_check __P((struct ip *, int, struct ifnet *, int, struct mbuf *));
++ extern int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf *));
++ #endif
+  
+  /*
+   * IP output.  The packet in mbuf chain m contains a skeletal IP
+***************
+*** 277,282 ****
+--- 284,303 ----
+  	} else
+  		m->m_flags &= ~M_BCAST;
+  
+  sendit:
++ #if defined(IPFILTER) || defined(IPFILTER_LKM)
++ 	/*
++ 	 * looks like most checking has been done now...do a filter check
++ 	 */
++ 	if (fr_checkp) {
++ 		struct mbuf *m1 = m;
++ 
++ 		if ((error = (*fr_checkp)(ip, hlen, ifp, 1, &m1)) || !m1)
++ 			goto done;
++ 		ip = mtod(m = m1, struct ip *);
++ 	}
++ #endif
+  	/*
+  	 * If small enough for interface, can just send directly.

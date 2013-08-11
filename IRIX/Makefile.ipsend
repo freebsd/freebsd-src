@@ -1,0 +1,68 @@
+IOBJS=ipsend.o ip.o ipsopt.o iplang_y.o iplang_l.o
+ROBJS=ipresend.o ip.o resend.o
+TOBJS=iptest.o iptests.o ip.o
+UNIXOBJS=sirix.o arp.o
+OBJ=.
+LIBSRC=../../lib
+DEST=.
+TOP=../..
+LIBS=-L$(OBJ) -lipf
+
+CC=cc
+CFLAGS=-g -I$(TOP)
+
+include $(TOP)/lib/Makefile
+
+all build irix : libipf.a ipsend ipresend iptest
+
+.c.o:
+	$(CC) $(DEBUG) $(CFLAGS) -c $< -o $@
+
+iplang_y.o: $(TOP)/iplang/iplang_y.y
+	(cd $(TOP)/iplang; $(MAKE) 'CFLAGS=$(CFLAGS)' 'DESTDIR=../IRIX/$(CPUDIR)' )
+
+iplang_l.o: $(TOP)/iplang/iplang_l.l
+	(cd $(TOP)/iplang; $(MAKE) 'DESTDIR=../IRIX/$(CPUDIR)' )
+
+ipsend: $(IOBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(IOBJS) $(UNIXOBJS) -o $@ $(LIBS) -ll
+
+ipresend: $(ROBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(ROBJS) $(UNIXOBJS) -o $@ $(LIBS)
+
+iptest: $(TOBJS) $(UNIXOBJS)
+	$(CC) $(DEBUG) $(TOBJS) $(UNIXOBJS) -o $@ $(LIBS)
+
+clean:
+	rm -rf *.o core a.out ipsend ipresend iptest
+	rm -rf iplany_y.c iplang_l.c iplang_y.h iplang_y.c
+
+ipsend.o: $(TOP)/ipsend/ipsend.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/ipsend.c -o $@
+
+ipsopt.o: $(TOP)/ipsend/ipsopt.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/ipsopt.c -o $@
+
+ipresend.o: $(TOP)/ipsend/ipresend.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/ipresend.c -o $@
+
+ip.o: $(TOP)/ipsend/ip.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/ip.c -o $@
+
+resend.o: $(TOP)/ipsend/resend.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/resend.c -o $@
+
+iptest.o: $(TOP)/ipsend/iptest.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/iptest.c -o $@
+
+iptests.o: $(TOP)/ipsend/iptests.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/iptests.c -o $@
+
+sock.o: $(TOP)/ipsend/sock.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/sock.c -o $@
+
+arp.o: $(TOP)/ipsend/arp.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/arp.c -o $@
+
+sirix.o: $(TOP)/ipsend/sirix.c
+	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/sirix.c -o $@

@@ -1,0 +1,112 @@
+i pkginfo
+i copyright=../copyright
+i postinstall=../postinstall
+i depend=../depend
+!default 0755 root root
+#i preinstall=../preinstall
+i preremove=../preremove
+i postremove=../postremove
+d none /opt ? ? ?
+d none /opt/ipf
+d none /opt/ipf/man
+d none /opt/ipf/man/man1
+d none /opt/ipf/man/man1m
+d none /opt/ipf/man/man4
+d none /opt/ipf/man/man5
+d none /opt/ipf/man/man8
+d none /opt/ipf/bin
+# Moved so we can hardlink against isaexec
+s none /opt/ipf/bin/ipmon=../../../usr/sbin/ipmon
+f none /opt/ipf/bin/ipftest=root/opt/ipf/bin/sparcv7/ipftest
+f none /opt/ipf/bin/ipsend=root/opt/ipf/bin/sparcv7/ipsend
+f none /opt/ipf/bin/ipresend=root/opt/ipf/bin/sparcv7/ipresend
+f none /opt/ipf/bin/mkfilters=root/opt/ipf/bin/sparcv7/mkfilters
+d none /opt/ipf/examples
+d none /var ? ? ?
+d none /var/db 700 root sys
+d none /var/db/ipf 700 root sys
+d none /usr ? ? ?
+d none /usr/include ? ? ?
+d none /usr/include/ipfilter 755 root bin
+d none /usr/kernel ? ? ?
+d none /usr/kernel/drv ? ? ?
+f none /usr/kernel/drv/ipf=root/usr/kernel/drv/sparcv7/ipf
+d none /sbin ? ? ?
+# Moved so we can hardlink against isaexec
+s none /sbin/ipfs=../usr/sbin/ipfs
+s none /sbin/ipfstat=../usr/sbin/ipfstat
+s none /sbin/ipf=../usr/sbin/ipf
+s none /sbin/ipnat=../usr/sbin/ipnat
+s none /sbin/ippool=../usr/sbin/ippool
+l none /usr/sbin/ipfs=../../usr/lib/isaexec
+l none /usr/sbin/ipfstat=../../usr/lib/isaexec
+l none /usr/sbin/ipf=../../usr/lib/isaexec
+l none /usr/sbin/ipnat=../../usr/lib/isaexec
+l none /usr/sbin/ippool=../../usr/lib/isaexec
+l none /usr/sbin/ipmon=../../usr/lib/isaexec
+d none /usr/sbin ? ? ?
+d none /usr/sbin/sparcv7 ? ? ?
+f none /usr/sbin/sparcv7/ipfs=root/sbin/sparcv7/ipfs
+f none /usr/sbin/sparcv7/ipfstat=root/sbin/sparcv7/ipfstat
+f none /usr/sbin/sparcv7/ipf=root/sbin/sparcv7/ipf
+f none /usr/sbin/sparcv7/ipnat=root/sbin/sparcv7/ipnat
+f none /usr/sbin/sparcv7/ippool=root/sbin/sparcv7/ippool
+f none /usr/sbin/sparcv7/ipmon=root/opt/ipf/bin/sparcv7/ipmon
+d none /etc ? ? ?
+d none /etc/init.d ? ? ?
+f none /etc/init.d/ipfboot=root/etc/init.d/ipfboot
+d none /etc/rc2.d ? ? ?
+l none /etc/rc2.d/S65ipfboot=/etc/init.d/ipfboot
+d none /etc/opt ? ? ?
+d none /etc/opt/ipf 755 root sys
+!default 0444 root root
+f none /opt/ipf/man/man8/ipfstat.8=root/opt/ipf/man/man8/ipfstat.8
+f none /opt/ipf/man/man8/ipmon.8=root/opt/ipf/man/man8/ipmon.8
+f none /opt/ipf/man/man8/ipf.8=root/opt/ipf/man/man8/ipf.8
+f none /opt/ipf/man/man8/ipfs.8=root/opt/ipf/man/man8/ipfs.8
+f none /opt/ipf/man/man8/ipnat.8=root/opt/ipf/man/man8/ipnat.8
+f none /opt/ipf/man/man8/ippool.8=root/opt/ipf/man/man8/ippool.8
+f none /opt/ipf/man/man1/ipftest.1=root/opt/ipf/man/man1/ipftest.1
+f none /opt/ipf/man/man1/mkfilters.1=root/opt/ipf/man/man1/mkfilters.1
+f none /opt/ipf/man/man4/ipf.4=root/opt/ipf/man/man4/ipf.4
+f none /opt/ipf/man/man4/ipl.4=root/opt/ipf/man/man4/ipl.4
+f none /opt/ipf/man/man4/ipnat.4=root/opt/ipf/man/man4/ipnat.4
+f none /opt/ipf/man/man5/ipf.5=root/opt/ipf/man/man5/ipf.5
+f none /opt/ipf/man/man5/ipnat.5=root/opt/ipf/man/man5/ipnat.5
+f none /opt/ipf/man/man5/ippool.5=root/opt/ipf/man/man5/ippool.5
+f none /usr/kernel/drv/ipf.conf=root/usr/kernel/drv/ipf.conf
+f none /usr/include/ipfilter/ip_fil.h=root/usr/include/ipfilter/ip_fil.h
+f none /usr/include/ipfilter/ip_auth.h=root/usr/include/ipfilter/ip_auth.h
+f none /usr/include/ipfilter/ip_compat.h=root/usr/include/ipfilter/ip_compat.h
+f none /usr/include/ipfilter/ip_frag.h=root/usr/include/ipfilter/ip_frag.h
+f none /usr/include/ipfilter/ip_htable.h=root/usr/include/ipfilter/ip_htable.h
+f none /usr/include/ipfilter/ip_dstlist.h=root/usr/include/ipfilter/ip_dstlist.h
+f none /usr/include/ipfilter/ip_lookup.h=root/usr/include/ipfilter/ip_lookup.h
+f none /usr/include/ipfilter/ip_nat.h=root/usr/include/ipfilter/ip_nat.h
+f none /usr/include/ipfilter/ip_pool.h=root/usr/include/ipfilter/ip_pool.h
+f none /usr/include/ipfilter/ip_proxy.h=root/usr/include/ipfilter/ip_proxy.h
+f none /usr/include/ipfilter/ip_state.h=root/usr/include/ipfilter/ip_state.h
+f none /opt/ipf/examples/example.1=root/opt/ipf/examples/example.1
+f none /opt/ipf/examples/example.2=root/opt/ipf/examples/example.2
+f none /opt/ipf/examples/example.3=root/opt/ipf/examples/example.3
+f none /opt/ipf/examples/example.4=root/opt/ipf/examples/example.4
+f none /opt/ipf/examples/example.5=root/opt/ipf/examples/example.5
+f none /opt/ipf/examples/example.6=root/opt/ipf/examples/example.6
+f none /opt/ipf/examples/example.7=root/opt/ipf/examples/example.7
+f none /opt/ipf/examples/example.8=root/opt/ipf/examples/example.8
+f none /opt/ipf/examples/example.9=root/opt/ipf/examples/example.9
+f none /opt/ipf/examples/example.10=root/opt/ipf/examples/example.10
+f none /opt/ipf/examples/example.11=root/opt/ipf/examples/example.11
+f none /opt/ipf/examples/example.12=root/opt/ipf/examples/example.12
+f none /opt/ipf/examples/example.13=root/opt/ipf/examples/example.13
+f none /opt/ipf/examples/example.sr=root/opt/ipf/examples/example.sr
+f none /opt/ipf/examples/nat.eg=root/opt/ipf/examples/nat.eg
+f none /opt/ipf/examples/server=root/opt/ipf/examples/server
+f none /opt/ipf/examples/tcpstate=root/opt/ipf/examples/tcpstate
+f none /opt/ipf/examples/BASIC.NAT=root/opt/ipf/examples/BASIC.NAT
+f none /opt/ipf/examples/BASIC_1.FW=root/opt/ipf/examples/BASIC_1.FW
+f none /opt/ipf/examples/BASIC_2.FW=root/opt/ipf/examples/BASIC_2.FW
+f none /opt/ipf/examples/firewall=root/opt/ipf/examples/firewall
+f none /opt/ipf/examples/ftp-proxy=root/opt/ipf/examples/ftp-proxy
+f none /opt/ipf/examples/ftppxy=root/opt/ipf/examples/ftppxy
+f none /opt/ipf/examples/nat-setup=root/opt/ipf/examples/nat-setup

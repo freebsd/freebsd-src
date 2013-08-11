@@ -1,0 +1,137 @@
+#!/bin/ksh
+SBIN=/usr/sbin
+debug=echo
+undo=0
+
+update() {
+	echo "UPDATE $1 $2 $3"
+	base=$1
+	dir=$2
+	file=$3
+	Z=$IFS
+	IFS=:
+	set $file
+	if [[ -z $2 ]] ; then
+		o=$1
+		n=$1
+	else
+		o=$1
+		n=$2
+	fi
+	set $dir
+	sdir=$1
+	ddir=$2
+	IFS=$Z
+
+	if [[ -z ${sdir} && ! -d ${base}/${ddir} ]] ; then
+		ddir=
+	fi
+
+	sprog=${cpudir}/${sdir}/${n}
+	dprog=${base}/${ddir}/${o}
+
+	if [[ $undo -eq 0 ]] ; then
+		if [[ -d ${base}/${ddir} ]] ; then
+			if [[ ! -f ${dprog}.dist ]] ; then
+				$debug /bin/mv ${dprog} ${dprog}.dist
+				$debug /bin/cp -p ${dprog}.dist ${dprog}
+			fi
+			$debug /bin/cp ${sprog} ${dprog}
+		else
+			links=$(/bin/ls -dl ${dprog} | awk ' { print $2; } ' -)
+			if [[ $links -eq 1 ]] ; then
+				if [[ ! -f ${dprog}.dist ]] ; then
+					$debug /bin/mv ${dprog} ${dprog}.dist
+					$debug /bin/cp -p ${dprog}.dist ${dprog}
+				fi
+				$debug /bin/cp ${sprog} ${dprog}
+			fi
+		fi
+	else
+		if [[ -f ${dprog}.dist ]] ; then
+			$debug /bin/mv -f ${dprog}.dist ${dprog}
+		fi
+	fi
+}
+
+while [[ $# -gt 0 ]] ; do
+	case $1 in
+	undo)
+		undo=1
+		;;
+	-f)
+		debug=
+		;;
+	-d)
+		debug=echo
+		;;
+	esac
+	shift
+done
+
+case $(pwd) in
+*/SunOS5)
+	;;
+*/SunOS5/*)
+	exit 1
+	;;
+*)
+	cd SunOS5
+	;;
+esac
+cpu=`uname -p`
+cpudir=${cpu}-`uname -r`
+
+if [[ -d ${cpudir}/amd64 ]] ; then
+	big=amd64
+fi
+if [[ -d ${cpudir}/sparcv9 ]] ; then
+	big=sparcv9
+fi
+if [[ -d ${cpudir}/i86 ]] ; then
+	small=i86
+fi
+if [[ -d ${cpudir}/sparc ]] ; then
+	small=sparc
+fi
+echo "$cpudir.$big.$small."
+
+if [[ -n ${big} ]] ; then
+	for i in ipf:ipf.exe ipfs ipfstat ipmon ipnat ippool; do
+		update $SBIN ${big}:${big} $i
+	done
+	update /usr/lib/ipf ${big}:${big} ipftest
+	update /usr/kernel/drv ${big}:${big} ipf
+fi
+if [[ -n ${small} ]] ; then
+	for i in ipf:ipf.exe ipfs ipfstat ipmon ipnat ippool; do
+		update $SBIN ${small}:${small} $i
+	done
+	update /usr/lib/ipf ${small}:${small} ipftest
+	update /usr/kernel/drv "${small}:" ipf
+fi
+if [[ -z ${small} && -z ${big} ]] ; then
+	if [[ -z ${small} ]] ; then
+		case ${cpu} in
+		i386)
+			small=i86
+			;;
+		sparc)
+			small=sparc
+			;;
+		esac
+	fi
+	for i in ipf:ipf.exe ipfs ipfstat ipmon ipnat ippool; do
+		update $SBIN :${small} $i
+	done
+	update /usr/lib/ipf :${small} ipftest
+	update /usr/kernel/drv :${small} ipf
+fi
+
+cpudir=..
+for i in ip_compat.h ip_fil.h ipl.h ip_nat.h ip_state.h ip_sync.h ip_scan.h \
+	 ip_pool.h ip_lookup.h; do
+	update /usr/include/netinet : $i
+	update /usr/sfw/lib/gcc/i386-pc-solaris2.10/3.4.3/include/netinet/ : $i
+done
+exit 0

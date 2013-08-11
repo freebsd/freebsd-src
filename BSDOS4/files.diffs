@@ -1,0 +1,23 @@
+*** /sys/conf/files.orig	Fri Aug 28 11:24:52 1998
+--- /sys/conf/files	Fri Aug 28 11:26:31 1998
+***************
+*** 254,259 ****
+--- 254,261 ----
+  file	netinet/tcp_timer.c	inet
+  file	netinet/tcp_usrreq.c	inet
+  file	netinet/udp_usrreq.c	inet
++ file	netinet/ip_fil.c	ipfilter always-source
++ file	netinet/fil.c		ipfilter always-source
++ file	netinet/ip_nat.c	ipfilter always-source
++ file	netinet/ip_frag.c	ipfilter always-source
++ file	netinet/ip_state.c	ipfilter always-source
++ file	netinet/ip_auth.c	ipfilter always-source
++ file	netinet/ip_proxy.c	ipfilter always-source
++ file	netinet/ip_log.c	ipfilter always-source
++ file	netinet/ip_scan.c	ipfilter always-source
++ file	netinet/ip_sync.c	ipfilter always-source
++ file	netinet/ip_pool.c	ipfilter_pool always-source
++ file	netinet/ip_rules.c	ipfilter_compiled always-source
+  
+  # Additions for IPv6 and IPsec extension files.
+  # See the NRL Copyright notice for conditions on this modification.

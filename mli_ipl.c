@@ -1,8 +1,9 @@
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  * (C)opyright 1997 by Marc Boucher.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
+ *
  */
 
 /* TODO: (MARCXXX)
@@ -40,17 +41,25 @@
 #include "ip_fil.h"
 #include "ip_nat.h"
 
-/*#define IPFDEBUG 1*/
+#ifndef	MBUF_IS_CLUSTER
+# define	MBUF_IS_CLUSTER(m)	((m)->m_flags & MCL_CLUSTER)
+#endif
+#undef	IPFDEBUG	/* #define IPFDEBUG 9 */
 
-unsigned IPL_EXTERN(devflag) = D_MP;
 #ifdef IPFILTER_LKM
-char *IPL_EXTERN(mversion) = M_VERSION;
+u_int	ipldevflag = D_MP;
+char	*iplmversion = M_VERSION;
+#else
+u_int	ipfilterdevflag = D_MP;
+char	*ipfiltermversion = M_VERSION;
 #endif
 
-kmutex_t ipl_mutex, ipf_mutex, ipfi_mutex, ipf_rw;
-kmutex_t ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+ipfmutex_t	ipl_mutex, ipfi_mutex, ipf_rw, ipf_stinsert, ipf_auth_mx;
+ipfmutex_t	ipf_nat_new, ipf_natio, ipf_timeoutlock;
+ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+ipfrwlock_t	ipf_global, ipf_mutex, ipf_ipidfrag, ipf_frcache, ipf_tokens;
 
-int     (*fr_checkp) __P((struct ip *, int, void *, int, mb_t **));
+int     (*ipf_checkp) __P((struct ip *, int, void *, int, mb_t **));
 
 #ifdef IPFILTER_LKM
 static int *ipff_addr = 0;
@@ -58,102 +67,143 @@ static int ipff_value;
 static __psunsigned_t *ipfk_addr = 0;
 static __psunsigned_t ipfk_code[4];
 #endif
+static void nifattach();
+static void nifdetach();
 
 typedef	struct	nif	{
 	struct	nif	*nf_next;
 	struct ifnet	*nf_ifp;
-#if IRIX < 605
+#if (IRIX < 60500)
 	int     (*nf_output)(struct ifnet *, struct mbuf *, struct sockaddr *);
 #else
 	int     (*nf_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
 			     struct rtentry *);
 #endif
-	char	nf_name[IFNAMSIZ];
+	char	nf_name[LIFNAMSIZ];
 	int	nf_unit;
 } nif_t;
 
 static nif_t *nif_head = 0;
 static int nif_interfaces = 0;
 extern int in_interfaces;
+#if IRIX >= 60500
+toid_t	ipf_timer_id;
+#endif
 
 extern ipnat_t *nat_list;
 
+#ifdef IPFDEBUG
+static void ipf_dumppacket(m)
+	struct mbuf *m;
+{
+	u_char *s;
+	char *t, line[80];
+	int len, off, i;
+
+	off = 0;
+
+	while (m != NULL) {
+		len = M_LEN(m);
+		s = mtod(m, u_char *);
+		printf("mbuf 0x%lx len %d flags %x type %d\n",
+			m, len, m->m_flags, m->m_type);
+		printf("dat 0x%lx off 0x%lx/%d s 0x%lx next 0x%lx\n",
+			m->m_dat, m->m_off, m->m_off, s, m->m_next);
+		while (len > 0) {
+			t = line;
+			for (i = 0; (i < 16) && (len > 0); len--, i++)
+				sprintf(t, " %02x", *s++), t += strlen(t);
+			*s = '\0';
+			printf("mbuf:%x:%s\n", off, line);
+			off += 16;
+		}
+		m = m->m_next;
+	}
+}
+#endif
+
+
 static int
-#if IRIX < 605
+#if IRIX < 60500
 ipl_if_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst)
 #else
 ipl_if_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	      struct rtentry *rt)
 #endif
 {
+#if (IPFDEBUG >= 0)
+	static unsigned int cnt = 0;
+#endif
 	nif_t *nif;
 
 	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 	for (nif = nif_head; nif; nif = nif->nf_next)
 		if (nif->nf_ifp == ifp)
 			break;
-
 	MUTEX_EXIT(&ipfi_mutex);
-	if (!nif) {
+
+	if (nif == NULL) {
 		printf("IP Filter: ipl_if_output intf %x NOT FOUND\n", ifp);
 		return ENETDOWN;
 	}
 
-#if	IPFDEBUG >= 4
-	static unsigned int cnt = 0;
+#if (IPFDEBUG >= 7)
 	if ((++cnt % 200) == 0)
-		printf("IP Filter: ipl_if_output(ifp=0x%lx, m=0x%lx, dst=0x%lx), m_type=%d m_flags=0x%lx m_off=0x%lx\n", ifp, m, dst, m->m_type, (unsigned long)(m->m_flags), m->m_off);
+		printf("IP Filter: ipl_if_output(ifp=0x%lx, m=0x%lx, dst=0x%lx), m_type=%d m_flags=0x%lx m_off=0x%lx\n", ifp, m, dst, m->m_type, (u_long)m->m_flags, m->m_off);
 #endif
-	if (fr_checkp) {
+
+	if (ipf_checkp) {
 		struct mbuf *m1 = m;
 		struct ip *ip;
 		int hlen;
 
-		switch(m->m_type) {
+		switch(m->m_type)
+		{
+		case MT_HEADER:
+			if (m->m_len == 0) {
+				if (m->m_next == NULL)
+					break;
+				m = m->m_next;
+			}
+			/* FALLTHROUGH */
 		case MT_DATA:
-			if (m->m_flags & M_BCAST) {
-#if	IPFDEBUG >= 2
-				printf("IP Filter: ipl_if_output: passing M_BCAST\n");
+			if (!MBUF_IS_CLUSTER(m) &&
+			    ((m->m_off < MMINOFF) || (m->m_off > MMAXOFF))) {
+#if (IPFDEBUG >= 4)
+				printf("IP Filter: ipl_if_output: bad m_off m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (u_long)m->m_flags, m->m_off);
 #endif
 				break;
 			}
-			/* FALLTHROUGH */
-		case MT_HEADER:
-#if	IPFDEBUG >= 4
-			if (!MBUF_IS_CLUSTER(m) && ((m->m_off < MMINOFF) || (m->m_off > MMAXOFF))) {
-				printf("IP Filter: ipl_if_output: bad m_off m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (unsigned long)(m->m_flags), m->m_off);
-				goto done;
-			}
-#endif
 			if (m->m_len < sizeof(char)) {
-				printf("IP Filter: ipl_if_output: mbuf block too small (m_len=%d) for IP vers+hlen, m_type=%d m_flags=0x%lx\n", m->m_len, m->m_type, (unsigned long)(m->m_flags));
-				goto done;
+#if (IPFDEBUG >= 3)
+				printf("IP Filter: ipl_if_output: mbuf block too small (m_len=%d) for IP vers+hlen, m_type=%d m_flags=0x%lx\n", m->m_len, m->m_type, (u_long)m->m_flags);
+#endif
+				break;
 			}
 			ip = mtod(m, struct ip *);
 			if (ip->ip_v != IPVERSION) {
-#if	IPFDEBUG >= 4
-				printf("IP Filter: ipl_if_output: bad ip_v m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (unsigned long)(m->m_flags), m->m_off);
+#if (IPFDEBUG >= 2)
+				ipf_dumppacket(m);
+				printf("IP Filter: ipl_if_output: bad ip_v m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (u_long)m->m_flags, m->m_off);
 #endif
-				goto done;
+				break;
 			}
 
 			hlen = ip->ip_hl << 2;
-			if ((*fr_checkp)(ip, hlen, ifp, 1, &m1))
+			if ((*ipf_checkp)(ip, hlen, ifp, 1, &m1) || (m1 == NULL))
 				return EHOSTUNREACH;
-
-			if (!m1)
-				return 0;
 
 			m = m1;
 			break;
 
 		default:
-			printf("IP Filter: ipl_if_output: bad m_type=%d m_flags=0x%lxm_off=0x%lx\n", m->m_type, (unsigned long)(m->m_flags), m->m_off);
+#if (IPFDEBUG >= 2)
+			printf("IP Filter: ipl_if_output: bad m_type=%d m_flags=0x%lxm_off=0x%lx\n", m->m_type, (u_long)m->m_flags, m->m_off);
+#endif
 			break;
 		}
 	}
-done:
-#if IRIX < 605
+#if (IRIX < 60500)
 	return (*nif->nf_output)(ifp, m, dst);
 #else
 	return (*nif->nf_output)(ifp, m, dst, rt);
@@ -161,93 +211,120 @@ done:
 }
 
 int
-IPL_EXTERN(_kernel)(struct ifnet *rcvif, struct mbuf *m)
-{
-#if	IPFDEBUG >= 4
-	static unsigned int cnt = 0;
-	if ((++cnt % 200) == 0)
-		printf("IP Filter: ipl_ipfilter_kernel(rcvif=0x%lx, m=0x%lx\n", rcvif, m);
+
+
+#if !defined(IPFILTER_LKM) && (IRIX >= 60500)
+ipfilter_kernel(struct ifnet *rcvif, struct mbuf *m)
+#else
+ipl_kernel(struct ifnet *rcvif, struct mbuf *m)
 #endif
+{
+#if (IPFDEBUG >= 7)
+	static unsigned int cnt = 0;
+
+	if ((++cnt % 200) == 0)
+		printf("IP Filter: ipl_kernel(rcvif=0x%lx, m=0x%lx\n",
+			rcvif, m);
+#endif
+
+	if (ipf_running <= 0)
+		return IPF_ACCEPTIT;
 
 	/*
 	 * Check if we want to allow this packet to be processed.
 	 * Consider it to be bad if not.
 	 */
-	if (fr_checkp) {
+	if (ipf_checkp) {
 		struct mbuf *m1 = m;
 		struct ip *ip;
 		int hlen;
 
 		if ((m->m_type != MT_DATA) && (m->m_type != MT_HEADER)) {
-			printf("IP Filter: ipl_ipfilter_kernel: bad m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (unsigned long)(m->m_flags), m->m_off);
+#if (IPFDEBUG >= 4)
+			printf("IP Filter: ipl_kernel: bad m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (u_long)m->m_flags, m->m_off);
+#endif
 			return IPF_ACCEPTIT;
 		}
 
-#if	IPFDEBUG >= 4
-		if (!MBUF_IS_CLUSTER(m) && ((m->m_off < MMINOFF) || (m->m_off > MMAXOFF))) {
-			printf("IP Filter: ipl_ipfilter_kernel: bad m_off m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (unsigned long)(m->m_flags), m->m_off);
-			return IPF_ACCEPTIT;
-		}
+		if (!MBUF_IS_CLUSTER(m) &&
+		    ((m->m_off < MMINOFF) || (m->m_off > MMAXOFF))) {
+#if (IPFDEBUG >= 4)
+			printf("IP Filter: ipl_kernel: bad m_off m_type=%d m_flags=0x%lx m_off=0x%lx\n", m->m_type, (u_long)m->m_flags, m->m_off);
 #endif
-		if (m->m_len < sizeof(char)) {
-			printf("IP Filter: ipl_ipfilter_kernel: mbuf block too small (m_len=%d) for IP vers+hlen, m_type=%d m_flags=0x%lx\n", m->m_len, m->m_type, (unsigned long)(m->m_flags));
 			return IPF_ACCEPTIT;
 		}
+
+		if (m->m_len < sizeof(char)) {
+#if (IPFDEBUG >= 1)
+			printf("IP Filter: ipl_kernel: mbuf block too small (m_len=%d) for IP vers+hlen, m_type=%d m_flags=0x%lx\n", m->m_len, m->m_type, (u_long)m->m_flags);
+#endif
+			return IPF_ACCEPTIT;
+		}
+
 		ip = mtod(m, struct ip *);
 		if (ip->ip_v != IPVERSION) {
-			printf("IP Filter: ipl_ipfilter_kernel: bad ip_v\n");
+#if (IPFDEBUG >= 4)
+			printf("IP Filter: ipl_kernel: bad ip_v\n");
+#endif
 			m_freem(m);
 			return IPF_DROPIT;
 		}
 
+		ip->ip_len = htons(ip->ip_len);
+		ip->ip_off = htons(ip->ip_off);
 		hlen = ip->ip_hl << 2;
-		if ((*fr_checkp)(ip, hlen, rcvif, 0, &m1) || !m1)
+		if ((*ipf_checkp)(ip, hlen, rcvif, 0, &m1) || !m1)
 			return IPF_DROPIT;
+		ip = mtod(m1, struct ip *);
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
+
+#if (IPFDEBUG >= 2)
 		if (m != m1)
-			printf("IP Filter: ipl_ipfilter_kernel: m != m1\n");
+			printf("IP Filter: ipl_kernel: m != m1\n");
+#endif
 	}
 
 	return IPF_ACCEPTIT;
 }
 
-static int
-ipfilterattach(void)
+int
+ipl_ipfilter_attach(void)
 {
-#ifdef IPFILTER_LKM
+#if defined(IPFILTER_LKM)
 	__psunsigned_t *addr_ff, *addr_fk;
 
 	st_findaddr("ipfilterflag", &addr_ff);
-#if	IPFDEBUG >= 4
+# if (IPFDEBUG >= 1)
 	printf("IP Filter: st_findaddr ipfilterflag=0x%lx\n", addr_ff);
-#endif
+# endif
 	if (!addr_ff)
 		return ESRCH;
 
 	st_findaddr("ipfilter_kernel", &addr_fk);
-#if	IPFDEBUG >= 4
+# if (IPFDEBUG >= 1)
 	printf("IP Filter: st_findaddr ipfilter_kernel=0x%lx\n", addr_fk);
-#endif
+# endif
 	if (!addr_fk)
 		return ESRCH;
 
 	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 
 	ipff_addr = (int *)addr_ff;
-	
+
 	ipff_value = *ipff_addr;
 	*ipff_addr = 0;
 
 
 	ipfk_addr = addr_fk;
 
-	bcopy(ipfk_addr, ipfk_code,
-		sizeof(ipfk_code));
+	bcopy(ipfk_addr, ipfk_code, sizeof(ipfk_code));
 
-	/* write a "li t4, ipl_ipfilter_kernel" instruction */
+	/* write a "li t4, ipl_kernel" instruction */
 	ipfk_addr[0] = 0x3c0c0000 |
-		       (((__psunsigned_t)IPL_EXTERN(_kernel) >> 16) & 0xffff);
+		       (((__psunsigned_t)ipl_kernel >> 16) & 0xffff);
 	ipfk_addr[1] = 0x358c0000 |
-		       ((__psunsigned_t)IPL_EXTERN(_kernel) & 0xffff);
+		       ((__psunsigned_t)ipl_kernel & 0xffff);
 	/* write a "jr t4" instruction" */
 	ipfk_addr[2] = 0x01800008;
 
@@ -264,9 +341,12 @@ ipfilterattach(void)
 
 	ipfilterflag = 1;
 #endif
+	nif_interfaces = 0;
+	nifattach();
 
 	return 0;
 }
+
 
 /*
  * attach the packet filter to each non-loopback interface that is running
@@ -274,10 +354,10 @@ ipfilterattach(void)
 static void
 nifattach()
 {
+	nif_t *nif, *qf2;
 	struct ifnet *ifp;
 	struct frentry *f;
 	ipnat_t *np;
-	nif_t *nif;
 
 	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 
@@ -300,7 +380,7 @@ nifattach()
 				ifp);
 			continue;
 		}
-#if	IPFDEBUG >= 4
+#if (IPFDEBUG >= 2)
 		printf("IP Filter: nifattach nif %x opt %x\n",
 		       ifp, ifp->if_output);
 #endif
@@ -312,7 +392,8 @@ nifattach()
 		}
 
 		nif->nf_ifp = ifp;
-		strncpy(nif->nf_name, ifp->if_name, sizeof(nif->nf_name));
+		(void) strncpy(nif->nf_name, ifp->if_name,
+			       sizeof(nif->nf_name));
 		nif->nf_name[sizeof(nif->nf_name) - 1] = '\0';
 		nif->nf_unit = ifp->if_unit;
 
@@ -322,36 +403,41 @@ nifattach()
 		/*
 		 * Activate any rules directly associated with this interface
 		 */
-		MUTEX_ENTER(&ipf_mutex);
-		for (f = ipfilter[0][0]; f; f = f->fr_next) {
+		WRITE_ENTER(&ipf_mutex);
+		for (f = ipf_rules[0][0]; f; f = f->fr_next) {
 			if ((f->fr_ifa == (struct ifnet *)-1)) {
 				if (f->fr_ifname[0] &&
-				    (GETUNIT(f->fr_ifname, 4) == ifp))
+				    (GETIFP(f->fr_ifname, 4) == ifp))
 					f->fr_ifa = ifp;
 			}
 		}
-		for (f = ipfilter[1][0]; f; f = f->fr_next) {
+		for (f = ipf_rules[1][0]; f; f = f->fr_next) {
 			if ((f->fr_ifa == (struct ifnet *)-1)) {
 				if (f->fr_ifname[0] &&
-				    (GETUNIT(f->fr_ifname, 4) == ifp))
+				    (GETIFP(f->fr_ifname, 4) == ifp))
 					f->fr_ifa = ifp;
 			}
 		}
-		MUTEX_EXIT(&ipf_mutex);
-		MUTEX_ENTER(&ipf_nat);
+		RWLOCK_EXIT(&ipf_mutex);
+		WRITE_ENTER(&ipf_nat);
 		for (np = nat_list; np; np = np->in_next) {
-			if ((np->in_ifp == (void *)-1)) {
-				if (np->in_ifname[0] &&
-				    (GETUNIT(np->in_ifname, 4) == ifp))
-					np->in_ifp = (void *)ifp;
+			if ((np->in_ifps[0] == (void *)-1)) {
+				if (np->in_ifnames[0][0] &&
+				    (GETIFP(np->in_ifnames[0], 4) == ifp))
+					np->in_ifps[0] = (void *)ifp;
+			}
+			if ((np->in_ifps[1] == (void *)-1)) {
+				if (np->in_ifnames[1][0] &&
+				    (GETIFP(np->in_ifnames[1], 4) == ifp))
+					np->in_ifps[1] = (void *)ifp;
 			}
 		}
-		MUTEX_EXIT(&ipf_nat);
+		RWLOCK_EXIT(&ipf_nat);
 
 		nif->nf_output = ifp->if_output;
 		ifp->if_output = ipl_if_output;
 
-#if	IPFDEBUG >= 4
+#if (IPFDEBUG >= 2)
 		printf("IP Filter: nifattach: ifp(%lx)->if_output FROM %lx TO %lx\n",
 			ifp, nif->nf_output, ifp->if_output);
 #endif
@@ -369,60 +455,6 @@ nifattach()
 	return;
 }
 
-/*
- * look for bad consistancies between the list of interfaces the filter knows
- * about and those which are currently configured.
- */
-int
-ipfsync(void)
-{
-	register struct frentry *f;
-	register ipnat_t *np;
-	register nif_t *nif, **qp;
-	register struct ifnet *ifp;
-
-	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
-	for (qp = &nif_head; (nif = *qp); ) {
-		for (ifp = ifnet; ifp; ifp = ifp->if_next)
-			if ((nif->nf_ifp == ifp) &&
-			    (nif->nf_unit == ifp->if_unit) &&
-			    !strcmp(nif->nf_name, ifp->if_name)) {
-				break;
-			}
-		if (ifp) {
-			qp = &nif->nf_next;
-			continue;
-		}
-		printf("IP Filter: detaching [%s]\n", nif->nf_name);
-		*qp = nif->nf_next;
-
-		/*
-		 * Disable any rules directly associated with this interface
-		 */
-		MUTEX_ENTER(&ipf_mutex);
-		for (f = ipfilter[0][0]; f; f = f->fr_next)
-			if (f->fr_ifa == (void *)nif->nf_ifp)
-				f->fr_ifa = (struct ifnet *)-1;
-		for (f = ipfilter[1][0]; f; f = f->fr_next)
-			if (f->fr_ifa == (void *)nif->nf_ifp)
-				f->fr_ifa = (struct ifnet *)-1;
-		MUTEX_EXIT(&ipf_mutex);
-		MUTEX_ENTER(&ipf_nat);
-		for (np = nat_list; np; np = np->in_next)
-			if (np->in_ifp == (void *)nif->nf_ifp)
-				np->in_ifp =(struct ifnet *)-1;
-		MUTEX_EXIT(&ipf_nat);
-
-		KFREE(nif);
-		nif = *qp;
-	}
-	MUTEX_EXIT(&ipfi_mutex);
-
-	nifattach();
-
-	return 0;
-}
-
 
 /*
  * unhook the IP filter from all defined interfaces with IP addresses
@@ -430,8 +462,8 @@ ipfsync(void)
 static void
 nifdetach()
 {
+	nif_t *nif, *qf2, **qp;
 	struct ifnet *ifp;
-	nif_t *nif, **qp;
 
 	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 	/*
@@ -460,7 +492,7 @@ nifdetach()
 			printf("IP Filter: detaching [%s,%d]\n",
 				nif->nf_name, ifp->if_unit);
 
-#if	IPFDEBUG >= 4
+#if (IPFDEBUG >= 4)
 			printf("IP Filter: nifdetach: ifp(%lx)->if_output FROM %lx TO %lx\n",
 				ifp, ifp->if_output, nif->nf_output);
 #endif
@@ -474,17 +506,20 @@ nifdetach()
 }
 
 
-static void
-ipfilterdetach(void)
+void
+ipl_ipfilter_detach(void)
 {
 #ifdef IPFILTER_LKM
+	nifdetach();
 	MUTEX_ENTER(&ipfi_mutex); /* sets interrupt priority level to splhi */
 
 	if (ipff_addr) {
 		*ipff_addr = 0;
 
-		if (ipfk_addr)
+		if (ipfk_addr) {
 			bcopy(ipfk_code, ipfk_addr, sizeof(ipfk_code));
+			icache_inval(ipfk_addr - 16, sizeof(ipfk_code)+32);
+		}
 
 		*ipff_addr = ipff_value;
 	}
@@ -493,45 +528,23 @@ ipfilterdetach(void)
 #else
 	extern int ipfilterflag;
 
+	nifdetach();
+
 	ipfilterflag = 0;
 #endif
 }
 
-/* called by ipldetach() */
-void
-ipfilter_sgi_detach(void)
-{
-	nifdetach();
 
-	ipfilterdetach();
-}
-
-/* called by iplattach() */
-int
-ipfilter_sgi_attach(void)
-{
-	int error;
-
-	nif_interfaces = 0;
-
-	error = ipfilterattach();
-
-	if (!error)
-		nifattach();
-
-	return error;
-}
-
-/* this function is called from ipfr_slowtimer at 500ms intervals to
+/* this function is called from ipf_slowtimer at 500ms intervals to
    keep our interface list in sync */
 void
-ipfilter_sgi_intfsync(void)
+ipl_ipfilter_intfsync(void)
 {
 	MUTEX_ENTER(&ipfi_mutex);
 	if (nif_interfaces != in_interfaces) {
 		/* if the number of interfaces has changed, resync */
 		MUTEX_EXIT(&ipfi_mutex);
-		ipfsync();
+		ipf_sync(&ipfmain, NULL);
 	} else
 		MUTEX_EXIT(&ipfi_mutex);
 }
@@ -542,55 +555,127 @@ ipfilter_sgi_intfsync(void)
    sleep(), psema() or delay().
 */
 int
-IPL_EXTERN(unload)(void)
+iplunload(void)
 {
 	int error = 0;
 
-	error = ipldetach();
+	if (ipf_refcnt)
+		return EBUSY;
 
+	WRITE_ENTER(&ipf_global);
+	error = ipl_detach();
+	if (error != 0) {
+		RWLOCK_EXIT(&ipf_global);
+		return error;
+	}
+	ipf_running = -2;
+
+#if (IRIX < 60500)
 	LOCK_DEALLOC(ipl_mutex.l);
 	LOCK_DEALLOC(ipf_rw.l);
 	LOCK_DEALLOC(ipf_auth.l);
 	LOCK_DEALLOC(ipf_natfrag.l);
+	LOCK_DEALLOC(ipf_ipidfrag.l);
+	LOCK_DEALLOC(ipf_tokens.l);
+	LOCK_DEALLOC(ipf_stinsert.l);
+	LOCK_DEALLOC(ipf_nat_new.l);
+	LOCK_DEALLOC(ipf_natio.l);
 	LOCK_DEALLOC(ipf_nat.l);
 	LOCK_DEALLOC(ipf_state.l);
 	LOCK_DEALLOC(ipf_frag.l);
+	LOCK_DEALLOC(ipf_auth_mx.l);
 	LOCK_DEALLOC(ipf_mutex.l);
+	LOCK_DEALLOC(ipf_frcache.l);
 	LOCK_DEALLOC(ipfi_mutex.l);
+	RWLOCK_EXIT(&ipf_global);
+	LOCK_DEALLOC(ipf_global.l);
+#else
+	MUTEX_DESTROY(&ipf_rw);
+	MUTEX_DESTROY(&ipfi_mutex);
+	MUTEX_DESTROY(&ipf_timeoutlock);
+	RW_DESTROY(&ipf_mutex);
+	RW_DESTROY(&ipf_frcache);
+	RW_DESTROY(&ipf_tokens);
+	RWLOCK_EXIT(&ipf_global);
+	delay(hz);
+	RW_DESTROY(&ipf_global);
+#endif
 
-	return error;
+	printf("%s unloaded\n", ipfilter_version);
+
+	delay(hz);
+
+	return 0;
 }
 #endif
 
 void
-IPL_EXTERN(init)(void)
+ipfilterinit(void)
 {
 #ifdef IPFILTER_LKM
 	int error;
 #endif
 
+#if (IRIX < 60500)
 	ipfi_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
-	ipf_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+ipf_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+ipf_frcache.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+ipf_timeoutlock.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+	ipf_global.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_frag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_state.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_nat.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+	ipf_stinsert.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_natfrag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+	ipf_ipidfrag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
+	ipf_tokens.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_auth.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_rw.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipl_mutex.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 
-	if (!ipfi_mutex.l || !ipf_mutex.l || !ipf_frag.l || !ipf_state.l ||
-	    !ipf_nat.l || !ipf_natfrag.l || !ipf_auth.l || !ipf_rw.l ||
-	    !ipl_mutex.l)
+	if (!ipfi_mutex.l || !ipf_mutex.l || !ipf_timeoutlock.l ||
+	    !ipf_frag.l || !ipf_state.l || !ipf_nat.l || !ipf_natfrag.l ||
+	    !ipf_auth.l || !ipf_rw.l || !ipf_ipidfrag.l || !ipl_mutex.l ||
+	    !ipf_stinsert.l || !ipf_auth_mx.l || !ipf_frcache.l ||
+	    !ipf_tokens.l)
 		panic("IP Filter: LOCK_ALLOC failed");
+#else
+	MUTEX_INIT(&ipf_rw, "ipf rw mutex");
+	MUTEX_INIT(&ipf_timeoutlock, "ipf timeout mutex");
+	RWLOCK_INIT(&ipf_global, "ipf filter load/unload mutex");
+	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock");
+	RWLOCK_INIT(&ipf_frcache, "ipf cache rwlock");
+#endif
 
 #ifdef IPFILTER_LKM
-	error = iplattach();
+	error = ipl_attach();
 	if (error) {
-		IPL_EXTERN(unload)();
+		iplunload();
+	} else {
+		char *defpass;
+
+		if (FR_ISPASS(ipf_pass))
+			defpass = "pass";
+		else if (FR_ISBLOCK(ipf_pass))
+			defpass = "block";
+		else
+			defpass = "no-match -> block";
+
+		printf("%s initialized.  Default = %s all, Logging = %s%s\n",
+			ipfilter_version, defpass,
+# ifdef  IPFILTER_LOG
+			"enabled",
+# else
+			"disabled",
+# endif
+# ifdef IPFILTER_COMPILED
+		" (COMPILED)"
+# else
+		""
+# endif
+		);
 	}
 #endif
 
 	return;
 }
-
