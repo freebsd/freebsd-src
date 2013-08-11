@@ -425,6 +425,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (_bus_dma_can_bounce(newtag->lowaddr, newtag->highaddr)
 	 || newtag->alignment > 1)
 		newtag->flags |= BUS_DMA_COULD_BOUNCE;
+	else
+		maxsize = 2; /* Need at most 2 bounce pages for unaligned access on cache line boundaries */
 
 	if ((flags & BUS_DMA_ALLOCNOW) != 0) {
 		struct bounce_zone *bz;
@@ -519,7 +521,10 @@ static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 	 * Attempt to add pages to our pool on a per-instance
 	 * basis up to a sane limit.
 	 */
-	maxpages = MAX_BPAGES;
+	if (dmat->flags & BUS_DMA_COULD_BOUNCE)
+		maxpages = MAX_BPAGES;
+	else
+		maxpages = 2 * bz->map_count; /* Only need at most 2 pages for buffers unaligned on cache line boundaries */
 	if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
 	    || (bz->map_count > 0 && bz->total_bpages < maxpages)) {
 		int pages;
