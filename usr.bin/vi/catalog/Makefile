@@ -5,13 +5,6 @@
 
 V=	${.CURDIR}/../../../contrib/nvi
 
-.if ${MK_ICONV} == yes
-UCAT=	dutch english french german polish spanish swedish
-.else
-# turn on WITH_ICONV=yes if you want UTF-8
-UCAT=
-.endif
-
 CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
 	uk_UA.KOI8-U zh_CN.GB2312
 
@@ -23,7 +16,11 @@ all:		dump
 
 build-tools:	dump
 
-.for c in ${UCAT}
+# If we have iconv available, convert the ISO-8859 encoded files
+# to UTF-8 as well.
+.if ${MK_ICONV} == yes
+
+.for c in dutch english french german polish spanish swedish
 CAT+=	${c}.UTF-8
 CLEANFILES+=${c}.UTF-8.base
 $c.UTF-8.base:	${c}.base
@@ -44,6 +41,8 @@ uk_UA.UTF-8.base:	uk_UA.KOI8-U.base
 
 ru_RU.UTF-8.base:	ru_RU.KOI8-R.base
 	iconv -f KOI8-R -t UTF-8 ${.ALLSRC} > ${.TARGET}
+
+.endif
 
 .for c in ${CAT}
 ${c}:	${c}.base 
