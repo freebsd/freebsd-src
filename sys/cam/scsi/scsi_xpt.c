@@ -2525,14 +2525,6 @@ scsi_action(union ccb *start_ccb)
 			      start_ccb->ccb_h.path, start_ccb->crcn.flags,
 			      start_ccb);
 		break;
-	case XPT_GET_TRAN_SETTINGS:
-	{
-		struct cam_sim *sim;
-
-		sim = start_ccb->ccb_h.path->bus->sim;
-		(*(sim->sim_action))(sim, start_ccb);
-		break;
-	}
 	case XPT_DEV_ADVINFO:
 	{
 		scsi_dev_advinfo(start_ccb);
@@ -2620,7 +2612,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 	 */
 	if (cts->protocol != PROTO_SCSI) {
 		if (async_update == FALSE)
-			(*(sim->sim_action))(sim, (union ccb *)cts);
+			xpt_action_default((union ccb *)cts);
 		return;
 	}
 
@@ -2810,7 +2802,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		}
 	}
 	if (async_update == FALSE)
-		(*(sim->sim_action))(sim, (union ccb *)cts);
+		xpt_action_default((union ccb *)cts);
 }
 
 static void

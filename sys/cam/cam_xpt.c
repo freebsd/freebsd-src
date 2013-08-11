@@ -2408,6 +2408,7 @@ void
 xpt_action_default(union ccb *start_ccb)
 {
 	struct cam_path *path;
+	struct cam_sim *sim;
 
 	path = start_ccb->ccb_h.path;
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_action_default\n"));
@@ -2468,9 +2469,6 @@ xpt_action_default(union ccb *start_ccb)
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
-	{
-		struct cam_sim *sim;
-
 		/* Filter out garbage */
 		if (start_ccb->ccg.block_size == 0
 		 || start_ccb->ccg.volume_size == 0) {
@@ -2498,10 +2496,7 @@ xpt_action_default(union ccb *start_ccb)
 			break;
 		}
 #endif
-		sim = path->bus->sim;
-		(*(sim->sim_action))(sim, start_ccb);
-		break;
-	}
+		goto call_sim;
 	case XPT_ABORT:
 	{
 		union ccb* abort_ccb;
@@ -2562,21 +2557,13 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_NOTIFY_ACKNOWLEDGE:
 	case XPT_GET_SIM_KNOB:
 	case XPT_SET_SIM_KNOB:
-	{
-		struct cam_sim *sim;
-
-		sim = path->bus->sim;
-		(*(sim->sim_action))(sim, start_ccb);
-		break;
-	}
+	case XPT_GET_TRAN_SETTINGS:
+	case XPT_SET_TRAN_SETTINGS:
 	case XPT_PATH_INQ:
-	{
-		struct cam_sim *sim;
-
+call_sim:
 		sim = path->bus->sim;
 		(*(sim->sim_action))(sim, start_ccb);
 		break;
-	}
 	case XPT_PATH_STATS:
 		start_ccb->cpis.last_reset = path->bus->last_reset;
 		start_ccb->ccb_h.status = CAM_REQ_CMP;

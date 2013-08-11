@@ -1779,7 +1779,7 @@ ata_get_transfer_settings(struct ccb_trans_settings *cts)
 
 	device = cts->ccb_h.path->device;
 	sim = cts->ccb_h.path->bus->sim;
-	(*(sim->sim_action))(sim, (union ccb *)cts);
+	xpt_action_default((union ccb *)cts);
 
 	if (cts->protocol == PROTO_UNKNOWN ||
 	    cts->protocol == PROTO_UNSPECIFIED) {
@@ -1941,7 +1941,7 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	}
 
 	if (async_update == FALSE)
-		(*(sim->sim_action))(sim, (union ccb *)cts);
+		xpt_action_default((union ccb *)cts);
 }
 
 /*
