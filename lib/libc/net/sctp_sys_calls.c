@@ -274,6 +274,11 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		errno = EINVAL;
 		return (-1);
 	}
+	if ((id == SCTP_CURRENT_ASSOC) ||
+	    (id == SCTP_ALL_ASSOC)) {
+		errno = EINVAL;
+		return (-1);
+	}
 	switch (opt) {
 	case SCTP_RTOINFO:
 		((struct sctp_rtoinfo *)arg)->srto_assoc_id = id;
@@ -336,6 +341,9 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		((struct sctp_udpencaps *)arg)->sue_assoc_id = id;
 		break;
 	case SCTP_MAX_BURST:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_ENABLE_STREAM_RESET:
 		((struct sctp_assoc_value *)arg)->assoc_id = id;
 		break;
 	default:

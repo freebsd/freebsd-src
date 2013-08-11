@@ -3430,6 +3430,7 @@ enum fw_memtype_cf {
 	FW_MEMTYPE_CF_EXTMEM		= 0x2,
 	FW_MEMTYPE_CF_FLASH		= 0x4,
 	FW_MEMTYPE_CF_INTERNAL		= 0x5,
+	FW_MEMTYPE_CF_EXTMEM1		= 0x6,
 };
 
 struct fw_caps_config_cmd {
@@ -3518,6 +3519,7 @@ enum fw_params_param_dev {
 						 */
 	FW_PARAMS_PARAM_DEV_INTFVER_FCOEPDU = 0x15,
 	FW_PARAMS_PARAM_DEV_MCINIT	= 0x16,
+	FW_PARAMS_PARAM_DEV_ULPTX_MEMWRITE_DSGL = 0x17,
 };
 
 /*
@@ -3576,7 +3578,8 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_MNGT = 0x10,
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_CTRL = 0x11,
 	FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH = 0x12,
-	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13
+	FW_PARAMS_PARAM_DMAQ_EQ_DCBPRIO_ETH = 0x13,
+	FW_PARAMS_PARAM_DMAQ_CONM_CTXT = 0x20,
 };
 
 /*
@@ -3603,6 +3606,7 @@ enum fw_params_phyfw_actions {
 
 enum fw_params_param_dev_diag {
 	FW_PARAM_DEV_DIAG_TMP = 0x00,
+	FW_PARAM_DEV_DIAG_VDD = 0x01,
 };
 
 #define S_FW_PARAMS_MNEM	24
@@ -6767,6 +6771,8 @@ struct fw_sched_cmd {
 			__u8   type;
 			__u8   minmaxen;
 			__u8   r3[5];
+			__u8   nclasses[4];
+			__be32 r4;
 		} config;
 		struct fw_sched_params {
 			__u8   sc;
@@ -7581,7 +7587,7 @@ struct fw_hdr {
 	__u8	intfver_fcoe;
 	__u32	reserved2;
 	__u32	reserved3;
-	__u32	reserved4;
+	__u32	magic;			/* runtime or bootstrap fw */
 	__be32	flags;
 	__be32	reserved6[23];
 };
@@ -7620,14 +7626,40 @@ enum fw_hdr_chip {
     (((x) >> S_FW_HDR_FW_VER_BUILD) & M_FW_HDR_FW_VER_BUILD)
 
 enum {
-	FW_HDR_INTFVER_NIC	= 0x00,
-	FW_HDR_INTFVER_VNIC	= 0x00,
-	FW_HDR_INTFVER_OFLD	= 0x00,
-	FW_HDR_INTFVER_RI	= 0x00,
-	FW_HDR_INTFVER_ISCSIPDU	= 0x00,
-	FW_HDR_INTFVER_ISCSI	= 0x00,
-	FW_HDR_INTFVER_FCOEPDU  = 0x00,
-	FW_HDR_INTFVER_FCOE	= 0x00,
+	T4FW_VERSION_MAJOR	= 0x01,
+	T4FW_VERSION_MINOR	= 0x08,
+	T4FW_VERSION_MICRO	= 0x0b,
+	T4FW_VERSION_BUILD	= 0x00,
+
+	T5FW_VERSION_MAJOR	= 0x01,
+	T5FW_VERSION_MINOR	= 0x08,
+	T5FW_VERSION_MICRO	= 0x16,
+	T5FW_VERSION_BUILD	= 0x00,
+};
+
+enum {
+	T4FW_HDR_INTFVER_NIC	= 0x00,
+	T4FW_HDR_INTFVER_VNIC	= 0x00,
+	T4FW_HDR_INTFVER_OFLD	= 0x00,
+	T4FW_HDR_INTFVER_RI	= 0x00,
+	T4FW_HDR_INTFVER_ISCSIPDU	= 0x00,
+	T4FW_HDR_INTFVER_ISCSI	= 0x00,
+	T4FW_HDR_INTFVER_FCOEPDU  = 0x00,
+	T4FW_HDR_INTFVER_FCOE	= 0x00,
+
+	T5FW_HDR_INTFVER_NIC	= 0x00,
+	T5FW_HDR_INTFVER_VNIC	= 0x00,
+	T5FW_HDR_INTFVER_OFLD	= 0x00,
+	T5FW_HDR_INTFVER_RI	= 0x00,
+	T5FW_HDR_INTFVER_ISCSIPDU= 0x00,
+	T5FW_HDR_INTFVER_ISCSI	= 0x00,
+	T5FW_HDR_INTFVER_FCOEPDU= 0x00,
+	T5FW_HDR_INTFVER_FCOE	= 0x00,
+};
+
+enum {
+	FW_HDR_MAGIC_RUNTIME	= 0x00000000,
+	FW_HDR_MAGIC_BOOTSTRAP	= 0x626f6f74,
 };
 
 enum fw_hdr_flags {

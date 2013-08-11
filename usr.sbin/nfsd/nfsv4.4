@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2013
+.Dd July 1, 2013
 .Dt NFSV4 4
 .Os
 .Sh NAME
@@ -233,6 +233,20 @@ plus set ``tcp'' and
 The
 .Xr nfsuserd 8
 must be running, as above.
+Also, since an
+.Nm
+mount uses the host uuid to identify the client uniquely to the server,
+you cannot safely do an
+.Nm
+mount when
+.sp
+.Bd -literal -offset indent -compact
+hostid_enable="NO"
+.Ed
+.sp
+is set in
+.Xr rc.conf 5 .
+.sp
 If the
 .Nm
 server that is being mounted on supports delegations, you can start the

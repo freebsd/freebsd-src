@@ -33,11 +33,8 @@
 /*$FreeBSD$*/
 
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#endif
-
 #include "ixgbe.h"
 
 /*********************************************************************
@@ -48,7 +45,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.13";
+char ixgbe_driver_version[] = "2.5.15";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -300,6 +297,7 @@ TUNABLE_INT("hw.ixgbe.rxd", &ixgbe_rxd);
 ** doing so you are on your own :)
 */
 static int allow_unsupported_sfp = FALSE;
+TUNABLE_INT("hw.ixgbe.unsupported_sfp", &allow_unsupported_sfp);
 
 /*
 ** HW RSC control: 
@@ -1074,7 +1072,7 @@ ixgbe_init_locked(struct adapter *adapter)
 	u32		rxdctl, rxctrl;
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
-	INIT_DEBUGOUT("ixgbe_init: begin");
+	INIT_DEBUGOUT("ixgbe_init_locked: begin");
 	hw->adapter_stopped = FALSE;
 	ixgbe_stop_adapter(hw);
         callout_stop(&adapter->timer);
@@ -1385,23 +1383,6 @@ ixgbe_disable_queue(struct adapter *adapter, u32 vector)
 	}
 }
 
-static inline void
-ixgbe_rearm_queues(struct adapter *adapter, u64 queues)
-{
-	u32 mask;
-
-	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
-		mask = (IXGBE_EIMS_RTX_QUEUE & queues);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, mask);
-	} else {
-		mask = (queues & 0xFFFFFFFF);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS_EX(0), mask);
-		mask = (queues >> 32);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS_EX(1), mask);
-	}
-}
-
-
 static void
 ixgbe_handle_que(void *context, int pending)
 {
@@ -1509,6 +1490,10 @@ ixgbe_msix_que(void *arg)
 	bool		more;
 	u32		newitr = 0;
 
+	/* Protect against spurious interrupts */
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
 	ixgbe_disable_queue(adapter, que->msix);
 	++que->irqs;
 
@@ -1595,6 +1580,8 @@ ixgbe_msix_link(void *arg)
 
 	/* First get the cause */
 	reg_eicr = IXGBE_READ_REG(hw, IXGBE_EICS);
+	/* Be sure the queue bits are not cleared */
+	reg_eicr &= ~IXGBE_EICR_RTX_QUEUE;
 	/* Clear interrupt with write */
 	IXGBE_WRITE_REG(hw, IXGBE_EICR, reg_eicr);
 
@@ -2070,7 +2057,6 @@ ixgbe_local_timer(void *arg)
                 goto watchdog;
 
 out:
-	ixgbe_rearm_queues(adapter, adapter->que_mask);
 	callout_reset(&adapter->timer, hz, ixgbe_local_timer, adapter);
 	return;
 
@@ -2429,26 +2415,21 @@ ixgbe_setup_msix(struct adapter *adapter)
 		goto msi;
 
 	/* First try MSI/X */
+	msgs = pci_msix_count(dev); 
+	if (msgs == 0)
+		goto msi;
 	rid = PCIR_BAR(MSIX_82598_BAR);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       	if (!adapter->msix_mem) {
+       	if (adapter->msix_mem == NULL) {
 		rid += 4;	/* 82599 maps in higher BAR */
 		adapter->msix_mem = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	}
-       	if (!adapter->msix_mem) {
+       	if (adapter->msix_mem == NULL) {
 		/* May not be enabled */
 		device_printf(adapter->dev,
 		    "Unable to map MSIX table \n");
-		goto msi;
-	}
-
-	msgs = pci_msix_count(dev); 
-	if (msgs == 0) { /* system has msix disabled */
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    rid, adapter->msix_mem);
-		adapter->msix_mem = NULL;
 		goto msi;
 	}
 
@@ -2473,21 +2454,27 @@ ixgbe_setup_msix(struct adapter *adapter)
 		    "MSIX Configuration Problem, "
 		    "%d vectors but %d queues wanted!\n",
 		    msgs, want);
-		return (0); /* Will go to Legacy setup */
+		goto msi;
 	}
-	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
+	if (pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
 		adapter->num_queues = queues;
 		return (msgs);
 	}
 msi:
-       	msgs = pci_msi_count(dev);
-       	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0)
+       	if (adapter->msix_mem != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rid, adapter->msix_mem);
+		adapter->msix_mem = NULL;
+	}
+       	msgs = 1;
+       	if (pci_alloc_msi(dev, &msgs) == 0) {
                	device_printf(adapter->dev,"Using an MSI interrupt\n");
-	else
-               	device_printf(adapter->dev,"Using a Legacy interrupt\n");
-	return (msgs);
+		return (msgs);
+	}
+	device_printf(adapter->dev,"Using a Legacy interrupt\n");
+	return (0);
 }
 
 
@@ -3204,7 +3191,7 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 	struct ixgbe_tx_buf *tx_buffer;
 	int             i;
 
-	INIT_DEBUGOUT("free_transmit_ring: begin");
+	INIT_DEBUGOUT("ixgbe_free_transmit_ring: begin");
 
 	if (txr->tx_buffers == NULL)
 		return;
@@ -3943,6 +3930,7 @@ ixgbe_free_receive_ring(struct rx_ring *rxr)
 			rxbuf->buf->m_flags |= M_PKTHDR;
 			m_freem(rxbuf->buf);
 			rxbuf->buf = NULL;
+			rxbuf->flags = 0;
 		}
 	}
 }
@@ -4007,11 +3995,13 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 			addr = PNMB(slot + sj, &paddr);
 			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
-			/* Update descriptor */
+			/* Update descriptor and the cached value */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
+			rxbuf->addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
+		rxbuf->flags = 0; 
 		rxbuf->buf = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->buf == NULL) {
@@ -4028,8 +4018,9 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
                         goto fail;
 		bus_dmamap_sync(rxr->ptag,
 		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
-		/* Update descriptor */
+		/* Update the descriptor and the cached value */
 		rxr->rx_base[j].read.pkt_addr = htole64(seg[0].ds_addr);
+		rxbuf->addr = htole64(seg[0].ds_addr);
 	}
 
 
@@ -4246,6 +4237,8 @@ ixgbe_free_receive_structures(struct adapter *adapter)
 {
 	struct rx_ring *rxr = adapter->rx_rings;
 
+	INIT_DEBUGOUT("ixgbe_free_receive_structures: begin");
+
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		struct lro_ctrl		*lro = &rxr->lro;
 		ixgbe_free_receive_buffers(rxr);
@@ -4270,7 +4263,7 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 	struct adapter		*adapter = rxr->adapter;
 	struct ixgbe_rx_buf	*rxbuf;
 
-	INIT_DEBUGOUT("free_receive_structures: begin");
+	INIT_DEBUGOUT("ixgbe_free_receive_buffers: begin");
 
 	/* Cleanup any existing buffers */
 	if (rxr->rx_buffers != NULL) {
@@ -4360,6 +4353,8 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 		m_free(rbuf->buf);
 		rbuf->buf = NULL;
 	}
+
+	rbuf->flags = 0;
  
 	return;
 }

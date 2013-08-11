@@ -317,34 +317,6 @@ struct mbuf {
 #define MB_NOTAGS	0x1UL	/* no tags attached to mbuf */
 
 /*
- * General mbuf allocator statistics structure.
- *
- * Many of these statistics are no longer used; we instead track many
- * allocator statistics through UMA's built in statistics mechanism.
- */
-struct mbstat {
-	u_long	m_mbufs;	/* XXX */
-	u_long	m_mclusts;	/* XXX */
-
-	u_long	m_drain;	/* times drained protocols for space */
-	u_long	m_mcfail;	/* XXX: times m_copym failed */
-	u_long	m_mpfail;	/* XXX: times m_pullup failed */
-	u_long	m_msize;	/* length of an mbuf */
-	u_long	m_mclbytes;	/* length of an mbuf cluster */
-	u_long	m_minclsize;	/* min length of data to allocate a cluster */
-	u_long	m_mlen;		/* length of data in an mbuf */
-	u_long	m_mhlen;	/* length of data in a header mbuf */
-
-	/* Number of mbtypes (gives # elems in mbtypes[] array) */
-	short	m_numtypes;
-
-	/* XXX: Sendfile stats should eventually move to their own struct */
-	u_long	sf_iocnt;	/* times sendfile had to do disk I/O */
-	u_long	sf_allocfail;	/* times sfbuf allocation failed */
-	u_long	sf_allocwait;	/* times sfbuf allocation had to wait */
-};
-
-/*
  * Compatibility with historic mbuf allocator.
  */
 #define	MBTOM(how)	(how)
@@ -778,7 +750,6 @@ extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
 extern int		max_linkhdr;	/* Largest link-level header */
 extern int		max_protohdr;	/* Largest protocol header */
-extern struct mbstat	mbstat;		/* General mbuf stats/infos */
 extern int		nmbclusters;	/* Maximum number of clusters */
 
 struct uio;

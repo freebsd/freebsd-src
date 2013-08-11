@@ -281,11 +281,8 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 retry:
 			m = vm_page_lookup(object, idx);
 			if (m != NULL) {
-				if ((m->oflags & VPO_BUSY) != 0 ||
-				    m->busy != 0) {
-					vm_page_sleep(m, "shmtrc");
+				if (vm_page_sleep_if_busy(m, "shmtrc"))
 					goto retry;
-				}
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
 				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
@@ -305,7 +302,7 @@ retry:
 				if (rv == VM_PAGER_OK) {
 					vm_page_deactivate(m);
 					vm_page_unlock(m);
-					vm_page_wakeup(m);
+					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
@@ -779,7 +776,7 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 	offset = trunc_page(offset);
 	size = round_page(size + ofs);
 	rv = vm_map_find(kernel_map, obj, offset, &kva, size,
-	    VMFS_ALIGNED_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv == KERN_SUCCESS) {
 		rv = vm_map_wire(kernel_map, kva, kva + size,

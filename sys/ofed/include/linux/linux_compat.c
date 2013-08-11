@@ -647,7 +647,7 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 	size_t size;
 
 	size = count * PAGE_SIZE;
-	off = kmem_alloc_nofault(kernel_map, size);
+	off = kva_alloc(size);
 	if (off == 0)
 		return (NULL);
 	vmmap_add((void *)off, size);
@@ -665,7 +665,7 @@ vunmap(void *addr)
 	if (vmmap == NULL)
 		return;
 	pmap_qremove((vm_offset_t)addr, vmmap->vm_size / PAGE_SIZE);
-	kmem_free(kernel_map, (vm_offset_t)addr, vmmap->vm_size);
+	kva_free((vm_offset_t)addr, vmmap->vm_size);
 	kfree(vmmap);
 }
 

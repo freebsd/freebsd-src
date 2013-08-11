@@ -85,6 +85,7 @@ COMPRESS_USER_CORES opt_core.h
 CY_PCI_FASTINTR
 DEADLKRES	opt_watchdog.h
 DIRECTIO
+FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
 IPI_PREEMPTION	opt_sched.h
@@ -226,6 +227,7 @@ SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
+ZFS		opt_dontuse.h
 
 # Pseudofs debugging
 PSEUDOFS_TRACE	opt_pseudofs.h
@@ -679,6 +681,7 @@ WITNESS			opt_global.h
 WITNESS_KDB		opt_witness.h
 WITNESS_NO_VNODE	opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
+OPENSOLARIS_WITNESS	opt_global.h
 
 # options for ACPI support
 ACPI_DEBUG		opt_acpi.h
@@ -827,6 +830,9 @@ MWL_DIAGAPI		opt_mwl.h
 MWL_AGGR_SIZE		opt_mwl.h
 MWL_TX_NODROP		opt_mwl.h
 
+# Options for the Intel 802.11n wireless driver
+IWN_DEBUG		opt_iwn.h
+
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
 DCONS_POLL_HZ		opt_dcons.h
@@ -839,8 +845,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
-
-ZFS			opt_dontuse.h
 
 # Interrupt filtering
 INTR_FILTER

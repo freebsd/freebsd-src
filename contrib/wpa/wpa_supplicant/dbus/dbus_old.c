@@ -2,14 +2,8 @@
  * WPA Supplicant / dbus-based control interface
  * Copyright (c) 2006, Dan Williams <dcbw@redhat.com> and Red Hat, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -23,7 +17,6 @@
 #include "../bss.h"
 #include "dbus_old.h"
 #include "dbus_old_handlers.h"
-#include "dbus_common.h"
 #include "dbus_common_i.h"
 
 
@@ -287,6 +280,8 @@ static DBusHandlerResult wpas_iface_message_handler(DBusConnection *connection,
 		else if (!os_strcmp(method, "wpsReg"))
 			reply = wpas_dbus_iface_wps_reg(message, wpa_s);
 #endif /* CONFIG_WPS */
+		else if (!os_strcmp(method, "flush"))
+			reply = wpas_dbus_iface_flush(message, wpa_s);
 	}
 
 	/* If the message was handled, send back the reply */
@@ -546,6 +541,59 @@ void wpa_supplicant_dbus_notify_wps_cred(struct wpa_supplicant *wpa_s,
 {
 }
 #endif /* CONFIG_WPS */
+
+void wpa_supplicant_dbus_notify_certification(struct wpa_supplicant *wpa_s,
+					      int depth, const char *subject,
+					      const char *cert_hash,
+					      const struct wpabuf *cert)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *_signal = NULL;
+	const char *hash;
+	const char *cert_hex;
+	int cert_hex_len;
+
+	/* Do nothing if the control interface is not turned on */
+	if (wpa_s->global == NULL)
+		return;
+	iface = wpa_s->global->dbus;
+	if (iface == NULL)
+		return;
+
+	_signal = dbus_message_new_signal(wpa_s->dbus_path,
+					  WPAS_DBUS_IFACE_INTERFACE,
+					  "Certification");
+	if (_signal == NULL) {
+		wpa_printf(MSG_ERROR,
+		           "dbus: wpa_supplicant_dbus_notify_certification: "
+		           "Could not create dbus signal; likely out of "
+		           "memory");
+		return;
+	}
+
+	hash = cert_hash ? cert_hash : "";
+	cert_hex = cert ? wpabuf_head(cert) : "";
+	cert_hex_len = cert ? wpabuf_len(cert) : 0;
+
+	if (!dbus_message_append_args(_signal,
+				      DBUS_TYPE_INT32,&depth,
+				      DBUS_TYPE_STRING, &subject,
+	                              DBUS_TYPE_STRING, &hash,
+	                              DBUS_TYPE_ARRAY, DBUS_TYPE_BYTE,
+				      &cert_hex, cert_hex_len,
+	                              DBUS_TYPE_INVALID)) {
+		wpa_printf(MSG_ERROR,
+		           "dbus: wpa_supplicant_dbus_notify_certification: "
+		           "Not enough memory to construct signal");
+		goto out;
+	}
+
+	dbus_connection_send(iface->con, _signal, NULL);
+
+out:
+	dbus_message_unref(_signal);
+
+}
 
 
 /**

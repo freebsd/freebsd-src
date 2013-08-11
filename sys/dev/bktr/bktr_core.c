@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
@@ -1801,8 +1802,10 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 #else
                                 buf = get_bktr_mem(unit, temp*PAGE_SIZE);
                                 if (buf != 0) {
-                                        kmem_free(kernel_map, bktr->bigbuf,
-                                          (bktr->alloc_pages * PAGE_SIZE));
+					contigfree(
+					  (void *)(uintptr_t)bktr->bigbuf,
+                                          (bktr->alloc_pages * PAGE_SIZE),
+					  M_DEVBUF);
 #endif                                          
 
 					bktr->bigbuf = buf;

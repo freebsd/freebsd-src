@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/jail.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -124,7 +125,12 @@ VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
 
-VNET_DEFINE(struct rip6stat, rip6stat);
+VNET_PCPUSTAT_DEFINE(struct rip6stat, rip6stat);
+VNET_PCPUSTAT_SYSINIT(rip6stat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(rip6stat);
+#endif /* VIMAGE */
 
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
@@ -263,7 +269,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			if (n && ipsec6_in_reject(n, last)) {
 				m_freem(n);
-				IPSEC6STAT_INC(in_polvio);
+				IPSEC6STAT_INC(ips_in_polvio);
 				/* Do not inject data into pcb. */
 			} else
 #endif /* IPSEC */
@@ -295,7 +301,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	if ((last != NULL) && ipsec6_in_reject(m, last)) {
 		m_freem(m);
-		IPSEC6STAT_INC(in_polvio);
+		IPSEC6STAT_INC(ips_in_polvio);
 		IP6STAT_DEC(ip6s_delivered);
 		/* Do not inject data into pcb. */
 		INP_RUNLOCK(last);

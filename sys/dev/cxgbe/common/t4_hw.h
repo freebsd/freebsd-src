@@ -45,6 +45,7 @@ enum {
 	NTX_SCHED       = 8,     /* # of HW Tx scheduling queues */
 	PM_NSTATS       = 5,     /* # of PM stats */
 	MBOX_LEN        = 64,    /* mailbox size in bytes */
+	NTRACE          = 4,     /* # of tracing filters */
 	TRACE_LEN       = 112,   /* length of trace data and mask */
 	FILTER_OPT_LEN  = 36,    /* filter tuple width of optional components */
 	NWOL_PAT        = 8,     /* # of WoL patterns */
@@ -230,7 +231,15 @@ enum {
 	FLASH_FW_NSECS = 16,
 	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
 	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
-        
+
+	/*
+	 * Location of bootstrap firmware image in FLASH.
+	 */
+	FLASH_FWBOOTSTRAP_START_SEC = 27,
+	FLASH_FWBOOTSTRAP_NSECS = 1,
+	FLASH_FWBOOTSTRAP_START = FLASH_START(FLASH_FWBOOTSTRAP_START_SEC),
+	FLASH_FWBOOTSTRAP_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FWBOOTSTRAP_NSECS),
+
 	/*
 	 * iSCSI persistent/crash information.
 	 */
@@ -248,18 +257,12 @@ enum {
 	FLASH_FCOE_CRASH_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FCOE_CRASH_NSECS),
 
 	/*
-	 * Location of Firmware Configuration File in FLASH.  Since the FPGA
-	 * "FLASH" is smaller we need to store the Configuration File in a
-	 * different location -- which will overlap the end of the firmware
-	 * image if firmware ever gets that large ...
+	 * Location of Firmware Configuration File in FLASH.
 	 */
 	FLASH_CFG_START_SEC = 31,
 	FLASH_CFG_NSECS = 1,
 	FLASH_CFG_START = FLASH_START(FLASH_CFG_START_SEC),
 	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
-
-	FLASH_FPGA_CFG_START_SEC = 15,
-	FLASH_FPGA_CFG_START = FLASH_START(FLASH_FPGA_CFG_START_SEC),
 
 	/*
 	 * Sectors 32-63 are reserved for FLASH failover.

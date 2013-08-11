@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_right.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_right.c,v 10.8 2001/06/25 15:19:34 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -31,9 +31,7 @@ static const char sccsid[] = "@(#)v_right.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int v_right __P((SCR *, VICMD *));
  */
 int
-v_right(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_right(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	int isempty;
@@ -83,9 +81,7 @@ eol:		v_eol(sp, NULL);
  * PUBLIC: int v_dollar __P((SCR *, VICMD *));
  */
 int
-v_dollar(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_dollar(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	int isempty;

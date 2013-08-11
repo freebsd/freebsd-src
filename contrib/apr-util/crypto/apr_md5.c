@@ -61,19 +61,9 @@
 #include "apr_md5.h"
 #include "apr_lib.h"
 #include "apu_config.h"
-#include "apr_sha1.h"
 
 #if APR_HAVE_STRING_H
 #include <string.h>
-#endif
-#if APR_HAVE_CRYPT_H
-#include <crypt.h>
-#endif
-#if APR_HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#if APR_HAVE_PTHREAD_H
-#include <pthread.h>
 #endif
 
 /* Constants for MD5Transform routine.
@@ -348,9 +338,18 @@ APU_DECLARE(apr_status_t) apr_md5(unsigned char digest[APR_MD5_DIGESTSIZE],
 static void MD5Transform(apr_uint32_t state[4], const unsigned char block[64])
 {
     apr_uint32_t a = state[0], b = state[1], c = state[2], d = state[3],
-                 x[APR_MD5_DIGESTSIZE];
+                 tmpbuf[APR_MD5_DIGESTSIZE];
+    const apr_uint32_t *x;
 
-    Decode(x, block, 64);
+#if !APR_IS_BIGENDIAN
+    if ((apr_uintptr_t)block % sizeof(apr_uint32_t) == 0) {
+        x = (apr_uint32_t *)block;
+    } else
+#endif
+    {
+        Decode(tmpbuf, block, 64);
+	x = tmpbuf;
+    }
 
     /* Round 1 */
     FF(a, b, c, d, x[0],  S11, 0xd76aa478); /* 1 */
@@ -429,8 +428,13 @@ static void MD5Transform(apr_uint32_t state[4], const unsigned char block[64])
     state[2] += c;
     state[3] += d;
 
-    /* Zeroize sensitive information. */
-    memset(x, 0, sizeof(x));
+#if !APR_IS_BIGENDIAN
+    if (x == tmpbuf)
+#endif
+    {
+        /* Zeroize sensitive information. */
+        memset(tmpbuf, 0, sizeof(tmpbuf));
+    }
 }
 
 /* Encodes input (apr_uint32_t) into output (unsigned char). Assumes len is
@@ -478,7 +482,7 @@ APU_DECLARE(apr_status_t) apr_MD5InitEBCDIC(apr_xlate_t *xlate)
  * Define the Magic String prefix that identifies a password as being
  * hashed using our algorithm.
  */
-static const char *apr1_id = "$apr1$";
+static const char * const apr1_id = "$apr1$";
 
 /*
  * The following MD5 password encryption code was largely borrowed from
@@ -659,98 +663,4 @@ APU_DECLARE(apr_status_t) apr_md5_encode(const char *pw, const char *salt,
 
     apr_cpystrn(result, passwd, nbytes - 1);
     return APR_SUCCESS;
-}
-
-#if !defined(WIN32) && !defined(BEOS) && !defined(NETWARE)
-#if defined(APU_CRYPT_THREADSAFE) || !APR_HAS_THREADS || \
-    defined(CRYPT_R_CRYPTD) || defined(CRYPT_R_STRUCT_CRYPT_DATA)
-
-#define crypt_mutex_lock()
-#define crypt_mutex_unlock()
-
-#elif APR_HAVE_PTHREAD_H && defined(PTHREAD_MUTEX_INITIALIZER)
-
-static pthread_mutex_t crypt_mutex = PTHREAD_MUTEX_INITIALIZER;
-static void crypt_mutex_lock(void)
-{
-    pthread_mutex_lock(&crypt_mutex);
-}
-
-static void crypt_mutex_unlock(void)
-{
-    pthread_mutex_unlock(&crypt_mutex);
-}
-
-#else
-
-#error apr_password_validate() is not threadsafe.  rebuild APR without thread support.
-
-#endif
-#endif
-
-/*
- * Validate a plaintext password against a smashed one.  Uses either
- * crypt() (if available) or apr_md5_encode() or apr_sha1_base64(), depending
- * upon the format of the smashed input password.  Returns APR_SUCCESS if
- * they match, or APR_EMISMATCH if they don't.  If the platform doesn't
- * support crypt, then the default check is against a clear text string.
- */
-APU_DECLARE(apr_status_t) apr_password_validate(const char *passwd, 
-                                                const char *hash)
-{
-    char sample[120];
-#if !defined(WIN32) && !defined(BEOS) && !defined(NETWARE)
-    char *crypt_pw;
-#endif
-    if (!strncmp(hash, apr1_id, strlen(apr1_id))) {
-        /*
-         * The hash was created using our custom algorithm.
-         */
-        apr_md5_encode(passwd, hash, sample, sizeof(sample));
-    }
-    else if (!strncmp(hash, APR_SHA1PW_ID, APR_SHA1PW_IDLEN)) {
-         apr_sha1_base64(passwd, (int)strlen(passwd), sample);
-    }
-    else {
-        /*
-         * It's not our algorithm, so feed it to crypt() if possible.
-         */
-#if defined(WIN32) || defined(BEOS) || defined(NETWARE)
-        apr_cpystrn(sample, passwd, sizeof(sample) - 1);
-#elif defined(CRYPT_R_CRYPTD)
-        CRYPTD buffer;
-
-        crypt_pw = crypt_r(passwd, hash, &buffer);
-        apr_cpystrn(sample, crypt_pw, sizeof(sample) - 1);
-#elif defined(CRYPT_R_STRUCT_CRYPT_DATA)
-        struct crypt_data buffer;
-
-        /* having to clear this seems bogus... GNU doc is
-         * confusing...  user report found from google says
-         * the crypt_data struct had to be cleared to get
-         * the same result as plain crypt()
-         */
-        memset(&buffer, 0, sizeof(buffer));
-        crypt_pw = crypt_r(passwd, hash, &buffer);
-        apr_cpystrn(sample, crypt_pw, sizeof(sample) - 1);
-#else
-        /* Do a bit of sanity checking since we know that crypt_r()
-         * should always be used for threaded builds on AIX, and
-         * problems in configure logic can result in the wrong
-         * choice being made.
-         */
-#if defined(_AIX) && APR_HAS_THREADS
-#error Configuration error!  crypt_r() should have been selected!
-#endif
-
-        /* Handle thread safety issues by holding a mutex around the
-         * call to crypt().
-         */
-        crypt_mutex_lock();
-        crypt_pw = crypt(passwd, hash);
-        apr_cpystrn(sample, crypt_pw, sizeof(sample) - 1);
-        crypt_mutex_unlock();
-#endif
-    }
-    return (strcmp(sample, hash) == 0) ? APR_SUCCESS : APR_EMISMATCH;
 }

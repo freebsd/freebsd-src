@@ -52,7 +52,7 @@ static kobj_method_t z8530_methods[] = {
 	KOBJMETHOD(scc_iclear,	z8530_bfe_iclear),
 	KOBJMETHOD(scc_ipend,	z8530_bfe_ipend),
 	KOBJMETHOD(scc_probe,	z8530_bfe_probe),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct scc_class scc_z8530_class = {
@@ -85,11 +85,9 @@ scc_getmreg(struct scc_bas *bas, int ch, int reg)
 }
 
 static int
-z8530_bfe_attach(struct scc_softc *sc, int reset)
+z8530_bfe_attach(struct scc_softc *sc __unused, int reset __unused)
 {
-	struct scc_bas *bas;
 
-	bas = &sc->sc_bas;
 	return (0);
 }
 
@@ -189,10 +187,8 @@ z8530_bfe_ipend(struct scc_softc *sc)
 }
 
 static int
-z8530_bfe_probe(struct scc_softc *sc)
+z8530_bfe_probe(struct scc_softc *sc __unused)
 {
-	struct scc_bas *bas;
 
-	bas = &sc->sc_bas;
 	return (0);
 }

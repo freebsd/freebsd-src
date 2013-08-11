@@ -161,7 +161,9 @@ main(int argc, char **argv)
 		case 'f':
 			if (fflag != NULL)
 				errx(1, "-f can be passed only once");
-			fflag = optarg;
+			fflag = realpath(optarg, NULL);
+			if (fflag == NULL)
+				err(1, "realpath");
 			break;
 		case 'o':
 			if (!strcmp(optarg, "async"))
@@ -450,7 +452,8 @@ md_list(const char *units, int opt, const char *fflag)
 					continue;
 				else
 					ffound = 1;
-			}
+			} else if (fflag != NULL)
+					continue;
 			if (nflag && strncmp(pp->lg_name, MD_NAME, 2) == 0)
 				printf("%s", pp->lg_name + 2);
 			else

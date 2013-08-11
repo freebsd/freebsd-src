@@ -6,16 +6,17 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)cut.h	10.5 (Berkeley) 4/3/96
+ *	$Id: cut.h,v 10.10 2012/02/11 15:52:33 zy Exp $
  */
 
 typedef struct _texth TEXTH;		/* TEXT list head structure. */
-CIRCLEQ_HEAD(_texth, _text);
+TAILQ_HEAD(_texth, _text);
 
 /* Cut buffers. */
 struct _cb {
-	LIST_ENTRY(_cb) q;		/* Linked list of cut buffers. */
-	TEXTH	 textq;			/* Linked list of TEXT structures. */
+	SLIST_ENTRY(_cb) q;		/* Linked list of cut buffers. */
+	TEXTH	 textq[1];		/* Linked list of TEXT structures. */
+	/* XXXX Needed ? Can non ascii-chars be cut buffer names ? */
 	CHAR_T	 name;			/* Cut buffer name. */
 	size_t	 len;			/* Total length of cut text. */
 
@@ -25,13 +26,15 @@ struct _cb {
 
 /* Lines/blocks of text. */
 struct _text {				/* Text: a linked list of lines. */
-	CIRCLEQ_ENTRY(_text) q;		/* Linked list of text structures. */
-	char	*lb;			/* Line buffer. */
+	TAILQ_ENTRY(_text) q;		/* Linked list of text structures. */
+	CHAR_T	*lb;			/* Line buffer. */
 	size_t	 lb_len;		/* Line buffer length. */
 	size_t	 len;			/* Line length. */
 
 	/* These fields are used by the vi text input routine. */
 	recno_t	 lno;			/* 1-N: file line. */
+
+#define	ENTIRE_LINE	((size_t)-1)	/* cno: end of the line. */
 	size_t	 cno;			/* 0-N: file character in line. */
 	size_t	 ai;			/* 0-N: autoindent bytes. */
 	size_t	 insert;		/* 0-N: bytes to insert (push). */
@@ -65,8 +68,7 @@ struct _text {				/* Text: a linked list of lines. */
 #define	CBNAME(sp, cbp, nch) {						\
 	CHAR_T L__name;							\
 	L__name = isupper(nch) ? tolower(nch) : (nch);			\
-	for (cbp = sp->gp->cutq.lh_first;				\
-	    cbp != NULL; cbp = cbp->q.le_next)				\
+	SLIST_FOREACH(cbp, sp->gp->cutq, q)				\
 		if (cbp->name == L__name)				\
 			break;						\
 }

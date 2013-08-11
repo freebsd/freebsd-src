@@ -2,14 +2,8 @@
  * WPA Supplicant - Common definitions
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef DEFS_H
@@ -32,6 +26,8 @@ typedef enum { FALSE = 0, TRUE = 1 } Boolean;
 #ifdef CONFIG_IEEE80211W
 #define WPA_CIPHER_AES_128_CMAC BIT(5)
 #endif /* CONFIG_IEEE80211W */
+#define WPA_CIPHER_GCMP BIT(6)
+#define WPA_CIPHER_SMS4 BIT(7)
 
 #define WPA_KEY_MGMT_IEEE8021X BIT(0)
 #define WPA_KEY_MGMT_PSK BIT(1)
@@ -43,41 +39,73 @@ typedef enum { FALSE = 0, TRUE = 1 } Boolean;
 #define WPA_KEY_MGMT_IEEE8021X_SHA256 BIT(7)
 #define WPA_KEY_MGMT_PSK_SHA256 BIT(8)
 #define WPA_KEY_MGMT_WPS BIT(9)
+#define WPA_KEY_MGMT_SAE BIT(10)
+#define WPA_KEY_MGMT_FT_SAE BIT(11)
+#define WPA_KEY_MGMT_WAPI_PSK BIT(12)
+#define WPA_KEY_MGMT_WAPI_CERT BIT(13)
+#define WPA_KEY_MGMT_CCKM BIT(14)
 
 static inline int wpa_key_mgmt_wpa_ieee8021x(int akm)
 {
-	return akm == WPA_KEY_MGMT_IEEE8021X ||
-		akm == WPA_KEY_MGMT_FT_IEEE8021X ||
-		akm == WPA_KEY_MGMT_IEEE8021X_SHA256;
+	return !!(akm & (WPA_KEY_MGMT_IEEE8021X |
+			 WPA_KEY_MGMT_FT_IEEE8021X |
+			 WPA_KEY_MGMT_CCKM |
+			 WPA_KEY_MGMT_IEEE8021X_SHA256));
 }
 
 static inline int wpa_key_mgmt_wpa_psk(int akm)
 {
-	return akm == WPA_KEY_MGMT_PSK ||
-		akm == WPA_KEY_MGMT_FT_PSK ||
-		akm == WPA_KEY_MGMT_PSK_SHA256;
+	return !!(akm & (WPA_KEY_MGMT_PSK |
+			 WPA_KEY_MGMT_FT_PSK |
+			 WPA_KEY_MGMT_PSK_SHA256 |
+			 WPA_KEY_MGMT_SAE));
 }
 
 static inline int wpa_key_mgmt_ft(int akm)
 {
-	return akm == WPA_KEY_MGMT_FT_PSK ||
-		akm == WPA_KEY_MGMT_FT_IEEE8021X;
+	return !!(akm & (WPA_KEY_MGMT_FT_PSK |
+			 WPA_KEY_MGMT_FT_IEEE8021X |
+			 WPA_KEY_MGMT_FT_SAE));
+}
+
+static inline int wpa_key_mgmt_sae(int akm)
+{
+	return !!(akm & (WPA_KEY_MGMT_SAE |
+			 WPA_KEY_MGMT_FT_SAE));
 }
 
 static inline int wpa_key_mgmt_sha256(int akm)
 {
-	return akm == WPA_KEY_MGMT_PSK_SHA256 ||
-		akm == WPA_KEY_MGMT_IEEE8021X_SHA256;
+	return !!(akm & (WPA_KEY_MGMT_PSK_SHA256 |
+			 WPA_KEY_MGMT_IEEE8021X_SHA256));
+}
+
+static inline int wpa_key_mgmt_wpa(int akm)
+{
+	return wpa_key_mgmt_wpa_ieee8021x(akm) ||
+		wpa_key_mgmt_wpa_psk(akm);
+}
+
+static inline int wpa_key_mgmt_wpa_any(int akm)
+{
+	return wpa_key_mgmt_wpa(akm) || (akm & WPA_KEY_MGMT_WPA_NONE);
+}
+
+static inline int wpa_key_mgmt_cckm(int akm)
+{
+	return akm == WPA_KEY_MGMT_CCKM;
 }
 
 
 #define WPA_PROTO_WPA BIT(0)
 #define WPA_PROTO_RSN BIT(1)
+#define WPA_PROTO_WAPI BIT(2)
 
 #define WPA_AUTH_ALG_OPEN BIT(0)
 #define WPA_AUTH_ALG_SHARED BIT(1)
 #define WPA_AUTH_ALG_LEAP BIT(2)
 #define WPA_AUTH_ALG_FT BIT(3)
+#define WPA_AUTH_ALG_SAE BIT(4)
 
 
 enum wpa_alg {
@@ -86,7 +114,10 @@ enum wpa_alg {
 	WPA_ALG_TKIP,
 	WPA_ALG_CCMP,
 	WPA_ALG_IGTK,
-	WPA_ALG_PMK
+	WPA_ALG_PMK,
+	WPA_ALG_GCMP,
+	WPA_ALG_SMS4,
+	WPA_ALG_KRK
 };
 
 /**
@@ -97,7 +128,9 @@ enum wpa_cipher {
 	CIPHER_WEP40,
 	CIPHER_TKIP,
 	CIPHER_CCMP,
-	CIPHER_WEP104
+	CIPHER_WEP104,
+	CIPHER_GCMP,
+	CIPHER_SMS4
 };
 
 /**
@@ -113,7 +146,12 @@ enum wpa_key_mgmt {
 	KEY_MGMT_FT_PSK,
 	KEY_MGMT_802_1X_SHA256,
 	KEY_MGMT_PSK_SHA256,
-	KEY_MGMT_WPS
+	KEY_MGMT_WPS,
+	KEY_MGMT_SAE,
+	KEY_MGMT_FT_SAE,
+	KEY_MGMT_WAPI_PSK,
+	KEY_MGMT_WAPI_CERT,
+	KEY_MGMT_CCKM
 };
 
 /**
@@ -135,6 +173,15 @@ enum wpa_states {
 	 * connection is lost.
 	 */
 	WPA_DISCONNECTED,
+
+	/**
+	 * WPA_INTERFACE_DISABLED - Interface disabled
+	 *
+	 * This stat eis entered if the network interface is disabled, e.g.,
+	 * due to rfkill. wpa_supplicant refuses any new operations that would
+	 * use the radio until the interface has been enabled.
+	 */
+	WPA_INTERFACE_DISABLED,
 
 	/**
 	 * WPA_INACTIVE - Inactive state (wpa_supplicant disabled)
@@ -239,8 +286,9 @@ enum wpa_states {
 enum mfp_options {
 	NO_MGMT_FRAME_PROTECTION = 0,
 	MGMT_FRAME_PROTECTION_OPTIONAL = 1,
-	MGMT_FRAME_PROTECTION_REQUIRED = 2
+	MGMT_FRAME_PROTECTION_REQUIRED = 2,
 };
+#define MGMT_FRAME_PROTECTION_DEFAULT 3
 
 /**
  * enum hostapd_hw_mode - Hardware mode
@@ -249,7 +297,25 @@ enum hostapd_hw_mode {
 	HOSTAPD_MODE_IEEE80211B,
 	HOSTAPD_MODE_IEEE80211G,
 	HOSTAPD_MODE_IEEE80211A,
+	HOSTAPD_MODE_IEEE80211AD,
 	NUM_HOSTAPD_MODES
 };
+
+/**
+ * enum wpa_ctrl_req_type - Control interface request types
+ */
+enum wpa_ctrl_req_type {
+	WPA_CTRL_REQ_UNKNOWN,
+	WPA_CTRL_REQ_EAP_IDENTITY,
+	WPA_CTRL_REQ_EAP_PASSWORD,
+	WPA_CTRL_REQ_EAP_NEW_PASSWORD,
+	WPA_CTRL_REQ_EAP_PIN,
+	WPA_CTRL_REQ_EAP_OTP,
+	WPA_CTRL_REQ_EAP_PASSPHRASE,
+	NUM_WPA_CTRL_REQS
+};
+
+/* Maximum number of EAP methods to store for EAP server user information */
+#define EAP_MAX_METHODS 8
 
 #endif /* DEFS_H */

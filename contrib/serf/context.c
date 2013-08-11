@@ -22,20 +22,6 @@
 
 #include "serf_private.h"
 
-/* Older versions of APR do not have the APR_VERSION_AT_LEAST macro. Those
-   implementations are safe.
-
-   If the macro *is* defined, and we're on WIN32, and APR is version 1.4.0,
-   then we have a broken WSAPoll() implementation.
-
-   See serf_context_create_ex() below.  */
-#if defined(APR_VERSION_AT_LEAST) && defined(WIN32)
-#if APR_VERSION_AT_LEAST(1,4,0)
-#define BROKEN_WSAPOLL
-#endif
-#endif
-
-
 /**
  * Callback function (implements serf_progress_t). Takes a number of bytes
  * read @a read and bytes written @a written, adds those to the total for this
@@ -182,6 +168,7 @@ serf_context_t *serf_context_create_ex(
     ctx->progress_written = 0;
 
     ctx->authn_types = SERF_AUTHN_ALL;
+    ctx->server_authn_info = apr_hash_make(pool);
 
     return ctx;
 }
@@ -382,7 +369,7 @@ const char *serf_error_string(apr_status_t errcode)
     case SERF_ERROR_AUTHN_INITALIZATION_FAILED:
         return "Initialization of an authentication type failed";
     case SERF_ERROR_SSLTUNNEL_SETUP_FAILED:
-        return "The proxy server returned an error while setting up the "\
+        return "The proxy server returned an error while setting up the "
                "SSL tunnel.";
     default:
         return NULL;

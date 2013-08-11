@@ -115,12 +115,14 @@ static int getsockname1(struct thread *td, struct getsockname_args *uap,
 static int getpeername1(struct thread *td, struct getpeername_args *uap,
 			int compat);
 
+counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 /*
  * NSFBUFS-related variables and associated sysctls
  */
 int nsfbufs;
 int nsfbufspeak;
 int nsfbufsused;
+static int sfreadahead = 1;
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
     "Maximum number of sendfile(2) sf_bufs available");
@@ -128,7 +130,31 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
     "Number of sendfile(2) sf_bufs at peak usage");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
     "Number of sendfile(2) sf_bufs in use");
+SYSCTL_INT(_kern_ipc, OID_AUTO, sfreadahead, CTLFLAG_RW, &sfreadahead, 0,
+    "Number of sendfile(2) read-ahead MAXBSIZE blocks");
 
+
+static void
+sfstat_init(const void *unused)
+{
+
+	COUNTER_ARRAY_ALLOC(sfstat, sizeof(struct sfstat) / sizeof(uint64_t),
+	    M_WAITOK);
+}
+SYSINIT(sfstat, SI_SUB_MBUF, SI_ORDER_FIRST, sfstat_init, NULL);
+
+static int
+sfstat_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct sfstat s;
+
+	COUNTER_ARRAY_COPY(sfstat, &s, sizeof(s) / sizeof(uint64_t));
+	if (req->newptr)
+		COUNTER_ARRAY_ZERO(sfstat, sizeof(s) / sizeof(uint64_t));
+	return (SYSCTL_OUT(req, &s, sizeof(s)));
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
+    NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
 /*
  * Convert a user file descriptor to a kernel file entry and check if required
  * capability rights are present.
@@ -2218,12 +2244,8 @@ retry_space:
 				error = EBUSY;
 			else {
 				ssize_t resid;
+				int readahead = sfreadahead * MAXBSIZE;
 
-				/*
-				 * Ensure that our page is still around
-				 * when the I/O completes.
-				 */
-				vm_page_io_start(pg);
 				VM_OBJECT_WUNLOCK(obj);
 
 				/*
@@ -2233,15 +2255,13 @@ retry_space:
 				 * wrong, but is consistent with our original
 				 * implementation.
 				 */
-				error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
+				error = vn_rdwr(UIO_READ, vp, NULL, readahead,
 				    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
-				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
+				    IO_VMIO | ((readahead / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
-				VM_OBJECT_WLOCK(obj);
-				vm_page_io_finish(pg);
-				if (!error)
-					VM_OBJECT_WUNLOCK(obj);
-				mbstat.sf_iocnt++;
+				SFSTAT_INC(sf_iocnt);
+				if (error)
+					VM_OBJECT_WLOCK(obj);
 			}
 			if (error) {
 				vm_page_lock(pg);
@@ -2252,7 +2272,7 @@ retry_space:
 				 * then free it.
 				 */
 				if (pg->wire_count == 0 && pg->valid == 0 &&
-				    pg->busy == 0 && !(pg->oflags & VPO_BUSY))
+				    !vm_page_busied(pg))
 					vm_page_free(pg);
 				vm_page_unlock(pg);
 				VM_OBJECT_WUNLOCK(obj);
@@ -2273,7 +2293,7 @@ retry_space:
 			sf = sf_buf_alloc(pg, (mnw || m != NULL) ? SFB_NOWAIT :
 			    SFB_CATCH);
 			if (sf == NULL) {
-				mbstat.sf_allocfail++;
+				SFSTAT_INC(sf_allocfail);
 				vm_page_lock(pg);
 				vm_page_unwire(pg, 0);
 				KASSERT(pg->object != NULL,

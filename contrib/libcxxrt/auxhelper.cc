@@ -65,3 +65,13 @@ extern "C" void __cxa_pure_virtual()
     abort();
 }
 
+/**
+ * Compilers may (but are not required to) set any deleted-virtual function's
+ * vtable entry to this function.  This makes debugging slightly easier, as
+ * users can add a breakpoint on this function to tell if they've accidentally
+ * called a deleted-virtual function.
+ */
+extern "C" void __cxa_deleted_virtual()
+{
+    abort();
+}

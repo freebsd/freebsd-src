@@ -502,7 +502,13 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	sprlock_proc(cp);
 	mtx_unlock_spin(&cp->p_slock);
 #else
+	/*
+	 * fasttrap_tracepoint_remove() expects the child process to be
+	 * unlocked and the VM then expects curproc to be unlocked.
+	 */
 	_PHOLD(cp);
+	PROC_UNLOCK(cp);
+	PROC_UNLOCK(p);
 #endif
 
 	/*
@@ -537,6 +543,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	mutex_enter(&cp->p_lock);
 	sprunlock(cp);
 #else
+	PROC_LOCK(p);
+	PROC_LOCK(cp);
 	_PRELE(cp);
 #endif
 }
@@ -2283,13 +2291,6 @@ fasttrap_load(void)
 		return (ret);
 	}
 
-	/*
-	 * Install our hooks into fork(2), exec(2), and exit(2).
-	 */
-	dtrace_fasttrap_fork = &fasttrap_fork;
-	dtrace_fasttrap_exit = &fasttrap_exec_exit;
-	dtrace_fasttrap_exec = &fasttrap_exec_exit;
-
 #if defined(sun)
 	fasttrap_max = ddi_getprop(DDI_DEV_T_ANY, devi, DDI_PROP_DONTPASS,
 	    "fasttrap-max-probes", FASTTRAP_MAX_DEFAULT);
@@ -2366,6 +2367,13 @@ fasttrap_load(void)
 	}
 #endif
 
+	/*
+	 * Install our hooks into fork(2), exec(2), and exit(2).
+	 */
+	dtrace_fasttrap_fork = &fasttrap_fork;
+	dtrace_fasttrap_exit = &fasttrap_exec_exit;
+	dtrace_fasttrap_exec = &fasttrap_exec_exit;
+
 	(void) dtrace_meta_register("fasttrap", &fasttrap_mops, NULL,
 	    &fasttrap_meta_id);
 
@@ -2435,6 +2443,7 @@ fasttrap_unload(void)
 	mtx_sleep(&fasttrap_cleanup_drain, &fasttrap_cleanup_mtx, 0, "ftcld",
 	    0);
 	fasttrap_cleanup_proc = NULL;
+	mtx_destroy(&fasttrap_cleanup_mtx);
 
 #ifdef DEBUG
 	mutex_enter(&fasttrap_count_mtx);

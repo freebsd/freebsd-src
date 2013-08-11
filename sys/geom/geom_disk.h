@@ -120,7 +120,8 @@ int disk_resize(struct disk *dp, int flag);
 #define DISK_VERSION_00		0x58561059
 #define DISK_VERSION_01		0x5856105a
 #define DISK_VERSION_02		0x5856105b
-#define DISK_VERSION		DISK_VERSION_02
+#define DISK_VERSION_03		0x5856105c
+#define DISK_VERSION		DISK_VERSION_03
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */

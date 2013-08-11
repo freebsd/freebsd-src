@@ -114,7 +114,12 @@ __FBSDID("$FreeBSD$");
 
 extern struct domain inet6domain;
 
-VNET_DEFINE(struct icmp6stat, icmp6stat);
+VNET_PCPUSTAT_DEFINE(struct icmp6stat, icmp6stat);
+VNET_PCPUSTAT_SYSINIT(icmp6stat);
+
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(icmp6stat);
+#endif /* VIMAGE */
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 VNET_DECLARE(struct inpcbhead, ripcb);
@@ -155,7 +160,7 @@ void
 kmod_icmp6stat_inc(int statnum)
 {
 
-	(*((u_quad_t *)&V_icmp6stat + statnum))++;
+	counter_u64_add(VNET(icmp6stat)[statnum], 1);
 }
 
 static void
@@ -1926,8 +1931,8 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 				ltime = ND6_INFINITE_LIFETIME;
 			else {
 				if (ifa6->ia6_lifetime.ia6t_expire >
-				    time_second)
-					ltime = htonl(ifa6->ia6_lifetime.ia6t_expire - time_second);
+				    time_uptime)
+					ltime = htonl(ifa6->ia6_lifetime.ia6t_expire - time_uptime);
 				else
 					ltime = 0;
 			}

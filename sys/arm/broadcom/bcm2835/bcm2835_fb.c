@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
+#include "mbox_if.h"
+
 #define	BCMFB_FONT_HEIGHT	16
 
 struct argb {
@@ -173,6 +175,7 @@ bcm_fb_init(void *arg)
 	volatile struct bcm_fb_config*	fb_config = sc->fb_config;
 	phandle_t node;
 	pcell_t cell;
+	device_t mbox;
 
 	node = ofw_bus_get_node(sc->dev);
 
@@ -205,8 +208,12 @@ bcm_fb_init(void *arg)
 
 	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
 		BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
-	bcm_mbox_write(BCM2835_MBOX_CHAN_FB, sc->fb_config_phys);
-	bcm_mbox_read(BCM2835_MBOX_CHAN_FB, &err);
+
+	mbox = devclass_get_device(devclass_find("mbox"), 0);
+	if (mbox) {
+		MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_FB, sc->fb_config_phys);
+		MBOX_READ(mbox, BCM2835_MBOX_CHAN_FB, &err);
+	}
 	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
 		BUS_DMASYNC_POSTREAD);
 

@@ -117,7 +117,7 @@ APR_DECLARE(void*) apr_atomic_xchgptr(volatile void **mem, void *with)
 #elif APR_SIZEOF_VOIDP == 8
     asm volatile ("xchgq %q2, %1"
                   : "=a" (prev), "+m" (*mem)
-                  : "r" ((unsigned long)with));
+                  : "0" (with));
 #else
 #error APR_SIZEOF_VOIDP value not supported
 #endif

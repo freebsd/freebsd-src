@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -222,7 +222,7 @@ isc_buffer_free(isc_buffer_t **dynbuffer);
  */
 
 void
-isc__buffer_init(isc_buffer_t *b, const void *base, unsigned int length);
+isc__buffer_init(isc_buffer_t *b, void *base, unsigned int length);
 /*!<
  * \brief Make 'b' refer to the 'length'-byte region starting at base.
  *
@@ -681,12 +681,7 @@ ISC_LANG_ENDDECLS
  */
 #define ISC__BUFFER_INIT(_b, _base, _length) \
 	do { \
-		union { \
-			const void *	konst; \
-			void *		var; \
-		} _u; \
-		_u.konst = (_base); \
-		(_b)->base = _u.var; \
+		(_b)->base = _base; \
 		(_b)->length = (_length); \
 		(_b)->used = 0; \
 		(_b)->current = 0; \
@@ -895,6 +890,13 @@ ISC_LANG_ENDDECLS
 #define isc_buffer_putuint24		isc__buffer_putuint24
 #define isc_buffer_putuint32		isc__buffer_putuint32
 #endif
+
+#define isc_buffer_constinit(_b, _d, _l) \
+	do { \
+		union { void *_var; const void *_const; } _deconst; \
+		_deconst._const = (_d); \
+		isc_buffer_init((_b), _deconst._var, (_l)); \
+	} while (0)
 
 /*
  * No inline method for this one (yet).

@@ -2,14 +2,8 @@
  * hostapd / EAP-TLS (RFC 2716)
  * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -27,6 +21,7 @@ struct eap_tls_data {
 	struct eap_ssl_data ssl;
 	enum { START, CONTINUE, SUCCESS, FAILURE } state;
 	int established;
+	u8 eap_type;
 };
 
 
@@ -71,8 +66,32 @@ static void * eap_tls_init(struct eap_sm *sm)
 		return NULL;
 	}
 
+	data->eap_type = EAP_TYPE_TLS;
+
 	return data;
 }
+
+
+#ifdef EAP_SERVER_UNAUTH_TLS
+static void * eap_unauth_tls_init(struct eap_sm *sm)
+{
+	struct eap_tls_data *data;
+
+	data = os_zalloc(sizeof(*data));
+	if (data == NULL)
+		return NULL;
+	data->state = START;
+
+	if (eap_server_tls_ssl_init(sm, &data->ssl, 0)) {
+		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
+		eap_tls_reset(sm, data);
+		return NULL;
+	}
+
+	data->eap_type = EAP_UNAUTH_TLS_TYPE;
+	return data;
+}
+#endif /* EAP_SERVER_UNAUTH_TLS */
 
 
 static void eap_tls_reset(struct eap_sm *sm, void *priv)
@@ -90,8 +109,7 @@ static struct wpabuf * eap_tls_build_start(struct eap_sm *sm,
 {
 	struct wpabuf *req;
 
-	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TLS, 1, EAP_CODE_REQUEST,
-			    id);
+	req = eap_tls_msg_alloc(data->eap_type, 1, EAP_CODE_REQUEST, id);
 	if (req == NULL) {
 		wpa_printf(MSG_ERROR, "EAP-TLS: Failed to allocate memory for "
 			   "request");
@@ -113,11 +131,11 @@ static struct wpabuf * eap_tls_buildReq(struct eap_sm *sm, void *priv, u8 id)
 	struct wpabuf *res;
 
 	if (data->ssl.state == FRAG_ACK) {
-		return eap_server_tls_build_ack(id, EAP_TYPE_TLS, 0);
+		return eap_server_tls_build_ack(id, data->eap_type, 0);
 	}
 
 	if (data->ssl.state == WAIT_FRAG_ACK) {
-		res = eap_server_tls_build_msg(&data->ssl, EAP_TYPE_TLS, 0,
+		res = eap_server_tls_build_msg(&data->ssl, data->eap_type, 0,
 					       id);
 		goto check_established;
 	}
@@ -135,7 +153,7 @@ static struct wpabuf * eap_tls_buildReq(struct eap_sm *sm, void *priv, u8 id)
 		return NULL;
 	}
 
-	res = eap_server_tls_build_msg(&data->ssl, EAP_TYPE_TLS, 0, id);
+	res = eap_server_tls_build_msg(&data->ssl, data->eap_type, 0, id);
 
 check_established:
 	if (data->established && data->ssl.state != WAIT_FRAG_ACK) {
@@ -152,10 +170,17 @@ check_established:
 static Boolean eap_tls_check(struct eap_sm *sm, void *priv,
 			     struct wpabuf *respData)
 {
+	struct eap_tls_data *data = priv;
 	const u8 *pos;
 	size_t len;
 
-	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_TLS, respData, &len);
+	if (data->eap_type == EAP_UNAUTH_TLS_TYPE)
+		pos = eap_hdr_validate(EAP_VENDOR_UNAUTH_TLS,
+				       EAP_VENDOR_TYPE_UNAUTH_TLS, respData,
+				       &len);
+	else
+		pos = eap_hdr_validate(EAP_VENDOR_IETF, data->eap_type,
+				       respData, &len);
 	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Invalid frame");
 		return TRUE;
@@ -184,7 +209,7 @@ static void eap_tls_process(struct eap_sm *sm, void *priv,
 {
 	struct eap_tls_data *data = priv;
 	if (eap_server_tls_process(sm, &data->ssl, respData, data,
-				   EAP_TYPE_TLS, NULL, eap_tls_process_msg) <
+				   data->eap_type, NULL, eap_tls_process_msg) <
 	    0)
 		eap_tls_state(data, FAILURE);
 }
@@ -284,3 +309,34 @@ int eap_server_tls_register(void)
 		eap_server_method_free(eap);
 	return ret;
 }
+
+
+#ifdef EAP_SERVER_UNAUTH_TLS
+int eap_server_unauth_tls_register(void)
+{
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
+				      EAP_VENDOR_UNAUTH_TLS,
+				      EAP_VENDOR_TYPE_UNAUTH_TLS,
+				      "UNAUTH-TLS");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_unauth_tls_init;
+	eap->reset = eap_tls_reset;
+	eap->buildReq = eap_tls_buildReq;
+	eap->check = eap_tls_check;
+	eap->process = eap_tls_process;
+	eap->isDone = eap_tls_isDone;
+	eap->getKey = eap_tls_getKey;
+	eap->isSuccess = eap_tls_isSuccess;
+	eap->get_emsk = eap_tls_get_emsk;
+
+	ret = eap_server_method_register(eap);
+	if (ret)
+		eap_server_method_free(eap);
+	return ret;
+}
+#endif /* EAP_SERVER_UNAUTH_TLS */

@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 
+#include <net/vnet.h>
+
 #include <machine/stdarg.h>
 
 #include <vm/uma.h>
@@ -2075,11 +2077,11 @@ device_probe_child(device_t dev, device_t child)
 			if (best == NULL || result > pri) {
 				/*
 				 * Probes that return BUS_PROBE_NOWILDCARD
-				 * or lower only match when they are set
-				 * in stone by the parent bus.
+				 * or lower only match on devices whose
+				 * driver was explicitly specified.
 				 */
 				if (result <= BUS_PROBE_NOWILDCARD &&
-				    child->flags & DF_WILDCARD)
+				    !(child->flags & DF_FIXEDCLASS))
 					continue;
 				best = dl;
 				pri = result;
@@ -2735,7 +2737,11 @@ device_probe_and_attach(device_t dev)
 		return (0);
 	else if (error != 0)
 		return (error);
-	return (device_attach(dev));
+
+	CURVNET_SET_QUIET(vnet0);
+	error = device_attach(dev);
+	CURVNET_RESTORE();
+	return error;
 }
 
 /**

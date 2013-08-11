@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_FTP_SUBR" ]; then _MEDIA_FTP_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_FTP_SUBR" ]; then _MEDIA_FTP_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -75,14 +75,12 @@ f_dialog_menu_media_ftp()
 	local menu_list="
 		'$msg_main_site'          'ftp.freebsd.org'
 		'URL'                     '$msg_specify_some_other_ftp_site'
-		'$msg_snapshots_server_japan'
-		                          'snapshots.jp.freebsd.org'
-		'$msg_snapshots_server_sweden'
-		                          'snapshots.se.freebsd.org'
 		'IPv6 $msg_main_site'     'ftp.freebsd.org'
+		' IPv6 $msg_france'       'ftp4.fr.freebsd.org'
+		' IPv6 $msg_france #8'    'ftp8.fr.freebsd.org'
 		' IPv6 $msg_ireland'      'ftp3.ie.freebsd.org'
-		' IPv6 $msg_israel'       'ftp.il.freebsd.org'
 		' IPv6 $msg_japan'        'ftp2.jp.freebsd.org'
+		' IPv6 $msg_sweden'       'ftp4.se.freebsd.org'
 		' IPv6 $msg_usa'          'ftp4.us.freebsd.org'
 		' IPv6 $msg_turkey'       'ftp2.tr.freebsd.org'
 		'$msg_primary'            'ftp1.freebsd.org'
@@ -92,44 +90,34 @@ f_dialog_menu_media_ftp()
 		' $msg_primary #5'        'ftp5.freebsd.org'
 		' $msg_primary #6'        'ftp6.freebsd.org'
 		' $msg_primary #7'        'ftp7.freebsd.org'
-		' $msg_primary #8'        'ftp8.freebsd.org'
-		' $msg_primary #9'        'ftp9.freebsd.org'
 		' $msg_primary #10'       'ftp10.freebsd.org'
 		' $msg_primary #11'       'ftp11.freebsd.org'
 		' $msg_primary #12'       'ftp12.freebsd.org'
 		' $msg_primary #13'       'ftp13.freebsd.org'
 		' $msg_primary #14'       'ftp14.freebsd.org'
-		'$msg_argentina'          'ftp.ar.freebsd.org'
+		'$msg_armenia'            'ftp1.am.freebsd.org'
 		'$msg_australia'          'ftp.au.freebsd.org'
 		' $msg_australia #2'      'ftp2.au.freebsd.org'
 		' $msg_australia #3'      'ftp3.au.freebsd.org'
 		'$msg_austria'            'ftp.at.freebsd.org'
-		' $msg_austria #2'        'ftp2.at.freebsd.org'
-		'$msg_brazil'             'ftp.br.freebsd.org'
-		' $msg_brazil #2'         'ftp2.br.freebsd.org'
+		'$msg_brazil'             'ftp2.br.freebsd.org'
 		' $msg_brazil #3'         'ftp3.br.freebsd.org'
 		' $msg_brazil #4'         'ftp4.br.freebsd.org'
-		' $msg_brazil #5'         'ftp5.br.freebsd.org'
-		' $msg_brazil #6'         'ftp6.br.freebsd.org'
-		' $msg_brazil #7'         'ftp7.br.freebsd.org'
 		'$msg_canada'             'ftp.ca.freebsd.org'
 		'$msg_china'              'ftp.cn.freebsd.org'
-		' $msg_china #2'          'ftp2.cn.freebsd.org'
-		'$msg_croatia'            'ftp.hr.freebsd.org'
 		'$msg_czech_republic'     'ftp.cz.freebsd.org'
 		'$msg_denmark'            'ftp.dk.freebsd.org'
-		' $msg_denmark #2'        'ftp2.dk.freebsd.org'
 		'$msg_estonia'            'ftp.ee.freebsd.org'
 		'$msg_finland'            'ftp.fi.freebsd.org'
 		'$msg_france'             'ftp.fr.freebsd.org'
-		' $msg_france #2'         'ftp2.fr.freebsd.org'
 		' $msg_france #3'         'ftp3.fr.freebsd.org'
+		' $msg_france #4'         'ftp4.fr.freebsd.org'
 		' $msg_france #5'         'ftp5.fr.freebsd.org'
 		' $msg_france #6'         'ftp6.fr.freebsd.org'
+		' $msg_france #7'         'ftp7.fr.freebsd.org'
 		' $msg_france #8'         'ftp8.fr.freebsd.org'
 		'$msg_germany'            'ftp.de.freebsd.org'
 		' $msg_germany #2'        'ftp2.de.freebsd.org'
-		' $msg_germany #3'        'ftp3.de.freebsd.org'
 		' $msg_germany #4'        'ftp4.de.freebsd.org'
 		' $msg_germany #5'        'ftp5.de.freebsd.org'
 		' $msg_germany #6'        'ftp6.de.freebsd.org'
@@ -137,11 +125,8 @@ f_dialog_menu_media_ftp()
 		' $msg_germany #8'        'ftp8.de.freebsd.org'
 		'$msg_greece'             'ftp.gr.freebsd.org'
 		' $msg_greece #2'         'ftp2.gr.freebsd.org'
-		'$msg_hungary'            'ftp.hu.freebsd.org'
 		'$msg_iceland'            'ftp.is.freebsd.org'
-		'$msg_ireland'            'ftp.ie.freebsd.org'
-		' $msg_ireland #2'        'ftp2.ie.freebsd.org'
-		' $msg_ireland #3'        'ftp3.ie.freebsd.org'
+		'$msg_ireland'            'ftp3.ie.freebsd.org'
 		'$msg_israel'             'ftp.il.freebsd.org'
 		'$msg_italy'              'ftp.it.freebsd.org'
 		'$msg_japan'              'ftp.jp.freebsd.org'
@@ -155,72 +140,56 @@ f_dialog_menu_media_ftp()
 		' $msg_japan #9'          'ftp9.jp.freebsd.org'
 		'$msg_korea'              'ftp.kr.freebsd.org'
 		' $msg_korea #2'          'ftp2.kr.freebsd.org'
+		'$msg_latvia'             'ftp.lv.freebsd.org'
 		'$msg_lithuania'          'ftp.lt.freebsd.org'
 		'$msg_netherlands'        'ftp.nl.freebsd.org'
 		' $msg_netherlands #2'    'ftp2.nl.freebsd.org'
+		'$msg_new_zealand'        'ftp.nz.freebsd.org'
 		'$msg_norway'             'ftp.no.freebsd.org'
-		' $msg_norway #3'         'ftp3.no.freebsd.org'
 		'$msg_poland'             'ftp.pl.freebsd.org'
 		' $msg_poland #2'         'ftp2.pl.freebsd.org'
-		' $msg_poland #5'         'ftp5.pl.freebsd.org'
-		'$msg_portugal'           'ftp.pt.freebsd.org'
-		' $msg_portugal #2'       'ftp2.pt.freebsd.org'
-		' $msg_portugal #4'       'ftp4.pt.freebsd.org'
-		'$msg_romania'            'ftp.ro.freebsd.org'
 		'$msg_russia'             'ftp.ru.freebsd.org'
 		' $msg_russia #2'         'ftp2.ru.freebsd.org'
-		' $msg_russia #3'         'ftp3.ru.freebsd.org'
 		' $msg_russia #4'         'ftp4.ru.freebsd.org'
-		'$msg_singapore'          'ftp.sg.freebsd.org'
+		' $msg_russia #5'         'ftp5.ru.freebsd.org'
+		' $msg_russia #6'         'ftp6.ru.freebsd.org'
 		'$msg_slovak_republic'    'ftp.sk.freebsd.org'
+		' $msg_slovak_republic #2' 'ftp2.sk.freebsd.org'
 		'$msg_slovenia'           'ftp.si.freebsd.org'
-		' $msg_slovenia #2'       'ftp2.si.freebsd.org'
 		'$msg_south_africa'       'ftp.za.freebsd.org'
 		' $msg_south_africa #2'   'ftp2.za.freebsd.org'
-		' $msg_south_africa #3'   'ftp3.za.freebsd.org'
 		' $msg_south_africa #4'   'ftp4.za.freebsd.org'
 		'$msg_spain'              'ftp.es.freebsd.org'
-		' $msg_spain #2'          'ftp2.es.freebsd.org'
 		' $msg_spain #3'          'ftp3.es.freebsd.org'
 		'$msg_sweden'             'ftp.se.freebsd.org'
 		' $msg_sweden #2'         'ftp2.se.freebsd.org'
 		' $msg_sweden #3'         'ftp3.se.freebsd.org'
 		' $msg_sweden #4'         'ftp4.se.freebsd.org'
 		' $msg_sweden #5'         'ftp5.se.freebsd.org'
+		' $msg_sweden #6'         'ftp6.se.freebsd.org'
 		'$msg_switzerland'        'ftp.ch.freebsd.org'
-		' $msg_switzerland #2'    'ftp2.ch.freebsd.org'
 		'$msg_taiwan'             'ftp.tw.freebsd.org'
 		' $msg_taiwan #2'         'ftp2.tw.freebsd.org'
 		' $msg_taiwan #3'         'ftp3.tw.freebsd.org'
 		' $msg_taiwan #4'         'ftp4.tw.freebsd.org'
 		' $msg_taiwan #6'         'ftp6.tw.freebsd.org'
 		' $msg_taiwan #11'        'ftp11.tw.freebsd.org'
-		'$msg_turkey'             'ftp.tr.freebsd.org'
-		' $msg_turkey #2'         'ftp2.tr.freebsd.org'
 		'$msg_uk'                 'ftp.uk.freebsd.org'
 		' $msg_uk #2'             'ftp2.uk.freebsd.org'
 		' $msg_uk #3'             'ftp3.uk.freebsd.org'
 		' $msg_uk #4'             'ftp4.uk.freebsd.org'
 		' $msg_uk #5'             'ftp5.uk.freebsd.org'
-		' $msg_uk #6'             'ftp6.uk.freebsd.org'
 		'$msg_ukraine'            'ftp.ua.freebsd.org'
-		' $msg_ukraine #2'        'ftp2.ua.freebsd.org'
-		' $msg_ukraine #5'        'ftp5.ua.freebsd.org'
-		' $msg_ukraine #6'        'ftp6.ua.freebsd.org'
 		' $msg_ukraine #7'        'ftp7.ua.freebsd.org'
-		' $msg_ukraine #8'        'ftp8.ua.freebsd.org'
 		'$msg_usa #1'             'ftp1.us.freebsd.org'
 		' $msg_usa #2'            'ftp2.us.freebsd.org'
 		' $msg_usa #3'            'ftp3.us.freebsd.org'
 		' $msg_usa #4'            'ftp4.us.freebsd.org'
 		' $msg_usa #5'            'ftp5.us.freebsd.org'
 		' $msg_usa #6'            'ftp6.us.freebsd.org'
-		' $msg_usa #7'            'ftp7.us.freebsd.org'
 		' $msg_usa #8'            'ftp8.us.freebsd.org'
-		' $msg_usa #9'            'ftp9.us.freebsd.org'
 		' $msg_usa #10'           'ftp10.us.freebsd.org'
 		' $msg_usa #11'           'ftp11.us.freebsd.org'
-		' $msg_usa #12'           'ftp12.us.freebsd.org'
 		' $msg_usa #13'           'ftp13.us.freebsd.org'
 		' $msg_usa #14'           'ftp14.us.freebsd.org'
 		' $msg_usa #15'           'ftp15.us.freebsd.org'
@@ -630,8 +599,7 @@ f_media_init_ftp()
 			   ! f_getvar $VAR_FTP_PATH cp ||
 			   [ ! "$cp" ]
 			then
-				f_dialog_msgbox \
-					"$msg_unable_to_get_proper_ftp_path"
+				f_show_msg "$msg_unable_to_get_proper_ftp_path"
 				f_device_network_down $dev
 				return $FAILURE
 			fi
@@ -642,7 +610,7 @@ f_media_init_ftp()
 			f_getvar $VAR_FTP_HOST ftp_host &&
 			f_getvar $VAR_FTP_DIR ftp_dir
 		}; then
-			f_dialog_msgbox "$msg_missing_ftp_host_or_directory"
+			f_show_msg "$msg_missing_ftp_host_or_directory"
 			f_device_network_down $dev
 			return $FAILURE
 		fi
@@ -788,12 +756,13 @@ f_media_init_ftp()
 	return $FAILURE
 }
 
-# f_media_get_ftp $device $file [$probe_only]
+# f_media_get_ftp $device $file [$probe_type]
 #
 # Returns data from $file on an FTP server using ftp(1). Please note that
 # $device is unused but must be present (even if null). Information is instead
-# gathered from the environment. $probe_only is currently unused by this media
-# type.
+# gathered from the environment. If $probe_type is present and non-NULL,
+# returns success if $file exists. If $probe_type is equal to $PROBE_SIZE,
+# prints the size of $file in bytes to standard-out.
 #
 # Variables from variable.subr used to configure the connection are as follows
 # (all of which are configured by f_media_set_ftp above):
@@ -827,10 +796,10 @@ f_media_init_ftp()
 #
 f_media_get_ftp()
 {
-	local dev="$1" file="$2" probe_only="$3" hosts=
+	local dev="$1" file="$2" probe_type="$3" hosts=
 
-	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
 	local ftp_host ftp_port
 	f_getvar $VAR_FTP_HOST ftp_host
@@ -899,6 +868,19 @@ f_media_get_ftp()
 	case "$host" in *:*) host="[$host]"; esac
 
 	f_dprintf "sending ftp request for: %s" "ftp://$host$port/$dir/$file"
+
+	if [ "$probe_type" ]; then
+		local url="ftp://$userpass$host$port/$dir/$file" size
+		[ "$use_anon" ] && url="ftp://$host$port/$dir/$file"
+		if ! size=$( fetch -s "$url" 2>&1 ) || ! f_isinteger "$size"
+		then
+			f_dprintf "request failed! size response=[%s]" "$size"
+			[ "$probe_type" = "$PROBE_SIZE" ] && echo "-1"
+			return $FAILURE
+		fi
+		[ "$probe_type" = "$PROBE_SIZE" ] && echo "$size"
+		return $SUCCESS
+	fi
 
 	eval FTPMODE=\"\$mode\" ${use_anon:+FTPANONPASS=\"\$pass\"} \
 	     ftp -V ${use_anon:+-a} -o - \

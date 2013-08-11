@@ -523,12 +523,12 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		/* sanity for overflow - beware unsigned */
 		lt = &ifr->ifr_ifru.ifru_lifetime;
 		if (lt->ia6t_vltime != ND6_INFINITE_LIFETIME &&
-		    lt->ia6t_vltime + time_second < time_second) {
+		    lt->ia6t_vltime + time_uptime < time_uptime) {
 			error = EINVAL;
 			goto out;
 		}
 		if (lt->ia6t_pltime != ND6_INFINITE_LIFETIME &&
-		    lt->ia6t_pltime + time_second < time_second) {
+		    lt->ia6t_pltime + time_uptime < time_uptime) {
 			error = EINVAL;
 			goto out;
 		}
@@ -570,10 +570,10 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			error = EINVAL;
 			goto out;
 		}
-		bzero(&ifr->ifr_ifru.ifru_stat,
-		    sizeof(ifr->ifr_ifru.ifru_stat));
-		ifr->ifr_ifru.ifru_stat =
-		    *((struct in6_ifextra *)ifp->if_afdata[AF_INET6])->in6_ifstat;
+		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
+		    ifp->if_afdata[AF_INET6])->in6_ifstat,
+		    &ifr->ifr_ifru.ifru_stat,
+		    sizeof(struct in6_ifstat) / sizeof(uint64_t));
 		break;
 
 	case SIOCGIFSTAT_ICMP6:
@@ -581,10 +581,10 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			error = EINVAL;
 			goto out;
 		}
-		bzero(&ifr->ifr_ifru.ifru_icmp6stat,
-		    sizeof(ifr->ifr_ifru.ifru_icmp6stat));
-		ifr->ifr_ifru.ifru_icmp6stat =
-		    *((struct in6_ifextra *)ifp->if_afdata[AF_INET6])->icmp6_ifstat;
+		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
+		    ifp->if_afdata[AF_INET6])->icmp6_ifstat,
+		    &ifr->ifr_ifru.ifru_icmp6stat,
+		    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
 		break;
 
 	case SIOCGIFALIFETIME_IN6:
@@ -632,12 +632,12 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		/* for sanity */
 		if (ia->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME) {
 			ia->ia6_lifetime.ia6t_expire =
-				time_second + ia->ia6_lifetime.ia6t_vltime;
+				time_uptime + ia->ia6_lifetime.ia6t_vltime;
 		} else
 			ia->ia6_lifetime.ia6t_expire = 0;
 		if (ia->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME) {
 			ia->ia6_lifetime.ia6t_preferred =
-				time_second + ia->ia6_lifetime.ia6t_pltime;
+				time_uptime + ia->ia6_lifetime.ia6t_pltime;
 		} else
 			ia->ia6_lifetime.ia6t_preferred = 0;
 		break;
@@ -1140,7 +1140,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
 		ia->ia_addr.sin6_family = AF_INET6;
 		ia->ia_addr.sin6_len = sizeof(ia->ia_addr);
-		ia->ia6_createtime = time_second;
+		ia->ia6_createtime = time_uptime;
 		if ((ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) != 0) {
 			/*
 			 * XXX: some functions expect that ifa_dstaddr is not
@@ -1167,7 +1167,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	}
 
 	/* update timestamp */
-	ia->ia6_updatetime = time_second;
+	ia->ia6_updatetime = time_uptime;
 
 	/* set prefix mask */
 	if (ifra->ifra_prefixmask.sin6_len) {
@@ -1217,12 +1217,12 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	ia->ia6_lifetime = ifra->ifra_lifetime;
 	if (ia->ia6_lifetime.ia6t_vltime != ND6_INFINITE_LIFETIME) {
 		ia->ia6_lifetime.ia6t_expire =
-		    time_second + ia->ia6_lifetime.ia6t_vltime;
+		    time_uptime + ia->ia6_lifetime.ia6t_vltime;
 	} else
 		ia->ia6_lifetime.ia6t_expire = 0;
 	if (ia->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME) {
 		ia->ia6_lifetime.ia6t_preferred =
-		    time_second + ia->ia6_lifetime.ia6t_pltime;
+		    time_uptime + ia->ia6_lifetime.ia6t_pltime;
 	} else
 		ia->ia6_lifetime.ia6t_preferred = 0;
 
@@ -1240,7 +1240,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 */
 	if ((ifra->ifra_flags & IN6_IFF_DEPRECATED) != 0) {
 		ia->ia6_lifetime.ia6t_pltime = 0;
-		ia->ia6_lifetime.ia6t_preferred = time_second;
+		ia->ia6_lifetime.ia6t_preferred = time_uptime;
 	}
 	/*
 	 * Make the address tentative before joining multicast addresses,
@@ -1987,6 +1987,32 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 }
 
 /*
+ * Find a link-local scoped address on ifp and return it if any.
+ */
+struct in6_ifaddr *
+in6ifa_llaonifp(struct ifnet *ifp)
+{
+	struct sockaddr_in6 *sin6;
+	struct ifaddr *ifa;
+
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+		return (NULL);
+	if_addr_rlock(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) ||
+		    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6->sin6_addr) ||
+		    IN6_IS_ADDR_MC_NODELOCAL(&sin6->sin6_addr))
+			break;
+	}
+	if_addr_runlock(ifp);
+
+	return ((struct in6_ifaddr *)ifa);
+}
+
+/*
  * Convert IP6 address to printable (loggable) representation. Caller
  * has to make sure that ip6buf is at least INET6_ADDRSTRLEN long.
  */
@@ -2720,17 +2746,26 @@ in6_domifattach(struct ifnet *ifp)
 {
 	struct in6_ifextra *ext;
 
+	/* There are not IPv6-capable interfaces. */
+	switch (ifp->if_type) {
+	case IFT_PFLOG:
+	case IFT_PFSYNC:
+	case IFT_USB:
+		return (NULL);
+	}
 	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);
 	bzero(ext, sizeof(*ext));
 
-	ext->in6_ifstat = (struct in6_ifstat *)malloc(sizeof(struct in6_ifstat),
-	    M_IFADDR, M_WAITOK);
-	bzero(ext->in6_ifstat, sizeof(*ext->in6_ifstat));
+	ext->in6_ifstat = malloc(sizeof(counter_u64_t) *
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t), M_IFADDR, M_WAITOK);
+	COUNTER_ARRAY_ALLOC(ext->in6_ifstat,
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t), M_WAITOK);
 
-	ext->icmp6_ifstat =
-	    (struct icmp6_ifstat *)malloc(sizeof(struct icmp6_ifstat),
-	    M_IFADDR, M_WAITOK);
-	bzero(ext->icmp6_ifstat, sizeof(*ext->icmp6_ifstat));
+	ext->icmp6_ifstat = malloc(sizeof(counter_u64_t) *
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_IFADDR,
+	    M_WAITOK);
+	COUNTER_ARRAY_ALLOC(ext->icmp6_ifstat,
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t), M_WAITOK);
 
 	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
@@ -2755,7 +2790,11 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
 	scope6_ifdetach(ext->scope6_id);
 	nd6_ifdetach(ext->nd_ifinfo);
 	lltable_free(ext->lltable);
+	COUNTER_ARRAY_FREE(ext->in6_ifstat,
+	    sizeof(struct in6_ifstat) / sizeof(uint64_t));
 	free(ext->in6_ifstat, M_IFADDR);
+	COUNTER_ARRAY_FREE(ext->icmp6_ifstat,
+	    sizeof(struct icmp6_ifstat) / sizeof(uint64_t));
 	free(ext->icmp6_ifstat, M_IFADDR);
 	free(ext, M_IFADDR);
 }

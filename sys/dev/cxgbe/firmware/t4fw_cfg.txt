@@ -15,9 +15,13 @@
 	sge_timer_value = 1, 5, 10, 50, 100, 200	# usecs
 
 	# TP_SHIFT_CNT
-	reg[0x7dc0] = 0x64f8849
+	reg[0x7dc0] = 0x62f8849
 
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+
+	# TP rx and tx channels (0 = auto).
+	tp_nrxch = 0
+	tp_ntxch = 0
 
 	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
 	tp_pmrx = 38
@@ -137,7 +141,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xfdebb6ef
+	checksum = 0x6cc2514b
 #
 # $FreeBSD$
 #

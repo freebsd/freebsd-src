@@ -1,15 +1,9 @@
 /*
  * EAP peer method: EAP-TLS (RFC 2716)
- * Copyright (c) 2004-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2008, 2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -27,6 +21,8 @@ static void eap_tls_deinit(struct eap_sm *sm, void *priv);
 struct eap_tls_data {
 	struct eap_ssl_data ssl;
 	u8 *key_data;
+	void *ssl_ctx;
+	u8 eap_type;
 };
 
 
@@ -46,7 +42,10 @@ static void * eap_tls_init(struct eap_sm *sm)
 	if (data == NULL)
 		return NULL;
 
-	if (eap_peer_tls_ssl_init(sm, &data->ssl, config)) {
+	data->ssl_ctx = sm->init_phase2 && sm->ssl_ctx2 ? sm->ssl_ctx2 :
+		sm->ssl_ctx;
+
+	if (eap_peer_tls_ssl_init(sm, &data->ssl, config, EAP_TYPE_TLS)) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
 		eap_tls_deinit(sm, data);
 		if (config->engine) {
@@ -64,8 +63,37 @@ static void * eap_tls_init(struct eap_sm *sm)
 		return NULL;
 	}
 
+	data->eap_type = EAP_TYPE_TLS;
+
 	return data;
 }
+
+
+#ifdef EAP_UNAUTH_TLS
+static void * eap_unauth_tls_init(struct eap_sm *sm)
+{
+	struct eap_tls_data *data;
+	struct eap_peer_config *config = eap_get_config(sm);
+
+	data = os_zalloc(sizeof(*data));
+	if (data == NULL)
+		return NULL;
+
+	data->ssl_ctx = sm->init_phase2 && sm->ssl_ctx2 ? sm->ssl_ctx2 :
+		sm->ssl_ctx;
+
+	if (eap_peer_tls_ssl_init(sm, &data->ssl, config,
+				  EAP_UNAUTH_TLS_TYPE)) {
+		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
+		eap_tls_deinit(sm, data);
+		return NULL;
+	}
+
+	data->eap_type = EAP_UNAUTH_TLS_TYPE;
+
+	return data;
+}
+#endif /* EAP_UNAUTH_TLS */
 
 
 static void eap_tls_deinit(struct eap_sm *sm, void *priv)
@@ -111,7 +139,7 @@ static struct wpabuf * eap_tls_failure(struct eap_sm *sm,
 		return resp;
 	}
 
-	return eap_peer_tls_build_ack(id, EAP_TYPE_TLS, 0);
+	return eap_peer_tls_build_ack(id, data->eap_type, 0);
 }
 
 
@@ -151,7 +179,7 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 	const u8 *pos;
 	struct eap_tls_data *data = priv;
 
-	pos = eap_peer_tls_process_init(sm, &data->ssl, EAP_TYPE_TLS, ret,
+	pos = eap_peer_tls_process_init(sm, &data->ssl, data->eap_type, ret,
 					reqData, &left, &flags);
 	if (pos == NULL)
 		return NULL;
@@ -164,19 +192,19 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 	}
 
 	resp = NULL;
-	res = eap_peer_tls_process_helper(sm, &data->ssl, EAP_TYPE_TLS, 0, id,
-					  pos, left, &resp);
+	res = eap_peer_tls_process_helper(sm, &data->ssl, data->eap_type, 0,
+					  id, pos, left, &resp);
 
 	if (res < 0) {
 		return eap_tls_failure(sm, data, ret, res, resp, id);
 	}
 
-	if (tls_connection_established(sm->ssl_ctx, data->ssl.conn))
+	if (tls_connection_established(data->ssl_ctx, data->ssl.conn))
 		eap_tls_success(sm, data, ret);
 
 	if (res == 1) {
 		wpabuf_free(resp);
-		return eap_peer_tls_build_ack(id, EAP_TYPE_TLS, 0);
+		return eap_peer_tls_build_ack(id, data->eap_type, 0);
 	}
 
 	return resp;
@@ -186,7 +214,7 @@ static struct wpabuf * eap_tls_process(struct eap_sm *sm, void *priv,
 static Boolean eap_tls_has_reauth_data(struct eap_sm *sm, void *priv)
 {
 	struct eap_tls_data *data = priv;
-	return tls_connection_established(sm->ssl_ctx, data->ssl.conn);
+	return tls_connection_established(data->ssl_ctx, data->ssl.conn);
 }
 
 
@@ -287,3 +315,34 @@ int eap_peer_tls_register(void)
 		eap_peer_method_free(eap);
 	return ret;
 }
+
+
+#ifdef EAP_UNAUTH_TLS
+int eap_peer_unauth_tls_register(void)
+{
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
+				    EAP_VENDOR_UNAUTH_TLS,
+				    EAP_VENDOR_TYPE_UNAUTH_TLS, "UNAUTH-TLS");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_unauth_tls_init;
+	eap->deinit = eap_tls_deinit;
+	eap->process = eap_tls_process;
+	eap->isKeyAvailable = eap_tls_isKeyAvailable;
+	eap->getKey = eap_tls_getKey;
+	eap->get_status = eap_tls_get_status;
+	eap->has_reauth_data = eap_tls_has_reauth_data;
+	eap->deinit_for_reauth = eap_tls_deinit_for_reauth;
+	eap->init_for_reauth = eap_tls_init_for_reauth;
+	eap->get_emsk = eap_tls_get_emsk;
+
+	ret = eap_peer_method_register(eap);
+	if (ret)
+		eap_peer_method_free(eap);
+	return ret;
+}
+#endif /* EAP_UNAUTH_TLS */

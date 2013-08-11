@@ -41,6 +41,7 @@
 #define APR_HAS_MOZILLA_LDAPSDK   0
 #define APR_HAS_OPENLDAP_LDAPSDK  0
 #define APR_HAS_MICROSOFT_LDAPSDK 0
+#define APR_HAS_TIVOLI_LDAPSDK    0
 #define APR_HAS_ZOS_LDAPSDK       0
 #define APR_HAS_OTHER_LDAPSDK     0
 
@@ -58,7 +59,11 @@
  * apr_ldap_url_parse*() functions have been rewritten specifically for
  * APR, so the APR_HAS_LDAP_URL_PARSE macro is forced to zero.
  */
+#if APR_HAS_TIVOLI_LDAPSDK
+#define APR_HAS_LDAP_SSL 0
+#else
 #define APR_HAS_LDAP_SSL 1
+#endif
 #define APR_HAS_LDAP_URL_PARSE      0
 
 #if APR_HAS_OPENLDAP_LDAPSDK && !defined(LDAP_DEPRECATED) 
@@ -98,15 +103,19 @@
 /*
  * For ldap function calls that input a size limit on the number of returned elements
  * Some SDKs do not have the define for LDAP_DEFAULT_LIMIT (-1) or LDAP_NO_LIMIT (0)
+ * LDAP_DEFAULT_LIMIT is preferred as it allows inheritance from whatever the SDK
+ * or process is configured for.
  */
-#if APR_HAS_ZOS_LDAPSDK
-#define APR_LDAP_SIZELIMIT LDAP_NO_LIMIT
-#else
 #ifdef LDAP_DEFAULT_LIMIT
 #define APR_LDAP_SIZELIMIT LDAP_DEFAULT_LIMIT
 #else
-#define APR_LDAP_SIZELIMIT -1 /* equivalent to LDAP_DEFAULT_LIMIT */
+#ifdef LDAP_NO_LIMIT
+#define APR_LDAP_SIZELIMIT LDAP_NO_LIMIT
 #endif
+#endif
+
+#ifndef APR_LDAP_SIZELIMIT
+#define APR_LDAP_SIZELIMIT 0 /* equivalent to LDAP_NO_LIMIT, and what goes on the wire */
 #endif
 
 /*
@@ -147,10 +156,43 @@ typedef struct apr_ldap_err_t {
 }
 #endif
 
+/* The MS SDK returns LDAP_UNAVAILABLE when the backend has closed the connection
+ * between LDAP calls. Protect with APR_HAS_MICROSOFT_LDAPSDK in case someone 
+ * manually chooses another SDK on Windows 
+ */
+#if APR_HAS_MICROSOFT_LDAPSDK
+#define APR_LDAP_IS_SERVER_DOWN(s)    ((s) == LDAP_SERVER_DOWN \
+                                    || (s) == LDAP_UNAVAILABLE)
+#else
+#define APR_LDAP_IS_SERVER_DOWN(s)    ((s) == LDAP_SERVER_DOWN)
+#endif
+
+/* These symbols are not actually exported in a DSO build, but mapped into
+ * a private exported function array for apr_ldap_stub to bind dynamically.
+ * Rename them appropriately to protect the global namespace.
+ */
+#ifdef APU_DSO_LDAP_BUILD
+
+#define apr_ldap_info apr__ldap_info
+#define apr_ldap_init apr__ldap_init
+#define apr_ldap_ssl_init apr__ldap_ssl_init
+#define apr_ldap_ssl_deinit apr__ldap_ssl_deinit
+#define apr_ldap_get_option apr__ldap_get_option
+#define apr_ldap_set_option apr__ldap_set_option
+#define apr_ldap_rebind_init apr__ldap_rebind_init
+#define apr_ldap_rebind_add apr__ldap_rebind_add
+#define apr_ldap_rebind_remove apr__ldap_rebind_remove
+
+#define APU_DECLARE_LDAP(type) type
+#else
+#define APU_DECLARE_LDAP(type) APU_DECLARE(type)
+#endif
+
 #include "apr_ldap_url.h"
 #include "apr_ldap_init.h"
 #include "apr_ldap_option.h"
+#include "apr_ldap_rebind.h"
 
-/** @} */
 #endif /* APR_HAS_LDAP */
+/** @} */
 #endif /* APU_LDAP_H */

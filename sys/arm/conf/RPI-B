@@ -18,20 +18,8 @@
 # $FreeBSD$
 
 ident		RPI-B
-machine		arm	armv6
-cpu 		CPU_ARM1176
 
-files		"../broadcom/bcm2835/files.bcm2835"
-makeoptions	MODULES_OVERRIDE=""
-
-options 	KERNVIRTADDR=0xc0100000
-makeoptions	KERNVIRTADDR=0xc0100000
-options 	KERNPHYSADDR=0x00100000
-makeoptions	KERNPHYSADDR=0x00100000
-options 	PHYSADDR=0x00000000
-options 	STARTUP_PAGETABLE_ADDR=0x01000000
-options		FREEBSD_BOOT_LOADER
-options		LINUX_BOOT_ABI
+include		"../broadcom/bcm2835/std.rpi"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	HZ=100
@@ -39,6 +27,7 @@ options 	HZ=100
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
+options		SCTP			#Stream Control Transmission Protocol
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
@@ -119,3 +108,6 @@ options         FDT
 # handed to kernel via U-Boot and ubldr.
 #options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=rpi.dts
+
+device		vfp			# vfp/neon
+options 	ARM_VFP_SUPPORT		# vfp/neon

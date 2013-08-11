@@ -257,7 +257,7 @@ ffs_mount(struct mount *mp)
 				return (error);
 			for (;;) {
 				vn_finished_write(mp);
-				if ((error = vfs_write_suspend(mp)) != 0)
+				if ((error = vfs_write_suspend(mp, 0)) != 0)
 					return (error);
 				MNT_ILOCK(mp);
 				if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
@@ -1255,7 +1255,7 @@ ffs_unmount(mp, mntflags)
 		 */
 		for (;;) {
 			vn_finished_write(mp);
-			if ((error = vfs_write_suspend(mp)) != 0)
+			if ((error = vfs_write_suspend(mp, 0)) != 0)
 				return (error);
 			MNT_ILOCK(mp);
 			if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
@@ -1791,7 +1791,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	 * already have one. This should only happen on old filesystems.
 	 */
 	if (ip->i_gen == 0) {
-		ip->i_gen = arc4random() + 1;
+		ip->i_gen = arc4random() / 2 + 1;
 		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 			ip->i_flag |= IN_MODIFIED;
 			DIP_SET(ip, i_gen, ip->i_gen);

@@ -1467,7 +1467,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 * If the mbuf has M_ENCAP set, ensure we free it.
 		 * Note that after if_transmit() is called, m is invalid.
 		 */
-		(void) ieee80211_vap_transmit(vap, m);
+		(void) ieee80211_vap_xmitpkt(vap, m);
 	}
 #undef	IS_PROXY
 #undef	PROXIED_BY_US

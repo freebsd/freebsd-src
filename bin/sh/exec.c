@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include "syntax.h"
 #include "memalloc.h"
 #include "error.h"
-#include "init.h"
 #include "mystring.h"
 #include "show.h"
 #include "jobs.h"

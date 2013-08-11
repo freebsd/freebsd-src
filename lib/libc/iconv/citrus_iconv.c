@@ -68,11 +68,13 @@ static int			 shared_max_reuse, shared_num_unused;
 static _CITRUS_HASH_HEAD(, _citrus_iconv_shared, CI_HASH_SIZE) shared_pool;
 static TAILQ_HEAD(, _citrus_iconv_shared) shared_unused;
 
+static pthread_rwlock_t		 ci_lock = PTHREAD_RWLOCK_INITIALIZER;
+
 static __inline void
 init_cache(void)
 {
 
-	WLOCK;
+	WLOCK(&ci_lock);
 	if (!isinit) {
 		_CITRUS_HASH_INIT(&shared_pool, CI_HASH_SIZE);
 		TAILQ_INIT(&shared_unused);
@@ -83,7 +85,7 @@ init_cache(void)
 			shared_max_reuse = CI_INITIAL_MAX_REUSE;
 		isinit = true;
 	}
-	UNLOCK;
+	UNLOCK(&ci_lock);
 }
 
 static __inline void
@@ -114,7 +116,20 @@ open_shared(struct _citrus_iconv_shared * __restrict * __restrict rci,
 	size_t len_convname;
 	int ret;
 
+#ifdef INCOMPATIBLE_WITH_GNU_ICONV
+	/*
+	 * Sadly, the gnu tools expect iconv to actually parse the
+	 * byte stream and don't allow for a pass-through when
+	 * the (src,dest) encodings are the same.
+	 * See gettext-0.18.3+ NEWS:
+	 *   msgfmt now checks PO file headers more strictly with less
+	 *   false-positives.
+	 * NetBSD don't do this either.
+	 */
 	module = (strcmp(src, dst) != 0) ? "iconv_std" : "iconv_none";
+#else
+	module = "iconv_std";
+#endif
 
 	/* initialize iconv handle */
 	len_convname = strlen(convname);
@@ -195,7 +210,7 @@ get_shared(struct _citrus_iconv_shared * __restrict * __restrict rci,
 
 	snprintf(convname, sizeof(convname), "%s/%s", src, dst);
 
-	WLOCK;
+	WLOCK(&ci_lock);
 
 	/* lookup alread existing entry */
 	hashval = hash_func(convname);
@@ -222,7 +237,7 @@ get_shared(struct _citrus_iconv_shared * __restrict * __restrict rci,
 	*rci = ci;
 
 quit:
-	UNLOCK;
+	UNLOCK(&ci_lock);
 
 	return (ret);
 }
@@ -231,7 +246,7 @@ static void
 release_shared(struct _citrus_iconv_shared * __restrict ci)
 {
 
-	WLOCK;
+	WLOCK(&ci_lock);
 	ci->ci_used_count--;
 	if (ci->ci_used_count == 0) {
 		/* put it into unused list */
@@ -247,7 +262,7 @@ release_shared(struct _citrus_iconv_shared * __restrict ci)
 		}
 	}
 
-	UNLOCK;
+	UNLOCK(&ci_lock);
 }
 
 /*

@@ -7,18 +7,15 @@
  * See the LICENSE file for redistribution information.
  */
 
-/* $FreeBSD$ */
-
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex.c	10.57 (Berkeley) 10/10/96";
+static const char sccsid[] = "$Id: ex.c,v 10.80 2012/10/03 16:24:40 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -37,11 +34,11 @@ static const char sccsid[] = "@(#)ex.c	10.57 (Berkeley) 10/10/96";
 static void	ex_comlog __P((SCR *, EXCMD *));
 #endif
 static EXCMDLIST const *
-		ex_comm_search __P((char *, size_t));
+		ex_comm_search __P((CHAR_T *, size_t));
 static int	ex_discard __P((SCR *));
 static int	ex_line __P((SCR *, EXCMD *, MARK *, int *, int *));
 static int	ex_load __P((SCR *));
-static void	ex_unknown __P((SCR *, char *, size_t));
+static void	ex_unknown __P((SCR *, CHAR_T *, size_t));
 
 /*
  * ex --
@@ -50,8 +47,7 @@ static void	ex_unknown __P((SCR *, char *, size_t));
  * PUBLIC: int ex __P((SCR **));
  */
 int
-ex(spp)
-	SCR **spp;
+ex(SCR **spp)
 {
 	EX_PRIVATE *exp;
 	GS *gp;
@@ -69,9 +65,9 @@ ex(spp)
 		return (1);
 
 	/* Flush any saved messages. */
-	while ((mp = gp->msgq.lh_first) != NULL) {
+	while ((mp = SLIST_FIRST(gp->msgq)) != NULL) {
 		gp->scr_msg(sp, mp->mtype, mp->buf, mp->len);
-		LIST_REMOVE(mp, q);
+		SLIST_REMOVE_HEAD(gp->msgq, q);
 		free(mp->buf);
 		free(mp);
 	}
@@ -107,7 +103,7 @@ ex(spp)
 
 		/* Clear any current interrupts, and get a command. */
 		CLR_INTERRUPT(sp);
-		if (ex_txt(sp, &sp->tiq, ':', flags))
+		if (ex_txt(sp, sp->tiq, ':', flags))
 			return (1);
 		if (INTERRUPTED(sp)) {
 			(void)ex_puts(sp, "\n");
@@ -122,9 +118,9 @@ ex(spp)
 		 * If the user entered a single carriage return, send
 		 * ex_cmd() a separator -- it discards single newlines.
 		 */
-		tp = sp->tiq.cqh_first;
+		tp = TAILQ_FIRST(sp->tiq);
 		if (tp->len == 0) {
-			gp->excmd.cp = " ";	/* __TK__ why not |? */
+			gp->excmd.cp = L(" ");	/* __TK__ why not |? */
 			gp->excmd.clen = 1;
 		} else {
 			gp->excmd.cp = tp->lb;
@@ -194,8 +190,7 @@ ex(spp)
  * PUBLIC: int ex_cmd __P((SCR *));
  */
 int
-ex_cmd(sp)
-	SCR *sp;
+ex_cmd(SCR *sp)
 {
 	enum nresult nret;
 	EX_PRIVATE *exp;
@@ -207,9 +202,12 @@ ex_cmd(sp)
 	u_int32_t flags;
 	long ltmp;
 	int at_found, gv_found;
-	int ch, cnt, delim, isaddr, namelen;
+	int cnt, delim, isaddr, namelen;
 	int newscreen, notempty, tmp, vi_address;
-	char *arg1, *p, *s, *t;
+	CHAR_T *arg1, *s, *p, *t;
+	CHAR_T ch = '\0';
+	CHAR_T *n;
+	char *np;
 
 	gp = sp->gp;
 	exp = EXP(sp);
@@ -219,7 +217,7 @@ ex_cmd(sp)
 	 * This means that *everything* must be resolved when we leave
 	 * this function for any reason.
 	 */
-loop:	ecp = gp->ecq.lh_first;
+loop:	ecp = SLIST_FIRST(gp->ecq);
 
 	/* If we're reading a command from a file, set up error information. */
 	if (ecp->if_name != NULL) {
@@ -261,7 +259,7 @@ loop:	ecp = gp->ecq.lh_first;
 		if ((ch = *ecp->cp) == '\n') {
 			++gp->if_lno;
 			++ecp->if_lno;
-		} else if (isblank(ch))
+		} else if (cmdskip(ch))
 			notempty = 1;
 		else
 			break;
@@ -300,7 +298,7 @@ loop:	ecp = gp->ecq.lh_first;
 	/* Skip whitespace. */
 	for (; ecp->clen > 0; ++ecp->cp, --ecp->clen) {
 		ch = *ecp->cp;
-		if (!isblank(ch))
+		if (!cmdskip(ch))
 			break;
 	}
 
@@ -323,7 +321,7 @@ loop:	ecp = gp->ecq.lh_first;
 	    (!notempty || F_ISSET(sp, SC_VI) || F_ISSET(ecp, E_BLIGNORE))) {
 		if (ex_load(sp))
 			goto rfail;
-		ecp = gp->ecq.lh_first;
+		ecp = SLIST_FIRST(gp->ecq);
 		if (ecp->clen == 0)
 			goto rsuccess;
 		goto loop;
@@ -355,7 +353,7 @@ loop:	ecp = gp->ecq.lh_first;
 	 */
 	for (; ecp->clen > 0; ++ecp->cp, --ecp->clen) {
 		ch = *ecp->cp;
-		if (!isblank(ch) && ch != ':')
+		if (!cmdskip(ch) && ch != ':')
 			break;
 	}
 
@@ -379,10 +377,10 @@ loop:	ecp = gp->ecq.lh_first;
 	 * from vi mode, and displayed lines 2, 3, and 4, so we do a default
 	 * command for each separator.
 	 */
-#define	SINGLE_CHAR_COMMANDS	"\004!#&*<=>@~"
+#define	SINGLE_CHAR_COMMANDS	L("\004!#&*<=>@~")
 	newscreen = 0;
 	if (ecp->clen != 0 && ecp->cp[0] != '|' && ecp->cp[0] != '\n') {
-		if (strchr(SINGLE_CHAR_COMMANDS, *ecp->cp)) {
+		if (STRCHR(SINGLE_CHAR_COMMANDS, *ecp->cp)) {
 			p = ecp->cp;
 			++ecp->cp;
 			--ecp->clen;
@@ -390,7 +388,7 @@ loop:	ecp = gp->ecq.lh_first;
 		} else {
 			for (p = ecp->cp;
 			    ecp->clen > 0; --ecp->clen, ++ecp->cp)
-				if (!isalpha(*ecp->cp))
+				if (!isascii(*ecp->cp) || !isalpha(*ecp->cp))
 					break;
 			if ((namelen = ecp->cp - p) == 0) {
 				msgq(sp, M_ERR, "080|Unknown command name");
@@ -417,7 +415,7 @@ loop:	ecp = gp->ecq.lh_first;
 		switch (p[0]) {
 		case 'd':
 			for (s = p,
-			    t = cmds[C_DELETE].name; *s == *t; ++s, ++t);
+			    n = cmds[C_DELETE].name; *s == *n; ++s, ++n);
 			if (s[0] == 'l' || s[0] == 'p' || s[0] == '+' ||
 			    s[0] == '-' || s[0] == '^' || s[0] == '#') {
 				len = (ecp->cp - p) - (s - p);
@@ -512,7 +510,7 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 
 		/* Secure means no shell access. */
 		if (F_ISSET(ecp->cmd, E_SECURE) && O_ISSET(sp, O_SECURE)) {
-			ex_emsg(sp, ecp->cmd->name, EXM_SECURE);
+			ex_wemsg(sp, ecp->cmd->name, EXM_SECURE);
 			goto err;
 		}
 
@@ -576,8 +574,8 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 
 	/* Check for ex mode legality. */
 	if (F_ISSET(sp, SC_EX) && (F_ISSET(ecp->cmd, E_VIONLY) || newscreen)) {
-		msgq(sp, M_ERR,
-		    "082|%s: command not available in ex mode", ecp->cmd->name);
+		msgq_wstr(sp, M_ERR, ecp->cmd->name,
+		    "082|%s: command not available in ex mode");
 		goto err;
 	}
 
@@ -631,7 +629,8 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 	arg1_len = 0;
 	ecp->save_cmd = ecp->cp;
 	if (ecp->cmd == &cmds[C_EDIT] || ecp->cmd == &cmds[C_EX] ||
-	    ecp->cmd == &cmds[C_NEXT] || ecp->cmd == &cmds[C_VISUAL_VI]) {
+	    ecp->cmd == &cmds[C_NEXT] || ecp->cmd == &cmds[C_VISUAL_VI] ||
+	    ecp->cmd == &cmds[C_VSPLIT]) {
 		/*
 		 * Move to the next non-whitespace character.  A '!'
 		 * immediately following the command is eaten as a
@@ -646,7 +645,7 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 			ecp->save_cmd = ecp->cp;
 		}
 		for (; ecp->clen > 0; --ecp->clen, ++ecp->cp)
-			if (!isblank(*ecp->cp))
+			if (!cmdskip(*ecp->cp))
 				break;
 		/*
 		 * QUOTING NOTE:
@@ -668,7 +667,7 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 					++discard;
 					--ecp->clen;
 					ch = *++ecp->cp;
-				} else if (isblank(ch))
+				} else if (cmdskip(ch))
 					break;
 				*p++ = ch;
 			}
@@ -712,7 +711,7 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 		 */
 		for (tmp = 0; ecp->clen > 0; --ecp->clen, ++ecp->cp) {
 			ch = *ecp->cp;
-			if (isblank(ch))
+			if (cmdskip(ch))
 				tmp = 1;
 			else
 				break;
@@ -730,10 +729,11 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 		 * into something like ":s g", so use the special s command.
 		 */
 		for (; ecp->clen > 0; --ecp->clen, ++ecp->cp)
-			if (!isblank(ecp->cp[0]))
+			if (!cmdskip(ecp->cp[0]))
 				break;
 
-		if (isalnum(ecp->cp[0]) || ecp->cp[0] == '|') {
+		if (!isascii(ecp->cp[0]) ||
+		    isalnum(ecp->cp[0]) || ecp->cp[0] == '|') {
 			ecp->rcmd = cmds[C_SUBSTITUTE];
 			ecp->rcmd.fn = ex_subagain;
 			ecp->cmd = &ecp->rcmd;
@@ -777,7 +777,7 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 	for (p = ecp->cp; ecp->clen > 0; --ecp->clen, ++ecp->cp) {
 		ch = ecp->cp[0];
 		if (IS_ESCAPE(sp, ecp, ch) && ecp->clen > 1) {
-			tmp = ecp->cp[1];
+			CHAR_T tmp = ecp->cp[1];
 			if (tmp == '\n' || tmp == '|') {
 				if (tmp == '\n') {
 					++gp->if_lno;
@@ -818,7 +818,10 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 	 */
 	if (ecp->cmd == &cmds[C_SET])
 		for (p = ecp->cp, len = ecp->clen; len > 0; --len, ++p)
-			if (*p == '\\')
+			if (IS_ESCAPE(sp, ecp, *p) && len > 1) {
+				--len;
+				++p;
+			} else if (*p == '\\')
 				*p = CH_LITERAL;
 
 	/*
@@ -937,13 +940,13 @@ two_addr:	switch (ecp->addrcnt) {
 	}
 
 	ecp->flagoff = 0;
-	for (p = ecp->cmd->syntax; *p != '\0'; ++p) {
+	for (np = ecp->cmd->syntax; *np != '\0'; ++np) {
 		/*
 		 * The force flag is sensitive to leading whitespace, i.e.
 		 * "next !" is different from "next!".  Handle it before
 		 * skipping leading <blank>s.
 		 */
-		if (*p == '!') {
+		if (*np == '!') {
 			if (ecp->clen > 0 && *ecp->cp == '!') {
 				++ecp->cp;
 				--ecp->clen;
@@ -954,12 +957,12 @@ two_addr:	switch (ecp->addrcnt) {
 
 		/* Skip leading <blank>s. */
 		for (; ecp->clen > 0; --ecp->clen, ++ecp->cp)
-			if (!isblank(*ecp->cp))
+			if (!cmdskip(*ecp->cp))
 				break;
 		if (ecp->clen == 0)
 			break;
 
-		switch (*p) {
+		switch (*np) {
 		case '1':				/* +, -, #, l, p */
 			/*
 			 * !!!
@@ -1014,7 +1017,7 @@ end_case1:		break;
 					FL_SET(ecp->iflags, E_C_CARAT);
 					break;
 				case '=':
-					if (*p == '3') {
+					if (*np == '3') {
 						FL_SET(ecp->iflags, E_C_EQUAL);
 						break;
 					}
@@ -1034,7 +1037,7 @@ end_case23:		break;
 			 */
 			if ((ecp->cp[0] == '+' || ecp->cp[0] == '-' ||
 			    ecp->cp[0] == '^' || ecp->cp[0] == '#') &&
-			    strchr(p, '1') != NULL)
+			    strchr(np, '1') != NULL)
 				break;
 			/*
 			 * !!!
@@ -1042,7 +1045,7 @@ end_case23:		break;
 			 * command "d2" would be a delete into buffer '2', and
 			 * not a two-line deletion.
 			 */
-			if (!isdigit(ecp->cp[0])) {
+			if (!ISDIGIT(ecp->cp[0])) {
 				ecp->buffer = *ecp->cp;
 				++ecp->cp;
 				--ecp->clen;
@@ -1050,9 +1053,9 @@ end_case23:		break;
 			}
 			break;
 		case 'c':				/* count [01+a] */
-			++p;
+			++np;
 			/* Validate any signed value. */
-			if (!isdigit(*ecp->cp) && (*p != '+' ||
+			if (!ISDIGIT(*ecp->cp) && (*np != '+' ||
 			    (*ecp->cp != '+' && *ecp->cp != '-')))
 				break;
 			/* If a signed value, set appropriate flags. */
@@ -1065,7 +1068,7 @@ end_case23:		break;
 				ex_badaddr(sp, NULL, A_NOTSET, nret);
 				goto err;
 			}
-			if (ltmp == 0 && *p != '0') {
+			if (ltmp == 0 && *np != '0') {
 				msgq(sp, M_ERR, "083|Count may not be zero");
 				goto err;
 			}
@@ -1081,7 +1084,7 @@ end_case23:		break;
 			 * join) do different things with counts than with
 			 * line addresses.
 			 */
-			if (*p == 'a') {
+			if (*np == 'a') {
 				ecp->addr1 = ecp->addr2;
 				ecp->addr2.lno = ecp->addr1.lno + ltmp - 1;
 			} else
@@ -1108,7 +1111,7 @@ end_case23:		break;
 
 			/* Line specifications are always required. */
 			if (!isaddr) {
-				msgq_str(sp, M_ERR, ecp->cp,
+				msgq_wstr(sp, M_ERR, ecp->cp,
 				     "084|%s: bad line specification");
 				goto err;
 			}
@@ -1151,7 +1154,7 @@ end_case23:		break;
 				    ecp, ch) && ecp->clen > 1) {
 					--ecp->clen;
 					*p++ = *++ecp->cp;
-				} else if (isblank(ch)) {
+				} else if (cmdskip(ch)) {
 					++ecp->cp;
 					--ecp->clen;
 					break;
@@ -1165,7 +1168,7 @@ end_case23:		break;
 			for (; ecp->clen > 0;
 			    --ecp->clen, ++ecp->cp) {
 				ch = *ecp->cp;
-				if (!isblank(ch))
+				if (!cmdskip(ch))
 					break;
 			}
 			if (ecp->clen == 0)
@@ -1188,29 +1191,35 @@ end_case23:		break;
 		case 'w':				/* word */
 			if (argv_exp3(sp, ecp, ecp->cp, ecp->clen))
 				goto err;
-arg_cnt_chk:		if (*++p != 'N') {		/* N */
+arg_cnt_chk:		if (*++np != 'N') {		/* N */
 				/*
 				 * If a number is specified, must either be
 				 * 0 or that number, if optional, and that
 				 * number, if required.
 				 */
-				tmp = *p - '0';
-				if ((*++p != 'o' || exp->argsoff != 0) &&
+				tmp = *np - '0';
+				if ((*++np != 'o' || exp->argsoff != 0) &&
 				    exp->argsoff != tmp)
 					goto usage;
 			}
 			goto addr_verify;
-		default:
+		default: {
+			size_t nlen;
+			char *nstr;
+
+			INT2CHAR(sp, ecp->cmd->name, STRLEN(ecp->cmd->name) + 1,
+			    nstr, nlen);
 			msgq(sp, M_ERR,
 			    "085|Internal syntax table error (%s: %s)",
-			    ecp->cmd->name, KEY_NAME(sp, *p));
+			    nstr, KEY_NAME(sp, *np));
+		}
 		}
 	}
 
 	/* Skip trailing whitespace. */
 	for (; ecp->clen > 0; --ecp->clen) {
 		ch = *ecp->cp++;
-		if (!isblank(ch))
+		if (!cmdskip(ch))
 			break;
 	}
 
@@ -1218,7 +1227,7 @@ arg_cnt_chk:		if (*++p != 'N') {		/* N */
 	 * There shouldn't be anything left, and no more required fields,
 	 * i.e neither 'l' or 'r' in the syntax string.
 	 */
-	if (ecp->clen != 0 || strpbrk(p, "lr")) {
+	if (ecp->clen != 0 || strpbrk(np, "lr")) {
 usage:		msgq(sp, M_ERR, "086|Usage: %s", ecp->cmd->usage);
 		goto err;
 	}
@@ -1381,8 +1390,8 @@ addr_verify:
 	/* Make sure no function left global temporary space locked. */
 	if (F_ISSET(gp, G_TMP_INUSE)) {
 		F_CLR(gp, G_TMP_INUSE);
-		msgq(sp, M_ERR, "087|%s: temporary buffer not released",
-		    ecp->cmd->name);
+		msgq_wstr(sp, M_ERR, ecp->cmd->name,
+		    "087|%s: temporary buffer not released");
 	}
 #endif
 	/*
@@ -1495,7 +1504,7 @@ addr_verify:
 
 		ecp->save_cmd -= arg1_len;
 		ecp->save_cmdlen += arg1_len;
-		memcpy(ecp->save_cmd, arg1, arg1_len);
+		MEMCPY(ecp->save_cmd, arg1, arg1_len);
 
 		/*
 		 * Any commands executed from a +cmd are executed starting at
@@ -1529,8 +1538,7 @@ addr_verify:
 	 */
 	if (F_ISSET(sp, SC_EXIT | SC_EXIT_FORCE | SC_FSWITCH | SC_SSWITCH)) {
 		at_found = gv_found = 0;
-		for (ecp = sp->gp->ecq.lh_first;
-		    ecp != NULL; ecp = ecp->q.le_next)
+		SLIST_FOREACH(ecp, sp->gp->ecq, q)
 			switch (ecp->agv_flags) {
 			case 0:
 			case AGV_AT_NORANGE:
@@ -1582,7 +1590,7 @@ err:	/*
 				break;
 			}
 		}
-	if (ecp->save_cmdlen != 0 || gp->ecq.lh_first != &gp->excmd) {
+	if (ecp->save_cmdlen != 0 || SLIST_FIRST(gp->ecq) != &gp->excmd) {
 discard:	msgq(sp, M_BERR,
 		    "092|Ex command failed: pending commands discarded");
 		ex_discard(sp);
@@ -1611,10 +1619,7 @@ rsuccess:	tmp = 0;
  * PUBLIC: int ex_range __P((SCR *, EXCMD *, int *));
  */
 int
-ex_range(sp, ecp, errp)
-	SCR *sp;
-	EXCMD *ecp;
-	int *errp;
+ex_range(SCR *sp, EXCMD *ecp, int *errp)
 {
 	enum { ADDR_FOUND, ADDR_NEED, ADDR_NONE } addr;
 	GS *gp;
@@ -1813,19 +1818,15 @@ ret:	if (F_ISSET(ecp, E_VISEARCH))
  * it's fairly close.
  */
 static int
-ex_line(sp, ecp, mp, isaddrp, errp)
-	SCR *sp;
-	EXCMD *ecp;
-	MARK *mp;
-	int *isaddrp, *errp;
+ex_line(SCR *sp, EXCMD *ecp, MARK *mp, int *isaddrp, int *errp)
 {
 	enum nresult nret;
 	EX_PRIVATE *exp;
 	GS *gp;
 	long total, val;
 	int isneg;
-	int (*sf) __P((SCR *, MARK *, MARK *, char *, size_t, char **, u_int));
-	char *endp;
+	int (*sf) __P((SCR *, MARK *, MARK *, CHAR_T *, size_t, CHAR_T **, u_int));
+	CHAR_T *endp;
 
 	gp = sp->gp;
 	exp = EXP(sp);
@@ -1834,7 +1835,7 @@ ex_line(sp, ecp, mp, isaddrp, errp)
 	F_CLR(ecp, E_DELTA);
 
 	/* No addresses permitted until a file has been read in. */
-	if (sp->ep == NULL && strchr("$0123456789'\\/?.+-^", *ecp->cp)) {
+	if (sp->ep == NULL && STRCHR(L("$0123456789'\\/?.+-^"), *ecp->cp)) {
 		ex_badaddr(sp, NULL, A_EMPTY, NUM_OK);
 		*errp = 1;
 		return (0);
@@ -1895,7 +1896,7 @@ ex_line(sp, ecp, mp, isaddrp, errp)
 		 * difference.  C'est la vie.
 		 */
 		if (ecp->clen < 2 ||
-		    ecp->cp[1] != '/' && ecp->cp[1] != '?') {
+		    (ecp->cp[1] != '/' && ecp->cp[1] != '?')) {
 			msgq(sp, M_ERR, "096|\\ not followed by / or ?");
 			*errp = 1;
 			return (0);
@@ -1945,7 +1946,7 @@ search:		mp->lno = sp->lno;
 		 * the '+' could be omitted.  (This feature is found in ed
 		 * as well.)
 		 */
-		if (ecp->clen > 1 && isdigit(ecp->cp[1]))
+		if (ecp->clen > 1 && ISDIGIT(ecp->cp[1]))
 			*ecp->cp = '+';
 		else {
 			++ecp->cp;
@@ -1956,14 +1957,14 @@ search:		mp->lno = sp->lno;
 
 	/* Skip trailing <blank>s. */
 	for (; ecp->clen > 0 &&
-	    isblank(ecp->cp[0]); ++ecp->cp, --ecp->clen);
+	    cmdskip(ecp->cp[0]); ++ecp->cp, --ecp->clen);
 
 	/*
 	 * Evaluate any offset.  If no address yet found, the offset
 	 * is relative to ".".
 	 */
 	total = 0;
-	if (ecp->clen != 0 && (isdigit(ecp->cp[0]) ||
+	if (ecp->clen != 0 && (ISDIGIT(ecp->cp[0]) ||
 	    ecp->cp[0] == '+' || ecp->cp[0] == '-' ||
 	    ecp->cp[0] == '^')) {
 		if (!*isaddrp) {
@@ -1999,14 +2000,14 @@ search:		mp->lno = sp->lno;
 		 */
 		F_SET(ecp, E_DELTA);
 		for (;;) {
-			for (; ecp->clen > 0 && isblank(ecp->cp[0]);
+			for (; ecp->clen > 0 && cmdskip(ecp->cp[0]);
 			    ++ecp->cp, --ecp->clen);
-			if (ecp->clen == 0 || !isdigit(ecp->cp[0]) &&
+			if (ecp->clen == 0 || (!ISDIGIT(ecp->cp[0]) &&
 			    ecp->cp[0] != '+' && ecp->cp[0] != '-' &&
-			    ecp->cp[0] != '^')
+			    ecp->cp[0] != '^'))
 				break;
-			if (!isdigit(ecp->cp[0]) &&
-			    !isdigit(ecp->cp[1])) {
+			if (!ISDIGIT(ecp->cp[0]) &&
+			    !ISDIGIT(ecp->cp[1])) {
 				total += ecp->cp[0] == '+' ? 1 : -1;
 				--ecp->clen;
 				++ecp->cp;
@@ -2064,8 +2065,7 @@ search:		mp->lno = sp->lno;
  *	Load up the next command, which may be an @ buffer or global command.
  */
 static int
-ex_load(sp)
-	SCR *sp;
+ex_load(SCR *sp)
 {
 	GS *gp;
 	EXCMD *ecp;
@@ -2078,16 +2078,18 @@ ex_load(sp)
 	 * can't be an AGV command, which makes things a bit easier.
 	 */
 	for (gp = sp->gp;;) {
+		ecp = SLIST_FIRST(gp->ecq);
+
+		/* Discard the allocated source name as requested. */
+		if (F_ISSET(ecp, E_NAMEDISCARD))
+			free(ecp->if_name);
+
 		/*
 		 * If we're back to the original structure, leave it around,
-		 * but discard any allocated source name, we've returned to
-		 * the beginning of the command stack.
+		 * since we've returned to the beginning of the command stack.
 		 */
-		if ((ecp = gp->ecq.lh_first) == &gp->excmd) {
-			if (F_ISSET(ecp, E_NAMEDISCARD)) {
-				free(ecp->if_name);
-				ecp->if_name = NULL;
-			}
+		if (ecp == &gp->excmd) {
+			ecp->if_name = NULL;
 			return (0);
 		}
 
@@ -2107,15 +2109,15 @@ ex_load(sp)
 		 */
 		if (FL_ISSET(ecp->agv_flags, AGV_ALL)) {
 			/* Discard any exhausted ranges. */
-			while ((rp = ecp->rq.cqh_first) != (void *)&ecp->rq)
+			while ((rp = TAILQ_FIRST(ecp->rq)) != NULL)
 				if (rp->start > rp->stop) {
-					CIRCLEQ_REMOVE(&ecp->rq, rp, q);
+					TAILQ_REMOVE(ecp->rq, rp, q);
 					free(rp);
 				} else
 					break;
 
 			/* If there's another range, continue with it. */
-			if (rp != (void *)&ecp->rq)
+			if (rp != NULL)
 				break;
 
 			/* If it's a global/v command, fix up the last line. */
@@ -2133,7 +2135,7 @@ ex_load(sp)
 		}
 
 		/* Discard the EXCMD. */
-		LIST_REMOVE(ecp, q);
+		SLIST_REMOVE_HEAD(gp->ecq, q);
 		free(ecp);
 	}
 
@@ -2144,7 +2146,7 @@ ex_load(sp)
 	 * so we have play games.
 	 */
 	ecp->cp = ecp->o_cp;
-	memcpy(ecp->cp, ecp->cp + ecp->o_clen, ecp->o_clen);
+	MEMCPY(ecp->cp, ecp->cp + ecp->o_clen, ecp->o_clen);
 	ecp->clen = ecp->o_clen;
 	ecp->range_lno = sp->lno = rp->start++;
 
@@ -2158,8 +2160,7 @@ ex_load(sp)
  *	Discard any pending ex commands.
  */
 static int
-ex_discard(sp)
-	SCR *sp;
+ex_discard(SCR *sp)
 {
 	GS *gp;
 	EXCMD *ecp;
@@ -2169,18 +2170,26 @@ ex_discard(sp)
 	 * We know the first command can't be an AGV command, so we don't
 	 * process it specially.  We do, however, nail the command itself.
 	 */
-	for (gp = sp->gp; (ecp = gp->ecq.lh_first) != &gp->excmd;) {
+	for (gp = sp->gp;;) {
+		ecp = SLIST_FIRST(gp->ecq);
+		if (F_ISSET(ecp, E_NAMEDISCARD))
+			free(ecp->if_name);
+		/* Reset the last command without dropping it. */
+		if (ecp == &gp->excmd)
+			break;
 		if (FL_ISSET(ecp->agv_flags, AGV_ALL)) {
-			while ((rp = ecp->rq.cqh_first) != (void *)&ecp->rq) {
-				CIRCLEQ_REMOVE(&ecp->rq, rp, q);
+			while ((rp = TAILQ_FIRST(ecp->rq)) != NULL) {
+				TAILQ_REMOVE(ecp->rq, rp, q);
 				free(rp);
 			}
 			free(ecp->o_cp);
 		}
-		LIST_REMOVE(ecp, q);
+		SLIST_REMOVE_HEAD(gp->ecq, q);
 		free(ecp);
 	}
-	gp->ecq.lh_first->clen = 0;
+
+	ecp->if_name = NULL;
+	ecp->clen = 0;
 	return (0);
 }
 
@@ -2189,19 +2198,16 @@ ex_discard(sp)
  *	Display an unknown command name.
  */
 static void
-ex_unknown(sp, cmd, len)
-	SCR *sp;
-	char *cmd;
-	size_t len;
+ex_unknown(SCR *sp, CHAR_T *cmd, size_t len)
 {
 	size_t blen;
-	char *bp;
+	CHAR_T *bp;
 
-	GET_SPACE_GOTO(sp, bp, blen, len + 1);
+	GET_SPACE_GOTOW(sp, bp, blen, len + 1);
 	bp[len] = '\0';
-	memcpy(bp, cmd, len);
-	msgq_str(sp, M_ERR, bp, "098|The %s command is unknown");
-	FREE_SPACE(sp, bp, blen);
+	MEMCPY(bp, cmd, len);
+	msgq_wstr(sp, M_ERR, bp, "098|The %s command is unknown");
+	FREE_SPACEW(sp, bp, blen);
 
 alloc_err:
 	return;
@@ -2213,12 +2219,10 @@ alloc_err:
  *	[un]abbreviate command, so it can turn off abbreviations.  See
  *	the usual ranting in the vi/v_txt_ev.c:txt_abbrev() routine.
  *
- * PUBLIC: int ex_is_abbrev __P((char *, size_t));
+ * PUBLIC: int ex_is_abbrev __P((CHAR_T *, size_t));
  */
 int
-ex_is_abbrev(name, len)
-	char *name;
-	size_t len;
+ex_is_abbrev(CHAR_T *name, size_t len)
 {
 	EXCMDLIST const *cp;
 
@@ -2232,12 +2236,10 @@ ex_is_abbrev(name, len)
  *	unmap command, so it can turn off input mapping.  See the usual
  *	ranting in the vi/v_txt_ev.c:txt_unmap() routine.
  *
- * PUBLIC: int ex_is_unmap __P((char *, size_t));
+ * PUBLIC: int ex_is_unmap __P((CHAR_T *, size_t));
  */
 int
-ex_is_unmap(name, len)
-	char *name;
-	size_t len;
+ex_is_unmap(CHAR_T *name, size_t len)
 {
 	EXCMDLIST const *cp;
 
@@ -2257,9 +2259,7 @@ ex_is_unmap(name, len)
  *	Search for a command name.
  */
 static EXCMDLIST const *
-ex_comm_search(name, len)
-	char *name;
-	size_t len;
+ex_comm_search(CHAR_T *name, size_t len)
 {
 	EXCMDLIST const *cp;
 
@@ -2268,7 +2268,7 @@ ex_comm_search(name, len)
 			return (NULL);
 		if (cp->name[0] != name[0])
 			continue;
-		if (!memcmp(name, cp->name, len))
+		if (!MEMCMP(name, cp->name, len))
 			return (cp);
 	}
 	return (NULL);
@@ -2282,11 +2282,7 @@ ex_comm_search(name, len)
  * PUBLIC:    __P((SCR *, EXCMDLIST const *, enum badaddr, enum nresult));
  */
 void
-ex_badaddr(sp, cp, ba, nret)
-	SCR *sp;
-	EXCMDLIST const *cp;
-	enum badaddr ba;
-	enum nresult nret;
+ex_badaddr(SCR *sp, const EXCMDLIST *cp, enum badaddr ba, enum nresult nret)
 {
 	recno_t lno;
 
@@ -2309,7 +2305,7 @@ ex_badaddr(sp, cp, ba, nret)
 	 * underlying file, that's the real problem.
 	 */
 	if (sp->ep == NULL) {
-		ex_emsg(sp, cp ? cp->name : NULL, EXM_NOFILEYET);
+		ex_wemsg(sp, cp ? cp->name : NULL, EXM_NOFILEYET);
 		return;
 	}
 
@@ -2323,7 +2319,7 @@ ex_badaddr(sp, cp, ba, nret)
 		if (lno != 0) {
 			msgq(sp, M_ERR,
 			    "102|Illegal address: only %lu lines in the file",
-			    lno);
+			    (u_long)lno);
 			break;
 		}
 		/* FALLTHROUGH */
@@ -2334,9 +2330,8 @@ ex_badaddr(sp, cp, ba, nret)
 		abort();
 		/* NOTREACHED */
 	case A_ZERO:
-		msgq(sp, M_ERR,
-		    "104|The %s command doesn't permit an address of 0",
-		    cp->name);
+		msgq_wstr(sp, M_ERR, cp->name,
+		    "104|The %s command doesn't permit an address of 0");
 		break;
 	}
 	return;
@@ -2352,7 +2347,7 @@ ex_comlog(sp, ecp)
 	SCR *sp;
 	EXCMD *ecp;
 {
-	TRACE(sp, "ecmd: %s", ecp->cmd->name);
+	TRACE(sp, "ecmd: "WS, ecp->cmd->name);
 	if (ecp->addrcnt > 0) {
 		TRACE(sp, " a1 %d", ecp->addr1.lno);
 		if (ecp->addrcnt > 1)
@@ -2362,11 +2357,13 @@ ex_comlog(sp, ecp)
 		TRACE(sp, " line %d", ecp->lineno);
 	if (ecp->flags)
 		TRACE(sp, " flags 0x%x", ecp->flags);
-	if (F_ISSET(&exc, E_BUFFER))
-		TRACE(sp, " buffer %c", ecp->buffer);
-	if (ecp->argc)
+	if (FL_ISSET(ecp->iflags, E_C_BUFFER))
+		TRACE(sp, " buffer "WC, ecp->buffer);
+	if (ecp->argc) {
+		int cnt;
 		for (cnt = 0; cnt < ecp->argc; ++cnt)
-			TRACE(sp, " arg %d: {%s}", cnt, ecp->argv[cnt]->bp);
+			TRACE(sp, " arg %d: {"WS"}", cnt, ecp->argv[cnt]->bp);
+	}
 	TRACE(sp, "\n");
 }
 #endif
