@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_bang.c	10.33 (Berkeley) 9/23/96";
+static const char sccsid[] = "$Id: ex_bang.c,v 10.36 2001/06/25 15:19:14 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -47,9 +47,7 @@ static const char sccsid[] = "@(#)ex_bang.c	10.33 (Berkeley) 9/23/96";
  * PUBLIC: int ex_bang __P((SCR *, EXCMD *));
  */
 int
-ex_bang(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_bang(SCR *sp, EXCMD *cmdp)
 {
 	enum filtertype ftype;
 	ARGS *ap;
@@ -58,6 +56,8 @@ ex_bang(sp, cmdp)
 	recno_t lno;
 	int rval;
 	const char *msg;
+	char *np;
+	size_t nlen;
 
 	ap = cmdp->argv[0];
 	if (ap->len == 0) {
@@ -69,7 +69,7 @@ ex_bang(sp, cmdp)
 	exp = EXP(sp);
 	if (exp->lastbcomm != NULL)
 		free(exp->lastbcomm);
-	if ((exp->lastbcomm = strdup(ap->bp)) == NULL) {
+	if ((exp->lastbcomm = v_wstrdup(sp, ap->bp, ap->len)) == NULL) {
 		msgq(sp, M_SYSERR, NULL);
 		return (1);
 	}
@@ -88,7 +88,7 @@ ex_bang(sp, cmdp)
 		if (F_ISSET(sp, SC_VI))
 			vs_update(sp, "!", ap->bp);
 		else {
-			(void)ex_printf(sp, "!%s\n", ap->bp);
+			(void)ex_printf(sp, "!"WS"\n", ap->bp);
 			(void)ex_fflush(sp);
 		}
 	}
@@ -112,8 +112,9 @@ ex_bang(sp, cmdp)
 				    NULL);
 
 		/* If we're still in a vi screen, move out explicitly. */
+		INT2CHAR(sp, ap->bp, ap->len+1, np, nlen);
 		(void)ex_exec_proc(sp,
-		    cmdp, ap->bp, msg, !F_ISSET(sp, SC_EX | SC_SCR_EXWROTE));
+		    cmdp, np, msg, !F_ISSET(sp, SC_EX | SC_SCR_EXWROTE));
 	}
 
 	/*

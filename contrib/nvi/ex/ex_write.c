@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_write.c	10.30 (Berkeley) 7/12/96";
+static const char sccsid[] = "$Id: ex_write.c,v 10.41 2011/12/02 01:07:06 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -25,6 +25,7 @@ static const char sccsid[] = "@(#)ex_write.c	10.30 (Berkeley) 7/12/96";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include "../common/common.h"
@@ -39,9 +40,7 @@ static int exwr __P((SCR *, EXCMD *, enum which));
  * PUBLIC: int ex_wn __P((SCR *, EXCMD *));
  */
 int
-ex_wn(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_wn(SCR *sp, EXCMD *cmdp)
 {
 	if (exwr(sp, cmdp, WN))
 		return (1);
@@ -61,9 +60,7 @@ ex_wn(sp, cmdp)
  * PUBLIC: int ex_wq __P((SCR *, EXCMD *));
  */
 int
-ex_wq(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_wq(SCR *sp, EXCMD *cmdp)
 {
 	int force;
 
@@ -89,9 +86,7 @@ ex_wq(sp, cmdp)
  * PUBLIC: int ex_write __P((SCR *, EXCMD *));
  */
 int
-ex_write(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_write(SCR *sp, EXCMD *cmdp)
 {
 	return (exwr(sp, cmdp, WRITE));
 }
@@ -104,9 +99,7 @@ ex_write(sp, cmdp)
  * PUBLIC: int ex_xit __P((SCR *, EXCMD *));
  */
 int
-ex_xit(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_xit(SCR *sp, EXCMD *cmdp)
 {
 	int force;
 
@@ -131,14 +124,16 @@ ex_xit(sp, cmdp)
  *	The guts of the ex write commands.
  */
 static int
-exwr(sp, cmdp, cmd)
-	SCR *sp;
-	EXCMD *cmdp;
-	enum which cmd;
+exwr(SCR *sp, EXCMD *cmdp, enum which cmd)
 {
 	MARK rm;
 	int flags;
-	char *name, *p;
+	char *name;
+	CHAR_T *p = NULL;
+	size_t nlen;
+	char *n;
+	int rc;
+	EX_PRIVATE *exp;
 
 	NEEDFILE(sp, cmdp);
 
@@ -149,24 +144,30 @@ exwr(sp, cmdp, cmd)
 
 	/* Skip any leading whitespace. */
 	if (cmdp->argc != 0)
-		for (p = cmdp->argv[0]->bp; *p != '\0' && isblank(*p); ++p);
+		for (p = cmdp->argv[0]->bp; *p != '\0' && cmdskip(*p); ++p);
 
 	/* If "write !" it's a pipe to a utility. */
 	if (cmdp->argc != 0 && cmd == WRITE && *p == '!') {
 		/* Secure means no shell access. */
 		if (O_ISSET(sp, O_SECURE)) {
-			ex_emsg(sp, cmdp->cmd->name, EXM_SECURE_F);
+			ex_wemsg(sp, cmdp->cmd->name, EXM_SECURE_F);
 			return (1);
 		}
 
 		/* Expand the argument. */
-		for (++p; *p && isblank(*p); ++p);
+		for (++p; *p && cmdskip(*p); ++p);
 		if (*p == '\0') {
 			ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 			return (1);
 		}
-		if (argv_exp1(sp, cmdp, p, strlen(p), 1))
+		if (argv_exp1(sp, cmdp, p, STRLEN(p), 1))
 			return (1);
+
+		/* Set the last bang command */
+		exp = EXP(sp);
+		free(exp->lastbcomm);
+		exp->lastbcomm = v_wstrdup(sp, cmdp->argv[1]->bp,
+		    cmdp->argv[1]->len);
 
 		/*
 		 * Historically, vi waited after a write filter even if there
@@ -201,7 +202,7 @@ exwr(sp, cmdp, cmd)
 		LF_SET(FS_APPEND);
 
 		/* Skip ">>" and whitespace. */
-		for (p += 2; *p && isblank(*p); ++p);
+		for (p += 2; *p && cmdskip(*p); ++p);
 	}
 
 	/* If no other arguments, just write the file back. */
@@ -210,7 +211,7 @@ exwr(sp, cmdp, cmd)
 		    &cmdp->addr1, &cmdp->addr2, NULL, flags));
 
 	/* Build an argv so we get an argument count and file expansion. */
-	if (argv_exp2(sp, cmdp, p, strlen(p)))
+	if (argv_exp2(sp, cmdp, p, STRLEN(p)))
 		return (1);
 
 	/*
@@ -228,7 +229,9 @@ exwr(sp, cmdp, cmd)
 		abort();
 		/* NOTREACHED */
 	case 2:
-		name = cmdp->argv[1]->bp;
+		INT2CHAR(sp, cmdp->argv[1]->bp, cmdp->argv[1]->len+1,
+			 n, nlen);
+		name = v_strdup(sp, n, nlen - 1);
 
 		/*
 		 * !!!
@@ -238,10 +241,9 @@ exwr(sp, cmdp, cmd)
 		 */
 		if (F_ISSET(sp->frp, FR_TMPFILE) &&
 		    !F_ISSET(sp->frp, FR_EXNAMED)) {
-			if ((p = v_strdup(sp,
-			    cmdp->argv[1]->bp, cmdp->argv[1]->len)) != NULL) {
+			if ((n = v_strdup(sp, name, nlen - 1)) != NULL) {
 				free(sp->frp->name);
-				sp->frp->name = p;
+				sp->frp->name = n;
 			}
 			/*
 			 * The file has a real name, it's no longer a
@@ -261,11 +263,16 @@ exwr(sp, cmdp, cmd)
 			set_alt_name(sp, name);
 		break;
 	default:
-		ex_emsg(sp, p, EXM_FILECOUNT);
+		INT2CHAR(sp, p, STRLEN(p) + 1, n, nlen);
+		ex_emsg(sp, n, EXM_FILECOUNT);
 		return (1);
 	}
 
-	return (file_write(sp, &cmdp->addr1, &cmdp->addr2, name, flags));
+	rc = file_write(sp, &cmdp->addr1, &cmdp->addr2, name, flags);
+
+	free(name);
+
+	return rc;
 }
 
 /*
@@ -276,13 +283,7 @@ exwr(sp, cmdp, cmd)
  * PUBLIC:    char *, FILE *, MARK *, MARK *, u_long *, u_long *, int));
  */
 int
-ex_writefp(sp, name, fp, fm, tm, nlno, nch, silent)
-	SCR *sp;
-	char *name;
-	FILE *fp;
-	MARK *fm, *tm;
-	u_long *nlno, *nch;
-	int silent;
+ex_writefp(SCR *sp, char *name, FILE *fp, MARK *fm, MARK *tm, u_long *nlno, u_long *nch, int silent)
 {
 	struct stat sb;
 	GS *gp;
@@ -290,7 +291,11 @@ ex_writefp(sp, name, fp, fm, tm, nlno, nch, silent)
 	recno_t fline, tline, lcnt;
 	size_t len;
 	int rval;
-	char *msg, *p;
+	char *msg;
+	CHAR_T *p;
+	char *f;
+	size_t flen;
+	int isutf16;
 
 	gp = sp->gp;
 	fline = fm->lno;
@@ -319,7 +324,17 @@ ex_writefp(sp, name, fp, fm, tm, nlno, nch, silent)
 	ccnt = 0;
 	lcnt = 0;
 	msg = "253|Writing...";
-	if (tline != 0)
+
+	if (O_ISSET(sp, O_FILEENCODING)) {
+		isutf16 = !strncasecmp(O_STR(sp, O_FILEENCODING), "utf-16", 6);
+		isutf16 += !strncasecmp(O_STR(sp, O_FILEENCODING), "utf-16le", 8);
+	} else isutf16 = 0;
+
+	if (tline != 0) {
+		if (isutf16 == 1 && fwrite("\xfe\xff", 1, 2, fp) != 2)
+			goto err;
+		if (isutf16 == 2 && fwrite("\xff\xfe", 1, 2, fp) != 2)
+			goto err;
 		for (; fline <= tline; ++fline, ++lcnt) {
 			/* Caller has to provide any interrupt message. */
 			if ((lcnt + 1) % INTERRUPT_CHECK == 0) {
@@ -333,15 +348,29 @@ ex_writefp(sp, name, fp, fm, tm, nlno, nch, silent)
 			}
 			if (db_get(sp, fline, DBG_FATAL, &p, &len))
 				goto err;
-			if (fwrite(p, 1, len, fp) != len)
+			INT2FILE(sp, p, len, f, flen);
+			if (fwrite(f, 1, flen, fp) != flen)
 				goto err;
 			ccnt += len;
-			if (putc('\n', fp) != '\n')
+			/* UTF-16 w/o BOM is big-endian */
+			switch (isutf16) {
+			case 1:		/* UTF-16BE */
+				if (fwrite("\0\x0a", 1, 2, fp) != 2)
+					goto done;
 				break;
+			case 2:		/* UTF-16LE */
+				if (fwrite("\x0a\0", 1, 2, fp) != 2)
+					goto done;
+				break;
+			default:
+				if (putc('\n', fp) != '\n')
+					goto done;
+			}
 			++ccnt;
 		}
+	}
 
-	if (fflush(fp))
+done:	if (fflush(fp))
 		goto err;
 	/*
 	 * XXX
