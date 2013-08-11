@@ -982,9 +982,9 @@ cdregister(struct cam_periph *periph, void *arg)
 			STAILQ_INIT(&nchanger->chluns);
 
 			callout_init_mtx(&nchanger->long_handle,
-			    periph->sim->mtx, 0);
+			    cam_periph_mtx(periph), 0);
 			callout_init_mtx(&nchanger->short_handle,
-			    periph->sim->mtx, 0);
+			    cam_periph_mtx(periph), 0);
 
 			mtx_lock(&changerq_mtx);
 			num_changers++;
@@ -1053,7 +1053,7 @@ cdregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Schedule a periodic media polling events.
 	 */
-	callout_init_mtx(&softc->mediapoll_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->mediapoll_c, cam_periph_mtx(periph), 0);
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) &&
 	    (softc->flags & CD_FLAG_CHANGER) == 0 &&
 	    (cgd->inq_flags & SID_AEN) == 0 &&

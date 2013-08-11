@@ -1477,6 +1477,7 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	cam_status status;
 	struct cam_path *new_path;
 	struct cam_periph *old_periph;
+	int lock;
 
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_scan_lun\n"));
 
@@ -1515,6 +1516,9 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 		request_ccb->crcn.flags = flags;
 	}
 
+	lock = (xpt_path_owned(path) == 0);
+	if (lock)
+		xpt_path_lock(path);
 	if ((old_periph = cam_periph_find(path, "aprobe")) != NULL) {
 		if ((old_periph->flags & CAM_PERIPH_INVALID) == 0) {
 			probe_softc *softc;
@@ -1541,6 +1545,8 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			xpt_done(request_ccb);
 		}
 	}
+	if (lock)
+		xpt_path_unlock(path);
 }
 
 static void
@@ -1696,15 +1702,8 @@ ata_dev_advinfo(union ccb *start_ccb)
 	start_ccb->ccb_h.status = CAM_REQ_CMP;
 
 	if (cdai->flags & CDAI_FLAG_STORE) {
-		int owned;
-
-		owned = mtx_owned(start_ccb->ccb_h.path->bus->sim->mtx);
-		if (owned == 0)
-			mtx_lock(start_ccb->ccb_h.path->bus->sim->mtx);
 		xpt_async(AC_ADVINFO_CHANGED, start_ccb->ccb_h.path,
 			  (void *)(uintptr_t)cdai->buftype);
-		if (owned == 0)
-			mtx_unlock(start_ccb->ccb_h.path->bus->sim->mtx);
 	}
 }
 
@@ -2014,7 +2013,7 @@ ata_announce_periph(struct cam_periph *periph)
 	u_int	speed;
 	u_int	mb;
 
-	mtx_assert(periph->sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 
 	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;

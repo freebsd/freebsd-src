@@ -1334,7 +1334,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * Schedule a periodic event to occasionally send an
 	 * ordered tag to a device.
 	 */
-	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->sendordered_c, cam_periph_mtx(periph), 0);
 	callout_reset(&softc->sendordered_c,
 	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);

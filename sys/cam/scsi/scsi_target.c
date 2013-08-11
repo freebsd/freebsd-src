@@ -278,13 +278,10 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 			cdbg.flags = CAM_DEBUG_PERIPH;
 		else
 			cdbg.flags = CAM_DEBUG_NONE;
-		cam_periph_lock(softc->periph);
 		xpt_setup_ccb(&cdbg.ccb_h, softc->path, CAM_PRIORITY_NORMAL);
 		cdbg.ccb_h.func_code = XPT_DEBUG;
 		cdbg.ccb_h.cbfcnp = targdone;
-
 		xpt_action((union ccb *)&cdbg);
-		cam_periph_unlock(softc->periph);
 		status = cdbg.ccb_h.status & CAM_STATUS_MASK;
 		break;
 	}
@@ -821,7 +818,7 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 	user_descr = TAILQ_FIRST(abort_queue);
 	while (ccb_h == NULL && user_descr == NULL) {
 		if ((ioflag & IO_NDELAY) == 0) {
-			error = msleep(user_queue, softc->periph->sim->mtx,
+			error = cam_periph_sleep(softc->periph, user_queue,
 			    PRIBIO | PCATCH, "targrd", 0);
 			ccb_h = TAILQ_FIRST(user_queue);
 			user_descr = TAILQ_FIRST(abort_queue);
@@ -1016,7 +1013,6 @@ abort_all_pending(struct targ_softc *softc)
 	struct targ_cmd_descr   *descr;
 	struct ccb_abort	 cab;
 	struct ccb_hdr		*ccb_h;
-	struct cam_sim		*sim;
 
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("abort_all_pending\n"));
 
@@ -1049,8 +1045,7 @@ abort_all_pending(struct targ_softc *softc)
 
 	/* If we aborted at least one pending CCB ok, wait for it. */
 	if (cab.ccb_h.status == CAM_REQ_CMP) {
-		sim = xpt_path_sim(softc->path);
-		msleep(&softc->pending_ccb_queue, sim->mtx,
+		cam_periph_sleep(softc->periph, &softc->pending_ccb_queue,
 		       PRIBIO | PCATCH, "tgabrt", 0);
 	}
 

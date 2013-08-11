@@ -170,19 +170,18 @@ sginit(void)
 static void
 sgdevgonecb(void *arg)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct sg_softc *softc;
+	struct mtx *mtx;
 	int i;
 
 	periph = (struct cam_periph *)arg;
-	sim = periph->sim;
-	softc = (struct sg_softc *)periph->softc;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
+	softc = (struct sg_softc *)periph->softc;
 	KASSERT(softc->open_count >= 0, ("Negative open count %d",
 		softc->open_count));
-
-	mtx_lock(sim->mtx);
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -200,13 +199,13 @@ sgdevgonecb(void *arg)
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the final call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
 	 * with a cam_periph_unlock() call would cause a page fault.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 
@@ -461,25 +460,23 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct sg_softc   *softc;
+	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
-	sim = periph->sim;
 	softc = periph->softc;
-
-	mtx_lock(sim->mtx);
-
 	softc->open_count--;
 
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
@@ -490,7 +487,7 @@ sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * protect the open count and avoid another lock acquisition and
 	 * release.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 
 	return (0);
 }
@@ -860,7 +857,7 @@ search:
 			break;
 	}
 	if ((rdwr == NULL) || (rdwr->state != SG_RDWR_DONE)) {
-		if (msleep(rdwr, periph->sim->mtx, PCATCH, "sgread", 0) == ERESTART)
+		if (cam_periph_sleep(periph, rdwr, PCATCH, "sgread", 0) == ERESTART)
 			return (EAGAIN);
 		goto search;
 	}

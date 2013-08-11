@@ -433,7 +433,7 @@ targbhdtor(struct cam_periph *periph)
 		/* FALLTHROUGH */
 	default:
 		/* XXX Wait for callback of targbhdislun() */
-		msleep(softc, periph->sim->mtx, PRIBIO, "targbh", hz/2);
+		cam_periph_sleep(periph, softc, PRIBIO, "targbh", hz/2);
 		free(softc, M_SCSIBH);
 		break;
 	}

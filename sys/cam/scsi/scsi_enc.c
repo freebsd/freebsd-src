@@ -110,16 +110,15 @@ enc_init(void)
 static void
 enc_devgonecb(void *arg)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct enc_softc  *enc;
+	struct mtx *mtx;
 	int i;
 
 	periph = (struct cam_periph *)arg;
-	sim = periph->sim;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 	enc = (struct enc_softc *)periph->softc;
-
-	mtx_lock(sim->mtx);
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -137,13 +136,13 @@ enc_devgonecb(void *arg)
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the final call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
 	 * with a cam_periph_unlock() call would cause a page fault.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 static void
@@ -301,25 +300,23 @@ out:
 static int
 enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct enc_softc  *enc;
+	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
-	sim = periph->sim;
 	enc = periph->softc;
-
-	mtx_lock(sim->mtx);
-
 	enc->open_count--;
 
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
@@ -330,7 +327,7 @@ enc_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * protect the open count and avoid another lock acquisition and
 	 * release.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 
 	return (0);
 }
@@ -865,7 +862,7 @@ enc_kproc_init(enc_softc_t *enc)
 {
 	int result;
 
-	callout_init_mtx(&enc->status_updater, enc->periph->sim->mtx, 0);
+	callout_init_mtx(&enc->status_updater, cam_periph_mtx(enc->periph), 0);
 
 	if (cam_periph_acquire(enc->periph) != CAM_REQ_CMP)
 		return (ENXIO);

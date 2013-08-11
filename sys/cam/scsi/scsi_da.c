@@ -2037,7 +2037,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 * Schedule a periodic event to occasionally send an
 	 * ordered tag to a device.
 	 */
-	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->sendordered_c, cam_periph_mtx(periph), 0);
 	callout_reset(&softc->sendordered_c,
 	    (da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL,
 	    dasendorderedtag, softc);
@@ -2157,7 +2157,7 @@ daregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Schedule a periodic media polling events.
 	 */
-	callout_init_mtx(&softc->mediapoll_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->mediapoll_c, cam_periph_mtx(periph), 0);
 	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) &&
 	    (cgd->inq_flags & SID_AEN) == 0 &&
 	    da_poll_period != 0)

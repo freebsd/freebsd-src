@@ -130,7 +130,6 @@ struct cam_periph {
 	TAILQ_ENTRY(cam_periph)  unit_links;
 	ac_callback_t		*deferred_callback; 
 	ac_code			 deferred_ac;
-	struct mtx		 periph_mtx;
 };
 
 #define CAM_PERIPH_MAXMAPS	2
@@ -190,26 +189,38 @@ int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 static __inline void
 cam_periph_lock(struct cam_periph *periph)
 {
-	mtx_lock(periph->sim->mtx);
+	xpt_path_lock(periph->path);
 }
 
 static __inline void
 cam_periph_unlock(struct cam_periph *periph)
 {
-	mtx_unlock(periph->sim->mtx);
+	xpt_path_unlock(periph->path);
 }
 
 static __inline int
 cam_periph_owned(struct cam_periph *periph)
 {
-	return (mtx_owned(periph->sim->mtx));
+	return (xpt_path_owned(periph->path));
+}
+
+static __inline void
+cam_periph_assert(struct cam_periph *periph, int what)
+{
+	mtx_assert(xpt_path_mtx(periph->path), what);
 }
 
 static __inline int
 cam_periph_sleep(struct cam_periph *periph, void *chan, int priority,
 		 const char *wmesg, int timo)
 {
-	return (msleep(chan, periph->sim->mtx, priority, wmesg, timo));
+	return (xpt_path_sleep(periph->path, chan, priority, wmesg, timo));
+}
+
+static __inline struct mtx *
+cam_periph_mtx(struct cam_periph *periph)
+{
+	return (xpt_path_mtx(periph->path));
 }
 
 static inline struct cam_periph *
@@ -232,7 +243,7 @@ cam_periph_acquire_next(struct cam_periph *pperiph)
 {
 	struct cam_periph *periph = pperiph;
 
-	mtx_assert(pperiph->sim->mtx, MA_NOTOWNED);
+	cam_periph_assert(pperiph, MA_NOTOWNED);
 	xpt_lock_buses();
 	do {
 		periph = TAILQ_NEXT(periph, unit_links);

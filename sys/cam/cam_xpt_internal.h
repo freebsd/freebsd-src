@@ -29,6 +29,8 @@
 #ifndef _CAM_CAM_XPT_INTERNAL_H
 #define _CAM_CAM_XPT_INTERNAL_H 1
 
+#include <sys/taskqueue.h>
+
 /* Forward Declarations */
 struct cam_eb;
 struct cam_et;
@@ -125,6 +127,8 @@ struct cam_ed {
 	u_int32_t	 refcount;
 	struct callout	 callout;
 	STAILQ_ENTRY(cam_ed) highpowerq_entry;
+	struct mtx	 device_mtx;
+	struct task	 device_destroy_task;
 };
 
 /*

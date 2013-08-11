@@ -915,10 +915,8 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	cdm.matches         = &match_result;
 
 	sim = xpt_path_sim(cdm.ccb_h.path);
-	CAM_SIM_LOCK(sim);
 	xpt_action((union ccb *)&cdm);
 	xpt_free_path(cdm.ccb_h.path);
-	CAM_SIM_UNLOCK(sim);
 
 	if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
 	 || (cdm.status != CAM_DEV_MATCH_LAST
@@ -935,10 +933,7 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 
 	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);
 
-	sim = xpt_path_sim(cdm.ccb_h.path);
-	CAM_SIM_LOCK(sim);
 	xpt_free_path(cdm.ccb_h.path);
-	CAM_SIM_UNLOCK(sim);
 }
 
 /**

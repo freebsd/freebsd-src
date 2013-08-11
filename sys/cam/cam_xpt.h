@@ -103,6 +103,14 @@ void			xpt_release_boot(void);
 void			xpt_lock_buses(void);
 void			xpt_unlock_buses(void);
 void			xpt_assert_buses(int what);
+void			xpt_path_lock(struct cam_path *path);
+void			xpt_path_unlock(struct cam_path *path);
+void			xpt_path_assert(struct cam_path *path, int what);
+int			xpt_path_owned(struct cam_path *path);
+int			xpt_path_sleep(struct cam_path *path, void *chan,
+				       int priority, const char *wmesg,
+				       int timo);
+struct mtx *		xpt_path_mtx(struct cam_path *path);
 cam_status		xpt_register_async(int event, ac_callback_t *cbfunc,
 					   void *cbarg, struct cam_path *path);
 cam_status		xpt_compile_path(struct cam_path *new_path,
