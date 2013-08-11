@@ -4435,7 +4435,7 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 {
 	struct cam_et *cur_target, *target;
 
-	xpt_assert_buses(MA_OWNED);
+	mtx_assert(&xsoftc.xpt_topo_lock, MA_OWNED);
 	mtx_assert(&bus->eb_mtx, MA_OWNED);
 	target = (struct cam_et *)malloc(sizeof(*target), M_CAMXPT,
 					 M_NOWAIT|M_ZERO);
@@ -4990,12 +4990,6 @@ xpt_unlock_buses(void)
 }
 
 void
-xpt_assert_buses(int what)
-{
-	mtx_assert(&xsoftc.xpt_topo_lock, what);
-}
-
-void
 xpt_path_lock(struct cam_path *path)
 {
 
@@ -5007,13 +5001,6 @@ xpt_path_unlock(struct cam_path *path)
 {
 
 	mtx_unlock(&path->device->device_mtx);
-}
-
-void
-xpt_path_assert(struct cam_path *path, int what)
-{
-
-	mtx_assert(&path->device->device_mtx, what);
 }
 
 int

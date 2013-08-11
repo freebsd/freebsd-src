@@ -204,11 +204,8 @@ cam_periph_owned(struct cam_periph *periph)
 	return (xpt_path_owned(periph->path));
 }
 
-static __inline void
-cam_periph_assert(struct cam_periph *periph, int what)
-{
-	mtx_assert(xpt_path_mtx(periph->path), what);
-}
+#define cam_periph_assert(periph, what)					\
+	mtx_assert(xpt_path_mtx((periph)->path), (what))
 
 static __inline int
 cam_periph_sleep(struct cam_periph *periph, void *chan, int priority,

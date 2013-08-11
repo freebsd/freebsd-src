@@ -102,10 +102,9 @@ void			xpt_hold_boot(void);
 void			xpt_release_boot(void);
 void			xpt_lock_buses(void);
 void			xpt_unlock_buses(void);
-void			xpt_assert_buses(int what);
 void			xpt_path_lock(struct cam_path *path);
 void			xpt_path_unlock(struct cam_path *path);
-void			xpt_path_assert(struct cam_path *path, int what);
+#define xpt_path_assert(path, what)	mtx_assert(xpt_path_mtx(path), (what))
 int			xpt_path_owned(struct cam_path *path);
 int			xpt_path_sleep(struct cam_path *path, void *chan,
 				       int priority, const char *wmesg,
