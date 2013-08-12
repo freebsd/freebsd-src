@@ -16,33 +16,19 @@ all:		dump
 
 build-tools:	dump
 
-# If we have iconv available, convert the ISO-8859 encoded files
-# to UTF-8 as well.
-.if ${MK_ICONV} == yes
-
-.for c in dutch english french german polish spanish swedish
-CAT+=	${c}.UTF-8
-CLEANFILES+=${c}.UTF-8.base
-$c.UTF-8.base:	${c}.base
-.if ${c} == "polish"
-	iconv -f ISO8859-2 -t UTF-8 ${.ALLSRC} > ${.TARGET}
-.else
-	iconv -f ISO8859-1 -t UTF-8 ${.ALLSRC} > ${.TARGET}
-.endif
+# Helper since iconv is non trivial to make a build tool
+utf8convert:
+.for c in dutch french german spanish swedish
+	iconv -f ISO8859-1 -t UTF-8 $V/catalog/$c.base > $c.UTF-8.base
 .endfor
-
-CAT+=	zh_CN.UTF-8 uk_UA.UTF-8 ru_RU.UTF-8
-CLEANFILES+=	zh_CN.UTF-8.base uk_UA.UTF-8.base ru_RU.UTF-8.base
-zh_CN.UTF-8.base:	zh_CN.GB2312.base
-	iconv -f GB2312 -t UTF-8 ${.ALLSRC} > ${.TARGET}
-
-uk_UA.UTF-8.base:	uk_UA.KOI8-U.base
-	iconv -f KOI8-U -t UTF-8 ${.ALLSRC} > ${.TARGET}
-
-ru_RU.UTF-8.base:	ru_RU.KOI8-R.base
-	iconv -f KOI8-R -t UTF-8 ${.ALLSRC} > ${.TARGET}
-
-.endif
+	iconv -f ISO8859-2 -t UTF-8 $V/catalog/polish.base > polish.UTF-8.base
+	iconv -f GB2312 -t UTF-8 $V/catalog/zh_CN.GB2312.base > zh_CN.UTF-8.base
+	iconv -f KOI8-R -t UTF-8 $V/catalog/ru_RU.KOI8-R.base > ru_RU.UTF-8.base
+	iconv -f KOI8-U -t UTF-8 $V/catalog/uk_UA.KOI8-U.base > uk_UA.UTF-8.base
+	
+.for c in dutch french german polish spanish swedish zh_CN ru_RU uk_UA
+CAT+=	$c.UTF-8
+.endfor
 
 .for c in ${CAT}
 ${c}:	${c}.base 
@@ -134,59 +120,42 @@ SYMLINKS=
 .for l in ${NLLINKS}
 SYMLINKS+= dutch ${FILESDIR}/$l.ISO8859-1
 SYMLINKS+= dutch ${FILESDIR}/$l.ISO8859-15
+SYMLINKS+= dutch.UTF-8 ${FILESDIR}/$l.UTF-8
 .endfor
 .for l in ${ENLINKS}
 SYMLINKS+= english ${FILESDIR}/$l.ISO8859-1
 SYMLINKS+= english ${FILESDIR}/$l.ISO8859-15
 SYMLINKS+= english ${FILESDIR}/$l.US-ASCII
+SYMLINKS+= english ${FILESDIR}/$l.UTF-8
 .endfor
 SYMLINKS+= english ${FILESDIR}/POSIX
 SYMLINKS+= english ${FILESDIR}/C
 .for l in ${FRLINKS}
 SYMLINKS+= french ${FILESDIR}/$l.ISO8859-1
 SYMLINKS+= french ${FILESDIR}/$l.ISO8859-15
+SYMLINKS+= french.UTF-8 ${FILESDIR}/$l.UTF-8
 .endfor
 .for l in ${DELINKS}
 SYMLINKS+= german ${FILESDIR}/$l.ISO8859-1
 SYMLINKS+= german ${FILESDIR}/$l.ISO8859-15
+SYMLINKS+= german.UTF-8 ${FILESDIR}/$l.UTF-8
 .endfor
 .for l in ${ESLINKS}
 SYMLINKS+= spanish ${FILESDIR}/$l.ISO8859-1
 SYMLINKS+= spanish ${FILESDIR}/$l.ISO8859-15
+SYMLINKS+= spanish.UTF-8 ${FILESDIR}/$l.UTF-8
 .endfor
 .for l in ${SVLINKS}
 SYMLINKS+= swedish ${FILESDIR}/$l.ISO8859-1
 SYMLINKS+= swedish ${FILESDIR}/$l.ISO8859-15
-.endfor
-.for l in ${PLLINKS}
-SYMLINKS+= polish ${FILESDIR}/$l.ISO8859-2
-.endfor
-# iconv not required for these.
-SYMLINKS+= zh_CN.GB2312 ${FILESDIR}/zh_CN.GB18030
-SYMLINKS+= zh_CN.GB2312 ${FILESDIR}/zh_CN.GBK
-SYMLINKS+= zh_CN.GB2312 ${FILESDIR}/zh_CN.eucCN
-.if ${MK_ICONV} == yes
-.for l in ${NLLINKS}
-SYMLINKS+= dutch.UTF-8 ${FILESDIR}/$l.UTF-8
-.endfor
-.for l in ${ENLINKS}
-SYMLINKS+= english.UTF-8 ${FILESDIR}/$l.UTF-8
-.endfor
-.for l in ${FRLINKS}
-SYMLINKS+= french.UTF-8 ${FILESDIR}/$l.UTF-8
-.endfor
-.for l in ${DELINKS}
-SYMLINKS+= german.UTF-8 ${FILESDIR}/$l.UTF-8
-.endfor
-.for l in ${ESLINKS}
-SYMLINKS+= spanish.UTF-8 ${FILESDIR}/$l.UTF-8
-.endfor
-.for l in ${SVLINKS}
 SYMLINKS+= swedish.UTF-8 ${FILESDIR}/$l.UTF-8
 .endfor
 .for l in ${PLLINKS}
+SYMLINKS+= polish ${FILESDIR}/$l.ISO8859-2
 SYMLINKS+= polish.UTF-8 ${FILESDIR}/$l.UTF-8
 .endfor
-.endif
+SYMLINKS+= zh_CN.GB2312 ${FILESDIR}/zh_CN.GB18030
+SYMLINKS+= zh_CN.GB2312 ${FILESDIR}/zh_CN.GBK
+SYMLINKS+= zh_CN.GB2312 ${FILESDIR}/zh_CN.eucCN
 
 .include <bsd.prog.mk>
