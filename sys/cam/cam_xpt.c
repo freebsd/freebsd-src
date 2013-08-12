@@ -3984,7 +3984,9 @@ xpt_async_process_dev(struct cam_ed *device, void *arg)
 	if ((device->lun_id == CAM_LUN_WILDCARD &&
 	     path->device->lun_id != CAM_LUN_WILDCARD) ||
 	    (device->target->target_id == CAM_TARGET_WILDCARD &&
-	     path->target->target_id != CAM_TARGET_WILDCARD)) {
+	     path->target->target_id != CAM_TARGET_WILDCARD) ||
+	    (device->target->bus->path_id == CAM_BUS_WILDCARD &&
+	     path->target->bus->path_id != CAM_BUS_WILDCARD)) {
 		mtx_unlock(&device->device_mtx);
 		xpt_path_lock(path);
 		relock = 1;
