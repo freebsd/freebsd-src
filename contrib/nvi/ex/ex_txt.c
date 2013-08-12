@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_txt.c	10.17 (Berkeley) 10/10/96";
+static const char sccsid[] = "$Id: ex_txt.c,v 10.23 2001/06/25 15:19:21 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -24,6 +25,7 @@ static const char sccsid[] = "@(#)ex_txt.c	10.17 (Berkeley) 10/10/96";
 #include <string.h>
 
 #include "../common/common.h"
+#include "../vi/vi.h"
 
 /*
  * !!!
@@ -52,11 +54,7 @@ static void	txt_prompt __P((SCR *, TEXT *, ARG_CHAR_T, u_int32_t));
  * PUBLIC: int ex_txt __P((SCR *, TEXTH *, ARG_CHAR_T, u_int32_t));
  */
 int
-ex_txt(sp, tiqh, prompt, flags)
-	SCR *sp;
-	TEXTH *tiqh;
-	ARG_CHAR_T prompt;
-	u_int32_t flags;
+ex_txt(SCR *sp, TEXTH *tiqh, ARG_CHAR_T prompt, u_int32_t flags)
 {
 	EVENT ev;
 	GS *gp;
@@ -64,6 +62,7 @@ ex_txt(sp, tiqh, prompt, flags)
 	carat_t carat_st;
 	size_t cnt;
 	int rval;
+	int nochange;
 
 	rval = 0;
 
@@ -72,9 +71,9 @@ ex_txt(sp, tiqh, prompt, flags)
 	 * last one if it's big enough.  (All TEXT bookkeeping fields default
 	 * to 0 -- text_init() handles this.)
 	 */
-	if (tiqh->cqh_first != (void *)tiqh) {
-		tp = tiqh->cqh_first;
-		if (tp->q.cqe_next != (void *)tiqh || tp->lb_len < 32) {
+	if (!TAILQ_EMPTY(tiqh)) {
+		tp = TAILQ_FIRST(tiqh);
+		if (TAILQ_NEXT(tp, q) != NULL || tp->lb_len < 32) {
 			text_lfree(tiqh);
 			goto newtp;
 		}
@@ -82,7 +81,7 @@ ex_txt(sp, tiqh, prompt, flags)
 	} else {
 newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 			goto err;
-		CIRCLEQ_INSERT_HEAD(tiqh, tp, q);
+		TAILQ_INSERT_HEAD(tiqh, tp, q);
 	}
 
 	/* Set the starting line number. */
@@ -112,7 +111,7 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 		txt_prompt(sp, tp, prompt, flags);
 	}
 
-	for (carat_st = C_NOTSET;;) {
+	for (carat_st = C_NOTSET, nochange = 0;;) {
 		if (v_event_get(sp, &ev, 0, 0))
 			goto err;
 
@@ -146,7 +145,7 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 		 * Check to see if the character fits into the input buffer.
 		 * (Use tp->len, ignore overwrite and non-printable chars.)
 		 */
-		BINC_GOTO(sp, tp->lb, tp->lb_len, tp->len + 1);
+		BINC_GOTOW(sp, tp->lb, tp->lb_len, tp->len + 1);
 
 		switch (ev.e_value) {
 		case K_CR:
@@ -189,7 +188,7 @@ newtp:		if ((tp = text_init(sp, NULL, 0, 32)) == NULL)
 			 */
 			if (LF_ISSET(TXT_DOTTERM) && tp->len == tp->ai + 1 &&
 			    tp->lb[tp->len - 1] == '.') {
-notlast:			CIRCLEQ_REMOVE(tiqh, tp, q);
+notlast:			TAILQ_REMOVE(tiqh, tp, q);
 				text_free(tp);
 				goto done;
 			}
@@ -208,7 +207,8 @@ notlast:			CIRCLEQ_REMOVE(tiqh, tp, q);
 			 * erased.
 			 */
 			if (LF_ISSET(TXT_AUTOINDENT)) {
-				if (carat_st == C_NOCHANGE) {
+				if (nochange) {
+					nochange = 0;
 					if (v_txt_auto(sp,
 					    OOBLNO, &ait, ait.ai, ntp))
 						goto err;
@@ -226,7 +226,7 @@ notlast:			CIRCLEQ_REMOVE(tiqh, tp, q);
 			 * into the queue.
 			 */
 			tp = ntp;
-			CIRCLEQ_INSERT_TAIL(tiqh, tp, q);
+			TAILQ_INSERT_TAIL(tiqh, tp, q);
 			break;
 		case K_CARAT:			/* Delete autoindent chars. */
 			if (tp->len <= tp->ai && LF_ISSET(TXT_AUTOINDENT))
@@ -291,11 +291,12 @@ notlast:			CIRCLEQ_REMOVE(tiqh, tp, q);
 				/* Save the ai string for later. */
 				ait.lb = NULL;
 				ait.lb_len = 0;
-				BINC_GOTO(sp, ait.lb, ait.lb_len, tp->ai);
-				memcpy(ait.lb, tp->lb, tp->ai);
+				BINC_GOTOW(sp, ait.lb, ait.lb_len, tp->ai);
+				MEMCPY(ait.lb, tp->lb, tp->ai);
 				ait.ai = ait.len = tp->ai;
 
-				carat_st = C_NOCHANGE;
+				carat_st = C_NOTSET;
+				nochange = 1;
 				goto leftmargin;
 			case C_ZEROSET:			/* 0^D */
 				if (tp->len > tp->ai + 1)
@@ -328,7 +329,7 @@ leftmargin:			(void)gp->scr_ex_adjust(sp, EX_TERM_CE);
 			 * not already handled specially, except for <tab> and
 			 * <ff>.
 			 */
-ins_ch:			if (LF_ISSET(TXT_BEAUTIFY) && iscntrl(ev.e_c) &&
+ins_ch:			if (LF_ISSET(TXT_BEAUTIFY) && ISCNTRL(ev.e_c) &&
 			    ev.e_value != K_FORMFEED && ev.e_value != K_TAB)
 				break;
 
@@ -352,24 +353,20 @@ alloc_err:
  *	not ours.
  */
 static void
-txt_prompt(sp, tp, prompt, flags)
-	SCR *sp;
-	TEXT *tp;
-	ARG_CHAR_T prompt;
-	u_int32_t flags;
+txt_prompt(SCR *sp, TEXT *tp, ARG_CHAR_T prompt, u_int32_t flags)
 {
 	/* Display the prompt. */
 	if (LF_ISSET(TXT_PROMPT))
-		(void)printf("%c", prompt);
+		(void)ex_printf(sp, "%c", prompt);
 
 	/* Display the line number. */
 	if (LF_ISSET(TXT_NUMBER) && O_ISSET(sp, O_NUMBER))
-		(void)printf("%6lu  ", (u_long)tp->lno);
+		(void)ex_printf(sp, "%6lu  ", (u_long)tp->lno);
 
 	/* Print out autoindent string. */
 	if (LF_ISSET(TXT_AUTOINDENT))
-		(void)printf("%.*s", (int)tp->ai, tp->lb);
-	(void)fflush(stdout);
+		(void)ex_printf(sp, WVS, (int)tp->ai, tp->lb);
+	(void)ex_fflush(sp);
 }
 
 /*
@@ -380,9 +377,7 @@ txt_prompt(sp, tp, prompt, flags)
  * ranting and raving.  This is a fair bit simpler as ^T isn't special.
  */
 static int
-txt_dent(sp, tp)
-	SCR *sp;
-	TEXT *tp;
+txt_dent(SCR *sp, TEXT *tp)
 {
 	u_long sw, ts;
 	size_t cno, off, scno, spaces, tabs;
@@ -416,7 +411,7 @@ txt_dent(sp, tp)
 	spaces = scno - cno;
 
 	/* Make sure there's enough room. */
-	BINC_RET(sp, tp->lb, tp->lb_len, tabs + spaces + 1);
+	BINC_RETW(sp, tp->lb, tp->lb_len, tabs + spaces + 1);
 
 	/* Adjust the final ai character count. */
 	tp->ai = tabs + spaces;

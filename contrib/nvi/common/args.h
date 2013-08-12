@@ -6,7 +6,7 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)args.h	10.2 (Berkeley) 3/6/96
+ *	$Id: args.h,v 10.2 1996/03/06 19:50:07 bostic Exp $
  */
 
 /*

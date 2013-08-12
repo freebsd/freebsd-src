@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 David E. O'Brien <obrien@NUXI.org>
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
  * All rights reserved.
  *
@@ -28,16 +29,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cpu.h"
-
-#ifdef RDRAND_RNG
-
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/selinfo.h>
 #include <sys/systm.h>
+
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
+
+#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 
 #define	RETRY_COUNT	10
@@ -46,7 +50,7 @@ static void random_ivy_init(void);
 static void random_ivy_deinit(void);
 static int random_ivy_read(void *, int);
 
-struct random_systat random_ivy = {
+struct random_adaptor random_ivy = {
 	.ident = "Hardware, Intel IvyBridge+ RNG",
 	.init = random_ivy_init,
 	.deinit = random_ivy_deinit,
@@ -114,4 +118,28 @@ random_ivy_read(void *buf, int c)
 	return (c - count);
 }
 
+static int
+rdrand_modevent(module_t mod, int type, void *unused)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		if (cpu_feature2 & CPUID2_RDRAND) {
+			random_adaptor_register("rdrand", &random_ivy);
+			EVENTHANDLER_INVOKE(random_adaptor_attach, &random_ivy);
+			return (0);
+		} else {
+#ifndef KLD_MODULE
+			if (bootverbose)
 #endif
+				printf(
+			    "%s: RDRAND feature is not present on this CPU\n",
+				    random_ivy.ident);
+			return (0);
+		}
+	}
+
+	return (EINVAL);
+}
+
+RANDOM_ADAPTOR_MODULE(random_rdrand, rdrand_modevent, 1);

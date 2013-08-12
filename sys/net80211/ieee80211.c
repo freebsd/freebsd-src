@@ -241,9 +241,15 @@ null_transmit(struct ifnet *ifp, struct mbuf *m)
 	return EACCES;		/* XXX EIO/EPERM? */
 }
 
+#if __FreeBSD_version >= 1000031
 static int
 null_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
+#else
+static int
+null_output(struct ifnet *ifp, struct mbuf *m,
+	struct sockaddr *dst, struct route *ro)
+#endif
 {
 	if_printf(ifp, "discard raw packet\n");
 	return null_transmit(ifp, m);
@@ -427,13 +433,10 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	if_initname(ifp, name, unit);
 	ifp->if_softc = vap;			/* back pointer */
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
-	ifp->if_start = ieee80211_start;
+	ifp->if_transmit = ieee80211_vap_transmit;
+	ifp->if_qflush = ieee80211_vap_qflush;
 	ifp->if_ioctl = ieee80211_ioctl;
 	ifp->if_init = ieee80211_init;
-	/* NB: input+output filled in by ether_ifattach */
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
-	IFQ_SET_READY(&ifp->if_snd);
 
 	vap->iv_ifp = ifp;
 	vap->iv_ic = ic;

@@ -502,7 +502,13 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	sprlock_proc(cp);
 	mtx_unlock_spin(&cp->p_slock);
 #else
+	/*
+	 * fasttrap_tracepoint_remove() expects the child process to be
+	 * unlocked and the VM then expects curproc to be unlocked.
+	 */
 	_PHOLD(cp);
+	PROC_UNLOCK(cp);
+	PROC_UNLOCK(p);
 #endif
 
 	/*
@@ -537,6 +543,8 @@ fasttrap_fork(proc_t *p, proc_t *cp)
 	mutex_enter(&cp->p_lock);
 	sprunlock(cp);
 #else
+	PROC_LOCK(p);
+	PROC_LOCK(cp);
 	_PRELE(cp);
 #endif
 }

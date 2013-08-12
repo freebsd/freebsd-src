@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_append.c	10.30 (Berkeley) 10/23/96";
+static const char sccsid[] = "$Id: ex_append.c,v 10.34 2001/06/25 15:19:14 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <limits.h>
@@ -36,9 +37,7 @@ static int ex_aci __P((SCR *, EXCMD *, enum which));
  * PUBLIC: int ex_append __P((SCR *, EXCMD *));
  */
 int
-ex_append(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_append(SCR *sp, EXCMD *cmdp)
 {
 	return (ex_aci(sp, cmdp, APPEND));
 }
@@ -50,9 +49,7 @@ ex_append(sp, cmdp)
  * PUBLIC: int ex_change __P((SCR *, EXCMD *));
  */
 int
-ex_change(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_change(SCR *sp, EXCMD *cmdp)
 {
 	return (ex_aci(sp, cmdp, CHANGE));
 }
@@ -65,9 +62,7 @@ ex_change(sp, cmdp)
  * PUBLIC: int ex_insert __P((SCR *, EXCMD *));
  */
 int
-ex_insert(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_insert(SCR *sp, EXCMD *cmdp)
 {
 	return (ex_aci(sp, cmdp, INSERT));
 }
@@ -77,16 +72,13 @@ ex_insert(sp, cmdp)
  *	Append, change, insert in ex.
  */
 static int
-ex_aci(sp, cmdp, cmd)
-	SCR *sp;
-	EXCMD *cmdp;
-	enum which cmd;
+ex_aci(SCR *sp, EXCMD *cmdp, enum which cmd)
 {
 	CHAR_T *p, *t;
 	GS *gp;
 	TEXT *tp;
-	TEXTH tiq;
-	recno_t cnt, lno;
+	TEXTH tiq[] = {{ 0 }};
+	recno_t cnt = 0, lno;
 	size_t len;
 	u_int32_t flags;
 	int need_newline;
@@ -175,7 +167,7 @@ ex_aci(sp, cmdp, cmd)
 			if (len != 0) {
 				++t;
 				if (--len == 0 &&
-				    db_append(sp, 1, lno++, "", 0))
+				    db_append(sp, 1, lno++, NULL, 0))
 					return (1);
 			}
 		}
@@ -213,7 +205,7 @@ ex_aci(sp, cmdp, cmd)
 	 */
 	if (F_ISSET(sp, SC_VI)) {
 		if (gp->scr_screen(sp, SC_EX)) {
-			ex_emsg(sp, cmdp->cmd->name, EXM_NOCANON);
+			ex_wemsg(sp, cmdp->cmd->name, EXM_NOCANON);
 			return (1);
 		}
 
@@ -254,16 +246,16 @@ ex_aci(sp, cmdp, cmd)
 	 * characters in the common TEXTH structure when they were inserted
 	 * into the file, above.)
 	 */
-	memset(&tiq, 0, sizeof(TEXTH));
-	CIRCLEQ_INIT(&tiq);
+	TAILQ_INIT(tiq);
 
-	if (ex_txt(sp, &tiq, 0, flags))
+	if (ex_txt(sp, tiq, 0, flags))
 		return (1);
 
-	for (cnt = 0, tp = tiq.cqh_first;
-	    tp != (TEXT *)&tiq; ++cnt, tp = tp->q.cqe_next)
+	TAILQ_FOREACH(tp, tiq, q) {
 		if (db_append(sp, 1, lno++, tp->lb, tp->len))
 			return (1);
+		++cnt;
+	}
 
 	/*
 	 * Set sp->lno to the final line number value (correcting for a

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 
 #define TTM_BO_VM_NUM_PREFAULT 16
 
@@ -212,23 +213,33 @@ reserve:
 	}
 
 	VM_OBJECT_WLOCK(vm_obj);
-	if ((m->flags & VPO_BUSY) != 0) {
-		vm_page_sleep(m, "ttmpbs");
+	if (vm_page_busied(m)) {
+		vm_page_lock(m);
+		VM_OBJECT_WUNLOCK(vm_obj);
+		vm_page_busy_sleep(m, "ttmpbs");
+		VM_OBJECT_WLOCK(vm_obj);
 		ttm_mem_io_unlock(man);
 		ttm_bo_unreserve(bo);
 		goto retry;
 	}
-	m->valid = VM_PAGE_BITS_ALL;
-	*mres = m;
 	m1 = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
 	if (m1 == NULL) {
-		vm_page_insert(m, vm_obj, OFF_TO_IDX(offset));
+		if (vm_page_insert(m, vm_obj, OFF_TO_IDX(offset))) {
+			VM_OBJECT_WUNLOCK(vm_obj);
+			VM_WAIT;
+			VM_OBJECT_WLOCK(vm_obj);
+			ttm_mem_io_unlock(man);
+			ttm_bo_unreserve(bo);
+			goto retry;
+		}
 	} else {
 		KASSERT(m == m1,
 		    ("inconsistent insert bo %p m %p m1 %p offset %jx",
 		    bo, m, m1, (uintmax_t)offset));
 	}
-	vm_page_busy(m);
+	m->valid = VM_PAGE_BITS_ALL;
+	*mres = m;
+	vm_page_xbusy(m);
 
 	if (oldm != NULL) {
 		vm_page_lock(oldm);

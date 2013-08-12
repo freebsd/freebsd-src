@@ -473,7 +473,8 @@ static int wpa_driver_wired_get_ifstatus(const char *ifname, int *status)
 		return -1;
 	}
 	close(s);
-	*status = ifmr.ifm_status & (IFM_ACTIVE|IFM_AVALID);
+	*status = (ifmr.ifm_status & (IFM_ACTIVE|IFM_AVALID)) == 
+	    (IFM_ACTIVE|IFM_AVALID);
 
 	return 0;
 }

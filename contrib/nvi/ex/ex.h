@@ -6,13 +6,13 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)ex.h	10.24 (Berkeley) 8/12/96
+ *	$Id: ex.h,v 10.31 2012/10/03 02:33:24 zy Exp $
  */
 
 #define	PROMPTCHAR	':'		/* Prompt using a colon. */
 
 typedef struct _excmdlist {		/* Ex command table structure. */
-	char *name;			/* Command name, underlying function. */
+	CHAR_T *name;			/* Command name, underlying function. */
 	int (*fn) __P((SCR *, EXCMD *));
 
 #define	E_ADDR1		0x00000001	/* One address. */
@@ -49,6 +49,9 @@ extern EXCMDLIST const cmds[];		/* Table of ex commands. */
 	(F_ISSET(cmdp, E_VLITONLY) ?					\
 	    (ch) == CH_LITERAL : KEY_VAL(sp, ch) == K_VLNEXT)
 
+#define	IS_SHELLMETA(sp, ch)						\
+	((ch) <= CHAR_MAX && strchr(O_STR(sp, O_SHELLMETA), ch) != NULL)
+
 /*
  * File state must be checked for each command -- any ex command may be entered
  * at any time, and most of them won't work well if a file hasn't yet been read
@@ -56,7 +59,7 @@ extern EXCMDLIST const cmds[];		/* Table of ex commands. */
  */
 #define	NEEDFILE(sp, cmdp) {						\
 	if ((sp)->ep == NULL) {						\
-		ex_emsg(sp, (cmdp)->cmd->name, EXM_NOFILEYET);		\
+		ex_wemsg(sp, (cmdp)->cmd->name, EXM_NOFILEYET);		\
 		return (1);						\
 	}								\
 }
@@ -64,13 +67,13 @@ extern EXCMDLIST const cmds[];		/* Table of ex commands. */
 /* Range structures for global and @ commands. */
 typedef struct _range RANGE;
 struct _range {				/* Global command range. */
-	CIRCLEQ_ENTRY(_range) q;	/* Linked list of ranges. */
+	TAILQ_ENTRY(_range) q;		/* Linked list of ranges. */
 	recno_t start, stop;		/* Start/stop of the range. */
 };
 
 /* Ex command structure. */
 struct _excmd {
-	LIST_ENTRY(_excmd) q;		/* Linked list of commands. */
+	SLIST_ENTRY(_excmd) q;		/* Linked list of commands. */
 
 	char	 *if_name;		/* Associated file. */
 	recno_t	  if_lno;		/* Associated line number. */
@@ -80,18 +83,18 @@ struct _excmd {
 	memset(&((cmdp)->cp), 0, ((char *)&(cmdp)->flags -		\
 	    (char *)&((cmdp)->cp)) + sizeof((cmdp)->flags))
 
-	char	 *cp;			/* Current command text. */
+	CHAR_T	 *cp;			/* Current command text. */
 	size_t	  clen;			/* Current command length. */
 
-	char	 *save_cmd;		/* Remaining command. */
+	CHAR_T	 *save_cmd;		/* Remaining command. */
 	size_t	  save_cmdlen;		/* Remaining command length. */
 
 	EXCMDLIST const *cmd;		/* Command: entry in command table. */
 	EXCMDLIST rcmd;			/* Command: table entry/replacement. */
 
-	CIRCLEQ_HEAD(_rh, _range) rq;	/* @/global range: linked list. */
+	TAILQ_HEAD(_rh, _range) rq[1];	/* @/global range: linked list. */
 	recno_t   range_lno;		/* @/global range: set line number. */
-	char	 *o_cp;			/* Original @/global command. */
+	CHAR_T	 *o_cp;			/* Original @/global command. */
 	size_t	  o_clen;		/* Original @/global command length. */
 #define	AGV_AT		0x01		/* @ buffer execution. */
 #define	AGV_AT_NORANGE	0x02		/* @ buffer execution without range. */
@@ -133,7 +136,7 @@ struct _excmd {
 #define	E_C_PRINT	0x01000		/*  p flag. */
 	u_int16_t iflags;		/* User input information. */
 
-#define	__INUSE2	0x000004ff	/* Same name space as EXCMDLIST. */
+#define	__INUSE2	0x000007ff	/* Same name space as EXCMDLIST. */
 #define	E_BLIGNORE	0x00000800	/* Ignore blank lines. */
 #define	E_NAMEDISCARD	0x00001000	/* Free/discard the name. */
 #define	E_NOAUTO	0x00002000	/* Don't do autoprint output. */
@@ -152,18 +155,16 @@ struct _excmd {
 #define	E_SEARCH_WMSG	0x01000000	/* Display search-wrapped message. */
 #define	E_USELASTCMD	0x02000000	/* Use the last command. */
 #define	E_VISEARCH	0x04000000	/* It's really a vi search command. */
-#ifdef GTAGS
-#define	E_REFERENCE	0x08000000	/* locate function references */
-#endif
 	u_int32_t flags;		/* Current flags. */
 };
 
 /* Ex private, per-screen memory. */
 typedef struct _ex_private {
-	CIRCLEQ_HEAD(_tqh, _tagq) tq;	/* Tag queue. */
-	TAILQ_HEAD(_tagfh, _tagf) tagfq;/* Tag file list. */
-	LIST_HEAD(_csch, _csc) cscq;    /* Cscope connection list. */
-	char	*tag_last;		/* Saved last tag string. */
+					/* Tag file list. */
+	TAILQ_HEAD(_tagfh, _tagf) tagfq[1];
+	TAILQ_HEAD(_tqh, _tagq) tq[1];	/* Tag queue. */
+	SLIST_HEAD(_csch, _csc) cscq[1];/* Cscope connection list. */
+	CHAR_T	*tag_last;		/* Saved last tag string. */
 
 	CHAR_T	*lastbcomm;		/* Last bang command. */
 
@@ -175,6 +176,7 @@ typedef struct _ex_private {
 
 	char	*ibp;			/* File line input buffer. */
 	size_t	 ibp_len;		/* File line input buffer length. */
+	CONVWIN	 ibcw;			/* File line input conversion buffer. */
 
 	/*
 	 * Buffers for the ex output.  The screen/vi support doesn't do any
@@ -228,4 +230,4 @@ typedef enum {
 } tagmsg_t;
 
 #include "ex_def.h"
-#include "ex_extern.h"
+#include "extern.h"

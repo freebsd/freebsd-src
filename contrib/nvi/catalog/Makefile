@@ -1,7 +1,8 @@
-#	@(#)Makefile	8.29 (Berkeley) 10/19/96
+#	$Id: Makefile,v 9.0 2012/10/19 15:13:11 zy Exp $
 
-CAT=	dutch english french german polish ru_SU.KOI8-R spanish swedish
-FILES=	../cl/*.c ../common/*.c ../ex/*.c ../tk/*.c ../vi/*.c
+CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
+	uk_UA.KOI8-U zh_CN.GB2312
+FILES=	../cl/*.c ../common/*.c ../ex/*.c ../vi/*.c
 
 all: dump ${CAT}
 
@@ -18,13 +19,10 @@ ${CAT}: english.base
 			print "DUPLICATE MESSAGE NUMBER " $$1;		\
 			exit 1;						\
 		}							\
-		for (; nline < $$1; ++nline)				\
-			print "";					\
 		print $0;						\
 	}' |								\
-	sed -e '1s/^/VI_MESSAGE_CATALOG/'				\
-	    -e '/"/s/^[^"]*"//'						\
-	    -e '1!s/"$$/X/' > $@;					\
+	sed -e '1s/^/$$set 1~$$quote "~/; 1y/~/\n/' |			\
+	gencat $@ /dev/stdin;						\
 	chmod 444 $@;							\
 	if grep DUPLICATE $@ > /dev/null; then				\
 		grep DUPLICATE $@;					\
@@ -34,7 +32,8 @@ ${CAT}: english.base
 	fi
 
 CHK=	dutch.check english.check french.check german.check \
-	polish.check ru_SU.KOI8-R.check spanish.check swedish.check
+	polish.check ru_RU.KOI8-R.check spanish.check swedish.check \
+	uk_UA.KOI8-U.check zh_CN.GB2312.check
 check: ${CHK}
 ${CHK}: ${CAT}
 	@echo "... $@";							\
@@ -63,19 +62,14 @@ ${CHK}: ${CAT}
 	echo "Duplicate messages, both id and message (this is okay):";	\
 	sed '/^$$/d' < $$f.base | sort | uniq -c |			\
 	awk '$$1 != 1 { print $$0 }' | sort -n;				\
-	echo =========================;					\
-	echo "Duplicate messages, just message (this is okay):";	\
-	sed '/^$$/d' < $$f | sort | uniq -c |				\
-	awk '$$1 != 1 { print $$0 }' | sort -n;				\
 	echo =========================) > $@
 
 english.base: dump ${FILES} #Makefile
 	./dump ${FILES} |\
 	sed -e '/|/!d' \
 	    -e 's/|/ "/' \
-	    -e 's/^"//' \
-	    -e 's/\\"/"/g' |\
-	sort -n > $@
+	    -e 's/^"//' |\
+	sort -nu > $@
 
 dump: dump.c
 	${CC} -O -o dump dump.c

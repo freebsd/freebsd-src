@@ -141,7 +141,7 @@ static inline void
 release_page(struct faultstate *fs)
 {
 
-	vm_page_wakeup(fs->m);
+	vm_page_xunbusy(fs->m);
 	vm_page_lock(fs->m);
 	vm_page_deactivate(fs->m);
 	vm_page_unlock(fs->m);
@@ -353,21 +353,21 @@ RetryFault:;
 
 			/*
 			 * Wait/Retry if the page is busy.  We have to do this
-			 * if the page is busy via either VPO_BUSY or 
-			 * vm_page_t->busy because the vm_pager may be using
-			 * vm_page_t->busy for pageouts ( and even pageins if
-			 * it is the vnode pager ), and we could end up trying
-			 * to pagein and pageout the same page simultaneously.
+			 * if the page is either exclusive or shared busy
+			 * because the vm_pager may be using read busy for
+			 * pageouts (and even pageins if it is the vnode
+			 * pager), and we could end up trying to pagein and
+			 * pageout the same page simultaneously.
 			 *
 			 * We can theoretically allow the busy case on a read
 			 * fault if the page is marked valid, but since such
 			 * pages are typically already pmap'd, putting that
 			 * special case in might be more effort then it is 
 			 * worth.  We cannot under any circumstances mess
-			 * around with a vm_page_t->busy page except, perhaps,
+			 * around with a shared busied page except, perhaps,
 			 * to pmap it.
 			 */
-			if ((fs.m->oflags & VPO_BUSY) || fs.m->busy) {
+			if (vm_page_busied(fs.m)) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
@@ -392,8 +392,7 @@ RetryFault:;
 				unlock_map(&fs);
 				if (fs.m == vm_page_lookup(fs.object,
 				    fs.pindex)) {
-					vm_page_sleep_if_busy(fs.m, TRUE,
-					    "vmpfw");
+					vm_page_sleep_if_busy(fs.m, "vmpfw");
 				}
 				vm_object_pip_wakeup(fs.object);
 				VM_OBJECT_WUNLOCK(fs.object);
@@ -410,7 +409,7 @@ RetryFault:;
 			 * (readable), jump to readrest, else break-out ( we
 			 * found the page ).
 			 */
-			vm_page_busy(fs.m);
+			vm_page_xbusy(fs.m);
 			if (fs.m->valid != VM_PAGE_BITS_ALL)
 				goto readrest;
 			break;
@@ -516,7 +515,7 @@ readrest:
 			/*
 			 * Call the pager to retrieve the data, if any, after
 			 * releasing the lock on the map.  We hold a ref on
-			 * fs.object and the pages are VPO_BUSY'd.
+			 * fs.object and the pages are exclusive busied.
 			 */
 			unlock_map(&fs);
 
@@ -565,7 +564,7 @@ vnode_locked:
 			 * return value is the index into the marray for the
 			 * vm_page_t passed to the routine.
 			 *
-			 * fs.m plus the additional pages are VPO_BUSY'd.
+			 * fs.m plus the additional pages are exclusive busied.
 			 */
 			faultcount = vm_fault_additional_pages(
 			    fs.m, behind, ahead, marray, &reqpage);
@@ -691,8 +690,7 @@ vnode_locked:
 		}
 	}
 
-	KASSERT((fs.m->oflags & VPO_BUSY) != 0,
-	    ("vm_fault: not busy after main loop"));
+	vm_page_assert_xbusied(fs.m);
 
 	/*
 	 * PAGE HAS BEEN FOUND. [Loop invariant still holds -- the object lock
@@ -754,10 +752,12 @@ vnode_locked:
 				 * process'es object.  The page is 
 				 * automatically made dirty.
 				 */
-				vm_page_lock(fs.m);
-				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
-				vm_page_unlock(fs.m);
-				vm_page_busy(fs.m);
+				if (vm_page_rename(fs.m, fs.first_object,
+				    fs.first_pindex)) {
+					unlock_and_deallocate(&fs);
+					goto RetryFault;
+				}
+				vm_page_xbusy(fs.m);
 				fs.first_m = fs.m;
 				fs.m = NULL;
 				PCPU_INC(cnt.v_cow_optim);
@@ -905,11 +905,8 @@ vnode_locked:
 		}
 	}
 
-	/*
-	 * Page had better still be busy
-	 */
-	KASSERT(fs.m->oflags & VPO_BUSY,
-		("vm_fault: page %p not busy!", fs.m));
+	vm_page_assert_xbusied(fs.m);
+
 	/*
 	 * Page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
@@ -946,7 +943,7 @@ vnode_locked:
 		vm_page_hold(fs.m);
 	}
 	vm_page_unlock(fs.m);
-	vm_page_wakeup(fs.m);
+	vm_page_xunbusy(fs.m);
 
 	/*
 	 * Unlock everything, and return
@@ -991,13 +988,12 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 		if (pindex < OFF_TO_IDX(fs->entry->offset))
 			pindex = OFF_TO_IDX(fs->entry->offset);
 		m = first_object != object ? fs->first_m : fs->m;
-		KASSERT((m->oflags & VPO_BUSY) != 0,
-		    ("vm_fault_cache_behind: page %p is not busy", m));
+		vm_page_assert_xbusied(m);
 		m_prev = vm_page_prev(m);
 		while ((m = m_prev) != NULL && m->pindex >= pindex &&
 		    m->valid == VM_PAGE_BITS_ALL) {
 			m_prev = vm_page_prev(m);
-			if (m->busy != 0 || (m->oflags & VPO_BUSY) != 0)
+			if (vm_page_busied(m))
 				continue;
 			vm_page_lock(m);
 			if (m->hold_count == 0 && m->wire_count == 0) {
@@ -1378,7 +1374,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 			vm_page_activate(dst_m);
 			vm_page_unlock(dst_m);
 		}
-		vm_page_wakeup(dst_m);
+		vm_page_xunbusy(dst_m);
 	}
 	VM_OBJECT_WUNLOCK(dst_object);
 	if (upgrade) {

@@ -518,12 +518,12 @@ static void pfread(FICL_VM *pVM)
 static void pfreaddir(FICL_VM *pVM)
 {
 #ifdef TESTMAIN
-    static union { 
-	struct dirent dirent;
-	char buf[512];
-    } u;
-    off_t off;
-    int len;
+    static struct dirent dirent;
+    struct stat sb;
+    char *buf;
+    off_t off, ptr;
+    u_int blksz;
+    int bufsz;
 #endif
     struct dirent *d;
     int fd;
@@ -539,11 +539,39 @@ static void pfreaddir(FICL_VM *pVM)
      * We do the best we can to make freaddir work, but it's not at
      * all guaranteed.
      */
-    off = lseek(fd, 0LL, SEEK_CUR);
-    len = getdents(fd, u.buf, sizeof(u.buf));
-    d = (len != -1) ? &u.dirent : NULL;
-    if (d != NULL)
-	lseek(fd, off + d->d_reclen, SEEK_SET);
+    d = NULL;
+    buf = NULL;
+    do {
+	if (fd == -1)
+	    break;
+	if (fstat(fd, &sb) == -1)
+	    break;
+	blksz = (sb.st_blksize) ? sb.st_blksize : getpagesize();
+	if ((blksz & (blksz - 1)) != 0)
+	    break;
+	buf = malloc(blksz);
+	if (buf == NULL)
+	    break;
+	off = lseek(fd, 0LL, SEEK_CUR);
+	if (off == -1)
+	    break;
+	ptr = off;
+	if (lseek(fd, 0, SEEK_SET) == -1)
+	    break;
+	bufsz = getdents(fd, buf, blksz);
+	while (bufsz > 0 && bufsz <= ptr) {
+	    ptr -= bufsz;
+	    bufsz = getdents(fd, buf, blksz);
+	}
+	if (bufsz <= 0)
+	    break;
+	d = (void *)(buf + ptr);
+	dirent = *d;
+	off += d->d_reclen;
+	d = (lseek(fd, off, SEEK_SET) != off) ? NULL : &dirent;
+    } while (0);
+    if (buf != NULL)
+	free(buf);
 #else
     d = readdirfd(fd);
 #endif
