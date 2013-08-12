@@ -3621,7 +3621,6 @@ struct cam_periph*
 xpt_path_periph(struct cam_path *path)
 {
 
-	xpt_path_assert(path, MA_OWNED);
 	return (path->periph);
 }
 
