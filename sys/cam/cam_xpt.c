@@ -3942,30 +3942,87 @@ xpt_async_size(u_int32_t async_code)
 	return (0);
 }
 
+static int
+xpt_async_process_dev(struct cam_ed *device, void *arg)
+{
+	union ccb *ccb = arg;
+	struct cam_path *path = ccb->ccb_h.path;
+	void *async_arg = ccb->casync.async_arg_ptr;
+	u_int32_t async_code = ccb->casync.async_code;
+	int relock;
+
+	if (path->device != device
+	 && path->device->lun_id != CAM_LUN_WILDCARD
+	 && device->lun_id != CAM_LUN_WILDCARD)
+		return (1);
+
+	/*
+	 * The async callback could free the device.
+	 * If it is a broadcast async, it doesn't hold
+	 * device reference, so take our own reference.
+	 */
+	xpt_acquire_device(device);
+
+	/*
+	 * If async for specific device is to be delivered to
+	 * the wildcard client, take the specific device lock.
+	 * XXX: We may need a way for client to specify it.
+	 */
+	if ((device->lun_id == CAM_LUN_WILDCARD &&
+	     path->device->lun_id != CAM_LUN_WILDCARD) ||
+	    (device->target->target_id == CAM_TARGET_WILDCARD &&
+	     path->target->target_id != CAM_TARGET_WILDCARD)) {
+		mtx_unlock(&device->device_mtx);
+		xpt_path_lock(path);
+		relock = 1;
+	} else
+		relock = 0;
+
+	(*(device->target->bus->xport->async))(async_code,
+	    device->target->bus, device->target, device, async_arg);
+	xpt_async_bcast(&device->asyncs, async_code, path, async_arg);
+
+	if (relock) {
+		xpt_path_unlock(path);
+		mtx_lock(&device->device_mtx);
+	}
+	xpt_release_device(device);
+	return (1);
+}
+
+static int
+xpt_async_process_tgt(struct cam_et *target, void *arg)
+{
+	union ccb *ccb = arg;
+	struct cam_path *path = ccb->ccb_h.path;
+
+	if (path->target != target
+	 && path->target->target_id != CAM_TARGET_WILDCARD
+	 && target->target_id != CAM_TARGET_WILDCARD)
+		return (1);
+
+	if (ccb->casync.async_code == AC_SENT_BDR) {
+		/* Update our notion of when the last reset occurred */
+		microtime(&target->last_reset);
+	}
+
+	return (xptdevicetraverse(target, NULL, xpt_async_process_dev, ccb));
+}
+
 static void
 xpt_async_process(struct cam_periph *periph, union ccb *ccb)
 {
 	struct cam_eb *bus;
-	struct cam_et *target, *next_target;
-	struct cam_ed *device, *next_device;
 	struct cam_path *path;
 	void *async_arg;
 	u_int32_t async_code;
 
 	path = ccb->ccb_h.path;
+	xpt_path_unlock(path);
 	async_code = ccb->casync.async_code;
 	async_arg = ccb->casync.async_arg_ptr;
-//	mtx_assert(path->bus->sim->mtx, MA_OWNED);
 	CAM_DEBUG(path, CAM_DEBUG_TRACE | CAM_DEBUG_INFO,
 	    ("xpt_async(%s)\n", xpt_async_string(async_code)));
-
-	/*
-	 * Most async events come from a CAM interrupt context.  In
-	 * a few cases, the error recovery code at the peripheral layer,
-	 * which may run from our SWI or a process context, may signal
-	 * deferred events with a call to xpt_async.
-	 */
-
 	bus = path->bus;
 
 	if (async_code == AC_BUS_RESET) {
@@ -3973,61 +4030,25 @@ xpt_async_process(struct cam_periph *periph, union ccb *ccb)
 		microtime(&bus->last_reset);
 	}
 
-	for (target = TAILQ_FIRST(&bus->et_entries);
-	     target != NULL;
-	     target = next_target) {
-
-		next_target = TAILQ_NEXT(target, links);
-
-		if (path->target != target
-		 && path->target->target_id != CAM_TARGET_WILDCARD
-		 && target->target_id != CAM_TARGET_WILDCARD)
-			continue;
-
-		if (async_code == AC_SENT_BDR) {
-			/* Update our notion of when the last reset occurred */
-			microtime(&path->target->last_reset);
-		}
-
-		for (device = TAILQ_FIRST(&target->ed_entries);
-		     device != NULL;
-		     device = next_device) {
-
-			next_device = TAILQ_NEXT(device, links);
-
-			if (path->device != device
-			 && path->device->lun_id != CAM_LUN_WILDCARD
-			 && device->lun_id != CAM_LUN_WILDCARD)
-				continue;
-			/*
-			 * The async callback could free the device.
-			 * If it is a broadcast async, it doesn't hold
-			 * device reference, so take our own reference.
-			 */
-			xpt_acquire_device(device);
-			(*(bus->xport->async))(async_code, bus,
-					       target, device,
-					       async_arg);
-
-			xpt_async_bcast(&device->asyncs, async_code,
-					path, async_arg);
-			xpt_release_device(device);
-		}
-	}
+	xpttargettraverse(bus, NULL, xpt_async_process_tgt, ccb);
 
 	/*
 	 * If this wasn't a fully wildcarded async, tell all
 	 * clients that want all async events.
 	 */
-	if (bus != xpt_periph->path->bus)
-		xpt_async_bcast(&xpt_periph->path->device->asyncs, async_code,
-				path, async_arg);
-	if (path->device != NULL)
+	if (bus != xpt_periph->path->bus) {
+		xpt_path_lock(xpt_periph->path);
+		xpt_async_process_dev(xpt_periph->path->device, ccb);
+		xpt_path_unlock(xpt_periph->path);
+	}
+
+	if (path->device != NULL && path->device->lun_id != CAM_LUN_WILDCARD)
 		xpt_release_devq(path, 1, TRUE);
 	else
 		xpt_release_simq(path->bus->sim, TRUE);
 	if (ccb->casync.async_arg_size > 0)
 		free(async_arg, M_CAMXPT);
+	xpt_path_lock(path);
 	xpt_free_path(path);
 	xpt_free_ccb(ccb);
 }
@@ -4094,7 +4115,7 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		ccb->casync.async_arg_size = size;
 	} else if (size < 0)
 		ccb->casync.async_arg_size = size;
-	if (path->device != NULL)
+	if (path->device != NULL && path->device->lun_id != CAM_LUN_WILDCARD)
 		xpt_freeze_devq(path, 1);
 	else
 		xpt_freeze_simq(path->bus->sim, 1);
@@ -4869,13 +4890,11 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 	int xptpath = 0;
 
 	if (path == NULL) {
-		mtx_lock(&xsoftc.xpt_lock);
 		status = xpt_create_path(&path, /*periph*/NULL, CAM_XPT_PATH_ID,
 					 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-		if (status != CAM_REQ_CMP) {
-			mtx_unlock(&xsoftc.xpt_lock);
+		if (status != CAM_REQ_CMP)
 			return (status);
-		}
+		xpt_path_lock(path);
 		xptpath = 1;
 	}
 
@@ -4888,8 +4907,8 @@ xpt_register_async(int event, ac_callback_t *cbfunc, void *cbarg,
 	status = csa.ccb_h.status;
 
 	if (xptpath) {
+		xpt_path_unlock(path);
 		xpt_free_path(path);
-		mtx_unlock(&xsoftc.xpt_lock);
 	}
 
 	if ((status == CAM_REQ_CMP) &&
