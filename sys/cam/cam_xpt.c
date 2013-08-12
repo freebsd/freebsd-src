@@ -4127,6 +4127,14 @@ xpt_dev_async_default(u_int32_t async_code, struct cam_eb *bus,
 		      struct cam_et *target, struct cam_ed *device,
 		      void *async_arg)
 {
+
+	/*
+	 * We only need to handle events for real devices.
+	 */
+	if (target->target_id == CAM_TARGET_WILDCARD
+	 || device->lun_id == CAM_LUN_WILDCARD)
+		return;
+
 	printf("%s called\n", __func__);
 }
 
