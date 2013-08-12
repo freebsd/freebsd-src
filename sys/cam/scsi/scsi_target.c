@@ -236,7 +236,6 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	{
 		struct ioc_enable_lun	*new_lun;
 		struct cam_path		*path;
-		struct cam_sim		*sim;
 
 		new_lun = (struct ioc_enable_lun *)addr;
 		status = xpt_create_path(&path, /*periph*/NULL,
@@ -247,12 +246,11 @@ targioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 			printf("Couldn't create path, status %#x\n", status);
 			break;
 		}
-		sim = xpt_path_sim(path);
-		mtx_lock(sim->mtx);
+		xpt_path_lock(path);
 		status = targenable(softc, path, new_lun->grp6_len,
 				    new_lun->grp7_len);
+		xpt_path_unlock(path);
 		xpt_free_path(path);
-		mtx_unlock(sim->mtx);
 		break;
 	}
 	case TARGIOCDISABLE:
