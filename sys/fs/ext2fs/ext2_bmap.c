@@ -46,9 +46,13 @@
 #include <sys/stat.h>
 
 #include <fs/ext2fs/inode.h>
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2_mount.h>
+
+static int ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
 
 /*
  * Bmap converts the logical block number of a file to its physical block
@@ -58,7 +62,7 @@
 int
 ext2_bmap(struct vop_bmap_args *ap)
 {
-	int32_t blkno;
+	int64_t blkno;
 	int error;
 
 	/*
@@ -70,10 +74,54 @@ ext2_bmap(struct vop_bmap_args *ap)
 	if (ap->a_bnp == NULL)
 		return (0);
 
-	error = ext2_bmaparray(ap->a_vp, ap->a_bn, &blkno,
-	    ap->a_runp, ap->a_runb);
+	if (VTOI(ap->a_vp)->i_flags & EXT4_EXTENTS)
+		error = ext4_bmapext(ap->a_vp, ap->a_bn, &blkno,
+		    ap->a_runp, ap->a_runb);
+	else
+		error = ext2_bmaparray(ap->a_vp, ap->a_bn, &blkno,
+		    ap->a_runp, ap->a_runb);
 	*ap->a_bnp = blkno;
 	return (error);
+}
+
+/*
+ * This function converts the logical block number of a file to
+ * its physical block number on the disk within ext4 extents.
+ */
+static int
+ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
+{
+	struct inode *ip;
+	struct m_ext2fs *fs;
+	struct ext4_extent *ep;
+	struct ext4_extent_path path;
+	daddr_t lbn;
+
+	ip = VTOI(vp);
+	fs = ip->i_e2fs;
+	lbn = bn;
+
+	/*
+	 * TODO: need to implement read ahead to improve the performance.
+	 */
+	if (runp != NULL)
+		*runp = 0;
+
+	if (runb != NULL)
+		*runb = 0;
+
+	ext4_ext_find_extent(fs, ip, lbn, &path);
+	ep = path.ep_ext;
+	if (ep == NULL)
+		return (EIO);
+
+	*bnp = fsbtodb(fs, lbn - ep->e_blk +
+	    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
+
+	if (*bnp == 0)
+		*bnp = -1;
+
+	return (0);
 }
 
 /*
@@ -91,7 +139,7 @@ ext2_bmap(struct vop_bmap_args *ap)
  */
 
 int
-ext2_bmaparray(struct vnode *vp, int32_t bn, int32_t *bnp, int *runp, int *runb)
+ext2_bmaparray(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 {
 	struct inode *ip;
 	struct buf *bp;
