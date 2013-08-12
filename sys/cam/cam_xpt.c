@@ -2374,12 +2374,14 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 			 bus->sim->path_id,
 			 CAM_TARGET_WILDCARD,
 			 CAM_LUN_WILDCARD);
+	xpt_path_lock(&path);
 	xpt_setup_ccb(&cpi.ccb_h, &path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 	csa->callback(csa->callback_arg,
 			    AC_PATH_REGISTERED,
 			    &path, &cpi);
+	xpt_path_unlock(&path);
 	xpt_release_path(&path);
 
 	return(1);
