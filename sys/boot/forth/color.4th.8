@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011 Devin Teske
+.\" Copyright (c) 2011-2013 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2011
+.Dd August 6, 2013
 .Dt COLOR.4TH 8
 .Os
 .Sh NAME
@@ -50,33 +50,33 @@ through the command:
 .Dl include color.4th
 .Pp
 This line is present in
-.Pa /boot/beastie.4th
+.Pa /boot/loader.4th
 file, so it is not needed (and should not be re-issued) in a normal setup.
 .Pp
 The commands provided by it are:
 .Pp
 .Bl -tag -width disable-module_module -compact -offset indent
 .It Ic loader_color?
-Returns TRUE if the
+Returns FALSE if the
 .Ic loader_color
 environment variable is set to
-.Dq YES
+.Dq NO
 (case-insensitive) or
-.Dq 1 .
-Otherwise returns FALSE.
+.Dq 0 .
+Otherwise returns TRUE
+.Pq unless booting serial .
 .El
 .Pp
 The environment variables that effect its behavior are:
 .Bl -tag -width bootfile -offset indent
 .It Va loader_color
 If set to
-.Dq YES
+.Dq NO
 (case-insensitive) or
-.Dq 1 ,
+.Dq 0 ,
 causes
 .Ic loader_color?
-to return TRUE, indicating to many other modules that color should be used
-whenever/wherever possible.
+to return FALSE, indicating to many modules that color should not be used.
 .El
 .Sh FILES
 .Bl -tag -width /boot/loader.4th -compact
@@ -102,7 +102,6 @@ loader_color="YES"
 .Sh SEE ALSO
 .Xr loader.conf 5 ,
 .Xr loader 8 ,
-.Xr beastie.4th 8 ,
 .Xr loader.4th 8
 .Sh HISTORY
 The
@@ -114,4 +113,4 @@ The
 .Nm
 set of commands was written by
 .An -nosplit
-.An Devin Teske Aq devinteske@hotmail.com .
+.An Devin Teske Aq dteske@FreeBSD.org .
