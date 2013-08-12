@@ -156,7 +156,15 @@ TUNABLE_INT("kern.cam.boot_delay", &xsoftc.boot_delay);
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
 
-struct proc *cam_proc;
+/* Queues for our software interrupt handler */
+typedef TAILQ_HEAD(cam_isrq, ccb_hdr) cam_isrq_t;
+typedef TAILQ_HEAD(cam_simq, cam_sim) cam_simq_t;
+static cam_simq_t cam_simq;
+static struct mtx cam_simq_lock;
+
+/* Pointers to software interrupt handlers */
+static void *cambio_ih;
+
 struct cam_periph *xpt_periph;
 
 static periph_init_t xpt_periph_init;
@@ -241,6 +249,7 @@ static int	 xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
 static xpt_devicefunc_t xptpassannouncefunc;
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
 static void	 xptpoll(struct cam_sim *sim);
+static void	 camisr(void *);
 static void	 camisr_runqueue(struct cam_sim *);
 static dev_match_ret	xptbusmatch(struct dev_match_pattern *patterns,
 				    u_int num_patterns, struct cam_eb *bus);
@@ -832,10 +841,12 @@ xpt_init(void *dummy)
 	cam_status status;
 
 	TAILQ_INIT(&xsoftc.xpt_busses);
+	TAILQ_INIT(&cam_simq);
 	TAILQ_INIT(&xsoftc.ccb_scanq);
 	STAILQ_INIT(&xsoftc.highpowerq);
 	xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
 
+	mtx_init(&cam_simq_lock, "CAM SIMQ lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_lock, "XPT lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_topo_lock, "XPT topology lock", NULL, MTX_DEF);
 	xsoftc.xpt_taskq = taskqueue_create("CAM XPT task", M_WAITOK,
@@ -893,6 +904,8 @@ xpt_init(void *dummy)
 			 path, NULL, 0, xpt_sim);
 	xpt_free_path(path);
 	mtx_unlock(&xsoftc.xpt_lock);
+	/* Install our software interrupt handlers */
+	swi_add(NULL, "cambio", camisr, NULL, SWI_CAMBIO, INTR_MPSAFE, &cambio_ih);
 	/*
 	 * Register a callback for when interrupts are enabled.
 	 */
@@ -4284,7 +4297,7 @@ void
 xpt_done(union ccb *done_ccb)
 {
 	struct cam_sim *sim;
-	int	run;
+	int	first;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done\n"));
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
@@ -4299,13 +4312,16 @@ xpt_done(union ccb *done_ccb)
 		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
 		if ((sim->sim_doneq_flags & (CAM_SIM_DQ_ONQ |
 		    CAM_SIM_DQ_POLLED | CAM_SIM_DQ_BATCH)) == 0) {
+			mtx_lock(&cam_simq_lock);
+			first = TAILQ_EMPTY(&cam_simq);
+			TAILQ_INSERT_TAIL(&cam_simq, sim, links);
+			mtx_unlock(&cam_simq_lock);
 			sim->sim_doneq_flags |= CAM_SIM_DQ_ONQ;
-			run = 1;
 		} else
-			run = 0;
+			first = 0;
 		mtx_unlock(&sim->sim_doneq_mtx);
-		if (run)
-			wakeup(&sim->sim_doneq);
+		if (first)
+			swi_sched(cambio_ih, 0);
 	}
 }
 
@@ -4812,8 +4828,7 @@ xpt_config(void *arg)
 	callout_reset(&xsoftc.boot_callout, hz * xsoftc.boot_delay / 1000,
 	    xpt_boot_delay, NULL);
 	/* Fire up rescan thread. */
-	if (kproc_kthread_add(xpt_scanner_thread, NULL, &cam_proc, NULL, 0, 0,
-	    "cam", "scanner")) {
+	if (kproc_create(xpt_scanner_thread, NULL, NULL, 0, 0, "xpt_thrd")) {
 		printf("xpt_config: failed to create rescan thread.\n");
 	}
 }
@@ -5037,30 +5052,25 @@ xpt_path_mtx(struct cam_path *path)
 	return (&path->device->device_mtx);
 }
 
-void
-xpt_done_td(void *arg)
+static void
+camisr(void *dummy)
 {
-	struct cam_sim *sim = arg;
+	cam_simq_t queue;
+	struct cam_sim *sim;
 
-	mtx_lock(&sim->sim_doneq_mtx);
-	while (1) {
-		if (TAILQ_EMPTY(&sim->sim_doneq)) {
-			if (sim->sim_doneq_flags & CAM_SIM_DQ_EXIT) {
-				mtx_unlock(&sim->sim_doneq_mtx);
-				CAM_SIM_LOCK(sim);
-				sim->sim_doneq_flags &= ~CAM_SIM_DQ_EXIT;
-				wakeup(&sim->sim_doneq_flags);
-				CAM_SIM_UNLOCK(sim);
-				kthread_exit();
-			}
-			msleep(&sim->sim_doneq, &sim->sim_doneq_mtx, PRIBIO,
-			    "-", 0);
-			continue;
+	mtx_lock(&cam_simq_lock);
+	TAILQ_INIT(&queue);
+	while (!TAILQ_EMPTY(&cam_simq)) {
+		TAILQ_CONCAT(&queue, &cam_simq, links);
+		mtx_unlock(&cam_simq_lock);
+
+		while ((sim = TAILQ_FIRST(&queue)) != NULL) {
+			TAILQ_REMOVE(&queue, sim, links);
+			camisr_runqueue(sim);
 		}
-		mtx_unlock(&sim->sim_doneq_mtx);
-		camisr_runqueue(sim);
-		mtx_lock(&sim->sim_doneq_mtx);
+		mtx_lock(&cam_simq_lock);
 	}
+	mtx_unlock(&cam_simq_lock);
 }
 
 static void

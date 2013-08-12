@@ -62,7 +62,6 @@ struct async_node {
 
 SLIST_HEAD(async_list, async_node);
 SLIST_HEAD(periph_list, cam_periph);
-extern struct proc *cam_proc;
 
 void			xpt_action(union ccb *new_ccb);
 void			xpt_action_default(union ccb *new_ccb);
@@ -124,7 +123,6 @@ void			xpt_copy_path(struct cam_path *new_path,
 				      struct cam_path *path);
 
 void			xpt_release_path(struct cam_path *path);
-void			xpt_done_td(void *);
 
 #endif /* _KERNEL */
 

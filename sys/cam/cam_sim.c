@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
@@ -66,7 +65,6 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	      int max_tagged_dev_transactions, struct cam_devq *queue)
 {
 	struct cam_sim *sim;
-	int error;
 
 	if (mtx == NULL)
 		return (NULL);
@@ -99,13 +97,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	}
 	mtx_init(&sim->sim_doneq_mtx, "CAM doneq", NULL, MTX_DEF);
 	TAILQ_INIT(&sim->sim_doneq);
-	error = kproc_kthread_add(xpt_done_td, sim, &cam_proc, NULL, 0, 0,
-	    "cam", "%s%d", sim_name, unit);
-	if (error != 0) {
-		mtx_destroy(&sim->sim_doneq_mtx);
-		free(sim, M_CAMSIM);
-		return (NULL);
-	}
+
 	return (sim);
 }
 
@@ -122,12 +114,7 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 	}
 
 	KASSERT(sim->refcount == 0, ("sim->refcount == 0"));
-	mtx_lock(&sim->sim_doneq_mtx);
-	sim->sim_doneq_flags |= CAM_SIM_DQ_EXIT;
-	wakeup(&sim->sim_doneq);
-	mtx_unlock(&sim->sim_doneq_mtx);
-	while (sim->sim_doneq_flags & CAM_SIM_DQ_EXIT)
-		msleep(&sim->sim_doneq_flags, sim->mtx, PRIBIO, "simfree2", 0);
+
 	if (free_devq)
 		cam_simq_free(sim->devq);
 	mtx_destroy(&sim->sim_doneq_mtx);

@@ -97,7 +97,6 @@ struct cam_sim {
 	TAILQ_HEAD(, ccb_hdr)	sim_doneq;
 	struct mtx		sim_doneq_mtx;
 	int			sim_doneq_flags;
-#define	CAM_SIM_DQ_EXIT		0x01
 #define	CAM_SIM_DQ_ONQ		0x04
 #define	CAM_SIM_DQ_POLLED	0x08
 #define	CAM_SIM_DQ_BATCH	0x10
