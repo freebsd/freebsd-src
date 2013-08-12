@@ -286,7 +286,7 @@ usb_port_reset_test(uint16_t vid, uint16_t pid, uint32_t duration)
 		}
 		timersub(&sub_tv, &ref_tv, &res_tv);
 
-		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= duration))
+		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= (int)duration))
 			break;
 
 		if (libusb20_dev_reset(pdev)) {
@@ -445,7 +445,7 @@ usb_suspend_resume_test(uint16_t vid, uint16_t pid, uint32_t duration)
 		}
 		timersub(&sub_tv, &ref_tv, &res_tv);
 
-		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= duration))
+		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= (int)duration))
 			break;
 
 		error = libusb20_dev_set_power_mode(pdev, (iter & 1) ?

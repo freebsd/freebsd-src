@@ -215,7 +215,7 @@ usb_modem_control_ep_test(struct modem *p, uint32_t duration, uint8_t flag)
 		}
 		timersub(&sub_tv, &ref_tv, &res_tv);
 
-		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= duration))
+		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= (int)duration))
 			break;
 
 		LIBUSB20_INIT(LIBUSB20_CONTROL_SETUP, &setup);
@@ -333,7 +333,7 @@ usb_modem_data_stress_test(struct modem *p, uint32_t duration)
 		}
 		timersub(&sub_tv, &ref_tv, &res_tv);
 
-		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= duration))
+		if ((res_tv.tv_sec < 0) || (res_tv.tv_sec >= (int)duration))
 			break;
 
 		libusb20_dev_process(p->usb_dev);
