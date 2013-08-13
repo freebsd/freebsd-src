@@ -1106,11 +1106,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 		EVENTHANDLER_INVOKE(mod_unload, lf, &error);
 		if (error != 0)
 			error = EBUSY;
-		else if (lf->nenabled > 0) {
-			printf("kldunload: attempt to unload file that has"
-			    " DTrace probes enabled\n");
-			error = EBUSY;
-		} else if (lf->userrefs == 0) {
+		else if (lf->userrefs == 0) {
 			/*
 			 * XXX: maybe LINKER_UNLOAD_FORCE should override ?
 			 */
