@@ -211,7 +211,7 @@ atomic_cmpset_64_i586(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 	  "+A" (expect)			/* 2 */
 	: "b" ((uint32_t)src),		/* 3 */
 	  "c" ((uint32_t)(src >> 32))	/* 4 */
-	: "cc");
+	: "memory", "cc");
 	return (res);
 }
 
@@ -227,7 +227,7 @@ atomic_load_acq_64_i586(volatile uint64_t *p)
 	"	cmpxchg8b %1"
 	: "=&A" (res),			/* 0 */
 	  "+m" (*p)			/* 1 */
-	: : "cc");
+	: : "memory", "cc");
 	return (res);
 }
 
@@ -244,7 +244,7 @@ atomic_store_rel_64_i586(volatile uint64_t *p, uint64_t v)
 	"	jne	1b"
 	: "+m" (*p),			/* 0 */
 	  "+A" (v)			/* 1 */
-	: : "ebx", "ecx", "cc");
+	: : "ebx", "ecx", "memory", "cc");
 }
 
 static __inline uint64_t
@@ -260,7 +260,7 @@ atomic_swap_64_i586(volatile uint64_t *p, uint64_t v)
 	"	jne	1b"
 	: "+m" (*p),			/* 0 */
 	  "+A" (v)			/* 1 */
-	: : "ebx", "ecx", "cc");
+	: : "ebx", "ecx", "memory", "cc");
 	return (v);
 }
 
@@ -320,7 +320,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	  "+m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
 	: "r" (src)			/* 3 */
-	: "cc");
+	: "memory", "cc");
 
 	return (res);
 }
@@ -410,7 +410,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	__asm __volatile(MPLOCKED LOP			\
 	: "=a" (res),			/* 0 */		\
 	  "+m" (*p)			/* 1 */		\
-	: : "cc");				\
+	: : "memory", "cc");				\
 							\
 	return (res);					\
 }							\

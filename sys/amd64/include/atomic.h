@@ -149,7 +149,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	  "+m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
 	: "r" (src)			/* 3 */
-	: "cc");
+	: "memory", "cc");
 
 	return (res);
 }
@@ -168,7 +168,7 @@ atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 	  "+m" (*dst),			/* 1 */
 	  "+a" (expect)			/* 2 */
 	: "r" (src)			/* 3 */
-	: "cc");
+	: "memory", "cc");
 
 	return (res);
 }
@@ -288,7 +288,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	__asm __volatile(MPLOCKED LOP			\
 	: "=a" (res),			/* 0 */		\
 	  "+m" (*p)			/* 1 */		\
-	: : "cc");					\
+	: : "memory", "cc");				\
 							\
 	return (res);					\
 }							\
