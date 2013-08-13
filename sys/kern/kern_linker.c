@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/linker.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/libkern.h>
@@ -1046,6 +1047,9 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	lf->userrefs++;
 	if (fileid != NULL)
 		*fileid = lf->id;
+
+	EVENTHANDLER_INVOKE(mod_load, lf);
+
 #ifdef HWPMC_HOOKS
 	KLD_DOWNGRADE();
 	pkm.pm_file = lf->filename;
@@ -1101,8 +1105,10 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 
-		/* Check if there are DTrace probes enabled on this file. */
-		if (lf->nenabled > 0) {
+		EVENTHANDLER_INVOKE(mod_unload, lf, &error);
+		if (error != 0)
+			error = EBUSY;
+		else if (lf->nenabled > 0) {
 			printf("kldunload: attempt to unload file that has"
 			    " DTrace probes enabled\n");
 			error = EBUSY;
