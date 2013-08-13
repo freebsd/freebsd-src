@@ -18,6 +18,7 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	_iconv_version;
 	iconv;
 	iconv_open;
 	iconv_close;

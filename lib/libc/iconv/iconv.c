@@ -47,17 +47,21 @@
 #include "citrus_hash.h"
 #include "citrus_iconv.h"
 
-__weak_reference(libiconv, iconv);
-__weak_reference(libiconv_open, iconv_open);
-__weak_reference(libiconv_open_into, iconv_open_into);
-__weak_reference(libiconv_close, iconv_close);
-__weak_reference(libiconvlist, iconvlist);
-__weak_reference(libiconvctl, iconvctl);
-__weak_reference(libiconv_set_relocation_prefix, iconv_set_relocation_prefix);
+#include <_libiconv_compat.h>
+#ifdef __LIBICONV_COMPAT
+__weak_reference(iconv, libiconv);
+__weak_reference(iconv_open, libiconv_open);
+__weak_reference(iconv_open_into, libiconv_open_into);
+__weak_reference(iconv_close, libiconv_close);
+__weak_reference(iconvlist, libiconvlist);
+__weak_reference(iconvctl, libiconvctl);
+__weak_reference(iconv_set_relocation_prefix, libiconv_set_relocation_prefix);
+__weak_reference(_iconv_version, _libiconv_version);
+#endif
 
 #define ISBADF(_h_)	(!(_h_) || (_h_) == (iconv_t)-1)
 
-int _libiconv_version = _LIBICONV_VERSION;
+int _iconv_version = _ICONV_VERSION;
 
 iconv_t		 _iconv_open(const char *out, const char *in,
 		    struct _citrus_iconv *prealloc);
@@ -100,14 +104,14 @@ _iconv_open(const char *out, const char *in, struct _citrus_iconv *handle)
 }
 
 iconv_t
-libiconv_open(const char *out, const char *in)
+iconv_open(const char *out, const char *in)
 {
 
 	return (_iconv_open(out, in, NULL));
 }
 
 int
-libiconv_open_into(const char *out, const char *in, iconv_allocation_t *ptr)
+iconv_open_into(const char *out, const char *in, iconv_allocation_t *ptr)
 {
 	struct _citrus_iconv *handle;
 
@@ -116,7 +120,7 @@ libiconv_open_into(const char *out, const char *in, iconv_allocation_t *ptr)
 }
 
 int
-libiconv_close(iconv_t handle)
+iconv_close(iconv_t handle)
 {
 
 	if (ISBADF(handle)) {
@@ -130,7 +134,7 @@ libiconv_close(iconv_t handle)
 }
 
 size_t
-libiconv(iconv_t handle, const char **in, size_t *szin, char **out, size_t *szout)
+iconv(iconv_t handle, const char **in, size_t *szin, char **out, size_t *szout)
 {
 	size_t ret;
 	int err;
@@ -210,7 +214,7 @@ qsort_helper(const void *first, const void *second)
 }
 
 void
-libiconvlist(int (*do_one) (unsigned int, const char * const *,
+iconvlist(int (*do_one) (unsigned int, const char * const *,
     void *), void *data)
 {
 	char **list, **names;
@@ -264,7 +268,7 @@ __inline const char
 }
 
 int
-libiconvctl(iconv_t cd, int request, void *argument)
+iconvctl(iconv_t cd, int request, void *argument)
 {
 	struct _citrus_iconv *cv;
 	struct iconv_hooks *hooks;
@@ -316,7 +320,7 @@ libiconvctl(iconv_t cd, int request, void *argument)
 }
 
 void
-libiconv_set_relocation_prefix(const char *orig_prefix __unused,
+iconv_set_relocation_prefix(const char *orig_prefix __unused,
     const char *curr_prefix __unused)
 {
 

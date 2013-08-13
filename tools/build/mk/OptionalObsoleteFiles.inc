@@ -2198,6 +2198,27 @@ OLD_FILES+=usr/share/man/man5/hesiod.conf.5.gz
 # to be filled in
 #.endif
 
+.if ${MK_ICONV} == no
+OLD_FILES+=usr/bin/iconv
+OLD_FILES+=usr/bin/mkcsmapper
+OLD_FILES+=usr/bin/mkesdb
+OLD_FILES+=usr/include/_libiconv_compat.h
+OLD_FILES+=usr/include/iconv.h
+OLD_FILES+=usr/share/man/man1/iconv.1.gz
+OLD_FILES+=usr/share/man/man1/mkcsmapper.1.gz
+OLD_FILES+=usr/share/man/man1/mkesdb.1.gz
+OLD_FILES+=usr/share/man/man3/__iconv.3.gz
+OLD_FILES+=usr/share/man/man3/__iconv_free_list.3.gz	
+OLD_FILES+=usr/share/man/man3/__iconv_get_list.3.gz
+OLD_FILES+=usr/share/man/man3/iconv.3.gz
+OLD_FILES+=usr/share/man/man3/iconv_canonicalize.3.gz	
+OLD_FILES+=usr/share/man/man3/iconv_close.3.gz
+OLD_FILES+=usr/share/man/man3/iconv_open.3.gz
+OLD_FILES+=usr/share/man/man3/iconv_open_into.3.gz
+OLD_FILES+=usr/share/man/man3/iconvctl.3.gz
+OLD_FILES+=usr/share/man/man3/iconvlist.3.gz	
+.endif
+
 .if ${MK_INET6} == no
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
@@ -3338,6 +3359,13 @@ OLD_FILES+=usr/share/man/man8/verify_krb5_conf.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_LIBICONV_COMPAT} == no
+OLD_FILES+=usr/lib/libiconv.a
+OLD_FILES+=usr/lib/libiconv.so
+OLD_FILES+=usr/lib/libiconv.so.3
+OLD_FILES+=usr/lib/libiconv_p.a
+.endif
+
 .if ${MK_LIBCPLUSPLUS} == no
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
@@ -4346,8 +4374,4 @@ OLD_FILES+=usr/bin/svnrdump
 OLD_FILES+=usr/bin/svnserve
 OLD_FILES+=usr/bin/svnsync
 OLD_FILES+=usr/bin/svnversion
-.endif
-
-.if ${MK_ICONV} == no
-OLD_FILES+=usr/bin/iconv
 .endif
