@@ -196,7 +196,7 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 			goto einval;
 		}
 
-		if ((t->bt_fd = _open(fname, flags, mode)) < 0)
+		if ((t->bt_fd = _open(fname, flags | O_CLOEXEC, mode)) < 0)
 			goto err;
 
 	} else {
@@ -206,9 +206,6 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 			goto err;
 		F_SET(t, B_INMEM);
 	}
-
-	if (_fcntl(t->bt_fd, F_SETFD, 1) == -1)
-		goto err;
 
 	if (_fstat(t->bt_fd, &sb))
 		goto err;
@@ -405,7 +402,7 @@ tmp(void)
 
 	(void)sigfillset(&set);
 	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
-	if ((fd = mkstemp(path)) != -1)
+	if ((fd = mkostemp(path, O_CLOEXEC)) != -1)
 		(void)unlink(path);
 	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
 	return(fd);
