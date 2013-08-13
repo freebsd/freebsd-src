@@ -73,17 +73,6 @@ NODOC=
 NOPORTS=
 MAKE_FLAGS="${MAKE_FLAGS}"
 
-get_rev_branch () {
-	# Set up the OSVERSION, BRANCH, and REVISION based on the src/ tree
-	# checked out.
-	OSVERSION=$(grep '#define __FreeBSD_version' ${CHROOTDIR}/usr/src/sys/sys/param.h | awk '{print $3}')
-	BRANCH=$(grep '^BRANCH=' ${CHROOTDIR}/usr/src/sys/conf/newvers.sh \
-		| awk -F\= '{print $2}' | sed -e 's,",,g')
-	REVISION=$(grep '^REVISION=' ${CHROOTDIR}/usr/src/sys/conf/newvers.sh \
-		| awk -F\= '{print $2}' | sed -e 's,",,g')
-	OSRELEASE="${REVISION}-${BRANCH}"
-}
-
 usage() {
 	echo "Usage: $0 [-c release.conf]"
 	exit 1
@@ -170,8 +159,6 @@ fi
 if [ "x${NOPORTS}" = "x" ]; then
 	svn co ${SVNROOT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
-
-get_rev_branch
 
 cd ${CHROOTDIR}/usr/src
 make ${CHROOT_WMAKEFLAGS} buildworld
