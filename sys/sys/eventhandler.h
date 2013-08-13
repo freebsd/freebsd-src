@@ -266,4 +266,11 @@ EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(nmbufs_change, uma_zone_chfn);
 EVENTHANDLER_DECLARE(maxsockets_change, uma_zone_chfn);
 
+/* Module load and unload events */
+struct linker_file;
+typedef void (*mod_load_fn)(void *, struct linker_file *);
+typedef void (*mod_unload_fn)(void *, struct linker_file *, int *);
+EVENTHANDLER_DECLARE(mod_load, mod_load_fn);
+EVENTHANDLER_DECLARE(mod_unload, mod_unload_fn);
+
 #endif /* SYS_EVENTHANDLER_H */
