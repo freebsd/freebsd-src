@@ -56,6 +56,12 @@ dtrace_load(void *dummy)
 	/* Hang our hook for exceptions. */
 	dtrace_invop_init();
 
+	/* Register callbacks for module load and unload events. */
+	dtrace_modload_tag = EVENTHANDLER_REGISTER(mod_load,
+	    dtrace_mod_load, NULL, EVENTHANDLER_PRI_ANY);
+	dtrace_modunload_tag = EVENTHANDLER_REGISTER(mod_unload,
+	    dtrace_mod_unload, NULL, EVENTHANDLER_PRI_ANY);
+
 	/*
 	 * Initialise the mutexes without 'witness' because the dtrace
 	 * code is mostly written to wait for memory. To have the
