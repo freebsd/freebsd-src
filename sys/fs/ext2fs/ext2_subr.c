@@ -135,7 +135,7 @@ void
 ext2_checkoverlap(struct buf *bp, struct inode *ip)
 {
 	struct buf *ebp, *ep;
-	int32_t start, last;
+	e4fs_daddr_t start, last;
 	struct vnode *vp;
 
 	ebp = &buf[nbuf];

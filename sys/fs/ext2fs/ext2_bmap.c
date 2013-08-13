@@ -62,7 +62,7 @@ static int ext4_bmapext(struct vnode *, int32_t, int64_t *, int *, int *);
 int
 ext2_bmap(struct vop_bmap_args *ap)
 {
-	int64_t blkno;
+	daddr_t blkno;
 	int error;
 
 	/*
@@ -139,7 +139,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
  */
 
 int
-ext2_bmaparray(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
+ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 {
 	struct inode *ip;
 	struct buf *bp;
@@ -182,7 +182,7 @@ ext2_bmaparray(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 		if (*bnp == 0) {
 			*bnp = -1;
 		} else if (runp) {
-			int32_t bnb = bn;
+			daddr_t bnb = bn;
 			for (++bn; bn < NDADDR && *runp < maxrun &&
 			    is_sequential(ump, ip->i_db[bn - 1], ip->i_db[bn]);
 			    ++bn, ++*runp);
@@ -190,7 +190,7 @@ ext2_bmaparray(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 			if (runb && (bn > 0)) {
 				for (--bn; (bn >= 0) && (*runb < maxrun) &&
 					is_sequential(ump, ip->i_db[bn],
-						ip->i_db[bn+1]);
+						ip->i_db[bn + 1]);
 						--bn, ++*runb);
 			}
 		}
@@ -239,19 +239,20 @@ ext2_bmaparray(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 			}
 		}
 
-		daddr = ((int32_t *)bp->b_data)[ap->in_off];
+		daddr = ((e2fs_daddr_t *)bp->b_data)[ap->in_off];
 		if (num == 1 && daddr && runp) {
 			for (bn = ap->in_off + 1;
 			    bn < MNINDIR(ump) && *runp < maxrun &&
 			    is_sequential(ump,
-			    ((int32_t *)bp->b_data)[bn - 1],
-			    ((int32_t *)bp->b_data)[bn]);
+			    ((e2fs_daddr_t *)bp->b_data)[bn - 1],
+			    ((e2fs_daddr_t *)bp->b_data)[bn]);
 			    ++bn, ++*runp);
 			bn = ap->in_off;
 			if (runb && bn) {
 				for (--bn; bn >= 0 && *runb < maxrun &&
-			    		is_sequential(ump, ((int32_t *)bp->b_data)[bn],
-					    ((int32_t *)bp->b_data)[bn+1]);
+			    		is_sequential(ump,
+					((e2fs_daddr_t *)bp->b_data)[bn],
+					((e2fs_daddr_t *)bp->b_data)[bn + 1]);
 			    		--bn, ++*runb);
 			}
 		}
@@ -287,7 +288,7 @@ ext2_bmaparray(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
  * once with the offset into the page itself.
  */
 int
-ext2_getlbns(struct vnode *vp, int32_t bn, struct indir *ap, int *nump)
+ext2_getlbns(struct vnode *vp, daddr_t bn, struct indir *ap, int *nump)
 {
 	long blockcnt;
 	e2fs_lbn_t metalbn, realbn;
