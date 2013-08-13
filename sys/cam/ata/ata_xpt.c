@@ -1321,6 +1321,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 	struct	cam_path *path;
 	ata_scan_bus_info *scan_info;
 	union	ccb *work_ccb, *reset_ccb;
+	struct mtx *mtx;
 	cam_status status;
 
 	CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
@@ -1396,11 +1397,14 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			xpt_done(request_ccb);
 			break;
 		}
+		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
 		goto scan_next;
 	case XPT_SCAN_LUN:
 		work_ccb = request_ccb;
 		/* Reuse the same CCB to query if a device was really found */
 		scan_info = (ata_scan_bus_info *)work_ccb->ccb_h.ppriv_ptr0;
+		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
+		mtx_lock(mtx);
 		/* If there is PMP... */
 		if ((scan_info->cpi->hba_inquiry & PI_SATAPM) &&
 		    (scan_info->counter == scan_info->cpi->max_target)) {
@@ -1429,6 +1433,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		    ((scan_info->cpi->hba_inquiry & PI_SATAPM) ?
 		    0 : scan_info->cpi->max_target)) {
 done:
+			mtx_unlock(mtx);
 			xpt_free_ccb(work_ccb);
 			xpt_free_ccb((union ccb *)scan_info->cpi);
 			request_ccb = scan_info->request_ccb;
@@ -1445,6 +1450,8 @@ scan_next:
 		    scan_info->request_ccb->ccb_h.path_id,
 		    scan_info->counter, 0);
 		if (status != CAM_REQ_CMP) {
+			if (request_ccb->ccb_h.func_code == XPT_SCAN_LUN)
+				mtx_unlock(mtx);
 			printf("xpt_scan_bus: xpt_create_path failed"
 			    " with status %#x, bus scan halted\n",
 			    status);
@@ -1460,9 +1467,15 @@ scan_next:
 		    scan_info->request_ccb->ccb_h.pinfo.priority);
 		work_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 		work_ccb->ccb_h.cbfcnp = ata_scan_bus;
+		work_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		work_ccb->ccb_h.ppriv_ptr0 = scan_info;
 		work_ccb->crcn.flags = scan_info->request_ccb->crcn.flags;
+		mtx_unlock(mtx);
+		if (request_ccb->ccb_h.func_code == XPT_SCAN_LUN)
+			mtx = NULL;
 		xpt_action(work_ccb);
+		if (mtx != NULL)
+			mtx_lock(mtx);
 		break;
 	default:
 		break;
@@ -1512,6 +1525,7 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 		}
 		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_XPT);
 		request_ccb->ccb_h.cbfcnp = xptscandone;
+		request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 		request_ccb->crcn.flags = flags;
 	}

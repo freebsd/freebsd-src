@@ -104,7 +104,9 @@ typedef enum {
 	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
 	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
 	CAM_DISCONNECT		= 0x20000000,/* Disconnects are mandatory     */
-	CAM_SEND_STATUS		= 0x40000000 /* Send status after data phase  */
+	CAM_SEND_STATUS		= 0x40000000,/* Send status after data phase  */
+
+	CAM_UNLOCKED		= 0x80000000 /* Call callback without lock.   */
 } ccb_flags;
 
 /* XPT Opcodes for xpt_action */

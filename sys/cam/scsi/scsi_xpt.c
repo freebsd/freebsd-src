@@ -1836,6 +1836,8 @@ typedef struct {
 static void
 scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 {
+	struct mtx *mtx;
+
 	CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
 		  ("scsi_scan_bus\n"));
 	switch (request_ccb->ccb_h.func_code) {
@@ -1934,6 +1936,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				scan_info->counter--;
 			}
 		}
+		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
+		mtx_unlock(mtx);
 
 		for (i = low_target; i <= max_target; i++) {
 			cam_status status;
@@ -1966,10 +1970,13 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				      request_ccb->ccb_h.pinfo.priority);
 			work_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 			work_ccb->ccb_h.cbfcnp = scsi_scan_bus;
+			work_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			work_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			work_ccb->crcn.flags = request_ccb->crcn.flags;
 			xpt_action(work_ccb);
 		}
+
+		mtx_lock(mtx);
 		break;
 	}
 	case XPT_SCAN_LUN:
@@ -2002,6 +2009,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		target = request_ccb->ccb_h.path->target;
 		next_target = 1;
 
+		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
+		mtx_lock(mtx);
 		if (target->luns) {
 			uint32_t first;
 			u_int nluns = scsi_4btoul(target->luns->length) / 8;
@@ -2125,6 +2134,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				}
 			}
 			if (done) {
+				mtx_unlock(mtx);
 				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
@@ -2138,6 +2148,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			}
 
 			if ((scan_info->cpi->hba_misc & PIM_SEQSCAN) == 0) {
+				mtx_unlock(mtx);
 				xpt_free_ccb(request_ccb);
 				break;
 			}
@@ -2145,6 +2156,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			    scan_info->request_ccb->ccb_h.path_id,
 			    scan_info->counter, 0);
 			if (status != CAM_REQ_CMP) {
+				mtx_unlock(mtx);
 				printf("scsi_scan_bus: xpt_create_path failed"
 				    " with status %#x, bus scan halted\n",
 			       	    status);
@@ -2160,6 +2172,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			    request_ccb->ccb_h.pinfo.priority);
 			request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 			request_ccb->ccb_h.cbfcnp = scsi_scan_bus;
+			request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			request_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			request_ccb->crcn.flags =
 			    scan_info->request_ccb->crcn.flags;
@@ -2183,10 +2196,12 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				      request_ccb->ccb_h.pinfo.priority);
 			request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 			request_ccb->ccb_h.cbfcnp = scsi_scan_bus;
+			request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			request_ccb->ccb_h.ppriv_ptr0 = scan_info;
 			request_ccb->crcn.flags =
 				scan_info->request_ccb->crcn.flags;
 		}
+		mtx_unlock(mtx);
 		xpt_action(request_ccb);
 		break;
 	}
@@ -2251,6 +2266,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_XPT);
 		request_ccb->ccb_h.cbfcnp = xptscandone;
 		request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
+		request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		request_ccb->crcn.flags = flags;
 	}
 

@@ -770,6 +770,7 @@ static void
 xpt_scanner_thread(void *dummy)
 {
 	union ccb	*ccb;
+	struct cam_path	 path;
 
 	xpt_lock_buses();
 	for (;;) {
@@ -780,7 +781,16 @@ xpt_scanner_thread(void *dummy)
 			TAILQ_REMOVE(&xsoftc.ccb_scanq, &ccb->ccb_h, sim_links.tqe);
 			xpt_unlock_buses();
 
+			/*
+			 * Since lock can be dropped inside and path freed
+			 * by completion callback even before return here,
+			 * take our own path copy for reference.
+			 */
+			xpt_copy_path(&path, ccb->ccb_h.path);
+			xpt_path_lock(&path);
 			xpt_action(ccb);
+			xpt_path_unlock(&path);
+			xpt_release_path(&path);
 
 			xpt_lock_buses();
 		}
@@ -4034,7 +4044,6 @@ xpt_async_process(struct cam_periph *periph, union ccb *ccb)
 	u_int32_t async_code;
 
 	path = ccb->ccb_h.path;
-	xpt_path_unlock(path);
 	async_code = ccb->casync.async_code;
 	async_arg = ccb->casync.async_arg_ptr;
 	CAM_DEBUG(path, CAM_DEBUG_TRACE | CAM_DEBUG_INFO,
@@ -4064,7 +4073,6 @@ xpt_async_process(struct cam_periph *periph, union ccb *ccb)
 		xpt_release_simq(path->bus->sim, TRUE);
 	if (ccb->casync.async_arg_size > 0)
 		free(async_arg, M_CAMXPT);
-	xpt_path_lock(path);
 	xpt_free_path(path);
 	xpt_free_ccb(ccb);
 }
@@ -4115,6 +4123,7 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 	ccb->ccb_h.path->periph = NULL;
 	ccb->ccb_h.func_code = XPT_ASYNC;
 	ccb->ccb_h.cbfcnp = xpt_async_process;
+	ccb->ccb_h.flags |= CAM_UNLOCKED;
 	ccb->casync.async_code = async_code;
 	ccb->casync.async_arg_size = 0;
 	size = xpt_async_size(async_code);
@@ -5169,9 +5178,15 @@ camisr_runqueue(struct cam_sim *sim)
 			ccb_h->status &= ~CAM_DEV_QFRZN;
 		}
 
+		if (ccb_h->flags & CAM_UNLOCKED) {
+			mtx_unlock(mtx);
+			mtx = NULL;
+		}
+
 		/* Call the peripheral driver's callback */
 		(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
-		mtx_unlock(mtx);
+		if (mtx != NULL)
+			mtx_unlock(mtx);
 		mtx_lock(&sim->sim_doneq_mtx);
 	}
 	sim->sim_doneq_flags &= ~CAM_SIM_DQ_ONQ;
