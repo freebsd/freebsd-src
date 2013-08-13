@@ -455,12 +455,12 @@ iwn_attach(device_t dev)
 	pci_write_config(dev, 0x41, 0, 1);
 
 	/* Hardware bug workaround. */
-	reg = pci_read_config(dev, PCIR_COMMAND, 1);
+	reg = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (reg & PCIM_CMD_INTxDIS) {
 		DPRINTF(sc, IWN_DEBUG_RESET, "%s: PCIe INTx Disable set\n",
 		    __func__);
 		reg &= ~PCIM_CMD_INTxDIS;
-		pci_write_config(dev, PCIR_COMMAND, reg, 1);
+		pci_write_config(dev, PCIR_COMMAND, reg, 2);
 	}
 
 	/* Enable bus-mastering. */
