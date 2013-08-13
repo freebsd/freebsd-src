@@ -1903,6 +1903,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		    (work_ccb->cpi.max_target * sizeof (u_int)), M_CAMXPT, M_ZERO|M_NOWAIT);
 		if (scan_info == NULL) {
 			request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+			xpt_free_ccb(work_ccb);
 			xpt_done(request_ccb);
 			return;
 		}
