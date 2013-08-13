@@ -236,18 +236,7 @@ ida_pci_attach(device_t dev)
 	struct ida_board *board = ida_pci_match(dev);
 	u_int32_t id = pci_get_devid(dev);
 	struct ida_softc *ida;
-	u_int command;
 	int error, rid;
-
-	command = pci_read_config(dev, PCIR_COMMAND, 1);
-
-	/*
-	 * it appears that this board only does MEMIO access.
-	 */
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-	        device_printf(dev, "Only memory mapped I/O is supported\n");
-		return (ENXIO);
-	}
 
 	ida = (struct ida_softc *)device_get_softc(dev);
 	ida->dev = dev;
