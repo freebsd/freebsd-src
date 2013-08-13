@@ -107,7 +107,7 @@ g_raid_tr_taste_raid5(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 	qual = tr->tro_volume->v_raid_level_qualifier;
 	if (tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID4 &&
 	    (qual == G_RAID_VOLUME_RLQ_R4P0 ||
-	     qual == G_RAID_VOLUME_RLQ_R4P0)) {
+	     qual == G_RAID_VOLUME_RLQ_R4PN)) {
 		/* RAID4 */
 	} else if ((tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5 ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5E ||
