@@ -185,8 +185,9 @@ g_raid_tr_start_raid5(struct g_raid_tr_object *tr)
 	struct g_raid_volume *vol;
 
 	trs = (struct g_raid_tr_raid5_object *)tr;
-	vol = tr->tro_volume;
 	trs->trso_starting = 0;
+	vol = tr->tro_volume;
+	vol->v_read_only = 1;
 	g_raid_tr_update_state_raid5(vol, NULL);
 	return (0);
 }
