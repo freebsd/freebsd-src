@@ -606,6 +606,8 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 		if (fancy &&
 		    (flags == 0 || (flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
 			switch (ktr->ktr_code) {
+			case SYS_bindat:
+			case SYS_connectat:
 			case SYS_faccessat:
 			case SYS_fchmodat:
 			case SYS_fchownat:
