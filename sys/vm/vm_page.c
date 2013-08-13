@@ -259,7 +259,6 @@ vm_page_domain_init(struct vm_domain *vmd)
 	    "vm active pagequeue";
 	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_vcnt) =
 	    &cnt.v_active_count;
-	vmd->vmd_fullintervalcount = 0;
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
