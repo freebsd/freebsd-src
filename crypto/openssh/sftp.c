@@ -1328,7 +1328,8 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	case I_SYMLINK:
 		sflag = 1;
 	case I_LINK:
-		path1 = make_absolute(path1, *pwd);
+		if (!sflag)
+			path1 = make_absolute(path1, *pwd);
 		path2 = make_absolute(path2, *pwd);
 		err = (sflag ? do_symlink : do_hardlink)(conn, path1, path2);
 		break;
