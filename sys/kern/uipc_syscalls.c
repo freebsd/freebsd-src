@@ -109,15 +109,17 @@ static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
 
 static int accept1(struct thread *td, int s, struct sockaddr *uname,
 		   socklen_t *anamelen, int flags);
-static int do_sendfile(struct thread *td, struct sendfile_args *uap, int compat);
+static int do_sendfile(struct thread *td, struct sendfile_args *uap,
+		   int compat);
 static int getsockname1(struct thread *td, struct getsockname_args *uap,
 			int compat);
 static int getpeername1(struct thread *td, struct getpeername_args *uap,
 			int compat);
 
 counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
+
 /*
- * NSFBUFS-related variables and associated sysctls
+ * sendfile(2)-related variables and associated sysctls
  */
 int nsfbufs;
 int nsfbufspeak;
