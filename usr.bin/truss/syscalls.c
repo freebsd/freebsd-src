@@ -93,6 +93,9 @@ struct syscall syscalls[] = {
 	{ .name = "fcntl", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 } , { Fcntl, 1 }, { Fcntlflag | OUT, 2 } } },
 	{ .name = "fork", .ret_type = 1, .nargs = 0 },
+	{ .name = "vfork", .ret_type = 1, .nargs = 0 },
+	{ .name = "rfork", .ret_type = 1, .nargs = 1,
+	  .args = { { Rforkflags, 0 } } },
 	{ .name = "getegid", .ret_type = 1, .nargs = 0 },
 	{ .name = "geteuid", .ret_type = 1, .nargs = 0 },
 	{ .name = "getgid", .ret_type = 1, .nargs = 0 },
@@ -367,6 +370,11 @@ static struct xlat pathconf_arg[] = {
 	X(_PC_SYMLINK_MAX) X(_PC_ACL_EXTENDED) X(_PC_ACL_PATH_MAX)
 	X(_PC_CAP_PRESENT) X(_PC_INF_PRESENT) X(_PC_MAC_PRESENT)
 	XEND
+};
+
+static struct xlat rfork_flags[] = {
+	X(RFPROC) X(RFNOWAIT) X(RFFDG) X(RFCFDG) X(RFTHREAD) X(RFMEM)
+	X(RFSIGSHARE) X(RFTSIGZMB) X(RFLINUXTHPN) XEND
 };
 
 #undef X
@@ -905,6 +913,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	case Pathconf:
 		tmp = strdup(xlookup(pathconf_arg, args[sc->offset]));
+		break;
+	case Rforkflags:
+		tmp = strdup(xlookup_bits(rfork_flags, args[sc->offset]));
 		break;
 	case Sockaddr: {
 		struct sockaddr_storage ss;
