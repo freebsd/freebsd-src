@@ -5055,35 +5055,6 @@ xpt_unlock_buses(void)
 	mtx_unlock(&xsoftc.xpt_topo_lock);
 }
 
-void
-xpt_path_lock(struct cam_path *path)
-{
-
-	mtx_lock(&path->device->device_mtx);
-}
-
-void
-xpt_path_unlock(struct cam_path *path)
-{
-
-	mtx_unlock(&path->device->device_mtx);
-}
-
-int
-xpt_path_owned(struct cam_path *path)
-{
-
-	return (mtx_owned(&path->device->device_mtx));
-}
-
-int
-xpt_path_sleep(struct cam_path *path, void *chan, int priority,
-    const char *wmesg, int timo)
-{
-
-	return (msleep(chan, &path->device->device_mtx, priority, wmesg, timo));
-}
-
 struct mtx *
 xpt_path_mtx(struct cam_path *path)
 {

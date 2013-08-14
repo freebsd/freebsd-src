@@ -102,14 +102,13 @@ void			xpt_hold_boot(void);
 void			xpt_release_boot(void);
 void			xpt_lock_buses(void);
 void			xpt_unlock_buses(void);
-void			xpt_path_lock(struct cam_path *path);
-void			xpt_path_unlock(struct cam_path *path);
-#define xpt_path_assert(path, what)	mtx_assert(xpt_path_mtx(path), (what))
-int			xpt_path_owned(struct cam_path *path);
-int			xpt_path_sleep(struct cam_path *path, void *chan,
-				       int priority, const char *wmesg,
-				       int timo);
 struct mtx *		xpt_path_mtx(struct cam_path *path);
+#define xpt_path_lock(path)	mtx_lock(xpt_path_mtx(path))
+#define xpt_path_unlock(path)	mtx_unlock(xpt_path_mtx(path))
+#define xpt_path_assert(path, what)	mtx_assert(xpt_path_mtx(path), (what))
+#define xpt_path_owned(path)	mtx_owned(xpt_path_mtx(path))
+#define xpt_path_sleep(path, chan, priority, wmesg, timo)		\
+    msleep((chan), xpt_path_mtx(path), (priority), (wmesg), (timo))
 cam_status		xpt_register_async(int event, ac_callback_t *cbfunc,
 					   void *cbarg, struct cam_path *path);
 cam_status		xpt_compile_path(struct cam_path *new_path,

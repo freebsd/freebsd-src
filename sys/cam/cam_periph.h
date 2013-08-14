@@ -186,39 +186,26 @@ void		cam_periph_freeze_after_event(struct cam_periph *periph,
 int		cam_periph_error(union ccb *ccb, cam_flags camflags,
 				 u_int32_t sense_flags, union ccb *save_ccb);
 
-static __inline void
-cam_periph_lock(struct cam_periph *periph)
-{
-	xpt_path_lock(periph->path);
-}
-
-static __inline void
-cam_periph_unlock(struct cam_periph *periph)
-{
-	xpt_path_unlock(periph->path);
-}
-
-static __inline int
-cam_periph_owned(struct cam_periph *periph)
-{
-	return (xpt_path_owned(periph->path));
-}
-
-#define cam_periph_assert(periph, what)					\
-	mtx_assert(xpt_path_mtx((periph)->path), (what))
-
-static __inline int
-cam_periph_sleep(struct cam_periph *periph, void *chan, int priority,
-		 const char *wmesg, int timo)
-{
-	return (xpt_path_sleep(periph->path, chan, priority, wmesg, timo));
-}
-
 static __inline struct mtx *
 cam_periph_mtx(struct cam_periph *periph)
 {
 	return (xpt_path_mtx(periph->path));
 }
+
+#define cam_periph_owned(periph)					\
+	mtx_owned(xpt_path_mtx((periph)->path))
+
+#define cam_periph_lock(periph)						\
+	mtx_lock(xpt_path_mtx((periph)->path))
+
+#define cam_periph_unlock(periph)					\
+	mtx_unlock(xpt_path_mtx((periph)->path))
+
+#define cam_periph_assert(periph, what)					\
+	mtx_assert(xpt_path_mtx((periph)->path), (what))
+
+#define cam_periph_sleep(periph, chan, priority, wmesg, timo)		\
+	xpt_path_sleep((periph)->path, (chan), (priority), (wmesg), (timo))
 
 static inline struct cam_periph *
 cam_periph_acquire_first(struct periph_driver *driver)
