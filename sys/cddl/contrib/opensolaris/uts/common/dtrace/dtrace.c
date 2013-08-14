@@ -241,8 +241,8 @@ int		dtrace_in_probe;	/* non-zero if executing a probe */
 #if defined(__i386__) || defined(__amd64__) || defined(__mips__) || defined(__powerpc__)
 uintptr_t	dtrace_in_probe_addr;	/* Address of invop when already in probe */
 #endif
-static eventhandler_tag	dtrace_modload_tag;
-static eventhandler_tag	dtrace_modunload_tag;
+static eventhandler_tag	dtrace_kld_load_tag;
+static eventhandler_tag	dtrace_kld_unload_tag;
 #endif
 
 /*
@@ -15344,14 +15344,14 @@ dtrace_module_unloaded(modctl_t *ctl, int *error)
 
 #if !defined(sun)
 static void
-dtrace_mod_load(void *arg __unused, linker_file_t lf)
+dtrace_kld_load(void *arg __unused, linker_file_t lf)
 {
 
 	dtrace_module_loaded(lf);
 }
 
 static void
-dtrace_mod_unload(void *arg __unused, linker_file_t lf, int *error)
+dtrace_kld_unload(void *arg __unused, linker_file_t lf, int *error)
 {
 
 	if (*error != 0)
