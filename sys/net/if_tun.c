@@ -322,6 +322,7 @@ static moduledata_t tun_mod = {
 };
 
 DECLARE_MODULE(if_tun, tun_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_VERSION(if_tun, 1);
 
 static void
 tunstart(struct ifnet *ifp)
