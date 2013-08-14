@@ -58,8 +58,8 @@ static void	sdt_load(void *);
 static int	sdt_unload(void *);
 static void	sdt_create_provider(struct sdt_provider *);
 static void	sdt_create_probe(struct sdt_probe *);
-static void	sdt_modload(void *, struct linker_file *);
-static void	sdt_modunload(void *, struct linker_file *, int *);
+static void	sdt_kld_load(void *, struct linker_file *);
+static void	sdt_kld_unload(void *, struct linker_file *, int *);
 
 static MALLOC_DEFINE(M_SDT, "SDT", "DTrace SDT providers");
 
@@ -94,8 +94,8 @@ static struct cdev	*sdt_cdev;
 
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
 
-eventhandler_tag	modload_tag;
-eventhandler_tag	modunload_tag;
+eventhandler_tag	sdt_kld_load_tag;
+eventhandler_tag	sdt_kld_unload_tag;
 
 static void
 sdt_create_provider(struct sdt_provider *prov)
@@ -229,7 +229,7 @@ sdt_destroy(void *arg, dtrace_id_t id, void *parg)
  * and dtrace_register() will try to acquire it again.
  */
 static void
-sdt_modload(void *arg __unused, struct linker_file *lf)
+sdt_kld_load(void *arg __unused, struct linker_file *lf)
 {
 	struct sdt_provider **prov, **begin, **end;
 	struct sdt_probe **probe, **p_begin, **p_end;
@@ -260,7 +260,7 @@ sdt_modload(void *arg __unused, struct linker_file *lf)
 }
 
 static void
-sdt_modunload(void *arg __unused, struct linker_file *lf, int *error __unused)
+sdt_kld_unload(void *arg __unused, struct linker_file *lf, int *error __unused)
 {
 	struct sdt_provider *prov, **curr, **begin, **end, *tmp;
 
@@ -268,12 +268,12 @@ sdt_modunload(void *arg __unused, struct linker_file *lf, int *error __unused)
 		/* We already have an error, so don't do anything. */
 		return;
 	else if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end, NULL))
-		/* No DTrace providers are declared in this module. */
+		/* No DTrace providers are declared in this file. */
 		return;
 
 	/*
-	 * Go through all the providers declared in this module and unregister
-	 * any that aren't declared in another loaded module.
+	 * Go through all the providers declared in this linker file and
+	 * unregister any that aren't declared in another loaded file.
 	 */
 	for (curr = begin; curr < end; curr++) {
 		TAILQ_FOREACH_SAFE(prov, &sdt_prov_list, prov_entry, tmp) {
@@ -296,7 +296,7 @@ static int
 sdt_linker_file_cb(linker_file_t lf, void *arg __unused)
 {
 
-	sdt_modload(NULL, lf);
+	sdt_kld_load(NULL, lf);
 
 	return (0);
 }
@@ -313,12 +313,12 @@ sdt_load(void *arg __unused)
 
 	sdt_probe_func = dtrace_probe;
 
-	modload_tag = EVENTHANDLER_REGISTER(mod_load, sdt_modload, NULL,
+	sdt_kld_load_tag = EVENTHANDLER_REGISTER(kld_load, sdt_kld_load, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	modunload_tag = EVENTHANDLER_REGISTER(mod_unload, sdt_modunload, NULL,
-	    EVENTHANDLER_PRI_ANY);
+	sdt_kld_unload_tag = EVENTHANDLER_REGISTER(kld_unload, sdt_kld_unload,
+	    NULL, EVENTHANDLER_PRI_ANY);
 
-	/* Pick up probes from the kernel and already-loaded modules. */
+	/* Pick up probes from the kernel and already-loaded linker files. */
 	linker_file_foreach(sdt_linker_file_cb, NULL);
 }
 
@@ -327,8 +327,8 @@ sdt_unload(void *arg __unused)
 {
 	struct sdt_provider *prov, *tmp;
 
-	EVENTHANDLER_DEREGISTER(mod_load, modload_tag);
-	EVENTHANDLER_DEREGISTER(mod_unload, modunload_tag);
+	EVENTHANDLER_DEREGISTER(kld_load, sdt_kld_load_tag);
+	EVENTHANDLER_DEREGISTER(kld_unload, sdt_kld_unload_tag);
 
 	sdt_probe_func = sdt_probe_stub;
 

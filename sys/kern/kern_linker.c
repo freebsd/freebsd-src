@@ -1046,7 +1046,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if (fileid != NULL)
 		*fileid = lf->id;
 
-	EVENTHANDLER_INVOKE(mod_load, lf);
+	EVENTHANDLER_INVOKE(kld_load, lf);
 
 #ifdef HWPMC_HOOKS
 	KLD_DOWNGRADE();
@@ -1103,7 +1103,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 
-		EVENTHANDLER_INVOKE(mod_unload, lf, &error);
+		EVENTHANDLER_INVOKE(kld_unload, lf, &error);
 		if (error != 0)
 			error = EBUSY;
 		else if (lf->userrefs == 0) {
