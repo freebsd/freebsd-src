@@ -90,7 +90,7 @@ static struct vm_phys_fictitious_seg {
 	vm_page_t	first_page;
 } vm_phys_fictitious_segs[VM_PHYS_FICTITIOUS_NSEGS];
 static struct mtx vm_phys_fictitious_reg_mtx;
-MALLOC_DEFINE(M_FICT_PAGES, "", "");
+MALLOC_DEFINE(M_FICT_PAGES, "vm_fictitious", "Fictitious VM pages");
 
 static struct vm_freelist
     vm_phys_free_queues[VM_RAW_NFREELIST][VM_NFREEPOOL][VM_NFREEORDER];
