@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $Id: gssapi_link.c,v 1.17 2011/03/28 05:32:16 marka Exp $
  */
 
 #include <config.h>
@@ -362,6 +362,7 @@ static dst_func_t gssapi_functions = {
 	gssapi_adddata,
 	gssapi_sign,
 	gssapi_verify,
+	NULL, /*%< verify2 */
 	NULL, /*%< computesecret */
 	gssapi_compare,
 	NULL, /*%< paramcompare */

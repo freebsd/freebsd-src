@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2010, 2013 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -300,7 +300,7 @@ A synonym for
 .PP
 \fB+[no]adflag\fR
 .RS 4
-Set [do not set] the AD (authentic data) bit in the query. This requests the server to return whether all of the answer and authority sections have all been validated as secure according to the security policy of the server. AD=1 indicates that all records have been validated as secure and the answer is not from a OPT\-OUT range. AD=0 indicate that some part of the answer was insecure or not validated.
+Set [do not set] the AD (authentic data) bit in the query. This requests the server to return whether all of the answer and authority sections have all been validated as secure according to the security policy of the server. AD=1 indicates that all records have been validated as secure and the answer is not from a OPT\-OUT range. AD=0 indicate that some part of the answer was insecure or not validated. This bit is set by default.
 .RE
 .PP
 \fB+[no]cdflag\fR
@@ -341,6 +341,9 @@ attempts to find the authoritative name servers for the zone containing the name
 Toggle tracing of the delegation path from the root name servers for the name being looked up. Tracing is disabled by default. When tracing is enabled,
 \fBdig\fR
 makes iterative queries to resolve the name being looked up. It will follow referrals from the root servers, showing the answer from each server that was used to resolve the lookup.
+.sp
+\fB+dnssec\fR
+is also set when +trace is set to better emulate the default queries from a nameserver.
 .RE
 .PP
 \fB+[no]cmd\fR
@@ -365,6 +368,24 @@ option is enabled. If short form answers are requested, the default is not to sh
 \fB+[no]comments\fR
 .RS 4
 Toggle the display of comment lines in the output. The default is to print comments.
+.RE
+.PP
+\fB+[no]rrcomments\fR
+.RS 4
+Toggle the display of per\-record comments in the output (for example, human\-readable key information about DNSKEY records). The default is not to print record comments unless multiline mode is active.
+.RE
+.PP
+\fB+split=W\fR
+.RS 4
+Split long hex\- or base64\-formatted fields in resource records into chunks of
+\fIW\fR
+characters (where
+\fIW\fR
+is rounded up to the nearest multiple of 4).
+\fI+nosplit\fR
+or
+\fI+split=0\fR
+causes fields not to be split at all. The default is 56 characters, or 44 characters when multiline mode is active.
 .RE
 .PP
 \fB+[no]stats\fR
@@ -454,7 +475,7 @@ bytes. The maximum and minimum sizes of this buffer are 65535 and 0 respectively
 .RS 4
 Specify the EDNS version to query with. Valid values are 0 to 255. Setting the EDNS version will cause a EDNS query to be sent.
 \fB+noedns\fR
-clears the remembered EDNS version.
+clears the remembered EDNS version. EDNS is set to 0 by default.
 .RE
 .PP
 \fB+[no]multiline\fR
@@ -576,7 +597,7 @@ RFC1035.
 .PP
 There are probably too many query options.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2010, 2013 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

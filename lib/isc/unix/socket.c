@@ -334,7 +334,8 @@ struct isc__socket {
 				listener : 1, /* listener socket */
 				connected : 1,
 				connecting : 1, /* connect pending */
-				bound : 1; /* bound to local addr */
+				bound : 1, /* bound to local addr */
+				dupped : 1;
 
 #ifdef ISC_NET_RECVOVERFLOW
 	unsigned char		overflow; /* used for MSG_TRUNC fake */
@@ -428,6 +429,10 @@ static isc__socketmgr_t *socketmgr = NULL;
 # define MAXSCATTERGATHER_RECV	(ISC_SOCKET_MAXSCATTERGATHER)
 #endif
 
+static isc_result_t socket_create(isc_socketmgr_t *manager0, int pf,
+				  isc_sockettype_t type,
+				  isc_socket_t **socketp,
+				  isc_socket_t *dup_socket);
 static void send_recvdone_event(isc__socket_t *, isc_socketevent_t **);
 static void send_senddone_event(isc__socket_t *, isc_socketevent_t **);
 static void free_socket(isc__socket_t **);
@@ -546,6 +551,10 @@ isc__socket_fdwatchcreate(isc_socketmgr_t *manager, int fd, int flags,
 			  isc_task_t *task, isc_socket_t **socketp);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_fdwatchpoke(isc_socket_t *sock, int flags);
+ISC_SOCKETFUNC_SCOPE isc_result_t
+isc__socket_dup(isc_socket_t *sock, isc_socket_t **socketp);
+ISC_SOCKETFUNC_SCOPE int
+isc__socket_getfd(isc_socket_t *sock);
 
 static struct {
 	isc_socketmethods_t methods;
@@ -563,13 +572,17 @@ static struct {
 		isc__socket_detach,
 		isc__socket_bind,
 		isc__socket_sendto,
+		isc__socket_sendto2,
 		isc__socket_connect,
 		isc__socket_recv,
+		isc__socket_recv2,
 		isc__socket_cancel,
 		isc__socket_getsockname,
 		isc__socket_gettype,
 		isc__socket_ipv6only,
-		isc__socket_fdwatchpoke
+		isc__socket_fdwatchpoke,
+		isc__socket_dup,
+		isc__socket_getfd
 	}
 #ifndef BIND9
 	,
@@ -2046,6 +2059,7 @@ allocate_socket(isc__socketmgr_t *manager, isc_sockettype_t type,
 	sock->manager = manager;
 	sock->type = type;
 	sock->fd = -1;
+	sock->dupped = 0;
 	sock->statsindex = NULL;
 
 	ISC_LINK_INIT(sock, link);
@@ -2251,7 +2265,9 @@ use_min_mtu(isc__socket_t *sock) {
 }
 
 static isc_result_t
-opensocket(isc__socketmgr_t *manager, isc__socket_t *sock) {
+opensocket(isc__socketmgr_t *manager, isc__socket_t *sock,
+	   isc__socket_t *dup_socket)
+{
 	isc_result_t result;
 	char strbuf[ISC_STRERRORSIZE];
 	const char *err = "socket";
@@ -2265,22 +2281,29 @@ opensocket(isc__socketmgr_t *manager, isc__socket_t *sock) {
 #endif
 
  again:
-	switch (sock->type) {
-	case isc_sockettype_udp:
-		sock->fd = socket(sock->pf, SOCK_DGRAM, IPPROTO_UDP);
-		break;
-	case isc_sockettype_tcp:
-		sock->fd = socket(sock->pf, SOCK_STREAM, IPPROTO_TCP);
-		break;
-	case isc_sockettype_unix:
-		sock->fd = socket(sock->pf, SOCK_STREAM, 0);
-		break;
-	case isc_sockettype_fdwatch:
-		/*
-		 * We should not be called for isc_sockettype_fdwatch sockets.
-		 */
-		INSIST(0);
-		break;
+	if (dup_socket == NULL) {
+		switch (sock->type) {
+		case isc_sockettype_udp:
+			sock->fd = socket(sock->pf, SOCK_DGRAM, IPPROTO_UDP);
+			break;
+		case isc_sockettype_tcp:
+			sock->fd = socket(sock->pf, SOCK_STREAM, IPPROTO_TCP);
+			break;
+		case isc_sockettype_unix:
+			sock->fd = socket(sock->pf, SOCK_STREAM, 0);
+			break;
+		case isc_sockettype_fdwatch:
+			/*
+			 * We should not be called for isc_sockettype_fdwatch
+			 * sockets.
+			 */
+			INSIST(0);
+			break;
+		}
+	} else {
+		sock->fd = dup(dup_socket->fd);
+		sock->dupped = 1;
+		sock->bound = dup_socket->bound;
 	}
 	if (sock->fd == -1 && errno == EINTR && tries++ < 42)
 		goto again;
@@ -2356,6 +2379,9 @@ opensocket(isc__socketmgr_t *manager, isc__socket_t *sock) {
 			return (ISC_R_UNEXPECTED);
 		}
 	}
+
+	if (dup_socket != NULL)
+		goto setup_done;
 
 	result = make_nonblock(sock->fd);
 	if (result != ISC_R_SUCCESS) {
@@ -2521,20 +2547,21 @@ opensocket(isc__socketmgr_t *manager, isc__socket_t *sock) {
 	}
 #endif /* defined(USE_CMSG) || defined(SO_RCVBUF) */
 
+setup_done:
 	inc_stats(manager->stats, sock->statsindex[STATID_OPEN]);
 
 	return (ISC_R_SUCCESS);
 }
 
-/*%
- * Create a new 'type' socket managed by 'manager'.  Events
- * will be posted to 'task' and when dispatched 'action' will be
- * called with 'arg' as the arg value.  The new socket is returned
- * in 'socketp'.
+/*
+ * Create a 'type' socket or duplicate an existing socket, managed
+ * by 'manager'.  Events will be posted to 'task' and when dispatched
+ * 'action' will be called with 'arg' as the arg value.  The new
+ * socket is returned in 'socketp'.
  */
-ISC_SOCKETFUNC_SCOPE isc_result_t
-isc__socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
-		   isc_socket_t **socketp)
+static isc_result_t
+socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
+	      isc_socket_t **socketp, isc_socket_t *dup_socket)
 {
 	isc__socket_t *sock = NULL;
 	isc__socketmgr_t *manager = (isc__socketmgr_t *)manager0;
@@ -2566,7 +2593,8 @@ isc__socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
 	}
 
 	sock->pf = pf;
-	result = opensocket(manager, sock);
+
+	result = opensocket(manager, sock, (isc__socket_t *)dup_socket);
 	if (result != ISC_R_SUCCESS) {
 		inc_stats(manager->stats, sock->statsindex[STATID_OPENFAIL]);
 		free_socket(&sock);
@@ -2601,9 +2629,38 @@ isc__socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
 	UNLOCK(&manager->lock);
 
 	socket_log(sock, NULL, CREATION, isc_msgcat, ISC_MSGSET_SOCKET,
-		   ISC_MSG_CREATED, "created");
+		   ISC_MSG_CREATED, dup_socket != NULL ? "dupped" : "created");
 
 	return (ISC_R_SUCCESS);
+}
+
+/*%
+ * Create a new 'type' socket managed by 'manager'.  Events
+ * will be posted to 'task' and when dispatched 'action' will be
+ * called with 'arg' as the arg value.  The new socket is returned
+ * in 'socketp'.
+ */
+ISC_SOCKETFUNC_SCOPE isc_result_t
+isc__socket_create(isc_socketmgr_t *manager0, int pf, isc_sockettype_t type,
+		   isc_socket_t **socketp)
+{
+	return (socket_create(manager0, pf, type, socketp, NULL));
+}
+
+/*%
+ * Duplicate an existing socket.  The new socket is returned
+ * in 'socketp'.
+ */
+ISC_SOCKETFUNC_SCOPE isc_result_t
+isc__socket_dup(isc_socket_t *sock0, isc_socket_t **socketp) {
+	isc__socket_t *sock = (isc__socket_t *)sock0;
+
+	REQUIRE(VALID_SOCKET(sock));
+	REQUIRE(socketp != NULL && *socketp == NULL);
+
+	return (socket_create((isc_socketmgr_t *) sock->manager,
+			      sock->pf, sock->type, socketp,
+			      sock0));
 }
 
 #ifdef BIND9
@@ -2624,7 +2681,7 @@ isc__socket_open(isc_socket_t *sock0) {
 	 */
 	REQUIRE(sock->fd == -1);
 
-	result = opensocket(sock->manager, sock);
+	result = opensocket(sock->manager, sock, NULL);
 	if (result != ISC_R_SUCCESS)
 		sock->fd = -1;
 
@@ -2804,6 +2861,7 @@ isc__socket_close(isc_socket_t *sock0) {
 	int fd;
 	isc__socketmgr_t *manager;
 
+	fflush(stdout);
 	REQUIRE(VALID_SOCKET(sock));
 
 	LOCK(&sock->lock);
@@ -2824,6 +2882,7 @@ isc__socket_close(isc_socket_t *sock0) {
 	manager = sock->manager;
 	fd = sock->fd;
 	sock->fd = -1;
+	sock->dupped = 0;
 	memset(sock->name, 0, sizeof(sock->name));
 	sock->tag = NULL;
 	sock->listener = 0;
@@ -4991,11 +5050,13 @@ isc__socket_bind(isc_socket_t *sock0, isc_sockaddr_t *sockaddr,
 	LOCK(&sock->lock);
 
 	INSIST(!sock->bound);
+	INSIST(!sock->dupped);
 
 	if (sock->pf != sockaddr->type.sa.sa_family) {
 		UNLOCK(&sock->lock);
 		return (ISC_R_FAMILYMISMATCH);
 	}
+
 	/*
 	 * Only set SO_REUSEADDR when we want a specific port.
 	 */
@@ -5680,6 +5741,7 @@ isc__socket_ipv6only(isc_socket_t *sock0, isc_boolean_t yes) {
 #endif
 
 	REQUIRE(VALID_SOCKET(sock));
+	INSIST(!sock->dupped);
 
 #ifdef IPV6_V6ONLY
 	if (sock->pf == AF_INET6) {
@@ -5845,6 +5907,13 @@ isc__socket_register() {
 	return (isc_socket_register(isc__socketmgr_create));
 }
 #endif
+
+ISC_SOCKETFUNC_SCOPE int
+isc__socket_getfd(isc_socket_t *socket0) {
+	isc__socket_t *socket = (isc__socket_t *)socket0;
+
+	return ((short) socket->fd);
+}
 
 #if defined(HAVE_LIBXML2) && defined(BIND9)
 

@@ -289,7 +289,8 @@ options {
 	notify\-delay \fIseconds\fR;
 	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
-		[ port \fIinteger\fR ]; ... };
+		[ port \fIinteger\fR ]; ...
+		[ key \fIkeyname\fR ] ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
 	forward ( first | only );
 	forwarders [ port \fIinteger\fR ] {
@@ -458,7 +459,8 @@ view \fIstring\fR \fIoptional_class\fR {
 	notify\-delay \fIseconds\fR;
 	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
-		[ port \fIinteger\fR ]; ... };
+		[ port \fIinteger\fR ]; ...
+		[ key \fIkeyname\fR ] ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
 	forward ( first | only );
 	forwarders [ port \fIinteger\fR ] {
@@ -502,7 +504,7 @@ view \fIstring\fR \fIoptional_class\fR {
 .RS 4
 .nf
 zone \fIstring\fR \fIoptional_class\fR {
-	type ( master | slave | stub | hint |
+	type ( master | slave | stub | hint | redirect |
 		forward | delegation\-only );
 	file \fIquoted_string\fR;
 	masters [ port \fIinteger\fR ] {
@@ -544,7 +546,8 @@ zone \fIstring\fR \fIoptional_class\fR {
 	notify\-delay \fIseconds\fR;
 	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
-		[ port \fIinteger\fR ]; ... };
+		[ port \fIinteger\fR ]; ...
+		[ key \fIkeyname\fR ] ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
 	forward ( first | only );
 	forwarders [ port \fIinteger\fR ] {
@@ -560,6 +563,7 @@ zone \fIstring\fR \fIoptional_class\fR {
 	max\-refresh\-time \fIinteger\fR;
 	min\-refresh\-time \fIinteger\fR;
 	multi\-master \fIboolean\fR;
+	request\-ixfr \fIboolean\fR;
 	sig\-validity\-interval \fIinteger\fR;
 	transfer\-source ( \fIipv4_address\fR | * )
 		[ port ( \fIinteger\fR | * ) ];

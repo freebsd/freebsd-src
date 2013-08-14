@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,15 +15,15 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef IN_1_NAPTR_35_H
-#define IN_1_NAPTR_35_H 1
+#ifndef GENERIC_NAPTR_35_H
+#define GENERIC_NAPTR_35_H 1
 
 /* $Id$ */
 
 /*!
  *  \brief Per RFC2915 */
 
-typedef struct dns_rdata_in_naptr {
+typedef struct dns_rdata_naptr {
 	dns_rdatacommon_t	common;
 	isc_mem_t		*mctx;
 	isc_uint16_t		order;
@@ -35,6 +35,6 @@ typedef struct dns_rdata_in_naptr {
 	char			*regexp;
 	isc_uint8_t		regexp_len;
 	dns_name_t		replacement;
-} dns_rdata_in_naptr_t;
+} dns_rdata_naptr_t;
 
-#endif /* IN_1_NAPTR_35_H */
+#endif /* GENERIC_NAPTR_35_H */
