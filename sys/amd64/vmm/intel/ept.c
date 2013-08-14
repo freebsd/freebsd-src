@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/smp.h>
@@ -69,6 +70,7 @@ static int ept_enable_ad_bits;
 int
 ept_init(void)
 {
+	int use_hw_ad_bits;
 	uint64_t cap;
 
 	cap = rdmsr(MSR_VMX_EPT_VPID_CAP);
@@ -91,8 +93,12 @@ ept_init(void)
 	if (EPT_PDE_SUPERPAGE(cap))
 		ept_pmap_flags |= PMAP_PDE_SUPERPAGE;	/* 2MB superpage */
 
-	if (AD_BITS_SUPPORTED(cap))
+	use_hw_ad_bits = 1;
+	TUNABLE_INT_FETCH("vmx.ept.use_hw_ad_bits", &use_hw_ad_bits);
+	if (use_hw_ad_bits && AD_BITS_SUPPORTED(cap))
 		ept_enable_ad_bits = 1;
+	else
+		ept_pmap_flags |= PMAP_EMULATE_AD_BITS;
 
 	return (0);
 }

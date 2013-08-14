@@ -79,6 +79,12 @@
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
+/*
+ * "readonly" pseudo-flag used in pmap entries that require software emulation
+ * of accessed/dirty bits.
+ */
+#define	PG_RO		(1ul << 52)
+
 /* Page level cache control fields used to determine the PAT type */
 #define PG_PDE_CACHE	(PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
 #define PG_PTE_CACHE	(PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
@@ -88,7 +94,7 @@
  * (PTE) page mappings have identical settings for the following fields:
  */
 #define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_CACHE | \
-	    PG_M | PG_A | PG_U | PG_RW | PG_V)
+	    PG_M | PG_A | PG_U | PG_RW | PG_V | PG_RO)
 
 /*
  * Page Protection Exception bits
@@ -264,6 +270,7 @@ struct pmap {
 
 /* flags */
 #define	PMAP_PDE_SUPERPAGE	(1 << 0)	/* supports 2MB superpages */
+#define	PMAP_EMULATE_AD_BITS	(1 << 1)	/* needs A/D bits emulation */
 
 typedef struct pmap	*pmap_t;
 
@@ -283,6 +290,7 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 int pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags);
+int pmap_emulate_dirty(pmap_t pmap, vm_offset_t va);
 #endif
 
 /*

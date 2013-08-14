@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
+#include "vmm_ktr.h"
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
@@ -736,23 +737,41 @@ vm_handle_hlt(struct vm *vm, int vcpuid, boolean_t *retu)
 static int
 vm_handle_paging(struct vm *vm, int vcpuid, boolean_t *retu)
 {
-	int rv;
+	int rv, ftype, prot;
 	struct vm_map *map;
-	vm_prot_t ftype;
 	struct vcpu *vcpu;
 	struct vm_exit *vme;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
 
-	map = &vm->vmspace->vm_map;
 	ftype = vme->u.paging.fault_type;
+	KASSERT(ftype == VM_PROT_WRITE ||
+		ftype == VM_PROT_EXECUTE ||
+		ftype == VM_PROT_READ,
+		("vm_handle_paging: invalid fault_type %d", ftype));
 
+	/*
+	 * If the mapping exists then the write fault may be intentional
+	 * for doing dirty bit emulation.
+	 */
+	prot = vme->u.paging.protection;
+	if ((prot & VM_PROT_READ) != 0 && ftype == VM_PROT_WRITE) {
+		rv = pmap_emulate_dirty(vmspace_pmap(vm->vmspace),
+					vme->u.paging.gpa);
+		if (rv == 0)
+			goto done;
+	}
+
+	map = &vm->vmspace->vm_map;
 	rv = vm_fault(map, vme->u.paging.gpa, ftype, VM_FAULT_NORMAL);
+
+	VMM_CTR3(vm, vcpuid, "vm_handle_paging rv = %d, gpa = %#lx, ftype = %d",
+		 rv, vme->u.paging.gpa, ftype);
 
 	if (rv != KERN_SUCCESS)
 		return (EFAULT);
-
+done:
 	/* restart execution at the faulting instruction */
 	vme->inst_length = 0;
 
