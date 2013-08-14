@@ -150,10 +150,10 @@ ext2_checkoverlap(struct buf *bp, struct inode *ip)
 		    ep->b_blkno + btodb(ep->b_bcount) <= start)
 			continue;
 		vprint("Disk overlap", vp);
-		(void)printf("\tstart %ld, end %ld overlap start %lld, end %ld\n",
-			start, last, (long long)ep->b_blkno,
-			(long)(ep->b_blkno + btodb(ep->b_bcount) - 1));
-		panic("Disk buffer overlap");
+		printf("\tstart %jd, end %jd overlap start %jd, end %jd\n",
+		    (intmax_t)start, (intmax_t)last, (intmax_t)ep->b_blkno,
+		    (intmax_t)(ep->b_blkno + btodb(ep->b_bcount) - 1));
+		panic("ext2_checkoverlap: Disk buffer overlap");
 	}
 }
 #endif /* KDB */
