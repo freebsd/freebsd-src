@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
 #include <sys/sbuf.h>
+#include <sys/smp.h>
 #include <sys/taskqueue.h>
 
 #include <sys/lock.h>
@@ -156,14 +157,18 @@ TUNABLE_INT("kern.cam.boot_delay", &xsoftc.boot_delay);
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
 
-/* Queues for our software interrupt handler */
-typedef TAILQ_HEAD(cam_isrq, ccb_hdr) cam_isrq_t;
-typedef TAILQ_HEAD(cam_simq, cam_sim) cam_simq_t;
-static cam_simq_t cam_simq;
-static struct mtx cam_simq_lock;
+struct cam_doneq {
+	struct mtx_padalign	cam_doneq_mtx;
+	TAILQ_HEAD(, ccb_hdr)	cam_doneq;
+};
 
-/* Pointers to software interrupt handlers */
-static void *cambio_ih;
+static struct cam_doneq cam_doneqs[MAXCPU];
+static int cam_num_doneqs;
+static struct proc *cam_proc;
+
+TUNABLE_INT("kern.cam.num_doneqs", &cam_num_doneqs);
+SYSCTL_INT(_kern_cam, OID_AUTO, num_doneqs, CTLFLAG_RDTUN,
+           &cam_num_doneqs, 0, "Number of completion queues/threads");
 
 struct cam_periph *xpt_periph;
 
@@ -249,8 +254,9 @@ static int	 xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
 static xpt_devicefunc_t xptpassannouncefunc;
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
 static void	 xptpoll(struct cam_sim *sim);
-static void	 camisr(void *);
 static void	 camisr_runqueue(struct cam_sim *);
+static void	 xpt_done_process(struct ccb_hdr *ccb_h);
+static void	 xpt_done_td(void *);
 static dev_match_ret	xptbusmatch(struct dev_match_pattern *patterns,
 				    u_int num_patterns, struct cam_eb *bus);
 static dev_match_ret	xptdevicematch(struct dev_match_pattern *patterns,
@@ -849,14 +855,13 @@ xpt_init(void *dummy)
 	struct cam_path *path;
 	struct cam_devq *devq;
 	cam_status status;
+	int error, i;
 
 	TAILQ_INIT(&xsoftc.xpt_busses);
-	TAILQ_INIT(&cam_simq);
 	TAILQ_INIT(&xsoftc.ccb_scanq);
 	STAILQ_INIT(&xsoftc.highpowerq);
 	xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
 
-	mtx_init(&cam_simq_lock, "CAM SIMQ lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_lock, "XPT lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_topo_lock, "XPT topology lock", NULL, MTX_DEF);
 	xsoftc.xpt_taskq = taskqueue_create("CAM XPT task", M_WAITOK,
@@ -914,8 +919,26 @@ xpt_init(void *dummy)
 			 path, NULL, 0, xpt_sim);
 	xpt_free_path(path);
 	mtx_unlock(&xsoftc.xpt_lock);
-	/* Install our software interrupt handlers */
-	swi_add(NULL, "cambio", camisr, NULL, SWI_CAMBIO, INTR_MPSAFE, &cambio_ih);
+	if (cam_num_doneqs < 1)
+		cam_num_doneqs = 1 + mp_ncpus / 6;
+	else if (cam_num_doneqs > MAXCPU)
+		cam_num_doneqs = MAXCPU;
+	for (i = 0; i < cam_num_doneqs; i++) {
+		mtx_init(&cam_doneqs[i].cam_doneq_mtx, "CAM doneq", NULL,
+		    MTX_DEF);
+		TAILQ_INIT(&cam_doneqs[i].cam_doneq);
+		error = kproc_kthread_add(xpt_done_td, &cam_doneqs[i],
+		    &cam_proc, NULL, 0, 0, "cam", "doneq%d", i);
+		if (error != 0) {
+			cam_num_doneqs = i;
+			break;
+		}
+	}
+	if (cam_num_doneqs < 1) {
+		printf("xpt_init: Cannot init completion queues "
+		       "- failing attach\n");
+		return (ENOMEM);
+	}
 	/*
 	 * Register a callback for when interrupts are enabled.
 	 */
@@ -4309,7 +4332,8 @@ void
 xpt_done(union ccb *done_ccb)
 {
 	struct cam_sim *sim;
-	int	first;
+	struct cam_doneq *queue;
+	int	run, hash;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done\n"));
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
@@ -4319,21 +4343,24 @@ xpt_done(union ccb *done_ccb)
 		 */
 		sim = done_ccb->ccb_h.path->bus->sim;
 		mtx_lock(&sim->sim_doneq_mtx);
-		TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
+		if (sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) {
+			TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
+			    sim_links.tqe);
+			mtx_unlock(&sim->sim_doneq_mtx);
+			return;
+		}
+		mtx_unlock(&sim->sim_doneq_mtx);
+		hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
+		    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
+		queue = &cam_doneqs[hash];
+		mtx_lock(&queue->cam_doneq_mtx);
+		run = TAILQ_EMPTY(&queue->cam_doneq);
+		TAILQ_INSERT_TAIL(&queue->cam_doneq, &done_ccb->ccb_h,
 		    sim_links.tqe);
 		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-		if ((sim->sim_doneq_flags & (CAM_SIM_DQ_ONQ |
-		    CAM_SIM_DQ_POLLED | CAM_SIM_DQ_BATCH)) == 0) {
-			mtx_lock(&cam_simq_lock);
-			first = TAILQ_EMPTY(&cam_simq);
-			TAILQ_INSERT_TAIL(&cam_simq, sim, links);
-			mtx_unlock(&cam_simq_lock);
-			sim->sim_doneq_flags |= CAM_SIM_DQ_ONQ;
-		} else
-			first = 0;
-		mtx_unlock(&sim->sim_doneq_mtx);
-		if (first)
-			swi_sched(cambio_ih, 0);
+		mtx_unlock(&queue->cam_doneq_mtx);
+		if (run)
+			wakeup(&queue->cam_doneq);
 	}
 }
 
@@ -4351,22 +4378,21 @@ xpt_batch_start(struct cam_sim *sim)
 void
 xpt_batch_done(struct cam_sim *sim)
 {
-	int runq;
+	struct ccb_hdr *ccb_h;
 
+	CAM_SIM_UNLOCK(sim);
 	mtx_lock(&sim->sim_doneq_mtx);
 	KASSERT((sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) != 0,
 	    ("Batch flag was not set"));
 	sim->sim_doneq_flags &= ~CAM_SIM_DQ_BATCH;
-	runq = ((sim->sim_doneq_flags & (CAM_SIM_DQ_ONQ |
-	    CAM_SIM_DQ_POLLED)) == 0);
-	if (runq)
-		sim->sim_doneq_flags |= CAM_SIM_DQ_ONQ;
-	mtx_unlock(&sim->sim_doneq_mtx);
-	if (runq) {
-		CAM_SIM_UNLOCK(sim);
-		camisr_runqueue(sim);
-		CAM_SIM_LOCK(sim);
+	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
+		TAILQ_REMOVE(&sim->sim_doneq, ccb_h, sim_links.tqe);
+		mtx_unlock(&sim->sim_doneq_mtx);
+		xpt_done_process(ccb_h);
+		mtx_lock(&sim->sim_doneq_mtx);
 	}
+	mtx_unlock(&sim->sim_doneq_mtx);
+	CAM_SIM_LOCK(sim);
 }
 
 union ccb *
@@ -4840,7 +4866,8 @@ xpt_config(void *arg)
 	callout_reset(&xsoftc.boot_callout, hz * xsoftc.boot_delay / 1000,
 	    xpt_boot_delay, NULL);
 	/* Fire up rescan thread. */
-	if (kproc_create(xpt_scanner_thread, NULL, NULL, 0, 0, "xpt_thrd")) {
+	if (kproc_kthread_add(xpt_scanner_thread, NULL, &cam_proc, NULL, 0, 0,
+	    "cam", "scanner")) {
 		printf("xpt_config: failed to create rescan thread.\n");
 	}
 }
@@ -5065,31 +5092,129 @@ xpt_path_mtx(struct cam_path *path)
 }
 
 static void
-camisr(void *dummy)
+xpt_done_process(struct ccb_hdr *ccb_h)
 {
-	cam_simq_t queue;
 	struct cam_sim *sim;
+	struct mtx *mtx;
 
-	mtx_lock(&cam_simq_lock);
-	TAILQ_INIT(&queue);
-	while (!TAILQ_EMPTY(&cam_simq)) {
-		TAILQ_CONCAT(&queue, &cam_simq, links);
-		mtx_unlock(&cam_simq_lock);
+	if (ccb_h->flags & CAM_HIGH_POWER) {
+		struct highpowerlist	*hphead;
+		struct cam_ed		*device;
 
-		while ((sim = TAILQ_FIRST(&queue)) != NULL) {
-			TAILQ_REMOVE(&queue, sim, links);
-			camisr_runqueue(sim);
-		}
-		mtx_lock(&cam_simq_lock);
+		mtx_lock(&xsoftc.xpt_lock);
+		hphead = &xsoftc.highpowerq;
+
+		device = STAILQ_FIRST(hphead);
+
+		/*
+		 * Increment the count since this command is done.
+		 */
+		xsoftc.num_highpower++;
+
+		/*
+		 * Any high powered commands queued up?
+		 */
+		if (device != NULL) {
+
+			STAILQ_REMOVE_HEAD(hphead, highpowerq_entry);
+			mtx_unlock(&xsoftc.xpt_lock);
+
+			mtx_lock(&device->sim->devq->send_mtx);
+			xpt_release_devq_device(device,
+					 /*count*/1, /*runqueue*/TRUE);
+			mtx_unlock(&device->sim->devq->send_mtx);
+		} else
+			mtx_unlock(&xsoftc.xpt_lock);
 	}
-	mtx_unlock(&cam_simq_lock);
+
+	sim = ccb_h->path->bus->sim;
+	mtx = xpt_path_mtx(ccb_h->path);
+	mtx_lock(mtx);
+
+	if ((ccb_h->func_code & XPT_FC_USER_CCB) == 0) {
+		struct cam_ed *dev;
+
+		mtx_lock(&sim->devq->send_mtx);
+		sim->devq->send_active--;
+		sim->devq->send_openings++;
+
+		dev = ccb_h->path->device;
+		cam_ccbq_ccb_done(&dev->ccbq, (union ccb *)ccb_h);
+
+		if (((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
+		  && (dev->ccbq.dev_active == 0))) {
+			dev->flags &= ~CAM_DEV_REL_ON_QUEUE_EMPTY;
+			xpt_release_devq_device(dev, /*count*/1,
+					 /*run_queue*/FALSE);
+		}
+
+		if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
+		  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)) {
+			dev->flags &= ~CAM_DEV_REL_ON_COMPLETE;
+			xpt_release_devq_device(dev, /*count*/1,
+					 /*run_queue*/FALSE);
+		}
+
+		if (!device_is_queued(dev))
+			(void)xpt_schedule_devq(sim->devq, dev);
+		mtx_unlock(&sim->devq->send_mtx);
+
+		if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
+		 && (--dev->tag_delay_count == 0))
+			xpt_start_tags(ccb_h->path);
+	}
+
+	if (ccb_h->status & CAM_RELEASE_SIMQ) {
+		xpt_release_simq(sim, /*run_queue*/FALSE);
+		ccb_h->status &= ~CAM_RELEASE_SIMQ;
+	}
+
+	if ((ccb_h->flags & CAM_DEV_QFRZDIS)
+	 && (ccb_h->status & CAM_DEV_QFRZN)) {
+		xpt_release_devq(ccb_h->path, /*count*/1,
+				 /*run_queue*/FALSE);
+		ccb_h->status &= ~CAM_DEV_QFRZN;
+	}
+
+	if (ccb_h->flags & CAM_UNLOCKED) {
+		mtx_unlock(mtx);
+		mtx = NULL;
+	}
+
+	/* Call the peripheral driver's callback */
+	(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
+	if (mtx != NULL)
+		mtx_unlock(mtx);
+
+	mtx_lock(&sim->devq->send_mtx);
+	xpt_run_devq(sim->devq);
+	mtx_unlock(&sim->devq->send_mtx);
+}
+
+void
+xpt_done_td(void *arg)
+{
+	struct cam_doneq *queue = arg;
+	struct ccb_hdr *ccb_h;
+
+	mtx_lock(&queue->cam_doneq_mtx);
+	while (1) {
+		if ((ccb_h = TAILQ_FIRST(&queue->cam_doneq)) == NULL) {
+			msleep(&queue->cam_doneq, &queue->cam_doneq_mtx,
+			    PRIBIO, "-", 0);
+			continue;
+		}
+		TAILQ_REMOVE(&queue->cam_doneq, ccb_h, sim_links.tqe);
+		mtx_unlock(&queue->cam_doneq_mtx);
+		xpt_done_process(ccb_h);
+		mtx_lock(&queue->cam_doneq_mtx);
+	}
 }
 
 static void
 camisr_runqueue(struct cam_sim *sim)
 {
 	struct	ccb_hdr *ccb_h;
-	struct mtx *mtx;
 
 	mtx_lock(&sim->sim_doneq_mtx);
 	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
@@ -5097,101 +5222,10 @@ camisr_runqueue(struct cam_sim *sim)
 		mtx_unlock(&sim->sim_doneq_mtx);
 		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 
-		CAM_DEBUG(ccb_h->path, CAM_DEBUG_TRACE,
-			  ("camisr\n"));
+		xpt_done_process(ccb_h);
 
-		if (ccb_h->flags & CAM_HIGH_POWER) {
-			struct highpowerlist	*hphead;
-			struct cam_ed		*device;
-
-			mtx_lock(&xsoftc.xpt_lock);
-			hphead = &xsoftc.highpowerq;
-
-			device = STAILQ_FIRST(hphead);
-
-			/*
-			 * Increment the count since this command is done.
-			 */
-			xsoftc.num_highpower++;
-
-			/*
-			 * Any high powered commands queued up?
-			 */
-			if (device != NULL) {
-
-				STAILQ_REMOVE_HEAD(hphead, highpowerq_entry);
-				mtx_unlock(&xsoftc.xpt_lock);
-
-				mtx_lock(&device->sim->devq->send_mtx);
-				xpt_release_devq_device(device,
-						 /*count*/1, /*runqueue*/TRUE);
-				mtx_unlock(&device->sim->devq->send_mtx);
-			} else
-				mtx_unlock(&xsoftc.xpt_lock);
-		}
-
-		mtx = xpt_path_mtx(ccb_h->path);
-		mtx_lock(mtx);
-
-		if ((ccb_h->func_code & XPT_FC_USER_CCB) == 0) {
-			struct cam_ed *dev;
-
-			mtx_lock(&sim->devq->send_mtx);
-			sim->devq->send_active--;
-			sim->devq->send_openings++;
-
-			dev = ccb_h->path->device;
-			cam_ccbq_ccb_done(&dev->ccbq, (union ccb *)ccb_h);
-
-			if (((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
-			  && (dev->ccbq.dev_active == 0))) {
-				dev->flags &= ~CAM_DEV_REL_ON_QUEUE_EMPTY;
-				xpt_release_devq_device(dev, /*count*/1,
-						 /*run_queue*/FALSE);
-			}
-
-			if (((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0
-			  && (ccb_h->status&CAM_STATUS_MASK) != CAM_REQUEUE_REQ)) {
-				dev->flags &= ~CAM_DEV_REL_ON_COMPLETE;
-				xpt_release_devq_device(dev, /*count*/1,
-						 /*run_queue*/FALSE);
-			}
-
-			if (!device_is_queued(dev))
-				(void)xpt_schedule_devq(sim->devq, dev);
-			mtx_unlock(&sim->devq->send_mtx);
-
-			if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
-			 && (--dev->tag_delay_count == 0))
-				xpt_start_tags(ccb_h->path);
-		}
-
-		if (ccb_h->status & CAM_RELEASE_SIMQ) {
-			xpt_release_simq(sim, /*run_queue*/FALSE);
-			ccb_h->status &= ~CAM_RELEASE_SIMQ;
-		}
-
-		if ((ccb_h->flags & CAM_DEV_QFRZDIS)
-		 && (ccb_h->status & CAM_DEV_QFRZN)) {
-			xpt_release_devq(ccb_h->path, /*count*/1,
-					 /*run_queue*/FALSE);
-			ccb_h->status &= ~CAM_DEV_QFRZN;
-		}
-
-		if (ccb_h->flags & CAM_UNLOCKED) {
-			mtx_unlock(mtx);
-			mtx = NULL;
-		}
-
-		/* Call the peripheral driver's callback */
-		(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
-		if (mtx != NULL)
-			mtx_unlock(mtx);
 		mtx_lock(&sim->sim_doneq_mtx);
 	}
 	sim->sim_doneq_flags &= ~CAM_SIM_DQ_ONQ;
 	mtx_unlock(&sim->sim_doneq_mtx);
-	mtx_lock(&sim->devq->send_mtx);
-	xpt_run_devq(sim->devq);
-	mtx_unlock(&sim->devq->send_mtx);
 }
