@@ -35,6 +35,7 @@
 #include <dns/adb.h>
 #include <dns/cache.h>
 #include <dns/db.h>
+#include <dns/dispatch.h>
 #include <dns/dlz.h>
 #ifdef BIND9
 #include <dns/dns64.h>
@@ -183,7 +184,6 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->answeracl_exclude = NULL;
 	view->denyanswernames = NULL;
 	view->answernames_exclude = NULL;
-	view->requestixfr = ISC_TRUE;
 	view->provideixfr = ISC_TRUE;
 	view->maxcachettl = 7 * 24 * 3600;
 	view->maxncachettl = 3 * 3600;
@@ -192,6 +192,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->flush = ISC_FALSE;
 	view->dlv = NULL;
 	view->maxudp = 0;
+	view->maxbits = 0;
 	view->v4_aaaa = dns_v4_aaaa_ok;
 	view->v4_aaaa_acl = NULL;
 	ISC_LIST_INIT(view->rpz_zones);
@@ -199,6 +200,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->rpz_break_dnssec = ISC_FALSE;
 	dns_fixedname_init(&view->dlv_fixed);
 	view->managed_keys = NULL;
+	view->redirect = NULL;
 #ifdef BIND9
 	view->new_zone_file = NULL;
 	view->new_zone_config = NULL;
@@ -435,6 +437,8 @@ destroy(dns_view_t *view) {
 	}
 	if (view->managed_keys != NULL)
 		dns_zone_detach(&view->managed_keys);
+	if (view->redirect != NULL)
+		dns_zone_detach(&view->redirect);
 	dns_view_setnewzones(view, ISC_FALSE, NULL, NULL);
 #endif
 	dns_fwdtable_destroy(&view->fwdtable);
@@ -486,7 +490,7 @@ view_flushanddetach(dns_view_t **viewp, isc_boolean_t flush) {
 	isc_refcount_decrement(&view->references, &refs);
 	if (refs == 0) {
 #ifdef BIND9
-		dns_zone_t *mkzone = NULL;
+		dns_zone_t *mkzone = NULL, *rdzone = NULL;
 #endif
 
 		LOCK(&view->lock);
@@ -509,6 +513,12 @@ view_flushanddetach(dns_view_t **viewp, isc_boolean_t flush) {
 			if (view->flush)
 				dns_zone_flush(mkzone);
 		}
+		if (view->redirect != NULL) {
+			rdzone = view->redirect;
+			view->redirect = NULL;
+			if (view->flush)
+				dns_zone_flush(rdzone);
+		}
 #endif
 		done = all_done(view);
 		UNLOCK(&view->lock);
@@ -517,6 +527,9 @@ view_flushanddetach(dns_view_t **viewp, isc_boolean_t flush) {
 		/* Need to detach zones outside view lock */
 		if (mkzone != NULL)
 			dns_zone_detach(&mkzone);
+
+		if (rdzone != NULL)
+			dns_zone_detach(&rdzone);
 #endif
 	}
 
@@ -661,7 +674,8 @@ req_shutdown(isc_task_t *task, isc_event_t *event) {
 
 isc_result_t
 dns_view_createresolver(dns_view_t *view,
-			isc_taskmgr_t *taskmgr, unsigned int ntasks,
+			isc_taskmgr_t *taskmgr,
+			unsigned int ntasks, unsigned int ndisp,
 			isc_socketmgr_t *socketmgr,
 			isc_timermgr_t *timermgr,
 			unsigned int options,
@@ -682,7 +696,7 @@ dns_view_createresolver(dns_view_t *view,
 		return (result);
 	isc_task_setname(view->task, "view", view);
 
-	result = dns_resolver_create(view, taskmgr, ntasks, socketmgr,
+	result = dns_resolver_create(view, taskmgr, ntasks, ndisp, socketmgr,
 				     timermgr, options, dispatchmgr,
 				     dispatchv4, dispatchv6,
 				     &view->resolver);
@@ -714,8 +728,7 @@ dns_view_createresolver(dns_view_t *view,
 	result = dns_requestmgr_create(view->mctx, timermgr, socketmgr,
 				      dns_resolver_taskmgr(view->resolver),
 				      dns_resolver_dispatchmgr(view->resolver),
-				      dns_resolver_dispatchv4(view->resolver),
-				      dns_resolver_dispatchv6(view->resolver),
+				      dispatchv4, dispatchv6,
 				      &view->requestmgr);
 	if (result != ISC_R_SUCCESS) {
 		dns_adb_shutdown(view->adb);
@@ -1434,6 +1447,7 @@ isc_result_t
 dns_view_load(dns_view_t *view, isc_boolean_t stop) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
 
 	return (dns_zt_load(view->zonetable, stop));
 }
@@ -1442,9 +1456,20 @@ isc_result_t
 dns_view_loadnew(dns_view_t *view, isc_boolean_t stop) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
 
 	return (dns_zt_loadnew(view->zonetable, stop));
 }
+
+isc_result_t
+dns_view_asyncload(dns_view_t *view, dns_zt_allloaded_t callback, void *arg) {
+	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
+
+	return (dns_zt_asyncload(view->zonetable, callback, arg));
+}
+
+
 #endif /* BIND9 */
 
 isc_result_t
@@ -1545,16 +1570,23 @@ dns_view_flushcache2(dns_view_t *view, isc_boolean_t fixuponly) {
 
 isc_result_t
 dns_view_flushname(dns_view_t *view, dns_name_t *name) {
+	return (dns_view_flushnode(view, name, ISC_FALSE));
+}
+
+isc_result_t
+dns_view_flushnode(dns_view_t *view, dns_name_t *name, isc_boolean_t tree) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
 
-	if (view->adb != NULL)
-		dns_adb_flushname(view->adb, name);
-	if (view->cache == NULL)
-		return (ISC_R_SUCCESS);
-	if (view->resolver != NULL)
-		dns_resolver_flushbadcache(view->resolver, name);
-	return (dns_cache_flushname(view->cache, name));
+	if (!tree) {
+		if (view->adb != NULL)
+			dns_adb_flushname(view->adb, name);
+		if (view->cache == NULL)
+			return (ISC_R_SUCCESS);
+		if (view->resolver != NULL)
+			dns_resolver_flushbadcache(view->resolver, name);
+	}
+	return (dns_cache_flushnode(view->cache, name, tree));
 }
 
 isc_result_t

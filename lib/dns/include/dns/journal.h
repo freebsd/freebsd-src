@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: journal.h,v 1.43 2011/12/22 07:32:41 each Exp $ */
 
 #ifndef DNS_JOURNAL_H
 #define DNS_JOURNAL_H 1
@@ -46,6 +46,10 @@
  ***/
 #define DNS_JOURNALOPT_RESIGN	0x00000001
 
+#define DNS_JOURNAL_READ	0x00000000	/* ISC_FALSE */
+#define DNS_JOURNAL_CREATE	0x00000001	/* ISC_TRUE */
+#define DNS_JOURNAL_WRITE	0x00000002
+
 /***
  *** Types
  ***/
@@ -72,7 +76,7 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_db_createsoatuple(dns_db_t *db, dns_dbversion_t *ver, isc_mem_t *mctx,
-		   dns_diffop_t op, dns_difftuple_t **tp);
+		      dns_diffop_t op, dns_difftuple_t **tp);
 /*!< brief
  * Create a diff tuple for the current database SOA.
  * XXX this probably belongs somewhere else.
@@ -95,16 +99,15 @@ dns_db_createsoatuple(dns_db_t *db, dns_dbversion_t *ver, isc_mem_t *mctx,
  */
 
 isc_result_t
-dns_journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
+dns_journal_open(isc_mem_t *mctx, const char *filename, unsigned int mode,
 		 dns_journal_t **journalp);
 /*%<
  * Open the journal file 'filename' and create a dns_journal_t object for it.
  *
- * If 'write' is ISC_TRUE, the journal is open for writing.  If it does
- * not exist, it is created.
- *
- * If 'write' is ISC_FALSE, the journal is open for reading.  If it does
- * not exist, ISC_R_NOTFOUND is returned.
+ * DNS_JOURNAL_CREATE open the journal for reading and writing and create
+ * the journal if it does not exist.
+ * DNS_JOURNAL_WRITE open the journal for reading and writing.
+ * DNS_JOURNAL_READ open the journal for reading only.
  */
 
 void
@@ -267,12 +270,18 @@ dns_db_diff(isc_mem_t *mctx,
 	    dns_db_t *dba, dns_dbversion_t *dbvera,
 	    dns_db_t *dbb, dns_dbversion_t *dbverb,
 	    const char *journal_filename);
+
+isc_result_t
+dns_db_diffx(dns_diff_t *diff, dns_db_t *dba, dns_dbversion_t *dbvera,
+	     dns_db_t *dbb, dns_dbversion_t *dbverb,
+	     const char *journal_filename);
 /*%<
- * Compare the databases 'dba' and 'dbb' and generate a journal
+ * Compare the databases 'dba' and 'dbb' and generate a diff/journal
  * entry containing the changes to make 'dba' from 'dbb' (note
  * the order).  This journal entry will consist of a single,
  * possibly very large transaction.  Append the journal
- * entry to the journal file specified by 'journal_filename'.
+ * entry to the journal file specified by 'journal_filename' if
+ * non-NULL.
  */
 
 isc_result_t
@@ -282,6 +291,17 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
  * Attempt to compact the journal if it is greater that 'target_size'.
  * Changes from 'serial' onwards will be preserved.  If the journal
  * exists and is non-empty 'serial' must exist in the journal.
+ */
+
+isc_boolean_t
+dns_journal_get_sourceserial(dns_journal_t *j, isc_uint32_t *sourceserial);
+void
+dns_journal_set_sourceserial(dns_journal_t *j, isc_uint32_t sourceserial);
+/*%<
+ * Get and set source serial.
+ *
+ * Returns:
+ *	 ISC_TRUE if sourceserial has previously been set.
  */
 
 ISC_LANG_ENDDECLS

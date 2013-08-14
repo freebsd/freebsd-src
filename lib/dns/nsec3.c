@@ -34,6 +34,7 @@
 #include <dns/dbiterator.h>
 #include <dns/diff.h>
 #include <dns/fixedname.h>
+#include <dns/nsec.h>
 #include <dns/nsec3.h>
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
@@ -50,31 +51,8 @@
 
 #define OPTOUT(x) (((x) & DNS_NSEC3FLAG_OPTOUT) != 0)
 #define CREATE(x) (((x) & DNS_NSEC3FLAG_CREATE) != 0)
+#define INITIAL(x) (((x) & DNS_NSEC3FLAG_INITIAL) != 0)
 #define REMOVE(x) (((x) & DNS_NSEC3FLAG_REMOVE) != 0)
-
-static void
-set_bit(unsigned char *array, unsigned int index, unsigned int bit) {
-	unsigned int shift, mask;
-
-	shift = 7 - (index % 8);
-	mask = 1 << shift;
-
-	if (bit != 0)
-		array[index / 8] |= mask;
-	else
-		array[index / 8] &= (~mask & 0xFF);
-}
-
-static unsigned int
-bit_isset(unsigned char *array, unsigned int index) {
-	unsigned int byte, shift, mask;
-
-	byte = array[index / 8];
-	shift = 7 - (index % 8);
-	mask = 1 << shift;
-
-	return ((byte & mask) != 0);
-}
 
 isc_result_t
 dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
@@ -87,8 +65,7 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	isc_result_t result;
 	dns_rdataset_t rdataset;
 	isc_region_t r;
-	unsigned int i, window;
-	int octet;
+	unsigned int i;
 	isc_boolean_t found;
 	isc_boolean_t found_ns;
 	isc_boolean_t need_rrsig;
@@ -156,7 +133,7 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 		    rdataset.type != dns_rdatatype_rrsig) {
 			if (rdataset.type > max_type)
 				max_type = rdataset.type;
-			set_bit(bm, rdataset.type, 1);
+			dns_nsec_setbit(bm, rdataset.type, 1);
 			/*
 			 * Work out if we need to set the RRSIG bit for
 			 * this node.  We set the RRSIG bit if either of
@@ -179,18 +156,18 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	if ((found && !found_ns) || need_rrsig) {
 		if (dns_rdatatype_rrsig > max_type)
 			max_type = dns_rdatatype_rrsig;
-		set_bit(bm, dns_rdatatype_rrsig, 1);
+		dns_nsec_setbit(bm, dns_rdatatype_rrsig, 1);
 	}
 
 	/*
 	 * At zone cuts, deny the existence of glue in the parent zone.
 	 */
-	if (bit_isset(bm, dns_rdatatype_ns) &&
-	    ! bit_isset(bm, dns_rdatatype_soa)) {
+	if (dns_nsec_isset(bm, dns_rdatatype_ns) &&
+	    ! dns_nsec_isset(bm, dns_rdatatype_soa)) {
 		for (i = 0; i <= max_type; i++) {
-			if (bit_isset(bm, i) &&
+			if (dns_nsec_isset(bm, i) &&
 			    ! dns_rdatatype_iszonecutauth((dns_rdatatype_t)i))
-				set_bit(bm, i, 0);
+				dns_nsec_setbit(bm, i, 0);
 		}
 	}
 
@@ -199,22 +176,7 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 		return (result);
 
  collapse_bitmap:
-	for (window = 0; window < 256; window++) {
-		if (window * 256 > max_type)
-			break;
-		for (octet = 31; octet >= 0; octet--)
-			if (bm[window * 32 + octet] != 0)
-				break;
-		if (octet < 0)
-			continue;
-		nsec_bits[0] = window;
-		nsec_bits[1] = octet + 1;
-		/*
-		 * Note: potentially overlapping move.
-		 */
-		memmove(&nsec_bits[2], &bm[window * 32], octet + 1);
-		nsec_bits += 3 + octet;
-	}
+	nsec_bits += dns_nsec_compressbitmap(nsec_bits, bm, max_type);
 	r.length = nsec_bits - r.base;
 	INSIST(r.length <= DNS_NSEC3_BUFFERSIZE);
 	dns_rdata_fromregion(rdata, dns_db_class(db), dns_rdatatype_nsec3, &r);
@@ -249,8 +211,8 @@ dns_nsec3_typepresent(dns_rdata_t *rdata, dns_rdatatype_t type) {
 		if ((window + 1) * 256 <= type)
 			continue;
 		if (type < (window * 256) + len * 8)
-			present = ISC_TF(bit_isset(&nsec3.typebits[i],
-						   type % 256));
+			present = ISC_TF(dns_nsec_isset(&nsec3.typebits[i],
+							type % 256));
 		break;
 	}
 	dns_rdata_freestruct(&nsec3);
@@ -1054,7 +1016,8 @@ rr_exists(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 #ifdef BIND9
 isc_result_t
 dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
-			    dns_zone_t *zone, dns_diff_t *diff)
+			    dns_zone_t *zone, isc_boolean_t nonsec,
+			    dns_diff_t *diff)
 {
 	dns_dbnode_t *node = NULL;
 	dns_difftuple_t *tuple = NULL;
@@ -1098,7 +1061,9 @@ dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
 
 		dns_nsec3param_toprivate(&rdata, &private, privatetype,
 					 buf, sizeof(buf));
-		buf[2] = DNS_NSEC3FLAG_REMOVE | DNS_NSEC3FLAG_NONSEC;
+		buf[2] = DNS_NSEC3FLAG_REMOVE;
+		if (nonsec)
+			buf[2] |= DNS_NSEC3FLAG_NONSEC;
 
 		CHECK(rr_exists(db, ver, origin, &private, &flag));
 
@@ -1129,6 +1094,7 @@ dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
 	for (result = dns_rdataset_first(&rdataset);
 	     result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(&rdataset)) {
+		dns_rdata_reset(&rdata);
 		dns_rdataset_current(&rdataset, &rdata);
 		INSIST(rdata.length <= sizeof(buf));
 		memcpy(buf, rdata.data, rdata.length);
@@ -1138,10 +1104,9 @@ dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
 		 * <0(1), hash(1), flags(1), iterations(2), saltlen(1)>
 		 */
 		if (rdata.length < 6 || buf[0] != 0 ||
-		    buf[2] == (DNS_NSEC3FLAG_REMOVE | DNS_NSEC3FLAG_NONSEC)) {
-			dns_rdata_reset(&rdata);
+		    (buf[2] & DNS_NSEC3FLAG_REMOVE) != 0 ||
+		    (nonsec && (buf[2] & DNS_NSEC3FLAG_NONSEC) != 0))
 			continue;
-		}
 
 		CHECK(dns_difftuple_create(diff->mctx, DNS_DIFFOP_DEL, origin,
 					   0, &rdata, &tuple));
@@ -1149,7 +1114,9 @@ dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
 		INSIST(tuple == NULL);
 
 		rdata.data = buf;
-		buf[2] = DNS_NSEC3FLAG_REMOVE | DNS_NSEC3FLAG_NONSEC;
+		buf[2] = DNS_NSEC3FLAG_REMOVE;
+		if (nonsec)
+			buf[2] |= DNS_NSEC3FLAG_NONSEC;
 
 		CHECK(rr_exists(db, ver, origin, &rdata, &flag));
 
@@ -1159,7 +1126,6 @@ dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
 			CHECK(do_one_tuple(&tuple, db, ver, diff));
 			INSIST(tuple == NULL);
 		}
-		dns_rdata_reset(&rdata);
 	}
 	if (result != ISC_R_NOMORE)
 		goto failure;

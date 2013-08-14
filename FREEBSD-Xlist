@@ -4,6 +4,7 @@
 .cvsignore
 bin/named/bindkeys.pl
 bin/pkcs11
+bin/python
 bind.keys
 configure
 contrib

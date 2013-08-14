@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: key.c,v 1.11 2011/10/20 21:20:02 marka Exp $ */
 
 #include <config.h>
 
@@ -175,6 +175,18 @@ isc_uint16_t
 dst_key_getbits(const dst_key_t *key) {
 	REQUIRE(VALID_KEY(key));
 	return (key->key_bits);
+}
+
+void
+dst_key_setttl(dst_key_t *key, dns_ttl_t ttl) {
+	REQUIRE(VALID_KEY(key));
+	key->key_ttl = ttl;
+}
+
+dns_ttl_t
+dst_key_getttl(const dst_key_t *key) {
+	REQUIRE(VALID_KEY(key));
+	return (key->key_ttl);
 }
 
 /*! \file */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: callbacks.c,v 1.19 2011/12/09 23:47:05 tbox Exp $ */
 
 /*! \file */
 
@@ -88,6 +88,8 @@ dns_rdatacallbacks_initcommon(dns_rdatacallbacks_t *callbacks) {
 	REQUIRE(callbacks != NULL);
 
 	callbacks->add = NULL;
+	callbacks->rawdata = NULL;
+	callbacks->zone = NULL;
 	callbacks->add_private = NULL;
 	callbacks->error_private = NULL;
 	callbacks->warn_private = NULL;
