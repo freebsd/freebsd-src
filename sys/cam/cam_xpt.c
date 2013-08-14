@@ -3044,13 +3044,12 @@ xpt_schedule(struct cam_periph *periph, u_int32_t new_priority)
 	struct cam_devq *devq;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("xpt_schedule\n"));
+	cam_periph_assert(periph, MA_OWNED);
 	devq = periph->sim->devq;
-	mtx_lock(&devq->send_mtx);
 	if (new_priority < periph->scheduled_priority) {
 		periph->scheduled_priority = new_priority;
 		xpt_run_allocq(periph);
 	}
-	mtx_unlock(&devq->send_mtx);
 }
 
 
@@ -3109,7 +3108,7 @@ xpt_run_allocq(struct cam_periph *periph)
 	uint32_t	 prio;
 
 	devq = periph->sim->devq;
-	mtx_assert(&devq->send_mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 	if (periph->periph_allocating)
 		return;
 	periph->periph_allocating = 1;
@@ -3145,9 +3144,7 @@ xpt_run_allocq(struct cam_periph *periph)
 			periph->scheduled_priority = CAM_PRIORITY_NONE;
 			CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 					("calling periph_start()\n"));
-			mtx_unlock(&devq->send_mtx);
 			periph->periph_start(periph, ccb);
-			mtx_lock(&devq->send_mtx);
 		}
 	}
 	periph->periph_allocating = 0;
@@ -3710,16 +3707,15 @@ xpt_release_ccb(union ccb *free_ccb)
 	struct	 cam_periph *periph;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_release_ccb\n"));
+	xpt_path_assert(free_ccb->ccb_h.path, MA_OWNED);
 	device = free_ccb->ccb_h.path->device;
 	devq = device->sim->devq;
 	periph = free_ccb->ccb_h.path->periph;
 
 	xpt_free_ccb(free_ccb);
-	mtx_lock(&devq->send_mtx);
 	periph->periph_allocated--;
 	cam_ccbq_release_opening(&device->ccbq);
 	xpt_run_allocq(periph);
-	mtx_unlock(&devq->send_mtx);
 }
 
 /* Functions accessed by SIM drivers */
@@ -4446,25 +4442,20 @@ xpt_get_ccb(struct cam_periph *periph)
 union ccb *
 cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 {
-	struct cam_devq *devq;
 	struct ccb_hdr *ccb_h;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("cam_periph_getccb\n"));
-	devq = periph->sim->devq;
-	cam_periph_unlock(periph);
-	mtx_lock(&devq->send_mtx);
+	cam_periph_assert(periph, MA_OWNED);
 	while ((ccb_h = SLIST_FIRST(&periph->ccb_list)) == NULL ||
 	    ccb_h->pinfo.priority != priority) {
 		if (priority < periph->immediate_priority) {
 			periph->immediate_priority = priority;
 			xpt_run_allocq(periph);
 		} else
-			mtx_sleep(&periph->ccb_list, &devq->send_mtx, PRIBIO,
+			cam_periph_sleep(periph, &periph->ccb_list, PRIBIO,
 			    "cgticb", 0);
 	}
 	SLIST_REMOVE_HEAD(&periph->ccb_list, periph_links.sle);
-	mtx_unlock(&devq->send_mtx);
-	cam_periph_lock(periph);
 	return ((union ccb *)ccb_h);
 }
 
