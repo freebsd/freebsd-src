@@ -1349,9 +1349,7 @@ dastrategy(struct bio *bp)
 	 * Place it in the queue of disk activities for this disk
 	 */
 	if (bp->bio_cmd == BIO_DELETE) {
-		if (bp->bio_bcount == 0)
-			biodone(bp);
-		else if (DA_SIO)
+		if (DA_SIO)
 			bioq_disksort(&softc->delete_queue, bp);
 		else
 			bioq_insert_tail(&softc->delete_queue, bp);
