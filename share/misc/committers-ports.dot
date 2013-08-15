@@ -155,6 +155,7 @@ miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
 mva [label="Marcus von Appen\nmva@FreeBSD.org\n2009/02/16"]
+nemysis [label="Rusmir Dusko\nnemysis@FreeBSD.org\n2013/07/31"]
 nemoliu [label="Tong Liu\nnemoliu@FreeBSD.org\n2007/04/25"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
 nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
@@ -421,6 +422,7 @@ miwi -> lme
 miwi -> makc
 miwi -> mandree
 miwi -> mva
+miwi -> nemysis
 miwi -> nox
 miwi -> olivierd
 miwi -> pawel
@@ -455,6 +457,8 @@ pav -> flz
 pav -> josef
 pav -> kwm
 pav -> mnag
+
+pawel -> nemysis
 
 pgj -> ashish
 pgj -> jacula
@@ -525,9 +529,12 @@ wen -> cs
 wen -> culot
 wen -> pawel
 
+wg -> nemysis
+
 will -> lioux
 
 wxs -> jsa
+wxs -> nemysis
 wxs -> sahil
 wxs -> skreuzer
 wxs -> swills
