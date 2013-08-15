@@ -2597,7 +2597,8 @@ static struct fileops mqueueops = {
 	.fo_stat		= mqf_stat,
 	.fo_chmod		= mqf_chmod,
 	.fo_chown		= mqf_chown,
-	.fo_close		= mqf_close
+	.fo_close		= mqf_close,
+	.fo_sendfile		= invfo_sendfile,
 };
 
 static struct vop_vector mqfs_vnodeops = {

@@ -599,6 +599,7 @@ static struct fileops ptsdev_ops = {
 	.fo_close	= ptsdev_close,
 	.fo_chmod	= invfo_chmod,
 	.fo_chown	= invfo_chown,
+	.fo_sendfile	= invfo_sendfile,
 	.fo_flags	= DFLAG_PASSABLE,
 };
 

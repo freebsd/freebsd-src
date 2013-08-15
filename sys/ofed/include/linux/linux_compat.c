@@ -565,6 +565,7 @@ struct fileops linuxfileops = {
 	.fo_ioctl = linux_file_ioctl,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
 };
 
 /*

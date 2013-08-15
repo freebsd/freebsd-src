@@ -127,6 +127,7 @@ static struct fileops kqueueops = {
 	.fo_close = kqueue_close,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
 };
 
 static int 	knote_attach(struct knote *kn, struct kqueue *kq);
