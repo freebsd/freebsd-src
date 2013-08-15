@@ -1286,6 +1286,8 @@ relock_queues:
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
 	 */
+	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
+	vm_pagequeue_lock(pq);
 	pcount = pq->pq_cnt;
 	page_shortage = vm_paging_target() +
 	    cnt.v_inactive_target - cnt.v_inactive_count;
@@ -1304,8 +1306,6 @@ relock_queues:
 	 * track the per-page activity counter and use it to locate
 	 * deactivation candidates.
 	 */
-	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
-	vm_pagequeue_lock(pq);
 	m = TAILQ_FIRST(&pq->pq_pl);
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 
