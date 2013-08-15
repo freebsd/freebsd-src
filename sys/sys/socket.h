@@ -628,7 +628,11 @@ struct sf_hdtr {
 #define	SF_NODISKIO     0x00000001
 #define	SF_MNOWAIT	0x00000002
 #define	SF_SYNC		0x00000004
-#endif
+
+#ifdef _KERNEL
+#define	SFK_COMPAT	0x00000001
+#endif /* _KERNEL */
+#endif /* __BSD_VISIBLE */
 
 #ifndef	_KERNEL
 

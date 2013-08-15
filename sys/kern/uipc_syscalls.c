@@ -157,6 +157,9 @@ sfstat_sysctl(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
     NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
+
+fo_sendfile_t vn_sendfile;
+
 /*
  * Convert a user file descriptor to a kernel file entry and check if required
  * capability rights are present.
@@ -1904,7 +1907,11 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 {
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
+	struct file *fp;
 	int error;
+
+	if (uap->offset < 0)
+		return (EINVAL);
 
 	hdr_uio = trl_uio = NULL;
 
@@ -1925,7 +1932,19 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		}
 	}
 
-	error = kern_sendfile(td, uap, hdr_uio, trl_uio, compat);
+	AUDIT_ARG_FD(uap->fd);
+
+	/*
+	 * sendfile(2) can start at any offset within a file so we require
+	 * CAP_READ+CAP_SEEK = CAP_PREAD.
+	 */
+	if ((error = fget_read(td, uap->fd, CAP_PREAD, &fp)) != 0)
+		goto out;
+
+	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
+	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	fdrop(fp, td);
+
 out:
 	if (hdr_uio)
 		free(hdr_uio, M_IOV);
@@ -1953,11 +1972,12 @@ freebsd4_sendfile(struct thread *td, struct freebsd4_sendfile_args *uap)
 #endif /* COMPAT_FREEBSD4 */
 
 int
-kern_sendfile(struct thread *td, struct sendfile_args *uap,
-    struct uio *hdr_uio, struct uio *trl_uio, int compat)
+vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
+    struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
+    int kflags, struct thread *td)
 {
+	struct vnode *vp = fp->f_vnode;
 	struct file *sock_fp;
-	struct vnode *vp;
 	struct vm_object *obj = NULL;
 	struct socket *so = NULL;
 	struct mbuf *m = NULL;
@@ -1969,23 +1989,10 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	int bsize;
 	struct sendfile_sync *sfs = NULL;
 
-	/*
-	 * The file descriptor must be a regular file and have a
-	 * backing VM object.
-	 * File offset must be positive.  If it goes beyond EOF
-	 * we send only the header/trailer and no payload data.
-	 */
-	AUDIT_ARG_FD(uap->fd);
-	/*
-	 * sendfile(2) can start at any offset within a file so we require
-	 * CAP_READ+CAP_SEEK = CAP_PREAD.
-	 */
-	if ((error = fgetvp_read(td, uap->fd, CAP_PREAD, &vp)) != 0)
-		goto out;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (vp->v_type == VREG) {
 		bsize = vp->v_mount->mnt_stat.f_iosize;
-		if (uap->nbytes == 0) {
+		if (nbytes == 0) {
 			error = VOP_GETATTR(vp, &va, td->td_ucred);
 			if (error != 0) {
 				VOP_UNLOCK(vp, 0);
@@ -1994,7 +2001,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 			}
 			rem = va.va_size;
 		} else
-			rem = uap->nbytes;
+			rem = nbytes;
 		obj = vp->v_object;
 		if (obj != NULL) {
 			/*
@@ -2019,16 +2026,12 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		error = EINVAL;
 		goto out;
 	}
-	if (uap->offset < 0) {
-		error = EINVAL;
-		goto out;
-	}
 
 	/*
 	 * The socket must be a stream socket and connected.
 	 * Remember if it a blocking or non-blocking socket.
 	 */
-	if ((error = getsock_cap(td->td_proc->p_fd, uap->s, CAP_SEND,
+	if ((error = getsock_cap(td->td_proc->p_fd, sockfd, CAP_SEND,
 	    &sock_fp, NULL)) != 0)
 		goto out;
 	so = sock_fp->f_data;
@@ -2045,10 +2048,10 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * caller to retry later.
 	 * XXX: Experimental.
 	 */
-	if (uap->flags & SF_MNOWAIT)
+	if (flags & SF_MNOWAIT)
 		mnw = 1;
 
-	if (uap->flags & SF_SYNC) {
+	if (flags & SF_SYNC) {
 		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
@@ -2070,11 +2073,11 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 			 * the header.  If compat is specified subtract the
 			 * header size from nbytes.
 			 */
-			if (compat) {
-				if (uap->nbytes > hdr_uio->uio_resid)
-					uap->nbytes -= hdr_uio->uio_resid;
+			if (kflags & SFK_COMPAT) {
+				if (nbytes > hdr_uio->uio_resid)
+					nbytes -= hdr_uio->uio_resid;
 				else
-					uap->nbytes = 0;
+					nbytes = 0;
 			}
 			m = m_uiotombuf(hdr_uio, (mnw ? M_NOWAIT : M_WAITOK),
 			    0, 0, 0);
@@ -2105,14 +2108,14 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * The outer loop checks the state and available space of the socket
 	 * and takes care of the overall progress.
 	 */
-	for (off = uap->offset; ; ) {
+	for (off = offset; ; ) {
 		struct mbuf *mtail;
 		int loopbytes;
 		int space;
 		int done;
 
-		if ((uap->nbytes != 0 && uap->nbytes == fsbytes) ||
-		    (uap->nbytes == 0 && va.va_size == fsbytes))
+		if ((nbytes != 0 && nbytes == fsbytes) ||
+		    (nbytes == 0 && va.va_size == fsbytes))
 			break;
 
 		mtail = NULL;
@@ -2210,11 +2213,11 @@ retry_space:
 			 * or the passed in nbytes.
 			 */
 			pgoff = (vm_offset_t)(off & PAGE_MASK);
-			if (uap->nbytes)
-				rem = (uap->nbytes - fsbytes - loopbytes);
+			if (nbytes)
+				rem = (nbytes - fsbytes - loopbytes);
 			else
 				rem = va.va_size -
-				    uap->offset - fsbytes - loopbytes;
+				    offset - fsbytes - loopbytes;
 			xfsize = omin(PAGE_SIZE - pgoff, rem);
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
@@ -2242,7 +2245,7 @@ retry_space:
 				VM_OBJECT_WUNLOCK(obj);
 			else if (m != NULL)
 				error = EAGAIN;	/* send what we already got */
-			else if (uap->flags & SF_NODISKIO)
+			else if (flags & SF_NODISKIO)
 				error = EBUSY;
 			else {
 				ssize_t resid;
@@ -2299,7 +2302,7 @@ retry_space:
 				vm_page_lock(pg);
 				vm_page_unwire(pg, 0);
 				KASSERT(pg->object != NULL,
-				    ("kern_sendfile: object disappeared"));
+				    ("%s: object disappeared", __func__));
 				vm_page_unlock(pg);
 				if (m == NULL)
 					error = (mnw ? EAGAIN : EINTR);
@@ -2399,7 +2402,7 @@ retry_space:
 	 */
 	if (trl_uio != NULL) {
 		sbunlock(&so->so_snd);
-		error = kern_writev(td, uap->s, trl_uio);
+		error = kern_writev(td, sockfd, trl_uio);
 		if (error == 0)
 			sbytes += td->td_retval[0];
 		goto out;
@@ -2415,13 +2418,11 @@ out:
 	if (error == 0) {
 		td->td_retval[0] = 0;
 	}
-	if (uap->sbytes != NULL) {
-		copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	if (sent != NULL) {
+		copyout(&sbytes, sent, sizeof(off_t));
 	}
 	if (obj != NULL)
 		vm_object_deallocate(obj);
-	if (vp != NULL)
-		vrele(vp);
 	if (so)
 		fdrop(sock_fp, td);
 	if (m)
