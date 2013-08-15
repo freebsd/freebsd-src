@@ -2822,6 +2822,8 @@ call_sim:
 				break;
 			}
 			cur_entry->event_enable = csa->event_enable;
+			cur_entry->event_lock =
+			    mtx_owned(path->bus->sim->mtx) ? 1 : 0;
 			cur_entry->callback_arg = csa->callback_arg;
 			cur_entry->callback = csa->callback;
 			SLIST_INSERT_HEAD(async_head, cur_entry, links);
@@ -4102,6 +4104,7 @@ xpt_async_bcast(struct async_list *async_head,
 		struct cam_path *path, void *async_arg)
 {
 	struct async_node *cur_entry;
+	int lock;
 
 	cur_entry = SLIST_FIRST(async_head);
 	while (cur_entry != NULL) {
@@ -4112,10 +4115,16 @@ xpt_async_bcast(struct async_list *async_head,
 		 * can delete its async callback entry.
 		 */
 		next_entry = SLIST_NEXT(cur_entry, links);
-		if ((cur_entry->event_enable & async_code) != 0)
+		if ((cur_entry->event_enable & async_code) != 0) {
+			lock = cur_entry->event_lock;
+			if (lock)
+				CAM_SIM_LOCK(path->device->sim);
 			cur_entry->callback(cur_entry->callback_arg,
 					    async_code, path,
 					    async_arg);
+			if (lock)
+				CAM_SIM_UNLOCK(path->device->sim);
+		}
 		cur_entry = next_entry;
 	}
 }

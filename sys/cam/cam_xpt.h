@@ -55,6 +55,7 @@ struct cam_path;
 struct async_node {
 	SLIST_ENTRY(async_node)	links;
 	u_int32_t	event_enable;	/* Async Event enables */
+	u_int32_t	event_lock;	/* Take SIM lock for handlers. */
 	void		(*callback)(void *arg, u_int32_t code,
 				    struct cam_path *path, void *args);
 	void		*callback_arg;
