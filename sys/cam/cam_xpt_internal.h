@@ -77,10 +77,6 @@ struct cam_ed {
 	struct	cam_et	 *target;
 	struct	cam_sim  *sim;
 	lun_id_t	 lun_id;
-	struct	camq drvq;		/*
-					 * Queue of type drivers wanting to do
-					 * work on this device.
-					 */
 	struct	cam_ccbq ccbq;		/* Queue of pending ccbs */
 	struct	async_list asyncs;	/* Async callback info for this B/T/L */
 	struct	periph_list periphs;	/* All attached devices */

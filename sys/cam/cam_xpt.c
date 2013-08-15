@@ -987,14 +987,6 @@ xpt_add_periph(struct cam_periph *periph)
 	device = periph->path->device;
 	status = CAM_REQ_CMP;
 	if (device != NULL) {
-		/*
-		 * Make room for this peripheral
-		 * so it will fit in the queue
-		 * when it's scheduled to run
-		 */
-		status = camq_resize(&device->drvq,
-				     device->drvq.array_size + 1);
-
 		mtx_lock(&device->target->bus->eb_mtx);
 		device->generation++;
 		SLIST_INSERT_HEAD(&device->periphs, periph, periph_links);
@@ -1011,9 +1003,6 @@ xpt_remove_periph(struct cam_periph *periph)
 
 	device = periph->path->device;
 	if (device != NULL) {
-		/* Release the slot for this peripheral */
-		camq_resize(&device->drvq, device->drvq.array_size - 1);
-
 		mtx_lock(&device->target->bus->eb_mtx);
 		device->generation++;
 		SLIST_REMOVE(&device->periphs, periph, cam_periph, periph_links);
@@ -4630,14 +4619,8 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	device->target = target;
 	device->lun_id = lun_id;
 	device->sim = bus->sim;
-	/* Initialize our queues */
-	if (camq_init(&device->drvq, 0) != 0) {
-		free(device, M_CAMDEV);
-		return (NULL);
-	}
 	if (cam_ccbq_init(&device->ccbq,
 			  bus->sim->max_dev_openings) != 0) {
-		camq_fini(&device->drvq);
 		free(device, M_CAMDEV);
 		return (NULL);
 	}
@@ -4710,7 +4693,6 @@ xpt_release_device(struct cam_ed *device)
 
 	xpt_release_target(device->target);
 
-	camq_fini(&device->drvq);
 	cam_ccbq_fini(&device->ccbq);
 	/*
 	 * Free allocated memory.  free(9) does nothing if the
