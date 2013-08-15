@@ -1548,29 +1548,55 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
 
-int (*atomic_cmpset_64)(volatile uint64_t *, uint64_t, uint64_t) =
-    atomic_cmpset_64_i386;
-uint64_t (*atomic_load_acq_64)(volatile uint64_t *) =
-    atomic_load_acq_64_i386;
-void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t) =
-    atomic_store_rel_64_i386;
-uint64_t (*atomic_swap_64)(volatile uint64_t *, uint64_t) =
-    atomic_swap_64_i386;
-int (*atomic_testandset_64)(volatile uint64_t *, int) =
-    atomic_testandset_64_i386;
+static int	cpu_ident_cmxchg8b = 0;
 
 static void
 cpu_probe_cmpxchg8b(void)
 {
 
 	if ((cpu_feature & CPUID_CX8) != 0 ||
-	    cpu_vendor_id == CPU_VENDOR_RISE) {
-		atomic_cmpset_64 = atomic_cmpset_64_i586;
-		atomic_load_acq_64 = atomic_load_acq_64_i586;
-		atomic_store_rel_64 = atomic_store_rel_64_i586;
-		atomic_swap_64 = atomic_swap_64_i586;
-		atomic_testandset_64 = atomic_testandset_64_i586;
-	}
+	    cpu_vendor_id == CPU_VENDOR_RISE)
+		cpu_ident_cmxchg8b = 1;
+}
+
+int
+atomic_cmpset_64(volatile uint64_t *dst, uint64_t expect, uint64_t src)
+{
+
+	if (cpu_ident_cmxchg8b)
+		return (atomic_cmpset_64_i586(dst, expect, src));
+	else
+		return (atomic_cmpset_64_i386(dst, expect, src));
+}
+
+uint64_t
+atomic_load_acq_64(volatile uint64_t *p)
+{
+
+	if (cpu_ident_cmxchg8b)
+		return (atomic_load_acq_64_i586(p));
+	else
+		return (atomic_load_acq_64_i386(p));
+}
+
+void
+atomic_store_rel_64(volatile uint64_t *p, uint64_t v)
+{
+
+	if (cpu_ident_cmxchg8b)
+		atomic_store_rel_64_i586(p, v);
+	else
+		atomic_store_rel_64_i386(p, v);
+}
+
+uint64_t
+atomic_swap_64(volatile uint64_t *p, uint64_t v)
+{
+
+	if (cpu_ident_cmxchg8b)
+		return (atomic_swap_64_i586(p, v));
+	else
+		return (atomic_swap_64_i386(p, v));
 }
 
 /*
