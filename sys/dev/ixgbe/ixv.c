@@ -1561,14 +1561,8 @@ ixv_identify_hardware(struct adapter *adapter)
 	** Make sure BUSMASTER is set, on a VM under
 	** KVM it may not be and will break things.
 	*/
+	pci_enable_busmaster(dev);
 	pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	    (pci_cmd_word & PCIM_CMD_MEMEN))) {
-		INIT_DEBUGOUT("Memory Access and/or Bus Master "
-		    "bits were not set!\n");
-		pci_cmd_word |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
-	}
 
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);

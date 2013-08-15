@@ -113,21 +113,11 @@ mlx_pci_attach(device_t dev)
 {
     struct mlx_softc	*sc;
     int			i, error;
-    u_int32_t		command;
 
     debug_called(1);
 
-    /*
-     * Make sure we are going to be able to talk to this board.
-     */
-    command = pci_read_config(dev, PCIR_COMMAND, 2);
-    if ((command & PCIM_CMD_MEMEN) == 0) {
-	device_printf(dev, "memory window not available\n");
-	return(ENXIO);
-    }
     /* force the busmaster enable bit on */
-    command |= PCIM_CMD_BUSMASTEREN;
-    pci_write_config(dev, PCIR_COMMAND, command, 2);
+    pci_enable_busmaster(dev);
 
     /*
      * Initialise softc.
