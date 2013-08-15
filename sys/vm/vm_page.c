@@ -1611,6 +1611,10 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			if (vp != NULL)
 				vdrop(vp);
 			pagedaemon_wakeup();
+			if (req & VM_ALLOC_WIRED) {
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+				m->wire_count = 0;
+			}
 			m->object = NULL;
 			vm_page_free(m);
 			return (NULL);
@@ -1806,8 +1810,13 @@ retry:
 				    &deferred_vdrop_list);
 				if (vm_paging_needed())
 					pagedaemon_wakeup();
+				if ((req & VM_ALLOC_WIRED) != 0)
+					atomic_subtract_int(&cnt.v_wire_count,
+					    npages);
 				for (m_tmp = m, m = m_ret;
 				    m < &m_ret[npages]; m++) {
+					if ((req & VM_ALLOC_WIRED) != 0)
+						m->wire_count = 0;
 					if (m >= m_tmp)
 						m->object = NULL;
 					vm_page_free(m);
