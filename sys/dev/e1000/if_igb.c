@@ -2834,21 +2834,16 @@ igb_setup_msix(struct adapter *adapter)
 		goto msi;
 
 	/* First try MSI/X */
+	msgs = pci_msix_count(dev); 
+	if (msgs == 0)
+		goto msi;
 	rid = PCIR_BAR(IGB_MSIX_BAR);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       	if (!adapter->msix_mem) {
+       	if (adapter->msix_mem == NULL) {
 		/* May not be enabled */
 		device_printf(adapter->dev,
 		    "Unable to map MSIX table \n");
-		goto msi;
-	}
-
-	msgs = pci_msix_count(dev); 
-	if (msgs == 0) { /* system has msix disabled */
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
-		adapter->msix_mem = NULL;
 		goto msi;
 	}
 
@@ -2894,20 +2889,27 @@ igb_setup_msix(struct adapter *adapter)
 		    "MSIX Configuration Problem, "
 		    "%d vectors configured, but %d queues wanted!\n",
 		    msgs, want);
-		return (0);
+		goto msi;
 	}
-	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
+	if (pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
 		adapter->num_queues = queues;
 		return (msgs);
 	}
+	/* Fallback to MSI configuration */
 msi:
-       	msgs = pci_msi_count(dev);
-	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0) {
+       	if (adapter->msix_mem != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
+		adapter->msix_mem = NULL;
+	}
+       	msgs = 1;
+	if (pci_alloc_msi(dev, &msgs) == 0) {
 		device_printf(adapter->dev," Using MSI interrupt\n");
 		return (msgs);
 	}
+	/* Default to a legacy interrupt */
 	return (0);
 }
 

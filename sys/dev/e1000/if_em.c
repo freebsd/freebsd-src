@@ -2742,7 +2742,7 @@ static int
 em_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	int val = 0;
+	int val;
 
 	/*
 	** Setup MSI/X for Hartwell: tests have shown
@@ -2756,17 +2756,17 @@ em_setup_msix(struct adapter *adapter)
 		int rid = PCIR_BAR(EM_MSIX_BAR);
 		adapter->msix_mem = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       		if (!adapter->msix_mem) {
+       		if (adapter->msix_mem == NULL) {
 			/* May not be enabled */
                		device_printf(adapter->dev,
 			    "Unable to map MSIX table \n");
 			goto msi;
        		}
 		val = pci_msix_count(dev); 
-		/* We only need 3 vectors */
-		if (val > 3)
+		/* We only need/want 3 vectors */
+		if (val >= 3)
 			val = 3;
-		if ((val != 3) && (val != 5)) {
+		else {
 			bus_release_resource(dev, SYS_RES_MEMORY,
 			    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
 			adapter->msix_mem = NULL;
@@ -2779,14 +2779,13 @@ em_setup_msix(struct adapter *adapter)
 			device_printf(adapter->dev,
 			    "Using MSIX interrupts "
 			    "with %d vectors\n", val);
+			return (val);
 		}
-
-		return (val);
+		/* Fall through to MSI */
 	}
 msi:
-       	val = pci_msi_count(dev);
-       	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
-               	adapter->msix = 1;
+       	val = 1;
+       	if (pci_alloc_msi(dev, &val) == 0) {
                	device_printf(adapter->dev,"Using an MSI interrupt\n");
 		return (val);
 	} 

@@ -1680,24 +1680,16 @@ static int
 ixv_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	int rid, vectors, want = 2;
+	int rid, want;
 
 
 	/* First try MSI/X */
 	rid = PCIR_BAR(3);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       	if (!adapter->msix_mem) {
+       	if (adapter->msix_mem == NULL) {
 		device_printf(adapter->dev,
 		    "Unable to map MSIX table \n");
-		goto out;
-	}
-
-	vectors = pci_msix_count(dev); 
-	if (vectors < 2) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    rid, adapter->msix_mem);
-		adapter->msix_mem = NULL;
 		goto out;
 	}
 
@@ -1705,12 +1697,18 @@ ixv_setup_msix(struct adapter *adapter)
 	** Want two vectors: one for a queue,
 	** plus an additional for mailbox.
 	*/
+	want = 2;
 	if (pci_alloc_msix(dev, &want) == 0) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", want);
 		return (want);
 	}
 out:
+       	if (adapter->msix_mem != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rid, adapter->msix_mem);
+		adapter->msix_mem = NULL;
+	}
 	device_printf(adapter->dev,"MSIX config error\n");
 	return (ENXIO);
 }
