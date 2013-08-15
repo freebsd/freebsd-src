@@ -147,6 +147,7 @@ struct cam_et {
 	struct		timeval last_reset;
 	u_int		rpl_size;
 	struct scsi_report_luns_data *luns;
+	struct mtx	luns_mtx;	/* Protection for luns field. */
 };
 
 /*

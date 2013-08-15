@@ -4526,6 +4526,7 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 	target->refcount = 1;
 	target->generation = 0;
 	target->luns = NULL;
+	mtx_init(&target->luns_mtx, "CAM LUNs lock", NULL, MTX_DEF);
 	timevalclear(&target->last_reset);
 	/*
 	 * Hold a reference to our parent bus so it
@@ -4572,6 +4573,7 @@ xpt_release_target(struct cam_et *target)
 	KASSERT(TAILQ_EMPTY(&target->ed_entries),
 	    ("destroying target, but device list is not empty"));
 	xpt_release_bus(bus);
+	mtx_destroy(&target->luns_mtx);
 	if (target->luns)
 		free(target->luns, M_CAMXPT);
 	free(target, M_CAMXPT);

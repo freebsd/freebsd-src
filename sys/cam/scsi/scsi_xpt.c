@@ -1728,11 +1728,12 @@ probe_purge_old(struct cam_path *path, struct scsi_report_luns_data *new)
 	if (path->target == NULL) {
 		return;
 	}
-	if (path->target->luns == NULL) {
-		path->target->luns = new;
-		return;
-	}
+	mtx_lock(&path->target->luns_mtx);
 	old = path->target->luns;
+	path->target->luns = new;
+	mtx_unlock(&path->target->luns_mtx);
+	if (old == NULL)
+		return;
 	nlun_old = scsi_4btoul(old->length) / 8;
 	nlun_new = scsi_4btoul(new->length) / 8;
 
@@ -1774,7 +1775,6 @@ probe_purge_old(struct cam_path *path, struct scsi_report_luns_data *new)
 		}
 	}
 	free(old, M_CAMXPT);
-	path->target->luns = new;
 }
 
 static void
@@ -2011,6 +2011,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 		mtx = xpt_path_mtx(scan_info->request_ccb->ccb_h.path);
 		mtx_lock(mtx);
+		mtx_lock(&target->luns_mtx);
 		if (target->luns) {
 			uint32_t first;
 			u_int nluns = scsi_4btoul(target->luns->length) / 8;
@@ -2028,6 +2029,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (scan_info->lunindex[target_id] < nluns) {
 				CAM_GET_SIMPLE_LUN(target->luns,
 				    scan_info->lunindex[target_id], lun_id);
+				mtx_unlock(&target->luns_mtx);
 				next_target = 0;
 				CAM_DEBUG(request_ccb->ccb_h.path,
 				    CAM_DEBUG_PROBE,
@@ -2035,6 +2037,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				   scan_info->lunindex[target_id], lun_id));
 				scan_info->lunindex[target_id]++;
 			} else {
+				mtx_unlock(&target->luns_mtx);
 				/*
 				 * We're done with scanning all luns.
 				 *
@@ -2053,7 +2056,9 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 					}
 				}
 			}
-		} else if (request_ccb->ccb_h.status != CAM_REQ_CMP) {
+		} else {
+		    mtx_unlock(&target->luns_mtx);
+		    if (request_ccb->ccb_h.status != CAM_REQ_CMP) {
 			int phl;
 
 			/*
@@ -2085,7 +2090,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (lun_id == request_ccb->ccb_h.target_lun
 			    || lun_id > scan_info->cpi->max_lun)
 				next_target = 1;
-		} else {
+		    } else {
 
 			device = request_ccb->ccb_h.path->device;
 
@@ -2101,6 +2106,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			if (lun_id == request_ccb->ccb_h.target_lun
 			    || lun_id > scan_info->cpi->max_lun)
 				next_target = 1;
+		    }
 		}
 
 		/*
