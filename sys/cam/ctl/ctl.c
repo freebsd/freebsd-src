@@ -1070,9 +1070,11 @@ ctl_init(void)
 	softc->emergency_pool = emergency_pool;
 	softc->othersc_pool = other_pool;
 
+	mtx_lock(&softc->ctl_lock);
 	ctl_pool_acquire(internal_pool);
 	ctl_pool_acquire(emergency_pool);
 	ctl_pool_acquire(other_pool);
+	mtx_unlock(&softc->ctl_lock);
 
 	/*
 	 * We used to allocate a processor LUN here.  The new scheme is to
@@ -1088,10 +1090,12 @@ ctl_init(void)
 			 "ctl_thrd");
 	if (error != 0) {
 		printf("error creating CTL work thread!\n");
+		mtx_lock(&softc->ctl_lock);
 		ctl_free_lun(lun);
 		ctl_pool_free(softc, internal_pool);
 		ctl_pool_free(softc, emergency_pool);
 		ctl_pool_free(softc, other_pool);
+		mtx_unlock(&softc->ctl_lock);
 		return (error);
 	}
 	printf("ctl: CAM Target Layer loaded\n");
@@ -1372,7 +1376,6 @@ ctl_ioctl_offline(void *arg)
 /*
  * Remove an initiator by port number and initiator ID.
  * Returns 0 for success, 1 for failure.
- * Assumes the caller does NOT hold the CTL lock.
  */
 int
 ctl_remove_initiator(int32_t targ_port, uint32_t iid)
@@ -1380,6 +1383,8 @@ ctl_remove_initiator(int32_t targ_port, uint32_t iid)
 	struct ctl_softc *softc;
 
 	softc = control_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
 	if ((targ_port < 0)
 	 || (targ_port > CTL_MAX_PORTS)) {
@@ -1404,7 +1409,6 @@ ctl_remove_initiator(int32_t targ_port, uint32_t iid)
 /*
  * Add an initiator to the initiator map.
  * Returns 0 for success, 1 for failure.
- * Assumes the caller does NOT hold the CTL lock.
  */
 int
 ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid)
@@ -1413,6 +1417,8 @@ ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid)
 	int retval;
 
 	softc = control_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
 	retval = 0;
 
@@ -1970,7 +1976,6 @@ ctl_ioctl_bbrread_callback(void *arg, struct cfi_metatask *metatask)
 }
 
 /*
- * Must be called with the ctl_lock held.
  * Returns 0 for success, errno for failure.
  */
 static int
@@ -1981,6 +1986,8 @@ ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 	int retval;
 
 	retval = 0;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	for (io = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue); (io != NULL);
 	     (*cur_fill_num)++, io = (union ctl_io *)TAILQ_NEXT(&io->io_hdr,
@@ -3395,12 +3402,12 @@ bailout:
 	return (retval);
 }
 
-/*
- * Caller must hold ctl_softc->ctl_lock.
- */
 int
 ctl_pool_acquire(struct ctl_io_pool *pool)
 {
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
+
 	if (pool == NULL)
 		return (-EINVAL);
 
@@ -3412,12 +3419,12 @@ ctl_pool_acquire(struct ctl_io_pool *pool)
 	return (0);
 }
 
-/*
- * Caller must hold ctl_softc->ctl_lock.
- */
 int
 ctl_pool_invalidate(struct ctl_io_pool *pool)
 {
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
+
 	if (pool == NULL)
 		return (-EINVAL);
 
@@ -3426,12 +3433,12 @@ ctl_pool_invalidate(struct ctl_io_pool *pool)
 	return (0);
 }
 
-/*
- * Caller must hold ctl_softc->ctl_lock.
- */
 int
 ctl_pool_release(struct ctl_io_pool *pool)
 {
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
+
 	if (pool == NULL)
 		return (-EINVAL);
 
@@ -3443,13 +3450,12 @@ ctl_pool_release(struct ctl_io_pool *pool)
 	return (0);
 }
 
-/*
- * Must be called with ctl_softc->ctl_lock held.
- */
 void
 ctl_pool_free(struct ctl_softc *ctl_softc, struct ctl_io_pool *pool)
 {
 	union ctl_io *cur_io, *next_io;
+
+	mtx_assert(&ctl_softc->ctl_lock, MA_OWNED);
 
 	for (cur_io = (union ctl_io *)STAILQ_FIRST(&pool->free_queue);
 	     cur_io != NULL; cur_io = next_io) {
@@ -4392,7 +4398,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 /*
  * Delete a LUN.
  * Assumptions:
- * - caller holds ctl_softc->ctl_lock.
  * - LUN has already been marked invalid and any pending I/O has been taken
  *   care of.
  */
@@ -4408,6 +4413,8 @@ ctl_free_lun(struct ctl_lun *lun)
 	int i;
 
 	softc = lun->ctl_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_OWNED);
 
 	STAILQ_REMOVE(&softc->lun_list, lun, ctl_lun, links);
 
@@ -9772,7 +9779,6 @@ ctl_check_for_blockage(union ctl_io *pending_io, union ctl_io *ooa_io)
 /*
  * Check for blockage or overlaps against the OOA (Order Of Arrival) queue.
  * Assumptions:
- * - caller holds ctl_lock
  * - pending_io is generally either incoming, or on the blocked queue
  * - starting I/O is the I/O we want to start the check with.
  */
@@ -9782,6 +9788,8 @@ ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
 {
 	union ctl_io *ooa_io;
 	ctl_action action;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	/*
 	 * Run back along the OOA queue, starting with the current
@@ -9823,12 +9831,13 @@ ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
  * Assumptions:
  * - An I/O has just completed, and has been removed from the per-LUN OOA
  *   queue, so some items on the blocked queue may now be unblocked.
- * - The caller holds ctl_softc->ctl_lock
  */
 static int
 ctl_check_blocked(struct ctl_lun *lun)
 {
 	union ctl_io *cur_blocked, *next_blocked;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	/*
 	 * Run forward from the head of the blocked queue, checking each
@@ -10893,8 +10902,6 @@ bailout:
 }
 
 /*
- * Assumptions:  caller holds ctl_softc->ctl_lock
- *
  * This routine cannot block!  It must be callable from an interrupt
  * handler as well as from the work thread.
  */
@@ -10902,6 +10909,8 @@ static void
 ctl_run_task_queue(struct ctl_softc *ctl_softc)
 {
 	union ctl_io *io, *next_io;
+
+	mtx_assert(&ctl_softc->ctl_lock, MA_OWNED);
 
 	CTL_DEBUG_PRINT(("ctl_run_task_queue\n"));
 
@@ -11204,13 +11213,12 @@ ctl_cmd_pattern_match(struct ctl_scsiio *ctsio, struct ctl_error_desc *desc)
 	return (filtered_pattern);
 }
 
-/*
- * Called with the CTL lock held.
- */
 static void
 ctl_inject_error(struct ctl_lun *lun, union ctl_io *io)
 {
 	struct ctl_error_desc *desc, *desc2;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	STAILQ_FOREACH_SAFE(desc, &lun->error_list, links, desc2) {
 		ctl_lun_error_pattern pattern;
@@ -11281,13 +11289,12 @@ ctl_datamove_timer_wakeup(void *arg)
 }
 #endif /* CTL_IO_DELAY */
 
-/*
- * Assumption:  caller does NOT hold ctl_lock
- */
 void
 ctl_datamove(union ctl_io *io)
 {
 	void (*fe_datamove)(union ctl_io *io);
+
+	mtx_assert(&control_softc->ctl_lock, MA_NOTOWNED);
 
 	CTL_DEBUG_PRINT(("ctl_datamove\n"));
 
@@ -12134,8 +12141,6 @@ ctl_datamove_remote_read(union ctl_io *io)
  * first.  Once that is complete, the data gets DMAed into the remote
  * controller's memory.  For reads, we DMA from the remote controller's
  * memory into our memory first, and then move it out to the FETD.
- *
- * Should be called without the ctl_lock held.
  */
 static void
 ctl_datamove_remote(union ctl_io *io)
@@ -12143,6 +12148,8 @@ ctl_datamove_remote(union ctl_io *io)
 	struct ctl_softc *softc;
 
 	softc = control_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
 	/*
 	 * Note that we look for an aborted I/O here, but don't do some of
