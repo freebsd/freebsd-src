@@ -22,6 +22,7 @@ BIN1=	crontab \
 	hosts.equiv \
 	inetd.conf \
 	libalias.conf \
+	libmap.conf \
 	login.access \
 	login.conf \
 	mac.conf \
