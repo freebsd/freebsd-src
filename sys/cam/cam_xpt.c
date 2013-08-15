@@ -2977,13 +2977,12 @@ xpt_polled_action(union ccb *start_ccb)
 	struct	  cam_devq *devq;
 	struct	  cam_ed *dev;
 
-
 	timeout = start_ccb->ccb_h.timeout * 10;
 	sim = start_ccb->ccb_h.path->bus->sim;
 	devq = sim->devq;
 	dev = start_ccb->ccb_h.path->device;
 
-	mtx_assert(sim->mtx, MA_OWNED);
+	mtx_unlock(&dev->device_mtx);
 
 	/* Don't use ISR for this SIM while polling. */
 	mtx_lock(&sim->sim_doneq_mtx);
@@ -2994,23 +2993,29 @@ xpt_polled_action(union ccb *start_ccb)
 	 * Steal an opening so that no other queued requests
 	 * can get it before us while we simulate interrupts.
 	 */
+	mtx_lock(&devq->send_mtx);
 	dev->ccbq.devq_openings--;
 	dev->ccbq.dev_openings--;
-
-	while(((devq != NULL && devq->send_openings <= 0) ||
-	   dev->ccbq.dev_openings < 0) && (--timeout > 0)) {
+	while((devq->send_openings <= 0 || dev->ccbq.dev_openings < 0) &&
+	    (--timeout > 0)) {
+		mtx_unlock(&devq->send_mtx);
 		DELAY(100);
+		CAM_SIM_LOCK(sim);
 		(*(sim->sim_poll))(sim);
+		CAM_SIM_UNLOCK(sim);
 		camisr_runqueue(sim);
+		mtx_lock(&devq->send_mtx);
 	}
-
 	dev->ccbq.devq_openings++;
 	dev->ccbq.dev_openings++;
+	mtx_unlock(&devq->send_mtx);
 
 	if (timeout != 0) {
 		xpt_action(start_ccb);
 		while(--timeout > 0) {
+			CAM_SIM_LOCK(sim);
 			(*(sim->sim_poll))(sim);
+			CAM_SIM_UNLOCK(sim);
 			camisr_runqueue(sim);
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
@@ -3034,6 +3039,8 @@ xpt_polled_action(union ccb *start_ccb)
 	mtx_lock(&sim->sim_doneq_mtx);
 	sim->sim_doneq_flags &= ~CAM_SIM_DQ_POLLED;
 	mtx_unlock(&sim->sim_doneq_mtx);
+	camisr_runqueue(sim);
+	mtx_lock(&dev->device_mtx);
 }
 
 /*
@@ -4351,15 +4358,18 @@ xpt_done(union ccb *done_ccb)
 		if (sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) {
 			TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
 			    sim_links.tqe);
+			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
 			mtx_unlock(&sim->sim_doneq_mtx);
 			return;
 		}
+		run = ((sim->sim_doneq_flags & CAM_SIM_DQ_POLLED) == 0);
 		mtx_unlock(&sim->sim_doneq_mtx);
 		hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
 		    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
 		queue = &cam_doneqs[hash];
 		mtx_lock(&queue->cam_doneq_mtx);
-		run = TAILQ_EMPTY(&queue->cam_doneq);
+		if (!TAILQ_EMPTY(&queue->cam_doneq))
+			run = 0;
 		TAILQ_INSERT_TAIL(&queue->cam_doneq, &done_ccb->ccb_h,
 		    sim_links.tqe);
 		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
@@ -4393,6 +4403,7 @@ xpt_batch_done(struct cam_sim *sim)
 	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
 		TAILQ_REMOVE(&sim->sim_doneq, ccb_h, sim_links.tqe);
 		mtx_unlock(&sim->sim_doneq_mtx);
+		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 		xpt_done_process(ccb_h);
 		mtx_lock(&sim->sim_doneq_mtx);
 	}
@@ -5177,6 +5188,7 @@ xpt_done_td(void *arg)
 		}
 		TAILQ_REMOVE(&queue->cam_doneq, ccb_h, sim_links.tqe);
 		mtx_unlock(&queue->cam_doneq_mtx);
+		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
 		xpt_done_process(ccb_h);
 		mtx_lock(&queue->cam_doneq_mtx);
 	}
@@ -5186,17 +5198,32 @@ static void
 camisr_runqueue(struct cam_sim *sim)
 {
 	struct	ccb_hdr *ccb_h;
+	struct cam_doneq *queue;
+	int i;
 
+	/* Process per-SIM queue. */
 	mtx_lock(&sim->sim_doneq_mtx);
 	while ((ccb_h = TAILQ_FIRST(&sim->sim_doneq)) != NULL) {
 		TAILQ_REMOVE(&sim->sim_doneq, ccb_h, sim_links.tqe);
 		mtx_unlock(&sim->sim_doneq_mtx);
 		ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
-
 		xpt_done_process(ccb_h);
-
 		mtx_lock(&sim->sim_doneq_mtx);
 	}
 	sim->sim_doneq_flags &= ~CAM_SIM_DQ_ONQ;
 	mtx_unlock(&sim->sim_doneq_mtx);
+
+	/* Process global queues. */
+	for (i = 0; i < cam_num_doneqs; i++) {
+		queue = &cam_doneqs[i];
+		mtx_lock(&queue->cam_doneq_mtx);
+		while ((ccb_h = TAILQ_FIRST(&queue->cam_doneq)) != NULL) {
+			TAILQ_REMOVE(&queue->cam_doneq, ccb_h, sim_links.tqe);
+			mtx_unlock(&queue->cam_doneq_mtx);
+			ccb_h->pinfo.index = CAM_UNQUEUED_INDEX;
+			xpt_done_process(ccb_h);
+			mtx_lock(&queue->cam_doneq_mtx);
+		}
+		mtx_unlock(&queue->cam_doneq_mtx);
+	}
 }
