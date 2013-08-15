@@ -216,8 +216,7 @@ atomic_swap_64_i386(volatile uint64_t *p, uint64_t v)
 	  "+m" (*q),			/* 1 */
 	  "+m" (*(q + 1))		/* 2 */
 	: "r" ((uint32_t)v),		/* 3 */
-	  "r" ((uint32_t)(v >> 32))	/* 4 */
-	: "memory");
+	  "r" ((uint32_t)(v >> 32)));	/* 4 */
 
 	return (res);
 }
