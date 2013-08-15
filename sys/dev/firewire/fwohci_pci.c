@@ -242,7 +242,7 @@ fwohci_pci_init(device_t self)
 	uint16_t cmd;
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
+	cmd |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
 #if 1  /* for broken hardware */
 	cmd &= ~PCIM_CMD_MWRICEN; 
 #endif

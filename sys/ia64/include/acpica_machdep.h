@@ -60,9 +60,9 @@
 
 #define	ACPI_FLUSH_CPU_CACHE()	/* XXX ia64_fc()? */
 
-/* Section 5.2.9.1:  global lock acquire/release functions */
-extern int	acpi_acquire_global_lock(uint32_t *lock);
-extern int	acpi_release_global_lock(uint32_t *lock);
+/* Section 5.2.10.1: global lock acquire/release functions */
+int	acpi_acquire_global_lock(volatile uint32_t *);
+int	acpi_release_global_lock(volatile uint32_t *);
 #define	ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)	do {			\
 	(Acq) = acpi_acquire_global_lock(&((GLptr)->GlobalLock));	\
 } while (0)

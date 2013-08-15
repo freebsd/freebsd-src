@@ -84,20 +84,14 @@ rangelock_destroy(struct rangelock *lock)
 }
 
 /*
- * Verifies the supplied rl_q_entries for compatibility.  Returns true
- * if the rangelock queue entries are not compatible, false if they are.
- *
  * Two entries are compatible if their ranges do not overlap, or both
  * entries are for read.
  */
 static int
-rangelock_incompatible(const struct rl_q_entry *e1,
+ranges_overlap(const struct rl_q_entry *e1,
     const struct rl_q_entry *e2)
 {
 
-	if ((e1->rl_q_flags & RL_LOCK_TYPE_MASK) == RL_LOCK_READ &&
-	    (e2->rl_q_flags & RL_LOCK_TYPE_MASK) == RL_LOCK_READ)
-		return (0);
 	if (e1->rl_q_start < e2->rl_q_end && e1->rl_q_end > e2->rl_q_start)
 		return (1);
 	return (0);
@@ -109,30 +103,38 @@ rangelock_incompatible(const struct rl_q_entry *e1,
 static void
 rangelock_calc_block(struct rangelock *lock)
 {
-	struct rl_q_entry *entry, *entry1, *whead;
+	struct rl_q_entry *entry, *nextentry, *entry1;
 
-	if (lock->rl_currdep == TAILQ_FIRST(&lock->rl_waiters) &&
-	    lock->rl_currdep != NULL)
-		lock->rl_currdep = TAILQ_NEXT(lock->rl_currdep, rl_q_link);
-	for (entry = lock->rl_currdep; entry != NULL;
-	     entry = TAILQ_NEXT(entry, rl_q_link)) {
-		TAILQ_FOREACH(entry1, &lock->rl_waiters, rl_q_link) {
-			if (rangelock_incompatible(entry, entry1))
-				goto out;
-			if (entry1 == entry)
-				break;
+	for (entry = lock->rl_currdep; entry != NULL; entry = nextentry) {
+		nextentry = TAILQ_NEXT(entry, rl_q_link);
+		if (entry->rl_q_flags & RL_LOCK_READ) {
+			/* Reads must not overlap with granted writes. */
+			for (entry1 = TAILQ_FIRST(&lock->rl_waiters);
+			    !(entry1->rl_q_flags & RL_LOCK_READ);
+			    entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
+				if (ranges_overlap(entry, entry1))
+					goto out;
+			}
+		} else {
+			/* Write must not overlap with any granted locks. */
+			for (entry1 = TAILQ_FIRST(&lock->rl_waiters);
+			    entry1 != entry;
+			    entry1 = TAILQ_NEXT(entry1, rl_q_link)) {
+				if (ranges_overlap(entry, entry1))
+					goto out;
+			}
+
+			/* Move grantable write locks to the front. */
+			TAILQ_REMOVE(&lock->rl_waiters, entry, rl_q_link);
+			TAILQ_INSERT_HEAD(&lock->rl_waiters, entry, rl_q_link);
 		}
+
+		/* Grant this lock. */
+		entry->rl_q_flags |= RL_LOCK_GRANTED;
+		wakeup(entry);
 	}
 out:
 	lock->rl_currdep = entry;
-	TAILQ_FOREACH(whead, &lock->rl_waiters, rl_q_link) {
-		if (whead == lock->rl_currdep)
-			break;
-		if (!(whead->rl_q_flags & RL_LOCK_GRANTED)) {
-			whead->rl_q_flags |= RL_LOCK_GRANTED;
-			wakeup(whead);
-		}
-	}
 }
 
 static void

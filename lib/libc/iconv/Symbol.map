@@ -18,6 +18,7 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	_iconv_version;
 	iconv;
 	iconv_open;
 	iconv_close;
@@ -49,6 +50,7 @@ FBSDprivate_1.0 {
 	_citrus_bcs_strtoul;
 	_citrus_bcs_tolower;
 	_citrus_bcs_toupper;
+	_citrus_bcs_trunc_rws_len;
 	_citrus_bcs_trunc_ws_len;
 	_citrus_csmapper_open;
 	_citrus_csmapper_close;

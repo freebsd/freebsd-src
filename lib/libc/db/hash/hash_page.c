@@ -862,10 +862,8 @@ open_temp(HTAB *hashp)
 	/* Block signals; make sure file goes away at process exit. */
 	(void)sigfillset(&set);
 	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
-	if ((hashp->fp = mkstemp(path)) != -1) {
+	if ((hashp->fp = mkostemp(path, O_CLOEXEC)) != -1)
 		(void)unlink(path);
-		(void)_fcntl(hashp->fp, F_SETFD, 1);
-	}
 	(void)_sigprocmask(SIG_SETMASK, &oset, (sigset_t *)NULL);
 	return (hashp->fp != -1 ? 0 : -1);
 }
