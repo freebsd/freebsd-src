@@ -2891,13 +2891,18 @@ igb_setup_msix(struct adapter *adapter)
 		    msgs, want);
 		goto msi;
 	}
-	if (pci_alloc_msix(dev, &msgs) == 0) {
+	if ((pci_alloc_msix(dev, &msgs) == 0) && (msgs == want)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
 		adapter->num_queues = queues;
 		return (msgs);
 	}
-	/* Fallback to MSI configuration */
+	/*
+	** If MSIX alloc failed or provided us with
+	** less than needed, free and fall through to MSI
+	*/
+	pci_release_msi(dev);
+
 msi:
        	if (adapter->msix_mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -2906,10 +2911,10 @@ msi:
 	}
        	msgs = 1;
 	if (pci_alloc_msi(dev, &msgs) == 0) {
-		device_printf(adapter->dev," Using MSI interrupt\n");
+		device_printf(adapter->dev," Using an MSI interrupt\n");
 		return (msgs);
 	}
-	/* Default to a legacy interrupt */
+	device_printf(adapter->dev," Using a Legacy interrupt\n");
 	return (0);
 }
 

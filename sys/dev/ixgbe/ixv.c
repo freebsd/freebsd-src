@@ -1698,11 +1698,13 @@ ixv_setup_msix(struct adapter *adapter)
 	** plus an additional for mailbox.
 	*/
 	want = 2;
-	if (pci_alloc_msix(dev, &want) == 0) {
+	if ((pci_alloc_msix(dev, &want) == 0) && (want == 2)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", want);
 		return (want);
 	}
+	/* Release in case alloc was insufficient */
+	pci_release_msi(dev);
 out:
        	if (adapter->msix_mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
