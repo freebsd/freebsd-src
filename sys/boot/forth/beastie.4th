@@ -123,6 +123,76 @@ variable logoY
 	0 25 at-xy
 ;
 
+: tribute-art ( x y -- ) \ see tribute[bw]-logo
+
+	\ Disable the brand art (we're going to use that space)
+	s" set loader_brand=none" evaluate
+
+	\ Blank out the frame of the menu and move the title to left
+	s" set loader_menu_title=" evaluate
+	s" set loader_menu_frame=none" evaluate
+
+	\ Move the menu to the center of the screen
+	s" set loader_menu_x=26" evaluate
+	s" set loader_menu_y=13" evaluate
+	s" set loader_menu_timeout_x=21" evaluate
+	s" set loader_menu_timeout_y=24" evaluate
+
+	2 - swap 39 - swap \ top-left (see `fbsdbw-logo' comments above)
+
+	2dup at-xy 11 spaces ." ,d      b." 1+
+	2dup at-xy ."         ,d88]      [88b." 1+
+	2dup at-xy ."      ,d888P" 34 emit ."  ,d88b. " 34 emit ." Y888b." 1+
+	2dup at-xy ."  , <888P" 34 emit ."  ,dP" 34 emit ." ,db." 34 emit
+	           ." Yb. " 34 emit ." Y888> ," 1+
+	2dup at-xy ." <88b.~ ,d888  " 34 emit ." YP" 34 emit
+	           ."   888b. ~,d88>" 1+
+	2dup at-xy ."  ," 34 emit ." Y888888P" 34 emit ." ,db.,db." 34 emit
+	           ." Y888888P" 34 emit ." ," 1+
+	2dup at-xy ." <88b." 34 emit ." YP" 34 emit ."  _ " 34 emit
+	           ." YP" 34 emit 34 emit ." YP" 34 emit ."  _ " 34 emit
+	           ." YP" 34 emit ." ,d88>" 1+
+	2dup at-xy ."   " 34 emit ." Y88b.,dP          Yb.,d88P" 34 emit 1+
+	     at-xy ."      " 34 emit ." YP" 34 emit ."               " 34 emit
+	           ." YP" 34 emit ." "
+;
+
+: tribute-text ( x y -- ) \ see tribute[bw]-logo
+
+	swap 2 - swap \ beastie adjustment (see `fbsdbw-logo' comments above)
+
+	2dup at-xy ." CEO Workstation" 1+
+	1+
+	2dup at-xy ." Nakatomi Socrates FreeBSD 9.2" 1+
+	2dup at-xy ." Z-Level Central Core" 1+
+	1+
+	     at-xy ." Preliminary Clearance Approved."
+;
+
+: tribute-logo ( x y -- ) \ color Socrates tribute (16 rows x 32 columns)
+
+	\ Produce the tribute art in bright green
+	2dup at-xy ." [32;1m" 2dup tribute-art ." [37m"
+
+	\ Produce the tribute text in regular green
+	2dup at-xy ." [32m" 2dup tribute-text ." [37m"
+
+	\ Distinguish the ``Free'' in tribute-text
+	2 + swap 16 + swap at-xy ." Free"
+
+ 	\ Put the cursor back at the bottom
+ 	0 25 at-xy
+;
+
+: tributebw-logo ( x y -- ) \ Socrates tribute (16 rows x 32 columns)
+
+	\ Produce the tribute art and text
+	2dup tribute-art tribute-text
+
+ 	\ Put the cursor back at the bottom
+ 	0 25 at-xy
+;
+
 : orb-logo ( x y -- ) \ color Orb mascot (15 rows x 30 columns)
 
 	3 + \ beastie adjustment (see `fbsdbw-logo' comments above)
@@ -181,8 +251,10 @@ variable logoY
 \ 	beastie     Color ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	beastiebw   B/W ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	fbsdbw      "FreeBSD" logo in B/W (13 rows x 21 columns)
-\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns) (default)
+\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns) (2nd default)
 \ 	orbbw       B/W ``Orb'' mascot (15 rows x 32 columns)
+\ 	tribute     Color ``Tribute'' (must fit 19 rows x 34 columns) (default)
+\ 	tributebw   B/W ``Tribute'' (must fit 19 rows x 34 columns)
 \ 
 \ NOTE: Setting `loader_logo' to an undefined value (such as "none") will
 \       prevent beastie from being drawn.
@@ -203,9 +275,21 @@ variable logoY
 	s" loader_logo" getenv dup -1 = if
 		logoX @ logoY @
 		loader_color? if
-			orb-logo
+			s" tribute-logo"
+			sfind if
+				execute
+			else
+				drop
+				orb-logo
+			then
 		else
-			orbbw-logo
+			s" tributebw-logo"
+			sfind if
+				execute
+			else
+				drop
+				orbbw-logo
+			then
 		then
 		drop exit
 	then
@@ -228,6 +312,24 @@ variable logoY
 	then
 	2dup s" orbbw" compare-insensitive 0= if
 		logoX @ logoY @ orbbw-logo
+		2drop exit
+	then
+	2dup s" tribute" compare-insensitive 0= if
+		logoX @ logoY @
+		s" tribute-logo" sfind if
+			execute
+		else
+			orb-logo
+		then
+		2drop exit
+	then
+	2dup s" tributebw" compare-insensitive 0= if
+		logoX @ logoY @
+		s" tributebw-logo" sfind if
+			execute
+		else
+			orbbw-logo
+		then
 		2drop exit
 	then
 
