@@ -2271,6 +2271,7 @@ skipstate:
 			break;
 		}
 		start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
+		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 
 out:
 		/*
@@ -2583,6 +2584,7 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		   /*sense_len*/SSD_FULL_SIZE,
 		   da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+	ccb->ccb_h.flags |= CAM_UNLOCKED;
 }
 
 static void
@@ -2663,6 +2665,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		      /*sense_len*/SSD_FULL_SIZE,
 		      da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+	ccb->ccb_h.flags |= CAM_UNLOCKED;
 }
 
 /*
@@ -2719,6 +2722,7 @@ da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			/*sense_len*/SSD_FULL_SIZE,
 			da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+	ccb->ccb_h.flags |= CAM_UNLOCKED;
 }
 
 static int
@@ -2853,6 +2857,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		struct bio *bp, *bp1;
 
+		cam_periph_lock(periph);
 		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			int error;
@@ -2869,6 +2874,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * A retry was scheduled, so
 				 * just return.
 				 */
+				cam_periph_unlock(periph);
 				return;
 			}
 			bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
@@ -2945,9 +2951,18 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= DA_FLAG_WENT_IDLE;
 
+		xpt_release_ccb(done_ccb);
 		if (state == DA_CCB_DELETE) {
-			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))
-			    != NULL) {
+			TAILQ_HEAD(, bio) queue;
+
+			TAILQ_INIT(&queue);
+			TAILQ_CONCAT(&queue, &softc->delete_run_queue.queue, bio_queue);
+			softc->delete_run_queue.insert_point = NULL;
+			softc->delete_running = 0;
+			daschedule(periph);
+			cam_periph_unlock(periph);
+			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
+				TAILQ_REMOVE(&queue, bp1, bio_queue);
 				bp1->bio_error = bp->bio_error;
 				if (bp->bio_flags & BIO_ERROR) {
 					bp1->bio_flags |= BIO_ERROR;
@@ -2956,13 +2971,11 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp1->bio_resid = 0;
 				biodone(bp1);
 			}
-			softc->delete_running = 0;
-			if (bp != NULL)
-				biodone(bp);
-			daschedule(periph);
-		} else if (bp != NULL)
+		} else
+			cam_periph_unlock(periph);
+		if (bp != NULL)
 			biodone(bp);
-		break;
+		return;
 	}
 	case DA_CCB_PROBE_RC:
 	case DA_CCB_PROBE_RC16:

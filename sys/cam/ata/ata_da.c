@@ -122,10 +122,9 @@ struct disk_params {
 
 #define TRIM_MAX_BLOCKS	8
 #define TRIM_MAX_RANGES	(TRIM_MAX_BLOCKS * ATA_DSM_BLK_RANGES)
-#define TRIM_MAX_BIOS	(TRIM_MAX_RANGES * 4)
 struct trim_request {
 	uint8_t		data[TRIM_MAX_RANGES * ATA_DSM_RANGE_SIZE];
-	struct bio	*bps[TRIM_MAX_BIOS];
+	TAILQ_HEAD(, bio) bps;
 };
 
 struct ada_softc {
@@ -1375,10 +1374,11 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			struct trim_request *req = &softc->trim_req;
 			struct bio *bp1;
 			uint64_t lastlba = (uint64_t)-1;
-			int bps = 0, c, lastcount = 0, off, ranges = 0;
+			int c, lastcount = 0, off, ranges = 0;
 
 			softc->trim_running = 1;
 			bzero(req, sizeof(*req));
+			TAILQ_INIT(&req->bps);
 			bp1 = bp;
 			do {
 				uint64_t lba = bp1->bio_pblkno;
@@ -1421,10 +1421,9 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 					 */
 				}
 				lastlba = lba;
-				req->bps[bps++] = bp1;
+				TAILQ_INSERT_TAIL(&req->bps, bp1, bio_queue);
 				bp1 = bioq_first(&softc->trim_queue);
-				if (bps >= TRIM_MAX_BIOS ||
-				    bp1 == NULL ||
+				if (bp1 == NULL ||
 				    bp1->bio_bcount / softc->params.secsize >
 				    (softc->trim_max_ranges - ranges) *
 				    ATA_DSM_RANGE_MAX)
@@ -1443,6 +1442,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			    ATA_DSM_TRIM, 0, (ranges + ATA_DSM_BLK_RANGES -
 			    1) / ATA_DSM_BLK_RANGES);
 			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
+			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			goto out;
 		}
 		/* Run regular command. */
@@ -1611,6 +1611,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			break;
 		}
 		start_ccb->ccb_h.ccb_state = ADA_CCB_BUFFER_IO;
+		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 out:
 		start_ccb->ccb_h.ccb_bp = bp;
 		softc->outstanding_cmds++;
@@ -1678,10 +1679,12 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		struct bio *bp;
 		int error;
 
+		cam_periph_lock(periph);
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			error = adaerror(done_ccb, 0, 0);
 			if (error == ERESTART) {
 				/* A retry was scheduled, so just return. */
+				cam_periph_unlock(periph);
 				return;
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -1711,14 +1714,18 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= ADA_FLAG_WENT_IDLE;
+		xpt_release_ccb(done_ccb);
 		if (state == ADA_CCB_TRIM) {
-			struct trim_request *req =
-			    (struct trim_request *)ataio->data_ptr;
-			int i;
+			TAILQ_HEAD(, bio) queue;
+			struct bio *bp1;
 
-			for (i = 1; i < TRIM_MAX_BIOS && req->bps[i]; i++) {
-				struct bio *bp1 = req->bps[i];
-
+			TAILQ_INIT(&queue);
+			TAILQ_CONCAT(&queue, &softc->trim_req.bps, bio_queue);
+			softc->trim_running = 0;
+			adaschedule(periph);
+			cam_periph_unlock(periph);
+			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
+				TAILQ_REMOVE(&queue, bp1, bio_queue);
 				bp1->bio_error = bp->bio_error;
 				if (bp->bio_flags & BIO_ERROR) {
 					bp1->bio_flags |= BIO_ERROR;
@@ -1727,12 +1734,11 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp1->bio_resid = 0;
 				biodone(bp1);
 			}
-			softc->trim_running = 0;
+		} else {
+			cam_periph_unlock(periph);
 			biodone(bp);
-			adaschedule(periph);
-		} else
-			biodone(bp);
-		break;
+		}
+		return;
 	}
 	case ADA_CCB_RAHEAD:
 	{
