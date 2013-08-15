@@ -47,8 +47,23 @@ struct mem_affinity {
 	int domain;
 };
 
+struct vm_freelist {
+	struct pglist pl;
+	int lcnt;
+};
+
+struct vm_phys_seg {
+	vm_paddr_t	start;
+	vm_paddr_t	end;
+	vm_page_t	first_page;
+	int		domain;
+	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER];
+};
+
 extern struct mem_affinity *mem_affinity;
 extern int vm_ndomains;
+extern struct vm_phys_seg vm_phys_segs[];
+extern int vm_phys_nsegs;
 
 /*
  * The following functions are only to be used by the virtual memory system.
@@ -58,6 +73,7 @@ vm_page_t vm_phys_alloc_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary);
 vm_page_t vm_phys_alloc_freelist_pages(int flind, int pool, int order);
 vm_page_t vm_phys_alloc_pages(int pool, int order);
+boolean_t vm_phys_domain_intersects(long mask, vm_paddr_t low, vm_paddr_t high);
 int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
     vm_memattr_t memattr);
 void vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end);
@@ -69,6 +85,37 @@ vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 void vm_phys_set_pool(int pool, vm_page_t m, int order);
 boolean_t vm_phys_unfree_page(vm_page_t m);
 boolean_t vm_phys_zero_pages_idle(void);
+
+/*
+ *	vm_phys_domain:
+ *
+ * 	Return the memory domain the page belongs to.
+ */
+static inline struct vm_domain *
+vm_phys_domain(vm_page_t m)
+{
+#if MAXMEMDOM > 1
+	int domn, segind;
+
+	/* XXXKIB try to assert that the page is managed */
+	segind = m->segind;
+	KASSERT(segind < vm_phys_nsegs, ("segind %d m %p", segind, m));
+	domn = vm_phys_segs[segind].domain;
+	KASSERT(domn < vm_ndomains, ("domain %d m %p", domn, m));
+	return (&vm_dom[domn]);
+#else
+	return (&vm_dom[0]);
+#endif
+}
+
+static inline void
+vm_phys_freecnt_adj(vm_page_t m, int adj)
+{
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	cnt.v_free_count += adj;
+	vm_phys_domain(m)->vmd_free_count += adj;
+}
 
 #endif	/* _KERNEL */
 #endif	/* !_VM_PHYS_H_ */

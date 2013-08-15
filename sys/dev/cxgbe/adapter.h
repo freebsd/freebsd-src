@@ -172,6 +172,7 @@ enum {
 	DOOMED		= (1 << 0),
 	PORT_INIT_DONE	= (1 << 1),
 	PORT_SYSCTL_CTX	= (1 << 2),
+	HAS_TRACEQ	= (1 << 3),
 };
 
 #define IS_DOOMED(pi)	((pi)->flags & DOOMED)
@@ -577,6 +578,14 @@ struct adapter {
 #endif
 	int flags;
 
+	char ifp_lockname[16];
+	struct mtx ifp_lock;
+	struct ifnet *ifp;	/* tracer ifp */
+	struct ifmedia media;
+	int traceq;		/* iq used by all tracers, -1 if none */
+	int tracer_valid;	/* bitmap of valid tracers */
+	int tracer_enabled;	/* bitmap of enabled tracers */
+
 	char fw_version[32];
 	char cfg_file[32];
 	u_int cfcsum;
@@ -792,6 +801,8 @@ void t4_init_sge_cpl_handlers(struct adapter *);
 void t4_tweak_chip_settings(struct adapter *);
 int t4_read_chip_settings(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
+void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
+    struct sysctl_oid_list *);
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
@@ -807,6 +818,16 @@ void t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct wrqe *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
 int can_resume_tx(struct sge_eq *);
+
+/* t4_tracer.c */
+struct t4_tracer;
+void t4_tracer_modload(void);
+void t4_tracer_modunload(void);
+void t4_tracer_port_detach(struct adapter *);
+int t4_get_tracer(struct adapter *, struct t4_tracer *);
+int t4_set_tracer(struct adapter *, struct t4_tracer *);
+int t4_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
+int t5_trace_pkt(struct sge_iq *, const struct rss_header *, struct mbuf *);
 
 static inline struct wrqe *
 alloc_wrqe(int wr_len, struct sge_wrq *wrq)

@@ -57,6 +57,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/types.h>
 #include <time.h>
+#include <err.h>
 
 #include <libzfs.h>
 #include <libzfs_core.h>
@@ -3529,6 +3530,12 @@ zfs_snapshot_cb(zfs_handle_t *zhp, void *arg)
 	char *name;
 	int rv = 0;
 	int error;
+
+	if (sd->sd_recursive &&
+	    zfs_prop_get_int(zhp, ZFS_PROP_INCONSISTENT) != 0) {
+		zfs_close(zhp);
+		return (0);
+	}
 
 	error = asprintf(&name, "%s@%s", zfs_get_name(zhp), sd->sd_snapname);
 	if (error == -1)

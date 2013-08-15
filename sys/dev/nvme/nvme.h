@@ -170,27 +170,30 @@ struct nvme_registers
 	union cap_lo_register	cap_lo;
 	union cap_hi_register	cap_hi;
 
-	uint32_t	vs;		/* version */
-	uint32_t	intms;		/* interrupt mask set */
-	uint32_t	intmc;		/* interrupt mask clear */
+	uint32_t		vs;	/* version */
+	uint32_t		intms;	/* interrupt mask set */
+	uint32_t		intmc;	/* interrupt mask clear */
 
 	/** controller configuration */
 	union cc_register	cc;
 
-	uint32_t	reserved1;
-	uint32_t	csts;		/* controller status */
-	uint32_t	reserved2;
+	uint32_t		reserved1;
+
+	/** controller status */
+	union csts_register	csts;
+
+	uint32_t		reserved2;
 
 	/** admin queue attributes */
 	union aqa_register	aqa;
 
-	uint64_t	asq;		/* admin submission queue base addr */
-	uint64_t	acq;		/* admin completion queue base addr */
-	uint32_t	reserved3[0x3f2];
+	uint64_t		asq;	/* admin submission queue base addr */
+	uint64_t		acq;	/* admin completion queue base addr */
+	uint32_t		reserved3[0x3f2];
 
 	struct {
-	    uint32_t	sq_tdbl;	/* submission queue tail doorbell */
-	    uint32_t	cq_hdbl;	/* completion queue head doorbell */
+	    uint32_t		sq_tdbl; /* submission queue tail doorbell */
+	    uint32_t		cq_hdbl; /* completion queue head doorbell */
 	} doorbell[1] __packed;
 } __packed;
 

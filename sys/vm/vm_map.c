@@ -197,9 +197,15 @@ vm_map_startup(void)
 	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_MTXCLASS | UMA_ZONE_VM);
-	uma_prealloc(kmapentzone, MAX_KMAPENT);
 	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
+#ifdef INVARIANTS
+	    vmspace_zdtor,
+#else
+	    NULL,
+#endif
+	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
 static void
@@ -297,21 +303,6 @@ vmspace_alloc(min, max)
 	vm->vm_daddr = 0;
 	vm->vm_maxsaddr = 0;
 	return (vm);
-}
-
-void
-vm_init2(void)
-{
-	uma_zone_reserve_kva(kmapentzone, lmin(cnt.v_page_count,
-	    (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / PAGE_SIZE) / 8 +
-	     maxproc * 2 + maxfiles);
-	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
-#ifdef INVARIANTS
-	    vmspace_zdtor,
-#else
-	    NULL,
-#endif
-	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
 static void
@@ -1469,11 +1460,6 @@ again:
 				pmap_align_superpage(object, offset, addr,
 				    length);
 				break;
-#ifdef VMFS_TLB_ALIGNED_SPACE
-			case VMFS_TLB_ALIGNED_SPACE:
-				pmap_align_tlb(addr);
-				break;
-#endif
 			default:
 				break;
 			}
@@ -1483,9 +1469,6 @@ again:
 		result = vm_map_insert(map, object, offset, start, start +
 		    length, prot, max, cow);
 	} while (result == KERN_NO_SPACE && (find_space == VMFS_ALIGNED_SPACE ||
-#ifdef VMFS_TLB_ALIGNED_SPACE
-	    find_space == VMFS_TLB_ALIGNED_SPACE ||
-#endif
 	    find_space == VMFS_OPTIMAL_SPACE));
 	vm_map_unlock(map);
 	return (result);

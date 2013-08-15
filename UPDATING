@@ -31,6 +31,52 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130813:
+	WITH_ICONV has been split into two feature sets.  WITH_ICONV now
+	enables just the iconv* functionality and is now on by default.
+	WITH_LIBICONV_COMPAT enables the libiconv api and link time
+	compatability.  Set WITHOUT_ICONV to build the old way.
+	If you have been using WITH_ICONV before, you will very likely
+	need to turn on WITH_LIBICONV_COMPAT.
+
+20130806:
+	INVARIANTS option now enables DEBUG for code with OpenSolaris and
+	Illumos origin, including ZFS.  If you have INVARIANTS in your
+	kernel configuration, then there is no need to set DEBUG or ZFS_DEBUG
+	explicitly.
+	DEBUG used to enable witness(9) tracking of OpenSolaris (mostly ZFS)
+	locks if WITNESS option was set.  Because that generated a lot of
+	witness(9) reports and all of them were believed to be false
+	positives, this is no longer done.  New option OPENSOLARIS_WITNESS
+	can be used to achieve the previous behavior.
+
+20130806:
+	Timer values in IPv6 data structures now use time_uptime instead
+	of time_second.  Although this is not a user-visible functional
+	change, userland utilities which directly use them---ndp(8),
+	rtadvd(8), and rtsold(8) in the base system---need to be updated
+	to r253970 or later.
+
+20130802:
+	find -delete can now delete the pathnames given as arguments,
+	instead of only files found below them or if the pathname did
+	not contain any slashes. Formerly, the following error message
+	would result:
+
+	find: -delete: <path>: relative path potentially not safe
+
+	Deleting the pathnames given as arguments can be prevented
+	without error messages using -mindepth 1 or by changing
+	directory and passing "." as argument to find. This works in the
+	old as well as the new version of find.
+
+20130726:
+	Behavior of devfs rules path matching has been changed.
+	Pattern is now always matched against fully qualified devfs
+	path and slash characters must be explicitly matched by
+	slashes in pattern (FNM_PATHNAME). Rulesets involving devfs
+	subdirectories must be reviewed.
+
 20130716:
 	The default ARM ABI has changed to the ARM EABI. The old ABI is
 	incompatible with the ARM EABI and all programs and modules will

@@ -238,7 +238,7 @@ add_server(isc_mem_t *mctx, const char *address_str,
 		goto cleanup;
 	}
 	address->length = res->ai_addrlen;
-	memcpy(&address->type.sa, res->ai_addr, res->ai_addrlen);
+	memcpy(&address->type.ss, res->ai_addr, res->ai_addrlen);
 	ISC_LINK_INIT(address, link);
 	ISC_LIST_APPEND(*nameservers, address, link);
 

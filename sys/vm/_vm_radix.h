@@ -36,7 +36,11 @@
  */
 struct vm_radix {
 	uintptr_t	rt_root;
+	uint8_t		rt_flags;
 };
+
+#define	RT_INSERT_INPROG	0x01
+#define	RT_TRIE_MODIFIED	0x02
 
 #ifdef _KERNEL
 

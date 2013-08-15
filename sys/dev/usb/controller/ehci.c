@@ -259,7 +259,7 @@ ehci_init_sub(struct ehci_softc *sc)
 		DPRINTF("HCC uses 64-bit structures\n");
 
 		/* MUST clear segment register if 64 bit capable */
-		EWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
+		EOWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
 	}
 
 	usbd_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);

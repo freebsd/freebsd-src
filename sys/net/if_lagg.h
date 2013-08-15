@@ -228,6 +228,7 @@ struct lagg_softc {
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
 	struct sysctl_ctx_list		ctx;		/* sysctl variables */
+	struct sysctl_oid		*sc_oid;	/* sysctl tree oid */
 	int				use_flowid;	/* use M_FLOWID */
 };
 

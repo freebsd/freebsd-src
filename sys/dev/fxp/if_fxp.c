@@ -452,7 +452,6 @@ fxp_attach(device_t dev)
 	 * Enable bus mastering.
 	 */
 	pci_enable_busmaster(dev);
-	val = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
@@ -610,6 +609,7 @@ fxp_attach(device_t dev)
 		 * is a valid cacheline size (8 or 16 dwords), then tell
 		 * the board to turn on MWI.
 		 */
+		val = pci_read_config(dev, PCIR_COMMAND, 2);
 		if (val & PCIM_CMD_MWRICEN &&
 		    pci_read_config(dev, PCIR_CACHELNSZ, 1) != 0)
 			sc->flags |= FXP_FLAG_MWI_ENABLE;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2000-2013 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1408,7 +1408,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 		http_get_reply(conn);
 	}
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
-	    fetch_ssl(conn, verbose) == -1) {
+	    fetch_ssl(conn, URL, verbose) == -1) {
 		fetch_close(conn);
 		/* grrr */
 		errno = EAUTH;
@@ -1664,6 +1664,12 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* other headers */
+		if ((p = getenv("HTTP_ACCEPT")) != NULL) {
+			if (*p != '\0')
+				http_cmd(conn, "Accept: %s", p);
+		} else {
+			http_cmd(conn, "Accept: */*");
+		}
 		if ((p = getenv("HTTP_REFERER")) != NULL && *p != '\0') {
 			if (strcasecmp(p, "auto") == 0)
 				http_cmd(conn, "Referer: %s://%s%s",

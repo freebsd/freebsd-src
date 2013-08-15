@@ -209,6 +209,18 @@ cat <<_EOF_
 	while (0)
 
 /* MANUAL */
+void
+atfdname(int fd, int decimal)
+{
+	if (fd == AT_FDCWD)
+		printf("AT_FDCWD");
+	else if (decimal)
+		printf("%d", fd);
+	else
+		printf("%#x", fd);
+}
+
+/* MANUAL */
 extern char *signames[]; /* from kdump.c */
 void
 signame(int sig)

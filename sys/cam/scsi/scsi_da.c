@@ -89,7 +89,8 @@ typedef enum {
 	DA_FLAG_OPEN		= 0x100,
 	DA_FLAG_SCTX_INIT	= 0x200,
 	DA_FLAG_CAN_RC16	= 0x400,
-	DA_FLAG_PROBED		= 0x800		
+	DA_FLAG_PROBED		= 0x800,
+	DA_FLAG_DIRTY		= 0x1000
 } da_flags;
 
 typedef enum {
@@ -97,7 +98,8 @@ typedef enum {
 	DA_Q_NO_SYNC_CACHE	= 0x01,
 	DA_Q_NO_6_BYTE		= 0x02,
 	DA_Q_NO_PREVENT		= 0x04,
-	DA_Q_4K			= 0x08
+	DA_Q_4K			= 0x08,
+	DA_Q_NO_RC16		= 0x10
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -105,7 +107,8 @@ typedef enum {
 	"\001NO_SYNC_CACHE"	\
 	"\002NO_6_BYTE"		\
 	"\003NO_PREVENT"	\
-	"\0044K"
+	"\0044K"		\
+	"\005NO_RC16"
 
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
@@ -679,6 +682,11 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Kingston", "DataTraveler G3",
 		 "1.00"}, /*quirks*/ DA_Q_NO_PREVENT
 	},
+	{
+		/* At least several Transcent USB sticks lie on RC16. */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JetFlash", "Transcend*",
+		 "*"}, /*quirks*/ DA_Q_NO_RC16
+	},
 	/* ATA/SATA devices over SAS/USB/... */
 	{
 		/* Hitachi Advanced Format (4k) drives */
@@ -1000,6 +1008,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Intel X25-M Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "INTEL SSDSA2M*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
 		 * Kingston E100 Series SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
@@ -1012,6 +1028,22 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "KINGSTON SH103S3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Marvell SSDs (entry taken from OpenSolaris)
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "MARVELL SD88SA02*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Agility 2 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-AGILITY2*", "*" },
 		/*quirks*/DA_Q_4K
 	},
 	{
@@ -1237,6 +1269,7 @@ daclose(struct disk *dp)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
+	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	cam_periph_lock(periph);
@@ -1251,8 +1284,9 @@ daclose(struct disk *dp)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("daclose\n"));
 
-	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0
-	 && (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
+	if ((softc->flags & DA_FLAG_DIRTY) != 0 &&
+	    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0 &&
+	    (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
 		union	ccb *ccb;
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
@@ -1266,9 +1300,11 @@ daclose(struct disk *dp)
 				       SSD_FULL_SIZE,
 				       5 * 60 * 1000);
 
-		cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+		error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
 				  /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 				  softc->disk->d_devstat);
+		if (error == 0)
+			softc->flags &= ~DA_FLAG_DIRTY;
 		xpt_release_ccb(ccb);
 
 	}
@@ -2070,7 +2106,8 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->minimum_cmd_size = 16;
 
 	/* Predict whether device may support READ CAPACITY(16). */
-	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3) {
+	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3 &&
+	    (softc->quirks & DA_Q_NO_RC16) == 0) {
 		softc->flags |= DA_FLAG_CAN_RC16;
 		softc->state = DA_STATE_PROBE_RC16;
 	}
@@ -2240,8 +2277,10 @@ skipstate:
 		}
 
 		switch (bp->bio_cmd) {
-		case BIO_READ:
 		case BIO_WRITE:
+			softc->flags |= DA_FLAG_DIRTY;
+			/* FALLTHROUGH */
+		case BIO_READ:
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/da_retry_count,
 					/*cbfcnp*/dadone,
@@ -2786,6 +2825,29 @@ cmd6workaround(union ccb *ccb)
 		return (0);
 	}
 
+	/* Detect unsupported PREVENT ALLOW MEDIUM REMOVAL. */
+	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) == 0 &&
+	    (*cdb == PREVENT_ALLOW) &&
+	    (softc->quirks & DA_Q_NO_PREVENT) == 0) {
+		if (bootverbose)
+			xpt_print(ccb->ccb_h.path,
+			    "PREVENT ALLOW MEDIUM REMOVAL not supported.\n");
+		softc->quirks |= DA_Q_NO_PREVENT;
+		return (0);
+	}
+
+	/* Detect unsupported SYNCHRONIZE CACHE(10). */
+	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) == 0 &&
+	    (*cdb == SYNCHRONIZE_CACHE) &&
+	    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
+		if (bootverbose)
+			xpt_print(ccb->ccb_h.path,
+			    "SYNCHRONIZE CACHE(10) not supported.\n");
+		softc->quirks |= DA_Q_NO_SYNC_CACHE;
+		softc->disk->d_flags &= ~DISKFLAG_CANFLUSHCACHE;
+		return (0);
+	}
+
 	/* Translation only possible if CDB is an array and cmd is R/W6 */
 	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0 ||
 	    (*cdb != READ_6 && *cdb != WRITE_6))
@@ -2892,7 +2954,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp->bio_flags |= BIO_ERROR;
 				}
 			} else if (bp != NULL) {
-				bp->bio_resid = csio->resid;
+				if (state == DA_CCB_DELETE)
+					bp->bio_resid = 0;
+				else
+					bp->bio_resid = csio->resid;
 				bp->bio_error = 0;
 				if (bp->bio_resid != 0)
 					bp->bio_flags |= BIO_ERROR;
@@ -2906,7 +2971,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else if (bp != NULL) {
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 				panic("REQ_CMP with QFRZN");
-			bp->bio_resid = csio->resid;
+			if (state == DA_CCB_DELETE)
+				bp->bio_resid = 0;
+			else
+				bp->bio_resid = csio->resid;
 			if (csio->resid > 0)
 				bp->bio_flags |= BIO_ERROR;
 			if (softc->error_inject != 0) {
@@ -2915,7 +2983,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				bp->bio_flags |= BIO_ERROR;
 				softc->error_inject = 0;
 			}
-
 		}
 
 		/*
@@ -2930,10 +2997,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		if (state == DA_CCB_DELETE) {
 			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))
 			    != NULL) {
-				bp1->bio_resid = bp->bio_resid;
 				bp1->bio_error = bp->bio_error;
-				if (bp->bio_flags & BIO_ERROR)
+				if (bp->bio_flags & BIO_ERROR) {
 					bp1->bio_flags |= BIO_ERROR;
+					bp1->bio_resid = bp1->bio_bcount;
+				} else
+					bp1->bio_resid = 0;
 				biodone(bp1);
 			}
 			softc->delete_running = 0;

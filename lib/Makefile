@@ -78,6 +78,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgpib} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
+	${_libiconv_compat} \
 	libipsec \
 	${_libipx} \
 	libjail \
@@ -187,6 +188,10 @@ _libldns=	libldns
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
+.endif
+
+.if ${MK_LIBICONV_COMPAT} != "no"
+_libiconv_compat=	libiconv_compat
 .endif
 
 .if ${MK_LIBTHR} != "no"

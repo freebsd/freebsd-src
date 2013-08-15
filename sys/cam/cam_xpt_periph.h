@@ -42,8 +42,7 @@ void		xpt_polled_action(union ccb *ccb);
 void		xpt_release_ccb(union ccb *released_ccb);
 void		xpt_schedule(struct cam_periph *perph, u_int32_t new_priority);
 int32_t		xpt_add_periph(struct cam_periph *periph);
-void		xpt_remove_periph(struct cam_periph *periph,
-				  int topology_lock_held);
+void		xpt_remove_periph(struct cam_periph *periph);
 void		xpt_announce_periph(struct cam_periph *periph,
 				    char *announce_string);
 void		xpt_announce_quirks(struct cam_periph *periph,

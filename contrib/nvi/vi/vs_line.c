@@ -10,11 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-#if 0
-static const char sccsid[] = "@(#)vs_line.c	10.19 (Berkeley) 9/26/96";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
+static const char sccsid[] = "$Id: vs_line.c,v 10.40 2012/02/13 19:22:25 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -42,20 +38,19 @@ static const char rcsid[] =
  * PUBLIC: int vs_line __P((SCR *, SMAP *, size_t *, size_t *));
  */
 int
-vs_line(sp, smp, yp, xp)
-	SCR *sp;
-	SMAP *smp;
-	size_t *xp, *yp;
+vs_line(SCR *sp, SMAP *smp, size_t *yp, size_t *xp)
 {
-	CHAR_T *kp;
+	u_char *kp;
 	GS *gp;
 	SMAP *tsmp;
-	size_t chlen, cno_cnt, cols_per_screen, len, nlen;
+	size_t chlen = 0, cno_cnt, cols_per_screen, len, nlen;
 	size_t offset_in_char, offset_in_line, oldx, oldy;
 	size_t scno, skip_cols, skip_screens;
-	int ch, dne, is_cached, is_partial, is_tab, no_draw;
+	int dne, is_cached, is_partial, is_tab, no_draw;
 	int list_tab, list_dollar;
-	char *p, *cbp, *ecbp, cbuf[128];
+	CHAR_T *p;
+	CHAR_T *cbp, *ecbp, cbuf[128];
+	ARG_CHAR_T ch = '\0';
 
 #if defined(DEBUG) && 0
 	TRACE(sp, "vs_line: row %u: line: %u off: %u\n",
@@ -143,9 +138,9 @@ vs_line(sp, smp, yp, xp)
 		if (O_ISSET(sp, O_NUMBER)) {
 			cols_per_screen -= O_NUMBER_LENGTH;
 			if ((!dne || smp->lno == 1) && skip_cols == 0) {
-				nlen = snprintf(cbuf, sizeof(cbuf),
-				    O_NUMBER_FMT, (u_long)smp->lno);
-				(void)gp->scr_addstr(sp, cbuf, nlen);
+				nlen = snprintf((char*)cbuf,
+				    sizeof(cbuf), O_NUMBER_FMT, (u_long)smp->lno);
+				(void)gp->scr_addstr(sp, (char*)cbuf, nlen);
 			}
 		}
 	}
@@ -196,6 +191,12 @@ empty:					(void)gp->scr_addstr(sp,
 		(void)gp->scr_move(sp, oldy, oldx);
 		return (0);
 	}
+
+	/* If we shortened this line in another screen, the cursor
+	 * position may have fallen off.
+	 */
+	if (sp->lno == smp->lno && sp->cno >= len)
+	    sp->cno = len - 1;
 
 	/*
 	 * If we just wrote this or a previous line, we cached the starting
@@ -262,8 +263,8 @@ empty:					(void)gp->scr_addstr(sp,
 	/* Do it the hard way, for leftright scrolling screens. */
 	if (O_ISSET(sp, O_LEFTRIGHT)) {
 		for (; offset_in_line < len; ++offset_in_line) {
-			chlen = (ch = *(u_char *)p++) == '\t' && !list_tab ?
-			    TAB_OFF(scno) : KEY_LEN(sp, ch);
+			chlen = (ch = *p++) == '\t' && !list_tab ?
+			    TAB_OFF(scno) : KEY_COL(sp, ch);
 			if ((scno += chlen) >= skip_cols)
 				break;
 		}
@@ -289,8 +290,8 @@ empty:					(void)gp->scr_addstr(sp,
 	/* Do it the hard way, for historic line-folding screens. */
 	else {
 		for (; offset_in_line < len; ++offset_in_line) {
-			chlen = (ch = *(u_char *)p++) == '\t' && !list_tab ?
-			    TAB_OFF(scno) : KEY_LEN(sp, ch);
+			chlen = (ch = *p++) == '\t' && !list_tab ?
+			    TAB_OFF(scno) : KEY_COL(sp, ch);
 			if ((scno += chlen) < cols_per_screen)
 				continue;
 			scno -= cols_per_screen;
@@ -336,14 +337,14 @@ display:
 		cno_cnt = (sp->cno - offset_in_line) + 1;
 
 	/* This is the loop that actually displays characters. */
-	ecbp = (cbp = cbuf) + sizeof(cbuf) - 1;
+	ecbp = (cbp = cbuf) + SIZE(cbuf) - 1;
 	for (is_partial = 0, scno = 0;
 	    offset_in_line < len; ++offset_in_line, offset_in_char = 0) {
-		if ((ch = *(u_char *)p++) == '\t' && !list_tab) {
+		if ((ch = *p++) == '\t' && !list_tab) {
 			scno += chlen = TAB_OFF(scno) - offset_in_char;
 			is_tab = 1;
 		} else {
-			scno += chlen = KEY_LEN(sp, ch) - offset_in_char;
+			scno += chlen = KEY_COL(sp, ch) - offset_in_char;
 			is_tab = 0;
 		}
 
@@ -386,7 +387,10 @@ display:
 		    --cno_cnt == 0 && (F_ISSET(sp, SC_TINPUT) || !is_partial)) {
 			*yp = smp - HMAP;
 			if (F_ISSET(sp, SC_TINPUT))
-				*xp = scno - chlen;
+				if (is_partial)
+					*xp = scno - smp->c_ecsize;
+				else
+					*xp = scno - chlen;
 			else
 				*xp = scno - 1;
 			if (O_ISSET(sp, O_NUMBER) &&
@@ -404,7 +408,7 @@ display:
 
 #define	FLUSH {								\
 	*cbp = '\0';							\
-	(void)gp->scr_addstr(sp, cbuf, cbp - cbuf);			\
+	(void)gp->scr_waddstr(sp, cbuf, cbp - cbuf);			\
 	cbp = cbuf;							\
 }
 		/*
@@ -423,14 +427,26 @@ display:
 		else {
 			if (cbp + chlen >= ecbp)
 				FLUSH;
-			for (kp = KEY_NAME(sp, ch) + offset_in_char; chlen--;)
-				*cbp++ = *kp++;
+
+			/* don't display half a wide character */
+			if (is_partial && CHAR_WIDTH(sp, ch) > 1) {
+				*cbp++ = ' ';
+				break;
+			}
+
+			if (KEY_NEEDSWIDE(sp, ch))
+				*cbp++ = ch;
+			else
+				for (kp = (u_char *)
+				    KEY_NAME(sp, ch) + offset_in_char;
+				    chlen--;)
+					*cbp++ = *kp++;
 		}
 	}
 
 	if (scno < cols_per_screen) {
 		/* If didn't paint the whole line, update the cache. */
-		smp->c_ecsize = smp->c_eclen = KEY_LEN(sp, ch);
+		smp->c_ecsize = smp->c_eclen = KEY_COL(sp, ch);
 		smp->c_eboff = len - 1;
 
 		/*
@@ -444,7 +460,8 @@ display:
 			chlen = KEY_LEN(sp, '$');
 			if (cbp + chlen >= ecbp)
 				FLUSH;
-			for (kp = KEY_NAME(sp, '$'); chlen--;)
+			for (kp = (u_char *)
+			    KEY_NAME(sp, '$'); chlen--;)
 				*cbp++ = *kp++;
 		}
 
@@ -468,8 +485,7 @@ ret1:	(void)gp->scr_move(sp, oldy, oldx);
  * PUBLIC: int vs_number __P((SCR *));
  */
 int
-vs_number(sp)
-	SCR *sp;
+vs_number(SCR *sp)
 {
 	GS *gp;
 	SMAP *smp;
@@ -514,8 +530,7 @@ vs_number(sp)
 			break;
 
 		(void)gp->scr_move(sp, smp - HMAP, 0);
-		len = snprintf(nbuf, sizeof(nbuf),
-		    O_NUMBER_FMT, (u_long)smp->lno);
+		len = snprintf(nbuf, sizeof(nbuf), O_NUMBER_FMT, (u_long)smp->lno);
 		(void)gp->scr_addstr(sp, nbuf, len);
 	}
 	(void)gp->scr_move(sp, oldy, oldx);

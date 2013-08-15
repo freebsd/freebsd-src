@@ -307,6 +307,10 @@ mpssas_log_command(struct mps_command *cm, u_int level, const char *fmt, ...)
 	if (cm == NULL)
 		return;
 
+	/* No need to be in here if debugging isn't enabled */
+	if ((cm->cm_sc->mps_debug & level) == 0)
+		return;
+
 	sbuf_new(&sb, str, sizeof(str), 0);
 
 	va_start(ap, fmt);
@@ -3070,7 +3074,7 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	tm = mps_alloc_command(sc);
 	if (tm == NULL) {
 		mps_dprint(sc, MPS_ERROR,
-		    "comand alloc failure in mpssas_action_resetdev\n");
+		    "command alloc failure in mpssas_action_resetdev\n");
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
 		return;
@@ -3553,3 +3557,20 @@ mpssas_portenable_complete(struct mps_softc *sc, struct mps_command *cm)
 	xpt_release_simq(sassc->sim, 1);
 }
 
+int
+mpssas_check_id(struct mpssas_softc *sassc, int id)
+{
+	struct mps_softc *sc = sassc->sc;
+	char *ids;
+	char *name;
+
+	ids = &sc->exclude_ids[0];
+	while((name = strsep(&ids, ",")) != NULL) {
+		if (name[0] == '\0')
+			continue;
+		if (strtol(name, NULL, 0) == (long)id)
+			return (1);
+	}
+
+	return (0);
+}

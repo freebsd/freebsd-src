@@ -10,10 +10,10 @@ SRCS=		apr_base64.c apr_brigade.c apr_buckets.c apr_buckets_alloc.c \
 		apr_buckets_heap.c apr_buckets_mmap.c apr_buckets_pipe.c \
 		apr_buckets_pool.c apr_buckets_refcount.c apr_buckets_simple.c \
 		apr_buckets_socket.c apr_crypto.c apr_date.c apr_dbd.c \
-		apr_hooks.c apr_md4.c apr_md5.c apr_memcache.c \
+		apr_hooks.c apr_md4.c apr_md5.c apr_memcache.c apr_passwd.c \
 		apr_queue.c apr_reslist.c apr_rmm.c apr_sha1.c apr_strmatch.c \
 		apr_thread_pool.c apr_uri.c apr_xml.c apu_dso.c apu_version.c \
-		getuuid.c uuid.c xlate.c
+		crypt_blowfish.c getuuid.c uuid.c xlate.c
 
 .PATH:		${APRU}/buckets ${APRU}/crypto ${APRU}/dbd \
 		${APRU}/encoding ${APRU}/hooks \

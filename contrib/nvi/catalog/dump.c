@@ -105,10 +105,10 @@ main(argc, argv)
 	for (; *argv != NULL; ++argv) {
 		if ((fp = fopen(*argv, "r")) == NULL) {
 			perror(*argv);
-			exit (1);
+			return (1);
 		}
 		parse(fp);
 		(void)fclose(fp);
 	}
-	exit (0);
+	return (0);
 }

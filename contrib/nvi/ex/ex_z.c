@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_z.c	10.10 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: ex_z.c,v 10.12 2001/06/25 15:19:22 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <limits.h>
@@ -31,9 +32,7 @@ static const char sccsid[] = "@(#)ex_z.c	10.10 (Berkeley) 3/6/96";
  * PUBLIC: int ex_z __P((SCR *, EXCMD *));
  */
 int
-ex_z(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_z(SCR *sp, EXCMD *cmdp)
 {
 	MARK abs;
 	recno_t cnt, equals, lno;
@@ -55,7 +54,7 @@ ex_z(sp, cmdp)
 	if (FL_ISSET(cmdp->iflags, E_C_COUNT))
 		cnt = cmdp->count;
 	else
-#ifdef HISTORIC_PRACTICE
+#ifdef HISTORICAL_PRACTICE
 		cnt = O_VAL(sp, O_SCROLL) * 2;
 #else
 		cnt = O_VAL(sp, O_WINDOW) - 1;

@@ -972,7 +972,13 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	que = &adapter->queues[i];
 
 	err = drbr_enqueue(ifp, txr->br, m);
-	taskqueue_enqueue(que->tq, &txr->txq_task);
+	if (err)
+		return (err);
+	if (IGB_TX_TRYLOCK(txr)) {
+		err = igb_mq_start_locked(ifp, txr);
+		IGB_TX_UNLOCK(txr);
+	} else
+		taskqueue_enqueue(que->tq, &txr->txq_task);
 
 	return (err);
 }
@@ -1571,6 +1577,10 @@ igb_msix_que(void *arg)
 	struct rx_ring *rxr = que->rxr;
 	u32		newitr = 0;
 	bool		more_rx;
+
+	/* Ignore spurious interrupts */
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 
 	E1000_WRITE_REG(&adapter->hw, E1000_EIMC, que->eims);
 	++que->irqs;
@@ -2406,16 +2416,8 @@ igb_identify_hardware(struct adapter *adapter)
 	device_t dev = adapter->dev;
 
 	/* Make sure our PCI config space has the necessary stuff set */
+	pci_enable_busmaster(dev);
 	adapter->hw.bus.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((adapter->hw.bus.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	    (adapter->hw.bus.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		INIT_DEBUGOUT("Memory Access and/or Bus Master "
-		    "bits were not set!\n");
-		adapter->hw.bus.pci_cmd_word |=
-		(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND,
-		    adapter->hw.bus.pci_cmd_word, 2);
-	}
 
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);
@@ -2838,21 +2840,16 @@ igb_setup_msix(struct adapter *adapter)
 		goto msi;
 
 	/* First try MSI/X */
+	msgs = pci_msix_count(dev); 
+	if (msgs == 0)
+		goto msi;
 	rid = PCIR_BAR(IGB_MSIX_BAR);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       	if (!adapter->msix_mem) {
+       	if (adapter->msix_mem == NULL) {
 		/* May not be enabled */
 		device_printf(adapter->dev,
 		    "Unable to map MSIX table \n");
-		goto msi;
-	}
-
-	msgs = pci_msix_count(dev); 
-	if (msgs == 0) { /* system has msix disabled */
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
-		adapter->msix_mem = NULL;
 		goto msi;
 	}
 
@@ -2898,20 +2895,32 @@ igb_setup_msix(struct adapter *adapter)
 		    "MSIX Configuration Problem, "
 		    "%d vectors configured, but %d queues wanted!\n",
 		    msgs, want);
-		return (0);
+		goto msi;
 	}
-	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
+	if ((pci_alloc_msix(dev, &msgs) == 0) && (msgs == want)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", msgs);
 		adapter->num_queues = queues;
 		return (msgs);
 	}
+	/*
+	** If MSIX alloc failed or provided us with
+	** less than needed, free and fall through to MSI
+	*/
+	pci_release_msi(dev);
+
 msi:
-       	msgs = pci_msi_count(dev);
-	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0) {
-		device_printf(adapter->dev," Using MSI interrupt\n");
+       	if (adapter->msix_mem != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
+		adapter->msix_mem = NULL;
+	}
+       	msgs = 1;
+	if (pci_alloc_msi(dev, &msgs) == 0) {
+		device_printf(adapter->dev," Using an MSI interrupt\n");
 		return (msgs);
 	}
+	device_printf(adapter->dev," Using a Legacy interrupt\n");
 	return (0);
 }
 

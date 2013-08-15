@@ -33,7 +33,13 @@
 *******************************************************************/
 
 #ifdef TESTMAIN
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #else
 #include <stand.h>
 #endif
@@ -135,9 +141,9 @@ void
 ficlGetenv(FICL_VM *pVM)
 {
 #ifndef TESTMAIN
-	char	*name;
+	char	*name, *value;
 #endif
-	char	*namep, *value;
+	char	*namep;
 	int	names;
 
 #if FICL_ROBUST > 1
@@ -243,9 +249,9 @@ void
 ficlFindfile(FICL_VM *pVM)
 {
 #ifndef TESTMAIN
-	char	*name;
+	char	*name, *type;
 #endif
-	char	*type, *namep, *typep;
+	char	*namep, *typep;
 	struct	preloaded_file* fp;
 	int	names, types;
 
@@ -511,6 +517,14 @@ static void pfread(FICL_VM *pVM)
  */
 static void pfreaddir(FICL_VM *pVM)
 {
+#ifdef TESTMAIN
+    static struct dirent dirent;
+    struct stat sb;
+    char *buf;
+    off_t off, ptr;
+    u_int blksz;
+    int bufsz;
+#endif
     struct dirent *d;
     int fd;
 
@@ -519,7 +533,48 @@ static void pfreaddir(FICL_VM *pVM)
 #endif
 
     fd = stackPopINT(pVM->pStack);
+#if TESTMAIN
+    /*
+     * The readdirfd() function is specific to the loader environment.
+     * We do the best we can to make freaddir work, but it's not at
+     * all guaranteed.
+     */
+    d = NULL;
+    buf = NULL;
+    do {
+	if (fd == -1)
+	    break;
+	if (fstat(fd, &sb) == -1)
+	    break;
+	blksz = (sb.st_blksize) ? sb.st_blksize : getpagesize();
+	if ((blksz & (blksz - 1)) != 0)
+	    break;
+	buf = malloc(blksz);
+	if (buf == NULL)
+	    break;
+	off = lseek(fd, 0LL, SEEK_CUR);
+	if (off == -1)
+	    break;
+	ptr = off;
+	if (lseek(fd, 0, SEEK_SET) == -1)
+	    break;
+	bufsz = getdents(fd, buf, blksz);
+	while (bufsz > 0 && bufsz <= ptr) {
+	    ptr -= bufsz;
+	    bufsz = getdents(fd, buf, blksz);
+	}
+	if (bufsz <= 0)
+	    break;
+	d = (void *)(buf + ptr);
+	dirent = *d;
+	off += d->d_reclen;
+	d = (lseek(fd, off, SEEK_SET) != off) ? NULL : &dirent;
+    } while (0);
+    if (buf != NULL)
+	free(buf);
+#else
     d = readdirfd(fd);
+#endif
     if (d != NULL) {
         stackPushPtr(pVM->pStack, d->d_name);
         stackPushINT(pVM->pStack, strlen(d->d_name));

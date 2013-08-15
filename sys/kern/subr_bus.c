@@ -2077,11 +2077,11 @@ device_probe_child(device_t dev, device_t child)
 			if (best == NULL || result > pri) {
 				/*
 				 * Probes that return BUS_PROBE_NOWILDCARD
-				 * or lower only match when they are set
-				 * in stone by the parent bus.
+				 * or lower only match on devices whose
+				 * driver was explicitly specified.
 				 */
 				if (result <= BUS_PROBE_NOWILDCARD &&
-				    child->flags & DF_WILDCARD)
+				    !(child->flags & DF_FIXEDCLASS))
 					continue;
 				best = dl;
 				pri = result;

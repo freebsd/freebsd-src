@@ -96,14 +96,22 @@ int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 		struct ieee80211_bpf_params *);
 int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
+#if __FreeBSD_version >= 1000031
 int	ieee80211_output(struct ifnet *, struct mbuf *,
                const struct sockaddr *, struct route *ro);
+#else
+int	ieee80211_output(struct ifnet *, struct mbuf *,
+               struct sockaddr *, struct route *ro);
+#endif
+int	ieee80211_vap_pkt_send_dest(struct ieee80211vap *, struct mbuf *,
+		struct ieee80211_node *);
 int	ieee80211_raw_output(struct ieee80211vap *, struct ieee80211_node *,
 		struct mbuf *, const struct ieee80211_bpf_params *);
 void	ieee80211_send_setup(struct ieee80211_node *, struct mbuf *, int, int,
         const uint8_t [IEEE80211_ADDR_LEN], const uint8_t [IEEE80211_ADDR_LEN],
         const uint8_t [IEEE80211_ADDR_LEN]);
-void	ieee80211_start(struct ifnet *ifp);
+int	ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m);
+void	ieee80211_vap_qflush(struct ifnet *ifp);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);
 struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,

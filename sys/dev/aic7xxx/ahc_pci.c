@@ -139,12 +139,10 @@ int
 ahc_pci_map_registers(struct ahc_softc *ahc)
 {
 	struct	resource *regs;
-	u_int	command;
 	int	regs_type;
 	int	regs_id;
 	int	allow_memio;
 
-	command = aic_pci_read_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/1);
 	regs = NULL;
 	regs_type = 0;
 	regs_id = 0;
@@ -166,7 +164,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 #endif
 	}
 
-	if ((allow_memio != 0) && (command & PCIM_CMD_MEMEN) != 0) {
+	if (allow_memio != 0) {
 
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHC_PCI_MEMADDR;
@@ -190,16 +188,11 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 				bus_release_resource(ahc->dev_softc, regs_type,
 						     regs_id, regs);
 				regs = NULL;
-			} else {
-				command &= ~PCIM_CMD_PORTEN;
-				aic_pci_write_config(ahc->dev_softc,
-						     PCIR_COMMAND,
-						     command, /*bytes*/1);
 			}
 		}
 	}
 
-	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
+	if (regs == NULL) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = AHC_PCI_IOADDR;
 		regs = bus_alloc_resource_any(ahc->dev_softc, regs_type,
@@ -217,11 +210,6 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 				bus_release_resource(ahc->dev_softc, regs_type,
 						     regs_id, regs);
 				regs = NULL;
-			} else {
-				command &= ~PCIM_CMD_MEMEN;
-				aic_pci_write_config(ahc->dev_softc,
-						     PCIR_COMMAND,
-						     command, /*bytes*/1);
 			}
 		}
 	}

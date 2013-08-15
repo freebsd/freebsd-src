@@ -161,7 +161,9 @@ main(int argc, char **argv)
 		case 'f':
 			if (fflag != NULL)
 				errx(1, "-f can be passed only once");
-			fflag = optarg;
+			fflag = realpath(optarg, NULL);
+			if (fflag == NULL)
+				err(1, "realpath");
 			break;
 		case 'o':
 			if (!strcmp(optarg, "async"))

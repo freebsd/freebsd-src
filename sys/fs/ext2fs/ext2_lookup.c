@@ -128,60 +128,66 @@ ext2_is_dot_entry(struct componentname *cnp)
 
 /*
  * Vnode op for reading directories.
- *
- * This function has to convert directory entries from the on-disk
- * format to the format defined by <sys/dirent.h>.  Unfortunately, the
- * conversion will blow up some entries by four bytes, so it can't be
- * done in place.  Instead, the conversion is done entry by entry and
- * the converted entry is sent via uiomove.
- *
- * XXX allocate a buffer, convert as many entries as possible, then send
- * the whole buffer to uiomove
  */
 int
 ext2_readdir(struct vop_readdir_args *ap)
 {
+	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
-	int count, error;
-
-	struct ext2fs_direct_2 *edp, *dp;
-	int ncookies;
+	struct buf *bp;
+	struct inode *ip;
+	struct ext2fs_direct_2 *dp, *edp;
+	u_long *cookies;
 	struct dirent dstdp;
-	struct uio auio;
-	struct iovec aiov;
-	caddr_t dirbuf;
+	off_t offset, startoffset;
+	size_t readcnt, skipcnt;
+	ssize_t startresid;
+	int ncookies;
 	int DIRBLKSIZ = VTOI(ap->a_vp)->i_e2fs->e2fs_bsize;
-	int readcnt;
-	off_t startoffset = uio->uio_offset;
+	int error;
 
-	count = uio->uio_resid;
-	/*
-	 * Avoid complications for partial directory entries by adjusting
-	 * the i/o to end at a block boundary.  Don't give up (like ufs
-	 * does) if the initial adjustment gives a negative count, since
-	 * many callers don't supply a large enough buffer.  The correct
-	 * size is a little larger than DIRBLKSIZ to allow for expansion
-	 * of directory entries, but some callers just use 512.
-	 */
-	count -= (uio->uio_offset + count) & (DIRBLKSIZ -1);
-	if (count <= 0)
-		count += DIRBLKSIZ;
-	auio = *uio;
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_resid = count;
-	auio.uio_segflg = UIO_SYSSPACE;
-	aiov.iov_len = count;
-	dirbuf = malloc(count, M_TEMP, M_WAITOK);
-	aiov.iov_base = dirbuf;
-	error = VOP_READ(ap->a_vp, &auio, 0, ap->a_cred);
-	if (error == 0) {
-		readcnt = count - auio.uio_resid;
-		edp = (struct ext2fs_direct_2 *)&dirbuf[readcnt];
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+	ip = VTOI(vp);
+	if (ap->a_ncookies != NULL) {
+		ncookies = uio->uio_resid;
+		if (uio->uio_offset >= ip->i_size)
+			ncookies = 0;
+		else if (ip->i_size - uio->uio_offset < ncookies)
+			ncookies = ip->i_size - uio->uio_offset;
+		ncookies = ncookies / (offsetof(struct ext2fs_direct_2,
+		    e2d_namlen) + 4) + 1;
+		cookies = malloc(ncookies * sizeof(*cookies), M_TEMP, M_WAITOK);
+		*ap->a_ncookies = ncookies;
+		*ap->a_cookies = cookies;
+	} else {
 		ncookies = 0;
-		bzero(&dstdp, offsetof(struct dirent, d_name));
-		for (dp = (struct ext2fs_direct_2 *)dirbuf;
-		    !error && uio->uio_resid > 0 && dp < edp; ) {
+		cookies = NULL;
+	}
+	offset = startoffset = uio->uio_offset;
+	startresid = uio->uio_resid;
+	error = 0;
+	while (error == 0 && uio->uio_resid > 0 &&
+	    uio->uio_offset < ip->i_size) {
+		error = ext2_blkatoff(vp, uio->uio_offset, NULL, &bp);
+		if (error)
+			break;
+		if (bp->b_offset + bp->b_bcount > ip->i_size)
+			readcnt = ip->i_size - bp->b_offset;
+		else
+			readcnt = bp->b_bcount;
+		skipcnt = (size_t)(uio->uio_offset - bp->b_offset) &
+		    ~(size_t)(DIRBLKSIZ - 1);
+		offset = bp->b_offset + skipcnt;
+		dp = (struct ext2fs_direct_2 *)&bp->b_data[skipcnt];
+		edp = (struct ext2fs_direct_2 *)&bp->b_data[readcnt];
+		while (error == 0 && uio->uio_resid > 0 && dp < edp) {
+			if (dp->e2d_reclen <= offsetof(struct ext2fs_direct_2,
+			    e2d_namlen) || (caddr_t)dp + dp->e2d_reclen >
+			    (caddr_t)edp) {
+				error = EIO;
+				break;
+			}
 			/*-
 			 * "New" ext2fs directory entries differ in 3 ways
 			 * from ufs on-disk ones:
@@ -198,57 +204,60 @@ ext2_readdir(struct vop_readdir_args *ap)
 			 * because ext2fs uses a machine-independent disk
 			 * layout.
 			 */
-			dstdp.d_fileno = dp->e2d_ino;
-			dstdp.d_type = FTTODT(dp->e2d_type);
 			dstdp.d_namlen = dp->e2d_namlen;
-			dstdp.d_reclen = GENERIC_DIRSIZ(&dstdp);
-			bcopy(dp->e2d_name, dstdp.d_name, dstdp.d_namlen);
-			bzero(dstdp.d_name + dstdp.d_namlen,
-			    dstdp.d_reclen - offsetof(struct dirent, d_name) -
-			    dstdp.d_namlen);
-
-			if (dp->e2d_reclen > 0) {
-				if(dstdp.d_reclen <= uio->uio_resid) {
-					/* advance dp */
-					dp = (struct ext2fs_direct_2 *)
-					    ((char *)dp + dp->e2d_reclen);
-					error =
-					  uiomove(&dstdp, dstdp.d_reclen, uio);
-					if (!error)
-						ncookies++;
-				} else
-					break;
-			} else {
+			dstdp.d_type = FTTODT(dp->e2d_type);
+			if (offsetof(struct ext2fs_direct_2, e2d_namlen) +
+			    dstdp.d_namlen > dp->e2d_reclen) {
 				error = EIO;
 				break;
 			}
-		}
-		/* we need to correct uio_offset */
-		uio->uio_offset = startoffset + (caddr_t)dp - dirbuf;
-
-		if (!error && ap->a_ncookies != NULL) {
-			u_long *cookiep, *cookies, *ecookies;
-			off_t off;
-
-			if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
-				panic("ext2_readdir: unexpected uio from NFS server");
-			cookies = malloc(ncookies * sizeof(u_long), M_TEMP,
-			       M_WAITOK);
-			off = startoffset;
-			for (dp = (struct ext2fs_direct_2 *)dirbuf,
-			     cookiep = cookies, ecookies = cookies + ncookies;
-			     cookiep < ecookies;
-			     dp = (struct ext2fs_direct_2 *)((caddr_t) dp + dp->e2d_reclen)) {
-				off += dp->e2d_reclen;
-				*cookiep++ = (u_long) off;
+			if (offset < startoffset || dp->e2d_ino == 0)
+				goto nextentry;
+			dstdp.d_fileno = dp->e2d_ino;
+			dstdp.d_reclen = GENERIC_DIRSIZ(&dstdp);
+			bcopy(dp->e2d_name, dstdp.d_name, dstdp.d_namlen);
+			dstdp.d_name[dstdp.d_namlen] = '\0';
+			if (dstdp.d_reclen > uio->uio_resid) {
+				if (uio->uio_resid == startresid)
+					error = EINVAL;
+				else
+					error = EJUSTRETURN;
+				break;
 			}
-			*ap->a_ncookies = ncookies;
-			*ap->a_cookies = cookies;
+			/* Advance dp. */
+			error = uiomove((caddr_t)&dstdp, dstdp.d_reclen, uio);
+			if (error)
+				break;
+			if (cookies != NULL) {
+				KASSERT(ncookies > 0,
+				    ("ext2_readdir: cookies buffer too small"));
+				*cookies = offset + dp->e2d_reclen;
+				cookies++;
+				ncookies--;
+			}
+nextentry:
+			offset += dp->e2d_reclen;
+			dp = (struct ext2fs_direct_2 *)((caddr_t)dp +
+			   dp->e2d_reclen);
+		}
+		bqrelse(bp);
+		uio->uio_offset = offset;
+	}
+	/* We need to correct uio_offset. */
+	uio->uio_offset = offset;
+	if (error == EJUSTRETURN)
+		error = 0;
+	if (ap->a_ncookies != NULL) {
+		if (error == 0) {
+			ap->a_ncookies -= ncookies;
+		} else {
+			free(*ap->a_cookies, M_TEMP);
+			*ap->a_ncookies = 0;
+			*ap->a_cookies = NULL;
 		}
 	}
-	free(dirbuf, M_TEMP);
-	if (ap->a_eofflag)
-		*ap->a_eofflag = VTOI(ap->a_vp)->i_size <= uio->uio_offset;
+	if (error == 0 && ap->a_eofflag)
+		*ap->a_eofflag = ip->i_size <= uio->uio_offset;
 	return (error);
 }
 

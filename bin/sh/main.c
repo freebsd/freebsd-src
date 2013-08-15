@@ -68,10 +68,10 @@ __FBSDID("$FreeBSD$");
 #include "show.h"
 #include "memalloc.h"
 #include "error.h"
-#include "init.h"
 #include "mystring.h"
 #include "exec.h"
 #include "cd.h"
+#include "redir.h"
 #include "builtins.h"
 
 int rootpid;
@@ -79,6 +79,7 @@ int rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
+static void reset(void);
 static void cmdloop(int);
 static void read_profile(const char *);
 static char *find_dot_file(char *);
@@ -179,6 +180,14 @@ state4:
 	return 0;
 }
 
+static void
+reset(void)
+{
+	reseteval();
+	resetinput();
+	resetparser();
+	resetredir();
+}
 
 /*
  * Read and execute commands.  "Top" is nonzero for the top level command

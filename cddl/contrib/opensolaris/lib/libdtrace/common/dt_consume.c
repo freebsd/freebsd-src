@@ -2018,13 +2018,13 @@ dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
 	uint64_t tracememsize = 0;
 	dtrace_probedata_t data;
 	uint64_t drops;
-	data.dtpda_flow = dtp->dt_flow;
-	data.dtpda_indent = dtp->dt_indent;
-	data.dtpda_prefix = dtp->dt_prefix;
 
 	bzero(&data, sizeof (data));
 	data.dtpda_handle = dtp;
 	data.dtpda_cpu = cpu;
+	data.dtpda_flow = dtp->dt_flow;
+	data.dtpda_indent = dtp->dt_indent;
+	data.dtpda_prefix = dtp->dt_prefix;
 
 	for (offs = buf->dtbd_oldest; offs < buf->dtbd_size; ) {
 		dtrace_eprobedesc_t *epd;
@@ -2611,7 +2611,7 @@ typedef struct dt_begin {
 static int
 dt_consume_begin_probe(const dtrace_probedata_t *data, void *arg)
 {
-	dt_begin_t *begin = (dt_begin_t *)arg;
+	dt_begin_t *begin = arg;
 	dtrace_probedesc_t *pd = data->dtpda_pdesc;
 
 	int r1 = (strcmp(pd->dtpd_provider, "dtrace") == 0);
@@ -2636,7 +2636,7 @@ static int
 dt_consume_begin_record(const dtrace_probedata_t *data,
     const dtrace_recdesc_t *rec, void *arg)
 {
-	dt_begin_t *begin = (dt_begin_t *)arg;
+	dt_begin_t *begin = arg;
 
 	return (begin->dtbgn_recfunc(data, rec, begin->dtbgn_arg));
 }

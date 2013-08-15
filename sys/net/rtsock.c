@@ -968,8 +968,8 @@ flush:
 #ifdef INET6
 		if (rti_need_deembed) {
 			/* sin6_scope_id is recovered before sending rtm. */
+			sin6 = (struct sockaddr_in6 *)&ss;
 			for (i = 0; i < RTAX_MAX; i++) {
-				sin6 = (struct sockaddr_in6 *)&ss;
 				if (info.rti_info[i] == NULL)
 					continue;
 				if (info.rti_info[i]->sa_family != AF_INET6)
