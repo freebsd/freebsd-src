@@ -106,6 +106,8 @@ struct mmc_ivars {
 
 #define CMD_RETRIES	3
 
+#define	CARD_ID_FREQUENCY 400000 /* Spec requires 400KHz max during ID phase. */
+
 static SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
 
 static int mmc_debug;
@@ -579,7 +581,7 @@ mmc_power_up(struct mmc_softc *sc)
 	mmcbr_update_ios(dev);
 	mmc_ms_delay(1);
 
-	mmcbr_set_clock(dev, mmcbr_get_f_min(sc->dev));
+	mmcbr_set_clock(dev, CARD_ID_FREQUENCY);
 	mmcbr_set_timing(dev, bus_timing_normal);
 	mmcbr_set_power_mode(dev, power_on);
 	mmcbr_update_ios(dev);
@@ -1534,7 +1536,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 			mmc_idle_cards(sc);
 	} else {
 		mmcbr_set_bus_mode(dev, opendrain);
-		mmcbr_set_clock(dev, mmcbr_get_f_min(dev));
+		mmcbr_set_clock(dev, CARD_ID_FREQUENCY);
 		mmcbr_update_ios(dev);
 		/* XXX recompute vdd based on new cards? */
 	}
@@ -1572,11 +1574,10 @@ static int
 mmc_calculate_clock(struct mmc_softc *sc)
 {
 	int max_dtr, max_hs_dtr, max_timing;
-	int nkid, i, f_min, f_max;
+	int nkid, i, f_max;
 	device_t *kids;
 	struct mmc_ivars *ivar;
 	
-	f_min = mmcbr_get_f_min(sc->dev);
 	f_max = mmcbr_get_f_max(sc->dev);
 	max_dtr = max_hs_dtr = f_max;
 	if ((mmcbr_get_caps(sc->dev) & MMC_CAP_HSPEED))
