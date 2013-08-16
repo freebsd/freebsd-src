@@ -112,7 +112,7 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
  
 	addr = vm_map_min(kernel_map);
 	result = vm_map_find(kernel_map, NULL, 0, &addr, size,
-	    VMFS_ALIGNED_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
+	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	if (result != KERN_SUCCESS)
                 return (ENOMEM);
 
