@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
+static int	g_io_transient_map_bio(struct bio *bp);
+
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
 static struct g_bioq g_bio_run_task;
@@ -310,6 +312,8 @@ g_io_check(struct bio *bp)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	off_t excess;
+	int error;
 
 	cp = bp->bio_from;
 	pp = bp->bio_to;
@@ -354,11 +358,45 @@ g_io_check(struct bio *bp)
 			return (EIO);
 		if (bp->bio_offset > pp->mediasize)
 			return (EIO);
+
+		/* Truncate requests to the end of providers media. */
+		excess = bp->bio_offset + bp->bio_length;
+		if (excess > bp->bio_to->mediasize) {
+			KASSERT((bp->bio_flags & BIO_UNMAPPED) == 0 ||
+			    round_page(bp->bio_ma_offset +
+			    bp->bio_length) / PAGE_SIZE == bp->bio_ma_n,
+			    ("excess bio %p too short", bp));
+			excess -= bp->bio_to->mediasize;
+			bp->bio_length -= excess;
+			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+				bp->bio_ma_n = round_page(bp->bio_ma_offset +
+				    bp->bio_length) / PAGE_SIZE;
+			}
+			if (excess > 0)
+				CTR3(KTR_GEOM, "g_down truncated bio "
+				    "%p provider %s by %d", bp,
+				    bp->bio_to->name, excess);
+		}
+
+		/* Deliver zero length transfers right here. */
+		if (bp->bio_length == 0) {
+			g_io_deliver(bp, 0);
+			CTR2(KTR_GEOM, "g_down terminated 0-length "
+			    "bp %p provider %s", bp, bp->bio_to->name);
+			return (0);
+		}
+
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
+		    (bp->bio_to->flags & G_PF_ACCEPT_UNMAPPED) == 0 &&
+		    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
+			if ((error = g_io_transient_map_bio(bp)) >= 0)
+				return (error);
+		}
 		break;
 	default:
 		break;
 	}
-	return (0);
+	return (EJUSTRETURN);
 }
 
 /*
@@ -422,7 +460,7 @@ void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	int direct, first;
+	int direct, error, first;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -501,6 +539,14 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	cp->nstart++;
 	if (direct) {
 		g_bioq_unlock(&g_bio_run_down);
+		error = g_io_check(bp);
+		if (error >= 0) {
+			CTR3(KTR_GEOM, "g_io_request g_io_check on bp %p "
+			    "provider %s returned %d", bp, bp->bio_to->name,
+			    error);
+			g_io_deliver(bp, error);
+			return;
+		}
 		bp->bio_to->geom->start(bp);
 	} else {
 		first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);
@@ -653,11 +699,10 @@ retry:
 	if (vmem_alloc(transient_arena, size, M_BESTFIT | M_NOWAIT, &addr)) {
 		if (transient_map_retries != 0 &&
 		    retried >= transient_map_retries) {
-			g_io_deliver(bp, EDEADLK/* XXXKIB */);
 			CTR2(KTR_GEOM, "g_down cannot map bp %p provider %s",
 			    bp, bp->bio_to->name);
 			atomic_add_int(&transient_map_hard_failures, 1);
-			return (1);
+			return (EDEADLK/* XXXKIB */);
 		} else {
 			/*
 			 * Naive attempt to quisce the I/O to get more
@@ -677,14 +722,13 @@ retry:
 	bp->bio_data = (caddr_t)addr + bp->bio_ma_offset;
 	bp->bio_flags |= BIO_TRANSIENT_MAPPING;
 	bp->bio_flags &= ~BIO_UNMAPPED;
-	return (0);
+	return (EJUSTRETURN);
 }
 
 void
 g_io_schedule_down(struct thread *tp __unused)
 {
 	struct bio *bp;
-	off_t excess;
 	int error;
 
 	for(;;) {
@@ -703,58 +747,14 @@ g_io_schedule_down(struct thread *tp __unused)
 			pause("g_down", hz/10);
 			pace--;
 		}
+		CTR2(KTR_GEOM, "g_down processing bp %p provider %s", bp,
+		    bp->bio_to->name);
 		error = g_io_check(bp);
-		if (error) {
+		if (error >= 0) {
 			CTR3(KTR_GEOM, "g_down g_io_check on bp %p provider "
 			    "%s returned %d", bp, bp->bio_to->name, error);
 			g_io_deliver(bp, error);
 			continue;
-		}
-		CTR2(KTR_GEOM, "g_down processing bp %p provider %s", bp,
-		    bp->bio_to->name);
-		switch (bp->bio_cmd) {
-		case BIO_READ:
-		case BIO_WRITE:
-		case BIO_DELETE:
-			/* Truncate requests to the end of providers media. */
-			/*
-			 * XXX: What if we truncate because of offset being
-			 * bad, not length?
-			 */
-			excess = bp->bio_offset + bp->bio_length;
-			if (excess > bp->bio_to->mediasize) {
-				KASSERT((bp->bio_flags & BIO_UNMAPPED) == 0 ||
-				    round_page(bp->bio_ma_offset +
-				    bp->bio_length) / PAGE_SIZE == bp->bio_ma_n,
-				    ("excess bio %p too short", bp));
-				excess -= bp->bio_to->mediasize;
-				bp->bio_length -= excess;
-				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
-					bp->bio_ma_n = round_page(
-					    bp->bio_ma_offset +
-					    bp->bio_length) / PAGE_SIZE;
-				}
-				if (excess > 0)
-					CTR3(KTR_GEOM, "g_down truncated bio "
-					    "%p provider %s by %d", bp,
-					    bp->bio_to->name, excess);
-			}
-			/* Deliver zero length transfers right here. */
-			if (bp->bio_length == 0) {
-				g_io_deliver(bp, 0);
-				CTR2(KTR_GEOM, "g_down terminated 0-length "
-				    "bp %p provider %s", bp, bp->bio_to->name);
-				continue;
-			}
-			break;
-		default:
-			break;
-		}
-		if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
-		    (bp->bio_to->flags & G_PF_ACCEPT_UNMAPPED) == 0 &&
-		    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
-			if (g_io_transient_map_bio(bp))
-				continue;
 		}
 		THREAD_NO_SLEEPING();
 		CTR4(KTR_GEOM, "g_down starting bp %p provider %s off %ld "
