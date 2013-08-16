@@ -4841,6 +4841,8 @@ xpt_config(void *arg)
 	/*
 	 * Now that interrupts are enabled, go find our devices
 	 */
+	if (taskqueue_start_threads(&xsoftc.xpt_taskq, 1, PRIBIO, "CAM taskq"))
+		printf("xpt_config: failed to create taskqueue thread.\n");
 
 	/* Setup debugging path */
 	if (cam_dflags != CAM_DEBUG_NONE) {
