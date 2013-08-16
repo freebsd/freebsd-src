@@ -241,6 +241,8 @@ fo_chmod_t	invfo_chmod;
 fo_chown_t	invfo_chown;
 fo_sendfile_t	invfo_sendfile;
 
+fo_sendfile_t	vn_sendfile;
+
 void finit(struct file *, u_int, short, void *, struct fileops *);
 int fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp);
 int fgetvp_exec(struct thread *td, int fd, cap_rights_t rights,
