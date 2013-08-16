@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -249,6 +249,12 @@ struct dns_message {
 
 	dns_rdatasetorderfunc_t		order;
 	const void *			order_arg;
+};
+
+struct dns_ednsopt {
+	isc_uint16_t			code;
+	isc_uint16_t			length;
+	unsigned char			*value;
 };
 
 /***
@@ -1348,6 +1354,24 @@ dns_message_gettimeadjust(dns_message_t *msg);
  *
  * Requires:
  *\li	msg be a valid message.
+ */
+
+isc_result_t
+dns_message_buildopt(dns_message_t *msg, dns_rdataset_t **opt,
+		     unsigned int version, isc_uint16_t udpsize,
+		     unsigned int flags, dns_ednsopt_t *ednsopts, size_t count);
+/*%<
+ * Built a opt record.
+ *
+ * Requires:
+ * \li   msg be a valid message.
+ * \li   opt to be a non NULL and *opt to be NULL.
+ *
+ * Returns:
+ * \li	 ISC_R_SUCCESS on success.
+ * \li	 ISC_R_NOMEMORY
+ * \li	 ISC_R_NOSPACE
+ * \li	 other.
  */
 
 ISC_LANG_ENDDECLS

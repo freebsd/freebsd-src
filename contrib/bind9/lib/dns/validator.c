@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -157,7 +157,7 @@ validator_logv(dns_validator_t *val, isc_logcategory_t *category,
      ISC_FORMAT_PRINTF(5, 0);
 
 static void
-validator_log(dns_validator_t *val, int level, const char *fmt, ...)
+validator_log(void *val, int level, const char *fmt, ...)
      ISC_FORMAT_PRINTF(3, 4);
 
 static void
@@ -195,6 +195,7 @@ marksecure(dns_validatorevent_t *event) {
 	dns_rdataset_settrust(event->rdataset, dns_trust_secure);
 	if (event->sigrdataset != NULL)
 		dns_rdataset_settrust(event->sigrdataset, dns_trust_secure);
+	event->secure = ISC_TRUE;
 }
 
 static void
@@ -403,6 +404,7 @@ fetch_callback_validator(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	isc_result_t eresult;
 	isc_result_t saved_result;
+	dns_fetch_t *fetch;
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_FETCHDONE);
@@ -419,12 +421,13 @@ fetch_callback_validator(isc_task_t *task, isc_event_t *event) {
 	if (dns_rdataset_isassociated(&val->fsigrdataset))
 		dns_rdataset_disassociate(&val->fsigrdataset);
 	isc_event_free(&event);
-	dns_resolver_destroyfetch(&val->fetch);
 
 	INSIST(val->event != NULL);
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in fetch_callback_validator");
 	LOCK(&val->lock);
+	fetch = val->fetch;
+	val->fetch = NULL;
 	if (CANCELED(val)) {
 		validator_done(val, ISC_R_CANCELED);
 	} else if (eresult == ISC_R_SUCCESS) {
@@ -464,6 +467,8 @@ fetch_callback_validator(isc_task_t *task, isc_event_t *event) {
 	}
 	want_destroy = exit_check(val);
 	UNLOCK(&val->lock);
+	if (fetch != NULL)
+		dns_resolver_destroyfetch(&fetch);
 	if (want_destroy)
 		destroy(val);
 }
@@ -481,6 +486,7 @@ dsfetched(isc_task_t *task, isc_event_t *event) {
 	isc_boolean_t want_destroy;
 	isc_result_t result;
 	isc_result_t eresult;
+	dns_fetch_t *fetch;
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_FETCHDONE);
@@ -497,12 +503,13 @@ dsfetched(isc_task_t *task, isc_event_t *event) {
 	if (dns_rdataset_isassociated(&val->fsigrdataset))
 		dns_rdataset_disassociate(&val->fsigrdataset);
 	isc_event_free(&event);
-	dns_resolver_destroyfetch(&val->fetch);
 
 	INSIST(val->event != NULL);
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in dsfetched");
 	LOCK(&val->lock);
+	fetch = val->fetch;
+	val->fetch = NULL;
 	if (CANCELED(val)) {
 		validator_done(val, ISC_R_CANCELED);
 	} else if (eresult == ISC_R_SUCCESS) {
@@ -536,6 +543,8 @@ dsfetched(isc_task_t *task, isc_event_t *event) {
 	}
 	want_destroy = exit_check(val);
 	UNLOCK(&val->lock);
+	if (fetch != NULL)
+		dns_resolver_destroyfetch(&fetch);
 	if (want_destroy)
 		destroy(val);
 }
@@ -559,6 +568,7 @@ dsfetched2(isc_task_t *task, isc_event_t *event) {
 	isc_boolean_t want_destroy;
 	isc_result_t result;
 	isc_result_t eresult;
+	dns_fetch_t *fetch;
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_FETCHDONE);
@@ -573,13 +583,14 @@ dsfetched2(isc_task_t *task, isc_event_t *event) {
 		dns_db_detach(&devent->db);
 	if (dns_rdataset_isassociated(&val->fsigrdataset))
 		dns_rdataset_disassociate(&val->fsigrdataset);
-	dns_resolver_destroyfetch(&val->fetch);
 
 	INSIST(val->event != NULL);
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in dsfetched2: %s",
 		      dns_result_totext(eresult));
 	LOCK(&val->lock);
+	fetch = val->fetch;
+	val->fetch = NULL;
 	if (CANCELED(val)) {
 		validator_done(val, ISC_R_CANCELED);
 	} else if (eresult == DNS_R_CNAME ||
@@ -632,6 +643,8 @@ dsfetched2(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
 	want_destroy = exit_check(val);
 	UNLOCK(&val->lock);
+	if (fetch != NULL)
+		dns_resolver_destroyfetch(&fetch);
 	if (want_destroy)
 		destroy(val);
 }
@@ -839,452 +852,6 @@ cnamevalidated(isc_task_t *task, isc_event_t *event) {
 }
 
 /*%
- * Return ISC_R_SUCCESS if we can determine that the name doesn't exist
- * or we can determine whether there is data or not at the name.
- * If the name does not exist return the wildcard name.
- *
- * Return ISC_R_IGNORE when the NSEC is not the appropriate one.
- */
-static isc_result_t
-nsecnoexistnodata(dns_validator_t *val, dns_name_t *name, dns_name_t *nsecname,
-		  dns_rdataset_t *nsecset, isc_boolean_t *exists,
-		  isc_boolean_t *data, dns_name_t *wild)
-{
-	int order;
-	dns_rdata_t rdata = DNS_RDATA_INIT;
-	isc_result_t result;
-	dns_namereln_t relation;
-	unsigned int olabels, nlabels, labels;
-	dns_rdata_nsec_t nsec;
-	isc_boolean_t atparent;
-	isc_boolean_t ns;
-	isc_boolean_t soa;
-
-	REQUIRE(exists != NULL);
-	REQUIRE(data != NULL);
-	REQUIRE(nsecset != NULL &&
-		nsecset->type == dns_rdatatype_nsec);
-
-	result = dns_rdataset_first(nsecset);
-	if (result != ISC_R_SUCCESS) {
-		validator_log(val, ISC_LOG_DEBUG(3),
-			"failure processing NSEC set");
-		return (result);
-	}
-	dns_rdataset_current(nsecset, &rdata);
-
-	validator_log(val, ISC_LOG_DEBUG(3), "looking for relevant nsec");
-	relation = dns_name_fullcompare(name, nsecname, &order, &olabels);
-
-	if (order < 0) {
-		/*
-		 * The name is not within the NSEC range.
-		 */
-		validator_log(val, ISC_LOG_DEBUG(3),
-			      "NSEC does not cover name, before NSEC");
-		return (ISC_R_IGNORE);
-	}
-
-	if (order == 0) {
-		/*
-		 * The names are the same.   If we are validating "."
-		 * then atparent should not be set as there is no parent.
-		 */
-		atparent = (olabels != 1) &&
-			   dns_rdatatype_atparent(val->event->type);
-		ns = dns_nsec_typepresent(&rdata, dns_rdatatype_ns);
-		soa = dns_nsec_typepresent(&rdata, dns_rdatatype_soa);
-		if (ns && !soa) {
-			if (!atparent) {
-				/*
-				 * This NSEC record is from somewhere higher in
-				 * the DNS, and at the parent of a delegation.
-				 * It can not be legitimately used here.
-				 */
-				validator_log(val, ISC_LOG_DEBUG(3),
-					      "ignoring parent nsec");
-				return (ISC_R_IGNORE);
-			}
-		} else if (atparent && ns && soa) {
-			/*
-			 * This NSEC record is from the child.
-			 * It can not be legitimately used here.
-			 */
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "ignoring child nsec");
-			return (ISC_R_IGNORE);
-		}
-		if (val->event->type == dns_rdatatype_cname ||
-		    val->event->type == dns_rdatatype_nxt ||
-		    val->event->type == dns_rdatatype_nsec ||
-		    val->event->type == dns_rdatatype_key ||
-		    !dns_nsec_typepresent(&rdata, dns_rdatatype_cname)) {
-			*exists = ISC_TRUE;
-			*data = dns_nsec_typepresent(&rdata, val->event->type);
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "nsec proves name exists (owner) data=%d",
-				      *data);
-			return (ISC_R_SUCCESS);
-		}
-		validator_log(val, ISC_LOG_DEBUG(3), "NSEC proves CNAME exists");
-		return (ISC_R_IGNORE);
-	}
-
-	if (relation == dns_namereln_subdomain &&
-	    dns_nsec_typepresent(&rdata, dns_rdatatype_ns) &&
-	    !dns_nsec_typepresent(&rdata, dns_rdatatype_soa))
-	{
-		/*
-		 * This NSEC record is from somewhere higher in
-		 * the DNS, and at the parent of a delegation.
-		 * It can not be legitimately used here.
-		 */
-		validator_log(val, ISC_LOG_DEBUG(3), "ignoring parent nsec");
-		return (ISC_R_IGNORE);
-	}
-
-	result = dns_rdata_tostruct(&rdata, &nsec, NULL);
-	if (result != ISC_R_SUCCESS)
-		return (result);
-	relation = dns_name_fullcompare(&nsec.next, name, &order, &nlabels);
-	if (order == 0) {
-		dns_rdata_freestruct(&nsec);
-		validator_log(val, ISC_LOG_DEBUG(3),
-			      "ignoring nsec matches next name");
-		return (ISC_R_IGNORE);
-	}
-
-	if (order < 0 && !dns_name_issubdomain(nsecname, &nsec.next)) {
-		/*
-		 * The name is not within the NSEC range.
-		 */
-		dns_rdata_freestruct(&nsec);
-		validator_log(val, ISC_LOG_DEBUG(3),
-			    "ignoring nsec because name is past end of range");
-		return (ISC_R_IGNORE);
-	}
-
-	if (order > 0 && relation == dns_namereln_subdomain) {
-		validator_log(val, ISC_LOG_DEBUG(3),
-			      "nsec proves name exist (empty)");
-		dns_rdata_freestruct(&nsec);
-		*exists = ISC_TRUE;
-		*data = ISC_FALSE;
-		return (ISC_R_SUCCESS);
-	}
-	if (wild != NULL) {
-		dns_name_t common;
-		dns_name_init(&common, NULL);
-		if (olabels > nlabels) {
-			labels = dns_name_countlabels(nsecname);
-			dns_name_getlabelsequence(nsecname, labels - olabels,
-						  olabels, &common);
-		} else {
-			labels = dns_name_countlabels(&nsec.next);
-			dns_name_getlabelsequence(&nsec.next, labels - nlabels,
-						  nlabels, &common);
-		}
-		result = dns_name_concatenate(dns_wildcardname, &common,
-					       wild, NULL);
-		if (result != ISC_R_SUCCESS) {
-			dns_rdata_freestruct(&nsec);
-			validator_log(val, ISC_LOG_DEBUG(3),
-				    "failure generating wildcard name");
-			return (result);
-		}
-	}
-	dns_rdata_freestruct(&nsec);
-	validator_log(val, ISC_LOG_DEBUG(3), "nsec range ok");
-	*exists = ISC_FALSE;
-	return (ISC_R_SUCCESS);
-}
-
-static isc_result_t
-nsec3noexistnodata(dns_validator_t *val, dns_name_t* name,
-		   dns_name_t *nsec3name, dns_rdataset_t *nsec3set,
-		   dns_name_t *zonename, isc_boolean_t *exists,
-		   isc_boolean_t *data, isc_boolean_t *optout,
-		   isc_boolean_t *unknown, isc_boolean_t *setclosest,
-		   isc_boolean_t *setnearest, dns_name_t *closest,
-		   dns_name_t *nearest)
-{
-	char namebuf[DNS_NAME_FORMATSIZE];
-	dns_fixedname_t fzone;
-	dns_fixedname_t qfixed;
-	dns_label_t hashlabel;
-	dns_name_t *qname;
-	dns_name_t *zone;
-	dns_rdata_nsec3_t nsec3;
-	dns_rdata_t rdata = DNS_RDATA_INIT;
-	int order;
-	int scope;
-	isc_boolean_t atparent;
-	isc_boolean_t first;
-	isc_boolean_t ns;
-	isc_boolean_t soa;
-	isc_buffer_t buffer;
-	isc_result_t answer = ISC_R_IGNORE;
-	isc_result_t result;
-	unsigned char hash[NSEC3_MAX_HASH_LENGTH];
-	unsigned char owner[NSEC3_MAX_HASH_LENGTH];
-	unsigned int length;
-	unsigned int qlabels;
-	unsigned int zlabels;
-
-	REQUIRE((exists == NULL && data == NULL) ||
-		(exists != NULL && data != NULL));
-	REQUIRE(nsec3set != NULL && nsec3set->type == dns_rdatatype_nsec3);
-	REQUIRE((setclosest == NULL && closest == NULL) ||
-		(setclosest != NULL && closest != NULL));
-	REQUIRE((setnearest == NULL && nearest == NULL) ||
-		(setnearest != NULL && nearest != NULL));
-
-	result = dns_rdataset_first(nsec3set);
-	if (result != ISC_R_SUCCESS) {
-		validator_log(val, ISC_LOG_DEBUG(3),
-			"failure processing NSEC3 set");
-		return (result);
-	}
-
-	dns_rdataset_current(nsec3set, &rdata);
-
-	result = dns_rdata_tostruct(&rdata, &nsec3, NULL);
-	if (result != ISC_R_SUCCESS)
-		return (result);
-
-	validator_log(val, ISC_LOG_DEBUG(3), "looking for relevant NSEC3");
-
-	dns_fixedname_init(&fzone);
-	zone = dns_fixedname_name(&fzone);
-	zlabels = dns_name_countlabels(nsec3name);
-
-	/*
-	 * NSEC3 records must have two or more labels to be valid.
-	 */
-	if (zlabels < 2)
-		return (ISC_R_IGNORE);
-
-	/*
-	 * Strip off the NSEC3 hash to get the zone.
-	 */
-	zlabels--;
-	dns_name_split(nsec3name, zlabels, NULL, zone);
-
-	/*
-	 * If not below the zone name we can ignore this record.
-	 */
-	if (!dns_name_issubdomain(name, zone))
-		return (ISC_R_IGNORE);
-
-	/*
-	 * Is this zone the same or deeper than the current zone?
-	 */
-	if (dns_name_countlabels(zonename) == 0 ||
-	    dns_name_issubdomain(zone, zonename))
-		dns_name_copy(zone, zonename, NULL);
-
-	if (!dns_name_equal(zone, zonename))
-		return (ISC_R_IGNORE);
-
-	/*
-	 * Are we only looking for the most enclosing zone?
-	 */
-	if (exists == NULL || data == NULL)
-		return (ISC_R_SUCCESS);
-
-	/*
-	 * Only set unknown once we are sure that this NSEC3 is from
-	 * the deepest covering zone.
-	 */
-	if (!dns_nsec3_supportedhash(nsec3.hash)) {
-		if (unknown != NULL)
-			*unknown = ISC_TRUE;
-		return (ISC_R_IGNORE);
-	}
-
-	/*
-	 * Recover the hash from the first label.
-	 */
-	dns_name_getlabel(nsec3name, 0, &hashlabel);
-	isc_region_consume(&hashlabel, 1);
-	isc_buffer_init(&buffer, owner, sizeof(owner));
-	result = isc_base32hex_decoderegion(&hashlabel, &buffer);
-	if (result != ISC_R_SUCCESS)
-		return (result);
-
-	/*
-	 * The hash lengths should match.  If not ignore the record.
-	 */
-	if (isc_buffer_usedlength(&buffer) != nsec3.next_length)
-		return (ISC_R_IGNORE);
-
-	/*
-	 * Work out what this NSEC3 covers.
-	 * Inside (<0) or outside (>=0).
-	 */
-	scope = memcmp(owner, nsec3.next, nsec3.next_length);
-
-	/*
-	 * Prepare to compute all the hashes.
-	 */
-	dns_fixedname_init(&qfixed);
-	qname = dns_fixedname_name(&qfixed);
-	dns_name_downcase(name, qname, NULL);
-	qlabels = dns_name_countlabels(qname);
-	first = ISC_TRUE;
-
-	while (qlabels >= zlabels) {
-		length = isc_iterated_hash(hash, nsec3.hash, nsec3.iterations,
-					   nsec3.salt, nsec3.salt_length,
-					   qname->ndata, qname->length);
-		/*
-		 * The computed hash length should match.
-		 */
-		if (length != nsec3.next_length) {
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "ignoring NSEC bad length %u vs %u",
-				      length, nsec3.next_length);
-			return (ISC_R_IGNORE);
-		}
-
-		order = memcmp(hash, owner, length);
-		if (first && order == 0) {
-			/*
-			 * The hashes are the same.
-			 */
-			atparent = dns_rdatatype_atparent(val->event->type);
-			ns = dns_nsec3_typepresent(&rdata, dns_rdatatype_ns);
-			soa = dns_nsec3_typepresent(&rdata, dns_rdatatype_soa);
-			if (ns && !soa) {
-				if (!atparent) {
-					/*
-					 * This NSEC3 record is from somewhere
-					 * higher in the DNS, and at the
-					 * parent of a delegation. It can not
-					 * be legitimately used here.
-					 */
-					validator_log(val, ISC_LOG_DEBUG(3),
-						      "ignoring parent NSEC3");
-					return (ISC_R_IGNORE);
-				}
-			} else if (atparent && ns && soa) {
-				/*
-				 * This NSEC3 record is from the child.
-				 * It can not be legitimately used here.
-				 */
-				validator_log(val, ISC_LOG_DEBUG(3),
-					      "ignoring child NSEC3");
-				return (ISC_R_IGNORE);
-			}
-			if (val->event->type == dns_rdatatype_cname ||
-			    val->event->type == dns_rdatatype_nxt ||
-			    val->event->type == dns_rdatatype_nsec ||
-			    val->event->type == dns_rdatatype_key ||
-			    !dns_nsec3_typepresent(&rdata, dns_rdatatype_cname)) {
-				*exists = ISC_TRUE;
-				*data = dns_nsec3_typepresent(&rdata,
-							      val->event->type);
-				validator_log(val, ISC_LOG_DEBUG(3),
-					      "NSEC3 proves name exists (owner) "
-					      "data=%d", *data);
-				return (ISC_R_SUCCESS);
-			}
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "NSEC3 proves CNAME exists");
-			return (ISC_R_IGNORE);
-		}
-
-		if (order == 0 &&
-		    dns_nsec3_typepresent(&rdata, dns_rdatatype_ns) &&
-		    !dns_nsec3_typepresent(&rdata, dns_rdatatype_soa))
-		{
-			/*
-			 * This NSEC3 record is from somewhere higher in
-			 * the DNS, and at the parent of a delegation.
-			 * It can not be legitimately used here.
-			 */
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "ignoring parent NSEC3");
-			return (ISC_R_IGNORE);
-		}
-
-		/*
-		 * Potential closest encloser.
-		 */
-		if (order == 0) {
-			if (closest != NULL &&
-			    (dns_name_countlabels(closest) == 0 ||
-			     dns_name_issubdomain(qname, closest)) &&
-			    !dns_nsec3_typepresent(&rdata, dns_rdatatype_ds) &&
-			    !dns_nsec3_typepresent(&rdata, dns_rdatatype_dname) &&
-			    (dns_nsec3_typepresent(&rdata, dns_rdatatype_soa) ||
-			     !dns_nsec3_typepresent(&rdata, dns_rdatatype_ns)))
-			{
-
-				dns_name_format(qname, namebuf,
-						sizeof(namebuf));
-				validator_log(val, ISC_LOG_DEBUG(3),
-					      "NSEC3 indicates potential "
-					      "closest encloser: '%s'",
-					       namebuf);
-				dns_name_copy(qname, closest, NULL);
-				*setclosest = ISC_TRUE;
-			}
-			dns_name_format(qname, namebuf, sizeof(namebuf));
-			validator_log(val, ISC_LOG_DEBUG(3),
-				      "NSEC3 at super-domain %s", namebuf);
-			return (answer);
-		}
-
-		/*
-		 * Find if the name does not exist.
-		 *
-		 * We continue as we need to find the name closest to the
-		 * closest encloser that doesn't exist.
-		 *
-		 * We also need to continue to ensure that we are not
-		 * proving the non-existence of a record in a sub-zone.
-		 * If that would be the case we will return ISC_R_IGNORE
-		 * above.
-		 */
-		if ((scope < 0 && order > 0 &&
-		     memcmp(hash, nsec3.next, length) < 0) ||
-		    (scope >= 0 && (order > 0 ||
-				    memcmp(hash, nsec3.next, length) < 0)))
-		{
-			char namebuf[DNS_NAME_FORMATSIZE];
-
-			dns_name_format(qname, namebuf, sizeof(namebuf));
-			validator_log(val, ISC_LOG_DEBUG(3), "NSEC3 proves "
-				      "name does not exist: '%s'", namebuf);
-			if (nearest != NULL &&
-			    (dns_name_countlabels(nearest) == 0 ||
-			     dns_name_issubdomain(nearest, qname))) {
-				dns_name_copy(qname, nearest, NULL);
-				*setnearest = ISC_TRUE;
-			}
-
-			*exists = ISC_FALSE;
-			*data = ISC_FALSE;
-			if (optout != NULL) {
-				if ((nsec3.flags & DNS_NSEC3FLAG_OPTOUT) != 0)
-					validator_log(val, ISC_LOG_DEBUG(3),
-						      "NSEC3 indicates optout");
-				*optout =
-				    ISC_TF(nsec3.flags & DNS_NSEC3FLAG_OPTOUT);
-			}
-			answer = ISC_R_SUCCESS;
-		}
-
-		qlabels--;
-		if (qlabels > 0)
-			dns_name_split(qname, qlabels, NULL, qname);
-		first = ISC_FALSE;
-	}
-	return (answer);
-}
-
-/*%
  * Callback for when NSEC records have been validated.
  *
  * Looks for NOQNAME, NODATA and OPTOUT proofs.
@@ -1339,8 +906,9 @@ authvalidated(isc_task_t *task, isc_event_t *event) {
 		    rdataset->trust == dns_trust_secure &&
 		    (NEEDNODATA(val) || NEEDNOQNAME(val)) &&
 		    !FOUNDNODATA(val) && !FOUNDNOQNAME(val) &&
-		    nsecnoexistnodata(val, val->event->name, devent->name,
-				      rdataset, &exists, &data, wild)
+		    dns_nsec_noexistnodata(val->event->type, val->event->name,
+					   devent->name, rdataset, &exists,
+					   &data, wild, validator_log, val)
 				      == ISC_R_SUCCESS)
 		{
 			if (exists && !data) {
@@ -1412,9 +980,6 @@ view_find(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type) {
 		dns_rdataset_disassociate(&val->frdataset);
 	if (dns_rdataset_isassociated(&val->fsigrdataset))
 		dns_rdataset_disassociate(&val->fsigrdataset);
-
-	if (val->view->zonetable == NULL)
-		return (ISC_R_CANCELED);
 
 	if (isc_time_now(&now) == ISC_R_SUCCESS &&
 	    dns_resolver_getbadcache(val->view->resolver, name, type, &now)) {
@@ -1858,6 +1423,10 @@ isselfsigned(dns_validator_t *val) {
 	sigrdataset = val->event->sigrdataset;
 	name = val->event->name;
 	mctx = val->view->mctx;
+
+	if (rdataset->type == dns_rdatatype_cname ||
+	    rdataset->type == dns_rdatatype_dname)
+		return (answer);
 
 	INSIST(rdataset->type == dns_rdatatype_dnskey);
 
@@ -2831,8 +2400,9 @@ checkwildcard(dns_validator_t *val, dns_rdatatype_t type, dns_name_t *zonename)
 		if (rdataset->type == dns_rdatatype_nsec &&
 		    (NEEDNODATA(val) || NEEDNOWILDCARD(val)) &&
 		    !FOUNDNODATA(val) && !FOUNDNOWILDCARD(val) &&
-		    nsecnoexistnodata(val, wild, name, rdataset,
-				      &exists, &data, NULL)
+		    dns_nsec_noexistnodata(val->event->type, wild, name,
+					   rdataset, &exists, &data, NULL,
+					   validator_log, val)
 				       == ISC_R_SUCCESS)
 		{
 			dns_name_t **proofs = val->event->proofs;
@@ -2855,10 +2425,11 @@ checkwildcard(dns_validator_t *val, dns_rdatatype_t type, dns_name_t *zonename)
 		if (rdataset->type == dns_rdatatype_nsec3 &&
 		    (NEEDNODATA(val) || NEEDNOWILDCARD(val)) &&
 		    !FOUNDNODATA(val) && !FOUNDNOWILDCARD(val) &&
-		    nsec3noexistnodata(val, wild, name, rdataset,
-				       zonename, &exists, &data,
-				       NULL, NULL, NULL, NULL, NULL,
-				       NULL) == ISC_R_SUCCESS)
+		    dns_nsec3_noexistnodata(val->event->type, wild, name,
+					    rdataset, zonename, &exists, &data,
+					    NULL, NULL, NULL, NULL, NULL, NULL,
+					    validator_log, val)
+					    == ISC_R_SUCCESS)
 		{
 			dns_name_t **proofs = val->event->proofs;
 			if (exists && !data)
@@ -2920,11 +2491,12 @@ findnsec3proofs(dns_validator_t *val) {
 		    rdataset->trust != dns_trust_secure)
 			continue;
 
-		result = nsec3noexistnodata(val, val->event->name,
-					    name, rdataset,
-					    zonename, NULL, NULL, NULL,
-					    NULL, NULL, NULL, NULL,
-					    NULL);
+		result = dns_nsec3_noexistnodata(val->event->type,
+						 val->event->name, name,
+						 rdataset, zonename, NULL,
+						 NULL, NULL, NULL, NULL, NULL,
+						 NULL, NULL, validator_log,
+						 val);
 		if (result != ISC_R_IGNORE && result != ISC_R_SUCCESS) {
 			if (dns_rdataset_isassociated(&trdataset))
 				dns_rdataset_disassociate(&trdataset);
@@ -2972,16 +2544,19 @@ findnsec3proofs(dns_validator_t *val) {
 		setclosest = setnearest = ISC_FALSE;
 		optout = ISC_FALSE;
 		unknown = ISC_FALSE;
-		(void)nsec3noexistnodata(val, val->event->name, name, rdataset,
-					 zonename, &exists, &data, &optout,
-					 &unknown, setclosestp, &setnearest,
-					 closestp, nearest);
-		if (setclosest)
-			proofs[DNS_VALIDATOR_CLOSESTENCLOSER] = name;
+		result = dns_nsec3_noexistnodata(val->event->type,
+						 val->event->name,
+						 name, rdataset, zonename,
+						 &exists, &data, &optout,
+						 &unknown, setclosestp,
+						 &setnearest, closestp,
+						 nearest, validator_log, val);
 		if (unknown)
 			val->attributes |= VALATTR_FOUNDUNKNOWN;
 		if (result != ISC_R_SUCCESS)
 			continue;
+		if (setclosest)
+			proofs[DNS_VALIDATOR_CLOSESTENCLOSER] = name;
 		if (exists && !data && NEEDNODATA(val)) {
 			val->attributes |= VALATTR_FOUNDNODATA;
 			proofs[DNS_VALIDATOR_NODATAPROOF] = name;
@@ -3272,6 +2847,8 @@ nsecvalidate(dns_validator_t *val, isc_boolean_t resume) {
 			      "nonexistence proof(s) found");
 		if (val->event->message == NULL)
 			marksecure(val->event);
+		else
+			val->event->secure = ISC_TRUE;
 		return (ISC_R_SUCCESS);
 	}
 
@@ -3374,6 +2951,7 @@ dlvfetched(isc_task_t *task, isc_event_t *event) {
 	isc_boolean_t want_destroy;
 	isc_result_t eresult;
 	isc_result_t result;
+	dns_fetch_t *fetch;
 
 	UNUSED(task);
 	INSIST(event->ev_type == DNS_EVENT_FETCHDONE);
@@ -3389,13 +2967,14 @@ dlvfetched(isc_task_t *task, isc_event_t *event) {
 	if (dns_rdataset_isassociated(&val->fsigrdataset))
 		dns_rdataset_disassociate(&val->fsigrdataset);
 	isc_event_free(&event);
-	dns_resolver_destroyfetch(&val->fetch);
 
 	INSIST(val->event != NULL);
 	validator_log(val, ISC_LOG_DEBUG(3), "in dlvfetched: %s",
 		      dns_result_totext(eresult));
 
 	LOCK(&val->lock);
+	fetch = val->fetch;
+	val->fetch = NULL;
 	if (eresult == ISC_R_SUCCESS) {
 		dns_name_format(dns_fixedname_name(&val->dlvsep), namebuf,
 				sizeof(namebuf));
@@ -3448,6 +3027,8 @@ dlvfetched(isc_task_t *task, isc_event_t *event) {
 	}
 	want_destroy = exit_check(val);
 	UNLOCK(&val->lock);
+	if (fetch != NULL)
+		dns_resolver_destroyfetch(&fetch);
 	if (want_destroy)
 		destroy(val);
 }
@@ -4155,6 +3736,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	event->message = message;
 	memset(event->proofs, 0, sizeof(event->proofs));
 	event->optout = ISC_FALSE;
+	event->secure = ISC_FALSE;
 	result = isc_mutex_init(&val->lock);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_event;
@@ -4230,6 +3812,8 @@ dns_validator_send(dns_validator_t *validator) {
 
 void
 dns_validator_cancel(dns_validator_t *validator) {
+	dns_fetch_t *fetch = NULL;
+
 	REQUIRE(VALID_VALIDATOR(validator));
 
 	LOCK(&validator->lock);
@@ -4239,8 +3823,8 @@ dns_validator_cancel(dns_validator_t *validator) {
 	if ((validator->attributes & VALATTR_CANCELED) == 0) {
 		validator->attributes |= VALATTR_CANCELED;
 		if (validator->event != NULL) {
-			if (validator->fetch != NULL)
-				dns_resolver_cancelfetch(validator->fetch);
+			fetch = validator->fetch;
+			validator->fetch = NULL;
 
 			if (validator->subvalidator != NULL)
 				dns_validator_cancel(validator->subvalidator);
@@ -4251,6 +3835,12 @@ dns_validator_cancel(dns_validator_t *validator) {
 		}
 	}
 	UNLOCK(&validator->lock);
+
+	/* Need to cancel and destroy the fetch outside validator lock */
+	if (fetch != NULL) {
+		dns_resolver_cancelfetch(fetch);
+		dns_resolver_destroyfetch(&fetch);
+	}
 }
 
 static void
@@ -4339,7 +3929,7 @@ validator_logv(dns_validator_t *val, isc_logcategory_t *category,
 }
 
 static void
-validator_log(dns_validator_t *val, int level, const char *fmt, ...) {
+validator_log(void *val, int level, const char *fmt, ...) {
 	va_list ap;
 
 	if (! isc_log_wouldlog(dns_lctx, level))
