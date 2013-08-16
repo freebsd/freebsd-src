@@ -66,6 +66,7 @@ struct g_disk_softc {
 	struct sysctl_oid	*sysctl_tree;
 	char			led[64];
 	uint32_t		state;
+	struct mtx		 start_mtx;
 };
 
 static g_access_t g_disk_access;
@@ -346,7 +347,9 @@ g_disk_start(struct bio *bp)
 			bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
 			bp2->bio_bcount = bp2->bio_length;
 			bp2->bio_disk = dp;
+			mtx_lock(&sc->start_mtx); 
 			devstat_start_transaction_bio(dp->d_devstat, bp2);
+			mtx_unlock(&sc->start_mtx); 
 			g_disk_lock_giant(dp);
 			dp->d_strategy(bp2);
 			g_disk_unlock_giant(dp);
@@ -509,6 +512,7 @@ g_disk_create(void *arg, int flag)
 	g_topology_assert();
 	dp = arg;
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
+	mtx_init(&sc->start_mtx, "g_disk_start", NULL, MTX_DEF);
 	mtx_init(&sc->done_mtx, "g_disk_done", NULL, MTX_DEF);
 	sc->dp = dp;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
@@ -520,6 +524,9 @@ g_disk_create(void *arg, int flag)
 	pp->stripesize = dp->d_stripesize;
 	if ((dp->d_flags & DISKFLAG_UNMAPPED_BIO) != 0)
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+	if ((dp->d_flags & DISKFLAG_DIRECT_COMPLETION) != 0)
+		pp->flags |= G_PF_DIRECT_SEND;
+	pp->flags |= G_PF_DIRECT_RECEIVE;
 	if (bootverbose)
 		printf("GEOM: new disk %s\n", gp->name);
 	sysctl_ctx_init(&sc->sysctl_ctx);
@@ -568,6 +575,7 @@ g_disk_providergone(struct g_provider *pp)
 	pp->private = NULL;
 	pp->geom->softc = NULL;
 	mtx_destroy(&sc->done_mtx);
+	mtx_destroy(&sc->start_mtx);
 	g_free(sc);
 }
 

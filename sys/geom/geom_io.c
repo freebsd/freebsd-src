@@ -422,7 +422,7 @@ void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	int first;
+	int direct, first;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -472,12 +472,13 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
 	    ("Bio already on queue bp=%p", bp));
-	bp->bio_flags |= BIO_ONQUEUE;
-
 	if (g_collectstats)
 		binuptime(&bp->bio_t0);
 	else
 		getbinuptime(&bp->bio_t0);
+
+	direct = (cp->flags & G_CF_DIRECT_SEND) &&
+		 (pp->flags & G_PF_DIRECT_RECEIVE);
 
 	/*
 	 * The statistics collection is lockless, as such, but we
@@ -498,14 +499,19 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	pp->nstart++;
 	cp->nstart++;
-	first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);
-	TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
-	g_bio_run_down.bio_queue_length++;
-	g_bioq_unlock(&g_bio_run_down);
-
-	/* Pass it on down. */
-	if (first)
-		wakeup(&g_wait_down);
+	if (direct) {
+		g_bioq_unlock(&g_bio_run_down);
+		bp->bio_to->geom->start(bp);
+	} else {
+		first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);
+		TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
+		bp->bio_flags |= BIO_ONQUEUE;
+		g_bio_run_down.bio_queue_length++;
+		g_bioq_unlock(&g_bio_run_down);
+		/* Pass it on down. */
+		if (first)
+			wakeup(&g_wait_down);
+	}
 }
 
 void
@@ -513,7 +519,7 @@ g_io_deliver(struct bio *bp, int error)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	int first;
+	int direct, first;
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	pp = bp->bio_to;
@@ -559,6 +565,9 @@ g_io_deliver(struct bio *bp, int error)
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
 
+	direct = (pp->flags & G_PF_DIRECT_SEND) &&
+		 (cp->flags & G_CF_DIRECT_RECEIVE);
+
 	/*
 	 * The statistics collection is lockless, as such, but we
 	 * can not update one instance of the statistics from more
@@ -574,13 +583,18 @@ g_io_deliver(struct bio *bp, int error)
 	pp->nend++;
 	if (error != ENOMEM) {
 		bp->bio_error = error;
-		first = TAILQ_EMPTY(&g_bio_run_up.bio_queue);
-		TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
-		bp->bio_flags |= BIO_ONQUEUE;
-		g_bio_run_up.bio_queue_length++;
-		g_bioq_unlock(&g_bio_run_up);
-		if (first)
-			wakeup(&g_wait_up);
+		if (direct) {
+			g_bioq_unlock(&g_bio_run_up);
+			biodone(bp);
+		} else {
+			first = TAILQ_EMPTY(&g_bio_run_up.bio_queue);
+			TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
+			bp->bio_flags |= BIO_ONQUEUE;
+			g_bio_run_up.bio_queue_length++;
+			g_bioq_unlock(&g_bio_run_up);
+			if (first)
+				wakeup(&g_wait_up);
+		}
 		return;
 	}
 	g_bioq_unlock(&g_bio_run_up);
