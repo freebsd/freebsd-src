@@ -147,16 +147,24 @@ struct __hack
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 {
-	int res;
-	register_t lock;
+	u_char res;
 
-	res = 0;
-	ATOMIC_LOCK_I386(lock);
-	if (*dst == expect) {
-		*dst = src;
-		res = 1;
-	}
-	ATOMIC_UNLOCK_I386(lock);
+	__asm __volatile(
+	"	pushfl ;		"
+	"	cli ;			"
+	"	cmpl	%3, %1 ;	"
+	"	jne	1f ;		"
+	"	movl	%2, %1 ;	"
+	"1:				"
+	"       sete	%0 ;		"
+	"	popfl ;			"
+	"# atomic_cmpset_int"
+	: "=q" (res),			/* 0 */
+	  "+m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "r" (expect)			/* 3 */
+	: "memory");
+
 	return (res);
 }
 
