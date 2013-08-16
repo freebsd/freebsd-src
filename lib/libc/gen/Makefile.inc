@@ -31,6 +31,7 @@ SRCS+=	__getosreldate.c \
 	disklabel.c \
 	dlfcn.c \
 	drand48.c \
+	dup3.c \
 	elf_utils.c \
 	erand48.c \
 	err.c \
