@@ -1554,8 +1554,7 @@ static void
 cpu_probe_cmpxchg8b(void)
 {
 
-	if ((cpu_feature & CPUID_CX8) != 0 ||
-	    cpu_vendor_id == CPU_VENDOR_RISE)
+	if ((cpu_feature & CPUID_CX8) != 0)
 		cpu_ident_cmxchg8b = 1;
 }
 
