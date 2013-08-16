@@ -393,8 +393,9 @@ mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 	while ((req->flags & MMC_REQ_DONE) == 0)
 		msleep(req, &sc->sc_mtx, 0, "mmcreq", 0);
 	MMC_UNLOCK(sc);
-	if (mmc_debug > 2 || (mmc_debug > 1 && req->cmd->error))
-		device_printf(sc->dev, "RESULT: %d\n", req->cmd->error);
+	if (mmc_debug > 2 || (mmc_debug > 0 && req->cmd->error != MMC_ERR_NONE))
+		device_printf(sc->dev, "CMD%d RESULT: %d\n", 
+		    req->cmd->opcode, req->cmd->error);
 	return (0);
 }
 
@@ -410,14 +411,21 @@ static int
 mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 {
 	struct mmc_request mreq;
+	int err;
 
-	memset(&mreq, 0, sizeof(mreq));
-	memset(cmd->resp, 0, sizeof(cmd->resp));
-	cmd->retries = retries;
-	cmd->mrq = &mreq;
-	mreq.cmd = cmd;
-	mmc_wait_for_req(sc, &mreq);
-	return (cmd->error);
+	do {
+		memset(&mreq, 0, sizeof(mreq));
+		memset(cmd->resp, 0, sizeof(cmd->resp));
+		cmd->retries = 0; /* Retries done here, not in hardware. */
+		cmd->mrq = &mreq;
+		mreq.cmd = cmd;
+		if (mmc_wait_for_req(sc, &mreq) != 0)
+			err = MMC_ERR_FAILED;
+		else
+			err = cmd->error;
+	} while (err != MMC_ERR_NONE && retries-- > 0);
+
+	return (err);
 }
 
 static int
@@ -425,24 +433,27 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
     struct mmc_command *cmd, int retries)
 {
 	struct mmc_command appcmd;
-	int err = MMC_ERR_NONE, i;
+	int err;
 
-	for (i = 0; i <= retries; i++) {
+	do {
 		appcmd.opcode = MMC_APP_CMD;
 		appcmd.arg = rca << 16;
 		appcmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		appcmd.data = NULL;
-		mmc_wait_for_cmd(sc, &appcmd, 0);
-		err = appcmd.error;
-		if (err != MMC_ERR_NONE)
-			continue;
-		if (!(appcmd.resp[0] & R1_APP_CMD))
-			return MMC_ERR_FAILED;
-		mmc_wait_for_cmd(sc, cmd, 0);
-		err = cmd->error;
-		if (err == MMC_ERR_NONE)
-			break;
-	}
+		if (mmc_wait_for_cmd(sc, &appcmd, 0) != 0)
+			err = MMC_ERR_FAILED;
+		else
+			err = appcmd.error;
+		if (err == MMC_ERR_NONE) {
+			if (!(appcmd.resp[0] & R1_APP_CMD))
+				return MMC_ERR_FAILED; /* Retries won't help. */
+			if (mmc_wait_for_cmd(sc, cmd, 0) != 0)
+				err = MMC_ERR_FAILED;
+			else
+				err = cmd->error;
+		}
+	} while (err != MMC_ERR_NONE && retries-- > 0);
+
 	return (err);
 }
 
@@ -461,8 +472,6 @@ mmc_wait_for_command(struct mmc_softc *sc, uint32_t opcode,
 	err = mmc_wait_for_cmd(sc, &cmd, retries);
 	if (err)
 		return (err);
-	if (cmd.error)
-		return (cmd.error);
 	if (resp) {
 		if (flags & MMC_RSP_136)
 			memcpy(resp, cmd.resp, 4 * sizeof(uint32_t));
@@ -488,7 +497,7 @@ mmc_idle_cards(struct mmc_softc *sc)
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_NONE | MMC_CMD_BC;
 	cmd.data = NULL;
-	mmc_wait_for_cmd(sc, &cmd, 0);
+	mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	mmc_ms_delay(1);
 
 	mmcbr_set_chip_select(dev, cs_dontcare);
@@ -625,7 +634,7 @@ mmc_switch(struct mmc_softc *sc, uint8_t set, uint8_t index, uint8_t value)
 	    set;
 	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	return (err);
 }
 
@@ -1054,7 +1063,7 @@ mmc_all_send_cid(struct mmc_softc *sc, uint32_t *rawcid)
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	memcpy(rawcid, cmd.resp, 4 * sizeof(uint32_t));
 	return (err);
 }
@@ -1069,7 +1078,7 @@ mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcsd)
 	cmd.arg = rca << 16;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	memcpy(rawcsd, cmd.resp, 4 * sizeof(uint32_t));
 	return (err);
 }
@@ -1160,7 +1169,7 @@ mmc_set_relative_addr(struct mmc_softc *sc, uint16_t resp)
 	cmd.arg = resp << 16;
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	return (err);
 }
 
@@ -1174,7 +1183,7 @@ mmc_send_relative_addr(struct mmc_softc *sc, uint32_t *resp)
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	*resp = cmd.resp[0];
 	return (err);
 }
@@ -1189,7 +1198,7 @@ mmc_send_status(struct mmc_softc *sc, uint16_t rca, uint32_t *status)
 	cmd.arg = rca << 16;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	*status = cmd.resp[0];
 	return (err);
 }
@@ -1204,7 +1213,7 @@ mmc_set_blocklen(struct mmc_softc *sc, uint32_t len)
 	cmd.arg = len;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	return (err);
 }
 
