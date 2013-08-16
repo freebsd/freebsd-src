@@ -185,6 +185,7 @@ MAN+=	alarm.3 \
 	dlinfo.3 \
 	dllockinit.3 \
 	dlopen.3 \
+	dup3.3 \
 	err.3 \
 	exec.3 \
 	feature_present.3 \
