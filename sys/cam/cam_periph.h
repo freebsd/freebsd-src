@@ -35,6 +35,7 @@
 #include <cam/cam_sim.h>
 
 #ifdef _KERNEL
+#include <sys/taskqueue.h>
 
 #include <cam/cam_xpt.h>
 
@@ -119,6 +120,7 @@ struct cam_periph {
 #define CAM_PERIPH_INVALID		0x08
 #define CAM_PERIPH_NEW_DEV_FOUND	0x10
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
+#define CAM_PERIPH_RUN_TASK		0x40
 #define CAM_PERIPH_FREE			0x80
 	uint32_t		 scheduled_priority;
 	uint32_t		 immediate_priority;
@@ -130,6 +132,7 @@ struct cam_periph {
 	TAILQ_ENTRY(cam_periph)  unit_links;
 	ac_callback_t		*deferred_callback; 
 	ac_code			 deferred_ac;
+	struct task		 periph_run_task;
 };
 
 #define CAM_PERIPH_MAXMAPS	2

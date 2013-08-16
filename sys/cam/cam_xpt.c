@@ -230,7 +230,9 @@ static void		xpt_async_bcast(struct async_list *async_head,
 static path_id_t xptnextfreepathid(void);
 static path_id_t xptpathid(const char *sim_name, int sim_unit, int sim_bus);
 static union ccb *xpt_get_ccb(struct cam_periph *periph);
-static void	 xpt_run_allocq(struct cam_periph *periph);
+static union ccb *xpt_get_ccb_nowait(struct cam_periph *periph);
+static void	 xpt_run_allocq(struct cam_periph *periph, int sleep);
+static void	 xpt_run_allocq_task(void *context, int pending);
 static void	 xpt_run_devq(struct cam_devq *devq);
 static timeout_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
@@ -984,6 +986,7 @@ xpt_add_periph(struct cam_periph *periph)
 	struct cam_ed *device;
 	int32_t	 status;
 
+	TASK_INIT(&periph->periph_run_task, 0, xpt_run_allocq_task, periph);
 	device = periph->path->device;
 	status = CAM_REQ_CMP;
 	if (device != NULL) {
@@ -3046,7 +3049,7 @@ xpt_schedule(struct cam_periph *periph, u_int32_t new_priority)
 	devq = periph->sim->devq;
 	if (new_priority < periph->scheduled_priority) {
 		periph->scheduled_priority = new_priority;
-		xpt_run_allocq(periph);
+		xpt_run_allocq(periph, 0);
 	}
 }
 
@@ -3099,10 +3102,23 @@ xpt_schedule_dev(struct camq *queue, cam_pinfo *pinfo,
 }
 
 static void
-xpt_run_allocq(struct cam_periph *periph)
+xpt_run_allocq_task(void *context, int pending)
+{
+	struct cam_periph *periph = context;
+
+	cam_periph_lock(periph);
+	periph->flags &= ~CAM_PERIPH_RUN_TASK;
+	xpt_run_allocq(periph, 1);
+	cam_periph_unlock(periph);
+	cam_periph_release(periph);
+}
+
+static void
+xpt_run_allocq(struct cam_periph *periph, int sleep)
 {
 	struct cam_ed	*device;
 	struct cam_devq	*devq;
+	union ccb	*ccb;
 	uint32_t	 prio;
 
 	devq = periph->sim->devq;
@@ -3112,22 +3128,26 @@ xpt_run_allocq(struct cam_periph *periph)
 	periph->periph_allocating = 1;
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_run_allocq(%p)\n", periph));
 	device = periph->path->device;
+	ccb = NULL;
+restart:
 	while ((prio = min(periph->scheduled_priority,
 	    periph->immediate_priority)) != CAM_PRIORITY_NONE &&
-	    (periph->periph_allocated < device->ccbq.total_openings ||
-	     prio <= CAM_PRIORITY_OOB)) {
-		union	ccb *ccb;
+	    (periph->periph_allocated - (ccb != NULL ? 1 : 0) <
+	     device->ccbq.total_openings || prio <= CAM_PRIORITY_OOB)) {
 
-		if ((ccb = xpt_get_ccb(periph)) == NULL) {
-			/*
-			 * Malloc failure in alloc_ccb
-			 */
-			/*
-			 * XXX add us to a list to be run from free_ccb
-			 * if we don't have any ccbs active on this
-			 * device queue otherwise we may never get run
-			 * again.
-			 */
+		if (ccb == NULL &&
+		    (ccb = xpt_get_ccb_nowait(periph)) == NULL) {
+			if (sleep) {
+				ccb = xpt_get_ccb(periph);
+				goto restart;
+			}
+			if (periph->flags & CAM_PERIPH_RUN_TASK) {
+				break;
+			}
+			cam_periph_acquire(periph);
+			periph->flags |= CAM_PERIPH_RUN_TASK;
+			taskqueue_enqueue(xsoftc.xpt_taskq,
+			    &periph->periph_run_task);
 			break;
 		}
 		xpt_setup_ccb(&ccb->ccb_h, periph->path, prio);
@@ -3144,7 +3164,10 @@ xpt_run_allocq(struct cam_periph *periph)
 					("calling periph_start()\n"));
 			periph->periph_start(periph, ccb);
 		}
+		ccb = NULL;
 	}
+	if (ccb != NULL)
+		xpt_release_ccb(ccb);
 	periph->periph_allocating = 0;
 }
 
@@ -3713,7 +3736,7 @@ xpt_release_ccb(union ccb *free_ccb)
 	xpt_free_ccb(free_ccb);
 	periph->periph_allocated--;
 	cam_ccbq_release_opening(&device->ccbq);
-	xpt_run_allocq(periph);
+	xpt_run_allocq(periph, 0);
 }
 
 /* Functions accessed by SIM drivers */
@@ -4430,19 +4453,30 @@ xpt_free_ccb(union ccb *free_ccb)
 
 /*
  * Get a CAM control block for the caller. Charge the structure to the device
- * referenced by the path.  If the this device has no 'credits' then the
- * device already has the maximum number of outstanding operations under way
- * and we return NULL. If we don't have sufficient resources to allocate more
- * ccbs, we also return NULL.
+ * referenced by the path.  If we don't have sufficient resources to allocate
+ * more ccbs, we return NULL.
  */
 static union ccb *
-xpt_get_ccb(struct cam_periph *periph)
+xpt_get_ccb_nowait(struct cam_periph *periph)
 {
 	union ccb *new_ccb;
 
 	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_NOWAIT);
 	if (new_ccb == NULL)
 		return (NULL);
+	periph->periph_allocated++;
+	cam_ccbq_take_opening(&periph->path->device->ccbq);
+	return (new_ccb);
+}
+
+static union ccb *
+xpt_get_ccb(struct cam_periph *periph)
+{
+	union ccb *new_ccb;
+
+	cam_periph_unlock(periph);
+	new_ccb = malloc(sizeof(*new_ccb), M_CAMCCB, M_WAITOK);
+	cam_periph_lock(periph);
 	periph->periph_allocated++;
 	cam_ccbq_take_opening(&periph->path->device->ccbq);
 	return (new_ccb);
@@ -4459,7 +4493,7 @@ cam_periph_getccb(struct cam_periph *periph, u_int32_t priority)
 	    ccb_h->pinfo.priority != priority) {
 		if (priority < periph->immediate_priority) {
 			periph->immediate_priority = priority;
-			xpt_run_allocq(periph);
+			xpt_run_allocq(periph, 0);
 		} else
 			cam_periph_sleep(periph, &periph->ccb_list, PRIBIO,
 			    "cgticb", 0);
