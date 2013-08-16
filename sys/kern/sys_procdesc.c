@@ -113,6 +113,7 @@ static struct fileops procdesc_ops = {
 	.fo_close = procdesc_close,
 	.fo_chmod = procdesc_chmod,
 	.fo_chown = procdesc_chown,
+	.fo_sendfile = invfo_sendfile,
 	.fo_flags = DFLAG_PASSABLE,
 };
 

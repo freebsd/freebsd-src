@@ -88,7 +88,6 @@ static fo_poll_t	vn_poll;
 static fo_kqfilter_t	vn_kqfilter;
 static fo_stat_t	vn_statfile;
 static fo_close_t	vn_closefile;
-extern fo_sendfile_t	vn_sendfile;
 
 struct 	fileops vnops = {
 	.fo_read = vn_io_fault,
