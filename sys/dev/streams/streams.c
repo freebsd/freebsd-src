@@ -98,6 +98,7 @@ static struct fileops svr4_netops = {
 	.fo_close =  svr4_soo_close,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
 };
  
 static struct cdevsw streams_cdevsw = {
