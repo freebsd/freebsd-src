@@ -23,6 +23,9 @@
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2012, Joyent, Inc.  All rights reserved.
+ */
 
 /*
  * This header file defines the interfaces available from the CTF debugger
@@ -39,8 +42,6 @@
 
 #ifndef	_CTF_API_H
 #define	_CTF_API_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -222,6 +223,8 @@ extern int ctf_add_enumerator(ctf_file_t *, ctf_id_t, const char *, int);
 extern int ctf_add_member(ctf_file_t *, ctf_id_t, const char *, ctf_id_t);
 
 extern int ctf_set_array(ctf_file_t *, ctf_id_t, const ctf_arinfo_t *);
+
+extern int ctf_delete_type(ctf_file_t *, ctf_id_t);
 
 extern int ctf_update(ctf_file_t *);
 extern int ctf_discard(ctf_file_t *);
