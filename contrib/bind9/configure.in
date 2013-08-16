@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -24,6 +24,7 @@ AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
 
 AC_CONFIG_HEADER(config.h)
+AC_CONFIG_MACRO_DIR([libtool.m4])
 
 AC_CANONICAL_HOST
 
@@ -62,14 +63,13 @@ It is available from http://www.isc.org as a separate download.])
 		;;
 esac
 
-AC_ARG_ENABLE(developer, [  --enable-developer     enable developer build settings])
+AC_ARG_ENABLE(developer, [  --enable-developer      enable developer build settings])
 case "$enable_developer" in
 yes)
+	STD_CDEFINES="$STD_CDEFINES -DISC_LIST_CHECKINIT=1"
 	test "${enable_fixed_rrset+set}" = set || enable_fixed_rrset=yes
 	test "${with_atf+set}" = set || with_atf=yes
 	test "${enable_filter_aaaa+set}" = set || enable_filter_aaaa=yes
-	test "${enable_rpz_nsip+set}" = set || enable_rpz_nsip=yes
-	test "${enable_rpz_nsdname+set}" = set || enable_rpz_nsdname=yes
 	test "${with_dlz_filesystem+set}" = set || with_dlz_filesystem=yes
 	case "$host" in
 	*-darwin*)
@@ -298,7 +298,7 @@ esac
 
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS(fcntl.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/param.h sys/sysctl.h net/if6.h,,,
+AC_CHECK_HEADERS(fcntl.h regex.h sys/time.h unistd.h sys/sockio.h sys/select.h sys/param.h sys/sysctl.h net/if6.h,,,
 [$ac_includes_default
 #ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
@@ -322,17 +322,15 @@ AC_CHECK_FUNCS(setegid setresgid)
 # is reported to not support "static inline" (RT #1212).
 #
 AC_MSG_CHECKING(for static inline breakage)
-AC_TRY_COMPILE(, [
-		foo1();
-	}
-
+AC_TRY_COMPILE([
 	static inline int foo1() {
 		return 0;
 	}
 
 	static inline int foo2() {
 		return foo1();
-	],
+	}
+	], [foo1();],
 	[AC_MSG_RESULT(no)],
 	[AC_MSG_RESULT(yes)
 	 AC_DEFINE(inline, ,[Define to empty if your compiler does not support "static inline".])])
@@ -445,6 +443,8 @@ int main() {
 	[AC_MSG_RESULT(yes)
 	ISC_PLATFORM_HAVEEPOLL="#define ISC_PLATFORM_HAVEEPOLL 1"],
 	[AC_MSG_RESULT(no)
+	ISC_PLATFORM_HAVEEPOLL="#undef ISC_PLATFORM_HAVEEPOLL"],
+	[AC_MSG_RESULT(no)
 	ISC_PLATFORM_HAVEEPOLL="#undef ISC_PLATFORM_HAVEEPOLL"])
 	;;
 yes)
@@ -550,12 +550,16 @@ case "$use_openssl" in
 		AC_MSG_RESULT(no)
 		DST_OPENSSL_INC=""
 		USE_OPENSSL=""
+		OPENSSLGOSTLINKOBJS=""
+		OPENSSLGOSTLINKSRS=""
 		OPENSSLLINKOBJS=""
 		OPENSSLLINKSRCS=""
 		;;
 	auto)
 		DST_OPENSSL_INC=""
 		USE_OPENSSL=""
+		OPENSSLGOSTLINKOBJS=""
+		OPENSSLGOSTLINKSRS=""
 		OPENSSLLINKOBJS=""
 		OPENSSLLINKSRCS=""
 		AC_MSG_ERROR(
@@ -691,20 +695,20 @@ no)
 ;;
 esac
 
-		AC_MSG_CHECKING(for OpenSSL DSA support)
-		if test -f $use_openssl/include/openssl/dsa.h
-		then
-			AC_DEFINE(HAVE_OPENSSL_DSA)
-			AC_MSG_RESULT(yes)
-		else
-			AC_MSG_RESULT(no)
-		fi
+        AC_MSG_CHECKING(for OpenSSL DSA support)
+        if test -f $use_openssl/include/openssl/dsa.h
+        then
+                AC_DEFINE(HAVE_OPENSSL_DSA)
+                AC_MSG_RESULT(yes)
+        else
+                AC_MSG_RESULT(no)
+        fi
 
-		AC_CHECK_FUNCS(EVP_sha256 EVP_sha384 EVP_sha512)
+        AC_CHECK_FUNCS(EVP_sha256 EVP_sha384 EVP_sha512)
 
-		AC_MSG_CHECKING(for OpenSSL ECDSA support)
-		have_ecdsa=""
-		AC_TRY_RUN([
+        AC_MSG_CHECKING(for OpenSSL ECDSA support)
+        have_ecdsa=""
+        AC_TRY_RUN([
 #include <stdio.h>
 #include <openssl/ecdsa.h>
 #include <openssl/objects.h>
@@ -721,22 +725,42 @@ int main() {
 	return (0);
 }
 ],
-		[AC_MSG_RESULT(yes)
-		have_ecdsa="yes"],
-		[AC_MSG_RESULT(no)
-		have_ecdsa="no"])
-		case $have_ecdsa in
-		yes)
-			OPENSSL_ECDSA="yes"
-			AC_DEFINE(HAVE_OPENSSL_ECDSA)
-			;;
-		*)
-			;;
-		esac
+        [AC_MSG_RESULT(yes)
+        have_ecdsa="yes"],
+        [AC_MSG_RESULT(no)
+        have_ecdsa="no"],
+        [AC_MSG_RESULT(using --with-ecdsa)])
+        AC_ARG_WITH(ecdsa, [  --with-ecdsa            OpenSSL ECDSA],
+	            with_ecdsa="$withval", with_ecdsa="auto")
+        case "$with_ecdsa" in
+        yes)
+            case "$have_ecdsa" in
+            no)  AC_MSG_ERROR([ecdsa not supported]) ;;
+            *)  have_ecdsa=yes ;;
+            esac
+            ;;
+        no)
+            have_ecdsa=no ;;
+        *)
+            case "$have_ecdsa" in
+            yes|no) ;;
+            *) AC_MSG_ERROR([need --with-ecdsa=[[yes or no]]]) ;;
+            esac
+            ;;
+        esac
+        case $have_ecdsa in
+        yes)
+                OPENSSL_ECDSA="yes"
+                AC_DEFINE(HAVE_OPENSSL_ECDSA, 1,
+                          [Define if your OpenSSL version supports ECDSA.])
+                ;;
+        *)
+                ;;
+        esac
 
-		AC_MSG_CHECKING(for OpenSSL GOST support)
-		have_gost=""
-		AC_TRY_RUN([
+        AC_MSG_CHECKING(for OpenSSL GOST support)
+        have_gost=""
+        AC_TRY_RUN([
 #include <openssl/conf.h>
 #include <openssl/engine.h>
 int main() {
@@ -758,43 +782,46 @@ int main() {
 #endif
 }
 ],
-		[AC_MSG_RESULT(yes)
-		have_gost="yes"],
-		[AC_MSG_RESULT(no)
-		have_gost="no"],
-		[AC_MSG_RESULT(using --with-gost)])
-		AC_ARG_WITH(gost, , with_gost="$withval", with_gost="auto")
-		case "$with_gost" in
-		yes)
-		    case "$have_gost" in
-		    no)  AC_MSG_ERROR([gost not supported]) ;;
-		    *)  have_gost=yes ;;
-		    esac
-		    ;;
-		no)
-		    have_gost=no ;;
-		*)
-		    case "$have_gost" in
-		    yes|no) ;;
-		    *) AC_MSG_ERROR([need --with-gost=[[yes or no]]]) ;;
-		    esac
-		    ;;
-		esac
-		case $have_gost in
-		yes)
-			OPENSSL_GOST="yes"
-			AC_DEFINE(HAVE_OPENSSL_GOST, 1,
-				  [Define if your OpenSSL version supports GOST.])
-			;;
-		*)
-			;;
-		esac
-		CFLAGS="$saved_cflags"
-		LIBS="$saved_libs"
-		OPENSSLLINKOBJS='${OPENSSLLINKOBJS}'
-		OPENSSLLINKSRCS='${OPENSSLLINKSRCS}'
-
+        [AC_MSG_RESULT(yes)
+        have_gost="yes"],
+        [AC_MSG_RESULT(no)
+        have_gost="no"],
+        [AC_MSG_RESULT(using --with-gost)])
+        AC_ARG_WITH(gost, [  --with-gost             OpenSSL GOST],
+                    with_gost="$withval", with_gost="auto")
+        case "$with_gost" in
+        yes)
+            case "$have_gost" in
+            no)  AC_MSG_ERROR([gost not supported]) ;;
+            *)  have_gost=yes ;;
+            esac
+            ;;
+        no)
+            have_gost=no ;;
+        *)
+            case "$have_gost" in
+            yes|no) ;;
+            *) AC_MSG_ERROR([need --with-gost=[[yes or no]]]) ;;
+            esac
+            ;;
+        esac
+        case $have_gost in
+        yes)
+		OPENSSL_GOST="yes"
+		OPENSSLGOSTLINKOBJS='${OPENSSLGOSTLINKOBJS}'
+		OPENSSLGOSTLINKSRCS='${OPENSSLGOSTLINKSRCS}'
+		AC_DEFINE(HAVE_OPENSSL_GOST, 1,
+			  [Define if your OpenSSL version supports GOST.])
 		;;
+        *)
+                ;;
+        esac
+        CFLAGS="$saved_cflags"
+        LIBS="$saved_libs"
+        OPENSSLLINKOBJS='${OPENSSLLINKOBJS}'
+        OPENSSLLINKSRCS='${OPENSSLLINKSRCS}'
+
+        ;;
 esac
 
 #
@@ -804,6 +831,8 @@ esac
 
 AC_SUBST(USE_OPENSSL)
 AC_SUBST(DST_OPENSSL_INC)
+AC_SUBST(OPENSSLGOSTLINKOBJS)
+AC_SUBST(OPENSSLGOSTLINKSRCS)
 AC_SUBST(OPENSSLLINKOBJS)
 AC_SUBST(OPENSSLLINKSRCS)
 AC_SUBST(OPENSSL_ECDSA)
@@ -1075,6 +1104,11 @@ AC_ARG_WITH(randomdev,
 
 case "$use_randomdev" in
 	unspec)
+		case "$cross_compiling" in
+		yes)
+			AC_MSG_RESULT(unspecified)
+			AC_MSG_ERROR([ need --with-randomdev=PATH or --with-randomdev=no])
+		esac
 		case "$host" in
 			*-openbsd*)
 				devrandom=/dev/arandom
@@ -1087,6 +1121,7 @@ case "$use_randomdev" in
 		AC_CHECK_FILE($devrandom,
 			      AC_DEFINE_UNQUOTED(PATH_RANDOMDEV,
 						 "$devrandom"),)
+			      
 		;;
 	yes)
 		AC_MSG_ERROR([--with-randomdev must specify a path])
@@ -1258,7 +1293,7 @@ case "$use_libxml2" in
 		;;
 	auto|yes)
 		case X`(xml2-config --version) 2>/dev/null` in
-		X2.[[678]].*)
+		X2.[[6789]].*)
 			libxml2_libs=`xml2-config --libs`
 			libxml2_cflags=`xml2-config --cflags`
 			;;
@@ -1595,8 +1630,8 @@ AC_SUBST(LIBTOOL_IN_MAIN)
 # build exportable DNS library?
 #
 AC_ARG_ENABLE(exportlib,
-	[  --enable-exportlib	build exportable library (GNU make required)
-                        [[default=no]]])
+	[  --enable-exportlib	  build exportable library (GNU make required)
+                          [[default=no]]])
 case "$enable_exportlib" in
 	yes)
 		gmake=
@@ -1621,8 +1656,8 @@ AC_SUBST(BIND9_CO_RULE)
 
 AC_ARG_WITH(export-libdir,
 	[  --with-export-libdir[=PATH]
-                        installation directory for the export library
-                        [[EPREFIX/lib/bind9]]],
+                          installation directory for the export library
+                          [[EPREFIX/lib/bind9]]],
 	export_libdir="$withval",)
 if test -z "$export_libdir"; then
 	export_libdir="\${exec_prefix}/lib/bind9/"
@@ -1631,8 +1666,8 @@ AC_SUBST(export_libdir)
 
 AC_ARG_WITH(export-includedir,
 	[  --with-export-includedir[=PATH]
-                        installation directory for the header files of the
-                        export library [[PREFIX/include/bind9]]],
+                          installation directory for the header files of the
+                          export library [[PREFIX/include/bind9]]],
 	export_includedir="$withval",)
 if test -z "$export_includedir"; then
 	export_includedir="\${prefix}/include/bind9/"
@@ -2827,9 +2862,9 @@ esac
 # Enable response policy rewriting using NS IP addresses
 #
 AC_ARG_ENABLE(rpz-nsip,
-	[  --enable-rpz-nsip	  enable rpz-nsip rules [[default=no]]],
+	[  --disable-rpz-nsip	  disable rpz-nsip rules [[default=enabled]]],
 			enable_nsip="$enableval",
-			enable_nsip="no")
+			enable_nsip="yes")
 case "$enable_nsip" in
 	yes)
 		AC_DEFINE(ENABLE_RPZ_NSIP, 1,
@@ -2845,9 +2880,9 @@ esac
 # Enable response policy rewriting using NS name
 #
 AC_ARG_ENABLE(rpz-nsdname,
-	[  --enable-rpz-nsdname	  enable rpz-nsdname rules [[default=no]]],
+	[  --disable-rpz-nsdname	  disable rpz-nsdname rules [[default=enabled]]],
 			enable_nsdname="$enableval",
-			enable_nsdname="no")
+			enable_nsdname="yes")
 case "$enable_nsdname" in
 	yes)
 		AC_DEFINE(ENABLE_RPZ_NSDNAME, 1,
@@ -2995,7 +3030,7 @@ AC_ARG_WITH(docbook-xsl,
 case "$docbook_path" in
 auto)
 	AC_MSG_RESULT(auto)
-	docbook_xsl_trees="/usr/pkg/share/xsl/docbook /usr/local/share/xsl/docbook /usr/share/xsl/docbook"
+	docbook_xsl_trees="/usr/pkg/share/xsl/docbook /usr/local/share/xsl/docbook /usr/share/xsl/docbook /opt/local/share/xsl/docbook-xsl"
 	;;
 *)
 	docbook_xsl_trees="$withval"
@@ -3131,14 +3166,22 @@ AC_SUBST(IDNLIBS)
 # Check whether to build Automated Test Framework unit tests
 #
 AC_ARG_WITH(atf,
-	[  --with-atf=ARG       Automated Test Framework support],
+	[  --with-atf=ARG          Automated Test Framework support],
 	atf="$withval", atf="no")
 if test "$atf" = yes; then
 	atf=`pwd`/unit/atf
 	ATFBUILD=atf-src
 	AC_SUBST(ATFBUILD)
 	AC_CONFIG_COMMANDS([atf-config],
-		[cd unit/atf-src; ${SHELL} ./configure MISSING=: --prefix $atfdir; cd ../..],
+		[(
+		 mkdir -p unit/atf-src;
+		 cd unit/atf-src;
+		 case "$srcdir" in
+		 /*) ;;
+		 *) srcdir="../../$srcdir";;
+		 esac
+		 ${SHELL} ${srcdir}${srcdir:+/unit/atf-src/}./configure MISSING=: --prefix $atfdir;
+		) ],
 		[atfdir=`pwd`/unit/atf])
 	AC_MSG_RESULT(building ATF from bind9/unit/atf-src)
 fi
@@ -3149,6 +3192,9 @@ if test "$atf" != no; then
 	STD_CINCLUDES="$STD_CINCLUDES -I$atf/include"
 	ATFBIN="$atf/bin"
 	ATFLIBS="-L$atf/lib -latf-c"
+	if test "$want_openssl_hash" = yes; then
+		ATFLIBS="-L$atf/lib -latf-c $DNS_CRYPTO_LIBS"
+	fi
 	UNITTESTS=tests
 fi
 AC_SUBST(ATFBIN)
@@ -3193,8 +3239,19 @@ AC_SUBST_FILE(BIND9_MAKE_RULES)
 BIND9_MAKE_RULES=$BIND9_TOP_BUILDDIR/make/rules
 
 . $srcdir/version
+BIND9_PRODUCT="PRODUCT=\"${PRODUCT}\""
+AC_SUBST(BIND9_PRODUCT)
+BIND9_DESCRIPTION="DESCRIPTION=\"${DESCRIPTION}\""
+AC_SUBST(BIND9_DESCRIPTION)
 BIND9_VERSION="VERSION=${MAJORVER}.${MINORVER}${PATCHVER:+.}${PATCHVER}${RELEASETYPE}${RELEASEVER}"
 AC_SUBST(BIND9_VERSION)
+
+BIND9_SRCID="SRCID=unset"
+if test -f $srcdir/srcid; then
+	. $srcdir/srcid
+	BIND9_SRCID="SRCID=$SRCID"
+fi
+AC_SUBST(BIND9_SRCID)
 
 if test -z "$ac_configure_args"; then
 	BIND9_CONFIGARGS="defaults"
@@ -3264,6 +3321,11 @@ AC_ARG_WITH(dlopen,
 	[  --with-dlopen=ARG       Support dynamically loadable DLZ drivers],
 	dlopen="$withval", dlopen="yes")
 
+case $host in
+	*-sunos*) dlopen="no"
+		;;
+esac
+
 if test "$dlopen" = "yes"; then
 	AC_CHECK_LIB(dl, dlopen, have_dl=yes, have_dl=no)
 	if test "$have_dl" = "yes"; then
@@ -3278,7 +3340,11 @@ if test "$dlopen" = "yes"; then
 			SO_CFLAGS="-fPIC"
 			if test "$have_dl" = "yes"
 			then
-				SO_LD="${CC} -shared"
+				if test "$use_libtool" = "yes"; then
+					SO_LD="${CC} -Xcompiler -shared"
+				else
+					SO_LD="${CC} -shared"
+				fi
 			else
 				SO_LD="ld -shared"
 			fi
@@ -3484,6 +3550,21 @@ AC_CONFIG_FILES([
 	bin/tests/atomic/Makefile
 	bin/tests/db/Makefile
 	bin/tests/dst/Makefile
+	bin/tests/dst/Kdh.+002+18602.key
+	bin/tests/dst/Kdh.+002+18602.private
+	bin/tests/dst/Kdh.+002+48957.key
+	bin/tests/dst/Kdh.+002+48957.private
+	bin/tests/dst/Ktest.+001+00002.key
+	bin/tests/dst/Ktest.+001+54622.key
+	bin/tests/dst/Ktest.+001+54622.private
+	bin/tests/dst/Ktest.+003+23616.key
+	bin/tests/dst/Ktest.+003+23616.private
+	bin/tests/dst/Ktest.+003+49667.key
+	bin/tests/dst/dst_2_data
+	bin/tests/dst/t2_data_1
+	bin/tests/dst/t2_data_2
+	bin/tests/dst/t2_dsasig
+	bin/tests/dst/t2_rsasig
 	bin/tests/hashes/Makefile
 	bin/tests/headerdep_test.sh
 	bin/tests/master/Makefile

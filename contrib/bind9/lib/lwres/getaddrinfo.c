@@ -573,10 +573,8 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 	(void) lwres_conf_parse(lwrctx, lwres_resolv_conf);
 	if (hostname == NULL && (flags & AI_PASSIVE) == 0) {
 		ai = ai_clone(*aip, AF_INET);
-		if (ai == NULL) {
-			lwres_freeaddrinfo(*aip);
+		if (ai == NULL)
 			SETERROR(EAI_MEMORY);
-		}
 
 		*aip = ai;
 		ai->ai_socktype = socktype;
@@ -594,10 +592,8 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 		addr = LWRES_LIST_HEAD(by->addrs);
 		while (addr != NULL) {
 			ai = ai_clone(*aip, AF_INET);
-			if (ai == NULL) {
-				lwres_freeaddrinfo(*aip);
+			if (ai == NULL)
 				SETERROR(EAI_MEMORY);
-			}
 			*aip = ai;
 			ai->ai_socktype = socktype;
 			SIN(ai->ai_addr)->sin_port = port;
@@ -641,10 +637,8 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 
 	if (hostname == NULL && (flags & AI_PASSIVE) == 0) {
 		ai = ai_clone(*aip, AF_INET6);
-		if (ai == NULL) {
-			lwres_freeaddrinfo(*aip);
+		if (ai == NULL)
 			SETERROR(EAI_MEMORY);
-		}
 
 		*aip = ai;
 		ai->ai_socktype = socktype;
@@ -662,10 +656,8 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 		addr = LWRES_LIST_HEAD(by->addrs);
 		while (addr != NULL) {
 			ai = ai_clone(*aip, AF_INET6);
-			if (ai == NULL) {
-				lwres_freeaddrinfo(*aip);
+			if (ai == NULL)
 				SETERROR(EAI_MEMORY);
-			}
 			*aip = ai;
 			ai->ai_socktype = socktype;
 			SIN6(ai->ai_addr)->sin6_port = port;
