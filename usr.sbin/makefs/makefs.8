@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2012
+.Dd August 16, 2013
 .Dt MAKEFS 8
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd create a file system image from a directory tree or a mtree manifest
 .Sh SYNOPSIS
 .Nm
-.Op Fl Dpx
+.Op Fl DxZ
 .Op Fl B Ar byte-order
 .Op Fl b Ar free-blocks
 .Op Fl d Ar debug-mask
@@ -191,7 +191,10 @@ Set file system specific options.
 is a comma separated list of options.
 Valid file system specific options are detailed below.
 .It Fl p
-Create the image as a sparse file.
+Deprecated.
+See the
+.Fl Z
+flag.
 .It Fl S Ar sector-size
 Set the file system sector size to
 .Ar sector-size .
@@ -213,6 +216,8 @@ ISO 9660 file system.
 .El
 .It Fl x
 Exclude file system nodes not explicitly listed in the specfile.
+.It Fl Z
+Create the image as a sparse file.
 .El
 .Pp
 Where sizes are specified, a decimal number of bytes is expected.
