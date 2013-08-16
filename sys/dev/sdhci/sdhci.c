@@ -238,6 +238,11 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	/* If no clock requested - left it so. */
 	if (clock == 0)
 		return;
+
+	/* Recalculate timeout clock frequency based on the new sd clock. */
+	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)
+		slot->timeout_clk = slot->clock / 1000;
+
 	if (slot->version < SDHCI_SPEC_300) {
 		/* Looking for highest freq <= clock. */
 		res = slot->max_clk;
@@ -545,7 +550,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 
 	if (slot->timeout_clk == 0) {
 		device_printf(dev, "Hardware doesn't specify timeout clock "
-		    "frequency.\n");
+		    "frequency, setting BROKEN_TIMEOUT quirk.\n");
+		slot->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 	}
 
 	slot->host.f_min = SDHCI_MIN_FREQ(slot->bus, slot);
@@ -855,24 +861,22 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 
 	/* Calculate and set data timeout.*/
 	/* XXX: We should have this from mmc layer, now assume 1 sec. */
-	target_timeout = 1000000;
-	div = 0;
-	current_timeout = (1 << 13) * 1000 / slot->timeout_clk;
-	while (current_timeout < target_timeout) {
-		div++;
-		current_timeout <<= 1;
-		if (div >= 0xF)
-			break;
-	}
-	/* Compensate for an off-by-one error in the CaFe chip.*/
-	if (slot->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL)
-		div++;
-	if (div >= 0xF) {
-		slot_printf(slot, "Timeout too large!\n");
+	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL) {
 		div = 0xE;
+	} else {
+		target_timeout = 1000000;
+		div = 0;
+		current_timeout = (1 << 13) * 1000 / slot->timeout_clk;
+		while (current_timeout < target_timeout && div < 0xE) {
+			++div;
+			current_timeout <<= 1;
+		}
+		/* Compensate for an off-by-one error in the CaFe chip.*/
+		if (div < 0xE && 
+		    (slot->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL)) {
+			++div;
+		}
 	}
-	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
-		div = 0xE;
 	WR1(slot, SDHCI_TIMEOUT_CONTROL, div);
 
 	if (data == NULL)
