@@ -28,113 +28,58 @@
 .\"     @(#)dup.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2013
-.Dt DUP 2
+.Dd August 16, 2013
+.Dt DUP3 3
 .Os
 .Sh NAME
-.Nm dup ,
-.Nm dup2
+.Nm dup3
 .Nd duplicate an existing file descriptor
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.In fcntl.h
 .In unistd.h
 .Ft int
-.Fn dup "int oldd"
-.Ft int
-.Fn dup2 "int oldd" "int newd"
+.Fn dup3 "int oldd" "int newd" "int flags"
 .Sh DESCRIPTION
 The
-.Fn dup
-system call
-duplicates an existing object descriptor and returns its value to
-the calling process
-.Fa ( newd
-=
-.Fn dup oldd ) .
-The argument
-.Fa oldd
-is a small non-negative integer index in
-the per-process descriptor table.
-The new descriptor returned by the call
-is the lowest numbered descriptor
-currently not in use by the process.
+.Fn dup3
+function
+duplicates an existing object descriptor
+while allowing the value of the new descriptor to be specified.
 .Pp
-The object referenced by the descriptor does not distinguish
-between
-.Fa oldd
-and
-.Fa newd
-in any way.
-Thus if
-.Fa newd
-and
-.Fa oldd
-are duplicate references to an open
-file,
-.Xr read 2 ,
-.Xr write 2
-and
-.Xr lseek 2
-calls all move a single pointer into the file,
-and append mode, non-blocking I/O and asynchronous I/O options
-are shared between the references.
-If a separate pointer into the file is desired, a different
-object reference to the file must be obtained by issuing an
-additional
-.Xr open 2
-system call.
-The close-on-exec flag on the new file descriptor is unset.
+The close-on-exec flag on the new file descriptor is determined by the
+.Dv O_CLOEXEC
+bit in
+.Fa flags .
 .Pp
-In
-.Fn dup2 ,
-the value of the new descriptor
-.Fa newd
-is specified.
-If this descriptor is already in use and
-.Fa oldd
-\*(Ne
-.Fa newd ,
-the descriptor is first deallocated as if the
-.Xr close 2
-system call had been used.
 If
 .Fa oldd
-is not a valid descriptor, then
+\*(Ne
 .Fa newd
-is not closed.
+and
+.Fa flags
+== 0,
+the behavior is identical to
+.Li dup2(oldd, newd) .
+.Pp
 If
 .Fa oldd
 ==
-.Fa newd
-and
-.Fa oldd
-is a valid descriptor, then
-.Fn dup2
-is successful, and does nothing.
+.Fa newd ,
+then
+.Fn dup3
+fails, unlike
+.Xr dup2 2 .
 .Sh RETURN VALUES
-These calls return the new file descriptor if successful;
-otherwise the value -1 is returned and
-the external variable
+The value -1 is returned if an error occurs.
+The external variable
 .Va errno
-is set to indicate the cause of the error.
+indicates the cause of the error.
 .Sh ERRORS
 The
-.Fn dup
-system call fails if:
-.Bl -tag -width Er
-.It Bq Er EBADF
-The
-.Fa oldd
-argument
-is not a valid active descriptor
-.It Bq Er EMFILE
-Too many descriptors are active.
-.El
-.Pp
-The
-.Fn dup2
-system call fails if:
+.Fn dup3
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
@@ -142,28 +87,34 @@ The
 argument is not a valid active descriptor or the
 .Fa newd
 argument is negative or exceeds the maximum allowable descriptor number
+.It Bq Er EINVAL
+The
+.Fa oldd
+argument is equal to the
+.Fa newd
+argument.
+.It Bq Er EINVAL
+The
+.Fa flags
+argument has bits set other than
+.Dv O_CLOEXEC .
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
 .Xr close 2 ,
+.Xr dup2 2 ,
 .Xr fcntl 2 ,
 .Xr getdtablesize 2 ,
 .Xr open 2 ,
 .Xr pipe 2 ,
 .Xr socket 2 ,
-.Xr socketpair 2 ,
-.Xr dup3 3
+.Xr socketpair 2
 .Sh STANDARDS
 The
-.Fn dup
-and
-.Fn dup2
-system calls are expected to conform to
-.St -p1003.1-90 .
+.Fn dup3
+function does not conform to any standard.
 .Sh HISTORY
 The
-.Fn dup
-and
-.Fn dup2
-functions appeared in
-.At v7 .
+.Fn dup3
+function appeared in
+.Fx 10.0 .
