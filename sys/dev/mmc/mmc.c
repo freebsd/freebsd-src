@@ -1209,7 +1209,7 @@ mmc_set_blocklen(struct mmc_softc *sc, uint32_t len)
 static void
 mmc_log_card(device_t dev, struct mmc_ivars *ivar, int newcard)
 {
-	device_printf(dev, "Card at relative address %d%s:\n",
+	device_printf(dev, "Card at relative address 0x%04x%s:\n",
 	    ivar->rca, newcard ? " added" : "");
 	device_printf(dev, " card: %s\n", ivar->card_id_string);
 	device_printf(dev, " bus: %ubit, %uMHz%s\n",
