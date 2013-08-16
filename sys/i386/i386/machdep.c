@@ -1548,56 +1548,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
 
-static int	cpu_ident_cmxchg8b = 0;
-
-static void
-cpu_probe_cmpxchg8b(void)
-{
-
-	if ((cpu_feature & CPUID_CX8) != 0)
-		cpu_ident_cmxchg8b = 1;
-}
-
-int
-atomic_cmpset_64(volatile uint64_t *dst, uint64_t expect, uint64_t src)
-{
-
-	if (cpu_ident_cmxchg8b)
-		return (atomic_cmpset_64_i586(dst, expect, src));
-	else
-		return (atomic_cmpset_64_i386(dst, expect, src));
-}
-
-uint64_t
-atomic_load_acq_64(volatile uint64_t *p)
-{
-
-	if (cpu_ident_cmxchg8b)
-		return (atomic_load_acq_64_i586(p));
-	else
-		return (atomic_load_acq_64_i386(p));
-}
-
-void
-atomic_store_rel_64(volatile uint64_t *p, uint64_t v)
-{
-
-	if (cpu_ident_cmxchg8b)
-		atomic_store_rel_64_i586(p, v);
-	else
-		atomic_store_rel_64_i386(p, v);
-}
-
-uint64_t
-atomic_swap_64(volatile uint64_t *p, uint64_t v)
-{
-
-	if (cpu_ident_cmxchg8b)
-		return (atomic_swap_64_i586(p, v));
-	else
-		return (atomic_swap_64_i386(p, v));
-}
-
 /*
  * Reset registers to default values on exec.
  */
@@ -2859,7 +2809,6 @@ init386(first)
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 }
 
 #else
@@ -3150,7 +3099,6 @@ init386(first)
 	thread0.td_frame = &proc0_tf;
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 
 #ifdef FDT
 	x86_init_fdt();

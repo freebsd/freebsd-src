@@ -32,6 +32,11 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#ifdef _KERNEL
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
+#endif
+
 #define	mb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
 #define	wmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
 #define	rmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
@@ -87,6 +92,11 @@ u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
 #define	ATOMIC_STORE(TYPE)					\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
+int		atomic_cmpset_64(volatile uint64_t *, uint64_t, uint64_t);
+uint64_t	atomic_load_acq_64(volatile uint64_t *);
+void		atomic_store_rel_64(volatile uint64_t *, uint64_t);
+uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
+
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
 /*
@@ -124,7 +134,155 @@ atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#if defined(_KERNEL) && !defined(WANT_FUNCTIONS)
+/*
+ * Atomic compare and set, used by the mutex functions
+ *
+ * if (*dst == expect) *dst = src (all 32 bit words)
+ *
+ * Returns 0 on failure, non-zero on success
+ */
+
+#ifdef CPU_DISABLE_CMPXCHG
+
+static __inline int
+atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
+{
+	int res;
+	register_t lock;
+
+	res = 0;
+	ATOMIC_LOCK_I386(lock);
+	if (*dst == expect) {
+		*dst = src;
+		res = 1;
+	}
+	ATOMIC_UNLOCK_I386(lock);
+	return (res);
+}
+
+#else /* !CPU_DISABLE_CMPXCHG */
+
+static __inline int
+atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchgl %3, %1 ;	"
+	"       sete	%0 ; "
+	"# atomic_cmpset_int"
+	: "=q" (res),			/* 0 */
+	  "+m" (*dst),			/* 1 */
+	  "+a" (expect)			/* 2 */
+	: "r" (src)			/* 3 */
+	: "memory", "cc");
+
+	return (res);
+}
+
+#endif /* CPU_DISABLE_CMPXCHG */
+
+/*
+ * Atomically add the value of v to the integer pointed to by p and return
+ * the previous value of *p.
+ */
+static __inline u_int
+atomic_fetchadd_int(volatile u_int *p, u_int v)
+{
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	xaddl	%0, %1 ;	"
+	"# atomic_fetchadd_int"
+	: "+r" (v),			/* 0 (result) */
+	  "+m" (*p)			/* 1 */
+	: : "cc");
+	return (v);
+}
+
+static __inline int
+atomic_testandset_int(volatile u_int *p, u_int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btsl	%2, %1 ;	"
+	"	setc	%0 ;		"
+	"# atomic_testandset_int"
+	: "=q" (res),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: "Ir" (v & 0x1f)		/* 2 */
+	: "cc");
+	return (res);
+}
+
+/*
+ * We assume that a = b will do atomic loads and stores.  Due to the
+ * IA32 memory model, a simple store guarantees release semantics.
+ *
+ * However, loads may pass stores, so for atomic_load_acq we have to
+ * ensure a Store/Load barrier to do the load in SMP kernels.  We use
+ * "lock cmpxchg" as recommended by the AMD Software Optimization
+ * Guide, and not mfence.  For UP kernels, however, the cache of the
+ * single processor is always consistent, so we only need to take care
+ * of the compiler.
+ */
+#define	ATOMIC_STORE(TYPE)				\
+static __inline void					\
+atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	__compiler_membar();				\
+	*p = v;						\
+}							\
+struct __hack
+
+#if defined(_KERNEL) && !defined(SMP)
+
+#define	ATOMIC_LOAD(TYPE, LOP)				\
+static __inline u_##TYPE				\
+atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
+{							\
+	u_##TYPE tmp;					\
+							\
+	tmp = *p;					\
+	__compiler_membar();				\
+	return (tmp);					\
+}							\
+struct __hack
+
+#else /* !(_KERNEL && !SMP) */
+
+#define	ATOMIC_LOAD(TYPE, LOP)				\
+static __inline u_##TYPE				\
+atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
+{							\
+	u_##TYPE res;					\
+							\
+	__asm __volatile(MPLOCKED LOP			\
+	: "=a" (res),			/* 0 */		\
+	  "+m" (*p)			/* 1 */		\
+	: : "memory", "cc");				\
+							\
+	return (res);					\
+}							\
+struct __hack
+
+#endif /* _KERNEL && !SMP */
+
+#ifdef _KERNEL
+
+#ifdef WANT_FUNCTIONS
+int		atomic_cmpset_64_i386(volatile uint64_t *, uint64_t, uint64_t);
+int		atomic_cmpset_64_i586(volatile uint64_t *, uint64_t, uint64_t);
+uint64_t	atomic_load_acq_64_i386(volatile uint64_t *);
+uint64_t	atomic_load_acq_64_i586(volatile uint64_t *);
+void		atomic_store_rel_64_i386(volatile uint64_t *, uint64_t);
+void		atomic_store_rel_64_i586(volatile uint64_t *, uint64_t);
+uint64_t	atomic_swap_64_i386(volatile uint64_t *, uint64_t);
+uint64_t	atomic_swap_64_i586(volatile uint64_t *, uint64_t);
+#endif
 
 /* I486 does not support SMP or CMPXCHG8B. */
 static __inline int
@@ -139,14 +297,12 @@ atomic_cmpset_64_i386(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 	"	xorl	%1, %%eax ;	"
 	"	xorl	%2, %%edx ;	"
 	"	orl	%%edx, %%eax ;	"
-	"	jnz	1f ;		"
+	"	sete	%%al ;		"
+	"	movzbl	%%al, %%eax ;	"
+	"	jne	1f ;		"
 	"	movl	%3, %1 ;	"
 	"	movl	%4, %2 ;	"
-	"	movl	$1, %%eax ;	"
-	"	jmp	2f ;		"
 	"1:				"
-	"	xorl	%%eax, %%eax ;	"
-	"2:				"
 	"	popfl"
 	: "+A" (expect),		/* 0 */
 	  "+m" (*p),			/* 1 */
@@ -288,147 +444,47 @@ atomic_swap_64_i586(volatile uint64_t *p, uint64_t v)
 	return (v);
 }
 
-#endif /* _KERNEL && !WANT_FUNCTIONS */
-
-/*
- * Atomic compare and set, used by the mutex functions
- *
- * if (*dst == expect) *dst = src (all 32 bit words)
- *
- * Returns 0 on failure, non-zero on success
- */
-
-#ifdef CPU_DISABLE_CMPXCHG
-
 static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
-{
-	int res;
-	register_t lock;
-
-	res = 0;
-	ATOMIC_LOCK_I386(lock);
-	if (*dst == expect) {
-		*dst = src;
-		res = 1;
-	}
-	ATOMIC_UNLOCK_I386(lock);
-	return (res);
-}
-
-#else /* !CPU_DISABLE_CMPXCHG */
-
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
-{
-	u_char res;
-
-	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	cmpxchgl %3, %1 ;	"
-	"       sete	%0 ; "
-	"# atomic_cmpset_int"
-	: "=q" (res),			/* 0 */
-	  "+m" (*dst),			/* 1 */
-	  "+a" (expect)			/* 2 */
-	: "r" (src)			/* 3 */
-	: "memory", "cc");
-
-	return (res);
-}
-
-#endif /* CPU_DISABLE_CMPXCHG */
-
-#undef ATOMIC_LOCK_I386
-#undef ATOMIC_UNLOCK_I386
-
-/*
- * Atomically add the value of v to the integer pointed to by p and return
- * the previous value of *p.
- */
-static __inline u_int
-atomic_fetchadd_int(volatile u_int *p, u_int v)
+atomic_cmpset_64(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 {
 
-	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	xaddl	%0, %1 ;	"
-	"# atomic_fetchadd_int"
-	: "+r" (v),			/* 0 (result) */
-	  "+m" (*p)			/* 1 */
-	: : "cc");
-	return (v);
+	if ((cpu_feature & CPUID_CX8) == 0)
+		return (atomic_cmpset_64_i386(dst, expect, src));
+	else
+		return (atomic_cmpset_64_i586(dst, expect, src));
 }
 
-static __inline int
-atomic_testandset_int(volatile u_int *p, u_int v)
+static __inline uint64_t
+atomic_load_acq_64(volatile uint64_t *p)
 {
-	u_char res;
 
-	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	btsl	%2, %1 ;	"
-	"	setc	%0 ;		"
-	"# atomic_testandset_int"
-	: "=q" (res),			/* 0 */
-	  "+m" (*p)			/* 1 */
-	: "Ir" (v & 0x1f)		/* 2 */
-	: "cc");
-	return (res);
+	if ((cpu_feature & CPUID_CX8) == 0)
+		return (atomic_load_acq_64_i386(p));
+	else
+		return (atomic_load_acq_64_i586(p));
 }
 
-/*
- * We assume that a = b will do atomic loads and stores.  Due to the
- * IA32 memory model, a simple store guarantees release semantics.
- *
- * However, loads may pass stores, so for atomic_load_acq we have to
- * ensure a Store/Load barrier to do the load in SMP kernels.  We use
- * "lock cmpxchg" as recommended by the AMD Software Optimization
- * Guide, and not mfence.  For UP kernels, however, the cache of the
- * single processor is always consistent, so we only need to take care
- * of the compiler.
- */
-#define	ATOMIC_STORE(TYPE)				\
-static __inline void					\
-atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	__compiler_membar();				\
-	*p = v;						\
-}							\
-struct __hack
+static __inline void
+atomic_store_rel_64(volatile uint64_t *p, uint64_t v)
+{
 
-#if defined(_KERNEL) && !defined(SMP)
+	if ((cpu_feature & CPUID_CX8) == 0)
+		atomic_store_rel_64_i386(p, v);
+	else
+		atomic_store_rel_64_i586(p, v);
+}
 
-#define	ATOMIC_LOAD(TYPE, LOP)				\
-static __inline u_##TYPE				\
-atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
-{							\
-	u_##TYPE tmp;					\
-							\
-	tmp = *p;					\
-	__compiler_membar();				\
-	return (tmp);					\
-}							\
-struct __hack
+static __inline uint64_t
+atomic_swap_64(volatile uint64_t *p, uint64_t v)
+{
 
-#else /* !(_KERNEL && !SMP) */
+	if ((cpu_feature & CPUID_CX8) == 0)
+		return (atomic_swap_64_i386(p, v));
+	else
+		return (atomic_swap_64_i586(p, v));
+}
 
-#define	ATOMIC_LOAD(TYPE, LOP)				\
-static __inline u_##TYPE				\
-atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
-{							\
-	u_##TYPE res;					\
-							\
-	__asm __volatile(MPLOCKED LOP			\
-	: "=a" (res),			/* 0 */		\
-	  "+m" (*p)			/* 1 */		\
-	: : "memory", "cc");				\
-							\
-	return (res);					\
-}							\
-struct __hack
-
-#endif /* _KERNEL && !SMP */
+#endif /* _KERNEL */
 
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 
@@ -467,13 +523,6 @@ ATOMIC_STORE(long);
 #undef ATOMIC_STORE
 
 #ifndef WANT_FUNCTIONS
-
-#ifdef _KERNEL
-int		atomic_cmpset_64(volatile uint64_t *, uint64_t, uint64_t);
-uint64_t	atomic_load_acq_64(volatile uint64_t *);
-void		atomic_store_rel_64(volatile uint64_t *, uint64_t);
-uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
-#endif
 
 static __inline int
 atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
