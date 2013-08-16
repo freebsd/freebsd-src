@@ -210,6 +210,7 @@ parsecmd(int interact)
 	heredoclist = NULL;
 
 	tokpushback = 0;
+	checkkwd = 0;
 	doprompt = interact;
 	if (doprompt)
 		setprompt(1);
@@ -1820,14 +1821,6 @@ parsearith: {
 }
 
 } /* end of readtoken */
-
-
-void
-resetparser(void)
-{
-	tokpushback = 0;
-	checkkwd = 0;
-}
 
 
 /*

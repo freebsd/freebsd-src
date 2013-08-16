@@ -185,8 +185,6 @@ reset(void)
 {
 	reseteval();
 	resetinput();
-	resetparser();
-	resetredir();
 }
 
 /*
