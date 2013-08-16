@@ -38,6 +38,16 @@
  *           fd.
  * Test #23: check if fcntl(F_DUP2FD_CLOEXEC) to a fd > current maximum number
  *           of open files limit work.
+ * Test #24: check if dup3(O_CLOEXEC) works.
+ * Test #25: check if dup3(O_CLOEXEC) returned a fd we asked for.
+ * Test #26: check if dup3(O_CLOEXEC) set close-on-exec flag for duped fd.
+ * Test #27: check if dup3(0) works.
+ * Test #28: check if dup3(0) returned a fd we asked for.
+ * Test #29: check if dup3(0) cleared close-on-exec flag for duped fd.
+ * Test #30: check if dup3(O_CLOEXEC) fails if oldfd == newfd.
+ * Test #31: check if dup3(0) fails if oldfd == newfd.
+ * Test #32: check if dup3(O_CLOEXEC) to a fd > current maximum number of
+ *           open files limit work.
  */
 
 #include <sys/types.h>
@@ -74,7 +84,7 @@ main(int __unused argc, char __unused *argv[])
 
 	orgfd = getafile();
 
-	printf("1..23\n");
+	printf("1..32\n");
 
 	/* If dup(2) ever work? */
 	if ((fd1 = dup(orgfd)) < 0)
@@ -295,6 +305,81 @@ main(int __unused argc, char __unused *argv[])
 		    test);
 	else
 		printf("ok %d - fcntl(F_DUP2FD_CLOEXEC) didn't bypass NOFILE limit\n",
+		    test);
+
+	/* Does dup3(O_CLOEXEC) ever work? */
+	if ((fd2 = dup3(fd1, fd1 + 1, O_CLOEXEC)) < 0)
+		err(1, "dup3(O_CLOEXEC)");
+	printf("ok %d - dup3(O_CLOEXEC) works\n", ++test);
+
+	/* Do we get the right fd? */
+	++test;
+	if (fd2 != fd1 + 1)
+		printf(
+		    "no ok %d - dup3(O_CLOEXEC) didn't give us the right fd\n",
+		    test);
+	else
+		printf("ok %d - dup3(O_CLOEXEC) returned a correct fd\n",
+		    test);
+
+	/* Was close-on-exec set? */
+	++test;
+	if (fcntl(fd2, F_GETFD) != FD_CLOEXEC)
+		printf(
+		    "not ok %d - dup3(O_CLOEXEC) didn't set close-on-exec\n",
+		    test);
+	else
+		printf("ok %d - dup3(O_CLOEXEC) set close-on-exec\n",
+		    test);
+
+	/* Does dup3(0) ever work? */
+	if ((fd2 = dup3(fd1, fd1 + 1, 0)) < 0)
+		err(1, "dup3(0)");
+	printf("ok %d - dup3(0) works\n", ++test);
+
+	/* Do we get the right fd? */
+	++test;
+	if (fd2 != fd1 + 1)
+		printf(
+		    "no ok %d - dup3(0) didn't give us the right fd\n",
+		    test);
+	else
+		printf("ok %d - dup3(0) returned a correct fd\n",
+		    test);
+
+	/* Was close-on-exec cleared? */
+	++test;
+	if (fcntl(fd2, F_GETFD) != 0)
+		printf(
+		    "not ok %d - dup3(0) didn't clear close-on-exec\n",
+		    test);
+	else
+		printf("ok %d - dup3(0) cleared close-on-exec\n",
+		    test);
+
+	/* dup3() does not allow duplicating to the same fd */
+	++test;
+	if (dup3(fd1, fd1, O_CLOEXEC) != -1)
+		printf(
+		    "not ok %d - dup3(fd1, fd1, O_CLOEXEC) succeeded\n", test);
+	else
+		printf("ok %d - dup3(fd1, fd1, O_CLOEXEC) failed\n", test);
+
+	++test;
+	if (dup3(fd1, fd1, 0) != -1)
+		printf(
+		    "not ok %d - dup3(fd1, fd1, 0) succeeded\n", test);
+	else
+		printf("ok %d - dup3(fd1, fd1, 0) failed\n", test);
+
+	++test;
+	if (getrlimit(RLIMIT_NOFILE, &rlp) < 0)
+		err(1, "getrlimit");
+	if ((fd2 = dup3(fd1, rlp.rlim_cur + 1, O_CLOEXEC)) >= 0)
+		printf("not ok %d - dup3(O_CLOEXEC) bypassed NOFILE limit\n",
+		    test);
+	else
+		printf("ok %d - dup3(O_CLOEXEC) didn't bypass NOFILE limit\n",
 		    test);
 
 	return (0);
