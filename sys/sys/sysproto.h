@@ -726,6 +726,11 @@ struct nanosleep_args {
 	char rqtp_l_[PADL_(const struct timespec *)]; const struct timespec * rqtp; char rqtp_r_[PADR_(const struct timespec *)];
 	char rmtp_l_[PADL_(struct timespec *)]; struct timespec * rmtp; char rmtp_r_[PADR_(struct timespec *)];
 };
+struct clock_getcpuclockid2_args {
+	char id_l_[PADL_(id_t)]; id_t id; char id_r_[PADR_(id_t)];
+	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
+	char clock_id_l_[PADL_(clockid_t *)]; clockid_t * clock_id; char clock_id_r_[PADR_(clockid_t *)];
+};
 struct ntp_gettime_args {
 	char ntvp_l_[PADL_(struct ntptimeval *)]; struct ntptimeval * ntvp; char ntvp_r_[PADR_(struct ntptimeval *)];
 };
@@ -1902,6 +1907,7 @@ int	sys_ktimer_settime(struct thread *, struct ktimer_settime_args *);
 int	sys_ktimer_gettime(struct thread *, struct ktimer_gettime_args *);
 int	sys_ktimer_getoverrun(struct thread *, struct ktimer_getoverrun_args *);
 int	sys_nanosleep(struct thread *, struct nanosleep_args *);
+int	sys_clock_getcpuclockid2(struct thread *, struct clock_getcpuclockid2_args *);
 int	sys_ntp_gettime(struct thread *, struct ntp_gettime_args *);
 int	sys_minherit(struct thread *, struct minherit_args *);
 int	sys_rfork(struct thread *, struct rfork_args *);
@@ -2590,6 +2596,7 @@ int	freebsd7_shmctl(struct thread *, struct freebsd7_shmctl_args *);
 #define	SYS_AUE_ktimer_gettime	AUE_NULL
 #define	SYS_AUE_ktimer_getoverrun	AUE_NULL
 #define	SYS_AUE_nanosleep	AUE_NULL
+#define	SYS_AUE_clock_getcpuclockid2	AUE_NULL
 #define	SYS_AUE_ntp_gettime	AUE_NULL
 #define	SYS_AUE_minherit	AUE_MINHERIT
 #define	SYS_AUE_rfork	AUE_RFORK

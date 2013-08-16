@@ -212,6 +212,7 @@
 #define	FREEBSD32_SYS_freebsd32_ktimer_gettime	238
 #define	FREEBSD32_SYS_ktimer_getoverrun	239
 #define	FREEBSD32_SYS_freebsd32_nanosleep	240
+#define	FREEBSD32_SYS_clock_getcpuclockid2	247
 #define	FREEBSD32_SYS_minherit	250
 #define	FREEBSD32_SYS_rfork	251
 #define	FREEBSD32_SYS_openbsd_poll	252

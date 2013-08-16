@@ -379,6 +379,7 @@ FBSD_1.2 {
 };
 
 FBSD_1.3 {
+	clock_getcpuclockid2;
 	posix_fadvise;
 	wait6;
 };
@@ -488,6 +489,8 @@ FBSDprivate_1.0 {
 	__sys_chown;
 	_chroot;
 	__sys_chroot;
+	_clock_getcpuclockid2;
+	__sys_clock_getcpuclockid2;
 	_clock_getres;
 	__sys_clock_getres;
 	_clock_gettime;
