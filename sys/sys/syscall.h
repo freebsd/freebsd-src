@@ -216,6 +216,7 @@
 #define	SYS_ktimer_gettime	238
 #define	SYS_ktimer_getoverrun	239
 #define	SYS_nanosleep	240
+#define	SYS_clock_getcpuclockid2	247
 #define	SYS_ntp_gettime	248
 #define	SYS_minherit	250
 #define	SYS_rfork	251

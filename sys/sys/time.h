@@ -266,11 +266,17 @@ struct clockinfo {
 #define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
 #define CLOCK_SECOND	13		/* FreeBSD-specific. */
 #define CLOCK_THREAD_CPUTIME_ID	14
+#define CLOCK_PROCESS_CPUTIME_ID	15
 #endif
 
 #ifndef TIMER_ABSTIME
 #define TIMER_RELTIME	0x0	/* relative timer */
 #define TIMER_ABSTIME	0x1	/* absolute timer */
+#endif
+
+#if __BSD_VISIBLE
+#define	CPUCLOCK_WHICH_PID	0
+#define	CPUCLOCK_WHICH_TID	1
 #endif
 
 #ifdef _KERNEL
@@ -344,6 +350,7 @@ int	utimes(const char *, const struct timeval *);
 
 #if __BSD_VISIBLE
 int	adjtime(const struct timeval *, struct timeval *);
+int	clock_getcpuclockid2(id_t, int, clockid_t *);
 int	futimes(int, const struct timeval *);
 int	futimesat(int, const char *, const struct timeval [2]);
 int	lutimes(const char *, const struct timeval *);

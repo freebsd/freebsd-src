@@ -168,6 +168,7 @@ MIASM =  \
 	ktimer_gettime.o \
 	ktimer_getoverrun.o \
 	nanosleep.o \
+	clock_getcpuclockid2.o \
 	ntp_gettime.o \
 	minherit.o \
 	rfork.o \
