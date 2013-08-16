@@ -297,6 +297,7 @@ static __inline int
 atomic_cmpset_64_i386(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 {
 	volatile uint32_t *p;
+	u_char res;
 
 	p = (volatile uint32_t *)dst;
 	__asm __volatile(
@@ -305,21 +306,21 @@ atomic_cmpset_64_i386(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 	"	xorl	%1, %%eax ;	"
 	"	xorl	%2, %%edx ;	"
 	"	orl	%%edx, %%eax ;	"
-	"	sete	%%al ;		"
-	"	movzbl	%%al, %%eax ;	"
 	"	jne	1f ;		"
-	"	movl	%3, %1 ;	"
-	"	movl	%4, %2 ;	"
+	"	movl	%4, %1 ;	"
+	"	movl	%5, %2 ;	"
 	"1:				"
+	"	sete	%3 ;		"
 	"	popfl"
 	: "+A" (expect),		/* 0 */
 	  "+m" (*p),			/* 1 */
-	  "+m" (*(p + 1))		/* 2 */
-	: "r" ((uint32_t)src),		/* 3 */
-	  "r" ((uint32_t)(src >> 32))	/* 4 */
+	  "+m" (*(p + 1)),		/* 2 */
+	  "=q" (res)			/* 3 */
+	: "r" ((uint32_t)src),		/* 4 */
+	  "r" ((uint32_t)(src >> 32))	/* 5 */
 	: "memory", "cc");
 
-	return (expect);
+	return (res);
 }
 
 static __inline uint64_t
