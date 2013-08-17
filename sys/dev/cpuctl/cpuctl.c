@@ -346,8 +346,7 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	else
 		ret = EEXIST;
 fail:
-	if (ptr != NULL)
-		contigfree(ptr, args->size, M_CPUCTL);
+	free(ptr, M_CPUCTL);
 	return (ret);
 }
 
@@ -476,8 +475,7 @@ update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	else
 		ret = 0;
 fail:
-	if (ptr != NULL)
-		contigfree(ptr, args->size, M_CPUCTL);
+	free(ptr, M_CPUCTL);
 	return (ret);
 }
 
