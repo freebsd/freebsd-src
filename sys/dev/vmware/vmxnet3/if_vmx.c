@@ -1082,11 +1082,11 @@ vmxnet3_alloc_rxq_data(struct vmxnet3_softc *sc)
 	int i, j, q, error;
 
 	dev = sc->vmx_dev;
-	compsz = 0;
 
 	for (q = 0; q < sc->vmx_nrxqueues; q++) {
 		rxq = &sc->vmx_rxq[q];
 		rxc = &rxq->vxrxq_comp_ring;
+		compsz = 0;
 
 		for (i = 0; i < VMXNET3_RXRINGS_PERQ; i++) {
 			rxr = &rxq->vxrxq_cmd_ring[i];
