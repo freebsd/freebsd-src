@@ -381,11 +381,7 @@ static __inline _Bool
 atomic_flag_test_and_set_explicit(volatile atomic_flag *__object,
     memory_order __order)
 {
-	_Bool __expected;
-
-	__expected = 0;
-	return (atomic_compare_exchange_strong_explicit(&__object->__flag,
-	    &__expected, 1, __order, __order));
+	return (atomic_exchange_explicit(&__object->__flag, 1, __order));
 }
 
 static __inline void
