@@ -1575,35 +1575,16 @@ static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *domain;
-	struct pcpu *pc;
-	int cpu, domidx;
+	int domidx;
 
 	domidx = (uintptr_t)arg;
 	domain = &vm_dom[domidx];
 
 	/*
-	 * XXXKIB The bind is rather arbitrary.  With some minor
-	 * complications, we could assign the cpuset consisting of all
-	 * CPUs in the same domain.  In fact, it even does not matter
-	 * if the CPU we bind to is in the affinity domain of this
-	 * page queue, we only need to establish the fair distribution
-	 * of pagedaemon threads among CPUs.
-	 *
-	 * XXXKIB It would be useful to allocate vm_pages for the
-	 * domain from the domain, and put pcpu area into the page
-	 * owned by the domain.
+	 * XXXKIB It could be useful to bind pageout daemon threads to
+	 * the cores belonging to the domain, from which vm_page_array
+	 * is allocated.
 	 */
-	if (mem_affinity != NULL) {
-		CPU_FOREACH(cpu) {
-			pc = pcpu_find(cpu);
-			if (pc->pc_domain == domidx) {
-				thread_lock(curthread);
-				sched_bind(curthread, cpu);
-				thread_unlock(curthread);
-				break;
-			}
-		}
-	}
 
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
 	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
