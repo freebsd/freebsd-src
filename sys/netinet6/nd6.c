@@ -1508,7 +1508,11 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		nbi->state = ln->ln_state;
 		nbi->asked = ln->la_asked;
 		nbi->isrouter = ln->ln_router;
-		nbi->expire = ln->la_expire + (time_second - time_uptime);
+		if (ln->la_expire == 0)
+			nbi->expire = 0;
+		else
+			nbi->expire = ln->la_expire +
+			    (time_second - time_uptime);
 		LLE_RUNLOCK(ln);
 		break;
 	}
