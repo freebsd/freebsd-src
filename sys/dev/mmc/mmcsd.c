@@ -328,6 +328,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		memset(&req, 0, sizeof(req));
     		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
+		memset(&data, 0, sizeof(data));
 		cmd.mrq = &req;
 		req.cmd = &cmd;
 		cmd.data = &data;
