@@ -114,7 +114,7 @@ ENTRY(cpu_throw)
 
 	GET_PCPU(r7)
 
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	/*
 	 * vfp_discard will clear pcpu->pc_vfpcthread, and modify
 	 * and modify the control as needed.
@@ -124,7 +124,7 @@ ENTRY(cpu_throw)
 	bne     3f
 	bl      _C_LABEL(vfp_discard)           /* yes, shut down vfp */
 3:
-#endif		/* ARM_VFP_SUPPORT */
+#endif		/* VFP */
 
 	ldr	r7, [r5, #(TD_PCB)]		/* r7 = new thread's PCB */
   
@@ -303,7 +303,7 @@ ENTRY(cpu_switch)
 	/* rem: r9 = new PCB */
 	/* rem: interrupts are enabled */
 
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	/*
 	 * vfp_store will clear pcpu->pc_vfpcthread, save 
 	 * registers and state, and modify the control as needed.
@@ -325,7 +325,7 @@ ENTRY(cpu_switch)
 	add	r0, r2, #(PCB_VFPSTATE)
 	bl	_C_LABEL(vfp_store)
 1:
-#endif		/* ARM_VFP_SUPPORT */
+#endif		/* VFP */
 
 	/* r1 now free! */
 
@@ -505,7 +505,7 @@ ENTRY(savectx)
 	/* Store all the registers in the process's pcb */
 	add	r2, r0, #(PCB_R8)
 	stmia	r2, {r8-r13}
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	/*
 	 * vfp_store will clear pcpu->pc_vfpcthread, save 
 	 * registers and state, and modify the control as needed.
@@ -525,7 +525,7 @@ ENTRY(savectx)
 	add	r0, r0, #(PCB_VFPSTATE)
 	bl	_C_LABEL(vfp_store)
 1:
-#endif		/* ARM_VFP_SUPPORT */
+#endif		/* VFP */
 	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
 END(savectx)
