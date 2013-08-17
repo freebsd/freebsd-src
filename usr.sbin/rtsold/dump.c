@@ -50,8 +50,6 @@
 
 static FILE *fp;
 
-extern struct ifinfo *iflist;
-
 static void dump_interface_status(void);
 static const char * const ifstatstr[] = {"IDLE", "DELAY", "PROBE", "DOWN", "TENTATIVE"};
 
