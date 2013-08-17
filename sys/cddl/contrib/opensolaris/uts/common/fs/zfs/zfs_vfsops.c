@@ -1799,12 +1799,10 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 int
 zfs_vnode_lock(vnode_t *vp, int flags)
 {
-	int error;
 
 	ASSERT(vp != NULL);
 
-	error = vn_lock(vp, flags);
-	return (error);
+	return (vn_lock(vp, flags));
 }
 
 static int
