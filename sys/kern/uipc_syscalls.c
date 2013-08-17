@@ -158,8 +158,6 @@ sfstat_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
     NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
 
-fo_sendfile_t vn_sendfile;
-
 /*
  * Convert a user file descriptor to a kernel file entry and check if required
  * capability rights are present.
