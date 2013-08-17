@@ -140,5 +140,4 @@ options         FDT
 options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=pandaboard.dts
 
-#device		vfp			# vfp/neon
-#options 	ARM_VFP_SUPPORT		# vfp/neon
+options 	VFP		# vfp/neon

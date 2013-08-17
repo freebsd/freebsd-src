@@ -234,13 +234,13 @@ undefinedinstruction(trapframe_t *frame)
 	coprocessor = 0;
 	if ((fault_instruction & (1 << 27)) != 0)
 		coprocessor = (fault_instruction >> 8) & 0x0f;
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	else {          /* check for special instructions */
 		if (((fault_instruction & 0xfe000000) == 0xf2000000) ||
 		    ((fault_instruction & 0xff100000) == 0xf4000000))
 			coprocessor = 10;       /* vfp / simd */
 	}
-#endif	/* ARM_VFP_SUPPORT */
+#endif	/* VFP */
 
 	if ((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE) {
 		/*
