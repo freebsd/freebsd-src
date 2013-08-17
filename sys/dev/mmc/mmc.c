@@ -436,6 +436,7 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
 	int err;
 
 	do {
+		memset(&appcmd, 0, sizeof(appcmd));
 		appcmd.opcode = MMC_APP_CMD;
 		appcmd.arg = rca << 16;
 		appcmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -627,6 +628,7 @@ mmc_switch(struct mmc_softc *sc, uint8_t set, uint8_t index, uint8_t value)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SWITCH_FUNC;
 	cmd.arg = (MMC_SWITCH_FUNC_WR << 24) |
 	    (index << 16) |
@@ -646,8 +648,8 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value,
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 	memset(res, 0, 64);
 
 	cmd.opcode = SD_SWITCH_FUNC;
@@ -674,14 +676,14 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 	uint8_t	value;
 
 	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		memset(&cmd, 0, sizeof(struct mmc_command));
+		memset(&cmd, 0, sizeof(cmd));
 		cmd.opcode = ACMD_SET_CLR_CARD_DETECT;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		cmd.arg = SD_CLR_CARD_DETECT;
 		err = mmc_wait_for_app_cmd(sc, rca, &cmd, CMD_RETRIES);
 		if (err != 0)
 			return (err);
-		memset(&cmd, 0, sizeof(struct mmc_command));
+		memset(&cmd, 0, sizeof(cmd));
 		cmd.opcode = ACMD_SET_BUS_WIDTH;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		switch (width) {
@@ -757,6 +759,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_8);
 		mmcbr_update_ios(sc->dev);
 
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -767,6 +771,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
 		
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_R;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -788,6 +794,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_4);
 		mmcbr_update_ios(sc->dev);
 
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -798,6 +806,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
 		
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_R;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -1059,6 +1069,7 @@ mmc_all_send_cid(struct mmc_softc *sc, uint32_t *rawcid)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_ALL_SEND_CID;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
@@ -1074,6 +1085,7 @@ mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcsd)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SEND_CSD;
 	cmd.arg = rca << 16;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
@@ -1090,8 +1102,8 @@ mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca, uint32_t *rawscr)
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 
 	memset(rawscr, 0, 8);
 	cmd.opcode = ACMD_SEND_SCR;
@@ -1116,8 +1128,8 @@ mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd)
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 
 	memset(rawextcsd, 0, 512);
 	cmd.opcode = MMC_SEND_EXT_CSD;
@@ -1140,8 +1152,8 @@ mmc_app_sd_status(struct mmc_softc *sc, uint16_t rca, uint32_t *rawsdstatus)
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 
 	memset(rawsdstatus, 0, 64);
 	cmd.opcode = ACMD_SD_STATUS;
@@ -1165,6 +1177,7 @@ mmc_set_relative_addr(struct mmc_softc *sc, uint16_t resp)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SET_RELATIVE_ADDR;
 	cmd.arg = resp << 16;
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
@@ -1179,6 +1192,7 @@ mmc_send_relative_addr(struct mmc_softc *sc, uint32_t *resp)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = SD_SEND_RELATIVE_ADDR;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
@@ -1194,6 +1208,7 @@ mmc_send_status(struct mmc_softc *sc, uint16_t rca, uint32_t *status)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SEND_STATUS;
 	cmd.arg = rca << 16;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
@@ -1209,6 +1224,7 @@ mmc_set_blocklen(struct mmc_softc *sc, uint32_t len)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SET_BLOCKLEN;
 	cmd.arg = len;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
