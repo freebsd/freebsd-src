@@ -176,6 +176,7 @@ extern int getinet6sysctl(int);
 extern int setinet6sysctl(int, int);
 
 /* rtsol.c */
+extern int rssock;
 extern int sockopen(void);
 extern void sendpacket(struct ifinfo *);
 extern void rtsol_input(int);

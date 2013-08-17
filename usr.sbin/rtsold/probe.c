@@ -164,7 +164,7 @@ sendprobe(struct in6_addr *addr, struct ifinfo *ifinfo)
 	cm->cmsg_level = IPPROTO_IPV6;
 	cm->cmsg_type = IPV6_PKTINFO;
 	cm->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
-	pi = (struct in6_pktinfo *)CMSG_DATA(cm);
+	pi = (struct in6_pktinfo *)(void *)CMSG_DATA(cm);
 	memset(&pi->ipi6_addr, 0, sizeof(pi->ipi6_addr));	/*XXX*/
 	pi->ipi6_ifindex = ifindex;
 

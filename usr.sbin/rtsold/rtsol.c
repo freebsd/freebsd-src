@@ -205,7 +205,7 @@ sendpacket(struct ifinfo *ifi)
 	cm->cmsg_level = IPPROTO_IPV6;
 	cm->cmsg_type = IPV6_PKTINFO;
 	cm->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
-	pi = (struct in6_pktinfo *)CMSG_DATA(cm);
+	pi = (struct in6_pktinfo *)(void *)CMSG_DATA(cm);
 	memset(&pi->ipi6_addr, 0, sizeof(pi->ipi6_addr));	/*XXX*/
 	pi->ipi6_ifindex = ifi->sdl->sdl_index;
 
@@ -275,13 +275,13 @@ rtsol_input(int s)
 		if (cm->cmsg_level == IPPROTO_IPV6 &&
 		    cm->cmsg_type == IPV6_PKTINFO &&
 		    cm->cmsg_len == CMSG_LEN(sizeof(struct in6_pktinfo))) {
-			pi = (struct in6_pktinfo *)(CMSG_DATA(cm));
+			pi = (struct in6_pktinfo *)(void *)(CMSG_DATA(cm));
 			ifindex = pi->ipi6_ifindex;
 		}
 		if (cm->cmsg_level == IPPROTO_IPV6 &&
 		    cm->cmsg_type == IPV6_HOPLIMIT &&
 		    cm->cmsg_len == CMSG_LEN(sizeof(int)))
-			hlimp = (int *)CMSG_DATA(cm);
+			hlimp = (int *)(void *)CMSG_DATA(cm);
 	}
 
 	if (ifindex == 0) {
@@ -417,7 +417,7 @@ rtsol_input(int s)
 				break;
 			}
 
-			addr = (struct in6_addr *)(raoptp + sizeof(*rdnss));
+			addr = (struct in6_addr *)(void *)(raoptp + sizeof(*rdnss));
 			while ((char *)addr < (char *)RA_OPT_NEXT_HDR(raoptp)) {
 				if (inet_ntop(AF_INET6, addr, ntopbuf,
 					sizeof(ntopbuf)) == NULL) {
