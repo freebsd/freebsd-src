@@ -472,15 +472,6 @@ ENTRY(cpu_switch)
 	ldr	r13, [r7, #(PCB_SP)]
 #endif
 
-	/* rem: r6 = lock */
-	/* rem: r7 = new pcb */
-
-#ifdef ARMFPE
-	add	r0, r7, #(USER_SIZE) & 0x00ff
-	add	r0, r0, #(USER_SIZE) & 0xff00
-	bl	_C_LABEL(arm_fpe_core_changecontext)
-#endif
-
 	/* rem: r5 = new lwp's proc */
 	/* rem: r6 = lock */
 	/* rem: r7 = new PCB */
