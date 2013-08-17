@@ -65,9 +65,6 @@ __FBSDID("$FreeBSD$");
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
-#ifdef FAST_FPE
-#include <sys/acct.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -89,9 +86,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static int gdb_trapper(u_int, u_int, struct trapframe *, int);
-#ifdef FAST_FPE
-extern int want_resched;
-#endif
 
 LIST_HEAD(, undefined_handler) undefined_handlers[MAX_COPROCS];
 
@@ -294,33 +288,5 @@ undefinedinstruction(trapframe_t *frame)
 			panic("Undefined instruction in kernel.\n");
 	}
 
-#ifdef FAST_FPE
-	/* Optimised exit code */
-	{
-
-		/*
-		 * Check for reschedule request, at the moment there is only
-		 * 1 ast so this code should always be run
-		 */
-
-		if (want_resched) {
-			/*
-			 * We are being preempted.
-			 */
-			preempt(0);
-		}
-
-		/* Invoke MI userret code */
-		mi_userret(td);
-
-#if 0
-		l->l_priority = l->l_usrpri;
-
-		curcpu()->ci_schedstate.spc_curpriority = l->l_priority;
-#endif
-	}
-
-#else
 	userret(td, frame);
-#endif
 }
