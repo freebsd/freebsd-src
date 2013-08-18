@@ -210,8 +210,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		m = ieee80211_ff_check(ni, m);
 		if (m == NULL) {
 			/* NB: any ni ref held on stageq */
-			/* XXX better status? */
-			return (ENOBUFS);
+			return (0);
 		}
 	}
 #endif /* IEEE80211_SUPPORT_SUPERG */
