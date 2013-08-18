@@ -38,14 +38,27 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysproto.h>
 
 #include <security/audit/audit.h>
 
+#include <compat/freebsd32/freebsd32_misc.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
 #ifdef CAPABILITIES
 
 MALLOC_DECLARE(M_FILECAPS);
+
+int
+freebsd32_cap_rights_limit(struct thread *td,
+    struct freebsd32_cap_rights_limit_args *uap)
+{
+	struct cap_rights_limit_args ap;
+
+	ap.fd = uap->fd;
+	ap.rights = PAIR32TO64(uint64_t, uap->rights);
+	return (sys_cap_rights_limit(td, &ap));
+}
 
 int
 freebsd32_cap_ioctls_limit(struct thread *td,
@@ -133,6 +146,14 @@ out:
 }
 
 #else /* !CAPABILITIES */
+
+int
+freebsd32_cap_rights_limit(struct thread *td,
+    struct freebsd32_cap_rights_limit_args *uap)
+{
+
+	return (ENOSYS);
+}
 
 int
 freebsd32_cap_ioctls_limit(struct thread *td,
