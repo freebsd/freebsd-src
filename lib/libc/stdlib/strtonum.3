@@ -97,7 +97,7 @@ int iterations;
 const char *errstr;
 
 iterations = strtonum(optarg, 1, 64, &errstr);
-if (errstr)
+if (errstr != NULL)
 	errx(1, "number of iterations is %s: %s", errstr, optarg);
 .Ed
 .Pp
