@@ -53,6 +53,7 @@
 #include <sys/rtprio.h>			/* XXX. */
 #include <sys/runq.h>
 #include <sys/resource.h>
+#include <sys/schedctl.h>
 #include <sys/sigio.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
@@ -275,6 +276,8 @@ struct thread {
 	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 	int		td_no_sleeping;	/* (k) Sleeping disabled count. */
 	int		td_dom_rr_idx;	/* (k) RR Numa domain selection. */
+	shstate_t	*td_schedctl;	/* (k) Schedctl informations. */
+	shstate_t	*td_usrschedctl;
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -546,6 +549,7 @@ struct proc {
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
+	SLIST_HEAD(, page_shared) p_shpg; /* List of shared pages, if any. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 

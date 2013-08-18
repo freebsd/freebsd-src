@@ -1815,6 +1815,9 @@ struct pipe2_args {
 struct aio_mlock_args {
 	char aiocbp_l_[PADL_(struct aiocb *)]; struct aiocb * aiocbp; char aiocbp_r_[PADR_(struct aiocb *)];
 };
+struct schedctl_args {
+	register_t dummy;
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2208,6 +2211,7 @@ int	sys_chflagsat(struct thread *, struct chflagsat_args *);
 int	sys_accept4(struct thread *, struct accept4_args *);
 int	sys_pipe2(struct thread *, struct pipe2_args *);
 int	sys_aio_mlock(struct thread *, struct aio_mlock_args *);
+int	sys_schedctl(struct thread *, struct schedctl_args *);
 
 #ifdef COMPAT_43
 
@@ -2915,6 +2919,7 @@ int	freebsd7_shmctl(struct thread *, struct freebsd7_shmctl_args *);
 #define	SYS_AUE_accept4	AUE_ACCEPT
 #define	SYS_AUE_pipe2	AUE_PIPE
 #define	SYS_AUE_aio_mlock	AUE_NULL
+#define	SYS_AUE_schedctl	AUE_NULL
 
 #undef PAD_
 #undef PADL_

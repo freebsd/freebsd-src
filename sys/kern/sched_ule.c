@@ -25,7 +25,7 @@
  */
 
 /*
- * This file implements the ULE scheduler.  ULE supports independent CPU
+ * This file implements the ULE Scheduler.  ULE supports independent CPU
  * run queues and fine grain locking.  It has superior interactive
  * performance under load even on uni-processor systems.
  *
@@ -1944,7 +1944,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (dtrace_vtime_active)
 			(*dtrace_vtime_switch_func)(newtd);
 #endif
-
+		if (td->td_schedctl != NULL)
+			td->td_schedctl->sh_state = STATE_OFFCPU;
 		cpu_switch(td, newtd, mtx);
 		/*
 		 * We may return from cpu_switch on a different cpu.  However,
@@ -1971,6 +1972,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED|MA_NOTRECURSED);
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 	td->td_oncpu = cpuid;
+	if (td->td_schedctl != NULL)
+		td->td_schedctl->sh_state = STATE_ONCPU;
 }
 
 /*

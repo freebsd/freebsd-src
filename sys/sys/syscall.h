@@ -463,4 +463,5 @@
 #define	SYS_accept4	541
 #define	SYS_pipe2	542
 #define	SYS_aio_mlock	543
-#define	SYS_MAXSYSCALL	544
+#define	SYS_schedctl	544
+#define	SYS_MAXSYSCALL	545

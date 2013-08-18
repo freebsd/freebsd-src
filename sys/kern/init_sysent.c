@@ -578,4 +578,5 @@ struct sysent sysent[] = {
 	{ AS(accept4_args), (sy_call_t *)sys_accept4, AUE_ACCEPT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 541 = accept4 */
 	{ AS(pipe2_args), (sy_call_t *)sys_pipe2, AUE_PIPE, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 542 = pipe2 */
 	{ AS(aio_mlock_args), (sy_call_t *)lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },	/* 543 = aio_mlock */
+	{ 0, (sy_call_t *)sys_schedctl, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 544 = schedctl */
 };

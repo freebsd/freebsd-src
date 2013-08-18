@@ -534,6 +534,7 @@ char	*mktemp(char *);
 #endif
 int	 nfssvc(int, void *);
 int	 nlm_syscall(int, int, int, char **);
+caddr_t	 schedctl(void);
 int	 pipe2(int *, int);
 int	 profil(char *, size_t, vm_offset_t, int);
 int	 rcmd(char **, int, const char *, const char *, const char *, int *);

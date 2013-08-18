@@ -411,4 +411,5 @@ MIASM =  \
 	chflagsat.o \
 	accept4.o \
 	pipe2.o \
-	aio_mlock.o
+	aio_mlock.o \
+	schedctl.o

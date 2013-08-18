@@ -551,4 +551,5 @@ const char *syscallnames[] = {
 	"accept4",			/* 541 = accept4 */
 	"pipe2",			/* 542 = pipe2 */
 	"aio_mlock",			/* 543 = aio_mlock */
+	"schedctl",			/* 544 = schedctl */
 };

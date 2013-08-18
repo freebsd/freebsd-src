@@ -978,5 +978,6 @@
 				    int flags); }
 542	AUE_PIPE	STD	{ int pipe2(int *fildes, int flags); }
 543	AUE_NULL	NOSTD	{ int aio_mlock(struct aiocb *aiocbp); }
+544	AUE_NULL	STD	{ caddr_t schedctl(void); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

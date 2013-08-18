@@ -2811,6 +2811,7 @@ kern/kern_rctl.c		standard
 kern/kern_resource.c		standard
 kern/kern_rmlock.c		standard
 kern/kern_rwlock.c		standard
+kern/kern_schedctl.c		standard
 kern/kern_sdt.c			optional kdtrace_hooks
 kern/kern_sema.c		standard
 kern/kern_sharedpage.c		standard
