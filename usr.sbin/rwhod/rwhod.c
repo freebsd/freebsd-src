@@ -337,8 +337,11 @@ verify(char *name, int maxlen)
 
 	size = 0;
 	while (*name != '\0' && size < maxlen - 1) {
-		if (!isascii(*name) || !(isalnum(*name) || ispunct(*name)))
+		if (!isascii((unsigned char)*name) ||
+		    !(isalnum((unsigned char)*name) ||
+		    ispunct((unsigned char)*name))) {
 			return (0);
+		}
 		name++;
 		size++;
 	}
