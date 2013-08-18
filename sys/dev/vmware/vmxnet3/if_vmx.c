@@ -1649,6 +1649,10 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	}
 	KASSERT(nsegs == 1,
 	    ("%s: mbuf %p with too many segments %d", __func__, m, nsegs));
+#if __FreeBSD_version < 902001
+	if (btype == VMXNET3_BTYPE_BODY)
+		m->m_flags &= ~M_PKTHDR;
+#endif
 
 	if (rxb->vrxb_m != NULL) {
 		bus_dmamap_sync(tag, rxb->vrxb_dmamap, BUS_DMASYNC_POSTREAD);
@@ -2098,7 +2102,7 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	struct ifnet *ifp;
 	struct vmxnet3_rxring *rxr;
 	struct vmxnet3_comp_ring *rxc;
-	int i, idx, frame_size, error;
+	int i, npopulate, idx, frame_size, error;
 
 	ifp = sc->vmx_ifp;
 	frame_size = ifp->if_mtu + sizeof(struct ether_vlan_header);
@@ -2106,22 +2110,30 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	/*
 	 * If the MTU causes us to exceed what a regular sized cluster
 	 * can handle, we allocate a second MJUMPAGESIZE cluster after
-	 * it in ring 0. Ring 1 always contains MJUMPAGESIZE clusters.
+	 * it in ring 0. If in use, ring 1 always contains MJUMPAGESIZE
+	 * clusters.
 	 *
 	 * Keep rx_max_chain a divisor of the maximum Rx ring size to
 	 * to make our life easier. We do not support changing the ring
 	 * size after the attach.
-	 *
-	 * TODO If LRO is not enabled, there is little point of even
-	 * populating the second ring.
-	 *
 	 */
 	if (frame_size <= MCLBYTES)
 		sc->vmx_rx_max_chain = 1;
 	else
 		sc->vmx_rx_max_chain = 2;
 
-	for (i = 0; i < VMXNET3_RXRINGS_PERQ; i++) {
+	/*
+	 * Only populate ring 1 if the configuration will take advantage
+	 * of it. That is either when LRO is enabled or the frame size
+	 * exceeds what ring 0 can contain.
+	 */
+	if ((ifp->if_capenable & IFCAP_LRO) == 0 &&
+	    frame_size <= MCLBYTES + MJUMPAGESIZE)
+		npopulate = 1;
+	else
+		npopulate = VMXNET3_RXRINGS_PERQ;
+
+	for (i = 0; i < npopulate; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
 		rxr->vxrxr_fill = 0;
 		rxr->vxrxr_gen = VMXNET3_INIT_GEN;
@@ -2135,11 +2147,19 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 		}
 	}
 
+	for (/**/; i < VMXNET3_RXRINGS_PERQ; i++) {
+		rxr = &rxq->vxrxq_cmd_ring[i];
+		rxr->vxrxr_fill = 0;
+		rxr->vxrxr_gen = 0;
+		bzero(rxr->vxrxr_rxd,
+		    rxr->vxrxr_ndesc * sizeof(struct vmxnet3_rxdesc));
+	}
+
 	rxc = &rxq->vxrxq_comp_ring;
 	rxc->vxcr_next = 0;
 	rxc->vxcr_gen = VMXNET3_INIT_GEN;
 	bzero(rxc->vxcr_u.rxcd,
-	     rxc->vxcr_ndesc * sizeof(struct vmxnet3_rxcompdesc));
+	    rxc->vxcr_ndesc * sizeof(struct vmxnet3_rxcompdesc));
 
 	return (0);
 }
@@ -3023,7 +3043,6 @@ vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
 		    "debug", CTLFLAG_RD, NULL, "");
 		list = SYSCTL_CHILDREN(node);
 
-		/* Assumes VMXNET3_RXRINGS_PERQ == 2. */
 		SYSCTL_ADD_UINT(ctx, list, OID_AUTO, "cmd0_fill", CTLFLAG_RD,
 		    &rxq->vxrxq_cmd_ring[0].vxrxr_fill, 0, "");
 		SYSCTL_ADD_UINT(ctx, list, OID_AUTO, "cmd0_ndesc", CTLFLAG_RD,
