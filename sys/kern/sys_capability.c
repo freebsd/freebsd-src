@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -328,31 +329,13 @@ cap_ioctl_limit_check(struct filedesc *fdp, int fd, const u_long *cmds,
 }
 
 int
-sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
+kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds, size_t ncmds)
 {
 	struct filedesc *fdp;
-	u_long *cmds, *ocmds;
-	size_t ncmds;
-	int error, fd;
-
-	fd = uap->fd;
-	ncmds = uap->ncmds;
+	u_long *ocmds;
+	int error;
 
 	AUDIT_ARG_FD(fd);
-
-	if (ncmds > 256)	/* XXX: Is 256 sane? */
-		return (EINVAL);
-
-	if (ncmds == 0) {
-		cmds = NULL;
-	} else {
-		cmds = malloc(sizeof(cmds[0]) * ncmds, M_FILECAPS, M_WAITOK);
-		error = copyin(uap->cmds, cmds, sizeof(cmds[0]) * ncmds);
-		if (error != 0) {
-			free(cmds, M_FILECAPS);
-			return (error);
-		}
-	}
 
 	fdp = td->td_proc->p_fd;
 	FILEDESC_XLOCK(fdp);
@@ -376,6 +359,32 @@ out:
 	FILEDESC_XUNLOCK(fdp);
 	free(cmds, M_FILECAPS);
 	return (error);
+}
+
+int
+sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
+{
+	u_long *cmds;
+	size_t ncmds;
+	int error;
+
+	ncmds = uap->ncmds;
+
+	if (ncmds > 256)	/* XXX: Is 256 sane? */
+		return (EINVAL);
+
+	if (ncmds == 0) {
+		cmds = NULL;
+	} else {
+		cmds = malloc(sizeof(cmds[0]) * ncmds, M_FILECAPS, M_WAITOK);
+		error = copyin(uap->cmds, cmds, sizeof(cmds[0]) * ncmds);
+		if (error != 0) {
+			free(cmds, M_FILECAPS);
+			return (error);
+		}
+	}
+
+	return (kern_cap_ioctls_limit(td, uap->fd, cmds, ncmds));
 }
 
 int
