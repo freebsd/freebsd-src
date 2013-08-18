@@ -288,8 +288,8 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 	__typeof__(expected) __ep = (expected);				\
 	__typeof__(*__ep) __e = *__ep;					\
 	(void)(success); (void)(failure);				\
-	(*__ep = __sync_val_compare_and_swap(&(object)->__val,		\
-	    __e, desired)) == __e;					\
+	(_Bool)((*__ep = __sync_val_compare_and_swap(&(object)->__val,	\
+	    __e, desired)) == __e);					\
 })
 #define	atomic_compare_exchange_weak_explicit(object, expected,		\
     desired, success, failure)						\
