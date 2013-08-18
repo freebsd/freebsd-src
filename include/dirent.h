@@ -79,6 +79,7 @@ int	 dirfd(DIR *);
 #endif
 #if __BSD_VISIBLE
 DIR	*__opendir2(const char *, int);
+int	 fdclosedir(DIR *);
 int	 getdents(int, char *, int);
 int	 getdirentries(int, char *, int, long *);
 #endif
