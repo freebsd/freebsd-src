@@ -2046,7 +2046,7 @@ sys_kmq_open(struct thread *td, struct kmq_open_args *uap)
 	struct mq_attr attr;
 	int flags, error;
 
-	if ((uap->flags & O_ACCMODE) == O_ACCMODE)
+	if ((uap->flags & O_ACCMODE) == O_ACCMODE || uap->flags & O_EXEC)
 		return (EINVAL);
 	flags = FFLAGS(uap->flags);
 	if ((flags & O_CREAT) != 0 && uap->attr != NULL) {
@@ -2682,7 +2682,7 @@ freebsd32_kmq_open(struct thread *td, struct freebsd32_kmq_open_args *uap)
 	struct mq_attr32 attr32;
 	int flags, error;
 
-	if ((uap->flags & O_ACCMODE) == O_ACCMODE)
+	if ((uap->flags & O_ACCMODE) == O_ACCMODE || uap->flags & O_EXEC)
 		return (EINVAL);
 	flags = FFLAGS(uap->flags);
 	if ((flags & O_CREAT) != 0 && uap->attr != NULL) {
