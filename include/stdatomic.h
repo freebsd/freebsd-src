@@ -54,9 +54,7 @@
 #define	atomic_init(obj, value)		__c11_atomic_init(obj, value)
 #else
 #define	ATOMIC_VAR_INIT(value)		{ .__val = (value) }
-#define	atomic_init(obj, value) do {					\
-	(obj)->__val = (value);						\
-} while (0)
+#define	atomic_init(obj, value)		((void)((obj)->__val = (value)))
 #endif
 
 /*
@@ -111,23 +109,24 @@ enum memory_order {
 #define	atomic_thread_fence(order)	__atomic_thread_fence(order)
 #define	atomic_signal_fence(order)	__atomic_signal_fence(order)
 #else
-#define	atomic_thread_fence(order)	__sync_synchronize()
-#define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory")
+#define	atomic_thread_fence(order)	((void)(order), __sync_synchronize())
+#define	atomic_signal_fence(order)	__extension__ ({		\
+	(void)(order);							\
+	__asm volatile ("" ::: "memory");				\
+	(void)0;							\
+})
 #endif
 
 /*
  * 7.17.5 Lock-free property.
  */
 
-#if defined(__CLANG_ATOMICS)
+#if defined(__CLANG_ATOMICS) || defined(__GNUC_ATOMICS)
 #define	atomic_is_lock_free(obj) \
-	__c11_atomic_is_lock_free(sizeof(obj))
-#elif defined(__GNUC_ATOMICS)
-#define	atomic_is_lock_free(obj) \
-	__atomic_is_lock_free(sizeof((obj)->__val))
+	__atomic_is_lock_free(sizeof((obj)->__val), &(obj)->val)
 #else
 #define	atomic_is_lock_free(obj) \
-	(sizeof((obj)->__val) <= sizeof(void *))
+	((void)(obj), sizeof((obj)->__val) <= sizeof(void *))
 #endif
 
 /*
@@ -234,13 +233,17 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 	__atomic_store_n(&(object)->__val, desired, order)
 #else
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
-    desired, success, failure) ({					\
+    desired, success, failure)	__extension__ ({			\
 	__typeof__((object)->__val) __v;				\
+	__typeof__(expected) __e;					\
 	_Bool __r;							\
+	__e = (expected);						\
+	(void)(success);						\
+	(void)(failure);						\
 	__v = __sync_val_compare_and_swap(&(object)->__val,		\
-	    *(expected), desired);					\
-	__r = *(expected) == __v;					\
-	*(expected) = __v;						\
+	    *__e, (desired));						\
+	__r = (*__e == __v);						\
+	*__e = __v;							\
 	__r;								\
 })
 
@@ -250,19 +253,21 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 		desired, success, failure)
 #if __has_builtin(__sync_swap)
 /* Clang provides a full-barrier atomic exchange - use it if available. */
-#define atomic_exchange_explicit(object, desired, order)		\
-	__sync_swap(&(object)->__val, desired)
+#define	atomic_exchange_explicit(object, desired, order)		\
+	((void)(order), __sync_swap(&(object)->__val, desired))
 #else
 /*
  * __sync_lock_test_and_set() is only an acquire barrier in theory (although in
- * practice it is usually a full barrier) so we need an explicit barrier after
+ * practice it is usually a full barrier) so we need an explicit barrier before
  * it.
  */
-#define	atomic_exchange_explicit(object, desired, order) ({		\
-	__typeof__((object)->__val) __v;				\
-	__v = __sync_lock_test_and_set(&(object)->__val, desired);	\
+#define	atomic_exchange_explicit(object, desired, order)		\
+__extension__ ({							\
+	__typeof__(object) __o = (object);				\
+	__typeof__(desired) __d = (desired);				\
+	(void)(order);							\
 	__sync_synchronize();						\
-	__v;								\
+	__sync_lock_test_and_set(&(__o)->__val, __d);			\
 })
 #endif
 #define	atomic_fetch_add_explicit(object, operand, order)		\
@@ -277,11 +282,14 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 	__sync_fetch_and_xor(&(object)->__val, operand)
 #define	atomic_load_explicit(object, order)				\
 	__sync_fetch_and_add(&(object)->__val, 0)
-#define	atomic_store_explicit(object, desired, order) do {		\
+#define	atomic_store_explicit(object, desired, order) __extension__ ({	\
+	__typeof__(object) __o = (object);				\
+	__typeof__(desired) __d = (desired);				\
+	(void)(order);							\
 	__sync_synchronize();						\
-	(object)->__val = (desired);					\
+	__o->__val = __d;						\
 	__sync_synchronize();						\
-} while (0)
+})
 #endif
 
 /*
