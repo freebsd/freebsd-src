@@ -384,7 +384,7 @@ FBSD_1.3 {
 	clock_getcpuclockid;
 	dirfd;
 	dup3;
-	 fdlopen;
+	fdlopen;
 	__FreeBSD_libc_enter_restricted_mode;
 	getcontextx;
 	gid_from_group;
