@@ -1959,6 +1959,9 @@ pmap_release(pmap_t pmap)
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
+	rw_wlock(&pvh_global_lock);
+	rw_wunlock(&pvh_global_lock);
+
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
 
 	for (i = 0; i < NKPML4E; i++)	/* KVA */
