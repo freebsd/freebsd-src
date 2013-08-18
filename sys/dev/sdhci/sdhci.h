@@ -57,6 +57,8 @@
 #define	SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<11)
 /* SDHCI_CAPABILITIES is invalid */
 #define	SDHCI_QUIRK_MISSING_CAPS			(1<<12)
+/* Hardware shifts the 136-bit response, don't do it in software. */
+#define	SDHCI_QUIRK_DONT_SHIFT_RESPONSE			(1<<13)
 
 /*
  * Controller registers
