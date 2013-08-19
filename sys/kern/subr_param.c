@@ -287,26 +287,40 @@ init_param2(long physpages)
 		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 			maxusers = 32;
-		if (maxusers > 384)
-			maxusers = 384;
-	}
+#ifdef VM_MAX_AUTOTUNE_MAXUSERS
+                if (maxusers > VM_MAX_AUTOTUNE_MAXUSERS)
+                        maxusers = VM_MAX_AUTOTUNE_MAXUSERS;
+#endif
+                /*
+                 * Scales down the function in which maxusers grows once
+                 * we hit 384.
+                 */
+                if (maxusers > 384)
+                        maxusers = 384 + ((maxusers - 384) / 8);
+        }
 
 	/*
 	 * The following can be overridden after boot via sysctl.  Note:
 	 * unless overriden, these macros are ultimately based on maxusers.
-	 */
-	maxproc = NPROC;
-	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
-	/*
 	 * Limit maxproc so that kmap entries cannot be exhausted by
 	 * processes.
 	 */
+	maxproc = NPROC;
+	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
 	if (maxproc > (physpages / 12))
 		maxproc = physpages / 12;
-	maxfiles = MAXFILES;
-	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
 	maxprocperuid = (maxproc * 9) / 10;
-	maxfilesperproc = (maxfiles * 9) / 10;
+
+	/*
+	 * The default limit for maxfiles is 1/12 of the number of
+	 * physical page but not less than 16 times maxusers.
+	 * At most it can be 1/6 the number of physical pages.
+	 */
+	maxfiles = imax(MAXFILES, physpages / 8);
+	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
+	if (maxfiles > (physpages / 4))
+		maxfiles = physpages / 4;
+	maxfilesperproc = (maxfiles / 10) * 9;
 	
 	/*
 	 * Cannot be changed after boot.
@@ -315,7 +329,13 @@ init_param2(long physpages)
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
 	TUNABLE_INT_FETCH("kern.bio_transient_maxcnt", &bio_transient_maxcnt);
 
-	ncallout = 16 + maxproc + maxfiles;
+	/*
+	 * XXX: Does the callout wheel have to be so big?
+	 *
+	 * Clip callout to result of previous function of maxusers maximum
+	 * 384.  This is still huge, but acceptable.
+	 */
+	ncallout = imin(16 + maxproc + maxfiles, 18508);
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 
 	/*
@@ -323,12 +343,12 @@ init_param2(long physpages)
 	 * max(1/64 of main memory, 512KB)).  See sys_pipe.c for more details.
 	 */
 	maxpipekva = (physpages / 64) * PAGE_SIZE;
+	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
 	if (maxpipekva > (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / 64)
 		maxpipekva = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) /
 		    64;
-	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
 
 /*
