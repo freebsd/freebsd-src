@@ -121,7 +121,9 @@ struct	pv_chunk;
 struct	md_page {
 	int pvh_attrs;
 	vm_memattr_t	 pv_memattr;
+#if (ARM_MMU_V6 + ARM_MMU_V7) == 0
 	vm_offset_t pv_kva;		/* first kernel VA mapping */
+#endif
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 

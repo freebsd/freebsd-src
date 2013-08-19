@@ -4365,6 +4365,6 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * uncacheable, being careful to sync caches and PTEs (and maybe
 	 * invalidate TLB?) for any current mapping it modifies.
 	 */
-	if (m->md.pv_kva != 0 || TAILQ_FIRST(&m->md.pv_list) != NULL)
+	if (TAILQ_FIRST(&m->md.pv_list) != NULL)
 		panic("Can't change memattr on page with existing mappings");
 }
