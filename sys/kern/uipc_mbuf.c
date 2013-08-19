@@ -278,17 +278,10 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 void
 mb_free_ext(struct mbuf *m)
 {
-	int skipmbuf;
 	
 	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
 	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
 
-
-	/*
-	 * check if the header is embedded in the cluster
-	 */     
-	skipmbuf = (m->m_flags & M_NOFREE);
-	
 	/* Free attached storage if this mbuf is the only reference to it. */
 	if (*(m->m_ext.ref_cnt) == 1 ||
 	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 1) {
@@ -329,8 +322,6 @@ mb_free_ext(struct mbuf *m)
 				("%s: unknown ext_type", __func__));
 		}
 	}
-	if (skipmbuf)
-		return;
 	
 	/*
 	 * Free this mbuf back to the mbuf zone with all m_ext
@@ -395,7 +386,7 @@ m_demote(struct mbuf *m0, int all)
 			m_freem(m->m_nextpkt);
 			m->m_nextpkt = NULL;
 		}
-		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_NOFREE);
+		m->m_flags = m->m_flags & (M_EXT|M_RDONLY);
 	}
 }
 
