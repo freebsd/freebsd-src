@@ -200,7 +200,7 @@ struct mbuf {
 		     /*	0x00008000    free */
 #define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
 #define	M_PROMISC	0x00020000 /* packet was not for us */
-#define	M_NOFREE	0x00040000 /* do not free mbuf, embedded in cluster */
+		     /*	0x00040000    free */
 #define	M_PROTO6	0x00080000 /* protocol-specific */
 #define	M_PROTO7	0x00100000 /* protocol-specific */
 #define	M_PROTO8	0x00200000 /* protocol-specific */
@@ -515,7 +515,7 @@ m_free(struct mbuf *m)
 
 	if (m->m_flags & M_EXT)
 		mb_free_ext(m);
-	else if ((m->m_flags & M_NOFREE) == 0)
+	else
 		uma_zfree(zone_mbuf, m);
 	return (n);
 }
