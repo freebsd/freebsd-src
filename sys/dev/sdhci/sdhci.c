@@ -350,7 +350,7 @@ sdhci_read_block_pio(struct sdhci_slot *slot)
 	/* If we are too fast, broken controllers return zeroes. */
 	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMINGS)
 		DELAY(10);
-	/* Handle unalligned and alligned buffer cases. */
+	/* Handle unaligned and aligned buffer cases. */
 	if ((intptr_t)buffer & 3) {
 		while (left > 3) {
 			data = RD4(slot, SDHCI_BUFFER);
@@ -390,7 +390,7 @@ sdhci_write_block_pio(struct sdhci_slot *slot)
 	left = min(512, slot->curcmd->data->len - slot->offset);
 	slot->offset += left;
 
-	/* Handle unalligned and alligned buffer cases. */
+	/* Handle unaligned and aligned buffer cases. */
 	if ((intptr_t)buffer & 3) {
 		while (left > 3) {
 			data = buffer[0] +
@@ -911,11 +911,14 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	/* Load DMA buffer. */
 	if (slot->flags & SDHCI_USE_DMA) {
 		if (data->flags & MMC_DATA_READ)
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_PREREAD);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_PREREAD);
 		else {
 			memcpy(slot->dmamem, data->data,
-			    (data->len < DMA_BLOCK_SIZE)?data->len:DMA_BLOCK_SIZE);
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_PREWRITE);
+			    (data->len < DMA_BLOCK_SIZE) ? 
+			    data->len : DMA_BLOCK_SIZE);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_PREWRITE);
 		}
 		WR4(slot, SDHCI_DMA_ADDRESS, slot->paddr);
 		/* Interrupt aggregation: Mask border interrupt
@@ -942,7 +945,7 @@ sdhci_finish_data(struct sdhci_slot *slot)
 
 	slot->data_done = 1;
 	/* Interrupt aggregation: Restore command interrupt.
-	 * Auxillary restore point for the case when data interrupt
+	 * Auxiliary restore point for the case when data interrupt
 	 * happened first. */
 	if (!slot->cmd_done) {
 		WR4(slot, SDHCI_SIGNAL_ENABLE,
@@ -952,11 +955,13 @@ sdhci_finish_data(struct sdhci_slot *slot)
 	if (slot->flags & SDHCI_USE_DMA) {
 		if (data->flags & MMC_DATA_READ) {
 			size_t left = data->len - slot->offset;
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_POSTREAD);
 			memcpy((u_char*)data->data + slot->offset, slot->dmamem,
 			    (left < DMA_BLOCK_SIZE)?left:DMA_BLOCK_SIZE);
 		} else
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_POSTWRITE);
 	}
 	/* If there was error - reset the host. */
 	if (slot->curcmd->error) {
