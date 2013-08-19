@@ -45,7 +45,8 @@ enum vm_mmap_style {
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
 void	vm_destroy(struct vmctx *ctx);
-int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len);
+int	vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len,
+			  int *wired);
 int	vm_setup_memory(struct vmctx *ctx, size_t len, enum vm_mmap_style s);
 void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);

@@ -36,7 +36,8 @@ int	vmmdev_cleanup(void);
 
 struct vm_memory_segment {
 	vm_paddr_t	gpa;	/* in */
-	size_t		len;	/* in */
+	size_t		len;
+	int		wired;
 };
 
 struct vm_register {

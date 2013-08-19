@@ -391,6 +391,7 @@ main(int argc, char *argv[])
 	struct vm_exit vmexit;
 	uint64_t ctl, eptp, bm, addr, u64, pteval[4], *pte;
 	struct vmctx *ctx;
+	int wired;
 
 	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer, pat;
 	uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp;
@@ -826,16 +827,18 @@ main(int argc, char *argv[])
 
 	if (!error && (get_lowmem || get_all)) {
 		gpa = 0;
-		error = vm_get_memory_seg(ctx, gpa, &len);
+		error = vm_get_memory_seg(ctx, gpa, &len, &wired);
 		if (error == 0)
-			printf("lowmem\t\t0x%016lx/%ld\n", gpa, len);
+			printf("lowmem\t\t0x%016lx/%ld%s\n", gpa, len,
+			    wired ? " wired" : "");
 	}
 
 	if (!error && (get_highmem || get_all)) {
 		gpa = 4 * GB;
-		error = vm_get_memory_seg(ctx, gpa, &len);
+		error = vm_get_memory_seg(ctx, gpa, &len, &wired);
 		if (error == 0)
-			printf("highmem\t\t0x%016lx/%ld\n", gpa, len);
+			printf("highmem\t\t0x%016lx/%ld%s\n", gpa, len,
+			    wired ? " wired" : "");
 	}
 
 	if (!error && (get_efer || get_all)) {

@@ -124,7 +124,8 @@ vm_destroy(struct vmctx *vm)
 }
 
 int
-vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
+vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len,
+		  int *wired)
 {
 	int error;
 	struct vm_memory_segment seg;
@@ -133,6 +134,8 @@ vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
 	seg.gpa = gpa;
 	error = ioctl(ctx->fd, VM_GET_MEMORY_SEG, &seg);
 	*ret_len = seg.len;
+	if (wired != NULL)
+		*wired = seg.wired;
 	return (error);
 }
 
