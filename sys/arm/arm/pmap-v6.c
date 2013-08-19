@@ -1046,7 +1046,7 @@ static void
 pmap_set_prot(pt_entry_t *ptep, vm_prot_t prot, uint8_t user)
 {
 
-	*ptep &= ~L2_S_PROT_MASK;
+	*ptep &= ~(L2_S_PROT_MASK | L2_XN);
 
 	if (!(prot & VM_PROT_EXECUTE))
 		*ptep |= L2_XN;
