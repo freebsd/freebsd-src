@@ -196,7 +196,7 @@ struct mbuf {
 #define	M_FRAG		0x00000800 /* packet is a fragment of a larger packet */
 #define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
 #define	M_LASTFRAG	0x00002000 /* packet is last fragment */
-#define	M_SKIP_FIREWALL	0x00004000 /* skip firewall processing */
+		     /*	0x00004000    free */
 		     /*	0x00008000    free */
 #define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
 #define	M_PROMISC	0x00020000 /* packet was not for us */
@@ -253,7 +253,7 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define	M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
+    (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_BCAST|M_MCAST|\
      M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_HASHTYPEBITS)
 
 /*
