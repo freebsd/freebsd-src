@@ -429,6 +429,11 @@ typedef struct rtentry sctp_rtentry_t;
 #define SCTP_ZERO_COPY_SENDQ_EVENT(inp, so)
 
 /*
+ * SCTP protocol specific mbuf flags.
+ */
+#define	M_NOTIFICATION		M_PROTO5	/* SCTP notification */
+
+/*
  * IP output routines
  */
 #define SCTP_IP_OUTPUT(result, o_pak, ro, stcb, vrf_id) \

@@ -207,8 +207,6 @@ struct mbuf {
 #define	M_FLOWID	0x00400000 /* deprecated: flowid is valid */
 #define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
 
-#define	M_NOTIFICATION	M_PROTO5    /* SCTP notification */
-
 /*
  * Flags to purge when crossing layers.
  */
