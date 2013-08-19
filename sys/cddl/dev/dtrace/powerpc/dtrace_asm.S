@@ -50,6 +50,7 @@
 void dtrace_membar_producer(void)
 */
 ASENTRY_NOPROF(dtrace_membar_producer)
+	sync
 	blr
 END(dtrace_membar_producer)
 
@@ -57,6 +58,7 @@ END(dtrace_membar_producer)
 void dtrace_membar_consumer(void)
 */
 ASENTRY_NOPROF(dtrace_membar_consumer)
+	isync
 	blr
 END(dtrace_membar_consumer)
 
@@ -97,12 +99,21 @@ void *
 dtrace_casptr(void *target, void *cmp, void *new)
 */
 ASENTRY_NOPROF(dtrace_casptr)
+#ifdef __powerpc64__
+1:
+	ldarx	%r0,0,%r3
+	cmpd	%r4,%r0
+	bne	2f
+	stdcx.	%r5,0,%r3
+	bne	1b
+#else
 1:
 	lwarx	%r0,0,%r3
 	cmpw	%r4,%r0
 	bne	2f
 	stwcx.	%r5,0,%r3
 	bne	1b
+#endif
 2:	mr	%r3,%r0
 	blr
 END(dtrace_casptr)
