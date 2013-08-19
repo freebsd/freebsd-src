@@ -784,7 +784,7 @@ smart_frag_failure:
 			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
-		m->m_flags |= (m0->m_flags & M_MCAST) | M_FRAG;
+		m->m_flags |= (m0->m_flags & M_MCAST);
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload
@@ -801,10 +801,9 @@ smart_frag_failure:
 		m->m_len = mhlen;
 		/* XXX do we need to add ip_off below ? */
 		mhip->ip_off = ((off - hlen) >> 3) + ip_off;
-		if (off + len >= ip_len) {	/* last fragment */
+		if (off + len >= ip_len)
 			len = ip_len - off;
-			m->m_flags |= M_LASTFRAG;
-		} else
+		else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
 		m->m_next = m_copym(m0, off, len, M_NOWAIT);
@@ -830,10 +829,6 @@ smart_frag_failure:
 		mnext = &m->m_nextpkt;
 	}
 	IPSTAT_ADD(ips_ofragments, nfrags);
-
-	/* set first marker for fragment chain */
-	m0->m_flags |= M_FIRSTFRAG | M_FRAG;
-	m0->m_pkthdr.csum_data = nfrags;
 
 	/*
 	 * Update first fragment by trimming what's been copied out
