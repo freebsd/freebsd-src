@@ -416,6 +416,7 @@ thread_exit(void)
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
 	umtx_thread_exit(td);
+	schedctl_thread_exit(td);
 	/*
 	 * drop FPU & debug register state storage, or any other
 	 * architecture specific resources that

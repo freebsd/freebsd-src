@@ -58,6 +58,7 @@ static size_t	bitmap_len;		/* # of bits in allocation bitmap */
  * Public prototypes.
  */
 int	schedctl(struct thread *td, struct schedctl_args *uap);
+void	schedctl_thread_exit(struct thread *td);
 
 static int
 schedctl_alloc_page(struct proc *p, shpage_t **ret)
@@ -82,9 +83,9 @@ schedctl_alloc_page(struct proc *p, shpage_t **ret)
 	pmap_qenter(spg->pageaddr, &m, 1);
 
 	/* Map in userspace */
-	PROC_LOCK(p);
+	PROC_SLOCK(p);
 	SLIST_INSERT_HEAD(&(p->p_shpg), spg, pg_next);
-	PROC_UNLOCK(p);
+	PROC_SUNLOCK(p);
 	map = &p->p_vmspace->vm_map;
 	vm_object_reference(spg->shared_page_obj);
 
@@ -126,6 +127,7 @@ schedctl_shared_alloc(struct thread *td, vm_offset_t *usroff,
 	sh_pg = NULL;
 	p = curproc;
 	KASSERT(p != NULL, ("proc should never be NULL"));
+	PROC_SLOCK(p);
 	if (!SLIST_EMPTY(&(p->p_shpg))) {
 
 		/*
@@ -140,9 +142,11 @@ schedctl_shared_alloc(struct thread *td, vm_offset_t *usroff,
 		}
 	}
 	if (sh_pg == NULL) {
+		PROC_SUNLOCK(p);
 		error = schedctl_alloc_page(p, &sh_pg);
 		if (error != 0)
 			return (ENOMEM);
+		PROC_SLOCK(p);
 	}
 
 	/* Now were's (mostly) sure there's room for allocation. */
@@ -152,6 +156,7 @@ schedctl_shared_alloc(struct thread *td, vm_offset_t *usroff,
 	KASSERT(idx != -1, ("schedctl_page_alloc: invalid bitmap index"));
 	*usroff = sh_pg->usraddr + (sizeof(shstate_t) * idx);
 	*krnoff = sh_pg->pageaddr + (sizeof(shstate_t) * idx);
+	PROC_SUNLOCK(p);
 	return (0);
 }
 
@@ -187,6 +192,43 @@ schedctl_init(void)
 	bitmap_len = avail_pagesize / sizeof(shstate_t);
 	shpage_zone = uma_zcreate("schedctl structures", sizeof(shpage_t), NULL,
 	    NULL, NULL, NULL, 0, 0);
+}
+
+/*
+ * thread_exit() hook.
+ */
+void
+schedctl_thread_exit(struct thread *td)
+{
+	struct proc *p;
+	shpage_t *sh_pg;
+	vm_offset_t end, shptr, start;
+	int idx;
+
+	if (td->td_schedctl == NULL)
+		return;
+	p = td->td_proc;
+	shptr = (vm_offset_t)td->td_schedctl;
+	SLIST_FOREACH(sh_pg, &(p->p_shpg), pg_next) {
+		start = (vm_offset_t)sh_pg->pageaddr;
+		end = (vm_offset_t)start + PAGE_SIZE;
+		if ((shptr >= start) && (shptr < end))
+			break;
+	}
+	KASSERT(sh_pg != NULL, ("schedctl_thread_exit: can't find shpage_t"));
+	idx = 0;
+	while (start <= end) {
+		if (shptr == start)
+			break;
+		start += sizeof(shstate_t);
+		idx++;
+	}
+	KASSERT(idx <= bitmap_len, ("schedctl_thread_exit: invalid bmp idx"));
+	setbit(&(sh_pg->bitmap), idx);	
+	sh_pg->available++;
+	td->td_schedctl->sh_state = STATE_FREE;
+	td->td_schedctl = NULL;
+	td->td_usrschedctl = NULL;
 }
 
 /*

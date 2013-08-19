@@ -66,7 +66,7 @@ typedef struct page_shared shpage_t;
  * Function prototypes.
  */
 void	schedctl_init(void);
-void	schedctl_thread_cleanup(struct thread *);
-void	schedctl_proc_cleanup(void);
+void	schedctl_thread_exit(struct thread *);
+void	schedctl_proc_exit(void);
 
 #endif /* _SYS_SCHEDCTL_H_ */
