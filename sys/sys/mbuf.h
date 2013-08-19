@@ -193,9 +193,9 @@ struct mbuf {
 #define	M_PROTO5	0x00000100 /* protocol-specific */
 #define	M_BCAST		0x00000200 /* send/received as link-level broadcast */
 #define	M_MCAST		0x00000400 /* send/received as link-level multicast */
-#define	M_FRAG		0x00000800 /* packet is a fragment of a larger packet */
-#define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
-#define	M_LASTFRAG	0x00002000 /* packet is last fragment */
+		     /*	0x00000800    free */
+		     /*	0x00001000    free */
+		     /*	0x00002000    free */
 #define	M_PROTO9	0x00004000 /* protocol-specific */
 #define	M_PROTO10	0x00008000 /* protocol-specific */
 #define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
@@ -254,7 +254,7 @@ struct mbuf {
  */
 #define	M_COPYFLAGS \
     (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_BCAST|M_MCAST|\
-     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_HASHTYPEBITS)
+     M_VLANTAG|M_PROMISC|M_HASHTYPEBITS)
 
 /*
  * External buffer types: identify ext_buf type.
