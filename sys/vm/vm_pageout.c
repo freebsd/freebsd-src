@@ -159,6 +159,8 @@ static int vm_max_launder = 32;
 static int vm_pageout_update_period;
 static int defer_swap_pageouts;
 static int disable_swap_pageouts;
+static int lowmem_period = 10;
+static int lowmem_ticks;
 
 #if defined(NO_SWAPPING)
 static int vm_swap_enabled = 0;
@@ -179,6 +181,9 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RW, &vm_pageout_update_period, 0,
 	"Maximum active LRU update period");
   
+SYSCTL_INT(_vm, OID_AUTO, lowmem_period, CTLFLAG_RW, &lowmem_period, 0,
+	"Low memory callback period");
+
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
 	CTLFLAG_RD, &vm_swap_enabled, 0, "Enable entire process swapout");
@@ -901,9 +906,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
-	 * some.
+	 * some.  We rate limit to avoid thrashing.
 	 */
-	if (pass > 0) {
+	if (vmd == &vm_dom[0] && pass > 0 &&
+	    lowmem_ticks + (lowmem_period * hz) < ticks) {
 		/*
 		 * Decrease registered cache sizes.
 		 */
@@ -913,6 +919,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * drained above.
 		 */
 		uma_reclaim();
+		lowmem_ticks = ticks;
 	}
 
 	/*
@@ -1680,10 +1687,11 @@ vm_pageout(void)
 
 	/*
 	 * Set interval in seconds for active scan.  We want to visit each
-	 * page at least once a minute.
+	 * page at least once every ten minutes.  This is to prevent worst
+	 * case paging behaviors with stale active LRU.
 	 */
 	if (vm_pageout_update_period == 0)
-		vm_pageout_update_period = 60;
+		vm_pageout_update_period = 600;
 
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
