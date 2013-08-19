@@ -2932,7 +2932,8 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 	pte = *ptep;
 	m = PHYS_TO_VM_PAGE(l2pte_pa(pte));
 	if (m != NULL)
-		pmap_modify_pv(m, pmap, va, PVF_WIRED, wired);
+		pmap_modify_pv(m, pmap, va, PVF_WIRED,
+		    wired == TRUE ? PVF_WIRED : 0);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 }
