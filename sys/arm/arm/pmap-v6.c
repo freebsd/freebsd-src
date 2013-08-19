@@ -900,9 +900,6 @@ pmap_clearbit(struct vm_page *m, u_int maskbits)
 
 	rw_wlock(&pvh_global_lock);
 
-	if (maskbits & PVF_WRITE)
-		maskbits |= PVF_MOD;
-
 	if (TAILQ_EMPTY(&m->md.pv_list)) {
 		rw_wunlock(&pvh_global_lock);
 		return (0);
@@ -924,14 +921,12 @@ pmap_clearbit(struct vm_page *m, u_int maskbits)
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		npte = opte = *ptep;
 
-		if ((maskbits & (PVF_WRITE|PVF_MOD)) && L2_S_WRITABLE(opte)) {
-			vm_page_dirty(m);
-
+		if (maskbits & (PVF_WRITE | PVF_MOD)) {
 			/* make the pte read only */
 			npte |= L2_APX;
 		}
 
-		if ((maskbits & PVF_REF) && L2_S_REFERENCED(opte)) {
+		if (maskbits & PVF_REF) {
 			/*
 			 * Clear referenced flag in PTE so that we
 			 * will take a flag fault the next time the mapping
