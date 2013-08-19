@@ -355,7 +355,8 @@ hostap_deliver_data(struct ieee80211vap *vap,
 	struct ifnet *ifp = vap->iv_ifp;
 
 	/* clear driver/net80211 flags before passing up */
-	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+	m->m_flags &= ~(M_MCAST | M_BCAST);
+	m_clrprotoflags(m);
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP,
 	    ("gack, opmode %d", vap->iv_opmode));

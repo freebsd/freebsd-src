@@ -621,7 +621,7 @@ passout:
 		 * Reset layer specific mbuf flags
 		 * to avoid confusing lower layers.
 		 */
-		m->m_flags &= ~(M_PROTOFLAGS);
+		m_clrprotoflags(m);
 		error = (*ifp->if_output)(ifp, m,
 		    (const struct sockaddr *)gw, ro);
 		goto done;
@@ -654,7 +654,7 @@ passout:
 			 * Reset layer specific mbuf flags
 			 * to avoid confusing upper layers.
 			 */
-			m->m_flags &= ~(M_PROTOFLAGS);
+			m_clrprotoflags(m);
 
 			error = (*ifp->if_output)(ifp, m,
 			    (const struct sockaddr *)gw, ro);
