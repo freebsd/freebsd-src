@@ -758,6 +758,7 @@ vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int type)
 	bt_t *btfree;
 
 	MPASS(type == BT_TYPE_SPAN || type == BT_TYPE_SPAN_STATIC);
+	MPASS((size & vm->vm_quantum_mask) == 0);
 
 	btspan = bt_alloc(vm);
 	btspan->bt_type = type;
@@ -805,7 +806,7 @@ vmem_destroy1(vmem_t *vm)
 }
 
 static int
-vmem_import(vmem_t *vm, vmem_size_t size, int flags)
+vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 {
 	vmem_addr_t addr;
 	int error;
@@ -813,6 +814,12 @@ vmem_import(vmem_t *vm, vmem_size_t size, int flags)
 	if (vm->vm_importfn == NULL)
 		return EINVAL;
 
+	/*
+	 * To make sure we get a span that meets the alignment we double it
+	 * and add the size to the tail.  This slightly overestimates.
+	 */
+	if (align != vm->vm_quantum_mask + 1)
+		size = (align * 2) + size;
 	size = roundup(size, vm->vm_import_quantum);
 
 	/*
@@ -1157,7 +1164,7 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 		 * imported region.  It is up to the user to specify the
 		 * import quantum such that it can satisfy any allocation.
 		 */
-		if (vmem_import(vm, size, flags) == 0)
+		if (vmem_import(vm, size, align, flags) == 0)
 			continue;
 
 		/*
