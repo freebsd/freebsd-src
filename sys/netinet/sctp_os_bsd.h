@@ -431,7 +431,7 @@ typedef struct rtentry sctp_rtentry_t;
 /*
  * SCTP protocol specific mbuf flags.
  */
-#define	M_NOTIFICATION		M_PROTO5	/* SCTP notification */
+#define	M_NOTIFICATION		M_PROTO1	/* SCTP notification */
 
 /*
  * IP output routines
