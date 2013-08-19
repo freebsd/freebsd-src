@@ -167,6 +167,7 @@ void	kmod_ipstat_dec(int statnum);
  */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
 #define	M_IP_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
+#define	M_IP_FRAG		M_PROTO4	/* fragment reassembly */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1
