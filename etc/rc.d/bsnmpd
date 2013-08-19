@@ -12,7 +12,17 @@
 name="bsnmpd"
 rcvar="bsnmpd_enable"
 command="/usr/sbin/${name}"
-pidfile="/var/run/snmpd.pid"
+start_cmd="bsnmpd_start"
+
+bsnmpd_start()
+{
+	rc_flags="-p ${pidfile} ${bsnmpd_flags}"
+	echo -n "Starting bsnmpd"
+	su -m $user -c "$command ${rc_flags}"
+	echo "."
+}
 
 load_rc_config $name
+user="${bsnmpd_username:-root}"
+pidfile="${bsnmpd_pidfile:-/var/run/snmpd.pid}"
 run_rc_command "$1"
