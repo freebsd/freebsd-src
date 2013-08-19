@@ -537,7 +537,7 @@ uart_bus_attach(device_t dev)
 			sep = ", ";
 		}
 		if (sc->sc_polled) {
-			printf("%spolled mode", sep);
+			printf("%spolled mode (%dHz)", sep, uart_poll_freq);
 			sep = ", ";
 		}
 		printf("\n");
