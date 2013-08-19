@@ -525,6 +525,10 @@ passout:
 	if (ip_len <= mtu ||
 	    (ifp->if_hwassist & CSUM_FRAGMENT && (ip_off & IP_DF) == 0)) {
 		/*
+		 * Avoid confusing lower layers.
+		 */
+		m_clrprotoflags(m);
+		/*
 		 * Send off the packet via outgoing interface
 		 */
 		error = (*ifp->if_output)(ifp, m,
@@ -553,6 +557,10 @@ passout:
 			do {
 				m0 = m->m_nextpkt;
 				m->m_nextpkt = NULL;
+				/*
+				 * Avoid confusing lower layers.
+				 */
+				m_clrprotoflags(m);
 
 				error = (*ifp->if_output)(ifp, m,
 					(struct sockaddr *)dst, &ro);

@@ -3450,7 +3450,7 @@ igmp_intr(struct mbuf *m)
 	}
 
 	igmp_scrub_context(m0);
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m0->m_pkthdr.rcvif = V_loif;
 #ifdef MAC
 	mac_netinet_igmp_send(ifp, m0);

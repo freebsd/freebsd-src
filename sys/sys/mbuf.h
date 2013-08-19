@@ -603,6 +603,13 @@ m_chtype(struct mbuf *m, short new_type)
 	m->m_type = new_type;
 }
 
+static __inline void
+m_clrprotoflags(struct mbuf *m)
+{
+
+	m->m_flags &= ~M_PROTOFLAGS;
+}
+
 static __inline struct mbuf *
 m_last(struct mbuf *m)
 {

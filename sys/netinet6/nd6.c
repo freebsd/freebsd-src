@@ -2082,8 +2082,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		}
 		return (error);
 	}
-	/* Reset layer specific mbuf flags to avoid confusing lower layers. */
-	m->m_flags &= ~(M_PROTOFLAGS);  
+	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
 		    NULL));
