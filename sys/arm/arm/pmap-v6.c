@@ -1072,39 +1072,22 @@ pmap_set_prot(pt_entry_t *ptep, vm_prot_t prot, uint8_t user)
  * => caller should NOT adjust pmap's wire_count
  * => we return the removed pve
  */
-
-static void
-pmap_nuke_pv(struct vm_page *m, pmap_t pmap, struct pv_entry *pve)
-{
-
-	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	PMAP_ASSERT_LOCKED(pmap);
-
-	TAILQ_REMOVE(&m->md.pv_list, pve, pv_list);
-
-	if (pve->pv_flags & PVF_WIRED)
-		--pmap->pm_stats.wired_count;
-
-	if (pve->pv_flags & PVF_WRITE) {
-		TAILQ_FOREACH(pve, &m->md.pv_list, pv_list)
-		    if (pve->pv_flags & PVF_WRITE)
-			    break;
-		if (!pve) {
-			vm_page_aflag_clear(m, PGA_WRITEABLE);
-		}
-	}
-}
-
 static struct pv_entry *
 pmap_remove_pv(struct vm_page *m, pmap_t pmap, vm_offset_t va)
 {
 	struct pv_entry *pve;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
+	PMAP_ASSERT_LOCKED(pmap);
 
 	pve = pmap_find_pv(m, pmap, va);	/* find corresponding pve */
-	if (pve != NULL)
-		pmap_nuke_pv(m, pmap, pve);
+	if (pve != NULL) {
+		TAILQ_REMOVE(&m->md.pv_list, pve, pv_list);
+		if (pve->pv_flags & PVF_WIRED)
+			--pmap->pm_stats.wired_count;
+	}
+	if (TAILQ_EMPTY(&m->md.pv_list))
+		vm_page_aflag_clear(m, PGA_WRITEABLE);
 
 	return(pve);				/* return removed pve */
 }
@@ -1142,14 +1125,6 @@ pmap_modify_pv(struct vm_page *m, pmap_t pmap, vm_offset_t va,
 			++pmap->pm_stats.wired_count;
 		else
 			--pmap->pm_stats.wired_count;
-	}
-	if ((oflags & PVF_WRITE) && !(flags & PVF_WRITE)) {
-		TAILQ_FOREACH(npv, &m->md.pv_list, pv_list) {
-			if (npv->pv_flags & PVF_WRITE)
-				break;
-		}
-		if (!npv)
-			vm_page_aflag_clear(m, PGA_WRITEABLE);
 	}
 
 	return (oflags);
@@ -2062,7 +2037,9 @@ pmap_remove_pages(pmap_t pmap)
 				pv_entry_count--;
 				pmap->pm_stats.resident_count--;
 				pc->pc_map[field] |= bitmask;
-				pmap_nuke_pv(m, pmap, pv);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+				if (TAILQ_EMPTY(&m->md.pv_list))
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
 				pmap_free_l2_bucket(pmap, l2b, 1);
 			}
 		}
@@ -2458,7 +2435,9 @@ pmap_remove_all(vm_page_t m)
 			PTE_SYNC(ptep);
 		pmap_free_l2_bucket(pmap, l2b, 1);
 		pmap->pm_stats.resident_count--;
-		pmap_nuke_pv(m, pmap, pv);
+		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+		if (pv->pv_flags & PVF_WIRED)
+			pmap->pm_stats.wired_count--;
 		pmap_free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -2469,6 +2448,7 @@ pmap_remove_all(vm_page_t m)
 		else
 			cpu_tlb_flushD();
 	}
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	rw_wunlock(&pvh_global_lock);
 }
 
@@ -3338,7 +3318,9 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				     "va %x pte %x", va, *ptep));
 				*ptep = 0;
 				PTE_SYNC(ptep);
-				pmap_nuke_pv(m, pmap, pv);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+				if (TAILQ_EMPTY(&m->md.pv_list))
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
 				pc->pc_map[field] |= 1UL << bit;
 				freed++;
 			}
