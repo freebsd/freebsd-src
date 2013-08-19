@@ -477,7 +477,7 @@ sdhci_card_task(void *arg, int pending)
 int
 sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 {
-	uint32_t caps;
+	uint32_t caps, freq;
 	int err;
 
 	SDHCI_LOCK_INIT(slot);
@@ -527,17 +527,23 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		caps = RD4(slot, SDHCI_CAPABILITIES);
 	/* Calculate base clock frequency. */
 	if (slot->version >= SDHCI_SPEC_300)
-		slot->max_clk = (caps & SDHCI_CLOCK_V3_BASE_MASK) 
-		    >> SDHCI_CLOCK_BASE_SHIFT;
+		freq = (caps & SDHCI_CLOCK_V3_BASE_MASK) >>
+		    SDHCI_CLOCK_BASE_SHIFT;
 	else	
-		slot->max_clk = (caps & SDHCI_CLOCK_BASE_MASK) 
-		    >> SDHCI_CLOCK_BASE_SHIFT;
+		freq = (caps & SDHCI_CLOCK_BASE_MASK) >>
+		    SDHCI_CLOCK_BASE_SHIFT;
+	if (freq != 0)
+		slot->max_clk = freq * 1000000;
+	/*
+	 * If the frequency wasn't in the capabilities and the hardware driver
+	 * hasn't already set max_clk we're probably not going to work right
+	 * with an assumption, so complain about it.
+	 */
 	if (slot->max_clk == 0) {
-		slot->max_clk = SDHCI_DEFAULT_MAX_FREQ;
+		slot->max_clk = SDHCI_DEFAULT_MAX_FREQ * 1000000;
 		device_printf(dev, "Hardware doesn't specify base clock "
 		    "frequency, using %dMHz as default.\n", SDHCI_DEFAULT_MAX_FREQ);
 	}
-	slot->max_clk *= 1000000;
 	/* Calculate timeout clock frequency. */
 	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
 		slot->timeout_clk = slot->max_clk / 1000;
@@ -547,7 +553,11 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		if (caps & SDHCI_TIMEOUT_CLK_UNIT)
 			slot->timeout_clk *= 1000;
 	}
-
+	/*
+	 * If the frequency wasn't in the capabilities and the hardware driver
+	 * hasn't already set timeout_clk we'll probably work okay using the
+	 * max timeout, but still mention it.
+	 */
 	if (slot->timeout_clk == 0) {
 		device_printf(dev, "Hardware doesn't specify timeout clock "
 		    "frequency, setting BROKEN_TIMEOUT quirk.\n");
