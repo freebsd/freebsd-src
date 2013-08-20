@@ -142,7 +142,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	cmpxchgl %3, %1 ;	"
+	"	cmpxchgl %3,%1 ;	"
 	"       sete	%0 ;		"
 	"# atomic_cmpset_int"
 	: "=q" (res),			/* 0 */
@@ -161,7 +161,7 @@ atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	cmpxchgq %3, %1 ;	"
+	"	cmpxchgq %3,%1 ;	"
 	"       sete	%0 ;		"
 	"# atomic_cmpset_long"
 	: "=q" (res),			/* 0 */
@@ -183,7 +183,7 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	xaddl	%0, %1 ;	"
+	"	xaddl	%0,%1 ;		"
 	"# atomic_fetchadd_int"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -201,7 +201,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	xaddq	%0, %1 ;	"
+	"	xaddq	%0,%1 ;		"
 	"# atomic_fetchadd_long"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p)			/* 1 */
@@ -216,7 +216,7 @@ atomic_testandset_int(volatile u_int *p, u_int v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	btsl	%2, %1 ;	"
+	"	btsl	%2,%1 ;		"
 	"	setc	%0 ;		"
 	"# atomic_testandset_int"
 	: "=q" (res),			/* 0 */
@@ -233,7 +233,7 @@ atomic_testandset_long(volatile u_long *p, u_int v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	btsq	%2, %1 ;	"
+	"	btsq	%2,%1 ;		"
 	"	setc	%0 ;		"
 	"# atomic_testandset_long"
 	: "=q" (res),			/* 0 */
@@ -342,7 +342,7 @@ atomic_swap_int(volatile u_int *p, u_int v)
 {
 
 	__asm __volatile(
-	"	xchgl	%1, %0 ;	"
+	"	xchgl	%1,%0 ;		"
 	"# atomic_swap_int"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p));			/* 1 */
@@ -354,7 +354,7 @@ atomic_swap_long(volatile u_long *p, u_long v)
 {
 
 	__asm __volatile(
-	"	xchgq	%1, %0 ;	"
+	"	xchgq	%1,%0 ;		"
 	"# atomic_swap_long"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p));			/* 1 */

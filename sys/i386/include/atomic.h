@@ -152,9 +152,9 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	cmpl	%3, %1 ;	"
+	"	cmpl	%3,%1 ;		"
 	"	jne	1f ;		"
-	"	movl	%2, %1 ;	"
+	"	movl	%2,%1 ;		"
 	"1:				"
 	"       sete	%0 ;		"
 	"	popfl ;			"
@@ -177,7 +177,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	cmpxchgl %3, %1 ;	"
+	"	cmpxchgl %3,%1 ;	"
 	"       sete	%0 ; "
 	"# atomic_cmpset_int"
 	: "=q" (res),			/* 0 */
@@ -201,9 +201,9 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	xaddl	%0, %1 ;	"
+	"	xaddl	%0,%1 ;		"
 	"# atomic_fetchadd_int"
-	: "+r" (v),			/* 0 (result) */
+	: "+r" (v),			/* 0 */
 	  "+m" (*p)			/* 1 */
 	: : "cc");
 	return (v);
@@ -216,7 +216,7 @@ atomic_testandset_int(volatile u_int *p, u_int v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	btsl	%2, %1 ;	"
+	"	btsl	%2,%1 ;		"
 	"	setc	%0 ;		"
 	"# atomic_testandset_int"
 	: "=q" (res),			/* 0 */
@@ -303,12 +303,12 @@ atomic_cmpset_64_i386(volatile uint64_t *dst, uint64_t expect, uint64_t src)
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	xorl	%1, %%eax ;	"
-	"	xorl	%2, %%edx ;	"
-	"	orl	%%edx, %%eax ;	"
+	"	xorl	%1,%%eax ;	"
+	"	xorl	%2,%%edx ;	"
+	"	orl	%%edx,%%eax ;	"
 	"	jne	1f ;		"
-	"	movl	%4, %1 ;	"
-	"	movl	%5, %2 ;	"
+	"	movl	%4,%1 ;		"
+	"	movl	%5,%2 ;		"
 	"1:				"
 	"	sete	%3 ;		"
 	"	popfl"
@@ -333,8 +333,8 @@ atomic_load_acq_64_i386(volatile uint64_t *p)
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	movl	%1, %%eax ;	"
-	"	movl	%2, %%edx ;	"
+	"	movl	%1,%%eax ;	"
+	"	movl	%2,%%edx ;	"
 	"	popfl"
 	: "=&A" (res)			/* 0 */
 	: "m" (*q),			/* 1 */
@@ -353,8 +353,8 @@ atomic_store_rel_64_i386(volatile uint64_t *p, uint64_t v)
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	movl	%%eax, %0 ;	"
-	"	movl	%%edx, %1 ;	"
+	"	movl	%%eax,%0 ;	"
+	"	movl	%%edx,%1 ;	"
 	"	popfl"
 	: "=m" (*q),			/* 0 */
 	  "=m" (*(q + 1))		/* 1 */
@@ -372,10 +372,10 @@ atomic_swap_64_i386(volatile uint64_t *p, uint64_t v)
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	movl	%1, %%eax ;	"
-	"	movl	%2, %%edx ;	"
-	"	movl	%4, %2 ;	"
-	"	movl	%3, %1 ;	"
+	"	movl	%1,%%eax ;	"
+	"	movl	%2,%%edx ;	"
+	"	movl	%4,%2 ;		"
+	"	movl	%3,%1 ;		"
 	"	popfl"
 	: "=&A" (res),			/* 0 */
 	  "+m" (*q),			/* 1 */
@@ -410,8 +410,8 @@ atomic_load_acq_64_i586(volatile uint64_t *p)
 	uint64_t res;
 
 	__asm __volatile(
-	"	movl	%%ebx, %%eax ;	"
-	"	movl	%%ecx, %%edx ;	"
+	"	movl	%%ebx,%%eax ;	"
+	"	movl	%%ecx,%%edx ;	"
 	"	" MPLOCKED "		"
 	"	cmpxchg8b %1"
 	: "=&A" (res),			/* 0 */
@@ -425,8 +425,8 @@ atomic_store_rel_64_i586(volatile uint64_t *p, uint64_t v)
 {
 
 	__asm __volatile(
-	"	movl	%%eax, %%ebx ;	"
-	"	movl	%%edx, %%ecx ;	"
+	"	movl	%%eax,%%ebx ;	"
+	"	movl	%%edx,%%ecx ;	"
 	"1:				"
 	"	" MPLOCKED "		"
 	"	cmpxchg8b %0 ;		"
@@ -441,8 +441,8 @@ atomic_swap_64_i586(volatile uint64_t *p, uint64_t v)
 {
 
 	__asm __volatile(
-	"	movl	%%eax, %%ebx ;	"
-	"	movl	%%edx, %%ecx ;	"
+	"	movl	%%eax,%%ebx ;	"
+	"	movl	%%edx,%%ecx ;	"
 	"1:				"
 	"	" MPLOCKED "		"
 	"	cmpxchg8b %0 ;		"
@@ -563,7 +563,7 @@ atomic_swap_int(volatile u_int *p, u_int v)
 {
 
 	__asm __volatile(
-	"	xchgl	%1, %0 ;	"
+	"	xchgl	%1,%0 ;		"
 	"# atomic_swap_int"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p));			/* 1 */
