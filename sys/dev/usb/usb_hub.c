@@ -50,7 +50,6 @@
 #include <sys/priv.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
