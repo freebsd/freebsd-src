@@ -271,13 +271,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_BIND_PPTDEV:
 		pptdev = (struct vm_pptdev *)data;
-		error = ppt_assign_device(sc->vm, pptdev->bus, pptdev->slot,
-					  pptdev->func);
+		error = vm_assign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
+					 pptdev->func);
 		break;
 	case VM_UNBIND_PPTDEV:
 		pptdev = (struct vm_pptdev *)data;
-		error = ppt_unassign_device(sc->vm, pptdev->bus, pptdev->slot,
-					    pptdev->func);
+		error = vm_unassign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
+					   pptdev->func);
 		break;
 	case VM_INJECT_EVENT:
 		vmevent = (struct vm_event *)data;

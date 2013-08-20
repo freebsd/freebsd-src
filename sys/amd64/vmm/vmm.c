@@ -99,6 +99,7 @@ struct vcpu {
 struct mem_seg {
 	vm_paddr_t	gpa;
 	size_t		len;
+	boolean_t	wired;
 	vm_object_t	object;
 };
 #define	VM_MAX_MEMORY_SEGMENTS	2
@@ -311,9 +312,6 @@ vm_create(const char *name, struct vm **retvm)
 	return (0);
 }
 
-/*
- * XXX need to deal with iommu mappings
- */
 static void
 vm_free_mem_seg(struct vm *vm, struct mem_seg *seg)
 {
@@ -357,15 +355,20 @@ vm_name(struct vm *vm)
 int
 vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {
+	vm_object_t obj;
 
-	return (ENXIO);		/* XXX fixme */
+	if ((obj = vmm_mmio_alloc(vm->vmspace, gpa, len, hpa)) == NULL)
+		return (ENOMEM);
+	else
+		return (0);
 }
 
 int
 vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
 
-	return (ENXIO);		/* XXX fixme */
+	vmm_mmio_free(vm->vmspace, gpa, len);
+	return (0);
 }
 
 boolean_t
@@ -378,15 +381,15 @@ vm_mem_allocated(struct vm *vm, vm_paddr_t gpa)
 		gpabase = vm->mem_segs[i].gpa;
 		gpalimit = gpabase + vm->mem_segs[i].len;
 		if (gpa >= gpabase && gpa < gpalimit)
-			return (TRUE);
+			return (TRUE);		/* 'gpa' is regular memory */
 	}
+
+	if (ppt_is_mmio(vm, gpa))
+		return (TRUE);			/* 'gpa' is pci passthru mmio */
 
 	return (FALSE);
 }
 
-/*
- * XXX need to deal with iommu
- */
 int
 vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 {
@@ -434,10 +437,157 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	seg->gpa = gpa;
 	seg->len = len;
 	seg->object = object;
+	seg->wired = FALSE;
 
 	vm->num_mem_segs++;
 
 	return (0);
+}
+
+static void
+vm_gpa_unwire(struct vm *vm)
+{
+	int i, rv;
+	struct mem_seg *seg;
+
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		seg = &vm->mem_segs[i];
+		if (!seg->wired)
+			continue;
+
+		rv = vm_map_unwire(&vm->vmspace->vm_map,
+				   seg->gpa, seg->gpa + seg->len,
+				   VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+		KASSERT(rv == KERN_SUCCESS, ("vm(%s) memory segment "
+			"%#lx/%ld could not be unwired: %d",
+			vm_name(vm), seg->gpa, seg->len, rv));
+
+		seg->wired = FALSE;
+	}
+}
+
+static int
+vm_gpa_wire(struct vm *vm)
+{
+	int i, rv;
+	struct mem_seg *seg;
+
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		seg = &vm->mem_segs[i];
+		if (seg->wired)
+			continue;
+
+		/* XXX rlimits? */
+		rv = vm_map_wire(&vm->vmspace->vm_map,
+				 seg->gpa, seg->gpa + seg->len,
+				 VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+		if (rv != KERN_SUCCESS)
+			break;
+
+		seg->wired = TRUE;
+	}
+
+	if (i < vm->num_mem_segs) {
+		/*
+		 * Undo the wiring before returning an error.
+		 */
+		vm_gpa_unwire(vm);
+		return (EAGAIN);
+	}
+
+	return (0);
+}
+
+static void
+vm_iommu_modify(struct vm *vm, boolean_t map)
+{
+	int i, sz;
+	vm_paddr_t gpa, hpa;
+	struct mem_seg *seg;
+	void *vp, *cookie, *host_domain;
+
+	sz = PAGE_SIZE;
+	host_domain = iommu_host_domain();
+
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		seg = &vm->mem_segs[i];
+		KASSERT(seg->wired,
+			("vm(%s) memory segment %#lx/%ld not wired",
+			vm_name(vm), seg->gpa, seg->len));
+		
+		gpa = seg->gpa;
+		while (gpa < seg->gpa + seg->len) {
+			vp = vm_gpa_hold(vm, gpa, PAGE_SIZE, VM_PROT_WRITE,
+					 &cookie);
+			KASSERT(vp != NULL, ("vm(%s) could not map gpa %#lx",
+				vm_name(vm), gpa));
+
+			vm_gpa_release(cookie);
+
+			hpa = DMAP_TO_PHYS((uintptr_t)vp);
+			if (map) {
+				iommu_create_mapping(vm->iommu, gpa, hpa, sz);
+				iommu_remove_mapping(host_domain, hpa, sz);
+			} else {
+				iommu_remove_mapping(vm->iommu, gpa, sz);
+				iommu_create_mapping(host_domain, hpa, hpa, sz);
+			}
+
+			gpa += PAGE_SIZE;
+		}
+	}
+
+	/*
+	 * Invalidate the cached translations associated with the domain
+	 * from which pages were removed.
+	 */
+	if (map)
+		iommu_invalidate_tlb(host_domain);
+	else
+		iommu_invalidate_tlb(vm->iommu);
+}
+
+#define	vm_iommu_unmap(vm)	vm_iommu_modify((vm), FALSE)
+#define	vm_iommu_map(vm)	vm_iommu_modify((vm), TRUE)
+
+int
+vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
+{
+	int error;
+
+	error = ppt_unassign_device(vm, bus, slot, func);
+	if (error)
+		return (error);
+
+	if (ppt_num_devices(vm) == 0) {
+		vm_iommu_unmap(vm);
+		vm_gpa_unwire(vm);
+	}
+	return (0);
+}
+
+int
+vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
+{
+	int error;
+
+	/*
+	 * Virtual machines with pci passthru devices get special treatment:
+	 * - the guest physical memory is wired
+	 * - the iommu is programmed to do the 'gpa' to 'hpa' translation
+	 *
+	 * We need to do this before the first pci passthru device is attached.
+	 */
+	if (ppt_num_devices(vm) == 0) {
+		error = vm_gpa_wire(vm);
+		if (error)
+			return (error);
+
+		vm_iommu_map(vm);
+	}
+
+	error = ppt_assign_device(vm, bus, slot, func);
+	return (error);
 }
 
 void *
@@ -483,6 +633,7 @@ vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 		if (gpabase == vm->mem_segs[i].gpa) {
 			seg->gpa = vm->mem_segs[i].gpa;
 			seg->len = vm->mem_segs[i].len;
+			seg->wired = vm->mem_segs[i].wired;
 			return (0);
 		}
 	}
