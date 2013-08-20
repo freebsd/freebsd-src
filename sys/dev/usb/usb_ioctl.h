@@ -295,7 +295,8 @@ struct usb_gen_quirk {
 #define	USB_IFACE_DRIVER_DETACH	_IOW ('U', 125, int)
 #define	USB_GET_PLUGTIME	_IOR ('U', 126, uint32_t)
 #define	USB_READ_DIR		_IOW ('U', 127, struct usb_read_dir)
-/* 128 - 134 unused */
+/* 128 - 133 unused */
+#define	USB_GET_DEV_PORT_PATH	_IOR ('U', 134, struct usb_device_port_path)
 #define	USB_GET_POWER_USAGE	_IOR ('U', 135, int)
 #define	USB_SET_TX_FORCE_SHORT	_IOW ('U', 136, int)
 #define	USB_SET_TX_TIMEOUT	_IOW ('U', 137, int)
