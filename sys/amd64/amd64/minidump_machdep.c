@@ -221,8 +221,8 @@ minidumpsys(struct dumperinfo *di)
 	vm_offset_t va;
 	int error;
 	uint64_t bits;
-	uint64_t *pdp, *pd, *pt, pa;
-	int i, j, k, n, bit;
+	uint64_t *pml4, *pdp, *pd, *pt, pa;
+	int i, ii, j, k, n, bit;
 	int retry_count;
 	struct minidumphdr mdhdr;
 
@@ -232,7 +232,6 @@ minidumpsys(struct dumperinfo *di)
 	counter = 0;
 	/* Walk page table pages, set bits in vm_page_dump */
 	pmapsize = 0;
-	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); ) {
 		/*
@@ -240,6 +239,9 @@ minidumpsys(struct dumperinfo *di)
 		 * page written corresponds to 1GB of space
 		 */
 		pmapsize += PAGE_SIZE;
+		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
+		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
 		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
 		if ((pdp[i] & PG_V) == 0) {
 			va += NBPDP;
@@ -364,9 +366,11 @@ minidumpsys(struct dumperinfo *di)
 
 	/* Dump kernel page directory pages */
 	bzero(fakepd, sizeof(fakepd));
-	pdp = (uint64_t *)PHYS_TO_DMAP(KPDPphys);
 	for (va = VM_MIN_KERNEL_ADDRESS; va < MAX(KERNBASE + nkpt * NBPDR,
 	    kernel_vm_end); va += NBPDP) {
+		ii = (va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1);
+		pml4 = (uint64_t *)PHYS_TO_DMAP(KPML4phys) + ii;
+		pdp = (uint64_t *)PHYS_TO_DMAP(*pml4 & PG_FRAME);
 		i = (va >> PDPSHIFT) & ((1ul << NPDPEPGSHIFT) - 1);
 
 		/* We always write a page, even if it is zero */
