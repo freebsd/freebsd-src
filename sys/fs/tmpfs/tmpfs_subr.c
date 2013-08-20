@@ -386,11 +386,32 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
 
 loop:
 	TMPFS_NODE_LOCK(node);
+loop1:
 	if ((vp = node->tn_vnode) != NULL) {
 		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
 		VI_LOCK(vp);
+		if ((node->tn_type == VDIR && node->tn_dir.tn_parent == NULL) ||
+		    ((vp->v_iflag & VI_DOOMED) != 0 &&
+		    (lkflag & LK_NOWAIT) != 0)) {
+			VI_UNLOCK(vp);
+			TMPFS_NODE_UNLOCK(node);
+			error = ENOENT;
+			vp = NULL;
+			goto out;
+		}
+		if ((vp->v_iflag & VI_DOOMED) != 0) {
+			VI_UNLOCK(vp);
+			node->tn_vpstate |= TMPFS_VNODE_WRECLAIM;
+			while ((node->tn_vpstate & TMPFS_VNODE_WRECLAIM) != 0) {
+				msleep(&node->tn_vnode, TMPFS_NODE_MTX(node),
+				    0, "tmpfsE", 0);
+			}
+			goto loop1;
+		}
 		TMPFS_NODE_UNLOCK(node);
 		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
+		if (error == ENOENT)
+			goto loop;
 		if (error != 0) {
 			vp = NULL;
 			goto out;
@@ -519,6 +540,9 @@ tmpfs_free_vp(struct vnode *vp)
 
 	mtx_assert(TMPFS_NODE_MTX(node), MA_OWNED);
 	node->tn_vnode = NULL;
+	if ((node->tn_vpstate & TMPFS_VNODE_WRECLAIM) != 0)
+		wakeup(&node->tn_vnode);
+	node->tn_vpstate &= ~TMPFS_VNODE_WRECLAIM;
 	vp->v_data = NULL;
 }
 
