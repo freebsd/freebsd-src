@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
+#include <sys/vmem.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <geom/geom.h>
@@ -920,13 +921,13 @@ bfreekva(struct buf *bp)
 	atomic_subtract_long(&bufspace, bp->b_kvasize);
 	if ((bp->b_flags & B_UNMAPPED) == 0) {
 		BUF_CHECK_MAPPED(bp);
-		vm_map_remove(buffer_map, (vm_offset_t)bp->b_kvabase,
-		    (vm_offset_t)bp->b_kvabase + bp->b_kvasize);
+		vmem_free(buffer_arena, (vm_offset_t)bp->b_kvabase,
+		    bp->b_kvasize);
 	} else {
 		BUF_CHECK_UNMAPPED(bp);
 		if ((bp->b_flags & B_KVAALLOC) != 0) {
-			vm_map_remove(buffer_map, (vm_offset_t)bp->b_kvaalloc,
-			    (vm_offset_t)bp->b_kvaalloc + bp->b_kvasize);
+			vmem_free(buffer_arena, (vm_offset_t)bp->b_kvaalloc,
+			    bp->b_kvasize);
 		}
 		atomic_subtract_long(&unmapped_bufspace, bp->b_kvasize);
 		bp->b_flags &= ~(B_UNMAPPED | B_KVAALLOC);
@@ -2019,15 +2020,11 @@ static int
 allocbufkva(struct buf *bp, int maxsize, int gbflags)
 {
 	vm_offset_t addr;
-	int rv;
 
 	bfreekva(bp);
 	addr = 0;
 
-	vm_map_lock(buffer_map);
-	if (vm_map_findspace(buffer_map, vm_map_min(buffer_map), maxsize,
-	    &addr)) {
-		vm_map_unlock(buffer_map);
+	if (vmem_alloc(buffer_arena, maxsize, M_BESTFIT | M_NOWAIT, &addr)) {
 		/*
 		 * Buffer map is too fragmented.  Request the caller
 		 * to defragment the map.
@@ -2035,10 +2032,6 @@ allocbufkva(struct buf *bp, int maxsize, int gbflags)
 		atomic_add_int(&bufdefragcnt, 1);
 		return (1);
 	}
-	rv = vm_map_insert(buffer_map, NULL, 0, addr, addr + maxsize,
-	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
-	KASSERT(rv == KERN_SUCCESS, ("vm_map_insert(buffer_map) rv %d", rv));
-	vm_map_unlock(buffer_map);
 	setbufkva(bp, addr, maxsize, gbflags);
 	atomic_add_long(&bufspace, bp->b_kvasize);
 	return (0);
@@ -2389,7 +2382,7 @@ restart:
  *	We block if:
  *		We have insufficient buffer headers
  *		We have insufficient buffer space
- *		buffer_map is too fragmented ( space reservation fails )
+ *		buffer_arena is too fragmented ( space reservation fails )
  *		If we have to flush dirty buffers ( but we try to avoid this )
  */
 static struct buf *
@@ -3593,7 +3586,7 @@ biodone(struct bio *bp)
 		done(bp);
 	if (transient) {
 		pmap_qremove(start, OFF_TO_IDX(end - start));
-		vm_map_remove(bio_transient_map, start, end);
+		vmem_free(transient_arena, start, end - start);
 		atomic_add_int(&inflight_transient_maps, -1);
 	}
 }

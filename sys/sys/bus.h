@@ -273,6 +273,9 @@ struct resource *
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
+int	resource_list_release_active(struct resource_list *rl,
+				     device_t bus, device_t child,
+				     int type);
 struct resource *
 	resource_list_reserve(struct resource_list *rl,
 			      device_t bus, device_t child,

@@ -289,9 +289,9 @@ ext2_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp
 	int entryoffsetinblock;		/* offset of ep in bp's buffer */
 	enum {NONE, COMPACT, FOUND} slotstatus;
 	doff_t slotoffset;		/* offset of area with free space */
-	int slotsize;			/* size of area at slotoffset */
 	doff_t i_diroff;		/* cached i_diroff value */
 	doff_t i_offset;		/* cached i_offset value */
+	int slotsize;			/* size of area at slotoffset */
 	int slotfreespace;		/* amount of space free in slot */
 	int slotneeded;			/* size of the entry we're seeking */
 	int numdirpasses;		/* strategy for directory search */
@@ -476,7 +476,6 @@ searchloop:
 		endsearch = i_diroff;
 		goto searchloop;
 	}
-	dp->i_offset = i_offset;
 	if (bp != NULL)
 		brelse(bp);
 	/*
@@ -512,7 +511,6 @@ searchloop:
 				enduseful = slotoffset + slotsize;
 		}
 		dp->i_endoff = roundup2(enduseful, DIRBLKSIZ);
-		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		/*
 		 * We return with the directory locked, so that
 		 * the parameters we set up above will still be
@@ -560,12 +558,13 @@ found:
 	 */
 	if ((flags & ISLASTCN) && nameiop == LOOKUP)
 		dp->i_diroff = i_offset &~ (DIRBLKSIZ - 1);
-	dp->i_offset = i_offset;
 	/*
 	 * If deleting, and at end of pathname, return
 	 * parameters which can be used to remove file.
 	 */
 	if (nameiop == DELETE && (flags & ISLASTCN)) {
+		if (flags & LOCKPARENT)
+			ASSERT_VOP_ELOCKED(vdp, __FUNCTION__);
 		/*
 		 * Write access to directory required to delete files.
 		 */
@@ -576,7 +575,13 @@ found:
 		 * and distance past previous entry (if there
 		 * is a previous entry in this block) in dp->i_count.
 		 * Save directory inode pointer in ndp->ni_dvp for dirremove().
+		 *
+		 * Technically we shouldn't be setting these in the
+		 * WANTPARENT case (first lookup in rename()), but any
+		 * lookups that will result in directory changes will
+		 * overwrite these.
 		 */
+		dp->i_offset = i_offset;
 		if ((dp->i_offset & (DIRBLKSIZ - 1)) == 0)
 			dp->i_count = 0;
 		else
@@ -621,6 +626,7 @@ found:
 		 * Careful about locking second inode.
 		 * This can only occur if the target is ".".
 		 */
+		dp->i_offset = i_offset;
 		if (dp->i_number == ino)
 			return (EISDIR);
 		if (dd_ino != NULL)
@@ -656,10 +662,7 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		ltype = VOP_ISLOCKED(pdp);
-		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
-		error = VFS_VGET(vdp->v_mount, ino, cnp->cn_lkflags, &tdp);
-		vn_lock(pdp, ltype | LK_RETRY);
+		error = vn_vget_ino(pdp, ino, cnp->cn_lkflags, &tdp);
 		if (pdp->v_iflag & VI_DOOMED) {
 			if (error == 0)
 				vput(tdp);

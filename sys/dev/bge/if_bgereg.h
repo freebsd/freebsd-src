@@ -2918,6 +2918,7 @@ struct bge_dmamap_arg {
 #define	BGE_HWREV_TIGON_II	0x02
 #define	BGE_TIMEOUT		100000
 #define	BGE_TXCONS_UNSET		0xFFFF	/* impossible value */
+#define	BGE_TX_TIMEOUT		5
 
 struct bge_bcom_hack {
 	int			reg;

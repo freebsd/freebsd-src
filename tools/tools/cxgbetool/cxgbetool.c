@@ -965,6 +965,7 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	};
 	bzero(&t, sizeof (t));
 	t.idx = idx;
+	t.fs.hitcnts = 1;
 
 	for (start_arg = 0; start_arg + 2 <= argc; start_arg += 2) {
 		const char **args = &argv[start_arg];

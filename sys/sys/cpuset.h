@@ -121,6 +121,9 @@ int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
 char	*cpusetobj_strprint(char *, const cpuset_t *);
 int	cpusetobj_strscan(cpuset_t *, const char *);
+#ifdef DDB
+void	ddb_display_cpuset(const cpuset_t *);
+#endif
 
 #else
 __BEGIN_DECLS

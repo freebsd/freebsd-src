@@ -134,7 +134,6 @@ AcpiEvGpeInitialize (
         /* GPE block 0 exists (has both length and address > 0) */
 
         RegisterCount0 = (UINT16) (AcpiGbl_FADT.Gpe0BlockLength / 2);
-
         GpeNumberMax = (RegisterCount0 * ACPI_GPE_REGISTER_WIDTH) - 1;
 
         /* Install GPE Block 0 */
@@ -209,16 +208,6 @@ AcpiEvGpeInitialize (
         goto Cleanup;
     }
 
-    /* Check for Max GPE number out-of-range */
-
-    if (GpeNumberMax > ACPI_GPE_MAX)
-    {
-        ACPI_ERROR ((AE_INFO,
-            "Maximum GPE number from FADT is too large: 0x%X",
-            GpeNumberMax));
-        Status = AE_BAD_VALUE;
-        goto Cleanup;
-    }
 
 Cleanup:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);

@@ -589,7 +589,8 @@ evalpipe(union node *n)
 		pip[1] = -1;
 		if (lp->next) {
 			if (pipe(pip) < 0) {
-				close(prevfd);
+				if (prevfd >= 0)
+					close(prevfd);
 				error("Pipe call failed: %s", strerror(errno));
 			}
 		}

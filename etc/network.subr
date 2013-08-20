@@ -164,6 +164,9 @@ ifconfig_up()
 		fi
 	fi
 
+	ifalias $1 link alias
+	ifalias $1 ether alias
+
 	if [ ${_cfg} -eq 0 ]; then
 		${IFCONFIG_CMD} $1 up
 	fi
@@ -171,6 +174,9 @@ ifconfig_up()
 	if wpaif $1; then
 		/etc/rc.d/wpa_supplicant start $1
 		_cfg=0		# XXX: not sure this should count
+	elif hostapif $1; then
+		/etc/rc.d/hostapd start $1
+		_cfg=0
 	fi
 
 	if dhcpif $1; then
@@ -197,6 +203,9 @@ ifconfig_down()
 
 	if wpaif $1; then
 		/etc/rc.d/wpa_supplicant stop $1
+		_cfg=0
+	elif hostapif $1; then
+		/etc/rc.d/hostapd stop $1
 		_cfg=0
 	fi
 
@@ -276,6 +285,7 @@ ifconfig_getargs()
 		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
 		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
 		[Ww][Pp][Aa]) ;;
+		[Hh][Oo][Ss][Tt][Aa][Pp]) ;;
 		*)
 			_args="$_args $_arg"
 			;;
@@ -311,6 +321,15 @@ dhcpif()
 	local _tmpargs _arg
 	_tmpargs=`_ifconfig_getargs $1`
 
+	case $1 in
+	lo[0-9]*|\
+	stf[0-9]*|\
+	faith[0-9]*|\
+	lp[0-9]*|\
+	sl[0-9]*)
+		return 1
+		;;
+	esac
 	if noafif $1; then
 		return 1
 	fi
@@ -376,6 +395,24 @@ wpaif()
 	return 1
 }
 
+# hostapif if
+#	Returns 0 if the interface is a HOSTAP interface and 1 otherwise.
+hostapif()
+{
+	local _tmpargs _arg
+	_tmpargs=`_ifconfig_getargs $1`
+
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Hh][Oo][Ss][Tt][Aa][Pp])
+			return 0
+			;;
+		esac
+	done
+
+	return 1
+}
+
 # afexists af
 #	Returns 0 if the address family is enabled in the kernel
 #	1 otherwise.
@@ -397,6 +434,9 @@ afexists()
 		else
 			return 1
 		fi
+		;;
+	link|ether)
+		return 0
 		;;
 	*)
 		err 1 "afexists(): Unsupported address family: $_af"
@@ -484,7 +524,7 @@ ipv6_autoconfif()
 	_if=$1
 
 	case $_if in
-	lo0|\
+	lo[0-9]*|\
 	stf[0-9]*|\
 	faith[0-9]*|\
 	lp[0-9]*|\
@@ -666,7 +706,7 @@ ifalias()
 	afexists $2 || return $_ret
 
 	case "$2" in
-	inet|inet6)
+	inet|inet6|link|ether)
 		ifalias_af_common $1 $2 $3 && _ret=0
 		;;
 	esac
@@ -873,6 +913,11 @@ ifalias_af_common_handler()
 	*)	return	;;
 	esac
 
+	# link(ether) does not support address removal.
+	case $_af:$_action in
+	link:-alias|ether:-alias)	return ;;
+	esac
+
 	_tmpargs=
 	for _c in $_args; do
 		case $_c in
@@ -931,6 +976,8 @@ ifalias_af_common()
 		inet\ *)	_iaf=inet ;;
 		inet6\ *)	_iaf=inet6 ;;
 		ipx\ *)		_iaf=ipx ;;
+		link\ *)	_iaf=link ;;
+		ether\ *)	_iaf=ether ;;
 		esac
 
 		case ${_af}:${_action}:${_iaf}:"${ifconfig_args}" in
@@ -978,7 +1025,7 @@ ifalias_af_common()
 	_tmpargs=
 	for _c in `get_if_var $_if ifconfig_IF_aliases` $_aliasn; do
 		case $_c in
-		inet|inet6|ipx)
+		inet|inet6|ipx|link|ether)
 			case $_tmpargs in
 			${_af}\ *)
 				eval ifalias_af_common_handler $_if $_af $_action $_tmpargs && _ret=0

@@ -200,6 +200,7 @@ struct uma_keg {
 	uint32_t	uk_align;	/* Alignment mask */
 	uint32_t	uk_pages;	/* Total page count */
 	uint32_t	uk_free;	/* Count of items free in slabs */
+	uint32_t	uk_reserve;	/* Number of reserved items. */
 	uint32_t	uk_size;	/* Requested size of each item */
 	uint32_t	uk_rsize;	/* Real size of each item */
 	uint32_t	uk_maxpages;	/* Maximum number of pages to alloc */
@@ -325,12 +326,13 @@ struct uma_zone {
  */
 #define	UMA_ZFLAG_MULTI		0x04000000	/* Multiple kegs in the zone. */
 #define	UMA_ZFLAG_DRAINING	0x08000000	/* Running zone_drain. */
-#define UMA_ZFLAG_PRIVALLOC	0x10000000	/* Use uz_allocf. */
+#define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
 #define UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
 #define UMA_ZFLAG_FULL		0x40000000	/* Reached uz_maxpages */
 #define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
 
-#define	UMA_ZFLAG_INHERIT	(UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY)
+#define	UMA_ZFLAG_INHERIT						\
+    (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY | UMA_ZFLAG_BUCKET)
 
 static inline uma_keg_t
 zone_first_keg(uma_zone_t zone)

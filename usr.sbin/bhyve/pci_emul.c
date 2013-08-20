@@ -47,12 +47,13 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "inout.h"
 #include "mem.h"
-#include "mptbl.h"
 #include "pci_emul.h"
 #include "ioapic.h"
 
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
+
+#define CONF1_ENABLE	   0x80000000ul
 
 #define	CFGWRITE(pi,off,val,b)						\
 do {									\
@@ -139,20 +140,15 @@ pci_parse_slot(char *opt, int legacy)
 	error = -1;
 	str = cpy = strdup(opt);
 
-	config = NULL;
-
-	if (strchr(str, ':') != NULL) {
-		slot = strsep(&str, ":");
-		func = strsep(&str, ",");
-	} else {
-		slot = strsep(&str, ",");
-		func = NULL;
-	}
-
+        slot = strsep(&str, ",");
+        func = NULL;
+        if (strchr(slot, ':') != NULL) {
+		func = cpy;
+		(void) strsep(&func, ":");
+        }
+	
 	emul = strsep(&str, ",");
-	if (str != NULL) {
-		config = strsep(&str, ",");
-	}
+	config = str;
 
 	if (emul == NULL) {
 		pci_parse_slot_usage(opt);
@@ -1224,20 +1220,29 @@ pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 {
 	uint32_t x;
 
-	assert(!in);
+	if (bytes != 4) {
+		if (in)
+			*eax = (bytes == 2) ? 0xffff : 0xff;
+		return (0);
+	}
 
-	if (bytes != 4)
-		return (-1);
-
-	x = *eax;
-	cfgoff = x & PCI_REGMAX;
-	cfgfunc = (x >> 8) & PCI_FUNCMAX;
-	cfgslot = (x >> 11) & PCI_SLOTMAX;
-	cfgbus = (x >> 16) & PCI_BUSMAX;
+	if (in) {
+		x = (cfgbus << 16) |
+		    (cfgslot << 11) |
+		    (cfgfunc << 8) |
+		    cfgoff;
+		*eax = x | CONF1_ENABLE;
+	} else {
+		x = *eax;
+		cfgoff = x & PCI_REGMAX;
+		cfgfunc = (x >> 8) & PCI_FUNCMAX;
+		cfgslot = (x >> 11) & PCI_SLOTMAX;
+		cfgbus = (x >> 16) & PCI_BUSMAX;
+	}
 
 	return (0);
 }
-INOUT_PORT(pci_cfgaddr, CONF1_ADDR_PORT, IOPORT_F_OUT, pci_emul_cfgaddr);
+INOUT_PORT(pci_cfgaddr, CONF1_ADDR_PORT, IOPORT_F_INOUT, pci_emul_cfgaddr);
 
 static uint32_t
 bits_changed(uint32_t old, uint32_t new, uint32_t mask)

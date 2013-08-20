@@ -459,6 +459,12 @@ void uma_reclaim(void);
 void uma_set_align(int align);
 
 /*
+ * Set a reserved number of items to hold for M_USE_RESERVE allocations.  All
+ * other requests must allocate new backing pages.
+ */
+void uma_zone_reserve(uma_zone_t zone, int nitems);
+
+/*
  * Reserves the maximum KVA space required by the zone and configures the zone
  * to use a VM_ALLOC_NOOBJ-based backend allocator.
  *

@@ -61,7 +61,7 @@ board_id.h			standard				   \
 	clean		"board_id.h"
 cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs compile-with "${ZFS_C}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
-crypto/des/des_enc.c		optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/kbd/kbd.c			optional	sc

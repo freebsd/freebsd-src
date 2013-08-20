@@ -1321,7 +1321,7 @@ re_attach(device_t dev)
 			    SYS_RES_IRQ, &rid, RF_ACTIVE);
 			if (sc->rl_irq[i] == NULL) {
 				device_printf(dev,
-				    "couldn't llocate IRQ resources for "
+				    "couldn't allocate IRQ resources for "
 				    "message %d\n", rid);
 				error = ENXIO;
 				goto fail;
@@ -1632,7 +1632,7 @@ re_attach(device_t dev)
 	/*
 	 * Don't enable TSO by default.  It is known to generate
 	 * corrupted TCP segments(bad TCP options) under certain
-	 * circumtances.
+	 * circumstances.
 	 */
 	ifp->if_hwassist &= ~CSUM_TSO;
 	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
@@ -2784,7 +2784,7 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 		/*
 		 * Unconditionally enable IP checksum if TCP or UDP
 		 * checksum is required. Otherwise, TCP/UDP checksum
-		 * does't make effects.
+		 * doesn't make effects.
 		 */
 		if (((*m_head)->m_pkthdr.csum_flags & RE_CSUM_FEATURES) != 0) {
 			if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
@@ -3247,7 +3247,7 @@ re_init_locked(struct rl_softc *sc)
 		if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0) {
 			/*
 			 * For controllers that use new jumbo frame scheme,
-			 * set maximum size of jumbo frame depedning on
+			 * set maximum size of jumbo frame depending on
 			 * controller revisions.
 			 */
 			if (ifp->if_mtu > RL_MTU)
@@ -3948,7 +3948,7 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 		RL_UNLOCK(sc);
 		if (i == 0) {
 			device_printf(sc->rl_dev,
-			    "DUMP statistics request timedout\n");
+			    "DUMP statistics request timed out\n");
 			return (ETIMEDOUT);
 		}
 done:

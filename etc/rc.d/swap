@@ -3,15 +3,15 @@
 # $FreeBSD$
 #
 
-# PROVIDE: localswap
+# PROVIDE: swap
 # REQUIRE: disks
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
-name="swap1"
-start_cmd='swapon -aq'
+name="swap"
+start_cmd='/sbin/swapon -aq'
 stop_cmd=':'
 
-load_rc_config swap
+load_rc_config $name
 run_rc_command "$1"

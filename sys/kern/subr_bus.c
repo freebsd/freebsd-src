@@ -3316,6 +3316,48 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 }
 
 /**
+ * @brief Release all active resources of a given type
+ *
+ * Release all active resources of a specified type.  This is intended
+ * to be used to cleanup resources leaked by a driver after detach or
+ * a failed attach.
+ *
+ * @param rl		the resource list which was allocated from
+ * @param bus		the parent device of @p child
+ * @param child		the device whose active resources are being released
+ * @param type		the type of resources to release
+ * 
+ * @retval 0		success
+ * @retval EBUSY	at least one resource was active
+ */
+int
+resource_list_release_active(struct resource_list *rl, device_t bus,
+    device_t child, int type)
+{
+	struct resource_list_entry *rle;
+	int error, retval;
+
+	retval = 0;
+	STAILQ_FOREACH(rle, rl, link) {
+		if (rle->type != type)
+			continue;
+		if (rle->res == NULL)
+			continue;
+		if ((rle->flags & (RLE_RESERVED | RLE_ALLOCATED)) ==
+		    RLE_RESERVED)
+			continue;
+		retval = EBUSY;
+		error = resource_list_release(rl, bus, child, type,
+		    rman_get_rid(rle->res), rle->res);
+		if (error != 0)
+			device_printf(bus,
+			    "Failed to release active resource: %d\n", error);
+	}
+	return (retval);
+}
+
+
+/**
  * @brief Fully release a reserved resource
  *
  * Fully releases a resource reserved via resource_list_reserve().

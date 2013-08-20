@@ -207,9 +207,9 @@ _rw_init_flags(volatile uintptr_t *c, const char *name, int opts)
 	if (opts & RW_QUIET)
 		flags |= LO_QUIET;
 
+	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, flags);
 	rw->rw_lock = RW_UNLOCKED;
 	rw->rw_recurse = 0;
-	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, flags);
 }
 
 void
@@ -319,13 +319,13 @@ _rw_wunlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wunlock() of destroyed rwlock @ %s:%d", file, line));
 	__rw_assert(c, RA_WLOCKED, file, line);
-	curthread->td_locks--;
 	WITNESS_UNLOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
 	    line);
 	if (!rw_recursed(rw))
 		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_WUNLOCK_RELEASE, rw);
 	__rw_wunlock(rw, curthread, file, line);
+	curthread->td_locks--;
 }
 /*
  * Determines whether a new reader can acquire a lock.  Succeeds if the
@@ -598,8 +598,6 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_runlock() of destroyed rwlock @ %s:%d", file, line));
 	__rw_assert(c, RA_RLOCKED, file, line);
-	curthread->td_locks--;
-	curthread->td_rw_rlocks--;
 	WITNESS_UNLOCK(&rw->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("RUNLOCK", &rw->lock_object, 0, 0, file, line);
 
@@ -693,6 +691,8 @@ _rw_runlock_cookie(volatile uintptr_t *c, const char *file, int line)
 		break;
 	}
 	LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_RUNLOCK_RELEASE, rw);
+	curthread->td_locks--;
+	curthread->td_rw_rlocks--;
 }
 
 /*
