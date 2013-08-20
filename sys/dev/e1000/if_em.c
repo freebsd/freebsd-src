@@ -2277,7 +2277,7 @@ em_local_timer(void *arg)
 
 	/* Mask to use in the irq trigger */
 	if (adapter->msix_mem)
-		trigger = rxr->ims; /* RX for 82574 */
+		trigger = rxr->ims;
 	else
 		trigger = E1000_ICS_RXDMT0;
 
@@ -2742,7 +2742,7 @@ static int
 em_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	int val = 0;
+	int val;
 
 	/*
 	** Setup MSI/X for Hartwell: tests have shown
@@ -2756,37 +2756,43 @@ em_setup_msix(struct adapter *adapter)
 		int rid = PCIR_BAR(EM_MSIX_BAR);
 		adapter->msix_mem = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       		if (!adapter->msix_mem) {
+       		if (adapter->msix_mem == NULL) {
 			/* May not be enabled */
                		device_printf(adapter->dev,
 			    "Unable to map MSIX table \n");
 			goto msi;
        		}
 		val = pci_msix_count(dev); 
-		/* We only need 3 vectors */
-		if (val > 3)
+		/* We only need/want 3 vectors */
+		if (val >= 3)
 			val = 3;
-		if ((val != 3) && (val != 5)) {
-			bus_release_resource(dev, SYS_RES_MEMORY,
-			    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
-			adapter->msix_mem = NULL;
+		else {
                		device_printf(adapter->dev,
-			    "MSIX: incorrect vectors, using MSI\n");
+			    "MSIX: insufficient vectors, using MSI\n");
 			goto msi;
 		}
 
-		if (pci_alloc_msix(dev, &val) == 0) {
+		if ((pci_alloc_msix(dev, &val) == 0) && (val == 3)) {
 			device_printf(adapter->dev,
 			    "Using MSIX interrupts "
 			    "with %d vectors\n", val);
+			return (val);
 		}
 
-		return (val);
+		/*
+		** If MSIX alloc failed or provided us with
+		** less than needed, free and fall through to MSI
+		*/
+		pci_release_msi(dev);
 	}
 msi:
-       	val = pci_msi_count(dev);
-       	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
-               	adapter->msix = 1;
+	if (adapter->msix_mem != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
+		adapter->msix_mem = NULL;
+	}
+       	val = 1;
+       	if (pci_alloc_msi(dev, &val) == 0) {
                	device_printf(adapter->dev,"Using an MSI interrupt\n");
 		return (val);
 	} 
