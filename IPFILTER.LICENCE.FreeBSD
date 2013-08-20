@@ -1,0 +1,83 @@
+Received: from slippy (localhost [127.0.0.1])
+	by slippy.cwsent.com (8.14.7/8.14.7) with ESMTP id r68DreQv004291
+	for <cy@localhost>; Mon, 8 Jul 2013 06:53:40 -0700 (PDT)
+	(envelope-from Cy.Schubert@komquats.com)
+X-Original-To: slippy
+Delivered-To: slippy@komquats.com
+Received: from cwfw [10.1.1.254]
+	by slippy with POP3 (fetchmail-6.3.22)
+	for <cy@localhost> (single-drop); Mon, 08 Jul 2013 06:53:40 -0700 (PDT)
+Received: by spqr.komquats.com (Postfix, from userid 1000)
+	id 377821BC; Mon,  8 Jul 2013 06:53:38 -0700 (PDT)
+X-Spam-Checker-Version: SpamAssassin 3.3.2 (2011-06-06) on cwfw.cwsent.com
+X-Spam-Level: 
+X-Spam-Status: No, score=-1.6 required=5.0 tests=BAYES_00,MY_DSL,SMILEY
+	autolearn=no version=3.3.2
+X-Original-To: Cy.Schubert@komquats.com
+Delivered-To: Cy.Schubert@komquats.com
+Received: from mail.ipfilter.com.au (dsl-202-45-110-141-static.VIC.netspace.net.au [202.45.110.141])
+	by spqr.komquats.com (Postfix) with ESMTP id C69AE18D
+	for <Cy.Schubert@komquats.com>; Mon,  8 Jul 2013 06:53:31 -0700 (PDT)
+Received: (from root@localhost)
+	by firewall.reed.wattle.id.au (8.12.10/8.11.0) id r68DrJF8001558;
+	Mon, 8 Jul 2013 23:53:19 +1000 (EST)
+Message-ID: <51DAC488.1050700@reed.wattle.id.au>
+Date: Mon, 08 Jul 2013 23:54:16 +1000
+From: Darren Reed <darrenr@reed.wattle.id.au>
+Reply-To: darrenr@reed.wattle.id.au
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:17.0) Gecko/20130620 Thunderbird/17.0.7
+MIME-Version: 1.0
+To: Cy Schubert <Cy.Schubert@komquats.com>
+CC: Gleb Smirnoff <glebius@FreeBSD.org>, Andre Oppermann <andre@FreeBSD.org>,
+        Pedro Giffuni <pfg@FreeBSD.org>
+Subject: Re: IP Filter 5.1.2 License
+References: <201307011513.r61FD9IK005944@slippy.cwsent.com>
+In-Reply-To: <201307011513.r61FD9IK005944@slippy.cwsent.com>
+X-Enigmail-Version: 1.5.1
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+X-UIDL: NC"#!o_F!!BlL!!bL6!!
+
+On 2/07/2013 1:13 AM, Cy Schubert wrote:
+> In message <51D19503.2090805@reed.wattle.id.au>, Darren Reed writes:
+>> On 25/06/2013 11:03 AM, Cy Schubert wrote:
+>>> Hi Darren,
+>>>
+>>> I'm not sure if you remember me or not but I'm a committer at the FreeBSD 
+>>> Project. I've been a long time IPF user, both under FreeBSD and Solaris. 
+>>> I've volunteered to maintain IP Filter in the src/ tree. I noticed that the
+>>  
+>>> IP Filter license changed from the previous IP Filter license to GPLv2 
+>>> somewhere between 4.1.34 and 4.1.35. I was planning on importing 5.1.2 
+>>> however upon discovering it was GPL I decided to update the FreeBSD IPF 
+>>> from 4.1.28 to 4.1.34 until it was brought to my attention a few days ago 
+>>> that IPF 5.1.2 was imported into NetBSD. I'm not sure what kind of policy 
+>>> the NetBSD folks have toward GPL so I thought it best to ask you directly 
+>>> under what license you imported IPF into NetBSD? If I can I'd like to 
+>>> import 5.1.2. As IPF author and owner of the code, what are your thoughts. 
+>>  
+>>> Can I import IPF 5.1.2 into FreeBSD under a different license from GPL?
+>> I imported IPF into NetBSD under the same license that has had previously.
+>> When I eventually update FreeBSD, I'll publish the code under the same
+>> license that it has now.
+>>
+
+[...]
+
+>
+> When we import into FreeBSD we will not touch the IPFILTER.LICENSE file 
+> keeping the license as before in our tree.
+>
+> I don't mind doing the work if you won't mind.
+
+Not at all.
+
+Ok, I think there's one important thing for me to say here:
+
+I, Darren Reed, authorise Cy Schubert to use the IP-Filter source code from CVS on sourceforge in the FreeBSD source code tree using the existing license that currently covers IP-Filter in FreeBSD .
+
+I think something like that should cover you.
+
+Cheers,
+Darren
+
