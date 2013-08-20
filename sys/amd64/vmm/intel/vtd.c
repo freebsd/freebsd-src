@@ -611,12 +611,29 @@ vtd_create_domain(vm_paddr_t maxaddr)
 	dom = malloc(sizeof(struct domain), M_VTD, M_ZERO | M_WAITOK);
 	dom->pt_levels = pt_levels;
 	dom->addrwidth = addrwidth;
-	dom->spsmask = VTD_CAP_SPS(vtdmap->cap);
 	dom->id = domain_id();
 	dom->maxaddr = maxaddr;
 	dom->ptp = malloc(PAGE_SIZE, M_VTD, M_ZERO | M_WAITOK);
 	if ((uintptr_t)dom->ptp & PAGE_MASK)
 		panic("vtd_create_domain: ptp (%p) not page aligned", dom->ptp);
+
+#ifdef notyet
+	/*
+	 * XXX superpage mappings for the iommu do not work correctly.
+	 *
+	 * By default all physical memory is mapped into the host_domain.
+	 * When a VM is allocated wired memory the pages belonging to it
+	 * are removed from the host_domain and added to the vm's domain.
+	 *
+	 * If the page being removed was mapped using a superpage mapping
+	 * in the host_domain then we need to demote the mapping before
+	 * removing the page.
+	 *
+	 * There is not any code to deal with the demotion at the moment
+	 * so we disable superpage mappings altogether.
+	 */
+	dom->spsmask = VTD_CAP_SPS(vtdmap->cap);
+#endif
 
 	SLIST_INSERT_HEAD(&domhead, dom, next);
 
