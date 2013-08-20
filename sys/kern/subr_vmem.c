@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/smp.h>
 #include <sys/condvar.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/vmem.h>
 
@@ -167,6 +168,9 @@ struct vmem_btag {
 #define	BT_END(bt)	((bt)->bt_start + (bt)->bt_size - 1)
 
 #if defined(DIAGNOSTIC)
+static int enable_vmem_check = 1;
+SYSCTL_INT(_debug, OID_AUTO, vmem_check, CTLFLAG_RW,
+    &enable_vmem_check, 0, "Enable vmem check");
 static void vmem_check(vmem_t *);
 #endif
 
@@ -720,9 +724,11 @@ vmem_periodic(void *unused, int pending)
 	LIST_FOREACH(vm, &vmem_list, vm_alllist) {
 #ifdef DIAGNOSTIC
 		/* Convenient time to verify vmem state. */
-		VMEM_LOCK(vm);
-		vmem_check(vm);
-		VMEM_UNLOCK(vm);
+		if (enable_vmem_check == 1) {
+			VMEM_LOCK(vm);
+			vmem_check(vm);
+			VMEM_UNLOCK(vm);
+		}
 #endif
 		desired = 1 << flsl(vm->vm_nbusytag);
 		desired = MIN(MAX(desired, VMEM_HASHSIZE_MIN),
