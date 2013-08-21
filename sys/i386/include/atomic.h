@@ -32,6 +32,11 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#ifdef _KERNEL
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
+#endif
+
 #define	mb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
 #define	wmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
 #define	rmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
@@ -87,6 +92,9 @@ u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
 #define	ATOMIC_STORE(TYPE)					\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
+uint64_t	atomic_load_acq_64(volatile uint64_t *);
+void		atomic_store_rel_64(volatile uint64_t *, uint64_t);
+
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
 /*
@@ -123,83 +131,6 @@ atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	: "memory", "cc");				\
 }							\
 struct __hack
-
-#if defined(_KERNEL) && !defined(WANT_FUNCTIONS)
-
-/* I486 does not support SMP or CMPXCHG8B. */
-static __inline uint64_t
-atomic_load_acq_64_i386(volatile uint64_t *p)
-{
-	volatile uint32_t *high, *low;
-	uint64_t res;
-
-	low = (volatile uint32_t *)p;
-	high = (volatile uint32_t *)p + 1;
-	__asm __volatile(
-	"	pushfl ;		"
-	"	cli ;			"
-	"	movl %1,%%eax ;		"
-	"	movl %2,%%edx ;		"
-	"	popfl"
-	: "=&A" (res)			/* 0 */
-	: "m" (*low),			/* 1 */
-	  "m" (*high)			/* 2 */
-	: "memory");
-	return (res);
-}
-
-static __inline void
-atomic_store_rel_64_i386(volatile uint64_t *p, uint64_t v)
-{
-	volatile uint32_t *high, *low;
-
-	low = (volatile uint32_t *)p;
-	high = (volatile uint32_t *)p + 1;
-	__asm __volatile(
-	"	pushfl ;		"
-	"	cli ;			"
-	"	movl %%eax,%0 ;		"
-	"	movl %%edx,%1 ;		"
-	"	popfl"
-	: "=m" (*low),			/* 0 */
-	  "=m" (*high)			/* 1 */
-	: "A" (v)			/* 2 */
-	: "memory");
-}
-
-static __inline uint64_t
-atomic_load_acq_64_i586(volatile uint64_t *p)
-{
-	uint64_t res;
-
-	__asm __volatile(
-	"	movl %%ebx,%%eax ;	"
-	"	movl %%ecx,%%edx ;	"
-	"	" MPLOCKED "		"
-	"	cmpxchg8b %1"
-	: "=&A" (res),			/* 0 */
-	  "+m" (*p)			/* 1 */
-	: : "memory", "cc");
-	return (res);
-}
-
-static __inline void
-atomic_store_rel_64_i586(volatile uint64_t *p, uint64_t v)
-{
-
-	__asm __volatile(
-	"	movl %%eax,%%ebx ;	"
-	"	movl %%edx,%%ecx ;	"
-	"1:				"
-	"	" MPLOCKED "		"
-	"	cmpxchg8b %0 ;		"
-	"	jne 1b"
-	: "+m" (*p),			/* 0 */
-	  "+A" (v)			/* 1 */
-	: : "ebx", "ecx", "memory", "cc");
-}
-
-#endif /* _KERNEL && !WANT_FUNCTIONS */
 
 /*
  * Atomic compare and set, used by the mutex functions
@@ -343,6 +274,108 @@ struct __hack
 
 #endif /* _KERNEL && !SMP */
 
+#ifdef _KERNEL
+
+#ifdef WANT_FUNCTIONS
+uint64_t	atomic_load_acq_64_i386(volatile uint64_t *);
+uint64_t	atomic_load_acq_64_i586(volatile uint64_t *);
+void		atomic_store_rel_64_i386(volatile uint64_t *, uint64_t);
+void		atomic_store_rel_64_i586(volatile uint64_t *, uint64_t);
+#endif
+
+/* I486 does not support SMP or CMPXCHG8B. */
+static __inline uint64_t
+atomic_load_acq_64_i386(volatile uint64_t *p)
+{
+	volatile uint32_t *q;
+	uint64_t res;
+
+	q = (volatile uint32_t *)p;
+	__asm __volatile(
+	"	pushfl ;		"
+	"	cli ;			"
+	"	movl	%1,%%eax ;	"
+	"	movl	%2,%%edx ;	"
+	"	popfl"
+	: "=&A" (res)			/* 0 */
+	: "m" (*q),			/* 1 */
+	  "m" (*(q + 1))		/* 2 */
+	: "memory");
+	return (res);
+}
+
+static __inline void
+atomic_store_rel_64_i386(volatile uint64_t *p, uint64_t v)
+{
+	volatile uint32_t *q;
+
+	q = (volatile uint32_t *)p;
+	__asm __volatile(
+	"	pushfl ;		"
+	"	cli ;			"
+	"	movl	%%eax,%0 ;	"
+	"	movl	%%edx,%1 ;	"
+	"	popfl"
+	: "=m" (*q),			/* 0 */
+	  "=m" (*(q + 1))		/* 1 */
+	: "A" (v)			/* 2 */
+	: "memory");
+}
+
+static __inline uint64_t
+atomic_load_acq_64_i586(volatile uint64_t *p)
+{
+	uint64_t res;
+
+	__asm __volatile(
+	"	movl	%%ebx,%%eax ;	"
+	"	movl	%%ecx,%%edx ;	"
+	"	" MPLOCKED "		"
+	"	cmpxchg8b %1"
+	: "=&A" (res),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: : "memory", "cc");
+	return (res);
+}
+
+static __inline void
+atomic_store_rel_64_i586(volatile uint64_t *p, uint64_t v)
+{
+
+	__asm __volatile(
+	"	movl	%%eax,%%ebx ;	"
+	"	movl	%%edx,%%ecx ;	"
+	"1:				"
+	"	" MPLOCKED "		"
+	"	cmpxchg8b %0 ;		"
+	"	jne	1b"
+	: "+m" (*p),			/* 0 */
+	  "+A" (v)			/* 1 */
+	: : "ebx", "ecx", "memory", "cc");
+}
+
+static __inline uint64_t
+atomic_load_acq_64(volatile uint64_t *p)
+{
+
+	if ((cpu_feature & CPUID_CX8) == 0)
+		return (atomic_load_acq_64_i386(p));
+	else
+		return (atomic_load_acq_64_i586(p));
+}
+
+static __inline void
+atomic_store_rel_64(volatile uint64_t *p, uint64_t v)
+{
+
+	if ((cpu_feature & CPUID_CX8) == 0)
+		atomic_store_rel_64_i386(p, v);
+	else
+		atomic_store_rel_64_i586(p, v);
+}
+
+#endif /* _KERNEL */
+
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 
 ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v);
@@ -380,11 +413,6 @@ ATOMIC_STORE(long);
 #undef ATOMIC_STORE
 
 #ifndef WANT_FUNCTIONS
-
-#ifdef _KERNEL
-extern uint64_t (*atomic_load_acq_64)(volatile uint64_t *);
-extern void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t);
-#endif
 
 static __inline int
 atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
