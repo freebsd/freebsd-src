@@ -676,6 +676,9 @@
 #endif
 #endif
 
+#ifndef	__has_extension
+#define	__has_extension  __has_feature
+#endif
 #ifndef	__has_feature
 #define	__has_feature(x) 0
 #endif

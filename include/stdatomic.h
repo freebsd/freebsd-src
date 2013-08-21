@@ -234,19 +234,12 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 #else
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure)	__extension__ ({			\
-	__typeof__((object)->__val) __v;				\
-	__typeof__(expected) __e;					\
-	_Bool __r;							\
-	__e = (expected);						\
-	(void)(success);						\
-	(void)(failure);						\
-	__v = __sync_val_compare_and_swap(&(object)->__val,		\
-	    *__e, (desired));						\
-	__r = (*__e == __v);						\
-	*__e = __v;							\
-	__r;								\
+	__typeof__(expected) __ep = (expected);				\
+	__typeof__(*__ep) __e = *__ep;					\
+	(void)(success); (void)(failure);				\
+	(_Bool)((*__ep = __sync_val_compare_and_swap(&(object)->__val,	\
+	    __e, desired)) == __e);					\
 })
-
 #define	atomic_compare_exchange_weak_explicit(object, expected,		\
     desired, success, failure)						\
 	atomic_compare_exchange_strong_explicit(object, expected,	\
@@ -271,25 +264,19 @@ __extension__ ({							\
 })
 #endif
 #define	atomic_fetch_add_explicit(object, operand, order)		\
-	__sync_fetch_and_add(&(object)->__val, operand)
+	((void)(order), __sync_fetch_and_add(&(object)->__val, operand))
 #define	atomic_fetch_and_explicit(object, operand, order)		\
-	__sync_fetch_and_and(&(object)->__val, operand)
+	((void)(order), __sync_fetch_and_and(&(object)->__val, operand))
 #define	atomic_fetch_or_explicit(object, operand, order)		\
-	__sync_fetch_and_or(&(object)->__val, operand)
+	((void)(order), __sync_fetch_and_or(&(object)->__val, operand))
 #define	atomic_fetch_sub_explicit(object, operand, order)		\
-	__sync_fetch_and_sub(&(object)->__val, operand)
+	((void)(order), __sync_fetch_and_sub(&(object)->__val, operand))
 #define	atomic_fetch_xor_explicit(object, operand, order)		\
-	__sync_fetch_and_xor(&(object)->__val, operand)
+	((void)(order), __sync_fetch_and_xor(&(object)->__val, operand))
 #define	atomic_load_explicit(object, order)				\
-	__sync_fetch_and_add(&(object)->__val, 0)
-#define	atomic_store_explicit(object, desired, order) __extension__ ({	\
-	__typeof__(object) __o = (object);				\
-	__typeof__(desired) __d = (desired);				\
-	(void)(order);							\
-	__sync_synchronize();						\
-	__o->__val = __d;						\
-	__sync_synchronize();						\
-})
+	((void)(order), __sync_fetch_and_add(&(object)->__val, 0))
+#define	atomic_store_explicit(object, desired, order)			\
+	((void)atomic_exchange_explicit(object, desired, order))
 #endif
 
 /*
