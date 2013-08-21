@@ -515,11 +515,11 @@ db_stack_trace_cmd(db_expr_t addr, db_expr_t count, boolean_t kernel_only)
 		db_printsym(scp, DB_STGY_PROC);
 		db_printf("\n");
 #ifdef __PROG26
-		db_printf("scp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV] & R15_PC);
+		db_printf("\tscp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV] & R15_PC);
 		db_printsym(frame[FR_RLV] & R15_PC, DB_STGY_PROC);
 		db_printf(")\n");
 #else
-		db_printf("scp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV]);
+		db_printf("\tscp=0x%08x rlv=0x%08x (", scp, frame[FR_RLV]);
 		db_printsym(frame[FR_RLV], DB_STGY_PROC);
 		db_printf(")\n");
 #endif

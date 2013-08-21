@@ -33,11 +33,8 @@
 /*$FreeBSD$*/
 
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#endif
-
 #include "ixgbe.h"
 
 /*********************************************************************
@@ -3943,6 +3940,7 @@ ixgbe_free_receive_ring(struct rx_ring *rxr)
 			rxbuf->buf->m_flags |= M_PKTHDR;
 			m_freem(rxbuf->buf);
 			rxbuf->buf = NULL;
+			rxbuf->flags = 0;
 		}
 	}
 }

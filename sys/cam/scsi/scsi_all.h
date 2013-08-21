@@ -88,6 +88,9 @@ typedef enum {
 					    * and text.
 					    */
 	SSQ_PRINT_SENSE		= 0x0800,
+	SSQ_UA			= 0x1000,  /* Broadcast UA. */
+	SSQ_RESCAN		= 0x2000,  /* Rescan target for LUNs. */
+	SSQ_LOST		= 0x4000,  /* Destroy the LUNs. */
 	SSQ_MASK		= 0xff00
 } scsi_sense_action_qualifier;
 

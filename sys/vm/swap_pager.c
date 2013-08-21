@@ -1855,7 +1855,8 @@ retry:
 		if (swapblk == SWAPBLK_NONE)
 			goto done;
 
-		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
+		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT |
+		    (curproc == pageproc ? M_USE_RESERVE : 0));
 		if (swap == NULL) {
 			mtx_unlock(&swhash_mtx);
 			VM_OBJECT_WUNLOCK(object);

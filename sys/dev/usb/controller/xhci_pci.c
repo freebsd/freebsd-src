@@ -132,6 +132,9 @@ xhci_pci_probe(device_t self)
 	}
 }
 
+static int xhci_use_msi = 1;
+TUNABLE_INT("hw.usb.xhci.msi", &xhci_use_msi);
+
 static void
 xhci_interrupt_poll(void *_sc)
 {
@@ -171,13 +174,15 @@ xhci_pci_attach(device_t self)
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
 	sc->sc_irq_rid = 0;
-	count = pci_msi_count(self);
-	if (count >= 1) {
-		count = 1;
-		if (pci_alloc_msi(self, &count) == 0) {
-			if (bootverbose)
-				device_printf(self, "MSI enabled\n");
-			sc->sc_irq_rid = 1;
+	if (xhci_use_msi) {
+		count = pci_msi_count(self);
+		if (count >= 1) {
+			count = 1;
+			if (pci_alloc_msi(self, &count) == 0) {
+				if (bootverbose)
+					device_printf(self, "MSI enabled\n");
+				sc->sc_irq_rid = 1;
+			}
 		}
 	}
 	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ,

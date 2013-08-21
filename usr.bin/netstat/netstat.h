@@ -135,7 +135,7 @@ char	*atalk_print(struct sockaddr *, int);
 char	*atalk_print2(struct sockaddr *, struct sockaddr *, int);
 char	*ipx_print(struct sockaddr *);
 char	*ns_print(struct sockaddr *);
-void	routepr(u_long);
+void	routepr(u_long, int);
 
 void	ipxprotopr(u_long, const char *, int, int);
 void	spx_stats(u_long, const char *, int, int);

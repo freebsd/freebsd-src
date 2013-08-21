@@ -30,7 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +53,7 @@ static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
 {
 
-	return (1 << nsdata->lbaf[0].lbads);
+	return (1 << nsdata->lbaf[nsdata->flbas.format].lbads);
 }
 
 void
@@ -60,6 +62,7 @@ devlist(int argc, char *argv[])
 	struct nvme_controller_data	cdata;
 	struct nvme_namespace_data	nsdata;
 	char				name[64];
+	uint8_t				mn[64];
 	uint32_t			i;
 	int				ch, ctrlr, fd, found, ret;
 
@@ -80,8 +83,8 @@ devlist(int argc, char *argv[])
 		ret = open_dev(name, &fd, 0, 0);
 
 		if (ret != 0) {
-			if (fd < 0) {
-				warnx("could not open /dev/%s\n", name);
+			if (ret == EACCES) {
+				warnx("could not open "_PATH_DEV"%s\n", name);
 				continue;
 			} else
 				break;
@@ -89,7 +92,8 @@ devlist(int argc, char *argv[])
 
 		found++;
 		read_controller_data(fd, &cdata);
-		printf("%6s: %s\n", name, cdata.mn);
+		nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
+		printf("%6s: %s\n", name, mn);
 
 		for (i = 0; i < cdata.nn; i++) {
 			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,

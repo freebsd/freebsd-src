@@ -3455,6 +3455,8 @@ vfs_msync(struct mount *mp, int flags)
 static void
 destroy_vpollinfo(struct vpollinfo *vi)
 {
+
+	knlist_clear(&vi->vpi_selinfo.si_note, 1);
 	seldrain(&vi->vpi_selinfo);
 	knlist_destroy(&vi->vpi_selinfo.si_note);
 	mtx_destroy(&vi->vpi_lock);

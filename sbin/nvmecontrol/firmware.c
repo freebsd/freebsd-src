@@ -94,7 +94,7 @@ read_image_file(char *path, void **buf, int32_t *size)
 		    path, (intmax_t)sb.st_size);
 	filesize = (int32_t)sb.st_size;
 	if ((*buf = malloc(filesize)) == NULL)
-		errx(1, "unable to malloc %zd bytes", filesize);
+		errx(1, "unable to malloc %d bytes", filesize);
 	if ((*size = read(fd, *buf, filesize)) < 0)
 		err(1, "error reading '%s'", path);
 	/* XXX assuming no short reads */
@@ -246,7 +246,7 @@ firmware(int argc, char *argv[])
 		    "slot %d specified but controller only supports %d slots",
 		    slot, cdata.frmw.num_slots);
 
-	if (!slot_has_valid_firmware(fd, slot))
+	if (a_flag && !f_flag && !slot_has_valid_firmware(fd, slot))
 		errx(1,
 		    "slot %d does not contain valid firmware,\n"
 		    "try 'nvmecontrol logpage -p 3 %s' to get a list "

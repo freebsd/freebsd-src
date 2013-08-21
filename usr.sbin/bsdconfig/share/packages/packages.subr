@@ -993,9 +993,9 @@ f_package_extract()
 	esac
 
 	# We have a path, call the device strategy routine to get the file
-	local pkg_ext probe_only=1 found=
+	local pkg_ext found=
 	for pkg_ext in "" $PACKAGE_EXTENSIONS; do
-		if f_device_get $device "$path$pkg_ext" $probe_only; then
+		if f_device_get $device "$path$pkg_ext" $PROBE_EXIST; then
 			path="$path$pkg_ext"
 			f_dprintf "%s: found path=[%s] dev=[%s]" \
 			          $fname "$path" "$device"

@@ -245,6 +245,7 @@ __DEFAULT_YES_OPTIONS = \
     ACPI \
     AMD \
     APM \
+    ARM_EABI \
     ASSERT_DEBUG \
     AT \
     ATF \
@@ -363,7 +364,6 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
-    ARM_EABI \
     BSD_PATCH \
     BIND_IDN \
     BIND_LARGE_FILE \
@@ -385,7 +385,8 @@ __DEFAULT_NO_OPTIONS = \
     OFED \
     OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN \
-    SVN
+    SVN \
+    USB_GADGET_EXAMPLES
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately

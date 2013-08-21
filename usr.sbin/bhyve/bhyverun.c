@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "xmsr.h"
 #include "ioapic.h"
 #include "spinup_ap.h"
+#include "rtc.h"
 
 #define	DEFAULT_GUEST_HZ	100
 #define	DEFAULT_GUEST_TSLICE	200
@@ -508,6 +509,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
 	cpuset_t mask;
 	int error, rc, prevcpu;
+	enum vm_exitcode exitcode;
 
 	if (guest_vcpu_mux)
 		setup_timeslice();
@@ -537,8 +539,16 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 		}
 
 		prevcpu = vcpu;
-                rc = (*handler[vmexit[vcpu].exitcode])(ctx, &vmexit[vcpu],
-                                                       &vcpu);		
+
+		exitcode = vmexit[vcpu].exitcode;
+		if (exitcode >= VM_EXITCODE_MAX || handler[exitcode] == NULL) {
+			fprintf(stderr, "vm_loop: unexpected exitcode 0x%x\n",
+			    exitcode);
+			exit(1);
+		}
+
+                rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
+
 		switch (rc) {
                 case VMEXIT_SWITCH:
 			assert(guest_vcpu_mux);
@@ -734,6 +744,8 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
+
+	rtc_init(ctx);
 
 	/*
 	 * Exit if a device emulation finds an error in it's initilization

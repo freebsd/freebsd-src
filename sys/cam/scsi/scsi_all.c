@@ -665,6 +665,10 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 	if (pd_type == T_RBC)
 		pd_type = T_DIRECT;
 
+	/* Map NODEVICE to Direct Access Device to handle REPORT LUNS, etc. */
+	if (pd_type == T_NODEVICE)
+		pd_type = T_DIRECT;
+
 	opmask = 1 << pd_type;
 
 	for (j = 0; j < num_tables; j++) {
@@ -1645,7 +1649,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x24, 0x08, SS_RDEF,	/* XXX TBD */
 	    "Invalid XCDB") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x25, 0x00, SS_FATAL | ENXIO,
+	{ SST(0x25, 0x00, SS_FATAL | ENXIO | SSQ_LOST,
 	    "Logical unit not supported") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x26, 0x00, SS_FATAL | EINVAL,
@@ -2163,7 +2167,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x3F, 0x0D, SS_RDEF,
 	    "Volume set reassigned") },
 	/* DTLPWROMAE     */
-	{ SST(0x3F, 0x0E, SS_RDEF,	/* XXX TBD */
+	{ SST(0x3F, 0x0E, SS_RDEF | SSQ_RESCAN ,
 	    "Reported LUNs data has changed") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x3F, 0x0F, SS_RDEF,	/* XXX TBD */
@@ -3263,6 +3267,7 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 				action |= SS_RETRY|SSQ_DECREMENT_COUNT|
 					  SSQ_PRINT_SENSE;
 			}
+			action |= SSQ_UA;
 		}
 	}
 	if ((action & SS_MASK) >= SS_START &&

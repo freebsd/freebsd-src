@@ -209,9 +209,6 @@ int mlx4_check_port_params(struct mlx4_dev *dev,
 					 "on this HCA, aborting.\n");
 				return -EINVAL;
 			}
-			if (port_type[i] == MLX4_PORT_TYPE_ETH &&
-			    port_type[i + 1] == MLX4_PORT_TYPE_IB)
-				return -EINVAL;
 		}
 	}
 
@@ -479,11 +476,11 @@ static ssize_t set_port_type(struct device *dev,
 	int i;
 	int err = 0;
 
-	if (!strcmp(buf, "ib"))
+	if (!strcmp(buf, "ib\n"))
 		info->tmp_type = MLX4_PORT_TYPE_IB;
-	else if (!strcmp(buf, "eth"))
+	else if (!strcmp(buf, "eth\n"))
 		info->tmp_type = MLX4_PORT_TYPE_ETH;
-	else if (!strcmp(buf, "auto"))
+	else if (!strcmp(buf, "auto\n"))
 		info->tmp_type = MLX4_PORT_TYPE_AUTO;
 	else {
 		mlx4_err(mdev, "%s is not supported port type\n", buf);
