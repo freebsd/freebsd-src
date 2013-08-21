@@ -150,7 +150,6 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	  "+a" (expect)			/* 2 */
 	: "r" (src)			/* 3 */
 	: "memory", "cc");
-
 	return (res);
 }
 
@@ -169,7 +168,6 @@ atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 	  "+a" (expect)			/* 2 */
 	: "r" (src)			/* 3 */
 	: "memory", "cc");
-
 	return (res);
 }
 
@@ -289,7 +287,6 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	: "=a" (res),			/* 0 */		\
 	  "+m" (*p)			/* 1 */		\
 	: : "memory", "cc");				\
-							\
 	return (res);					\
 }							\
 struct __hack
@@ -346,7 +343,6 @@ atomic_swap_int(volatile u_int *p, u_int v)
 	"# atomic_swap_int"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p));			/* 1 */
-
 	return (v);
 }
 
@@ -359,7 +355,6 @@ atomic_swap_long(volatile u_long *p, u_long v)
 	"# atomic_swap_long"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p));			/* 1 */
-
 	return (v);
 }
 
