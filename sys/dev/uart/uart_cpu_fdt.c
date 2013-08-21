@@ -151,6 +151,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		class = &uart_s3c2410_class;
 	else if (fdt_is_compatible(node, "cadence,uart"))
 		class = &uart_cdnc_class;
+	else if (fdt_is_compatible(node, "ti,ns16550"))
+		class = &uart_ti8250_class;
 	else if (fdt_is_compatible(node, "ns16550"))
 		class = &uart_ns8250_class;
 
