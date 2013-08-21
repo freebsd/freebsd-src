@@ -50,14 +50,21 @@ int
 expand_number(const char *buf, uint64_t *num)
 {
 	uint64_t number;
+	int saved_errno;
 	unsigned shift;
 	char *endptr;
+
+	saved_errno = errno;
+	errno = 0;
 
 	number = strtoumax(buf, &endptr, 0);
 
 	if (number == UINTMAX_MAX && errno == ERANGE) {
 		return (-1);
 	}
+
+	if (errno == 0)
+		errno = saved_errno;
 
 	if (endptr == buf) {
 		/* No valid digits. */
