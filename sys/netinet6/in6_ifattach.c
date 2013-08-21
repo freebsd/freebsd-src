@@ -724,15 +724,8 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	struct in6_ifaddr *ia;
 	struct in6_addr in6;
 
-	/* some of the interfaces are inherently not IPv6 capable */
-	switch (ifp->if_type) {
-	case IFT_PFLOG:
-	case IFT_PFSYNC:
-		ND_IFINFO(ifp)->flags &= ~ND6_IFF_AUTO_LINKLOCAL;
-		ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
+	if (ifp->if_afdata[AF_INET6] == NULL)
 		return;
-	}
-
 	/*
 	 * quirks based on interface type
 	 */
@@ -939,6 +932,8 @@ in6_tmpaddrtimer(void *arg)
 
 	bzero(nullbuf, sizeof(nullbuf));
 	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+		if (ifp->if_afdata[AF_INET6] == NULL)
+			continue;
 		ndi = ND_IFINFO(ifp);
 		if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) != 0) {
 			/*

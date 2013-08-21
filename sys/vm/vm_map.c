@@ -239,8 +239,7 @@ vm_map_zinit(void *mem, int size, int flags)
 	vm_map_t map;
 
 	map = (vm_map_t)mem;
-	map->nentries = 0;
-	map->size = 0;
+	memset(map, 0, sizeof(*map));
 	mtx_init(&map->system_mtx, "vm map (system)", NULL, MTX_DEF | MTX_DUPOK);
 	sx_init(&map->lock, "vm map (user)");
 	return (0);

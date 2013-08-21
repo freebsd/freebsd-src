@@ -283,7 +283,6 @@ SUBDIR=	\
 	re \
 	reiserfs \
 	rl \
-	${_runfw} \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -445,7 +444,6 @@ _fxp=		fxp
 _ispfw=		ispfw
 _mwlfw=		mwlfw
 _ralfw=		ralfw
-_runfw=		runfw
 _sf=		sf
 _sn=		sn
 _ti=		ti
@@ -823,6 +821,7 @@ _sound=		sound
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
+_wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"

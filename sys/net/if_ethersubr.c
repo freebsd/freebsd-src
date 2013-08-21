@@ -48,6 +48,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/uuid.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -926,6 +927,8 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 			break; 
 	if (i != ifp->if_addrlen)
 		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
+
+	uuid_ether_add(LLADDR(sdl));
 }
 
 /*
@@ -934,6 +937,11 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 void
 ether_ifdetach(struct ifnet *ifp)
 {
+	struct sockaddr_dl *sdl;
+
+	sdl = (struct sockaddr_dl *)(ifp->if_addr->ifa_addr);
+	uuid_ether_del(LLADDR(sdl));
+
 	if (IFP2AC(ifp)->ac_netgraph != NULL) {
 		KASSERT(ng_ether_detach_p != NULL,
 		    ("ng_ether_detach_p is NULL"));

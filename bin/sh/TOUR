@@ -25,38 +25,11 @@ programs is:
         program         input files         generates
         -------         -----------         ---------
         mkbuiltins      builtins            builtins.h builtins.c
-        mkinit          *.c                 init.c
         mknodes         nodetypes           nodes.h nodes.c
         mksyntax            -               syntax.h syntax.c
         mktokens            -               token.h
 
-There are undoubtedly too many of these.  Mkinit searches all the
-C source files for entries looking like:
-
-        RESET {
-              x = 2;    /* executed when the shell does a longjmp
-                           back to the main command loop */
-        }
-
-It pulls this code out into routines which are when particular
-events occur.  The intent is to improve modularity by isolating
-the information about which modules need to be explicitly
-initialized/reset within the modules themselves.
-
-Mkinit recognizes several constructs for placing declarations in
-the init.c file.
-        INCLUDE "file.h"
-includes a file.  The storage class MKINIT makes a declaration
-available in the init.c file, for example:
-        MKINIT int funcnest;    /* depth of function calls */
-MKINIT alone on a line introduces a structure or union declara-
-tion:
-        MKINIT
-        struct redirtab {
-              short renamed[10];
-        };
-Preprocessor #define statements are copied to init.c without any
-special action to request this.
+There are undoubtedly too many of these.
 
 EXCEPTIONS:  Code for dealing with exceptions appears in
 exceptions.c.  The C language doesn't include exception handling,

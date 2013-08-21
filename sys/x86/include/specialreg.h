@@ -240,6 +240,29 @@
 #define	CPUID_LOCAL_APIC_ID	0xff000000
 
 /*
+ * CPUID instruction 5 info
+ */
+#define	CPUID5_MON_MIN_SIZE	0x0000ffff	/* eax */
+#define	CPUID5_MON_MAX_SIZE	0x0000ffff	/* ebx */
+#define	CPUID5_MON_MWAIT_EXT	0x00000001	/* ecx */
+#define	CPUID5_MWAIT_INTRBREAK	0x00000002	/* ecx */
+
+/*
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+/*
+ * MWAIT extensions.
+ */
+/* Interrupt breaks MWAIT even when masked. */
+#define	MWAIT_INTRBREAK		0x00000001
+
+/*
  * CPUID instruction 6 ecx info
  */
 #define	CPUID_PERF_STAT		0x00000001

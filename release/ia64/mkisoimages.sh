@@ -68,6 +68,8 @@ if [ $bootable = yes ]; then
     cp $BASE/boot/check-password.4th $MNT/boot
     cp $BASE/boot/screen.4th $MNT/boot
     mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
+    echo kern.cam.boot_delay=\"3000\" >> $MNT/boot/loader.conf
+    echo vfs.root.mountfrom=\"cd9660:iso9660/$LABEL\" >> $MNT/boot/loader.conf
     umount $MNT
     mdconfig -d -u $md
     BOOTOPTS="-o bootimage=i386;$EFIPART -o no-emul-boot"

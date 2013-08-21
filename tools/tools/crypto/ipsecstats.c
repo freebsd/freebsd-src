@@ -25,11 +25,12 @@
  *
  * $FreeBSD$
  */
-#include <stdio.h>
 #include <sys/types.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
+#include <stdint.h>
+#include <stdio.h>
 
 struct alg {
 	int		a;

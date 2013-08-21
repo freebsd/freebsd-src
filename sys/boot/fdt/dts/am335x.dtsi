@@ -219,5 +219,24 @@
  			/* 1 - Host Mode, 0 - Device Mode */
  			modemask = <2>;
  		};
+
+		mbox0@480C8000 {
+			compatible = "am335x,system-mbox";
+			reg = < 0x480C8000 0x1000 >;
+			interrupts = <77>;
+			interrupt-parent = <&AINTC>;
+		};
+
+		spinlock0@480CA000 {
+			compatible = "am335x,spinlock";
+			reg = < 0x480CA000 0x1000 >;
+		};
+
+		pruss@4A300000 {
+			compatible = "ti,pruss-v2";
+			reg = <0x4A300000 0x80000>;
+ 			interrupt-parent = <&AINTC>;
+			interrupts = <20 21 22 23 24 25 26 27>;
+		};
 	};
 };

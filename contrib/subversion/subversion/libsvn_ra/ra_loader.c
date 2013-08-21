@@ -1030,6 +1030,13 @@ svn_error_t *svn_ra_get_file_revs2(svn_ra_session_t *session,
   if (include_merged_revisions)
     SVN_ERR(svn_ra__assert_mergeinfo_capable_server(session, NULL, pool));
 
+  if (start > end)
+    SVN_ERR(
+     svn_ra__assert_capable_server(session,
+                                   SVN_RA_CAPABILITY_GET_FILE_REVS_REVERSE,
+                                   NULL,
+                                   pool));
+
   err = session->vtable->get_file_revs(session, path, start, end,
                                        include_merged_revisions,
                                        handler, handler_baton, pool);

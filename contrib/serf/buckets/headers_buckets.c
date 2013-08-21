@@ -325,8 +325,10 @@ static apr_status_t serf_headers_read(serf_bucket_t *bucket,
     apr_size_t avail;
 
     select_value(ctx, data, &avail);
-    if (ctx->state == READ_DONE)
+    if (ctx->state == READ_DONE) {
+        *len = avail;
         return APR_EOF;
+    }
 
     if (requested >= avail) {
         /* return everything from this chunk */
