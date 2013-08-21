@@ -55,6 +55,10 @@ expand_number(const char *buf, uint64_t *num)
 
 	number = strtoumax(buf, &endptr, 0);
 
+	if (number == UINTMAX_MAX && errno == ERANGE) {
+		return (-1);
+	}
+
 	if (endptr == buf) {
 		/* No valid digits. */
 		errno = EINVAL;
