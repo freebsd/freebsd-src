@@ -139,6 +139,100 @@ static struct fileops shm_ops = {
 FEATURE(posix_shm, "POSIX shared memory");
 
 static int
+uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
+{
+	vm_page_t m;
+	vm_pindex_t idx;
+	size_t tlen;
+	int error, offset, rv;
+
+	idx = OFF_TO_IDX(uio->uio_offset);
+	offset = uio->uio_offset & PAGE_MASK;
+	tlen = MIN(PAGE_SIZE - offset, len);
+
+	VM_OBJECT_WLOCK(obj);
+
+	/*
+	 * Parallel reads of the page content from disk are prevented
+	 * by exclusive busy.
+	 *
+	 * Although the tmpfs vnode lock is held here, it is
+	 * nonetheless safe to sleep waiting for a free page.  The
+	 * pageout daemon does not need to acquire the tmpfs vnode
+	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
+	 * type object.
+	 */
+	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	if (m->valid != VM_PAGE_BITS_ALL) {
+		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
+			rv = vm_pager_get_pages(obj, &m, 1, 0);
+			m = vm_page_lookup(obj, idx);
+			if (m == NULL) {
+				printf(
+		    "uiomove_object: vm_obj %p idx %jd null lookup rv %d\n",
+				    obj, idx, rv);
+				VM_OBJECT_WUNLOCK(obj);
+				return (EIO);
+			}
+			if (rv != VM_PAGER_OK) {
+				printf(
+	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
+				    obj, idx, m->valid, rv);
+				vm_page_lock(m);
+				vm_page_free(m);
+				vm_page_unlock(m);
+				VM_OBJECT_WUNLOCK(obj);
+				return (EIO);
+			}
+		} else
+			vm_page_zero_invalid(m, TRUE);
+	}
+	vm_page_xunbusy(m);
+	vm_page_lock(m);
+	vm_page_hold(m);
+	vm_page_unlock(m);
+	VM_OBJECT_WUNLOCK(obj);
+	error = uiomove_fromphys(&m, offset, tlen, uio);
+	if (uio->uio_rw == UIO_WRITE && error == 0) {
+		VM_OBJECT_WLOCK(obj);
+		vm_page_dirty(m);
+		VM_OBJECT_WUNLOCK(obj);
+	}
+	vm_page_lock(m);
+	vm_page_unhold(m);
+	if (m->queue == PQ_NONE) {
+		vm_page_deactivate(m);
+	} else {
+		/* Requeue to maintain LRU ordering. */
+		vm_page_requeue(m);
+	}
+	vm_page_unlock(m);
+
+	return (error);
+}
+
+int
+uiomove_object(vm_object_t obj, off_t obj_size, struct uio *uio)
+{
+	ssize_t resid;
+	size_t len;
+	int error;
+
+	error = 0;
+	while ((resid = uio->uio_resid) > 0) {
+		if (obj_size <= uio->uio_offset)
+			break;
+		len = MIN(obj_size - uio->uio_offset, resid);
+		if (len == 0)
+			break;
+		error = uiomove_object_page(obj, len, uio);
+		if (error != 0 || resid == uio->uio_resid)
+			break;
+	}
+	return (error);
+}
+
+static int
 shm_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
