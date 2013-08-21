@@ -83,6 +83,12 @@ extern size_t zio_compress_data(enum zio_compress c, void *src, void *dst,
 extern int zio_decompress_data(enum zio_compress c, void *src, void *dst,
     size_t s_len, size_t d_len);
 
+/*
+ * Module lifetime management.
+ */
+extern void zio_compress_init(void);
+extern void zio_compress_fini(void);
+
 #ifdef	__cplusplus
 }
 #endif
