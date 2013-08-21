@@ -248,7 +248,6 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	"	" MPLOCKED "		"
 	"	cmpxchgl %2,%1 ;	"
 	"       sete	%0 ;		"
-	"1:				"
 	"# atomic_cmpset_int"
 	: "=a" (res),			/* 0 */
 	  "=m" (*dst)			/* 1 */
