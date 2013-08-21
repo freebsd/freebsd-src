@@ -190,6 +190,10 @@ typedef	__size_t	size_t;
 #endif
 
 #if defined(_KERNEL) || defined(_WANT_FILE)
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/rangelock.h>
 #include <vm/vm.h>
 
 struct file;
@@ -214,6 +218,9 @@ struct shmfd {
 
 	struct label	*shm_label;		/* MAC label */
 	const char	*shm_path;
+
+	struct rangelock shm_rl;
+	struct mtx	shm_mtx;
 };
 #endif
 
