@@ -145,7 +145,6 @@ atomic_load_acq_64_i386(volatile uint64_t *p)
 	: "m" (*low),			/* 1 */
 	  "m" (*high)			/* 2 */
 	: "memory");
-
 	return (res);
 }
 
@@ -181,7 +180,6 @@ atomic_load_acq_64_i586(volatile uint64_t *p)
 	: "=&A" (res),			/* 0 */
 	  "+m" (*p)			/* 1 */
 	: : "memory", "cc");
-
 	return (res);
 }
 
@@ -233,7 +231,6 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	: "r" (src),			/* 2 */
 	  "r" (expect)			/* 3 */
 	: "memory");
-
 	return (res);
 }
 
@@ -254,7 +251,6 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	  "+a" (expect)			/* 2 */
 	: "r" (src)			/* 3 */
 	: "memory", "cc");
-
 	return (res);
 }
 
@@ -341,7 +337,6 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	: "=a" (res),			/* 0 */		\
 	  "+m" (*p)			/* 1 */		\
 	: : "memory", "cc");				\
-							\
 	return (res);					\
 }							\
 struct __hack
@@ -425,7 +420,6 @@ atomic_swap_int(volatile u_int *p, u_int v)
 	"# atomic_swap_int"
 	: "+r" (v),			/* 0 */
 	  "+m" (*p));			/* 1 */
-
 	return (v);
 }
 
