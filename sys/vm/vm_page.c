@@ -1927,7 +1927,7 @@ vm_page_alloc_freelist(int flind, int req)
 	/*
 	 * Do not allocate reserved pages unless the req has asked for it.
 	 */
-	mtx_lock(&vm_page_queue_free_mtx);
+	mtx_lock_flags(&vm_page_queue_free_mtx, MTX_RECURSE);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
