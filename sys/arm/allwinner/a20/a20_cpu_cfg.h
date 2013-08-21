@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -17,53 +17,51 @@
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _A20_CPU_CFG_H_
+#define _A20_CPU_CFG_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
+#define CPU_CFG_BASE		0xe1c25c00
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
+#define CPU0_RST_CTRL		0x0040
+#define CPU0_CTRL_REG		0x0044
+#define CPU0_STATUS_REG 	0x0048
 
-#include <machine/bus.h>
-#include <machine/fdt.h>
-#include <machine/vmparam.h>
+#define CPU1_RST_CTRL		0x0080
+#define CPU1_CTRL_REG		0x0084
+#define CPU1_STATUS_REG 	0x0088
 
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
+#define GENER_CTRL_REG		0x0184
 
-static int
-fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-	int offset;
+#define EVENT_IN_REG		0x0190
+#define PRIVATE_REG		0x01a4
 
-	if (fdt_is_compatible(node, "allwinner,sun4i-ic"))
-		offset = 0;
-	else if (fdt_is_compatible(node, "arm,gic"))
-		offset = 32;
-	else
-		return (ENXIO);
+#define IDLE_CNT0_LOW_REG	0x0200
+#define IDLE_CNT0_HIGH_REG	0x0204
+#define IDLE_CNT0_CTRL_REG	0x0208
 
-	*interrupt = fdt32_to_cpu(intr[0]) + offset;
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
+#define IDLE_CNT1_LOW_REG	0x0210
+#define IDLE_CNT1_HIGH_REG	0x0214
+#define IDLE_CNT1_CTRL_REG	0x0218
 
-	return (0);
-}
+#define OSC24M_CNT64_CTRL_REG	0x0280
+#define OSC24M_CNT64_LOW_REG	0x0284
+#define OSC24M_CNT64_HIGH_REG	0x0288
 
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_aintc_decode_ic,
-	NULL
-};
+#define LOSC_CNT64_CTRL_REG	0x0290
+#define LOSC_CNT64_LOW_REG	0x0294
+#define LOSC_CNT64_HIGH_REG	0x0298
+
+#define CNT64_RL_EN		0x02 /* read latch enable */
+
+uint64_t a20_read_counter64(void);
+
+#endif /* _A20_CPU_CFG_H_ */
