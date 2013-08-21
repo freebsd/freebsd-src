@@ -272,9 +272,9 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	xaddl	%0, %1 ;	"
+	"	xaddl	%0,%1 ;		"
 	"# atomic_fetchadd_int"
-	: "+r" (v),			/* 0 (result) */
+	: "+r" (v),			/* 0 */
 	  "=m" (*p)			/* 1 */
 	: "m" (*p)			/* 2 */
 	: "cc");
@@ -397,7 +397,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 #ifdef __GNUCLIKE_ASM
 
 static __inline u_int
-atomic_readandclear_int(volatile u_int *addr)
+atomic_readandclear_int(volatile u_int *p)
 {
 	u_int res;
 
@@ -406,14 +406,14 @@ atomic_readandclear_int(volatile u_int *addr)
 	"	xchgl	%1,%0 ;		"
 	"# atomic_readandclear_int"
 	: "+r" (res),			/* 0 */
-	  "=m" (*addr)			/* 1 */
-	: "m" (*addr));
+	  "=m" (*p)			/* 1 */
+	: "m" (*p));
 
 	return (res);
 }
 
 static __inline u_long
-atomic_readandclear_long(volatile u_long *addr)
+atomic_readandclear_long(volatile u_long *p)
 {
 	u_long res;
 
@@ -422,16 +422,16 @@ atomic_readandclear_long(volatile u_long *addr)
 	"	xchgl	%1,%0 ;		"
 	"# atomic_readandclear_long"
 	: "+r" (res),			/* 0 */
-	  "=m" (*addr)			/* 1 */
-	: "m" (*addr));
+	  "=m" (*p)			/* 1 */
+	: "m" (*p));
 
 	return (res);
 }
 
 #else /* !__GNUCLIKE_ASM */
 
-u_int	atomic_readandclear_int(volatile u_int *addr);
-u_long	atomic_readandclear_long(volatile u_long *addr);
+u_int	atomic_readandclear_int(volatile u_int *p);
+u_long	atomic_readandclear_long(volatile u_long *p);
 
 #endif /* __GNUCLIKE_ASM */
 
