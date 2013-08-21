@@ -243,6 +243,8 @@ int	mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
 	    int prot, int flags);
 int	mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 	    accmode_t accmode);
+int	mac_posixshm_check_read(struct ucred *active_cred,
+	    struct ucred *file_cred, struct shmfd *shmfd);
 int	mac_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
 	    mode_t mode);
 int	mac_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
@@ -252,6 +254,8 @@ int	mac_posixshm_check_stat(struct ucred *active_cred,
 int	mac_posixshm_check_truncate(struct ucred *active_cred,
 	    struct ucred *file_cred, struct shmfd *shmfd);
 int	mac_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd);
+int	mac_posixshm_check_write(struct ucred *active_cred,
+	    struct ucred *file_cred, struct shmfd *shmfd);
 void 	mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd);
 void	mac_posixshm_destroy(struct shmfd *);
 void	mac_posixshm_init(struct shmfd *);

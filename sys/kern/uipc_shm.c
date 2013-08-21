@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
+#include <sys/unistd.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -119,6 +120,7 @@ static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
 static fo_chmod_t	shm_chmod;
 static fo_chown_t	shm_chown;
+static fo_seek_t	shm_seek;
 
 /* File descriptor operations. */
 static struct fileops shm_ops = {
@@ -133,7 +135,8 @@ static struct fileops shm_ops = {
 	.fo_chmod = shm_chmod,
 	.fo_chown = shm_chown,
 	.fo_sendfile = invfo_sendfile,
-	.fo_flags = DFLAG_PASSABLE
+	.fo_seek = shm_seek,
+	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
 FEATURE(posix_shm, "POSIX shared memory");
@@ -233,19 +236,96 @@ uiomove_object(vm_object_t obj, off_t obj_size, struct uio *uio)
 }
 
 static int
+shm_seek(struct file *fp, off_t offset, int whence, struct thread *td)
+{
+	struct shmfd *shmfd;
+	off_t foffset;
+	int error;
+
+	shmfd = fp->f_data;
+	foffset = foffset_lock(fp, 0);
+	error = 0;
+	switch (whence) {
+	case L_INCR:
+		if (foffset < 0 ||
+		    (offset > 0 && foffset > OFF_MAX - offset)) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += foffset;
+		break;
+	case L_XTND:
+		if (offset > 0 && shmfd->shm_size > OFF_MAX - offset) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += shmfd->shm_size;
+		break;
+	case L_SET:
+		break;
+	default:
+		error = EINVAL;
+	}
+	if (error == 0) {
+		if (offset < 0 || offset > shmfd->shm_size)
+			error = EINVAL;
+		else
+			*(off_t *)(td->td_retval) = offset;
+	}
+	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
+	return (error);
+}
+
+static int
 shm_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
+	struct shmfd *shmfd;
+	void *rl_cookie;
+	int error;
 
-	return (EOPNOTSUPP);
+	shmfd = fp->f_data;
+	foffset_lock_uio(fp, uio, flags);
+	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
+	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
+#ifdef MAC
+	error = mac_posixshm_check_read(active_cred, fp->f_cred, shmfd);
+	if (error)
+		return (error);
+#endif
+	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	foffset_unlock_uio(fp, uio, flags);
+	return (error);
 }
 
 static int
 shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
+	struct shmfd *shmfd;
+	void *rl_cookie;
+	int error;
 
-	return (EOPNOTSUPP);
+	shmfd = fp->f_data;
+#ifdef MAC
+	error = mac_posixshm_check_write(active_cred, fp->f_cred, shmfd);
+	if (error)
+		return (error);
+#endif
+	foffset_lock_uio(fp, uio, flags);
+	if ((flags & FOF_OFFSET) == 0) {
+		rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
+		    &shmfd->shm_mtx);
+	} else {
+		rl_cookie = rangelock_wlock(&shmfd->shm_rl, uio->uio_offset,
+		    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
+	}
+
+	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	foffset_unlock_uio(fp, uio, flags);
+	return (error);
 }
 
 static int
@@ -471,6 +551,8 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
 	refcount_init(&shmfd->shm_refs, 1);
+	mtx_init(&shmfd->shm_mtx, "shmrl", NULL, MTX_DEF);
+	rangelock_init(&shmfd->shm_rl);
 #ifdef MAC
 	mac_posixshm_init(shmfd);
 	mac_posixshm_create(ucred, shmfd);
@@ -495,6 +577,8 @@ shm_drop(struct shmfd *shmfd)
 #ifdef MAC
 		mac_posixshm_destroy(shmfd);
 #endif
+		rangelock_destroy(&shmfd->shm_rl);
+		mtx_destroy(&shmfd->shm_mtx);
 		vm_object_deallocate(shmfd->shm_object);
 		free(shmfd, M_SHMFD);
 	}
