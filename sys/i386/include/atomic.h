@@ -106,8 +106,8 @@ static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
-	: "=m" (*p)					\
-	: CONS (V), "m" (*p)				\
+	: "+m" (*p)					\
+	: CONS (V)					\
 	: "cc");					\
 }							\
 							\
@@ -115,8 +115,8 @@ static __inline void					\
 atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
-	: "=m" (*p)					\
-	: CONS (V), "m" (*p)				\
+	: "+m" (*p)					\
+	: CONS (V)					\
 	: "memory", "cc");				\
 }							\
 struct __hack
@@ -174,11 +174,10 @@ atomic_load_acq_64_i586(volatile uint64_t *p)
 	"	movl %%ebx,%%eax ;	"
 	"	movl %%ecx,%%edx ;	"
 	"	" MPLOCKED "		"
-	"	cmpxchg8b %2"
+	"	cmpxchg8b %1"
 	: "=&A" (res),			/* 0 */
-	  "=m" (*p)			/* 1 */
-	: "m" (*p)			/* 2 */
-	: "memory", "cc");
+	  "+m" (*p)			/* 1 */
+	: : "memory", "cc");
 
 	return (res);
 }
@@ -192,12 +191,11 @@ atomic_store_rel_64_i586(volatile uint64_t *p, uint64_t v)
 	"	movl %%edx,%%ecx ;	"
 	"1:				"
 	"	" MPLOCKED "		"
-	"	cmpxchg8b %2 ;		"
+	"	cmpxchg8b %0 ;		"
 	"	jne 1b"
-	: "=m" (*p),			/* 0 */
+	: "+m" (*p),			/* 0 */
 	  "+A" (v)			/* 1 */
-	: "m" (*p)			/* 2 */
-	: "ebx", "ecx", "memory", "cc");
+	: : "ebx", "ecx", "memory", "cc");
 }
 
 #endif /* _KERNEL && !WANT_FUNCTIONS */
@@ -220,7 +218,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	cmpl	%3,%4 ;		"
+	"	cmpl	%3,%1 ;		"
 	"	jne	1f ;		"
 	"	movl	%2,%1 ;		"
 	"1:				"
@@ -228,10 +226,9 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	"	popfl ;			"
 	"# atomic_cmpset_int"
 	: "=q" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
+	  "+m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "r" (expect),			/* 3 */
-	  "m" (*dst)			/* 4 */
+	  "r" (expect)			/* 3 */
 	: "memory");
 
 	return (res);
@@ -250,10 +247,9 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 	"       sete	%0 ;		"
 	"# atomic_cmpset_int"
 	: "=a" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
+	  "+m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "a" (expect),			/* 3 */
-	  "m" (*dst)			/* 4 */
+	  "a" (expect)			/* 3 */
 	: "memory", "cc");
 
 	return (res);
@@ -274,9 +270,8 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 	"	xaddl	%0,%1 ;		"
 	"# atomic_fetchadd_int"
 	: "+r" (v),			/* 0 */
-	  "=m" (*p)			/* 1 */
-	: "m" (*p)			/* 2 */
-	: "cc");
+	  "+m" (*p)			/* 1 */
+	: : "cc");
 	return (v);
 }
 
@@ -324,9 +319,8 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 							\
 	__asm __volatile(MPLOCKED LOP			\
 	: "=a" (res),			/* 0 */		\
-	  "=m" (*p)			/* 1 */		\
-	: "m" (*p)			/* 2 */		\
-	: "memory", "cc");				\
+	  "+m" (*p)			/* 1 */		\
+	: : "memory", "cc");				\
 							\
 	return (res);					\
 }							\
@@ -405,8 +399,7 @@ atomic_readandclear_int(volatile u_int *p)
 	"	xchgl	%1,%0 ;		"
 	"# atomic_readandclear_int"
 	: "+r" (res),			/* 0 */
-	  "=m" (*p)			/* 1 */
-	: "m" (*p));
+	  "+m" (*p));			/* 1 */
 
 	return (res);
 }
@@ -421,8 +414,7 @@ atomic_readandclear_long(volatile u_long *p)
 	"	xchgl	%1,%0 ;		"
 	"# atomic_readandclear_long"
 	: "+r" (res),			/* 0 */
-	  "=m" (*p)			/* 1 */
-	: "m" (*p));
+	  "+m" (*p));			/* 1 */
 
 	return (res);
 }
