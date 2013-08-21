@@ -457,6 +457,11 @@ main(int argc, char *argv[])
 	if (gethostname(hostname, sizeof(hostname)) < 0)
 		hostname[0] = '\0';
 
+	priv_script_init("PREINIT", NULL);
+	if (ifi->client->alias)
+		priv_script_write_params("alias_", ifi->client->alias);
+	priv_script_go();
+
 	/* set up the interface */
 	discover_interfaces(ifi);
 
@@ -482,11 +487,6 @@ main(int argc, char *argv[])
 	read_client_leases();
 	rewrite_client_leases();
 	close(fd);
-
-	priv_script_init("PREINIT", NULL);
-	if (ifi->client->alias)
-		priv_script_write_params("alias_", ifi->client->alias);
-	priv_script_go();
 
 	if ((routefd = socket(PF_ROUTE, SOCK_RAW, 0)) != -1)
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);

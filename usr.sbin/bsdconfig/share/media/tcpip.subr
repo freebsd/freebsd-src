@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_TCPIP_SUBR" ]; then _MEDIA_TCPIP_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_TCPIP_SUBR" ]; then _MEDIA_TCPIP_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -456,20 +456,20 @@ f_dialog_validate_tcpip()
 	local ipnum masknum
 
 	if [ ! "$hostname" ]; then
-		f_dialog_msgbox "$msg_must_specify_a_host_name_of_some_sort"
+		f_show_msg "$msg_must_specify_a_host_name_of_some_sort"
 	elif ! f_validate_hostname "$hostname"; then
-		f_dialog_msgbox "$msg_invalid_hostname_value"
+		f_show_msg "$msg_invalid_hostname_value"
 	elif [ "$netmask" ] && ! f_validate_netmask "$netmask"; then
-		f_dialog_msgbox "$msg_invalid_netmask_value"
+		f_show_msg "$msg_invalid_netmask_value"
 	elif [ "$nameserver" ] &&
-	      ! f_validate_ipaddr "$nameserver" &&
-	      ! f_validate_ipaddr6 "$nameserver"; then
-		f_dialog_msgbox "$msg_invalid_name_server_ip_address_specified"
+	     ! f_validate_ipaddr "$nameserver" &&
+	     ! f_validate_ipaddr6 "$nameserver"; then
+		f_show_msg "$msg_invalid_name_server_ip_address_specified"
 	elif [ "$ipaddr" ] && ! f_validate_ipaddr "$ipaddr" "$netmask"; then
-		f_dialog_msgbox "$msg_invalid_ipv4_address"
+		f_show_msg "$msg_invalid_ipv4_address"
 	elif [ "$gateway" -a "$gateway" != "NO" ] &&
-	      ! f_validate_gateway "$gateway" "$ipaddr" "$netmask"; then
-		f_dialog_msgbox "$msg_invalid_gateway_ipv4_address_specified"
+	     ! f_validate_gateway "$gateway" "$ipaddr" "$netmask"; then
+		f_show_msg "$msg_invalid_gateway_ipv4_address_specified"
 	else
 		return $SUCCESS
 	fi
@@ -1264,7 +1264,7 @@ f_device_dialog_tcp()
 	if f_netinteractive || f_interactive || [ ! "$_hostname" ]
 	then
 		[ ! "$_hostname" ] && f_interactive &&
-			f_dialog_msgbox "$msg_hostname_variable_not_set"
+			f_show_msg "$msg_hostname_variable_not_set"
 
 		local title=" $msg_network_configuration "
 		local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -1593,7 +1593,7 @@ f_device_select_tcp()
 			fi
 		done
 
-		f_interactive && f_dialog_msgbox "$msg_no_network_devices"
+		f_interactive && f_show_msg "$msg_no_network_devices"
 		return $FAILURE
 
 	fi # $network_dev
@@ -1616,7 +1616,7 @@ f_device_select_tcp()
 
 	local retval=$SUCCESS
 	if [ ${cnt:=0} -eq 0 ]; then
-		f_dialog_msgbox "$msg_no_network_devices"
+		f_show_msg "$msg_no_network_devices"
 		retval=$FAILURE
 	elif [ $cnt -eq 1 ]; then
 		f_device_dialog_tcp $dev

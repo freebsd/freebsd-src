@@ -123,6 +123,10 @@ device		bpf
 device		miibus
 device		axe			# ASIX Electronics USB Ethernet
 
+# Device mode support and USFS template
+device		usb_template    # Control of the gadget
+device		usfs
+
 # Flattened Device Tree
 options         FDT
 options         FDT_DTB_STATIC

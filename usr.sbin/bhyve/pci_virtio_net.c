@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/select.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
+#include <net/ethernet.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -638,6 +639,30 @@ pci_vtnet_ring_init(struct pci_vtnet_softc *sc, uint64_t pfn)
 }
 
 static int
+pci_vtnet_parsemac(char *mac_str, uint8_t *mac_addr)
+{
+        struct ether_addr *ea;
+        char *tmpstr;
+        char zero_addr[ETHER_ADDR_LEN] = { 0, 0, 0, 0, 0, 0 };
+
+        tmpstr = strsep(&mac_str,"=");
+       
+        if ((mac_str != NULL) && (!strcmp(tmpstr,"mac"))) {
+                ea = ether_aton(mac_str);
+
+                if (ea == NULL || ETHER_IS_MULTICAST(ea->octet) ||
+                    memcmp(ea->octet, zero_addr, ETHER_ADDR_LEN) == 0) {
+			fprintf(stderr, "Invalid MAC %s\n", mac_str);
+                        return (EINVAL);
+                } else
+                        memcpy(mac_addr, ea->octet, ETHER_ADDR_LEN);
+        }
+
+        return (0);
+}
+
+
+static int
 pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	MD5_CTX mdctx;
@@ -646,6 +671,9 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	char tname[MAXCOMLEN + 1];
 	struct pci_vtnet_softc *sc;
 	const char *env_msi;
+	char *devname;
+	char *vtopts;
+	int mac_provided;
 
 	sc = malloc(sizeof(struct pci_vtnet_softc));
 	memset(sc, 0, sizeof(struct pci_vtnet_softc));
@@ -664,14 +692,31 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 
 	/*
-	 * Attempt to open the tap device
+	 * Attempt to open the tap device and read the MAC address
+	 * if specified
 	 */
+	mac_provided = 0;
 	sc->vsc_tapfd = -1;
 	if (opts != NULL) {
 		char tbuf[80];
+		int err;
+
+		devname = vtopts = strdup(opts);
+		(void) strsep(&vtopts, ",");
+
+		if (vtopts != NULL) {
+			err = pci_vtnet_parsemac(vtopts, sc->vsc_macaddr);
+			if (err != 0) {
+				free(devname);
+				return (err);
+			}
+			mac_provided = 1;
+		}
 
 		strcpy(tbuf, "/dev/");
-		strlcat(tbuf, opts, sizeof(tbuf));
+		strlcat(tbuf, devname, sizeof(tbuf));
+
+		free(devname);
 
 		sc->vsc_tapfd = open(tbuf, O_RDWR);
 		if (sc->vsc_tapfd == -1) {
@@ -701,28 +746,24 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 
 	/*
-	 * The MAC address is the standard NetApp OUI of 00-a0-98,
-	 * followed by an MD5 of the vm name. The slot/func number is
-	 * prepended to this for slots other than 1:0, so that 
-	 * a bootloader can netboot from the equivalent of slot 1.
+	 * The default MAC address is the standard NetApp OUI of 00-a0-98,
+	 * followed by an MD5 of the PCI slot/func number and dev name
 	 */
-	if (pi->pi_slot == 1 && pi->pi_func == 0) {
-		strncpy(nstr, vmname, sizeof(nstr));
-	} else {
+	if (!mac_provided) {
 		snprintf(nstr, sizeof(nstr), "%d-%d-%s", pi->pi_slot,
-		    pi->pi_func, vmname);
+	            pi->pi_func, vmname);
+
+		MD5Init(&mdctx);
+		MD5Update(&mdctx, nstr, strlen(nstr));
+		MD5Final(digest, &mdctx);
+
+		sc->vsc_macaddr[0] = 0x00;
+		sc->vsc_macaddr[1] = 0xa0;
+		sc->vsc_macaddr[2] = 0x98;
+		sc->vsc_macaddr[3] = digest[0];
+		sc->vsc_macaddr[4] = digest[1];
+		sc->vsc_macaddr[5] = digest[2];
 	}
-
-	MD5Init(&mdctx);
-	MD5Update(&mdctx, nstr, strlen(nstr));
-	MD5Final(digest, &mdctx);
-
-	sc->vsc_macaddr[0] = 0x00;
-	sc->vsc_macaddr[1] = 0xa0;
-	sc->vsc_macaddr[2] = 0x98;
-	sc->vsc_macaddr[3] = digest[0];
-	sc->vsc_macaddr[4] = digest[1];
-	sc->vsc_macaddr[5] = digest[2];
 
 	/* initialize config space */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, VIRTIO_DEV_NET);

@@ -104,10 +104,15 @@ sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, buf, len);
 	if (error || !req->newptr || ops->store == NULL)
 		goto out;
-	error = SYSCTL_IN(req, buf, PAGE_SIZE);
+	len = req->newlen - req->newidx;
+	if (len >= PAGE_SIZE)
+		error = EINVAL;
+	else 
+		error = SYSCTL_IN(req, buf, len);
 	if (error)
 		goto out;
-	len = ops->store(kobj, attr, buf, req->newlen);
+	((char *)buf)[len] = '\0';
+	len = ops->store(kobj, attr, buf, len);
 	if (len < 0)
 		error = -len;
 out:

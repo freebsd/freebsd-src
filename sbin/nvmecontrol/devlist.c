@@ -29,13 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -45,7 +44,7 @@ devlist_usage(void)
 {
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, DEVLIST_USAGE);
-	exit(EX_USAGE);
+	exit(1);
 }
 
 static inline uint32_t
@@ -62,9 +61,7 @@ devlist(int argc, char *argv[])
 	struct nvme_namespace_data	nsdata;
 	char				name[64];
 	uint32_t			i;
-	int				ch, ctrlr, exit_code, fd, found;
-
-	exit_code = EX_OK;
+	int				ch, ctrlr, fd, found, ret;
 
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch ((char)ch) {
@@ -80,14 +77,14 @@ devlist(int argc, char *argv[])
 		ctrlr++;
 		sprintf(name, "%s%d", NVME_CTRLR_PREFIX, ctrlr);
 
-		exit_code = open_dev(name, &fd, 0, 0);
+		ret = open_dev(name, &fd, 0, 0);
 
-		if (exit_code == EX_NOINPUT)
-			break;
-		else if (exit_code == EX_NOPERM) {
-			printf("Could not open /dev/%s, errno = %d (%s)\n",
-			    name, errno, strerror(errno));
-			continue;
+		if (ret != 0) {
+			if (fd < 0) {
+				warnx("could not open /dev/%s\n", name);
+				continue;
+			} else
+				break;
 		}
 
 		found++;
@@ -111,5 +108,5 @@ devlist(int argc, char *argv[])
 	if (found == 0)
 		printf("No NVMe controllers found.\n");
 
-	exit(EX_OK);
+	exit(1);
 }

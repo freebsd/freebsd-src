@@ -23,43 +23,9 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"            docsinstall
-.\"            password
-.\"            diskmgmt
-.\"            usermgmt
-.\"              useradd
-.\"              useredit
-.\"              userdel
-.\"            groupmgmt
-.\"              groupadd
-.\"              groupedit
-.\"              groupdel
-.\"            console
-.\"              syscons_font
-.\"              syscons_keymap
-.\"              syscons_repeat
-.\"              syscons_saver
-.\"              syscons_screenmap
-.\"              syscons_ttys
-.\"            timezone
-.\"            mouse
-.\"              mouse_enable
-.\"              mouse_type
-.\"              mouse_port
-.\"              mouse_flags
-.\"              mouse_disable
-.\"            networking
-.\"              defaultrouter
-.\"              hostname
-.\"              nameservers
-.\"              netdev
-.\"            security
-.\"            ttys
-.\"            [dot]
-.\" 
 .\" $FreeBSD$
 .\"
-.Dd Jan 5, 2013
+.Dd Jun 5, 2013
 .Dt BSDCONFIG 8
 .Os
 .Sh NAME
@@ -80,11 +46,18 @@ is used to set up many system configuration settings, both for new systems, as
 well as changing configuration settings of existing systems.
 .Pp
 .Nm
-takes a command as an argument. If invoked with no arguments, it will bring up
-a master menu listing the available commands.
+optionally takes a command as an argument.
+If invoked with no arguments, it will bring up an interactive menu listing the
+available modules.
 .Pp
 The following options are available:
 .Bl -tag -width indent+
+.It Fl d
+Provide lots of debugging info on standard-out when running.
+.It Fl D Ar file
+Send debugging info to file.
+If file begins with a plus-sign debug info is sent to both standard-out and
+file (minus the leading plus).
 .It Fl f Ar file
 Load
 .Ar file
@@ -115,8 +88,8 @@ The following commands
 .Pq sorted alphabetically
 are currently included in the base
 .Nm
-program, with more to be added soon.  Other commands can be added, as detailed
-below in the
+program, with more to be added soon.
+Other commands can be added, as detailed below in the
 .Cm ADDING COMMANDS
 section, and once added, will appear in the master menu as well as in the
 .Cm -h
@@ -127,7 +100,8 @@ Utilities to customize the behavior of the system console.
 .It Cm defaultrouter
 Shortcut to the Default Router/Gateway menu under networking.
 .It Cm diskmgmt
-Manage disk partitions and/or labels. Executes
+Manage disk partitions and/or labels.
+Executes
 .Xr sade 8 .
 .It Cm docsinstall
 Executes the
@@ -141,7 +115,8 @@ language file
 .Pq printed on stdout
 visualizing the
 .Nm
-menu, include, and shortcut structure and relationships.  See
+menu, include, and shortcut structure relationships.
+See
 .Dq bsdconfig dot -h
 for more details.
 .It Cm groupadd
@@ -154,6 +129,8 @@ Shortcut to the Edit/View Groups menu under groupmgmt.
 Utilities to Add/Change/View/Delete Group Accounts.
 .It Cm hostname
 Shortcut to the Hostname/Domain menu under networking.
+.It Cm kern_securelevel
+Shortcut to the kern.securelevel menu under security.
 .It Cm mouse
 Utilities for configuring, exploring, and enabling console mouse support.
 .It Cm mouse_disable
@@ -173,12 +150,28 @@ Shortcut to the Network Interfaces menu under networking.
 .It Cm networking
 Utilities to set/change Hostname/Domain, Network Interfaces, Default
 Router/Gateway, and DNS Nameservers.
+.It Cm packages
+Browse, install, uninstall, or re-install packaged software.
 .It Cm password
 Set the system administrator
 .Pq root
 password.
 .It Cm security
 Configure various system security settings.
+.It Cm startup
+Configure various aspects of system startup.
+.It Cm startup_misc
+Shortcut to the Miscellaneous Startup Services menu under startup.
+.It Cm startup_rcadd
+Shortcut to the Add New menu under the View/Edit Startup Configuration menu
+(startup_rcconf) of startup.
+.It Cm startup_rcconf
+Shortcut to the View/Edit Startup Configuration menu under startup.
+.It Cm startup_rcdelete
+Shortcut to the Delete menu under the View/Edit Startup Configuration menu
+(startup_rcconf) of startup.
+.It Cm startup_rcvar
+Shortcut to the Toggle Startup Services menu under startup.
 .It Cm syscons_font
 Shortcut to the Font menu under console.
 .It Cm syscons_keymap
@@ -193,6 +186,10 @@ Shortcut to the Screenmap menu under console.
 Shortcut to the Ttys menu under console.
 .It Cm timezone
 Set the regional timezone of the local machine.
+.It Cm ttys
+Edit the
+.Xr ttys 5
+database with your favorite editor.
 .It Cm useradd
 Shortcut to the Add Users menu under usermgmt.
 .It Cm userdel
@@ -210,35 +207,37 @@ In the absence of language-specific translation files, the default
 .Pq en_US.ISO8859-1
 files will be used.
 .Sh ADDING COMMANDS
-To be documented later. Document menu_selection="command|*" syntax of INDEX
-files.
+To be documented later.
+Document menu_selection="command|*" syntax of INDEX files.
 .Sh ENVIRONMENT VARIABLES
 The following environment variables affect the execution of
 .Nm :
 .Bl -tag -width ".Ev LC_ALL"
 .It Ev LANG
 If LANG is set, messages and index information will be read from files named
-messages.$LANG and INDEX.$LANG and fall back to files named messages and INDEX if
-messages.$LANG and INDEX.$LANG do not exist.  LANG takes precedence over LC_ALL.
+messages.$LANG and INDEX.$LANG and fall back to files named messages and INDEX
+if messages.$LANG and INDEX.$LANG do not exist.
+LANG takes precedence over LC_ALL.
 .It Ev LC_ALL
 If LC_ALL is set, messages and index information will be read from files named
-messages.$LC_ALL and INDEX.$LC_ALL and fall back to files named messages and INDEX if
-messages.$LC_ALL and INDEX.$LC_ALL do not exist.
+messages.$LC_ALL and INDEX.$LC_ALL and fall back to files named messages and
+INDEX if messages.$LC_ALL and INDEX.$LC_ALL do not exist.
 .El
 .Sh FILES
-/usr/share/examples/bsdconfig/bsdconfigrc can be copied to $HOME/.bsdconfigrc and
-customized as needed.
+/usr/share/examples/bsdconfig/bsdconfigrc can be copied to $HOME/.bsdconfigrc
+and customized as needed.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
-.Xr host-setup 8 ,
-.Xr sade 8
+.Xr bsdinstall 8
 .Sh HISTORY
 .Nm
 first appeared in
-.Fx 10.0 .
+.Fx 9.2 .
 .Sh AUTHORS
-.An Ron McDowell Aq rcm@FuzzWad.ORG
-.An Devin Teske Aq devinteske@hotmail.com
+.An Ron McDowell
+.An Devin Teske Aq dteske@FreeBSD.org
 .Sh BUGS
-Undoubtedly.
+The docsinstall and diskmgmt modules call bsdinstall.
+Bugs found in these modules should be considered those of bsdinstall, not
+.Nm .

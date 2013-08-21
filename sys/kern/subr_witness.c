@@ -1138,12 +1138,16 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		iclass = LOCK_CLASS(interlock);
 		lock1 = find_instance(lock_list, interlock);
 		if (lock1 == NULL)
-			kassert_panic("interlock (%s) %s not locked @ %s:%d",
+			kassert_panic(
+			    "interlock (%s) %s not locked while locking"
+			    " %s @ %s:%d",
 			    iclass->lc_name, interlock->lo_name,
 			    flags & LOP_EXCLUSIVE ? "exclusive" : "shared",
 			    fixup_filename(file), line);
 		else if ((lock1->li_flags & LI_RECURSEMASK) != 0)
-			kassert_panic("interlock (%s) %s recursed @ %s:%d",
+			kassert_panic(
+			    "interlock (%s) %s recursed while locking %s"
+			    " @ %s:%d",
 			    iclass->lc_name, interlock->lo_name,
 			    flags & LOP_EXCLUSIVE ? "exclusive" : "shared",
 			    fixup_filename(file), line);

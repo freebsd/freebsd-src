@@ -1306,7 +1306,7 @@ cam_set_ccbstatus(union ccb *ccb, cam_status status)
 static __inline cam_status
 cam_ccb_status(union ccb *ccb)
 {
-	return (ccb->ccb_h.status & CAM_STATUS_MASK);
+	return ((cam_status)(ccb->ccb_h.status & CAM_STATUS_MASK));
 }
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);

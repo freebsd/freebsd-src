@@ -195,10 +195,23 @@ vfp_restore(struct vfp_state *vfpsave)
 {
 	u_int vfpscr = 0;
 
+	/*
+	 * Work around an issue with GCC where the asm it generates is
+	 * not unified syntax and fails to assemble because it expects
+	 * the ldcleq instruction in the form ldc<c>l, not in the UAL
+	 * form ldcl<c>, and similar for stcleq.
+	 */
+#ifdef __clang__
+#define	ldcleq	"ldcleq"
+#define	stcleq	"stcleq"
+#else
+#define	ldcleq	"ldceql"
+#define	stcleq	"stceql"
+#endif
 	if (vfpsave) {
 		__asm __volatile("ldc	p10, c0, [%0], #128\n" /* d0-d15 */
-			"cmp	%0, 0\n"		/* -D16 or -D32? */
-			"ldcleq	p11, c0, [%0], #128\n"	/* d16-d31 */
+			"cmp	%0, #0\n"		/* -D16 or -D32? */
+			ldcleq"	p11, c0, [%0], #128\n"	/* d16-d31 */
 			"addne	%0, %0, #128\n"		/* skip missing regs */
 			"ldr	%1, [%0]\n"		/* set old vfpscr */
 			"mcr	p10, 7, %1, cr1, c0, 0\n"
@@ -225,13 +238,16 @@ vfp_store(struct vfp_state *vfpsave)
 	tmp = fmrx(VFPEXC);		/* Is the vfp enabled? */
 	if (vfpsave && tmp & VFPEXC_EN) {
 		__asm __volatile("stc	p11, c0, [%1], #128\n" /* d0-d15 */
-			"cmp	%0, 0\n"		/* -D16 or -D32? */
-			"stcleq	p11, c0, [%1], #128\n"	/* d16-d31 */
+			"cmp	%0, #0\n"		/* -D16 or -D32? */
+			stcleq"	p11, c0, [%1], #128\n"	/* d16-d31 */
 			"addne	%1, %1, #128\n"		/* skip missing regs */
 			"mrc	p10, 7, %0, cr1, c0, 0\n" /* fmxr(VFPSCR) */
 			"str	%0, [%1]\n"		/* save vfpscr */
 			:  "=&r" (vfpscr) : "r" (vfpsave), "r" (is_d32) : "cc");
 	}
+#undef ldcleq
+#undef stcleq
+
 #ifndef SMP
 		/* eventually we will use this information for UP also */
 	PCPU_SET(vfpcthread, 0);

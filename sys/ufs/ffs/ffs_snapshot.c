@@ -423,7 +423,7 @@ restart:
 	 */
 	for (;;) {
 		vn_finished_write(wrtmp);
-		if ((error = vfs_write_suspend(vp->v_mount)) != 0) {
+		if ((error = vfs_write_suspend(vp->v_mount, 0)) != 0) {
 			vn_start_write(NULL, &wrtmp, V_WAIT);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			goto out;

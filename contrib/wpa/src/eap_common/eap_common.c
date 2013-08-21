@@ -1,15 +1,9 @@
 /*
  * EAP common peer/server definitions
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -17,6 +11,41 @@
 #include "common.h"
 #include "eap_defs.h"
 #include "eap_common.h"
+
+/**
+ * eap_hdr_len_valid - Validate EAP header length field
+ * @msg: EAP frame (starting with EAP header)
+ * @min_payload: Minimum payload length needed
+ * Returns: 1 for valid header, 0 for invalid
+ *
+ * This is a helper function that does minimal validation of EAP messages. The
+ * length field is verified to be large enough to include the header and not
+ * too large to go beyond the end of the buffer.
+ */
+int eap_hdr_len_valid(const struct wpabuf *msg, size_t min_payload)
+{
+	const struct eap_hdr *hdr;
+	size_t len;
+
+	if (msg == NULL)
+		return 0;
+
+	hdr = wpabuf_head(msg);
+
+	if (wpabuf_len(msg) < sizeof(*hdr)) {
+		wpa_printf(MSG_INFO, "EAP: Too short EAP frame");
+		return 0;
+	}
+
+	len = be_to_host16(hdr->length);
+	if (len < sizeof(*hdr) + min_payload || len > wpabuf_len(msg)) {
+		wpa_printf(MSG_INFO, "EAP: Invalid EAP length");
+		return 0;
+	}
+
+	return 1;
+}
+
 
 /**
  * eap_hdr_validate - Validate EAP header
@@ -41,19 +70,11 @@ const u8 * eap_hdr_validate(int vendor, EapType eap_type,
 	const u8 *pos;
 	size_t len;
 
+	if (!eap_hdr_len_valid(msg, 1))
+		return NULL;
+
 	hdr = wpabuf_head(msg);
-
-	if (wpabuf_len(msg) < sizeof(*hdr)) {
-		wpa_printf(MSG_INFO, "EAP: Too short EAP frame");
-		return NULL;
-	}
-
 	len = be_to_host16(hdr->length);
-	if (len < sizeof(*hdr) + 1 || len > wpabuf_len(msg)) {
-		wpa_printf(MSG_INFO, "EAP: Invalid EAP length");
-		return NULL;
-	}
-
 	pos = (const u8 *) (hdr + 1);
 
 	if (*pos == EAP_TYPE_EXPANDED) {

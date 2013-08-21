@@ -900,13 +900,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			switch (sopt->sopt_name) {
 			case SO_REUSEADDR:
 				INP_WLOCK(inp);
-				if (IN_MULTICAST(ntohl(inp->inp_laddr.s_addr))) {
-					if ((so->so_options &
-					    (SO_REUSEADDR | SO_REUSEPORT)) != 0)
-						inp->inp_flags2 |= INP_REUSEPORT;
-					else
-						inp->inp_flags2 &= ~INP_REUSEPORT;
-				}
+				if ((so->so_options & SO_REUSEADDR) != 0)
+					inp->inp_flags2 |= INP_REUSEADDR;
+				else
+					inp->inp_flags2 &= ~INP_REUSEADDR;
 				INP_WUNLOCK(inp);
 				error = 0;
 				break;

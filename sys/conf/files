@@ -1185,10 +1185,34 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.8.4.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.8.11.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
+t5fw_cfg.c		optional cxgbe					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw.fw:t5fw -mt5fw_cfg -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"t5fw_cfg.c"
+t5fw_cfg.fwo		optional cxgbe					\
+	dependency	"t5fw_cfg.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t5fw_cfg.fwo"
+t5fw_cfg.fw		optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t5fw_cfg.txt"		\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t5fw_cfg.fw"
+t5fw.fwo		optional cxgbe					\
+	dependency	"t5fw.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t5fw.fwo"
+t5fw.fw			optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.8.22.0.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"t5fw.fw"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
@@ -2303,6 +2327,35 @@ dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
 dev/usb/wlan/if_urtwn.c		optional urtwn
+urtwnrtl8192cfwT.c		optional urtwn-rtl8192cfwT | urtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwnrtl8192cT.fw:urtwnrtl8192cfwT -murtwnrtl8192cfwT -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"urtwnrtl8192cfwT.c"
+urtwnrtl8192cfwT.fwo		optional urtwn-rtl8192cfwT | urtwnfw	\
+	dependency	"urtwnrtl8192cT.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"urtwnrtl8192cfwT.fwo"
+urtwnrtl8192cT.fw		optional urtwn-rtl8192cfwT | urtwnfw	\
+	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwT.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"urtwnrtl8192cT.fw"
+urtwnrtl8192cfwU.c		optional urtwn-rtl8192cfwU | urtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwnrtl8192cU.fw:urtwnrtl8192cfwU -murtwnrtl8192cfwU -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"urtwnrtl8192cfwU.c"
+urtwnrtl8192cfwU.fwo		optional urtwn-rtl8192cfwU | urtwnfw	\
+	dependency	"urtwnrtl8192cU.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"urtwnrtl8192cfwU.fwo"
+urtwnrtl8192cU.fw		optional urtwn-rtl8192cfwU | urtwnfw	\
+	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8192cfwU.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"urtwnrtl8192cU.fw"
+
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
@@ -2642,6 +2695,8 @@ fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
+fs/ext2fs/ext2_hash.c		optional ext2fs
+fs/ext2fs/ext2_htree.c		optional ext2fs
 fs/ext2fs/ext2_lookup.c		optional ext2fs
 fs/ext2fs/ext2_subr.c		optional ext2fs
 fs/ext2fs/ext2_vfsops.c		optional ext2fs

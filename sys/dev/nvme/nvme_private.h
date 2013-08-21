@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,6 +109,10 @@ MALLOC_DECLARE(M_NVME);
 /* Maximum log page size to fetch for AERs. */
 #define NVME_MAX_AER_LOG_SIZE		(4096)
 
+/*
+ * Define CACHE_LINE_SIZE here for older FreeBSD versions that do not define
+ *  it.
+ */
 #ifndef CACHE_LINE_SIZE
 #define CACHE_LINE_SIZE		(64)
 #endif

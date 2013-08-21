@@ -57,6 +57,13 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 BSDCONFIG_HELPFILE=$BSDCFG_LIBE/include/bsdconfig.hlp
 USAGE_HELPFILE=$BSDCFG_LIBE/include/usage.hlp
 
+############################################################ CONFIGURATION
+
+#
+# Alternate `local' libexec directory for add-on modules (e.g., from ports)
+#
+BSDCFG_LOCAL_LIBE="/usr/local/libexec/bsdconfig"
+
 ############################################################ FUNCTIONS
 
 # usage
@@ -82,6 +89,27 @@ usage()
 			print
 		}' */$index | sort
 	)
+
+	local alt_cmd_list # Calculated below (if $BSDCFG_LOCAL_LIBE exists)
+	if f_quietly cd $BSDCFG_LOCAL_LIBE; then
+		# No need to preserve CWD (headed toward exit)
+
+		# Test for language-specific indices
+		f_quietly ls */"$index.${LANG:-$LC_ALL}" &&
+			index="$index.${LANG:-$LC_ALL}"
+
+		alt_cmd_list=$(
+			awk '/^menu_selection="/ {
+				sub(/\|.*/, "")
+				sub(/^menu_selection="/, "")
+				print
+			}' */$index 2> /dev/null | sort
+		)
+
+		# Conflate lists, removing duplicates
+		cmd_list=$( printf "%s\n%s\n" \
+		                   "$cmd_list" "$alt_cmd_list" | sort -u )
+	fi
 
 	#
 	# Determine the longest command-length (in characters)
@@ -167,14 +195,15 @@ dialog_menu_main()
 	local defaultitem= # Calculated below
 	local hline=
 
+	#
+	# Pick up the base modules (directories named `[0-9][0-9][0-9].*')
+	#
 	local menuitem menu_title menu_help menu_selection index=2
 	for menuitem in $( cd $BSDCFG_LIBE && ls -d [0-9][0-9][0-9].* ); do
+		[ -f "$BSDCFG_LIBE/$menuitem/INDEX" ] || continue
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
-		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
 
-		menu_program=
-		menu_title=
-		menu_help=
+		menu_program= menu_title= menu_help=
 		f_include_lang $BSDCFG_LIBE/$menuitem/INDEX
 		[ "$menu_program" ] || continue
 
@@ -183,9 +212,55 @@ dialog_menu_main()
 		 *) menu_program="$menuitem/$menu_program"
 		esac
 
+		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+		setvar "menu_program$tag" "$menu_program"
+
 		f_shell_escape "$menu_title" menu_title
 		f_shell_escape "$menu_help" menu_help
+		menu_list="$menu_list '$tag' '$menu_title' '$menu_help'"
+
+		index=$(( $index + 1 ))
+	done
+
+	#
+	# Process the `local' libexec sources.
+	#
+	# Whereas modules in $BSDCFG_LIBE must be named [0-9][0-9][0-9].*
+	# modules in $BSDCFG_LOCAL_LIBE should NOT be named this way (making it
+	# more practical for port-maintainers).
+	#
+	# This also has the fortunate side-effect of making the de-duplication
+	# effort rather simple (because so-called `base' modules must be named
+	# differently than add-on modules).
+	#
+	local separator_added=
+	for menuitem in $( cd "$BSDCFG_LOCAL_LIBE" 2> /dev/null && ls -d * )
+	do
+		# Skip the module if it looks like a `base' module
+		case "$menuitem" in [0-9][0-9][0-9].*) continue;; esac
+
+		[ -f "$BSDCFG_LOCAL_LIBE/$menuitem/INDEX" ] || continue
+		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
+
+		menu_program= menu_title= menu_help=
+		f_include_lang $BSDCFG_LOCAL_LIBE/$menuitem/INDEX || continue
+		[ "$menu_program" ] || continue
+
+		if [ ! "$separator_added" ]; then
+			menu_list="$menu_list '-' '-' ''"
+			separator_added=1
+		fi
+
+		case "$menu_program" in
+		/*) : already fully qualified ;;
+		 *) menu_program="$BSDCFG_LOCAL_LIBE/$menuitem/$menu_program"
+		esac
+
+		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
 		setvar "menu_program$tag" "$menu_program"
+
+		f_shell_escape "$menu_title" menu_title
+		f_shell_escape "$menu_help" menu_help
 		menu_list="$menu_list '$tag' '$menu_title' '$menu_help'"
 
 		index=$(( $index + 1 ))

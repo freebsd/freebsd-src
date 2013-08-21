@@ -1,7 +1,7 @@
 if [ ! "$_VARIABLE_SUBR" ]; then _VARIABLE_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_VARIABLE_SUBR" ]; then _VARIABLE_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -106,6 +106,8 @@ f_variable_get_value()
 #
 f_variable_set_defaults()
 {
+	f_dprintf "f_variable_set_defaults: Initializing defaults..."
+
 	#
 	# Initialize various user-edittable values to their defaults
 	#
@@ -119,6 +121,27 @@ f_variable_set_defaults()
 	setvar $VAR_NFS_V3		"YES"
 	setvar $VAR_PKG_TMPDIR		"/var/tmp"
 	setvar $VAR_RELNAME		"$UNAME_R"
+
+	#
+	# Debugging
+	#
+	if f_debugging; then
+		local var
+		for var in \
+			$VAR_EDITOR		\
+			$VAR_FTP_STATE		\
+			$VAR_FTP_USER		\
+			$VAR_HOSTNAME		\
+			$VAR_MEDIA_TIMEOUT	\
+			$VAR_NFS_SECURE		\
+			$VAR_NFS_TCP		\
+			$VAR_NFS_V3		\
+			$VAR_PKG_TMPDIR		\
+			$VAR_RELNAME		\
+		; do
+			f_quietly f_getvar $var
+		done
+	fi
 
 	f_dprintf "f_variable_set_defaults: Defaults initialized."
 }

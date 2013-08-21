@@ -69,6 +69,9 @@
 "3"*		SIM,TTLS,TLS,PEAP,AKA
 "4"*		AKA,TTLS,TLS,PEAP,SIM
 "5"*		SIM,TTLS,TLS,PEAP,AKA
+"6"*		AKA'
+"7"*		AKA'
+"8"*		AKA'
 
 # Wildcard for all other identities
 *		PEAP,TTLS,TLS,SIM,AKA
@@ -89,3 +92,6 @@
 "3"*		SIM	[2]
 "4"*		AKA	[2]
 "5"*		SIM	[2]
+"6"*		AKA'	[2]
+"7"*		AKA'	[2]
+"8"*		AKA'	[2]

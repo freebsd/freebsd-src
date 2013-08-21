@@ -243,8 +243,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				if (tw == NULL ||
 				    (reuseport & tw->tw_so_options) == 0)
 					return (EADDRINUSE);
-			} else if (t && (reuseport == 0 ||
-			    (t->inp_flags2 & INP_REUSEPORT) == 0)) {
+			} else if (t && (reuseport & inp_so_options(t)) == 0) {
 				return (EADDRINUSE);
 			}
 #ifdef INET
@@ -265,8 +264,8 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 					     INP_IPV6PROTO) ==
 					     (t->inp_vflag & INP_IPV6PROTO))))
 						return (EADDRINUSE);
-				} else if (t && (reuseport == 0 ||
-				    (t->inp_flags2 & INP_REUSEPORT) == 0) &&
+				} else if (t &&
+				    (reuseport & inp_so_options(t)) == 0 &&
 				    (ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
 				    (t->inp_vflag & INP_IPV6PROTO) != 0))
 					return (EADDRINUSE);

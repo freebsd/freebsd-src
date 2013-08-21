@@ -2598,6 +2598,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	if (m_pc == NULL && free != NULL) {
 		m_pc = free;
 		free = (void *)m_pc->object;
+		m_pc->object = NULL;
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
 		atomic_add_int(&cnt.v_wire_count, 1);
@@ -6120,7 +6121,7 @@ pmap_emulate_dirty(pmap_t pmap, vm_offset_t va)
 		pte = pmap_pde_to_pte(pde, va);
 		if ((*pte & (PG_V | PG_RO)) == PG_V) {
 			KASSERT((*pte & PG_A) != 0,
-				("pmap_emulate_dirty: accessed and valid bits ",
+				("pmap_emulate_dirty: accessed and valid bits "
 				 "mismatch %#lx", *pte));
 			atomic_set_long(pte, PG_M | PG_RW);
 			rv = 0;		/* success */

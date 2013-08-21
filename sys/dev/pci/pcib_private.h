@@ -91,6 +91,7 @@ struct pcib_softc
     uint32_t	flags;		/* flags */
 #define	PCIB_SUBTRACTIVE	0x1
 #define	PCIB_DISABLE_MSI	0x2
+#define	PCIB_DISABLE_MSIX	0x4
     uint16_t	command;	/* command register */
     u_int	domain;		/* domain number */
     u_int	pribus;		/* primary bus number */
