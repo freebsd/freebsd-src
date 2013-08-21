@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130821:
+	The PADLOCK_RNG and RDRAND_RNG kernel options are now devices.
+	Thus "device padlock_rng" and "device rdrand_rng" should be
+	used instead of "options PADLOCK_RNG" & "options RDRAND_RNG".
+
 20130813:
 	WITH_ICONV has been split into two feature sets.  WITH_ICONV now
 	enables just the iconv* functionality and is now on by default.
@@ -340,9 +345,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 20120913:
 	The random(4) support for the VIA hardware random number
 	generator (`PADLOCK') is no longer enabled unconditionally.
-	Add the PADLOCK_RNG option in the custom kernel config if
+	Add the padlock_rng device in the custom kernel config if
 	needed.  The GENERIC kernels on i386 and amd64 do include the
-	option, so the change only affects the custom kernel
+	device, so the change only affects the custom kernel
 	configurations.
 
 20120908:
