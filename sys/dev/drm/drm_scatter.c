@@ -52,7 +52,7 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	entry->busaddr = malloc(entry->pages * sizeof(*entry->busaddr),
 	    DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
 
-	entry->vaddr = kmem_alloc_attr(kernel_map, size, M_WAITOK | M_ZERO,
+	entry->vaddr = kmem_alloc_attr(kernel_arena, size, M_WAITOK | M_ZERO,
 	    0, BUS_SPACE_MAXADDR_32BIT, VM_MEMATTR_WRITE_COMBINING);
 	if (entry->vaddr == 0) {
 		drm_sg_cleanup(entry);
@@ -99,7 +99,7 @@ drm_sg_cleanup(struct drm_sg_mem *entry)
 		return;
 
 	if (entry->vaddr != 0)
-		kmem_free(kernel_map, entry->vaddr, IDX_TO_OFF(entry->pages));
+		kmem_free(kernel_arena, entry->vaddr, IDX_TO_OFF(entry->pages));
 
 	free(entry->busaddr, DRM_MEM_SGLISTS);
 	free(entry, DRM_MEM_DRIVER);

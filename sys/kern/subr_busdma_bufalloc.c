@@ -152,10 +152,10 @@ busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, int size, u_int8_t *pflag,
 {
 #ifdef VM_MEMATTR_UNCACHEABLE
 
-	/* Inform UMA that this allocator uses kernel_map/object. */
+	/* Inform UMA that this allocator uses kernel_arena/object. */
 	*pflag = UMA_SLAB_KERNEL;
 
-	return ((void *)kmem_alloc_attr(kernel_map, size, wait, 0,
+	return ((void *)kmem_alloc_attr(kernel_arena, size, wait, 0,
 	    BUS_SPACE_MAXADDR, VM_MEMATTR_UNCACHEABLE));
 
 #else
@@ -169,6 +169,6 @@ void
 busdma_bufalloc_free_uncacheable(void *item, int size, u_int8_t pflag)
 {
 
-	kmem_free(kernel_map, (vm_offset_t)item, size);
+	kmem_free(kernel_arena, (vm_offset_t)item, size);
 }
 

@@ -2479,7 +2479,7 @@ f00f_hack(void *unused)
 
 	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
-	tmp = kmem_alloc(kernel_map, PAGE_SIZE * 2);
+	tmp = kmem_malloc(kernel_arena, PAGE_SIZE * 2, M_WAITOK | M_ZERO);
 	if (tmp == 0)
 		panic("kmem_alloc returned 0");
 
@@ -2490,9 +2490,7 @@ f00f_hack(void *unused)
 	r_idt.rd_base = (u_int)new_idt;
 	lidt(&r_idt);
 	idt = new_idt;
-	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
-			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
-		panic("vm_map_protect failed");
+	pmap_protect(kernel_pmap, tmp, tmp + PAGE_SIZE, VM_PROT_READ);
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
 

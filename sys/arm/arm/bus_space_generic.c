@@ -73,7 +73,7 @@ generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	offset = bpa & PAGE_MASK;
 	startpa = trunc_page(bpa);
 
-	va = kmem_alloc_nofault(kernel_map, endpa - startpa);
+	va = kva_alloc(endpa - startpa);
 	if (va == 0)
 		return (ENOMEM);
 
@@ -118,7 +118,7 @@ generic_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	kmem_free(kernel_map, va, endva - va);
+	kva_free(va, endva - va);
 }
 
 void

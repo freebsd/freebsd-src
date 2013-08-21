@@ -121,8 +121,7 @@ tunable_mbinit(void *dummy)
 	 * available kernel memory (physical or kmem).
 	 * At most it can be 3/4 of available kernel memory.
 	 */
-	realmem = qmin((quad_t)physmem * PAGE_SIZE,
-	    vm_map_max(kmem_map) - vm_map_min(kmem_map));
+	realmem = qmin((quad_t)physmem * PAGE_SIZE, vm_kmem_size);
 	maxmbufmem = realmem / 2;
 	TUNABLE_QUAD_FETCH("kern.ipc.maxmbufmem", &maxmbufmem);
 	if (maxmbufmem > realmem / 4 * 3)
@@ -395,7 +394,7 @@ mbuf_jumbo_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait,
+	return ((void *)kmem_alloc_contig(kernel_arena, bytes, wait,
 	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT));
 }
 

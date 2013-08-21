@@ -746,7 +746,8 @@ start_all_aps(void)
 		/* Get per-cpu data */
 		pc = &__pcpu[bootAP];
 		pcpu_init(pc, bootAP, sizeof(struct pcpu));
-		dpcpu_init((void *)kmem_alloc(kernel_map, DPCPU_SIZE), bootAP);
+		dpcpu_init((void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO), bootAP);
 		pc->pc_apic_id = cpu_apic_ids[bootAP];
 		pc->pc_prvspace = pc;
 		pc->pc_curthread = 0;
@@ -833,8 +834,8 @@ cpu_initialize_context(unsigned int cpu)
 		pmap_zero_page(m[i]);
 
 	}
-	boot_stack = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
-	newPTD = kmem_alloc_nofault(kernel_map, NPGPTD * PAGE_SIZE);
+	boot_stack = kva_alloc(PAGE_SIZE);
+	newPTD = kva_alloc(NPGPTD * PAGE_SIZE);
 	ma[0] = VM_PAGE_TO_MACH(m[0])|PG_V;
 
 #ifdef PAE	
@@ -856,7 +857,7 @@ cpu_initialize_context(unsigned int cpu)
 	    nkpt*sizeof(vm_paddr_t));
 
 	pmap_qremove(newPTD, 4);
-	kmem_free(kernel_map, newPTD, 4 * PAGE_SIZE);
+	kva_free(newPTD, 4 * PAGE_SIZE);
 	/*
 	 * map actual idle stack to boot_stack
 	 */

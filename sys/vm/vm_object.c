@@ -295,7 +295,7 @@ vm_object_init(void)
 #else
 	    NULL,
 #endif
-	    vm_object_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM|UMA_ZONE_NOFREE);
+	    vm_object_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 
 	vm_radix_init();
 }
