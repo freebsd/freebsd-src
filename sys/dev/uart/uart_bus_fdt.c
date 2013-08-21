@@ -111,6 +111,8 @@ uart_fdt_probe(device_t dev)
 		sc->sc_class = &uart_s3c2410_class;
 	else if (ofw_bus_is_compatible(dev, "cadence,uart"))
 		sc->sc_class = &uart_cdnc_class;
+	else if (ofw_bus_is_compatible(dev, "ti,ns16550"))
+		sc->sc_class = &uart_ti8250_class;
 	else if (ofw_bus_is_compatible(dev, "ns16550"))
 		sc->sc_class = &uart_ns8250_class;
 	else
