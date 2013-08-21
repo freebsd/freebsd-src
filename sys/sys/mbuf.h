@@ -191,6 +191,7 @@ struct mbuf {
 #define	M_PROMISC	0x00000040 /* packet was not for us */
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
 #define	M_FLOWID	0x00000100 /* deprecated: flowid is valid */
+#define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 
 #define	M_PROTO1	0x00001000 /* protocol-specific */
 #define	M_PROTO2	0x00002000 /* protocol-specific */
@@ -526,7 +527,7 @@ m_free(struct mbuf *m)
 
 	if (m->m_flags & M_EXT)
 		mb_free_ext(m);
-	else
+	else if ((m->m_flags & M_NOFREE) == 0)
 		uma_zfree(zone_mbuf, m);
 	return (n);
 }
