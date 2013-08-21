@@ -265,8 +265,26 @@ struct nstat {
 #define	UF_NODUMP	0x00000001	/* do not dump file */
 #define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
 #define	UF_APPEND	0x00000004	/* writes to file may only append */
-#define UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
-#define UF_NOUNLINK	0x00000010	/* file may not be removed or renamed */
+#define	UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
+#define	UF_NOUNLINK	0x00000010	/* file may not be removed or renamed */
+/*
+ * These two bits are defined in MacOS X.  They are not currently used in
+ * FreeBSD.
+ */
+#if 0
+#define	UF_COMPRESSED	0x00000020	/* file is compressed */
+#define	UF_TRACKED	0x00000040	/* renames and deletes are tracked */
+#endif
+
+#define	UF_SYSTEM	0x00000080	/* Windows system file bit */
+#define	UF_SPARSE	0x00000100	/* sparse file */
+#define	UF_OFFLINE	0x00000200	/* file is offline */
+#define	UF_REPARSE	0x00000400	/* Windows reparse point file bit */
+#define	UF_ARCHIVE	0x00000800	/* file needs to be archived */
+#define	UF_READONLY	0x00001000	/* Windows readonly file bit */
+/* This is the same as the MacOS X definition of UF_HIDDEN. */
+#define	UF_HIDDEN	0x00008000	/* file is hidden */
+
 /*
  * Super-user changeable flags.
  */
