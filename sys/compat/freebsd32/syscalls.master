@@ -461,8 +461,9 @@
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
-247	AUE_NULL	NOPROTO	{ int clock_getcpuclockid2(id_t id,\
-					int which, clockid_t *clock_id); }
+247	AUE_NULL	STD	{ int freebsd32_clock_getcpuclockid2(\
+				    uint32_t id1, uint32_t id2,\
+				    int which, clockid_t *clock_id); }
 248	AUE_NULL	UNIMPL	ntp_gettime
 249	AUE_NULL	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD

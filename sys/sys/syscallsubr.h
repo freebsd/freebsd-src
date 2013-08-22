@@ -74,6 +74,8 @@ int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode);
 int	kern_chown(struct thread *td, char *path, enum uio_seg pathseg, int uid,
 	    int gid);
+int	kern_clock_getcpuclockid2(struct thread *td, id_t id, int which,
+	    clockid_t *clk_id);
 int	kern_clock_getres(struct thread *td, clockid_t clock_id,
 	    struct timespec *ts);
 int	kern_clock_gettime(struct thread *td, clockid_t clock_id,
