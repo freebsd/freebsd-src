@@ -22,7 +22,6 @@
 .Nm rsu
 .Nd Realtek RTL8188SU/RTL8192SU USB IEEE 802.11b/g/n wireless network device
 .Sh SYNOPSIS
-.\.Cd "rsu* at uhub? port ?"
 To compile this driver into the kernel,
 place the following lines in your kernel configuration file:
 .Bd -ragged -offset indent
@@ -120,6 +119,7 @@ The following adapters should work:
 .It Sweex LW154
 .It TRENDnet TEW-648UB
 .It TRENDnet TEW-649UB
+.El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Bd -literal -offset indent
@@ -149,14 +149,14 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
-.Xr arp 8 ,
-.Xr intro 1 ,
-.Xr netintro 4 ,
-.Xr usb 3 ,
 .Xr hostname 1 ,
-.Xr ifconfig 8,
+.Xr intro 1 ,
+.Xr usb 3 ,
+.Xr netintro 4 ,
+.Xr rsufw 4 ,
 .Xr wlan 4 ,
-.Xr rsufw 4
+.Xr arp 8 ,
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm

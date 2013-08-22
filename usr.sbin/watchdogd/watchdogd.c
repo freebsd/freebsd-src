@@ -60,7 +60,8 @@ __FBSDID("$FreeBSD$");
 
 #include <getopt.h>
 
-static long	fetchtimeout(int opt, const char *longopt, const char *myoptarg);
+static long	fetchtimeout(int opt,
+    const char *longopt, const char *myoptarg, int zero_ok);
 static void	parseargs(int, char *[]);
 static int	seconds_to_pow2ns(int);
 static void	sighandler(int);
@@ -219,7 +220,7 @@ parse_timeout_to_pow2ns(char opt, const char *longopt, const char *myoptarg)
 	if (!longopt)
 		shortopt[1] = opt;
 
-	a = fetchtimeout(opt, longopt, myoptarg);
+	a = fetchtimeout(opt, longopt, myoptarg, 1);
 
 	if (a == 0)
 		rv = WD_TO_NEVER;
@@ -487,7 +488,7 @@ usage(void)
 }
 
 static long
-fetchtimeout(int opt, const char *longopt, const char *myoptarg)
+fetchtimeout(int opt, const char *longopt, const char *myoptarg, int zero_ok)
 {
 	const char *errstr;
 	char *p;
@@ -499,7 +500,7 @@ fetchtimeout(int opt, const char *longopt, const char *myoptarg)
 	rv = strtol(myoptarg, &p, 0);
 	if ((p != NULL && *p != '\0') || errno != 0)
 		errstr = "is not a number";
-	if (rv <= 0)
+	if (rv < 0 || (!zero_ok && rv == 0))
 		errstr = "must be greater than zero";
 	if (errstr) {
 		if (longopt) 
@@ -721,7 +722,7 @@ parseargs(int argc, char *argv[])
 			break;
 #endif
 		case 's':
-			nap = fetchtimeout(c, NULL, optarg);
+			nap = fetchtimeout(c, NULL, optarg, 0);
 			break;
 		case 'S':
 			do_syslog = 0;
@@ -734,7 +735,8 @@ parseargs(int argc, char *argv[])
  				    timeout);
 			break;
 		case 'T':
-			carp_thresh_seconds = fetchtimeout(c, "NULL", optarg);
+			carp_thresh_seconds =
+			    fetchtimeout(c, "NULL", optarg, 0);
 			break;
 		case 'w':
 			do_timedog = 1;
@@ -742,7 +744,7 @@ parseargs(int argc, char *argv[])
 		case 0:
 			lopt = longopts[longindex].name;
 			if (!strcmp(lopt, "pretimeout")) {
-				pretimeout = fetchtimeout(0, lopt, optarg);
+				pretimeout = fetchtimeout(0, lopt, optarg, 0);
 			} else if (!strcmp(lopt, "pretimeout-action")) {
 				pretimeout_act = timeout_act_str2int(lopt,
 				    optarg);

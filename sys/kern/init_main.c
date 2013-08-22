@@ -455,10 +455,6 @@ proc0_init(void *dummy __unused)
 	 * Add scheduler specific parts to proc, thread as needed.
 	 */
 	schedinit();	/* scheduler gets its house in order */
-	/*
-	 * Initialize sleep queue hash table
-	 */
-	sleepinit();
 
 	/*
 	 * Create process 0 (the swapper).
