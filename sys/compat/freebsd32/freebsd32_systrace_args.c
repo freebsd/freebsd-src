@@ -1244,13 +1244,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247: {
-		struct clock_getcpuclockid2_args *p = params;
-		iarg[0] = p->id; /* id_t */
-		iarg[1] = p->which; /* int */
-		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
-		*n_args = 3;
+		struct freebsd32_clock_getcpuclockid2_args *p = params;
+		uarg[0] = p->id1; /* uint32_t */
+		uarg[1] = p->id2; /* uint32_t */
+		iarg[2] = p->which; /* int */
+		uarg[3] = (intptr_t) p->clock_id; /* clockid_t * */
+		*n_args = 4;
 		break;
 	}
 	/* minherit */
@@ -5113,16 +5114,19 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* clock_getcpuclockid2 */
+	/* freebsd32_clock_getcpuclockid2 */
 	case 247:
 		switch(ndx) {
 		case 0:
-			p = "id_t";
+			p = "uint32_t";
 			break;
 		case 1:
-			p = "int";
+			p = "uint32_t";
 			break;
 		case 2:
+			p = "int";
+			break;
+		case 3:
 			p = "clockid_t *";
 			break;
 		default:
