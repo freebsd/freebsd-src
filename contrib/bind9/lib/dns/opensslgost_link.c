@@ -373,6 +373,7 @@ static dst_func_t opensslgost_functions = {
 	opensslgost_adddata,
 	opensslgost_sign,
 	opensslgost_verify,
+	NULL, /*%< verify2 */
 	NULL, /*%< computesecret */
 	opensslgost_compare,
 	NULL, /*%< paramcompare */
