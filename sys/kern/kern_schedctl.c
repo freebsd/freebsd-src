@@ -56,13 +56,6 @@ static uma_zone_t shpage_zone;		/* Zone from which allocate structures */
 static size_t	avail_pagesize;		/* size of usable page on page */
 static size_t	bitmap_len;		/* # of bits in allocation bitmap */
 
-/*
- * Public prototypes.
- */
-int	schedctl(struct thread *td, struct schedctl_args *uap);
-void	schedctl_thread_exit(struct thread *td);
-void	schedctl_proc_exit(void);
-
 static int
 schedctl_alloc_page(struct proc *p, shpage_t **ret)
 {
@@ -208,7 +201,6 @@ schedctl_proc_exit(void)
 	shpage_t *sh_pg;
 	vm_map_t map;
 
-	printf("ping \n");
 	p = curthread->td_proc;
 	map = &p->p_vmspace->vm_map;
 	SLIST_FOREACH(sh_pg, &(p->p_shpg), pg_next) {
