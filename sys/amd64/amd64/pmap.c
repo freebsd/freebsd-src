@@ -2547,6 +2547,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 					vm_page_aflag_set(m, PGA_REFERENCED);
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
+				m->md.pv_gen++;
 				if (TAILQ_EMPTY(&m->md.pv_list) &&
 				    (m->flags & PG_FICTITIOUS) == 0) {
 					pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
@@ -2834,6 +2835,7 @@ pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
+			pvh->pv_gen++;
 			break;
 		}
 	}
@@ -2873,6 +2875,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	KASSERT(pv != NULL, ("pmap_pv_demote_pde: pv not found"));
 	m = PHYS_TO_VM_PAGE(pa);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+	m->md.pv_gen++;
 	/* Instantiate the remaining NPTEPG - 1 pv entries. */
 	PV_STAT(atomic_add_long(&pv_entry_allocs, NPTEPG - 1));
 	va_last = va + NBPDR - PAGE_SIZE;
@@ -2891,6 +2894,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 				KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 			    ("pmap_pv_demote_pde: page %p is not managed", m));
 				TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+				m->md.pv_gen++;
 				if (va == va_last)
 					goto out;
 			}
@@ -2939,6 +2943,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	KASSERT(pv != NULL, ("pmap_pv_promote_pde: pv not found"));
 	pvh = pa_to_pvh(pa);
 	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
+	pvh->pv_gen++;
 	/* Free the remaining NPTEPG - 1 pv entries. */
 	va_last = va + NBPDR - PAGE_SIZE;
 	do {
@@ -2980,6 +2985,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+		m->md.pv_gen++;
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -3004,6 +3010,7 @@ pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 		pvh = pa_to_pvh(pa);
 		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
+		pvh->pv_gen++;
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -3549,6 +3556,7 @@ small_mappings:
 		pmap_unuse_pt(pmap, pv->pv_va, *pde, &free);
 		pmap_invalidate_page(pmap, pv->pv_va);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
+		m->md.pv_gen++;
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -4066,6 +4074,7 @@ retry:
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+		m->md.pv_gen++;
 		if (pmap_writeable_mapping(pmap, newpte))
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
@@ -5048,6 +5057,7 @@ pmap_remove_pages(pmap_t pmap)
 					pmap_resident_count_dec(pmap, NBPDR / PAGE_SIZE);
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
+					pvh->pv_gen++;
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							if ((mt->aflags & PGA_WRITEABLE) != 0 &&
@@ -5067,6 +5077,7 @@ pmap_remove_pages(pmap_t pmap)
 				} else {
 					pmap_resident_count_dec(pmap, 1);
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
+					m->md.pv_gen++;
 					if ((m->aflags & PGA_WRITEABLE) != 0 &&
 					    TAILQ_EMPTY(&m->md.pv_list) &&
 					    (m->flags & PG_FICTITIOUS) == 0) {
@@ -5313,27 +5324,42 @@ pmap_ts_referenced(vm_page_t m)
 	struct md_page *pvh;
 	pv_entry_t pv, pvf, pvn;
 	pmap_t pmap;
+	struct rwlock *lock;
 	pd_entry_t oldpde, *pde;
 	pt_entry_t *pte, PG_A;
 	vm_offset_t va;
-	int rtval = 0;
+	int rtval, pvh_gen, md_gen;
 	vm_page_t free = NULL;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
+	rw_rlock(&pvh_global_lock);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	rtval = 0;
+retry:
+	rw_wlock(lock);
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		goto small_mappings;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, pvn) {
 		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				PMAP_UNLOCK(pmap);
+				rw_wunlock(lock);
+				goto retry;
+			}
+		}
 		PG_A = pmap_accessed_bit(pmap);
 		va = pv->pv_va;
 		pde = pmap_pde(pmap, va);
 		oldpde = *pde;
 		if ((oldpde & PG_A) != 0) {
-			if (pmap_demote_pde(pmap, pde, va)) {
+			if (pmap_demote_pde_locked(pmap, pde, va, &lock)) {
 				if ((oldpde & PG_W) == 0) {
 					/*
 					 * Remove the mapping to a single page
@@ -5345,7 +5371,10 @@ pmap_ts_referenced(vm_page_t m)
 					 */
 					va += VM_PAGE_TO_PHYS(m) - (oldpde &
 					    PG_PS_FRAME);
-					pmap_remove_page(pmap, va, pde, NULL);
+					pte = pmap_pde_to_pte(pde, va);
+					pmap_remove_pte(pmap, pte, va, *pde,
+					    NULL, &lock);
+					pmap_invalidate_page(pmap, va);
 					rtval++;
 					if (rtval > 4) {
 						PMAP_UNLOCK(pmap);
@@ -5353,6 +5382,9 @@ pmap_ts_referenced(vm_page_t m)
 					}
 				}
 			}
+			KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
+			    ("inconsistent pv lock %p %p for page %p",
+			    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -5365,10 +5397,24 @@ small_mappings:
 			pvn = TAILQ_NEXT(pv, pv_next);
 			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+			m->md.pv_gen++;
 			pmap = PV_PMAP(pv);
-			PMAP_LOCK(pmap);
+			if (!PMAP_TRYLOCK(pmap)) {
+				pvh_gen = pvh->pv_gen;
+				md_gen = m->md.pv_gen;
+				rw_wunlock(lock);
+				PMAP_LOCK(pmap);
+				rw_wlock(lock);
+				if (pvh_gen != pvh->pv_gen ||
+				    md_gen != m->md.pv_gen) {
+					PMAP_UNLOCK(pmap);
+					rw_wunlock(lock);
+					goto retry;
+				}
+			}
 			PG_A = pmap_accessed_bit(pmap);
-			pde = pmap_pde(pmap, pv->pv_va);
+			va = pv->pv_va;
+			pde = pmap_pde(pmap, va);
 			KASSERT((*pde & PG_PS) == 0, ("pmap_ts_referenced:"
 			    " found a 2mpage in page %p's pv list", m));
 			pte = pmap_pde_to_pte(pde, pv->pv_va);
@@ -5381,8 +5427,10 @@ small_mappings:
 					 * hard work for unwired pages only.
 					 */
 					if ((*pte & PG_W) == 0) {
-						pmap_remove_page(pmap,
-							pv->pv_va, pde, &free);
+						pte = pmap_pde_to_pte(pde, va);
+						pmap_remove_pte(pmap, pte, va,
+							    *pde, &free, &lock);
+						pmap_invalidate_page(pmap, va);
 						if (pvf == pv)
 							pvf = NULL;
 					}
@@ -5393,12 +5441,17 @@ small_mappings:
 				rtval++;
 				if (rtval > 4)
 					pvn = NULL;
+
+				KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
+				    ("inconsistent pv lock %p %p for page %p",
+				    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
 			}
 			PMAP_UNLOCK(pmap);
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
 out:
-	rw_wunlock(&pvh_global_lock);
+	rw_wunlock(lock);
+	rw_runlock(&pvh_global_lock);
 	pmap_free_zero_pages(free);
 	return (rtval);
 }
