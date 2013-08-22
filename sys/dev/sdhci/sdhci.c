@@ -835,8 +835,13 @@ sdhci_finish_command(struct sdhci_slot *slot)
 			uint8_t extra = 0;
 			for (i = 0; i < 4; i++) {
 				uint32_t val = RD4(slot, SDHCI_RESPONSE + i * 4);
-				slot->curcmd->resp[3 - i] = (val << 8) + extra;
-				extra = val >> 24;
+				if (slot->quirks & SDHCI_QUIRK_DONT_SHIFT_RESPONSE)
+					slot->curcmd->resp[3 - i] = val;
+				else {
+					slot->curcmd->resp[3 - i] = 
+					    (val << 8) | extra;
+					extra = val >> 24;
+				}
 			}
 		} else
 			slot->curcmd->resp[0] = RD4(slot, SDHCI_RESPONSE);

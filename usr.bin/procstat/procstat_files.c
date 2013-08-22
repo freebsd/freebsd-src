@@ -332,19 +332,19 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%5d ", kipp->ki_pid);
 		printf("%-16s ", kipp->ki_comm);
 		if (fst->fs_uflags & PS_FST_UFLAG_CTTY)
-			printf("ctty ");
+			printf(" ctty ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_CDIR)
-			printf(" cwd ");
+			printf("  cwd ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_JAIL)
-			printf("jail ");
+			printf(" jail ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_RDIR)
-			printf("root ");
+			printf(" root ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_TEXT)
-			printf("text ");
+			printf(" text ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_TRACE)
 			printf("trace ");
 		else
-			printf("%4d ", fst->fs_fd);
+			printf("%5d ", fst->fs_fd);
 
 		switch (fst->fs_type) {
 		case PS_FST_TYPE_VNODE:

@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_ipc.h>
+#include <compat/freebsd32/freebsd32_misc.h>
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
@@ -127,16 +128,6 @@ CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
-
-#if BYTE_ORDER == BIG_ENDIAN
-#define PAIR32TO64(type, name) ((name ## 2) | ((type)(name ## 1) << 32))
-#define RETVAL_HI 0	
-#define RETVAL_LO 1	
-#else
-#define PAIR32TO64(type, name) ((name ## 1) | ((type)(name ## 2) << 32))
-#define RETVAL_HI 1	
-#define RETVAL_LO 0	
-#endif
 
 void
 freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32)
