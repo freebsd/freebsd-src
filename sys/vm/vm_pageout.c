@@ -1333,25 +1333,6 @@ relock_queues:
 			m = next;
 			continue;
 		}
-		object = m->object;
-		if (!VM_OBJECT_TRYWLOCK(object) &&
-		    !vm_pageout_fallback_object_lock(m, &next)) {
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_unlock(m);
-			m = next;
-			continue;
-		}
-
-		/*
-		 * Don't deactivate pages that are busy.
-		 */
-		if (vm_page_busied(m) || m->hold_count != 0) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_requeue_locked(m);
-			m = next;
-			continue;
-		}
 
 		/*
 		 * The count for pagedaemon pages is done after checking the
@@ -1367,7 +1348,15 @@ relock_queues:
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta += 1;
 		}
-		if (object->ref_count != 0)
+		/*
+		 * Unlocked object ref count check.  Two races are possible.
+		 * 1) The ref was transitioning to zero and we saw non-zero,
+		 *    the pmap bits will be checked unnecessarily.
+		 * 2) The ref was transitioning to one and we saw zero. 
+		 *    The page lock prevents a new reference to this page so
+		 *    we need not check the reference bits.
+		 */
+		if (m->object->ref_count != 0)
 			act_delta += pmap_ts_referenced(m);
 
 		/*
@@ -1387,9 +1376,6 @@ relock_queues:
 		 * queue depending on usage.
 		 */
 		if (act_delta == 0) {
-			KASSERT(object->ref_count != 0 ||
-			    !pmap_page_is_mapped(m),
-			    ("vm_pageout_scan: page %p is mapped", m));
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 			vm_page_deactivate(m);
@@ -1397,7 +1383,6 @@ relock_queues:
 		} else
 			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
-		VM_OBJECT_WUNLOCK(object);
 		m = next;
 	}
 	vm_pagequeue_unlock(pq);
