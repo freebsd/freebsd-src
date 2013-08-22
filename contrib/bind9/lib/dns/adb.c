@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: adb.c,v 1.264 2011/12/05 17:10:51 each Exp $ */
 
 /*! \file
  *
@@ -4130,9 +4130,8 @@ water(void *arg, int mark) {
 }
 
 void
-dns_adb_setadbsize(dns_adb_t *adb, isc_uint32_t size) {
-	isc_uint32_t hiwater;
-	isc_uint32_t lowater;
+dns_adb_setadbsize(dns_adb_t *adb, size_t size) {
+	size_t hiwater, lowater;
 
 	INSIST(DNS_ADB_VALID(adb));
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rdata.h,v 1.80 2011/03/20 02:31:53 marka Exp $ */
 
 #ifndef DNS_RDATA_H
 #define DNS_RDATA_H 1
@@ -169,6 +169,7 @@ struct dns_rdata {
 
 /*% Output explanatory comments. */
 #define DNS_STYLEFLAG_COMMENT		0x00000002U
+#define DNS_STYLEFLAG_RRCOMMENT		0x00000004U
 
 #define DNS_RDATA_DOWNCASE		DNS_NAME_DOWNCASE
 #define DNS_RDATA_CHECKNAMES		DNS_NAME_CHECKNAMES
@@ -435,8 +436,8 @@ dns_rdata_totext(dns_rdata_t *rdata, dns_name_t *origin, isc_buffer_t *target);
 
 isc_result_t
 dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin, unsigned int flags,
-		    unsigned int width, const char *linebreak,
-		    isc_buffer_t *target);
+		    unsigned int width, unsigned int split_width,
+		    const char *linebreak, isc_buffer_t *target);
 /*%<
  * Like dns_rdata_totext, but do formatted output suitable for
  * database dumps.  This is intended for use by dns_db_dump();
@@ -458,6 +459,11 @@ dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin, unsigned int flags,
  * comments next to things like the SOA timer fields.  Some
  * comments (e.g., the SOA ones) are only printed when multiline
  * output is selected.
+ *
+ * base64 rdata text (e.g., DNSKEY records) will be split into chunks
+ * of 'split_width' characters.  If split_width == 0, the text will
+ * not be split at all.  If split_width == UINT_MAX (0xffffffff), then
+ * it is undefined and falls back to the default value of 'width'
  */
 
 isc_result_t

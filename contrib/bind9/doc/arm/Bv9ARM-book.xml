@@ -72,7 +72,7 @@
       </para>
 
       <para>
-        This version of the manual corresponds to BIND version 9.8.
+        This version of the manual corresponds to BIND version 9.9.
       </para>
 
     </sect1>
@@ -1237,15 +1237,12 @@ zone "eng.example.com" {
                     <listitem>
                       <para>
                         Suspend updates to a dynamic zone.  If no zone is
-                        specified,
-                        then all zones are suspended.  This allows manual
-                        edits to be made to a zone normally updated by dynamic
-                        update.  It
-                        also causes changes in the journal file to be synced
-                        into the master
-                        and the journal file to be removed.  All dynamic
-                        update attempts will
-                        be refused while the zone is frozen.
+                        specified, then all zones are suspended.  This allows
+                        manual edits to be made to a zone normally updated by
+                        dynamic update.  It also causes changes in the
+                        journal file to be synced into the master file.
+                        All dynamic update attempts will be refused while
+                        the zone is frozen.
                       </para>
                     </listitem>
                   </varlistentry>
@@ -1257,15 +1254,34 @@ zone "eng.example.com" {
            <optional><replaceable>view</replaceable></optional></optional></optional></userinput></term>
                     <listitem>
                       <para>
-                        Enable updates to a frozen dynamic zone.  If no zone
-                        is
-                        specified, then all frozen zones are enabled.  This
-                        causes
-                        the server to reload the zone from disk, and
-                        re-enables dynamic updates
-                        after the load has completed.  After a zone is thawed,
-                        dynamic updates
-                        will no longer be refused.
+                        Enable updates to a frozen dynamic zone.  If no
+                        zone is specified, then all frozen zones are
+                        enabled.  This causes the server to reload the zone
+                        from disk, and re-enables dynamic updates after the
+                        load has completed.  After a zone is thawed,
+                        dynamic updates will no longer be refused.  If
+                        the zone has changed and the
+                        <command>ixfr-from-differences</command> option is
+                        in use, then the journal file will be updated to
+                        reflect changes in the zone.  Otherwise, if the
+                        zone has changed, any existing journal file will be
+                        removed.
+                      </para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term><userinput>sync
+                        <optional>-clean</optional>
+                        <optional><replaceable>zone</replaceable>
+       <optional><replaceable>class</replaceable>
+           <optional><replaceable>view</replaceable></optional></optional></optional></userinput></term>
+                    <listitem>
+                      <para>
+                        Sync changes in the journal file for a dynamic zone
+                        to the master file.  If the "-clean" option is
+                        specified, the journal file is also removed.  If
+                        no zone is specified, then all zones are synced.
                       </para>
                     </listitem>
                   </varlistentry>
@@ -1306,10 +1322,17 @@ zone "eng.example.com" {
                   </varlistentry>
 
                   <varlistentry>
-                    <term><userinput>querylog</userinput></term>
+		    <term><userinput>querylog</userinput>
+			  <optional>on|off</optional>
+		    </term>
                     <listitem>
                       <para>
-                        Toggle query logging. Query logging can also be enabled
+                        Enable or disable query logging.  (For backward
+                        compatibility, this command can also be used without
+                        an argument to toggle query logging on and off.)
+                      </para>
+                      <para>
+                        Query logging can also be enabled
                         by explicitly directing the <command>queries</command>
                         <command>category</command> to a
 		        <command>channel</command> in the
@@ -1417,10 +1440,29 @@ zone "eng.example.com" {
                   </varlistentry>
 
                   <varlistentry>
-                    <term><userinput>flushname</userinput> <replaceable>name</replaceable></term>
+                    <term><userinput>flushname</userinput>
+                       <replaceable>name</replaceable>
+                       <optional><replaceable>view</replaceable></optional>
+                       </term>
                     <listitem>
                       <para>
-                        Flushes the given name from the server's cache.
+                        Flushes the given name from the server's DNS cache,
+                        and from the server's nameserver address database
+                        if applicable.
+                      </para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term><userinput>flushtree</userinput>
+                       <replaceable>name</replaceable>
+                       <optional><replaceable>view</replaceable></optional>
+                       </term>
+                    <listitem>
+                      <para>
+                        Flushes the given name, and all of its subdomains,
+                        from the server's DNS cache.  (The server's
+                        nameserver address database is not affected.)
                       </para>
                     </listitem>
                   </varlistentry>
@@ -1543,6 +1585,75 @@ zone "eng.example.com" {
                         Only zones that were originally added via
                         <command>rndc addzone</command> can be deleted
                         in this matter.
+                      </para>
+                    </listitem>
+                  </varlistentry>
+
+                  <varlistentry>
+                    <term><userinput>signing
+                        <optional>( -list | -clear <replaceable>keyid/algorithm</replaceable> | -clear <literal>all</literal> | -nsec3param ( <replaceable>parameters</replaceable> | <literal>none</literal> ) ) </optional>
+                        <replaceable>zone</replaceable>
+                        <optional><replaceable>class</replaceable>
+                        <optional><replaceable>view</replaceable></optional></optional>
+                    </userinput></term>
+                    <listitem>
+                      <para>
+                        List, edit, or remove the DNSSEC signing state for 
+                        the specified zone.  The status of ongoing DNSSEC
+                        operations (such as signing or generating
+                        NSEC3 chains) is stored in the zone in the form
+                        of DNS resource records of type
+                        <command>sig-signing-type</command>. 
+                        <command>rndc signing -list</command> converts
+                        these records into a human-readable form,
+                        indicating which keys are currently signing
+                        or have finished signing the zone, and which NSEC3
+                        NSEC3 chains are being created or removed.
+                      </para>
+                      <para>
+                        <command>rndc signing -clear</command> can remove
+                        a single key (specified in the same format that
+                        <command>rndc signing -list</command> uses to
+                        display it), or all keys.  In either case, only
+                        completed keys are removed; any record indicating
+                        that a key has not yet finished signing the zone
+                        will be retained.
+                      </para>
+                      <para>
+                        <command>rndc signing -nsec3param</command> sets
+                        the NSEC3 parameters for a zone.  This is the
+                        only supported mechanism for using NSEC3 with
+                        <command>inline-signing</command> zones.
+                        Parameters are specified in the same format as
+                        an NSEC3PARAM resource record: hash algorithm,
+                        flags, iterations, and salt, in that order.
+                      </para>
+                      <para>
+                        Currently, the only defined value for hash algorithm 
+                        is <literal>1</literal>, representing SHA-1.
+                        The <option>flags</option> may be set to
+                        <literal>0</literal> or <literal>1</literal>,
+                        depending on whether you wish to set the opt-out
+                        bit in the NSEC3 chain.  <option>iterations</option>
+                        defines the number of additional times to apply
+                        the algorithm when generating an NSEC3 hash.  The
+                        <option>salt</option> is a string of data expressed
+                        in hexidecimal, or a hyphen (`-') if no salt is
+                        to be used.
+                      </para>
+                      <para>
+                        So, for example, to create an NSEC3 chain using
+                        the SHA-1 hash algorithm, no opt-out flag,
+                        10 iterations, and a salt value of "FFFF", use:
+                        <command>rndc signing -nsec3param 1 0 10 FFFF &lt;zone&gt;</command>.
+                        To set the opt-out flag, 15 iterations, and no
+                        salt, use:
+                        <command>rndc signing -nsec3param 1 1 15 - &lt;zone&gt;</command>.
+                      </para>
+                      <para>
+                        <command>rndc signing -nsec3param none</command>
+                        removes an existing NSEC3 chain and replaces it
+                        with NSEC.
                       </para>
                     </listitem>
                   </varlistentry>
@@ -1925,13 +2036,11 @@ controls {
       </para>
 
       <para>
-        When acting as a slave, <acronym>BIND</acronym> 9 will attempt
-        to use IXFR unless it is explicitly disabled via the
-        <command>request-ixfr</command> option or the use of
-        <command>ixfr-from-differences</command>.  For
-        more information about disabling IXFR, see the description
-        of the <command>request-ixfr</command> clause of the
-        <command>server</command> statement.
+        When acting as a slave, <acronym>BIND</acronym> 9 will
+        attempt to use IXFR unless
+        it is explicitly disabled. For more information about disabling
+        IXFR, see the description of the <command>request-ixfr</command> clause
+        of the <command>server</command> statement.
       </para>
     </sect1>
 
@@ -3649,7 +3758,9 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
               <entry colname="2">
                 <para>
                   defines a named masters list for
-                  inclusion in stub and slave zone masters clauses.
+                  inclusion in stub and slave zones'
+                  <command>masters</command> or 
+                  <command>also-notify</command> lists.
                 </para>
               </entry>
             </row>
@@ -4589,11 +4700,17 @@ category notify { null; };
 		    </para>
 
                     <para>
-                      <computeroutput>client 127.0.0.1#62536: query: www.example.com IN AAAA +SE</computeroutput>
+                      <computeroutput>client 127.0.0.1#62536 (www.example.com): query: www.example.com IN AAAA +SE</computeroutput>
                     </para>
                     <para>
-                      <computeroutput>client ::1#62537: query: www.example.net IN AAAA -SE</computeroutput>
+                      <computeroutput>client ::1#62537 (www.example.net): query: www.example.net IN AAAA -SE</computeroutput>
                     </para>
+		    <para>
+                      (The first part of this log message, showing the
+                      client address/port number and query name, is
+                      repeated in all subsequent log messages related
+                      to the same query.)
+		    </para>
                   </entry>
                 </row>
                 <row rowsep="0">
@@ -5021,7 +5138,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
           Usage</title>
         <para><command>masters</command>
 	  lists allow for a common set of masters to be easily used by
-          multiple stub and slave zones.
+          multiple stub and slave zones in their <command>masters</command>
+          or <command>also-notify</command> lists.
         </para>
       </sect2>
 
@@ -5058,7 +5176,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> pid-file <replaceable>path_name</replaceable>; </optional>
     <optional> recursing-file <replaceable>path_name</replaceable>; </optional>
     <optional> statistics-file <replaceable>path_name</replaceable>; </optional>
-    <optional> zone-statistics <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> zone-statistics <replaceable>full</replaceable> | <replaceable>terse</replaceable> | <replaceable>none</replaceable>; </optional>
     <optional> auth-nxdomain <replaceable>yes_or_no</replaceable>; </optional>
     <optional> deallocate-on-exit <replaceable>yes_or_no</replaceable>; </optional>
     <optional> dialup <replaceable>dialup_option</replaceable>; </optional>
@@ -5112,7 +5230,9 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> allow-update { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update-forwarding { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnssec-update-mode ( <replaceable>maintain</replaceable> | <replaceable>no-resign</replaceable> ); </optional>
     <optional> dnssec-dnskey-kskonly <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnssec-loadkeys-interval <replaceable>number</replaceable>; </optional>
     <optional> dnssec-secure-to-insecure <replaceable>yes_or_no</replaceable> ;</optional>
     <optional> try-tcp-refresh <replaceable>yes_or_no</replaceable>; </optional>
     <optional> allow-v6-synthesis { <replaceable>address_match_list</replaceable> }; </optional>
@@ -5158,8 +5278,9 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> notify-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> notify-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> notify-to-soa <replaceable>yes_or_no</replaceable> ; </optional>
-    <optional> also-notify { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ;
-                  <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
+    <optional> also-notify { <replaceable>ip_addr</replaceable>
+                    <optional>port <replaceable>ip_port</replaceable></optional> <optional>key <replaceable>keyname</replaceable></optional> ;
+                    <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> <optional>key <replaceable>keyname</replaceable></optional> ; ... </optional> }; </optional>
     <optional> max-ixfr-log-size <replaceable>number</replaceable>; </optional>
     <optional> max-journal-size <replaceable>size_spec</replaceable>; </optional>
     <optional> coresize <replaceable>size_spec</replaceable> ; </optional>
@@ -5210,6 +5331,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> preferred-glue ( <replaceable>A</replaceable> | <replaceable>AAAA</replaceable> | <replaceable>NONE</replaceable> ); </optional>
     <optional> edns-udp-size <replaceable>number</replaceable>; </optional>
     <optional> max-udp-size <replaceable>number</replaceable>; </optional>
+    <optional> max-rsa-exponent-size <replaceable>number</replaceable>; </optional>
     <optional> root-delegation-only <optional> exclude { <replaceable>namelist</replaceable> } </optional> ; </optional>
     <optional> querylog <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> disable-algorithms <replaceable>domain</replaceable> { <replaceable>algorithm</replaceable>;
@@ -5905,6 +6027,73 @@ options {
             </listitem>
 	  </varlistentry>
 
+	  <varlistentry>
+	    <term><command>dnssec-update-mode</command></term>
+	    <listitem>
+	        <para>
+                  If this option is set to its default value of
+                  <literal>maintain</literal> in a zone of type
+                  <literal>master</literal> which is DNSSEC-signed
+                  and configured to allow dynamic updates (see
+                  <xref linkend="dynamic_update_policies"/>), and
+                  if <command>named</command> has access to the
+                  private signing key(s) for the zone, then
+                  <command>named</command> will automatically sign all new
+                  or changed records and maintain signatures for the zone
+                  by regenerating RRSIG records whenever they approach
+                  their expiration date.
+		</para>
+		<para>
+                  If the option is changed to <literal>no-resign</literal>,
+                  then <command>named</command> will sign all new or
+                  changed records, but scheduled maintenance of
+                  signatures is disabled.
+                </para>
+                <para>
+                  With either of these settings, <command>named</command>
+                  will reject updates to a DNSSEC-signed zone when the
+                  signing keys are inactive or unavailable to
+                  <command>named</command>.  (A planned third option,
+                  <literal>external</literal>, will disable all automatic
+                  signing and allow DNSSEC data to be submitted into a zone
+                  via dyanmic update; this is not yet implemented.)
+		</para>
+	    </listitem>
+	  </varlistentry>
+
+          <varlistentry>
+            <term><command>zone-statistics</command></term>
+            <listitem>
+              <para>
+                If <userinput>full</userinput>, the server will collect
+                statistical data on all zones (unless specifically
+                turned off on a per-zone basis by specifying
+                <command>zone-statistics terse</command> or
+                <command>zone-statistics none</command>
+                in the <command>zone</command> statement).
+                The default is <userinput>terse</userinput>, providing
+                minimal statistics on zones (including name and
+                current serial number, but not query type
+                counters).
+              </para>
+              <para>
+                These statistics may be accessed via the
+                <command>statistics-channel</command> or
+                using <command>rndc stats</command>, which
+                will dump them to the file listed
+                in the <command>statistics-file</command>.  See
+                also <xref linkend="statsfile"/>.
+              </para>
+              <para>
+                For backward compatibility with earlier versions
+                of BIND 9, the <command>zone-statistics</command>
+                option can also accept <userinput>yes</userinput>
+                or <userinput>no</userinput>, which have the same
+                effect as <userinput>full</userinput> and
+                <userinput>terse</userinput>, respectively.
+              </para>
+            </listitem>
+          </varlistentry>
         </variablelist>
 
         <sect3 id="boolean_options">
@@ -6419,25 +6608,6 @@ options {
             </varlistentry>
 
             <varlistentry>
-              <term><command>zone-statistics</command></term>
-              <listitem>
-                <para>
-                  If <userinput>yes</userinput>, the server will collect
-                  statistical data on all zones (unless specifically turned
-                  off
-                  on a per-zone basis by specifying <command>zone-statistics no</command>
-                  in the <command>zone</command> statement).
-                  The default is <userinput>no</userinput>.
-                  These statistics may be accessed
-                  using <command>rndc stats</command>, which will
-                  dump them to the file listed
-                  in the <command>statistics-file</command>.  See
-                  also <xref linkend="statsfile"/>.
-                </para>
-              </listitem>
-            </varlistentry>
-
-            <varlistentry>
               <term><command>use-ixfr</command></term>
               <listitem>
                 <para>
@@ -6658,13 +6828,14 @@ options {
               <term><command>ixfr-from-differences</command></term>
               <listitem>
                 <para>
-                  When <userinput>yes</userinput> and the server loads a new version of a master
-                  zone from its zone file or receives a new version of a slave
-                  file by a non-incremental zone transfer, it will compare
-                  the new version to the previous one and calculate a set
-                  of differences.  The differences are then logged in the
-                  zone's journal file such that the changes can be transmitted
-                  to downstream slaves as an incremental zone transfer.
+                  When <userinput>yes</userinput> and the server loads a new
+                  version of a master zone from its zone file or receives a
+                  new version of a slave file via zone transfer, it will
+                  compare the new version to the previous one and calculate
+                  a set of differences.  The differences are then logged in
+                  the zone's journal file such that the changes can be
+                  transmitted to downstream slaves as an incremental zone
+                  transfer.
                 </para>
                 <para>
                   By allowing incremental zone transfers to be used for
@@ -6974,6 +7145,26 @@ options {
 		  The default is <command>no</command>.  If
                   <command>update-check-ksk</command> is set to
                   <literal>no</literal>, this option is ignored.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>dnssec-loadkeys-interval</command></term>
+	      <listitem>
+	        <para>
+                  When a zone is configured with <command>auto-dnssec
+                  maintain;</command> its key repository must be checked
+                  periodically to see if any new keys have been added
+                  or any existing keys' timing metadata has been updated
+                  (see <xref linkend="man.dnssec-keygen"/> and
+                  <xref linkend="man.dnssec-settime"/>).  The
+                  <command>dnssec-loadkeys-interval</command> option
+                  sets the frequency of autoatic repository checks, in
+                  minutes.  The default is <literal>60</literal> (1 hour),
+                  the minimum is <literal>1</literal> (1 minute), and the
+                  maximum is <literal>1440</literal> (24 hours); any higher
+                  value is silently reduced.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -7633,6 +7824,13 @@ avoid-v6-udp-ports {};
                   <command>also-notify</command> address to send
                   the notify messages to a port other than the
                   default of 53.
+                  An optional TSIG key can also be specified with each
+                  address to cause the notify messages to be signed; this
+                  can be useful when sending notifies to multiple views.
+                  In place of explicit addresses, one or more named
+                  <command>masters</command> lists can be used.
+                </para>
+                <para>
                   If an <command>also-notify</command> list
                   is given in a <command>zone</command> statement,
                   it will override
@@ -8099,8 +8297,10 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   approaches
                   the specified size, some of the oldest transactions in the
                   journal
-                  will be automatically removed.  The default is
-                  <literal>unlimited</literal>.
+                  will be automatically removed.  The largest permitted
+                  value is 2 gigabytes. The default is
+                  <literal>unlimited</literal>, which also
+                  means 2 gigabytes.
                   This may also be set on a per-zone basis.
                 </para>
               </listitem>
@@ -8547,8 +8747,10 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
           </para>
           <para>
             If multiple <command>rrset-order</command> statements
-            appear,
-            they are not combined &mdash; the last one applies.
+            appear, they are not combined &mdash; the last one applies.
+          </para>
+          <para>
+            By default, all records are returned in random order.
           </para>
 
           <note>
@@ -8706,6 +8908,15 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  It is expected that this parameter may be removed
 		  in a future version once there is a standard type.
 		</para>
+		<para>
+		  These records can be removed from the zone once named
+		  has completed signing the zone with the matching key
+		  using <command>nsupdate</command> or
+		  <command>rndc signing -clear</command>.
+		  <command>rndc signing -clear</command> is the only supported
+		  way to remove these records from
+		  <command>inline-signing</command> zones.
+		</para>
 	      </listitem>
 	    </varlistentry>
 
@@ -8799,9 +9010,14 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  the file format of zone files (see
 	          <xref linkend="zonefile_format"/>).
 	          The default value is <constant>text</constant>, which is the
-		  standard textual representation.  Files in other formats
-		  than <constant>text</constant> are typically expected
-		  to be generated by the <command>named-compilezone</command> tool.
+		  standard textual representation, except for slave zones,
+                  in which the default value is <constant>raw</constant>.
+                  Files in other formats than <constant>text</constant> are
+                  typically expected to be generated by the
+                  <command>named-compilezone</command> tool, or dumped by
+                  <command>named</command>.
+                </para>
+                <para>
 		  Note that when a zone file in a different format than
 		  <constant>text</constant> is loaded, <command>named</command>
 	          may omit some of the checks which would be performed for a
@@ -8867,6 +9083,18 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                 <para>
 		  The overall rate that NOTIFY messages are sent for all
 		  zones is controlled by <command>serial-query-rate</command>.
+		</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><command>max-rsa-exponent-size</command></term>
+              <listitem>
+                <para>
+		  The maximum RSA exponent size, in bits, that will
+		  be accepted when validating.  Valid values are 35
+		  to 4096 bits.  The default zero (0) is also accepted
+		  and is equivalent to 4096.
 		</para>
               </listitem>
             </varlistentry>
@@ -9759,8 +9987,9 @@ ns.domain.com.rpz-nsdname   CNAME   .
             the local server, acting as a slave, will request incremental zone
             transfers from the given remote server, a master. If not set, the
             value of the <command>request-ixfr</command> option in
-            the view or
-            global options block is used as a default.
+            the view or global options block is used as a default. It may
+            also be set in the zone block and, if set there, it will
+            override the global or view setting for that zone.
           </para>
 
           <para>
@@ -9952,6 +10181,35 @@ ns.domain.com.rpz-nsdname   CNAME   .
           <command>named</command> will not open any communication channels.
         </para>
 
+        <para>
+          If the statistics channel is configured to listen on 127.0.0.1
+          port 8888, then the statistics are accessible in XML format at
+          <ulink url="http://127.0.0.1:8888/"
+                  >http://127.0.0.1:8888/</ulink> or
+          <ulink url="http://127.0.0.1:8888/xml"
+                  >http://127.0.0.1:8888/xml</ulink>. A CSS file is
+          included which can format the XML statistics into tables 
+          when viewed with a stylesheet-capable browser.  When
+          <acronym>BIND</acronym> 9 is configured with --enable-newstats, 
+          a new XML schema is used (version 3) which adds additional
+          zone statistics and uses a flatter tree for more efficient
+          parsing.  The stylesheet included uses the Google Charts API
+          to render data into into charts and graphs when using a
+          javascript-capable browser.
+        </para>
+
+        <para>
+          Applications that depend on a particular XML schema
+          can request 
+          <ulink url="http://127.0.0.1:8888/xml/v2"
+                  >http://127.0.0.1:8888/xml/v2</ulink> for version 2
+          of the statistics XML schema or 
+          <ulink url="http://127.0.0.1:8888/xml/v3"
+                  >http://127.0.0.1:8888/xml/v3</ulink> for version 3.
+          If the requested schema is supported by the server, then
+          it will respond; if not, it will return a "page not found"
+          error.
+        </para>
       </sect2>
 
 	<sect2 id="trusted-keys">
@@ -10283,6 +10541,9 @@ view "external" {
     <optional> allow-query-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update { <replaceable>address_match_list</replaceable> }; </optional>
+    <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnssec-dnskey-kskonly <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnssec-loadkeys-interval <replaceable>number</replaceable>; </optional>
     <optional> update-policy <replaceable>local</replaceable> | { <replaceable>update_policy_rule</replaceable> <optional>...</optional> }; </optional>
     <optional> also-notify { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ;
                   <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
@@ -10301,6 +10562,7 @@ view "external" {
     <optional> ixfr-base <replaceable>string</replaceable> ; </optional>
     <optional> ixfr-from-differences <replaceable>yes_or_no</replaceable>; </optional>
     <optional> ixfr-tmp-file <replaceable>string</replaceable> ; </optional>
+    <optional> request-ixfr <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> maintain-ixfr-base <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> max-ixfr-log-size <replaceable>number</replaceable> ; </optional>
     <optional> max-transfer-idle-out <replaceable>number</replaceable> ; </optional>
@@ -10311,7 +10573,7 @@ view "external" {
     <optional> pubkey <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>number</replaceable> <replaceable>string</replaceable> ; </optional>
     <optional> notify-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> notify-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
-    <optional> zone-statistics <replaceable>yes_or_no</replaceable> ; </optional>
+    <optional> zone-statistics <replaceable>full</replaceable> | <replaceable>terse</replaceable> | <replaceable>none</replaceable>; </optional>
     <optional> sig-validity-interval <replaceable>number</replaceable> <optional><replaceable>number</replaceable></optional> ; </optional>
     <optional> sig-signing-nodes <replaceable>number</replaceable> ; </optional>
     <optional> sig-signing-signatures <replaceable>number</replaceable> ; </optional>
@@ -10323,7 +10585,9 @@ view "external" {
     <optional> max-retry-time <replaceable>number</replaceable> ; </optional>
     <optional> key-directory <replaceable>path_name</replaceable>; </optional>
     <optional> auto-dnssec <constant>allow</constant>|<constant>maintain</constant>|<constant>off</constant>; </optional>
+    <optional> inline-signing <replaceable>yes_or_no</replaceable>; </optional>
     <optional> zero-no-soa-ttl <replaceable>yes_or_no</replaceable> ; </optional>
+    <optional> serial-update-method <constant>increment</constant>|<constant>unixtime</constant>; </optional>
 };
 
 zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
@@ -10333,13 +10597,15 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     <optional> allow-query-on { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-transfer { <replaceable>address_match_list</replaceable> }; </optional>
     <optional> allow-update-forwarding { <replaceable>address_match_list</replaceable> }; </optional>
-    <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
     <optional> dnssec-update-mode ( <replaceable>maintain</replaceable> | <replaceable>no-resign</replaceable> ); </optional>
+    <optional> update-check-ksk <replaceable>yes_or_no</replaceable>; </optional>
     <optional> dnssec-dnskey-kskonly <replaceable>yes_or_no</replaceable>; </optional>
+    <optional> dnssec-loadkeys-interval <replaceable>number</replaceable>; </optional>
     <optional> dnssec-secure-to-insecure <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> try-tcp-refresh <replaceable>yes_or_no</replaceable>; </optional>
-    <optional> also-notify { <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ;
-                  <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
+    <optional> also-notify <optional>port <replaceable>ip_port</replaceable></optional> { ( <replaceable>masters_list</replaceable> | <replaceable>ip_addr</replaceable>
+                              <optional>port <replaceable>ip_port</replaceable></optional>
+                              <optional>key <replaceable>key</replaceable></optional> ) ; <optional>...</optional> }; </optional>
     <optional> check-names (<constant>warn</constant>|<constant>fail</constant>|<constant>ignore</constant>) ; </optional>
     <optional> dialup <replaceable>dialup_option</replaceable> ; </optional>
     <optional> file <replaceable>string</replaceable> ; </optional>
@@ -10372,12 +10638,19 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     <optional> use-alt-transfer-source <replaceable>yes_or_no</replaceable>; </optional>
     <optional> notify-source (<replaceable>ip4_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
     <optional> notify-source-v6 (<replaceable>ip6_addr</replaceable> | <constant>*</constant>) <optional>port <replaceable>ip_port</replaceable></optional> ; </optional>
-    <optional> zone-statistics <replaceable>yes_or_no</replaceable> ; </optional>
+    <optional> zone-statistics <replaceable>full</replaceable> | <replaceable>terse</replaceable> | <replaceable>none</replaceable>; </optional>
+    <optional> sig-validity-interval <replaceable>number</replaceable> <optional><replaceable>number</replaceable></optional> ; </optional>
+    <optional> sig-signing-nodes <replaceable>number</replaceable> ; </optional>
+    <optional> sig-signing-signatures <replaceable>number</replaceable> ; </optional>
+    <optional> sig-signing-type <replaceable>number</replaceable> ; </optional>
     <optional> database <replaceable>string</replaceable> ; </optional>
     <optional> min-refresh-time <replaceable>number</replaceable> ; </optional>
     <optional> max-refresh-time <replaceable>number</replaceable> ; </optional>
     <optional> min-retry-time <replaceable>number</replaceable> ; </optional>
     <optional> max-retry-time <replaceable>number</replaceable> ; </optional>
+    <optional> key-directory <replaceable>path_name</replaceable>; </optional>
+    <optional> auto-dnssec <constant>allow</constant>|<constant>maintain</constant>|<constant>off</constant>; </optional>
+    <optional> inline-signing <replaceable>yes_or_no</replaceable>; </optional>
     <optional> multi-master <replaceable>yes_or_no</replaceable> ; </optional>
     <optional> zero-no-soa-ttl <replaceable>yes_or_no</replaceable> ; </optional>
 };
@@ -10435,6 +10708,13 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
     <optional> forward (<constant>only</constant>|<constant>first</constant>) ; </optional>
     <optional> forwarders { <optional> <replaceable>ip_addr</replaceable> <optional>port <replaceable>ip_port</replaceable></optional> ; ... </optional> }; </optional>
     <optional> delegation-only <replaceable>yes_or_no</replaceable> ; </optional>
+};
+
+zone <replaceable>"."</replaceable> <optional><replaceable>class</replaceable></optional> {
+    type redirect;
+    file <replaceable>string</replaceable> ;
+    <optional> masterfile-format (<constant>text</constant>|<constant>raw</constant>) ; </optional>
+    <optional> allow-query { <replaceable>address_match_list</replaceable> }; </optional>
 };
 
 zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replaceable></optional> {
@@ -10680,6 +10960,64 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <row rowsep="0">
                     <entry colname="1">
                       <para>
+                        <varname>redirect</varname>
+                      </para>
+                    </entry>
+                    <entry colname="2">
+                      <para>
+                        Redirect zones are used to provide answers to
+                        queries when normal resolution would result in
+                        NXDOMAIN being returned.
+			Only one redirect zone is supported
+                        per view.  <command>allow-query</command> can be
+                        used to restrict which clients see these answers.
+                      </para>
+                      <para>
+			If the client has requested DNSSEC records (DO=1) and
+			the NXDOMAIN response is signed then no substitution
+			will occur.
+                      </para>
+                      <para>
+                        To redirect all NXDOMAIN responses to
+                        100.100.100.2 and
+                        2001:ffff:ffff::100.100.100.2, one would
+                        configure a type redirect zone named ".",
+                        with the zone file containing wildcard records
+                        that point to the desired addresses: 
+                        <literal>"*. IN A 100.100.100.2"</literal>
+                        and
+                        <literal>"*. IN AAAA 2001:ffff:ffff::100.100.100.2"</literal>.
+                      </para>
+                      <para>
+                        To redirect all Spanish names (under .ES) one
+                        would use similar entries but with the names
+                        "*.ES." instead of "*.".  To redirect all 
+                        commercial Spanish names (under COM.ES) one
+			would use wildcard entries called "*.COM.ES.".
+                      </para>
+                      <para>
+                        Note that the redirect zone supports all
+                        possible types; it is not limited to A and
+                        AAAA records.
+                      </para>
+                      <para>
+                        Because redirect zones are not referenced
+                        directly by name, they are not kept in the
+                        zone lookup table with normal master and slave
+                        zones. Consequently, it is not currently possible
+                        to use
+                        <command>rndc reload
+                                <replaceable>zonename</replaceable></command>
+                        to reload a redirect zone.  However, when using
+                        <command>rndc reload</command> without specifying
+                        a zone name, redirect zones will be reloaded along
+                        with other zones.
+                      </para>
+                    </entry>
+                  </row>
+                  <row rowsep="0">
+                    <entry colname="1">
+                      <para>
                         <varname>delegation-only</varname>
                       </para>
                     </entry>
@@ -10823,6 +11161,9 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                     with each <command>also-notify</command>
                     address to send the notify
                     messages to a port other than the default of 53.
+                    A TSIG key may also be specified to cause the
+                    <literal>NOTIFY</literal> to be signed by the
+                    given key.
                     <command>also-notify</command> is not
                     meaningful for stub zones.
                     The default is the empty list.
@@ -10911,6 +11252,16 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     See the description of
                     <command>update-check-ksk</command> in <xref linkend="boolean_options"/>.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+	      <varlistentry>
+	        <term><command>dnssec-update-mode</command></term>
+                <listitem>
+                  <para>
+                    See the description of
+                    <command>dnssec-update-mode</command> in <xref linkend="options"/>.
                   </para>
                 </listitem>
               </varlistentry>
@@ -11418,21 +11769,53 @@ example.com. NS ns2.example.net.
                     zone the first time, the repository will be searched
                     for changes periodically, regardless of whether
                     <command>rndc loadkeys</command> is used.  The recheck
-                    interval is hard-coded to
-                    one hour.
-                  </para>
-                  <para>
-                    <command>auto-dnssec create;</command> includes the
-                    above, but also allows <command>named</command>
-                    to create new keys in the key repository when needed.
-                    (NOTE: This option is not yet implemented; the syntax is
-                    being reserved for future use.)
+                    interval is defined by
+                    <command>dnssec-loadkeys-interval</command>.)
                   </para>
                   <para>
                     The default setting is <command>auto-dnssec off</command>.
                   </para>
                 </listitem>
               </varlistentry>
+
+              <varlistentry>
+                <term><command>serial-update-method</command></term>
+                <listitem>
+                  <para>
+                    Zones configured for dynamic DNS may use this
+                    option to set the update method that will be used for
+                    the zone serial number in the SOA record.
+                  </para>
+                  <para>
+                    With the default setting of
+                    <command>serial-update-method increment;</command>, the
+                    SOA serial number will be incremented by one each time
+                    the zone is updated.
+                  </para>
+                  <para>
+                    When set to 
+                    <command>serial-update-method unixtime;</command>, the
+                    SOA serial number will be set to the number of seconds
+                    since the UNIX epoch, unless the serial number is
+                    already greater than or equal to that value, in which
+                    case it is simply incremented by one.
+                  </para>
+                </listitem>
+              </varlistentry>
+
+              <varlistentry>
+                <term><command>inline-signing</command></term>
+		<listitem>
+		  <para>
+                    If <literal>yes</literal>, this enables
+		    "bump in the wire" signing of a zone, where a
+		    unsigned zone is transferred in or loaded from
+		    disk and a signed version of the zone is served,
+		    with possibly, a different serial number.  This
+		    behaviour is disabled by default.
+		  </para>
+		</listitem>
+	      </varlistentry>
 
               <varlistentry>
                 <term><command>multi-master</command></term>
@@ -16709,12 +17092,15 @@ zone "example.com" {
       <title>Manual pages</title>
       <xi:include href="../../bin/dig/dig.docbook"/>
       <xi:include href="../../bin/dig/host.docbook"/>
+      <xi:include href="../../bin/python/dnssec-checkds.docbook"/>
+      <xi:include href="../../bin/python/dnssec-coverage.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-dsfromkey.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-keyfromlabel.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-keygen.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-revoke.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-settime.docbook"/>
       <xi:include href="../../bin/dnssec/dnssec-signzone.docbook"/>
+      <xi:include href="../../bin/dnssec/dnssec-verify.docbook"/>
       <xi:include href="../../bin/check/named-checkconf.docbook"/>
       <xi:include href="../../bin/check/named-checkzone.docbook"/>
       <xi:include href="../../bin/named/named.docbook"/>
