@@ -1557,8 +1557,7 @@ static void
 cpu_probe_cmpxchg8b(void)
 {
 
-	if ((cpu_feature & CPUID_CX8) != 0 ||
-	    cpu_vendor_id == CPU_VENDOR_RISE) {
+	if ((cpu_feature & CPUID_CX8) != 0) {
 		atomic_load_acq_64 = atomic_load_acq_64_i586;
 		atomic_store_rel_64 = atomic_store_rel_64_i586;
 	}

@@ -98,11 +98,8 @@ ata_pci_attach(device_t dev)
     ctlr->dev = dev;
 
     /* if needed try to enable busmastering */
+    pci_enable_busmaster(dev);
     cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-    if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
-	pci_write_config(dev, PCIR_COMMAND, cmd | PCIM_CMD_BUSMASTEREN, 2);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-    }
 
     /* if busmastering mode "stuck" use it */
     if ((cmd & PCIM_CMD_BUSMASTEREN) == PCIM_CMD_BUSMASTEREN) {

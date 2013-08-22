@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/linker.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/libkern.h>
@@ -151,16 +152,6 @@ static int	linker_load_module(const char *kldname,
 		    const char *modname, struct linker_file *parent,
 		    struct mod_depend *verinfo, struct linker_file **lfpp);
 static modlist_t modlist_lookup2(const char *name, struct mod_depend *verinfo);
-
-static char *
-linker_strdup(const char *str)
-{
-	char *result;
-
-	if ((result = malloc((strlen(str) + 1), M_LINKER, M_WAITOK)) != NULL)
-		strcpy(result, str);
-	return (result);
-}
 
 static void
 linker_init(void *arg)
@@ -576,14 +567,12 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	lf->refs = 1;
 	lf->userrefs = 0;
 	lf->flags = 0;
-	lf->filename = linker_strdup(filename);
-	lf->pathname = linker_strdup(pathname);
+	lf->filename = strdup(filename, M_LINKER);
+	lf->pathname = strdup(pathname, M_LINKER);
 	LINKER_GET_NEXT_FILE_ID(lf->id);
 	lf->ndeps = 0;
 	lf->deps = NULL;
 	lf->loadcnt = ++loadcnt;
-	lf->sdt_probes = NULL;
-	lf->sdt_nprobes = 0;
 	STAILQ_INIT(&lf->common);
 	TAILQ_INIT(&lf->modules);
 	TAILQ_INSERT_TAIL(&linker_files, lf, link);
@@ -1046,6 +1035,9 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	lf->userrefs++;
 	if (fileid != NULL)
 		*fileid = lf->id;
+
+	EVENTHANDLER_INVOKE(kld_load, lf);
+
 #ifdef HWPMC_HOOKS
 	KLD_DOWNGRADE();
 	pkm.pm_file = lf->filename;
@@ -1101,12 +1093,10 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 
-		/* Check if there are DTrace probes enabled on this file. */
-		if (lf->nenabled > 0) {
-			printf("kldunload: attempt to unload file that has"
-			    " DTrace probes enabled\n");
+		EVENTHANDLER_INVOKE(kld_unload, lf, &error);
+		if (error != 0)
 			error = EBUSY;
-		} else if (lf->userrefs == 0) {
+		else if (lf->userrefs == 0) {
 			/*
 			 * XXX: maybe LINKER_UNLOAD_FORCE should override ?
 			 */
@@ -1918,7 +1908,7 @@ linker_search_kld(const char *name)
 
 	/* qualified at all? */
 	if (strchr(name, '/'))
-		return (linker_strdup(name));
+		return (strdup(name, M_LINKER));
 
 	/* traverse the linker path */
 	len = strlen(name);
@@ -2011,7 +2001,7 @@ linker_load_module(const char *kldname, const char *modname,
 		if (modlist_lookup2(modname, verinfo) != NULL)
 			return (EEXIST);
 		if (kldname != NULL)
-			pathname = linker_strdup(kldname);
+			pathname = strdup(kldname, M_LINKER);
 		else if (rootvnode == NULL)
 			pathname = NULL;
 		else

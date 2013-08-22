@@ -96,7 +96,7 @@ for dir in /usr/bin /usr/local/bin; do
 		# Run svnversion from ${dir} on this script; if return code
 		# is not zero, the checkout might not be compatible with the
 		# svnversion being used.
-		${dir}/svnversion $(basename ${0}) >/dev/null 2>&1
+		${dir}/svnversion $(realpath ${0}) >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			svnversion=${dir}/svnversion
 			break
@@ -105,7 +105,7 @@ for dir in /usr/bin /usr/local/bin; do
 done
 
 if [ -z "${svnversion}" ] && [ -x /usr/bin/svnliteversion ] ; then
-	/usr/bin/svnversion $(basename ${0}) >/dev/null 2>&1
+	/usr/bin/svnliteversion $(realpath ${0}) >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
 		svnversion=/usr/bin/svnliteversion
 	else

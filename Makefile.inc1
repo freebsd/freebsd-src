@@ -1331,7 +1331,8 @@ build-tools: .MAKE
     usr.bin/awk \
     lib/libmagic \
     usr.bin/mkesdb_static \
-    usr.bin/mkcsmapper_static
+    usr.bin/mkcsmapper_static \
+    usr.bin/vi/catalog
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \

@@ -1008,6 +1008,16 @@ init_pci(struct vmctx *ctx)
 	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
+	/*
+	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
+	 * generic use
+	 */
+	lirq[5].li_generic = 1;
+	lirq[10].li_generic = 1;
+	lirq[11].li_generic = 1;
+	lirq[12].li_generic = 1;
+	lirq[15].li_generic = 1;
+
 	for (slot = 0; slot < MAXSLOTS; slot++) {
 		for (func = 0; func < MAXFUNCS; func++) {
 			si = &pci_slotinfo[slot][func];
@@ -1021,16 +1031,6 @@ init_pci(struct vmctx *ctx)
 			}
 		}
 	}
-
-	/*
-	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
-	 * generic use
-	 */
-	lirq[5].li_generic = 1;
-	lirq[10].li_generic = 1;
-	lirq[11].li_generic = 1;
-	lirq[12].li_generic = 1;
-	lirq[15].li_generic = 1;
 
 	/*
 	 * The guest physical memory map looks like the following:

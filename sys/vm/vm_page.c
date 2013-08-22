@@ -259,7 +259,6 @@ vm_page_domain_init(struct vm_domain *vmd)
 	    "vm active pagequeue";
 	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_vcnt) =
 	    &cnt.v_active_count;
-	vmd->vmd_fullintervalcount = 0;
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
@@ -1612,6 +1611,10 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			if (vp != NULL)
 				vdrop(vp);
 			pagedaemon_wakeup();
+			if (req & VM_ALLOC_WIRED) {
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+				m->wire_count = 0;
+			}
 			m->object = NULL;
 			vm_page_free(m);
 			return (NULL);
@@ -1807,11 +1810,14 @@ retry:
 				    &deferred_vdrop_list);
 				if (vm_paging_needed())
 					pagedaemon_wakeup();
-				for (m = m_ret, m_tmp = m_ret;
+				if ((req & VM_ALLOC_WIRED) != 0)
+					atomic_subtract_int(&cnt.v_wire_count,
+					    npages);
+				for (m_tmp = m, m = m_ret;
 				    m < &m_ret[npages]; m++) {
-					if (m_tmp < m)
-						m_tmp++;
-					else
+					if ((req & VM_ALLOC_WIRED) != 0)
+						m->wire_count = 0;
+					if (m >= m_tmp)
 						m->object = NULL;
 					vm_page_free(m);
 				}

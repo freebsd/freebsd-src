@@ -79,7 +79,7 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_ioctl =	g_dev_ioctl,
 	.d_strategy =	g_dev_strategy,
 	.d_name =	"g_dev",
-	.d_flags =	D_DISK | D_TRACKCLOSE | D_UNMAPPED_IO,
+	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
 static g_taste_t g_dev_taste;
@@ -237,6 +237,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		g_free(sc);
 		return (NULL);
 	}
+	dev->si_flags |= SI_UNMAPPED;
 	sc->sc_dev = dev;
 
 	/* Search for device alias name and create it if found. */
@@ -251,6 +252,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			freeenv(val);
 			make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
 			    &adev, dev, "%s", buf);
+			adev->si_flags |= SI_UNMAPPED;
 			break;
 		}
 	}

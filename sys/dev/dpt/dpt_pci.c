@@ -77,23 +77,17 @@ dpt_pci_attach (device_t dev)
 	dpt_softc_t *	dpt;
 	int		error = 0;
 
-	u_int32_t	command;
-
 	dpt = device_get_softc(dev);
 	dpt->dev = dev;
 	dpt_alloc(dev);
 
-	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
-
 #ifdef DPT_ALLOW_MMIO
-	if ((command & PCIM_CMD_MEMEN) != 0) {
-		dpt->io_rid = DPT_PCI_MEMADDR;
-		dpt->io_type = SYS_RES_MEMORY;
-		dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,
-						     &dpt->io_rid, RF_ACTIVE);
-	}
+	dpt->io_rid = DPT_PCI_MEMADDR;
+	dpt->io_type = SYS_RES_MEMORY;
+	dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,
+	    &dpt->io_rid, RF_ACTIVE);
 #endif
-	if (dpt->io_res == NULL && (command &  PCIM_CMD_PORTEN) != 0) {
+	if (dpt->io_res == NULL) {
 		dpt->io_rid = DPT_PCI_IOADDR;
 		dpt->io_type = SYS_RES_IOPORT;
 		dpt->io_res = bus_alloc_resource_any(dev, dpt->io_type,

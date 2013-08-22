@@ -100,6 +100,7 @@ struct 	fileops vnops = {
 	.fo_close = vn_closefile,
 	.fo_chmod = vn_chmod,
 	.fo_chown = vn_chown,
+	.fo_sendfile = vn_sendfile,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 

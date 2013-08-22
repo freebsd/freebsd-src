@@ -3018,6 +3018,30 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* pdfork */
+	case 518: {
+		struct pdfork_args *p = params;
+		uarg[0] = (intptr_t) p->fdp; /* int * */
+		iarg[1] = p->flags; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* pdkill */
+	case 519: {
+		struct pdkill_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->signum; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* pdgetpid */
+	case 520: {
+		struct pdgetpid_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->pidp; /* pid_t * */
+		*n_args = 2;
+		break;
+	}
 	/* freebsd32_pselect */
 	case 522: {
 		struct freebsd32_pselect_args *p = params;
@@ -8281,6 +8305,45 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* pdfork */
+	case 518:
+		switch(ndx) {
+		case 0:
+			p = "int *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdkill */
+	case 519:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdgetpid */
+	case 520:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "pid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
 	/* freebsd32_pselect */
 	case 522:
 		switch(ndx) {
@@ -10485,6 +10548,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 516:
 	/* cap_getmode */
 	case 517:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pdfork */
+	case 518:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pdkill */
+	case 519:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pdgetpid */
+	case 520:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

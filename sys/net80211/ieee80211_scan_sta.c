@@ -450,13 +450,12 @@ add_channels(struct ieee80211vap *vap,
 	struct ieee80211_scan_state *ss,
 	enum ieee80211_phymode mode, const uint16_t freq[], int nfreq)
 {
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_channel *c, *cg;
 	u_int modeflags;
 	int i;
 
-	KASSERT(mode < N(chanflags), ("Unexpected mode %u", mode));
+	KASSERT(mode < nitems(chanflags), ("Unexpected mode %u", mode));
 	modeflags = chanflags[mode];
 	for (i = 0; i < nfreq; i++) {
 		if (ss->ss_last >= IEEE80211_SCAN_MAX)
@@ -476,7 +475,6 @@ add_channels(struct ieee80211vap *vap,
 		}
 		ss->ss_chans[ss->ss_last++] = c;
 	}
-#undef N
 }
 
 struct scanlist {

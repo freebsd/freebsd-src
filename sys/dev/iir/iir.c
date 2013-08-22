@@ -399,7 +399,7 @@ iir_init(struct gdt_softc *gdt)
 		gdt->oem_name[7]='\0';
 	} else {
 		/* Old method, based on PCI ID */
-		if (gdt->sc_vendor == INTEL_VENDOR_ID)
+		if (gdt->sc_vendor == INTEL_VENDOR_ID_IIR)
             strcpy(gdt->oem_name,"Intel  ");
         else 
        	    strcpy(gdt->oem_name,"ICP    ");
@@ -1374,7 +1374,7 @@ iir_action( struct cam_sim *sim, union ccb *ccb )
                   (bus == gdt->sc_virt_bus ? 127 : gdt->sc_bus_id[bus]);
               cpi->base_transfer_speed = 3300;
               strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-              if (gdt->sc_vendor == INTEL_VENDOR_ID)
+              if (gdt->sc_vendor == INTEL_VENDOR_ID_IIR)
                   strncpy(cpi->hba_vid, "Intel Corp.", HBA_IDLEN);
               else
                   strncpy(cpi->hba_vid, "ICP vortex ", HBA_IDLEN);

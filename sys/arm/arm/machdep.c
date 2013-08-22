@@ -875,7 +875,7 @@ pcpu0_init(void)
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	PCPU_SET(cpu, 0);
 #endif
 }

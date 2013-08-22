@@ -63,7 +63,7 @@
 #define GDT_DEVICE_ID_MAX       0x2ff
 #define GDT_DEVICE_ID_NEWRX     0x300
 
-#define INTEL_VENDOR_ID         0x8086
+#define INTEL_VENDOR_ID_IIR     0x8086
 #define INTEL_DEVICE_ID_IIR     0x600
 
 #define GDT_MAXBUS              6       /* XXX Why not 5? */

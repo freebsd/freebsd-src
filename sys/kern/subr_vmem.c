@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/vmem.h>
 
+#include "opt_vm.h"
+
 #include <vm/uma.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -222,6 +224,11 @@ vmem_t *kernel_arena = &kernel_arena_storage;
 vmem_t *kmem_arena = &kmem_arena_storage;
 vmem_t *buffer_arena = &buffer_arena_storage;
 vmem_t *transient_arena = &transient_arena_storage;
+
+#ifdef DEBUG_MEMGUARD
+static struct vmem memguard_arena_storage;
+vmem_t *memguard_arena = &memguard_arena_storage;
+#endif
 
 /*
  * Fill the vmem's boundary tag cache.  We guarantee that boundary tag

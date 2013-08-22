@@ -223,7 +223,6 @@ struct vm_pagequeue {
 
 struct vm_domain {
 	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
-	int vmd_fullintervalcount;
 	u_int vmd_page_count;
 	u_int vmd_free_count;
 	long vmd_segs;	/* bitmask of the segments */

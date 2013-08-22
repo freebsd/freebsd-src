@@ -3739,33 +3739,50 @@ ath_tx_tid_drain_print(struct ath_softc *sc, struct ath_node *an,
 	tap = ath_tx_get_tx_tid(an, tid->tid);
 
 	device_printf(sc->sc_dev,
-	    "%s: %s: node %p: bf=%p: addbaw=%d, dobaw=%d, "
+	    "%s: %s: %6D: bf=%p: addbaw=%d, dobaw=%d, "
 	    "seqno=%d, retry=%d\n",
-	    __func__, pfx, ni, bf,
+	    __func__,
+	    pfx,
+	    ni->ni_macaddr,
+	    ":",
+	    bf,
 	    bf->bf_state.bfs_addedbaw,
 	    bf->bf_state.bfs_dobaw,
 	    SEQNO(bf->bf_state.bfs_seqno),
 	    bf->bf_state.bfs_retries);
 	device_printf(sc->sc_dev,
-	    "%s: node %p: bf=%p: txq[%d] axq_depth=%d, axq_aggr_depth=%d\n",
-	        __func__, ni, bf,
+	    "%s: %s: %6D: bf=%p: txq[%d] axq_depth=%d, axq_aggr_depth=%d\n",
+	    __func__,
+	    pfx,
+	    ni->ni_macaddr,
+	    ":",
+	    bf,
 	    txq->axq_qnum,
 	    txq->axq_depth,
 	    txq->axq_aggr_depth);
 
 	device_printf(sc->sc_dev,
-	    "%s: node %p: bf=%p: tid txq_depth=%d hwq_depth=%d, bar_wait=%d, isfiltered=%d\n",
-	    __func__, ni, bf,
+	    "%s: %s: %6D: bf=%p: tid txq_depth=%d hwq_depth=%d, bar_wait=%d, "
+	      "isfiltered=%d\n",
+	    __func__,
+	    pfx,
+	    ni->ni_macaddr,
+	    ":",
+	    bf,
 	    tid->axq_depth,
 	    tid->hwq_depth,
 	    tid->bar_wait,
 	    tid->isfiltered);
 	device_printf(sc->sc_dev,
-	    "%s: node %p: tid %d: "
+	    "%s: %s: %6D: tid %d: "
 	    "sched=%d, paused=%d, "
 	    "incomp=%d, baw_head=%d, "
 	    "baw_tail=%d txa_start=%d, ni_txseqs=%d\n",
-	     __func__, ni, tid->tid,
+	     __func__,
+	     pfx,
+	     ni->ni_macaddr,
+	     ":",
+	     tid->tid,
 	     tid->sched, tid->paused,
 	     tid->incomp, tid->baw_head,
 	     tid->baw_tail, tap == NULL ? -1 : tap->txa_start,

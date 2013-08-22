@@ -84,6 +84,8 @@
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
+static int ext4_ext_read(struct vop_read_args *);
+static int ext2_ind_read(struct vop_read_args *);
 
 static vop_access_t	ext2_access;
 static int ext2_chmod(struct vnode *, int, struct ucred *, struct thread *);
@@ -1327,7 +1329,7 @@ ext2_strategy(struct vop_strategy_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip;
 	struct bufobj *bo;
-	int32_t blkno;
+	daddr_t blkno;
 	int error;
 
 	ip = VTOI(vp);
@@ -1607,6 +1609,29 @@ ext2_read(struct vop_read_args *ap)
 {
 	struct vnode *vp;
 	struct inode *ip;
+	int error;
+
+	vp = ap->a_vp;
+	ip = VTOI(vp);
+
+	/*EXT4_EXT_LOCK(ip);*/
+	if (ip->i_flags & EXT4_EXTENTS)
+		error = ext4_ext_read(ap);
+	else
+		error = ext2_ind_read(ap);
+	/*EXT4_EXT_UNLOCK(ip);*/
+	return (error);
+}
+
+
+/*
+ * Vnode op for reading.
+ */
+static int
+ext2_ind_read(struct vop_read_args *ap)
+{
+	struct vnode *vp;
+	struct inode *ip;
 	struct uio *uio;
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -1755,6 +1780,107 @@ ext2_ioctl(struct vop_ioctl_args *ap)
 	default:
 		return (ENOTTY);
 	}
+}
+
+/*
+ * this function handles ext4 extents block mapping
+ */
+static int
+ext4_ext_read(struct vop_read_args *ap)
+{
+	struct vnode *vp;
+	struct inode *ip;
+	struct uio *uio;
+	struct m_ext2fs *fs;
+	struct buf *bp;
+	struct ext4_extent nex, *ep;
+	struct ext4_extent_path path;
+	daddr_t lbn, newblk;
+	off_t bytesinfile;
+	int cache_type;
+	ssize_t orig_resid;
+	int error;
+	long size, xfersize, blkoffset;
+
+	vp = ap->a_vp;
+	ip = VTOI(vp);
+	uio = ap->a_uio;
+	memset(&path, 0, sizeof(path));
+
+	orig_resid = uio->uio_resid;
+	KASSERT(orig_resid >= 0, ("%s: uio->uio_resid < 0", __func__));
+	if (orig_resid == 0)
+		return (0);
+	KASSERT(uio->uio_offset >= 0, ("%s: uio->uio_offset < 0", __func__));
+	fs = ip->i_e2fs;
+	if (uio->uio_offset < ip->i_size && uio->uio_offset >= fs->e2fs_maxfilesize)
+		return (EOVERFLOW);
+
+	while (uio->uio_resid > 0) {
+		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
+			break;
+		lbn = lblkno(fs, uio->uio_offset);
+		size = blksize(fs, ip, lbn);
+		blkoffset = blkoff(fs, uio->uio_offset);
+
+		xfersize = fs->e2fs_fsize - blkoffset;
+		xfersize = MIN(xfersize, uio->uio_resid);
+		xfersize = MIN(xfersize, bytesinfile);
+
+		/* get block from ext4 extent cache */
+		cache_type = ext4_ext_in_cache(ip, lbn, &nex);
+		switch (cache_type) {
+		case EXT4_EXT_CACHE_NO:
+			ext4_ext_find_extent(fs, ip, lbn, &path);
+			ep = path.ep_ext;
+			if (ep == NULL)
+				return (EIO);
+
+			ext4_ext_put_cache(ip, ep, EXT4_EXT_CACHE_IN);
+
+			newblk = lbn - ep->e_blk + (ep->e_start_lo |
+			    (daddr_t)ep->e_start_hi << 32);
+
+			if (path.ep_bp != NULL) {
+				brelse(path.ep_bp);
+				path.ep_bp = NULL;
+			}
+			break;
+
+		case EXT4_EXT_CACHE_GAP:
+			/* block has not been allocated yet */
+			return (0);
+
+		case EXT4_EXT_CACHE_IN:
+			newblk = lbn - nex.e_blk + (nex.e_start_lo |
+			    (daddr_t)nex.e_start_hi << 32);
+			break;
+
+		default:
+			panic("%s: invalid cache type", __func__);
+		}
+
+		error = bread(ip->i_devvp, fsbtodb(fs, newblk), size, NOCRED, &bp);
+		if (error) {
+			brelse(bp);
+			return (error);
+		}
+
+		size -= bp->b_resid;
+		if (size < xfersize) {
+			if (size == 0) {
+				bqrelse(bp);
+				break;
+			}
+			xfersize = size;
+		}
+		error = uiomove(bp->b_data + blkoffset, (int)xfersize, uio);
+		bqrelse(bp);
+		if (error)
+			return (error);
+	}
+
+	return (0);
 }
 
 /*
