@@ -169,9 +169,6 @@ static int cap_pause_exit;
 static int cap_unrestricted_guest;
 static int cap_monitor_trap;
  
-/* statistics */
-static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
-
 #ifdef KTR
 static const char *
 exit_reason_to_str(int reason)
