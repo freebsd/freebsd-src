@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/rwlock.h>
@@ -103,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -114,7 +116,8 @@ __FBSDID("$FreeBSD$");
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
 static int vm_pageout_clean(vm_page_t);
-static void vm_pageout_scan(int pass);
+static void vm_pageout_scan(struct vm_domain *vmd, int pass);
+static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass);
 
 struct proc *pageproc;
 
@@ -216,14 +219,15 @@ SYSCTL_INT(_vm, OID_AUTO, max_wired,
 	CTLFLAG_RW, &vm_page_max_wired, 0, "System-wide limit to wired page count");
 
 static boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
-static boolean_t vm_pageout_launder(int, int, vm_paddr_t, vm_paddr_t);
+static boolean_t vm_pageout_launder(struct vm_pagequeue *pq, int, vm_paddr_t,
+    vm_paddr_t);
 #if !defined(NO_SWAPPING)
 static void vm_pageout_map_deactivate_pages(vm_map_t, long);
 static void vm_pageout_object_deactivate_pages(pmap_t, vm_object_t, long);
 static void vm_req_vmdaemon(int req);
 #endif
 static boolean_t vm_pageout_page_lock(vm_page_t, vm_page_t *);
-static void vm_pageout_page_stats(void);
+static void vm_pageout_page_stats(struct vm_domain *vmd);
 
 /*
  * Initialize a dummy page for marking the caller's place in the specified
@@ -267,7 +271,7 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 
 	queue = m->queue;
 	vm_pageout_init_marker(&marker, queue);
-	pq = &vm_pagequeues[queue];
+	pq = vm_page_pagequeue(m);
 	object = m->object;
 	
 	TAILQ_INSERT_AFTER(&pq->pq_pl, m, &marker, pageq);
@@ -309,7 +313,7 @@ vm_pageout_page_lock(vm_page_t m, vm_page_t *next)
 
 	queue = m->queue;
 	vm_pageout_init_marker(&marker, queue);
-	pq = &vm_pagequeues[queue];
+	pq = vm_page_pagequeue(m);
 
 	TAILQ_INSERT_AFTER(&pq->pq_pl, m, &marker, pageq);
 	vm_pagequeue_unlock(pq);
@@ -567,21 +571,17 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 }
 
 static boolean_t
-vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
+vm_pageout_launder(struct vm_pagequeue *pq, int tries, vm_paddr_t low,
+    vm_paddr_t high)
 {
 	struct mount *mp;
-	struct vm_pagequeue *pq;
 	struct vnode *vp;
 	vm_object_t object;
 	vm_paddr_t pa;
 	vm_page_t m, m_tmp, next;
 
-	pq = &vm_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	TAILQ_FOREACH_SAFE(m, &pq->pq_pl, pageq, next) {
-		KASSERT(m->queue == queue,
-		    ("vm_pageout_launder: page %p's queue is not %d", m,
-		    queue));
 		if ((m->flags & PG_MARKER) != 0)
 			continue;
 		pa = VM_PAGE_TO_PHYS(m);
@@ -661,7 +661,8 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 void
 vm_pageout_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 {
-	int actl, actmax, inactl, inactmax;
+	int actl, actmax, inactl, inactmax, dom, initial_dom;
+	static int start_dom = 0;
 
 	if (tries > 0) {
 		/*
@@ -677,19 +678,55 @@ vm_pageout_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 		 */
 		uma_reclaim();
 	}
+
+	/*
+	 * Make the next scan start on the next domain.
+	 */
+	initial_dom = atomic_fetchadd_int(&start_dom, 1) % vm_ndomains;
+
 	inactl = 0;
 	inactmax = cnt.v_inactive_count;
 	actl = 0;
 	actmax = tries < 2 ? 0 : cnt.v_active_count;
+	dom = initial_dom;
+
+	/*
+	 * Scan domains in round-robin order, first inactive queues,
+	 * then active.  Since domain usually owns large physically
+	 * contiguous chunk of memory, it makes sense to completely
+	 * exhaust one domain before switching to next, while growing
+	 * the pool of contiguous physical pages.
+	 *
+	 * Do not even start launder a domain which cannot contain
+	 * the specified address range, as indicated by segments
+	 * constituting the domain.
+	 */
 again:
-	if (inactl < inactmax && vm_pageout_launder(PQ_INACTIVE, tries, low,
-	    high)) {
-		inactl++;
-		goto again;
+	if (inactl < inactmax) {
+		if (vm_phys_domain_intersects(vm_dom[dom].vmd_segs,
+		    low, high) &&
+		    vm_pageout_launder(&vm_dom[dom].vmd_pagequeues[PQ_INACTIVE],
+		    tries, low, high)) {
+			inactl++;
+			goto again;
+		}
+		if (++dom == vm_ndomains)
+			dom = 0;
+		if (dom != initial_dom)
+			goto again;
 	}
-	if (actl < actmax && vm_pageout_launder(PQ_ACTIVE, tries, low, high)) {
-		actl++;
-		goto again;
+	if (actl < actmax) {
+		if (vm_phys_domain_intersects(vm_dom[dom].vmd_segs,
+		    low, high) &&
+		    vm_pageout_launder(&vm_dom[dom].vmd_pagequeues[PQ_ACTIVE],
+		      tries, low, high)) {
+			actl++;
+			goto again;
+		}
+		if (++dom == vm_ndomains)
+			dom = 0;
+		if (dom != initial_dom)
+			goto again;
 	}
 }
 
@@ -861,10 +898,9 @@ vm_pageout_map_deactivate_pages(map, desired)
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
 static void
-vm_pageout_scan(int pass)
+vm_pageout_scan(struct vm_domain *vmd, int pass)
 {
 	vm_page_t m, next;
-	struct vm_page marker;
 	struct vm_pagequeue *pq;
 	int page_shortage, maxscan, pcount;
 	int addl_page_shortage;
@@ -873,8 +909,6 @@ vm_pageout_scan(int pass)
 	int vnodes_skipped = 0;
 	int maxlaunder;
 	boolean_t queues_locked;
-
-	vm_pageout_init_marker(&marker, PQ_INACTIVE);
 
 	/*
 	 * Decrease registered cache sizes.
@@ -888,7 +922,7 @@ vm_pageout_scan(int pass)
 	/*
 	 * The addl_page_shortage is the number of temporarily
 	 * stuck pages in the inactive queue.  In other words, the
-	 * number of pages from cnt.v_inactive_count that should be
+	 * number of pages from the inactive count that should be
 	 * discounted in setting the target for the active queue scan.
 	 */
 	addl_page_shortage = atomic_readandclear_int(&vm_pageout_deficit);
@@ -914,8 +948,6 @@ vm_pageout_scan(int pass)
 	if (pass)
 		maxlaunder = 10000;
 
-	maxscan = cnt.v_inactive_count;
-
 	/*
 	 * Start scanning the inactive queue for pages we can move to the
 	 * cache or free.  The scan will stop when the target is reached or
@@ -923,7 +955,8 @@ vm_pageout_scan(int pass)
 	 * is not used to form decisions for the inactive queue, only for the
 	 * active queue.
 	 */
-	pq = &vm_pagequeues[PQ_INACTIVE];
+	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
+	maxscan = pq->pq_cnt;
 	vm_pagequeue_lock(pq);
 	queues_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
@@ -984,7 +1017,7 @@ vm_pageout_scan(int pass)
 		 * 'next' pointer.  Use our marker to remember our
 		 * place.
 		 */
-		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &marker, pageq);
+		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_marker, pageq);
 		vm_pagequeue_unlock(pq);
 		queues_locked = FALSE;
 
@@ -1034,7 +1067,7 @@ vm_pageout_scan(int pass)
 			/*
 			 * Held pages are essentially stuck in the
 			 * queue.  So, they ought to be discounted
-			 * from cnt.v_inactive_count.  See the
+			 * from the inactive count.  See the
 			 * calculation of the page_shortage for the
 			 * loop over the active queue below.
 			 */
@@ -1178,7 +1211,7 @@ vm_pageout_scan(int pass)
 				 */
 				if (m->queue != PQ_INACTIVE ||
 				    m->object != object ||
-				    TAILQ_NEXT(m, pageq) != &marker) {
+				    TAILQ_NEXT(m, pageq) != &vmd->vmd_marker) {
 					vm_page_unlock(m);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
@@ -1248,8 +1281,8 @@ relock_queues:
 			vm_pagequeue_lock(pq);
 			queues_locked = TRUE;
 		}
-		next = TAILQ_NEXT(&marker, pageq);
-		TAILQ_REMOVE(&pq->pq_pl, &marker, pageq);
+		next = TAILQ_NEXT(&vmd->vmd_marker, pageq);
+		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_marker, pageq);
 	}
 	vm_pagequeue_unlock(pq);
 
@@ -1258,7 +1291,7 @@ relock_queues:
 	 * active queue to the inactive queue.
 	 */
 	page_shortage = vm_paging_target() +
-		cnt.v_inactive_target - cnt.v_inactive_count;
+	    cnt.v_inactive_target - cnt.v_inactive_count;
 	page_shortage += addl_page_shortage;
 
 	/*
@@ -1266,8 +1299,8 @@ relock_queues:
 	 * track the per-page activity counter and use it to locate
 	 * deactivation candidates.
 	 */
-	pcount = cnt.v_active_count;
-	pq = &vm_pagequeues[PQ_ACTIVE];
+	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
+	pcount = pq->pq_cnt;
 	vm_pagequeue_lock(pq);
 	m = TAILQ_FIRST(&pq->pq_pl);
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
@@ -1393,12 +1426,54 @@ relock_queues:
 	 * chance to flush out dirty vnode-backed pages and to allow
 	 * active pages to be moved to the inactive queue and reclaimed.
 	 */
-	if (pass != 0 &&
-	    ((swap_pager_avail < 64 && vm_page_count_min()) ||
-	     (swap_pager_full && vm_paging_target() > 0)))
-		vm_pageout_oom(VM_OOM_MEM);
+	vm_pageout_mightbe_oom(vmd, pass);
 }
 
+static int vm_pageout_oom_vote;
+
+/*
+ * The pagedaemon threads randlomly select one to perform the
+ * OOM.  Trying to kill processes before all pagedaemons
+ * failed to reach free target is premature.
+ */
+static void
+vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass)
+{
+	int old_vote;
+
+	if (pass == 0 || !((swap_pager_avail < 64 && vm_page_count_min()) ||
+	    (swap_pager_full && vm_paging_target() > 0))) {
+		if (vmd->vmd_oom) {
+			vmd->vmd_oom = FALSE;
+			atomic_subtract_int(&vm_pageout_oom_vote, 1);
+		}
+		return;
+	}
+
+	if (vmd->vmd_oom)
+		return;
+
+	vmd->vmd_oom = TRUE;
+	old_vote = atomic_fetchadd_int(&vm_pageout_oom_vote, 1);
+	if (old_vote != vm_ndomains - 1)
+		return;
+
+	/*
+	 * The current pagedaemon thread is the last in the quorum to
+	 * start OOM.  Initiate the selection and signaling of the
+	 * victim.
+	 */
+	vm_pageout_oom(VM_OOM_MEM);
+
+	/*
+	 * After one round of OOM terror, recall our vote.  On the
+	 * next pass, current pagedaemon would vote again if the low
+	 * memory condition is still there, due to vmd_oom being
+	 * false.
+	 */
+	vmd->vmd_oom = FALSE;
+	atomic_subtract_int(&vm_pageout_oom_vote, 1);
+}
 
 void
 vm_pageout_oom(int shortage)
@@ -1501,14 +1576,13 @@ vm_pageout_oom(int shortage)
  * helps the situation where paging just starts to occur.
  */
 static void
-vm_pageout_page_stats(void)
+vm_pageout_page_stats(struct vm_domain *vmd)
 {
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	vm_page_t m, next;
 	int pcount, tpcount;		/* Number of pages to check */
-	static int fullintervalcount = 0;
-	int page_shortage;
+	int actcount, page_shortage;
 
 	page_shortage = 
 	    (cnt.v_inactive_target + cnt.v_cache_max + cnt.v_free_min) -
@@ -1517,25 +1591,30 @@ vm_pageout_page_stats(void)
 	if (page_shortage <= 0)
 		return;
 
-	pcount = cnt.v_active_count;
-	fullintervalcount += vm_pageout_stats_interval;
-	if (fullintervalcount < vm_pageout_full_stats_interval) {
-		vm_pageout_stats++;
-		tpcount = (int64_t)vm_pageout_stats_max * cnt.v_active_count /
-		    cnt.v_page_count;
+	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
+
+	/*
+	 * pcount limits the depth of the queue scan.  In particular,
+	 * for the full scan, it prevents the iteration from looking
+	 * into the requeued pages.  The limit is not exact since the
+	 * page queue lock is dropped during the iteration.
+	 */
+	pcount = pq->pq_cnt;
+	vmd->vmd_fullintervalcount += vm_pageout_stats_interval;
+	if (vmd->vmd_fullintervalcount < vm_pageout_full_stats_interval) {
+		atomic_add_int(&vm_pageout_stats, 1);
+		tpcount = (int64_t)vm_pageout_stats_max * pcount /
+		    vmd->vmd_page_count;
 		if (pcount > tpcount)
 			pcount = tpcount;
 	} else {
-		vm_pageout_full_stats++;
-		fullintervalcount = 0;
+		atomic_add_int(&vm_pageout_full_stats, 1);
+		vmd->vmd_fullintervalcount = 0;
 	}
 
-	pq = &vm_pagequeues[PQ_ACTIVE];
 	vm_pagequeue_lock(pq);
 	m = TAILQ_FIRST(&pq->pq_pl);
-	while ((m != NULL) && (pcount-- > 0)) {
-		int actcount;
-
+	while (m != NULL && pcount-- > 0) {
 		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_page_stats: page %p isn't active", m));
 
@@ -1560,11 +1639,11 @@ vm_pageout_page_stats(void)
 		}
 
 		/*
-		 * Don't deactivate pages that are busy.
+		 * Don't deactivate pages that are busy or held.
 		 */
-		if ((m->busy != 0) ||
-		    (m->oflags & VPO_BUSY) ||
-		    (m->hold_count != 0)) {
+		if (m->busy != 0 ||
+		    (m->oflags & VPO_BUSY) != 0 ||
+		    m->hold_count != 0) {
 			vm_page_unlock(m);
 			VM_OBJECT_WUNLOCK(object);
 			vm_page_requeue_locked(m);
@@ -1579,7 +1658,7 @@ vm_pageout_page_stats(void)
 		}
 
 		actcount += pmap_ts_referenced(m);
-		if (actcount) {
+		if (actcount != 0) {
 			m->act_count += ACT_ADVANCE + actcount;
 			if (m->act_count > ACT_MAX)
 				m->act_count = ACT_MAX;
@@ -1611,13 +1690,105 @@ vm_pageout_page_stats(void)
 	vm_pagequeue_unlock(pq);
 }
 
+static void
+vm_pageout_worker(void *arg)
+{
+	struct vm_domain *domain;
+	struct pcpu *pc;
+	int cpu, error, domidx;
+
+	domidx = (uintptr_t)arg;
+	domain = &vm_dom[domidx];
+
+	/*
+	 * XXXKIB The bind is rather arbitrary.  With some minor
+	 * complications, we could assign the cpuset consisting of all
+	 * CPUs in the same domain.  In fact, it even does not matter
+	 * if the CPU we bind to is in the affinity domain of this
+	 * page queue, we only need to establish the fair distribution
+	 * of pagedaemon threads among CPUs.
+	 *
+	 * XXXKIB It would be useful to allocate vm_pages for the
+	 * domain from the domain, and put pcpu area into the page
+	 * owned by the domain.
+	 */
+	if (mem_affinity != NULL) {
+		CPU_FOREACH(cpu) {
+			pc = pcpu_find(cpu);
+			if (pc->pc_domain == domidx) {
+				thread_lock(curthread);
+				sched_bind(curthread, cpu);
+				thread_unlock(curthread);
+				break;
+			}
+		}
+	}
+
+	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
+	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
+
+	/*
+	 * The pageout daemon worker is never done, so loop forever.
+	 */
+	while (TRUE) {
+		/*
+		 * If we have enough free memory, wakeup waiters.  Do
+		 * not clear vm_pages_needed until we reach our target,
+		 * otherwise we may be woken up over and over again and
+		 * waste a lot of cpu.
+		 */
+		mtx_lock(&vm_page_queue_free_mtx);
+		if (vm_pages_needed && !vm_page_count_min()) {
+			if (!vm_paging_needed())
+				vm_pages_needed = 0;
+			wakeup(&cnt.v_free_count);
+		}
+		if (vm_pages_needed) {
+			/*
+			 * Still not done, take a second pass without waiting
+			 * (unlimited dirty cleaning), otherwise sleep a bit
+			 * and try again.
+			 */
+			++(domain->vmd_pass);
+			if (domain->vmd_pass > 1)
+				msleep(&vm_pages_needed,
+				    &vm_page_queue_free_mtx, PVM, "psleep",
+				    hz / 2);
+		} else {
+			/*
+			 * Good enough, sleep & handle stats.  Prime the pass
+			 * for the next run.
+			 */
+			if (domain->vmd_pass > 1)
+				domain->vmd_pass = 1;
+			else
+				domain->vmd_pass = 0;
+			error = msleep(&vm_pages_needed,
+			    &vm_page_queue_free_mtx, PVM, "psleep",
+			    vm_pageout_stats_interval * hz);
+			if (error && !vm_pages_needed) {
+				mtx_unlock(&vm_page_queue_free_mtx);
+				domain->vmd_pass = 0;
+				vm_pageout_page_stats(domain);
+				continue;
+			}
+		}
+		if (vm_pages_needed)
+			cnt.v_pdwakeups++;
+		mtx_unlock(&vm_page_queue_free_mtx);
+		vm_pageout_scan(domain, domain->vmd_pass);
+	}
+}
+
 /*
  *	vm_pageout is the high level pageout daemon.
  */
 static void
 vm_pageout(void)
 {
-	int error, pass;
+#if MAXMEMDOM > 1
+	int error, i;
+#endif
 
 	/*
 	 * Initialize some paging parameters.
@@ -1687,58 +1858,17 @@ vm_pageout(void)
 		vm_pageout_full_stats_interval = vm_pageout_stats_interval * 4;
 
 	swap_pager_swap_init();
-	pass = 0;
-	/*
-	 * The pageout daemon is never done, so loop forever.
-	 */
-	while (TRUE) {
-		/*
-		 * If we have enough free memory, wakeup waiters.  Do
-		 * not clear vm_pages_needed until we reach our target,
-		 * otherwise we may be woken up over and over again and
-		 * waste a lot of cpu.
-		 */
-		mtx_lock(&vm_page_queue_free_mtx);
-		if (vm_pages_needed && !vm_page_count_min()) {
-			if (!vm_paging_needed())
-				vm_pages_needed = 0;
-			wakeup(&cnt.v_free_count);
+#if MAXMEMDOM > 1
+	for (i = 1; i < vm_ndomains; i++) {
+		error = kthread_add(vm_pageout_worker, (void *)(uintptr_t)i,
+		    curproc, NULL, 0, 0, "dom%d", i);
+		if (error != 0) {
+			panic("starting pageout for domain %d, error %d\n",
+			    i, error);
 		}
-		if (vm_pages_needed) {
-			/*
-			 * Still not done, take a second pass without waiting
-			 * (unlimited dirty cleaning), otherwise sleep a bit
-			 * and try again.
-			 */
-			++pass;
-			if (pass > 1)
-				msleep(&vm_pages_needed,
-				    &vm_page_queue_free_mtx, PVM, "psleep",
-				    hz / 2);
-		} else {
-			/*
-			 * Good enough, sleep & handle stats.  Prime the pass
-			 * for the next run.
-			 */
-			if (pass > 1)
-				pass = 1;
-			else
-				pass = 0;
-			error = msleep(&vm_pages_needed,
-			    &vm_page_queue_free_mtx, PVM, "psleep",
-			    vm_pageout_stats_interval * hz);
-			if (error && !vm_pages_needed) {
-				mtx_unlock(&vm_page_queue_free_mtx);
-				pass = 0;
-				vm_pageout_page_stats();
-				continue;
-			}
-		}
-		if (vm_pages_needed)
-			cnt.v_pdwakeups++;
-		mtx_unlock(&vm_page_queue_free_mtx);
-		vm_pageout_scan(pass);
 	}
+#endif
+	vm_pageout_worker((uintptr_t)0);
 }
 
 /*

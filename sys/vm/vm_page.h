@@ -181,17 +181,43 @@ TAILQ_HEAD(pglist, vm_page);
 struct vm_pagequeue {
 	struct mtx	pq_mutex;
 	struct pglist	pq_pl;
-	int *const	pq_cnt;
-	const char *const pq_name;
+	int		pq_cnt;
+	int		* const pq_vcnt;
+	const char	* const pq_name;
 } __aligned(CACHE_LINE_SIZE);
 
-extern struct vm_pagequeue vm_pagequeues[PQ_COUNT];
+
+struct vm_domain {
+	struct vm_pagequeue vmd_pagequeues[PQ_COUNT];
+	int vmd_fullintervalcount;
+	u_int vmd_page_count;
+	u_int vmd_free_count;
+	long vmd_segs;	/* bitmask of the segments */
+	boolean_t vmd_oom;
+	int vmd_pass;	/* local pagedaemon pass */
+	struct vm_page vmd_marker; /* marker for pagedaemon private use */
+};
+
+extern struct vm_domain vm_dom[MAXMEMDOM];
 
 #define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
-#define	vm_pagequeue_init_lock(pq)	mtx_init(&(pq)->pq_mutex,	\
-	    (pq)->pq_name, "vm pagequeue", MTX_DEF | MTX_DUPOK);
 #define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)
 #define	vm_pagequeue_unlock(pq)		mtx_unlock(&(pq)->pq_mutex)
+
+#ifdef _KERNEL
+static __inline void
+vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
+{
+
+#ifdef notyet
+	vm_pagequeue_assert_locked(pq);
+#endif
+	pq->pq_cnt += addend;
+	atomic_add_int(pq->pq_vcnt, addend);
+}
+#define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
+#define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
+#endif	/* _KERNEL */
 
 extern struct mtx_padalign vm_page_queue_free_mtx;
 extern struct mtx_padalign pa_lock[];
@@ -393,6 +419,7 @@ boolean_t vm_page_is_cached(vm_object_t object, vm_pindex_t pindex);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
+struct vm_pagequeue *vm_page_pagequeue(vm_page_t m);
 vm_page_t vm_page_prev(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);

@@ -65,26 +65,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 
-struct vm_freelist {
-	struct pglist pl;
-	int lcnt;
-};
-
-struct vm_phys_seg {
-	vm_paddr_t	start;
-	vm_paddr_t	end;
-	vm_page_t	first_page;
-	int		domain;
-	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER];
-};
+_Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
+    "Too many physsegs.");
 
 struct mem_affinity *mem_affinity;
 
 int vm_ndomains = 1;
 
-static struct vm_phys_seg vm_phys_segs[VM_PHYSSEG_MAX];
-
-static int vm_phys_nsegs;
+struct vm_phys_seg vm_phys_segs[VM_PHYSSEG_MAX];
+int vm_phys_nsegs;
 
 #define VM_PHYS_FICTITIOUS_NSEGS	8
 static struct vm_phys_fictitious_seg {
@@ -138,6 +127,22 @@ vm_rr_selectdomain(void)
 #else
 	return (0);
 #endif
+}
+
+boolean_t
+vm_phys_domain_intersects(long mask, vm_paddr_t low, vm_paddr_t high)
+{
+	struct vm_phys_seg *s;
+	int idx;
+
+	while ((idx = ffsl(mask)) != 0) {
+		idx--;	/* ffsl counts from 1 */
+		mask &= ~(1UL << idx);
+		s = &vm_phys_segs[idx];
+		if (low < s->end && high > s->start)
+			return (TRUE);
+	}
+	return (FALSE);
 }
 
 /*
@@ -378,12 +383,16 @@ void
 vm_phys_add_page(vm_paddr_t pa)
 {
 	vm_page_t m;
+	struct vm_domain *vmd;
 
 	cnt.v_page_count++;
 	m = vm_phys_paddr_to_vm_page(pa);
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
 	m->segind = vm_phys_paddr_to_segind(pa);
+	vmd = vm_phys_domain(m);
+	vmd->vmd_page_count++;
+	vmd->vmd_segs |= 1UL << m->segind;
 	m->flags = PG_FREE;
 	KASSERT(m->order == VM_NFREEORDER,
 	    ("vm_phys_add_page: page %p has unexpected order %d",
@@ -391,7 +400,7 @@ vm_phys_add_page(vm_paddr_t pa)
 	m->pool = VM_FREEPOOL_DEFAULT;
 	pmap_page_init(m);
 	mtx_lock(&vm_page_queue_free_mtx);
-	cnt.v_free_count++;
+	vm_phys_freecnt_adj(m, 1);
 	vm_phys_free_pages(m, 0);
 	mtx_unlock(&vm_page_queue_free_mtx);
 }
@@ -813,12 +822,12 @@ vm_phys_zero_pages_idle(void)
 			for (m_tmp = m; m_tmp < &m[1 << oind]; m_tmp++) {
 				if ((m_tmp->flags & (PG_CACHED | PG_ZERO)) == 0) {
 					vm_phys_unfree_page(m_tmp);
-					cnt.v_free_count--;
+					vm_phys_freecnt_adj(m, -1);
 					mtx_unlock(&vm_page_queue_free_mtx);
 					pmap_zero_page_idle(m_tmp);
 					m_tmp->flags |= PG_ZERO;
 					mtx_lock(&vm_page_queue_free_mtx);
-					cnt.v_free_count++;
+					vm_phys_freecnt_adj(m, 1);
 					vm_phys_free_pages(m_tmp, 0);
 					vm_page_zero_count++;
 					cnt_prezero++;
