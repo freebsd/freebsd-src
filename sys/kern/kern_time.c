@@ -179,38 +179,46 @@ int
 sys_clock_getcpuclockid2(struct thread *td, struct clock_getcpuclockid2_args *uap)
 {
 	clockid_t clk_id;
+	int error;
+
+	error = kern_clock_getcpuclockid2(td, uap->id, uap->which, &clk_id);
+	if (error == 0)
+		error = copyout(&clk_id, uap->clock_id, sizeof(clockid_t));
+	return (error);
+}
+
+int
+kern_clock_getcpuclockid2(struct thread *td, id_t id, int which,
+    clockid_t *clk_id)
+{
 	struct proc *p;
 	pid_t pid;
 	lwpid_t tid;
 	int error;
 
-	switch(uap->which) {
+	switch (which) {
 	case CPUCLOCK_WHICH_PID:
-		if (uap->id != 0) {
-			p = pfind(uap->id);
+		if (id != 0) {
+			p = pfind(id);
 			if (p == NULL)
 				return (ESRCH);
 			error = p_cansee(td, p);
 			PROC_UNLOCK(p);
-			if (error)
+			if (error != 0)
 				return (error);
-			pid = uap->id;
+			pid = id;
 		} else {
 			pid = td->td_proc->p_pid;
 		}
-		clk_id = MAKE_PROCESS_CPUCLOCK(pid);
-		break;
+		*clk_id = MAKE_PROCESS_CPUCLOCK(pid);
+		return (0);
 	case CPUCLOCK_WHICH_TID:
-		if (uap->id == 0)
-			tid = td->td_tid;
-		else
-			tid = uap->id;
-		clk_id = MAKE_THREAD_CPUCLOCK(tid);
-		break;
+		tid = id == 0 ? td->td_tid : id;
+		*clk_id = MAKE_THREAD_CPUCLOCK(tid);
+		return (0);
 	default:
 		return (EINVAL);
 	}
-	return (copyout(&clk_id, uap->clock_id, sizeof(clockid_t)));
 }
 
 #ifndef _SYS_SYSPROTO_H_
