@@ -125,13 +125,13 @@ void
 dtrace_copy(uintptr_t src, uintptr_t dest, size_t size)
 */
 ASENTRY_NOPROF(dtrace_copy)
-	addme	%r7,%r3
-	addme	%r8,%r4
+	subi	%r7,%r3,1
+	subi	%r8,%r4,1
+	mtctr	%r5
 1:
 	lbzu	%r3,1(%r7)
 	stbu	%r3,1(%r8)
-	addme	%r5,%r5
-	beq	2f
+	bdnz	1b
 2:
 	blr
 END(dtrace_copy)
