@@ -26,6 +26,8 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/event.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -59,6 +61,7 @@ static size_t	bitmap_len;		/* # of bits in allocation bitmap */
  */
 int	schedctl(struct thread *td, struct schedctl_args *uap);
 void	schedctl_thread_exit(struct thread *td);
+void	schedctl_proc_exit(void);
 
 static int
 schedctl_alloc_page(struct proc *p, shpage_t **ret)
@@ -192,6 +195,31 @@ schedctl_init(void)
 	bitmap_len = avail_pagesize / sizeof(shstate_t);
 	shpage_zone = uma_zcreate("schedctl structures", sizeof(shpage_t), NULL,
 	    NULL, NULL, NULL, 0, 0);
+	EVENTHANDLER_REGISTER(process_exit, schedctl_proc_exit, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(process_exec, schedctl_proc_exit, NULL,
+	    EVENTHANDLER_PRI_ANY);
+}
+
+void
+schedctl_proc_exit(void)
+{
+	struct proc *p;
+	shpage_t *sh_pg;
+	vm_map_t map;
+
+	printf("ping \n");
+	p = curthread->td_proc;
+	map = &p->p_vmspace->vm_map;
+	SLIST_FOREACH(sh_pg, &(p->p_shpg), pg_next) {
+		vm_map_remove(map, sh_pg->usraddr,
+		    sh_pg->usraddr + PAGE_SIZE);
+		pmap_qremove(sh_pg->pageaddr, 1);
+		kva_free(sh_pg->pageaddr, PAGE_SIZE);
+		vm_object_deallocate(sh_pg->shared_page_obj);
+		SLIST_REMOVE(&(p->p_shpg), sh_pg, page_shared, pg_next);
+		uma_zfree(shpage_zone, sh_pg);
+	}
 }
 
 /*
@@ -232,6 +260,6 @@ schedctl_thread_exit(struct thread *td)
 }
 
 /*
- * XXX: SI_SUB_KMEM is the right place to call schedctl_init?
+ * XXX: SI_SUB_SYSCALLS is the right place to call schedctl_init?
  */
-SYSINIT(schedctl, SI_SUB_KMEM, SI_ORDER_ANY, schedctl_init, NULL);
+SYSINIT(schedctl, SI_SUB_SYSCALLS, SI_ORDER_ANY, schedctl_init, NULL);
