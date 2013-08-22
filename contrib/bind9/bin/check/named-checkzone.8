@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2007, 2009, 2010, 2013 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007, 2009-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -33,9 +33,9 @@
 named\-checkzone, named\-compilezone \- zone file validity checking or converting tool
 .SH "SYNOPSIS"
 .HP 16
-\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-h\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-M\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-S\ \fR\fB\fImode\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-T\ \fR\fB\fImode\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
+\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-h\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-M\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-L\ \fR\fB\fIserial\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-S\ \fR\fB\fImode\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-T\ \fR\fB\fImode\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
 .HP 18
-\fBnamed\-compilezone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-C\ \fR\fB\fImode\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-T\ \fR\fB\fImode\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {\fB\-o\ \fR\fB\fIfilename\fR\fR} {zonename} {filename}
+\fBnamed\-compilezone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-C\ \fR\fB\fImode\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-L\ \fR\fB\fIserial\fR\fR] [\fB\-r\ \fR\fB\fImode\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-T\ \fR\fB\fImode\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {\fB\-o\ \fR\fB\fIfilename\fR\fR} {zonename} {filename}
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-checkzone\fR
@@ -139,11 +139,19 @@ Specify the format of the zone file. Possible formats are
 .PP
 \-F \fIformat\fR
 .RS 4
-Specify the format of the output file specified. Possible formats are
+Specify the format of the output file specified. For
+\fBnamed\-checkzone\fR, this does not cause any effects unless it dumps the zone contents.
+.sp
+Possible formats are
 \fB"text"\fR
 (default) and
-\fB"raw"\fR. For
-\fBnamed\-checkzone\fR, this does not cause any effects unless it dumps the zone contents.
+\fB"raw"\fR
+or
+\fB"raw=N"\fR, which store the zone in a binary format for rapid loading by
+\fBnamed\fR.
+\fB"raw=N"\fR
+specifies the format version of the raw zone file: if N is 0, the raw file can be read by any version of
+\fBnamed\fR; if N is 1, the file can be read by release 9.9.0 or higher. The default is 1.
 .RE
 .PP
 \-k \fImode\fR
@@ -158,6 +166,11 @@ checks with the specified failure mode. Possible modes are
 (default for
 \fBnamed\-checkzone\fR) and
 \fB"ignore"\fR.
+.RE
+.PP
+\-L \fIserial\fR
+.RS 4
+When compiling a zone to 'raw' format, set the "source serial" value in the header to the specified serial number. (This is expected to be used primarily for testing purposes.)
 .RE
 .PP
 \-m \fImode\fR
@@ -289,7 +302,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2007, 2009, 2010, 2013 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007, 2009\-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2002 Internet Software Consortium.
 .br

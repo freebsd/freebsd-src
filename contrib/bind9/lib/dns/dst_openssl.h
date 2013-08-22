@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dst_openssl.h,v 1.11 2011/03/12 04:59:48 tbox Exp $ */
 
 #ifndef DST_OPENSSL_H
 #define DST_OPENSSL_H 1

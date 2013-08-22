@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.42 2009/12/05 23:31:40 each Exp $
+# $Id: Makefile.in,v 1.42.332.1 2011/03/16 06:37:51 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -44,19 +44,23 @@ NOSYMLIBS =	${DNSLIBS} ${ISCNOSYMLIBS} @LIBS@
 # Alphabetically
 TARGETS =	dnssec-keygen@EXEEXT@ dnssec-signzone@EXEEXT@ \
 		dnssec-keyfromlabel@EXEEXT@ dnssec-dsfromkey@EXEEXT@ \
-		dnssec-revoke@EXEEXT@ dnssec-settime@EXEEXT@
+		dnssec-revoke@EXEEXT@ dnssec-settime@EXEEXT@ \
+		dnssec-verify@EXEEXT@
 
 OBJS =		dnssectool.@O@
 
 SRCS =		dnssec-dsfromkey.c dnssec-keyfromlabel.c dnssec-keygen.c \
-		dnssec-revoke.c dnssec-settime.c dnssec-signzone.c dnssectool.c
+		dnssec-revoke.c dnssec-settime.c dnssec-signzone.c \
+		dnssec-verify.c dnssectool.c
 
 MANPAGES =	dnssec-dsfromkey.8 dnssec-keyfromlabel.8 dnssec-keygen.8 \
-		dnssec-revoke.8 dnssec-settime.8 dnssec-signzone.8
+		dnssec-revoke.8 dnssec-settime.8 dnssec-signzone.8 \
+		dnssec-verify.8
 
 HTMLPAGES =	dnssec-dsfromkey.html dnssec-keyfromlabel.html \
 		dnssec-keygen.html dnssec-revoke.html \
-		dnssec-settime.html dnssec-signzone.html 
+		dnssec-settime.html dnssec-signzone.html \
+		dnssec-verify.html
 
 MANOBJS =	${MANPAGES} ${HTMLPAGES}
 
@@ -80,6 +84,14 @@ dnssec-signzone.@O@: dnssec-signzone.c
 
 dnssec-signzone@EXEEXT@: dnssec-signzone.@O@ ${OBJS} ${DEPLIBS}
 	export BASEOBJS="dnssec-signzone.@O@ ${OBJS}"; \
+	${FINALBUILDCMD}
+
+dnssec-verify.@O@: dnssec-verify.c
+	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} -DVERSION=\"${VERSION}\" \
+		-c ${srcdir}/dnssec-verify.c
+
+dnssec-verify@EXEEXT@: dnssec-verify.@O@ ${OBJS} ${DEPLIBS}
+	export BASEOBJS="dnssec-verify.@O@ ${OBJS}"; \
 	${FINALBUILDCMD}
 
 dnssec-revoke@EXEEXT@: dnssec-revoke.@O@ ${OBJS} ${DEPLIBS}

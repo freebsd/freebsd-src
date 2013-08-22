@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007, 2009, 2010, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007, 2009-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkzone.docbook,v 1.40 2010/01/16 23:48:15 tbox Exp $ -->
+<!-- $Id: named-checkzone.docbook,v 1.44 2011/12/22 07:32:39 each Exp $ -->
 <refentry id="man.named-checkzone">
   <refentryinfo>
     <date>June 13, 2000</date>
@@ -38,6 +38,7 @@
       <year>2007</year>
       <year>2009</year>
       <year>2010</year>
+      <year>2011</year>
       <year>2013</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
@@ -71,6 +72,7 @@
       <arg><option>-m <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-M <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-n <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-L <replaceable class="parameter">serial</replaceable></option></arg>
       <arg><option>-o <replaceable class="parameter">filename</replaceable></option></arg>
       <arg><option>-r <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-s <replaceable class="parameter">style</replaceable></option></arg>
@@ -97,6 +99,7 @@
       <arg><option>-k <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-m <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-n <replaceable class="parameter">mode</replaceable></option></arg>
+      <arg><option>-L <replaceable class="parameter">serial</replaceable></option></arg>
       <arg><option>-r <replaceable class="parameter">mode</replaceable></option></arg>
       <arg><option>-s <replaceable class="parameter">style</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
@@ -250,11 +253,19 @@
 	<listitem>
 	  <para>
 	    Specify the format of the output file specified.
-	    Possible formats are <command>"text"</command> (default)
-	    and <command>"raw"</command>.
 	    For <command>named-checkzone</command>,
 	    this does not cause any effects unless it dumps the zone
 	    contents.
+	  </para>
+	  <para>
+	    Possible formats are <command>"text"</command> (default)
+	    and <command>"raw"</command> or <command>"raw=N"</command>,
+            which store the zone in a binary format for rapid loading
+            by <command>named</command>.  <command>"raw=N"</command>
+            specifies the format version of the raw zone file: if N
+            is 0, the raw file can be read by any version of
+            <command>named</command>; if N is 1, the file can be read
+            by release 9.9.0 or higher.  The default is 1.
 	  </para>
 	</listitem>
       </varlistentry>
@@ -270,6 +281,17 @@
             <command>"warn"</command>
 	    (default for <command>named-checkzone</command>) and
             <command>"ignore"</command>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-L <replaceable class="parameter">serial</replaceable></term>
+        <listitem>
+          <para>
+            When compiling a zone to 'raw' format, set the "source serial" 
+            value in the header to the specified serial number.  (This is
+            expected to be used primarily for testing purposes.)
           </para>
         </listitem>
       </varlistentry>

@@ -18,6 +18,7 @@ ARM=		Bv9ARM.ch01.html Bv9ARM.ch02.html Bv9ARM.ch03.html \
 		man.dnssec-dsfromkey.html man.dnssec-keyfromlabel.html \
 		man.dnssec-keygen.html man.dnssec-revoke.html \
 		man.dnssec-settime.html man.dnssec-signzone.html \
+		man.dnssec-verify.html \
 		man.genrandom.html man.host.html man.isc-hmac-fixup.html \
 		man.named-checkconf.html man.named-checkzone.html \
 		man.named-journalprint.html man.named.html \

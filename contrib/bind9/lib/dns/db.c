@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: db.c,v 1.99.4.1 2011/10/23 20:12:07 vjs Exp $ */
 
 /*! \file */
 
@@ -33,6 +33,7 @@
 #include <isc/util.h>
 
 #include <dns/callbacks.h>
+#include <dns/clientinfo.h>
 #include <dns/db.h>
 #include <dns/dbiterator.h>
 #include <dns/log.h>
@@ -478,7 +479,31 @@ dns_db_findnode(dns_db_t *db, dns_name_t *name,
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(nodep != NULL && *nodep == NULL);
 
-	return ((db->methods->findnode)(db, name, create, nodep));
+	if (db->methods->findnode != NULL)
+		return ((db->methods->findnode)(db, name, create, nodep));
+	else
+		return ((db->methods->findnodeext)(db, name, create,
+						   NULL, NULL, nodep));
+}
+
+isc_result_t
+dns_db_findnodeext(dns_db_t *db, dns_name_t *name,
+		   isc_boolean_t create, dns_clientinfomethods_t *methods,
+		   dns_clientinfo_t *clientinfo, dns_dbnode_t **nodep)
+{
+	/*
+	 * Find the node with name 'name', passing 'arg' to the database
+	 * implementation.
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(nodep != NULL && *nodep == NULL);
+
+	if (db->methods->findnodeext != NULL)
+		return ((db->methods->findnodeext)(db, name, create,
+						   methods, clientinfo, nodep));
+	else
+		return ((db->methods->findnode)(db, name, create, nodep));
 }
 
 isc_result_t
@@ -502,7 +527,6 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	    dns_dbnode_t **nodep, dns_name_t *foundname,
 	    dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset)
 {
-
 	/*
 	 * Find the best match for 'name' and 'type' in version 'version'
 	 * of 'db'.
@@ -519,8 +543,50 @@ dns_db_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 		(DNS_RDATASET_VALID(sigrdataset) &&
 		 ! dns_rdataset_isassociated(sigrdataset)));
 
-	return ((db->methods->find)(db, name, version, type, options, now,
-				    nodep, foundname, rdataset, sigrdataset));
+	if (db->methods->find != NULL)
+		return ((db->methods->find)(db, name, version, type,
+					    options, now, nodep, foundname,
+					    rdataset, sigrdataset));
+	else
+		return ((db->methods->findext)(db, name, version, type,
+					       options, now, nodep, foundname,
+					       NULL, NULL,
+					       rdataset, sigrdataset));
+}
+
+isc_result_t
+dns_db_findext(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
+	       dns_rdatatype_t type, unsigned int options, isc_stdtime_t now,
+	       dns_dbnode_t **nodep, dns_name_t *foundname,
+	       dns_clientinfomethods_t *methods, dns_clientinfo_t *clientinfo,
+	       dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset)
+{
+
+	/*
+	 * Find the best match for 'name' and 'type' in version 'version'
+	 * of 'db', passing in 'arg'.
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(type != dns_rdatatype_rrsig);
+	REQUIRE(nodep == NULL || (nodep != NULL && *nodep == NULL));
+	REQUIRE(dns_name_hasbuffer(foundname));
+	REQUIRE(rdataset == NULL ||
+		(DNS_RDATASET_VALID(rdataset) &&
+		 ! dns_rdataset_isassociated(rdataset)));
+	REQUIRE(sigrdataset == NULL ||
+		(DNS_RDATASET_VALID(sigrdataset) &&
+		 ! dns_rdataset_isassociated(sigrdataset)));
+
+	if (db->methods->findext != NULL)
+		return ((db->methods->findext)(db, name, version, type,
+					       options, now, nodep, foundname,
+					       methods, clientinfo,
+					       rdataset, sigrdataset));
+	else
+		return ((db->methods->find)(db, name, version, type,
+					    options, now, nodep, foundname,
+					    rdataset, sigrdataset));
 }
 
 isc_result_t
@@ -653,11 +719,6 @@ dns_db_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		    isc_stdtime_t now, dns_rdataset_t *rdataset,
 		    dns_rdataset_t *sigrdataset)
 {
-	/*
-	 * Search for an rdataset of type 'type' at 'node' that are in version
-	 * 'version' of 'db'.  If found, make 'rdataset' refer to it.
-	 */
-
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(node != NULL);
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
@@ -668,8 +729,9 @@ dns_db_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		(DNS_RDATASET_VALID(sigrdataset) &&
 		 ! dns_rdataset_isassociated(sigrdataset)));
 
-	return ((db->methods->findrdataset)(db, node, version, type, covers,
-					    now, rdataset, sigrdataset));
+	return ((db->methods->findrdataset)(db, node, version, type,
+					    covers, now, rdataset,
+					    sigrdataset));
 }
 
 isc_result_t
