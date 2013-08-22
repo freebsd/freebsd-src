@@ -168,7 +168,7 @@ static int	acpi_cpu_cx_cst(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_startup(void *arg);
 static void	acpi_cpu_startup_cx(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_cx_list(struct acpi_cpu_softc *sc);
-static void	acpi_cpu_idle(void);
+static void	acpi_cpu_idle(sbintime_t sbt);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(void);
 static int	acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS);
@@ -954,13 +954,13 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
  * interrupts are re-enabled.
  */
 static void
-acpi_cpu_idle()
+acpi_cpu_idle(sbintime_t sbt)
 {
     struct	acpi_cpu_softc *sc;
     struct	acpi_cx *cx_next;
     uint64_t	cputicks;
     uint32_t	start_time, end_time;
-    int		bm_active, cx_next_idx, i;
+    int		bm_active, cx_next_idx, i, us;
 
     /*
      * Look up our CPU id to get our softc.  If it's NULL, we'll use C1
@@ -980,13 +980,16 @@ acpi_cpu_idle()
     }
 
     /* Find the lowest state that has small enough latency. */
+    us = sc->cpu_prev_sleep;
+    if (sbt >= 0 && us > (sbt >> 12))
+	us = (sbt >> 12);
     cx_next_idx = 0;
     if (cpu_disable_deep_sleep)
 	i = min(sc->cpu_cx_lowest, sc->cpu_non_c3);
     else
 	i = sc->cpu_cx_lowest;
     for (; i >= 0; i--) {
-	if (sc->cpu_cx_states[i].trans_lat * 3 <= sc->cpu_prev_sleep) {
+	if (sc->cpu_cx_states[i].trans_lat * 3 <= us) {
 	    cx_next_idx = i;
 	    break;
 	}

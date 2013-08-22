@@ -70,6 +70,7 @@
 int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);
 void arm_unmask_irq(uintptr_t);
+void arm_intrnames_init(void);
 void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*),
     void *, int, int, void **);
 int arm_remove_irqhandler(int, void *);

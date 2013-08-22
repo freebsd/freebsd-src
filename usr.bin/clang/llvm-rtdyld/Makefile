@@ -1,7 +1,9 @@
 # $FreeBSD$
 
-PROG_CXX=llvm-rtdyld
 NO_MAN=
+.include <bsd.own.mk>
+
+PROG_CXX=llvm-rtdyld
 
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp

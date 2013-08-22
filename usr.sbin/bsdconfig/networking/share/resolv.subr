@@ -1,6 +1,6 @@
 if [ ! "$_NETWORKING_RESOLV_SUBR" ]; then _NETWORKING_RESOLV_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." networking/resolv.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/networking/common.subr
 f_include $BSDCFG_SHARE/networking/ipaddr.subr
 
@@ -40,11 +41,6 @@ BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ############################################################ CONFIGURATION
-
-#
-# Path to resolv.conf(5).
-#
-: ${RESOLV_CONF:="/etc/resolv.conf"}
 
 #
 # When updating resolv.conf(5), should we populate the `search' directive with
@@ -101,25 +97,6 @@ f_resolv_conf_search()
 		}
 		END { exit ! found }
 	'
-}
-
-# f_resolv_conf_nameservers
-#
-# Returns nameserver(s) configured in resolv.conf(5).
-#
-f_resolv_conf_nameservers()
-{
-	awk \
-	'
-		BEGIN { found = 0 }
-		( $1 == "nameserver" ) \
-		{
-			print $2
-			found = 1
-		}
-		END { exit ! found }
-	' \
-	"$RESOLV_CONF" 2> /dev/null
 }
 
 # f_dialog_resolv_conf_update $hostname

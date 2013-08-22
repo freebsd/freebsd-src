@@ -310,7 +310,6 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 	} else {
 		isdgram = 1;
 	}
-	NFSGETTIME(&nd->nd_starttime);
 
 	/*
 	 * Two cases:

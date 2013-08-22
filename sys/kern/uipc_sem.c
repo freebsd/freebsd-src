@@ -579,8 +579,8 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 	finit(fp, FREAD | FWRITE, DTYPE_SEM, ks, &ksem_ops);
 
 	FILEDESC_XLOCK(fdp);
-	if (fdp->fd_ofiles[fd] == fp)
-		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
+	if (fdp->fd_ofiles[fd].fde_file == fp)
+		fdp->fd_ofiles[fd].fde_flags |= UF_EXCLOSE;
 	FILEDESC_XUNLOCK(fdp);
 	fdrop(fp, td);
 

@@ -28,7 +28,7 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2012
+.Dd March 19, 2013
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -121,11 +121,12 @@ argument to a
 function is formed by
 .Em or Ap ing
 one or more of the values:
-.Bl -column ".Dv MSG_DONTWAIT" -offset indent
+.Bl -column ".Dv MSG_CMSG_CLOEXEC" -offset indent
 .It Dv MSG_OOB Ta process out-of-band data
 .It Dv MSG_PEEK Ta peek at incoming message
 .It Dv MSG_WAITALL Ta wait for full request or error
 .It Dv MSG_DONTWAIT Ta do not block
+.It Dv MSG_CMSG_CLOEXEC Ta set received fds close-on-exec
 .El
 .Pp
 The
@@ -227,6 +228,10 @@ and
 .Fa cmsg_type
 set to
 .Dv SCM_RIGHTS .
+The close-on-exec flag on received descriptors is set according to the
+.Dv MSG_CMSG_CLOEXEC
+flag passed to
+.Fn recvmsg .
 .Pp
 Process credentials can also be passed as ancillary data for
 .Dv AF_UNIX

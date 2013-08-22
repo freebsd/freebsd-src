@@ -102,11 +102,25 @@ struct mfi_command {
 #define MFI_CMD_DATAOUT		(1<<2)
 #define MFI_CMD_COMPLETED	(1<<3)
 #define MFI_CMD_POLLED		(1<<4)
-#define MFI_ON_MFIQ_FREE	(1<<5)
-#define MFI_ON_MFIQ_READY	(1<<6)
-#define MFI_ON_MFIQ_BUSY	(1<<7)
-#define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
-#define MFI_CMD_SCSI		(1<<8)
+#define MFI_CMD_SCSI		(1<<5)
+#define MFI_CMD_CCB		(1<<6)
+#define MFI_CMD_TBOLT		(1<<7)
+#define MFI_ON_MFIQ_FREE	(1<<8)
+#define MFI_ON_MFIQ_READY	(1<<9)
+#define MFI_ON_MFIQ_BUSY	(1<<10)
+#define MFI_ON_MFIQ_MASK	(MFI_ON_MFIQ_FREE | MFI_ON_MFIQ_READY| \
+    MFI_ON_MFIQ_BUSY)
+#define MFI_CMD_FLAGS_FMT	"\20" \
+    "\1MAPPED" \
+    "\2DATAIN" \
+    "\3DATAOUT" \
+    "\4COMPLETED" \
+    "\5POLLED" \
+    "\6SCSI" \
+    "\7TBOLT" \
+    "\10Q_FREE" \
+    "\11Q_READY" \
+    "\12Q_BUSY"
 	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
@@ -266,10 +280,6 @@ struct mfi_softc {
 	 * recover completed commands.
 	 */
 	struct mfi_command		*mfi_commands;
-	/*
-	 * How many commands were actually allocated
-	 */
-	int				mfi_total_cmds;
 	/*
 	 * How many commands the firmware can handle.  Also how big the reply
 	 * queue is, minus 1.
@@ -469,9 +479,8 @@ extern int mfi_build_cdb(int, uint8_t, u_int64_t, u_int32_t, uint8_t *);
 	mfi_enqueue_ ## name (struct mfi_command *cm)			\
 	{								\
 		if ((cm->cm_flags & MFI_ON_MFIQ_MASK) != 0) {		\
-			printf("command %p is on another queue, "	\
+			panic("command %p is on another queue, "	\
 			    "flags = %#x\n", cm, cm->cm_flags);		\
-			panic("command is on another queue");		\
 		}							\
 		TAILQ_INSERT_TAIL(&cm->cm_sc->mfi_ ## name, cm, cm_link); \
 		cm->cm_flags |= MFI_ON_ ## index;			\
@@ -481,9 +490,8 @@ extern int mfi_build_cdb(int, uint8_t, u_int64_t, u_int32_t, uint8_t *);
 	mfi_requeue_ ## name (struct mfi_command *cm)			\
 	{								\
 		if ((cm->cm_flags & MFI_ON_MFIQ_MASK) != 0) {		\
-			printf("command %p is on another queue, "	\
+			panic("command %p is on another queue, "	\
 			    "flags = %#x\n", cm, cm->cm_flags);		\
-			panic("command is on another queue");		\
 		}							\
 		TAILQ_INSERT_HEAD(&cm->cm_sc->mfi_ ## name, cm, cm_link); \
 		cm->cm_flags |= MFI_ON_ ## index;			\
@@ -496,10 +504,9 @@ extern int mfi_build_cdb(int, uint8_t, u_int64_t, u_int32_t, uint8_t *);
 									\
 		if ((cm = TAILQ_FIRST(&sc->mfi_ ## name)) != NULL) {	\
 			if ((cm->cm_flags & MFI_ON_ ## index) == 0) {	\
-				printf("command %p not in queue, "	\
+				panic("command %p not in queue, "	\
 				    "flags = %#x, bit = %#x\n", cm,	\
 				    cm->cm_flags, MFI_ON_ ## index);	\
-				panic("command not in queue");		\
 			}						\
 			TAILQ_REMOVE(&sc->mfi_ ## name, cm, cm_link);	\
 			cm->cm_flags &= ~MFI_ON_ ## index;		\
@@ -511,10 +518,9 @@ extern int mfi_build_cdb(int, uint8_t, u_int64_t, u_int32_t, uint8_t *);
 	mfi_remove_ ## name (struct mfi_command *cm)			\
 	{								\
 		if ((cm->cm_flags & MFI_ON_ ## index) == 0) {		\
-			printf("command %p not in queue, flags = %#x, " \
+			panic("command %p not in queue, flags = %#x, " \
 			    "bit = %#x\n", cm, cm->cm_flags,		\
 			    MFI_ON_ ## index);				\
-			panic("command not in queue");			\
 		}							\
 		TAILQ_REMOVE(&cm->cm_sc->mfi_ ## name, cm, cm_link);	\
 		cm->cm_flags &= ~MFI_ON_ ## index;			\
@@ -607,7 +613,8 @@ SYSCTL_DECL(_hw_mfi);
 #ifdef MFI_DEBUG
 extern void mfi_print_cmd(struct mfi_command *cm);
 extern void mfi_dump_cmds(struct mfi_softc *sc);
-extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *, const char *, int );
+extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *,
+    const char *, int);
 #define MFI_PRINT_CMD(cm)	mfi_print_cmd(cm)
 #define MFI_DUMP_CMDS(sc)	mfi_dump_cmds(sc)
 #define MFI_VALIDATE_CMD(sc, cm) mfi_validate_sg(sc, cm, __FUNCTION__, __LINE__)
@@ -617,6 +624,8 @@ extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *, const char
 #define MFI_VALIDATE_CMD(sc, cm)
 #endif
 
-extern void mfi_release_command(struct mfi_command *cm);
+extern void mfi_release_command(struct mfi_command *);
+extern void mfi_tbolt_return_cmd(struct mfi_softc *,
+    struct mfi_cmd_tbolt *, struct mfi_command *);
 
 #endif /* _MFIVAR_H */

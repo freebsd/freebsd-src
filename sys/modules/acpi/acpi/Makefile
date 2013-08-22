@@ -32,33 +32,35 @@
 KMOD=	acpi
 
 # ACPI CA sources
-SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbmethod.c
-SRCS+=	dbnames.c dbstats.c dbutils.c dbxface.c
+SRCS+=	dbcmds.c dbconvert.c dbdisply.c dbexec.c dbfileio.c dbhistry.c
+SRCS+=	dbinput.c dbmethod.c dbnames.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmobject.c dmresrc.c
 SRCS+=	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c dsmthdat.c
 SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c dswload2.c
 SRCS+=	dswscope.c dswstate.c
-SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c evmisc.c
-SRCS+=	evregion.c evrgnini.c evsci.c evxface.c evxfevnt.c evxfgpe.c evxfregn.c
+SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c
+SRCS+=	evhandler.c evmisc.c evregion.c evrgnini.c evsci.c evxface.c
+SRCS+=	evxfevnt.c evxfgpe.c evxfregn.c
 SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
 SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
 SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
 SRCS+=	exresop.c exstore.c exstoren.c exstorob.c exsystem.c exutils.c
 SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c
 SRCS+=	hwvalid.c hwxface.c hwxfsleep.c
-SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
-SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nsrepair2.c nssearch.c
-SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
-SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c pstree.c psutils.c
-SRCS+=	pswalk.c psxface.c
-SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
-SRCS+=	rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
+SRCS+=	nsaccess.c nsalloc.c nsconvert.c nsdump.c nseval.c nsinit.c nsload.c
+SRCS+=	nsnames.c nsobject.c nsparse.c nspredef.c nsprepkg.c nsrepair.c
+SRCS+=	nsrepair2.c nssearch.c nsutils.c nswalk.c nsxfeval.c nsxfname.c
+SRCS+=	nsxfobj.c
+SRCS+=	psargs.c psloop.c psobject.c psopcode.c psopinfo.c psparse.c
+SRCS+=	psscope.c pstree.c psutils.c pswalk.c psxface.c
+SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsdumpinfo.c rsinfo.c rsio.c
+SRCS+=	rsirq.c rslist.c rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfload.c tbxfroot.c
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
 SRCS+=	utdelete.c uteval.c utexcep.c utglobal.c utids.c utinit.c utlock.c
-SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c
-SRCS+=	utxface.c utxferror.c utxfinit.c
+SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utownerid.c utresrc.c
+SRCS+=	utstate.c utstring.c utxface.c utxferror.c utxfinit.c
 #SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers

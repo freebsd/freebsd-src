@@ -324,7 +324,8 @@ static device_method_t acpi_hp_methods[] = {
 	DEVMETHOD(device_probe, acpi_hp_probe),
 	DEVMETHOD(device_attach, acpi_hp_attach),
 	DEVMETHOD(device_detach, acpi_hp_detach),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t	acpi_hp_driver = {

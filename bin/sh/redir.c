@@ -251,18 +251,23 @@ movefd:
 static int
 openhere(union node *redir)
 {
+	char *p;
 	int pip[2];
 	int len = 0;
 
 	if (pipe(pip) < 0)
 		error("Pipe call failed: %s", strerror(errno));
-	if (redir->type == NHERE) {
-		len = strlen(redir->nhere.doc->narg.text);
-		if (len <= PIPESIZE) {
-			xwrite(pip[1], redir->nhere.doc->narg.text, len);
-			goto out;
-		}
+
+	if (redir->type == NXHERE)
+		p = redir->nhere.expdoc;
+	else
+		p = redir->nhere.doc->narg.text;
+	len = strlen(p);
+	if (len <= PIPESIZE) {
+		xwrite(pip[1], p, len);
+		goto out;
 	}
+
 	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
 		close(pip[0]);
 		signal(SIGINT, SIG_IGN);
@@ -270,10 +275,7 @@ openhere(union node *redir)
 		signal(SIGHUP, SIG_IGN);
 		signal(SIGTSTP, SIG_IGN);
 		signal(SIGPIPE, SIG_DFL);
-		if (redir->type == NHERE)
-			xwrite(pip[1], redir->nhere.doc->narg.text, len);
-		else
-			expandhere(redir->nhere.doc, pip[1]);
+		xwrite(pip[1], p, len);
 		_exit(0);
 	}
 out:

@@ -4,7 +4,7 @@
 
 .PATH:  ${.CURDIR}/../../dev/ixgbe
 
-KMOD    = ixgbe
+KMOD    = if_ixgbe
 SRCS    = device_if.h bus_if.h pci_if.h
 SRCS	+= opt_inet.h opt_inet6.h
 SRCS    += ixgbe.c ixv.c

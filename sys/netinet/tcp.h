@@ -149,20 +149,25 @@ struct tcphdr {
 #endif /* __BSD_VISIBLE */
 
 /*
- * User-settable options (used with setsockopt).
+ * User-settable options (used with setsockopt).  These are discrete
+ * values and are not masked together.  Some values appear to be
+ * bitmasks for historical reasons.
  */
-#define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
+#define	TCP_NODELAY	1	/* don't delay send to coalesce packets */
 #if __BSD_VISIBLE
-#define	TCP_MAXSEG	0x02	/* set maximum segment size */
-#define TCP_NOPUSH	0x04	/* don't push last block of write */
-#define TCP_NOOPT	0x08	/* don't use TCP options */
-#define TCP_MD5SIG	0x10	/* use MD5 digests (RFC2385) */
-#define	TCP_INFO	0x20	/* retrieve tcp_info structure */
-#define	TCP_CONGESTION	0x40	/* get/set congestion control algorithm */
-#define	TCP_KEEPINIT	0x80	/* N, time to establish connection */
-#define	TCP_KEEPIDLE	0x100	/* L,N,X start keeplives after this period */
-#define	TCP_KEEPINTVL	0x200	/* L,N interval between keepalives */
-#define	TCP_KEEPCNT	0x400	/* L,N number of keepalives before close */
+#define	TCP_MAXSEG	2	/* set maximum segment size */
+#define TCP_NOPUSH	4	/* don't push last block of write */
+#define TCP_NOOPT	8	/* don't use TCP options */
+#define TCP_MD5SIG	16	/* use MD5 digests (RFC2385) */
+#define	TCP_INFO	32	/* retrieve tcp_info structure */
+#define	TCP_CONGESTION	64	/* get/set congestion control algorithm */
+#define	TCP_KEEPINIT	128	/* N, time to establish connection */
+#define	TCP_KEEPIDLE	256	/* L,N,X start keeplives after this period */
+#define	TCP_KEEPINTVL	512	/* L,N interval between keepalives */
+#define	TCP_KEEPCNT	1024	/* L,N number of keepalives before close */
+
+/* Start of reserved space for third-party user-settable options. */
+#define	TCP_VENDOR	SO_VENDOR
 
 #define	TCP_CA_NAME_MAX	16	/* max congestion control name length */
 

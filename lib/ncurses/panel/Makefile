@@ -34,7 +34,6 @@ LDADD=	-lncurses${LIB_SUFFIX}
 
 .if defined(ENABLE_WIDEC)
 INCS=	panel.h
-.endif
 
 # generate MAN
 .PATH: ${NCURSES_DIR}/man
@@ -58,6 +57,9 @@ MLINKS=	panel.3 bottom_panel.3 \
 	panel.3 show_panel.3 \
 	panel.3 top_panel.3 \
 	panel.3 update_panels.3
+.else
+NO_MAN=
+.endif
 	
 .include <bsd.lib.mk>
 

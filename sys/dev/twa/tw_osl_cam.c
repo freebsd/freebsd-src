@@ -261,54 +261,22 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 		scsi_req->cdb = csio->cdb_io.cdb_bytes;
 	scsi_req->cdb_len = csio->cdb_len;
 
-	if (!(ccb_h->flags & CAM_DATA_PHYS)) {
-		/* Virtual data addresses.  Need to convert them... */
-		tw_osli_dbg_dprintf(3, sc,
-			"XPT_SCSI_IO: Single virtual address!");
-		if (!(ccb_h->flags & CAM_SCATTER_VALID)) {
-			if (csio->dxfer_len > TW_CL_MAX_IO_SIZE) {
-				tw_osli_printf(sc, "size = %d",
-					TW_CL_SEVERITY_ERROR_STRING,
-					TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
-					0x2106,
-					"I/O size too big",
-					csio->dxfer_len);
-				ccb_h->status = CAM_REQ_TOO_BIG;
-				ccb_h->status &= ~CAM_SIM_QUEUED;
-				xpt_done(ccb);
-				return(1);
-			}
-
-			if ((req->length = csio->dxfer_len)) {
-				req->data = csio->data_ptr;
-				scsi_req->sgl_entries = 1;
-			}
-		} else {
-			tw_osli_printf(sc, "",
-				TW_CL_SEVERITY_ERROR_STRING,
-				TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
-				0x2107,
-				"XPT_SCSI_IO: Got SGList");
-			ccb_h->status = CAM_REQ_INVALID;
-			ccb_h->status &= ~CAM_SIM_QUEUED;
-			xpt_done(ccb);
-			return(1);
-		}
-	} else {
-		/* Data addresses are physical. */
-		tw_osli_printf(sc, "",
+	if (csio->dxfer_len > TW_CL_MAX_IO_SIZE) {
+		tw_osli_printf(sc, "size = %d",
 			TW_CL_SEVERITY_ERROR_STRING,
 			TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
-			0x2108,
-			"XPT_SCSI_IO: Physical data addresses");
-		ccb_h->status = CAM_REQ_INVALID;
+			0x2106,
+			"I/O size too big",
+			csio->dxfer_len);
+		ccb_h->status = CAM_REQ_TOO_BIG;
 		ccb_h->status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
 		return(1);
 	}
-
+	req->data = ccb;
+	req->length = csio->dxfer_len;
+	req->flags |= TW_OSLI_REQ_FLAGS_CCB;
 	req->deadline = tw_osl_get_local_time() + (ccb_h->timeout / 1000);
-
 
 	/*
 	 * twa_map_load_data_callback will fill in the SGL,

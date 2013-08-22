@@ -438,12 +438,29 @@ zyd_detach(device_t dev)
 	struct zyd_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic;
+	unsigned int x;
 
-	/* stop all USB transfers */
-	usbd_transfer_unsetup(sc->sc_xfer, ZYD_N_TRANSFER);
+	/*
+	 * Prevent further allocations from RX/TX data
+	 * lists and ioctls:
+	 */
+	ZYD_LOCK(sc);
+	sc->sc_flags |= ZYD_FLAG_DETACHED;
+	STAILQ_INIT(&sc->tx_q);
+	STAILQ_INIT(&sc->tx_free);
+	ZYD_UNLOCK(sc);
+
+	/* drain USB transfers */
+	for (x = 0; x != ZYD_N_TRANSFER; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
 
 	/* free TX list, if any */
+	ZYD_LOCK(sc);
 	zyd_unsetup_tx_list(sc);
+	ZYD_UNLOCK(sc);
+
+	/* free USB transfers and some data buffers */
+	usbd_transfer_unsetup(sc->sc_xfer, ZYD_N_TRANSFER);
 
 	if (ifp) {
 		ic = ifp->if_l2com;
@@ -2637,7 +2654,14 @@ zyd_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct zyd_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	int error;
+	int startall = 0;
+
+	ZYD_LOCK(sc);
+	error = (sc->sc_flags & ZYD_FLAG_DETACHED) ? ENXIO : 0;
+	ZYD_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -2928,8 +2952,7 @@ static device_method_t zyd_methods[] = {
         DEVMETHOD(device_probe, zyd_match),
         DEVMETHOD(device_attach, zyd_attach),
         DEVMETHOD(device_detach, zyd_detach),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t zyd_driver = {

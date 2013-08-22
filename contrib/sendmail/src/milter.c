@@ -4048,7 +4048,7 @@ milter_helo(helo, e, state)
 	}
 
 	response = milter_command(SMFIC_HELO, helo, strlen(helo) + 1,
-				  SMFIM_EOH, e, state, "helo", false);
+				  SMFIM_HELO, e, state, "helo", false);
 	milter_per_connection_check(e);
 	return response;
 }

@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #define EOF_NLEFT -99		/* value of parsenleft when EOF pushed back */
 
-MKINIT
 struct strpush {
 	struct strpush *prev;	/* preceding string on stack */
 	char *prevstring;
@@ -78,7 +77,6 @@ struct strpush {
  * contains information about the current file being read.
  */
 
-MKINIT
 struct parsefile {
 	struct parsefile *prev;	/* preceding file on stack */
 	int linno;		/* current line */
@@ -96,8 +94,11 @@ int plinno = 1;			/* input line number */
 int parsenleft;			/* copy of parsefile->nleft */
 MKINIT int parselleft;		/* copy of parsefile->lleft */
 char *parsenextc;		/* copy of parsefile->nextc */
-MKINIT struct parsefile basepf;	/* top level input file */
-char basebuf[BUFSIZ + 1];	/* buffer for top level input file */
+static char basebuf[BUFSIZ + 1];/* buffer for top level input file */
+static struct parsefile basepf = {	/* top level input file */
+	.nextc = basebuf,
+	.buf = basebuf
+};
 static struct parsefile *parsefile = &basepf;	/* current input file */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
@@ -110,12 +111,6 @@ static void popstring(void);
 #ifdef mkinit
 INCLUDE "input.h"
 INCLUDE "error.h"
-
-MKINIT char basebuf[];
-
-INIT {
-	basepf.nextc = basepf.buf = basebuf;
-}
 
 RESET {
 	popallfiles();

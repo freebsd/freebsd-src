@@ -136,6 +136,8 @@ struct kva_md_info {
 	vm_offset_t	clean_eva;
 	vm_offset_t	pager_sva;
 	vm_offset_t	pager_eva;
+	vm_offset_t	bio_transient_sva;
+	vm_offset_t	bio_transient_eva;
 };
 
 extern struct kva_md_info	kmi;

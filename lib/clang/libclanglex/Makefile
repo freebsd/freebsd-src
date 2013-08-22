@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clanglex
 
 SRCDIR=	tools/clang/lib/Lex

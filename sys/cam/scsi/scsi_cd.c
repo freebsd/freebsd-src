@@ -581,7 +581,7 @@ cdasync(void *callback_arg, u_int32_t code,
 		if (softc->state == CD_STATE_NORMAL && !softc->tur) {
 			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 				softc->tur = 1;
-				xpt_schedule(periph, CAM_PRIORITY_DEV);
+				xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 			}
 		}
 		/* FALLTHROUGH */
@@ -1575,7 +1575,8 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					/*retries*/ cd_retry_count,
 					/* cbfcnp */ cddone,
 					MSG_SIMPLE_Q_TAG,
-					/* read */bp->bio_cmd == BIO_READ,
+					/* read */bp->bio_cmd == BIO_READ ?
+					SCSI_RW_READ : SCSI_RW_WRITE,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,
 					/* lba */ bp->bio_offset /
@@ -1612,9 +1613,11 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 
 			xpt_action(start_ccb);
 		}
-		if (bp != NULL || softc->tur) {
+		if (bp != NULL || softc->tur ||
+		    periph->immediate_priority != CAM_PRIORITY_NONE) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
+			xpt_schedule(periph, min(CAM_PRIORITY_NORMAL,
+			    periph->immediate_priority));
 		}
 		break;
 	}
@@ -3293,10 +3296,11 @@ cdmediapoll(void *arg)
 	if (softc->flags & CD_FLAG_CHANGER)
 		return;
 
-	if (softc->state == CD_STATE_NORMAL && !softc->tur) {
+	if (softc->state == CD_STATE_NORMAL && !softc->tur &&
+	    softc->outstanding_cmds == 0) {
 		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 			softc->tur = 1;
-			xpt_schedule(periph, CAM_PRIORITY_DEV);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 	}
 	/* Queue us up again */

@@ -335,7 +335,7 @@ static	const char *ip6nh[] = {
 	"#255",
 };
 
-static char *srcrule_str[] = {
+static const char *srcrule_str[] = {
 	"first candidate",
 	"same address",
 	"appropriate scope",

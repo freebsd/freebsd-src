@@ -173,7 +173,7 @@ __get_exception_header_from_ue (_Unwind_Exception *exc)
   return reinterpret_cast<__cxa_exception *>(exc + 1) - 1;
 }
 
-#ifdef __ARM_EABI_UNWINDER__
+#if defined(__ARM_EABI_UNWINDER__) && !defined(__FreeBSD__)
 static inline bool
 __is_gxx_exception_class(_Unwind_Exception_Class c)
 {
@@ -200,13 +200,7 @@ __GXX_INIT_EXCEPTION_CLASS(_Unwind_Exception_Class c)
   c[6] = '+';
   c[7] = '\0';
 }
-
-static inline void*
-__gxx_caught_object(_Unwind_Exception* eo)
-{
-  return (void*)eo->barrier_cache.bitpattern[0];
-}
-#else // !__ARM_EABI_UNWINDER__
+#else // !__ARM_EABI_UNWINDER__ || __FreeBSD__
 // This is the exception class we report -- "GNUCC++\0".
 const _Unwind_Exception_Class __gxx_exception_class
 = ((((((((_Unwind_Exception_Class) 'G' 
@@ -223,8 +217,16 @@ __is_gxx_exception_class(_Unwind_Exception_Class c)
 {
   return c == __gxx_exception_class;
 }
-
 #define __GXX_INIT_EXCEPTION_CLASS(c) c = __gxx_exception_class
+#endif
+
+#ifdef __ARM_EABI_UNWINDER__
+static inline void*
+__gxx_caught_object(_Unwind_Exception* eo)
+{
+  return (void*)eo->barrier_cache.bitpattern[0];
+}
+#else // !__ARM_EABI_UNWINDER__
 
 // GNU C++ personality routine, Version 0.
 extern "C" _Unwind_Reason_Code __gxx_personality_v0

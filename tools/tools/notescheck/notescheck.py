@@ -7,14 +7,16 @@
 #
 # $FreeBSD$
 
+from __future__ import print_function
+
 import glob
 import os.path
 import sys
 
 def usage():
-    print >>sys.stderr, "notescheck <path>"
-    print >>sys.stderr
-    print >>sys.stderr, "Where 'path' is a path to a kernel source tree."
+    print("notescheck <path>", file=sys.stderr)
+    print(file=sys.stderr)
+    print("Where 'path' is a path to a kernel source tree.", file=sys.stderr)
 
 # These files are used to determine if a path is a valid kernel source tree.
 requiredfiles = ['conf/files', 'conf/options', 'conf/NOTES']
@@ -62,9 +64,9 @@ class Option:
             self.type = type
             self.type_location = location
         elif self.type != type:
-            print "WARN: Attempt to change type of %s from %s to %s%s" % \
-                (self.name, self.type, type, location)
-            print "      Previous type set%s" % (self.type_location)
+            print("WARN: Attempt to change type of %s from %s to %s%s" % \
+                (self.name, self.type, type, location))
+            print("      Previous type set%s" % (self.type_location))
 
     def add_define(self, platform):
         self.defines.add(platform)
@@ -93,8 +95,8 @@ class Option:
         if global_platform in self.defines:
             # If the device is defined globally ans is never tested, whine.
             if len(self.tests) == 0:
-                print 'WARN: %s is defined globally but never tested' % \
-                    (self.title())
+                print('WARN: %s is defined globally but never tested' % \
+                    (self.title()))
                 return
             
             # If the device is defined globally and is tested on
@@ -106,25 +108,25 @@ class Option:
 
             # If a device is defined globally but is only tested on a
             # single MD platform, then whine about this.
-            print 'WARN: %s is defined globally but only tested in %s NOTES' % \
-                (self.title(), format_set(self.tests))
+            print('WARN: %s is defined globally but only tested in %s NOTES' % \
+                (self.title(), format_set(self.tests)))
             return
 
         # If an option or device is never tested, whine.
         if len(self.tests) == 0:
-            print 'WARN: %s is defined in %s but never tested' % \
-                (self.title(), format_set(self.defines))
+            print('WARN: %s is defined in %s but never tested' % \
+                (self.title(), format_set(self.defines)))
             return
 
         # The set of MD platforms where this option is defined, but not tested.
         notest = self.defines - self.tests
         if len(notest) != 0:
-            print 'WARN: %s is not tested in %s NOTES' % \
-                (self.title(), format_set(notest))
+            print('WARN: %s is not tested in %s NOTES' % \
+                (self.title(), format_set(notest)))
             return
 
-        print 'ERROR: bad state for %s: defined in %s, tested in %s' % \
-            (self.title(), format_set(self.defines), format_set(self.tests))
+        print('ERROR: bad state for %s: defined in %s, tested in %s' % \
+            (self.title(), format_set(self.defines), format_set(self.tests)))
 
 # This class maintains a dictionary of options keyed by name.
 class Options:
@@ -143,7 +145,7 @@ class Options:
 
     # Warn about inconsistencies
     def warn(self):
-        keys = self.options.keys()
+        keys = list(self.options.keys())
         keys.sort()
         for key in keys:
             option = self.options[key]
@@ -158,11 +160,11 @@ def find_platforms(tree):
     platforms = []
     for file in glob.glob(tree + '*/conf/NOTES'):
         if not file.startswith(tree):
-            print >>sys.stderr, "Bad MD NOTES file %s" %(file)
+            print("Bad MD NOTES file %s" %(file), file=sys.stderr)
             sys.exit(1)
         platforms.append(file[len(tree):].split('/')[0])
     if global_platform in platforms:
-        print >>sys.stderr, "Found MD NOTES file for global platform"
+        print("Found MD NOTES file for global platform", file=sys.stderr)
         sys.exit(1)
     return platforms
 
@@ -224,7 +226,7 @@ def tokenize(line):
     # will contain 'number of quotes' + 1 entries, so it should have
     # an odd number of entries.
     if len(groups) % 2 == 0:
-        print >>sys.stderr, "Failed to tokenize: %s%s" (line, location)
+        print("Failed to tokenize: %s%s" (line, location), file=sys.stderr)
         return []
 
     # String split all the "odd" groups since they are not quoted strings.
@@ -256,7 +258,7 @@ def parse_files_line(line, platform):
 
     # Remaining lines better be optional or mandatory lines.
     if words[1] != 'optional' and words[1] != 'mandatory':
-        print >>sys.stderr, "Invalid files line: %s%s" % (line, location)
+        print("Invalid files line: %s%s" % (line, location), file=sys.stderr)
 
     # Drop the first two words and begin parsing keywords and devices.
     skip = False
@@ -334,7 +336,7 @@ def main(argv=None):
         tree = tree + '/'
     for file in requiredfiles:
         if not os.path.exists(tree + file):
-            print>> sys.stderr, "Kernel source tree missing %s" % (file)
+            print("Kernel source tree missing %s" % (file), file=sys.stderr)
             return 1
     
     platforms = find_platforms(tree)

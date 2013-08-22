@@ -42,8 +42,7 @@ case "$@" in
 	shift
 esac
 
-basename=$(basename "$0")
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/$basename.XXXXXXXXXX") || exit 2
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXXXXXX") || exit 2
 trap 'rm -r "$tmp" || exit 2' EXIT
 
 export LC_ALL=C

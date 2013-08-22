@@ -193,7 +193,10 @@ foreach_chunk(callback_t cb, void *arg)
 	mdp = efi_md_first();
 	while (mdp != NULL) {
 		if (mdp->md_type == EFI_MD_TYPE_FREE ||
-		    mdp->md_type == EFI_MD_TYPE_DATA) {
+		    mdp->md_type == EFI_MD_TYPE_DATA ||
+		    mdp->md_type == EFI_MD_TYPE_CODE ||
+		    mdp->md_type == EFI_MD_TYPE_BS_DATA ||
+		    mdp->md_type == EFI_MD_TYPE_BS_CODE) {
 			error = (*cb)(mdp, seqnr++, arg);
 			if (error)
 				return (-error);

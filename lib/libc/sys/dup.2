@@ -115,11 +115,6 @@ and
 is a valid descriptor, then
 .Fn dup2
 is successful, and does nothing.
-.Pp
-The related
-.Xr cap_new 2
-system call allows file descriptors to be duplicated with restrictions on
-their use.
 .Sh RETURN VALUES
 The value -1 is returned if an error occurs in either call.
 The external variable
@@ -152,7 +147,6 @@ argument is negative or exceeds the maximum allowable descriptor number
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
-.Xr cap_new 2 ,
 .Xr close 2 ,
 .Xr fcntl 2 ,
 .Xr getdtablesize 2 ,

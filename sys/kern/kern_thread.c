@@ -748,10 +748,10 @@ stopme:
  * P_SINGLE_EXIT | return_instead == 0| return_instead != 0
  *---------------+--------------------+---------------------
  *       0       | returns 0          |   returns 0 or 1
- *               | when ST ends       |   immediatly
+ *               | when ST ends       |   immediately
  *---------------+--------------------+---------------------
  *       1       | thread exits       |   returns 1
- *               |                    |  immediatly
+ *               |                    |  immediately
  * 0 = thread_exit() or suspension ok,
  * other = return error instead of stopping the thread.
  *

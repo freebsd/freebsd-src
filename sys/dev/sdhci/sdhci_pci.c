@@ -426,7 +426,7 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_4,	sdhci_pci_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	sdhci_pci_write_multi_4),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t sdhci_pci_driver = {

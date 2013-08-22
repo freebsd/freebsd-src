@@ -1006,6 +1006,7 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ecb *ecb;
 		struct hardware_ecb *hecb;
+		int error;
 
 		/*
 		 * get an ecb to use.
@@ -1056,65 +1057,19 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 			      hecb->cdb, hecb->cdb_len);
 		}
 
-		/*
-		 * If we have any data to send with this command,
-		 * map it into bus space.
-		 */
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
-				/*
-				 * We've been given a pointer
-				 * to a single buffer.
-				 */
-				if ((ccb->ccb_h.flags & CAM_DATA_PHYS)==0) {
-					int error;
-
-					error = bus_dmamap_load(
-					    ahb->buffer_dmat,
-					    ecb->dmamap,
-					    ccb->csio.data_ptr,
-					    ccb->csio.dxfer_len,
-					    ahbexecuteecb,
-					    ecb, /*flags*/0);
-					if (error == EINPROGRESS) {
-						/*
-						 * So as to maintain ordering,
-						 * freeze the controller queue
-						 * until our mapping is
-						 * returned.
-						 */
-						xpt_freeze_simq(ahb->sim, 1);
-						ccb->ccb_h.status |=
-						    CAM_RELEASE_SIMQ;
-					}
-				} else {
-					struct bus_dma_segment seg; 
-
-					/* Pointer to physical buffer */
-					seg.ds_addr =
-					    (bus_addr_t)ccb->csio.data_ptr;
-					seg.ds_len = ccb->csio.dxfer_len;
-					ahbexecuteecb(ecb, &seg, 1, 0);
-				}
-			} else {
-				struct bus_dma_segment *segs;
-
-				if ((ccb->ccb_h.flags & CAM_DATA_PHYS) != 0)
-					panic("ahbaction - Physical segment "
-					      "pointers unsupported");
-
-				if ((ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0)
-					panic("btaction - Virtual segment "
-					      "addresses unsupported");
-
-				/* Just use the segments provided */
-				segs = (struct bus_dma_segment *)
-				    ccb->csio.data_ptr;
-				ahbexecuteecb(ecb, segs, ccb->csio.sglist_cnt,
-					     0);
-			}
-		} else {
-			ahbexecuteecb(ecb, NULL, 0, 0);
+		error = bus_dmamap_load_ccb(
+		    ahb->buffer_dmat,
+		    ecb->dmamap,
+		    ccb,
+		    ahbexecuteecb,
+		    ecb, /*flags*/0);
+		if (error == EINPROGRESS) {
+			/*
+			 * So as to maintain ordering, freeze the controller
+			 * queue until our mapping is returned.
+			 */
+			xpt_freeze_simq(ahb->sim, 1);
+			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		}
 		break;
 	}

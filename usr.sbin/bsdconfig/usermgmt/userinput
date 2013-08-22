@@ -81,22 +81,22 @@ save_changes()
 		err=$( pw userdel -u "$pw_uid" 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_login_deleted"
+		f_dialog_msgbox "$msg_login_deleted"
 
 		if [ "$pw_group_delete" = "$msg_yes" ] &&
 		   f_quietly pw groupshow -g "$pw_gid"
 		then
 			err=$( pw groupdel -g "$pw_gid" 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 
 		if [ "$pw_home_delete" = "$msg_yes" ]; then
 			f_dialog_info "$msg_deleting_home_directory"
 			err=$( rm -Rf "$pw_home_dir" 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 		;;
 	Add)
@@ -119,26 +119,26 @@ save_changes()
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_login_added"
+		f_dialog_msgbox "$msg_login_added"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" 2>&1 )
 			if [ $? -ne $SUCCESS ]; then
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 			elif [ -e "$pw_home_dir" ]; then
 				err=$( chown -R "$pw_uid:$pw_gid" \
 				                "$pw_home_dir" 2>&1 )
-				[ $? -eq $SUCCESS ] || f_show_msg \
-					"%s %s\n" "$msg_warning" "$err"
+				[ $? -eq $SUCCESS ] ||
+					f_dialog_msgbox "$msg_warning $err\n"
 			fi
 		fi
 
 		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
 			err=$( copy_dotfiles 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 
 		user="$pw_name"
@@ -165,26 +165,26 @@ save_changes()
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
-			f_show_msg "%s %s\n" "$msg_error" "$err"
+			f_dialog_msgbox "$msg_error $err\n"
 			return $retval
 		fi
-		f_show_msg "$msg_login_updated"
+		f_dialog_msgbox "$msg_login_updated"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
 			err=$( mkdir -p "$pw_home_dir" )
 			if [ $? -ne $SUCCESS ]; then
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 			elif [ -e "$pw_home_dir" ]; then
 				err=$( chown -R "$pw_uid:$pw_gid" \
 				                "$pw_home_dir" 2>&1 )
-				[ $? -eq $SUCCESS ] || f_show_msg \
-					"%s %s\n" "$msg_warning" "$err"
+				[ $? -eq $SUCCESS ] ||
+					f_dialog_msgbox "$msg_warning $err\n"
 			fi
 		fi
 
 		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
 			err=$( copy_dotfiles 2>&1 ) ||
-				f_show_msg "%s %s\n" "$msg_warning" "$err"
+				f_dialog_msgbox "$msg_warning $err\n"
 		fi
 		;;
 	esac

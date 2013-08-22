@@ -128,7 +128,7 @@ f_become_root_via_sudo()
 		1) # Always try sudo(8) when run as $user
 			local err
 			if ! err=$( touch "$checkpath" 2>&1 ); then
-				f_show_msg "%s" "$err"
+				f_dialog_msgbox "$err"
 			else
 				f_show_msg "$msg_created_path" "$checkpath"
 			fi

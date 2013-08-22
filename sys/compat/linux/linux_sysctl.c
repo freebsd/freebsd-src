@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/linux/linux_dtrace.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_util.h>
 
 #define	LINUX_CTL_KERN		1

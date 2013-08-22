@@ -703,8 +703,13 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 #ifdef VERBOSE
+			snprintf(title, sizeof(title), "Done");
 			snprintf(prompt, sizeof(prompt),
 			    "Removed %s", path_localtime);
+			if (usedialog)
+				dialog_msgbox(title, prompt, 8, 72, 1);
+			else
+				fprintf(stderr, "%s\n", prompt);
 #endif
 			return (DITEM_LEAVE_MENU);
 		}

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/sleepqueue.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -476,43 +477,50 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 	return (0);
 }
 
-static int nanowait;
+static uint8_t nanowait[MAXCPU];
 
 int
 kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec ts;
+	sbintime_t sbt, sbtt, prec, tmp;
+	time_t over;
 	int error;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || (rqt->tv_sec == 0 && rqt->tv_nsec == 0))
 		return (0);
-	getnanouptime(&ts);
-	timespecadd(&ts, rqt);
-	TIMESPEC_TO_TIMEVAL(&tv, rqt);
-	for (;;) {
-		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp",
-		    tvtohz(&tv));
-		getnanouptime(&ts2);
-		if (error != EWOULDBLOCK) {
-			if (error == ERESTART)
-				error = EINTR;
-			if (rmt != NULL) {
-				timespecsub(&ts, &ts2);
-				if (ts.tv_sec < 0)
-					timespecclear(&ts);
-				*rmt = ts;
-			}
-			return (error);
+	ts = *rqt;
+	if (ts.tv_sec > INT32_MAX / 2) {
+		over = ts.tv_sec - INT32_MAX / 2;
+		ts.tv_sec -= over;
+	} else
+		over = 0;
+	tmp = tstosbt(ts);
+	prec = tmp;
+	prec >>= tc_precexp;
+	if (TIMESEL(&sbt, tmp))
+		sbt += tc_tick_sbt;
+	sbt += tmp;
+	error = tsleep_sbt(&nanowait[curcpu], PWAIT | PCATCH, "nanslp",
+	    sbt, prec, C_ABSOLUTE);
+	if (error != EWOULDBLOCK) {
+		if (error == ERESTART)
+			error = EINTR;
+		TIMESEL(&sbtt, tmp);
+		if (rmt != NULL) {
+			ts = sbttots(sbt - sbtt);
+			ts.tv_sec += over;
+			if (ts.tv_sec < 0)
+				timespecclear(&ts);
+			*rmt = ts;
 		}
-		if (timespeccmp(&ts2, &ts, >=))
+		if (sbtt >= sbt)
 			return (0);
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		return (error);
 	}
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -683,7 +691,7 @@ kern_getitimer(struct thread *td, u_int which, struct itimerval *aitv)
 		*aitv = p->p_realtimer;
 		PROC_UNLOCK(p);
 		if (timevalisset(&aitv->it_value)) {
-			getmicrouptime(&ctv);
+			microuptime(&ctv);
 			if (timevalcmp(&aitv->it_value, &ctv, <))
 				timevalclear(&aitv->it_value);
 			else
@@ -728,28 +736,33 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 {
 	struct proc *p = td->td_proc;
 	struct timeval ctv;
+	sbintime_t sbt, pr;
 
 	if (aitv == NULL)
 		return (kern_getitimer(td, which, oitv));
 
 	if (which > ITIMER_PROF)
 		return (EINVAL);
-	if (itimerfix(&aitv->it_value))
+	if (itimerfix(&aitv->it_value) ||
+	    aitv->it_value.tv_sec > INT32_MAX / 2)
 		return (EINVAL);
 	if (!timevalisset(&aitv->it_value))
 		timevalclear(&aitv->it_interval);
-	else if (itimerfix(&aitv->it_interval))
+	else if (itimerfix(&aitv->it_interval) ||
+	    aitv->it_interval.tv_sec > INT32_MAX / 2)
 		return (EINVAL);
 
 	if (which == ITIMER_REAL) {
 		PROC_LOCK(p);
 		if (timevalisset(&p->p_realtimer.it_value))
 			callout_stop(&p->p_itcallout);
-		getmicrouptime(&ctv);
+		microuptime(&ctv);
 		if (timevalisset(&aitv->it_value)) {
-			callout_reset(&p->p_itcallout, tvtohz(&aitv->it_value),
-			    realitexpire, p);
+			pr = tvtosbt(aitv->it_value) >> tc_precexp;
 			timevaladd(&aitv->it_value, &ctv);
+			sbt = tvtosbt(aitv->it_value);
+			callout_reset_sbt(&p->p_itcallout, sbt, pr,
+			    realitexpire, p, C_ABSOLUTE);
 		}
 		*oitv = p->p_realtimer;
 		p->p_realtimer = *aitv;
@@ -785,7 +798,8 @@ void
 realitexpire(void *arg)
 {
 	struct proc *p;
-	struct timeval ctv, ntv;
+	struct timeval ctv;
+	sbintime_t isbt;
 
 	p = (struct proc *)arg;
 	kern_psignal(p, SIGALRM);
@@ -795,19 +809,17 @@ realitexpire(void *arg)
 			wakeup(&p->p_itcallout);
 		return;
 	}
-	for (;;) {
+	isbt = tvtosbt(p->p_realtimer.it_interval);
+	if (isbt >= sbt_timethreshold)
+		getmicrouptime(&ctv);
+	else
+		microuptime(&ctv);
+	do {
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
-		getmicrouptime(&ctv);
-		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >)) {
-			ntv = p->p_realtimer.it_value;
-			timevalsub(&ntv, &ctv);
-			callout_reset(&p->p_itcallout, tvtohz(&ntv) - 1,
-			    realitexpire, p);
-			return;
-		}
-	}
-	/*NOTREACHED*/
+	} while (timevalcmp(&p->p_realtimer.it_value, &ctv, <=));
+	callout_reset_sbt(&p->p_itcallout, tvtosbt(p->p_realtimer.it_value),
+	    isbt >> tc_precexp, realitexpire, p, C_ABSOLUTE);
 }
 
 /*
@@ -822,8 +834,9 @@ itimerfix(struct timeval *tv)
 
 	if (tv->tv_sec < 0 || tv->tv_usec < 0 || tv->tv_usec >= 1000000)
 		return (EINVAL);
-	if (tv->tv_sec == 0 && tv->tv_usec != 0 && tv->tv_usec < tick)
-		tv->tv_usec = tick;
+	if (tv->tv_sec == 0 && tv->tv_usec != 0 &&
+	    tv->tv_usec < (u_int)tick / 16)
+		tv->tv_usec = (u_int)tick / 16;
 	return (0);
 }
 

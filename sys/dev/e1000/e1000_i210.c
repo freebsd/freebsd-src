@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -38,7 +38,6 @@
 static s32 e1000_acquire_nvm_i210(struct e1000_hw *hw);
 static void e1000_release_nvm_i210(struct e1000_hw *hw);
 static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw);
-static void e1000_put_hw_semaphore_i210(struct e1000_hw *hw);
 static s32 e1000_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 				u16 *data);
 static s32 e1000_pool_flash_update_done_i210(struct e1000_hw *hw);
@@ -105,13 +104,14 @@ s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 		}
 
 		swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-		if (!(swfw_sync & fwmask))
+		if (!(swfw_sync & (fwmask | swmask)))
 			break;
 
 		/*
 		 * Firmware currently using resource (fwmask)
+		 * or other software thread using resource (swmask)
 		 */
-		e1000_put_hw_semaphore_i210(hw);
+		e1000_put_hw_semaphore_generic(hw);
 		msec_delay_irq(5);
 		i++;
 	}
@@ -125,7 +125,7 @@ s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync |= swmask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_i210(hw);
+	e1000_put_hw_semaphore_generic(hw);
 
 out:
 	return ret_val;
@@ -152,7 +152,7 @@ void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 	swfw_sync &= ~mask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
-	e1000_put_hw_semaphore_i210(hw);
+	e1000_put_hw_semaphore_generic(hw);
 }
 
 /**
@@ -164,11 +164,44 @@ void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw)
 {
 	u32 swsm;
-	s32 ret_val = E1000_SUCCESS;
 	s32 timeout = hw->nvm.word_size + 1;
 	s32 i = 0;
 
 	DEBUGFUNC("e1000_get_hw_semaphore_i210");
+
+	/* Get the SW semaphore */
+	while (i < timeout) {
+		swsm = E1000_READ_REG(hw, E1000_SWSM);
+		if (!(swsm & E1000_SWSM_SMBI))
+			break;
+
+		usec_delay(50);
+		i++;
+	}
+
+	if (i == timeout) {
+		/*
+		 * In rare circumstances, the driver may not have released the
+		 * SW semaphore. Clear the semaphore once before giving up.
+		 */
+		if (hw->dev_spec._82575.clear_semaphore_once) {
+			hw->dev_spec._82575.clear_semaphore_once = FALSE;
+			e1000_put_hw_semaphore_generic(hw);
+			for (i = 0; i < timeout; i++) {
+				swsm = E1000_READ_REG(hw, E1000_SWSM);
+				if (!(swsm & E1000_SWSM_SMBI))
+					break;
+
+				usec_delay(50);
+			}
+		}
+
+		/* If we do not have the semaphore here, we have to give up. */
+		if (i == timeout) {
+			DEBUGOUT("Driver can't access device - SMBI bit is set.\n");
+			return -E1000_ERR_NVM;
+		}
+	}
 
 	/* Get the FW semaphore. */
 	for (i = 0; i < timeout; i++) {
@@ -186,31 +219,10 @@ static s32 e1000_get_hw_semaphore_i210(struct e1000_hw *hw)
 		/* Release semaphores */
 		e1000_put_hw_semaphore_generic(hw);
 		DEBUGOUT("Driver can't access the NVM\n");
-		ret_val = -E1000_ERR_NVM;
-		goto out;
+		return -E1000_ERR_NVM;
 	}
 
-out:
-	return ret_val;
-}
-
-/**
- *  e1000_put_hw_semaphore_i210 - Release hardware semaphore
- *  @hw: pointer to the HW structure
- *
- *  Release hardware semaphore used to access the PHY or NVM
- **/
-static void e1000_put_hw_semaphore_i210(struct e1000_hw *hw)
-{
-	u32 swsm;
-
-	DEBUGFUNC("e1000_put_hw_semaphore_i210");
-
-	swsm = E1000_READ_REG(hw, E1000_SWSM);
-
-	swsm &= ~E1000_SWSM_SWESMBI;
-
-	E1000_WRITE_REG(hw, E1000_SWSM, swsm);
+	return E1000_SUCCESS;
 }
 
 /**
@@ -364,8 +376,8 @@ out:
  *
  *  Wrapper function to return data formerly found in the NVM.
  **/
-static s32 e1000_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
-			       u16 *data)
+static s32 e1000_read_nvm_i211(struct e1000_hw *hw, u16 offset,
+			       u16 words, u16 *data)
 {
 	s32 ret_val = E1000_SUCCESS;
 
@@ -380,15 +392,40 @@ static s32 e1000_read_nvm_i211(struct e1000_hw *hw, u16 offset, u16 words,
 		if (ret_val != E1000_SUCCESS)
 			DEBUGOUT("MAC Addr not found in iNVM\n");
 		break;
-	case NVM_ID_LED_SETTINGS:
 	case NVM_INIT_CTRL_2:
-	case NVM_INIT_CTRL_4:
-	case NVM_LED_1_CFG:
-	case NVM_LED_0_2_CFG:
-		e1000_read_invm_i211(hw, (u8)offset, data);
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_2_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
 		break;
-	case NVM_COMPAT:
-		*data = ID_LED_DEFAULT_I210;
+	case NVM_INIT_CTRL_4:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_INIT_CTRL_4_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_LED_1_CFG:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_1_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_LED_0_2_CFG:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = NVM_LED_0_2_CFG_DEFAULT_I211;
+			ret_val = E1000_SUCCESS;
+		}
+		break;
+	case NVM_ID_LED_SETTINGS:
+		ret_val = e1000_read_invm_i211(hw, (u8)offset, data);
+		if (ret_val != E1000_SUCCESS) {
+			*data = ID_LED_RESERVED_FFFF;
+			ret_val = E1000_SUCCESS;
+		}
 		break;
 	case NVM_SUB_DEV_ID:
 		*data = hw->subsystem_device_id;
@@ -555,26 +592,6 @@ out:
 }
 
 /**
- *  e1000_get_flash_presence_i210 - Check if flash device is detected.
- *  @hw: pointer to the HW structure
- *
- **/
-static bool e1000_get_flash_presence_i210(struct e1000_hw *hw)
-{
-	u32 eec = 0;
-	bool ret_val = FALSE;
-
-	DEBUGFUNC("e1000_get_flash_presence_i210");
-
-	eec = E1000_READ_REG(hw, E1000_EECD);
-
-	if (eec & E1000_EECD_FLASH_DETECTED_I210)
-		ret_val = TRUE;
-
-	return ret_val;
-}
-
-/**
  *  e1000_update_flash_i210 - Commit EEPROM to the flash
  *  @hw: pointer to the HW structure
  *
@@ -690,10 +707,7 @@ void e1000_init_function_pointers_i210(struct e1000_hw *hw)
 
 	switch (hw->mac.type) {
 	case e1000_i210:
-		if (e1000_get_flash_presence_i210(hw))
-			hw->nvm.ops.init_params = e1000_init_nvm_params_i210;
-		else
-			hw->nvm.ops.init_params = e1000_init_nvm_params_i211;
+		hw->nvm.ops.init_params = e1000_init_nvm_params_i210;
 		break;
 	case e1000_i211:
 		hw->nvm.ops.init_params = e1000_init_nvm_params_i211;

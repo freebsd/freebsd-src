@@ -192,7 +192,7 @@ labels(void)
 }
 
 void
-display()
+display(void)
 {
 	int i, j;
 

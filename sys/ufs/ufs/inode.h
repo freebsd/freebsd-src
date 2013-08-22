@@ -151,10 +151,6 @@ struct inode {
 		(ip)->i_din2->d##field = (val); \
 	} while (0)
 
-#define	MAXSYMLINKLEN(ip) \
-	((ip)->i_ump->um_fstype == UFS1) ? \
-	((NDADDR + NIADDR) * sizeof(ufs1_daddr_t)) : \
-	((NDADDR + NIADDR) * sizeof(ufs2_daddr_t))
 #define	SHORTLINK(ip) \
 	(((ip)->i_ump->um_fstype == UFS1) ? \
 	(caddr_t)(ip)->i_din1->di_db : (caddr_t)(ip)->i_din2->di_db)

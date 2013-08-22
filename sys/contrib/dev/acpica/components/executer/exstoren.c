@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -269,7 +269,7 @@ AcpiExStoreObjectToObject (
 
         /* Truncate value if we are executing from a 32-bit ACPI table */
 
-        AcpiExTruncateFor32bitTable (DestDesc);
+        (void) AcpiExTruncateFor32bitTable (DestDesc);
         break;
 
     case ACPI_TYPE_STRING:

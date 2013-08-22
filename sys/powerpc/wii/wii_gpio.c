@@ -86,7 +86,7 @@ static device_method_t wiigpio_methods[] = {
 	DEVMETHOD(gpio_pin_set,		wiigpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	wiigpio_pin_toggle),
 
-        { 0, 0 },
+        DEVMETHOD_END
 };
 
 static driver_t wiigpio_driver = {

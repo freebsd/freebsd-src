@@ -100,6 +100,8 @@
     dev
         acpica
         ..
+        agp
+        ..
         an
         ..
         bktr
@@ -136,6 +138,8 @@
         ..
         pbio
         ..
+        pci
+        ..
         powermac_nvram
         ..
         ppbus
@@ -169,8 +173,6 @@
         nfs
         ..
         nullfs
-        ..
-        portalfs
         ..
         procfs
         ..

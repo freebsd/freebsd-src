@@ -580,6 +580,7 @@ smbfs_rename(ap)
 	u_int16_t flags = 6;
 	int error=0;
 
+	scred = NULL;
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
@@ -730,7 +731,7 @@ smbfs_mkdir(ap)
 	*ap->a_vpp = vp;
 out:
 	smbfs_free_scred(scred);
-	return 0;
+	return error;
 }
 
 /*
@@ -1203,13 +1204,20 @@ smbfs_lookup(ap)
 	smb_makescred(scred, td, cnp->cn_cred);
 	fap = &fattr;
 	if (flags & ISDOTDOT) {
-		error = smbfs_smb_lookup(VTOSMB(dnp->n_parent), NULL, 0, fap,
-		    scred);
-		SMBVDEBUG("result of dotdot lookup: %d\n", error);
-	} else {
-		fap = &fattr;
+		/*
+		 * In the DOTDOT case, don't go over-the-wire
+		 * in order to request attributes. We already
+		 * know it's a directory and subsequent call to
+		 * smbfs_getattr() will restore consistency.
+		 *
+		 */
+		SMBVDEBUG("smbfs_smb_lookup: dotdot\n");
+	} else if (isdot) {
+		error = smbfs_smb_lookup(dnp, NULL, 0, fap, scred);
+		SMBVDEBUG("result of smbfs_smb_lookup: %d\n", error);
+	}
+	else {
 		error = smbfs_smb_lookup(dnp, name, nmlen, fap, scred);
-/*		if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.')*/
 		SMBVDEBUG("result of smbfs_smb_lookup: %d\n", error);
 	}
 	if (error && error != ENOENT)

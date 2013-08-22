@@ -74,7 +74,7 @@ static device_method_t acpi_acad_methods[] = {
     DEVMETHOD(device_probe,	acpi_acad_probe),
     DEVMETHOD(device_attach,	acpi_acad_attach),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_acad_driver = {

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/linker.h>
 #include <string.h>
+#define	_MACHINE_ELF_WANT_32BIT
 #include <i386/include/bootinfo.h>
 #include <i386/include/elf.h>
 #include <stand.h>

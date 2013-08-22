@@ -789,7 +789,7 @@ lagg_port_output(struct ifnet *ifp, struct mbuf *m,
 
 	/* drop any other frames */
 	m_freem(m);
-	return (EBUSY);
+	return (ENETDOWN);
 }
 
 static void
@@ -1862,7 +1862,7 @@ lagg_lacp_start(struct lagg_softc *sc, struct mbuf *m)
 	lp = lacp_select_tx_port(sc, m);
 	if (lp == NULL) {
 		m_freem(m);
-		return (EBUSY);
+		return (ENETDOWN);
 	}
 
 	/* Send mbuf */

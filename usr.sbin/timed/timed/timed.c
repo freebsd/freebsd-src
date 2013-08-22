@@ -110,9 +110,7 @@ static void usage(void);
  * overhauled at Silicon Graphics
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int on;
 	int ret;
@@ -434,7 +432,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 #ifdef HAVENIS
 	fprintf(stderr, 
@@ -450,10 +448,7 @@ usage()
  * suppress an upstart, untrustworthy, self-appointed master
  */
 void
-suppress(addr, name,net)
-	struct sockaddr_in *addr;
-	char *name;
-	struct netinfo *net;
+suppress(struct sockaddr_in *addr, char *name, struct netinfo *net)
 {
 	struct sockaddr_in tgt;
 	char tname[MAXHOSTNAMELEN];
@@ -478,8 +473,7 @@ suppress(addr, name,net)
 }
 
 void
-lookformaster(ntp)
-	struct netinfo *ntp;
+lookformaster(struct netinfo *ntp)
 {
 	struct tsp resp, conflict, *answer;
 	struct timeval ntime;
@@ -578,7 +572,7 @@ lookformaster(ntp)
  * networks;
  */
 void
-setstatus()
+setstatus(void)
 {
 	struct netinfo *ntp;
 
@@ -631,8 +625,7 @@ setstatus()
 }
 
 void
-makeslave(net)
-	struct netinfo *net;
+makeslave(struct netinfo *net)
 {
 	register struct netinfo *ntp;
 
@@ -647,7 +640,7 @@ makeslave(net)
  * Try to become master over ignored nets..
  */
 static void
-checkignorednets()
+checkignorednets(void)
 {
 	register struct netinfo *ntp;
 
@@ -669,8 +662,7 @@ checkignorednets()
  *	Take a hint about for a good network.
  */
 static void
-pickslavenet(ntp)
-	struct netinfo *ntp;
+pickslavenet(struct netinfo *ntp)
 {
 	if (slavenet != 0 && slavenet->status == SLAVE) {
 		makeslave(slavenet);		/* prune extras */
@@ -690,8 +682,7 @@ pickslavenet(ntp)
  * returns a random number in the range [inf, sup]
  */
 long
-casual(inf, sup)
-	long inf, sup;
+casual(long inf, long sup)
 {
 	double value;
 
@@ -700,7 +691,7 @@ casual(inf, sup)
 }
 
 char *
-date()
+date(void)
 {
 	time_t	tv_sec;
 
@@ -709,8 +700,7 @@ date()
 }
 
 void
-addnetname(name)
-	char *name;
+addnetname(char *name)
 {
 	register struct nets **netlist = &nets;
 
@@ -723,11 +713,11 @@ addnetname(name)
 	(*netlist)->name = name;
 }
 
-/* note a host as trustworthy */
+/* note a host as trustworthy
+ * perm		1=not part of the netgroup
+ */
 static void
-add_good_host(name, perm)
-	char *name;
-	int perm;			/* 1=not part of the netgroup */
+add_good_host(char *name, int perm)
 {
 	register struct goodhost *ghp;
 	register struct hostent *hentp;
@@ -753,8 +743,7 @@ add_good_host(name, perm)
 /* update our image of the net-group of trustworthy hosts
  */
 void
-get_goodgroup(force)
-	int force;
+get_goodgroup(int force)
 {
 # define NG_DELAY (30*60*CLK_TCK)	/* 30 minutes */
 	static unsigned long last_update = -NG_DELAY;
@@ -822,8 +811,7 @@ get_goodgroup(force)
 /* see if a machine is trustworthy
  */
 int					/* 1=trust hp to change our date */
-good_host_name(name)
-	char *name;
+good_host_name(char *name)
 {
 	register struct goodhost *ghp = goodhosts;
 	register char c;

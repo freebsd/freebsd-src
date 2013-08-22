@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2011
+.Dd February 18, 2013
 .Dt ELF_GETDATA 3
 .Os
 .Sh NAME
@@ -186,6 +186,23 @@ was not associated with section descriptor
 .Ar scn .
 .It Bq Er ELF_E_RESOURCE
 An out of memory condition was detected.
+.It Bq Er ELF_E_SECTION
+Section
+.Ar scn
+had type
+.Dv SHT_NULL .
+.It Bq Er ELF_E_SECTION
+The type of the section
+.Ar scn
+was not recognized by the library.
+.It Bq Er ELF_E_SECTION
+The size of the section
+.Ar scn
+is not a multiple of the file size for its section type.
+.It Bq Er ELF_E_SECTION
+The file offset for section
+.Ar scn
+is incorrect.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,

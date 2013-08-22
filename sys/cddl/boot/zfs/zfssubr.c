@@ -119,6 +119,7 @@ typedef struct zio_compress_info {
 
 #include "lzjb.c"
 #include "zle.c"
+#include "lz4.c"
 
 /*
  * Compression vectors.
@@ -139,6 +140,7 @@ static zio_compress_info_t zio_compress_table[ZIO_COMPRESS_FUNCTIONS] = {
 	{NULL,			NULL,			8,	"gzip-8"},
 	{NULL,			NULL,			9,	"gzip-9"},
 	{NULL,			zle_decompress,		64,	"zle"},
+	{NULL,			lz4_decompress,		0,	"lz4"},
 };
 
 static void

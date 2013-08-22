@@ -290,7 +290,7 @@ list_bars(int fd, struct pci_conf *p)
 		}
 		printf("    bar   [%02x] = type %s, range %2d, base %#jx, ",
 		    PCIR_BAR(i), type, range, (uintmax_t)base);
-		printf("size %2d, %s\n", (int)bar.pbi_length,
+		printf("size %ju, %s\n", (uintmax_t)bar.pbi_length,
 		    bar.pbi_enabled ? "enabled" : "disabled");
 	}
 }

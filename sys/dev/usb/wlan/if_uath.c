@@ -358,28 +358,28 @@ uath_attach(device_t dev)
 	callout_init(&sc->stat_ch, 0);
 	callout_init_mtx(&sc->watchdog_ch, &sc->sc_mtx, 0);
 
-	/*
-	 * Allocate xfers for firmware commands.
-	 */
-	error = uath_alloc_cmd_list(sc, sc->sc_cmd);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not allocate Tx command list\n");
-		goto fail;
-	}
-
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    uath_usbconfig, UATH_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
 		    "err=%s\n", usbd_errstr(error));
-		goto fail1;
+		goto fail;
 	}
 
 	sc->sc_cmd_dma_buf = 
 	    usbd_xfer_get_frame_buffer(sc->sc_xfer[UATH_INTR_TX], 0);
 	sc->sc_tx_dma_buf = 
 	    usbd_xfer_get_frame_buffer(sc->sc_xfer[UATH_BULK_TX], 0);
+
+	/*
+	 * Setup buffers for firmware commands.
+	 */
+	error = uath_alloc_cmd_list(sc, sc->sc_cmd);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "could not allocate Tx command list\n");
+		goto fail1;
+	}
 
 	/*
 	 * We're now ready to send+receive firmware commands.
@@ -492,8 +492,8 @@ uath_attach(device_t dev)
 
 fail4:	if_free(ifp);
 fail3:	UATH_UNLOCK(sc);
-fail2:	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
-fail1:	uath_free_cmd_list(sc, sc->sc_cmd);
+fail2:	uath_free_cmd_list(sc, sc->sc_cmd);
+fail1:	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
 fail:
 	return (error);
 }
@@ -504,29 +504,48 @@ uath_detach(device_t dev)
 	struct uath_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+	unsigned int x;
 
-	if (!device_is_attached(dev))
-		return (0);
-
+	/*
+	 * Prevent further allocations from RX/TX/CMD
+	 * data lists and ioctls
+	 */
 	UATH_LOCK(sc);
 	sc->sc_flags |= UATH_FLAG_INVALID;
+
+	STAILQ_INIT(&sc->sc_rx_active);
+	STAILQ_INIT(&sc->sc_rx_inactive);
+
+	STAILQ_INIT(&sc->sc_tx_active);
+	STAILQ_INIT(&sc->sc_tx_inactive);
+	STAILQ_INIT(&sc->sc_tx_pending);
+
+	STAILQ_INIT(&sc->sc_cmd_active);
+	STAILQ_INIT(&sc->sc_cmd_pending);
+	STAILQ_INIT(&sc->sc_cmd_waiting);
+	STAILQ_INIT(&sc->sc_cmd_inactive);
 	UATH_UNLOCK(sc);
 
-	ieee80211_ifdetach(ic);
 	uath_stop(ifp);
 
 	callout_drain(&sc->stat_ch);
 	callout_drain(&sc->watchdog_ch);
 
-	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
+	/* drain USB transfers */
+	for (x = 0; x != UATH_N_XFERS; x++)
+		usbd_transfer_drain(sc->sc_xfer[x]);
 
-	/* free buffers */
+	/* free data buffers */
 	UATH_LOCK(sc);
 	uath_free_rx_data_list(sc);
 	uath_free_tx_data_list(sc);
 	uath_free_cmd_list(sc, sc->sc_cmd);
 	UATH_UNLOCK(sc);
 
+	/* free USB transfers and some data buffers */
+	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
+
+	ieee80211_ifdetach(ic);
 	if_free(ifp);
 	mtx_destroy(&sc->sc_mtx);
 	return (0);
@@ -934,10 +953,10 @@ uath_free_data_list(struct uath_softc *sc, struct uath_data data[], int ndata,
 		} else {
 			dp->buf = NULL;
 		}
-#ifdef UATH_DEBUG
-		if (dp->ni != NULL)
-			device_printf(sc->sc_dev, "Node isn't NULL\n");
-#endif
+		if (dp->ni != NULL) {
+			ieee80211_free_node(dp->ni);
+			dp->ni = NULL;
+		}
 	}
 }
 
@@ -1025,10 +1044,6 @@ uath_alloc_tx_data_list(struct uath_softc *sc)
 static void
 uath_free_rx_data_list(struct uath_softc *sc)
 {
-
-	STAILQ_INIT(&sc->sc_rx_active);
-	STAILQ_INIT(&sc->sc_rx_inactive);
-
 	uath_free_data_list(sc, sc->sc_rx, UATH_RX_DATA_LIST_COUNT,
 	    1 /* free mbufs */);
 }
@@ -1036,11 +1051,6 @@ uath_free_rx_data_list(struct uath_softc *sc)
 static void
 uath_free_tx_data_list(struct uath_softc *sc)
 {
-
-	STAILQ_INIT(&sc->sc_tx_active);
-	STAILQ_INIT(&sc->sc_tx_inactive);
-	STAILQ_INIT(&sc->sc_tx_pending);
-
 	uath_free_data_list(sc, sc->sc_tx, UATH_TX_DATA_LIST_COUNT,
 	    0 /* no mbufs */);
 }
@@ -1543,7 +1553,15 @@ uath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int error = 0, startall = 0;
+	struct uath_softc *sc = ifp->if_softc;
+	int error;
+	int startall = 0;
+
+	UATH_LOCK(sc);
+	error = (sc->sc_flags & UATH_FLAG_INVALID) ? ENXIO : 0;
+	UATH_UNLOCK(sc);
+	if (error)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -2436,11 +2454,8 @@ uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	UATH_ASSERT_LOCKED(sc);
 
-	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_TRANSFERRED:
-		cmd = STAILQ_FIRST(&sc->sc_cmd_active);
-		if (cmd == NULL)
-			goto setup;
+	cmd = STAILQ_FIRST(&sc->sc_cmd_active);
+	if (cmd != NULL && USB_GET_STATE(xfer) != USB_ST_SETUP) {
 		STAILQ_REMOVE_HEAD(&sc->sc_cmd_active, next);
 		UATH_STAT_DEC(sc, st_cmd_active);
 		STAILQ_INSERT_TAIL((cmd->flags & UATH_CMD_FLAG_READ) ?
@@ -2449,7 +2464,10 @@ uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 			UATH_STAT_INC(sc, st_cmd_waiting);
 		else
 			UATH_STAT_INC(sc, st_cmd_inactive);
-		/* FALLTHROUGH */
+	}
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 setup:
 		cmd = STAILQ_FIRST(&sc->sc_cmd_pending);

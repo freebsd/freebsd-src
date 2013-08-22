@@ -181,6 +181,15 @@ NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
 
+#
+# install(1) parameters.
+#
+HRDLINK?=	-l h
+SYMLINK?=	-l s
+
+INSTALL_LINK?=		${INSTALL} ${HRDLINK}
+INSTALL_SYMLINK?=	${INSTALL} ${SYMLINK}
+
 # Common variables
 .if !defined(DEBUG_FLAGS)
 STRIP?=		-s
@@ -214,80 +223,6 @@ COMPRESS_EXT?=	.gz
 WITHOUT_${var}=
 .endif
 .endfor
-
-#
-# Compat NO_* options (same as above, except their use is deprecated).
-#
-.if !defined(BURN_BRIDGES)
-.for var in \
-    ACPI \
-    ATM \
-    AUDIT \
-    AUTHPF \
-    BIND \
-    BIND_DNSSEC \
-    BIND_ETC \
-    BIND_LIBS_LWRES \
-    BIND_MTREE \
-    BIND_NAMED \
-    BIND_UTILS \
-    BLUETOOTH \
-    BOOT \
-    CALENDAR \
-    CPP \
-    CRYPT \
-    CVS \
-    CXX \
-    DICT \
-    DYNAMICROOT \
-    EXAMPLES \
-    FORTH \
-    FP_LIBC \
-    GAMES \
-    GCOV \
-    GDB \
-    GNU \
-    GPIB \
-    GROFF \
-    HTML \
-    INET6 \
-    INFO \
-    IPFILTER \
-    IPX \
-    KDUMP \
-    KERBEROS \
-    LIB32 \
-    LIBPTHREAD \
-    LIBTHR \
-    LOCALES \
-    LPR \
-    MAILWRAPPER \
-    NETCAT \
-    NIS \
-    NLS \
-    NLS_CATALOGS \
-    NS_CACHING \
-    OPENSSH \
-    OPENSSL \
-    PAM \
-    PF \
-    RCMDS \
-    RCS \
-    RESCUE \
-    SENDMAIL \
-    SETUID_LOGIN \
-    SHAREDOCS \
-    SYSCONS \
-    TCSH \
-    TOOLCHAIN \
-    USB \
-    WPA_SUPPLICANT_EAPOL
-.if defined(NO_${var})
-#.warning NO_${var} is deprecated in favour of WITHOUT_${var}=
-WITHOUT_${var}=
-.endif
-.endfor
-.endif # !defined(BURN_BRIDGES)
 
 #
 # Older-style variables that enabled behaviour when set.
@@ -360,6 +295,7 @@ __DEFAULT_YES_OPTIONS = \
     KERBEROS \
     KERNEL_SYMBOLS \
     KVM \
+    LDNS \
     LEGACY_CONSOLE \
     LIB32 \
     LIBPTHREAD \
@@ -383,6 +319,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSH \
     OPENSSL \
     PAM \
+    PC_SYSINSTALL \
     PF \
     PKGBOOTSTRAP \
     PKGTOOLS \
@@ -417,6 +354,8 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
+    ARM_EABI \
+    BSD_PATCH \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
@@ -427,13 +366,16 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
+    GPL_DTC \
     HESIOD \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
+    LDNS_UTILS \
     NMTREE \
     NAND \
     OFED \
+    OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN
 
 #
@@ -449,11 +391,15 @@ __T=${TARGET_ARCH}
 .else
 __T=${MACHINE_ARCH}
 .endif
-# Clang is only for x86 and powerpc right now, by default.
+# Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
+.elif ${__T} == "arm" || ${__T} == "armv6"
 __DEFAULT_YES_OPTIONS+=CLANG
+# GCC is unable to build the full clang on arm, disable it by default.
+__DEFAULT_NO_OPTIONS+=CLANG_FULL
 .else
-__DEFAULT_NO_OPTIONS+=CLANG
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
 # Clang the default system compiler only on x86.
 .if ${__T} == "amd64" || ${__T} == "i386"
@@ -527,6 +473,14 @@ MK_BIND_NAMED:=	no
 MK_BIND_UTILS:=	no
 .endif
 
+.if ${MK_LDNS} == "no"
+MK_LDNS_UTILS:=	no
+.endif
+
+.if ${MK_LDNS_UTILS} != "no"
+MK_BIND_UTILS:=	no
+.endif
+
 .if ${MK_BIND_MTREE} == "no"
 MK_BIND_ETC:=	no
 .endif
@@ -539,10 +493,6 @@ MK_SOURCELESS_UCODE:= no
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
 MK_CTF:=	no
-.endif
-
-.if ${MK_CLANG} == "no"
-MK_CLANG_EXTRAS:= no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -587,6 +537,8 @@ MK_GDB:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
+MK_CLANG_EXTRAS:= no
+MK_CLANG_FULL:= no
 MK_CLANG_IS_CC:= no
 .endif
 

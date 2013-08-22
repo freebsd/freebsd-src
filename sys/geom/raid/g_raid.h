@@ -140,11 +140,12 @@ struct g_raid_event {
 };
 #define G_RAID_DISK_S_NONE		0x00	/* State is unknown. */
 #define G_RAID_DISK_S_OFFLINE		0x01	/* Missing disk placeholder. */
-#define G_RAID_DISK_S_FAILED		0x02	/* Failed. */
-#define G_RAID_DISK_S_STALE_FAILED	0x03	/* Old failed. */
-#define G_RAID_DISK_S_SPARE		0x04	/* Hot-spare. */
-#define G_RAID_DISK_S_STALE		0x05	/* Old disk, unused now. */
-#define G_RAID_DISK_S_ACTIVE		0x06	/* Operational. */
+#define G_RAID_DISK_S_DISABLED		0x02	/* Disabled. */
+#define G_RAID_DISK_S_FAILED		0x03	/* Failed. */
+#define G_RAID_DISK_S_STALE_FAILED	0x04	/* Old failed. */
+#define G_RAID_DISK_S_SPARE		0x05	/* Hot-spare. */
+#define G_RAID_DISK_S_STALE		0x06	/* Old disk, unused now. */
+#define G_RAID_DISK_S_ACTIVE		0x07	/* Operational. */
 
 #define G_RAID_DISK_E_DISCONNECTED	0x01
 

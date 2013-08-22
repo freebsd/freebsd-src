@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2012
+.Dd February 8, 2013
 .Dt SETFACL 1
 .Os
 .Sh NAME
@@ -91,10 +91,16 @@ An error will be reported if any of
 the specified files cannot have a default entry (i.e.\&
 non-directories).  This option is not applicable to NFSv4 ACLs.
 .It Fl m Ar entries
-Modify the ACL entries on the specified files by adding new
-entries and modifying existing ACL entries with the ACL entries
-specified in
-.Ar entries .
+Modify the ACL on the specified file.
+New entries will be added, and existing entries will be modified
+according to the
+.Ar entries
+argument.
+For NFSv4 ACLs, it is recommended to use the
+.Fl a
+and
+.Fl x
+options instead.
 .It Fl M Ar file
 Modify the ACL entries on the specified files by adding new
 ACL entries and modifying existing ACL entries with the ACL
@@ -319,9 +325,9 @@ write_data
 execute
 .It p
 append_data
-.It d
-delete_child
 .It D
+delete_child
+.It d
 delete
 .It a
 read_attributes

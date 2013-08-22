@@ -692,11 +692,10 @@ rarp_process(struct if_info *ii, u_char *pkt, u_int len)
  * host (i.e. the guy running rarpd), won't try to ARP for the hardware
  * address of the guy being booted (he cannot answer the ARP).
  */
-struct sockaddr_inarp sin_inarp = {
-	sizeof(struct sockaddr_inarp), AF_INET, 0,
+struct sockaddr_in sin_inarp = {
+	sizeof(struct sockaddr_in), AF_INET, 0,
 	{0},
 	{0},
-	0, 0
 };
 struct sockaddr_dl sin_dl = {
 	sizeof(struct sockaddr_dl), AF_LINK, 0, IFT_ETHER, 0, 6,
@@ -712,7 +711,7 @@ update_arptab(u_char *ep, in_addr_t ipaddr)
 {
 	struct timespec tp;
 	int cc;
-	struct sockaddr_inarp *ar, *ar2;
+	struct sockaddr_in *ar, *ar2;
 	struct sockaddr_dl *ll, *ll2;
 	struct rt_msghdr *rt;
 	int xtype, xindex;
@@ -740,7 +739,7 @@ update_arptab(u_char *ep, in_addr_t ipaddr)
 	rt->rtm_addrs = RTA_DST;
 	rt->rtm_type = RTM_GET;
 	rt->rtm_seq = ++seq;
-	ar2 = (struct sockaddr_inarp *)rtmsg.rtspace;
+	ar2 = (struct sockaddr_in *)rtmsg.rtspace;
 	bcopy(ar, ar2, sizeof(*ar));
 	rt->rtm_msglen = sizeof(*rt) + sizeof(*ar);
 	errno = 0;

@@ -231,7 +231,8 @@ static device_method_t cs4231_sbus_methods[] = {
 	DEVMETHOD(device_detach,	cs4231_bus_detach),
 	DEVMETHOD(device_suspend,	cs4231_bus_suspend),
 	DEVMETHOD(device_resume,	cs4231_bus_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t cs4231_sbus_driver = {
@@ -249,7 +250,8 @@ static device_method_t cs4231_ebus_methods[] = {
 	DEVMETHOD(device_detach,	cs4231_bus_detach),
 	DEVMETHOD(device_suspend,	cs4231_bus_suspend),
 	DEVMETHOD(device_resume,	cs4231_bus_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t cs4231_ebus_driver = {

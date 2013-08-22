@@ -8,12 +8,26 @@ CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 		-DLLVM_ON_UNIX -DLLVM_ON_FREEBSD \
 		-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
+.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+CFLAGS+=	-DCLANG_ENABLE_ARCMT \
+		-DCLANG_ENABLE_REWRITER \
+		-DCLANG_ENABLE_STATIC_ANALYZER
+.endif # !EARLY_BUILD && MK_CLANG_FULL
+
 # LLVM is not strict aliasing safe as of 12/31/2011
 CFLAGS+=	-fno-strict-aliasing
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd10.0
+
+.if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
+    ${MK_ARM_EABI} != "no"
+TARGET_ABI=	gnueabi
+.else
+TARGET_ABI=	unknown
+.endif
+
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd10.0
 BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd10.0
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOSTTRIPLE=\"${BUILD_TRIPLE}\" \

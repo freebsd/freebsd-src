@@ -384,14 +384,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 	 */
 
 	/*
-	 * For now the HAL doesn't implement halNumTxMaps for non-EDMA
-	 * (ie it's 0.)  So just work around it.
-	 *
-	 * XXX TODO: populate halNumTxMaps for each HAL chip and
-	 * then undo this hack.
+	 * We need the number of TX data pointers in each descriptor.
+	 * EDMA and later chips support 4 TX buffers per descriptor;
+	 * previous chips just support one.
 	 */
-	if (sc->sc_ah->ah_magic == 0x19741014)
-		numTxMaps = 4;
+	numTxMaps = sc->sc_tx_nmaps;
 
 	/*
 	 * For EDMA and later chips ensure the TX map is fully populated
@@ -473,11 +470,6 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
 			    bf->bf_state.bfs_ndelim);
 		}
 		isFirstDesc = 0;
-#ifdef	ATH_DEBUG
-		if (sc->sc_debug & ATH_DEBUG_XMIT)
-			ath_printtxbuf(sc, bf, bf->bf_state.bfs_tx_queue,
-			    0, 0);
-#endif
 		bf->bf_lastds = (struct ath_desc *) ds;
 
 		/*
@@ -1393,12 +1385,13 @@ static void
 ath_tx_update_clrdmask(struct ath_softc *sc, struct ath_tid *tid,
     struct ath_buf *bf)
 {
+	struct ath_node *an = ATH_NODE(bf->bf_node);
 
 	ATH_TX_LOCK_ASSERT(sc);
 
-	if (tid->clrdmask == 1) {
+	if (an->clrdmask == 1) {
 		bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
-		tid->clrdmask = 0;
+		an->clrdmask = 0;
 	}
 }
 
@@ -2884,6 +2877,29 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 }
 
 /*
+ * Only set the clrdmask bit if none of the nodes are currently
+ * filtered.
+ *
+ * XXX TODO: go through all the callers and check to see
+ * which are being called in the context of looping over all
+ * TIDs (eg, if all tids are being paused, resumed, etc.)
+ * That'll avoid O(n^2) complexity here.
+ */
+static void
+ath_tx_set_clrdmask(struct ath_softc *sc, struct ath_node *an)
+{
+	int i;
+
+	ATH_TX_LOCK_ASSERT(sc);
+
+	for (i = 0; i < IEEE80211_TID_SIZE; i++) {
+		if (an->an_tid[i].isfiltered == 1)
+			return;
+	}
+	an->clrdmask = 1;
+}
+
+/*
  * Configure the per-TID node state.
  *
  * This likely belongs in if_ath_node.c but I can't think of anywhere
@@ -2914,12 +2930,12 @@ ath_tx_tid_init(struct ath_softc *sc, struct ath_node *an)
 		atid->sched = 0;
 		atid->hwq_depth = 0;
 		atid->cleanup_inprogress = 0;
-		atid->clrdmask = 1;	/* Always start by setting this bit */
 		if (i == IEEE80211_NONQOS_TID)
 			atid->ac = ATH_NONQOS_TID_AC;
 		else
 			atid->ac = TID_TO_WME_AC(i);
 	}
+	an->clrdmask = 1;	/* Always start by setting this bit */
 }
 
 /*
@@ -2945,7 +2961,6 @@ ath_tx_tid_pause(struct ath_softc *sc, struct ath_tid *tid)
 static void
 ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 {
-
 	ATH_TX_LOCK_ASSERT(sc);
 
 	tid->paused--;
@@ -2960,7 +2975,7 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	 * Override the clrdmask configuration for the next frame
 	 * from this TID, just to get the ball rolling.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	if (tid->axq_depth == 0)
 		return;
@@ -2972,9 +2987,11 @@ ath_tx_tid_resume(struct ath_softc *sc, struct ath_tid *tid)
 	}
 
 	ath_tx_tid_sched(sc, tid);
-	/* Punt some frames to the hardware if needed */
-	//ath_txq_sched(sc, sc->sc_ac2q[tid->ac]);
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+
+	/*
+	 * Queue the software TX scheduler.
+	 */
+	ath_tx_swq_kick(sc);
 }
 
 /*
@@ -3043,7 +3060,8 @@ ath_tx_tid_filt_comp_complete(struct ath_softc *sc, struct ath_tid *tid)
 	DPRINTF(sc, ATH_DEBUG_SW_TX_FILT, "%s: hwq=0, transition back\n",
 	    __func__);
 	tid->isfiltered = 0;
-	tid->clrdmask = 1;
+	/* XXX ath_tx_tid_resume() also calls ath_tx_set_clrdmask()! */
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/* XXX this is really quite inefficient */
 	while ((bf = ATH_TID_FILT_LAST(tid, ath_bufhead_s)) != NULL) {
@@ -3128,7 +3146,7 @@ ath_tx_tid_filt_comp_aggr(struct ath_softc *sc, struct ath_tid *tid,
 		 * Don't allow a filtered frame to live forever.
 		 */
 		if (bf->bf_state.bfs_retries > SWMAX_RETRIES) {
-		sc->sc_stats.ast_tx_swretrymax++;
+			sc->sc_stats.ast_tx_swretrymax++;
 			DPRINTF(sc, ATH_DEBUG_SW_TX_FILT,
 			    "%s: bf=%p, seqno=%d, exceeded retries\n",
 			    __func__,
@@ -3299,7 +3317,7 @@ ath_tx_tid_bar_tx(struct ath_softc *sc, struct ath_tid *tid)
 	 * Override the clrdmask configuration for the next frame,
 	 * just to get the ball rolling.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/*
 	 * Calculate new BAW left edge, now that all frames have either
@@ -3352,6 +3370,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			ath_tx_update_baw(sc, an, tid, bf);
 			bf->bf_state.bfs_dobaw = 0;
 		}
+#if 0
 		/*
 		 * This has become a non-fatal error now
 		 */
@@ -3359,6 +3378,7 @@ ath_tx_tid_drain_pkt(struct ath_softc *sc, struct ath_node *an,
 			device_printf(sc->sc_dev,
 			    "%s: wasn't added: seqno %d\n",
 			    __func__, SEQNO(bf->bf_state.bfs_seqno));
+#endif
 	}
 	TAILQ_INSERT_TAIL(bf_cq, bf, bf_list);
 }
@@ -3480,7 +3500,7 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an,
 	 *
 	 * This won't hurt things if the TID is about to be freed.
 	 */
-	tid->clrdmask = 1;
+	ath_tx_set_clrdmask(sc, tid->an);
 
 	/*
 	 * Now that it's completed, grab the TID lock and update
@@ -3734,7 +3754,6 @@ ath_tx_tid_cleanup(struct ath_softc *sc, struct ath_node *an, int tid)
 		if (bf->bf_state.bfs_isretried) {
 			bf_next = TAILQ_NEXT(bf, bf_list);
 			ATH_TID_REMOVE(atid, bf, bf_list);
-			atid->axq_depth--;
 			if (bf->bf_state.bfs_dobaw) {
 				ath_tx_update_baw(sc, an, atid, bf);
 				if (! bf->bf_state.bfs_addedbaw)
@@ -4117,11 +4136,10 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 	int tid = bf_first->bf_state.bfs_tid;
 	struct ath_tid *atid = &an->an_tid[tid];
 
-	bf = bf_first;
-
 	ATH_TX_LOCK(sc);
 
 	/* update incomp */
+	bf = bf_first;
 	while (bf) {
 		atid->incomp--;
 		bf = bf->bf_next;
@@ -4137,12 +4155,17 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 	/* Send BAR if required */
 	/* XXX why would we send a BAR when transitioning to non-aggregation? */
+	/*
+	 * XXX TODO: we should likely just tear down the BAR state here,
+	 * rather than sending a BAR.
+	 */
 	if (ath_tx_tid_bar_tx_ready(sc, atid))
 		ath_tx_tid_bar_tx(sc, atid);
 
 	ATH_TX_UNLOCK(sc);
 
 	/* Handle frame completion */
+	bf = bf_first;
 	while (bf) {
 		bf_next = bf->bf_next;
 		ath_tx_default_comp(sc, bf, 1);
@@ -4152,8 +4175,6 @@ ath_tx_comp_cleanup_aggr(struct ath_softc *sc, struct ath_buf *bf_first)
 
 /*
  * Handle completion of an set of aggregate frames.
- *
- * XXX for now, simply complete each sub-frame.
  *
  * Note: the completion handler is the last descriptor in the aggregate,
  * not the last descriptor in the first frame.
@@ -4317,12 +4338,23 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	    __func__, tap->txa_start, tx_ok, ts.ts_status, ts.ts_flags,
 	    isaggr, seq_st, hasba, ba[0], ba[1]);
 
+	/*
+	 * The reference driver doesn't do this; it simply ignores
+	 * this check in its entirety.
+	 *
+	 * I've seen this occur when using iperf to send traffic
+	 * out tid 1 - the aggregate frames are all marked as TID 1,
+	 * but the TXSTATUS has TID=0.  So, let's just ignore this
+	 * check.
+	 */
+#if 0
 	/* Occasionally, the MAC sends a tx status for the wrong TID. */
 	if (tid != ts.ts_tid) {
 		device_printf(sc->sc_dev, "%s: tid %d != hw tid %d\n",
 		    __func__, tid, ts.ts_tid);
 		tx_ok = 0;
 	}
+#endif
 
 	/* AR5416 BA bug; this requires an interface reset */
 	if (isaggr && tx_ok && (! hasba)) {

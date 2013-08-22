@@ -231,6 +231,7 @@ struct mps_command {
 #define MPS_CM_FLAGS_SMP_PASS		(1 << 8)
 #define	MPS_CM_FLAGS_CHAIN_FAILED	(1 << 9)
 #define	MPS_CM_FLAGS_ERROR_MASK		MPS_CM_FLAGS_CHAIN_FAILED
+#define	MPS_CM_FLAGS_USE_CCB		(1 << 10)
 	u_int				cm_state;
 #define MPS_CM_STATE_FREE		0
 #define MPS_CM_STATE_BUSY		1

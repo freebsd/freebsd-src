@@ -29,6 +29,7 @@ ENTRY_NP(__umodsi3)
 	add	sp, sp, #4	/* unalign stack */
 	mov	r0, r1
 	ldmfd	sp!, {pc}
+END(__umodsi3)
 
 ENTRY_NP(__modsi3)
 	stmfd	sp!, {lr}
@@ -48,7 +49,12 @@ ENTRY_NP(__modsi3)
 	mvn	r0, #0
 #endif
 	RET
+END(__modsi3)
 
+#ifdef __ARM_EABI__
+ENTRY_NP(__aeabi_uidiv)
+ENTRY_NP(__aeabi_uidivmod)
+#endif
 ENTRY_NP(__udivsi3)
 .L_udivide:				/* r0 = r0 / r1; r1 = r0 % r1 */
 	eor     r0, r1, r0 
@@ -70,7 +76,16 @@ ENTRY_NP(__udivsi3)
 	mov	r0, r1
 	mov	r1, #0
 	RET
+#ifdef __ARM_EABI__
+END(__aeabi_uidiv)
+END(__aeabi_uidivmod)
+#endif
+END(__udivsi3)
 
+#ifdef __ARM_EABI__
+ENTRY_NP(__aeabi_idiv)
+ENTRY_NP(__aeabi_idivmod)
+#endif
 ENTRY_NP(__divsi3)
 .L_divide:				/* r0 = r0 / r1; r1 = r0 % r1 */
 	eor     r0, r1, r0 
@@ -385,3 +400,9 @@ ENTRY_NP(__divsi3)
 	addhs	r3, r3, r2
 	mov	r0, r3
 	RET
+#ifdef __ARM_EABI__
+END(__aeabi_idiv)
+END(__aeabi_idivmod)
+#endif
+END(__divsi3)
+

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2012
+.Dd March 18, 2013
 .Dt PSM 4
 .Os
 .Sh NAME
@@ -339,6 +339,12 @@ at boot-time.
 This will enable
 .Nm
 to handle packets from guest devices (sticks) and extra buttons.
+Similarly, extended support for IBM/Lenovo TrackPoint can be enabled
+by setting
+.Va hw.psm.trackpoint_support
+to
+.Em 1
+at boot-time.
 .Pp
 Tap and drag gestures can be disabled by setting
 .Va hw.psm.tap_enabled
@@ -832,8 +838,8 @@ In contrast, some pad products, e.g.\& some versions of ALPS GlidePoint
 and Interlink VersaPad, treat the tapping action
 as fourth button events.
 .Pp
-It is reported that ALPS GlidePoint, Synaptics Touchpad, and
-Interlink VersaPad require
+It is reported that ALPS GlidePoint, Synaptics Touchpad, IBM/Lenovo
+TrackPoint, and Interlink VersaPad require
 .Em INITAFTERSUSPEND
 flag in order to recover from suspended state.
 This flag is automatically set when one of these devices is detected by the

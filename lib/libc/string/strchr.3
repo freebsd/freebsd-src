@@ -32,11 +32,11 @@
 .\"     @(#)strchr.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd February 13, 2013
 .Dt STRCHR 3
 .Os
 .Sh NAME
-.Nm strchr , strrchr
+.Nm strchr , strrchr , strchrnul
 .Nd locate character in string
 .Sh LIBRARY
 .Lb libc
@@ -46,6 +46,8 @@
 .Fn strchr "const char *s" "int c"
 .Ft "char *"
 .Fn strrchr "const char *s" "int c"
+.Ft "char *"
+.Fn strchrnul "const char *s" "int c"
 .Sh DESCRIPTION
 The
 .Fn strchr
@@ -69,6 +71,18 @@ function is identical to
 .Fn strchr
 except it locates the last occurrence of
 .Fa c .
+.Pp
+The
+.Fn strchrnul
+function is identical to
+.Fn strchr
+except that if
+.Fa c
+is not found in
+.Fa s
+a pointer to the terminating
+.Ql \e0
+is returned.
 .Sh RETURN VALUES
 The functions
 .Fn strchr
@@ -76,6 +90,11 @@ and
 .Fn strrchr
 return a pointer to the located character, or
 .Dv NULL
+if the character does not appear in the string.
+.Pp
+.Fn strchrnul
+returns a pointer to the terminating
+.Ql \e0
 if the character does not appear in the string.
 .Sh SEE ALSO
 .Xr memchr 3 ,
@@ -94,3 +113,11 @@ and
 .Fn strrchr
 conform to
 .St -isoC .
+The
+.Fn strchrnul
+is a GNU extension .
+.Sh History
+The
+.Fn strchrnul
+function first appeared in glibc 2.1.1 and was added in
+.Fx 10.0 .

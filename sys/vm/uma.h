@@ -432,24 +432,23 @@ void uma_reclaim(void);
 void uma_set_align(int align);
 
 /*
- * Switches the backing object of a zone
+ * Reserves the maximum KVA space required by the zone and configures the zone
+ * to use a VM_ALLOC_NOOBJ-based backend allocator.
  *
  * Arguments:
  *	zone  The zone to update.
- *	obj   The VM object to use for future allocations.
- *	size  The size of the object to allocate.
+ *	nitems  The upper limit on the number of items that can be allocated.
  *
  * Returns:
- *	0  if kva space can not be allocated
+ *	0  if KVA space can not be allocated
  *	1  if successful
  *
  * Discussion:
- *	A NULL object can be used and uma will allocate one for you.  Setting
- *	the size will limit the amount of memory allocated to this zone.
- *
+ *	When the machine supports a direct map and the zone's items are smaller
+ *	than a page, the zone will use the direct map instead of allocating KVA
+ *	space.
  */
-struct vm_object;
-int uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int size);
+int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
 
 /*
  * Sets a high limit on the number of items allowed in a zone
@@ -521,7 +520,7 @@ void uma_zone_set_zinit(uma_zone_t zone, uma_init zinit);
 void uma_zone_set_zfini(uma_zone_t zone, uma_fini zfini);
 
 /*
- * Replaces the standard page_alloc or obj_alloc functions for this zone
+ * Replaces the standard backend allocator for this zone.
  *
  * Arguments:
  *	zone   The zone whose backend allocator is being changed.

@@ -1124,14 +1124,12 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 	 * provider lock as a point of mutual exclusion to prevent other
 	 * DTrace consumers from disabling this probe.
 	 */
-	if ((p = pfind(probe->ftp_pid)) == NULL) {
-		mutex_exit(&provider->ftp_mtx);
-		return;
-	}
+	if ((p = pfind(probe->ftp_pid)) != NULL) {
 #ifdef __FreeBSD__
-	_PHOLD(p);
-	PROC_UNLOCK(p);
+		_PHOLD(p);
+		PROC_UNLOCK(p);
 #endif
+	}
 
 	/*
 	 * Disable all the associated tracepoints (for fully enabled probes).
@@ -1168,7 +1166,8 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 		fasttrap_pid_cleanup();
 
 #ifdef __FreeBSD__
-	PRELE(p);
+	if (p != NULL)
+		PRELE(p);
 #endif
 	if (!probe->ftp_enabled)
 		return;

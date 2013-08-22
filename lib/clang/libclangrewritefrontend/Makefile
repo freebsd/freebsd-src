@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangrewritefrontend
 
 SRCDIR=	tools/clang/lib/Rewrite/Frontend

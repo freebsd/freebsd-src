@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 
 /*
@@ -311,7 +313,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	int i, index, n;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(npages != 0, ("vm_reserv_alloc_contig: npages is 0"));
 
 	/*
@@ -341,33 +343,22 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	/*
 	 * Look for an existing reservation.
 	 */
-	msucc = NULL;
-	mpred = object->root;
-	while (mpred != NULL) {
-		KASSERT(mpred->pindex != pindex,
+	mpred = vm_radix_lookup_le(&object->rtree, pindex);
+	if (mpred != NULL) {
+		KASSERT(mpred->pindex < pindex,
 		    ("vm_reserv_alloc_contig: pindex already allocated"));
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
-		else if (mpred->pindex < pindex) {
-			if (msucc != NULL ||
-			    (msucc = TAILQ_NEXT(mpred, listq)) == NULL)
-				break;
-			KASSERT(msucc->pindex != pindex,
-		    ("vm_reserv_alloc_contig: pindex already allocated"));
-			rv = vm_reserv_from_page(msucc);
-			if (rv->object == object &&
-			    vm_reserv_has_pindex(rv, pindex))
-				goto found;
-			else if (pindex < msucc->pindex)
-				break;
-		} else if (msucc == NULL) {
-			msucc = mpred;
-			mpred = TAILQ_PREV(msucc, pglist, listq);
-			continue;
-		}
-		msucc = NULL;
-		mpred = object->root = vm_page_splay(pindex, object->root);
+		msucc = TAILQ_NEXT(mpred, listq);
+	} else
+		msucc = TAILQ_FIRST(&object->memq);
+	if (msucc != NULL) {
+		KASSERT(msucc->pindex > pindex,
+		    ("vm_reserv_alloc_page: pindex already allocated"));
+		rv = vm_reserv_from_page(msucc);
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
+			goto found;
 	}
 
 	/*
@@ -495,7 +486,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	vm_reserv_t rv;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 
 	/*
 	 * Is a reservation fundamentally impossible?
@@ -507,33 +498,22 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	/*
 	 * Look for an existing reservation.
 	 */
-	msucc = NULL;
-	mpred = object->root;
-	while (mpred != NULL) {
-		KASSERT(mpred->pindex != pindex,
+	mpred = vm_radix_lookup_le(&object->rtree, pindex);
+	if (mpred != NULL) {
+		KASSERT(mpred->pindex < pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			goto found;
-		else if (mpred->pindex < pindex) {
-			if (msucc != NULL ||
-			    (msucc = TAILQ_NEXT(mpred, listq)) == NULL)
-				break;
-			KASSERT(msucc->pindex != pindex,
-			    ("vm_reserv_alloc_page: pindex already allocated"));
-			rv = vm_reserv_from_page(msucc);
-			if (rv->object == object &&
-			    vm_reserv_has_pindex(rv, pindex))
-				goto found;
-			else if (pindex < msucc->pindex)
-				break;
-		} else if (msucc == NULL) {
-			msucc = mpred;
-			mpred = TAILQ_PREV(msucc, pglist, listq);
-			continue;
-		}
-		msucc = NULL;
-		mpred = object->root = vm_page_splay(pindex, object->root);
+		msucc = TAILQ_NEXT(mpred, listq);
+	} else
+		msucc = TAILQ_FIRST(&object->memq);
+	if (msucc != NULL) {
+		KASSERT(msucc->pindex > pindex,
+		    ("vm_reserv_alloc_page: pindex already allocated"));
+		rv = vm_reserv_from_page(msucc);
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
+			goto found;
 	}
 
 	/*
@@ -870,7 +850,7 @@ vm_reserv_rename(vm_page_t m, vm_object_t new_object, vm_object_t old_object,
 {
 	vm_reserv_t rv;
 
-	VM_OBJECT_LOCK_ASSERT(new_object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(new_object);
 	rv = vm_reserv_from_page(m);
 	if (rv->object == old_object) {
 		mtx_lock(&vm_page_queue_free_mtx);

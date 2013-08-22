@@ -748,4 +748,20 @@ int		 linux_ifname(struct ifnet *, char *, size_t);
 #define	FBSD_LUSB_MAX			0xffff
 #define	FBSD_LUSB_MIN			0xffe0
 
+/*
+ * Pluggable ioctl handlers
+ */
+struct linux_ioctl_args;
+struct thread;
+
+typedef int linux_ioctl_function_t(struct thread *, struct linux_ioctl_args *);
+
+struct linux_ioctl_handler {
+	linux_ioctl_function_t *func;
+	int	low, high;
+};
+
+int	linux_ioctl_register_handler(struct linux_ioctl_handler *h);
+int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
+
 #endif /* !_LINUX_IOCTL_H_ */

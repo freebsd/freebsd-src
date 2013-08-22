@@ -66,7 +66,7 @@ uboot_vm_translate(vm_offset_t o) {
 		*/
 	}
 	if (o > size)
-		panic("Address 0x%08jX bigger than size 0x%08X\n",
+		panic("Address offset 0x%08jX bigger than size 0x%08X\n",
 		      (intmax_t)o, size);
 	return (void *)(start + o);
 }

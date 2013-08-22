@@ -2168,7 +2168,7 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 	pfse = malloc(sizeof(*pfse), M_PFTEMP, M_NOWAIT);
 	if (pfse == NULL)
 		return;
-	m = m_gethdr(M_NOWAIT, MT_HEADER);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		free(pfse, M_PFTEMP);
 		return;

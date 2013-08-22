@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 SUBDIR=	console \
 	diskmgmt \
 	docsinstall \

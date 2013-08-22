@@ -167,7 +167,8 @@ static int hpt_alloc_mem(PVBUS_EXT vbus_ext)
 
 		HPT_ASSERT((f->size & (f->alignment-1))==0);
 
-		for (order=0, size=PAGE_SIZE; size<f->size; order++, size<<=1) ;
+		for (order=0, size=PAGE_SIZE; size<f->size; order++, size<<=1)
+			;
 
 		KdPrint(("%s: %d*%d=%d bytes, order %d",
 			f->tag, f->count, f->size, f->count*f->size, order));
@@ -473,33 +474,6 @@ static void os_cmddone(PCOMMAND pCmd)
 
 static int os_buildsgl(PCOMMAND pCmd, PSG pSg, int logical)
 {
-	POS_CMDEXT ext = (POS_CMDEXT)pCmd->priv;
-	union ccb *ccb = ext->ccb;
-	bus_dma_segment_t *sgList = (bus_dma_segment_t *)ccb->csio.data_ptr;
-	int idx;
-
-	if(logical)	{
-		if (ccb->ccb_h.flags & CAM_DATA_PHYS)
-			panic("physical address unsupported");
-
-		if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-			if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS)
-				panic("physical address unsupported");
-	
-			for (idx = 0; idx < ccb->csio.sglist_cnt; idx++) {
-				os_set_sgptr(&pSg[idx], (HPT_U8 *)(HPT_UPTR)sgList[idx].ds_addr);
-				pSg[idx].size = sgList[idx].ds_len;
-				pSg[idx].eot = (idx==ccb->csio.sglist_cnt-1)? 1 : 0;
-			}
-		}
-		else {
-			os_set_sgptr(pSg, (HPT_U8 *)ccb->csio.data_ptr);
-			pSg->size = ccb->csio.dxfer_len;
-			pSg->eot = 1;
-		}
-		return TRUE;
-	}
-
 	/* since we have provided physical sg, nobody will ask us to build physical sg */
 	HPT_ASSERT(0);
 	return FALSE;
@@ -514,23 +488,27 @@ static void hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs
 	
 	HPT_ASSERT(pCmd->flags.physical_sg);
 	
-	if (error || nsegs == 0)
+	if (error)
 		panic("busdma error");
 		
 	HPT_ASSERT(nsegs<=os_max_sg_descriptors);
 
-	for (idx = 0; idx < nsegs; idx++, psg++) {
-		psg->addr.bus = segs[idx].ds_addr;
-		psg->size = segs[idx].ds_len;
-		psg->eot = 0;
-	}
-	psg[-1].eot = 1;
+	if (nsegs != 0) {
+		for (idx = 0; idx < nsegs; idx++, psg++) {
+			psg->addr.bus = segs[idx].ds_addr;
+			psg->size = segs[idx].ds_len;
+			psg->eot = 0;
+		}
+		psg[-1].eot = 1;
 	
-	if (pCmd->flags.data_in) {
-		bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map, BUS_DMASYNC_PREREAD);
-	}
-	else if (pCmd->flags.data_out) {
-		bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map, BUS_DMASYNC_PREWRITE);
+		if (pCmd->flags.data_in) {
+			bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map,
+			    BUS_DMASYNC_PREREAD);
+		}
+		else if (pCmd->flags.data_out) {
+			bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map,
+			    BUS_DMASYNC_PREWRITE);
+		}
 	}
 
 	ext->ccb->ccb_h.timeout_ch = timeout(hpt_timeout, pCmd, HPT_OSM_TIMEOUT);
@@ -660,6 +638,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	case 0x2f:
 	case 0x8f: /* VERIFY_16 */
 	{
+		int error;
 		pCmd = ldm_alloc_cmds(vbus, vd->cmds_per_request);
 		if(!pCmd){
 			KdPrint(("Failed to allocate command!"));
@@ -716,42 +695,20 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		pCmd->target = vd;
 		pCmd->done = os_cmddone;
 		pCmd->buildsgl = os_buildsgl;
-
 		pCmd->psg = ext->psg;
-		
-		if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-			int idx;
-			bus_dma_segment_t *sgList = (bus_dma_segment_t *)ccb->csio.data_ptr;
-			
-			if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS)
-				pCmd->flags.physical_sg = 1;
-				
-			for (idx = 0; idx < ccb->csio.sglist_cnt; idx++) {
-				pCmd->psg[idx].addr.bus = sgList[idx].ds_addr;
-				pCmd->psg[idx].size = sgList[idx].ds_len;
-				pCmd->psg[idx].eot = (idx==ccb->csio.sglist_cnt-1)? 1 : 0;
-			}
-
-			ccb->ccb_h.timeout_ch = timeout(hpt_timeout, pCmd, HPT_OSM_TIMEOUT);
-			ldm_queue_cmd(pCmd);
-		}
-		else {
-			int error;
-			pCmd->flags.physical_sg = 1;
-			error = bus_dmamap_load(vbus_ext->io_dmat, 
-						ext->dma_map, 
-						ccb->csio.data_ptr, ccb->csio.dxfer_len, 
-						hpt_io_dmamap_callback, pCmd,
+		pCmd->flags.physical_sg = 1;
+		error = bus_dmamap_load_ccb(vbus_ext->io_dmat, 
+					ext->dma_map, ccb, 
+					hpt_io_dmamap_callback, pCmd,
 				    	BUS_DMA_WAITOK
 					);
-			KdPrint(("bus_dmamap_load return %d", error));
-			if (error && error!=EINPROGRESS) {
-				os_printk("bus_dmamap_load error %d", error);
-				cmdext_put(ext);
-				ldm_free_cmds(pCmd);
-				ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-				xpt_done(ccb);
-			}
+		KdPrint(("bus_dmamap_load return %d", error));
+		if (error && error!=EINPROGRESS) {
+			os_printk("bus_dmamap_load error %d", error);
+			cmdext_put(ext);
+			ldm_free_cmds(pCmd);
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(ccb);
 		}
 		return;
 	}
@@ -1036,6 +993,7 @@ static void hpt_final_init(void *dummy)
 	}
 
 	if (!i) {
+		if (bootverbose)
 			os_printk("no controller detected.");
 		return;
 	}
@@ -1177,7 +1135,7 @@ static void hpt_final_init(void *dummy)
 	}	
 
 	make_dev(&hpt_cdevsw, DRIVER_MINOR, UID_ROOT, GID_OPERATOR,
-	    S_IRUSR | S_IWUSR, driver_name);
+	    S_IRUSR | S_IWUSR, "%s", driver_name);
 }
 
 #if defined(KLD_MODULE) && (__FreeBSD_version >= 503000)
@@ -1224,6 +1182,7 @@ static void override_kernel_driver(void)
 
 static void hpt_init(void *dummy)
 {
+	if (bootverbose)
 		os_printk("%s %s", driver_name_long, driver_ver);
 
 	override_kernel_driver();

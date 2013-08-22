@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangdriver
 
 SRCDIR=	tools/clang/lib/Driver

@@ -67,15 +67,6 @@ static vfs_vget_t	nullfs_vget;
 static vfs_extattrctl_t	nullfs_extattrctl;
 static vfs_reclaim_lowervp_t nullfs_reclaim_lowervp;
 
-/* Mount options that we support. */
-static const char *nullfs_opts[] = {
-	"cache",
-	"export",
-	"from",
-	"target",
-	NULL
-};
-
 /*
  * Mount null layer
  */
@@ -97,8 +88,6 @@ nullfs_mount(struct mount *mp)
 		return (EPERM);
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
-	if (vfs_filteropt(mp->mnt_optnew, nullfs_opts))
-		return (EINVAL);
 
 	/*
 	 * Update is a no-op
@@ -324,7 +313,8 @@ nullfs_statfs(mp, sbp)
 
 	/* now copy across the "interesting" information and fake the rest */
 	sbp->f_type = mstat.f_type;
-	sbp->f_flags = mstat.f_flags;
+	sbp->f_flags = (sbp->f_flags & (MNT_RDONLY | MNT_NOEXEC | MNT_NOSUID |
+	    MNT_UNION | MNT_NOSYMFOLLOW)) | (mstat.f_flags & ~MNT_ROOTFS);
 	sbp->f_bsize = mstat.f_bsize;
 	sbp->f_iosize = mstat.f_iosize;
 	sbp->f_blocks = mstat.f_blocks;

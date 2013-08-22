@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2012
+.Dd February 14, 2013
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -149,6 +149,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_dev_set_power_mode "struct libusb20_device *pdev" "uint8_t power_mode"
 .Ft uint8_t
 .Fn libusb20_dev_get_power_mode "struct libusb20_device *pdev"
+.Ft uint16_t
+.Fn libusb20_dev_get_power_usage "struct libusb20_device *pdev"
 .Ft int
 .Fn libusb20_dev_set_alt_index "struct libusb20_device *pdev" "uint8_t iface_index" "uint8_t alt_index"
 .Ft struct LIBUSB20_DEVICE_DESC_DECODED *
@@ -737,6 +739,12 @@ returned.
 .Fn libusb20_dev_get_power_mode
 returns the currently selected power mode for the given
 USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_get_power_usage
+returns the reported power usage in milliamps for the given USB device.
+A power usage of zero typically means that the device is self powered.
 .
 .Pp
 .

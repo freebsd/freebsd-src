@@ -146,8 +146,8 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 				scb->cmd_ptr = ccb->csio.cdb_io.cdb_bytes;
 			}
 			if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-				if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) ||
-				    (ccb->ccb_h.flags & CAM_DATA_PHYS)) {
+				if ((ccb->ccb_h.flags & CAM_DATA_MASK) !=
+				    CAM_DATA_VADDR) {
 					ccb->ccb_h.status = CAM_REQ_INVALID;
 					aic_free_scb(aic, scb);
 					xpt_done(ccb);

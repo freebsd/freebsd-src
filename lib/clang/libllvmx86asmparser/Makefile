@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmx86asmparser
 
 SRCDIR=	lib/Target/X86/AsmParser

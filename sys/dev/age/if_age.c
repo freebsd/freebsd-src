@@ -142,6 +142,9 @@ static int age_init_rx_ring(struct age_softc *);
 static void age_init_rr_ring(struct age_softc *);
 static void age_init_cmb_block(struct age_softc *);
 static void age_init_smb_block(struct age_softc *);
+#ifndef __NO_STRICT_ALIGNMENT
+static struct mbuf *age_fixup_rx(struct ifnet *, struct mbuf *);
+#endif
 static int age_newbuf(struct age_softc *, struct age_rxdesc *);
 static void age_rxvlan(struct age_softc *);
 static void age_rxfilter(struct age_softc *);
@@ -1133,7 +1136,7 @@ again:
 	/* Create tag for Rx buffers. */
 	error = bus_dma_tag_create(
 	    sc->age_cdata.age_buffer_tag, /* parent */
-	    1, 0,			/* alignment, boundary */
+	    AGE_RX_BUF_ALIGN, 0,	/* alignment, boundary */
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
@@ -2268,16 +2271,53 @@ age_txintr(struct age_softc *sc, int tpd_cons)
 	}
 }
 
+#ifndef __NO_STRICT_ALIGNMENT
+static struct mbuf *
+age_fixup_rx(struct ifnet *ifp, struct mbuf *m)
+{
+	struct mbuf *n;
+        int i;
+        uint16_t *src, *dst;
+
+	src = mtod(m, uint16_t *);
+	dst = src - 3;
+
+	if (m->m_next == NULL) {
+		for (i = 0; i < (m->m_len / sizeof(uint16_t) + 1); i++)
+			*dst++ = *src++;
+		m->m_data -= 6;
+		return (m);
+	}
+	/*
+	 * Append a new mbuf to received mbuf chain and copy ethernet
+	 * header from the mbuf chain. This can save lots of CPU
+	 * cycles for jumbo frame.
+	 */
+	MGETHDR(n, M_NOWAIT, MT_DATA);
+	if (n == NULL) {
+		ifp->if_iqdrops++;
+		m_freem(m);
+		return (NULL);
+	}
+	bcopy(m->m_data, n->m_data, ETHER_HDR_LEN);
+	m->m_data += ETHER_HDR_LEN;
+	m->m_len -= ETHER_HDR_LEN;
+	n->m_len = ETHER_HDR_LEN;
+	M_MOVE_PKTHDR(n, m);
+	n->m_next = m;
+	return (n);
+}
+#endif
+
 /* Receive a frame. */
 static void
 age_rxeof(struct age_softc *sc, struct rx_rdesc *rxrd)
 {
 	struct age_rxdesc *rxd;
-	struct rx_desc *desc;
 	struct ifnet *ifp;
 	struct mbuf *mp, *m;
 	uint32_t status, index, vtag;
-	int count, nsegs, pktlen;
+	int count, nsegs;
 	int rx_cons;
 
 	AGE_LOCK_ASSERT(sc);
@@ -2289,9 +2329,7 @@ age_rxeof(struct age_softc *sc, struct rx_rdesc *rxrd)
 	nsegs = AGE_RX_NSEGS(index);
 
 	sc->age_cdata.age_rxlen = AGE_RX_BYTES(le32toh(rxrd->len));
-	if ((status & AGE_RRD_ERROR) != 0 &&
-	    (status & (AGE_RRD_CRC | AGE_RRD_CODE | AGE_RRD_DRIBBLE |
-	    AGE_RRD_RUNT | AGE_RRD_OFLOW | AGE_RRD_TRUNC)) != 0) {
+	if ((status & (AGE_RRD_ERROR | AGE_RRD_LENGTH_NOK)) != 0) {
 		/*
 		 * We want to pass the following frames to upper
 		 * layer regardless of error status of Rx return
@@ -2301,33 +2339,31 @@ age_rxeof(struct age_softc *sc, struct rx_rdesc *rxrd)
 		 *  o frame length and protocol specific length
 		 *     does not match.
 		 */
-		sc->age_cdata.age_rx_cons += nsegs;
-		sc->age_cdata.age_rx_cons %= AGE_RX_RING_CNT;
-		return;
+		status |= AGE_RRD_IPCSUM_NOK | AGE_RRD_TCP_UDPCSUM_NOK;
+		if ((status & (AGE_RRD_CRC | AGE_RRD_CODE | AGE_RRD_DRIBBLE |
+		    AGE_RRD_RUNT | AGE_RRD_OFLOW | AGE_RRD_TRUNC)) != 0)
+			return;
 	}
 
-	pktlen = 0;
 	for (count = 0; count < nsegs; count++,
 	    AGE_DESC_INC(rx_cons, AGE_RX_RING_CNT)) {
 		rxd = &sc->age_cdata.age_rxdesc[rx_cons];
 		mp = rxd->rx_m;
-		desc = rxd->rx_desc;
 		/* Add a new receive buffer to the ring. */
 		if (age_newbuf(sc, rxd) != 0) {
 			ifp->if_iqdrops++;
 			/* Reuse Rx buffers. */
-			if (sc->age_cdata.age_rxhead != NULL) {
+			if (sc->age_cdata.age_rxhead != NULL)
 				m_freem(sc->age_cdata.age_rxhead);
-				AGE_RXCHAIN_RESET(sc);
-			}
 			break;
 		}
 
-		/* The length of the first mbuf is computed last. */
-		if (count != 0) {
-			mp->m_len = AGE_RX_BYTES(le32toh(desc->len));
-			pktlen += mp->m_len;
-		}
+		/*
+		 * Assume we've received a full sized frame.
+		 * Actual size is fixed when we encounter the end of
+		 * multi-segmented frame.
+		 */
+		mp->m_len = AGE_RX_BUF_SIZE;
 
 		/* Chain received mbufs. */
 		if (sc->age_cdata.age_rxhead == NULL) {
@@ -2342,14 +2378,20 @@ age_rxeof(struct age_softc *sc, struct rx_rdesc *rxrd)
 		}
 
 		if (count == nsegs - 1) {
+			/* Last desc. for this frame. */
+			m = sc->age_cdata.age_rxhead;
+			m->m_flags |= M_PKTHDR;
 			/*
 			 * It seems that L1 controller has no way
 			 * to tell hardware to strip CRC bytes.
 			 */
-			sc->age_cdata.age_rxlen -= ETHER_CRC_LEN;
+			m->m_pkthdr.len = sc->age_cdata.age_rxlen -
+			    ETHER_CRC_LEN;
 			if (nsegs > 1) {
+				/* Set last mbuf size. */
+				mp->m_len = sc->age_cdata.age_rxlen -
+				    ((nsegs - 1) * AGE_RX_BUF_SIZE);
 				/* Remove the CRC bytes in chained mbufs. */
-				pktlen -= ETHER_CRC_LEN;
 				if (mp->m_len <= ETHER_CRC_LEN) {
 					sc->age_cdata.age_rxtail =
 					    sc->age_cdata.age_rxprev_tail;
@@ -2360,15 +2402,9 @@ age_rxeof(struct age_softc *sc, struct rx_rdesc *rxrd)
 				} else {
 					mp->m_len -= ETHER_CRC_LEN;
 				}
-			}
-
-			m = sc->age_cdata.age_rxhead;
-			m->m_flags |= M_PKTHDR;
+			} else
+				m->m_len = m->m_pkthdr.len;
 			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = sc->age_cdata.age_rxlen;
-			/* Set the first mbuf length. */
-			m->m_len = sc->age_cdata.age_rxlen - pktlen;
-
 			/*
 			 * Set checksum information.
 			 * It seems that L1 controller can compute partial
@@ -2383,9 +2419,9 @@ age_rxeof(struct age_softc *sc, struct rx_rdesc *rxrd)
 			 */
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
 			    (status & AGE_RRD_IPV4) != 0) {
-				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 				if ((status & AGE_RRD_IPCSUM_NOK) == 0)
-					m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+					m->m_pkthdr.csum_flags |=
+					    CSUM_IP_CHECKED | CSUM_IP_VALID;
 				if ((status & (AGE_RRD_TCP | AGE_RRD_UDP)) &&
 				    (status & AGE_RRD_TCP_UDPCSUM_NOK) == 0) {
 					m->m_pkthdr.csum_flags |=
@@ -2406,22 +2442,21 @@ age_rxeof(struct age_softc *sc, struct rx_rdesc *rxrd)
 				m->m_pkthdr.ether_vtag = AGE_RX_VLAN_TAG(vtag);
 				m->m_flags |= M_VLANTAG;
 			}
-
+#ifndef __NO_STRICT_ALIGNMENT
+			m = age_fixup_rx(ifp, m);
+			if (m != NULL)
+#endif
+			{
 			/* Pass it on. */
 			AGE_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
 			AGE_LOCK(sc);
-
-			/* Reset mbuf chains. */
-			AGE_RXCHAIN_RESET(sc);
+			}
 		}
 	}
 
-	if (count != nsegs) {
-		sc->age_cdata.age_rx_cons += nsegs;
-		sc->age_cdata.age_rx_cons %= AGE_RX_RING_CNT;
-	} else
-		sc->age_cdata.age_rx_cons = rx_cons;
+	/* Reset mbuf chains. */
+	AGE_RXCHAIN_RESET(sc);
 }
 
 static int
@@ -2456,16 +2491,16 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 		 * I'm not sure whether this check is really needed.
 		 */
 		pktlen = AGE_RX_BYTES(le32toh(rxrd->len));
-		if (nsegs != ((pktlen + (MCLBYTES - ETHER_ALIGN - 1)) /
-		    (MCLBYTES - ETHER_ALIGN)))
+		if (nsegs != (pktlen + (AGE_RX_BUF_SIZE - 1)) / AGE_RX_BUF_SIZE)
 			break;
 
-		prog++;
 		/* Received a frame. */
 		age_rxeof(sc, rxrd);
 		/* Clear return ring. */
 		rxrd->index = 0;
 		AGE_DESC_INC(rr_cons, AGE_RR_RING_CNT);
+		sc->age_cdata.age_rx_cons += nsegs;
+		sc->age_cdata.age_rx_cons %= AGE_RX_RING_CNT;
 	}
 
 	if (prog > 0) {
@@ -3065,7 +3100,9 @@ age_newbuf(struct age_softc *sc, struct age_rxdesc *rxd)
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
-	m_adj(m, ETHER_ALIGN);
+#ifndef __NO_STRICT_ALIGNMENT
+	m_adj(m, AGE_RX_BUF_ALIGN);
+#endif
 
 	if (bus_dmamap_load_mbuf_sg(sc->age_cdata.age_rx_tag,
 	    sc->age_cdata.age_rx_sparemap, m, segs, &nsegs, 0) != 0) {

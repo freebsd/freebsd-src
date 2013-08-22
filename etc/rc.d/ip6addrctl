@@ -29,11 +29,15 @@ ip6addrctl_prefer_ipv6()
 	afexists inet6 || return 0
 
 	ip6addrctl flush >/dev/null 2>&1
-	ip6addrctl add ::1/128		50	0
-	ip6addrctl add ::/0		40	1
-	ip6addrctl add 2002::/16	30	2
-	ip6addrctl add ::/96		20	3
-	ip6addrctl add ::ffff:0:0/96	10	4
+	ip6addrctl add ::1/128		 50	 0
+	ip6addrctl add ::/0		 40	 1
+	ip6addrctl add ::ffff:0:0/96	 35	 4
+	ip6addrctl add 2002::/16	 30	 2
+	ip6addrctl add 2001::/32	  5	 5
+	ip6addrctl add fc00::/7		  3	13
+	ip6addrctl add ::/96		  1	 3
+	ip6addrctl add fec0::/10	  1	11
+	ip6addrctl add 3ffe::/16	  1	12
 	checkyesno ip6addrctl_verbose && ip6addrctl
 }
 
@@ -42,11 +46,15 @@ ip6addrctl_prefer_ipv4()
 	afexists inet6 || return 0
 
 	ip6addrctl flush >/dev/null 2>&1
-	ip6addrctl add ::ffff:0:0/96	50	0
-	ip6addrctl add ::1/128		40	1
-	ip6addrctl add ::/0		30	2
-	ip6addrctl add 2002::/16	20	3
-	ip6addrctl add ::/96		10	4
+	ip6addrctl add ::1/128		 50	 0
+	ip6addrctl add ::/0		 40	 1
+	ip6addrctl add ::ffff:0:0/96	100	 4
+	ip6addrctl add 2002::/16	 30	 2
+	ip6addrctl add 2001::/32	  5	 5
+	ip6addrctl add fc00::/7		  3	13
+	ip6addrctl add ::/96		  1	 3
+	ip6addrctl add fec0::/10	  1	11
+	ip6addrctl add 3ffe::/16	  1	12
 	checkyesno ip6addrctl_verbose && ip6addrctl
 }
 

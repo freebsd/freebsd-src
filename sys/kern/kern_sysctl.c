@@ -444,9 +444,9 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 				SYSCTL_SLEEP(&oidp->oid_running, "oidrm", 0);
 			}
 			if (oidp->oid_descr)
-				free((void *)(uintptr_t)(const void *)oidp->oid_descr, M_SYSCTLOID);
-			free((void *)(uintptr_t)(const void *)oidp->oid_name,
-			     M_SYSCTLOID);
+				free(__DECONST(char *, oidp->oid_descr),
+				    M_SYSCTLOID);
+			free(__DECONST(char *, oidp->oid_name), M_SYSCTLOID);
 			free(oidp, M_SYSCTLOID);
 		}
 	}
@@ -462,8 +462,6 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr)
 {
 	struct sysctl_oid *oidp;
-	ssize_t len;
-	char *newname;
 
 	/* You have to hook up somewhere.. */
 	if (parent == NULL)
@@ -490,11 +488,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 	SLIST_NEXT(oidp, oid_link) = NULL;
 	oidp->oid_number = number;
 	oidp->oid_refcnt = 1;
-	len = strlen(name);
-	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
-	bcopy(name, newname, len + 1);
-	newname[len] = '\0';
-	oidp->oid_name = newname;
+	oidp->oid_name = strdup(name, M_SYSCTLOID);
 	oidp->oid_handler = handler;
 	oidp->oid_kind = CTLFLAG_DYN | kind;
 	if ((kind & CTLTYPE) == CTLTYPE_NODE) {
@@ -508,12 +502,8 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 		oidp->oid_arg2 = arg2;
 	}
 	oidp->oid_fmt = fmt;
-	if (descr) {
-		int len = strlen(descr) + 1;
-		oidp->oid_descr = malloc(len, M_SYSCTLOID, M_WAITOK);
-		if (oidp->oid_descr)
-			strcpy((char *)(uintptr_t)(const void *)oidp->oid_descr, descr);
-	}
+	if (descr)
+		oidp->oid_descr = strdup(descr, M_SYSCTLOID);
 	/* Update the context, if used */
 	if (clist != NULL)
 		sysctl_ctx_entry_add(clist, oidp);
@@ -529,16 +519,12 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 void
 sysctl_rename_oid(struct sysctl_oid *oidp, const char *name)
 {
-	ssize_t len;
 	char *newname;
-	void *oldname;
+	char *oldname;
 
-	len = strlen(name);
-	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
-	bcopy(name, newname, len + 1);
-	newname[len] = '\0';
+	newname = strdup(name, M_SYSCTLOID);
 	SYSCTL_XLOCK();
-	oldname = (void *)(uintptr_t)(const void *)oidp->oid_name;
+	oldname = __DECONST(char *, oidp->oid_name);
 	oidp->oid_name = newname;
 	SYSCTL_XUNLOCK();
 	free(oldname, M_SYSCTLOID);
@@ -823,39 +809,26 @@ static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD | CTLFLAG_CAPRD,
 static int
 name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 {
-	int i;
 	struct sysctl_oid *oidp;
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	char *p;
 
 	SYSCTL_ASSERT_XLOCKED();
 
-	if (!*name)
-		return (ENOENT);
+	for (*len = 0; *len < CTL_MAXNAME;) {
+		p = strsep(&name, ".");
 
-	p = name + strlen(name) - 1 ;
-	if (*p == '.')
-		*p = '\0';
-
-	*len = 0;
-
-	for (p = name; *p && *p != '.'; p++) 
-		;
-	i = *p;
-	if (i == '.')
-		*p = '\0';
-
-	oidp = SLIST_FIRST(lsp);
-
-	while (oidp && *len < CTL_MAXNAME) {
-		if (strcmp(name, oidp->oid_name)) {
-			oidp = SLIST_NEXT(oidp, oid_link);
-			continue;
+		oidp = SLIST_FIRST(lsp);
+		for (;; oidp = SLIST_NEXT(oidp, oid_link)) {
+			if (oidp == NULL)
+				return (ENOENT);
+			if (strcmp(p, oidp->oid_name) == 0)
+				break;
 		}
 		*oid++ = oidp->oid_number;
 		(*len)++;
 
-		if (!i) {
+		if (name == NULL || *name == '\0') {
 			if (oidpp)
 				*oidpp = oidp;
 			return (0);
@@ -868,13 +841,6 @@ name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 			break;
 
 		lsp = SYSCTL_CHILDREN(oidp);
-		oidp = SLIST_FIRST(lsp);
-		name = p+1;
-		for (p = name; *p && *p != '.'; p++) 
-				;
-		i = *p;
-		if (i == '.')
-			*p = '\0';
 	}
 	return (ENOENT);
 }
@@ -1036,7 +1002,10 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 
 
 /*
- * Handle a long, signed or unsigned.  arg1 points to it.
+ * Handle a long, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
  */
 
 int
@@ -1051,9 +1020,10 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
-	if (!arg1)
-		return (EINVAL);
-	tmplong = *(long *)arg1;
+	if (arg1)
+		tmplong = *(long *)arg1;
+	else
+		tmplong = arg2;
 #ifdef SCTL_MASK32
 	if (req->flags & SCTL_MASK32) {
 		tmpint = tmplong;
@@ -1065,18 +1035,24 @@ sysctl_handle_long(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return (error);
 
+	if (!arg1)
+		error = EPERM;
 #ifdef SCTL_MASK32
-	if (req->flags & SCTL_MASK32) {
+	else if (req->flags & SCTL_MASK32) {
 		error = SYSCTL_IN(req, &tmpint, sizeof(int));
 		*(long *)arg1 = (long)tmpint;
-	} else
+	}
 #endif
+	else
 		error = SYSCTL_IN(req, arg1, sizeof(long));
 	return (error);
 }
 
 /*
- * Handle a 64 bit int, signed or unsigned.  arg1 points to it.
+ * Handle a 64 bit int, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
  */
 int
 sysctl_handle_64(SYSCTL_HANDLER_ARGS)
@@ -1087,15 +1063,19 @@ sysctl_handle_64(SYSCTL_HANDLER_ARGS)
 	/*
 	 * Attempt to get a coherent snapshot by making a copy of the data.
 	 */
-	if (!arg1)
-		return (EINVAL);
-	tmpout = *(uint64_t *)arg1;
+	if (arg1)
+		tmpout = *(uint64_t *)arg1;
+	else
+		tmpout = arg2;
 	error = SYSCTL_OUT(req, &tmpout, sizeof(uint64_t));
 
 	if (error || !req->newptr)
 		return (error);
 
-	error = SYSCTL_IN(req, arg1, sizeof(uint64_t));
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(uint64_t));
 	return (error);
 }
 

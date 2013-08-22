@@ -130,6 +130,7 @@ systrace_probe_func_t	systrace_probe_func;
 dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
 dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
 dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
+int (*dtrace_invop_jump_addr)(struct trapframe *);
 #endif
 
 static struct powerpc_exception powerpc_exceptions[] = {
@@ -220,10 +221,8 @@ trap(struct trapframe *frame)
 	/*
 	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
 	 */
-	if (!user) {
-		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
-			return;
-	}
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+		return;
 #endif
 
 	if (user) {
@@ -296,7 +295,7 @@ trap(struct trapframe *frame)
 			/* Identify the trap reason */
 			if (frame->srr1 & EXC_PGM_TRAP)
 				sig = SIGTRAP;
- 			else if (ppc_instr_emulate(frame) == 0)
+			else if (ppc_instr_emulate(frame) == 0)
 				frame->srr0 += 4;
 			else
 				sig = SIGILL;
@@ -311,6 +310,16 @@ trap(struct trapframe *frame)
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 		switch (type) {
+#ifdef KDTRACE_HOOKS
+		case EXC_PGM:
+			if (frame->srr1 & EXC_PGM_TRAP) {
+				if (*(uintptr_t *)frame->srr0 == 0x7c810808) {
+					if (dtrace_invop_jump_addr != NULL) {
+						dtrace_invop_jump_addr(frame);
+					}
+				}
+			}
+#endif
 #ifdef __powerpc64__
 		case EXC_DSE:
 			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {

@@ -497,21 +497,16 @@ ip6_input(struct mbuf *m)
 	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_NOWAIT, MT_HEADER);
-		if (n)
-			M_MOVE_PKTHDR(n, m);
-		if (n && n->m_pkthdr.len > MHLEN) {
-			MCLGET(n, M_NOWAIT);
-			if ((n->m_flags & M_EXT) == 0) {
-				m_freem(n);
-				n = NULL;
-			}
-		}
+		if (m->m_pkthdr.len > MHLEN)
+			n = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		else
+			n = m_gethdr(M_NOWAIT, MT_DATA);
 		if (n == NULL) {
 			m_freem(m);
 			return;	/* ENOBUFS */
 		}
 
+		m_move_pkthdr(n, m);
 		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
 		n->m_len = n->m_pkthdr.len;
 		m_freem(m);
@@ -1667,22 +1662,12 @@ ip6_pullexthdr(struct mbuf *m, size_t off, int nxt)
 	else
 		elen = (ip6e.ip6e_len + 1) << 3;
 
-	MGET(n, M_NOWAIT, MT_DATA);
-	if (n && elen >= MLEN) {
-		MCLGET(n, M_NOWAIT);
-		if ((n->m_flags & M_EXT) == 0) {
-			m_free(n);
-			n = NULL;
-		}
-	}
-	if (!n)
+	if (elen > MLEN)
+		n = m_getcl(M_NOWAIT, MT_DATA, 0);
+	else
+		n = m_get(M_NOWAIT, MT_DATA);
+	if (n == NULL)
 		return NULL;
-
-	n->m_len = 0;
-	if (elen >= M_TRAILINGSPACE(n)) {
-		m_free(n);
-		return NULL;
-	}
 
 	m_copydata(m, off, elen, mtod(n, caddr_t));
 	n->m_len = elen;

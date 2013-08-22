@@ -463,6 +463,20 @@ generic_elf_osabi_sniff_abi_tag_sections: unknown OS number %d",
 
       return;
     }
+
+  /* .note.tag notes, used by FreeBSD.  */
+  if (strcmp (name, ".note.tag") == 0)
+   {
+      /* FreeBSD.  */
+      if (check_note (abfd, sect, note, "FreeBSD", 4, NT_FREEBSD_TAG))
+	{
+	  /* There is no need to check the version yet.  */
+	  *osabi = GDB_OSABI_FREEBSD_ELF;
+	  return;
+	}
+
+      return;
+    }
       
   /* .note.netbsd.ident notes, used by NetBSD.  */
   if (strcmp (name, ".note.netbsd.ident") == 0

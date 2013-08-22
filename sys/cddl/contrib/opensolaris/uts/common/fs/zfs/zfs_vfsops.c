@@ -389,11 +389,18 @@ zfs_register_callbacks(vfs_t *vfsp)
 	objset_t *os = NULL;
 	zfsvfs_t *zfsvfs = NULL;
 	uint64_t nbmand;
-	int readonly, do_readonly = B_FALSE;
-	int setuid, do_setuid = B_FALSE;
-	int exec, do_exec = B_FALSE;
-	int xattr, do_xattr = B_FALSE;
-	int atime, do_atime = B_FALSE;
+	boolean_t readonly = B_FALSE;
+	boolean_t do_readonly = B_FALSE;
+	boolean_t setuid = B_FALSE;
+	boolean_t do_setuid = B_FALSE;
+	boolean_t exec = B_FALSE;
+	boolean_t do_exec = B_FALSE;
+	boolean_t devices = B_FALSE;
+	boolean_t do_devices = B_FALSE;
+	boolean_t xattr = B_FALSE;
+	boolean_t do_xattr = B_FALSE;
+	boolean_t atime = B_FALSE;
+	boolean_t do_atime = B_FALSE;
 	int error = 0;
 
 	ASSERT(vfsp);
@@ -2009,7 +2016,8 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	 * .zfs/snapshot/ directories, that's why we return EOPNOTSUPP.
 	 * This will make NFS to switch to LOOKUP instead of using VGET.
 	 */
-	if (ino == ZFSCTL_INO_ROOT || ino == ZFSCTL_INO_SNAPDIR)
+	if (ino == ZFSCTL_INO_ROOT || ino == ZFSCTL_INO_SNAPDIR ||
+	    (zfsvfs->z_shares_dir != 0 && ino == zfsvfs->z_shares_dir))
 		return (EOPNOTSUPP);
 
 	ZFS_ENTER(zfsvfs);
@@ -2025,6 +2033,8 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		err = zfs_vnode_lock(*vpp, flags);
 	if (err != 0)
 		*vpp = NULL;
+	else
+		(*vpp)->v_hash = ino;
 	return (err);
 }
 
@@ -2099,13 +2109,21 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 		return (EINVAL);
 	}
 
-	/* A zero fid_gen means we are in the .zfs control directories */
-	if (fid_gen == 0 &&
-	    (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) {
+	/*
+	 * A zero fid_gen means we are in .zfs or the .zfs/snapshot
+	 * directory tree. If the object == zfsvfs->z_shares_dir, then
+	 * we are in the .zfs/shares directory tree.
+	 */
+	if ((fid_gen == 0 &&
+	     (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) ||
+	    (zfsvfs->z_shares_dir != 0 && object == zfsvfs->z_shares_dir)) {
 		*vpp = zfsvfs->z_ctldir;
 		ASSERT(*vpp != NULL);
 		if (object == ZFSCTL_INO_SNAPDIR) {
 			VERIFY(zfsctl_root_lookup(*vpp, "snapshot", vpp, NULL,
+			    0, NULL, NULL, NULL, NULL, NULL) == 0);
+		} else if (object == zfsvfs->z_shares_dir) {
+			VERIFY(zfsctl_root_lookup(*vpp, "shares", vpp, NULL,
 			    0, NULL, NULL, NULL, NULL, NULL) == 0);
 		} else {
 			VN_HOLD(*vpp);

@@ -876,6 +876,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			
 			csio->cdb_len = atio->cdb_len;
 
+			flags &= ~CAM_DATA_MASK;
 			if (io->scsiio.kern_sg_entries == 0) {
 				/* No S/G list */
 				data_ptr = io->scsiio.kern_data_ptr;
@@ -883,7 +884,9 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				csio->sglist_cnt = 0;
 
 				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_PHYS;
+					flags |= CAM_DATA_PADDR;
+				else
+					flags |= CAM_DATA_VADDR;
 			} else if (io->scsiio.kern_sg_entries <=
 				   (sizeof(cmd_info->cam_sglist)/
 				   sizeof(cmd_info->cam_sglist[0]))) {
@@ -907,11 +910,10 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 						ctl_sglist[i].len;
 				}
 				csio->sglist_cnt = io->scsiio.kern_sg_entries;
-				flags |= CAM_SCATTER_VALID;
 				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_SG_LIST_PHYS;
+					flags |= CAM_DATA_SG_PADDR;
 				else
-					flags &= ~CAM_SG_LIST_PHYS;
+					flags &= ~CAM_DATA_SG;
 				data_ptr = (uint8_t *)cam_sglist;
 				dxfer_len = io->scsiio.kern_data_len;
 			} else {

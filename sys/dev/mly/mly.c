@@ -1864,9 +1864,13 @@ mly_map_command(struct mly_command *mc)
 
     /* does the command have a data buffer? */
     if (mc->mc_data != NULL) {
-	bus_dmamap_load(sc->mly_buffer_dmat, mc->mc_datamap, mc->mc_data, mc->mc_length, 
-			mly_map_command_sg, mc, 0);
-	
+	if (mc->mc_flags & MLY_CMD_CCB)
+		bus_dmamap_load_ccb(sc->mly_buffer_dmat, mc->mc_datamap,
+				mc->mc_data, mly_map_command_sg, mc, 0);
+	else 
+		bus_dmamap_load(sc->mly_buffer_dmat, mc->mc_datamap,
+				mc->mc_data, mc->mc_length, 
+				mly_map_command_sg, mc, 0);
 	if (mc->mc_flags & MLY_CMD_DATAIN)
 	    bus_dmamap_sync(sc->mly_buffer_dmat, mc->mc_datamap, BUS_DMASYNC_PREREAD);
 	if (mc->mc_flags & MLY_CMD_DATAOUT)
@@ -2220,18 +2224,6 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 	csio->ccb_h.status = CAM_REQ_CMP_ERR;
     }
 
-    /* if there is data transfer, it must be to/from a virtual address */
-    if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-	if (csio->ccb_h.flags & CAM_DATA_PHYS) {		/* we can't map it */
-	    debug(0, "  data pointer is to physical address");
-	    csio->ccb_h.status = CAM_REQ_CMP_ERR;
-	}
-	if (csio->ccb_h.flags & CAM_SCATTER_VALID) {	/* we want to do the s/g setup */
-	    debug(0, "  data has premature s/g setup");
-	    csio->ccb_h.status = CAM_REQ_CMP_ERR;
-	}
-    }
-
     /* abandon aborted ccbs or those that have failed validation */
     if ((csio->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 	debug(2, "abandoning CCB due to abort/validation failure");
@@ -2251,10 +2243,12 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     }
     
     /* build the command */
-    mc->mc_data = csio->data_ptr;
+    mc->mc_data = csio;
     mc->mc_length = csio->dxfer_len;
     mc->mc_complete = mly_cam_complete;
     mc->mc_private = csio;
+    mc->mc_flags |= MLY_CMD_CCB;
+    /* XXX This code doesn't set the data direction in mc_flags. */
 
     /* save the bus number in the ccb for later recovery XXX should be a better way */
      csio->ccb_h.sim_priv.entries[0].field = bus;

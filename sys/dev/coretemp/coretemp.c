@@ -85,7 +85,7 @@ static device_method_t coretemp_methods[] = {
 	DEVMETHOD(device_attach,	coretemp_attach),
 	DEVMETHOD(device_detach,	coretemp_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t coretemp_driver = {
@@ -274,23 +274,23 @@ coretemp_attach(device_t dev)
 	 * Add the MIBs to dev.cpu.N and dev.cpu.N.coretemp.
 	 */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)),
-	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, dev,
-	    CORETEMP_TEMP, coretemp_get_val_sysctl, "IK",
+	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    dev, CORETEMP_TEMP, coretemp_get_val_sysctl, "IK",
 	    "Current temperature");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "delta",
-	    CTLTYPE_INT | CTLFLAG_RD, dev, CORETEMP_DELTA,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, CORETEMP_DELTA,
 	    coretemp_get_val_sysctl, "I",
 	    "Delta between TCC activation and current temperature");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "resolution",
-	    CTLTYPE_INT | CTLFLAG_RD, dev, CORETEMP_RESOLUTION,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, CORETEMP_RESOLUTION,
 	    coretemp_get_val_sysctl, "I",
 	    "Resolution of CPU thermal sensor");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "tjmax",
-	    CTLTYPE_INT | CTLFLAG_RD, dev, CORETEMP_TJMAX,
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, dev, CORETEMP_TJMAX,
 	    coretemp_get_val_sysctl, "IK",
 	    "TCC activation temperature");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-	    "throttle_log", CTLTYPE_INT | CTLFLAG_RW, dev, 0,
+	    "throttle_log", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, dev, 0,
 	    coretemp_throttle_log_sysctl, "I",
 	    "Set to 1 if the thermal sensor has tripped");
 

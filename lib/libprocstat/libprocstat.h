@@ -88,7 +88,6 @@
 #define	PS_FST_FFLAG_DIRECT	0x1000
 #define	PS_FST_FFLAG_EXEC	0x2000
 #define	PS_FST_FFLAG_HASLOCK	0x4000
-#define	PS_FST_FFLAG_CAPABILITY	0x8000
 
 struct procstat;
 struct filestat {

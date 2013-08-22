@@ -278,6 +278,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	KASSERT(ifp->if_type == IFT_IEEE80211, ("if_type %d", ifp->if_type));
 
 	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
+	IEEE80211_TX_LOCK_INIT(ic, ifp->if_xname);
 	TAILQ_INIT(&ic->ic_vaps);
 
 	/* Create a taskqueue for all state changes */
@@ -385,6 +386,7 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ifmedia_removeall(&ic->ic_media);
 
 	taskqueue_free(ic->ic_tq);
+	IEEE80211_TX_LOCK_DESTROY(ic);
 	IEEE80211_LOCK_DESTROY(ic);
 }
 

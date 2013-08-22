@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,18 @@ DtDumpBuffer (
     UINT8                   *Buffer,
     UINT32                  Offset,
     UINT32                  Length);
+
+static void
+DtDumpSubtableInfo (
+    DT_SUBTABLE             *Subtable,
+    void                    *Context,
+    void                    *ReturnValue);
+
+static void
+DtDumpSubtableTree (
+    DT_SUBTABLE             *Subtable,
+    void                    *Context,
+    void                    *ReturnValue);
 
 
 /* States for DtGetNextLine */
@@ -708,7 +720,6 @@ DtScanFile (
 {
     ACPI_STATUS             Status;
     UINT32                  Offset;
-    DT_FIELD                *Next;
 
 
     ACPI_FUNCTION_NAME (DtScanFile);
@@ -738,28 +749,7 @@ DtScanFile (
 
     /* Dump the parse tree if debug enabled */
 
-    if (Gbl_DebugFlag)
-    {
-        Next = Gbl_FieldList;
-        DbgPrint (ASL_DEBUG_OUTPUT, "Tree:  %32s %32s %8s %8s %8s %8s %8s %8s\n\n",
-            "Name", "Value", "Line", "ByteOff", "NameCol", "Column", "TableOff", "Flags");
-
-        while (Next)
-        {
-            DbgPrint (ASL_DEBUG_OUTPUT, "Field: %32.32s %32.32s %.8X %.8X %.8X %.8X %.8X %.8X\n",
-                Next->Name,
-                Next->Value,
-                Next->Line,
-                Next->ByteOffset,
-                Next->NameColumn,
-                Next->Column,
-                Next->TableOffset,
-                Next->Flags);
-
-            Next = Next->Next;
-        }
-    }
-
+    DtDumpFieldList (Gbl_FieldList);
     return (Gbl_FieldList);
 }
 
@@ -908,6 +898,123 @@ DtDumpBuffer (
     }
 
     FlPrintFile (FileId, "\n\n");
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtDumpFieldList
+ *
+ * PARAMETERS:  Field               - Root field
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Dump the entire field list
+ *
+ *****************************************************************************/
+
+void
+DtDumpFieldList (
+    DT_FIELD                *Field)
+{
+
+    if (!Gbl_DebugFlag || !Field)
+    {
+        return;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,  "\nField List:\n"
+        "LineNo   ByteOff  NameCol  Column   TableOff "
+        "Flags    %32s : %s\n\n", "Name", "Value");
+    while (Field)
+    {
+        DbgPrint (ASL_DEBUG_OUTPUT,
+            "%.08X %.08X %.08X %.08X %.08X %.08X %32s : %s\n",
+            Field->Line, Field->ByteOffset, Field->NameColumn,
+            Field->Column, Field->TableOffset, Field->Flags,
+            Field->Name, Field->Value);
+
+        Field = Field->Next;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,  "\n\n");
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtDumpSubtableInfo, DtDumpSubtableTree
+ *
+ * PARAMETERS:  DT_WALK_CALLBACK
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Info - dump a subtable tree entry with extra information.
+ *              Tree - dump a subtable tree formatted by depth indentation.
+ *
+ *****************************************************************************/
+
+static void
+DtDumpSubtableInfo (
+    DT_SUBTABLE             *Subtable,
+    void                    *Context,
+    void                    *ReturnValue)
+{
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "[%.04X] %.08X %.08X %.08X %.08X %.08X %p %p %p\n",
+        Subtable->Depth, Subtable->Length, Subtable->TotalLength,
+        Subtable->SizeOfLengthField, Subtable->Flags, Subtable,
+        Subtable->Parent, Subtable->Child, Subtable->Peer);
+}
+
+static void
+DtDumpSubtableTree (
+    DT_SUBTABLE             *Subtable,
+    void                    *Context,
+    void                    *ReturnValue)
+{
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "[%.04X] %*s%08X (%.02X) - (%.02X)\n",
+        Subtable->Depth, (4 * Subtable->Depth), " ",
+        Subtable, Subtable->Length, Subtable->TotalLength);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtDumpSubtableList
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Dump the raw list of subtables with information, and also
+ *              dump the subtable list in formatted tree format. Assists with
+ *              the development of new table code.
+ *
+ *****************************************************************************/
+
+void
+DtDumpSubtableList (
+    void)
+{
+
+    if (!Gbl_DebugFlag || !Gbl_RootTable)
+    {
+        return;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "Subtable Info:\n"
+        "Depth  Length   TotalLen LenSize  Flags    "
+        "This     Parent   Child    Peer\n\n");
+    DtWalkTableTree (Gbl_RootTable, DtDumpSubtableInfo, NULL, NULL);
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "\nSubtable Tree: (Depth, Subtable, Length, TotalLength)\n\n");
+    DtWalkTableTree (Gbl_RootTable, DtDumpSubtableTree, NULL, NULL);
 }
 
 

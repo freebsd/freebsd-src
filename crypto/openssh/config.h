@@ -17,6 +17,9 @@
 /* Define if your resolver libs need this for getrrsetbyname */
 /* #undef BIND_8_COMPAT */
 
+/* The system has incomplete BSM API */
+/* #undef BROKEN_BSM_API */
+
 /* Define if cmsg_type is not passed correctly */
 /* #undef BROKEN_CMSG_TYPE */
 
@@ -97,7 +100,7 @@
 /* #undef DISABLE_FD_PASSING */
 
 /* Define if you don't want to use lastlog */
-/* #undef DISABLE_LASTLOG */
+#define DISABLE_LASTLOG 1
 
 /* Define if you don't want to use your system's login() call */
 /* #undef DISABLE_LOGIN */
@@ -307,7 +310,7 @@
 #define HAVE_DECL__GETSHORT 0
 
 /* Define if you have /dev/ptmx */
-#define HAVE_DEV_PTMX 1
+/* #undef HAVE_DEV_PTMX */
 
 /* Define if you have /dev/ptc */
 /* #undef HAVE_DEV_PTS_AND_PTC */
@@ -316,7 +319,7 @@
 #define HAVE_DIRENT_H 1
 
 /* Define to 1 if you have the `dirfd' function. */
-/* #undef HAVE_DIRFD */
+#define HAVE_DIRFD 1
 
 /* Define to 1 if you have the `dirname' function. */
 #define HAVE_DIRNAME 1
@@ -501,6 +504,9 @@
 /* Define if HEADER.ad exists in arpa/nameser.h */
 #define HAVE_HEADER_AD 1
 
+/* Define to 1 if you have the `HMAC_CTX_init' function. */
+#define HAVE_HMAC_CTX_INIT 1
+
 /* Define if you have ut_host in utmp.h */
 /* #undef HAVE_HOST_IN_UTMP */
 
@@ -552,6 +558,9 @@
 /* Define to 1 if you have the <lastlog.h> header file. */
 /* #undef HAVE_LASTLOG_H */
 
+/* Define if you want ldns support */
+/* #undef HAVE_LDNS */
+
 /* Define to 1 if you have the <libaudit.h> header file. */
 /* #undef HAVE_LIBAUDIT_H */
 
@@ -594,10 +603,19 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
+/* Define to 1 if you have the <linux/audit.h> header file. */
+/* #undef HAVE_LINUX_AUDIT_H */
+
+/* Define to 1 if you have the <linux/filter.h> header file. */
+/* #undef HAVE_LINUX_FILTER_H */
+
 /* Define to 1 if you have the <linux/if_tun.h> header file. */
 /* #undef HAVE_LINUX_IF_TUN_H */
 
-/* Define if your libraries define login() */
+/* Define to 1 if you have the <linux/seccomp.h> header file. */
+/* #undef HAVE_LINUX_SECCOMP_H */
+
+/* Define to 1 if you have the `login' function. */
 /* #undef HAVE_LOGIN */
 
 /* Define to 1 if you have the <login_cap.h> header file. */
@@ -805,6 +823,9 @@
 /* Define to 1 if you have the `setgroups' function. */
 #define HAVE_SETGROUPS 1
 
+/* Define to 1 if you have the `setlinebuf' function. */
+#define HAVE_SETLINEBUF 1
+
 /* Define to 1 if you have the `setlogin' function. */
 #define HAVE_SETLOGIN 1
 
@@ -930,6 +951,9 @@
 
 /* Define to 1 if you have the `strmode' function. */
 #define HAVE_STRMODE 1
+
+/* Define to 1 if you have the `strnlen' function. */
+#define HAVE_STRNLEN 1
 
 /* Define to 1 if you have the `strnvis' function. */
 /* #undef HAVE_STRNVIS */
@@ -1172,7 +1196,7 @@
 /* #undef HAVE_VHANGUP */
 
 /* Define to 1 if you have the <vis.h> header file. */
-#define HAVE_VIS_H 1
+/* #undef HAVE_VIS_H */
 
 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_VSNPRINTF 1
@@ -1351,14 +1375,20 @@
 /* Sandbox using setrlimit(2) */
 #define SANDBOX_RLIMIT 1
 
+/* Sandbox using seccomp filter */
+/* #undef SANDBOX_SECCOMP_FILTER */
+
+/* setrlimit RLIMIT_FSIZE works */
+/* #undef SANDBOX_SKIP_RLIMIT_FSIZE */
+
 /* Sandbox using systrace(4) */
 /* #undef SANDBOX_SYSTRACE */
 
+/* Specify the system call convention in use */
+/* #undef SECCOMP_AUDIT_ARCH */
+
 /* Define if your platform breaks doing a seteuid before a setuid */
 /* #undef SETEUID_BREAKS_SETUID */
-
-/* The size of `char', as computed by sizeof. */
-#define SIZEOF_CHAR 1
 
 /* The size of `int', as computed by sizeof. */
 #define SIZEOF_INT 4
@@ -1499,6 +1529,11 @@
 
 /* Define if xauth is found in your path */
 /* #undef XAUTH_PATH */
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

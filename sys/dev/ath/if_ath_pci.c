@@ -251,6 +251,7 @@ ath_pci_attach(device_t dev)
 	ATH_PCU_LOCK_INIT(sc);
 	ATH_RX_LOCK_INIT(sc);
 	ATH_TX_LOCK_INIT(sc);
+	ATH_TX_IC_LOCK_INIT(sc);
 	ATH_TXSTATUS_LOCK_INIT(sc);
 
 	error = ath_attach(pci_get_device(dev), sc);
@@ -260,6 +261,7 @@ ath_pci_attach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
+	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 	bus_dma_tag_destroy(sc->sc_dmat);
@@ -302,6 +304,7 @@ ath_pci_detach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
+	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 

@@ -32,6 +32,8 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <sys/ctype.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <sys/sysent.h>
 
 #include <vm/vm.h>

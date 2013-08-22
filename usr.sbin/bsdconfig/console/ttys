@@ -192,7 +192,7 @@ while :; do
 	err=$( ttys_set_type "$consterm" 2>&1 )
 	[ "$err" ] || break
 
-	f_show_msg "%s" "$err"
+	f_dialog_msgbox "$err"
 done
 
 exit $SUCCESS

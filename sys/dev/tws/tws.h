@@ -137,6 +137,7 @@ enum tws_req_flags {
     TWS_DIR_IN = 0x2,
     TWS_DIR_OUT = 0x4,
     TWS_DIR_NONE = 0x8,
+    TWS_DATA_CCB = 0x16,
 };
  
 enum tws_intrs {

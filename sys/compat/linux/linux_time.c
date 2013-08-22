@@ -60,6 +60,7 @@ __KERNEL_RCSID(0, "$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp
 #endif
 
 #include <compat/linux/linux_dtrace.h>
+#include <compat/linux/linux_misc.h>
 
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);

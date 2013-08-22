@@ -249,6 +249,7 @@ setup(char *dev)
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
 		size = sblock.fs_cssize - i < sblock.fs_bsize ?
 		    sblock.fs_cssize - i : sblock.fs_bsize;
+		readcnt[sblk.b_type]++;
 		if (blread(fsreadfd, (char *)sblock.fs_csp + i,
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    size) != 0 && !asked) {
@@ -322,6 +323,7 @@ readsb(int listerr)
 
 	if (bflag) {
 		super = bflag;
+		readcnt[sblk.b_type]++;
 		if ((blread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
 			return (0);
 		if (sblock.fs_magic == FS_BAD_MAGIC) {
@@ -337,6 +339,7 @@ readsb(int listerr)
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
 			super = sblock_try[i] / dev_bsize;
+			readcnt[sblk.b_type]++;
 			if ((blread(fsreadfd, (char *)&sblock, super,
 			    (long)SBLOCKSIZE)))
 				return (0);
@@ -439,8 +442,8 @@ sblock_init(void)
 	fswritefd = -1;
 	fsmodified = 0;
 	lfdir = 0;
-	initbarea(&sblk);
-	initbarea(&asblk);
+	initbarea(&sblk, BT_SUPERBLK);
+	initbarea(&asblk, BT_SUPERBLK);
 	sblk.b_un.b_buf = malloc(SBLOCKSIZE);
 	asblk.b_un.b_buf = malloc(SBLOCKSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)

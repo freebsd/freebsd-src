@@ -238,7 +238,7 @@ nextarg(OPTION *option, char ***argvp)
  */
 #define	TIME_CORRECT(p) \
 	if (((p)->flags & F_ELG_MASK) == F_LESSTHAN) \
-		++((p)->t_data);
+		++((p)->t_data.tv_sec);
 
 /*
  * -[acm]min n functions --
@@ -255,16 +255,16 @@ f_Xmin(PLAN *plan, FTSENT *entry)
 {
 	if (plan->flags & F_TIME_C) {
 		COMPARE((now - entry->fts_statp->st_ctime +
-		    60 - 1) / 60, plan->t_data);
+		    60 - 1) / 60, plan->t_data.tv_sec);
 	} else if (plan->flags & F_TIME_A) {
 		COMPARE((now - entry->fts_statp->st_atime +
-		    60 - 1) / 60, plan->t_data);
+		    60 - 1) / 60, plan->t_data.tv_sec);
 	} else if (plan->flags & F_TIME_B) {
 		COMPARE((now - entry->fts_statp->st_birthtime +
-		    60 - 1) / 60, plan->t_data);
+		    60 - 1) / 60, plan->t_data.tv_sec);
 	} else {
 		COMPARE((now - entry->fts_statp->st_mtime +
-		    60 - 1) / 60, plan->t_data);
+		    60 - 1) / 60, plan->t_data.tv_sec);
 	}
 }
 
@@ -278,7 +278,8 @@ c_Xmin(OPTION *option, char ***argvp)
 	ftsoptions &= ~FTS_NOSTAT;
 
 	new = palloc(option);
-	new->t_data = find_parsenum(new, option->name, nmins, NULL);
+	new->t_data.tv_sec = find_parsenum(new, option->name, nmins, NULL);
+	new->t_data.tv_nsec = 0;
 	TIME_CORRECT(new);
 	return new;
 }
@@ -309,9 +310,9 @@ f_Xtime(PLAN *plan, FTSENT *entry)
 		xtime = entry->fts_statp->st_mtime;
 
 	if (plan->flags & F_EXACTTIME)
-		COMPARE(now - xtime, plan->t_data);
+		COMPARE(now - xtime, plan->t_data.tv_sec);
 	else
-		COMPARE((now - xtime + 86400 - 1) / 86400, plan->t_data);
+		COMPARE((now - xtime + 86400 - 1) / 86400, plan->t_data.tv_sec);
 }
 
 PLAN *
@@ -324,7 +325,8 @@ c_Xtime(OPTION *option, char ***argvp)
 	ftsoptions &= ~FTS_NOSTAT;
 
 	new = palloc(option);
-	new->t_data = find_parsetime(new, option->name, value);
+	new->t_data.tv_sec = find_parsetime(new, option->name, value);
+	new->t_data.tv_nsec = 0;
 	if (!(new->flags & F_EXACTTIME))
 		TIME_CORRECT(new);
 	return new;
@@ -471,6 +473,14 @@ c_delete(OPTION *option, char ***argvp __unused)
 	ftsoptions &= ~FTS_NOSTAT;	/* no optimise */
 	isoutput = 1;			/* possible output */
 	isdepth = 1;			/* -depth implied */
+
+	/*
+	 * Try to avoid the confusing error message about relative paths
+	 * being potentially not safe.
+	 */
+	if (ftsoptions & FTS_NOCHDIR)
+		errx(1, "%s: forbidden when the current directory cannot be opened",
+		    "-delete");
 
 	return palloc(option);
 }
@@ -644,7 +654,8 @@ doexec:	if ((plan->flags & F_NEEDOK) && !queryuser(plan->e_argv))
 		/* NOTREACHED */
 	case 0:
 		/* change dir back from where we started */
-		if (!(plan->flags & F_EXECDIR) && fchdir(dotfd)) {
+		if (!(plan->flags & F_EXECDIR) &&
+		    !(ftsoptions & FTS_NOCHDIR) && fchdir(dotfd)) {
 			warn("chdir");
 			_exit(1);
 		}
@@ -676,6 +687,11 @@ c_exec(OPTION *option, char ***argvp)
 	long argmax;
 	int cnt, i;
 	char **argv, **ap, **ep, *p;
+
+	/* This would defeat -execdir's intended security. */
+	if (option->flags & F_EXECDIR && ftsoptions & FTS_NOCHDIR)
+		errx(1, "%s: forbidden when the current directory cannot be opened",
+		    "-execdir");
 
 	/* XXX - was in c_execdir, but seems unnecessary!?
 	ftsoptions &= ~FTS_NOSTAT;
@@ -711,7 +727,13 @@ c_exec(OPTION *option, char ***argvp)
 		for (ep = environ; *ep != NULL; ep++)
 			argmax -= strlen(*ep) + 1 + sizeof(*ep);
 		argmax -= 1 + sizeof(*ep);
-		new->e_pnummax = argmax / 16;
+		/*
+		 * Ensure that -execdir ... {} + does not mix files
+		 * from different directories in one invocation.
+		 * Files from the same directory should be handled
+		 * in one invocation but there is no code for it.
+		 */
+		new->e_pnummax = new->flags & F_EXECDIR ? 1 : argmax / 16;
 		argmax -= sizeof(char *) * new->e_pnummax;
 		if (argmax <= 0)
 			errx(1, "no space for arguments");
@@ -1132,14 +1154,19 @@ c_name(OPTION *option, char ***argvp)
 int
 f_newer(PLAN *plan, FTSENT *entry)
 {
+	struct timespec ft;
+
 	if (plan->flags & F_TIME_C)
-		return entry->fts_statp->st_ctime > plan->t_data;
+		ft = entry->fts_statp->st_ctim;
 	else if (plan->flags & F_TIME_A)
-		return entry->fts_statp->st_atime > plan->t_data;
+		ft = entry->fts_statp->st_atim;
 	else if (plan->flags & F_TIME_B)
-		return entry->fts_statp->st_birthtime > plan->t_data;
+		ft = entry->fts_statp->st_birthtim;
 	else
-		return entry->fts_statp->st_mtime > plan->t_data;
+		ft = entry->fts_statp->st_mtim;
+	return (ft.tv_sec > plan->t_data.tv_sec ||
+	    (ft.tv_sec == plan->t_data.tv_sec &&
+	    ft.tv_nsec > plan->t_data.tv_nsec));
 }
 
 PLAN *
@@ -1155,20 +1182,22 @@ c_newer(OPTION *option, char ***argvp)
 	new = palloc(option);
 	/* compare against what */
 	if (option->flags & F_TIME2_T) {
-		new->t_data = get_date(fn_or_tspec);
-		if (new->t_data == (time_t) -1)
+		new->t_data.tv_sec = get_date(fn_or_tspec);
+		if (new->t_data.tv_sec == (time_t) -1)
 			errx(1, "Can't parse date/time: %s", fn_or_tspec);
+		/* Use the seconds only in the comparison. */
+		new->t_data.tv_nsec = 999999999;
 	} else {
 		if (stat(fn_or_tspec, &sb))
 			err(1, "%s", fn_or_tspec);
 		if (option->flags & F_TIME2_C)
-			new->t_data = sb.st_ctime;
+			new->t_data = sb.st_ctim;
 		else if (option->flags & F_TIME2_A)
-			new->t_data = sb.st_atime;
+			new->t_data = sb.st_atim;
 		else if (option->flags & F_TIME2_B)
-			new->t_data = sb.st_birthtime;
+			new->t_data = sb.st_birthtim;
 		else
-			new->t_data = sb.st_mtime;
+			new->t_data = sb.st_mtim;
 	}
 	return new;
 }
@@ -1474,6 +1503,29 @@ c_size(OPTION *option, char ***argvp)
 		new->o_data *= scale;
 	}
 	return new;
+}
+
+/*
+ * -sparse functions --
+ *
+ *      Check if a file is sparse by finding if it occupies fewer blocks
+ *      than we expect based on its size.
+ */
+int
+f_sparse(PLAN *plan __unused, FTSENT *entry)
+{
+	off_t expected_blocks;
+
+	expected_blocks = (entry->fts_statp->st_size + 511) / 512;
+	return entry->fts_statp->st_blocks < expected_blocks;
+}
+
+PLAN *
+c_sparse(OPTION *option, char ***argvp __unused)
+{
+	ftsoptions &= ~FTS_NOSTAT;
+
+	return palloc(option);
 }
 
 /*

@@ -267,6 +267,9 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		/* sync descriptor to memory */
 		bus_dmamap_sync(sc->sc_dmat, bf_last->bf_dmamap,
 		   BUS_DMASYNC_PREWRITE);
+
+		/* link descriptor */
+		*txq->axq_link = bf->bf_daddr;
 	}
 
 #ifdef	ATH_DEBUG_ALQ
@@ -655,7 +658,7 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 	 * the txq task for _one_ TXQ.  This should be fixed.
 	 */
 	if (dosched)
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+		ath_tx_swq_kick(sc);
 }
 
 static void

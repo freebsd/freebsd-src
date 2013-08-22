@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmasmprinter
 
 SRCDIR=	lib/CodeGen/AsmPrinter

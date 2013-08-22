@@ -240,9 +240,9 @@ list(int nlflag, int erflag)
 		n2 = andor();
 		tok = readtoken();
 		if (tok == TBACKGND) {
-			if (n2->type == NPIPE) {
+			if (n2 != NULL && n2->type == NPIPE) {
 				n2->npipe.backgnd = 1;
-			} else if (n2->type == NREDIR) {
+			} else if (n2 != NULL && n2->type == NREDIR) {
 				n2->type = NBACKGND;
 			} else {
 				n3 = (union node *)stalloc(sizeof (struct nredir));
@@ -286,7 +286,8 @@ list(int nlflag, int erflag)
 				tokpushback++;
 			}
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
-			if (!nlflag && !erflag && tokendlist[peektoken()])
+			if (!nlflag && (erflag ? peektoken() == TEOF :
+			    tokendlist[peektoken()]))
 				return ntop;
 			break;
 		case TEOF:

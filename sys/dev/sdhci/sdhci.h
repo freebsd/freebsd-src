@@ -224,8 +224,9 @@ struct sdhci_slot {
 	device_t	dev;		/* Slot device */
 	u_char		num;		/* Slot number */
 	u_char		opt;		/* Slot options */
+#define SDHCI_HAVE_DMA			1
+#define SDHCI_PLATFORM_TRANSFER		2
 	u_char		version;
-#define SDHCI_HAVE_DMA		1
 	uint32_t	max_clk;	/* Max possible freq */
 	uint32_t	timeout_clk;	/* Timeout freq */
 	bus_dma_tag_t 	dmatag;
@@ -250,6 +251,7 @@ struct sdhci_slot {
 #define CMD_STARTED		1
 #define STOP_STARTED		2
 #define SDHCI_USE_DMA		4	/* Use DMA for this req. */
+#define PLATFORM_DATA_STARTED	8	/* Data transfer is handled by platform */
 	struct mtx	mtx;		/* Slot mutex */
 };
 
@@ -257,6 +259,8 @@ int sdhci_generic_read_ivar(device_t bus, device_t child, int which, uintptr_t *
 int sdhci_generic_write_ivar(device_t bus, device_t child, int which, uintptr_t value);
 int sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num);
 void sdhci_start_slot(struct sdhci_slot *slot);
+/* performs generic clean-up for platform transfers */
+void sdhci_finish_data(struct sdhci_slot *slot);
 int sdhci_cleanup_slot(struct sdhci_slot *slot);
 int sdhci_generic_suspend(struct sdhci_slot *slot);
 int sdhci_generic_resume(struct sdhci_slot *slot);
@@ -266,5 +270,6 @@ int sdhci_generic_get_ro(device_t brdev, device_t reqdev);
 int sdhci_generic_acquire_host(device_t brdev, device_t reqdev);
 int sdhci_generic_release_host(device_t brdev, device_t reqdev);
 void sdhci_generic_intr(struct sdhci_slot *slot);
+uint32_t sdhci_generic_min_freq(device_t brdev, struct sdhci_slot *slot);
 
 #endif	/* __SDHCI_H__ */

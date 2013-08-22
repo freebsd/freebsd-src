@@ -43,7 +43,7 @@
 .Nd create a file system image from a directory tree or a mtree manifest
 .Sh SYNOPSIS
 .Nm
-.Op Fl px
+.Op Fl Dpx
 .Op Fl B Ar byte-order
 .Op Fl b Ar free-blocks
 .Op Fl d Ar debug-mask
@@ -106,6 +106,8 @@ An optional
 suffix may be provided to indicate that
 .Ar free-blocks
 indicates a percentage of the calculated image size.
+.It Fl D
+Treat duplicate paths in an mtree manifest as warnings not error.
 .It Fl d Ar debug-mask
 Enable various levels of debugging, depending upon which bits are
 set in

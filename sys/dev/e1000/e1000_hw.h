@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -123,13 +123,16 @@ struct e1000_hw;
 #define E1000_DEV_ID_ICH10_D_BM_LM		0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF		0x10DF
 #define E1000_DEV_ID_ICH10_D_BM_V		0x1525
-
 #define E1000_DEV_ID_PCH_M_HV_LM		0x10EA
 #define E1000_DEV_ID_PCH_M_HV_LC		0x10EB
 #define E1000_DEV_ID_PCH_D_HV_DM		0x10EF
 #define E1000_DEV_ID_PCH_D_HV_DC		0x10F0
 #define E1000_DEV_ID_PCH2_LV_LM			0x1502
 #define E1000_DEV_ID_PCH2_LV_V			0x1503
+#define E1000_DEV_ID_PCH_LPT_I217_LM		0x153A
+#define E1000_DEV_ID_PCH_LPT_I217_V		0x153B
+#define E1000_DEV_ID_PCH_LPTLP_I218_LM		0x155A
+#define E1000_DEV_ID_PCH_LPTLP_I218_V		0x1559
 #define E1000_DEV_ID_82576			0x10C9
 #define E1000_DEV_ID_82576_FIBER		0x10E6
 #define E1000_DEV_ID_82576_SERDES		0x10E7
@@ -139,7 +142,9 @@ struct e1000_hw;
 #define E1000_DEV_ID_82576_NS_SERDES		0x1518
 #define E1000_DEV_ID_82576_SERDES_QUAD		0x150D
 #define E1000_DEV_ID_82576_VF			0x10CA
+#define E1000_DEV_ID_82576_VF_HV		0x152D
 #define E1000_DEV_ID_I350_VF			0x1520
+#define E1000_DEV_ID_I350_VF_HV			0x152F
 #define E1000_DEV_ID_82575EB_COPPER		0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES	0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER	0x10D6
@@ -165,6 +170,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
 #define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
 #define E1000_DEV_ID_DH89XXCC_SFP		0x0440
+
 #define E1000_REVISION_0	0
 #define E1000_REVISION_1	1
 #define E1000_REVISION_2	2
@@ -206,6 +212,7 @@ enum e1000_mac_type {
 	e1000_ich10lan,
 	e1000_pchlan,
 	e1000_pch2lan,
+	e1000_pch_lpt,
 	e1000_82575,
 	e1000_82576,
 	e1000_82580,
@@ -255,6 +262,7 @@ enum e1000_phy_type {
 	e1000_phy_82578,
 	e1000_phy_82577,
 	e1000_phy_82579,
+	e1000_phy_i217,
 	e1000_phy_82580,
 	e1000_phy_vf,
 	e1000_phy_i210,
@@ -651,13 +659,13 @@ struct e1000_host_mng_command_info {
 #include "e1000_manage.h"
 #include "e1000_mbx.h"
 
+/* Function pointers for the MAC. */
 struct e1000_mac_operations {
-	/* Function pointers for the MAC. */
 	s32  (*init_params)(struct e1000_hw *);
 	s32  (*id_led_init)(struct e1000_hw *);
 	s32  (*blink_led)(struct e1000_hw *);
+	bool (*check_mng_mode)(struct e1000_hw *);
 	s32  (*check_for_link)(struct e1000_hw *);
-	bool (*check_mng_mode)(struct e1000_hw *hw);
 	s32  (*cleanup_led)(struct e1000_hw *);
 	void (*clear_hw_cntrs)(struct e1000_hw *);
 	void (*clear_vfta)(struct e1000_hw *);
@@ -679,17 +687,12 @@ struct e1000_mac_operations {
 	void (*rar_set)(struct e1000_hw *, u8*, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 	s32  (*validate_mdi_setting)(struct e1000_hw *);
-	s32  (*mng_host_if_write)(struct e1000_hw *, u8*, u16, u16, u8*);
-	s32  (*mng_write_cmd_header)(struct e1000_hw *hw,
-				     struct e1000_host_mng_command_header*);
-	s32  (*mng_enable_host_if)(struct e1000_hw *);
-	s32  (*wait_autoneg)(struct e1000_hw *);
+	s32  (*set_obff_timer)(struct e1000_hw *, u32);
 	s32  (*acquire_swfw_sync)(struct e1000_hw *, u16);
 	void (*release_swfw_sync)(struct e1000_hw *, u16);
 };
 
-/*
- * When to use various PHY register access functions:
+/* When to use various PHY register access functions:
  *
  *                 Func   Caller
  *   Function      Does   Does    When to use
@@ -731,6 +734,7 @@ struct e1000_phy_operations {
 	s32 (*write_i2c_byte)(struct e1000_hw *, u8, u8, u8);
 };
 
+/* Function pointers for the NVM. */
 struct e1000_nvm_operations {
 	s32  (*init_params)(struct e1000_hw *);
 	s32  (*acquire)(struct e1000_hw *);
@@ -785,6 +789,7 @@ struct e1000_mac_info {
 	enum e1000_serdes_link_state serdes_link_state;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
+	u32 max_frame_size;
 };
 
 struct e1000_phy_info {
@@ -915,7 +920,7 @@ struct e1000_shadow_ram {
 	bool modified;
 };
 
-#define E1000_SHADOW_RAM_WORDS  2048
+#define E1000_SHADOW_RAM_WORDS		2048
 
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
@@ -924,6 +929,7 @@ struct e1000_dev_spec_ich8lan {
 	E1000_MUTEX swflag_mutex;
 	bool nvm_k1_enabled;
 	bool eee_disable;
+	u16 eee_lp_ability;
 };
 
 struct e1000_dev_spec_82575 {
@@ -931,7 +937,9 @@ struct e1000_dev_spec_82575 {
 	bool global_device_reset;
 	bool eee_disable;
 	bool module_plugged;
+	bool clear_semaphore_once;
 	u32 mtu;
+	struct sfp_e1000_flags eth_flags;
 };
 
 struct e1000_dev_spec_vf {

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmselectiondag
 
 SRCDIR=	lib/CodeGen/SelectionDAG

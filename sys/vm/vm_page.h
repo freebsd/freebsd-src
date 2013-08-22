@@ -128,8 +128,6 @@ typedef uint64_t vm_page_bits_t;
 struct vm_page {
 	TAILQ_ENTRY(vm_page) pageq;	/* page queue or free list (Q)	*/
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) 	*/
-	struct vm_page *left;		/* splay tree link (O)		*/
-	struct vm_page *right;		/* splay tree link (O)		*/
 
 	vm_object_t object;		/* which object am I in (O,P)*/
 	vm_pindex_t pindex;		/* offset into object (O,P) */
@@ -404,7 +402,6 @@ void vm_page_requeue(vm_page_t m);
 void vm_page_requeue_locked(vm_page_t m);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 void vm_page_sleep(vm_page_t m, const char *msg);
-vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
 void vm_page_unwire (vm_page_t, int);

@@ -1,7 +1,9 @@
 # $FreeBSD$
 
-PROG_CXX=llvm-mc
 NO_MAN=
+.include <bsd.own.mk>
+
+PROG_CXX=llvm-mc
 
 SRCDIR=	tools/llvm-mc
 SRCS=	llvm-mc.cpp \

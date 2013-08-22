@@ -67,10 +67,8 @@ static ieee80211_send_action_func *meshpl_send_action[8] = {
 	send_inval, send_inval, send_inval, send_inval,
 	send_inval, send_inval, send_inval, send_inval,
 };
-static ieee80211_send_action_func *meshlm_send_action[4] = {
+static ieee80211_send_action_func *meshaction_send_action[12] = {
 	send_inval, send_inval, send_inval, send_inval,
-};
-static ieee80211_send_action_func *hwmp_send_action[8] = {
 	send_inval, send_inval, send_inval, send_inval,
 	send_inval, send_inval, send_inval, send_inval,
 };
@@ -100,18 +98,10 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 		meshpl_send_action[act] = f;
 		return 0;
 	case IEEE80211_ACTION_CAT_MESH:
-		switch (act) {
-		case IEEE80211_ACTION_MESH_LMETRIC:
-			if (act >= N(meshlm_send_action))
-				break;
-			meshlm_send_action[act] = f;
-			return 0;
-		case IEEE80211_ACTION_MESH_HWMP:
-			if (act >= N(hwmp_send_action))
-				break;
-			hwmp_send_action[act] = f;
-			return 0;
-		}
+		if (act >= N(meshaction_send_action))
+			break;
+		meshaction_send_action[act] = f;
+		return 0;
 		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act >= N(vendor_send_action))
@@ -149,16 +139,8 @@ ieee80211_send_action(struct ieee80211_node *ni, int cat, int act, void *sa)
 			f = meshpl_send_action[act];
 		break;
 	case IEEE80211_ACTION_CAT_MESH:
-		switch (act) {
-		case IEEE80211_ACTION_MESH_LMETRIC:
-			if (act < N(meshlm_send_action))
-				f = meshlm_send_action[act];
-			break;
-		case IEEE80211_ACTION_MESH_HWMP:
-			if (act < N(hwmp_send_action))
-				f = hwmp_send_action[act];
-			break;
-		}
+		if (act < N(meshaction_send_action))
+			f = meshaction_send_action[act];
 		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act < N(vendor_send_action))
@@ -188,10 +170,8 @@ static ieee80211_recv_action_func *meshpl_recv_action[8] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
 	recv_inval, recv_inval, recv_inval, recv_inval,
 };
-static ieee80211_recv_action_func *meshlm_recv_action[4] = {
+static ieee80211_recv_action_func *meshaction_recv_action[12] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
-};
-static ieee80211_recv_action_func *hwmp_recv_action[8] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
 	recv_inval, recv_inval, recv_inval, recv_inval,
 };
@@ -221,19 +201,10 @@ ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
 		meshpl_recv_action[act] = f;
 		return 0;
 	case IEEE80211_ACTION_CAT_MESH:
-		switch (act) {
-		case IEEE80211_ACTION_MESH_LMETRIC:
-			if (act >= N(meshlm_recv_action))
-				break;
-			meshlm_recv_action[act] = f;
-			return 0;
-		case IEEE80211_ACTION_MESH_HWMP:
-			if (act >= N(hwmp_recv_action))
-				break;
-			hwmp_recv_action[act] = f;
-			return 0;
-		}
-		break;
+		if (act >= N(meshaction_recv_action))
+			break;
+		meshaction_recv_action[act] = f;
+		return 0;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act >= N(vendor_recv_action))
 			break;
@@ -257,6 +228,7 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	ieee80211_recv_action_func *f = recv_inval;
+	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_action *ia =
 	    (const struct ieee80211_action *) frm;
 
@@ -274,16 +246,17 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 			f = meshpl_recv_action[ia->ia_action];
 		break;
 	case IEEE80211_ACTION_CAT_MESH:
-		switch (ia->ia_action) {
-		case IEEE80211_ACTION_MESH_LMETRIC:
-			if (ia->ia_action < N(meshlm_recv_action))
-				f = meshlm_recv_action[ia->ia_action];
-			break;
-		case IEEE80211_ACTION_MESH_HWMP:
-			if (ia->ia_action < N(hwmp_recv_action))
-				f = hwmp_recv_action[ia->ia_action];
+		if (ni == vap->iv_bss ||
+		    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_MESH,
+			    ni->ni_macaddr, NULL,
+			    "peer link not yet established (%d), cat %s act %u",
+			    ni->ni_mlstate, "mesh action", ia->ia_action);
+			vap->iv_stats.is_mesh_nolink++;
 			break;
 		}
+		if (ia->ia_action < N(meshaction_recv_action))
+			f = meshaction_recv_action[ia->ia_action];
 		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (ia->ia_action < N(vendor_recv_action))

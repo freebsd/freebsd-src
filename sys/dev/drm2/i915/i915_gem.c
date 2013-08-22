@@ -990,14 +990,14 @@ i915_gem_swap_io(struct drm_device *dev, struct drm_i915_gem_object *obj,
 	vm_obj = obj->base.vm_obj;
 	ret = 0;
 
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	vm_object_pip_add(vm_obj, 1);
 	while (size > 0) {
 		obj_pi = OFF_TO_IDX(offset);
 		obj_po = offset & PAGE_MASK;
 
 		m = i915_gem_wire_page(vm_obj, obj_pi);
-		VM_OBJECT_UNLOCK(vm_obj);
+		VM_OBJECT_WUNLOCK(vm_obj);
 
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
@@ -1031,7 +1031,7 @@ i915_gem_swap_io(struct drm_device *dev, struct drm_i915_gem_object *obj,
 		}
 		sf_buf_free(sf);
 		sched_unpin();
-		VM_OBJECT_LOCK(vm_obj);
+		VM_OBJECT_WLOCK(vm_obj);
 		if (rw == UIO_WRITE)
 			vm_page_dirty(m);
 		vm_page_reference(m);
@@ -1044,7 +1044,7 @@ i915_gem_swap_io(struct drm_device *dev, struct drm_i915_gem_object *obj,
 			break;
 	}
 	vm_object_pip_wakeup(vm_obj);
-	VM_OBJECT_UNLOCK(vm_obj);
+	VM_OBJECT_WUNLOCK(vm_obj);
 
 	return (ret);
 }
@@ -1357,7 +1357,7 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	} else
 		oldm = NULL;
 retry:
-	VM_OBJECT_UNLOCK(vm_obj);
+	VM_OBJECT_WUNLOCK(vm_obj);
 unlocked_vmobj:
 	cause = ret = 0;
 	m = NULL;
@@ -1407,7 +1407,7 @@ unlocked_vmobj:
 		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	obj->fault_mappable = true;
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	m = vm_phys_fictitious_to_vm_page(dev->agp->base + obj->gtt_offset +
 	    offset);
 	if (m == NULL) {
@@ -1452,7 +1452,7 @@ out:
 		kern_yield(PRI_USER);
 		goto unlocked_vmobj;
 	}
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_ERROR);
 }
@@ -2208,12 +2208,12 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 	obj->pages = malloc(page_count * sizeof(vm_page_t), DRM_I915_GEM,
 	    M_WAITOK);
 	vm_obj = obj->base.vm_obj;
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	for (i = 0; i < page_count; i++) {
 		if ((obj->pages[i] = i915_gem_wire_page(vm_obj, i)) == NULL)
 			goto failed;
 	}
-	VM_OBJECT_UNLOCK(vm_obj);
+	VM_OBJECT_WUNLOCK(vm_obj);
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj);
 	return (0);
@@ -2226,7 +2226,7 @@ failed:
 		vm_page_unlock(m);
 		atomic_add_long(&i915_gem_wired_pages_cnt, -1);
 	}
-	VM_OBJECT_UNLOCK(vm_obj);
+	VM_OBJECT_WUNLOCK(vm_obj);
 	free(obj->pages, DRM_I915_GEM);
 	obj->pages = NULL;
 	return (-EIO);
@@ -2272,7 +2272,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	if (obj->madv == I915_MADV_DONTNEED)
 		obj->dirty = 0;
 	page_count = obj->base.size / PAGE_SIZE;
-	VM_OBJECT_LOCK(obj->base.vm_obj);
+	VM_OBJECT_WLOCK(obj->base.vm_obj);
 #if GEM_PARANOID_CHECK_GTT
 	i915_gem_assert_pages_not_mapped(obj->base.dev, obj->pages, page_count);
 #endif
@@ -2287,7 +2287,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 		vm_page_unlock(m);
 		atomic_add_long(&i915_gem_wired_pages_cnt, -1);
 	}
-	VM_OBJECT_UNLOCK(obj->base.vm_obj);
+	VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 	obj->dirty = 0;
 	free(obj->pages, DRM_I915_GEM);
 	obj->pages = NULL;
@@ -2309,7 +2309,7 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	if (devobj != NULL) {
 		page_count = OFF_TO_IDX(obj->base.size);
 
-		VM_OBJECT_LOCK(devobj);
+		VM_OBJECT_WLOCK(devobj);
 retry:
 		for (i = 0; i < page_count; i++) {
 			m = vm_page_lookup(devobj, i);
@@ -2319,7 +2319,7 @@ retry:
 				goto retry;
 			cdev_pager_free_page(devobj, m);
 		}
-		VM_OBJECT_UNLOCK(devobj);
+		VM_OBJECT_WUNLOCK(devobj);
 		vm_object_deallocate(devobj);
 	}
 
@@ -2437,9 +2437,9 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 	vm_object_t vm_obj;
 
 	vm_obj = obj->base.vm_obj;
-	VM_OBJECT_LOCK(vm_obj);
+	VM_OBJECT_WLOCK(vm_obj);
 	vm_object_page_remove(vm_obj, 0, 0, false);
-	VM_OBJECT_UNLOCK(vm_obj);
+	VM_OBJECT_WUNLOCK(vm_obj);
 	obj->madv = I915_MADV_PURGED_INTERNAL;
 }
 
@@ -2488,7 +2488,7 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 	int rv;
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
@@ -3567,13 +3567,13 @@ i915_gem_detach_phys_object(struct drm_device *dev,
 	vaddr = obj->phys_obj->handle->vaddr;
 
 	page_count = obj->base.size / PAGE_SIZE;
-	VM_OBJECT_LOCK(obj->base.vm_obj);
+	VM_OBJECT_WLOCK(obj->base.vm_obj);
 	for (i = 0; i < page_count; i++) {
 		m = i915_gem_wire_page(obj->base.vm_obj, i);
 		if (m == NULL)
 			continue; /* XXX */
 
-		VM_OBJECT_UNLOCK(obj->base.vm_obj);
+		VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 		sf = sf_buf_alloc(m, 0);
 		if (sf != NULL) {
 			dst = (char *)sf_buf_kva(sf);
@@ -3582,7 +3582,7 @@ i915_gem_detach_phys_object(struct drm_device *dev,
 		}
 		drm_clflush_pages(&m, 1);
 
-		VM_OBJECT_LOCK(obj->base.vm_obj);
+		VM_OBJECT_WLOCK(obj->base.vm_obj);
 		vm_page_reference(m);
 		vm_page_lock(m);
 		vm_page_dirty(m);
@@ -3590,7 +3590,7 @@ i915_gem_detach_phys_object(struct drm_device *dev,
 		vm_page_unlock(m);
 		atomic_add_long(&i915_gem_wired_pages_cnt, -1);
 	}
-	VM_OBJECT_UNLOCK(obj->base.vm_obj);
+	VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 	intel_gtt_chipset_flush();
 
 	obj->phys_obj->cur_obj = NULL;
@@ -3632,7 +3632,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 
 	page_count = obj->base.size / PAGE_SIZE;
 
-	VM_OBJECT_LOCK(obj->base.vm_obj);
+	VM_OBJECT_WLOCK(obj->base.vm_obj);
 	ret = 0;
 	for (i = 0; i < page_count; i++) {
 		m = i915_gem_wire_page(obj->base.vm_obj, i);
@@ -3640,14 +3640,14 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 			ret = -EIO;
 			break;
 		}
-		VM_OBJECT_UNLOCK(obj->base.vm_obj);
+		VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 		sf = sf_buf_alloc(m, 0);
 		src = (char *)sf_buf_kva(sf);
 		dst = (char *)obj->phys_obj->handle->vaddr + IDX_TO_OFF(i);
 		memcpy(dst, src, PAGE_SIZE);
 		sf_buf_free(sf);
 
-		VM_OBJECT_LOCK(obj->base.vm_obj);
+		VM_OBJECT_WLOCK(obj->base.vm_obj);
 
 		vm_page_reference(m);
 		vm_page_lock(m);
@@ -3655,7 +3655,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 		vm_page_unlock(m);
 		atomic_add_long(&i915_gem_wired_pages_cnt, -1);
 	}
-	VM_OBJECT_UNLOCK(obj->base.vm_obj);
+	VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 
 	return (0);
 }

@@ -27,9 +27,11 @@
 #ifndef _USB_PROCESS_H_
 #define	_USB_PROCESS_H_
 
+#ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/interrupt.h>
 #include <sys/priority.h>
 #include <sys/runq.h>
+#endif
 
 /* defines */
 #define	USB_PRI_HIGH	PI_SWI(SWI_NET)

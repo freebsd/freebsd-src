@@ -398,6 +398,7 @@ struct ata_request {
 #define         ATA_R_THREAD            0x00000800
 #define         ATA_R_DIRECT            0x00001000
 #define         ATA_R_NEEDRESULT        0x00002000
+#define         ATA_R_DATA_IN_CCB       0x00004000
 
 #define         ATA_R_ATAPI16           0x00010000
 #define         ATA_R_ATAPI_INTR        0x00020000
@@ -698,6 +699,8 @@ MALLOC_DECLARE(M_ATA);
 
 #define ATA_INW(res, offset) \
 	bus_read_2((res), (offset))
+#define ATA_INW_STRM(res, offset) \
+	bus_read_stream_2((res), (offset))
 #define ATA_INL(res, offset) \
 	bus_read_4((res), (offset))
 #define ATA_INSW(res, offset, addr, count) \
@@ -712,6 +715,8 @@ MALLOC_DECLARE(M_ATA);
 	bus_write_1((res), (offset), (value))
 #define ATA_OUTW(res, offset, value) \
 	bus_write_2((res), (offset), (value))
+#define ATA_OUTW_STRM(res, offset, value) \
+	bus_write_stream_2((res), (offset), (value))
 #define ATA_OUTL(res, offset, value) \
 	bus_write_4((res), (offset), (value))
 #define ATA_OUTSW(res, offset, addr, count) \
@@ -728,6 +733,9 @@ MALLOC_DECLARE(M_ATA);
 
 #define ATA_IDX_INW(ch, idx) \
 	ATA_INW(ch->r_io[idx].res, ch->r_io[idx].offset)
+
+#define ATA_IDX_INW_STRM(ch, idx) \
+	ATA_INW_STRM(ch->r_io[idx].res, ch->r_io[idx].offset)
 
 #define ATA_IDX_INL(ch, idx) \
 	ATA_INL(ch->r_io[idx].res, ch->r_io[idx].offset)
@@ -749,6 +757,9 @@ MALLOC_DECLARE(M_ATA);
 
 #define ATA_IDX_OUTW(ch, idx, value) \
 	ATA_OUTW(ch->r_io[idx].res, ch->r_io[idx].offset, value)
+
+#define ATA_IDX_OUTW_STRM(ch, idx, value) \
+	ATA_OUTW_STRM(ch->r_io[idx].res, ch->r_io[idx].offset, value)
 
 #define ATA_IDX_OUTL(ch, idx, value) \
 	ATA_OUTL(ch->r_io[idx].res, ch->r_io[idx].offset, value)

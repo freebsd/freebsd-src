@@ -37,6 +37,7 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
+	dtc \
 	du \
 	ee \
 	elf2aout \
@@ -123,6 +124,7 @@ SUBDIR=	alias \
 	pagesize \
 	passwd \
 	paste \
+	patch \
 	pathchk \
 	perror \
 	pr \

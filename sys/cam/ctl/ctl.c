@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_scsi_all.h>
 #include <cam/ctl/ctl_error.h>
 
+#include "opt_ctl.h"
+
 struct ctl_softc *control_softc = NULL;
 
 /*
@@ -317,7 +319,11 @@ static int persis_offset;
 static uint8_t ctl_pause_rtr;
 static int     ctl_is_single;
 static int     index_to_aps_page;
+#ifdef CTL_DISABLE
+int	   ctl_disable = 1;
+#else
 int	   ctl_disable = 0;
+#endif
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, disable, CTLFLAG_RDTUN, &ctl_disable, 0,

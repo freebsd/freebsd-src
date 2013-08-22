@@ -32,21 +32,72 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
-#include <fs/ntfs/ntfs.h>
-
 #include <geom/geom.h>
 #include <geom/label/g_label.h>
 
+#define	NTFS_A_VOLUMENAME	0x60
+#define	NTFS_FILEMAGIC		((uint32_t)(0x454C4946))
+#define	NTFS_VOLUMEINO		3
+
 #define G_LABEL_NTFS_DIR	"ntfs"
 
+struct ntfs_attr {
+	uint32_t	a_type;
+	uint32_t	reclen;
+	uint8_t		a_flag;
+	uint8_t		a_namelen;
+	uint8_t		a_nameoff;
+	uint8_t		reserved1;
+	uint8_t		a_compression;
+	uint8_t		reserved2;
+	uint16_t	a_index;
+	uint16_t	a_datalen;
+	uint16_t	reserved3;
+	uint16_t	a_dataoff;
+	uint16_t	a_indexed;
+} __packed;
+
+struct ntfs_filerec {
+	uint32_t	fr_hdrmagic;
+	uint16_t	fr_hdrfoff;
+	uint16_t	fr_hdrfnum;
+	uint8_t		reserved[8];
+	uint16_t	fr_seqnum;
+	uint16_t	fr_nlink;
+	uint16_t	fr_attroff;
+	uint16_t	fr_flags;
+	uint32_t	fr_size;
+	uint32_t	fr_allocated;
+	uint64_t	fr_mainrec;
+	uint16_t	fr_attrnum;
+} __packed;
+
+struct ntfs_bootfile {
+	uint8_t		reserved1[3];
+	uint8_t		bf_sysid[8];
+	uint16_t	bf_bps;
+	uint8_t		bf_spc;
+	uint8_t		reserved2[7];
+	uint8_t		bf_media;
+	uint8_t		reserved3[2];
+	uint16_t	bf_spt;
+	uint16_t	bf_heads;
+	uint8_t		reserver4[12];
+	uint64_t	bf_spv;
+	uint64_t	bf_mftcn;
+	uint64_t	bf_mftmirrcn;
+	uint8_t		bf_mftrecsz;
+	uint32_t	bf_ibsz;
+	uint32_t	bf_volsn;
+} __packed;
 
 static void
 g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 {
 	struct g_provider *pp;
-	struct bootfile *bf;
-	struct filerec *fr;
-	struct attr *atr;
+	struct ntfs_bootfile *bf;
+	struct ntfs_filerec *fr;
+	struct ntfs_attr *atr;
 	off_t voloff;
 	char *filerecp, *ap;
 	char mftrecsz, vnchar;
@@ -58,13 +109,13 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 	pp = cp->provider;
 	filerecp = NULL;
 
-	bf = (struct bootfile *)g_read_data(cp, 0, pp->sectorsize, NULL);
+	bf = (struct ntfs_bootfile *)g_read_data(cp, 0, pp->sectorsize, NULL);
 	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0)
 		goto done;
 
 	mftrecsz = (char)bf->bf_mftrecsz;
 	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
-	if (recsize % pp->sectorsize != 0)
+	if (recsize == 0 || recsize % pp->sectorsize != 0)
 		goto done;
 
 	voloff = bf->bf_mftcn * bf->bf_spc * bf->bf_bps +
@@ -75,16 +126,16 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 	filerecp = g_read_data(cp, voloff, recsize, NULL);
 	if (filerecp == NULL)
 		goto done;
-	fr = (struct filerec *)filerecp;
+	fr = (struct ntfs_filerec *)filerecp;
 
-	if (fr->fr_fixup.fh_magic != NTFS_FILEMAGIC)
+	if (fr->fr_hdrmagic != NTFS_FILEMAGIC)
 		goto done;
 
 	for (ap = filerecp + fr->fr_attroff;
-	    atr = (struct attr *)ap, atr->a_hdr.a_type != -1;
-	    ap += atr->a_hdr.reclen) {
-		if (atr->a_hdr.a_type == NTFS_A_VOLUMENAME) {
-			if(atr->a_r.a_datalen >= size *2){
+	    atr = (struct ntfs_attr *)ap, atr->a_type != -1;
+	    ap += atr->reclen) {
+		if (atr->a_type == NTFS_A_VOLUMENAME) {
+			if(atr->a_datalen >= size *2){
 				label[0] = 0;
 				goto done;
 			}
@@ -92,8 +143,8 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 			 *UNICODE to ASCII.
 			 * Should we need to use iconv(9)?
 			 */
-			for (j = 0; j < atr->a_r.a_datalen; j++) {
-				vnchar = *(ap + atr->a_r.a_dataoff + j);
+			for (j = 0; j < atr->a_datalen; j++) {
+				vnchar = *(ap + atr->a_dataoff + j);
 				if (j & 1) {
 					if (vnchar) {
 						label[0] = 0;

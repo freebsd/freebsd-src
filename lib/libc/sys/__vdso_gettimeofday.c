@@ -79,6 +79,7 @@ binuptime(struct bintime *bt, struct vdso_timekeep *tk, int abs)
 
 static struct vdso_timekeep *tk;
 
+#pragma weak __vdso_gettimeofday
 int
 __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
@@ -88,7 +89,7 @@ __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 	if (tz != NULL)
 		return (ENOSYS);
 	if (tk == NULL) {
-		error = _elf_aux_info(AT_TIMEKEEP, &tk, sizeof(tk));
+		error = __vdso_gettimekeep(&tk);
 		if (error != 0 || tk == NULL)
 			return (ENOSYS);
 	}
@@ -101,6 +102,7 @@ __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 	return (0);
 }
 
+#pragma weak __vdso_clock_gettime
 int
 __vdso_clock_gettime(clockid_t clock_id, struct timespec *ts)
 {

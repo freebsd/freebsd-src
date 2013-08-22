@@ -89,7 +89,7 @@ static int udp_done, tcp_done, sdp_done;
 #endif /* INET6 */
 
 static int
-pcblist_sysctl(int proto, const char *name, char **bufp, int istcp)
+pcblist_sysctl(int proto, const char *name, char **bufp, int istcp __unused)
 {
 	const char *mibvar;
 	char *buf;
@@ -699,7 +699,7 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_sc_sendcookie, "\t%lu cookie%s sent\n");
 	p(tcps_sc_recvcookie, "\t%lu cookie%s received\n");
 
-	p(tcps_hc_added, "\t%lu hostcache entrie%s added\n");
+	p3(tcps_hc_added, "\t%lu hostcache entr%s added\n");
 	p1a(tcps_hc_bucketoverflow, "\t\t%lu bucket overflow\n");
 
 	p(tcps_sack_recovery_episode, "\t%lu SACK recovery episode%s\n");

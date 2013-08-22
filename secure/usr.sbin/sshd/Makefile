@@ -40,6 +40,10 @@ DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1}
 LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lasn1
 .endif
 
+.if ${MK_OPENSSH_NONE_CIPHER} != "no"
+CFLAGS+= -DNONE_CIPHER_ENABLED
+.endif
+
 DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
 LDADD+=	-lcrypto -lcrypt
 

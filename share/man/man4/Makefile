@@ -70,6 +70,7 @@ MAN=	aac.4 \
 	bce.4 \
 	bfe.4 \
 	bge.4 \
+	${_bhyve.4} \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
@@ -525,7 +526,6 @@ MAN=	aac.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
-	vinum.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \
@@ -785,6 +785,7 @@ MLINKS+=lindev.4 full.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_bhyve.4=	bhyve.4
 _qlxgb.4=	qlxgb.4
 _sfxge.4=	sfxge.4
 

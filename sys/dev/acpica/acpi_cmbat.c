@@ -99,7 +99,7 @@ static device_method_t acpi_cmbat_methods[] = {
     DEVMETHOD(acpi_batt_get_info, acpi_cmbat_bif),
     DEVMETHOD(acpi_batt_get_status, acpi_cmbat_bst),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_cmbat_driver = {

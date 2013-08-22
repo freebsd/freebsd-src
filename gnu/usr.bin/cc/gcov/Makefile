@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .include "../Makefile.inc"
 .include "../Makefile.ver"
 

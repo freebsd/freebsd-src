@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2012, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -142,6 +142,7 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	hw->mac.ops.stop_adapter(hw);
 
+
 	DEBUGOUT("Issuing a function level reset to MAC\n");
 
 	ctrl = IXGBE_VFREAD_REG(hw, IXGBE_VFCTRL) | IXGBE_CTRL_RST;
@@ -270,6 +271,17 @@ static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
 	/* vector can only be 12-bits or boundary will be exceeded */
 	vector &= 0xFFF;
 	return vector;
+}
+
+static void ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw,
+					u32 *msg, u16 size)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	u32 retmsg[IXGBE_VFMAILBOX_SIZE];
+	s32 retval = mbx->ops.write_posted(hw, msg, size, 0);
+
+	if (!retval)
+		mbx->ops.read_posted(hw, retmsg, size, 0);
 }
 
 /**
@@ -463,11 +475,10 @@ s32 ixgbevf_set_uc_addr_vf(struct ixgbe_hw *hw, u32 index, u8 *addr)
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
-s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw,
-			    ixgbe_link_speed speed, bool autoneg,
+s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 			    bool autoneg_wait_to_complete)
 {
-	UNREFERENCED_4PARAMETER(hw, speed, autoneg, autoneg_wait_to_complete);
+	UNREFERENCED_3PARAMETER(hw, speed, autoneg_wait_to_complete);
 	return IXGBE_SUCCESS;
 }
 
@@ -483,23 +494,26 @@ s32 ixgbe_setup_mac_link_vf(struct ixgbe_hw *hw,
 s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 			    bool *link_up, bool autoneg_wait_to_complete)
 {
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	struct ixgbe_mac_info *mac = &hw->mac;
+	s32 ret_val = IXGBE_SUCCESS;
 	u32 links_reg;
+	u32 in_msg = 0;
 	UNREFERENCED_1PARAMETER(autoneg_wait_to_complete);
 
-	if (!(hw->mbx.ops.check_for_rst(hw, 0))) {
-		*link_up = FALSE;
-		*speed = 0;
-		return -1;
-	}
+	/* If we were hit with a reset drop the link */
+	if (!mbx->ops.check_for_rst(hw, 0) || !mbx->timeout)
+		mac->get_link_status = TRUE;
 
-	links_reg = IXGBE_VFREAD_REG(hw, IXGBE_VFLINKS);
+	if (!mac->get_link_status)
+		goto out;
 
-	if (links_reg & IXGBE_LINKS_UP)
-		*link_up = TRUE;
-	else
-		*link_up = FALSE;
+	/* if link status is down no point in checking to see if pf is up */
+	links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
+	if (!(links_reg & IXGBE_LINKS_UP))
+		goto out;
 
-	switch (links_reg & IXGBE_LINKS_SPEED_10G_82599) {
+	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
 	case IXGBE_LINKS_SPEED_10G_82599:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
 		break;
@@ -511,6 +525,87 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		break;
 	}
 
+	/* if the read failed it could just be a mailbox collision, best wait
+	 * until we are called again and don't report an error
+	 */
+	if (mbx->ops.read(hw, &in_msg, 1, 0))
+		goto out;
+
+	if (!(in_msg & IXGBE_VT_MSGTYPE_CTS)) {
+		/* msg is not CTS and is NACK we must have lost CTS status */
+		if (in_msg & IXGBE_VT_MSGTYPE_NACK)
+			ret_val = -1;
+		goto out;
+	}
+
+	/* the pf is talking, if we timed out in the past we reinit */
+	if (!mbx->timeout) {
+		ret_val = -1;
+		goto out;
+	}
+
+	/* if we passed all the tests above then the link is up and we no
+	 * longer need to check for link
+	 */
+	mac->get_link_status = FALSE;
+
+out:
+	*link_up = !mac->get_link_status;
+	return ret_val;
+}
+
+/**
+ *  ixgbevf_rlpml_set_vf - Set the maximum receive packet length
+ *  @hw: pointer to the HW structure
+ *  @max_size: value to assign to max frame size
+ **/
+void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
+{
+	u32 msgbuf[2];
+
+	msgbuf[0] = IXGBE_VF_SET_LPE;
+	msgbuf[1] = max_size;
+	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+}
+
+/**
+ *  ixgbevf_negotiate_api_version - Negotiate supported API version
+ *  @hw: pointer to the HW structure
+ *  @api: integer containing requested API version
+ **/
+int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
+{
+	int err;
+	u32 msg[3];
+
+	/* Negotiate the mailbox API version */
+	msg[0] = IXGBE_VF_API_NEGOTIATE;
+	msg[1] = api;
+	msg[2] = 0;
+	err = hw->mbx.ops.write_posted(hw, msg, 3, 0);
+
+	if (!err)
+		err = hw->mbx.ops.read_posted(hw, msg, 3, 0);
+
+	if (!err) {
+		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+		/* Store value and return 0 on success */
+		if (msg[0] == (IXGBE_VF_API_NEGOTIATE | IXGBE_VT_MSGTYPE_ACK)) {
+			hw->api_version = api;
+			return 0;
+		}
+
+		err = IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	return err;
+}
+
+int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
+		       unsigned int *default_tc)
+{
+	UNREFERENCED_3PARAMETER(hw, num_tcs, default_tc);
 	return IXGBE_SUCCESS;
 }
 

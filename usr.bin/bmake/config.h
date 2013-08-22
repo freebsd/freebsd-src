@@ -1,6 +1,6 @@
+/* $FreeBSD$ */
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
-/* $FreeBSD$ */
 
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
@@ -230,7 +230,7 @@
 #define PACKAGE_NAME "bmake"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "bmake 20120620"
+#define PACKAGE_STRING "bmake 20121212"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "bmake"
@@ -239,7 +239,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "20120620"
+#define PACKAGE_VERSION "20121212"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

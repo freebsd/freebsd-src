@@ -41,89 +41,79 @@ __FBSDID("$FreeBSD$");
 #include "_libelf.h"
 
 /*
- * Update the internal data structures associated with an ELF object.
- * Returns the size in bytes the ELF object would occupy in its file
- * representation.
+ * Layout strategy:
  *
- * After a successful call to this function, the following structures
- * are updated:
+ * - Case 1: ELF_F_LAYOUT is asserted
+ *     In this case the application has full control over where the
+ *     section header table, program header table, and section data
+ *     will reside.   The library only perform error checks.
  *
- * - The ELF header is updated.
- * - All sections are sorted in order of ascending addresses and their
- *   section header table entries updated.   An error is signalled
- *   if an overlap was detected among sections.
- * - All data descriptors associated with a section are sorted in order
- *   of ascending addresses.  Overlaps, if detected, are signalled as
- *   errors.  Other sanity checks for alignments, section types etc. are
- *   made.
+ * - Case 2: ELF_F_LAYOUT is not asserted
  *
- * After a resync_elf() successfully returns, the ELF descriptor is
- * ready for being handed over to _libelf_write_elf().
+ *     The library will do the object layout using the following
+ *     ordering:
+ *     - The executable header is placed first, are required by the
+ *     	 ELF specification.
+ *     - The program header table is placed immediately following the
+ *       executable header.
+ *     - Section data, if any, is placed after the program header
+ *       table, aligned appropriately.
+ *     - The section header table, if needed, is placed last.
  *
- * File alignments:
- * PHDR - Addr
- * SHDR - Addr
+ *     There are two sub-cases to be taken care of:
  *
- * XXX: how do we handle 'flags'.
+ *     - Case 2a: e->e_cmd == ELF_C_READ or ELF_C_RDWR
+ *
+ *       In this sub-case, the underlying ELF object may already have
+ *       content in it, which the application may have modified.  The
+ *       library will retrieve content from the existing object as
+ *       needed.
+ *
+ *     - Case 2b: e->e_cmd == ELF_C_WRITE
+ *
+ *       The ELF object is being created afresh in this sub-case;
+ *       there is no pre-existing content in the underlying ELF
+ *       object.
  */
 
 /*
  * Compute the extents of a section, by looking at the data
- * descriptors associated with it.  The function returns zero if an
- * error was detected.  `*rc' holds the maximum file extent seen so
- * far.
+ * descriptors associated with it.  The function returns 1 if
+ * successful, or zero if an error was detected.
  */
 static int
-_libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
+_libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t rc)
 {
 	int ec;
-	Elf_Data *d, *td;
+	size_t fsz, msz;
+	Elf_Data *d;
+	Elf32_Shdr *shdr32;
+	Elf64_Shdr *shdr64;
 	unsigned int elftype;
 	uint32_t sh_type;
 	uint64_t d_align;
 	uint64_t sh_align, sh_entsize, sh_offset, sh_size;
 	uint64_t scn_size, scn_alignment;
 
-	/*
-	 * We need to recompute library private data structures if one
-	 * or more of the following is true:
-	 * - The underlying Shdr structure has been marked `dirty'.  Significant
-	 *   fields include: `sh_offset', `sh_type', `sh_size', `sh_addralign'.
-	 * - The Elf_Data structures part of this section have been marked
-	 *   `dirty'.  Affected members include `d_align', `d_offset', `d_type',
-	 *   and `d_size'.
-	 * - The section as a whole is `dirty', e.g., it has been allocated
-	 *   using elf_newscn(), or if a new Elf_Data structure was added using
-	 *   elf_newdata().
-	 *
-	 * Each of these conditions would result in the ELF_F_DIRTY bit being
-	 * set on the section descriptor's `s_flags' field.
-	 */
-
 	ec = e->e_class;
 
+	shdr32 = &s->s_shdr.s_shdr32;
+	shdr64 = &s->s_shdr.s_shdr64;
 	if (ec == ELFCLASS32) {
-		sh_type    = s->s_shdr.s_shdr32.sh_type;
-		sh_align   = (uint64_t) s->s_shdr.s_shdr32.sh_addralign;
-		sh_entsize = (uint64_t) s->s_shdr.s_shdr32.sh_entsize;
-		sh_offset  = (uint64_t) s->s_shdr.s_shdr32.sh_offset;
-		sh_size    = (uint64_t) s->s_shdr.s_shdr32.sh_size;
+		sh_type    = shdr32->sh_type;
+		sh_align   = (uint64_t) shdr32->sh_addralign;
+		sh_entsize = (uint64_t) shdr32->sh_entsize;
+		sh_offset  = (uint64_t) shdr32->sh_offset;
+		sh_size    = (uint64_t) shdr32->sh_size;
 	} else {
-		sh_type    = s->s_shdr.s_shdr64.sh_type;
-		sh_align   = s->s_shdr.s_shdr64.sh_addralign;
-		sh_entsize = s->s_shdr.s_shdr64.sh_entsize;
-		sh_offset  = s->s_shdr.s_shdr64.sh_offset;
-		sh_size    = s->s_shdr.s_shdr64.sh_size;
+		sh_type    = shdr64->sh_type;
+		sh_align   = shdr64->sh_addralign;
+		sh_entsize = shdr64->sh_entsize;
+		sh_offset  = shdr64->sh_offset;
+		sh_size    = shdr64->sh_size;
 	}
 
-	if (sh_type == SHT_NULL || sh_type == SHT_NOBITS)
-		return (1);
-
-	if ((s->s_flags & ELF_F_DIRTY) == 0) {
-		if ((size_t) *rc < sh_offset + sh_size)
-			*rc = sh_offset + sh_size;
-		return (1);
-	}
+	assert(sh_type != SHT_NULL && sh_type != SHT_NOBITS);
 
 	elftype = _libelf_xlate_shtype(sh_type);
 	if (elftype > ELF_T_LAST) {
@@ -131,15 +121,52 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
 		return (0);
 	}
 
-	/*
-	 * Compute the extent of the data descriptors associated with
-	 * this section.
-	 */
-	scn_alignment = 0;
 	if (sh_align == 0)
 		sh_align = _libelf_falign(elftype, ec);
 
-	/* Compute the section alignment. */
+	/*
+	 * Check the section's data buffers for sanity and compute the
+	 * section's alignment.
+	 * Compute the section's size and alignment using the data
+	 * descriptors associated with the section.
+	 */
+	if (STAILQ_EMPTY(&s->s_data)) {
+		/*
+		 * The section's content (if any) has not been read in
+		 * yet.  If section is not dirty marked dirty, we can
+		 * reuse the values in the 'sh_size' and 'sh_offset'
+		 * fields of the section header.
+		 */
+		if ((s->s_flags & ELF_F_DIRTY) == 0) {
+			/*
+			 * If the library is doing the layout, then we
+			 * compute the new start offset for the
+			 * section based on the current offset and the
+			 * section's alignment needs.
+			 *
+			 * If the application is doing the layout, we
+			 * can use the value in the 'sh_offset' field
+			 * in the section header directly.
+			 */
+			if (e->e_flags & ELF_F_LAYOUT)
+				goto updatedescriptor;
+			else
+				goto computeoffset;
+		}
+
+		/*
+		 * Otherwise, we need to bring in the section's data
+		 * from the underlying ELF object.
+		 */
+		if (e->e_cmd != ELF_C_WRITE && elf_getdata(s, NULL) == NULL)
+			return (0);
+	}
+
+	/*
+	 * Loop through the section's data descriptors.
+	 */
+	scn_size = 0L;
+	scn_alignment = 0L;
 	STAILQ_FOREACH(d, &s->s_data, d_next)  {
 		if (d->d_type > ELF_T_LAST) {
 			LIBELF_SET_ERROR(DATA, 0);
@@ -153,22 +180,39 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
 			LIBELF_SET_ERROR(DATA, 0);
 			return (0);
 		}
-		if (d_align > scn_alignment)
-			scn_alignment = d_align;
-	}
 
-	scn_size = 0L;
+		/*
+		 * The buffer's size should be a multiple of the
+		 * memory size of the underlying type.
+		 */
+		msz = _libelf_msize(d->d_type, ec, e->e_version);
+		if (d->d_size % msz) {
+			LIBELF_SET_ERROR(DATA, 0);
+			return (0);
+		}
 
-	STAILQ_FOREACH_SAFE(d, &s->s_data, d_next, td) {
+		/*
+		 * Compute the section's size.
+		 */
 		if (e->e_flags & ELF_F_LAYOUT) {
 			if ((uint64_t) d->d_off + d->d_size > scn_size)
 				scn_size = d->d_off + d->d_size;
 		} else {
 			scn_size = roundup2(scn_size, d->d_align);
 			d->d_off = scn_size;
-			scn_size += d->d_size;
+			fsz = _libelf_fsize(d->d_type, ec, d->d_version,
+			    d->d_size / msz);
+			scn_size += fsz;
 		}
+
+		/*
+		 * The section's alignment is the maximum alignment
+		 * needed for its data buffers.
+		 */
+		if (d_align > scn_alignment)
+			scn_alignment = d_align;
 	}
+
 
 	/*
 	 * If the application is requesting full control over the layout
@@ -180,46 +224,60 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
 			LIBELF_SET_ERROR(LAYOUT, 0);
 			return (0);
 		}
-	} else {
-		/*
-		 * Otherwise compute the values in the section header.
-		 */
-
-		if (scn_alignment > sh_align)
-			sh_align = scn_alignment;
-
-		/*
-		 * If the section entry size is zero, try and fill in an
-		 * appropriate entry size.  Per the elf(5) manual page
-		 * sections without fixed-size entries should have their
-		 * 'sh_entsize' field set to zero.
-		 */
-		if (sh_entsize == 0 &&
-		    (sh_entsize = _libelf_fsize(elftype, ec, e->e_version,
-		    (size_t) 1)) == 1)
-			sh_entsize = 0;
-
-		sh_size = scn_size;
-		sh_offset = roundup(*rc, sh_align);
-
-		if (ec == ELFCLASS32) {
-			s->s_shdr.s_shdr32.sh_addralign = (uint32_t) sh_align;
-			s->s_shdr.s_shdr32.sh_entsize   = (uint32_t) sh_entsize;
-			s->s_shdr.s_shdr32.sh_offset    = (uint32_t) sh_offset;
-			s->s_shdr.s_shdr32.sh_size      = (uint32_t) sh_size;
-		} else {
-			s->s_shdr.s_shdr64.sh_addralign = sh_align;
-			s->s_shdr.s_shdr64.sh_entsize   = sh_entsize;
-			s->s_shdr.s_shdr64.sh_offset    = sh_offset;
-			s->s_shdr.s_shdr64.sh_size      = sh_size;
-		}
+		goto updatedescriptor;
 	}
 
-	if ((size_t) *rc < sh_offset + sh_size)
-		*rc = sh_offset + sh_size;
+	/*
+	 * Otherwise compute the values in the section header.
+	 *
+	 * The section alignment is the maximum alignment for any of
+	 * its contained data descriptors.
+	 */
+	if (scn_alignment > sh_align)
+		sh_align = scn_alignment;
 
+	/*
+	 * If the section entry size is zero, try and fill in an
+	 * appropriate entry size.  Per the elf(5) manual page
+	 * sections without fixed-size entries should have their
+	 * 'sh_entsize' field set to zero.
+	 */
+	if (sh_entsize == 0 &&
+	    (sh_entsize = _libelf_fsize(elftype, ec, e->e_version,
+	    (size_t) 1)) == 1)
+		sh_entsize = 0;
+
+	sh_size = scn_size;
+
+computeoffset:
+	/*
+	 * Compute the new offset for the section based on
+	 * the section's alignment needs.
+	 */
+	sh_offset = roundup(rc, sh_align);
+
+	/*
+	 * Update the section header.
+	 */
+	if (ec == ELFCLASS32) {
+		shdr32->sh_addralign = (uint32_t) sh_align;
+		shdr32->sh_entsize   = (uint32_t) sh_entsize;
+		shdr32->sh_offset    = (uint32_t) sh_offset;
+		shdr32->sh_size      = (uint32_t) sh_size;
+	} else {
+		shdr64->sh_addralign = sh_align;
+		shdr64->sh_entsize   = sh_entsize;
+		shdr64->sh_offset    = sh_offset;
+		shdr64->sh_size      = sh_size;
+	}
+
+updatedescriptor:
+	/*
+	 * Update the section descriptor.
+	 */
 	s->s_size = sh_size;
 	s->s_offset = sh_offset;
+
 	return (1);
 }
 
@@ -267,13 +325,16 @@ _libelf_insert_section(Elf *e, Elf_Scn *s)
 	return (1);
 }
 
+/*
+ * Recompute section layout.
+ */
+
 static off_t
 _libelf_resync_sections(Elf *e, off_t rc)
 {
 	int ec;
-	off_t nrc;
+	Elf_Scn *s;
 	size_t sh_type, shdr_start, shdr_end;
-	Elf_Scn *s, *ts;
 
 	ec = e->e_class;
 
@@ -281,13 +342,7 @@ _libelf_resync_sections(Elf *e, off_t rc)
 	 * Make a pass through sections, computing the extent of each
 	 * section. Order in increasing order of addresses.
 	 */
-
-	nrc = rc;
-	STAILQ_FOREACH(s, &e->e_u.e_elf.e_scn, s_next)
-		if (_libelf_compute_section_extents(e, s, &nrc) == 0)
-			return ((off_t) -1);
-
-	STAILQ_FOREACH_SAFE(s, &e->e_u.e_elf.e_scn, s_next, ts) {
+	STAILQ_FOREACH(s, &e->e_u.e_elf.e_scn, s_next) {
 		if (ec == ELFCLASS32)
 			sh_type = s->s_shdr.s_shdr32.sh_type;
 		else
@@ -296,21 +351,22 @@ _libelf_resync_sections(Elf *e, off_t rc)
 		if (sh_type == SHT_NOBITS || sh_type == SHT_NULL)
 			continue;
 
-		if (s->s_offset < (uint64_t) rc) {
-			if (s->s_offset + s->s_size < (uint64_t) rc) {
-				/*
-				 * Try insert this section in the
-				 * correct place in the list,
-				 * detecting overlaps if any.
-				 */
-				STAILQ_REMOVE(&e->e_u.e_elf.e_scn, s, _Elf_Scn,
-				    s_next);
-				if (_libelf_insert_section(e, s) == 0)
-					return ((off_t) -1);
-			} else {
-				LIBELF_SET_ERROR(LAYOUT, 0);
+		if (_libelf_compute_section_extents(e, s, rc) == 0)
+			return ((off_t) -1);
+
+		if (s->s_size == 0)
+			continue;
+
+		if (s->s_offset + s->s_size < (size_t) rc) {
+			/*
+			 * Try insert this section in the
+			 * correct place in the list,
+			 * detecting overlaps if any.
+			 */
+			STAILQ_REMOVE(&e->e_u.e_elf.e_scn, s, _Elf_Scn,
+			    s_next);
+			if (_libelf_insert_section(e, s) == 0)
 				return ((off_t) -1);
-			}
 		} else
 			rc = s->s_offset + s->s_size;
 	}
@@ -337,8 +393,6 @@ _libelf_resync_sections(Elf *e, off_t rc)
 			return ((off_t) -1);
 		}
 	}
-
-	assert(nrc == rc);
 
 	return (rc);
 }

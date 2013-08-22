@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/ucred.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -248,7 +249,7 @@ vm_pager_deallocate(object)
 	vm_object_t object;
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	(*pagertab[object->type]->pgo_dealloc) (object);
 }
 
@@ -272,13 +273,13 @@ vm_pager_object_lookup(struct pagerlst *pg_list, void *handle)
 
 	TAILQ_FOREACH(object, pg_list, pager_object_list) {
 		if (object->handle == handle) {
-			VM_OBJECT_LOCK(object);
+			VM_OBJECT_WLOCK(object);
 			if ((object->flags & OBJ_DEAD) == 0) {
 				vm_object_reference_locked(object);
-				VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_WUNLOCK(object);
 				break;
 			}
-			VM_OBJECT_UNLOCK(object);
+			VM_OBJECT_WUNLOCK(object);
 		}
 	}
 	return (object);

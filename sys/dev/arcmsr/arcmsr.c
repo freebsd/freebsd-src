@@ -1,16 +1,15 @@
 /*
-*****************************************************************************************
-**        O.S   : FreeBSD
+********************************************************************************
+**        OS    : FreeBSD
 **   FILE NAME  : arcmsr.c
 **        BY    : Erich Chen, Ching Huang
 **   Description: SCSI RAID Device Driver for 
-**                ARECA (ARC11XX/ARC12XX/ARC13XX/ARC16XX/ARC188x) SATA/SAS RAID HOST Adapter
-**                ARCMSR RAID Host adapter
-**                [RAID controller:INTEL 331(PCI-X) 341(PCI-EXPRESS) chip set]
-******************************************************************************************
-************************************************************************
+**                ARECA (ARC11XX/ARC12XX/ARC13XX/ARC16XX/ARC188x)
+**                SATA/SAS RAID HOST Adapter
+********************************************************************************
+********************************************************************************
 **
-** Copyright (C) 2002 - 2010, Areca Technology Corporation All rights reserved.
+** Copyright (C) 2002 - 2012, Areca Technology Corporation All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
@@ -33,7 +32,7 @@
 ** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 **(INCLUDING NEGLIGENCE OR OTHERWISE)ARISING IN ANY WAY OUT OF THE USE OF
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**************************************************************************
+********************************************************************************
 ** History
 **
 **        REV#         DATE             NAME             DESCRIPTION
@@ -73,7 +72,7 @@
 **     1.20.00.23   01/30/2012      Ching Huang          Fixed Request requeued and Retrying command
 **     1.20.00.24   06/11/2012      Ching Huang          Fixed return sense data condition
 **     1.20.00.25   08/17/2012      Ching Huang          Fixed hotplug device no function on type A adapter
-**     1.20.00.26   12/14/2012      Ching Huang          Added support ARC1214
+**     1.20.00.26   12/14/2012      Ching Huang          Added support ARC1214,1224
 ******************************************************************************************
 */
 
@@ -145,7 +144,7 @@ __FBSDID("$FreeBSD$");
 #define arcmsr_callout_init(a)	callout_init(a);
 #endif
 
-#define ARCMSR_DRIVER_VERSION	"Driver Version 1.20.00.26 2012-12-14"
+#define ARCMSR_DRIVER_VERSION	"Driver Version 1.20.00.26 2013-01-08"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -168,7 +167,7 @@ static void arcmsr_stop_adapter_bgrb(struct AdapterControlBlock *acb);
 static void arcmsr_start_adapter_bgrb(struct AdapterControlBlock *acb);
 static void arcmsr_iop_init(struct AdapterControlBlock *acb);
 static void arcmsr_flush_adapter_cache(struct AdapterControlBlock *acb);
-static void	arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb, struct QBUFFER *prbuffer);
+static u_int32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb, struct QBUFFER *prbuffer);
 static void arcmsr_Write_data_2iop_wqbuffer(struct AdapterControlBlock *acb);
 static void arcmsr_abort_allcmd(struct AdapterControlBlock *acb);
 static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag);
@@ -212,7 +211,11 @@ static device_method_t arcmsr_methods[]={
 	DEVMETHOD(device_suspend,	arcmsr_suspend),
 	DEVMETHOD(device_resume,	arcmsr_resume),
 
+#if __FreeBSD_version >= 803000
 	DEVMETHOD_END
+#else
+	{ 0, 0 }
+#endif
 };
 	
 static driver_t arcmsr_driver={
@@ -1381,13 +1384,61 @@ static void arcmsr_poll(struct cam_sim *psim)
 **************************************************************************
 **************************************************************************
 */
-static void	arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb,
+static u_int32_t arcmsr_Read_iop_rqbuffer_data_D(struct AdapterControlBlock *acb,
+    struct QBUFFER *prbuffer) {
+
+	u_int8_t *pQbuffer;
+	u_int8_t *buf1 = 0;
+	u_int32_t *iop_data, *buf2 = 0;
+	u_int32_t iop_len, data_len;
+
+	iop_data = (u_int32_t *)prbuffer->data;
+	iop_len = (u_int32_t)prbuffer->data_len;
+	if ( iop_len > 0 )
+	{
+		buf1 = malloc(128, M_DEVBUF, M_NOWAIT | M_ZERO);
+		buf2 = (u_int32_t *)buf1;
+		if( buf1 == NULL)
+			return (0);
+		data_len = iop_len;
+		while(data_len >= 4)
+		{
+			*buf2++ = *iop_data++;
+			data_len -= 4;
+		}
+		if(data_len)
+			*buf2 = *iop_data;
+		buf2 = (u_int32_t *)buf1;
+	}
+	while (iop_len > 0) {
+		pQbuffer = &acb->rqbuffer[acb->rqbuf_lastindex];
+		*pQbuffer = *buf1;
+		acb->rqbuf_lastindex++;
+		/* if last, index number set it to 0 */
+		acb->rqbuf_lastindex %= ARCMSR_MAX_QBUFFER;
+		buf1++;
+		iop_len--;
+	}
+	if(buf2)
+		free( (u_int8_t *)buf2, M_DEVBUF);
+	/* let IOP know data has been read */
+	arcmsr_iop_message_read(acb);
+	return (1);
+}
+/*
+**************************************************************************
+**************************************************************************
+*/
+static u_int32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb,
     struct QBUFFER *prbuffer) {
 
 	u_int8_t *pQbuffer;
 	u_int8_t *iop_data;
 	u_int32_t iop_len;
 
+	if(acb->adapter_type == ACB_ADAPTER_TYPE_D) {
+		return(arcmsr_Read_iop_rqbuffer_data_D(acb, prbuffer));
+	}
 	iop_data = (u_int8_t *)prbuffer->data;
 	iop_len = (u_int32_t)prbuffer->data_len;
 	while (iop_len > 0) {
@@ -1401,6 +1452,7 @@ static void	arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb,
 	}
 	/* let IOP know data has been read */
 	arcmsr_iop_message_read(acb);
+	return (1);
 }
 /*
 **************************************************************************
@@ -1417,11 +1469,56 @@ static void arcmsr_iop2drv_data_wrote_handle(struct AdapterControlBlock *acb)
 	my_empty_len = (acb->rqbuf_lastindex - acb->rqbuf_firstindex - 1) &
 	    (ARCMSR_MAX_QBUFFER-1);
 	if(my_empty_len >= prbuffer->data_len) {
-		arcmsr_Read_iop_rqbuffer_data(acb, prbuffer);
+		if(arcmsr_Read_iop_rqbuffer_data(acb, prbuffer) == 0)
+			acb->acb_flags |= ACB_F_IOPDATA_OVERFLOW;
 	} else {
 		acb->acb_flags |= ACB_F_IOPDATA_OVERFLOW;
 	}
 	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+}
+/*
+**********************************************************************
+**********************************************************************
+*/
+static void arcmsr_Write_data_2iop_wqbuffer_D(struct AdapterControlBlock *acb)
+{
+	u_int8_t *pQbuffer;
+	struct QBUFFER *pwbuffer;
+	u_int8_t *buf1 = 0;
+	u_int32_t *iop_data, *buf2 = 0;
+	u_int32_t allxfer_len = 0, data_len;
+	
+	if(acb->acb_flags & ACB_F_MESSAGE_WQBUFFER_READ) {
+		buf1 = malloc(128, M_DEVBUF, M_NOWAIT | M_ZERO);
+		buf2 = (u_int32_t *)buf1;
+		if( buf1 == NULL)
+			return;
+
+		acb->acb_flags &= (~ACB_F_MESSAGE_WQBUFFER_READ);
+		pwbuffer = arcmsr_get_iop_wqbuffer(acb);
+		iop_data = (u_int32_t *)pwbuffer->data;
+		while((acb->wqbuf_firstindex != acb->wqbuf_lastindex) 
+			&& (allxfer_len < 124)) {
+			pQbuffer = &acb->wqbuffer[acb->wqbuf_firstindex];
+			*buf1 = *pQbuffer;
+			acb->wqbuf_firstindex++;
+			acb->wqbuf_firstindex %= ARCMSR_MAX_QBUFFER;
+			buf1++;
+			allxfer_len++;
+		}
+		pwbuffer->data_len = allxfer_len;
+		data_len = allxfer_len;
+		buf1 = (u_int8_t *)buf2;
+		while(data_len >= 4)
+		{
+			*iop_data++ = *buf2++;
+			data_len -= 4;
+		}
+		if(data_len)
+			*iop_data = *buf2;
+		free( buf1, M_DEVBUF);
+		arcmsr_iop_message_wrote(acb);
+	}
 }
 /*
 **********************************************************************
@@ -1434,6 +1531,10 @@ static void arcmsr_Write_data_2iop_wqbuffer(struct AdapterControlBlock *acb)
 	u_int8_t *iop_data;
 	int32_t allxfer_len=0;
 	
+	if(acb->adapter_type == ACB_ADAPTER_TYPE_D) {
+		arcmsr_Write_data_2iop_wqbuffer_D(acb);
+		return;
+	}
 	if(acb->acb_flags & ACB_F_MESSAGE_WQBUFFER_READ) {
 		acb->acb_flags &= (~ACB_F_MESSAGE_WQBUFFER_READ);
 		pwbuffer = arcmsr_get_iop_wqbuffer(acb);
@@ -2153,7 +2254,8 @@ u_int32_t arcmsr_iop_ioctlcmd(struct AdapterControlBlock *acb, u_int32_t ioctl_c
 	
 				acb->acb_flags &= ~ACB_F_IOPDATA_OVERFLOW;
 				prbuffer = arcmsr_get_iop_rqbuffer(acb);
-				arcmsr_Read_iop_rqbuffer_data(acb, prbuffer);
+				if(arcmsr_Read_iop_rqbuffer_data(acb, prbuffer) == 0)
+					acb->acb_flags |= ACB_F_IOPDATA_OVERFLOW;
 			}
 			pcmdmessagefld->cmdmessage.Length = allxfer_len;
 			pcmdmessagefld->cmdmessage.ReturnCode = ARCMSR_MESSAGE_RETURNCODE_OK;
@@ -2341,7 +2443,7 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb, union ccb *p
 				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[7] << 8  |
 				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[8];
 					/* 4 bytes: Areca io control code */
-	if((pccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
+	if ((pccb->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) {
 		buffer = pccb->csio.data_ptr;
 		transfer_len = pccb->csio.dxfer_len;
 	} else {
@@ -2374,7 +2476,8 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb, union ccb *p
 	
 				acb->acb_flags &= ~ACB_F_IOPDATA_OVERFLOW;
 				prbuffer = arcmsr_get_iop_rqbuffer(acb);
-				arcmsr_Read_iop_rqbuffer_data(acb, prbuffer);
+				if(arcmsr_Read_iop_rqbuffer_data(acb, prbuffer) == 0)
+					acb->acb_flags |= ACB_F_IOPDATA_OVERFLOW;
 			}
 			pcmdmessagefld->cmdmessage.Length = allxfer_len;
 			pcmdmessagefld->cmdmessage.ReturnCode = ARCMSR_MESSAGE_RETURNCODE_OK;
@@ -2731,6 +2834,7 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 	case XPT_SCSI_IO: {
 			struct CommandControlBlock *srb;
 			int target = pccb->ccb_h.target_id;
+			int error;
 	
 			if(target == 16) {
 				/* virtual device for iop message transfer */
@@ -2745,52 +2849,13 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 			pccb->ccb_h.arcmsr_ccbsrb_ptr = srb;
 			pccb->ccb_h.arcmsr_ccbacb_ptr = acb;
 			srb->pccb = pccb;
-			if((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-				if(!(pccb->ccb_h.flags & CAM_SCATTER_VALID)) {
-					/* Single buffer */
-					if(!(pccb->ccb_h.flags & CAM_DATA_PHYS)) {
-						/* Buffer is virtual */
-						u_int32_t error, s;
-	
-						s = splsoftvm();
-						error =	bus_dmamap_load(acb->dm_segs_dmat
-							, srb->dm_segs_dmamap
-							, pccb->csio.data_ptr
-							, pccb->csio.dxfer_len
-							, arcmsr_execute_srb, srb, /*flags*/0);
-	         				if(error == EINPROGRESS) {
-							xpt_freeze_simq(acb->psim, 1);
-							pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-						}
-						splx(s);
-					}
-					else {		/* Buffer is physical */
-#ifdef	PAE
-						panic("arcmsr: CAM_DATA_PHYS not supported");
-#else
-						struct bus_dma_segment seg;
-						
-						seg.ds_addr = (bus_addr_t)pccb->csio.data_ptr;
-						seg.ds_len = pccb->csio.dxfer_len;
-						arcmsr_execute_srb(srb, &seg, 1, 0);
-#endif
-					}
-				} else { 
-					/* Scatter/gather list */
-					struct bus_dma_segment *segs;
-	
-					if((pccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0
-					|| (pccb->ccb_h.flags & CAM_DATA_PHYS) != 0) {
-						pccb->ccb_h.status |= CAM_PROVIDE_FAIL;
-						xpt_done(pccb);
-						free(srb, M_DEVBUF);
-						return;
-					}
-					segs = (struct bus_dma_segment *)pccb->csio.data_ptr;
-					arcmsr_execute_srb(srb, segs, pccb->csio.sglist_cnt, 0);
-				}
-			} else {
-				arcmsr_execute_srb(srb, NULL, 0, 0);
+			error =	bus_dmamap_load_ccb(acb->dm_segs_dmat
+				, srb->dm_segs_dmamap
+				, pccb
+				, arcmsr_execute_srb, srb, /*flags*/0);
+			if(error == EINPROGRESS) {
+				xpt_freeze_simq(acb->psim, 1);
+				pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 			}
 			break;
 		}

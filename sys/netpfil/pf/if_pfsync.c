@@ -99,8 +99,7 @@ __FBSDID("$FreeBSD$");
 #define PFSYNC_MINPKT ( \
 	sizeof(struct ip) + \
 	sizeof(struct pfsync_header) + \
-	sizeof(struct pfsync_subheader) + \
-	sizeof(struct pfsync_eof))
+	sizeof(struct pfsync_subheader) )
 
 struct pfsync_pkt {
 	struct ip *ip;
@@ -1506,7 +1505,7 @@ pfsync_sendout(int schedswi)
 		return;
 	}
 
-	m = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR, max_linkhdr + sc->sc_len);
+	m = m_get2(max_linkhdr + sc->sc_len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		sc->sc_ifp->if_oerrors++;
 		V_pfsyncstats.pfsyncs_onomem++;

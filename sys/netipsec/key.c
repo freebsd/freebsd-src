@@ -547,7 +547,6 @@ static const char *key_getfqdn __P((void));
 static const char *key_getuserfqdn __P((void));
 #endif
 static void key_sa_chgstate __P((struct secasvar *, u_int8_t));
-static struct mbuf *key_alloc_mbuf __P((int));
 
 static __inline void
 sa_initref(struct secasvar *sav)
@@ -1634,15 +1633,11 @@ key_sp2msg(sp)
 
 	tlen = key_getspreqmsglen(sp);
 
-	m = key_alloc_mbuf(tlen);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
-		return NULL;
-	}
-
+	m = m_get2(tlen, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
+		return (NULL);
+	m_align(m, tlen);
 	m->m_len = tlen;
-	m->m_next = NULL;
 	xpl = mtod(m, struct sadb_x_policy *);
 	bzero(xpl, tlen);
 
@@ -1732,12 +1727,11 @@ key_gather_mbuf(m, mhp, ndeep, nitem, va_alist)
 			    mtod(n, caddr_t));
 		} else if (i < ndeep) {
 			len = mhp->extlen[idx];
-			n = key_alloc_mbuf(len);
-			if (!n || n->m_next) {	/*XXX*/
-				if (n)
-					m_freem(n);
+			n = m_get2(len, M_NOWAIT, MT_DATA, 0);
+			if (n == NULL)
 				goto fail;
-			}
+			m_align(n, len);
+			n->m_len = len;
 			m_copydata(m, mhp->extoff[idx], mhp->extlen[idx],
 			    mtod(n, caddr_t));
 		} else {
@@ -2602,13 +2596,13 @@ key_spdexpire(sp)
 
 	/* create lifetime extension (current and hard) */
 	len = PFKEY_ALIGN8(sizeof(*lt)) * 2;
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL) {
 		error = ENOBUFS;
 		goto fail;
 	}
+	m_align(m, len);
+	m->m_len = len;
 	bzero(mtod(m, caddr_t), len);
 	lt = mtod(m, struct sadb_lifetime *);
 	lt->sadb_lifetime_len = PFKEY_UNIT64(sizeof(struct sadb_lifetime));
@@ -3602,15 +3596,12 @@ key_setsadbsa(sav)
 	int len;
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_sa));
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
-		return NULL;
-	}
-
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
+		return (NULL);
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_sa *);
-
 	bzero(p, len);
 	p->sadb_sa_len = PFKEY_UNIT64(len);
 	p->sadb_sa_exttype = SADB_EXT_SA;
@@ -3636,13 +3627,11 @@ key_setsadbaddr(u_int16_t exttype, const struct sockaddr *saddr, u_int8_t prefix
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_address)) +
 	    PFKEY_ALIGN8(saddr->sa_len);
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
-		return NULL;
-	}
-
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
+		return (NULL);
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_address *);
 
 	bzero(p, len);
@@ -3682,13 +3671,11 @@ key_setsadbxsa2(u_int8_t mode, u_int32_t seq, u_int32_t reqid)
 	size_t len;
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_x_sa2));
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
-		return NULL;
-	}
-
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
+		return (NULL);
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_x_sa2 *);
 
 	bzero(p, len);
@@ -3716,13 +3703,11 @@ key_setsadbxtype(u_int16_t type)
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_x_nat_t_type));
 
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
 		return (NULL);
-	}
-
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_x_nat_t_type *);
 
 	bzero(p, len);
@@ -3745,13 +3730,11 @@ key_setsadbxport(u_int16_t port, u_int16_t type)
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_x_nat_t_port));
 
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
 		return (NULL);
-	}
-
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_x_nat_t_port *);
 
 	bzero(p, len);
@@ -3822,13 +3805,11 @@ key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id)
 	size_t len;
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_x_policy));
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
-		return NULL;
-	}
-
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL)
+		return (NULL);
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_x_policy *);
 
 	bzero(p, len);
@@ -6951,13 +6932,13 @@ key_expire(struct secasvar *sav)
 
 	/* create lifetime extension (current and soft) */
 	len = PFKEY_ALIGN8(sizeof(*lt)) * 2;
-	m = key_alloc_mbuf(len);
-	if (!m || m->m_next) {	/*XXX*/
-		if (m)
-			m_freem(m);
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
+	if (m == NULL) {
 		error = ENOBUFS;
 		goto fail;
 	}
+	m_align(m, len);
+	m->m_len = len;
 	bzero(mtod(m, caddr_t), len);
 	lt = mtod(m, struct sadb_lifetime *);
 	lt->sadb_lifetime_len = PFKEY_UNIT64(sizeof(struct sadb_lifetime));
@@ -7959,45 +7940,6 @@ key_sa_stir_iv(sav)
 	key_randomfill(sav->iv, sav->ivlen);
 }
 
-/* XXX too much? */
-static struct mbuf *
-key_alloc_mbuf(l)
-	int l;
-{
-	struct mbuf *m = NULL, *n;
-	int len, t;
-
-	len = l;
-	while (len > 0) {
-		MGET(n, M_NOWAIT, MT_DATA);
-		if (n && len > MLEN)
-			MCLGET(n, M_NOWAIT);
-		if (!n) {
-			m_freem(m);
-			return NULL;
-		}
-
-		n->m_next = NULL;
-		n->m_len = 0;
-		n->m_len = M_TRAILINGSPACE(n);
-		/* use the bottom of mbuf, hoping we can prepend afterwards */
-		if (n->m_len > len) {
-			t = (n->m_len - len) & ~(sizeof(long) - 1);
-			n->m_data += t;
-			n->m_len = len;
-		}
-
-		len -= n->m_len;
-
-		if (m)
-			m_cat(m, n);
-		else
-			m = n;
-	}
-
-	return m;
-}
-
 /*
  * Take one of the kernel's security keys and convert it into a PF_KEY
  * structure within an mbuf, suitable for sending up to a waiting
@@ -8022,9 +7964,11 @@ key_setkey(struct seckey *src, u_int16_t exttype)
 		return NULL;
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_key) + _KEYLEN(src));
-	m = key_alloc_mbuf(len);
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
 	if (m == NULL)
 		return NULL;
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_key *);
 	bzero(p, len);
 	p->sadb_key_len = PFKEY_UNIT64(len);
@@ -8059,9 +8003,11 @@ key_setlifetime(struct seclifetime *src, u_int16_t exttype)
 	if (src == NULL)
 		return NULL;
 
-	m = key_alloc_mbuf(len);
+	m = m_get2(len, M_NOWAIT, MT_DATA, 0);
 	if (m == NULL)
 		return m;
+	m_align(m, len);
+	m->m_len = len;
 	p = mtod(m, struct sadb_lifetime *);
 
 	bzero(p, len);

@@ -29,8 +29,13 @@
   { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }
 
 #undef SUBTARGET_EXTRA_ASM_SPEC
+#ifdef TARGET_ARM_EABI
+#define SUBTARGET_EXTRA_ASM_SPEC	\
+  "%{mabi=apcs-gnu|mabi=atpcs:-meabi=gnu;:-meabi=4} %{fpic|fpie:-k} %{fPIC|fPIE:-k}"
+#else
 #define SUBTARGET_EXTRA_ASM_SPEC	\
   "-matpcs %{fpic|fpie:-k} %{fPIC|fPIE:-k}"
+#endif
 
 /* Default to full FPA if -mhard-float is specified. */
 #undef SUBTARGET_ASM_FLOAT_SPEC
@@ -61,6 +66,24 @@
 #define TARGET_ENDIAN_DEFAULT 0
 #endif
 
+#ifdef TARGET_ARM_EABI
+/* We default to a soft-float ABI so that binaries can run on all
+   target hardware.  */
+#undef TARGET_DEFAULT_FLOAT_ABI
+#define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFT
+
+#undef ARM_DEFAULT_ABI
+#define ARM_DEFAULT_ABI ARM_ABI_AAPCS_LINUX
+
+#undef  TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS() 		\
+  do						\
+    {						\
+      FBSD_TARGET_OS_CPP_BUILTINS();		\
+      TARGET_BPABI_CPP_BUILTINS();		\
+    }						\
+  while (false)
+#else
 /* Default it to use ATPCS with soft-VFP.  */
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT			\
@@ -69,6 +92,10 @@
 
 #undef ARM_DEFAULT_ABI
 #define ARM_DEFAULT_ABI ARM_ABI_ATPCS
+
+#undef FPUTYPE_DEFAULT
+#define FPUTYPE_DEFAULT FPUTYPE_VFP
+#endif
 
 /* Define the actual types of some ANSI-mandated types.
    Needs to agree with <machine/ansi.h>.  GCC defaults come from c-decl.c,
@@ -97,7 +124,7 @@
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/armv6 ELF)");
 #else
 #undef  SUBTARGET_CPU_DEFAULT
-#define SUBTARGET_CPU_DEFAULT	TARGET_CPU_strongarm
+#define SUBTARGET_CPU_DEFAULT	TARGET_CPU_arm9
 #undef  TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
 #endif
@@ -134,5 +161,3 @@ do									\
   }									\
 while (0)
 
-#undef FPUTYPE_DEFAULT
-#define FPUTYPE_DEFAULT FPUTYPE_VFP

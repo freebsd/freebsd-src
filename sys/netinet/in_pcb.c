@@ -334,8 +334,7 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 
 	if (inp->inp_lport != 0 || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
-	anonport = inp->inp_lport == 0 && (nam == NULL ||
-	    ((struct sockaddr_in *)nam)->sin_port == 0);
+	anonport = nam == NULL || ((struct sockaddr_in *)nam)->sin_port == 0;
 	error = in_pcbbind_setup(inp, nam, &inp->inp_laddr.s_addr,
 	    &inp->inp_lport, cred);
 	if (error)

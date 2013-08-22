@@ -55,7 +55,7 @@ static void setmaster(struct tsp *);
 static void answerdelay(void);
 
 int
-slave()
+slave(void)
 {
 	int tries;
 	long electiontime, refusetime, looktime, looptime, adjtime;
@@ -610,8 +610,7 @@ loop:
  * tell the world who our master is
  */
 static void
-setmaster(msg)
-	struct tsp *msg;
+setmaster(struct tsp *msg)
 {
 	if (slavenet
 	    && (slavenet != old_slavenet
@@ -640,9 +639,7 @@ setmaster(msg)
  * handle date change request on a slave
  */
 static void
-schgdate(msg, newdate)
-	struct tsp *msg;
-	char *newdate;
+schgdate(struct tsp *msg, char *newdate)
 {
 	struct tsp to;
 	u_short seq;
@@ -680,7 +677,7 @@ schgdate(msg, newdate)
  * contention and likely collisions.
  */
 static void
-answerdelay()
+answerdelay(void)
 {
 	struct timeval timeout;
 

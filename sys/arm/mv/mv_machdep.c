@@ -279,6 +279,25 @@ out:
 }
 
 /*
+ * Supply a default do-nothing implementation of fdt_pci_devmap() via a weak
+ * alias.  Many Marvell platforms don't support a PCI interface, but to support
+ * those that do, we end up with a reference to this function below, in
+ * platform_devmap_init().  If "device pci" appears in the kernel config, the
+ * real implementation of this function in dev/fdt/fdt_pci.c overrides the weak
+ * alias defined here.
+ */
+int mv_default_fdt_pci_devmap(phandle_t node, struct pmap_devmap *devmap,
+    vm_offset_t io_va, vm_offset_t mem_va);
+int
+mv_default_fdt_pci_devmap(phandle_t node, struct pmap_devmap *devmap,
+    vm_offset_t io_va, vm_offset_t mem_va)
+{
+
+	return (0);
+}
+__weak_reference(mv_default_fdt_pci_devmap, fdt_pci_devmap);
+
+/*
  * XXX: When device entry in devmap has pd_size smaller than section size,
  * system will freeze during initialization
  */

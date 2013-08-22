@@ -44,7 +44,8 @@ map_iter(const rd_loadobj_t *lop, void *arg)
 
 	if (phdl->nobjs >= phdl->rdobjsz) {
 		phdl->rdobjsz *= 2;
-		phdl->rdobjs = realloc(phdl->rdobjs, phdl->rdobjsz);
+		phdl->rdobjs = reallocf(phdl->rdobjs, sizeof(*phdl->rdobjs) *
+		    phdl->rdobjsz);
 		if (phdl->rdobjs == NULL)
 			return (-1);
 	}

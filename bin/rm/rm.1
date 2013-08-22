@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2010
+.Dd March 15, 2013
 .Dt RM 1
 .Os
 .Sh NAME
@@ -193,6 +193,19 @@ When
 is specified with
 .Fl f
 the file will be overwritten and removed even if it has hard links.
+.Sh EXAMPLES
+Recursively remove all files contained within the
+.Pa foobar
+directory hierarchy:
+.Pp
+.Dl $ rm -rf foobar
+.Pp
+Either of these commands will remove the file
+.Pa -f :
+.Bd -literal -offset indent
+$ rm -- -f
+$ rm ./-f
+.Ed
 .Sh COMPATIBILITY
 The
 .Nm

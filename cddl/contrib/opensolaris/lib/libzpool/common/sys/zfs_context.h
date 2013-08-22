@@ -457,6 +457,9 @@ extern vnode_t *rootdir;
 
 extern void delay(clock_t ticks);
 
+#define	SEC_TO_TICK(sec)	((sec) * hz)
+#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
+
 #define	gethrestime_sec() time(NULL)
 #define	gethrestime(t) \
 	do {\
@@ -623,6 +626,36 @@ typedef	uint32_t	idmap_rid_t;
 #ifndef	ERESTART
 #define	ERESTART	(-1)
 #endif
+
+#ifdef illumos
+/*
+ * Cyclic information
+ */
+extern kmutex_t cpu_lock;
+
+typedef uintptr_t cyclic_id_t;
+typedef uint16_t cyc_level_t;
+typedef void (*cyc_func_t)(void *);
+
+#define	CY_LOW_LEVEL	0
+#define	CY_INFINITY	INT64_MAX
+#define	CYCLIC_NONE	((cyclic_id_t)0)
+
+typedef struct cyc_time {
+	hrtime_t cyt_when;
+	hrtime_t cyt_interval;
+} cyc_time_t;
+
+typedef struct cyc_handler {
+	cyc_func_t cyh_func;
+	void *cyh_arg;
+	cyc_level_t cyh_level;
+} cyc_handler_t;
+
+extern cyclic_id_t cyclic_add(cyc_handler_t *, cyc_time_t *);
+extern void cyclic_remove(cyclic_id_t);
+extern int cyclic_reprogram(cyclic_id_t, hrtime_t);
+#endif	/* illumos */
 
 #ifdef	__cplusplus
 }

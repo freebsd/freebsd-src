@@ -93,6 +93,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 # Current src committers go here. Try to keep things sorted.
 
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1993/10/31"]
+achim [label="Achim Leubner\nachim@FreeBSD.org\n2013/01/23"]
 adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
 ae [label="Andrey V. Elsukov\nae@FreeBSD.org\n2010/06/03"]
 akiyama [label="Shunsuke Akiyama\nakiyama@FreeBSD.org\n2000/06/19"]
@@ -117,6 +118,7 @@ bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
 bryanv [label="Bryan Venteicher\nbryanv@FreeBSD.org\n2012/11/03"]
 bschmidt [label="Bernhard Schmidt\nbschmidt@FreeBSD.org\n2010/02/06"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
+carl [label="Carl Delsey\ncarl@FreeBSD.org\n2013/01/14"]
 cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
@@ -159,6 +161,7 @@ grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 gshapiro [label="Gregory Shapiro\ngshapiro@FreeBSD.org\n2000/07/12"]
 harti [label="Hartmut Brandt\nharti@FreeBSD.org\n2003/01/29"]
 hmp [label="Hiten Pandya\nhmp@FreeBSD.org\n2004/03/23"]
+ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
@@ -338,6 +341,7 @@ bz -> syrinx
 
 cognet -> jceel
 cognet -> kevlo
+cognet -> ian
 
 cperciva -> eadler
 cperciva -> flz
@@ -377,6 +381,7 @@ ed -> uqs
 eivind -> des
 eivind -> rwatson
 
+emaste -> achim
 emaste -> rstone
 emaste -> dteske
 emaste -> markj
@@ -453,6 +458,8 @@ jhb -> kbyanc
 jhb -> peterj
 jhb -> pfg
 jhb -> rnoland
+
+jimharris -> carl
 
 jkh -> grog
 jkh -> imp
@@ -611,6 +618,7 @@ sbruno -> jimharris
 
 schweikh -> dds
 
+scottl -> achim
 scottl -> jimharris
 scottl -> pjd
 scottl -> sah

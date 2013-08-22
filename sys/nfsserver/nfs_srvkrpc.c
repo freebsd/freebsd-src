@@ -174,7 +174,8 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 		    sizeof(addsockarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, addsockarg.sock, CAP_SOCK_ALL, &fp)) != 0)
+		error = fget(td, addsockarg.sock, CAP_SOCK_SERVER, &fp);
+		if (error)
 			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);

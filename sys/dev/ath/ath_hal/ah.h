@@ -137,6 +137,9 @@ typedef enum {
 	HAL_CAP_RIFS_RX_ENABLED	= 53,
 	HAL_CAP_BB_DFS_HANG	= 54,
 
+	HAL_CAP_RX_STBC		= 58,
+	HAL_CAP_TX_STBC		= 59,
+
 	HAL_CAP_BT_COEX		= 60,	/* hardware is capable of bluetooth coexistence */
 	HAL_CAP_DYNAMIC_SMPS	= 61,	/* Dynamic MIMO Power Save hardware support */
 
@@ -941,6 +944,8 @@ typedef struct {
 	int8_t		ss_nf_cal[AH_MAX_CHAINS*2];     /* nf calibrated values for ctl+ext from eeprom */
 	int8_t		ss_nf_pwr[AH_MAX_CHAINS*2];     /* nf pwr values for ctl+ext from eeprom */
 	int32_t		ss_nf_temp_data;	/* temperature data taken during nf scan */
+	int		ss_enabled;
+	int		ss_active;
 } HAL_SPECTRAL_PARAM;
 #define	HAL_SPECTRAL_PARAM_NOVAL	0xFFFF
 #define	HAL_SPECTRAL_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
@@ -1435,6 +1440,8 @@ struct ath_hal {
 	HAL_STATUS	__ahdecl(*ah_setQuiet)(struct ath_hal *ah, uint32_t period,
 				uint32_t duration, uint32_t nextStart,
 				HAL_QUIET_FLAG flag);
+	void	  __ahdecl(*ah_setChainMasks)(struct ath_hal *,
+				uint32_t, uint32_t);
 
 	/* DFS functions */
 	void	  __ahdecl(*ah_enableDfs)(struct ath_hal *ah,
@@ -1520,11 +1527,13 @@ struct ath_hal {
 	    			struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
 				struct ath_desc *);
-
 	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_set11nVirtMoreFrag)(struct ath_hal *,
+				struct ath_desc *, u_int);
+
 	HAL_BOOL  __ahdecl(*ah_getMibCycleCounts) (struct ath_hal *,
 				HAL_SURVEY_SAMPLE *);
 

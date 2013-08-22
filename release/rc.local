@@ -45,6 +45,16 @@ else
 fi
 export TERM
 
+if [ -f /etc/installerconfig ]; then
+	if bsdinstall script /etc/installerconfig; then
+		dialog --backtitle "FreeBSD Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of FreeBSD complete! Rebooting in 10 seconds" 10 30 10
+		reboot
+	else
+		dialog --backtitle "FreeBSD Installer" --title "Error" --textbox /tmp/bsdinstall_log 0 0
+	fi
+	exit 
+fi
+
 dialog --backtitle "FreeBSD Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to FreeBSD! Would you like to begin an installation or use the live CD?" 0 0
 
 case $? in

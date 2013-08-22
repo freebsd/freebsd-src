@@ -227,7 +227,7 @@ static device_method_t ua_pcm_methods[] = {
 	DEVMETHOD(device_attach, ua_attach),
 	DEVMETHOD(device_detach, ua_detach),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ua_pcm_driver = {

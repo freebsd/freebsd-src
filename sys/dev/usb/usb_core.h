@@ -69,6 +69,7 @@ struct usb_page;
 struct usb_page_cache;
 struct usb_xfer;
 struct usb_xfer_root;
+struct usb_string_lang;
 
 /* typedefs */
 
@@ -174,6 +175,7 @@ struct usb_xfer {
 /* external variables */
 
 extern struct mtx usb_ref_lock;
+extern const struct usb_string_lang usb_string_lang_en;
 
 /* typedefs */
 

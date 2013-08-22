@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2010
+.Dd March 3, 2013
 .Dt MVS 4
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ command latency.
 .It Va hint.mvs. Ns Ar X Ns Va .cccc
 defines number of completed commands for CCC, which trigger interrupt without
 waiting for specified coalescing timeout.
-.It Va hint.mvs. Ns Ar X Ns Va .pm_level
+.It Va hint.mvsch. Ns Ar X Ns Va .pm_level
 controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command
 latency.
@@ -82,7 +82,7 @@ driver initiates SLUMBER PM state transition 125ms after port becomes idle.
 Note that interface Power Management is not compatible with
 device presence detection.
 A manual bus reset is needed on device hot-plug.
-.It Va hint.mvs. Ns Ar X Ns Va .sata_rev
+.It Va hint.mvsch. Ns Ar X Ns Va .sata_rev
 setting to nonzero value limits maximum SATA revision (speed).
 Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
 .El

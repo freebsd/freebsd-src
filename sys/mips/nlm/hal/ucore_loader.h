@@ -49,7 +49,7 @@ nlm_ucore_load_image(uint64_t nae_base, int ucore)
 
 	size = sizeof(ucore_app_bin)/sizeof(uint32_t);
 	for (i = 0; i < size; i++, addr += 4)
-		nlm_store_word_daddr(addr, p[i]);
+		nlm_store_word_daddr(addr, htobe32(p[i]));
 
 	/* add a 'nop' if number of instructions are odd */
 	if (size & 0x1) 

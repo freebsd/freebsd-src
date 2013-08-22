@@ -31,21 +31,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/disk.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <sys/sysctl.h>
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <libutil.h>
-#include <limits.h>
-#include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 #include <unistd.h>
 
 #include <activemap.h>
@@ -70,7 +60,8 @@ enum {
 	CMD_CREATE,
 	CMD_ROLE,
 	CMD_STATUS,
-	CMD_DUMP
+	CMD_DUMP,
+	CMD_LIST
 };
 
 static __dead2 void
@@ -83,6 +74,9 @@ usage(void)
 	    getprogname());
 	fprintf(stderr,
 	    "       %s role [-d] [-c config] <init | primary | secondary> all | name ...\n",
+	    getprogname());
+	fprintf(stderr,
+	    "       %s list [-d] [-c config] [all | name ...]\n",
 	    getprogname());
 	fprintf(stderr,
 	    "       %s status [-d] [-c config] [all | name ...]\n",
@@ -297,7 +291,7 @@ control_set_role(struct nv *nv, const char *newrole)
 }
 
 static int
-control_status(struct nv *nv)
+control_list(struct nv *nv)
 {
 	unsigned int ii;
 	const char *str;
@@ -342,15 +336,58 @@ control_status(struct nv *nv)
 		    (intmax_t)nv_get_uint64(nv, "dirty%u", ii));
 		printf("  statistics:\n");
 		printf("    reads: %ju\n",
-		    (uint64_t)nv_get_uint64(nv, "stat_read%u", ii));
+		    (uintmax_t)nv_get_uint64(nv, "stat_read%u", ii));
 		printf("    writes: %ju\n",
-		    (uint64_t)nv_get_uint64(nv, "stat_write%u", ii));
+		    (uintmax_t)nv_get_uint64(nv, "stat_write%u", ii));
 		printf("    deletes: %ju\n",
-		    (uint64_t)nv_get_uint64(nv, "stat_delete%u", ii));
+		    (uintmax_t)nv_get_uint64(nv, "stat_delete%u", ii));
 		printf("    flushes: %ju\n",
-		    (uint64_t)nv_get_uint64(nv, "stat_flush%u", ii));
+		    (uintmax_t)nv_get_uint64(nv, "stat_flush%u", ii));
 		printf("    activemap updates: %ju\n",
-		    (uint64_t)nv_get_uint64(nv, "stat_activemap_update%u", ii));
+		    (uintmax_t)nv_get_uint64(nv, "stat_activemap_update%u", ii));
+		printf("    local errors: "
+		    "read: %ju, write: %ju, delete: %ju, flush: %ju\n",
+		    (uintmax_t)nv_get_uint64(nv, "stat_read_error%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "stat_write_error%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "stat_delete_error%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "stat_flush_error%u", ii));
+	}
+	return (ret);
+}
+
+static int
+control_status(struct nv *nv)
+{
+	unsigned int ii;
+	const char *str;
+	int error, hprinted, ret;
+
+	hprinted = 0;
+	ret = 0;
+
+	for (ii = 0; ; ii++) {
+		str = nv_get_string(nv, "resource%u", ii);
+		if (str == NULL)
+			break;
+		if (!hprinted) {
+			printf("Name\tStatus\t Role\t\tComponents\n");
+			hprinted = 1;
+		}
+		printf("%s\t", str);
+		error = nv_get_int16(nv, "error%u", ii);
+		if (error != 0) {
+			if (ret == 0)
+				ret = error;
+			printf("ERR%d\n", error);
+			continue;
+		}
+		str = nv_get_string(nv, "status%u", ii);
+		printf("%-9s", (str != NULL) ? str : "-");
+		printf("%-15s", nv_get_string(nv, "role%u", ii));
+		printf("%s\t",
+		    nv_get_string(nv, "localpath%u", ii));
+		printf("%s\n",
+		    nv_get_string(nv, "remoteaddr%u", ii));
 	}
 	return (ret);
 }
@@ -374,6 +411,9 @@ main(int argc, char *argv[])
 		optstr = "c:de:k:m:h";
 	} else if (strcmp(argv[1], "role") == 0) {
 		cmd = CMD_ROLE;
+		optstr = "c:dh";
+	} else if (strcmp(argv[1], "list") == 0) {
+		cmd = CMD_LIST;
 		optstr = "c:dh";
 	} else if (strcmp(argv[1], "status") == 0) {
 		cmd = CMD_STATUS;
@@ -463,8 +503,19 @@ main(int argc, char *argv[])
 		for (ii = 0; ii < argc - 1; ii++)
 			nv_add_string(nv, argv[ii + 1], "resource%d", ii);
 		break;
+	case CMD_LIST:
+		/* Obtain verbose status of the given resources. */
+		nv = nv_alloc();
+		nv_add_uint8(nv, HASTCTL_CMD_STATUS, "cmd");
+		if (argc == 0)
+			nv_add_string(nv, "all", "resource%d", 0);
+		else {
+			for (ii = 0; ii < argc; ii++)
+				nv_add_string(nv, argv[ii], "resource%d", ii);
+		}
+		break;
 	case CMD_STATUS:
-		/* Obtain status of the given resources. */
+		/* Obtain brief status of the given resources. */
 		nv = nv_alloc();
 		nv_add_uint8(nv, HASTCTL_CMD_STATUS, "cmd");
 		if (argc == 0)
@@ -517,6 +568,9 @@ main(int argc, char *argv[])
 	switch (cmd) {
 	case CMD_ROLE:
 		error = control_set_role(nv, argv[0]);
+		break;
+	case CMD_LIST:
+		error = control_list(nv);
 		break;
 	case CMD_STATUS:
 		error = control_status(nv);

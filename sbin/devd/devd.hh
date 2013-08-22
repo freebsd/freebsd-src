@@ -41,8 +41,6 @@ class config;
 class var_list
 {
 public:
-	var_list() {}
-	virtual ~var_list() {}
 	/** Set a variable in this var list.
 	 */
 	void set_variable(const std::string &var, const std::string &val);
@@ -68,7 +66,6 @@ private:
 struct eps
 {
 public:
-	eps() {}
 	virtual ~eps() {}
 	/** Does this eps match the current config?
 	 */
@@ -90,9 +87,9 @@ public:
 	virtual bool do_match(config &);
 	virtual bool do_action(config &) { return true; }
 private:
+	bool _inv;
 	std::string _var;
 	std::string _re;
-	bool _inv;
 	regex_t _regex;
 };
 
@@ -144,7 +141,7 @@ private:
 class config
 {
 public:
-	config() : _pidfile("") { push_var_table(); }
+	config() { push_var_table(); }
 	virtual ~config() { reset(); }
 	void add_attach(int, event_proc *);
 	void add_detach(int, event_proc *);
@@ -162,7 +159,8 @@ public:
 	void pop_var_table();
 	void set_variable(const char *var, const char *val);
 	const std::string &get_variable(const std::string &var);
-	const std::string expand_string(const std::string &var);
+	const std::string expand_string(const char * var, 
+	    const char * prepend = NULL, const char * append = NULL);
 	char *set_vars(char *);
 	void find_and_execute(char);
 protected:
@@ -171,7 +169,7 @@ protected:
 	void parse_files_in_dir(const char *dirname);
 	void expand_one(const char *&src, std::string &dst);
 	bool is_id_char(char) const;
-	bool chop_var(char *&buffer, char *&lhs, char *&rhs);
+	bool chop_var(char *&buffer, char *&lhs, char *&rhs) const;
 private:
 	std::vector<std::string> _dir_list;
 	std::string _pidfile;

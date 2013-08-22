@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/syscallsubr.h>

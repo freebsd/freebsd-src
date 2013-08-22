@@ -77,7 +77,7 @@ static platform_method_t powermac_methods[] = {
 
 	PLATFORMMETHOD(platform_reset,		powermac_reset),
 
-	{ 0, 0 }
+	PLATFORMMETHOD_END
 };
 
 static platform_def_t powermac_platform = {

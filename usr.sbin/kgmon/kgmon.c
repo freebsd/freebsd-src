@@ -37,9 +37,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)kgmon.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -77,7 +78,7 @@ int	debug = 0;
 int	getprof(struct kvmvars *);
 int	getprofhz(struct kvmvars *);
 void	kern_readonly(int);
-int	openfiles(char *, char *, struct kvmvars *);
+int	openfiles(const char *, char *, struct kvmvars *);
 void	setprof(struct kvmvars *kvp, int state);
 void	dumpstate(struct kvmvars *kvp);
 void	reset(struct kvmvars *kvp);
@@ -88,13 +89,14 @@ main(int argc, char **argv)
 {
 	int ch, mode, disp, accessmode;
 	struct kvmvars kvmvars;
-	char *system, *kmemf;
+	const char *systemname;
+	char *kmemf;
 
 	if (seteuid(getuid()) != 0) {
 		err(1, "seteuid failed\n");
 	}
 	kmemf = NULL;
-	system = NULL;
+	systemname = NULL;
 	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) != -1) {
 		switch((char)ch) {
 
@@ -104,7 +106,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'N':
-			system = optarg;
+			systemname = optarg;
 			break;
 
 		case 'B':
@@ -137,16 +139,16 @@ main(int argc, char **argv)
 #define BACKWARD_COMPATIBILITY
 #ifdef	BACKWARD_COMPATIBILITY
 	if (*argv) {
-		system = *argv;
+		systemname = *argv;
 		if (*++argv) {
 			kmemf = *argv;
 			++kflag;
 		}
 	}
 #endif
-	if (system == NULL)
-		system = (char *)getbootfile();
-	accessmode = openfiles(system, kmemf, &kvmvars);
+	if (systemname == NULL)
+		systemname = getbootfile();
+	accessmode = openfiles(systemname, kmemf, &kvmvars);
 	mode = getprof(&kvmvars);
 	if (hflag)
 		disp = GMON_PROF_OFF;
@@ -173,7 +175,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: kgmon [-Bbhrp] [-M core] [-N system]\n");
 	exit(1);
@@ -183,10 +185,7 @@ usage()
  * Check that profiling is enabled and open any necessary files.
  */
 int
-openfiles(system, kmemf, kvp)
-	char *system;
-	char *kmemf;
-	struct kvmvars *kvp;
+openfiles(const char *systemname, char *kmemf, struct kvmvars *kvp)
 {
 	size_t size;
 	int mib[3], state, openmode;
@@ -212,11 +211,11 @@ openfiles(system, kmemf, kvp)
 	}
 	openmode = (Bflag || bflag || hflag || pflag || rflag)
 		   ? O_RDWR : O_RDONLY;
-	kvp->kd = kvm_openfiles(system, kmemf, NULL, openmode, errbuf);
+	kvp->kd = kvm_openfiles(systemname, kmemf, NULL, openmode, errbuf);
 	if (kvp->kd == NULL) {
 		if (openmode == O_RDWR) {
 			openmode = O_RDONLY;
-			kvp->kd = kvm_openfiles(system, kmemf, NULL, O_RDONLY,
+			kvp->kd = kvm_openfiles(systemname, kmemf, NULL, O_RDONLY,
 			    errbuf);
 		}
 		if (kvp->kd == NULL)
@@ -224,7 +223,7 @@ openfiles(system, kmemf, kvp)
 		kern_readonly(GMON_PROF_ON);
 	}
 	if (kvm_nlist(kvp->kd, nl) < 0)
-		errx(3, "%s: no namelist", system);
+		errx(3, "%s: no namelist", systemname);
 	if (!nl[N_GMONPARAM].n_value)
 		errx(20, "profiling not defined in kernel");
 	return (openmode);
@@ -234,8 +233,7 @@ openfiles(system, kmemf, kvp)
  * Suppress options that require a writable kernel.
  */
 void
-kern_readonly(mode)
-	int mode;
+kern_readonly(int mode)
 {
 
 	(void)fprintf(stderr, "kgmon: kernel read-only: ");
@@ -256,8 +254,7 @@ kern_readonly(mode)
  * Get the state of kernel profiling.
  */
 int
-getprof(kvp)
-	struct kvmvars *kvp;
+getprof(struct kvmvars *kvp)
 {
 	size_t size;
 	int mib[3];
@@ -311,9 +308,7 @@ getprof(kvp)
  * Enable or disable kernel profiling according to the state variable.
  */
 void
-setprof(kvp, state)
-	struct kvmvars *kvp;
-	int state;
+setprof(struct kvmvars *kvp, int state)
 {
 	struct gmonparam *p = (struct gmonparam *)nl[N_GMONPARAM].n_value;
 	size_t sz;
@@ -335,7 +330,7 @@ setprof(kvp, state)
 		}
 		(void)seteuid(getuid());
 	} else if (kvm_write(kvp->kd, (u_long)&p->state, (void *)&state, sz)
-	    == sz)
+	    == (ssize_t)sz)
 		return;
 bad:
 	warnx("warning: cannot turn profiling %s",
@@ -346,8 +341,7 @@ bad:
  * Build the gmon.out file.
  */
 void
-dumpstate(kvp)
-	struct kvmvars *kvp;
+dumpstate(struct kvmvars *kvp)
 {
 	register FILE *fp;
 	struct rawarc rawarc;
@@ -463,8 +457,7 @@ dumpstate(kvp)
  * Get the profiling rate.
  */
 int
-getprofhz(kvp)
-	struct kvmvars *kvp;
+getprofhz(struct kvmvars *kvp)
 {
 	size_t size;
 	int mib[2], profrate;
@@ -490,8 +483,7 @@ getprofhz(kvp)
  * Reset the kernel profiling date structures.
  */
 void
-reset(kvp)
-	struct kvmvars *kvp;
+reset(struct kvmvars *kvp)
 {
 	char *zbuf;
 	u_long biggest;
@@ -509,13 +501,13 @@ reset(kvp)
 	bzero(zbuf, biggest);
 	if (kflag) {
 		if (kvm_write(kvp->kd, (u_long)kvp->gpm.kcount, zbuf,
-		    kvp->gpm.kcountsize) != kvp->gpm.kcountsize)
+		    kvp->gpm.kcountsize) != (ssize_t)kvp->gpm.kcountsize)
 			errx(13, "tickbuf zero: %s", kvm_geterr(kvp->kd));
 		if (kvm_write(kvp->kd, (u_long)kvp->gpm.froms, zbuf,
-		    kvp->gpm.fromssize) != kvp->gpm.fromssize)
+		    kvp->gpm.fromssize) != (ssize_t)kvp->gpm.fromssize)
 			errx(14, "froms zero: %s", kvm_geterr(kvp->kd));
 		if (kvm_write(kvp->kd, (u_long)kvp->gpm.tos, zbuf,
-		    kvp->gpm.tossize) != kvp->gpm.tossize)
+		    kvp->gpm.tossize) != (ssize_t)kvp->gpm.tossize)
 			errx(15, "tos zero: %s", kvm_geterr(kvp->kd));
 		return;
 	}

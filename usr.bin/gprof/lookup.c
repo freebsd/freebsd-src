@@ -44,8 +44,7 @@ __FBSDID("$FreeBSD$");
      *	    entry point.
      */
 nltype *
-nllookup( address )
-    unsigned long	address;
+nllookup(unsigned long address)
 {
     register long	low;
     register long	middle;
@@ -90,9 +89,7 @@ nllookup( address )
 }
 
 arctype *
-arclookup( parentp , childp )
-    nltype	*parentp;
-    nltype	*childp;
+arclookup(nltype *parentp, nltype *childp)
 {
     arctype	*arcp;
 

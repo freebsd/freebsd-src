@@ -62,7 +62,7 @@ static long median(float, float *, long *, long *, unsigned int);
  *	bad values.
  */
 long
-networkdelta()
+networkdelta(void)
 {
 	struct hosttbl *htp;
 	long med;

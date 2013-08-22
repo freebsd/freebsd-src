@@ -473,7 +473,7 @@ sys_pipe(struct thread *td, struct pipe_args *uap)
 	error = kern_pipe(td, fildes);
 	if (error)
 		return (error);
-	
+
 	td->td_retval[0] = fildes[0];
 	td->td_retval[1] = fildes[1];
 

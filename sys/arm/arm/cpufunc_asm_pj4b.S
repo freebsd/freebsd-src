@@ -46,6 +46,7 @@ ENTRY(pj4b_setttb)
 	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	RET
+END(pj4b_setttb)
 
 ENTRY_NP(armv6_icache_sync_all)
 	/*
@@ -58,6 +59,7 @@ ENTRY_NP(armv6_icache_sync_all)
 	mcr	p15, 0, r0, c7, c10, 0	/* Clean (don't invalidate) DCache */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv6_icache_sync_all)
 
 ENTRY(pj4b_icache_sync_range)
 	sub	r1, r1, #1
@@ -66,6 +68,7 @@ ENTRY(pj4b_icache_sync_range)
 	mcrr	p15, 0, r1, r0, c12	/* clean DC range */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(pj4b_icache_sync_range)
 
 ENTRY(pj4b_dcache_inv_range)
 	ldr	ip, .Lpj4b_cache_line_size
@@ -84,6 +87,7 @@ ENTRY(pj4b_dcache_inv_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(pj4b_dcache_inv_range)
 
 ENTRY(armv6_idcache_wbinv_all)
 	mov	r0, #0
@@ -91,12 +95,14 @@ ENTRY(armv6_idcache_wbinv_all)
 	mcr	p15, 0, r0, c7, c14, 0	/* clean and invalidate DCache */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv6_idcache_wbinv_all)
 
 ENTRY(armv6_dcache_wbinv_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c14, 0	/* clean and invalidate DCache */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(armv6_dcache_wbinv_all)
 
 ENTRY(pj4b_idcache_wbinv_range)
 	ldr	ip, .Lpj4b_cache_line_size
@@ -121,6 +127,7 @@ ENTRY(pj4b_idcache_wbinv_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(pj4b_idcache_wbinv_range)
 
 ENTRY(pj4b_dcache_wbinv_range)
 	ldr	ip, .Lpj4b_cache_line_size
@@ -144,6 +151,7 @@ ENTRY(pj4b_dcache_wbinv_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(pj4b_dcache_wbinv_range)
 
 ENTRY(pj4b_dcache_wb_range)
 	ldr	ip, .Lpj4b_cache_line_size
@@ -167,22 +175,27 @@ ENTRY(pj4b_dcache_wb_range)
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+END(pj4b_dcache_wb_range)
 
 ENTRY(pj4b_drain_readbuf)
 	mcr	p15, 0, r0, c7, c5, 4	/* flush prefetch buffers */
 	RET
+END(pj4b_drain_readbuf)
 
 ENTRY(pj4b_flush_brnchtgt_all)
 	mcr	p15, 0, r0, c7, c5, 6	/* flush entrie branch target cache */
 	RET
+END(pj4b_flush_brnchtgt_all)
 
 ENTRY(pj4b_flush_brnchtgt_va)
 	mcr	p15, 0, r0, c7, c5, 7	/* flush branch target cache by VA */
 	RET
+END(pj4b_flush_brnchtgt_va)
 
 ENTRY(get_core_id)
 	mrc p15, 0, r0, c0, c0, 5
 	RET
+END(get_core_id)
 
 ENTRY(pj4b_config)
 	/* Set Auxiliary Debug Modes Control 2 register */
@@ -200,3 +213,5 @@ ENTRY(pj4b_config)
 	mcr	p15, 0, r0, c1, c0, 1
 #endif
 	RET
+END(pj4b_config)
+

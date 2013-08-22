@@ -231,6 +231,8 @@ vm_paddr_t kernel_l1pa;
 
 vm_offset_t kernel_vm_end = 0;
 
+vm_offset_t vm_max_kernel_address;
+
 struct pmap kernel_pmap_store;
 
 static pt_entry_t *csrc_pte, *cdst_pte;
@@ -390,7 +392,6 @@ static uma_zone_t l2table_zone;
 static vm_offset_t pmap_kernel_l2dtable_kva;
 static vm_offset_t pmap_kernel_l2ptp_kva;
 static vm_paddr_t pmap_kernel_l2ptp_phys;
-static struct vm_object pvzone_obj;
 static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
 static struct rwlock pvh_global_lock;
 
@@ -1162,7 +1163,7 @@ pmap_init(void)
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
 	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+	uma_zone_reserve_kva(pvzone, pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	/*
@@ -1536,7 +1537,7 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
 #define PMAP_STATIC_L2_SIZE 16
 
 void
-pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt)
+pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 {
 	static struct l1_ttable static_l1;
 	static struct l2_dtable static_l2[PMAP_STATIC_L2_SIZE];
@@ -1552,7 +1553,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	int l1idx, l2idx, l2next = 0;
 
 	PDEBUG(1, printf("firstaddr = %08x, lastaddr = %08x\n",
-	    firstaddr, lastaddr));
+	    firstaddr, vm_max_kernel_address));
 
 	virtual_avail = firstaddr;
 	kernel_pmap->pm_l1 = l1;
@@ -1668,7 +1669,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)csrc_pte);
 	pmap_alloc_specials(&virtual_avail, 1, &cdstp, &cdst_pte);
 	pmap_set_pt_cache_mode(kernel_l1pt, (vm_offset_t)cdst_pte);
-	size = ((lastaddr - pmap_curmaxkvaddr) + L1_S_OFFSET) / L1_S_SIZE;
+	size = ((vm_max_kernel_address - pmap_curmaxkvaddr) + L1_S_OFFSET) /
+	    L1_S_SIZE;
 	pmap_alloc_specials(&virtual_avail,
 	    round_page(size * L2_TABLE_SIZE_REAL) / PAGE_SIZE,
 	    &pmap_kernel_l2ptp_kva, NULL);
@@ -1690,9 +1692,9 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	cpu_l2cache_wbinv_all();
 
 	virtual_avail = round_page(virtual_avail);
-	virtual_end = lastaddr;
+	virtual_end = vm_max_kernel_address;
 	kernel_vm_end = pmap_curmaxkvaddr;
-	arm_nocache_startaddr = lastaddr;
+	arm_nocache_startaddr = vm_max_kernel_address;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
 	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);
@@ -2210,7 +2212,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
 
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
@@ -3310,6 +3312,47 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	mtx_unlock(&cmtx);
 }
 
+int unmapped_buf_allowed = 1;
+
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+	vm_page_t a_pg, b_pg;
+	vm_offset_t a_pg_offset, b_pg_offset;
+	int cnt;
+
+	mtx_lock(&cmtx);
+	while (xfersize > 0) {
+		a_pg = ma[a_offset >> PAGE_SHIFT];
+		a_pg_offset = a_offset & PAGE_MASK;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
+		b_pg = mb[b_offset >> PAGE_SHIFT];
+		b_pg_offset = b_offset & PAGE_MASK;
+		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
+		*csrc_pte = L2_S_PROTO | VM_PAGE_TO_PHYS(a_pg) |
+		    pte_l2_s_cache_mode;
+		pmap_set_prot(csrc_pte, VM_PROT_READ, 0);
+		PTE_SYNC(csrc_pte);
+		*cdst_pte = L2_S_PROTO | VM_PAGE_TO_PHYS(b_pg) |
+		    pte_l2_s_cache_mode;
+		pmap_set_prot(cdst_pte, VM_PROT_READ | VM_PROT_WRITE, 0);
+		PTE_SYNC(cdst_pte);
+		cpu_tlb_flushD_SE(csrcp);
+		cpu_tlb_flushD_SE(cdstp);
+		cpu_cpwait();
+		bcopy((char *)csrcp + a_pg_offset, (char *)cdstp + b_pg_offset,
+		    cnt);
+		cpu_idcache_wbinv_range(cdstp + b_pg_offset, cnt);
+		pmap_l2cache_wbinv_range(cdstp + b_pg_offset,
+		    VM_PAGE_TO_PHYS(b_pg) + b_pg_offset, cnt);
+		xfersize -= cnt;
+		a_offset += cnt;
+		b_offset += cnt;
+	}
+	mtx_unlock(&cmtx);
+}
+
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
@@ -3426,7 +3469,7 @@ pmap_clear_modify(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("pmap_clear_modify: page %p is busy", m));
 
@@ -3473,7 +3516,7 @@ pmap_remove_write(vm_page_t m)
 	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if ((m->oflags & VPO_BUSY) != 0 ||
 	    (m->aflags & PGA_WRITEABLE) != 0)
 		pmap_clearbit(m, PVF_WRITE);

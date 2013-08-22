@@ -89,12 +89,7 @@ struct buf_ops {
 
 struct bufobj {
 	struct mtx	bo_mtx;		/* Mutex which protects "i" things */
-	struct bufv	bo_clean;	/* i Clean buffers */
-	struct bufv	bo_dirty;	/* i Dirty buffers */
-	long		bo_numoutput;	/* i Writes in progress */
-	u_int		bo_flag;	/* i Flags */
 	struct buf_ops	*bo_ops;	/* - Buffer operations */
-	int		bo_bsize;	/* - Block size for i/o */
 	struct vm_object *bo_object;	/* v Place to store VM object */
 	LIST_ENTRY(bufobj) bo_synclist;	/* S dirty vnode list */
 	void		*bo_private;	/* private pointer */
@@ -103,6 +98,11 @@ struct bufobj {
 					 * XXX: only to keep the syncer working
 					 * XXX: for now.
 					 */
+	struct bufv	bo_clean;	/* i Clean buffers */
+	struct bufv	bo_dirty;	/* i Dirty buffers */
+	long		bo_numoutput;	/* i Writes in progress */
+	u_int		bo_flag;	/* i Flags */
+	int		bo_bsize;	/* - Block size for i/o */
 };
 
 /*

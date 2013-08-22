@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangstaticanalyzercore
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Core

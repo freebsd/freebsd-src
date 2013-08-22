@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM

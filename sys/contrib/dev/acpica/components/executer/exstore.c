@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -515,13 +515,28 @@ AcpiExStoreObjectToNode (
     default:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "Storing %s (%p) directly into node (%p) with no implicit conversion\n",
-            AcpiUtGetObjectTypeName (SourceDesc), SourceDesc, Node));
+            "Storing [%s] (%p) directly into node [%s] (%p)"
+            " with no implicit conversion\n",
+            AcpiUtGetObjectTypeName (SourceDesc), SourceDesc,
+            AcpiUtGetObjectTypeName (TargetDesc), Node));
 
-        /* No conversions for all other types. Just attach the source object */
+        /*
+         * No conversions for all other types. Directly store a copy of
+         * the source object. NOTE: This is a departure from the ACPI
+         * spec, which states "If conversion is impossible, abort the
+         * running control method".
+         *
+         * This code implements "If conversion is impossible, treat the
+         * Store operation as a CopyObject".
+         */
+        Status = AcpiUtCopyIobjectToIobject (SourceDesc, &NewDesc, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
 
-        Status = AcpiNsAttachObject (Node, SourceDesc,
-                    SourceDesc->Common.Type);
+        Status = AcpiNsAttachObject (Node, NewDesc, NewDesc->Common.Type);
+        AcpiUtRemoveReference (NewDesc);
         break;
     }
 

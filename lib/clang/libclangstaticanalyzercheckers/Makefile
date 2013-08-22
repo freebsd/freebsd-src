@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangstaticanalyzercheckers
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Checkers

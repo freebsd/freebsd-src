@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2010
+.Dd March 10, 2013
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -301,6 +301,12 @@ is repeated, counters with a value of zero are suppressed.
 Show
 .Xr netisr 9
 statistics.
+The flags field shows available ISR handlers:
+.Bl -column ".Li W" ".Dv NETISR_SNP_FLAGS_DRAINEDCPU"
+.It Li C Ta Dv NETISR_SNP_FLAGS_M2CPUID Ta "Able to map mbuf to cpu id"
+.It Li D Ta Dv NETISR_SNP_FLAGS_DRAINEDCPU  Ta "Has queue drain handler"
+.It Li F Ta Dv NETISR_SNP_FLAGS_M2FLOW Ta "Able to map mbuf to flow id"
+.El
 .El
 .Pp
 Some options have the general meaning:

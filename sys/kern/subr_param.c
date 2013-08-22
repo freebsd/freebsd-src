@@ -81,19 +81,20 @@ __FBSDID("$FreeBSD$");
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
-int	hz;
-int	tick;
+int	hz;				/* system clock's frequency */
+int	tick;				/* usec per tick (1000000 / hz) */
+struct bintime tick_bt;			/* bintime per tick (1s / hz) */
+sbintime_t tick_sbt;
 int	maxusers;			/* base tunable */
 int	maxproc;			/* maximum # of processes */
 int	maxprocperuid;			/* max # of procs per user */
 int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
 int	msgbufsize;			/* size of kernel message buffer */
-int	ncallout;			/* maximum # of timer events */
 int	nbuf;
+int	bio_transient_maxcnt;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
-quad_t	maxmbufmem;			/* max mbuf memory */
 pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
@@ -108,8 +109,6 @@ u_long	sgrowsiz;			/* amount to grow stack */
 
 SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN, &hz, 0,
     "Number of clock ticks per second");
-SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
-    "Number of pre-allocated timer events");
 SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
@@ -120,6 +119,9 @@ SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "Maximum memory for swap metadata");
 SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
     "Maximum value of vfs.maxbufspace");
+SYSCTL_INT(_kern, OID_AUTO, bio_transient_maxcnt, CTLFLAG_RDTUN,
+    &bio_transient_maxcnt, 0,
+    "Maximum number of transient BIOs mappings");
 SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxtsiz, 0,
     "Maximum text size");
 SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RW | CTLFLAG_TUN, &dfldsiz, 0,
@@ -161,6 +163,7 @@ static const char *const vm_bnames[] = {
 	"Bochs",			/* Bochs */
 	"Xen",				/* Xen */
 	"BHYVE",			/* bhyve */
+	"Seabios",			/* KVM */
 	NULL
 };
 
@@ -169,6 +172,7 @@ static const char *const vm_pnames[] = {
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
 	"Parallels Virtual Platform",	/* Parallels VM */
+	"KVM",				/* KVM */
 	NULL
 };
 
@@ -220,6 +224,8 @@ init_param1(void)
 	if (hz == -1)
 		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
 	tick = 1000000 / hz;
+	tick_sbt = SBT_1S / hz;
+	tick_bt = sbttobt(tick_sbt);
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;
@@ -264,6 +270,8 @@ init_param1(void)
 		pid_max = PID_MAX;
 	else if (pid_max < 300)
 		pid_max = 300;
+
+	TUNABLE_INT_FETCH("vfs.unmapped_buf_allowed", &unmapped_buf_allowed);
 }
 
 /*
@@ -272,7 +280,6 @@ init_param1(void)
 void
 init_param2(long physpages)
 {
-	quad_t realmem;
 
 	/* Base parameters */
 	maxusers = MAXUSERS;
@@ -321,24 +328,7 @@ init_param2(long physpages)
 	 */
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
-
-	/*
-	 * XXX: Does the callout wheel have to be so big?
-	 */
-	ncallout = 16 + maxproc + maxfiles;
-	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
-
-	/*
-	 * The default limit for all mbuf related memory is 1/2 of all
-	 * available kernel memory (physical or kmem).
-	 * At most it can be 3/4 of available kernel memory.
-	 */
-	realmem = qmin((quad_t)physpages * PAGE_SIZE,
-	    VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS);
-	maxmbufmem = realmem / 2;
-	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
-	if (maxmbufmem > (realmem / 4) * 3)
-		maxmbufmem = (realmem / 4) * 3;
+	TUNABLE_INT_FETCH("kern.bio_transient_maxcnt", &bio_transient_maxcnt);
 
 	/*
 	 * The default for maxpipekva is min(1/64 of the kernel address space,

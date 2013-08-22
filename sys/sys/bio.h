@@ -55,10 +55,13 @@
 #define BIO_DONE	0x02
 #define BIO_ONQUEUE	0x04
 #define BIO_ORDERED	0x08
+#define	BIO_UNMAPPED	0x10
+#define	BIO_TRANSIENT_MAPPING	0x20
 
 #ifdef _KERNEL
 struct disk;
 struct bio;
+struct vm_map;
 
 /* Empty classifier tag, to prevent further classification. */
 #define	BIO_NOTCLASSIFIED		(void *)(~0UL)
@@ -78,6 +81,9 @@ struct bio {
 	off_t	bio_offset;		/* Offset into file. */
 	long	bio_bcount;		/* Valid bytes in buffer. */
 	caddr_t	bio_data;		/* Memory, superblocks, indirect etc. */
+	struct vm_page **bio_ma;	/* Or unmapped. */
+	int	bio_ma_offset;		/* Offset in the first page of bio_ma. */
+	int	bio_ma_n;		/* Number of pages in bio_ma. */
 	int	bio_error;		/* Errno for BIO_ERROR. */
 	long	bio_resid;		/* Remaining I/O in bytes. */
 	void	(*bio_done)(struct bio *);
@@ -120,6 +126,9 @@ struct bio_queue_head {
 	off_t last_offset;
 	struct	bio *insert_point;
 };
+
+extern struct vm_map *bio_transient_map;
+extern int bio_transient_maxcnt;
 
 void biodone(struct bio *bp);
 void biofinish(struct bio *bp, struct devstat *stat, int error);

@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2009
+.Dd February 14, 2013
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -339,7 +339,7 @@ hints.ai_socktype = SOCK_STREAM;
 error = getaddrinfo("www.kame.net", "http", &hints, &res0);
 if (error) {
 	errx(1, "%s", gai_strerror(error));
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 s = -1;
 for (res = res0; res; res = res->ai_next) {
@@ -361,7 +361,7 @@ for (res = res0; res; res = res->ai_next) {
 }
 if (s < 0) {
 	err(1, "%s", cause);
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 freeaddrinfo(res0);
 .Ed
@@ -383,7 +383,7 @@ hints.ai_flags = AI_PASSIVE;
 error = getaddrinfo(NULL, "http", &hints, &res0);
 if (error) {
 	errx(1, "%s", gai_strerror(error));
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 nsock = 0;
 for (res = res0; res && nsock < MAXSOCK; res = res->ai_next) {
@@ -405,7 +405,7 @@ for (res = res0; res && nsock < MAXSOCK; res = res->ai_next) {
 }
 if (nsock == 0) {
 	err(1, "%s", cause);
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 freeaddrinfo(res0);
 .Ed

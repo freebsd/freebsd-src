@@ -259,6 +259,8 @@ options 	SX_NOINLINE
 
 # SMP Debugging Options:
 #
+# CALLOUT_PROFILING enables rudimentary profiling of the callwheel data
+#	  structure used as backend in callout(9).
 # PREEMPTION allows the threads that are in the kernel to be preempted by
 #	  higher priority [interrupt] threads.  It helps with interactivity
 #	  and allows interrupt threads to run sooner rather than waiting.
@@ -296,6 +298,9 @@ options 	LOCK_PROFILING
 # than the number of buffers.  Hash size should be prime.
 options 	MPROF_BUFFERS="1536"
 options 	MPROF_HASH_SIZE="1543"
+
+# Profiling for the callout(9) backend.
+options 	CALLOUT_PROFILING
 
 # Profiling for internal hash tables.
 options 	SLEEPQUEUE_PROFILING
@@ -446,6 +451,8 @@ options 	KTRACE_REQUEST_POOL=101
 # KTR is a kernel tracing facility imported from BSD/OS.  It is
 # enabled with the KTR option.  KTR_ENTRIES defines the number of
 # entries in the circular trace buffer; it may be an arbitrary number.
+# KTR_BOOT_ENTRIES defines the number of entries during the early boot,
+# before malloc(9) is functional.
 # KTR_COMPILE defines the mask of events to compile into the kernel as
 # defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
 # initial value of the ktr_mask variable which determines at runtime
@@ -459,7 +466,8 @@ options 	KTRACE_REQUEST_POOL=101
 # if KTR_VERBOSE is not defined.  See ktr(4) and ktrdump(8) for details.
 #
 options 	KTR
-options 	KTR_ENTRIES=1024
+options 	KTR_BOOT_ENTRIES=1024
+options 	KTR_ENTRIES=(128*1024)
 options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
 options 	KTR_MASK=KTR_INTR
 options 	KTR_CPUMASK=0x3
@@ -978,7 +986,7 @@ options 	DUMMYNET
 # See zero_copy(9) for more details.
 # XXX: The COW based send mechanism is not safe and may result in
 # kernel crashes.
-# XXX: None of the current NIC drivers support disposeable pages.
+# XXX: None of the current NIC drivers support disposable pages.
 options		SOCKET_SEND_COW
 options		SOCKET_RECV_PFLIP
 

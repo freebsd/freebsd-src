@@ -247,10 +247,8 @@ svr4_sys_getdents64(td, uap)
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
 		uap->fd, uap->nbytes));
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
-	    CAP_READ | CAP_SEEK, &fp)) != 0) {
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ, &fp)) != 0)
 		return (error);
-	}
 
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -426,8 +424,7 @@ svr4_sys_getdents(td, uap)
 	if (uap->nbytes < 0)
 		return (EINVAL);
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd,
-	    CAP_READ | CAP_SEEK, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ, &fp)) != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {

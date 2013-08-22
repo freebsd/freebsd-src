@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/clock.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
@@ -52,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include "clock_if.h"
 
-#define	RTC_LOCK	mtx_lock_spin(&clock_lock)
-#define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
+#define	RTC_LOCK	do { if (!kdb_active) mtx_lock_spin(&clock_lock); } while (0)
+#define	RTC_UNLOCK	do { if (!kdb_active) mtx_unlock_spin(&clock_lock); } while (0)
 
 int	atrtcclock_disable = 0;
 
@@ -163,11 +164,10 @@ struct atrtc_softc {
 };
 
 static int
-rtc_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period)
+rtc_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 
-	atrtc_rate(max(fls((period->frac + (period->frac >> 1)) >> 32) - 17, 1));
+	atrtc_rate(max(fls(period + (period >> 1)) - 17, 1));
 	atrtc_enable_intr();
 	return (0);
 }
@@ -276,10 +276,8 @@ atrtc_attach(device_t dev)
 		sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_POW2DIV;
 		sc->et.et_quality = 0;
 		sc->et.et_frequency = 32768;
-		sc->et.et_min_period.sec = 0;
-		sc->et.et_min_period.frac = 0x0008LLU << 48;
-		sc->et.et_max_period.sec = 0;
-		sc->et.et_max_period.frac = 0x8000LLU << 48;
+		sc->et.et_min_period = 0x00080000;
+		sc->et.et_max_period = 0x80000000;
 		sc->et.et_start = rtc_start;
 		sc->et.et_stop = rtc_stop;
 		sc->et.et_priv = dev;
@@ -328,7 +326,6 @@ static int
 atrtc_gettime(device_t dev, struct timespec *ts)
 {
 	struct clocktime ct;
-	int s;
 
 	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
@@ -336,13 +333,16 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 		return (EINVAL);
 	}
 
-	/* wait for time update to complete */
-	/* If RTCSA_TUP is zero, we have at least 244us before next update */
-	s = splhigh();
-	while (rtcin(RTC_STATUSA) & RTCSA_TUP) {
-		splx(s);
-		s = splhigh();
-	}
+	/*
+	 * wait for time update to complete
+	 * If RTCSA_TUP is zero, we have at least 244us before next update.
+	 * This is fast enough on most hardware, but a refinement would be
+	 * to make sure that no more than 240us pass after we start reading,
+	 * and try again if so.
+	 */
+	while (rtcin(RTC_STATUSA) & RTCSA_TUP)
+		continue;
+	critical_enter();
 	ct.nsec = 0;
 	ct.sec = readrtc(RTC_SEC);
 	ct.min = readrtc(RTC_MIN);
@@ -356,6 +356,7 @@ atrtc_gettime(device_t dev, struct timespec *ts)
 #else
 	ct.year += 2000;
 #endif
+	critical_exit();
 	/* Set dow = -1 because some clocks don't set it correctly. */
 	ct.dow = -1;
 	return (clock_ct_to_ts(&ct, ts));

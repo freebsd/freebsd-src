@@ -138,6 +138,7 @@ extern char uart_driver_name[];
 
 int uart_bus_attach(device_t dev);
 int uart_bus_detach(device_t dev);
+int uart_bus_resume(device_t dev);
 serdev_intr_t *uart_bus_ihand(device_t dev, int ipend);
 int uart_bus_ipend(device_t dev);
 int uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan);

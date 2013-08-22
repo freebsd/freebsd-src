@@ -24,6 +24,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef USB_GLOBAL_INCLUDE_FILE
+#include USB_GLOBAL_INCLUDE_FILE
+#else
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -55,6 +58,7 @@
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
+#endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 /*
  * Define this unconditionally in case a kernel module is loaded that

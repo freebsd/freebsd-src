@@ -277,6 +277,8 @@ do_memset:
 	strgeb	r3, [ip], #0x01		/* Set another byte */
 	strgtb	r3, [ip]		/* and a third */
 	RET			/* Exit */
+END(bzero)
+END(memset)
 
 ENTRY(bcmp)
 	mov	ip, r0
@@ -386,6 +388,7 @@ ENTRY(bcmp)
 	RETne			/* Return if mismatch on #4 */
 	sub	r0, r3, r2		/* r0 = b1#5 - b2#5 */
 	RET
+END(bcmp)
 
 ENTRY(bcopy)
 	/* switch the source and destination registers */
@@ -929,6 +932,8 @@ ENTRY(memmove)
 .Lmemmove_bsrcul1l4:
 	add	r1, r1, #1
 	b	.Lmemmove_bl4
+END(bcopy)
+END(memmove)
 
 #if !defined(_ARM_ARCH_5E)
 ENTRY(memcpy)
@@ -1164,6 +1169,8 @@ ENTRY(memcpy)
 .Lmemcpy_srcul3l4:
 	sub	r1, r1, #1
 	b	.Lmemcpy_l4
+END(memcpy)
+
 #else
 /* LINTSTUB: Func: void *memcpy(void *dst, const void *src, size_t len) */
 ENTRY(memcpy)
@@ -2932,6 +2939,7 @@ ENTRY(memcpy)
 	strh	r2, [r0, #0x09]
 	strb	r1, [r0, #0x0b]
 	RET
+END(memcpy)
 #endif /* _ARM_ARCH_5E */
 
 #ifdef GPROF

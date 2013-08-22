@@ -692,6 +692,10 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->hal4AddrAggrSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_EXT_CHAN_DFS:
 		return pCap->halExtChanDfsSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_RX_STBC:
+		return pCap->halRxStbcSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_TX_STBC:
+		return pCap->halTxStbcSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_COMBINED_RADAR_RSSI:
 		return pCap->halUseCombinedRadarRssi ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_AUTO_SLEEP:

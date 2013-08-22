@@ -1089,8 +1089,11 @@ devfs_open(struct vop_open_args *ap)
 
 	vn_lock(vp, vlocked | LK_RETRY);
 	dev_relthread(dev, ref);
-	if (error)
+	if (error != 0) {
+		if (error == ERESTART)
+			error = EINTR;
 		return (error);
+	}
 
 #if 0	/* /dev/console */
 	KASSERT(fp != NULL, ("Could not vnode bypass device on NULL fp"));

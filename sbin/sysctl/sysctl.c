@@ -266,7 +266,7 @@ parse(const char *string, int lineno)
 
 		if (!(kind & CTLFLAG_WR)) {
 			if (kind & CTLFLAG_TUN) {
-				warnx("oid '%s' is a read only tunable%p", bufp, line);
+				warnx("oid '%s' is a read only tunable%s", bufp, line);
 				warnx("Tunable values are set in /boot/loader.conf");
 			} else
 				warnx("oid '%s' is read only%s", bufp, line);

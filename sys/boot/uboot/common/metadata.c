@@ -369,12 +369,15 @@ md_load(char *args, vm_offset_t *modulep)
 	/* Convert addresses to the final VA */
 	*modulep -= __elfN(relocation_offset);
 
-	for (i = 0; i < sizeof mdt / sizeof mdt[0]; i++) {
-		md = file_findmetadata(kfp, mdt[i]);
-		if (md) {
-			bcopy(md->md_data, &vaddr, sizeof vaddr);
-			vaddr -= __elfN(relocation_offset);
-			bcopy(&vaddr, md->md_data, sizeof vaddr);
+	/* Do relocation fixup on metadata of each module. */
+	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
+		for (i = 0; i < sizeof mdt / sizeof mdt[0]; i++) {
+			md = file_findmetadata(xp, mdt[i]);
+			if (md) {
+				bcopy(md->md_data, &vaddr, sizeof vaddr);
+				vaddr -= __elfN(relocation_offset);
+				bcopy(&vaddr, md->md_data, sizeof vaddr);
+			}
 		}
 	}
 

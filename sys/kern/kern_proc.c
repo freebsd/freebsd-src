@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
@@ -1994,7 +1995,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		kve->kve_private_resident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			if (obj->shadow_count == 1)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
@@ -2009,9 +2010,9 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_LOCK(tobj);
+				VM_OBJECT_WLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_WUNLOCK(lobj);
 			lobj = tobj;
 		}
 
@@ -2071,11 +2072,11 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				break;
 			}
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_WUNLOCK(lobj);
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 			if (vp != NULL) {
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
@@ -2161,7 +2162,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		kve->kve_private_resident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_LOCK(obj);
+			VM_OBJECT_WLOCK(obj);
 			if (obj->shadow_count == 1)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
@@ -2182,9 +2183,9 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_LOCK(tobj);
+				VM_OBJECT_WLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_WUNLOCK(lobj);
 			lobj = tobj;
 		}
 
@@ -2246,11 +2247,11 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 				break;
 			}
 			if (lobj != obj)
-				VM_OBJECT_UNLOCK(lobj);
+				VM_OBJECT_WUNLOCK(lobj);
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
-			VM_OBJECT_UNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
 			if (vp != NULL) {
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);

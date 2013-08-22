@@ -2313,10 +2313,10 @@ extern int dtrace_mach_aframes(void);
 #if defined(__i386) || defined(__amd64)
 extern int dtrace_instr_size(uchar_t *instr);
 extern int dtrace_instr_size_isa(uchar_t *, model_t, int *);
-extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
-extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
 extern void dtrace_invop_callsite(void);
 #endif
+extern void dtrace_invop_add(int (*)(uintptr_t, uintptr_t *, uintptr_t));
+extern void dtrace_invop_remove(int (*)(uintptr_t, uintptr_t *, uintptr_t));
 
 #ifdef __sparc
 extern int dtrace_blksuword32(uintptr_t, uint32_t *, int);
@@ -2348,6 +2348,15 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	DTRACE_INVOP_LEAVE		3
 #define	DTRACE_INVOP_NOP		4
 #define	DTRACE_INVOP_RET		5
+
+#elif defined(__powerpc__)
+
+#define DTRACE_INVOP_RET	1
+#define DTRACE_INVOP_BCTR	2
+#define DTRACE_INVOP_BLR	3
+#define DTRACE_INVOP_JUMP	4
+#define DTRACE_INVOP_MFLR_R0	5
+#define DTRACE_INVOP_NOP	6
 
 #endif
 

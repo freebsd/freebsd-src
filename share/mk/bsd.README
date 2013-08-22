@@ -356,6 +356,8 @@ SHLIB_LDSCRIPT	Template file to generate shared library linker script.
 		Unless used, a simple symlink is created to the real
 		shared object.
 
+LIBRARIES_ONLY	Do not build or install files other than the library.
+
 The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.
 

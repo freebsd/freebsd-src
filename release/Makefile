@@ -34,6 +34,20 @@ TARGET_ARCH?=	${TARGET}
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	dist
 
+# Define OSRELEASE by using newvars.sh
+.if !defined(OSRELEASE) || empty(OSRELEASE)
+.for _V in TYPE BRANCH REVISION
+${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo $$${_V}
+.endfor
+.for _V in ${TARGET_ARCH}
+.if !empty(TARGET:M${_V})
+OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}
+.else
+OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
+.endif
+.endfor
+.endif
+
 .if !exists(${DOCDIR})
 NODOC= true
 .endif
@@ -117,7 +131,7 @@ system: packagesystem
 	cp reldoc/* release
 .endif
 # Set up installation environment
-	ln -s /tmp/bsdinstall_etc/resolv.conf release/etc/resolv.conf
+	ln -fs /tmp/bsdinstall_etc/resolv.conf release/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
 	echo hostid_enable=\"NO\" >> release/etc/rc.conf
 	cp ${.CURDIR}/rc.local release/etc
@@ -142,7 +156,7 @@ bootonly: packagesystem
 	cp reldoc/* bootonly
 .endif
 # Set up installation environment
-	ln -s /tmp/bsdinstall_etc/resolv.conf bootonly/etc/resolv.conf
+	ln -fs /tmp/bsdinstall_etc/resolv.conf bootonly/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
@@ -183,4 +197,9 @@ install:
 .if defined(DESTDIR) && !empty(DESTDIR)
 	mkdir -p ${DESTDIR}
 .endif
-	cp -a ${IMAGES} ftp ${DESTDIR}/
+	cp -a ftp ${DESTDIR}/
+.for I in ${IMAGES}
+	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
+.endfor
+	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
+	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5

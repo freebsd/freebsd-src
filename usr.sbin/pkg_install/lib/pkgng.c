@@ -38,9 +38,10 @@ this system.";
 
 void warnpkgng(void)
 {
-	char pkgngpath[MAXPATHLEN];
+	char pkgngpath[MAXPATHLEN + 1];
 	char *pkgngdir;
 	char *dontwarn;
+	int rc;
 
 	dontwarn = getenv("PKG_OLD_NOWARN");
 	if (dontwarn != NULL)
@@ -48,8 +49,12 @@ void warnpkgng(void)
 	pkgngdir = getenv("PKG_DBDIR");
 	if (pkgngdir == NULL)
 		pkgngdir = "/var/db/pkg";
-	strcpy(pkgngpath, pkgngdir);
-	strcat(pkgngpath, "/local.sqlite");
+
+	rc = snprintf(pkgngpath, sizeof(pkgngpath), "%s/local.sqlite", pkgngdir);
+	if ((size_t)rc >= sizeof(pkgngpath)) {
+		warnx("path too long: %s/local.sqlite", pkgngdir);
+		return;
+	}
 
 	if (access(pkgngpath, F_OK) == 0)
 		warnx(message);

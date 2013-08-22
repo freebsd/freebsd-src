@@ -199,6 +199,7 @@ unixpr(u_long count_off, u_long gencnt_off, u_long dhead_off, u_long shead_off,
 	struct	xunpcb *xunp;
 	u_long	head_off;
 
+	buf = NULL;
 	for (type = SOCK_STREAM; type <= SOCK_SEQPACKET; type++) {
 		if (live)
 			ret = pcblist_sysctl(type, &buf);

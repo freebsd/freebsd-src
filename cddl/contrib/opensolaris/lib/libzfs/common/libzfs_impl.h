@@ -24,6 +24,7 @@
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #ifndef	_LIBFS_IMPL_H
@@ -216,6 +217,7 @@ extern void libzfs_fru_clear(libzfs_handle_t *, boolean_t);
 
 #ifndef sun
 static int zfs_kernel_version = 0;
+static int zfs_ioctl_version = 0;
 
 /*
  * This is FreeBSD version of ioctl, because Solaris' ioctl() updates
@@ -225,19 +227,34 @@ static int zfs_kernel_version = 0;
 static __inline int
 zcmd_ioctl(int fd, unsigned long cmd, zfs_cmd_t *zc)
 {
-	size_t oldsize, zfs_kernel_version_size;
+	size_t oldsize, zfs_kernel_version_size, zfs_ioctl_version_size;
 	int version, ret, cflag = ZFS_CMD_COMPAT_NONE;
 
-	zfs_kernel_version_size = sizeof(zfs_kernel_version);
-	if (zfs_kernel_version == 0) {
-		sysctlbyname("vfs.zfs.version.spa", &zfs_kernel_version,
-		    &zfs_kernel_version_size, NULL, 0);
+	zfs_ioctl_version_size = sizeof(zfs_ioctl_version);
+	if (zfs_ioctl_version == 0) {
+		sysctlbyname("vfs.zfs.version.ioctl", &zfs_ioctl_version,
+		    &zfs_ioctl_version_size, NULL, 0);
 	}
 
-	if (zfs_kernel_version == SPA_VERSION_15 ||
-	    zfs_kernel_version == SPA_VERSION_14 ||
-	    zfs_kernel_version == SPA_VERSION_13)
-		cflag = ZFS_CMD_COMPAT_V15;
+	/*
+	 * If vfs.zfs.version.ioctl is not defined, assume we have v28
+	 * compatible binaries and use vfs.zfs.version.spa to test for v15
+	 */
+	if (zfs_ioctl_version < ZFS_IOCVER_DEADMAN) {
+		cflag = ZFS_CMD_COMPAT_V28;
+		zfs_kernel_version_size = sizeof(zfs_kernel_version);
+
+		if (zfs_kernel_version == 0) {
+			sysctlbyname("vfs.zfs.version.spa",
+			    &zfs_kernel_version,
+			    &zfs_kernel_version_size, NULL, 0);
+		}
+
+		if (zfs_kernel_version == SPA_VERSION_15 ||
+		    zfs_kernel_version == SPA_VERSION_14 ||
+		    zfs_kernel_version == SPA_VERSION_13)
+			cflag = ZFS_CMD_COMPAT_V15;
+	}
 
 	oldsize = zc->zc_nvlist_dst_size;
 	ret = zcmd_ioctl_compat(fd, cmd, zc, cflag);

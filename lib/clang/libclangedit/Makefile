@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	clangedit
 
 SRCDIR=	tools/clang/lib/Edit

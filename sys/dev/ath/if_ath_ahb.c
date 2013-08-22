@@ -195,6 +195,7 @@ ath_ahb_attach(device_t dev)
 	ATH_PCU_LOCK_INIT(sc);
 	ATH_RX_LOCK_INIT(sc);
 	ATH_TX_LOCK_INIT(sc);
+	ATH_TX_IC_LOCK_INIT(sc);
 	ATH_TXSTATUS_LOCK_INIT(sc);
 
 	error = ath_attach(AR9130_DEVID, sc);
@@ -204,6 +205,7 @@ ath_ahb_attach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
+	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 	bus_dma_tag_destroy(sc->sc_dmat);
@@ -247,6 +249,7 @@ ath_ahb_detach(device_t dev)
 	ATH_TXSTATUS_LOCK_DESTROY(sc);
 	ATH_RX_LOCK_DESTROY(sc);
 	ATH_TX_LOCK_DESTROY(sc);
+	ATH_TX_IC_LOCK_DESTROY(sc);
 	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 

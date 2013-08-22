@@ -384,8 +384,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			mob_h.hcrc = gre_in_cksum((u_int16_t *)&mob_h, msiz);
 
 			if ((m->m_data - msiz) < m->m_pktdat) {
-				/* need new mbuf */
-				MGETHDR(m0, M_NOWAIT, MT_DATA);
+				m0 = m_gethdr(M_NOWAIT, MT_DATA);
 				if (m0 == NULL) {
 					_IF_DROP(&ifp->if_snd);
 					m_freem(m);

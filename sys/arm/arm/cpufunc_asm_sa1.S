@@ -85,6 +85,8 @@ ENTRY(sa1_setttb)
 	str	r2, [r3]
 #endif
 	RET
+END(getttb)
+END(sa1_setttb)
 
 /*
  * TLB functions
@@ -93,6 +95,7 @@ ENTRY(sa1_tlb_flushID_SE)
 	mcr	p15, 0, r0, c8, c6, 1	/* flush D tlb single entry */
 	mcr	p15, 0, r0, c8, c5, 0	/* flush I tlb */
 	RET
+END(sa1_tlb_flushID_SE)
 
 /*
  * Cache functions
@@ -100,22 +103,27 @@ ENTRY(sa1_tlb_flushID_SE)
 ENTRY(sa1_cache_flushID)
 	mcr	p15, 0, r0, c7, c7, 0	/* flush I+D cache */
 	RET
+END(sa1_cache_flushID)
 
 ENTRY(sa1_cache_flushI)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
 	RET
+END(sa1_cache_flushI)
 
 ENTRY(sa1_cache_flushD)
 	mcr	p15, 0, r0, c7, c6, 0	/* flush D cache */
 	RET
+END(sa1_cache_flushD)
 
 ENTRY(sa1_cache_flushD_SE)
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
 	RET
+END(sa1_cache_flushD_SE)
 
 ENTRY(sa1_cache_cleanD_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean D cache entry */
 	RET
+END(sa1_cache_cleanD_E)
 
 /*
  * Information for the SA-1 cache clean/purge functions:
@@ -196,6 +204,11 @@ ENTRY(sa1_cache_cleanD)
 
 	SA1_CACHE_CLEAN_EPILOGUE
 	RET
+END(sa1_cache_syncI)
+END(sa1_cache_purgeID)
+END(sa1_cache_cleanID)
+END(sa1_cache_purgeD)
+END(sa1_cache_cleanD)
 
 ENTRY(sa1_cache_purgeID_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean dcache entry */
@@ -203,12 +216,14 @@ ENTRY(sa1_cache_purgeID_E)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
 	RET
+END(sa1_cache_purgeID_E)
 
 ENTRY(sa1_cache_purgeD_E)
 	mcr	p15, 0, r0, c7, c10, 1	/* clean dcache entry */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mcr	p15, 0, r0, c7, c6, 1	/* flush D cache single entry */
 	RET
+END(sa1_cache_purgeD_E)
 
 /*
  * Soft functions
@@ -231,6 +246,8 @@ ENTRY(sa1_cache_cleanD_rng)
 
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	RET
+END(sa1_cache_cleanID_rng)
+END(sa1_cache_cleanD_rng)
 
 ENTRY(sa1_cache_purgeID_rng)
 	cmp	r1, #0x4000
@@ -249,6 +266,7 @@ ENTRY(sa1_cache_purgeID_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
 	RET
+END(sa1_cache_purgeID_rng)
 
 ENTRY(sa1_cache_purgeD_rng)
 	cmp	r1, #0x4000
@@ -266,6 +284,7 @@ ENTRY(sa1_cache_purgeD_rng)
 
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	RET
+END(sa1_cache_purgeD_rng)
 
 ENTRY(sa1_cache_syncI_rng)
 	cmp	r1, #0x4000
@@ -284,6 +303,7 @@ ENTRY(sa1_cache_syncI_rng)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache */
 
 	RET
+END(sa1_cache_syncI_rng)
 
 /*
  * Context switch.
@@ -313,4 +333,5 @@ ENTRY(sa110_context_switch)
 	mov	r0, r0
 	mov	r0, r0
 	RET
+END(sa110_context_switch)
 #endif

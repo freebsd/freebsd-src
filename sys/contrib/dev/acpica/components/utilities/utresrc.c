@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -456,7 +456,7 @@ AcpiUtWalkAmlResources (
     UINT8                   *Aml,
     ACPI_SIZE               AmlLength,
     ACPI_WALK_AML_CALLBACK  UserFunction,
-    void                    *Context)
+    void                    **Context)
 {
     ACPI_STATUS             Status;
     UINT8                   *EndAml;
@@ -528,7 +528,7 @@ AcpiUtWalkAmlResources (
 
             if (!UserFunction)
             {
-                *(void **) Context = Aml;
+                *Context = Aml;
             }
 
             /* Normal exit */
@@ -919,7 +919,7 @@ AcpiUtGetResourceEndTag (
     /* Validate the template and get a pointer to the EndTag */
 
     Status = AcpiUtWalkAmlResources (NULL, ObjDesc->Buffer.Pointer,
-                ObjDesc->Buffer.Length, NULL, EndTag);
+                ObjDesc->Buffer.Length, NULL, (void **) EndTag);
 
     return_ACPI_STATUS (Status);
 }

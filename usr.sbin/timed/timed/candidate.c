@@ -44,8 +44,7 @@ static const char rcsid[] =
  * candidate sends an election request, the candidature is withdrawn.
  */
 int
-election(net)
-	struct netinfo *net;
+election(struct netinfo *net)
 {
 	struct tsp *resp, msg;
 	struct timeval then, wait;

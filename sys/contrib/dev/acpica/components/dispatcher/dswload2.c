@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -236,7 +236,7 @@ AcpiDsLoad2BeginOp (
              */
             ACPI_WARNING ((AE_INFO,
                 "Type override - [%4.4s] had invalid type (%s) "
-                "for Scope operator, changed to type ANY\n",
+                "for Scope operator, changed to type ANY",
                 AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type)));
 
             Node->Type = ACPI_TYPE_ANY;

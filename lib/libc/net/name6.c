@@ -200,7 +200,7 @@ static struct	 hostent *_hpmapv6(struct hostent *, int *);
 #endif
 static struct	 hostent *_hpsort(struct hostent *, res_state);
 
-#ifdef ENABLE_IP6ADDRCTL
+#ifdef INET6
 static struct	 hostent *_hpreorder(struct hostent *);
 static int	 get_addrselectpolicy(struct policyhead *);
 static void	 free_addrselectpolicy(struct policyhead *);
@@ -287,8 +287,10 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 	
 	hp = gethostbyname2(name, af);
 	hp = _hpcopy(hp, errp);
-
 #ifdef INET6
+	if (af == AF_INET6)
+		hp = _hpreorder(hp);
+
 	if (af == AF_INET6 && ((flags & AI_ALL) || hp == NULL) &&
 	    MAPADDRENABLED(flags)) {
 		struct hostent *hp2 = gethostbyname2(name, AF_INET);
@@ -311,11 +313,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		*errp = statp->res_h_errno;
 	
 	statp->options = options;
-#ifdef ENABLE_IP6ADDRCTL
-	return _hpreorder(_hpsort(hp, statp));
-#else
 	return _hpsort(hp, statp);
-#endif
 }
 
 struct hostent *
@@ -638,7 +636,7 @@ _hpsort(struct hostent *hp, res_state statp)
 	return hp;
 }
 
-#ifdef ENABLE_IP6ADDRCTL
+#ifdef INET6
 /*
  * _hpreorder: sort address by default address selection
  */

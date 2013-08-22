@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -207,10 +207,10 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"PREFIX",       0},
     {"QUIT",         0},
     {"REFERENCES",   1},
-    {"RESOURCES",    1},
+    {"RESOURCES",    0},
     {"RESULTS",      0},
     {"SET",          3},
-    {"SLEEP",        1},
+    {"SLEEP",        0},
     {"STATS",        1},
     {"STOP",         0},
     {"TABLES",       0},
@@ -272,9 +272,9 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Predefined",                        "Check all predefined names\n"},
     {1, "  Prefix [<NamePath>]",               "Set or Get current execution prefix\n"},
     {1, "  References <Addr>",                 "Find all references to object at addr\n"},
-    {1, "  Resources <DeviceName | *>",        "Display Device resources (* = all devices)\n"},
+    {1, "  Resources [DeviceName]",            "Display Device resources (no arg = all devices)\n"},
     {1, "  Set N <NamedObject> <Value>",       "Set value for named integer\n"},
-    {1, "  Sleep <SleepState>",                "Simulate sleep/wake sequence\n"},
+    {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},
     {1, "  Template <Object>",                 "Format/dump a Buffer/ResourceTemplate\n"},
     {1, "  Terminate",                         "Delete namespace and all internal objects\n"},
     {1, "  Type <Object>",                     "Display object type\n"},
@@ -1167,6 +1167,8 @@ AcpiDbUserCommands (
 {
     ACPI_STATUS             Status = AE_OK;
 
+
+    AcpiOsPrintf ("\n");
 
     /* TBD: [Restructure] Need a separate command line buffer for step mode */
 

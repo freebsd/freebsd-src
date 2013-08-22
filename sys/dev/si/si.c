@@ -1446,7 +1446,6 @@ si_start(struct tty *tp)
 
 #if 0
 /*
- * Note: called at splsoftclock from the timeout code
  * This has to deal with two things...  cause wakeups while waiting for
  * tty drains on last process exit, and call l_start at about the right
  * time for protocols like ppp.

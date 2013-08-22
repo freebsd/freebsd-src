@@ -69,7 +69,7 @@ static device_method_t acpi_lid_methods[] = {
     DEVMETHOD(device_suspend,	acpi_lid_suspend),
     DEVMETHOD(device_resume,	acpi_lid_resume),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_lid_driver = {

@@ -1267,9 +1267,9 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		 */
 		if (vp->v_object &&
 		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
-			VM_OBJECT_LOCK(vp->v_object);
+			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
-			VM_OBJECT_UNLOCK(vp->v_object);
+			VM_OBJECT_WUNLOCK(vp->v_object);
 		}
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 	} else {
@@ -1298,10 +1298,10 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 
 		if (vp->v_object &&
 		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
-			VM_OBJECT_LOCK(vp->v_object);
+			VM_OBJECT_WLOCK(vp->v_object);
 			vm_object_page_clean(vp->v_object, off, off + cnt,
 			    OBJPC_SYNC);
-			VM_OBJECT_UNLOCK(vp->v_object);
+			VM_OBJECT_WUNLOCK(vp->v_object);
 		}
 
 		bo = &vp->v_bufobj;
@@ -1476,7 +1476,7 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 	struct vattr va;
 
 	VATTR_NULL(&va);
-	getnanotime(&va.va_mtime);
+	vfs_timestamp(&va.va_mtime);
 	(void) VOP_SETATTR(vp, &va, cred);
 	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
 }
@@ -2248,7 +2248,6 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 {
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
-	struct timeval curtime;
 	int error = 0, toclient = 0;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
@@ -2307,9 +2306,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			toclient = 1;
 			break;
 		case NFSV3SATTRTIME_TOSERVER:
-			NFSGETTIME(&curtime);
-			nvap->na_atime.tv_sec = curtime.tv_sec;
-			nvap->na_atime.tv_nsec = curtime.tv_usec * 1000;
+			vfs_timestamp(&nvap->na_atime);
 			nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
 		};
@@ -2321,9 +2318,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			nvap->na_vaflags &= ~VA_UTIMES_NULL;
 			break;
 		case NFSV3SATTRTIME_TOSERVER:
-			NFSGETTIME(&curtime);
-			nvap->na_mtime.tv_sec = curtime.tv_sec;
-			nvap->na_mtime.tv_nsec = curtime.tv_usec * 1000;
+			vfs_timestamp(&nvap->na_mtime);
 			if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			break;
@@ -2353,7 +2348,6 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 	u_char *cp, namestr[NFSV4_SMALLSTR + 1];
 	uid_t uid;
 	gid_t gid;
-	struct timeval curtime;
 
 	error = nfsrv_getattrbits(nd, attrbitp, NULL, &retnotsup);
 	if (error)
@@ -2488,9 +2482,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			    toclient = 1;
 			    attrsum += NFSX_V4TIME;
 			} else {
-			    NFSGETTIME(&curtime);
-			    nvap->na_atime.tv_sec = curtime.tv_sec;
-			    nvap->na_atime.tv_nsec = curtime.tv_usec * 1000;
+			    vfs_timestamp(&nvap->na_atime);
 			    nvap->na_vaflags |= VA_UTIMES_NULL;
 			}
 			break;
@@ -2515,9 +2507,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 			    nvap->na_vaflags &= ~VA_UTIMES_NULL;
 			    attrsum += NFSX_V4TIME;
 			} else {
-			    NFSGETTIME(&curtime);
-			    nvap->na_mtime.tv_sec = curtime.tv_sec;
-			    nvap->na_mtime.tv_nsec = curtime.tv_usec * 1000;
+			    vfs_timestamp(&nvap->na_mtime);
 			    if (!toclient)
 				nvap->na_vaflags |= VA_UTIMES_NULL;
 			}
@@ -2777,7 +2767,7 @@ out:
 /*
  * glue for fp.
  */
-int
+static int
 fp_getfvp(struct thread *p, int fd, struct file **fpp, struct vnode **vpp)
 {
 	struct filedesc *fdp;
@@ -2785,8 +2775,8 @@ fp_getfvp(struct thread *p, int fd, struct file **fpp, struct vnode **vpp)
 	int error = 0;
 
 	fdp = p->td_proc->p_fd;
-	if (fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL) {
+	if (fd < 0 || fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[fd].fde_file) == NULL) {
 		error = EBADF;
 		goto out;
 	}
@@ -3051,7 +3041,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, sockarg.sock, CAP_SOCK_ALL, &fp)) != 0)
+		if ((error = fget(td, sockarg.sock, CAP_SOCK_SERVER, &fp)) != 0)
 			goto out;
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);

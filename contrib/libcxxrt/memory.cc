@@ -36,14 +36,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "stdexcept.h"
+#include "atomic.h"
 
-#ifndef __has_builtin
-#define __has_builtin(x) 0
-#endif
-
-#if !__has_builtin(__sync_swap)
-#define __sync_swap __sync_lock_test_and_set
-#endif
 
 namespace std
 {
@@ -67,7 +61,12 @@ namespace std
 	__attribute__((weak))
 	new_handler set_new_handler(new_handler handler)
 	{
-		return __sync_swap(&new_handl, handler);
+		return ATOMIC_SWAP(&new_handl, handler);
+	}
+	__attribute__((weak))
+	new_handler get_new_handler(void)
+	{
+		return ATOMIC_LOAD(&new_handl);
 	}
 }
 
@@ -75,12 +74,17 @@ namespace std
 __attribute__((weak))
 void* operator new(size_t size)
 {
+	if (0 == size)
+	{
+		size = 1;
+	}
 	void * mem = malloc(size);
 	while (0 == mem)
 	{
-		if (0 != new_handl)
+		new_handler h = std::get_new_handler();
+		if (0 != h)
 		{
-			new_handl();
+			h();
 		}
 		else
 		{
@@ -95,14 +99,19 @@ void* operator new(size_t size)
 __attribute__((weak))
 void* operator new(size_t size, const std::nothrow_t &) throw()
 {
+	if (0 == size)
+	{
+		size = 1;
+	}
 	void *mem = malloc(size);
 	while (0 == mem)
 	{
-		if (0 != new_handl)
+		new_handler h = std::get_new_handler();
+		if (0 != h)
 		{
 			try
 			{
-				new_handl();
+				h();
 			}
 			catch (...)
 			{

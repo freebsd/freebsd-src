@@ -34,13 +34,27 @@
 #define _BCM2835_VCBUS_H_
 
 #define	BCM2835_VCBUS_SDRAM_CACHED	0x40000000
+#define	BCM2835_VCBUS_IO_BASE		0x7E000000
 #define	BCM2835_VCBUS_SDRAM_UNCACHED	0xC0000000
+
+#define	BCM2835_ARM_IO_BASE		0x20000000
+#define	BCM2835_ARM_IO_SIZE		0x02000000
 
 /*
  * Convert physical address to VC bus address. Should be used 
  * when submitting address over mailbox interface 
  */
 #define	PHYS_TO_VCBUS(pa)	((pa) + BCM2835_VCBUS_SDRAM_CACHED)
+
+/* Check whether pa bellong top IO window */
+#define BCM2835_ARM_IS_IO(pa)	(((pa) >= BCM2835_ARM_IO_BASE) && \
+    ((pa) < BCM2835_ARM_IO_BASE + BCM2835_ARM_IO_SIZE))
+
+/*
+ * Convert physical address in IO space to VC bus address. 
+ */
+#define	IO_TO_VCBUS(pa)		((pa - BCM2835_ARM_IO_BASE) + \
+    BCM2835_VCBUS_IO_BASE)
 
 /*
  * Convert address from VC bus space to physical. Should be used
