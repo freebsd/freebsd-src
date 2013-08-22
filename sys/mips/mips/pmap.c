@@ -1070,8 +1070,6 @@ pmap_pinit(pmap_t pmap)
 	vm_page_t ptdpg;
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * allocate the page directory page
 	 */
@@ -1231,7 +1229,6 @@ pmap_release(pmap_t pmap)
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*

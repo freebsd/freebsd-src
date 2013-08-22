@@ -1687,8 +1687,6 @@ pmap_pinit(pmap_t pmap)
 	vm_page_t pml4pg;
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * allocate the page directory page
 	 */
@@ -1959,9 +1957,6 @@ pmap_release(pmap_t pmap)
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
-	rw_wlock(&pvh_global_lock);
-	rw_wunlock(&pvh_global_lock);
-
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
 
 	for (i = 0; i < NKPML4E; i++)	/* KVA */
@@ -1973,7 +1968,6 @@ pmap_release(pmap_t pmap)
 	m->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 static int
