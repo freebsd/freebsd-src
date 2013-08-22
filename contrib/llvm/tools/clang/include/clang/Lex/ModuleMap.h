@@ -22,8 +22,8 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include <string>
 
 namespace clang {
@@ -33,6 +33,7 @@ class FileEntry;
 class FileManager;
 class DiagnosticConsumer;
 class DiagnosticsEngine;
+class HeaderSearch;
 class ModuleMapParser;
   
 class ModuleMap {
@@ -40,6 +41,7 @@ class ModuleMap {
   IntrusiveRefCntPtr<DiagnosticsEngine> Diags;
   const LangOptions &LangOpts;
   const TargetInfo *Target;
+  HeaderSearch &HeaderInfo;
   
   /// \brief The directory used for Clang-supplied, builtin include headers,
   /// such as "stdint.h".
@@ -104,12 +106,16 @@ class ModuleMap {
 
     /// \brief The names of modules that cannot be inferred within this
     /// directory.
-    llvm::SmallVector<std::string, 2> ExcludedModules;
+    SmallVector<std::string, 2> ExcludedModules;
   };
 
   /// \brief A mapping from directories to information about inferring
   /// framework modules from within those directories.
   llvm::DenseMap<const DirectoryEntry *, InferredDirectory> InferredDirectories;
+
+  /// \brief Describes whether we haved parsed a particular file as a module
+  /// map.
+  llvm::DenseMap<const FileEntry *, bool> ParsedModuleMap;
 
   friend class ModuleMapParser;
   
@@ -127,8 +133,21 @@ class ModuleMap {
   /// if the export could not be resolved.
   Module::ExportDecl 
   resolveExport(Module *Mod, const Module::UnresolvedExportDecl &Unresolved,
-                bool Complain);
-  
+                bool Complain) const;
+
+  /// \brief Resolve the given module id to an actual module.
+  ///
+  /// \param Id The module-id to resolve.
+  ///
+  /// \param Mod The module in which we're resolving the module-id.
+  ///
+  /// \param Complain Whether this routine should complain about unresolvable
+  /// module-ids.
+  ///
+  /// \returns The resolved module, or null if the module-id could not be
+  /// resolved.
+  Module *resolveModuleId(const ModuleId &Id, Module *Mod, bool Complain) const;
+
 public:
   /// \brief Construct a new module map.
   ///
@@ -143,7 +162,8 @@ public:
   ///
   /// \param Target The target for this translation unit.
   ModuleMap(FileManager &FileMgr, const DiagnosticConsumer &DC,
-            const LangOptions &LangOpts, const TargetInfo *Target);
+            const LangOptions &LangOpts, const TargetInfo *Target,
+            HeaderSearch &HeaderInfo);
 
   /// \brief Destroy the module map.
   ///
@@ -157,6 +177,7 @@ public:
   void setBuiltinIncludeDir(const DirectoryEntry *Dir) {
     BuiltinIncludeDir = Dir;
   }
+  const DirectoryEntry *getBuiltinIncludeDir() { return BuiltinIncludeDir; }
 
   /// \brief Retrieve the module that owns the given header file, if any.
   ///
@@ -168,14 +189,14 @@ public:
 
   /// \brief Determine whether the given header is part of a module
   /// marked 'unavailable'.
-  bool isHeaderInUnavailableModule(const FileEntry *Header);
+  bool isHeaderInUnavailableModule(const FileEntry *Header) const;
 
   /// \brief Retrieve a module with the given name.
   ///
   /// \param Name The name of the module to look up.
   ///
   /// \returns The named module, if known; otherwise, returns null.
-  Module *findModule(StringRef Name);
+  Module *findModule(StringRef Name) const;
 
   /// \brief Retrieve a module with the given name using lexical name lookup,
   /// starting at the given context.
@@ -186,7 +207,7 @@ public:
   /// name lookup.
   ///
   /// \returns The named module, if known; otherwise, returns null.
-  Module *lookupModuleUnqualified(StringRef Name, Module *Context);
+  Module *lookupModuleUnqualified(StringRef Name, Module *Context) const;
 
   /// \brief Retrieve a module with the given name within the given context,
   /// using direct (qualified) name lookup.
@@ -197,7 +218,7 @@ public:
   /// null, we will look for a top-level module.
   ///
   /// \returns The named submodule, if known; otherwose, returns null.
-  Module *lookupModuleQualified(StringRef Name, Module *Context);
+  Module *lookupModuleQualified(StringRef Name, Module *Context) const;
   
   /// \brief Find a new module or submodule, or create it if it does not already
   /// exist.
@@ -231,7 +252,7 @@ public:
   /// \returns true if we are allowed to infer a framework module, and false
   /// otherwise.
   bool canInferFrameworkModule(const DirectoryEntry *ParentDir,
-                               StringRef Name, bool &IsSystem);
+                               StringRef Name, bool &IsSystem) const;
 
   /// \brief Infer the contents of a framework module map from the given
   /// framework directory.
@@ -246,7 +267,7 @@ public:
   ///
   /// \returns The file entry for the module map file containing the given
   /// module, or NULL if the module definition was inferred.
-  const FileEntry *getContainingModuleMapFile(Module *Module);
+  const FileEntry *getContainingModuleMapFile(Module *Module) const;
 
   /// \brief Resolve all of the unresolved exports in the given module.
   ///
@@ -258,7 +279,17 @@ public:
   /// false otherwise.
   bool resolveExports(Module *Mod, bool Complain);
 
-  /// \brief Infers the (sub)module based on the given source location and 
+  /// \brief Resolve all of the unresolved conflicts in the given module.
+  ///
+  /// \param Mod The module whose conflicts should be resolved.
+  ///
+  /// \param Complain Whether to emit diagnostics for failures.
+  ///
+  /// \returns true if any errors were encountered while resolving conflicts,
+  /// false otherwise.
+  bool resolveConflicts(Module *Mod, bool Complain);
+
+  /// \brief Infers the (sub)module based on the given source location and
   /// source manager.
   ///
   /// \param Loc The location within the source that we are querying, along

@@ -41,6 +41,9 @@ def err_expected_colon : Error<"expected ':'">;
 def err_expected_colon_after_setter_name : Error<
   "method name referenced in property setter attribute "
   "must end with ':'">;
+def err_expected_string_literal : Error<"expected string literal "
+  "%select{in %1|for diagnostic message in static_assert|"
+          "for optional message in 'availability' attribute}0">;
 def err_invalid_string_udl : Error<
   "string literal with user-defined suffix cannot be used here">;
 def err_invalid_character_udl : Error<
@@ -49,8 +52,6 @@ def err_invalid_numeric_udl : Error<
   "numeric literal with user-defined suffix cannot be used here">;
 
 // Parse && Sema
-def ext_no_declarators : ExtWarn<"declaration does not declare anything">,
-  InGroup<MissingDeclarations>;
 def err_param_redefinition : Error<"redefinition of parameter %0">;
 def warn_method_param_redefinition : Warning<"redefinition of method parameter %0">;
 def warn_method_param_declaration : Warning<"redeclaration of method parameter %0">,
@@ -71,11 +72,12 @@ def err_module_not_found : Error<"module '%0' not found">, DefaultFatal;
 def err_module_not_built : Error<"could not build module '%0'">, DefaultFatal;
 def err_module_cycle : Error<"cyclic dependency in module '%0': %1">, 
   DefaultFatal;
-def warn_module_build : Warning<"building module '%0' from source">, 
-  InGroup<ModuleBuild>, DefaultIgnore;
 def note_pragma_entered_here : Note<"#pragma entered here">;  
 def note_decl_hiding_tag_type : Note<
   "%1 %0 is hidden by a non-type declaration of %0 here">;
+def err_attribute_not_type_attr : Error<
+  "%0 attribute cannot be applied to types">;
+def err_enum_template : Error<"enumeration cannot be a template">;
 
 // Sema && Lex
 def ext_c99_longlong : Extension<
@@ -115,4 +117,8 @@ def err_unable_to_rename_temp : Error<
   "unable to rename temporary '%0' to output file '%1': '%2'">;
 def err_unable_to_make_temp : Error<
   "unable to make temporary file: %0">;
+  
+// Modules
+def err_module_file_conflict : Error<"module '%0' found in both '%1' and '%2'">;
+
 }

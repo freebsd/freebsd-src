@@ -65,12 +65,21 @@ public:
     LocalExecTLSModel
   };
 
+  enum FPContractModeKind {
+    FPC_Off,        // Form fused FP ops only where result will not be affected.
+    FPC_On,         // Form fused FP ops according to FP_CONTRACT rules.
+    FPC_Fast        // Aggressively fuse FP ops (E.g. FMA).
+  };
+
   /// The code model to use (-mcmodel).
   std::string CodeModel;
 
   /// The filename with path we use for coverage files. The extension will be
   /// replaced.
   std::string CoverageFile;
+
+  /// The version string to put into coverage files.
+  char CoverageVersion[4];
 
   /// Enable additional debugging information.
   std::string DebugPass;
@@ -96,8 +105,15 @@ public:
   /// file, for example with -save-temps.
   std::string MainFileName;
 
+  /// The name for the split debug info file that we'll break out. This is used
+  /// in the backend for setting the name in the skeleton cu.
+  std::string SplitDwarfFile;
+
   /// The name of the relocation model to use.
   std::string RelocationModel;
+
+  /// Path to blacklist file for sanitizers.
+  std::string SanitizerBlacklistFile;
 
   /// If not an empty string, trap intrinsics are lowered to calls to this
   /// function instead of to trap instructions.
@@ -121,6 +137,7 @@ public:
 #include "clang/Frontend/CodeGenOptions.def"
 
     RelocationModel = "pic";
+    memcpy(CoverageVersion, "*204", 4);
   }
 };
 

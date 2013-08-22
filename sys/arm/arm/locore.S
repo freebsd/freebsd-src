@@ -176,10 +176,16 @@ Lunmapped:
 	/* Set the Domain Access register.  Very important! */
 	mov     r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
-	/* Enable MMU */
+	/* 
+	 * Enable MMU.
+	 * On armv6 enable extended page tables, and set alignment checking
+	 * to modulo-4 (CPU_CONTROL_UNAL_ENABLE) for the ldrd/strd
+	 * instructions emitted by clang.
+	 */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
-	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+#ifdef _ARM_ARCH_6
+	orr	r0, r0, #(CPU_CONTROL_V6_EXTPAGE | CPU_CONTROL_UNAL_ENABLE)
+	orr	r2, r2, #(CPU_CONTROL_AFLT_ENABLE)
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0

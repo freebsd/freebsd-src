@@ -18,10 +18,11 @@
 #ifndef LLVM_CODEGEN_MACHINEFUNCTION_H
 #define LLVM_CODEGEN_MACHINEFUNCTION_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/ADT/ilist.h"
-#include "llvm/Support/DebugLoc.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/ArrayRecycler.h"
+#include "llvm/Support/DebugLoc.h"
 #include "llvm/Support/Recycler.h"
 
 namespace llvm {
@@ -105,6 +106,9 @@ class MachineFunction {
   // Allocation management for instructions in function.
   Recycler<MachineInstr> InstructionRecycler;
 
+  // Allocation management for operand arrays on instructions.
+  ArrayRecycler<MachineOperand> OperandRecycler;
+
   // Allocation management for basic blocks in function.
   Recycler<MachineBasicBlock> BasicBlockRecycler;
 
@@ -126,6 +130,9 @@ class MachineFunction {
   /// This is used to limit optimizations which cannot reason
   /// about the control flow of such functions.
   bool ExposesReturnsTwice;
+
+  /// True if the function includes MS-style inline assembly.
+  bool HasMSInlineAsm;
 
   MachineFunction(const MachineFunction &) LLVM_DELETED_FUNCTION;
   void operator=(const MachineFunction&) LLVM_DELETED_FUNCTION;
@@ -209,6 +216,17 @@ public:
   /// a "returns twice" function.
   void setExposesReturnsTwice(bool B) {
     ExposesReturnsTwice = B;
+  }
+
+  /// Returns true if the function contains any MS-style inline assembly.
+  bool hasMSInlineAsm() const {
+    return HasMSInlineAsm;
+  }
+
+  /// Set a flag that indicates that the function contains MS-style inline
+  /// assembly.
+  void setHasMSInlineAsm(bool B) {
+    HasMSInlineAsm = B;
   }
   
   /// getInfo - Keep track of various per-function pieces of information for
@@ -393,6 +411,21 @@ public:
   /// explicitly deallocated.
   MachineMemOperand *getMachineMemOperand(const MachineMemOperand *MMO,
                                           int64_t Offset, uint64_t Size);
+
+  typedef ArrayRecycler<MachineOperand>::Capacity OperandCapacity;
+
+  /// Allocate an array of MachineOperands. This is only intended for use by
+  /// internal MachineInstr functions.
+  MachineOperand *allocateOperandArray(OperandCapacity Cap) {
+    return OperandRecycler.allocate(Cap, Allocator);
+  }
+
+  /// Dellocate an array of MachineOperands and recycle the memory. This is
+  /// only intended for use by internal MachineInstr functions.
+  /// Cap must be the same capacity that was used to allocate the array.
+  void deallocateOperandArray(OperandCapacity Cap, MachineOperand *Array) {
+    OperandRecycler.deallocate(Cap, Array);
+  }
 
   /// allocateMemRefsArray - Allocate an array to hold MachineMemOperand
   /// pointers.  This array is owned by the MachineFunction.

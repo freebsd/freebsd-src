@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
-#include "CGObjCRuntime.h"
 #include "CGCXXABI.h"
+#include "CGObjCRuntime.h"
 #include "clang/Frontend/CodeGenOptions.h"
-#include "llvm/Intrinsics.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/Intrinsics.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -34,7 +34,8 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
   LValue lv = CGF.MakeAddrLValue(DeclPtr, type, alignment);
 
   const Expr *Init = D.getInit();
-  if (!CGF.hasAggregateLLVMType(type)) {
+  switch (CGF.getEvaluationKind(type)) {
+  case TEK_Scalar: {
     CodeGenModule &CGM = CGF.CGM;
     if (lv.isObjCStrong())
       CGM.getObjCRuntime().EmitObjCGlobalAssign(CGF, CGF.EmitScalarExpr(Init),
@@ -44,13 +45,18 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
                                               DeclPtr);
     else
       CGF.EmitScalarInit(Init, &D, lv, false);
-  } else if (type->isAnyComplexType()) {
-    CGF.EmitComplexExprIntoAddr(Init, DeclPtr, lv.isVolatile());
-  } else {
+    return;
+  }
+  case TEK_Complex:
+    CGF.EmitComplexExprIntoLValue(Init, lv, /*isInit*/ true);
+    return;
+  case TEK_Aggregate:
     CGF.EmitAggExpr(Init, AggValueSlot::forLValue(lv,AggValueSlot::IsDestructed,
                                           AggValueSlot::DoesNotNeedGCBarriers,
                                                   AggValueSlot::IsNotAliased));
+    return;
   }
+  llvm_unreachable("bad evaluation kind");
 }
 
 /// Emit code to cause the destruction of the given variable with
@@ -198,7 +204,7 @@ void CodeGenFunction::registerGlobalDtorWithAtExit(llvm::Constant *dtor,
   if (llvm::Function *atexitFn = dyn_cast<llvm::Function>(atexit))
     atexitFn->setDoesNotThrow();
 
-  Builder.CreateCall(atexit, dtorStub)->setDoesNotThrow();
+  EmitNounwindRuntimeCall(atexit, dtorStub);
 }
 
 void CodeGenFunction::EmitCXXGuardedInit(const VarDecl &D,
@@ -229,11 +235,17 @@ CreateGlobalInitOrDestructFunction(CodeGenModule &CGM,
       Fn->setSection(Section);
   }
 
+  Fn->setCallingConv(CGM.getRuntimeCC());
+
   if (!CGM.getLangOpts().Exceptions)
     Fn->setDoesNotThrow();
 
-  if (CGM.getLangOpts().SanitizeAddress)
-    Fn->addFnAttr(llvm::Attributes::AddressSafety);
+  if (CGM.getSanOpts().Address)
+    Fn->addFnAttr(llvm::Attribute::SanitizeAddress);
+  if (CGM.getSanOpts().Thread)
+    Fn->addFnAttr(llvm::Attribute::SanitizeThread);
+  if (CGM.getSanOpts().Memory)
+    Fn->addFnAttr(llvm::Attribute::SanitizeMemory);
 
   return Fn;
 }
@@ -388,7 +400,7 @@ void CodeGenFunction::GenerateCXXGlobalInitFunc(llvm::Function *Fn,
   
   for (unsigned i = 0; i != NumDecls; ++i)
     if (Decls[i])
-      Builder.CreateCall(Decls[i]);    
+      EmitRuntimeCall(Decls[i]);
 
   Scope.ForceCleanup();
   

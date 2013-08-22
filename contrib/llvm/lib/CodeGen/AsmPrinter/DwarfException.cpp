@@ -12,30 +12,29 @@
 //===----------------------------------------------------------------------===//
 
 #include "DwarfException.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/Twine.h"
+#include "llvm/Target/Mangler.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 DwarfException::DwarfException(AsmPrinter *A)
@@ -608,7 +607,7 @@ void DwarfException::EmitExceptionTable() {
       if (!S.PadLabel) {
         if (VerboseAsm)
           Asm->OutStreamer.AddComment("    has no landing pad");
-        Asm->OutStreamer.EmitIntValue(0, 4/*size*/, 0/*addrspace*/);
+        Asm->OutStreamer.EmitIntValue(0, 4/*size*/);
       } else {
         if (VerboseAsm)
           Asm->OutStreamer.AddComment(Twine("    jumps to ") +
@@ -672,6 +671,18 @@ void DwarfException::EmitExceptionTable() {
     Asm->EmitSLEB128(Action.NextAction);
   }
 
+  EmitTypeInfos(TTypeEncoding);
+
+  Asm->EmitAlignment(2);
+}
+
+void DwarfException::EmitTypeInfos(unsigned TTypeEncoding) {
+  const std::vector<const GlobalVariable *> &TypeInfos = MMI->getTypeInfos();
+  const std::vector<unsigned> &FilterIds = MMI->getFilterIds();
+
+  bool VerboseAsm = Asm->OutStreamer.isVerboseAsm();
+
+  int Entry = 0;
   // Emit the Catch TypeInfos.
   if (VerboseAsm && !TypeInfos.empty()) {
     Asm->OutStreamer.AddComment(">> Catch TypeInfos <<");
@@ -684,11 +695,7 @@ void DwarfException::EmitExceptionTable() {
     const GlobalVariable *GV = *I;
     if (VerboseAsm)
       Asm->OutStreamer.AddComment("TypeInfo " + Twine(Entry--));
-    if (GV)
-      Asm->EmitReference(GV, TTypeEncoding);
-    else
-      Asm->OutStreamer.EmitIntValue(0,Asm->GetSizeOfEncodedValue(TTypeEncoding),
-                                    0);
+    Asm->EmitTTypeReference(GV, TTypeEncoding);
   }
 
   // Emit the Exception Specifications.
@@ -708,8 +715,6 @@ void DwarfException::EmitExceptionTable() {
 
     Asm->EmitULEB128(TypeID);
   }
-
-  Asm->EmitAlignment(2);
 }
 
 /// EndModule - Emit all exception information that should come after the

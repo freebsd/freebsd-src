@@ -12,25 +12,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/SemaInternal.h"
-#include "clang/Sema/Scope.h"
-#include "clang/Sema/ScopeInfo.h"
-#include "clang/Sema/Initialization.h"
-#include "clang/Sema/Lookup.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/TypeLoc.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/Initialization.h"
+#include "clang/Sema/Lookup.h"
+#include "clang/Sema/Scope.h"
+#include "clang/Sema/ScopeInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCObjectFileInfo.h"
+#include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCTargetAsmParser.h"
-#include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
@@ -124,11 +124,14 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
 
     // Check that the output exprs are valid lvalues.
     Expr *OutputExpr = Exprs[i];
-    if (CheckAsmLValue(OutputExpr, *this)) {
+    if (CheckAsmLValue(OutputExpr, *this))
       return StmtError(Diag(OutputExpr->getLocStart(),
-                  diag::err_asm_invalid_lvalue_in_output)
-        << OutputExpr->getSourceRange());
-    }
+                            diag::err_asm_invalid_lvalue_in_output)
+                       << OutputExpr->getSourceRange());
+
+    if (RequireCompleteType(OutputExpr->getLocStart(), Exprs[i]->getType(),
+                            diag::err_dereference_incomplete_type))
+      return StmtError();
 
     OutputConstraintInfos.push_back(Info);
   }
@@ -179,6 +182,22 @@ StmtResult Sema::ActOnGCCAsmStmt(SourceLocation AsmLoc, bool IsSimple,
 
     Exprs[i] = Result.take();
     InputConstraintInfos.push_back(Info);
+
+    const Type *Ty = Exprs[i]->getType().getTypePtr();
+    if (Ty->isDependentType())
+      continue;
+
+    if (!Ty->isVoidType() || !Info.allowsMemory())
+      if (RequireCompleteType(InputExpr->getLocStart(), Exprs[i]->getType(),
+                              diag::err_dereference_incomplete_type))
+        return StmtError();
+
+    unsigned Size = Context.getTypeSize(Ty);
+    if (!Context.getTargetInfo().validateInputSize(Literal->getString(),
+                                                   Size))
+      return StmtError(Diag(InputExpr->getLocStart(),
+                            diag::err_asm_invalid_input_size)
+                       << Info.getConstraintStr());
   }
 
   // Check that the clobbers are valid.
@@ -377,7 +396,7 @@ static StringRef getSpelling(Sema &SemaRef, Token AsmTok) {
 static bool buildMSAsmString(Sema &SemaRef,
                              SourceLocation AsmLoc,
                              ArrayRef<Token> AsmToks,
-                             llvm::SmallVectorImpl<unsigned> &TokOffsets,
+                             SmallVectorImpl<unsigned> &TokOffsets,
                              std::string &AsmString) {
   assert (!AsmToks.empty() && "Didn't expect an empty AsmToks!");
 
@@ -426,9 +445,14 @@ public:
     : SemaRef(Ref), AsmLoc(Loc), AsmToks(Toks), TokOffsets(Offsets) { }
   ~MCAsmParserSemaCallbackImpl() {}
 
-  void *LookupInlineAsmIdentifier(StringRef Name, void *SrcLoc, unsigned &Size){
+  void *LookupInlineAsmIdentifier(StringRef Name, void *SrcLoc,
+                                  unsigned &Length, unsigned &Size,
+                                  unsigned &Type, bool &IsVarDecl){
     SourceLocation Loc = SourceLocation::getFromPtrEncoding(SrcLoc);
-    NamedDecl *OpDecl = SemaRef.LookupInlineAsmIdentifier(Name, Loc, Size);
+
+    NamedDecl *OpDecl = SemaRef.LookupInlineAsmIdentifier(Name, Loc, Length,
+                                                          Size, Type,
+                                                          IsVarDecl);
     return static_cast<void *>(OpDecl);
   }
 
@@ -471,8 +495,12 @@ public:
 }
 
 NamedDecl *Sema::LookupInlineAsmIdentifier(StringRef Name, SourceLocation Loc,
-                                           unsigned &Size) {
+                                           unsigned &Length, unsigned &Size, 
+                                           unsigned &Type, bool &IsVarDecl) {
+  Length = 1;
   Size = 0;
+  Type = 0;
+  IsVarDecl = false;
   LookupResult Result(*this, &Context.Idents.get(Name), Loc,
                       Sema::LookupOrdinaryName);
 
@@ -487,12 +515,19 @@ NamedDecl *Sema::LookupInlineAsmIdentifier(StringRef Name, SourceLocation Loc,
     return 0;
   }
 
-  NamedDecl *ND = Result.getFoundDecl();
-  if (isa<VarDecl>(ND) || isa<FunctionDecl>(ND)) {
-    if (VarDecl *Var = dyn_cast<VarDecl>(ND))
-      Size = Context.getTypeInfo(Var->getType()).first;
-
-    return ND;
+  NamedDecl *FoundDecl = Result.getFoundDecl();
+  if (isa<FunctionDecl>(FoundDecl))
+    return FoundDecl;
+  if (VarDecl *Var = dyn_cast<VarDecl>(FoundDecl)) {
+    QualType Ty = Var->getType();
+    Type = Size = Context.getTypeSizeInChars(Ty).getQuantity();
+    if (Ty->isArrayType()) {
+      const ArrayType *ATy = Context.getAsArrayType(Ty);
+      Type = Context.getTypeSizeInChars(ATy->getElementType()).getQuantity();
+      Length = Size / Type;
+    }
+    IsVarDecl = true;
+    return FoundDecl;
   }
 
   // FIXME: Handle other kinds of results? (FieldDecl, etc.)
@@ -512,13 +547,12 @@ bool Sema::LookupInlineAsmField(StringRef Base, StringRef Member,
   if (!BaseResult.isSingleResult())
     return true;
 
-  NamedDecl *FoundDecl = BaseResult.getFoundDecl();
   const RecordType *RT = 0;
-  if (VarDecl *VD = dyn_cast<VarDecl>(FoundDecl)) {
+  NamedDecl *FoundDecl = BaseResult.getFoundDecl();
+  if (VarDecl *VD = dyn_cast<VarDecl>(FoundDecl))
     RT = VD->getType()->getAs<RecordType>();
-  } else if (TypedefDecl *TD = dyn_cast<TypedefDecl>(FoundDecl)) {
+  else if (TypedefDecl *TD = dyn_cast<TypedefDecl>(FoundDecl))
     RT = TD->getUnderlyingType()->getAs<RecordType>();
-  }
   if (!RT)
     return true;
 
@@ -551,8 +585,15 @@ StmtResult Sema::ActOnMSAsmStmt(SourceLocation AsmLoc, SourceLocation LBraceLoc,
   SmallVector<Expr*, 4> Exprs;
   SmallVector<StringRef, 4> ClobberRefs;
 
+  llvm::Triple TheTriple = Context.getTargetInfo().getTriple();
+  llvm::Triple::ArchType ArchTy = TheTriple.getArch();
+  bool UnsupportedArch = ArchTy != llvm::Triple::x86 &&
+    ArchTy != llvm::Triple::x86_64;
+  if (UnsupportedArch)
+    Diag(AsmLoc, diag::err_msasm_unsupported_arch) << TheTriple.getArchName();
+    
   // Empty asm statements don't need to instantiate the AsmParser, etc.
-  if (AsmToks.empty()) {
+  if (UnsupportedArch || AsmToks.empty()) {
     StringRef EmptyAsmStr;
     MSAsmStmt *NS =
       new (Context) MSAsmStmt(Context, AsmLoc, LBraceLoc, /*IsSimple*/ true,
@@ -563,13 +604,13 @@ StmtResult Sema::ActOnMSAsmStmt(SourceLocation AsmLoc, SourceLocation LBraceLoc,
   }
 
   std::string AsmString;
-  llvm::SmallVector<unsigned, 8> TokOffsets;
+  SmallVector<unsigned, 8> TokOffsets;
   if (buildMSAsmString(*this, AsmLoc, AsmToks, TokOffsets, AsmString))
     return StmtError();
 
   // Get the target specific parser.
   std::string Error;
-  const std::string &TT = Context.getTargetInfo().getTriple().getTriple();
+  const std::string &TT = TheTriple.getTriple();
   const llvm::Target *TheTarget(llvm::TargetRegistry::lookupTarget(TT, Error));
 
   OwningPtr<llvm::MCAsmInfo> MAI(TheTarget->createMCAsmInfo(TT));
@@ -614,7 +655,7 @@ StmtResult Sema::ActOnMSAsmStmt(SourceLocation AsmLoc, SourceLocation LBraceLoc,
   SmallVector<std::pair<void *, bool>, 4> OpDecls;
   SmallVector<std::string, 4> Constraints;
   SmallVector<std::string, 4> Clobbers;
-  if (Parser->ParseMSInlineAsm(AsmLoc.getPtrEncoding(), AsmStringIR,
+  if (Parser->parseMSInlineAsm(AsmLoc.getPtrEncoding(), AsmStringIR,
                                NumOutputs, NumInputs, OpDecls, Constraints,
                                Clobbers, MII, IP, MCAPSI))
     return StmtError();
@@ -641,7 +682,7 @@ StmtResult Sema::ActOnMSAsmStmt(SourceLocation AsmLoc, SourceLocation LBraceLoc,
     if (OpExpr.isInvalid())
       return StmtError();
 
-    // Need offset of variable.
+    // Need address of variable.
     if (OpDecls[i].second)
       OpExpr = BuildUnaryOp(getCurScope(), AsmLoc, clang::UO_AddrOf,
                             OpExpr.take());

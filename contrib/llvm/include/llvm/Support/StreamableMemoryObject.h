@@ -8,13 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef STREAMABLEMEMORYOBJECT_H_
-#define STREAMABLEMEMORYOBJECT_H_
+#ifndef LLVM_SUPPORT_STREAMABLEMEMORYOBJECT_H
+#define LLVM_SUPPORT_STREAMABLEMEMORYOBJECT_H
 
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/DataStream.h"
+#include "llvm/Support/MemoryObject.h"
 #include <vector>
 
 namespace llvm {

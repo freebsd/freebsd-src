@@ -35,7 +35,7 @@
 /* OPENBSD ORIGINAL: include/vis.h */
 
 #include "includes.h"
-#if !defined(HAVE_STRNVIS)
+#if !defined(HAVE_STRNVIS) || defined(BROKEN_STRNVIS)
 
 #ifndef _VIS_H_
 #define	_VIS_H_
@@ -92,4 +92,4 @@ ssize_t strnunvis(char *, const char *, size_t)
 
 #endif /* !_VIS_H_ */
 
-#endif /* !HAVE_STRNVIS */
+#endif /* !HAVE_STRNVIS || BROKEN_STRNVIS */

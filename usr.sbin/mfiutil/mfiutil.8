@@ -141,6 +141,12 @@
 .Nm
 .Op Fl u Ar unit
 .Cm flash Ar file
+.Nm
+.Op Fl u Ar unit
+.Cm start learn
+.Nm
+.Op Fl u Ar unit
+.Cm bbu Ar setting Ar value
 .Sh DESCRIPTION
 The
 .Nm
@@ -565,6 +571,33 @@ Stop a currently running patrol read operation.
 Updates the flash on the controller with the firmware stored in
 .Ar file .
 A reboot is required for the new firmware to take effect.
+.It Cm start learn
+Start a battery relearn.
+.It Cm bbu Ar setting Ar value
+Update battery backup unit (BBU) properties related to battery relearning.
+The following settings are configurable:
+.Bl -tag -width indent
+.It Cm learn-delay
+Add a delay to the next scheduled battery relearn event. This setting is
+given in hours and must lie in the range of 0 to 255.
+.It Cm autolearn-mode
+Enable or disable automatic periodic battery relearning.
+The setting may be set to
+.Dq enable
+or
+.Dq disable
+to respectively enable or disable the relearn cycle.
+Alternatively, a mode of 0, 1 or 2 may be given.
+Mode 0 enables periodic relearning, mode 1 disables it, and mode 2 disables
+it and logs a warning to the event log when it detects that a battery relearn
+should be performed.
+.It Cm bbu-mode
+Set the BBU's mode of operation. This setting is not supported by all BBUs.
+Where it is supported, the possible values are the integers between 1 and 5
+inclusive.
+Modes 1, 2 and 3 enable a transparent learn cycle, whereas modes 4 and 5 do not.
+The BBU's data retention time is greater when transparent learning is not used.
+.El
 .El
 .Sh EXAMPLES
 Configure the cache for volume mfid0 to cache only writes:

@@ -11,28 +11,28 @@
 #include "HexagonFrameLowering.h"
 #include "Hexagon.h"
 #include "HexagonInstrInfo.h"
+#include "HexagonMachineFunctionInfo.h"
 #include "HexagonRegisterInfo.h"
 #include "HexagonSubtarget.h"
 #include "HexagonTargetMachine.h"
-#include "HexagonMachineFunctionInfo.h"
-#include "llvm/Function.h"
-#include "llvm/Type.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
-#include "llvm/MC/MachineLocation.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MachineLocation.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
@@ -166,7 +166,8 @@ bool HexagonFrameLowering::hasTailCall(MachineBasicBlock &MBB) const {
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   unsigned RetOpcode = MBBI->getOpcode();
 
-  return RetOpcode == Hexagon::TCRETURNtg || RetOpcode == Hexagon::TCRETURNtext;}
+  return RetOpcode == Hexagon::TCRETURNtg || RetOpcode == Hexagon::TCRETURNtext;
+}
 
 void HexagonFrameLowering::emitEpilogue(MachineFunction &MF,
                                      MachineBasicBlock &MBB) const {
@@ -324,6 +325,21 @@ bool HexagonFrameLowering::restoreCalleeSavedRegisters(
     }
   }
   return true;
+}
+
+void HexagonFrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  MachineInstr &MI = *I;
+
+  if (MI.getOpcode() == Hexagon::ADJCALLSTACKDOWN) {
+    // Hexagon_TODO: add code
+  } else if (MI.getOpcode() == Hexagon::ADJCALLSTACKUP) {
+    // Hexagon_TODO: add code
+  } else {
+    llvm_unreachable("Cannot handle this call frame pseudo instruction");
+  }
+  MBB.erase(I);
 }
 
 int HexagonFrameLowering::getFrameIndexOffset(const MachineFunction &MF,

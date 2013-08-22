@@ -633,6 +633,9 @@ read_attribute_value (struct attribute *attr,
       attr->u.val = read_1_byte (abfd, info_ptr);
       info_ptr += 1;
       break;
+    case DW_FORM_flag_present:
+      attr->u.val = 1;
+      break;
     case DW_FORM_sdata:
       attr->u.sval = read_signed_leb128 (abfd, info_ptr, &bytes_read);
       info_ptr += bytes_read;

@@ -610,6 +610,7 @@
 #define	AUE_CAP_FCNTLS_GET	43206	/* TrustedBSD. */
 #define	AUE_BINDAT		43207	/* TrustedBSD. */
 #define	AUE_CONNECTAT		43208	/* TrustedBSD. */
+#define	AUE_CHFLAGSAT		43209	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

@@ -13,20 +13,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/raw_ostream.h"
 #include <fcntl.h>
 
 using namespace clang;
 using namespace ento;
-using llvm::Optional;
 
 namespace {
 class UnixAPIChecker : public Checker< check::PreStmt<CallExpr> > {
@@ -102,21 +102,20 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
   // Now check if oflags has O_CREAT set.
   const Expr *oflagsEx = CE->getArg(1);
   const SVal V = state->getSVal(oflagsEx, C.getLocationContext());
-  if (!isa<NonLoc>(V)) {
+  if (!V.getAs<NonLoc>()) {
     // The case where 'V' can be a location can only be due to a bad header,
     // so in this case bail out.
     return;
   }
-  NonLoc oflags = cast<NonLoc>(V);
-  NonLoc ocreateFlag =
-    cast<NonLoc>(C.getSValBuilder().makeIntVal(Val_O_CREAT.getValue(),
-                                                oflagsEx->getType()));
+  NonLoc oflags = V.castAs<NonLoc>();
+  NonLoc ocreateFlag = C.getSValBuilder()
+      .makeIntVal(Val_O_CREAT.getValue(), oflagsEx->getType()).castAs<NonLoc>();
   SVal maskedFlagsUC = C.getSValBuilder().evalBinOpNN(state, BO_And,
                                                       oflags, ocreateFlag,
                                                       oflagsEx->getType());
   if (maskedFlagsUC.isUnknownOrUndef())
     return;
-  DefinedSVal maskedFlags = cast<DefinedSVal>(maskedFlagsUC);
+  DefinedSVal maskedFlags = maskedFlagsUC.castAs<DefinedSVal>();
 
   // Check if maskedFlags is non-zero.
   ProgramStateRef trueState, falseState;
@@ -201,7 +200,7 @@ static bool IsZeroByteAllocation(ProgramStateRef state,
                                 ProgramStateRef *trueState,
                                 ProgramStateRef *falseState) {
   llvm::tie(*trueState, *falseState) =
-    state->assume(cast<DefinedSVal>(argVal));
+    state->assume(argVal.castAs<DefinedSVal>());
   
   return (*falseState && !*trueState);
 }

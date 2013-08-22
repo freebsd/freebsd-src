@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_TIMER		3
 #define	DEFAULT_FREQUENCY	1000000
-#define	MIN_PERIOD		100LLU
+#define	MIN_PERIOD		5LLU
 
 #define	SYSTIMER_CS	0x00
 #define	SYSTIMER_CLO	0x04
@@ -121,7 +121,7 @@ static int
 bcm_systimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct systimer *st = et->et_priv;
-	uint32_t clo;
+	uint32_t clo, clo1;
 	uint32_t count;
 	register_t s;
 
@@ -131,12 +131,19 @@ bcm_systimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 		s = intr_disable();
 		clo = bcm_systimer_tc_read_4(SYSTIMER_CLO);
+restart:
 		clo += count;
 		/*
 		 * Clear pending interrupts
 		 */
 		bcm_systimer_tc_write_4(SYSTIMER_CS, (1 << st->index));
 		bcm_systimer_tc_write_4(SYSTIMER_C0 + st->index*4, clo);
+		clo1 = bcm_systimer_tc_read_4(SYSTIMER_CLO);
+		if ((int32_t)(clo1 - clo) >= 0) {
+			count *= 2;
+			clo = clo1;
+			goto restart;
+		}
 		st->enabled = 1;
 		intr_restore(s);
 
@@ -236,9 +243,9 @@ bcm_systimer_attach(device_t dev)
 	sc->st[DEFAULT_TIMER].et.et_quality = 1000;
 	sc->st[DEFAULT_TIMER].et.et_frequency = sc->sysclk_freq;
 	sc->st[DEFAULT_TIMER].et.et_min_period =
-	    (MIN_PERIOD << 32) / sc->st[DEFAULT_TIMER].et.et_frequency;
+	    (MIN_PERIOD << 32) / sc->st[DEFAULT_TIMER].et.et_frequency + 1;
 	sc->st[DEFAULT_TIMER].et.et_max_period =
-	    (0xfffffffeLLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency;
+	    (0x7ffffffeLLU << 32) / sc->st[DEFAULT_TIMER].et.et_frequency;
 	sc->st[DEFAULT_TIMER].et.et_start = bcm_systimer_start;
 	sc->st[DEFAULT_TIMER].et.et_stop = bcm_systimer_stop;
 	sc->st[DEFAULT_TIMER].et.et_priv = &sc->st[DEFAULT_TIMER];

@@ -19,12 +19,12 @@
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporterVisitor.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/ImmutableSet.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
-#include "llvm/ADT/ImmutableSet.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/SmallSet.h"
 
 namespace clang {
 
@@ -75,6 +75,8 @@ protected:
   std::string Description;
   PathDiagnosticLocation Location;
   PathDiagnosticLocation UniqueingLocation;
+  const Decl *UniqueingDecl;
+  
   const ExplodedNode *ErrorNode;
   SmallVector<SourceRange, 4> Ranges;
   ExtraTextList ExtraText;
@@ -87,14 +89,14 @@ protected:
   /// diagnostics to include when constructing the final path diagnostic.
   /// The stack is largely used by BugReporter when generating PathDiagnostics
   /// for multiple PathDiagnosticConsumers.
-  llvm::SmallVector<Symbols *, 2> interestingSymbols;
+  SmallVector<Symbols *, 2> interestingSymbols;
 
   /// A (stack of) set of regions that are registered with this report as being
   /// "interesting", and thus used to help decide which diagnostics
   /// to include when constructing the final path diagnostic.
   /// The stack is largely used by BugReporter when generating PathDiagnostics
   /// for multiple PathDiagnosticConsumers.
-  llvm::SmallVector<Regions *, 2> interestingRegions;
+  SmallVector<Regions *, 2> interestingRegions;
 
   /// A set of location contexts that correspoind to call sites which should be
   /// considered "interesting".
@@ -162,9 +164,10 @@ public:
   /// for uniquing reports. For example, memory leaks checker, could set this to
   /// the allocation site, rather then the location where the bug is reported.
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode,
-            PathDiagnosticLocation LocationToUnique)
+            PathDiagnosticLocation LocationToUnique, const Decl *DeclToUnique)
     : BT(bt), DeclWithIssue(0), Description(desc),
       UniqueingLocation(LocationToUnique),
+      UniqueingDecl(DeclToUnique),
       ErrorNode(errornode), ConfigurationChangeToken(0),
       DoNotPrunePath(false) {}
 
@@ -259,6 +262,16 @@ public:
   ///  location that can be used to identify where the key issue occurred.
   ///  This location is used by clients rendering diagnostics.
   virtual PathDiagnosticLocation getLocation(const SourceManager &SM) const;
+
+  /// \brief Get the location on which the report should be uniqued.
+  PathDiagnosticLocation getUniqueingLocation() const {
+    return UniqueingLocation;
+  }
+  
+  /// \brief Get the declaration containing the uniqueing location.
+  const Decl *getUniqueingDecl() const {
+    return UniqueingDecl;
+  }
 
   const Stmt *getStmt() const;
 
@@ -440,8 +453,7 @@ public:
     return true;
   }
 
-  bool RemoveUneededCalls(PathPieces &pieces, BugReport *R,
-                          PathDiagnosticCallPiece *CallWithLoc = 0);
+  bool RemoveUnneededCalls(PathPieces &pieces, BugReport *R);
 
   void Register(BugType *BT);
 

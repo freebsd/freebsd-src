@@ -20,10 +20,10 @@
 #ifndef LLVM_SUPPORT_COMMANDLINE_H
 #define LLVM_SUPPORT_COMMANDLINE_H
 
-#include "llvm/Support/type_traits.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/type_traits.h"
 #include <cassert>
 #include <climits>
 #include <cstdarg>
@@ -469,8 +469,7 @@ public:
 
   template<class Opt>
   void apply(Opt &O) const {
-    for (unsigned i = 0, e = static_cast<unsigned>(Values.size());
-         i != e; ++i)
+    for (size_t i = 0, e = Values.size(); i != e; ++i)
       O.getParser().addLiteralOption(Values[i].first, Values[i].second.first,
                                      Values[i].second.second);
   }
@@ -629,8 +628,7 @@ public:
     else
       ArgVal = ArgName;
 
-    for (unsigned i = 0, e = static_cast<unsigned>(Values.size());
-         i != e; ++i)
+    for (size_t i = 0, e = Values.size(); i != e; ++i)
       if (Values[i].Name == ArgVal) {
         V = Values[i].V.getValue();
         return false;
@@ -1092,7 +1090,7 @@ public:
 
   // Make sure we initialize the value with the default constructor for the
   // type.
-  opt_storage() : Value(DataType()) {}
+  opt_storage() : Value(DataType()), Default(DataType()) {}
 
   template<class T>
   void setValue(const T &V, bool initial = false) {

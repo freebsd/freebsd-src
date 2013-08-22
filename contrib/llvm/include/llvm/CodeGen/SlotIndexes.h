@@ -19,13 +19,14 @@
 #ifndef LLVM_CODEGEN_SLOTINDEXES_H
 #define LLVM_CODEGEN_SLOTINDEXES_H
 
-#include "llvm/CodeGen/MachineInstrBundle.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/IntervalMap.h"
+#include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/ilist.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/ADT/PointerIntPair.h"
-#include "llvm/ADT/ilist.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/Support/Allocator.h"
 
 namespace llvm {
@@ -111,7 +112,7 @@ namespace llvm {
       return lie.getPointer();
     }
 
-    int getIndex() const {
+    unsigned getIndex() const {
       return listEntry()->getIndex() | getSlot();
     }
 
@@ -359,6 +360,11 @@ namespace llvm {
     /// Renumber the index list, providing space for new instructions.
     void renumberIndexes();
 
+    /// Repair indexes after adding and removing instructions.
+    void repairIndexesInRange(MachineBasicBlock *MBB,
+                              MachineBasicBlock::iterator Begin,
+                              MachineBasicBlock::iterator End);
+
     /// Returns the zero index for this analysis.
     SlotIndex getZeroIndex() {
       assert(indexList.front().getIndex() == 0 && "First index is not 0?");
@@ -390,12 +396,16 @@ namespace llvm {
       return index.isValid() ? index.listEntry()->getInstr() : 0;
     }
 
-    /// Returns the next non-null index.
-    SlotIndex getNextNonNullIndex(SlotIndex index) {
-      IndexList::iterator itr(index.listEntry());
-      ++itr;
-      while (itr != indexList.end() && itr->getInstr() == 0) { ++itr; }
-      return SlotIndex(itr, index.getSlot());
+    /// Returns the next non-null index, if one exists.
+    /// Otherwise returns getLastIndex().
+    SlotIndex getNextNonNullIndex(SlotIndex Index) {
+      IndexList::iterator I = Index.listEntry();
+      IndexList::iterator E = indexList.end();
+      while (++I != E)
+        if (I->getInstr())
+          return SlotIndex(I, Index.getSlot());
+      // We reached the end of the function.
+      return getLastIndex();
     }
 
     /// getIndexBefore - Returns the index of the last indexed instruction
@@ -601,29 +611,35 @@ namespace llvm {
     void insertMBBInMaps(MachineBasicBlock *mbb) {
       MachineFunction::iterator nextMBB =
         llvm::next(MachineFunction::iterator(mbb));
-      IndexListEntry *startEntry = createEntry(0, 0);
-      IndexListEntry *stopEntry = createEntry(0, 0);
-      IndexListEntry *nextEntry = 0;
 
+      IndexListEntry *startEntry = 0;
+      IndexListEntry *endEntry = 0;
+      IndexList::iterator newItr;
       if (nextMBB == mbb->getParent()->end()) {
-        nextEntry = indexList.end();
+        startEntry = &indexList.back();
+        endEntry = createEntry(0, 0);
+        newItr = indexList.insertAfter(startEntry, endEntry);
       } else {
-        nextEntry = getMBBStartIdx(nextMBB).listEntry();
+        startEntry = createEntry(0, 0);
+        endEntry = getMBBStartIdx(nextMBB).listEntry();
+        newItr = indexList.insert(endEntry, startEntry);
       }
 
-      indexList.insert(nextEntry, startEntry);
-      indexList.insert(nextEntry, stopEntry);
-
       SlotIndex startIdx(startEntry, SlotIndex::Slot_Block);
-      SlotIndex endIdx(nextEntry, SlotIndex::Slot_Block);
+      SlotIndex endIdx(endEntry, SlotIndex::Slot_Block);
+
+      MachineFunction::iterator prevMBB(mbb);
+      assert(prevMBB != mbb->getParent()->end() &&
+             "Can't insert a new block at the beginning of a function.");
+      --prevMBB;
+      MBBRanges[prevMBB->getNumber()].second = startIdx;
 
       assert(unsigned(mbb->getNumber()) == MBBRanges.size() &&
              "Blocks must be added in order");
       MBBRanges.push_back(std::make_pair(startIdx, endIdx));
-
       idx2MBBMap.push_back(IdxMBBPair(startIdx, mbb));
 
-      renumberIndexes();
+      renumberIndexes(newItr);
       std::sort(idx2MBBMap.begin(), idx2MBBMap.end(), Idx2MBBCompare());
     }
 
@@ -631,17 +647,8 @@ namespace llvm {
 
 
   // Specialize IntervalMapInfo for half-open slot index intervals.
-  template <typename> struct IntervalMapInfo;
-  template <> struct IntervalMapInfo<SlotIndex> {
-    static inline bool startLess(const SlotIndex &x, const SlotIndex &a) {
-      return x < a;
-    }
-    static inline bool stopLess(const SlotIndex &b, const SlotIndex &x) {
-      return b <= x;
-    }
-    static inline bool adjacent(const SlotIndex &a, const SlotIndex &b) {
-      return a == b;
-    }
+  template <>
+  struct IntervalMapInfo<SlotIndex> : IntervalMapHalfOpenInfo<SlotIndex> {
   };
 
 }

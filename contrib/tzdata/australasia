@@ -218,9 +218,26 @@ Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 # no times are set
 #
 # Macquarie
-# permanent occupation (scientific station) since 1948;
-# sealing and penguin oil station operated 1888/1917
-# like Australia/Hobart
+# Permanent occupation (scientific station) 1911-1915 and since 25 March 1948;
+# sealing and penguin oil station operated Nov 1899 to Apr 1919.  See the
+# Tasmania Parks & Wildlife Service history of sealing at Macquarie Island
+# <http://www.parks.tas.gov.au/index.aspx?base=1828>
+# <http://www.parks.tas.gov.au/index.aspx?base=1831>.
+# Guess that it was like Australia/Hobart while inhabited before 2010.
+#
+# From Steffen Thorsen (2010-03-10):
+# We got these changes from the Australian Antarctic Division:
+# - Macquarie Island will stay on UTC+11 for winter and therefore not
+# switch back from daylight savings time when other parts of Australia do
+# on 4 April.
+Zone Antarctica/Macquarie 0	-	zzz	1899 Nov
+			10:00	-	EST	1916 Oct 1 2:00
+			10:00	1:00	EST	1917 Feb
+			10:00	Aus	EST	1919 Apr
+			0	-	zzz	1948 Mar 25
+			10:00	Aus	EST	1967
+			10:00	AT	EST	2010 Apr 4 3:00
+			11:00	-	MIST	# Macquarie I Standard Time
 
 # Christmas
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]

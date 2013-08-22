@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
+#include <libgen.h>
 #include <sys/zfs_ioctl.h>
 #include <dlfcn.h>
 
@@ -1237,7 +1238,7 @@ create_failed:
  * datasets left in the pool.
  */
 int
-zpool_destroy(zpool_handle_t *zhp)
+zpool_destroy(zpool_handle_t *zhp, const char *log_str)
 {
 	zfs_cmd_t zc = { 0 };
 	zfs_handle_t *zfp = NULL;
@@ -1249,6 +1250,7 @@ zpool_destroy(zpool_handle_t *zhp)
 		return (-1);
 
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
+	zc.zc_history = (uint64_t)(uintptr_t)log_str;
 
 	if (zfs_ioctl(hdl, ZFS_IOC_POOL_DESTROY, &zc) != 0) {
 		(void) snprintf(msg, sizeof (msg), dgettext(TEXT_DOMAIN,
@@ -1403,8 +1405,9 @@ zpool_add(zpool_handle_t *zhp, nvlist_t *nvroot)
  * Exports the pool from the system.  The caller must ensure that there are no
  * mounted datasets in the pool.
  */
-int
-zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce)
+static int
+zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce,
+    const char *log_str)
 {
 	zfs_cmd_t zc = { 0 };
 	char msg[1024];
@@ -1415,6 +1418,7 @@ zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce)
 	(void) strlcpy(zc.zc_name, zhp->zpool_name, sizeof (zc.zc_name));
 	zc.zc_cookie = force;
 	zc.zc_guid = hardforce;
+	zc.zc_history = (uint64_t)(uintptr_t)log_str;
 
 	if (zfs_ioctl(zhp->zpool_hdl, ZFS_IOC_POOL_EXPORT, &zc) != 0) {
 		switch (errno) {
@@ -1436,15 +1440,15 @@ zpool_export_common(zpool_handle_t *zhp, boolean_t force, boolean_t hardforce)
 }
 
 int
-zpool_export(zpool_handle_t *zhp, boolean_t force)
+zpool_export(zpool_handle_t *zhp, boolean_t force, const char *log_str)
 {
-	return (zpool_export_common(zhp, force, B_FALSE));
+	return (zpool_export_common(zhp, force, B_FALSE, log_str));
 }
 
 int
-zpool_export_force(zpool_handle_t *zhp)
+zpool_export_force(zpool_handle_t *zhp, const char *log_str)
 {
-	return (zpool_export_common(zhp, B_TRUE, B_TRUE));
+	return (zpool_export_common(zhp, B_TRUE, B_TRUE, log_str));
 }
 
 static void
@@ -3632,40 +3636,30 @@ zpool_upgrade(zpool_handle_t *zhp, uint64_t new_version)
 }
 
 void
-zpool_set_history_str(const char *subcommand, int argc, char **argv,
-    char *history_str)
+zfs_save_arguments(int argc, char **argv, char *string, int len)
 {
-	int i;
-
-	(void) strlcpy(history_str, subcommand, HIS_MAX_RECORD_LEN);
-	for (i = 1; i < argc; i++) {
-		if (strlen(history_str) + 1 + strlen(argv[i]) >
-		    HIS_MAX_RECORD_LEN)
-			break;
-		(void) strlcat(history_str, " ", HIS_MAX_RECORD_LEN);
-		(void) strlcat(history_str, argv[i], HIS_MAX_RECORD_LEN);
+	(void) strlcpy(string, basename(argv[0]), len);
+	for (int i = 1; i < argc; i++) {
+		(void) strlcat(string, " ", len);
+		(void) strlcat(string, argv[i], len);
 	}
 }
 
-/*
- * Stage command history for logging.
- */
 int
-zpool_stage_history(libzfs_handle_t *hdl, const char *history_str)
+zpool_log_history(libzfs_handle_t *hdl, const char *message)
 {
-	if (history_str == NULL)
-		return (EINVAL);
+	zfs_cmd_t zc = { 0 };
+	nvlist_t *args;
+	int err;
 
-	if (strlen(history_str) > HIS_MAX_RECORD_LEN)
-		return (EINVAL);
-
-	if (hdl->libzfs_log_str != NULL)
-		free(hdl->libzfs_log_str);
-
-	if ((hdl->libzfs_log_str = strdup(history_str)) == NULL)
-		return (no_memory(hdl));
-
-	return (0);
+	args = fnvlist_alloc();
+	fnvlist_add_string(args, "message", message);
+	err = zcmd_write_src_nvlist(hdl, &zc, args);
+	if (err == 0)
+		err = ioctl(hdl->libzfs_fd, ZFS_IOC_LOG_HISTORY, &zc);
+	nvlist_free(args);
+	zcmd_free_nvlists(&zc);
+	return (err);
 }
 
 /*

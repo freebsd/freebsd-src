@@ -754,6 +754,13 @@ ath_sysctlattach(struct ath_softc *sc)
 		&sc->sc_txq_mcastq_maxdepth, 0,
 		"Maximum buffer depth for multicast/broadcast frames");
 
+#if 0
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"cabq_enable", CTLFLAG_RW,
+		&sc->sc_cabq_enable, 0,
+		"Whether to transmit on the CABQ or not");
+#endif
+
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;

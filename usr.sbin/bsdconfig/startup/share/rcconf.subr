@@ -1,6 +1,6 @@
 if [ ! "$_STARTUP_RCCONF_SUBR" ]; then _STARTUP_RCCONF_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
+# Copyright (c) 2006-2013 Devin Teske
 # All Rights Reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -88,7 +88,7 @@ f_startup_rcconf_list()
 	)
 }
 
-# f_startup_rcconf_map
+# f_startup_rcconf_map [$var_to_set]
 #
 # Produce a map (beit from in-memory cache or on-disk cache) of rc.conf(5)
 # variables and their descriptions. The map returned has the following format:
@@ -100,11 +100,21 @@ f_startup_rcconf_list()
 # 	var           the rc.conf(5) variable
 # 	description   description of the variable
 #
+# If $var_to_set is missing or NULL, the map is printed to standard output for
+# capturing in a sub-shell (which is less-recommended because of performance
+# degredation; for example, when called in a loop).
+#
 f_startup_rcconf_map()
 {
+	local __var_to_set="$1"
+
 	# If the in-memory cached value is available, return it immediately
 	if [ "$_STARTUP_RCCONF_MAP" ]; then
-		echo "$STARTUP_RCCONF_MAP"
+		if [ "$__var_to_set" ]; then
+			setvar "$__var_to_set" "$STARTUP_RCCONF_MAP"
+		else
+			echo "$STARTUP_RCCONF_MAP"
+		fi
 		return $SUCCESS
 	fi
 
@@ -117,8 +127,8 @@ f_startup_rcconf_map()
 	# cache file (containing this digest on the first line) is valid and
 	# can be used to quickly populate the cache value for immediate return.
 	#
-	local rc_defaults_digest
-	rc_defaults_digest=$( md5 < "$RC_DEFAULTS" )
+	local __rc_defaults_digest
+	__rc_defaults_digest=$( md5 < "$RC_DEFAULTS" )
 
 	#
 	# Check to see if the global persistant cache file exists
@@ -138,7 +148,8 @@ f_startup_rcconf_map()
 				# one populate the in-memory cache from the on-
 				# disk cache and provide success exit status.
 				#
-				if [ "$digest" = "$rc_defaults_digest" ]; then
+				if [ "$digest" = "$__rc_defaults_digest" ]
+				then
 					cat
 					exit $SUCCESS
 				else
@@ -148,10 +159,15 @@ f_startup_rcconf_map()
 				fi
 			) < "$STARTUP_RCCONF_MAP_CACHEFILE"
 		)
-		export STARTUP_RCCONF_MAP
-		if [ $? -eq $SUCCESS ]; then
+		local __retval=$?
+		export STARTUP_RCCONF_MAP # Make children faster (export cache)
+		if [ $__retval -eq $SUCCESS ]; then
 			export _STARTUP_RCCONF_MAP=1
-			echo "$STARTUP_RCCONF_MAP"
+			if [ "$__var_to_set" ]; then
+				setvar "$__var_to_set" "$STARTUP_RCCONF_MAP"
+			else
+				echo "$STARTUP_RCCONF_MAP"
+			fi
 			return $SUCCESS
 		fi
 		# Otherwise, fall-thru to create in-memory cache from scratch
@@ -198,23 +214,23 @@ f_startup_rcconf_map()
 	#
 
 	# Create a new temporary file to write to
-	local tmpfile="$( mktemp -t "$pgm" )"
-	[ "$tmpfile" ] || return $FAILURE
+	local __tmpfile="$( mktemp -t "$pgm" )"
+	[ "$__tmpfile" ] || return $FAILURE
 
 	# Write the temporary file contents
-	echo "$rc_defaults_digest" > "$tmpfile"
-	echo "$STARTUP_RCCONF_MAP" >> "$tmpfile"
+	echo "$__rc_defaults_digest" > "$__tmpfile"
+	echo "$STARTUP_RCCONF_MAP" >> "$__tmpfile"
 
 	# Finally, move the temporary file into place
 	case "$STARTUP_RCCONF_MAP_CACHEFILE" in
 	*/*) f_quietly mkdir -p "${STARTUP_RCCONF_MAP_CACHEFILE%/*}"
 	esac
-	mv "$tmpfile" "$STARTUP_RCCONF_MAP_CACHEFILE"
+	mv "$__tmpfile" "$STARTUP_RCCONF_MAP_CACHEFILE"
 }
 
-# f_startup_rcconf_map_expand
+# f_startup_rcconf_map_expand $var_to_get
 #
-# Expands the map ($RCCONF_MAP) into the shell environment namespace by
+# Expands the map ($var_to_get) into the shell environment namespace by
 # creating _${var}_desc variables containing the description of each variable
 # encountered.
 #
@@ -222,7 +238,8 @@ f_startup_rcconf_map()
 #
 f_startup_rcconf_map_expand()
 {
-	eval "$( echo "$RCCONF_MAP" | awk '
+	local var_to_get="$1"
+	eval "$( f_getvar "$var_to_get" | awk '
 	BEGIN {
 		rword = "^[[:space:]]*[^[:space:]]*[[:space:]]*"
 	}
@@ -246,12 +263,13 @@ f_startup_rcconf_map_expand()
 # Mutually exclusive options:
 #
 # 	SHOW_VALUE		Show the value (default; override only)
-# 	SHOW_VALUE_DEFAULT	Show both value and default
+# 	SHOW_DEFAULT_VALUE	Show both value and default
 # 	SHOW_CONFIGURED		Show rc.conf(5) file variable is configured in
 #
 # Each variable is treated as a boolean (NULL for false, non-NULL for true).
 #
-# Variables are exported for later-required awk(1) ENVIRON visibility.
+# Variables are exported for later-required awk(1) ENVIRON visibility. Returns
+# success unless the user chose `Cancel' or pressed Escape.
 #
 f_dialog_input_view_details()
 {
@@ -259,14 +277,23 @@ f_dialog_input_view_details()
 	local hline="$hline_arrows_tab_enter"
 	local prompt=""
 
-	local md=" " m1=" " m2=" " m3=" "
-	[ "$SHOW_DESC"          ] && md="X"
-	[ "$SHOW_VALUE"         ] && m1="*"
-	[ "$SHOW_DEFAULT_VALUE" ] && m2="*"
-	[ "$SHOW_CONFIGURED"    ] && m3="*"
+	local md=" "
+	if [ "$SHOW_DESC" ]; then
+		md="X"
+	fi
+	local m1=" " m2=" " m3=" " defaultitem=
+	if [ "$SHOW_VALUE" ]; then
+		m1="*"
+		defaultitem="1 ($m1) $msg_show_value"
+	elif [ "$SHOW_DEFAULT_VALUE" ]; then
+		m2="*"
+		defaultitem="2 ($m2) $msg_show_default_value"
+	elif [ "$SHOW_CONFIGURED" ]; then
+		m3="*"
+		defaultitem="3 ($m3) $msg_show_configured"
+	fi
 
 	menu_list="
-		'X $msg_exit'                     '$msg_exit_this_menu'
 		'R $msg_reset'                    '$msg_reset_desc'
 		'D [$md] $msg_desc'               '$msg_desc_desc'
 		'1 ($m1) $msg_show_value'         '$msg_show_value_desc'
@@ -290,6 +317,7 @@ f_dialog_input_view_details()
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -301,8 +329,7 @@ f_dialog_input_view_details()
 
 	f_dialog_title_restore
 
-	[ $retval -eq 0 ] || return $SUCCESS
-	[ "$mtag" = "X $msg_exit" ] && return $SUCCESS
+	[ $retval -eq 0 ] || return $FAILURE
 
 	case "$mtag" in
 	"R $msg_reset")

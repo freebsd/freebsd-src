@@ -17,20 +17,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/Path.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/config.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
 #include <cerrno>
 #include <cstdlib>
 using namespace llvm;
@@ -1222,14 +1222,10 @@ sortOpts(StringMap<Option*> &OptMap,
 namespace {
 
 class HelpPrinter {
-  size_t MaxArgLen;
-  const Option *EmptyArg;
   const bool ShowHidden;
 
 public:
-  explicit HelpPrinter(bool showHidden) : ShowHidden(showHidden) {
-    EmptyArg = 0;
-  }
+  explicit HelpPrinter(bool showHidden) : ShowHidden(showHidden) {}
 
   void operator=(bool Value) {
     if (Value == false) return;
@@ -1266,7 +1262,7 @@ public:
     outs() << "\n\n";
 
     // Compute the maximum argument length...
-    MaxArgLen = 0;
+    size_t MaxArgLen = 0;
     for (size_t i = 0, e = Opts.size(); i != e; ++i)
       MaxArgLen = std::max(MaxArgLen, Opts[i].second->getOptionWidth());
 

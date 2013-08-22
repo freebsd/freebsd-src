@@ -14,20 +14,20 @@
 #ifndef LLVM_ADT_DENSEMAP_H
 #define LLVM_ADT_DENSEMAP_H
 
-#include "llvm/Support/Compiler.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/Support/AlignOf.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
 #include "llvm/Support/type_traits.h"
-#include "llvm/ADT/DenseMapInfo.h"
 #include <algorithm>
-#include <iterator>
-#include <new>
-#include <utility>
 #include <cassert>
 #include <climits>
 #include <cstddef>
 #include <cstring>
+#include <iterator>
+#include <new>
+#include <utility>
 
 namespace llvm {
 
@@ -75,7 +75,7 @@ public:
 
   void clear() {
     if (getNumEntries() == 0 && getNumTombstones() == 0) return;
-    
+
     // If the capacity of the array is huge, and the # elements used is small,
     // shrink the array.
     if (getNumEntries() * 4 < getNumBuckets() && getNumBuckets() > 64) {
@@ -159,6 +159,24 @@ public:
     return std::make_pair(iterator(TheBucket, getBucketsEnd(), true), true);
   }
 
+#if LLVM_HAS_RVALUE_REFERENCES
+  // Inserts key,value pair into the map if the key isn't already in the map.
+  // If the key is already in the map, it returns false and doesn't update the
+  // value.
+  std::pair<iterator, bool> insert(std::pair<KeyT, ValueT> &&KV) {
+    BucketT *TheBucket;
+    if (LookupBucketFor(KV.first, TheBucket))
+      return std::make_pair(iterator(TheBucket, getBucketsEnd(), true),
+                            false); // Already in map.
+    
+    // Otherwise, insert the new element.
+    TheBucket = InsertIntoBucket(std::move(KV.first),
+                                 std::move(KV.second),
+                                 TheBucket);
+    return std::make_pair(iterator(TheBucket, getBucketsEnd(), true), true);
+  }
+#endif
+  
   /// insert - Range insertion of pairs.
   template<typename InputIt>
   void insert(InputIt I, InputIt E) {
@@ -198,7 +216,7 @@ public:
     return FindAndConstruct(Key).second;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   value_type& FindAndConstruct(KeyT &&Key) {
     BucketT *TheBucket;
     if (LookupBucketFor(Key, TheBucket))
@@ -383,7 +401,7 @@ private:
     return TheBucket;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   BucketT *InsertIntoBucket(const KeyT &Key, ValueT &&Value,
                             BucketT *TheBucket) {
     TheBucket = InsertIntoBucketImpl(Key, TheBucket);
@@ -430,7 +448,8 @@ private:
     incrementNumEntries();
 
     // If we are writing over a tombstone, remember this.
-    if (!KeyInfoT::isEqual(TheBucket->first, getEmptyKey()))
+    const KeyT EmptyKey = getEmptyKey();
+    if (!KeyInfoT::isEqual(TheBucket->first, EmptyKey))
       decrementNumTombstones();
 
     return TheBucket;
@@ -474,7 +493,6 @@ private:
       if (KeyInfoT::isEqual(ThisBucket->first, EmptyKey)) {
         // If we've already seen a tombstone while probing, fill it in instead
         // of the empty bucket we eventually probed to.
-        if (FoundTombstone) ThisBucket = FoundTombstone;
         FoundBucket = FoundTombstone ? FoundTombstone : ThisBucket;
         return false;
       }
@@ -531,13 +549,13 @@ public:
     init(NumInitBuckets);
   }
 
-  DenseMap(const DenseMap &other) {
+  DenseMap(const DenseMap &other) : BaseT() {
     init(0);
     copyFrom(other);
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
-  DenseMap(DenseMap &&other) {
+#if LLVM_HAS_RVALUE_REFERENCES
+  DenseMap(DenseMap &&other) : BaseT() {
     init(0);
     swap(other);
   }
@@ -566,7 +584,7 @@ public:
     return *this;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   DenseMap& operator=(DenseMap &&other) {
     this->destroyAll();
     operator delete(Buckets);
@@ -700,7 +718,7 @@ public:
     copyFrom(other);
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   SmallDenseMap(SmallDenseMap &&other) {
     init(0);
     swap(other);
@@ -795,7 +813,7 @@ public:
     return *this;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   SmallDenseMap& operator=(SmallDenseMap &&other) {
     this->destroyAll();
     deallocateBuckets();
@@ -1027,7 +1045,7 @@ private:
       ++Ptr;
   }
 };
-  
+
 template<typename KeyT, typename ValueT, typename KeyInfoT>
 static inline size_t
 capacity_in_bytes(const DenseMap<KeyT, ValueT, KeyInfoT> &X) {

@@ -386,7 +386,6 @@ cddiskgonecb(struct disk *dp)
 	struct cam_periph *periph;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-
 	cam_periph_release(periph);
 }
 
@@ -465,7 +464,7 @@ cdcleanup(struct cam_periph *periph)
 			callout_stop(&softc->changer->short_handle);
 			softc->changer->flags &= ~CHANGER_SHORT_TMOUT_SCHED;
 		}
-		softc->changer->devq.qfrozen_cnt[0]--;
+		softc->changer->devq.qfrozen_cnt--;
 		softc->changer->flags |= CHANGER_MANUAL_CALL;
 		cdrunchangerqueue(softc->changer);
 	}
@@ -1073,9 +1072,6 @@ cdopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);
-
 	softc = (struct cd_softc *)periph->softc;
 
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
@@ -1120,9 +1116,6 @@ cdclose(struct disk *dp)
 	struct	cd_softc *softc;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return (ENXIO);	
-
 	softc = (struct cd_softc *)periph->softc;
 
 	cam_periph_lock(periph);
@@ -1256,13 +1249,13 @@ cdrunchangerqueue(void *arg)
 	 * If the changer queue is frozen, that means we have an active
 	 * device.
 	 */
-	if (changer->devq.qfrozen_cnt[0] > 0) {
+	if (changer->devq.qfrozen_cnt > 0) {
 
 		/*
 		 * We always need to reset the frozen count and clear the
 		 * active flag.
 		 */
-		changer->devq.qfrozen_cnt[0]--;
+		changer->devq.qfrozen_cnt--;
 		changer->cur_device->flags &= ~CD_FLAG_ACTIVE;
 		changer->cur_device->flags &= ~CD_FLAG_SCHED_ON_COMP;
 
@@ -1297,7 +1290,7 @@ cdrunchangerqueue(void *arg)
 
 	changer->cur_device = softc;
 
-	changer->devq.qfrozen_cnt[0]++;
+	changer->devq.qfrozen_cnt++;
 	softc->flags |= CD_FLAG_ACTIVE;
 
 	/* Just in case this device is waiting */
@@ -1453,7 +1446,7 @@ cdgetccb(struct cam_periph *periph, u_int32_t priority)
 				softc->changer->flags |= CHANGER_MANUAL_CALL;
 				cdrunchangerqueue(softc->changer);
 			} else
-				msleep(&softc->changer, periph->sim->mtx,
+				cam_periph_sleep(periph, &softc->changer,
 				    PRIBIO, "cgticb", 0);
 		}
 	}
@@ -1473,11 +1466,6 @@ cdstrategy(struct bio *bp)
 	struct cd_softc *softc;
 
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph == NULL) {
-		biofinish(bp, NULL, ENXIO);
-		return;
-	}
-
 	cam_periph_lock(periph);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 	    ("cdstrategy(%p)\n", bp));
@@ -1972,9 +1960,6 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	int	nocopyout, error = 0;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (periph == NULL)
-		return(ENXIO);	
-
 	cam_periph_lock(periph);
 
 	softc = (struct cd_softc *)periph->softc;

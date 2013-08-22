@@ -30,6 +30,8 @@ CODEGENOPT(Name, Bits, Default)
 
 CODEGENOPT(AsmVerbose        , 1, 0) ///< -dA, -fverbose-asm.
 CODEGENOPT(ObjCAutoRefCountExceptions , 1, 0) ///< Whether ARC should be EH-safe.
+CODEGENOPT(CoverageExtraChecksum, 1, 0) ///< Whether we need a second checksum for functions in GCNO files.
+CODEGENOPT(CoverageNoFunctionNamesInData, 1, 0) ///< Do not include function names in GCDA files.
 CODEGENOPT(CUDAIsDevice      , 1, 0) ///< Set when compiling for CUDA device.
 CODEGENOPT(CXAAtExit         , 1, 1) ///< Use __cxa_atexit for calling destructors.
 CODEGENOPT(CXXCtorDtorAliases, 1, 0) ///< Emit complete ctors/dtors as linker
@@ -40,6 +42,7 @@ CODEGENOPT(DisableLLVMOpts   , 1, 0) ///< Don't run any optimizations, for use i
                                      ///< getting .bc files that correspond to the
                                      ///< internal state before optimizations are
                                      ///< done.
+CODEGENOPT(DisableGCov       , 1, 0) ///< Don't run the GCov pass, for testing.
 CODEGENOPT(DisableRedZone    , 1, 0) ///< Set when -mno-red-zone is enabled.
 CODEGENOPT(DisableTailCalls  , 1, 0) ///< Do not emit tail calls.
 CODEGENOPT(EmitDeclMetadata  , 1, 0) ///< Emit special metadata indicating what
@@ -49,6 +52,8 @@ CODEGENOPT(EmitDeclMetadata  , 1, 0) ///< Emit special metadata indicating what
 CODEGENOPT(EmitGcovArcs      , 1, 0) ///< Emit coverage data files, aka. GCDA.
 CODEGENOPT(EmitGcovNotes     , 1, 0) ///< Emit coverage "notes" files, aka GCNO.
 CODEGENOPT(EmitOpenCLArgMetadata , 1, 0) ///< Emit OpenCL kernel arg metadata.
+/// \brief FP_CONTRACT mode (on/off/fast).
+ENUM_CODEGENOPT(FPContractMode, FPContractModeKind, 2, FPC_On)
 CODEGENOPT(ForbidGuardVariables , 1, 0) ///< Issue errors if C++ guard variables
                                         ///< are required.
 CODEGENOPT(FunctionSections  , 1, 0) ///< Set when -ffunction-sections is enabled.
@@ -65,6 +70,7 @@ CODEGENOPT(NoDwarf2CFIAsm    , 1, 0) ///< Set when -fno-dwarf2-cfi-asm is enable
 CODEGENOPT(NoDwarfDirectoryAsm , 1, 0) ///< Set when -fno-dwarf-directory-asm is
                                        ///< enabled.
 CODEGENOPT(NoExecStack       , 1, 0) ///< Set when -Wa,--noexecstack is enabled.
+CODEGENOPT(EnableSegmentedStacks , 1, 0) ///< Set when -fsplit-stack is enabled.
 CODEGENOPT(NoGlobalMerge     , 1, 0) ///< Set when -mno-global-merge is enabled.
 CODEGENOPT(NoImplicitFloat   , 1, 0) ///< Set when -mno-implicit-float is enabled.
 CODEGENOPT(NoInfsFPMath      , 1, 0) ///< Assume FP arguments, results not +-Inf.
@@ -80,7 +86,14 @@ VALUE_CODEGENOPT(OptimizationLevel, 3, 0) ///< The -O[0-4] option specified.
 VALUE_CODEGENOPT(OptimizeSize, 2, 0) ///< If -Os (==1) or -Oz (==2) is specified.
 CODEGENOPT(RelaxAll          , 1, 0) ///< Relax all machine code instructions.
 CODEGENOPT(RelaxedAliasing   , 1, 0) ///< Set when -fno-strict-aliasing is enabled.
+CODEGENOPT(StructPathTBAA    , 1, 0) ///< Whether or not to use struct-path TBAA.
 CODEGENOPT(SaveTempLabels    , 1, 0) ///< Save temporary labels.
+CODEGENOPT(SanitizeAddressZeroBaseShadow , 1, 0) ///< Map shadow memory at zero
+                                                 ///< offset in AddressSanitizer.
+CODEGENOPT(SanitizeMemoryTrackOrigins, 1, 0) ///< Enable tracking origins in
+                                             ///< MemorySanitizer
+CODEGENOPT(SanitizeUndefinedTrapOnError, 1, 0) ///< Set on
+                                               /// -fsanitize-undefined-trap-on-error
 CODEGENOPT(SimplifyLibCalls  , 1, 1) ///< Set when -fbuiltin is enabled.
 CODEGENOPT(SoftFloat         , 1, 0) ///< -soft-float.
 CODEGENOPT(StrictEnums       , 1, 0) ///< Optimize based on strict enum definition.
@@ -107,12 +120,11 @@ VALUE_CODEGENOPT(StackAlignment    , 32, 0) ///< Overrides default stack
 CODEGENOPT(DebugColumnInfo, 1, 0) ///< Whether or not to use column information
                                   ///< in debug info.
 
+CODEGENOPT(ModulesAutolink, 1, 0) ///< Whether to auto-link imported modules
+
 /// The user specified number of registers to be used for integral arguments,
 /// or 0 if unspecified.
 VALUE_CODEGENOPT(NumRegisterParameters, 32, 0)
-
-/// The run-time penalty for bounds checking, or 0 to disable.
-VALUE_CODEGENOPT(BoundsChecking, 8, 0)
 
 /// The lower bound for a buffer to be considered for stack protection.
 VALUE_CODEGENOPT(SSPBufferSize, 32, 0)
@@ -125,6 +137,9 @@ ENUM_CODEGENOPT(Inlining, InliningMethod, 2, NoInlining)
 
 /// The default TLS model to use.
 ENUM_CODEGENOPT(DefaultTLSModel, TLSModel, 2, GeneralDynamicTLSModel)
+
+CODEGENOPT(SanitizeRecover, 1, 1) ///< Attempt to recover from sanitizer checks
+                                  ///< by continuing execution when possible
 
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT

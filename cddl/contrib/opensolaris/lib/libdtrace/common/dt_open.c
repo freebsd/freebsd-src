@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <sys/types.h>
@@ -116,8 +117,12 @@
 #define	DT_VERS_1_6_2	DT_VERSION_NUMBER(1, 6, 2)
 #define	DT_VERS_1_6_3	DT_VERSION_NUMBER(1, 6, 3)
 #define	DT_VERS_1_7	DT_VERSION_NUMBER(1, 7, 0)
-#define	DT_VERS_LATEST	DT_VERS_1_7
-#define	DT_VERS_STRING	"Sun D 1.7"
+#define	DT_VERS_1_7_1	DT_VERSION_NUMBER(1, 7, 1)
+#define	DT_VERS_1_8	DT_VERSION_NUMBER(1, 8, 0)
+#define	DT_VERS_1_8_1	DT_VERSION_NUMBER(1, 8, 1)
+#define	DT_VERS_1_9	DT_VERSION_NUMBER(1, 9, 0)
+#define	DT_VERS_LATEST	DT_VERS_1_9
+#define	DT_VERS_STRING	"Sun D 1.9"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -134,6 +139,10 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_6_2,	/* D API 1.6.2 */
 	DT_VERS_1_6_3,	/* D API 1.6.3 */
 	DT_VERS_1_7,	/* D API 1.7 */
+	DT_VERS_1_7_1,	/* D API 1.7.1 */
+	DT_VERS_1_8,	/* D API 1.8 */
+	DT_VERS_1_8_1,	/* D API 1.8.1 */
+	DT_VERS_1_9,	/* D API 1.9 */
 	0
 };
 
@@ -289,7 +298,7 @@ static const dt_ident_t _dtrace_globals[] = {
 { "jstack", DT_IDENT_ACTFUNC, 0, DT_ACT_JSTACK, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "stack(...)" },
 { "lltostr", DT_IDENT_FUNC, 0, DIF_SUBR_LLTOSTR, DT_ATTR_STABCMN, DT_VERS_1_0,
-	&dt_idops_func, "string(int64_t)" },
+	&dt_idops_func, "string(int64_t, [int])" },
 { "llquantize", DT_IDENT_AGGFUNC, 0, DTRACEAGG_LLQUANTIZE, DT_ATTR_STABCMN,
 	DT_VERS_1_7, &dt_idops_func,
 	"void(@, int32_t, int32_t, int32_t, int32_t, ...)" },
@@ -351,6 +360,8 @@ static const dt_ident_t _dtrace_globals[] = {
 	&dt_idops_type, "pid_t" },
 { "ppid", DT_IDENT_SCALAR, 0, DIF_VAR_PPID, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_type, "pid_t" },
+{ "print", DT_IDENT_ACTFUNC, 0, DT_ACT_PRINT, DT_ATTR_STABCMN, DT_VERS_1_9,
+	&dt_idops_func, "void(@)" },
 { "printa", DT_IDENT_ACTFUNC, 0, DT_ACT_PRINTA, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "void(@, ...)" },
 { "printf", DT_IDENT_ACTFUNC, 0, DT_ACT_PRINTF, DT_ATTR_STABCMN, DT_VERS_1_0,
@@ -457,11 +468,15 @@ static const dt_ident_t _dtrace_globals[] = {
 { "timestamp", DT_IDENT_SCALAR, 0, DIF_VAR_TIMESTAMP,
 	DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_type, "uint64_t" },
+{ "tolower", DT_IDENT_FUNC, 0, DIF_SUBR_TOLOWER, DT_ATTR_STABCMN, DT_VERS_1_8,
+	&dt_idops_func, "string(const char *)" },
+{ "toupper", DT_IDENT_FUNC, 0, DIF_SUBR_TOUPPER, DT_ATTR_STABCMN, DT_VERS_1_8,
+	&dt_idops_func, "string(const char *)" },
 { "trace", DT_IDENT_ACTFUNC, 0, DT_ACT_TRACE, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "void(@)" },
 { "tracemem", DT_IDENT_ACTFUNC, 0, DT_ACT_TRACEMEM,
 	DT_ATTR_STABCMN, DT_VERS_1_0,
-	&dt_idops_func, "void(@, size_t)" },
+	&dt_idops_func, "void(@, size_t, ...)" },
 { "trunc", DT_IDENT_ACTFUNC, 0, DT_ACT_TRUNC, DT_ATTR_STABCMN,
 	DT_VERS_1_0, &dt_idops_func, "void(...)" },
 { "typeref", DT_IDENT_FUNC, 0, DIF_SUBR_TYPEREF, DT_ATTR_STABCMN, DT_VERS_1_1,
@@ -1612,6 +1627,7 @@ dtrace_close(dtrace_hdl_t *dtp)
 	dt_epid_destroy(dtp);
 	dt_aggid_destroy(dtp);
 	dt_format_destroy(dtp);
+	dt_strdata_destroy(dtp);
 	dt_buffered_destroy(dtp);
 	dt_aggregate_destroy(dtp);
 	free(dtp->dt_buf.dtbd_data);

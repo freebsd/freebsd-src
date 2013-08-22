@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -1173,8 +1173,10 @@ again:
 	    doi.doi_bonus_size < sizeof (znode_phys_t)))) {
 		sa_buf_rele(db, NULL);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
+#ifdef __FreeBSD__
 		getnewvnode_drop_reserve();
-		return (EINVAL);
+#endif
+		return (SET_ERROR(EINVAL));
 	}
 
 	hdl = dmu_buf_get_user(db);
@@ -1193,7 +1195,7 @@ again:
 		mutex_enter(&zp->z_lock);
 		ASSERT3U(zp->z_id, ==, obj_num);
 		if (zp->z_unlinked) {
-			err = ENOENT;
+			err = SET_ERROR(ENOENT);
 		} else {
 			vp = ZTOV(zp);
 			*zpp = zp;
@@ -1245,7 +1247,7 @@ again:
 	zp = zfs_znode_alloc(zfsvfs, db, doi.doi_data_block_size,
 	    doi.doi_bonus_type, NULL);
 	if (zp == NULL) {
-		err = ENOENT;
+		err = SET_ERROR(ENOENT);
 	} else {
 		*zpp = zp;
 	}
@@ -1304,7 +1306,7 @@ zfs_rezget(znode_t *zp)
 	    doi.doi_bonus_size < sizeof (znode_phys_t)))) {
 		sa_buf_rele(db, NULL);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 	}
 
 	zfs_znode_sa_init(zfsvfs, zp, db, doi.doi_bonus_type, NULL);
@@ -1331,7 +1333,7 @@ zfs_rezget(znode_t *zp)
 	if (sa_bulk_lookup(zp->z_sa_hdl, bulk, count)) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
-		return (EIO);
+		return (SET_ERROR(EIO));
 	}
 
 	zp->z_mode = mode;
@@ -1339,7 +1341,7 @@ zfs_rezget(znode_t *zp)
 	if (gen != zp->z_gen) {
 		zfs_znode_dmu_fini(zp);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
-		return (EIO);
+		return (SET_ERROR(EIO));
 	}
 
 	/*
@@ -2007,7 +2009,7 @@ zfs_grab_sa_handle(objset_t *osp, uint64_t obj, sa_handle_t **hdlp,
 	    doi.doi_bonus_type == DMU_OT_ZNODE &&
 	    doi.doi_bonus_size < sizeof (znode_phys_t)) {
 		sa_buf_rele(*db, tag);
-		return (ENOTSUP);
+		return (SET_ERROR(ENOTSUP));
 	}
 
 	error = sa_handle_get(osp, obj, NULL, SA_HDL_PRIVATE, hdlp);
@@ -2076,7 +2078,7 @@ zfs_obj_to_pobj(objset_t *osp, sa_handle_t *hdl, sa_attr_type_t *sa_table,
 	 * Otherwise the parent must be a directory.
 	 */
 	if (!*is_xattrdir && !S_ISDIR(parent_mode))
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	*pobjp = parent;
 

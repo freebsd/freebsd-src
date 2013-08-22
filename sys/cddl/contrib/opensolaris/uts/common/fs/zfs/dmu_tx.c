@@ -48,7 +48,7 @@ dmu_tx_create_dd(dsl_dir_t *dd)
 {
 	dmu_tx_t *tx = kmem_zalloc(sizeof (dmu_tx_t), KM_SLEEP);
 	tx->tx_dir = dd;
-	if (dd)
+	if (dd != NULL)
 		tx->tx_pool = dd->dd_pool;
 	list_create(&tx->tx_holds, sizeof (dmu_tx_hold_t),
 	    offsetof(dmu_tx_hold_t, txh_node));
@@ -160,7 +160,7 @@ dmu_tx_check_ioerr(zio_t *zio, dnode_t *dn, int level, uint64_t blkid)
 	db = dbuf_hold_level(dn, level, blkid, FTAG);
 	rw_exit(&dn->dn_struct_rwlock);
 	if (db == NULL)
-		return (EIO);
+		return (SET_ERROR(EIO));
 	err = dbuf_read(db, zio, DB_RF_CANFAIL | DB_RF_NOPREFETCH);
 	dbuf_rele(db, FTAG);
 	return (err);
@@ -370,7 +370,7 @@ dmu_tx_count_write(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 out:
 	if (txh->txh_space_towrite + txh->txh_space_tooverwrite >
 	    2 * DMU_MAX_ACCESS)
-		err = EFBIG;
+		err = SET_ERROR(EFBIG);
 
 	if (err)
 		txh->txh_tx->tx_err = err;
@@ -898,7 +898,7 @@ dmu_tx_dirty_buf(dmu_tx_t *tx, dmu_buf_impl_t *db)
 #endif
 
 static int
-dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
+dmu_tx_try_assign(dmu_tx_t *tx, txg_how_t txg_how)
 {
 	dmu_tx_hold_t *txh;
 	spa_t *spa = tx->tx_pool->dp_spa;
@@ -922,9 +922,9 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 		 */
 		if (spa_get_failmode(spa) == ZIO_FAILURE_MODE_CONTINUE &&
 		    txg_how != TXG_WAIT)
-			return (EIO);
+			return (SET_ERROR(EIO));
 
-		return (ERESTART);
+		return (SET_ERROR(ERESTART));
 	}
 
 	tx->tx_txg = txg_hold_open(tx->tx_pool, &tx->tx_txgh);
@@ -945,7 +945,7 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 			if (dn->dn_assigned_txg == tx->tx_txg - 1) {
 				mutex_exit(&dn->dn_mtx);
 				tx->tx_needassign_txh = txh;
-				return (ERESTART);
+				return (SET_ERROR(ERESTART));
 			}
 			if (dn->dn_assigned_txg == 0)
 				dn->dn_assigned_txg = tx->tx_txg;
@@ -960,13 +960,6 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 		tohold += txh->txh_memory_tohold;
 		fudge += txh->txh_fudge;
 	}
-
-	/*
-	 * NB: This check must be after we've held the dnodes, so that
-	 * the dmu_tx_unassign() logic will work properly
-	 */
-	if (txg_how >= TXG_INITIAL && txg_how != tx->tx_txg)
-		return (ERESTART);
 
 	/*
 	 * If a snapshot has been taken since we made our estimates,
@@ -1048,25 +1041,24 @@ dmu_tx_unassign(dmu_tx_t *tx)
  *
  * (1)	TXG_WAIT.  If the current open txg is full, waits until there's
  *	a new one.  This should be used when you're not holding locks.
- *	If will only fail if we're truly out of space (or over quota).
+ *	It will only fail if we're truly out of space (or over quota).
  *
  * (2)	TXG_NOWAIT.  If we can't assign into the current open txg without
  *	blocking, returns immediately with ERESTART.  This should be used
  *	whenever you're holding locks.  On an ERESTART error, the caller
  *	should drop locks, do a dmu_tx_wait(tx), and try again.
- *
- * (3)	A specific txg.  Use this if you need to ensure that multiple
- *	transactions all sync in the same txg.  Like TXG_NOWAIT, it
- *	returns ERESTART if it can't assign you into the requested txg.
  */
 int
-dmu_tx_assign(dmu_tx_t *tx, uint64_t txg_how)
+dmu_tx_assign(dmu_tx_t *tx, txg_how_t txg_how)
 {
 	int err;
 
 	ASSERT(tx->tx_txg == 0);
-	ASSERT(txg_how != 0);
+	ASSERT(txg_how == TXG_WAIT || txg_how == TXG_NOWAIT);
 	ASSERT(!dsl_pool_sync_context(tx->tx_pool));
+
+	/* If we might wait, we must not hold the config lock. */
+	ASSERT(txg_how != TXG_WAIT || !dsl_pool_config_held(tx->tx_pool));
 
 	while ((err = dmu_tx_try_assign(tx, txg_how)) != 0) {
 		dmu_tx_unassign(tx);
@@ -1088,6 +1080,7 @@ dmu_tx_wait(dmu_tx_t *tx)
 	spa_t *spa = tx->tx_pool->dp_spa;
 
 	ASSERT(tx->tx_txg == 0);
+	ASSERT(!dsl_pool_config_held(tx->tx_pool));
 
 	/*
 	 * It's possible that the pool has become active after this thread
@@ -1213,6 +1206,14 @@ dmu_tx_get_txg(dmu_tx_t *tx)
 	ASSERT(tx->tx_txg != 0);
 	return (tx->tx_txg);
 }
+
+dsl_pool_t *
+dmu_tx_pool(dmu_tx_t *tx)
+{
+	ASSERT(tx->tx_pool != NULL);
+	return (tx->tx_pool);
+}
+
 
 void
 dmu_tx_callback_register(dmu_tx_t *tx, dmu_tx_callback_func_t *func, void *data)

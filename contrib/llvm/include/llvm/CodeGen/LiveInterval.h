@@ -22,9 +22,9 @@
 #define LLVM_CODEGEN_LIVEINTERVAL_H
 
 #include "llvm/ADT/IntEqClasses.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/Support/AlignOf.h"
 #include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/Support/AlignOf.h"
+#include "llvm/Support/Allocator.h"
 #include <cassert>
 #include <climits>
 
@@ -86,9 +86,10 @@ namespace llvm {
     SlotIndex end;    // End point of the interval (exclusive)
     VNInfo *valno;   // identifier for the value contained in this interval.
 
+    LiveRange() : valno(0) {}
+
     LiveRange(SlotIndex S, SlotIndex E, VNInfo *V)
       : start(S), end(E), valno(V) {
-
       assert(S < E && "Cannot create empty or backwards range");
     }
 
@@ -373,8 +374,8 @@ namespace llvm {
     /// addRange - Add the specified LiveRange to this interval, merging
     /// intervals as appropriate.  This returns an iterator to the inserted live
     /// range (which may have grown since it was inserted.
-    void addRange(LiveRange LR) {
-      addRangeFrom(LR, ranges.begin());
+    iterator addRange(LiveRange LR) {
+      return addRangeFrom(LR, ranges.begin());
     }
 
     /// extendInBlock - If this interval is live before Kill in the basic block
@@ -460,9 +461,6 @@ namespace llvm {
     void extendIntervalEndTo(Ranges::iterator I, SlotIndex NewEnd);
     Ranges::iterator extendIntervalStartTo(Ranges::iterator I, SlotIndex NewStr);
     void markValNoForDeletion(VNInfo *V);
-    void mergeIntervalRanges(const LiveInterval &RHS,
-                             VNInfo *LHSValNo = 0,
-                             const VNInfo *RHSValNo = 0);
 
     LiveInterval& operator=(const LiveInterval& rhs) LLVM_DELETED_FUNCTION;
 
@@ -470,6 +468,64 @@ namespace llvm {
 
   inline raw_ostream &operator<<(raw_ostream &OS, const LiveInterval &LI) {
     LI.print(OS);
+    return OS;
+  }
+
+  /// Helper class for performant LiveInterval bulk updates.
+  ///
+  /// Calling LiveInterval::addRange() repeatedly can be expensive on large
+  /// live ranges because segments after the insertion point may need to be
+  /// shifted. The LiveRangeUpdater class can defer the shifting when adding
+  /// many segments in order.
+  ///
+  /// The LiveInterval will be in an invalid state until flush() is called.
+  class LiveRangeUpdater {
+    LiveInterval *LI;
+    SlotIndex LastStart;
+    LiveInterval::iterator WriteI;
+    LiveInterval::iterator ReadI;
+    SmallVector<LiveRange, 16> Spills;
+    void mergeSpills();
+
+  public:
+    /// Create a LiveRangeUpdater for adding segments to LI.
+    /// LI will temporarily be in an invalid state until flush() is called.
+    LiveRangeUpdater(LiveInterval *li = 0) : LI(li) {}
+
+    ~LiveRangeUpdater() { flush(); }
+
+    /// Add a segment to LI and coalesce when possible, just like LI.addRange().
+    /// Segments should be added in increasing start order for best performance.
+    void add(LiveRange);
+
+    void add(SlotIndex Start, SlotIndex End, VNInfo *VNI) {
+      add(LiveRange(Start, End, VNI));
+    }
+
+    /// Return true if the LI is currently in an invalid state, and flush()
+    /// needs to be called.
+    bool isDirty() const { return LastStart.isValid(); }
+
+    /// Flush the updater state to LI so it is valid and contains all added
+    /// segments.
+    void flush();
+
+    /// Select a different destination live range.
+    void setDest(LiveInterval *li) {
+      if (LI != li && isDirty())
+        flush();
+      LI = li;
+    }
+
+    /// Get the current destination live range.
+    LiveInterval *getDest() const { return LI; }
+
+    void dump() const;
+    void print(raw_ostream&) const;
+  };
+
+  inline raw_ostream &operator<<(raw_ostream &OS, const LiveRangeUpdater &X) {
+    X.print(OS);
     return OS;
   }
 

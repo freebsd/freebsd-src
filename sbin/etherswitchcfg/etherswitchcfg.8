@@ -62,9 +62,9 @@ To set the register value, use the form instance.register=value.
 .Ss port
 The port command selects one of the ports of the switch.
 It supports the following commands:
-.Bl -tag -width ".Ar vlangroup number" -compact
-.It Ar vlangroup number
-Sets the VLAN group number that is used to process incoming frames that are not tagged.
+.Bl -tag -width ".Ar pvid number" -compact
+.It Ar pvid number
+Sets the default port VID that is used to process incoming frames that are not tagged.
 .It Ar media mediaspec
 Specifies the physical media configuration to be configured for a port.
 .It Ar mediaopt mediaoption
@@ -104,7 +104,7 @@ Configure VLAN group 1 with a VID of 2 and makes ports 0 and 5 members,
 while excluding all other ports.
 Port 5 will send and receive tagged frames, while port 0 will be untagged.
 Incoming untagged frames on port 0 are assigned to vlangroup1.
-.Dl # etherswitchcfg vlangroup1 vlan 2 members 0,5t port0 vlangroup 1
+.Dl # etherswitchcfg vlangroup1 vlan 2 members 0,5t port0 pvid 2
 .Sh SEE ALSO
 .Xr etherswitch 4
 .Sh HISTORY

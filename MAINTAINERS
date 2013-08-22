@@ -30,7 +30,8 @@ contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
-NEWCARD		imp	Pre-commit review requested.
+PC Card		imp	Pre-commit review requested.
+CardBus		imp	Pre-commit review requested.
 pci bus		imp,jhb	Pre-commit review requested.
 cdboot		jhb	Pre-commit review requested.
 pxeboot		jhb	Pre-commit review requested.

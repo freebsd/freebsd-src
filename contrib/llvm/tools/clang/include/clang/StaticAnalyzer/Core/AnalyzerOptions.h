@@ -15,12 +15,12 @@
 #ifndef LLVM_CLANG_ANALYZEROPTIONS_H
 #define LLVM_CLANG_ANALYZEROPTIONS_H
 
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringMap.h"
 #include <string>
 #include <vector>
-#include "clang/Basic/LLVM.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/StringMap.h"
 
 namespace clang {
 class ASTConsumer;
@@ -64,13 +64,6 @@ enum AnalysisPurgeMode {
 NumPurgeModes
 };
 
-/// AnalysisIPAMode - Set of inter-procedural modes.
-enum AnalysisIPAMode {
-#define ANALYSIS_IPA(NAME, CMDFLAG, DESC) NAME,
-#include "clang/StaticAnalyzer/Core/Analyses.def"
-NumIPAModes
-};
-
 /// AnalysisInlineFunctionSelection - Set of inlining function selection heuristics.
 enum AnalysisInliningMode {
 #define ANALYSIS_INLINING_MODE(NAME, CMDFLAG, DESC) NAME,
@@ -102,8 +95,28 @@ enum CXXInlineableMemberKind {
   CIMK_Destructors
 };
 
+/// \brief Describes the different modes of inter-procedural analysis.
+enum IPAKind {
+  IPAK_NotSet = 0,
 
-class AnalyzerOptions : public llvm::RefCountedBase<AnalyzerOptions> {
+  /// Perform only intra-procedural analysis.
+  IPAK_None = 1,
+
+  /// Inline C functions and blocks when their definitions are available.
+  IPAK_BasicInlining = 2,
+
+  /// Inline callees(C, C++, ObjC) when their definitions are available.
+  IPAK_Inlining = 3,
+
+  /// Enable inlining of dynamically dispatched methods.
+  IPAK_DynamicDispatch = 4,
+
+  /// Enable inlining of dynamically dispatched methods, bifurcate paths when
+  /// exact type info is unavailable.
+  IPAK_DynamicDispatchBifurcate = 5
+};
+
+class AnalyzerOptions : public RefCountedBase<AnalyzerOptions> {
 public:
   typedef llvm::StringMap<std::string> ConfigTable;
 
@@ -117,13 +130,7 @@ public:
   AnalysisDiagClients AnalysisDiagOpt;
   AnalysisPurgeMode AnalysisPurgeOpt;
   
-  // \brief The interprocedural analysis mode.
-  AnalysisIPAMode IPAMode;
-  
   std::string AnalyzeSpecificFunction;
-  
-  /// \brief The maximum number of exploded nodes the analyzer will generate.
-  unsigned MaxNodes;
   
   /// \brief The maximum number of times the analyzer visits a block.
   unsigned maxBlockVisitOnPath;
@@ -159,39 +166,71 @@ public:
   unsigned InlineMaxStackDepth;
   
   /// \brief The mode of function selection used during inlining.
-  unsigned InlineMaxFunctionSize;
-
-  /// \brief The mode of function selection used during inlining.
   AnalysisInliningMode InliningMode;
 
 private:
+  /// \brief Describes the kinds for high-level analyzer mode.
+  enum UserModeKind {
+    UMK_NotSet = 0,
+    /// Perform shallow but fast analyzes.
+    UMK_Shallow = 1,
+    /// Perform deep analyzes.
+    UMK_Deep = 2
+  };
+
+  /// Controls the high-level analyzer mode, which influences the default 
+  /// settings for some of the lower-level config options (such as IPAMode).
+  /// \sa getUserMode
+  UserModeKind UserMode;
+
+  /// Controls the mode of inter-procedural analysis.
+  IPAKind IPAMode;
+
   /// Controls which C++ member functions will be considered for inlining.
   CXXInlineableMemberKind CXXMemberInliningMode;
   
   /// \sa includeTemporaryDtorsInCFG
-  llvm::Optional<bool> IncludeTemporaryDtorsInCFG;
+  Optional<bool> IncludeTemporaryDtorsInCFG;
   
   /// \sa mayInlineCXXStandardLibrary
-  llvm::Optional<bool> InlineCXXStandardLibrary;
+  Optional<bool> InlineCXXStandardLibrary;
   
   /// \sa mayInlineTemplateFunctions
-  llvm::Optional<bool> InlineTemplateFunctions;
+  Optional<bool> InlineTemplateFunctions;
+
+  /// \sa mayInlineCXXContainerCtorsAndDtors
+  Optional<bool> InlineCXXContainerCtorsAndDtors;
 
   /// \sa mayInlineObjCMethod
-  llvm::Optional<bool> ObjCInliningMode;
+  Optional<bool> ObjCInliningMode;
 
   // Cache of the "ipa-always-inline-size" setting.
   // \sa getAlwaysInlineSize
-  llvm::Optional<unsigned> AlwaysInlineSize;
+  Optional<unsigned> AlwaysInlineSize;
 
-  /// \sa shouldPruneNullReturnPaths
-  llvm::Optional<bool> PruneNullReturnPaths;
+  /// \sa shouldSuppressNullReturnPaths
+  Optional<bool> SuppressNullReturnPaths;
+
+  // \sa getMaxInlinableSize
+  Optional<unsigned> MaxInlinableSize;
 
   /// \sa shouldAvoidSuppressingNullArgumentPaths
-  llvm::Optional<bool> AvoidSuppressingNullArgumentPaths;
-  
+  Optional<bool> AvoidSuppressingNullArgumentPaths;
+
+  /// \sa shouldSuppressInlinedDefensiveChecks
+  Optional<bool> SuppressInlinedDefensiveChecks;
+
+  /// \sa shouldSuppressFromCXXStandardLibrary
+  Optional<bool> SuppressFromCXXStandardLibrary;
+
   /// \sa getGraphTrimInterval
-  llvm::Optional<unsigned> GraphTrimInterval;
+  Optional<unsigned> GraphTrimInterval;
+
+  /// \sa getMaxTimesInlineLarge
+  Optional<unsigned> MaxTimesInlineLarge;
+
+  /// \sa getMaxNodesPerTopLevelFunction
+  Optional<unsigned> MaxNodesPerTopLevelFunction;
 
   /// Interprets an option's string value as a boolean.
   ///
@@ -200,13 +239,20 @@ private:
   bool getBooleanOption(StringRef Name, bool DefaultVal);
 
   /// Variant that accepts a Optional value to cache the result.
-  bool getBooleanOption(llvm::Optional<bool> &V, StringRef Name,
-                        bool DefaultVal);
-  
+  bool getBooleanOption(Optional<bool> &V, StringRef Name, bool DefaultVal);
+
   /// Interprets an option's string value as an integer value.
-  int getOptionAsInteger(llvm::StringRef Name, int DefaultVal);
+  int getOptionAsInteger(StringRef Name, int DefaultVal);
 
 public:
+  /// \brief Retrieves and sets the UserMode. This is a high-level option,
+  /// which is used to set other low-level options. It is not accessible
+  /// outside of AnalyzerOptions.
+  UserModeKind getUserMode();
+
+  /// \brief Returns the inter-procedural analysis mode.
+  IPAKind getIPAMode();
+
   /// Returns the option controlling which C++ member functions will be
   /// considered for inlining.
   ///
@@ -238,6 +284,13 @@ public:
   /// accepts the values "true" and "false".
   bool mayInlineTemplateFunctions();
 
+  /// Returns whether or not constructors and destructors of C++ container
+  /// objects may be considered for inlining.
+  ///
+  /// This is controlled by the 'c++-container-inlining' config option, which
+  /// accepts the values "true" and "false".
+  bool mayInlineCXXContainerCtorsAndDtors();
+
   /// Returns whether or not paths that go through null returns should be
   /// suppressed.
   ///
@@ -246,12 +299,12 @@ public:
   ///
   /// This is controlled by the 'suppress-null-return-paths' config option,
   /// which accepts the values "true" and "false".
-  bool shouldPruneNullReturnPaths();
+  bool shouldSuppressNullReturnPaths();
 
   /// Returns whether a bug report should \em not be suppressed if its path
   /// includes a call with a null argument, even if that call has a null return.
   ///
-  /// This option has no effect when #shouldPruneNullReturnPaths() is false.
+  /// This option has no effect when #shouldSuppressNullReturnPaths() is false.
   ///
   /// This is a counter-heuristic to avoid false negatives.
   ///
@@ -259,12 +312,43 @@ public:
   /// option, which accepts the values "true" and "false".
   bool shouldAvoidSuppressingNullArgumentPaths();
 
+  /// Returns whether or not diagnostics containing inlined defensive NULL
+  /// checks should be suppressed.
+  ///
+  /// This is controlled by the 'suppress-inlined-defensive-checks' config
+  /// option, which accepts the values "true" and "false".
+  bool shouldSuppressInlinedDefensiveChecks();
+
+  /// Returns whether or not diagnostics reported within the C++ standard
+  /// library should be suppressed.
+  ///
+  /// This is controlled by the 'suppress-c++-stdlib' config option,
+  /// which accepts the values "true" and "false".
+  bool shouldSuppressFromCXXStandardLibrary();
+
+  /// Returns whether irrelevant parts of a bug report path should be pruned
+  /// out of the final output.
+  ///
+  /// This is controlled by the 'prune-paths' config option, which accepts the
+  /// values "true" and "false".
+  bool shouldPrunePaths();
+
+  /// Returns true if 'static' initializers should be in conditional logic
+  /// in the CFG.
+  bool shouldConditionalizeStaticInitializers();
+
   // Returns the size of the functions (in basic blocks), which should be
   // considered to be small enough to always inline.
   //
   // This is controlled by "ipa-always-inline-size" analyzer-config option.
   unsigned getAlwaysInlineSize();
-  
+
+  // Returns the bound on the number of basic blocks in an inlined function
+  // (50 by default).
+  //
+  // This is controlled by "-analyzer-config max-inlinable-size" option.
+  unsigned getMaxInlinableSize();
+
   /// Returns true if the analyzer engine should synthesize fake bodies
   /// for well-known functions.
   bool shouldSynthesizeBodies();
@@ -276,32 +360,45 @@ public:
   /// node reclamation, set the option to "0".
   unsigned getGraphTrimInterval();
 
+  /// Returns the maximum times a large function could be inlined.
+  ///
+  /// This is controlled by the 'max-times-inline-large' config option.
+  unsigned getMaxTimesInlineLarge();
+
+  /// Returns the maximum number of nodes the analyzer can generate while
+  /// exploring a top level function (for each exploded graph).
+  /// 150000 is default; 0 means no limit.
+  ///
+  /// This is controlled by the 'max-nodes' config option.
+  unsigned getMaxNodesPerTopLevelFunction();
+
 public:
-  AnalyzerOptions() : CXXMemberInliningMode() {
-    AnalysisStoreOpt = RegionStoreModel;
-    AnalysisConstraintsOpt = RangeConstraintsModel;
-    AnalysisDiagOpt = PD_HTML;
-    AnalysisPurgeOpt = PurgeStmt;
-    IPAMode = DynamicDispatchBifurcate;
-    ShowCheckerHelp = 0;
-    AnalyzeAll = 0;
-    AnalyzerDisplayProgress = 0;
-    AnalyzeNestedBlocks = 0;
-    eagerlyAssumeBinOpBifurcation = 0;
-    TrimGraph = 0;
-    visualizeExplodedGraphWithGraphViz = 0;
-    visualizeExplodedGraphWithUbiGraph = 0;
-    UnoptimizedCFG = 0;
-    PrintStats = 0;
-    NoRetryExhausted = 0;
+  AnalyzerOptions() :
+    AnalysisStoreOpt(RegionStoreModel),
+    AnalysisConstraintsOpt(RangeConstraintsModel),
+    AnalysisDiagOpt(PD_HTML),
+    AnalysisPurgeOpt(PurgeStmt),
+    ShowCheckerHelp(0),
+    AnalyzeAll(0),
+    AnalyzerDisplayProgress(0),
+    AnalyzeNestedBlocks(0),
+    eagerlyAssumeBinOpBifurcation(0),
+    TrimGraph(0),
+    visualizeExplodedGraphWithGraphViz(0),
+    visualizeExplodedGraphWithUbiGraph(0),
+    UnoptimizedCFG(0),
+    PrintStats(0),
+    NoRetryExhausted(0),
     // Cap the stack depth at 4 calls (5 stack frames, base + 4 calls).
-    InlineMaxStackDepth = 5;
-    InlineMaxFunctionSize = 200;
-    InliningMode = NoRedundancy;
-  }
+    InlineMaxStackDepth(5),
+    InliningMode(NoRedundancy),
+    UserMode(UMK_NotSet),
+    IPAMode(IPAK_NotSet),
+    CXXMemberInliningMode() {}
+
 };
   
-typedef llvm::IntrusiveRefCntPtr<AnalyzerOptions> AnalyzerOptionsRef;
+typedef IntrusiveRefCntPtr<AnalyzerOptions> AnalyzerOptionsRef;
   
 }
 

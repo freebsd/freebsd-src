@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/cpuset.h>
 
+#include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -89,9 +90,25 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case CPUID_8000_0003:
 		case CPUID_8000_0004:
 		case CPUID_8000_0006:
-		case CPUID_8000_0007:
 		case CPUID_8000_0008:
 			cpuid_count(*eax, *ecx, regs);
+			break;
+
+		case CPUID_8000_0007:
+			cpuid_count(*eax, *ecx, regs);
+			/*
+			 * If the host TSCs are not synchronized across
+			 * physical cpus then we cannot advertise an
+			 * invariant tsc to a vcpu.
+			 *
+			 * XXX This still falls short because the vcpu
+			 * can observe the TSC moving backwards as it
+			 * migrates across physical cpus. But at least
+			 * it should discourage the guest from using the
+			 * TSC to keep track of time.
+			 */
+			if (!smp_tsc)
+				regs[3] &= ~AMDPM_TSC_INVARIANT;
 			break;
 
 		case CPUID_0000_0001:

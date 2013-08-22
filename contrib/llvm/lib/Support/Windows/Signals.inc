@@ -12,9 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "Windows.h"
+#include <algorithm>
 #include <stdio.h>
 #include <vector>
-#include <algorithm>
 
 #ifdef __MINGW32__
  #include <imagehlp.h>
@@ -293,6 +293,10 @@ void sys::DontRemoveFileOnSignal(const sys::Path &Filename) {
 void sys::PrintStackTraceOnErrorSignal() {
   RegisterHandler();
   LeaveCriticalSection(&CriticalSection);
+}
+
+void llvm::sys::PrintStackTrace(FILE *) {
+  // FIXME: Implement.
 }
 
 

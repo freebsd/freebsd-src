@@ -417,7 +417,7 @@ int nd6_output_flush(struct ifnet *, struct ifnet *, struct mbuf *,
 	struct sockaddr_in6 *, struct route *);
 int nd6_need_cache(struct ifnet *);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
-	struct sockaddr *, u_char *, struct llentry **);
+	const struct sockaddr *, u_char *, struct llentry **);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);

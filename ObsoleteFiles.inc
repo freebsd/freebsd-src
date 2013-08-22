@@ -38,7 +38,50 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130411: new clang import which bumps version from 3.2 to 3.3.
+OLD_FILES+=usr/include/clang/3.2/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.2/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.2/altivec.h
+OLD_FILES+=usr/include/clang/3.2/ammintrin.h
+OLD_FILES+=usr/include/clang/3.2/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.2/avxintrin.h
+OLD_FILES+=usr/include/clang/3.2/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.2/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.2/cpuid.h
+OLD_FILES+=usr/include/clang/3.2/emmintrin.h
+OLD_FILES+=usr/include/clang/3.2/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.2/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.2/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.2/immintrin.h
+OLD_FILES+=usr/include/clang/3.2/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.2/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.2/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.2/mmintrin.h
+OLD_FILES+=usr/include/clang/3.2/module.map
+OLD_FILES+=usr/include/clang/3.2/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.2/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.2/smmintrin.h
+OLD_FILES+=usr/include/clang/3.2/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/x86intrin.h
+OLD_FILES+=usr/include/clang/3.2/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.2/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.2
+# 20130404: legacy ATA stack removed
+OLD_FILES+=rescue/atacontrol
+OLD_FILES+=sbin/atacontrol
+OLD_FILES+=usr/share/man/man8/atacontrol.8.gz
+OLD_FILES+=usr/share/man/man4/atapicam.4.gz
+OLD_FILES+=usr/share/man/man4/ataraid.4.gz
+OLD_FILES+=usr/sbin/burncd
+OLD_FILES+=usr/share/man/man8/burncd.8.gz
+# 20130316: vinum.4 removed
 OLD_FILES+=usr/share/man/man4/vinum.4.gz
+# 20130312: fortunes-o removed
+OLD_FILES+=usr/share/games/fortune/fortunes-o
+OLD_FILES+=usr/share/games/fortune/fortunes-o.dat
 # 20130311: Ports are no more available via cvsup
 OLD_FILES+=usr/share/examples/cvsup/ports-supfile
 OLD_FILES+=usr/share/examples/cvsup/refuse

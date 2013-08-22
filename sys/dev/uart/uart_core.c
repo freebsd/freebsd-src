@@ -457,7 +457,13 @@ uart_bus_attach(device_t dev)
 		callout_init(&sc->sc_timer, 1);
 	}
 
-	sc->sc_rxbufsz = 384;
+	/*
+	 * Ensure there is room for at least three full FIFOs of data in the
+	 * receive buffer (handles the case of low-level drivers with huge
+	 * FIFOs), and also ensure that there is no less than the historical
+	 * size of 384 bytes (handles the typical small-FIFO case).
+	 */
+	sc->sc_rxbufsz = MAX(384, sc->sc_rxfifosz * 3);
 	sc->sc_rxbuf = malloc(sc->sc_rxbufsz * sizeof(*sc->sc_rxbuf),
 	    M_UART, M_WAITOK);
 	sc->sc_txbuf = malloc(sc->sc_txfifosz * sizeof(*sc->sc_txbuf),

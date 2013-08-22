@@ -16,6 +16,7 @@
 
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/type_traits.h"
 #include <algorithm>
 #include <cassert>
@@ -145,16 +146,20 @@ public:
   }
 
   reference front() {
+    assert(!empty());
     return begin()[0];
   }
   const_reference front() const {
+    assert(!empty());
     return begin()[0];
   }
 
   reference back() {
+    assert(!empty());
     return end()[-1];
   }
   const_reference back() const {
+    assert(!empty());
     return end()[-1];
   }
 };
@@ -178,7 +183,7 @@ protected:
   /// std::move, but not all stdlibs actually provide that.
   template<typename It1, typename It2>
   static It2 move(It1 I, It1 E, It2 Dest) {
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
     for (; I != E; ++I, ++Dest)
       *Dest = ::std::move(*I);
     return Dest;
@@ -193,7 +198,7 @@ protected:
   /// std::move_backward, but not all stdlibs actually provide that.
   template<typename It1, typename It2>
   static It2 move_backward(It1 I, It1 E, It2 Dest) {
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
     while (I != E)
       *--Dest = ::std::move(*--E);
     return Dest;
@@ -206,7 +211,7 @@ protected:
   /// memory starting with "Dest", constructing elements as needed.
   template<typename It1, typename It2>
   static void uninitialized_move(It1 I, It1 E, It2 Dest) {
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
     for (; I != E; ++I, ++Dest)
       ::new ((void*) &*Dest) T(::std::move(*I));
 #else
@@ -239,7 +244,7 @@ public:
     goto Retry;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   void push_back(T &&Elt) {
     if (this->EndX < this->CapacityX) {
     Retry:
@@ -263,7 +268,8 @@ template <typename T, bool isPodLike>
 void SmallVectorTemplateBase<T, isPodLike>::grow(size_t MinSize) {
   size_t CurCapacity = this->capacity();
   size_t CurSize = this->size();
-  size_t NewCapacity = 2*CurCapacity + 1; // Always grow, even from zero.
+  // Always grow, even from zero.  
+  size_t NewCapacity = size_t(NextPowerOf2(CurCapacity+2));
   if (NewCapacity < MinSize)
     NewCapacity = MinSize;
   T *NewElts = static_cast<T*>(malloc(NewCapacity*sizeof(T)));
@@ -365,7 +371,7 @@ template <typename T>
 class SmallVectorImpl : public SmallVectorTemplateBase<T, isPodLike<T>::value> {
   typedef SmallVectorTemplateBase<T, isPodLike<T>::value > SuperClass;
 
-  SmallVectorImpl(const SmallVectorImpl&); // DISABLED.
+  SmallVectorImpl(const SmallVectorImpl&) LLVM_DELETED_FUNCTION;
 public:
   typedef typename SuperClass::iterator iterator;
   typedef typename SuperClass::size_type size_type;
@@ -422,7 +428,7 @@ public:
   }
 
   T pop_back_val() {
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
     T Result = ::std::move(this->back());
 #else
     T Result = this->back();
@@ -495,7 +501,7 @@ public:
     return(N);
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   iterator insert(iterator I, T &&Elt) {
     if (I == this->end()) {  // Important special case for empty vector.
       this->push_back(::std::move(Elt));
@@ -667,7 +673,7 @@ public:
 
   SmallVectorImpl &operator=(const SmallVectorImpl &RHS);
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   SmallVectorImpl &operator=(SmallVectorImpl &&RHS);
 #endif
 
@@ -787,7 +793,7 @@ SmallVectorImpl<T> &SmallVectorImpl<T>::
   return *this;
 }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
 template <typename T>
 SmallVectorImpl<T> &SmallVectorImpl<T>::operator=(SmallVectorImpl<T> &&RHS) {
   // Avoid self-assignment.
@@ -898,7 +904,7 @@ public:
     return *this;
   }
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   SmallVector(SmallVector &&RHS) : SmallVectorImpl<T>(N) {
     if (!RHS.empty())
       SmallVectorImpl<T>::operator=(::std::move(RHS));

@@ -14,15 +14,15 @@
 #include "SparcFrameLowering.h"
 #include "SparcInstrInfo.h"
 #include "SparcMachineFunctionInfo.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
 
@@ -66,6 +66,22 @@ void SparcFrameLowering::emitPrologue(MachineFunction &MF) const {
       .addReg(SP::O6).addReg(SP::G1);
   }
 }
+
+void SparcFrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  MachineInstr &MI = *I;
+  DebugLoc dl = MI.getDebugLoc();
+  int Size = MI.getOperand(0).getImm();
+  if (MI.getOpcode() == SP::ADJCALLSTACKDOWN)
+    Size = -Size;
+  const SparcInstrInfo &TII =
+    *static_cast<const SparcInstrInfo*>(MF.getTarget().getInstrInfo());
+  if (Size)
+    BuildMI(MBB, I, dl, TII.get(SP::ADDri), SP::O6).addReg(SP::O6).addImm(Size);
+  MBB.erase(I);
+}
+
 
 void SparcFrameLowering::emitEpilogue(MachineFunction &MF,
                                   MachineBasicBlock &MBB) const {

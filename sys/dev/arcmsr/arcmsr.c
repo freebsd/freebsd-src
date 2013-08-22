@@ -1599,7 +1599,8 @@ static void	arcmsr_rescan_lun(struct AdapterControlBlock *acb, int target, int l
 
 	if ((ccb = (union ccb *)xpt_alloc_ccb_nowait()) == NULL)
  		return;
-	if (xpt_create_path(&path, xpt_periph, cam_sim_path(acb->psim), target, lun) != CAM_REQ_CMP)
+	if (xpt_create_path(&path, NULL, cam_sim_path(acb->psim), target, lun)
+	    != CAM_REQ_CMP)
 	{
 		xpt_free_ccb(ccb);
 		return;

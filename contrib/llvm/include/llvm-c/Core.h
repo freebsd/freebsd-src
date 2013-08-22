@@ -21,8 +21,8 @@
 
 /* Need these includes to support the LLVM 'cast' template for the C++ 'wrap' 
    and 'unwrap' conversion functions. */
-#include "llvm/IRBuilder.h"
-#include "llvm/Module.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Module.h"
 #include "llvm/PassRegistry.h"
 
 extern "C" {
@@ -173,10 +173,11 @@ typedef enum {
     LLVMUWTable = 1 << 30,
     LLVMNonLazyBind = 1 << 31
 
-    /* FIXME: This attribute is currently not included in the C API as
+    /* FIXME: These attributes are currently not included in the C API as
        a temporary measure until the API/ABI impact to the C API is understood
        and the path forward agreed upon.
-    LLVMAddressSafety = 1ULL << 32
+    LLVMAddressSafety = 1ULL << 32,
+    LLVMStackProtectStrongAttribute = 1ULL<<33
     */
 } LLVMAttribute;
 
@@ -356,6 +357,11 @@ typedef enum {
  */
 
 void LLVMInitializeCore(LLVMPassRegistryRef R);
+
+/** Deallocate and destroy all ManagedStatic variables.
+    @see llvm::llvm_shutdown
+    @see ManagedStatic */
+void LLVMShutdown();
 
 
 /*===-- Error handling ----------------------------------------------------===*/
@@ -2547,6 +2553,13 @@ LLVMBool LLVMCreateMemoryBufferWithContentsOfFile(const char *Path,
                                                   char **OutMessage);
 LLVMBool LLVMCreateMemoryBufferWithSTDIN(LLVMMemoryBufferRef *OutMemBuf,
                                          char **OutMessage);
+LLVMMemoryBufferRef LLVMCreateMemoryBufferWithMemoryRange(const char *InputData,
+                                                          size_t InputDataLength,
+                                                          const char *BufferName,
+                                                          LLVMBool RequiresNullTerminator);
+LLVMMemoryBufferRef LLVMCreateMemoryBufferWithMemoryRangeCopy(const char *InputData,
+                                                              size_t InputDataLength,
+                                                              const char *BufferName);
 void LLVMDisposeMemoryBuffer(LLVMMemoryBufferRef MemBuf);
 
 /**
@@ -2613,6 +2626,34 @@ LLVMBool LLVMFinalizeFunctionPassManager(LLVMPassManagerRef FPM);
     the module provider.
     @see llvm::PassManagerBase::~PassManagerBase. */
 void LLVMDisposePassManager(LLVMPassManagerRef PM);
+
+/**
+ * @}
+ */
+
+/**
+ * @defgroup LLVMCCoreThreading Threading
+ *
+ * Handle the structures needed to make LLVM safe for multithreading.
+ *
+ * @{
+ */
+
+/** Allocate and initialize structures needed to make LLVM safe for
+    multithreading. The return value indicates whether multithreaded
+    initialization succeeded. Must be executed in isolation from all
+    other LLVM api calls.
+    @see llvm::llvm_start_multithreaded */
+LLVMBool LLVMStartMultithreaded();
+
+/** Deallocate structures necessary to make LLVM safe for multithreading.
+    Must be executed in isolation from all other LLVM api calls.
+    @see llvm::llvm_stop_multithreaded */
+void LLVMStopMultithreaded();
+
+/** Check whether LLVM is executing in thread-safe mode or not.
+    @see llvm::llvm_is_multithreaded */
+LLVMBool LLVMIsMultithreaded();
 
 /**
  * @}

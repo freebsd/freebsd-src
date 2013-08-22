@@ -199,6 +199,7 @@ enum tokens {
 	TOK_SETFIB,
 	TOK_LOOKUP,
 	TOK_SOCKARG,
+	TOK_SETDSCP,
 
 	/* DIFFUSE tokens. */
 	TOK_DI_FEATURES,

@@ -35,6 +35,10 @@ CFLAGS+=	-I${.CURDIR}/ld128
 .PATH:	${.CURDIR}/src
 .PATH:	${.CURDIR}/man
 
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.PATH:	${.CURDIR}/x86
+.endif
+
 LIB=	m
 SHLIBDIR?= /lib
 SHLIB_MAJOR= 5

@@ -25,6 +25,21 @@ if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+############################################################ GLOBALS
+
+#
+# Valid characters that can appear in an sh(1) variable name
+#
+# Please note that the character ranges A-Z and a-z should be avoided because
+# these can include accent characters (which are not valid in a variable name).
+# For example, A-Z matches any character that sorts after A but before Z,
+# including A and Z. Although ASCII order would make more sense, that is not
+# how it works.
+#
+VALID_VARNAME_CHARS="0-9ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"
+
+############################################################ FUNCTIONS
 
 # f_substr "$string" $start [ $length ]
 #
@@ -166,6 +181,90 @@ f_uridecode()
 		awk "$f_uridecode_awk"
 	fi
 }
+
+# f_replaceall $string $find $replace [$var_to_set]
+#
+# Replace all occurrences of $find in $sting with $replace. If $var_to_set is
+# either missing or NULL, the variable name is produced on standard out for
+# capturing in a sub-shell (which is less recommended due to performance
+# degradation).
+#
+f_replaceall()
+{
+	local __left="" __right="$1"
+	local __find="$2" __replace="$3" __var_to_set="$4"
+	while :; do
+		case "$__right" in *$__find*)
+			__left="$__left${__right%%$__find*}$__replace"
+			__right="${__right#*$__find}"
+			continue
+		esac
+		break
+	done
+	__left="$__left${__right#*$__find}"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__left"
+	else
+		echo "$__left"
+	fi
+}
+
+# f_str2varname $string [$var_to_set]
+#
+# Convert a string into a suitable value to be used as a variable name
+# by converting unsuitable characters into the underscrore [_]. If $var_to_set
+# is either missing or NULL, the variable name is produced on standard out for
+# capturing in a sub-shell (which is less recommended due to performance
+# degradation).
+#
+f_str2varname()
+{
+	local __string="$1" __var_to_set="$2"
+	f_replaceall "$__string" "[!$VALID_VARNAME_CHARS]" "_" "$__var_to_set"
+}
+
+# f_shell_escape $string [$var_to_set]
+#
+# Escape $string for shell eval statement(s) by replacing all single-quotes
+# with a special sequence that creates a compound string when interpolated
+# by eval with surrounding single-quotes.
+#
+# For example:
+#
+# 	foo="abc'123"
+# 	f_shell_escape "$foo" bar # bar=[abc'\''123]
+# 	eval echo \'$foo\' # produces abc'123
+#
+# This is helpful when processing an argument list that has to retain its
+# escaped structure for later evaluations.
+#
+# WARNING: Surrounding single-quotes are not added; this is the responsibility
+# of the code passing the escaped values to eval (which also aids readability).
+#
+f_shell_escape()
+{
+	local __string="$1" __var_to_set="$2"
+	f_replaceall "$__string" "'" "'\\''" "$__var_to_set"
+}
+
+# f_shell_unescape $string [$var_to_set]
+#
+# The antithesis of f_shell_escape(), this function takes an escaped $string
+# and expands it.
+#
+# For example:
+#
+# 	foo="abc'123"
+# 	f_shell_escape "$foo" bar # bar=[abc'\''123]
+# 	f_shell_unescape "$bar" # produces abc'123
+#
+f_shell_unescape()
+{
+	local __string="$1" __var_to_set="$2"
+	f_replaceall "$__string" "'\\''" "'" "$__var_to_set"
+}
+
+############################################################ MAIN
 
 f_dprintf "%s: Successfully loaded." strings.subr
 

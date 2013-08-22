@@ -13,20 +13,21 @@
 
 #define DEBUG_TYPE "loop-rotate"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Function.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/CodeMetrics.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/SSAUpdater.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 using namespace llvm;
 
 #define MAX_HEADER_SIZE 16
@@ -51,6 +52,7 @@ namespace {
       AU.addRequiredID(LCSSAID);
       AU.addPreservedID(LCSSAID);
       AU.addPreserved<ScalarEvolution>();
+      AU.addRequired<TargetTransformInfo>();
     }
 
     bool runOnLoop(Loop *L, LPPassManager &LPM);
@@ -59,11 +61,13 @@ namespace {
 
   private:
     LoopInfo *LI;
+    const TargetTransformInfo *TTI;
   };
 }
 
 char LoopRotate::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopRotate, "loop-rotate", "Rotate Loops", false, false)
+INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(LCSSA)
@@ -75,6 +79,7 @@ Pass *llvm::createLoopRotatePass() { return new LoopRotate(); }
 /// the loop is rotated at least once.
 bool LoopRotate::runOnLoop(Loop *L, LPPassManager &LPM) {
   LI = &getAnalysis<LoopInfo>();
+  TTI = &getAnalysis<TargetTransformInfo>();
 
   // Simplify the loop latch before attempting to rotate the header
   // upward. Rotation may not be needed if the loop tail can be folded into the
@@ -274,10 +279,16 @@ bool LoopRotate::rotateLoop(Loop *L) {
   if (OrigLatch == 0 || L->isLoopExiting(OrigLatch))
     return false;
 
-  // Check size of original header and reject loop if it is very big.
+  // Check size of original header and reject loop if it is very big or we can't
+  // duplicate blocks inside it.
   {
     CodeMetrics Metrics;
-    Metrics.analyzeBasicBlock(OrigHeader);
+    Metrics.analyzeBasicBlock(OrigHeader, *TTI);
+    if (Metrics.notDuplicatable) {
+      DEBUG(dbgs() << "LoopRotation: NOT rotating - contains non duplicatable"
+            << " instructions: "; L->dump());
+      return false;
+    }
     if (Metrics.NumInsts > MAX_HEADER_SIZE)
       return false;
   }

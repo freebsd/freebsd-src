@@ -8,7 +8,7 @@ FILES=	100.clean-disks \
 	200.backup-passwd \
 	330.news \
 	400.status-disks \
-	405.status-ata-raid \
+	401.status-graid \
 	406.status-gmirror \
 	407.status-graid3 \
 	408.status-gstripe \

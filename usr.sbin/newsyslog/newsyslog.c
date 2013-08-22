@@ -276,7 +276,7 @@ static void parse_args(int argc, char **argv);
 static int parse_doption(const char *doption);
 static void usage(void);
 static int log_trim(const char *logname, const struct conf_entry *log_ent);
-static int age_old_log(char *file);
+static int age_old_log(const char *file);
 static void savelog(char *from, char *to);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
@@ -1447,20 +1447,78 @@ oldlog_entry_compare(const void *a, const void *b)
 }
 
 /*
+ * Check whether the file corresponding to dp is an archive of the logfile
+ * logfname, based on the timefnamefmt format string. Return true and fill out
+ * tm if this is the case; otherwise return false.
+ */
+static int
+validate_old_timelog(const struct dirent *dp, const char *logfname, struct tm *tm)
+{
+	size_t logfname_len;
+	char *s;
+	int c;
+
+	logfname_len = strlen(logfname);
+
+	if (dp->d_type != DT_REG)
+		return (0);
+	/* Ignore everything but files with our logfile prefix. */
+	if (strncmp(dp->d_name, logfname, logfname_len) != 0)
+		return (0);
+	/* Ignore the actual non-rotated logfile. */
+	if (dp->d_namlen == logfname_len)
+		return (0);
+
+	/*
+	 * Make sure we created have found a logfile, so the
+	 * postfix is valid, IE format is: '.<time>(.[bgx]z)?'.
+	 */
+	if (dp->d_name[logfname_len] != '.') {
+		if (verbose)
+			printf("Ignoring %s which has unexpected "
+			    "extension '%s'\n", dp->d_name,
+			    &dp->d_name[logfname_len]);
+		return (0);
+	}
+	if ((s = strptime(&dp->d_name[logfname_len + 1],
+	    timefnamefmt, tm)) == NULL) {
+		/*
+		 * We could special case "old" sequentially named logfiles here,
+		 * but we do not as that would require special handling to
+		 * decide which one was the oldest compared to "new" time based
+		 * logfiles.
+		 */
+		if (verbose)
+			printf("Ignoring %s which does not "
+			    "match time format\n", dp->d_name);
+		return (0);
+	}
+
+	for (c = 0; c < COMPRESS_TYPES; c++)
+		if (strcmp(s, compress_type[c].suffix) == 0)
+			/* We're done. */
+			return (1);
+
+	if (verbose)
+		printf("Ignoring %s which has unexpected extension '%s'\n",
+		    dp->d_name, s);
+
+	return (0);
+}
+
+/*
  * Delete the oldest logfiles, when using time based filenames.
  */
 static void
 delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 {
 	char *logfname, *s, *dir, errbuf[80];
-	int dir_fd, i, logcnt, max_logcnt, valid;
+	int dir_fd, i, logcnt, max_logcnt;
 	struct oldlog_entry *oldlogs;
-	size_t logfname_len;
 	struct dirent *dp;
 	const char *cdir;
 	struct tm tm;
 	DIR *dirp;
-	int c;
 
 	oldlogs = malloc(MAX_OLDLOGS * sizeof(struct oldlog_entry));
 	max_logcnt = MAX_OLDLOGS;
@@ -1478,7 +1536,6 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		err(1, "basename()");
 	if ((logfname = strdup(s)) == NULL)
 		err(1, "strdup()");
-	logfname_len = strlen(logfname);
 	if (strcmp(logfname, "/") == 0)
 		errx(1, "Invalid log filename - became '/'");
 
@@ -1490,50 +1547,8 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 		err(1, "Cannot open log directory '%s'", dir);
 	dir_fd = dirfd(dirp);
 	while ((dp = readdir(dirp)) != NULL) {
-		if (dp->d_type != DT_REG)
+		if (validate_old_timelog(dp, logfname, &tm) == 0)
 			continue;
-
-		/* Ignore everything but files with our logfile prefix */
-		if (strncmp(dp->d_name, logfname, logfname_len) != 0)
-			continue;
-		/* Ignore the actual non-rotated logfile */
-		if (dp->d_namlen == logfname_len)
-			continue;
-		/*
-		 * Make sure we created have found a logfile, so the
-		 * postfix is valid, IE format is: '.<time>(.[bg]z)?'.
-		 */
-		if (dp->d_name[logfname_len] != '.') {
-			if (verbose)
-				printf("Ignoring %s which has unexpected "
-				    "extension '%s'\n", dp->d_name,
-				    &dp->d_name[logfname_len]);
-			continue;
-		}
-		if ((s = strptime(&dp->d_name[logfname_len + 1],
-			    timefnamefmt, &tm)) == NULL) {
-			/*
-			 * We could special case "old" sequentially
-			 * named logfiles here, but we do not as that
-			 * would require special handling to decide
-			 * which one was the oldest compared to "new"
-			 * time based logfiles.
-			 */
-			if (verbose)
-				printf("Ignoring %s which does not "
-				    "match time format\n", dp->d_name);
-			continue;
-		}
-
-		for (c = 0; c < COMPRESS_TYPES; c++)
-			if (strcmp(s, compress_type[c].suffix) == 0)
-				valid = 1;
-		if (valid != 1) {
-			if (verbose)
-				printf("Ignoring %s which has unexpected "
-				    "extension '%s'\n", dp->d_name, s);
-			continue;
-		}
 
 		/*
 		 * We should now have old an old rotated logfile, so
@@ -2260,13 +2275,66 @@ sizefile(const char *file)
 	return (kbytes(dbtob(sb.st_blocks)));
 }
 
-/* Return the age of old log file (file.0) */
+/*
+ * Return the mtime of the most recent archive of the logfile, using timestamp
+ * based filenames.
+ */
+static time_t
+mtime_old_timelog(const char *file)
+{
+	struct stat sb;
+	struct tm tm;
+	int dir_fd;
+	time_t t;
+	struct dirent *dp;
+	DIR *dirp;
+	char *s, *logfname, *dir;
+
+	t = -1;
+
+	if ((dir = dirname(file)) == NULL) {
+		warn("dirname() of '%s'", file);
+		return (t);
+	}
+	if ((s = basename(file)) == NULL) {
+		warn("basename() of '%s'", file);
+		return (t);
+	} else if (s[0] == '/') {
+		warnx("Invalid log filename '%s'", s);
+		return (t);
+	} else if ((logfname = strdup(s)) == NULL)
+		err(1, "strdup()");
+
+	if ((dirp = opendir(dir)) == NULL) {
+		warn("Cannot open log directory '%s'", dir);
+		return (t);
+	}
+	dir_fd = dirfd(dirp);
+	/* Open the archive dir and find the most recent archive of logfname. */
+	while ((dp = readdir(dirp)) != NULL) {
+		if (validate_old_timelog(dp, logfname, &tm) == 0)
+			continue;
+
+		if (fstatat(dir_fd, logfname, &sb, 0) == -1) {
+			warn("Cannot stat '%s'", file);
+			continue;
+		}
+		if (t < sb.st_mtime)
+			t = sb.st_mtime;
+	}
+	closedir(dirp);
+
+	return (t);
+}
+
+/* Return the age in hours of the most recent archive of the logfile. */
 static int
-age_old_log(char *file)
+age_old_log(const char *file)
 {
 	struct stat sb;
 	const char *logfile_suffix;
 	char tmp[MAXPATHLEN + sizeof(".0") + COMPRESS_SUFFIX_MAXLEN + 1];
+	time_t mtime;
 
 	if (archtodir) {
 		char *p;
@@ -2295,14 +2363,22 @@ age_old_log(char *file)
 		(void) strlcpy(tmp, file, sizeof(tmp));
 	}
 
-	strlcat(tmp, ".0", sizeof(tmp));
-	logfile_suffix = get_logfile_suffix(tmp);
-	if (logfile_suffix == NULL)
-		return (-1);
-	(void) strlcat(tmp, logfile_suffix, sizeof(tmp));
-	if (stat(tmp, &sb) < 0)
-		return (-1);
-	return ((int)(ptimeget_secs(timenow) - sb.st_mtime + 1800) / 3600);
+	if (timefnamefmt != NULL) {
+		mtime = mtime_old_timelog(tmp);
+		if (mtime == -1)
+			return (-1);
+	} else {
+		strlcat(tmp, ".0", sizeof(tmp));
+		logfile_suffix = get_logfile_suffix(tmp);
+		if (logfile_suffix == NULL)
+			return (-1);
+		(void) strlcat(tmp, logfile_suffix, sizeof(tmp));
+		if (stat(tmp, &sb) < 0)
+			return (-1);
+		mtime = sb.st_mtime;
+	}
+
+	return ((int)(ptimeget_secs(timenow) - mtime + 1800) / 3600);
 }
 
 /* Skip Over Blanks */

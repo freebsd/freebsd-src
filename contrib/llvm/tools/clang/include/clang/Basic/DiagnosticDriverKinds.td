@@ -35,6 +35,8 @@ def err_drv_use_of_Z_option : Error<
   "unsupported use of internal gcc -Z option '%0'">;
 def err_drv_output_argument_with_multiple_files : Error<
   "cannot specify -o when generating multiple output files">;
+def err_no_external_windows_assembler : Error<
+  "there is no external assembler we can use on windows">;
 def err_drv_unable_to_remove_file : Error<
   "unable to remove file: %0">;
 def err_drv_command_failure : Error<
@@ -57,6 +59,8 @@ def err_drv_no_linker_llvm_support : Error<
   "'%0': unable to pass LLVM bit-code files to linker">;
 def err_drv_no_ast_support : Error<
   "'%0': unable to use AST files with this tool">;
+def err_drv_no_module_support : Error<
+  "'%0': unable to use module files with this tool">;
 def err_drv_clang_unsupported : Error<
   "the clang compiler does not support '%0'">;
 def err_drv_clang_unsupported_per_platform : Error<
@@ -67,6 +71,8 @@ def err_drv_command_failed : Error<
   "%0 command failed with exit code %1 (use -v to see invocation)">;
 def err_drv_command_signalled : Error<
   "%0 command failed due to signal (use -v to see invocation)">;
+def err_drv_force_crash : Error<
+  "failing because environment variable '%0' is set">;
 def err_drv_invalid_mfloat_abi : Error<
   "invalid float ABI '%0'">;
 def err_drv_invalid_libcxx_deployment : Error<
@@ -108,19 +114,21 @@ def warn_c_kext : Warning<
   "ignoring -fapple-kext which is valid for C++ and Objective-C++ only">;
 def warn_drv_input_file_unused : Warning<
   "%0: '%1' input unused%select{ when '%3' is present|}2">,
-  InGroup<DiagGroup<"unused-command-line-argument">>;
+  InGroup<UnusedCommandLineArgument>;
 def warn_drv_input_file_unused_by_cpp : Warning<
   "%0: '%1' input unused in cpp mode">,
-  InGroup<DiagGroup<"unused-command-line-argument">>;
+  InGroup<UnusedCommandLineArgument>;
 def warn_drv_preprocessed_input_file_unused : Warning<
   "%0: previously preprocessed input%select{ unused when '%2' is present|}1">,
-  InGroup<DiagGroup<"unused-command-line-argument">>;
+  InGroup<UnusedCommandLineArgument>;
 def warn_drv_unused_argument : Warning<
   "argument unused during compilation: '%0'">,
-  InGroup<DiagGroup<"unused-command-line-argument">>;
+  InGroup<UnusedCommandLineArgument>;
 def warn_drv_empty_joined_argument : Warning<
   "joined argument expects additional value: '%0'">,
-  InGroup<DiagGroup<"unused-command-line-argument">>;
+  InGroup<UnusedCommandLineArgument>;
+def warn_drv_unused_sanitizer : Warning<"'%0' is ignored in absence of '%1'">,
+  InGroup<UnusedSanitizeArgument>;
 def warn_drv_clang_unsupported : Warning<
   "the clang compiler does not support '%0'">;
 def warn_drv_deprecated_arg : Warning<
@@ -136,6 +144,8 @@ def warn_drv_objc_gc_unsupported : Warning<
   "Objective-C garbage collection is not supported on this platform, ignoring '%0'">;
 def warn_drv_pch_not_first_include : Warning<
   "precompiled header '%0' was ignored because '%1' is not first '-include'">;
+def warn_missing_sysroot : Warning<"no such sysroot directory: '%0'">,
+  InGroup<DiagGroup<"missing-sysroot">>;
 
 def note_drv_command_failed_diag_msg : Note<
   "diagnostic msg: %0">;

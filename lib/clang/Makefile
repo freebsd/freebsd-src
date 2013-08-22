@@ -43,9 +43,11 @@ SUBDIR=	libclanganalysis \
 	libllvminstrumentation \
 	libllvmipa \
 	libllvmipo \
+	libllvmirreader \
 	libllvmlinker \
 	libllvmmc \
 	libllvmmcparser \
+	libllvmobjcarcopts \
 	libllvmobject \
 	libllvmscalaropts \
 	libllvmselectiondag \

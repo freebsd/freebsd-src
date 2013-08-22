@@ -12,19 +12,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
-#include "CodeGenModule.h"
 #include "CGCXXABI.h"
 #include "CGObjCRuntime.h"
 #include "CGRecordLayout.h"
+#include "CodeGenModule.h"
 #include "clang/AST/APValue.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Builtins.h"
-#include "llvm/Constants.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/DataLayout.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -455,7 +455,7 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
 
     // Accumulate and sort bases, in order to visit them in address order, which
     // may not be the same as declaration order.
-    llvm::SmallVector<BaseInfo, 8> Bases;
+    SmallVector<BaseInfo, 8> Bases;
     Bases.reserve(CD->getNumBases());
     unsigned BaseNo = 0;
     for (CXXRecordDecl::base_class_const_iterator Base = CD->bases_begin(),
@@ -747,6 +747,7 @@ public:
     case CK_FloatingToIntegral:
     case CK_FloatingToBoolean:
     case CK_FloatingCast:
+    case CK_ZeroToOCLEvent:
       return 0;
     }
     llvm_unreachable("Invalid CastKind");
@@ -905,10 +906,8 @@ public:
         if (!VD->hasLocalStorage()) {
           if (VD->isFileVarDecl() || VD->hasExternalStorage())
             return CGM.GetAddrOfGlobalVar(VD);
-          else if (VD->isLocalVarDecl()) {
-            assert(CGF && "Can't access static local vars without CGF");
-            return CGF->GetAddrOfStaticLocalVar(VD);
-          }
+          else if (VD->isLocalVarDecl())
+            return CGM.getStaticLocalDeclAddress(VD);
         }
       }
       return 0;
@@ -1008,6 +1007,22 @@ public:
 
 llvm::Constant *CodeGenModule::EmitConstantInit(const VarDecl &D,
                                                 CodeGenFunction *CGF) {
+  // Make a quick check if variable can be default NULL initialized
+  // and avoid going through rest of code which may do, for c++11,
+  // initialization of memory to all NULLs.
+  if (!D.hasLocalStorage()) {
+    QualType Ty = D.getType();
+    if (Ty->isArrayType())
+      Ty = Context.getBaseElementType(Ty);
+    if (Ty->isRecordType())
+      if (const CXXConstructExpr *E =
+          dyn_cast_or_null<CXXConstructExpr>(D.getInit())) {
+        const CXXConstructorDecl *CD = E->getConstructor();
+        if (CD->isTrivial() && CD->isDefaultConstructor())
+          return EmitNullConstant(D.getType());
+      }
+  }
+  
   if (const APValue *Value = D.evaluateValue())
     return EmitConstantValueForMemory(*Value, D.getType(), CGF);
 
@@ -1124,7 +1139,8 @@ llvm::Constant *CodeGenModule::EmitConstantValue(const APValue &Value,
   }
   case APValue::Float: {
     const llvm::APFloat &Init = Value.getFloat();
-    if (&Init.getSemantics() == &llvm::APFloat::IEEEhalf)
+    if (&Init.getSemantics() == &llvm::APFloat::IEEEhalf &&
+         !Context.getLangOpts().NativeHalfType)
       return llvm::ConstantInt::get(VMContext, Init.bitcastToAPInt());
     else
       return llvm::ConstantFP::get(VMContext, Init);
@@ -1197,6 +1213,8 @@ llvm::Constant *CodeGenModule::EmitConstantValue(const APValue &Value,
       if (I < NumInitElts)
         C = EmitConstantValueForMemory(Value.getArrayInitializedElt(I),
                                        CAT->getElementType(), CGF);
+      else
+        assert(Filler && "Missing filler for implicit elements of initializer");
       if (I == 0)
         CommonElementType = C->getType();
       else if (C->getType() != CommonElementType)

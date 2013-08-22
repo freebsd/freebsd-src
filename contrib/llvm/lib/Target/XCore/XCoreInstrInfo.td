@@ -32,8 +32,8 @@ def XCoreBranchLink     : SDNode<"XCoreISD::BL",SDT_XCoreBranchLink,
                             [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                              SDNPVariadic]>;
 
-def XCoreRetsp       : SDNode<"XCoreISD::RETSP", SDTBrind,
-                         [SDNPHasChain, SDNPOptInGlue, SDNPMayLoad]>;
+def XCoreRetsp : SDNode<"XCoreISD::RETSP", SDTBrind,
+                      [SDNPHasChain, SDNPOptInGlue, SDNPMayLoad, SDNPVariadic]>;
 
 def SDT_XCoreBR_JT    : SDTypeProfile<0, 2,
                                       [SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
@@ -182,6 +182,7 @@ def ADDRcpii : ComplexPattern<i32, 2, "SelectADDRcpii", [add, cprelwrapper],
 // Address operands
 def MEMii : Operand<i32> {
   let PrintMethod = "printMemOperand";
+  let DecoderMethod = "DecodeMEMiiOperand";
   let MIOperandInfo = (ops i32imm, i32imm);
 }
 
@@ -200,154 +201,117 @@ def InlineJT32 : Operand<i32> {
 
 // Three operand short
 
-multiclass F3R_2RUS<string OpcStr, SDNode OpNode> {
-  def _3r: _F3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
-  def _2rus : _F2RUS<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, immUs:$c))]>;
+multiclass F3R_2RUS<bits<5> opc1, bits<5> opc2, string OpcStr, SDNode OpNode> {
+  def _3r: _F3R<opc1, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+                !strconcat(OpcStr, " $dst, $b, $c"),
+                [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
+  def _2rus : _F2RUS<opc2, (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
+                     !strconcat(OpcStr, " $dst, $b, $c"),
+                     [(set GRRegs:$dst, (OpNode GRRegs:$b, immUs:$c))]>;
 }
 
-multiclass F3R_2RUS_np<string OpcStr> {
-  def _3r: _F3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 []>;
-  def _2rus : _F2RUS<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 []>;
+multiclass F3R_2RUS_np<bits<5> opc1, bits<5> opc2, string OpcStr> {
+  def _3r: _F3R<opc1, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+                !strconcat(OpcStr, " $dst, $b, $c"), []>;
+  def _2rus : _F2RUS<opc2, (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
+                     !strconcat(OpcStr, " $dst, $b, $c"), []>;
 }
 
-multiclass F3R_2RBITP<string OpcStr, SDNode OpNode> {
-  def _3r: _F3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
-  def _2rus : _F2RUS<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, immBitp:$c))]>;
+multiclass F3R_2RBITP<bits<5> opc1, bits<5> opc2, string OpcStr,
+                      SDNode OpNode> {
+  def _3r: _F3R<opc1, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+                !strconcat(OpcStr, " $dst, $b, $c"),
+                [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
+  def _2rus : _F2RUSBitp<opc2, (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
+                         !strconcat(OpcStr, " $dst, $b, $c"),
+                         [(set GRRegs:$dst, (OpNode GRRegs:$b, immBitp:$c))]>;
 }
 
-class F3R<string OpcStr, SDNode OpNode> : _F3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
+class F3R<bits<5> opc, string OpcStr, SDNode OpNode> :
+  _F3R<opc, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+       !strconcat(OpcStr, " $dst, $b, $c"),
+       [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
 
-class F3R_np<string OpcStr> : _F3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 []>;
+class F3R_np<bits<5> opc, string OpcStr> :
+  _F3R<opc, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+       !strconcat(OpcStr, " $dst, $b, $c"), []>;
 // Three operand long
 
 /// FL3R_L2RUS multiclass - Define a normal FL3R/FL2RUS pattern in one shot.
-multiclass FL3R_L2RUS<string OpcStr, SDNode OpNode> {
-  def _l3r: _FL3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
-  def _l2rus : _FL2RUS<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, immUs:$c))]>;
+multiclass FL3R_L2RUS<bits<9> opc1, bits<9> opc2, string OpcStr,
+                      SDNode OpNode> {
+  def _l3r: _FL3R<opc1, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+                  !strconcat(OpcStr, " $dst, $b, $c"),
+                  [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
+  def _l2rus : _FL2RUS<opc2, (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
+                       !strconcat(OpcStr, " $dst, $b, $c"),
+                       [(set GRRegs:$dst, (OpNode GRRegs:$b, immUs:$c))]>;
 }
 
 /// FL3R_L2RUS multiclass - Define a normal FL3R/FL2RUS pattern in one shot.
-multiclass FL3R_L2RBITP<string OpcStr, SDNode OpNode> {
-  def _l3r: _FL3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
-  def _l2rus : _FL2RUS<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, immBitp:$c))]>;
+multiclass FL3R_L2RBITP<bits<9> opc1, bits<9> opc2, string OpcStr,
+                        SDNode OpNode> {
+  def _l3r: _FL3R<opc1, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+                  !strconcat(OpcStr, " $dst, $b, $c"),
+                  [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
+  def _l2rus : _FL2RUSBitp<opc2, (outs GRRegs:$dst), (ins GRRegs:$b, i32imm:$c),
+                           !strconcat(OpcStr, " $dst, $b, $c"),
+                           [(set GRRegs:$dst, (OpNode GRRegs:$b, immBitp:$c))]>;
 }
 
-class FL3R<string OpcStr, SDNode OpNode> : _FL3R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
-                 !strconcat(OpcStr, " $dst, $b, $c"),
-                 [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
+class FL3R<bits<9> opc, string OpcStr, SDNode OpNode> :
+  _FL3R<opc, (outs GRRegs:$dst), (ins GRRegs:$b, GRRegs:$c),
+        !strconcat(OpcStr, " $dst, $b, $c"),
+        [(set GRRegs:$dst, (OpNode GRRegs:$b, GRRegs:$c))]>;
 
 // Register - U6
 // Operand register - U6
-multiclass FRU6_LRU6_branch<string OpcStr> {
-  def _ru6: _FRU6<
-                 (outs), (ins GRRegs:$cond, brtarget:$dest),
-                 !strconcat(OpcStr, " $cond, $dest"),
-                 []>;
-  def _lru6: _FLRU6<
-                 (outs), (ins GRRegs:$cond, brtarget:$dest),
-                 !strconcat(OpcStr, " $cond, $dest"),
-                 []>;
+multiclass FRU6_LRU6_branch<bits<6> opc, string OpcStr> {
+  def _ru6: _FRU6<opc, (outs), (ins GRRegs:$a, brtarget:$b),
+                  !strconcat(OpcStr, " $a, $b"), []>;
+  def _lru6: _FLRU6<opc, (outs), (ins GRRegs:$a, brtarget:$b),
+                    !strconcat(OpcStr, " $a, $b"), []>;
 }
 
-multiclass FRU6_LRU6_cp<string OpcStr> {
-  def _ru6: _FRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$a),
-                 !strconcat(OpcStr, " $dst, cp[$a]"),
-                 []>;
-  def _lru6: _FLRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$a),
-                 !strconcat(OpcStr, " $dst, cp[$a]"),
-                 []>;
+multiclass FRU6_LRU6_backwards_branch<bits<6> opc, string OpcStr> {
+  def _ru6: _FRU6<opc, (outs), (ins GRRegs:$a, brtarget:$b),
+                  !strconcat(OpcStr, " $a, -$b"), []>;
+  def _lru6: _FLRU6<opc, (outs), (ins GRRegs:$a, brtarget:$b),
+                    !strconcat(OpcStr, " $a, -$b"), []>;
+}
+
+multiclass FRU6_LRU6_cp<bits<6> opc, string OpcStr> {
+  def _ru6: _FRU6<opc, (outs RRegs:$a), (ins i32imm:$b),
+                  !strconcat(OpcStr, " $a, cp[$b]"), []>;
+  def _lru6: _FLRU6<opc, (outs RRegs:$a), (ins i32imm:$b),
+                    !strconcat(OpcStr, " $a, cp[$b]"), []>;
 }
 
 // U6
-multiclass FU6_LU6<string OpcStr, SDNode OpNode> {
-  def _u6: _FU6<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 [(OpNode immU6:$b)]>;
-  def _lu6: _FLU6<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 [(OpNode immU16:$b)]>;
-}
-multiclass FU6_LU6_int<string OpcStr, Intrinsic Int> {
-  def _u6: _FU6<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 [(Int immU6:$b)]>;
-  def _lu6: _FLU6<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 [(Int immU16:$b)]>;
+multiclass FU6_LU6<bits<10> opc, string OpcStr, SDNode OpNode> {
+  def _u6: _FU6<opc, (outs), (ins i32imm:$a), !strconcat(OpcStr, " $a"),
+                [(OpNode immU6:$a)]>;
+  def _lu6: _FLU6<opc, (outs), (ins i32imm:$a), !strconcat(OpcStr, " $a"),
+                  [(OpNode immU16:$a)]>;
 }
 
-multiclass FU6_LU6_np<string OpcStr> {
-  def _u6: _FU6<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 []>;
-  def _lu6: _FLU6<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 []>;
+multiclass FU6_LU6_int<bits<10> opc, string OpcStr, Intrinsic Int> {
+  def _u6: _FU6<opc, (outs), (ins i32imm:$a), !strconcat(OpcStr, " $a"),
+                [(Int immU6:$a)]>;
+  def _lu6: _FLU6<opc, (outs), (ins i32imm:$a), !strconcat(OpcStr, " $a"),
+                  [(Int immU16:$a)]>;
 }
 
-// U10
-multiclass FU10_LU10_np<string OpcStr> {
-  def _u10: _FU10<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 []>;
-  def _lu10: _FLU10<
-                 (outs), (ins i32imm:$b),
-                 !strconcat(OpcStr, " $b"),
-                 []>;
+multiclass FU6_LU6_np<bits<10> opc, string OpcStr> {
+  def _u6: _FU6<opc, (outs), (ins i32imm:$a), !strconcat(OpcStr, " $a"), []>;
+  def _lu6: _FLU6<opc, (outs), (ins i32imm:$a), !strconcat(OpcStr, " $a"), []>;
 }
 
 // Two operand short
 
-class F2R_np<string OpcStr> : _F2R<
-                 (outs GRRegs:$dst), (ins GRRegs:$b),
-                 !strconcat(OpcStr, " $dst, $b"),
-                 []>;
+class F2R_np<bits<6> opc, string OpcStr> :
+  _F2R<opc, (outs GRRegs:$dst), (ins GRRegs:$b),
+       !strconcat(OpcStr, " $dst, $b"), []>;
 
 // Two operand long
 
@@ -357,23 +321,23 @@ class F2R_np<string OpcStr> : _F2R<
 
 let Defs = [SP], Uses = [SP] in {
 def ADJCALLSTACKDOWN : PseudoInstXCore<(outs), (ins i32imm:$amt),
-                               "${:comment} ADJCALLSTACKDOWN $amt",
+                               "# ADJCALLSTACKDOWN $amt",
                                [(callseq_start timm:$amt)]>;
 def ADJCALLSTACKUP : PseudoInstXCore<(outs), (ins i32imm:$amt1, i32imm:$amt2),
-                            "${:comment} ADJCALLSTACKUP $amt1",
+                            "# ADJCALLSTACKUP $amt1",
                             [(callseq_end timm:$amt1, timm:$amt2)]>;
 }
 
 def LDWFI : PseudoInstXCore<(outs GRRegs:$dst), (ins MEMii:$addr),
-                             "${:comment} LDWFI $dst, $addr",
+                             "# LDWFI $dst, $addr",
                              [(set GRRegs:$dst, (load ADDRspii:$addr))]>;
 
 def LDAWFI : PseudoInstXCore<(outs GRRegs:$dst), (ins MEMii:$addr),
-                             "${:comment} LDAWFI $dst, $addr",
+                             "# LDAWFI $dst, $addr",
                              [(set GRRegs:$dst, ADDRspii:$addr)]>;
 
 def STWFI : PseudoInstXCore<(outs), (ins GRRegs:$src, MEMii:$addr),
-                            "${:comment} STWFI $src, $addr",
+                            "# STWFI $src, $addr",
                             [(store GRRegs:$src, ADDRspii:$addr)]>;
 
 // SELECT_CC_* - Used to implement the SELECT_CC DAG operation.  Expanded after
@@ -381,7 +345,7 @@ def STWFI : PseudoInstXCore<(outs), (ins GRRegs:$src, MEMii:$addr),
 let usesCustomInserter = 1 in {
   def SELECT_CC : PseudoInstXCore<(outs GRRegs:$dst),
                               (ins GRRegs:$cond, GRRegs:$T, GRRegs:$F),
-                              "${:comment} SELECT_CC PSEUDO!",
+                              "# SELECT_CC PSEUDO!",
                               [(set GRRegs:$dst,
                                  (select GRRegs:$cond, GRRegs:$T, GRRegs:$F))]>;
 }
@@ -391,572 +355,564 @@ let usesCustomInserter = 1 in {
 //===----------------------------------------------------------------------===//
 
 // Three operand short
-defm ADD : F3R_2RUS<"add", add>;
-defm SUB : F3R_2RUS<"sub", sub>;
+defm ADD : F3R_2RUS<0b00010, 0b10010, "add", add>;
+defm SUB : F3R_2RUS<0b00011, 0b10011, "sub", sub>;
 let neverHasSideEffects = 1 in {
-defm EQ : F3R_2RUS_np<"eq">;
-def LSS_3r : F3R_np<"lss">;
-def LSU_3r : F3R_np<"lsu">;
+defm EQ : F3R_2RUS_np<0b00110, 0b10110, "eq">;
+def LSS_3r : F3R_np<0b11000, "lss">;
+def LSU_3r : F3R_np<0b11001, "lsu">;
 }
-def AND_3r : F3R<"and", and>;
-def OR_3r : F3R<"or", or>;
+def AND_3r : F3R<0b00111, "and", and>;
+def OR_3r : F3R<0b01000, "or", or>;
 
 let mayLoad=1 in {
-def LDW_3r : _F3R<(outs GRRegs:$dst), (ins GRRegs:$addr, GRRegs:$offset),
-                  "ldw $dst, $addr[$offset]",
-                  []>;
+def LDW_3r : _F3R<0b01001, (outs GRRegs:$dst),
+                  (ins GRRegs:$addr, GRRegs:$offset),
+                  "ldw $dst, $addr[$offset]", []>;
 
-def LDW_2rus : _F2RUS<(outs GRRegs:$dst), (ins GRRegs:$addr, i32imm:$offset),
-                  "ldw $dst, $addr[$offset]",
-                  []>;
+def LDW_2rus : _F2RUS<0b00001, (outs GRRegs:$dst),
+                      (ins GRRegs:$addr, i32imm:$offset),
+                      "ldw $dst, $addr[$offset]", []>;
 
-def LD16S_3r :  _F3R<(outs GRRegs:$dst), (ins GRRegs:$addr, GRRegs:$offset),
-                  "ld16s $dst, $addr[$offset]",
-                  []>;
+def LD16S_3r :  _F3R<0b10000, (outs GRRegs:$dst),
+                     (ins GRRegs:$addr, GRRegs:$offset),
+                     "ld16s $dst, $addr[$offset]", []>;
 
-def LD8U_3r :  _F3R<(outs GRRegs:$dst), (ins GRRegs:$addr, GRRegs:$offset),
-                  "ld8u $dst, $addr[$offset]",
-                  []>;
+def LD8U_3r :  _F3R<0b10001, (outs GRRegs:$dst),
+                    (ins GRRegs:$addr, GRRegs:$offset),
+                    "ld8u $dst, $addr[$offset]", []>;
 }
 
 let mayStore=1 in {
-def STW_3r : _F3R<(outs), (ins GRRegs:$val, GRRegs:$addr, GRRegs:$offset),
-                  "stw $val, $addr[$offset]",
-                  []>;
+def STW_l3r : _FL3R<0b000001100, (outs),
+                    (ins GRRegs:$val, GRRegs:$addr, GRRegs:$offset),
+                    "stw $val, $addr[$offset]", []>;
 
-def STW_2rus : _F2RUS<(outs), (ins GRRegs:$val, GRRegs:$addr, i32imm:$offset),
-                  "stw $val, $addr[$offset]",
-                  []>;
+def STW_2rus : _F2RUS<0b0000, (outs),
+                      (ins GRRegs:$val, GRRegs:$addr, i32imm:$offset),
+                      "stw $val, $addr[$offset]", []>;
 }
 
-defm SHL : F3R_2RBITP<"shl", shl>;
-defm SHR : F3R_2RBITP<"shr", srl>;
-// TODO tsetr
+defm SHL : F3R_2RBITP<0b00100, 0b10100, "shl", shl>;
+defm SHR : F3R_2RBITP<0b00101, 0b10101, "shr", srl>;
+
+// The first operand is treated as an immediate since it refers to a register
+// number in another thread.
+def TSETR_3r : _F3RImm<0b10111, (outs), (ins i32imm:$a, GRRegs:$b, GRRegs:$c),
+                       "set t[$c]:r$a, $b", []>;
 
 // Three operand long
-def LDAWF_l3r : _FL3R<(outs GRRegs:$dst), (ins GRRegs:$addr, GRRegs:$offset),
-                  "ldaw $dst, $addr[$offset]",
-                  [(set GRRegs:$dst, (ldawf GRRegs:$addr, GRRegs:$offset))]>;
+def LDAWF_l3r : _FL3R<0b000111100, (outs GRRegs:$dst),
+                      (ins GRRegs:$addr, GRRegs:$offset),
+                      "ldaw $dst, $addr[$offset]",
+                      [(set GRRegs:$dst,
+                         (ldawf GRRegs:$addr, GRRegs:$offset))]>;
 
 let neverHasSideEffects = 1 in
-def LDAWF_l2rus : _FL2RUS<(outs GRRegs:$dst),
-                    (ins GRRegs:$addr, i32imm:$offset),
-                    "ldaw $dst, $addr[$offset]",
-                    []>;
+def LDAWF_l2rus : _FL2RUS<0b100111100, (outs GRRegs:$dst),
+                          (ins GRRegs:$addr, i32imm:$offset),
+                          "ldaw $dst, $addr[$offset]", []>;
 
-def LDAWB_l3r : _FL3R<(outs GRRegs:$dst), (ins GRRegs:$addr, GRRegs:$offset),
-                  "ldaw $dst, $addr[-$offset]",
-                  [(set GRRegs:$dst, (ldawb GRRegs:$addr, GRRegs:$offset))]>;
+def LDAWB_l3r : _FL3R<0b001001100, (outs GRRegs:$dst),
+                      (ins GRRegs:$addr, GRRegs:$offset),
+                      "ldaw $dst, $addr[-$offset]",
+                      [(set GRRegs:$dst,
+                         (ldawb GRRegs:$addr, GRRegs:$offset))]>;
 
 let neverHasSideEffects = 1 in
-def LDAWB_l2rus : _FL2RUS<(outs GRRegs:$dst),
-                    (ins GRRegs:$addr, i32imm:$offset),
-                    "ldaw $dst, $addr[-$offset]",
-                    []>;
+def LDAWB_l2rus : _FL2RUS<0b101001100, (outs GRRegs:$dst),
+                         (ins GRRegs:$addr, i32imm:$offset),
+                         "ldaw $dst, $addr[-$offset]", []>;
 
-def LDA16F_l3r : _FL3R<(outs GRRegs:$dst), (ins GRRegs:$addr, GRRegs:$offset),
-                  "lda16 $dst, $addr[$offset]",
-                  [(set GRRegs:$dst, (lda16f GRRegs:$addr, GRRegs:$offset))]>;
+def LDA16F_l3r : _FL3R<0b001011100, (outs GRRegs:$dst),
+                       (ins GRRegs:$addr, GRRegs:$offset),
+                       "lda16 $dst, $addr[$offset]",
+                       [(set GRRegs:$dst,
+                          (lda16f GRRegs:$addr, GRRegs:$offset))]>;
 
-def LDA16B_l3r : _FL3R<(outs GRRegs:$dst), (ins GRRegs:$addr, GRRegs:$offset),
-                  "lda16 $dst, $addr[-$offset]",
-                  [(set GRRegs:$dst, (lda16b GRRegs:$addr, GRRegs:$offset))]>;
+def LDA16B_l3r : _FL3R<0b001101100, (outs GRRegs:$dst),
+                       (ins GRRegs:$addr, GRRegs:$offset),
+                       "lda16 $dst, $addr[-$offset]",
+                       [(set GRRegs:$dst,
+                          (lda16b GRRegs:$addr, GRRegs:$offset))]>;
 
-def MUL_l3r : FL3R<"mul", mul>;
+def MUL_l3r : FL3R<0b001111100, "mul", mul>;
 // Instructions which may trap are marked as side effecting.
 let hasSideEffects = 1 in {
-def DIVS_l3r : FL3R<"divs", sdiv>;
-def DIVU_l3r : FL3R<"divu", udiv>;
-def REMS_l3r : FL3R<"rems", srem>;
-def REMU_l3r : FL3R<"remu", urem>;
+def DIVS_l3r : FL3R<0b010001100, "divs", sdiv>;
+def DIVU_l3r : FL3R<0b010011100, "divu", udiv>;
+def REMS_l3r : FL3R<0b110001100, "rems", srem>;
+def REMU_l3r : FL3R<0b110011100, "remu", urem>;
 }
-def XOR_l3r : FL3R<"xor", xor>;
-defm ASHR : FL3R_L2RBITP<"ashr", sra>;
+def XOR_l3r : FL3R<0b000011100, "xor", xor>;
+defm ASHR : FL3R_L2RBITP<0b000101100, 0b100101100, "ashr", sra>;
 
 let Constraints = "$src1 = $dst" in
-def CRC_l3r : _FL3R<(outs GRRegs:$dst),
-                     (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
-                     "crc32 $dst, $src2, $src3",
-                     [(set GRRegs:$dst,
-                        (int_xcore_crc32 GRRegs:$src1, GRRegs:$src2,
-                                         GRRegs:$src3))]>;
+def CRC_l3r : _FL3RSrcDst<0b101011100, (outs GRRegs:$dst),
+                          (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
+                          "crc32 $dst, $src2, $src3",
+                          [(set GRRegs:$dst,
+                             (int_xcore_crc32 GRRegs:$src1, GRRegs:$src2,
+                                              GRRegs:$src3))]>;
 
-// TODO inpw, outpw
 let mayStore=1 in {
-def ST16_l3r : _FL3R<(outs), (ins GRRegs:$val, GRRegs:$addr, GRRegs:$offset),
-                "st16 $val, $addr[$offset]",
-                []>;
+def ST16_l3r : _FL3R<0b100001100, (outs),
+                     (ins GRRegs:$val, GRRegs:$addr, GRRegs:$offset),
+                     "st16 $val, $addr[$offset]", []>;
 
-def ST8_l3r : _FL3R<(outs), (ins GRRegs:$val, GRRegs:$addr, GRRegs:$offset),
-                "st8 $val, $addr[$offset]",
-                []>;
+def ST8_l3r : _FL3R<0b100011100, (outs),
+                    (ins GRRegs:$val, GRRegs:$addr, GRRegs:$offset),
+                    "st8 $val, $addr[$offset]", []>;
 }
+
+def INPW_l2rus : _FL2RUSBitp<0b100101110, (outs GRRegs:$a),
+                             (ins GRRegs:$b, i32imm:$c), "inpw $a, res[$b], $c",
+                             []>;
+
+def OUTPW_l2rus : _FL2RUSBitp<0b100101101, (outs),
+                              (ins GRRegs:$a, GRRegs:$b, i32imm:$c),
+                              "outpw res[$b], $a, $c", []>;
 
 // Four operand long
-let Constraints = "$src1 = $dst1,$src2 = $dst2" in {
-def MACCU_l4r : _L4R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3,
-                      GRRegs:$src4),
-                    "maccu $dst1, $dst2, $src3, $src4",
-                    []>;
+let Constraints = "$e = $a,$f = $b" in {
+def MACCU_l4r : _FL4RSrcDstSrcDst<
+  0b000001, (outs GRRegs:$a, GRRegs:$b),
+  (ins GRRegs:$e, GRRegs:$f, GRRegs:$c, GRRegs:$d), "maccu $a, $b, $c, $d", []>;
 
-def MACCS_l4r : _L4R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3,
-                      GRRegs:$src4),
-                    "maccs $dst1, $dst2, $src3, $src4",
-                    []>;
+def MACCS_l4r : _FL4RSrcDstSrcDst<
+  0b000010, (outs GRRegs:$a, GRRegs:$b),
+  (ins GRRegs:$e, GRRegs:$f, GRRegs:$c, GRRegs:$d), "maccs $a, $b, $c, $d", []>;
 }
 
-let Constraints = "$src1 = $dst1" in
-def CRC8_l4r : _L4R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
-                    "crc8 $dst1, $dst2, $src2, $src3",
-                    []>;
+let Constraints = "$e = $b" in
+def CRC8_l4r : _FL4RSrcDst<0b000000, (outs GRRegs:$a, GRRegs:$b),
+                           (ins GRRegs:$e, GRRegs:$c, GRRegs:$d),
+                           "crc8 $b, $a, $c, $d", []>;
 
 // Five operand long
 
-def LADD_l5r : _L5R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
-                    "ladd $dst1, $dst2, $src1, $src2, $src3",
-                    []>;
+def LADD_l5r : _FL5R<0b000001, (outs GRRegs:$dst1, GRRegs:$dst2),
+                     (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
+                     "ladd $dst2, $dst1, $src1, $src2, $src3",
+                     []>;
 
-def LSUB_l5r : _L5R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
-                    "lsub $dst1, $dst2, $src1, $src2, $src3",
-                    []>;
+def LSUB_l5r : _FL5R<0b000010, (outs GRRegs:$dst1, GRRegs:$dst2),
+                     (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
+                     "lsub $dst2, $dst1, $src1, $src2, $src3", []>;
 
-def LDIV_l5r : _L5R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
-                    "ldiv $dst1, $dst2, $src1, $src2, $src3",
-                    []>;
+def LDIVU_l5r : _FL5R<0b000000, (outs GRRegs:$dst1, GRRegs:$dst2),
+                      (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
+                      "ldivu $dst1, $dst2, $src3, $src1, $src2", []>;
 
 // Six operand long
 
-def LMUL_l6r : _L6R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3,
-                      GRRegs:$src4),
-                    "lmul $dst1, $dst2, $src1, $src2, $src3, $src4",
-                    []>;
+def LMUL_l6r : _FL6R<
+  0b00000, (outs GRRegs:$dst1, GRRegs:$dst2),
+  (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3, GRRegs:$src4),
+  "lmul $dst1, $dst2, $src1, $src2, $src3, $src4", []>;
 
 // Register - U6
 
 //let Uses = [DP] in ...
 let neverHasSideEffects = 1, isReMaterializable = 1 in
-def LDAWDP_ru6: _FRU6<(outs GRRegs:$dst), (ins MEMii:$a),
-                    "ldaw $dst, dp[$a]",
-                    []>;
+def LDAWDP_ru6: _FRU6<0b011000, (outs RRegs:$a), (ins MEMii:$b),
+                      "ldaw $a, dp[$b]", []>;
 
 let isReMaterializable = 1 in                    
-def LDAWDP_lru6: _FLRU6<
-                    (outs GRRegs:$dst), (ins MEMii:$a),
-                    "ldaw $dst, dp[$a]",
-                    [(set GRRegs:$dst, ADDRdpii:$a)]>;
+def LDAWDP_lru6: _FLRU6<0b011000, (outs RRegs:$a), (ins MEMii:$b),
+                        "ldaw $a, dp[$b]",
+                        [(set RRegs:$a, ADDRdpii:$b)]>;
 
 let mayLoad=1 in
-def LDWDP_ru6: _FRU6<(outs GRRegs:$dst), (ins MEMii:$a),
-                    "ldw $dst, dp[$a]",
-                    []>;
-                    
-def LDWDP_lru6: _FLRU6<
-                    (outs GRRegs:$dst), (ins MEMii:$a),
-                    "ldw $dst, dp[$a]",
-                    [(set GRRegs:$dst, (load ADDRdpii:$a))]>;
+def LDWDP_ru6: _FRU6<0b010110, (outs RRegs:$a), (ins MEMii:$b),
+                     "ldw $a, dp[$b]", []>;
+
+def LDWDP_lru6: _FLRU6<0b010110, (outs RRegs:$a), (ins MEMii:$b),
+                       "ldw $a, dp[$b]",
+                       [(set RRegs:$a, (load ADDRdpii:$b))]>;
 
 let mayStore=1 in
-def STWDP_ru6 : _FRU6<(outs), (ins GRRegs:$val, MEMii:$addr),
-                  "stw $val, dp[$addr]",
-                  []>;
+def STWDP_ru6 : _FRU6<0b010100, (outs), (ins RRegs:$a, MEMii:$b),
+                      "stw $a, dp[$b]", []>;
 
-def STWDP_lru6 : _FLRU6<(outs), (ins GRRegs:$val, MEMii:$addr),
-                  "stw $val, dp[$addr]",
-                  [(store GRRegs:$val, ADDRdpii:$addr)]>;
+def STWDP_lru6 : _FLRU6<0b010100, (outs), (ins RRegs:$a, MEMii:$b),
+                        "stw $a, dp[$b]",
+                        [(store RRegs:$a, ADDRdpii:$b)]>;
 
 //let Uses = [CP] in ..
 let mayLoad = 1, isReMaterializable = 1, neverHasSideEffects = 1 in
-defm LDWCP : FRU6_LRU6_cp<"ldw">;
+defm LDWCP : FRU6_LRU6_cp<0b011011, "ldw">;
 
 let Uses = [SP] in {
 let mayStore=1 in {
-def STWSP_ru6 : _FRU6<
-                 (outs), (ins GRRegs:$val, i32imm:$index),
-                 "stw $val, sp[$index]",
-                 [(XCoreStwsp GRRegs:$val, immU6:$index)]>;
+def STWSP_ru6 : _FRU6<0b010101, (outs), (ins RRegs:$a, i32imm:$b),
+                      "stw $a, sp[$b]",
+                      [(XCoreStwsp RRegs:$a, immU6:$b)]>;
 
-def STWSP_lru6 : _FLRU6<
-                 (outs), (ins GRRegs:$val, i32imm:$index),
-                 "stw $val, sp[$index]",
-                 [(XCoreStwsp GRRegs:$val, immU16:$index)]>;
+def STWSP_lru6 : _FLRU6<0b010101, (outs), (ins RRegs:$a, i32imm:$b),
+                        "stw $a, sp[$b]",
+                        [(XCoreStwsp RRegs:$a, immU16:$b)]>;
 }
 
 let mayLoad=1 in {
-def LDWSP_ru6 : _FRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$b),
-                 "ldw $dst, sp[$b]",
-                 []>;
+def LDWSP_ru6 : _FRU6<0b010111, (outs RRegs:$a), (ins i32imm:$b),
+                      "ldw $a, sp[$b]", []>;
 
-def LDWSP_lru6 : _FLRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$b),
-                 "ldw $dst, sp[$b]",
-                 []>;
+def LDWSP_lru6 : _FLRU6<0b010111, (outs RRegs:$a), (ins i32imm:$b),
+                        "ldw $a, sp[$b]", []>;
 }
 
 let neverHasSideEffects = 1 in {
-def LDAWSP_ru6 : _FRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$b),
-                 "ldaw $dst, sp[$b]",
-                 []>;
+def LDAWSP_ru6 : _FRU6<0b011001, (outs RRegs:$a), (ins i32imm:$b),
+                       "ldaw $a, sp[$b]", []>;
 
-def LDAWSP_lru6 : _FLRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$b),
-                 "ldaw $dst, sp[$b]",
-                 []>;
-
-def LDAWSP_ru6_RRegs : _FRU6<
-                 (outs RRegs:$dst), (ins i32imm:$b),
-                 "ldaw $dst, sp[$b]",
-                 []>;
-
-def LDAWSP_lru6_RRegs : _FLRU6<
-                 (outs RRegs:$dst), (ins i32imm:$b),
-                 "ldaw $dst, sp[$b]",
-                 []>;
+def LDAWSP_lru6 : _FLRU6<0b011001, (outs RRegs:$a), (ins i32imm:$b),
+                         "ldaw $a, sp[$b]", []>;
 }
 }
 
 let isReMaterializable = 1 in {
-def LDC_ru6 : _FRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$b),
-                 "ldc $dst, $b",
-                 [(set GRRegs:$dst, immU6:$b)]>;
+def LDC_ru6 : _FRU6<0b011010, (outs RRegs:$a), (ins i32imm:$b),
+                    "ldc $a, $b", [(set RRegs:$a, immU6:$b)]>;
 
-def LDC_lru6 : _FLRU6<
-                 (outs GRRegs:$dst), (ins i32imm:$b),
-                 "ldc $dst, $b",
-                 [(set GRRegs:$dst, immU16:$b)]>;
+def LDC_lru6 : _FLRU6<0b011010, (outs RRegs:$a), (ins i32imm:$b),
+                      "ldc $a, $b", [(set RRegs:$a, immU16:$b)]>;
 }
 
-def SETC_ru6 : _FRU6<(outs), (ins GRRegs:$r, i32imm:$val),
-                  "setc res[$r], $val",
-                  [(int_xcore_setc GRRegs:$r, immU6:$val)]>;
+def SETC_ru6 : _FRU6<0b111010, (outs), (ins GRRegs:$a, i32imm:$b),
+                     "setc res[$a], $b",
+                     [(int_xcore_setc GRRegs:$a, immU6:$b)]>;
 
-def SETC_lru6 : _FLRU6<(outs), (ins GRRegs:$r, i32imm:$val),
-                  "setc res[$r], $val",
-                  [(int_xcore_setc GRRegs:$r, immU16:$val)]>;
+def SETC_lru6 : _FLRU6<0b111010, (outs), (ins GRRegs:$a, i32imm:$b),
+                       "setc res[$a], $b",
+                       [(int_xcore_setc GRRegs:$a, immU16:$b)]>;
 
 // Operand register - U6
 let isBranch = 1, isTerminator = 1 in {
-defm BRFT: FRU6_LRU6_branch<"bt">;
-defm BRBT: FRU6_LRU6_branch<"bt">;
-defm BRFF: FRU6_LRU6_branch<"bf">;
-defm BRBF: FRU6_LRU6_branch<"bf">;
+defm BRFT: FRU6_LRU6_branch<0b011100, "bt">;
+defm BRBT: FRU6_LRU6_backwards_branch<0b011101, "bt">;
+defm BRFF: FRU6_LRU6_branch<0b011110, "bf">;
+defm BRBF: FRU6_LRU6_backwards_branch<0b011111, "bf">;
 }
 
 // U6
 let Defs = [SP], Uses = [SP] in {
 let neverHasSideEffects = 1 in
-defm EXTSP : FU6_LU6_np<"extsp">;
+defm EXTSP : FU6_LU6_np<0b0111011110, "extsp">;
+
 let mayStore = 1 in
-defm ENTSP : FU6_LU6_np<"entsp">;
+defm ENTSP : FU6_LU6_np<0b0111011101, "entsp">;
 
 let isReturn = 1, isTerminator = 1, mayLoad = 1, isBarrier = 1 in {
-defm RETSP : FU6_LU6<"retsp", XCoreRetsp>;
+defm RETSP : FU6_LU6<0b0111011111, "retsp", XCoreRetsp>;
 }
 }
 
-// TODO extdp, kentsp, krestsp, blat
-// getsr, kalli
+let neverHasSideEffects = 1 in
+defm EXTDP : FU6_LU6_np<0b0111001110, "extdp">;
+
+let Uses = [R11], isCall=1 in
+defm BLAT : FU6_LU6_np<0b0111001101, "blat">;
+
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
-def BRBU_u6 : _FU6<
-                 (outs),
-                 (ins brtarget:$target),
-                 "bu $target",
-                 []>;
+def BRBU_u6 : _FU6<0b0111011100, (outs), (ins brtarget:$a), "bu -$a", []>;
 
-def BRBU_lu6 : _FLU6<
-                 (outs),
-                 (ins brtarget:$target),
-                 "bu $target",
-                 []>;
+def BRBU_lu6 : _FLU6<0b0111011100, (outs), (ins brtarget:$a), "bu -$a", []>;
 
-def BRFU_u6 : _FU6<
-                 (outs),
-                 (ins brtarget:$target),
-                 "bu $target",
-                 []>;
+def BRFU_u6 : _FU6<0b0111001100, (outs), (ins brtarget:$a), "bu $a", []>;
 
-def BRFU_lu6 : _FLU6<
-                 (outs),
-                 (ins brtarget:$target),
-                 "bu $target",
-                 []>;
+def BRFU_lu6 : _FLU6<0b0111001100, (outs), (ins brtarget:$a), "bu $a", []>;
 }
 
 //let Uses = [CP] in ...
 let Defs = [R11], neverHasSideEffects = 1, isReMaterializable = 1 in
-def LDAWCP_u6: _FRU6<(outs), (ins MEMii:$a),
-                    "ldaw r11, cp[$a]",
+def LDAWCP_u6: _FU6<0b0111111101, (outs), (ins MEMii:$a), "ldaw r11, cp[$a]",
                     []>;
 
 let Defs = [R11], isReMaterializable = 1 in
-def LDAWCP_lu6: _FLRU6<
-                    (outs), (ins MEMii:$a),
-                    "ldaw r11, cp[$a]",
-                    [(set R11, ADDRcpii:$a)]>;
+def LDAWCP_lu6: _FLU6<0b0111111101, (outs), (ins MEMii:$a), "ldaw r11, cp[$a]",
+                      [(set R11, ADDRcpii:$a)]>;
 
-defm SETSR : FU6_LU6_int<"setsr", int_xcore_setsr>;
+let Defs = [R11] in
+defm GETSR : FU6_LU6_np<0b0111111100, "getsr r11,">;
 
-defm CLRSR : FU6_LU6_int<"clrsr", int_xcore_clrsr>;
+defm SETSR : FU6_LU6_int<0b0111101101, "setsr", int_xcore_setsr>;
+
+defm CLRSR : FU6_LU6_int<0b0111101100, "clrsr", int_xcore_clrsr>;
 
 // setsr may cause a branch if it is used to enable events. clrsr may
 // branch if it is executed while events are enabled.
-let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1 in {
-defm SETSR_branch : FU6_LU6_np<"setsr">;
-defm CLRSR_branch : FU6_LU6_np<"clrsr">;
+let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1,
+    isCodeGenOnly = 1 in {
+defm SETSR_branch : FU6_LU6_np<0b0111101101, "setsr">;
+defm CLRSR_branch : FU6_LU6_np<0b0111101100, "clrsr">;
 }
 
+defm KCALL : FU6_LU6_np<0b0111001111, "kcall">;
+
+let Uses = [SP], Defs = [SP], mayStore = 1 in
+defm KENTSP : FU6_LU6_np<0b0111101110, "kentsp">;
+
+let Uses = [SP], Defs = [SP], mayLoad = 1 in
+defm KRESTSP : FU6_LU6_np<0b0111101111, "krestsp">;
+
 // U10
-// TODO ldwcpl, blacp
 
 let Defs = [R11], isReMaterializable = 1, neverHasSideEffects = 1 in
-def LDAP_u10 : _FU10<
-                  (outs),
-                  (ins i32imm:$addr),
-                  "ldap r11, $addr",
-                  []>;
+def LDAPF_u10 : _FU10<0b110110, (outs), (ins i32imm:$a), "ldap r11, $a", []>;
 
 let Defs = [R11], isReMaterializable = 1 in
-def LDAP_lu10 : _FLU10<
-                  (outs),
-                  (ins i32imm:$addr),
-                  "ldap r11, $addr",
-                  [(set R11, (pcrelwrapper tglobaladdr:$addr))]>;
+def LDAPF_lu10 : _FLU10<0b110110, (outs), (ins i32imm:$a), "ldap r11, $a",
+                        [(set R11, (pcrelwrapper tglobaladdr:$a))]>;
 
-let Defs = [R11], isReMaterializable = 1 in
-def LDAP_lu10_ba : _FLU10<(outs),
-                          (ins i32imm:$addr),
-                          "ldap r11, $addr",
-                          [(set R11, (pcrelwrapper tblockaddress:$addr))]>;
+let Defs = [R11], isReMaterializable = 1, isCodeGenOnly = 1 in
+def LDAPF_lu10_ba : _FLU10<0b110110, (outs), (ins i32imm:$a), "ldap r11, $a",
+                           [(set R11, (pcrelwrapper tblockaddress:$a))]>;
 
 let isCall=1,
 // All calls clobber the link register and the non-callee-saved registers:
 Defs = [R0, R1, R2, R3, R11, LR], Uses = [SP] in {
-def BL_u10 : _FU10<
-                  (outs), (ins calltarget:$target),
-                  "bl $target",
-                  [(XCoreBranchLink immU10:$target)]>;
+def BLACP_u10 : _FU10<0b111000, (outs), (ins i32imm:$a), "bla cp[$a]", []>;
 
-def BL_lu10 : _FLU10<
-                  (outs), (ins calltarget:$target),
-                  "bl $target",
-                  [(XCoreBranchLink immU20:$target)]>;
+def BLACP_lu10 : _FLU10<0b111000, (outs), (ins i32imm:$a), "bla cp[$a]", []>;
+
+def BLRF_u10 : _FU10<0b110100, (outs), (ins calltarget:$a), "bl $a",
+                     [(XCoreBranchLink immU10:$a)]>;
+
+def BLRF_lu10 : _FLU10<0b110100, (outs), (ins calltarget:$a), "bl $a",
+                       [(XCoreBranchLink immU20:$a)]>;
+}
+
+let Defs = [R11], mayLoad = 1, isReMaterializable = 1,
+    neverHasSideEffects = 1 in {
+def LDWCP_u10 : _FU10<0b111001, (outs), (ins i32imm:$a), "ldw r11, cp[$a]", []>;
+
+def LDWCP_lu10 : _FLU10<0b111001, (outs), (ins i32imm:$a), "ldw r11, cp[$a]",
+                        []>;
 }
 
 // Two operand short
-// TODO eet, eef, tsetmr
-def NOT : _F2R<(outs GRRegs:$dst), (ins GRRegs:$b),
-                 "not $dst, $b",
-                 [(set GRRegs:$dst, (not GRRegs:$b))]>;
+def NOT : _F2R<0b100010, (outs GRRegs:$dst), (ins GRRegs:$b),
+                "not $dst, $b", [(set GRRegs:$dst, (not GRRegs:$b))]>;
 
-def NEG : _F2R<(outs GRRegs:$dst), (ins GRRegs:$b),
-                 "neg $dst, $b",
-                 [(set GRRegs:$dst, (ineg GRRegs:$b))]>;
+def NEG : _F2R<0b100100, (outs GRRegs:$dst), (ins GRRegs:$b),
+                "neg $dst, $b", [(set GRRegs:$dst, (ineg GRRegs:$b))]>;
 
 let Constraints = "$src1 = $dst" in {
-def SEXT_rus : _FRUS<(outs GRRegs:$dst), (ins GRRegs:$src1, i32imm:$src2),
-                      "sext $dst, $src2",
-                      [(set GRRegs:$dst, (int_xcore_sext GRRegs:$src1,
-                                                         immBitp:$src2))]>;
+def SEXT_rus :
+  _FRUSSrcDstBitp<0b001101, (outs GRRegs:$dst), (ins GRRegs:$src1, i32imm:$src2),
+                  "sext $dst, $src2",
+                  [(set GRRegs:$dst, (int_xcore_sext GRRegs:$src1,
+                                                     immBitp:$src2))]>;
 
-def SEXT_2r : _FRUS<(outs GRRegs:$dst), (ins GRRegs:$src1, GRRegs:$src2),
-                     "sext $dst, $src2",
-                     [(set GRRegs:$dst, (int_xcore_sext GRRegs:$src1,
-                                                        GRRegs:$src2))]>;
+def SEXT_2r :
+  _F2RSrcDst<0b001100, (outs GRRegs:$dst), (ins GRRegs:$src1, GRRegs:$src2),
+             "sext $dst, $src2",
+             [(set GRRegs:$dst, (int_xcore_sext GRRegs:$src1, GRRegs:$src2))]>;
 
-def ZEXT_rus : _FRUS<(outs GRRegs:$dst), (ins GRRegs:$src1, i32imm:$src2),
-                      "zext $dst, $src2",
-                      [(set GRRegs:$dst, (int_xcore_zext GRRegs:$src1,
-                                                         immBitp:$src2))]>;
+def ZEXT_rus :
+  _FRUSSrcDstBitp<0b010001, (outs GRRegs:$dst), (ins GRRegs:$src1, i32imm:$src2),
+                  "zext $dst, $src2",
+                  [(set GRRegs:$dst, (int_xcore_zext GRRegs:$src1,
+                                                     immBitp:$src2))]>;
 
-def ZEXT_2r : _FRUS<(outs GRRegs:$dst), (ins GRRegs:$src1, GRRegs:$src2),
-                     "zext $dst, $src2",
-                     [(set GRRegs:$dst, (int_xcore_zext GRRegs:$src1,
-                                                        GRRegs:$src2))]>;
+def ZEXT_2r :
+  _F2RSrcDst<0b010000, (outs GRRegs:$dst), (ins GRRegs:$src1, GRRegs:$src2),
+             "zext $dst, $src2",
+             [(set GRRegs:$dst, (int_xcore_zext GRRegs:$src1, GRRegs:$src2))]>;
 
-def ANDNOT_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$src1, GRRegs:$src2),
-                 "andnot $dst, $src2",
-                 [(set GRRegs:$dst, (and GRRegs:$src1, (not GRRegs:$src2)))]>;
+def ANDNOT_2r :
+  _F2RSrcDst<0b001010, (outs GRRegs:$dst), (ins GRRegs:$src1, GRRegs:$src2),
+             "andnot $dst, $src2",
+             [(set GRRegs:$dst, (and GRRegs:$src1, (not GRRegs:$src2)))]>;
 }
 
 let isReMaterializable = 1, neverHasSideEffects = 1 in
-def MKMSK_rus : _FRUS<(outs GRRegs:$dst), (ins i32imm:$size),
-                 "mkmsk $dst, $size",
-                 []>;
+def MKMSK_rus : _FRUSBitp<0b101001, (outs GRRegs:$dst), (ins i32imm:$size),
+                          "mkmsk $dst, $size", []>;
 
-def MKMSK_2r : _FRUS<(outs GRRegs:$dst), (ins GRRegs:$size),
-                 "mkmsk $dst, $size",
-                 [(set GRRegs:$dst, (add (shl 1, GRRegs:$size), -1))]>;
+def MKMSK_2r : _F2R<0b101000, (outs GRRegs:$dst), (ins GRRegs:$size),
+                    "mkmsk $dst, $size",
+                    [(set GRRegs:$dst, (add (shl 1, GRRegs:$size), -1))]>;
 
-def GETR_rus : _FRUS<(outs GRRegs:$dst), (ins i32imm:$type),
-                 "getr $dst, $type",
-                 [(set GRRegs:$dst, (int_xcore_getr immUs:$type))]>;
+def GETR_rus : _FRUS<0b100000, (outs GRRegs:$dst), (ins i32imm:$type),
+                     "getr $dst, $type",
+                     [(set GRRegs:$dst, (int_xcore_getr immUs:$type))]>;
 
-def GETTS_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$r),
-                 "getts $dst, res[$r]",
-                 [(set GRRegs:$dst, (int_xcore_getts GRRegs:$r))]>;
+def GETTS_2r : _F2R<0b001110, (outs GRRegs:$dst), (ins GRRegs:$r),
+                    "getts $dst, res[$r]",
+                    [(set GRRegs:$dst, (int_xcore_getts GRRegs:$r))]>;
 
-def SETPT_2r : _F2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                 "setpt res[$r], $val",
-                 [(int_xcore_setpt GRRegs:$r, GRRegs:$val)]>;
+def SETPT_2r : _FR2R<0b001111, (outs), (ins GRRegs:$r, GRRegs:$val),
+                     "setpt res[$r], $val",
+                     [(int_xcore_setpt GRRegs:$r, GRRegs:$val)]>;
 
-def OUTCT_2r : _F2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                 "outct res[$r], $val",
-                 [(int_xcore_outct GRRegs:$r, GRRegs:$val)]>;
+def OUTCT_2r : _F2R<0b010010, (outs), (ins GRRegs:$r, GRRegs:$val),
+                    "outct res[$r], $val",
+                    [(int_xcore_outct GRRegs:$r, GRRegs:$val)]>;
 
-def OUTCT_rus : _F2R<(outs), (ins GRRegs:$r, i32imm:$val),
-                 "outct res[$r], $val",
-                 [(int_xcore_outct GRRegs:$r, immUs:$val)]>;
+def OUTCT_rus : _FRUS<0b010011, (outs), (ins GRRegs:$r, i32imm:$val),
+                       "outct res[$r], $val",
+                       [(int_xcore_outct GRRegs:$r, immUs:$val)]>;
 
-def OUTT_2r : _F2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                 "outt res[$r], $val",
-                 [(int_xcore_outt GRRegs:$r, GRRegs:$val)]>;
+def OUTT_2r : _FR2R<0b000011, (outs), (ins GRRegs:$r, GRRegs:$val),
+                    "outt res[$r], $val",
+                    [(int_xcore_outt GRRegs:$r, GRRegs:$val)]>;
 
-def OUT_2r : _F2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                 "out res[$r], $val",
-                 [(int_xcore_out GRRegs:$r, GRRegs:$val)]>;
+def OUT_2r : _FR2R<0b101010, (outs), (ins GRRegs:$r, GRRegs:$val),
+                   "out res[$r], $val",
+                   [(int_xcore_out GRRegs:$r, GRRegs:$val)]>;
 
 let Constraints = "$src = $dst" in
-def OUTSHR_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$r, GRRegs:$src),
-                 "outshr res[$r], $src",
-                 [(set GRRegs:$dst, (int_xcore_outshr GRRegs:$r,
-                                                      GRRegs:$src))]>;
+def OUTSHR_2r :
+  _F2RSrcDst<0b101011, (outs GRRegs:$dst), (ins GRRegs:$src, GRRegs:$r),
+             "outshr res[$r], $src",
+             [(set GRRegs:$dst, (int_xcore_outshr GRRegs:$r, GRRegs:$src))]>;
 
-def INCT_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$r),
-                 "inct $dst, res[$r]",
-                 [(set GRRegs:$dst, (int_xcore_inct GRRegs:$r))]>;
+def INCT_2r : _F2R<0b100001, (outs GRRegs:$dst), (ins GRRegs:$r),
+                   "inct $dst, res[$r]",
+                   [(set GRRegs:$dst, (int_xcore_inct GRRegs:$r))]>;
 
-def INT_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$r),
-                 "int $dst, res[$r]",
-                 [(set GRRegs:$dst, (int_xcore_int GRRegs:$r))]>;
+def INT_2r : _F2R<0b100011, (outs GRRegs:$dst), (ins GRRegs:$r),
+                  "int $dst, res[$r]",
+                  [(set GRRegs:$dst, (int_xcore_int GRRegs:$r))]>;
 
-def IN_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$r),
+def IN_2r : _F2R<0b101100, (outs GRRegs:$dst), (ins GRRegs:$r),
                  "in $dst, res[$r]",
                  [(set GRRegs:$dst, (int_xcore_in GRRegs:$r))]>;
 
 let Constraints = "$src = $dst" in
-def INSHR_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$r, GRRegs:$src),
-                 "inshr $dst, res[$r]",
-                 [(set GRRegs:$dst, (int_xcore_inshr GRRegs:$r,
-                                                     GRRegs:$src))]>;
+def INSHR_2r :
+  _F2RSrcDst<0b101101, (outs GRRegs:$dst), (ins GRRegs:$src, GRRegs:$r),
+             "inshr $dst, res[$r]",
+             [(set GRRegs:$dst, (int_xcore_inshr GRRegs:$r, GRRegs:$src))]>;
 
-def CHKCT_2r : _F2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                 "chkct res[$r], $val",
-                 [(int_xcore_chkct GRRegs:$r, GRRegs:$val)]>;
+def CHKCT_2r : _F2R<0b110010, (outs), (ins GRRegs:$r, GRRegs:$val),
+                    "chkct res[$r], $val",
+                    [(int_xcore_chkct GRRegs:$r, GRRegs:$val)]>;
 
-def CHKCT_rus : _F2R<(outs), (ins GRRegs:$r, i32imm:$val),
-                 "chkct res[$r], $val",
-                 [(int_xcore_chkct GRRegs:$r, immUs:$val)]>;
+def CHKCT_rus : _FRUSBitp<0b110011, (outs), (ins GRRegs:$r, i32imm:$val),
+                          "chkct res[$r], $val",
+                          [(int_xcore_chkct GRRegs:$r, immUs:$val)]>;
 
-def TESTCT_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$src),
+def TESTCT_2r : _F2R<0b101111, (outs GRRegs:$dst), (ins GRRegs:$src),
                      "testct $dst, res[$src]",
                      [(set GRRegs:$dst, (int_xcore_testct GRRegs:$src))]>;
 
-def TESTWCT_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$src),
+def TESTWCT_2r : _F2R<0b110001, (outs GRRegs:$dst), (ins GRRegs:$src),
                       "testwct $dst, res[$src]",
                       [(set GRRegs:$dst, (int_xcore_testwct GRRegs:$src))]>;
 
-def SETD_2r : _F2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                 "setd res[$r], $val",
-                 [(int_xcore_setd GRRegs:$r, GRRegs:$val)]>;
+def SETD_2r : _FR2R<0b000101, (outs), (ins GRRegs:$r, GRRegs:$val),
+                    "setd res[$r], $val",
+                    [(int_xcore_setd GRRegs:$r, GRRegs:$val)]>;
 
-def GETST_2r : _F2R<(outs GRRegs:$dst), (ins GRRegs:$r),
+def SETPSC_2r : _FR2R<0b110000, (outs), (ins GRRegs:$src1, GRRegs:$src2),
+                      "setpsc res[$src1], $src2",
+                      [(int_xcore_setpsc GRRegs:$src1, GRRegs:$src2)]>;
+
+def GETST_2r : _F2R<0b000001, (outs GRRegs:$dst), (ins GRRegs:$r),
                     "getst $dst, res[$r]",
                     [(set GRRegs:$dst, (int_xcore_getst GRRegs:$r))]>;
 
-def INITSP_2r : _F2R<(outs), (ins GRRegs:$t, GRRegs:$src),
+def INITSP_2r : _F2R<0b000100, (outs), (ins GRRegs:$src, GRRegs:$t),
                      "init t[$t]:sp, $src",
                      [(int_xcore_initsp GRRegs:$t, GRRegs:$src)]>;
 
-def INITPC_2r : _F2R<(outs), (ins GRRegs:$t, GRRegs:$src),
+def INITPC_2r : _F2R<0b000000, (outs), (ins GRRegs:$src, GRRegs:$t),
                      "init t[$t]:pc, $src",
                      [(int_xcore_initpc GRRegs:$t, GRRegs:$src)]>;
 
-def INITCP_2r : _F2R<(outs), (ins GRRegs:$t, GRRegs:$src),
+def INITCP_2r : _F2R<0b000110, (outs), (ins GRRegs:$src, GRRegs:$t),
                      "init t[$t]:cp, $src",
                      [(int_xcore_initcp GRRegs:$t, GRRegs:$src)]>;
 
-def INITDP_2r : _F2R<(outs), (ins GRRegs:$t, GRRegs:$src),
+def INITDP_2r : _F2R<0b000010, (outs), (ins GRRegs:$src, GRRegs:$t),
                      "init t[$t]:dp, $src",
                      [(int_xcore_initdp GRRegs:$t, GRRegs:$src)]>;
 
+def PEEK_2r : _F2R<0b101110, (outs GRRegs:$dst), (ins GRRegs:$src),
+                    "peek $dst, res[$src]",
+                    [(set GRRegs:$dst, (int_xcore_peek GRRegs:$src))]>;
+
+def ENDIN_2r : _F2R<0b100101, (outs GRRegs:$dst), (ins GRRegs:$src),
+                     "endin $dst, res[$src]",
+                     [(set GRRegs:$dst, (int_xcore_endin GRRegs:$src))]>;
+
+def EEF_2r : _F2R<0b001011, (outs), (ins GRRegs:$a, GRRegs:$b),
+                  "eef $a, res[$b]", []>;
+
+def EET_2r : _F2R<0b001001, (outs), (ins GRRegs:$a, GRRegs:$b),
+                  "eet $a, res[$b]", []>;
+
+def TSETMR_2r : _F2RImm<0b000111, (outs), (ins i32imm:$a, GRRegs:$b),
+                        "tsetmr r$a, $b", []>;
+
 // Two operand long
-// getd, testlcl
-def BITREV_l2r : _FL2R<(outs GRRegs:$dst), (ins GRRegs:$src),
-                 "bitrev $dst, $src",
-                 [(set GRRegs:$dst, (int_xcore_bitrev GRRegs:$src))]>;
+def BITREV_l2r : _FL2R<0b0000011000, (outs GRRegs:$dst), (ins GRRegs:$src),
+                       "bitrev $dst, $src",
+                       [(set GRRegs:$dst, (int_xcore_bitrev GRRegs:$src))]>;
 
-def BYTEREV_l2r : _FL2R<(outs GRRegs:$dst), (ins GRRegs:$src),
-                 "byterev $dst, $src",
-                 [(set GRRegs:$dst, (bswap GRRegs:$src))]>;
+def BYTEREV_l2r : _FL2R<0b0000011001, (outs GRRegs:$dst), (ins GRRegs:$src),
+                        "byterev $dst, $src",
+                        [(set GRRegs:$dst, (bswap GRRegs:$src))]>;
 
-def CLZ_l2r : _FL2R<(outs GRRegs:$dst), (ins GRRegs:$src),
-                 "clz $dst, $src",
-                 [(set GRRegs:$dst, (ctlz GRRegs:$src))]>;
+def CLZ_l2r : _FL2R<0b000111000, (outs GRRegs:$dst), (ins GRRegs:$src),
+                    "clz $dst, $src",
+                    [(set GRRegs:$dst, (ctlz GRRegs:$src))]>;
 
-def SETC_l2r : _FL2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                  "setc res[$r], $val",
-                  [(int_xcore_setc GRRegs:$r, GRRegs:$val)]>;
+def GETD_l2r : _FL2R<0b0001111001, (outs GRRegs:$dst), (ins GRRegs:$src),
+                     "getd $dst, res[$src]", []>;
 
-def SETTW_l2r : _FL2R<(outs), (ins GRRegs:$r, GRRegs:$val),
-                  "settw res[$r], $val",
-                  [(int_xcore_settw GRRegs:$r, GRRegs:$val)]>;
+def GETN_l2r : _FL2R<0b0011011001, (outs GRRegs:$dst), (ins GRRegs:$src),
+                     "getn $dst, res[$src]", []>;
 
-def GETPS_l2r : _FL2R<(outs GRRegs:$dst), (ins GRRegs:$src),
-                 "get $dst, ps[$src]",
-                 [(set GRRegs:$dst, (int_xcore_getps GRRegs:$src))]>;
+def SETC_l2r : _FL2R<0b0010111001, (outs), (ins GRRegs:$r, GRRegs:$val),
+                     "setc res[$r], $val",
+                     [(int_xcore_setc GRRegs:$r, GRRegs:$val)]>;
 
-def SETPS_l2r : _FL2R<(outs), (ins GRRegs:$src1, GRRegs:$src2),
-                 "set ps[$src1], $src2",
-                 [(int_xcore_setps GRRegs:$src1, GRRegs:$src2)]>;
+def SETTW_l2r : _FLR2R<0b0010011001, (outs), (ins GRRegs:$r, GRRegs:$val),
+                       "settw res[$r], $val",
+                       [(int_xcore_settw GRRegs:$r, GRRegs:$val)]>;
 
-def INITLR_l2r : _FL2R<(outs), (ins GRRegs:$t, GRRegs:$src),
+def GETPS_l2r : _FL2R<0b0001011001, (outs GRRegs:$dst), (ins GRRegs:$src),
+                      "get $dst, ps[$src]",
+                      [(set GRRegs:$dst, (int_xcore_getps GRRegs:$src))]>;
+
+def SETPS_l2r : _FLR2R<0b0001111000, (outs), (ins GRRegs:$src1, GRRegs:$src2),
+                       "set ps[$src1], $src2",
+                       [(int_xcore_setps GRRegs:$src1, GRRegs:$src2)]>;
+
+def INITLR_l2r : _FL2R<0b0001011000, (outs), (ins GRRegs:$src, GRRegs:$t),
                        "init t[$t]:lr, $src",
                        [(int_xcore_initlr GRRegs:$t, GRRegs:$src)]>;
 
-def SETCLK_l2r : _FL2R<(outs), (ins GRRegs:$src1, GRRegs:$src2),
-                       "setclk res[$src1], $src2",
-                       [(int_xcore_setclk GRRegs:$src1, GRRegs:$src2)]>;
+def SETCLK_l2r : _FLR2R<0b0000111001, (outs), (ins GRRegs:$src1, GRRegs:$src2),
+                        "setclk res[$src1], $src2",
+                        [(int_xcore_setclk GRRegs:$src1, GRRegs:$src2)]>;
 
-def SETRDY_l2r : _FL2R<(outs), (ins GRRegs:$src1, GRRegs:$src2),
-                       "setrdy res[$src1], $src2",
-                       [(int_xcore_setrdy GRRegs:$src1, GRRegs:$src2)]>;
+def SETN_l2r : _FLR2R<0b0011011000, (outs), (ins GRRegs:$src1, GRRegs:$src2),
+                      "setn res[$src1], $src2", []>;
 
-def SETPSC_l2r : _FL2R<(outs), (ins GRRegs:$src1, GRRegs:$src2),
-                       "setpsc res[$src1], $src2",
-                       [(int_xcore_setpsc GRRegs:$src1, GRRegs:$src2)]>;
+def SETRDY_l2r : _FLR2R<0b0010111000, (outs), (ins GRRegs:$src1, GRRegs:$src2),
+                        "setrdy res[$src1], $src2",
+                        [(int_xcore_setrdy GRRegs:$src1, GRRegs:$src2)]>;
 
-def PEEK_l2r : _FL2R<(outs GRRegs:$dst), (ins GRRegs:$src),
-                      "peek $dst, res[$src]",
-                      [(set GRRegs:$dst, (int_xcore_peek GRRegs:$src))]>;
-
-def ENDIN_l2r : _FL2R<(outs GRRegs:$dst), (ins GRRegs:$src),
-                       "endin $dst, res[$src]",
-                       [(set GRRegs:$dst, (int_xcore_endin GRRegs:$src))]>;
+def TESTLCL_l2r : _FL2R<0b0010011000, (outs GRRegs:$dst), (ins GRRegs:$src),
+                        "testlcl $dst, res[$src]", []>;
 
 // One operand short
-// TODO edu, eeu, waitet, waitef, tstart, clrtp
-// setdp, setcp, setev, kcall
-// dgetreg
-def MSYNC_1r : _F1R<(outs), (ins GRRegs:$i),
-                    "msync res[$i]",
-                    [(int_xcore_msync GRRegs:$i)]>;
-def MJOIN_1r : _F1R<(outs), (ins GRRegs:$i),
-                    "mjoin res[$i]",
-                    [(int_xcore_mjoin GRRegs:$i)]>;
+def MSYNC_1r : _F1R<0b000111, (outs), (ins GRRegs:$a),
+                    "msync res[$a]",
+                    [(int_xcore_msync GRRegs:$a)]>;
+def MJOIN_1r : _F1R<0b000101, (outs), (ins GRRegs:$a),
+                    "mjoin res[$a]",
+                    [(int_xcore_mjoin GRRegs:$a)]>;
 
 let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1 in
-def BAU_1r : _F1R<(outs), (ins GRRegs:$addr),
-                 "bau $addr",
-                 [(brind GRRegs:$addr)]>;
+def BAU_1r : _F1R<0b001001, (outs), (ins GRRegs:$a),
+                 "bau $a",
+                 [(brind GRRegs:$a)]>;
 
 let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1 in
 def BR_JT : PseudoInstXCore<(outs), (ins InlineJT:$t, GRRegs:$i),
@@ -968,88 +924,150 @@ def BR_JT32 : PseudoInstXCore<(outs), (ins InlineJT32:$t, GRRegs:$i),
                               "bru $i\n$t",
                               [(XCoreBR_JT32 tjumptable:$t, GRRegs:$i)]>;
 
+let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1 in
+def BRU_1r : _F1R<0b001010, (outs), (ins GRRegs:$a), "bru $a", []>;
+
 let Defs=[SP], neverHasSideEffects=1 in
-def SETSP_1r : _F1R<(outs), (ins GRRegs:$src),
-                 "set sp, $src",
+def SETSP_1r : _F1R<0b001011, (outs), (ins GRRegs:$a), "set sp, $a", []>;
+
+let neverHasSideEffects=1 in
+def SETDP_1r : _F1R<0b001100, (outs), (ins GRRegs:$a), "set dp, $a", []>;
+
+let neverHasSideEffects=1 in
+def SETCP_1r : _F1R<0b001101, (outs), (ins GRRegs:$a), "set cp, $a", []>;
+
+let hasCtrlDep = 1 in 
+def ECALLT_1r : _F1R<0b010011, (outs), (ins GRRegs:$a),
+                 "ecallt $a",
                  []>;
 
 let hasCtrlDep = 1 in 
-def ECALLT_1r : _F1R<(outs), (ins GRRegs:$src),
-                 "ecallt $src",
-                 []>;
-
-let hasCtrlDep = 1 in 
-def ECALLF_1r : _F1R<(outs), (ins GRRegs:$src),
-                 "ecallf $src",
+def ECALLF_1r : _F1R<0b010010, (outs), (ins GRRegs:$a),
+                 "ecallf $a",
                  []>;
 
 let isCall=1, 
 // All calls clobber the link register and the non-callee-saved registers:
 Defs = [R0, R1, R2, R3, R11, LR], Uses = [SP] in {
-def BLA_1r : _F1R<(outs), (ins GRRegs:$addr),
-                 "bla $addr",
-                 [(XCoreBranchLink GRRegs:$addr)]>;
+def BLA_1r : _F1R<0b001000, (outs), (ins GRRegs:$a),
+                 "bla $a",
+                 [(XCoreBranchLink GRRegs:$a)]>;
 }
 
-def SYNCR_1r : _F1R<(outs), (ins GRRegs:$r),
-                 "syncr res[$r]",
-                 [(int_xcore_syncr GRRegs:$r)]>;
+def SYNCR_1r : _F1R<0b100001, (outs), (ins GRRegs:$a),
+                 "syncr res[$a]",
+                 [(int_xcore_syncr GRRegs:$a)]>;
 
-def FREER_1r : _F1R<(outs), (ins GRRegs:$r),
-               "freer res[$r]",
-               [(int_xcore_freer GRRegs:$r)]>;
+def FREER_1r : _F1R<0b000100, (outs), (ins GRRegs:$a),
+               "freer res[$a]",
+               [(int_xcore_freer GRRegs:$a)]>;
 
 let Uses=[R11] in {
-def SETV_1r : _F1R<(outs), (ins GRRegs:$r),
-                   "setv res[$r], r11",
-                   [(int_xcore_setv GRRegs:$r, R11)]>;
+def SETV_1r : _F1R<0b010001, (outs), (ins GRRegs:$a),
+                   "setv res[$a], r11",
+                   [(int_xcore_setv GRRegs:$a, R11)]>;
 
-def SETEV_1r : _F1R<(outs), (ins GRRegs:$r),
-                    "setev res[$r], r11",
-                    [(int_xcore_setev GRRegs:$r, R11)]>;
+def SETEV_1r : _F1R<0b001111, (outs), (ins GRRegs:$a),
+                    "setev res[$a], r11",
+                    [(int_xcore_setev GRRegs:$a, R11)]>;
 }
 
-def EEU_1r : _F1R<(outs), (ins GRRegs:$r),
-               "eeu res[$r]",
-               [(int_xcore_eeu GRRegs:$r)]>;
+def DGETREG_1r : _F1R<0b001110, (outs GRRegs:$a), (ins), "dgetreg $a", []>;
+
+def EDU_1r : _F1R<0b000000, (outs), (ins GRRegs:$a), "edu res[$a]", []>;
+
+def EEU_1r : _F1R<0b000001, (outs), (ins GRRegs:$a),
+               "eeu res[$a]",
+               [(int_xcore_eeu GRRegs:$a)]>;
+
+def KCALL_1r : _F1R<0b010000, (outs), (ins GRRegs:$a), "kcall $a", []>;
+
+def WAITEF_1R : _F1R<0b000011, (outs), (ins GRRegs:$a), "waitef $a", []>;
+
+def WAITET_1R : _F1R<0b000010, (outs), (ins GRRegs:$a), "waitet $a", []>;
+
+def TSTART_1R : _F1R<0b000110, (outs), (ins GRRegs:$a), "start t[$a]", []>;
+
+def CLRPT_1R : _F1R<0b100000, (outs), (ins GRRegs:$a), "clrpt res[$a]", []>;
 
 // Zero operand short
-// TODO freet, ldspc, stspc, ldssr, stssr, ldsed, stsed,
-// stet, getkep, getksp, setkep, getid, kret, dcall, dret,
-// dentsp, drestsp
 
-def CLRE_0R : _F0R<(outs), (ins), "clre", [(int_xcore_clre)]>;
+def CLRE_0R : _F0R<0b0000001101, (outs), (ins), "clre", [(int_xcore_clre)]>;
+
+def DCALL_0R : _F0R<0b0000011100, (outs), (ins), "dcall", []>;
+
+let Defs = [SP], Uses = [SP] in
+def DENTSP_0R : _F0R<0b0001001100, (outs), (ins), "dentsp", []>;
+
+let Defs = [SP] in
+def DRESTSP_0R : _F0R<0b0001001101, (outs), (ins), "drestsp", []>;
+
+def DRET_0R : _F0R<0b0000011110, (outs), (ins), "dret", []>;
+
+def FREET_0R : _F0R<0b0000001111, (outs), (ins), "freet", []>;
 
 let Defs = [R11] in {
-def GETID_0R : _F0R<(outs), (ins),
+def GETID_0R : _F0R<0b0001001110, (outs), (ins),
                     "get r11, id",
                     [(set R11, (int_xcore_getid))]>;
 
-def GETED_0R : _F0R<(outs), (ins),
+def GETED_0R : _F0R<0b0000111110, (outs), (ins),
                     "get r11, ed",
                     [(set R11, (int_xcore_geted))]>;
 
-def GETET_0R : _F0R<(outs), (ins),
+def GETET_0R : _F0R<0b0000111111, (outs), (ins),
                     "get r11, et",
                     [(set R11, (int_xcore_getet))]>;
+
+def GETKEP_0R : _F0R<0b0001001111, (outs), (ins),
+                     "get r11, kep", []>;
+
+def GETKSP_0R : _F0R<0b0001011100, (outs), (ins),
+                     "get r11, ksp", []>;
 }
 
-def SSYNC_0r : _F0R<(outs), (ins),
+let Defs = [SP] in
+def KRET_0R : _F0R<0b0000011101, (outs), (ins), "kret", []>;
+
+let Uses = [SP], mayLoad = 1 in {
+def LDET_0R : _F0R<0b0001011110, (outs), (ins), "ldw et, sp[4]", []>;
+
+def LDSED_0R : _F0R<0b0001011101, (outs), (ins), "ldw sed, sp[3]", []>;
+
+def LDSPC_0R : _F0R<0b0000101100, (outs), (ins), "ldw spc, sp[1]", []>;
+
+def LDSSR_0R : _F0R<0b0000101110, (outs), (ins), "ldw ssr, sp[2]", []>;
+}
+
+let Uses=[R11] in
+def SETKEP_0R : _F0R<0b0000011111, (outs), (ins), "set kep, r11", []>;
+
+def SSYNC_0r : _F0R<0b0000001110, (outs), (ins),
                     "ssync",
                     [(int_xcore_ssync)]>;
 
+let Uses = [SP], mayStore = 1 in {
+def STET_0R : _F0R<0b0000111101, (outs), (ins), "stw et, sp[4]", []>;
+
+def STSED_0R : _F0R<0b0000111100, (outs), (ins), "stw sed, sp[3]", []>;
+
+def STSPC_0R : _F0R<0b0000101101, (outs), (ins), "stw spc, sp[1]", []>;
+
+def STSSR_0R : _F0R<0b0000101111, (outs), (ins), "stw ssr, sp[2]", []>;
+}
+
 let isBranch=1, isIndirectBranch=1, isTerminator=1, isBarrier = 1,
     hasSideEffects = 1 in
-def WAITEU_0R : _F0R<(outs), (ins),
-                 "waiteu",
-                 [(brind (int_xcore_waitevent))]>;
+def WAITEU_0R : _F0R<0b0000001100, (outs), (ins),
+                     "waiteu",
+                     [(brind (int_xcore_waitevent))]>;
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
 //===----------------------------------------------------------------------===//
 
-def : Pat<(XCoreBranchLink tglobaladdr:$addr), (BL_lu10 tglobaladdr:$addr)>;
-def : Pat<(XCoreBranchLink texternalsym:$addr), (BL_lu10 texternalsym:$addr)>;
+def : Pat<(XCoreBranchLink tglobaladdr:$addr), (BLRF_lu10 tglobaladdr:$addr)>;
+def : Pat<(XCoreBranchLink texternalsym:$addr), (BLRF_lu10 texternalsym:$addr)>;
 
 /// sext_inreg
 def : Pat<(sext_inreg GRRegs:$b, i1), (SEXT_rus GRRegs:$b, 1)>;
@@ -1091,7 +1109,7 @@ def : Pat<(truncstorei16 GRRegs:$val, GRRegs:$addr),
           (ST16_l3r GRRegs:$val, GRRegs:$addr, (LDC_ru6 0))>;
 
 def : Pat<(store GRRegs:$val, (ldawf GRRegs:$addr, GRRegs:$offset)),
-          (STW_3r GRRegs:$val, GRRegs:$addr, GRRegs:$offset)>;
+          (STW_l3r GRRegs:$val, GRRegs:$addr, GRRegs:$offset)>;
 def : Pat<(store GRRegs:$val, (add GRRegs:$addr, immUs4:$offset)),
           (STW_2rus GRRegs:$val, GRRegs:$addr, (div4_xform immUs4:$offset))>;
 def : Pat<(store GRRegs:$val, GRRegs:$addr),

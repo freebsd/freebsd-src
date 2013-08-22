@@ -9,10 +9,12 @@ SUBDIR=	${_drti} \
 	libnvpair \
 	libumem \
 	libuutil \
+	${_libzfs_core} \
 	${_libzfs} \
 	${_libzpool}
 
 .if ${MK_ZFS} != "no"
+_libzfs_core=	libzfs_core
 _libzfs=	libzfs
 .if ${MK_LIBTHR} != "no"
 _libzpool=	libzpool

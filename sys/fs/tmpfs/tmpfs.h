@@ -183,7 +183,7 @@ struct tmpfs_node {
 	uid_t			tn_uid;
 	gid_t			tn_gid;
 	mode_t			tn_mode;
-	int			tn_flags;
+	u_long			tn_flags;
 	nlink_t			tn_links;
 	struct timespec		tn_atime;
 	struct timespec		tn_mtime;
@@ -418,7 +418,7 @@ int	tmpfs_dir_getdents(struct tmpfs_node *, struct uio *, int,
 int	tmpfs_dir_whiteout_add(struct vnode *, struct componentname *);
 void	tmpfs_dir_whiteout_remove(struct vnode *, struct componentname *);
 int	tmpfs_reg_resize(struct vnode *, off_t, boolean_t);
-int	tmpfs_chflags(struct vnode *, int, struct ucred *, struct thread *);
+int	tmpfs_chflags(struct vnode *, u_long, struct ucred *, struct thread *);
 int	tmpfs_chmod(struct vnode *, mode_t, struct ucred *, struct thread *);
 int	tmpfs_chown(struct vnode *, uid_t, gid_t, struct ucred *,
 	    struct thread *);

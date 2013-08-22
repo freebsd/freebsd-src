@@ -13,7 +13,7 @@
 
 #define DEBUG_TYPE "asm-printer"
 #include "PPCInstPrinter.h"
-#include "MCTargetDesc/PPCBaseInfo.h"
+#include "MCTargetDesc/PPCMCTargetDesc.h"
 #include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -87,35 +87,9 @@ void PPCInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
                                            raw_ostream &O, 
                                            const char *Modifier) {
   unsigned Code = MI->getOperand(OpNo).getImm();
-  if (!Modifier) {
-    unsigned CCReg = MI->getOperand(OpNo+1).getReg();
-    unsigned RegNo;
-    switch (CCReg) {
-    default: llvm_unreachable("Unknown CR register");
-    case PPC::CR0: RegNo = 0; break;
-    case PPC::CR1: RegNo = 1; break;
-    case PPC::CR2: RegNo = 2; break;
-    case PPC::CR3: RegNo = 3; break;
-    case PPC::CR4: RegNo = 4; break;
-    case PPC::CR5: RegNo = 5; break;
-    case PPC::CR6: RegNo = 6; break;
-    case PPC::CR7: RegNo = 7; break;
-    }
-
-    // Print the CR bit number. The Code is ((BI << 5) | BO) for a
-    // BCC, but we must have the positive form here (BO == 12)
-    unsigned BI = Code >> 5;
-    assert((Code & 0xF) == 12 &&
-           "BO in predicate bit must have the positive form");
-
-    unsigned Value = 4*RegNo + BI;
-    O << Value;
-    return;
-  }
 
   if (StringRef(Modifier) == "cc") {
     switch ((PPC::Predicate)Code) {
-    case PPC::PRED_ALWAYS: return; // Don't print anything for always.
     case PPC::PRED_LT: O << "lt"; return;
     case PPC::PRED_LE: O << "le"; return;
     case PPC::PRED_EQ: O << "eq"; return;
@@ -129,8 +103,6 @@ void PPCInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
   
   assert(StringRef(Modifier) == "reg" &&
          "Need to specify 'cc' or 'reg' as predicate op modifier!");
-  // Don't print the register for 'always'.
-  if (Code == PPC::PRED_ALWAYS) return;
   printOperand(MI, OpNo+1, O);
 }
 

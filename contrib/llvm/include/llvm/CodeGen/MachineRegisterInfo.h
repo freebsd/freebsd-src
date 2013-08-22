@@ -14,10 +14,10 @@
 #ifndef LLVM_CODEGEN_MACHINEREGISTERINFO_H
 #define LLVM_CODEGEN_MACHINEREGISTERINFO_H
 
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/CodeGen/MachineInstrBundle.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/IndexedMap.h"
+#include "llvm/CodeGen/MachineInstrBundle.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <vector>
 
 namespace llvm {
@@ -99,13 +99,11 @@ class MachineRegisterInfo {
   /// started.
   BitVector ReservedRegs;
 
-  /// LiveIns/LiveOuts - Keep track of the physical registers that are
-  /// livein/liveout of the function.  Live in values are typically arguments in
-  /// registers, live out values are typically return values in registers.
-  /// LiveIn values are allowed to have virtual registers associated with them,
-  /// stored in the second element.
+  /// Keep track of the physical registers that are live in to the function.
+  /// Live in values are typically arguments in registers.  LiveIn values are
+  /// allowed to have virtual registers associated with them, stored in the
+  /// second element.
   std::vector<std::pair<unsigned, unsigned> > LiveIns;
-  std::vector<unsigned> LiveOuts;
 
   MachineRegisterInfo(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
   void operator=(const MachineRegisterInfo&) LLVM_DELETED_FUNCTION;
@@ -155,6 +153,9 @@ public:
 
   // Strictly for use by MachineInstr.cpp.
   void removeRegOperandFromUseList(MachineOperand *MO);
+
+  // Strictly for use by MachineInstr.cpp.
+  void moveOperands(MachineOperand *Dst, MachineOperand *Src, unsigned NumOps);
 
   /// reg_begin/reg_end - Provide iteration support to walk over all definitions
   /// and uses of a register within the MachineFunction that corresponds to this
@@ -376,6 +377,12 @@ public:
     return false;
   }
 
+  /// Mark the specified register unit as used in this function.
+  /// This should only be called during and after register allocation.
+  void setRegUnitUsed(unsigned RegUnit) {
+    UsedRegUnits.set(RegUnit);
+  }
+
   /// setPhysRegUsed - Mark the specified register used in this function.
   /// This should only be called during and after register allocation.
   void setPhysRegUsed(unsigned Reg) {
@@ -457,30 +464,24 @@ public:
   }
 
   //===--------------------------------------------------------------------===//
-  // LiveIn/LiveOut Management
+  // LiveIn Management
   //===--------------------------------------------------------------------===//
 
-  /// addLiveIn/Out - Add the specified register as a live in/out.  Note that it
+  /// addLiveIn - Add the specified register as a live-in.  Note that it
   /// is an error to add the same register to the same set more than once.
   void addLiveIn(unsigned Reg, unsigned vreg = 0) {
     LiveIns.push_back(std::make_pair(Reg, vreg));
   }
-  void addLiveOut(unsigned Reg) { LiveOuts.push_back(Reg); }
 
-  // Iteration support for live in/out sets.  These sets are kept in sorted
-  // order by their register number.
+  // Iteration support for the live-ins set.  It's kept in sorted order
+  // by register number.
   typedef std::vector<std::pair<unsigned,unsigned> >::const_iterator
   livein_iterator;
-  typedef std::vector<unsigned>::const_iterator liveout_iterator;
   livein_iterator livein_begin() const { return LiveIns.begin(); }
   livein_iterator livein_end()   const { return LiveIns.end(); }
   bool            livein_empty() const { return LiveIns.empty(); }
-  liveout_iterator liveout_begin() const { return LiveOuts.begin(); }
-  liveout_iterator liveout_end()   const { return LiveOuts.end(); }
-  bool             liveout_empty() const { return LiveOuts.empty(); }
 
   bool isLiveIn(unsigned Reg) const;
-  bool isLiveOut(unsigned Reg) const;
 
   /// getLiveInPhysReg - If VReg is a live-in virtual register, return the
   /// corresponding live-in physical register.

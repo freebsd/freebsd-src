@@ -77,9 +77,10 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.4 2012/11/07 06:55:21 sjg Exp $
+#	$Id: meta2deps.sh,v 1.5 2013/02/10 19:21:46 sjg Exp $
 
-# Copyright (c) 2010, Juniper Networks, Inc.
+# Copyright (c) 2010-2012, Juniper Networks, Inc.
+# All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions 

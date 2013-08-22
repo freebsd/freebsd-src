@@ -14,22 +14,22 @@
 
 #define DEBUG_TYPE "jit"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
-
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
-#include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ExecutionEngine/GenericValue.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/MutexGuard.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/Host.h"
-#include "llvm/Support/TargetRegistry.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
 #include <cmath>
 #include <cstring>
@@ -535,6 +535,8 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
   if (isa<UndefValue>(C)) {
     GenericValue Result;
     switch (C->getType()->getTypeID()) {
+    default:
+      break;
     case Type::IntegerTyID:
     case Type::X86_FP80TyID:
     case Type::FP128TyID:
@@ -543,7 +545,16 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       // with the correct bit width.
       Result.IntVal = APInt(C->getType()->getPrimitiveSizeInBits(), 0);
       break;
-    default:
+    case Type::VectorTyID:
+      // if the whole vector is 'undef' just reserve memory for the value.
+      const VectorType* VTy = dyn_cast<VectorType>(C->getType());
+      const Type *ElemTy = VTy->getElementType();
+      unsigned int elemNum = VTy->getNumElements();
+      Result.AggregateVal.resize(elemNum);
+      if (ElemTy->isIntegerTy())
+        for (unsigned int i = 0; i < elemNum; ++i)
+          Result.AggregateVal[i].IntVal = 
+            APInt(ElemTy->getPrimitiveSizeInBits(), 0);
       break;
     }
     return Result;
@@ -556,11 +567,11 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
     case Instruction::GetElementPtr: {
       // Compute the index
       GenericValue Result = getConstantValue(Op0);
-      SmallVector<Value*, 8> Indices(CE->op_begin()+1, CE->op_end());
-      uint64_t Offset = TD->getIndexedOffset(Op0->getType(), Indices);
+      APInt Offset(TD->getPointerSizeInBits(), 0);
+      cast<GEPOperator>(CE)->accumulateConstantOffset(*TD, Offset);
 
       char* tmp = (char*) Result.PointerVal;
-      Result = PTOGV(tmp + Offset);
+      Result = PTOGV(tmp + Offset.getSExtValue());
       return Result;
     }
     case Instruction::Trunc: {
@@ -632,7 +643,7 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       else if (Op0->getType()->isDoubleTy())
         GV.IntVal = APIntOps::RoundDoubleToAPInt(GV.DoubleVal, BitWidth);
       else if (Op0->getType()->isX86_FP80Ty()) {
-        APFloat apf = APFloat(GV.IntVal);
+        APFloat apf = APFloat(APFloat::x87DoubleExtended, GV.IntVal);
         uint64_t v;
         bool ignored;
         (void)apf.convertToInteger(&v, BitWidth,
@@ -751,27 +762,32 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
       case Type::X86_FP80TyID:
       case Type::PPC_FP128TyID:
       case Type::FP128TyID: {
-        APFloat apfLHS = APFloat(LHS.IntVal);
+        const fltSemantics &Sem = CE->getOperand(0)->getType()->getFltSemantics();
+        APFloat apfLHS = APFloat(Sem, LHS.IntVal);
         switch (CE->getOpcode()) {
           default: llvm_unreachable("Invalid long double opcode");
           case Instruction::FAdd:
-            apfLHS.add(APFloat(RHS.IntVal), APFloat::rmNearestTiesToEven);
+            apfLHS.add(APFloat(Sem, RHS.IntVal), APFloat::rmNearestTiesToEven);
             GV.IntVal = apfLHS.bitcastToAPInt();
             break;
           case Instruction::FSub:
-            apfLHS.subtract(APFloat(RHS.IntVal), APFloat::rmNearestTiesToEven);
+            apfLHS.subtract(APFloat(Sem, RHS.IntVal),
+                            APFloat::rmNearestTiesToEven);
             GV.IntVal = apfLHS.bitcastToAPInt();
             break;
           case Instruction::FMul:
-            apfLHS.multiply(APFloat(RHS.IntVal), APFloat::rmNearestTiesToEven);
+            apfLHS.multiply(APFloat(Sem, RHS.IntVal),
+                            APFloat::rmNearestTiesToEven);
             GV.IntVal = apfLHS.bitcastToAPInt();
             break;
           case Instruction::FDiv:
-            apfLHS.divide(APFloat(RHS.IntVal), APFloat::rmNearestTiesToEven);
+            apfLHS.divide(APFloat(Sem, RHS.IntVal),
+                          APFloat::rmNearestTiesToEven);
             GV.IntVal = apfLHS.bitcastToAPInt();
             break;
           case Instruction::FRem:
-            apfLHS.mod(APFloat(RHS.IntVal), APFloat::rmNearestTiesToEven);
+            apfLHS.mod(APFloat(Sem, RHS.IntVal),
+                       APFloat::rmNearestTiesToEven);
             GV.IntVal = apfLHS.bitcastToAPInt();
             break;
           }
@@ -820,6 +836,101 @@ GenericValue ExecutionEngine::getConstantValue(const Constant *C) {
     else
       llvm_unreachable("Unknown constant pointer type!");
     break;
+  case Type::VectorTyID: {
+    unsigned elemNum;
+    Type* ElemTy;
+    const ConstantDataVector *CDV = dyn_cast<ConstantDataVector>(C);
+    const ConstantVector *CV = dyn_cast<ConstantVector>(C);
+    const ConstantAggregateZero *CAZ = dyn_cast<ConstantAggregateZero>(C);
+
+    if (CDV) {
+        elemNum = CDV->getNumElements();
+        ElemTy = CDV->getElementType();
+    } else if (CV || CAZ) {
+        VectorType* VTy = dyn_cast<VectorType>(C->getType());
+        elemNum = VTy->getNumElements();
+        ElemTy = VTy->getElementType();
+    } else {
+        llvm_unreachable("Unknown constant vector type!");
+    }
+
+    Result.AggregateVal.resize(elemNum);
+    // Check if vector holds floats.
+    if(ElemTy->isFloatTy()) {
+      if (CAZ) {
+        GenericValue floatZero;
+        floatZero.FloatVal = 0.f;
+        std::fill(Result.AggregateVal.begin(), Result.AggregateVal.end(),
+                  floatZero);
+        break;
+      }
+      if(CV) {
+        for (unsigned i = 0; i < elemNum; ++i)
+          if (!isa<UndefValue>(CV->getOperand(i)))
+            Result.AggregateVal[i].FloatVal = cast<ConstantFP>(
+              CV->getOperand(i))->getValueAPF().convertToFloat();
+        break;
+      }
+      if(CDV)
+        for (unsigned i = 0; i < elemNum; ++i)
+          Result.AggregateVal[i].FloatVal = CDV->getElementAsFloat(i);
+
+      break;
+    }
+    // Check if vector holds doubles.
+    if (ElemTy->isDoubleTy()) {
+      if (CAZ) {
+        GenericValue doubleZero;
+        doubleZero.DoubleVal = 0.0;
+        std::fill(Result.AggregateVal.begin(), Result.AggregateVal.end(),
+                  doubleZero);
+        break;
+      }
+      if(CV) {
+        for (unsigned i = 0; i < elemNum; ++i)
+          if (!isa<UndefValue>(CV->getOperand(i)))
+            Result.AggregateVal[i].DoubleVal = cast<ConstantFP>(
+              CV->getOperand(i))->getValueAPF().convertToDouble();
+        break;
+      }
+      if(CDV)
+        for (unsigned i = 0; i < elemNum; ++i)
+          Result.AggregateVal[i].DoubleVal = CDV->getElementAsDouble(i);
+
+      break;
+    }
+    // Check if vector holds integers.
+    if (ElemTy->isIntegerTy()) {
+      if (CAZ) {
+        GenericValue intZero;     
+        intZero.IntVal = APInt(ElemTy->getScalarSizeInBits(), 0ull);
+        std::fill(Result.AggregateVal.begin(), Result.AggregateVal.end(),
+                  intZero);
+        break;
+      }
+      if(CV) {
+        for (unsigned i = 0; i < elemNum; ++i)
+          if (!isa<UndefValue>(CV->getOperand(i)))
+            Result.AggregateVal[i].IntVal = cast<ConstantInt>(
+                                            CV->getOperand(i))->getValue();
+          else {
+            Result.AggregateVal[i].IntVal =
+              APInt(CV->getOperand(i)->getType()->getPrimitiveSizeInBits(), 0);
+          }
+        break;
+      }
+      if(CDV)
+        for (unsigned i = 0; i < elemNum; ++i)
+          Result.AggregateVal[i].IntVal = APInt(
+            CDV->getElementType()->getPrimitiveSizeInBits(),
+            CDV->getElementAsInteger(i));
+
+      break;
+    }
+    llvm_unreachable("Unknown constant pointer type!");
+  }
+  break;
+
   default:
     SmallString<256> Msg;
     raw_svector_ostream OS(Msg);
@@ -861,6 +972,9 @@ void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
   const unsigned StoreBytes = getDataLayout()->getTypeStoreSize(Ty);
 
   switch (Ty->getTypeID()) {
+  default:
+    dbgs() << "Cannot store value of type " << *Ty << "!\n";
+    break;
   case Type::IntegerTyID:
     StoreIntToMemory(Val.IntVal, (uint8_t*)Ptr, StoreBytes);
     break;
@@ -880,8 +994,19 @@ void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
 
     *((PointerTy*)Ptr) = Val.PointerVal;
     break;
-  default:
-    dbgs() << "Cannot store value of type " << *Ty << "!\n";
+  case Type::VectorTyID:
+    for (unsigned i = 0; i < Val.AggregateVal.size(); ++i) {
+      if (cast<VectorType>(Ty)->getElementType()->isDoubleTy())
+        *(((double*)Ptr)+i) = Val.AggregateVal[i].DoubleVal;
+      if (cast<VectorType>(Ty)->getElementType()->isFloatTy())
+        *(((float*)Ptr)+i) = Val.AggregateVal[i].FloatVal;
+      if (cast<VectorType>(Ty)->getElementType()->isIntegerTy()) {
+        unsigned numOfBytes =(Val.AggregateVal[i].IntVal.getBitWidth()+7)/8;
+        StoreIntToMemory(Val.AggregateVal[i].IntVal, 
+          (uint8_t*)Ptr + numOfBytes*i, numOfBytes);
+      }
+    }
+    break;
   }
 
   if (sys::isLittleEndianHost() != getDataLayout()->isLittleEndian())
@@ -893,7 +1018,8 @@ void ExecutionEngine::StoreValueToMemory(const GenericValue &Val,
 /// from Src into IntVal, which is assumed to be wide enough and to hold zero.
 static void LoadIntFromMemory(APInt &IntVal, uint8_t *Src, unsigned LoadBytes) {
   assert((IntVal.getBitWidth()+7)/8 >= LoadBytes && "Integer too small!");
-  uint8_t *Dst = (uint8_t *)IntVal.getRawData();
+  uint8_t *Dst = reinterpret_cast<uint8_t *>(
+                   const_cast<uint64_t *>(IntVal.getRawData()));
 
   if (sys::isLittleEndianHost())
     // Little-endian host - the destination must be ordered from LSB to MSB.
@@ -944,6 +1070,31 @@ void ExecutionEngine::LoadValueFromMemory(GenericValue &Result,
     memcpy(y, Ptr, 10);
     Result.IntVal = APInt(80, y);
     break;
+  }
+  case Type::VectorTyID: {
+    const VectorType *VT = cast<VectorType>(Ty);
+    const Type *ElemT = VT->getElementType();
+    const unsigned numElems = VT->getNumElements();
+    if (ElemT->isFloatTy()) {
+      Result.AggregateVal.resize(numElems);
+      for (unsigned i = 0; i < numElems; ++i)
+        Result.AggregateVal[i].FloatVal = *((float*)Ptr+i);
+    }
+    if (ElemT->isDoubleTy()) {
+      Result.AggregateVal.resize(numElems);
+      for (unsigned i = 0; i < numElems; ++i)
+        Result.AggregateVal[i].DoubleVal = *((double*)Ptr+i);
+    }
+    if (ElemT->isIntegerTy()) {
+      GenericValue intZero;
+      const unsigned elemBitWidth = cast<IntegerType>(ElemT)->getBitWidth();
+      intZero.IntVal = APInt(elemBitWidth, 0);
+      Result.AggregateVal.resize(numElems, intZero);
+      for (unsigned i = 0; i < numElems; ++i)
+        LoadIntFromMemory(Result.AggregateVal[i].IntVal,
+          (uint8_t*)Ptr+((elemBitWidth+7)/8)*i, (elemBitWidth+7)/8);
+    }
+  break;
   }
   default:
     SmallString<256> Msg;

@@ -404,7 +404,7 @@ bktr_attach( device_t dev )
 
 #if defined( BKTR_SIS_VIA_MODE )
 	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
-        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
+        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (useful for
                            OPTi chipset motherboards too */
 #endif
 	pci_write_config(dev, 0x40, fun, 2);

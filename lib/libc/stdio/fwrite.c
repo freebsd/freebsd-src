@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -50,10 +50,7 @@ __FBSDID("$FreeBSD$");
  * Return the number of whole objects written.
  */
 size_t
-fwrite(buf, size, count, fp)
-	const void * __restrict buf;
-	size_t size, count;
-	FILE * __restrict fp;
+fwrite(const void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 {
 	size_t n;
 	struct __suio uio;

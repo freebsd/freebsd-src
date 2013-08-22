@@ -15,8 +15,10 @@
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "DwarfDebug.h"
 #include "DwarfException.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/GCMetadataPrinter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -24,7 +26,10 @@
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
-#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
@@ -32,20 +37,16 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Assembly/Writer.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Format.h"
-#include "llvm/Support/MathExtras.h"
-#include "llvm/Support/Timer.h"
 using namespace llvm;
 
 static const char *DWARFGroupName = "DWARF Emission";
@@ -90,9 +91,6 @@ static unsigned getGVAlignmentLog2(const GlobalValue *GV, const DataLayout &TD,
   return NumBits;
 }
 
-
-
-
 AsmPrinter::AsmPrinter(TargetMachine &tm, MCStreamer &Streamer)
   : MachineFunctionPass(ID),
     TM(tm), MAI(tm.getMCAsmInfo()),
@@ -130,7 +128,6 @@ const TargetLoweringObjectFile &AsmPrinter::getObjFileLowering() const {
   return TM.getTargetLowering()->getObjFileLowering();
 }
 
-
 /// getDataLayout - Return information about data layout.
 const DataLayout &AsmPrinter::getDataLayout() const {
   return *TM.getDataLayout();
@@ -153,6 +150,8 @@ void AsmPrinter::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool AsmPrinter::doInitialization(Module &M) {
+  OutStreamer.InitStreamer();
+
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
   MMI->AnalyzeModule(M);
 
@@ -312,8 +311,13 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
       return;
     }
 
-    if (Align == 1 ||
-        MAI->getLCOMMDirectiveAlignmentType() != LCOMM::NoAlignment) {
+    // Use .lcomm only if it supports user-specified alignment.
+    // Otherwise, while it would still be correct to use .lcomm in some
+    // cases (e.g. when Align == 1), the external assembler might enfore
+    // some -unknown- default alignment behavior, which could cause
+    // spurious differences between external and integrated assembler.
+    // Prefer to simply fall back to .local / .comm in this case.
+    if (MAI->getLCOMMDirectiveAlignmentType() != LCOMM::NoAlignment) {
       // .lcomm _foo, 42
       OutStreamer.EmitLocalCommonSymbol(GVSym, Size, Align);
       return;
@@ -387,9 +391,9 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
     //   - pointer to mangled symbol above with initializer
     unsigned PtrSize = TD->getPointerSizeInBits()/8;
     OutStreamer.EmitSymbolValue(GetExternalSymbolSymbol("_tlv_bootstrap"),
-                          PtrSize, 0);
-    OutStreamer.EmitIntValue(0, PtrSize, 0);
-    OutStreamer.EmitSymbolValue(MangSym, PtrSize, 0);
+				PtrSize);
+    OutStreamer.EmitIntValue(0, PtrSize);
+    OutStreamer.EmitSymbolValue(MangSym, PtrSize);
 
     OutStreamer.AddBlankLine();
     return;
@@ -943,6 +947,8 @@ bool AsmPrinter::doFinalization(Module &M) {
   MMI = 0;
 
   OutStreamer.Finish();
+  OutStreamer.reset();
+
   return false;
 }
 
@@ -1034,7 +1040,7 @@ void AsmPrinter::EmitConstantPool() {
       // Emit inter-object padding for alignment.
       unsigned AlignMask = CPE.getAlignment() - 1;
       unsigned NewOffset = (Offset + AlignMask) & ~AlignMask;
-      OutStreamer.EmitFill(NewOffset - Offset, 0/*fillval*/, 0/*addrspace*/);
+      OutStreamer.EmitZeros(NewOffset - Offset);
 
       Type *Ty = CPE.getType();
       Offset = NewOffset + TM.getDataLayout()->getTypeAllocSize(Ty);
@@ -1197,7 +1203,7 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
   assert(Value && "Unknown entry kind!");
 
   unsigned EntrySize = MJTI->getEntrySize(*TM.getDataLayout());
-  OutStreamer.EmitValue(Value, EntrySize, /*addrspace*/0);
+  OutStreamer.EmitValue(Value, EntrySize);
 }
 
 
@@ -1320,19 +1326,19 @@ void AsmPrinter::EmitXXStructorList(const Constant *List, bool isCtor) {
 /// EmitInt8 - Emit a byte directive and value.
 ///
 void AsmPrinter::EmitInt8(int Value) const {
-  OutStreamer.EmitIntValue(Value, 1, 0/*addrspace*/);
+  OutStreamer.EmitIntValue(Value, 1);
 }
 
 /// EmitInt16 - Emit a short directive and value.
 ///
 void AsmPrinter::EmitInt16(int Value) const {
-  OutStreamer.EmitIntValue(Value, 2, 0/*addrspace*/);
+  OutStreamer.EmitIntValue(Value, 2);
 }
 
 /// EmitInt32 - Emit a long directive and value.
 ///
 void AsmPrinter::EmitInt32(int Value) const {
-  OutStreamer.EmitIntValue(Value, 4, 0/*addrspace*/);
+  OutStreamer.EmitIntValue(Value, 4);
 }
 
 /// EmitLabelDifference - Emit something like ".long Hi-Lo" where the size
@@ -1347,14 +1353,14 @@ void AsmPrinter::EmitLabelDifference(const MCSymbol *Hi, const MCSymbol *Lo,
                             OutContext);
 
   if (!MAI->hasSetDirective()) {
-    OutStreamer.EmitValue(Diff, Size, 0/*AddrSpace*/);
+    OutStreamer.EmitValue(Diff, Size);
     return;
   }
 
   // Otherwise, emit with .set (aka assignment).
   MCSymbol *SetLabel = GetTempSymbol("set", SetCounter++);
   OutStreamer.EmitAssignment(SetLabel, Diff);
-  OutStreamer.EmitSymbolValue(SetLabel, Size, 0/*AddrSpace*/);
+  OutStreamer.EmitSymbolValue(SetLabel, Size);
 }
 
 /// EmitLabelOffsetDifference - Emit something like ".long Hi+Offset-Lo"
@@ -1378,12 +1384,12 @@ void AsmPrinter::EmitLabelOffsetDifference(const MCSymbol *Hi, uint64_t Offset,
                             OutContext);
 
   if (!MAI->hasSetDirective())
-    OutStreamer.EmitValue(Diff, 4, 0/*AddrSpace*/);
+    OutStreamer.EmitValue(Diff, 4);
   else {
     // Otherwise, emit with .set (aka assignment).
     MCSymbol *SetLabel = GetTempSymbol("set", SetCounter++);
     OutStreamer.EmitAssignment(SetLabel, Diff);
-    OutStreamer.EmitSymbolValue(SetLabel, 4, 0/*AddrSpace*/);
+    OutStreamer.EmitSymbolValue(SetLabel, 4);
   }
 }
 
@@ -1401,7 +1407,7 @@ void AsmPrinter::EmitLabelPlusOffset(const MCSymbol *Label, uint64_t Offset,
                                    MCConstantExpr::Create(Offset, OutContext),
                                    OutContext);
 
-  OutStreamer.EmitValue(Expr, Size, 0/*AddrSpace*/);
+  OutStreamer.EmitValue(Expr, Size);
 }
 
 
@@ -1472,19 +1478,14 @@ static const MCExpr *lowerConstant(const Constant *CV, AsmPrinter &AP) {
   case Instruction::GetElementPtr: {
     const DataLayout &TD = *AP.TM.getDataLayout();
     // Generate a symbolic expression for the byte address
-    const Constant *PtrVal = CE->getOperand(0);
-    SmallVector<Value*, 8> IdxVec(CE->op_begin()+1, CE->op_end());
-    int64_t Offset = TD.getIndexedOffset(PtrVal->getType(), IdxVec);
+    APInt OffsetAI(TD.getPointerSizeInBits(), 0);
+    cast<GEPOperator>(CE)->accumulateConstantOffset(TD, OffsetAI);
 
     const MCExpr *Base = lowerConstant(CE->getOperand(0), AP);
-    if (Offset == 0)
+    if (!OffsetAI)
       return Base;
 
-    // Truncate/sext the offset to the pointer size.
-    unsigned Width = TD.getPointerSizeInBits();
-    if (Width < 64)
-      Offset = SignExtend64(Offset, Width);
-
+    int64_t Offset = OffsetAI.getSExtValue();
     return MCBinaryExpr::CreateAdd(Base, MCConstantExpr::Create(Offset, Ctx),
                                    Ctx);
   }
@@ -1614,7 +1615,7 @@ static int isRepeatedByteSequence(const Value *V, TargetMachine &TM) {
     }
     return Byte;
   }
-  
+
   if (const ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V))
     return isRepeatedByteSequence(CDS);
 
@@ -1623,7 +1624,7 @@ static int isRepeatedByteSequence(const Value *V, TargetMachine &TM) {
 
 static void emitGlobalConstantDataSequential(const ConstantDataSequential *CDS,
                                              unsigned AddrSpace,AsmPrinter &AP){
-  
+
   // See if we can aggregate this into a .fill, if so, emit it as such.
   int Value = isRepeatedByteSequence(CDS, AP.TM);
   if (Value != -1) {
@@ -1632,7 +1633,7 @@ static void emitGlobalConstantDataSequential(const ConstantDataSequential *CDS,
     if (Bytes > 1)
       return AP.OutStreamer.EmitFill(Bytes, Value, AddrSpace);
   }
-  
+
   // If this can be emitted with .ascii/.asciz, emit it as such.
   if (CDS->isString())
     return AP.OutStreamer.EmitBytes(CDS->getAsString(), AddrSpace);
@@ -1656,7 +1657,7 @@ static void emitGlobalConstantDataSequential(const ConstantDataSequential *CDS,
         float F;
         uint32_t I;
       };
-      
+
       F = CDS->getElementAsFloat(i);
       if (AP.isVerbose())
         AP.OutStreamer.GetCommentOS() << "float " << F << '\n';
@@ -1669,7 +1670,7 @@ static void emitGlobalConstantDataSequential(const ConstantDataSequential *CDS,
         double F;
         uint64_t I;
       };
-      
+
       F = CDS->getElementAsDouble(i);
       if (AP.isVerbose())
         AP.OutStreamer.GetCommentOS() << "double " << F << '\n';
@@ -1745,87 +1746,48 @@ static void emitGlobalConstantStruct(const ConstantStruct *CS,
 
 static void emitGlobalConstantFP(const ConstantFP *CFP, unsigned AddrSpace,
                                  AsmPrinter &AP) {
-  if (CFP->getType()->isHalfTy()) {
-    if (AP.isVerbose()) {
-      SmallString<10> Str;
-      CFP->getValueAPF().toString(Str);
-      AP.OutStreamer.GetCommentOS() << "half " << Str << '\n';
-    }
-    uint64_t Val = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
-    AP.OutStreamer.EmitIntValue(Val, 2, AddrSpace);
-    return;
-  }
-
-  if (CFP->getType()->isFloatTy()) {
-    if (AP.isVerbose()) {
-      float Val = CFP->getValueAPF().convertToFloat();
-      uint64_t IntVal = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
-      AP.OutStreamer.GetCommentOS() << "float " << Val << '\n'
-                                    << " (" << format("0x%x", IntVal) << ")\n";
-    }
-    uint64_t Val = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
-    AP.OutStreamer.EmitIntValue(Val, 4, AddrSpace);
-    return;
-  }
-
-  // FP Constants are printed as integer constants to avoid losing
-  // precision.
-  if (CFP->getType()->isDoubleTy()) {
-    if (AP.isVerbose()) {
-      double Val = CFP->getValueAPF().convertToDouble();
-      uint64_t IntVal = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
-      AP.OutStreamer.GetCommentOS() << "double " << Val << '\n'
-                                    << " (" << format("0x%lx", IntVal) << ")\n";
-    }
-
-    uint64_t Val = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
-    AP.OutStreamer.EmitIntValue(Val, 8, AddrSpace);
-    return;
-  }
-
-  if (CFP->getType()->isX86_FP80Ty()) {
-    // all long double variants are printed as hex
-    // API needed to prevent premature destruction
-    APInt API = CFP->getValueAPF().bitcastToAPInt();
-    const uint64_t *p = API.getRawData();
-    if (AP.isVerbose()) {
-      // Convert to double so we can print the approximate val as a comment.
-      APFloat DoubleVal = CFP->getValueAPF();
-      bool ignored;
-      DoubleVal.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven,
-                        &ignored);
-      AP.OutStreamer.GetCommentOS() << "x86_fp80 ~= "
-        << DoubleVal.convertToDouble() << '\n';
-    }
-
-    if (AP.TM.getDataLayout()->isBigEndian()) {
-      AP.OutStreamer.EmitIntValue(p[1], 2, AddrSpace);
-      AP.OutStreamer.EmitIntValue(p[0], 8, AddrSpace);
-    } else {
-      AP.OutStreamer.EmitIntValue(p[0], 8, AddrSpace);
-      AP.OutStreamer.EmitIntValue(p[1], 2, AddrSpace);
-    }
-
-    // Emit the tail padding for the long double.
-    const DataLayout &TD = *AP.TM.getDataLayout();
-    AP.OutStreamer.EmitZeros(TD.getTypeAllocSize(CFP->getType()) -
-                             TD.getTypeStoreSize(CFP->getType()), AddrSpace);
-    return;
-  }
-
-  assert(CFP->getType()->isPPC_FP128Ty() &&
-         "Floating point constant type not handled");
-  // All long double variants are printed as hex
-  // API needed to prevent premature destruction.
   APInt API = CFP->getValueAPF().bitcastToAPInt();
-  const uint64_t *p = API.getRawData();
-  if (AP.TM.getDataLayout()->isBigEndian()) {
-    AP.OutStreamer.EmitIntValue(p[0], 8, AddrSpace);
-    AP.OutStreamer.EmitIntValue(p[1], 8, AddrSpace);
-  } else {
-    AP.OutStreamer.EmitIntValue(p[1], 8, AddrSpace);
-    AP.OutStreamer.EmitIntValue(p[0], 8, AddrSpace);
+
+  // First print a comment with what we think the original floating-point value
+  // should have been.
+  if (AP.isVerbose()) {
+    SmallString<8> StrVal;
+    CFP->getValueAPF().toString(StrVal);
+
+    CFP->getType()->print(AP.OutStreamer.GetCommentOS());
+    AP.OutStreamer.GetCommentOS() << ' ' << StrVal << '\n';
   }
+
+  // Now iterate through the APInt chunks, emitting them in endian-correct
+  // order, possibly with a smaller chunk at beginning/end (e.g. for x87 80-bit
+  // floats).
+  unsigned NumBytes = API.getBitWidth() / 8;
+  unsigned TrailingBytes = NumBytes % sizeof(uint64_t);
+  const uint64_t *p = API.getRawData();
+
+  // PPC's long double has odd notions of endianness compared to how LLVM
+  // handles it: p[0] goes first for *big* endian on PPC.
+  if (AP.TM.getDataLayout()->isBigEndian() != CFP->getType()->isPPC_FP128Ty()) {
+    int Chunk = API.getNumWords() - 1;
+
+    if (TrailingBytes)
+      AP.OutStreamer.EmitIntValue(p[Chunk--], TrailingBytes, AddrSpace);
+
+    for (; Chunk >= 0; --Chunk)
+      AP.OutStreamer.EmitIntValue(p[Chunk], sizeof(uint64_t), AddrSpace);
+  } else {
+    unsigned Chunk;
+    for (Chunk = 0; Chunk < NumBytes / sizeof(uint64_t); ++Chunk)
+      AP.OutStreamer.EmitIntValue(p[Chunk], sizeof(uint64_t), AddrSpace);
+
+    if (TrailingBytes)
+      AP.OutStreamer.EmitIntValue(p[Chunk], TrailingBytes, AddrSpace);
+  }
+
+  // Emit the tail padding for the long double.
+  const DataLayout &TD = *AP.TM.getDataLayout();
+  AP.OutStreamer.EmitZeros(TD.getTypeAllocSize(CFP->getType()) -
+                           TD.getTypeStoreSize(CFP->getType()), AddrSpace);
 }
 
 static void emitGlobalConstantLargeInt(const ConstantInt *CI,
@@ -1878,7 +1840,7 @@ static void emitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
 
   if (const ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(CV))
     return emitGlobalConstantDataSequential(CDS, AddrSpace, AP);
-  
+
   if (const ConstantArray *CVA = dyn_cast<ConstantArray>(CV))
     return emitGlobalConstantArray(CVA, AddrSpace, AP);
 
@@ -1900,10 +1862,10 @@ static void emitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
         return emitGlobalConstantImpl(New, AddrSpace, AP);
     }
   }
-  
+
   if (const ConstantVector *V = dyn_cast<ConstantVector>(CV))
     return emitGlobalConstantVector(V, AddrSpace, AP);
-    
+
   // Otherwise, it must be a ConstantExpr.  Lower it to an MCExpr, then emit it
   // thread the streamer with EmitValue.
   AP.OutStreamer.EmitValue(lowerConstant(CV, AP), Size, AddrSpace);

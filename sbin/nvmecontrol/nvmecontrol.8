@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2012
+.Dd March 26, 2013
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -54,7 +54,10 @@
 .Op Fl p
 .Aq Fl s Ar size_in_bytes
 .Aq Fl t Ar time_in_sec
-.Aq device id
+.Aq namespace id
+.Nm
+.Ic reset
+.Aq controller id
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
@@ -62,6 +65,7 @@ high-speed storage devices over PCI Express.
 .Dl nvmecontrol devlist
 .Pp
 Display a list of NVMe controllers and namespaces along with their device nodes.
+.Pp
 .Dl nvmecontrol identify nvme0
 .Pp
 Display a human-readable summary of the nvme0 IDENTIFY_CONTROLLER data.
@@ -76,6 +80,10 @@ Display a hexadecimal dump of the nvme0 IDENTIFY_NAMESPACE data for namespace
 Run a performance test on nvme0ns1 using 32 kernel threads for 30 seconds.  Each
 thread will issue a single 512 byte read command.  Results are printed to
 stdout when 30 seconds expires.
+.Pp
+.Dl nvmecontrol reset nvme0
+.Pp
+Perform a controller-level reset of the nvme0 controller.
 .Sh AUTHORS
 .An -nosplit
 .Nm

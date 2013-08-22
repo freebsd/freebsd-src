@@ -18,6 +18,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclFriend.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/DeclOpenMP.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
@@ -464,20 +465,15 @@ template<typename Derived>
 bool RecursiveASTVisitor<Derived>::dataTraverseNode(Stmt *S,
                                                     bool &EnqueueChildren) {
 
-// The cast for DISPATCH_WALK is needed for older versions of g++, but causes
-// problems for MSVC.  So we'll skip the cast entirely for MSVC.
-#if defined(_MSC_VER)
-  #define GCC_CAST(CLASS)
-#else
-  #define GCC_CAST(CLASS) (bool (RecursiveASTVisitor::*)(CLASS*))
-#endif
-
   // Dispatch to the corresponding WalkUpFrom* function only if the derived
   // class didn't override Traverse* (and thus the traversal is trivial).
 #define DISPATCH_WALK(NAME, CLASS, VAR) \
-  if (&RecursiveASTVisitor::Traverse##NAME == \
-      GCC_CAST(CLASS)&Derived::Traverse##NAME) \
-    return getDerived().WalkUpFrom##NAME(static_cast<CLASS*>(VAR)); \
+  { \
+    bool (Derived::*DerivedFn)(CLASS*) = &Derived::Traverse##NAME; \
+    bool (Derived::*BaseFn)(CLASS*) = &RecursiveASTVisitor::Traverse##NAME; \
+    if (DerivedFn == BaseFn) \
+      return getDerived().WalkUpFrom##NAME(static_cast<CLASS*>(VAR)); \
+  } \
   EnqueueChildren = false; \
   return getDerived().Traverse##NAME(static_cast<CLASS*>(VAR));
 
@@ -516,7 +512,6 @@ bool RecursiveASTVisitor<Derived>::dataTraverseNode(Stmt *S,
   }
 
 #undef DISPATCH_WALK
-#undef GCC_CAST
 
   return true;
 }
@@ -600,7 +595,7 @@ bool RecursiveASTVisitor<Derived>::TraverseTypeLoc(TypeLoc TL) {
 #define ABSTRACT_TYPELOC(CLASS, BASE)
 #define TYPELOC(CLASS, BASE) \
   case TypeLoc::CLASS: \
-    return getDerived().Traverse##CLASS##TypeLoc(*cast<CLASS##TypeLoc>(&TL));
+    return getDerived().Traverse##CLASS##TypeLoc(TL.castAs<CLASS##TypeLoc>());
 #include "clang/AST/TypeLocNodes.def"
   }
 
@@ -1263,6 +1258,8 @@ DEF_TRAVERSE_DECL(BlockDecl, {
     return true;
   })
 
+DEF_TRAVERSE_DECL(EmptyDecl, { })
+
 DEF_TRAVERSE_DECL(FileScopeAsmDecl, {
     TRY_TO(TraverseStmt(D->getAsmString()));
   })
@@ -1392,6 +1389,14 @@ DEF_TRAVERSE_DECL(UsingDirectiveDecl, {
   })
 
 DEF_TRAVERSE_DECL(UsingShadowDecl, { })
+
+DEF_TRAVERSE_DECL(OMPThreadPrivateDecl, {
+    for (OMPThreadPrivateDecl::varlist_iterator I = D->varlist_begin(),
+                                                E = D->varlist_end();
+         I != E; ++I) {
+      TRY_TO(TraverseStmt(*I));
+    }
+  })
 
 // A helper method for TemplateDecl's children.
 template<typename Derived>
@@ -1716,7 +1721,7 @@ bool RecursiveASTVisitor<Derived>::TraverseFunctionHelper(FunctionDecl *D) {
   // FunctionNoProtoType or FunctionProtoType, or a typedef.  This
   // also covers the return type and the function parameters,
   // including exception specifications.
-  if (clang::TypeSourceInfo *TSI = D->getTypeSourceInfo()) {
+  if (TypeSourceInfo *TSI = D->getTypeSourceInfo()) {
     TRY_TO(TraverseTypeLoc(TSI->getTypeLoc()));
   }
 
@@ -2106,8 +2111,7 @@ bool RecursiveASTVisitor<Derived>::TraverseLambdaExpr(LambdaExpr *S) {
     if (S->hasExplicitParameters() && S->hasExplicitResultType()) {
       // Visit the whole type.
       TRY_TO(TraverseTypeLoc(TL));
-    } else if (isa<FunctionProtoTypeLoc>(TL)) {
-      FunctionProtoTypeLoc Proto = cast<FunctionProtoTypeLoc>(TL);
+    } else if (FunctionProtoTypeLoc Proto = TL.getAs<FunctionProtoTypeLoc>()) {
       if (S->hasExplicitParameters()) {
         // Visit parameters.
         for (unsigned I = 0, N = Proto.getNumArgs(); I != N; ++I) {

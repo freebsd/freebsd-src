@@ -302,12 +302,25 @@ AePrintException (
                             }
                             else
                             {
-                                while (RActual && SourceByte && (SourceByte != '\n') && (Total < 256))
+                                /* Read/write the source line, up to the maximum line length */
+
+                                while (RActual && SourceByte && (SourceByte != '\n'))
                                 {
-                                    if (fwrite (&SourceByte, 1, 1, OutputFile) != 1)
+                                    if (Total < 256)
                                     {
-                                        printf ("[*** iASL: Write error on output file ***]\n");
-                                        return;
+                                        /* After the max line length, we will just read the line, no write */
+
+                                        if (fwrite (&SourceByte, 1, 1, OutputFile) != 1)
+                                        {
+                                            printf ("[*** iASL: Write error on output file ***]\n");
+                                            return;
+                                        }
+                                    }
+                                    else if (Total == 256)
+                                    {
+                                        fprintf (OutputFile,
+                                            "\n[*** iASL: Very long input line, message below refers to column %u ***]",
+                                            Enode->Column);
                                     }
 
                                     RActual = fread (&SourceByte, 1, 1, SourceFile);
@@ -319,13 +332,6 @@ AePrintException (
                                         return;
                                     }
                                     Total++;
-                                }
-
-                                if (Total >= 256)
-                                {
-                                    fprintf (OutputFile,
-                                        "\n[*** iASL: Long input line, an error occurred at column %u ***]",
-                                        Enode->Column);
                                 }
                             }
                         }

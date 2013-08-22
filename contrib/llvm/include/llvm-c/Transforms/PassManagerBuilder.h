@@ -11,8 +11,8 @@
 |*                                                                            *|
 \*===----------------------------------------------------------------------===*/
 
-#ifndef LLVM_C_PASSMANAGERBUILDER
-#define LLVM_C_PASSMANAGERBUILDER
+#ifndef LLVM_C_TRANSFORMS_PASSMANAGERBUILDER_H
+#define LLVM_C_TRANSFORMS_PASSMANAGERBUILDER_H
 
 #include "llvm-c/Core.h"
 
@@ -77,8 +77,8 @@ LLVMPassManagerBuilderPopulateModulePassManager(LLVMPassManagerBuilderRef PMB,
 /** See llvm::PassManagerBuilder::populateLTOPassManager. */
 void LLVMPassManagerBuilderPopulateLTOPassManager(LLVMPassManagerBuilderRef PMB,
                                                   LLVMPassManagerRef PM,
-                                                  bool Internalize,
-                                                  bool RunInliner);
+                                                  LLVMBool Internalize,
+                                                  LLVMBool RunInliner);
 
 /**
  * @}

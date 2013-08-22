@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+NOTE: FreeBSD has switched from gcc to clang. If you have trouble bootstrapping
+from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
+head, and then rebuild without this option. The bootstrap process from
+older version of current is a bit fragile.
+
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	FreeBSD 10.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
@@ -25,6 +30,38 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20130426:
+	The WITHOUT_IDEA option has been removed because
+	the IDEA patent expired.
+
+20130426:
+	The sysctl which controls TRIM support under ZFS has been renamed
+	from vfs.zfs.trim_disable -> vfs.zfs.trim.enabled and has been
+	enabled by default.
+
+20130425:
+	The mergemaster command now uses the default MAKEOBJDIRPREFIX
+	rather than creating it's own in the temporary directory in
+	order allow access to bootstrapped versions of tools such as
+	install and mtree.  When upgrading from version of FreeBSD where
+	the install command does not support -l, you will need to
+	install a new mergemaster command if mergemaster -p is required.
+	This can be accomplished with the command (cd src/usr.sbin/mergemaster
+	&& make install).
+
+20130404:
+	Legacy ATA stack, disabled and replaced by new CAM-based one since
+	FreeBSD 9.0, completely removed from the sources.  Kernel modules
+	atadisk and atapi*, user-level tools atacontrol and burncd are
+	removed.  Kernel option `options ATA_CAM` is now permanently enabled
+	and removed.
+
+20130319:
+	SOCK_CLOEXEC and SOCK_NONBLOCK flags have been added to socket(2)
+	and socketpair(2). Software, in particular Kerberos, may
+	automatically detect and use these during building. The resulting
+	binaries will not work on older kernels.
 
 20130308:
 	CTL_DISABLE has also been added to the sparc64 GENERIC (for further
@@ -109,7 +146,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	This means that the world and kernel will be compiled with clang
 	and that clang will be installed as /usr/bin/cc, /usr/bin/c++,
 	and /usr/bin/cpp.  To disable this behavior and revert to building
-	with gcc, compile with WITHOUT_CLANG_IS_CC.
+	with gcc, compile with WITHOUT_CLANG_IS_CC. Really old versions
+	of current may need to bootstrap WITHOUT_CLANG first if the clang
+	build fails (its compatibility window doesn't extend to the 9 stable
+	branch point).
 
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
@@ -1591,6 +1631,11 @@ COMMON ITEMS:
 	path, and has the highest probability of being successful.  Please try
 	this approach before reporting problems with a major version upgrade.
 
+	When upgrading a live system, having a root shell around before
+	installing anything can help undo problems. Not having a root shell
+	around can lead to problems if pam has changed too much from your
+	starting point to allow continued authentication after the upgrade.
+
 	ZFS notes
 	---------
 	When upgrading the boot ZFS pool to a new version, always follow
@@ -1655,7 +1700,6 @@ COMMON ITEMS:
 	mergemaster -i					[4]
 	make delete-old					[6]
 	<reboot>
-
 
 	To cross-install current onto a separate partition
 	--------------------------------------------------
@@ -1732,7 +1776,7 @@ COMMON ITEMS:
 	step.  It never hurts to do it all the time.  You may need to
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
-	from current before 20020224 or from -stable before 20020408.
+	from current before 20130425 or from -stable before 20130430.
 
 	[6] This only deletes old files and directories. Old libraries
 	can be deleted by "make delete-old-libs", but you have to make

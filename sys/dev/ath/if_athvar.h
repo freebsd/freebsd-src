@@ -291,6 +291,10 @@ typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 
 #define	ATH_BUF_MGMT	0x00000001	/* (tx) desc is a mgmt desc */
 #define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
+#define	ATH_BUF_FIFOEND	0x00000004
+#define	ATH_BUF_FIFOPTR	0x00000008
+
+#define	ATH_BUF_FLAGS_CLONE	(ATH_BUF_MGMT)
 
 /*
  * DMA state for tx/rx descriptors.
@@ -325,13 +329,32 @@ struct ath_txq {
 #define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_aggr_depth;	/* how many aggregates are queued */
-	u_int			axq_fifo_depth;	/* depth of FIFO frames */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
+	struct mtx		axq_lock;	/* lock on q and link */
+
+	/*
+	 * This is the FIFO staging buffer when doing EDMA.
+	 *
+	 * For legacy chips, we just push the head pointer to
+	 * the hardware and we ignore this list.
+	 *
+	 * For EDMA, the staging buffer is treated as normal;
+	 * when it's time to push a list of frames to the hardware
+	 * we move that list here and we stamp buffers with
+	 * flags to identify the beginning/end of that particular
+	 * FIFO entry.
+	 */
+	struct {
+		TAILQ_HEAD(axq_q_f_s, ath_buf)	axq_q;
+		u_int				axq_depth;
+	} fifo;
+	u_int			axq_fifo_depth;	/* depth of FIFO frames */
+
 	/*
 	 * XXX the holdingbf field is protected by the TXBUF lock
-	 * for now, NOT the TX lock.
+	 * for now, NOT the TXQ lock.
 	 *
 	 * Architecturally, it would likely be better to move
 	 * the holdingbf field to a separate array in ath_softc
@@ -342,8 +365,23 @@ struct ath_txq {
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
 	/* Per-TID traffic queue for software -> hardware TX */
+	/*
+	 * This is protected by the general TX path lock, not (for now)
+	 * by the TXQ lock.
+	 */
 	TAILQ_HEAD(axq_t_s,ath_tid)	axq_tidq;
 };
+
+#define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
+	    snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
+	      device_get_nameunit((_sc)->sc_dev), (_tq)->axq_qnum); \
+	    mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, NULL, MTX_DEF); \
+	} while (0)
+#define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
+#define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
+#define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
+#define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+
 
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
 #define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
@@ -504,6 +542,7 @@ struct ath_softc {
 
 	struct ath_rx_methods	sc_rx;
 	struct ath_rx_edma	sc_rxedma[HAL_NUM_RX_QUEUES];	/* HP/LP queues */
+	ath_bufhead		sc_rx_rxlist[HAL_NUM_RX_QUEUES];	/* deferred RX completion */
 	struct ath_tx_methods	sc_tx;
 	struct ath_tx_edma_fifo	sc_txedma[HAL_NUM_TX_QUEUES];
 
@@ -584,6 +623,9 @@ struct ath_softc {
 				sc_rx_stbc  : 1,
 				sc_tx_stbc  : 1;
 
+
+	int			sc_cabq_enable;	/* Enable cabq transmission */
+
 	/*
 	 * Enterprise mode configuration for AR9380 and later chipsets.
 	 */
@@ -659,7 +701,6 @@ struct ath_softc {
 
 	struct ath_descdma	sc_rxdma;	/* RX descriptors */
 	ath_bufhead		sc_rxbuf;	/* receive buffer */
-	ath_bufhead		sc_rx_rxlist;	/* deferred RX completion */
 	u_int32_t		*sc_rxlink;	/* link ptr in last RX desc */
 	struct task		sc_rxtask;	/* rx int processing */
 	u_int8_t		sc_defant;	/* current default antenna */
@@ -731,11 +772,11 @@ struct ath_softc {
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
-	int			sc_txchainmask;	/* hardware TX chainmask */
-	int			sc_rxchainmask;	/* hardware RX chainmask */
-	int			sc_cur_txchainmask;	/* currently configured TX chainmask */
-	int			sc_cur_rxchainmask;	/* currently configured RX chainmask */
-	int			sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
+	uint32_t		sc_txchainmask;	/* hardware TX chainmask */
+	uint32_t		sc_rxchainmask;	/* hardware RX chainmask */
+	uint32_t		sc_cur_txchainmask;	/* currently configured TX chainmask */
+	uint32_t		sc_cur_rxchainmask;	/* currently configured RX chainmask */
+	uint32_t		sc_rts_aggr_limit;	/* TX limit on RTS aggregates */
 	int			sc_aggr_limit;	/* TX limit on all aggregates */
 	int			sc_delim_min_pad;	/* Minimum delimiter count */
 

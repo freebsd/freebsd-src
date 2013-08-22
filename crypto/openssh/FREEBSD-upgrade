@@ -43,7 +43,6 @@
 7) Run configure with the appropriate arguments:
 
 	$ ./configure --prefix=/usr --sysconfdir=/etc/ssh \
-		--disable-lastlog --disable-utmp --disable-wtmp \
 		--with-pam --with-tcp-wrappers --with-libedit \
 		--with-ssl-engine
 

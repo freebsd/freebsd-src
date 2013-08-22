@@ -129,9 +129,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
-/* XXX */
-int	do_pipe(struct thread *td, int fildes[2], int flags);
-
 /*
  * Use this define if you want to disable *fancy* VM things.  Expect an
  * approx 30% decrease in transfer rate.  This could be useful for
@@ -408,11 +405,11 @@ int
 kern_pipe(struct thread *td, int fildes[2])
 {
 
-	return (do_pipe(td, fildes, 0));
+	return (kern_pipe2(td, fildes, 0));
 }
 
 int
-do_pipe(struct thread *td, int fildes[2], int flags)
+kern_pipe2(struct thread *td, int fildes[2], int flags)
 {
 	struct filedesc *fdp; 
 	struct file *rf, *wf;

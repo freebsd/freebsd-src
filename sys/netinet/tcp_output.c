@@ -852,6 +852,7 @@ send:
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = ENOBUFS;
+			sack_rxmit = 0;
 			goto out;
 		}
 
@@ -874,6 +875,7 @@ send:
 				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);
 				error = ENOBUFS;
+				sack_rxmit = 0;
 				goto out;
 			}
 		}
@@ -901,6 +903,7 @@ send:
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
+			sack_rxmit = 0;
 			goto out;
 		}
 #ifdef INET6
@@ -1123,75 +1126,6 @@ send:
 	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
 #endif
 
-	/*
-	 * In transmit state, time the transmission and arrange for
-	 * the retransmit.  In persist state, just set snd_max.
-	 */
-	if ((tp->t_flags & TF_FORCEDATA) == 0 || 
-	    !tcp_timer_active(tp, TT_PERSIST)) {
-		tcp_seq startseq = tp->snd_nxt;
-
-		/*
-		 * Advance snd_nxt over sequence space of this segment.
-		 */
-		if (flags & (TH_SYN|TH_FIN)) {
-			if (flags & TH_SYN)
-				tp->snd_nxt++;
-			if (flags & TH_FIN) {
-				tp->snd_nxt++;
-				tp->t_flags |= TF_SENTFIN;
-			}
-		}
-		if (sack_rxmit)
-			goto timer;
-		tp->snd_nxt += len;
-		if (SEQ_GT(tp->snd_nxt, tp->snd_max)) {
-			tp->snd_max = tp->snd_nxt;
-			/*
-			 * Time this transmission if not a retransmission and
-			 * not currently timing anything.
-			 */
-			if (tp->t_rtttime == 0) {
-				tp->t_rtttime = ticks;
-				tp->t_rtseq = startseq;
-				TCPSTAT_INC(tcps_segstimed);
-			}
-		}
-
-		/*
-		 * Set retransmit timer if not currently set,
-		 * and not doing a pure ack or a keep-alive probe.
-		 * Initial value for retransmit timer is smoothed
-		 * round-trip time + 2 * round-trip time variance.
-		 * Initialize shift counter which is used for backoff
-		 * of retransmit time.
-		 */
-timer:
-		if (!tcp_timer_active(tp, TT_REXMT) &&
-		    ((sack_rxmit && tp->snd_nxt != tp->snd_max) ||
-		     (tp->snd_nxt != tp->snd_una))) {
-			if (tcp_timer_active(tp, TT_PERSIST)) {
-				tcp_timer_activate(tp, TT_PERSIST, 0);
-				tp->t_rxtshift = 0;
-			}
-			tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
-		}
-	} else {
-		/*
-		 * Persist case, update snd_max but since we are in
-		 * persist mode (no window) we do not update snd_nxt.
-		 */
-		int xlen = len;
-		if (flags & TH_SYN)
-			++xlen;
-		if (flags & TH_FIN) {
-			++xlen;
-			tp->t_flags |= TF_SENTFIN;
-		}
-		if (SEQ_GT(tp->snd_nxt + xlen, tp->snd_max))
-			tp->snd_max = tp->snd_nxt + len;
-	}
-
 	/* Run HHOOK_TCP_ESTABLISHED_OUT helper hooks. */
 	hhook_run_tcp_est_out(tp, th, &to, len, tso);
 
@@ -1282,6 +1216,77 @@ timer:
 	RO_RTFREE(&ro);
     }
 #endif /* INET */
+
+out:
+	/*
+	 * In transmit state, time the transmission and arrange for
+	 * the retransmit.  In persist state, just set snd_max.
+	 */
+	if ((tp->t_flags & TF_FORCEDATA) == 0 || 
+	    !tcp_timer_active(tp, TT_PERSIST)) {
+		tcp_seq startseq = tp->snd_nxt;
+
+		/*
+		 * Advance snd_nxt over sequence space of this segment.
+		 */
+		if (flags & (TH_SYN|TH_FIN)) {
+			if (flags & TH_SYN)
+				tp->snd_nxt++;
+			if (flags & TH_FIN) {
+				tp->snd_nxt++;
+				tp->t_flags |= TF_SENTFIN;
+			}
+		}
+		if (sack_rxmit)
+			goto timer;
+		tp->snd_nxt += len;
+		if (SEQ_GT(tp->snd_nxt, tp->snd_max)) {
+			tp->snd_max = tp->snd_nxt;
+			/*
+			 * Time this transmission if not a retransmission and
+			 * not currently timing anything.
+			 */
+			if (tp->t_rtttime == 0) {
+				tp->t_rtttime = ticks;
+				tp->t_rtseq = startseq;
+				TCPSTAT_INC(tcps_segstimed);
+			}
+		}
+
+		/*
+		 * Set retransmit timer if not currently set,
+		 * and not doing a pure ack or a keep-alive probe.
+		 * Initial value for retransmit timer is smoothed
+		 * round-trip time + 2 * round-trip time variance.
+		 * Initialize shift counter which is used for backoff
+		 * of retransmit time.
+		 */
+timer:
+		if (!tcp_timer_active(tp, TT_REXMT) &&
+		    ((sack_rxmit && tp->snd_nxt != tp->snd_max) ||
+		     (tp->snd_nxt != tp->snd_una))) {
+			if (tcp_timer_active(tp, TT_PERSIST)) {
+				tcp_timer_activate(tp, TT_PERSIST, 0);
+				tp->t_rxtshift = 0;
+			}
+			tcp_timer_activate(tp, TT_REXMT, tp->t_rxtcur);
+		}
+	} else {
+		/*
+		 * Persist case, update snd_max but since we are in
+		 * persist mode (no window) we do not update snd_nxt.
+		 */
+		int xlen = len;
+		if (flags & TH_SYN)
+			++xlen;
+		if (flags & TH_FIN) {
+			++xlen;
+			tp->t_flags |= TF_SENTFIN;
+		}
+		if (SEQ_GT(tp->snd_nxt + xlen, tp->snd_max))
+			tp->snd_max = tp->snd_nxt + len;
+	}
+
 	if (error) {
 
 		/*
@@ -1309,7 +1314,6 @@ timer:
 			} else
 				tp->snd_nxt -= len;
 		}
-out:
 		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
 		switch (error) {
 		case EPERM:

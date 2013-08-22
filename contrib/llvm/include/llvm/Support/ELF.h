@@ -271,6 +271,7 @@ enum {
   EM_SLE9X         = 179, // Infineon Technologies SLE9X core
   EM_L10M          = 180, // Intel L10M
   EM_K10M          = 181, // Intel K10M
+  EM_AARCH64       = 183, // ARM AArch64
   EM_AVR32         = 185, // Atmel Corporation 32-bit microprocessor family
   EM_STM8          = 186, // STMicroeletronics STM8 8-bit microcontroller
   EM_TILE64        = 187, // Tilera TILE64 multicore architecture family
@@ -366,7 +367,8 @@ enum {
   R_X86_64_SIZE64     = 33,
   R_X86_64_GOTPC32_TLSDESC = 34,
   R_X86_64_TLSDESC_CALL    = 35,
-  R_X86_64_TLSDESC    = 36
+  R_X86_64_TLSDESC    = 36,
+  R_X86_64_IRELATIVE  = 37
 };
 
 // i386 relocations.
@@ -464,20 +466,140 @@ enum {
 
 // ELF Relocation types for PPC64
 enum {
+  R_PPC64_ADDR32              = 1,
   R_PPC64_ADDR16_LO           = 4,
   R_PPC64_ADDR16_HI           = 5,
   R_PPC64_ADDR14              = 7,
   R_PPC64_REL24               = 10,
+  R_PPC64_REL32               = 26,
   R_PPC64_ADDR64              = 38,
   R_PPC64_ADDR16_HIGHER       = 39,
   R_PPC64_ADDR16_HIGHEST      = 41,
+  R_PPC64_REL64               = 44,
   R_PPC64_TOC16               = 47,
+  R_PPC64_TOC16_LO            = 48,
+  R_PPC64_TOC16_HA            = 50,
   R_PPC64_TOC                 = 51,
-  R_PPC64_TOC16_DS            = 63
+  R_PPC64_ADDR16_DS           = 56,
+  R_PPC64_ADDR16_LO_DS        = 57,
+  R_PPC64_TOC16_DS            = 63,
+  R_PPC64_TOC16_LO_DS         = 64,
+  R_PPC64_TLS                 = 67,
+  R_PPC64_TPREL16_LO          = 70,
+  R_PPC64_DTPREL16_LO         = 75,
+  R_PPC64_DTPREL16_HA         = 77,
+  R_PPC64_GOT_TLSGD16_LO      = 80,
+  R_PPC64_GOT_TLSGD16_HA      = 82,
+  R_PPC64_GOT_TLSLD16_LO      = 84,
+  R_PPC64_GOT_TLSLD16_HA      = 86,
+  R_PPC64_GOT_TPREL16_LO_DS   = 88,
+  R_PPC64_GOT_TPREL16_HA      = 90,
+  R_PPC64_TLSGD               = 107,
+  R_PPC64_TLSLD               = 108
+};
+
+// ELF Relocation types for AArch64
+
+enum {
+  R_AARCH64_NONE                        = 0x100,
+
+  R_AARCH64_ABS64                       = 0x101,
+  R_AARCH64_ABS32                       = 0x102,
+  R_AARCH64_ABS16                       = 0x103,
+  R_AARCH64_PREL64                      = 0x104,
+  R_AARCH64_PREL32                      = 0x105,
+  R_AARCH64_PREL16                      = 0x106,
+
+  R_AARCH64_MOVW_UABS_G0                = 0x107,
+  R_AARCH64_MOVW_UABS_G0_NC             = 0x108,
+  R_AARCH64_MOVW_UABS_G1                = 0x109,
+  R_AARCH64_MOVW_UABS_G1_NC             = 0x10a,
+  R_AARCH64_MOVW_UABS_G2                = 0x10b,
+  R_AARCH64_MOVW_UABS_G2_NC             = 0x10c,
+  R_AARCH64_MOVW_UABS_G3                = 0x10d,
+  R_AARCH64_MOVW_SABS_G0                = 0x10e,
+  R_AARCH64_MOVW_SABS_G1                = 0x10f,
+  R_AARCH64_MOVW_SABS_G2                = 0x110,
+
+  R_AARCH64_LD_PREL_LO19                = 0x111,
+  R_AARCH64_ADR_PREL_LO21               = 0x112,
+  R_AARCH64_ADR_PREL_PG_HI21            = 0x113,
+  R_AARCH64_ADD_ABS_LO12_NC             = 0x115,
+  R_AARCH64_LDST8_ABS_LO12_NC           = 0x116,
+
+  R_AARCH64_TSTBR14                     = 0x117,
+  R_AARCH64_CONDBR19                    = 0x118,
+  R_AARCH64_JUMP26                      = 0x11a,
+  R_AARCH64_CALL26                      = 0x11b,
+
+  R_AARCH64_LDST16_ABS_LO12_NC          = 0x11c,
+  R_AARCH64_LDST32_ABS_LO12_NC          = 0x11d,
+  R_AARCH64_LDST64_ABS_LO12_NC          = 0x11e,
+
+  R_AARCH64_LDST128_ABS_LO12_NC         = 0x12b,
+
+  R_AARCH64_ADR_GOT_PAGE                = 0x137,
+  R_AARCH64_LD64_GOT_LO12_NC            = 0x138,
+
+  R_AARCH64_TLSLD_MOVW_DTPREL_G2        = 0x20b,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G1        = 0x20c,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G1_NC     = 0x20d,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G0        = 0x20e,
+  R_AARCH64_TLSLD_MOVW_DTPREL_G0_NC     = 0x20f,
+  R_AARCH64_TLSLD_ADD_DTPREL_HI12       = 0x210,
+  R_AARCH64_TLSLD_ADD_DTPREL_LO12       = 0x211,
+  R_AARCH64_TLSLD_ADD_DTPREL_LO12_NC    = 0x212,
+  R_AARCH64_TLSLD_LDST8_DTPREL_LO12     = 0x213,
+  R_AARCH64_TLSLD_LDST8_DTPREL_LO12_NC  = 0x214,
+  R_AARCH64_TLSLD_LDST16_DTPREL_LO12    = 0x215,
+  R_AARCH64_TLSLD_LDST16_DTPREL_LO12_NC = 0x216,
+  R_AARCH64_TLSLD_LDST32_DTPREL_LO12    = 0x217,
+  R_AARCH64_TLSLD_LDST32_DTPREL_LO12_NC = 0x218,
+  R_AARCH64_TLSLD_LDST64_DTPREL_LO12    = 0x219,
+  R_AARCH64_TLSLD_LDST64_DTPREL_LO12_NC = 0x21a,
+
+  R_AARCH64_TLSIE_MOVW_GOTTPREL_G1      = 0x21b,
+  R_AARCH64_TLSIE_MOVW_GOTTPREL_G0_NC   = 0x21c,
+  R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21   = 0x21d,
+  R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC = 0x21e,
+  R_AARCH64_TLSIE_LD_GOTTPREL_PREL19    = 0x21f,
+
+  R_AARCH64_TLSLE_MOVW_TPREL_G2         = 0x220,
+  R_AARCH64_TLSLE_MOVW_TPREL_G1         = 0x221,
+  R_AARCH64_TLSLE_MOVW_TPREL_G1_NC      = 0x222,
+  R_AARCH64_TLSLE_MOVW_TPREL_G0         = 0x223,
+  R_AARCH64_TLSLE_MOVW_TPREL_G0_NC      = 0x224,
+  R_AARCH64_TLSLE_ADD_TPREL_HI12        = 0x225,
+  R_AARCH64_TLSLE_ADD_TPREL_LO12        = 0x226,
+  R_AARCH64_TLSLE_ADD_TPREL_LO12_NC     = 0x227,
+  R_AARCH64_TLSLE_LDST8_TPREL_LO12      = 0x228,
+  R_AARCH64_TLSLE_LDST8_TPREL_LO12_NC   = 0x229,
+  R_AARCH64_TLSLE_LDST16_TPREL_LO12     = 0x22a,
+  R_AARCH64_TLSLE_LDST16_TPREL_LO12_NC  = 0x22b,
+  R_AARCH64_TLSLE_LDST32_TPREL_LO12     = 0x22c,
+  R_AARCH64_TLSLE_LDST32_TPREL_LO12_NC  = 0x22d,
+  R_AARCH64_TLSLE_LDST64_TPREL_LO12     = 0x22e,
+  R_AARCH64_TLSLE_LDST64_TPREL_LO12_NC  = 0x22f,
+
+  R_AARCH64_TLSDESC_ADR_PAGE            = 0x232,
+  R_AARCH64_TLSDESC_LD64_LO12_NC        = 0x233,
+  R_AARCH64_TLSDESC_ADD_LO12_NC         = 0x234,
+
+  R_AARCH64_TLSDESC_CALL                = 0x239
 };
 
 // ARM Specific e_flags
-enum { EF_ARM_EABIMASK = 0xFF000000U };
+enum {
+  EF_ARM_SOFT_FLOAT =     0x00000200U,
+  EF_ARM_VFP_FLOAT =      0x00000400U,
+  EF_ARM_EABI_UNKNOWN =   0x00000000U,
+  EF_ARM_EABI_VER1 =      0x01000000U,
+  EF_ARM_EABI_VER2 =      0x02000000U,
+  EF_ARM_EABI_VER3 =      0x03000000U,
+  EF_ARM_EABI_VER4 =      0x04000000U,
+  EF_ARM_EABI_VER5 =      0x05000000U,
+  EF_ARM_EABIMASK =       0xFF000000U
+};
 
 // ELF Relocation types for ARM
 // Meets 2.08 ABI Specs.
@@ -621,6 +743,13 @@ enum {
   EF_MIPS_NOREORDER = 0x00000001, // Don't reorder instructions
   EF_MIPS_PIC       = 0x00000002, // Position independent code
   EF_MIPS_CPIC      = 0x00000004, // Call object with Position independent code
+  EF_MIPS_ABI_O32   = 0x00001000, // This file follows the first MIPS 32 bit ABI
+
+  //ARCH_ASE
+  EF_MIPS_MICROMIPS = 0x02000000, // microMIPS
+  EF_MIPS_ARCH_ASE_M16 =
+                      0x04000000, // Has Mips-16 ISA extensions
+  //ARCH
   EF_MIPS_ARCH_1    = 0x00000000, // MIPS1 instruction set
   EF_MIPS_ARCH_2    = 0x10000000, // MIPS2 instruction set
   EF_MIPS_ARCH_3    = 0x20000000, // MIPS3 instruction set
@@ -691,6 +820,11 @@ enum {
   R_MIPS_NUM               = 218
 };
 
+// Special values for the st_other field in the symbol table entry for MIPS.
+enum {
+  STO_MIPS_MICROMIPS       = 0x80 // MIPS Specific ISA for MicroMips
+};
+
 // Hexagon Specific e_flags
 // Release 5 ABI
 enum {
@@ -710,14 +844,14 @@ enum {
 };
 
 // Hexagon specific Section indexes for common small data
-// Release 5 ABI 
+// Release 5 ABI
 enum {
   SHN_HEXAGON_SCOMMON     = 0xff00,       // Other access sizes
   SHN_HEXAGON_SCOMMON_1   = 0xff01,       // Byte-sized access
   SHN_HEXAGON_SCOMMON_2   = 0xff02,       // Half-word-sized access
   SHN_HEXAGON_SCOMMON_4   = 0xff03,       // Word-sized access
   SHN_HEXAGON_SCOMMON_8   = 0xff04        // Double-word-size access
-};   
+};
 
 // ELF Relocation types for Hexagon
 // Release 5 ABI
@@ -878,7 +1012,7 @@ enum {
   SHT_GNU_verneed   = 0x6ffffffe, // GNU version references.
   SHT_GNU_versym    = 0x6fffffff, // GNU symbol versions table.
   SHT_HIOS          = 0x6fffffff, // Highest operating system-specific type.
-  SHT_LOPROC        = 0x70000000, // Lowest processor architecture-specific type.
+  SHT_LOPROC        = 0x70000000, // Lowest processor arch-specific type.
   // Fixme: All this is duplicated in MCSectionELF. Why??
   // Exception Index table
   SHT_ARM_EXIDX           = 0x70000001U,
@@ -888,10 +1022,14 @@ enum {
   SHT_ARM_ATTRIBUTES      = 0x70000003U,
   SHT_ARM_DEBUGOVERLAY    = 0x70000004U,
   SHT_ARM_OVERLAYSECTION  = 0x70000005U,
-
+  SHT_HEX_ORDERED         = 0x70000000, // Link editor is to sort the entries in
+                                        // this section based on their sizes
   SHT_X86_64_UNWIND       = 0x70000001, // Unwind information
 
-  SHT_HIPROC        = 0x7fffffff, // Highest processor architecture-specific type.
+  SHT_MIPS_REGINFO        = 0x70000006, // Register usage information
+  SHT_MIPS_OPTIONS        = 0x7000000d, // General options
+
+  SHT_HIPROC        = 0x7fffffff, // Highest processor arch-specific type.
   SHT_LOUSER        = 0x80000000, // Lowest type reserved for applications.
   SHT_HIUSER        = 0xffffffff  // Highest type reserved for applications.
 };
@@ -953,7 +1091,14 @@ enum {
   // sets this flag besides being able to refer to data in a section that does
   // not set it; likewise, a small code model object can refer only to code in a
   // section that does not set this flag.
-  SHF_X86_64_LARGE = 0x10000000
+  SHF_X86_64_LARGE = 0x10000000,
+
+  // All sections with the GPREL flag are grouped into a global data area
+  // for faster accesses
+  SHF_HEX_GPREL = 0x10000000,
+
+  // Do not strip this section. FIXME: We need target specific SHF_ enums.
+  SHF_MIPS_NOSTRIP = 0x8000000
 };
 
 // Section Group Flags
@@ -988,7 +1133,7 @@ struct Elf64_Sym {
   Elf64_Word      st_name;  // Symbol name (index into string table)
   unsigned char   st_info;  // Symbol's type and binding attributes
   unsigned char   st_other; // Must be zero; reserved
-  Elf64_Half      st_shndx; // Which section (header table index) it's defined in
+  Elf64_Half      st_shndx; // Which section (header tbl index) it's defined in
   Elf64_Addr      st_value; // Value or address associated with the symbol
   Elf64_Xword     st_size;  // Size of the symbol
 
@@ -1043,6 +1188,11 @@ enum {
   STV_PROTECTED = 3   // Visible in other components but not preemptable
 };
 
+// Symbol number.
+enum {
+  STN_UNDEF = 0
+};
+
 // Relocation entry, without explicit addend.
 struct Elf32_Rel {
   Elf32_Addr r_offset; // Location (file byte offset, or program virtual addr)
@@ -1083,14 +1233,14 @@ struct Elf64_Rel {
 
   // These accessors and mutators correspond to the ELF64_R_SYM, ELF64_R_TYPE,
   // and ELF64_R_INFO macros defined in the ELF specification:
-  Elf64_Xword getSymbol() const { return (r_info >> 32); }
-  unsigned char getType() const {
-    return (unsigned char) (r_info & 0xffffffffL);
+  Elf64_Word getSymbol() const { return (r_info >> 32); }
+  Elf64_Word getType() const {
+    return (Elf64_Word) (r_info & 0xffffffffL);
   }
-  void setSymbol(Elf32_Word s) { setSymbolAndType(s, getType()); }
-  void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
-  void setSymbolAndType(Elf64_Xword s, unsigned char t) {
-    r_info = (s << 32) + (t&0xffffffffL);
+  void setSymbol(Elf64_Word s) { setSymbolAndType(s, getType()); }
+  void setType(Elf64_Word t) { setSymbolAndType(getSymbol(), t); }
+  void setSymbolAndType(Elf64_Word s, Elf64_Word t) {
+    r_info = ((Elf64_Xword)s << 32) + (t&0xffffffffL);
   }
 };
 
@@ -1102,14 +1252,14 @@ struct Elf64_Rela {
 
   // These accessors and mutators correspond to the ELF64_R_SYM, ELF64_R_TYPE,
   // and ELF64_R_INFO macros defined in the ELF specification:
-  Elf64_Xword getSymbol() const { return (r_info >> 32); }
-  unsigned char getType() const {
-    return (unsigned char) (r_info & 0xffffffffL);
+  Elf64_Word getSymbol() const { return (r_info >> 32); }
+  Elf64_Word getType() const {
+    return (Elf64_Word) (r_info & 0xffffffffL);
   }
-  void setSymbol(Elf64_Xword s) { setSymbolAndType(s, getType()); }
-  void setType(unsigned char t) { setSymbolAndType(getSymbol(), t); }
-  void setSymbolAndType(Elf64_Xword s, unsigned char t) {
-    r_info = (s << 32) + (t&0xffffffffL);
+  void setSymbol(Elf64_Word s) { setSymbolAndType(s, getType()); }
+  void setType(Elf64_Word t) { setSymbolAndType(getSymbol(), t); }
+  void setSymbolAndType(Elf64_Word s, Elf64_Word t) {
+    r_info = ((Elf64_Xword)s << 32) + (t&0xffffffffL);
   }
 };
 
@@ -1131,7 +1281,7 @@ struct Elf64_Phdr {
   Elf64_Word   p_flags;  // Segment flags
   Elf64_Off    p_offset; // File offset where segment is located, in bytes
   Elf64_Addr   p_vaddr;  // Virtual address of beginning of segment
-  Elf64_Addr   p_paddr;  // Physical address of beginning of segment (OS-specific)
+  Elf64_Addr   p_paddr;  // Physical addr of beginning of segment (OS-specific)
   Elf64_Xword  p_filesz; // Num. of bytes in file image of segment (may be zero)
   Elf64_Xword  p_memsz;  // Num. of bytes in mem image of segment (may be zero)
   Elf64_Xword  p_align;  // Segment alignment constraint
@@ -1162,7 +1312,7 @@ enum {
   PT_GNU_RELRO  = 0x6474e552, // Read-only after relocation.
 
   // ARM program header types.
-  PT_ARM_ARCHEXT = 0x70000000, // Platform architecture compatibility information
+  PT_ARM_ARCHEXT = 0x70000000, // Platform architecture compatibility info
   // These all contain stack unwind tables.
   PT_ARM_EXIDX   = 0x70000001,
   PT_ARM_UNWIND  = 0x70000001

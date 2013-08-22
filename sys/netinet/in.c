@@ -1467,10 +1467,14 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			LLE_WLOCK(lle);
 			lle->la_flags |= LLE_DELETED;
 			EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 

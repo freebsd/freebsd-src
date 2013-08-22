@@ -33,26 +33,15 @@
  * $FreeBSD$
  */
 
-#include <machine/_align.h>
 
 #ifndef _I386_INCLUDE_PARAM_H_
 #define	_I386_INCLUDE_PARAM_H_
 
+#include <machine/_align.h>
+
 /*
  * Machine dependent constants for Intel 386.
  */
-
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define _ALIGNBYTES	(sizeof(int) - 1)
-#endif
-#ifndef _ALIGN
-#define _ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
-#endif
 
 
 #define __HAVE_ACPI
@@ -140,9 +129,12 @@
  * Ceiling on size of buffer cache (really only effects write queueing,
  * the VM page cache is not effected), can be changed via
  * the kern.maxbcache /boot/loader.conf variable.
+ *
+ * The value is equal to the size of the auto-tuned buffer map for
+ * the machine with 4GB of RAM, see vfs_bio.c:kern_vfs_bio_buffer_alloc().
  */
 #ifndef VM_BCACHE_SIZE_MAX
-#define VM_BCACHE_SIZE_MAX	(200 * 1024 * 1024)
+#define VM_BCACHE_SIZE_MAX	(7224 * 16 * 1024)
 #endif
 
 /*

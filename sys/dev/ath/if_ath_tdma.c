@@ -612,13 +612,19 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 	}
 
 	bf = ath_beacon_generate(sc, vap);
+	/* XXX We don't do cabq traffic, but just for completeness .. */
+	ATH_TXQ_LOCK(sc->sc_cabq);
+	ath_beacon_cabq_start(sc);
+	ATH_TXQ_UNLOCK(sc->sc_cabq);
+
 	if (bf != NULL) {
 		/*
 		 * Stop any current dma and put the new frame on the queue.
 		 * This should never fail since we check above that no frames
 		 * are still pending on the queue.
 		 */
-		if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
+		if ((! sc->sc_isedma) &&
+		    (! ath_hal_stoptxdma(ah, sc->sc_bhalq))) {
 			DPRINTF(sc, ATH_DEBUG_ANY,
 				"%s: beacon queue %u did not stop?\n",
 				__func__, sc->sc_bhalq);

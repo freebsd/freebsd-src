@@ -31,10 +31,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/SemaInternal.h"
-#include "clang/Sema/ScopeInfo.h"
-#include "clang/Sema/Initialization.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/Initialization.h"
+#include "clang/Sema/ScopeInfo.h"
 #include "llvm/ADT/SmallString.h"
 
 using namespace clang;
@@ -113,7 +114,7 @@ namespace {
     Expr *rebuildSpecific(ObjCPropertyRefExpr *refExpr) {
       // Fortunately, the constraint that we're rebuilding something
       // with a base limits the number of cases here.
-      assert(refExpr->getBase());
+      assert(refExpr->isObjectReceiver());
 
       if (refExpr->isExplicitProperty()) {
         return new (S.Context)
@@ -562,8 +563,9 @@ bool ObjCPropertyOpBuilder::findSetter(bool warn) {
       if (const ObjCInterfaceDecl *IFace =
           dyn_cast<ObjCInterfaceDecl>(setter->getDeclContext())) {
         const StringRef thisPropertyName(prop->getName());
+        // Try flipping the case of the first character.
         char front = thisPropertyName.front();
-        front = islower(front) ? toupper(front) : tolower(front);
+        front = isLowercase(front) ? toUppercase(front) : toLowercase(front);
         SmallString<100> PropertyName = thisPropertyName;
         PropertyName[0] = front;
         IdentifierInfo *AltMember = &S.PP.getIdentifierTable().get(PropertyName);
@@ -713,10 +715,9 @@ ExprResult ObjCPropertyOpBuilder::buildSet(Expr *op, SourceLocation opcLoc,
 ExprResult ObjCPropertyOpBuilder::buildRValueOperation(Expr *op) {
   // Explicit properties always have getters, but implicit ones don't.
   // Check that before proceeding.
-  if (RefExpr->isImplicitProperty() &&
-      !RefExpr->getImplicitPropertyGetter()) {
+  if (RefExpr->isImplicitProperty() && !RefExpr->getImplicitPropertyGetter()) {
     S.Diag(RefExpr->getLocation(), diag::err_getter_not_found)
-      << RefExpr->getBase()->getType();
+        << RefExpr->getSourceRange();
     return ExprError();
   }
 
@@ -954,16 +955,15 @@ Sema::ObjCSubscriptKind
   // objective-C pointer type.
   UnresolvedSet<4> ViableConversions;
   UnresolvedSet<4> ExplicitConversions;
-  const UnresolvedSetImpl *Conversions
+  std::pair<CXXRecordDecl::conversion_iterator,
+            CXXRecordDecl::conversion_iterator> Conversions
     = cast<CXXRecordDecl>(RecordTy->getDecl())->getVisibleConversionFunctions();
   
   int NoIntegrals=0, NoObjCIdPointers=0;
   SmallVector<CXXConversionDecl *, 4> ConversionDecls;
     
-  for (UnresolvedSetImpl::iterator I = Conversions->begin(),
-       E = Conversions->end();
-       I != E;
-       ++I) {
+  for (CXXRecordDecl::conversion_iterator
+         I = Conversions.first, E = Conversions.second; I != E; ++I) {
     if (CXXConversionDecl *Conversion
         = dyn_cast<CXXConversionDecl>((*I)->getUnderlyingDecl())) {
       QualType CT = Conversion->getConversionType().getNonReferenceType();
@@ -1087,7 +1087,6 @@ bool ObjCSubscriptOpBuilder::findAtIndexGetter() {
                                                          : S.Context.getObjCIdType(),
                                                 /*TInfo=*/0,
                                                 SC_None,
-                                                SC_None,
                                                 0);
     AtIndexGetter->setMethodParams(S.Context, Argument, 
                                    ArrayRef<SourceLocation>());
@@ -1202,7 +1201,6 @@ bool ObjCSubscriptOpBuilder::findAtIndexSetter() {
                                                 S.Context.getObjCIdType(),
                                                 /*TInfo=*/0,
                                                 SC_None,
-                                                SC_None,
                                                 0);
     Params.push_back(object);
     ParmVarDecl *key = ParmVarDecl::Create(S.Context, AtIndexSetter,
@@ -1212,7 +1210,6 @@ bool ObjCSubscriptOpBuilder::findAtIndexSetter() {
                                                 arrayRef ? S.Context.UnsignedLongTy
                                                          : S.Context.getObjCIdType(),
                                                 /*TInfo=*/0,
-                                                SC_None,
                                                 SC_None,
                                                 0);
     Params.push_back(key);

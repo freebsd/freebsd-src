@@ -118,7 +118,7 @@ tunable_mbinit(void *dummy)
 	 * At most it can be 3/4 of available kernel memory.
 	 */
 	realmem = qmin((quad_t)physmem * PAGE_SIZE,
-	    vm_map_max(kernel_map) - vm_map_min(kernel_map));
+	    vm_map_max(kmem_map) - vm_map_min(kmem_map));
 	maxmbufmem = realmem / 2;
 	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
 	if (maxmbufmem > realmem / 4 * 3)

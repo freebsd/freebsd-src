@@ -497,7 +497,7 @@ struct ieee80211vap {
 				    enum ieee80211_state, int);
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
-				    struct sockaddr *, struct route *);
+				    const struct sockaddr *, struct route *);
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
@@ -819,6 +819,28 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 	return IEEE80211_IS_CHAN_HT40(c) ?
 	    IEEE80211_FHT_HT | IEEE80211_FHT_USEHT40 :
 	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FHT_HT : 0;
+}
+
+/*
+ * Fetch the current TX power (cap) for the given node.
+ *
+ * This includes the node and ic/vap TX power limit as needed,
+ * but it doesn't take into account any per-rate limit.
+ */
+static __inline uint16_t
+ieee80211_get_node_txpower(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	uint16_t txpower;
+
+	txpower = ni->ni_txpower;
+	txpower = MIN(txpower, ic->ic_txpowlimit);
+	if (ic->ic_curchan != NULL) {
+		txpower = MIN(txpower, 2 * ic->ic_curchan->ic_maxregpower);
+		txpower = MIN(txpower, ic->ic_curchan->ic_maxpower);
+	}
+
+	return (txpower);
 }
 
 /*

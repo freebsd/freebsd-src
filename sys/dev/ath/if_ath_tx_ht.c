@@ -280,8 +280,24 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 				rc[i].flags |= ATH_RC_STBC_FLAG;
 			}
 
-			/* XXX dual stream? and 3-stream? */
+			/*
+			 * XXX TODO: LDPC
+			 */
+
+			/*
+			 * Dual / Triple stream rate?
+			 */
+			if (HT_RC_2_STREAMS(rate) == 2)
+				rc[i].flags |= ATH_RC_DS_FLAG;
+			else if (HT_RC_2_STREAMS(rate) == 3)
+				rc[i].flags |= ATH_RC_TS_FLAG;
 		}
+
+		/*
+		 * Calculate the maximum TX power cap for the current
+		 * node.
+		 */
+		rc[i].tx_power_cap = ieee80211_get_node_txpower(ni);
 
 		/*
 		 * Calculate the maximum 4ms frame length based
@@ -470,11 +486,10 @@ ath_get_aggr_limit(struct ath_softc *sc, struct ath_buf *bf)
  *
  * This should be called for both legacy and MCS rates.
  *
+ * This uses the rate series stuf from ath_tx_rate_fill_rcflags().
+ *
  * It, along with ath_buf_set_rate, must be called -after- a burst
  * or aggregate is setup.
- *
- * XXX TODO: it should use the rate series information from the
- * ath_buf, rather than recalculating it here!
  */
 static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
@@ -486,7 +501,6 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int i;
 	int pktlen;
-	int flags = bf->bf_state.bfs_txflags;
 	struct ath_rc_series *rc = bf->bf_state.bfs_rc;
 
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
@@ -528,63 +542,33 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		series[i].Rate = rt->info[rc[i].rix].rateCode;
 		series[i].RateIndex = rc[i].rix;
-		series[i].tx_power_cap = 0x3f;	/* XXX for now */
+		series[i].tx_power_cap = rc[i].tx_power_cap;
 
 		/*
 		 * Enable RTS/CTS as appropriate.
 		 */
-		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
+		if (rc[i].flags & ATH_RC_RTSCTS_FLAG)
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
 
-
-		if (IS_HT_RATE(rt->info[rc[i].rix].rateCode)) {
-			/*
-			 * Transmit 40MHz frames only if the node has negotiated
-			 * it rather than whether the node is capable of it or not.
-			 * It's subtly different in the hostap case.
-			 */
-			if (ni->ni_chw == 40)
+		/*
+		 * 11n rate? Update 11n flags.
+		 */
+		if (rc[i].flags & ATH_RC_HT_FLAG) {
+			if (rc[i].flags & ATH_RC_CW40_FLAG)
 				series[i].RateFlags |= HAL_RATESERIES_2040;
 
-			/*
-			 * Set short-GI only if the node has advertised it
-			 * the channel width is suitable, and we support it.
-			 * We don't currently have a "negotiated" set of bits -
-			 * ni_htcap is what the remote end sends, not what this
-			 * node is capable of.
-			 */
-			if (ni->ni_chw == 40 &&
-			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40 &&
-			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+			if (rc[i].flags & ATH_RC_SGI_FLAG)
 				series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
-			if (ni->ni_chw == 20 &&
-			    ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20 &&
-			    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
-				series[i].RateFlags |= HAL_RATESERIES_HALFGI;
-
-			/*
-			 * If we have STBC TX enabled and the receiver
-			 * can receive (at least) 1 stream STBC, AND it's
-			 * MCS 0-7, AND we have at least two chains enabled,
-			 * enable STBC.
-			 */
-			if (ic->ic_htcaps & IEEE80211_HTCAP_TXSTBC &&
-			    ni->ni_htcap & IEEE80211_HTCAP_RXSTBC_1STREAM &&
-			    (sc->sc_cur_txchainmask > 1) &&
-			    HT_RC_2_STREAMS(series[i].Rate) == 1) {
+			if (rc[i].flags & ATH_RC_STBC_FLAG)
 				series[i].RateFlags |= HAL_RATESERIES_STBC;
-			}
-			/*
-			 * XXX TODO: LDPC if it's possible
-			 */
 		}
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
 		 * it's just the packet duration
 		 */
-		if (series[i].Rate & IEEE80211_RATE_MCS) {
+		if (rc[i].flags & ATH_RC_HT_FLAG) {
 			series[i].PktDuration =
 			    ath_computedur_ht(pktlen
 				, series[i].Rate

@@ -14,14 +14,15 @@
 #ifndef LLVM_CLANG_AST_PRETTY_PRINTER_H
 #define LLVM_CLANG_AST_PRETTY_PRINTER_H
 
-#include "clang/Basic/LangOptions.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
 
 namespace clang {
 
+class LangOptions;
+class SourceManager;
 class Stmt;
 class TagDecl;
-class LangOptions;
 
 class PrinterHelper {
 public:
@@ -39,8 +40,7 @@ struct PrintingPolicy {
       SuppressUnwrittenScope(false), SuppressInitializers(false),
       ConstantArraySizeAsWritten(false), AnonymousTagLocations(true),
       SuppressStrongLifetime(false), Bool(LO.Bool),
-      TerseOutput(false), SuppressAttributes(false),
-      DumpSourceManager(0) { }
+      TerseOutput(false), PolishForDeclaration(false) { }
 
   /// \brief What language we're printing.
   LangOptions LangOpts;
@@ -142,15 +142,10 @@ struct PrintingPolicy {
   /// only the requested declaration.
   unsigned TerseOutput : 1;
   
-  /// \brief When true, do not print attributes attached to the declaration.
+  /// \brief When true, do certain refinement needed for producing proper
+  /// declaration tag; such as, do not print attributes attached to the declaration.
   ///
-  unsigned SuppressAttributes : 1;
-
-  /// \brief If we are "dumping" rather than "pretty-printing", this points to
-  /// a SourceManager which will be used to dump SourceLocations. Dumping
-  /// involves printing the internal details of the AST and pretty-printing
-  /// involves printing something similar to source code.
-  SourceManager *DumpSourceManager;
+  unsigned PolishForDeclaration : 1;
 };
 
 } // end namespace clang

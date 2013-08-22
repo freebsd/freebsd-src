@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.7 - HEAD";
+char ixgbe_driver_version[] = "2.5.8 - HEAD";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1639,11 +1639,11 @@ ixgbe_msix_link(void *arg)
 
 	/* Check for over temp condition */
 	if ((hw->mac.type == ixgbe_mac_X540) &&
-	    (reg_eicr & IXGBE_EICR_GPI_SDP0)) {
+	    (reg_eicr & IXGBE_EICR_TS)) {
                 device_printf(adapter->dev, "\nCRITICAL: OVER TEMP!! "
 		    "PHY IS SHUT DOWN!!\n");
                 device_printf(adapter->dev, "System shutdown required\n");
-		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP0);
+		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_TS);
 	}
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, IXGBE_EIMS_OTHER);
@@ -1892,10 +1892,34 @@ ixgbe_set_promisc(struct adapter *adapter)
 {
 	u_int32_t       reg_rctl;
 	struct ifnet   *ifp = adapter->ifp;
+	int		mcnt = 0;
 
 	reg_rctl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
 	reg_rctl &= (~IXGBE_FCTRL_UPE);
-	reg_rctl &= (~IXGBE_FCTRL_MPE);
+	if (ifp->if_flags & IFF_ALLMULTI)
+		mcnt = MAX_NUM_MULTICAST_ADDRESSES;
+	else {
+		struct	ifmultiaddr *ifma;
+#if __FreeBSD_version < 800000
+		IF_ADDR_LOCK(ifp);
+#else
+		if_maddr_rlock(ifp);
+#endif
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (mcnt == MAX_NUM_MULTICAST_ADDRESSES)
+				break;
+			mcnt++;
+		}
+#if __FreeBSD_version < 800000
+		IF_ADDR_UNLOCK(ifp);
+#else
+		if_maddr_runlock(ifp);
+#endif
+	}
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+		reg_rctl &= (~IXGBE_FCTRL_MPE);
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, reg_rctl);
 
 	if (ifp->if_flags & IFF_PROMISC) {
@@ -4734,11 +4758,11 @@ ixgbe_setup_vlan_hw_support(struct adapter *adapter)
 static void
 ixgbe_enable_intr(struct adapter *adapter)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
-	struct ix_queue *que = adapter->queues;
-	u32 mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
+	struct ixgbe_hw	*hw = &adapter->hw;
+	struct ix_queue	*que = adapter->queues;
+	u32		mask, fwsm;
 
-
+	mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
 	/* Enable Fan Failure detection */
 	if (hw->device_id == IXGBE_DEV_ID_82598AT)
 		    mask |= IXGBE_EIMS_GPI_SDP1;
@@ -4755,6 +4779,10 @@ ixgbe_enable_intr(struct adapter *adapter)
 			break;
 		case ixgbe_mac_X540:
 			mask |= IXGBE_EIMS_ECC;
+			/* Detect if Thermal Sensor is enabled */
+			fwsm = IXGBE_READ_REG(hw, IXGBE_FWSM);
+			if (fwsm & IXGBE_FWSM_TS_ENABLED)
+				mask |= IXGBE_EIMS_TS;
 #ifdef IXGBE_FDIR
 			mask |= IXGBE_EIMS_FLOW_DIR;
 #endif

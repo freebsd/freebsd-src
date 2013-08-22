@@ -12,40 +12,41 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/LLVMContext.h"
-#include "llvm/DataLayout.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
-#include "llvm/CallGraphSCCPass.h"
-#include "llvm/CodeGen/CommandFlags.h"
-#include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/Assembly/PrintModulePass.h"
-#include "llvm/Analysis/Verifier.h"
-#include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/RegionPass.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/PassNameParser.h"
-#include "llvm/Support/Signals.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
+#include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/RegionPass.h"
+#include "llvm/Analysis/Verifier.h"
+#include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/CodeGen/CommandFlags.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/LinkAllIR.h"
+#include "llvm/LinkAllPasses.h"
+#include "llvm/MC/SubtargetFeature.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/MC/SubtargetFeature.h"
-#include "llvm/LinkAllPasses.h"
-#include "llvm/LinkAllVMCore.h"
+#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Target/TargetLibraryInfo.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include <memory>
 #include <algorithm>
+#include <memory>
 using namespace llvm;
 
 // The OptimizationList is automatically populated with registered Passes by the
@@ -523,16 +524,11 @@ CodeGenOpt::Level GetCodeGenOptLevel() {
 }
 
 // Returns the TargetMachine instance or zero if no triple is provided.
-static TargetMachine* GetTargetMachine(std::string TripleStr) {
-  if (TripleStr.empty())
-    return 0;
-
-  // Get the target specific parser.
+static TargetMachine* GetTargetMachine(Triple TheTriple) {
   std::string Error;
-  Triple TheTriple(Triple::normalize(TargetTriple));
-
   const Target *TheTarget = TargetRegistry::lookupTarget(MArch, TheTriple,
                                                          Error);
+  // Some modules don't specify a triple, and this is okay.
   if (!TheTarget) {
     return 0;
   }
@@ -572,6 +568,7 @@ int main(int argc, char **argv) {
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initializeCore(Registry);
   initializeScalarOpts(Registry);
+  initializeObjCARCOpts(Registry);
   initializeVectorization(Registry);
   initializeIPO(Registry);
   initializeAnalysis(Registry);
@@ -655,11 +652,15 @@ int main(int argc, char **argv) {
   if (TD)
     Passes.add(TD);
 
-  std::auto_ptr<TargetMachine> TM(GetTargetMachine(TargetTriple));
-  if (TM.get()) {
-    Passes.add(new TargetTransformInfo(TM->getScalarTargetTransformInfo(),
-                                       TM->getVectorTargetTransformInfo()));
-  }
+  Triple ModuleTriple(M->getTargetTriple());
+  TargetMachine *Machine = 0;
+  if (ModuleTriple.getArch())
+    Machine = GetTargetMachine(Triple(ModuleTriple));
+  std::auto_ptr<TargetMachine> TM(Machine);
+
+  // Add internal analysis passes from the target machine.
+  if (TM.get())
+    TM->addAnalysisPasses(Passes);
 
   OwningPtr<FunctionPassManager> FPasses;
   if (OptLevelO1 || OptLevelO2 || OptLevelOs || OptLevelOz || OptLevelO3) {

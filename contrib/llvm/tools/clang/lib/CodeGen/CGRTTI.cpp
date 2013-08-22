@@ -13,10 +13,10 @@
 
 #include "CodeGenModule.h"
 #include "CGCXXABI.h"
+#include "CGObjCRuntime.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Type.h"
 #include "clang/Frontend/CodeGenOptions.h"
-#include "CGObjCRuntime.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -191,6 +191,14 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::Char32:
     case BuiltinType::Int128:
     case BuiltinType::UInt128:
+    case BuiltinType::OCLImage1d:
+    case BuiltinType::OCLImage1dArray:
+    case BuiltinType::OCLImage1dBuffer:
+    case BuiltinType::OCLImage2d:
+    case BuiltinType::OCLImage2dArray:
+    case BuiltinType::OCLImage3d:
+    case BuiltinType::OCLSampler:
+    case BuiltinType::OCLEvent:
       return true;
       
     case BuiltinType::Dependent:
@@ -244,10 +252,12 @@ static bool IsStandardLibraryRTTIDescriptor(QualType Ty) {
 /// the given type exists somewhere else, and that we should not emit the type
 /// information in this translation unit.  Assumes that it is not a
 /// standard-library type.
-static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM, QualType Ty) {
+static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM,
+                                            QualType Ty) {
   ASTContext &Context = CGM.getContext();
 
-  // If RTTI is disabled, don't consider key functions.
+  // If RTTI is disabled, assume it might be disabled in the
+  // translation unit that defines any potential key function, too.
   if (!Context.getLangOpts().RTTI) return false;
 
   if (const RecordType *RecordTy = dyn_cast<RecordType>(Ty)) {
@@ -258,7 +268,9 @@ static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM, QualType Ty) {
     if (!RD->isDynamicClass())
       return false;
 
-    return !CGM.getVTables().ShouldEmitVTableInThisTU(RD);
+    // FIXME: this may need to be reconsidered if the key function
+    // changes.
+    return CGM.getVTables().isVTableExternal(RD);
   }
   
   return false;

@@ -13,11 +13,9 @@
 
 #include "llvm-objdump.h"
 #include "MCFunction.h"
-#include "llvm/Support/MachO.h"
-#include "llvm/Object/MachO.h"
 #include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/Triple.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Triple.h"
 #include "llvm/DebugInfo/DIContext.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCDisassembler.h"
@@ -28,10 +26,12 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Object/MachO.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/GraphWriter.h"
+#include "llvm/Support/MachO.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
@@ -309,16 +309,10 @@ void llvm::DisassembleInputMachO(StringRef Filename) {
   raw_ostream &DebugOut = nulls();
 #endif
 
-  StringRef DebugAbbrevSection, DebugInfoSection, DebugArangesSection,
-            DebugLineSection, DebugStrSection;
   OwningPtr<DIContext> diContext;
-  OwningPtr<MachOObjectFile> DSYMObj;
-  MachOObject *DbgInfoObj = MachOObj;
+  ObjectFile *DbgObj = MachOOF.get();
   // Try to find debug info and set up the DIContext for it.
   if (UseDbg) {
-    ArrayRef<SectionRef> DebugSections = Sections;
-    std::vector<SectionRef> DSYMSections;
-
     // A separate DSym file path was specified, parse it as a macho file,
     // get the sections and supply it to the section name parsing machinery.
     if (!DSYMFile.empty()) {
@@ -327,42 +321,11 @@ void llvm::DisassembleInputMachO(StringRef Filename) {
         errs() << "llvm-objdump: " << Filename << ": " << ec.message() << '\n';
         return;
       }
-      DSYMObj.reset(static_cast<MachOObjectFile*>(
-            ObjectFile::createMachOObjectFile(Buf.take())));
-      const macho::Header &Header = DSYMObj->getObject()->getHeader();
-
-      std::vector<SymbolRef> Symbols;
-      SmallVector<uint64_t, 8> FoundFns;
-      getSectionsAndSymbols(Header, DSYMObj.get(), 0, DSYMSections, Symbols,
-                            FoundFns);
-      DebugSections = DSYMSections;
-      DbgInfoObj = DSYMObj.get()->getObject();
+      DbgObj = ObjectFile::createMachOObjectFile(Buf.take());
     }
 
-    // Find the named debug info sections.
-    for (unsigned SectIdx = 0; SectIdx != DebugSections.size(); SectIdx++) {
-      StringRef SectName;
-      if (!DebugSections[SectIdx].getName(SectName)) {
-        if (SectName.equals("__DWARF,__debug_abbrev"))
-          DebugSections[SectIdx].getContents(DebugAbbrevSection);
-        else if (SectName.equals("__DWARF,__debug_info"))
-          DebugSections[SectIdx].getContents(DebugInfoSection);
-        else if (SectName.equals("__DWARF,__debug_aranges"))
-          DebugSections[SectIdx].getContents(DebugArangesSection);
-        else if (SectName.equals("__DWARF,__debug_line"))
-          DebugSections[SectIdx].getContents(DebugLineSection);
-        else if (SectName.equals("__DWARF,__debug_str"))
-          DebugSections[SectIdx].getContents(DebugStrSection);
-      }
-    }
-
-    // Setup the DIContext.
-    diContext.reset(DIContext::getDWARFContext(DbgInfoObj->isLittleEndian(),
-                                               DebugInfoSection,
-                                               DebugAbbrevSection,
-                                               DebugArangesSection,
-                                               DebugLineSection,
-                                               DebugStrSection));
+    // Setup the DIContext
+    diContext.reset(DIContext::getDWARFContext(DbgObj));
   }
 
   FunctionMapTy FunctionMap;
@@ -371,8 +334,14 @@ void llvm::DisassembleInputMachO(StringRef Filename) {
   for (unsigned SectIdx = 0; SectIdx != Sections.size(); SectIdx++) {
     StringRef SectName;
     if (Sections[SectIdx].getName(SectName) ||
-        SectName.compare("__TEXT,__text"))
+        SectName != "__text")
       continue; // Skip non-text sections
+
+    StringRef SegmentName;
+    DataRefImpl DR = Sections[SectIdx].getRawDataRefImpl();
+    if (MachOOF->getSectionFinalSegmentName(DR, SegmentName) ||
+        SegmentName != "__TEXT")
+      continue;
 
     // Insert the functions from the function starts segment into our map.
     uint64_t VMAddr;

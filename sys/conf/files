@@ -197,10 +197,12 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/dnode_sync.c			optional zfs compile-w
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_dataset.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_deadlist.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_deleg.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_destroy.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_dir.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_pool.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_prop.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_scan.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_userhold.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_synctask.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/gzip.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/lz4.c			optional zfs compile-with "${ZFS_C}"
@@ -372,6 +374,7 @@ contrib/dev/acpica/components/hardware/hwxface.c	optional acpi
 contrib/dev/acpica/components/hardware/hwxfsleep.c	optional acpi
 contrib/dev/acpica/components/namespace/nsaccess.c	optional acpi
 contrib/dev/acpica/components/namespace/nsalloc.c	optional acpi
+contrib/dev/acpica/components/namespace/nsarguments.c	optional acpi
 contrib/dev/acpica/components/namespace/nsconvert.c	optional acpi
 contrib/dev/acpica/components/namespace/nsdump.c	optional acpi
 contrib/dev/acpica/components/namespace/nseval.c	optional acpi
@@ -441,6 +444,7 @@ contrib/dev/acpica/components/utilities/utmutex.c	optional acpi
 contrib/dev/acpica/components/utilities/utobject.c	optional acpi
 contrib/dev/acpica/components/utilities/utosi.c		optional acpi
 contrib/dev/acpica/components/utilities/utownerid.c	optional acpi
+contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
@@ -672,7 +676,6 @@ dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
 dev/ata/ata-dma.c		optional ata | atacore
 dev/ata/ata-lowlevel.c		optional ata | atacore
-dev/ata/ata-queue.c		optional ata | atacore
 dev/ata/ata-sata.c		optional ata | atacore
 dev/ata/ata-card.c		optional ata pccard | atapccard
 dev/ata/ata-cbus.c		optional ata pc98 | atapc98
@@ -703,12 +706,6 @@ dev/ata/chipsets/ata-serverworks.c	optional ata pci | ataserverworks
 dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage | ataati
 dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
-dev/ata/ata-disk.c		optional atadisk
-dev/ata/ata-raid.c		optional ataraid
-dev/ata/atapi-cd.c		optional atapicd
-dev/ata/atapi-fd.c		optional atapifd
-dev/ata/atapi-tape.c		optional atapist
-dev/ata/atapi-cam.c		optional atapicam
 #
 dev/ath/if_ath_pci.c		optional ath_pci pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1049,6 +1046,7 @@ dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
 dev/cas/if_cas.c		optional cas
+dev/cfi/cfi_bus_nexus.c		optional cfi
 dev/cfi/cfi_core.c		optional cfi
 dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
@@ -1287,6 +1285,7 @@ dev/etherswitch/mdio_if.m		optional miiproxy
 dev/etherswitch/mdio.c			optional miiproxy
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
+dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
@@ -2407,6 +2406,7 @@ fs/nfsclient/nfs_clvfsops.c	optional nfscl
 fs/nfsclient/nfs_clport.c	optional nfscl
 fs/nfsclient/nfs_clbio.c	optional nfscl
 fs/nfsclient/nfs_clnfsiod.c	optional nfscl
+fs/nfsserver/nfs_fha_new.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdsocket.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdsubs.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdstate.c	optional nfsd inet
@@ -2498,6 +2498,7 @@ geom/label/g_label_ntfs.c	optional geom_label
 geom/label/g_label_reiserfs.c	optional geom_label
 geom/label/g_label_ufs.c	optional geom_label
 geom/label/g_label_gpt.c	optional geom_label
+geom/label/g_label_disk_ident.c	optional geom_label
 geom/linux_lvm/g_linux_lvm.c	optional geom_linux_lvm
 geom/mirror/g_mirror.c		optional geom_mirror
 geom/mirror/g_mirror_ctl.c	optional geom_mirror
@@ -2686,6 +2687,7 @@ kern/subr_bus.c			standard
 kern/subr_bus_dma.c		standard
 kern/subr_bufring.c		standard
 kern/subr_clock.c		standard
+kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
@@ -3203,6 +3205,7 @@ nfs/bootp_subr.c		optional bootp nfsclient | bootp nfscl
 nfs/krpc_subr.c			optional bootp nfsclient | bootp nfscl
 nfs/nfs_common.c		optional nfsclient | nfsserver
 nfs/nfs_diskless.c		optional nfsclient nfs_root | nfscl nfs_root
+nfs/nfs_fha.c			optional nfsserver | nfsd
 nfs/nfs_lock.c			optional nfsclient | nfscl | nfslockd | nfsd
 nfsclient/nfs_bio.c		optional nfsclient
 nfsclient/nfs_node.c		optional nfsclient
@@ -3211,7 +3214,7 @@ nfsclient/nfs_subs.c		optional nfsclient
 nfsclient/nfs_nfsiod.c		optional nfsclient
 nfsclient/nfs_vfsops.c		optional nfsclient
 nfsclient/nfs_vnops.c		optional nfsclient
-nfsserver/nfs_fha.c		optional nfsserver
+nfsserver/nfs_fha_old.c		optional nfsserver
 nfsserver/nfs_serv.c		optional nfsserver
 nfsserver/nfs_srvkrpc.c		optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver

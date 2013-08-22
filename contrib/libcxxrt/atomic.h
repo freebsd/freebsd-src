@@ -9,7 +9,7 @@
  * Swap macro that enforces a happens-before relationship with a corresponding
  * ATOMIC_LOAD.
  */
-#if __has_feature(cxx_atomic)
+#if __has_builtin(__c11_atomic_exchange)
 #define ATOMIC_SWAP(addr, val)\
 	__c11_atomic_exchange((_Atomic(__typeof__(val))*)addr, val, __ATOMIC_ACQ_REL)
 #elif __has_builtin(__sync_swap)
@@ -20,7 +20,7 @@
 	__sync_lock_test_and_set(addr, val)
 #endif
 
-#if __has_feature(cxx_atomic)
+#if __has_builtin(__c11_atomic_load)
 #define ATOMIC_LOAD(addr)\
 	__c11_atomic_load((_Atomic(__typeof__(*addr))*)addr, __ATOMIC_ACQUIRE)
 #else

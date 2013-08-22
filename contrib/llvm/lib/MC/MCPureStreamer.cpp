@@ -28,16 +28,17 @@ private:
   virtual void EmitInstToData(const MCInst &Inst);
 
 public:
-  MCPureStreamer(MCContext &Context, MCAsmBackend &TAB,
-                 raw_ostream &OS, MCCodeEmitter *Emitter)
-    : MCObjectStreamer(Context, TAB, OS, Emitter) {}
+  MCPureStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
+                 MCCodeEmitter *Emitter)
+      : MCObjectStreamer(SK_PureStreamer, Context, TAB, OS, Emitter) {}
 
   /// @name MCStreamer Interface
   /// @{
 
   virtual void InitSections();
+  virtual void InitToTextSection();
   virtual void EmitLabel(MCSymbol *Symbol);
-  virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
+  virtual void EmitDebugLabel(MCSymbol *Symbol);
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             uint64_t Size = 0, unsigned ByteAlignment = 0);
   virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
@@ -94,21 +95,28 @@ public:
     report_fatal_error("unsupported directive in pure streamer");
   }
   virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
-                                      StringRef Filename) {
+                                      StringRef Filename, unsigned CUID = 0) {
     report_fatal_error("unsupported directive in pure streamer");
   }
 
   /// @}
+
+  static bool classof(const MCStreamer *S) {
+    return S->getKind() == SK_PureStreamer;
+  }
 };
 
 } // end anonymous namespace.
 
 void MCPureStreamer::InitSections() {
+  InitToTextSection();
+}
+
+void MCPureStreamer::InitToTextSection() {
   // FIMXE: To what!?
   SwitchSection(getContext().getMachOSection("__TEXT", "__text",
                                     MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
                                     0, SectionKind::getText()));
-
 }
 
 void MCPureStreamer::EmitLabel(MCSymbol *Symbol) {
@@ -135,12 +143,9 @@ void MCPureStreamer::EmitLabel(MCSymbol *Symbol) {
   SD.setOffset(F->getContents().size());
 }
 
-void MCPureStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  // FIXME: Lift context changes into super class.
-  getAssembler().getOrCreateSymbolData(*Symbol);
-  Symbol->setVariableValue(AddValueSymbols(Value));
+
+void MCPureStreamer::EmitDebugLabel(MCSymbol *Symbol) {
+  EmitLabel(Symbol);
 }
 
 void MCPureStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
@@ -191,7 +196,8 @@ bool MCPureStreamer::EmitValueToOffset(const MCExpr *Offset,
 }
 
 void MCPureStreamer::EmitInstToFragment(const MCInst &Inst) {
-  MCInstFragment *IF = new MCInstFragment(Inst, getCurrentSectionData());
+  MCRelaxableFragment *IF =
+    new MCRelaxableFragment(Inst, getCurrentSectionData());
 
   // Add the fixups and data.
   //
@@ -203,7 +209,7 @@ void MCPureStreamer::EmitInstToFragment(const MCInst &Inst) {
   getAssembler().getEmitter().EncodeInstruction(Inst, VecOS, Fixups);
   VecOS.flush();
 
-  IF->getCode() = Code;
+  IF->getContents() = Code;
   IF->getFixups() = Fixups;
 }
 
@@ -219,7 +225,7 @@ void MCPureStreamer::EmitInstToData(const MCInst &Inst) {
   // Add the fixups and data.
   for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
     Fixups[i].setOffset(Fixups[i].getOffset() + DF->getContents().size());
-    DF->addFixup(Fixups[i]);
+    DF->getFixups().push_back(Fixups[i]);
   }
   DF->getContents().append(Code.begin(), Code.end());
 }

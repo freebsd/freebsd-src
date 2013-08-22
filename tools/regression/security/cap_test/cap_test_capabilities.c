@@ -293,14 +293,12 @@ try_file_ops(int filefd, int dirfd, cap_rights_t rights)
 	CHECK_RESULT(fchflags, CAP_FCHFLAGS,
 	    ret == 0 || (is_nfs && errno == EOPNOTSUPP));
 
-#ifdef TODO	/* No such syscalls yet. */
-	ret = openat(dirfd, "cap_fchflagsat", O_CREAT, 0600);
+	ret = openat(dirfd, "cap_chflagsat", O_CREAT, 0600);
 	CHECK(ret >= 0);
 	CHECK(close(ret) == 0);
-	ret = fchflagsat(dfd_cap, "cap_fchflagsat", UF_NODUMP, 0);
-	CHECK_RESULT(fchflagsat, CAP_FCHFLAGSAT | CAP_LOOKUP, ret == 0);
-	CHECK(unlinkat(dirfd, "cap_fchflagsat", 0) == 0);
-#endif
+	ret = chflagsat(dfd_cap, "cap_chflagsat", UF_NODUMP, 0);
+	CHECK_RESULT(chflagsat, CAP_CHFLAGSAT | CAP_LOOKUP, ret == 0);
+	CHECK(unlinkat(dirfd, "cap_chflagsat", 0) == 0);
 
 	ret = fchown(fd_cap, -1, -1);
 	CHECK_RESULT(fchown, CAP_FCHOWN, ret == 0);

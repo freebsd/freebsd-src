@@ -38,7 +38,7 @@ DEFINE_TEST(test_write_format_shar_empty)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_shar(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_add_filter_none(a));
 	/* 1-byte block size ensures we see only the required bytes. */
 	/* We're not testing the padding here. */
 	assertA(0 == archive_write_set_bytes_per_block(a, 1));

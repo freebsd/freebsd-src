@@ -8,9 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This file implements a hash set that can be used to remove duplication of
-// nodes in a graph.  This code was originally created by Chris Lattner for use
-// with SelectionDAGCSEMap, but was isolated to provide use across the llvm code
-// set. 
+// nodes in a graph.
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,8 +16,8 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/MathExtras.h"
 #include <cassert>
 #include <cstring>
 using namespace llvm;
@@ -150,7 +148,7 @@ unsigned FoldingSetNodeID::ComputeHash() const {
 
 /// operator== - Used to compare two nodes to each other.
 ///
-bool FoldingSetNodeID::operator==(const FoldingSetNodeID &RHS)const{
+bool FoldingSetNodeID::operator==(const FoldingSetNodeID &RHS) const {
   return *this == FoldingSetNodeIDRef(RHS.Bits.data(), RHS.Bits.size());
 }
 
@@ -162,7 +160,7 @@ bool FoldingSetNodeID::operator==(FoldingSetNodeIDRef RHS) const {
 
 /// Used to compare the "ordering" of two nodes as defined by the
 /// profiled bits and their ordering defined by memcmp().
-bool FoldingSetNodeID::operator<(const FoldingSetNodeID &RHS)const{
+bool FoldingSetNodeID::operator<(const FoldingSetNodeID &RHS) const {
   return *this < FoldingSetNodeIDRef(RHS.Bits.data(), RHS.Bits.size());
 }
 

@@ -131,18 +131,20 @@ write_phyregister(struct cfg *cfg, int phy, int reg, int val)
 }
 
 static void
-set_port_vlangroup(struct cfg *cfg, char *argv[])
+set_port_vid(struct cfg *cfg, char *argv[])
 {
 	int v;
 	etherswitch_port_t p;
 	
 	v = strtol(argv[1], NULL, 0);
-	if (v < 0 || v >= cfg->info.es_nvlangroups)
-		errx(EX_USAGE, "vlangroup must be between 0 and %d", cfg->info.es_nvlangroups-1);
+	if (v < 0 || v > IEEE802DOT1Q_VID_MAX)
+		errx(EX_USAGE, "pvid must be between 0 and %d",
+		    IEEE802DOT1Q_VID_MAX);
+	bzero(&p, sizeof(p));
 	p.es_port = cfg->unit;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
-	p.es_vlangroup = v;
+	p.es_pvid = v;
 	if (ioctl(cfg->fd, IOETHERSWITCHSETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHSETPORT)");
 }
@@ -301,7 +303,7 @@ print_port(struct cfg *cfg, int port)
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
 	printf("port%d:\n", port);
-	printf("\tvlangroup: %d\n", p.es_vlangroup);
+	printf("\tpvid: %d\n", p.es_pvid);
 	printf("\tmedia: ");
 	print_media_word(p.es_ifmr.ifm_current, 1);
 	if (p.es_ifmr.ifm_active != p.es_ifmr.ifm_current) {
@@ -466,8 +468,11 @@ main(int argc, char *argv[])
 		case MODE_PORT:
 		case MODE_VLANGROUP:
 			for(i=0; cmds[i].name != NULL; i++) {
-				if (cfg.mode == cmds[i].mode && strcmp(argv[0], cmds[i].name) == 0
-					&& argc >= cmds[i].args) {
+				if (cfg.mode == cmds[i].mode && strcmp(argv[0], cmds[i].name) == 0) {
+					if (argc < (cmds[i].args + 1)) {
+						printf("%s needs an argument\n", cmds[i].name);
+						break;
+					}
 					(cmds[i].f)(&cfg, argv);
 					argc -= cmds[i].args;
 					argv += cmds[i].args;
@@ -502,7 +507,7 @@ main(int argc, char *argv[])
 }
 
 static struct cmds cmds[] = {
-	{ MODE_PORT, "vlangroup", 1, set_port_vlangroup },
+	{ MODE_PORT, "pvid", 1, set_port_vid },
 	{ MODE_PORT, "media", 1, set_port_media },
 	{ MODE_PORT, "mediaopt", 1, set_port_mediaopt },
 	{ MODE_VLANGROUP, "vlan", 1, set_vlangroup_vid },

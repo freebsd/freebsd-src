@@ -251,7 +251,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	    M_ZERO | M_NOWAIT);
 	if (newtag == NULL) {
 		CTR4(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
-		    __func__, newtag, 0, error);
+		    __func__, newtag, 0, ENOMEM);
 		return (ENOMEM);
 	}
 

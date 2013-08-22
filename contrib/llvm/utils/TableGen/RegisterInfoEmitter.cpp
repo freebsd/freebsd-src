@@ -185,6 +185,36 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
      << "  return RCWeightTable[RC->getID()];\n"
      << "}\n\n";
 
+  // Reasonable targets (not ARMv7) have unit weight for all units, so don't
+  // bother generating a table.
+  bool RegUnitsHaveUnitWeight = true;
+  for (unsigned UnitIdx = 0, UnitEnd = RegBank.getNumNativeRegUnits();
+       UnitIdx < UnitEnd; ++UnitIdx) {
+    if (RegBank.getRegUnit(UnitIdx).Weight > 1)
+      RegUnitsHaveUnitWeight = false;
+  }
+  OS << "/// Get the weight in units of pressure for this register unit.\n"
+     << "unsigned " << ClassName << "::\n"
+     << "getRegUnitWeight(unsigned RegUnit) const {\n"
+     << "  assert(RegUnit < " << RegBank.getNumNativeRegUnits()
+     << " && \"invalid register unit\");\n";
+  if (!RegUnitsHaveUnitWeight) {
+    OS << "  static const uint8_t RUWeightTable[] = {\n    ";
+    for (unsigned UnitIdx = 0, UnitEnd = RegBank.getNumNativeRegUnits();
+         UnitIdx < UnitEnd; ++UnitIdx) {
+      const RegUnit &RU = RegBank.getRegUnit(UnitIdx);
+      assert(RU.Weight < 256 && "RegUnit too heavy");
+      OS << RU.Weight << ", ";
+    }
+    OS << "0 };\n"
+       << "  return RUWeightTable[RegUnit];\n";
+  }
+  else {
+    OS << "  // All register units have unit weight.\n"
+       << "  return 1;\n";
+  }
+  OS << "}\n\n";
+
   OS << "\n"
      << "// Get the number of dimensions of register pressure.\n"
      << "unsigned " << ClassName << "::getNumRegPressureSets() const {\n"
@@ -215,14 +245,13 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
      << "  return PressureLimitTable[Idx];\n"
      << "}\n\n";
 
-  OS << "/// Get the dimensions of register pressure "
-     << "impacted by this register class.\n"
-     << "/// Returns a -1 terminated array of pressure set IDs\n"
-     << "const int* " << ClassName << "::\n"
-     << "getRegClassPressureSets(const TargetRegisterClass *RC) const {\n"
-     << "  static const int RCSetsTable[] = {\n    ";
-  std::vector<unsigned> RCSetStarts(NumRCs);
-  for (unsigned i = 0, StartIdx = 0, e = NumRCs; i != e; ++i) {
+  // This table may be larger than NumRCs if some register units needed a list
+  // of unit sets that did not correspond to a register class.
+  unsigned NumRCUnitSets = RegBank.getNumRegClassPressureSetLists();
+  OS << "/// Table of pressure sets per register class or unit.\n"
+     << "static const int RCSetsTable[] = {\n    ";
+  std::vector<unsigned> RCSetStarts(NumRCUnitSets);
+  for (unsigned i = 0, StartIdx = 0, e = NumRCUnitSets; i != e; ++i) {
     RCSetStarts[i] = StartIdx;
     ArrayRef<unsigned> PSetIDs = RegBank.getRCPressureSetIDs(i);
     for (ArrayRef<unsigned>::iterator PSetI = PSetIDs.begin(),
@@ -230,16 +259,49 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
       OS << *PSetI << ",  ";
       ++StartIdx;
     }
-    OS << "-1,  \t// " << RegBank.getRegClasses()[i]->getName() << "\n    ";
+    OS << "-1,  \t// #" << RCSetStarts[i] << " ";
+    if (i < NumRCs)
+      OS << RegBank.getRegClasses()[i]->getName();
+    else {
+      OS << "inferred";
+      for (ArrayRef<unsigned>::iterator PSetI = PSetIDs.begin(),
+             PSetE = PSetIDs.end(); PSetI != PSetE; ++PSetI) {
+        OS << "~" << RegBank.getRegPressureSet(*PSetI).Name;
+      }
+    }
+    OS << "\n    ";
     ++StartIdx;
   }
-  OS << "-1 };\n";
+  OS << "-1 };\n\n";
+
+  OS << "/// Get the dimensions of register pressure impacted by this "
+     << "register class.\n"
+     << "/// Returns a -1 terminated array of pressure set IDs\n"
+     << "const int* " << ClassName << "::\n"
+     << "getRegClassPressureSets(const TargetRegisterClass *RC) const {\n";
   OS << "  static const unsigned RCSetStartTable[] = {\n    ";
   for (unsigned i = 0, e = NumRCs; i != e; ++i) {
     OS << RCSetStarts[i] << ",";
   }
   OS << "0 };\n"
      << "  unsigned SetListStart = RCSetStartTable[RC->getID()];\n"
+     << "  return &RCSetsTable[SetListStart];\n"
+     << "}\n\n";
+
+  OS << "/// Get the dimensions of register pressure impacted by this "
+     << "register unit.\n"
+     << "/// Returns a -1 terminated array of pressure set IDs\n"
+     << "const int* " << ClassName << "::\n"
+     << "getRegUnitPressureSets(unsigned RegUnit) const {\n"
+     << "  assert(RegUnit < " << RegBank.getNumNativeRegUnits()
+     << " && \"invalid register unit\");\n";
+  OS << "  static const unsigned RUSetStartTable[] = {\n    ";
+  for (unsigned UnitIdx = 0, UnitEnd = RegBank.getNumNativeRegUnits();
+       UnitIdx < UnitEnd; ++UnitIdx) {
+    OS << RCSetStarts[RegBank.getRegUnit(UnitIdx).RegClassUnitSetsIdx] << ",";
+  }
+  OS << "0 };\n"
+     << "  unsigned SetListStart = RUSetStartTable[RegUnit];\n"
      << "  return &RCSetsTable[SetListStart];\n"
      << "}\n\n";
 }
@@ -729,7 +791,7 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
   const std::string &TargetName = Target.getName();
 
   // Emit the shared table of differential lists.
-  OS << "extern const uint16_t " << TargetName << "RegDiffLists[] = {\n";
+  OS << "extern const MCPhysReg " << TargetName << "RegDiffLists[] = {\n";
   DiffSeqs.emit(OS, printDiff16);
   OS << "};\n\n";
 
@@ -859,9 +921,9 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
   // MCRegisterInfo initialization routine.
   OS << "static inline void Init" << TargetName
      << "MCRegisterInfo(MCRegisterInfo *RI, unsigned RA, "
-     << "unsigned DwarfFlavour = 0, unsigned EHFlavour = 0) {\n"
+     << "unsigned DwarfFlavour = 0, unsigned EHFlavour = 0, unsigned PC = 0) {\n"
      << "  RI->InitMCRegisterInfo(" << TargetName << "RegDesc, "
-     << Regs.size()+1 << ", RA, " << TargetName << "MCRegisterClasses, "
+     << Regs.size()+1 << ", RA, PC, " << TargetName << "MCRegisterClasses, "
      << RegisterClasses.size() << ", "
      << TargetName << "RegUnitRoots, "
      << RegBank.getNumNativeRegUnits() << ", "
@@ -896,7 +958,7 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
 
   OS << "struct " << ClassName << " : public TargetRegisterInfo {\n"
      << "  explicit " << ClassName
-     << "(unsigned RA, unsigned D = 0, unsigned E = 0);\n"
+     << "(unsigned RA, unsigned D = 0, unsigned E = 0, unsigned PC = 0);\n"
      << "  virtual bool needsStackRealignment(const MachineFunction &) const\n"
      << "     { return false; }\n";
   if (!RegBank.getSubRegIndices().empty()) {
@@ -907,11 +969,13 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
   }
   OS << "  virtual const RegClassWeight &getRegClassWeight("
      << "const TargetRegisterClass *RC) const;\n"
+     << "  virtual unsigned getRegUnitWeight(unsigned RegUnit) const;\n"
      << "  virtual unsigned getNumRegPressureSets() const;\n"
      << "  virtual const char *getRegPressureSetName(unsigned Idx) const;\n"
      << "  virtual unsigned getRegPressureSetLimit(unsigned Idx) const;\n"
      << "  virtual const int *getRegClassPressureSets("
      << "const TargetRegisterClass *RC) const;\n"
+     << "  virtual const int *getRegUnitPressureSets(unsigned RegUnit) const;\n"
      << "};\n\n";
 
   ArrayRef<CodeGenRegisterClass*> RegisterClasses = RegBank.getRegClasses();
@@ -967,7 +1031,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
   }
 
   // Build a shared array of value types.
-  SequenceToOffsetTable<std::vector<MVT::SimpleValueType> > VTSeqs;
+  SequenceToOffsetTable<SmallVector<MVT::SimpleValueType, 4> > VTSeqs;
   for (unsigned rc = 0, e = RegisterClasses.size(); rc != e; ++rc)
     VTSeqs.add(RegisterClasses[rc]->VTs);
   VTSeqs.layout();
@@ -1074,12 +1138,12 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
         OS << "\nstatic inline unsigned " << RC.getName()
            << "AltOrderSelect(const MachineFunction &MF) {"
            << RC.AltOrderSelect << "}\n\n"
-           << "static ArrayRef<uint16_t> " << RC.getName()
+           << "static ArrayRef<MCPhysReg> " << RC.getName()
            << "GetRawAllocationOrder(const MachineFunction &MF) {\n";
         for (unsigned oi = 1 , oe = RC.getNumOrders(); oi != oe; ++oi) {
           ArrayRef<Record*> Elems = RC.getOrder(oi);
           if (!Elems.empty()) {
-            OS << "  static const uint16_t AltOrder" << oi << "[] = {";
+            OS << "  static const MCPhysReg AltOrder" << oi << "[] = {";
             for (unsigned elem = 0; elem != Elems.size(); ++elem)
               OS << (elem ? ", " : " ") << getQualifiedName(Elems[elem]);
             OS << " };\n";
@@ -1087,11 +1151,11 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
         }
         OS << "  const MCRegisterClass &MCR = " << Target.getName()
            << "MCRegisterClasses[" << RC.getQualifiedName() + "RegClassID];\n"
-           << "  const ArrayRef<uint16_t> Order[] = {\n"
+           << "  const ArrayRef<MCPhysReg> Order[] = {\n"
            << "    makeArrayRef(MCR.begin(), MCR.getNumRegs()";
         for (unsigned oi = 1, oe = RC.getNumOrders(); oi != oe; ++oi)
           if (RC.getOrder(oi).empty())
-            OS << "),\n    ArrayRef<uint16_t>(";
+            OS << "),\n    ArrayRef<MCPhysReg>(";
           else
             OS << "),\n    makeArrayRef(AltOrder" << oi;
         OS << ")\n  };\n  const unsigned Select = " << RC.getName()
@@ -1194,7 +1258,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
 
   // Emit the constructor of the class...
   OS << "extern const MCRegisterDesc " << TargetName << "RegDesc[];\n";
-  OS << "extern const uint16_t " << TargetName << "RegDiffLists[];\n";
+  OS << "extern const MCPhysReg " << TargetName << "RegDiffLists[];\n";
   OS << "extern const char " << TargetName << "RegStrings[];\n";
   OS << "extern const uint16_t " << TargetName << "RegUnitRoots[][2];\n";
   OS << "extern const uint16_t " << TargetName << "SubRegIdxLists[];\n";
@@ -1203,12 +1267,12 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
   EmitRegMappingTables(OS, Regs, true);
 
   OS << ClassName << "::\n" << ClassName
-     << "(unsigned RA, unsigned DwarfFlavour, unsigned EHFlavour)\n"
+     << "(unsigned RA, unsigned DwarfFlavour, unsigned EHFlavour, unsigned PC)\n"
      << "  : TargetRegisterInfo(" << TargetName << "RegInfoDesc"
      << ", RegisterClasses, RegisterClasses+" << RegisterClasses.size() <<",\n"
      << "             SubRegIndexNameTable, SubRegIndexLaneMaskTable) {\n"
      << "  InitMCRegisterInfo(" << TargetName << "RegDesc, "
-     << Regs.size()+1 << ", RA,\n                     " << TargetName
+     << Regs.size()+1 << ", RA, PC,\n                     " << TargetName
      << "MCRegisterClasses, " << RegisterClasses.size() << ",\n"
      << "                     " << TargetName << "RegUnitRoots,\n"
      << "                     " << RegBank.getNumNativeRegUnits() << ",\n"
@@ -1232,7 +1296,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
     assert(Regs && "Cannot expand CalleeSavedRegs instance");
 
     // Emit the *_SaveList list of callee-saved registers.
-    OS << "static const uint16_t " << CSRSet->getName()
+    OS << "static const MCPhysReg " << CSRSet->getName()
        << "_SaveList[] = { ";
     for (unsigned r = 0, re = Regs->size(); r != re; ++r)
       OS << getQualifiedName((*Regs)[r]) << ", ";

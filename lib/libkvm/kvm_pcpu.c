@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2010 Juniper Networks, Inc.
  * Copyright (c) 2009 Robert N. M. Watson
  * Copyright (c) 2009 Bjoern A. Zeeb <bz@FreeBSD.org>
@@ -50,8 +51,12 @@ __FBSDID("$FreeBSD$");
 static struct nlist kvm_pcpu_nl[] = {
 	{ .n_name = "_cpuid_to_pcpu" },
 	{ .n_name = "_mp_maxcpus" },
+	{ .n_name = "_mp_ncpus" },
 	{ .n_name = NULL },
 };
+#define	NL_CPUID_TO_PCPU	0
+#define	NL_MP_MAXCPUS		1
+#define	NL_MP_NCPUS		2
 
 /*
  * Kernel per-CPU data state.  We cache this stuff on the first
@@ -63,9 +68,7 @@ static struct nlist kvm_pcpu_nl[] = {
  */
 static void **pcpu_data;
 static int maxcpu;
-
-#define	NL_CPUID_TO_PCPU	0
-#define	NL_MP_MAXCPUS		1
+static int mp_ncpus;
 
 static int
 _kvm_pcpu_init(kvm_t *kd)
@@ -87,6 +90,15 @@ _kvm_pcpu_init(kvm_t *kd)
 	if (kvm_read(kd, kvm_pcpu_nl[NL_MP_MAXCPUS].n_value, &max,
 	    sizeof(max)) != sizeof(max)) {
 		_kvm_err(kd, kd->program, "cannot read mp_maxcpus");
+		return (-1);
+	}
+	if (kvm_pcpu_nl[NL_MP_NCPUS].n_value == 0) {
+		_kvm_err(kd, kd->program, "unable to find mp_ncpus");
+		return (-1);
+	}
+	if (kvm_read(kd, kvm_pcpu_nl[NL_MP_NCPUS].n_value, &mp_ncpus,
+	    sizeof(mp_ncpus)) != sizeof(mp_ncpus)) {
+		_kvm_err(kd, kd->program, "cannot read mp_ncpus");
 		return (-1);
 	}
 	len = max * sizeof(void *);
@@ -288,4 +300,37 @@ kvm_dpcpu_setcpu(kvm_t *kd, u_int cpu)
 	}
 
 	return (_kvm_dpcpu_setcpu(kd, cpu, 1));
+}
+
+/*
+ * Obtain a per-CPU copy for given cpu from UMA_ZONE_PCPU allocation.
+ */
+ssize_t
+kvm_read_zpcpu(kvm_t *kd, void *buf, u_long base, size_t size, int cpu)
+{
+
+	return (kvm_read(kd, (uintptr_t)(base + sizeof(struct pcpu) * cpu),
+	    buf, size));
+}
+
+/*
+ * Fetch value of a counter(9).
+ */
+uint64_t
+kvm_counter_u64_fetch(kvm_t *kd, u_long base)
+{
+	uint64_t r, c;
+
+	if (mp_ncpus == 0)
+		if (_kvm_pcpu_init(kd) < 0)
+			return (0);
+
+	r = 0;
+	for (int i = 0; i < mp_ncpus; i++) {
+		if (kvm_read_zpcpu(kd, &c, base, sizeof(c), i) != sizeof(c))
+			return (0);
+		r += c;
+	}
+
+	return (r);
 }

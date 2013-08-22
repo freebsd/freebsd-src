@@ -195,10 +195,10 @@ in6_ifremloop(struct ifaddr *ifa)
 
 	ia = ifa2ia6(ifa);
 	ifp = ifa->ifa_ifp;
-	IF_AFDATA_LOCK(ifp);
-	lla_lookup(LLTABLE6(ifp), (LLE_DELETE | LLE_IFADDR),
-	    (struct sockaddr *)&ia->ia_addr);
-	IF_AFDATA_UNLOCK(ifp);
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	lltable_prefix_free(AF_INET6, (struct sockaddr *)&addr,
+	            (struct sockaddr *)&mask, LLE_STATIC);
 
 	/*
 	 * initialize for rtmsg generation
@@ -210,8 +210,6 @@ in6_ifremloop(struct ifaddr *ifa)
 	gateway.sdl_alen = ifp->if_addrlen;
 	bzero(&rt0, sizeof(rt0));
 	rt0.rt_gateway = (struct sockaddr *)&gateway;
-	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
-	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
 	rt_mask(&rt0) = (struct sockaddr *)&mask;
 	rt_key(&rt0) = (struct sockaddr *)&addr;
 	rt0.rt_flags = RTF_HOST | RTF_STATIC;
@@ -2604,10 +2602,14 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
 			lle->la_flags |= LLE_DELETED;
-			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 	}

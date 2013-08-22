@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/linker.h>
 #include <sys/queue.h>
 #include <sys/callout.h>
 #include <sys/sbuf.h>
@@ -3814,6 +3815,7 @@ main(int argc, char **argv)
 	int retval, fd;
 	int retries;
 	int initid;
+	int saved_errno;
 
 	retval = 0;
 	cmdargs = CTLADM_ARG_NONE;
@@ -3963,6 +3965,14 @@ main(int argc, char **argv)
 	if ((cmdargs & CTLADM_ARG_DEVICE)
 	 && (command != CTLADM_CMD_HELP)) {
 		fd = open(device, O_RDWR);
+		if (fd == -1 && errno == ENOENT) {
+			saved_errno = errno;
+			retval = kldload("ctl");
+			if (retval != -1)
+				fd = open(device, O_RDWR);
+			else
+				errno = saved_errno;
+		}
 		if (fd == -1) {
 			fprintf(stderr, "%s: error opening %s: %s\n",
 				argv[0], device, strerror(errno));

@@ -11,15 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/Stmt.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/AST/Type.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/ASTDiagnostic.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Token.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
@@ -44,6 +46,16 @@ static StmtClassNameTable &getStmtInfoTableEntry(Stmt::StmtClass E) {
 #include "clang/AST/StmtNodes.inc"
 
   return StmtClassInfo[E];
+}
+
+void *Stmt::operator new(size_t bytes, ASTContext& C,
+                         unsigned alignment) throw() {
+  return ::operator new(bytes, C, alignment);
+}
+
+void *Stmt::operator new(size_t bytes, ASTContext* C,
+                         unsigned alignment) throw() {
+  return ::operator new(bytes, *C, alignment);
 }
 
 const char *Stmt::getStmtClassName() const {
@@ -131,18 +143,28 @@ namespace {
     return bad();
   }
 
-  typedef SourceRange getSourceRange_t() const;
-  template <class T> good implements_getSourceRange(getSourceRange_t T::*) {
+  typedef SourceLocation getLocStart_t() const;
+  template <class T> good implements_getLocStart(getLocStart_t T::*) {
     return good();
   }
-  static inline bad implements_getSourceRange(getSourceRange_t Stmt::*) {
+  static inline bad implements_getLocStart(getLocStart_t Stmt::*) {
+    return bad();
+  }
+
+  typedef SourceLocation getLocEnd_t() const;
+  template <class T> good implements_getLocEnd(getLocEnd_t T::*) {
+    return good();
+  }
+  static inline bad implements_getLocEnd(getLocEnd_t Stmt::*) {
     return bad();
   }
 
 #define ASSERT_IMPLEMENTS_children(type) \
   (void) sizeof(is_good(implements_children(&type::children)))
-#define ASSERT_IMPLEMENTS_getSourceRange(type) \
-  (void) sizeof(is_good(implements_getSourceRange(&type::getSourceRange)))
+#define ASSERT_IMPLEMENTS_getLocStart(type) \
+  (void) sizeof(is_good(implements_getLocStart(&type::getLocStart)))
+#define ASSERT_IMPLEMENTS_getLocEnd(type) \
+  (void) sizeof(is_good(implements_getLocEnd(&type::getLocEnd)))
 }
 
 /// Check whether the various Stmt classes implement their member
@@ -151,7 +173,8 @@ static inline void check_implementations() {
 #define ABSTRACT_STMT(type)
 #define STMT(type, base) \
   ASSERT_IMPLEMENTS_children(type); \
-  ASSERT_IMPLEMENTS_getSourceRange(type);
+  ASSERT_IMPLEMENTS_getLocStart(type); \
+  ASSERT_IMPLEMENTS_getLocEnd(type);
 #include "clang/AST/StmtNodes.inc"
 }
 
@@ -167,67 +190,51 @@ Stmt::child_range Stmt::children() {
   llvm_unreachable("unknown statement kind!");
 }
 
+// Amusing macro metaprogramming hack: check whether a class provides
+// a more specific implementation of getSourceRange.
+//
+// See also Expr.cpp:getExprLoc().
+namespace {
+  /// This implementation is used when a class provides a custom
+  /// implementation of getSourceRange.
+  template <class S, class T>
+  SourceRange getSourceRangeImpl(const Stmt *stmt,
+                                 SourceRange (T::*v)() const) {
+    return static_cast<const S*>(stmt)->getSourceRange();
+  }
+
+  /// This implementation is used when a class doesn't provide a custom
+  /// implementation of getSourceRange.  Overload resolution should pick it over
+  /// the implementation above because it's more specialized according to
+  /// function template partial ordering.
+  template <class S>
+  SourceRange getSourceRangeImpl(const Stmt *stmt,
+                                 SourceRange (Stmt::*v)() const) {
+    return SourceRange(static_cast<const S*>(stmt)->getLocStart(),
+                       static_cast<const S*>(stmt)->getLocEnd());
+  }
+}
+
 SourceRange Stmt::getSourceRange() const {
   switch (getStmtClass()) {
   case Stmt::NoStmtClass: llvm_unreachable("statement without class");
 #define ABSTRACT_STMT(type)
 #define STMT(type, base) \
   case Stmt::type##Class: \
-    return static_cast<const type*>(this)->getSourceRange();
+    return getSourceRangeImpl<type>(this, &type::getSourceRange);
 #include "clang/AST/StmtNodes.inc"
   }
   llvm_unreachable("unknown statement kind!");
 }
 
-// Amusing macro metaprogramming hack: check whether a class provides
-// a more specific implementation of getLocStart() and getLocEnd().
-//
-// See also Expr.cpp:getExprLoc().
-namespace {
-  /// This implementation is used when a class provides a custom
-  /// implementation of getLocStart.
-  template <class S, class T>
-  SourceLocation getLocStartImpl(const Stmt *stmt,
-                                 SourceLocation (T::*v)() const) {
-    return static_cast<const S*>(stmt)->getLocStart();
-  }
-
-  /// This implementation is used when a class doesn't provide a custom
-  /// implementation of getLocStart.  Overload resolution should pick it over
-  /// the implementation above because it's more specialized according to
-  /// function template partial ordering.
-  template <class S>
-  SourceLocation getLocStartImpl(const Stmt *stmt,
-                                SourceLocation (Stmt::*v)() const) {
-    return static_cast<const S*>(stmt)->getSourceRange().getBegin();
-  }
-
-  /// This implementation is used when a class provides a custom
-  /// implementation of getLocEnd.
-  template <class S, class T>
-  SourceLocation getLocEndImpl(const Stmt *stmt,
-                               SourceLocation (T::*v)() const) {
-    return static_cast<const S*>(stmt)->getLocEnd();
-  }
-
-  /// This implementation is used when a class doesn't provide a custom
-  /// implementation of getLocEnd.  Overload resolution should pick it over
-  /// the implementation above because it's more specialized according to
-  /// function template partial ordering.
-  template <class S>
-  SourceLocation getLocEndImpl(const Stmt *stmt,
-                               SourceLocation (Stmt::*v)() const) {
-    return static_cast<const S*>(stmt)->getSourceRange().getEnd();
-  }
-}
-
 SourceLocation Stmt::getLocStart() const {
+//  llvm::errs() << "getLocStart() for " << getStmtClassName() << "\n";
   switch (getStmtClass()) {
   case Stmt::NoStmtClass: llvm_unreachable("statement without class");
 #define ABSTRACT_STMT(type)
 #define STMT(type, base) \
   case Stmt::type##Class: \
-    return getLocStartImpl<type>(this, &type::getLocStart);
+    return static_cast<const type*>(this)->getLocStart();
 #include "clang/AST/StmtNodes.inc"
   }
   llvm_unreachable("unknown statement kind");
@@ -239,26 +246,26 @@ SourceLocation Stmt::getLocEnd() const {
 #define ABSTRACT_STMT(type)
 #define STMT(type, base) \
   case Stmt::type##Class: \
-    return getLocEndImpl<type>(this, &type::getLocEnd);
+    return static_cast<const type*>(this)->getLocEnd();
 #include "clang/AST/StmtNodes.inc"
   }
   llvm_unreachable("unknown statement kind");
 }
 
-CompoundStmt::CompoundStmt(ASTContext &C, Stmt **StmtStart, unsigned NumStmts,
+CompoundStmt::CompoundStmt(ASTContext &C, ArrayRef<Stmt*> Stmts,
                            SourceLocation LB, SourceLocation RB)
   : Stmt(CompoundStmtClass), LBracLoc(LB), RBracLoc(RB) {
-  CompoundStmtBits.NumStmts = NumStmts;
-  assert(CompoundStmtBits.NumStmts == NumStmts &&
+  CompoundStmtBits.NumStmts = Stmts.size();
+  assert(CompoundStmtBits.NumStmts == Stmts.size() &&
          "NumStmts doesn't fit in bits of CompoundStmtBits.NumStmts!");
 
-  if (NumStmts == 0) {
+  if (Stmts.size() == 0) {
     Body = 0;
     return;
   }
 
-  Body = new (C) Stmt*[NumStmts];
-  memcpy(Body, StmtStart, NumStmts * sizeof(*Body));
+  Body = new (C) Stmt*[Stmts.size()];
+  std::copy(Stmts.begin(), Stmts.end(), Body);
 }
 
 void CompoundStmt::setStmts(ASTContext &C, Stmt **Stmts, unsigned NumStmts) {
@@ -289,14 +296,6 @@ AttributedStmt *AttributedStmt::CreateEmpty(ASTContext &C, unsigned NumAttrs) {
                          sizeof(Attr*) * (NumAttrs - 1),
                          llvm::alignOf<AttributedStmt>());
   return new (Mem) AttributedStmt(EmptyShell(), NumAttrs);
-}
-
-// This is defined here to avoid polluting Stmt.h with importing Expr.h
-SourceRange ReturnStmt::getSourceRange() const {
-  if (RetExpr)
-    return SourceRange(RetLoc, RetExpr->getLocEnd());
-  else
-    return SourceRange(RetLoc);
 }
 
 bool Stmt::hasImplicitControlFlow() const {
@@ -541,7 +540,7 @@ unsigned GCCAsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
 
     // Handle %x4 and %x[foo] by capturing x as the modifier character.
     char Modifier = '\0';
-    if (isalpha(EscapedChar)) {
+    if (isLetter(EscapedChar)) {
       if (CurPtr == StrEnd) { // Premature end.
         DiagOffs = CurPtr-StrStart-1;
         return diag::err_asm_invalid_escape;
@@ -550,12 +549,12 @@ unsigned GCCAsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
       EscapedChar = *CurPtr++;
     }
 
-    if (isdigit(EscapedChar)) {
+    if (isDigit(EscapedChar)) {
       // %n - Assembler operand n
       unsigned N = 0;
 
       --CurPtr;
-      while (CurPtr != StrEnd && isdigit(*CurPtr))
+      while (CurPtr != StrEnd && isDigit(*CurPtr))
         N = N*10 + ((*CurPtr++)-'0');
 
       unsigned NumOperands =
@@ -762,26 +761,21 @@ ObjCAtTryStmt *ObjCAtTryStmt::CreateEmpty(ASTContext &Context,
   return new (Mem) ObjCAtTryStmt(EmptyShell(), NumCatchStmts, HasFinally);
 }
 
-SourceRange ObjCAtTryStmt::getSourceRange() const {
-  SourceLocation EndLoc;
+SourceLocation ObjCAtTryStmt::getLocEnd() const {
   if (HasFinally)
-    EndLoc = getFinallyStmt()->getLocEnd();
-  else if (NumCatchStmts)
-    EndLoc = getCatchStmt(NumCatchStmts - 1)->getLocEnd();
-  else
-    EndLoc = getTryBody()->getLocEnd();
-
-  return SourceRange(AtTryLoc, EndLoc);
+    return getFinallyStmt()->getLocEnd();
+  if (NumCatchStmts)
+    return getCatchStmt(NumCatchStmts - 1)->getLocEnd();
+  return getTryBody()->getLocEnd();
 }
 
 CXXTryStmt *CXXTryStmt::Create(ASTContext &C, SourceLocation tryLoc,
-                               Stmt *tryBlock, Stmt **handlers,
-                               unsigned numHandlers) {
+                               Stmt *tryBlock, ArrayRef<Stmt*> handlers) {
   std::size_t Size = sizeof(CXXTryStmt);
-  Size += ((numHandlers + 1) * sizeof(Stmt));
+  Size += ((handlers.size() + 1) * sizeof(Stmt));
 
   void *Mem = C.Allocate(Size, llvm::alignOf<CXXTryStmt>());
-  return new (Mem) CXXTryStmt(tryLoc, tryBlock, handlers, numHandlers);
+  return new (Mem) CXXTryStmt(tryLoc, tryBlock, handlers);
 }
 
 CXXTryStmt *CXXTryStmt::Create(ASTContext &C, EmptyShell Empty,
@@ -794,11 +788,11 @@ CXXTryStmt *CXXTryStmt::Create(ASTContext &C, EmptyShell Empty,
 }
 
 CXXTryStmt::CXXTryStmt(SourceLocation tryLoc, Stmt *tryBlock,
-                       Stmt **handlers, unsigned numHandlers)
-  : Stmt(CXXTryStmtClass), TryLoc(tryLoc), NumHandlers(numHandlers) {
+                       ArrayRef<Stmt*> handlers)
+  : Stmt(CXXTryStmtClass), TryLoc(tryLoc), NumHandlers(handlers.size()) {
   Stmt **Stmts = reinterpret_cast<Stmt **>(this + 1);
   Stmts[0] = tryBlock;
-  std::copy(handlers, handlers + NumHandlers, Stmts + 1);
+  std::copy(handlers.begin(), handlers.end(), Stmts + 1);
 }
 
 CXXForRangeStmt::CXXForRangeStmt(DeclStmt *Range, DeclStmt *BeginEndStmt,

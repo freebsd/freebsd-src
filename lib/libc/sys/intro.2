@@ -28,7 +28,7 @@
 .\"     @(#)intro.2	8.5 (Berkeley) 2/27/95
 .\" $FreeBSD$
 .\"
-.Dd February 27, 1995
+.Dd April 27, 2013
 .Dt INTRO 2
 .Os
 .Sh NAME
@@ -189,12 +189,13 @@ or a
 .Xr kill 2
 system call).
 .It Er 23 ENFILE Em "Too many open files in system" .
-Maximum number of file descriptors allowable on the system
-has been reached and a requests for an open cannot be satisfied
+Maximum number of open files allowable on the system
+has been reached and requests for an open cannot be satisfied
 until at least one has been closed.
 .It Er 24 EMFILE Em "Too many open files" .
-(As released, the limit on the number of
-open files per process is 64.)
+Maximum number of file descriptors allowable in the process
+has been reached and requests for an open cannot be satisfied
+until at least one has been closed.
 The
 .Xr getdtablesize 2
 system call will obtain the current limit.

@@ -30,8 +30,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <machine/atomic.h>
 
+#if defined __clang__
+static TYPE
+atomic_func(volatile TYPE *ptr, TYPE oldval, TYPE newval, ...)
+#else
 TYPE
 NAME(volatile TYPE *ptr, TYPE oldval, TYPE newval)
+#endif
 {
 	TYPE t;
 
@@ -43,3 +48,7 @@ NAME(volatile TYPE *ptr, TYPE oldval, TYPE newval)
 
 	return (oldval);
 }
+
+#ifdef __clang__
+__strong_reference(atomic_func, NAME);
+#endif

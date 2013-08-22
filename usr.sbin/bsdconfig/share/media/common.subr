@@ -33,6 +33,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." media/common.subr
 f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
+f_include $BSDCFG_SHARE/media/any.subr
 
 ############################################################ GLOBALS
 

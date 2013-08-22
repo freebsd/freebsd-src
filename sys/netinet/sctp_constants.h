@@ -997,6 +997,10 @@ __FBSDID("$FreeBSD$");
      (((uint8_t *)&(a)->s_addr)[2] == 0) && \
      (((uint8_t *)&(a)->s_addr)[3] == 1))
 
+#define IN4_ISLINKLOCAL_ADDRESS(a) \
+    ((((uint8_t *)&(a)->s_addr)[0] == 169) && \
+     (((uint8_t *)&(a)->s_addr)[1] == 254))
+
 
 #if defined(_KERNEL)
 #define SCTP_GETTIME_TIMEVAL(x) (getmicrouptime(x))

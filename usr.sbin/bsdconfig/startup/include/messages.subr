@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,11 +94,11 @@ msg_reset_desc="Reset to default view settings"
 msg_sco="SCO"
 msg_sco_desc="This host wants to be able to run IBCS2 binaries."
 msg_show_configured="Show Configured"
-msg_show_configured_desc="Calculate rc.conf(5) locations (slow)"
+msg_show_configured_desc="Calculate rc.conf(5) locations (slowest)"
 msg_show_default_value="Show Default/Value"
-msg_show_default_value_desc="Show default/configured values"
+msg_show_default_value_desc="Show default/configured values (slow)"
 msg_show_value="Show Value"
-msg_show_value_desc="Show configured startup value"
+msg_show_value_desc="Show configured startup value (fast)"
 msg_startup="Startup"
 msg_startup_dirs="Startup dirs"
 msg_startup_dirs_desc="Set the list of dirs to look for startup scripts"

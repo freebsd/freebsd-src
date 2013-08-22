@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
  * standard ftell function.
  */
 long
-ftell(fp)
-	FILE *fp;
+ftell(FILE *fp)
 {
 	off_t rv;
 
@@ -66,8 +65,7 @@ ftell(fp)
  * ftello: return current offset.
  */
 off_t
-ftello(fp)
-	FILE *fp;
+ftello(FILE *fp)
 {
 	fpos_t rv;
 	int ret;
@@ -85,9 +83,7 @@ ftello(fp)
 }
 
 int
-_ftello(fp, offset)
-	FILE *fp;
-	fpos_t *offset;
+_ftello(FILE *fp, fpos_t *offset)
 {
 	fpos_t pos;
 	size_t n;

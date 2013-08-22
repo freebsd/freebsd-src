@@ -63,6 +63,9 @@ namespace llvm {
       // Corresponds to MACCS instruction
       MACCS,
 
+      // Corresponds to CRC8 instruction
+      CRC8,
+
       // Jumptable branch.
       BR_JT,
 
@@ -81,7 +84,7 @@ namespace llvm {
     explicit XCoreTargetLowering(XCoreTargetMachine &TM);
 
     virtual unsigned getJumpTableEncoding() const;
-    virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
+    virtual MVT getScalarShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
@@ -147,6 +150,7 @@ namespace llvm {
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerADJUST_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
 
     // Inline asm support
     std::pair<unsigned, const TargetRegisterClass*>

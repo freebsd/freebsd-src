@@ -351,16 +351,24 @@ begin:
 	if (ch == '"' || ch == '\'') {
 		int quote = ch;
 
+		escaped_nl = 0;
 		while ((ch = getc(fp)) != EOF) {
-			if (ch == quote)
+			if (ch == quote && !escaped_nl)
 				break;
-			if (ch == '\n') {
+			if (ch == '\n' && !escaped_nl) {
 				*cp = 0;
 				printf("config: missing quote reading `%s'\n",
 					line);
 				exit(2);
 			}
+			if (ch == '\\' && !escaped_nl) {
+				escaped_nl = 1;
+				continue;
+			}
+			if (ch != quote && escaped_nl)
+				*cp++ = '\\';
 			*cp++ = ch;
+			escaped_nl = 0;
 		}
 	} else {
 		*cp++ = ch;

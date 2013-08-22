@@ -556,7 +556,8 @@ AcpiGetSleepTypeData (
      * Evaluate the \_Sx namespace object containing the register values
      * for this state
      */
-    Info->Pathname = ACPI_CAST_PTR (char, AcpiGbl_SleepStateNames[SleepState]);
+    Info->RelativePathname = ACPI_CAST_PTR (
+        char, AcpiGbl_SleepStateNames[SleepState]);
     Status = AcpiNsEvaluate (Info);
     if (ACPI_FAILURE (Status))
     {
@@ -568,7 +569,7 @@ AcpiGetSleepTypeData (
     if (!Info->ReturnObject)
     {
         ACPI_ERROR ((AE_INFO, "No Sleep State object returned from [%s]",
-            Info->Pathname));
+            Info->RelativePathname));
         Status = AE_AML_NO_RETURN_VALUE;
         goto Cleanup;
     }
@@ -630,7 +631,7 @@ Cleanup:
     if (ACPI_FAILURE (Status))
     {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "While evaluating Sleep State [%s]", Info->Pathname));
+            "While evaluating Sleep State [%s]", Info->RelativePathname));
     }
 
     ACPI_FREE (Info);

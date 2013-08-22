@@ -15,10 +15,10 @@
 #ifndef LLVM_TRANSFORMS_UTILS_LOCAL_H
 #define LLVM_TRANSFORMS_UTILS_LOCAL_H
 
-#include "llvm/IRBuilder.h"
-#include "llvm/Operator.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
-#include "llvm/DataLayout.h"
 
 namespace llvm {
 
@@ -135,8 +135,8 @@ bool EliminateDuplicatePHINodes(BasicBlock *BB);
 /// of the CFG.  It returns true if a modification was made, possibly deleting
 /// the basic block that was pointed to.
 ///
-bool SimplifyCFG(BasicBlock *BB, const DataLayout *TD = 0,
-                 const TargetTransformInfo *TTI = 0);
+bool SimplifyCFG(BasicBlock *BB, const TargetTransformInfo &TTI,
+                 const DataLayout *TD = 0);
 
 /// FoldBranchToCommonDest - If this basic block is ONLY a setcc and a branch,
 /// and if a predecessor branches to us and one of our successors, fold the
@@ -251,6 +251,16 @@ bool LowerDbgDeclare(Function &F);
 /// FindAllocaDbgDeclare - Finds the llvm.dbg.declare intrinsic corresponding to
 /// an alloca, if any.
 DbgDeclareInst *FindAllocaDbgDeclare(Value *V);
+
+/// replaceDbgDeclareForAlloca - Replaces llvm.dbg.declare instruction when
+/// alloca is replaced with a new value.
+bool replaceDbgDeclareForAlloca(AllocaInst *AI, Value *NewAllocaAddress,
+                                DIBuilder &Builder);
+
+/// \brief Remove all blocks that can not be reached from the function's entry.
+///
+/// Returns true if any basic block was removed.
+bool removeUnreachableBlocks(Function &F);
 
 } // End llvm namespace
 

@@ -12,16 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/YAMLParser.h"
-
-#include "llvm/ADT/ilist.h"
-#include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/ADT/ilist.h"
+#include "llvm/ADT/ilist_node.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using namespace yaml;
@@ -252,6 +251,7 @@ namespace yaml {
 class Scanner {
 public:
   Scanner(const StringRef Input, SourceMgr &SM);
+  Scanner(MemoryBuffer *Buffer, SourceMgr &SM_);
 
   /// @brief Parse the next token and return it without popping it.
   Token &peekNext();
@@ -706,6 +706,21 @@ Scanner::Scanner(StringRef Input, SourceMgr &sm)
   SM.AddNewSourceBuffer(InputBuffer, SMLoc());
   Current = InputBuffer->getBufferStart();
   End = InputBuffer->getBufferEnd();
+}
+
+Scanner::Scanner(MemoryBuffer *Buffer, SourceMgr &SM_)
+  : SM(SM_)
+  , InputBuffer(Buffer)
+  , Current(InputBuffer->getBufferStart())
+  , End(InputBuffer->getBufferEnd())
+  , Indent(-1)
+  , Column(0)
+  , Line(0)
+  , FlowLevel(0)
+  , IsStartOfStream(true)
+  , IsSimpleKeyAllowed(true)
+  , Failed(false) {
+    SM.AddNewSourceBuffer(InputBuffer, SMLoc());
 }
 
 Token &Scanner::peekNext() {
@@ -1530,6 +1545,10 @@ bool Scanner::fetchMoreTokens() {
 
 Stream::Stream(StringRef Input, SourceMgr &SM)
   : scanner(new Scanner(Input, SM))
+  , CurrentDoc(0) {}
+
+Stream::Stream(MemoryBuffer *InputBuffer, SourceMgr &SM)
+  : scanner(new Scanner(InputBuffer, SM))
   , CurrentDoc(0) {}
 
 Stream::~Stream() {}

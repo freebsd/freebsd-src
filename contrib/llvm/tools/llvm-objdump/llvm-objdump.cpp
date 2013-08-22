@@ -11,17 +11,17 @@
 // dumps out a plethora of information about an object file depending on the
 // flags.
 //
+// The flags and output of this program should be near identical to those of
+// binutils objdump.
+//
 //===----------------------------------------------------------------------===//
 
 #include "llvm-objdump.h"
 #include "MCFunction.h"
-#include "llvm/Object/Archive.h"
-#include "llvm/Object/COFF.h"
-#include "llvm/Object/ObjectFile.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
@@ -29,6 +29,10 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Object/Archive.h"
+#include "llvm/Object/COFF.h"
+#include "llvm/Object/MachO.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -72,9 +76,9 @@ static cl::opt<bool>
 SymbolTable("t", cl::desc("Display the symbol table"));
 
 static cl::opt<bool>
-MachO("macho", cl::desc("Use MachO specific object file parser"));
+MachOOpt("macho", cl::desc("Use MachO specific object file parser"));
 static cl::alias
-MachOm("m", cl::desc("Alias for --macho"), cl::aliasopt(MachO));
+MachOm("m", cl::desc("Alias for --macho"), cl::aliasopt(MachOOpt));
 
 cl::opt<std::string>
 llvm::TripleName("triple", cl::desc("Target triple to disassemble for, "
@@ -100,9 +104,28 @@ MAttrs("mattr",
   cl::desc("Target specific attributes"),
   cl::value_desc("a1,+a2,-a3,..."));
 
+static cl::opt<bool>
+NoShowRawInsn("no-show-raw-insn", cl::desc("When disassembling instructions, "
+                                           "do not print the instruction bytes."));
+
+static cl::opt<bool>
+UnwindInfo("unwind-info", cl::desc("Display unwind information"));
+
+static cl::alias
+UnwindInfoShort("u", cl::desc("Alias for --unwind-info"),
+                cl::aliasopt(UnwindInfo));
+
+static cl::opt<bool>
+PrivateHeaders("private-headers",
+               cl::desc("Display format specific file headers"));
+
+static cl::alias
+PrivateHeadersShort("p", cl::desc("Alias for --private-headers"),
+                    cl::aliasopt(PrivateHeaders));
+
 static StringRef ToolName;
 
-static bool error(error_code ec) {
+bool llvm::error(error_code ec) {
   if (!ec) return false;
 
   outs() << ToolName << ": error reading file: " << ec.message() << ".\n";
@@ -161,7 +184,7 @@ void llvm::DumpBytes(StringRef bytes) {
   outs() << output;
 }
 
-static bool RelocAddressLess(RelocationRef a, RelocationRef b) {
+bool llvm::RelocAddressLess(RelocationRef a, RelocationRef b) {
   uint64_t a_addr, b_addr;
   if (error(a.getAddress(a_addr))) return false;
   if (error(b.getAddress(b_addr))) return false;
@@ -205,6 +228,7 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
       if (!error(i->containsSymbol(*si, contains)) && contains) {
         uint64_t Address;
         if (error(si->getAddress(Address))) break;
+        if (Address == UnknownAddressOrSize) continue;
         Address -= SectionAddr;
 
         StringRef Name;
@@ -230,9 +254,18 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
     // Sort relocations by address.
     std::sort(Rels.begin(), Rels.end(), RelocAddressLess);
 
+    StringRef SegmentName = "";
+    if (const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(Obj)) {
+      DataRefImpl DR = i->getRawDataRefImpl();
+      if (error(MachO->getSectionFinalSegmentName(DR, SegmentName)))
+        break;
+    }
     StringRef name;
     if (error(i->getName(name))) break;
-    outs() << "Disassembly of section " << name << ':';
+    outs() << "Disassembly of section ";
+    if (!SegmentName.empty())
+      outs() << SegmentName << ",";
+    outs() << name << ':';
 
     // If the section has no symbols just insert a dummy one and disassemble
     // the whole section.
@@ -321,8 +354,11 @@ static void DisassembleObject(const ObjectFile *Obj, bool InlineRelocs) {
 
         if (DisAsm->getInstruction(Inst, Size, memoryObject, Index,
                                    DebugOut, nulls())) {
-          outs() << format("%8" PRIx64 ":\t", SectionAddr + Index);
-          DumpBytes(StringRef(Bytes.data() + Index, Size));
+          outs() << format("%8" PRIx64 ":", SectionAddr + Index);
+          if (!NoShowRawInsn) {
+            outs() << "\t";
+            DumpBytes(StringRef(Bytes.data() + Index, Size));
+          }
           IP->printInst(&Inst, outs(), "");
           outs() << "\n";
         } else {
@@ -409,7 +445,7 @@ static void PrintSectionHeaders(const ObjectFile *o) {
     if (error(si->isBSS(BSS))) return;
     std::string Type = (std::string(Text ? "TEXT " : "") +
                         (Data ? "DATA " : "") + (BSS ? "BSS" : ""));
-    outs() << format("%3d %-13s %09" PRIx64 " %017" PRIx64 " %s\n",
+    outs() << format("%3d %-13s %08" PRIx64 " %016" PRIx64 " %s\n",
                      i, Name.str().c_str(), Size, Address, Type.c_str());
     ++i;
   }
@@ -446,7 +482,7 @@ static void PrintSectionContents(const ObjectFile *o) {
       // Print ascii.
       outs() << "  ";
       for (std::size_t i = 0; i < 16 && addr + i < end; ++i) {
-        if (std::isprint(Contents[addr + i] & 0xFF))
+        if (std::isprint(static_cast<unsigned char>(Contents[addr + i]) & 0xFF))
           outs() << Contents[addr + i];
         else
           outs() << ".";
@@ -539,7 +575,10 @@ static void PrintSymbolTable(const ObjectFile *o) {
       else if (Type == SymbolRef::ST_Function)
         FileFunc = 'F';
 
-      outs() << format("%08" PRIx64, Address) << " "
+      const char *Fmt = o->getBytesInAddress() > 4 ? "%016" PRIx64 :
+                                                     "%08" PRIx64;
+
+      outs() << format(Fmt, Address) << " "
              << GlobLoc // Local -> 'l', Global -> 'g', Neither -> ' '
              << (Weak ? 'w' : ' ') // Weak?
              << ' ' // Constructor. Not supported yet.
@@ -553,6 +592,13 @@ static void PrintSymbolTable(const ObjectFile *o) {
       else if (Section == o->end_sections())
         outs() << "*UND*";
       else {
+        if (const MachOObjectFile *MachO = dyn_cast<const MachOObjectFile>(o)) {
+          StringRef SegmentName;
+          DataRefImpl DR = Section->getRawDataRefImpl();
+          if (error(MachO->getSectionFinalSegmentName(DR, SegmentName)))
+            SegmentName = "";
+          outs() << SegmentName << ",";
+        }
         StringRef SectionName;
         if (error(Section->getName(SectionName)))
           SectionName = "";
@@ -563,6 +609,19 @@ static void PrintSymbolTable(const ObjectFile *o) {
              << Name
              << '\n';
     }
+  }
+}
+
+static void PrintUnwindInfo(const ObjectFile *o) {
+  outs() << "Unwind info:\n\n";
+
+  if (const COFFObjectFile *coff = dyn_cast<COFFObjectFile>(o)) {
+    printCOFFUnwindInfo(coff);
+  } else {
+    // TODO: Extract DWARF dump tool to objdump.
+    errs() << "This operation is only currently supported "
+              "for COFF object files.\n";
+    return;
   }
 }
 
@@ -581,6 +640,10 @@ static void DumpObject(const ObjectFile *o) {
     PrintSectionContents(o);
   if (SymbolTable)
     PrintSymbolTable(o);
+  if (UnwindInfo)
+    PrintUnwindInfo(o);
+  if (PrivateHeaders && o->isELF())
+    printELFFileHeader(o);
 }
 
 /// @brief Dump each object file in \a a;
@@ -611,7 +674,7 @@ static void DumpInput(StringRef file) {
     return;
   }
 
-  if (MachO && Disassemble) {
+  if (MachOOpt && Disassemble) {
     DisassembleInputMachO(file);
     return;
   }
@@ -659,7 +722,9 @@ int main(int argc, char **argv) {
       && !Relocations
       && !SectionHeaders
       && !SectionContents
-      && !SymbolTable) {
+      && !SymbolTable
+      && !UnwindInfo
+      && !PrivateHeaders) {
     cl::PrintHelpMessage();
     return 2;
   }

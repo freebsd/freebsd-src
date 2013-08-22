@@ -7,19 +7,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCStreamer.h"
-
+#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAssembler.h"
-#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCCodeEmitter.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCObjectStreamer.h"
 #include "llvm/MC/MCSection.h"
-#include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCSectionMachO.h"
-#include "llvm/MC/MCDwarf.h"
-#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -35,21 +34,23 @@ private:
   void EmitDataRegion(DataRegionData::KindTy Kind);
   void EmitDataRegionEnd();
 public:
-  MCMachOStreamer(MCContext &Context, MCAsmBackend &MAB,
-                  raw_ostream &OS, MCCodeEmitter *Emitter)
-    : MCObjectStreamer(Context, MAB, OS, Emitter) {}
+  MCMachOStreamer(MCContext &Context, MCAsmBackend &MAB, raw_ostream &OS,
+                  MCCodeEmitter *Emitter)
+      : MCObjectStreamer(SK_MachOStreamer, Context, MAB, OS, Emitter) {}
 
   /// @name MCStreamer Interface
   /// @{
 
   virtual void InitSections();
+  virtual void InitToTextSection();
   virtual void EmitLabel(MCSymbol *Symbol);
+  virtual void EmitDebugLabel(MCSymbol *Symbol);
   virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
                                    MCSymbol *EHSymbol);
   virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
+  virtual void EmitLinkerOptions(ArrayRef<std::string> Options);
   virtual void EmitDataRegion(MCDataRegionType Kind);
   virtual void EmitThumbFunc(MCSymbol *Func);
-  virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
   virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
   virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
   virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
@@ -86,15 +87,23 @@ public:
   virtual void FinishImpl();
 
   /// @}
+
+  static bool classof(const MCStreamer *S) {
+    return S->getKind() == SK_MachOStreamer;
+  }
 };
 
 } // end anonymous namespace.
 
 void MCMachOStreamer::InitSections() {
-  SwitchSection(getContext().getMachOSection("__TEXT", "__text",
-                                    MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS,
-                                    0, SectionKind::getText()));
+  InitToTextSection();
+}
 
+void MCMachOStreamer::InitToTextSection() {
+  SwitchSection(getContext().getMachOSection(
+                                    "__TEXT", "__text",
+                                    MCSectionMachO::S_ATTR_PURE_INSTRUCTIONS, 0,
+                                    SectionKind::getText()));
 }
 
 void MCMachOStreamer::EmitEHSymAttributes(const MCSymbol *Symbol,
@@ -132,6 +141,9 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
   SD.setFlags(SD.getFlags() & ~SF_ReferenceTypeMask);
 }
 
+void MCMachOStreamer::EmitDebugLabel(MCSymbol *Symbol) {
+  EmitLabel(Symbol);
+}
 void MCMachOStreamer::EmitDataRegion(DataRegionData::KindTy Kind) {
   if (!getAssembler().getBackend().hasDataInCodeSupport())
     return;
@@ -171,6 +183,10 @@ void MCMachOStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   }
 }
 
+void MCMachOStreamer::EmitLinkerOptions(ArrayRef<std::string> Options) {
+  getAssembler().getLinkerOptions().push_back(Options);
+}
+
 void MCMachOStreamer::EmitDataRegion(MCDataRegionType Kind) {
   switch (Kind) {
   case MCDR_DataRegion:
@@ -199,14 +215,6 @@ void MCMachOStreamer::EmitThumbFunc(MCSymbol *Symbol) {
   // Mark the thumb bit on the symbol.
   MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
   SD.setFlags(SD.getFlags() | SF_ThumbFunc);
-}
-
-void MCMachOStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
-  // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
-  // MCObjectStreamer.
-  // FIXME: Lift context changes into super class.
-  getAssembler().getOrCreateSymbolData(*Symbol);
-  Symbol->setVariableValue(AddValueSymbols(Value));
 }
 
 void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
@@ -378,7 +386,7 @@ void MCMachOStreamer::EmitInstToData(const MCInst &Inst) {
   // Add the fixups and data.
   for (unsigned i = 0, e = Fixups.size(); i != e; ++i) {
     Fixups[i].setOffset(Fixups[i].getOffset() + DF->getContents().size());
-    DF->addFixup(Fixups[i]);
+    DF->getFixups().push_back(Fixups[i]);
   }
   DF->getContents().append(Code.begin(), Code.end());
 }

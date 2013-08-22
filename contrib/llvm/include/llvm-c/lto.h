@@ -13,8 +13,8 @@
 |*                                                                            *|
 \*===----------------------------------------------------------------------===*/
 
-#ifndef LTO_H
-#define LTO_H  1
+#ifndef LLVM_C_LTO_H
+#define LLVM_C_LTO_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -290,6 +290,13 @@ lto_codegen_compile_to_file(lto_code_gen_t cg, const char** name);
  */
 extern void
 lto_codegen_debug_options(lto_code_gen_t cg, const char *);
+
+/**
+ * Initializes LLVM disassemblers.
+ * FIXME: This doesn't really belong here.
+ */
+extern void
+lto_initialize_disassembler(void);
 
 #ifdef __cplusplus
 }

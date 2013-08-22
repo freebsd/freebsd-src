@@ -247,7 +247,7 @@ verify(const char *refname, int posix)
 	}
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_LHA, archive_format(a));
 
 	/* Close the archive. */

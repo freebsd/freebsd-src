@@ -60,6 +60,11 @@ DEFINE_TEST(test_option_r)
 	/* Edit that file with a lot more data and update the archive with a new copy. */
 	buff = malloc(buff_size);
 	assert(buff != NULL);
+	if (buff == NULL) {
+		free(p0);
+		return;
+	}
+
 	for (i = 0; i < (int)buff_size; ++i)
 		buff[i] = "abcdefghijklmnopqrstuvwxyz"[rand() % 26];
 	buff[buff_size - 1] = '\0';
@@ -126,5 +131,5 @@ DEFINE_TEST(test_option_r)
 	assertEmptyFile("extract.err");
 
 	/* Verify that the second copy of f1 overwrote the first. */
-	assertFileContents(buff, strlen(buff), "f1");
+	assertFileContents(buff, (int)strlen(buff), "f1");
 }

@@ -15,12 +15,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/SemaInternal.h"
-#include "clang/Sema/Initialization.h"
-#include "clang/AST/ExprCXX.h"
-#include "clang/AST/ExprObjC.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/ExprCXX.h"
+#include "clang/AST/ExprObjC.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/Basic/PartialDiagnostic.h"
+#include "clang/Sema/Initialization.h"
 #include "llvm/ADT/SmallVector.h"
 #include <set>
 using namespace clang;
@@ -258,7 +259,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     }
     return Op.complete(CXXConstCastExpr::Create(Context, Op.ResultType,
                                   Op.ValueKind, Op.SrcExpr.take(), DestTInfo,
-                                                OpLoc, Parens.getEnd()));
+                                                OpLoc, Parens.getEnd(),
+                                                AngleBrackets));
 
   case tok::kw_dynamic_cast: {
     if (!TypeDependent) {
@@ -269,7 +271,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     return Op.complete(CXXDynamicCastExpr::Create(Context, Op.ResultType,
                                     Op.ValueKind, Op.Kind, Op.SrcExpr.take(),
                                                   &Op.BasePath, DestTInfo,
-                                                  OpLoc, Parens.getEnd()));
+                                                  OpLoc, Parens.getEnd(),
+                                                  AngleBrackets));
   }
   case tok::kw_reinterpret_cast: {
     if (!TypeDependent) {
@@ -280,7 +283,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     return Op.complete(CXXReinterpretCastExpr::Create(Context, Op.ResultType,
                                     Op.ValueKind, Op.Kind, Op.SrcExpr.take(),
                                                       0, DestTInfo, OpLoc,
-                                                      Parens.getEnd()));
+                                                      Parens.getEnd(),
+                                                      AngleBrackets));
   }
   case tok::kw_static_cast: {
     if (!TypeDependent) {
@@ -292,7 +296,8 @@ Sema::BuildCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
     return Op.complete(CXXStaticCastExpr::Create(Context, Op.ResultType,
                                    Op.ValueKind, Op.Kind, Op.SrcExpr.take(),
                                                  &Op.BasePath, DestTInfo,
-                                                 OpLoc, Parens.getEnd()));
+                                                 OpLoc, Parens.getEnd(),
+                                                 AngleBrackets));
   }
   }
 }
@@ -678,6 +683,98 @@ void CastOperation::CheckConstCast() {
       << SrcExpr.get()->getType() << DestType << OpRange;
 }
 
+/// Check that a reinterpret_cast\<DestType\>(SrcExpr) is not used as upcast
+/// or downcast between respective pointers or references.
+static void DiagnoseReinterpretUpDownCast(Sema &Self, const Expr *SrcExpr,
+                                          QualType DestType,
+                                          SourceRange OpRange) {
+  QualType SrcType = SrcExpr->getType();
+  // When casting from pointer or reference, get pointee type; use original
+  // type otherwise.
+  const CXXRecordDecl *SrcPointeeRD = SrcType->getPointeeCXXRecordDecl();
+  const CXXRecordDecl *SrcRD =
+    SrcPointeeRD ? SrcPointeeRD : SrcType->getAsCXXRecordDecl();
+
+  // Examining subobjects for records is only possible if the complete and
+  // valid definition is available.  Also, template instantiation is not
+  // allowed here.
+  if (!SrcRD || !SrcRD->isCompleteDefinition() || SrcRD->isInvalidDecl())
+    return;
+
+  const CXXRecordDecl *DestRD = DestType->getPointeeCXXRecordDecl();
+
+  if (!DestRD || !DestRD->isCompleteDefinition() || DestRD->isInvalidDecl())
+    return;
+
+  enum {
+    ReinterpretUpcast,
+    ReinterpretDowncast
+  } ReinterpretKind;
+
+  CXXBasePaths BasePaths;
+
+  if (SrcRD->isDerivedFrom(DestRD, BasePaths))
+    ReinterpretKind = ReinterpretUpcast;
+  else if (DestRD->isDerivedFrom(SrcRD, BasePaths))
+    ReinterpretKind = ReinterpretDowncast;
+  else
+    return;
+
+  bool VirtualBase = true;
+  bool NonZeroOffset = false;
+  for (CXXBasePaths::const_paths_iterator I = BasePaths.begin(),
+                                          E = BasePaths.end();
+       I != E; ++I) {
+    const CXXBasePath &Path = *I;
+    CharUnits Offset = CharUnits::Zero();
+    bool IsVirtual = false;
+    for (CXXBasePath::const_iterator IElem = Path.begin(), EElem = Path.end();
+         IElem != EElem; ++IElem) {
+      IsVirtual = IElem->Base->isVirtual();
+      if (IsVirtual)
+        break;
+      const CXXRecordDecl *BaseRD = IElem->Base->getType()->getAsCXXRecordDecl();
+      assert(BaseRD && "Base type should be a valid unqualified class type");
+      // Don't check if any base has invalid declaration or has no definition
+      // since it has no layout info.
+      const CXXRecordDecl *Class = IElem->Class,
+                          *ClassDefinition = Class->getDefinition();
+      if (Class->isInvalidDecl() || !ClassDefinition ||
+          !ClassDefinition->isCompleteDefinition())
+        return;
+
+      const ASTRecordLayout &DerivedLayout =
+          Self.Context.getASTRecordLayout(Class);
+      Offset += DerivedLayout.getBaseClassOffset(BaseRD);
+    }
+    if (!IsVirtual) {
+      // Don't warn if any path is a non-virtually derived base at offset zero.
+      if (Offset.isZero())
+        return;
+      // Offset makes sense only for non-virtual bases.
+      else
+        NonZeroOffset = true;
+    }
+    VirtualBase = VirtualBase && IsVirtual;
+  }
+
+  assert((VirtualBase || NonZeroOffset) &&
+         "Should have returned if has non-virtual base with zero offset");
+
+  QualType BaseType =
+      ReinterpretKind == ReinterpretUpcast? DestType : SrcType;
+  QualType DerivedType =
+      ReinterpretKind == ReinterpretUpcast? SrcType : DestType;
+
+  SourceLocation BeginLoc = OpRange.getBegin();
+  Self.Diag(BeginLoc, diag::warn_reinterpret_different_from_static)
+    << DerivedType << BaseType << !VirtualBase << ReinterpretKind
+    << OpRange;
+  Self.Diag(BeginLoc, diag::note_reinterpret_updowncast_use_static)
+    << ReinterpretKind
+    << FixItHint::CreateReplacement(BeginLoc, "static_cast");
+}
+
 /// CheckReinterpretCast - Check that a reinterpret_cast\<DestType\>(SrcExpr) is
 /// valid.
 /// Refer to C++ 5.2.10 for details. reinterpret_cast is typically used in code
@@ -710,8 +807,10 @@ void CastOperation::CheckReinterpretCast() {
       diagnoseBadCast(Self, msg, CT_Reinterpret, OpRange, SrcExpr.get(),
                       DestType, /*listInitialization=*/false);
     }
-  } else if (tcr == TC_Success && Self.getLangOpts().ObjCAutoRefCount) {
-    checkObjCARCConversion(Sema::CCK_OtherCast);
+  } else if (tcr == TC_Success) {
+    if (Self.getLangOpts().ObjCAutoRefCount)
+      checkObjCARCConversion(Sema::CCK_OtherCast);
+    DiagnoseReinterpretUpDownCast(Self, SrcExpr.get(), DestType, OpRange);
   }
 }
 
@@ -1479,6 +1578,8 @@ void Sema::CheckCompatibleReinterpretCast(QualType SrcType, QualType DestType,
 static void DiagnoseCastOfObjCSEL(Sema &Self, const ExprResult &SrcExpr,
                                   QualType DestType) {
   QualType SrcType = SrcExpr.get()->getType();
+  if (Self.Context.hasSameType(SrcType, DestType))
+    return;
   if (const PointerType *SrcPtrTy = SrcType->getAs<PointerType>())
     if (SrcPtrTy->isObjCSelType()) {
       QualType DT = DestType;
@@ -1773,7 +1874,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, ExprResult &SrcExpr,
     // FIXME: Conditionally-supported behavior should be configurable in the
     // TargetInfo or similar.
     Self.Diag(OpRange.getBegin(),
-              Self.getLangOpts().CPlusPlus0x ?
+              Self.getLangOpts().CPlusPlus11 ?
                 diag::warn_cxx98_compat_cast_fn_obj : diag::ext_cast_fn_obj)
       << OpRange;
     return TC_Success;
@@ -1782,7 +1883,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, ExprResult &SrcExpr,
   if (DestType->isFunctionPointerType()) {
     // See above.
     Self.Diag(OpRange.getBegin(),
-              Self.getLangOpts().CPlusPlus0x ?
+              Self.getLangOpts().CPlusPlus11 ?
                 diag::warn_cxx98_compat_cast_fn_obj : diag::ext_cast_fn_obj)
       << OpRange;
     return TC_Success;
@@ -2096,6 +2197,15 @@ void CastOperation::CheckCStyleCast() {
         DestType->isArithmeticType()) {
       Self.Diag(SrcExpr.get()->getLocStart(),
            diag::err_cast_pointer_to_non_pointer_int)
+        << DestType << SrcExpr.get()->getSourceRange();
+      SrcExpr = ExprError();
+      return;
+    }
+  }
+
+  if (Self.getLangOpts().OpenCL && !Self.getOpenCLOptions().cl_khr_fp16) {
+    if (DestType->isHalfType()) {
+      Self.Diag(SrcExpr.get()->getLocStart(), diag::err_opencl_cast_to_half)
         << DestType << SrcExpr.get()->getSourceRange();
       SrcExpr = ExprError();
       return;

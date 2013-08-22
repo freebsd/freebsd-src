@@ -2364,7 +2364,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			break;
 		}
 
-		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, pathid,
+		if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid,
 		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 			mpt_prt(mpt, "unable to create path for rescan\n");
 			xpt_free_ccb(ccb);
@@ -2512,7 +2512,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 				    "unable to alloc CCB for rescan\n");
 				break;
 			}
-			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+			if (xpt_create_path(&ccb->ccb_h.path, NULL,
 			    cam_sim_path(sim), psdsc->TargetID,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 				mpt_prt(mpt,

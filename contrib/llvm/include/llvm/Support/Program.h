@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEM_PROGRAM_H
-#define LLVM_SYSTEM_PROGRAM_H
+#ifndef LLVM_SUPPORT_PROGRAM_H
+#define LLVM_SUPPORT_PROGRAM_H
 
 #include "llvm/Support/Path.h"
 
@@ -39,13 +39,9 @@ namespace sys {
 
     /// @name Methods
     /// @{
-  public:
 
     Program();
     ~Program();
-
-    /// Return process ID of this program.
-    unsigned GetPid() const;
 
     /// This function executes the program using the \p arguments provided.  The
     /// invoked program will inherit the stdin, stdout, and stderr file
@@ -103,17 +99,7 @@ namespace sys {
       ///< is non-empty upon return an error occurred while waiting.
       );
 
-    /// This function terminates the program.
-    /// @returns true if an error occurred.
-    /// @see Execute
-    /// @brief Terminates the program.
-    bool Kill
-    ( std::string* ErrMsg = 0 ///< If non-zero, provides a pointer to a string
-      ///< instance in which error messages will be returned. If the string
-      ///< is non-empty upon return an error occurred while killing the
-      ///< program.
-      );
-
+  public:
     /// This static constructor (factory) will attempt to locate a program in
     /// the operating system's file system using some pre-determined set of
     /// locations to search (e.g. the PATH on Unix). Paths with slashes are
@@ -139,7 +125,8 @@ namespace sys {
                               const sys::Path** redirects = 0,
                               unsigned secondsToWait = 0,
                               unsigned memoryLimit = 0,
-                              std::string* ErrMsg = 0);
+                              std::string* ErrMsg = 0,
+                              bool *ExecutionFailed = 0);
 
     /// A convenience function equivalent to Program prg; prg.Execute(..);
     /// @see Execute

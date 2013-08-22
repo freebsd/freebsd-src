@@ -8,14 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Object/MachOObject.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataExtractor.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/SwapByteOrder.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using namespace llvm::object;
@@ -44,7 +44,8 @@ static void ReadInMemoryStruct(const MachOObject &MOO,
   }
 
   // Check whether we can return a direct pointer.
-  struct_type *Ptr = (struct_type *) (Buffer.data() + Base);
+  struct_type *Ptr = reinterpret_cast<struct_type *>(
+                       const_cast<char *>(Buffer.data() + Base));
   if (!MOO.isSwappedEndian()) {
     Res = Ptr;
     return;
@@ -254,6 +255,17 @@ void SwapStruct(macho::LinkeditDataLoadCommand &Value) {
 }
 void MachOObject::ReadLinkeditDataLoadCommand(const LoadCommandInfo &LCI,
                     InMemoryStruct<macho::LinkeditDataLoadCommand> &Res) const {
+  ReadInMemoryStruct(*this, Buffer->getBuffer(), LCI.Offset, Res);
+}
+
+template<>
+void SwapStruct(macho::LinkerOptionsLoadCommand &Value) {
+  SwapValue(Value.Type);
+  SwapValue(Value.Size);
+  SwapValue(Value.Count);
+}
+void MachOObject::ReadLinkerOptionsLoadCommand(const LoadCommandInfo &LCI,
+                   InMemoryStruct<macho::LinkerOptionsLoadCommand> &Res) const {
   ReadInMemoryStruct(*this, Buffer->getBuffer(), LCI.Offset, Res);
 }
 

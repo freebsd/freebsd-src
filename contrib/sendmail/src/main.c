@@ -26,7 +26,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.981 2012/06/14 23:54:02 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.983 2013/03/12 15:24:52 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -2103,7 +2103,7 @@ main(argc, argv, envp)
 							     "> ");
 				(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 				if (sm_io_fgets(smioin, SM_TIME_DEFAULT, buf,
-						sizeof(buf)) == NULL)
+						sizeof(buf)) < 0)
 					testmodeline("/quit", &MainEnvelope);
 				p = strchr(buf, '\n');
 				if (p != NULL)
@@ -2153,7 +2153,13 @@ main(argc, argv, envp)
 	if (tls_ok)
 	{
 		/* basic TLS initialization */
-		tls_ok = init_tls_library();
+		tls_ok = init_tls_library(FipsMode);
+		if (!tls_ok && FipsMode)
+		{
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "ERROR: FIPSMode failed to initialize\n");
+			exit(EX_USAGE);
+		}
 	}
 
 	if (!tls_ok && (OpMode == MD_QUEUERUN || OpMode == MD_DELIVER))

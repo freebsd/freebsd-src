@@ -15,18 +15,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/Assembly/Parser.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/Analysis/Verifier.h"
+#include "llvm/Assembly/Parser.h"
 #include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Support/Signals.h"
 #include <memory>
 using namespace llvm;
 

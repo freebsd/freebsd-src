@@ -894,6 +894,7 @@ RsDoOneResourceDescriptor (
     if (Rnode)
     {
         DescriptorTypeOp->Asl.FinalAmlLength = Rnode->BufferLength;
+        DescriptorTypeOp->Asl.Extra = ((AML_RESOURCE *) Rnode->Buffer)->DescriptorType;
     }
 
     return (Rnode);

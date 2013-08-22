@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/AddressSpaces.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <cctype>
 #include <cstdlib>
 using namespace clang;
 
@@ -84,7 +84,7 @@ TargetInfo::TargetInfo(const std::string &T) : TargetOpts(), Triple(T)
   ComplexLongDoubleUsesFP2Ret = false;
 
   // Default to using the Itanium ABI.
-  CXXABI = CXXABI_Itanium;
+  TheCXXABI.set(TargetCXXABI::GenericItanium);
 
   // Default to an empty address space map.
   AddrSpaceMap = &DefaultAddrSpaceMap;
@@ -223,7 +223,7 @@ bool TargetInfo::isValidGCCRegisterName(StringRef Name) const {
   getGCCRegNames(Names, NumNames);
 
   // If we have a number it maps to an entry in the register name array.
-  if (isdigit(Name[0])) {
+  if (isDigit(Name[0])) {
     int n;
     if (!Name.getAsInteger(0, n))
       return n >= 0 && (unsigned)n < NumNames;
@@ -279,7 +279,7 @@ TargetInfo::getNormalizedGCCRegisterName(StringRef Name) const {
   getGCCRegNames(Names, NumNames);
 
   // First, check if we have a number.
-  if (isdigit(Name[0])) {
+  if (isDigit(Name[0])) {
     int n;
     if (!Name.getAsInteger(0, n)) {
       assert(n >= 0 && (unsigned)n < NumNames &&
@@ -494,5 +494,19 @@ bool TargetInfo::validateInputConstraint(ConstraintInfo *OutputConstraints,
     Name++;
   }
 
+  return true;
+}
+
+bool TargetCXXABI::tryParse(llvm::StringRef name) {
+  const Kind unknown = static_cast<Kind>(-1);
+  Kind kind = llvm::StringSwitch<Kind>(name)
+    .Case("arm", GenericARM)
+    .Case("ios", iOS)
+    .Case("itanium", GenericItanium)
+    .Case("microsoft", Microsoft)
+    .Default(unknown);
+  if (kind == unknown) return false;
+
+  set(kind);
   return true;
 }

@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #define ND6_SLOWTIMER_INTERVAL (60 * 60) /* 1 hour */
 #define ND6_RECALC_REACHTM_INTERVAL (60 * 120) /* 2 hours */
 
-#define SIN6(s) ((struct sockaddr_in6 *)s)
+#define SIN6(s) ((const struct sockaddr_in6 *)(s))
 
 /* timer values */
 VNET_DEFINE(int, nd6_prune)	= 1;	/* walk list every 1 seconds */
@@ -120,8 +120,6 @@ VNET_DEFINE(struct nd_prhead, nd_prefix);
 VNET_DEFINE(int, nd6_recalc_reachtm_interval) = ND6_RECALC_REACHTM_INTERVAL;
 #define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
-static struct sockaddr_in6 all1_sa;
-
 int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
 static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
@@ -141,14 +139,8 @@ VNET_DEFINE(struct callout, nd6_timer_ch);
 void
 nd6_init(void)
 {
-	int i;
 
 	LIST_INIT(&V_nd_prefix);
-
-	all1_sa.sin6_family = AF_INET6;
-	all1_sa.sin6_len = sizeof(struct sockaddr_in6);
-	for (i = 0; i < sizeof(all1_sa.sin6_addr); i++)
-		all1_sa.sin6_addr.s6_addr[i] = 0xff;
 
 	/* initialization of the default router list */
 	TAILQ_INIT(&V_nd_defrouter);
@@ -2164,7 +2156,7 @@ nd6_need_cache(struct ifnet *ifp)
  */
 int
 nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
-    struct sockaddr *dst, u_char *desten, struct llentry **lle)
+    const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *ln;
 

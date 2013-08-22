@@ -12,6 +12,8 @@
 
 #include "llvm/MC/MCFixup.h"
 
+#undef PPC
+
 namespace llvm {
 namespace PPC {
 enum Fixups {
@@ -31,19 +33,16 @@ enum Fixups {
   /// like 'lis'.
   fixup_ppc_ha16,
   
-  /// fixup_ppc_lo14 - A 14-bit fixup corresponding to lo16(_foo) for instrs
-  /// like 'std'.
-  fixup_ppc_lo14,
+  /// fixup_ppc_lo16_ds - A 14-bit fixup corresponding to lo16(_foo) with
+  /// implied 2 zero bits for instrs like 'std'.
+  fixup_ppc_lo16_ds,
 
-  /// fixup_ppc_toc - Insert value of TOC base (.TOC.).
-  fixup_ppc_toc,
+  /// fixup_ppc_tlsreg - Insert thread-pointer register number.
+  fixup_ppc_tlsreg,
 
-  /// fixup_ppc_toc16 - A 16-bit signed fixup relative to the TOC base.
-  fixup_ppc_toc16,
-
-  /// fixup_ppc_toc16_ds - A 14-bit signed fixup relative to the TOC base with
-  /// implied 2 zero bits
-  fixup_ppc_toc16_ds,
+  /// fixup_ppc_nofixup - Not a true fixup, but ties a symbol to a call
+  /// to __tls_get_addr for the TLS general and local dynamic models.
+  fixup_ppc_nofixup,
   
   // Marker
   LastTargetFixupKind,

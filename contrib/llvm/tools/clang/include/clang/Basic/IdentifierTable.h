@@ -16,9 +16,9 @@
 #ifndef LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
 #define LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
 
+#include "clang/Basic/LLVM.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/TokenKinds.h"
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
@@ -145,9 +145,6 @@ public:
   /// macro history table in Preprocessor.
   bool hadMacroDefinition() const {
     return HadMacro;
-  }
-  void setHadMacroDefinition(bool Val) {
-    HadMacro = Val;
   }
 
   /// getTokenID - If this is a source-language token (e.g. 'for'), this API
@@ -297,11 +294,11 @@ public:
   }
   
   /// \brief Determine whether this is the contextual keyword
-  /// '__experimental_modules_import'.
+  /// 'import'.
   bool isModulesImport() const { return IsModulesImport; }
   
   /// \brief Set whether this identifier is the contextual keyword 
-  /// '__experimental_modules_import'.
+  /// 'import'.
   void setModulesImport(bool I) {
     IsModulesImport = I;
     if (I)

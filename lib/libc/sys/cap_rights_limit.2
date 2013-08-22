@@ -159,7 +159,12 @@ Permit
 .Xr fchdir 2 .
 .It Dv CAP_FCHFLAGS
 Permit
-.Xr fchflags 2 .
+.Xr fchflags 2
+and
+.Xr chflagsat 2 .
+.It Dv CAP_CHFLAGSAT
+An alias to
+.Dv CAP_FCHFLAGS .
 .It Dv CAP_FCHMOD
 Permit
 .Xr fchmod 2

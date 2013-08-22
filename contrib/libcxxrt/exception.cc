@@ -1404,7 +1404,7 @@ namespace std
 	 */
 	void terminate()
 	{
-		static __cxa_thread_info *info = thread_info_fast();
+		static __cxa_thread_info *info = thread_info();
 		if (0 != info && 0 != info->terminateHandler)
 		{
 			info->terminateHandler();
@@ -1421,7 +1421,7 @@ namespace std
 	 */
 	void unexpected()
 	{
-		static __cxa_thread_info *info = thread_info_fast();
+		static __cxa_thread_info *info = thread_info();
 		if (0 != info && 0 != info->unexpectedHandler)
 		{
 			info->unexpectedHandler();

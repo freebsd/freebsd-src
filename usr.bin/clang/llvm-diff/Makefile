@@ -10,7 +10,8 @@ SRCS=	llvm-diff.cpp \
 	DiffLog.cpp \
 	DifferenceEngine.cpp
 
-LIBDEPS=llvmbitreader \
+LIBDEPS=llvmirreader \
+	llvmbitreader \
 	llvmasmparser \
 	llvmcore \
 	llvmsupport

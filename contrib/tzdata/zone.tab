@@ -42,7 +42,6 @@ AQ	-6617+11031	Antarctica/Casey	Casey Station, Bailey Peninsula
 AQ	-7824+10654	Antarctica/Vostok	Vostok Station, Lake Vostok
 AQ	-6640+14001	Antarctica/DumontDUrville	Dumont-d'Urville Station, Terre Adelie
 AQ	-690022+0393524	Antarctica/Syowa	Syowa Station, E Ongul I
-AQ	-5430+15857	Antarctica/Macquarie	Macquarie Island Station, Macquarie Island
 AR	-3436-05827	America/Argentina/Buenos_Aires	Buenos Aires (BA, CF)
 AR	-3124-06411	America/Argentina/Cordoba	most locations (CB, CC, CN, ER, FM, MN, SE, SF)
 AR	-2447-06525	America/Argentina/Salta	(SA, LP, NQ, RN)
@@ -58,6 +57,7 @@ AR	-5448-06818	America/Argentina/Ushuaia	Tierra del Fuego (TF)
 AS	-1416-17042	Pacific/Pago_Pago
 AT	+4813+01620	Europe/Vienna
 AU	-3133+15905	Australia/Lord_Howe	Lord Howe Island
+AU	-5430+15857	Antarctica/Macquarie	Macquarie Island
 AU	-4253+14719	Australia/Hobart	Tasmania - most locations
 AU	-3956+14352	Australia/Currie	Tasmania - King Island
 AU	-3749+14458	Australia/Melbourne	Victoria

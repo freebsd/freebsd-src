@@ -17,25 +17,25 @@
 #include "Mips.h"
 #include "MipsAnalyzeImmediate.h"
 #include "MipsInstrInfo.h"
-#include "MipsSubtarget.h"
 #include "MipsMachineFunction.h"
-#include "llvm/Constants.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/Type.h"
-#include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineFunction.h"
+#include "MipsSubtarget.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 
 #define GET_REGINFO_TARGET_DESC
 #include "MipsGenRegisterInfo.inc"
@@ -46,6 +46,28 @@ MipsRegisterInfo::MipsRegisterInfo(const MipsSubtarget &ST)
   : MipsGenRegisterInfo(Mips::RA), Subtarget(ST) {}
 
 unsigned MipsRegisterInfo::getPICCallReg() { return Mips::T9; }
+
+
+unsigned
+MipsRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
+                                      MachineFunction &MF) const {
+  switch (RC->getID()) {
+  default:
+    return 0;
+  case Mips::CPURegsRegClassID:
+  case Mips::CPU64RegsRegClassID:
+  case Mips::DSPRegsRegClassID: {
+    const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+    return 28 - TFI->hasFP(MF);
+  }
+  case Mips::FGR32RegClassID:
+    return 32;
+  case Mips::AFGR64RegClassID:
+    return 16;
+  case Mips::FGR64RegClassID:
+    return 32;
+  }
+}
 
 //===----------------------------------------------------------------------===//
 // Callee Saved Registers methods
@@ -155,21 +177,14 @@ MipsRegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
 // direct reference.
 void MipsRegisterInfo::
 eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
-                    RegScavenger *RS) const {
+                    unsigned FIOperandNum, RegScavenger *RS) const {
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
-
-  unsigned i = 0;
-  while (!MI.getOperand(i).isFI()) {
-    ++i;
-    assert(i < MI.getNumOperands() &&
-           "Instr doesn't have FrameIndex operand!");
-  }
 
   DEBUG(errs() << "\nFunction : " << MF.getName() << "\n";
         errs() << "<--------->\n" << MI);
 
-  int FrameIndex = MI.getOperand(i).getIndex();
+  int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   uint64_t stackSize = MF.getFrameInfo()->getStackSize();
   int64_t spOffset = MF.getFrameInfo()->getObjectOffset(FrameIndex);
 
@@ -177,7 +192,7 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
                << "spOffset   : " << spOffset << "\n"
                << "stackSize  : " << stackSize << "\n");
 
-  eliminateFI(MI, i, FrameIndex, stackSize, spOffset);
+  eliminateFI(MI, FIOperandNum, FrameIndex, stackSize, spOffset);
 }
 
 unsigned MipsRegisterInfo::

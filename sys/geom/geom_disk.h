@@ -44,6 +44,8 @@
 #include <sys/_mutex.h>
 #include <sys/disk.h>
 
+#define G_DISK_CLASS_NAME	"DISK"
+
 struct disk;
 
 typedef	int	disk_open_t(struct disk *);
@@ -86,6 +88,7 @@ struct disk {
 	u_int			d_fwsectors;
 	u_int			d_fwheads;
 	u_int			d_maxsize;
+	off_t			d_delmaxsize;
 	u_int			d_stripeoffset;
 	u_int			d_stripesize;
 	char			d_ident[DISK_IDENT_SIZE];

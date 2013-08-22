@@ -391,12 +391,11 @@ static void ttm_transfered_destroy(struct ttm_buffer_object *bo)
  * !0: Failure.
  */
 
-static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
-				      struct ttm_buffer_object **new_obj)
+static int
+ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
+    void *sync_obj, struct ttm_buffer_object **new_obj)
 {
 	struct ttm_buffer_object *fbo;
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_driver *driver = bdev->driver;
 
 	fbo = malloc(sizeof(*fbo), M_TTM_TRANSF_OBJ, M_ZERO | M_WAITOK);
 	*fbo = *bo;
@@ -413,7 +412,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->vm_node = NULL;
 	atomic_set(&fbo->cpu_writers, 0);
 
-	fbo->sync_obj = driver->sync_obj_ref(bo->sync_obj);
+	fbo->sync_obj = sync_obj;
 	refcount_init(&fbo->list_kref, 1);
 	refcount_init(&fbo->kref, 1);
 	fbo->destroy = &ttm_transfered_destroy;
@@ -594,6 +593,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
 	void *tmp_obj = NULL;
+	void *sync_obj_ref;
 
 	mtx_lock(&bdev->fence_lock);
 	if (bo->sync_obj) {
@@ -627,9 +627,10 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 
 		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
 
-		/* ttm_buffer_object_transfer accesses bo->sync_obj */
-		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
+		sync_obj_ref = bo->bdev->driver->sync_obj_ref(bo->sync_obj);
 		mtx_unlock(&bdev->fence_lock);
+		/* ttm_buffer_object_transfer accesses bo->sync_obj */
+		ret = ttm_buffer_object_transfer(bo, sync_obj_ref, &ghost_obj);
 		if (tmp_obj)
 			driver->sync_obj_unref(&tmp_obj);
 

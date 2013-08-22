@@ -31,6 +31,7 @@
 //  F -> constant CFString
 //  G -> id
 //  H -> SEL
+//  M -> struct objc_super
 //  a -> __builtin_va_list
 //  A -> "reference" to __builtin_va_list
 //  V -> Vector, followed by the number of elements and the base type.
@@ -81,6 +82,7 @@
 //          through an ellipsis
 //  e -> const, but only when -fmath-errno=0
 //  j -> returns_twice (like setjmp)
+//  u -> arguments are not evaluated for their side-effects
 //  FIXME: gcc has nonnull
 
 #if defined(BUILTIN) && !defined(LIBBUILTIN)
@@ -394,8 +396,8 @@ BUILTIN(__builtin_bswap32, "UiUi", "nc")
 BUILTIN(__builtin_bswap64, "ULLiULLi", "nc")
 
 // Random GCC builtins
-BUILTIN(__builtin_constant_p, "i.", "nct")
-BUILTIN(__builtin_classify_type, "i.", "nct")
+BUILTIN(__builtin_constant_p, "i.", "nctu")
+BUILTIN(__builtin_classify_type, "i.", "nctu")
 BUILTIN(__builtin___CFStringMakeConstantString, "FC*cC*", "nc")
 BUILTIN(__builtin___NSStringMakeConstantString, "FC*cC*", "nc")
 BUILTIN(__builtin_va_start, "vA.", "nt")
@@ -453,17 +455,17 @@ BUILTIN(__builtin_dwarf_sp_column, "Ui", "n")
 BUILTIN(__builtin_extend_pointer, "ULLiv*", "n") // _Unwind_Word == uint64_t
 
 // GCC Object size checking builtins
-BUILTIN(__builtin_object_size, "zvC*i", "n")
+BUILTIN(__builtin_object_size, "zvC*i", "nu")
 BUILTIN(__builtin___memcpy_chk, "v*v*vC*zz", "nF")
-BUILTIN(__builtin___memccpy_chk, "v*v*vC*iz", "nF")
+BUILTIN(__builtin___memccpy_chk, "v*v*vC*izz", "nF")
 BUILTIN(__builtin___memmove_chk, "v*v*vC*zz", "nF")
 BUILTIN(__builtin___mempcpy_chk, "v*v*vC*zz", "nF")
 BUILTIN(__builtin___memset_chk, "v*v*izz", "nF")
 BUILTIN(__builtin___stpcpy_chk, "c*c*cC*z", "nF")
 BUILTIN(__builtin___strcat_chk, "c*c*cC*z", "nF")
 BUILTIN(__builtin___strcpy_chk, "c*c*cC*z", "nF")
-BUILTIN(__builtin___strlcat_chk, "c*c*cC*zz", "nF")
-BUILTIN(__builtin___strlcpy_chk, "c*c*cC*zz", "nF")
+BUILTIN(__builtin___strlcat_chk, "zc*cC*zz", "nF")
+BUILTIN(__builtin___strlcpy_chk, "zc*cC*zz", "nF")
 BUILTIN(__builtin___strncat_chk, "c*c*cC*zz", "nF")
 BUILTIN(__builtin___strncpy_chk, "c*c*cC*zz", "nF")
 BUILTIN(__builtin___stpncpy_chk, "c*c*cC*zz", "nF")
@@ -760,17 +762,16 @@ LIBBUILTIN(strlcpy, "zc*cC*z",    "f",     "string.h", ALL_LANGUAGES)
 LIBBUILTIN(strlcat, "zc*cC*z",    "f",     "string.h", ALL_LANGUAGES)
 //   id objc_msgSend(id, SEL, ...)
 LIBBUILTIN(objc_msgSend, "GGH.",   "f",     "objc/message.h", OBJC_LANG)
-
 // long double objc_msgSend_fpret(id self, SEL op, ...) 
 LIBBUILTIN(objc_msgSend_fpret, "LdGH.", "f", "objc/message.h", OBJC_LANG)
 // _Complex long double objc_msgSend_fp2ret(id self, SEL op, ...)
 LIBBUILTIN(objc_msgSend_fp2ret, "XLdGH.", "f", "objc/message.h", OBJC_LANG)
-// id objc_msgSend_stret (id, SEL, ...)
-LIBBUILTIN(objc_msgSend_stret, "GGH.", "f", "objc/message.h", OBJC_LANG)
+// void objc_msgSend_stret (id, SEL, ...)
+LIBBUILTIN(objc_msgSend_stret, "vGH.", "f", "objc/message.h", OBJC_LANG)
 // id objc_msgSendSuper(struct objc_super *super, SEL op, ...)
-LIBBUILTIN(objc_msgSendSuper, "Gv*H.", "f", "objc/message.h", OBJC_LANG)
+LIBBUILTIN(objc_msgSendSuper, "GM*H.", "f", "objc/message.h", OBJC_LANG)
 // void objc_msgSendSuper_stret(struct objc_super *super, SEL op, ...)
-LIBBUILTIN(objc_msgSendSuper_stret, "vv*H.", "f", "objc/message.h", OBJC_LANG)
+LIBBUILTIN(objc_msgSendSuper_stret, "vM*H.", "f", "objc/message.h", OBJC_LANG)
 //   id objc_getClass(const char *name)
 LIBBUILTIN(objc_getClass, "GcC*",   "f",     "objc/runtime.h", OBJC_LANG)
 //   id objc_getMetaClass(const char *name)
@@ -832,6 +833,14 @@ LIBBUILTIN(atan2f, "fff", "fe", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(ceil, "dd", "fc", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(ceill, "LdLd", "fc", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(ceilf, "ff", "fc", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(cimag, "dXd", "fnc", "complex.h", ALL_LANGUAGES)
+LIBBUILTIN(cimagf, "fXf", "fnc", "complex.h", ALL_LANGUAGES)
+LIBBUILTIN(cimagl, "LdXLd", "fnc", "complex.h", ALL_LANGUAGES)
+
+LIBBUILTIN(creal, "dXd", "fnc", "complex.h", ALL_LANGUAGES)
+LIBBUILTIN(crealf, "fXf", "fnc", "complex.h", ALL_LANGUAGES)
+LIBBUILTIN(creall, "LdXLd", "fnc", "complex.h", ALL_LANGUAGES)
 
 LIBBUILTIN(copysign, "ddd", "fc", "math.h", ALL_LANGUAGES)
 LIBBUILTIN(copysignl, "LdLdLd", "fc", "math.h", ALL_LANGUAGES)
@@ -916,6 +925,16 @@ LIBBUILTIN(_Block_object_dispose, "vvC*iC", "f", "Blocks.h", ALL_LANGUAGES)
 
 // Annotation function
 BUILTIN(__builtin_annotation, "v.", "tn")
+
+// Multiprecision Arithmetic Builtins.
+BUILTIN(__builtin_addcs, "UsUsCUsCUsCUs*", "n")
+BUILTIN(__builtin_addc, "UiUiCUiCUiCUi*", "n")
+BUILTIN(__builtin_addcl, "ULiULiCULiCULiCULi*", "n")
+BUILTIN(__builtin_addcll, "ULLiULLiCULLiCULLiCULLi*", "n")
+BUILTIN(__builtin_subcs, "UsUsCUsCUsCUs*", "n")
+BUILTIN(__builtin_subc, "UiUiCUiCUiCUi*", "n")
+BUILTIN(__builtin_subcl, "ULiULiCULiCULiCULi*", "n")
+BUILTIN(__builtin_subcll, "ULLiULLiCULLiCULLiCULLi*", "n")
 
 #undef BUILTIN
 #undef LIBBUILTIN

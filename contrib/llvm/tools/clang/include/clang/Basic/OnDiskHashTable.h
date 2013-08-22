@@ -14,11 +14,12 @@
 #ifndef LLVM_CLANG_BASIC_ON_DISK_HASH_TABLE_H
 #define LLVM_CLANG_BASIC_ON_DISK_HASH_TABLE_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Host.h"
 #include <cassert>
 #include <cstdlib>
 

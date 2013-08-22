@@ -87,8 +87,8 @@ extern FILE                 *AcpiGbl_OutputFile;
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #define ACPI_MSG_INFO           "ACPI: "
 
-#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Bug: Error: "
-#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Bug: Warning: "
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
 
 /*
  * Common message suffix
@@ -384,7 +384,7 @@ AcpiUtPredefinedWarning (
         return;
     }
 
-    AcpiOsPrintf (ACPI_MSG_WARNING "For %s: ", Pathname);
+    AcpiOsPrintf (ACPI_MSG_WARNING "%s: ", Pathname);
 
     va_start (ArgList, Format);
     AcpiOsVprintf (Format, ArgList);
@@ -433,7 +433,56 @@ AcpiUtPredefinedInfo (
         return;
     }
 
-    AcpiOsPrintf (ACPI_MSG_INFO "For %s: ", Pathname);
+    AcpiOsPrintf (ACPI_MSG_INFO "%s: ", Pathname);
+
+    va_start (ArgList, Format);
+    AcpiOsVprintf (Format, ArgList);
+    ACPI_MSG_SUFFIX;
+    va_end (ArgList);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtPredefinedBiosError
+ *
+ * PARAMETERS:  ModuleName      - Caller's module name (for error output)
+ *              LineNumber      - Caller's line number (for error output)
+ *              Pathname        - Full pathname to the node
+ *              NodeFlags       - From Namespace node for the method/object
+ *              Format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: BIOS error message for predefined names. Messages
+ *              are only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of
+ *              messages for methods that are repeatedly evaluated.
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedBiosError (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...)
+{
+    va_list                 ArgList;
+
+
+    /*
+     * Warning messages for this method/object will be disabled after the
+     * first time a validation fails or an object is successfully repaired.
+     */
+    if (NodeFlags & ANOBJ_EVALUATED)
+    {
+        return;
+    }
+
+    AcpiOsPrintf (ACPI_MSG_BIOS_ERROR "%s: ", Pathname);
 
     va_start (ArgList, Format);
     AcpiOsVprintf (Format, ArgList);

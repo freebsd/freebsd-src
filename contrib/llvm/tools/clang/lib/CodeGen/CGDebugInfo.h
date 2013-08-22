@@ -14,16 +14,15 @@
 #ifndef CLANG_CODEGEN_CGDEBUGINFO_H
 #define CLANG_CODEGEN_CGDEBUGINFO_H
 
-#include "clang/AST/Type.h"
-#include "clang/AST/Expr.h"
-#include "clang/Basic/SourceLocation.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/DIBuilder.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/ValueHandle.h"
-#include "llvm/Support/Allocator.h"
-
 #include "CGBuilder.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/Type.h"
+#include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/DIBuilder.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
   class MDNode;
@@ -33,6 +32,7 @@ namespace clang {
   class CXXMethodDecl;
   class VarDecl;
   class ObjCInterfaceDecl;
+  class ObjCIvarDecl;
   class ClassTemplateSpecializationDecl;
   class GlobalDecl;
 
@@ -51,11 +51,23 @@ class CGDebugInfo {
   SourceLocation CurLoc, PrevLoc;
   llvm::DIType VTablePtrType;
   llvm::DIType ClassTy;
-  llvm::DIType ObjTy;
+  llvm::DICompositeType ObjTy;
   llvm::DIType SelTy;
+  llvm::DIType OCLImage1dDITy, OCLImage1dArrayDITy, OCLImage1dBufferDITy;
+  llvm::DIType OCLImage2dDITy, OCLImage2dArrayDITy;
+  llvm::DIType OCLImage3dDITy;
+  llvm::DIType OCLEventDITy;
   
   /// TypeCache - Cache of previously constructed Types.
   llvm::DenseMap<void *, llvm::WeakVH> TypeCache;
+
+  /// ObjCInterfaceCache - Cache of previously constructed interfaces
+  /// which may change. Storing a pair of DIType and checksum.
+  llvm::DenseMap<void *, std::pair<llvm::WeakVH, unsigned > >
+    ObjCInterfaceCache;
+
+  /// RetainedTypes - list of interfaces we want to keep even if orphaned.
+  std::vector<void *> RetainedTypes;
 
   /// CompleteTypeCache - Cache of previously constructed complete RecordTypes.
   llvm::DenseMap<void *, llvm::WeakVH> CompletedTypeCache;
@@ -83,8 +95,10 @@ class CGDebugInfo {
   llvm::DenseMap<const char *, llvm::WeakVH> DIFileCache;
   llvm::DenseMap<const FunctionDecl *, llvm::WeakVH> SPCache;
   llvm::DenseMap<const NamespaceDecl *, llvm::WeakVH> NameSpaceCache;
+  llvm::DenseMap<const Decl *, llvm::WeakVH> StaticDataMemberCache;
 
   /// Helper functions for getOrCreateType.
+  unsigned Checksum(const ObjCInterfaceDecl *InterfaceDecl);
   llvm::DIType CreateType(const BuiltinType *Ty);
   llvm::DIType CreateType(const ComplexType *Ty);
   llvm::DIType CreateQualifiedType(QualType Ty, llvm::DIFile F);
@@ -105,10 +119,13 @@ class CGDebugInfo {
   llvm::DIType CreateType(const MemberPointerType *Ty, llvm::DIFile F);
   llvm::DIType CreateType(const AtomicType *Ty, llvm::DIFile F);
   llvm::DIType CreateEnumType(const EnumDecl *ED);
+  llvm::DIType CreateSelfType(const QualType &QualTy, llvm::DIType Ty);
   llvm::DIType getTypeOrNull(const QualType);
   llvm::DIType getCompletedTypeOrNull(const QualType);
   llvm::DIType getOrCreateMethodType(const CXXMethodDecl *Method,
                                      llvm::DIFile F);
+  llvm::DIType getOrCreateInstanceMethodType(
+      QualType ThisPtr, const FunctionProtoType *Func, llvm::DIFile Unit);
   llvm::DIType getOrCreateFunctionType(const Decl *D, QualType FnType,
                                        llvm::DIFile F);
   llvm::DIType getOrCreateVTablePtrType(llvm::DIFile F);
@@ -117,7 +134,10 @@ class CGDebugInfo {
   llvm::DIType CreatePointerLikeType(unsigned Tag,
                                      const Type *Ty, QualType PointeeTy,
                                      llvm::DIFile F);
-  
+
+  llvm::Value *getCachedInterfaceTypeOrNull(const QualType Ty);
+  llvm::DIType getOrCreateStructPtrType(StringRef Name, llvm::DIType &Cache);
+
   llvm::DISubprogram CreateCXXMemberFunction(const CXXMethodDecl *Method,
                                              llvm::DIFile F,
                                              llvm::DIType RecordTy);
@@ -152,7 +172,18 @@ class CGDebugInfo {
                                AccessSpecifier AS, uint64_t offsetInBits,
                                llvm::DIFile tunit,
                                llvm::DIDescriptor scope);
-  void CollectRecordStaticVars(const RecordDecl *, llvm::DIType);
+
+  // Helpers for collecting fields of a record.
+  void CollectRecordLambdaFields(const CXXRecordDecl *CXXDecl,
+                                 SmallVectorImpl<llvm::Value *> &E,
+                                 llvm::DIType RecordTy);
+  void CollectRecordStaticField(const VarDecl *Var,
+                                SmallVectorImpl<llvm::Value *> &E,
+                                llvm::DIType RecordTy);
+  void CollectRecordNormalField(const FieldDecl *Field, uint64_t OffsetInBits,
+                                llvm::DIFile F,
+                                SmallVectorImpl<llvm::Value *> &E,
+                                llvm::DIType RecordTy);
   void CollectRecordFields(const RecordDecl *Decl, llvm::DIFile F,
                            SmallVectorImpl<llvm::Value *> &E,
                            llvm::DIType RecordTy);
@@ -169,7 +200,7 @@ public:
   CGDebugInfo(CodeGenModule &CGM);
   ~CGDebugInfo();
 
-  void finalize(void);
+  void finalize();
 
   /// setLocation - Update the current source location. If \arg loc is
   /// invalid it is ignored.
@@ -177,7 +208,9 @@ public:
 
   /// EmitLocation - Emit metadata to indicate a change in line/column
   /// information in the source file.
-  void EmitLocation(CGBuilderTy &Builder, SourceLocation Loc);
+  /// \param ForceColumnInfo  Assume DebugColumnInfo option is true.
+  void EmitLocation(CGBuilderTy &Builder, SourceLocation Loc,
+                    bool ForceColumnInfo = false);
 
   /// EmitFunctionStart - Emit a call to llvm.dbg.function.start to indicate
   /// start of a new function.
@@ -216,7 +249,8 @@ public:
   /// llvm.dbg.declare for the block-literal argument to a block
   /// invocation function.
   void EmitDeclareOfBlockLiteralArgVariable(const CGBlockInfo &block,
-                                            llvm::Value *addr,
+                                            llvm::Value *Arg,
+                                            llvm::Value *LocalAddr,
                                             CGBuilderTy &Builder);
 
   /// EmitGlobalVariable - Emit information about a global variable.
@@ -243,7 +277,7 @@ private:
 
   // EmitTypeForVarWithBlocksAttr - Build up structure info for the byref.  
   // See BuildByRefType.
-  llvm::DIType EmitTypeForVarWithBlocksAttr(const ValueDecl *VD, 
+  llvm::DIType EmitTypeForVarWithBlocksAttr(const VarDecl *VD,
                                             uint64_t *OffSet);
 
   /// getContextDescriptor - Get context info for the decl.
@@ -280,6 +314,10 @@ private:
   /// CreateTypeNode - Create type metadata for a source language type.
   llvm::DIType CreateTypeNode(QualType Ty, llvm::DIFile F);
 
+  /// getObjCInterfaceDecl - return the underlying ObjCInterfaceDecl
+  /// if Ty is an ObjCInterface or a pointer to one.
+  ObjCInterfaceDecl* getObjCInterfaceDecl(QualType Ty);
+
   /// CreateLimitedTypeNode - Create type metadata for a source language
   /// type, but only partial types for records.
   llvm::DIType CreateLimitedTypeNode(QualType Ty, llvm::DIFile F);
@@ -291,6 +329,11 @@ private:
   /// getFunctionDeclaration - Return debug info descriptor to describe method
   /// declaration for the given method definition.
   llvm::DISubprogram getFunctionDeclaration(const Decl *D);
+
+  /// getStaticDataMemberDeclaration - Return debug info descriptor to
+  /// describe in-class static data member declaration for the given
+  /// out-of-class definition.
+  llvm::DIDerivedType getStaticDataMemberDeclaration(const Decl *D);
 
   /// getFunctionName - Get function name for the given FunctionDecl. If the
   /// name is constructred on demand (e.g. C++ destructor) then the name
@@ -317,7 +360,8 @@ private:
 
   /// getColumnNumber - Get column number for the location. If location is 
   /// invalid then use current location.
-  unsigned getColumnNumber(SourceLocation Loc);
+  /// \param Force  Assume DebugColumnInfo option is true.
+  unsigned getColumnNumber(SourceLocation Loc, bool Force=false);
 };
 } // namespace CodeGen
 } // namespace clang

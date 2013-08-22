@@ -260,7 +260,7 @@ verify(const char *refname, enum comp_type comp)
 	}
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
@@ -280,6 +280,11 @@ verify2(const char *refname, enum comp_type comp)
 	char buff[128];
 	char zero[128];
 
+	if (comp == MSZIP && !libz_enabled) {
+		skipping("Skipping CAB format(MSZIP) check for %s",
+		  refname);
+		return;
+	}
 	memset(zero, 0, sizeof(zero));
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
@@ -316,7 +321,7 @@ verify2(const char *refname, enum comp_type comp)
 	}
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
@@ -363,7 +368,7 @@ verify3(const char *refname, enum comp_type comp)
 	}
 
 	/* Verify archive format. */
-	assertEqualIntA(a, ARCHIVE_COMPRESSION_NONE, archive_compression(a));
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */

@@ -47,7 +47,7 @@ void	vfp_restore(struct vfp_state *);
 void	vfp_store(struct vfp_state *);
 void	set_coprocessorACR(u_int);
 
-boolean_t vfp_exists;
+extern int vfp_exists;
 static struct undefined_handler vfp10_uh, vfp11_uh;
 
 /* The VFMXR command using coprocessor commands */

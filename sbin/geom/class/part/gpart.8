@@ -31,33 +31,6 @@
 .Nm gpart
 .Nd "control utility for the disk partitioning GEOM class"
 .Sh SYNOPSIS
-To add support for the disk partitioning GEOM class,
-place one or more of the following
-lines in the kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "options GEOM_PART_APM"
-.Cd "options GEOM_PART_BSD"
-.Cd "options GEOM_PART_GPT"
-.Cd "options GEOM_PART_LDM"
-.Cd "options GEOM_PART_MBR"
-.Cd "options GEOM_PART_EBR"
-.Cd "options GEOM_PART_EBR_COMPAT"
-.Cd "options GEOM_PART_PC98"
-.Cd "options GEOM_PART_VTOC8"
-.Ed
-.Pp
-These options provide support for the various types of partitioning
-schemes supported by the
-.Ns Nm
-utility.
-See
-.Sx "PARTITIONING SCHEMES"
-below for more details.
-.Pp
-Usage of the
-.Ns Nm
-utility:
-.Pp
 .\" ==== ADD ====
 .Nm
 .Cm add

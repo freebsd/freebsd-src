@@ -392,6 +392,7 @@ struct ath_hal_private {
 	int16_t		ah_powerLimit;		/* tx power cap */
 	uint16_t	ah_maxPowerLevel;	/* calculated max tx power */
 	u_int		ah_tpScale;		/* tx power scale factor */
+	u_int16_t	ah_extraTxPow;		/* low rates extra-txpower */
 	uint32_t	ah_11nCompat;		/* 11n compat controls */
 
 	/*

@@ -475,9 +475,9 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	if (sc != NULL)
 		return (EEXIST);
 
-	vm = vm_create(buf);
-	if (vm == NULL)
-		return (EINVAL);
+	error = vm_create(buf, &vm);
+	if (error != 0)
+		return (error);
 
 	sc = malloc(sizeof(struct vmmdev_softc), M_VMMDEV, M_WAITOK | M_ZERO);
 	sc->vm = vm;
@@ -497,8 +497,12 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 		return (EEXIST);
 	}
 
-	sc->cdev = make_dev(&vmmdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-			    "vmm/%s", buf);
+	error = make_dev_p(MAKEDEV_CHECKNAME, &sc->cdev, &vmmdevsw, NULL,
+			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
+	if (error != 0) {
+		vmmdev_destroy(sc, TRUE);
+		return (error);
+	}
 	sc->cdev->si_drv1 = sc;
 
 	return (0);

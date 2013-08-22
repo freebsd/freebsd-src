@@ -32,7 +32,7 @@
 .\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2012
+.Dd April 2, 2013
 .Dt RAND 3
 .Os
 .Sh NAME
@@ -91,9 +91,7 @@ seeded with a value of 1.
 .Pp
 The
 .Fn sranddev
-function initializes a seed using the
-.Xr random 4
-random number device which returns good random numbers.
+function initializes a seed using pseudo-random numbers obtained from the kernel.
 .Pp
 The
 .Fn rand_r

@@ -34,12 +34,11 @@ static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/time.h>          /* for srandomdev() */
-#include <fcntl.h>             /* for srandomdev() */
+#include <sys/param.h>
+#include <sys/sysctl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>            /* for srandomdev() */
 #include "un-namespace.h"
 
 /*
@@ -284,39 +283,28 @@ srandom(unsigned long x)
  * srandomdev:
  *
  * Many programs choose the seed value in a totally predictable manner.
- * This often causes problems.  We seed the generator using the much more
- * secure random(4) interface.  Note that this particular seeding
- * procedure can generate states which are impossible to reproduce by
- * calling srandom() with any value, since the succeeding terms in the
- * state buffer are no longer derived from the LC algorithm applied to
- * a fixed seed.
+ * This often causes problems.  We seed the generator using pseudo-random
+ * data from the kernel.
+ *
+ * Note that this particular seeding procedure can generate states
+ * which are impossible to reproduce by calling srandom() with any
+ * value, since the succeeding terms in the state buffer are no longer
+ * derived from the LC algorithm applied to a fixed seed.
  */
 void
 srandomdev(void)
 {
-	int fd, done;
+	int mib[2];
 	size_t len;
 
 	if (rand_type == TYPE_0)
-		len = sizeof state[0];
+		len = sizeof(state[0]);
 	else
-		len = rand_deg * sizeof state[0];
+		len = rand_deg * sizeof(state[0]);
 
-	done = 0;
-	fd = _open("/dev/random", O_RDONLY | O_CLOEXEC, 0);
-	if (fd >= 0) {
-		if (_read(fd, (void *) state, len) == (ssize_t) len)
-			done = 1;
-		_close(fd);
-	}
-
-	if (!done) {
-		struct timeval tv;
-
-		gettimeofday(&tv, NULL);
-		srandom((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec);
-		return;
-	}
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+	sysctl(mib, 2, state, &len, NULL, 0);
 
 	if (rand_type != TYPE_0) {
 		fptr = &state[rand_sep];

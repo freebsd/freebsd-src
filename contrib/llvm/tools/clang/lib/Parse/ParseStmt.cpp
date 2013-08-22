@@ -14,13 +14,13 @@
 
 #include "clang/Parse/Parser.h"
 #include "RAIIObjectsForParser.h"
+#include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/PrettyStackTrace.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/TypoCorrection.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/Basic/PrettyStackTrace.h"
-#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
 using namespace clang;
 
@@ -84,7 +84,7 @@ Parser::ParseStatementOrDeclaration(StmtVector &Stmts, bool OnlyStatement,
   ParenBraceBracketBalancer BalancerRAIIObj(*this);
 
   ParsedAttributesWithRange Attrs(AttrFactory);
-  MaybeParseCXX0XAttributes(Attrs, 0, /*MightBeObjCMessageSend*/ true);
+  MaybeParseCXX11Attributes(Attrs, 0, /*MightBeObjCMessageSend*/ true);
 
   StmtResult Res = ParseStatementOrDeclarationAfterAttributes(Stmts,
                                  OnlyStatement, TrailingElseLoc, Attrs);
@@ -288,6 +288,11 @@ Retry:
     ProhibitAttributes(Attrs);
     HandlePragmaOpenCLExtension();
     return StmtEmpty();
+
+  case tok::annot_pragma_openmp:
+    SourceLocation DeclStart = Tok.getLocation();
+    DeclGroupPtrTy Res = ParseOpenMPDeclarativeDirective();
+    return Actions.ActOnDeclStmt(Res, DeclStart, Tok.getLocation());
   }
 
   // If we reached this code, the statement must end in a semicolon.
@@ -319,7 +324,7 @@ StmtResult Parser::ParseExprStatement() {
     SkipUntil(tok::r_brace, /*StopAtSemi=*/true, /*DontConsume=*/true);
     if (Tok.is(tok::semi))
       ConsumeToken();
-    return StmtError();
+    return Actions.ActOnExprStmtError();
   }
 
   if (Tok.is(tok::colon) && getCurScope()->isSwitchScope() &&
@@ -335,7 +340,7 @@ StmtResult Parser::ParseExprStatement() {
 
   // Otherwise, eat the semicolon.
   ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
-  return Actions.ActOnExprStmt(Actions.MakeFullExpr(Expr.get()));
+  return Actions.ActOnExprStmt(Expr);
 }
 
 StmtResult Parser::ParseSEHTryBlock() {
@@ -830,7 +835,7 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
         ConsumeToken();
 
       ParsedAttributesWithRange attrs(AttrFactory);
-      MaybeParseCXX0XAttributes(attrs, 0, /*MightBeObjCMessageSend*/ true);
+      MaybeParseCXX11Attributes(attrs, 0, /*MightBeObjCMessageSend*/ true);
 
       // If this is the start of a declaration, parse it as such.
       if (isDeclarationStatement()) {
@@ -856,7 +861,7 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
         // Eat the semicolon at the end of stmt and convert the expr into a
         // statement.
         ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
-        R = Actions.ActOnExprStmt(Actions.MakeFullExpr(Res.get()));
+        R = Actions.ActOnExprStmt(Res);
       }
     }
 
@@ -867,15 +872,10 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
   SourceLocation CloseLoc = Tok.getLocation();
 
   // We broke out of the while loop because we found a '}' or EOF.
-  if (Tok.isNot(tok::r_brace)) {
-    Diag(Tok, diag::err_expected_rbrace);
-    Diag(T.getOpenLocation(), diag::note_matching) << "{";
+  if (!T.consumeClose())
     // Recover by creating a compound statement with what we parsed so far,
     // instead of dropping everything and returning StmtError();
-  } else {
-    if (!T.consumeClose())
-      CloseLoc = T.getCloseLocation();
-  }
+    CloseLoc = T.getCloseLocation();
 
   return Actions.ActOnCompoundStmt(T.getOpenLocation(), CloseLoc,
                                    Stmts, isStmtExpr);
@@ -1046,11 +1046,6 @@ StmtResult Parser::ParseIfStatement(SourceLocation *TrailingElseLoc) {
   }
 
   IfScope.Exit();
-
-  // If the condition was invalid, discard the if statement.  We could recover
-  // better by replacing it with a valid expr, but don't do that yet.
-  if (CondExp.isInvalid() && !CondVar)
-    return StmtError();
 
   // If the then or else stmt is invalid and the other is valid (and present),
   // make turn the invalid one into a null stmt to avoid dropping the other
@@ -1290,7 +1285,7 @@ StmtResult Parser::ParseDoStatement() {
 
   // FIXME: Do not just parse the attribute contents and throw them away
   ParsedAttributesWithRange attrs(AttrFactory);
-  MaybeParseCXX0XAttributes(attrs);
+  MaybeParseCXX11Attributes(attrs);
   ProhibitAttributes(attrs);
 
   ExprResult Cond = ParseExpression();
@@ -1383,7 +1378,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
   }
 
   ParsedAttributesWithRange attrs(AttrFactory);
-  MaybeParseCXX0XAttributes(attrs);
+  MaybeParseCXX11Attributes(attrs);
 
   // Parse the first part of the for specifier.
   if (Tok.is(tok::semi)) {  // for (;
@@ -1394,9 +1389,6 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     // Parse declaration, which eats the ';'.
     if (!C99orCXXorObjC)   // Use of C99-style for loops in C90 mode?
       Diag(Tok, diag::ext_c99_variable_decl_in_for_loop);
-
-    ParsedAttributesWithRange attrs(AttrFactory);
-    MaybeParseCXX0XAttributes(attrs);
 
     // In C++0x, "for (T NS:a" might not be a typo for ::
     bool MightBeForRangeStmt = getLangOpts().CPlusPlus;
@@ -1411,7 +1403,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     FirstPart = Actions.ActOnDeclStmt(DG, DeclStart, Tok.getLocation());
 
     if (ForRangeInit.ParsedForRangeDecl()) {
-      Diag(ForRangeInit.ColonLoc, getLangOpts().CPlusPlus0x ?
+      Diag(ForRangeInit.ColonLoc, getLangOpts().CPlusPlus11 ?
            diag::warn_cxx98_compat_for_range : diag::ext_for_range);
 
       ForRange = true;
@@ -1442,7 +1434,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
       if (ForEach)
         FirstPart = Actions.ActOnForEachLValueExpr(Value.get());
       else
-        FirstPart = Actions.ActOnExprStmt(Actions.MakeFullExpr(Value.get()));
+        FirstPart = Actions.ActOnExprStmt(Value);
     }
 
     if (Tok.is(tok::semi)) {
@@ -1456,7 +1448,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
         return StmtError();
       }
       Collection = ParseExpression();
-    } else if (getLangOpts().CPlusPlus0x && Tok.is(tok::colon) && FirstPart.get()) {
+    } else if (getLangOpts().CPlusPlus11 && Tok.is(tok::colon) && FirstPart.get()) {
       // User tried to write the reasonable, but ill-formed, for-range-statement
       //   for (expr : expr) { ... }
       Diag(Tok, diag::err_for_range_expected_decl)
@@ -1510,7 +1502,9 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     // Parse the third part of the for specifier.
     if (Tok.isNot(tok::r_paren)) {   // for (...;...;)
       ExprResult Third = ParseExpression();
-      ThirdPart = Actions.MakeFullExpr(Third.take());
+      // FIXME: The C++11 standard doesn't actually say that this is a
+      // discarded-value expression, but it clearly should be.
+      ThirdPart = Actions.MakeFullDiscardedValueExpr(Third.take());
     }
   }
   // Match the ')'.
@@ -1652,7 +1646,7 @@ StmtResult Parser::ParseReturnStatement() {
     if (Tok.is(tok::l_brace) && getLangOpts().CPlusPlus) {
       R = ParseInitializer();
       if (R.isUsable())
-        Diag(R.get()->getLocStart(), getLangOpts().CPlusPlus0x ?
+        Diag(R.get()->getLocStart(), getLangOpts().CPlusPlus11 ?
              diag::warn_cxx98_compat_generalized_initializer_lists :
              diag::ext_generalized_initializer_lists)
           << R.get()->getSourceRange();
@@ -1682,9 +1676,6 @@ StmtResult Parser::ParseReturnStatement() {
 ///         ms-asm-line '\n' ms-asm-instruction-block
 ///
 StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
-  // MS-style inline assembly is not fully supported, so emit a warning.
-  Diag(AsmLoc, diag::warn_unsupported_msasm);
-
   SourceManager &SrcMgr = PP.getSourceManager();
   SourceLocation EndLoc = AsmLoc;
   SmallVector<Token, 4> AsmToks;
@@ -1777,21 +1768,6 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
     return StmtError();
   }
 
-  // If MS-style inline assembly is disabled, then build an empty asm.
-  if (!getLangOpts().EmitMicrosoftInlineAsm) {
-    Token t;
-    t.setKind(tok::string_literal);
-    t.setLiteralData("\"/*FIXME: not done*/\"");
-    t.clearFlag(Token::NeedsCleaning);
-    t.setLength(21);
-    ExprResult AsmString(Actions.ActOnStringLiteral(&t, 1));
-    ExprVector Constraints;
-    ExprVector Exprs;
-    ExprVector Clobbers;
-    return Actions.ActOnGCCAsmStmt(AsmLoc, true, true, 0, 0, 0, Constraints,
-                                   Exprs, AsmString.take(), Clobbers, EndLoc);
-  }
-
   // FIXME: We should be passing source locations for better diagnostics.
   return Actions.ActOnMSAsmStmt(AsmLoc, LBraceLoc,
                                 llvm::makeArrayRef(AsmToks), EndLoc);
@@ -1820,7 +1796,7 @@ StmtResult Parser::ParseAsmStatement(bool &msAsm) {
   assert(Tok.is(tok::kw_asm) && "Not an asm stmt");
   SourceLocation AsmLoc = ConsumeToken();
 
-  if (getLangOpts().MicrosoftExt && Tok.isNot(tok::l_paren) &&
+  if (getLangOpts().AsmBlocks && Tok.isNot(tok::l_paren) &&
       !isTypeQualifier()) {
     msAsm = true;
     return ParseMicrosoftAsmStatement(AsmLoc);
@@ -1834,6 +1810,9 @@ StmtResult Parser::ParseAsmStatement(bool &msAsm) {
     Diag(Loc, diag::w_asm_qualifier_ignored) << "const";
   if (DS.getTypeQualifiers() & DeclSpec::TQ_restrict)
     Diag(Loc, diag::w_asm_qualifier_ignored) << "restrict";
+  // FIXME: Once GCC supports _Atomic, check whether it permits it here.
+  if (DS.getTypeQualifiers() & DeclSpec::TQ_atomic)
+    Diag(Loc, diag::w_asm_qualifier_ignored) << "_Atomic";
 
   // Remember if this was a volatile asm.
   bool isVolatile = DS.getTypeQualifiers() & DeclSpec::TQ_volatile;
@@ -2003,9 +1982,10 @@ Decl *Parser::ParseFunctionStatementBody(Decl *Decl, ParseScope &BodyScope) {
   assert(Tok.is(tok::l_brace));
   SourceLocation LBraceLoc = Tok.getLocation();
 
-  if (SkipFunctionBodies && trySkippingFunctionBody()) {
+  if (SkipFunctionBodies && (!Decl || Actions.canSkipFunctionBody(Decl)) &&
+      trySkippingFunctionBody()) {
     BodyScope.Exit();
-    return Actions.ActOnFinishFunctionBody(Decl, 0);
+    return Actions.ActOnSkippedFunctionBody(Decl);
   }
 
   PrettyDeclStackTraceEntry CrashInfo(Actions, Decl, LBraceLoc,
@@ -2045,9 +2025,10 @@ Decl *Parser::ParseFunctionTryBlock(Decl *Decl, ParseScope &BodyScope) {
   else
     Actions.ActOnDefaultCtorInitializers(Decl);
 
-  if (SkipFunctionBodies && trySkippingFunctionBody()) {
+  if (SkipFunctionBodies && Actions.canSkipFunctionBody(Decl) &&
+      trySkippingFunctionBody()) {
     BodyScope.Exit();
-    return Actions.ActOnFinishFunctionBody(Decl, 0);
+    return Actions.ActOnSkippedFunctionBody(Decl);
   }
 
   SourceLocation LBraceLoc = Tok.getLocation();
@@ -2123,8 +2104,8 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc, bool FnTry) {
   // FIXME: Possible draft standard bug: attribute-specifier should be allowed?
 
   StmtResult TryBlock(ParseCompoundStatement(/*isStmtExpr=*/false,
-                      Scope::DeclScope |
-                        (FnTry ? Scope::FnTryScope : Scope::TryScope)));
+                      Scope::DeclScope | Scope::TryScope |
+                        (FnTry ? Scope::FnTryCatchScope : 0)));
   if (TryBlock.isInvalid())
     return TryBlock;
 
@@ -2154,7 +2135,7 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc, bool FnTry) {
   else {
     StmtVector Handlers;
     ParsedAttributesWithRange attrs(AttrFactory);
-    MaybeParseCXX0XAttributes(attrs);
+    MaybeParseCXX11Attributes(attrs);
     ProhibitAttributes(attrs);
 
     if (Tok.isNot(tok::kw_catch))
@@ -2175,14 +2156,13 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc, bool FnTry) {
 
 /// ParseCXXCatchBlock - Parse a C++ catch block, called handler in the standard
 ///
-///       handler:
-///         'catch' '(' exception-declaration ')' compound-statement
+///   handler:
+///     'catch' '(' exception-declaration ')' compound-statement
 ///
-///       exception-declaration:
-///         type-specifier-seq declarator
-///         type-specifier-seq abstract-declarator
-///         type-specifier-seq
-///         '...'
+///   exception-declaration:
+///     attribute-specifier-seq[opt] type-specifier-seq declarator
+///     attribute-specifier-seq[opt] type-specifier-seq abstract-declarator[opt]
+///     '...'
 ///
 StmtResult Parser::ParseCXXCatchBlock(bool FnCatch) {
   assert(Tok.is(tok::kw_catch) && "Expected 'catch'");
@@ -2197,15 +2177,21 @@ StmtResult Parser::ParseCXXCatchBlock(bool FnCatch) {
   // The name in a catch exception-declaration is local to the handler and
   // shall not be redeclared in the outermost block of the handler.
   ParseScope CatchScope(this, Scope::DeclScope | Scope::ControlScope |
-                          (FnCatch ? Scope::FnCatchScope : Scope::CatchScope));
+                          (FnCatch ? Scope::FnTryCatchScope : 0));
 
   // exception-declaration is equivalent to '...' or a parameter-declaration
   // without default arguments.
   Decl *ExceptionDecl = 0;
   if (Tok.isNot(tok::ellipsis)) {
+    ParsedAttributesWithRange Attributes(AttrFactory);
+    MaybeParseCXX11Attributes(Attributes);
+
     DeclSpec DS(AttrFactory);
+    DS.takeAttributesFrom(Attributes);
+
     if (ParseCXXTypeSpecifierSeq(DS))
       return StmtError();
+
     Declarator ExDecl(DS, Declarator::CXXCatchContext);
     ParseDeclarator(ExDecl);
     ExceptionDecl = Actions.ActOnExceptionDeclarator(getCurScope(), ExDecl);

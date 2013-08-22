@@ -234,6 +234,9 @@ typedef enum {
 	MFI_DCMD_BBU_GET_STATUS =	0x05010000,
 	MFI_DCMD_BBU_GET_CAPACITY_INFO =0x05020000,
 	MFI_DCMD_BBU_GET_DESIGN_INFO =	0x05030000,
+	MFI_DCMD_BBU_START_LEARN =	0x05040000,
+	MFI_DCMD_BBU_GET_PROP =		0x05050100,
+	MFI_DCMD_BBU_SET_PROP =		0x05050200,
 	MFI_DCMD_CLUSTER =		0x08000000,
 	MFI_DCMD_CLUSTER_RESET_ALL =	0x08010100,
 	MFI_DCMD_CLUSTER_RESET_LD =	0x08010200
@@ -1364,6 +1367,15 @@ struct mfi_bbu_state {
 	uint16_t		remaining_capacity;
 	uint16_t		full_charge_capacity;
 	uint8_t			is_SOH_good;
+	uint8_t			reserved[21];
+} __packed;
+
+struct mfi_bbu_properties {
+	uint32_t		auto_learn_period;
+	uint32_t		next_learn_time;
+	uint8_t			learn_delay_interval;
+	uint8_t			auto_learn_mode;
+	uint8_t			bbu_mode;
 	uint8_t			reserved[21];
 } __packed;
 

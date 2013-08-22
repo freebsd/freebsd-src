@@ -12,24 +12,26 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/BasicBlock.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Assembly/Writer.h"
+#include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveVariables.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Assembly/Writer.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -663,6 +665,13 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
         << " -- BB#" << NMBB->getNumber()
         << " -- BB#" << Succ->getNumber() << '\n');
 
+  LiveIntervals *LIS = P->getAnalysisIfAvailable<LiveIntervals>();
+  SlotIndexes *Indexes = P->getAnalysisIfAvailable<SlotIndexes>();
+  if (LIS)
+    LIS->insertMBBInMaps(NMBB);
+  else if (Indexes)
+    Indexes->insertMBBInMaps(NMBB);
+
   // On some targets like Mips, branches may kill virtual registers. Make sure
   // that LiveVariables is properly updated after updateTerminator replaces the
   // terminators.
@@ -689,14 +698,67 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
       }
     }
 
+  SmallVector<unsigned, 4> UsedRegs;
+  if (LIS) {
+    for (instr_iterator I = getFirstInstrTerminator(), E = instr_end();
+         I != E; ++I) {
+      MachineInstr *MI = I;
+
+      for (MachineInstr::mop_iterator OI = MI->operands_begin(),
+           OE = MI->operands_end(); OI != OE; ++OI) {
+        if (!OI->isReg() || OI->getReg() == 0)
+          continue;
+
+        unsigned Reg = OI->getReg();
+        if (std::find(UsedRegs.begin(), UsedRegs.end(), Reg) == UsedRegs.end())
+          UsedRegs.push_back(Reg);
+      }
+    }
+  }
+
   ReplaceUsesOfBlockWith(Succ, NMBB);
+
+  // If updateTerminator() removes instructions, we need to remove them from
+  // SlotIndexes.
+  SmallVector<MachineInstr*, 4> Terminators;
+  if (Indexes) {
+    for (instr_iterator I = getFirstInstrTerminator(), E = instr_end();
+         I != E; ++I)
+      Terminators.push_back(I);
+  }
+
   updateTerminator();
+
+  if (Indexes) {
+    SmallVector<MachineInstr*, 4> NewTerminators;
+    for (instr_iterator I = getFirstInstrTerminator(), E = instr_end();
+         I != E; ++I)
+      NewTerminators.push_back(I);
+
+    for (SmallVectorImpl<MachineInstr*>::iterator I = Terminators.begin(),
+        E = Terminators.end(); I != E; ++I) {
+      if (std::find(NewTerminators.begin(), NewTerminators.end(), *I) ==
+          NewTerminators.end())
+       Indexes->removeMachineInstrFromMaps(*I);
+    }
+  }
 
   // Insert unconditional "jump Succ" instruction in NMBB if necessary.
   NMBB->addSuccessor(Succ);
   if (!NMBB->isLayoutSuccessor(Succ)) {
     Cond.clear();
     MF->getTarget().getInstrInfo()->InsertBranch(*NMBB, Succ, NULL, Cond, dl);
+
+    if (Indexes) {
+      for (instr_iterator I = NMBB->instr_begin(), E = NMBB->instr_end();
+           I != E; ++I) {
+        // Some instructions may have been moved to NMBB by updateTerminator(),
+        // so we first remove any instruction that already has an index.
+        if (Indexes->hasIndex(I))
+          Indexes->removeMachineInstrFromMaps(I);
+        Indexes->insertMachineInstrInMaps(I);
+      }
+    }
   }
 
   // Fix PHI nodes in Succ so they refer to NMBB instead of this
@@ -729,6 +791,67 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
     }
     // Update relevant live-through information.
     LV->addNewBlock(NMBB, this, Succ);
+  }
+
+  if (LIS) {
+    // After splitting the edge and updating SlotIndexes, live intervals may be
+    // in one of two situations, depending on whether this block was the last in
+    // the function. If the original block was the last in the function, all live
+    // intervals will end prior to the beginning of the new split block. If the
+    // original block was not at the end of the function, all live intervals will
+    // extend to the end of the new split block.
+
+    bool isLastMBB =
+      llvm::next(MachineFunction::iterator(NMBB)) == getParent()->end();
+
+    SlotIndex StartIndex = Indexes->getMBBEndIdx(this);
+    SlotIndex PrevIndex = StartIndex.getPrevSlot();
+    SlotIndex EndIndex = Indexes->getMBBEndIdx(NMBB);
+
+    // Find the registers used from NMBB in PHIs in Succ.
+    SmallSet<unsigned, 8> PHISrcRegs;
+    for (MachineBasicBlock::instr_iterator
+         I = Succ->instr_begin(), E = Succ->instr_end();
+         I != E && I->isPHI(); ++I) {
+      for (unsigned ni = 1, ne = I->getNumOperands(); ni != ne; ni += 2) {
+        if (I->getOperand(ni+1).getMBB() == NMBB) {
+          MachineOperand &MO = I->getOperand(ni);
+          unsigned Reg = MO.getReg();
+          PHISrcRegs.insert(Reg);
+          if (MO.isUndef())
+            continue;
+
+          LiveInterval &LI = LIS->getInterval(Reg);
+          VNInfo *VNI = LI.getVNInfoAt(PrevIndex);
+          assert(VNI && "PHI sources should be live out of their predecessors.");
+          LI.addRange(LiveRange(StartIndex, EndIndex, VNI));
+        }
+      }
+    }
+
+    MachineRegisterInfo *MRI = &getParent()->getRegInfo();
+    for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
+      unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+      if (PHISrcRegs.count(Reg) || !LIS->hasInterval(Reg))
+        continue;
+
+      LiveInterval &LI = LIS->getInterval(Reg);
+      if (!LI.liveAt(PrevIndex))
+        continue;
+
+      bool isLiveOut = LI.liveAt(LIS->getMBBStartIdx(Succ));
+      if (isLiveOut && isLastMBB) {
+        VNInfo *VNI = LI.getVNInfoAt(PrevIndex);
+        assert(VNI && "LiveInterval should have VNInfo where it is live.");
+        LI.addRange(LiveRange(StartIndex, EndIndex, VNI));
+      } else if (!isLiveOut && !isLastMBB) {
+        LI.removeRange(StartIndex, EndIndex);
+      }
+    }
+
+    // Update all intervals for registers whose uses may have been modified by
+    // updateTerminator().
+    LIS->repairIntervalsInRange(this, getFirstTerminator(), end(), UsedRegs);
   }
 
   if (MachineDominatorTree *MDT =
@@ -788,40 +911,42 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
   return NMBB;
 }
 
-MachineBasicBlock::iterator
-MachineBasicBlock::erase(MachineBasicBlock::iterator I) {
-  if (I->isBundle()) {
-    MachineBasicBlock::iterator E = llvm::next(I);
-    return Insts.erase(I.getInstrIterator(), E.getInstrIterator());
-  }
-
-  return Insts.erase(I.getInstrIterator());
+/// Prepare MI to be removed from its bundle. This fixes bundle flags on MI's
+/// neighboring instructions so the bundle won't be broken by removing MI.
+static void unbundleSingleMI(MachineInstr *MI) {
+  // Removing the first instruction in a bundle.
+  if (MI->isBundledWithSucc() && !MI->isBundledWithPred())
+    MI->unbundleFromSucc();
+  // Removing the last instruction in a bundle.
+  if (MI->isBundledWithPred() && !MI->isBundledWithSucc())
+    MI->unbundleFromPred();
+  // If MI is not bundled, or if it is internal to a bundle, the neighbor flags
+  // are already fine.
 }
 
-MachineInstr *MachineBasicBlock::remove(MachineInstr *I) {
-  if (I->isBundle()) {
-    instr_iterator MII = llvm::next(I);
-    iterator E = end();
-    while (MII != E && MII->isInsideBundle()) {
-      MachineInstr *MI = &*MII++;
-      Insts.remove(MI);
-    }
-  }
-
-  return Insts.remove(I);
+MachineBasicBlock::instr_iterator
+MachineBasicBlock::erase(MachineBasicBlock::instr_iterator I) {
+  unbundleSingleMI(I);
+  return Insts.erase(I);
 }
 
-void MachineBasicBlock::splice(MachineBasicBlock::iterator where,
-                               MachineBasicBlock *Other,
-                               MachineBasicBlock::iterator From) {
-  if (From->isBundle()) {
-    MachineBasicBlock::iterator To = llvm::next(From);
-    Insts.splice(where.getInstrIterator(), Other->Insts,
-                 From.getInstrIterator(), To.getInstrIterator());
-    return;
-  }
+MachineInstr *MachineBasicBlock::remove_instr(MachineInstr *MI) {
+  unbundleSingleMI(MI);
+  MI->clearFlag(MachineInstr::BundledPred);
+  MI->clearFlag(MachineInstr::BundledSucc);
+  return Insts.remove(MI);
+}
 
-  Insts.splice(where.getInstrIterator(), Other->Insts, From.getInstrIterator());
+MachineBasicBlock::instr_iterator
+MachineBasicBlock::insert(instr_iterator I, MachineInstr *MI) {
+  assert(!MI->isBundledWithPred() && !MI->isBundledWithSucc() &&
+         "Cannot insert instruction with bundle flags");
+  // Set the bundle flags when inserting inside a bundle.
+  if (I != instr_end() && I->isBundledWithPred()) {
+    MI->setFlag(MachineInstr::BundledPred);
+    MI->setFlag(MachineInstr::BundledSucc);
+  }
+  return Insts.insert(I, MI);
 }
 
 /// removeFromParent - This method unlinks 'this' from the containing function,
@@ -982,7 +1107,6 @@ MachineBasicBlock::LivenessQueryResult
 MachineBasicBlock::computeRegisterLiveness(const TargetRegisterInfo *TRI,
                                            unsigned Reg, MachineInstr *MI,
                                            unsigned Neighborhood) {
-  
   unsigned N = Neighborhood;
   MachineBasicBlock *MBB = MI->getParent();
 
@@ -997,14 +1121,18 @@ MachineBasicBlock::computeRegisterLiveness(const TargetRegisterInfo *TRI,
       MachineOperandIteratorBase::PhysRegInfo Analysis =
         MIOperands(I).analyzePhysReg(Reg, TRI);
 
-      if (Analysis.Kills)
+      if (Analysis.Defines)
+        // Outputs happen after inputs so they take precedence if both are
+        // present.
+        return Analysis.DefinesDead ? LQR_Dead : LQR_Live;
+
+      if (Analysis.Kills || Analysis.Clobbers)
         // Register killed, so isn't live.
         return LQR_Dead;
 
-      else if (Analysis.DefinesOverlap || Analysis.ReadsOverlap)
+      else if (Analysis.ReadsOverlap)
         // Defined or read without a previous kill - live.
-        return (Analysis.Defines || Analysis.Reads) ? 
-          LQR_Live : LQR_OverlappingLive;
+        return Analysis.Reads ? LQR_Live : LQR_OverlappingLive;
 
     } while (I != MBB->begin() && --N > 0);
   }
@@ -1036,7 +1164,7 @@ MachineBasicBlock::computeRegisterLiveness(const TargetRegisterInfo *TRI,
         return (Analysis.Reads) ?
           LQR_Live : LQR_OverlappingLive;
 
-      else if (Analysis.DefinesOverlap)
+      else if (Analysis.Clobbers || Analysis.Defines)
         // Defined (but not read) therefore cannot have been live.
         return LQR_Dead;
     }

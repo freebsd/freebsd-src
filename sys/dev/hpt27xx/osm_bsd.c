@@ -1347,7 +1347,7 @@ static int	hpt_rescan_bus(void)
 #endif
 
 	ldm_for_each_vbus(vbus, vbus_ext) {
-		if (xpt_create_path(&path, xpt_periph, cam_sim_path(vbus_ext->sim),
+		if (xpt_create_path(&path, NULL, cam_sim_path(vbus_ext->sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)	
 			return(EIO);
 		if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)

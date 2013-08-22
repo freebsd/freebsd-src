@@ -35,9 +35,10 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.7 2012/11/06 05:44:03 sjg Exp $
+	$Id: meta2deps.py,v 1.12 2013/03/31 22:31:59 sjg Exp $
 
-	Copyright (c) 2011, Juniper Networks, Inc.
+	Copyright (c) 2011-2013, Juniper Networks, Inc.
+	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
 	modification, are permitted provided that the following conditions 
@@ -149,6 +150,7 @@ class MetaFile:
 
         MACHINE	the machine we built for.
         	set to 'none' if we are not cross-building.
+		More specifically if machine cannot be deduced from objdirs.
 
         HOST_TARGET
 		when we build for the psuedo machine 'host'
@@ -174,6 +176,11 @@ class MetaFile:
         self.debug = getv(conf, 'debug', 0)
         self.debug_out = getv(conf, 'debug_out', sys.stderr)
 
+        self.machine = getv(conf, 'MACHINE', '')
+        self.curdir = getv(conf, 'CURDIR')
+        self.reldir = getv(conf, 'RELDIR')
+        self.dpdeps = getv(conf, 'DPDEPS')
+
         if not self.conf:
             # some of the steps below we want to do only once
             self.conf = conf
@@ -189,7 +196,24 @@ class MetaFile:
                 if not _srctop in self.srctops:
                     self.srctops.append(_srctop)
 
+            trim_list = ['/' + self.machine + '/',
+                         '/' + self.machine, 
+                         self.machine + '/',
+                         self.machine]
+
+            if self.machine == 'host':
+                trim_list += ['/' + self.host_target + '/',
+                              '/' + self.host_target,
+                              self.host_target + '/',
+                              self.host_target]
+
             for objroot in getv(conf, 'OBJROOTS', []):
+                for e in trim_list:
+                    if objroot.endswith(e):
+                        # this is not what we want - fix it
+                        objroot = objroot[0:-len(e)]
+                        if e.endswith('/'):
+                            objroot += '/'
                 if not objroot in self.objroots:
                     self.objroots.append(objroot)
                     _objroot = os.path.realpath(objroot)
@@ -198,6 +222,10 @@ class MetaFile:
                     if not _objroot in self.objroots:
                         self.objroots.append(_objroot)
 
+            # we want the longest match
+            self.srctops.sort(reverse=True)
+            self.objroots.sort(reverse=True)
+            
             if self.debug:
                 print >> self.debug_out, "host_target=", self.host_target
                 print >> self.debug_out, "srctops=", self.srctops
@@ -205,10 +233,6 @@ class MetaFile:
 
             self.dirdep_re = re.compile(r'([^/]+)/(.+)')
 
-        self.curdir = getv(conf, 'CURDIR')
-        self.machine = getv(conf, 'MACHINE', '')
-        self.reldir = getv(conf, 'RELDIR')
-        self.dpdeps = getv(conf, 'DPDEPS')
         if self.dpdeps and not self.reldir:
             if self.debug:
                 print >> self.debug_out, "need reldir:",
@@ -220,6 +244,8 @@ class MetaFile:
                         print >> self.debug_out, self.reldir
             if not self.reldir:
                 self.dpdeps = None      # we cannot do it?
+
+        self.cwd = os.getcwd()          # make sure this is initialized
 
         if name:
             self.parse()

@@ -14,12 +14,10 @@
 #ifndef LLVM_TARGET_TARGETMACHINE_H
 #define LLVM_TARGET_TARGETMACHINE_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/TargetTransformInfo.h"
-#include "llvm/Target/TargetTransformImpl.h"
-#include "llvm/ADT/StringRef.h"
 #include <cassert>
 #include <string>
 
@@ -43,6 +41,8 @@ class TargetPassConfig;
 class TargetRegisterInfo;
 class TargetSelectionDAGInfo;
 class TargetSubtargetInfo;
+class ScalarTargetTransformInfo;
+class VectorTargetTransformInfo;
 class formatted_raw_ostream;
 class raw_ostream;
 
@@ -58,10 +58,6 @@ class TargetMachine {
 protected: // Can only create subclasses.
   TargetMachine(const Target &T, StringRef TargetTriple,
                 StringRef CPU, StringRef FS, const TargetOptions &Options);
-
-  /// getSubtargetImpl - virtual method implemented by subclasses that returns
-  /// a reference to that target's TargetSubtargetInfo-derived member variable.
-  virtual const TargetSubtargetInfo *getSubtargetImpl() const { return 0; }
 
   /// TheTarget - The Target that this machine was created for.
   const Target &TheTarget;
@@ -95,7 +91,14 @@ public:
   const StringRef getTargetCPU() const { return TargetCPU; }
   const StringRef getTargetFeatureString() const { return TargetFS; }
 
-  TargetOptions Options;
+  /// getSubtargetImpl - virtual method implemented by subclasses that returns
+  /// a reference to that target's TargetSubtargetInfo-derived member variable.
+  virtual const TargetSubtargetInfo *getSubtargetImpl() const { return 0; }
+
+  mutable TargetOptions Options;
+
+  /// \brief Reset the target options based on the function's attributes.
+  void resetTargetOptions(const MachineFunction *MF) const;
 
   // Interfaces to the major aspects of target machine information:
   // -- Instruction opcode and operand information
@@ -108,10 +111,6 @@ public:
   virtual const TargetLowering    *getTargetLowering() const { return 0; }
   virtual const TargetSelectionDAGInfo *getSelectionDAGInfo() const{ return 0; }
   virtual const DataLayout             *getDataLayout() const { return 0; }
-  virtual const ScalarTargetTransformInfo*
-  getScalarTargetTransformInfo() const { return 0; }
-  virtual const VectorTargetTransformInfo*
-  getVectorTargetTransformInfo() const { return 0; }
 
   /// getMCAsmInfo - Return target specific asm information.
   ///
@@ -232,6 +231,9 @@ public:
   /// sections.
   static void setFunctionSections(bool);
 
+  /// \brief Register analysis passes for this target with a pass manager.
+  virtual void addAnalysisPasses(PassManagerBase &) {}
+
   /// CodeGenFileType - These enums are meant to be passed into
   /// addPassesToEmitFile to indicate what type of file to emit, and returned by
   /// it to indicate what type of file could actually be made.
@@ -290,6 +292,11 @@ protected: // Can only create subclasses.
                     CodeGenOpt::Level OL);
 
 public:
+  /// \brief Register analysis passes for this target with a pass manager.
+  ///
+  /// This registers target independent analysis passes.
+  virtual void addAnalysisPasses(PassManagerBase &PM);
+
   /// createPassConfig - Create a pass configuration object to be used by
   /// addPassToEmitX methods for generating a pipeline of CodeGen passes.
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);

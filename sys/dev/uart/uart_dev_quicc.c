@@ -293,9 +293,6 @@ quicc_bus_attach(struct uart_softc *sc)
 		quicc_setup(bas, 9600, 8, 1, UART_PARITY_NONE);
 	}
 
-	sc->sc_rxfifosz = 1;
-	sc->sc_txfifosz = 1;
-
 	/* Enable interrupts on the receive buffer. */
 	rb = quicc_read2(bas, QUICC_PRAM_SCC_RBASE(bas->chan - 1));
 	st = quicc_read2(bas, rb);
@@ -416,6 +413,9 @@ quicc_bus_probe(struct uart_softc *sc)
 	error = quicc_probe(&sc->sc_bas);
 	if (error)
 		return (error);
+
+	sc->sc_rxfifosz = 1;
+	sc->sc_txfifosz = 1;
 
 	snprintf(buf, sizeof(buf), "quicc, channel %d", sc->sc_bas.chan);
 	device_set_desc_copy(sc->sc_dev, buf);

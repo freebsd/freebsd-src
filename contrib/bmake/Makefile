@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.5 2013/01/28 19:31:58 sjg Exp $
+#	$Id: Makefile,v 1.10 2013/03/31 05:57:19 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20130123
+MAKE_VERSION= 20130330
 
 PROG=	bmake
 
@@ -187,14 +187,14 @@ MANDIR= ${SHAREDIR}/man
 .if !exists(.depend)
 ${OBJS}: config.h
 .endif
-.if ${MK_AUTOCONF_MK} == "yes"
-.include <autoconf.mk>
-.endif
 
 # make sure that MAKE_VERSION gets updated.
 main.o: ${SRCS} ${MAKEFILE}
 
 # start-delete2 for bsd.after-import.mk
+.if ${MK_AUTOCONF_MK} == "yes"
+.include <autoconf.mk>
+.endif
 SHARE_MK?=${SHAREDIR}/mk
 MKSRC=${srcdir}/mk
 INSTALL?=${srcdir}/install-sh

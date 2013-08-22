@@ -112,12 +112,18 @@
 /* #undef LLVM_PATH_XDOT_PY */
 
 /* Installation prefix directory */
-/* #undef LLVM_PREFIX */
+#define LLVM_PREFIX ""
+
+/* Define if we have the Intel JIT API runtime support library */
+#define LLVM_USE_INTEL_JITEVENTS 0
+
+/* Define if we have the oprofile JIT-support library */
+#define LLVM_USE_OPROFILE 0
 
 /* Major version of the LLVM API */
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 2
+#define LLVM_VERSION_MINOR 3
 
 #endif

@@ -221,7 +221,6 @@ dev/nvme/nvme_ns_cmd.c		optional	nvme
 dev/nvme/nvme_qpair.c		optional	nvme
 dev/nvme/nvme_sysctl.c		optional	nvme
 dev/nvme/nvme_test.c		optional	nvme
-dev/nvme/nvme_uio.c		optional	nvme
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	random rdrand_rng
 dev/random/nehemiah.c		optional	random padlock_rng

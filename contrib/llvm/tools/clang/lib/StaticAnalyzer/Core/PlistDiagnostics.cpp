@@ -11,16 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Version.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Casting.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 using namespace ento;
 
@@ -33,7 +34,9 @@ namespace {
     const LangOptions &LangOpts;
     const bool SupportsCrossFileDiagnostics;
   public:
-    PlistDiagnostics(const std::string& prefix, const LangOptions &LangOpts,
+    PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                     const std::string& prefix,
+                     const LangOptions &LangOpts,
                      bool supportsMultipleFiles);
 
     virtual ~PlistDiagnostics() {}
@@ -54,22 +57,28 @@ namespace {
   };
 } // end anonymous namespace
 
-PlistDiagnostics::PlistDiagnostics(const std::string& output,
+PlistDiagnostics::PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                                   const std::string& output,
                                    const LangOptions &LO,
                                    bool supportsMultipleFiles)
-  : OutputFile(output), LangOpts(LO),
+  : OutputFile(output),
+    LangOpts(LO),
     SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
-void ento::createPlistDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                         PathDiagnosticConsumers &C,
                                          const std::string& s,
                                          const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), false));
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), false));
 }
 
-void ento::createPlistMultiFileDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistMultiFileDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                                  PathDiagnosticConsumers &C,
                                                   const std::string &s,
                                                   const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), true));
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), true));
 }
 
 static void AddFID(FIDMap &FIDs, SmallVectorImpl<FileID> &V,
@@ -360,7 +369,7 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
 
     const PathDiagnostic *D = *DI;
 
-    llvm::SmallVector<const PathPieces *, 5> WorkList;
+    SmallVector<const PathPieces *, 5> WorkList;
     WorkList.push_back(&D->path);
 
     while (!WorkList.empty()) {
@@ -486,12 +495,32 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
         // Output the bug hash for issue unique-ing. Currently, it's just an
         // offset from the beginning of the function.
         if (const Stmt *Body = DeclWithIssue->getBody()) {
-          FullSourceLoc Loc(SM->getExpansionLoc(D->getLocation().asLocation()),
+          
+          // If the bug uniqueing location exists, use it for the hash.
+          // For example, this ensures that two leaks reported on the same line
+          // will have different issue_hashes and that the hash will identify
+          // the leak location even after code is added between the allocation
+          // site and the end of scope (leak report location).
+          PathDiagnosticLocation UPDLoc = D->getUniqueingLoc();
+          if (UPDLoc.isValid()) {
+            FullSourceLoc UL(SM->getExpansionLoc(UPDLoc.asLocation()),
+                             *SM);
+            FullSourceLoc UFunL(SM->getExpansionLoc(
+              D->getUniqueingDecl()->getBody()->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << UL.getExpansionLineNumber() - UFunL.getExpansionLineNumber()
+              << "</string>\n";
+
+          // Otherwise, use the location on which the bug is reported.
+          } else {
+            FullSourceLoc L(SM->getExpansionLoc(D->getLocation().asLocation()),
                             *SM);
-          FullSourceLoc FunLoc(SM->getExpansionLoc(Body->getLocStart()), *SM);
-          o << "  <key>issue_hash</key><integer>"
-              << Loc.getExpansionLineNumber() - FunLoc.getExpansionLineNumber()
-              << "</integer>\n";
+            FullSourceLoc FunL(SM->getExpansionLoc(Body->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << L.getExpansionLineNumber() - FunL.getExpansionLineNumber()
+              << "</string>\n";
+          }
+
         }
       }
     }

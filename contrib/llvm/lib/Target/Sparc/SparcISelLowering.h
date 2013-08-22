@@ -19,14 +19,18 @@
 #include "llvm/Target/TargetLowering.h"
 
 namespace llvm {
+  class SparcSubtarget;
+
   namespace SPISD {
     enum {
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
-      CMPICC,      // Compare two GPR operands, set icc.
+      CMPICC,      // Compare two GPR operands, set icc+xcc.
       CMPFCC,      // Compare two FP operands, set fcc.
       BRICC,       // Branch to dest on icc condition
+      BRXCC,       // Branch to dest on xcc condition (64-bit only).
       BRFCC,       // Branch to dest on fcc condition
       SELECT_ICC,  // Select between two values using the current ICC flags.
+      SELECT_XCC,  // Select between two values using the current XCC flags.
       SELECT_FCC,  // Select between two values using the current FCC flags.
 
       Hi, Lo,      // Hi/Lo operations, typically on a global address.
@@ -42,6 +46,7 @@ namespace llvm {
   }
 
   class SparcTargetLowering : public TargetLowering {
+    const SparcSubtarget *Subtarget;
   public:
     SparcTargetLowering(TargetMachine &TM);
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
@@ -74,6 +79,18 @@ namespace llvm {
                            const SmallVectorImpl<ISD::InputArg> &Ins,
                            DebugLoc dl, SelectionDAG &DAG,
                            SmallVectorImpl<SDValue> &InVals) const;
+    SDValue LowerFormalArguments_32(SDValue Chain,
+                                    CallingConv::ID CallConv,
+                                    bool isVarArg,
+                                    const SmallVectorImpl<ISD::InputArg> &Ins,
+                                    DebugLoc dl, SelectionDAG &DAG,
+                                    SmallVectorImpl<SDValue> &InVals) const;
+    SDValue LowerFormalArguments_64(SDValue Chain,
+                                    CallingConv::ID CallConv,
+                                    bool isVarArg,
+                                    const SmallVectorImpl<ISD::InputArg> &Ins,
+                                    DebugLoc dl, SelectionDAG &DAG,
+                                    SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
       LowerCall(TargetLowering::CallLoweringInfo &CLI,

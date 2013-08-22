@@ -8,18 +8,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineModuleInfo.h"
-
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/PointerUnion.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCObjectFileInfo.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/ADT/PointerUnion.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
@@ -254,15 +253,8 @@ void MMIAddrLabelMapCallbackPtr::allUsesReplacedWith(Value *V2) {
 MachineModuleInfo::MachineModuleInfo(const MCAsmInfo &MAI,
                                      const MCRegisterInfo &MRI,
                                      const MCObjectFileInfo *MOFI)
-  : ImmutablePass(ID), Context(MAI, MRI, MOFI),
-    ObjFileMMI(0), CompactUnwindEncoding(0), CurCallSite(0), CallsEHReturn(0),
-    CallsUnwindInit(0), DbgInfoAvailable(false),
-    UsesVAFloatArgument(false) {
+  : ImmutablePass(ID), Context(MAI, MRI, MOFI, 0, false) {
   initializeMachineModuleInfoPass(*PassRegistry::getPassRegistry());
-  // Always emit some info, by default "no personality" info.
-  Personalities.push_back(NULL);
-  AddrLabelSymbols = 0;
-  TheModule = 0;
 }
 
 MachineModuleInfo::MachineModuleInfo()
@@ -274,26 +266,36 @@ MachineModuleInfo::MachineModuleInfo()
 }
 
 MachineModuleInfo::~MachineModuleInfo() {
-  delete ObjFileMMI;
-
-  // FIXME: Why isn't doFinalization being called??
-  //assert(AddrLabelSymbols == 0 && "doFinalization not called");
-  delete AddrLabelSymbols;
-  AddrLabelSymbols = 0;
 }
 
-/// doInitialization - Initialize the state for a new module.
-///
-bool MachineModuleInfo::doInitialization() {
-  assert(AddrLabelSymbols == 0 && "Improperly initialized");
+bool MachineModuleInfo::doInitialization(Module &M) {
+
+  ObjFileMMI = 0;
+  CompactUnwindEncoding = 0;
+  CurCallSite = 0;
+  CallsEHReturn = 0;
+  CallsUnwindInit = 0;
+  DbgInfoAvailable = UsesVAFloatArgument = false; 
+  // Always emit some info, by default "no personality" info.
+  Personalities.push_back(NULL);
+  AddrLabelSymbols = 0;
+  TheModule = 0;
+
   return false;
 }
 
-/// doFinalization - Tear down the state after completion of a module.
-///
-bool MachineModuleInfo::doFinalization() {
+bool MachineModuleInfo::doFinalization(Module &M) {
+
+  Personalities.clear();
+
   delete AddrLabelSymbols;
   AddrLabelSymbols = 0;
+
+  Context.reset();
+
+  delete ObjFileMMI;
+  ObjFileMMI = 0;
+
   return false;
 }
 

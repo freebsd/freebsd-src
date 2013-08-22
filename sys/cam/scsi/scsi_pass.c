@@ -381,7 +381,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * know what the blocksize of this device is, if 
 	 * it even has a blocksize.
 	 */
-	mtx_unlock(periph->sim->mtx);
+	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
 	softc->device_stats = devstat_new_entry("pass",
 			  periph->unit_number, 0,
@@ -417,7 +417,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 */
 	dev_ref(softc->dev);
 
-	mtx_lock(periph->sim->mtx);
+	cam_periph_lock(periph);
 	softc->dev->si_drv1 = periph;
 
 	TASK_INIT(&softc->add_physpath_task, /*priority*/0,
@@ -613,8 +613,8 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 
 		/* Compatibility for RL/priority-unaware code. */
 		priority = inccb->ccb_h.pinfo.priority;
-		if (priority < CAM_RL_TO_PRIORITY(CAM_RL_NORMAL))
-		    priority += CAM_RL_TO_PRIORITY(CAM_RL_NORMAL);
+		if (priority <= CAM_PRIORITY_OOB)
+		    priority += CAM_PRIORITY_OOB + 1;
 
 		/*
 		 * Non-immediate CCBs need a CCB from the per-device pool
@@ -694,7 +694,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * match CCBs.  For the SCSI, ATA and ADVINFO CCBs, we only pass the
 	 * CCB in if there's actually data to map.  cam_periph_mapmem() will
 	 * do the right thing, even if there isn't data to map, but since CCBs
-	 * without data are a reasonably common occurance (e.g. test unit
+	 * without data are a reasonably common occurrence (e.g. test unit
 	 * ready), it will save a few cycles if we check for it here.
 	 *
 	 * XXX What happens if a sg list is supplied?  We don't filter that

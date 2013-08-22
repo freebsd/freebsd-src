@@ -128,7 +128,7 @@ fdt_find_static_dtb()
 	char *strp;
 	int i, sym_count;
 
-	symtab = strtab = 0;
+	sym_count = symtab = strtab = 0;
 	strp = NULL;
 
 	offs = __elfN(relocation_offset);

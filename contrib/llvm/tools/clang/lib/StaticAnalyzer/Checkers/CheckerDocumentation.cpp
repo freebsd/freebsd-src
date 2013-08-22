@@ -13,10 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 
 using namespace clang;
@@ -44,13 +44,15 @@ class CheckerDocumentation : public Checker< check::PreStmt<ReturnStmt>,
                                        check::Location,
                                        check::Bind,
                                        check::DeadSymbols,
-                                       check::EndPath,
+                                       check::EndFunction,
                                        check::EndAnalysis,
                                        check::EndOfTranslationUnit,
                                        eval::Call,
                                        eval::Assume,
                                        check::LiveSymbols,
                                        check::RegionChanges,
+                                       check::PointerEscape,
+                                       check::ConstPointerEscape,
                                        check::Event<ImplicitNullDerefEvent>,
                                        check::ASTDecl<FunctionDecl> > {
 public:
@@ -152,11 +154,11 @@ public:
   /// check::DeadSymbols
   void checkDeadSymbols(SymbolReaper &SR, CheckerContext &C) const {}
 
-  /// \brief Called when the analyzer core reaches the end of the top-level
+  /// \brief Called when the analyzer core reaches the end of a
   /// function being analyzed.
   ///
-  /// check::EndPath
-  void checkEndPath(CheckerContext &Ctx) const {}
+  /// check::EndFunction
+  void checkEndFunction(CheckerContext &Ctx) const {}
 
   /// \brief Called after all the paths in the ExplodedGraph reach end of path
   /// - the symbolic execution graph is fully explored.
@@ -246,13 +248,44 @@ public:
   /// check::RegionChanges
   ProgramStateRef 
     checkRegionChanges(ProgramStateRef State,
-                       const StoreManager::InvalidatedSymbols *Invalidated,
+                       const InvalidatedSymbols *Invalidated,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
                        const CallEvent *Call) const {
     return State;
   }
 
+  /// \brief Called when pointers escape.
+  ///
+  /// This notifies the checkers about pointer escape, which occurs whenever
+  /// the analyzer cannot track the symbol any more. For example, as a
+  /// result of assigning a pointer into a global or when it's passed to a 
+  /// function call the analyzer cannot model.
+  /// 
+  /// \param State The state at the point of escape.
+  /// \param Escaped The list of escaped symbols.
+  /// \param Call The corresponding CallEvent, if the symbols escape as 
+  /// parameters to the given call.
+  /// \param Kind How the symbols have escaped.
+  /// \returns Checkers can modify the state by returning a new state.
+  ProgramStateRef checkPointerEscape(ProgramStateRef State,
+                                     const InvalidatedSymbols &Escaped,
+                                     const CallEvent *Call,
+                                     PointerEscapeKind Kind) const {
+    return State;
+  }
+
+  /// \brief Called when const pointers escape.
+  ///
+  /// Note: in most cases checkPointerEscape callback is sufficient.
+  /// \sa checkPointerEscape
+  ProgramStateRef checkConstPointerEscape(ProgramStateRef State,
+                                     const InvalidatedSymbols &Escaped,
+                                     const CallEvent *Call,
+                                     PointerEscapeKind Kind) const {
+    return State;
+  }
+                                         
   /// check::Event<ImplicitNullDerefEvent>
   void checkEvent(ImplicitNullDerefEvent Event) const {}
 

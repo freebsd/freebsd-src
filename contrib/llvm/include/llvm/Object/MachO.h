@@ -15,11 +15,11 @@
 #ifndef LLVM_OBJECT_MACHO_H
 #define LLVM_OBJECT_MACHO_H
 
-#include "llvm/Object/ObjectFile.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Object/MachOObject.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/MachO.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
 namespace object {
@@ -44,7 +44,12 @@ public:
   virtual unsigned getArch() const;
   virtual StringRef getLoadName() const;
 
-  MachOObject *getObject() { return MachOObj; }
+  // In a MachO file, sections have a segment name. This is used in the .o
+  // files. They have a single segment, but this field specifies which segment
+  // a section should be put in in the final object.
+  error_code getSectionFinalSegmentName(DataRefImpl Sec, StringRef &Res) const;
+
+  MachOObject *getObject() { return MachOObj.get(); }
 
   static inline bool classof(const Binary *v) {
     return v->isMachO();
@@ -104,7 +109,7 @@ protected:
   virtual error_code getLibraryPath(DataRefImpl LibData, StringRef &Res) const;
 
 private:
-  MachOObject *MachOObj;
+  OwningPtr<MachOObject> MachOObj;
   mutable uint32_t RegisteredStringTable;
   typedef SmallVector<DataRefImpl, 1> SectionList;
   SectionList Sections;

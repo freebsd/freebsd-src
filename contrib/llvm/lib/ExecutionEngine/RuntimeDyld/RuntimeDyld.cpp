@@ -12,12 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "dyld"
+#include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "ObjectImageCommon.h"
-#include "RuntimeDyldImpl.h"
 #include "RuntimeDyldELF.h"
+#include "RuntimeDyldImpl.h"
 #include "RuntimeDyldMachO.h"
-#include "llvm/Support/Path.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/Path.h"
 
 using namespace llvm;
 using namespace llvm::object;
@@ -106,28 +107,24 @@ ObjectImage *RuntimeDyldImpl::loadObject(ObjectBuffer *InputBuffer) {
           SymType == object::SymbolRef::ST_Unknown) {
         uint64_t FileOffset;
         StringRef SectionData;
+        bool IsCode;
         section_iterator si = obj->end_sections();
         Check(i->getFileOffset(FileOffset));
         Check(i->getSection(si));
         if (si == obj->end_sections()) continue;
         Check(si->getContents(SectionData));
+        Check(si->isText(IsCode));
         const uint8_t* SymPtr = (const uint8_t*)InputBuffer->getBufferStart() +
                                 (uintptr_t)FileOffset;
         uintptr_t SectOffset = (uintptr_t)(SymPtr -
                                            (const uint8_t*)SectionData.begin());
-        unsigned SectionID =
-          findOrEmitSection(*obj,
-                            *si,
-                            SymType == object::SymbolRef::ST_Function,
-                            LocalSections);
+        unsigned SectionID = findOrEmitSection(*obj, *si, IsCode, LocalSections);
         LocalSymbols[Name.data()] = SymbolLoc(SectionID, SectOffset);
         DEBUG(dbgs() << "\tFileOffset: " << format("%p", (uintptr_t)FileOffset)
                      << " flags: " << flags
                      << " SID: " << SectionID
                      << " Offset: " << format("%p", SectOffset));
-        bool isGlobal = flags & SymbolRef::SF_Global;
-        if (isGlobal)
-          GlobalSymbolTable[Name] = SymbolLoc(SectionID, SectOffset);
+        GlobalSymbolTable[Name] = SymbolLoc(SectionID, SectOffset);
       }
     }
     DEBUG(dbgs() << "\tType: " << SymType << " Name: " << Name << "\n");
@@ -182,7 +179,7 @@ void RuntimeDyldImpl::emitCommonSymbols(ObjectImage &Obj,
   // Allocate memory for the section
   unsigned SectionID = Sections.size();
   uint8_t *Addr = MemMgr->allocateDataSection(TotalSize, sizeof(void*),
-                                              SectionID);
+                                              SectionID, false);
   if (!Addr)
     report_fatal_error("Unable to allocate memory for common symbols!");
   uint64_t Offset = 0;
@@ -237,11 +234,13 @@ unsigned RuntimeDyldImpl::emitSection(ObjectImage &Obj,
   bool IsRequired;
   bool IsVirtual;
   bool IsZeroInit;
+  bool IsReadOnly;
   uint64_t DataSize;
   StringRef Name;
   Check(Section.isRequiredForExecution(IsRequired));
   Check(Section.isVirtual(IsVirtual));
   Check(Section.isZeroInit(IsZeroInit));
+  Check(Section.isReadOnlyData(IsReadOnly));
   Check(Section.getSize(DataSize));
   Check(Section.getName(Name));
 
@@ -256,7 +255,7 @@ unsigned RuntimeDyldImpl::emitSection(ObjectImage &Obj,
     Allocate = DataSize + StubBufSize;
     Addr = IsCode
       ? MemMgr->allocateCodeSection(Allocate, Alignment, SectionID)
-      : MemMgr->allocateDataSection(Allocate, Alignment, SectionID);
+      : MemMgr->allocateDataSection(Allocate, Alignment, SectionID, IsReadOnly);
     if (!Addr)
       report_fatal_error("Unable to allocate section memory!");
 
@@ -433,14 +432,20 @@ void RuntimeDyldImpl::resolveExternalSymbols() {
     RelocationList &Relocs = i->second;
     SymbolTableMap::const_iterator Loc = GlobalSymbolTable.find(Name);
     if (Loc == GlobalSymbolTable.end()) {
-      // This is an external symbol, try to get it address from
-      // MemoryManager.
-      uint8_t *Addr = (uint8_t*) MemMgr->getPointerToNamedFunction(Name.data(),
+      if (Name.size() == 0) {
+        // This is an absolute symbol, use an address of zero.
+        DEBUG(dbgs() << "Resolving absolute relocations." << "\n");
+        resolveRelocationList(Relocs, 0);
+      } else {
+        // This is an external symbol, try to get its address from
+        // MemoryManager.
+        uint8_t *Addr = (uint8_t*) MemMgr->getPointerToNamedFunction(Name.data(),
                                                                    true);
-      DEBUG(dbgs() << "Resolving relocations Name: " << Name
-              << "\t" << format("%p", Addr)
-              << "\n");
-      resolveRelocationList(Relocs, (uintptr_t)Addr);
+        DEBUG(dbgs() << "Resolving relocations Name: " << Name
+                << "\t" << format("%p", Addr)
+                << "\n");
+        resolveRelocationList(Relocs, (uintptr_t)Addr);
+      }
     } else {
       report_fatal_error("Expected external symbol");
     }
@@ -451,6 +456,12 @@ void RuntimeDyldImpl::resolveExternalSymbols() {
 //===----------------------------------------------------------------------===//
 // RuntimeDyld class implementation
 RuntimeDyld::RuntimeDyld(RTDyldMemoryManager *mm) {
+  // FIXME: There's a potential issue lurking here if a single instance of
+  // RuntimeDyld is used to load multiple objects.  The current implementation
+  // associates a single memory manager with a RuntimeDyld instance.  Even
+  // though the public class spawns a new 'impl' instance for each load,
+  // they share a single memory manager.  This can become a problem when page
+  // permissions are applied.
   Dyld = 0;
   MM = mm;
 }

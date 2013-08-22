@@ -10,8 +10,10 @@
 #ifndef CLANG_DRIVER_TOOLCHAIN_H_
 #define CLANG_DRIVER_TOOLCHAIN_H_
 
-#include "clang/Driver/Util.h"
+#include "clang/Driver/Action.h"
 #include "clang/Driver/Types.h"
+#include "clang/Driver/Util.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Path.h"
@@ -47,6 +49,7 @@ public:
 private:
   const Driver &D;
   const llvm::Triple Triple;
+  const ArgList &Args;
 
   /// The list of toolchain specific path prefixes to search for
   /// files.
@@ -56,8 +59,20 @@ private:
   /// programs.
   path_list ProgramPaths;
 
+  mutable OwningPtr<Tool> Clang;
+  mutable OwningPtr<Tool> Assemble;
+  mutable OwningPtr<Tool> Link;
+  Tool *getClang() const;
+  Tool *getAssemble() const;
+  Tool *getLink() const;
+  Tool *getClangAs() const;
+
 protected:
-  ToolChain(const Driver &D, const llvm::Triple &T);
+  ToolChain(const Driver &D, const llvm::Triple &T, const ArgList &Args);
+
+  virtual Tool *buildAssembler() const;
+  virtual Tool *buildLinker() const;
+  virtual Tool *getTool(Action::ActionClass AC) const;
 
   /// \name Utilities for implementing subclasses.
   ///@{
@@ -111,10 +126,8 @@ public:
     return 0;
   }
 
-  /// SelectTool - Choose a tool to use to handle the action \p JA with the
-  /// given \p Inputs.
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
-                           const ActionList &Inputs) const = 0;
+  /// Choose a tool to use to handle the action \p JA.
+  Tool *SelectTool(const JobAction &JA) const;
 
   // Helper methods
 
@@ -138,6 +151,9 @@ public:
   /// by default.
   virtual bool IsIntegratedAssemblerDefault() const { return false; }
 
+  /// \brief Check if the toolchain should use the integrated assembler.
+  bool useIntegratedAs() const;
+
   /// IsStrictAliasingDefault - Does this tool chain use -fstrict-aliasing by
   /// default.
   virtual bool IsStrictAliasingDefault() const { return true; }
@@ -147,7 +163,7 @@ public:
 
   /// IsObjCDefaultSynthPropertiesDefault - Does this tool chain enable
   /// -fobjc-default-synthesize-properties by default.
-  virtual bool IsObjCDefaultSynthPropertiesDefault() const { return false; }
+  virtual bool IsObjCDefaultSynthPropertiesDefault() const { return true; }
   
   /// IsEncodeExtendedBlockSignatureDefault - Does this tool chain enable
   /// -fencode-extended-block-signature by default.
@@ -233,9 +249,9 @@ public:
   virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                          ArgStringList &CC1Args) const;
 
-  // addClangTargetOptions - Add options that need to be passed to cc1 for
-  // this target.
-  virtual void addClangTargetOptions(ArgStringList &CC1Args) const;
+  /// \brief Add options that need to be passed to cc1 for this target.
+  virtual void addClangTargetOptions(const ArgList &DriverArgs,
+                                     ArgStringList &CC1Args) const;
 
   // GetRuntimeLibType - Determine the runtime library type to use with the
   // given compilation arguments.

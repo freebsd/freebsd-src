@@ -15,10 +15,10 @@
 #define ARMBASEINSTRUCTIONINFO_H
 
 #include "ARM.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/Target/TargetInstrInfo.h"
 
 #define GET_INSTRINFO_HEADER
 #include "ARMGenInstrInfo.inc"
@@ -314,6 +314,10 @@ public:
   bool canCauseFpMLxStall(unsigned Opcode) const {
     return MLxHazardOpcodes.count(Opcode);
   }
+
+  /// Returns true if the instruction has a shift by immediate that can be
+  /// executed in one cycle less.
+  bool isSwiftFastImmShift(const MachineInstr *MI) const;
 };
 
 static inline

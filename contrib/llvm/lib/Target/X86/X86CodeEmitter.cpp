@@ -13,23 +13,23 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "x86-emitter"
+#include "X86.h"
 #include "X86InstrInfo.h"
 #include "X86JITInfo.h"
+#include "X86Relocations.h"
 #include "X86Subtarget.h"
 #include "X86TargetMachine.h"
-#include "X86Relocations.h"
-#include "X86.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/PassManager.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -124,7 +124,7 @@ template<class CodeEmitter>
 } // end anonymous namespace.
 
 /// createX86CodeEmitterPass - Return a pass that emits the collected X86 code
-/// to the specified templated MachineCodeEmitter object.
+/// to the specified JITCodeEmitter object.
 FunctionPass *llvm::createX86JITCodeEmitterPass(X86TargetMachine &TM,
                                                 JITCodeEmitter &JCE) {
   return new Emitter<JITCodeEmitter>(TM, JCE);
@@ -816,6 +816,7 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
                                                const MCInstrDesc *Desc) const {
   bool HasVEX_4V = (TSFlags >> X86II::VEXShift) & X86II::VEX_4V;
   bool HasVEX_4VOp3 = (TSFlags >> X86II::VEXShift) & X86II::VEX_4VOp3;
+  bool HasMemOp4 = (TSFlags >> X86II::VEXShift) & X86II::MemOp4;
 
   // VEX_R: opcode externsion equivalent to REX.R in
   // 1's complement (inverted) form
@@ -1032,6 +1033,10 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
 
       if (HasVEX_4V)
         VEX_4V = getVEXRegisterEncoding(MI, CurOp++);
+
+      if (HasMemOp4) // Skip second register source (encoded in I8IMM)
+        CurOp++;
+
       if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
         VEX_B = 0x0;
       CurOp++;
@@ -1042,9 +1047,15 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
       // MRMDestReg instructions forms:
       //  dst(ModR/M), src(ModR/M)
       //  dst(ModR/M), src(ModR/M), imm8
-      if (X86II::isX86_64ExtendedReg(MI.getOperand(0).getReg()))
+      //  dst(ModR/M), src1(VEX_4V), src2(ModR/M)
+      if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
         VEX_B = 0x0;
-      if (X86II::isX86_64ExtendedReg(MI.getOperand(1).getReg()))
+      CurOp++;
+
+      if (HasVEX_4V)
+        VEX_4V = getVEXRegisterEncoding(MI, CurOp++);
+
+      if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
         VEX_R = 0x0;
       break;
     case X86II::MRM0r: case X86II::MRM1r:
@@ -1279,9 +1290,14 @@ void Emitter<CodeEmitter>::emitInstruction(MachineInstr &MI,
 
   case X86II::MRMDestReg: {
     MCE.emitByte(BaseOpcode);
+
+    unsigned SrcRegNum = CurOp+1;
+    if (HasVEX_4V) // Skip 1st src (which is encoded in VEX_VVVV)
+      SrcRegNum++;
+
     emitRegModRMByte(MI.getOperand(CurOp).getReg(),
-                     getX86RegNum(MI.getOperand(CurOp+1).getReg()));
-    CurOp += 2;
+                     getX86RegNum(MI.getOperand(SrcRegNum).getReg()));
+    CurOp = SrcRegNum + 1;
     break;
   }
   case X86II::MRMDestMem: {

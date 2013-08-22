@@ -1706,7 +1706,6 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, newfds;
-	int f;
 	u_int newlen;
 
 	UNP_LINK_UNLOCK_ASSERT();
@@ -1732,13 +1731,6 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				goto next;
 			}
 			FILEDESC_XLOCK(fdesc);
-			/* if the new FD's will not fit free them.  */
-			if (!fdavail(td, newfds)) {
-				FILEDESC_XUNLOCK(fdesc);
-				error = EMSGSIZE;
-				unp_freerights(fdep, newfds);
-				goto next;
-			}
 
 			/*
 			 * Now change each pointer to an fd in the global
@@ -1758,17 +1750,22 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			if (fdallocn(td, 0, fdp, newfds) != 0) {
+				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				error = EMSGSIZE;
+				unp_freerights(fdep, newfds);
+				m_freem(*controlp);
+				*controlp = NULL;
+				goto next;
+			}
 			for (i = 0; i < newfds; i++, fdp++) {
-				if (fdalloc(td, 0, &f))
-					panic("unp_externalize fdalloc failed");
-				fde = &fdesc->fd_ofiles[f];
+				fde = &fdesc->fd_ofiles[*fdp];
 				fde->fde_file = fdep[0]->fde_file;
 				filecaps_move(&fdep[0]->fde_caps,
 				    &fde->fde_caps);
 				if ((flags & MSG_CMSG_CLOEXEC) != 0)
 					fde->fde_flags |= UF_EXCLOSE;
 				unp_externalize_fp(fde->fde_file);
-				*fdp = f;
 			}
 			FILEDESC_XUNLOCK(fdesc);
 			free(fdep[0], M_FILECAPS);

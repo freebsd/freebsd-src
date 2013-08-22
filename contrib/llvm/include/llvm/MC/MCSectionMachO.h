@@ -14,8 +14,8 @@
 #ifndef LLVM_MC_MCSECTIONMACHO_H
 #define LLVM_MC_MCSECTIONMACHO_H
 
-#include "llvm/MC/MCSection.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCSection.h"
 
 namespace llvm {
 
@@ -143,6 +143,14 @@ public:
     if (SectionName[15])
       return StringRef(SectionName, 16);
     return StringRef(SectionName);
+  }
+
+  virtual std::string getLabelBeginName() const {
+    return StringRef(getSegmentName().str() + getSectionName().str() + "_begin");
+  }
+
+  virtual std::string getLabelEndName() const {
+    return StringRef(getSegmentName().str() + getSectionName().str() + "_end");
   }
 
   unsigned getTypeAndAttributes() const { return TypeAndAttributes; }

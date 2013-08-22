@@ -11,7 +11,6 @@
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Option.h"
-
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -84,7 +83,6 @@ Arg *ArgList::getLastArg(OptSpecifier Id0, OptSpecifier Id1) const {
         (*it)->getOption().matches(Id1)) {
       Res = *it;
       Res->claim();
-
     }
   }
 
@@ -306,6 +304,14 @@ const char *ArgList::GetOrMakeJoinedArgString(unsigned Index,
     return Cur.data();
 
   return MakeArgString(LHS + RHS);
+}
+
+void ArgList::dump() {
+  llvm::errs() << "ArgList:";
+  for (iterator it = begin(), ie = end(); it != ie; ++it) {
+    llvm::errs() << " " << (*it)->getSpelling();
+  }
+  llvm::errs() << "\n";
 }
 
 //

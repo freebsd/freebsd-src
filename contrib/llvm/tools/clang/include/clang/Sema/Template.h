@@ -14,6 +14,7 @@
 
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclVisitor.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
 #include <utility>
@@ -344,7 +345,16 @@ namespace clang {
     void SetPartiallySubstitutedPack(NamedDecl *Pack, 
                                      const TemplateArgument *ExplicitArgs,
                                      unsigned NumExplicitArgs);
-    
+
+    /// \brief Reset the partially-substituted pack when it is no longer of
+    /// interest.
+    void ResetPartiallySubstitutedPack() {
+      assert(PartiallySubstitutedPack && "No partially-substituted pack");
+      PartiallySubstitutedPack = 0;
+      ArgsInPartiallySubstitutedPack = 0;
+      NumArgsInPartiallySubstitutedPack = 0;
+    }
+
     /// \brief Retrieve the partially-substitued template parameter pack.
     ///
     /// If there is no partially-substituted parameter pack, returns NULL.
@@ -420,6 +430,7 @@ namespace clang {
     Decl *VisitUnresolvedUsingTypenameDecl(UnresolvedUsingTypenameDecl *D);
     Decl *VisitClassScopeFunctionSpecializationDecl(
                                       ClassScopeFunctionSpecializationDecl *D);
+    Decl *VisitOMPThreadPrivateDecl(OMPThreadPrivateDecl *D);
 
     // Base case. FIXME: Remove once we can instantiate everything.
     Decl *VisitDecl(Decl *D) {

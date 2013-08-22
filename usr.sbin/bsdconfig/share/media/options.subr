@@ -66,6 +66,7 @@ f_media_options_menu()
 		unset $VAR_NONINTERACTIVE
 	fi
 
+	local defaultitem=
 	while :; do
 		menu_list=""
 
@@ -203,12 +204,14 @@ f_media_options_menu()
 			--cancel-label \"\$msg_done\"        \
 			--help-button                        \
 			--help-label \"\$msg_help\"          \
+			--default-item \"\$defaultitem\"     \
 			${USE_XDIALOG:+--help \"\"}          \
 			--menu \"\$prompt\" $size $menu_list \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		local retval=$?
 		setvar DIALOG_MENU_$$ "$dialog_menu"
+		defaultitem="$dialog_menu"
 
 		local mtag
 		mtag=$( f_dialog_menutag )

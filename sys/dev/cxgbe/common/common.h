@@ -42,15 +42,19 @@ enum {
 	MACADDR_LEN    = 12,    /* MAC Address length */
 };
 
-enum { MEM_EDC0, MEM_EDC1, MEM_MC };
+enum { MEM_EDC0, MEM_EDC1, MEM_MC, MEM_MC0 = MEM_MC, MEM_MC1 };
 
 enum {
 	MEMWIN0_APERTURE = 2048,
 	MEMWIN0_BASE     = 0x1b800,
 	MEMWIN1_APERTURE = 32768,
 	MEMWIN1_BASE     = 0x28000,
-	MEMWIN2_APERTURE = 65536,
-	MEMWIN2_BASE     = 0x30000,
+
+	MEMWIN2_APERTURE_T4 = 65536,
+	MEMWIN2_BASE_T4     = 0x30000,
+
+	MEMWIN2_APERTURE_T5 = 128 * 1024,
+	MEMWIN2_BASE_T5     = 0x60000,
 };
 
 enum dev_master { MASTER_CANT, MASTER_MAY, MASTER_MUST };
@@ -63,15 +67,20 @@ enum {
 	PAUSE_AUTONEG = 1 << 2
 };
 
-#define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 8
-#define FW_VERSION_MICRO 4
-#define FW_VERSION_BUILD 0
+#define FW_VERSION_MAJOR_T4 1
+#define FW_VERSION_MINOR_T4 8
+#define FW_VERSION_MICRO_T4 4
+#define FW_VERSION_BUILD_T4 0
 
-#define FW_VERSION (V_FW_HDR_FW_VER_MAJOR(FW_VERSION_MAJOR) | \
-    V_FW_HDR_FW_VER_MINOR(FW_VERSION_MINOR) | \
-    V_FW_HDR_FW_VER_MICRO(FW_VERSION_MICRO) | \
-    V_FW_HDR_FW_VER_BUILD(FW_VERSION_BUILD))
+#define FW_VERSION_MAJOR_T5 0
+#define FW_VERSION_MINOR_T5 5
+#define FW_VERSION_MICRO_T5 18
+#define FW_VERSION_BUILD_T5 0
+
+struct memwin {
+	uint32_t base;
+	uint32_t aperture;
+};
 
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
@@ -267,18 +276,20 @@ struct adapter_params {
 
 	unsigned int cim_la_size;
 
-	/* Used as int in sysctls, do not reduce size */
-	unsigned int nports;		/* # of ethernet ports */
-	unsigned int portvec;
-	unsigned int rev;		/* chip revision */
-	unsigned int offload;
+	uint8_t nports;		/* # of ethernet ports */
+	uint8_t portvec;
+	unsigned int chipid:4;	/* chip ID.  T4 = 4, T5 = 5, ... */
+	unsigned int rev:4;	/* chip revision */
+	unsigned int fpga:1;	/* this is an FPGA */
+	unsigned int offload:1;	/* hw is TOE capable, fw has divvied up card
+				   resources for TOE operation. */
+	unsigned int bypass:1;	/* this is a bypass card */
 
 	unsigned int ofldq_wr_cred;
 };
 
-enum {					    /* chip revisions */
-	T4_REV_A  = 0,
-};
+#define CHELSIO_T4		0x4
+#define CHELSIO_T5		0x5
 
 struct trace_params {
 	u32 data[TRACE_LEN / 4];
@@ -314,6 +325,31 @@ struct link_config {
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
+}
+
+static inline int chip_id(struct adapter *adap)
+{
+	return adap->params.chipid;
+}
+
+static inline int chip_rev(struct adapter *adap)
+{
+	return adap->params.rev;
+}
+
+static inline int is_t4(struct adapter *adap)
+{
+	return adap->params.chipid == CHELSIO_T4;
+}
+
+static inline int is_t5(struct adapter *adap)
+{
+	return adap->params.chipid == CHELSIO_T5;
+}
+
+static inline int is_fpga(struct adapter *adap)
+{
+	 return adap->params.fpga;
 }
 
 static inline unsigned int core_ticks_per_usec(const struct adapter *adap)
@@ -437,7 +473,8 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr);
 void t4_cim_read_pif_la(struct adapter *adap, u32 *pif_req, u32 *pif_rsp,
 		unsigned int *pif_req_wrptr, unsigned int *pif_rsp_wrptr);
 void t4_cim_read_ma_la(struct adapter *adap, u32 *ma_req, u32 *ma_rsp);
-int t4_mc_read(struct adapter *adap, u32 addr, __be32 *data, u64 *parity);
+int t4_mc_read(struct adapter *adap, int idx, u32 addr,
+	       __be32 *data, u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *parity);
 int t4_mem_read(struct adapter *adap, int mtype, u32 addr, u32 size,
 		__be32 *data);

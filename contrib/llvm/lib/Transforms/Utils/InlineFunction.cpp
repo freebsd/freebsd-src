@@ -13,21 +13,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Attributes.h"
-#include "llvm/Constants.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/Module.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
@@ -82,7 +82,8 @@ namespace {
     /// a simple branch. When there is more than one predecessor, we need to
     /// split the landing pad block after the landingpad instruction and jump
     /// to there.
-    void forwardResume(ResumeInst *RI);
+    void forwardResume(ResumeInst *RI,
+                       SmallPtrSet<LandingPadInst*, 16> &InlinedLPads);
 
     /// addIncomingPHIValuesFor - Add incoming-PHI values to the unwind
     /// destination block for the given basic block, using the values for the
@@ -140,8 +141,10 @@ BasicBlock *InvokeInliningInfo::getInnerResumeDest() {
 /// block. When the landing pad block has only one predecessor, this is a simple
 /// branch. When there is more than one predecessor, we need to split the
 /// landing pad block after the landingpad instruction and jump to there.
-void InvokeInliningInfo::forwardResume(ResumeInst *RI) {
+void InvokeInliningInfo::forwardResume(ResumeInst *RI,
+                               SmallPtrSet<LandingPadInst*, 16> &InlinedLPads) {
   BasicBlock *Dest = getInnerResumeDest();
+  LandingPadInst *OuterLPad = getLandingPadInst();
   BasicBlock *Src = RI->getParent();
 
   BranchInst::Create(Dest, Src);
@@ -152,6 +155,16 @@ void InvokeInliningInfo::forwardResume(ResumeInst *RI) {
 
   InnerEHValuesPHI->addIncoming(RI->getOperand(0), Src);
   RI->eraseFromParent();
+
+  // Append the clauses from the outer landing pad instruction into the inlined
+  // landing pad instructions.
+  for (SmallPtrSet<LandingPadInst*, 16>::iterator I = InlinedLPads.begin(),
+         E = InlinedLPads.end(); I != E; ++I) {
+    LandingPadInst *InlinedLPad = *I;
+    for (unsigned OuterIdx = 0, OuterNum = OuterLPad->getNumClauses();
+         OuterIdx != OuterNum; ++OuterIdx)
+      InlinedLPad->addClause(OuterLPad->getClause(OuterIdx));
+  }
 }
 
 /// HandleCallsInBlockInlinedThroughInvoke - When we inline a basic block into
@@ -229,19 +242,15 @@ static void HandleInlinedInvoke(InvokeInst *II, BasicBlock *FirstNewBlock,
 
   // The inlined code is currently at the end of the function, scan from the
   // start of the inlined code to its end, checking for stuff we need to
-  // rewrite.  If the code doesn't have calls or unwinds, we know there is
-  // nothing to rewrite.
-  if (!InlinedCodeInfo.ContainsCalls) {
-    // Now that everything is happy, we have one final detail.  The PHI nodes in
-    // the exception destination block still have entries due to the original
-    // invoke instruction.  Eliminate these entries (which might even delete the
-    // PHI node) now.
-    InvokeDest->removePredecessor(II->getParent());
-    return;
-  }
-
+  // rewrite.
   InvokeInliningInfo Invoke(II);
-  
+
+  // Get all of the inlined landing pad instructions.
+  SmallPtrSet<LandingPadInst*, 16> InlinedLPads;
+  for (Function::iterator I = FirstNewBlock, E = Caller->end(); I != E; ++I)
+    if (InvokeInst *II = dyn_cast<InvokeInst>(I->getTerminator()))
+      InlinedLPads.insert(II->getLandingPadInst());
+
   for (Function::iterator BB = FirstNewBlock, E = Caller->end(); BB != E; ++BB){
     if (InlinedCodeInfo.ContainsCalls)
       if (HandleCallsInBlockInlinedThroughInvoke(BB, Invoke)) {
@@ -250,13 +259,14 @@ static void HandleInlinedInvoke(InvokeInst *II, BasicBlock *FirstNewBlock,
         continue;
       }
 
+    // Forward any resumes that are remaining here.
     if (ResumeInst *RI = dyn_cast<ResumeInst>(BB->getTerminator()))
-      Invoke.forwardResume(RI);
+      Invoke.forwardResume(RI, InlinedLPads);
   }
 
   // Now that everything is happy, we have one final detail.  The PHI nodes in
   // the exception destination block still have entries due to the original
-  // invoke instruction.  Eliminate these entries (which might even delete the
+  // invoke instruction. Eliminate these entries (which might even delete the
   // PHI node) now.
   InvokeDest->removePredecessor(II->getParent());
 }
@@ -668,10 +678,29 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI,
       if (hasLifetimeMarkers(AI))
         continue;
 
-      builder.CreateLifetimeStart(AI);
+      // Try to determine the size of the allocation.
+      ConstantInt *AllocaSize = 0;
+      if (ConstantInt *AIArraySize =
+          dyn_cast<ConstantInt>(AI->getArraySize())) {
+        if (IFI.TD) {
+          Type *AllocaType = AI->getAllocatedType();
+          uint64_t AllocaTypeSize = IFI.TD->getTypeAllocSize(AllocaType);
+          uint64_t AllocaArraySize = AIArraySize->getLimitedValue();
+          assert(AllocaArraySize > 0 && "array size of AllocaInst is zero");
+          // Check that array size doesn't saturate uint64_t and doesn't
+          // overflow when it's multiplied by type size.
+          if (AllocaArraySize != ~0ULL &&
+              UINT64_MAX / AllocaArraySize >= AllocaTypeSize) {
+            AllocaSize = ConstantInt::get(Type::getInt64Ty(AI->getContext()),
+                                          AllocaArraySize * AllocaTypeSize);
+          }
+        }
+      }
+
+      builder.CreateLifetimeStart(AI, AllocaSize);
       for (unsigned ri = 0, re = Returns.size(); ri != re; ++ri) {
         IRBuilder<> builder(Returns[ri]);
-        builder.CreateLifetimeEnd(AI);
+        builder.CreateLifetimeEnd(AI, AllocaSize);
       }
     }
   }

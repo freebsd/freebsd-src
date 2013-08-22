@@ -12,21 +12,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/SemaInternal.h"
-#include "clang/Sema/Scope.h"
-#include "clang/Sema/ScopeInfo.h"
-#include "clang/Sema/Initialization.h"
-#include "clang/Sema/Lookup.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
-#include "clang/AST/StmtObjC.h"
 #include "clang/AST/StmtCXX.h"
+#include "clang/AST/StmtObjC.h"
 #include "clang/AST/TypeLoc.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/Preprocessor.h"
+#include "clang/Sema/Initialization.h"
+#include "clang/Sema/Lookup.h"
+#include "clang/Sema/Scope.h"
+#include "clang/Sema/ScopeInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -35,9 +36,13 @@
 using namespace clang;
 using namespace sema;
 
-StmtResult Sema::ActOnExprStmt(FullExprArg expr) {
-  Expr *E = expr.get();
-  if (!E) // FIXME: FullExprArg has no error state?
+StmtResult Sema::ActOnExprStmt(ExprResult FE) {
+  if (FE.isInvalid())
+    return StmtError();
+
+  FE = ActOnFinishFullExpr(FE.get(), FE.get()->getExprLoc(),
+                           /*DiscardedValue*/ true);
+  if (FE.isInvalid())
     return StmtError();
 
   // C99 6.8.3p2: The expression in an expression statement is evaluated as a
@@ -45,9 +50,14 @@ StmtResult Sema::ActOnExprStmt(FullExprArg expr) {
   // operand, even incomplete types.
 
   // Same thing in for stmt first clause (when expr) and third clause.
-  return Owned(static_cast<Stmt*>(E));
+  return Owned(static_cast<Stmt*>(FE.take()));
 }
 
+
+StmtResult Sema::ActOnExprStmtError() {
+  DiscardCleanupsInEvaluationContext();
+  return StmtError();
+}
 
 StmtResult Sema::ActOnNullStmt(SourceLocation SemiLoc,
                                bool HasLeadingEmptyMacro) {
@@ -125,7 +135,7 @@ static bool DiagnoseUnusedComparison(Sema &S, const Expr *E) {
 
   // Suppress warnings when the operator, suspicious as it may be, comes from
   // a macro expansion.
-  if (Loc.isMacroID())
+  if (S.SourceMgr.isMacroBodyExpansion(Loc))
     return false;
 
   S.Diag(Loc, diag::warn_unused_comparison)
@@ -152,12 +162,20 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
   const Expr *E = dyn_cast_or_null<Expr>(S);
   if (!E)
     return;
+  SourceLocation ExprLoc = E->IgnoreParens()->getExprLoc();
+  // In most cases, we don't want to warn if the expression is written in a
+  // macro body, or if the macro comes from a system header. If the offending
+  // expression is a call to a function with the warn_unused_result attribute,
+  // we warn no matter the location. Because of the order in which the various
+  // checks need to happen, we factor out the macro-related test here.
+  bool ShouldSuppress = 
+      SourceMgr.isMacroBodyExpansion(ExprLoc) ||
+      SourceMgr.isInSystemMacro(ExprLoc);
 
   const Expr *WarnExpr;
   SourceLocation Loc;
   SourceRange R1, R2;
-  if (SourceMgr.isInSystemMacro(E->getExprLoc()) ||
-      !E->isUnusedResultAWarning(WarnExpr, Loc, R1, R2, Context))
+  if (!E->isUnusedResultAWarning(WarnExpr, Loc, R1, R2, Context))
     return;
 
   // If this is a GNU statement expression expanded from a macro, it is probably
@@ -185,12 +203,16 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
       return;
 
     // If the callee has attribute pure, const, or warn_unused_result, warn with
-    // a more specific message to make it clear what is happening.
+    // a more specific message to make it clear what is happening. If the call
+    // is written in a macro body, only warn if it has the warn_unused_result
+    // attribute.
     if (const Decl *FD = CE->getCalleeDecl()) {
       if (FD->getAttr<WarnUnusedResultAttr>()) {
         Diag(Loc, diag::warn_unused_result) << R1 << R2;
         return;
       }
+      if (ShouldSuppress)
+        return;
       if (FD->getAttr<PureAttr>()) {
         Diag(Loc, diag::warn_unused_call) << R1 << R2 << "pure";
         return;
@@ -200,7 +222,10 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
         return;
       }
     }
-  } else if (const ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(E)) {
+  } else if (ShouldSuppress)
+    return;
+
+  if (const ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(E)) {
     if (getLangOpts().ObjCAutoRefCount && ME->isDelegateInitCall()) {
       Diag(Loc, diag::err_arc_unused_init_message) << R1;
       return;
@@ -229,7 +254,7 @@ void Sema::DiagnoseUnusedExprResult(const Stmt *S) {
 
     // We really do want to use the non-canonical type here.
     if (T == Context.VoidPtrTy) {
-      PointerTypeLoc TL = cast<PointerTypeLoc>(TI->getTypeLoc());
+      PointerTypeLoc TL = TI->getTypeLoc().castAs<PointerTypeLoc>();
 
       Diag(Loc, diag::warn_unused_voidptr)
         << FixItHint::CreateRemoval(TL.getStarLoc());
@@ -298,7 +323,9 @@ Sema::ActOnCompoundStmt(SourceLocation L, SourceLocation R,
       DiagnoseEmptyLoopBody(Elts[i], Elts[i + 1]);
   }
 
-  return Owned(new (Context) CompoundStmt(Context, Elts, NumElts, L, R));
+  return Owned(new (Context) CompoundStmt(Context,
+                                          llvm::makeArrayRef(Elts, NumElts),
+                                          L, R));
 }
 
 StmtResult
@@ -312,7 +339,7 @@ Sema::ActOnCaseStmt(SourceLocation CaseLoc, Expr *LHSVal,
     return StmtError();
   }
 
-  if (!getLangOpts().CPlusPlus0x) {
+  if (!getLangOpts().CPlusPlus11) {
     // C99 6.8.4.2p3: The expression shall be an integer constant.
     // However, GCC allows any evaluatable integer expression.
     if (!LHSVal->isTypeDependent() && !LHSVal->isValueDependent()) {
@@ -328,6 +355,12 @@ Sema::ActOnCaseStmt(SourceLocation CaseLoc, Expr *LHSVal,
       // Recover from an error by just forgetting about it.
     }
   }
+  
+  LHSVal = ActOnFinishFullExpr(LHSVal, LHSVal->getExprLoc(), false,
+                               getLangOpts().CPlusPlus11).take();
+  if (RHSVal)
+    RHSVal = ActOnFinishFullExpr(RHSVal, RHSVal->getExprLoc(), false,
+                                 getLangOpts().CPlusPlus11).take();
 
   CaseStmt *CS = new (Context) CaseStmt(LHSVal, RHSVal, CaseLoc, DotDotDotLoc,
                                         ColonLoc);
@@ -390,6 +423,13 @@ StmtResult
 Sema::ActOnIfStmt(SourceLocation IfLoc, FullExprArg CondVal, Decl *CondVar,
                   Stmt *thenStmt, SourceLocation ElseLoc,
                   Stmt *elseStmt) {
+  // If the condition was invalid, discard the if statement.  We could recover
+  // better by replacing it with a valid expr, but don't do that yet.
+  if (!CondVal.get() && !CondVar) {
+    getCurFunction()->setHasDroppedStmt();
+    return StmtError();
+  }
+
   ExprResult CondResult(CondVal.release());
 
   VarDecl *ConditionVar = 0;
@@ -595,8 +635,7 @@ Sema::ActOnStartOfSwitchStmt(SourceLocation SwitchLoc, Expr *Cond,
   Cond = CondResult.take();
 
   if (!CondVar) {
-    CheckImplicitConversions(Cond, SwitchLoc);
-    CondResult = MaybeCreateExprWithCleanups(Cond);
+    CondResult = ActOnFinishFullExpr(Cond, SwitchLoc);
     if (CondResult.isInvalid())
       return StmtError();
     Cond = CondResult.take();
@@ -710,7 +749,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
 
       llvm::APSInt LoVal;
 
-      if (getLangOpts().CPlusPlus0x) {
+      if (getLangOpts().CPlusPlus11) {
         // C++11 [stmt.switch]p2: the constant-expression shall be a converted
         // constant expression of the promoted type of the switch condition.
         ExprResult ConvLo =
@@ -792,7 +831,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
           if (DeclRefExpr *DeclRef = dyn_cast<DeclRefExpr>(CurrCase)) {
             CurrString = DeclRef->getDecl()->getName();
           }
-          llvm::SmallString<16> CaseValStr;
+          SmallString<16> CaseValStr;
           CaseVals[i-1].first.toString(CaseValStr);
 
           if (PrevString == CurrString)
@@ -830,7 +869,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
         Expr *Hi = CR->getRHS();
         llvm::APSInt HiVal;
 
-        if (getLangOpts().CPlusPlus0x) {
+        if (getLangOpts().CPlusPlus11) {
           // C++11 [stmt.switch]p2: the constant-expression shall be a converted
           // constant expression of the promoted type of the switch condition.
           ExprResult ConvHi =
@@ -1149,12 +1188,11 @@ Sema::ActOnDoStmt(SourceLocation DoLoc, Stmt *Body,
   assert(Cond && "ActOnDoStmt(): missing expression");
 
   ExprResult CondResult = CheckBooleanCondition(Cond, DoLoc);
-  if (CondResult.isInvalid() || CondResult.isInvalid())
+  if (CondResult.isInvalid())
     return StmtError();
   Cond = CondResult.take();
 
-  CheckImplicitConversions(Cond, DoLoc);
-  CondResult = MaybeCreateExprWithCleanups(Cond);
+  CondResult = ActOnFinishFullExpr(Cond, DoLoc);
   if (CondResult.isInvalid())
     return StmtError();
   Cond = CondResult.take();
@@ -1170,13 +1208,13 @@ namespace {
   // of the excluded constructs are used.
   class DeclExtractor : public EvaluatedExprVisitor<DeclExtractor> {
     llvm::SmallPtrSet<VarDecl*, 8> &Decls;
-    llvm::SmallVector<SourceRange, 10> &Ranges;
+    SmallVector<SourceRange, 10> &Ranges;
     bool Simple;
 public:
   typedef EvaluatedExprVisitor<DeclExtractor> Inherited;
 
   DeclExtractor(Sema &S, llvm::SmallPtrSet<VarDecl*, 8> &Decls,
-                llvm::SmallVector<SourceRange, 10> &Ranges) :
+                SmallVector<SourceRange, 10> &Ranges) :
       Inherited(S.Context),
       Decls(Decls),
       Ranges(Ranges),
@@ -1325,7 +1363,7 @@ public:
 
     PartialDiagnostic PDiag = S.PDiag(diag::warn_variables_not_in_loop_body);
     llvm::SmallPtrSet<VarDecl*, 8> Decls;
-    llvm::SmallVector<SourceRange, 10> Ranges;
+    SmallVector<SourceRange, 10> Ranges;
     DeclExtractor DE(S, Decls, Ranges);
     DE.Visit(Second);
 
@@ -1361,8 +1399,8 @@ public:
     // Load SourceRanges into diagnostic if there is room.
     // Otherwise, load the SourceRange of the conditional expression.
     if (Ranges.size() <= PartialDiagnostic::MaxArguments)
-      for (llvm::SmallVector<SourceRange, 10>::iterator I = Ranges.begin(),
-                                                        E = Ranges.end();
+      for (SmallVector<SourceRange, 10>::iterator I = Ranges.begin(),
+                                                  E = Ranges.end();
            I != E; ++I)
         PDiag << *I;
     else
@@ -1432,12 +1470,10 @@ StmtResult Sema::ActOnForEachLValueExpr(Expr *E) {
   if (result.isInvalid()) return StmtError();
   E = result.take();
 
-  CheckImplicitConversions(E);
-
-  result = MaybeCreateExprWithCleanups(E);
-  if (result.isInvalid()) return StmtError();
-
-  return Owned(static_cast<Stmt*>(result.take()));
+  ExprResult FullExpr = ActOnFinishFullExpr(E);
+  if (FullExpr.isInvalid())
+    return StmtError();
+  return StmtResult(static_cast<Stmt*>(FullExpr.take()));
 }
 
 ExprResult
@@ -1508,7 +1544,7 @@ Sema::CheckObjCForCollectionOperand(SourceLocation forLoc, Expr *collection) {
   }
 
   // Wrap up any cleanups in the expression.
-  return Owned(MaybeCreateExprWithCleanups(collection));
+  return Owned(collection);
 }
 
 StmtResult
@@ -1550,6 +1586,10 @@ Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
                            << FirstType << First->getSourceRange());
   }
 
+  if (CollectionExprResult.isInvalid())
+    return StmtError();
+
+  CollectionExprResult = ActOnFinishFullExpr(CollectionExprResult.take());
   if (CollectionExprResult.isInvalid())
     return StmtError();
 
@@ -1625,7 +1665,7 @@ VarDecl *BuildForRangeVarDecl(Sema &SemaRef, SourceLocation Loc,
   IdentifierInfo *II = &SemaRef.PP.getIdentifierTable().get(Name);
   TypeSourceInfo *TInfo = SemaRef.Context.getTrivialTypeSourceInfo(Type, Loc);
   VarDecl *Decl = VarDecl::Create(SemaRef.Context, DC, Loc, Loc, II, Type,
-                                  TInfo, SC_Auto, SC_None);
+                                  TInfo, SC_None);
   Decl->setImplicit();
   return Decl;
 }
@@ -1937,8 +1977,7 @@ Sema::BuildCXXForRangeStmt(SourceLocation ForLoc, SourceLocation ColonLoc,
         Expr *Range = BEFFailure ? EndRangeRef.get() : BeginRangeRef.get();
         Diag(Range->getLocStart(), diag::err_for_range_invalid)
             << RangeLoc << Range->getType() << BEFFailure;
-        CandidateSet.NoteCandidates(*this, OCD_AllCandidates,
-                                    llvm::makeArrayRef(&Range, /*NumArgs=*/1));
+        CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Range);
       }
       // Return an error if no fix was discovered.
       if (RangeStatus != FRS_Success)
@@ -2096,8 +2135,12 @@ Sema::ActOnIndirectGotoStmt(SourceLocation GotoLoc, SourceLocation StarLoc,
     E = ExprRes.take();
     if (DiagnoseAssignmentResult(ConvTy, StarLoc, DestTy, ETy, E, AA_Passing))
       return StmtError();
-    E = MaybeCreateExprWithCleanups(E);
   }
+
+  ExprResult ExprRes = ActOnFinishFullExpr(E);
+  if (ExprRes.isInvalid())
+    return StmtError();
+  E = ExprRes.take();
 
   getCurFunction()->setHasIndirectGoto();
 
@@ -2370,8 +2413,10 @@ Sema::ActOnCapScopeReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   }
 
   if (RetValExp) {
-    CheckImplicitConversions(RetValExp, ReturnLoc);
-    RetValExp = MaybeCreateExprWithCleanups(RetValExp);
+    ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+    if (ER.isInvalid())
+      return StmtError();
+    RetValExp = ER.take();
   }
   ReturnStmt *Result = new (Context) ReturnStmt(ReturnLoc, RetValExp,
                                                 NRVOCandidate);
@@ -2400,8 +2445,7 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   QualType RelatedRetType;
   if (const FunctionDecl *FD = getCurFunctionDecl()) {
     FnRetType = FD->getResultType();
-    if (FD->hasAttr<NoReturnAttr>() ||
-        FD->getType()->getAs<FunctionType>()->getNoReturnAttr())
+    if (FD->isNoReturn())
       Diag(ReturnLoc, diag::warn_noreturn_function_has_return_expr)
         << FD->getDeclName();
   } else if (ObjCMethodDecl *MD = getCurMethodDecl()) {
@@ -2473,8 +2517,10 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
       }
 
       if (RetValExp) {
-        CheckImplicitConversions(RetValExp, ReturnLoc);
-        RetValExp = MaybeCreateExprWithCleanups(RetValExp);
+        ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+        if (ER.isInvalid())
+          return StmtError();
+        RetValExp = ER.take();
       }
     }
 
@@ -2490,24 +2536,12 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
       Diag(ReturnLoc, DiagID) << getCurMethodDecl()->getDeclName() << 1/*meth*/;
     Result = new (Context) ReturnStmt(ReturnLoc);
   } else {
+    assert(RetValExp || FnRetType->isDependentType());
     const VarDecl *NRVOCandidate = 0;
     if (!FnRetType->isDependentType() && !RetValExp->isTypeDependent()) {
       // we have a non-void function with an expression, continue checking
 
-      if (!RelatedRetType.isNull()) {
-        // If we have a related result type, perform an extra conversion here.
-        // FIXME: The diagnostics here don't really describe what is happening.
-        InitializedEntity Entity =
-            InitializedEntity::InitializeTemporary(RelatedRetType);
-
-        ExprResult Res = PerformCopyInitialization(Entity, SourceLocation(),
-                                                   RetValExp);
-        if (Res.isInvalid()) {
-          // FIXME: Cleanup temporaries here, anyway?
-          return StmtError();
-        }
-        RetValExp = Res.takeAs<Expr>();
-      }
+      QualType RetType = (RelatedRetType.isNull() ? FnRetType : RelatedRetType);
 
       // C99 6.8.6.4p3(136): The return statement is not an assignment. The
       // overlap restriction of subclause 6.5.16.1 does not apply to the case of
@@ -2517,23 +2551,40 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
       // the C version of which boils down to CheckSingleAssignmentConstraints.
       NRVOCandidate = getCopyElisionCandidate(FnRetType, RetValExp, false);
       InitializedEntity Entity = InitializedEntity::InitializeResult(ReturnLoc,
-                                                                     FnRetType,
+                                                                     RetType,
                                                             NRVOCandidate != 0);
       ExprResult Res = PerformMoveOrCopyInitialization(Entity, NRVOCandidate,
-                                                       FnRetType, RetValExp);
+                                                       RetType, RetValExp);
       if (Res.isInvalid()) {
-        // FIXME: Cleanup temporaries here, anyway?
+        // FIXME: Clean up temporaries here anyway?
         return StmtError();
       }
-
       RetValExp = Res.takeAs<Expr>();
-      if (RetValExp)
-        CheckReturnStackAddr(RetValExp, FnRetType, ReturnLoc);
+
+      // If we have a related result type, we need to implicitly
+      // convert back to the formal result type.  We can't pretend to
+      // initialize the result again --- we might end double-retaining
+      // --- so instead we initialize a notional temporary; this can
+      // lead to less-than-great diagnostics, but this stage is much
+      // less likely to fail than the previous stage.
+      if (!RelatedRetType.isNull()) {
+        Entity = InitializedEntity::InitializeTemporary(FnRetType);
+        Res = PerformCopyInitialization(Entity, ReturnLoc, RetValExp);
+        if (Res.isInvalid()) {
+          // FIXME: Clean up temporaries here anyway?
+          return StmtError();
+        }
+        RetValExp = Res.takeAs<Expr>();
+      }
+
+      CheckReturnStackAddr(RetValExp, FnRetType, ReturnLoc);
     }
 
     if (RetValExp) {
-      CheckImplicitConversions(RetValExp, ReturnLoc);
-      RetValExp = MaybeCreateExprWithCleanups(RetValExp);
+      ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+      if (ER.isInvalid())
+        return StmtError();
+      RetValExp = ER.take();
     }
     Result = new (Context) ReturnStmt(ReturnLoc, RetValExp, NRVOCandidate);
   }
@@ -2583,7 +2634,11 @@ StmtResult Sema::BuildObjCAtThrowStmt(SourceLocation AtLoc, Expr *Throw) {
     if (Result.isInvalid())
       return StmtError();
 
-    Throw = MaybeCreateExprWithCleanups(Result.take());
+    Result = ActOnFinishFullExpr(Result.take());
+    if (Result.isInvalid())
+      return StmtError();
+    Throw = Result.take();
+
     QualType ThrowType = Throw->getType();
     // Make sure the expression type is an ObjC pointer or "void *".
     if (!ThrowType->isDependentType() &&
@@ -2634,7 +2689,7 @@ Sema::ActOnObjCAtSynchronizedOperand(SourceLocation atLoc, Expr *operand) {
   }
 
   // The operand to @synchronized is a full-expression.
-  return MaybeCreateExprWithCleanups(operand);
+  return ActOnFinishFullExpr(operand);
 }
 
 StmtResult
@@ -2756,7 +2811,7 @@ Sema::ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
   // and warns.
 
   return Owned(CXXTryStmt::Create(Context, TryLoc, TryBlock,
-                                  Handlers, NumHandlers));
+                                  llvm::makeArrayRef(Handlers, NumHandlers)));
 }
 
 StmtResult

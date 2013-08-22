@@ -12,22 +12,30 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
-#include "CodeGenModule.h"
 #include "CGObjCRuntime.h"
+#include "CodeGenModule.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/StmtVisitor.h"
-#include "llvm/Constants.h"
-#include "llvm/Function.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Intrinsics.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Intrinsics.h"
 using namespace clang;
 using namespace CodeGen;
 
 //===----------------------------------------------------------------------===//
 //                        Aggregate Expression Emitter
 //===----------------------------------------------------------------------===//
+
+llvm::Value *AggValueSlot::getPaddedAtomicAddr() const {
+  assert(isValueOfAtomic());
+  llvm::GEPOperator *op = cast<llvm::GEPOperator>(getAddr());
+  assert(op->getNumIndices() == 2);
+  assert(op->hasAllZeroIndices());
+  return op->getPointerOperand();
+}
 
 namespace  {
 class AggExprEmitter : public StmtVisitor<AggExprEmitter> {
@@ -190,6 +198,38 @@ public:
     CGF.EmitAtomicExpr(E, EnsureSlot(E->getType()).getAddr());
   }
 };
+
+/// A helper class for emitting expressions into the value sub-object
+/// of a padded atomic type.
+class ValueDestForAtomic {
+  AggValueSlot Dest;
+public:
+  ValueDestForAtomic(CodeGenFunction &CGF, AggValueSlot dest, QualType type)
+    : Dest(dest) {
+    assert(!Dest.isValueOfAtomic());
+    if (!Dest.isIgnored() && CGF.CGM.isPaddedAtomicType(type)) {
+      llvm::Value *valueAddr = CGF.Builder.CreateStructGEP(Dest.getAddr(), 0);
+      Dest = AggValueSlot::forAddr(valueAddr,
+                                   Dest.getAlignment(),
+                                   Dest.getQualifiers(),
+                                   Dest.isExternallyDestructed(),
+                                   Dest.requiresGCollection(),
+                                   Dest.isPotentiallyAliased(),
+                                   Dest.isZeroed(),
+                                   AggValueSlot::IsValueOfAtomic);
+    }
+  }
+
+  const AggValueSlot &getDest() const { return Dest; }
+
+  ~ValueDestForAtomic() {
+    // Kill the GEP if we made one and it didn't end up used.
+    if (Dest.isValueOfAtomic()) {
+      llvm::Instruction *addr = cast<llvm::GetElementPtrInst>(Dest.getAddr());
+      if (addr->use_empty()) addr->eraseFromParent();
+    }
+  }
+};
 }  // end anonymous namespace.
 
 //===----------------------------------------------------------------------===//
@@ -201,6 +241,14 @@ public:
 /// then loads the result into DestPtr.
 void AggExprEmitter::EmitAggLoadOfLValue(const Expr *E) {
   LValue LV = CGF.EmitLValue(E);
+
+  // If the type of the l-value is atomic, then do an atomic load.
+  if (LV.getType()->isAtomicType()) {
+    ValueDestForAtomic valueDest(CGF, Dest, LV.getType());
+    CGF.EmitAtomicLoad(LV, valueDest.getDest());
+    return;
+  }
+
   EmitFinalDestCopy(E->getType(), LV);
 }
 
@@ -213,7 +261,7 @@ bool AggExprEmitter::TypeRequiresGCollection(QualType T) {
   // Don't mess with non-trivial C++ types.
   RecordDecl *Record = RecordTy->getDecl();
   if (isa<CXXRecordDecl>(Record) &&
-      (!cast<CXXRecordDecl>(Record)->hasTrivialCopyConstructor() ||
+      (cast<CXXRecordDecl>(Record)->hasNonTrivialCopyConstructor() ||
        !cast<CXXRecordDecl>(Record)->hasTrivialDestructor()))
     return false;
 
@@ -531,12 +579,10 @@ void AggExprEmitter::VisitOpaqueValueExpr(OpaqueValueExpr *e) {
 
 void
 AggExprEmitter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
-  if (E->getType().isPODType(CGF.getContext())) {
+  if (Dest.isPotentiallyAliased() &&
+      E->getType().isPODType(CGF.getContext())) {
     // For a POD type, just emit a load of the lvalue + a copy, because our
     // compound literal might alias the destination.
-    // FIXME: This is a band-aid; the real problem appears to be in our handling
-    // of assignments, where we store directly into the LHS without checking
-    // whether anything in the RHS aliases.
     EmitAggLoadOfLValue(E);
     return;
   }
@@ -545,6 +591,20 @@ AggExprEmitter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
   CGF.EmitAggExpr(E->getInitializer(), Slot);
 }
 
+/// Attempt to look through various unimportant expressions to find a
+/// cast of the given kind.
+static Expr *findPeephole(Expr *op, CastKind kind) {
+  while (true) {
+    op = op->IgnoreParens();
+    if (CastExpr *castE = dyn_cast<CastExpr>(op)) {
+      if (castE->getCastKind() == kind)
+        return castE->getSubExpr();
+      if (castE->getCastKind() == CK_NoOp)
+        continue;
+    }
+    return 0;
+  }
+}
 
 void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   switch (E->getCastKind()) {
@@ -584,6 +644,75 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
                 "should have been unpacked before we got here");
   }
 
+  case CK_NonAtomicToAtomic:
+  case CK_AtomicToNonAtomic: {
+    bool isToAtomic = (E->getCastKind() == CK_NonAtomicToAtomic);
+
+    // Determine the atomic and value types.
+    QualType atomicType = E->getSubExpr()->getType();
+    QualType valueType = E->getType();
+    if (isToAtomic) std::swap(atomicType, valueType);
+
+    assert(atomicType->isAtomicType());
+    assert(CGF.getContext().hasSameUnqualifiedType(valueType,
+                          atomicType->castAs<AtomicType>()->getValueType()));
+
+    // Just recurse normally if we're ignoring the result or the
+    // atomic type doesn't change representation.
+    if (Dest.isIgnored() || !CGF.CGM.isPaddedAtomicType(atomicType)) {
+      return Visit(E->getSubExpr());
+    }
+
+    CastKind peepholeTarget =
+      (isToAtomic ? CK_AtomicToNonAtomic : CK_NonAtomicToAtomic);
+
+    // These two cases are reverses of each other; try to peephole them.
+    if (Expr *op = findPeephole(E->getSubExpr(), peepholeTarget)) {
+      assert(CGF.getContext().hasSameUnqualifiedType(op->getType(),
+                                                     E->getType()) &&
+           "peephole significantly changed types?");
+      return Visit(op);
+    }
+
+    // If we're converting an r-value of non-atomic type to an r-value
+    // of atomic type, just make an atomic temporary, emit into that,
+    // and then copy the value out.  (FIXME: do we need to
+    // zero-initialize it first?)
+    if (isToAtomic) {
+      ValueDestForAtomic valueDest(CGF, Dest, atomicType);
+      CGF.EmitAggExpr(E->getSubExpr(), valueDest.getDest());
+      return;
+    }
+
+    // Otherwise, we're converting an atomic type to a non-atomic type.
+
+    // If the dest is a value-of-atomic subobject, drill back out.
+    if (Dest.isValueOfAtomic()) {
+      AggValueSlot atomicSlot =
+        AggValueSlot::forAddr(Dest.getPaddedAtomicAddr(),
+                              Dest.getAlignment(),
+                              Dest.getQualifiers(),
+                              Dest.isExternallyDestructed(),
+                              Dest.requiresGCollection(),
+                              Dest.isPotentiallyAliased(),
+                              Dest.isZeroed(),
+                              AggValueSlot::IsNotValueOfAtomic);
+      CGF.EmitAggExpr(E->getSubExpr(), atomicSlot);
+      return;
+    }
+
+    // Otherwise, make an atomic temporary, emit into that, and then
+    // copy the value out.
+    AggValueSlot atomicSlot =
+      CGF.CreateAggTemp(atomicType, "atomic-to-nonatomic.temp");
+    CGF.EmitAggExpr(E->getSubExpr(), atomicSlot);
+
+    llvm::Value *valueAddr =
+      Builder.CreateStructGEP(atomicSlot.getAddr(), 0);
+    RValue rvalue = RValue::getAggregate(valueAddr, atomicSlot.isVolatile());
+    return EmitFinalDestCopy(valueType, rvalue);
+  }
+
   case CK_LValueToRValue:
     // If we're loading from a volatile type, force the destination
     // into existence.
@@ -591,11 +720,10 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
       EnsureDest(E->getType());
       return Visit(E->getSubExpr());
     }
+
     // fallthrough
 
   case CK_NoOp:
-  case CK_AtomicToNonAtomic:
-  case CK_NonAtomicToAtomic:
   case CK_UserDefinedConversion:
   case CK_ConstructorConversion:
     assert(CGF.getContext().hasSameUnqualifiedType(E->getSubExpr()->getType(),
@@ -648,6 +776,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   case CK_ARCExtendBlockObject:
   case CK_CopyAndAutoreleaseBlockObject:
   case CK_BuiltinFnToFnPtr:
+  case CK_ZeroToOCLEvent:
     llvm_unreachable("cast kind invalid for aggregate types");
   }
 }
@@ -776,6 +905,12 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
     // Now emit the LHS and copy into it.
     LValue LHS = CGF.EmitCheckedLValue(E->getLHS(), CodeGenFunction::TCK_Store);
 
+    // That copy is an atomic copy if the LHS is atomic.
+    if (LHS.getType()->isAtomicType()) {
+      CGF.EmitAtomicStore(Dest.asRValue(), LHS, /*isInit*/ false);
+      return;
+    }
+
     EmitCopy(E->getLHS()->getType(),
              AggValueSlot::forLValue(LHS, AggValueSlot::IsDestructed,
                                      needsGC(E->getLHS()->getType()),
@@ -786,11 +921,25 @@ void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
   
   LValue LHS = CGF.EmitLValue(E->getLHS());
 
+  // If we have an atomic type, evaluate into the destination and then
+  // do an atomic copy.
+  if (LHS.getType()->isAtomicType()) {
+    EnsureDest(E->getRHS()->getType());
+    Visit(E->getRHS());
+    CGF.EmitAtomicStore(Dest.asRValue(), LHS, /*isInit*/ false);
+    return;
+  }
+
   // Codegen the RHS so that it stores directly into the LHS.
   AggValueSlot LHSSlot =
     AggValueSlot::forLValue(LHS, AggValueSlot::IsDestructed, 
                             needsGC(E->getLHS()->getType()),
                             AggValueSlot::IsAliased);
+  // A non-volatile aggregate destination might have volatile member.
+  if (!LHSSlot.isVolatile() &&
+      CGF.hasVolatileMember(E->getLHS()->getType()))
+    LHSSlot.setVolatile(true);
+      
   CGF.EmitAggExpr(E->getRHS(), LHSSlot);
 
   // Copy into the destination if the assignment isn't ignored.
@@ -931,24 +1080,34 @@ AggExprEmitter::EmitInitializationToLValue(Expr* E, LValue LV) {
   // FIXME: Are initializers affected by volatile?
   if (Dest.isZeroed() && isSimpleZero(E, CGF)) {
     // Storing "i32 0" to a zero'd memory location is a noop.
-  } else if (isa<ImplicitValueInitExpr>(E)) {
-    EmitNullInitializationToLValue(LV);
+    return;
+  } else if (isa<ImplicitValueInitExpr>(E) || isa<CXXScalarValueInitExpr>(E)) {
+    return EmitNullInitializationToLValue(LV);
   } else if (type->isReferenceType()) {
     RValue RV = CGF.EmitReferenceBindingToExpr(E, /*InitializedDecl=*/0);
-    CGF.EmitStoreThroughLValue(RV, LV);
-  } else if (type->isAnyComplexType()) {
-    CGF.EmitComplexExprIntoAddr(E, LV.getAddress(), false);
-  } else if (CGF.hasAggregateLLVMType(type)) {
+    return CGF.EmitStoreThroughLValue(RV, LV);
+  }
+  
+  switch (CGF.getEvaluationKind(type)) {
+  case TEK_Complex:
+    CGF.EmitComplexExprIntoLValue(E, LV, /*isInit*/ true);
+    return;
+  case TEK_Aggregate:
     CGF.EmitAggExpr(E, AggValueSlot::forLValue(LV,
                                                AggValueSlot::IsDestructed,
                                       AggValueSlot::DoesNotNeedGCBarriers,
                                                AggValueSlot::IsNotAliased,
                                                Dest.isZeroed()));
-  } else if (LV.isSimple()) {
-    CGF.EmitScalarInit(E, /*D=*/0, LV, /*Captured=*/false);
-  } else {
-    CGF.EmitStoreThroughLValue(RValue::get(CGF.EmitScalarExpr(E)), LV);
+    return;
+  case TEK_Scalar:
+    if (LV.isSimple()) {
+      CGF.EmitScalarInit(E, /*D=*/0, LV, /*Captured=*/false);
+    } else {
+      CGF.EmitStoreThroughLValue(RValue::get(CGF.EmitScalarExpr(E)), LV);
+    }
+    return;
   }
+  llvm_unreachable("bad evaluation kind");
 }
 
 void AggExprEmitter::EmitNullInitializationToLValue(LValue lv) {
@@ -959,9 +1118,9 @@ void AggExprEmitter::EmitNullInitializationToLValue(LValue lv) {
   if (Dest.isZeroed() && CGF.getTypes().isZeroInitializable(type))
     return;
   
-  if (!CGF.hasAggregateLLVMType(type)) {
-    // For non-aggregates, we can store zero.
-    llvm::Value *null = llvm::Constant::getNullValue(CGF.ConvertType(type));
+  if (CGF.hasScalarEvaluationKind(type)) {
+    // For non-aggregates, we can store the appropriate null constant.
+    llvm::Value *null = CGF.CGM.EmitNullConstant(type);
     // Note that the following is not equivalent to
     // EmitStoreThroughBitfieldLValue for ARC types.
     if (lv.isBitField()) {
@@ -1250,7 +1409,7 @@ static void CheckAggExprForMemSetUse(AggValueSlot &Slot, const Expr *E,
 /// the value of the aggregate expression is not needed.  If VolatileDest is
 /// true, DestPtr cannot be 0.
 void CodeGenFunction::EmitAggExpr(const Expr *E, AggValueSlot Slot) {
-  assert(E && hasAggregateLLVMType(E->getType()) &&
+  assert(E && hasAggregateEvaluationKind(E->getType()) &&
          "Invalid aggregate expression to emit");
   assert((Slot.getAddr() != 0 || Slot.isIgnored()) &&
          "slot has bits but no address");
@@ -1262,7 +1421,7 @@ void CodeGenFunction::EmitAggExpr(const Expr *E, AggValueSlot Slot) {
 }
 
 LValue CodeGenFunction::EmitAggExprToLValue(const Expr *E) {
-  assert(hasAggregateLLVMType(E->getType()) && "Invalid argument!");
+  assert(hasAggregateEvaluationKind(E->getType()) && "Invalid argument!");
   llvm::Value *Temp = CreateMemTemp(E->getType());
   LValue LV = MakeAddrLValue(Temp, E->getType());
   EmitAggExpr(E, AggValueSlot::forLValue(LV, AggValueSlot::IsNotDestructed,
@@ -1285,7 +1444,7 @@ void CodeGenFunction::EmitAggregateCopy(llvm::Value *DestPtr,
               Record->hasTrivialCopyAssignment() ||
               Record->hasTrivialMoveConstructor() ||
               Record->hasTrivialMoveAssignment()) &&
-             "Trying to aggregate-copy a type without a trivial copy "
+             "Trying to aggregate-copy a type without a trivial copy/move "
              "constructor or assignment operator");
       // Ignore empty classes in C++.
       if (Record->isEmpty())

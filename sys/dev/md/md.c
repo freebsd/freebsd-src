@@ -1008,7 +1008,15 @@ mdinit(struct md_s *sc)
 	pp = g_new_providerf(gp, "md%d", sc->unit);
 	pp->mediasize = sc->mediasize;
 	pp->sectorsize = sc->sectorsize;
-	pp->flags |= G_PF_ACCEPT_UNMAPPED;
+	switch (sc->type) {
+	case MD_MALLOC:
+	case MD_VNODE:
+	case MD_SWAP:
+		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+		break;
+	case MD_PRELOAD:
+		break;
+	}
 	sc->gp = gp;
 	sc->pp = pp;
 	g_error_provider(pp, 0);

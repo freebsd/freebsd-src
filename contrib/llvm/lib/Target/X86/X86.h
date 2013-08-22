@@ -63,11 +63,12 @@ FunctionPass *createX86JITCodeEmitterPass(X86TargetMachine &TM,
 ///
 FunctionPass *createEmitX86CodeToMemory();
 
-/// createX86MaxStackAlignmentHeuristicPass - This function returns a pass
-/// which determines whether the frame pointer register should be
-/// reserved in case dynamic stack alignment is later required.
-///
-FunctionPass *createX86MaxStackAlignmentHeuristicPass();
+/// \brief Creates an X86-specific Target Transformation Info pass.
+ImmutablePass *createX86TargetTransformInfoPass(const X86TargetMachine *TM);
+
+/// createX86PadShortFunctions - Return a pass that pads short functions
+/// with NOOPs. This will prevent a stall when returning on the Atom.
+FunctionPass *createX86PadShortFunctions();
 
 } // End llvm namespace
 

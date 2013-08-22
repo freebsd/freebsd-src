@@ -140,9 +140,11 @@ show_battery(int ac, char **av __unused)
 {
 	struct mfi_bbu_capacity_info cap;
 	struct mfi_bbu_design_info design;
+	struct mfi_bbu_properties props;
 	struct mfi_bbu_status stat;
 	uint8_t status;
-	int comma, error, fd, show_capacity;
+	int comma, error, fd, show_capacity, show_props;
+	char buf[32];
 
 	if (ac != 1) {
 		warnx("show battery: extra arguments");
@@ -186,6 +188,14 @@ show_battery(int ac, char **av __unused)
 		return (error);
 	}
 
+	if (mfi_bbu_get_props(fd, &props, &status) < 0) {
+		error = errno;
+		warn("Failed to get properties");
+		close(fd);
+		return (error);
+	}
+	show_props = (status == MFI_STAT_OK);
+
 	printf("mfi%d: Battery State:\n", mfi_unit);
 	printf("     Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
 	    design.mfg_date & 0x1f, design.mfg_date >> 9 & 0xffff);
@@ -205,6 +215,23 @@ show_battery(int ac, char **av __unused)
 	printf("       Design Voltage: %d mV\n", design.design_voltage);
 	printf("      Current Voltage: %d mV\n", stat.voltage);
 	printf("          Temperature: %d C\n", stat.temperature);
+	if (show_props) {
+		mfi_autolearn_period(props.auto_learn_period, buf, sizeof(buf));
+		printf("     Autolearn period: %s\n", buf);
+		if (props.auto_learn_mode != 0)
+			snprintf(buf, sizeof(buf), "never");
+		else
+			mfi_next_learn_time(props.next_learn_time, buf,
+			    sizeof(buf));
+		printf("      Next learn time: %s\n", buf);
+		printf(" Learn delay interval: %u hour%s\n",
+		    props.learn_delay_interval,
+		    props.learn_delay_interval != 1 ? "s" : "");
+		mfi_autolearn_mode(props.auto_learn_mode, buf, sizeof(buf));
+		printf("       Autolearn mode: %s\n", buf);
+		if (props.bbu_mode != 0)
+			printf("             BBU Mode: %d\n", props.bbu_mode);
+	}
 	printf("               Status:");
 	comma = 0;
 	if (stat.fw_status & MFI_BBU_STATE_PACK_MISSING) {

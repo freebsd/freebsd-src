@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.144 2012/06/29 13:57:25 naddy Exp $
+.\" $OpenBSD: sshd_config.5,v 1.156 2013/02/06 00:20:42 dtucker Exp $
 .\" $FreeBSD$
-.Dd June 29 2012
+.Dd February 6, 2013
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -125,6 +125,19 @@ in
 for more information on patterns.
 .It Cm AllowTcpForwarding
 Specifies whether TCP forwarding is permitted.
+The available options are
+.Dq yes
+or
+.Dq all
+to allow TCP forwarding,
+.Dq no
+to prevent all TCP forwarding,
+.Dq local
+to allow local (from the perspective of
+.Xr ssh 1 )
+forwarding only or
+.Dq remote
+to allow remote forwarding only.
 The default is
 .Dq yes .
 Note that disabling TCP forwarding does not improve security unless
@@ -152,6 +165,45 @@ See
 in
 .Xr ssh_config 5
 for more information on patterns.
+.It Cm AuthenticationMethods
+Specifies the authentication methods that must be successfully completed
+for a user to be granted access.
+This option must be followed by one or more comma-separated lists of
+authentication method names.
+Successful authentication requires completion of every method in at least
+one of these lists.
+.Pp
+For example, an argument of
+.Dq publickey,password publickey,keyboard-interactive
+would require the user to complete public key authentication, followed by
+either password or keyboard interactive authentication.
+Only methods that are next in one or more lists are offered at each stage,
+so for this example, it would not be possible to attempt password or
+keyboard-interactive authentication before public key.
+.Pp
+This option is only available for SSH protocol 2 and will yield a fatal
+error if enabled if protocol 1 is also enabled.
+Note that each authentication method listed should also be explicitly enabled
+in the configuration.
+The default is not to require multiple authentication; successful completion
+of a single authentication method is sufficient.
+.It Cm AuthorizedKeysCommand
+Specifies a program to be used to look up the user's public keys.
+The program will be invoked with a single argument of the username
+being authenticated, and should produce on standard output zero or
+more lines of authorized_keys output (see
+.Sx AUTHORIZED_KEYS
+in
+.Xr sshd 8 ) .
+If a key supplied by AuthorizedKeysCommand does not successfully authenticate
+and authorize the user then public key authentication continues using the usual
+.Cm AuthorizedKeysFile
+files.
+By default, no AuthorizedKeysCommand is run.
+.It Cm AuthorizedKeysCommandUser
+Specifies the user under whose account the AuthorizedKeysCommand is run.
+It is recommended to use a dedicated user that has no other role on the host
+than running authorized keys commands.
 .It Cm AuthorizedKeysFile
 Specifies the file that contains the public keys that can be used
 for user authentication.
@@ -285,6 +337,8 @@ The supported ciphers are
 .Dq aes128-ctr ,
 .Dq aes192-ctr ,
 .Dq aes256-ctr ,
+.Dq aes128-gcm@openssh.com ,
+.Dq aes256-gcm@openssh.com ,
 .Dq arcfour128 ,
 .Dq arcfour256 ,
 .Dq arcfour ,
@@ -294,6 +348,7 @@ and
 The default is:
 .Bd -literal -offset 3n
 aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
+aes128-gcm@openssh.com,aes256-gcm@openssh.com,
 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
 aes256-cbc,arcfour
 .Ed
@@ -655,9 +710,18 @@ Specifies the available MAC (message authentication code) algorithms.
 The MAC algorithm is used in protocol version 2
 for data integrity protection.
 Multiple algorithms must be comma-separated.
+The algorithms that contain
+.Dq -etm
+calculate the MAC after encryption (encrypt-then-mac).
+These are considered safer and their use recommended.
 The default is:
 .Bd -literal -offset indent
-hmac-md5,hmac-sha1,umac-64@openssh.com,
+hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
+umac-64-etm@openssh.com,umac-128-etm@openssh.com,
+hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
+hmac-ripemd160-etm@openssh.com,hmac-sha1-96-etm@openssh.com,
+hmac-md5-96-etm@openssh.com,
+hmac-md5,hmac-sha1,umac-64@openssh.com,umac-128@openssh.com,
 hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
 hmac-sha1-96,hmac-md5-96
 .Ed
@@ -712,6 +776,9 @@ Available keywords are
 .Cm AllowGroups ,
 .Cm AllowTcpForwarding ,
 .Cm AllowUsers ,
+.Cm AuthenticationMethods ,
+.Cm AuthorizedKeysCommand ,
+.Cm AuthorizedKeysCommandUser ,
 .Cm AuthorizedKeysFile ,
 .Cm AuthorizedPrincipalsFile ,
 .Cm Banner ,
@@ -754,7 +821,7 @@ SSH daemon.
 Additional connections will be dropped until authentication succeeds or the
 .Cm LoginGraceTime
 expires for a connection.
-The default is 10.
+The default is 10:30:100.
 .Pp
 Alternatively, random early drop can be enabled by specifying
 the three colon separated values
@@ -937,10 +1004,17 @@ The default is
 .Dq yes .
 Note that this option applies to protocol version 2 only.
 .It Cm RevokedKeys
-Specifies a list of revoked public keys.
+Specifies revoked public keys.
 Keys listed in this file will be refused for public key authentication.
 Note that if this file is not readable, then public key authentication will
 be refused for all users.
+Keys may be specified as a text file, listing one public key per line, or as
+an OpenSSH Key Revocation List (KRL) as generated by
+.Xr ssh-keygen 1 .
+For more information on KRLs, see the
+.Sx KEY REVOCATION LISTS
+section in
+.Xr ssh-keygen 1 .
 .It Cm RhostsRSAAuthentication
 Specifies whether rhosts or
 .Pa /etc/hosts.equiv
@@ -1106,7 +1180,7 @@ restrictions.
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Dq FreeBSD-20120901 .
+.Dq FreeBSD-20130322 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

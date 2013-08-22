@@ -162,7 +162,7 @@ Forces
 to assume that the user knows exactly what he or she is doing, and to not
 ask any questions.
 It assumes the following:
-skip patches for which a file to patch can't be found;
+skip patches for which a file to patch cannot be found;
 patch files even though they have the wrong version for the
 .Qq Prereq:
 line in the patch;
@@ -261,7 +261,7 @@ will reverse the hunk to see if it can be applied that way.
 If it can, you will be asked if you want to have the
 .Fl R
 option set.
-If it can't, the patch will continue to be applied normally.
+If it cannot, the patch will continue to be applied normally.
 (Note: this method cannot detect a reversed patch if it is a normal diff
 and if the first command is an append (i.e. it should have been a delete)
 since appends always succeed, due to the fact that a null context will match
@@ -285,7 +285,7 @@ do its work silently, unless an error occurs.
 Similar to
 .Fl f ,
 in that it suppresses questions, but makes some different assumptions:
-skip patches for which a file to patch can't be found (the same as
+skip patches for which a file to patch cannot be found (the same as
 .Fl f ) ;
 skip patches for which the file has the wrong version for the
 .Qq Prereq:
@@ -552,10 +552,10 @@ file which is patched to increment the patch level as the first diff in the
 patch file you send out.
 If you put a
 .Qq Prereq:
-line in with the patch, it won't let them apply
+line in with the patch, it will not let them apply
 patches out of order without some warning.
 .Pp
-Second, make sure you've specified the file names right, either in a
+Second, make sure you have specified the file names right, either in a
 context diff header, or with an
 .Qq Index:
 line.
@@ -566,7 +566,7 @@ option as needed.
 .Pp
 Third, you can create a file by sending out a diff that compares a
 null file to the file you want to create.
-This will only work if the file you want to create doesn't exist already in
+This will only work if the file you want to create does not exist already in
 the target directory.
 .Pp
 Fourth, take care not to send out reversed patches, since it makes people wonder
@@ -620,7 +620,7 @@ An error occurred.
 .El
 .Pp
 When applying a set of patches in a loop it behooves you to check this
-exit status so you don't apply a later patch to a partially patched file.
+exit status so you do not apply a later patch to a partially patched file.
 .Sh DIAGNOSTICS
 Too many to list here, but generally indicative that
 .Nm
@@ -694,7 +694,7 @@ If code has been duplicated (for instance with #ifdef OLDCODE ... #else ...
 is incapable of patching both versions, and, if it works at all, will likely
 patch the wrong one, and tell you that it succeeded to boot.
 .Pp
-If you apply a patch you've already applied,
+If you apply a patch you have already applied,
 .Nm
 will think it is a reversed patch, and offer to un-apply the patch.
 This could be construed as a feature.

@@ -16,9 +16,9 @@
 #define Hexagon_ISELLOWERING_H
 
 #include "Hexagon.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/CallingConv.h"
 #include "llvm/CodeGen/CallingConvLower.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/Target/TargetLowering.h"
 
 namespace llvm {
   namespace HexagonISD {
@@ -27,6 +27,7 @@ namespace llvm {
 
       CONST32,
       CONST32_GP,  // For marking data present in GP.
+      CONST32_Int_Real,
       FCONST32,
       SETCC,
       ADJDYNALLOC,
@@ -50,6 +51,17 @@ namespace llvm {
       BARRIER,     // Memory barrier.
       WrapperJT,
       WrapperCP,
+      WrapperCombineII,
+      WrapperCombineRR,
+      WrapperCombineRI_V4,
+      WrapperCombineIR_V4,
+      WrapperPackhl,
+      WrapperSplatB,
+      WrapperSplatH,
+      WrapperShuffEB,
+      WrapperShuffEH,
+      WrapperShuffOB,
+      WrapperShuffOH,
       TC_RETURN
     };
   }
@@ -95,6 +107,7 @@ namespace llvm {
                                  DebugLoc dl, SelectionDAG &DAG,
                                  SmallVectorImpl<SDValue> &InVals) const;
     SDValue LowerGLOBALADDRESS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
 
     SDValue LowerCall(TargetLowering::CallLoweringInfo &CLI,
                       SmallVectorImpl<SDValue> &InVals) const;

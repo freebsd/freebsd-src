@@ -17,10 +17,8 @@ def err_fe_pch_malformed : Error<
     "malformed or corrupted PCH file: '%0'">, DefaultFatal;
 def err_fe_pch_malformed_block : Error<
     "malformed block record in PCH file: '%0'">, DefaultFatal;
-def err_fe_pch_error_at_end_block : Error<
-    "error at end of module block in PCH file: '%0'">, DefaultFatal;
 def err_fe_pch_file_modified : Error<
-    "file '%0' has been modified since the precompiled header was built">,
+    "file '%0' has been modified since the precompiled header '%1' was built">,
     DefaultFatal;
 def err_fe_pch_file_overridden : Error<
     "file '%0' from the precompiled header has been overridden">;
@@ -46,19 +44,16 @@ def warn_pch_different_branch : Error<
 def err_pch_with_compiler_errors : Error<
     "PCH file contains compiler errors">;
     
-    
+def warn_module_conflict : Warning<
+    "module '%0' conflicts with already-imported module '%1': %2">, 
+    InGroup<ModuleConflict>;
+
 def err_pch_macro_def_undef : Error<
     "macro '%0' was %select{defined|undef'd}1 in the precompiled header but "
     "%select{undef'd|defined}1 on the command line">;
 def err_pch_macro_def_conflict : Error<
     "definition of macro '%0' differs between the precompiled header ('%1') "
     "and the command line ('%2')">;
-def err_pch_include_opt_missing : Error<
-    "precompiled header depends on '%select{-include|-imacros}0 %1' option "
-    "that is missing from the command line">;
-def err_pch_include_opt_conflict : Error<
-    "precompiled header option '%select{-include|-imacros}0 %1' conflicts with "
-    "corresponding option '%select{-include|-imacros}0 %2' on command line">;
 def err_pch_undef : Error<
     "%select{command line contains|precompiled header was built with}0 "
     "'-undef' but %select{precompiled header was not built with it|"

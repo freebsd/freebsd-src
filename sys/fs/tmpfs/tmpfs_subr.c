@@ -1355,7 +1355,8 @@ retry:
  * The vnode must be locked on entry and remain locked on exit.
  */
 int
-tmpfs_chflags(struct vnode *vp, int flags, struct ucred *cred, struct thread *p)
+tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
+    struct thread *p)
 {
 	int error;
 	struct tmpfs_node *node;

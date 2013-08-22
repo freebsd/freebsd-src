@@ -8,9 +8,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/Triple.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cstring>
 using namespace llvm;
@@ -19,8 +19,8 @@ const char *Triple::getArchTypeName(ArchType Kind) {
   switch (Kind) {
   case UnknownArch: return "unknown";
 
+  case aarch64: return "aarch64";
   case arm:     return "arm";
-  case cellspu: return "cellspu";
   case hexagon: return "hexagon";
   case mips:    return "mips";
   case mipsel:  return "mipsel";
@@ -54,10 +54,10 @@ const char *Triple::getArchTypePrefix(ArchType Kind) {
   default:
     return 0;
 
+  case aarch64: return "aarch64";
+
   case arm:
   case thumb:   return "arm";
-
-  case cellspu: return "spu";
 
   case ppc64:
   case ppc:     return "ppc";
@@ -128,7 +128,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
   case Haiku: return "haiku";
   case Minix: return "minix";
   case RTEMS: return "rtems";
-  case NativeClient: return "nacl";
+  case NaCl: return "nacl";
   case CNK: return "cnk";
   case Bitrig: return "bitrig";
   case AIX: return "aix";
@@ -143,6 +143,7 @@ const char *Triple::getEnvironmentTypeName(EnvironmentType Kind) {
   case GNU: return "gnu";
   case GNUEABIHF: return "gnueabihf";
   case GNUEABI: return "gnueabi";
+  case GNUX32: return "gnux32";
   case EABI: return "eabi";
   case MachO: return "macho";
   case Android: return "android";
@@ -154,8 +155,8 @@ const char *Triple::getEnvironmentTypeName(EnvironmentType Kind) {
 
 Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
   return StringSwitch<Triple::ArchType>(Name)
+    .Case("aarch64", aarch64)
     .Case("arm", arm)
-    .Case("cellspu", cellspu)
     .Case("mips", mips)
     .Case("mipsel", mipsel)
     .Case("mips64", mips64)
@@ -218,13 +219,13 @@ static Triple::ArchType parseArch(StringRef ArchName) {
     .Case("powerpc", Triple::ppc)
     .Cases("powerpc64", "ppu", Triple::ppc64)
     .Case("mblaze", Triple::mblaze)
+    .Case("aarch64", Triple::aarch64)
     .Cases("arm", "xscale", Triple::arm)
     // FIXME: It would be good to replace these with explicit names for all the
     // various suffixes supported.
     .StartsWith("armv", Triple::arm)
     .Case("thumb", Triple::thumb)
     .StartsWith("thumbv", Triple::thumb)
-    .Cases("spu", "cellspu", Triple::cellspu)
     .Case("msp430", Triple::msp430)
     .Cases("mips", "mipseb", "mipsallegrex", Triple::mips)
     .Cases("mipsel", "mipsallegrexel", Triple::mipsel)
@@ -277,7 +278,7 @@ static Triple::OSType parseOS(StringRef OSName) {
     .StartsWith("haiku", Triple::Haiku)
     .StartsWith("minix", Triple::Minix)
     .StartsWith("rtems", Triple::RTEMS)
-    .StartsWith("nacl", Triple::NativeClient)
+    .StartsWith("nacl", Triple::NaCl)
     .StartsWith("cnk", Triple::CNK)
     .StartsWith("bitrig", Triple::Bitrig)
     .StartsWith("aix", Triple::AIX)
@@ -289,6 +290,7 @@ static Triple::EnvironmentType parseEnvironment(StringRef EnvironmentName) {
     .StartsWith("eabi", Triple::EABI)
     .StartsWith("gnueabihf", Triple::GNUEABIHF)
     .StartsWith("gnueabi", Triple::GNUEABI)
+    .StartsWith("gnux32", Triple::GNUX32)
     .StartsWith("gnu", Triple::GNU)
     .StartsWith("macho", Triple::MachO)
     .StartsWith("android", Triple::Android)
@@ -663,7 +665,6 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
 
   case llvm::Triple::amdil:
   case llvm::Triple::arm:
-  case llvm::Triple::cellspu:
   case llvm::Triple::hexagon:
   case llvm::Triple::le32:
   case llvm::Triple::mblaze:
@@ -680,6 +681,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::spir:
     return 32;
 
+  case llvm::Triple::aarch64:
   case llvm::Triple::mips64:
   case llvm::Triple::mips64el:
   case llvm::Triple::nvptx64:
@@ -708,6 +710,7 @@ Triple Triple::get32BitArchVariant() const {
   Triple T(*this);
   switch (getArch()) {
   case Triple::UnknownArch:
+  case Triple::aarch64:
   case Triple::msp430:
     T.setArch(UnknownArch);
     break;
@@ -715,7 +718,6 @@ Triple Triple::get32BitArchVariant() const {
   case Triple::amdil:
   case Triple::spir:
   case Triple::arm:
-  case Triple::cellspu:
   case Triple::hexagon:
   case Triple::le32:
   case Triple::mblaze:
@@ -749,7 +751,6 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::UnknownArch:
   case Triple::amdil:
   case Triple::arm:
-  case Triple::cellspu:
   case Triple::hexagon:
   case Triple::le32:
   case Triple::mblaze:
@@ -761,6 +762,7 @@ Triple Triple::get64BitArchVariant() const {
     T.setArch(UnknownArch);
     break;
 
+  case Triple::aarch64:
   case Triple::spir64:
   case Triple::mips64:
   case Triple::mips64el:

@@ -15,6 +15,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Basic/IdentifierTable.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 using namespace ento;
 using llvm::APSInt;
@@ -29,13 +30,13 @@ using llvm::APSInt;
 //===----------------------------------------------------------------------===//
 
 bool SVal::hasConjuredSymbol() const {
-  if (const nonloc::SymbolVal* SV = dyn_cast<nonloc::SymbolVal>(this)) {
+  if (Optional<nonloc::SymbolVal> SV = getAs<nonloc::SymbolVal>()) {
     SymbolRef sym = SV->getSymbol();
     if (isa<SymbolConjured>(sym))
       return true;
   }
 
-  if (const loc::MemRegionVal *RV = dyn_cast<loc::MemRegionVal>(this)) {
+  if (Optional<loc::MemRegionVal> RV = getAs<loc::MemRegionVal>()) {
     const MemRegion *R = RV->getRegion();
     if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(R)) {
       SymbolRef sym = SR->getSymbol();
@@ -48,7 +49,7 @@ bool SVal::hasConjuredSymbol() const {
 }
 
 const FunctionDecl *SVal::getAsFunctionDecl() const {
-  if (const loc::MemRegionVal* X = dyn_cast<loc::MemRegionVal>(this)) {
+  if (Optional<loc::MemRegionVal> X = getAs<loc::MemRegionVal>()) {
     const MemRegion* R = X->getRegion();
     if (const FunctionTextRegion *CTR = R->getAs<FunctionTextRegion>())
       if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(CTR->getDecl()))
@@ -65,10 +66,10 @@ const FunctionDecl *SVal::getAsFunctionDecl() const {
 /// region. If that is the case, gets the underlining region.
 SymbolRef SVal::getAsLocSymbol() const {
   // FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
-  if (const nonloc::LocAsInteger *X = dyn_cast<nonloc::LocAsInteger>(this))
+  if (Optional<nonloc::LocAsInteger> X = getAs<nonloc::LocAsInteger>())
     return X->getLoc().getAsLocSymbol();
 
-  if (const loc::MemRegionVal *X = dyn_cast<loc::MemRegionVal>(this)) {
+  if (Optional<loc::MemRegionVal> X = getAs<loc::MemRegionVal>()) {
     const MemRegion *R = X->stripCasts();
     if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(R))
       return SymR->getSymbol();
@@ -78,7 +79,7 @@ SymbolRef SVal::getAsLocSymbol() const {
 
 /// Get the symbol in the SVal or its base region.
 SymbolRef SVal::getLocSymbolInBase() const {
-  const loc::MemRegionVal *X = dyn_cast<loc::MemRegionVal>(this);
+  Optional<loc::MemRegionVal> X = getAs<loc::MemRegionVal>();
 
   if (!X)
     return 0;
@@ -101,7 +102,7 @@ SymbolRef SVal::getLocSymbolInBase() const {
 ///  Otherwise return 0.
 SymbolRef SVal::getAsSymbol() const {
   // FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
-  if (const nonloc::SymbolVal *X = dyn_cast<nonloc::SymbolVal>(this))
+  if (Optional<nonloc::SymbolVal> X = getAs<nonloc::SymbolVal>())
     return X->getSymbol();
 
   return getAsLocSymbol();
@@ -110,7 +111,7 @@ SymbolRef SVal::getAsSymbol() const {
 /// getAsSymbolicExpression - If this Sval wraps a symbolic expression then
 ///  return that expression.  Otherwise return NULL.
 const SymExpr *SVal::getAsSymbolicExpression() const {
-  if (const nonloc::SymbolVal *X = dyn_cast<nonloc::SymbolVal>(this))
+  if (Optional<nonloc::SymbolVal> X = getAs<nonloc::SymbolVal>())
     return X->getSymbol();
 
   return getAsSymbol();
@@ -124,12 +125,11 @@ const SymExpr* SVal::getAsSymExpr() const {
 }
 
 const MemRegion *SVal::getAsRegion() const {
-  if (const loc::MemRegionVal *X = dyn_cast<loc::MemRegionVal>(this))
+  if (Optional<loc::MemRegionVal> X = getAs<loc::MemRegionVal>())
     return X->getRegion();
 
-  if (const nonloc::LocAsInteger *X = dyn_cast<nonloc::LocAsInteger>(this)) {
+  if (Optional<nonloc::LocAsInteger> X = getAs<nonloc::LocAsInteger>())
     return X->getLoc().getAsRegion();
-  }
 
   return 0;
 }
@@ -143,7 +143,7 @@ const void *nonloc::LazyCompoundVal::getStore() const {
   return static_cast<const LazyCompoundValData*>(Data)->getStore();
 }
 
-const TypedRegion *nonloc::LazyCompoundVal::getRegion() const {
+const TypedValueRegion *nonloc::LazyCompoundVal::getRegion() const {
   return static_cast<const LazyCompoundValData*>(Data)->getRegion();
 }
 
@@ -164,16 +164,15 @@ nonloc::CompoundVal::iterator nonloc::CompoundVal::end() const {
 //===----------------------------------------------------------------------===//
 
 bool SVal::isConstant() const {
-  return isa<nonloc::ConcreteInt>(this) || isa<loc::ConcreteInt>(this);
+  return getAs<nonloc::ConcreteInt>() || getAs<loc::ConcreteInt>();
 }
 
 bool SVal::isConstant(int I) const {
-  if (isa<loc::ConcreteInt>(*this))
-    return cast<loc::ConcreteInt>(*this).getValue() == I;
-  else if (isa<nonloc::ConcreteInt>(*this))
-    return cast<nonloc::ConcreteInt>(*this).getValue() == I;
-  else
-    return false;
+  if (Optional<loc::ConcreteInt> LV = getAs<loc::ConcreteInt>())
+    return LV->getValue() == I;
+  if (Optional<nonloc::ConcreteInt> NV = getAs<nonloc::ConcreteInt>())
+    return NV->getValue() == I;
+  return false;
 }
 
 bool SVal::isZeroConstant() const {
@@ -215,13 +214,12 @@ SVal loc::ConcreteInt::evalBinOp(BasicValueFactory& BasicVals,
                                  BinaryOperator::Opcode Op,
                                  const loc::ConcreteInt& R) const {
 
-  assert (Op == BO_Add || Op == BO_Sub ||
-          (Op >= BO_LT && Op <= BO_NE));
+  assert(BinaryOperator::isComparisonOp(Op) || Op == BO_Sub);
 
-  const llvm::APSInt* X = BasicVals.evalAPSInt(Op, getValue(), R.getValue());
+  const llvm::APSInt *X = BasicVals.evalAPSInt(Op, getValue(), R.getValue());
 
   if (X)
-    return loc::ConcreteInt(*X);
+    return nonloc::ConcreteInt(*X);
   else
     return UndefinedVal();
 }
@@ -238,10 +236,10 @@ void SVal::dumpToStream(raw_ostream &os) const {
       os << "Unknown";
       break;
     case NonLocKind:
-      cast<NonLoc>(this)->dumpToStream(os);
+      castAs<NonLoc>().dumpToStream(os);
       break;
     case LocKind:
-      cast<Loc>(this)->dumpToStream(os);
+      castAs<Loc>().dumpToStream(os);
       break;
     case UndefinedKind:
       os << "Undefined";
@@ -252,7 +250,7 @@ void SVal::dumpToStream(raw_ostream &os) const {
 void NonLoc::dumpToStream(raw_ostream &os) const {
   switch (getSubKind()) {
     case nonloc::ConcreteIntKind: {
-      const nonloc::ConcreteInt& C = *cast<nonloc::ConcreteInt>(this);
+      const nonloc::ConcreteInt& C = castAs<nonloc::ConcreteInt>();
       if (C.getValue().isUnsigned())
         os << C.getValue().getZExtValue();
       else
@@ -262,16 +260,16 @@ void NonLoc::dumpToStream(raw_ostream &os) const {
       break;
     }
     case nonloc::SymbolValKind: {
-      os << cast<nonloc::SymbolVal>(this)->getSymbol();
+      os << castAs<nonloc::SymbolVal>().getSymbol();
       break;
     }
     case nonloc::LocAsIntegerKind: {
-      const nonloc::LocAsInteger& C = *cast<nonloc::LocAsInteger>(this);
+      const nonloc::LocAsInteger& C = castAs<nonloc::LocAsInteger>();
       os << C.getLoc() << " [as " << C.getNumBits() << " bit integer]";
       break;
     }
     case nonloc::CompoundValKind: {
-      const nonloc::CompoundVal& C = *cast<nonloc::CompoundVal>(this);
+      const nonloc::CompoundVal& C = castAs<nonloc::CompoundVal>();
       os << "compoundVal{";
       bool first = true;
       for (nonloc::CompoundVal::iterator I=C.begin(), E=C.end(); I!=E; ++I) {
@@ -287,7 +285,7 @@ void NonLoc::dumpToStream(raw_ostream &os) const {
       break;
     }
     case nonloc::LazyCompoundValKind: {
-      const nonloc::LazyCompoundVal &C = *cast<nonloc::LazyCompoundVal>(this);
+      const nonloc::LazyCompoundVal &C = castAs<nonloc::LazyCompoundVal>();
       os << "lazyCompoundVal{" << const_cast<void *>(C.getStore())
          << ',' << C.getRegion()
          << '}';
@@ -302,13 +300,13 @@ void NonLoc::dumpToStream(raw_ostream &os) const {
 void Loc::dumpToStream(raw_ostream &os) const {
   switch (getSubKind()) {
     case loc::ConcreteIntKind:
-      os << cast<loc::ConcreteInt>(this)->getValue().getZExtValue() << " (Loc)";
+      os << castAs<loc::ConcreteInt>().getValue().getZExtValue() << " (Loc)";
       break;
     case loc::GotoLabelKind:
-      os << "&&" << cast<loc::GotoLabel>(this)->getLabel()->getName();
+      os << "&&" << castAs<loc::GotoLabel>().getLabel()->getName();
       break;
     case loc::MemRegionKind:
-      os << '&' << cast<loc::MemRegionVal>(this)->getRegion()->getString();
+      os << '&' << castAs<loc::MemRegionVal>().getRegion()->getString();
       break;
     default:
       llvm_unreachable("Pretty-printing not implemented for this Loc.");

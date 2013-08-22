@@ -151,8 +151,7 @@ AcpiDbExecuteMethod (
 {
     ACPI_STATUS             Status;
     ACPI_OBJECT_LIST        ParamObjects;
-    ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
-    ACPI_DEVICE_INFO        *ObjInfo;
+    ACPI_OBJECT             Params[ACPI_DEBUGGER_MAX_ARGS + 1];
     UINT32                  i;
 
 
@@ -164,78 +163,30 @@ AcpiDbExecuteMethod (
         AcpiOsPrintf ("Warning: debug output is not enabled!\n");
     }
 
-    /* Get the object info for number of method parameters */
-
-    Status = AcpiGetObjectInfo (Info->Method, &ObjInfo);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
+    ParamObjects.Count = 0;
     ParamObjects.Pointer = NULL;
-    ParamObjects.Count   = 0;
 
-    if (ObjInfo->Type == ACPI_TYPE_METHOD)
+    /* Pass through any command-line arguments */
+
+    if (Info->Args && Info->Args[0])
     {
-        /* Are there arguments to the method? */
+        /* Get arguments passed on the command line */
 
-        i = 0;
-        if (Info->Args && Info->Args[0])
+        for (i = 0; (Info->Args[i] && *(Info->Args[i])); i++)
         {
-            /* Get arguments passed on the command line */
+            /* Convert input string (token) to an actual ACPI_OBJECT */
 
-            for (; Info->Args[i] &&
-                (i < ACPI_METHOD_NUM_ARGS) &&
-                (i < ObjInfo->ParamCount);
-                i++)
+            Status = AcpiDbConvertToObject (Info->Types[i],
+                Info->Args[i], &Params[i]);
+            if (ACPI_FAILURE (Status))
             {
-                /* Convert input string (token) to an actual ACPI_OBJECT */
-
-                Status = AcpiDbConvertToObject (Info->Types[i],
-                    Info->Args[i], &Params[i]);
-                if (ACPI_FAILURE (Status))
-                {
-                    ACPI_EXCEPTION ((AE_INFO, Status,
-                        "While parsing method arguments"));
-                    goto Cleanup;
-                }
+                ACPI_EXCEPTION ((AE_INFO, Status,
+                    "While parsing method arguments"));
+                goto Cleanup;
             }
         }
 
-        /* Create additional "default" parameters as needed */
-
-        if (i < ObjInfo->ParamCount)
-        {
-            AcpiOsPrintf ("Adding %u arguments containing default values\n",
-                ObjInfo->ParamCount - i);
-
-            for (; i < ObjInfo->ParamCount; i++)
-            {
-                switch (i)
-                {
-                case 0:
-
-                    Params[0].Type           = ACPI_TYPE_INTEGER;
-                    Params[0].Integer.Value  = 0x01020304;
-                    break;
-
-                case 1:
-
-                    Params[1].Type           = ACPI_TYPE_STRING;
-                    Params[1].String.Length  = 12;
-                    Params[1].String.Pointer = "AML Debugger";
-                    break;
-
-                default:
-
-                    Params[i].Type           = ACPI_TYPE_INTEGER;
-                    Params[i].Integer.Value  = i * (UINT64) 0x1000;
-                    break;
-                }
-            }
-        }
-
-        ParamObjects.Count = ObjInfo->ParamCount;
+        ParamObjects.Count = i;
         ParamObjects.Pointer = Params;
     }
 
@@ -247,8 +198,8 @@ AcpiDbExecuteMethod (
     /* Do the actual method execution */
 
     AcpiGbl_MethodExecuting = TRUE;
-    Status = AcpiEvaluateObject (NULL,
-        Info->Pathname, &ParamObjects, ReturnObj);
+    Status = AcpiEvaluateObject (NULL, Info->Pathname,
+        &ParamObjects, ReturnObj);
 
     AcpiGbl_CmSingleStep = FALSE;
     AcpiGbl_MethodExecuting = FALSE;
@@ -267,9 +218,7 @@ AcpiDbExecuteMethod (
     }
 
 Cleanup:
-    AcpiDbDeleteObjects (ObjInfo->ParamCount, Params);
-    ACPI_FREE (ObjInfo);
-
+    AcpiDbDeleteObjects (ParamObjects.Count, Params);
     return_ACPI_STATUS (Status);
 }
 

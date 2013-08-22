@@ -17,10 +17,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Module.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Analysis/CallGraph.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 

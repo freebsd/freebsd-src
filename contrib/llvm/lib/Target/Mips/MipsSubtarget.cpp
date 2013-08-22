@@ -26,13 +26,14 @@ void MipsSubtarget::anchor() { }
 
 MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
                              const std::string &FS, bool little,
-                             Reloc::Model RM) :
+                             Reloc::Model _RM) :
   MipsGenSubtargetInfo(TT, CPU, FS),
   MipsArchVersion(Mips32), MipsABI(UnknownABI), IsLittle(little),
   IsSingleFloat(false), IsFP64bit(false), IsGP64bit(false), HasVFPU(false),
-  IsLinux(true), HasSEInReg(false), HasCondMov(false), HasMulDivAdd(false),
-  HasMinMax(false), HasSwap(false), HasBitCount(false), InMips16Mode(false),
-  HasDSP(false), HasDSPR2(false), IsAndroid(false)
+  IsLinux(true), HasSEInReg(false), HasCondMov(false), HasSwap(false),
+  HasBitCount(false), HasFPIdx(false),
+  InMips16Mode(false), InMicroMipsMode(false), HasDSP(false), HasDSPR2(false),
+  RM(_RM)
 {
   std::string CPUName = CPU;
   if (CPUName.empty())

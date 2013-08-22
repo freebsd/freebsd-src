@@ -17,21 +17,27 @@
 
 #define DEBUG_TYPE "ppc-branch-select"
 #include "PPC.h"
+#include "MCTargetDesc/PPCPredicates.h"
 #include "PPCInstrBuilder.h"
 #include "PPCInstrInfo.h"
-#include "MCTargetDesc/PPCPredicates.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
 STATISTIC(NumExpanded, "Number of branches expanded to long format");
 
+namespace llvm {
+  void initializePPCBSelPass(PassRegistry&);
+}
+
 namespace {
   struct PPCBSel : public MachineFunctionPass {
     static char ID;
-    PPCBSel() : MachineFunctionPass(ID) {}
+    PPCBSel() : MachineFunctionPass(ID) {
+      initializePPCBSelPass(*PassRegistry::getPassRegistry());
+    }
 
     /// BlockSizes - The sizes of the basic blocks in the function.
     std::vector<unsigned> BlockSizes;
@@ -44,6 +50,9 @@ namespace {
   };
   char PPCBSel::ID = 0;
 }
+
+INITIALIZE_PASS(PPCBSel, "ppc-branch-select", "PowerPC Branch Selector",
+                false, false)
 
 /// createPPCBranchSelectionPass - returns an instance of the Branch Selection
 /// Pass

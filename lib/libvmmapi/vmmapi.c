@@ -123,30 +123,6 @@ vm_destroy(struct vmctx *vm)
 	free(vm);
 }
 
-size_t
-vmm_get_mem_total(void)
-{
-	size_t mem_total = 0;
-	size_t oldlen = sizeof(mem_total);
-	int error;
-	error = sysctlbyname("hw.vmm.mem_total", &mem_total, &oldlen, NULL, 0);
-	if (error)
-		return -1;
-	return mem_total;
-}
-
-size_t
-vmm_get_mem_free(void)
-{
-	size_t mem_free = 0;
-	size_t oldlen = sizeof(mem_free);
-	int error;
-	error = sysctlbyname("hw.vmm.mem_free", &mem_free, &oldlen, NULL, 0);
-	if (error)
-		return -1;
-	return mem_free;
-}
-
 int
 vm_get_memory_seg(struct vmctx *ctx, vm_paddr_t gpa, size_t *ret_len)
 {

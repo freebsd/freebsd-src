@@ -278,7 +278,8 @@ MLINKS+=cap_fcntls_limit.2 cap_fcntls_get.2
 MLINKS+=cap_ioctls_limit.2 cap_ioctls_get.2
 MLINKS+=cap_rights_limit.2 cap_rights_get.2
 MLINKS+=chdir.2 fchdir.2
-MLINKS+=chflags.2 fchflags.2 \
+MLINKS+=chflags.2 chflagsat.2 \
+	chflags.2 fchflags.2 \
 	chflags.2 lchflags.2
 MLINKS+=chmod.2 fchmod.2 \
 	chmod.2 fchmodat.2 \

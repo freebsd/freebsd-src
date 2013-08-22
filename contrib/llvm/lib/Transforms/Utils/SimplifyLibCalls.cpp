@@ -15,12 +15,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/SimplifyLibCalls.h"
-#include "llvm/DataLayout.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Function.h"
-#include "llvm/IRBuilder.h"
-#include "llvm/LLVMContext.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 
@@ -48,6 +53,10 @@ public:
   virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B)
     =0;
 
+  /// ignoreCallingConv - Returns false if this transformation could possibly
+  /// change the calling convention.
+  virtual bool ignoreCallingConv() { return false; }
+
   Value *optimizeCall(CallInst *CI, const DataLayout *TD,
                       const TargetLibraryInfo *TLI,
                       const LibCallSimplifier *LCS, IRBuilder<> &B) {
@@ -59,7 +68,7 @@ public:
       Context = &CI->getCalledFunction()->getContext();
 
     // We never change the calling convention.
-    if (CI->getCallingConv() != llvm::CallingConv::C)
+    if (!ignoreCallingConv() && CI->getCallingConv() != llvm::CallingConv::C)
       return NULL;
 
     return callOptimizer(CI->getCalledFunction(), CI, B);
@@ -98,6 +107,15 @@ static bool isOnlyUsedInEqualityComparison(Value *V, Value *With) {
     return false;
   }
   return true;
+}
+
+static bool callHasFloatingPointArgument(const CallInst *CI) {
+  for (CallInst::const_op_iterator it = CI->op_begin(), e = CI->op_end();
+       it != e; ++it) {
+    if ((*it)->getType()->isFloatingPointTy())
+      return true;
+  }
+  return false;
 }
 
 //===----------------------------------------------------------------------===//
@@ -713,6 +731,7 @@ struct StrNCpyOpt : public LibCallOptimization {
 };
 
 struct StrLenOpt : public LibCallOptimization {
+  virtual bool ignoreCallingConv() { return true; }
   virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
     FunctionType *FT = Callee->getFunctionType();
     if (FT->getNumParams() != 1 ||
@@ -781,8 +800,7 @@ struct StrToOpt : public LibCallOptimization {
     if (isa<ConstantPointerNull>(EndPtr)) {
       // With a null EndPtr, this function won't capture the main argument.
       // It would be readonly too, except that it still may write to errno.
-      CI->addAttribute(1, Attributes::get(Callee->getContext(),
-                                          Attributes::NoCapture));
+      CI->addAttribute(1, Attribute::NoCapture);
     }
 
     return 0;
@@ -951,7 +969,14 @@ struct MemCmpOpt : public LibCallOptimization {
       // Make sure we're not reading out-of-bounds memory.
       if (Len > LHSStr.size() || Len > RHSStr.size())
         return 0;
-      uint64_t Ret = memcmp(LHSStr.data(), RHSStr.data(), Len);
+      // Fold the memcmp and normalize the result.  This way we get consistent
+      // results across multiple platforms.
+      uint64_t Ret = 0;
+      int Cmp = memcmp(LHSStr.data(), RHSStr.data(), Len);
+      if (Cmp < 0)
+        Ret = -1;
+      else if (Cmp > 0)
+        Ret = 1;
       return ConstantInt::get(CI->getType(), Ret);
     }
 
@@ -1016,6 +1041,630 @@ struct MemSetOpt : public LibCallOptimization {
   }
 };
 
+//===----------------------------------------------------------------------===//
+// Math Library Optimizations
+//===----------------------------------------------------------------------===//
+
+//===----------------------------------------------------------------------===//
+// Double -> Float Shrinking Optimizations for Unary Functions like 'floor'
+
+struct UnaryDoubleFPOpt : public LibCallOptimization {
+  bool CheckRetType;
+  UnaryDoubleFPOpt(bool CheckReturnType): CheckRetType(CheckReturnType) {}
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    FunctionType *FT = Callee->getFunctionType();
+    if (FT->getNumParams() != 1 || !FT->getReturnType()->isDoubleTy() ||
+        !FT->getParamType(0)->isDoubleTy())
+      return 0;
+
+    if (CheckRetType) {
+      // Check if all the uses for function like 'sin' are converted to float.
+      for (Value::use_iterator UseI = CI->use_begin(); UseI != CI->use_end();
+          ++UseI) {
+        FPTruncInst *Cast = dyn_cast<FPTruncInst>(*UseI);
+        if (Cast == 0 || !Cast->getType()->isFloatTy())
+          return 0;
+      }
+    }
+
+    // If this is something like 'floor((double)floatval)', convert to floorf.
+    FPExtInst *Cast = dyn_cast<FPExtInst>(CI->getArgOperand(0));
+    if (Cast == 0 || !Cast->getOperand(0)->getType()->isFloatTy())
+      return 0;
+
+    // floor((double)floatval) -> (double)floorf(floatval)
+    Value *V = Cast->getOperand(0);
+    V = EmitUnaryFloatFnCall(V, Callee->getName(), B, Callee->getAttributes());
+    return B.CreateFPExt(V, B.getDoubleTy());
+  }
+};
+
+struct UnsafeFPLibCallOptimization : public LibCallOptimization {
+  bool UnsafeFPShrink;
+  UnsafeFPLibCallOptimization(bool UnsafeFPShrink) {
+    this->UnsafeFPShrink = UnsafeFPShrink;
+  }
+};
+
+struct CosOpt : public UnsafeFPLibCallOptimization {
+  CosOpt(bool UnsafeFPShrink) : UnsafeFPLibCallOptimization(UnsafeFPShrink) {}
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    Value *Ret = NULL;
+    if (UnsafeFPShrink && Callee->getName() == "cos" &&
+        TLI->has(LibFunc::cosf)) {
+      UnaryDoubleFPOpt UnsafeUnaryDoubleFP(true);
+      Ret = UnsafeUnaryDoubleFP.callOptimizer(Callee, CI, B);
+    }
+
+    FunctionType *FT = Callee->getFunctionType();
+    // Just make sure this has 1 argument of FP type, which matches the
+    // result type.
+    if (FT->getNumParams() != 1 || FT->getReturnType() != FT->getParamType(0) ||
+        !FT->getParamType(0)->isFloatingPointTy())
+      return Ret;
+
+    // cos(-x) -> cos(x)
+    Value *Op1 = CI->getArgOperand(0);
+    if (BinaryOperator::isFNeg(Op1)) {
+      BinaryOperator *BinExpr = cast<BinaryOperator>(Op1);
+      return B.CreateCall(Callee, BinExpr->getOperand(1), "cos");
+    }
+    return Ret;
+  }
+};
+
+struct PowOpt : public UnsafeFPLibCallOptimization {
+  PowOpt(bool UnsafeFPShrink) : UnsafeFPLibCallOptimization(UnsafeFPShrink) {}
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    Value *Ret = NULL;
+    if (UnsafeFPShrink && Callee->getName() == "pow" &&
+        TLI->has(LibFunc::powf)) {
+      UnaryDoubleFPOpt UnsafeUnaryDoubleFP(true);
+      Ret = UnsafeUnaryDoubleFP.callOptimizer(Callee, CI, B);
+    }
+
+    FunctionType *FT = Callee->getFunctionType();
+    // Just make sure this has 2 arguments of the same FP type, which match the
+    // result type.
+    if (FT->getNumParams() != 2 || FT->getReturnType() != FT->getParamType(0) ||
+        FT->getParamType(0) != FT->getParamType(1) ||
+        !FT->getParamType(0)->isFloatingPointTy())
+      return Ret;
+
+    Value *Op1 = CI->getArgOperand(0), *Op2 = CI->getArgOperand(1);
+    if (ConstantFP *Op1C = dyn_cast<ConstantFP>(Op1)) {
+      if (Op1C->isExactlyValue(1.0))  // pow(1.0, x) -> 1.0
+        return Op1C;
+      if (Op1C->isExactlyValue(2.0))  // pow(2.0, x) -> exp2(x)
+        return EmitUnaryFloatFnCall(Op2, "exp2", B, Callee->getAttributes());
+    }
+
+    ConstantFP *Op2C = dyn_cast<ConstantFP>(Op2);
+    if (Op2C == 0) return Ret;
+
+    if (Op2C->getValueAPF().isZero())  // pow(x, 0.0) -> 1.0
+      return ConstantFP::get(CI->getType(), 1.0);
+
+    if (Op2C->isExactlyValue(0.5)) {
+      // Expand pow(x, 0.5) to (x == -infinity ? +infinity : fabs(sqrt(x))).
+      // This is faster than calling pow, and still handles negative zero
+      // and negative infinity correctly.
+      // TODO: In fast-math mode, this could be just sqrt(x).
+      // TODO: In finite-only mode, this could be just fabs(sqrt(x)).
+      Value *Inf = ConstantFP::getInfinity(CI->getType());
+      Value *NegInf = ConstantFP::getInfinity(CI->getType(), true);
+      Value *Sqrt = EmitUnaryFloatFnCall(Op1, "sqrt", B,
+                                         Callee->getAttributes());
+      Value *FAbs = EmitUnaryFloatFnCall(Sqrt, "fabs", B,
+                                         Callee->getAttributes());
+      Value *FCmp = B.CreateFCmpOEQ(Op1, NegInf);
+      Value *Sel = B.CreateSelect(FCmp, Inf, FAbs);
+      return Sel;
+    }
+
+    if (Op2C->isExactlyValue(1.0))  // pow(x, 1.0) -> x
+      return Op1;
+    if (Op2C->isExactlyValue(2.0))  // pow(x, 2.0) -> x*x
+      return B.CreateFMul(Op1, Op1, "pow2");
+    if (Op2C->isExactlyValue(-1.0)) // pow(x, -1.0) -> 1.0/x
+      return B.CreateFDiv(ConstantFP::get(CI->getType(), 1.0),
+                          Op1, "powrecip");
+    return 0;
+  }
+};
+
+struct Exp2Opt : public UnsafeFPLibCallOptimization {
+  Exp2Opt(bool UnsafeFPShrink) : UnsafeFPLibCallOptimization(UnsafeFPShrink) {}
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    Value *Ret = NULL;
+    if (UnsafeFPShrink && Callee->getName() == "exp2" &&
+        TLI->has(LibFunc::exp2)) {
+      UnaryDoubleFPOpt UnsafeUnaryDoubleFP(true);
+      Ret = UnsafeUnaryDoubleFP.callOptimizer(Callee, CI, B);
+    }
+
+    FunctionType *FT = Callee->getFunctionType();
+    // Just make sure this has 1 argument of FP type, which matches the
+    // result type.
+    if (FT->getNumParams() != 1 || FT->getReturnType() != FT->getParamType(0) ||
+        !FT->getParamType(0)->isFloatingPointTy())
+      return Ret;
+
+    Value *Op = CI->getArgOperand(0);
+    // Turn exp2(sitofp(x)) -> ldexp(1.0, sext(x))  if sizeof(x) <= 32
+    // Turn exp2(uitofp(x)) -> ldexp(1.0, zext(x))  if sizeof(x) < 32
+    Value *LdExpArg = 0;
+    if (SIToFPInst *OpC = dyn_cast<SIToFPInst>(Op)) {
+      if (OpC->getOperand(0)->getType()->getPrimitiveSizeInBits() <= 32)
+        LdExpArg = B.CreateSExt(OpC->getOperand(0), B.getInt32Ty());
+    } else if (UIToFPInst *OpC = dyn_cast<UIToFPInst>(Op)) {
+      if (OpC->getOperand(0)->getType()->getPrimitiveSizeInBits() < 32)
+        LdExpArg = B.CreateZExt(OpC->getOperand(0), B.getInt32Ty());
+    }
+
+    if (LdExpArg) {
+      const char *Name;
+      if (Op->getType()->isFloatTy())
+        Name = "ldexpf";
+      else if (Op->getType()->isDoubleTy())
+        Name = "ldexp";
+      else
+        Name = "ldexpl";
+
+      Constant *One = ConstantFP::get(*Context, APFloat(1.0f));
+      if (!Op->getType()->isFloatTy())
+        One = ConstantExpr::getFPExtend(One, Op->getType());
+
+      Module *M = Caller->getParent();
+      Value *Callee = M->getOrInsertFunction(Name, Op->getType(),
+                                             Op->getType(),
+                                             B.getInt32Ty(), NULL);
+      CallInst *CI = B.CreateCall2(Callee, One, LdExpArg);
+      if (const Function *F = dyn_cast<Function>(Callee->stripPointerCasts()))
+        CI->setCallingConv(F->getCallingConv());
+
+      return CI;
+    }
+    return Ret;
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// Integer Library Call Optimizations
+//===----------------------------------------------------------------------===//
+
+struct FFSOpt : public LibCallOptimization {
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    FunctionType *FT = Callee->getFunctionType();
+    // Just make sure this has 2 arguments of the same FP type, which match the
+    // result type.
+    if (FT->getNumParams() != 1 ||
+        !FT->getReturnType()->isIntegerTy(32) ||
+        !FT->getParamType(0)->isIntegerTy())
+      return 0;
+
+    Value *Op = CI->getArgOperand(0);
+
+    // Constant fold.
+    if (ConstantInt *CI = dyn_cast<ConstantInt>(Op)) {
+      if (CI->isZero()) // ffs(0) -> 0.
+        return B.getInt32(0);
+      // ffs(c) -> cttz(c)+1
+      return B.getInt32(CI->getValue().countTrailingZeros() + 1);
+    }
+
+    // ffs(x) -> x != 0 ? (i32)llvm.cttz(x)+1 : 0
+    Type *ArgType = Op->getType();
+    Value *F = Intrinsic::getDeclaration(Callee->getParent(),
+                                         Intrinsic::cttz, ArgType);
+    Value *V = B.CreateCall2(F, Op, B.getFalse(), "cttz");
+    V = B.CreateAdd(V, ConstantInt::get(V->getType(), 1));
+    V = B.CreateIntCast(V, B.getInt32Ty(), false);
+
+    Value *Cond = B.CreateICmpNE(Op, Constant::getNullValue(ArgType));
+    return B.CreateSelect(Cond, V, B.getInt32(0));
+  }
+};
+
+struct AbsOpt : public LibCallOptimization {
+  virtual bool ignoreCallingConv() { return true; }
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    FunctionType *FT = Callee->getFunctionType();
+    // We require integer(integer) where the types agree.
+    if (FT->getNumParams() != 1 || !FT->getReturnType()->isIntegerTy() ||
+        FT->getParamType(0) != FT->getReturnType())
+      return 0;
+
+    // abs(x) -> x >s -1 ? x : -x
+    Value *Op = CI->getArgOperand(0);
+    Value *Pos = B.CreateICmpSGT(Op, Constant::getAllOnesValue(Op->getType()),
+                                 "ispos");
+    Value *Neg = B.CreateNeg(Op, "neg");
+    return B.CreateSelect(Pos, Op, Neg);
+  }
+};
+
+struct IsDigitOpt : public LibCallOptimization {
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    FunctionType *FT = Callee->getFunctionType();
+    // We require integer(i32)
+    if (FT->getNumParams() != 1 || !FT->getReturnType()->isIntegerTy() ||
+        !FT->getParamType(0)->isIntegerTy(32))
+      return 0;
+
+    // isdigit(c) -> (c-'0') <u 10
+    Value *Op = CI->getArgOperand(0);
+    Op = B.CreateSub(Op, B.getInt32('0'), "isdigittmp");
+    Op = B.CreateICmpULT(Op, B.getInt32(10), "isdigit");
+    return B.CreateZExt(Op, CI->getType());
+  }
+};
+
+struct IsAsciiOpt : public LibCallOptimization {
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    FunctionType *FT = Callee->getFunctionType();
+    // We require integer(i32)
+    if (FT->getNumParams() != 1 || !FT->getReturnType()->isIntegerTy() ||
+        !FT->getParamType(0)->isIntegerTy(32))
+      return 0;
+
+    // isascii(c) -> c <u 128
+    Value *Op = CI->getArgOperand(0);
+    Op = B.CreateICmpULT(Op, B.getInt32(128), "isascii");
+    return B.CreateZExt(Op, CI->getType());
+  }
+};
+
+struct ToAsciiOpt : public LibCallOptimization {
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    FunctionType *FT = Callee->getFunctionType();
+    // We require i32(i32)
+    if (FT->getNumParams() != 1 || FT->getReturnType() != FT->getParamType(0) ||
+        !FT->getParamType(0)->isIntegerTy(32))
+      return 0;
+
+    // toascii(c) -> c & 0x7f
+    return B.CreateAnd(CI->getArgOperand(0),
+                       ConstantInt::get(CI->getType(),0x7F));
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// Formatting and IO Library Call Optimizations
+//===----------------------------------------------------------------------===//
+
+struct PrintFOpt : public LibCallOptimization {
+  Value *optimizeFixedFormatString(Function *Callee, CallInst *CI,
+                                   IRBuilder<> &B) {
+    // Check for a fixed format string.
+    StringRef FormatStr;
+    if (!getConstantStringInfo(CI->getArgOperand(0), FormatStr))
+      return 0;
+
+    // Empty format string -> noop.
+    if (FormatStr.empty())  // Tolerate printf's declared void.
+      return CI->use_empty() ? (Value*)CI :
+                               ConstantInt::get(CI->getType(), 0);
+
+    // Do not do any of the following transformations if the printf return value
+    // is used, in general the printf return value is not compatible with either
+    // putchar() or puts().
+    if (!CI->use_empty())
+      return 0;
+
+    // printf("x") -> putchar('x'), even for '%'.
+    if (FormatStr.size() == 1) {
+      Value *Res = EmitPutChar(B.getInt32(FormatStr[0]), B, TD, TLI);
+      if (CI->use_empty() || !Res) return Res;
+      return B.CreateIntCast(Res, CI->getType(), true);
+    }
+
+    // printf("foo\n") --> puts("foo")
+    if (FormatStr[FormatStr.size()-1] == '\n' &&
+        FormatStr.find('%') == std::string::npos) {  // no format characters.
+      // Create a string literal with no \n on it.  We expect the constant merge
+      // pass to be run after this pass, to merge duplicate strings.
+      FormatStr = FormatStr.drop_back();
+      Value *GV = B.CreateGlobalString(FormatStr, "str");
+      Value *NewCI = EmitPutS(GV, B, TD, TLI);
+      return (CI->use_empty() || !NewCI) ?
+              NewCI :
+              ConstantInt::get(CI->getType(), FormatStr.size()+1);
+    }
+
+    // Optimize specific format strings.
+    // printf("%c", chr) --> putchar(chr)
+    if (FormatStr == "%c" && CI->getNumArgOperands() > 1 &&
+        CI->getArgOperand(1)->getType()->isIntegerTy()) {
+      Value *Res = EmitPutChar(CI->getArgOperand(1), B, TD, TLI);
+
+      if (CI->use_empty() || !Res) return Res;
+      return B.CreateIntCast(Res, CI->getType(), true);
+    }
+
+    // printf("%s\n", str) --> puts(str)
+    if (FormatStr == "%s\n" && CI->getNumArgOperands() > 1 &&
+        CI->getArgOperand(1)->getType()->isPointerTy()) {
+      return EmitPutS(CI->getArgOperand(1), B, TD, TLI);
+    }
+    return 0;
+  }
+
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    // Require one fixed pointer argument and an integer/void result.
+    FunctionType *FT = Callee->getFunctionType();
+    if (FT->getNumParams() < 1 || !FT->getParamType(0)->isPointerTy() ||
+        !(FT->getReturnType()->isIntegerTy() ||
+          FT->getReturnType()->isVoidTy()))
+      return 0;
+
+    if (Value *V = optimizeFixedFormatString(Callee, CI, B)) {
+      return V;
+    }
+
+    // printf(format, ...) -> iprintf(format, ...) if no floating point
+    // arguments.
+    if (TLI->has(LibFunc::iprintf) && !callHasFloatingPointArgument(CI)) {
+      Module *M = B.GetInsertBlock()->getParent()->getParent();
+      Constant *IPrintFFn =
+        M->getOrInsertFunction("iprintf", FT, Callee->getAttributes());
+      CallInst *New = cast<CallInst>(CI->clone());
+      New->setCalledFunction(IPrintFFn);
+      B.Insert(New);
+      return New;
+    }
+    return 0;
+  }
+};
+
+struct SPrintFOpt : public LibCallOptimization {
+  Value *OptimizeFixedFormatString(Function *Callee, CallInst *CI,
+                                   IRBuilder<> &B) {
+    // Check for a fixed format string.
+    StringRef FormatStr;
+    if (!getConstantStringInfo(CI->getArgOperand(1), FormatStr))
+      return 0;
+
+    // If we just have a format string (nothing else crazy) transform it.
+    if (CI->getNumArgOperands() == 2) {
+      // Make sure there's no % in the constant array.  We could try to handle
+      // %% -> % in the future if we cared.
+      for (unsigned i = 0, e = FormatStr.size(); i != e; ++i)
+        if (FormatStr[i] == '%')
+          return 0; // we found a format specifier, bail out.
+
+      // These optimizations require DataLayout.
+      if (!TD) return 0;
+
+      // sprintf(str, fmt) -> llvm.memcpy(str, fmt, strlen(fmt)+1, 1)
+      B.CreateMemCpy(CI->getArgOperand(0), CI->getArgOperand(1),
+                     ConstantInt::get(TD->getIntPtrType(*Context), // Copy the
+                                      FormatStr.size() + 1), 1);   // nul byte.
+      return ConstantInt::get(CI->getType(), FormatStr.size());
+    }
+
+    // The remaining optimizations require the format string to be "%s" or "%c"
+    // and have an extra operand.
+    if (FormatStr.size() != 2 || FormatStr[0] != '%' ||
+        CI->getNumArgOperands() < 3)
+      return 0;
+
+    // Decode the second character of the format string.
+    if (FormatStr[1] == 'c') {
+      // sprintf(dst, "%c", chr) --> *(i8*)dst = chr; *((i8*)dst+1) = 0
+      if (!CI->getArgOperand(2)->getType()->isIntegerTy()) return 0;
+      Value *V = B.CreateTrunc(CI->getArgOperand(2), B.getInt8Ty(), "char");
+      Value *Ptr = CastToCStr(CI->getArgOperand(0), B);
+      B.CreateStore(V, Ptr);
+      Ptr = B.CreateGEP(Ptr, B.getInt32(1), "nul");
+      B.CreateStore(B.getInt8(0), Ptr);
+
+      return ConstantInt::get(CI->getType(), 1);
+    }
+
+    if (FormatStr[1] == 's') {
+      // These optimizations require DataLayout.
+      if (!TD) return 0;
+
+      // sprintf(dest, "%s", str) -> llvm.memcpy(dest, str, strlen(str)+1, 1)
+      if (!CI->getArgOperand(2)->getType()->isPointerTy()) return 0;
+
+      Value *Len = EmitStrLen(CI->getArgOperand(2), B, TD, TLI);
+      if (!Len)
+        return 0;
+      Value *IncLen = B.CreateAdd(Len,
+                                  ConstantInt::get(Len->getType(), 1),
+                                  "leninc");
+      B.CreateMemCpy(CI->getArgOperand(0), CI->getArgOperand(2), IncLen, 1);
+
+      // The sprintf result is the unincremented number of bytes in the string.
+      return B.CreateIntCast(Len, CI->getType(), false);
+    }
+    return 0;
+  }
+
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    // Require two fixed pointer arguments and an integer result.
+    FunctionType *FT = Callee->getFunctionType();
+    if (FT->getNumParams() != 2 || !FT->getParamType(0)->isPointerTy() ||
+        !FT->getParamType(1)->isPointerTy() ||
+        !FT->getReturnType()->isIntegerTy())
+      return 0;
+
+    if (Value *V = OptimizeFixedFormatString(Callee, CI, B)) {
+      return V;
+    }
+
+    // sprintf(str, format, ...) -> siprintf(str, format, ...) if no floating
+    // point arguments.
+    if (TLI->has(LibFunc::siprintf) && !callHasFloatingPointArgument(CI)) {
+      Module *M = B.GetInsertBlock()->getParent()->getParent();
+      Constant *SIPrintFFn =
+        M->getOrInsertFunction("siprintf", FT, Callee->getAttributes());
+      CallInst *New = cast<CallInst>(CI->clone());
+      New->setCalledFunction(SIPrintFFn);
+      B.Insert(New);
+      return New;
+    }
+    return 0;
+  }
+};
+
+struct FPrintFOpt : public LibCallOptimization {
+  Value *optimizeFixedFormatString(Function *Callee, CallInst *CI,
+                                   IRBuilder<> &B) {
+    // All the optimizations depend on the format string.
+    StringRef FormatStr;
+    if (!getConstantStringInfo(CI->getArgOperand(1), FormatStr))
+      return 0;
+
+    // fprintf(F, "foo") --> fwrite("foo", 3, 1, F)
+    if (CI->getNumArgOperands() == 2) {
+      for (unsigned i = 0, e = FormatStr.size(); i != e; ++i)
+        if (FormatStr[i] == '%')  // Could handle %% -> % if we cared.
+          return 0; // We found a format specifier.
+
+      // These optimizations require DataLayout.
+      if (!TD) return 0;
+
+      Value *NewCI = EmitFWrite(CI->getArgOperand(1),
+                                ConstantInt::get(TD->getIntPtrType(*Context),
+                                                 FormatStr.size()),
+                                CI->getArgOperand(0), B, TD, TLI);
+      return NewCI ? ConstantInt::get(CI->getType(), FormatStr.size()) : 0;
+    }
+
+    // The remaining optimizations require the format string to be "%s" or "%c"
+    // and have an extra operand.
+    if (FormatStr.size() != 2 || FormatStr[0] != '%' ||
+        CI->getNumArgOperands() < 3)
+      return 0;
+
+    // Decode the second character of the format string.
+    if (FormatStr[1] == 'c') {
+      // fprintf(F, "%c", chr) --> fputc(chr, F)
+      if (!CI->getArgOperand(2)->getType()->isIntegerTy()) return 0;
+      Value *NewCI = EmitFPutC(CI->getArgOperand(2), CI->getArgOperand(0), B,
+                               TD, TLI);
+      return NewCI ? ConstantInt::get(CI->getType(), 1) : 0;
+    }
+
+    if (FormatStr[1] == 's') {
+      // fprintf(F, "%s", str) --> fputs(str, F)
+      if (!CI->getArgOperand(2)->getType()->isPointerTy() || !CI->use_empty())
+        return 0;
+      return EmitFPutS(CI->getArgOperand(2), CI->getArgOperand(0), B, TD, TLI);
+    }
+    return 0;
+  }
+
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    // Require two fixed paramters as pointers and integer result.
+    FunctionType *FT = Callee->getFunctionType();
+    if (FT->getNumParams() != 2 || !FT->getParamType(0)->isPointerTy() ||
+        !FT->getParamType(1)->isPointerTy() ||
+        !FT->getReturnType()->isIntegerTy())
+      return 0;
+
+    if (Value *V = optimizeFixedFormatString(Callee, CI, B)) {
+      return V;
+    }
+
+    // fprintf(stream, format, ...) -> fiprintf(stream, format, ...) if no
+    // floating point arguments.
+    if (TLI->has(LibFunc::fiprintf) && !callHasFloatingPointArgument(CI)) {
+      Module *M = B.GetInsertBlock()->getParent()->getParent();
+      Constant *FIPrintFFn =
+        M->getOrInsertFunction("fiprintf", FT, Callee->getAttributes());
+      CallInst *New = cast<CallInst>(CI->clone());
+      New->setCalledFunction(FIPrintFFn);
+      B.Insert(New);
+      return New;
+    }
+    return 0;
+  }
+};
+
+struct FWriteOpt : public LibCallOptimization {
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    // Require a pointer, an integer, an integer, a pointer, returning integer.
+    FunctionType *FT = Callee->getFunctionType();
+    if (FT->getNumParams() != 4 || !FT->getParamType(0)->isPointerTy() ||
+        !FT->getParamType(1)->isIntegerTy() ||
+        !FT->getParamType(2)->isIntegerTy() ||
+        !FT->getParamType(3)->isPointerTy() ||
+        !FT->getReturnType()->isIntegerTy())
+      return 0;
+
+    // Get the element size and count.
+    ConstantInt *SizeC = dyn_cast<ConstantInt>(CI->getArgOperand(1));
+    ConstantInt *CountC = dyn_cast<ConstantInt>(CI->getArgOperand(2));
+    if (!SizeC || !CountC) return 0;
+    uint64_t Bytes = SizeC->getZExtValue()*CountC->getZExtValue();
+
+    // If this is writing zero records, remove the call (it's a noop).
+    if (Bytes == 0)
+      return ConstantInt::get(CI->getType(), 0);
+
+    // If this is writing one byte, turn it into fputc.
+    // This optimisation is only valid, if the return value is unused.
+    if (Bytes == 1 && CI->use_empty()) {  // fwrite(S,1,1,F) -> fputc(S[0],F)
+      Value *Char = B.CreateLoad(CastToCStr(CI->getArgOperand(0), B), "char");
+      Value *NewCI = EmitFPutC(Char, CI->getArgOperand(3), B, TD, TLI);
+      return NewCI ? ConstantInt::get(CI->getType(), 1) : 0;
+    }
+
+    return 0;
+  }
+};
+
+struct FPutsOpt : public LibCallOptimization {
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    // These optimizations require DataLayout.
+    if (!TD) return 0;
+
+    // Require two pointers.  Also, we can't optimize if return value is used.
+    FunctionType *FT = Callee->getFunctionType();
+    if (FT->getNumParams() != 2 || !FT->getParamType(0)->isPointerTy() ||
+        !FT->getParamType(1)->isPointerTy() ||
+        !CI->use_empty())
+      return 0;
+
+    // fputs(s,F) --> fwrite(s,1,strlen(s),F)
+    uint64_t Len = GetStringLength(CI->getArgOperand(0));
+    if (!Len) return 0;
+    // Known to have no uses (see above).
+    return EmitFWrite(CI->getArgOperand(0),
+                      ConstantInt::get(TD->getIntPtrType(*Context), Len-1),
+                      CI->getArgOperand(1), B, TD, TLI);
+  }
+};
+
+struct PutsOpt : public LibCallOptimization {
+  virtual Value *callOptimizer(Function *Callee, CallInst *CI, IRBuilder<> &B) {
+    // Require one fixed pointer argument and an integer/void result.
+    FunctionType *FT = Callee->getFunctionType();
+    if (FT->getNumParams() < 1 || !FT->getParamType(0)->isPointerTy() ||
+        !(FT->getReturnType()->isIntegerTy() ||
+          FT->getReturnType()->isVoidTy()))
+      return 0;
+
+    // Check for a constant string.
+    StringRef Str;
+    if (!getConstantStringInfo(CI->getArgOperand(0), Str))
+      return 0;
+
+    if (Str.empty() && CI->use_empty()) {
+      // puts("") -> putchar('\n')
+      Value *Res = EmitPutChar(B.getInt32('\n'), B, TD, TLI);
+      if (CI->use_empty() || !Res) return Res;
+      return B.CreateIntCast(Res, CI->getType(), true);
+    }
+
+    return 0;
+  }
+};
+
 } // End anonymous namespace.
 
 namespace llvm {
@@ -1024,98 +1673,252 @@ class LibCallSimplifierImpl {
   const DataLayout *TD;
   const TargetLibraryInfo *TLI;
   const LibCallSimplifier *LCS;
-  StringMap<LibCallOptimization*> Optimizations;
+  bool UnsafeFPShrink;
 
-  // Fortified library call optimizations.
-  MemCpyChkOpt MemCpyChk;
-  MemMoveChkOpt MemMoveChk;
-  MemSetChkOpt MemSetChk;
-  StrCpyChkOpt StrCpyChk;
-  StpCpyChkOpt StpCpyChk;
-  StrNCpyChkOpt StrNCpyChk;
-
-  // String library call optimizations.
-  StrCatOpt StrCat;
-  StrNCatOpt StrNCat;
-  StrChrOpt StrChr;
-  StrRChrOpt StrRChr;
-  StrCmpOpt StrCmp;
-  StrNCmpOpt StrNCmp;
-  StrCpyOpt StrCpy;
-  StpCpyOpt StpCpy;
-  StrNCpyOpt StrNCpy;
-  StrLenOpt StrLen;
-  StrPBrkOpt StrPBrk;
-  StrToOpt StrTo;
-  StrSpnOpt StrSpn;
-  StrCSpnOpt StrCSpn;
-  StrStrOpt StrStr;
-
-  // Memory library call optimizations.
-  MemCmpOpt MemCmp;
-  MemCpyOpt MemCpy;
-  MemMoveOpt MemMove;
-  MemSetOpt MemSet;
-
-  void initOptimizations();
-  void addOpt(LibFunc::Func F, LibCallOptimization* Opt);
+  // Math library call optimizations.
+  CosOpt Cos;
+  PowOpt Pow;
+  Exp2Opt Exp2;
 public:
   LibCallSimplifierImpl(const DataLayout *TD, const TargetLibraryInfo *TLI,
-                        const LibCallSimplifier *LCS) {
+                        const LibCallSimplifier *LCS,
+                        bool UnsafeFPShrink = false)
+    : Cos(UnsafeFPShrink), Pow(UnsafeFPShrink), Exp2(UnsafeFPShrink) {
     this->TD = TD;
     this->TLI = TLI;
     this->LCS = LCS;
+    this->UnsafeFPShrink = UnsafeFPShrink;
   }
 
   Value *optimizeCall(CallInst *CI);
+  LibCallOptimization *lookupOptimization(CallInst *CI);
+  bool hasFloatVersion(StringRef FuncName);
 };
 
-void LibCallSimplifierImpl::initOptimizations() {
-  // Fortified library call optimizations.
-  Optimizations["__memcpy_chk"] = &MemCpyChk;
-  Optimizations["__memmove_chk"] = &MemMoveChk;
-  Optimizations["__memset_chk"] = &MemSetChk;
-  Optimizations["__strcpy_chk"] = &StrCpyChk;
-  Optimizations["__stpcpy_chk"] = &StpCpyChk;
-  Optimizations["__strncpy_chk"] = &StrNCpyChk;
-  Optimizations["__stpncpy_chk"] = &StrNCpyChk;
+bool LibCallSimplifierImpl::hasFloatVersion(StringRef FuncName) {
+  LibFunc::Func Func;
+  SmallString<20> FloatFuncName = FuncName;
+  FloatFuncName += 'f';
+  if (TLI->getLibFunc(FloatFuncName, Func))
+    return TLI->has(Func);
+  return false;
+}
 
-  // String library call optimizations.
-  addOpt(LibFunc::strcat, &StrCat);
-  addOpt(LibFunc::strncat, &StrNCat);
-  addOpt(LibFunc::strchr, &StrChr);
-  addOpt(LibFunc::strrchr, &StrRChr);
-  addOpt(LibFunc::strcmp, &StrCmp);
-  addOpt(LibFunc::strncmp, &StrNCmp);
-  addOpt(LibFunc::strcpy, &StrCpy);
-  addOpt(LibFunc::stpcpy, &StpCpy);
-  addOpt(LibFunc::strncpy, &StrNCpy);
-  addOpt(LibFunc::strlen, &StrLen);
-  addOpt(LibFunc::strpbrk, &StrPBrk);
-  addOpt(LibFunc::strtol, &StrTo);
-  addOpt(LibFunc::strtod, &StrTo);
-  addOpt(LibFunc::strtof, &StrTo);
-  addOpt(LibFunc::strtoul, &StrTo);
-  addOpt(LibFunc::strtoll, &StrTo);
-  addOpt(LibFunc::strtold, &StrTo);
-  addOpt(LibFunc::strtoull, &StrTo);
-  addOpt(LibFunc::strspn, &StrSpn);
-  addOpt(LibFunc::strcspn, &StrCSpn);
-  addOpt(LibFunc::strstr, &StrStr);
+// Fortified library call optimizations.
+static MemCpyChkOpt MemCpyChk;
+static MemMoveChkOpt MemMoveChk;
+static MemSetChkOpt MemSetChk;
+static StrCpyChkOpt StrCpyChk;
+static StpCpyChkOpt StpCpyChk;
+static StrNCpyChkOpt StrNCpyChk;
 
-  // Memory library call optimizations.
-  addOpt(LibFunc::memcmp, &MemCmp);
-  addOpt(LibFunc::memcpy, &MemCpy);
-  addOpt(LibFunc::memmove, &MemMove);
-  addOpt(LibFunc::memset, &MemSet);
+// String library call optimizations.
+static StrCatOpt StrCat;
+static StrNCatOpt StrNCat;
+static StrChrOpt StrChr;
+static StrRChrOpt StrRChr;
+static StrCmpOpt StrCmp;
+static StrNCmpOpt StrNCmp;
+static StrCpyOpt StrCpy;
+static StpCpyOpt StpCpy;
+static StrNCpyOpt StrNCpy;
+static StrLenOpt StrLen;
+static StrPBrkOpt StrPBrk;
+static StrToOpt StrTo;
+static StrSpnOpt StrSpn;
+static StrCSpnOpt StrCSpn;
+static StrStrOpt StrStr;
+
+// Memory library call optimizations.
+static MemCmpOpt MemCmp;
+static MemCpyOpt MemCpy;
+static MemMoveOpt MemMove;
+static MemSetOpt MemSet;
+
+// Math library call optimizations.
+static UnaryDoubleFPOpt UnaryDoubleFP(false);
+static UnaryDoubleFPOpt UnsafeUnaryDoubleFP(true);
+
+  // Integer library call optimizations.
+static FFSOpt FFS;
+static AbsOpt Abs;
+static IsDigitOpt IsDigit;
+static IsAsciiOpt IsAscii;
+static ToAsciiOpt ToAscii;
+
+// Formatting and IO library call optimizations.
+static PrintFOpt PrintF;
+static SPrintFOpt SPrintF;
+static FPrintFOpt FPrintF;
+static FWriteOpt FWrite;
+static FPutsOpt FPuts;
+static PutsOpt Puts;
+
+LibCallOptimization *LibCallSimplifierImpl::lookupOptimization(CallInst *CI) {
+  LibFunc::Func Func;
+  Function *Callee = CI->getCalledFunction();
+  StringRef FuncName = Callee->getName();
+
+  // Next check for intrinsics.
+  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(CI)) {
+    switch (II->getIntrinsicID()) {
+    case Intrinsic::pow:
+       return &Pow;
+    case Intrinsic::exp2:
+       return &Exp2;
+    default:
+       return 0;
+    }
+  }
+
+  // Then check for known library functions.
+  if (TLI->getLibFunc(FuncName, Func) && TLI->has(Func)) {
+    switch (Func) {
+      case LibFunc::strcat:
+        return &StrCat;
+      case LibFunc::strncat:
+        return &StrNCat;
+      case LibFunc::strchr:
+        return &StrChr;
+      case LibFunc::strrchr:
+        return &StrRChr;
+      case LibFunc::strcmp:
+        return &StrCmp;
+      case LibFunc::strncmp:
+        return &StrNCmp;
+      case LibFunc::strcpy:
+        return &StrCpy;
+      case LibFunc::stpcpy:
+        return &StpCpy;
+      case LibFunc::strncpy:
+        return &StrNCpy;
+      case LibFunc::strlen:
+        return &StrLen;
+      case LibFunc::strpbrk:
+        return &StrPBrk;
+      case LibFunc::strtol:
+      case LibFunc::strtod:
+      case LibFunc::strtof:
+      case LibFunc::strtoul:
+      case LibFunc::strtoll:
+      case LibFunc::strtold:
+      case LibFunc::strtoull:
+        return &StrTo;
+      case LibFunc::strspn:
+        return &StrSpn;
+      case LibFunc::strcspn:
+        return &StrCSpn;
+      case LibFunc::strstr:
+        return &StrStr;
+      case LibFunc::memcmp:
+        return &MemCmp;
+      case LibFunc::memcpy:
+        return &MemCpy;
+      case LibFunc::memmove:
+        return &MemMove;
+      case LibFunc::memset:
+        return &MemSet;
+      case LibFunc::cosf:
+      case LibFunc::cos:
+      case LibFunc::cosl:
+        return &Cos;
+      case LibFunc::powf:
+      case LibFunc::pow:
+      case LibFunc::powl:
+        return &Pow;
+      case LibFunc::exp2l:
+      case LibFunc::exp2:
+      case LibFunc::exp2f:
+        return &Exp2;
+      case LibFunc::ffs:
+      case LibFunc::ffsl:
+      case LibFunc::ffsll:
+        return &FFS;
+      case LibFunc::abs:
+      case LibFunc::labs:
+      case LibFunc::llabs:
+        return &Abs;
+      case LibFunc::isdigit:
+        return &IsDigit;
+      case LibFunc::isascii:
+        return &IsAscii;
+      case LibFunc::toascii:
+        return &ToAscii;
+      case LibFunc::printf:
+        return &PrintF;
+      case LibFunc::sprintf:
+        return &SPrintF;
+      case LibFunc::fprintf:
+        return &FPrintF;
+      case LibFunc::fwrite:
+        return &FWrite;
+      case LibFunc::fputs:
+        return &FPuts;
+      case LibFunc::puts:
+        return &Puts;
+      case LibFunc::ceil:
+      case LibFunc::fabs:
+      case LibFunc::floor:
+      case LibFunc::rint:
+      case LibFunc::round:
+      case LibFunc::nearbyint:
+      case LibFunc::trunc:
+        if (hasFloatVersion(FuncName))
+          return &UnaryDoubleFP;
+        return 0;
+      case LibFunc::acos:
+      case LibFunc::acosh:
+      case LibFunc::asin:
+      case LibFunc::asinh:
+      case LibFunc::atan:
+      case LibFunc::atanh:
+      case LibFunc::cbrt:
+      case LibFunc::cosh:
+      case LibFunc::exp:
+      case LibFunc::exp10:
+      case LibFunc::expm1:
+      case LibFunc::log:
+      case LibFunc::log10:
+      case LibFunc::log1p:
+      case LibFunc::log2:
+      case LibFunc::logb:
+      case LibFunc::sin:
+      case LibFunc::sinh:
+      case LibFunc::sqrt:
+      case LibFunc::tan:
+      case LibFunc::tanh:
+        if (UnsafeFPShrink && hasFloatVersion(FuncName))
+         return &UnsafeUnaryDoubleFP;
+        return 0;
+      case LibFunc::memcpy_chk:
+        return &MemCpyChk;
+      default:
+        return 0;
+      }
+  }
+
+  // Finally check for fortified library calls.
+  if (FuncName.endswith("_chk")) {
+    if (FuncName == "__memmove_chk")
+      return &MemMoveChk;
+    else if (FuncName == "__memset_chk")
+      return &MemSetChk;
+    else if (FuncName == "__strcpy_chk")
+      return &StrCpyChk;
+    else if (FuncName == "__stpcpy_chk")
+      return &StpCpyChk;
+    else if (FuncName == "__strncpy_chk")
+      return &StrNCpyChk;
+    else if (FuncName == "__stpncpy_chk")
+      return &StrNCpyChk;
+  }
+
+  return 0;
+
 }
 
 Value *LibCallSimplifierImpl::optimizeCall(CallInst *CI) {
-  if (Optimizations.empty())
-    initOptimizations();
-
-  Function *Callee = CI->getCalledFunction();
-  LibCallOptimization *LCO = Optimizations.lookup(Callee->getName());
+  LibCallOptimization *LCO = lookupOptimization(CI);
   if (LCO) {
     IRBuilder<> Builder(CI);
     return LCO->optimizeCall(CI, TD, TLI, LCS, Builder);
@@ -1123,14 +1926,10 @@ Value *LibCallSimplifierImpl::optimizeCall(CallInst *CI) {
   return 0;
 }
 
-void LibCallSimplifierImpl::addOpt(LibFunc::Func F, LibCallOptimization* Opt) {
-  if (TLI->has(F))
-    Optimizations[TLI->getName(F)] = Opt;
-}
-
 LibCallSimplifier::LibCallSimplifier(const DataLayout *TD,
-                                     const TargetLibraryInfo *TLI) {
-  Impl = new LibCallSimplifierImpl(TD, TLI, this);
+                                     const TargetLibraryInfo *TLI,
+                                     bool UnsafeFPShrink) {
+  Impl = new LibCallSimplifierImpl(TD, TLI, this, UnsafeFPShrink);
 }
 
 LibCallSimplifier::~LibCallSimplifier() {
@@ -1138,6 +1937,7 @@ LibCallSimplifier::~LibCallSimplifier() {
 }
 
 Value *LibCallSimplifier::optimizeCall(CallInst *CI) {
+  if (CI->hasFnAttr(Attribute::NoBuiltin)) return 0;
   return Impl->optimizeCall(CI);
 }
 

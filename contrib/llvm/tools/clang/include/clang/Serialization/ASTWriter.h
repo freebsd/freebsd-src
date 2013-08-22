@@ -14,20 +14,19 @@
 #ifndef LLVM_CLANG_FRONTEND_AST_WRITER_H
 #define LLVM_CLANG_FRONTEND_AST_WRITER_H
 
+#include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/TemplateBase.h"
-#include "clang/AST/ASTMutationListener.h"
-#include "clang/Lex/PPMutationListener.h"
+#include "clang/Sema/SemaConsumer.h"
 #include "clang/Serialization/ASTBitCodes.h"
 #include "clang/Serialization/ASTDeserializationListener.h"
-#include "clang/Sema/SemaConsumer.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include <map>
 #include <queue>
@@ -48,12 +47,14 @@ class CXXCtorInitializer;
 class FileEntry;
 class FPOptions;
 class HeaderSearch;
+class HeaderSearchOptions;
 class IdentifierResolver;
 class MacroDefinition;
+class MacroDirective;
+class MacroInfo;
 class OpaqueValueExpr;
 class OpenCLOptions;
 class ASTReader;
-class MacroInfo;
 class Module;
 class PreprocessedEntity;
 class PreprocessingRecord;
@@ -63,6 +64,7 @@ class SourceManager;
 class SwitchCase;
 class TargetInfo;
 class VersionTuple;
+class ASTUnresolvedSet;
 
 namespace SrcMgr { class SLocEntry; }
 
@@ -73,7 +75,6 @@ namespace SrcMgr { class SLocEntry; }
 /// data structures. This bitstream can be de-serialized via an
 /// instance of the ASTReader class.
 class ASTWriter : public ASTDeserializationListener,
-                  public PPMutationListener,
                   public ASTMutationListener {
 public:
   typedef SmallVector<uint64_t, 64> RecordData;
@@ -231,6 +232,16 @@ private:
   /// \brief Map that provides the ID numbers of each macro.
   llvm::DenseMap<MacroInfo *, serialization::MacroID> MacroIDs;
 
+  struct MacroInfoToEmitData {
+    const IdentifierInfo *Name;
+    MacroInfo *MI;
+    serialization::MacroID ID;
+  };
+  /// \brief The macro infos to emit.
+  std::vector<MacroInfoToEmitData> MacroInfosToEmit;
+
+  llvm::DenseMap<const IdentifierInfo *, uint64_t> IdentMacroDirectivesOffsetMap;
+
   /// @name FlushStmt Caches
   /// @{
 
@@ -265,11 +276,6 @@ private:
   /// \brief Offset of each selector within the method pool/selector
   /// table, indexed by the Selector ID (-1).
   std::vector<uint32_t> SelectorOffsets;
-
-  typedef llvm::MapVector<MacroInfo *, MacroUpdate> MacroUpdatesMap;
-
-  /// \brief Updates to macro definitions that were loaded from an AST file.
-  MacroUpdatesMap MacroUpdates;
 
   /// \brief Mapping from macro definitions (as they occur in the preprocessing
   /// record) to the macro IDs.
@@ -343,7 +349,7 @@ private:
                  
   /// \brief The set of declarations that may have redeclaration chains that
   /// need to be serialized.
-  llvm::SetVector<Decl *, llvm::SmallVector<Decl *, 4>, 
+  llvm::SetVector<Decl *, SmallVector<Decl *, 4>,
                   llvm::SmallPtrSet<Decl *, 4> > Redeclarations;
                                       
   /// \brief Statements that we've encountered while serializing a
@@ -415,7 +421,9 @@ private:
   void WriteBlockInfoBlock();
   void WriteControlBlock(Preprocessor &PP, ASTContext &Context,
                          StringRef isysroot, const std::string &OutputFile);
-  void WriteInputFiles(SourceManager &SourceMgr, StringRef isysroot);
+  void WriteInputFiles(SourceManager &SourceMgr,
+                       HeaderSearchOptions &HSOpts,
+                       StringRef isysroot);
   void WriteSourceManagerBlock(SourceManager &SourceMgr,
                                const Preprocessor &PP,
                                StringRef isysroot);
@@ -424,7 +432,8 @@ private:
   void WritePreprocessorDetail(PreprocessingRecord &PPRec);
   void WriteSubmodules(Module *WritingModule);
                                         
-  void WritePragmaDiagnosticMappings(const DiagnosticsEngine &Diag);
+  void WritePragmaDiagnosticMappings(const DiagnosticsEngine &Diag,
+                                     bool isModule);
   void WriteCXXBaseSpecifiersOffsets();
   void WriteType(QualType T);
   uint64_t WriteDeclContextLexicalBlock(ASTContext &Context, DeclContext *DC);
@@ -437,7 +446,6 @@ private:
   void WriteIdentifierTable(Preprocessor &PP, IdentifierResolver &IdResolver,
                             bool IsModule);
   void WriteAttributes(ArrayRef<const Attr*> Attrs, RecordDataImpl &Record);
-  void WriteMacroUpdates();
   void ResolveDeclUpdatesBlocks();
   void WriteDeclUpdatesBlocks();
   void WriteDeclReplacementsBlock();
@@ -508,9 +516,6 @@ public:
   /// \brief Emit a reference to an identifier.
   void AddIdentifierRef(const IdentifierInfo *II, RecordDataImpl &Record);
 
-  /// \brief Emit a reference to a macro.
-  void addMacroRef(MacroInfo *MI, RecordDataImpl &Record);
-
   /// \brief Emit a Selector (which is a smart pointer reference).
   void AddSelectorRef(Selector, RecordDataImpl &Record);
 
@@ -529,7 +534,12 @@ public:
   serialization::IdentID getIdentifierRef(const IdentifierInfo *II);
 
   /// \brief Get the unique number used to refer to the given macro.
-  serialization::MacroID getMacroRef(MacroInfo *MI);
+  serialization::MacroID getMacroRef(MacroInfo *MI, const IdentifierInfo *Name);
+
+  /// \brief Determine the ID of an already-emitted macro.
+  serialization::MacroID getMacroID(MacroInfo *MI);
+
+  uint64_t getMacroDirectivesOffset(const IdentifierInfo *Name);
 
   /// \brief Emit a reference to a type.
   void AddTypeRef(QualType T, RecordDataImpl &Record);
@@ -603,7 +613,7 @@ public:
                                 RecordDataImpl &Record);
 
   /// \brief Emit a UnresolvedSet structure.
-  void AddUnresolvedSet(const UnresolvedSetImpl &Set, RecordDataImpl &Record);
+  void AddUnresolvedSet(const ASTUnresolvedSet &Set, RecordDataImpl &Record);
 
   /// \brief Emit a C++ base specifier.
   void AddCXXBaseSpecifier(const CXXBaseSpecifier &Base,
@@ -639,6 +649,10 @@ public:
   /// \brief Infer the submodule ID that contains an entity at the given
   /// source location.
   serialization::SubmoduleID inferSubmoduleIDFromLocation(SourceLocation Loc);
+
+  /// \brief Retrieve a submodule ID for this module.
+  /// Returns 0 If no ID has been associated with the module.
+  unsigned getExistingSubmoduleID(Module *Mod) const;
 
   /// \brief Note that the identifier II occurs at the given offset
   /// within the identifier table.
@@ -699,9 +713,6 @@ public:
                            MacroDefinition *MD);
   void ModuleRead(serialization::SubmoduleID ID, Module *Mod);
 
-  // PPMutationListener implementation.
-  virtual void UndefinedMacro(MacroInfo *MI);
-
   // ASTMutationListener implementation.
   virtual void CompletedTagDefinition(const TagDecl *D);
   virtual void AddedVisibleDecl(const DeclContext *DC, const Decl *D);
@@ -728,7 +739,7 @@ class PCHGenerator : public SemaConsumer {
   std::string isysroot;
   raw_ostream *Out;
   Sema *SemaPtr;
-  llvm::SmallVector<char, 128> Buffer;
+  SmallVector<char, 128> Buffer;
   llvm::BitstreamWriter Stream;
   ASTWriter Writer;
 
@@ -743,7 +754,6 @@ public:
   ~PCHGenerator();
   virtual void InitializeSema(Sema &S) { SemaPtr = &S; }
   virtual void HandleTranslationUnit(ASTContext &Ctx);
-  virtual PPMutationListener *GetPPMutationListener();
   virtual ASTMutationListener *GetASTMutationListener();
   virtual ASTDeserializationListener *GetASTDeserializationListener();
 };

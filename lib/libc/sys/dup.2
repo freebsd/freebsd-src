@@ -28,7 +28,7 @@
 .\"     @(#)dup.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2011
+.Dd April 21, 2013
 .Dt DUP 2
 .Os
 .Sh NAME
@@ -56,9 +56,6 @@ The argument
 .Fa oldd
 is a small non-negative integer index in
 the per-process descriptor table.
-The value must be less
-than the size of the table, which is returned by
-.Xr getdtablesize 2 .
 The new descriptor returned by the call
 is the lowest numbered descriptor
 currently not in use by the process.

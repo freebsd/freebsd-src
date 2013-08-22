@@ -58,7 +58,7 @@
  */
 typedef
 ACPI_STATUS (*ACPI_REPAIR_FUNCTION) (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 typedef struct acpi_repair_info
@@ -77,37 +77,37 @@ AcpiNsMatchComplexRepair (
 
 static ACPI_STATUS
 AcpiNsRepair_ALR (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
 AcpiNsRepair_CID (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
 AcpiNsRepair_FDE (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
 AcpiNsRepair_HID (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
 AcpiNsRepair_PSS (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
 AcpiNsRepair_TSS (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
 AcpiNsCheckSortedList (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     *ReturnObject,
     UINT32                  ExpectedCount,
     UINT32                  SortIndex,
@@ -170,7 +170,7 @@ static const ACPI_REPAIR_INFO       AcpiNsRepairableNames[] =
  *
  * FUNCTION:    AcpiNsComplexRepairs
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              Node                - Namespace node for the method/object
  *              ValidateStatus      - Original status of earlier validation
  *              ReturnObjectPtr     - Pointer to the object returned from the
@@ -186,7 +186,7 @@ static const ACPI_REPAIR_INFO       AcpiNsRepairableNames[] =
 
 ACPI_STATUS
 AcpiNsComplexRepairs (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_STATUS             ValidateStatus,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
@@ -203,7 +203,7 @@ AcpiNsComplexRepairs (
         return (ValidateStatus);
     }
 
-    Status = Predefined->RepairFunction (Data, ReturnObjectPtr);
+    Status = Predefined->RepairFunction (Info, ReturnObjectPtr);
     return (Status);
 }
 
@@ -247,7 +247,7 @@ AcpiNsMatchComplexRepair (
  *
  * FUNCTION:    AcpiNsRepair_ALR
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ReturnObjectPtr     - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -260,14 +260,14 @@ AcpiNsMatchComplexRepair (
 
 static ACPI_STATUS
 AcpiNsRepair_ALR (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
 {
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
     ACPI_STATUS             Status;
 
 
-    Status = AcpiNsCheckSortedList (Data, ReturnObject, 2, 1,
+    Status = AcpiNsCheckSortedList (Info, ReturnObject, 2, 1,
                 ACPI_SORT_ASCENDING, "AmbientIlluminance");
 
     return (Status);
@@ -278,7 +278,7 @@ AcpiNsRepair_ALR (
  *
  * FUNCTION:    AcpiNsRepair_FDE
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ReturnObjectPtr     - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -293,7 +293,7 @@ AcpiNsRepair_ALR (
 
 static ACPI_STATUS
 AcpiNsRepair_FDE (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
 {
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
@@ -321,7 +321,7 @@ AcpiNsRepair_FDE (
 
         if (ReturnObject->Buffer.Length != ACPI_FDE_BYTE_BUFFER_SIZE)
         {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+            ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
                 "Incorrect return buffer length %u, expected %u",
                 ReturnObject->Buffer.Length, ACPI_FDE_DWORD_BUFFER_SIZE));
 
@@ -350,7 +350,7 @@ AcpiNsRepair_FDE (
 
         ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
             "%s Expanded Byte Buffer to expected DWord Buffer\n",
-            Data->Pathname));
+            Info->FullPathname));
         break;
 
     default:
@@ -362,7 +362,7 @@ AcpiNsRepair_FDE (
     AcpiUtRemoveReference (ReturnObject);
     *ReturnObjectPtr = BufferObject;
 
-    Data->Flags |= ACPI_OBJECT_REPAIRED;
+    Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
     return (AE_OK);
 }
 
@@ -371,7 +371,7 @@ AcpiNsRepair_FDE (
  *
  * FUNCTION:    AcpiNsRepair_CID
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ReturnObjectPtr     - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -385,7 +385,7 @@ AcpiNsRepair_FDE (
 
 static ACPI_STATUS
 AcpiNsRepair_CID (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
 {
     ACPI_STATUS             Status;
@@ -400,7 +400,7 @@ AcpiNsRepair_CID (
 
     if (ReturnObject->Common.Type == ACPI_TYPE_STRING)
     {
-        Status = AcpiNsRepair_HID (Data, ReturnObjectPtr);
+        Status = AcpiNsRepair_HID (Info, ReturnObjectPtr);
         return (Status);
     }
 
@@ -419,7 +419,7 @@ AcpiNsRepair_CID (
         OriginalElement = *ElementPtr;
         OriginalRefCount = OriginalElement->Common.ReferenceCount;
 
-        Status = AcpiNsRepair_HID (Data, ElementPtr);
+        Status = AcpiNsRepair_HID (Info, ElementPtr);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -448,7 +448,7 @@ AcpiNsRepair_CID (
  *
  * FUNCTION:    AcpiNsRepair_HID
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ReturnObjectPtr     - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -461,7 +461,7 @@ AcpiNsRepair_CID (
 
 static ACPI_STATUS
 AcpiNsRepair_HID (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
 {
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
@@ -482,12 +482,12 @@ AcpiNsRepair_HID (
 
     if (ReturnObject->String.Length == 0)
     {
-        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
             "Invalid zero-length _HID or _CID string"));
 
         /* Return AE_OK anyway, let driver handle it */
 
-        Data->Flags |= ACPI_OBJECT_REPAIRED;
+        Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
         return (AE_OK);
     }
 
@@ -512,7 +512,7 @@ AcpiNsRepair_HID (
         NewString->String.Length--;
 
         ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
-            "%s: Removed invalid leading asterisk\n", Data->Pathname));
+            "%s: Removed invalid leading asterisk\n", Info->FullPathname));
     }
 
     /*
@@ -538,7 +538,7 @@ AcpiNsRepair_HID (
  *
  * FUNCTION:    AcpiNsRepair_TSS
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ReturnObjectPtr     - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -551,7 +551,7 @@ AcpiNsRepair_HID (
 
 static ACPI_STATUS
 AcpiNsRepair_TSS (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
 {
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
@@ -567,13 +567,14 @@ AcpiNsRepair_TSS (
      * In this case, it is best to just return the _TSS package as-is.
      * (May, 2011)
      */
-    Status = AcpiNsGetNode (Data->Node, "^_PSS", ACPI_NS_NO_UPSEARCH, &Node);
+    Status = AcpiNsGetNode (Info->Node, "^_PSS",
+        ACPI_NS_NO_UPSEARCH, &Node);
     if (ACPI_SUCCESS (Status))
     {
         return (AE_OK);
     }
 
-    Status = AcpiNsCheckSortedList (Data, ReturnObject, 5, 1,
+    Status = AcpiNsCheckSortedList (Info, ReturnObject, 5, 1,
                 ACPI_SORT_DESCENDING, "PowerDissipation");
 
     return (Status);
@@ -584,7 +585,7 @@ AcpiNsRepair_TSS (
  *
  * FUNCTION:    AcpiNsRepair_PSS
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ReturnObjectPtr     - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
@@ -599,7 +600,7 @@ AcpiNsRepair_TSS (
 
 static ACPI_STATUS
 AcpiNsRepair_PSS (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
 {
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
@@ -618,7 +619,7 @@ AcpiNsRepair_PSS (
      * incorrectly sorted, sort it. We sort by CpuFrequency, since this
      * should be proportional to the power.
      */
-    Status =AcpiNsCheckSortedList (Data, ReturnObject, 6, 0,
+    Status =AcpiNsCheckSortedList (Info, ReturnObject, 6, 0,
                 ACPI_SORT_DESCENDING, "CpuFrequency");
     if (ACPI_FAILURE (Status))
     {
@@ -640,7 +641,7 @@ AcpiNsRepair_PSS (
 
         if ((UINT32) ObjDesc->Integer.Value > PreviousValue)
         {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+            ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
                 "SubPackage[%u,%u] - suspicious power dissipation values",
                 i-1, i));
         }
@@ -657,7 +658,7 @@ AcpiNsRepair_PSS (
  *
  * FUNCTION:    AcpiNsCheckSortedList
  *
- * PARAMETERS:  Data                - Pointer to validation data structure
+ * PARAMETERS:  Info                - Method execution information block
  *              ReturnObject        - Pointer to the top-level returned object
  *              ExpectedCount       - Minimum length of each sub-package
  *              SortIndex           - Sub-package entry to sort on
@@ -674,7 +675,7 @@ AcpiNsRepair_PSS (
 
 static ACPI_STATUS
 AcpiNsCheckSortedList (
-    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_EVALUATE_INFO      *Info,
     ACPI_OPERAND_OBJECT     *ReturnObject,
     UINT32                  ExpectedCount,
     UINT32                  SortIndex,
@@ -755,11 +756,11 @@ AcpiNsCheckSortedList (
             AcpiNsSortList (ReturnObject->Package.Elements,
                 OuterElementCount, SortIndex, SortDirection);
 
-            Data->Flags |= ACPI_OBJECT_REPAIRED;
+            Info->ReturnFlags |= ACPI_OBJECT_REPAIRED;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
                 "%s: Repaired unsorted list - now sorted by %s\n",
-                Data->Pathname, SortKeyName));
+                Info->FullPathname, SortKeyName));
             return (AE_OK);
         }
 

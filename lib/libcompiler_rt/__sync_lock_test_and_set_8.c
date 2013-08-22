@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 #define	NAME		__sync_lock_test_and_set_8
-#define	TYPE		uint64_t
+#define	TYPE		int64_t
 #define	CMPSET		atomic_cmpset_64
 #define	EXPRESSION	value
 

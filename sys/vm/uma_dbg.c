@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
 
-static const u_int32_t uma_junk = 0xdeadc0de;
+static const uint32_t uma_junk = 0xdeadc0de;
 
 /*
  * Checks an item to make sure it hasn't been overwritten since it was freed,
@@ -62,7 +62,7 @@ int
 trash_ctor(void *mem, int size, void *arg, int flags)
 {
 	int cnt;
-	u_int32_t *p;
+	uint32_t *p;
 
 	cnt = size / sizeof(uma_junk);
 
@@ -85,7 +85,7 @@ void
 trash_dtor(void *mem, int size, void *arg)
 {
 	int cnt;
-	u_int32_t *p;
+	uint32_t *p;
 
 	cnt = size / sizeof(uma_junk);
 
@@ -122,7 +122,7 @@ int
 mtrash_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct malloc_type **ksp;
-	u_int32_t *p = mem;
+	uint32_t *p = mem;
 	int cnt;
 
 	size -= sizeof(struct malloc_type *);
@@ -150,7 +150,7 @@ void
 mtrash_dtor(void *mem, int size, void *arg)
 {
 	int cnt;
-	u_int32_t *p;
+	uint32_t *p;
 
 	size -= sizeof(struct malloc_type *);
 	cnt = size / sizeof(uma_junk);
@@ -196,9 +196,9 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 {
 	uma_slab_t slab;
 	uma_keg_t keg;
-	u_int8_t *mem;
+	uint8_t *mem;
 
-	mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
+	mem = (uint8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
 	if (zone->uz_flags & UMA_ZONE_VTOSLAB) {
 		slab = vtoslab((vm_offset_t)mem);
 	} else {

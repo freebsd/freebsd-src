@@ -14,14 +14,16 @@
 
 #include "ClangSACheckers.h"
 #include "InterCheckerAPI.h"
+#include "clang/Basic/CharInfo.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -63,7 +65,7 @@ public:
 
   ProgramStateRef 
     checkRegionChanges(ProgramStateRef state,
-                       const StoreManager::InvalidatedSymbols *,
+                       const InvalidatedSymbols *,
                        ArrayRef<const MemRegion *> ExplicitRegions,
                        ArrayRef<const MemRegion *> Regions,
                        const CallEvent *Call) const;
@@ -199,7 +201,7 @@ REGISTER_MAP_WITH_PROGRAMSTATE(CStringLength, const MemRegion *, SVal)
 std::pair<ProgramStateRef , ProgramStateRef >
 CStringChecker::assumeZero(CheckerContext &C, ProgramStateRef state, SVal V,
                            QualType Ty) {
-  DefinedSVal *val = dyn_cast<DefinedSVal>(&V);
+  Optional<DefinedSVal> val = V.getAs<DefinedSVal>();
   if (!val)
     return std::pair<ProgramStateRef , ProgramStateRef >(state, state);
 
@@ -276,10 +278,10 @@ ProgramStateRef CStringChecker::CheckLocation(CheckerContext &C,
   SValBuilder &svalBuilder = C.getSValBuilder();
   SVal Extent = 
     svalBuilder.convertToArrayIndex(superReg->getExtent(svalBuilder));
-  DefinedOrUnknownSVal Size = cast<DefinedOrUnknownSVal>(Extent);
+  DefinedOrUnknownSVal Size = Extent.castAs<DefinedOrUnknownSVal>();
 
   // Get the index of the accessed element.
-  DefinedOrUnknownSVal Idx = cast<DefinedOrUnknownSVal>(ER->getIndex());
+  DefinedOrUnknownSVal Idx = ER->getIndex().castAs<DefinedOrUnknownSVal>();
 
   ProgramStateRef StInBound = state->assumeInBound(Idx, Size, true);
   ProgramStateRef StOutBound = state->assumeInBound(Idx, Size, false);
@@ -304,7 +306,7 @@ ProgramStateRef CStringChecker::CheckLocation(CheckerContext &C,
 
       SmallString<80> buf;
       llvm::raw_svector_ostream os(buf);
-      os << (char)toupper(CurrentFunctionDescription[0])
+      os << toUppercase(CurrentFunctionDescription[0])
          << &CurrentFunctionDescription[1]
          << " accesses out-of-bound array element";
       report = new BugReport(*BT, os.str(), N);      
@@ -357,18 +359,18 @@ ProgramStateRef CStringChecker::CheckBufferAccess(CheckerContext &C,
   // FIXME: This assumes the caller has already checked that the access length
   // is positive. And that it's unsigned.
   SVal LengthVal = state->getSVal(Size, LCtx);
-  NonLoc *Length = dyn_cast<NonLoc>(&LengthVal);
+  Optional<NonLoc> Length = LengthVal.getAs<NonLoc>();
   if (!Length)
     return state;
 
   // Compute the offset of the last element to be accessed: size-1.
-  NonLoc One = cast<NonLoc>(svalBuilder.makeIntVal(1, sizeTy));
-  NonLoc LastOffset = cast<NonLoc>(svalBuilder.evalBinOpNN(state, BO_Sub,
-                                                    *Length, One, sizeTy));
+  NonLoc One = svalBuilder.makeIntVal(1, sizeTy).castAs<NonLoc>();
+  NonLoc LastOffset = svalBuilder
+      .evalBinOpNN(state, BO_Sub, *Length, One, sizeTy).castAs<NonLoc>();
 
   // Check that the first buffer is sufficiently long.
   SVal BufStart = svalBuilder.evalCast(BufVal, PtrTy, FirstBuf->getType());
-  if (Loc *BufLoc = dyn_cast<Loc>(&BufStart)) {
+  if (Optional<Loc> BufLoc = BufStart.getAs<Loc>()) {
     const Expr *warningExpr = (WarnAboutSize ? Size : FirstBuf);
 
     SVal BufEnd = svalBuilder.evalBinOpLN(state, BO_Add, *BufLoc,
@@ -388,7 +390,7 @@ ProgramStateRef CStringChecker::CheckBufferAccess(CheckerContext &C,
       return NULL;
 
     BufStart = svalBuilder.evalCast(BufVal, PtrTy, SecondBuf->getType());
-    if (Loc *BufLoc = dyn_cast<Loc>(&BufStart)) {
+    if (Optional<Loc> BufLoc = BufStart.getAs<Loc>()) {
       const Expr *warningExpr = (WarnAboutSize ? Size : SecondBuf);
 
       SVal BufEnd = svalBuilder.evalBinOpLN(state, BO_Add, *BufLoc,
@@ -424,11 +426,11 @@ ProgramStateRef CStringChecker::CheckOverlap(CheckerContext &C,
   SVal firstVal = state->getSVal(First, LCtx);
   SVal secondVal = state->getSVal(Second, LCtx);
 
-  Loc *firstLoc = dyn_cast<Loc>(&firstVal);
+  Optional<Loc> firstLoc = firstVal.getAs<Loc>();
   if (!firstLoc)
     return state;
 
-  Loc *secondLoc = dyn_cast<Loc>(&secondVal);
+  Optional<Loc> secondLoc = secondVal.getAs<Loc>();
   if (!secondLoc)
     return state;
 
@@ -451,7 +453,8 @@ ProgramStateRef CStringChecker::CheckOverlap(CheckerContext &C,
   QualType cmpTy = svalBuilder.getConditionType();
   SVal reverse = svalBuilder.evalBinOpLL(state, BO_GT,
                                          *firstLoc, *secondLoc, cmpTy);
-  DefinedOrUnknownSVal *reverseTest = dyn_cast<DefinedOrUnknownSVal>(&reverse);
+  Optional<DefinedOrUnknownSVal> reverseTest =
+      reverse.getAs<DefinedOrUnknownSVal>();
   if (!reverseTest)
     return state;
 
@@ -462,20 +465,16 @@ ProgramStateRef CStringChecker::CheckOverlap(CheckerContext &C,
       return state;
     } else {
       // Switch the values so that firstVal is before secondVal.
-      Loc *tmpLoc = firstLoc;
-      firstLoc = secondLoc;
-      secondLoc = tmpLoc;
+      std::swap(firstLoc, secondLoc);
 
       // Switch the Exprs as well, so that they still correspond.
-      const Expr *tmpExpr = First;
-      First = Second;
-      Second = tmpExpr;
+      std::swap(First, Second);
     }
   }
 
   // Get the length, and make sure it too is known.
   SVal LengthVal = state->getSVal(Size, LCtx);
-  NonLoc *Length = dyn_cast<NonLoc>(&LengthVal);
+  Optional<NonLoc> Length = LengthVal.getAs<NonLoc>();
   if (!Length)
     return state;
 
@@ -485,21 +484,22 @@ ProgramStateRef CStringChecker::CheckOverlap(CheckerContext &C,
   QualType CharPtrTy = Ctx.getPointerType(Ctx.CharTy);
   SVal FirstStart = svalBuilder.evalCast(*firstLoc, CharPtrTy, 
                                          First->getType());
-  Loc *FirstStartLoc = dyn_cast<Loc>(&FirstStart);
+  Optional<Loc> FirstStartLoc = FirstStart.getAs<Loc>();
   if (!FirstStartLoc)
     return state;
 
   // Compute the end of the first buffer. Bail out if THAT fails.
   SVal FirstEnd = svalBuilder.evalBinOpLN(state, BO_Add,
                                  *FirstStartLoc, *Length, CharPtrTy);
-  Loc *FirstEndLoc = dyn_cast<Loc>(&FirstEnd);
+  Optional<Loc> FirstEndLoc = FirstEnd.getAs<Loc>();
   if (!FirstEndLoc)
     return state;
 
   // Is the end of the first buffer past the start of the second buffer?
   SVal Overlap = svalBuilder.evalBinOpLL(state, BO_GT,
                                 *FirstEndLoc, *secondLoc, cmpTy);
-  DefinedOrUnknownSVal *OverlapTest = dyn_cast<DefinedOrUnknownSVal>(&Overlap);
+  Optional<DefinedOrUnknownSVal> OverlapTest =
+      Overlap.getAs<DefinedOrUnknownSVal>();
   if (!OverlapTest)
     return state;
 
@@ -555,7 +555,7 @@ ProgramStateRef CStringChecker::checkAdditionOverflow(CheckerContext &C,
   NonLoc maxVal = svalBuilder.makeIntVal(maxValInt);
 
   SVal maxMinusRight;
-  if (isa<nonloc::ConcreteInt>(right)) {
+  if (right.getAs<nonloc::ConcreteInt>()) {
     maxMinusRight = svalBuilder.evalBinOpNN(state, BO_Sub, maxVal, right,
                                                  sizeTy);
   } else {
@@ -566,7 +566,7 @@ ProgramStateRef CStringChecker::checkAdditionOverflow(CheckerContext &C,
     left = right;
   }
 
-  if (NonLoc *maxMinusRightNL = dyn_cast<NonLoc>(&maxMinusRight)) {
+  if (Optional<NonLoc> maxMinusRightNL = maxMinusRight.getAs<NonLoc>()) {
     QualType cmpTy = svalBuilder.getConditionType();
     // If left > max - right, we have an overflow.
     SVal willOverflow = svalBuilder.evalBinOpNN(state, BO_GT, left,
@@ -574,7 +574,7 @@ ProgramStateRef CStringChecker::checkAdditionOverflow(CheckerContext &C,
 
     ProgramStateRef stateOverflow, stateOkay;
     llvm::tie(stateOverflow, stateOkay) =
-      state->assume(cast<DefinedOrUnknownSVal>(willOverflow));
+      state->assume(willOverflow.castAs<DefinedOrUnknownSVal>());
 
     if (stateOverflow && !stateOkay) {
       // We have an overflow. Emit a bug report.
@@ -681,7 +681,7 @@ SVal CStringChecker::getCStringLength(CheckerContext &C, ProgramStateRef &state,
     // If we can't get a region, see if it's something we /know/ isn't a
     // C string. In the context of locations, the only time we can issue such
     // a warning is for labels.
-    if (loc::GotoLabel *Label = dyn_cast<loc::GotoLabel>(&Buf)) {
+    if (Optional<loc::GotoLabel> Label = Buf.getAs<loc::GotoLabel>()) {
       if (!Filter.CheckCStringNotNullTerm)
         return UndefinedVal();
 
@@ -796,14 +796,14 @@ const StringLiteral *CStringChecker::getCStringLiteral(CheckerContext &C,
 ProgramStateRef CStringChecker::InvalidateBuffer(CheckerContext &C,
                                                 ProgramStateRef state,
                                                 const Expr *E, SVal V) {
-  Loc *L = dyn_cast<Loc>(&V);
+  Optional<Loc> L = V.getAs<Loc>();
   if (!L)
     return state;
 
   // FIXME: This is a simplified version of what's in CFRefCount.cpp -- it makes
   // some assumptions about the value that CFRefCount can't. Even so, it should
   // probably be refactored.
-  if (loc::MemRegionVal* MR = dyn_cast<loc::MemRegionVal>(L)) {
+  if (Optional<loc::MemRegionVal> MR = L->getAs<loc::MemRegionVal>()) {
     const MemRegion *R = MR->getRegion()->StripCasts();
 
     // Are we dealing with an ElementRegion?  If so, we should be invalidating
@@ -815,7 +815,8 @@ ProgramStateRef CStringChecker::InvalidateBuffer(CheckerContext &C,
 
     // Invalidate this region.
     const LocationContext *LCtx = C.getPredecessor()->getLocationContext();
-    return state->invalidateRegions(R, E, C.blockCount(), LCtx);
+    return state->invalidateRegions(R, E, C.blockCount(), LCtx,
+                                    /*CausesPointerEscape*/ false);
   }
 
   // If we have a non-region value by chance, just remove the binding.
@@ -926,16 +927,13 @@ void CStringChecker::evalCopyCommon(CheckerContext &C,
     // If this is mempcpy, get the byte after the last byte copied and 
     // bind the expr.
     if (IsMempcpy) {
-      loc::MemRegionVal *destRegVal = dyn_cast<loc::MemRegionVal>(&destVal);
-      assert(destRegVal && "Destination should be a known MemRegionVal here");
+      loc::MemRegionVal destRegVal = destVal.castAs<loc::MemRegionVal>();
       
       // Get the length to copy.
-      NonLoc *lenValNonLoc = dyn_cast<NonLoc>(&sizeVal);
-      
-      if (lenValNonLoc) {
+      if (Optional<NonLoc> lenValNonLoc = sizeVal.getAs<NonLoc>()) {
         // Get the byte after the last byte copied.
         SVal lastElement = C.getSValBuilder().evalBinOpLN(state, BO_Add, 
-                                                          *destRegVal,
+                                                          destRegVal,
                                                           *lenValNonLoc, 
                                                           Dest->getType());
       
@@ -1051,9 +1049,9 @@ void CStringChecker::evalMemcmp(CheckerContext &C, const CallExpr *CE) const {
     // First, get the two buffers' addresses. Another checker will have already
     // made sure they're not undefined.
     DefinedOrUnknownSVal LV =
-      cast<DefinedOrUnknownSVal>(state->getSVal(Left, LCtx));
+        state->getSVal(Left, LCtx).castAs<DefinedOrUnknownSVal>();
     DefinedOrUnknownSVal RV =
-      cast<DefinedOrUnknownSVal>(state->getSVal(Right, LCtx));
+        state->getSVal(Right, LCtx).castAs<DefinedOrUnknownSVal>();
 
     // See if they are the same.
     DefinedOrUnknownSVal SameBuf = svalBuilder.evalEQ(state, LV, RV);
@@ -1163,19 +1161,17 @@ void CStringChecker::evalstrLengthCommon(CheckerContext &C, const CallExpr *CE,
     const Expr *maxlenExpr = CE->getArg(1);
     SVal maxlenVal = state->getSVal(maxlenExpr, LCtx);
 
-    NonLoc *strLengthNL = dyn_cast<NonLoc>(&strLength);
-    NonLoc *maxlenValNL = dyn_cast<NonLoc>(&maxlenVal);
+    Optional<NonLoc> strLengthNL = strLength.getAs<NonLoc>();
+    Optional<NonLoc> maxlenValNL = maxlenVal.getAs<NonLoc>();
 
     if (strLengthNL && maxlenValNL) {
       ProgramStateRef stateStringTooLong, stateStringNotTooLong;
 
       // Check if the strLength is greater than the maxlen.
       llvm::tie(stateStringTooLong, stateStringNotTooLong) =
-        state->assume(cast<DefinedOrUnknownSVal>
-                      (C.getSValBuilder().evalBinOpNN(state, BO_GT, 
-                                                      *strLengthNL,
-                                                      *maxlenValNL,
-                                                      cmpTy)));
+          state->assume(C.getSValBuilder().evalBinOpNN(
+              state, BO_GT, *strLengthNL, *maxlenValNL, cmpTy)
+                            .castAs<DefinedOrUnknownSVal>());
 
       if (stateStringTooLong && !stateStringNotTooLong) {
         // If the string is longer than maxlen, return maxlen.
@@ -1192,28 +1188,24 @@ void CStringChecker::evalstrLengthCommon(CheckerContext &C, const CallExpr *CE,
       // All we know is the return value is the min of the string length
       // and the limit. This is better than nothing.
       result = C.getSValBuilder().conjureSymbolVal(0, CE, LCtx, C.blockCount());
-      NonLoc *resultNL = cast<NonLoc>(&result);
+      NonLoc resultNL = result.castAs<NonLoc>();
 
       if (strLengthNL) {
-        state = state->assume(cast<DefinedOrUnknownSVal>
-                              (C.getSValBuilder().evalBinOpNN(state, BO_LE, 
-                                                              *resultNL,
-                                                              *strLengthNL,
-                                                              cmpTy)), true);
+        state = state->assume(C.getSValBuilder().evalBinOpNN(
+                                  state, BO_LE, resultNL, *strLengthNL, cmpTy)
+                                  .castAs<DefinedOrUnknownSVal>(), true);
       }
       
       if (maxlenValNL) {
-        state = state->assume(cast<DefinedOrUnknownSVal>
-                              (C.getSValBuilder().evalBinOpNN(state, BO_LE, 
-                                                              *resultNL,
-                                                              *maxlenValNL,
-                                                              cmpTy)), true);
+        state = state->assume(C.getSValBuilder().evalBinOpNN(
+                                  state, BO_LE, resultNL, *maxlenValNL, cmpTy)
+                                  .castAs<DefinedOrUnknownSVal>(), true);
       }
     }
 
   } else {
     // This is a plain strlen(), not strnlen().
-    result = cast<DefinedOrUnknownSVal>(strLength);
+    result = strLength.castAs<DefinedOrUnknownSVal>();
 
     // If we don't know the length of the string, conjure a return
     // value, so it can be used in constraints, at least.
@@ -1332,8 +1324,8 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
     // Protect against misdeclared strncpy().
     lenVal = svalBuilder.evalCast(lenVal, sizeTy, lenExpr->getType());
 
-    NonLoc *strLengthNL = dyn_cast<NonLoc>(&strLength);
-    NonLoc *lenValNL = dyn_cast<NonLoc>(&lenVal);
+    Optional<NonLoc> strLengthNL = strLength.getAs<NonLoc>();
+    Optional<NonLoc> lenValNL = lenVal.getAs<NonLoc>();
 
     // If we know both values, we might be able to figure out how much
     // we're copying.
@@ -1343,10 +1335,9 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
       // Check if the max number to copy is less than the length of the src.
       // If the bound is equal to the source length, strncpy won't null-
       // terminate the result!
-      llvm::tie(stateSourceTooLong, stateSourceNotTooLong) =
-        state->assume(cast<DefinedOrUnknownSVal>
-                      (svalBuilder.evalBinOpNN(state, BO_GE, *strLengthNL,
-                                               *lenValNL, cmpTy)));
+      llvm::tie(stateSourceTooLong, stateSourceNotTooLong) = state->assume(
+          svalBuilder.evalBinOpNN(state, BO_GE, *strLengthNL, *lenValNL, cmpTy)
+              .castAs<DefinedOrUnknownSVal>());
 
       if (stateSourceTooLong && !stateSourceNotTooLong) {
         // Max number to copy is less than the length of the src, so the actual
@@ -1373,7 +1364,7 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
         if (dstStrLength.isUndef())
           return;
 
-        if (NonLoc *dstStrLengthNL = dyn_cast<NonLoc>(&dstStrLength)) {
+        if (Optional<NonLoc> dstStrLengthNL = dstStrLength.getAs<NonLoc>()) {
           maxLastElementIndex = svalBuilder.evalBinOpNN(state, BO_Add,
                                                         *lenValNL,
                                                         *dstStrLengthNL,
@@ -1404,7 +1395,7 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
         // Otherwise, go ahead and figure out the last element we'll touch.
         // We don't record the non-zero assumption here because we can't
         // be sure. We won't warn on a possible zero.
-        NonLoc one = cast<NonLoc>(svalBuilder.makeIntVal(1, sizeTy));
+        NonLoc one = svalBuilder.makeIntVal(1, sizeTy).castAs<NonLoc>();
         maxLastElementIndex = svalBuilder.evalBinOpNN(state, BO_Sub, *lenValNL,
                                                       one, sizeTy);
         boundWarning = "Size argument is greater than the length of the "
@@ -1422,15 +1413,15 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
       amountCopied = getCStringLength(C, state, lenExpr, srcVal, true);
       assert(!amountCopied.isUndef());
 
-      if (NonLoc *amountCopiedNL = dyn_cast<NonLoc>(&amountCopied)) {
+      if (Optional<NonLoc> amountCopiedNL = amountCopied.getAs<NonLoc>()) {
         if (lenValNL) {
           // amountCopied <= lenVal
           SVal copiedLessThanBound = svalBuilder.evalBinOpNN(state, BO_LE,
                                                              *amountCopiedNL,
                                                              *lenValNL,
                                                              cmpTy);
-          state = state->assume(cast<DefinedOrUnknownSVal>(copiedLessThanBound),
-                                true);
+          state = state->assume(
+              copiedLessThanBound.castAs<DefinedOrUnknownSVal>(), true);
           if (!state)
             return;
         }
@@ -1441,8 +1432,8 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
                                                            *amountCopiedNL,
                                                            *strLengthNL,
                                                            cmpTy);
-          state = state->assume(cast<DefinedOrUnknownSVal>(copiedLessThanSrc),
-                                true);
+          state = state->assume(
+              copiedLessThanSrc.castAs<DefinedOrUnknownSVal>(), true);
           if (!state)
             return;
         }
@@ -1472,8 +1463,8 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
     if (dstStrLength.isUndef())
       return;
 
-    NonLoc *srcStrLengthNL = dyn_cast<NonLoc>(&amountCopied);
-    NonLoc *dstStrLengthNL = dyn_cast<NonLoc>(&dstStrLength);
+    Optional<NonLoc> srcStrLengthNL = amountCopied.getAs<NonLoc>();
+    Optional<NonLoc> dstStrLengthNL = dstStrLength.getAs<NonLoc>();
     
     // If we know both string lengths, we might know the final string length.
     if (srcStrLengthNL && dstStrLengthNL) {
@@ -1494,14 +1485,14 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
       finalStrLength = getCStringLength(C, state, CE, DstVal, true);
       assert(!finalStrLength.isUndef());
 
-      if (NonLoc *finalStrLengthNL = dyn_cast<NonLoc>(&finalStrLength)) {
+      if (Optional<NonLoc> finalStrLengthNL = finalStrLength.getAs<NonLoc>()) {
         if (srcStrLengthNL) {
           // finalStrLength >= srcStrLength
           SVal sourceInResult = svalBuilder.evalBinOpNN(state, BO_GE,
                                                         *finalStrLengthNL,
                                                         *srcStrLengthNL,
                                                         cmpTy);
-          state = state->assume(cast<DefinedOrUnknownSVal>(sourceInResult),
+          state = state->assume(sourceInResult.castAs<DefinedOrUnknownSVal>(),
                                 true);
           if (!state)
             return;
@@ -1513,8 +1504,8 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
                                                       *finalStrLengthNL,
                                                       *dstStrLengthNL,
                                                       cmpTy);
-          state = state->assume(cast<DefinedOrUnknownSVal>(destInResult),
-                                true);
+          state =
+              state->assume(destInResult.castAs<DefinedOrUnknownSVal>(), true);
           if (!state)
             return;
         }
@@ -1535,13 +1526,14 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
 
   // If the destination is a MemRegion, try to check for a buffer overflow and
   // record the new string length.
-  if (loc::MemRegionVal *dstRegVal = dyn_cast<loc::MemRegionVal>(&DstVal)) {
+  if (Optional<loc::MemRegionVal> dstRegVal =
+          DstVal.getAs<loc::MemRegionVal>()) {
     QualType ptrTy = Dst->getType();
 
     // If we have an exact value on a bounded copy, use that to check for
     // overflows, rather than our estimate about how much is actually copied.
     if (boundWarning) {
-      if (NonLoc *maxLastNL = dyn_cast<NonLoc>(&maxLastElementIndex)) {
+      if (Optional<NonLoc> maxLastNL = maxLastElementIndex.getAs<NonLoc>()) {
         SVal maxLastElement = svalBuilder.evalBinOpLN(state, BO_Add, *dstRegVal,
                                                       *maxLastNL, ptrTy);
         state = CheckLocation(C, state, CE->getArg(2), maxLastElement, 
@@ -1552,7 +1544,7 @@ void CStringChecker::evalStrcpyCommon(CheckerContext &C, const CallExpr *CE,
     }
 
     // Then, if the final length is known...
-    if (NonLoc *knownStrLength = dyn_cast<NonLoc>(&finalStrLength)) {
+    if (Optional<NonLoc> knownStrLength = finalStrLength.getAs<NonLoc>()) {
       SVal lastElement = svalBuilder.evalBinOpLN(state, BO_Add, *dstRegVal,
                                                  *knownStrLength, ptrTy);
 
@@ -1670,8 +1662,8 @@ void CStringChecker::evalStrcmpCommon(CheckerContext &C, const CallExpr *CE,
   // If we know the two buffers are the same, we know the result is 0.
   // First, get the two buffers' addresses. Another checker will have already
   // made sure they're not undefined.
-  DefinedOrUnknownSVal LV = cast<DefinedOrUnknownSVal>(s1Val);
-  DefinedOrUnknownSVal RV = cast<DefinedOrUnknownSVal>(s2Val);
+  DefinedOrUnknownSVal LV = s1Val.castAs<DefinedOrUnknownSVal>();
+  DefinedOrUnknownSVal RV = s2Val.castAs<DefinedOrUnknownSVal>();
 
   // See if they are the same.
   SValBuilder &svalBuilder = C.getSValBuilder();
@@ -1856,8 +1848,8 @@ void CStringChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
 
     SVal StrVal = state->getSVal(Init, C.getLocationContext());
     assert(StrVal.isValid() && "Initializer string is unknown or undefined");
-    DefinedOrUnknownSVal strLength
-      = cast<DefinedOrUnknownSVal>(getCStringLength(C, state, Init, StrVal));
+    DefinedOrUnknownSVal strLength =
+        getCStringLength(C, state, Init, StrVal).castAs<DefinedOrUnknownSVal>();
 
     state = state->set<CStringLength>(MR, strLength);
   }
@@ -1872,7 +1864,7 @@ bool CStringChecker::wantsRegionChangeUpdate(ProgramStateRef state) const {
 
 ProgramStateRef 
 CStringChecker::checkRegionChanges(ProgramStateRef state,
-                                   const StoreManager::InvalidatedSymbols *,
+                                   const InvalidatedSymbols *,
                                    ArrayRef<const MemRegion *> ExplicitRegions,
                                    ArrayRef<const MemRegion *> Regions,
                                    const CallEvent *Call) const {

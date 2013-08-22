@@ -126,7 +126,8 @@ DEFINE_TEST(test_read_disk)
 
 		/* Get the group name for group 0 and see if it makes sense. */
 		p = archive_read_disk_gname(a, 0);
-		if (assert(p != NULL)) {
+		assert(p != NULL);
+		if (p != NULL) {
 			i = 0;
 			while (i < sizeof(zero_groups)/sizeof(zero_groups[0])) {
 				if (strcmp(zero_groups[i], p) == 0)

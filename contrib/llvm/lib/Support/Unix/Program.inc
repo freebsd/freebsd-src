@@ -16,9 +16,10 @@
 //===          is guaranteed to work on *all* UNIX variants.
 //===----------------------------------------------------------------------===//
 
-#include <llvm/Config/config.h>
-#include "llvm/Support/FileSystem.h"
 #include "Unix.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/FileSystem.h"
+#include <llvm/Config/config.h>
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -46,11 +47,6 @@ using namespace sys;
 Program::Program() : Data_(0) {}
 
 Program::~Program() {}
-
-unsigned Program::GetPid() const {
-  uint64_t pid = reinterpret_cast<uint64_t>(Data_);
-  return static_cast<unsigned>(pid);
-}
 
 // This function just uses the PATH environment variable to find the program.
 Path
@@ -169,10 +165,14 @@ static void SetMemoryLimits (unsigned size)
   setrlimit (RLIMIT_RSS, &r);
 #endif
 #ifdef RLIMIT_AS  // e.g. NetBSD doesn't have it.
+  // Don't set virtual memory limit if built with any Sanitizer. They need 80Tb
+  // of virtual memory for shadow memory mapping.
+#if !LLVM_MEMORY_SANITIZER_BUILD && !LLVM_ADDRESS_SANITIZER_BUILD
   // Virtual memory.
   getrlimit (RLIMIT_AS, &r);
   r.rlim_cur = limit;
   setrlimit (RLIMIT_AS, &r);
+#endif
 #endif
 #endif
 }
@@ -392,24 +392,6 @@ Program::Wait(const sys::Path &path,
     *ErrMsg = "Program::Wait is not implemented on this platform yet!";
   return -1;
 #endif
-}
-
-bool
-Program::Kill(std::string* ErrMsg) {
-  if (Data_ == 0) {
-    MakeErrMsg(ErrMsg, "Process not started!");
-    return true;
-  }
-
-  uint64_t pid64 = reinterpret_cast<uint64_t>(Data_);
-  pid_t pid = static_cast<pid_t>(pid64);
-
-  if (kill(pid, SIGKILL) != 0) {
-    MakeErrMsg(ErrMsg, "The process couldn't be killed!");
-    return true;
-  }
-
-  return false;
 }
 
 error_code Program::ChangeStdinToBinary(){

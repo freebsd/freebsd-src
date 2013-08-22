@@ -190,8 +190,7 @@ pmpfreeze(struct cam_periph *periph, int mask)
 		    i, 0) == CAM_REQ_CMP) {
 			softc->frozen |= (1 << i);
 			xpt_acquire_device(dpath->device);
-			cam_freeze_devq_arg(dpath,
-			    RELSIM_RELEASE_RUNLEVEL, CAM_RL_BUS + 1);
+			cam_freeze_devq(dpath);
 			xpt_free_path(dpath);
 		}
 	}
@@ -212,8 +211,7 @@ pmprelease(struct cam_periph *periph, int mask)
 		    xpt_path_path_id(periph->path),
 		    i, 0) == CAM_REQ_CMP) {
 			softc->frozen &= ~(1 << i);
-			cam_release_devq(dpath,
-			    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_BUS + 1, FALSE);
+			cam_release_devq(dpath, 0, 0, 0, FALSE);
 			xpt_release_device(dpath->device);
 			xpt_free_path(dpath);
 		}

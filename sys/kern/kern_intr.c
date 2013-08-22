@@ -1739,7 +1739,16 @@ db_dump_intrhand(struct intr_handler *ih)
 		break;
 	}
 	db_printf(" ");
-	db_printsym((uintptr_t)ih->ih_handler, DB_STGY_PROC);
+	if (ih->ih_filter != NULL) {
+		db_printf("[F]");
+		db_printsym((uintptr_t)ih->ih_filter, DB_STGY_PROC);
+	}
+	if (ih->ih_handler != NULL) {
+		if (ih->ih_filter != NULL)
+			db_printf(",");
+		db_printf("[H]");
+		db_printsym((uintptr_t)ih->ih_handler, DB_STGY_PROC);
+	}
 	db_printf("(%p)", ih->ih_argument);
 	if (ih->ih_need ||
 	    (ih->ih_flags & (IH_EXCLUSIVE | IH_ENTROPY | IH_DEAD |

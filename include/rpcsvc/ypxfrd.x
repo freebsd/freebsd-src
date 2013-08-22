@@ -75,7 +75,7 @@ const _YPMAXDOMAIN = 64;
 const _YPMAXMAP = 64;
 const _YPMAXPEER = 64;
 
-/* Suggested default -- not necesarrily the one used. */
+/* Suggested default -- not necessarily the one used. */
 const YPXFRBLOCK = 32767;
 
 /*

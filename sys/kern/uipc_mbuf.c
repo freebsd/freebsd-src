@@ -1197,7 +1197,16 @@ m_split(struct mbuf *m0, int len0, int wait)
 	if (m == NULL)
 		return (NULL);
 	remain = m->m_len - len;
-	if (m0->m_flags & M_PKTHDR) {
+	if (m0->m_flags & M_PKTHDR && remain == 0) {
+		n = m_gethdr(wait, m0->m_type);
+			return (NULL);
+		n->m_next = m->m_next;
+		m->m_next = NULL;
+		n->m_pkthdr.rcvif = m0->m_pkthdr.rcvif;
+		n->m_pkthdr.len = m0->m_pkthdr.len - len0;
+		m0->m_pkthdr.len = len0;
+		return (n);
+	} else if (m0->m_flags & M_PKTHDR) {
 		n = m_gethdr(wait, m0->m_type);
 		if (n == NULL)
 			return (NULL);

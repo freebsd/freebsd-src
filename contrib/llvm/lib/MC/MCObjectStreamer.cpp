@@ -20,28 +20,32 @@
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
-MCObjectStreamer::MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
-                                   raw_ostream &OS, MCCodeEmitter *Emitter_)
-  : MCStreamer(Context),
-    Assembler(new MCAssembler(Context, TAB,
-                              *Emitter_, *TAB.createObjectWriter(OS),
-                              OS)),
-    CurSectionData(0)
-{
-}
+MCObjectStreamer::MCObjectStreamer(StreamerKind Kind, MCContext &Context,
+                                   MCAsmBackend &TAB, raw_ostream &OS,
+                                   MCCodeEmitter *Emitter_)
+    : MCStreamer(Kind, Context),
+      Assembler(new MCAssembler(Context, TAB, *Emitter_,
+                                *TAB.createObjectWriter(OS), OS)),
+      CurSectionData(0) {}
 
-MCObjectStreamer::MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
-                                   raw_ostream &OS, MCCodeEmitter *Emitter_,
+MCObjectStreamer::MCObjectStreamer(StreamerKind Kind, MCContext &Context,
+                                   MCAsmBackend &TAB, raw_ostream &OS,
+                                   MCCodeEmitter *Emitter_,
                                    MCAssembler *_Assembler)
-  : MCStreamer(Context), Assembler(_Assembler), CurSectionData(0)
-{
-}
+    : MCStreamer(Kind, Context), Assembler(_Assembler), CurSectionData(0) {}
 
 MCObjectStreamer::~MCObjectStreamer() {
   delete &Assembler->getBackend();
   delete &Assembler->getEmitter();
   delete &Assembler->getWriter();
   delete Assembler;
+}
+
+void MCObjectStreamer::reset() {
+  if (Assembler)
+    Assembler->reset();
+  CurSectionData = 0;
+  MCStreamer::reset();
 }
 
 MCFragment *MCObjectStreamer::getCurrentFragment() const {
@@ -55,7 +59,9 @@ MCFragment *MCObjectStreamer::getCurrentFragment() const {
 
 MCDataFragment *MCObjectStreamer::getOrCreateDataFragment() const {
   MCDataFragment *F = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
-  if (!F)
+  // When bundling is enabled, we don't want to add data to a fragment that
+  // already has instructions (see MCELFStreamer::EmitInstToData for details)
+  if (!F || (Assembler->isBundlingEnabled() && F->hasInstructions()))
     F = new MCDataFragment(getCurrentSectionData());
   return F;
 }
@@ -99,9 +105,9 @@ void MCObjectStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
     EmitIntValue(AbsValue, Size, AddrSpace);
     return;
   }
-  DF->addFixup(MCFixup::Create(DF->getContents().size(),
-                               Value,
-                               MCFixup::getKindForSize(Size, false)));
+  DF->getFixups().push_back(
+      MCFixup::Create(DF->getContents().size(), Value,
+                      MCFixup::getKindForSize(Size, false)));
   DF->getContents().resize(DF->getContents().size() + Size, 0);
 }
 
@@ -126,6 +132,10 @@ void MCObjectStreamer::EmitLabel(MCSymbol *Symbol) {
   assert(!SD.getFragment() && "Unexpected fragment on symbol data!");
   SD.setFragment(F);
   SD.setOffset(F->getContents().size());
+}
+
+void MCObjectStreamer::EmitDebugLabel(MCSymbol *Symbol) {
+  EmitLabel(Symbol);
 }
 
 void MCObjectStreamer::EmitULEB128Value(const MCExpr *Value) {
@@ -159,27 +169,38 @@ void MCObjectStreamer::ChangeSection(const MCSection *Section) {
   CurSectionData = &getAssembler().getOrCreateSectionData(*Section);
 }
 
+void MCObjectStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
+  getAssembler().getOrCreateSymbolData(*Symbol);
+  Symbol->setVariableValue(AddValueSymbols(Value));
+}
+
 void MCObjectStreamer::EmitInstruction(const MCInst &Inst) {
   // Scan for values.
   for (unsigned i = Inst.getNumOperands(); i--; )
     if (Inst.getOperand(i).isExpr())
       AddValueSymbols(Inst.getOperand(i).getExpr());
 
-  getCurrentSectionData()->setHasInstructions(true);
+  MCSectionData *SD = getCurrentSectionData();
+  SD->setHasInstructions(true);
 
   // Now that a machine instruction has been assembled into this section, make
   // a line entry for any .loc directive that has been seen.
   MCLineEntry::Make(this, getCurrentSection());
 
   // If this instruction doesn't need relaxation, just emit it as data.
-  if (!getAssembler().getBackend().mayNeedRelaxation(Inst)) {
+  MCAssembler &Assembler = getAssembler();
+  if (!Assembler.getBackend().mayNeedRelaxation(Inst)) {
     EmitInstToData(Inst);
     return;
   }
 
-  // Otherwise, if we are relaxing everything, relax the instruction as much as
-  // possible and emit it as data.
-  if (getAssembler().getRelaxAll()) {
+  // Otherwise, relax and emit it as data if either:
+  // - The RelaxAll flag was passed
+  // - Bundling is enabled and this instruction is inside a bundle-locked
+  //   group. We want to emit all such instructions into the same data
+  //   fragment.
+  if (Assembler.getRelaxAll() ||
+      (Assembler.isBundlingEnabled() && SD->isBundleLocked())) {
     MCInst Relaxed;
     getAssembler().getBackend().relaxInstruction(Inst, Relaxed);
     while (getAssembler().getBackend().mayNeedRelaxation(Relaxed))
@@ -193,13 +214,33 @@ void MCObjectStreamer::EmitInstruction(const MCInst &Inst) {
 }
 
 void MCObjectStreamer::EmitInstToFragment(const MCInst &Inst) {
-  MCInstFragment *IF = new MCInstFragment(Inst, getCurrentSectionData());
+  // Always create a new, separate fragment here, because its size can change
+  // during relaxation.
+  MCRelaxableFragment *IF =
+    new MCRelaxableFragment(Inst, getCurrentSectionData());
 
   SmallString<128> Code;
   raw_svector_ostream VecOS(Code);
   getAssembler().getEmitter().EncodeInstruction(Inst, VecOS, IF->getFixups());
   VecOS.flush();
-  IF->getCode().append(Code.begin(), Code.end());
+  IF->getContents().append(Code.begin(), Code.end());
+}
+
+#ifndef NDEBUG
+static const char *BundlingNotImplementedMsg =
+  "Aligned bundling is not implemented for this object format";
+#endif
+
+void MCObjectStreamer::EmitBundleAlignMode(unsigned AlignPow2) {
+  llvm_unreachable(BundlingNotImplementedMsg);
+}
+
+void MCObjectStreamer::EmitBundleLock(bool AlignToEnd) {
+  llvm_unreachable(BundlingNotImplementedMsg);
+}
+
+void MCObjectStreamer::EmitBundleUnlock() {
+  llvm_unreachable(BundlingNotImplementedMsg);
 }
 
 void MCObjectStreamer::EmitDwarfAdvanceLineAddr(int64_t LineDelta,
@@ -275,7 +316,7 @@ bool MCObjectStreamer::EmitValueToOffset(const MCExpr *Offset,
 
   if (!Delta->EvaluateAsAbsolute(Res, getAssembler()))
     return true;
-  EmitFill(Res, Value, 0);
+  EmitFill(Res, Value);
   return false;
 }
 
@@ -283,7 +324,8 @@ bool MCObjectStreamer::EmitValueToOffset(const MCExpr *Offset,
 void MCObjectStreamer::EmitGPRel32Value(const MCExpr *Value) {
   MCDataFragment *DF = getOrCreateDataFragment();
 
-  DF->addFixup(MCFixup::Create(DF->getContents().size(), Value, FK_GPRel_4));
+  DF->getFixups().push_back(MCFixup::Create(DF->getContents().size(), 
+                                            Value, FK_GPRel_4));
   DF->getContents().resize(DF->getContents().size() + 4, 0);
 }
 
@@ -291,7 +333,8 @@ void MCObjectStreamer::EmitGPRel32Value(const MCExpr *Value) {
 void MCObjectStreamer::EmitGPRel64Value(const MCExpr *Value) {
   MCDataFragment *DF = getOrCreateDataFragment();
 
-  DF->addFixup(MCFixup::Create(DF->getContents().size(), Value, FK_GPRel_4));
+  DF->getFixups().push_back(MCFixup::Create(DF->getContents().size(), 
+                                            Value, FK_GPRel_4));
   DF->getContents().resize(DF->getContents().size() + 8, 0);
 }
 

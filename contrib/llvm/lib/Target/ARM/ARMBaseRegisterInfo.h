@@ -111,12 +111,11 @@ public:
   unsigned getRegPressureLimit(const TargetRegisterClass *RC,
                                MachineFunction &MF) const;
 
-  ArrayRef<uint16_t> getRawAllocationOrder(const TargetRegisterClass *RC,
-                                           unsigned HintType, unsigned HintReg,
-                                           const MachineFunction &MF) const;
-
-  unsigned ResolveRegAllocHint(unsigned Type, unsigned Reg,
-                               const MachineFunction &MF) const;
+  void getRegAllocationHints(unsigned VirtReg,
+                             ArrayRef<MCPhysReg> Order,
+                             SmallVectorImpl<MCPhysReg> &Hints,
+                             const MachineFunction &MF,
+                             const VirtRegMap *VRM) const;
 
   void UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
                           MachineFunction &MF) const;
@@ -169,17 +168,9 @@ public:
 
   virtual bool requiresVirtualBaseRegisters(const MachineFunction &MF) const;
 
-  virtual void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                           MachineBasicBlock &MBB,
-                                           MachineBasicBlock::iterator I) const;
-
   virtual void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                   int SPAdj, RegScavenger *RS = NULL) const;
-
-private:
-  unsigned getRegisterPairEven(unsigned Reg, const MachineFunction &MF) const;
-
-  unsigned getRegisterPairOdd(unsigned Reg, const MachineFunction &MF) const;
+                                   int SPAdj, unsigned FIOperandNum,
+                                   RegScavenger *RS = NULL) const;
 };
 
 } // end namespace llvm

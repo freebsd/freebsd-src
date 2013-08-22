@@ -12,16 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Tooling/ArgumentsAdjusters.h"
 #include "clang/Tooling/Tooling.h"
-#include "clang/Tooling/CompilationDatabase.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Tooling/ArgumentsAdjusters.h"
+#include "clang/Tooling/CompilationDatabase.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/raw_ostream.h"
@@ -48,7 +49,7 @@ static clang::driver::Driver *newDriver(clang::DiagnosticsEngine *Diagnostics,
   const std::string DefaultOutputName = "a.out";
   clang::driver::Driver *CompilerDriver = new clang::driver::Driver(
     BinaryName, llvm::sys::getDefaultTargetTriple(),
-    DefaultOutputName, false, *Diagnostics);
+    DefaultOutputName, *Diagnostics);
   CompilerDriver->setTitle("clang_based_tool");
   return CompilerDriver;
 }
@@ -63,7 +64,7 @@ static const clang::driver::ArgStringList *getCC1Arguments(
   // failed. Extract that job from the Compilation.
   const clang::driver::JobList &Jobs = Compilation->getJobs();
   if (Jobs.size() != 1 || !isa<clang::driver::Command>(*Jobs.begin())) {
-    llvm::SmallString<256> error_msg;
+    SmallString<256> error_msg;
     llvm::raw_svector_ostream error_stream(error_msg);
     Compilation->PrintJob(error_stream, Compilation->getJobs(), "; ", true);
     Diagnostics->Report(clang::diag::err_fe_expected_compiler_job)
@@ -121,7 +122,7 @@ bool runToolOnCodeWithArgs(clang::FrontendAction *ToolAction, const Twine &Code,
 }
 
 std::string getAbsolutePath(StringRef File) {
-  llvm::SmallString<1024> BaseDirectory;
+  SmallString<1024> BaseDirectory;
   if (const char *PWD = ::getenv("PWD"))
     BaseDirectory = PWD;
   else
@@ -136,7 +137,7 @@ std::string getAbsolutePath(StringRef File) {
   if (RelativePath.startswith("./")) {
     RelativePath = RelativePath.substr(strlen("./"));
   }
-  llvm::SmallString<1024> AbsolutePath(BaseDirectory);
+  SmallString<1024> AbsolutePath(BaseDirectory);
   llvm::sys::path::append(AbsolutePath, RelativePath);
   llvm::sys::path::native(Twine(AbsolutePath), PathStorage);
   return PathStorage.str();
@@ -163,31 +164,29 @@ bool ToolInvocation::run() {
   TextDiagnosticPrinter DiagnosticPrinter(
       llvm::errs(), &*DiagOpts);
   DiagnosticsEngine Diagnostics(
-    llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new DiagnosticIDs()),
+    IntrusiveRefCntPtr<clang::DiagnosticIDs>(new DiagnosticIDs()),
     &*DiagOpts, &DiagnosticPrinter, false);
 
-  const llvm::OwningPtr<clang::driver::Driver> Driver(
+  const OwningPtr<clang::driver::Driver> Driver(
       newDriver(&Diagnostics, BinaryName));
   // Since the input might only be virtual, don't check whether it exists.
   Driver->setCheckInputsExist(false);
-  const llvm::OwningPtr<clang::driver::Compilation> Compilation(
+  const OwningPtr<clang::driver::Compilation> Compilation(
       Driver->BuildCompilation(llvm::makeArrayRef(Argv)));
   const clang::driver::ArgStringList *const CC1Args = getCC1Arguments(
       &Diagnostics, Compilation.get());
   if (CC1Args == NULL) {
     return false;
   }
-  llvm::OwningPtr<clang::CompilerInvocation> Invocation(
+  OwningPtr<clang::CompilerInvocation> Invocation(
       newInvocation(&Diagnostics, *CC1Args));
-  return runInvocation(BinaryName, Compilation.get(), Invocation.take(),
-                       *CC1Args);
+  return runInvocation(BinaryName, Compilation.get(), Invocation.take());
 }
 
 bool ToolInvocation::runInvocation(
     const char *BinaryName,
     clang::driver::Compilation *Compilation,
-    clang::CompilerInvocation *Invocation,
-    const clang::driver::ArgStringList &CC1Args) {
+    clang::CompilerInvocation *Invocation) {
   // Show the invocation, with -v.
   if (Invocation->getHeaderSearchOpts().Verbose) {
     llvm::errs() << "clang Invocation:\n";
@@ -204,11 +203,10 @@ bool ToolInvocation::runInvocation(
   // ToolAction can have lifetime requirements for Compiler or its members, and
   // we need to ensure it's deleted earlier than Compiler. So we pass it to an
   // OwningPtr declared after the Compiler variable.
-  llvm::OwningPtr<FrontendAction> ScopedToolAction(ToolAction.take());
+  OwningPtr<FrontendAction> ScopedToolAction(ToolAction.take());
 
   // Create the compilers actual diagnostics engine.
-  Compiler.createDiagnostics(CC1Args.size(),
-                             const_cast<char**>(CC1Args.data()));
+  Compiler.createDiagnostics();
   if (!Compiler.hasDiagnostics())
     return false;
 
@@ -241,7 +239,7 @@ ClangTool::ClangTool(const CompilationDatabase &Compilations,
     : Files((FileSystemOptions())),
       ArgsAdjuster(new ClangSyntaxOnlyAdjuster()) {
   for (unsigned I = 0, E = SourcePaths.size(); I != E; ++I) {
-    llvm::SmallString<1024> File(getAbsolutePath(SourcePaths[I]));
+    SmallString<1024> File(getAbsolutePath(SourcePaths[I]));
 
     std::vector<CompileCommand> CompileCommandsForFile =
       Compilations.getCompileCommands(File.str());
@@ -298,14 +296,19 @@ int ClangTool::run(FrontendActionFactory *ActionFactory) {
       ArgsAdjuster->Adjust(CompileCommands[I].second.CommandLine);
     assert(!CommandLine.empty());
     CommandLine[0] = MainExecutable;
-    llvm::outs() << "Processing: " << File << ".\n";
+    // FIXME: We need a callback mechanism for the tool writer to output a
+    // customized message for each file.
+    DEBUG({
+      llvm::dbgs() << "Processing: " << File << ".\n";
+    });
     ToolInvocation Invocation(CommandLine, ActionFactory->create(), &Files);
     for (int I = 0, E = MappedFileContents.size(); I != E; ++I) {
       Invocation.mapVirtualFile(MappedFileContents[I].first,
                                 MappedFileContents[I].second);
     }
     if (!Invocation.run()) {
-      llvm::outs() << "Error while processing " << File << ".\n";
+      // FIXME: Diagnostics should be used instead.
+      llvm::errs() << "Error while processing " << File << ".\n";
       ProcessingFailed = true;
     }
   }

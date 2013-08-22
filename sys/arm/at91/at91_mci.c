@@ -1069,8 +1069,6 @@ at91_mci_stop_done(struct at91_mci_softc *sc, uint32_t sr)
 			}
 		} while (sr & MCI_SR_RXRDY);
 		at91_mci_reset(sc);
-		if (count != 0)
-			printf("Had to soak up %d words after read\n", count);
 	}
 
 	cmd->error = MMC_ERR_NONE;

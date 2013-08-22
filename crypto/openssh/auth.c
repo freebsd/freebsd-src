@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.96 2012/05/13 01:42:32 dtucker Exp $ */
+/* $OpenBSD: auth.c,v 1.101 2013/02/06 00:22:21 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -72,6 +72,7 @@ __RCSID("$FreeBSD$");
 #endif
 #include "authfile.h"
 #include "monitor_wrap.h"
+#include "krl.h"
 
 /* import */
 extern ServerOptions options;
@@ -252,7 +253,8 @@ allowed_user(struct passwd * pw)
 }
 
 void
-auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
+auth_log(Authctxt *authctxt, int authenticated, int partial,
+    const char *method, const char *submethod, const char *info)
 {
 	void (*authlog) (const char *fmt,...) = verbose;
 	char *authmsg;
@@ -269,12 +271,15 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 
 	if (authctxt->postponed)
 		authmsg = "Postponed";
+	else if (partial)
+		authmsg = "Partial";
 	else
 		authmsg = authenticated ? "Accepted" : "Failed";
 
-	authlog("%s %s for %s%.100s from %.200s port %d%s",
+	authlog("%s %s%s%s for %s%.100s from %.200s port %d%s",
 	    authmsg,
 	    method,
+	    submethod != NULL ? "/" : "", submethod == NULL ? "" : submethod,
 	    authctxt->valid ? "" : "invalid user ",
 	    authctxt->user,
 	    get_remote_ipaddr(),
@@ -304,7 +309,7 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
  * Check whether root logins are disallowed.
  */
 int
-auth_root_allowed(char *method)
+auth_root_allowed(const char *method)
 {
 	switch (options.permit_root_login) {
 	case PERMIT_YES:
@@ -410,41 +415,42 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 	return host_status;
 }
 
-
 /*
- * Check a given file for security. This is defined as all components
+ * Check a given path for security. This is defined as all components
  * of the path to the file must be owned by either the owner of
  * of the file or root and no directories must be group or world writable.
  *
  * XXX Should any specific check be done for sym links ?
  *
- * Takes an open file descriptor, the file name, a uid and and
+ * Takes a file name, its stat information (preferably from fstat() to
+ * avoid races), the uid of the expected owner, their home directory and an
  * error buffer plus max size as arguments.
  *
  * Returns 0 on success and -1 on failure
  */
-static int
-secure_filename(FILE *f, const char *file, struct passwd *pw,
-    char *err, size_t errlen)
+int
+auth_secure_path(const char *name, struct stat *stp, const char *pw_dir,
+    uid_t uid, char *err, size_t errlen)
 {
-	uid_t uid = pw->pw_uid;
 	char buf[MAXPATHLEN], homedir[MAXPATHLEN];
 	char *cp;
 	int comparehome = 0;
 	struct stat st;
 
-	if (realpath(file, buf) == NULL) {
-		snprintf(err, errlen, "realpath %s failed: %s", file,
+	if (realpath(name, buf) == NULL) {
+		snprintf(err, errlen, "realpath %s failed: %s", name,
 		    strerror(errno));
 		return -1;
 	}
-	if (realpath(pw->pw_dir, homedir) != NULL)
+	if (pw_dir != NULL && realpath(pw_dir, homedir) != NULL)
 		comparehome = 1;
 
-	/* check the open file to avoid races */
-	if (fstat(fileno(f), &st) < 0 ||
-	    (st.st_uid != 0 && st.st_uid != uid) ||
-	    (st.st_mode & 022) != 0) {
+	if (!S_ISREG(stp->st_mode)) {
+		snprintf(err, errlen, "%s is not a regular file", buf);
+		return -1;
+	}
+	if ((!platform_sys_dir_uid(stp->st_uid) && stp->st_uid != uid) ||
+	    (stp->st_mode & 022) != 0) {
 		snprintf(err, errlen, "bad ownership or modes for file %s",
 		    buf);
 		return -1;
@@ -459,7 +465,7 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		strlcpy(buf, cp, sizeof(buf));
 
 		if (stat(buf, &st) < 0 ||
-		    (st.st_uid != 0 && st.st_uid != uid) ||
+		    (!platform_sys_dir_uid(st.st_uid) && st.st_uid != uid) ||
 		    (st.st_mode & 022) != 0) {
 			snprintf(err, errlen,
 			    "bad ownership or modes for directory %s", buf);
@@ -478,6 +484,27 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 			break;
 	}
 	return 0;
+}
+
+/*
+ * Version of secure_path() that accepts an open file descriptor to
+ * avoid races.
+ *
+ * Returns 0 on success and -1 on failure
+ */
+static int
+secure_filename(FILE *f, const char *file, struct passwd *pw,
+    char *err, size_t errlen)
+{
+	struct stat st;
+
+	/* check the open file to avoid races */
+	if (fstat(fileno(f), &st) < 0) {
+		snprintf(err, errlen, "cannot stat file %s: %s",
+		    file, strerror(errno));
+		return -1;
+	}
+	return auth_secure_path(file, &st, pw->pw_dir, pw->pw_uid, err, errlen);
 }
 
 static FILE *
@@ -615,7 +642,16 @@ auth_key_is_revoked(Key *key)
 
 	if (options.revoked_keys_file == NULL)
 		return 0;
-
+	switch (ssh_krl_file_contains_key(options.revoked_keys_file, key)) {
+	case 0:
+		return 0;	/* Not revoked */
+	case -2:
+		break;		/* Not a KRL */
+	default:
+		goto revoked;
+	}
+	debug3("%s: treating %s as a key list", __func__,
+	    options.revoked_keys_file);
 	switch (key_in_file(key, options.revoked_keys_file, 0)) {
 	case 0:
 		/* key not revoked */
@@ -626,6 +662,7 @@ auth_key_is_revoked(Key *key)
 		    "authentication");
 		return 1;
 	case 1:
+ revoked:
 		/* Key revoked */
 		key_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
 		error("WARNING: authentication attempt with a revoked "

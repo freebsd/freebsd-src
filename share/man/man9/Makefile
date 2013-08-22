@@ -51,6 +51,7 @@ MAN=	accept_filter.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
 	copy.9 \
+	counter.9 \
 	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -569,6 +570,14 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyout.9 \
 	copy.9 copyout_nofault.9 \
 	copy.9 copystr.9
+MLINKS+=counter.9 counter_u64_alloc.9 \
+	counter.9 counter_u64_free.9 \
+	counter.9 counter_u64_add.9 \
+	counter.9 counter_enter.9 \
+	counter.9 counter_exit.9 \
+	counter.9 counter_u64_add_protected.9 \
+	counter.9 counter_u64_fetch.9 \
+	counter.9 counter_u64_zero.9
 MLINKS+=critical_enter.9 critical.9 \
 	critical_enter.9 critical_exit.9
 MLINKS+=crypto.9 crypto_dispatch.9 \

@@ -45,9 +45,10 @@ LANGOPT(C99               , 1, 0, "C99")
 LANGOPT(C11               , 1, 0, "C11")
 LANGOPT(MicrosoftExt      , 1, 0, "Microsoft extensions")
 LANGOPT(MicrosoftMode     , 1, 0, "Microsoft compatibility mode")
+LANGOPT(AsmBlocks         , 1, 0, "Microsoft inline asm blocks")
 LANGOPT(Borland           , 1, 0, "Borland extensions")
 LANGOPT(CPlusPlus         , 1, 0, "C++")
-LANGOPT(CPlusPlus0x       , 1, 0, "C++0x")
+LANGOPT(CPlusPlus11       , 1, 0, "C++0x")
 LANGOPT(CPlusPlus1y       , 1, 0, "C++1y")
 LANGOPT(ObjC1             , 1, 0, "Objective-C 1")
 LANGOPT(ObjC2             , 1, 0, "Objective-C 2")
@@ -116,7 +117,9 @@ LANGOPT(ShortEnums        , 1, 0, "short enum types")
 
 LANGOPT(OpenCL            , 1, 0, "OpenCL")
 LANGOPT(OpenCLVersion     , 32, 0, "OpenCL version")
+LANGOPT(NativeHalfType    , 1, 0, "Native half type support")
 LANGOPT(CUDA              , 1, 0, "CUDA")
+LANGOPT(OpenMP            , 1, 0, "OpenMP support")
 
 LANGOPT(AssumeSaneOperatorNew , 1, 1, "implicit __attribute__((malloc)) for C++'s new operators")
 BENIGN_LANGOPT(ElideConstructors , 1, 1, "C++ copy constructor elision")
@@ -145,18 +148,21 @@ BENIGN_LANGOPT(DelayedTemplateParsing , 1, 0, "delayed template parsing")
 LANGOPT(BlocksRuntimeOptional , 1, 0, "optional blocks runtime")
 
 ENUM_LANGOPT(GC, GCMode, 2, NonGC, "Objective-C Garbage Collection mode")
-ENUM_LANGOPT(VisibilityMode, Visibility, 3, DefaultVisibility, 
-             "symbol visibility")
+ENUM_LANGOPT(ValueVisibilityMode, Visibility, 3, DefaultVisibility, 
+             "value symbol visibility")
+ENUM_LANGOPT(TypeVisibilityMode, Visibility, 3, DefaultVisibility, 
+             "type symbol visibility")
 ENUM_LANGOPT(StackProtector, StackProtectorMode, 2, SSPOff, 
              "stack protector mode")
 ENUM_LANGOPT(SignedOverflowBehavior, SignedOverflowBehaviorTy, 2, SOB_Undefined,
              "signed integer overflow handling")
-ENUM_LANGOPT(FPContractMode, FPContractModeKind, 2, FPC_On, "FP_CONTRACT mode")
 
 BENIGN_LANGOPT(InstantiationDepth, 32, 512, 
                "maximum template instantiation depth")
 BENIGN_LANGOPT(ConstexprCallDepth, 32, 512,
                "maximum constexpr call depth")
+BENIGN_LANGOPT(BracketDepth, 32, 256,
+               "maximum bracket nesting depth")
 BENIGN_LANGOPT(NumLargeByValueCopy, 32, 0, 
         "if non-zero, warn about parameter or return Warn if parameter/return value is larger in bytes than this setting. 0 is no check.")
 VALUE_LANGOPT(MSCVersion, 32, 0, 
@@ -164,16 +170,7 @@ VALUE_LANGOPT(MSCVersion, 32, 0,
 
 LANGOPT(ApplePragmaPack, 1, 0, "Apple gcc-compatible #pragma pack handling")
 
-BENIGN_LANGOPT(EmitMicrosoftInlineAsm , 1, 0, 
-               "Enable emission of MS-style inline assembly.")
-
-
 BENIGN_LANGOPT(RetainCommentsFromSystemHeaders, 1, 0, "retain documentation comments from system headers in the AST")
-
-/// Runtime sanitizers.
-#define SANITIZER(NAME, ID) \
-BENIGN_LANGOPT(Sanitize##ID, 1, 0, NAME " sanitizer")
-#include "clang/Basic/Sanitizers.def"
 
 #undef LANGOPT
 #undef VALUE_LANGOPT

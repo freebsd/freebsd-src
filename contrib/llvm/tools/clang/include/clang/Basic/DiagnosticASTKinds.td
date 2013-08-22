@@ -106,6 +106,9 @@ def note_constexpr_calls_suppressed : Note<
   "(skipping %0 call%s0 in backtrace; use -fconstexpr-backtrace-limit=0 to "
   "see all)">;
 def note_constexpr_call_here : Note<"in call to '%0'">;
+def warn_integer_constant_overflow : Warning<
+  "overflow in expression; result is %0 with type %1">,
+  InGroup<DiagGroup<"integer-overflow">>;
 
 // inline asm related.
 let CategoryName = "Inline Assembly Issue" in {
@@ -135,7 +138,8 @@ def err_odr_function_type_inconsistent : Error<
   "external function %0 declared with incompatible types in different "
   "translation units (%1 vs. %2)">;
 def warn_odr_tag_type_inconsistent : Warning<
-  "type %0 has incompatible definitions in different translation units">;
+  "type %0 has incompatible definitions in different translation units">,
+  InGroup<DiagGroup<"odr">>;
 def note_odr_tag_kind_here: Note<
   "%0 is a %select{struct|interface|union|class|enum}1 here">;
 def note_odr_field : Note<"field %0 has type %1 here">;

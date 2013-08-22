@@ -1,7 +1,7 @@
 if [ ! "$_USERMGMT_GROUP_INPUT_SUBR" ]; then _USERMGMT_GROUP_INPUT_SUBR=1
 #
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012 Devin Teske
+# Copyright (c) 2012-2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,12 +58,14 @@ f_input_group()
 	}' )
 }
 
-# f_dialog_menu_group_list
+# f_dialog_menu_group_list [$default]
 #
-# Allows the user to select a group from a list.
+# Allows the user to select a group from a list. Optionally, if present and
+# non-NULL, initially highlight $default group.
 #
 f_dialog_menu_group_list()
 {
+	local defaultitem="$1"
 	local menu_list size
 	local hline="$hline_alnum_punc_tab_enter"
 
@@ -87,11 +89,12 @@ f_dialog_menu_group_list()
 
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
 		--menu \"\" $size $menu_list       \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -299,7 +302,7 @@ f_dialog_input_group_members()
 		'2' '$msg_enter_group_members_manually'
 	" # END-QUOTE
 
-	local dialog_menu
+	local dialog_menu defaultitem=
 	while :; do
 		msg="$msg_group_members:"
 		menu_size=$( eval f_dialog_menu_size \
@@ -314,12 +317,14 @@ f_dialog_input_group_members()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
+			--default-item \"\$defaultitem\"   \
 			--menu \"\$msg\" $menu_size        \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		retval=$?
 		setvar DIALOG_MENU_$$ "$dialog_menu"
+		defaultitem="$dialog_menu"
 		menu_choice=$( f_dialog_menutag )
 		f_dprintf "retval=%u menu_choice=[%s]" $retval "$menu_choice"
 

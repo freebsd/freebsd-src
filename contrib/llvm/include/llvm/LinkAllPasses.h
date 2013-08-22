@@ -16,23 +16,25 @@
 #define LLVM_LINKALLPASSES_H
 
 #include "llvm/Analysis/AliasSetTracker.h"
+#include "llvm/Analysis/CallPrinter.h"
 #include "llvm/Analysis/DomPrinter.h"
 #include "llvm/Analysis/FindUsedTypes.h"
 #include "llvm/Analysis/IntervalPartition.h"
+#include "llvm/Analysis/Lint.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/RegionPass.h"
 #include "llvm/Analysis/RegionPrinter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/Lint.h"
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Function.h"
-#include "llvm/Transforms/Instrumentation.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Instrumentation.h"
+#include "llvm/Transforms/ObjCARC.h"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Vectorize.h"
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
+#include "llvm/Transforms/Vectorize.h"
 #include <cstdlib>
 
 namespace {
@@ -57,6 +59,8 @@ namespace {
       (void) llvm::createBlockPlacementPass();
       (void) llvm::createBoundsCheckingPass();
       (void) llvm::createBreakCriticalEdgesPass();
+      (void) llvm::createCallGraphPrinterPass();
+      (void) llvm::createCallGraphViewerPass();
       (void) llvm::createCFGSimplificationPass();
       (void) llvm::createConstantMergePass();
       (void) llvm::createConstantPropagationPass();
@@ -147,7 +151,7 @@ namespace {
       (void) llvm::createMergeFunctionsPass();
       (void) llvm::createPrintModulePass(0);
       (void) llvm::createPrintFunctionPass("", 0);
-      (void) llvm::createDbgInfoPrinterPass();
+      (void) llvm::createPrintBasicBlockPass(0);
       (void) llvm::createModuleDebugInfoPrinterPass();
       (void) llvm::createPartialInliningPass();
       (void) llvm::createLintPass();

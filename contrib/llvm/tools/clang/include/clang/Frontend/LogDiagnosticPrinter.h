@@ -12,8 +12,8 @@
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace clang {
 class DiagnosticOptions;
@@ -42,7 +42,7 @@ class LogDiagnosticPrinter : public DiagnosticConsumer {
   
   raw_ostream &OS;
   const LangOptions *LangOpts;
-  llvm::IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
+  IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
 
   SourceLocation LastWarningLoc;
   FullSourceLoc LastLoc;

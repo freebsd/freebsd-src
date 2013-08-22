@@ -19,24 +19,21 @@
 #include "X86RegisterInfo.h"
 #include "X86Subtarget.h"
 #include "X86TargetMachine.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/Type.h"
-#include "llvm/CodeGen/FunctionLoweringInfo.h"
-#include "llvm/CodeGen/MachineConstantPool.h"
-#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/CFG.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
 STATISTIC(NumLoadMoved, "Number of loads moved below TokenFactor");
@@ -283,13 +280,13 @@ namespace {
 
     /// getTargetMachine - Return a reference to the TargetMachine, casted
     /// to the target-specific type.
-    const X86TargetMachine &getTargetMachine() {
+    const X86TargetMachine &getTargetMachine() const {
       return static_cast<const X86TargetMachine &>(TM);
     }
 
     /// getInstrInfo - Return a reference to the TargetInstrInfo, casted
     /// to the target-specific type.
-    const X86InstrInfo *getInstrInfo() {
+    const X86InstrInfo *getInstrInfo() const {
       return getTargetMachine().getInstrInfo();
     }
   };
@@ -423,6 +420,11 @@ static bool isCalleeLoad(SDValue Callee, SDValue &Chain, bool HasCallSeq) {
 
   if (!Chain.getNumOperands())
     return false;
+  // Since we are not checking for AA here, conservatively abort if the chain
+  // writes to memory. It's not safe to move the callee (a load) across a store.
+  if (isa<MemSDNode>(Chain.getNode()) &&
+      cast<MemSDNode>(Chain.getNode())->writeMem())
+    return false;
   if (Chain.getOperand(0).getNode() == Callee.getNode())
     return true;
   if (Chain.getOperand(0).getOpcode() == ISD::TokenFactor &&
@@ -434,17 +436,19 @@ static bool isCalleeLoad(SDValue Callee, SDValue &Chain, bool HasCallSeq) {
 
 void X86DAGToDAGISel::PreprocessISelDAG() {
   // OptForSize is used in pattern predicates that isel is matching.
-  OptForSize = MF->getFunction()->getFnAttributes().
-    hasAttribute(Attributes::OptimizeForSize);
+  OptForSize = MF->getFunction()->getAttributes().
+    hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize);
 
   for (SelectionDAG::allnodes_iterator I = CurDAG->allnodes_begin(),
        E = CurDAG->allnodes_end(); I != E; ) {
     SDNode *N = I++;  // Preincrement iterator to avoid invalidation issues.
 
     if (OptLevel != CodeGenOpt::None &&
-        (N->getOpcode() == X86ISD::CALL ||
+        // Only does this when target favors doesn't favor register indirect
+        // call.
+        ((N->getOpcode() == X86ISD::CALL && !Subtarget->callRegIndirect()) ||
          (N->getOpcode() == X86ISD::TC_RETURN &&
-          // Only does this if load can be foled into TC_RETURN.
+          // Only does this if load can be folded into TC_RETURN.
           (Subtarget->is64Bit() ||
            getTargetMachine().getRelocationModel() != Reloc::PIC_)))) {
       /// Also try moving call address load from outside callseq_start to just
@@ -1040,8 +1044,8 @@ bool X86DAGToDAGISel::MatchAddressRecursively(SDValue N, X86ISelAddressMode &AM,
         AM.IndexReg = ShVal;
         return false;
       }
-    break;
     }
+    break;
 
   case ISD::SRL: {
     // Scale must not be used already.
