@@ -101,13 +101,11 @@ svm_npt_create(pml4_entry_t * pml4, vm_paddr_t gpa, vm_paddr_t hpa,
 	}
 
 	/* Find out mode bits for PTE */
-	mode = PG_U;
+	mode = PG_U | PG_V;
 	if (prot & VM_PROT_WRITE)
 		mode |= PG_RW;
 	if ((prot & VM_PROT_EXECUTE) == 0) 	
 		mode |= pg_nx;
-	if (prot != VM_PROT_NONE) 
-		mode |= PG_V;
 		
 	pt = (uint64_t *)pml4;
 	shift = PML4SHIFT;
@@ -129,18 +127,13 @@ svm_npt_create(pml4_entry_t * pml4, vm_paddr_t gpa, vm_paddr_t hpa,
 
 	/* Create leaf entry mapping. */
 	index = (gpa >> shift) & PT_INDEX_MASK;
-	if (pt[index] != 0) {
-		ERR("Mapping already exists.\n");
-		return (0);
-	}
-
-	pt[index] = hpa | mode;
 	
-	/* If its not last level page table entry, set PS bit. */
-	if (pg_size > PAGE_SIZE) {
-		pt[index] |= PG_PS;
-	}
-
+	if (prot != VM_PROT_NONE) {
+		pt[index] = hpa | mode;
+		pt[index] |= (pg_size > PAGE_SIZE) ? PG_PS : 0;
+	} else
+		pt[index] = 0;
+	
 	return (1UL << shift);
 }
 
@@ -179,11 +172,6 @@ svm_npt_vmmap_set(void *arg, vm_paddr_t gpa, vm_paddr_t hpa,
 	while (len < size) {
 		mapped = svm_npt_create(pml4, gpa + len, hpa + len, attr, prot,
 					pg_size);
-		if (mapped == 0) {
-			panic("Couldn't map GPA:0x%lx, size:0x%lx", gpa, 
-				pg_size);
-		}
-
 		len += mapped;
 	}
 
