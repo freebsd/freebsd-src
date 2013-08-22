@@ -167,6 +167,7 @@ struct vmxnet3_rxqueue {
 
 struct vmxnet3_statistics {
 	uint64_t		vmst_collapsed;
+	uint64_t		vmst_getcl_failed;
 
 };
 
@@ -285,5 +286,29 @@ struct vmxnet3_softc {
 
 #define VMXNET3_CSUM_ALL_OFFLOAD	\
     (VMXNET3_CSUM_OFFLOAD | VMXNET3_CSUM_OFFLOAD_IPV6 | CSUM_TSO)
+
+/*
+ * Compat macros to keep this driver compiling on old releases.
+ */
+
+#if !defined(SYSCTL_ADD_UQUAD)
+#define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
+#endif
+
+#if !defined(IFCAP_TXCSUM_IPV6)
+#define IFCAP_TXCSUM_IPV6 0
+#endif
+
+#if !defined(IFCAP_RXCSUM_IPV6)
+#define IFCAP_RXCSUM_IPV6 0
+#endif
+
+#if !defined(CSUM_TCP_IPV6)
+#define CSUM_TCP_IPV6 0
+#endif
+
+#if !defined(CSUM_UDP_IPV6)
+#define CSUM_UDP_IPV6	0
+#endif
 
 #endif /* _IF_VMXVAR_H */

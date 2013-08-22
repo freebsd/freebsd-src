@@ -1307,7 +1307,7 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 	ds->nrxsg_max = sc->vmx_max_rxsegs;
 
 	/* Interrupt control. */
-	ds->automask = 1;	/* VMXNET3_IMM_AUTO */
+	ds->automask = sc->vmx_intr_mask_mode == VMXNET3_IMM_AUTO;
 	ds->nintr = sc->vmx_nintrs;
 	ds->evintr = sc->vmx_event_intr_idx;
 	ds->ictrl = VMXNET3_ICTRL_DISABLE_ALL;
@@ -1617,11 +1617,11 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	} else {
 #if __FreeBSD_version < 902001
 		/*
-		 * These mbufs will never be used for the start of a
-		 * frame. However, roughly prior to branching releng/9.2,
-		 * bus_dmamap_load_mbuf_sg() required the mbuf to always be
-		 * a packet header. Avoid unnecessary mbuf initialization
-		 * in newer versions where that is not the case.
+		 * These mbufs will never be used for the start of a frame.
+		 * Roughly prior to branching releng/9.2, the load_mbuf_sg()
+		 * required the mbuf to always be a packet header. Avoid
+		 * unnecessary mbuf initialization in newer versions where
+		 * that is not the case.
 		 */
 		flags = M_PKTHDR;
 #else
@@ -1632,8 +1632,10 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	}
 
 	m = m_getjcl(M_NOWAIT, MT_DATA, flags, clsize);
-	if (m == NULL)
+	if (m == NULL) {
+		sc->vmx_stats.vmst_getcl_failed++;
 		return (ENOBUFS);
+	}
 
 	if (btype == VMXNET3_BTYPE_HEAD) {
 		m->m_len = m->m_pkthdr.len = clsize;
@@ -1916,6 +1918,8 @@ vmxnet3_legacy_intr(void *xsc)
 		if (vmxnet3_read_bar1(sc, VMXNET3_BAR1_INTR) == 0)
 			return;
 	}
+	if (sc->vmx_intr_mask_mode == VMXNET3_IMM_ACTIVE)
+		vmxnet3_disable_all_intrs(sc);
 
 	if (sc->vmx_ds->event != 0)
 		vmxnet3_evintr(sc);
@@ -1930,7 +1934,7 @@ vmxnet3_legacy_intr(void *xsc)
 		vmxnet3_start_locked(ifp);
 	VMXNET3_TXQ_UNLOCK(txq);
 
-	vmxnet3_enable_intr(sc, 0);
+	vmxnet3_enable_all_intrs(sc);
 }
 
 static void
@@ -1943,6 +1947,9 @@ vmxnet3_txq_intr(void *xtxq)
 	txq = xtxq;
 	sc = txq->vxtxq_sc;
 	ifp = sc->vmx_ifp;
+
+	if (sc->vmx_intr_mask_mode == VMXNET3_IMM_ACTIVE)
+		vmxnet3_disable_intr(sc, txq->vxtxq_intr_idx);
 
 	VMXNET3_TXQ_LOCK(txq);
 	vmxnet3_txq_eof(txq);
@@ -1962,6 +1969,9 @@ vmxnet3_rxq_intr(void *xrxq)
 	rxq = xrxq;
 	sc = rxq->vxrxq_sc;
 
+	if (sc->vmx_intr_mask_mode == VMXNET3_IMM_ACTIVE)
+		vmxnet3_disable_intr(sc, rxq->vxrxq_intr_idx);
+
 	VMXNET3_RXQ_LOCK(rxq);
 	vmxnet3_rxq_eof(rxq);
 	VMXNET3_RXQ_UNLOCK(rxq);
@@ -1975,6 +1985,9 @@ vmxnet3_event_intr(void *xsc)
 	struct vmxnet3_softc *sc;
 
 	sc = xsc;
+
+	if (sc->vmx_intr_mask_mode == VMXNET3_IMM_ACTIVE)
+		vmxnet3_disable_intr(sc, sc->vmx_event_intr_idx);
 
 	if (sc->vmx_ds->event != 0)
 		vmxnet3_evintr(sc);
@@ -2102,7 +2115,7 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	struct ifnet *ifp;
 	struct vmxnet3_rxring *rxr;
 	struct vmxnet3_comp_ring *rxc;
-	int i, npopulate, idx, frame_size, error;
+	int i, populate, idx, frame_size, error;
 
 	ifp = sc->vmx_ifp;
 	frame_size = ifp->if_mtu + sizeof(struct ether_vlan_header);
@@ -2117,7 +2130,7 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	 * to make our life easier. We do not support changing the ring
 	 * size after the attach.
 	 */
-	if (frame_size <= MCLBYTES)
+	if (frame_size <= MCLBYTES - ETHER_ALIGN)
 		sc->vmx_rx_max_chain = 1;
 	else
 		sc->vmx_rx_max_chain = 2;
@@ -2129,11 +2142,11 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	 */
 	if ((ifp->if_capenable & IFCAP_LRO) == 0 &&
 	    frame_size <= MCLBYTES + MJUMPAGESIZE)
-		npopulate = 1;
+		populate = 1;
 	else
-		npopulate = VMXNET3_RXRINGS_PERQ;
+		populate = VMXNET3_RXRINGS_PERQ;
 
-	for (i = 0; i < npopulate; i++) {
+	for (i = 0; i < populate; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
 		rxr->vxrxr_fill = 0;
 		rxr->vxrxr_gen = VMXNET3_INIT_GEN;
@@ -3103,6 +3116,8 @@ vmxnet3_setup_sysctl(struct vmxnet3_softc *sc)
 	stats = &sc->vmx_stats;
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "collapsed", CTLFLAG_RD,
 	    &stats->vmst_collapsed, "Tx mbuf chains collapsed");
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "getcl_failed", CTLFLAG_RD,
+	    &stats->vmst_getcl_failed, "Alloc of mbuf cluster failed");
 
 	vmxnet3_setup_queue_sysctl(sc, ctx, child);
 }
