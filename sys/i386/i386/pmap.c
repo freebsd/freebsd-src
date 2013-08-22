@@ -1738,8 +1738,6 @@ pmap_pinit(pmap_t pmap)
 	vm_paddr_t pa;
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * No need to allocate page table space yet but we do need a valid
 	 * page directory table.
@@ -2051,7 +2049,6 @@ pmap_release(pmap_t pmap)
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free_zero(m);
 	}
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 static int
