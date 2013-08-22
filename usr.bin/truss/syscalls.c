@@ -894,7 +894,7 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		tmp = strdup(xlookup_bits(mprot_flags, args[sc->offset]));
 		break;
 	case Mmapflags: {
-		const char *base, *alignstr;
+		char *base, *alignstr;
 		int align, flags;
 
 		/*

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../dev/iscsi/initiator
+.PATH: ${.CURDIR}/../../dev/iscsi_initiator
 KMOD=iscsi_initiator
 
 SRCS=  iscsi.h iscsivar.h

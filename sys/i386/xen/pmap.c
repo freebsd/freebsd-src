@@ -1452,8 +1452,6 @@ pmap_pinit(pmap_t pmap)
 	mtx_lock(&createdelete_lock);
 #endif
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * No need to allocate page table space yet but we do need a valid
 	 * page directory table.
@@ -1821,7 +1819,6 @@ pmap_release(pmap_t pmap)
 #ifdef PAE
 	pmap_qremove((vm_offset_t)pmap->pm_pdpt, 1);
 #endif
-	PMAP_LOCK_DESTROY(pmap);
 
 #ifdef HAMFISTED_LOCKING
 	mtx_unlock(&createdelete_lock);

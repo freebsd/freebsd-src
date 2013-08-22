@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: result.h,v 1.123 2011/03/21 07:22:14 each Exp $ */
 
 #ifndef DNS_RESULT_H
 #define DNS_RESULT_H 1

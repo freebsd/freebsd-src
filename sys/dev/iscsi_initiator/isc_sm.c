@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_periph.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
-#include <dev/iscsi/initiator/iscsivar.h>
+#include <dev/iscsi_initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsivar.h>
 
 static void
 _async(isc_session_t *sp, pduq_t *pq)

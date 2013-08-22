@@ -2549,9 +2549,9 @@ t4_set_desc(struct adapter *sc)
 	char buf[128];
 	struct adapter_params *p = &sc->params;
 
-	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, E/C:%s",
-	    p->vpd.id, is_offload(sc) ? "R" : "", chip_rev(sc), p->vpd.sn,
-	    p->vpd.ec);
+	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, "
+	    "P/N:%s, E/C:%s", p->vpd.id, is_offload(sc) ? "R" : "",
+	    chip_rev(sc), p->vpd.sn, p->vpd.pn, p->vpd.ec);
 
 	device_set_desc_copy(sc->dev, buf);
 }

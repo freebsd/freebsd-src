@@ -112,26 +112,61 @@ The flags specified are formed by
 the following values
 .Pp
 .Bl -tag -width ".Dv SF_IMMUTABLE" -compact -offset indent
-.It Dv UF_NODUMP
-Do not dump the file.
-.It Dv UF_IMMUTABLE
-The file may not be changed.
-.It Dv UF_APPEND
-The file may only be appended to.
-.It Dv UF_NOUNLINK
-The file may not be renamed or deleted.
-.It Dv UF_OPAQUE
-The directory is opaque when viewed through a union stack.
-.It Dv SF_ARCHIVED
-The file may be archived.
-.It Dv SF_IMMUTABLE
-The file may not be changed.
 .It Dv SF_APPEND
 The file may only be appended to.
+.It Dv SF_ARCHIVED
+The file has been archived.
+This flag means the opposite of the DOS, Windows and CIFS
+FILE_ATTRIBUTE_ARCHIVE attribute.
+This flag has been deprecated, and may be removed in a future release.
+.It Dv SF_IMMUTABLE
+The file may not be changed.
 .It Dv SF_NOUNLINK
 The file may not be renamed or deleted.
 .It Dv SF_SNAPSHOT
 The file is a snapshot file.
+.It Dv UF_APPEND
+The file may only be appended to.
+.It Dv UF_ARCHIVE
+The file needs to be archived.
+This flag has the same meaning as the DOS, Windows and CIFS
+FILE_ATTRIBUTE_ARCHIVE attribute.
+Filesystems in FreeBSD may or may not have special handling for this flag.
+For instance, ZFS tracks changes to files and will set this bit when a
+file is updated.
+UFS only stores the flag, and relies on the application to change it when
+needed.
+.It Dv UF_HIDDEN
+The file may be hidden from directory listings at the application's
+discretion.
+The file has the DOS, Windows and CIFS FILE_ATTRIBUTE_HIDDEN attribute.
+.It Dv UF_IMMUTABLE
+The file may not be changed.
+.It Dv UF_NODUMP
+Do not dump the file.
+.It Dv UF_NOUNLINK
+The file may not be renamed or deleted.
+.It Dv UF_OFFLINE
+The file is offline, or has the Windows and CIFS FILE_ATTRIBUTE_OFFLINE
+attribute.
+Filesystems in FreeBSD store and display this flag, but do not provide any
+special handling when it is set.
+.It Dv UF_OPAQUE
+The directory is opaque when viewed through a union stack.
+.It Dv UF_READONLY
+The file is read only, and may not be written or appended.
+Filesystems may use this flag to maintain compatibility with the DOS, Windows
+and CIFS FILE_ATTRIBUTE_READONLY attribute.
+.It Dv UF_REPARSE
+The file contains a Windows reparse point and has the Windows and CIFS
+FILE_ATTRIBUTE_REPARSE_POINT attribute.
+.It Dv UF_SPARSE
+The file has the Windows FILE_ATTRIBUTE_SPARSE_FILE attribute.
+This may also be used by a filesystem to indicate a sparse file.
+.It Dv UF_SYSTEM
+The file has the DOS, Windows and CIFS FILE_ATTRIBUTE_SYSTEM attribute.
+Filesystems in FreeBSD may store and display this flag, but do not provide
+any special handling when it is set.
 .El
 .Pp
 If one of
@@ -161,6 +196,13 @@ the system is in single-user mode.
 (See
 .Xr init 8
 for details.)
+.Pp
+The implementation of all flags is filesystem-dependent.
+See the description of the
+.Dv UF_ARCHIVE
+flag above for one example of the differences in behavior.
+Care should be exercised when writing applications to account for
+support or lack of support of these flags in various filesystems.
 .Pp
 The
 .Dv SF_SNAPSHOT

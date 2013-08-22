@@ -156,7 +156,8 @@ vm_mem_init(dummy)
 #if VM_NRESERVLEVEL > 0
 	    1 << (VM_LEVEL_0_ORDER + PAGE_SHIFT));
 #else
-	    PAGE_SIZE);
+	    /* On non-superpage architectures want large import sizes. */
+	    PAGE_SIZE * 1024);
 #endif
 
 	kmem_init_zero_region();

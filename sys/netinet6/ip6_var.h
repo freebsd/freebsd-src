@@ -293,7 +293,12 @@ struct ip6aux {
 #define	IPV6_FORWARDING		0x02	/* most of IPv6 header exists */
 #define	IPV6_MINMTU		0x04	/* use minimum MTU (IPV6_USE_MIN_MTU) */
 
-#define	M_IP6_NEXTHOP		M_PROTO7	/* explicit ip nexthop */
+/*
+ * IPv6 protocol layer specific mbuf flags.
+ */
+#define	M_IP6_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
+#define	M_SKIP_FIREWALL		M_PROTO3	/* skip firewall processing,
+						   keep in sync with IPv4 */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP6_HDR_ALIGNED_P(ip)	1

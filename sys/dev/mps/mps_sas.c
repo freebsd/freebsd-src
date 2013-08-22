@@ -2103,7 +2103,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	cm->cm_targ->completed++;
 	cm->cm_targ->outstanding--;
 	TAILQ_REMOVE(&cm->cm_targ->commands, cm, cm_link);
-	ccb->ccb_h.status |= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
+	ccb->ccb_h.status &= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
 
 	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
@@ -2145,7 +2145,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * because there can be no reply when we haven't actually
 		 * gone out to the hardware.
 		 */
-		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 
 		/*
 		 * Currently the only error included in the mask is

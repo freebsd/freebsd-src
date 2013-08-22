@@ -226,6 +226,7 @@ vmspace_zinit(void *mem, int size, int flags)
 
 	vm->vm_map.pmap = NULL;
 	(void)vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map), flags);
+	PMAP_LOCK_INIT(vmspace_pmap(vm));
 	return (0);
 }
 

@@ -15,11 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nslookup.c,v 1.127.38.2 2011/02/28 01:19:58 tbox Exp $ */
+/* $Id: nslookup.c,v 1.130 2011/12/16 23:01:16 each Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <isc/app.h>
 #include <isc/buffer.h>
@@ -45,6 +46,11 @@
 
 #include <dig/dig.h>
 
+#if defined(HAVE_READLINE)
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif
+
 static isc_boolean_t short_form = ISC_TRUE,
 	tcpmode = ISC_FALSE,
 	identify = ISC_FALSE, stats = ISC_TRUE,
@@ -52,6 +58,8 @@ static isc_boolean_t short_form = ISC_TRUE,
 	section_answer = ISC_TRUE, section_authority = ISC_TRUE,
 	section_additional = ISC_TRUE, recurse = ISC_TRUE,
 	aaonly = ISC_FALSE, nofail = ISC_TRUE;
+
+static isc_boolean_t interactive;
 
 static isc_boolean_t in_use = ISC_FALSE;
 static char defclass[MXRD] = "IN";
@@ -715,28 +723,12 @@ addlookup(char *opt) {
 }
 
 static void
-get_next_command(void) {
-	char *buf;
+do_next_command(char *input) {
 	char *ptr, *arg;
-	char *input;
 
-	fflush(stdout);
-	buf = isc_mem_allocate(mctx, COMMSIZE);
-	if (buf == NULL)
-		fatal("memory allocation failure");
-	fputs("> ", stderr);
-	fflush(stderr);
-	isc_app_block();
-	ptr = fgets(buf, COMMSIZE, stdin);
-	isc_app_unblock();
-	if (ptr == NULL) {
-		in_use = ISC_FALSE;
-		goto cleanup;
-	}
-	input = buf;
 	ptr = next_token(&input, " \t\r\n");
 	if (ptr == NULL)
-		goto cleanup;
+		return;
 	arg = next_token(&input, " \t\r\n");
 	if ((strcasecmp(ptr, "set") == 0) &&
 	    (arg != NULL))
@@ -750,20 +742,48 @@ get_next_command(void) {
 		show_settings(ISC_TRUE, ISC_TRUE);
 	} else if (strcasecmp(ptr, "exit") == 0) {
 		in_use = ISC_FALSE;
-		goto cleanup;
 	} else if (strcasecmp(ptr, "help") == 0 ||
 		   strcasecmp(ptr, "?") == 0) {
 		printf("The '%s' command is not yet implemented.\n", ptr);
-		goto cleanup;
 	} else if (strcasecmp(ptr, "finger") == 0 ||
 		   strcasecmp(ptr, "root") == 0 ||
 		   strcasecmp(ptr, "ls") == 0 ||
 		   strcasecmp(ptr, "view") == 0) {
 		printf("The '%s' command is not implemented.\n", ptr);
-		goto cleanup;
 	} else
 		addlookup(ptr);
- cleanup:
+}
+
+static void
+get_next_command(void) {
+	char *buf;
+	char *ptr;
+
+	fflush(stdout);
+	buf = isc_mem_allocate(mctx, COMMSIZE);
+	if (buf == NULL)
+		fatal("memory allocation failure");
+	isc_app_block();
+	if (interactive) {
+#ifdef HAVE_READLINE
+		ptr = readline("> ");
+		add_history(ptr);
+#else
+		fputs("> ", stderr);
+		fflush(stderr);
+		ptr = fgets(buf, COMMSIZE, stdin);
+#endif
+	} else
+		ptr = fgets(buf, COMMSIZE, stdin);
+	isc_app_unblock();
+	if (ptr == NULL) {
+		in_use = ISC_FALSE;
+	} else
+		do_next_command(ptr);
+#ifdef HAVE_READLINE
+	if (interactive)
+		free(ptr);
+#endif
 	isc_mem_free(mctx, buf);
 }
 
@@ -858,6 +878,8 @@ getinput(isc_task_t *task, isc_event_t *event) {
 int
 main(int argc, char **argv) {
 	isc_result_t result;
+
+	interactive = ISC_TF(isatty(0));
 
 	ISC_LIST_INIT(lookup_list);
 	ISC_LIST_INIT(server_list);

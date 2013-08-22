@@ -159,6 +159,8 @@ static int vm_max_launder = 32;
 static int vm_pageout_update_period;
 static int defer_swap_pageouts;
 static int disable_swap_pageouts;
+static int lowmem_period = 10;
+static int lowmem_ticks;
 
 #if defined(NO_SWAPPING)
 static int vm_swap_enabled = 0;
@@ -179,6 +181,9 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RW, &vm_pageout_update_period, 0,
 	"Maximum active LRU update period");
   
+SYSCTL_INT(_vm, OID_AUTO, lowmem_period, CTLFLAG_RW, &lowmem_period, 0,
+	"Low memory callback period");
+
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
 	CTLFLAG_RD, &vm_swap_enabled, 0, "Enable entire process swapout");
@@ -901,9 +906,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
-	 * some.
+	 * some.  We rate limit to avoid thrashing.
 	 */
-	if (pass > 0) {
+	if (vmd == &vm_dom[0] && pass > 0 &&
+	    lowmem_ticks + (lowmem_period * hz) < ticks) {
 		/*
 		 * Decrease registered cache sizes.
 		 */
@@ -913,6 +919,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * drained above.
 		 */
 		uma_reclaim();
+		lowmem_ticks = ticks;
 	}
 
 	/*
@@ -1326,25 +1333,6 @@ relock_queues:
 			m = next;
 			continue;
 		}
-		object = m->object;
-		if (!VM_OBJECT_TRYWLOCK(object) &&
-		    !vm_pageout_fallback_object_lock(m, &next)) {
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_unlock(m);
-			m = next;
-			continue;
-		}
-
-		/*
-		 * Don't deactivate pages that are busy.
-		 */
-		if (vm_page_busied(m) || m->hold_count != 0) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_requeue_locked(m);
-			m = next;
-			continue;
-		}
 
 		/*
 		 * The count for pagedaemon pages is done after checking the
@@ -1360,7 +1348,15 @@ relock_queues:
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta += 1;
 		}
-		if (object->ref_count != 0)
+		/*
+		 * Unlocked object ref count check.  Two races are possible.
+		 * 1) The ref was transitioning to zero and we saw non-zero,
+		 *    the pmap bits will be checked unnecessarily.
+		 * 2) The ref was transitioning to one and we saw zero. 
+		 *    The page lock prevents a new reference to this page so
+		 *    we need not check the reference bits.
+		 */
+		if (m->object->ref_count != 0)
 			act_delta += pmap_ts_referenced(m);
 
 		/*
@@ -1380,9 +1376,6 @@ relock_queues:
 		 * queue depending on usage.
 		 */
 		if (act_delta == 0) {
-			KASSERT(object->ref_count != 0 ||
-			    !pmap_page_is_mapped(m),
-			    ("vm_pageout_scan: page %p is mapped", m));
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 			vm_page_deactivate(m);
@@ -1390,7 +1383,6 @@ relock_queues:
 		} else
 			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
-		VM_OBJECT_WUNLOCK(object);
 		m = next;
 	}
 	vm_pagequeue_unlock(pq);
@@ -1680,10 +1672,11 @@ vm_pageout(void)
 
 	/*
 	 * Set interval in seconds for active scan.  We want to visit each
-	 * page at least once a minute.
+	 * page at least once every ten minutes.  This is to prevent worst
+	 * case paging behaviors with stale active LRU.
 	 */
 	if (vm_pageout_update_period == 0)
-		vm_pageout_update_period = 60;
+		vm_pageout_update_period = 600;
 
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)

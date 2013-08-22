@@ -900,9 +900,6 @@ pmap_clearbit(struct vm_page *m, u_int maskbits)
 
 	rw_wlock(&pvh_global_lock);
 
-	if (maskbits & PVF_WRITE)
-		maskbits |= PVF_MOD;
-
 	if (TAILQ_EMPTY(&m->md.pv_list)) {
 		rw_wunlock(&pvh_global_lock);
 		return (0);
@@ -924,14 +921,12 @@ pmap_clearbit(struct vm_page *m, u_int maskbits)
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		npte = opte = *ptep;
 
-		if ((maskbits & (PVF_WRITE|PVF_MOD)) && L2_S_WRITABLE(opte)) {
-			vm_page_dirty(m);
-
+		if (maskbits & (PVF_WRITE | PVF_MOD)) {
 			/* make the pte read only */
 			npte |= L2_APX;
 		}
 
-		if ((maskbits & PVF_REF) && L2_S_REFERENCED(opte)) {
+		if (maskbits & PVF_REF) {
 			/*
 			 * Clear referenced flag in PTE so that we
 			 * will take a flag fault the next time the mapping
@@ -1046,7 +1041,7 @@ static void
 pmap_set_prot(pt_entry_t *ptep, vm_prot_t prot, uint8_t user)
 {
 
-	*ptep &= ~L2_S_PROT_MASK;
+	*ptep &= ~(L2_S_PROT_MASK | L2_XN);
 
 	if (!(prot & VM_PROT_EXECUTE))
 		*ptep |= L2_XN;
@@ -1072,39 +1067,22 @@ pmap_set_prot(pt_entry_t *ptep, vm_prot_t prot, uint8_t user)
  * => caller should NOT adjust pmap's wire_count
  * => we return the removed pve
  */
-
-static void
-pmap_nuke_pv(struct vm_page *m, pmap_t pmap, struct pv_entry *pve)
-{
-
-	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	PMAP_ASSERT_LOCKED(pmap);
-
-	TAILQ_REMOVE(&m->md.pv_list, pve, pv_list);
-
-	if (pve->pv_flags & PVF_WIRED)
-		--pmap->pm_stats.wired_count;
-
-	if (pve->pv_flags & PVF_WRITE) {
-		TAILQ_FOREACH(pve, &m->md.pv_list, pv_list)
-		    if (pve->pv_flags & PVF_WRITE)
-			    break;
-		if (!pve) {
-			vm_page_aflag_clear(m, PGA_WRITEABLE);
-		}
-	}
-}
-
 static struct pv_entry *
 pmap_remove_pv(struct vm_page *m, pmap_t pmap, vm_offset_t va)
 {
 	struct pv_entry *pve;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
+	PMAP_ASSERT_LOCKED(pmap);
 
 	pve = pmap_find_pv(m, pmap, va);	/* find corresponding pve */
-	if (pve != NULL)
-		pmap_nuke_pv(m, pmap, pve);
+	if (pve != NULL) {
+		TAILQ_REMOVE(&m->md.pv_list, pve, pv_list);
+		if (pve->pv_flags & PVF_WIRED)
+			--pmap->pm_stats.wired_count;
+	}
+	if (TAILQ_EMPTY(&m->md.pv_list))
+		vm_page_aflag_clear(m, PGA_WRITEABLE);
 
 	return(pve);				/* return removed pve */
 }
@@ -1142,14 +1120,6 @@ pmap_modify_pv(struct vm_page *m, pmap_t pmap, vm_offset_t va,
 			++pmap->pm_stats.wired_count;
 		else
 			--pmap->pm_stats.wired_count;
-	}
-	if ((oflags & PVF_WRITE) && !(flags & PVF_WRITE)) {
-		TAILQ_FOREACH(npv, &m->md.pv_list, pv_list) {
-			if (npv->pv_flags & PVF_WRITE)
-				break;
-		}
-		if (!npv)
-			vm_page_aflag_clear(m, PGA_WRITEABLE);
 	}
 
 	return (oflags);
@@ -1844,7 +1814,6 @@ pmap_release(pmap_t pmap)
 
 	}
 	pmap_free_l1(pmap);
-	PMAP_LOCK_DESTROY(pmap);
 
 	dprintf("pmap_release()\n");
 }
@@ -2062,7 +2031,9 @@ pmap_remove_pages(pmap_t pmap)
 				pv_entry_count--;
 				pmap->pm_stats.resident_count--;
 				pc->pc_map[field] |= bitmask;
-				pmap_nuke_pv(m, pmap, pv);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+				if (TAILQ_EMPTY(&m->md.pv_list))
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
 				pmap_free_l2_bucket(pmap, l2b, 1);
 			}
 		}
@@ -2458,7 +2429,9 @@ pmap_remove_all(vm_page_t m)
 			PTE_SYNC(ptep);
 		pmap_free_l2_bucket(pmap, l2b, 1);
 		pmap->pm_stats.resident_count--;
-		pmap_nuke_pv(m, pmap, pv);
+		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+		if (pv->pv_flags & PVF_WIRED)
+			pmap->pm_stats.wired_count--;
 		pmap_free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -2469,6 +2442,7 @@ pmap_remove_all(vm_page_t m)
 		else
 			cpu_tlb_flushD();
 	}
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	rw_wunlock(&pvh_global_lock);
 }
 
@@ -2952,7 +2926,8 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 	pte = *ptep;
 	m = PHYS_TO_VM_PAGE(l2pte_pa(pte));
 	if (m != NULL)
-		pmap_modify_pv(m, pmap, va, PVF_WIRED, wired);
+		pmap_modify_pv(m, pmap, va, PVF_WIRED,
+		    wired == TRUE ? PVF_WIRED : 0);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 }
@@ -3249,7 +3224,6 @@ pmap_pinit(pmap_t pmap)
 {
 	PDEBUG(1, printf("pmap_pinit: pmap = %08x\n", (uint32_t) pmap));
 
-	PMAP_LOCK_INIT(pmap);
 	pmap_alloc_l1(pmap);
 	bzero(pmap->pm_l2, sizeof(pmap->pm_l2));
 
@@ -3338,7 +3312,9 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				     "va %x pte %x", va, *ptep));
 				*ptep = 0;
 				PTE_SYNC(ptep);
-				pmap_nuke_pv(m, pmap, pv);
+				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+				if (TAILQ_EMPTY(&m->md.pv_list))
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
 				pc->pc_map[field] |= 1UL << bit;
 				freed++;
 			}
@@ -4387,6 +4363,6 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * uncacheable, being careful to sync caches and PTEs (and maybe
 	 * invalidate TLB?) for any current mapping it modifies.
 	 */
-	if (m->md.pv_kva != 0 || TAILQ_FIRST(&m->md.pv_list) != NULL)
+	if (TAILQ_FIRST(&m->md.pv_list) != NULL)
 		panic("Can't change memattr on page with existing mappings");
 }

@@ -1477,6 +1477,7 @@ static void
 mmu_booke_pinit0(mmu_t mmu, pmap_t pmap)
 {
 
+	PMAP_LOCK_INIT(pmap);
 	mmu_booke_pinit(mmu, pmap);
 	PCPU_SET(curpmap, pmap);
 }
@@ -1495,7 +1496,6 @@ mmu_booke_pinit(mmu_t mmu, pmap_t pmap)
 
 	KASSERT((pmap != kernel_pmap), ("pmap_pinit: initializing kernel_pmap"));
 
-	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < MAXCPU; i++)
 		pmap->pm_tid[i] = TID_NONE;
 	CPU_ZERO(&kernel_pmap->pm_active);
@@ -1516,8 +1516,6 @@ mmu_booke_release(mmu_t mmu, pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
-
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
