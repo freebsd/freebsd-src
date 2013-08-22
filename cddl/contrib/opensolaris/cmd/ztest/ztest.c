@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
@@ -769,6 +769,16 @@ ztest_kill(ztest_shared_t *zs)
 {
 	zs->zs_alloc = metaslab_class_get_alloc(spa_normal_class(ztest_spa));
 	zs->zs_space = metaslab_class_get_space(spa_normal_class(ztest_spa));
+
+	/*
+	 * Before we kill off ztest, make sure that the config is updated.
+	 * See comment above spa_config_sync().
+	 */
+	mutex_enter(&spa_namespace_lock);
+	spa_config_sync(ztest_spa, B_FALSE, B_FALSE);
+	mutex_exit(&spa_namespace_lock);
+
+	zfs_dbgmsg_print(FTAG);
 	(void) kill(getpid(), SIGKILL);
 }
 
@@ -2733,7 +2743,7 @@ ztest_vdev_attach_detach(ztest_ds_t *zd, uint64_t id)
 	uint64_t leaf, top;
 	uint64_t ashift = ztest_get_ashift();
 	uint64_t oldguid, pguid;
-	size_t oldsize, newsize;
+	uint64_t oldsize, newsize;
 	char oldpath[MAXPATHLEN], newpath[MAXPATHLEN];
 	int replacing;
 	int oldvd_has_siblings = B_FALSE;
@@ -2892,8 +2902,8 @@ ztest_vdev_attach_detach(ztest_ds_t *zd, uint64_t id)
 	if (error != expected_error && expected_error != EBUSY) {
 		fatal(0, "attach (%s %llu, %s %llu, %d) "
 		    "returned %d, expected %d",
-		    oldpath, (longlong_t)oldsize, newpath,
-		    (longlong_t)newsize, replacing, error, expected_error);
+		    oldpath, oldsize, newpath,
+		    newsize, replacing, error, expected_error);
 	}
 
 	VERIFY(mutex_unlock(&ztest_vdev_lock) == 0);
@@ -4803,7 +4813,7 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 		 */
 		if (vd0 != NULL && maxfaults != 1 &&
 		    (!vdev_resilver_needed(vd0->vdev_top, NULL, NULL) ||
-		    vd0->vdev_resilvering)) {
+		    vd0->vdev_resilver_txg != 0)) {
 			/*
 			 * Make vd0 explicitly claim to be unreadable,
 			 * or unwriteable, or reach behind its back
@@ -5654,6 +5664,7 @@ ztest_run(ztest_shared_t *zs)
 
 	zs->zs_alloc = metaslab_class_get_alloc(spa_normal_class(spa));
 	zs->zs_space = metaslab_class_get_space(spa_normal_class(spa));
+	zfs_dbgmsg_print(FTAG);
 
 	umem_free(tid, ztest_opts.zo_threads * sizeof (thread_t));
 

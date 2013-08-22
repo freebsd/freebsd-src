@@ -232,8 +232,8 @@ static void vm_pageout_page_stats(struct vm_domain *vmd);
 /*
  * Initialize a dummy page for marking the caller's place in the specified
  * paging queue.  In principle, this function only needs to set the flag
- * PG_MARKER.  Nonetheless, it sets the flag VPO_BUSY and initializes the hold
- * count to one as safety precautions.
+ * PG_MARKER.  Nonetheless, it wirte busies and initializes the hold count
+ * to one as safety precautions.
  */ 
 static void
 vm_pageout_init_marker(vm_page_t marker, u_short queue)
@@ -241,7 +241,7 @@ vm_pageout_init_marker(vm_page_t marker, u_short queue)
 
 	bzero(marker, sizeof(*marker));
 	marker->flags = PG_MARKER;
-	marker->oflags = VPO_BUSY;
+	marker->busy_lock = VPB_SINGLE_EXCLUSIVER;
 	marker->queue = queue;
 	marker->hold_count = 1;
 }
@@ -361,8 +361,7 @@ vm_pageout_clean(vm_page_t m)
 	/*
 	 * Can't clean the page if it's busy or held.
 	 */
-	KASSERT(m->busy == 0 && (m->oflags & VPO_BUSY) == 0,
-	    ("vm_pageout_clean: page %p is busy", m));
+	vm_page_assert_unbusied(m);
 	KASSERT(m->hold_count == 0, ("vm_pageout_clean: page %p is held", m));
 	vm_page_unlock(m);
 
@@ -400,8 +399,7 @@ more:
 			break;
 		}
 
-		if ((p = vm_page_prev(pb)) == NULL ||
-		    (p->oflags & VPO_BUSY) != 0 || p->busy != 0) {
+		if ((p = vm_page_prev(pb)) == NULL || vm_page_busied(p)) {
 			ib = 0;
 			break;
 		}
@@ -430,8 +428,7 @@ more:
 	    pindex + is < object->size) {
 		vm_page_t p;
 
-		if ((p = vm_page_next(ps)) == NULL ||
-		    (p->oflags & VPO_BUSY) != 0 || p->busy != 0)
+		if ((p = vm_page_next(ps)) == NULL || vm_page_busied(p))
 			break;
 		vm_page_lock(p);
 		vm_page_test_dirty(p);
@@ -501,7 +498,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL,
 		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
 			mc[i], i, count));
-		vm_page_io_start(mc[i]);
+		vm_page_sbusy(mc[i]);
 		pmap_remove_write(mc[i]);
 	}
 	vm_object_pip_add(object, count);
@@ -557,7 +554,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 		 */
 		if (pageout_status[i] != VM_PAGER_PEND) {
 			vm_object_pip_wakeup(object);
-			vm_page_io_finish(mt);
+			vm_page_sunbusy(mt);
 			if (vm_page_count_severe()) {
 				vm_page_lock(mt);
 				vm_page_try_to_cache(mt);
@@ -594,8 +591,7 @@ vm_pageout_launder(struct vm_pagequeue *pq, int tries, vm_paddr_t low,
 		object = m->object;
 		if ((!VM_OBJECT_TRYWLOCK(object) &&
 		    (!vm_pageout_fallback_object_lock(m, &next) ||
-		    m->hold_count != 0)) || (m->oflags & VPO_BUSY) != 0 ||
-		    m->busy != 0) {
+		    m->hold_count != 0)) || vm_page_busied(m)) {
 			vm_page_unlock(m);
 			VM_OBJECT_WUNLOCK(object);
 			continue;
@@ -767,7 +763,7 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 		TAILQ_FOREACH(p, &object->memq, listq) {
 			if (pmap_resident_count(pmap) <= desired)
 				goto unlock_return;
-			if ((p->oflags & VPO_BUSY) != 0 || p->busy != 0)
+			if (vm_page_busied(p))
 				continue;
 			PCPU_INC(cnt.v_pdpages);
 			vm_page_lock(p);
@@ -1005,7 +1001,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * pages, because they may leave the inactive queue
 		 * shortly after page scan is finished.
 		 */
-		if (m->busy != 0 || (m->oflags & VPO_BUSY) != 0) {
+		if (vm_page_busied(m)) {
 			vm_page_unlock(m);
 			VM_OBJECT_WUNLOCK(object);
 			addl_page_shortage++;
@@ -1224,7 +1220,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				 * page back onto the end of the queue so that
 				 * statistics are more correct if we don't.
 				 */
-				if (m->busy || (m->oflags & VPO_BUSY)) {
+				if (vm_page_busied(m)) {
 					vm_page_unlock(m);
 					goto unlock_and_continue;
 				}
@@ -1334,9 +1330,7 @@ relock_queues:
 		/*
 		 * Don't deactivate pages that are busy.
 		 */
-		if ((m->busy != 0) ||
-		    (m->oflags & VPO_BUSY) ||
-		    (m->hold_count != 0)) {
+		if (vm_page_busied(m) || m->hold_count != 0) {
 			vm_page_unlock(m);
 			VM_OBJECT_WUNLOCK(object);
 			vm_page_requeue_locked(m);
@@ -1641,9 +1635,7 @@ vm_pageout_page_stats(struct vm_domain *vmd)
 		/*
 		 * Don't deactivate pages that are busy or held.
 		 */
-		if (m->busy != 0 ||
-		    (m->oflags & VPO_BUSY) != 0 ||
-		    m->hold_count != 0) {
+		if (vm_page_busied(m) || m->hold_count != 0) {
 			vm_page_unlock(m);
 			VM_OBJECT_WUNLOCK(object);
 			vm_page_requeue_locked(m);
