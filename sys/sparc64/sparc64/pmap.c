@@ -1204,8 +1204,6 @@ pmap_pinit(pmap_t pm)
 	vm_page_t m;
 	int i;
 
-	PMAP_LOCK_INIT(pm);
-
 	/*
 	 * Allocate KVA space for the TSB.
 	 */
@@ -1299,7 +1297,6 @@ pmap_release(pmap_t pm)
 		vm_page_free_zero(m);
 	}
 	VM_OBJECT_WUNLOCK(obj);
-	PMAP_LOCK_DESTROY(pm);
 }
 
 /*
