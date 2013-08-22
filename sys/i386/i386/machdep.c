@@ -1548,21 +1548,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
 
-uint64_t (*atomic_load_acq_64)(volatile uint64_t *) =
-    atomic_load_acq_64_i386;
-void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t) =
-    atomic_store_rel_64_i386;
-
-static void
-cpu_probe_cmpxchg8b(void)
-{
-
-	if ((cpu_feature & CPUID_CX8) != 0) {
-		atomic_load_acq_64 = atomic_load_acq_64_i586;
-		atomic_store_rel_64 = atomic_store_rel_64_i586;
-	}
-}
-
 /*
  * Reset registers to default values on exec.
  */
@@ -2824,7 +2809,6 @@ init386(first)
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 }
 
 #else
@@ -3115,7 +3099,6 @@ init386(first)
 	thread0.td_frame = &proc0_tf;
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 
 #ifdef FDT
 	x86_init_fdt();
