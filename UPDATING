@@ -15,6 +15,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130822:	p10	FreeBSD-SA-13:09.ip_multicast
+			FreeBSD-SA-13:10.sctp
+	Fix an integer overflow in computing the size of a temporary buffer
+	can result in a buffer which is too small for the requested
+	operation. [13:09]
+
+	Fix a bug that could lead to kernel memory disclosure with
+	SCTP state cookie. [13:10]
+
 20130429:	p9	FreeBSD-SA-13:08.nfsserver
 	Fix a bug that allows remote client bypass the normal
 	access checks when when -network or -host restrictions are
