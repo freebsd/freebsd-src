@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
-#include <dev/iscsi/initiator/iscsivar.h>
+#include <dev/iscsi_initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsivar.h>
 
 #ifndef NO_USE_MBUF
 #define USE_MBUF
