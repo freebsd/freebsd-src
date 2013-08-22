@@ -201,10 +201,12 @@ vm_object_zinit(void *mem, int size, int flags)
 
 	/* These are true for any object that has been freed */
 	object->rtree.rt_root = 0;
+	object->rtree.rt_flags = 0;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
 	object->cache.rt_root = 0;
+	object->cache.rt_flags = 0;
 	return (0);
 }
 
@@ -1351,6 +1353,16 @@ retry:
 			VM_OBJECT_WLOCK(new_object);
 			goto retry;
 		}
+
+		/* vm_page_rename() will handle dirty and cache. */
+		if (vm_page_rename(m, new_object, idx)) {
+			VM_OBJECT_WUNLOCK(new_object);
+			VM_OBJECT_WUNLOCK(orig_object);
+			VM_WAIT;
+			VM_OBJECT_WLOCK(orig_object);
+			VM_OBJECT_WLOCK(new_object);
+			goto retry;
+		}
 #if VM_NRESERVLEVEL > 0
 		/*
 		 * If some of the reservation's allocated pages remain with
@@ -1366,10 +1378,6 @@ retry:
 		 */
 		vm_reserv_rename(m, new_object, orig_object, offidxstart);
 #endif
-		vm_page_lock(m);
-		vm_page_rename(m, new_object, idx);
-		vm_page_unlock(m);
-		/* page automatically made dirty by rename and cache handled */
 		if (orig_object->type == OBJT_SWAP)
 			vm_page_xbusy(m);
 	}
@@ -1525,21 +1533,14 @@ vm_object_backing_scan(vm_object_t object, int op)
 			    ("vm_object_backing_scan: object mismatch")
 			);
 
-			/*
-			 * Destroy any associated swap
-			 */
-			if (backing_object->type == OBJT_SWAP) {
-				swap_pager_freespace(
-				    backing_object, 
-				    p->pindex,
-				    1
-				);
-			}
-
 			if (
 			    p->pindex < backing_offset_index ||
 			    new_pindex >= object->size
 			) {
+				if (backing_object->type == OBJT_SWAP)
+					swap_pager_freespace(backing_object, 
+					    p->pindex, 1);
+
 				/*
 				 * Page is out of the parent object's range, we 
 				 * can simply destroy it. 
@@ -1561,6 +1562,10 @@ vm_object_backing_scan(vm_object_t object, int op)
 			    (op & OBSC_COLLAPSE_NOWAIT) != 0 &&
 			    (pp != NULL && pp->valid == 0)
 			) {
+				if (backing_object->type == OBJT_SWAP)
+					swap_pager_freespace(backing_object, 
+					    p->pindex, 1);
+
 				/*
 				 * The page in the parent is not (yet) valid.
 				 * We don't know anything about the state of
@@ -1579,6 +1584,10 @@ vm_object_backing_scan(vm_object_t object, int op)
 			    pp != NULL ||
 			    vm_pager_has_page(object, new_pindex, NULL, NULL)
 			) {
+				if (backing_object->type == OBJT_SWAP)
+					swap_pager_freespace(backing_object, 
+					    p->pindex, 1);
+
 				/*
 				 * page already exists in parent OR swap exists
 				 * for this location in the parent.  Destroy 
@@ -1598,6 +1607,31 @@ vm_object_backing_scan(vm_object_t object, int op)
 				continue;
 			}
 
+			/*
+			 * Page does not exist in parent, rename the
+			 * page from the backing object to the main object. 
+			 *
+			 * If the page was mapped to a process, it can remain 
+			 * mapped through the rename.
+			 * vm_page_rename() will handle dirty and cache.
+			 */
+			if (vm_page_rename(p, object, new_pindex)) {
+				if (op & OBSC_COLLAPSE_NOWAIT) {
+					p = next;
+					continue;
+				}
+				VM_OBJECT_WLOCK(backing_object);
+				VM_OBJECT_WUNLOCK(object);
+				VM_WAIT;
+				VM_OBJECT_WLOCK(object);
+				VM_OBJECT_WLOCK(backing_object);
+				p = TAILQ_FIRST(&backing_object->memq);
+				continue;
+			}
+			if (backing_object->type == OBJT_SWAP)
+				swap_pager_freespace(backing_object, p->pindex,
+				    1);
+
 #if VM_NRESERVLEVEL > 0
 			/*
 			 * Rename the reservation.
@@ -1605,18 +1639,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 			vm_reserv_rename(p, object, backing_object,
 			    backing_offset_index);
 #endif
-
-			/*
-			 * Page does not exist in parent, rename the
-			 * page from the backing object to the main object. 
-			 *
-			 * If the page was mapped to a process, it can remain 
-			 * mapped through the rename.
-			 */
-			vm_page_lock(p);
-			vm_page_rename(p, object, new_pindex);
-			vm_page_unlock(p);
-			/* page automatically made dirty by rename */
 		}
 		p = next;
 	}
