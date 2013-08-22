@@ -3490,7 +3490,7 @@ allocbuf(struct buf *bp, int size)
 				m = vm_page_grab(obj, OFF_TO_IDX(bp->b_offset) +
 				    bp->b_npages, VM_ALLOC_NOBUSY |
 				    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
-				    VM_ALLOC_RETRY | VM_ALLOC_IGN_SBUSY |
+				    VM_ALLOC_IGN_SBUSY |
 				    VM_ALLOC_COUNT(desiredpages - bp->b_npages));
 				if (m->valid == 0)
 					bp->b_flags &= ~B_CACHE;
