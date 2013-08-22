@@ -9,6 +9,19 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130822:	p6	FreeBSD-SA-13:09.ip_multicast
+			FreeBSD-SA-13:10.sctp
+			FreeBSD-EN-13:03.mfi
+	Fix an integer overflow in computing the size of a temporary buffer
+	can result in a buffer which is too small for the requested
+	operation. [13:09]
+
+	Fix a bug that could lead to kernel memory disclosure with
+	SCTP state cookie. [13:10]
+
+	Fix a data corruption problem with mfi(4) operating on > 2TB
+	disks in a JBOD. [EN-13:03]
+
 20130726:	p5	FreeBSD-SA-13:07.bind FreeBSD-SA-13:08.nfsserver
 	Fix Denial of Service vulnerability in named(8). [13:07]
 
