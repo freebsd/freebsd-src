@@ -2230,7 +2230,7 @@ retry_space:
 			pindex = OFF_TO_IDX(off);
 			VM_OBJECT_WLOCK(obj);
 			pg = vm_page_grab(obj, pindex, VM_ALLOC_NOBUSY |
-			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_RETRY);
+			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 
 			/*
 			 * Check if page is valid for what we need,

@@ -2685,9 +2685,6 @@ vm_page_advise(vm_page_t m, int advice)
  * to be in the object.  If the page doesn't exist, first allocate it
  * and then conditionally zero it.
  *
- * The caller must always specify the VM_ALLOC_RETRY flag.  This is intended
- * to facilitate its eventual removal.
- *
  * This routine may sleep.
  *
  * The object must be locked on entry.  The lock will, however, be released
@@ -2700,8 +2697,6 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	int sleep;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT((allocflags & VM_ALLOC_RETRY) != 0,
-	    ("vm_page_grab: VM_ALLOC_RETRY is required"));
 	KASSERT((allocflags & VM_ALLOC_SBUSY) == 0 ||
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
 	    ("vm_page_grab: VM_ALLOC_SBUSY/VM_ALLOC_IGN_SBUSY mismatch"));
@@ -2735,8 +2730,7 @@ retrylookup:
 			return (m);
 		}
 	}
-	m = vm_page_alloc(object, pindex, allocflags & ~(VM_ALLOC_RETRY |
-	    VM_ALLOC_IGN_SBUSY));
+	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_IGN_SBUSY);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		VM_WAIT;

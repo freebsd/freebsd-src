@@ -539,7 +539,7 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 		int bytes = MIN(PAGESIZE, len);
 
 		pp = vm_page_grab(obj, OFF_TO_IDX(start), VM_ALLOC_SBUSY |
-		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_IGN_SBUSY);
+		    VM_ALLOC_NORMAL | VM_ALLOC_IGN_SBUSY);
 		if (pp->valid == 0) {
 			zfs_vmobject_wunlock(obj);
 			va = zfs_map_page(pp, &sf);
