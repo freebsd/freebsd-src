@@ -73,8 +73,12 @@ struct vmxnet3_txring {
 	struct vmxnet3_dma_alloc vxtxr_dma;
 };
 
-#define VMXNET3_TXRING_AVAIL(_txr) \
-    (((_txr)->vxtxr_head - (_txr)->vxtxr_head - 1) % VMXNET3_MAX_TX_NDESC)
+static inline int
+VMXNET3_TXRING_AVAIL(struct vmxnet3_txring *txr)
+{
+	int avail = txr->vxtxr_next - txr->vxtxr_head - 1;
+	return (avail < 0 ? txr->vxtxr_ndesc + avail : avail);
+}
 
 struct vmxnet3_rxbuf {
 	bus_dmamap_t		 vrxb_dmamap;
@@ -116,6 +120,7 @@ struct vmxnet3_comp_ring {
 
 struct vmxnet3_txq_stats {
 	uint64_t		vtxrs_full;
+	uint64_t		vtxrs_offload_failed;
 
 };
 
@@ -166,8 +171,9 @@ struct vmxnet3_rxqueue {
     mtx_assert(&(_rxq)->vxrxq_mtx, MA_NOTOWNED)
 
 struct vmxnet3_statistics {
-	uint64_t		vmst_collapsed;
-	uint64_t		vmst_getcl_failed;
+	uint32_t		vmst_collapsed;
+	uint32_t		vmst_mgetcl_failed;
+	uint32_t		vmst_mbuf_load_failed;
 
 };
 

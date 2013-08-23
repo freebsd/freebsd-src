@@ -1633,7 +1633,7 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 
 	m = m_getjcl(M_NOWAIT, MT_DATA, flags, clsize);
 	if (m == NULL) {
-		sc->vmx_stats.vmst_getcl_failed++;
+		sc->vmx_stats.vmst_mgetcl_failed++;
 		return (ENOBUFS);
 	}
 
@@ -1647,6 +1647,7 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	    BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m);
+		sc->vmx_stats.vmst_mbuf_load_failed++;;
 		return (error);
 	}
 	KASSERT(nsegs == 1,
@@ -2442,6 +2443,7 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 	} else if (m->m_pkthdr.csum_flags & VMXNET3_CSUM_ALL_OFFLOAD) {
 		error = vmxnet3_txq_offload_ctx(m, &etype, &proto, &start);
 		if (error) {
+			txq->vxtxq_stats.vtxrs_offload_failed++;
 			vmxnet3_txq_unload_mbuf(txq, dmap);
 			m_freem(m);
 			*m0 = NULL;
@@ -2944,6 +2946,8 @@ vmxnet3_setup_txq_sysctl(struct vmxnet3_txqueue *txq,
 
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "ringfull", CTLFLAG_RD,
 	    &stats->vtxrs_full, "Tx ring full");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "offload_failed", CTLFLAG_RD,
+	    &stats->vtxrs_offload_failed, "Tx checksum offload failed");
 
 	/*
 	 * Add statistics reported by the host. These are updated once
@@ -3114,10 +3118,12 @@ vmxnet3_setup_sysctl(struct vmxnet3_softc *sc)
 	    &sc->vmx_nrxqueues, 0, "Number of Rx queues");
 
 	stats = &sc->vmx_stats;
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "collapsed", CTLFLAG_RD,
-	    &stats->vmst_collapsed, "Tx mbuf chains collapsed");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "getcl_failed", CTLFLAG_RD,
-	    &stats->vmst_getcl_failed, "Alloc of mbuf cluster failed");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "collapsed", CTLFLAG_RD,
+	    &stats->vmst_collapsed, 0, "Tx mbuf chains collapsed");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "mgetcl_failed", CTLFLAG_RD,
+	    &stats->vmst_mgetcl_failed, 0, "mbuf cluster allocation failed");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "mbuf_load_failed", CTLFLAG_RD,
+	    &stats->vmst_mbuf_load_failed, 0, "mbuf load segments failed");
 
 	vmxnet3_setup_queue_sysctl(sc, ctx, child);
 }
