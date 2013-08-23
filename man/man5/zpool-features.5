@@ -1,6 +1,7 @@
 '\" te
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
 .\" The contents of this file are subject to the terms of the Common Development
 .\" and Distribution License (the "License").  You may not use this file except
 .\" in compliance with the License. You can obtain a copy of the license at
@@ -230,6 +231,27 @@ moment, this operation cannot be reversed. Booting off of
 \fBlz4\fR-compressed root pools is supported.
 
 .RE
+
+.sp
+.ne 2
+.na
+\fB\fBmulti_vdev_crash_dump\fR\fR
+.ad
+.RS 4n
+.TS
+l l .
+GUID	com.joyent:multi_vdev_crash_dump
+READ\-ONLY COMPATIBLE	no
+DEPENDENCIES	none
+.TE
+
+This feature allows a dump device to be configured with a pool comprised
+of multiple vdevs.  Those vdevs may be arranged in any mirrored or raidz
+configuration.
+
+When the \fBmulti_vdev_crash_dump\fR feature is set to \fBenabled\fR,
+the administrator can use the \fBdumpadm\fR(1M) command to configure a
+dump device on a pool comprised of multiple vdevs.
 
 .SH "SEE ALSO"
 \fBzpool\fR(1M)
