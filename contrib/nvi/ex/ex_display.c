@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_display.c	10.12 (Berkeley) 4/10/96";
+static const char sccsid[] = "$Id: ex_display.c,v 10.15 2001/06/25 15:19:15 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -25,8 +26,9 @@ static const char sccsid[] = "@(#)ex_display.c	10.12 (Berkeley) 4/10/96";
 #include "../common/common.h"
 #include "tag.h"
 
+static int	is_prefix __P((ARGS *, CHAR_T *));
 static int	bdisplay __P((SCR *));
-static void	db __P((SCR *, CB *, CHAR_T *));
+static void	db __P((SCR *, CB *, const char *));
 
 /*
  * ex_display -- :display b[uffers] | c[onnections] | s[creens] | t[ags]
@@ -36,37 +38,27 @@ static void	db __P((SCR *, CB *, CHAR_T *));
  * PUBLIC: int ex_display __P((SCR *, EXCMD *));
  */
 int
-ex_display(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_display(SCR *sp, EXCMD *cmdp)
 {
-	switch (cmdp->argv[0]->bp[0]) {
+	ARGS *arg;
+
+	arg = cmdp->argv[0];
+
+	switch (arg->bp[0]) {
 	case 'b':
-#undef	ARG
-#define	ARG	"buffers"
-		if (cmdp->argv[0]->len >= sizeof(ARG) ||
-		    memcmp(cmdp->argv[0]->bp, ARG, cmdp->argv[0]->len))
+		if (!is_prefix(arg, L("buffers")))
 			break;
 		return (bdisplay(sp));
 	case 'c':
-#undef	ARG
-#define	ARG	"connections"
-		if (cmdp->argv[0]->len >= sizeof(ARG) ||
-		    memcmp(cmdp->argv[0]->bp, ARG, cmdp->argv[0]->len))
+		if (!is_prefix(arg, L("connections")))
 			break;
 		return (cscope_display(sp));
 	case 's':
-#undef	ARG
-#define	ARG	"screens"
-		if (cmdp->argv[0]->len >= sizeof(ARG) ||
-		    memcmp(cmdp->argv[0]->bp, ARG, cmdp->argv[0]->len))
+		if (!is_prefix(arg, L("screens")))
 			break;
 		return (ex_sdisplay(sp));
 	case 't':
-#undef	ARG
-#define	ARG	"tags"
-		if (cmdp->argv[0]->len >= sizeof(ARG) ||
-		    memcmp(cmdp->argv[0]->bp, ARG, cmdp->argv[0]->len))
+		if (!is_prefix(arg, L("tags")))
 			break;
 		return (ex_tag_display(sp));
 	}
@@ -75,35 +67,45 @@ ex_display(sp, cmdp)
 }
 
 /*
+ * is_prefix --
+ *
+ *	Check that a command argument matches a prefix of a given string.
+ */
+static int
+is_prefix(ARGS *arg, CHAR_T *str)
+{
+	return arg->len <= STRLEN(str) && !MEMCMP(arg->bp, str, arg->len);
+}
+
+/*
  * bdisplay --
  *
  *	Display buffers.
  */
 static int
-bdisplay(sp)
-	SCR *sp;
+bdisplay(SCR *sp)
 {
 	CB *cbp;
 
-	if (sp->gp->cutq.lh_first == NULL && sp->gp->dcbp == NULL) {
+	if (SLIST_EMPTY(sp->gp->cutq) && sp->gp->dcbp == NULL) {
 		msgq(sp, M_INFO, "123|No cut buffers to display");
 		return (0);
 	}
 
 	/* Display regular cut buffers. */
-	for (cbp = sp->gp->cutq.lh_first; cbp != NULL; cbp = cbp->q.le_next) {
+	SLIST_FOREACH(cbp, sp->gp->cutq, q) {
 		if (isdigit(cbp->name))
 			continue;
-		if (cbp->textq.cqh_first != (void *)&cbp->textq)
+		if (!TAILQ_EMPTY(cbp->textq))
 			db(sp, cbp, NULL);
 		if (INTERRUPTED(sp))
 			return (0);
 	}
 	/* Display numbered buffers. */
-	for (cbp = sp->gp->cutq.lh_first; cbp != NULL; cbp = cbp->q.le_next) {
+	SLIST_FOREACH(cbp, sp->gp->cutq, q) {
 		if (!isdigit(cbp->name))
 			continue;
-		if (cbp->textq.cqh_first != (void *)&cbp->textq)
+		if (!TAILQ_EMPTY(cbp->textq))
 			db(sp, cbp, NULL);
 		if (INTERRUPTED(sp))
 			return (0);
@@ -119,10 +121,7 @@ bdisplay(sp)
  *	Display a buffer.
  */
 static void
-db(sp, cbp, name)
-	SCR *sp;
-	CB *cbp;
-	CHAR_T *name;
+db(SCR *sp, CB *cbp, const char *name)
 {
 	CHAR_T *p;
 	GS *gp;
@@ -133,8 +132,7 @@ db(sp, cbp, name)
 	(void)ex_printf(sp, "********** %s%s\n",
 	    name == NULL ? KEY_NAME(sp, cbp->name) : name,
 	    F_ISSET(cbp, CB_LMODE) ? " (line mode)" : " (character mode)");
-	for (tp = cbp->textq.cqh_first;
-	    tp != (void *)&cbp->textq; tp = tp->q.cqe_next) {
+	TAILQ_FOREACH(tp, cbp->textq, q) {
 		for (len = tp->len, p = tp->lb; len--; ++p) {
 			(void)ex_puts(sp, KEY_NAME(sp, *p));
 			if (INTERRUPTED(sp))

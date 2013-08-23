@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 #include <machine/intr.h>
 #include <machine/vmparam.h>
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 #include <machine/vfp.h>
 #endif
 
@@ -112,7 +112,8 @@ cpu_mp_start(void)
 
 	/* Reserve memory for application processors */
 	for(i = 0; i < (mp_ncpus - 1); i++)
-		dpcpu[i] = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		dpcpu[i] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 	temp_pagetable_va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE,
 	    M_TEMP, 0, 0x0, 0xffffffff, L1_TABLE_SIZE, 0);
 	addr = KERNPHYSADDR;
@@ -198,7 +199,7 @@ init_secondary(int cpu)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pc->pc_curthread = pc->pc_idlethread;
 	pc->pc_curpcb = pc->pc_idlethread->td_pcb;
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	pc->pc_cpu = cpu;
 
 	vfp_init();

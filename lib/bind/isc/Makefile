@@ -37,10 +37,10 @@ SRCS+=		inet_pton.c \
 		lex.c lfsr.c lib.c log.c \
 		md5.c mem.c mutexblock.c \
 		netaddr.c netscope.c ondestroy.c \
-		parseint.c portset.c \
+		parseint.c pool.c portset.c \
 		print.c \
 		quota.c radix.c random.c \
-		ratelimiter.c refcount.c region.c result.c rwlock.c \
+		ratelimiter.c refcount.c region.c regex.c result.c rwlock.c \
 		serial.c sha1.c sha2.c sockaddr.c stats.c string.c strtoul.c \
 		symtab.c task.c taskpool.c timer.c version.c
 
@@ -99,14 +99,17 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/ondestroy.h \
 		${SRCDIR}/include/isc/os.h \
 		${SRCDIR}/include/isc/parseint.h \
+		${SRCDIR}/include/isc/pool.h \
 		${SRCDIR}/include/isc/portset.h \
 		${SRCDIR}/include/isc/print.h \
+		${SRCDIR}/include/isc/queue.h \
 		${SRCDIR}/include/isc/quota.h \
 		${SRCDIR}/include/isc/radix.h \
 		${SRCDIR}/include/isc/random.h \
 		${SRCDIR}/include/isc/ratelimiter.h \
 		${SRCDIR}/include/isc/refcount.h \
 		${SRCDIR}/include/isc/region.h \
+		${SRCDIR}/include/isc/regex.h \
 		${SRCDIR}/include/isc/resource.h \
 		${SRCDIR}/include/isc/result.h \
 		${SRCDIR}/include/isc/resultclass.h \

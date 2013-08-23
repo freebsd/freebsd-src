@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
@@ -57,7 +57,7 @@ typedef struct vdev_cache_entry vdev_cache_entry_t;
  * Virtual device operations
  */
 typedef int	vdev_open_func_t(vdev_t *vd, uint64_t *size, uint64_t *max_size,
-    uint64_t *ashift);
+    uint64_t *logical_ashift, uint64_t *physical_ashift);
 typedef void	vdev_close_func_t(vdev_t *vd);
 typedef uint64_t vdev_asize_func_t(vdev_t *vd, uint64_t psize);
 typedef int	vdev_io_start_func_t(zio_t *zio);
@@ -123,6 +123,24 @@ struct vdev {
 	uint64_t	vdev_min_asize;	/* min acceptable asize		*/
 	uint64_t	vdev_max_asize;	/* max acceptable asize		*/
 	uint64_t	vdev_ashift;	/* block alignment shift	*/
+	/*
+	 * Logical block alignment shift
+	 *
+	 * The smallest sized/aligned I/O supported by the device.
+	 */
+	uint64_t        vdev_logical_ashift;
+	/*
+	 * Physical block alignment shift
+	 *
+	 * The device supports logical I/Os with vdev_logical_ashift
+	 * size/alignment, but optimum performance will be achieved by
+	 * aligning/sizing requests to vdev_physical_ashift.  Smaller
+	 * requests may be inflated or incur device level read-modify-write
+	 * operations.
+	 *
+	 * May be 0 to indicate no preference (i.e. use vdev_logical_ashift).
+         */
+	uint64_t        vdev_physical_ashift;
 	uint64_t	vdev_state;	/* see VDEV_STATE_* #defines	*/
 	uint64_t	vdev_prevstate;	/* used when reopening a vdev	*/
 	vdev_ops_t	*vdev_ops;	/* vdev operations		*/
@@ -173,7 +191,7 @@ struct vdev {
 	uint64_t	vdev_faulted;	/* persistent faulted state	*/
 	uint64_t	vdev_degraded;	/* persistent degraded state	*/
 	uint64_t	vdev_removed;	/* persistent removed state	*/
-	uint64_t	vdev_resilvering; /* persistent resilvering state */
+	uint64_t	vdev_resilver_txg; /* persistent resilvering state */
 	uint64_t	vdev_nparity;	/* number of parity devices for raidz */
 	char		*vdev_path;	/* vdev path (if any)		*/
 	char		*vdev_devid;	/* vdev devid (if any)		*/

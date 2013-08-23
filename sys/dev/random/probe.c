@@ -28,66 +28,35 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
+#if defined(__amd64__) || defined(__i386__)
 #include "opt_cpu.h"
 #endif
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/random.h>
 #include <sys/selinfo.h>
-#include <sys/sysctl.h>
 
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
-#include <machine/cpufunc.h>
-#include <machine/cputypes.h>
-#include <machine/md_var.h>
-#include <machine/specialreg.h>
-#endif
-
+#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
-#include <dev/random/randomdev_soft.h>
-
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
-#ifdef PADLOCK_RNG
-extern struct random_systat random_nehemiah;
-#endif
-#ifdef RDRAND_RNG
-extern struct random_systat random_ivy;
-#endif
-#endif
 
 void
-random_ident_hardware(struct random_systat **systat)
+random_ident_hardware(struct random_adaptor **adaptor)
 {
+	struct random_adaptor *tmp;
+	int enable;
 
-	/* Set default to software */
-	*systat = &random_yarrow;
+	/* Set default to software (yarrow) */
+	*adaptor = random_adaptor_get("yarrow");
 
 	/* Then go looking for hardware */
-#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
-#ifdef PADLOCK_RNG
-	if (via_feature_rng & VIA_HAS_RNG) {
-		int enable;
+	enable = 1;
+	TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
+	if (enable && (tmp = random_adaptor_get("nehemiah")))
+		*adaptor = tmp;
 
-		enable = 1;
-		TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
-		if (enable)
-			*systat = &random_nehemiah;
-	}
-#endif
-#ifdef RDRAND_RNG
-	if (cpu_feature2 & CPUID2_RDRAND) {
-		int enable;
-
-		enable = 1;
-		TUNABLE_INT_FETCH("hw.ivy_rng_enable", &enable);
-		if (enable)
-			*systat = &random_ivy;
-	}
-#endif
-#endif
+	enable = 1;
+	TUNABLE_INT_FETCH("hw.ivy_rng_enable", &enable);
+	if (enable && (tmp = random_adaptor_get("rdrand")))
+		*adaptor = tmp;
 }

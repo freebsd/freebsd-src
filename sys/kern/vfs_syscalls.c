@@ -92,12 +92,8 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 SDT_PROVIDER_DEFINE(vfs);
-SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
-SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
-SDT_PROBE_ARGTYPE(vfs, , stat, mode, 1, "int");
-SDT_PROBE_DEFINE(vfs, , stat, reg, reg);
-SDT_PROBE_ARGTYPE(vfs, , stat, reg, 0, "char *");
-SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
+SDT_PROBE_DEFINE2(vfs, , stat, mode, mode, "char *", "int");
+SDT_PROBE_DEFINE2(vfs, , stat, reg, reg, "char *", "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
@@ -1883,77 +1879,15 @@ sys_lseek(td, uap)
 		int whence;
 	} */ *uap;
 {
-	struct ucred *cred = td->td_ucred;
 	struct file *fp;
-	struct vnode *vp;
-	struct vattr vattr;
-	off_t foffset, offset, size;
-	int error, noneg;
+	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	if ((error = fget(td, uap->fd, CAP_SEEK, &fp)) != 0)
 		return (error);
-	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
-		fdrop(fp, td);
-		return (ESPIPE);
-	}
-	vp = fp->f_vnode;
-	foffset = foffset_lock(fp, 0);
-	noneg = (vp->v_type != VCHR);
-	offset = uap->offset;
-	switch (uap->whence) {
-	case L_INCR:
-		if (noneg &&
-		    (foffset < 0 ||
-		    (offset > 0 && foffset > OFF_MAX - offset))) {
-			error = EOVERFLOW;
-			break;
-		}
-		offset += foffset;
-		break;
-	case L_XTND:
-		vn_lock(vp, LK_SHARED | LK_RETRY);
-		error = VOP_GETATTR(vp, &vattr, cred);
-		VOP_UNLOCK(vp, 0);
-		if (error)
-			break;
-
-		/*
-		 * If the file references a disk device, then fetch
-		 * the media size and use that to determine the ending
-		 * offset.
-		 */
-		if (vattr.va_size == 0 && vp->v_type == VCHR &&
-		    fo_ioctl(fp, DIOCGMEDIASIZE, &size, cred, td) == 0)
-			vattr.va_size = size;
-		if (noneg &&
-		    (vattr.va_size > OFF_MAX ||
-		    (offset > 0 && vattr.va_size > OFF_MAX - offset))) {
-			error = EOVERFLOW;
-			break;
-		}
-		offset += vattr.va_size;
-		break;
-	case L_SET:
-		break;
-	case SEEK_DATA:
-		error = fo_ioctl(fp, FIOSEEKDATA, &offset, cred, td);
-		break;
-	case SEEK_HOLE:
-		error = fo_ioctl(fp, FIOSEEKHOLE, &offset, cred, td);
-		break;
-	default:
-		error = EINVAL;
-	}
-	if (error == 0 && noneg && offset < 0)
-		error = EINVAL;
-	if (error != 0)
-		goto drop;
-	VFS_KNOTE_UNLOCKED(vp, 0);
-	*(off_t *)(td->td_retval) = offset;
-drop:
+	error = (fp->f_ops->fo_flags & DFLAG_SEEKABLE) != 0 ?
+	    fo_seek(fp, uap->offset, uap->whence, td) : ESPIPE;
 	fdrop(fp, td);
-	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
 	return (error);
 }
 

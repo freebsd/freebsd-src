@@ -275,6 +275,7 @@ cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
+compat/freebsd32/freebsd32_capability.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
@@ -1520,12 +1521,12 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
-dev/iscsi/initiator/iscsi.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/iscsi_subr.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_cam.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/isf/isf.c			optional isf
 dev/isf/isf_fdt.c		optional isf fdt
 dev/isf/isf_nexus.c		optional isf
@@ -2032,6 +2033,7 @@ rt2860.fw			optional rt2860fw | ralfw		\
 dev/random/harvest.c		standard
 dev/random/hash.c		optional random
 dev/random/probe.c		optional random
+dev/random/random_adaptors.c	standard
 dev/random/randomdev.c		optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
@@ -2713,6 +2715,7 @@ geom/zero/g_zero.c		optional geom_zero
 fs/ext2fs/ext2_alloc.c		optional ext2fs
 fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
+fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
 fs/ext2fs/ext2_hash.c		optional ext2fs

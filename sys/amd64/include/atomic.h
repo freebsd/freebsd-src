@@ -54,12 +54,14 @@
  * atomic_clear_int(P, V)	(*(u_int *)(P) &= ~(V))
  * atomic_add_int(P, V)		(*(u_int *)(P) += (V))
  * atomic_subtract_int(P, V)	(*(u_int *)(P) -= (V))
+ * atomic_swap_int(P, V)	(return (*(u_int *)(P)); *(u_int *)(P) = (V);)
  * atomic_readandclear_int(P)	(return (*(u_int *)(P)); *(u_int *)(P) = 0;)
  *
  * atomic_set_long(P, V)	(*(u_long *)(P) |= (V))
  * atomic_clear_long(P, V)	(*(u_long *)(P) &= ~(V))
  * atomic_add_long(P, V)	(*(u_long *)(P) += (V))
  * atomic_subtract_long(P, V)	(*(u_long *)(P) -= (V))
+ * atomic_swap_long(P, V)	(return (*(u_long *)(P)); *(u_long *)(P) = (V);)
  * atomic_readandclear_long(P)	(return (*(u_long *)(P)); *(u_long *)(P) = 0;)
  */
 
@@ -80,6 +82,8 @@ int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 int	atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
+int	atomic_testandset_int(volatile u_int *p, u_int v);
+int	atomic_testandset_long(volatile u_long *p, u_int v);
 
 #define	ATOMIC_LOAD(TYPE, LOP)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
@@ -108,8 +112,8 @@ static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
-	: "=m" (*p)					\
-	: CONS (V), "m" (*p)				\
+	: "+m" (*p)					\
+	: CONS (V)					\
 	: "cc");					\
 }							\
 							\
@@ -117,8 +121,8 @@ static __inline void					\
 atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
-	: "=m" (*p)					\
-	: CONS (V), "m" (*p)				\
+	: "+m" (*p)					\
+	: CONS (V)					\
 	: "memory", "cc");				\
 }							\
 struct __hack
@@ -138,17 +142,14 @@ atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	cmpxchgl %2,%1 ;	"
+	"	cmpxchgl %3,%1 ;	"
 	"       sete	%0 ;		"
-	"1:				"
 	"# atomic_cmpset_int"
-	: "=a" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "a" (expect),			/* 3 */
-	  "m" (*dst)			/* 4 */
+	: "=q" (res),			/* 0 */
+	  "+m" (*dst),			/* 1 */
+	  "+a" (expect)			/* 2 */
+	: "r" (src)			/* 3 */
 	: "memory", "cc");
-
 	return (res);
 }
 
@@ -159,17 +160,14 @@ atomic_cmpset_long(volatile u_long *dst, u_long expect, u_long src)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	cmpxchgq %2,%1 ;	"
+	"	cmpxchgq %3,%1 ;	"
 	"       sete	%0 ;		"
-	"1:				"
 	"# atomic_cmpset_long"
-	: "=a" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "a" (expect),			/* 3 */
-	  "m" (*dst)			/* 4 */
+	: "=q" (res),			/* 0 */
+	  "+m" (*dst),			/* 1 */
+	  "+a" (expect)			/* 2 */
+	: "r" (src)			/* 3 */
 	: "memory", "cc");
-
 	return (res);
 }
 
@@ -183,12 +181,11 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	xaddl	%0, %1 ;	"
+	"	xaddl	%0,%1 ;		"
 	"# atomic_fetchadd_int"
-	: "+r" (v),			/* 0 (result) */
-	  "=m" (*p)			/* 1 */
-	: "m" (*p)			/* 2 */
-	: "cc");
+	: "+r" (v),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: : "cc");
 	return (v);
 }
 
@@ -202,13 +199,46 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 
 	__asm __volatile(
 	"	" MPLOCKED "		"
-	"	xaddq	%0, %1 ;	"
+	"	xaddq	%0,%1 ;		"
 	"# atomic_fetchadd_long"
-	: "+r" (v),			/* 0 (result) */
-	  "=m" (*p)			/* 1 */
-	: "m" (*p)			/* 2 */
-	: "cc");
+	: "+r" (v),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: : "cc");
 	return (v);
+}
+
+static __inline int
+atomic_testandset_int(volatile u_int *p, u_int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btsl	%2,%1 ;		"
+	"	setc	%0 ;		"
+	"# atomic_testandset_int"
+	: "=q" (res),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: "Ir" (v & 0x1f)		/* 2 */
+	: "cc");
+	return (res);
+}
+
+static __inline int
+atomic_testandset_long(volatile u_long *p, u_int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btsq	%2,%1 ;		"
+	"	setc	%0 ;		"
+	"# atomic_testandset_long"
+	: "=q" (res),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: "Jr" ((u_long)(v & 0x3f))	/* 2 */
+	: "cc");
+	return (res);
 }
 
 /*
@@ -255,10 +285,8 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 							\
 	__asm __volatile(MPLOCKED LOP			\
 	: "=a" (res),			/* 0 */		\
-	  "=m" (*p)			/* 1 */		\
-	: "m" (*p)			/* 2 */		\
-	: "memory", "cc");				\
-							\
+	  "+m" (*p)			/* 1 */		\
+	: : "memory", "cc");				\
 	return (res);					\
 }							\
 struct __hack
@@ -303,45 +331,37 @@ ATOMIC_STORE(long);
 
 #ifndef WANT_FUNCTIONS
 
-/* Read the current value and store a zero in the destination. */
+/* Read the current value and store a new value in the destination. */
 #ifdef __GNUCLIKE_ASM
 
 static __inline u_int
-atomic_readandclear_int(volatile u_int *addr)
+atomic_swap_int(volatile u_int *p, u_int v)
 {
-	u_int res;
 
-	res = 0;
 	__asm __volatile(
 	"	xchgl	%1,%0 ;		"
-	"# atomic_readandclear_int"
-	: "+r" (res),			/* 0 */
-	  "=m" (*addr)			/* 1 */
-	: "m" (*addr));
-
-	return (res);
+	"# atomic_swap_int"
+	: "+r" (v),			/* 0 */
+	  "+m" (*p));			/* 1 */
+	return (v);
 }
 
 static __inline u_long
-atomic_readandclear_long(volatile u_long *addr)
+atomic_swap_long(volatile u_long *p, u_long v)
 {
-	u_long res;
 
-	res = 0;
 	__asm __volatile(
 	"	xchgq	%1,%0 ;		"
-	"# atomic_readandclear_long"
-	: "+r" (res),			/* 0 */
-	  "=m" (*addr)			/* 1 */
-	: "m" (*addr));
-
-	return (res);
+	"# atomic_swap_long"
+	: "+r" (v),			/* 0 */
+	  "+m" (*p));			/* 1 */
+	return (v);
 }
 
 #else /* !__GNUCLIKE_ASM */
 
-u_int	atomic_readandclear_int(volatile u_int *addr);
-u_long	atomic_readandclear_long(volatile u_long *addr);
+u_int	atomic_swap_int(volatile u_int *p, u_int v);
+u_long	atomic_swap_long(volatile u_long *p, u_long v);
 
 #endif /* __GNUCLIKE_ASM */
 
@@ -384,6 +404,9 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_subtract_rel_long	atomic_subtract_barr_long
 #define	atomic_cmpset_acq_long		atomic_cmpset_long
 #define	atomic_cmpset_rel_long		atomic_cmpset_long
+
+#define	atomic_readandclear_int(p)	atomic_swap_int(p, 0)
+#define	atomic_readandclear_long(p)	atomic_swap_long(p, 0)
 
 /* Operations on 8-bit bytes. */
 #define	atomic_set_8		atomic_set_char
@@ -435,8 +458,10 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_cmpset_32	atomic_cmpset_int
 #define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+#define	atomic_swap_32		atomic_swap_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
+#define	atomic_testandset_32	atomic_testandset_int
 
 /* Operations on 64-bit quad words. */
 #define	atomic_set_64		atomic_set_long
@@ -456,7 +481,9 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_cmpset_64	atomic_cmpset_long
 #define	atomic_cmpset_acq_64	atomic_cmpset_acq_long
 #define	atomic_cmpset_rel_64	atomic_cmpset_rel_long
+#define	atomic_swap_64		atomic_swap_long
 #define	atomic_readandclear_64	atomic_readandclear_long
+#define	atomic_testandset_64	atomic_testandset_long
 
 /* Operations on pointers. */
 #define	atomic_set_ptr		atomic_set_long
@@ -476,6 +503,7 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_cmpset_ptr	atomic_cmpset_long
 #define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_long
 #define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
+#define	atomic_swap_ptr		atomic_swap_long
 #define	atomic_readandclear_ptr	atomic_readandclear_long
 
 #endif /* !WANT_FUNCTIONS */

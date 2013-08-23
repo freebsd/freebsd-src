@@ -576,7 +576,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 
 static int
 vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
-    uint64_t *ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
@@ -662,9 +662,13 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	*max_psize = *psize = pp->mediasize;
 
 	/*
-	 * Determine the device's minimum transfer size.
+	 * Determine the device's minimum transfer size and preferred
+	 * transfer size.
 	 */
-	*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*logical_ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*physical_ashift = 0;
+	if (pp->stripesize)
+		*physical_ashift = highbit(pp->stripesize) - 1;
 
 	/*
 	 * Clear the nowritecache settings, so that on a vdev_reopen()

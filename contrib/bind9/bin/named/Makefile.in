@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,13 +13,19 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.114.14.2 2011/03/10 23:47:25 tbox Exp $
+# $Id: Makefile.in,v 1.116 2011/03/10 23:47:49 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
 
 @BIND9_VERSION@
+
+@BIND9_PRODUCT@
+
+@BIND9_DESCRIPTION@
+
+@BIND9_SRCID@
 
 @BIND9_CONFIGARGS@
 
@@ -114,6 +120,9 @@ MANOBJS =	${MANPAGES} ${HTMLPAGES}
 main.@O@: main.c
 	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
 		-DVERSION=\"${VERSION}\" \
+		-DPRODUCT=\"${PRODUCT}\" \
+		-DDESCRIPTION=\"${DESCRIPTION}\" \
+		-DSRCID=\"${SRCID}\" \
 		-DCONFIGARGS="\"${CONFIGARGS}\"" \
 		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
 		-DNS_SYSCONFDIR=\"${sysconfdir}\" -c ${srcdir}/main.c
@@ -124,6 +133,7 @@ bind.keys.h: ${top_srcdir}/bind.keys ${srcdir}/bindkeys.pl
 config.@O@: config.c bind.keys.h
 	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} \
 		-DVERSION=\"${VERSION}\" \
+		-DSRCID=\"${SRCID}\" \
 		-DNS_LOCALSTATEDIR=\"${localstatedir}\" \
 		-DNS_SYSCONFDIR=\"${sysconfdir}\" \
 		-c ${srcdir}/config.c
@@ -151,8 +161,11 @@ maintainer-clean::
 bind9.xsl.h: bind9.xsl ${srcdir}/convertxsl.pl
 	${PERL} ${srcdir}/convertxsl.pl < ${srcdir}/bind9.xsl > bind9.xsl.h
 
-depend: bind9.xsl.h
-statschannel.@O@: bind9.xsl.h
+bind9.ver3.xsl.h: bind9.ver3.xsl ${srcdir}/convertxsl.pl
+	${PERL} ${srcdir}/convertxsl.pl < ${srcdir}/bind9.ver3.xsl > bind9.ver3.xsl.h
+
+depend: bind9.xsl.h bind9.ver3.xsl.h
+statschannel.@O@: bind9.xsl.h bind9.ver3.xsl.h
 
 installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${sbindir}
@@ -167,3 +180,6 @@ install:: named@EXEEXT@ lwresd@EXEEXT@ installdirs
 	${INSTALL_DATA} ${srcdir}/named.conf.5 ${DESTDIR}${mandir}/man5
 
 @DLZ_DRIVER_RULES@
+
+named-symtbl.@O@: named-symtbl.c
+	${LIBTOOL_MODE_COMPILE} ${CC} ${ALL_CFLAGS} -c named-symtbl.c

@@ -307,6 +307,10 @@ mpssas_log_command(struct mps_command *cm, u_int level, const char *fmt, ...)
 	if (cm == NULL)
 		return;
 
+	/* No need to be in here if debugging isn't enabled */
+	if ((cm->cm_sc->mps_debug & level) == 0)
+		return;
+
 	sbuf_new(&sb, str, sizeof(str), 0);
 
 	va_start(ap, fmt);
@@ -2099,7 +2103,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	cm->cm_targ->completed++;
 	cm->cm_targ->outstanding--;
 	TAILQ_REMOVE(&cm->cm_targ->commands, cm, cm_link);
-	ccb->ccb_h.status |= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
+	ccb->ccb_h.status &= ~(CAM_STATUS_MASK | CAM_SIM_QUEUED);
 
 	if (cm->cm_state == MPS_CM_STATE_TIMEDOUT) {
 		TAILQ_REMOVE(&cm->cm_targ->timedout_commands, cm, cm_recovery);
@@ -2141,7 +2145,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * because there can be no reply when we haven't actually
 		 * gone out to the hardware.
 		 */
-		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+		ccb->ccb_h.status = CAM_REQUEUE_REQ;
 
 		/*
 		 * Currently the only error included in the mask is
@@ -3553,3 +3557,20 @@ mpssas_portenable_complete(struct mps_softc *sc, struct mps_command *cm)
 	xpt_release_simq(sassc->sim, 1);
 }
 
+int
+mpssas_check_id(struct mpssas_softc *sassc, int id)
+{
+	struct mps_softc *sc = sassc->sc;
+	char *ids;
+	char *name;
+
+	ids = &sc->exclude_ids[0];
+	while((name = strsep(&ids, ",")) != NULL) {
+		if (name[0] == '\0')
+			continue;
+		if (strtol(name, NULL, 0) == (long)id)
+			return (1);
+	}
+
+	return (0);
+}

@@ -41,20 +41,23 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#define iconv_open		libiconv_open
-#define iconv_close		libiconv_close
-#define iconv			libiconv
-#define iconv_t			libiconv_t
+#include <_libiconv_compat.h>
+#ifdef __LIBICONV_COMPAT
+#define libiconv_open		iconv_open
+#define libiconv_close		iconv_close
+#define libiconv		iconv
+#define libiconv_t		iconv_t
+#endif
 
 struct __tag_iconv_t;
 typedef	struct __tag_iconv_t	*iconv_t;
 
 __BEGIN_DECLS
-iconv_t	libiconv_open(const char *, const char *);
-size_t	libiconv(iconv_t, const char ** __restrict,
-		     size_t * __restrict, char ** __restrict,
-		     size_t * __restrict);
-int	libiconv_close(iconv_t);
+iconv_t	iconv_open(const char *, const char *);
+size_t	iconv(iconv_t, const char ** __restrict,
+	      size_t * __restrict, char ** __restrict,
+	      size_t * __restrict);
+int	iconv_close(iconv_t);
 /*
  * non-portable interfaces for iconv
  */
@@ -67,20 +70,28 @@ size_t	__iconv(iconv_t, const char **, size_t *, char **,
 /*
  * GNU interfaces for iconv
  */
-#define iconv_open_into		libiconv_open_into
-#define iconvctl		libiconvctl
-#define iconvlist		libiconvlist
+#ifdef __LIBICONV_COMPAT
+#define libiconv_open_into		iconv_open_into
+#define libiconvctl			iconvctl
+#define libiconvlist			iconvlist
+#define libiconv_set_relocation_prefix	iconv_set_relocation_prefix
+#endif
 
 /* We have iconvctl() */
-#define _LIBICONV_VERSION	0x0108
-extern int _libiconv_version;
+#define _ICONV_VERSION	0x0108
+extern int _iconv_version;
+
+#ifdef __LIBICONV_COMPAT
+#define _libiconv_version		_iconv_version
+#define _LIBICONV_VERSION		_ICONV_VERSION
+#endif
 
 typedef struct {
 	void	*spaceholder[64];
 } iconv_allocation_t;
 
 int	 iconv_open_into(const char *, const char *, iconv_allocation_t *);
-void	 libiconv_set_relocation_prefix (const char *orig_prefix,
+void	 iconv_set_relocation_prefix(const char *orig_prefix,
 	     const char *curr_prefix);
 
 /*

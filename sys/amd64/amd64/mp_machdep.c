@@ -938,10 +938,14 @@ start_all_aps(void)
 		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up an idle stack data page */
-		bootstacks[cpu] = (void *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		doublefault_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
-		nmi_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		bootstacks[cpu] = (void *)kmem_malloc(kernel_arena,
+		    KSTACK_PAGES * PAGE_SIZE, M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(kernel_arena,
+		    PAGE_SIZE, M_WAITOK | M_ZERO);
+		nmi_stack = (char *)kmem_malloc(kernel_arena, PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 
 		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
 		bootAP = cpu;

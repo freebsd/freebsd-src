@@ -127,6 +127,7 @@ static struct fileops kqueueops = {
 	.fo_close = kqueue_close,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
 };
 
 static int 	knote_attach(struct knote *kn, struct kqueue *kq);
@@ -431,8 +432,11 @@ filt_proc(struct knote *kn, long hint)
 		if (!(kn->kn_status & KN_DETACHED))
 			knlist_remove_inevent(&p->p_klist, kn);
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
-		kn->kn_data = p->p_xstat;
 		kn->kn_ptr.p_proc = NULL;
+		if (kn->kn_fflags & NOTE_EXIT)
+			kn->kn_data = p->p_xstat;
+		if (kn->kn_fflags == 0)
+			kn->kn_flags |= EV_DROP;
 		return (1);
 	}
 
@@ -474,7 +478,7 @@ knote_fork(struct knlist *list, int pid)
 		 */
 		if ((kn->kn_sfflags & NOTE_TRACK) == 0) {
 			kn->kn_status |= KN_HASKQLOCK;
-			if (kn->kn_fop->f_event(kn, NOTE_FORK | pid))
+			if (kn->kn_fop->f_event(kn, NOTE_FORK))
 				KNOTE_ACTIVATE(kn, 1);
 			kn->kn_status &= ~KN_HASKQLOCK;
 			KQ_UNLOCK(kq);
@@ -502,10 +506,10 @@ knote_fork(struct knlist *list, int pid)
 		kev.data = kn->kn_id;		/* parent */
 		kev.udata = kn->kn_kevent.udata;/* preserve udata */
 		error = kqueue_register(kq, &kev, NULL, 0);
-		if (kn->kn_fop->f_event(kn, NOTE_FORK | pid))
-			KNOTE_ACTIVATE(kn, 0);
 		if (error)
 			kn->kn_fflags |= NOTE_TRACKERR;
+		if (kn->kn_fop->f_event(kn, NOTE_FORK))
+			KNOTE_ACTIVATE(kn, 0);
 		KQ_LOCK(kq);
 		kn->kn_status &= ~KN_INFLUX;
 		KQ_UNLOCK_FLUX(kq);
@@ -1410,7 +1414,21 @@ retry:
 		KASSERT((kn->kn_status & KN_INFLUX) == 0,
 		    ("KN_INFLUX set when not suppose to be"));
 
-		if ((kn->kn_flags & EV_ONESHOT) == EV_ONESHOT) {
+		if ((kn->kn_flags & EV_DROP) == EV_DROP) {
+			kn->kn_status &= ~KN_QUEUED;
+			kn->kn_status |= KN_INFLUX;
+			kq->kq_count--;
+			KQ_UNLOCK(kq);
+			/*
+			 * We don't need to lock the list since we've marked
+			 * it _INFLUX.
+			 */
+			if (!(kn->kn_status & KN_DETACHED))
+				kn->kn_fop->f_detach(kn);
+			knote_drop(kn, td);
+			KQ_LOCK(kq);
+			continue;
+		} else if ((kn->kn_flags & EV_ONESHOT) == EV_ONESHOT) {
 			kn->kn_status &= ~KN_QUEUED;
 			kn->kn_status |= KN_INFLUX;
 			kq->kq_count--;

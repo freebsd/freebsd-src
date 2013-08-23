@@ -173,15 +173,15 @@ functions take
 .Fa sbt
 parameter instead of
 .Fa timo .
-It allows to specify relative or absolite wakeup time with higher resolution
+It allows the caller to specify relative or absolute wakeup time with higher resolution
 in form of
 .Vt sbintime_t .
 The parameter
 .Fa pr
-allows to specify wanted absolute event precision.
+allows the caller to specify wanted absolute event precision.
 The parameter
 .Fa flags
-allows to pass additional
+allows the caller to pass additional
 .Fn callout_reset_sbt
 flags.
 .Pp

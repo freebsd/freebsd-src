@@ -5406,6 +5406,14 @@ do_a_abort:
 	}
 	SCTP_BUF_LEN(m) = sizeof(struct sctp_init_chunk);
 
+	/*
+	 * We might not overwrite the identification[] completely and on
+	 * some platforms time_entered will contain some padding. Therefore
+	 * zero out the cookie to avoid putting uninitialized memory on the
+	 * wire.
+	 */
+	memset(&stc, 0, sizeof(struct sctp_state_cookie));
+
 	/* the time I built cookie */
 	(void)SCTP_GETTIME_TIMEVAL(&stc.time_entered);
 
@@ -7613,7 +7621,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 #endif
 )
 {
-	/*
+	/**
 	 * Ok this is the generic chunk service queue. we must do the
 	 * following: - Service the stream queue that is next, moving any
 	 * message (note I must get a complete message i.e. FIRST/MIDDLE and

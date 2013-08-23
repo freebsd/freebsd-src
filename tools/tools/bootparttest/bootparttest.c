@@ -54,7 +54,7 @@ diskread(void *arg, void *buf, size_t blocks, off_t offset)
 	struct disk *dp;
 
 	dp = (struct disk *)arg;
-	printf("%s: read %d blocks from the offset %jd [+%jd]\n", dp->name,
+	printf("%s: read %lu blocks from the offset %jd [+%jd]\n", dp->name,
 	    blocks, offset, dp->offset);
 	if (offset >= dp->mediasize / dp->sectorsize)
 		return (-1);

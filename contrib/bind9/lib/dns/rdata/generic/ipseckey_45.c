@@ -190,8 +190,11 @@ totext_ipseckey(ARGS_TOTEXT) {
 	 */
 	if (region.length > 0U) {
 		RETERR(str_totext(tctx->linebreak, target));
-		RETERR(isc_base64_totext(&region, tctx->width - 2,
-					 tctx->linebreak, target));
+		if (tctx->width == 0)   /* No splitting */
+			RETERR(isc_base64_totext(&region, 60, "", target));
+		else
+			RETERR(isc_base64_totext(&region, tctx->width - 2,
+						 tctx->linebreak, target));
 	}
 
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)

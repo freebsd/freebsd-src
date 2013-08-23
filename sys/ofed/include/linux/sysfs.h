@@ -97,11 +97,14 @@ sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 			error = -len;
 			if (error != EIO)
 				goto out;
+			buf[0] = '\0';
+		} else if (len) {
+			len--;
+			if (len >= PAGE_SIZE)
+				len = PAGE_SIZE - 1;
+			/* Trim trailing newline. */
+			buf[len] = '\0';
 		}
-
-		/* Trim trailing newline. */
-		len--;
-		buf[len] = '\0';
 	}
 
 	/* Leave one trailing byte to append a newline. */

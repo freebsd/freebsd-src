@@ -2428,9 +2428,7 @@ asr_attach(device_t dev)
 		return(ENXIO);
 	}
 	/* Enable if not formerly enabled */
-	pci_write_config(dev, PCIR_COMMAND,
-	    pci_read_config(dev, PCIR_COMMAND, sizeof(char)) |
-	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, sizeof(char));
+	pci_enable_busmaster(dev);
 
 	sc->ha_pciBusNum = pci_get_bus(dev);
 	sc->ha_pciDeviceNum = (pci_get_slot(dev) << 3) | pci_get_function(dev);

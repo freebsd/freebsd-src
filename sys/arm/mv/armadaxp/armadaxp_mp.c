@@ -113,7 +113,7 @@ platform_mp_start_ap(void)
 	cputype = cpufunc_id();
 	cputype &= CPU_ID_CPU_MASK;
 
-	smp_boot = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	smp_boot = kva_alloc(PAGE_SIZE);
 	pmap_kenter_nocache(smp_boot, 0xffff0000);
 	dst = (uint32_t *) smp_boot;
 
@@ -121,7 +121,7 @@ platform_mp_start_ap(void)
 	    src++, dst++) {
 		*dst = *src;
 	}
-	kmem_free(kernel_map, smp_boot, PAGE_SIZE);
+	kva_free(smp_boot, PAGE_SIZE);
 
 	if (cputype == CPU_ID_MV88SV584X_V7) {
 		/* Core rev A0 */

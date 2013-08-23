@@ -1548,22 +1548,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
 
-uint64_t (*atomic_load_acq_64)(volatile uint64_t *) =
-    atomic_load_acq_64_i386;
-void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t) =
-    atomic_store_rel_64_i386;
-
-static void
-cpu_probe_cmpxchg8b(void)
-{
-
-	if ((cpu_feature & CPUID_CX8) != 0 ||
-	    cpu_vendor_id == CPU_VENDOR_RISE) {
-		atomic_load_acq_64 = atomic_load_acq_64_i586;
-		atomic_store_rel_64 = atomic_store_rel_64_i586;
-	}
-}
-
 /*
  * Reset registers to default values on exec.
  */
@@ -2825,7 +2809,6 @@ init386(first)
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 }
 
 #else
@@ -3116,7 +3099,6 @@ init386(first)
 	thread0.td_frame = &proc0_tf;
 
 	cpu_probe_amdc1e();
-	cpu_probe_cmpxchg8b();
 
 #ifdef FDT
 	x86_init_fdt();
@@ -3178,9 +3160,9 @@ f00f_hack(void *unused)
 
 	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
-	tmp = kmem_alloc(kernel_map, PAGE_SIZE * 2);
+	tmp = kmem_malloc(kernel_arena, PAGE_SIZE * 2, M_WAITOK | M_ZERO);
 	if (tmp == 0)
-		panic("kmem_alloc returned 0");
+		panic("kmem_malloc returned 0");
 
 	/* Put the problematic entry (#6) at the end of the lower page. */
 	new_idt = (struct gate_descriptor*)
@@ -3189,9 +3171,7 @@ f00f_hack(void *unused)
 	r_idt.rd_base = (u_int)new_idt;
 	lidt(&r_idt);
 	idt = new_idt;
-	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
-			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
-		panic("vm_map_protect failed");
+	pmap_protect(kernel_pmap, tmp, tmp + PAGE_SIZE, VM_PROT_READ);
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -360,7 +360,7 @@ ixfr_init(dns_xfrin_ctx_t *xfr) {
 	journalfile = dns_zone_getjournal(xfr->zone);
 	if (journalfile != NULL)
 		CHECK(dns_journal_open(xfr->mctx, journalfile,
-				       ISC_TRUE, &xfr->ixfr.journal));
+				       DNS_JOURNAL_CREATE, &xfr->ixfr.journal));
 
 	result = ISC_R_SUCCESS;
  failure:
@@ -591,6 +591,7 @@ xfr_rr(dns_xfrin_ctx_t *xfr, dns_name_t *name, isc_uint32_t ttl,
 	case XFRST_AXFR_END:
 	case XFRST_IXFR_END:
 		FAIL(DNS_R_EXTRADATA);
+		/* NOTREACHED */
 	default:
 		INSIST(0);
 		break;
@@ -630,7 +631,8 @@ dns_xfrin_create2(dns_zone_t *zone, dns_rdatatype_t xfrtype,
 		  isc_sockaddr_t *masteraddr, isc_sockaddr_t *sourceaddr,
 		  dns_tsigkey_t *tsigkey, isc_mem_t *mctx,
 		  isc_timermgr_t *timermgr, isc_socketmgr_t *socketmgr,
-		  isc_task_t *task, dns_xfrindone_t done, dns_xfrin_ctx_t **xfrp)
+		  isc_task_t *task, dns_xfrindone_t done,
+		  dns_xfrin_ctx_t **xfrp)
 {
 	dns_name_t *zonename = dns_zone_getorigin(zone);
 	dns_xfrin_ctx_t *xfr = NULL;
@@ -781,7 +783,8 @@ xfrin_create(isc_mem_t *mctx,
 	xfr = isc_mem_get(mctx, sizeof(*xfr));
 	if (xfr == NULL)
 		return (ISC_R_NOMEMORY);
-	xfr->mctx = mctx;
+	xfr->mctx = NULL;
+	isc_mem_attach(mctx, &xfr->mctx);
 	xfr->refcount = 0;
 	xfr->zone = NULL;
 	dns_zone_iattach(zone, &xfr->zone);
@@ -876,7 +879,7 @@ xfrin_create(isc_mem_t *mctx,
 		dns_db_detach(&xfr->db);
 	isc_task_detach(&xfr->task);
 	dns_zone_idetach(&xfr->zone);
-	isc_mem_put(mctx, xfr, sizeof(*xfr));
+	isc_mem_putanddetach(&xfr->mctx, xfr, sizeof(*xfr));
 
 	return (result);
 }
@@ -1491,7 +1494,7 @@ maybe_free(dns_xfrin_ctx_t *xfr) {
 	if (xfr->zone != NULL)
 		dns_zone_idetach(&xfr->zone);
 
-	isc_mem_put(xfr->mctx, xfr, sizeof(*xfr));
+	isc_mem_putanddetach(&xfr->mctx, xfr, sizeof(*xfr));
 }
 
 /*

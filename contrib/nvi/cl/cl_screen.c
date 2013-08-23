@@ -5,27 +5,27 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- * $FreeBSD$
  */
 
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)cl_screen.c	10.49 (Berkeley) 9/24/96";
+static const char sccsid[] = "$Id: cl_screen.c,v 10.56 2002/05/03 19:59:44 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
-#include <curses.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_TERM_H
 #include <term.h>
+#endif
 #include <termios.h>
 #include <unistd.h>
 
@@ -46,26 +46,30 @@ static int	cl_putenv __P((char *, char *, u_long));
  * PUBLIC: int cl_screen __P((SCR *, u_int32_t));
  */
 int
-cl_screen(sp, flags)
-	SCR *sp;
-	u_int32_t flags;
+cl_screen(SCR *sp, u_int32_t flags)
 {
 	CL_PRIVATE *clp;
+	WINDOW *win;
 	GS *gp;
 
 	gp = sp->gp;
 	clp = CLP(sp);
+	win = CLSP(sp) ? CLSP(sp) : stdscr;
 
 	/* See if the current information is incorrect. */
 	if (F_ISSET(gp, G_SRESTART)) {
+		if (CLSP(sp)) {
+		    delwin(CLSP(sp));
+		    sp->cl_private = NULL;
+		}
 		if (cl_quit(gp))
 			return (1);
 		F_CLR(gp, G_SRESTART);
 	}
 	
 	/* See if we're already in the right mode. */
-	if (LF_ISSET(SC_EX) && F_ISSET(sp, SC_SCR_EX) ||
-	    LF_ISSET(SC_VI) && F_ISSET(sp, SC_SCR_VI))
+	if ((LF_ISSET(SC_EX) && F_ISSET(sp, SC_SCR_EX)) ||
+	    (LF_ISSET(SC_VI) && F_ISSET(sp, SC_SCR_VI)))
 		return (0);
 
 	/*
@@ -93,12 +97,12 @@ cl_screen(sp, flags)
 	if (F_ISSET(sp, SC_SCR_VI)) {
 		F_CLR(sp, SC_SCR_VI);
 
-		if (sp->q.cqe_next != (void *)&gp->dq) {
-			(void)move(RLNO(sp, sp->rows), 0);
-			clrtobot();
+		if (TAILQ_NEXT(sp, q) != NULL) {
+			(void)wmove(win, RLNO(sp, sp->rows), 0);
+			wclrtobot(win);
 		}
-		(void)move(RLNO(sp, sp->rows) - 1, 0);
-		refresh();
+		(void)wmove(win, RLNO(sp, sp->rows) - 1, 0);
+		wrefresh(win);
 	}
 
 	/* Enter the requested mode. */
@@ -130,8 +134,7 @@ cl_screen(sp, flags)
  * PUBLIC: int cl_quit __P((GS *));
  */
 int
-cl_quit(gp)
-	GS *gp;
+cl_quit(GS *gp)
 {
 	CL_PRIVATE *clp;
 	int rval;
@@ -181,8 +184,7 @@ cl_quit(gp)
  *	Initialize the curses vi screen.
  */
 static int
-cl_vi_init(sp)
-	SCR *sp;
+cl_vi_init(SCR *sp)
 {
 	CL_PRIVATE *clp;
 	GS *gp;
@@ -245,6 +247,7 @@ cl_vi_init(sp)
 	 * The HP/UX newterm doesn't support the NULL first argument, so we
 	 * have to specify the terminal type.
 	 */
+	(void)del_curterm(cur_term);
 	errno = 0;
 	if (newterm(ttype, stdout, stdin) == NULL) {
 		if (errno)
@@ -385,8 +388,7 @@ err:		(void)cl_vi_end(sp->gp);
  *	Shutdown the vi screen.
  */
 static int
-cl_vi_end(gp)
-	GS *gp;
+cl_vi_end(GS *gp)
 {
 	CL_PRIVATE *clp;
 
@@ -429,8 +431,7 @@ cl_vi_end(gp)
  *	Initialize the ex screen.
  */
 static int
-cl_ex_init(sp)
-	SCR *sp;
+cl_ex_init(SCR *sp)
 {
 	CL_PRIVATE *clp;
 
@@ -504,8 +505,7 @@ fast:	if (tcsetattr(STDIN_FILENO, TCSADRAIN | TCSASOFT, &clp->ex_enter)) {
  *	Shutdown the ex screen.
  */
 static int
-cl_ex_end(gp)
-	GS *gp;
+cl_ex_end(GS *gp)
 {
 	CL_PRIVATE *clp;
 
@@ -523,9 +523,7 @@ cl_ex_end(gp)
  * PUBLIC: int cl_getcap __P((SCR *, char *, char **));
  */
 int
-cl_getcap(sp, name, elementp)
-	SCR *sp;
-	char *name, **elementp;
+cl_getcap(SCR *sp, char *name, char **elementp)
 {
 	size_t len;
 	char *t;
@@ -543,8 +541,7 @@ cl_getcap(sp, name, elementp)
  *	Free any allocated termcap/terminfo strings.
  */
 static void
-cl_freecap(clp)
-	CL_PRIVATE *clp;
+cl_freecap(CL_PRIVATE *clp)
 {
 	if (clp->el != NULL) {
 		free(clp->el);
@@ -566,6 +563,12 @@ cl_freecap(clp)
 		free(clp->smso);
 		clp->smso = NULL;
 	}
+	/* Required by libcursesw :) */
+	if (clp->cw.bp1.c != NULL) {
+		free(clp->cw.bp1.c);
+		clp->cw.bp1.c = NULL;
+		clp->cw.blen1 = 0;
+	}
 }
 
 /*
@@ -573,10 +576,7 @@ cl_freecap(clp)
  *	Put a value into the environment.
  */
 static int
-cl_putenv(name, str, value)
-	char *name, *str;
-	u_long value;
-
+cl_putenv(char *name, char *str, u_long value)
 {
 	char buf[40];
 

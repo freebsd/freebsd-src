@@ -62,9 +62,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
@@ -113,12 +115,7 @@ MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
 MALLOC_DEFINE(M_IP6OPT, "ip6opt", "IPv6 options");
 MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
 
-static void kmeminit(void *);
-SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL);
-
 static struct malloc_type *kmemstatistics;
-static vm_offset_t kmembase;
-static vm_offset_t kmemlimit;
 static int kmemcount;
 
 #define KMEM_ZSHIFT	4
@@ -203,12 +200,12 @@ SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RDTUN, &vm_kmem_size_scale, 
 static int sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, kmem_map_size,
     CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_kmem_map_size, "LU", "Current kmem_map allocation size");
+    sysctl_kmem_map_size, "LU", "Current kmem allocation size");
 
 static int sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, kmem_map_free,
     CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_kmem_map_free, "LU", "Largest contiguous free range in kmem_map");
+    sysctl_kmem_map_free, "LU", "Free space in kmem");
 
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
@@ -253,7 +250,7 @@ sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS)
 {
 	u_long size;
 
-	size = kmem_map->size;
+	size = vmem_size(kmem_arena, VMEM_ALLOC);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
@@ -262,10 +259,7 @@ sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
 {
 	u_long size;
 
-	vm_map_lock_read(kmem_map);
-	size = kmem_map->root != NULL ? kmem_map->root->max_free :
-	    kmem_map->max_offset - kmem_map->min_offset;
-	vm_map_unlock_read(kmem_map);
+	size = vmem_size(kmem_arena, VMEM_FREE);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
@@ -420,7 +414,7 @@ contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 {
 	void *ret;
 
-	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
+	ret = (void *)kmem_alloc_contig(kernel_arena, size, flags, low, high,
 	    alignment, boundary, VM_MEMATTR_DEFAULT);
 	if (ret != NULL)
 		malloc_type_allocated(type, round_page(size));
@@ -438,7 +432,7 @@ void
 contigfree(void *addr, unsigned long size, struct malloc_type *type)
 {
 
-	kmem_free(kernel_map, (vm_offset_t)addr, size);
+	kmem_free(kernel_arena, (vm_offset_t)addr, size);
 	malloc_type_freed(type, round_page(size));
 }
 
@@ -681,18 +675,24 @@ reallocf(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 }
 
 /*
- * Initialize the kernel memory allocator
+ * Wake the page daemon when we exhaust KVA.  It will call the lowmem handler
+ * and uma_reclaim() callbacks in a context that is safe.
  */
-/* ARGSUSED*/
 static void
-kmeminit(void *dummy)
+kmem_reclaim(vmem_t *vm, int flags)
 {
-	uint8_t indx;
-	u_long mem_size, tmp;
-	int i;
- 
-	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
 
+	pagedaemon_wakeup();
+}
+
+/*
+ * Initialize the kernel memory arena.
+ */
+void
+kmeminit(void)
+{
+	u_long mem_size, tmp;
+ 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is
 	 * more applicable for a wider range of machine sizes.  The
@@ -740,14 +740,15 @@ kmeminit(void *dummy)
 	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
+	vm_kmem_size = round_page(vm_kmem_size);
 #ifdef DEBUG_MEMGUARD
 	tmp = memguard_fudge(vm_kmem_size, kernel_map);
 #else
 	tmp = vm_kmem_size;
 #endif
-	kmem_map = kmem_suballoc(kernel_map, &kmembase, &kmemlimit,
-	    tmp, TRUE);
-	kmem_map->system_map = 1;
+	vmem_init(kmem_arena, "kmem arena", kva_alloc(tmp), tmp, PAGE_SIZE,
+	    0, 0);
+	vmem_set_reclaim(kmem_arena, kmem_reclaim);
 
 #ifdef DEBUG_MEMGUARD
 	/*
@@ -755,8 +756,23 @@ kmeminit(void *dummy)
 	 * replacement allocator used for detecting tamper-after-free
 	 * scenarios as they occur.  It is only used for debugging.
 	 */
-	memguard_init(kmem_map);
+	memguard_init(kmem_arena);
 #endif
+}
+
+/*
+ * Initialize the kernel memory allocator
+ */
+/* ARGSUSED*/
+static void
+mallocinit(void *dummy)
+{
+	int i;
+	uint8_t indx;
+
+	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
+
+	kmeminit();
 
 	uma_startup2();
 
@@ -787,6 +803,7 @@ kmeminit(void *dummy)
 		
 	}
 }
+SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, mallocinit, NULL);
 
 void
 malloc_init(void *data)

@@ -1,6 +1,6 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -181,8 +181,10 @@ variable logoY
 \ 	beastie     Color ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	beastiebw   B/W ``Helper Daemon'' mascot (19 rows x 34 columns)
 \ 	fbsdbw      "FreeBSD" logo in B/W (13 rows x 21 columns)
-\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns)
-\ 	orbbw       B/W ``Orb'' mascot (15 rows x 32 columns) (default)
+\ 	orb         Color ``Orb'' mascot (15 rows x 30 columns) (2nd default)
+\ 	orbbw       B/W ``Orb'' mascot (15 rows x 32 columns)
+\ 	tribute     Color ``Tribute'' (must fit 19 rows x 34 columns) (default)
+\ 	tributebw   B/W ``Tribute'' (must fit 19 rows x 34 columns)
 \ 
 \ NOTE: Setting `loader_logo' to an undefined value (such as "none") will
 \       prevent beastie from being drawn.
@@ -203,9 +205,21 @@ variable logoY
 	s" loader_logo" getenv dup -1 = if
 		logoX @ logoY @
 		loader_color? if
-			orb-logo
+			s" tribute-logo"
+			sfind if
+				execute
+			else
+				drop
+				orb-logo
+			then
 		else
-			orbbw-logo
+			s" tributebw-logo"
+			sfind if
+				execute
+			else
+				drop
+				orbbw-logo
+			then
 		then
 		drop exit
 	then
@@ -228,6 +242,24 @@ variable logoY
 	then
 	2dup s" orbbw" compare-insensitive 0= if
 		logoX @ logoY @ orbbw-logo
+		2drop exit
+	then
+	2dup s" tribute" compare-insensitive 0= if
+		logoX @ logoY @
+		s" tribute-logo" sfind if
+			execute
+		else
+			orb-logo
+		then
+		2drop exit
+	then
+	2dup s" tributebw" compare-insensitive 0= if
+		logoX @ logoY @
+		s" tributebw-logo" sfind if
+			execute
+		else
+			orbbw-logo
+		then
 		2drop exit
 	then
 

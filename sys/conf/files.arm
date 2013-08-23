@@ -50,10 +50,7 @@ arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
 arm/arm/vectors.S		standard
 arm/arm/vm_machdep.c		standard
-arm/arm/vfp.c			optional	vfp
-arm/fpe-arm/armfpe_glue.S	optional	armfpe
-arm/fpe-arm/armfpe_init.c	optional	armfpe
-arm/fpe-arm/armfpe.S		optional	armfpe
+arm/arm/vfp.c			standard
 board_id.h			standard				   \
 	dependency	"$S/arm/conf/genboardid.awk $S/arm/conf/mach-types" \
 	compile-with	"${AWK} -f $S/arm/conf/genboardid.awk $S/arm/conf/mach-types > board_id.h" \

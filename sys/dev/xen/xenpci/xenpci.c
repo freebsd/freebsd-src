@@ -383,7 +383,7 @@ xenpci_attach(device_t dev)
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		panic("HYPERVISOR_memory_op failed");
 
-	shared_va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	shared_va = kva_alloc(PAGE_SIZE);
 	pmap_kenter(shared_va, shared_info_pa);
 	HYPERVISOR_shared_info = (void *) shared_va;
 

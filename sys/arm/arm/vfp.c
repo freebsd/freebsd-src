@@ -24,10 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
+#ifdef VFP
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -281,3 +282,5 @@ vfp_enable()
 	tmp |= VFPEXC_EN;
 	fmxr(VFPEXC, tmp);
 }
+#endif
+

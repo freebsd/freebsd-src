@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007, 2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -53,7 +53,6 @@ fromtext_sshfp(ARGS_FROMTEXT) {
 	if (token.value.as_ulong > 0xffU)
 		RETTOK(ISC_R_RANGE);
 	RETERR(uint8_tobuffer(token.value.as_ulong, target));
-	type = (isc_uint16_t) token.value.as_ulong;
 
 	/*
 	 * Digest.
@@ -96,7 +95,11 @@ totext_sshfp(ARGS_TOTEXT) {
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" (", target));
 	RETERR(str_totext(tctx->linebreak, target));
-	RETERR(isc_hex_totext(&sr, tctx->width - 2, tctx->linebreak, target));
+	if (tctx->width == 0) /* No splitting */
+		RETERR(isc_hex_totext(&sr, 0, "", target));
+	else
+		RETERR(isc_hex_totext(&sr, tctx->width - 2,
+				      tctx->linebreak, target));
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" )", target));
 	return (ISC_R_SUCCESS);

@@ -180,6 +180,8 @@ send_output(struct mbuf *m, struct ifnet *ifp, int direction)
 		dst.sin6_len = sizeof(dst);
 		dst.sin6_addr = ip6->ip6_dst;
 
+		m_clrprotoflags(m);	/* Avoid confusing lower layers. */
+
 		/*
 		 * Output the packet as nd6.c:nd6_output_lle() would do.
 		 * The mbuf is always consumed, so we do not have to care

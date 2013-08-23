@@ -186,34 +186,46 @@ struct mbuf {
 #define	M_PKTHDR	0x00000002 /* start of record */
 #define	M_EOR		0x00000004 /* end of record */
 #define	M_RDONLY	0x00000008 /* associated data is marked read-only */
-#define	M_PROTO1	0x00000010 /* protocol-specific */
-#define	M_PROTO2	0x00000020 /* protocol-specific */
-#define	M_PROTO3	0x00000040 /* protocol-specific */
-#define	M_PROTO4	0x00000080 /* protocol-specific */
-#define	M_PROTO5	0x00000100 /* protocol-specific */
-#define	M_BCAST		0x00000200 /* send/received as link-level broadcast */
-#define	M_MCAST		0x00000400 /* send/received as link-level multicast */
-#define	M_FRAG		0x00000800 /* packet is a fragment of a larger packet */
-#define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
-#define	M_LASTFRAG	0x00002000 /* packet is last fragment */
-#define	M_SKIP_FIREWALL	0x00004000 /* skip firewall processing */
-		     /*	0x00008000    free */
-#define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
-#define	M_PROMISC	0x00020000 /* packet was not for us */
-#define	M_NOFREE	0x00040000 /* do not free mbuf, embedded in cluster */
-#define	M_PROTO6	0x00080000 /* protocol-specific */
-#define	M_PROTO7	0x00100000 /* protocol-specific */
-#define	M_PROTO8	0x00200000 /* protocol-specific */
-#define	M_FLOWID	0x00400000 /* deprecated: flowid is valid */
-#define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
+#define	M_BCAST		0x00000010 /* send/received as link-level broadcast */
+#define	M_MCAST		0x00000020 /* send/received as link-level multicast */
+#define	M_PROMISC	0x00000040 /* packet was not for us */
+#define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
+#define	M_FLOWID	0x00000100 /* deprecated: flowid is valid */
+#define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 
-#define	M_NOTIFICATION	M_PROTO5    /* SCTP notification */
+#define	M_PROTO1	0x00001000 /* protocol-specific */
+#define	M_PROTO2	0x00002000 /* protocol-specific */
+#define	M_PROTO3	0x00004000 /* protocol-specific */
+#define	M_PROTO4	0x00008000 /* protocol-specific */
+#define	M_PROTO5	0x00010000 /* protocol-specific */
+#define	M_PROTO6	0x00020000 /* protocol-specific */
+#define	M_PROTO7	0x00040000 /* protocol-specific */
+#define	M_PROTO8	0x00080000 /* protocol-specific */
+#define	M_PROTO9	0x00100000 /* protocol-specific */
+#define	M_PROTO10	0x00200000 /* protocol-specific */
+#define	M_PROTO11	0x00400000 /* protocol-specific */
+#define	M_PROTO12	0x00800000 /* protocol-specific */
+
+#define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
 
 /*
  * Flags to purge when crossing layers.
  */
 #define	M_PROTOFLAGS \
-    (M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|M_PROTO7|M_PROTO8)
+    (M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|M_PROTO7|M_PROTO8|\
+     M_PROTO9|M_PROTO10|M_PROTO11|M_PROTO12)
+
+/*
+ * Mbuf flag description for use with printf(9) %b identifier.
+ */
+#define	M_FLAG_BITS \
+    "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
+    "\7M_PROMISC\10M_VLANTAG\11M_FLOWID"
+#define	M_FLAG_PROTOBITS \
+    "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
+    "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
+    "\27M_PROTO11\30M_PROTO12"
+#define	M_FLAG_PRINTF (M_FLAG_BITS M_FLAG_PROTOBITS)
 
 /*
  * Network interface cards are able to hash protocol fields (such as IPv4
@@ -253,8 +265,8 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define	M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
-     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_HASHTYPEBITS)
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_VLANTAG|M_PROMISC| \
+     M_PROTOFLAGS|M_HASHTYPEBITS)
 
 /*
  * External buffer types: identify ext_buf type.
@@ -603,6 +615,13 @@ m_chtype(struct mbuf *m, short new_type)
 {
 
 	m->m_type = new_type;
+}
+
+static __inline void
+m_clrprotoflags(struct mbuf *m)
+{
+
+	m->m_flags &= ~M_PROTOFLAGS;
 }
 
 static __inline struct mbuf *

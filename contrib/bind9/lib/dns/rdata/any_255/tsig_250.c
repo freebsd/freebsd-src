@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -133,7 +133,7 @@ static inline isc_result_t
 totext_any_tsig(ARGS_TOTEXT) {
 	isc_region_t sr;
 	isc_region_t sigr;
-	char buf[sizeof("281474976710655 ")];
+	char buf[sizeof(" 281474976710655 ")];
 	char *bufp;
 	dns_name_t name;
 	dns_name_t prefix;
@@ -202,8 +202,11 @@ totext_any_tsig(ARGS_TOTEXT) {
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" (", target));
 	RETERR(str_totext(tctx->linebreak, target));
-	RETERR(isc_base64_totext(&sigr, tctx->width - 2,
-				 tctx->linebreak, target));
+	if (tctx->width == 0)   /* No splitting */
+		RETERR(isc_base64_totext(&sigr, 60, "", target));
+	else
+		RETERR(isc_base64_totext(&sigr, tctx->width - 2,
+					 tctx->linebreak, target));
 	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
 		RETERR(str_totext(" ) ", target));
 	else
@@ -223,25 +226,23 @@ totext_any_tsig(ARGS_TOTEXT) {
 	 */
 	n = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
-	if (dns_tsigrcode_totext((dns_rcode_t)n, target) == ISC_R_SUCCESS)
-		RETERR(str_totext(" ", target));
-	else {
-		sprintf(buf, "%u ", n);
-		RETERR(str_totext(buf, target));
-	}
+	RETERR(dns_tsigrcode_totext((dns_rcode_t)n, target));
 
 	/*
 	 * Other Size.
 	 */
 	n = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
-	sprintf(buf, "%u ", n);
+	sprintf(buf, " %u ", n);
 	RETERR(str_totext(buf, target));
 
 	/*
 	 * Other.
 	 */
-	return (isc_base64_totext(&sr, 60, " ", target));
+	if (tctx->width == 0)   /* No splitting */
+		return (isc_base64_totext(&sr, 60, "", target));
+	else
+		return (isc_base64_totext(&sr, 60, " ", target));
 }
 
 static inline isc_result_t
