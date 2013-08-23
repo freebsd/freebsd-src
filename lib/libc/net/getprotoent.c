@@ -342,7 +342,7 @@ void
 __setprotoent_p(int f, struct protoent_data *ped)
 {
 	if (ped->fp == NULL)
-		ped->fp = fopen(_PATH_PROTOCOLS, "r");
+		ped->fp = fopen(_PATH_PROTOCOLS, "re");
 	else
 		rewind(ped->fp);
 	ped->stayopen |= f;
@@ -365,7 +365,7 @@ __getprotoent_p(struct protoent *pe, struct protoent_data *ped)
 	char *cp, **q, *endp;
 	long l;
 
-	if (ped->fp == NULL && (ped->fp = fopen(_PATH_PROTOCOLS, "r")) == NULL)
+	if (ped->fp == NULL && (ped->fp = fopen(_PATH_PROTOCOLS, "re")) == NULL)
 		return (-1);
 again:
 	if ((p = fgets(ped->line, sizeof ped->line, ped->fp)) == NULL)
