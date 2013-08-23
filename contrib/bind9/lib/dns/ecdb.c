@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ecdb.c,v 1.10 2011/12/20 00:06:53 marka Exp $ */
 
 #include "config.h"
 
@@ -583,7 +583,9 @@ static dns_dbmethods_t ecdb_methods = {
 	NULL,			/* isdnssec */
 	NULL,			/* getrrsetstats */
 	NULL,			/* rpz_enabled */
-	NULL			/* rpz_findips */
+	NULL,			/* rpz_findips */
+	NULL,			/* findnodeext */
+	NULL			/* findext */
 };
 
 static isc_result_t

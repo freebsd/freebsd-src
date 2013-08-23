@@ -238,7 +238,7 @@ dns_acache_setcleaninginterval(dns_acache_t *acache, unsigned int t);
  */
 
 void
-dns_acache_setcachesize(dns_acache_t *acache, isc_uint32_t size);
+dns_acache_setcachesize(dns_acache_t *acache, size_t size);
 /*
  * Set the maximum additional cache size.  0 means unlimited.
  */

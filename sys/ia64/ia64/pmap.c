@@ -622,6 +622,8 @@ pmap_free_rid(uint32_t rid)
 void
 pmap_pinit0(struct pmap *pmap)
 {
+
+	PMAP_LOCK_INIT(pmap);
 	/* kernel_pmap is the same as any other pmap. */
 	pmap_pinit(pmap);
 }
@@ -635,7 +637,6 @@ pmap_pinit(struct pmap *pmap)
 {
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -660,7 +661,6 @@ pmap_release(pmap_t pmap)
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*

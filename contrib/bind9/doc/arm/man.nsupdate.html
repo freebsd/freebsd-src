@@ -50,7 +50,7 @@
 <div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [<code class="option">-D</code>] [[<code class="option">-g</code>] |  [<code class="option">-o</code>] |  [<code class="option">-l</code>] |  [<code class="option">-y <em class="replaceable"><code>[<span class="optional">hmac:</span>]keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-R <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2639765"></a><h2>DESCRIPTION</h2>
+<a name="id2643632"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       is used to submit Dynamic DNS Update requests as defined in RFC 2136
       to a name server.
@@ -210,7 +210,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2641532"></a><h2>INPUT FORMAT</h2>
+<a name="id2644170"></a><h2>INPUT FORMAT</h2>
 <p><span><strong class="command">nsupdate</strong></span>
       reads input from
       <em class="parameter"><code>filename</code></em>
@@ -349,7 +349,7 @@
 	      realm is specified the saved realm is cleared.
             </p></dd>
 <dt><span class="term">
-              <span><strong class="command">prereq nxdomain</strong></span>
+              <span><strong class="command">[<span class="optional">prereq</span>] nxdomain</strong></span>
                {domain-name}
             </span></dt>
 <dd><p>
@@ -357,7 +357,7 @@
               <em class="parameter"><code>domain-name</code></em>.
             </p></dd>
 <dt><span class="term">
-              <span><strong class="command">prereq yxdomain</strong></span>
+              <span><strong class="command">[<span class="optional">prereq</span>] yxdomain</strong></span>
                {domain-name}
             </span></dt>
 <dd><p>
@@ -366,7 +366,7 @@
               exists (has as at least one resource record, of any type).
             </p></dd>
 <dt><span class="term">
-              <span><strong class="command">prereq nxrrset</strong></span>
+              <span><strong class="command">[<span class="optional">prereq</span>] nxrrset</strong></span>
                {domain-name}
                [class]
                {type}
@@ -382,7 +382,7 @@
               is omitted, IN (internet) is assumed.
             </p></dd>
 <dt><span class="term">
-              <span><strong class="command">prereq yxrrset</strong></span>
+              <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
                {domain-name}
                [class]
                {type}
@@ -399,7 +399,7 @@
               is omitted, IN (internet) is assumed.
             </p></dd>
 <dt><span class="term">
-              <span><strong class="command">prereq yxrrset</strong></span>
+              <span><strong class="command">[<span class="optional">prereq</span>] yxrrset</strong></span>
                {domain-name}
                [class]
                {type}
@@ -428,7 +428,7 @@
               RDATA.
             </p></dd>
 <dt><span class="term">
-              <span><strong class="command">update delete</strong></span>
+              <span><strong class="command">[<span class="optional">update</span>] del[<span class="optional">ete</span>]</strong></span>
                {domain-name}
                [ttl]
                [class]
@@ -449,7 +449,7 @@
               is ignored, and is only allowed for compatibility.
             </p></dd>
 <dt><span class="term">
-              <span><strong class="command">update add</strong></span>
+              <span><strong class="command">[<span class="optional">update</span>] add</strong></span>
                {domain-name}
                {ttl}
                [class]
@@ -498,7 +498,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2676987"></a><h2>EXAMPLES</h2>
+<a name="id2681622"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
       <span><strong class="command">nsupdate</strong></span>
@@ -552,7 +552,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2677037"></a><h2>FILES</h2>
+<a name="id2681672"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -575,7 +575,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2677121"></a><h2>SEE ALSO</h2>
+<a name="id2681755"></a><h2>SEE ALSO</h2>
 <p>
       <em class="citetitle">RFC 2136</em>,
       <em class="citetitle">RFC 3007</em>,
@@ -590,7 +590,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2677246"></a><h2>BUGS</h2>
+<a name="id2681813"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library

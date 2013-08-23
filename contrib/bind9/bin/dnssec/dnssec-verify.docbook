@@ -1,0 +1,185 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+	       [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2012  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: dnssec-verify.docbook,v 1.52 2011/12/22 07:32:40 each Exp $ -->
+<refentry id="man.dnssec-verify">
+  <refentryinfo>
+    <date>April 12, 2012</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>dnssec-verify</application></refentrytitle>
+   <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>dnssec-verify</application></refname>
+    <refpurpose>DNSSEC zone verification tool</refpurpose>
+  </refnamediv>
+
+  <docinfo>
+    <copyright>
+      <year>2012</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>dnssec-verify</command>
+      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
+      <arg><option>-I <replaceable class="parameter">input-format</replaceable></option></arg>
+      <arg><option>-o <replaceable class="parameter">origin</replaceable></option></arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-x</option></arg>
+      <arg><option>-z</option></arg>
+      <arg choice="req">zonefile</arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para><command>dnssec-verify</command>
+      verifies that a zone is fully signed for each algorithm found
+      in the DNSKEY RRset for the zone, and that the NSEC / NSEC3
+      chains are complete.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>-c <replaceable class="parameter">class</replaceable></term>
+        <listitem>
+          <para>
+            Specifies the DNS class of the zone.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-I <replaceable class="parameter">input-format</replaceable></term>
+        <listitem>
+          <para>
+            The format of the input zone file.
+	    Possible formats are <command>"text"</command> (default)
+	    and <command>"raw"</command>.
+	    This option is primarily intended to be used for dynamic
+            signed zones so that the dumped zone file in a non-text
+            format containing updates can be verified independently.
+	    The use of this option does not make much sense for
+	    non-dynamic zones.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-o <replaceable class="parameter">origin</replaceable></term>
+        <listitem>
+          <para>
+            The zone origin.  If not specified, the name of the zone file
+            is assumed to be the origin.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-v <replaceable class="parameter">level</replaceable></term>
+        <listitem>
+          <para>
+            Sets the debugging level.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-x</term>
+        <listitem>
+          <para>
+            Only verify that the DNSKEY RRset is signed with key-signing
+            keys.  Without this flag, it is assumed that the DNSKEY RRset
+            will be signed by all active keys.  When this flag is set,
+            it will not be an error if the DNSKEY RRset is not signed
+            by zone-signing keys.  This corresponds to the <option>-x</option>
+            option in <command>dnssec-signzone</command>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-z</term>
+	<listitem>
+	  <para>
+	    Ignore the KSK flag on the keys when determining whether
+            the zone if correctly signed.  Without this flag it is
+	    assumed that there will be a non-revoked, self-signed
+	    DNSKEY with the KSK flag set for each algorithm and
+	    that RRsets other than DNSKEY RRset will be signed with
+            a different DNSKEY without the KSK flag set.
+	  </para>
+	  <para>
+	    With this flag set, we only require that for each algorithm,
+            there will be at least one non-revoked, self-signed DNSKEY,
+            regardless of the KSK flag state, and that other RRsets
+	    will be signed by a non-revoked key for the same algorithm
+            that includes the self-signed key; the same key may be used
+            for both purposes.  This corresponds to the <option>-z</option>
+            option in <command>dnssec-signzone</command>.
+	  </para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>zonefile</term>
+        <listitem>
+          <para>
+            The file containing the zone to be signed.
+          </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para>
+      <citerefentry>
+        <refentrytitle>dnssec-signzone</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
+      <citetitle>RFC 4033</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry><!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

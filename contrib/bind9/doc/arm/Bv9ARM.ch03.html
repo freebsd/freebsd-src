@@ -54,7 +54,7 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2568372">Name Server Operations</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2568377">Tools for Use With the Name Server Daemon</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570424">Signals</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2570600">Signals</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -532,30 +532,41 @@ zone "eng.example.com" {
            [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</span>]</code></strong></span></dt>
 <dd><p>
                         Suspend updates to a dynamic zone.  If no zone is
-                        specified,
-                        then all zones are suspended.  This allows manual
-                        edits to be made to a zone normally updated by dynamic
-                        update.  It
-                        also causes changes in the journal file to be synced
-                        into the master
-                        and the journal file to be removed.  All dynamic
-                        update attempts will
-                        be refused while the zone is frozen.
+                        specified, then all zones are suspended.  This allows
+                        manual edits to be made to a zone normally updated by
+                        dynamic update.  It also causes changes in the
+                        journal file to be synced into the master file.
+                        All dynamic update attempts will be refused while
+                        the zone is frozen.
                       </p></dd>
 <dt><span class="term"><strong class="userinput"><code>thaw
                         [<span class="optional"><em class="replaceable"><code>zone</code></em>
        [<span class="optional"><em class="replaceable"><code>class</code></em>
            [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</span>]</code></strong></span></dt>
 <dd><p>
-                        Enable updates to a frozen dynamic zone.  If no zone
-                        is
-                        specified, then all frozen zones are enabled.  This
-                        causes
-                        the server to reload the zone from disk, and
-                        re-enables dynamic updates
-                        after the load has completed.  After a zone is thawed,
-                        dynamic updates
-                        will no longer be refused.
+                        Enable updates to a frozen dynamic zone.  If no
+                        zone is specified, then all frozen zones are
+                        enabled.  This causes the server to reload the zone
+                        from disk, and re-enables dynamic updates after the
+                        load has completed.  After a zone is thawed,
+                        dynamic updates will no longer be refused.  If
+                        the zone has changed and the
+                        <span><strong class="command">ixfr-from-differences</strong></span> option is
+                        in use, then the journal file will be updated to
+                        reflect changes in the zone.  Otherwise, if the
+                        zone has changed, any existing journal file will be
+                        removed.
+                      </p></dd>
+<dt><span class="term"><strong class="userinput"><code>sync
+                        [<span class="optional">-clean</span>]
+                        [<span class="optional"><em class="replaceable"><code>zone</code></em>
+       [<span class="optional"><em class="replaceable"><code>class</code></em>
+           [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</span>]</code></strong></span></dt>
+<dd><p>
+                        Sync changes in the journal file for a dynamic zone
+                        to the master file.  If the "-clean" option is
+                        specified, the journal file is also removed.  If
+                        no zone is specified, then all zones are synced.
                       </p></dd>
 <dt><span class="term"><strong class="userinput"><code>notify <em class="replaceable"><code>zone</code></em>
                         [<span class="optional"><em class="replaceable"><code>class</code></em>
@@ -577,9 +588,17 @@ zone "eng.example.com" {
 <dd><p>
                         Write server statistics to the statistics file.
                       </p></dd>
-<dt><span class="term"><strong class="userinput"><code>querylog</code></strong></span></dt>
-<dd><p>
-                        Toggle query logging. Query logging can also be enabled
+<dt><span class="term"><strong class="userinput"><code>querylog</code></strong>
+                          [<span class="optional">on|off</span>]
+                    </span></dt>
+<dd>
+<p>
+                        Enable or disable query logging.  (For backward
+                        compatibility, this command can also be used without
+                        an argument to toggle query logging on and off.)
+                      </p>
+<p>
+                        Query logging can also be enabled
                         by explicitly directing the <span><strong class="command">queries</strong></span>
                         <span><strong class="command">category</strong></span> to a
                         <span><strong class="command">channel</strong></span> in the
@@ -588,7 +607,8 @@ zone "eng.example.com" {
                         <span><strong class="command">querylog yes;</strong></span> in the
                         <span><strong class="command">options</strong></span> section of
                         <code class="filename">named.conf</code>.
-                      </p></dd>
+                      </p>
+</dd>
 <dt><span class="term"><strong class="userinput"><code>dumpdb
                         [<span class="optional">-all|-cache|-zone</span>]
                         [<span class="optional"><em class="replaceable"><code>view ...</code></em></span>]</code></strong></span></dt>
@@ -643,9 +663,23 @@ zone "eng.example.com" {
 <dd><p>
                         Flushes the server's cache.
                       </p></dd>
-<dt><span class="term"><strong class="userinput"><code>flushname</code></strong> <em class="replaceable"><code>name</code></em></span></dt>
+<dt><span class="term"><strong class="userinput"><code>flushname</code></strong>
+                       <em class="replaceable"><code>name</code></em>
+                       [<span class="optional"><em class="replaceable"><code>view</code></em></span>]
+                       </span></dt>
 <dd><p>
-                        Flushes the given name from the server's cache.
+                        Flushes the given name from the server's DNS cache,
+                        and from the server's nameserver address database
+                        if applicable.
+                      </p></dd>
+<dt><span class="term"><strong class="userinput"><code>flushtree</code></strong>
+                       <em class="replaceable"><code>name</code></em>
+                       [<span class="optional"><em class="replaceable"><code>view</code></em></span>]
+                       </span></dt>
+<dd><p>
+                        Flushes the given name, and all of its subdomains,
+                        from the server's DNS cache.  (The server's
+                        nameserver address database is not affected.)
                       </p></dd>
 <dt><span class="term"><strong class="userinput"><code>status</code></strong></span></dt>
 <dd><p>
@@ -736,6 +770,72 @@ zone "eng.example.com" {
                         <span><strong class="command">rndc addzone</strong></span> can be deleted
                         in this matter.
                       </p></dd>
+<dt><span class="term"><strong class="userinput"><code>signing
+                        [<span class="optional">( -list | -clear <em class="replaceable"><code>keyid/algorithm</code></em> | -clear <code class="literal">all</code> | -nsec3param ( <em class="replaceable"><code>parameters</code></em> | <code class="literal">none</code> ) ) </span>]
+                        <em class="replaceable"><code>zone</code></em>
+                        [<span class="optional"><em class="replaceable"><code>class</code></em>
+                        [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]
+                    </code></strong></span></dt>
+<dd>
+<p>
+                        List, edit, or remove the DNSSEC signing state for 
+                        the specified zone.  The status of ongoing DNSSEC
+                        operations (such as signing or generating
+                        NSEC3 chains) is stored in the zone in the form
+                        of DNS resource records of type
+                        <span><strong class="command">sig-signing-type</strong></span>. 
+                        <span><strong class="command">rndc signing -list</strong></span> converts
+                        these records into a human-readable form,
+                        indicating which keys are currently signing
+                        or have finished signing the zone, and which NSEC3
+                        NSEC3 chains are being created or removed.
+                      </p>
+<p>
+                        <span><strong class="command">rndc signing -clear</strong></span> can remove
+                        a single key (specified in the same format that
+                        <span><strong class="command">rndc signing -list</strong></span> uses to
+                        display it), or all keys.  In either case, only
+                        completed keys are removed; any record indicating
+                        that a key has not yet finished signing the zone
+                        will be retained.
+                      </p>
+<p>
+                        <span><strong class="command">rndc signing -nsec3param</strong></span> sets
+                        the NSEC3 parameters for a zone.  This is the
+                        only supported mechanism for using NSEC3 with
+                        <span><strong class="command">inline-signing</strong></span> zones.
+                        Parameters are specified in the same format as
+                        an NSEC3PARAM resource record: hash algorithm,
+                        flags, iterations, and salt, in that order.
+                      </p>
+<p>
+                        Currently, the only defined value for hash algorithm 
+                        is <code class="literal">1</code>, representing SHA-1.
+                        The <code class="option">flags</code> may be set to
+                        <code class="literal">0</code> or <code class="literal">1</code>,
+                        depending on whether you wish to set the opt-out
+                        bit in the NSEC3 chain.  <code class="option">iterations</code>
+                        defines the number of additional times to apply
+                        the algorithm when generating an NSEC3 hash.  The
+                        <code class="option">salt</code> is a string of data expressed
+                        in hexidecimal, or a hyphen (`-') if no salt is
+                        to be used.
+                      </p>
+<p>
+                        So, for example, to create an NSEC3 chain using
+                        the SHA-1 hash algorithm, no opt-out flag,
+                        10 iterations, and a salt value of "FFFF", use:
+                        <span><strong class="command">rndc signing -nsec3param 1 0 10 FFFF &lt;zone&gt;</strong></span>.
+                        To set the opt-out flag, 15 iterations, and no
+                        salt, use:
+                        <span><strong class="command">rndc signing -nsec3param 1 1 15 - &lt;zone&gt;</strong></span>.
+                      </p>
+<p>
+                        <span><strong class="command">rndc signing -nsec3param none</strong></span>
+                        removes an existing NSEC3 chain and replaces it
+                        with NSEC.
+                      </p>
+</dd>
 </dl></div>
 <p>
                   A configuration file is required, since all
@@ -888,7 +988,7 @@ controls {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570424"></a>Signals</h3></div></div></div>
+<a name="id2570600"></a>Signals</h3></div></div></div>
 <p>
           Certain UNIX signals cause the name server to take specific
           actions, as described in the following table.  These signals can

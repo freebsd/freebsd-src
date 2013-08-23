@@ -555,7 +555,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		 * the pages will be allocated and zeroed.
 		 */
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
-		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		AGP_DPF("found page pa=%#jx\n", (uintmax_t)VM_PAGE_TO_PHYS(m));
 	}
 	VM_OBJECT_WUNLOCK(mem->am_obj);

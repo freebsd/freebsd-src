@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/libkern.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
-#include <dev/iscsi/initiator/iscsivar.h>
+#include <dev/iscsi_initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsivar.h>
 
 static MALLOC_DEFINE(M_ISC, "iSC", "iSCSI driver options");
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssectool.h,v 1.31.162.2 2011/10/20 23:46:27 tbox Exp $ */
+/* $Id: dnssectool.h,v 1.33 2011/10/20 23:46:51 tbox Exp $ */
 
 #ifndef DNSSECTOOL_H
 #define DNSSECTOOL_H 1
@@ -24,6 +24,11 @@
 #include <isc/stdtime.h>
 #include <dns/rdatastruct.h>
 #include <dst/dst.h>
+
+#define check_dns_dbiterator_current(result) \
+	check_result((result == DNS_R_NEWORIGIN) ? ISC_R_SUCCESS : result, \
+		     "dns_dbiterator_current()")
+
 
 typedef void (fatalcallback_t)(void);
 
@@ -81,4 +86,12 @@ isc_boolean_t
 key_collision(dst_key_t *key, dns_name_t *name, const char *dir,
 	      isc_mem_t *mctx, isc_boolean_t *exact);
 
+isc_boolean_t
+is_delegation(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *origin,
+		      dns_name_t *name, dns_dbnode_t *node, isc_uint32_t *ttlp);
+
+void
+verifyzone(dns_db_t *db, dns_dbversion_t *ver,
+		   dns_name_t *origin, isc_mem_t *mctx,
+		   isc_boolean_t ignore_kskflag, isc_boolean_t keyset_kskonly);
 #endif /* DNSSEC_DNSSECTOOL_H */
