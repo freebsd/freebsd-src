@@ -1802,9 +1802,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 
 		/* Allocate space for one software descriptor per buffer. */
 		fl->cap = (fl->qsize - spg_len / RX_FL_ESIZE) * 8;
-		FL_LOCK(fl);
 		rc = alloc_fl_sdesc(fl);
-		FL_UNLOCK(fl);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to setup fl software descriptors: %d\n",
@@ -1937,11 +1935,8 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 		free_ring(sc, fl->desc_tag, fl->desc_map, fl->ba,
 		    fl->desc);
 
-		if (fl->sdesc) {
-			FL_LOCK(fl);
+		if (fl->sdesc)
 			free_fl_sdesc(fl);
-			FL_UNLOCK(fl);
-		}
 
 		if (mtx_initialized(&fl->fl_lock))
 			mtx_destroy(&fl->fl_lock);
@@ -2788,8 +2783,6 @@ alloc_fl_sdesc(struct sge_fl *fl)
 	bus_dma_tag_t tag;
 	int i, rc;
 
-	FL_LOCK_ASSERT_OWNED(fl);
-
 	fl->sdesc = malloc(fl->cap * sizeof(struct fl_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
@@ -2827,8 +2820,6 @@ free_fl_sdesc(struct sge_fl *fl)
 {
 	struct fl_sdesc *sd;
 	int i;
-
-	FL_LOCK_ASSERT_OWNED(fl);
 
 	sd = fl->sdesc;
 	for (i = 0; i < fl->cap; i++, sd++) {
