@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.c,v 1.20.14.3 2012/01/11 20:19:40 ckb Exp $ */
+/* $Id: builtin.c,v 1.26 2012/01/21 19:44:18 each Exp $ */
 
 /*! \file
  * \brief
@@ -281,11 +281,14 @@ dns64_cname(const dns_name_t *zone, const dns_name_t *name,
 
 static isc_result_t
 builtin_lookup(const char *zone, const char *name, void *dbdata,
-	       dns_sdblookup_t *lookup)
+	       dns_sdblookup_t *lookup, dns_clientinfomethods_t *methods,
+	       dns_clientinfo_t *clientinfo)
 {
 	builtin_t *b = (builtin_t *) dbdata;
 
 	UNUSED(zone);
+	UNUSED(methods);
+	UNUSED(clientinfo);
 
 	if (strcmp(name, "@") == 0)
 		return (b->do_lookup(lookup));
@@ -295,9 +298,13 @@ builtin_lookup(const char *zone, const char *name, void *dbdata,
 
 static isc_result_t
 dns64_lookup(const dns_name_t *zone, const dns_name_t *name, void *dbdata,
-	     dns_sdblookup_t *lookup)
+	     dns_sdblookup_t *lookup, dns_clientinfomethods_t *methods,
+	     dns_clientinfo_t *clientinfo)
 {
 	builtin_t *b = (builtin_t *) dbdata;
+
+	UNUSED(methods);
+	UNUSED(clientinfo);
 
 	if (name->labels == 0 && name->length == 0)
 		return (b->do_lookup(lookup));
@@ -353,6 +360,8 @@ do_authors_lookup(dns_sdblookup_t *lookup) {
 		"Curtis Blackburn",
 		"James Brister",
 		"Ben Cottrell",
+		"John H. DuBois III",
+		"Francis Dupont",
 		"Michael Graff",
 		"Andreas Gustafsson",
 		"Bob Halley",

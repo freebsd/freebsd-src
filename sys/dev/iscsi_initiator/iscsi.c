@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <sys/sx.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
-#include <dev/iscsi/initiator/iscsivar.h>
+#include <dev/iscsi_initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsivar.h>
 static char *iscsi_driver_version = "2.3.1";
 
 static struct isc_softc *isc;

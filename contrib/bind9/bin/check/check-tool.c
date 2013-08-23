@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.c,v 1.41 2010/09/07 23:46:59 tbox Exp $ */
+/* $Id: check-tool.c,v 1.44 2011/12/22 07:32:39 each Exp $ */
 
 /*! \file */
 
@@ -638,7 +638,8 @@ load_zone(isc_mem_t *mctx, const char *zonename, const char *filename,
 /*% dump the zone */
 isc_result_t
 dump_zone(const char *zonename, dns_zone_t *zone, const char *filename,
-	  dns_masterformat_t fileformat, const dns_master_style_t *style)
+	  dns_masterformat_t fileformat, const dns_master_style_t *style,
+	  const isc_uint32_t rawversion)
 {
 	isc_result_t result;
 	FILE *output = stdout;
@@ -664,8 +665,8 @@ dump_zone(const char *zonename, dns_zone_t *zone, const char *filename,
 		}
 	}
 
-	result = dns_zone_dumptostream2(zone, output, fileformat, style);
-
+	result = dns_zone_dumptostream3(zone, output, fileformat, style,
+					rawversion);
 	if (output != stdout)
 		(void)isc_stdio_close(output);
 

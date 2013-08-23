@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_message.h>
 #include <sys/eventhandler.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
-#include <dev/iscsi/initiator/iscsivar.h>
+#include <dev/iscsi_initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsivar.h>
 
 /*
  | Interface to the SCSI layer

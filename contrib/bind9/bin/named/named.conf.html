@@ -21,7 +21,7 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476275"></a><div class="titlepage"></div>
+<a name="id2476274"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p><code class="filename">named.conf</code> &#8212; configuration file for named</p>
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">named.conf</code> </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543356"></a><h2>DESCRIPTION</h2>
+<a name="id2543357"></a><h2>DESCRIPTION</h2>
 <p><code class="filename">named.conf</code> is the configuration file
       for
       <span><strong class="command">named</strong></span>.  Statements are enclosed
@@ -50,14 +50,14 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543384"></a><h2>ACL</h2>
+<a name="id2543385"></a><h2>ACL</h2>
 <div class="literallayout"><p><br>
 acl <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543400"></a><h2>KEY</h2>
+<a name="id2543401"></a><h2>KEY</h2>
 <div class="literallayout"><p><br>
 key <em class="replaceable"><code>domain_name</code></em> {<br>
 	algorithm <em class="replaceable"><code>string</code></em>;<br>
@@ -66,7 +66,7 @@ key <em class="replaceable"><code>domain_name</code></em> {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543419"></a><h2>MASTERS</h2>
+<a name="id2543420"></a><h2>MASTERS</h2>
 <div class="literallayout"><p><br>
 masters <em class="replaceable"><code>string</code></em> [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
 	( <em class="replaceable"><code>masters</code></em> | <em class="replaceable"><code>ipv4_address</code></em> [<span class="optional">port <em class="replaceable"><code>integer</code></em></span>] |<br>
@@ -75,7 +75,7 @@ masters <em class="replaceable"><code>string</code></em> [<span class="optional"
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543465"></a><h2>SERVER</h2>
+<a name="id2543466"></a><h2>SERVER</h2>
 <div class="literallayout"><p><br>
 server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/prefixlen</span>]</code></em> | <em class="replaceable"><code>ipv6_address[<span class="optional">/prefixlen</span>]</code></em> ) {<br>
 	bogus <em class="replaceable"><code>boolean</code></em>;<br>
@@ -97,7 +97,7 @@ server ( <em class="replaceable"><code>ipv4_address[<span class="optional">/pref
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543533"></a><h2>TRUSTED-KEYS</h2>
+<a name="id2543534"></a><h2>TRUSTED-KEYS</h2>
 <div class="literallayout"><p><br>
 trusted-keys {<br>
 	<em class="replaceable"><code>domain_name</code></em> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
@@ -105,7 +105,7 @@ trusted-keys {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543559"></a><h2>MANAGED-KEYS</h2>
+<a name="id2543560"></a><h2>MANAGED-KEYS</h2>
 <div class="literallayout"><p><br>
 managed-keys {<br>
 	<em class="replaceable"><code>domain_name</code></em> <code class="constant">initial-key</code> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
@@ -113,7 +113,7 @@ managed-keys {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543588"></a><h2>CONTROLS</h2>
+<a name="id2543589"></a><h2>CONTROLS</h2>
 <div class="literallayout"><p><br>
 controls {<br>
 	inet ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> | * )<br>
@@ -125,7 +125,7 @@ controls {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543623"></a><h2>LOGGING</h2>
+<a name="id2543624"></a><h2>LOGGING</h2>
 <div class="literallayout"><p><br>
 logging {<br>
 	channel <em class="replaceable"><code>string</code></em> {<br>
@@ -143,7 +143,7 @@ logging {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543661"></a><h2>LWRES</h2>
+<a name="id2543662"></a><h2>LWRES</h2>
 <div class="literallayout"><p><br>
 lwres {<br>
 	listen-on [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
@@ -156,7 +156,7 @@ lwres {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543703"></a><h2>OPTIONS</h2>
+<a name="id2543704"></a><h2>OPTIONS</h2>
 <div class="literallayout"><p><br>
 options {<br>
 	avoid-v4-udp-ports { <em class="replaceable"><code>port</code></em>; ... };<br>
@@ -291,7 +291,8 @@ options {<br>
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
 	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
-		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
+		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ...<br>
+		[<span class="optional"> key <em class="replaceable"><code>keyname</code></em> </span>] ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 	forward ( first | only );<br>
@@ -360,7 +361,7 @@ options {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544578"></a><h2>VIEW</h2>
+<a name="id2544585"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -477,7 +478,8 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
 	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
-		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
+		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ...<br>
+		[<span class="optional"> key <em class="replaceable"><code>keyname</code></em> </span>] ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 	forward ( first | only );<br>
@@ -523,10 +525,10 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545287"></a><h2>ZONE</h2>
+<a name="id2545301"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
-	type ( master | slave | stub | hint |<br>
+	type ( master | slave | stub | hint | redirect |<br>
 		forward | delegation-only );<br>
 	file <em class="replaceable"><code>quoted_string</code></em>;<br>
 <br>
@@ -572,7 +574,8 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
 	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
-		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
+		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ...<br>
+		[<span class="optional"> key <em class="replaceable"><code>keyname</code></em> </span>] ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 	forward ( first | only );<br>
@@ -590,6 +593,7 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	max-refresh-time <em class="replaceable"><code>integer</code></em>;<br>
 	min-refresh-time <em class="replaceable"><code>integer</code></em>;<br>
 	multi-master <em class="replaceable"><code>boolean</code></em>;<br>
+	request-ixfr <em class="replaceable"><code>boolean</code></em>;<br>
 	sig-validity-interval <em class="replaceable"><code>integer</code></em>;<br>
 <br>
 	transfer-source ( <em class="replaceable"><code>ipv4_address</code></em> | * )<br>
@@ -618,12 +622,12 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545667"></a><h2>FILES</h2>
+<a name="id2545690"></a><h2>FILES</h2>
 <p><code class="filename">/etc/named.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545678"></a><h2>SEE ALSO</h2>
+<a name="id2545702"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,

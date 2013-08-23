@@ -1178,7 +1178,7 @@ typedef struct dns_rdata_in_srv {
 
 #endif /* IN_1_SRV_33_H */
 /*
- * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1194,15 +1194,15 @@ typedef struct dns_rdata_in_srv {
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef IN_1_NAPTR_35_H
-#define IN_1_NAPTR_35_H 1
+#ifndef GENERIC_NAPTR_35_H
+#define GENERIC_NAPTR_35_H 1
 
 /* $Id$ */
 
 /*!
  *  \brief Per RFC2915 */
 
-typedef struct dns_rdata_in_naptr {
+typedef struct dns_rdata_naptr {
 	dns_rdatacommon_t	common;
 	isc_mem_t		*mctx;
 	isc_uint16_t		order;
@@ -1214,9 +1214,9 @@ typedef struct dns_rdata_in_naptr {
 	char			*regexp;
 	isc_uint8_t		regexp_len;
 	dns_name_t		replacement;
-} dns_rdata_in_naptr_t;
+} dns_rdata_naptr_t;
 
-#endif /* IN_1_NAPTR_35_H */
+#endif /* GENERIC_NAPTR_35_H */
 /*
  * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
@@ -1709,7 +1709,7 @@ typedef struct dns_rdata_in_dhcid {
 
 #endif /* IN_1_DHCID_49_H */
 /*
- * Copyright (C) 2008, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1756,7 +1756,16 @@ typedef struct dns_rdata_nsec3 {
 #define DNS_NSEC3FLAG_OPTOUT 0x01U
 
 /*%
- * Non-standard, NSEC3PARAM only.
+ * The following flags are used in the private-type record (implemented in
+ * lib/dns/private.c) which is used to store NSEC3PARAM data during the
+ * time when it is not legal to have an actual NSEC3PARAM record in the
+ * zone.  They are defined here because the private-type record uses the
+ * same flags field for the OPTOUT flag above and for the private flags
+ * below.  XXX: This should be considered for refactoring.
+ */
+
+/*%
+ * Non-standard, private type only.
  *
  * Create a corresponding NSEC3 chain.
  * Once the NSEC3 chain is complete this flag will be removed to signal
@@ -1765,13 +1774,14 @@ typedef struct dns_rdata_nsec3 {
  * This flag is automatically set when a NSEC3PARAM record is added to
  * the zone via UPDATE.
  *
- * NSEC3PARAM records with this flag set are supposed to be ignored by
- * RFC 5155 compliant nameservers.
+ * NSEC3PARAM records containing this flag should never be published,
+ * but if they are, they should be ignored by RFC 5155 compliant
+ * nameservers.
  */
 #define DNS_NSEC3FLAG_CREATE 0x80U
 
 /*%
- * Non-standard, NSEC3PARAM only.
+ * Non-standard, private type only.
  *
  * The corresponding NSEC3 set is to be removed once the NSEC chain
  * has been generated.
@@ -1779,24 +1789,39 @@ typedef struct dns_rdata_nsec3 {
  * This flag is automatically set when the last active NSEC3PARAM record
  * is removed from the zone via UPDATE.
  *
- * NSEC3PARAM records with this flag set are supposed to be ignored by
- * RFC 5155 compliant nameservers.
+ * NSEC3PARAM records containing this flag should never be published,
+ * but if they are, they should be ignored by RFC 5155 compliant
+ * nameservers.
  */
 #define DNS_NSEC3FLAG_REMOVE 0x40U
 
 /*%
- * Non-standard, NSEC3PARAM only.
+ * Non-standard, private type only.
  *
- * Used to identify NSEC3PARAM records added in this UPDATE request.
+ * When set with the CREATE flag, a corresponding NSEC3 chain will be
+ * created when the zone becomes capable of supporting one (i.e., when it
+ * has a DNSKEY RRset containing at least one NSEC3-capable algorithm).
+ * Without this flag, NSEC3 chain creation would be attempted immediately,
+ * fail, and the private type record would be removed.  With it, the NSEC3
+ * parameters are stored until they can be used.  When the zone has the
+ * necessary prerequisites for NSEC3, then the INITIAL flag can be cleared,
+ * and the record will be cleaned up normally.
+ *
+ * NSEC3PARAM records containing this flag should never be published, but
+ * if they are, they should be ignored by RFC 5155 compliant nameservers.
  */
-#define DNS_NSEC3FLAG_UPDATE 0x20U
+#define DNS_NSEC3FLAG_INITIAL 0x20U
 
 /*%
- * Non-standard, NSEC3PARAM only.
+ * Non-standard, private type only.
  *
  * Prevent the creation of a NSEC chain before the last NSEC3 chain
  * is removed.  This will normally only be set when the zone is
  * transitioning from secure with NSEC3 chains to insecure.
+ *
+ * NSEC3PARAM records containing this flag should never be published,
+ * but if they are, they should be ignored by RFC 5155 compliant
+ * nameservers.
  */
 #define DNS_NSEC3FLAG_NONSEC 0x10U
 
@@ -2244,7 +2269,7 @@ typedef struct dns_rdata_any_tsig {
 
 #endif /* ANY_255_TSIG_250_H */
 /*
- * Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2262,7 +2287,7 @@ typedef struct dns_rdata_any_tsig {
 #ifndef GENERIC_URI_256_H
 #define GENERIC_URI_256_H 1
 
-/* $Id: uri_256.h,v 1.2 2011/03/03 14:10:27 fdupont Exp $ */
+/* $Id$ */
 
 typedef struct dns_rdata_uri {
 	dns_rdatacommon_t	common;

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 static inline char

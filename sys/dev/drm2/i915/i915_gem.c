@@ -2099,9 +2099,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		obj->gtt_space = NULL;
 		/*
 		 * i915_gem_object_get_pages_gtt() cannot return
-		 * ENOMEM, since we use vm_page_grab(VM_ALLOC_RETRY)
-		 * (which does not support operation without a flag
-		 * anyway).
+		 * ENOMEM, since we use vm_page_grab().
 		 */
 		return (ret);
 	}
@@ -2516,7 +2514,7 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex)
 	int rv;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &m, 1, 0);

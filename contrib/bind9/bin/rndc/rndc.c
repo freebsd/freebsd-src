@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.131.20.3 2011/11/03 22:06:31 each Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -114,6 +114,11 @@ command is one of the following:\n\
   thaw		Enable updates to all dynamic zones and reload them.\n\
   thaw zone [class [view]]\n\
 		Enable updates to a frozen dynamic zone and reload it.\n\
+  sync [-clean]	Dump changes to all dynamic zones to disk, and optionally\n\
+		remove their journal files.\n\
+  sync [-clean] zone [class [view]]\n\
+		Dump a single zone's changes to disk, and optionally\n\
+		remove its journal file.\n\
   notify zone [class [view]]\n\
 		Resend NOTIFY messages for the zone.\n\
   reconfig	Reload configuration file and new zones only.\n\
@@ -122,7 +127,8 @@ command is one of the following:\n\
   loadkeys zone [class [view]]\n\
 		Update keys without signing immediately.\n\
   stats		Write server statistics to the statistics file.\n\
-  querylog	Toggle query logging.\n\
+  querylog newstate\n\
+		Enable / disable query logging.\n\
   dumpdb [-all|-cache|-zones] [view ...]\n\
 		Dump cache(s) to the dump file (named_dump.db).\n\
   secroots [view ...]\n\
@@ -140,6 +146,8 @@ command is one of the following:\n\
   flush [view]	Flushes the server's cache for a view.\n\
   flushname name [view]\n\
 		Flush the given name from the server's cache(s)\n\
+  flushtree name [view]\n\
+		Flush all names under the given name from the server's cache(s)\n\
   status	Display status of the server.\n\
   recursing	Dump the queries that are currently recursing (named.recursing)\n\
   tsig-list	List all currently active TSIG keys, including both statically\n\
@@ -152,6 +160,20 @@ command is one of the following:\n\
 		Add zone to given view. Requires new-zone-file option.\n\
   delzone [\"file\"] zone [class [view]]\n\
 		Removes zone from given view. Requires new-zone-file option.\n\
+  signing -list zone [class [view]]\n\
+		List the private records showing the state of DNSSEC\n\
+		signing in the given zone.\n\
+  signing -clear <keyid>/<algorithm> zone [class [view]]\n\
+		Remove the private record that indicating the given key\n\
+		has finished signing the given zone.\n\
+  signing -clear all zone [class [view]]\n\
+		Remove the private records for all keys that have\n\
+		finished signing the given zone.\n\
+  signing -nsec3param none zone [class [view]]\n\
+		Remove NSEC3 chains from zone.\n\
+  signing -nsec3param hash flags iterations salt zone [class [view]]\n\
+		Add NSEC3 chain to zone if already signed.\n\
+		Prime zone with NSEC3 chain if not yet signed.\n\
   *restart	Restart the server.\n\
 \n\
 * == not yet implemented\n\
