@@ -11,6 +11,13 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20130823:
+	Behavior of devfs rules path matching has been changed.
+	Pattern is now always matched against fully qualified devfs
+	path and slash characters must be explicitly matched by
+	slashes in pattern (FNM_PATHNAME). Rulesets involving devfs
+	subdirectories must be reviewed.
+
 20130705:
 	hastctl(8)'s `status' command output changed to terse one-liner format.
 	Scripts using this should switch to `list' command or be rewritten.
