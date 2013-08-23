@@ -2240,7 +2240,7 @@ static void
 _sethtent(FILE **hostf)
 {
 	if (!*hostf)
-		*hostf = fopen(_PATH_HOSTS, "r");
+		*hostf = fopen(_PATH_HOSTS, "re");
 	else
 		rewind(*hostf);
 }
@@ -2264,7 +2264,7 @@ _gethtent(FILE **hostf, const char *name, const struct addrinfo *pai)
 	const char *addr;
 	char hostbuf[8*1024];
 
-	if (!*hostf && !(*hostf = fopen(_PATH_HOSTS, "r")))
+	if (!*hostf && !(*hostf = fopen(_PATH_HOSTS, "re")))
 		return (NULL);
 again:
 	if (!(p = fgets(hostbuf, sizeof hostbuf, *hostf)))
