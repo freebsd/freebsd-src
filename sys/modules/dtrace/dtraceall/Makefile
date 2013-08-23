@@ -15,3 +15,5 @@ opt_compat.h:
 .endif
 
 .include <bsd.kmod.mk>
+
+CFLAGS+=	-include ${.CURDIR}/../../../cddl/compat/opensolaris/sys/debug_compat.h

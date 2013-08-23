@@ -89,6 +89,8 @@ CFLAGS+=-DBUILDING_ZFS
 
 .include <bsd.kmod.mk>
 
+CFLAGS+=	-include ${.CURDIR}/../../cddl/compat/opensolaris/sys/debug_compat.h
+
 CWARNFLAGS+=-Wno-unknown-pragmas
 CWARNFLAGS+=-Wno-missing-prototypes
 CWARNFLAGS+=-Wno-undef

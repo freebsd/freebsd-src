@@ -73,7 +73,9 @@ dtrace_load(void *dummy)
 	mutex_init(&dtrace_lock,"dtrace probe state", MUTEX_DEFAULT, NULL);
 	mutex_init(&dtrace_provider_lock,"dtrace provider state", MUTEX_DEFAULT, NULL);
 	mutex_init(&dtrace_meta_lock,"dtrace meta-provider state", MUTEX_DEFAULT, NULL);
+#ifdef DEBUG
 	mutex_init(&dtrace_errlock,"dtrace error lock", MUTEX_DEFAULT, NULL);
+#endif
 
 	mutex_enter(&dtrace_provider_lock);
 	mutex_enter(&dtrace_lock);

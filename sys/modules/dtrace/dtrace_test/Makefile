@@ -12,3 +12,5 @@ CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-D_KERNEL
 
 .include <bsd.kmod.mk>
+
+CFLAGS+=	-include ${.CURDIR}/../../../cddl/compat/opensolaris/sys/debug_compat.h
