@@ -6194,54 +6194,96 @@ _info(struct modinfo *modinfop)
 }
 #endif	/* sun */
 
+static int zfs__init(void);
+static int zfs__fini(void);
+static void zfs_shutdown(void *, int);
+
+static eventhandler_tag zfs_shutdown_event_tag;
+
+int
+zfs__init(void)
+{
+
+	zfs_root_token = root_mount_hold("ZFS");
+
+	mutex_init(&zfs_share_lock, NULL, MUTEX_DEFAULT, NULL);
+
+	spa_init(FREAD | FWRITE);
+	zfs_init();
+	zvol_init();
+	zfs_ioctl_init();
+
+	tsd_create(&zfs_fsyncer_key, NULL);
+	tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
+	tsd_create(&zfs_allow_log_key, zfs_allow_log_destroy);
+
+	printf("ZFS storage pool version: features support (" SPA_VERSION_STRING ")\n");
+	root_mount_rel(zfs_root_token);
+
+	zfsdev_init();
+
+	return (0);
+}
+
+int
+zfs__fini(void)
+{
+	if (spa_busy() || zfs_busy() || zvol_busy() ||
+	    zio_injection_enabled) {
+		return (EBUSY);
+	}
+
+	zfsdev_fini();
+	zvol_fini();
+	zfs_fini();
+	spa_fini();
+
+	tsd_destroy(&zfs_fsyncer_key);
+	tsd_destroy(&rrw_tsd_key);
+	tsd_destroy(&zfs_allow_log_key);
+
+	mutex_destroy(&zfs_share_lock);
+
+	return (0);
+}
+
+static void
+zfs_shutdown(void *arg __unused, int howto __unused)
+{
+
+	/*
+	 * ZFS fini routines can not properly work in a panic-ed system.
+	 */
+	if (panicstr == NULL)
+		(void)zfs__fini();
+}
+
+
 static int
 zfs_modevent(module_t mod, int type, void *unused __unused)
 {
-	int error = 0;
+	int err;
 
 	switch (type) {
 	case MOD_LOAD:
-		zfs_root_token = root_mount_hold("ZFS");
-
-		mutex_init(&zfs_share_lock, NULL, MUTEX_DEFAULT, NULL);
-
-		spa_init(FREAD | FWRITE);
-		zfs_init();
-		zvol_init();
-		zfs_ioctl_init();
-
-		tsd_create(&zfs_fsyncer_key, NULL);
-		tsd_create(&rrw_tsd_key, rrw_tsd_destroy);
-		tsd_create(&zfs_allow_log_key, zfs_allow_log_destroy);
-
-		printf("ZFS storage pool version: features support (" SPA_VERSION_STRING ")\n");
-		root_mount_rel(zfs_root_token);
-
-		zfsdev_init();
-		break;
+		err = zfs__init();
+		if (err == 0)
+			zfs_shutdown_event_tag = EVENTHANDLER_REGISTER(
+			    shutdown_post_sync, zfs_shutdown, NULL,
+			    SHUTDOWN_PRI_FIRST);
+		return (err);
 	case MOD_UNLOAD:
-		if (spa_busy() || zfs_busy() || zvol_busy() ||
-		    zio_injection_enabled) {
-			error = EBUSY;
-			break;
-		}
-
-		zfsdev_fini();
-		zvol_fini();
-		zfs_fini();
-		spa_fini();
-
-		tsd_destroy(&zfs_fsyncer_key);
-		tsd_destroy(&rrw_tsd_key);
-		tsd_destroy(&zfs_allow_log_key);
-
-		mutex_destroy(&zfs_share_lock);
-		break;
+		err = zfs__fini();
+		if (err == 0 && zfs_shutdown_event_tag != NULL)
+			EVENTHANDLER_DEREGISTER(shutdown_post_sync,
+			    zfs_shutdown_event_tag);
+		return (err);
+	case MOD_SHUTDOWN:
+		return (0);
 	default:
-		error = EOPNOTSUPP;
 		break;
 	}
-	return (error);
+	return (EOPNOTSUPP);
 }
 
 static moduledata_t zfs_mod = {
