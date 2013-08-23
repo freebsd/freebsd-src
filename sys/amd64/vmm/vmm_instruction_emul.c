@@ -843,7 +843,7 @@ static int
 verify_inst_length(struct vie *vie)
 {
 
-	if (vie->num_processed == vie->num_valid)
+	if (vie->num_processed)
 		return (0);
 	else
 		return (-1);
