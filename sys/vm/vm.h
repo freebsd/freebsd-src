@@ -147,6 +147,7 @@ int swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip);
 void swap_reserve_force(vm_ooffset_t incr);
 void swap_release(vm_ooffset_t decr);
 void swap_release_by_uid(vm_ooffset_t decr, struct uidinfo *uip);
+void swapper(void);
 
 #endif				/* VM_H */
 
