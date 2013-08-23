@@ -98,6 +98,9 @@ BOOLEAN                 Gbl_IgnoreLoneLineFeeds = FALSE;
 BOOLEAN                 Gbl_HasLoneLineFeeds = FALSE;
 BOOLEAN                 Gbl_Cleanup = FALSE;
 
+#define AS_UTILITY_NAME             "ACPI Source Code Conversion Utility"
+#define AS_SUPPORTED_OPTIONS        "cdhlqsuv^y"
+
 
 /******************************************************************************
  *
@@ -295,7 +298,8 @@ AsDisplayUsage (
     printf ("\n");
     ACPI_OPTION ("-d",          "Leave debug statements in code");
     ACPI_OPTION ("-s",          "Generate source statistics only");
-    ACPI_OPTION ("-v",          "Verbose mode");
+    ACPI_OPTION ("-v",          "Display version information");
+    ACPI_OPTION ("-vb",         "Verbose mode");
     ACPI_OPTION ("-y",          "Suppress file overwrite prompts");
 }
 
@@ -321,7 +325,7 @@ main (
 
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
-    printf (ACPI_COMMON_SIGNON ("ACPI Source Code Conversion Utility"));
+    printf (ACPI_COMMON_SIGNON (AS_UTILITY_NAME));
 
     if (argc < 2)
     {
@@ -331,7 +335,7 @@ main (
 
     /* Command line options */
 
-    while ((j = AcpiGetopt (argc, argv, "cdhlqsuvy")) != EOF) switch(j)
+    while ((j = AcpiGetopt (argc, argv, AS_SUPPORTED_OPTIONS)) != EOF) switch(j)
     {
     case 'l':
 
@@ -376,9 +380,25 @@ main (
 
     case 'v':
 
-        /* Verbose mode */
+        switch (AcpiGbl_Optarg[0])
+        {
+        case '^':  /* -v: (Version): signon already emitted, just exit */
 
-        Gbl_VerboseMode = TRUE;
+            exit (0);
+
+        case 'b':
+
+            /* Verbose mode */
+
+            Gbl_VerboseMode = TRUE;
+            break;
+
+        default:
+
+            printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
+
         break;
 
     case 'y':

@@ -178,7 +178,7 @@ AeBuildLocalTables (
     /* Build an RSDP */
 
     ACPI_MEMSET (&LocalRSDP, 0, sizeof (ACPI_TABLE_RSDP));
-    ACPI_MEMCPY (LocalRSDP.Signature, ACPI_SIG_RSDP, 8);
+    ACPI_MAKE_RSDP_SIG (LocalRSDP.Signature);
     ACPI_MEMCPY (LocalRSDP.OemId, "I_TEST", 6);
     LocalRSDP.Revision = 2;
     LocalRSDP.XsdtPhysicalAddress = ACPI_PTR_TO_PHYSADDR (LocalXSDT);

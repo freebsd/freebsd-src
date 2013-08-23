@@ -74,6 +74,9 @@ static int          AxAction = AX_EXTRACT_AML_TABLES; /* DSDT & SSDTs */
 #define AX_OPTIONAL_TABLES      0
 #define AX_REQUIRED_TABLE       1
 
+#define AX_UTILITY_NAME             "ACPI Binary Table Extraction Utility"
+#define AX_SUPPORTED_OPTIONS        "ahls:v"
+
 
 /******************************************************************************
  *
@@ -93,6 +96,7 @@ DisplayUsage (
     ACPI_OPTION ("-a",                  "Extract all tables, not just DSDT/SSDT");
     ACPI_OPTION ("-l",                  "List table summaries, do not extract");
     ACPI_OPTION ("-s <signature>",      "Extract all tables with <signature>");
+    ACPI_OPTION ("-v",                  "Display version information");
 
     printf ("\nExtract binary ACPI tables from text acpidump output\n");
     printf ("Default invocation extracts the DSDT and all SSDTs\n");
@@ -118,7 +122,7 @@ main (
 
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
-    printf (ACPI_COMMON_SIGNON ("ACPI Binary Table Extraction Utility"));
+    printf (ACPI_COMMON_SIGNON (AX_UTILITY_NAME));
 
     if (argc < 2)
     {
@@ -128,7 +132,7 @@ main (
 
     /* Command line options */
 
-    while ((j = AcpiGetopt (argc, argv, "ahls:")) != EOF) switch (j)
+    while ((j = AcpiGetopt (argc, argv, AX_SUPPORTED_OPTIONS)) != EOF) switch (j)
     {
     case 'a':
 
@@ -144,6 +148,10 @@ main (
 
         AxAction = AX_EXTRACT_SIGNATURE;    /* Extract only tables with this sig */
         break;
+
+    case 'v': /* -v: (Version): signon already emitted, just exit */
+
+        return (0);
 
     case 'h':
     default:

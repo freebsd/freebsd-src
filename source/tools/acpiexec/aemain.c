@@ -91,7 +91,8 @@ static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buf
 static char                 *FileList[ASL_MAX_FILES];
 static AE_TABLE_DESC        *AeTableListHead = NULL;
 
-#define AE_SUPPORTED_OPTIONS        "?b:d:e:f:ghm^orv:x:"
+#define ACPIEXEC_NAME               "AML Execution/Debug Utility"
+#define AE_SUPPORTED_OPTIONS        "?b:d:e:f:ghm^orv^:x:"
 
 
 /******************************************************************************
@@ -134,6 +135,7 @@ usage (
 
     ACPI_OPTION ("-f <Value>",          "Operation Region initialization fill value");
     ACPI_OPTION ("-r",                  "Use hardware-reduced FADT V5");
+    ACPI_OPTION ("-v",                  "Display version information");
     ACPI_OPTION ("-vi",                 "Verbose initialization output");
     ACPI_OPTION ("-vr",                 "Verbose region handler output");
     ACPI_OPTION ("-x <DebugLevel>",     "Debug output level");
@@ -302,6 +304,10 @@ AeDoOptions (
 
         switch (AcpiGbl_Optarg[0])
         {
+        case '^':  /* -v: (Version): signon already emitted, just exit */
+
+            exit (0);
+
         case 'i':
 
             AcpiDbgLevel |= ACPI_LV_INIT_NAMES;
@@ -366,7 +372,7 @@ main (
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
 
-    printf (ACPI_COMMON_SIGNON ("AML Execution/Debug Utility"));
+    printf (ACPI_COMMON_SIGNON (ACPIEXEC_NAME));
     if (argc < 2)
     {
         usage ();
