@@ -22,8 +22,8 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  */
-
 /* Copyright (c) 2013 by Saso Kiselkov. All rights reserved. */
+/* Copyright (c) 2013, Joyent, Inc. All rights reserved. */
 
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
@@ -1597,7 +1597,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		 * pipeline.
 		 */
 		compress = ZIO_COMPRESS_OFF;
-		checksum = ZIO_CHECKSUM_OFF;
+		checksum = ZIO_CHECKSUM_NOPARITY;
 	} else {
 		compress = zio_compress_select(dn->dn_compress, compress);
 

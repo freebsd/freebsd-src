@@ -22,11 +22,15 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
 #include <sys/vdev_impl.h>
+#include <sys/vdev_disk.h>
+#include <sys/vdev_file.h>
+#include <sys/vdev_raidz.h>
 #include <sys/zio.h>
 #include <sys/zio_checksum.h>
 #include <sys/fs/zfs.h>
@@ -153,6 +157,8 @@ typedef struct raidz_map {
 	VDEV_RAIDZ_64MUL_2((x), mask); \
 	VDEV_RAIDZ_64MUL_2((x), mask); \
 }
+
+#define	VDEV_LABEL_OFFSET(x)	(x + VDEV_LABEL_START_SIZE)
 
 /*
  * Force reconstruction to use the general purpose method.
@@ -435,14 +441,14 @@ static const zio_vsd_ops_t vdev_raidz_vsd_ops = {
  * the number of children in the target vdev.
  */
 static raidz_map_t *
-vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
-    uint64_t nparity)
+vdev_raidz_map_alloc(caddr_t data, uint64_t size, uint64_t offset,
+    uint64_t unit_shift, uint64_t dcols, uint64_t nparity)
 {
 	raidz_map_t *rm;
 	/* The starting RAIDZ (parent) vdev sector of the block. */
-	uint64_t b = zio->io_offset >> unit_shift;
+	uint64_t b = offset >> unit_shift;
 	/* The zio's size in units of the vdev's minimum sector size. */
-	uint64_t s = zio->io_size >> unit_shift;
+	uint64_t s = size >> unit_shift;
 	/* The first column for this stripe. */
 	uint64_t f = b % dcols;
 	/* The starting byte offset on each child vdev. */
@@ -533,7 +539,7 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
 	for (c = 0; c < rm->rm_firstdatacol; c++)
 		rm->rm_col[c].rc_data = zio_buf_alloc(rm->rm_col[c].rc_size);
 
-	rm->rm_col[c].rc_data = zio->io_data;
+	rm->rm_col[c].rc_data = data;
 
 	for (c = c + 1; c < acols; c++)
 		rm->rm_col[c].rc_data = (char *)rm->rm_col[c - 1].rc_data +
@@ -562,7 +568,7 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
 	ASSERT(rm->rm_cols >= 2);
 	ASSERT(rm->rm_col[0].rc_size == rm->rm_col[1].rc_size);
 
-	if (rm->rm_firstdatacol == 1 && (zio->io_offset & (1ULL << 20))) {
+	if (rm->rm_firstdatacol == 1 && (offset & (1ULL << 20))) {
 		devidx = rm->rm_col[0].rc_devidx;
 		o = rm->rm_col[0].rc_offset;
 		rm->rm_col[0].rc_devidx = rm->rm_col[1].rc_devidx;
@@ -574,8 +580,6 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
 			rm->rm_skipstart = 1;
 	}
 
-	zio->io_vsd = rm;
-	zio->io_vsd_ops = &vdev_raidz_vsd_ops;
 	return (rm);
 }
 
@@ -985,12 +989,9 @@ vdev_raidz_reconstruct_pq(raidz_map_t *rm, int *tgts, int ntgts)
  *           ~~                               ~~
  *           __                               __
  *           |  1   1   1   1   1   1   1   1  |
- *           | 128  64  32  16  8   4   2   1  |
  *           |  19 205 116  29  64  16  4   1  |
  *           |  1   0   0   0   0   0   0   0  |
- *           |  0   1   0   0   0   0   0   0  |
- *  (V|I)' = |  0   0   1   0   0   0   0   0  |
- *           |  0   0   0   1   0   0   0   0  |
+ *  (V|I)' = |  0   0   0   1   0   0   0   0  |
  *           |  0   0   0   0   1   0   0   0  |
  *           |  0   0   0   0   0   1   0   0  |
  *           |  0   0   0   0   0   0   1   0  |
@@ -1522,6 +1523,152 @@ vdev_raidz_close(vdev_t *vd)
 		vdev_close(vd->vdev_child[c]);
 }
 
+/*
+ * Handle a read or write I/O to a RAID-Z dump device.
+ *
+ * The dump device is in a unique situation compared to other ZFS datasets:
+ * writing to this device should be as simple and fast as possible.  In
+ * addition, durability matters much less since the dump will be extracted
+ * once the machine reboots.  For that reason, this function eschews parity for
+ * performance and simplicity.  The dump device uses the checksum setting
+ * ZIO_CHECKSUM_NOPARITY to indicate that parity is not maintained for this
+ * dataset.
+ *
+ * Blocks of size 128 KB have been preallocated for this volume.  I/Os less than
+ * 128 KB will not fill an entire block; in addition, they may not be properly
+ * aligned.  In that case, this function uses the preallocated 128 KB block and
+ * omits reading or writing any "empty" portions of that block, as opposed to
+ * allocating a fresh appropriately-sized block.
+ *
+ * Looking at an example of a 32 KB I/O to a RAID-Z vdev with 5 child vdevs:
+ *
+ *     vdev_raidz_io_start(data, size: 32 KB, offset: 64 KB)
+ *
+ * If this were a standard RAID-Z dataset, a block of at least 40 KB would be
+ * allocated which spans all five child vdevs.  8 KB of data would be written to
+ * each of four vdevs, with the fifth containing the parity bits.
+ *
+ *       parity    data     data     data     data
+ *     |   PP   |   XX   |   XX   |   XX   |   XX   |
+ *         ^        ^        ^        ^        ^
+ *         |        |        |        |        |
+ *   8 KB parity    ------8 KB data blocks------
+ *
+ * However, when writing to the dump device, the behavior is different:
+ *
+ *     vdev_raidz_physio(data, size: 32 KB, offset: 64 KB)
+ *
+ * Unlike the normal RAID-Z case in which the block is allocated based on the
+ * I/O size, reads and writes here always use a 128 KB logical I/O size.  If the
+ * I/O size is less than 128 KB, only the actual portions of data are written.
+ * In this example the data is written to the third data vdev since that vdev
+ * contains the offset [64 KB, 96 KB).
+ *
+ *       parity    data     data     data     data
+ *     |        |        |        |   XX   |        |
+ *                                    ^
+ *                                    |
+ *                             32 KB data block
+ *
+ * As a result, an individual I/O may not span all child vdevs; moreover, a
+ * small I/O may only operate on a single child vdev.
+ *
+ * Note that since there are no parity bits calculated or written, this format
+ * remains the same no matter how many parity bits are used in a normal RAID-Z
+ * stripe.  On a RAID-Z3 configuration with seven child vdevs, the example above
+ * would look like:
+ *
+ *       parity   parity   parity    data     data     data     data
+ *     |        |        |        |        |        |   XX   |        |
+ *                                                      ^
+ *                                                      |
+ *                                               32 KB data block
+ */
+int
+vdev_raidz_physio(vdev_t *vd, caddr_t data, size_t size,
+    uint64_t offset, uint64_t origoffset, boolean_t doread, boolean_t isdump)
+{
+	vdev_t *tvd = vd->vdev_top;
+	vdev_t *cvd;
+	raidz_map_t *rm;
+	raidz_col_t *rc;
+	int c, err = 0;
+
+	uint64_t start, end, colstart, colend;
+	uint64_t coloffset, colsize, colskip;
+
+	int flags = doread ? B_READ : B_WRITE;
+
+#ifdef	_KERNEL
+
+	/*
+	 * Don't write past the end of the block
+	 */
+	VERIFY3U(offset + size, <=, origoffset + SPA_MAXBLOCKSIZE);
+
+	start = offset;
+	end = start + size;
+
+	/*
+	 * Allocate a RAID-Z map for this block.  Note that this block starts
+	 * from the "original" offset, this is, the offset of the extent which
+	 * contains the requisite offset of the data being read or written.
+	 *
+	 * Even if this I/O operation doesn't span the full block size, let's
+	 * treat the on-disk format as if the only blocks are the complete 128
+	 * KB size.
+	 */
+	rm = vdev_raidz_map_alloc(data - (offset - origoffset),
+	    SPA_MAXBLOCKSIZE, origoffset, tvd->vdev_ashift, vd->vdev_children,
+	    vd->vdev_nparity);
+
+	coloffset = origoffset;
+
+	for (c = rm->rm_firstdatacol; c < rm->rm_cols;
+	    c++, coloffset += rc->rc_size) {
+		rc = &rm->rm_col[c];
+		cvd = vd->vdev_child[rc->rc_devidx];
+
+		/*
+		 * Find the start and end of this column in the RAID-Z map,
+		 * keeping in mind that the stated size and offset of the
+		 * operation may not fill the entire column for this vdev.
+		 *
+		 * If any portion of the data spans this column, issue the
+		 * appropriate operation to the vdev.
+		 */
+		if (coloffset + rc->rc_size <= start)
+			continue;
+		if (coloffset >= end)
+			continue;
+
+		colstart = MAX(coloffset, start);
+		colend = MIN(end, coloffset + rc->rc_size);
+		colsize = colend - colstart;
+		colskip = colstart - coloffset;
+
+		VERIFY3U(colsize, <=, rc->rc_size);
+		VERIFY3U(colskip, <=, rc->rc_size);
+
+		/*
+		 * Note that the child vdev will have a vdev label at the start
+		 * of its range of offsets, hence the need for
+		 * VDEV_LABEL_OFFSET().  See zio_vdev_child_io() for another
+		 * example of why this calculation is needed.
+		 */
+		if ((err = vdev_disk_physio(cvd,
+		    ((char *)rc->rc_data) + colskip, colsize,
+		    VDEV_LABEL_OFFSET(rc->rc_offset) + colskip,
+		    flags, isdump)) != 0)
+			break;
+	}
+
+	vdev_raidz_map_free(rm);
+#endif	/* KERNEL */
+
+	return (err);
+}
+
 static uint64_t
 vdev_raidz_asize(vdev_t *vd, uint64_t psize)
 {
@@ -1574,8 +1721,12 @@ vdev_raidz_io_start(zio_t *zio)
 	raidz_col_t *rc;
 	int c, i;
 
-	rm = vdev_raidz_map_alloc(zio, tvd->vdev_ashift, vd->vdev_children,
+	rm = vdev_raidz_map_alloc(zio->io_data, zio->io_size, zio->io_offset,
+	    tvd->vdev_ashift, vd->vdev_children,
 	    vd->vdev_nparity);
+
+	zio->io_vsd = rm;
+	zio->io_vsd_ops = &vdev_raidz_vsd_ops;
 
 	ASSERT3U(rm->rm_asize, ==, vdev_psize_to_asize(vd, zio->io_size));
 
@@ -1706,6 +1857,13 @@ raidz_parity_verify(zio_t *zio, raidz_map_t *rm)
 	void *orig[VDEV_RAIDZ_MAXPARITY];
 	int c, ret = 0;
 	raidz_col_t *rc;
+
+	blkptr_t *bp = zio->io_bp;
+	enum zio_checksum checksum = (bp == NULL ? zio->io_prop.zp_checksum :
+	    (BP_IS_GANG(bp) ? ZIO_CHECKSUM_GANG_HEADER : BP_GET_CHECKSUM(bp)));
+
+	if (checksum == ZIO_CHECKSUM_NOPARITY)
+		return (ret);
 
 	for (c = 0; c < rm->rm_firstdatacol; c++) {
 		rc = &rm->rm_col[c];
