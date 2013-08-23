@@ -83,7 +83,7 @@ void _rtld_error(const char *fmt, ...);
 #define	FUNLOCKFILE(fp)		if (__isthreaded) _funlockfile(fp)
 
 struct _spinlock;
-extern struct _spinlock __stdio_thread_lock;
+extern struct _spinlock __stdio_thread_lock __hidden;
 #define STDIO_THREAD_LOCK()				\
 do {							\
 	if (__isthreaded)				\
@@ -218,7 +218,7 @@ void _malloc_postfork(void);
 /*
  * Function to clean up streams, called from abort() and exit().
  */
-extern void (*__cleanup)(void);
+extern void (*__cleanup)(void) __hidden;
 
 /*
  * Get kern.osreldate to detect ABI revisions.  Explicitly
