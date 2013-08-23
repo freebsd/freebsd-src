@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2013
+.Dd August 23, 2013
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -270,7 +270,7 @@ argument.
 If an
 .Fa rm
 argument is specified, the lock should be created without passing the
-.It Dv RM_SLEEPABLE
+.Dv RM_SLEEPABLE
 flag.
 The usable lock classes are currently limited to mutexes, rwlocks and
 non-sleepable rmlocks, because callout handlers run in softclock swi,
