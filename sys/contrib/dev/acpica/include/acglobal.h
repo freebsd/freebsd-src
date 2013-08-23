@@ -274,6 +274,7 @@ ACPI_EXTERN ACPI_TABLE_HANDLER          AcpiGbl_TableHandler;
 ACPI_EXTERN void                       *AcpiGbl_TableHandlerContext;
 ACPI_EXTERN ACPI_WALK_STATE            *AcpiGbl_BreakpointWalk;
 ACPI_EXTERN ACPI_INTERFACE_HANDLER      AcpiGbl_InterfaceHandler;
+ACPI_EXTERN ACPI_SCI_HANDLER_INFO      *AcpiGbl_SciHandlerList;
 
 /* Owner ID support */
 
@@ -453,19 +454,22 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_tables;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_stats;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_ini_methods;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_NoRegionSupport;
-
-ACPI_EXTERN char                       *AcpiGbl_DbArgs[ACPI_DEBUGGER_MAX_ARGS];
-ACPI_EXTERN ACPI_OBJECT_TYPE            AcpiGbl_DbArgTypes[ACPI_DEBUGGER_MAX_ARGS];
-ACPI_EXTERN char                        AcpiGbl_DbLineBuf[ACPI_DB_LINE_BUFFER_SIZE];
-ACPI_EXTERN char                        AcpiGbl_DbParsedBuf[ACPI_DB_LINE_BUFFER_SIZE];
-ACPI_EXTERN char                        AcpiGbl_DbScopeBuf[80];
-ACPI_EXTERN char                        AcpiGbl_DbDebugFilename[80];
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOutputToFile;
 ACPI_EXTERN char                       *AcpiGbl_DbBuffer;
 ACPI_EXTERN char                       *AcpiGbl_DbFilename;
 ACPI_EXTERN UINT32                      AcpiGbl_DbDebugLevel;
 ACPI_EXTERN UINT32                      AcpiGbl_DbConsoleDebugLevel;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_DbScopeNode;
+
+ACPI_EXTERN char                       *AcpiGbl_DbArgs[ACPI_DEBUGGER_MAX_ARGS];
+ACPI_EXTERN ACPI_OBJECT_TYPE            AcpiGbl_DbArgTypes[ACPI_DEBUGGER_MAX_ARGS];
+
+/* These buffers should all be the same size */
+
+ACPI_EXTERN char                        AcpiGbl_DbLineBuf[ACPI_DB_LINE_BUFFER_SIZE];
+ACPI_EXTERN char                        AcpiGbl_DbParsedBuf[ACPI_DB_LINE_BUFFER_SIZE];
+ACPI_EXTERN char                        AcpiGbl_DbScopeBuf[ACPI_DB_LINE_BUFFER_SIZE];
+ACPI_EXTERN char                        AcpiGbl_DbDebugFilename[ACPI_DB_LINE_BUFFER_SIZE];
 
 /*
  * Statistic globals
