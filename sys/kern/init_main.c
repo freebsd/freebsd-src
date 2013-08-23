@@ -236,9 +236,6 @@ restart:
 	/*
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
-	 *
-	 * The last item on the list is expected to be the scheduler,
-	 * which will not return.
 	 */
 	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
 
@@ -296,7 +293,13 @@ restart:
 		}
 	}
 
-	panic("Shouldn't get here!");
+	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
+	mtx_unlock(&Giant);
+
+	/*
+	 * Now hand over this thread to swapper.
+	 */
+	swapper();
 	/* NOTREACHED*/
 }
 
@@ -339,7 +342,7 @@ static char wit_warn[] =
      "WARNING: WITNESS option enabled, expect reduced performance.\n";
 SYSINIT(witwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 1,
    print_caddr_t, wit_warn);
-SYSINIT(witwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 1,
+SYSINIT(witwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 1,
    print_caddr_t, wit_warn);
 #endif
 
@@ -348,7 +351,7 @@ static char diag_warn[] =
      "WARNING: DIAGNOSTIC option enabled, expect reduced performance.\n";
 SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn);
-SYSINIT(diagwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 2,
+SYSINIT(diagwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn);
 #endif
 
