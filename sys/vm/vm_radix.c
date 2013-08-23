@@ -432,6 +432,21 @@ restart:
 }
 
 /*
+ * Returns TRUE if the specified radix tree contains a single leaf and FALSE
+ * otherwise.
+ */
+boolean_t
+vm_radix_is_singleton(struct vm_radix *rtree)
+{
+	struct vm_radix_node *rnode;
+
+	rnode = vm_radix_getroot(rtree);
+	if (rnode == NULL)
+		return (FALSE);
+	return (vm_radix_isleaf(rnode));
+}
+
+/*
  * Returns the value stored at the index.  If the index is not present,
  * NULL is returned.
  */
