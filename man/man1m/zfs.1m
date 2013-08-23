@@ -23,9 +23,9 @@
 .\" Copyright (c) 2009 Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright 2011 Joshua M. Clulow <josh@sysmgr.org>
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
-.\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright 2013 Nexenta Systems, Inc.  All Rights Reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
 .\"
 .TH ZFS 1M "Jan 26, 2013"
 .SH NAME
@@ -106,7 +106,7 @@ zfs \- configures ZFS file systems
 
 .LP
 .nf
-\fBzfs\fR \fBget\fR [\fB-r\fR|\fB-d\fR \fIdepth\fR][\fB-Hp\fR][\fB-o\fR \fIfield\fR[,\fIfield\fR]...] [\fB-t\fR \fItype\fR[,\fItype\fR]...] 
+\fBzfs\fR \fBget\fR [\fB-r\fR|\fB-d\fR \fIdepth\fR][\fB-Hp\fR][\fB-o\fR \fIfield\fR[,\fIfield\fR]...] [\fB-t\fR \fItype\fR[,\fItype\fR]...]
     [\fB-s\fR \fIsource\fR[,\fIsource\fR]...] \fBall\fR | \fIproperty\fR[,\fIproperty\fR]...
     \fIfilesystem\fR|\fIvolume\fR|\fIsnapshot\fR...
 .fi
@@ -934,15 +934,18 @@ This property is not inherited.
 .ne 2
 .na
 \fB\fBchecksum\fR=\fBon\fR | \fBoff\fR | \fBfletcher2\fR | \fBfletcher4\fR |
-\fBsha256\fR\fR
+\fBsha256\fR | \fBnoparity\fR \fR
 .ad
 .sp .6
 .RS 4n
 Controls the checksum used to verify data integrity. The default value is
 \fBon\fR, which automatically selects an appropriate algorithm (currently,
 \fBfletcher4\fR, but this may change in future releases). The value \fBoff\fR
-disables integrity checking on user data. Disabling checksums is \fBNOT\fR a
-recommended practice.
+disables integrity checking on user data. The value \fBnoparity\fR not only
+disables integrity but also disables maintaining parity for user data.  This
+setting is used internally by a dump device residing on a RAID-Z pool and should
+not be used by any other dataset. Disabling checksums is \fBNOT\fR a recommended
+practice.
 .sp
 Changing this property affects only newly-written data.
 .RE

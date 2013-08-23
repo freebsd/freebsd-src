@@ -19,17 +19,15 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
- * Copyright (c) 2013 Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
-#ifndef _SYS_VDEV_DISK_H
-#define	_SYS_VDEV_DISK_H
+#ifndef _SYS_VDEV_RAIDZ_H
+#define	_SYS_VDEV_RAIDZ_H
 
 #include <sys/vdev.h>
+#include <sys/semaphore.h>
 #ifdef _KERNEL
-#include <sys/buf.h>
 #include <sys/ddi.h>
 #include <sys/sunldi.h>
 #include <sys/sunddi.h>
@@ -40,25 +38,11 @@ extern "C" {
 #endif
 
 #ifdef _KERNEL
-typedef struct vdev_disk {
-	ddi_devid_t	vd_devid;
-	char		*vd_minor;
-	ldi_handle_t	vd_lh;
-} vdev_disk_t;
-#endif
-
-extern int vdev_disk_physio(vdev_t *,
-    caddr_t, size_t, uint64_t, int, boolean_t);
-
-/*
- * Since vdev_disk.c is not compiled into libzpool, this function should only be
- * defined in the zfs kernel module.
- */
-#ifdef _KERNEL
-extern int vdev_disk_ldi_physio(ldi_handle_t, caddr_t, size_t, uint64_t, int);
+extern int vdev_raidz_physio(vdev_t *,
+    caddr_t, size_t, uint64_t, uint64_t, boolean_t, boolean_t);
 #endif
 #ifdef	__cplusplus
 }
 #endif
 
-#endif	/* _SYS_VDEV_DISK_H */
+#endif	/* _SYS_VDEV_RAIDZ_H */
