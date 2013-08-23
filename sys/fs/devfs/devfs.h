@@ -122,6 +122,8 @@ struct devfs_rule {
 MALLOC_DECLARE(M_DEVFS);
 #endif
 
+struct componentname;
+
 struct devfs_dirent {
 	struct cdev_priv	*de_cdp;
 	int			de_inode;
@@ -176,6 +178,8 @@ void devfs_ruleset_set(devfs_rsnum rsnum, struct devfs_mount *dm);
 void devfs_ruleset_apply(struct devfs_mount *dm);
 int devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
     struct vnode **vpp);
+char *devfs_fqpn(char *, struct devfs_mount *, struct devfs_dirent *,
+    struct componentname *);
 void devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked);
 void devfs_dirent_free(struct devfs_dirent *de);
 void devfs_populate (struct devfs_mount *dm);
