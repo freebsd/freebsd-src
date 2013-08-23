@@ -24,13 +24,15 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #include <sys/sysmacros.h>
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <ctf_impl.h>
+#include <sys/debug.h>
 
 /*
  * This static string is used as the template for initially populating a
@@ -167,6 +169,51 @@ ctf_copy_membnames(ctf_dtdef_t *dtd, uchar_t *s)
 }
 
 /*
+ * Only types of dyanmic CTF containers contain reference counts. These
+ * containers are marked RD/WR. Because of that we basically make this a no-op
+ * for compatability with non-dynamic CTF sections. This is also a no-op for
+ * types which are not dynamic types. It is the responsibility of the caller to
+ * make sure it is a valid type. We help that caller out on debug builds.
+ *
+ * Note that the reference counts are not maintained for types that are not
+ * within this container. In other words if we have a type in a parent, that
+ * will not have its reference count increased. On the flip side, the parent
+ * will not be allowed to remove dynamic types if it has children.
+ */
+static void
+ctf_ref_inc(ctf_file_t *fp, ctf_id_t tid)
+{
+	ctf_dtdef_t *dtd = ctf_dtd_lookup(fp, tid);
+
+	if (dtd == NULL)
+		return;
+
+	if (!(fp->ctf_flags & LCTF_RDWR))
+		return;
+
+	dtd->dtd_ref++;
+}
+
+/*
+ * Just as with ctf_ref_inc, this is a no-op on non-writeable containers and the
+ * caller should ensure that this is already a valid type.
+ */
+static void
+ctf_ref_dec(ctf_file_t *fp, ctf_id_t tid)
+{
+	ctf_dtdef_t *dtd = ctf_dtd_lookup(fp, tid);
+
+	if (dtd == NULL)
+		return;
+
+	if (!(fp->ctf_flags & LCTF_RDWR))
+		return;
+
+	ASSERT(dtd->dtd_ref >= 1);
+	dtd->dtd_ref--;
+}
+
+/*
  * If the specified CTF container is writable and has been modified, reload
  * this container with the updated type definitions.  In order to make this
  * code and the rest of libctf as simple as possible, we perform updates by
@@ -180,6 +227,10 @@ ctf_copy_membnames(ctf_dtdef_t *dtd, uchar_t *s)
  * ctf_bufopen() will return a new ctf_file_t, but we want to keep the fp
  * constant for the caller, so after ctf_bufopen() returns, we use bcopy to
  * swap the interior of the old and new ctf_file_t's, and then free the old.
+ *
+ * Note that the lists of dynamic types stays around and the resulting container
+ * is still writeable. Furthermore, the reference counts that are on the dtd's
+ * are still valid.
  */
 int
 ctf_update(ctf_file_t *fp)
@@ -432,6 +483,7 @@ ctf_dtd_delete(ctf_file_t *fp, ctf_dtdef_t *dtd)
 	ctf_dtdef_t *p, **q = &fp->ctf_dthash[h];
 	ctf_dmdef_t *dmd, *nmd;
 	size_t len;
+	int kind, i;
 
 	for (p = *q; p != NULL; p = p->dtd_hash) {
 		if (p != dtd)
@@ -443,7 +495,8 @@ ctf_dtd_delete(ctf_file_t *fp, ctf_dtdef_t *dtd)
 	if (p != NULL)
 		*q = p->dtd_hash;
 
-	switch (CTF_INFO_KIND(dtd->dtd_data.ctt_info)) {
+	kind = CTF_INFO_KIND(dtd->dtd_data.ctt_info);
+	switch (kind) {
 	case CTF_K_STRUCT:
 	case CTF_K_UNION:
 	case CTF_K_ENUM:
@@ -454,13 +507,32 @@ ctf_dtd_delete(ctf_file_t *fp, ctf_dtdef_t *dtd)
 				ctf_free(dmd->dmd_name, len);
 				fp->ctf_dtstrlen -= len;
 			}
+			if (kind != CTF_K_ENUM)
+				ctf_ref_dec(fp, dmd->dmd_type);
 			nmd = ctf_list_next(dmd);
 			ctf_free(dmd, sizeof (ctf_dmdef_t));
 		}
 		break;
 	case CTF_K_FUNCTION:
+		ctf_ref_dec(fp, dtd->dtd_data.ctt_type);
+		for (i = 0; i < CTF_INFO_VLEN(dtd->dtd_data.ctt_info); i++)
+			if (dtd->dtd_u.dtu_argv[i] != 0)
+				ctf_ref_dec(fp, dtd->dtd_u.dtu_argv[i]);
 		ctf_free(dtd->dtd_u.dtu_argv, sizeof (ctf_id_t) *
 		    CTF_INFO_VLEN(dtd->dtd_data.ctt_info));
+		break;
+	case CTF_K_ARRAY:
+		ctf_ref_dec(fp, dtd->dtd_u.dtu_arr.ctr_contents);
+		ctf_ref_dec(fp, dtd->dtd_u.dtu_arr.ctr_index);
+		break;
+	case CTF_K_TYPEDEF:
+		ctf_ref_dec(fp, dtd->dtd_data.ctt_type);
+		break;
+	case CTF_K_POINTER:
+	case CTF_K_VOLATILE:
+	case CTF_K_CONST:
+	case CTF_K_RESTRICT:
+		ctf_ref_dec(fp, dtd->dtd_data.ctt_type);
 		break;
 	}
 
@@ -495,7 +567,9 @@ ctf_dtd_lookup(ctf_file_t *fp, ctf_id_t type)
  * Discard all of the dynamic type definitions that have been added to the
  * container since the last call to ctf_update().  We locate such types by
  * scanning the list and deleting elements that have type IDs greater than
- * ctf_dtoldid, which is set by ctf_update(), above.
+ * ctf_dtoldid, which is set by ctf_update(), above. Note that to work properly
+ * with our reference counting schemes, we must delete the dynamic list in
+ * reverse.
  */
 int
 ctf_discard(ctf_file_t *fp)
@@ -508,11 +582,11 @@ ctf_discard(ctf_file_t *fp)
 	if (!(fp->ctf_flags & LCTF_DIRTY))
 		return (0); /* no update required */
 
-	for (dtd = ctf_list_next(&fp->ctf_dtdefs); dtd != NULL; dtd = ntd) {
+	for (dtd = ctf_list_prev(&fp->ctf_dtdefs); dtd != NULL; dtd = ntd) {
 		if (dtd->dtd_type <= fp->ctf_dtoldid)
 			continue; /* skip types that have been committed */
 
-		ntd = ctf_list_next(dtd);
+		ntd = ctf_list_prev(dtd);
 		ctf_dtd_delete(fp, dtd);
 	}
 
@@ -614,6 +688,8 @@ ctf_add_reftype(ctf_file_t *fp, uint_t flag, ctf_id_t ref, uint_t kind)
 	if ((type = ctf_add_generic(fp, flag, NULL, &dtd)) == CTF_ERR)
 		return (CTF_ERR); /* errno is set for us */
 
+	ctf_ref_inc(fp, ref);
+
 	dtd->dtd_data.ctt_info = CTF_TYPE_INFO(kind, flag, 0);
 	dtd->dtd_data.ctt_type = (ushort_t)ref;
 
@@ -645,9 +721,20 @@ ctf_add_array(ctf_file_t *fp, uint_t flag, const ctf_arinfo_t *arp)
 {
 	ctf_dtdef_t *dtd;
 	ctf_id_t type;
+	ctf_file_t *fpd;
 
 	if (arp == NULL)
 		return (ctf_set_errno(fp, EINVAL));
+
+	fpd = fp;
+	if (ctf_lookup_by_id(&fpd, arp->ctr_contents) == NULL &&
+	    ctf_dtd_lookup(fp, arp->ctr_contents) == NULL)
+		return (ctf_set_errno(fp, ECTF_BADID));
+
+	fpd = fp;
+	if (ctf_lookup_by_id(&fpd, arp->ctr_index) == NULL &&
+	    ctf_dtd_lookup(fp, arp->ctr_index) == NULL)
+		return (ctf_set_errno(fp, ECTF_BADID));
 
 	if ((type = ctf_add_generic(fp, flag, NULL, &dtd)) == CTF_ERR)
 		return (CTF_ERR); /* errno is set for us */
@@ -655,6 +742,8 @@ ctf_add_array(ctf_file_t *fp, uint_t flag, const ctf_arinfo_t *arp)
 	dtd->dtd_data.ctt_info = CTF_TYPE_INFO(CTF_K_ARRAY, flag, 0);
 	dtd->dtd_data.ctt_size = 0;
 	dtd->dtd_u.dtu_arr = *arp;
+	ctf_ref_inc(fp, arp->ctr_contents);
+	ctf_ref_inc(fp, arp->ctr_index);
 
 	return (type);
 }
@@ -662,6 +751,7 @@ ctf_add_array(ctf_file_t *fp, uint_t flag, const ctf_arinfo_t *arp)
 int
 ctf_set_array(ctf_file_t *fp, ctf_id_t type, const ctf_arinfo_t *arp)
 {
+	ctf_file_t *fpd;
 	ctf_dtdef_t *dtd = ctf_dtd_lookup(fp, type);
 
 	if (!(fp->ctf_flags & LCTF_RDWR))
@@ -670,8 +760,22 @@ ctf_set_array(ctf_file_t *fp, ctf_id_t type, const ctf_arinfo_t *arp)
 	if (dtd == NULL || CTF_INFO_KIND(dtd->dtd_data.ctt_info) != CTF_K_ARRAY)
 		return (ctf_set_errno(fp, ECTF_BADID));
 
+	fpd = fp;
+	if (ctf_lookup_by_id(&fpd, arp->ctr_contents) == NULL &&
+	    ctf_dtd_lookup(fp, arp->ctr_contents) == NULL)
+		return (ctf_set_errno(fp, ECTF_BADID));
+
+	fpd = fp;
+	if (ctf_lookup_by_id(&fpd, arp->ctr_index) == NULL &&
+	    ctf_dtd_lookup(fp, arp->ctr_index) == NULL)
+		return (ctf_set_errno(fp, ECTF_BADID));
+
+	ctf_ref_dec(fp, dtd->dtd_u.dtu_arr.ctr_contents);
+	ctf_ref_dec(fp, dtd->dtd_u.dtu_arr.ctr_index);
 	fp->ctf_flags |= LCTF_DIRTY;
 	dtd->dtd_u.dtu_arr = *arp;
+	ctf_ref_inc(fp, arp->ctr_contents);
+	ctf_ref_inc(fp, arp->ctr_index);
 
 	return (0);
 }
@@ -683,7 +787,9 @@ ctf_add_function(ctf_file_t *fp, uint_t flag,
 	ctf_dtdef_t *dtd;
 	ctf_id_t type;
 	uint_t vlen;
+	int i;
 	ctf_id_t *vdat = NULL;
+	ctf_file_t *fpd;
 
 	if (ctc == NULL || (ctc->ctc_flags & ~CTF_FUNC_VARARG) != 0 ||
 	    (ctc->ctc_argc != 0 && argv == NULL))
@@ -696,6 +802,18 @@ ctf_add_function(ctf_file_t *fp, uint_t flag,
 	if (vlen > CTF_MAX_VLEN)
 		return (ctf_set_errno(fp, EOVERFLOW));
 
+	fpd = fp;
+	if (ctf_lookup_by_id(&fpd, ctc->ctc_return) == NULL &&
+	    ctf_dtd_lookup(fp, ctc->ctc_return) == NULL)
+		return (ctf_set_errno(fp, ECTF_BADID));
+
+	for (i = 0; i < ctc->ctc_argc; i++) {
+		fpd = fp;
+		if (ctf_lookup_by_id(&fpd, argv[i]) == NULL &&
+		    ctf_dtd_lookup(fp, argv[i]) == NULL)
+			return (ctf_set_errno(fp, ECTF_BADID));
+	}
+
 	if (vlen != 0 && (vdat = ctf_alloc(sizeof (ctf_id_t) * vlen)) == NULL)
 		return (ctf_set_errno(fp, EAGAIN));
 
@@ -706,6 +824,10 @@ ctf_add_function(ctf_file_t *fp, uint_t flag,
 
 	dtd->dtd_data.ctt_info = CTF_TYPE_INFO(CTF_K_FUNCTION, flag, vlen);
 	dtd->dtd_data.ctt_type = (ushort_t)ctc->ctc_return;
+
+	ctf_ref_inc(fp, ctc->ctc_return);
+	for (i = 0; i < ctc->ctc_argc; i++)
+		ctf_ref_inc(fp, argv[i]);
 
 	bcopy(argv, vdat, sizeof (ctf_id_t) * ctc->ctc_argc);
 	if (ctc->ctc_flags & CTF_FUNC_VARARG)
@@ -825,8 +947,11 @@ ctf_add_typedef(ctf_file_t *fp, uint_t flag, const char *name, ctf_id_t ref)
 {
 	ctf_dtdef_t *dtd;
 	ctf_id_t type;
+	ctf_file_t *fpd;
 
-	if (ref == CTF_ERR || ref < 0 || ref > CTF_MAX_TYPE)
+	fpd = fp;
+	if (ref == CTF_ERR || (ctf_lookup_by_id(&fpd, ref) == NULL &&
+	    ctf_dtd_lookup(fp, ref) == NULL))
 		return (ctf_set_errno(fp, EINVAL));
 
 	if ((type = ctf_add_generic(fp, flag, name, &dtd)) == CTF_ERR)
@@ -834,6 +959,7 @@ ctf_add_typedef(ctf_file_t *fp, uint_t flag, const char *name, ctf_id_t ref)
 
 	dtd->dtd_data.ctt_info = CTF_TYPE_INFO(CTF_K_TYPEDEF, flag, 0);
 	dtd->dtd_data.ctt_type = (ushort_t)ref;
+	ctf_ref_inc(fp, ref);
 
 	return (type);
 }
@@ -1008,6 +1134,45 @@ ctf_add_member(ctf_file_t *fp, ctf_id_t souid, const char *name, ctf_id_t type)
 	if (s != NULL)
 		fp->ctf_dtstrlen += strlen(s) + 1;
 
+	ctf_ref_inc(fp, type);
+	fp->ctf_flags |= LCTF_DIRTY;
+	return (0);
+}
+
+/*
+ * This removes a type from the dynamic section. This will fail if the type is
+ * referenced by another type. Note that the CTF ID is never reused currently by
+ * CTF. Note that if this container is a parent container then we just outright
+ * refuse to remove the type. There currently is no notion of searching for the
+ * ctf_dtdef_t in parent containers. If there is, then this constraint could
+ * become finer grained.
+ */
+int
+ctf_delete_type(ctf_file_t *fp, ctf_id_t type)
+{
+	ctf_file_t *fpd;
+	ctf_dtdef_t *dtd = ctf_dtd_lookup(fp, type);
+
+	if (!(fp->ctf_flags & LCTF_RDWR))
+		return (ctf_set_errno(fp, ECTF_RDONLY));
+
+	/*
+	 * We want to give as useful an errno as possible. That means that we
+	 * want to distinguish between a type which does not exist and one for
+	 * which the type is not dynamic.
+	 */
+	fpd = fp;
+	if (ctf_lookup_by_id(&fpd, type) == NULL &&
+	    ctf_dtd_lookup(fp, type) == NULL)
+		return (CTF_ERR); /* errno is set for us */
+
+	if (dtd == NULL)
+		return (ctf_set_errno(fp, ECTF_NOTDYN));
+
+	if (dtd->dtd_ref != 0 || fp->ctf_refcnt > 1)
+		return (ctf_set_errno(fp, ECTF_REFERENCED));
+
+	ctf_dtd_delete(fp, dtd);
 	fp->ctf_flags |= LCTF_DIRTY;
 	return (0);
 }
@@ -1102,6 +1267,9 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 
 	ctf_hash_t *hp;
 	ctf_helem_t *hep;
+
+	if (dst_fp == src_fp)
+		return (src_type);
 
 	if (!(dst_fp->ctf_flags & LCTF_RDWR))
 		return (ctf_set_errno(dst_fp, ECTF_RDONLY));
@@ -1313,6 +1481,14 @@ ctf_add_type(ctf_file_t *dst_fp, ctf_file_t *src_fp, ctf_id_t src_type)
 
 		if (errs)
 			return (CTF_ERR); /* errno is set for us */
+
+		/*
+		 * Now that we know that we can't fail, we go through and bump
+		 * all the reference counts on the member types.
+		 */
+		for (dmd = ctf_list_next(&dtd->dtd_u.dtu_members);
+		    dmd != NULL; dmd = ctf_list_next(dmd))
+			ctf_ref_inc(dst_fp, dmd->dmd_type);
 		break;
 	}
 
