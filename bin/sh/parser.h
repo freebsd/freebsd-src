@@ -79,7 +79,6 @@ extern const char *const parsekwd[];
 
 union node *parsecmd(int);
 void fixredir(union node *, const char *, int);
-void resetparser(void);
 int goodname(const char *);
 int isassignment(const char *);
 char *getprompt(void *);

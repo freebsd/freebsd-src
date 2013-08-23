@@ -64,9 +64,7 @@
 #endif	/* ISC_PLATFORM_USETHREADS */
 #endif	/* BIND9 */
 
-#ifndef USE_WORKER_THREADS
 #include "task_p.h"
-#endif /* USE_WORKER_THREADS */
 
 #ifdef ISC_TASK_TRACE
 #define XTRACE(m)		fprintf(stderr, "task %p thread %lu: %s\n", \
@@ -120,9 +118,11 @@ struct isc__task {
 	/* Locked by task manager lock. */
 	LINK(isc__task_t)		link;
 	LINK(isc__task_t)		ready_link;
+	LINK(isc__task_t)		ready_priority_link;
 };
 
 #define TASK_F_SHUTTINGDOWN		0x01
+#define TASK_F_PRIVILEGED		0x02
 
 #define TASK_SHUTTINGDOWN(t)		(((t)->flags & TASK_F_SHUTTINGDOWN) \
 					 != 0)
@@ -145,11 +145,15 @@ struct isc__taskmgr {
 	unsigned int			default_quantum;
 	LIST(isc__task_t)		tasks;
 	isc__tasklist_t			ready_tasks;
+	isc__tasklist_t			ready_priority_tasks;
+	isc_taskmgrmode_t		mode;
 #ifdef ISC_PLATFORM_USETHREADS
 	isc_condition_t			work_available;
 	isc_condition_t			exclusive_granted;
+	isc_condition_t			paused;
 #endif /* ISC_PLATFORM_USETHREADS */
 	unsigned int			tasks_running;
+	isc_boolean_t			pause_requested;
 	isc_boolean_t			exclusive_requested;
 	isc_boolean_t			exiting;
 	isc__task_t			*excl;
@@ -230,6 +234,23 @@ ISC_TASKFUNC_SCOPE isc_result_t
 isc__task_beginexclusive(isc_task_t *task);
 ISC_TASKFUNC_SCOPE void
 isc__task_endexclusive(isc_task_t *task0);
+ISC_TASKFUNC_SCOPE void
+isc__task_setprivilege(isc_task_t *task0, isc_boolean_t priv);
+ISC_TASKFUNC_SCOPE isc_boolean_t
+isc__task_privilege(isc_task_t *task0);
+ISC_TASKFUNC_SCOPE void
+isc__taskmgr_setmode(isc_taskmgr_t *manager0, isc_taskmgrmode_t mode);
+ISC_TASKFUNC_SCOPE isc_taskmgrmode_t
+isc__taskmgr_mode(isc_taskmgr_t *manager0);
+
+static inline isc_boolean_t
+empty_readyq(isc__taskmgr_t *manager);
+
+static inline isc__task_t *
+pop_readyq(isc__taskmgr_t *manager);
+
+static inline void
+push_readyq(isc__taskmgr_t *manager, isc__task_t *task);
 
 static struct isc__taskmethods {
 	isc_taskmethods_t methods;
@@ -254,7 +275,9 @@ static struct isc__taskmethods {
 		isc__task_purge,
 		isc__task_purgerange,
 		isc__task_beginexclusive,
-		isc__task_endexclusive
+		isc__task_endexclusive,
+		isc__task_setprivilege,
+		isc__task_privilege
 	}
 #ifndef BIND9
 	,
@@ -266,6 +289,8 @@ static struct isc__taskmethods {
 
 static isc_taskmgrmethods_t taskmgrmethods = {
 	isc__taskmgr_destroy,
+	isc__taskmgr_setmode,
+	isc__taskmgr_mode,
 	isc__task_create,
 	isc__taskmgr_setexcltask,
 	isc__taskmgr_excltask
@@ -340,6 +365,7 @@ isc__task_create(isc_taskmgr_t *manager0, unsigned int quantum,
 	task->tag = NULL;
 	INIT_LINK(task, link);
 	INIT_LINK(task, ready_link);
+	INIT_LINK(task, ready_priority_link);
 
 	exiting = ISC_FALSE;
 	LOCK(&manager->lock);
@@ -407,6 +433,7 @@ task_shutdown(isc__task_t *task) {
 		}
 		INSIST(task->state == task_state_ready ||
 		       task->state == task_state_running);
+
 		/*
 		 * Note that we post shutdown events LIFO.
 		 */
@@ -422,9 +449,17 @@ task_shutdown(isc__task_t *task) {
 	return (was_idle);
 }
 
+/*
+ * Moves a task onto the appropriate run queue.
+ *
+ * Caller must NOT hold manager lock.
+ */
 static inline void
 task_ready(isc__task_t *task) {
 	isc__taskmgr_t *manager = task->manager;
+#ifdef USE_WORKER_THREADS
+	isc_boolean_t has_privilege = isc__task_privilege((isc_task_t *) task);
+#endif /* USE_WORKER_THREADS */
 
 	REQUIRE(VALID_MANAGER(manager));
 	REQUIRE(task->state == task_state_ready);
@@ -432,12 +467,11 @@ task_ready(isc__task_t *task) {
 	XTRACE("task_ready");
 
 	LOCK(&manager->lock);
-
-	ENQUEUE(manager->ready_tasks, task, ready_link);
+	push_readyq(manager, task);
 #ifdef USE_WORKER_THREADS
-	SIGNAL(&manager->work_available);
+	if (manager->mode == isc_taskmgrmode_normal || has_privilege)
+		SIGNAL(&manager->work_available);
 #endif /* USE_WORKER_THREADS */
-
 	UNLOCK(&manager->lock);
 }
 
@@ -875,21 +909,81 @@ isc__task_getcurrenttime(isc_task_t *task0, isc_stdtime_t *t) {
 	REQUIRE(t != NULL);
 
 	LOCK(&task->lock);
-
 	*t = task->now;
-
 	UNLOCK(&task->lock);
 }
 
 /***
  *** Task Manager.
  ***/
+
+/*
+ * Return ISC_TRUE if the current ready list for the manager, which is
+ * either ready_tasks or the ready_priority_tasks, depending on whether
+ * the manager is currently in normal or privileged execution mode.
+ *
+ * Caller must hold the task manager lock.
+ */
+static inline isc_boolean_t
+empty_readyq(isc__taskmgr_t *manager) {
+	isc__tasklist_t queue;
+
+	if (manager->mode == isc_taskmgrmode_normal)
+		queue = manager->ready_tasks;
+	else
+		queue = manager->ready_priority_tasks;
+
+	return (ISC_TF(EMPTY(queue)));
+}
+
+/*
+ * Dequeue and return a pointer to the first task on the current ready
+ * list for the manager.
+ * If the task is privileged, dequeue it from the other ready list
+ * as well.
+ *
+ * Caller must hold the task manager lock.
+ */
+static inline isc__task_t *
+pop_readyq(isc__taskmgr_t *manager) {
+	isc__task_t *task;
+
+	if (manager->mode == isc_taskmgrmode_normal)
+		task = HEAD(manager->ready_tasks);
+	else
+		task = HEAD(manager->ready_priority_tasks);
+
+	if (task != NULL) {
+		DEQUEUE(manager->ready_tasks, task, ready_link);
+		if (ISC_LINK_LINKED(task, ready_priority_link))
+			DEQUEUE(manager->ready_priority_tasks, task,
+				ready_priority_link);
+	}
+
+	return (task);
+}
+
+/*
+ * Push 'task' onto the ready_tasks queue.  If 'task' has the privilege
+ * flag set, then also push it onto the ready_priority_tasks queue.
+ *
+ * Caller must hold the task manager lock.
+ */
+static inline void
+push_readyq(isc__taskmgr_t *manager, isc__task_t *task) {
+	ENQUEUE(manager->ready_tasks, task, ready_link);
+	if ((task->flags & TASK_F_PRIVILEGED) != 0)
+		ENQUEUE(manager->ready_priority_tasks, task,
+			ready_priority_link);
+}
+
 static void
 dispatch(isc__taskmgr_t *manager) {
 	isc__task_t *task;
 #ifndef USE_WORKER_THREADS
 	unsigned int total_dispatch_count = 0;
-	isc__tasklist_t ready_tasks;
+	isc__tasklist_t new_ready_tasks;
+	isc__tasklist_t new_priority_tasks;
 #endif /* USE_WORKER_THREADS */
 
 	REQUIRE(VALID_MANAGER(manager));
@@ -945,9 +1039,11 @@ dispatch(isc__taskmgr_t *manager) {
 	 */
 
 #ifndef USE_WORKER_THREADS
-	ISC_LIST_INIT(ready_tasks);
+	ISC_LIST_INIT(new_ready_tasks);
+	ISC_LIST_INIT(new_priority_tasks);
 #endif
 	LOCK(&manager->lock);
+
 	while (!FINISHED(manager)) {
 #ifdef USE_WORKER_THREADS
 		/*
@@ -956,10 +1052,12 @@ dispatch(isc__taskmgr_t *manager) {
 		 * the task while only holding the manager lock, and then
 		 * change the task to running state while only holding the
 		 * task lock.
+		 *
+		 * If a pause has been requested, don't do any work
+		 * until it's been released.
 		 */
-		while ((EMPTY(manager->ready_tasks) ||
-			manager->exclusive_requested) &&
-			!FINISHED(manager))
+		while ((empty_readyq(manager) || manager->pause_requested ||
+			manager->exclusive_requested) && !FINISHED(manager))
 		{
 			XTHREADTRACE(isc_msgcat_get(isc_msgcat,
 						    ISC_MSGSET_GENERAL,
@@ -971,13 +1069,13 @@ dispatch(isc__taskmgr_t *manager) {
 		}
 #else /* USE_WORKER_THREADS */
 		if (total_dispatch_count >= DEFAULT_TASKMGR_QUANTUM ||
-		    EMPTY(manager->ready_tasks))
+		    empty_readyq(manager))
 			break;
 #endif /* USE_WORKER_THREADS */
 		XTHREADTRACE(isc_msgcat_get(isc_msgcat, ISC_MSGSET_TASK,
 					    ISC_MSG_WORKING, "working"));
 
-		task = HEAD(manager->ready_tasks);
+		task = pop_readyq(manager);
 		if (task != NULL) {
 			unsigned int dispatch_count = 0;
 			isc_boolean_t done = ISC_FALSE;
@@ -992,7 +1090,6 @@ dispatch(isc__taskmgr_t *manager) {
 			 * have a task to do.  We must reacquire the manager
 			 * lock before exiting the 'if (task != NULL)' block.
 			 */
-			DEQUEUE(manager->ready_tasks, task, ready_link);
 			manager->tasks_running++;
 			UNLOCK(&manager->lock);
 
@@ -1113,6 +1210,9 @@ dispatch(isc__taskmgr_t *manager) {
 			if (manager->exclusive_requested &&
 			    manager->tasks_running == 1) {
 				SIGNAL(&manager->exclusive_granted);
+			} else if (manager->pause_requested &&
+				   manager->tasks_running == 0) {
+				SIGNAL(&manager->paused);
 			}
 #endif /* USE_WORKER_THREADS */
 			if (requeue) {
@@ -1136,17 +1236,39 @@ dispatch(isc__taskmgr_t *manager) {
 				 * might even hurt rather than help.
 				 */
 #ifdef USE_WORKER_THREADS
-				ENQUEUE(manager->ready_tasks, task,
-					ready_link);
+				push_readyq(manager, task);
 #else
-				ENQUEUE(ready_tasks, task, ready_link);
+				ENQUEUE(new_ready_tasks, task, ready_link);
+				if ((task->flags & TASK_F_PRIVILEGED) != 0)
+					ENQUEUE(new_priority_tasks, task,
+						ready_priority_link);
 #endif
 			}
 		}
-	}
-#ifndef USE_WORKER_THREADS
-	ISC_LIST_APPENDLIST(manager->ready_tasks, ready_tasks, ready_link);
+
+#ifdef USE_WORKER_THREADS
+		/*
+		 * If we are in privileged execution mode and there are no
+		 * tasks remaining on the current ready queue, then
+		 * we're stuck.  Automatically drop privileges at that
+		 * point and continue with the regular ready queue.
+		 */
+		if (manager->tasks_running == 0 && empty_readyq(manager)) {
+			manager->mode = isc_taskmgrmode_normal;
+			if (!empty_readyq(manager))
+				BROADCAST(&manager->work_available);
+		}
 #endif
+	}
+
+#ifndef USE_WORKER_THREADS
+	ISC_LIST_APPENDLIST(manager->ready_tasks, new_ready_tasks, ready_link);
+	ISC_LIST_APPENDLIST(manager->ready_priority_tasks, new_priority_tasks,
+			    ready_priority_link);
+	if (empty_readyq(manager))
+		manager->mode = isc_taskmgrmode_normal;
+#endif
+
 	UNLOCK(&manager->lock);
 }
 
@@ -1181,6 +1303,7 @@ manager_free(isc__taskmgr_t *manager) {
 #ifdef USE_WORKER_THREADS
 	(void)isc_condition_destroy(&manager->exclusive_granted);
 	(void)isc_condition_destroy(&manager->work_available);
+	(void)isc_condition_destroy(&manager->paused);
 	isc_mem_free(manager->mctx, manager->threads);
 #endif /* USE_WORKER_THREADS */
 	DESTROYLOCK(&manager->lock);
@@ -1231,6 +1354,7 @@ isc__taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 	manager->common.methods = &taskmgrmethods;
 	manager->common.impmagic = TASK_MANAGER_MAGIC;
 	manager->common.magic = ISCAPI_TASKMGR_MAGIC;
+	manager->mode = isc_taskmgrmode_normal;
 	manager->mctx = NULL;
 	result = isc_mutex_init(&manager->lock);
 	if (result != ISC_R_SUCCESS)
@@ -1260,14 +1384,24 @@ isc__taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 		result = ISC_R_UNEXPECTED;
 		goto cleanup_workavailable;
 	}
+	if (isc_condition_init(&manager->paused) != ISC_R_SUCCESS) {
+		UNEXPECTED_ERROR(__FILE__, __LINE__,
+				 "isc_condition_init() %s",
+				 isc_msgcat_get(isc_msgcat, ISC_MSGSET_GENERAL,
+						ISC_MSG_FAILED, "failed"));
+		result = ISC_R_UNEXPECTED;
+		goto cleanup_exclusivegranted;
+	}
 #endif /* USE_WORKER_THREADS */
 	if (default_quantum == 0)
 		default_quantum = DEFAULT_DEFAULT_QUANTUM;
 	manager->default_quantum = default_quantum;
 	INIT_LIST(manager->tasks);
 	INIT_LIST(manager->ready_tasks);
+	INIT_LIST(manager->ready_priority_tasks);
 	manager->tasks_running = 0;
 	manager->exclusive_requested = ISC_FALSE;
+	manager->pause_requested = ISC_FALSE;
 	manager->exiting = ISC_FALSE;
 	manager->excl = NULL;
 
@@ -1304,6 +1438,8 @@ isc__taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 	return (ISC_R_SUCCESS);
 
 #ifdef USE_WORKER_THREADS
+ cleanup_exclusivegranted:
+	(void)isc_condition_destroy(&manager->exclusive_granted);
  cleanup_workavailable:
 	(void)isc_condition_destroy(&manager->work_available);
  cleanup_threads:
@@ -1375,6 +1511,11 @@ isc__taskmgr_destroy(isc_taskmgr_t **managerp) {
 	manager->exiting = ISC_TRUE;
 
 	/*
+	 * If privileged mode was on, turn it off.
+	 */
+	manager->mode = isc_taskmgrmode_normal;
+
+	/*
 	 * Post shutdown event(s) to every task (if they haven't already been
 	 * posted).
 	 */
@@ -1383,7 +1524,7 @@ isc__taskmgr_destroy(isc_taskmgr_t **managerp) {
 	     task = NEXT(task, link)) {
 		LOCK(&task->lock);
 		if (task_shutdown(task))
-			ENQUEUE(manager->ready_tasks, task, ready_link);
+			push_readyq(manager, task);
 		UNLOCK(&task->lock);
 	}
 #ifdef USE_WORKER_THREADS
@@ -1422,10 +1563,30 @@ isc__taskmgr_destroy(isc_taskmgr_t **managerp) {
 	*managerp = NULL;
 }
 
+ISC_TASKFUNC_SCOPE void
+isc__taskmgr_setmode(isc_taskmgr_t *manager0, isc_taskmgrmode_t mode) {
+	isc__taskmgr_t *manager = (isc__taskmgr_t *)manager0;
+
+	LOCK(&manager->lock);
+	manager->mode = mode;
+	UNLOCK(&manager->lock);
+}
+
+ISC_TASKFUNC_SCOPE isc_taskmgrmode_t
+isc__taskmgr_mode(isc_taskmgr_t *manager0) {
+	isc__taskmgr_t *manager = (isc__taskmgr_t *)manager0;
+	isc_taskmgrmode_t mode;
+	LOCK(&manager->lock);
+	mode = manager->mode;
+	UNLOCK(&manager->lock);
+	return (mode);
+}
+
 #ifndef USE_WORKER_THREADS
 isc_boolean_t
 isc__taskmgr_ready(isc_taskmgr_t *manager0) {
 	isc__taskmgr_t *manager = (isc__taskmgr_t *)manager0;
+	isc_boolean_t is_ready;
 
 #ifdef USE_SHARED_MANAGER
 	if (manager == NULL)
@@ -1433,7 +1594,12 @@ isc__taskmgr_ready(isc_taskmgr_t *manager0) {
 #endif
 	if (manager == NULL)
 		return (ISC_FALSE);
-	return (ISC_TF(!ISC_LIST_EMPTY(manager->ready_tasks)));
+
+	LOCK(&manager->lock);
+	is_ready = !empty_readyq(manager);
+	UNLOCK(&manager->lock);
+
+	return (is_ready);
 }
 
 isc_result_t
@@ -1452,6 +1618,29 @@ isc__taskmgr_dispatch(isc_taskmgr_t *manager0) {
 	return (ISC_R_SUCCESS);
 }
 
+#else
+ISC_TASKFUNC_SCOPE void
+isc__taskmgr_pause(isc_taskmgr_t *manager0) {
+	isc__taskmgr_t *manager = (isc__taskmgr_t *)manager0;
+	LOCK(&manager->lock);
+	while (manager->tasks_running > 0) {
+		WAIT(&manager->paused, &manager->lock);
+	}
+	manager->pause_requested = ISC_TRUE;
+	UNLOCK(&manager->lock);
+}
+
+ISC_TASKFUNC_SCOPE void
+isc__taskmgr_resume(isc_taskmgr_t *manager0) {
+	isc__taskmgr_t *manager = (isc__taskmgr_t *)manager0;
+
+	LOCK(&manager->lock);
+	if (manager->pause_requested) {
+		manager->pause_requested = ISC_FALSE;
+		BROADCAST(&manager->work_available);
+	}
+	UNLOCK(&manager->lock);
+}
 #endif /* USE_WORKER_THREADS */
 
 ISC_TASKFUNC_SCOPE void
@@ -1520,6 +1709,44 @@ isc__task_endexclusive(isc_task_t *task0) {
 #else
 	UNUSED(task0);
 #endif
+}
+
+ISC_TASKFUNC_SCOPE void
+isc__task_setprivilege(isc_task_t *task0, isc_boolean_t priv) {
+	isc__task_t *task = (isc__task_t *)task0;
+	isc__taskmgr_t *manager = task->manager;
+	isc_boolean_t oldpriv;
+
+	LOCK(&task->lock);
+	oldpriv = ISC_TF((task->flags & TASK_F_PRIVILEGED) != 0);
+	if (priv)
+		task->flags |= TASK_F_PRIVILEGED;
+	else
+		task->flags &= ~TASK_F_PRIVILEGED;
+	UNLOCK(&task->lock);
+
+	if (priv == oldpriv)
+		return;
+
+	LOCK(&manager->lock);
+	if (priv && ISC_LINK_LINKED(task, ready_link))
+		ENQUEUE(manager->ready_priority_tasks, task,
+			ready_priority_link);
+	else if (!priv && ISC_LINK_LINKED(task, ready_priority_link))
+		DEQUEUE(manager->ready_priority_tasks, task,
+			ready_priority_link);
+	UNLOCK(&manager->lock);
+}
+
+ISC_TASKFUNC_SCOPE isc_boolean_t
+isc__task_privilege(isc_task_t *task0) {
+	isc__task_t *task = (isc__task_t *)task0;
+	isc_boolean_t priv;
+
+	LOCK(&task->lock);
+	priv = ISC_TF((task->flags & TASK_F_PRIVILEGED) != 0);
+	UNLOCK(&task->lock);
+	return (priv);
 }
 
 #ifdef USE_SOCKETIMPREGISTER

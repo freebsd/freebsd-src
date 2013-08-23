@@ -2,11 +2,11 @@
 
 KMOD=	vmm
 
-SRCS=	opt_ddb.h device_if.h bus_if.h pci_if.h
+SRCS=	opt_acpi.h opt_ddb.h device_if.h bus_if.h pci_if.h
 
 CFLAGS+= -DVMM_KEEP_STATS -DSMP
-CFLAGS+= -I${.CURDIR}/../../amd64/vmm	
-CFLAGS+= -I${.CURDIR}/../../amd64/vmm/io	
+CFLAGS+= -I${.CURDIR}/../../amd64/vmm
+CFLAGS+= -I${.CURDIR}/../../amd64/vmm/io
 CFLAGS+= -I${.CURDIR}/../../amd64/vmm/intel
 
 # generic vmm support

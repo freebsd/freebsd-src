@@ -121,7 +121,9 @@ struct	pv_chunk;
 struct	md_page {
 	int pvh_attrs;
 	vm_memattr_t	 pv_memattr;
+#if (ARM_MMU_V6 + ARM_MMU_V7) == 0
 	vm_offset_t pv_kva;		/* first kernel VA mapping */
+#endif
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
@@ -390,7 +392,7 @@ extern int pmap_needs_pte_sync;
 #define	L2_S_PROT_U		(L2_AP0(2))	/* user read */
 #define L2_S_REF		(L2_AP0(1))	/* reference flag */
 
-#define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R)
+#define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R|L2_APX)
 #define	L2_S_EXECUTABLE(pte)	(!(pte & L2_XN))
 #define	L2_S_WRITABLE(pte)	(!(pte & L2_APX))
 #define	L2_S_REFERENCED(pte)	(!!(pte & L2_S_REF))

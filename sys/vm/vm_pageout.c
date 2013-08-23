@@ -159,6 +159,8 @@ static int vm_max_launder = 32;
 static int vm_pageout_update_period;
 static int defer_swap_pageouts;
 static int disable_swap_pageouts;
+static int lowmem_period = 10;
+static int lowmem_ticks;
 
 #if defined(NO_SWAPPING)
 static int vm_swap_enabled = 0;
@@ -179,6 +181,9 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RW, &vm_pageout_update_period, 0,
 	"Maximum active LRU update period");
   
+SYSCTL_INT(_vm, OID_AUTO, lowmem_period, CTLFLAG_RW, &lowmem_period, 0,
+	"Low memory callback period");
+
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
 	CTLFLAG_RD, &vm_swap_enabled, 0, "Enable entire process swapout");
@@ -901,9 +906,10 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
-	 * some.
+	 * some.  We rate limit to avoid thrashing.
 	 */
-	if (pass > 0) {
+	if (vmd == &vm_dom[0] && pass > 0 &&
+	    lowmem_ticks + (lowmem_period * hz) < ticks) {
 		/*
 		 * Decrease registered cache sizes.
 		 */
@@ -913,6 +919,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * drained above.
 		 */
 		uma_reclaim();
+		lowmem_ticks = ticks;
 	}
 
 	/*
@@ -1286,6 +1293,8 @@ relock_queues:
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
 	 */
+	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
+	vm_pagequeue_lock(pq);
 	pcount = pq->pq_cnt;
 	page_shortage = vm_paging_target() +
 	    cnt.v_inactive_target - cnt.v_inactive_count;
@@ -1304,8 +1313,6 @@ relock_queues:
 	 * track the per-page activity counter and use it to locate
 	 * deactivation candidates.
 	 */
-	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
-	vm_pagequeue_lock(pq);
 	m = TAILQ_FIRST(&pq->pq_pl);
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 
@@ -1326,25 +1333,6 @@ relock_queues:
 			m = next;
 			continue;
 		}
-		object = m->object;
-		if (!VM_OBJECT_TRYWLOCK(object) &&
-		    !vm_pageout_fallback_object_lock(m, &next)) {
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_unlock(m);
-			m = next;
-			continue;
-		}
-
-		/*
-		 * Don't deactivate pages that are busy.
-		 */
-		if (vm_page_busied(m) || m->hold_count != 0) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-			vm_page_requeue_locked(m);
-			m = next;
-			continue;
-		}
 
 		/*
 		 * The count for pagedaemon pages is done after checking the
@@ -1360,7 +1348,15 @@ relock_queues:
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta += 1;
 		}
-		if (object->ref_count != 0)
+		/*
+		 * Unlocked object ref count check.  Two races are possible.
+		 * 1) The ref was transitioning to zero and we saw non-zero,
+		 *    the pmap bits will be checked unnecessarily.
+		 * 2) The ref was transitioning to one and we saw zero. 
+		 *    The page lock prevents a new reference to this page so
+		 *    we need not check the reference bits.
+		 */
+		if (m->object->ref_count != 0)
 			act_delta += pmap_ts_referenced(m);
 
 		/*
@@ -1380,9 +1376,6 @@ relock_queues:
 		 * queue depending on usage.
 		 */
 		if (act_delta == 0) {
-			KASSERT(object->ref_count != 0 ||
-			    !pmap_page_is_mapped(m),
-			    ("vm_pageout_scan: page %p is mapped", m));
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 			vm_page_deactivate(m);
@@ -1390,7 +1383,6 @@ relock_queues:
 		} else
 			vm_page_requeue_locked(m);
 		vm_page_unlock(m);
-		VM_OBJECT_WUNLOCK(object);
 		m = next;
 	}
 	vm_pagequeue_unlock(pq);
@@ -1575,35 +1567,16 @@ static void
 vm_pageout_worker(void *arg)
 {
 	struct vm_domain *domain;
-	struct pcpu *pc;
-	int cpu, domidx;
+	int domidx;
 
 	domidx = (uintptr_t)arg;
 	domain = &vm_dom[domidx];
 
 	/*
-	 * XXXKIB The bind is rather arbitrary.  With some minor
-	 * complications, we could assign the cpuset consisting of all
-	 * CPUs in the same domain.  In fact, it even does not matter
-	 * if the CPU we bind to is in the affinity domain of this
-	 * page queue, we only need to establish the fair distribution
-	 * of pagedaemon threads among CPUs.
-	 *
-	 * XXXKIB It would be useful to allocate vm_pages for the
-	 * domain from the domain, and put pcpu area into the page
-	 * owned by the domain.
+	 * XXXKIB It could be useful to bind pageout daemon threads to
+	 * the cores belonging to the domain, from which vm_page_array
+	 * is allocated.
 	 */
-	if (mem_affinity != NULL) {
-		CPU_FOREACH(cpu) {
-			pc = pcpu_find(cpu);
-			if (pc->pc_domain == domidx) {
-				thread_lock(curthread);
-				sched_bind(curthread, cpu);
-				thread_unlock(curthread);
-				break;
-			}
-		}
-	}
 
 	KASSERT(domain->vmd_segs != 0, ("domain without segments"));
 	vm_pageout_init_marker(&domain->vmd_marker, PQ_INACTIVE);
@@ -1699,10 +1672,11 @@ vm_pageout(void)
 
 	/*
 	 * Set interval in seconds for active scan.  We want to visit each
-	 * page at least once a minute.
+	 * page at least once every ten minutes.  This is to prevent worst
+	 * case paging behaviors with stale active LRU.
 	 */
 	if (vm_pageout_update_period == 0)
-		vm_pageout_update_period = 60;
+		vm_pageout_update_period = 600;
 
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)

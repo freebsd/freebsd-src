@@ -88,13 +88,69 @@
 		};
 
 		uart0: serial@44E09000 {
-			compatible = "ns16550";
+			compatible = "ti,ns16550";
 			reg = <0x44E09000 0x1000>;
 			reg-shift = <2>;
 			interrupts = < 72 >;
 			interrupt-parent = <&AINTC>;
-			clock-frequency = < 48000000 >; /* FIXME */
-		};
+ 			clock-frequency = < 48000000 >;
+			uart-device-id = < 0 >;
+ 		};
+ 		
+ 		uart1: serial@48022000 {
+ 			compatible = "ti,ns16550";
+ 			reg = <0x48022000 0x1000>;
+ 			reg-shift = <2>;
+ 			interrupts = < 73 >;
+ 			interrupt-parent = <&AINTC>;
+ 			clock-frequency = < 48000000 >; 
+			uart-device-id = < 1 >;
+			status = "disabled";
+ 		};
+ 		
+ 		uart2: serial@48024000 {
+ 			compatible = "ti,ns16550";
+ 			reg = <0x48024000 0x1000>;
+ 			reg-shift = <2>;
+ 			interrupts = < 74 >;
+ 			interrupt-parent = <&AINTC>;
+ 			clock-frequency = < 48000000 >; 
+			uart-device-id = < 2 >;
+			status = "disabled";
+ 		};
+ 		
+ 		uart3: serial@481a6000 {
+ 			compatible = "ti,ns16550";
+ 			reg = <0x481A6000 0x1000>;
+ 			reg-shift = <2>;
+ 			interrupts = < 44 >;
+ 			interrupt-parent = <&AINTC>;
+ 			clock-frequency = < 48000000 >; 
+			uart-device-id = < 3 >;
+			status = "disabled";
+ 		};
+ 
+ 		uart4: serial@481a8000 {
+ 			compatible = "ti,ns16550";
+ 			reg = <0x481A8000 0x1000>;
+ 			reg-shift = <2>;
+ 			interrupts = < 45 >;
+ 			interrupt-parent = <&AINTC>;
+ 			clock-frequency = < 48000000 >; 
+			uart-device-id = < 4 >;
+			status = "disabled";
+ 		};
+ 
+ 		uart5: serial@481aa000 {
+ 			compatible = "ti,ns16550";
+ 			reg = <0x481AA000 0x1000>;
+ 			reg-shift = <2>;
+ 			interrupts = < 46 >;
+ 			interrupt-parent = <&AINTC>;
+ 			clock-frequency = < 48000000 >; 
+			uart-device-id = < 5 >;
+			status = "disabled";
+  		};
 
 		edma3@49000000 {
 			compatible = "ti,edma3";
@@ -112,6 +168,7 @@
 			interrupts = <64>;
 			interrupt-parent = <&AINTC>;
 			mmchs-device-id = <0>;
+			mmchs-wp-gpio-pin = <0xffffffff>;
 		};
 
 		mmchs1@481D8000 {
@@ -120,6 +177,7 @@
 			interrupts = <28>;
 			interrupt-parent = <&AINTC>;
 			mmchs-device-id = <1>;
+			mmchs-wp-gpio-pin = <0xffffffff>;
 			status = "disabled";
 		};
 

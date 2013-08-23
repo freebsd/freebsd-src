@@ -232,6 +232,7 @@ u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 
 static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
 static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
+static int		ndmpdpphys;	/* number of DMPDPphys pages */
 
 static struct rwlock_padalign pvh_global_lock;
 
@@ -539,7 +540,18 @@ create_pagetables(vm_paddr_t *firstaddr)
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
-	DMPDPphys = allocpages(firstaddr, NDMPML4E);
+	ndmpdpphys = howmany(ndmpdp, NPDPEPG);
+	if (ndmpdpphys > NDMPML4E) {
+		/*
+		 * Each NDMPML4E allows 512 GB, so limit to that,
+		 * and then readjust ndmpdp and ndmpdpphys.
+		 */
+		printf("NDMPML4E limits system to %d GB\n", NDMPML4E * 512);
+		Maxmem = atop(NDMPML4E * NBPML4);
+		ndmpdpphys = NDMPML4E;
+		ndmpdp = NDMPML4E * NPDEPG;
+	}
+	DMPDPphys = allocpages(firstaddr, ndmpdpphys);
 	ndm1g = 0;
 	if ((amd_feature & AMDID_PAGE1GB) != 0)
 		ndm1g = ptoa(Maxmem) >> PDPSHIFT;
@@ -556,6 +568,10 @@ create_pagetables(vm_paddr_t *firstaddr)
 	 * bootstrap.  We defer this until after all memory-size dependent
 	 * allocations are done (e.g. direct map), so that we don't have to
 	 * build in too much slop in our estimate.
+	 *
+	 * Note that when NKPML4E > 1, we have an empty page underneath
+	 * all but the KPML4I'th one, so we need NKPML4E-1 extra (zeroed)
+	 * pages.  (pmap_enter requires a PD page to exist for each KPML4E.)
 	 */
 	nkpt_init(*firstaddr);
 	nkpdpe = NKPDPE(nkpt);
@@ -580,8 +596,8 @@ create_pagetables(vm_paddr_t *firstaddr)
 	for (i = 0; (i << PDRSHIFT) < *firstaddr; i++)
 		pd_p[i] = (i << PDRSHIFT) | PG_RW | PG_V | PG_PS | PG_G;
 
-	/* And connect up the PD to the PDP */
-	pdp_p = (pdp_entry_t *)KPDPphys;
+	/* And connect up the PD to the PDP (leaving room for L4 pages) */
+	pdp_p = (pdp_entry_t *)(KPDPphys + ptoa(KPML4I - KPML4BASE));
 	for (i = 0; i < nkpdpe; i++)
 		pdp_p[i + KPDPI] = (KPDphys + ptoa(i)) | PG_RW | PG_V | PG_U;
 
@@ -618,14 +634,16 @@ create_pagetables(vm_paddr_t *firstaddr)
 	p4_p[PML4PML4I] |= PG_RW | PG_V | PG_U;
 
 	/* Connect the Direct Map slot(s) up to the PML4. */
-	for (i = 0; i < NDMPML4E; i++) {
+	for (i = 0; i < ndmpdpphys; i++) {
 		p4_p[DMPML4I + i] = DMPDPphys + ptoa(i);
 		p4_p[DMPML4I + i] |= PG_RW | PG_V | PG_U;
 	}
 
-	/* Connect the KVA slot up to the PML4 */
-	p4_p[KPML4I] = KPDPphys;
-	p4_p[KPML4I] |= PG_RW | PG_V | PG_U;
+	/* Connect the KVA slots up to the PML4 */
+	for (i = 0; i < NKPML4E; i++) {
+		p4_p[KPML4BASE + i] = KPDPphys + ptoa(i);
+		p4_p[KPML4BASE + i] |= PG_RW | PG_V | PG_U;
+	}
 }
 
 /*
@@ -1669,8 +1687,6 @@ pmap_pinit(pmap_t pmap)
 	vm_page_t pml4pg;
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * allocate the page directory page
 	 */
@@ -1684,8 +1700,11 @@ pmap_pinit(pmap_t pmap)
 		pagezero(pmap->pm_pml4);
 
 	/* Wire in kernel global address entries. */
-	pmap->pm_pml4[KPML4I] = KPDPphys | PG_RW | PG_V | PG_U;
-	for (i = 0; i < NDMPML4E; i++) {
+	for (i = 0; i < NKPML4E; i++) {
+		pmap->pm_pml4[KPML4BASE + i] = (KPDPphys + (i << PAGE_SHIFT)) |
+		    PG_RW | PG_V | PG_U;
+	}
+	for (i = 0; i < ndmpdpphys; i++) {
 		pmap->pm_pml4[DMPML4I + i] = (DMPDPphys + (i << PAGE_SHIFT)) |
 		    PG_RW | PG_V | PG_U;
 	}
@@ -1940,15 +1959,15 @@ pmap_release(pmap_t pmap)
 
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
 
-	pmap->pm_pml4[KPML4I] = 0;	/* KVA */
-	for (i = 0; i < NDMPML4E; i++)	/* Direct Map */
+	for (i = 0; i < NKPML4E; i++)	/* KVA */
+		pmap->pm_pml4[KPML4BASE + i] = 0;
+	for (i = 0; i < ndmpdpphys; i++)/* Direct Map */
 		pmap->pm_pml4[DMPML4I + i] = 0;
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
 	m->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 static int
@@ -4740,10 +4759,12 @@ pmap_remove_write(vm_page_t m)
 {
 	struct md_page *pvh;
 	pmap_t pmap;
+	struct rwlock *lock;
 	pv_entry_t next_pv, pv;
 	pd_entry_t *pde;
 	pt_entry_t oldpte, *pte;
 	vm_offset_t va;
+	int pvh_gen, md_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_write: page %p is not managed", m));
@@ -4756,23 +4777,51 @@ pmap_remove_write(vm_page_t m)
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return;
-	rw_wlock(&pvh_global_lock);
+	rw_rlock(&pvh_global_lock);
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+retry_pv_loop:
+	rw_wlock(lock);
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		goto small_mappings;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				PMAP_UNLOCK(pmap);
+				rw_wunlock(lock);
+				goto retry_pv_loop;
+			}
+		}
 		va = pv->pv_va;
 		pde = pmap_pde(pmap, va);
 		if ((*pde & PG_RW) != 0)
-			(void)pmap_demote_pde(pmap, pde, va);
+			(void)pmap_demote_pde_locked(pmap, pde, va, &lock);
+		KASSERT(lock == VM_PAGE_TO_PV_LIST_LOCK(m),
+		    ("inconsistent pv lock %p %p for page %p",
+		    lock, VM_PAGE_TO_PV_LIST_LOCK(m), m));
 		PMAP_UNLOCK(pmap);
 	}
 small_mappings:
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			md_gen = m->md.pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen ||
+			    md_gen != m->md.pv_gen) {
+				PMAP_UNLOCK(pmap);
+				rw_wunlock(lock);
+				goto retry_pv_loop;
+			}
+		}
 		pde = pmap_pde(pmap, pv->pv_va);
 		KASSERT((*pde & PG_PS) == 0,
 		    ("pmap_remove_write: found a 2mpage in page %p's pv list",
@@ -4790,8 +4839,9 @@ retry:
 		}
 		PMAP_UNLOCK(pmap);
 	}
+	rw_wunlock(lock);
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
-	rw_wunlock(&pvh_global_lock);
+	rw_runlock(&pvh_global_lock);
 }
 
 /*

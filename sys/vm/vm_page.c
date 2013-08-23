@@ -1927,7 +1927,7 @@ vm_page_alloc_freelist(int flind, int req)
 	/*
 	 * Do not allocate reserved pages unless the req has asked for it.
 	 */
-	mtx_lock(&vm_page_queue_free_mtx);
+	mtx_lock_flags(&vm_page_queue_free_mtx, MTX_RECURSE);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
@@ -2558,6 +2558,15 @@ vm_page_cache(vm_page_t m)
 		vm_page_free(m);
 		return;
 	}
+
+	/*
+	 * The above call to vm_radix_insert() could reclaim the one pre-
+	 * existing cached page from this object, resulting in a call to
+	 * vdrop().
+	 */
+	if (!cache_was_empty)
+		cache_was_empty = vm_radix_is_singleton(&object->cache);
+
 	m->flags |= PG_CACHED;
 	cnt.v_cache_count++;
 	PCPU_INC(cnt.v_tcached);
@@ -2685,9 +2694,6 @@ vm_page_advise(vm_page_t m, int advice)
  * to be in the object.  If the page doesn't exist, first allocate it
  * and then conditionally zero it.
  *
- * The caller must always specify the VM_ALLOC_RETRY flag.  This is intended
- * to facilitate its eventual removal.
- *
  * This routine may sleep.
  *
  * The object must be locked on entry.  The lock will, however, be released
@@ -2700,8 +2706,6 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 	int sleep;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT((allocflags & VM_ALLOC_RETRY) != 0,
-	    ("vm_page_grab: VM_ALLOC_RETRY is required"));
 	KASSERT((allocflags & VM_ALLOC_SBUSY) == 0 ||
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
 	    ("vm_page_grab: VM_ALLOC_SBUSY/VM_ALLOC_IGN_SBUSY mismatch"));
@@ -2735,8 +2739,7 @@ retrylookup:
 			return (m);
 		}
 	}
-	m = vm_page_alloc(object, pindex, allocflags & ~(VM_ALLOC_RETRY |
-	    VM_ALLOC_IGN_SBUSY));
+	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_IGN_SBUSY);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		VM_WAIT;

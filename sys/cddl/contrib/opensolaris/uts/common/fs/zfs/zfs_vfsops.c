@@ -1796,17 +1796,6 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	return (0);
 }
 
-int
-zfs_vnode_lock(vnode_t *vp, int flags)
-{
-	int error;
-
-	ASSERT(vp != NULL);
-
-	error = vn_lock(vp, flags);
-	return (error);
-}
-
 static int
 zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 {
@@ -1823,7 +1812,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	ZFS_EXIT(zfsvfs);
 
 	if (error == 0) {
-		error = zfs_vnode_lock(*vpp, flags);
+		error = vn_lock(*vpp, flags);
 		if (error == 0)
 			(*vpp)->v_vflag |= VV_ROOT;
 	}
@@ -2084,7 +2073,7 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
 	if (err == 0)
-		err = zfs_vnode_lock(*vpp, flags);
+		err = vn_lock(*vpp, flags);
 	if (err != 0)
 		*vpp = NULL;
 	else
@@ -2183,7 +2172,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, flags);
+		err = vn_lock(*vpp, flags);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);
@@ -2210,7 +2199,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 
 	*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
-	err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
+	err = vn_lock(*vpp, flags | LK_RETRY);
 	if (err == 0)
 		vnode_create_vobject(*vpp, zp->z_size, curthread);
 	else

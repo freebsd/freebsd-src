@@ -165,9 +165,8 @@ isc_taskpool_destroy(isc_taskpool_t **poolp) {
 	unsigned int i;
 	isc_taskpool_t *pool = *poolp;
 	for (i = 0; i < pool->ntasks; i++) {
-		if (pool->tasks[i] != NULL) {
+		if (pool->tasks[i] != NULL)
 			isc_task_detach(&pool->tasks[i]);
-		}
 	}
 	isc_mem_put(pool->mctx, pool->tasks,
 		    pool->ntasks * sizeof(isc_task_t *));
@@ -175,4 +174,14 @@ isc_taskpool_destroy(isc_taskpool_t **poolp) {
 	*poolp = NULL;
 }
 
+void
+isc_taskpool_setprivilege(isc_taskpool_t *pool, isc_boolean_t priv) {
+	unsigned int i;
 
+	REQUIRE(pool != NULL);
+
+	for (i = 0; i < pool->ntasks; i++) {
+		if (pool->tasks[i] != NULL)
+			isc_task_setprivilege(pool->tasks[i], priv);
+	}
+}

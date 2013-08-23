@@ -158,8 +158,6 @@ sfstat_sysctl(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
     NULL, 0, sfstat_sysctl, "I", "sendfile statistics");
 
-fo_sendfile_t vn_sendfile;
-
 /*
  * Convert a user file descriptor to a kernel file entry and check if required
  * capability rights are present.
@@ -2232,7 +2230,8 @@ retry_space:
 			pindex = OFF_TO_IDX(off);
 			VM_OBJECT_WLOCK(obj);
 			pg = vm_page_grab(obj, pindex, VM_ALLOC_NOBUSY |
-			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_RETRY);
+			    VM_ALLOC_IGN_SBUSY | VM_ALLOC_NORMAL |
+			    VM_ALLOC_WIRED);
 
 			/*
 			 * Check if page is valid for what we need,

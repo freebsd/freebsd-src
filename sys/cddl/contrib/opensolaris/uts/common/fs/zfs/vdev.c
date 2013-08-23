@@ -52,6 +52,51 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
  * Virtual device management.
  */
 
+/**
+ * The limit for ZFS to automatically increase a top-level vdev's ashift
+ * from logical ashift to physical ashift.
+ *
+ * Example: one or more 512B emulation child vdevs
+ *          child->vdev_ashift = 9 (512 bytes)
+ *          child->vdev_physical_ashift = 12 (4096 bytes)
+ *          zfs_max_auto_ashift = 11 (2048 bytes)
+ *
+ * On pool creation or the addition of a new top-leve vdev, ZFS will
+ * bump the ashift of the top-level vdev to 2048.
+ *
+ * Example: one or more 512B emulation child vdevs
+ *          child->vdev_ashift = 9 (512 bytes)
+ *          child->vdev_physical_ashift = 12 (4096 bytes)
+ *          zfs_max_auto_ashift = 13 (8192 bytes)
+ *
+ * On pool creation or the addition of a new top-leve vdev, ZFS will
+ * bump the ashift of the top-level vdev to 4096.
+ */
+static uint64_t zfs_max_auto_ashift = SPA_MAXASHIFT;
+
+static int
+sysctl_vfs_zfs_max_auto_ashift(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_max_auto_ashift;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val > SPA_MAXASHIFT)
+		val = SPA_MAXASHIFT;
+
+	zfs_max_auto_ashift = val;
+
+	return (0);
+}
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, max_auto_ashift,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
+    sysctl_vfs_zfs_max_auto_ashift, "QU",
+    "Cap on logical -> physical ashift adjustment on new top-level vdevs.");
+
 static vdev_ops_t *vdev_ops_table[] = {
 	&vdev_root_ops,
 	&vdev_raidz_ops,
@@ -746,6 +791,8 @@ vdev_add_parent(vdev_t *cvd, vdev_ops_t *ops)
 	mvd->vdev_min_asize = cvd->vdev_min_asize;
 	mvd->vdev_max_asize = cvd->vdev_max_asize;
 	mvd->vdev_ashift = cvd->vdev_ashift;
+	mvd->vdev_logical_ashift = cvd->vdev_logical_ashift;
+	mvd->vdev_physical_ashift = cvd->vdev_physical_ashift;
 	mvd->vdev_state = cvd->vdev_state;
 	mvd->vdev_crtxg = cvd->vdev_crtxg;
 
@@ -777,6 +824,8 @@ vdev_remove_parent(vdev_t *cvd)
 	    mvd->vdev_ops == &vdev_replacing_ops ||
 	    mvd->vdev_ops == &vdev_spare_ops);
 	cvd->vdev_ashift = mvd->vdev_ashift;
+	cvd->vdev_logical_ashift = mvd->vdev_logical_ashift;
+	cvd->vdev_physical_ashift = mvd->vdev_physical_ashift;
 
 	vdev_remove_child(mvd, cvd);
 	vdev_remove_child(pvd, mvd);
@@ -1120,7 +1169,8 @@ vdev_open(vdev_t *vd)
 	uint64_t osize = 0;
 	uint64_t max_osize = 0;
 	uint64_t asize, max_asize, psize;
-	uint64_t ashift = 0;
+	uint64_t logical_ashift = 0;
+	uint64_t physical_ashift = 0;
 
 	ASSERT(vd->vdev_open_thread == curthread ||
 	    spa_config_held(spa, SCL_STATE_ALL, RW_WRITER) == SCL_STATE_ALL);
@@ -1150,7 +1200,8 @@ vdev_open(vdev_t *vd)
 		return (SET_ERROR(ENXIO));
 	}
 
-	error = vd->vdev_ops->vdev_op_open(vd, &osize, &max_osize, &ashift);
+	error = vd->vdev_ops->vdev_op_open(vd, &osize, &max_osize,
+	    &logical_ashift, &physical_ashift);
 
 	/*
 	 * Reset the vdev_reopening flag so that we actually close
@@ -1248,6 +1299,17 @@ vdev_open(vdev_t *vd)
 		return (SET_ERROR(EINVAL));
 	}
 
+	vd->vdev_physical_ashift =
+	    MAX(physical_ashift, vd->vdev_physical_ashift);
+	vd->vdev_logical_ashift = MAX(logical_ashift, vd->vdev_logical_ashift);
+	vd->vdev_ashift = MAX(vd->vdev_logical_ashift, vd->vdev_ashift);
+
+	if (vd->vdev_logical_ashift > SPA_MAXASHIFT) {
+		vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
+		    VDEV_AUX_ASHIFT_TOO_BIG);
+		return (EINVAL);
+	}
+
 	if (vd->vdev_asize == 0) {
 		/*
 		 * This is the first-ever open, so use the computed values.
@@ -1255,19 +1317,15 @@ vdev_open(vdev_t *vd)
 		 */
 		vd->vdev_asize = asize;
 		vd->vdev_max_asize = max_asize;
-		vd->vdev_ashift = MAX(ashift, vd->vdev_ashift);
 	} else {
 		/*
-		 * Detect if the alignment requirement has increased.
-		 * We don't want to make the pool unavailable, just
-		 * issue a warning instead.
+		 * Make sure the alignment requirement hasn't increased.
 		 */
-		if (ashift > vd->vdev_top->vdev_ashift &&
+		if (vd->vdev_ashift > vd->vdev_top->vdev_ashift &&
 		    vd->vdev_ops->vdev_op_leaf) {
-			cmn_err(CE_WARN,
-			    "Disk, '%s', has a block alignment that is "
-			    "larger than the pool's alignment\n",
-			    vd->vdev_path);
+			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
+			    VDEV_AUX_BAD_LABEL);
+			return (EINVAL);
 		}
 		vd->vdev_max_asize = max_asize;
 	}
@@ -1575,6 +1633,23 @@ vdev_metaslab_set_size(vdev_t *vd)
 	 */
 	vd->vdev_ms_shift = highbit(vd->vdev_asize / 200);
 	vd->vdev_ms_shift = MAX(vd->vdev_ms_shift, SPA_MAXBLOCKSHIFT);
+}
+
+/*
+ * Maximize performance by inflating the configured ashift for
+ * top level vdevs to be as close to the physical ashift as
+ * possible without exceeding the administrator specified
+ * limit.
+ */
+void
+vdev_ashift_optimize(vdev_t *vd)
+{
+	if (vd == vd->vdev_top &&
+	    (vd->vdev_ashift < vd->vdev_physical_ashift) &&
+	    (vd->vdev_ashift < zfs_max_auto_ashift)) {
+		vd->vdev_ashift = MIN(zfs_max_auto_ashift,
+		    vd->vdev_physical_ashift);
+	}
 }
 
 void
@@ -2595,6 +2670,10 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	if (vd->vdev_ops->vdev_op_leaf)
 		vs->vs_rsize += VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
 	vs->vs_esize = vd->vdev_max_asize - vd->vdev_asize;
+	vs->vs_configured_ashift = vd->vdev_top != NULL
+	    ? vd->vdev_top->vdev_ashift : vd->vdev_ashift;
+	vs->vs_logical_ashift = vd->vdev_logical_ashift;
+	vs->vs_physical_ashift = vd->vdev_physical_ashift;
 	mutex_exit(&vd->vdev_stat_lock);
 
 	/*

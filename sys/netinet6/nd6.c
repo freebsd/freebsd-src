@@ -1508,7 +1508,11 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		nbi->state = ln->ln_state;
 		nbi->asked = ln->la_asked;
 		nbi->isrouter = ln->ln_router;
-		nbi->expire = ln->la_expire + (time_second - time_uptime);
+		if (ln->la_expire == 0)
+			nbi->expire = 0;
+		else
+			nbi->expire = ln->la_expire +
+			    (time_second - time_uptime);
 		LLE_RUNLOCK(ln);
 		break;
 	}
@@ -2078,8 +2082,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		}
 		return (error);
 	}
-	/* Reset layer specific mbuf flags to avoid confusing lower layers. */
-	m->m_flags &= ~(M_PROTOFLAGS);  
+	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
 		    NULL));

@@ -1125,9 +1125,9 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
 	pfx->pfx_onlinkflg = ipr->ipr_raf_onlink;
 	pfx->pfx_autoconfflg = ipr->ipr_raf_auto;
 	pfx->pfx_origin = PREFIX_FROM_DYNAMIC;
+	pfx->pfx_rainfo = rai;
 
 	TAILQ_INSERT_TAIL(&rai->rai_prefix, pfx, pfx_next);
-	pfx->pfx_rainfo = rai;
 
 	syslog(LOG_DEBUG, "<%s> new prefix %s/%d was added on %s",
 	    __func__,

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.113.16.2 2011/02/28 01:19:58 tbox Exp $ */
+/* $Id: config.c,v 1.123 2012/01/06 23:46:41 tbox Exp $ */
 
 /*! \file */
 
@@ -73,6 +73,7 @@ options {\n\
 	listen-on {any;};\n\
 	listen-on-v6 {none;};\n\
 	match-mapped-addresses no;\n\
+	max-rsa-exponent-size 0; /* no limit */\n\
 	memstatistics-file \"named.memstats\";\n\
 	multiple-cnames no;\n\
 #	named-xfer <obsolete>;\n\
@@ -90,7 +91,7 @@ options {\n\
 "\
 	recursive-clients 1000;\n\
 	resolver-query-timeout 10;\n\
-	rrset-order {type NS order random; order cyclic; };\n\
+	rrset-order { order random; };\n\
 	serial-queries 20;\n\
 	serial-query-rate 20;\n\
 	server-id none;\n\
@@ -200,7 +201,8 @@ options {\n\
 	sig-signing-nodes 100;\n\
 	sig-signing-signatures 10;\n\
 	sig-signing-type 65534;\n\
-	zone-statistics false;\n\
+	inline-signing no;\n\
+	zone-statistics terse;\n\
 	max-journal-size unlimited;\n\
 	ixfr-from-differences false;\n\
 	check-wildcard yes;\n\
@@ -210,7 +212,10 @@ options {\n\
 	check-srv-cname warn;\n\
 	zero-no-soa-ttl yes;\n\
 	update-check-ksk yes;\n\
+	serial-update-method increment;\n\
+	dnssec-update-mode maintain;\n\
 	dnssec-dnskey-kskonly no;\n\
+	dnssec-loadkeys-interval 60;\n\
 	try-tcp-refresh yes; /* BIND 8 compat */\n\
 };\n\
 "
@@ -292,7 +297,8 @@ ns_checknames_get(const cfg_obj_t **maps, const char *which,
 		if (maps[i] == NULL)
 			return (ISC_R_NOTFOUND);
 		checknames = NULL;
-		if (cfg_map_get(maps[i], "check-names", &checknames) == ISC_R_SUCCESS) {
+		if (cfg_map_get(maps[i], "check-names",
+				&checknames) == ISC_R_SUCCESS) {
 			/*
 			 * Zone map entry is not a list.
 			 */
@@ -305,7 +311,8 @@ ns_checknames_get(const cfg_obj_t **maps, const char *which,
 			     element = cfg_list_next(element)) {
 				value = cfg_listelt_value(element);
 				type = cfg_tuple_get(value, "type");
-				if (strcasecmp(cfg_obj_asstring(type), which) == 0) {
+				if (strcasecmp(cfg_obj_asstring(type),
+					       which) == 0) {
 					*obj = cfg_tuple_get(value, "mode");
 					return (ISC_R_SUCCESS);
 				}
@@ -378,6 +385,8 @@ ns_config_getzonetype(const cfg_obj_t *zonetypeobj) {
 		ztype = dns_zone_stub;
 	else if (strcasecmp(str, "static-stub") == 0)
 		ztype = dns_zone_staticstub;
+	else if (strcasecmp(str, "redirect") == 0)
+		ztype = dns_zone_redirect;
 	else
 		INSIST(0);
 	return (ztype);

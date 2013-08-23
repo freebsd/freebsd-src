@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2013
+.Dd August 17, 2013
 .Dt SDT 9
 .Os
 .Sh NAME
@@ -45,6 +45,19 @@
 .Fn SDT_PROBE_DEFINE6 prov mod func name sname arg0 arg1 arg2 arg3 arg4 arg5
 .Fn SDT_PROBE_DEFINE7 prov mod func name sname arg0 arg1 arg2 arg3 arg4 arg5   \
     arg6
+.Fn SDT_PROBE_DEFINE0_XLATE prov mod func name sname
+.Fn SDT_PROBE_DEFINE1_XLATE prov mod func name sname arg0 xarg0
+.Fn SDT_PROBE_DEFINE2_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1
+.Fn SDT_PROBE_DEFINE3_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2
+.Fn SDT_PROBE_DEFINE4_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3
+.Fn SDT_PROBE_DEFINE5_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3 arg4 xarg4
+.Fn SDT_PROBE_DEFINE6_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3 arg4 xarg4 arg5 xarg5
+.Fn SDT_PROBE_DEFINE7_XLATE prov mod func name sname arg0 xarg0 arg1 xarg1 \
+    arg2 xarg2 arg3 xarg3 arg4 xarg4 arg5 xarg5 arg6 xarg6
 .Fn SDT_PROBE0 prov mod func name
 .Fn SDT_PROBE1 prov mod func name arg0
 .Fn SDT_PROBE2 prov mod func name arg0 arg1
@@ -150,6 +163,30 @@ It is strongly recommended that probe definitions include a declaration of their
 argument types.
 .Pp
 The
+.Fn SDT_PROBE_DEFINE*_XLATE
+macros are used for probes whose argument types are to be dynamically translated
+to the types specified by the corresponding
+.Ar xarg
+arguments.
+This is mainly useful when porting probe definitions from other operating
+systems.
+As seen by
+.Xr dtrace 1 ,
+the arguments of a probe defined using these macros will have types which match
+the
+.Ar xarg
+types in the probe definition.
+However, the arguments passed in at the trace point will have types matching the
+native argument types in the probe definition, and thus the native type is
+dynamically translated to the translated type.
+So long as an appropriate translator is defined in
+.Pa /usr/lib/dtrace ,
+scripts making use of the probe need not concern themselves with the underlying
+type of a given
+.Nm
+probe argument.
+.Pp
+The
 .Fn SDT_PROBE*
 macros are used to create
 .Nm
@@ -164,21 +201,20 @@ of type Destination Unreachable:
 .Bd -literal -offset indent
 SDT_PROVIDER_DECLARE(icmp);
 
-SDT_PROBE_DEFINE2(icmp, , unreach, pkt_receive, pkt-receive,
-    "struct mbuf *", "struct icmp *");
+SDT_PROBE_DEFINE1(icmp, , unreach, pkt_receive, pkt-receive,
+    "struct icmp *");
 
 .Ed
-This particular probe would take two arguments: a pointer to the
-.Xr mbuf 9
-containing the incoming packet, and a pointer to the ICMP header for the packet.
+This particular probe would take a single argument: a pointer to the struct
+containing the ICMP header for the packet.
 Note that the module name of this probe is not specified.
 .Pp
 Consider a DTrace probe which fires when the network stack receives an IP
 packet.
 Such a probe would be defined by multiple tracepoints:
 .Bd -literal -offset indent
-SDT_PROBE_DEFINE2(ip, , , receive, receive, "struct mbuf *",
-    "struct ifnet *", "struct ip *", "struct ip6_hdr *");
+SDT_PROBE_DEFINE3(ip, , , receive, receive, "struct ifnet *",
+    "struct ip *", "struct ip6_hdr *");
 
 int
 ip_input(struct mbuf *m)
@@ -186,7 +222,7 @@ ip_input(struct mbuf *m)
 	struct ip *ip;
 	...
 	ip = mtod(m, struct ip *);
-	SDT_PROBE4(ip, , , receive, m, m->m_pkthdr.rcvif, ip, NULL);
+	SDT_PROBE3(ip, , , receive, m->m_pkthdr.rcvif, ip, NULL);
 	...
 }
 
@@ -196,13 +232,46 @@ ip6_input(struct mbuf *m)
 	struct ip6_hdr *ip6;
 	...
 	ip6 = mtod(m, struct ip6_hdr *);
-	SDT_PROBE4(ip, , , receive, m, m->m_pkthdr.rcvif, NULL, ip6);
+	SDT_PROBE3(ip, , , receive, m->m_pkthdr.rcvif, NULL, ip6);
 	...
 }
 
 .Ed
 In particular, the probe should fire when the kernel receives either an IPv4
 packet or an IPv6 packet.
+.Pp
+Consider the ICMP probe discussed above.
+We note that its second argument is of type
+.Ar struct icmp ,
+which is a type defined in the FreeBSD kernel to represent the ICMP header of
+an ICMP packet, defined in RFC 792.
+Linux has a corresponding type,
+.Ar struct icmphdr ,
+for the same purpose, but its field names differ from FreeBSD's
+.Ar struct icmp .
+Similarly, illumos defines the
+.Ar icmph_t
+type, again with different field names.
+Even with the
+.Ql icmp:::pkt-receive
+probes defined in all three operating systems,
+one would still have to write OS-specific scripts to extract a given field out
+of the ICMP header argument.
+Dynamically-translated types solve this problem: one can define an
+OS-independent
+.Xr c 7
+struct to represent an ICMP header, say
+.Ar struct icmp_hdr_dt ,
+and define translators from each of the three OS-specific types to
+.Ar struct icmp_hdr_dt ,
+all in the
+.Xr dtrace 1
+library path.
+Then the FreeBSD probe above can be defined with:
+.Bd -literal -offset indent
+SDT_PROBE_DEFINE1_XLATE(ip, , , receive, receive, "struct icmp *",
+    "struct icmp_hdr_dt *");
+.Ed
 .Sh SEE ALSO
 .Xr dtrace 1
 .Sh AUTHORS

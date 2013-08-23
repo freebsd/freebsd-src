@@ -159,7 +159,7 @@ SUBDIR=	\
 	${_ipw} \
 	${_ipwfw} \
 	${_isci} \
-	iscsi \
+	iscsi_initiator \
 	isp \
 	${_ispfw} \
 	${_iwi} \
@@ -342,6 +342,7 @@ SUBDIR=	\
 	${_viawd} \
 	vkbd \
 	${_vmm} \
+	${_vmware} \
 	${_vpo} \
 	vr \
 	vte \
@@ -368,6 +369,7 @@ SUBDIR=	\
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
+_vmware=	vmware
 .endif
 
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \

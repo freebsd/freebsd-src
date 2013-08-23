@@ -67,6 +67,7 @@ options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
+options 	PROCDESC		# Support for process descriptors
 options 	MAC			# TrustedBSD MAC Framework
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
@@ -306,8 +307,8 @@ device		wpi		# Intel 3945ABG wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
-options 	PADLOCK_RNG	# VIA Padlock RNG
-options 	RDRAND_RNG	# Intel Bull Mountain RNG
+device		padlock_rng	# VIA Padlock RNG
+device		rdrand_rng	# Intel Bull Mountain RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.

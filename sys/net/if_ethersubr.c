@@ -774,7 +774,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	 * Strip off Ethernet header.
 	 */
 	m->m_flags &= ~M_VLANTAG;
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m_adj(m, ETHER_HDR_LEN);
 
 	/*

@@ -528,9 +528,11 @@ ufs_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
-		if ((vap->va_flags & ~(UF_NODUMP | UF_IMMUTABLE | UF_APPEND |
-		    UF_OPAQUE | UF_NOUNLINK | SF_ARCHIVED | SF_IMMUTABLE |
-		    SF_APPEND | SF_NOUNLINK | SF_SNAPSHOT)) != 0)
+		if ((vap->va_flags & ~(SF_APPEND | SF_ARCHIVED | SF_IMMUTABLE |
+		    SF_NOUNLINK | SF_SNAPSHOT | UF_APPEND | UF_ARCHIVE |
+		    UF_HIDDEN | UF_IMMUTABLE | UF_NODUMP | UF_NOUNLINK |
+		    UF_OFFLINE | UF_OPAQUE | UF_READONLY | UF_REPARSE |
+		    UF_SPARSE | UF_SYSTEM)) != 0)
 			return (EOPNOTSUPP);
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);

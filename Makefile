@@ -242,6 +242,7 @@ cleanworld:
 # skip this for -n to avoid changing previous behavior of 
 # 'make -n buildworld' etc.
 ${TGTS}: .MAKE
+tinderbox toolchains kernel-toolchains: .MAKE
 .endif
 
 ${TGTS}:
@@ -348,19 +349,21 @@ make bmake: .PHONY
 	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
-		${MMAKE} obj && \
-		${MMAKE} depend && \
-		${MMAKE} all && \
+		${MMAKE} obj DESTDIR= && \
+		${MMAKE} depend DESTDIR= && \
+		${MMAKE} all DESTDIR= && \
 		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= PROGNAME=${MYMAKE:T}
 
+tinderbox toolchains kernel-toolchains: upgrade_checks
+
 tinderbox:
-	@cd ${.CURDIR} && ${MAKE} DOING_TINDERBOX=YES universe
+	@cd ${.CURDIR} && ${SUB_MAKE} DOING_TINDERBOX=YES universe
 
 toolchains:
-	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=toolchain universe
+	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=toolchain universe
 
 kernel-toolchains:
-	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=kernel-toolchain universe
+	@cd ${.CURDIR} && ${SUB_MAKE} UNIVERSE_TARGET=kernel-toolchain universe
 
 #
 # universe
@@ -419,7 +422,7 @@ universe_${target}_prologue: universe_prologue
 .if !defined(MAKE_JUST_KERNELS)
 .for target_arch in ${TARGET_ARCHES_${target}}
 universe_${target}: universe_${target}_${target_arch}
-universe_${target}_${target_arch}: universe_${target}_prologue
+universe_${target}_${target_arch}: universe_${target}_prologue .MAKE
 	@echo ">> ${target}.${target_arch} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
@@ -440,7 +443,7 @@ universe_${target}_kernels: universe_${target}_${target_arch}
 .endfor
 .endif
 universe_${target}: universe_${target}_kernels
-universe_${target}_kernels: universe_${target}_prologue
+universe_${target}_kernels: universe_${target}_prologue .MAKE
 .if exists(${KERNSRCDIR}/${target}/conf/NOTES)
 	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
@@ -468,7 +471,7 @@ TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 .error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
 .endif
 universe_kernconfs: universe_kernconf_${TARGET}_${kernel}
-universe_kernconf_${TARGET}_${kernel}:
+universe_kernconf_${TARGET}_${kernel}: .MAKE
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
 	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
