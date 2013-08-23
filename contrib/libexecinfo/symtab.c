@@ -33,6 +33,7 @@ __RCSID("$NetBSD: symtab.c,v 1.1 2012/05/26 22:02:29 christos Exp $");
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <err.h>
 #include <dlfcn.h>
