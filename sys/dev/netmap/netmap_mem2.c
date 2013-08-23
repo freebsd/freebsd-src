@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_mem2.c 11881 2012-10-18 23:24:15Z luigi $
  *
  * (New) memory allocator for netmap
  */
@@ -98,9 +97,11 @@
 #define NETMAP_BUF_MAX_NUM	20*4096*2	/* large machine */
 
 #ifdef linux
+// XXX a mtx would suffice here 20130415 lr
+// #define NMA_LOCK_T		safe_spinlock_t
 #define NMA_LOCK_T		struct semaphore
 #define NMA_LOCK_INIT()		sema_init(&nm_mem.nm_mtx, 1)
-#define NMA_LOCK_DESTROY()	
+#define NMA_LOCK_DESTROY()
 #define NMA_LOCK()		down(&nm_mem.nm_mtx)
 #define NMA_UNLOCK()		up(&nm_mem.nm_mtx)
 #else /* !linux */
@@ -380,7 +381,7 @@ netmap_obj_free_va(struct netmap_obj_pool *p, void *vaddr)
 		ssize_t relofs = (ssize_t) vaddr - (ssize_t) base;
 
 		/* Given address, is out of the scope of the current cluster.*/
-		if (vaddr < base || relofs > p->_clustsize)
+		if (vaddr < base || relofs >= p->_clustsize)
 			continue;
 
 		j = j + relofs / p->_objsize;
@@ -526,12 +527,12 @@ netmap_config_obj_allocator(struct netmap_obj_pool *p, u_int objtotal, u_int obj
 		objsize += LINE_ROUND - i;
 	}
 	if (objsize < p->objminsize || objsize > p->objmaxsize) {
-		D("requested objsize %d out of range [%d, %d]", 
+		D("requested objsize %d out of range [%d, %d]",
 			objsize, p->objminsize, p->objmaxsize);
 		goto error;
 	}
 	if (objtotal < p->nummin || objtotal > p->nummax) {
-		D("requested objtotal %d out of range [%d, %d]", 
+		D("requested objtotal %d out of range [%d, %d]",
 			objtotal, p->nummin, p->nummax);
 		goto error;
 	}
@@ -692,7 +693,7 @@ netmap_memory_config(void)
 		/* reset previous allocation */
 		for (i = 0; i < NETMAP_POOLS_NR; i++) {
 			netmap_reset_obj_allocator(&nm_mem.pools[i]);
-		}    
+		}
 		nm_mem.finalized = 0;
         }
 

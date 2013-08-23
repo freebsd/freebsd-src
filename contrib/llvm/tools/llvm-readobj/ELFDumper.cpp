@@ -50,16 +50,18 @@ public:
 
   virtual void printDynamicTable() LLVM_OVERRIDE;
   virtual void printNeededLibraries() LLVM_OVERRIDE;
+  virtual void printProgramHeaders() LLVM_OVERRIDE;
 
 private:
-  typedef typename ELFObjectFile<ELFT>::Elf_Shdr Elf_Shdr;
-  typedef typename ELFObjectFile<ELFT>::Elf_Sym Elf_Sym;
+  typedef ELFObjectFile<ELFT> ELFO;
+  typedef typename ELFO::Elf_Shdr Elf_Shdr;
+  typedef typename ELFO::Elf_Sym Elf_Sym;
 
   void printSymbol(symbol_iterator SymI, bool IsDynamic = false);
 
   void printRelocation(section_iterator SecI, relocation_iterator RelI);
 
-  const ELFObjectFile<ELFT> *Obj;
+  const ELFO *Obj;
 };
 
 } // namespace
@@ -399,11 +401,37 @@ static const EnumEntry<unsigned> ElfSectionFlags[] = {
   LLVM_READOBJ_ENUM_ENT(ELF, SHF_MIPS_NOSTRIP    )
 };
 
+static const EnumEntry<unsigned> ElfSegmentTypes[] = {
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_NULL   ),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_LOAD   ),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_DYNAMIC),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_INTERP ),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_NOTE   ),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_SHLIB  ),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_PHDR   ),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_TLS    ),
+
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_GNU_EH_FRAME),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_SUNW_EH_FRAME),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_SUNW_UNWIND),
+
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_GNU_STACK),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_GNU_RELRO),
+
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_ARM_EXIDX),
+  LLVM_READOBJ_ENUM_ENT(ELF, PT_ARM_UNWIND)
+};
+
+static const EnumEntry<unsigned> ElfSegmentFlags[] = {
+  LLVM_READOBJ_ENUM_ENT(ELF, PF_X),
+  LLVM_READOBJ_ENUM_ENT(ELF, PF_W),
+  LLVM_READOBJ_ENUM_ENT(ELF, PF_R)
+};
+
 
 template<class ELFT>
 void ELFDumper<ELFT>::printFileHeaders() {
   error_code EC;
-  typedef ELFObjectFile<ELFT> ELFO;
 
   const typename ELFO::Elf_Ehdr *Header = Obj->getElfHeader();
 
@@ -549,22 +577,36 @@ template<class ELFT>
 void ELFDumper<ELFT>::printRelocation(section_iterator Sec,
                                       relocation_iterator RelI) {
   uint64_t Offset;
+  uint64_t RelocType;
   SmallString<32> RelocName;
   int64_t Info;
   StringRef SymbolName;
   SymbolRef Symbol;
-  if (error(RelI->getOffset(Offset))) return;
+  if (Obj->getElfHeader()->e_type == ELF::ET_REL){
+    if (error(RelI->getOffset(Offset))) return;
+  } else {
+    if (error(RelI->getAddress(Offset))) return;
+  }
+  if (error(RelI->getType(RelocType))) return;
   if (error(RelI->getTypeName(RelocName))) return;
   if (error(RelI->getAdditionalInfo(Info))) return;
   if (error(RelI->getSymbol(Symbol))) return;
   if (error(Symbol.getName(SymbolName))) return;
 
-  raw_ostream& OS = W.startLine();
-  OS << W.hex(Offset)
-     << " " << RelocName
-     << " " << (SymbolName.size() > 0 ? SymbolName : "-")
-     << " " << W.hex(Info)
-     << "\n";
+  if (opts::ExpandRelocs) {
+    DictScope Group(W, "Relocation");
+    W.printHex("Offset", Offset);
+    W.printNumber("Type", RelocName, RelocType);
+    W.printString("Symbol", SymbolName.size() > 0 ? SymbolName : "-");
+    W.printHex("Info", Info);
+  } else {
+    raw_ostream& OS = W.startLine();
+    OS << W.hex(Offset)
+       << " " << RelocName
+       << " " << (SymbolName.size() > 0 ? SymbolName : "-")
+       << " " << W.hex(Info)
+       << "\n";
+  }
 }
 
 template<class ELFT>
@@ -605,9 +647,9 @@ void ELFDumper<ELFT>::printSymbol(symbol_iterator SymI, bool IsDynamic) {
   if (SymI->getName(SymbolName))
     SymbolName = "";
 
-  StringRef SectionName;
-  if (Section && Obj->getSectionName(Section, SectionName))
-    SectionName = "";
+  StringRef SectionName = "";
+  if (Section)
+    Obj->getSectionName(Section, SectionName);
 
   std::string FullSymbolName(SymbolName);
   if (IsDynamic) {
@@ -735,7 +777,6 @@ void ELFDumper<ELFT>::printUnwindInfo() {
 
 template<class ELFT>
 void ELFDumper<ELFT>::printDynamicTable() {
-  typedef ELFObjectFile<ELFT> ELFO;
   typedef typename ELFO::Elf_Dyn_iterator EDI;
   EDI Start = Obj->begin_dynamic_table(),
       End = Obj->end_dynamic_table(true);
@@ -796,5 +837,24 @@ void ELFDumper<ELFT>::printNeededLibraries() {
     StringRef Path;
     I->getPath(Path);
     outs() << "  " << Path << "\n";
+  }
+}
+
+template<class ELFT>
+void ELFDumper<ELFT>::printProgramHeaders() {
+  ListScope L(W, "ProgramHeaders");
+
+  for (typename ELFO::Elf_Phdr_Iter PI = Obj->begin_program_headers(),
+                                    PE = Obj->end_program_headers();
+                                    PI != PE; ++PI) {
+    DictScope P(W, "ProgramHeader");
+    W.printEnum  ("Type", PI->p_type, makeArrayRef(ElfSegmentTypes));
+    W.printHex   ("Offset", PI->p_offset);
+    W.printHex   ("VirtualAddress", PI->p_vaddr);
+    W.printHex   ("PhysicalAddress", PI->p_paddr);
+    W.printNumber("FileSize", PI->p_filesz);
+    W.printNumber("MemSize", PI->p_memsz);
+    W.printFlags ("Flags", PI->p_flags, makeArrayRef(ElfSegmentFlags));
+    W.printNumber("Alignment", PI->p_align);
   }
 }

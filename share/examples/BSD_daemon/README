@@ -35,6 +35,10 @@ beastie.eps
 	Before committing this, clean out the comment brought
 	over from the .fig file to avoid Dollar-FreeBSD-Dollar junk
 
+beastie2.eps
+	Written by Rahul Siddharthan beaste2.eps is a
+	smaller, simpler version of the beastie eps graphic.
+
 eps.patch
 	Add some comments about tweakables in the .eps file and set
 	the linecaps to round to improve visual appearance.

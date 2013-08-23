@@ -6,6 +6,7 @@
 SUBDIR=	adduser \
 	arp \
 	bootparamd \
+	bsdconfig \
 	bsdinstall \
 	cdcontrol \
 	chkgrp \
@@ -80,6 +81,7 @@ SUBDIR=	adduser \
 	snapinfo \
 	spray \
 	syslogd \
+	sysrc \
 	tcpdchk \
 	tcpdmatch \
 	tcpdrop \
@@ -127,6 +129,7 @@ SUBDIR+=	dnssec-keygen
 SUBDIR+=	dnssec-revoke
 SUBDIR+=	dnssec-settime
 SUBDIR+=	dnssec-signzone
+SUBDIR+=	dnssec-verify
 .endif
 .if ${MK_BIND_NAMED} != "no"
 SUBDIR+=	arpaname
@@ -144,11 +147,6 @@ SUBDIR+=	rndc-confgen
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
-.endif
-
-.if ${MK_BSDCONFIG} != "no"
-SUBDIR+=	bsdconfig
-SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"

@@ -546,7 +546,8 @@ retry:
 	}
 	if (xml != 0) {
 		sbuf_printf(sb, "</ctlfelist>\n");
-		sbuf_finish(sb);
+		if (sbuf_finish(sb) != 0)
+			err(1, "%s: sbuf_finish", __func__);
 		printf("%s", sbuf_data(sb));
 		sbuf_delete(sb);
 	}
@@ -3493,7 +3494,8 @@ cctl_end_element(void *user_data, const char *name)
 		errx(1, "%s: no valid sbuf at level %d (name %s)", __func__,
 		     devlist->level, name);
 
-	sbuf_finish(devlist->cur_sb[devlist->level]);
+	if (sbuf_finish(devlist->cur_sb[devlist->level]) != 0)
+		err(1, "%s: sbuf_finish", __func__);
 	str = strdup(sbuf_data(devlist->cur_sb[devlist->level]));
 	if (str == NULL)
 		err(1, "%s can't allocate %zd bytes for string", __func__,

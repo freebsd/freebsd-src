@@ -34,13 +34,8 @@
   <abstract>
     <para>Die Release Notes f&uuml;r &os; &release.current; enthalten
       eine &Uuml;bersicht &uuml;ber
-<![ %include.historic; [
-      alle &Auml;nderungen in &os; seit der Version &release.prev;.
-]]>
-<![ %no.include.historic; [
       aktuelle &Auml;nderungen in &os; im Entwicklungszweig
       &release.branch;.
-]]>
       Dieses Dokument enth&auml;lt die Liste aller Sicherheitshinweise,
       die seit der letzten Version herausgegeben wurden, sowie eine
       &Uuml;bersicht &uuml;ber die wichtigsten &Auml;nderungen am
@@ -59,9 +54,7 @@
     Sie Hinweise f&uuml;r die Aktualisierung Ihres
     &os;-Systems.</para>
 
-<![ %release.type.snapshot [
-
-  <para>Die &release.type; Distribution, f&uuml;r die diese Release
+  <para releasetype="snapshot">Die &release.type; Distribution, f&uuml;r die diese Release
     Notes g&uuml;ltig sind, markiert einen Punkt im Entwicklungszweig
     &release.branch; zwischen &release.prev; und der zuk&uuml;nftigen
     Version &release.next;.  Sie k&ouml;nnen einige fertige
@@ -69,11 +62,7 @@
     entstanden sind, auf <ulink url="&release.url;"></ulink>
     finden.</para>
 
-]]>
-
-<![ %release.type.release [
-
-  <para>Diese Distribution von &os; &release.current; ist eine
+  <para releasetype="release">Diese Distribution von &os; &release.current; ist eine
     &release.type; Distribution.  Sie k&ouml;nnen Sie von <ulink
     url="&release.url;"></ulink> und allen seinen Mirrors erhalten.
     Weitere Informationen, wie Sie diese (oder andere) &release.type;
@@ -83,8 +72,6 @@
     FreeBSD</quote></ulink> des <ulink
     url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
     Handbuchs</ulink>.</para>
-
-]]>
 
   <para>Anwender, die noch keine Erfahrung mit einer &release.branch;
     Version eines &os; &release.type; haben, sollten auf jeden Fall die
@@ -111,21 +98,12 @@
   <title>Neuerungen</title>
 
   <para>In diesem Artikel finden Sie
-<![ %include.historic; [
-    die f&uuml;r den Anwender offensichtlichsten Neuerungen und
-    &Auml;nderungen in &os; seit &release.prev;.  Die hier
-    aufgef&uuml;hrten &Auml;nderungen sind auf &release.branch;
-    beschr&auml;nkt, sofern Sie nicht explizit als &merged;
-    gekennzeichnet sind.
-]]>
-<![ %no.include.historic; [
     viele der f&uuml;r den Anwender offensichtlichsten Neuerungen und
     &Auml;nderungen in &os; seit &release.prev;.  Dazu geh&ouml;ren
     sowohl die &Auml;nderungen, die nur &release.prev; betreffen,
     als auch &Auml;nderungen in den anderen Entwicklungszweigen
     seit &os; &release.prev;.  Letztere sind als &merged;
     gekennzeichnet.
-]]>
   </para>
 
   <para>Die Eintr&auml;ge umfassen alle Sicherheitshinweise, die nach

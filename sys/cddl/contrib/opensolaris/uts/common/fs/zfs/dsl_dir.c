@@ -1258,8 +1258,6 @@ dsl_dir_rename_sync(void *arg, dmu_tx_t *tx)
 	int error;
 	objset_t *mos = dp->dp_meta_objset;
 
-	ASSERT(dmu_buf_refcount(dd->dd_dbuf) <= 2);
-
 	VERIFY0(dsl_dir_hold(dp, ddra->ddra_oldname, FTAG, &dd, NULL));
 	VERIFY0(dsl_dir_hold(dp, ddra->ddra_newname, FTAG, &newparent,
 	    &mynewname));

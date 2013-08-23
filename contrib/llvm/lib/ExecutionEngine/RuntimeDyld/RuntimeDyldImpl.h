@@ -49,7 +49,7 @@ public:
   /// Address - address in the linker's memory where the section resides.
   uint8_t *Address;
 
-  /// Size - section size.
+  /// Size - section size. Doesn't include the stubs.
   size_t Size;
 
   /// LoadAddress - the address of the section in the target process's memory.
@@ -67,9 +67,9 @@ public:
   uintptr_t ObjAddress;
 
   SectionEntry(StringRef name, uint8_t *address, size_t size,
-	       uintptr_t stubOffset, uintptr_t objAddress)
+               uintptr_t objAddress)
     : Name(name), Address(address), Size(size), LoadAddress((uintptr_t)address),
-      StubOffset(stubOffset), ObjAddress(objAddress) {}
+      StubOffset(size), ObjAddress(objAddress) {}
 };
 
 /// RelocationEntry - used to represent relocations internally in the dynamic
@@ -89,20 +89,20 @@ public:
   /// used to make a relocation section relative instead of symbol relative.
   intptr_t Addend;
 
-  RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend)
-    : SectionID(id), Offset(offset), RelType(type), Addend(addend) {}
-};
+  /// True if this is a PCRel relocation (MachO specific).
+  bool IsPCRel;
 
-/// ObjRelocationInfo - relocation information as read from the object file.
-/// Used to pass around data taken from object::RelocationRef, together with
-/// the section to which the relocation points (represented by a SectionID).
-class ObjRelocationInfo {
-public:
-  unsigned  SectionID;
-  uint64_t  Offset;
-  SymbolRef Symbol;
-  uint64_t  Type;
-  int64_t   AdditionalInfo;
+  /// The size of this relocation (MachO specific).
+  unsigned Size;
+
+  RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend)
+    : SectionID(id), Offset(offset), RelType(type), Addend(addend),
+      IsPCRel(false), Size(0) {}
+
+  RelocationEntry(unsigned id, uint64_t offset, uint32_t type, int64_t addend,
+                  bool IsPCRel, unsigned Size)
+    : SectionID(id), Offset(offset), RelType(type), Addend(addend),
+      IsPCRel(IsPCRel), Size(Size) {}
 };
 
 class RelocationValueRef {
@@ -166,14 +166,27 @@ protected:
   Triple::ArchType Arch;
 
   inline unsigned getMaxStubSize() {
+    if (Arch == Triple::aarch64)
+      return 20; // movz; movk; movk; movk; br
     if (Arch == Triple::arm || Arch == Triple::thumb)
       return 8; // 32-bit instruction and 32-bit address
     else if (Arch == Triple::mipsel || Arch == Triple::mips)
       return 16;
     else if (Arch == Triple::ppc64)
       return 44;
+    else if (Arch == Triple::x86_64)
+      return 8; // GOT
+    else if (Arch == Triple::systemz)
+      return 16;
     else
       return 0;
+  }
+
+  inline unsigned getStubAlignment() {
+    if (Arch == Triple::systemz)
+      return 8;
+    else
+      return 1;
   }
 
   bool HasError;
@@ -194,22 +207,15 @@ protected:
     return (uint8_t*)Sections[SectionID].Address;
   }
 
-  // Subclasses can override this method to get the alignment requirement of
-  // a common symbol. Returns no alignment requirement if not implemented.
-  virtual unsigned getCommonSymbolAlignment(const SymbolRef &Sym) {
-    return 0;
-  }
-
-
   void writeInt16BE(uint8_t *Addr, uint16_t Value) {
-    if (sys::isLittleEndianHost())
+    if (sys::IsLittleEndianHost)
       Value = sys::SwapByteOrder(Value);
     *Addr     = (Value >> 8) & 0xFF;
     *(Addr+1) = Value & 0xFF;
   }
 
   void writeInt32BE(uint8_t *Addr, uint32_t Value) {
-    if (sys::isLittleEndianHost())
+    if (sys::IsLittleEndianHost)
       Value = sys::SwapByteOrder(Value);
     *Addr     = (Value >> 24) & 0xFF;
     *(Addr+1) = (Value >> 16) & 0xFF;
@@ -218,7 +224,7 @@ protected:
   }
 
   void writeInt64BE(uint8_t *Addr, uint64_t Value) {
-    if (sys::isLittleEndianHost())
+    if (sys::IsLittleEndianHost)
       Value = sys::SwapByteOrder(Value);
     *Addr     = (Value >> 56) & 0xFF;
     *(Addr+1) = (Value >> 48) & 0xFF;
@@ -269,24 +275,16 @@ protected:
 
   /// \brief Resolves relocations from Relocs list with address from Value.
   void resolveRelocationList(const RelocationList &Relocs, uint64_t Value);
-  void resolveRelocationEntry(const RelocationEntry &RE, uint64_t Value);
 
   /// \brief A object file specific relocation resolver
-  /// \param Section The section where the relocation is being applied
-  /// \param Offset The offset into the section for this relocation
+  /// \param RE The relocation to be resolved
   /// \param Value Target symbol address to apply the relocation action
-  /// \param Type object file specific relocation type
-  /// \param Addend A constant addend used to compute the value to be stored
-  ///        into the relocatable field
-  virtual void resolveRelocation(const SectionEntry &Section,
-                                 uint64_t Offset,
-                                 uint64_t Value,
-                                 uint32_t Type,
-                                 int64_t Addend) = 0;
+  virtual void resolveRelocation(const RelocationEntry &RE, uint64_t Value) = 0;
 
   /// \brief Parses the object file relocation and stores it to Relocations
   ///        or SymbolRelocations (this depends on the object file type).
-  virtual void processRelocationRef(const ObjRelocationInfo &Rel,
+  virtual void processRelocationRef(unsigned SectionID,
+                                    RelocationRef RelI,
                                     ObjectImage &Obj,
                                     ObjSectionToIDMap &ObjSectionToID,
                                     const SymbolTableMap &Symbols,
@@ -336,6 +334,8 @@ public:
   StringRef getErrorString() { return ErrorStr; }
 
   virtual bool isCompatibleFormat(const ObjectBuffer *Buffer) const = 0;
+
+  virtual StringRef getEHFrameSection();
 };
 
 } // end namespace llvm

@@ -22,6 +22,7 @@ BIN1=	crontab \
 	hosts.equiv \
 	inetd.conf \
 	libalias.conf \
+	libmap.conf \
 	login.access \
 	login.conf \
 	mac.conf \
@@ -142,6 +143,9 @@ MTREE+=	BIND.chroot.dist
 .if ${MK_BIND_LIBS} != "no"
 MTREE+=	BIND.include.dist
 .endif
+.endif
+.if ${MK_DEBUG_FILES} != "no"
+MTREE+=	BSD.debug.dist
 .endif
 
 PPPCNF=	ppp.conf
@@ -312,6 +316,9 @@ MTREES=		mtree/BSD.root.dist		/		\
 		mtree/BSD.var.dist		/var		\
 		mtree/BSD.usr.dist		/usr		\
 		mtree/BSD.include.dist		/usr/include
+.if ${MK_DEBUG_FILES} != "no"
+MTREES+=	mtree/BSD.debug.dist		/usr/lib
+.endif
 .if ${MK_BIND_LIBS} != "no"
 MTREES+=	mtree/BIND.include.dist		/usr/include
 .endif
@@ -328,7 +335,7 @@ MTREES+=	mtree/BSD.sendmail.dist		/
 MTREES+=	../${mtree}			/
 .endfor
 
-distrib-dirs:
+distrib-dirs: ${MTREES:N/*}
 	@set ${MTREES}; \
 	while test $$# -ge 2; do \
 		m=${.CURDIR}/$$1; \

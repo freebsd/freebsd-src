@@ -143,13 +143,9 @@ namespace {
     //   So, if Rank(X) < Rank(Y) < Rank(Z), it means X is defined earlier 
     //   than Y which is defined earlier than Z. Permute "x | 1", "Y & 2",
     //   "z" in the order of X-Y-Z is better than any other orders.
-    class PtrSortFunctor {
-      ArrayRef<XorOpnd> A;
-
-    public:
-      PtrSortFunctor(ArrayRef<XorOpnd> Array) : A(Array) {}
-      bool operator()(unsigned LHSIndex, unsigned RHSIndex) {
-        return A[LHSIndex].getSymbolicRank() < A[RHSIndex].getSymbolicRank();
+    struct PtrSortFunctor {
+      bool operator()(XorOpnd * const &LHS, XorOpnd * const &RHS) {
+        return LHS->getSymbolicRank() < RHS->getSymbolicRank();
       }
     };
   private:
@@ -1199,9 +1195,6 @@ bool Reassociate::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1, XorOpnd *Opnd2,
   if (X != Opnd2->getSymbolicPart())
     return false;
 
-  const APInt &C1 = Opnd1->getConstPart();
-  const APInt &C2 = Opnd2->getConstPart();
-
   // This many instruction become dead.(At least "Opnd1 ^ Opnd2" will die.)
   int DeadInstNum = 1;
   if (Opnd1->getValue()->hasOneUse())
@@ -1219,6 +1212,8 @@ bool Reassociate::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1, XorOpnd *Opnd2,
     if (Opnd2->isOrExpr())
       std::swap(Opnd1, Opnd2);
 
+    const APInt &C1 = Opnd1->getConstPart();
+    const APInt &C2 = Opnd2->getConstPart();
     APInt C3((~C1) ^ C2);
 
     // Do not increase code size!
@@ -1234,6 +1229,8 @@ bool Reassociate::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1, XorOpnd *Opnd2,
   } else if (Opnd1->isOrExpr()) {
     // Xor-Rule 3: (x | c1) ^ (x | c2) = (x & c3) ^ c3 where c3 = c1 ^ c2
     //
+    const APInt &C1 = Opnd1->getConstPart();
+    const APInt &C2 = Opnd2->getConstPart();
     APInt C3 = C1 ^ C2;
     
     // Do not increase code size
@@ -1248,6 +1245,8 @@ bool Reassociate::CombineXorOpnd(Instruction *I, XorOpnd *Opnd1, XorOpnd *Opnd2,
   } else {
     // Xor-Rule 4: (x & c1) ^ (x & c2) = (x & (c1^c2))
     //
+    const APInt &C1 = Opnd1->getConstPart();
+    const APInt &C2 = Opnd2->getConstPart();
     APInt C3 = C1 ^ C2;
     Res = createAndInstr(I, X, C3);
   }
@@ -1274,7 +1273,7 @@ Value *Reassociate::OptimizeXor(Instruction *I,
     return 0;
 
   SmallVector<XorOpnd, 8> Opnds;
-  SmallVector<unsigned, 8> OpndIndices;
+  SmallVector<XorOpnd*, 8> OpndPtrs;
   Type *Ty = Ops[0].Op->getType();
   APInt ConstOpnd(Ty->getIntegerBitWidth(), 0);
 
@@ -1285,23 +1284,29 @@ Value *Reassociate::OptimizeXor(Instruction *I,
       XorOpnd O(V);
       O.setSymbolicRank(getRank(O.getSymbolicPart()));
       Opnds.push_back(O);
-      OpndIndices.push_back(Opnds.size() - 1);
     } else
       ConstOpnd ^= cast<ConstantInt>(V)->getValue();
   }
+
+  // NOTE: From this point on, do *NOT* add/delete element to/from "Opnds".
+  //  It would otherwise invalidate the "Opnds"'s iterator, and hence invalidate
+  //  the "OpndPtrs" as well. For the similar reason, do not fuse this loop
+  //  with the previous loop --- the iterator of the "Opnds" may be invalidated
+  //  when new elements are added to the vector.
+  for (unsigned i = 0, e = Opnds.size(); i != e; ++i)
+    OpndPtrs.push_back(&Opnds[i]);
 
   // Step 2: Sort the Xor-Operands in a way such that the operands containing
   //  the same symbolic value cluster together. For instance, the input operand
   //  sequence ("x | 123", "y & 456", "x & 789") will be sorted into:
   //  ("x | 123", "x & 789", "y & 456").
-  std::sort(OpndIndices.begin(), OpndIndices.end(),
-            XorOpnd::PtrSortFunctor(Opnds));
+  std::sort(OpndPtrs.begin(), OpndPtrs.end(), XorOpnd::PtrSortFunctor());
 
   // Step 3: Combine adjacent operands
   XorOpnd *PrevOpnd = 0;
   bool Changed = false;
   for (unsigned i = 0, e = Opnds.size(); i < e; i++) {
-    XorOpnd *CurrOpnd = &Opnds[OpndIndices[i]];
+    XorOpnd *CurrOpnd = OpndPtrs[i];
     // The combined value
     Value *CV;
 

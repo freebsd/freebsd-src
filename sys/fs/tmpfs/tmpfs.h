@@ -307,6 +307,7 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 #define TMPFS_VNODE_ALLOCATING	1
 #define TMPFS_VNODE_WANT	2
 #define TMPFS_VNODE_DOOMED	4
+#define	TMPFS_VNODE_WRECLAIM	8
 /* --------------------------------------------------------------------- */
 
 /*
@@ -402,6 +403,7 @@ int	tmpfs_alloc_dirent(struct tmpfs_mount *, struct tmpfs_node *,
 	    const char *, u_int, struct tmpfs_dirent **);
 void	tmpfs_free_dirent(struct tmpfs_mount *, struct tmpfs_dirent *);
 void	tmpfs_dirent_init(struct tmpfs_dirent *, const char *, u_int);
+void	tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj);
 int	tmpfs_alloc_vp(struct mount *, struct tmpfs_node *, int,
 	    struct vnode **);
 void	tmpfs_free_vp(struct vnode *);

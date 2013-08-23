@@ -154,6 +154,8 @@ zio_init(void)
 	    sizeof (zio_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
 	zio_link_cache = kmem_cache_create("zio_link_cache",
 	    sizeof (zio_link_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
+	if (!zio_use_uma)
+		goto out;
 
 	/*
 	 * For small buffers, we want a cache for each multiple of
@@ -217,6 +219,7 @@ zio_init(void)
 		if (zio_data_buf_cache[c - 1] == NULL)
 			zio_data_buf_cache[c - 1] = zio_data_buf_cache[c];
 	}
+out:
 
 	/*
 	 * The zio write taskqs have 1 thread per cpu, allow 1/2 of the taskqs
@@ -760,7 +763,21 @@ void
 zio_free(spa_t *spa, uint64_t txg, const blkptr_t *bp)
 {
 	metaslab_check_free(spa, bp);
-	bplist_append(&spa->spa_free_bplist[txg & TXG_MASK], bp);
+
+	/*
+	 * Frees that are for the currently-syncing txg, are not going to be
+	 * deferred, and which will not need to do a read (i.e. not GANG or
+	 * DEDUP), can be processed immediately.  Otherwise, put them on the
+	 * in-memory list for later processing.
+	 */
+	if (zfs_trim_enabled || BP_IS_GANG(bp) || BP_GET_DEDUP(bp) ||
+	    txg != spa->spa_syncing_txg ||
+	    spa_sync_pass(spa) >= zfs_sync_pass_deferred_free) {
+		bplist_append(&spa->spa_free_bplist[txg & TXG_MASK], bp);
+	} else {
+		VERIFY0(zio_wait(zio_free_sync(NULL, spa, txg, bp,
+		    BP_GET_PSIZE(bp), 0)));
+	}
 }
 
 zio_t *
@@ -768,6 +785,7 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
     uint64_t size, enum zio_flag flags)
 {
 	zio_t *zio;
+	enum zio_stage stage = ZIO_FREE_PIPELINE;
 
 	dprintf_bp(bp, "freeing in txg %llu, pass %u",
 	    (longlong_t)txg, spa->spa_sync_pass);
@@ -777,10 +795,22 @@ zio_free_sync(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	ASSERT(spa_sync_pass(spa) < zfs_sync_pass_deferred_free);
 
 	metaslab_check_free(spa, bp);
+	arc_freed(spa, bp);
+
+	if (zfs_trim_enabled)
+		stage |= ZIO_STAGE_ISSUE_ASYNC | ZIO_STAGE_VDEV_IO_START |
+		    ZIO_STAGE_VDEV_IO_ASSESS;
+	/*
+	 * GANG and DEDUP blocks can induce a read (for the gang block header,
+	 * or the DDT), so issue them asynchronously so that this thread is
+	 * not tied up.
+	 */
+	else if (BP_IS_GANG(bp) || BP_GET_DEDUP(bp))
+		stage |= ZIO_STAGE_ISSUE_ASYNC;
 
 	zio = zio_create(pio, spa, txg, bp, NULL, size,
 	    NULL, NULL, ZIO_TYPE_FREE, ZIO_PRIORITY_FREE, flags,
-	    NULL, 0, NULL, ZIO_STAGE_OPEN, ZIO_FREE_PIPELINE);
+	    NULL, 0, NULL, ZIO_STAGE_OPEN, stage);
 
 	return (zio);
 }
@@ -1107,8 +1137,10 @@ zio_write_bp_init(zio_t *zio)
 	}
 
 	if (compress != ZIO_COMPRESS_OFF) {
+		metaslab_class_t *mc = spa_normal_class(spa);
 		void *cbuf = zio_buf_alloc(lsize);
-		psize = zio_compress_data(compress, zio->io_data, cbuf, lsize);
+		psize = zio_compress_data(compress, zio->io_data, cbuf, lsize,
+		    (size_t)metaslab_class_get_minblocksize(mc));
 		if (psize == 0 || psize == lsize) {
 			compress = ZIO_COMPRESS_OFF;
 			zio_buf_free(cbuf, lsize);
@@ -1252,13 +1284,16 @@ zio_interrupt(zio_t *zio)
 
 /*
  * Execute the I/O pipeline until one of the following occurs:
- * (1) the I/O completes; (2) the pipeline stalls waiting for
- * dependent child I/Os; (3) the I/O issues, so we're waiting
- * for an I/O completion interrupt; (4) the I/O is delegated by
- * vdev-level caching or aggregation; (5) the I/O is deferred
- * due to vdev-level queueing; (6) the I/O is handed off to
- * another thread.  In all cases, the pipeline stops whenever
- * there's no CPU work; it never burns a thread in cv_wait().
+ *
+ *	(1) the I/O completes
+ *	(2) the pipeline stalls waiting for dependent child I/Os
+ *	(3) the I/O issues, so we're waiting for an I/O completion interrupt
+ *	(4) the I/O is delegated by vdev-level caching or aggregation
+ *	(5) the I/O is deferred due to vdev-level queueing
+ *	(6) the I/O is handed off to another thread.
+ *
+ * In all cases, the pipeline stops whenever there's no CPU work; it never
+ * burns a thread in cv_wait().
  *
  * There's no locking on io_stage because there's no legitimate way
  * for multiple threads to be attempting to process the same I/O.

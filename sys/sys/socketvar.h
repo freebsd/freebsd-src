@@ -133,7 +133,7 @@ struct socket {
  * avoid defining a lock order between listen and accept sockets
  * until such time as it proves to be a good idea.
  */
-extern struct mtx_padalign accept_mtx;
+extern struct mtx accept_mtx;
 #define	ACCEPT_LOCK_ASSERT()		mtx_assert(&accept_mtx, MA_OWNED)
 #define	ACCEPT_UNLOCK_ASSERT()		mtx_assert(&accept_mtx, MA_NOTOWNED)
 #define	ACCEPT_LOCK()			mtx_lock(&accept_mtx)
@@ -371,6 +371,8 @@ void	soupcall_clear(struct socket *so, int which);
 void	soupcall_set(struct socket *so, int which,
 	    int (*func)(struct socket *, void *, int), void *arg);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
+int	selsocket(struct socket *so, int events, struct timeval *tv,
+	    struct thread *td);
 
 /*
  * Accept filter functions (duh).

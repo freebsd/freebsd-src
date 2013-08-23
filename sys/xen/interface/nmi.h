@@ -27,6 +27,8 @@
 #ifndef __XEN_PUBLIC_NMI_H__
 #define __XEN_PUBLIC_NMI_H__
 
+#include "xen.h"
+
 /*
  * NMI reason codes:
  * Currently these are x86-specific, stored in arch_shared_info.nmi_reason.

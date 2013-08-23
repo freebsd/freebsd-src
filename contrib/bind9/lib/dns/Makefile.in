@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id$
+# $Id: Makefile.in,v 1.180 2011/10/11 00:09:03 each Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -46,8 +46,9 @@ LIBS =		@LIBS@
 
 # Alphabetically
 
+OPENSSLGOSTLINKOBJS = opensslgost_link.@O@
 OPENSSLLINKOBJS = openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
-		  opensslecdsa_link.@O@ opensslgost_link.@O@ \
+		  opensslecdsa_link.@O@ @OPENSSLGOSTLINKOBJS@ \
 		  opensslrsa_link.@O@
 
 DSTOBJS =	@DST_EXTRA_OBJS@ @OPENSSLLINKOBJS@ \
@@ -56,7 +57,7 @@ DSTOBJS =	@DST_EXTRA_OBJS@ @OPENSSLLINKOBJS@ \
 
 # Alphabetically
 DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
-		cache.@O@ callbacks.@O@ compress.@O@ \
+		cache.@O@ callbacks.@O@ clientinfo.@O@ compress.@O@ \
 		db.@O@ dbiterator.@O@ dbtable.@O@ diff.@O@ dispatch.@O@ \
 		dlz.@O@ dns64.@O@ dnssec.@O@ ds.@O@ forward.@O@ iptable.@O@ \
 		journal.@O@ keydata.@O@ keytable.@O@ \
@@ -70,14 +71,15 @@ DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		rriterator.@O@ sdb.@O@ \
 		sdlz.@O@ soa.@O@ ssu.@O@ ssu_external.@O@ \
 		stats.@O@ tcpmsg.@O@ time.@O@ timer.@O@ tkey.@O@ \
-		tsec.@O@ tsig.@O@ ttl.@O@ validator.@O@ \
+		tsec.@O@ tsig.@O@ ttl.@O@ update.@O@ validator.@O@ \
 		version.@O@ view.@O@ xfrin.@O@ zone.@O@ zonekey.@O@ zt.@O@
 
 OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS}
 
 # Alphabetically
+OPENSSLGOSTLINKSRCS = opensslgost_link.c
 OPENSSLLINKSRCS = openssl_link.c openssldh_link.c openssldsa_link.c \
-		  opensslecdsa_link.c opensslgost_link.c opensslrsa_link.c
+		  opensslecdsa_link.c @OPENSSLGOSTLINKSRCS@ opensslrsa_link.c
 
 DSTSRCS =	@DST_EXTRA_SRCS@ @OPENSSLLINKSRCS@ \
 		dst_api.c dst_lib.c dst_parse.c \
@@ -85,7 +87,7 @@ DSTSRCS =	@DST_EXTRA_SRCS@ @OPENSSLLINKSRCS@ \
 		hmac_link.c key.c
 
 DNSSRCS =	acache.c acl.c adb.c byaddr.c \
-		cache.c callbacks.c compress.c \
+		cache.c callbacks.c clientinfo.c compress.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
 		dlz.c dns64.c dnssec.c ds.c forward.c iptable.c journal.c \
 		keydata.c keytable.c lib.c log.c lookup.c \
@@ -96,7 +98,7 @@ DNSSRCS =	acache.c acl.c adb.c byaddr.c \
 		resolver.c result.c rootns.c rpz.c rriterator.c \
 		sdb.c sdlz.c soa.c ssu.c ssu_external.c \
 		stats.c tcpmsg.c time.c timer.c tkey.c \
-		tsec.c tsig.c ttl.c validator.c \
+		tsec.c tsig.c ttl.c update.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c ${OTHERSRCS}
 
 SRCS = ${DSTSRCS} ${DNSSRCS}

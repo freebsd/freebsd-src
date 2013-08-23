@@ -159,7 +159,6 @@ NOTWORK+= \
 	${TESTSRCDIR}/tst/common/sched/tst.enqueue.d			\
 	${TESTSRCDIR}/tst/common/sched/tst.oncpu.d			\
 	${TESTSRCDIR}/tst/common/sched/tst.stackdepth.d			\
-	${TESTSRCDIR}/tst/common/sdt/tst.sdtargs.d			\
 	${TESTSRCDIR}/tst/common/usdt/argmap.d				\
 	${TESTSRCDIR}/tst/common/usdt/args.d				\
 	${TESTSRCDIR}/tst/common/usdt/forker.d				\

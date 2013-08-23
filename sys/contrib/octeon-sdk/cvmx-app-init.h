@@ -120,6 +120,9 @@ struct cvmx_bootinfo {
     uint32_t dfa_ref_clock_hz;  /**< DFA reference clock in hz (if applicable)*/
     uint32_t config_flags;  /**< flags indicating various configuration options.  These flags supercede
                             ** the 'flags' variable and should be used instead if available */
+#if defined(OCTEON_VENDOR_GEFES)
+    uint32_t dfm_size; /**< DFA Size */
+#endif
 #endif
 #if (CVMX_BOOTINFO_MIN_VER >= 3)
     uint64_t fdt_addr;  /**< Address of the OF Flattened Device Tree structure describing the board. */
@@ -216,10 +219,17 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_HIKARI         = 10,
     CVMX_BOARD_TYPE_CN3010_EVB_HS5 = 11,
     CVMX_BOARD_TYPE_CN3005_EVB_HS5 = 12,
+#if defined(OCTEON_VENDOR_GEFES)
+    CVMX_BOARD_TYPE_TNPA3804       = 13,
+    CVMX_BOARD_TYPE_AT5810         = 14,
+    CVMX_BOARD_TYPE_WNPA3850       = 15,
+    CVMX_BOARD_TYPE_W3860          = 16,
+#else
     CVMX_BOARD_TYPE_KBP            = 13,
     CVMX_BOARD_TYPE_CN3020_EVB_HS5 = 14,  /* Deprecated, CVMX_BOARD_TYPE_CN3010_EVB_HS5 supports the CN3020 */
     CVMX_BOARD_TYPE_EBT5800        = 15,
     CVMX_BOARD_TYPE_NICPRO2        = 16,
+#endif
     CVMX_BOARD_TYPE_EBH5600        = 17,
     CVMX_BOARD_TYPE_EBH5601        = 18,
     CVMX_BOARD_TYPE_EBH5200        = 19,
@@ -305,6 +315,16 @@ enum cvmx_board_types_enum {
 #if defined(OCTEON_VENDOR_RADISYS)
     CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE=20002,
 #endif
+#if defined(OCTEON_VENDOR_GEFES)
+    CVMX_BOARD_TYPE_CUST_TNPA5804       = 20005,
+    CVMX_BOARD_TYPE_CUST_W5434          = 20006,
+    CVMX_BOARD_TYPE_CUST_W5650          = 20007,
+    CVMX_BOARD_TYPE_CUST_W5800          = 20008,
+    CVMX_BOARD_TYPE_CUST_W5651X         = 20009,
+    CVMX_BOARD_TYPE_CUST_TNPA5651X      = 20010,
+    CVMX_BOARD_TYPE_CUST_TNPA56X4       = 20011,
+    CVMX_BOARD_TYPE_CUST_W63XX          = 20013,
+#endif
     CVMX_BOARD_TYPE_CUST_PRIVATE_MAX = 30000,
 
 
@@ -352,10 +372,17 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_HIKARI)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CN3010_EVB_HS5)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CN3005_EVB_HS5)
+#if defined(OCTEON_VENDOR_GEFES)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_TNPA3804)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_AT5810)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_WNPA3850)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_W3860)
+#else
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_KBP)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CN3020_EVB_HS5)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBT5800)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NICPRO2)
+#endif
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBH5600)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBH5601)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBH5200)
@@ -420,7 +447,6 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
 #else
 	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_ZINWELL)
 #endif
-
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_DEFINED_MAX)
 
         /* Customer private range */
@@ -434,6 +460,16 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
 #endif
 #if defined(OCTEON_VENDOR_RADISYS)
 	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE)
+#endif
+#if defined(OCTEON_VENDOR_GEFES)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_TNPA5804)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_W5434)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_W5650)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_W5800)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_W5651X)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_TNPA5651X)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_TNPA56X4)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_W63XX)
 #endif
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MAX)
 

@@ -40,6 +40,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #options 	OCTEON_VENDOR_LANNER		# Support for Lanner boards.
 #options 	OCTEON_VENDOR_RADISYS		# Support for Radisys boards.
 #options 	OCTEON_VENDOR_UBIQUITI		# Support for Ubiquiti boards.
+#options	OCTEON_VENDOR_GEFES		# Support for GE LANIC boards
 #options 	OCTEON_BOARD_CAPK_0100ND	# Support for CAPK-0100nd.
 
 # Compile for a specified Octeon model.  If not specified, support for

@@ -75,9 +75,9 @@ public:
         CanBreakBefore(false), MustBreakBefore(false),
         ClosesTemplateDeclaration(false), MatchingParen(NULL),
         ParameterCount(0), BindingStrength(0), SplitPenalty(0),
-        LongestObjCSelectorName(0), Parent(NULL), FakeLParens(0),
+        LongestObjCSelectorName(0), Parent(NULL),
         FakeRParens(0), LastInChainOfCalls(false),
-        PartOfMultiVariableDeclStmt(false) {}
+        PartOfMultiVariableDeclStmt(false), NoMoreTokensOnLevel(false) {}
 
   bool is(tok::TokenKind Kind) const { return FormatTok.Tok.is(Kind); }
 
@@ -121,6 +121,15 @@ public:
             Children[0].isObjCAtKeyword(tok::objc_private));
   }
 
+  /// \brief Returns whether \p Tok is ([{ or a template opening <.
+  bool opensScope() const;
+  /// \brief Returns whether \p Tok is )]} or a template opening >.
+  bool closesScope() const;
+
+  bool isUnaryOperator() const;
+  bool isBinaryOperator() const;
+  bool isTrailingComment() const;
+
   FormatToken FormatTok;
 
   TokenType Type;
@@ -158,8 +167,12 @@ public:
   std::vector<AnnotatedToken> Children;
   AnnotatedToken *Parent;
 
-  /// \brief Insert this many fake ( before this token for correct indentation.
-  unsigned FakeLParens;
+  /// \brief Stores the number of required fake parentheses and the
+  /// corresponding operator precedence.
+  ///
+  /// If multiple fake parentheses start at a token, this vector stores them in
+  /// reverse order, i.e. inner fake parenthesis first.
+  SmallVector<prec::Level, 4>  FakeLParens;
   /// \brief Insert this many fake ) after this token for correct indentation.
   unsigned FakeRParens;
 
@@ -171,12 +184,24 @@ public:
   /// Only set if \c Type == \c TT_StartOfName.
   bool PartOfMultiVariableDeclStmt;
 
-  const AnnotatedToken *getPreviousNoneComment() const {
-    AnnotatedToken *Tok = Parent;
-    while (Tok != NULL && Tok->is(tok::comment))
-      Tok = Tok->Parent;
-    return Tok;
-  }
+  /// \brief Set to \c true for "("-tokens if this is the last token other than
+  /// ")" in the next higher parenthesis level.
+  ///
+  /// If this is \c true, no more formatting decisions have to be made on the
+  /// next higher parenthesis level, enabling optimizations.
+  ///
+  /// Example:
+  /// \code
+  /// aaaaaa(aaaaaa());
+  ///              ^  // Set to true for this parenthesis.
+  /// \endcode
+  bool NoMoreTokensOnLevel;
+
+  /// \brief Returns the previous token ignoring comments.
+  AnnotatedToken *getPreviousNoneComment() const;
+
+  /// \brief Returns the next token ignoring comments.
+  const AnnotatedToken *getNextNoneComment() const;
 };
 
 class AnnotatedLine {
@@ -184,8 +209,8 @@ public:
   AnnotatedLine(const UnwrappedLine &Line)
       : First(Line.Tokens.front()), Level(Line.Level),
         InPPDirective(Line.InPPDirective),
-        MustBeDeclaration(Line.MustBeDeclaration),
-        MightBeFunctionDecl(false) {
+        MustBeDeclaration(Line.MustBeDeclaration), MightBeFunctionDecl(false),
+        StartsDefinition(false) {
     assert(!Line.Tokens.empty());
     AnnotatedToken *Current = &First;
     for (std::list<FormatToken>::const_iterator I = ++Line.Tokens.begin(),
@@ -201,7 +226,8 @@ public:
       : First(Other.First), Type(Other.Type), Level(Other.Level),
         InPPDirective(Other.InPPDirective),
         MustBeDeclaration(Other.MustBeDeclaration),
-        MightBeFunctionDecl(Other.MightBeFunctionDecl) {
+        MightBeFunctionDecl(Other.MightBeFunctionDecl),
+        StartsDefinition(Other.StartsDefinition) {
     Last = &First;
     while (!Last->Children.empty()) {
       Last->Children[0].Parent = Last;
@@ -217,6 +243,7 @@ public:
   bool InPPDirective;
   bool MustBeDeclaration;
   bool MightBeFunctionDecl;
+  bool StartsDefinition;
 };
 
 inline prec::Level getPrecedence(const AnnotatedToken &Tok) {
@@ -247,6 +274,8 @@ private:
                            const AnnotatedToken &Tok);
 
   bool canBreakBefore(const AnnotatedLine &Line, const AnnotatedToken &Right);
+
+  void printDebugInfo(const AnnotatedLine &Line);
 
   const FormatStyle &Style;
   SourceManager &SourceMgr;

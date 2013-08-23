@@ -80,7 +80,11 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 		if (!INKERNEL((long) sp))
 			break;
 
+#ifdef __powerpc64__
+		callpc = *(uintptr_t *)(sp + RETURN_OFFSET64);
+#else
 		callpc = *(uintptr_t *)(sp + RETURN_OFFSET);
+#endif
 
 		if (!INKERNEL(callpc))
 			break;

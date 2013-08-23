@@ -2137,7 +2137,7 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 
 	xpt_print(periph->path, "%d requests total waiting for CCBs\n",
 		  num_items);
-	xpt_print(periph->path, "%ju CCBs oustanding (%ju allocated, %ju "
+	xpt_print(periph->path, "%ju CCBs outstanding (%ju allocated, %ju "
 		  "freed)\n", (uintmax_t)(softc->ccbs_alloced -
 		  softc->ccbs_freed), (uintmax_t)softc->ccbs_alloced,
 		  (uintmax_t)softc->ccbs_freed);

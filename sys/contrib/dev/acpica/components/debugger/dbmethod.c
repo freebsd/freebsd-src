@@ -271,6 +271,7 @@ AcpiDbSetMethodData (
         break;
 
     default:
+
         break;
     }
 
@@ -505,25 +506,30 @@ AcpiDbWalkForExecute (
             switch (ArgType)
             {
             case ACPI_TYPE_INTEGER:
+
                 ThisParam->Integer.Value = 1;
                 break;
 
             case ACPI_TYPE_STRING:
+
                 ThisParam->String.Pointer = "This is the default argument string";
                 ThisParam->String.Length = ACPI_STRLEN (ThisParam->String.Pointer);
                 break;
 
             case ACPI_TYPE_BUFFER:
+
                 ThisParam->Buffer.Pointer = (UINT8 *) Params; /* just a garbage buffer */
                 ThisParam->Buffer.Length = 48;
                 break;
 
              case ACPI_TYPE_PACKAGE:
+
                 ThisParam->Package.Elements = NULL;
                 ThisParam->Package.Count = 0;
                 break;
 
            default:
+
                 AcpiOsPrintf ("%s: Unsupported argument type: %u\n",
                     Pathname, ArgType);
                 break;

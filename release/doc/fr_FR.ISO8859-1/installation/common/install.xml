@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
 <!--
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
@@ -123,7 +124,7 @@ from {alpha,i386}/INSTALL.TXT.
   (g&eacute;n&eacute;ralement deux) pour commencer l'installation. Cette
   section d&eacute;crit bri&egrave;vement la fa&ccedil;on de cr&eacute;er ces
   disquettes que cela soit depuis le CDROM d'installation ou depuis
-  Internet. Notez que la fa&ccedil;on la plus courante d'installer &os est
+  Internet. Notez que la fa&ccedil;on la plus courante d'installer &os; est
   par un CDROM, sur une machine supportant le d&eacute;marrage sur CDROM,
   et cette proc&eacute;dure ne sert donc &agrave; rien dans ce cas.</para>
 
@@ -649,7 +650,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         <title>Conseils d'installation via NFS</title>
 
         <para>L'installation via NFS est tr&egrave;s simple: copiez
-        simplement les fichiers des distributions de &os, dont vous
+        simplement les fichiers des distributions de &os;, dont vous
         avez besoin quelque part sur un serveur, et faites pointer le
         m&eacute;dia de selection NFS vers lui.</para>
 

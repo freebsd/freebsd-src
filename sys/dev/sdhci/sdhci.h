@@ -57,6 +57,8 @@
 #define	SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<11)
 /* SDHCI_CAPABILITIES is invalid */
 #define	SDHCI_QUIRK_MISSING_CAPS			(1<<12)
+/* Hardware shifts the 136-bit response, don't do it in software. */
+#define	SDHCI_QUIRK_DONT_SHIFT_RESPONSE			(1<<13)
 
 /*
  * Controller registers
@@ -120,6 +122,8 @@
 #define  SDHCI_CTRL_SDMA	0x08
 #define  SDHCI_CTRL_ADMA2	0x10
 #define  SDHCI_CTRL_ADMA264	0x18
+#define  SDHCI_CTRL_DMA_MASK	0x18
+#define  SDHCI_CTRL_8BITBUS	0x20
 #define  SDHCI_CTRL_CARD_DET	0x40
 #define  SDHCI_CTRL_FORCE_CARD	0x80
 
@@ -195,6 +199,7 @@
 #define  SDHCI_CLOCK_BASE_SHIFT	8
 #define  SDHCI_MAX_BLOCK_MASK	0x00030000
 #define  SDHCI_MAX_BLOCK_SHIFT  16
+#define  SDHCI_CAN_DO_8BITBUS	0x00040000
 #define  SDHCI_CAN_DO_ADMA2	0x00080000
 #define  SDHCI_CAN_DO_HISPD	0x00200000
 #define  SDHCI_CAN_DO_DMA	0x00400000

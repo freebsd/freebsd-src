@@ -120,29 +120,6 @@ mwl_pci_probe(device_t dev)
 	return ENXIO;
 }
 
-static u_int32_t
-mwl_pci_setup(device_t dev)
-{
-	u_int32_t cmd;
-
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((cmd & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "failed to enable memory mapping\n");
-		return 0;
-	}
-	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
-		device_printf(dev, "failed to enable bus mastering\n");
-		return 0;
-	}
-	return 1;
-}
-
 static int
 mwl_pci_attach(device_t dev)
 {
@@ -152,11 +129,8 @@ mwl_pci_attach(device_t dev)
 
 	sc->sc_dev = dev;
 
-	/*
-	 * Enable memory mapping and bus mastering.
-	 */
-	if (!mwl_pci_setup(dev))
-		return 0;
+	pci_enable_busmaster(dev);
+
 	/* 
 	 * Setup memory-mapping of PCI registers.
 	 */
@@ -285,8 +259,7 @@ mwl_pci_resume(device_t dev)
 {
 	struct mwl_pci_softc *psc = device_get_softc(dev);
 
-	if (!mwl_pci_setup(dev))
-		return ENXIO;
+	pci_enable_busmaster(dev);
 
 	mwl_resume(&psc->sc_sc);
 

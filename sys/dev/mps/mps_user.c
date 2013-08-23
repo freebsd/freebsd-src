@@ -208,8 +208,8 @@ mps_detach_user(struct mps_softc *sc)
 {
 
 	/* XXX: do a purge of pending requests? */
-	destroy_dev(sc->mps_cdev);
-
+	if (sc->mps_cdev != NULL)
+		destroy_dev(sc->mps_cdev);
 }
 
 static int
@@ -305,6 +305,7 @@ mps_user_read_extcfg_header(struct mps_softc *sc,
 	hdr = &params.hdr.Ext;
 	params.action = MPI2_CONFIG_ACTION_PAGE_HEADER;
 	hdr->PageVersion = ext_page_req->header.PageVersion;
+	hdr->PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
 	hdr->ExtPageLength = 0;
 	hdr->PageNumber = ext_page_req->header.PageNumber;
 	hdr->ExtPageType = ext_page_req->header.ExtPageType;
@@ -346,6 +347,7 @@ mps_user_read_extcfg_page(struct mps_softc *sc,
 	params.action = MPI2_CONFIG_ACTION_PAGE_READ_CURRENT;
 	params.page_address = le32toh(ext_page_req->page_address);
 	hdr->PageVersion = reqhdr->PageVersion;
+	hdr->PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
 	hdr->PageNumber = reqhdr->PageNumber;
 	hdr->ExtPageType = reqhdr->ExtPageType;
 	hdr->ExtPageLength = reqhdr->ExtPageLength;
@@ -667,7 +669,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	cm = mps_alloc_command(sc);
 
 	if (cm == NULL) {
-		mps_printf(sc, "mps_user_command: no mps requests\n");
+		mps_printf(sc, "%s: no mps requests\n", __func__);
 		err = ENOMEM;
 		goto Ret;
 	}
@@ -675,8 +677,8 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 
 	hdr = (MPI2_REQUEST_HEADER *)cm->cm_req;
 
-	mps_dprint(sc, MPS_INFO, "mps_user_command: req %p %d  rpl %p %d\n",
-		    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len );
+	mps_dprint(sc, MPS_USER, "%s: req %p %d  rpl %p %d\n", __func__,
+	    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len);
 
 	if (cmd->req_len > (int)sc->facts->IOCRequestFrameSize * 4) {
 		err = EINVAL;
@@ -686,8 +688,8 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	if (err != 0)
 		goto RetFreeUnlocked;
 
-	mps_dprint(sc, MPS_INFO, "mps_user_command: Function %02X  "
-	    "MsgFlags %02X\n", hdr->Function, hdr->MsgFlags );
+	mps_dprint(sc, MPS_USER, "%s: Function %02X MsgFlags %02X\n", __func__,
+	    hdr->Function, hdr->MsgFlags);
 
 	if (cmd->len > 0) {
 		buf = malloc(cmd->len, M_MPSUSER, M_WAITOK|M_ZERO);
@@ -707,14 +709,16 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
 	err = mps_user_setup_request(cm, cmd);
-	if (err != 0) {
-		mps_printf(sc, "mps_user_command: unsupported function 0x%X\n",
-		    hdr->Function );
-		goto RetFreeUnlocked;
+	if (err == EINVAL) {
+		mps_printf(sc, "%s: unsupported parameter or unsupported "
+		    "function in request (function = 0x%X)\n", __func__,
+		    hdr->Function);
 	}
+	if (err != 0)
+		goto RetFreeUnlocked;
 
 	mps_lock(sc);
-	err = mps_wait_command(sc, cm, 60);
+	err = mps_wait_command(sc, cm, 60, CAN_SLEEP);
 
 	if (err) {
 		mps_printf(sc, "%s: invalid request: error %d\n",
@@ -729,10 +733,8 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 		sz = 0;
 	
 	if (sz > cmd->rpl_len) {
-		mps_printf(sc,
-		    "mps_user_command: reply buffer too small %d required %d\n",
-		    cmd->rpl_len, sz );
-		err = EINVAL;
+		mps_printf(sc, "%s: user reply buffer (%d) smaller than "
+		    "returned buffer (%d)\n", __func__, cmd->rpl_len, sz);
 		sz = cmd->rpl_len;
 	}	
 
@@ -740,7 +742,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	copyout(rpl, cmd->rpl, sz);
 	if (buf != NULL)
 		copyout(buf, cmd->buf, cmd->len);
-	mps_dprint(sc, MPS_INFO, "mps_user_command: reply size %d\n", sz );
+	mps_dprint(sc, MPS_USER, "%s: reply size %d\n", __func__, sz);
 
 RetFreeUnlocked:
 	mps_lock(sc);
@@ -769,7 +771,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	 */
 	mps_lock(sc);
 	if (sc->mps_flags & MPS_FLAGS_BUSY) {
-		mps_dprint(sc, MPS_INFO, "%s: Only one passthru command "
+		mps_dprint(sc, MPS_USER, "%s: Only one passthru command "
 		    "allowed at a single time.", __func__);
 		mps_unlock(sc);
 		return (EBUSY);
@@ -801,7 +803,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	} else
 		return (EINVAL);
 
-	mps_dprint(sc, MPS_INFO, "%s: req 0x%jx %d  rpl 0x%jx %d "
+	mps_dprint(sc, MPS_USER, "%s: req 0x%jx %d  rpl 0x%jx %d "
 	    "data in 0x%jx %d data out 0x%jx %d data dir %d\n", __func__,
 	    data->PtrRequest, data->RequestSize, data->PtrReply,
 	    data->ReplySize, data->PtrData, data->DataSize,
@@ -821,7 +823,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 	}
 
 	function = tmphdr.Function;
-	mps_dprint(sc, MPS_INFO, "%s: Function %02X MsgFlags %02X\n", __func__,
+	mps_dprint(sc, MPS_USER, "%s: Function %02X MsgFlags %02X\n", __func__,
 	    function, tmphdr.MsgFlags);
 
 	/*
@@ -847,7 +849,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		cm->cm_complete = NULL;
 		cm->cm_complete_data = NULL;
 
-		err = mps_wait_command(sc, cm, 30);
+		err = mps_wait_command(sc, cm, 30, CAN_SLEEP);
 
 		if (err != 0) {
 			err = EIO;
@@ -862,15 +864,14 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 			sz = rpl->MsgLength * 4;
 	
 			if (sz > data->ReplySize) {
-				mps_printf(sc, "%s: reply buffer too small: %d, "
-				    "required: %d\n", __func__, data->ReplySize, sz);
-				err = EINVAL;
-			} else {
-				mps_unlock(sc);
-				copyout(cm->cm_reply, PTRIN(data->PtrReply),
-				    data->ReplySize);
-				mps_lock(sc);
+				mps_printf(sc, "%s: user reply buffer (%d) "
+				    "smaller than returned buffer (%d)\n",
+				    __func__, data->ReplySize, sz);
 			}
+			mps_unlock(sc);
+			copyout(cm->cm_reply, PTRIN(data->PtrReply),
+			    data->ReplySize);
+			mps_lock(sc);
 		}
 		mpssas_free_tm(sc, cm);
 		goto Ret;
@@ -984,7 +985,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 
 	mps_lock(sc);
 
-	err = mps_wait_command(sc, cm, 30);
+	err = mps_wait_command(sc, cm, 30, CAN_SLEEP);
 
 	if (err) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
@@ -1023,15 +1024,13 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		sz = rpl->MsgLength * 4;
 
 		if (sz > data->ReplySize) {
-			mps_printf(sc, "%s: reply buffer too small: %d, "
-			    "required: %d\n", __func__, data->ReplySize, sz);
-			err = EINVAL;
-		} else {
-			mps_unlock(sc);
-			copyout(cm->cm_reply, PTRIN(data->PtrReply),
-			    data->ReplySize);
-			mps_lock(sc);
+			mps_printf(sc, "%s: user reply buffer (%d) smaller "
+			    "than returned buffer (%d)\n", __func__,
+			    data->ReplySize, sz);
 		}
+		mps_unlock(sc);
+		copyout(cm->cm_reply, PTRIN(data->PtrReply), data->ReplySize);
+		mps_lock(sc);
 
 		if ((function == MPI2_FUNCTION_SCSI_IO_REQUEST) ||
 		    (function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
@@ -1201,7 +1200,7 @@ mps_post_fw_diag_buffer(struct mps_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mps_wait_command(sc, cm, 30);
+	status = mps_wait_command(sc, cm, 30, CAN_SLEEP);
 	if (status) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
@@ -1250,8 +1249,8 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	 */
 	*return_code = MPS_FW_DIAG_ERROR_RELEASE_FAILED;
 	if (!pBuffer->enabled) {
-		mps_dprint(sc, MPS_INFO, "%s: This buffer type is not supported "
-		    "by the IOC", __func__);
+		mps_dprint(sc, MPS_USER, "%s: This buffer type is not "
+		    "supported by the IOC", __func__);
 		return (MPS_DIAG_FAILURE);
 	}
 
@@ -1285,7 +1284,7 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mps_wait_command(sc, cm, 30);
+	status = mps_wait_command(sc, cm, 30, CAN_SLEEP);
 	if (status) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
@@ -1793,7 +1792,7 @@ mps_user_diag_action(struct mps_softc *sc, mps_diag_action_t *data)
 	 * Only allow one diag action at one time.
 	 */
 	if (sc->mps_flags & MPS_FLAGS_BUSY) {
-		mps_dprint(sc, MPS_INFO, "%s: Only one FW diag command "
+		mps_dprint(sc, MPS_USER, "%s: Only one FW diag command "
 		    "allowed at a single time.", __func__);
 		return (EBUSY);
 	}
@@ -1980,7 +1979,7 @@ mps_user_reg_access(struct mps_softc *sc, mps_reg_access_t *data)
 		 */
 		case REG_IO_READ:
 		case REG_IO_WRITE:
-			mps_dprint(sc, MPS_INFO, "IO access is not supported. "
+			mps_dprint(sc, MPS_USER, "IO access is not supported. "
 			    "Use memory access.");
 			status = EINVAL;
 			break;
@@ -2168,7 +2167,7 @@ mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
 			printf("Port Enable did not complete after Diag "
 			    "Reset msleep error %d.\n", msleep_ret);
 		else
-			mps_dprint(sc, MPS_INFO,
+			mps_dprint(sc, MPS_USER,
 				"Hard Reset with Port Enable completed in %d seconds.\n",
 				 (uint32_t) (time_uptime - reinit_start));
 		break;

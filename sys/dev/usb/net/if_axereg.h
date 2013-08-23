@@ -349,7 +349,6 @@ struct axe_softc {
 	uint8_t			sc_phyaddrs[2];
 	uint16_t		sc_pwrcfg;
 	uint16_t		sc_lenmask;
-	int			sc_tx_bufsz;
 };
 
 #define	AXE_IS_178_FAMILY(sc)						  \

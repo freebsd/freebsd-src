@@ -13,21 +13,15 @@
 
 #include "llvm/Linker.h"
 #include "llvm-c/Linker.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SetVector.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/TypeFinder.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Transforms/Utils/ValueMapper.h"
-#include <cctype>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -35,6 +29,8 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 
 namespace {
+  typedef SmallPtrSet<StructType*, 32> TypeSet;
+
 class TypeMapTy : public ValueMapTypeRemapper {
   /// MappedTypes - This is a mapping from a source type to a destination type
   /// to use.
@@ -55,6 +51,9 @@ class TypeMapTy : public ValueMapTypeRemapper {
   SmallPtrSet<StructType*, 16> DstResolvedOpaqueTypes;
 
 public:
+  TypeMapTy(TypeSet &Set) : DstStructTypesSet(Set) {}
+
+  TypeSet &DstStructTypesSet;
   /// addTypeMapping - Indicate that the specified type in the destination
   /// module is conceptually equivalent to the specified type in the source
   /// module.
@@ -331,13 +330,20 @@ Type *TypeMapTy::getImpl(Type *Ty) {
   StructType *STy = cast<StructType>(Ty);
   
   // If the type is opaque, we can just use it directly.
-  if (STy->isOpaque())
+  if (STy->isOpaque()) {
+    // A named structure type from src module is used. Add it to the Set of
+    // identified structs in the destination module.
+    DstStructTypesSet.insert(STy);
     return *Entry = STy;
+  }
   
   // Otherwise we create a new type and resolve its body later.  This will be
   // resolved by the top level of get().
   SrcDefinitionsToResolve.push_back(STy);
   StructType *DTy = StructType::create(STy->getContext());
+  // A new identified structure type was created. Add it to the set of
+  // identified structs in the destination module.
+  DstStructTypesSet.insert(DTy);
   DstResolvedOpaqueTypes.insert(DTy);
   return *Entry = DTy;
 }
@@ -379,8 +385,8 @@ namespace {
   public:
     std::string ErrorMsg;
     
-    ModuleLinker(Module *dstM, Module *srcM, unsigned mode)
-      : DstM(dstM), SrcM(srcM), Mode(mode) { }
+    ModuleLinker(Module *dstM, TypeSet &Set, Module *srcM, unsigned mode)
+      : DstM(dstM), SrcM(srcM), TypeMap(Set), Mode(mode) { }
     
     bool run();
     
@@ -594,11 +600,6 @@ void ModuleLinker::computeTypeMapping() {
   SmallPtrSet<StructType*, 32> SrcStructTypesSet(SrcStructTypes.begin(),
                                                  SrcStructTypes.end());
 
-  TypeFinder DstStructTypes;
-  DstStructTypes.run(*DstM, true);
-  SmallPtrSet<StructType*, 32> DstStructTypesSet(DstStructTypes.begin(),
-                                                 DstStructTypes.end());
-
   for (unsigned i = 0, e = SrcStructTypes.size(); i != e; ++i) {
     StructType *ST = SrcStructTypes[i];
     if (!ST->hasName()) continue;
@@ -629,7 +630,7 @@ void ModuleLinker::computeTypeMapping() {
       // we prefer to take the '%C' version. So we are then left with both
       // '%C.1' and '%C' being used for the same types. This leads to some
       // variables using one type and some using the other.
-      if (!SrcStructTypesSet.count(DST) && DstStructTypesSet.count(DST))
+      if (!SrcStructTypesSet.count(DST) && TypeMap.DstStructTypesSet.count(DST))
         TypeMap.addTypeMapping(DST, ST);
   }
 
@@ -1287,6 +1288,25 @@ bool ModuleLinker::run() {
   return false;
 }
 
+Linker::Linker(Module *M) : Composite(M) {
+  TypeFinder StructTypes;
+  StructTypes.run(*M, true);
+  IdentifiedStructTypes.insert(StructTypes.begin(), StructTypes.end());
+}
+
+Linker::~Linker() {
+}
+
+bool Linker::linkInModule(Module *Src, unsigned Mode, std::string *ErrorMsg) {
+  ModuleLinker TheLinker(Composite, IdentifiedStructTypes, Src, Mode);
+  if (TheLinker.run()) {
+    if (ErrorMsg)
+      *ErrorMsg = TheLinker.ErrorMsg;
+    return true;
+  }
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 // LinkModules entrypoint.
 //===----------------------------------------------------------------------===//
@@ -1298,13 +1318,8 @@ bool ModuleLinker::run() {
 /// and shouldn't be relied on to be consistent.
 bool Linker::LinkModules(Module *Dest, Module *Src, unsigned Mode, 
                          std::string *ErrorMsg) {
-  ModuleLinker TheLinker(Dest, Src, Mode);
-  if (TheLinker.run()) {
-    if (ErrorMsg) *ErrorMsg = TheLinker.ErrorMsg;
-    return true;
-  }
-
-  return false;
+  Linker L(Dest);
+  return L.linkInModule(Src, Mode, ErrorMsg);
 }
 
 //===----------------------------------------------------------------------===//

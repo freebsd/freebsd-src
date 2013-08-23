@@ -822,12 +822,13 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
  *	The external callers of this routine typically have already destroyed
  *	or renamed vm_page_t's associated with this range in the object so
  *	we should be ok.
+ *
+ *	The object must be locked.
  */
 void
 swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
 	swp_pager_meta_free(object, start, size);
 }
 
@@ -835,7 +836,7 @@ swap_pager_freespace(vm_object_t object, vm_pindex_t start, vm_size_t size)
  * SWAP_PAGER_RESERVE() - reserve swap blocks in object
  *
  *	Assigns swap blocks to the specified range within the object.  The
- *	swap blocks are not zerod.  Any previous swap assignment is destroyed.
+ *	swap blocks are not zeroed.  Any previous swap assignment is destroyed.
  *
  *	Returns 0 on success, -1 on failure.
  */
@@ -999,7 +1000,7 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
 {
 	daddr_t blk0;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	/*
 	 * do we have good backing store at the requested index ?
 	 */
@@ -1065,12 +1066,13 @@ swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *aft
  *	depends on it.
  *
  *	This routine may not sleep.
+ *
+ *	The object containing the page must be locked.
  */
 static void
 swap_pager_unswapped(vm_page_t m)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	swp_pager_meta_ctl(m->object, m->pindex, SWM_FREE);
 }
 
@@ -1217,9 +1219,10 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	 */
 	VM_OBJECT_WLOCK(object);
 	while ((mreq->oflags & VPO_SWAPINPROG) != 0) {
-		mreq->oflags |= VPO_WANTED;
+		mreq->oflags |= VPO_SWAPSLEEP;
 		PCPU_INC(cnt.v_intrans);
-		if (VM_OBJECT_SLEEP(object, mreq, PSWP, "swread", hz * 20)) {
+		if (VM_OBJECT_SLEEP(object, &object->paging_in_progress, PSWP,
+		    "swread", hz * 20)) {
 			printf(
 "swap_pager: indefinite wait buffer: bufobj: %p, blkno: %jd, size: %ld\n",
 			    bp->b_bufobj, (intmax_t)bp->b_blkno, bp->b_bcount);
@@ -1457,12 +1460,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
  *	Completion routine for asynchronous reads and writes from/to swap.
  *	Also called manually by synchronous code to finish up a bp.
  *
- *	For READ operations, the pages are VPO_BUSY'd.  For WRITE operations,
- *	the pages are vm_page_t->busy'd.  For READ operations, we VPO_BUSY
- *	unbusy all pages except the 'main' request page.  For WRITE
- *	operations, we vm_page_t->busy'd unbusy all pages ( we can do this
- *	because we marked them all VM_PAGER_PEND on return from putpages ).
- *
  *	This routine may not sleep.
  */
 static void
@@ -1512,6 +1509,10 @@ swp_pager_async_iodone(struct buf *bp)
 		vm_page_t m = bp->b_pages[i];
 
 		m->oflags &= ~VPO_SWAPINPROG;
+		if (m->oflags & VPO_SWAPSLEEP) {
+			m->oflags &= ~VPO_SWAPSLEEP;
+			wakeup(&object->paging_in_progress);
+		}
 
 		if (bp->b_ioflags & BIO_ERROR) {
 			/*
@@ -1540,8 +1541,11 @@ swp_pager_async_iodone(struct buf *bp)
 				m->valid = 0;
 				if (i != bp->b_pager.pg_reqpage)
 					swp_pager_free_nrpage(m);
-				else
+				else {
+					vm_page_lock(m);
 					vm_page_flash(m);
+					vm_page_unlock(m);
+				}
 				/*
 				 * If i == bp->b_pager.pg_reqpage, do not wake
 				 * the page up.  The caller needs to.
@@ -1556,7 +1560,7 @@ swp_pager_async_iodone(struct buf *bp)
 				vm_page_lock(m);
 				vm_page_activate(m);
 				vm_page_unlock(m);
-				vm_page_io_finish(m);
+				vm_page_sunbusy(m);
 			}
 		} else if (bp->b_iocmd == BIO_READ) {
 			/*
@@ -1573,7 +1577,7 @@ swp_pager_async_iodone(struct buf *bp)
 			 * Note that the requested page, reqpage, is left
 			 * busied, but we still have to wake it up.  The
 			 * other pages are released (unbusied) by
-			 * vm_page_wakeup().
+			 * vm_page_xunbusy().
 			 */
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("swp_pager_async_iodone: page %p is mapped", m));
@@ -1593,9 +1597,12 @@ swp_pager_async_iodone(struct buf *bp)
 				vm_page_lock(m);
 				vm_page_deactivate(m);
 				vm_page_unlock(m);
-				vm_page_wakeup(m);
-			} else
+				vm_page_xunbusy(m);
+			} else {
+				vm_page_lock(m);
 				vm_page_flash(m);
+				vm_page_unlock(m);
+			}
 		} else {
 			/*
 			 * For write success, clear the dirty
@@ -1606,7 +1613,7 @@ swp_pager_async_iodone(struct buf *bp)
 			    ("swp_pager_async_iodone: page %p is not write"
 			    " protected", m));
 			vm_page_undirty(m);
-			vm_page_io_finish(m);
+			vm_page_sunbusy(m);
 			if (vm_page_count_severe()) {
 				vm_page_lock(m);
 				vm_page_try_to_cache(m);
@@ -1704,14 +1711,14 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	vm_object_pip_add(object, 1);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
 		vm_page_dirty(m);
 		vm_page_lock(m);
 		vm_page_activate(m);
 		vm_page_unlock(m);
-		vm_page_wakeup(m);
+		vm_page_xunbusy(m);
 		vm_pager_page_unswapped(m);
 		return;
 	}
@@ -1723,7 +1730,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_page_lock(m);
 	vm_page_deactivate(m);
 	vm_page_unlock(m);
-	vm_page_wakeup(m);
+	vm_page_xunbusy(m);
 	vm_pager_page_unswapped(m);
 }
 
@@ -1852,7 +1859,8 @@ retry:
 		if (swapblk == SWAPBLK_NONE)
 			goto done;
 
-		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT);
+		swap = *pswap = uma_zalloc(swap_zone, M_NOWAIT |
+		    (curproc == pageproc ? M_USE_RESERVE : 0));
 		if (swap == NULL) {
 			mtx_unlock(&swhash_mtx);
 			VM_OBJECT_WUNLOCK(object);
@@ -1916,7 +1924,7 @@ static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	if (object->type != OBJT_SWAP)
 		return;
 
@@ -2021,7 +2029,7 @@ swp_pager_meta_ctl(vm_object_t object, vm_pindex_t pindex, int flags)
 	daddr_t r1;
 	int idx;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	/*
 	 * The meta data only exists of the object is OBJT_SWAP
 	 * and even then might not be allocated yet.

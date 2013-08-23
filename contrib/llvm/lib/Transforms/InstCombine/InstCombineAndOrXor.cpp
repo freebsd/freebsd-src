@@ -266,9 +266,8 @@ Instruction *InstCombiner::OptAndOp(Instruction *Op,
   return 0;
 }
 
-
-/// InsertRangeTest - Emit a computation of: (V >= Lo && V < Hi) if Inside is
-/// true, otherwise (V < Lo || V >= Hi).  In practice, we emit the more efficient
+/// Emit a computation of: (V >= Lo && V < Hi) if Inside is true, otherwise
+/// (V < Lo || V >= Hi).  In practice, we emit the more efficient
 /// (V-Lo) \<u Hi-Lo.  This method expects that Lo <= Hi. isSigned indicates
 /// whether to treat the V, Lo and HI as signed or not. IB is the location to
 /// insert new instructions.
@@ -935,6 +934,9 @@ Value *InstCombiner::FoldAndOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
 Value *InstCombiner::FoldAndOfFCmps(FCmpInst *LHS, FCmpInst *RHS) {
   if (LHS->getPredicate() == FCmpInst::FCMP_ORD &&
       RHS->getPredicate() == FCmpInst::FCMP_ORD) {
+    if (LHS->getOperand(0)->getType() != RHS->getOperand(0)->getType())
+      return 0;
+
     // (fcmp ord x, c) & (fcmp ord y, c)  -> (fcmp ord x, y)
     if (ConstantFP *LHSC = dyn_cast<ConstantFP>(LHS->getOperand(1)))
       if (ConstantFP *RHSC = dyn_cast<ConstantFP>(RHS->getOperand(1))) {
@@ -1545,14 +1547,6 @@ Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
     switch (RHSCC) {
     default: llvm_unreachable("Unknown integer condition code!");
     case ICmpInst::ICMP_EQ:
-      if (LHSCst == SubOne(RHSCst)) {
-        // (X == 13 | X == 14) -> X-13 <u 2
-        Constant *AddCST = ConstantExpr::getNeg(LHSCst);
-        Value *Add = Builder->CreateAdd(Val, AddCST, Val->getName()+".off");
-        AddCST = ConstantExpr::getSub(AddOne(RHSCst), LHSCst);
-        return Builder->CreateICmpULT(Add, AddCST);
-      }
-
       if (LHS->getOperand(0) == RHS->getOperand(0)) {
         // if LHSCst and RHSCst differ only by one bit:
         // (A == C1 || A == C2) -> (A & ~(C1 ^ C2)) == C1
@@ -1564,6 +1558,14 @@ Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
           Value *And = Builder->CreateAnd(LHS->getOperand(0), NegCst);
           return Builder->CreateICmp(ICmpInst::ICMP_EQ, And, LHSCst);
         }
+      }
+
+      if (LHSCst == SubOne(RHSCst)) {
+        // (X == 13 | X == 14) -> X-13 <u 2
+        Constant *AddCST = ConstantExpr::getNeg(LHSCst);
+        Value *Add = Builder->CreateAdd(Val, AddCST, Val->getName()+".off");
+        AddCST = ConstantExpr::getSub(AddOne(RHSCst), LHSCst);
+        return Builder->CreateICmpULT(Add, AddCST);
       }
 
       break;                         // (X == 13 | X == 15) -> no change

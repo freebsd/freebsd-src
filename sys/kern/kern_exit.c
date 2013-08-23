@@ -94,8 +94,7 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exit, exit);
-SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
+SDT_PROBE_DEFINE1(proc, kernel, , exit, exit, "int");
 
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
@@ -918,8 +917,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		}
 		break;
 	case P_JAILID:
-		if (p->p_ucred->cr_prison == NULL ||
-		    (p->p_ucred->cr_prison->pr_id != (int)id)) {
+		if (p->p_ucred->cr_prison->pr_id != (int)id) {
 			PROC_UNLOCK(p);
 			return (0);
 		}

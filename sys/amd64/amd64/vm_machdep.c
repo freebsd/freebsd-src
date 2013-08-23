@@ -90,9 +90,10 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
-CTASSERT((struct thread **)OFFSETOF_CURTHREAD ==
-    &((struct pcpu *)NULL)->pc_curthread);
-CTASSERT((struct pcb **)OFFSETOF_CURPCB == &((struct pcpu *)NULL)->pc_curpcb);
+_Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
+    "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
+_Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
+    "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
 
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
@@ -341,7 +342,7 @@ cpu_thread_clean(struct thread *td)
 	 * Clean TSS/iomap
 	 */
 	if (pcb->pcb_tssp != NULL) {
-		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_tssp,
+		kva_free((vm_offset_t)pcb->pcb_tssp,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_tssp = NULL;
 	}

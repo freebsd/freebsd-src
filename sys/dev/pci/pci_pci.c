@@ -100,16 +100,9 @@ static device_method_t pcib_methods[] = {
 static devclass_t pcib_devclass;
 
 DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
-DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, NULL, NULL);
 
 #ifdef NEW_PCIB
-/*
- * XXX Todo:
- * - properly handle the ISA enable bit.  If it is set, we should change
- *   the behavior of the I/O window resource and rman to not allocate the
- *   blocked ranges (upper 768 bytes of each 1K in the first 64k of the
- *   I/O port address space).
- */
 
 /*
  * Is a resource from a child device sub-allocated from one of our
@@ -189,10 +182,183 @@ pcib_write_windows(struct pcib_softc *sc, int mask)
 	}
 }
 
+/*
+ * This is used to reject I/O port allocations that conflict with an
+ * ISA alias range.
+ */
+static int
+pcib_is_isa_range(struct pcib_softc *sc, u_long start, u_long end, u_long count)
+{
+	u_long next_alias;
+
+	if (!(sc->bridgectl & PCIB_BCR_ISA_ENABLE))
+		return (0);
+
+	/* Only check fixed ranges for overlap. */
+	if (start + count - 1 != end)
+		return (0);
+
+	/* ISA aliases are only in the lower 64KB of I/O space. */
+	if (start >= 65536)
+		return (0);
+
+	/* Check for overlap with 0x000 - 0x0ff as a special case. */
+	if (start < 0x100)
+		goto alias;
+
+	/*
+	 * If the start address is an alias, the range is an alias.
+	 * Otherwise, compute the start of the next alias range and
+	 * check if it is before the end of the candidate range.
+	 */
+	if ((start & 0x300) != 0)
+		goto alias;
+	next_alias = (start & ~0x3fful) | 0x100;
+	if (next_alias <= end)
+		goto alias;
+	return (0);
+
+alias:
+	if (bootverbose)
+		device_printf(sc->dev,
+		    "I/O range %#lx-%#lx overlaps with an ISA alias\n", start,
+		    end);
+	return (1);
+}
+
+static void
+pcib_add_window_resources(struct pcib_window *w, struct resource **res,
+    int count)
+{
+	struct resource **newarray;
+	int error, i;
+
+	newarray = malloc(sizeof(struct resource *) * (w->count + count),
+	    M_DEVBUF, M_WAITOK);
+	if (w->res != NULL)
+		bcopy(w->res, newarray, sizeof(struct resource *) * w->count);
+	bcopy(res, newarray + w->count, sizeof(struct resource *) * count);
+	free(w->res, M_DEVBUF);
+	w->res = newarray;
+	w->count += count;
+	
+	for (i = 0; i < count; i++) {
+		error = rman_manage_region(&w->rman, rman_get_start(res[i]),
+		    rman_get_end(res[i]));
+		if (error)
+			panic("Failed to add resource to rman");
+	}
+}
+
+typedef void (nonisa_callback)(u_long start, u_long end, void *arg);
+
+static void
+pcib_walk_nonisa_ranges(u_long start, u_long end, nonisa_callback *cb,
+    void *arg)
+{
+	u_long next_end;
+
+	/*
+	 * If start is within an ISA alias range, move up to the start
+	 * of the next non-alias range.  As a special case, addresses
+	 * in the range 0x000 - 0x0ff should also be skipped since
+	 * those are used for various system I/O devices in ISA
+	 * systems.
+	 */
+	if (start <= 65535) {
+		if (start < 0x100 || (start & 0x300) != 0) {
+			start &= ~0x3ff;
+			start += 0x400;
+		}
+	}
+
+	/* ISA aliases are only in the lower 64KB of I/O space. */
+	while (start <= MIN(end, 65535)) {
+		next_end = MIN(start | 0xff, end);
+		cb(start, next_end, arg);
+		start += 0x400;
+	}
+
+	if (start <= end)
+		cb(start, end, arg);
+}
+
+static void
+count_ranges(u_long start, u_long end, void *arg)
+{
+	int *countp;
+
+	countp = arg;
+	(*countp)++;
+}
+
+struct alloc_state {
+	struct resource **res;
+	struct pcib_softc *sc;
+	int count, error;
+};
+
+static void
+alloc_ranges(u_long start, u_long end, void *arg)
+{
+	struct alloc_state *as;
+	struct pcib_window *w;
+	int rid;
+
+	as = arg;
+	if (as->error != 0)
+		return;
+
+	w = &as->sc->io;
+	rid = w->reg;
+	if (bootverbose)
+		device_printf(as->sc->dev,
+		    "allocating non-ISA range %#lx-%#lx\n", start, end);
+	as->res[as->count] = bus_alloc_resource(as->sc->dev, SYS_RES_IOPORT,
+	    &rid, start, end, end - start + 1, 0);
+	if (as->res[as->count] == NULL)
+		as->error = ENXIO;
+	else
+		as->count++;
+}
+
+static int
+pcib_alloc_nonisa_ranges(struct pcib_softc *sc, u_long start, u_long end)
+{
+	struct alloc_state as;
+	int i, new_count;
+
+	/* First, see how many ranges we need. */
+	new_count = 0;
+	pcib_walk_nonisa_ranges(start, end, count_ranges, &new_count);
+
+	/* Second, allocate the ranges. */
+	as.res = malloc(sizeof(struct resource *) * new_count, M_DEVBUF,
+	    M_WAITOK);
+	as.sc = sc;
+	as.count = 0;
+	as.error = 0;
+	pcib_walk_nonisa_ranges(start, end, alloc_ranges, &as);
+	if (as.error != 0) {
+		for (i = 0; i < as.count; i++)
+			bus_release_resource(sc->dev, SYS_RES_IOPORT,
+			    sc->io.reg, as.res[i]);
+		free(as.res, M_DEVBUF);
+		return (as.error);
+	}
+	KASSERT(as.count == new_count, ("%s: count mismatch", __func__));
+
+	/* Third, add the ranges to the window. */
+	pcib_add_window_resources(&sc->io, as.res, as.count);
+	free(as.res, M_DEVBUF);
+	return (0);
+}
+
 static void
 pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
     int flags, pci_addr_t max_address)
 {
+	struct resource *res;
 	char buf[64];
 	int error, rid;
 
@@ -217,9 +383,15 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		    "initial %s window has too many bits, ignoring\n", w->name);
 		return;
 	}
-	rid = w->reg;
-	w->res = bus_alloc_resource(sc->dev, type, &rid, w->base, w->limit,
-	    w->limit - w->base + 1, flags);
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE)
+		(void)pcib_alloc_nonisa_ranges(sc, w->base, w->limit);
+	else {
+		rid = w->reg;
+		res = bus_alloc_resource(sc->dev, type, &rid, w->base, w->limit,
+		    w->limit - w->base + 1, flags);
+		if (res != NULL)
+			pcib_add_window_resources(w, &res, 1);
+	}
 	if (w->res == NULL) {
 		device_printf(sc->dev,
 		    "failed to allocate initial %s window: %#jx-%#jx\n",
@@ -230,11 +402,6 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		return;
 	}
 	pcib_activate_window(sc, type);
-
-	error = rman_manage_region(&w->rman, rman_get_start(w->res),
-	    rman_get_end(w->res));
-	if (error)
-		panic("Failed to initialize rman with resource");
 }
 
 /*
@@ -541,6 +708,7 @@ pcib_attach_common(device_t dev)
     struct pcib_softc	*sc;
     struct sysctl_ctx_list *sctx;
     struct sysctl_oid	*soid;
+    int comma;
 
     sc = device_get_softc(dev);
     sc->dev = dev;
@@ -624,6 +792,9 @@ pcib_attach_common(device_t dev)
     if (pci_msi_device_blacklisted(dev))
 	sc->flags |= PCIB_DISABLE_MSI;
 
+    if (pci_msix_device_blacklisted(dev))
+	sc->flags |= PCIB_DISABLE_MSIX;
+
     /*
      * Intel 815, 845 and other chipsets say they are PCI-PCI bridges,
      * but have a ProgIF of 0x80.  The 82801 family (AA, AB, BAM/CAM,
@@ -664,10 +835,22 @@ pcib_attach_common(device_t dev)
 	    device_printf(dev, "  prefetched decode 0x%jx-0x%jx\n",
 	      (uintmax_t)sc->pmembase, (uintmax_t)sc->pmemlimit);
 #endif
-	else
-	    device_printf(dev, "  no prefetched decode\n");
-	if (sc->flags & PCIB_SUBTRACTIVE)
-	    device_printf(dev, "  Subtractively decoded bridge.\n");
+	if (sc->bridgectl & (PCIB_BCR_ISA_ENABLE | PCIB_BCR_VGA_ENABLE) ||
+	    sc->flags & PCIB_SUBTRACTIVE) {
+		device_printf(dev, "  special decode    ");
+		comma = 0;
+		if (sc->bridgectl & PCIB_BCR_ISA_ENABLE) {
+			printf("ISA");
+			comma = 1;
+		}
+		if (sc->bridgectl & PCIB_BCR_VGA_ENABLE) {
+			printf("%sVGA", comma ? ", " : "");
+			comma = 1;
+		}
+		if (sc->flags & PCIB_SUBTRACTIVE)
+			printf("%ssubtractive", comma ? ", " : "");
+		printf("\n");
+	}
     }
 
     /*
@@ -814,23 +997,197 @@ pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
 	return (res);
 }
 
+/* Allocate a fresh resource range for an unconfigured window. */
+static int
+pcib_alloc_new_window(struct pcib_softc *sc, struct pcib_window *w, int type,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+	u_long base, limit, wmask;
+	int rid;
+
+	/*
+	 * If this is an I/O window on a bridge with ISA enable set
+	 * and the start address is below 64k, then try to allocate an
+	 * initial window of 0x1000 bytes long starting at address
+	 * 0xf000 and walking down.  Note that if the original request
+	 * was larger than the non-aliased range size of 0x100 our
+	 * caller would have raised the start address up to 64k
+	 * already.
+	 */
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE &&
+	    start < 65536) {
+		for (base = 0xf000; (long)base >= 0; base -= 0x1000) {
+			limit = base + 0xfff;
+
+			/*
+			 * Skip ranges that wouldn't work for the
+			 * original request.  Note that the actual
+			 * window that overlaps are the non-alias
+			 * ranges within [base, limit], so this isn't
+			 * quite a simple comparison.
+			 */
+			if (start + count > limit - 0x400)
+				continue;
+			if (base == 0) {
+				/*
+				 * The first open region for the window at
+				 * 0 is 0x400-0x4ff.
+				 */
+				if (end - count + 1 < 0x400)
+					continue;
+			} else {
+				if (end - count + 1 < base)
+					continue;
+			}
+
+			if (pcib_alloc_nonisa_ranges(sc, base, limit) == 0) {
+				w->base = base;
+				w->limit = limit;
+				return (0);
+			}
+		}
+		return (ENOSPC);		
+	}
+	
+	wmask = (1ul << w->step) - 1;
+	if (RF_ALIGNMENT(flags) < w->step) {
+		flags &= ~RF_ALIGNMENT_MASK;
+		flags |= RF_ALIGNMENT_LOG2(w->step);
+	}
+	start &= ~wmask;
+	end |= wmask;
+	count = roundup2(count, 1ul << w->step);
+	rid = w->reg;
+	res = bus_alloc_resource(sc->dev, type, &rid, start, end, count,
+	    flags & ~RF_ACTIVE);
+	if (res == NULL)
+		return (ENOSPC);
+	pcib_add_window_resources(w, &res, 1);
+	pcib_activate_window(sc, type);
+	w->base = rman_get_start(res);
+	w->limit = rman_get_end(res);
+	return (0);
+}
+
+/* Try to expand an existing window to the requested base and limit. */
+static int
+pcib_expand_window(struct pcib_softc *sc, struct pcib_window *w, int type,
+    u_long base, u_long limit)
+{
+	struct resource *res;
+	int error, i, force_64k_base;
+
+	KASSERT(base <= w->base && limit >= w->limit,
+	    ("attempting to shrink window"));
+
+	/*
+	 * XXX: pcib_grow_window() doesn't try to do this anyway and
+	 * the error handling for all the edge cases would be tedious.
+	 */
+	KASSERT(limit == w->limit || base == w->base,
+	    ("attempting to grow both ends of a window"));
+
+	/*
+	 * Yet more special handling for requests to expand an I/O
+	 * window behind an ISA-enabled bridge.  Since I/O windows
+	 * have to grow in 0x1000 increments and the end of the 0xffff
+	 * range is an alias, growing a window below 64k will always
+	 * result in allocating new resources and never adjusting an
+	 * existing resource.
+	 */
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE &&
+	    (limit <= 65535 || (base <= 65535 && base != w->base))) {
+		KASSERT(limit == w->limit || limit <= 65535,
+		    ("attempting to grow both ends across 64k ISA alias"));
+
+		if (base != w->base)
+			error = pcib_alloc_nonisa_ranges(sc, base, w->base - 1);
+		else
+			error = pcib_alloc_nonisa_ranges(sc, w->limit + 1,
+			    limit);
+		if (error == 0) {
+			w->base = base;
+			w->limit = limit;
+		}
+		return (error);
+	}
+
+	/*
+	 * Find the existing resource to adjust.  Usually there is only one,
+	 * but for an ISA-enabled bridge we might be growing the I/O window
+	 * above 64k and need to find the existing resource that maps all
+	 * of the area above 64k.
+	 */
+	for (i = 0; i < w->count; i++) {
+		if (rman_get_end(w->res[i]) == w->limit)
+			break;
+	}
+	KASSERT(i != w->count, ("did not find existing resource"));
+	res = w->res[i];
+
+	/*
+	 * Usually the resource we found should match the window's
+	 * existing range.  The one exception is the ISA-enabled case
+	 * mentioned above in which case the resource should start at
+	 * 64k.
+	 */
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE &&
+	    w->base <= 65535) {
+		KASSERT(rman_get_start(res) == 65536,
+		    ("existing resource mismatch"));
+		force_64k_base = 1;
+	} else {
+		KASSERT(w->base == rman_get_start(res),
+		    ("existing resource mismatch"));
+		force_64k_base = 0;
+	}	
+
+	error = bus_adjust_resource(sc->dev, type, res, force_64k_base ?
+	    rman_get_start(res) : base, limit);
+	if (error)
+		return (error);
+
+	/* Add the newly allocated region to the resource manager. */
+	if (w->base != base) {
+		error = rman_manage_region(&w->rman, base, w->base - 1);
+		w->base = base;
+	} else {
+		error = rman_manage_region(&w->rman, w->limit + 1, limit);
+		w->limit = limit;
+	}
+	if (error) {
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "failed to expand %s resource manager\n", w->name);
+		(void)bus_adjust_resource(sc->dev, type, res, force_64k_base ?
+		    rman_get_start(res) : w->base, w->limit);
+	}
+	return (error);
+}
+
 /*
  * Attempt to grow a window to make room for a given resource request.
- * The 'step' parameter is log_2 of the desired I/O window's alignment.
  */
 static int
 pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	u_long align, start_free, end_free, front, back, wmask;
-	int error, rid;
+	int error;
 
 	/*
 	 * Clamp the desired resource range to the maximum address
 	 * this window supports.  Reject impossible requests.
+	 *
+	 * For I/O port requests behind a bridge with the ISA enable
+	 * bit set, force large allocations to start above 64k.
 	 */
 	if (!w->valid)
 		return (EINVAL);
+	if (sc->bridgectl & PCIB_BCR_ISA_ENABLE && count > 0x100 &&
+	    start < 65536)
+		start = 65536;
 	if (end > w->rman.rm_end)
 		end = w->rman.rm_end;
 	if (start + count - 1 > end || start + count < start)
@@ -842,40 +1199,19 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	 * aligned space for this resource.
 	 */
 	if (w->res == NULL) {
-		if (RF_ALIGNMENT(flags) < w->step) {
-			flags &= ~RF_ALIGNMENT_MASK;
-			flags |= RF_ALIGNMENT_LOG2(w->step);
-		}
-		start &= ~wmask;
-		end |= wmask;
-		count = roundup2(count, 1ul << w->step);
-		rid = w->reg;
-		w->res = bus_alloc_resource(sc->dev, type, &rid, start, end,
-		    count, flags & ~RF_ACTIVE);
-		if (w->res == NULL) {
+		error = pcib_alloc_new_window(sc, w, type, start, end, count,
+		    flags);
+		if (error) {
 			if (bootverbose)
 				device_printf(sc->dev,
 		    "failed to allocate initial %s window (%#lx-%#lx,%#lx)\n",
 				    w->name, start, end, count);
-			return (ENXIO);
+			return (error);
 		}
 		if (bootverbose)
 			device_printf(sc->dev,
-			    "allocated initial %s window of %#lx-%#lx\n",
-			    w->name, rman_get_start(w->res),
-			    rman_get_end(w->res));
-		error = rman_manage_region(&w->rman, rman_get_start(w->res),
-		    rman_get_end(w->res));
-		if (error) {
-			if (bootverbose)
-				device_printf(sc->dev,
-				    "failed to add initial %s window to rman\n",
-				    w->name);
-			bus_release_resource(sc->dev, type, w->reg, w->res);
-			w->res = NULL;
-			return (error);
-		}
-		pcib_activate_window(sc, type);
+			    "allocated initial %s window of %#jx-%#jx\n",
+			    w->name, (uintmax_t)w->base, (uintmax_t)w->limit);
 		goto updatewin;
 	}
 
@@ -889,6 +1225,11 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	 * edge of the window, grow from the inner edge of the free
 	 * region.  Otherwise grow from the window boundary.
 	 *
+	 * Growing an I/O window below 64k for a bridge with the ISA
+	 * enable bit doesn't require any special magic as the step
+	 * size of an I/O window (1k) always includes multiple
+	 * non-alias ranges when it is grown in either direction.
+	 *
 	 * XXX: Special case: if w->res is completely empty and the
 	 * request size is larger than w->res, we should find the
 	 * optimal aligned buffer containing w->res and allocate that.
@@ -898,10 +1239,10 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		    "attempting to grow %s window for (%#lx-%#lx,%#lx)\n",
 		    w->name, start, end, count);
 	align = 1ul << RF_ALIGNMENT(flags);
-	if (start < rman_get_start(w->res)) {
+	if (start < w->base) {
 		if (rman_first_free_region(&w->rman, &start_free, &end_free) !=
-		    0 || start_free != rman_get_start(w->res))
-			end_free = rman_get_start(w->res);
+		    0 || start_free != w->base)
+			end_free = w->base;
 		if (end_free > end)
 			end_free = end + 1;
 
@@ -922,15 +1263,15 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 				printf("\tfront candidate range: %#lx-%#lx\n",
 				    front, end_free);
 			front &= ~wmask;
-			front = rman_get_start(w->res) - front;
+			front = w->base - front;
 		} else
 			front = 0;
 	} else
 		front = 0;
-	if (end > rman_get_end(w->res)) {
+	if (end > w->limit) {
 		if (rman_last_free_region(&w->rman, &start_free, &end_free) !=
-		    0 || end_free != rman_get_end(w->res))
-			start_free = rman_get_end(w->res) + 1;
+		    0 || end_free != w->limit)
+			start_free = w->limit + 1;
 		if (start_free < start)
 			start_free = start;
 
@@ -950,7 +1291,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 				printf("\tback candidate range: %#lx-%#lx\n",
 				    start_free, back);
 			back |= wmask;
-			back -= rman_get_end(w->res);
+			back -= w->limit;
 		} else
 			back = 0;
 	} else
@@ -963,16 +1304,14 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	error = ENOSPC;
 	while (front != 0 || back != 0) {
 		if (front != 0 && (front <= back || back == 0)) {
-			error = bus_adjust_resource(sc->dev, type, w->res,
-			    rman_get_start(w->res) - front,
-			    rman_get_end(w->res));
+			error = pcib_expand_window(sc, w, type, w->base - front,
+			    w->limit);
 			if (error == 0)
 				break;
 			front = 0;
 		} else {
-			error = bus_adjust_resource(sc->dev, type, w->res,
-			    rman_get_start(w->res),
-			    rman_get_end(w->res) + back);
+			error = pcib_expand_window(sc, w, type, w->base,
+			    w->limit + back);
 			if (error == 0)
 				break;
 			back = 0;
@@ -982,32 +1321,11 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	if (error)
 		return (error);
 	if (bootverbose)
-		device_printf(sc->dev, "grew %s window to %#lx-%#lx\n",
-		    w->name, rman_get_start(w->res), rman_get_end(w->res));
-
-	/* Add the newly allocated region to the resource manager. */
-	if (w->base != rman_get_start(w->res)) {
-		KASSERT(w->limit == rman_get_end(w->res), ("both ends moved"));
-		error = rman_manage_region(&w->rman, rman_get_start(w->res),
-		    w->base - 1);
-	} else {
-		KASSERT(w->limit != rman_get_end(w->res),
-		    ("neither end moved"));
-		error = rman_manage_region(&w->rman, w->limit + 1,
-		    rman_get_end(w->res));
-	}
-	if (error) {
-		if (bootverbose)
-			device_printf(sc->dev,
-			    "failed to expand %s resource manager\n", w->name);
-		bus_adjust_resource(sc->dev, type, w->res, w->base, w->limit);
-		return (error);
-	}
+		device_printf(sc->dev, "grew %s window to %#jx-%#jx\n",
+		    w->name, (uintmax_t)w->base, (uintmax_t)w->limit);
 
 updatewin:
-	/* Save the new window. */
-	w->base = rman_get_start(w->res);
-	w->limit = rman_get_end(w->res);
+	/* Write the new window. */
 	KASSERT((w->base & wmask) == 0, ("start address is not aligned"));
 	KASSERT((w->limit & wmask) == wmask, ("end address is not aligned"));
 	pcib_write_windows(sc, w->mask);
@@ -1043,6 +1361,8 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_IOPORT:
+		if (pcib_is_isa_range(sc, start, end, count))
+			return (NULL);
 		r = pcib_suballoc_resource(sc, &sc->io, child, type, rid, start,
 		    end, count, flags);
 		if (r != NULL || (sc->flags & PCIB_SUBTRACTIVE) != 0)
@@ -1379,7 +1699,7 @@ pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
 	struct pcib_softc *sc = device_get_softc(pcib);
 	device_t bus;
 
-	if (sc->flags & PCIB_DISABLE_MSI)
+	if (sc->flags & PCIB_DISABLE_MSIX)
 		return (ENXIO);
 	bus = device_get_parent(pcib);
 	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));

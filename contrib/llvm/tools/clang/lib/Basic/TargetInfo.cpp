@@ -37,6 +37,7 @@ TargetInfo::TargetInfo(const std::string &T) : TargetOpts(), Triple(T)
   LongWidth = LongAlign = 32;
   LongLongWidth = LongLongAlign = 64;
   SuitableAlign = 64;
+  MinGlobalAlign = 0;
   HalfWidth = 16;
   HalfAlign = 16;
   FloatWidth = 32;
@@ -373,7 +374,9 @@ bool TargetInfo::validateOutputConstraint(ConstraintInfo &Info) const {
     Name++;
   }
 
-  return true;
+  // If a constraint allows neither memory nor register operands it contains
+  // only modifiers. Reject it.
+  return Info.allowsMemory() || Info.allowsRegister();
 }
 
 bool TargetInfo::resolveSymbolicName(const char *&Name,

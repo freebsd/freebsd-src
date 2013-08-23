@@ -408,9 +408,10 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 
 	PF_RULES_RASSERT();
 
-	if (sp->creatorid == 0 && V_pf_status.debug >= PF_DEBUG_MISC) {
-		printf("%s: invalid creator id: %08x\n", __func__,
-		    ntohl(sp->creatorid));
+	if (sp->creatorid == 0) {
+		if (V_pf_status.debug >= PF_DEBUG_MISC)
+			printf("%s: invalid creator id: %08x\n", __func__,
+			    ntohl(sp->creatorid));
 		return (EINVAL);
 	}
 
@@ -1323,7 +1324,10 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if ((sifp = ifunit_ref(pfsyncr.pfsyncr_syncdev)) == NULL)
 			return (EINVAL);
 
-		if (pfsyncr.pfsyncr_syncpeer.s_addr == 0 && sifp != NULL)
+		if (sifp != NULL && (
+		    pfsyncr.pfsyncr_syncpeer.s_addr == 0 ||
+		    pfsyncr.pfsyncr_syncpeer.s_addr ==
+		    htonl(INADDR_PFSYNC_GROUP)))
 			mship = malloc((sizeof(struct in_multi *) *
 			    IP_MIN_MEMBERSHIPS), M_PFSYNC, M_WAITOK | M_ZERO);
 
@@ -1643,7 +1647,7 @@ pfsync_insert_state(struct pf_state *st)
 	}
 
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
-		("%s: st->sync_state == PFSYNC_S_NONE", __func__));
+		("%s: st->sync_state %u", __func__, st->sync_state));
 
 	PFSYNC_LOCK(sc);
 	if (sc->sc_len == PFSYNC_MINPKT)
@@ -1966,7 +1970,7 @@ pfsync_q_ins(struct pf_state *st, int q)
 	PFSYNC_LOCK_ASSERT(sc);
 
 	KASSERT(st->sync_state == PFSYNC_S_NONE,
-		("%s: st->sync_state == PFSYNC_S_NONE", __func__));
+		("%s: st->sync_state %u", __func__, st->sync_state));
 	KASSERT(sc->sc_len >= PFSYNC_MINPKT, ("pfsync pkt len is too low %zu",
 	    sc->sc_len));
 

@@ -121,8 +121,8 @@ SDT_PROBE_DEFINE(sched, , , schedctl_nopreempt, schedctl-nopreempt);
 SDT_PROBE_DEFINE(sched, , , schedctl_preempt, schedctl-preempt);
 SDT_PROBE_DEFINE(sched, , , schedctl_yield, schedctl-yield);
 
-void
-sleepinit(void)
+static void
+sleepinit(void *unused)
 {
 
 	hogticks = (hz / 10) * 2;	/* Default only. */
@@ -130,9 +130,15 @@ sleepinit(void)
 }
 
 /*
+ * vmem tries to lock the sleepq mutexes when free'ing kva, so make sure
+ * it is available.
+ */
+SYSINIT(sleepinit, SI_SUB_KMEM, SI_ORDER_ANY, sleepinit, 0);
+
+/*
  * General sleep call.  Suspends the current thread until a wakeup is
  * performed on the specified identifier.  The thread will then be made
- * runnable with the specified priority.  Sleeps at most timo/hz seconds
+ * runnable with the specified priority.  Sleeps at most sbt units of time
  * (0 means no timeout).  If pri includes the PCATCH flag, let signals
  * interrupt the sleep, otherwise ignore them while sleeping.  Returns 0 if
  * awakened, EWOULDBLOCK if the timeout expires.  If PCATCH is set and a
@@ -581,7 +587,7 @@ int
 should_yield(void)
 {
 
-	return (ticks - curthread->td_swvoltick >= hogticks);
+	return ((unsigned int)(ticks - curthread->td_swvoltick) >= hogticks);
 }
 
 void

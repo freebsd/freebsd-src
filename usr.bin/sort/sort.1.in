@@ -612,7 +612,7 @@ command first appeared in
 .Sh AUTHORS
 Gabor Kovesdan <gabor@FreeBSD.org>,
 .Pp
-Oleg Moskalenko <oleg.moskalenko@citrix.com>
+Oleg Moskalenko <mom040267@gmail.com>
 .Sh NOTES
 This implementation of
 .Nm

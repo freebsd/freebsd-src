@@ -705,7 +705,7 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 		/* Temporary use polling for command completions */
 		mlx4_cmd_use_polling(dev);
 
-		/* Map the new eq to handle all asyncronous events */
+		/* Map the new eq to handle all asynchronous events */
 		err = mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
 				  priv->eq_table.eq[i].eqn);
 		if (err) {

@@ -1,11 +1,9 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//EN">
-%entities;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
-<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "nonexistent">
 %devauto;
 ]>
 
@@ -334,7 +332,7 @@
 	  <para>Apple iMac G5</para>
 	</listitem>
 	<listitem>
-	  <para>Apple Power Macintosh G3 (Blue & White)</para>
+	  <para>Apple Power Macintosh G3 (Blue &amp; White)</para>
 	</listitem>
 	<listitem>
 	  <para>Apple Power Macintosh G4</para>
@@ -535,7 +533,7 @@
       <para>The following systems are partially supported by &os;.  In
 	particular the fiber channel controllers in SBus-based systems are not
 	supported.  However, it is possible to use these with a SCSI controller
-	supported by the &man.esp.4 driver (Sun ESP SCSI, Sun FAS Fast-SCSI
+	supported by the &man.esp.4; driver (Sun ESP SCSI, Sun FAS Fast-SCSI
 	and Sun FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>

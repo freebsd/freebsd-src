@@ -45,6 +45,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::CXXDestructor:
   case Decl::CXXConversion:
   case Decl::Field:
+  case Decl::MSProperty:
   case Decl::IndirectField:
   case Decl::ObjCIvar:
   case Decl::ObjCAtDefsField:
@@ -69,6 +70,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::Friend:
   case Decl::FriendTemplate:
   case Decl::Block:
+  case Decl::Captured:
   case Decl::ClassScopeFunctionSpecialization:
     llvm_unreachable("Declaration should not be in declstmts!");
   case Decl::Function:  // void X();
@@ -78,7 +80,6 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::CXXRecord: // struct/union/class X; [C++]
   case Decl::Using:          // using X; [C++]
   case Decl::UsingShadow:
-  case Decl::UsingDirective: // using namespace X; [C++]
   case Decl::NamespaceAlias:
   case Decl::StaticAssert: // static_assert(X, ""); [C++0x]
   case Decl::Label:        // __label__ x;
@@ -88,6 +89,10 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
     // None of these decls require codegen support.
     return;
 
+  case Decl::UsingDirective: // using namespace X; [C++]
+    if (CGDebugInfo *DI = getDebugInfo())
+      DI->EmitUsingDirective(cast<UsingDirectiveDecl>(D));
+    return;
   case Decl::Var: {
     const VarDecl &VD = cast<VarDecl>(D);
     assert(VD.isLocalVarDecl() &&
@@ -198,7 +203,7 @@ CodeGenFunction::CreateStaticVarDecl(const VarDecl &D,
   if (Linkage != llvm::GlobalValue::InternalLinkage)
     GV->setVisibility(CurFn->getVisibility());
 
-  if (D.isThreadSpecified())
+  if (D.getTLSKind())
     CGM.setTLSMode(GV, D);
 
   return GV;
@@ -898,7 +903,7 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
       CharUnits allocaAlignment = alignment;
       if (isByRef)
         allocaAlignment = std::max(allocaAlignment,
-            getContext().toCharUnitsFromBits(Target.getPointerAlign(0)));
+            getContext().toCharUnitsFromBits(getTarget().getPointerAlign(0)));
       Alloc->setAlignment(allocaAlignment.getQuantity());
       DeclPtr = Alloc;
 

@@ -23,6 +23,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/ConstantFolder.h"
 
 namespace llvm {
@@ -48,6 +49,10 @@ protected:
 class IRBuilderBase {
   DebugLoc CurDbgLocation;
 protected:
+  /// Save the current debug location here while we are suppressing
+  /// line table entries.
+  llvm::DebugLoc SavedDbgLocation;
+
   BasicBlock *BB;
   BasicBlock::iterator InsertPt;
   LLVMContext &Context;
@@ -110,6 +115,23 @@ public:
   /// \brief Set location information used by debugging information.
   void SetCurrentDebugLocation(const DebugLoc &L) {
     CurDbgLocation = L;
+  }
+
+  /// \brief Temporarily suppress DebugLocations from being attached
+  /// to emitted instructions, until the next call to
+  /// SetCurrentDebugLocation() or EnableDebugLocations().  Use this
+  /// if you want an instruction to be counted towards the prologue or
+  /// if there is no useful source location.
+  void DisableDebugLocations() {
+    llvm::DebugLoc Empty;
+    SavedDbgLocation = getCurrentDebugLocation();
+    SetCurrentDebugLocation(Empty);
+  }
+
+  /// \brief Restore the previously saved DebugLocation.
+  void EnableDebugLocations() {
+    assert(CurDbgLocation.isUnknown());
+    SetCurrentDebugLocation(SavedDbgLocation);
   }
 
   /// \brief Get location information used by debugging information.
@@ -1395,6 +1417,9 @@ public:
     return CreateShuffleVector(V, Undef, Zeros, Name + ".splat");
   }
 };
+
+// Create wrappers for C Binding types (see CBindingWrapping.h).
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(IRBuilder<>, LLVMBuilderRef)
 
 }
 

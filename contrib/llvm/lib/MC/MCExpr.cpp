@@ -250,6 +250,7 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_Mips_GOT_LO16: return "GOT_LO16";
   case VK_Mips_CALL_HI16: return "CALL_HI16";
   case VK_Mips_CALL_LO16: return "CALL_LO16";
+  case VK_COFF_IMGREL32: return "IMGREL32";
   }
   llvm_unreachable("Invalid variant kind");
 }
@@ -285,6 +286,44 @@ MCSymbolRefExpr::getVariantKindForName(StringRef Name) {
     .Case("dtpoff", VK_DTPOFF)
     .Case("TLVP", VK_TLVP)
     .Case("tlvp", VK_TLVP)
+    .Case("IMGREL", VK_COFF_IMGREL32)
+    .Case("imgrel", VK_COFF_IMGREL32)
+    .Case("SECREL32", VK_SECREL)
+    .Case("secrel32", VK_SECREL)
+    .Case("HA", VK_PPC_GAS_HA16)
+    .Case("ha", VK_PPC_GAS_HA16)
+    .Case("L", VK_PPC_GAS_LO16)
+    .Case("l", VK_PPC_GAS_LO16)
+    .Case("TOCBASE", VK_PPC_TOC)
+    .Case("tocbase", VK_PPC_TOC)
+    .Case("TOC", VK_PPC_TOC_ENTRY)
+    .Case("toc", VK_PPC_TOC_ENTRY)
+    .Case("TOC@HA", VK_PPC_TOC16_HA)
+    .Case("toc@ha", VK_PPC_TOC16_HA)
+    .Case("TOC@L", VK_PPC_TOC16_LO)
+    .Case("toc@l", VK_PPC_TOC16_LO)
+    .Case("TLS", VK_PPC_TLS)
+    .Case("tls", VK_PPC_TLS)
+    .Case("TPREL@HA", VK_PPC_TPREL16_HA)
+    .Case("tprel@ha", VK_PPC_TPREL16_HA)
+    .Case("TPREL@L", VK_PPC_TPREL16_LO)
+    .Case("tprel@l", VK_PPC_TPREL16_LO)
+    .Case("DTPREL@HA", VK_PPC_DTPREL16_HA)
+    .Case("dtprel@ha", VK_PPC_DTPREL16_HA)
+    .Case("DTPREL@L", VK_PPC_DTPREL16_LO)
+    .Case("dtprel@l", VK_PPC_DTPREL16_LO)
+    .Case("GOT@TPREL@HA", VK_PPC_GOT_TPREL16_HA)
+    .Case("got@tprel@ha", VK_PPC_GOT_TPREL16_HA)
+    .Case("GOT@TPREL@L", VK_PPC_GOT_TPREL16_LO)
+    .Case("got@tprel@l", VK_PPC_GOT_TPREL16_LO)
+    .Case("GOT@TLSGD@HA", VK_PPC_GOT_TLSGD16_HA)
+    .Case("got@tlsgd@ha", VK_PPC_GOT_TLSGD16_HA)
+    .Case("GOT@TLSGD@L", VK_PPC_GOT_TLSGD16_LO)
+    .Case("got@tlsgd@l", VK_PPC_GOT_TLSGD16_LO)
+    .Case("GOT@TLSLD@HA", VK_PPC_GOT_TLSLD16_HA)
+    .Case("got@tlsld@ha", VK_PPC_GOT_TLSLD16_HA)
+    .Case("GOT@TLSLD@L", VK_PPC_GOT_TLSLD16_LO)
+    .Case("got@tlsld@l", VK_PPC_GOT_TLSLD16_LO)
     .Default(VK_Invalid);
 }
 

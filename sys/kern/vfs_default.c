@@ -662,7 +662,7 @@ loop2:
 				continue;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_INTERLOCK | LK_SLEEPFAIL,
-			    BO_MTX(bo)) != 0) {
+			    BO_LOCKPTR(bo)) != 0) {
 				BO_LOCK(bo);
 				goto loop1;
 			}

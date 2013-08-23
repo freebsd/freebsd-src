@@ -136,7 +136,20 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 * Preserve the antenna on a channel change
 	 */
 	saveDefAntenna = OS_REG_READ(ah, AR_DEF_ANTENNA);
-	if (saveDefAntenna == 0)		/* XXX magic constants */
+
+	/*
+	 * Don't do this for the AR9285 - it breaks RX for single
+	 * antenna designs when diversity is disabled.
+	 *
+	 * I'm not sure what this was working around; it may be
+	 * something to do with the AR5416.  Certainly this register
+	 * isn't supposed to be used by the MIMO chips for anything
+	 * except for defining the default antenna when an external
+	 * phase array / smart antenna is connected.
+	 *
+	 * See PR: kern/179269 .
+	 */
+	if ((! AR_SREV_KITE(ah)) && saveDefAntenna == 0)	/* XXX magic constants */
 		saveDefAntenna = 1;
 
 	/* Save hardware flag before chip reset clears the register */
@@ -275,6 +288,12 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (AR_SREV_KIWI(ah))
 		ar5416StartTsf2(ah);
 #endif
+
+	/*
+	 * Enable Bluetooth Coexistence if it's enabled.
+	 */
+	if (AH5416(ah)->ah_btCoexConfigType != HAL_BT_COEX_CFG_NONE)
+		ar5416InitBTCoex(ah);
 
 	/* Restore previous antenna */
 	OS_REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);

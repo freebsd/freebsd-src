@@ -784,7 +784,7 @@ origin_subst_one(char *real, const char *kw, const char *subst,
 	/*
 	 * Now, execute the substitution loop.
 	 */
-	for (p = real, resp = res;;) {
+	for (p = real, resp = res, *resp = '\0';;) {
 		p1 = strstr(p, kw);
 		if (p1 != NULL) {
 			/* Copy the prefix before keyword. */
@@ -793,6 +793,7 @@ origin_subst_one(char *real, const char *kw, const char *subst,
 			/* Keyword replacement. */
 			memcpy(resp, subst, subst_len);
 			resp += subst_len;
+			*resp = '\0';
 			p = p1 + kw_len;
 		} else
 			break;

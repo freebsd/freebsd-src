@@ -158,6 +158,7 @@ gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n1999/01/15"]
 gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2009/12/07"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
+gjb [label="Glen Barber\ngjb@FreeBSD.org\n2013/06/04"]
 gleb [label="Gleb Kurtsou\ngleb@FreeBSD.org\n2011/09/19"]
 glebius [label="Gleb Smirnoff\nglebius@FreeBSD.org\n2004/07/14"]
 gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
@@ -201,6 +202,7 @@ kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
+loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2004/04/17"]
@@ -304,6 +306,7 @@ day1 -> rgrimes
 day1 -> alm
 day1 -> dg
 
+adrian -> loos
 adrian -> monthadar
 adrian -> ray
 adrian -> rmh
@@ -508,6 +511,7 @@ ken -> asomers
 
 kib -> ae
 kib -> dchagin
+kib -> gjb
 kib -> jlh
 kib -> jpaetzel
 kib -> lulf

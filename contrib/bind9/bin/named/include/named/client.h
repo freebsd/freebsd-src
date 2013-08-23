@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.h,v 1.91.278.2 2012/01/31 23:46:39 tbox Exp $ */
+/* $Id$ */
 
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
@@ -66,7 +66,9 @@
 #include <isc/magic.h>
 #include <isc/stdtime.h>
 #include <isc/quota.h>
+#include <isc/queue.h>
 
+#include <dns/db.h>
 #include <dns/fixedname.h>
 #include <dns/name.h>
 #include <dns/rdataclass.h>
@@ -80,8 +82,6 @@
 /***
  *** Types
  ***/
-
-typedef ISC_LIST(ns_client_t) client_list_t;
 
 /*% nameserver client structure */
 struct ns_client {
@@ -155,26 +155,29 @@ struct ns_client {
 		isc_stdtime_t		time;
 		dns_messageid_t		id;
 	} formerrcache;
+
 	ISC_LINK(ns_client_t)	link;
-	/*%
-	 * The list 'link' is part of, or NULL if not on any list.
-	 */
-	client_list_t		*list;
+	ISC_LINK(ns_client_t)	rlink;
+	ISC_QLINK(ns_client_t)	ilink;
 };
+
+typedef ISC_QUEUE(ns_client_t) client_queue_t;
+typedef ISC_LIST(ns_client_t) client_list_t;
 
 #define NS_CLIENT_MAGIC			ISC_MAGIC('N','S','C','c')
 #define NS_CLIENT_VALID(c)		ISC_MAGIC_VALID(c, NS_CLIENT_MAGIC)
 
-#define NS_CLIENTATTR_TCP		0x01
-#define NS_CLIENTATTR_RA		0x02 /*%< Client gets recursive service */
-#define NS_CLIENTATTR_PKTINFO		0x04 /*%< pktinfo is valid */
-#define NS_CLIENTATTR_MULTICAST		0x08 /*%< recv'd from multicast */
-#define NS_CLIENTATTR_WANTDNSSEC	0x10 /*%< include dnssec records */
-#define NS_CLIENTATTR_WANTNSID          0x20 /*%< include nameserver ID */
+#define NS_CLIENTATTR_TCP		0x001
+#define NS_CLIENTATTR_RA		0x002 /*%< Client gets recursive service */
+#define NS_CLIENTATTR_PKTINFO		0x004 /*%< pktinfo is valid */
+#define NS_CLIENTATTR_MULTICAST		0x008 /*%< recv'd from multicast */
+#define NS_CLIENTATTR_WANTDNSSEC	0x010 /*%< include dnssec records */
+#define NS_CLIENTATTR_WANTNSID          0x020 /*%< include nameserver ID */
 #ifdef ALLOW_FILTER_AAAA_ON_V4
-#define NS_CLIENTATTR_FILTER_AAAA	0x40 /*%< suppress AAAAs */
-#define NS_CLIENTATTR_FILTER_AAAA_RC	0x80 /*%< recursing for A against AAAA */
+#define NS_CLIENTATTR_FILTER_AAAA	0x040 /*%< suppress AAAAs */
+#define NS_CLIENTATTR_FILTER_AAAA_RC	0x080 /*%< recursing for A against AAAA */
 #endif
+#define NS_CLIENTATTR_WANTAD		0x100 /*%< want AD in response if possible */
 
 extern unsigned int ns_client_requests;
 
@@ -377,5 +380,8 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 /*%
  * Isself callback.
  */
+
+isc_result_t
+ns_client_sourceip(dns_clientinfo_t *ci, isc_sockaddr_t **addrp);
 
 #endif /* NAMED_CLIENT_H */

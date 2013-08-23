@@ -4,6 +4,8 @@ NO_MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-objdump
+DPADD=	${LIBZ}
+LDADD=	-lz
 
 SRCDIR=	tools/llvm-objdump
 SRCS=	llvm-objdump.cpp \

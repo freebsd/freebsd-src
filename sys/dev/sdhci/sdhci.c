@@ -238,6 +238,11 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	/* If no clock requested - left it so. */
 	if (clock == 0)
 		return;
+
+	/* Recalculate timeout clock frequency based on the new sd clock. */
+	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK)
+		slot->timeout_clk = slot->clock / 1000;
+
 	if (slot->version < SDHCI_SPEC_300) {
 		/* Looking for highest freq <= clock. */
 		res = slot->max_clk;
@@ -345,7 +350,7 @@ sdhci_read_block_pio(struct sdhci_slot *slot)
 	/* If we are too fast, broken controllers return zeroes. */
 	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMINGS)
 		DELAY(10);
-	/* Handle unalligned and alligned buffer cases. */
+	/* Handle unaligned and aligned buffer cases. */
 	if ((intptr_t)buffer & 3) {
 		while (left > 3) {
 			data = RD4(slot, SDHCI_BUFFER);
@@ -385,7 +390,7 @@ sdhci_write_block_pio(struct sdhci_slot *slot)
 	left = min(512, slot->curcmd->data->len - slot->offset);
 	slot->offset += left;
 
-	/* Handle unalligned and alligned buffer cases. */
+	/* Handle unaligned and aligned buffer cases. */
 	if ((intptr_t)buffer & 3) {
 		while (left > 3) {
 			data = buffer[0] +
@@ -472,7 +477,7 @@ sdhci_card_task(void *arg, int pending)
 int
 sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 {
-	uint32_t caps;
+	uint32_t caps, freq;
 	int err;
 
 	SDHCI_LOCK_INIT(slot);
@@ -522,17 +527,23 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		caps = RD4(slot, SDHCI_CAPABILITIES);
 	/* Calculate base clock frequency. */
 	if (slot->version >= SDHCI_SPEC_300)
-		slot->max_clk = (caps & SDHCI_CLOCK_V3_BASE_MASK) 
-		    >> SDHCI_CLOCK_BASE_SHIFT;
+		freq = (caps & SDHCI_CLOCK_V3_BASE_MASK) >>
+		    SDHCI_CLOCK_BASE_SHIFT;
 	else	
-		slot->max_clk = (caps & SDHCI_CLOCK_BASE_MASK) 
-		    >> SDHCI_CLOCK_BASE_SHIFT;
+		freq = (caps & SDHCI_CLOCK_BASE_MASK) >>
+		    SDHCI_CLOCK_BASE_SHIFT;
+	if (freq != 0)
+		slot->max_clk = freq * 1000000;
+	/*
+	 * If the frequency wasn't in the capabilities and the hardware driver
+	 * hasn't already set max_clk we're probably not going to work right
+	 * with an assumption, so complain about it.
+	 */
 	if (slot->max_clk == 0) {
-		slot->max_clk = SDHCI_DEFAULT_MAX_FREQ;
+		slot->max_clk = SDHCI_DEFAULT_MAX_FREQ * 1000000;
 		device_printf(dev, "Hardware doesn't specify base clock "
 		    "frequency, using %dMHz as default.\n", SDHCI_DEFAULT_MAX_FREQ);
 	}
-	slot->max_clk *= 1000000;
 	/* Calculate timeout clock frequency. */
 	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
 		slot->timeout_clk = slot->max_clk / 1000;
@@ -542,10 +553,15 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 		if (caps & SDHCI_TIMEOUT_CLK_UNIT)
 			slot->timeout_clk *= 1000;
 	}
-
+	/*
+	 * If the frequency wasn't in the capabilities and the hardware driver
+	 * hasn't already set timeout_clk we'll probably work okay using the
+	 * max timeout, but still mention it.
+	 */
 	if (slot->timeout_clk == 0) {
 		device_printf(dev, "Hardware doesn't specify timeout clock "
-		    "frequency.\n");
+		    "frequency, setting BROKEN_TIMEOUT quirk.\n");
+		slot->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 	}
 
 	slot->host.f_min = SDHCI_MIN_FREQ(slot->bus, slot);
@@ -829,8 +845,13 @@ sdhci_finish_command(struct sdhci_slot *slot)
 			uint8_t extra = 0;
 			for (i = 0; i < 4; i++) {
 				uint32_t val = RD4(slot, SDHCI_RESPONSE + i * 4);
-				slot->curcmd->resp[3 - i] = (val << 8) + extra;
-				extra = val >> 24;
+				if (slot->quirks & SDHCI_QUIRK_DONT_SHIFT_RESPONSE)
+					slot->curcmd->resp[3 - i] = val;
+				else {
+					slot->curcmd->resp[3 - i] = 
+					    (val << 8) | extra;
+					extra = val >> 24;
+				}
 			}
 		} else
 			slot->curcmd->resp[0] = RD4(slot, SDHCI_RESPONSE);
@@ -855,24 +876,22 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 
 	/* Calculate and set data timeout.*/
 	/* XXX: We should have this from mmc layer, now assume 1 sec. */
-	target_timeout = 1000000;
-	div = 0;
-	current_timeout = (1 << 13) * 1000 / slot->timeout_clk;
-	while (current_timeout < target_timeout) {
-		div++;
-		current_timeout <<= 1;
-		if (div >= 0xF)
-			break;
-	}
-	/* Compensate for an off-by-one error in the CaFe chip.*/
-	if (slot->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL)
-		div++;
-	if (div >= 0xF) {
-		slot_printf(slot, "Timeout too large!\n");
+	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL) {
 		div = 0xE;
+	} else {
+		target_timeout = 1000000;
+		div = 0;
+		current_timeout = (1 << 13) * 1000 / slot->timeout_clk;
+		while (current_timeout < target_timeout && div < 0xE) {
+			++div;
+			current_timeout <<= 1;
+		}
+		/* Compensate for an off-by-one error in the CaFe chip.*/
+		if (div < 0xE && 
+		    (slot->quirks & SDHCI_QUIRK_INCR_TIMEOUT_CONTROL)) {
+			++div;
+		}
 	}
-	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
-		div = 0xE;
 	WR1(slot, SDHCI_TIMEOUT_CONTROL, div);
 
 	if (data == NULL)
@@ -892,11 +911,14 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 	/* Load DMA buffer. */
 	if (slot->flags & SDHCI_USE_DMA) {
 		if (data->flags & MMC_DATA_READ)
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_PREREAD);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_PREREAD);
 		else {
 			memcpy(slot->dmamem, data->data,
-			    (data->len < DMA_BLOCK_SIZE)?data->len:DMA_BLOCK_SIZE);
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_PREWRITE);
+			    (data->len < DMA_BLOCK_SIZE) ? 
+			    data->len : DMA_BLOCK_SIZE);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_PREWRITE);
 		}
 		WR4(slot, SDHCI_DMA_ADDRESS, slot->paddr);
 		/* Interrupt aggregation: Mask border interrupt
@@ -923,7 +945,7 @@ sdhci_finish_data(struct sdhci_slot *slot)
 
 	slot->data_done = 1;
 	/* Interrupt aggregation: Restore command interrupt.
-	 * Auxillary restore point for the case when data interrupt
+	 * Auxiliary restore point for the case when data interrupt
 	 * happened first. */
 	if (!slot->cmd_done) {
 		WR4(slot, SDHCI_SIGNAL_ENABLE,
@@ -933,11 +955,13 @@ sdhci_finish_data(struct sdhci_slot *slot)
 	if (slot->flags & SDHCI_USE_DMA) {
 		if (data->flags & MMC_DATA_READ) {
 			size_t left = data->len - slot->offset;
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_POSTREAD);
 			memcpy((u_char*)data->data + slot->offset, slot->dmamem,
 			    (left < DMA_BLOCK_SIZE)?left:DMA_BLOCK_SIZE);
 		} else
-			bus_dmamap_sync(slot->dmatag, slot->dmamap, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
+			    BUS_DMASYNC_POSTWRITE);
 	}
 	/* If there was error - reset the host. */
 	if (slot->curcmd->error) {

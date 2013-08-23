@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2013
+.Dd July 1, 2013
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -645,14 +645,12 @@ The scheme-specific attributes for GPT:
 When set, the
 .Nm gptboot
 stage 1 boot loader will try to boot the system from this partition.
-Multiple partitions might be marked with the
+Multiple partitions can be marked with the
 .Cm bootme
 attribute.
-In such scenario the
-.Nm gptboot
-will try all
-.Cm bootme
-partitions one by one, until the next boot stage is successfully entered.
+See
+.Xr gptboot 8
+for more details.
 .It Cm bootonce
 Setting this attribute automatically sets the
 .Cm bootme
@@ -660,49 +658,14 @@ attribute.
 When set, the
 .Nm gptboot
 stage 1 boot loader will try to boot the system from this partition only once.
-Partitions with both
-.Cm bootonce
-and
-.Cm bootme
-attributes are tried before partitions with only the
-.Cm bootme
-attribute.
-Before
-.Cm bootonce
-partition is tried, the
-.Nm gptboot
-removes the
-.Cm bootme
-attribute and tries to execute the next boot stage.
-If it fails, the
-.Cm bootonce
-attribute that is now alone is replaced with the
-.Cm bootfailed
-attribute.
-If the execution of the next boot stage succeeds, but the system is not fully
-booted, the
-.Nm gptboot
-will look for
-.Cm bootonce
-attributes alone (without the
-.Cm bootme
-attribute) on the next system boot and will replace those with the
-.Cm bootfailed
-attribute.
-If the system is fully booted, the
-.Pa /etc/rc.d/gptboot
-start-up script will look for partition with the
-.Cm bootonce
-attribute alone, will remove the attribute and log that the system was
-successfully booted from this partition.
-There should be at most one
-.Cm bootonce
-partition when system is successfully booted.
-Multiple partitions might be marked with the
+Multiple partitions can be marked with the
 .Cm bootonce
 and
 .Cm bootme
 attribute pairs.
+See
+.Xr gptboot 8
+for more details.
 .It Cm bootfailed
 This attribute should not be manually managed.
 It is managed by the
@@ -710,14 +673,9 @@ It is managed by the
 stage 1 boot loader and the
 .Pa /etc/rc.d/gptboot
 start-up script.
-This attribute is used to mark partitions that had the
-.Cm bootonce
-attribute set, but we failed to boot from them.
-Once we successfully boot, the
-.Pa /etc/rc.d/gptboot
-script will log all the partitions we failed to boot from and will remove the
-.Cm bootfailed
-attributes.
+See
+.Xr gptboot 8
+for more details.
 .El
 .Pp
 The scheme-specific attributes for MBR:
@@ -795,20 +753,17 @@ There are two variants of bootstrap code to write to this partition:
 .Pa /boot/gptboot
 and
 .Pa /boot/gptzfsboot .
+.Pp
 .Pa /boot/gptboot
-is used to boot from UFS.
-It searches through
+is used to boot from UFS partitions.
+.Cm gptboot
+searches through
 .Cm freebsd-ufs
-partitions in the GPT and boots from the first one with the
+partitions in the GPT and selects one to boot based on the
 .Cm bootonce
-attribute set.
-If that attribute is not found,
-.Pa /boot/gptboot
-boots from the first
-.Cm freebsd-ufs
-partition with the
+and
 .Cm bootme
-attribute set.
+attributes.
 If neither attribute is found,
 .Pa /boot/gptboot
 boots from the first
@@ -817,6 +772,10 @@ partition.
 .Pa /boot/loader
 .Pq the third bootstrap stage
 is loaded from the first partition that matches these conditions.
+See
+.Xr gptboot 8
+for more information.
+.Pp
 .Pa /boot/gptzfsboot
 is used to boot from ZFS.
 It searches through the GPT for
@@ -1105,7 +1064,8 @@ and
 .Xr dd 1 ,
 .Xr geom 4 ,
 .Xr boot0cfg 8 ,
-.Xr geom 8
+.Xr geom 8 ,
+.Xr gptboot 8
 .Sh HISTORY
 The
 .Nm

@@ -18,9 +18,14 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ */
+
+/*
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <string.h>
@@ -37,7 +42,6 @@ static const struct {
 	{ EDT_VERSREDUCED, "Requested version conflicts with earlier setting" },
 	{ EDT_CTF,	"Unexpected libctf error" },
 	{ EDT_COMPILER, "Error in D program compilation" },
-	{ EDT_NOREG,	"Insufficient registers to generate code" },
 	{ EDT_NOTUPREG,	"Insufficient tuple registers to generate code" },
 	{ EDT_NOMEM,	"Memory allocation failure" },
 	{ EDT_INT2BIG,	"Integer constant table limit exceeded" },

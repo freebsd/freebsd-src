@@ -97,8 +97,8 @@ static DecodeStatus DecodeRRegsRegisterClass(MCInst &Inst,
 static DecodeStatus DecodeBitpOperand(MCInst &Inst, unsigned Val,
                                       uint64_t Address, const void *Decoder);
 
-static DecodeStatus DecodeMEMiiOperand(MCInst &Inst, unsigned Val,
-                                       uint64_t Address, const void *Decoder);
+static DecodeStatus DecodeNegImmOperand(MCInst &Inst, unsigned Val,
+                                        uint64_t Address, const void *Decoder);
 
 static DecodeStatus Decode2RInstruction(MCInst &Inst,
                                         unsigned Insn,
@@ -242,10 +242,9 @@ static DecodeStatus DecodeBitpOperand(MCInst &Inst, unsigned Val,
   return MCDisassembler::Success;
 }
 
-static DecodeStatus DecodeMEMiiOperand(MCInst &Inst, unsigned Val,
-                                       uint64_t Address, const void *Decoder) {
-  Inst.addOperand(MCOperand::CreateImm(Val));
-  Inst.addOperand(MCOperand::CreateImm(0));
+static DecodeStatus DecodeNegImmOperand(MCInst &Inst, unsigned Val,
+                                        uint64_t Address, const void *Decoder) {
+  Inst.addOperand(MCOperand::CreateImm(-(int64_t)Val));
   return MCDisassembler::Success;
 }
 

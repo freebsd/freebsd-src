@@ -283,8 +283,17 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <net/if6.h> header file. */
 /* #undef HAVE_NET_IF6_H */
 
+/* Define if your OpenSSL version supports ECDSA. */
+#define HAVE_OPENSSL_ECDSA 1
+
 /* Define if your OpenSSL version supports GOST. */
 /* #undef HAVE_OPENSSL_GOST */
+
+/* Define to 1 if you have the `readline' function. */
+#define HAVE_READLINE 1
+ 
+/* Define to 1 if you have the <regex.h> header file. */
+#define HAVE_REGEX_H 1
 
 /* Define to 1 if you have the `setegid' function. */
 #define HAVE_SETEGID 1
@@ -355,6 +364,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+/* Define to 1 if you have the `usleep' function. */
+#define HAVE_USLEEP 1
+
 /* return type of gai_strerror */
 #define IRS_GAISTRERROR_RETURN_T const char *
 
@@ -377,6 +389,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if connect does not honour the permission on the UNIX domain socket.
    */
 /* #undef NEED_SECURE_DIRECTORY */
+
+/* Use the new XML schema for statistics */
+/* #undef NEWSTATS */
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT ""

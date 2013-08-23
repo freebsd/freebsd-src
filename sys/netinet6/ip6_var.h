@@ -181,39 +181,39 @@ struct	ip6_pktopts {
  */
 
 struct	ip6stat {
-	u_quad_t ip6s_total;		/* total packets received */
-	u_quad_t ip6s_tooshort;		/* packet too short */
-	u_quad_t ip6s_toosmall;		/* not enough data */
-	u_quad_t ip6s_fragments;	/* fragments received */
-	u_quad_t ip6s_fragdropped;	/* frags dropped(dups, out of space) */
-	u_quad_t ip6s_fragtimeout;	/* fragments timed out */
-	u_quad_t ip6s_fragoverflow;	/* fragments that exceeded limit */
-	u_quad_t ip6s_forward;		/* packets forwarded */
-	u_quad_t ip6s_cantforward;	/* packets rcvd for unreachable dest */
-	u_quad_t ip6s_redirectsent;	/* packets forwarded on same net */
-	u_quad_t ip6s_delivered;	/* datagrams delivered to upper level*/
-	u_quad_t ip6s_localout;		/* total ip packets generated here */
-	u_quad_t ip6s_odropped;		/* lost packets due to nobufs, etc. */
-	u_quad_t ip6s_reassembled;	/* total packets reassembled ok */
-	u_quad_t ip6s_fragmented;	/* datagrams successfully fragmented */
-	u_quad_t ip6s_ofragments;	/* output fragments created */
-	u_quad_t ip6s_cantfrag;		/* don't fragment flag was set, etc. */
-	u_quad_t ip6s_badoptions;	/* error in option processing */
-	u_quad_t ip6s_noroute;		/* packets discarded due to no route */
-	u_quad_t ip6s_badvers;		/* ip6 version != 6 */
-	u_quad_t ip6s_rawout;		/* total raw ip packets generated */
-	u_quad_t ip6s_badscope;		/* scope error */
-	u_quad_t ip6s_notmember;	/* don't join this multicast group */
+	uint64_t ip6s_total;		/* total packets received */
+	uint64_t ip6s_tooshort;		/* packet too short */
+	uint64_t ip6s_toosmall;		/* not enough data */
+	uint64_t ip6s_fragments;	/* fragments received */
+	uint64_t ip6s_fragdropped;	/* frags dropped(dups, out of space) */
+	uint64_t ip6s_fragtimeout;	/* fragments timed out */
+	uint64_t ip6s_fragoverflow;	/* fragments that exceeded limit */
+	uint64_t ip6s_forward;		/* packets forwarded */
+	uint64_t ip6s_cantforward;	/* packets rcvd for unreachable dest */
+	uint64_t ip6s_redirectsent;	/* packets forwarded on same net */
+	uint64_t ip6s_delivered;	/* datagrams delivered to upper level*/
+	uint64_t ip6s_localout;		/* total ip packets generated here */
+	uint64_t ip6s_odropped;		/* lost packets due to nobufs, etc. */
+	uint64_t ip6s_reassembled;	/* total packets reassembled ok */
+	uint64_t ip6s_fragmented;	/* datagrams successfully fragmented */
+	uint64_t ip6s_ofragments;	/* output fragments created */
+	uint64_t ip6s_cantfrag;		/* don't fragment flag was set, etc. */
+	uint64_t ip6s_badoptions;	/* error in option processing */
+	uint64_t ip6s_noroute;		/* packets discarded due to no route */
+	uint64_t ip6s_badvers;		/* ip6 version != 6 */
+	uint64_t ip6s_rawout;		/* total raw ip packets generated */
+	uint64_t ip6s_badscope;		/* scope error */
+	uint64_t ip6s_notmember;	/* don't join this multicast group */
 #define	IP6S_HDRCNT		256	/* headers count */
-	u_quad_t ip6s_nxthist[IP6S_HDRCNT]; /* next header history */
-	u_quad_t ip6s_m1;		/* one mbuf */
+	uint64_t ip6s_nxthist[IP6S_HDRCNT]; /* next header history */
+	uint64_t ip6s_m1;		/* one mbuf */
 #define	IP6S_M2MMAX		32
-	u_quad_t ip6s_m2m[IP6S_M2MMAX];	/* two or more mbuf */
-	u_quad_t ip6s_mext1;		/* one ext mbuf */
-	u_quad_t ip6s_mext2m;		/* two or more ext mbuf */
-	u_quad_t ip6s_exthdrtoolong;	/* ext hdr are not contiguous */
-	u_quad_t ip6s_nogif;		/* no match gif found */
-	u_quad_t ip6s_toomanyhdr;	/* discarded due to too many headers */
+	uint64_t ip6s_m2m[IP6S_M2MMAX];	/* two or more mbuf */
+	uint64_t ip6s_mext1;		/* one ext mbuf */
+	uint64_t ip6s_mext2m;		/* two or more ext mbuf */
+	uint64_t ip6s_exthdrtoolong;	/* ext hdr are not contiguous */
+	uint64_t ip6s_nogif;		/* no match gif found */
+	uint64_t ip6s_toomanyhdr;	/* discarded due to too many headers */
 
 	/*
 	 * statistics for improvement of the source address selection
@@ -223,31 +223,35 @@ struct	ip6stat {
 #define	IP6S_RULESMAX		16
 #define	IP6S_SCOPECNT		16
 	/* number of times that address selection fails */
-	u_quad_t ip6s_sources_none;
+	uint64_t ip6s_sources_none;
 	/* number of times that an address on the outgoing I/F is chosen */
-	u_quad_t ip6s_sources_sameif[IP6S_SCOPECNT];
+	uint64_t ip6s_sources_sameif[IP6S_SCOPECNT];
 	/* number of times that an address on a non-outgoing I/F is chosen */
-	u_quad_t ip6s_sources_otherif[IP6S_SCOPECNT];
+	uint64_t ip6s_sources_otherif[IP6S_SCOPECNT];
 	/*
 	 * number of times that an address that has the same scope
 	 * from the destination is chosen.
 	 */
-	u_quad_t ip6s_sources_samescope[IP6S_SCOPECNT];
+	uint64_t ip6s_sources_samescope[IP6S_SCOPECNT];
 	/*
 	 * number of times that an address that has a different scope
 	 * from the destination is chosen.
 	 */
-	u_quad_t ip6s_sources_otherscope[IP6S_SCOPECNT];
+	uint64_t ip6s_sources_otherscope[IP6S_SCOPECNT];
 	/* number of times that a deprecated address is chosen */
-	u_quad_t ip6s_sources_deprecated[IP6S_SCOPECNT];
+	uint64_t ip6s_sources_deprecated[IP6S_SCOPECNT];
 
 	/* number of times that each rule of source selection is applied. */
-	u_quad_t ip6s_sources_rule[IP6S_RULESMAX];
+	uint64_t ip6s_sources_rule[IP6S_RULESMAX];
 };
 
 #ifdef _KERNEL
-#define	IP6STAT_ADD(name, val)	V_ip6stat.name += (val)
-#define	IP6STAT_SUB(name, val)	V_ip6stat.name -= (val)
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct ip6stat, ip6stat);
+#define	IP6STAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct ip6stat, ip6stat, name, (val))
+#define	IP6STAT_SUB(name, val)	IP6STAT_ADD(name, -(val))
 #define	IP6STAT_INC(name)	IP6STAT_ADD(name, 1)
 #define	IP6STAT_DEC(name)	IP6STAT_SUB(name, 1)
 #endif
@@ -289,7 +293,12 @@ struct ip6aux {
 #define	IPV6_FORWARDING		0x02	/* most of IPv6 header exists */
 #define	IPV6_MINMTU		0x04	/* use minimum MTU (IPV6_USE_MIN_MTU) */
 
-#define	M_IP6_NEXTHOP		M_PROTO7	/* explicit ip nexthop */
+/*
+ * IPv6 protocol layer specific mbuf flags.
+ */
+#define	M_IP6_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
+#define	M_SKIP_FIREWALL		M_PROTO3	/* skip firewall processing,
+						   keep in sync with IPv4 */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP6_HDR_ALIGNED_P(ip)	1
@@ -297,7 +306,6 @@ struct ip6aux {
 #define IP6_HDR_ALIGNED_P(ip)	((((intptr_t) (ip)) & 3) == 0)
 #endif
 
-VNET_DECLARE(struct ip6stat, ip6stat);	/* statistics */
 VNET_DECLARE(int, ip6_defhlim);		/* default hop limit */
 VNET_DECLARE(int, ip6_defmcasthlim);	/* default multicast hop limit */
 VNET_DECLARE(int, ip6_forwarding);	/* act as router? */
@@ -306,7 +314,6 @@ VNET_DECLARE(int, ip6_rr_prune);	/* router renumbering prefix
 					 * walk list every 5 sec.    */
 VNET_DECLARE(int, ip6_mcast_pmtu);	/* enable pMTU discovery for multicast? */
 VNET_DECLARE(int, ip6_v6only);
-#define	V_ip6stat			VNET(ip6stat)
 #define	V_ip6_defhlim			VNET(ip6_defhlim)
 #define	V_ip6_defmcasthlim		VNET(ip6_defmcasthlim)
 #define	V_ip6_forwarding		VNET(ip6_forwarding)

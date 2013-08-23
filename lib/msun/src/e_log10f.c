@@ -28,6 +28,7 @@ log10_2hi  =  3.0102920532e-01, /* 0x3e9a2080 */
 log10_2lo  =  7.9034151668e-07; /* 0x355427db */
 
 static const float zero   =  0.0;
+static volatile float vzero = 0.0;
 
 float
 __ieee754_log10f(float x)
@@ -40,7 +41,7 @@ __ieee754_log10f(float x)
 	k=0;
 	if (hx < 0x00800000) {			/* x < 2**-126  */
 	    if ((hx&0x7fffffff)==0)
-		return -two25/zero;		/* log(+-0)=-inf */
+		return -two25/vzero;		/* log(+-0)=-inf */
 	    if (hx<0) return (x-x)/zero;	/* log(-#) = NaN */
 	    k -= 25; x *= two25; /* subnormal number, scale up x */
 	    GET_FLOAT_WORD(hx,x);

@@ -1,5 +1,6 @@
 #include "clang/AST/CommentLexer.h"
 #include "clang/AST/CommentCommandTraits.h"
+#include "clang/AST/CommentDiagnostic.h"
 #include "clang/Basic/CharInfo.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -353,6 +354,7 @@ void Lexer::lexCommentText(Token &T) {
         if (!Info) {
           formTokenWithChars(T, TokenPtr, tok::unknown_command);
           T.setUnknownCommandName(CommandName);
+          Diag(T.getLocation(), diag::warn_unknown_comment_command_name);
           return;
         }
         if (Info->IsVerbatimBlockCommand) {
@@ -685,10 +687,11 @@ void Lexer::lexHTMLEndTag(Token &T) {
   State = LS_Normal;
 }
 
-Lexer::Lexer(llvm::BumpPtrAllocator &Allocator, const CommandTraits &Traits,
+Lexer::Lexer(llvm::BumpPtrAllocator &Allocator, DiagnosticsEngine &Diags,
+             const CommandTraits &Traits,
              SourceLocation FileLoc,
              const char *BufferStart, const char *BufferEnd):
-    Allocator(Allocator), Traits(Traits),
+    Allocator(Allocator), Diags(Diags), Traits(Traits),
     BufferStart(BufferStart), BufferEnd(BufferEnd),
     FileLoc(FileLoc), BufferPtr(BufferStart),
     CommentState(LCS_BeforeComment), State(LS_Normal) {

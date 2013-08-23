@@ -73,19 +73,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/un.h>
 
-#include <ctype.h>
+#include <cctype>
+#include <cerrno>
+#include <cstdlib>
+#include <cstdio>
+#include <csignal>
+#include <cstring>
+#include <cstdarg>
+
 #include <dirent.h>
-#include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <libutil.h>
 #include <paths.h>
 #include <poll.h>
 #include <regex.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -113,13 +116,16 @@ static const char detach = '-';
 
 static struct pidfh *pfh;
 
-int Dflag;
 int dflag;
 int nflag;
+static unsigned total_events = 0;
+static volatile sig_atomic_t got_siginfo = 0;
 static volatile sig_atomic_t romeo_must_die = 0;
 
 static const char *configfile = CF;
 
+static void devdlog(int priority, const char* message, ...)
+	__printflike(2, 3);
 static void event_loop(void);
 static void usage(void);
 
@@ -166,7 +172,7 @@ bool
 event_proc::run(config &c) const
 {
 	vector<eps *>::const_iterator i;
-		
+
 	for (i = _epsvec.begin(); i != _epsvec.end(); ++i)
 		if (!(*i)->do_action(c))
 			return (false);
@@ -174,7 +180,7 @@ event_proc::run(config &c) const
 }
 
 action::action(const char *cmd)
-	: _cmd(cmd) 
+	: _cmd(cmd)
 {
 	// nothing
 }
@@ -193,7 +199,7 @@ my_system(const char *command)
 	sigset_t newsigblock, oldsigblock;
 
 	if (!command)		/* just checking... */
-		return(1);
+		return (1);
 
 	/*
 	 * Ignore SIGINT and SIGQUIT, block SIGCHLD. Remember to save
@@ -242,8 +248,7 @@ bool
 action::do_action(config &c)
 {
 	string s = c.expand_string(_cmd.c_str());
-	if (Dflag)
-		fprintf(stderr, "Executing '%s'\n", s.c_str());
+	devdlog(LOG_NOTICE, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
@@ -267,15 +272,22 @@ match::do_match(config &c)
 	const string &value = c.get_variable(_var);
 	bool retval;
 
-	if (Dflag)
-		fprintf(stderr, "Testing %s=%s against %s, invert=%d\n",
+	/*
+	 * This function gets called WAY too often to justify calling syslog()
+	 * each time, even at LOG_DEBUG.  Because if syslogd isn't running, it
+	 * can consume excessive amounts of systime inside of connect().  Only
+	 * log when we're in -d mode.
+	 */
+	if (dflag) {
+		devdlog(LOG_DEBUG, "Testing %s=%s against %s, invert=%d\n",
 		    _var.c_str(), value.c_str(), _re.c_str(), _inv);
+	}
 
 	retval = (regexec(&_regex, value.c_str(), 0, NULL, 0) == 0);
 	if (_inv == 1)
 		retval = (retval == 0) ? 1 : 0;
 
-	return retval;
+	return (retval);
 }
 
 #include <sys/sockio.h>
@@ -321,8 +333,7 @@ media::do_match(config &c)
 	value = c.get_variable("device-name");
 	if (value.empty())
 		value = c.get_variable("subsystem");
-	if (Dflag)
-		fprintf(stderr, "Testing media type of %s against 0x%x\n",
+	devdlog(LOG_DEBUG, "Testing media type of %s against 0x%x\n",
 		    value.c_str(), _type);
 
 	retval = false;
@@ -334,20 +345,18 @@ media::do_match(config &c)
 
 		if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0 &&
 		    ifmr.ifm_status & IFM_AVALID) {
-			if (Dflag)
-				fprintf(stderr, "%s has media type 0x%x\n", 
+			devdlog(LOG_DEBUG, "%s has media type 0x%x\n",
 				    value.c_str(), IFM_TYPE(ifmr.ifm_active));
 			retval = (IFM_TYPE(ifmr.ifm_active) == _type);
 		} else if (_type == -1) {
-			if (Dflag)
-				fprintf(stderr, "%s has unknown media type\n", 
+			devdlog(LOG_DEBUG, "%s has unknown media type\n",
 				    value.c_str());
 			retval = true;
 		}
 		close(s);
 	}
 
-	return retval;
+	return (retval);
 }
 
 const string var_list::bogus = "_$_$_$_$_B_O_G_U_S_$_$_$_$_";
@@ -373,8 +382,14 @@ var_list::is_set(const string &var) const
 void
 var_list::set_variable(const string &var, const string &val)
 {
-	if (Dflag)
-		fprintf(stderr, "setting %s=%s\n", var.c_str(), val.c_str());
+	/*
+	 * This function gets called WAY too often to justify calling syslog()
+	 * each time, even at LOG_DEBUG.  Because if syslogd isn't running, it
+	 * can consume excessive amounts of systime inside of connect().  Only
+	 * log when we're in -d mode.
+	 */
+	if (dflag)
+		devdlog(LOG_DEBUG, "setting %s=%s\n", var.c_str(), val.c_str());
 	_vars[var] = val;
 }
 
@@ -392,8 +407,7 @@ config::reset(void)
 void
 config::parse_one_file(const char *fn)
 {
-	if (Dflag)
-		fprintf(stderr, "Parsing %s\n", fn);
+	devdlog(LOG_DEBUG, "Parsing %s\n", fn);
 	yyin = fopen(fn, "r");
 	if (yyin == NULL)
 		err(1, "Cannot open config file %s", fn);
@@ -410,8 +424,7 @@ config::parse_files_in_dir(const char *dirname)
 	struct dirent *dp;
 	char path[PATH_MAX];
 
-	if (Dflag)
-		fprintf(stderr, "Parsing files in %s\n", dirname);
+	devdlog(LOG_DEBUG, "Parsing files in %s\n", dirname);
 	dirp = opendir(dirname);
 	if (dirp == NULL)
 		return;
@@ -459,7 +472,7 @@ void
 config::open_pidfile()
 {
 	pid_t otherpid;
-	
+
 	if (_pidfile.empty())
 		return;
 	pfh = pidfile_open(_pidfile.c_str(), 0600, &otherpid);
@@ -473,21 +486,21 @@ config::open_pidfile()
 void
 config::write_pidfile()
 {
-	
+
 	pidfile_write(pfh);
 }
 
 void
 config::close_pidfile()
 {
-	
+
 	pidfile_close(pfh);
 }
 
 void
 config::remove_pidfile()
 {
-	
+
 	pidfile_remove(pfh);
 }
 
@@ -535,11 +548,10 @@ void
 config::push_var_table()
 {
 	var_list *vl;
-	
+
 	vl = new var_list();
 	_var_list_table.push_back(vl);
-	if (Dflag)
-		fprintf(stderr, "Pushing table\n");
+	devdlog(LOG_DEBUG, "Pushing table\n");
 }
 
 void
@@ -547,8 +559,7 @@ config::pop_var_table()
 {
 	delete _var_list_table.back();
 	_var_list_table.pop_back();
-	if (Dflag)
-		fprintf(stderr, "Popping table\n");
+	devdlog(LOG_DEBUG, "Popping table\n");
 }
 
 void
@@ -572,7 +583,7 @@ config::get_variable(const string &var)
 bool
 config::is_id_char(char ch) const
 {
-	return (ch != '\0' && (isalpha(ch) || isdigit(ch) || ch == '_' || 
+	return (ch != '\0' && (isalpha(ch) || isdigit(ch) || ch == '_' ||
 	    ch == '-'));
 }
 
@@ -588,7 +599,7 @@ config::expand_one(const char *&src, string &dst)
 		dst += *src++;
 		return;
 	}
-		
+
 	// $(foo) -> $(foo)
 	// Not sure if I want to support this or not, so for now we just pass
 	// it through.
@@ -605,7 +616,7 @@ config::expand_one(const char *&src, string &dst)
 		}
 		return;
 	}
-	
+
 	// $[^A-Za-z] -> $\1
 	if (!isalpha(*src)) {
 		dst += '$';
@@ -656,7 +667,7 @@ bool
 config::chop_var(char *&buffer, char *&lhs, char *&rhs) const
 {
 	char *walker;
-	
+
 	if (*buffer == '\0')
 		return (false);
 	walker = lhs = buffer;
@@ -730,8 +741,7 @@ config::find_and_execute(char type)
 		s = "detach";
 		break;
 	}
-	if (Dflag)
-		fprintf(stderr, "Processing %s event\n", s);
+	devdlog(LOG_DEBUG, "Processing %s event\n", s);
 	for (i = l->begin(); i != l->end(); ++i) {
 		if ((*i)->matches(*this)) {
 			(*i)->run(*this);
@@ -741,7 +751,7 @@ config::find_and_execute(char type)
 
 }
 
-
+
 static void
 process_event(char *buffer)
 {
@@ -749,8 +759,7 @@ process_event(char *buffer)
 	char *sp;
 
 	sp = buffer + 1;
-	if (Dflag)
-		fprintf(stderr, "Processing event '%s'\n", buffer);
+	devdlog(LOG_DEBUG, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
 	// No match doesn't have a device, and the format is a little
@@ -793,7 +802,7 @@ process_event(char *buffer)
 			cfg.set_variable("bus", sp + 3);
 		break;
 	}
-	
+
 	cfg.find_and_execute(type);
 	cfg.pop_var_table();
 }
@@ -842,6 +851,8 @@ notify_clients(const char *data, int len)
 			--num_clients;
 			close(*i);
 			i = clients.erase(i);
+			devdlog(LOG_WARNING, "notify_clients: write() failed; "
+			    "dropping unresponsive client\n");
 		} else
 			++i;
 	}
@@ -870,6 +881,8 @@ check_clients(void)
 			--num_clients;
 			close(*i);
 			i = clients.erase(i);
+			devdlog(LOG_NOTICE, "check_clients:  "
+			    "dropping disconnected client\n");
 		} else
 			++i;
 	}
@@ -922,8 +935,7 @@ event_loop(void)
 			rv = select(fd + 1, &fds, &fds, &fds, &tv);
 			// No events -> we've processed all pending events
 			if (rv == 0) {
-				if (Dflag)
-					fprintf(stderr, "Calling daemon\n");
+				devdlog(LOG_DEBUG, "Calling daemon\n");
 				cfg.remove_pidfile();
 				cfg.open_pidfile();
 				daemon(0, 0);
@@ -957,6 +969,11 @@ event_loop(void)
 			tv.tv_usec = 0;
 		}
 		rv = select(max_fd, &fds, NULL, NULL, &tv);
+		if (got_siginfo) {
+			devdlog(LOG_INFO, "Events received so far=%u\n",
+			    total_events);
+			got_siginfo = 0;
+		}
 		if (rv == -1) {
 			if (errno == EINTR)
 				continue;
@@ -966,6 +983,12 @@ event_loop(void)
 		if (FD_ISSET(fd, &fds)) {
 			rv = read(fd, buffer, sizeof(buffer) - 1);
 			if (rv > 0) {
+				total_events++;
+				if (rv == sizeof(buffer) - 1) {
+					devdlog(LOG_WARNING, "Warning: "
+					    "available event data exceeded "
+					    "buffer space\n");
+				}
 				notify_clients(buffer, rv);
 				buffer[rv] = '\0';
 				while (buffer[--rv] == '\n')
@@ -984,7 +1007,7 @@ event_loop(void)
 	}
 	close(fd);
 }
-
+
 /*
  * functions that the parser uses.
  */
@@ -1069,7 +1092,7 @@ set_variable(const char *var, const char *val)
 	free(const_cast<char *>(val));
 }
 
-
+
 
 static void
 gensighand(int)
@@ -1077,10 +1100,37 @@ gensighand(int)
 	romeo_must_die = 1;
 }
 
+/*
+ * SIGINFO handler.  Will print useful statistics to the syslog or stderr
+ * as appropriate
+ */
+static void
+siginfohand(int)
+{
+	got_siginfo = 1;
+}
+
+/*
+ * Local logging function.  Prints to syslog if we're daemonized; syslog
+ * otherwise.
+ */
+static void
+devdlog(int priority, const char* fmt, ...)
+{
+	va_list argp;
+
+	va_start(argp, fmt);
+	if (dflag)
+		vfprintf(stderr, fmt, argp);
+	else
+		vsyslog(priority, fmt, argp);
+	va_end(argp);
+}
+
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-Ddn] [-l connlimit] [-f file]\n",
+	fprintf(stderr, "usage: %s [-dn] [-l connlimit] [-f file]\n",
 	    getprogname());
 	exit(1);
 }
@@ -1110,11 +1160,8 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "Ddf:l:n")) != -1) {
+	while ((ch = getopt(argc, argv, "df:l:n")) != -1) {
 		switch (ch) {
-		case 'D':
-			Dflag++;
-			break;
 		case 'd':
 			dflag++;
 			break;
@@ -1142,6 +1189,7 @@ main(int argc, char **argv)
 	signal(SIGHUP, gensighand);
 	signal(SIGINT, gensighand);
 	signal(SIGTERM, gensighand);
+	signal(SIGINFO, siginfohand);
 	event_loop();
 	return (0);
 }

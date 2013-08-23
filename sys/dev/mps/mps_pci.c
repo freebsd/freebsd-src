@@ -183,7 +183,6 @@ mps_pci_attach(device_t dev)
 {
 	struct mps_softc *sc;
 	struct mps_ident *m;
-	uint16_t command;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -193,24 +192,13 @@ mps_pci_attach(device_t dev)
 	sc->mps_flags = m->flags;
 
 	/* Twiddle basic PCI config bits for a sanity check */
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 2);
-	command = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((command & PCIM_CMD_BUSMASTEREN) == 0) {
-		device_printf(dev, "Cannot enable PCI busmaster\n");
-		return (ENXIO);
-	}
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-		device_printf(dev, "PCI memory window not available\n");
-		return (ENXIO);
-	}
+	pci_enable_busmaster(dev);
 
 	/* Allocate the System Interface Register Set */
 	sc->mps_regs_rid = PCIR_BAR(1);
 	if ((sc->mps_regs_resource = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &sc->mps_regs_rid, RF_ACTIVE)) == NULL) {
-		device_printf(dev, "Cannot allocate PCI registers\n");
+		mps_printf(sc, "Cannot allocate PCI registers\n");
 		return (ENXIO);
 	}
 	sc->mps_btag = rman_get_bustag(sc->mps_regs_resource);
@@ -228,7 +216,7 @@ mps_pci_attach(device_t dev)
 				0,			/* flags */
 				NULL, NULL,		/* lockfunc, lockarg */
 				&sc->mps_parent_dmat)) {
-		device_printf(dev, "Cannot allocate parent DMA tag\n");
+		mps_printf(sc, "Cannot allocate parent DMA tag\n");
 		mps_pci_free(sc);
 		return (ENOMEM);
 	}
@@ -260,14 +248,14 @@ mps_pci_setup_interrupts(struct mps_softc *sc)
 		sc->mps_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &sc->mps_irq_rid[0],  RF_SHAREABLE | RF_ACTIVE);
 		if (sc->mps_irq[0] == NULL) {
-			device_printf(dev, "Cannot allocate INTx interrupt\n");
+			mps_printf(sc, "Cannot allocate INTx interrupt\n");
 			return (ENXIO);
 		}
 		error = bus_setup_intr(dev, sc->mps_irq[0],
 		    INTR_TYPE_BIO | INTR_MPSAFE, NULL, mps_intr, sc,
 		    &sc->mps_intrhand[0]);
 		if (error)
-			device_printf(dev, "Cannot setup INTx interrupt\n");
+			mps_printf(sc, "Cannot setup INTx interrupt\n");
 	} else {
 		sc->mps_flags |= MPS_FLAGS_MSI;
 		for (i = 0; i < MPS_MSI_COUNT; i++) {
@@ -275,7 +263,7 @@ mps_pci_setup_interrupts(struct mps_softc *sc)
 			sc->mps_irq[i] = bus_alloc_resource_any(dev,
 			    SYS_RES_IRQ, &sc->mps_irq_rid[i], RF_ACTIVE);
 			if (sc->mps_irq[i] == NULL) {
-				device_printf(dev,
+				mps_printf(sc,
 				    "Cannot allocate MSI interrupt\n");
 				return (ENXIO);
 			}
@@ -283,7 +271,7 @@ mps_pci_setup_interrupts(struct mps_softc *sc)
 			    INTR_TYPE_BIO | INTR_MPSAFE, NULL, mps_intr_msi,
 			    sc, &sc->mps_intrhand[i]);
 			if (error) {
-				device_printf(dev,
+				mps_printf(sc,
 				    "Cannot setup MSI interrupt %d\n", i);
 				break;
 			}

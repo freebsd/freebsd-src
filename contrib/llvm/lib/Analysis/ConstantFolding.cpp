@@ -17,6 +17,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -550,7 +551,7 @@ static Constant *SymbolicallyEvaluateBinop(unsigned Opc, Constant *Op0,
 
 
   if (Opc == Instruction::And && DL) {
-    unsigned BitWidth = DL->getTypeSizeInBits(Op0->getType());
+    unsigned BitWidth = DL->getTypeSizeInBits(Op0->getType()->getScalarType());
     APInt KnownZero0(BitWidth, 0), KnownOne0(BitWidth, 0);
     APInt KnownZero1(BitWidth, 0), KnownOne1(BitWidth, 0);
     ComputeMaskedBits(Op0, KnownZero0, KnownOne0, DL);
@@ -880,19 +881,20 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
   return ConstantFoldInstOperands(I->getOpcode(), I->getType(), Ops, TD, TLI);
 }
 
-/// ConstantFoldConstantExpression - Attempt to fold the constant expression
-/// using the specified DataLayout.  If successful, the constant result is
-/// result is returned, if not, null is returned.
-Constant *llvm::ConstantFoldConstantExpression(const ConstantExpr *CE,
-                                               const DataLayout *TD,
-                                               const TargetLibraryInfo *TLI) {
-  SmallVector<Constant*, 8> Ops;
-  for (User::const_op_iterator i = CE->op_begin(), e = CE->op_end();
-       i != e; ++i) {
+static Constant *
+ConstantFoldConstantExpressionImpl(const ConstantExpr *CE, const DataLayout *TD,
+                                   const TargetLibraryInfo *TLI,
+                                   SmallPtrSet<ConstantExpr *, 4> &FoldedOps) {
+  SmallVector<Constant *, 8> Ops;
+  for (User::const_op_iterator i = CE->op_begin(), e = CE->op_end(); i != e;
+       ++i) {
     Constant *NewC = cast<Constant>(*i);
-    // Recursively fold the ConstantExpr's operands.
-    if (ConstantExpr *NewCE = dyn_cast<ConstantExpr>(NewC))
-      NewC = ConstantFoldConstantExpression(NewCE, TD, TLI);
+    // Recursively fold the ConstantExpr's operands. If we have already folded
+    // a ConstantExpr, we don't have to process it again.
+    if (ConstantExpr *NewCE = dyn_cast<ConstantExpr>(NewC)) {
+      if (FoldedOps.insert(NewCE))
+        NewC = ConstantFoldConstantExpressionImpl(NewCE, TD, TLI, FoldedOps);
+    }
     Ops.push_back(NewC);
   }
 
@@ -900,6 +902,16 @@ Constant *llvm::ConstantFoldConstantExpression(const ConstantExpr *CE,
     return ConstantFoldCompareInstOperands(CE->getPredicate(), Ops[0], Ops[1],
                                            TD, TLI);
   return ConstantFoldInstOperands(CE->getOpcode(), CE->getType(), Ops, TD, TLI);
+}
+
+/// ConstantFoldConstantExpression - Attempt to fold the constant expression
+/// using the specified DataLayout.  If successful, the constant result is
+/// result is returned, if not, null is returned.
+Constant *llvm::ConstantFoldConstantExpression(const ConstantExpr *CE,
+                                               const DataLayout *TD,
+                                               const TargetLibraryInfo *TLI) {
+  SmallPtrSet<ConstantExpr *, 4> FoldedOps;
+  return ConstantFoldConstantExpressionImpl(CE, TD, TLI, FoldedOps);
 }
 
 /// ConstantFoldInstOperands - Attempt to constant fold an instruction with the

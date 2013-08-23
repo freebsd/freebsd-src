@@ -40,6 +40,15 @@ Debugging:    Turn on the extra debugging flag
     to the developers in tracking such problems down!
 
 
+Yes To All:   Assume "Yes" answers to all non-critical dialogs
+
+    This flag should be used with caution.  It will essentially
+    decide NOT to ask the user about any "boundary" conditions that
+    might not constitute actual errors but may be warnings indicative
+    of other problems.  It's most useful to those who are doing unattended
+    installs.
+
+
 DHCP:         Enable DHCP configuration of interfaces
 
     This option specifies whether DHCP configuration of interfaces
@@ -86,6 +95,14 @@ Media Type:   Which media type is being used.
     This is mostly informational and indicates which media type (if any)
     was last selected in the Media menu.  It's also a convenient short-cut
     to the media menu itself.
+
+
+Package Temp:  Where package temporary files should go
+
+   Some packages, like emacs, can use a LOT of temporary space - up to
+   20 or 30MB.  If you are going to configure a small / directory and no
+   separate /var (and hence a small /var/tmp), then you may wish to set
+   this to point at another location (say, /usr/tmp).
 
 
 Re-scan Devices:  

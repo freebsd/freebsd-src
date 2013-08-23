@@ -142,14 +142,17 @@ AcpiHwLowSetGpe (
         /*lint -fallthrough */
 
     case ACPI_GPE_ENABLE:
+
         ACPI_SET_BIT (EnableMask, RegisterBit);
         break;
 
     case ACPI_GPE_DISABLE:
+
         ACPI_CLEAR_BIT (EnableMask, RegisterBit);
         break;
 
     default:
+
         ACPI_ERROR ((AE_INFO, "Invalid GPE Action, %u", Action));
         return (AE_BAD_PARAMETER);
     }

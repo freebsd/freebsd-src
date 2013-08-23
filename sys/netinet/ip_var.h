@@ -133,46 +133,13 @@ struct	ipstat {
 #include <sys/counter.h>
 #include <net/vnet.h>
 
-/* Should match 'struct ipstat' above. */
-struct ipstat_p {
-	counter_u64_t ips_total;
-	counter_u64_t ips_badsum;
-	counter_u64_t ips_tooshort;
-	counter_u64_t ips_toosmall;
-	counter_u64_t ips_badhlen;
-	counter_u64_t ips_badlen;
-	counter_u64_t ips_fragments;
-	counter_u64_t ips_fragdropped;
-	counter_u64_t ips_fragtimeout;
-	counter_u64_t ips_forward;
-	counter_u64_t ips_fastforward;
-	counter_u64_t ips_cantforward;
-	counter_u64_t ips_redirectsent;
-	counter_u64_t ips_noproto;
-	counter_u64_t ips_delivered;
-	counter_u64_t ips_localout;
-	counter_u64_t ips_odropped;
-	counter_u64_t ips_reassembled;
-	counter_u64_t ips_fragmented;
-	counter_u64_t ips_ofragments;
-	counter_u64_t ips_cantfrag;
-	counter_u64_t ips_badoptions;
-	counter_u64_t ips_noroute;
-	counter_u64_t ips_badvers;
-	counter_u64_t ips_rawout;
-	counter_u64_t ips_toolong;
-	counter_u64_t ips_notmember;
-	counter_u64_t ips_nogif;
-	counter_u64_t ips_badaddr;
-};
-VNET_DECLARE(struct ipstat_p, ipstatp);
-#define	V_ipstatp VNET(ipstatp)
-
+VNET_PCPUSTAT_DECLARE(struct ipstat, ipstat);
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	IPSTAT_ADD(name, val)	counter_u64_add(V_ipstatp.name, (val))
+#define	IPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct ipstat, ipstat, name, (val))
 #define	IPSTAT_SUB(name, val)	IPSTAT_ADD(name, -(val))
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
 #define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
@@ -181,11 +148,11 @@ VNET_DECLARE(struct ipstat_p, ipstatp);
  * Kernel module consumers must use this accessor macro.
  */
 void	kmod_ipstat_inc(int statnum);
-#define	KMOD_IPSTAT_INC(name)						\
-	kmod_ipstat_inc(offsetof(struct ipstat_p, name) / sizeof(counter_u64_t))
+#define	KMOD_IPSTAT_INC(name)	\
+    kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(uint64_t))
 void	kmod_ipstat_dec(int statnum);
-#define	KMOD_IPSTAT_DEC(name)						\
-	kmod_ipstat_dec(offsetof(struct ipstat_p, name) / sizeof(counter_u64_t))
+#define	KMOD_IPSTAT_DEC(name)	\
+    kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(uint64_t))
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
@@ -196,10 +163,13 @@ void	kmod_ipstat_dec(int statnum);
 #define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
 
 /*
- * mbuf flag used by ip_fastfwd
+ * IPv4 protocol layer specific mbuf flags.
  */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
 #define	M_IP_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
+#define	M_SKIP_FIREWALL		M_PROTO3	/* skip firewall processing,
+						   keep in sync with IP6 */
+#define	M_IP_FRAG		M_PROTO4	/* fragment reassembly */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1

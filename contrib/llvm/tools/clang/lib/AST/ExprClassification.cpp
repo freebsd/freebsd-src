@@ -134,6 +134,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
     // FIXME: ObjC++0x might have different rules
   case Expr::ObjCIvarRefExprClass:
   case Expr::FunctionParmPackExprClass:
+  case Expr::MSPropertyRefExprClass:
     return Cl::CL_LValue;
 
     // C99 6.5.2.5p5 says that compound literals are lvalues.
@@ -296,6 +297,10 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
     // Simply look at the actual default argument.
   case Expr::CXXDefaultArgExprClass:
     return ClassifyInternal(Ctx, cast<CXXDefaultArgExpr>(E)->getExpr());
+
+    // Same idea for default initializers.
+  case Expr::CXXDefaultInitExprClass:
+    return ClassifyInternal(Ctx, cast<CXXDefaultInitExpr>(E)->getExpr());
 
     // Same idea for temporary binding.
   case Expr::CXXBindTemporaryExprClass:

@@ -1126,7 +1126,7 @@ passout:
 				IP6STAT_INC(ip6s_odropped);
 				goto sendorfree;
 			}
-			m->m_flags = m0->m_flags & M_COPYFLAGS;	/* incl. FIB */
+			m->m_flags = m0->m_flags & M_COPYFLAGS;
 			*mnext = m;
 			mnext = &m->m_nextpkt;
 			m->m_data += max_linkhdr;
@@ -1152,6 +1152,7 @@ passout:
 			}
 			m_cat(m, m_frgpart);
 			m->m_pkthdr.len = len + hlen + sizeof(*ip6f);
+			m->m_pkthdr.fibnum = m0->m_pkthdr.fibnum;
 			m->m_pkthdr.rcvif = NULL;
 			ip6f->ip6f_reserved = 0;
 			ip6f->ip6f_ident = id;
@@ -1476,13 +1477,10 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			switch (sopt->sopt_name) {
 			case SO_REUSEADDR:
 				INP_WLOCK(in6p);
-				if (IN_MULTICAST(ntohl(in6p->inp_laddr.s_addr))) {
-					if ((so->so_options &
-					    (SO_REUSEADDR | SO_REUSEPORT)) != 0)
-						in6p->inp_flags2 |= INP_REUSEPORT;
-					else
-						in6p->inp_flags2 &= ~INP_REUSEPORT;
-				}
+				if ((so->so_options & SO_REUSEADDR) != 0)
+					in6p->inp_flags2 |= INP_REUSEADDR;
+				else
+					in6p->inp_flags2 &= ~INP_REUSEADDR;
 				INP_WUNLOCK(in6p);
 				error = 0;
 				break;

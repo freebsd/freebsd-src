@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011-2012 Devin Teske
+.\" Copyright (c) 2011-2013 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd August 6, 2013
 .Dt MENU.4TH 8
 .Os
 .Sh NAME
@@ -83,13 +83,14 @@ The environment variables that effect its behavior are:
 .Bl -tag -width bootfile -offset indent
 .It Va loader_color
 If set to
-.Dq Li YES
+.Dq Li NO
 (case-insensitive) or
-.Dq Li 1 ,
-causes the menu to be displayed in color wherever possible.
-This includes the
-use of ANSI bold for numbers appearing to the left of menuitems and the use of
-special
+.Dq Li 0 ,
+causes the menu to be displayed without color.
+The default is to use ANSI coloring whenever possible.
+If serial boot is enabled, color is disabled by default.
+Color features include the use of ANSI bold for numbers appearing to the left
+of menuitems and the use of special
 .Dq Li ansi
 variables described below.
 .It Va autoboot_delay
@@ -122,6 +123,14 @@ The command to be executed after
 seconds if a key is not pressed.
 The default is
 .Ic boot .
+.It Va loader_menu_frame
+Sets the desired box style to draw around the boot menu.
+Possible values are:
+.Dq Li single
+.Pq the default ,
+.Dq Li double ,
+and
+.Dq Li none .
 .It Va loader_menu_timeout_x
 Sets the desired column position of the timeout countdown text.
 Default is 4.
@@ -129,9 +138,24 @@ Default is 4.
 Sets the desired row position of the timeout countdown text.
 Default is 23.
 .It Va loader_menu_title
-The text to display centered above the menu.
+The text to display above the menu.
 Default is
 .Dq Li "Welcome to FreeBSD" .
+.It Va loader_menu_title_align
+Default is to align
+.Ic loader_menu_title
+centered above the menu. This can be set to
+.Dq Li left
+or
+.Dq Li right
+to instead display the title left-or-right justified
+.Pq respectively .
+.It Va loader_menu_x
+Sets the desired column position of the boot menu.
+Default is 5.
+.It Va loader_menu_y
+Sets the desired row position of the boot menu.
+Default is 10.
 .It Va menu_caption[x]
 The text to be displayed for the numbered menuitem
 .Dq Li x .
@@ -148,7 +172,9 @@ When pressed, will cause the execution of
 .It Va ansi_caption[x]
 If
 .Va loader_color
-is set, use this caption for menuitem
+is set
+.Pq enabled by default ,
+use this caption for menuitem
 .Dq Li x
 instead of
 .Va menu_caption[x] .
@@ -165,7 +191,8 @@ Like
 .Va toggled_text[x]
 except used when
 .Va loader_color
-is enabled.
+is enabled
+.Pq default .
 .It Va menu_caption[x][y]
 For menuitems where
 .Va menu_command[x]
@@ -179,7 +206,8 @@ Like
 .Va menu_caption[x][y]
 except used when
 .Va loader_color
-is enabled.
+is enabled
+.Pq default .
 .It Va menu_acpi
 When set to a number
 .Dq Li x

@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -256,7 +257,7 @@ ffs_mount(struct mount *mp)
 				return (error);
 			for (;;) {
 				vn_finished_write(mp);
-				if ((error = vfs_write_suspend(mp)) != 0)
+				if ((error = vfs_write_suspend(mp, 0)) != 0)
 					return (error);
 				MNT_ILOCK(mp);
 				if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
@@ -1254,7 +1255,7 @@ ffs_unmount(mp, mntflags)
 		 */
 		for (;;) {
 			vn_finished_write(mp);
-			if ((error = vfs_write_suspend(mp)) != 0)
+			if ((error = vfs_write_suspend(mp, 0)) != 0)
 				return (error);
 			MNT_ILOCK(mp);
 			if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
@@ -2076,7 +2077,8 @@ ffs_bufwrite(struct buf *bp)
 			return (0);
 		}
 		bp->b_vflags |= BV_BKGRDWAIT;
-		msleep(&bp->b_xflags, BO_MTX(bp->b_bufobj), PRIBIO, "bwrbg", 0);
+		msleep(&bp->b_xflags, BO_LOCKPTR(bp->b_bufobj), PRIBIO,
+		    "bwrbg", 0);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("bufwrite: still writing");
 	}

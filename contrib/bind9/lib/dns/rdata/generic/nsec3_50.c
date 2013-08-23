@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -142,32 +142,32 @@ totext_nsec3(ARGS_TOTEXT) {
 	unsigned char flags;
 	char buf[sizeof("65535 ")];
 	isc_uint32_t iterations;
+	isc_boolean_t first;
 
 	REQUIRE(rdata->type == 50);
 	REQUIRE(rdata->length != 0);
 
-	UNUSED(tctx);
-
 	dns_rdata_toregion(rdata, &sr);
 
+	/* Hash */
 	hash = uint8_fromregion(&sr);
 	isc_region_consume(&sr, 1);
-
-	flags = uint8_fromregion(&sr);
-	isc_region_consume(&sr, 1);
-
-	iterations = uint16_fromregion(&sr);
-	isc_region_consume(&sr, 2);
-
 	sprintf(buf, "%u ", hash);
 	RETERR(str_totext(buf, target));
 
+	/* Flags */
+	flags = uint8_fromregion(&sr);
+	isc_region_consume(&sr, 1);
 	sprintf(buf, "%u ", flags);
 	RETERR(str_totext(buf, target));
 
+	/* Iterations */
+	iterations = uint16_fromregion(&sr);
+	isc_region_consume(&sr, 2);
 	sprintf(buf, "%u ", iterations);
 	RETERR(str_totext(buf, target));
 
+	/* Salt */
 	j = uint8_fromregion(&sr);
 	isc_region_consume(&sr, 1);
 	INSIST(j <= sr.length);
@@ -177,10 +177,14 @@ totext_nsec3(ARGS_TOTEXT) {
 		sr.length = j;
 		RETERR(isc_hex_totext(&sr, 1, "", target));
 		sr.length = i - j;
-		RETERR(str_totext(" ", target));
 	} else
-		RETERR(str_totext("- ", target));
+		RETERR(str_totext("-", target));
 
+	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+		RETERR(str_totext(" (", target));
+	RETERR(str_totext(tctx->linebreak, target));
+
+	/* Next hash */
 	j = uint8_fromregion(&sr);
 	isc_region_consume(&sr, 1);
 	INSIST(j <= sr.length);
@@ -190,7 +194,16 @@ totext_nsec3(ARGS_TOTEXT) {
 	RETERR(isc_base32hex_totext(&sr, 1, "", target));
 	sr.length = i - j;
 
+	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) == 0)
+		RETERR(str_totext(" ", target));
+
+	/* Types covered */
+	first = ISC_TRUE;
 	for (i = 0; i < sr.length; i += len) {
+		if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0) {
+			RETERR(str_totext(tctx->linebreak, target));
+			first = ISC_TRUE;
+		}
 		INSIST(i + 2 <= sr.length);
 		window = sr.base[i];
 		len = sr.base[i + 1];
@@ -205,7 +218,9 @@ totext_nsec3(ARGS_TOTEXT) {
 				if ((sr.base[i + j] & (0x80 >> k)) == 0)
 					continue;
 				t = window * 256 + j * 8 + k;
-				RETERR(str_totext(" ", target));
+				if (!first)
+					RETERR(str_totext(" ", target));
+				first = ISC_FALSE;
 				if (dns_rdatatype_isknown(t)) {
 					RETERR(dns_rdatatype_totext(t, target));
 				} else {
@@ -216,6 +231,10 @@ totext_nsec3(ARGS_TOTEXT) {
 			}
 		}
 	}
+
+	if ((tctx->flags & DNS_STYLEFLAG_MULTILINE) != 0)
+		RETERR(str_totext(" )", target));
+
 	return (ISC_R_SUCCESS);
 }
 

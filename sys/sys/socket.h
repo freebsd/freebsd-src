@@ -230,7 +230,9 @@ struct accept_filter_arg {
 #define	AF_ARP		35
 #define	AF_BLUETOOTH	36		/* Bluetooth sockets */
 #define	AF_IEEE80211	37		/* IEEE 802.11 protocol */
-#define	AF_MAX		38
+#define	AF_INET_SDP	40		/* OFED Socket Direct Protocol ipv4 */
+#define	AF_INET6_SDP	42		/* OFED Socket Direct Protocol ipv6 */
+#define	AF_MAX		42
 /*
  * When allocating a new AF_ constant, please only allocate
  * even numbered constants for FreeBSD until 134 as odd numbered AF_
@@ -352,6 +354,9 @@ struct sockproto {
 #define PF_SCLUSTER	AF_SCLUSTER
 #define	PF_ARP		AF_ARP
 #define	PF_BLUETOOTH	AF_BLUETOOTH
+#define	PF_IEEE80211	AF_IEEE80211
+#define	PF_INET_SDP	AF_INET_SDP
+#define	PF_INET6_SDP	AF_INET6_SDP
 
 #define	PF_MAX		AF_MAX
 
@@ -623,7 +628,11 @@ struct sf_hdtr {
 #define	SF_NODISKIO     0x00000001
 #define	SF_MNOWAIT	0x00000002
 #define	SF_SYNC		0x00000004
-#endif
+
+#ifdef _KERNEL
+#define	SFK_COMPAT	0x00000001
+#endif /* _KERNEL */
+#endif /* __BSD_VISIBLE */
 
 #ifndef	_KERNEL
 
@@ -634,6 +643,7 @@ int	accept(int, struct sockaddr * __restrict, socklen_t * __restrict);
 int	bind(int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
 #if __BSD_VISIBLE
+int	accept4(int, struct sockaddr * __restrict, socklen_t * __restrict, int);
 int	bindat(int, int, const struct sockaddr *, socklen_t);
 int	connectat(int, int, const struct sockaddr *, socklen_t);
 #endif

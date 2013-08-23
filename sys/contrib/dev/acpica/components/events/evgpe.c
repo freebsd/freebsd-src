@@ -578,7 +578,6 @@ AcpiEvAsynchExecuteGpeMethod (
     switch (LocalGpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK)
     {
     case ACPI_GPE_DISPATCH_NOTIFY:
-
         /*
          * Implicit notify.
          * Dispatch a DEVICE_WAKE notify to the appropriate handler.
@@ -631,6 +630,7 @@ AcpiEvAsynchExecuteGpeMethod (
         break;
 
     default:
+
         return_VOID; /* Should never happen */
     }
 
@@ -817,7 +817,6 @@ AcpiEvGpeDispatch (
 
     case ACPI_GPE_DISPATCH_METHOD:
     case ACPI_GPE_DISPATCH_NOTIFY:
-
         /*
          * Execute the method associated with the GPE
          * NOTE: Level-triggered GPEs are cleared after the method completes.
@@ -833,7 +832,6 @@ AcpiEvGpeDispatch (
         break;
 
     default:
-
         /*
          * No handler or method to run!
          * 03/2010: This case should no longer be possible. We will not allow

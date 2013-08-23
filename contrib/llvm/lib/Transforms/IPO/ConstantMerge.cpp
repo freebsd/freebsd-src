@@ -27,6 +27,7 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
 #include "llvm/Pass.h"
 using namespace llvm;
 
@@ -66,13 +67,13 @@ ModulePass *llvm::createConstantMergePass() { return new ConstantMerge(); }
 static void FindUsedValues(GlobalVariable *LLVMUsed,
                            SmallPtrSet<const GlobalValue*, 8> &UsedValues) {
   if (LLVMUsed == 0) return;
-  ConstantArray *Inits = dyn_cast<ConstantArray>(LLVMUsed->getInitializer());
-  if (Inits == 0) return;
-  
-  for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i)
-    if (GlobalValue *GV = 
-        dyn_cast<GlobalValue>(Inits->getOperand(i)->stripPointerCasts()))
-      UsedValues.insert(GV);
+  ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
+
+  for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i) {
+    Value *Operand = Inits->getOperand(i)->stripPointerCastsNoFollowAliases();
+    GlobalValue *GV = cast<GlobalValue>(Operand);
+    UsedValues.insert(GV);
+  }
 }
 
 // True if A is better than B.

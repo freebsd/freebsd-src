@@ -53,7 +53,6 @@ Mips16TargetLowering::Mips16TargetLowering(MipsTargetMachine &TM)
   if (Mips16HardFloat)
     setMips16HardFloatLibCalls();
 
-  setOperationAction(ISD::MEMBARRIER,         MVT::Other, Expand);
   setOperationAction(ISD::ATOMIC_FENCE,       MVT::Other, Expand);
   setOperationAction(ISD::ATOMIC_CMP_SWAP,    MVT::i32,   Expand);
   setOperationAction(ISD::ATOMIC_SWAP,        MVT::i32,   Expand);
@@ -614,7 +613,8 @@ MachineBasicBlock
   unsigned regX = MI->getOperand(0).getReg();
   unsigned regY = MI->getOperand(1).getReg();
   MachineBasicBlock *target = MI->getOperand(2).getMBB();
-  BuildMI(*BB, MI, MI->getDebugLoc(), TII->get(CmpOpc)).addReg(regX).addReg(regY);
+  BuildMI(*BB, MI, MI->getDebugLoc(), TII->get(CmpOpc)).addReg(regX)
+    .addReg(regY);
   BuildMI(*BB, MI, MI->getDebugLoc(), TII->get(BtOpc)).addMBB(target);
   MI->eraseFromParent();   // The pseudo instruction is gone now.
   return BB;
@@ -636,7 +636,8 @@ MachineBasicBlock *Mips16TargetLowering::emitFEXT_T8I8I16_ins(
     CmpOpc = CmpiXOpc;
   else
     llvm_unreachable("immediate field not usable");
-  BuildMI(*BB, MI, MI->getDebugLoc(), TII->get(CmpOpc)).addReg(regX).addImm(imm);
+  BuildMI(*BB, MI, MI->getDebugLoc(), TII->get(CmpOpc)).addReg(regX)
+    .addImm(imm);
   BuildMI(*BB, MI, MI->getDebugLoc(), TII->get(BtOpc)).addMBB(target);
   MI->eraseFromParent();   // The pseudo instruction is gone now.
   return BB;

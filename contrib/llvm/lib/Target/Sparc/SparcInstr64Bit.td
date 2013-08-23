@@ -40,6 +40,9 @@ let Predicates = [Is64Bit] in {
 def : Pat<(i64 (zext i32:$val)), (SRLri $val, 0)>;
 def : Pat<(i64 (sext i32:$val)), (SRAri $val, 0)>;
 
+def : Pat<(i64 (and i64:$val, 0xffffffff)), (SRLri $val, 0)>;
+def : Pat<(i64 (sext_inreg i64:$val, i32)), (SRAri $val, 0)>;
+
 defm SLLX : F3_S<"sllx", 0b100101, 1, shl, i64, I64Regs>;
 defm SRLX : F3_S<"srlx", 0b100110, 1, srl, i64, I64Regs>;
 defm SRAX : F3_S<"srax", 0b100111, 1, sra, i64, I64Regs>;
@@ -130,7 +133,7 @@ def HM10 : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(Val, MVT::i32);
 }]>;
 def : Pat<(i64 imm:$val),
-          (ORrr (SLLXri (ORri (SETHIi (HH22 $val)), (HM10 $val)), (i64 32)),
+          (ORrr (SLLXri (ORri (SETHIi (HH22 $val)), (HM10 $val)), (i32 32)),
                 (ORri (SETHIi (HI22 $val)), (LO10 $val)))>,
       Requires<[Is64Bit]>;
 
@@ -178,6 +181,45 @@ def : Pat<(SPcmpicc i64:$a, (i64 simm13:$b)), (SUBCCri $a, (as_i32imm $b))>;
 
 
 //===----------------------------------------------------------------------===//
+// 64-bit Integer Multiply and Divide.
+//===----------------------------------------------------------------------===//
+
+let Predicates = [Is64Bit] in {
+
+def MULXrr : F3_1<2, 0b001001,
+                  (outs I64Regs:$rd), (ins I64Regs:$rs1, I64Regs:$rs2),
+                  "mulx $rs1, $rs2, $rd",
+                  [(set i64:$rd, (mul i64:$rs1, i64:$rs2))]>;
+def MULXri : F3_2<2, 0b001001,
+                  (outs IntRegs:$rd), (ins IntRegs:$rs1, i64imm:$i),
+                  "mulx $rs1, $i, $rd",
+                  [(set i64:$rd, (mul i64:$rs1, (i64 simm13:$i)))]>;
+
+// Division can trap.
+let hasSideEffects = 1 in {
+def SDIVXrr : F3_1<2, 0b101101,
+                   (outs I64Regs:$rd), (ins I64Regs:$rs1, I64Regs:$rs2),
+                   "sdivx $rs1, $rs2, $rd",
+                   [(set i64:$rd, (sdiv i64:$rs1, i64:$rs2))]>;
+def SDIVXri : F3_2<2, 0b101101,
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i64imm:$i),
+                   "sdivx $rs1, $i, $rd",
+                   [(set i64:$rd, (sdiv i64:$rs1, (i64 simm13:$i)))]>;
+
+def UDIVXrr : F3_1<2, 0b001101,
+                   (outs I64Regs:$rd), (ins I64Regs:$rs1, I64Regs:$rs2),
+                   "udivx $rs1, $rs2, $rd",
+                   [(set i64:$rd, (udiv i64:$rs1, i64:$rs2))]>;
+def UDIVXri : F3_2<2, 0b001101,
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i64imm:$i),
+                   "udivx $rs1, $i, $rd",
+                   [(set i64:$rd, (udiv i64:$rs1, (i64 simm13:$i)))]>;
+} // hasSideEffects = 1
+
+} // Predicates = [Is64Bit]
+
+
+//===----------------------------------------------------------------------===//
 // 64-bit Loads and Stores.
 //===----------------------------------------------------------------------===//
 //
@@ -203,16 +245,22 @@ def LDXri  : F3_2<3, 0b001011,
 // Extending loads to i64.
 def : Pat<(i64 (zextloadi8 ADDRrr:$addr)), (LDUBrr ADDRrr:$addr)>;
 def : Pat<(i64 (zextloadi8 ADDRri:$addr)), (LDUBri ADDRri:$addr)>;
+def : Pat<(i64 (extloadi8 ADDRrr:$addr)),  (LDUBrr ADDRrr:$addr)>;
+def : Pat<(i64 (extloadi8 ADDRri:$addr)),  (LDUBri ADDRri:$addr)>;
 def : Pat<(i64 (sextloadi8 ADDRrr:$addr)), (LDSBrr ADDRrr:$addr)>;
 def : Pat<(i64 (sextloadi8 ADDRri:$addr)), (LDSBri ADDRri:$addr)>;
 
 def : Pat<(i64 (zextloadi16 ADDRrr:$addr)), (LDUHrr ADDRrr:$addr)>;
 def : Pat<(i64 (zextloadi16 ADDRri:$addr)), (LDUHri ADDRri:$addr)>;
+def : Pat<(i64 (extloadi16 ADDRrr:$addr)),  (LDUHrr ADDRrr:$addr)>;
+def : Pat<(i64 (extloadi16 ADDRri:$addr)),  (LDUHri ADDRri:$addr)>;
 def : Pat<(i64 (sextloadi16 ADDRrr:$addr)), (LDSHrr ADDRrr:$addr)>;
 def : Pat<(i64 (sextloadi16 ADDRri:$addr)), (LDSHri ADDRri:$addr)>;
 
 def : Pat<(i64 (zextloadi32 ADDRrr:$addr)), (LDrr ADDRrr:$addr)>;
 def : Pat<(i64 (zextloadi32 ADDRri:$addr)), (LDri ADDRri:$addr)>;
+def : Pat<(i64 (extloadi32 ADDRrr:$addr)),  (LDrr ADDRrr:$addr)>;
+def : Pat<(i64 (extloadi32 ADDRri:$addr)),  (LDri ADDRri:$addr)>;
 
 // Sign-extending load of i32 into i64 is a new SPARC v9 instruction.
 def LDSWrr : F3_1<3, 0b001011,

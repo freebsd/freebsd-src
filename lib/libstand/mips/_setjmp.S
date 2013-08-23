@@ -72,7 +72,6 @@ LEAF(_setjmp)
 	REG_S	s7, ((S7 + 3) * SZREG)(a0)
 	REG_S	sp, ((SP + 3) * SZREG)(a0)
 	REG_S	s8, ((S8 + 3) * SZREG)(a0)
-	REG_S	v0, ((32 + 38) * SZREG)(a0)
 	j	ra
 	move	v0, zero
 END(_setjmp)
@@ -96,7 +95,6 @@ LEAF(_longjmp)
 	REG_L	s5, ((S5 + 3) * SZREG)(a0)
 	REG_L	s6, ((S6 + 3) * SZREG)(a0)
 	REG_L	s7, ((S7 + 3) * SZREG)(a0)
-	REG_L	v0, ((32 + 38) * SZREG)(a0)	# get fpu status
 	REG_L	sp, ((SP + 3) * SZREG)(a0)
 	REG_L	s8, ((S8 + 3) * SZREG)(a0)
 

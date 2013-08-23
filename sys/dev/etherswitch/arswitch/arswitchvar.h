@@ -42,8 +42,6 @@ typedef enum {
 #define	AR8X16_IS_SWITCH(_sc, _type) \
 	    (!!((_sc)->sc_switchtype == AR8X16_SWITCH_ ## _type))
 
-struct arswitch_softc;
-
 struct arswitch_softc {
 	struct mtx	sc_mtx;		/* serialize access to softc */
 	device_t	sc_dev;
@@ -58,6 +56,10 @@ struct arswitch_softc {
 	struct ifnet	*ifp[AR8X16_NUM_PHYS];
 	struct callout	callout_tick;
 	etherswitch_info_t info;
+
+	/* VLANs support */
+	int		vid[AR8X16_MAX_VLANS];
+	uint32_t	vlan_mode;
 
 	struct {
 		int (* arswitch_hw_setup) (struct arswitch_softc *);

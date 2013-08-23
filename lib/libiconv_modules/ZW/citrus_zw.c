@@ -105,10 +105,10 @@ _citrus_ZW_unpack_state(_ZWEncodingInfo * __restrict ei __unused,
 
 static int
 _citrus_ZW_mbrtowc_priv(_ZWEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char **__restrict s, size_t n,
+    wchar_t * __restrict pwc, const char **__restrict s, size_t n,
     _ZWState * __restrict psenc, size_t * __restrict nresult)
 {
-	char *s0;
+	const char *s0;
 	wchar_t  wc;
 	int ch, len;
 

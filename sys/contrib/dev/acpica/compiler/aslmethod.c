@@ -44,10 +44,20 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslmethod")
+
+
+/* Local prototypes */
+
+void
+MtCheckNamedObjectInMethod (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo);
 
 
 /*******************************************************************************
@@ -111,6 +121,8 @@ MtMethodAnalysisWalkBegin (
         /* Get the SerializeRule and SyncLevel nodes, ignored here */
 
         Next = Next->Asl.Next;
+        MethodInfo->ShouldBeSerialized = (UINT8) Next->Asl.Value.Integer;
+
         Next = Next->Asl.Next;
         ArgNode = Next;
 
@@ -181,7 +193,6 @@ MtMethodAnalysisWalkBegin (
         }
         break;
 
-
     case PARSEOP_METHODCALL:
 
         if (MethodInfo &&
@@ -190,7 +201,6 @@ MtMethodAnalysisWalkBegin (
             AslError (ASL_REMARK, ASL_MSG_RECURSION, Op, Op->Asl.ExternalName);
         }
         break;
-
 
     case PARSEOP_LOCAL0:
     case PARSEOP_LOCAL1:
@@ -235,7 +245,6 @@ MtMethodAnalysisWalkBegin (
             AslError (ASL_ERROR, ASL_MSG_LOCAL_INIT, Op, LocalName);
         }
         break;
-
 
     case PARSEOP_ARG0:
     case PARSEOP_ARG1:
@@ -287,7 +296,6 @@ MtMethodAnalysisWalkBegin (
         }
         break;
 
-
     case PARSEOP_RETURN:
 
         if (!MethodInfo)
@@ -320,7 +328,6 @@ MtMethodAnalysisWalkBegin (
         }
         break;
 
-
     case PARSEOP_BREAK:
     case PARSEOP_CONTINUE:
 
@@ -340,7 +347,6 @@ MtMethodAnalysisWalkBegin (
         }
         break;
 
-
     case PARSEOP_STALL:
 
         /* We can range check if the argument is an integer */
@@ -351,7 +357,6 @@ MtMethodAnalysisWalkBegin (
             AslError (ASL_ERROR, ASL_MSG_INVALID_TIME, Op, NULL);
         }
         break;
-
 
     case PARSEOP_DEVICE:
     case PARSEOP_EVENT:
@@ -371,7 +376,6 @@ MtMethodAnalysisWalkBegin (
             AslError (ASL_ERROR, ASL_MSG_RESERVED_USE, Op, Op->Asl.ExternalName);
         }
         break;
-
 
     case PARSEOP_NAME:
 
@@ -410,12 +414,71 @@ MtMethodAnalysisWalkBegin (
         }
         break;
 
-
     default:
+
         break;
     }
 
+    /* Check for named object creation within a non-serialized method */
+
+    MtCheckNamedObjectInMethod (Op, MethodInfo);
     return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    MtCheckNamedObjectInMethod
+ *
+ * PARAMETERS:  Op                  - Current parser op
+ *              MethodInfo          - Info for method being parsed
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Detect if a non-serialized method is creating a named object,
+ *              which could possibly cause problems if two threads execute
+ *              the method concurrently. Emit a remark in this case.
+ *
+ ******************************************************************************/
+
+void
+MtCheckNamedObjectInMethod (
+    ACPI_PARSE_OBJECT       *Op,
+    ASL_METHOD_INFO         *MethodInfo)
+{
+    const ACPI_OPCODE_INFO  *OpInfo;
+
+
+    /* We don't care about actual method declarations */
+
+    if (Op->Asl.AmlOpcode == AML_METHOD_OP)
+    {
+        return;
+    }
+
+    /* Determine if we are creating a named object */
+
+    OpInfo = AcpiPsGetOpcodeInfo (Op->Asl.AmlOpcode);
+    if (OpInfo->Class == AML_CLASS_NAMED_OBJECT)
+    {
+        /*
+         * If we have a named object created within a non-serialized method,
+         * emit a remark that the method should be serialized.
+         *
+         * Reason: If a thread blocks within the method for any reason, and
+         * another thread enters the method, the method will fail because an
+         * attempt will be made to create the same object twice.
+         */
+        if (MethodInfo && !MethodInfo->ShouldBeSerialized)
+        {
+            AslError (ASL_REMARK, ASL_MSG_SERIALIZED_REQUIRED, MethodInfo->Op,
+                "due to creation of named objects within");
+
+            /* Emit message only ONCE per method */
+
+            MethodInfo->ShouldBeSerialized = TRUE;
+        }
+    }
 }
 
 
@@ -446,6 +509,7 @@ MtMethodAnalysisWalkEnd (
     {
     case PARSEOP_METHOD:
     case PARSEOP_RETURN:
+
         if (!MethodInfo)
         {
             printf ("No method info for method! [%s]\n", Op->Asl.Namepath);
@@ -458,6 +522,7 @@ MtMethodAnalysisWalkEnd (
         break;
 
     default:
+
         break;
     }
 
@@ -534,14 +599,12 @@ MtMethodAnalysisWalkEnd (
         ACPI_FREE (MethodInfo);
         break;
 
-
     case PARSEOP_NAME:
 
          /* Special check for two names like _L01 and _E01 in same scope */
 
         ApCheckForGpeNameConflict (Op);
         break;
-
 
     case PARSEOP_RETURN:
 
@@ -572,7 +635,6 @@ MtMethodAnalysisWalkEnd (
         }
         break;
 
-
     case PARSEOP_IF:
 
         if ((Op->Asl.CompileFlags & NODE_HAS_NO_EXIT) &&
@@ -587,7 +649,6 @@ MtMethodAnalysisWalkEnd (
             Op->Asl.Next->Asl.CompileFlags |= NODE_IF_HAS_NO_EXIT;
         }
         break;
-
 
     case PARSEOP_ELSE:
 

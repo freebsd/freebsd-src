@@ -3098,7 +3098,7 @@ mld_dispatch_packet(struct mbuf *m)
 	}
 
 	mld_scrub_context(m0);
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m0->m_pkthdr.rcvif = V_loif;
 
 	ip6 = mtod(m0, struct ip6_hdr *);

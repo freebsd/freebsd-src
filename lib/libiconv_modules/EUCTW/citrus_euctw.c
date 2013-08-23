@@ -174,10 +174,10 @@ _citrus_EUCTW_encoding_module_uninit(_EUCTWEncodingInfo *ei __unused)
 
 static int
 _citrus_EUCTW_mbrtowc_priv(_EUCTWEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s,
+    wchar_t * __restrict pwc, const char ** __restrict s,
     size_t n, _EUCTWState * __restrict psenc, size_t * __restrict nresult)
 {
-	char *s0;
+	const char *s0;
 	wchar_t wchar;
 	int c, chlenbak, cs;
 

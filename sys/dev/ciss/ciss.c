@@ -338,6 +338,15 @@ static struct
     { 0x103C, 0x3354, CISS_BOARD_SA5,   "HP Smart Array P420i" },
     { 0x103C, 0x3355, CISS_BOARD_SA5,   "HP Smart Array P220i" },
     { 0x103C, 0x3356, CISS_BOARD_SA5,   "HP Smart Array P721m" },
+    { 0x103C, 0x1920, CISS_BOARD_SA5,   "HP Smart Array P430i" },
+    { 0x103C, 0x1921, CISS_BOARD_SA5,   "HP Smart Array P830i" },
+    { 0x103C, 0x1922, CISS_BOARD_SA5,   "HP Smart Array P430" },
+    { 0x103C, 0x1923, CISS_BOARD_SA5,   "HP Smart Array P431" },
+    { 0x103C, 0x1924, CISS_BOARD_SA5,   "HP Smart Array P830" },
+    { 0x103C, 0x1926, CISS_BOARD_SA5,   "HP Smart Array P731m" },
+    { 0x103C, 0x1928, CISS_BOARD_SA5,   "HP Smart Array P230i" },
+    { 0x103C, 0x1929, CISS_BOARD_SA5,   "HP Smart Array P530" },
+    { 0x103C, 0x192A, CISS_BOARD_SA5,   "HP Smart Array P531" },
     { 0, 0, 0, NULL }
 };
 
@@ -2487,6 +2496,7 @@ ciss_preen_command(struct ciss_request *cr)
     cc->header.sg_total = 0;
     cc->header.host_tag = cr->cr_tag << 2;
     cc->header.host_tag_zeroes = 0;
+    bzero(&(cc->sg[0]), CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command));
     cmdphys = cr->cr_ccphys;
     cc->error_info.error_info_address = cmdphys + sizeof(struct ciss_command);
     cc->error_info.error_info_length = CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command);
@@ -3007,7 +3017,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
 	if (sc->ciss_cfg->max_sg_length == 0) {
-		sg_length = 16;
+		sg_length = 17;
 	} else {
 	/* XXX Fix for ZMR cards that advertise max_sg_length == 32
 	 * Confusing bit here. max_sg_length is usually a power of 2. We always
@@ -3375,7 +3385,7 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
 
 	cl = &sc->ciss_logical[bus][target];
 
-	padstr(inq->vendor, "COMPAQ",
+	padstr(inq->vendor, "HP",
 	       SID_VENDOR_SIZE);
 	padstr(inq->product,
 	       ciss_name_ldrive_org(cl->cl_ldrive->fault_tolerance),
@@ -4377,11 +4387,17 @@ ciss_print_adapter(struct ciss_softc *sc)
 DB_COMMAND(ciss_prt, db_ciss_prt)
 {
     struct ciss_softc	*sc;
+    devclass_t dc;
+    int maxciss, i;
 
-    sc = devclass_get_softc(devclass_find("ciss"), 0);
-    if (sc == NULL) {
-	printf("no ciss controllers\n");
-    } else {
+    dc = devclass_find("ciss");
+    if ( dc == NULL ) {
+        printf("%s: can't find devclass!\n", __func__);
+        return;
+    }
+    maxciss = devclass_get_maxunit(dc);
+    for (i = 0; i < maxciss; i++) {
+        sc = devclass_get_softc(dc, i);
 	ciss_print_adapter(sc);
     }
 }

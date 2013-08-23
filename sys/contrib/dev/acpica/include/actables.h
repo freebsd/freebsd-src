@@ -50,6 +50,19 @@ AcpiAllocateRootTable (
     UINT32                  InitialTableCount);
 
 /*
+ * tbxfroot - Root pointer utilities
+ */
+ACPI_STATUS
+AcpiTbValidateRsdp (
+    ACPI_TABLE_RSDP         *Rsdp);
+
+UINT8 *
+AcpiTbScanMemoryForRsdp (
+    UINT8                   *StartAddress,
+    UINT32                  Length);
+
+
+/*
  * tbfadt - FADT parse/convert/validate
  */
 void

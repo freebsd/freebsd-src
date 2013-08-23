@@ -706,9 +706,10 @@ sbuf_finish(struct sbuf *s)
 #ifdef _KERNEL
 	return (s->s_error);
 #else
-	errno = s->s_error;
-	if (s->s_error)
+	if (s->s_error != 0) {
+		errno = s->s_error;
 		return (-1);
+	}
 	return (0);
 #endif
 }

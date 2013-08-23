@@ -89,7 +89,7 @@ void CGDebugInfo::setLocation(SourceLocation Loc) {
 }
 
 /// getContextDescriptor - Get context info for the decl.
-llvm::DIDescriptor CGDebugInfo::getContextDescriptor(const Decl *Context) {
+llvm::DIScope CGDebugInfo::getContextDescriptor(const Decl *Context) {
   if (!Context)
     return TheCU;
 
@@ -97,20 +97,17 @@ llvm::DIDescriptor CGDebugInfo::getContextDescriptor(const Decl *Context) {
     I = RegionMap.find(Context);
   if (I != RegionMap.end()) {
     llvm::Value *V = I->second;
-    return llvm::DIDescriptor(dyn_cast_or_null<llvm::MDNode>(V));
+    return llvm::DIScope(dyn_cast_or_null<llvm::MDNode>(V));
   }
 
   // Check namespace.
   if (const NamespaceDecl *NSDecl = dyn_cast<NamespaceDecl>(Context))
-    return llvm::DIDescriptor(getOrCreateNameSpace(NSDecl));
+    return getOrCreateNameSpace(NSDecl);
 
-  if (const RecordDecl *RDecl = dyn_cast<RecordDecl>(Context)) {
-    if (!RDecl->isDependentType()) {
-      llvm::DIType Ty = getOrCreateType(CGM.getContext().getTypeDeclType(RDecl),
+  if (const RecordDecl *RDecl = dyn_cast<RecordDecl>(Context))
+    if (!RDecl->isDependentType())
+      return getOrCreateType(CGM.getContext().getTypeDeclType(RDecl),
                                         getOrCreateMainFile());
-      return llvm::DIDescriptor(Ty);
-    }
-  }
   return TheCU;
 }
 
@@ -642,7 +639,7 @@ llvm::DIType CGDebugInfo::CreatePointerLikeType(unsigned Tag,
   // Size is always the size of a pointer. We can't use getTypeSize here
   // because that does not return the correct value for references.
   unsigned AS = CGM.getContext().getTargetAddressSpace(PointeeTy);
-  uint64_t Size = CGM.getContext().getTargetInfo().getPointerWidth(AS);
+  uint64_t Size = CGM.getTarget().getPointerWidth(AS);
   uint64_t Align = CGM.getContext().getTypeAlign(Ty);
 
   return DBuilder.createPointerType(CreatePointeeType(PointeeTy, Unit),
@@ -984,7 +981,7 @@ llvm::DIType CGDebugInfo::getOrCreateInstanceMethodType(
     const PointerType *ThisPtrTy = cast<PointerType>(ThisPtr);
     QualType PointeeTy = ThisPtrTy->getPointeeType();
     unsigned AS = CGM.getContext().getTargetAddressSpace(PointeeTy);
-    uint64_t Size = CGM.getContext().getTargetInfo().getPointerWidth(AS);
+    uint64_t Size = CGM.getTarget().getPointerWidth(AS);
     uint64_t Align = CGM.getContext().getTypeAlign(ThisPtrTy);
     llvm::DIType PointeeType = getOrCreateType(PointeeTy, Unit);
     llvm::DIType ThisPtrType = DBuilder.createPointerType(PointeeType, Size, Align);
@@ -1699,7 +1696,7 @@ llvm::DIType CGDebugInfo::CreateEnumType(const EnumDecl *ED) {
   unsigned Line = getLineNumber(ED->getLocation());
   llvm::DIDescriptor EnumContext = 
     getContextDescriptor(cast<Decl>(ED->getDeclContext()));
-  llvm::DIType ClassTy = ED->isScopedUsingClassTag() ?
+  llvm::DIType ClassTy = ED->isFixed() ?
     getOrCreateType(ED->getIntegerType(), DefUnit) : llvm::DIType();
   llvm::DIType DbgTy = 
     DBuilder.createEnumerationType(EnumContext, ED->getName(), DefUnit, Line,
@@ -2398,7 +2395,7 @@ llvm::DIType CGDebugInfo::EmitTypeForVarWithBlocksAttr(const VarDecl *VD,
   
   CharUnits Align = CGM.getContext().getDeclAlign(VD);
   if (Align > CGM.getContext().toCharUnitsFromBits(
-        CGM.getContext().getTargetInfo().getPointerAlign(0))) {
+        CGM.getTarget().getPointerAlign(0))) {
     CharUnits FieldOffsetInBytes 
       = CGM.getContext().toCharUnitsFromBits(FieldOffset);
     CharUnits AlignedOffsetInBytes
@@ -2494,7 +2491,7 @@ void CGDebugInfo::EmitDeclare(const VarDecl *VD, unsigned Tag,
       addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIBuilder::OpPlus));
       // offset of __forwarding field
       offset = CGM.getContext().toCharUnitsFromBits(
-        CGM.getContext().getTargetInfo().getPointerWidth(0));
+        CGM.getTarget().getPointerWidth(0));
       addr.push_back(llvm::ConstantInt::get(Int64Ty, offset.getQuantity()));
       addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIBuilder::OpDeref));
       addr.push_back(llvm::ConstantInt::get(Int64Ty, llvm::DIBuilder::OpPlus));
@@ -2930,6 +2927,16 @@ void CGDebugInfo::EmitGlobalVariable(const ValueDecl *VD,
                                 getLineNumber(VD->getLocation()),
                                 Ty, true, Init,
                                 getStaticDataMemberDeclaration(VD));
+}
+
+void CGDebugInfo::EmitUsingDirective(const UsingDirectiveDecl &UD) {
+  llvm::DIScope Scope =
+      LexicalBlockStack.empty()
+          ? getContextDescriptor(cast<Decl>(UD.getDeclContext()))
+          : llvm::DIScope(LexicalBlockStack.back());
+  DBuilder.createImportedModule(
+      Scope, getOrCreateNameSpace(UD.getNominatedNamespace()),
+      getLineNumber(UD.getLocation()));
 }
 
 /// getOrCreateNamesSpace - Return namespace descriptor for the given

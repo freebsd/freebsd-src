@@ -262,7 +262,9 @@ static const struct fmt athstats[] = {
 	{ 10,	"rxdescbusy",	"rxdescbusy",	"Decryption engine busy" },
 #define	S_RX_HI_CHAIN	AFTER(S_RX_DECRYPT_BUSY_ERR)
 	{ 4,	"rxhi",	"rxhi",	"Frames received with RX chain in high power mode" },
-#define	S_TX_HTPROTECT	AFTER(S_RX_HI_CHAIN)
+#define	S_RX_STBC	AFTER(S_RX_HI_CHAIN)
+	{ 6,	"rxstbc", "rxstbc", "Frames received w/ STBC encoding" },
+#define	S_TX_HTPROTECT	AFTER(S_RX_STBC)
 	{ 7,	"txhtprot",	"txhtprot",	"Frames transmitted with HT Protection" },
 #define	S_RX_QEND	AFTER(S_TX_HTPROTECT)
 	{ 7,	"rxquend",	"rxquend",	"Hit end of RX descriptor queue" },
@@ -420,7 +422,6 @@ static const struct fmt athstats[] = {
 	{ 4,	"signal",	"sig",	"avg recv signal (dBm)" },
 #define	S_BMISSCOUNT		AFTER(S_RX_SIGNAL)
 	{ 8,	"bmisscount",	"bmisscnt",	"beacon miss count" },
-
 };
 #define	S_PHY_MIN	S_RX_PHY_UNDERRUN
 #define	S_PHY_MAX	S_RX_PHY_CCK_RESTART
@@ -773,6 +774,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_POST_CRC_ERR:	STAT(rx_post_crc_err);
 	case S_RX_DECRYPT_BUSY_ERR:	STAT(rx_decrypt_busy_err);
 	case S_RX_HI_CHAIN:	STAT(rx_hi_rx_chain);
+	case S_RX_STBC:		STAT(rx_stbc);
 	case S_TX_HTPROTECT:	STAT(tx_htprotect);
 	case S_RX_QEND:		STAT(rx_hitqueueend);
 	case S_TX_TIMEOUT:	STAT(tx_timeout);
@@ -1015,6 +1017,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_POST_CRC_ERR:	STAT(rx_post_crc_err);
 	case S_RX_DECRYPT_BUSY_ERR:	STAT(rx_decrypt_busy_err);
 	case S_RX_HI_CHAIN:	STAT(rx_hi_rx_chain);
+	case S_RX_STBC:		STAT(rx_stbc);
 	case S_TX_HTPROTECT:	STAT(tx_htprotect);
 	case S_RX_QEND:		STAT(rx_hitqueueend);
 	case S_TX_TIMEOUT:	STAT(tx_timeout);

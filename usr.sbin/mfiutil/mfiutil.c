@@ -60,6 +60,7 @@ usage(void)
 	fprintf(stderr, "    show drives               - list physical drives\n");
 	fprintf(stderr, "    show events               - display event log\n");
 	fprintf(stderr, "    show firmware             - list firmware images\n");
+	fprintf(stderr, "    show foreign              - display detected foreign volumes\n");
 	fprintf(stderr, "    show logstate             - display event log sequence numbers\n");
 	fprintf(stderr, "    show volumes              - list logical volumes\n");
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
@@ -83,6 +84,11 @@ usage(void)
 	fprintf(stderr, "    patrol <disable|auto|manual> [interval [start]]\n");
 	fprintf(stderr, "    start patrol              - start a patrol read\n");
 	fprintf(stderr, "    stop patrol               - stop a patrol read\n");
+	fprintf(stderr, "    foreign scan              - scan for foreign configurations\n");
+	fprintf(stderr, "    foreign clear [volume]    - clear foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign diag [volume]     - diagnostic display foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign preview [volume]  - preview foreign configurations (default all)\n");
+	fprintf(stderr, "    foreign import [volume]   - import foreign configurations (default all)\n");
 	fprintf(stderr, "    flash <firmware>\n");
 	fprintf(stderr, "    start learn               - start a BBU relearn\n");
 	fprintf(stderr, "    bbu <setting> <value>     - set BBU properties\n");

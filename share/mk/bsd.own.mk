@@ -43,6 +43,11 @@
 # LIBMODE	Library mode. [${NOBINMODE}]
 #
 #
+# DEBUGDIR	Base path for standalone debug files. [/usr/lib/debug]
+#
+# DEBUGMODE	Mode for debug files. [${NOBINMODE}]
+#
+#
 # KMODDIR	Base path for loadable kernel modules
 #		(see kld(4)). [/boot/kernel]
 #
@@ -147,6 +152,9 @@ LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
 LIBMODE?=	${NOBINMODE}
 
+DEBUGDIR?=	/usr/lib/debug
+DEBUGMODE?=	${NOBINMODE}
+
 
 # Share files
 SHAREDIR?=	/usr/share
@@ -213,6 +221,7 @@ COMPRESS_EXT?=	.gz
 #
 .for var in \
     CTF \
+    DEBUG_FILES \
     INSTALLLIB \
     MAN \
     PROFILE
@@ -236,6 +245,7 @@ __DEFAULT_YES_OPTIONS = \
     ACPI \
     AMD \
     APM \
+    ARM_EABI \
     ASSERT_DEBUG \
     AT \
     ATF \
@@ -251,6 +261,7 @@ __DEFAULT_YES_OPTIONS = \
     BIND_UTILS \
     BINUTILS \
     BLUETOOTH \
+    BMAKE \
     BOOT \
     BSD_CPIO \
     BSNMP \
@@ -259,15 +270,16 @@ __DEFAULT_YES_OPTIONS = \
     CAPSICUM \
     CDDL \
     CPP \
+    CROSS_COMPILER \
     CRYPT \
     CTM \
-    CVS \
     CXX \
     DICT \
     DYNAMICROOT \
     ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
+    FORMAT_EXTENSIONS \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
@@ -280,6 +292,7 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     GROFF \
     HTML \
+    ICONV \
     INET \
     INET6 \
     INFO \
@@ -336,6 +349,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
     SSP \
+    SVNLITE \
     SYMVER \
     SYSCONS \
     SYSINSTALL \
@@ -351,28 +365,29 @@ __DEFAULT_YES_OPTIONS = \
     ZONEINFO
 
 __DEFAULT_NO_OPTIONS = \
-    ARM_EABI \
-    BSD_PATCH \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    BMAKE \
     BSDCONFIG \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
+    DEBUG_FILES \
+    GNU_PATCH \
     GPL_DTC \
     HESIOD \
-    ICONV \
+    LIBICONV_COMPAT \
     INSTALL_AS_USER \
     LDNS_UTILS \
     NMTREE \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
-    SHARED_TOOLCHAIN
+    SHARED_TOOLCHAIN \
+    SVN \
+    USB_GADGET_EXAMPLES
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -468,6 +483,10 @@ MK_BIND_LIBS_LWRES:= no
 MK_BIND_MTREE:=	no
 MK_BIND_NAMED:=	no
 MK_BIND_UTILS:=	no
+.endif
+
+.if ${MK_ICONV} == "no"
+MK_LIBICONV_COMPAT:=	no
 .endif
 
 .if ${MK_LDNS} == "no"

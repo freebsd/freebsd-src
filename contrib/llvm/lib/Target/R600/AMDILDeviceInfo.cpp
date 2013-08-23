@@ -44,7 +44,7 @@ AMDGPUDevice* getDeviceFromName(const std::string &deviceName,
           " on 32bit pointers!");
 #endif
     return new AMDGPUEvergreenDevice(ptr);
-  } else if (deviceName == "redwood") {
+  } else if (deviceName == "redwood" || deviceName == "sumo") {
 #if DEBUG
     assert(!is64bit && "This device does not support 64bit pointers!");
     assert(!is64on32bit && "This device does not support 64bit"
@@ -79,7 +79,10 @@ AMDGPUDevice* getDeviceFromName(const std::string &deviceName,
           " on 32bit pointers!");
 #endif
     return new AMDGPUNIDevice(ptr);
-  } else if (deviceName == "SI") {
+  } else if (deviceName == "SI" ||
+             deviceName == "tahiti" || deviceName == "pitcairn" ||
+             deviceName == "verde"  || deviceName == "oland" ||
+	     deviceName == "hainan") {
     return new AMDGPUSIDevice(ptr);
   } else {
 #if DEBUG

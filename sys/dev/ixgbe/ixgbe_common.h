@@ -48,6 +48,8 @@ struct ixgbe_pba {
 };
 #endif
 
+void ixgbe_dcb_get_rtrup2tc_generic(struct ixgbe_hw *hw, u8 *map);
+
 u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
@@ -66,6 +68,7 @@ s32 ixgbe_get_pba_block_size(struct ixgbe_hw *hw, u16 *eeprom_buf,
 			     u32 eeprom_buf_size, u16 *pba_block_size);
 s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
+void ixgbe_set_pci_config_data_generic(struct ixgbe_hw *hw, u16 link_status);
 void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw);
 s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw);
 
@@ -108,7 +111,7 @@ s32 ixgbe_disable_sec_rx_path_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_sec_rx_path_generic(struct ixgbe_hw *hw);
 
 s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
-s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
+bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
 void ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
 s32 ixgbe_validate_mac_addr(u8 *mac_addr);
@@ -156,5 +159,6 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, u32 *buffer,
 void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
 
 extern s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw);
+extern void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw);
 
 #endif /* IXGBE_COMMON */

@@ -24,6 +24,12 @@ public:
   explicit MipsSEDAGToDAGISel(MipsTargetMachine &TM) : MipsDAGToDAGISel(TM) {}
 
 private:
+
+  virtual bool runOnMachineFunction(MachineFunction &MF);
+
+  void addDSPCtrlRegOperands(bool IsDef, MachineInstr &MI,
+                             MachineFunction &MF);
+
   bool replaceUsesWithZeroReg(MachineRegisterInfo *MRI, const MachineInstr&);
 
   std::pair<SDNode*, SDNode*> selectMULT(SDNode *N, unsigned Opc, DebugLoc dl,

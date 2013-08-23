@@ -5,7 +5,8 @@
 LIB=	clangstaticanalyzercheckers
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Checkers
-SRCS=	AnalyzerStatsChecker.cpp \
+SRCS=	AllocationDiagnostics.cpp \
+	AnalyzerStatsChecker.cpp \
 	ArrayBoundChecker.cpp \
 	ArrayBoundCheckerV2.cpp \
 	BasicObjCFoundationChecks.cpp \

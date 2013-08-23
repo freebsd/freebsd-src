@@ -331,7 +331,7 @@ static int
 nand_probe_onfi(device_t bus, uint8_t *onfi_compliant)
 {
 	device_t nfc;
-	char onfi_id[] = {'o', 'n', 'f', 'i', '\0'};
+	char onfi_id[] = {'O', 'N', 'F', 'I', '\0'};
 	int i;
 
 	nand_debug(NDBG_BUS,"probing ONFI");

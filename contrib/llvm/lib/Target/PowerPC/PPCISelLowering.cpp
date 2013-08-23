@@ -71,6 +71,7 @@ PPCTargetLowering::PPCTargetLowering(PPCTargetMachine &TM)
   : TargetLowering(TM, CreateTLOF(TM)), PPCSubTarget(*TM.getSubtargetImpl()) {
   const PPCSubtarget *Subtarget = &TM.getSubtarget<PPCSubtarget>();
   PPCRegInfo = TM.getRegisterInfo();
+  PPCII = TM.getInstrInfo();
 
   setPow2DivIsCheap();
 
@@ -513,7 +514,8 @@ PPCTargetLowering::PPCTargetLowering(PPCTargetMachine &TM)
   setOperationAction(ISD::ATOMIC_STORE, MVT::i64, Expand);
 
   setBooleanContents(ZeroOrOneBooleanContent);
-  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
+  // Altivec instructions set fields to all zeros or all ones.
+  setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
 
   if (isPPC64) {
     setStackPointerRegisterToSaveRestore(PPC::X1);
@@ -4672,10 +4674,14 @@ SDValue PPCTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
       !Op.getOperand(2).getValueType().isFloatingPoint())
     return Op;
 
-  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(4))->get();
+  // We might be able to do better than this under some circumstances, but in
+  // general, fsel-based lowering of select is a finite-math-only optimization.
+  // For more information, see section F.3 of the 2.06 ISA specification.
+  if (!DAG.getTarget().Options.NoInfsFPMath ||
+      !DAG.getTarget().Options.NoNaNsFPMath)
+    return Op;
 
-  // Cannot handle SETEQ/SETNE.
-  if (CC == ISD::SETEQ || CC == ISD::SETNE) return Op;
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(4))->get();
 
   EVT ResVT = Op.getValueType();
   EVT CmpVT = Op.getOperand(0).getValueType();
@@ -4685,9 +4691,20 @@ SDValue PPCTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
 
   // If the RHS of the comparison is a 0.0, we don't need to do the
   // subtraction at all.
+  SDValue Sel1;
   if (isFloatingPointZero(RHS))
     switch (CC) {
     default: break;       // SETUO etc aren't handled by fsel.
+    case ISD::SETNE:
+      std::swap(TV, FV);
+    case ISD::SETEQ:
+      if (LHS.getValueType() == MVT::f32)   // Comparison is always 64-bits
+        LHS = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, LHS);
+      Sel1 = DAG.getNode(PPCISD::FSEL, dl, ResVT, LHS, TV, FV);
+      if (Sel1.getValueType() == MVT::f32)   // Comparison is always 64-bits
+        Sel1 = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, Sel1);
+      return DAG.getNode(PPCISD::FSEL, dl, ResVT,
+                         DAG.getNode(ISD::FNEG, dl, MVT::f64, LHS), Sel1, FV);
     case ISD::SETULT:
     case ISD::SETLT:
       std::swap(TV, FV);  // fsel is natively setge, swap operands for setlt
@@ -4710,30 +4727,41 @@ SDValue PPCTargetLowering::LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Cmp;
   switch (CC) {
   default: break;       // SETUO etc aren't handled by fsel.
+  case ISD::SETNE:
+    std::swap(TV, FV);
+  case ISD::SETEQ:
+    Cmp = DAG.getNode(ISD::FSUB, dl, CmpVT, LHS, RHS);
+    if (Cmp.getValueType() == MVT::f32)   // Comparison is always 64-bits
+      Cmp = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, Cmp);
+    Sel1 = DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, TV, FV);
+    if (Sel1.getValueType() == MVT::f32)   // Comparison is always 64-bits
+      Sel1 = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, Sel1);
+    return DAG.getNode(PPCISD::FSEL, dl, ResVT,
+                       DAG.getNode(ISD::FNEG, dl, MVT::f64, Cmp), Sel1, FV);
   case ISD::SETULT:
   case ISD::SETLT:
     Cmp = DAG.getNode(ISD::FSUB, dl, CmpVT, LHS, RHS);
     if (Cmp.getValueType() == MVT::f32)   // Comparison is always 64-bits
       Cmp = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, Cmp);
-      return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, FV, TV);
+    return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, FV, TV);
   case ISD::SETOGE:
   case ISD::SETGE:
     Cmp = DAG.getNode(ISD::FSUB, dl, CmpVT, LHS, RHS);
     if (Cmp.getValueType() == MVT::f32)   // Comparison is always 64-bits
       Cmp = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, Cmp);
-      return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, TV, FV);
+    return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, TV, FV);
   case ISD::SETUGT:
   case ISD::SETGT:
     Cmp = DAG.getNode(ISD::FSUB, dl, CmpVT, RHS, LHS);
     if (Cmp.getValueType() == MVT::f32)   // Comparison is always 64-bits
       Cmp = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, Cmp);
-      return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, FV, TV);
+    return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, FV, TV);
   case ISD::SETOLE:
   case ISD::SETLE:
     Cmp = DAG.getNode(ISD::FSUB, dl, CmpVT, RHS, LHS);
     if (Cmp.getValueType() == MVT::f32)   // Comparison is always 64-bits
       Cmp = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f64, Cmp);
-      return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, TV, FV);
+    return DAG.getNode(PPCISD::FSEL, dl, ResVT, Cmp, TV, FV);
   }
   return Op;
 }
@@ -6239,29 +6267,13 @@ PPCTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 
   if (PPCSubTarget.hasISEL() && (MI->getOpcode() == PPC::SELECT_CC_I4 ||
                                  MI->getOpcode() == PPC::SELECT_CC_I8)) {
-    unsigned OpCode = MI->getOpcode() == PPC::SELECT_CC_I8 ?
-                                         PPC::ISEL8 : PPC::ISEL;
-    unsigned SelectPred = MI->getOperand(4).getImm();
+    SmallVector<MachineOperand, 2> Cond;
+    Cond.push_back(MI->getOperand(4));
+    Cond.push_back(MI->getOperand(1));
+
     DebugLoc dl = MI->getDebugLoc();
-
-    unsigned SubIdx;
-    bool SwapOps;
-    switch (SelectPred) {
-    default: llvm_unreachable("invalid predicate for isel");
-    case PPC::PRED_EQ: SubIdx = PPC::sub_eq; SwapOps = false; break;
-    case PPC::PRED_NE: SubIdx = PPC::sub_eq; SwapOps = true; break;
-    case PPC::PRED_LT: SubIdx = PPC::sub_lt; SwapOps = false; break;
-    case PPC::PRED_GE: SubIdx = PPC::sub_lt; SwapOps = true; break;
-    case PPC::PRED_GT: SubIdx = PPC::sub_gt; SwapOps = false; break;
-    case PPC::PRED_LE: SubIdx = PPC::sub_gt; SwapOps = true; break;
-    case PPC::PRED_UN: SubIdx = PPC::sub_un; SwapOps = false; break;
-    case PPC::PRED_NU: SubIdx = PPC::sub_un; SwapOps = true; break;
-    }
-
-    BuildMI(*BB, MI, dl, TII->get(OpCode), MI->getOperand(0).getReg())
-      .addReg(MI->getOperand(SwapOps? 3 : 2).getReg())
-      .addReg(MI->getOperand(SwapOps? 2 : 3).getReg())
-      .addReg(MI->getOperand(1).getReg(), 0, SubIdx);
+    PPCII->insertSelect(*BB, MI, dl, MI->getOperand(0).getReg(), Cond,
+                        MI->getOperand(2).getReg(), MI->getOperand(3).getReg());
   } else if (MI->getOpcode() == PPC::SELECT_CC_I4 ||
              MI->getOpcode() == PPC::SELECT_CC_I8 ||
              MI->getOpcode() == PPC::SELECT_CC_F4 ||

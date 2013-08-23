@@ -71,7 +71,6 @@ class MachineBasicBlock : public ilist_node<MachineBasicBlock> {
   std::vector<MachineBasicBlock *> Predecessors;
   std::vector<MachineBasicBlock *> Successors;
 
-
   /// Weights - Keep track of the weights to the successors. This vector
   /// has the same order as Successors, or it is empty if we don't use it
   /// (disable optimization).
@@ -95,6 +94,10 @@ class MachineBasicBlock : public ilist_node<MachineBasicBlock> {
   /// AddressTaken - Indicate that this basic block is potentially the
   /// target of an indirect branch.
   bool AddressTaken;
+
+  /// \brief since getSymbol is a relatively heavy-weight operation, the symbol
+  /// is only computed once and is cached.
+  mutable MCSymbol *CachedMCSymbol;
 
   // Intrusive list support
   MachineBasicBlock() {}
@@ -292,6 +295,11 @@ public:
   /// addLiveIn - Add the specified register as a live in.  Note that it
   /// is an error to add the same register to the same set more than once.
   void addLiveIn(unsigned Reg)  { LiveIns.push_back(Reg); }
+
+  /// Add PhysReg as live in to this block, and ensure that there is a copy of
+  /// PhysReg to a virtual register of class RC. Return the virtual register
+  /// that is a copy of the live in PhysReg.
+  unsigned addLiveIn(unsigned PhysReg, const TargetRegisterClass *RC);
 
   /// removeLiveIn - Remove the specified register from the live in set.
   ///

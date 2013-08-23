@@ -53,7 +53,7 @@
 #define	_WSTOPPED	0177		/* _WSTATUS if process is stopped */
 #define	WIFSTOPPED(x)	(_WSTATUS(x) == _WSTOPPED)
 #define	WSTOPSIG(x)	(_W_INT(x) >> 8)
-#define	WIFSIGNALED(x)	(_WSTATUS(x) != _WSTOPPED && _WSTATUS(x) != 0)
+#define	WIFSIGNALED(x)	(_WSTATUS(x) != _WSTOPPED && _WSTATUS(x) != 0 && (x) != 0x13)
 #define	WTERMSIG(x)	(_WSTATUS(x))
 #define	WIFEXITED(x)	(_WSTATUS(x) == 0)
 #define	WEXITSTATUS(x)	(_W_INT(x) >> 8)

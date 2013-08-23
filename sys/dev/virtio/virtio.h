@@ -71,11 +71,6 @@ struct vq_alloc_info;
 #define VIRTIO_TRANSPORT_F_END		32
 
 /*
- * Maximum number of virtqueues per device.
- */
-#define VIRTIO_MAX_VIRTQUEUES 8
-
-/*
  * Each virtqueue indirect descriptor list must be physically contiguous.
  * To allow us to malloc(9) each list individually, limit the number
  * supported to what will fit in one page. With 4KB pages, this is a limit
@@ -99,7 +94,7 @@ struct vq_alloc_info;
 
 struct virtio_feature_desc {
 	uint64_t	 vfd_val;
-	char		*vfd_str;
+	const char	*vfd_str;
 };
 
 const char *virtio_device_name(uint16_t devid);

@@ -85,7 +85,8 @@ SRCS=	APFloat.cpp \
 	system_error.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	DataExtractor.cpp \
+SRCS+=	Compression.cpp \
+	DataExtractor.cpp \
 	DataStream.cpp \
 	Disassembler.cpp \
 	FileUtilities.cpp \
@@ -93,3 +94,8 @@ SRCS+=	DataExtractor.cpp \
 .endif
 
 .include "../clang.lib.mk"
+
+# Ugly hack to work around CLOCK_PROCESS_CPUTIME_ID not being properly defined
+# between r239347 and r245428.
+CXXFLAGS.Process.cpp=	-DCLOCK_PROCESS_CPUTIME_ID=15
+CXXFLAGS+=		${CXXFLAGS.${.IMPSRC:T}}

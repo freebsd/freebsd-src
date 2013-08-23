@@ -143,11 +143,14 @@ static VNET_DEFINE(uma_zone_t, udpcb_zone);
 #define	UDBHASHSIZE	128
 #endif
 
-VNET_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
-SYSCTL_VNET_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
-    &VNET_NAME(udpstat), udpstat,
-    "UDP statistics (struct udpstat, netinet/udp_var.h)");
+VNET_PCPUSTAT_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
+VNET_PCPUSTAT_SYSINIT(udpstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_udp, UDPCTL_STATS, stats, struct udpstat,
+    udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(udpstat);
+#endif /* VIMAGE */
 #ifdef INET
 static void	udp_detach(struct socket *so);
 static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
@@ -207,7 +210,7 @@ void
 kmod_udpstat_inc(int statnum)
 {
 
-	(*((u_long *)&V_udpstat + statnum))++;
+	counter_u64_add(VNET(udpstat)[statnum], 1);
 }
 
 int
@@ -279,7 +282,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		m_freem(n);
-		V_ipsec4stat.in_polvio++;
+		IPSECSTAT_INC(ips_in_polvio);
 		return;
 	}
 #ifdef IPSEC_NAT_T
@@ -1291,7 +1294,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	if (minlen > m->m_pkthdr.len)
 		minlen = m->m_pkthdr.len;
 	if ((m = m_pullup(m, minlen)) == NULL) {
-		V_ipsec4stat.in_inval++;
+		IPSECSTAT_INC(ips_in_inval);
 		return (NULL);		/* Bypass caller processing. */
 	}
 	data = mtod(m, caddr_t);	/* Points to ip header. */
@@ -1331,7 +1334,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 		uint32_t spi;
 
 		if (payload <= sizeof(struct esp)) {
-			V_ipsec4stat.in_inval++;
+			IPSECSTAT_INC(ips_in_inval);
 			m_freem(m);
 			return (NULL);	/* Discard. */
 		}
@@ -1352,7 +1355,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	tag = m_tag_get(PACKET_TAG_IPSEC_NAT_T_PORTS,
 		2 * sizeof(uint16_t), M_NOWAIT);
 	if (tag == NULL) {
-		V_ipsec4stat.in_nomem++;
+		IPSECSTAT_INC(ips_in_nomem);
 		m_freem(m);
 		return (NULL);		/* Discard. */
 	}

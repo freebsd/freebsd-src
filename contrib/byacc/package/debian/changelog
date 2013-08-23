@@ -1,3 +1,15 @@
+byacc (20130304) unstable; urgency=low
+
+  * changes prompted by Richard Mitton bug-report
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 04 Mar 2013 20:17:32 -0500
+
+byacc (20121003) unstable; urgency=low
+
+  * changes from or prompted by Adrian Bunk.
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 29 Sep 2012 09:14:31 -0400
+
 byacc (20120526) unstable; urgency=low
 
   * minor code-cleanup.

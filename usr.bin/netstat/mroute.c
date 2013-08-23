@@ -350,29 +350,29 @@ mrt_stats(u_long mstaddr)
 			return;
 		}
 	} else
-		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
+		kread_counters(mstaddr, &mrtstat, len);
 
 	printf("IPv4 multicast forwarding:\n");
 
 #define	p(f, m) if (mrtstat.f || sflag <= 1) \
-	printf(m, mrtstat.f, plural(mrtstat.f))
+	printf(m, (uintmax_t)mrtstat.f, plural(mrtstat.f))
 #define	p2(f, m) if (mrtstat.f || sflag <= 1) \
-	printf(m, mrtstat.f, plurales(mrtstat.f))
+	printf(m, (uintmax_t)mrtstat.f, plurales(mrtstat.f))
 
-	p(mrts_mfc_lookups, "\t%lu multicast forwarding cache lookup%s\n");
-	p2(mrts_mfc_misses, "\t%lu multicast forwarding cache miss%s\n");
-	p(mrts_upcalls, "\t%lu upcall%s to multicast routing daemon\n");
-	p(mrts_upq_ovflw, "\t%lu upcall queue overflow%s\n");
+	p(mrts_mfc_lookups, "\t%ju multicast forwarding cache lookup%s\n");
+	p2(mrts_mfc_misses, "\t%ju multicast forwarding cache miss%s\n");
+	p(mrts_upcalls, "\t%ju upcall%s to multicast routing daemon\n");
+	p(mrts_upq_ovflw, "\t%ju upcall queue overflow%s\n");
 	p(mrts_upq_sockfull,
-	    "\t%lu upcall%s dropped due to full socket buffer\n");
-	p(mrts_cache_cleanups, "\t%lu cache cleanup%s\n");
-	p(mrts_no_route, "\t%lu datagram%s with no route for origin\n");
-	p(mrts_bad_tunnel, "\t%lu datagram%s arrived with bad tunneling\n");
-	p(mrts_cant_tunnel, "\t%lu datagram%s could not be tunneled\n");
-	p(mrts_wrong_if, "\t%lu datagram%s arrived on wrong interface\n");
-	p(mrts_drop_sel, "\t%lu datagram%s selectively dropped\n");
-	p(mrts_q_overflow, "\t%lu datagram%s dropped due to queue overflow\n");
-	p(mrts_pkt2large, "\t%lu datagram%s dropped for being too large\n");
+	    "\t%ju upcall%s dropped due to full socket buffer\n");
+	p(mrts_cache_cleanups, "\t%ju cache cleanup%s\n");
+	p(mrts_no_route, "\t%ju datagram%s with no route for origin\n");
+	p(mrts_bad_tunnel, "\t%ju datagram%s arrived with bad tunneling\n");
+	p(mrts_cant_tunnel, "\t%ju datagram%s could not be tunneled\n");
+	p(mrts_wrong_if, "\t%ju datagram%s arrived on wrong interface\n");
+	p(mrts_drop_sel, "\t%ju datagram%s selectively dropped\n");
+	p(mrts_q_overflow, "\t%ju datagram%s dropped due to queue overflow\n");
+	p(mrts_pkt2large, "\t%ju datagram%s dropped for being too large\n");
 
 #undef	p2
 #undef	p

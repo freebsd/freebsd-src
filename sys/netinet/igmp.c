@@ -2121,6 +2121,7 @@ igmp_v1v2_process_querier_timers(struct igmp_ifinfo *igi)
 				    __func__, igi->igi_version, IGMP_VERSION_2,
 				    igi->igi_ifp, igi->igi_ifp->if_xname);
 				igi->igi_version = IGMP_VERSION_2;
+				igmp_v3_cancel_link_timers(igi);
 			}
 		}
 	} else if (igi->igi_v1_timer > 0) {
@@ -3449,7 +3450,7 @@ igmp_intr(struct mbuf *m)
 	}
 
 	igmp_scrub_context(m0);
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m0->m_pkthdr.rcvif = V_loif;
 #ifdef MAC
 	mac_netinet_igmp_send(ifp, m0);

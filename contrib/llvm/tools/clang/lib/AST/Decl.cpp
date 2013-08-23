@@ -471,9 +471,16 @@ static bool useInlineVisibilityHidden(const NamedDecl *D) {
     FD->hasBody(Def) && Def->isInlined() && !Def->hasAttr<GNUInlineAttr>();
 }
 
-template <typename T> static bool isInExternCContext(T *D) {
+template <typename T> static bool isFirstInExternCContext(T *D) {
   const T *First = D->getFirstDeclaration();
-  return First->getDeclContext()->isExternCContext();
+  return First->isInExternCContext();
+}
+
+static bool isSingleLineExternC(const Decl &D) {
+  if (const LinkageSpecDecl *SD = dyn_cast<LinkageSpecDecl>(D.getDeclContext()))
+    if (SD->getLanguage() == LinkageSpecDecl::lang_c && !SD->hasBraces())
+      return true;
+  return false;
 }
 
 static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D,
@@ -504,7 +511,8 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D,
         return PrevVar->getLinkageAndVisibility();
 
       if (Var->getStorageClass() != SC_Extern &&
-          Var->getStorageClass() != SC_PrivateExtern)
+          Var->getStorageClass() != SC_PrivateExtern &&
+          !isSingleLineExternC(*Var))
         return LinkageInfo::internal();
     }
 
@@ -540,8 +548,8 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D,
   if (D->isInAnonymousNamespace()) {
     const VarDecl *Var = dyn_cast<VarDecl>(D);
     const FunctionDecl *Func = dyn_cast<FunctionDecl>(D);
-    if ((!Var || !isInExternCContext(Var)) &&
-        (!Func || !isInExternCContext(Func)))
+    if ((!Var || !isFirstInExternCContext(Var)) &&
+        (!Func || !isFirstInExternCContext(Func)))
       return LinkageInfo::uniqueExternal();
   }
 
@@ -618,7 +626,7 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D,
     //
     // Note that we don't want to make the variable non-external
     // because of this, but unique-external linkage suits us.
-    if (Context.getLangOpts().CPlusPlus && !isInExternCContext(Var)) {
+    if (Context.getLangOpts().CPlusPlus && !isFirstInExternCContext(Var)) {
       LinkageInfo TypeLV = Var->getType()->getLinkageAndVisibility();
       if (TypeLV.getLinkage() != ExternalLinkage)
         return LinkageInfo::uniqueExternal();
@@ -652,7 +660,7 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D,
     // this translation unit.  However, we should use the C linkage
     // rules instead for extern "C" declarations.
     if (Context.getLangOpts().CPlusPlus &&
-        !Function->getDeclContext()->isExternCContext() &&
+        !Function->isInExternCContext() &&
         Function->getType()->getLinkage() == UniqueExternalLinkage)
       return LinkageInfo::uniqueExternal();
 
@@ -866,10 +874,6 @@ bool NamedDecl::isLinkageValid() const {
     Linkage(CachedLinkage);
 }
 
-bool NamedDecl::hasExternalLinkageUncached() const {
-  return getLVForDecl(this, LVForExplicitValue).getLinkage() == ExternalLinkage;
-}
-
 Linkage NamedDecl::getLinkage() const {
   if (HasCachedLinkage)
     return Linkage(CachedLinkage);
@@ -993,7 +997,7 @@ static LinkageInfo getLVForLocalDecl(const NamedDecl *D,
                                      LVComputationKind computation) {
   if (const FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
     if (Function->isInAnonymousNamespace() &&
-        !Function->getDeclContext()->isExternCContext())
+        !Function->isInExternCContext())
       return LinkageInfo::uniqueExternal();
 
     // This is a "void f();" which got merged with a file static.
@@ -1016,8 +1020,7 @@ static LinkageInfo getLVForLocalDecl(const NamedDecl *D,
 
   if (const VarDecl *Var = dyn_cast<VarDecl>(D)) {
     if (Var->hasExternalStorage()) {
-      if (Var->isInAnonymousNamespace() &&
-          !Var->getDeclContext()->isExternCContext())
+      if (Var->isInAnonymousNamespace() && !Var->isInExternCContext())
         return LinkageInfo::uniqueExternal();
 
       LinkageInfo LV;
@@ -1297,7 +1300,7 @@ bool NamedDecl::isCXXInstanceMember() const {
   if (isa<UsingShadowDecl>(D))
     D = cast<UsingShadowDecl>(D)->getTargetDecl();
 
-  if (isa<FieldDecl>(D) || isa<IndirectFieldDecl>(D))
+  if (isa<FieldDecl>(D) || isa<IndirectFieldDecl>(D) || isa<MSPropertyDecl>(D))
     return true;
   if (isa<CXXMethodDecl>(D))
     return cast<CXXMethodDecl>(D)->isInstance();
@@ -1518,8 +1521,7 @@ static LanguageLinkage getLanguageLinkageTemplate(const T &D) {
   // If the first decl is in an extern "C" context, any other redeclaration
   // will have C language linkage. If the first one is not in an extern "C"
   // context, we would have reported an error for any other decl being in one.
-  const T *First = D.getFirstDeclaration();
-  if (First->getDeclContext()->isExternCContext())
+  if (isFirstInExternCContext(&D))
     return CLanguageLinkage;
   return CXXLanguageLinkage;
 }
@@ -1543,6 +1545,29 @@ LanguageLinkage VarDecl::getLanguageLinkage() const {
 
 bool VarDecl::isExternC() const {
   return isExternCTemplate(*this);
+}
+
+static bool isLinkageSpecContext(const DeclContext *DC,
+                                 LinkageSpecDecl::LanguageIDs ID) {
+  while (DC->getDeclKind() != Decl::TranslationUnit) {
+    if (DC->getDeclKind() == Decl::LinkageSpec)
+      return cast<LinkageSpecDecl>(DC)->getLanguage() == ID;
+    DC = DC->getParent();
+  }
+  return false;
+}
+
+template <typename T>
+static bool isInLanguageSpecContext(T *D, LinkageSpecDecl::LanguageIDs ID) {
+  return isLinkageSpecContext(D->getLexicalDeclContext(), ID);
+}
+
+bool VarDecl::isInExternCContext() const {
+  return isInLanguageSpecContext(this, LinkageSpecDecl::lang_c);
+}
+
+bool VarDecl::isInExternCXXContext() const {
+  return isInLanguageSpecContext(this, LinkageSpecDecl::lang_cxx);
 }
 
 VarDecl *VarDecl::getCanonicalDecl() {
@@ -1576,17 +1601,17 @@ VarDecl::DefinitionKind VarDecl::isThisDeclarationADefinition(
   //   initializer, the declaration is an external definition for the identifier
   if (hasInit())
     return Definition;
-  // AST for 'extern "C" int foo;' is annotated with 'extern'.
+
   if (hasExternalStorage())
     return DeclarationOnly;
 
-  if (hasExternalStorage()) {
-    for (const VarDecl *PrevVar = getPreviousDecl();
-         PrevVar; PrevVar = PrevVar->getPreviousDecl()) {
-      if (PrevVar->getLinkage() == InternalLinkage)
-        return DeclarationOnly;
-    }
-  }
+  // [dcl.link] p7:
+  //   A declaration directly contained in a linkage-specification is treated
+  //   as if it contains the extern specifier for the purpose of determining
+  //   the linkage of the declared name and whether it is a definition.
+  if (isSingleLineExternC(*this))
+    return DeclarationOnly;
+
   // C99 6.9.2p2:
   //   A declaration of an object that has file scope without an initializer,
   //   and without a storage class specifier or the scs 'static', constitutes
@@ -1896,6 +1921,11 @@ SourceRange ParmVarDecl::getSourceRange() const {
       return SourceRange(getOuterLocStart(), ArgRange.getEnd());
   }
 
+  // DeclaratorDecl considers the range of postfix types as overlapping with the
+  // declaration name, but this is not the case with parameters in ObjC methods.
+  if (isa<ObjCMethodDecl>(getDeclContext()))
+    return SourceRange(DeclaratorDecl::getLocStart(), getLocation());
+
   return DeclaratorDecl::getSourceRange();
 }
 
@@ -2059,6 +2089,14 @@ LanguageLinkage FunctionDecl::getLanguageLinkage() const {
 
 bool FunctionDecl::isExternC() const {
   return isExternCTemplate(*this);
+}
+
+bool FunctionDecl::isInExternCContext() const {
+  return isInLanguageSpecContext(this, LinkageSpecDecl::lang_c);
+}
+
+bool FunctionDecl::isInExternCXXContext() const {
+  return isInLanguageSpecContext(this, LinkageSpecDecl::lang_cxx);
 }
 
 bool FunctionDecl::isGlobal() const {
@@ -3230,6 +3268,27 @@ BlockDecl *BlockDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   return new (Mem) BlockDecl(0, SourceLocation());
 }
 
+MSPropertyDecl *MSPropertyDecl::CreateDeserialized(ASTContext &C,
+                                                   unsigned ID) {
+  void *Mem = AllocateDeserializedDecl(C, ID, sizeof(MSPropertyDecl));
+  return new (Mem) MSPropertyDecl(0, SourceLocation(), DeclarationName(),
+                                  QualType(), 0, SourceLocation(),
+                                  0, 0);
+}
+
+CapturedDecl *CapturedDecl::Create(ASTContext &C, DeclContext *DC,
+                                   unsigned NumParams) {
+  unsigned Size = sizeof(CapturedDecl) + NumParams * sizeof(ImplicitParamDecl*);
+  return new (C.Allocate(Size)) CapturedDecl(DC, NumParams);
+}
+
+CapturedDecl *CapturedDecl::CreateDeserialized(ASTContext &C, unsigned ID,
+                                   unsigned NumParams) {
+  unsigned Size = sizeof(CapturedDecl) + NumParams * sizeof(ImplicitParamDecl*);
+  void *Mem = AllocateDeserializedDecl(C, ID, Size);
+  return new (Mem) CapturedDecl(0, NumParams);
+}
+
 EnumConstantDecl *EnumConstantDecl::Create(ASTContext &C, EnumDecl *CD,
                                            SourceLocation L,
                                            IdentifierInfo *Id, QualType T,
@@ -3399,7 +3458,7 @@ ImportDecl *ImportDecl::CreateDeserialized(ASTContext &C, unsigned ID,
 
 ArrayRef<SourceLocation> ImportDecl::getIdentifierLocs() const {
   if (!ImportedAndComplete.getInt())
-    return ArrayRef<SourceLocation>();
+    return None;
 
   const SourceLocation *StoredLocs
     = reinterpret_cast<const SourceLocation *>(this + 1);

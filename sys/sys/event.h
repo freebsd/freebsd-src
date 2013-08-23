@@ -76,6 +76,7 @@ struct kevent {
 #define EV_DISPATCH	0x0080		/* disable event after reporting */
 
 #define EV_SYSFLAGS	0xF000		/* reserved by system */
+#define	EV_DROP		0x1000		/* note should be dropped */
 #define EV_FLAG1	0x2000		/* filter-specific flag */
 
 /* returned values */

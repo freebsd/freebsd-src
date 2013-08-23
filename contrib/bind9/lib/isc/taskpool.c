@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -52,13 +52,15 @@ alloc_pool(isc_taskmgr_t *tmgr, isc_mem_t *mctx, unsigned int ntasks,
 	pool = isc_mem_get(mctx, sizeof(*pool));
 	if (pool == NULL)
 		return (ISC_R_NOMEMORY);
-	pool->mctx = mctx;
+
+	pool->mctx = NULL;
+	isc_mem_attach(mctx, &pool->mctx);
 	pool->ntasks = ntasks;
 	pool->quantum = quantum;
 	pool->tmgr = tmgr;
 	pool->tasks = isc_mem_get(mctx, ntasks * sizeof(isc_task_t *));
 	if (pool->tasks == NULL) {
-		isc_mem_put(mctx, pool, sizeof(*pool));
+		isc_mem_putanddetach(&pool->mctx, pool, sizeof(*pool));
 		return (ISC_R_NOMEMORY);
 	}
 	for (i = 0; i < ntasks; i++)
@@ -163,14 +165,23 @@ isc_taskpool_destroy(isc_taskpool_t **poolp) {
 	unsigned int i;
 	isc_taskpool_t *pool = *poolp;
 	for (i = 0; i < pool->ntasks; i++) {
-		if (pool->tasks[i] != NULL) {
+		if (pool->tasks[i] != NULL)
 			isc_task_detach(&pool->tasks[i]);
-		}
 	}
 	isc_mem_put(pool->mctx, pool->tasks,
 		    pool->ntasks * sizeof(isc_task_t *));
-	isc_mem_put(pool->mctx, pool, sizeof(*pool));
+	isc_mem_putanddetach(&pool->mctx, pool, sizeof(*pool));
 	*poolp = NULL;
 }
 
+void
+isc_taskpool_setprivilege(isc_taskpool_t *pool, isc_boolean_t priv) {
+	unsigned int i;
 
+	REQUIRE(pool != NULL);
+
+	for (i = 0; i < pool->ntasks; i++) {
+		if (pool->tasks[i] != NULL)
+			isc_task_setprivilege(pool->tasks[i], priv);
+	}
+}

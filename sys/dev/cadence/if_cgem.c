@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Thomas Skibo.
+ * Copyright (c) 2012-2013 Thomas Skibo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,8 @@
  * SUCH DAMAGE.
  */
 
-/* A network interface driver for Cadence GEM Gigabit Ethernet
+/*
+ * A network interface driver for Cadence GEM Gigabit Ethernet
  * interface such as the one used in Xilinx Zynq-7000 SoC.
  *
  * Reference: Zynq-7000 All Programmable SoC Technical Reference Manual.

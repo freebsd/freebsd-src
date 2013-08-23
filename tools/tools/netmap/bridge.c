@@ -14,7 +14,7 @@
 
 int verbose = 0;
 
-char *version = "$Id: bridge.c 12016 2013-01-23 17:24:22Z luigi $";
+char *version = "$Id$";
 
 static int do_abort = 0;
 
@@ -50,7 +50,12 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 	while (limit-- > 0) {
 		struct netmap_slot *rs = &rxring->slot[j];
 		struct netmap_slot *ts = &txring->slot[k];
+#ifdef NO_SWAP
+		char *rxbuf = NETMAP_BUF(rxring, rs->buf_idx);
+		char *txbuf = NETMAP_BUF(txring, ts->buf_idx);
+#else
 		uint32_t pkt;
+#endif
 
 		/* swap packets */
 		if (ts->buf_idx < 2 || rs->buf_idx < 2) {
@@ -58,20 +63,24 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 				j, rs->buf_idx, k, ts->buf_idx);
 			sleep(2);
 		}
+#ifndef NO_SWAP
 		pkt = ts->buf_idx;
 		ts->buf_idx = rs->buf_idx;
 		rs->buf_idx = pkt;
-
+#endif
 		/* copy the packet length. */
 		if (rs->len < 14 || rs->len > 2048)
 			D("wrong len %d rx[%d] -> tx[%d]", rs->len, j, k);
 		else if (verbose > 1)
 			D("%s send len %d rx[%d] -> tx[%d]", msg, rs->len, j, k);
 		ts->len = rs->len;
-
+#ifdef NO_SWAP
+		pkt_copy(rxbuf, txbuf, ts->len);
+#else
 		/* report the buffer change. */
 		ts->flags |= NS_BUF_CHANGED;
 		rs->flags |= NS_BUF_CHANGED;
+#endif /* NO_SWAP */
 		j = NETMAP_RING_NEXT(rxring, j);
 		k = NETMAP_RING_NEXT(txring, k);
 	}

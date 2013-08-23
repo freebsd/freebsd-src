@@ -579,8 +579,8 @@ public:
   typedef std::pair<llvm::Value *, llvm::Value *> ComplexPairTy;
   CGBuilderTy Builder;
 
-  /// CurFuncDecl - Holds the Decl for the current function or ObjC method.
-  /// This excludes BlockDecls.
+  /// CurFuncDecl - Holds the Decl for the current outermost
+  /// non-closure context.
   const Decl *CurFuncDecl;
   /// CurCodeDecl - This is the inner-most code context, which includes blocks.
   const Decl *CurCodeDecl;
@@ -784,7 +784,9 @@ public:
 
   /// PopCleanupBlock - Will pop the cleanup entry on the stack and
   /// process all branch fixups.
-  void PopCleanupBlock(bool FallThroughIsBranchThrough = false);
+  /// \param EHLoc - Optional debug location for EH code.
+  void PopCleanupBlock(bool FallThroughIsBranchThrough = false,
+                       SourceLocation EHLoc=SourceLocation());
 
   /// DeactivateCleanupBlock - Deactivates the given cleanup block.
   /// The block cannot be reactivated.  Pops it if it's the top of the
@@ -905,7 +907,9 @@ public:
 
   /// PopCleanupBlocks - Takes the old cleanup stack size and emits
   /// the cleanup blocks that have been added.
-  void PopCleanupBlocks(EHScopeStack::stable_iterator OldCleanupStackSize);
+  /// \param EHLoc - Optional debug location for EH code.
+  void PopCleanupBlocks(EHScopeStack::stable_iterator OldCleanupStackSize,
+                        SourceLocation EHLoc=SourceLocation());
 
   void ResolveBranchFixups(llvm::BasicBlock *Target);
 
@@ -1206,11 +1210,61 @@ private:
   /// lazily by getUnreachableBlock().
   llvm::BasicBlock *UnreachableBlock;
 
+  /// Counts of the number return expressions in the function.
+  unsigned NumReturnExprs;
+
+  /// Count the number of simple (constant) return expressions in the function.
+  unsigned NumSimpleReturnExprs;
+
+  /// The last regular (non-return) debug location (breakpoint) in the function.
+  SourceLocation LastStopPoint;
+
+public:
+  /// A scope within which we are constructing the fields of an object which
+  /// might use a CXXDefaultInitExpr. This stashes away a 'this' value to use
+  /// if we need to evaluate a CXXDefaultInitExpr within the evaluation.
+  class FieldConstructionScope {
+  public:
+    FieldConstructionScope(CodeGenFunction &CGF, llvm::Value *This)
+        : CGF(CGF), OldCXXDefaultInitExprThis(CGF.CXXDefaultInitExprThis) {
+      CGF.CXXDefaultInitExprThis = This;
+    }
+    ~FieldConstructionScope() {
+      CGF.CXXDefaultInitExprThis = OldCXXDefaultInitExprThis;
+    }
+
+  private:
+    CodeGenFunction &CGF;
+    llvm::Value *OldCXXDefaultInitExprThis;
+  };
+
+  /// The scope of a CXXDefaultInitExpr. Within this scope, the value of 'this'
+  /// is overridden to be the object under construction.
+  class CXXDefaultInitExprScope {
+  public:
+    CXXDefaultInitExprScope(CodeGenFunction &CGF)
+        : CGF(CGF), OldCXXThisValue(CGF.CXXThisValue) {
+      CGF.CXXThisValue = CGF.CXXDefaultInitExprThis;
+    }
+    ~CXXDefaultInitExprScope() {
+      CGF.CXXThisValue = OldCXXThisValue;
+    }
+
+  public:
+    CodeGenFunction &CGF;
+    llvm::Value *OldCXXThisValue;
+  };
+
+private:
   /// CXXThisDecl - When generating code for a C++ member function,
   /// this will hold the implicit 'this' declaration.
   ImplicitParamDecl *CXXABIThisDecl;
   llvm::Value *CXXABIThisValue;
   llvm::Value *CXXThisValue;
+
+  /// The value of 'this' to use when evaluating CXXDefaultInitExprs within
+  /// this expression.
+  llvm::Value *CXXDefaultInitExprThis;
 
   /// CXXStructorImplicitParamDecl - When generating code for a constructor or
   /// destructor, this will hold the implicit argument (e.g. VTT).
@@ -1300,6 +1354,7 @@ public:
     return getInvokeDestImpl();
   }
 
+  const TargetInfo &getTarget() const { return Target; }
   llvm::LLVMContext &getLLVMContext() { return CGM.getLLVMContext(); }
 
   //===--------------------------------------------------------------------===//
@@ -1400,7 +1455,6 @@ public:
 
   llvm::Function *GenerateBlockFunction(GlobalDecl GD,
                                         const CGBlockInfo &Info,
-                                        const Decl *OuterFuncDecl,
                                         const DeclMapTy &ldm,
                                         bool IsLambdaConversionToBlock);
 
@@ -1431,7 +1485,8 @@ public:
 
   void GenerateCode(GlobalDecl GD, llvm::Function *Fn,
                     const CGFunctionInfo &FnInfo);
-  void StartFunction(GlobalDecl GD, QualType RetTy,
+  void StartFunction(GlobalDecl GD,
+                     QualType RetTy,
                      llvm::Function *Fn,
                      const CGFunctionInfo &FnInfo,
                      const FunctionArgList &Args,
@@ -1521,7 +1576,7 @@ public:
 
   /// EmitFunctionEpilog - Emit the target specific LLVM code to return the
   /// given temporary.
-  void EmitFunctionEpilog(const CGFunctionInfo &FI);
+  void EmitFunctionEpilog(const CGFunctionInfo &FI, bool EmitRetDbgLoc);
 
   /// EmitStartEHSpec - Emit the start of the exception spec.
   void EmitStartEHSpec(const Decl *D);
@@ -2133,6 +2188,7 @@ public:
   void EmitCaseStmt(const CaseStmt &S);
   void EmitCaseStmtRange(const CaseStmt &S);
   void EmitAsmStmt(const AsmStmt &S);
+  void EmitCapturedStmt(const CapturedStmt &S);
 
   void EmitObjCForCollectionStmt(const ObjCForCollectionStmt &S);
   void EmitObjCAtTryStmt(const ObjCAtTryStmt &S);
@@ -2327,6 +2383,7 @@ public:
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
                               const ObjCIvarDecl *Ivar);
   LValue EmitLValueForField(LValue Base, const FieldDecl* Field);
+  LValue EmitLValueForLambdaField(const FieldDecl *Field);
 
   /// EmitLValueForFieldInitialization - Like EmitLValueForField, except that
   /// if the Field is a reference, this will return the address of the reference
@@ -2446,6 +2503,7 @@ public:
   /// is unhandled by the current target.
   llvm::Value *EmitTargetBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
+  llvm::Value *EmitAArch64BuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitARMBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitNeonCall(llvm::Function *F,
                             SmallVectorImpl<llvm::Value*> &O,
@@ -2625,8 +2683,8 @@ public:
   /// GenerateCXXGlobalInitFunc - Generates code for initializing global
   /// variables.
   void GenerateCXXGlobalInitFunc(llvm::Function *Fn,
-                                 llvm::Constant **Decls,
-                                 unsigned NumDecls);
+                                 ArrayRef<llvm::Constant *> Decls,
+                                 llvm::GlobalVariable *Guard = 0);
 
   /// GenerateCXXGlobalDtorsFunc - Generates code for destroying global
   /// variables.
@@ -2650,7 +2708,7 @@ public:
   }
   void enterNonTrivialFullExpression(const ExprWithCleanups *E);
 
-  void EmitCXXThrowExpr(const CXXThrowExpr *E);
+  void EmitCXXThrowExpr(const CXXThrowExpr *E, bool KeepInsertionPoint = true);
 
   void EmitLambdaExpr(const LambdaExpr *E, AggValueSlot Dest);
 

@@ -73,6 +73,7 @@ struct linux_file {
 	struct dentry	f_dentry_store;
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
+	struct vnode	*f_vnode;
 };
 
 #define	file		linux_file

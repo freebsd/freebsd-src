@@ -959,8 +959,10 @@ start_all_aps(void)
 
 		/* allocate and set up a boot stack data page */
 		bootstacks[cpu] =
-		    (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		    (char *)kmem_malloc(kernel_arena, KSTACK_PAGES * PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
@@ -1249,7 +1251,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_of
 		ipi_all_but_self(vector);
 	} else {
 		ncpu = 0;
-		while ((cpu = cpusetobj_ffs(&mask)) != 0) {
+		while ((cpu = CPU_FFS(&mask)) != 0) {
 			cpu--;
 			CPU_CLR(cpu, &mask);
 			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu,
@@ -1398,7 +1400,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	if (ipi == IPI_STOP_HARD)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &cpus);
 
-	while ((cpu = cpusetobj_ffs(&cpus)) != 0) {
+	while ((cpu = CPU_FFS(&cpus)) != 0) {
 		cpu--;
 		CPU_CLR(cpu, &cpus);
 		CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);

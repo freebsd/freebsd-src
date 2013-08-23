@@ -181,6 +181,7 @@ FBSDprivate_1.0 {
 	___wait;
 	___waitpid;
 	__accept;
+	__accept4;
 	__aio_suspend;
 	__close;
 	__connect;
@@ -407,4 +408,8 @@ FBSD_1.2 {
 	pthread_getthreadid_np;
 	setcontext;
 	swapcontext;
+};
+
+FBSD_1.3 {
+	accept4;
 };

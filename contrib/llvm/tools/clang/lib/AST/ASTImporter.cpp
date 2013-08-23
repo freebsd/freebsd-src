@@ -839,6 +839,12 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     RecordDecl *D2 = Field2->getType()->castAs<RecordType>()->getDecl();
     return IsStructurallyEquivalent(Context, D1, D2);
   }
+    
+  // Check for equivalent field names.
+  IdentifierInfo *Name1 = Field1->getIdentifier();
+  IdentifierInfo *Name2 = Field2->getIdentifier();
+  if (!::IsStructurallyEquivalent(Name1, Name2))
+    return false;
 
   if (!IsStructurallyEquivalent(Context,
                                 Field1->getType(), Field2->getType())) {
@@ -1680,7 +1686,7 @@ QualType ASTNodeImporter::VisitUnaryTransformType(const UnaryTransformType *T) {
 }
 
 QualType ASTNodeImporter::VisitAutoType(const AutoType *T) {
-  // FIXME: Make sure that the "to" context supports C++0x!
+  // FIXME: Make sure that the "to" context supports C++11!
   QualType FromDeduced = T->getDeducedType();
   QualType ToDeduced;
   if (!FromDeduced.isNull()) {
@@ -1689,7 +1695,7 @@ QualType ASTNodeImporter::VisitAutoType(const AutoType *T) {
       return QualType();
   }
   
-  return Importer.getToContext().getAutoType(ToDeduced);
+  return Importer.getToContext().getAutoType(ToDeduced, T->isDecltypeAuto());
 }
 
 QualType ASTNodeImporter::VisitRecordType(const RecordType *T) {
@@ -3644,6 +3650,7 @@ Decl *ASTNodeImporter::VisitObjCImplementationDecl(ObjCImplementationDecl *D) {
                                           Iface, Super,
                                           Importer.Import(D->getLocation()),
                                           Importer.Import(D->getAtStartLoc()),
+                                          Importer.Import(D->getSuperClassLoc()),
                                           Importer.Import(D->getIvarLBraceLoc()),
                                           Importer.Import(D->getIvarRBraceLoc()));
     

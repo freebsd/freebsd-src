@@ -27,7 +27,7 @@
  */
 
 #ifndef _DEV_PUC_CFG_H_
-#define	_DEV_PUC_CFG_H
+#define	_DEV_PUC_CFG_H_
 
 #define	DEFAULT_RCLK	1843200
 

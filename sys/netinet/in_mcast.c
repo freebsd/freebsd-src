@@ -1236,7 +1236,9 @@ in_leavegroup_locked(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 	KASSERT(error == 0, ("%s: failed to merge inm state", __func__));
 
 	CTR1(KTR_IGMPV3, "%s: doing igmp downcall", __func__);
+	CURVNET_SET(inm->inm_ifp->if_vnet);
 	error = igmp_change_state(inm);
+	CURVNET_RESTORE();
 	if (error)
 		CTR1(KTR_IGMPV3, "%s: failed igmp downcall", __func__);
 
@@ -1646,6 +1648,8 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 * has asked for, but we always tell userland how big the
 	 * buffer really needs to be.
 	 */
+	if (msfr.msfr_nsrcs > in_mcast_maxsocksrc)
+		msfr.msfr_nsrcs = in_mcast_maxsocksrc;
 	tss = NULL;
 	if (msfr.msfr_srcs != NULL && msfr.msfr_nsrcs > 0) {
 		tss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,

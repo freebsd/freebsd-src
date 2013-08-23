@@ -357,6 +357,7 @@ struct ar5416_desc {
 #define AR_RxStatusRsvd30   0xfffff800
 /* Owl 2.x only */
 #define AR_DupFrame	    0x00000004
+#define AR_STBCFrame        0x00000008
 #define AR_RxAntenna        0xffffff00
 #define AR_RxAntenna_S      8
 

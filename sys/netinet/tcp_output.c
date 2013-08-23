@@ -769,12 +769,13 @@ send:
 			    ("%s: TSO can't do IP options", __func__));
 
 			/*
-			 * Limit a burst to IP_MAXPACKET minus IP,
+			 * Limit a burst to t_tsomax minus IP,
 			 * TCP and options length to keep ip->ip_len
-			 * from overflowing.
+			 * from overflowing or exceeding the maximum
+			 * length allowed by the network interface.
 			 */
-			if (len > IP_MAXPACKET - hdrlen) {
-				len = IP_MAXPACKET - hdrlen;
+			if (len > tp->t_tsomax - hdrlen) {
+				len = tp->t_tsomax - hdrlen;
 				sendalot = 1;
 			}
 

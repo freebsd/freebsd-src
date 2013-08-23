@@ -7,7 +7,7 @@ SUBDIR=	APPLE AST BIG5 CNS CP EBCDIC GB GEORGIAN ISO646 ISO-8859 JIS \
 	KAZAKH KOI KS MISC TCVN
 
 mapper.dir: ${SUBDIR}
-	touch ${.TARGET}
+	> ${.TARGET}
 .for i in ${SUBDIR}
 	cat ${i}/mapper.dir.${i} >> ${.TARGET}
 .endfor
@@ -18,7 +18,7 @@ FILES+=	mapper.dir mapper.dir.db
 CLEANFILES+= mapper.dir mapper.dir.db
 
 charset.pivot: ${SUBDIR}
-	touch ${.TARGET}
+	> ${.TARGET}
 .for i in ${SUBDIR}
 	cat ${i}/charset.pivot.${i} >> ${.TARGET}
 .endfor

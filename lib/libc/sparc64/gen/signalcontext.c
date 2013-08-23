@@ -52,7 +52,7 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	mcontext_t *mc;
 
 	mc = &ucp->uc_mcontext;
-	sfp = (struct sigframe *)(mc->mc_sp + SPOFF) - 1;
+	sfp = (struct sigframe *)(mc->_mc_sp + SPOFF) - 1;
 	fp = (struct frame *)sfp - 1;
 
 	bzero(fp, sizeof(*fp));
@@ -67,8 +67,8 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	mc->mc_out[1] = (uint64_t)&sfp->sf_si;
 	mc->mc_out[2] = (uint64_t)&sfp->sf_uc;
 	mc->mc_out[6] = (uint64_t)fp - SPOFF;
-	mc->mc_tnpc = (uint64_t)_ctx_start + 4;
-	mc->mc_tpc = (uint64_t)_ctx_start;
+	mc->_mc_tnpc = (uint64_t)_ctx_start + 4;
+	mc->_mc_tpc = (uint64_t)_ctx_start;
 
 	ucp->uc_link = &sfp->sf_uc;
 	sigdelset(&ucp->uc_sigmask, sig);

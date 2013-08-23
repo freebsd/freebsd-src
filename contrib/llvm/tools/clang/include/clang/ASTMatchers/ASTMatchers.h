@@ -129,7 +129,8 @@ typedef internal::Matcher<NestedNameSpecifierLoc> NestedNameSpecifierLocMatcher;
 /// \endcode
 ///
 /// Usable as: Any Matcher
-inline internal::PolymorphicMatcherWithParam0<internal::TrueMatcher> anything() {
+inline internal::PolymorphicMatcherWithParam0<internal::TrueMatcher>
+anything() {
   return internal::PolymorphicMatcherWithParam0<internal::TrueMatcher>();
 }
 
@@ -156,6 +157,17 @@ const internal::VariadicAllOfMatcher<Decl> decl;
 ///   };
 /// \endcode
 const internal::VariadicDynCastAllOfMatcher<Decl, NamedDecl> namedDecl;
+
+/// \brief Matches a declaration of a namespace.
+///
+/// Given
+/// \code
+///   namespace {}
+///   namespace test {}
+/// \endcode
+/// namespaceDecl()
+///   matches "namespace {}" and "namespace test {}"
+const internal::VariadicDynCastAllOfMatcher<Decl, NamespaceDecl> namespaceDecl;
 
 /// \brief Matches C++ class declarations.
 ///
@@ -2512,6 +2524,38 @@ AST_MATCHER_P(CXXMethodDecl, ofClass,
   const CXXRecordDecl *Parent = Node.getParent();
   return (Parent != NULL &&
           InnerMatcher.matches(*Parent, Finder, Builder));
+}
+
+/// \brief Matches if the given method declaration is virtual.
+///
+/// Given
+/// \code
+///   class A {
+///    public:
+///     virtual void x();
+///   };
+/// \endcode
+///   matches A::x
+AST_MATCHER(CXXMethodDecl, isVirtual) {
+  return Node.isVirtual();
+}
+
+/// \brief Matches if the given method declaration overrides another method.
+///
+/// Given
+/// \code
+///   class A {
+///    public:
+///     virtual void x();
+///   };
+///   class B : public A {
+///    public:
+///     virtual void x();
+///   };
+/// \endcode
+///   matches B::x
+AST_MATCHER(CXXMethodDecl, isOverride) {
+  return Node.size_overridden_methods() > 0;
 }
 
 /// \brief Matches member expressions that are called with '->' as opposed

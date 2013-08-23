@@ -105,13 +105,15 @@ AcpiDbConvertToNode (
     char                    *InString)
 {
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_SIZE               Address;
 
 
     if ((*InString >= 0x30) && (*InString <= 0x39))
     {
         /* Numeric argument, convert */
 
-        Node = ACPI_TO_POINTER (ACPI_STRTOUL (InString, NULL, 16));
+        Address = ACPI_STRTOUL (InString, NULL, 16);
+        Node = ACPI_TO_POINTER (Address);
         if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
         {
             AcpiOsPrintf ("Address %p is invalid in this address space\n",
@@ -361,22 +363,27 @@ AcpiDbDisplayTableInfo (
         switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
         {
         case ACPI_TABLE_ORIGIN_UNKNOWN:
+
             AcpiOsPrintf ("Unknown   ");
             break;
 
         case ACPI_TABLE_ORIGIN_MAPPED:
+
             AcpiOsPrintf ("Mapped    ");
             break;
 
         case ACPI_TABLE_ORIGIN_ALLOCATED:
+
             AcpiOsPrintf ("Allocated ");
             break;
 
         case ACPI_TABLE_ORIGIN_OVERRIDE:
+
             AcpiOsPrintf ("Override  ");
             break;
 
         default:
+
             AcpiOsPrintf ("INVALID   ");
             break;
         }

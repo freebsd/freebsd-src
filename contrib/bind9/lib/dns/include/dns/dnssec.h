@@ -132,11 +132,18 @@ isc_result_t
 dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		   isc_boolean_t ignoretime, isc_mem_t *mctx,
 		   dns_rdata_t *sigrdata, dns_name_t *wild);
+
+isc_result_t
+dns_dnssec_verify3(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
+		   isc_boolean_t ignoretime, unsigned int maxbits,
+		   isc_mem_t *mctx, dns_rdata_t *sigrdata, dns_name_t *wild);
 /*%<
  *	Verifies the RRSIG record covering this rdataset signed by a specific
  *	key.  This does not determine if the key's owner is authorized to sign
  *	this record, as this requires a resolver or database.
  *	If 'ignoretime' is ISC_TRUE, temporal validity will not be checked.
+ *
+ *	'maxbits' specifies the maximum number of rsa exponent bits accepted.
  *
  *	Requires:
  *\li		'name' (the owner name of the record) is a valid name
@@ -309,7 +316,7 @@ dns_dnssec_keylistfromrdataset(dns_name_t *origin,
 isc_result_t
 dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 		      dns_dnsseckeylist_t *removed, dns_name_t *origin,
-		      dns_ttl_t ttl, dns_diff_t *diff, isc_boolean_t allzsk,
+		      dns_ttl_t hint_ttl, dns_diff_t *diff, isc_boolean_t allzsk,
 		      isc_mem_t *mctx, void (*report)(const char *, ...));
 /*%<
  * Update the list of keys in 'keys' with new key information in 'newkeys'.
@@ -328,9 +335,11 @@ dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
  * If 'allzsk' is true, we are allowing KSK-flagged keys to be used as
  * ZSKs.
  *
- * 'ttl' is the TTL of the DNSKEY RRset; if it is longer than the
- * time until a new key will be activated, then we have to delay the
- * key's activation.
+ * 'hint_ttl' is the TTL to use for the DNSKEY RRset if there is no
+ * existing RRset, and if none of the keys to be added has a default TTL
+ * (in which case we would use the shortest one).  If the TTL is longer
+ * than the time until a new key will be activated, then we have to delay
+ * the key's activation.
  *
  * 'report' points to a function for reporting status.
  *

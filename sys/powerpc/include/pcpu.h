@@ -128,7 +128,7 @@ struct pmap;
  */
 #ifndef PCPU_MD_FIELDS
 #define	PCPU_MD_FIELDS							\
-	int		pc_md_placeholder
+	int		pc_md_placeholder[32]
 #endif
 
 #ifdef _KERNEL

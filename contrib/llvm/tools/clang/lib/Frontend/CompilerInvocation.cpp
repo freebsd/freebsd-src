@@ -29,6 +29,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/system_error.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -68,6 +69,9 @@ static unsigned getOptimizationLevel(ArgList &Args, InputKind IK,
     if (A->getOption().matches(options::OPT_O0))
       return 0;
 
+    if (A->getOption().matches(options::OPT_Ofast))
+      return 3;
+
     assert (A->getOption().matches(options::OPT_O));
 
     StringRef S(A->getValue());
@@ -80,8 +84,7 @@ static unsigned getOptimizationLevel(ArgList &Args, InputKind IK,
   return DefaultOpt;
 }
 
-static unsigned getOptimizationLevelSize(ArgList &Args, InputKind IK,
-                                         DiagnosticsEngine &Diags) {
+static unsigned getOptimizationLevelSize(ArgList &Args) {
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
     if (A->getOption().matches(options::OPT_O)) {
       switch (A->getValue()[0]) {
@@ -281,6 +284,7 @@ static bool ParseMigratorArgs(MigratorOptions &Opts, ArgList &Args) {
 
 static void ParseCommentArgs(CommentOptions &Opts, ArgList &Args) {
   Opts.BlockCommandNames = Args.getAllArgValues(OPT_fcomment_block_commands);
+  Opts.ParseAllComments = Args.hasArg(OPT_fparse_all_comments);
 }
 
 static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
@@ -317,7 +321,6 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.DebugColumnInfo = Args.hasArg(OPT_dwarf_column_info);
   Opts.SplitDwarfFile = Args.getLastArgValue(OPT_split_dwarf_file);
 
-  Opts.ModulesAutolink = Args.hasArg(OPT_fmodules_autolink);
   Opts.DisableLLVMOpts = Args.hasArg(OPT_disable_llvm_optzns);
   Opts.DisableRedZone = Args.hasArg(OPT_disable_red_zone);
   Opts.ForbidGuardVariables = Args.hasArg(OPT_fforbid_guard_variables);
@@ -329,12 +332,13 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.MergeAllConstants = !Args.hasArg(OPT_fno_merge_all_constants);
   Opts.NoCommon = Args.hasArg(OPT_fno_common);
   Opts.NoImplicitFloat = Args.hasArg(OPT_no_implicit_float);
-  Opts.OptimizeSize = getOptimizationLevelSize(Args, IK, Diags);
+  Opts.OptimizeSize = getOptimizationLevelSize(Args);
   Opts.SimplifyLibCalls = !(Args.hasArg(OPT_fno_builtin) ||
                             Args.hasArg(OPT_ffreestanding));
   Opts.UnrollLoops = Args.hasArg(OPT_funroll_loops) ||
                      (Opts.OptimizationLevel > 1 && !Opts.OptimizeSize);
 
+  Opts.Autolink = !Args.hasArg(OPT_fno_autolink);
   Opts.AsmVerbose = Args.hasArg(OPT_masm_verbose);
   Opts.ObjCAutoRefCountExceptions = Args.hasArg(OPT_fobjc_arc_exceptions);
   Opts.CUDAIsDevice = Args.hasArg(OPT_fcuda_is_device);
@@ -564,7 +568,6 @@ bool clang::ParseDiagnosticArgs(DiagnosticOptions &Opts, ArgList &Args,
   Opts.VerifyDiagnostics = Args.hasArg(OPT_verify);
   Opts.ElideType = !Args.hasArg(OPT_fno_elide_type);
   Opts.ShowTemplateTree = Args.hasArg(OPT_fdiagnostics_show_template_tree);
-  Opts.WarnOnSpellCheck = Args.hasArg(OPT_fwarn_on_spellcheck);
   Opts.ErrorLimit = Args.getLastArgIntValue(OPT_ferror_limit, 0, Diags);
   Opts.MacroBacktraceLimit
     = Args.getLastArgIntValue(OPT_fmacro_backtrace_limit,
@@ -1245,7 +1248,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.AccessControl = !Args.hasArg(OPT_fno_access_control);
   Opts.ElideConstructors = !Args.hasArg(OPT_fno_elide_constructors);
   Opts.MathErrno = Args.hasArg(OPT_fmath_errno);
-  Opts.InstantiationDepth = Args.getLastArgIntValue(OPT_ftemplate_depth, 512,
+  Opts.InstantiationDepth = Args.getLastArgIntValue(OPT_ftemplate_depth, 256,
                                                     Diags);
   Opts.ConstexprCallDepth = Args.getLastArgIntValue(OPT_fconstexpr_depth, 512,
                                                     Diags);
@@ -1293,7 +1296,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
 
   // FIXME: Eliminate this dependency.
   unsigned Opt = getOptimizationLevel(Args, IK, Diags),
-       OptSize = getOptimizationLevelSize(Args, IK, Diags);
+       OptSize = getOptimizationLevelSize(Args);
   Opts.Optimize = Opt != 0;
   Opts.OptimizeSize = OptSize != 0;
 
@@ -1684,6 +1687,22 @@ std::string CompilerInvocation::getModuleHash() const {
                       hsOpts.UseStandardSystemIncludes,
                       hsOpts.UseStandardCXXIncludes,
                       hsOpts.UseLibcxx);
+
+  // Darwin-specific hack: if we have a sysroot, use the contents of
+  //   $sysroot/System/Library/CoreServices/SystemVersion.plist
+  // as part of the module hash.
+  if (!hsOpts.Sysroot.empty()) {
+    llvm::OwningPtr<llvm::MemoryBuffer> buffer;
+    SmallString<128> systemVersionFile;
+    systemVersionFile += hsOpts.Sysroot;
+    llvm::sys::path::append(systemVersionFile, "System");
+    llvm::sys::path::append(systemVersionFile, "Library");
+    llvm::sys::path::append(systemVersionFile, "CoreServices");
+    llvm::sys::path::append(systemVersionFile, "SystemVersion.plist");
+    if (!llvm::MemoryBuffer::getFile(systemVersionFile, buffer)) {
+      code = hash_combine(code, buffer.get()->getBuffer());
+    }
+  }
 
   return llvm::APInt(64, code).toString(36, /*Signed=*/false);
 }

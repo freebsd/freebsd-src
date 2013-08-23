@@ -46,10 +46,10 @@
 #include <sys/syslog.h>
 #include <sys/buf.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2_extern.h>
 
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
@@ -63,7 +63,7 @@ static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
 
 /*
- * Allocate a block in the file system.
+ * Allocate a block in the filesystem.
  *
  * A preference may be optionally specified. If a preference is given
  * the following hierarchy is used to allocate a block:
@@ -80,8 +80,8 @@ static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
  *        available block is located.
  */
 int
-ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
-    struct ucred *cred, int32_t *bnp)
+ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
+    struct ucred *cred, e4fs_daddr_t *bnp)
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
@@ -91,7 +91,7 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
 	mtx_assert(EXT2_MTX(ump), MA_OWNED);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((u_int)size > fs->e2fs_bsize || blkoff(fs, size) != 0) {
 		vn_printf(ip->i_devvp, "bsize = %lu, size = %d, fs = %s\n",
 		    (long unsigned int)fs->e2fs_bsize, size, fs->e2fs_fsmnt);
@@ -99,7 +99,7 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
 	}
 	if (cred == NOCRED)
 		panic("ext2_alloc: missing credential");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	if (size == fs->e2fs_bsize && fs->e2fs->e2fs_fbcount == 0)
 		goto nospace;
 	if (cred->cr_uid != 0 && 
@@ -125,8 +125,8 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
         }
 nospace:
 	EXT2_UNLOCK(ump);
-	ext2_fserr(fs, cred->cr_uid, "file system full");
-	uprintf("\n%s: write failed, file system is full\n", fs->e2fs_fsmnt);
+	ext2_fserr(fs, cred->cr_uid, "filesystem full");
+	uprintf("\n%s: write failed, filesystem is full\n", fs->e2fs_fsmnt);
 	return (ENOSPC);
 }
 
@@ -165,7 +165,9 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
-	int32_t start_lbn, end_lbn, soff, newblk, blkno;
+	e2fs_lbn_t start_lbn, end_lbn;
+	int soff;
+	e2fs_daddr_t newblk, blkno;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
 	if (doreallocblks == 0)
@@ -183,7 +185,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	len = buflist->bs_nchildren;
 	start_lbn = buflist->bs_children[0]->b_lblkno;
 	end_lbn = start_lbn + len - 1;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (i = 1; i < len; i++)
 		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
 			panic("ext2_reallocblks: non-cluster");
@@ -223,7 +225,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 			brelse(sbp);
 			return (ENOSPC);
 		}
-		sbap = (int32_t *)sbp->b_data;
+		sbap = (u_int *)sbp->b_data;
 		soff = idp->in_off;
 	}
 	/*
@@ -232,14 +234,14 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
 			panic("ext2_reallocblks: start == end");
 #endif
 		ssize = len - (idp->in_off + 1);
 		if (bread(vp, idp->in_lbn, (int)fs->e2fs_bsize, NOCRED, &ebp))
 			goto fail;
-		ebap = (int32_t *)ebp->b_data;
+		ebap = (u_int *)ebp->b_data;
 	}
 	/*
 	 * Find the preferred location for the cluster.
@@ -249,7 +251,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
-	if ((newblk = (int32_t)ext2_hashalloc(ip, dtog(fs, pref), pref,
+	if ((newblk = (e2fs_daddr_t)ext2_hashalloc(ip, dtog(fs, pref), pref,
 	    len, ext2_clusteralloc)) == 0){
 		EXT2_UNLOCK(ump);
 		goto fail;
@@ -271,7 +273,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 			bap = ebap;
 			soff = -i;
 		}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (buflist->bs_children[i]->b_blkno != fsbtodb(fs, *bap))
 			panic("ext2_reallocblks: alloc mismatch");
 #endif
@@ -338,7 +340,7 @@ fail:
 }
 
 /*
- * Allocate an inode in the file system.
+ * Allocate an inode in the filesystem.
  * 
  */
 int
@@ -442,10 +444,10 @@ ext2_dirpref(struct inode *pip)
 {
 	struct m_ext2fs *fs;
         int cg, prefcg, dirsize, cgsize;
-	int avgifree, avgbfree, avgndir, curdirsize;
-	int minifree, minbfree, maxndir;
-	int mincg, minndir;
-	int maxcontigdirs;
+	u_int avgifree, avgbfree, avgndir, curdirsize;
+	u_int minifree, minbfree, maxndir;
+	u_int mincg, minndir;
+	u_int maxcontigdirs;
 
 	mtx_assert(EXT2_MTX(pip->i_ump), MA_OWNED);
 	fs = pip->i_e2fs;
@@ -549,9 +551,9 @@ ext2_dirpref(struct inode *pip)
  * of the above. Then, blocknr tells us the number of the block
  * that will hold the pointer
  */
-int32_t
-ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
-    int32_t blocknr)
+e4fs_daddr_t
+ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
+    e2fs_daddr_t blocknr)
 {
 	int	tmp;
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
@@ -574,7 +576,7 @@ ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
 	   follow the rule that a block should be allocated near its inode
 	*/
 	return blocknr ? blocknr :
-			(int32_t)(ip->i_block_group * 
+			(e2fs_daddr_t)(ip->i_block_group * 
 			EXT2_BLOCKS_PER_GROUP(ip->i_e2fs)) + 
 			ip->i_e2fs->e2fs->e2fs_first_dblock;
 }
@@ -748,7 +750,7 @@ retry:
 		return (0);
 	}
 gotit:
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (isset(bbp, bno)) {
 		printf("ext2fs_alloccgblk: cg=%d bno=%jd fs=%s\n",
 			cg, (intmax_t)bno, fs->e2fs_fsmnt);
@@ -954,7 +956,7 @@ gotit:
  *
  */
 void
-ext2_blkfree(struct inode *ip, int32_t bno, long size)
+ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 {
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -1083,7 +1085,7 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 }
 
 /*
- * Fserr prints the name of a file system with an error diagnostic.
+ * Fserr prints the name of a filesystem with an error diagnostic.
  * 
  * The form of the error message is:
  *	fs: error message

@@ -39,6 +39,7 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
@@ -51,6 +52,11 @@ STATISTIC(CondBranchTakenFreq,
           "Potential frequency of taking conditional branches");
 STATISTIC(UncondBranchTakenFreq,
           "Potential frequency of taking unconditional branches");
+
+static cl::opt<unsigned> AlignAllBlock("align-all-blocks",
+                                       cl::desc("Force the alignment of all "
+                                                "blocks in the function."),
+                                       cl::init(0), cl::Hidden);
 
 namespace {
 class BlockChain;
@@ -1087,6 +1093,12 @@ bool MachineBlockPlacement::runOnMachineFunction(MachineFunction &F) {
 
   BlockToChain.clear();
   ChainAllocator.DestroyAll();
+
+  if (AlignAllBlock)
+    // Align all of the blocks in the function to a specific alignment.
+    for (MachineFunction::iterator FI = F.begin(), FE = F.end();
+         FI != FE; ++FI)
+      FI->setAlignment(AlignAllBlock);
 
   // We always return true as we have no way to track whether the final order
   // differs from the original order.

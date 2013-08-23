@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
 
-#define	NO_REG_DEFS	1	/* Prevent asm.h from including regdef.h */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
@@ -85,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/regnum.h>
 #include <machine/tls.h>
-#include <machine/asm.h>
 
 #ifdef DDB
 #include <machine/db_machdep.h>
@@ -126,6 +124,61 @@ int trap_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
     &trap_debug, 0, "Debug information on all traps");
 #endif
+
+#define	lbu_macro(data, addr)						\
+	__asm __volatile ("lbu %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lb_macro(data, addr)						\
+	__asm __volatile ("lb %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lwl_macro(data, addr)						\
+	__asm __volatile ("lwl %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lwr_macro(data, addr)						\
+	__asm __volatile ("lwr %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	ldl_macro(data, addr)						\
+	__asm __volatile ("ldl %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	ldr_macro(data, addr)						\
+	__asm __volatile ("ldr %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	sb_macro(data, addr)						\
+	__asm __volatile ("sb %0, 0x0(%1)"				\
+			:				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	swl_macro(data, addr)						\
+	__asm __volatile ("swl %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	swr_macro(data, addr)						\
+	__asm __volatile ("swr %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	sdl_macro(data, addr)						\
+	__asm __volatile ("sdl %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	sdr_macro(data, addr)						\
+	__asm __volatile ("sdr %0, 0x0(%1)"				\
+			:				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
 
 static void log_illegal_instruction(const char *, struct trapframe *);
 static void log_bad_page_fault(char *, struct trapframe *, int);

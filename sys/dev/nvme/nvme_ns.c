@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -133,11 +133,7 @@ nvme_ns_strategy(struct bio *bp)
 
 static struct cdevsw nvme_ns_cdevsw = {
 	.d_version =	D_VERSION,
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
-	.d_flags =	D_DISK | D_UNMAPPED_IO,
-#else
 	.d_flags =	D_DISK,
-#endif
 	.d_read =	physread,
 	.d_write =	physwrite,
 	.d_open =	nvme_ns_open,
@@ -155,7 +151,7 @@ nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns)
 uint32_t
 nvme_ns_get_sector_size(struct nvme_namespace *ns)
 {
-	return (1 << ns->data.lbaf[0].lbads);
+	return (1 << ns->data.lbaf[ns->data.flbas.format].lbads);
 }
 
 uint64_t
@@ -310,6 +306,16 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	}
 #endif
 
+	/*
+	 * Note: format is a 0-based value, so > is appropriate here,
+	 *  not >=.
+	 */
+	if (ns->data.flbas.format > ns->data.nlbaf) {
+		printf("lba format %d exceeds number supported (%d)\n",
+		    ns->data.flbas.format, ns->data.nlbaf+1);
+		return (1);
+	}
+
 	if (ctrlr->cdata.oncs.dsm)
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
 
@@ -337,6 +343,9 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	ns->cdev = make_dev_credf(0, &nvme_ns_cdevsw, 0,
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
+#endif
+#ifdef NVME_UNMAPPED_BIO_SUPPORT
+	ns->cdev->si_flags |= SI_UNMAPPED;
 #endif
 
 	if (ns->cdev != NULL)

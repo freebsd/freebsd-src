@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
@@ -143,6 +143,7 @@ typedef enum {
 	ZFS_PROP_CLONES,
 	ZFS_PROP_LOGICALUSED,
 	ZFS_PROP_LOGICALREFERENCED,
+	ZFS_PROP_INCONSISTENT,		/* not exposed to the user */
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -523,7 +524,7 @@ typedef struct zpool_rewind_policy {
 #define	ZPOOL_CONFIG_SPLIT_GUID		"split_guid"
 #define	ZPOOL_CONFIG_SPLIT_LIST		"guid_list"
 #define	ZPOOL_CONFIG_REMOVING		"removing"
-#define	ZPOOL_CONFIG_RESILVERING	"resilvering"
+#define	ZPOOL_CONFIG_RESILVER_TXG	"resilver_txg"
 #define	ZPOOL_CONFIG_COMMENT		"comment"
 #define	ZPOOL_CONFIG_SUSPENDED		"suspended"	/* not stored on disk */
 #define	ZPOOL_CONFIG_TIMESTAMP		"timestamp"	/* not stored on disk */
@@ -620,7 +621,8 @@ typedef enum vdev_aux {
 	VDEV_AUX_IO_FAILURE,	/* experienced I/O failure		*/
 	VDEV_AUX_BAD_LOG,	/* cannot read log chain(s)		*/
 	VDEV_AUX_EXTERNAL,	/* external diagnosis			*/
-	VDEV_AUX_SPLIT_POOL	/* vdev was split off into another pool	*/
+	VDEV_AUX_SPLIT_POOL,	/* vdev was split off into another pool	*/
+	VDEV_AUX_ASHIFT_TOO_BIG /* vdev's min block size is too large   */
 } vdev_aux_t;
 
 /*
@@ -714,7 +716,13 @@ typedef struct vdev_stat {
 	uint64_t	vs_self_healed;		/* self-healed bytes	*/
 	uint64_t	vs_scan_removing;	/* removing?	*/
 	uint64_t	vs_scan_processed;	/* scan processed bytes	*/
+ 	uint64_t	vs_configured_ashift;	/* TLV vdev_ashift      */
+ 	uint64_t	vs_logical_ashift;	/* vdev_logical_ashift  */
+ 	uint64_t	vs_physical_ashift;	/* vdev_physical_ashift */
 } vdev_stat_t;
+#define VDEV_STAT_VALID(field, uint64_t_field_count) \
+    ((uint64_t_field_count * sizeof(uint64_t)) >= \
+     (offsetof(vdev_stat_t, field) + sizeof(((vdev_stat_t *)NULL)->field)))
 
 /*
  * DDT statistics.  Note: all fields should be 64-bit because this

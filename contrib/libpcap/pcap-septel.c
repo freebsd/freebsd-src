@@ -38,22 +38,13 @@ static const char rcsid[] _U_ =
 #include <sys/types.h>
 #include <unistd.h>
 
-#ifdef HAVE_SEPTEL_API
 #include <msg.h>
 #include <ss7_inc.h>
 #include <sysgct.h>
 #include <pack.h>
 #include <system.h>
-#endif /* HAVE_SEPTEL_API */
 
-#ifdef SEPTEL_ONLY
-/* This code is required when compiling for a Septel device only. */
 #include "pcap-septel.h"
-
-/* Replace septel function names with pcap equivalent. */
-#define septel_create pcap_create
-#define septel_platform_finddevs pcap_platform_finddevs
-#endif /* SEPTEL_ONLY */
 
 static int septel_setfilter(pcap_t *p, struct bpf_program *fp);
 static int septel_stats(pcap_t *p, struct pcap_stat *ps);
@@ -221,8 +212,22 @@ static pcap_t *septel_activate(pcap_t* handle) {
   return 0;
 }
 
-pcap_t *septel_create(const char *device, char *ebuf) {
+pcap_t *septel_create(const char *device, char *ebuf, int *is_ours) {
+	const char *cp;
 	pcap_t *p;
+
+	/* Does this look like the Septel device? */
+	cp = strrchr(device, '/');
+	if (cp == NULL)
+		cp = device;
+	if (strcmp(cp, "septel") != 0) {
+		/* Nope, it's not "septel" */
+		*is_ours = 0;
+		return NULL;
+	}
+
+	/* OK, it's probably ours. */
+	*is_ours = 1;
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)
@@ -243,7 +248,7 @@ static int septel_stats(pcap_t *p, struct pcap_stat *ps) {
 
 
 int
-septel_platform_finddevs(pcap_if_t **devlistp, char *errbuf)
+septel_findalldevs(pcap_if_t **devlistp, char *errbuf)
 {
 unsigned char *p;
   const char description[512]= "Intel/Septel device";

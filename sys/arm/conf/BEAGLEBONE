@@ -1,5 +1,7 @@
 # BEAGLEBONE -- Custom configuration for the BeagleBone ARM development
-# platform, check out http://www.beagleboard.org/bone
+# platforms, check out http://www.beagleboard.org/bone and
+# http://www.beagleboard.org/black. This kernel config file is used for the
+# original BeagleBone and the BeagleBone Black.
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
@@ -22,7 +24,6 @@ ident		BEAGLEBONE
 
 include		"../ti/am335x/std.beaglebone"
 
-makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
 
 options 	HZ=100
@@ -48,6 +49,7 @@ options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	PREEMPTION
 options 	FREEBSD_BOOT_LOADER
+options 	VFP			# vfp/neon
 
 # Debugging
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
@@ -78,6 +80,7 @@ options 	NFSLOCKD
 # MMC/SD/SDIO card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
+device		sdhci			# mmc/sd host controller
 
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
@@ -120,6 +123,10 @@ device		bpf
 # USB ethernet support, requires miibus
 device		miibus
 device		axe			# ASIX Electronics USB Ethernet
+
+# Device mode support and USFS template
+device		usb_template    # Control of the gadget
+device		usfs
 
 # Flattened Device Tree
 options         FDT

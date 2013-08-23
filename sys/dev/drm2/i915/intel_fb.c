@@ -207,6 +207,8 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	}
 }
 
+extern int sc_txtmouse_no_retrace_wait;
+
 int intel_fbdev_init(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev;
@@ -229,6 +231,7 @@ int intel_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 	drm_fb_helper_initial_config(&ifbdev->helper, 32);
+	sc_txtmouse_no_retrace_wait = 1;
 	return 0;
 }
 

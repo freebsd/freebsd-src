@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "common/t4_regs_values.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -246,9 +247,12 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	/* RX_COALESCE is always a valid value (M_RX_COALESCE). */
 	if (is_t4(sc))
 		opt2 |= F_RX_COALESCE_VALID;
-	else
+	else {
 		opt2 |= F_T5_OPT_2_VALID;
-	opt2 |= V_RX_COALESCE(M_RX_COALESCE);
+		opt2 |= F_CONG_CNTRL_VALID; /* OPT_2_ISS really, for T5 */
+	}
+	if (sc->tt.rx_coalesce)
+		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
@@ -384,10 +388,18 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		if (toep->ce == NULL)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOENT);
 
-		INIT_TP_WR(cpl, 0);
+		if (is_t4(sc)) {
+			INIT_TP_WR(cpl, 0);
+			cpl->params = select_ntuple(pi, toep->l2te);
+		} else {
+			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
+
+			INIT_TP_WR(c5, 0);
+			c5->iss = htobe32(tp->iss);
+			c5->params = select_ntuple(pi, toep->l2te);
+		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
 		    qid_atid));
-
 		cpl->local_port = inp->inp_lport;
 		cpl->local_ip_hi = *(uint64_t *)&inp->in6p_laddr.s6_addr[0];
 		cpl->local_ip_lo = *(uint64_t *)&inp->in6p_laddr.s6_addr[8];
@@ -397,20 +409,19 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
-		if (is_t4(sc)) {
-			cpl->params = select_ntuple(pi, toep->l2te,
-			    sc->filter_mode);
-		} else {
-			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
-
-			c5->rsvd = 0;
-			c5->params = select_ntuple(pi, toep->l2te,
-			    sc->filter_mode);
-		}
 	} else {
 		struct cpl_act_open_req *cpl = wrtod(wr);
 
-		INIT_TP_WR(cpl, 0);
+		if (is_t4(sc)) {
+			INIT_TP_WR(cpl, 0);
+			cpl->params = select_ntuple(pi, toep->l2te);
+		} else {
+			struct cpl_t5_act_open_req *c5 = (void *)cpl;
+
+			INIT_TP_WR(c5, 0);
+			c5->iss = htobe32(tp->iss);
+			c5->params = select_ntuple(pi, toep->l2te);
+		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
 		    qid_atid));
 		inp_4tuple_get(inp, &cpl->local_ip, &cpl->local_port,
@@ -418,16 +429,6 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
-		if (is_t4(sc)) {
-			cpl->params = select_ntuple(pi, toep->l2te,
-			    sc->filter_mode);
-		} else {
-			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
-
-			c5->rsvd = 0;
-			c5->params = select_ntuple(pi, toep->l2te,
-			    sc->filter_mode);
-		}
 	}
 
 	CTR5(KTR_CXGBE, "%s: atid %u (%s), toep %p, inp %p", __func__,

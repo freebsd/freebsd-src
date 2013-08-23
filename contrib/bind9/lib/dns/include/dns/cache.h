@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: cache.h,v 1.32 2011/08/02 23:47:52 tbox Exp $ */
 
 #ifndef DNS_CACHE_H
 #define DNS_CACHE_H 1
@@ -245,12 +245,6 @@ dns_cache_getcleaninginterval(dns_cache_t *cache);
  * Get the periodic cache cleaning interval to 'interval' seconds.
  */
 
-isc_uint32_t
-dns_cache_getcachesize(dns_cache_t *cache);
-/*%<
- * Get the maximum cache size.
- */
-
 const char *
 dns_cache_getname(dns_cache_t *cache);
 /*%<
@@ -258,12 +252,12 @@ dns_cache_getname(dns_cache_t *cache);
  */
 
 void
-dns_cache_setcachesize(dns_cache_t *cache, isc_uint32_t size);
+dns_cache_setcachesize(dns_cache_t *cache, size_t size);
 /*%<
  * Set the maximum cache size.  0 means unlimited.
  */
 
-isc_uint32_t
+size_t
 dns_cache_getcachesize(dns_cache_t *cache);
 /*%<
  * Get the maximum cache size.
@@ -280,9 +274,27 @@ dns_cache_flush(dns_cache_t *cache);
  */
 
 isc_result_t
+dns_cache_flushnode(dns_cache_t *cache, dns_name_t *name,
+		    isc_boolean_t tree);
+/*
+ * Flush a given name from the cache.  If 'tree' is true, then
+ * also flush all names under 'name'.
+ *
+ * Requires:
+ *\li	'cache' to be valid.
+ *\li	'name' to be valid.
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOMEMORY
+ *\li	other error returns.
+ */
+
+isc_result_t
 dns_cache_flushname(dns_cache_t *cache, dns_name_t *name);
 /*
- * Flushes a given name from the cache.
+ * Flush a given name from the cache.  Equivalent to
+ * dns_cache_flushpartial(cache, name, ISC_FALSE).
  *
  * Requires:
  *\li	'cache' to be valid.

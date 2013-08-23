@@ -43,7 +43,6 @@
 #define	PIC_GOT(x)	x@GOTPCREL(%rip)
 #else
 #define	PIC_PLT(x)	x
-#define	PIC_GOT(x)	x
 #endif
 
 /*

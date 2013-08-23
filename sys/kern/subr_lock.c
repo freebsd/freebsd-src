@@ -66,6 +66,7 @@ struct lock_class *lock_classes[LOCK_CLASS_MAX + 1] = {
 	&lock_class_mtx_sleep,
 	&lock_class_sx,
 	&lock_class_rm,
+	&lock_class_rm_sleepable,
 	&lock_class_rw,
 	&lock_class_lockmgr,
 };

@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/ksem.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -111,6 +112,7 @@ MALLOC_DECLARE(M_FADVISE);
 
 static uma_zone_t file_zone;
 
+void	(*ksem_info)(struct ksem *ks, char *path, size_t size, uint32_t *value);
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
@@ -123,6 +125,7 @@ static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
 static int	fill_procdesc_info(struct procdesc *pdp,
 		    struct kinfo_file *kif);
 static int	fill_pts_info(struct tty *tp, struct kinfo_file *kif);
+static int	fill_sem_info(struct file *fp, struct kinfo_file *kif);
 static int	fill_shm_info(struct file *fp, struct kinfo_file *kif);
 static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
 static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
@@ -2968,6 +2971,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct shmfd *shmfd;
 	struct socket *so;
 	struct vnode *vp;
+	struct ksem *ks;
 	struct file *fp;
 	struct proc *p;
 	struct tty *tp;
@@ -2996,6 +3000,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			continue;
 		bzero(kif, sizeof(*kif));
 		kif->kf_structsize = sizeof(*kif);
+		ks = NULL;
 		vp = NULL;
 		so = NULL;
 		tp = NULL;
@@ -3041,6 +3046,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SEM:
 			kif->kf_type = KF_TYPE_SEM;
+			ks = fp->f_data;
 			break;
 
 		case DTYPE_PTS:
@@ -3150,6 +3156,8 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		}
 		if (shmfd != NULL)
 			shm_path(shmfd, kif->kf_path, sizeof(kif->kf_path));
+		if (ks != NULL && ksem_info != NULL)
+			ksem_info(ks, kif->kf_path, sizeof(kif->kf_path), NULL);
 		error = SYSCTL_OUT(req, kif, sizeof(*kif));
 		if (error)
 			break;
@@ -3168,10 +3176,16 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc, CTLFLAG_RD,
 CTASSERT(sizeof(struct kinfo_file) == KINFO_FILE_SIZE);
 #endif
 
+struct export_fd_buf {
+	struct filedesc		*fdp;
+	struct sbuf 		*sb;
+	ssize_t			remainder;
+	struct kinfo_file	kif;
+};
+
 static int
 export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
-    int64_t offset, cap_rights_t fd_cap_rights, struct kinfo_file *kif,
-    struct sbuf *sb, ssize_t *remainder)
+    int64_t offset, cap_rights_t fd_cap_rights, struct export_fd_buf *efbuf)
 {
 	struct {
 		int	fflag;
@@ -3194,16 +3208,23 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
 		{ O_TRUNC, KF_FLAG_TRUNC }
 	};
 #define	NFFLAGS	(sizeof(fflags_table) / sizeof(*fflags_table))
+	struct kinfo_file *kif;
 	struct vnode *vp;
-	int error;
+	int error, locked;
 	unsigned int i;
 
-	if (*remainder == 0)
+	if (efbuf->remainder == 0)
 		return (0);
+	kif = &efbuf->kif;
 	bzero(kif, sizeof(*kif));
+	locked = efbuf->fdp != NULL;
 	switch (type) {
 	case KF_TYPE_FIFO:
 	case KF_TYPE_VNODE:
+		if (locked) {
+			FILEDESC_SUNLOCK(efbuf->fdp);
+			locked = 0;
+		}
 		vp = (struct vnode *)data;
 		error = fill_vnode_info(vp, kif);
 		vrele(vp);
@@ -3219,6 +3240,9 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
 		break;
 	case KF_TYPE_PROCDESC:
 		error = fill_procdesc_info((struct procdesc *)data, kif);
+		break;
+	case KF_TYPE_SEM:
+		error = fill_sem_info((struct file *)data, kif);
 		break;
 	case KF_TYPE_SHM:
 		error = fill_shm_info((struct file *)data, kif);
@@ -3244,15 +3268,21 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
 	kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 	    strlen(kif->kf_path) + 1;
 	kif->kf_structsize = roundup(kif->kf_structsize, sizeof(uint64_t));
-	if (*remainder != -1) {
-		if (*remainder < kif->kf_structsize) {
+	if (efbuf->remainder != -1) {
+		if (efbuf->remainder < kif->kf_structsize) {
 			/* Terminate export. */
-			*remainder = 0;
+			efbuf->remainder = 0;
+			if (efbuf->fdp != NULL && !locked)
+				FILEDESC_SLOCK(efbuf->fdp);
 			return (0);
 		}
-		*remainder -= kif->kf_structsize;
+		efbuf->remainder -= kif->kf_structsize;
 	}
-	error = sbuf_bcat(sb, kif, kif->kf_structsize);
+	if (locked)
+		FILEDESC_SUNLOCK(efbuf->fdp);
+	error = sbuf_bcat(efbuf->sb, kif, kif->kf_structsize);
+	if (efbuf->fdp != NULL)
+		FILEDESC_SLOCK(efbuf->fdp);
 	return (error);
 }
 
@@ -3266,18 +3296,16 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 {
 	struct file *fp;
 	struct filedesc *fdp;
-	struct kinfo_file *kif;
+	struct export_fd_buf *efbuf;
 	struct vnode *cttyvp, *textvp, *tracevp;
 	int64_t offset;
 	void *data;
-	ssize_t remainder;
 	int error, i;
 	int type, refcnt, fflags;
 	cap_rights_t fd_cap_rights;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	remainder = maxlen;
 	/* ktrace vnode */
 	tracevp = p->p_tracevp;
 	if (tracevp != NULL)
@@ -3295,46 +3323,44 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 	}
 	fdp = fdhold(p);
 	PROC_UNLOCK(p);
-	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
+	efbuf = malloc(sizeof(*efbuf), M_TEMP, M_WAITOK);
+	efbuf->fdp = NULL;
+	efbuf->sb = sb;
+	efbuf->remainder = maxlen;
 	if (tracevp != NULL)
 		export_fd_to_sb(tracevp, KF_TYPE_VNODE, KF_FD_TYPE_TRACE,
-		    FREAD | FWRITE, -1, -1, 0, kif, sb, &remainder);
+		    FREAD | FWRITE, -1, -1, 0, efbuf);
 	if (textvp != NULL)
 		export_fd_to_sb(textvp, KF_TYPE_VNODE, KF_FD_TYPE_TEXT,
-		    FREAD, -1, -1, 0, kif, sb, &remainder);
+		    FREAD, -1, -1, 0, efbuf);
 	if (cttyvp != NULL)
 		export_fd_to_sb(cttyvp, KF_TYPE_VNODE, KF_FD_TYPE_CTTY,
-		    FREAD | FWRITE, -1, -1, 0, kif, sb, &remainder);
+		    FREAD | FWRITE, -1, -1, 0, efbuf);
 	error = 0;
 	if (fdp == NULL)
 		goto fail;
+	efbuf->fdp = fdp;
 	FILEDESC_SLOCK(fdp);
 	/* working directory */
 	if (fdp->fd_cdir != NULL) {
 		vref(fdp->fd_cdir);
 		data = fdp->fd_cdir;
-		FILEDESC_SUNLOCK(fdp);
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_CWD,
-		    FREAD, -1, -1, 0, kif, sb, &remainder);
-		FILEDESC_SLOCK(fdp);
+		    FREAD, -1, -1, 0, efbuf);
 	}
 	/* root directory */
 	if (fdp->fd_rdir != NULL) {
 		vref(fdp->fd_rdir);
 		data = fdp->fd_rdir;
-		FILEDESC_SUNLOCK(fdp);
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_ROOT,
-		    FREAD, -1, -1, 0, kif, sb, &remainder);
-		FILEDESC_SLOCK(fdp);
+		    FREAD, -1, -1, 0, efbuf);
 	}
 	/* jail directory */
 	if (fdp->fd_jdir != NULL) {
 		vref(fdp->fd_jdir);
 		data = fdp->fd_jdir;
-		FILEDESC_SUNLOCK(fdp);
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
-		    FREAD, -1, -1, 0, kif, sb, &remainder);
-		FILEDESC_SLOCK(fdp);
+		    FREAD, -1, -1, 0, efbuf);
 	}
 	for (i = 0; i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
@@ -3387,6 +3413,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 
 		case DTYPE_SEM:
 			type = KF_TYPE_SEM;
+			data = fp;
 			break;
 
 		case DTYPE_PTS:
@@ -3415,20 +3442,15 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		 * re-validate and re-evaluate its properties when
 		 * the loop continues.
 		 */
-		if (type == KF_TYPE_VNODE || type == KF_TYPE_FIFO)
-			FILEDESC_SUNLOCK(fdp);
 		error = export_fd_to_sb(data, type, i, fflags, refcnt,
-		    offset, fd_cap_rights, kif, sb, &remainder);
-		if (type == KF_TYPE_VNODE || type == KF_TYPE_FIFO)
-			FILEDESC_SLOCK(fdp);
+		    offset, fd_cap_rights, efbuf);
 		if (error)
 			break;
 	}
 	FILEDESC_SUNLOCK(fdp);
+	fddrop(fdp);
 fail:
-	if (fdp != NULL)
-		fddrop(fdp);
-	free(kif, M_TEMP);
+	free(efbuf, M_TEMP);
 	return (error);
 }
 
@@ -3617,6 +3639,25 @@ fill_procdesc_info(struct procdesc *pdp, struct kinfo_file *kif)
 	if (pdp == NULL)
 		return (1);
 	kif->kf_un.kf_proc.kf_pid = pdp->pd_pid;
+	return (0);
+}
+
+static int
+fill_sem_info(struct file *fp, struct kinfo_file *kif)
+{
+	struct thread *td;
+	struct stat sb;
+
+	td = curthread;
+	if (fp->f_data == NULL)
+		return (1);
+	if (fo_stat(fp, &sb, td->td_ucred, td) != 0)
+		return (1);
+	if (ksem_info == NULL)
+		return (1);
+	ksem_info(fp->f_data, kif->kf_path, sizeof(kif->kf_path),
+	    &kif->kf_un.kf_sem.kf_sem_value);
+	kif->kf_un.kf_sem.kf_sem_mode = sb.st_mode;
 	return (0);
 }
 
@@ -3846,6 +3887,15 @@ badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 	return (EBADF);
 }
 
+static int
+badfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
+    struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
+    int kflags, struct thread *td)
+{
+
+	return (EBADF);
+}
+
 struct fileops badfileops = {
 	.fo_read = badfo_readwrite,
 	.fo_write = badfo_readwrite,
@@ -3857,6 +3907,7 @@ struct fileops badfileops = {
 	.fo_close = badfo_close,
 	.fo_chmod = badfo_chmod,
 	.fo_chown = badfo_chown,
+	.fo_sendfile = badfo_sendfile,
 };
 
 int
@@ -3870,6 +3921,15 @@ invfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
 int
 invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
     struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+int
+invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
+    struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
+    int kflags, struct thread *td)
 {
 
 	return (EINVAL);

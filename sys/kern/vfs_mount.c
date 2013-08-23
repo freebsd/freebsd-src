@@ -861,8 +861,9 @@ vfs_domount_first(
 	vfs_event_signal(NULL, VQ_MOUNT, 0);
 	if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
 		panic("mount: lost mount");
-	VOP_UNLOCK(newdp, 0);
 	VOP_UNLOCK(vp, 0);
+	EVENTHANDLER_INVOKE(vfs_mounted, mp, newdp, td);
+	VOP_UNLOCK(newdp, 0);
 	mountcheckdirs(vp, newdp);
 	vrele(newdp);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
@@ -1355,6 +1356,7 @@ dounmount(mp, flags, td)
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
+	EVENTHANDLER_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
 		vput(coveredvp);

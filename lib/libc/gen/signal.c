@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-sigset_t _sigintr;		/* shared with siginterrupt */
+sigset_t _sigintr __hidden;	/* shared with siginterrupt */
 
 sig_t
 signal(s, a)

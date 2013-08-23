@@ -95,6 +95,43 @@ def FeatureQPX       : SubtargetFeature<"qpx","HasQPX", "true",
 // VSX          p7                 vector-scalar instruction set
 
 //===----------------------------------------------------------------------===//
+// Classes used for relation maps.
+//===----------------------------------------------------------------------===//
+// RecFormRel - Filter class used to relate non-record-form instructions with
+// their record-form variants.
+class RecFormRel;
+
+//===----------------------------------------------------------------------===//
+// Relation Map Definitions.
+//===----------------------------------------------------------------------===//
+
+def getRecordFormOpcode : InstrMapping {
+  let FilterClass = "RecFormRel";
+  // Instructions with the same BaseName and Interpretation64Bit values
+  // form a row.
+  let RowFields = ["BaseName", "Interpretation64Bit"];
+  // Instructions with the same RC value form a column.
+  let ColFields = ["RC"];
+  // The key column are the non-record-form instructions.
+  let KeyCol = ["0"];
+  // Value columns RC=1
+  let ValueCols = [["1"]];
+}
+
+def getNonRecordFormOpcode : InstrMapping {
+  let FilterClass = "RecFormRel";
+  // Instructions with the same BaseName and Interpretation64Bit values
+  // form a row.
+  let RowFields = ["BaseName", "Interpretation64Bit"];
+  // Instructions with the same RC value form a column.
+  let ColFields = ["RC"];
+  // The key column are the record-form instructions.
+  let KeyCol = ["1"];
+  // Value columns are RC=0
+  let ValueCols = [["0"]];
+}
+
+//===----------------------------------------------------------------------===//
 // Register File Description
 //===----------------------------------------------------------------------===//
 
@@ -216,7 +253,6 @@ def : ProcessorModel<"ppc64", G5Model,
                    FeatureFRSQRTE, FeatureSTFIWX,
                    Feature64Bit /*, Feature64BitRegs */]>;
 
-
 //===----------------------------------------------------------------------===//
 // Calling Conventions
 //===----------------------------------------------------------------------===//
@@ -232,9 +268,14 @@ def PPCAsmWriter : AsmWriter {
   bit isMCAsmWriter = 1;
 }
 
+def PPCAsmParser : AsmParser {
+  let ShouldEmitMatchRegisterName = 0;
+}
+
 def PPC : Target {
   // Information about the instructions.
   let InstructionSet = PPCInstrInfo;
   
   let AssemblyWriters = [PPCAsmWriter];
+  let AssemblyParsers = [PPCAsmParser];
 }

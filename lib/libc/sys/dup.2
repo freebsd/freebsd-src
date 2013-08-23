@@ -28,7 +28,7 @@
 .\"     @(#)dup.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2013
+.Dd June 1, 2013
 .Dt DUP 2
 .Os
 .Sh NAME
@@ -113,10 +113,11 @@ is a valid descriptor, then
 .Fn dup2
 is successful, and does nothing.
 .Sh RETURN VALUES
-The value -1 is returned if an error occurs in either call.
-The external variable
+These calls return the new file descriptor if successful;
+otherwise the value -1 is returned and
+the external variable
 .Va errno
-indicates the cause of the error.
+is set to indicate the cause of the error.
 .Sh ERRORS
 The
 .Fn dup
@@ -150,7 +151,8 @@ argument is negative or exceeds the maximum allowable descriptor number
 .Xr open 2 ,
 .Xr pipe 2 ,
 .Xr socket 2 ,
-.Xr socketpair 2
+.Xr socketpair 2 ,
+.Xr dup3 3
 .Sh STANDARDS
 The
 .Fn dup

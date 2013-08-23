@@ -1,6 +1,6 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,8 @@ f_double        \ Set frames to double (see frames.4th). Replace with
                 \ f_single if you want single frames.
 46 constant dot \ ASCII definition of a period (in decimal)
 
+ 5 constant menu_default_x         \ default column position of timeout
+10 constant menu_default_y         \ default row position of timeout msg
  4 constant menu_timeout_default_x \ default column position of timeout
 23 constant menu_timeout_default_y \ default row position of timeout msg
 10 constant menu_timeout_default   \ default timeout (in seconds)
@@ -128,15 +130,19 @@ create init_text8 255 allot
 : cycle_stateN  ( N -- ADDR )   s" cycle_stateN"  11 +c! evaluate ;
 : init_textN    ( N -- C-ADDR ) s" init_textN"     9 +c! evaluate ;
 
-: str_loader_menu_title     ( -- C-ADDR/U ) s" loader_menu_title" ;
-: str_loader_menu_timeout_x ( -- C-ADDR/U ) s" loader_menu_timeout_x" ;
-: str_loader_menu_timeout_y ( -- C-ADDR/U ) s" loader_menu_timeout_y" ;
-: str_menu_init             ( -- C-ADDR/U ) s" menu_init" ;
-: str_menu_timeout_command  ( -- C-ADDR/U ) s" menu_timeout_command" ;
-: str_menu_reboot           ( -- C-ADDR/U ) s" menu_reboot" ;
-: str_menu_acpi             ( -- C-ADDR/U ) s" menu_acpi" ;
-: str_menu_options          ( -- C-ADDR/U ) s" menu_options" ;
-: str_menu_optionstext      ( -- C-ADDR/U ) s" menu_optionstext" ;
+: str_loader_menu_frame       ( -- C-ADDR/U ) s" loader_menu_frame" ;
+: str_loader_menu_title       ( -- C-ADDR/U ) s" loader_menu_title" ;
+: str_loader_menu_title_align ( -- C-ADDR/U ) s" loader_menu_title_align" ;
+: str_loader_menu_x           ( -- C-ADDR/U ) s" loader_menu_x" ;
+: str_loader_menu_y           ( -- C-ADDR/U ) s" loader_menu_y" ;
+: str_loader_menu_timeout_x   ( -- C-ADDR/U ) s" loader_menu_timeout_x" ;
+: str_loader_menu_timeout_y   ( -- C-ADDR/U ) s" loader_menu_timeout_y" ;
+: str_menu_init               ( -- C-ADDR/U ) s" menu_init" ;
+: str_menu_timeout_command    ( -- C-ADDR/U ) s" menu_timeout_command" ;
+: str_menu_reboot             ( -- C-ADDR/U ) s" menu_reboot" ;
+: str_menu_acpi               ( -- C-ADDR/U ) s" menu_acpi" ;
+: str_menu_options            ( -- C-ADDR/U ) s" menu_options" ;
+: str_menu_optionstext        ( -- C-ADDR/U ) s" menu_optionstext" ;
 
 : str_menu_init[x]          ( -- C-ADDR/U ) s" menu_init[x]" ;
 : str_menu_command[x]       ( -- C-ADDR/U ) s" menu_command[x]" ;
@@ -218,7 +224,7 @@ create init_text8 255 allot
 		\ NOTE: no need to check toggle_stateN since the first time we
 		\ are called, we will populate init_textN. Further, we don't
 		\ need to test whether menu_caption[x] (ansi_caption[x] when
-		\ loader_color=1) is available since we would not have been
+		\ loader_color?=1) is available since we would not have been
 		\ called if the caption was NULL.
 
 		\ base name of environment variable
@@ -441,7 +447,24 @@ create init_text8 255 allot
 	str_loader_menu_title getenv dup -1 = if
 		drop s" Welcome to FreeBSD"
 	then
-	24 over 2 / - 9 at-xy type 
+	TRUE ( use default alignment )
+	str_loader_menu_title_align getenv dup -1 <> if
+		2dup s" left" compare-insensitive 0= if ( 1 )
+			2drop ( c-addr/u ) drop ( bool )
+			menuX @ menuY @ 1-
+			FALSE ( don't use default alignment )
+		else ( 1 ) 2dup s" right" compare-insensitive 0= if ( 2 )
+			2drop ( c-addr/u ) drop ( bool )
+			menuX @ 42 + 4 - over - menuY @ 1-
+			FALSE ( don't use default alignment )
+		else ( 2 ) 2drop ( c-addr/u ) then ( 1 ) then
+	else
+		drop ( getenv cruft )
+	then
+	if ( use default center alignement? )
+		menuX @ 19 + over 2 / - menuY @ 1-
+	then
+	at-xy type 
 
 	\ If $menu_init is set, evaluate it (allowing for whole menus to be
 	\ constructed dynamically -- as this function could conceivably set
@@ -733,8 +756,45 @@ create init_text8 255 allot
 	menu_start
 	1- menuidx !    \ Initialize the starting index for the menu
 	0 menurow !     \ Initialize the starting position for the menu
-	42 13 2 9 box   \ Draw frame (w,h,x,y)
-	0 25 at-xy      \ Move cursor to the bottom for output
+
+	\ Assign configuration values
+	str_loader_menu_y getenv dup -1 = if
+		drop \ no custom row position
+		menu_default_y
+	else
+		\ make sure custom position is a number
+		?number 0= if
+			menu_default_y \ or use default
+		then
+	then
+	menuY !
+	str_loader_menu_x getenv dup -1 = if
+		drop \ no custom column position
+		menu_default_x
+	else
+		\ make sure custom position is a number
+		?number 0= if
+			menu_default_x \ or use default
+		then
+	then
+	menuX !
+
+	\ Interpret a custom frame type for the menu
+	TRUE ( draw a box? default yes, but might be altered below )
+	str_loader_menu_frame getenv dup -1 = if ( 1 )
+		drop \ no custom frame type
+	else ( 1 )  2dup s" single" compare-insensitive 0= if ( 2 )
+		f_single ( see frames.4th )
+	else ( 2 )  2dup s" double" compare-insensitive 0= if ( 3 )
+		f_double ( see frames.4th )
+	else ( 3 ) s" none" compare-insensitive 0= if ( 4 )
+		drop FALSE \ don't draw a box
+	( 4 ) then ( 3 ) then ( 2 )  then ( 1 ) then
+	if
+		42 13 menuX @ 3 - menuY @ 1- box \ Draw frame (w,h,x,y)
+	then
+
+	0 25 at-xy \ Move cursor to the bottom for output
 ;
 
 \ Main function. Call this from your `loader.rc' file.
@@ -965,10 +1025,7 @@ create init_text8 255 allot
 	menu-erase
 ;
 
-\ Assign configuration values
 bullet menubllt !
-10 menuY !
-5 menuX !
 
 \ Initialize our menu initialization state variables
 0 init_state1 !

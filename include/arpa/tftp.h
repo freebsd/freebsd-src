@@ -33,6 +33,8 @@
 #ifndef _ARPA_TFTP_H_
 #define	_ARPA_TFTP_H_
 
+#include <sys/cdefs.h>
+
 /*
  * Trivial File Transfer Protocol (IEN-133)
  */

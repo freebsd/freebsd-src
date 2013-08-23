@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -248,7 +248,8 @@ dns_rbt_create(isc_mem_t *mctx, void (*deleter)(void *, void *),
 	if (rbt == NULL)
 		return (ISC_R_NOMEMORY);
 
-	rbt->mctx = mctx;
+	rbt->mctx = NULL;
+	isc_mem_attach(mctx, &rbt->mctx);
 	rbt->data_deleter = deleter;
 	rbt->deleter_arg = deleter_arg;
 	rbt->root = NULL;
@@ -259,7 +260,7 @@ dns_rbt_create(isc_mem_t *mctx, void (*deleter)(void *, void *),
 #ifdef DNS_RBT_USEHASH
 	result = inithash(rbt);
 	if (result != ISC_R_SUCCESS) {
-		isc_mem_put(mctx, rbt, sizeof(*rbt));
+		isc_mem_putanddetach(&rbt->mctx, rbt, sizeof(*rbt));
 		return (result);
 	}
 #endif
@@ -299,7 +300,7 @@ dns_rbt_destroy2(dns_rbt_t **rbtp, unsigned int quantum) {
 
 	rbt->magic = 0;
 
-	isc_mem_put(rbt->mctx, rbt, sizeof(*rbt));
+	isc_mem_putanddetach(&rbt->mctx, rbt, sizeof(*rbt));
 	*rbtp = NULL;
 	return (ISC_R_SUCCESS);
 }
@@ -1537,6 +1538,8 @@ rehash(dns_rbt_t *rbt) {
 		return;
 	}
 
+	INSIST(rbt->hashsize > 0);
+
 	for (i = 0; i < rbt->hashsize; i++)
 		rbt->hashtable[i] = NULL;
 
@@ -1947,6 +1950,7 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 
 					COLOR(sibling) = COLOR(parent);
 					MAKE_BLACK(parent);
+					INSIST(RIGHT(sibling) != NULL);
 					MAKE_BLACK(RIGHT(sibling));
 					rotate_left(parent, rootp);
 					child = *rootp;
@@ -1984,6 +1988,7 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 
 					COLOR(sibling) = COLOR(parent);
 					MAKE_BLACK(parent);
+					INSIST(LEFT(sibling) != NULL);
 					MAKE_BLACK(LEFT(sibling));
 					rotate_right(parent, rootp);
 					child = *rootp;

@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_undo.c	10.5 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_undo.c,v 10.6 2001/06/25 15:19:36 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -34,9 +34,7 @@ static const char sccsid[] = "@(#)v_undo.c	10.5 (Berkeley) 3/6/96";
  * PUBLIC: int v_Undo __P((SCR *, VICMD *));
  */
 int
-v_Undo(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_Undo(SCR *sp, VICMD *vp)
 {
 	/*
 	 * Historically, U reset the cursor to the first column in the line
@@ -70,9 +68,7 @@ v_Undo(sp, vp)
  * PUBLIC: int v_undo __P((SCR *, VICMD *));
  */
 int
-v_undo(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_undo(SCR *sp, VICMD *vp)
 {
 	EXF *ep;
 
