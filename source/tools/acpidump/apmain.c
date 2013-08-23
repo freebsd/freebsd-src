@@ -92,7 +92,7 @@ UINT32                      CurrentAction = 0;
 
 
 #define AP_UTILITY_NAME             "ACPI Binary Table Dump Utility"
-#define AP_SUPPORTED_OPTIONS        "?a:bf:hn:o:svz"
+#define AP_SUPPORTED_OPTIONS        "?a:bcf:hn:o:r:svz"
 
 
 /******************************************************************************
@@ -111,10 +111,12 @@ ApDisplayUsage (
     ACPI_USAGE_HEADER ("acpidump [options]");
 
     ACPI_OPTION ("-b",                      "Dump tables to binary files");
+    ACPI_OPTION ("-c",                      "Dump customized tables");
     ACPI_OPTION ("-h -?",                   "This help message");
     ACPI_OPTION ("-o <File>",               "Redirect output to file");
+    ACPI_OPTION ("-r <Address>",            "Dump tables from specified RSDP");
     ACPI_OPTION ("-s",                      "Print table summaries only");
-    ACPI_OPTION ("-v",                      "Version of this utility");
+    ACPI_OPTION ("-v",                      "Display version information");
     ACPI_OPTION ("-z",                      "Verbose mode");
 
     printf ("\nTable Options:\n");
@@ -182,6 +184,7 @@ ApDoOptions (
     char                    **argv)
 {
     int                     j;
+    ACPI_STATUS             Status;
 
 
     /* Command line options */
@@ -196,6 +199,11 @@ ApDoOptions (
         Gbl_BinaryMode = TRUE;
         continue;
 
+    case 'c':   /* Dump customized tables */
+
+        Gbl_DumpCustomizedTables = TRUE;
+        continue;
+
     case 'h':
     case '?':
 
@@ -206,6 +214,17 @@ ApDoOptions (
 
         if (ApOpenOutputFile (AcpiGbl_Optarg))
         {
+            exit (-1);
+        }
+        continue;
+
+    case 'r':   /* Dump tables from specified RSDP */
+
+        Status = AcpiUtStrtoul64 (AcpiGbl_Optarg, 0, &Gbl_RsdpBase);
+        if (ACPI_FAILURE (Status))
+        {
+            fprintf (stderr, "%s: Could not convert to a physical address\n",
+                AcpiGbl_Optarg);
             exit (-1);
         }
         continue;

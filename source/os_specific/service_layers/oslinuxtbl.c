@@ -43,22 +43,25 @@
 
 #include "acpidump.h"
 
-#include <dirent.h>
-#include <sys/mman.h>
-
 
 #define _COMPONENT          ACPI_OS_SERVICES
         ACPI_MODULE_NAME    ("oslinuxtbl")
 
 
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
-
 #ifndef PATH_MAX
 #define PATH_MAX 256
 #endif
 
+
+/* List of information about obtained ACPI tables */
+
+typedef struct          table_info
+{
+    struct table_info       *Next;
+    UINT32                  Instance;
+    char                    Signature[ACPI_NAME_SIZE];
+
+} OSL_TABLE_INFO;
 
 /* Local prototypes */
 
@@ -67,8 +70,19 @@ OslTableInitialize (
     void);
 
 static ACPI_STATUS
+OslTableNameFromFile (
+    char                    *Filename,
+    char                    *Signature,
+    UINT32                  *Instance);
+
+static ACPI_STATUS
+OslAddTableToList (
+    char                    *Signature,
+    UINT32                  Instance);
+
+static ACPI_STATUS
 OslReadTableFromFile (
-    FILE                    *TableFile,
+    char                    *Filename,
     ACPI_SIZE               FileOffset,
     char                    *Signature,
     ACPI_TABLE_HEADER       **Table);
@@ -79,72 +93,117 @@ OslMapTable (
     char                    *Signature,
     ACPI_TABLE_HEADER       **Table);
 
-static ACPI_STATUS
-OslGetOverrideTable (
-    char                    *Signature,
-    UINT32                  Instance,
-    ACPI_TABLE_HEADER       **Table,
-    ACPI_PHYSICAL_ADDRESS   *Address);
+static void
+OslUnmapTable (
+    ACPI_TABLE_HEADER       *Table);
+
+static ACPI_PHYSICAL_ADDRESS
+OslFindRsdpViaEfi (
+    void);
 
 static ACPI_STATUS
-OslGetDynamicSsdt (
-    UINT32                  Instance,
-    ACPI_TABLE_HEADER       **Table,
-    ACPI_PHYSICAL_ADDRESS   *Address);
+OslLoadRsdp (
+    void);
 
 static ACPI_STATUS
-OslAddTablesToList (
+OslListCustomizedTables (
     char                    *Directory);
 
 static ACPI_STATUS
-OslGetTableViaRoot (
+OslGetCustomizedTable (
+    char                    *Pathname,
     char                    *Signature,
     UINT32                  Instance,
     ACPI_TABLE_HEADER       **Table,
     ACPI_PHYSICAL_ADDRESS   *Address);
+
+static ACPI_STATUS
+OslListBiosTables (
+    void);
+
+static ACPI_STATUS
+OslGetBiosTable (
+    char                    *Signature,
+    UINT32                  Instance,
+    ACPI_TABLE_HEADER       **Table,
+    ACPI_PHYSICAL_ADDRESS   *Address);
+
+static ACPI_STATUS
+OslGetLastStatus (
+    ACPI_STATUS             DefaultStatus);
 
 
 /* File locations */
 
-#define DYNAMIC_SSDT_DIR    "/sys/firmware/acpi/tables/dynamic"
-#define OVERRIDE_TABLE_DIR  "/sys/firmware/acpi/tables"
-#define SYSTEM_MEMORY       "/dev/mem"
+#define DYNAMIC_TABLE_DIR   "/sys/firmware/acpi/tables/dynamic"
+#define STATIC_TABLE_DIR    "/sys/firmware/acpi/tables"
+#define EFI_SYSTAB          "/sys/firmware/efi/systab"
 
-/* Should we get dynamically loaded SSDTs from DYNAMIC_SSDT_DIR? */
+/* Should we get dynamically loaded SSDTs from DYNAMIC_TABLE_DIR? */
 
-UINT8                   Gbl_DumpDynamicSsdts = TRUE;
+UINT8                   Gbl_DumpDynamicTables = TRUE;
 
 /* Initialization flags */
 
 UINT8                   Gbl_TableListInitialized = FALSE;
-UINT8                   Gbl_MainTableObtained = FALSE;
 
 /* Local copies of main ACPI tables */
 
 ACPI_TABLE_RSDP         Gbl_Rsdp;
-ACPI_TABLE_FADT         *Gbl_Fadt;
-ACPI_TABLE_RSDT         *Gbl_Rsdt;
-ACPI_TABLE_XSDT         *Gbl_Xsdt;
+ACPI_TABLE_FADT         *Gbl_Fadt = NULL;
+ACPI_TABLE_RSDT         *Gbl_Rsdt = NULL;
+ACPI_TABLE_XSDT         *Gbl_Xsdt = NULL;
 
-/* Fadt address */
+/* Table addresses */
 
-ACPI_PHYSICAL_ADDRESS   Gbl_FadtAddress;
+ACPI_PHYSICAL_ADDRESS   Gbl_FadtAddress = 0;
+ACPI_PHYSICAL_ADDRESS   Gbl_RsdpAddress = 0;
 
 /* Revision of RSD PTR */
 
-UINT8                   Gbl_Revision;
-
-/* List of information about obtained ACPI tables */
-
-typedef struct          table_info
-{
-    struct table_info       *Next;
-    UINT32                  Instance;
-    char                    Signature[4];
-
-} OSL_TABLE_INFO;
+UINT8                   Gbl_Revision = 0;
 
 OSL_TABLE_INFO          *Gbl_TableListHead = NULL;
+UINT32                  Gbl_TableCount = 0;
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    OslGetLastStatus
+ *
+ * PARAMETERS:  DefaultStatus   - Default error status to return
+ *
+ * RETURN:      Status; Converted from errno.
+ *
+ * DESCRIPTION: Get last errno and conver it to ACPI_STATUS.
+ *
+ *****************************************************************************/
+
+static ACPI_STATUS
+OslGetLastStatus (
+    ACPI_STATUS             DefaultStatus)
+{
+
+    switch (errno)
+    {
+    case EACCES:
+    case EPERM:
+
+        return (AE_ACCESS);
+
+    case ENOENT:
+
+        return (AE_NOT_FOUND);
+
+    case ENOMEM:
+
+        return (AE_NO_MEMORY);
+
+    default:
+
+        return (DefaultStatus);
+    }
+}
 
 
 /******************************************************************************
@@ -166,18 +225,18 @@ AcpiOsGetTableByAddress (
     ACPI_PHYSICAL_ADDRESS   Address,
     ACPI_TABLE_HEADER       **Table)
 {
+    UINT32                  TableLength;
     ACPI_TABLE_HEADER       *MappedTable;
-    ACPI_TABLE_HEADER       *LocalTable;
-    ACPI_STATUS             Status;
+    ACPI_TABLE_HEADER       *LocalTable = NULL;
+    ACPI_STATUS             Status = AE_OK;
 
 
-    /* Validate the input physical address to avoid program crash */
+    /* Get main ACPI tables from memory on first invocation of this function */
 
-    if (Address < ACPI_HI_RSDP_WINDOW_BASE)
+    Status = OslTableInitialize ();
+    if (ACPI_FAILURE (Status))
     {
-        fprintf (stderr, "Invalid table address: 0x%8.8X%8.8X\n",
-            ACPI_FORMAT_UINT64 (Address));
-        return (AE_BAD_ADDRESS);
+        return (Status);
     }
 
     /* Map the table and validate it */
@@ -190,16 +249,24 @@ AcpiOsGetTableByAddress (
 
     /* Copy table to local buffer and return it */
 
-    LocalTable = calloc (1, MappedTable->Length);
-    if (!LocalTable)
+    TableLength = ApGetTableLength (MappedTable);
+    if (TableLength == 0)
     {
-        AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
-        return (AE_NO_MEMORY);
+        Status = AE_BAD_HEADER;
+        goto ErrorExit;
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, MappedTable->Length);
-    AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
+    LocalTable = calloc (1, TableLength);
+    if (!LocalTable)
+    {
+        Status = AE_NO_MEMORY;
+        goto ErrorExit;
+    }
 
+    ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
+
+ErrorExit:
+    OslUnmapTable (MappedTable);
     *Table = LocalTable;
     return (AE_OK);
 }
@@ -234,80 +301,121 @@ AcpiOsGetTableByName (
     ACPI_STATUS             Status;
 
 
-    /* Instance is only valid for SSDTs */
-
-    if (Instance &&
-        !ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT) &&
-        !ACPI_COMPARE_NAME (Signature, ACPI_SIG_UEFI))
-    {
-        return (AE_LIMIT);
-    }
-
     /* Get main ACPI tables from memory on first invocation of this function */
 
-    if (!Gbl_MainTableObtained)
+    Status = OslTableInitialize ();
+    if (ACPI_FAILURE (Status))
     {
-        Status = OslTableInitialize ();
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-
-        Gbl_MainTableObtained = TRUE;
-    }
-
-    /*
-     * If one of the main ACPI tables was requested (RSDT/XSDT/FADT),
-     * simply return it immediately.
-     */
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_XSDT))
-    {
-        if (!Gbl_Revision)
-        {
-            return (AE_NOT_FOUND);
-        }
-
-        *Address = Gbl_Rsdp.XsdtPhysicalAddress;
-        *Table = (ACPI_TABLE_HEADER *) Gbl_Xsdt;
-        return (AE_OK);
-    }
-
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_RSDT))
-    {
-        if (!Gbl_Rsdp.RsdtPhysicalAddress)
-        {
-            return (AE_NOT_FOUND);
-        }
-
-        *Address = Gbl_Rsdp.RsdtPhysicalAddress;
-        *Table = (ACPI_TABLE_HEADER *) Gbl_Rsdt;
-        return (AE_OK);
-    }
-
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FADT))
-    {
-        *Address = Gbl_FadtAddress;
-        *Table = (ACPI_TABLE_HEADER *) Gbl_Fadt;
-        return (AE_OK);
+        return (Status);
     }
 
     /* Not a main ACPI table, attempt to extract it from the RSDT/XSDT */
 
-    Status = OslGetTableViaRoot (Signature, Instance, Table, Address);
-    if (ACPI_FAILURE (Status))
+    if (!Gbl_DumpCustomizedTables)
     {
-        /* Attempt to get the table from the override directory */
+        /* Attempt to get the table from the memory */
 
-        Status = OslGetOverrideTable (Signature, Instance, Table, Address);
-        if ((Status == AE_LIMIT) && Gbl_DumpDynamicSsdts)
-        {
-            /* Attempt to get a dynamic SSDT */
-
-            Status = OslGetDynamicSsdt (Instance, Table, Address);
-        }
-
-        return (Status);
+        Status = OslGetBiosTable (Signature, Instance, Table, Address);
     }
+    else
+    {
+        /* Attempt to get the table from the static directory */
+
+        Status = OslGetCustomizedTable (STATIC_TABLE_DIR, Signature,
+            Instance, Table, Address);
+    }
+
+    if (ACPI_FAILURE (Status) && Status == AE_LIMIT)
+    {
+        if (Gbl_DumpDynamicTables)
+        {
+            /* Attempt to get a dynamic table */
+
+            Status = OslGetCustomizedTable (DYNAMIC_TABLE_DIR, Signature,
+                Instance, Table, Address);
+        }
+    }
+
+    return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    OslAddTableToList
+ *
+ * PARAMETERS:  Signature       - Table signature
+ *              Instance        - Table instance
+ *
+ * RETURN:      Status; Successfully added if AE_OK.
+ *              AE_NO_MEMORY: Memory allocation error
+ *
+ * DESCRIPTION: Insert a table structure into OSL table list.
+ *
+ *****************************************************************************/
+
+static ACPI_STATUS
+OslAddTableToList (
+    char                    *Signature,
+    UINT32                  Instance)
+{
+    OSL_TABLE_INFO          *NewInfo;
+    OSL_TABLE_INFO          *Next;
+    UINT32                  NextInstance = 0;
+    BOOLEAN                 Found = FALSE;
+
+
+    NewInfo = calloc (1, sizeof (OSL_TABLE_INFO));
+    if (!NewInfo)
+    {
+        return (AE_NO_MEMORY);
+    }
+
+    ACPI_MOVE_NAME (NewInfo->Signature, Signature);
+
+    if (!Gbl_TableListHead)
+    {
+        Gbl_TableListHead = NewInfo;
+    }
+    else
+    {
+        Next = Gbl_TableListHead;
+        while (1)
+        {
+            if (ACPI_COMPARE_NAME (Next->Signature, Signature))
+            {
+                if (Next->Instance == Instance)
+                {
+                    Found = TRUE;
+                }
+                if (Next->Instance >= NextInstance)
+                {
+                    NextInstance = Next->Instance + 1;
+                }
+            }
+
+            if (!Next->Next)
+            {
+                break;
+            }
+            Next = Next->Next;
+        }
+        Next->Next = NewInfo;
+    }
+
+    if (Found)
+    {
+        if (Instance)
+        {
+            fprintf (stderr,
+                "%4.4s: Warning unmatched table instance %d, expected %d\n",
+                Signature, Instance, NextInstance);
+        }
+        Instance = NextInstance;
+    }
+
+    NewInfo->Instance = Instance;
+    Gbl_TableCount++;
 
     return (AE_OK);
 }
@@ -319,6 +427,8 @@ AcpiOsGetTableByName (
  *
  * PARAMETERS:  Index           - Which table to get
  *              Table           - Where a pointer to the table is returned
+ *              Instance        - Where a pointer to the table instance no. is
+ *                                returned
  *              Address         - Where the table physical address is returned
  *
  * RETURN:      Status; Table buffer and physical address returned if AE_OK.
@@ -334,6 +444,7 @@ ACPI_STATUS
 AcpiOsGetTableByIndex (
     UINT32                  Index,
     ACPI_TABLE_HEADER       **Table,
+    UINT32                  *Instance,
     ACPI_PHYSICAL_ADDRESS   *Address)
 {
     OSL_TABLE_INFO          *Info;
@@ -341,38 +452,17 @@ AcpiOsGetTableByIndex (
     UINT32                  i;
 
 
-    /* Initialize the table list on first invocation */
+    /* Get main ACPI tables from memory on first invocation of this function */
 
-    if (!Gbl_TableListInitialized)
+    Status = OslTableInitialize ();
+    if (ACPI_FAILURE (Status))
     {
-        Gbl_TableListHead = calloc (1, sizeof (OSL_TABLE_INFO));
-
-        /* List head records the length of the list */
-
-        Gbl_TableListHead->Instance = 0;
-
-        /* Add all tables found in the override directory */
-
-        Status = OslAddTablesToList (OVERRIDE_TABLE_DIR);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-
-        /* Add all dynamically loaded SSDTs in the dynamic directory */
-
-        OslAddTablesToList (DYNAMIC_SSDT_DIR);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
-
-        Gbl_TableListInitialized = TRUE;
+        return (Status);
     }
 
     /* Validate Index */
 
-    if (Index >= Gbl_TableListHead->Instance)
+    if (Index >= Gbl_TableCount)
     {
         return (AE_LIMIT);
     }
@@ -380,7 +470,7 @@ AcpiOsGetTableByIndex (
     /* Point to the table list entry specified by the Index argument */
 
     Info = Gbl_TableListHead;
-    for (i = 0; i <= Index; i++)
+    for (i = 0; i < Index; i++)
     {
         Info = Info->Next;
     }
@@ -389,87 +479,115 @@ AcpiOsGetTableByIndex (
 
     Status = AcpiOsGetTableByName (Info->Signature, Info->Instance,
         Table, Address);
+
+    if (ACPI_SUCCESS (Status))
+    {
+        *Instance = Info->Instance;
+    }
     return (Status);
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiOsMapMemory
+ * FUNCTION:    OslFindRsdpViaEfi
  *
- * PARAMETERS:  Where               - Physical address of memory to be mapped
- *              Length              - How much memory to map
+ * PARAMETERS:  None
  *
- * RETURN:      Pointer to mapped memory. Null on error.
+ * RETURN:      RSDP address if found
  *
- * DESCRIPTION: Map physical memory into local address space.
+ * DESCRIPTION: Find RSDP address via EFI.
  *
  *****************************************************************************/
 
-void *
-AcpiOsMapMemory (
-    ACPI_PHYSICAL_ADDRESS   Where,
-    ACPI_SIZE               Length)
+static ACPI_PHYSICAL_ADDRESS
+OslFindRsdpViaEfi (
+    void)
 {
-    UINT8                   *MappedMemory;
-    ACPI_PHYSICAL_ADDRESS   Offset;
-    ACPI_SIZE               PageSize;
-    int                     fd;
+    FILE                    *File;
+    char                    Buffer[80];
+    unsigned long           Address = 0;
 
 
-    fd = open (SYSTEM_MEMORY, O_RDONLY | O_BINARY);
-    if (fd < 0)
+    File = fopen (EFI_SYSTAB, "r");
+    if (File)
     {
-        fprintf (stderr, "Cannot open %s\n", SYSTEM_MEMORY);
-        return (NULL);
+        while (fgets (Buffer, 80, File))
+        {
+            if (sscanf (Buffer, "ACPI20=0x%lx", &Address) == 1)
+            {
+                break;
+            }
+        }
+        fclose (File);
     }
 
-    /* Align the offset to use mmap */
-
-    PageSize = sysconf (_SC_PAGESIZE);
-    Offset = Where % PageSize;
-
-    /* Map the table header to get the length of the full table */
-
-    MappedMemory = mmap (NULL, (Length + Offset), PROT_READ, MAP_PRIVATE,
-        fd, (Where - Offset));
-    close (fd);
-
-    if (MappedMemory == MAP_FAILED)
-    {
-        return (NULL);
-    }
-
-    return (ACPI_CAST8 (MappedMemory + Offset));
+    return ((ACPI_PHYSICAL_ADDRESS) (Address));
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiOsUnmapMemory
+ * FUNCTION:    OslLoadRsdp
  *
- * PARAMETERS:  Where               - Logical address of memory to be unmapped
- *              Length              - How much memory to unmap
+ * PARAMETERS:  None
  *
- * RETURN:      None.
+ * RETURN:      Status
  *
- * DESCRIPTION: Delete a previously created mapping. Where and Length must
- *              correspond to a previous mapping exactly.
+ * DESCRIPTION: Scan and load RSDP.
  *
  *****************************************************************************/
 
-void
-AcpiOsUnmapMemory (
-    void                    *Where,
-    ACPI_SIZE               Length)
+static ACPI_STATUS
+OslLoadRsdp (
+    void)
 {
-    ACPI_PHYSICAL_ADDRESS   Offset;
-    ACPI_SIZE               PageSize;
+    ACPI_TABLE_HEADER       *MappedTable;
+    UINT8                   *RsdpAddress;
+    ACPI_PHYSICAL_ADDRESS   RsdpBase;
+    ACPI_SIZE               RsdpSize;
 
 
-    PageSize = sysconf (_SC_PAGESIZE);
-    Offset = (ACPI_PHYSICAL_ADDRESS) Where % PageSize;
-    munmap ((UINT8 *) Where - Offset, (Length + Offset));
+    /* Get RSDP from memory */
+
+    RsdpSize = sizeof (ACPI_TABLE_RSDP);
+    if (Gbl_RsdpBase)
+    {
+        RsdpBase = Gbl_RsdpBase;
+    }
+    else
+    {
+        RsdpBase = OslFindRsdpViaEfi ();
+    }
+
+    if (!RsdpBase)
+    {
+        RsdpBase = ACPI_HI_RSDP_WINDOW_BASE;
+        RsdpSize = ACPI_HI_RSDP_WINDOW_SIZE;
+    }
+
+    RsdpAddress = AcpiOsMapMemory (RsdpBase, RsdpSize);
+    if (!RsdpAddress)
+    {
+        return (OslGetLastStatus (AE_BAD_ADDRESS));
+    }
+
+    /* Search low memory for the RSDP */
+
+    MappedTable = ACPI_CAST_PTR (ACPI_TABLE_HEADER,
+        AcpiTbScanMemoryForRsdp (RsdpAddress, RsdpSize));
+    if (!MappedTable)
+    {
+        AcpiOsUnmapMemory (RsdpAddress, RsdpSize);
+        return (AE_NOT_FOUND);
+    }
+
+    Gbl_RsdpAddress = RsdpBase + (ACPI_CAST8 (MappedTable) - RsdpAddress);
+
+    ACPI_MEMCPY (&Gbl_Rsdp, MappedTable, sizeof (ACPI_TABLE_RSDP));
+    AcpiOsUnmapMemory (RsdpAddress, RsdpSize);
+
+    return (AE_OK);
 }
 
 
@@ -491,130 +609,224 @@ static ACPI_STATUS
 OslTableInitialize (
     void)
 {
-    ACPI_TABLE_HEADER       *MappedTable;
-    UINT8                   *TableData;
-    UINT8                   *RsdpAddress;
-    ACPI_PHYSICAL_ADDRESS   RsdpBase;
-    ACPI_SIZE               RsdpSize;
     ACPI_STATUS             Status;
+    ACPI_PHYSICAL_ADDRESS   Address;
 
+
+    if (Gbl_TableListInitialized)
+    {
+        return (AE_OK);
+    }
 
     /* Get RSDP from memory */
 
-    RsdpBase = ACPI_HI_RSDP_WINDOW_BASE;
-    RsdpSize = ACPI_HI_RSDP_WINDOW_SIZE;
-
-    RsdpAddress = AcpiOsMapMemory (RsdpBase, RsdpSize);
-    if (!RsdpAddress)
+    Status = OslLoadRsdp ();
+    if (ACPI_FAILURE (Status))
     {
-        return (AE_BAD_ADDRESS);
+        return (Status);
     }
-
-    /* Search low memory for the RSDP */
-
-    MappedTable = ACPI_CAST_PTR (ACPI_TABLE_HEADER,
-        AcpiTbScanMemoryForRsdp (RsdpAddress, RsdpSize));
-    if (!MappedTable)
-    {
-        AcpiOsUnmapMemory (RsdpAddress, RsdpSize);
-        return (AE_ERROR);
-    }
-
-    ACPI_MEMCPY (&Gbl_Rsdp, MappedTable, sizeof (ACPI_TABLE_RSDP));
-    AcpiOsUnmapMemory (RsdpAddress, RsdpSize);
 
     /* Get XSDT from memory */
 
     if (Gbl_Rsdp.Revision)
     {
-        Status = OslMapTable (Gbl_Rsdp.XsdtPhysicalAddress,
-            ACPI_SIG_XSDT, &MappedTable);
+        if (Gbl_Xsdt)
+        {
+            free (Gbl_Xsdt);
+            Gbl_Xsdt = NULL;
+        }
+
+        Gbl_Revision = 2;
+        Status = OslGetBiosTable (ACPI_SIG_XSDT, 0,
+            ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Xsdt), &Address);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
-
-        Gbl_Revision = 2;
-        Gbl_Xsdt = calloc (1, MappedTable->Length);
-        if (!Gbl_Xsdt)
-        {
-            fprintf (stderr,
-                "XSDT: Could not allocate buffer for table of length %X\n",
-                MappedTable->Length);
-            return (AE_NO_MEMORY);
-        }
-
-        ACPI_MEMCPY (Gbl_Xsdt, MappedTable, MappedTable->Length);
-        AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
     }
 
     /* Get RSDT from memory */
 
     if (Gbl_Rsdp.RsdtPhysicalAddress)
     {
-        Status = OslMapTable (Gbl_Rsdp.RsdtPhysicalAddress,
-            ACPI_SIG_RSDT, &MappedTable);
+        if (Gbl_Rsdt)
+        {
+            free (Gbl_Rsdt);
+            Gbl_Rsdt = NULL;
+        }
+
+        Status = OslGetBiosTable (ACPI_SIG_RSDT, 0,
+            ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Rsdt), &Address);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
-
-        Gbl_Rsdt = calloc (1, MappedTable->Length);
-        if (!Gbl_Rsdt)
-        {
-            fprintf (stderr,
-                "RSDT: Could not allocate buffer for table of length %X\n",
-                MappedTable->Length);
-            return (AE_NO_MEMORY);
-        }
-
-        ACPI_MEMCPY (Gbl_Rsdt, MappedTable, MappedTable->Length);
-        AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
     }
 
     /* Get FADT from memory */
 
-    if (Gbl_Revision)
+    if (Gbl_Fadt)
     {
-        TableData = ACPI_CAST8 (Gbl_Xsdt) + sizeof (ACPI_TABLE_HEADER);
-        Gbl_FadtAddress = (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST64 (TableData));
-    }
-    else
-    {
-        TableData = ACPI_CAST8 (Gbl_Rsdt) + sizeof (ACPI_TABLE_HEADER);
-        Gbl_FadtAddress = (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST32 (TableData));
+        free (Gbl_Fadt);
+        Gbl_Fadt = NULL;
     }
 
-    if (!Gbl_FadtAddress)
-    {
-        fprintf(stderr, "FADT: Table could not be found\n");
-        return (AE_ERROR);
-    }
-
-    Status = OslMapTable (Gbl_FadtAddress, ACPI_SIG_FADT, &MappedTable);
+    Status = OslGetBiosTable (ACPI_SIG_FADT, 0,
+        ACPI_CAST_PTR (ACPI_TABLE_HEADER *, &Gbl_Fadt), &Gbl_FadtAddress);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    Gbl_Fadt = calloc (1, MappedTable->Length);
-    if (!Gbl_Fadt)
+    if (!Gbl_DumpCustomizedTables)
     {
-        fprintf (stderr,
-            "FADT: Could not allocate buffer for table of length %X\n",
-            MappedTable->Length);
-        return (AE_NO_MEMORY);
+        /* Add mandatory tables to global table list first */
+
+        Status = OslAddTableToList (AP_DUMP_SIG_RSDP, 0);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        Status = OslAddTableToList (ACPI_SIG_RSDT, 0);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        if (Gbl_Revision == 2)
+        {
+            Status = OslAddTableToList (ACPI_SIG_XSDT, 0);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+        }
+
+        Status = OslAddTableToList (ACPI_SIG_DSDT, 0);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        Status = OslAddTableToList (ACPI_SIG_FACS, 0);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        /* Add all tables found in the memory */
+
+        Status = OslListBiosTables ();
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+    }
+    else
+    {
+        /* Add all tables found in the static directory */
+
+        Status = OslListCustomizedTables (STATIC_TABLE_DIR);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
     }
 
-    ACPI_MEMCPY (Gbl_Fadt, MappedTable, MappedTable->Length);
-    AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
+    if (Gbl_DumpDynamicTables)
+    {
+        /* Add all dynamically loaded tables in the dynamic directory */
+
+        Status = OslListCustomizedTables (DYNAMIC_TABLE_DIR);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+    }
+
+    Gbl_TableListInitialized = TRUE;
     return (AE_OK);
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    OslGetTableViaRoot
+ * FUNCTION:    OslListBiosTables
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status; Table list is initialized if AE_OK.
+ *
+ * DESCRIPTION: Add ACPI tables to the table list from memory.
+ *
+ * NOTE:        This works on Linux as table customization does not modify the
+ *              addresses stored in RSDP/RSDT/XSDT/FADT.
+ *
+ *****************************************************************************/
+
+static ACPI_STATUS
+OslListBiosTables (
+    void)
+{
+    ACPI_TABLE_HEADER       *MappedTable = NULL;
+    UINT8                   *TableData;
+    UINT8                   NumberOfTables;
+    UINT8                   ItemSize;
+    ACPI_PHYSICAL_ADDRESS   TableAddress = 0;
+    ACPI_STATUS             Status = AE_OK;
+    UINT32                  i;
+
+
+    if (Gbl_Revision)
+    {
+        ItemSize = sizeof (UINT64);
+        TableData = ACPI_CAST8 (Gbl_Xsdt) + sizeof (ACPI_TABLE_HEADER);
+        NumberOfTables =
+            (UINT8) ((Gbl_Xsdt->Header.Length - sizeof (ACPI_TABLE_HEADER))
+            / ItemSize);
+    }
+    else /* Use RSDT if XSDT is not available */
+    {
+        ItemSize = sizeof (UINT32);
+        TableData = ACPI_CAST8 (Gbl_Rsdt) + sizeof (ACPI_TABLE_HEADER);
+        NumberOfTables =
+            (UINT8) ((Gbl_Rsdt->Header.Length - sizeof (ACPI_TABLE_HEADER))
+            / ItemSize);
+    }
+
+    /* Search RSDT/XSDT for the requested table */
+
+    for (i = 0; i < NumberOfTables; ++i, TableData += ItemSize)
+    {
+        if (Gbl_Revision)
+        {
+            TableAddress =
+                (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST64 (TableData));
+        }
+        else
+        {
+            TableAddress =
+                (ACPI_PHYSICAL_ADDRESS) (*ACPI_CAST32 (TableData));
+        }
+
+        Status = OslMapTable (TableAddress, NULL, &MappedTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        OslAddTableToList (MappedTable->Signature, 0);
+        OslUnmapTable (MappedTable);
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    OslGetBiosTable
  *
  * PARAMETERS:  Signature       - ACPI Signature for common table. Must be
  *                                a null terminated 4-character string.
@@ -627,14 +839,14 @@ OslTableInitialize (
  *              AE_LIMIT: Instance is beyond valid limit
  *              AE_NOT_FOUND: A table with the signature was not found
  *
- * DESCRIPTION: Get an ACPI table via the root table (RSDT/XSDT)
+ * DESCRIPTION: Get a BIOS provided ACPI table
  *
  * NOTE:        Assumes the input signature is uppercase.
  *
  *****************************************************************************/
 
 static ACPI_STATUS
-OslGetTableViaRoot (
+OslGetBiosTable (
     char                    *Signature,
     UINT32                  Instance,
     ACPI_TABLE_HEADER       **Table,
@@ -647,13 +859,17 @@ OslGetTableViaRoot (
     UINT8                   ItemSize;
     UINT32                  CurrentInstance = 0;
     ACPI_PHYSICAL_ADDRESS   TableAddress = 0;
-    ACPI_STATUS             Status;
+    UINT32                  TableLength = 0;
+    ACPI_STATUS             Status = AE_OK;
     UINT32                  i;
 
 
-    /* DSDT and FACS address must be extracted from the FADT */
+    /* Handle special tables whose addresses are not in RSDT/XSDT */
 
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT) ||
+    if (ACPI_COMPARE_NAME (Signature, AP_DUMP_SIG_RSDP) ||
+        ACPI_COMPARE_NAME (Signature, ACPI_SIG_RSDT) ||
+        ACPI_COMPARE_NAME (Signature, ACPI_SIG_XSDT) ||
+        ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT) ||
         ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
     {
         /*
@@ -674,7 +890,7 @@ OslGetTableViaRoot (
                 TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->Dsdt;
             }
         }
-        else /* FACS */
+        else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_FACS))
         {
             if ((Gbl_Fadt->Header.Length >= MIN_FADT_FOR_XFACS) &&
                 Gbl_Fadt->XFacs)
@@ -687,23 +903,33 @@ OslGetTableViaRoot (
                 TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Fadt->Facs;
             }
         }
-
-        if (!TableAddress)
+        else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_XSDT))
         {
-            fprintf (stderr,
-                "Could not find a valid address for %4.4s in the FADT\n",
-                Signature);
-
-            return (AE_NOT_FOUND);
+            if (!Gbl_Revision)
+            {
+                return (AE_BAD_SIGNATURE);
+            }
+            TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Rsdp.XsdtPhysicalAddress;
+        }
+        else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_RSDT))
+        {
+            TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_Rsdp.RsdtPhysicalAddress;
+        }
+        else
+        {
+            TableAddress = (ACPI_PHYSICAL_ADDRESS) Gbl_RsdpAddress;
+            Signature = ACPI_SIG_RSDP;
         }
 
-        /* Now we can get the requested table (DSDT or FACS) */
+        /* Now we can get the requested special table */
 
         Status = OslMapTable (TableAddress, Signature, &MappedTable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
+
+        TableLength = ApGetTableLength (MappedTable);
     }
     else /* Case for a normal ACPI table */
     {
@@ -712,16 +938,16 @@ OslGetTableViaRoot (
             ItemSize = sizeof (UINT64);
             TableData = ACPI_CAST8 (Gbl_Xsdt) + sizeof (ACPI_TABLE_HEADER);
             NumberOfTables =
-                (Gbl_Xsdt->Header.Length - sizeof (ACPI_TABLE_HEADER))
-                / ItemSize;
+                (UINT8) ((Gbl_Xsdt->Header.Length - sizeof (ACPI_TABLE_HEADER))
+                / ItemSize);
         }
         else /* Use RSDT if XSDT is not available */
         {
             ItemSize = sizeof (UINT32);
             TableData = ACPI_CAST8 (Gbl_Rsdt) + sizeof (ACPI_TABLE_HEADER);
             NumberOfTables =
-                (Gbl_Rsdt->Header.Length - sizeof (ACPI_TABLE_HEADER))
-                / ItemSize;
+                (UINT8) ((Gbl_Rsdt->Header.Length - sizeof (ACPI_TABLE_HEADER))
+                / ItemSize);
         }
 
         /* Search RSDT/XSDT for the requested table */
@@ -744,12 +970,13 @@ OslGetTableViaRoot (
             {
                 return (Status);
             }
+            TableLength = MappedTable->Length;
 
             /* Does this table match the requested signature? */
 
             if (!ACPI_COMPARE_NAME (MappedTable->Signature, Signature))
             {
-                AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
+                OslUnmapTable (MappedTable);
                 MappedTable = NULL;
                 continue;
             }
@@ -758,7 +985,7 @@ OslGetTableViaRoot (
 
             if (CurrentInstance != Instance)
             {
-                AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
+                OslUnmapTable (MappedTable);
                 MappedTable = NULL;
                 CurrentInstance++;
                 continue;
@@ -768,36 +995,39 @@ OslGetTableViaRoot (
         }
     }
 
-    if (CurrentInstance != Instance)
+    if (!MappedTable)
     {
         return (AE_LIMIT);
     }
 
-    if (!MappedTable)
+    if (TableLength == 0)
     {
-        return (AE_NOT_FOUND);
+        Status = AE_BAD_HEADER;
+        goto ErrorExit;
     }
 
     /* Copy table to local buffer and return it */
 
-    LocalTable = calloc (1, MappedTable->Length);
+    LocalTable = calloc (1, TableLength);
     if (!LocalTable)
     {
-        return (AE_NO_MEMORY);
+        Status = AE_NO_MEMORY;
+        goto ErrorExit;
     }
 
-    ACPI_MEMCPY (LocalTable, MappedTable, MappedTable->Length);
-    AcpiOsUnmapMemory (MappedTable, MappedTable->Length);
+    ACPI_MEMCPY (LocalTable, MappedTable, TableLength);
     *Address = TableAddress;
-
     *Table = LocalTable;
+
+ErrorExit:
+    OslUnmapTable (MappedTable);
     return (AE_OK);
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    OslAddTablesToList
+ * FUNCTION:    OslListCustomizedTables
  *
  * PARAMETERS:  Directory           - Directory that contains the tables
  *
@@ -808,84 +1038,50 @@ OslGetTableViaRoot (
  *****************************************************************************/
 
 static ACPI_STATUS
-OslAddTablesToList(
+OslListCustomizedTables (
     char                    *Directory)
 {
-    struct stat             FileInfo;
-    OSL_TABLE_INFO          *NewInfo;
-    OSL_TABLE_INFO          *Info;
-    struct dirent           *DirInfo;
-    DIR                     *TableDir;
-    char                    TempName[4];
-    char                    Filename[PATH_MAX];
-    UINT32                  i;
+    void                    *TableDir;
+    UINT32                  Instance;
+    char                    TempName[ACPI_NAME_SIZE];
+    char                    *Filename;
+    ACPI_STATUS             Status = AE_OK;
 
 
     /* Open the requested directory */
 
-    if (stat (Directory, &FileInfo) == -1)
+    TableDir = AcpiOsOpenDirectory (Directory, "*", REQUEST_FILE_ONLY);
+    if (!TableDir)
     {
-        return (AE_NOT_FOUND);
-    }
-
-    if (!(TableDir = opendir (Directory)))
-    {
-        return (AE_ERROR);
-    }
-
-    /* Move pointer to the end of the list */
-
-    if (!Gbl_TableListHead)
-    {
-        return (AE_ERROR);
-    }
-
-    Info = Gbl_TableListHead;
-    for (i = 0; i < Gbl_TableListHead->Instance; i++)
-    {
-        Info = Info->Next;
+        return (OslGetLastStatus (AE_NOT_FOUND));
     }
 
     /* Examine all entries in this directory */
 
-    while ((DirInfo = readdir (TableDir)) != 0)
+    while ((Filename = AcpiOsGetNextFilename (TableDir)))
     {
+        /* Extract table name and instance number */
+
+        Status = OslTableNameFromFile (Filename, TempName, &Instance);
+
         /* Ignore meaningless files */
 
-        if (DirInfo->d_name[0] == '.')
+        if (ACPI_FAILURE (Status))
         {
             continue;
         }
 
-        /* Skip any subdirectories and create a new info node */
+        /* Add new info node to global table list */
 
-        sprintf (Filename, "%s/%s", Directory, DirInfo->d_name);
-
-        if (stat (Filename, &FileInfo) == -1)
+        Status = OslAddTableToList (TempName, Instance);
+        if (ACPI_FAILURE (Status))
         {
-            return (AE_ERROR);
-        }
-
-        if (!S_ISDIR (FileInfo.st_mode))
-        {
-            NewInfo = calloc (1, sizeof (OSL_TABLE_INFO));
-            if (strlen (DirInfo->d_name) > ACPI_NAME_SIZE)
-            {
-                sscanf (DirInfo->d_name, "%[^1-9]%d",
-                    TempName, &NewInfo->Instance);
-            }
-
-            /* Add new info node to global table list */
-
-            sscanf (DirInfo->d_name, "%4s", NewInfo->Signature);
-            Info->Next = NewInfo;
-            Info = NewInfo;
-            Gbl_TableListHead->Instance++;
+            break;
         }
     }
 
-    closedir (TableDir);
-    return (AE_OK);
+    AcpiOsCloseDirectory (TableDir);
+    return (Status);
 }
 
 
@@ -900,9 +1096,9 @@ OslAddTablesToList(
  *                                    returned
  *
  * RETURN:      Status; Mapped table is returned if AE_OK.
+ *              AE_NOT_FOUND: A valid table was not found at the address
  *
- * DESCRIPTION: Map entire ACPI table into caller's address space. Also
- *              validates the table and checksum.
+ * DESCRIPTION: Map entire ACPI table into caller's address space.
  *
  *****************************************************************************/
 
@@ -916,21 +1112,23 @@ OslMapTable (
     UINT32                  Length;
 
 
-    /* Map the header so we can get the table length */
+    if (!Address)
+    {
+        return (AE_BAD_ADDRESS);
+    }
 
+    /*
+     * Map the header so we can get the table length.
+     * Use sizeof (ACPI_TABLE_HEADER) as:
+     * 1. it is bigger than 24 to include RSDP->Length
+     * 2. it is smaller than sizeof (ACPI_TABLE_RSDP)
+     */
     MappedTable = AcpiOsMapMemory (Address, sizeof (ACPI_TABLE_HEADER));
     if (!MappedTable)
     {
         fprintf (stderr, "Could not map table header at 0x%8.8X%8.8X\n",
             ACPI_FORMAT_UINT64 (Address));
-        return (AE_BAD_ADDRESS);
-    }
-
-    /* Check if table is valid */
-
-    if (!ApIsValidHeader (MappedTable))
-    {
-        return (AE_BAD_HEADER);
+        return (OslGetLastStatus (AE_BAD_ADDRESS));
     }
 
     /* If specified, signature must match */
@@ -938,35 +1136,106 @@ OslMapTable (
     if (Signature &&
         !ACPI_COMPARE_NAME (Signature, MappedTable->Signature))
     {
-        return (AE_NOT_EXIST);
+        AcpiOsUnmapMemory (MappedTable, sizeof (ACPI_TABLE_HEADER));
+        return (AE_BAD_SIGNATURE);
     }
 
     /* Map the entire table */
 
-    Length = MappedTable->Length;
+    Length = ApGetTableLength (MappedTable);
     AcpiOsUnmapMemory (MappedTable, sizeof (ACPI_TABLE_HEADER));
+    if (Length == 0)
+    {
+        return (AE_BAD_HEADER);
+    }
 
     MappedTable = AcpiOsMapMemory (Address, Length);
     if (!MappedTable)
     {
         fprintf (stderr, "Could not map table at 0x%8.8X%8.8X length %8.8X\n",
             ACPI_FORMAT_UINT64 (Address), Length);
-        return (AE_NO_MEMORY);
+        return (OslGetLastStatus (AE_INVALID_TABLE_LENGTH));
     }
+
+    (void) ApIsValidChecksum (MappedTable);
 
     *Table = MappedTable;
+    return (AE_OK);
+}
 
-    /*
-     * Checksum for RSDP.
-     * Note: Other checksums are computed during the table dump.
-     */
 
-    if (AcpiTbValidateRsdp (ACPI_CAST_PTR (ACPI_TABLE_RSDP, MappedTable)) ==
-        AE_BAD_CHECKSUM)
+/******************************************************************************
+ *
+ * FUNCTION:    OslUnmapTable
+ *
+ * PARAMETERS:  Table               - A pointer to the mapped table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Unmap entire ACPI table.
+ *
+ *****************************************************************************/
+
+static void
+OslUnmapTable (
+    ACPI_TABLE_HEADER       *Table)
+{
+    if (Table)
     {
-        fprintf (stderr, "Warning: wrong checksum for RSDP\n");
+        AcpiOsUnmapMemory (Table, ApGetTableLength (Table));
+    }
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    OslTableNameFromFile
+ *
+ * PARAMETERS:  Filename            - File that contains the desired table
+ *              Signature           - Pointer to 4-character buffer to store
+ *                                    extracted table signature.
+ *              Instance            - Pointer to integer to store extracted
+ *                                    table instance number.
+ *
+ * RETURN:      Status; Table name is extracted if AE_OK.
+ *
+ * DESCRIPTION: Extract table signature and instance number from a table file
+ *              name.
+ *
+ *****************************************************************************/
+
+static ACPI_STATUS
+OslTableNameFromFile (
+    char                    *Filename,
+    char                    *Signature,
+    UINT32                  *Instance)
+{
+
+    /* Ignore meaningless files */
+
+    if (strlen (Filename) < ACPI_NAME_SIZE)
+    {
+        return (AE_BAD_SIGNATURE);
     }
 
+    /* Extract instance number */
+
+    if (isdigit ((int) Filename[ACPI_NAME_SIZE]))
+    {
+        sscanf (&Filename[ACPI_NAME_SIZE], "%d", Instance);
+    }
+    else if (strlen (Filename) != ACPI_NAME_SIZE)
+    {
+        return (AE_BAD_SIGNATURE);
+    }
+    else
+    {
+        *Instance = 0;
+    }
+
+    /* Extract signature */
+
+    ACPI_MOVE_NAME (Signature, Filename);
     return (AE_OK);
 }
 
@@ -975,7 +1244,7 @@ OslMapTable (
  *
  * FUNCTION:    OslReadTableFromFile
  *
- * PARAMETERS:  TableFile           - File that contains the desired table
+ * PARAMETERS:  Filename            - File that contains the desired table
  *              FileOffset          - Offset of the table in file
  *              Signature           - Optional ACPI Signature for desired table.
  *                                    A null terminated 4-character string.
@@ -989,34 +1258,39 @@ OslMapTable (
 
 static ACPI_STATUS
 OslReadTableFromFile (
-    FILE                    *TableFile,
+    char                    *Filename,
     ACPI_SIZE               FileOffset,
     char                    *Signature,
     ACPI_TABLE_HEADER       **Table)
 {
+    FILE                    *TableFile;
     ACPI_TABLE_HEADER       Header;
-    ACPI_TABLE_RSDP         Rsdp;
-    ACPI_TABLE_HEADER       *LocalTable;
+    ACPI_TABLE_HEADER       *LocalTable = NULL;
     UINT32                  TableLength;
-    UINT32                  Count;
+    INT32                   Count;
+    UINT32                  Total = 0;
+    ACPI_STATUS             Status = AE_OK;
 
 
-    /* Read the table header */
+    /* Open the file */
+
+    TableFile = fopen (Filename, "rb");
+    if (TableFile == NULL)
+    {
+        fprintf (stderr, "Could not open table file: %s\n", Filename);
+        return (OslGetLastStatus (AE_NOT_FOUND));
+    }
 
     fseek (TableFile, FileOffset, SEEK_SET);
+
+    /* Read the Table header to get the table length */
 
     Count = fread (&Header, 1, sizeof (ACPI_TABLE_HEADER), TableFile);
     if (Count != sizeof (ACPI_TABLE_HEADER))
     {
-        fprintf (stderr, "Could not read ACPI table header from file\n");
-        return (AE_BAD_HEADER);
-    }
-
-    /* Check if table is valid */
-
-    if (!ApIsValidHeader (&Header))
-    {
-        return (AE_BAD_HEADER);
+        fprintf (stderr, "Could not read table header: %s\n", Filename);
+        Status = AE_BAD_HEADER;
+        goto ErrorExit;
     }
 
     /* If signature is specified, it must match the table */
@@ -1026,29 +1300,15 @@ OslReadTableFromFile (
     {
         fprintf (stderr, "Incorrect signature: Expecting %4.4s, found %4.4s\n",
             Signature, Header.Signature);
-        return (AE_NOT_FOUND);
+        Status = AE_BAD_SIGNATURE;
+        goto ErrorExit;
     }
 
-    /*
-     * For RSDP, we must read the entire table, because the length field
-     * is in a non-standard place, beyond the normal ACPI header.
-     */
-    if (ACPI_COMPARE_NAME (Header.Signature, ACPI_SIG_RSDP))
+    TableLength = ApGetTableLength (&Header);
+    if (TableLength == 0)
     {
-        fseek (TableFile, FileOffset, SEEK_SET);
-
-        Count = fread (&Rsdp, 1, sizeof (ACPI_TABLE_RSDP), TableFile);
-        if (Count != sizeof (ACPI_TABLE_RSDP))
-        {
-            fprintf (stderr, "Error while reading RSDP\n");
-            return (AE_NOT_FOUND);
-        }
-
-        TableLength = Rsdp.Length;
-    }
-    else
-    {
-        TableLength = Header.Length;
+        Status = AE_BAD_HEADER;
+        goto ErrorExit;
     }
 
     /* Read the entire table into a local buffer */
@@ -1059,41 +1319,43 @@ OslReadTableFromFile (
         fprintf (stderr,
             "%4.4s: Could not allocate buffer for table of length %X\n",
             Header.Signature, TableLength);
-        return (AE_NO_MEMORY);
+        Status = AE_NO_MEMORY;
+        goto ErrorExit;
     }
 
     fseek (TableFile, FileOffset, SEEK_SET);
 
-    Count = fread (LocalTable, 1, TableLength, TableFile);
-    if (Count != TableLength)
+    while (!feof (TableFile) && Total < TableLength)
     {
-        fprintf (stderr, "%4.4s: Error while reading table content\n",
-            Header.Signature);
-        return (AE_NOT_FOUND);
-    }
-
-    /* Validate checksum, except for special tables */
-
-    if (!ACPI_COMPARE_NAME (Header.Signature, ACPI_SIG_S3PT) &&
-        !ACPI_COMPARE_NAME (Header.Signature, ACPI_SIG_FACS))
-    {
-        if (AcpiTbChecksum ((UINT8 *) LocalTable, TableLength))
+        Count = fread (LocalTable, 1, TableLength-Total, TableFile);
+        if (Count < 0)
         {
-            fprintf (stderr, "%4.4s: Warning: wrong checksum\n",
+            fprintf (stderr, "%4.4s: Could not read table content\n",
                 Header.Signature);
+            Status = AE_INVALID_TABLE_LENGTH;
+            goto ErrorExit;
         }
+
+        Total += Count;
     }
 
+    /* Validate checksum */
+
+    (void) ApIsValidChecksum (LocalTable);
+
+ErrorExit:
+    fclose (TableFile);
     *Table = LocalTable;
-    return (AE_OK);
+    return (Status);
 }
 
 
 /******************************************************************************
  *
- * FUNCTION:    OslGetOverrideTable
+ * FUNCTION:    OslGetCustomizedTable
  *
- * PARAMETERS:  Signature       - ACPI Signature for desired table. Must be
+ * PARAMETERS:  Pathname        - Directory to find Linux customized table
+ *              Signature       - ACPI Signature for desired table. Must be
  *                                a null terminated 4-character string.
  *              Instance        - Multiple table support for SSDT/UEFI (0...n)
  *                                Must be 0 for other tables.
@@ -1101,211 +1363,83 @@ OslReadTableFromFile (
  *              Address         - Where the table physical address is returned
  *
  * RETURN:      Status; Table buffer is returned if AE_OK.
- *              AE_NOT_FOUND: A valid table was not found at the address
+ *              AE_LIMIT: Instance is beyond valid limit
+ *              AE_NOT_FOUND: A table with the signature was not found
  *
- * DESCRIPTION: Get a table that was overridden and appears under the
- *              directory OVERRIDE_TABLE_DIR.
+ * DESCRIPTION: Get an OS customized table.
  *
  *****************************************************************************/
 
 static ACPI_STATUS
-OslGetOverrideTable (
+OslGetCustomizedTable (
+    char                    *Pathname,
     char                    *Signature,
     UINT32                  Instance,
     ACPI_TABLE_HEADER       **Table,
     ACPI_PHYSICAL_ADDRESS   *Address)
 {
-    ACPI_TABLE_HEADER       Header;
-    struct stat             FileInfo;
-    struct dirent           *DirInfo;
-    DIR                     *TableDir;
-    FILE                    *TableFile = NULL;
+    void                    *TableDir;
     UINT32                  CurrentInstance = 0;
-    UINT32                  Count;
-    char                    TempName[4];
+    char                    TempName[ACPI_NAME_SIZE];
     char                    TableFilename[PATH_MAX];
+    char                    *Filename;
     ACPI_STATUS             Status;
 
 
-    /* Open the directory for override tables */
+    /* Open the directory for customized tables */
 
-    if (stat (OVERRIDE_TABLE_DIR, &FileInfo) == -1)
+    TableDir = AcpiOsOpenDirectory (Pathname, "*", REQUEST_FILE_ONLY);
+    if (!TableDir)
     {
-        return (AE_NOT_FOUND);
-    }
-
-    if (!(TableDir = opendir (OVERRIDE_TABLE_DIR)))
-    {
-        return (AE_ERROR);
+        return (OslGetLastStatus (AE_NOT_FOUND));
     }
 
     /* Attempt to find the table in the directory */
 
-    while ((DirInfo = readdir (TableDir)) != 0)
+    while ((Filename = AcpiOsGetNextFilename (TableDir)))
     {
         /* Ignore meaningless files */
 
-        if (DirInfo->d_name[0] == '.')
+        if (!ACPI_COMPARE_NAME (Filename, Signature))
         {
             continue;
         }
 
-        if (!ACPI_COMPARE_NAME (DirInfo->d_name, Signature))
+        /* Extract table name and instance number */
+
+        Status = OslTableNameFromFile (Filename, TempName, &CurrentInstance);
+
+        /* Ignore meaningless files */
+
+        if (ACPI_FAILURE (Status) || CurrentInstance != Instance)
         {
             continue;
         }
 
-        if (strlen (DirInfo->d_name) > 4)
+        /* Create the table pathname */
+
+        if (Instance != 0)
         {
-            sscanf (DirInfo->d_name, "%[^1-9]%d", TempName, &CurrentInstance);
-            if (CurrentInstance != Instance)
-            {
-                continue;
-            }
+            sprintf (TableFilename, "%s/%4.4s%d", Pathname, TempName, Instance);
         }
-
-        /* Create the table pathname and open the file */
-
-        sprintf (TableFilename, "%s/%s", OVERRIDE_TABLE_DIR, DirInfo->d_name);
-
-        TableFile = fopen (TableFilename, "rb");
-        if (TableFile == NULL)
+        else
         {
-            perror (TableFilename);
-            return (AE_ERROR);
+            sprintf (TableFilename, "%s/%4.4s", Pathname, TempName);
         }
-
-        /* Read the Table header to get the table length */
-
-        Count = fread (&Header, 1, sizeof (ACPI_TABLE_HEADER), TableFile);
-        if (Count != sizeof (ACPI_TABLE_HEADER))
-        {
-            fclose (TableFile);
-            return (AE_ERROR);
-        }
-
         break;
     }
 
-    closedir (TableDir);
-    if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_SSDT) && !TableFile)
+    AcpiOsCloseDirectory (TableDir);
+
+    if (!Filename)
     {
         return (AE_LIMIT);
     }
 
-    if (!TableFile)
-    {
-        return (AE_NOT_FOUND);
-    }
-
-    /* There is no physical address saved for override tables, use zero */
+    /* There is no physical address saved for customized tables, use zero */
 
     *Address = 0;
-    Status = OslReadTableFromFile (TableFile, 0, NULL, Table);
+    Status = OslReadTableFromFile (TableFilename, 0, NULL, Table);
 
-    fclose (TableFile);
-    return (Status);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    OslGetDynamicSsdt
- *
- * PARAMETERS:  Instance        - For SSDTs (0...n)
- *              Table           - Where a pointer to the table is returned
- *              Address         - Where the table physical address is returned
- *
- * RETURN:      Status; Table buffer is returned if AE_OK.
- *              AE_NOT_FOUND: A valid table was not found at the address
- *
- * DESCRIPTION: Get an SSDT table under directory DYNAMIC_SSDT_DIR.
- *
- *****************************************************************************/
-
-static ACPI_STATUS
-OslGetDynamicSsdt (
-    UINT32                  Instance,
-    ACPI_TABLE_HEADER       **Table,
-    ACPI_PHYSICAL_ADDRESS   *Address)
-{
-    ACPI_TABLE_HEADER       Header;
-    struct stat             FileInfo;
-    struct dirent           *DirInfo;
-    DIR                     *TableDir;
-    FILE                    *TableFile = NULL;
-    UINT32                  Count;
-    UINT32                  CurrentInstance = 0;
-    char                    TempName[4];
-    char                    TableFilename[PATH_MAX];
-    ACPI_STATUS             Status;
-
-
-    /* Open the directory for dynamically loaded SSDTs */
-
-    if (stat (DYNAMIC_SSDT_DIR, &FileInfo) == -1)
-    {
-        return (AE_NOT_FOUND);
-    }
-
-    if (!(TableDir = opendir (DYNAMIC_SSDT_DIR)))
-    {
-        return (AE_ERROR);
-    }
-
-    /* Search directory for correct SSDT instance */
-
-    while ((DirInfo = readdir (TableDir)) != 0)
-    {
-        /* Ignore meaningless files */
-
-        if (DirInfo->d_name[0] == '.')
-        {
-            continue;
-        }
-
-        /* Check if this table is what we need */
-
-        sscanf (DirInfo->d_name, "%[^1-9]%d", TempName, &CurrentInstance);
-        if (CurrentInstance != Instance)
-        {
-            continue;
-        }
-
-        /* Get the SSDT filename and open the file */
-
-        sprintf (TableFilename, "%s/%s", DYNAMIC_SSDT_DIR, DirInfo->d_name);
-
-        TableFile = fopen (TableFilename, "rb");
-        if (TableFile == NULL)
-        {
-            perror (TableFilename);
-            return (AE_ERROR);
-        }
-
-        /* Read the Table header to get the table length */
-
-        Count = fread (&Header, 1, sizeof (ACPI_TABLE_HEADER), TableFile);
-        if (Count != sizeof (ACPI_TABLE_HEADER))
-        {
-            fclose (TableFile);
-            return (AE_ERROR);
-        }
-
-        break;
-    }
-
-    closedir (TableDir);
-    if (CurrentInstance != Instance)
-    {
-        return (AE_LIMIT);
-    }
-
-    /* There is no physical address saved for dynamic SSDTs, use zero */
-
-    *Address = 0;
-    Status = OslReadTableFromFile (TableFile, Header.Length, NULL, Table);
-
-    fclose (TableFile);
     return (Status);
 }

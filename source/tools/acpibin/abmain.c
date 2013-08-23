@@ -53,6 +53,10 @@ AbDisplayUsage (
     UINT8                   OptionCount);
 
 
+#define AB_UTILITY_NAME             "ACPI Binary Table Dump Utility"
+#define AB_SUPPORTED_OPTIONS        "c:d:e:h:s:tv"
+
+
 /******************************************************************************
  *
  * FUNCTION:    AbDisplayUsage
@@ -73,12 +77,13 @@ AbDisplayUsage (
 
     ACPI_USAGE_HEADER ("acpibin [options]");
 
-    ACPI_OPTION ("-c <File1><File2>",           "Compare two binary AML files");
-    ACPI_OPTION ("-d <In><Out>",                "Dump AML binary to text file");
-    ACPI_OPTION ("-e <Sig><In><Out>",           "Extract binary AML table from AcpiDump file");
-    ACPI_OPTION ("-h <File>",                   "Display table header for binary AML file");
-    ACPI_OPTION ("-s <File>",                   "Update checksum for binary AML file");
-    ACPI_OPTION ("-t",                          "Terse mode");
+    ACPI_OPTION ("-c <File1><File2>",       "Compare two binary AML files");
+    ACPI_OPTION ("-d <In><Out>",            "Dump AML binary to text file");
+    ACPI_OPTION ("-e <Sig><In><Out>",       "Extract binary AML table from AcpiDump file");
+    ACPI_OPTION ("-h <File>",               "Display table header for binary AML file");
+    ACPI_OPTION ("-s <File>",               "Update checksum for binary AML file");
+    ACPI_OPTION ("-t",                      "Terse mode");
+    ACPI_OPTION ("-v",                      "Display version information");
 }
 
 
@@ -105,7 +110,7 @@ main (
     AcpiGbl_DbOutputFlags = DB_CONSOLE_OUTPUT;
 
     AcpiOsInitialize ();
-    printf (ACPI_COMMON_SIGNON ("ACPI Binary AML File Utility"));
+    printf (ACPI_COMMON_SIGNON (AB_UTILITY_NAME));
 
     if (argc < 2)
     {
@@ -115,7 +120,7 @@ main (
 
     /* Command line options */
 
-    while ((j = AcpiGetopt (argc, argv, "c:d:e:h:s:t")) != EOF) switch(j)
+    while ((j = AcpiGetopt (argc, argv, AB_SUPPORTED_OPTIONS)) != EOF) switch(j)
     {
     case 'c':   /* Compare Files */
 
@@ -177,6 +182,10 @@ main (
 
         Gbl_TerseMode = TRUE;
         break;
+
+    case 'v': /* -v: (Version): signon already emitted, just exit */
+
+        return (0);
 
     default:
 

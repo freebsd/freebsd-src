@@ -383,6 +383,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_RSDUMP_INFO",                    SRC_TYPE_STRUCT},
     {"ACPI_RW_LOCK",                        SRC_TYPE_STRUCT},
     {"ACPI_S3PT_HEADER",                    SRC_TYPE_STRUCT},
+    {"ACPI_SCI_HANDLER",                    SRC_TYPE_SIMPLE},
+    {"ACPI_SCI_HANDLER_INFO",               SRC_TYPE_STRUCT},
     {"ACPI_SCOPE_STATE",                    SRC_TYPE_STRUCT},
     {"ACPI_SEMAPHORE",                      SRC_TYPE_SIMPLE},
     {"ACPI_SIGNAL_FATAL_INFO",              SRC_TYPE_STRUCT},

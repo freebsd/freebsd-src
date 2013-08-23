@@ -448,8 +448,8 @@ AcpiNsLookup (
                     /* Current scope has no parent scope */
 
                     ACPI_ERROR ((AE_INFO,
-                        "ACPI path has too many parent prefixes (^) "
-                        "- reached beyond root node"));
+                        "%s: Path has too many parent prefixes (^) "
+                        "- reached beyond root node", Pathname));
                     return_ACPI_STATUS (AE_NOT_FOUND);
                 }
             }

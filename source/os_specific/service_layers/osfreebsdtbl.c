@@ -45,7 +45,6 @@
 
 #include <kenv.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
@@ -77,10 +76,6 @@ OslGetTableViaRoot (
     ACPI_TABLE_HEADER       **Table,
     ACPI_PHYSICAL_ADDRESS   *Address);
 
-
-/* File locations */
-
-#define SYSTEM_MEMORY       "/dev/mem"
 
 /* Hints for RSDP */
 
@@ -278,6 +273,8 @@ AcpiOsGetTableByName (
  *
  * PARAMETERS:  Index           - Which table to get
  *              Table           - Where a pointer to the table is returned
+ *              Instance        - Where a pointer to the table instance no. is
+ *                                returned
  *              Address         - Where the table physical address is returned
  *
  * RETURN:      Status; Table buffer and physical address returned if AE_OK.
@@ -293,6 +290,7 @@ ACPI_STATUS
 AcpiOsGetTableByIndex (
     UINT32                  Index,
     ACPI_TABLE_HEADER       **Table,
+    UINT32                  *Instance,
     ACPI_PHYSICAL_ADDRESS   *Address)
 {
     OSL_TABLE_INFO          *Info;
@@ -346,86 +344,12 @@ AcpiOsGetTableByIndex (
         Status = AcpiOsGetTableByName (Info->Signature, Info->Instance,
             Table, Address);
     }
+
+    if (ACPI_SUCCESS (Status))
+    {
+        *Instance = Info->Instance;
+    }
     return (Status);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsMapMemory
- *
- * PARAMETERS:  Where               - Physical address of memory to be mapped
- *              Length              - How much memory to map
- *
- * RETURN:      Pointer to mapped memory. Null on error.
- *
- * DESCRIPTION: Map physical memory into local address space.
- *
- *****************************************************************************/
-
-void *
-AcpiOsMapMemory (
-    ACPI_PHYSICAL_ADDRESS   Where,
-    ACPI_SIZE               Length)
-{
-    UINT8                   *MappedMemory;
-    ACPI_PHYSICAL_ADDRESS   Offset;
-    int                     fd;
-
-
-    fd = open (SYSTEM_MEMORY, O_RDONLY);
-    if (fd < 0)
-    {
-        fprintf (stderr, "Cannot open %s\n", SYSTEM_MEMORY);
-        return (NULL);
-    }
-
-    /* Align the offset to use mmap */
-
-    Offset = Where % PAGE_SIZE;
-
-    /* Map the table header to get the length of the full table */
-
-    MappedMemory = mmap (NULL, (Length + Offset), PROT_READ, MAP_SHARED,
-        fd, (Where - Offset));
-    close (fd);
-
-    if (MappedMemory == MAP_FAILED)
-    {
-        fprintf (stderr,
-            "Could not map memory at 0x%8.8X%8.8X length 0x%8.8X%8.8X\n",
-            ACPI_FORMAT_UINT64 (Where), ACPI_FORMAT_NATIVE_UINT (Length));
-        return (NULL);
-    }
-
-    return (ACPI_CAST8 (MappedMemory + Offset));
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsUnmapMemory
- *
- * PARAMETERS:  Where               - Logical address of memory to be unmapped
- *              Length              - How much memory to unmap
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Delete a previously created mapping. Where and Length must
- *              correspond to a previous mapping exactly.
- *
- *****************************************************************************/
-
-void
-AcpiOsUnmapMemory (
-    void                    *Where,
-    ACPI_SIZE               Length)
-{
-    ACPI_PHYSICAL_ADDRESS   Offset;
-
-
-    Offset = (ACPI_PHYSICAL_ADDRESS) Where % PAGE_SIZE;
-    munmap ((UINT8 *) Where - Offset, (Length + Offset));
 }
 
 
@@ -467,7 +391,11 @@ OslTableInitialize (
 
     /* Attempt to use kenv or sysctl to find RSD PTR record. */
 
-    if (kenv (KENV_GET, SYSTEM_KENV, Buffer, sizeof (Buffer)) > 0)
+    if (Gbl_RsdpBase)
+    {
+        Address = Gbl_RsdpBase;
+    }
+    else if (kenv (KENV_GET, SYSTEM_KENV, Buffer, sizeof (Buffer)) > 0)
     {
         Address = ACPI_STRTOUL (Buffer, NULL, 0);
     }
@@ -962,18 +890,9 @@ OslMapTable (
         return (AE_BAD_ADDRESS);
     }
 
+    (void) ApIsValidChecksum (MappedTable);
+
     *Table = MappedTable;
-
-    /*
-     * Checksum for RSDP.
-     * Note: Other checksums are computed during the table dump.
-     */
-
-    if (AcpiTbValidateRsdp (ACPI_CAST_PTR (ACPI_TABLE_RSDP, MappedTable)) ==
-        AE_BAD_CHECKSUM)
-    {
-        fprintf (stderr, "Warning: wrong checksum for RSDP\n");
-    }
 
     return (AE_OK);
 }

@@ -31,6 +31,8 @@ OBJECTS = \
 	$(OBJDIR)/apdump.o\
 	$(OBJDIR)/apfiles.o\
 	$(OBJDIR)/apmain.o\
+	$(OBJDIR)/osunixdir.o\
+	$(OBJDIR)/osunixmap.o\
 	$(OBJDIR)/tbprint.o\
 	$(OBJDIR)/tbxfroot.o\
 	$(OBJDIR)/utbuffer.o\

@@ -144,6 +144,8 @@ AcpiOsGetTableByAddress (
  *
  * PARAMETERS:  Index           - Which table to get
  *              Table           - Where a pointer to the table is returned
+ *              Instance        - Where a pointer to the table instance no. is
+ *                                returned
  *              Address         - Where the table physical address is returned
  *
  * RETURN:      Status; Table buffer and physical address returned if AE_OK.
@@ -163,6 +165,7 @@ ACPI_STATUS
 AcpiOsGetTableByIndex (
     UINT32                  Index,
     ACPI_TABLE_HEADER       **Table,
+    UINT32                  *Instance,
     ACPI_PHYSICAL_ADDRESS   *Address)
 {
     ACPI_STATUS             Status;
@@ -352,3 +355,54 @@ Cleanup:
     *Address = 0;
     return (AE_OK);
 }
+
+
+/* These are here for acpidump only, so we don't need to link oswinxf */
+
+#ifdef ACPI_DUMP_APP
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsMapMemory
+ *
+ * PARAMETERS:  Where               - Physical address of memory to be mapped
+ *              Length              - How much memory to map
+ *
+ * RETURN:      Pointer to mapped memory. Null on error.
+ *
+ * DESCRIPTION: Map physical memory into caller's address space
+ *
+ *****************************************************************************/
+
+void *
+AcpiOsMapMemory (
+    ACPI_PHYSICAL_ADDRESS   Where,
+    ACPI_SIZE               Length)
+{
+
+    return (ACPI_TO_POINTER ((ACPI_SIZE) Where));
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsUnmapMemory
+ *
+ * PARAMETERS:  Where               - Logical address of memory to be unmapped
+ *              Length              - How much memory to unmap
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Delete a previously created mapping. Where and Length must
+ *              correspond to a previous mapping exactly.
+ *
+ *****************************************************************************/
+
+void
+AcpiOsUnmapMemory (
+    void                    *Where,
+    ACPI_SIZE               Length)
+{
+
+    return;
+}
+#endif
