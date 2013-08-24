@@ -69,7 +69,7 @@ static int ou_refcnt = 0;
  | function for freeing external storage for mbuf
  */
 static void
-ext_free(void *a, void *b)
+ext_free(struct mbuf *m, void *a, void *b)
 {
      pduq_t *pq = b;
 
