@@ -138,7 +138,9 @@ int pfil_wowned(struct pfil_head *ph);
 #define	PFIL_RUNLOCK(p, t)	rm_runlock((p)->ph_plock, (t))
 #define	PFIL_WUNLOCK(p)		rm_wunlock((p)->ph_plock)
 #define	PFIL_WOWNED(p)		rm_wowned((p)->ph_plock)
-#define	PFIL_LIST_LOCK()	mtx_lock(&pfil_global_lock)
-#define	PFIL_LIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
+
+/* Internal locking macros for global/vnet pfil_head_list. */
+#define	PFIL_HEADLIST_LOCK()	mtx_lock(&pfil_global_lock)
+#define	PFIL_HEADLIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
 
 #endif /* _NET_PFIL_H_ */
