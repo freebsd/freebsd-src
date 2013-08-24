@@ -650,16 +650,20 @@ m_pkthdr_init(struct mbuf *m, int how)
 	int error;
 #endif
 	m->m_data = m->m_pktdat;
-	SLIST_INIT(&m->m_pkthdr.tags);
 	m->m_pkthdr.rcvif = NULL;
-	m->m_pkthdr.header = NULL;
+	SLIST_INIT(&m->m_pkthdr.tags);
 	m->m_pkthdr.len = 0;
 	m->m_pkthdr.flowid = 0;
-	m->m_pkthdr.fibnum = 0;
 	m->m_pkthdr.csum_flags = 0;
-	m->m_pkthdr.csum_data = 0;
-	m->m_pkthdr.tso_segsz = 0;
-	m->m_pkthdr.ether_vtag = 0;
+	m->m_pkthdr.fibnum = 0;
+	m->m_pkthdr.cosqos = 0;
+	m->m_pkthdr.rsstype = 0;
+	m->m_pkthdr.l2hlen = 0;
+	m->m_pkthdr.l3hlen = 0;
+	m->m_pkthdr.l4hlen = 0;
+	m->m_pkthdr.l5hlen = 0;
+	m->m_pkthdr.PH_per.sixtyfour[0] = 0;
+	m->m_pkthdr.PH_loc.sixtyfour[0] = 0;
 #ifdef MAC
 	/* If the label init fails, fail the alloc */
 	error = mac_mbuf_init(m, how);

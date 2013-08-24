@@ -921,7 +921,7 @@ found:
 	 * ip_reass() will return a different mbuf.
 	 */
 	IPSTAT_INC(ips_fragments);
-	m->m_pkthdr.header = ip;
+	m->m_pkthdr.PH_loc.ptr = ip;
 
 	/* Previous ip_reass() started here. */
 	/*
@@ -964,7 +964,7 @@ found:
 #endif
 	}
 
-#define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
+#define GETIP(m)	((struct ip*)((m)->m_pkthdr.PH_loc.ptr))
 
 	/*
 	 * Handle ECN by comparing this segment with the first one;

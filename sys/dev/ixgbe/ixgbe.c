@@ -4625,7 +4625,7 @@ ixgbe_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 			mp->m_pkthdr.csum_flags = 0;
 	}
 	if (status & IXGBE_RXD_STAT_L4CS) {
-		u16 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		u64 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 #if __FreeBSD_version >= 800000
 		if (sctp)
 			type = CSUM_SCTP_VALID;

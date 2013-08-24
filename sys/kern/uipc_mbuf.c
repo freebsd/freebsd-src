@@ -438,11 +438,6 @@ m_sanity(struct mbuf *m0, int sanitize)
 			M_SANITY_ACTION("m_data outside mbuf data range right");
 		if ((caddr_t)m->m_data + m->m_len > b)
 			M_SANITY_ACTION("m_data + m_len exeeds mbuf space");
-		if ((m->m_flags & M_PKTHDR) && m->m_pkthdr.header) {
-			if ((caddr_t)m->m_pkthdr.header < a ||
-			    (caddr_t)m->m_pkthdr.header > b)
-				M_SANITY_ACTION("m_pkthdr.header outside mbuf data range");
-		}
 
 		/* m->m_nextpkt may only be set on first mbuf in chain. */
 		if (m != m0 && m->m_nextpkt != NULL) {
@@ -746,7 +741,6 @@ m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
 			return NULL;
 		bcopy(&buf, mm->m_ext.ext_buf, mm->m_len);
 		mm->m_data = mm->m_ext.ext_buf;
-		mm->m_pkthdr.header = NULL;
 	}
 	if (prep && !(mm->m_flags & M_EXT) && len > M_LEADINGSPACE(mm)) {
 		bcopy(mm->m_data, &buf, mm->m_len);
@@ -757,7 +751,6 @@ m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
 		       mm->m_ext.ext_size - mm->m_len, mm->m_len);
 		mm->m_data = (caddr_t)mm->m_ext.ext_buf +
 			      mm->m_ext.ext_size - mm->m_len;
-		mm->m_pkthdr.header = NULL;
 	}
 
 	/* Append/prepend as many mbuf (clusters) as necessary to fit len. */
