@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2012
+.Dd August 23, 2013
 .Dt PFIL 9
 .Os
 .Sh NAME
@@ -36,7 +36,6 @@
 .Nm pfil_head_register ,
 .Nm pfil_head_unregister ,
 .Nm pfil_head_get ,
-.Nm pfil_hook_get ,
 .Nm pfil_add_hook ,
 .Nm pfil_remove_hook ,
 .Nm pfil_run_hooks ,
@@ -56,8 +55,6 @@
 .Fn pfil_head_unregister "struct pfil_head *head"
 .Ft "struct pfil_head *"
 .Fn pfil_head_get "int af" "u_long dlt"
-.Ft "struct packet_filter_hook *"
-.Fn pfil_hook_get "int dir" "struct pfil_head *head"
 .Ft void
 .Fn pfil_add_hook "int (*func)()" "void *arg" "int flags" "struct pfil_head *"
 .Ft void
@@ -245,11 +242,7 @@ lock export was added in
 .Fx 10.0 .
 .Sh BUGS
 The
-.Fn pfil_hook_get
-function
-is only safe for internal use.
-.Pp
-When a
+.Fn When a
 .Vt pfil_head
 is being modified, no traffic is diverted
 (to avoid deadlock).
