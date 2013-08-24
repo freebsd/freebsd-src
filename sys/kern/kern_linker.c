@@ -188,6 +188,8 @@ linker_file_sysinit(linker_file_t lf)
 	KLD_DPF(FILE, ("linker_file_sysinit: calling SYSINITs for %s\n",
 	    lf->filename));
 
+	sx_assert(&kld_sx, SA_XLOCKED);
+
 	if (linker_file_lookup_set(lf, "sysinit_set", &start, &stop, NULL) != 0)
 		return;
 	/*
@@ -213,6 +215,7 @@ linker_file_sysinit(linker_file_t lf)
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
 	 */
+	sx_xunlock(&kld_sx);
 	mtx_lock(&Giant);
 	for (sipp = start; sipp < stop; sipp++) {
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
@@ -222,6 +225,7 @@ linker_file_sysinit(linker_file_t lf)
 		(*((*sipp)->func)) ((*sipp)->udata);
 	}
 	mtx_unlock(&Giant);
+	sx_xlock(&kld_sx);
 }
 
 static void
@@ -231,6 +235,8 @@ linker_file_sysuninit(linker_file_t lf)
 
 	KLD_DPF(FILE, ("linker_file_sysuninit: calling SYSUNINITs for %s\n",
 	    lf->filename));
+
+	sx_assert(&kld_sx, SA_XLOCKED);
 
 	if (linker_file_lookup_set(lf, "sysuninit_set", &start, &stop,
 	    NULL) != 0)
@@ -259,6 +265,7 @@ linker_file_sysuninit(linker_file_t lf)
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
 	 */
+	sx_xunlock(&kld_sx);
 	mtx_lock(&Giant);
 	for (sipp = start; sipp < stop; sipp++) {
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
@@ -268,6 +275,7 @@ linker_file_sysuninit(linker_file_t lf)
 		(*((*sipp)->func)) ((*sipp)->udata);
 	}
 	mtx_unlock(&Giant);
+	sx_xlock(&kld_sx);
 }
 
 static void
@@ -279,13 +287,17 @@ linker_file_register_sysctls(linker_file_t lf)
 	    ("linker_file_register_sysctls: registering SYSCTLs for %s\n",
 	    lf->filename));
 
+	sx_assert(&kld_sx, SA_XLOCKED);
+
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
+	sx_xunlock(&kld_sx);
 	sysctl_lock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
 	sysctl_unlock();
+	sx_xlock(&kld_sx);
 }
 
 static void
@@ -296,13 +308,17 @@ linker_file_unregister_sysctls(linker_file_t lf)
 	KLD_DPF(FILE, ("linker_file_unregister_sysctls: unregistering SYSCTLs"
 	    " for %s\n", lf->filename));
 
+	sx_assert(&kld_sx, SA_XLOCKED);
+
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
+	sx_xunlock(&kld_sx);
 	sysctl_lock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
 	sysctl_unlock();
+	sx_xlock(&kld_sx);
 }
 
 static int
@@ -314,6 +330,8 @@ linker_file_register_modules(linker_file_t lf)
 
 	KLD_DPF(FILE, ("linker_file_register_modules: registering modules"
 	    " in %s\n", lf->filename));
+
+	sx_assert(&kld_sx, SA_XLOCKED);
 
 	if (linker_file_lookup_set(lf, "modmetadata_set", &start,
 	    &stop, NULL) != 0) {
@@ -403,10 +421,8 @@ linker_load_file(const char *filename, linker_file_t *result)
 				return (error);
 			}
 			modules = !TAILQ_EMPTY(&lf->modules);
-			sx_xunlock(&kld_sx);
 			linker_file_register_sysctls(lf);
 			linker_file_sysinit(lf);
-			sx_xlock(&kld_sx);
 			lf->flags |= LINKER_FILE_LINKED;
 
 			/*
@@ -657,10 +673,8 @@ linker_file_unload(linker_file_t file, int flags)
 	 */
 	if (file->flags & LINKER_FILE_LINKED) {
 		file->flags &= ~LINKER_FILE_LINKED;
-		sx_xunlock(&kld_sx);
 		linker_file_sysuninit(file);
 		linker_file_unregister_sysctls(file);
-		sx_xlock(&kld_sx);
 	}
 	TAILQ_REMOVE(&linker_files, file, link);
 
@@ -729,15 +743,9 @@ int
 linker_file_lookup_set(linker_file_t file, const char *name,
     void *firstp, void *lastp, int *countp)
 {
-	int error, locked;
 
-	locked = sx_xlocked(&kld_sx);
-	if (!locked)
-		sx_xlock(&kld_sx);
-	error = LINKER_LOOKUP_SET(file, name, firstp, lastp, countp);
-	if (!locked)
-		sx_xunlock(&kld_sx);
-	return (error);
+	sx_assert(&kld_sx, SA_LOCKED);
+	return (LINKER_LOOKUP_SET(file, name, firstp, lastp, countp));
 }
 
 /*
