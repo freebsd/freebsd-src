@@ -336,18 +336,44 @@ private:
         /// @return
         ///     True in case of failure, false in case of success.
         //------------------------------------------------------------------
-        virtual bool finalizeMemory(std::string *ErrMsg) {
-            // TODO: Ensure that the instruction cache is flushed because
-            // relocations are updated by dy-load.  See:
-            //   sys::Memory::InvalidateInstructionCache
-            //   llvm::SectionMemoryManager
-            return false;
-        }
+        bool applyPermissions(std::string *ErrMsg) { return false; }
         
         //------------------------------------------------------------------
         /// Passthrough interface stub
         //------------------------------------------------------------------
         virtual void deallocateFunctionBody(void *Body);
+        
+        //------------------------------------------------------------------
+        /// Passthrough interface stub
+        //------------------------------------------------------------------
+        virtual uint8_t* startExceptionTable(const llvm::Function* F,
+                                             uintptr_t &ActualSize);
+        
+        //------------------------------------------------------------------
+        /// Complete the exception table for a function, and add it to the
+        /// m_exception_tables map
+        ///
+        /// @param[in] F
+        ///     The function whose exception table is being written.
+        ///
+        /// @param[in] TableStart
+        ///     The first byte of the exception table.
+        ///
+        /// @param[in] TableEnd
+        ///     The last byte of the exception table.
+        ///
+        /// @param[in] FrameRegister
+        ///     I don't know what this does, but it's passed through.
+        //------------------------------------------------------------------
+        virtual void endExceptionTable(const llvm::Function *F,
+                                       uint8_t *TableStart,
+                                       uint8_t *TableEnd,
+                                       uint8_t* FrameRegister);
+        
+        //------------------------------------------------------------------
+        /// Passthrough interface stub
+        //------------------------------------------------------------------
+        virtual void deallocateExceptionTable(void *ET);
         
         //------------------------------------------------------------------
         /// Passthrough interface stub
