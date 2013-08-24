@@ -225,8 +225,7 @@ pfil_head_get(int type, u_long val)
  *	PFIL_WAITOK	OK to call malloc with M_WAITOK.
  */
 int
-pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int,
-  struct inpcb *), void *arg, int flags, struct pfil_head *ph)
+pfil_add_hook(pfil_func_t func, void *arg, int flags, struct pfil_head *ph)
 {
 	struct packet_filter_hook *pfh1 = NULL;
 	struct packet_filter_hook *pfh2 = NULL;
@@ -285,8 +284,7 @@ error:
  * list.
  */
 int
-pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int,
-    struct inpcb *), void *arg, int flags, struct pfil_head *ph)
+pfil_remove_hook(pfil_func_t func, void *arg, int flags, struct pfil_head *ph)
 {
 	int err = 0;
 
@@ -334,9 +332,7 @@ pfil_list_add(pfil_list_t *list, struct packet_filter_hook *pfh1, int flags)
  * specified list.
  */
 static int
-pfil_list_remove(pfil_list_t *list,
-    int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
-    void *arg)
+pfil_list_remove(pfil_list_t *list, pfil_func_t func, void *arg)
 {
 	struct packet_filter_hook *pfh;
 
