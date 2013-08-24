@@ -117,10 +117,10 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				 * This device does not want I/O to be split.
 				 */
 				if (dev->si_flags & SI_NOSPLIT) {
-					printf("%s: request ptr %#jx is not "
+					printf("%s: request ptr %p is not "
 					    "on a page boundary, cannot split "
 					    "request\n", devtoname(dev),
-					    (uintmax_t)bp->b_data);
+					    bp->b_data);
 					error = EFBIG;
 					goto doerror;
 				}
