@@ -52,6 +52,7 @@ static struct mtx pfil_global_lock;
 MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock",
   MTX_DEF);
 
+static struct packet_filter_hook *pfil_hook_get(int, struct pfil_head *);
 static int pfil_list_add(pfil_list_t *, struct packet_filter_hook *, int);
 static int pfil_list_remove(pfil_list_t *, pfil_func_t, void *);
 
@@ -87,6 +88,18 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 	PFIL_RUNLOCK(ph, &rmpt);
 	*mp = m;
 	return (rv);
+}
+
+static struct packet_filter_hook *
+pfil_hook_get(int dir, struct pfil_head *ph)
+{
+
+	if (dir == PFIL_IN)
+		return (TAILQ_FIRST(&ph->ph_in));
+	else if (dir == PFIL_OUT)
+		return (TAILQ_FIRST(&ph->ph_out));
+	else
+		return (NULL);
 }
 
 /*

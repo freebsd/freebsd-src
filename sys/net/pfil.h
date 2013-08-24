@@ -132,16 +132,4 @@ struct pfil_head *pfil_head_get(int, u_long);
 #define	PFIL_LIST_LOCK()	mtx_lock(&pfil_global_lock)
 #define	PFIL_LIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
 
-static __inline struct packet_filter_hook *
-pfil_hook_get(int dir, struct pfil_head *ph)
-{
-
-	if (dir == PFIL_IN)
-		return (TAILQ_FIRST(&ph->ph_in));
-	else if (dir == PFIL_OUT)
-		return (TAILQ_FIRST(&ph->ph_out));
-	else
-		return (NULL);
-}
-
 #endif /* _NET_PFIL_H_ */
