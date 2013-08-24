@@ -995,9 +995,6 @@ linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
 int
 kern_kldload(struct thread *td, const char *file, int *fileid)
 {
-#ifdef HWPMC_HOOKS
-	struct pmckern_map_in pkm;
-#endif
 	const char *kldname, *modname;
 	linker_file_t lf;
 	int error;
@@ -1037,17 +1034,9 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if (fileid != NULL)
 		*fileid = lf->id;
 
-	EVENTHANDLER_INVOKE(kld_load, lf);
-
-#ifdef HWPMC_HOOKS
 	sx_downgrade(&kld_sx);
-	pkm.pm_file = lf->filename;
-	pkm.pm_address = (uintptr_t) lf->address;
-	PMC_CALL_HOOK(td, PMC_FN_KLD_LOAD, (void *) &pkm);
+	EVENTHANDLER_INVOKE(kld_load, lf);
 	sx_sunlock(&kld_sx);
-#else
-	sx_xunlock(&kld_sx);
-#endif
 
 done:
 	CURVNET_RESTORE();
@@ -1076,10 +1065,10 @@ sys_kldload(struct thread *td, struct kldload_args *uap)
 int
 kern_kldunload(struct thread *td, int fileid, int flags)
 {
-#ifdef HWPMC_HOOKS
-	struct pmckern_map_out pkm;
-#endif
 	linker_file_t lf;
+	char *filename = NULL;
+	caddr_t address;
+	size_t size;
 	int error = 0;
 
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
@@ -1094,7 +1083,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 
-		EVENTHANDLER_INVOKE(kld_unload, lf, &error);
+		EVENTHANDLER_INVOKE(kld_unload_try, lf, &error);
 		if (error != 0)
 			error = EBUSY;
 		else if (lf->userrefs == 0) {
@@ -1105,11 +1094,11 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 			    " loaded by the kernel\n");
 			error = EBUSY;
 		} else {
-#ifdef HWPMC_HOOKS
-			/* Save data needed by hwpmc(4) before unloading. */
-			pkm.pm_address = (uintptr_t) lf->address;
-			pkm.pm_size = lf->size;
-#endif
+			/* Save data needed for the kld_unload callbacks. */
+			filename = strdup(lf->filename, M_TEMP);
+			address = lf->address;
+			size = lf->size;
+
 			lf->userrefs--;
 			error = linker_file_unload(lf, flags);
 			if (error)
@@ -1118,16 +1107,14 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	} else
 		error = ENOENT;
 
-#ifdef HWPMC_HOOKS
 	if (error == 0) {
 		sx_downgrade(&kld_sx);
-		PMC_CALL_HOOK(td, PMC_FN_KLD_UNLOAD, (void *) &pkm);
+		EVENTHANDLER_INVOKE(kld_unload, filename, address, size);
 		sx_sunlock(&kld_sx);
 	} else
 		sx_xunlock(&kld_sx);
-#else
-	sx_xunlock(&kld_sx);
-#endif
+	free(filename, M_TEMP);
+
 	CURVNET_RESTORE();
 	return (error);
 }
