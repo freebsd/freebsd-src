@@ -2622,7 +2622,7 @@ mwl_rxbuf_init(struct mwl_softc *sc, struct mwl_rxbuf *bf)
 }
 
 static void
-mwl_ext_free(void *data, void *arg)
+mwl_ext_free(struct mbuf *m, void *data, void *arg)
 {
 	struct mwl_softc *sc = arg;
 
