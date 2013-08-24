@@ -619,10 +619,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
 	struct mb_args *args;
-#ifdef MAC
-	int error;
-#endif
-	int flags;
+	int error, flags;
 	short type;
 
 	m = (struct mbuf *)mem;
