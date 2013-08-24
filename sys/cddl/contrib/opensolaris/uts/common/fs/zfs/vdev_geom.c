@@ -147,7 +147,7 @@ vdev_geom_attach(struct g_provider *pp)
 			ZFS_LOG(1, "Used existing consumer for %s.", pp->name);
 		}
 	}
-	cp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	return (cp);
 }
 
