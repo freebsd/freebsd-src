@@ -53,10 +53,7 @@ MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock",
   MTX_DEF);
 
 static int pfil_list_add(pfil_list_t *, struct packet_filter_hook *, int);
-
-static int pfil_list_remove(pfil_list_t *,
-    int (*)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
-    void *);
+static int pfil_list_remove(pfil_list_t *, pfil_func_t, void *);
 
 LIST_HEAD(pfilheadhead, pfil_head);
 VNET_DEFINE(struct pfilheadhead, pfil_head_list);
