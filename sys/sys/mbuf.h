@@ -112,28 +112,49 @@ struct m_tag {
 
 /*
  * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
+ * Size ILP32: 48
+ *	 LP64: 56
  */
 struct pkthdr {
 	struct ifnet	*rcvif;		/* rcv interface */
-	/* variables for ip and tcp reassembly */
-	void		*header;	/* pointer to packet header */
-	int		 len;		/* total packet length */
-	uint32_t	 flowid;	/* packet's 4-tuple system
-					 * flow identifier
-					 */
-	/* variables for hardware checksum */
-	int		 csum_flags;	/* flags regarding checksum */
-	int		 csum_data;	/* data field used by csum routines */
-	u_int16_t	 tso_segsz;	/* TSO segment size */
-	union {
-		u_int16_t vt_vtag;	/* Ethernet 802.1p+q vlan tag */
-		u_int16_t vt_nrecs;	/* # of IGMPv3 records in this chain */
-	} PH_vt;
-	u_int16_t	 fibnum;	/* this packet should use this fib */
-	u_int16_t	 pad2;		/* align to 32 bits */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
+	int32_t		 len;		/* total packet length */
+
+	/* Layer crossing persistent information. */
+	uint32_t	 flowid;	/* packet's 4-tuple system */
+	uint64_t	 csum_flags;	/* checksum and offload features */
+	uint16_t	 fibnum;	/* this packet should use this fib */
+	uint8_t		 cosqos;	/* class/quality of service */
+	uint8_t		 rsstype;	/* hash type */
+	uint8_t		 l2hlen;	/* layer 2 header length */
+	uint8_t		 l3hlen;	/* layer 3 header length */
+	uint8_t		 l4hlen;	/* layer 4 header length */
+	uint8_t		 l5hlen;	/* layer 5 header length */
+	union {
+		uint8_t  eigth[8];
+		uint16_t sixteen[4];
+		uint32_t thirtytwo[2];
+		uint64_t sixtyfour[1];
+		uintptr_t unintptr[1];
+		void	*ptr;
+	} PH_per;
+
+	/* Layer specific non-persistent local storage for reassembly, etc. */
+	union {
+		uint8_t  eigth[8];
+		uint16_t sixteen[4];
+		uint32_t thirtytwo[2];
+		uint64_t sixtyfour[1];
+		uintptr_t unintptr[1];
+		void 	*ptr;
+	} PH_loc;
 };
-#define ether_vtag	PH_vt.vt_vtag
+#define	ether_vtag	PH_per.sixteen[0]
+#define	PH_vt		PH_per
+#define	vt_nrecs	sixteen[0]
+#define	tso_segsz	PH_per.sixteen[1]
+#define	csum_phsum	PH_per.sixteen[2]
+#define	csum_data	PH_per.thirtytwo[1]
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
@@ -209,14 +230,19 @@ struct mbuf {
 #define	M_PROTO11	0x00400000 /* protocol-specific */
 #define	M_PROTO12	0x00800000 /* protocol-specific */
 
-#define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
-
 /*
  * Flags to purge when crossing layers.
  */
 #define	M_PROTOFLAGS \
     (M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|M_PROTO7|M_PROTO8|\
      M_PROTO9|M_PROTO10|M_PROTO11|M_PROTO12)
+
+/*
+ * Flags preserved when copying m_pkthdr.
+ */
+#define M_COPYFLAGS \
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_VLANTAG|M_PROMISC| \
+     M_PROTOFLAGS)
 
 /*
  * Mbuf flag description for use with printf(9) %b identifier.
@@ -245,31 +271,46 @@ struct mbuf {
  * that provide an opaque flow identifier, allowing for ordering and
  * distribution without explicit affinity.
  */
-#define	M_HASHTYPE_SHIFT		24
-#define	M_HASHTYPE_NONE			0x0
-#define	M_HASHTYPE_RSS_IPV4		0x1	/* IPv4 2-tuple */
-#define	M_HASHTYPE_RSS_TCP_IPV4		0x2	/* TCPv4 4-tuple */
-#define	M_HASHTYPE_RSS_IPV6		0x3	/* IPv6 2-tuple */
-#define	M_HASHTYPE_RSS_TCP_IPV6		0x4	/* TCPv6 4-tuple */
-#define	M_HASHTYPE_RSS_IPV6_EX		0x5	/* IPv6 2-tuple + ext hdrs */
-#define	M_HASHTYPE_RSS_TCP_IPV6_EX	0x6	/* TCPv6 4-tiple + ext hdrs */
-#define	M_HASHTYPE_OPAQUE		0xf	/* ordering, not affinity */
+#define	M_HASHTYPE_NONE			0
+#define	M_HASHTYPE_RSS_IPV4		1	/* IPv4 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV4		2	/* TCPv4 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6		3	/* IPv6 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV6		4	/* TCPv6 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6_EX		5	/* IPv6 2-tuple + ext hdrs */
+#define	M_HASHTYPE_RSS_TCP_IPV6_EX	6	/* TCPv6 4-tiple + ext hdrs */
+#define	M_HASHTYPE_OPAQUE		255	/* ordering, not affinity */
 
-#define	M_HASHTYPE_CLEAR(m)	(m)->m_flags &= ~(M_HASHTYPEBITS)
-#define	M_HASHTYPE_GET(m)	(((m)->m_flags & M_HASHTYPEBITS) >> \
-				    M_HASHTYPE_SHIFT)
-#define	M_HASHTYPE_SET(m, v)	do {					\
-	(m)->m_flags &= ~M_HASHTYPEBITS;				\
-	(m)->m_flags |= ((v) << M_HASHTYPE_SHIFT);			\
-} while (0)
+#define	M_HASHTYPE_CLEAR(m)	((m)->m_pkthdr.rsstype = 0)
+#define	M_HASHTYPE_GET(m)	((m)->m_pkthdr.rsstype)
+#define	M_HASHTYPE_SET(m, v)	((m)->m_pkthdr.rsstype = (v))
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
 
 /*
- * Flags preserved when copying m_pkthdr.
+ * COS/QOS class and quality of service tags.
+ * It uses DSCP code points as base.
  */
-#define	M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_VLANTAG|M_PROMISC| \
-     M_PROTOFLAGS|M_HASHTYPEBITS)
+#define	QOS_DSCP_CS0		0x00
+#define	QOS_DSCP_DEF		QOS_DSCP_CS0
+#define	QOS_DSCP_CS1		0x20
+#define	QOS_DSCP_AF11		0x28
+#define	QOS_DSCP_AF12		0x30
+#define	QOS_DSCP_AF13		0x38
+#define	QOS_DSCP_CS2		0x40
+#define	QOS_DSCP_AF21		0x48
+#define	QOS_DSCP_AF22		0x50
+#define	QOS_DSCP_AF23		0x58
+#define	QOS_DSCP_CS3		0x60
+#define	QOS_DSCP_AF31		0x68
+#define	QOS_DSCP_AF32		0x70
+#define	QOS_DSCP_AF33		0x78
+#define	QOS_DSCP_CS4		0x80
+#define	QOS_DSCP_AF41		0x88
+#define	QOS_DSCP_AF42		0x90
+#define	QOS_DSCP_AF43		0x98
+#define	QOS_DSCP_CS5		0xa0
+#define	QOS_DSCP_EF		0xb8
+#define	QOS_DSCP_CS6		0xc0
+#define	QOS_DSCP_CS7		0xe0
 
 /*
  * External mbuf storage buffer types.
@@ -325,33 +366,66 @@ struct mbuf {
     "\30EXT_FLAG_EXP4"
 
 /*
- * Flags indicating hw checksum support and sw checksum requirements.  This
- * field can be directly tested against if_data.ifi_hwassist.
+ * Flags indicating checksum, segmentation and other offload work to be
+ * done, or already done, by hardware or lower layers.  It is split into
+ * separate inbound and outbound flags.
+ *
+ * Outbound flags that are set by upper protocol layers requesting lower
+ * layers, or ideally the hardware, to perform these offloading tasks.
+ * For outbound packets this field and its flags can be directly tested
+ * against if_data.ifi_hwassist.
  */
-#define	CSUM_IP			0x0001		/* will csum IP */
-#define	CSUM_TCP		0x0002		/* will csum TCP */
-#define	CSUM_UDP		0x0004		/* will csum UDP */
-#define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
-#define	CSUM_TSO		0x0020		/* will do TSO */
-#define	CSUM_SCTP		0x0040		/* will csum SCTP */
-#define CSUM_SCTP_IPV6		0x0080		/* will csum IPv6/SCTP */
+#define	CSUM_IP			0x00000001	/* IP header checksum offload */
+#define	CSUM_IP_UDP		0x00000002	/* UDP checksum offload */
+#define	CSUM_IP_TCP		0x00000004	/* TCP checksum offload */
+#define	CSUM_IP_SCTP		0x00000008	/* SCTP checksum offload */
+#define	CSUM_IP_TSO		0x00000010	/* TCP segmentation offload */
+#define	CSUM_IP_ISCSI		0x00000020	/* iSCSI checksum offload */
 
-#define	CSUM_IP_CHECKED		0x0100		/* did csum IP */
-#define	CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
-#define	CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
-#define	CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
-#define	CSUM_SCTP_VALID		0x1000		/* SCTP checksum is valid */
-#define	CSUM_UDP_IPV6		0x2000		/* will csum IPv6/UDP */
-#define	CSUM_TCP_IPV6		0x4000		/* will csum IPv6/TCP */
-/*	CSUM_TSO_IPV6		0x8000		will do IPv6/TSO */
+#define	CSUM_IP6_UDP		0x00000200	/* UDP checksum offload */
+#define	CSUM_IP6_TCP		0x00000400	/* TCP checksum offload */
+#define	CSUM_IP6_SCTP		0x00000800	/* SCTP checksum offload */
+#define	CSUM_IP6_TSO		0x00001000	/* TCP segmentation offload */
+#define	CSUM_IP6_ISCSI		0x00002000	/* iSCSI checksum offload */
 
-/*	CSUM_FRAGMENT_IPV6	0x10000		will do IPv6 fragementation */
+/* Inbound checksum support where the checksum was verified by hardware. */
+#define	CSUM_L3_CALC		0x01000000	/* calculated layer 3 csum */
+#define	CSUM_L3_VALID		0x02000000	/* checksum is correct */
+#define	CSUM_L4_CALC		0x04000000	/* calculated layer 4 csum */
+#define	CSUM_L4_VALID		0x08000000	/* checksum is correct */
+#define	CSUM_L5_CALC		0x10000000	/* calculated layer 5 csum */
+#define	CSUM_L5_VALID		0x20000000	/* checksum is correct */
+#define	CSUM_COALESED		0x40000000	/* contains merged segments */
 
-#define	CSUM_DELAY_DATA_IPV6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
+/*
+ * CSUM flag description for use with printf(9) %b identifier.
+ */
+#define	CSUM_BITS \
+    "\20\1CSUM_IP\2CSUM_IP_UDP\3CSUM_IP_TCP\4CSUM_IP_SCTP\5CSUM_IP_TSO" \
+    "\6CSUM_IP_ISCSI" \
+    "\12CSUM_IP6_UDP\13CSUM_IP6_TCP\14CSUM_IP6_SCTP\15CSUM_IP6_TSO" \
+    "\16CSUM_IP6_ISCSI" \
+    "\31CSUM_L3_CALC\32CSUM_L3_VALID\33CSUM_L4_CALC\34CSUM_L4_VALID" \
+    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESED"
+
+/* CSUM flags compatibility mappings. */
+#define	CSUM_IP_CHECKED		CSUM_L3_CALC
+#define	CSUM_IP_VALID		CSUM_L3_VALID
+#define	CSUM_DATA_VALID		CSUM_L4_VALID
+#define	CSUM_PSEUDO_HDR		CSUM_L4_CALC
+#define	CSUM_SCTP_VALID		CSUM_L3_VALID
+#define	CSUM_DELAY_DATA		(CSUM_TCP|CSUM_UDP)
+#define	CSUM_DELAY_IP		CSUM_IP		/* Only v4, no v6 IP hdr csum */
+#define	CSUM_DELAY_DATA_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6)
 #define	CSUM_DATA_VALID_IPV6	CSUM_DATA_VALID
-
-#define	CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
-#define	CSUM_DELAY_IP		(CSUM_IP)	/* Only v4, no v6 IP hdr csum */
+#define	CSUM_TCP		CSUM_IP_TCP
+#define	CSUM_UDP		CSUM_IP_UDP
+#define	CSUM_SCTP		CSUM_IP_SCTP
+#define	CSUM_TSO		(CSUM_IP_TSO|CSUM_IP6_TSO)
+#define	CSUM_UDP_IPV6		CSUM_IP6_UDP
+#define	CSUM_TCP_IPV6		CSUM_IP6_TCP
+#define	CSUM_SCTP_IPV6		CSUM_IP6_SCTP
+#define	CSUM_FRAGMENT		0x0		/* Unused */
 
 /*
  * mbuf types.
