@@ -48,10 +48,11 @@ typedef	int	(*pfil_func_t)(void *, struct mbuf **, struct ifnet *, int,
 
 /*
  * The packet filter hooks are designed for anything to call them to
- * possibly intercept the packet.
+ * possibly intercept the packet.  Multiple filter hooks are chained
+ * together and after each other in the specified order.
  */
 struct packet_filter_hook {
-        TAILQ_ENTRY(packet_filter_hook) pfil_link;
+        TAILQ_ENTRY(packet_filter_hook) pfil_chain;
 	pfil_func_t	pfil_func;
 	void	*pfil_arg;
 };
@@ -61,16 +62,20 @@ struct packet_filter_hook {
 #define PFIL_WAITOK	0x00000004
 #define PFIL_ALL	(PFIL_IN|PFIL_OUT)
 
-typedef	TAILQ_HEAD(pfil_list, packet_filter_hook) pfil_list_t;
+typedef	TAILQ_HEAD(pfil_chain, packet_filter_hook) pfil_chain_t;
 
 #define	PFIL_TYPE_AF		1	/* key is AF_* type */
 #define	PFIL_TYPE_IFNET		2	/* key is ifnet pointer */
 
 #define	PFIL_FLAG_PRIVATE_LOCK	0x01	/* Personal lock instead of global */
 
+/*
+ * A pfil head is created by each protocol or packet intercept point.
+ * For packet is then run through the hook chain for inspection.
+ */
 struct pfil_head {
-	pfil_list_t	ph_in;
-	pfil_list_t	ph_out;
+	pfil_chain_t	ph_in;
+	pfil_chain_t	ph_out;
 	int		ph_type;
 	int		ph_nhooks;
 #if defined( __linux__ ) || defined( _WIN32 )
@@ -89,11 +94,20 @@ struct pfil_head {
 	LIST_ENTRY(pfil_head) ph_list;
 };
 
+/* Public functions for pfil hook management by packet filters. */
+struct pfil_head *pfil_head_get(int, u_long);
 int	pfil_add_hook(pfil_func_t, void *, int, struct pfil_head *);
 int	pfil_remove_hook(pfil_func_t, void *, int, struct pfil_head *);
+
+/* Public functions to run the packet inspection by protocols. */
 int	pfil_run_hooks(struct pfil_head *, struct mbuf **, struct ifnet *,
 	    int, struct inpcb *inp);
 
+/* Public functions for pfil head management by protocols. */
+int	pfil_head_register(struct pfil_head *);
+int	pfil_head_unregister(struct pfil_head *);
+
+/* Internal pfil locking functions. */
 struct rm_priotracker;	/* Do not require including rmlock header */
 int pfil_try_rlock(struct pfil_head *, struct rm_priotracker *);
 void pfil_rlock(struct pfil_head *, struct rm_priotracker *);
@@ -101,11 +115,6 @@ void pfil_runlock(struct pfil_head *, struct rm_priotracker *);
 void pfil_wlock(struct pfil_head *);
 void pfil_wunlock(struct pfil_head *);
 int pfil_wowned(struct pfil_head *ph);
-
-int	pfil_head_register(struct pfil_head *);
-int	pfil_head_unregister(struct pfil_head *);
-
-struct pfil_head *pfil_head_get(int, u_long);
 
 #define	PFIL_HOOKED(p) ((p)->ph_nhooks > 0)
 #define	PFIL_LOCK_INIT_REAL(l, t)	\
