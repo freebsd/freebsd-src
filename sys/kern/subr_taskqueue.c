@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;
 static void	*taskqueue_ih;
+static void	 taskqueue_fast_enqueue(void *);
+static void	 taskqueue_swi_enqueue(void *);
+static void	 taskqueue_swi_giant_enqueue(void *);
 
 struct taskqueue_busy {
 	struct task	*tb_running;
@@ -69,6 +72,7 @@ struct taskqueue {
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
+#define	TQ_FLAGS_UNLOCKED_ENQUEUE	(1 << 2)
 
 #define	DT_CALLOUT_ARMED	(1 << 0)
 
@@ -96,7 +100,8 @@ _timeout_task_init(struct taskqueue *queue, struct timeout_task *timeout_task,
 {
 
 	TASK_INIT(&timeout_task->t, priority, func, context);
-	callout_init_mtx(&timeout_task->c, &queue->tq_mutex, 0);
+	callout_init_mtx(&timeout_task->c, &queue->tq_mutex,
+	    CALLOUT_RETURNUNLOCKED);
 	timeout_task->q = queue;
 	timeout_task->f = 0;
 }
@@ -127,6 +132,11 @@ _taskqueue_create(const char *name __unused, int mflags,
 	queue->tq_context = context;
 	queue->tq_spin = (mtxflags & MTX_SPIN) != 0;
 	queue->tq_flags |= TQ_FLAGS_ACTIVE;
+	if (enqueue == taskqueue_fast_enqueue ||
+	    enqueue == taskqueue_swi_enqueue ||
+	    enqueue == taskqueue_swi_giant_enqueue ||
+	    enqueue == taskqueue_thread_enqueue)
+		queue->tq_flags |= TQ_FLAGS_UNLOCKED_ENQUEUE;
 	mtx_init(&queue->tq_mutex, mtxname, NULL, mtxflags);
 
 	return queue;
@@ -196,6 +206,7 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	if (task->ta_pending) {
 		if (task->ta_pending < USHRT_MAX)
 			task->ta_pending++;
+		TQ_UNLOCK(queue);
 		return (0);
 	}
 
@@ -219,8 +230,12 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
+	if ((queue->tq_flags & TQ_FLAGS_UNLOCKED_ENQUEUE) != 0)
+		TQ_UNLOCK(queue);
 	if ((queue->tq_flags & TQ_FLAGS_BLOCKED) == 0)
 		queue->tq_enqueue(queue->tq_context);
+	if ((queue->tq_flags & TQ_FLAGS_UNLOCKED_ENQUEUE) == 0)
+		TQ_UNLOCK(queue);
 
 	return (0);
 }
@@ -231,7 +246,6 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 
 	TQ_LOCK(queue);
 	res = taskqueue_enqueue_locked(queue, task);
-	TQ_UNLOCK(queue);
 
 	return (res);
 }
@@ -277,8 +291,8 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 			callout_reset(&timeout_task->c, ticks,
 			    taskqueue_timeout_func, timeout_task);
 		}
+		TQ_UNLOCK(queue);
 	}
-	TQ_UNLOCK(queue);
 	return (res);
 }
 
@@ -563,7 +577,6 @@ taskqueue_thread_enqueue(void *context)
 	tqp = context;
 	tq = *tqp;
 
-	TQ_ASSERT_LOCKED(tq);
 	wakeup_one(tq);
 }
 
