@@ -43,9 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #define DP_LINK_CONFIGURATION_SIZE	9
 
-/* XXXKIB what is the right code for the FreeBSD ? */
-#define EREMOTEIO	ENXIO
-
 struct intel_dp {
 	struct intel_encoder base;
 	uint32_t output_reg;
