@@ -453,8 +453,6 @@ struct mbuf {
 #define	MT_NOINIT	255	/* Not a type but a flag to allocate
 				   a non-initialized mbuf */
 
-#define MB_NOTAGS	0x1UL	/* no tags attached to mbuf */
-
 /*
  * Compatibility with historic mbuf allocator.
  */
@@ -634,17 +632,6 @@ m_getcl(int how, short type, int flags)
 	args.flags = flags;
 	args.type = type;
 	return (uma_zalloc_arg(zone_pack, &args, how));
-}
-
-static __inline void
-m_free_fast(struct mbuf *m)
-{
-#ifdef INVARIANTS
-	if (m->m_flags & M_PKTHDR)
-		KASSERT(SLIST_EMPTY(&m->m_pkthdr.tags), ("doing fast free of mbuf with tags"));
-#endif
-
-	uma_zfree_arg(zone_mbuf, m, (void *)MB_NOTAGS);
 }
 
 static __inline struct mbuf *
