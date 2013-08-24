@@ -43,14 +43,16 @@ struct mbuf;
 struct ifnet;
 struct inpcb;
 
+typedef	int	(*pfil_func_t)(void *, struct mbuf **, struct ifnet *, int,
+		    struct inpcb *);
+
 /*
  * The packet filter hooks are designed for anything to call them to
  * possibly intercept the packet.
  */
 struct packet_filter_hook {
         TAILQ_ENTRY(packet_filter_hook) pfil_link;
-	int	(*pfil_func)(void *, struct mbuf **, struct ifnet *, int,
-		    struct inpcb *);
+	pfil_func_t	pfil_func;
 	void	*pfil_arg;
 };
 
@@ -87,10 +89,8 @@ struct pfil_head {
 	LIST_ENTRY(pfil_head) ph_list;
 };
 
-int	pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *,
-	    int, struct inpcb *), void *, int, struct pfil_head *);
-int	pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *,
-	    int, struct inpcb *), void *, int, struct pfil_head *);
+int	pfil_add_hook(pfil_func_t, void *, int, struct pfil_head *);
+int	pfil_remove_hook(pfil_func_t, void *, int, struct pfil_head *);
 int	pfil_run_hooks(struct pfil_head *, struct mbuf **, struct ifnet *,
 	    int, struct inpcb *inp);
 
