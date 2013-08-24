@@ -1091,7 +1091,8 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 		cdai.buftype = CDAI_TYPE_SERIAL_NUM;
 	else if (!strcmp(attr, "GEOM::physpath"))
 		cdai.buftype = CDAI_TYPE_PHYS_PATH;
-	else if (!strcmp(attr, "GEOM::lunid")) {
+	else if (strcmp(attr, "GEOM::lunid") == 0 ||
+		 strcmp(attr, "GEOM::lunname") == 0) {
 		cdai.buftype = CDAI_TYPE_SCSI_DEVID;
 		cdai.bufsiz = CAM_SCSI_DEVID_MAXLEN;
 	} else
@@ -1108,11 +1109,14 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 	if (cdai.provsiz == 0)
 		goto out;
 	if (cdai.buftype == CDAI_TYPE_SCSI_DEVID) {
-		idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
-		    cdai.provsiz, scsi_devid_is_lun_naa);
-		if (idd == NULL)
+		if (strcmp(attr, "GEOM::lunid") == 0) {
 			idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
-			    cdai.provsiz, scsi_devid_is_lun_eui64);
+			    cdai.provsiz, scsi_devid_is_lun_naa);
+			if (idd == NULL)
+				idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+				    cdai.provsiz, scsi_devid_is_lun_eui64);
+		} else
+			idd = NULL;
 		if (idd == NULL)
 			idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
 			    cdai.provsiz, scsi_devid_is_lun_t10);

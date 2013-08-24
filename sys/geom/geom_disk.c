@@ -460,6 +460,12 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 			if (dp->d_getattr(bp) == 0)
 				sbuf_printf(sb, "%s<lunid>%s</lunid>\n",
 				    indent, buf);
+			bp->bio_attribute = "GEOM::lunname";
+			bp->bio_length = DISK_IDENT_SIZE;
+			bp->bio_data = buf;
+			if (dp->d_getattr(bp) == 0)
+				sbuf_printf(sb, "%s<lunname>%s</lunname>\n",
+				    indent, buf);
 			g_destroy_bio(bp);
 			g_free(buf);
 		} else
