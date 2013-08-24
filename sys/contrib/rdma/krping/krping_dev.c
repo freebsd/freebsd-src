@@ -112,12 +112,11 @@ krping_read(struct cdev *dev, struct uio *uio, int ioflag)
 	mtx_unlock(&krping_mutex);
 
 	while (!TAILQ_EMPTY(&copy_cbs)) {
-		
 		cb = TAILQ_FIRST(&copy_cbs);
 		TAILQ_REMOVE(&copy_cbs, cb, list);
 		if (cb->pd) {
 			uprintf("krping: %4d %10s %10u %10u %10u %10u %10u %10u %10u %10u\n",
-			     num++, cb->pd->device->name, cb->stats.send_bytes,
+			     num++, cb->name, cb->stats.send_bytes,
 			     cb->stats.send_msgs, cb->stats.recv_bytes,
 			     cb->stats.recv_msgs, cb->stats.write_bytes,
 			     cb->stats.write_msgs,

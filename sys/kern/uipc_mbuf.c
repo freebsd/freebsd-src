@@ -267,6 +267,7 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 	mb->m_ext.ext_arg1 = arg1;
 	mb->m_ext.ext_arg2 = arg2;
 	mb->m_ext.ext_type = type;
+	mb->m_ext.ext_flags = 0;
 
 	return (0);
 }
@@ -342,6 +343,7 @@ mb_free_ext(struct mbuf *m)
 	m->m_ext.ref_cnt = NULL;
 	m->m_ext.ext_size = 0;
 	m->m_ext.ext_type = 0;
+	m->m_ext.ext_flags = 0;
 	m->m_flags &= ~M_EXT;
 	uma_zfree(zone_mbuf, m);
 }
@@ -368,6 +370,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	n->m_ext.ext_size = m->m_ext.ext_size;
 	n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 	n->m_ext.ext_type = m->m_ext.ext_type;
+	n->m_ext.ext_flags = m->m_ext.ext_flags;
 	n->m_flags |= M_EXT;
 	n->m_flags |= m->m_flags & M_RDONLY;
 }
