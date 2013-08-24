@@ -547,6 +547,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 		m->m_ext.ext_arg2 = NULL;
 		m->m_ext.ext_size = size;
 		m->m_ext.ext_type = type;
+		m->m_ext.ext_flags = 0;
 		m->m_ext.ref_cnt = refcnt;
 	}
 

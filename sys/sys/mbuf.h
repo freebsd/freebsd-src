@@ -138,16 +138,19 @@ struct pkthdr {
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
  * set.
+ * Size ILP32: 28
+ *	 LP64: 48
  */
 struct m_ext {
+	volatile u_int	*ref_cnt;	/* pointer to ref count info */
 	caddr_t		 ext_buf;	/* start of buffer */
+	uint32_t	 ext_size;	/* size of buffer, for ext_free */
+	uint32_t	 ext_type:8,	/* type of external storage */
+			 ext_flags:24;	/* external storage mbuf flags */
 	void		(*ext_free)	/* free routine if not the usual */
 			    (void *, void *);
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
-	u_int		 ext_size;	/* size of buffer, for ext_free */
-	volatile u_int	*ref_cnt;	/* pointer to ref count info */
-	int		 ext_type;	/* type of external storage */
 };
 
 /*
@@ -269,7 +272,7 @@ struct mbuf {
      M_PROTOFLAGS|M_HASHTYPEBITS)
 
 /*
- * External buffer types: identify ext_buf type.
+ * External mbuf storage buffer types.
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
@@ -278,10 +281,48 @@ struct mbuf {
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
-#define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
-#define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
-#define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
-#define	EXT_EXTREF	400	/* has externally maintained ref_cnt ptr */
+
+#define	EXT_VENDOR1	224	/* for vendor-internal use */
+#define	EXT_VENDOR2	225	/* for vendor-internal use */
+#define	EXT_VENDOR3	226	/* for vendor-internal use */
+#define	EXT_VENDOR4	227	/* for vendor-internal use */
+
+#define	EXT_EXP1	244	/* for experimental use */
+#define	EXT_EXP2	245	/* for experimental use */
+#define	EXT_EXP3	246	/* for experimental use */
+#define	EXT_EXP4	247	/* for experimental use */
+
+#define	EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
+#define	EXT_MOD_TYPE	253	/* custom module's ext_buf type */
+#define	EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
+#define	EXT_EXTREF	255	/* has externally maintained ref_cnt ptr */
+
+/*
+ * Flags for external mbuf buffer types.
+ * NB: limited to the lower 24 bits.
+ */
+#define	EXT_FLAG_EMBREF		0x000001	/* embedded ref_cnt, notyet */
+#define	EXT_FLAG_EXTREF		0x000002	/* external ref_cnt, notyet */
+#define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
+
+#define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR2	0x020000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR3	0x040000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR4	0x080000	/* for vendor-internal use */
+
+#define	EXT_FLAG_EXP1		0x100000	/* for experimental use */
+#define	EXT_FLAG_EXP2		0x200000	/* for experimental use */
+#define	EXT_FLAG_EXP3		0x400000	/* for experimental use */
+#define	EXT_FLAG_EXP4		0x800000	/* for experimental use */
+
+/*
+ * EXT flag description for use with printf(9) %b identifier.
+ */
+#define	EXT_FLAG_BITS \
+    "\20\1EXT_FLAG_EMBREF\2EXT_FLAG_EXTREF\5EXT_FLAG_NOFREE" \
+    "\21EXT_FLAG_VENDOR1\22EXT_FLAG_VENDOR2\23EXT_FLAG_VENDOR3" \
+    "\24EXT_FLAG_VENDOR4\25EXT_FLAG_EXP1\26EXT_FLAG_EXP2\27EXT_FLAG_EXP3" \
+    "\30EXT_FLAG_EXP4"
 
 /*
  * Flags indicating hw checksum support and sw checksum requirements.  This
@@ -605,6 +646,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_free = m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
 	m->m_ext.ext_size = size;
 	m->m_ext.ext_type = type;
+	m->m_ext.ext_flags = 0;
 	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
 	m->m_flags |= M_EXT;
 
