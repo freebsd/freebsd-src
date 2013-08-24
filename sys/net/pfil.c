@@ -173,11 +173,11 @@ pfil_head_register(struct pfil_head *ph)
 {
 	struct pfil_head *lph;
 
-	PFIL_LIST_LOCK();
+	PFIL_HEADLIST_LOCK();
 	LIST_FOREACH(lph, &V_pfil_head_list, ph_list) {
 		if (ph->ph_type == lph->ph_type &&
 		    ph->ph_un.phu_val == lph->ph_un.phu_val) {
-			PFIL_LIST_UNLOCK();
+			PFIL_HEADLIST_UNLOCK();
 			return (EEXIST);
 		}
 	}
@@ -186,7 +186,7 @@ pfil_head_register(struct pfil_head *ph)
 	TAILQ_INIT(&ph->ph_in);
 	TAILQ_INIT(&ph->ph_out);
 	LIST_INSERT_HEAD(&V_pfil_head_list, ph, ph_list);
-	PFIL_LIST_UNLOCK();
+	PFIL_HEADLIST_UNLOCK();
 	return (0);
 }
 
@@ -200,9 +200,9 @@ pfil_head_unregister(struct pfil_head *ph)
 {
 	struct packet_filter_hook *pfh, *pfnext;
 		
-	PFIL_LIST_LOCK();
+	PFIL_HEADLIST_LOCK();
 	LIST_REMOVE(ph, ph_list);
-	PFIL_LIST_UNLOCK();
+	PFIL_HEADLIST_UNLOCK();
 	TAILQ_FOREACH_SAFE(pfh, &ph->ph_in, pfil_chain, pfnext)
 		free(pfh, M_IFADDR);
 	TAILQ_FOREACH_SAFE(pfh, &ph->ph_out, pfil_chain, pfnext)
@@ -219,11 +219,11 @@ pfil_head_get(int type, u_long val)
 {
 	struct pfil_head *ph;
 
-	PFIL_LIST_LOCK();
+	PFIL_HEADLIST_LOCK();
 	LIST_FOREACH(ph, &V_pfil_head_list, ph_list)
 		if (ph->ph_type == type && ph->ph_un.phu_val == val)
 			break;
-	PFIL_LIST_UNLOCK();
+	PFIL_HEADLIST_UNLOCK();
 	return (ph);
 }
 
