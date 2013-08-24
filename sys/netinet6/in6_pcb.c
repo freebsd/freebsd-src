@@ -158,7 +158,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			 * and a multicast address is bound on both
 			 * new and duplicated sockets.
 			 */
-			if (so->so_options & SO_REUSEADDR)
+			if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) != 0)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 			struct ifaddr *ifa;
