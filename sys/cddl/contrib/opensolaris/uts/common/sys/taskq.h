@@ -38,7 +38,9 @@ extern "C" {
 
 struct taskqueue;
 struct taskq {
-	struct taskqueue	*tq_queue;
+	int			 tq_num;
+	int			 tq_last;
+	struct taskqueue	*tq_queue[];
 };
 
 typedef struct taskq taskq_t;

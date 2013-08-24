@@ -66,14 +66,26 @@ taskq_create(const char *name, int nthreads, pri_t pri, int minalloc __unused,
     int maxalloc __unused, uint_t flags)
 {
 	taskq_t *tq;
+	int i, nqueues;
 
 	if ((flags & TASKQ_THREADS_CPU_PCT) != 0)
 		nthreads = MAX((mp_ncpus * nthreads) / 100, 1);
+	nqueues = MAX((nthreads + 4) / 6, 1);
+	nthreads = MAX((nthreads + nqueues / 2) / nqueues, 1);
 
-	tq = kmem_alloc(sizeof(*tq), KM_SLEEP);
-	tq->tq_queue = taskqueue_create(name, M_WAITOK, taskqueue_thread_enqueue,
-	    &tq->tq_queue);
-	(void) taskqueue_start_threads(&tq->tq_queue, nthreads, pri, "%s", name);
+	tq = kmem_alloc(sizeof(*tq) + sizeof(tq->tq_queue[0]) * nqueues, KM_SLEEP);
+	tq->tq_num = nqueues;
+	tq->tq_last = 0;
+	for (i = 0; i < nqueues; i++) {
+		tq->tq_queue[i] = taskqueue_create(name, M_WAITOK,
+		    taskqueue_thread_enqueue, &tq->tq_queue[i]);
+		if (nqueues == 1)
+			(void) taskqueue_start_threads(&tq->tq_queue[i],
+			    nthreads, pri, "%s", name);
+		else
+			(void) taskqueue_start_threads(&tq->tq_queue[i],
+			    nthreads, pri, "%s_%d", name, i);
+	}
 
 	return ((taskq_t *)tq);
 }
@@ -89,16 +101,22 @@ taskq_create_proc(const char *name, int nthreads, pri_t pri, int minalloc,
 void
 taskq_destroy(taskq_t *tq)
 {
+	int i;
 
-	taskqueue_free(tq->tq_queue);
-	kmem_free(tq, sizeof(*tq));
+	for (i = 0; i < tq->tq_num; i++)
+		taskqueue_free(tq->tq_queue[i]);
+	kmem_free(tq, sizeof(*tq) + sizeof(tq->tq_queue[0]) * tq->tq_num);
 }
 
 int
 taskq_member(taskq_t *tq, kthread_t *thread)
 {
+	int i, j;
 
-	return (taskqueue_member(tq->tq_queue, thread));
+	for (i = 0; i < tq->tq_num; i++)
+		if (taskqueue_member(tq->tq_queue[i], thread))
+			return (1);
+	return (0);
 }
 
 static void
@@ -115,7 +133,7 @@ taskqid_t
 taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 {
 	struct ostask *task;
-	int mflag, prio;
+	int i, mflag, prio;
 
 	if ((flags & (TQ_SLEEP | TQ_NOQUEUE)) == TQ_SLEEP)
 		mflag = M_WAITOK;
@@ -135,7 +153,11 @@ taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 	task->ost_arg = arg;
 
 	TASK_INIT(&task->ost_task, prio, taskq_run, task);
-	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
+	if (tq->tq_num > 1)
+		i = atomic_fetchadd_int(&tq->tq_last, 1) % tq->tq_num;
+	else
+		i = 0;
+	taskqueue_enqueue(tq->tq_queue[i], &task->ost_task);
 
 	return ((taskqid_t)(void *)task);
 }
@@ -154,7 +176,7 @@ taskqid_t
 taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg, u_int flags,
     struct ostask *task)
 {
-	int prio;
+	int i, prio;
 
 	/* 
 	 * If TQ_FRONT is given, we want higher priority for this task, so it
@@ -166,7 +188,11 @@ taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg, u_int flags,
 	task->ost_arg = arg;
 
 	TASK_INIT(&task->ost_task, prio, taskq_run_safe, task);
-	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
+	if (tq->tq_num > 1)
+		i = atomic_fetchadd_int(&tq->tq_last, 1) % tq->tq_num;
+	else
+		i = 0;
+	taskqueue_enqueue(tq->tq_queue[i], &task->ost_task);
 
 	return ((taskqid_t)(void *)task);
 }
