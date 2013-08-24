@@ -161,7 +161,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, experimental, CTLFLAG_RW, 0,
     "Experimental TCP extensions");
 
-VNET_DEFINE(int, tcp_do_initcwnd10) = 1;
+VNET_DEFINE(int, tcp_do_initcwnd10) = 0;
 SYSCTL_VNET_INT(_net_inet_tcp_experimental, OID_AUTO, initcwnd10, CTLFLAG_RW,
     &VNET_NAME(tcp_do_initcwnd10), 0,
     "Enable draft-ietf-tcpm-initcwnd-05 (Increasing initial CWND to 10)");
