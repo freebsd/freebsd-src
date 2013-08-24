@@ -628,6 +628,7 @@ struct vfsops {
 	vfs_susp_clean_t	*vfs_susp_clean;
 	vfs_notify_lowervp_t	*vfs_reclaim_lowervp;
 	vfs_notify_lowervp_t	*vfs_unlink_lowervp;
+	vfs_mount_t		*vfs_spare[6];	/* spares for ABI compat */
 };
 
 vfs_statfs_t	__vfs_statfs;
