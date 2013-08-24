@@ -52,9 +52,9 @@ typedef	int	(*pfil_func_t)(void *, struct mbuf **, struct ifnet *, int,
  * together and after each other in the specified order.
  */
 struct packet_filter_hook {
-        TAILQ_ENTRY(packet_filter_hook) pfil_chain;
-	pfil_func_t	pfil_func;
-	void	*pfil_arg;
+	TAILQ_ENTRY(packet_filter_hook) pfil_chain;
+	pfil_func_t	 pfil_func;
+	void		*pfil_arg;
 };
 
 #define PFIL_IN		0x00000001
@@ -74,23 +74,23 @@ typedef	TAILQ_HEAD(pfil_chain, packet_filter_hook) pfil_chain_t;
  * For packet is then run through the hook chain for inspection.
  */
 struct pfil_head {
-	pfil_chain_t	ph_in;
-	pfil_chain_t	ph_out;
-	int		ph_type;
-	int		ph_nhooks;
+	pfil_chain_t	 ph_in;
+	pfil_chain_t	 ph_out;
+	int		 ph_type;
+	int		 ph_nhooks;
 #if defined( __linux__ ) || defined( _WIN32 )
-	rwlock_t	ph_mtx;
+	rwlock_t	 ph_mtx;
 #else
 	struct rmlock	*ph_plock;	/* Pointer to the used lock */
-	struct rmlock	ph_lock;	/* Private lock storage */
-	int		flags;
+	struct rmlock	 ph_lock;	/* Private lock storage */
+	int		 flags;
 #endif
 	union {
-		u_long		phu_val;
-		void		*phu_ptr;
+		u_long	 phu_val;
+		void	*phu_ptr;
 	} ph_un;
-#define	ph_af		ph_un.phu_val
-#define	ph_ifnet	ph_un.phu_ptr
+#define	ph_af		 ph_un.phu_val
+#define	ph_ifnet	 ph_un.phu_ptr
 	LIST_ENTRY(pfil_head) ph_list;
 };
 
@@ -98,6 +98,7 @@ struct pfil_head {
 struct pfil_head *pfil_head_get(int, u_long);
 int	pfil_add_hook(pfil_func_t, void *, int, struct pfil_head *);
 int	pfil_remove_hook(pfil_func_t, void *, int, struct pfil_head *);
+#define	PFIL_HOOKED(p) ((p)->ph_nhooks > 0)
 
 /* Public functions to run the packet inspection by protocols. */
 int	pfil_run_hooks(struct pfil_head *, struct mbuf **, struct ifnet *,
@@ -107,16 +108,16 @@ int	pfil_run_hooks(struct pfil_head *, struct mbuf **, struct ifnet *,
 int	pfil_head_register(struct pfil_head *);
 int	pfil_head_unregister(struct pfil_head *);
 
-/* Internal pfil locking functions. */
+/* Public pfil locking functions for self managed locks by packet filters. */
 struct rm_priotracker;	/* Do not require including rmlock header */
-int pfil_try_rlock(struct pfil_head *, struct rm_priotracker *);
-void pfil_rlock(struct pfil_head *, struct rm_priotracker *);
-void pfil_runlock(struct pfil_head *, struct rm_priotracker *);
-void pfil_wlock(struct pfil_head *);
-void pfil_wunlock(struct pfil_head *);
-int pfil_wowned(struct pfil_head *ph);
+int	pfil_try_rlock(struct pfil_head *, struct rm_priotracker *);
+void	pfil_rlock(struct pfil_head *, struct rm_priotracker *);
+void	pfil_runlock(struct pfil_head *, struct rm_priotracker *);
+void	pfil_wlock(struct pfil_head *);
+void	pfil_wunlock(struct pfil_head *);
+int	pfil_wowned(struct pfil_head *ph);
 
-#define	PFIL_HOOKED(p) ((p)->ph_nhooks > 0)
+/* Internal pfil locking functions. */
 #define	PFIL_LOCK_INIT_REAL(l, t)	\
 	rm_init_flags(l, "PFil " t " rmlock", RM_RECURSE)
 #define	PFIL_LOCK_DESTROY_REAL(l)	\
@@ -132,6 +133,7 @@ int pfil_wowned(struct pfil_head *ph);
 	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK)	\
 		PFIL_LOCK_DESTROY_REAL((p)->ph_plock);	\
 } while (0)
+
 #define	PFIL_TRY_RLOCK(p, t)	rm_try_rlock((p)->ph_plock, (t))
 #define	PFIL_RLOCK(p, t)	rm_rlock((p)->ph_plock, (t))
 #define	PFIL_WLOCK(p)		rm_wlock((p)->ph_plock)
