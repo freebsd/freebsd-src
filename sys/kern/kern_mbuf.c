@@ -410,18 +410,14 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
 	struct mb_args *args;
-#ifdef MAC
 	int error;
-#endif
 	int flags;
 	short type;
 
 #ifdef INVARIANTS
 	trash_ctor(mem, size, arg, how);
 #endif
-	m = (struct mbuf *)mem;
 	args = (struct mb_args *)arg;
-	flags = args->flags;
 	type = args->type;
 
 	/*
@@ -431,32 +427,12 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 	if (type == MT_NOINIT)
 		return (0);
 
-	m->m_next = NULL;
-	m->m_nextpkt = NULL;
-	m->m_len = 0;
-	m->m_flags = flags;
-	m->m_type = type;
-	if (flags & M_PKTHDR) {
-		m->m_data = m->m_pktdat;
-		m->m_pkthdr.rcvif = NULL;
-		m->m_pkthdr.header = NULL;
-		m->m_pkthdr.len = 0;
-		m->m_pkthdr.csum_flags = 0;
-		m->m_pkthdr.csum_data = 0;
-		m->m_pkthdr.tso_segsz = 0;
-		m->m_pkthdr.ether_vtag = 0;
-		m->m_pkthdr.flowid = 0;
-		m->m_pkthdr.fibnum = 0;
-		SLIST_INIT(&m->m_pkthdr.tags);
-#ifdef MAC
-		/* If the label init fails, fail the alloc */
-		error = mac_mbuf_init(m, how);
-		if (error)
-			return (error);
-#endif
-	} else
-		m->m_data = m->m_dat;
-	return (0);
+	m = (struct mbuf *)mem;
+	flags = args->flags;
+
+	error = m_init(m, NULL, size, how, type, flags);
+
+	return (error);
 }
 
 /*
@@ -656,34 +632,14 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 #ifdef INVARIANTS
 	trash_ctor(m->m_ext.ext_buf, MCLBYTES, arg, how);
 #endif
-	m->m_next = NULL;
-	m->m_nextpkt = NULL;
-	m->m_data = m->m_ext.ext_buf;
-	m->m_len = 0;
-	m->m_flags = (flags | M_EXT);
-	m->m_type = type;
 
-	if (flags & M_PKTHDR) {
-		m->m_pkthdr.rcvif = NULL;
-		m->m_pkthdr.len = 0;
-		m->m_pkthdr.header = NULL;
-		m->m_pkthdr.csum_flags = 0;
-		m->m_pkthdr.csum_data = 0;
-		m->m_pkthdr.tso_segsz = 0;
-		m->m_pkthdr.ether_vtag = 0;
-		m->m_pkthdr.flowid = 0;
-		m->m_pkthdr.fibnum = 0;
-		SLIST_INIT(&m->m_pkthdr.tags);
-#ifdef MAC
-		/* If the label init fails, fail the alloc */
-		error = mac_mbuf_init(m, how);
-		if (error)
-			return (error);
-#endif
-	}
+	error = m_init(m, NULL, size, how, type, flags);
+
 	/* m_ext is already initialized. */
+	m->m_data = m->m_ext.ext_buf;
+ 	m->m_flags = (flags | M_EXT);
 
-	return (0);
+	return (error);
 }
 
 int
