@@ -82,23 +82,18 @@ struct mb_args {
 };
 #endif /* _KERNEL */
 
-#if defined(__LP64__)
-#define M_HDR_PAD    6
-#else
-#define M_HDR_PAD    2
-#endif
-
 /*
  * Header present at the beginning of every mbuf.
+ * Size ILP32: 20
+ *	 LP64: 32
  */
 struct m_hdr {
 	struct mbuf	*mh_next;	/* next buffer in chain */
 	struct mbuf	*mh_nextpkt;	/* next chain in queue/record */
 	caddr_t		 mh_data;	/* location of data */
-	int		 mh_len;	/* amount of data in this mbuf */
-	int		 mh_flags;	/* flags; see below */
-	short		 mh_type;	/* type of data in this mbuf */
-	uint8_t          pad[M_HDR_PAD];/* word align                  */
+	int32_t		 mh_len;	/* amount of data in this mbuf */
+	uint32_t	 mh_type:8,	/* type of data in this mbuf */
+			 mh_flags:24;	/* flags; see below */
 };
 
 /*
@@ -206,7 +201,10 @@ struct mbuf {
 #define	m_dat		M_dat.M_databuf
 
 /*
- * mbuf flags.
+ * mbuf flags of global significance and layer crossing.
+ * Those of only protocol/layer specific significance are to be mapped
+ * to M_PROTO[1-12] and cleared at layer handoff boundaries.
+ * NB: Limited to the lower 24 bits.
  */
 #define	M_EXT		0x00000001 /* has associated external storage */
 #define	M_PKTHDR	0x00000002 /* start of record */
@@ -430,12 +428,24 @@ struct mbuf {
 #define	CSUM_FRAGMENT		0x0		/* Unused */
 
 /*
- * mbuf types.
+ * mbuf types describing the content of the mbuf (including external storage).
  */
 #define	MT_NOTMBUF	0	/* USED INTERNALLY ONLY! Object is not mbuf */
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	MT_DATA	/* packet header, use M_PKTHDR instead */
+
+#define	MT_VENDOR1	4	/* for vendor-internal use */
+#define	MT_VENDOR2	5	/* for vendor-internal use */
+#define	MT_VENDOR3	6	/* for vendor-internal use */
+#define	MT_VENDOR4	7	/* for vendor-internal use */
+
 #define	MT_SONAME	8	/* socket name */
+
+#define	MT_EXP1		9	/* for experimental use */
+#define	MT_EXP2		10	/* for experimental use */
+#define	MT_EXP3		11	/* for experimental use */
+#define	MT_EXP4		12	/* for experimental use */
+
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
