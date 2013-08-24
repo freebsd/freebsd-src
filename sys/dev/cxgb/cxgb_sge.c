@@ -2634,7 +2634,6 @@ t3_rx_eth(struct adapter *adap, struct mbuf *m, int ethpad)
 	} 
 
 	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
 	/*
 	 * adjust after conversion to mbuf chain
 	 */
