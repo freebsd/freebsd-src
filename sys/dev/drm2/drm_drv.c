@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm.h>
+#include <dev/drm2/drm_core.h>
+#include <dev/drm2/drm_global.h>
 #include <dev/drm2/drm_sarea.h>
 #include <dev/drm2/drm_mode.h>
 
@@ -78,7 +80,7 @@ static moduledata_t drm_mod = {
 	"drmn",
 	drm_modevent,
 	0
-}; 
+};
 DECLARE_MODULE(drmn, drm_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(drmn, 1);
 MODULE_DEPEND(drmn, agp, 1, 1, 1);
@@ -210,7 +212,7 @@ static struct drm_msi_blacklist_entry drm_msi_blacklist[] = {
 static int drm_msi_is_blacklisted(int vendor, int device)
 {
 	int i = 0;
-	
+
 	for (i = 0; drm_msi_blacklist[i].vendor != 0; i++) {
 		if ((drm_msi_blacklist[i].vendor == vendor) &&
 		    (drm_msi_blacklist[i].device == device)) {
@@ -349,7 +351,7 @@ drm_pci_id_list_t *drm_find_description(int vendor, int device,
     drm_pci_id_list_t *idlist)
 {
 	int i = 0;
-	
+
 	for (i = 0; idlist[i].vendor != 0; i++) {
 		if ((idlist[i].vendor == vendor) &&
 		    ((idlist[i].device == device) ||
@@ -746,7 +748,7 @@ void drm_close(void *data)
 
 		drm_lock_free(&dev->lock,
 		    _DRM_LOCKING_CONTEXT(dev->lock.hw_lock->lock));
-		
+
 				/* FIXME: may require heavy-handed reset of
                                    hardware at this point, possibly
                                    processed via a callback to the X
@@ -809,7 +811,7 @@ extern drm_ioctl_desc_t drm_compat_ioctls[];
 
 /* drm_ioctl is called whenever a process performs an ioctl on /dev/drm.
  */
-int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags, 
+int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
     DRM_STRUCTPROC *p)
 {
 	struct drm_device *dev = drm_get_device_from_kdev(kdev);
@@ -984,13 +986,8 @@ MODULE_DEPEND(DRIVER_NAME, linux, 1, 1, 1);
 #define LINUX_IOCTL_DRM_MAX		0x64ff
 
 static linux_ioctl_function_t drm_linux_ioctl;
-static struct linux_ioctl_handler drm_handler = {drm_linux_ioctl, 
+static struct linux_ioctl_handler drm_handler = {drm_linux_ioctl,
     LINUX_IOCTL_DRM_MIN, LINUX_IOCTL_DRM_MAX};
-
-SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE, 
-    linux_ioctl_register_handler, &drm_handler);
-SYSUNINIT(drm_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE, 
-    linux_ioctl_unregister_handler, &drm_handler);
 
 /* The bits for in/out are switched on Linux */
 #define LINUX_IOC_IN	IOC_OUT
@@ -1007,12 +1004,44 @@ drm_linux_ioctl(DRM_STRUCTPROC *p, struct linux_ioctl_args* args)
 		args->cmd |= IOC_IN;
 	if (cmd & LINUX_IOC_OUT)
 		args->cmd |= IOC_OUT;
-	
+
 	error = ioctl(p, (struct ioctl_args *)args);
 
 	return error;
 }
 #endif /* DRM_LINUX */
+
+
+static int
+drm_core_init(void *arg)
+{
+
+	drm_global_init();
+
+#if DRM_LINUX
+	linux_ioctl_register_handler(&drm_handler);
+#endif /* DRM_LINUX */
+
+	DRM_INFO("Initialized %s %d.%d.%d %s\n",
+		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
+	return 0;
+}
+
+static void
+drm_core_exit(void *arg)
+{
+
+#if DRM_LINUX
+	linux_ioctl_unregister_handler(&drm_handler);
+#endif /* DRM_LINUX */
+
+	drm_global_release();
+}
+
+SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE,
+    drm_core_init, NULL);
+SYSUNINIT(drm_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
+    drm_core_exit, NULL);
 
 bool
 dmi_check_system(const struct dmi_system_id *sysid)
@@ -1021,4 +1050,3 @@ dmi_check_system(const struct dmi_system_id *sysid)
 	/* XXXKIB */
 	return (false);
 }
-
