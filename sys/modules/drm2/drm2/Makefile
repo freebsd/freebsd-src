@@ -6,6 +6,7 @@ SRCS	= \
 	drm_agpsupport.c \
 	drm_auth.c \
 	drm_bufs.c \
+	drm_buffer.c \
 	drm_context.c \
 	drm_crtc.c \
 	drm_crtc_helper.c \
