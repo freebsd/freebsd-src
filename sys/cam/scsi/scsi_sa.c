@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mtio.h>
 #ifdef _KERNEL
 #include <sys/conf.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #endif
 #include <sys/fcntl.h>
 #include <sys/devicestat.h>
@@ -223,6 +225,8 @@ struct sa_softc {
 	u_int32_t	max_blk;
 	u_int32_t	min_blk;
 	u_int32_t	maxio;
+	u_int32_t	cpi_maxio;
+	int		allow_io_split;
 	u_int32_t	comp_algorithm;
 	u_int32_t	saved_comp_algorithm;
 	u_int32_t	media_blksize;
@@ -268,6 +272,10 @@ struct sa_softc {
 		open_rdonly		: 1,	/* open read-only */
 		open_pending_mount	: 1,	/* open pending mount */
 		ctrl_mode		: 1;	/* control device open */
+
+	struct task		sysctl_task;
+	struct sysctl_ctx_list	sysctl_ctx;
+	struct sysctl_oid	*sysctl_tree;
 };
 
 struct sa_quirk_entry {
@@ -425,6 +433,22 @@ static int		sawritefilemarks(struct cam_periph *periph,
 static int		sardpos(struct cam_periph *periph, int, u_int32_t *);
 static int		sasetpos(struct cam_periph *periph, int, u_int32_t *);
 
+
+#ifndef	SA_DEFAULT_IO_SPLIT
+#define	SA_DEFAULT_IO_SPLIT	0
+#endif
+
+static int sa_allow_io_split = SA_DEFAULT_IO_SPLIT;
+
+/*
+ * Tunable to allow the user to set a global allow_io_split value.  Note
+ * that this WILL GO AWAY in FreeBSD 11.0.  Silently splitting the I/O up
+ * is bad behavior, because it hides the true tape block size from the
+ * application.
+ */
+TUNABLE_INT("kern.cam.sa.allow_io_split", &sa_allow_io_split);
+static SYSCTL_NODE(_kern_cam, OID_AUTO, sa, CTLFLAG_RD, 0,
+		  "CAM Sequential Access Tape Driver");
 
 static struct periph_driver sadriver =
 {
@@ -1448,6 +1472,49 @@ saasync(void *callback_arg, u_int32_t code,
 	}
 }
 
+static void
+sasysctlinit(void *context, int pending)
+{
+	struct cam_periph *periph;
+	struct sa_softc *softc;
+	char tmpstr[80], tmpstr2[80];
+
+	periph = (struct cam_periph *)context;
+	/*
+	 * If the periph is invalid, no need to setup the sysctls.
+	 */
+	if (periph->flags & CAM_PERIPH_INVALID)
+		goto bailout;
+
+	softc = (struct sa_softc *)periph->softc;
+
+	snprintf(tmpstr, sizeof(tmpstr), "CAM SA unit %d", periph->unit_number);
+	snprintf(tmpstr2, sizeof(tmpstr2), "%u", periph->unit_number);
+
+	sysctl_ctx_init(&softc->sysctl_ctx);
+	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_kern_cam_sa), OID_AUTO, tmpstr2,
+                    CTLFLAG_RD, 0, tmpstr);
+	if (softc->sysctl_tree == NULL)
+		goto bailout;
+
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "allow_io_split", CTLTYPE_INT | CTLFLAG_RDTUN, 
+	    &softc->allow_io_split, 0, "Allow Splitting I/O");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "maxio", CTLTYPE_INT | CTLFLAG_RD, 
+	    &softc->maxio, 0, "Maximum I/O size");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "cpi_maxio", CTLTYPE_INT | CTLFLAG_RD, 
+	    &softc->cpi_maxio, 0, "Maximum Controller I/O size");
+
+bailout:
+	/*
+	 * Release the reference that was held when this task was enqueued.
+	 */
+	cam_periph_release(periph);
+}
+
 static cam_status
 saregister(struct cam_periph *periph, void *arg)
 {
@@ -1455,6 +1522,7 @@ saregister(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 	struct ccb_pathinq cpi;
 	caddr_t match;
+	char tmpstr[80];
 	int i;
 	
 	cgd = (struct ccb_getdev *)arg;
@@ -1509,21 +1577,55 @@ saregister(struct cam_periph *periph, void *arg)
 	    XPORT_DEVSTAT_TYPE(cpi.transport), DEVSTAT_PRIORITY_TAPE);
 
 	/*
-	 * If maxio isn't set, we fall back to DFLTPHYS.  If it is set, we
-	 * take it whether or not it's larger than MAXPHYS.  physio will
-	 * break it down into pieces small enough to fit in a buffer.
+	 * Load the default value that is either compiled in, or loaded 
+	 * in the global kern.cam.sa.allow_io_split tunable.
+	 */
+	softc->allow_io_split = sa_allow_io_split;
+
+	/*
+	 * Load a per-instance tunable, if it exists.  NOTE that this
+	 * tunable WILL GO AWAY in FreeBSD 11.0.
+	 */ 
+	snprintf(tmpstr, sizeof(tmpstr), "kern.cam.sa.%u.allow_io_split",
+		 periph->unit_number);
+	TUNABLE_INT_FETCH(tmpstr, &softc->allow_io_split);
+
+	/*
+	 * If maxio isn't set, we fall back to DFLTPHYS.  Otherwise we take
+	 * the smaller of cpi.maxio or MAXPHYS.
 	 */
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;
+	else if (cpi.maxio > MAXPHYS)
+		softc->maxio = MAXPHYS;
 	else
 		softc->maxio = cpi.maxio;
+
+	/*
+	 * Record the controller's maximum I/O size so we can report it to
+	 * the user later.
+	 */
+	softc->cpi_maxio = cpi.maxio;
+
+	/*
+	 * By default we tell physio that we do not want our I/O split.
+	 * The user needs to have a 1:1 mapping between the size of his
+	 * write to a tape character device and the size of the write
+	 * that actually goes down to the drive.
+	 */
+	if (softc->allow_io_split == 0)
+		softc->si_flags = SI_NOSPLIT;
+	else
+		softc->si_flags = 0;
+
+	TASK_INIT(&softc->sysctl_task, 0, sasysctlinit, periph);
 
 	/*
 	 * If the SIM supports unmapped I/O, let physio know that we can
 	 * handle unmapped buffers.
 	 */
 	if (cpi.hba_misc & PIM_UNMAPPED)
-		softc->si_flags = SI_UNMAPPED;
+		softc->si_flags |= SI_UNMAPPED;
 
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
@@ -1584,6 +1686,13 @@ saregister(struct cam_periph *periph, void *arg)
 		}
 	}
 	cam_periph_lock(periph);
+
+	/*
+	 * Bump the peripheral refcount for the sysctl thread, in case we
+	 * get invalidated before the thread has a chance to run.
+	 */
+	cam_periph_acquire(periph);
+	taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
 
 	/*
 	 * Add an async callback so that we get
