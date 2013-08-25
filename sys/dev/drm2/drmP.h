@@ -698,6 +698,7 @@ struct drm_gem_object {
 
 struct drm_driver_info {
 	int	(*load)(struct drm_device *, unsigned long flags);
+	int	(*use_msi)(struct drm_device *, unsigned long flags);
 	int	(*firstopen)(struct drm_device *);
 	int	(*open)(struct drm_device *, struct drm_file *);
 	void	(*preclose)(struct drm_device *, struct drm_file *file_priv);
@@ -829,8 +830,10 @@ struct drm_device {
 	struct drm_driver_info *driver;
 	drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
 
-	u_int16_t pci_device;		/* PCI device id */
-	u_int16_t pci_vendor;		/* PCI vendor id */
+	uint16_t pci_device;		/* PCI device id */
+	uint16_t pci_vendor;		/* PCI vendor id */
+	uint16_t pci_subdevice;		/* PCI subsystem device id */
+	uint16_t pci_subvendor;		/* PCI subsystem vendor id */
 
 	char		  *unique;	/* Unique identifier: e.g., busid  */
 	int		  unique_len;	/* Length of unique field	   */
