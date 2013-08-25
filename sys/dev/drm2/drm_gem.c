@@ -328,9 +328,17 @@ drm_gem_open(struct drm_device *dev, struct drm_file *file_priv)
 static int
 drm_gem_object_release_handle(uint32_t name, void *ptr, void *arg)
 {
+	struct drm_file *file_priv;
 	struct drm_gem_object *obj;
+	struct drm_device *dev;
 
+	file_priv = arg;
 	obj = ptr;
+	dev = obj->dev;
+
+	if (dev->driver->gem_close_object)
+		dev->driver->gem_close_object(obj, file_priv);
+
 	drm_gem_object_handle_unreference(obj);
 	return (0);
 }
@@ -340,7 +348,7 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_priv)
 {
 
 	drm_gem_names_foreach(&file_priv->object_names,
-	    drm_gem_object_release_handle, NULL);
+	    drm_gem_object_release_handle, file_priv);
 	drm_gem_names_fini(&file_priv->object_names);
 }
 
