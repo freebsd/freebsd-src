@@ -993,11 +993,11 @@ drm_mmap_single(struct cdev *kdev, vm_ooffset_t *offset, vm_size_t size,
 	struct drm_device *dev;
 
 	dev = drm_get_device_from_kdev(kdev);
-	if ((dev->driver->driver_features & DRIVER_GEM) != 0) {
-		return (drm_gem_mmap_single(dev, offset, size, obj_res, nprot));
-	} else if (dev->drm_ttm_bo != NULL) {
-		return (ttm_bo_mmap_single(dev->drm_ttm_bo, offset, size,
+	if (dev->drm_ttm_bdev != NULL) {
+		return (ttm_bo_mmap_single(dev->drm_ttm_bdev, offset, size,
 		    obj_res, nprot));
+	} else if ((dev->driver->driver_features & DRIVER_GEM) != 0) {
+		return (drm_gem_mmap_single(dev, offset, size, obj_res, nprot));
 	} else {
 		return (ENODEV);
 	}
