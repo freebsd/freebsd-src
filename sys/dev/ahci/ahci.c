@@ -676,7 +676,7 @@ static int
 ahci_setup_interrupt(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	int i, msi = 1;
+	int i, msi = 2;
 
 	/* Process hints. */
 	if (ctlr->quirks & AHCI_Q_NOMSI)
