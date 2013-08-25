@@ -23,6 +23,8 @@
 # SUCH DAMAGE.
 #
 
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../../dev/vmware/vmxnet3
 
 KMOD=	if_vmx

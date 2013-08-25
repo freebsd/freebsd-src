@@ -132,7 +132,7 @@ static void	cas_detach(struct cas_softc *sc);
 static int	cas_disable_rx(struct cas_softc *sc);
 static int	cas_disable_tx(struct cas_softc *sc);
 static void	cas_eint(struct cas_softc *sc, u_int status);
-static void	cas_free(void *arg1, void* arg2);
+static void	cas_free(struct mbuf *m, void *arg1, void* arg2);
 static void	cas_init(void *xsc);
 static void	cas_init_locked(struct cas_softc *sc);
 static void	cas_init_regs(struct cas_softc *sc);
@@ -1888,7 +1888,7 @@ cas_rint(struct cas_softc *sc)
 }
 
 static void
-cas_free(void *arg1, void *arg2)
+cas_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	struct cas_rxdsoft *rxds;
 	struct cas_softc *sc;

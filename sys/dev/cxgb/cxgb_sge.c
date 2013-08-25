@@ -1470,9 +1470,9 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		hdr->len = htonl(mlen | 0x80000000);
 
 		if (__predict_false(mlen < TCPPKTHDRSIZE)) {
-			printf("mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
+			printf("mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%b,flags=%#x",
 			    m0, mlen, m0->m_pkthdr.tso_segsz,
-			    m0->m_pkthdr.csum_flags, m0->m_flags);
+			    (int)m0->m_pkthdr.csum_flags, CSUM_BITS, m0->m_flags);
 			panic("tx tso packet too small");
 		}
 
@@ -2634,7 +2634,6 @@ t3_rx_eth(struct adapter *adap, struct mbuf *m, int ethpad)
 	} 
 
 	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
 	/*
 	 * adjust after conversion to mbuf chain
 	 */

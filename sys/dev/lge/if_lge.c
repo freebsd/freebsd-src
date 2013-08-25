@@ -122,7 +122,7 @@ static int lge_detach(device_t);
 static int lge_alloc_jumbo_mem(struct lge_softc *);
 static void lge_free_jumbo_mem(struct lge_softc *);
 static void *lge_jalloc(struct lge_softc *);
-static void lge_jfree(void *, void *);
+static void lge_jfree(struct mbuf *, void *, void *);
 
 static int lge_newbuf(struct lge_softc *, struct lge_rx_desc *, struct mbuf *);
 static int lge_encap(struct lge_softc *, struct mbuf *, u_int32_t *);
@@ -847,9 +847,7 @@ lge_jalloc(sc)
  * Release a jumbo buffer.
  */
 static void
-lge_jfree(buf, args)
-	void			*buf;
-	void			*args;
+lge_jfree(struct mbuf *m, void *buf, void *args)
 {
 	struct lge_softc	*sc;
 	int		        i;

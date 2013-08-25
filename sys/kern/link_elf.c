@@ -702,16 +702,6 @@ link_elf_link_preload_finish(linker_file_t lf)
 	int error;
 
 	ef = (elf_file_t) lf;
-#if 0	/* this will be more trouble than it's worth for now */
-	for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
-		if (dp->d_tag != DT_NEEDED)
-			continue;
-		modname = ef->strtab + dp->d_un.d_val;
-		error = linker_load_module(modname, lf);
-		if (error != 0)
-			goto out;
-    }
-#endif
 	error = relocate_file(ef);
 	if (error != 0)
 		return (error);
@@ -973,16 +963,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY);
 	if (error != 0)
 		goto out;
-#if 0	/* this will be more trouble than it's worth for now */
-	for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
-		if (dp->d_tag != DT_NEEDED)
-			continue;
-		modname = ef->strtab + dp->d_un.d_val;
-		error = linker_load_module(modname, lf);
-		if (error != 0)
-			goto out;
-    }
-#endif
 	error = relocate_file(ef);
 	if (error != 0)
 		goto out;

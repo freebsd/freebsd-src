@@ -196,8 +196,8 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 
 	if (offset + sizeof(u_short) > m->m_len) {
 		printf("%s: delayed m_pullup, m->len: %d plen %u off %u "
-		    "csum_flags=0x%04x\n", __func__, m->m_len, plen, offset,
-		    m->m_pkthdr.csum_flags);
+		    "csum_flags=%b\n", __func__, m->m_len, plen, offset,
+		    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
 		/*
 		 * XXX this should not happen, but if it does, the correct
 		 * behavior may be to insert the checksum in the appropriate

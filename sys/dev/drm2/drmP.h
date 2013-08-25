@@ -317,6 +317,9 @@ typedef int8_t s8;
 
 #define DRM_HZ			hz
 #define DRM_UDELAY(udelay)	DELAY(udelay)
+#define DRM_MDELAY(msecs)	do { int loops = (msecs);		\
+	                          while (loops--) DELAY(1000);		\
+				} while (0)
 #define DRM_TIME_SLICE		(hz/20)  /* Time slice for GLXContexts	  */
 
 #define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
@@ -695,6 +698,7 @@ struct drm_gem_object {
 
 struct drm_driver_info {
 	int	(*load)(struct drm_device *, unsigned long flags);
+	int	(*use_msi)(struct drm_device *, unsigned long flags);
 	int	(*firstopen)(struct drm_device *);
 	int	(*open)(struct drm_device *, struct drm_file *);
 	void	(*preclose)(struct drm_device *, struct drm_file *file_priv);
@@ -733,6 +737,8 @@ struct drm_driver_info {
 
 	int	(*gem_init_object)(struct drm_gem_object *obj);
 	void	(*gem_free_object)(struct drm_gem_object *obj);
+	int	(*gem_open_object)(struct drm_gem_object *, struct drm_file *);
+	void	(*gem_close_object)(struct drm_gem_object *, struct drm_file *);
 
 	struct cdev_pager_ops *gem_pager_ops;
 
@@ -826,8 +832,10 @@ struct drm_device {
 	struct drm_driver_info *driver;
 	drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
 
-	u_int16_t pci_device;		/* PCI device id */
-	u_int16_t pci_vendor;		/* PCI vendor id */
+	uint16_t pci_device;		/* PCI device id */
+	uint16_t pci_vendor;		/* PCI vendor id */
+	uint16_t pci_subdevice;		/* PCI subsystem device id */
+	uint16_t pci_subvendor;		/* PCI subsystem vendor id */
 
 	char		  *unique;	/* Unique identifier: e.g., busid  */
 	int		  unique_len;	/* Length of unique field	   */
@@ -907,7 +915,7 @@ struct drm_device {
 	struct drm_minor *control;		/**< Control node for card */
 	struct drm_minor *primary;		/**< render type primary screen head */
 
-	void		  *drm_ttm_bo;
+	void		  *drm_ttm_bdev;
 	struct unrhdr	  *drw_unrhdr;
 	/* RB tree of drawable infos */
 	RB_HEAD(drawable_tree, bsd_drm_drawable_info) drw_head;
@@ -1407,6 +1415,11 @@ do {									\
 
 #define	KTR_DRM		KTR_DEV
 #define	KTR_DRM_REG	KTR_SPARE3
+
+/* Error codes conversion from Linux to FreeBSD. */
+/* XXXKIB what is the right code for EREMOTEIO on FreeBSD? */
+#define	EREMOTEIO	ENXIO
+#define	ERESTARTSYS	ERESTART
 
 #endif /* __KERNEL__ */
 #endif /* _DRM_P_H_ */

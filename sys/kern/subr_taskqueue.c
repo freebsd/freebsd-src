@@ -620,7 +620,6 @@ taskqueue_member(struct taskqueue *queue, struct thread *td)
 {
 	int i, j, ret = 0;
 
-	TQ_LOCK(queue);
 	for (i = 0, j = 0; ; i++) {
 		if (queue->tq_threads[i] == NULL)
 			continue;
@@ -631,6 +630,5 @@ taskqueue_member(struct taskqueue *queue, struct thread *td)
 		if (++j >= queue->tq_tcount)
 			break;
 	}
-	TQ_UNLOCK(queue);
 	return (ret);
 }
