@@ -637,7 +637,8 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 * operation has completed.
 		 */
 
-		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
+		atomic_set_long(&bo->priv_flags,
+				1UL << TTM_BO_PRIV_FLAG_MOVING);
 		mtx_unlock(&bdev->fence_lock);
 		if (tmp_obj)
 			driver->sync_obj_unref(&tmp_obj);
