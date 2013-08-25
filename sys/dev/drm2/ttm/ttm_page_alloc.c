@@ -320,6 +320,7 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free)
 	vm_page_t *pages_to_free;
 	unsigned freed_pages = 0,
 		 npages_to_free = nr_free;
+	unsigned i;
 
 	if (NUM_PAGES_TO_ALLOC < nr_free)
 		npages_to_free = NUM_PAGES_TO_ALLOC;
@@ -338,7 +339,8 @@ restart:
 		/* We can only remove NUM_PAGES_TO_ALLOC at a time. */
 		if (freed_pages >= NUM_PAGES_TO_ALLOC) {
 			/* remove range of pages from the pool */
-			TAILQ_REMOVE(&pool->list, p, plinks.q);
+			for (i = 0; i < freed_pages; i++)
+				TAILQ_REMOVE(&pool->list, pages_to_free[i], plinks.q);
 
 			ttm_pool_update_free_locked(pool, freed_pages);
 			/**
@@ -373,7 +375,8 @@ restart:
 
 	/* remove range of pages from the pool */
 	if (freed_pages) {
-		TAILQ_REMOVE(&pool->list, p, plinks.q);
+		for (i = 0; i < freed_pages; i++)
+			TAILQ_REMOVE(&pool->list, pages_to_free[i], plinks.q);
 
 		ttm_pool_update_free_locked(pool, freed_pages);
 		nr_free -= freed_pages;
