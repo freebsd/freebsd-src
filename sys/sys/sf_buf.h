@@ -67,6 +67,6 @@ extern counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 struct sf_buf *
 	sf_buf_alloc(struct vm_page *m, int flags);
 void	sf_buf_free(struct sf_buf *sf);
-void	sf_buf_mext(struct mbuf *mb, void *addr, void *args);
+int	sf_buf_mext(struct mbuf *mb, void *addr, void *args);
 
 #endif /* !_SYS_SF_BUF_H_ */
