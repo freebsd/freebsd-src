@@ -121,7 +121,7 @@ drm_gem_private_object_init(struct drm_device *dev, struct drm_gem_object *obj,
 	obj->vm_obj = NULL;
 
 	obj->refcount = 1;
-	atomic_set(&obj->handle_count, 0);
+	atomic_store_rel_int(&obj->handle_count, 0);
 	obj->size = size;
 
 	return (0);
