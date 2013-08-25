@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <dev/drm2/drmP.h>
+#include <dev/drm2/drm_core.h>
 
 /*
  * Beginning in revision 1.1 of the DRM interface, getunique will return
@@ -254,10 +255,6 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	}
 	return 0;
 }
-
-
-#define DRM_IF_MAJOR	1
-#define DRM_IF_MINOR	2
 
 int drm_setversion(struct drm_device *dev, void *data,
 		   struct drm_file *file_priv)
