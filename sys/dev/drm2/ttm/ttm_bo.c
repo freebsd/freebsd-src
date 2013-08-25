@@ -202,7 +202,7 @@ int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 {
 	int ret;
 
- 	while (unlikely(atomic_xchg(&bo->reserved, 1) != 0)) {
+	while (unlikely(atomic_xchg(&bo->reserved, 1) != 0)) {
 		/**
 		 * Deadlock avoidance for multi-bo reserving.
 		 */
@@ -230,28 +230,28 @@ int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 	}
 
 	if (use_sequence) {
- 		bool wake_up = false;
+		bool wake_up = false;
 		/**
 		 * Wake up waiters that may need to recheck for deadlock,
 		 * if we decreased the sequence number.
 		 */
 		if (unlikely((bo->val_seq - sequence < (1 << 31))
 			     || !bo->seq_valid))
- 			wake_up = true;
+			wake_up = true;
 
- 		/*
- 		 * In the worst case with memory ordering these values can be
- 		 * seen in the wrong order. However since we call wake_up_all
- 		 * in that case, this will hopefully not pose a problem,
- 		 * and the worst case would only cause someone to accidentally
- 		 * hit -EAGAIN in ttm_bo_reserve when they see old value of
- 		 * val_seq. However this would only happen if seq_valid was
- 		 * written before val_seq was, and just means some slightly
- 		 * increased cpu usage
- 		 */
+		/*
+		 * In the worst case with memory ordering these values can be
+		 * seen in the wrong order. However since we call wake_up_all
+		 * in that case, this will hopefully not pose a problem,
+		 * and the worst case would only cause someone to accidentally
+		 * hit -EAGAIN in ttm_bo_reserve when they see old value of
+		 * val_seq. However this would only happen if seq_valid was
+		 * written before val_seq was, and just means some slightly
+		 * increased cpu usage
+		 */
 		bo->val_seq = sequence;
 		bo->seq_valid = true;
- 		if (wake_up)
+		if (wake_up)
 			wakeup(bo);
 	} else {
 		bo->seq_valid = false;
