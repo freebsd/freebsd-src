@@ -105,13 +105,11 @@ vga_pci_map_bios(device_t dev, size_t *size)
 		 * the original ROM may not be valid after boot.
 		 */
 
-		printf("%s: Mapping BIOS shadow\n", __func__);
 		*size = VGA_PCI_BIOS_SHADOW_SIZE;
 		return (pmap_mapbios(VGA_PCI_BIOS_SHADOW_ADDR, *size));
 	}
 #endif
 
-	printf("%s: Mapping PCI expansion ROM\n", __func__);
 	rid = PCIR_BIOS;
 	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (res == NULL) {
@@ -135,7 +133,6 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 #if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
 	if (vga_pci_is_boot_display(dev)) {
 		/* We mapped the BIOS shadow copy located at 0xC0000. */
-		printf("%s: Unmapping BIOS shadow\n", __func__);
 		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
 
 		return;
@@ -151,7 +148,6 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 	 * caller's reference.
 	 */
 
-	printf("%s: Unmapping PCI expansion ROM\n", __func__);
 	rid = PCIR_BIOS;
 	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 
