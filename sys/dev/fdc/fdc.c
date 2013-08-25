@@ -528,7 +528,8 @@ fdc_reset(struct fdc_data *fdc)
 		if (fdc_cmd(fdc, 4,
 		    I8207X_CONFIG,
 		    0,
-		    0x40 |			/* Enable Implied Seek */
+		    /* 0x40 | */		/* Enable Implied Seek -
+						 * breaks 2step! */
 		    0x10 |			/* Polling disabled */
 		    (fifo_threshold - 1),	/* Fifo threshold */
 		    0x00,			/* Precomp track */
@@ -922,14 +923,8 @@ fdc_worker(struct fdc_data *fdc)
 
 	/*
 	 * SEEK to where we want to be
-	 *
-	 * Enhanced controllers do implied seeks for read&write as long as
-	 * we do not need multiple steps per track.
 	 */
-	if (cylinder != fd->track && (
-	    fdc->fdct != FDC_ENHANCED ||
-	    descyl != cylinder ||
-	    (bp->bio_cmd & (BIO_RDID|BIO_FMT)))) {
+	if (cylinder != fd->track) {
 		retry_line = __LINE__;
 		if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, descyl, 0))
 			return (1);
