@@ -6026,7 +6026,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	    "sctp_input(): Packet of length %d received on %s with csum_flags 0x%x.\n",
 	    m->m_pkthdr.len,
 	    if_name(m->m_pkthdr.rcvif),
-	    m->m_pkthdr.csum_flags);
+	    (int)m->m_pkthdr.csum_flags);
 	if (m->m_flags & M_FLOWID) {
 		mflowid = m->m_pkthdr.flowid;
 		use_mflowid = 1;
