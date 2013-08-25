@@ -1516,7 +1516,8 @@ static struct iap_event_descr iap_events[] = {
 
     /* Sandy Bridge / Sandy Bridge Xeon - 11, 12, 21, 41, 42, 81, 82 */
     IAPDESCR(D0H_00H, 0xD0, 0x00, IAP_F_FM | IAP_F_CC),
-    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D0H_02H, 0xD0, 0x02, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D0H_10H, 0xD0, 0x10, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D0H_11H, 0xD0, 0x11, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
