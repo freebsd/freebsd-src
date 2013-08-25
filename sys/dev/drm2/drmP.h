@@ -1421,5 +1421,22 @@ do {									\
 #define	EREMOTEIO	ENXIO
 #define	ERESTARTSYS	ERESTART
 
+#define	PCI_VENDOR_ID_APPLE		0x106b
+#define	PCI_VENDOR_ID_ASUSTEK		0x1043
+#define	PCI_VENDOR_ID_ATI		0x1002
+#define	PCI_VENDOR_ID_DELL		0x1028
+#define	PCI_VENDOR_ID_HP		0x103c
+#define	PCI_VENDOR_ID_IBM		0x1014
+#define	PCI_VENDOR_ID_INTEL		0x8086
+#define	PCI_VENDOR_ID_SERVERWORKS	0x1166
+#define	PCI_VENDOR_ID_SONY		0x104d
+#define	PCI_VENDOR_ID_VIA		0x1106
+
+#define DRM_PCIE_SPEED_25 1
+#define DRM_PCIE_SPEED_50 2
+#define DRM_PCIE_SPEED_80 4
+
+extern int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
+
 #endif /* __KERNEL__ */
 #endif /* _DRM_P_H_ */
