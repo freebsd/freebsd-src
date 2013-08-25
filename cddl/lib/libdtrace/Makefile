@@ -48,8 +48,11 @@ SRCS=		dt_aggregate.c \
 
 DSRCS=		errno.d			\
 		io.d			\
+		ip.d			\
 		psinfo.d		\
 		signal.d		\
+		tcp.d			\
+		udp.d			\
 		unistd.d
 
 WARNS?=		1
