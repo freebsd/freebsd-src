@@ -369,9 +369,8 @@ ttm_bo_release_mmap(struct ttm_buffer_object *bo)
 	int i;
 
 	vm_obj = cdev_pager_lookup(bo);
-	if (vm_obj == NULL) {
+	if (vm_obj == NULL)
 		return;
-	}
 
 	VM_OBJECT_WLOCK(vm_obj);
 retry:
