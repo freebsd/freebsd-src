@@ -83,6 +83,10 @@ static uma_zone_t	biozone;
 static TAILQ_HEAD(g_classifier_tailq, g_classifier_hook)
     g_classifier_tailq = TAILQ_HEAD_INITIALIZER(g_classifier_tailq);
 
+extern struct thread *g_up_td;
+extern struct thread *g_down_td;
+extern struct thread *g_event_td;
+
 #include <machine/atomic.h>
 
 static void
@@ -460,6 +464,7 @@ void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
+	struct thread *td;
 	int direct, error, first;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
@@ -515,8 +520,23 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	else
 		getbinuptime(&bp->bio_t0);
 
+#ifdef GET_STACK_USAGE
+	td = curthread;
 	direct = (cp->flags & G_CF_DIRECT_SEND) &&
-		 (pp->flags & G_PF_DIRECT_RECEIVE);
+		 (pp->flags & G_PF_DIRECT_RECEIVE) &&
+		 ((bp->bio_flags & BIO_UNMAPPED) == 0 ||
+		  td->td_no_sleeping == 0) &&
+		 td != g_up_td && td != g_down_td && td != g_event_td;
+	if (direct) {
+		/* Block direct execution if less then half of stack left. */
+		size_t	st, su;
+		GET_STACK_USAGE(st, su);
+		if (su * 2 > st)
+			direct = 0;
+	}
+#else
+	direct = 0;
+#endif
 
 	/*
 	 * The statistics collection is lockless, as such, but we
@@ -565,6 +585,7 @@ g_io_deliver(struct bio *bp, int error)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	struct thread *td;
 	int direct, first;
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
@@ -611,8 +632,21 @@ g_io_deliver(struct bio *bp, int error)
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
 
+#ifdef GET_STACK_USAGE
+	td = curthread;
 	direct = (pp->flags & G_PF_DIRECT_SEND) &&
-		 (cp->flags & G_CF_DIRECT_RECEIVE);
+		 (cp->flags & G_CF_DIRECT_RECEIVE) &&
+		 td != g_up_td && td != g_down_td && td != g_event_td;
+	if (direct) {
+		/* Block direct execution if less then half of stack left. */
+		size_t	st, su;
+		GET_STACK_USAGE(st, su);
+		if (su * 2 > st)
+			direct = 0;
+	}
+#else
+	direct = 0;
+#endif
 
 	/*
 	 * The statistics collection is lockless, as such, but we
