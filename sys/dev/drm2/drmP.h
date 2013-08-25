@@ -737,6 +737,8 @@ struct drm_driver_info {
 
 	int	(*gem_init_object)(struct drm_gem_object *obj);
 	void	(*gem_free_object)(struct drm_gem_object *obj);
+	int	(*gem_open_object)(struct drm_gem_object *, struct drm_file *);
+	void	(*gem_close_object)(struct drm_gem_object *, struct drm_file *);
 
 	struct cdev_pager_ops *gem_pager_ops;
 
