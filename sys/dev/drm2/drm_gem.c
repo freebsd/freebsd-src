@@ -163,7 +163,7 @@ void
 drm_gem_object_reference(struct drm_gem_object *obj)
 {
 
-	KASSERT(obj->refcount > 0, ("Dandling obj %p", obj));
+	KASSERT(obj->refcount > 0, ("Dangling obj %p", obj));
 	refcount_acquire(&obj->refcount);
 }
 
