@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <asm/agp.h>
 #endif
 
-#define	VM_ALLOC_DMA32	VM_ALLOC_RESERVED1
-
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(vm_page_t))
 #define SMALL_ALLOCATION		16
 #define FREE_ALL_PAGES			(~0U)
