@@ -145,7 +145,7 @@ ttm_bo_wait_unreserved_locked(struct ttm_buffer_object *bo, bool interruptible)
 		flags = 0;
 		wmsg = "ttbowu";
 	}
-	while (!ttm_bo_is_reserved(bo)) {
+	while (ttm_bo_is_reserved(bo)) {
 		ret = -msleep(bo, &bo->glob->lru_lock, flags, wmsg, 0);
 		if (ret != 0)
 			break;
@@ -281,14 +281,15 @@ int ttm_bo_reserve(struct ttm_buffer_object *bo,
 	int put_count = 0;
 	int ret;
 
+	mtx_lock(&bo->glob->lru_lock);
 	ret = ttm_bo_reserve_nolru(bo, interruptible, no_wait, use_sequence,
 				   sequence);
 	if (likely(ret == 0)) {
-		mtx_lock(&glob->lru_lock);
 		put_count = ttm_bo_del_from_lru(bo);
 		mtx_unlock(&glob->lru_lock);
 		ttm_bo_list_ref_sub(bo, put_count, true);
-	}
+	} else
+		mtx_unlock(&bo->glob->lru_lock);
 
 	return ret;
 }
@@ -333,13 +334,14 @@ int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 	struct ttm_bo_global *glob = bo->glob;
 	int put_count, ret;
 
+	mtx_lock(&glob->lru_lock);
 	ret = ttm_bo_reserve_slowpath_nolru(bo, interruptible, sequence);
 	if (likely(!ret)) {
-		mtx_lock(&glob->lru_lock);
 		put_count = ttm_bo_del_from_lru(bo);
 		mtx_unlock(&glob->lru_lock);
 		ttm_bo_list_ref_sub(bo, put_count, true);
-	}
+	} else
+		mtx_unlock(&glob->lru_lock);
 	return ret;
 }
 
