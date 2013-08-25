@@ -154,7 +154,23 @@ reserve:
 
 	mtx_lock(&bdev->fence_lock);
 	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
-		ret = ttm_bo_wait(bo, false, true, false);
+		/*
+		 * Here, the behavior differs between Linux and FreeBSD.
+		 *
+		 * On Linux, the wait is interruptible (3rd argument to
+		 * ttm_bo_wait). There must be some mechanism to resume
+		 * page fault handling, once the signal is processed.
+		 *
+		 * On FreeBSD, the wait is uninteruptible. This is not a
+		 * problem as we can't end up with an unkillable process
+		 * here, because the wait will eventually time out.
+		 *
+		 * An example of this situation is the Xorg process
+		 * which uses SIGALRM internally. The signal could
+		 * interrupt the wait, causing the page fault to fail
+		 * and the process to receive SIGSEGV.
+		 */
+		ret = ttm_bo_wait(bo, false, false, false);
 		mtx_unlock(&bdev->fence_lock);
 		if (unlikely(ret != 0)) {
 			retval = VM_PAGER_ERROR;
