@@ -242,24 +242,40 @@ int
 drm_gem_handle_create(struct drm_file *file_priv, struct drm_gem_object *obj,
     uint32_t *handle)
 {
-	int error;
+	struct drm_device *dev = obj->dev;
+	int ret;
 
-	error = drm_gem_name_create(&file_priv->object_names, obj, handle);
-	if (error != 0)
-		return (error);
+	ret = drm_gem_name_create(&file_priv->object_names, obj, handle);
+	if (ret != 0)
+		return (ret);
 	drm_gem_object_handle_reference(obj);
+
+	if (dev->driver->gem_open_object) {
+		ret = dev->driver->gem_open_object(obj, file_priv);
+		if (ret) {
+			drm_gem_handle_delete(file_priv, *handle);
+			return ret;
+		}
+	}
+
 	return (0);
 }
 
 int
 drm_gem_handle_delete(struct drm_file *file_priv, uint32_t handle)
 {
+	struct drm_device *dev;
 	struct drm_gem_object *obj;
 
 	obj = drm_gem_names_remove(&file_priv->object_names, handle);
 	if (obj == NULL)
 		return (EINVAL);
+
+	dev = obj->dev;
+	if (dev->driver->gem_close_object)
+		dev->driver->gem_close_object(obj, file_priv);
 	drm_gem_object_handle_unreference_unlocked(obj);
+
 	return (0);
 }
 
