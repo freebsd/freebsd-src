@@ -4411,7 +4411,7 @@ xpt_batch_done(struct cam_sim *sim)
 {
 	struct ccb_hdr *ccb_h;
 
-	CAM_SIM_UNLOCK(sim);
+	mtx_assert(sim->mtx, MA_NOTOWNED);
 	mtx_lock(&sim->sim_doneq_mtx);
 	KASSERT((sim->sim_doneq_flags & CAM_SIM_DQ_BATCH) != 0,
 	    ("Batch flag was not set"));
@@ -4424,7 +4424,6 @@ xpt_batch_done(struct cam_sim *sim)
 		mtx_lock(&sim->sim_doneq_mtx);
 	}
 	mtx_unlock(&sim->sim_doneq_mtx);
-	CAM_SIM_LOCK(sim);
 }
 
 union ccb *

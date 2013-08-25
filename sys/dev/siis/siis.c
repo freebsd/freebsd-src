@@ -837,11 +837,11 @@ siis_ch_intr_locked(void *data)
 	device_t dev = (device_t)data;
 	struct siis_channel *ch = device_get_softc(dev);
 
-	mtx_lock(&ch->mtx);
 	xpt_batch_start(ch->sim);
+	mtx_lock(&ch->mtx);
 	siis_ch_intr(data);
-	xpt_batch_done(ch->sim);
 	mtx_unlock(&ch->mtx);
+	xpt_batch_done(ch->sim);
 }
 
 static void
