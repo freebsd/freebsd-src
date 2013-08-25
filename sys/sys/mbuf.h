@@ -165,7 +165,7 @@ struct m_ext {
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
-	void		(*ext_free)	/* free routine if not the usual */
+	int		(*ext_free)	/* free routine if not the usual */
 			    (struct mbuf *, void *, void *);
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
@@ -364,6 +364,11 @@ struct mbuf {
     "\21EXT_FLAG_VENDOR1\22EXT_FLAG_VENDOR2\23EXT_FLAG_VENDOR3" \
     "\24EXT_FLAG_VENDOR4\25EXT_FLAG_EXP1\26EXT_FLAG_EXP2\27EXT_FLAG_EXP3" \
     "\30EXT_FLAG_EXP4"
+
+/*
+ * Return values for (*ext_free).
+ */
+#define	EXT_FREE_OK	0	/* Normal return */
 
 /*
  * Flags indicating checksum, segmentation and other offload work to be
@@ -895,7 +900,7 @@ int		 m_apply(struct mbuf *, int, int,
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
 int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(struct mbuf *, void *, void *), void *, void *,
+		    int (*)(struct mbuf *, void *, void *), void *, void *,
 		    int, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
