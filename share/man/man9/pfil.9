@@ -71,6 +71,7 @@ typedef int (*pfil_func_t)(void *arg, struct mbuf **mp, struct ifnet *, int dir,
 .Fn pfil_wlock "struct pfil_head *"
 .Ft void
 .Fn pfil_wunlock "struct pfil_head *"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -241,7 +242,7 @@ Fine-grained locking was added in
 lock export was added in
 .Fx 10.0 .
 .Sh BUGS
-.Pp When a
+When a
 .Vt pfil_head
 is being modified, no traffic is diverted
 (to avoid deadlock).
