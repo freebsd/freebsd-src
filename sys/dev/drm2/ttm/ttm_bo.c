@@ -131,7 +131,7 @@ static void ttm_bo_release_list(struct ttm_buffer_object *bo)
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }
 
-int
+static int
 ttm_bo_wait_unreserved_locked(struct ttm_buffer_object *bo, bool interruptible)
 {
 	const char *wmsg;
