@@ -659,10 +659,8 @@ static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 
 		ret = ttm_bo_reserve_nolru(entry, false, true, false, 0);
 		if (remove_all && ret) {
-			mtx_unlock(&glob->lru_lock);
 			ret = ttm_bo_reserve_nolru(entry, false, false,
 						   false, 0);
-			mtx_lock(&glob->lru_lock);
 		}
 
 		if (!ret)
