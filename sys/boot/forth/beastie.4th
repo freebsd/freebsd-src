@@ -205,21 +205,9 @@ variable logoY
 	s" loader_logo" getenv dup -1 = if
 		logoX @ logoY @
 		loader_color? if
-			s" tribute-logo"
-			sfind if
-				execute
-			else
-				drop
-				orb-logo
-			then
+			orb-logo
 		else
-			s" tributebw-logo"
-			sfind if
-				execute
-			else
-				drop
-				orbbw-logo
-			then
+			orbbw-logo
 		then
 		drop exit
 	then
@@ -249,7 +237,7 @@ variable logoY
 		s" tribute-logo" sfind if
 			execute
 		else
-			orb-logo
+			drop orb-logo
 		then
 		2drop exit
 	then
@@ -258,7 +246,7 @@ variable logoY
 		s" tributebw-logo" sfind if
 			execute
 		else
-			orbbw-logo
+			drop orbbw-logo
 		then
 		2drop exit
 	then
