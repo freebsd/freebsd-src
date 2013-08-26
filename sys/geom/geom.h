@@ -397,6 +397,8 @@ g_free(void *ptr)
 	};							\
 	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 
+int g_is_geom_thread(struct thread *td);
+
 #endif /* _KERNEL */
 
 /* geom_ctl.c */

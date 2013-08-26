@@ -59,9 +59,9 @@ MALLOC_DEFINE(M_GEOM, "GEOM", "Geom data structures");
 struct sx topology_lock;
 
 static struct proc *g_proc;
-struct thread *g_up_td;
-struct thread *g_down_td;
-struct thread *g_event_td;
+static struct thread *g_up_td;
+static struct thread *g_down_td;
+static struct thread *g_event_td;
 
 int g_debugflags;
 int g_collectstats = 1;
@@ -121,6 +121,13 @@ g_event_procbody(void *arg)
 	thread_unlock(g_event_td);
 	g_run_events();
 	/* NOTREACHED */
+}
+
+int
+g_is_geom_thread(struct thread *td)
+{
+
+	return (td == g_up_td || td == g_down_td || td == g_event_td);
 }
 
 static void
