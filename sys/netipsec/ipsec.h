@@ -264,40 +264,6 @@ struct ipsecstat {
 #define	IPSECCTL_ESP_RANDPAD		13
 #define IPSECCTL_MAXID			14
 
-#define IPSECCTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "def_policy", CTLTYPE_INT }, \
-	{ "esp_trans_deflev", CTLTYPE_INT }, \
-	{ "esp_net_deflev", CTLTYPE_INT }, \
-	{ "ah_trans_deflev", CTLTYPE_INT }, \
-	{ "ah_net_deflev", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ "ah_cleartos", CTLTYPE_INT }, \
-	{ "ah_offsetmask", CTLTYPE_INT }, \
-	{ "dfbit", CTLTYPE_INT }, \
-	{ "ecn", CTLTYPE_INT }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "esp_randpad", CTLTYPE_INT }, \
-}
-
-#define IPSEC6CTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "def_policy", CTLTYPE_INT }, \
-	{ "esp_trans_deflev", CTLTYPE_INT }, \
-	{ "esp_net_deflev", CTLTYPE_INT }, \
-	{ "ah_trans_deflev", CTLTYPE_INT }, \
-	{ "ah_net_deflev", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "ecn", CTLTYPE_INT }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "esp_randpad", CTLTYPE_INT }, \
-}
-
 #ifdef _KERNEL
 #include <sys/counter.h>
 

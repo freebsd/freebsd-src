@@ -124,15 +124,6 @@ void	kmod_udpstat_inc(int statnum);
 #define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
 #define	UDPCTL_MAXID		6
 
-#define	UDPCTL_NAMES	{						\
-	{ 0, 0 },							\
-	{ "checksum", CTLTYPE_INT },					\
-	{ "stats", CTLTYPE_STRUCT },					\
-	{ "maxdgram", CTLTYPE_INT },					\
-	{ "recvspace", CTLTYPE_INT },					\
-	{ "pcblist", CTLTYPE_STRUCT },					\
-}
-
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_udp);
 
