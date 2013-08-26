@@ -578,6 +578,7 @@ typedef enum {
 	PIM_NO_6_BYTE	= 0x08,	/* Do not send 6-byte commands */
 	PIM_SEQSCAN	= 0x04,	/* Do bus scans sequentially, not in parallel */
 	PIM_UNMAPPED	= 0x02,
+	PIM_NOSCAN	= 0x01	/* SIM does its own scanning */
 } pi_miscflag;
 
 /* Path Inquiry CCB */
