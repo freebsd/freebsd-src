@@ -620,7 +620,7 @@ udp_input(struct mbuf *m, int off)
 		return;
 	}
 
-	UDP_PROBE(receive, NULL, inp, ip, ip, uh);
+	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 	udp_append(inp, ip, m, iphlen, &udp_in);
 	INP_RUNLOCK(inp);
 	return;
