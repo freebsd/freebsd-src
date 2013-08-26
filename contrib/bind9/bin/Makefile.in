@@ -20,7 +20,7 @@ VPATH =		@srcdir@
 top_srcdir =	@top_srcdir@
 
 SUBDIRS =	named rndc dig dnssec tools tests nsupdate \
-		check confgen @PKCS11_TOOLS@
+		check confgen @PYTHON_TOOLS@ @PKCS11_TOOLS@
 TARGETS =
 
 @BIND9_MAKE_RULES@

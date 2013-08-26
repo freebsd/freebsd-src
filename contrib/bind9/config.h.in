@@ -289,6 +289,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if your OpenSSL version supports GOST. */
 #undef HAVE_OPENSSL_GOST
 
+/* Define to 1 if you have the `readline' function. */
+#undef HAVE_READLINE
+
 /* Define to 1 if you have the <regex.h> header file. */
 #undef HAVE_REGEX_H
 
@@ -361,6 +364,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Define to 1 if you have the `usleep' function. */
+#undef HAVE_USLEEP
+
 /* return type of gai_strerror */
 #undef IRS_GAISTRERROR_RETURN_T
 
@@ -383,6 +389,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if connect does not honour the permission on the UNIX domain socket.
    */
 #undef NEED_SECURE_DIRECTORY
+
+/* Use the new XML schema for statistics */
+#undef NEWSTATS
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
