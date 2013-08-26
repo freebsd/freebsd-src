@@ -284,22 +284,25 @@ g_stripe_done(struct bio *bp)
 
 	pbp = bp->bio_parent;
 	sc = pbp->bio_to->geom->softc;
-	if (pbp->bio_error == 0)
-		pbp->bio_error = bp->bio_error;
-	pbp->bio_completed += bp->bio_completed;
 	if (bp->bio_cmd == BIO_READ && bp->bio_caller1 != NULL) {
 		g_stripe_copy(sc, bp->bio_data, bp->bio_caller1, bp->bio_offset,
 		    bp->bio_length, 1);
 		bp->bio_data = bp->bio_caller1;
 		bp->bio_caller1 = NULL;
 	}
-	g_destroy_bio(bp);
+	mtx_lock(&sc->sc_lock);
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+	pbp->bio_completed += bp->bio_completed;
 	pbp->bio_inbed++;
 	if (pbp->bio_children == pbp->bio_inbed) {
+		mtx_unlock(&sc->sc_lock);
 		if (pbp->bio_driver1 != NULL)
 			uma_zfree(g_stripe_zone, pbp->bio_driver1);
 		g_io_deliver(pbp, pbp->bio_error);
-	}
+	} else
+		mtx_unlock(&sc->sc_lock);
+	g_destroy_bio(bp);
 }
 
 static int
@@ -651,6 +654,7 @@ g_stripe_check_and_run(struct g_stripe_softc *sc)
 
 	sc->sc_provider = g_new_providerf(sc->sc_geom, "stripe/%s",
 	    sc->sc_name);
+	sc->sc_provider->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	/*
 	 * Find the smallest disk.
 	 */
@@ -729,6 +733,7 @@ g_stripe_add_disk(struct g_stripe_softc *sc, struct g_provider *pp, u_int no)
 	fcp = LIST_FIRST(&gp->consumer);
 
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	cp->private = NULL;
 	cp->index = no;
 	error = g_attach(cp, pp);
@@ -830,6 +835,7 @@ g_stripe_create(struct g_class *mp, const struct g_stripe_metadata *md,
 	for (no = 0; no < sc->sc_ndisks; no++)
 		sc->sc_disks[no] = NULL;
 	sc->sc_type = type;
+	mtx_init(&sc->sc_lock, "gstripe lock", NULL, MTX_DEF);
 
 	gp->softc = sc;
 	sc->sc_geom = gp;
@@ -878,6 +884,7 @@ g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force)
 	KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
 	    gp->name));
 	free(sc->sc_disks, M_STRIPE);
+	mtx_destroy(&sc->sc_lock);
 	free(sc, M_STRIPE);
 	G_STRIPE_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom(gp, ENXIO);
