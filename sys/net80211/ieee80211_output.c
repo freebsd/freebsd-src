@@ -3316,3 +3316,40 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 
 	return len_changed;
 }
+
+/*
+ * Do Ethernet-LLC encapsulation for each payload in a fast frame
+ * tunnel encapsulation.  The frame is assumed to have an Ethernet
+ * header at the front that must be stripped before prepending the
+ * LLC followed by the Ethernet header passed in (with an Ethernet
+ * type that specifies the payload size).
+ */
+struct mbuf *
+ieee80211_ff_encap1(struct ieee80211vap *vap, struct mbuf *m,
+	const struct ether_header *eh)
+{
+	struct llc *llc;
+	uint16_t payload;
+
+	/* XXX optimize by combining m_adj+M_PREPEND */
+	m_adj(m, sizeof(struct ether_header) - sizeof(struct llc));
+	llc = mtod(m, struct llc *);
+	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
+	llc->llc_control = LLC_UI;
+	llc->llc_snap.org_code[0] = 0;
+	llc->llc_snap.org_code[1] = 0;
+	llc->llc_snap.org_code[2] = 0;
+	llc->llc_snap.ether_type = eh->ether_type;
+	payload = m->m_pkthdr.len;		/* NB: w/o Ethernet header */
+
+	M_PREPEND(m, sizeof(struct ether_header), M_NOWAIT);
+	if (m == NULL) {		/* XXX cannot happen */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
+			"%s: no space for ether_header\n", __func__);
+		vap->iv_stats.is_tx_nobuf++;
+		return NULL;
+	}
+	ETHER_HEADER_COPY(mtod(m, void *), eh);
+	mtod(m, struct ether_header *)->ether_type = htons(payload);
+	return m;
+}

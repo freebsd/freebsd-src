@@ -57,7 +57,6 @@
 #include "lldb/Host/Host.h"
 #include "Plugins/Process/Utility/InferiorCallPOSIX.h"
 #include "Plugins/Process/Utility/StopInfoMachException.h"
-#include "Plugins/Platform/MacOSX/PlatformRemoteiOS.h"
 #include "Utility/StringExtractorGDBRemote.h"
 #include "GDBRemoteRegisterContext.h"
 #include "ProcessGDBRemote.h"
@@ -1809,6 +1808,7 @@ ProcessGDBRemote::DoDestroy ()
     if (log)
         log->Printf ("ProcessGDBRemote::DoDestroy()");
 
+#if 0 // XXX Currently no iOS target support on FreeBSD
     // There is a bug in older iOS debugservers where they don't shut down the process
     // they are debugging properly.  If the process is sitting at a breakpoint or an exception,
     // this can cause problems with restarting.  So we check to see if any of our threads are stopped
@@ -1912,6 +1912,7 @@ ProcessGDBRemote::DoDestroy ()
             }
         }
     }
+#endif
     
     // Interrupt if our inferior is running...
     int exit_status = SIGABRT;

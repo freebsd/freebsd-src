@@ -153,8 +153,25 @@ reserve:
 	 */
 
 	mtx_lock(&bdev->fence_lock);
-	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
-		ret = ttm_bo_wait(bo, false, true, false);
+	if ((atomic_load_acq_long(&bo->priv_flags) &
+	    (1UL << TTM_BO_PRIV_FLAG_MOVING)) != 0) {
+		/*
+		 * Here, the behavior differs between Linux and FreeBSD.
+		 *
+		 * On Linux, the wait is interruptible (3rd argument to
+		 * ttm_bo_wait). There must be some mechanism to resume
+		 * page fault handling, once the signal is processed.
+		 *
+		 * On FreeBSD, the wait is uninteruptible. This is not a
+		 * problem as we can't end up with an unkillable process
+		 * here, because the wait will eventually time out.
+		 *
+		 * An example of this situation is the Xorg process
+		 * which uses SIGALRM internally. The signal could
+		 * interrupt the wait, causing the page fault to fail
+		 * and the process to receive SIGSEGV.
+		 */
+		ret = ttm_bo_wait(bo, false, false, false);
 		mtx_unlock(&bdev->fence_lock);
 		if (unlikely(ret != 0)) {
 			retval = VM_PAGER_ERROR;
@@ -269,8 +286,16 @@ ttm_bo_vm_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 
 	/*
-	 * We don't acquire a reference on bo->kref here, because it was
-	 * already done in ttm_bo_mmap_single().
+	 * On Linux, a reference to the buffer object is acquired here.
+	 * The reason is that this function is not called when the
+	 * mmap() is initialized, but only when a process forks for
+	 * instance. Therefore on Linux, the reference on the bo is
+	 * acquired either in ttm_bo_mmap() or ttm_bo_vm_open(). It's
+	 * then released in ttm_bo_vm_close().
+	 *
+	 * Here, this function is called during mmap() intialization.
+	 * Thus, the reference acquired in ttm_bo_mmap_single() is
+	 * sufficient.
 	 */
 
 	*color = 0;
@@ -335,6 +360,32 @@ ttm_bo_mmap_single(struct ttm_bo_device *bdev, vm_ooffset_t *offset, vm_size_t s
 out_unref:
 	ttm_bo_unref(&bo);
 	return ret;
+}
+
+void
+ttm_bo_release_mmap(struct ttm_buffer_object *bo)
+{
+	vm_object_t vm_obj;
+	vm_page_t m;
+	int i;
+
+	vm_obj = cdev_pager_lookup(bo);
+	if (vm_obj == NULL)
+		return;
+
+	VM_OBJECT_WLOCK(vm_obj);
+retry:
+	for (i = 0; i < bo->num_pages; i++) {
+		m = vm_page_lookup(vm_obj, i);
+		if (m == NULL)
+			continue;
+		if (vm_page_sleep_if_busy(m, "ttm_unm"))
+			goto retry;
+		cdev_pager_free_page(vm_obj, m);
+	}
+	VM_OBJECT_WUNLOCK(vm_obj);
+
+	vm_object_deallocate(vm_obj);
 }
 
 #if 0
