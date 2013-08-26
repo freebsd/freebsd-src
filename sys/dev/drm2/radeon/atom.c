@@ -89,11 +89,11 @@ static void debug_print_spaces(int n)
 		printf("   ");
 }
 
-#define DEBUG(...) do if (atom_debug) { printf(__FILE__ __VA_ARGS__); } while (0)
-#define SDEBUG(...) do if (atom_debug) { printf(__FILE__); debug_print_spaces(debug_depth); printf(__VA_ARGS__); } while (0)
+#define ATOM_DEBUG_PRINT(...) do if (atom_debug) { printf(__FILE__ __VA_ARGS__); } while (0)
+#define ATOM_SDEBUG_PRINT(...) do if (atom_debug) { printf(__FILE__); debug_print_spaces(debug_depth); printf(__VA_ARGS__); } while (0)
 #else
-#define DEBUG(...) do { } while (0)
-#define SDEBUG(...) do { } while (0)
+#define ATOM_DEBUG_PRINT(...) do { } while (0)
+#define ATOM_SDEBUG_PRINT(...) do { } while (0)
 #endif
 
 static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
@@ -183,7 +183,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		idx = U16(*ptr);
 		(*ptr) += 2;
 		if (print)
-			DEBUG("REG[0x%04X]", idx);
+			ATOM_DEBUG_PRINT("REG[0x%04X]", idx);
 		idx += gctx->reg_block;
 		switch (gctx->io_mode) {
 		case ATOM_IO_MM:
@@ -221,13 +221,13 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		 * tables, noticed on a DEC Alpha. */
 		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
 		if (print)
-			DEBUG("PS[0x%02X,0x%04X]", idx, val);
+			ATOM_DEBUG_PRINT("PS[0x%02X,0x%04X]", idx, val);
 		break;
 	case ATOM_ARG_WS:
 		idx = U8(*ptr);
 		(*ptr)++;
 		if (print)
-			DEBUG("WS[0x%02X]", idx);
+			ATOM_DEBUG_PRINT("WS[0x%02X]", idx);
 		switch (idx) {
 		case ATOM_WS_QUOTIENT:
 			val = gctx->divmul[0];
@@ -265,9 +265,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		(*ptr) += 2;
 		if (print) {
 			if (gctx->data_block)
-				DEBUG("ID[0x%04X+%04X]", idx, gctx->data_block);
+				ATOM_DEBUG_PRINT("ID[0x%04X+%04X]", idx, gctx->data_block);
 			else
-				DEBUG("ID[0x%04X]", idx);
+				ATOM_DEBUG_PRINT("ID[0x%04X]", idx);
 		}
 		val = U32(idx + gctx->data_block);
 		break;
@@ -281,7 +281,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		} else
 			val = gctx->scratch[(gctx->fb_base / 4) + idx];
 		if (print)
-			DEBUG("FB[0x%02X]", idx);
+			ATOM_DEBUG_PRINT("FB[0x%02X]", idx);
 		break;
 	case ATOM_ARG_IMM:
 		switch (align) {
@@ -289,7 +289,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = U32(*ptr);
 			(*ptr) += 4;
 			if (print)
-				DEBUG("IMM 0x%08X\n", val);
+				ATOM_DEBUG_PRINT("IMM 0x%08X\n", val);
 			return val;
 		case ATOM_SRC_WORD0:
 		case ATOM_SRC_WORD8:
@@ -297,7 +297,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = U16(*ptr);
 			(*ptr) += 2;
 			if (print)
-				DEBUG("IMM 0x%04X\n", val);
+				ATOM_DEBUG_PRINT("IMM 0x%04X\n", val);
 			return val;
 		case ATOM_SRC_BYTE0:
 		case ATOM_SRC_BYTE8:
@@ -306,7 +306,7 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			val = U8(*ptr);
 			(*ptr)++;
 			if (print)
-				DEBUG("IMM 0x%02X\n", val);
+				ATOM_DEBUG_PRINT("IMM 0x%02X\n", val);
 			return val;
 		}
 		return 0;
@@ -314,14 +314,14 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		idx = U8(*ptr);
 		(*ptr)++;
 		if (print)
-			DEBUG("PLL[0x%02X]", idx);
+			ATOM_DEBUG_PRINT("PLL[0x%02X]", idx);
 		val = gctx->card->pll_read(gctx->card, idx);
 		break;
 	case ATOM_ARG_MC:
 		idx = U8(*ptr);
 		(*ptr)++;
 		if (print)
-			DEBUG("MC[0x%02X]", idx);
+			ATOM_DEBUG_PRINT("MC[0x%02X]", idx);
 		val = gctx->card->mc_read(gctx->card, idx);
 		break;
 	}
@@ -332,28 +332,28 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	if (print)
 		switch (align) {
 		case ATOM_SRC_DWORD:
-			DEBUG(".[31:0] -> 0x%08X\n", val);
+			ATOM_DEBUG_PRINT(".[31:0] -> 0x%08X\n", val);
 			break;
 		case ATOM_SRC_WORD0:
-			DEBUG(".[15:0] -> 0x%04X\n", val);
+			ATOM_DEBUG_PRINT(".[15:0] -> 0x%04X\n", val);
 			break;
 		case ATOM_SRC_WORD8:
-			DEBUG(".[23:8] -> 0x%04X\n", val);
+			ATOM_DEBUG_PRINT(".[23:8] -> 0x%04X\n", val);
 			break;
 		case ATOM_SRC_WORD16:
-			DEBUG(".[31:16] -> 0x%04X\n", val);
+			ATOM_DEBUG_PRINT(".[31:16] -> 0x%04X\n", val);
 			break;
 		case ATOM_SRC_BYTE0:
-			DEBUG(".[7:0] -> 0x%02X\n", val);
+			ATOM_DEBUG_PRINT(".[7:0] -> 0x%02X\n", val);
 			break;
 		case ATOM_SRC_BYTE8:
-			DEBUG(".[15:8] -> 0x%02X\n", val);
+			ATOM_DEBUG_PRINT(".[15:8] -> 0x%02X\n", val);
 			break;
 		case ATOM_SRC_BYTE16:
-			DEBUG(".[23:16] -> 0x%02X\n", val);
+			ATOM_DEBUG_PRINT(".[23:16] -> 0x%02X\n", val);
 			break;
 		case ATOM_SRC_BYTE24:
-			DEBUG(".[31:24] -> 0x%02X\n", val);
+			ATOM_DEBUG_PRINT(".[31:24] -> 0x%02X\n", val);
 			break;
 		}
 	return val;
@@ -458,7 +458,7 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 	case ATOM_ARG_REG:
 		idx = U16(*ptr);
 		(*ptr) += 2;
-		DEBUG("REG[0x%04X]", idx);
+		ATOM_DEBUG_PRINT("REG[0x%04X]", idx);
 		idx += gctx->reg_block;
 		switch (gctx->io_mode) {
 		case ATOM_IO_MM:
@@ -494,13 +494,13 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 	case ATOM_ARG_PS:
 		idx = U8(*ptr);
 		(*ptr)++;
-		DEBUG("PS[0x%02X]", idx);
+		ATOM_DEBUG_PRINT("PS[0x%02X]", idx);
 		ctx->ps[idx] = cpu_to_le32(val);
 		break;
 	case ATOM_ARG_WS:
 		idx = U8(*ptr);
 		(*ptr)++;
-		DEBUG("WS[0x%02X]", idx);
+		ATOM_DEBUG_PRINT("WS[0x%02X]", idx);
 		switch (idx) {
 		case ATOM_WS_QUOTIENT:
 			gctx->divmul[0] = val;
@@ -538,45 +538,45 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 				  gctx->fb_base + (idx * 4), gctx->scratch_size_bytes);
 		} else
 			gctx->scratch[(gctx->fb_base / 4) + idx] = val;
-		DEBUG("FB[0x%02X]", idx);
+		ATOM_DEBUG_PRINT("FB[0x%02X]", idx);
 		break;
 	case ATOM_ARG_PLL:
 		idx = U8(*ptr);
 		(*ptr)++;
-		DEBUG("PLL[0x%02X]", idx);
+		ATOM_DEBUG_PRINT("PLL[0x%02X]", idx);
 		gctx->card->pll_write(gctx->card, idx, val);
 		break;
 	case ATOM_ARG_MC:
 		idx = U8(*ptr);
 		(*ptr)++;
-		DEBUG("MC[0x%02X]", idx);
+		ATOM_DEBUG_PRINT("MC[0x%02X]", idx);
 		gctx->card->mc_write(gctx->card, idx, val);
 		return;
 	}
 	switch (align) {
 	case ATOM_SRC_DWORD:
-		DEBUG(".[31:0] <- 0x%08X\n", old_val);
+		ATOM_DEBUG_PRINT(".[31:0] <- 0x%08X\n", old_val);
 		break;
 	case ATOM_SRC_WORD0:
-		DEBUG(".[15:0] <- 0x%04X\n", old_val);
+		ATOM_DEBUG_PRINT(".[15:0] <- 0x%04X\n", old_val);
 		break;
 	case ATOM_SRC_WORD8:
-		DEBUG(".[23:8] <- 0x%04X\n", old_val);
+		ATOM_DEBUG_PRINT(".[23:8] <- 0x%04X\n", old_val);
 		break;
 	case ATOM_SRC_WORD16:
-		DEBUG(".[31:16] <- 0x%04X\n", old_val);
+		ATOM_DEBUG_PRINT(".[31:16] <- 0x%04X\n", old_val);
 		break;
 	case ATOM_SRC_BYTE0:
-		DEBUG(".[7:0] <- 0x%02X\n", old_val);
+		ATOM_DEBUG_PRINT(".[7:0] <- 0x%02X\n", old_val);
 		break;
 	case ATOM_SRC_BYTE8:
-		DEBUG(".[15:8] <- 0x%02X\n", old_val);
+		ATOM_DEBUG_PRINT(".[15:8] <- 0x%02X\n", old_val);
 		break;
 	case ATOM_SRC_BYTE16:
-		DEBUG(".[23:16] <- 0x%02X\n", old_val);
+		ATOM_DEBUG_PRINT(".[23:16] <- 0x%02X\n", old_val);
 		break;
 	case ATOM_SRC_BYTE24:
-		DEBUG(".[31:24] <- 0x%02X\n", old_val);
+		ATOM_DEBUG_PRINT(".[31:24] <- 0x%02X\n", old_val);
 		break;
 	}
 }
@@ -586,12 +586,12 @@ static void atom_op_add(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src, saved;
 	int dptr = *ptr;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src: ");
+	ATOM_SDEBUG_PRINT("   src: ");
 	src = atom_get_src(ctx, attr, ptr);
 	dst += src;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -600,12 +600,12 @@ static void atom_op_and(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src, saved;
 	int dptr = *ptr;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src: ");
+	ATOM_SDEBUG_PRINT("   src: ");
 	src = atom_get_src(ctx, attr, ptr);
 	dst &= src;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -620,9 +620,9 @@ static void atom_op_calltable(atom_exec_context *ctx, int *ptr, int arg)
 	int r = 0;
 
 	if (idx < ATOM_TABLE_NAMES_CNT)
-		SDEBUG("   table: %d (%s)\n", idx, atom_table_names[idx]);
+		ATOM_SDEBUG_PRINT("   table: %d (%s)\n", idx, atom_table_names[idx]);
 	else
-		SDEBUG("   table: %d\n", idx);
+		ATOM_SDEBUG_PRINT("   table: %d\n", idx);
 	if (U16(ctx->ctx->cmd_table + 4 + 2 * idx))
 		r = atom_execute_table_locked(ctx->ctx, idx, ctx->ps + ctx->ps_shift);
 	if (r) {
@@ -638,7 +638,7 @@ static void atom_op_clear(atom_exec_context *ctx, int *ptr, int arg)
 	attr &= 0x38;
 	attr |= atom_def_dst[attr >> 3] << 6;
 	atom_get_dst(ctx, arg, attr, ptr, &saved, 0);
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, 0, saved);
 }
 
@@ -646,20 +646,20 @@ static void atom_op_compare(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src;
-	SDEBUG("   src1: ");
+	ATOM_SDEBUG_PRINT("   src1: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
-	SDEBUG("   src2: ");
+	ATOM_SDEBUG_PRINT("   src2: ");
 	src = atom_get_src(ctx, attr, ptr);
 	ctx->ctx->cs_equal = (dst == src);
 	ctx->ctx->cs_above = (dst > src);
-	SDEBUG("   result: %s %s\n", ctx->ctx->cs_equal ? "EQ" : "NE",
+	ATOM_SDEBUG_PRINT("   result: %s %s\n", ctx->ctx->cs_equal ? "EQ" : "NE",
 	       ctx->ctx->cs_above ? "GT" : "LE");
 }
 
 static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 {
 	unsigned count = U8((*ptr)++);
-	SDEBUG("   count: %d\n", count);
+	ATOM_SDEBUG_PRINT("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
 		DRM_UDELAY(count);
 	else if (!drm_can_sleep())
@@ -672,9 +672,9 @@ static void atom_op_div(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src;
-	SDEBUG("   src1: ");
+	ATOM_SDEBUG_PRINT("   src1: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
-	SDEBUG("   src2: ");
+	ATOM_SDEBUG_PRINT("   src2: ");
 	src = atom_get_src(ctx, attr, ptr);
 	if (src != 0) {
 		ctx->ctx->divmul[0] = dst / src;
@@ -720,8 +720,8 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 		break;
 	}
 	if (arg != ATOM_COND_ALWAYS)
-		SDEBUG("   taken: %s\n", execute ? "yes" : "no");
-	SDEBUG("   target: 0x%04X\n", target);
+		ATOM_SDEBUG_PRINT("   taken: %s\n", execute ? "yes" : "no");
+	ATOM_SDEBUG_PRINT("   target: 0x%04X\n", target);
 	if (execute) {
 		if (ctx->last_jump == (ctx->start + target)) {
 			cjiffies = jiffies;
@@ -748,15 +748,15 @@ static void atom_op_mask(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, mask, src, saved;
 	int dptr = *ptr;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	mask = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
-	SDEBUG("   mask: 0x%08x", mask);
-	SDEBUG("   src: ");
+	ATOM_SDEBUG_PRINT("   mask: 0x%08x", mask);
+	ATOM_SDEBUG_PRINT("   src: ");
 	src = atom_get_src(ctx, attr, ptr);
 	dst &= mask;
 	dst |= src;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -771,9 +771,9 @@ static void atom_op_move(atom_exec_context *ctx, int *ptr, int arg)
 		atom_skip_dst(ctx, arg, attr, ptr);
 		saved = 0xCDCDCDCD;
 	}
-	SDEBUG("   src: ");
+	ATOM_SDEBUG_PRINT("   src: ");
 	src = atom_get_src(ctx, attr, ptr);
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, src, saved);
 }
 
@@ -781,9 +781,9 @@ static void atom_op_mul(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src;
-	SDEBUG("   src1: ");
+	ATOM_SDEBUG_PRINT("   src1: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
-	SDEBUG("   src2: ");
+	ATOM_SDEBUG_PRINT("   src2: ");
 	src = atom_get_src(ctx, attr, ptr);
 	ctx->ctx->divmul[0] = dst * src;
 }
@@ -798,19 +798,19 @@ static void atom_op_or(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src, saved;
 	int dptr = *ptr;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src: ");
+	ATOM_SDEBUG_PRINT("   src: ");
 	src = atom_get_src(ctx, attr, ptr);
 	dst |= src;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
 static void atom_op_postcard(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t val = U8((*ptr)++);
-	SDEBUG("POST card output: 0x%02X\n", val);
+	ATOM_SDEBUG_PRINT("POST card output: 0x%02X\n", val);
 }
 
 static void atom_op_repeat(atom_exec_context *ctx, int *ptr, int arg)
@@ -832,20 +832,20 @@ static void atom_op_setdatablock(atom_exec_context *ctx, int *ptr, int arg)
 {
 	int idx = U8(*ptr);
 	(*ptr)++;
-	SDEBUG("   block: %d\n", idx);
+	ATOM_SDEBUG_PRINT("   block: %d\n", idx);
 	if (!idx)
 		ctx->ctx->data_block = 0;
 	else if (idx == 255)
 		ctx->ctx->data_block = ctx->start;
 	else
 		ctx->ctx->data_block = U16(ctx->ctx->data_table + 4 + 2 * idx);
-	SDEBUG("   base: 0x%04X\n", ctx->ctx->data_block);
+	ATOM_SDEBUG_PRINT("   base: 0x%04X\n", ctx->ctx->data_block);
 }
 
 static void atom_op_setfbbase(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
-	SDEBUG("   fb_base: ");
+	ATOM_SDEBUG_PRINT("   fb_base: ");
 	ctx->ctx->fb_base = atom_get_src(ctx, attr, ptr);
 }
 
@@ -856,9 +856,9 @@ static void atom_op_setport(atom_exec_context *ctx, int *ptr, int arg)
 	case ATOM_PORT_ATI:
 		port = U16(*ptr);
 		if (port < ATOM_IO_NAMES_CNT)
-			SDEBUG("   port: %d (%s)\n", port, atom_io_names[port]);
+			ATOM_SDEBUG_PRINT("   port: %d (%s)\n", port, atom_io_names[port]);
 		else
-			SDEBUG("   port: %d\n", port);
+			ATOM_SDEBUG_PRINT("   port: %d\n", port);
 		if (!port)
 			ctx->ctx->io_mode = ATOM_IO_MM;
 		else
@@ -880,7 +880,7 @@ static void atom_op_setregblock(atom_exec_context *ctx, int *ptr, int arg)
 {
 	ctx->ctx->reg_block = U16(*ptr);
 	(*ptr) += 2;
-	SDEBUG("   base: 0x%04X\n", ctx->ctx->reg_block);
+	ATOM_SDEBUG_PRINT("   base: 0x%04X\n", ctx->ctx->reg_block);
 }
 
 static void atom_op_shift_left(atom_exec_context *ctx, int *ptr, int arg)
@@ -890,12 +890,12 @@ static void atom_op_shift_left(atom_exec_context *ctx, int *ptr, int arg)
 	int dptr = *ptr;
 	attr &= 0x38;
 	attr |= atom_def_dst[attr >> 3] << 6;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	shift = atom_get_src_direct(ctx, ATOM_SRC_BYTE0, ptr);
-	SDEBUG("   shift: %d\n", shift);
+	ATOM_SDEBUG_PRINT("   shift: %d\n", shift);
 	dst <<= shift;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -906,12 +906,12 @@ static void atom_op_shift_right(atom_exec_context *ctx, int *ptr, int arg)
 	int dptr = *ptr;
 	attr &= 0x38;
 	attr |= atom_def_dst[attr >> 3] << 6;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	shift = atom_get_src_direct(ctx, ATOM_SRC_BYTE0, ptr);
-	SDEBUG("   shift: %d\n", shift);
+	ATOM_SDEBUG_PRINT("   shift: %d\n", shift);
 	dst >>= shift;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -921,16 +921,16 @@ static void atom_op_shl(atom_exec_context *ctx, int *ptr, int arg)
 	uint32_t saved, dst;
 	int dptr = *ptr;
 	uint32_t dst_align = atom_dst_to_src[(attr >> 3) & 7][(attr >> 6) & 3];
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	/* op needs to full dst value */
 	dst = saved;
 	shift = atom_get_src(ctx, attr, ptr);
-	SDEBUG("   shift: %d\n", shift);
+	ATOM_SDEBUG_PRINT("   shift: %d\n", shift);
 	dst <<= shift;
 	dst &= atom_arg_mask[dst_align];
 	dst >>= atom_arg_shift[dst_align];
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -940,16 +940,16 @@ static void atom_op_shr(atom_exec_context *ctx, int *ptr, int arg)
 	uint32_t saved, dst;
 	int dptr = *ptr;
 	uint32_t dst_align = atom_dst_to_src[(attr >> 3) & 7][(attr >> 6) & 3];
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	/* op needs to full dst value */
 	dst = saved;
 	shift = atom_get_src(ctx, attr, ptr);
-	SDEBUG("   shift: %d\n", shift);
+	ATOM_SDEBUG_PRINT("   shift: %d\n", shift);
 	dst >>= shift;
 	dst &= atom_arg_mask[dst_align];
 	dst >>= atom_arg_shift[dst_align];
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -958,12 +958,12 @@ static void atom_op_sub(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src, saved;
 	int dptr = *ptr;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src: ");
+	ATOM_SDEBUG_PRINT("   src: ");
 	src = atom_get_src(ctx, attr, ptr);
 	dst -= src;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -971,18 +971,18 @@ static void atom_op_switch(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
 	uint32_t src, val, target;
-	SDEBUG("   switch: ");
+	ATOM_SDEBUG_PRINT("   switch: ");
 	src = atom_get_src(ctx, attr, ptr);
 	while (U16(*ptr) != ATOM_CASE_END)
 		if (U8(*ptr) == ATOM_CASE_MAGIC) {
 			(*ptr)++;
-			SDEBUG("   case: ");
+			ATOM_SDEBUG_PRINT("   case: ");
 			val =
 			    atom_get_src(ctx, (attr & 0x38) | ATOM_ARG_IMM,
 					 ptr);
 			target = U16(*ptr);
 			if (val == src) {
-				SDEBUG("   target: %04X\n", target);
+				ATOM_SDEBUG_PRINT("   target: %04X\n", target);
 				*ptr = ctx->start + target;
 				return;
 			}
@@ -998,12 +998,12 @@ static void atom_op_test(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src;
-	SDEBUG("   src1: ");
+	ATOM_SDEBUG_PRINT("   src1: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, NULL, 1);
-	SDEBUG("   src2: ");
+	ATOM_SDEBUG_PRINT("   src2: ");
 	src = atom_get_src(ctx, attr, ptr);
 	ctx->ctx->cs_equal = ((dst & src) == 0);
-	SDEBUG("   result: %s\n", ctx->ctx->cs_equal ? "EQ" : "NE");
+	ATOM_SDEBUG_PRINT("   result: %s\n", ctx->ctx->cs_equal ? "EQ" : "NE");
 }
 
 static void atom_op_xor(atom_exec_context *ctx, int *ptr, int arg)
@@ -1011,12 +1011,12 @@ static void atom_op_xor(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t attr = U8((*ptr)++);
 	uint32_t dst, src, saved;
 	int dptr = *ptr;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	SDEBUG("   src: ");
+	ATOM_SDEBUG_PRINT("   src: ");
 	src = atom_get_src(ctx, attr, ptr);
 	dst ^= src;
-	SDEBUG("   dst: ");
+	ATOM_SDEBUG_PRINT("   dst: ");
 	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
 }
 
@@ -1169,7 +1169,7 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	ps = CU8(base + ATOM_CT_PS_PTR) & ATOM_CT_PS_MASK;
 	ptr = base + ATOM_CT_CODE_PTR;
 
-	SDEBUG(">> execute %04X (len %d, WS %d, PS %d)\n", base, len, ws, ps);
+	ATOM_SDEBUG_PRINT(">> execute %04X (len %d, WS %d, PS %d)\n", base, len, ws, ps);
 
 	ectx.ctx = ctx;
 	ectx.ps_shift = ps / 4;
@@ -1186,9 +1186,9 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	while (1) {
 		op = CU8(ptr++);
 		if (op < ATOM_OP_NAMES_CNT)
-			SDEBUG("%s @ 0x%04X\n", atom_op_names[op], ptr - 1);
+			ATOM_SDEBUG_PRINT("%s @ 0x%04X\n", atom_op_names[op], ptr - 1);
 		else
-			SDEBUG("[%d] @ 0x%04X\n", op, ptr - 1);
+			ATOM_SDEBUG_PRINT("[%d] @ 0x%04X\n", op, ptr - 1);
 		if (ectx.abort) {
 			DRM_ERROR("atombios stuck executing %04X (len %d, WS %d, PS %d) @ 0x%04X\n",
 				base, len, ws, ps, ptr - 1);
@@ -1206,7 +1206,7 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 			break;
 	}
 	debug_depth--;
-	SDEBUG("<<\n");
+	ATOM_SDEBUG_PRINT("<<\n");
 
 free:
 	if (ws)
