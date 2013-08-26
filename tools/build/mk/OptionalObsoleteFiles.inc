@@ -1600,6 +1600,11 @@ OLD_FILES+=usr/share/man/man1/gdbserver.1.gz
 OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 .endif
 
+.if ${MK_GNU_PATCH} == no
+OLD_FILES+=usr/bin/bsdpatch
+OLD_FILES+=usr/share/man/man1/bsdpatch.1.gz
+.endif
+
 .if ${MK_GPIB} == no
 OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
 OLD_FILES+=usr/include/dev/ieee488/ugpib.h
