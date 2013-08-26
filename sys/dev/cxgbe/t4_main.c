@@ -2492,7 +2492,7 @@ get_params__post_init(struct adapter *sc)
 		param[3] = FW_PARAM_PFVF(CQ_END);
 		param[4] = FW_PARAM_PFVF(OCQ_START);
 		param[5] = FW_PARAM_PFVF(OCQ_END);
-		rc = -t4_query_params(sc, 0, 0, 0, 6, param, val);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(2): %d.\n", rc);
