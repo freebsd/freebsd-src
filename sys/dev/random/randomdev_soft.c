@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2009 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
  * Copyright (c) 2004 Robert N. M. Watson
  * All rights reserved.
  *
@@ -25,6 +25,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
+#if !defined(YARROW_RNG) && !defined(FORTUNA_RNG)
+#define YARROW_RNG
+#elif defined(YARROW_RNG) && defined(FORTUNA_RNG)
+#error "Must define either YARROW_RNG or FORTUNA_RNG"
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -54,30 +60,56 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
+#if defined(YARROW_RNG)
+#include <dev/random/yarrow.h>
+#endif
+#if defined(FORTUNA_RNG)
+#include <dev/random/fortuna.h>
+#endif
 
 #define RANDOM_FIFO_MAX	256	/* How many events to queue up */
 
 static void random_kthread(void *);
-static void
-random_harvest_internal(u_int64_t, const void *, u_int,
+static void random_harvest_internal(u_int64_t, const void *, u_int,
     u_int, u_int, enum esource);
-static int random_yarrow_poll(int event,struct thread *td);
-static int random_yarrow_block(int flag);
-static void random_yarrow_flush_reseed(void);
+static int randomdev_poll(int event, struct thread *td);
+static int randomdev_block(int flag);
+static void randomdev_flush_reseed(void);
 
-struct random_adaptor random_yarrow = {
+#if defined(YARROW_RNG)
+static struct random_adaptor random_context = {
 	.ident = "Software, Yarrow",
-	.init = random_yarrow_init,
-	.deinit = random_yarrow_deinit,
-	.block = random_yarrow_block,
+	.init = randomdev_init,
+	.deinit = randomdev_deinit,
+	.block = randomdev_block,
 	.read = random_yarrow_read,
-	.write = random_yarrow_write,
-	.poll = random_yarrow_poll,
-	.reseed = random_yarrow_flush_reseed,
-	.seeded = 1,
+	.write = randomdev_write,
+	.poll = randomdev_poll,
+	.reseed = randomdev_flush_reseed,
+	.seeded = 0,
 };
+#define RANDOM_MODULE_NAME	yarrow
+#define RANDOM_CSPRNG_NAME	"yarrow"
+#endif
 
-MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers");
+#if defined(FORTUNA_RNG)
+static struct random_adaptor random_context = {
+	.ident = "Software, Fortuna",
+	.init = randomdev_init,
+	.deinit = randomdev_deinit,
+	.block = randomdev_block,
+	.read = random_fortuna_read,
+	.write = randomdev_write,
+	.poll = randomdev_poll,
+	.reseed = randomdev_flush_reseed,
+	.seeded = 0,
+};
+#define RANDOM_MODULE_NAME	fortuna
+#define RANDOM_CSPRNG_NAME	"fortuna"
+
+#endif
+
+MALLOC_DEFINE(M_ENTROPY, "entropy", "Entropy harvesting buffers for " RANDOM_CSPRNG_NAME);
 
 /*
  * The harvest mutex protects the consistency of the entropy fifos and
@@ -116,16 +148,20 @@ random_check_boolean(SYSCTL_HANDLER_ARGS)
 	return sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 }
 
-/* ARGSUSED */
 void
-random_yarrow_init(void)
+randomdev_init(void)
 {
 	int error, i;
 	struct harvest *np;
 	struct sysctl_oid *random_sys_o, *random_sys_harvest_o;
 	enum esource e;
 
+#if defined(YARROW_RNG)
 	random_yarrow_init_alg(&random_clist);
+#endif
+#if defined(FORTUNA_RNG)
+	random_fortuna_init_alg(&random_clist);
+#endif
 
 	random_sys_o = SYSCTL_ADD_NODE(&random_clist,
 	    SYSCTL_STATIC_CHILDREN(_kern_random),
@@ -135,7 +171,7 @@ random_yarrow_init(void)
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "seeded", CTLTYPE_INT | CTLFLAG_RW,
-	    &random_yarrow.seeded, 1, random_check_boolean, "I",
+	    &random_context.seeded, 1, random_check_boolean, "I",
 	    "Seeded State");
 
 	random_sys_harvest_o = SYSCTL_ADD_NODE(&random_clist,
@@ -156,13 +192,18 @@ random_yarrow_init(void)
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "interrupt", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.interrupt, 1, random_check_boolean, "I",
+	    &harvest.interrupt, 0, random_check_boolean, "I",
 	    "Harvest IRQ entropy");
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_harvest_o),
 	    OID_AUTO, "swi", CTLTYPE_INT | CTLFLAG_RW,
 	    &harvest.swi, 0, random_check_boolean, "I",
 	    "Harvest SWI entropy");
+	SYSCTL_ADD_PROC(&random_clist,
+	    SYSCTL_CHILDREN(random_sys_harvest_o),
+	    OID_AUTO, "namei", CTLTYPE_INT | CTLFLAG_RW,
+	    &harvest.namei, 0, random_check_boolean, "I",
+	    "Harvest namei cache entropy");
 
 	/* Initialise the harvest fifos */
 	STAILQ_INIT(&emptyfifo.head);
@@ -180,24 +221,23 @@ random_yarrow_init(void)
 
 	/* Start the hash/reseed thread */
 	error = kproc_create(random_kthread, NULL,
-	    &random_kthread_proc, RFHIGHPID, 0, "yarrow");
+	    &random_kthread_proc, RFHIGHPID, 0, RANDOM_CSPRNG_NAME);
 	if (error != 0)
 		panic("Cannot create entropy maintenance thread.");
 
 	/* Register the randomness harvesting routine */
-	random_yarrow_init_harvester(random_harvest_internal,
-	    random_yarrow_read);
+	randomdev_init_harvester(random_harvest_internal,
+	    random_context.read);
 }
 
-/* ARGSUSED */
 void
-random_yarrow_deinit(void)
+randomdev_deinit(void)
 {
 	struct harvest *np;
 	enum esource e;
 
 	/* Deregister the randomness harvesting routine */
-	random_yarrow_deinit_harvester();
+	randomdev_deinit_harvester();
 
 	/*
 	 * Command the hash/reseed thread to end and wait for it to finish
@@ -219,7 +259,12 @@ random_yarrow_deinit(void)
 		}
 	}
 
+#if defined(YARROW_RNG)
 	random_yarrow_deinit_alg();
+#endif
+#if defined(FORTUNA_RNG)
+	random_fortuna_deinit_alg();
+#endif
 
 	mtx_destroy(&harvest_mtx);
 
@@ -298,10 +343,7 @@ random_harvest_internal(u_int64_t somecounter, const void *entropy,
 {
 	struct harvest *event;
 
-	KASSERT(origin == RANDOM_START || origin == RANDOM_WRITE ||
-            origin == RANDOM_KEYBOARD || origin == RANDOM_MOUSE ||
-            origin == RANDOM_NET || origin == RANDOM_INTERRUPT ||
-            origin == RANDOM_PURE,
+	KASSERT(origin >= RANDOM_START && origin <= RANDOM_PURE,
 	    ("random_harvest_internal: origin %d invalid\n", origin));
 
 	/* Lockless read to avoid lock operations if fifo is full. */
@@ -311,12 +353,13 @@ random_harvest_internal(u_int64_t somecounter, const void *entropy,
 	mtx_lock_spin(&harvest_mtx);
 
 	/*
-	 * Don't make the harvest queues too big - help to prevent low-grade
+	 * Don't make the harvest queues too big - help to thwart low-grade
 	 * entropy swamping
 	 */
 	if (harvestfifo[origin].count < RANDOM_FIFO_MAX) {
 		event = STAILQ_FIRST(&emptyfifo.head);
 		if (event != NULL) {
+			count = MIN(count, HARVESTSIZE);
 			/* Add the harvested data to the fifo */
 			STAILQ_REMOVE_HEAD(&emptyfifo.head, next);
 			harvestfifo[origin].count++;
@@ -326,9 +369,19 @@ random_harvest_internal(u_int64_t somecounter, const void *entropy,
 			event->frac = frac;
 			event->source = origin;
 
-			/* XXXX Come back and make this dynamic! */
-			count = MIN(count, HARVESTSIZE);
 			memcpy(event->entropy, entropy, count);
+
+#if 1
+			{
+			int i;
+			printf("Harvest:%16jX ", event->somecounter);
+			for (i = 0; i < event->size; i++)
+				printf("%02X", event->entropy[i]);
+			for (; i < 16; i++)
+				printf("  ");
+			printf(" %2d 0x%2X.%03X %02X\n", event->size, event->bits, event->frac, event->source);
+			}
+#endif
 
 			STAILQ_INSERT_TAIL(&harvestfifo[origin].head,
 			    event, next);
@@ -338,7 +391,7 @@ random_harvest_internal(u_int64_t somecounter, const void *entropy,
 }
 
 void
-random_yarrow_write(void *buf, int count)
+randomdev_write(void *buf, int count)
 {
 	int i;
 	u_int chunk;
@@ -357,46 +410,46 @@ random_yarrow_write(void *buf, int count)
 }
 
 void
-random_yarrow_unblock(void)
+randomdev_unblock(void)
 {
-	if (!random_yarrow.seeded) {
-		random_yarrow.seeded = 1;
-		selwakeuppri(&random_yarrow.rsel, PUSER);
-		wakeup(&random_yarrow);
+	if (!random_context.seeded) {
+		random_context.seeded = 1;
+		selwakeuppri(&random_context.rsel, PUSER);
+		wakeup(&random_context);
 	}
 	(void)atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_NONE,
 	    ARC4_ENTR_HAVE);
 }
 
 static int
-random_yarrow_poll(int events, struct thread *td)
+randomdev_poll(int events, struct thread *td)
 {
 	int revents = 0;
 	mtx_lock(&random_reseed_mtx);
 
-	if (random_yarrow.seeded)
+	if (random_context.seeded)
 		revents = events & (POLLIN | POLLRDNORM);
 	else
-		selrecord(td, &random_yarrow.rsel);
+		selrecord(td, &random_context.rsel);
 
 	mtx_unlock(&random_reseed_mtx);
 	return revents;
 }
 
 static int
-random_yarrow_block(int flag)
+randomdev_block(int flag)
 {
 	int error = 0;
 
 	mtx_lock(&random_reseed_mtx);
 
 	/* Blocking logic */
-	while (!random_yarrow.seeded && !error) {
+	while (!random_context.seeded && !error) {
 		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {
 			printf("Entropy device is blocking.\n");
-			error = msleep(&random_yarrow,
+			error = msleep(&random_context,
 			    &random_reseed_mtx,
 			    PUSER | PCATCH, "block", 0);
 		}
@@ -408,23 +461,28 @@ random_yarrow_block(int flag)
 
 /* Helper routine to perform explicit reseeds */
 static void
-random_yarrow_flush_reseed(void)
+randomdev_flush_reseed(void)
 {
 	/* Command a entropy queue flush and wait for it to finish */
 	random_kthread_control = 1;
 	while (random_kthread_control)
 		pause("-", hz / 10);
 
+#if defined(YARROW_RNG)
 	random_yarrow_reseed();
+#endif
+#if defined(FORTUNA_RNG)
+	random_fortuna_reseed();
+#endif
 }
 
 static int
-yarrow_modevent(module_t mod, int type, void *unused)
+randomdev_modevent(module_t mod, int type, void *unused)
 {
 
 	switch (type) {
 	case MOD_LOAD:
-		random_adaptor_register("yarrow", &random_yarrow);
+		random_adaptor_register(RANDOM_CSPRNG_NAME, &random_context);
 		/*
 		 * For statically built kernels that contain both device
 		 * random and options PADLOCK_RNG/RDRAND_RNG/etc..,
@@ -437,11 +495,11 @@ yarrow_modevent(module_t mod, int type, void *unused)
 		 * (by dependency). This event handler is there to delay
 		 * creation of /dev/{u,}random and attachment of this *_rng.ko.
 		 */
-		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_yarrow);
+		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_context);
 		return (0);
 	}
 
 	return (EINVAL);
 }
 
-RANDOM_ADAPTOR_MODULE(yarrow, yarrow_modevent, 1);
+RANDOM_ADAPTOR_MODULE(RANDOM_MODULE_NAME, randomdev_modevent, 1);

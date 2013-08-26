@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,9 +35,6 @@
  *					an enum in sys/random.h
  */
 
-/* Cryptographic block size in bits */
-#define	BLOCKSIZE	256
-
 /* The ring size _MUST_ be a power of 2 */
 #define HARVEST_RING_SIZE	1024	/* harvest ring buffer size */
 #define HARVEST_RING_MASK	(HARVEST_RING_SIZE - 1)
@@ -51,34 +48,28 @@ MALLOC_DECLARE(M_ENTROPY);
  */
 struct harvest {
 	uintmax_t somecounter;		/* fast counter for clock jitter */
-	u_char entropy[HARVESTSIZE];	/* the harvested entropy */
+	uint8_t entropy[HARVESTSIZE];	/* the harvested entropy */
 	u_int size, bits, frac;		/* stats about the entropy */
 	enum esource source;		/* stats about the entropy */
 	STAILQ_ENTRY(harvest) next;	/* next item on the list */
 };
 
-void random_yarrow_init(void);
-void random_yarrow_deinit(void);
+void randomdev_init(void);
+void randomdev_deinit(void);
 
-int random_yarrow_read(void *, int);
-void random_yarrow_write(void *, int);
+void randomdev_write(void *, int);
 
-void random_yarrow_init_harvester(void (*)(u_int64_t, const void *, u_int,
+void randomdev_init_harvester(void (*)(u_int64_t, const void *, u_int,
 	u_int, u_int, enum esource), int (*)(void *, int));
-void random_yarrow_deinit_harvester(void);
+void randomdev_deinit_harvester(void);
 
 void random_set_wakeup_exit(void *);
 void random_process_event(struct harvest *event);
-void random_yarrow_reseed(void);
-void random_yarrow_unblock(void);
+void randomdev_unblock(void);
 
-void random_yarrow_init_alg(struct sysctl_ctx_list *);
-void random_yarrow_deinit_alg(void);
-
-extern struct random_adaptor random_yarrow;
 extern struct mtx random_reseed_mtx;
 
-/* If this was c++, this would be a template */
+/* If this was C++, the macro below would be a template */
 #define RANDOM_CHECK_UINT(name, min, max)				\
 static int								\
 random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
