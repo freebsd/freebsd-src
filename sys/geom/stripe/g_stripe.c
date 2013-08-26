@@ -457,7 +457,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 	/*
 	 * Fill in the component buf structure.
 	 */
-	cbp->bio_done = g_std_done;
+	cbp->bio_done = g_stripe_done;
 	cbp->bio_offset = offset;
 	cbp->bio_data = addr;
 	cbp->bio_length = length;
@@ -482,7 +482,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 		/*
 		 * Fill in the component buf structure.
 		 */
-		cbp->bio_done = g_std_done;
+		cbp->bio_done = g_stripe_done;
 		cbp->bio_offset = offset;
 		cbp->bio_data = addr;
 		/*
@@ -539,15 +539,15 @@ g_stripe_flush(struct g_stripe_softc *sc, struct bio *bp)
 			return;
 		}
 		bioq_insert_tail(&queue, cbp);
-		cbp->bio_done = g_std_done;
-		cbp->bio_caller1 = sc->sc_disks[no];
+		cbp->bio_done = g_stripe_done;
+		cbp->bio_caller2 = sc->sc_disks[no];
 		cbp->bio_to = sc->sc_disks[no]->provider;
 	}
 	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
 		bioq_remove(&queue, cbp);
 		G_STRIPE_LOGREQ(cbp, "Sending request.");
-		cp = cbp->bio_caller1;
-		cbp->bio_caller1 = NULL;
+		cp = cbp->bio_caller2;
+		cbp->bio_caller2 = NULL;
 		g_io_request(cbp, cp);
 	}
 }
