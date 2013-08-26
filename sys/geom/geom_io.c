@@ -465,6 +465,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
 	struct thread *td;
+	struct mtx *mtxp;
 	int direct, error, first;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
@@ -538,27 +539,28 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	direct = 0;
 #endif
 
+	if (!TAILQ_EMPTY(&g_classifier_tailq) && !bp->bio_classifier1) {
+		g_bioq_lock(&g_bio_run_down);
+		g_run_classifiers(bp);
+		g_bioq_unlock(&g_bio_run_down);
+	}
+
 	/*
 	 * The statistics collection is lockless, as such, but we
 	 * can not update one instance of the statistics from more
 	 * than one thread at a time, so grab the lock first.
-	 *
-	 * We also use the lock to protect the list of classifiers.
 	 */
-	g_bioq_lock(&g_bio_run_down);
-
-	if (!TAILQ_EMPTY(&g_classifier_tailq) && !bp->bio_classifier1)
-		g_run_classifiers(bp);
-
+	mtxp = mtx_pool_find(mtxpool_sleep, pp);
+	mtx_lock(mtxp);
 	if (g_collectstats & 1)
 		devstat_start_transaction(pp->stat, &bp->bio_t0);
 	if (g_collectstats & 2)
 		devstat_start_transaction(cp->stat, &bp->bio_t0);
-
 	pp->nstart++;
 	cp->nstart++;
+	mtx_unlock(mtxp);
+
 	if (direct) {
-		g_bioq_unlock(&g_bio_run_down);
 		error = g_io_check(bp);
 		if (error >= 0) {
 			CTR3(KTR_GEOM, "g_io_request g_io_check on bp %p "
@@ -569,6 +571,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		}
 		bp->bio_to->geom->start(bp);
 	} else {
+		g_bioq_lock(&g_bio_run_down);
 		first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);
 		TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
 		bp->bio_flags |= BIO_ONQUEUE;
@@ -587,6 +590,7 @@ g_io_deliver(struct bio *bp, int error)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct thread *td;
+	struct mtx *mtxp;
 	int direct, first;
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
@@ -656,20 +660,22 @@ g_io_deliver(struct bio *bp, int error)
 	 */
 	if (g_collectstats)
 		binuptime(&now);
-	g_bioq_lock(&g_bio_run_up);
+	mtxp = mtx_pool_find(mtxpool_sleep, cp);
+	mtx_lock(mtxp);
 	if (g_collectstats & 1)
 		devstat_end_transaction_bio_bt(pp->stat, bp, &now);
 	if (g_collectstats & 2)
 		devstat_end_transaction_bio_bt(cp->stat, bp, &now);
-
 	cp->nend++;
 	pp->nend++;
+	mtx_unlock(mtxp);
+
 	if (error != ENOMEM) {
 		bp->bio_error = error;
 		if (direct) {
-			g_bioq_unlock(&g_bio_run_up);
 			biodone(bp);
 		} else {
+			g_bioq_lock(&g_bio_run_up);
 			first = TAILQ_EMPTY(&g_bio_run_up.bio_queue);
 			TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
 			bp->bio_flags |= BIO_ONQUEUE;
@@ -680,7 +686,6 @@ g_io_deliver(struct bio *bp, int error)
 		}
 		return;
 	}
-	g_bioq_unlock(&g_bio_run_up);
 
 	if (bootverbose)
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
