@@ -1143,6 +1143,7 @@ pmap_pinit0(struct pmap *pmap)
 	bcopy(kernel_pmap, pmap, sizeof(*pmap));
 	bzero(&pmap->pm_mtx, sizeof(pmap->pm_mtx));
 	PMAP_LOCK_INIT(pmap);
+	TAILQ_INIT(&pmap->pm_pvchunk);
 }
 
 /*
