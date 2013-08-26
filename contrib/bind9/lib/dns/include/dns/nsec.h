@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: nsec.h,v 1.14 2011/06/10 23:47:32 tbox Exp $ */
 
 #ifndef DNS_NSEC_H
 #define DNS_NSEC_H 1
@@ -69,10 +69,33 @@ dns_nsec_nseconly(dns_db_t *db, dns_dbversion_t *version,
 		  isc_boolean_t *answer);
 /*
  * Report whether the DNSKEY RRset has a NSEC only algorithm.  Unknown
- * algorithms are assumed to support NSEC3.
+ * algorithms are assumed to support NSEC3.  If DNSKEY is not found,
+ * *answer is set to ISC_FALSE, and ISC_R_NOTFOUND is returned.
  *
  * Requires:
  * 	'answer' to be non NULL.
+ */
+
+unsigned int
+dns_nsec_compressbitmap(unsigned char *map, const unsigned char *raw,
+			unsigned int max_type);
+/*%<
+ * Convert a raw bitmap into a compressed windowed bit map.  'map' and 'raw'
+ * may overlap.
+ *
+ * Returns the length of the compressed windowed bit map.
+ */
+
+void
+dns_nsec_setbit(unsigned char *array, unsigned int type, unsigned int bit);
+/*%<
+ * Set type bit in raw 'array' to 'bit'.
+ */
+
+isc_boolean_t
+dns_nsec_isset(const unsigned char *array, unsigned int type);
+/*%<
+ * Test if the corresponding 'type' bit is set in 'array'.
  */
 
 isc_result_t

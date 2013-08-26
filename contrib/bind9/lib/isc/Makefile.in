@@ -58,7 +58,7 @@ OBJS =		@ISC_EXTRA_OBJS@ \
 		httpd.@O@ inet_aton.@O@ iterated_hash.@O@ \
 		lex.@O@ lfsr.@O@ lib.@O@ log.@O@ \
 		md5.@O@ mem.@O@ mutexblock.@O@ \
-		netaddr.@O@ netscope.@O@ ondestroy.@O@ \
+		netaddr.@O@ netscope.@O@ pool.@O@ ondestroy.@O@ \
 		parseint.@O@ portset.@O@ quota.@O@ radix.@O@ random.@O@ \
 		ratelimiter.@O@ refcount.@O@ region.@O@ regex.@O@ result.@O@ \
 		rwlock.@O@ \
@@ -75,7 +75,7 @@ SRCS =		@ISC_EXTRA_SRCS@ \
 		httpd.c inet_aton.c iterated_hash.c \
 		lex.c lfsr.c lib.c log.c \
 		md5.c mem.c mutexblock.c \
-		netaddr.c netscope.c ondestroy.c \
+		netaddr.c netscope.c pool.c ondestroy.c \
 		parseint.c portset.c quota.c radix.c random.c \
 		ratelimiter.c refcount.c region.c regex.c result.c rwlock.c \
 		serial.c sha1.c sha2.c sockaddr.c stats.c string.c strtoul.c \

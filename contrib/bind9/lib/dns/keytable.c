@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2010, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -67,7 +67,8 @@ dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_lock;
 
-	keytable->mctx = mctx;
+	keytable->mctx = NULL;
+	isc_mem_attach(mctx, &keytable->mctx);
 	keytable->active_nodes = 0;
 	keytable->references = 1;
 	keytable->magic = KEYTABLE_MAGIC;
@@ -82,7 +83,7 @@ dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 	dns_rbt_destroy(&keytable->table);
 
    cleanup_keytable:
-	isc_mem_put(mctx, keytable, sizeof(*keytable));
+	isc_mem_putanddetach(&mctx, keytable, sizeof(*keytable));
 
 	return (result);
 }
@@ -137,7 +138,8 @@ dns_keytable_detach(dns_keytable_t **keytablep) {
 		isc_rwlock_destroy(&keytable->rwlock);
 		DESTROYLOCK(&keytable->lock);
 		keytable->magic = 0;
-		isc_mem_put(keytable->mctx, keytable, sizeof(*keytable));
+		isc_mem_putanddetach(&keytable->mctx,
+				     keytable, sizeof(*keytable));
 	}
 
 	*keytablep = NULL;

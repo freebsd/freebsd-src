@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -31,6 +31,7 @@
 #define isc_app_run isc__app_run
 #define isc_app_ctxrun isc__app_ctxrun
 #define isc_app_shutdown isc__app_shutdown
+#define isc_app_ctxfinish isc__app_ctxfinish
 #define isc_app_ctxshutdown isc__app_ctxshutdown
 #define isc_app_ctxsuspend isc__app_ctxsuspend
 #define isc_app_reload isc__app_reload
@@ -89,6 +90,7 @@
 #define isc_mempool_getfillcount isc__mempool_getfillcount
 
 #define isc_socket_create isc__socket_create
+#define isc_socket_dup isc__socket_dup
 #define isc_socket_attach isc__socket_attach
 #define isc_socket_detach isc__socket_detach
 #define isc_socketmgr_create isc__socketmgr_create
@@ -111,6 +113,7 @@
 #define isc_socket_listen isc__socket_listen
 #define isc_socket_accept isc__socket_accept
 #define isc_socket_connect isc__socket_connect
+#define isc_socket_getfd isc__socket_getfd
 #define isc_socket_getname isc__socket_getname
 #define isc_socket_gettag isc__socket_gettag
 #define isc_socket_getpeername isc__socket_getpeername
@@ -146,11 +149,15 @@
 #define isc_task_gettag isc__task_gettag
 #define isc_task_getcurrenttime isc__task_getcurrenttime
 #define isc_taskmgr_create isc__taskmgr_create
+#define isc_taskmgr_setmode isc__taskmgr_setmode
+#define isc_taskmgr_mode isc__taskmgr_mode
 #define isc_taskmgr_destroy isc__taskmgr_destroy
 #define isc_taskmgr_setexcltask isc__taskmgr_setexcltask
 #define isc_taskmgr_excltask isc__taskmgr_excltask
 #define isc_task_beginexclusive isc__task_beginexclusive
 #define isc_task_endexclusive isc__task_endexclusive
+#define isc_task_setprivilege isc__task_setprivilege
+#define isc_task_privilege isc__task_privilege
 
 #define isc_timer_create isc__timer_create
 #define isc_timer_reset isc__timer_reset
