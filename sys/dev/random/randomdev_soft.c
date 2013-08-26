@@ -199,11 +199,6 @@ randomdev_init(void)
 	    OID_AUTO, "swi", CTLTYPE_INT | CTLFLAG_RW,
 	    &harvest.swi, 0, random_check_boolean, "I",
 	    "Harvest SWI entropy");
-	SYSCTL_ADD_PROC(&random_clist,
-	    SYSCTL_CHILDREN(random_sys_harvest_o),
-	    OID_AUTO, "namei", CTLTYPE_INT | CTLFLAG_RW,
-	    &harvest.namei, 0, random_check_boolean, "I",
-	    "Harvest namei cache entropy");
 
 	/* Initialise the harvest fifos */
 	STAILQ_INIT(&emptyfifo.head);
