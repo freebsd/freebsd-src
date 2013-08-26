@@ -587,14 +587,14 @@ xnb_dump_mbuf(const struct mbuf *m)
 	if (m->m_flags & M_PKTHDR) {
 		printf("    flowid=%10d, csum_flags=%#8x, csum_data=%#8x, "
 		       "tso_segsz=%5hd\n",
-		       m->m_pkthdr.flowid, m->m_pkthdr.csum_flags,
+		       m->m_pkthdr.flowid, (int)m->m_pkthdr.csum_flags,
 		       m->m_pkthdr.csum_data, m->m_pkthdr.tso_segsz);
-		printf("    rcvif=%16p,  header=%18p, len=%19d\n",
-		       m->m_pkthdr.rcvif, m->m_pkthdr.header, m->m_pkthdr.len);
+		printf("    rcvif=%16p,  len=%19d\n",
+		       m->m_pkthdr.rcvif, m->m_pkthdr.len);
 	}
 	printf("    m_next=%16p, m_nextpk=%16p, m_data=%16p\n",
 	       m->m_next, m->m_nextpkt, m->m_data);
-	printf("    m_len=%17d, m_flags=%#15x, m_type=%18hd\n",
+	printf("    m_len=%17d, m_flags=%#15x, m_type=%18u\n",
 	       m->m_len, m->m_flags, m->m_type);
 
 	len = m->m_len;

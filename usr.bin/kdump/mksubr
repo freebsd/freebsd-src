@@ -368,6 +368,19 @@ vmprotname (int type)
 	if_print_or(type, VM_PROT_EXECUTE, or);
 	if_print_or(type, VM_PROT_COPY, or);
 }
+
+/*
+ * MANUAL
+ */
+void
+socktypenamewithflags(int type)
+{
+	if (type & SOCK_CLOEXEC)
+		printf("SOCK_CLOEXEC|"), type &= ~SOCK_CLOEXEC;
+	if (type & SOCK_NONBLOCK)
+		printf("SOCK_NONBLOCK|"), type &= ~SOCK_NONBLOCK;
+	socktypename(type);
+}
 _EOF_
 
 auto_or_type     "accessmodename"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/unistd.h"
