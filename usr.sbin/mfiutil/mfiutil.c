@@ -66,8 +66,9 @@ usage(void)
 	fprintf(stderr, "    show patrol               - display patrol read status\n");
 	fprintf(stderr, "    show progress             - display status of active operations\n");
 	fprintf(stderr, "    fail <drive>              - fail a physical drive\n");
-	fprintf(stderr, "    good <drive>              - mark a bad physical drive as good\n");
+	fprintf(stderr, "    good <drive>              - set a failed/SYSPD drive as UNCONFIGURED\n");
 	fprintf(stderr, "    rebuild <drive>           - mark failed drive ready for rebuild\n");
+	fprintf(stderr, "    syspd <drive>             - set drive into use as SYSPD JBOD\n");
 	fprintf(stderr, "    drive progress <drive>    - display status of active operations\n");
 	fprintf(stderr, "    drive clear <drive> <start|stop> - clear a drive with all 0x00\n");
 	fprintf(stderr, "    start rebuild <drive>\n");
@@ -103,7 +104,7 @@ static int
 version(int ac __unused, char **av __unused)
 {
 
-	printf("mfiutil version 1.0.14");
+	printf("mfiutil version 1.0.15");
 #ifdef DEBUG
 	printf(" (DEBUG)");
 #endif
