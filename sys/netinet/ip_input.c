@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipfw.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
+#include "opt_kdtrace.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/sdt.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
@@ -63,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net/flowtable.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -428,6 +431,8 @@ ip_input(struct mbuf *m)
 		}
 		ip = mtod(m, struct ip *);
 	}
+
+	IP_PROBE(receive, NULL, NULL, ip, m->m_pkthdr.rcvif, ip, NULL);
 
 	/* 127/8 must not appear on wire - RFC1122 */
 	ifp = m->m_pkthdr.rcvif;

@@ -218,6 +218,11 @@ END(cpu_throw)
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
 	sub	sp, sp, #4;
+#ifdef __ARM_EABI__
+	.save	{r4-r7, lr}
+	.pad	#4
+#endif
+
 	mov	r6, r2 /* Save the mutex */
 
 .Lswitch_resume:

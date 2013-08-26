@@ -42,6 +42,7 @@ struct udpiphdr {
 	struct udphdr	ui_u;		/* udp header */
 };
 #define	ui_x1		ui_i.ih_x1
+#define	ui_v		ui_i.ih_x1[0]
 #define	ui_pr		ui_i.ih_pr
 #define	ui_len		ui_i.ih_len
 #define	ui_src		ui_i.ih_src

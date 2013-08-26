@@ -237,17 +237,19 @@ printaliases(void)
 }
 
 int
-aliascmd(int argc, char **argv)
+aliascmd(int argc __unused, char **argv __unused)
 {
 	char *n, *v;
 	int ret = 0;
 	struct alias *ap;
 
-	if (argc == 1) {
+	nextopt("");
+
+	if (*argptr == NULL) {
 		printaliases();
 		return (0);
 	}
-	while ((n = *++argv) != NULL) {
+	while ((n = *argptr++) != NULL) {
 		if ((v = strchr(n+1, '=')) == NULL) /* n+1: funny ksh stuff */
 			if ((ap = lookupalias(n, 0)) == NULL) {
 				warning("%s: not found", n);

@@ -165,7 +165,7 @@ struct m_ext {
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
-	void		(*ext_free)	/* free routine if not the usual */
+	int		(*ext_free)	/* free routine if not the usual */
 			    (struct mbuf *, void *, void *);
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
@@ -366,6 +366,11 @@ struct mbuf {
     "\30EXT_FLAG_EXP4"
 
 /*
+ * Return values for (*ext_free).
+ */
+#define	EXT_FREE_OK	0	/* Normal return */
+
+/*
  * Flags indicating checksum, segmentation and other offload work to be
  * done, or already done, by hardware or lower layers.  It is split into
  * separate inbound and outbound flags.
@@ -413,7 +418,7 @@ struct mbuf {
 #define	CSUM_IP_VALID		CSUM_L3_VALID
 #define	CSUM_DATA_VALID		CSUM_L4_VALID
 #define	CSUM_PSEUDO_HDR		CSUM_L4_CALC
-#define	CSUM_SCTP_VALID		CSUM_L3_VALID
+#define	CSUM_SCTP_VALID		CSUM_L4_VALID
 #define	CSUM_DELAY_DATA		(CSUM_TCP|CSUM_UDP)
 #define	CSUM_DELAY_IP		CSUM_IP		/* Only v4, no v6 IP hdr csum */
 #define	CSUM_DELAY_DATA_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6)
@@ -895,7 +900,7 @@ int		 m_apply(struct mbuf *, int, int,
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
 int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(struct mbuf *, void *, void *), void *, void *,
+		    int (*)(struct mbuf *, void *, void *), void *, void *,
 		    int, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
