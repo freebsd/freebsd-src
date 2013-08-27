@@ -2124,11 +2124,6 @@ retry_space:
 			else {
 				ssize_t resid;
 
-				/*
-				 * Ensure that our page is still around
-				 * when the I/O completes.
-				 */
-				vm_page_io_start(pg);
 				VM_OBJECT_UNLOCK(obj);
 
 				/*
@@ -2144,10 +2139,8 @@ retry_space:
 				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
 				VFS_UNLOCK_GIANT(vfslocked);
-				VM_OBJECT_LOCK(obj);
-				vm_page_io_finish(pg);
-				if (!error)
-					VM_OBJECT_UNLOCK(obj);
+				if (error)
+					VM_OBJECT_LOCK(obj);
 				mbstat.sf_iocnt++;
 			}
 			if (error) {
