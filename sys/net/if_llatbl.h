@@ -30,8 +30,6 @@ __FBSDID("$FreeBSD$");
 #ifndef	_NET_IF_LLATBL_H_
 #define	_NET_IF_LLATBL_H_
 
-#include "opt_ofed.h"
-
 #include <sys/_rwlock.h>
 #include <netinet/in.h>
 
