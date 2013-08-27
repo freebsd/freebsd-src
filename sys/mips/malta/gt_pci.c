@@ -266,8 +266,12 @@ gt_pci_attach(device_t dev)
 	sc->sc_io = MIPS_PHYS_TO_KSEG1(MALTA_PCI0_IO_BASE);
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "GT64120 PCI I/O Ports";
+	/* 
+	 * First 256 bytes are ISA's registers: e.g. i8259's
+	 * So do not use them for general purpose PCI I/O window
+	 */
 	if (rman_init(&sc->sc_io_rman) != 0 ||
-		rman_manage_region(&sc->sc_io_rman, 0, 0xffff) != 0) {
+	    rman_manage_region(&sc->sc_io_rman, 0x100, 0xffff) != 0) {
 		panic("gt_pci_attach: failed to set up I/O rman");
 	}
 
@@ -568,8 +572,10 @@ gt_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 		 * PIIX4 IDE adapter. HW IRQ0
 		 */
 		return 0;
+	case 11: /* Ethernet */
+		return 10;
 	default:
-		printf("No mapping for %d/%d/%d/%d\n", bus, device, func, pin);
+		device_printf(pcib, "no IRQ mapping for %d/%d/%d/%d\n", bus, device, func, pin);
 		
 	}
 	return (0);
