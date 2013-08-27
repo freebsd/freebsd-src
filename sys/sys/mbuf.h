@@ -53,6 +53,10 @@
  * externally and attach it to the mbuf in a way similar to that of mbuf
  * clusters.
  *
+ * NB: These calculation do not take actual compiler-induced alignment and
+ * padding inside the complete struct mbuf into account.  Appropriate
+ * attention is required when changing members of struct mbuf.
+ *
  * MLEN is data length in a normal mbuf.
  * MHLEN is data length in an mbuf with pktheader.
  * MINCLSIZE is a smallest amount of data that should be put into cluster.
@@ -84,7 +88,7 @@ struct mb_args {
 
 /*
  * Header present at the beginning of every mbuf.
- * Size ILP32: 20
+ * Size ILP32: 24
  *	 LP64: 32
  */
 struct m_hdr {
@@ -94,6 +98,9 @@ struct m_hdr {
 	int32_t		 mh_len;	/* amount of data in this mbuf */
 	uint32_t	 mh_type:8,	/* type of data in this mbuf */
 			 mh_flags:24;	/* flags; see below */
+#if !defined(__LP64__)
+	uint32_t	 mh_pad;	/* pad for 64bit alignment */
+#endif
 };
 
 /*
