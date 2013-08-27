@@ -437,15 +437,15 @@ vmxnet3_check_version(struct vmxnet3_softc *sc)
 		device_printf(dev, "unsupported hardware version %#x\n",
 		    version);
 		return (ENOTSUP);
-	} else
-		vmxnet3_write_bar1(sc, VMXNET3_BAR1_VRRS, 1);
+	}
+	vmxnet3_write_bar1(sc, VMXNET3_BAR1_VRRS, 1);
 
 	version = vmxnet3_read_bar1(sc, VMXNET3_BAR1_UVRS);
 	if ((version & 0x01) == 0) {
 		device_printf(dev, "unsupported UPT version %#x\n", version);
 		return (ENOTSUP);
-	} else
-		vmxnet3_write_bar1(sc, VMXNET3_BAR1_UVRS, 1);
+	}
+	vmxnet3_write_bar1(sc, VMXNET3_BAR1_UVRS, 1);
 
 	return (0);
 }
@@ -781,10 +781,9 @@ vmxnet3_init_rxq(struct vmxnet3_softc *sc, int q)
 		    sizeof(struct vmxnet3_rxbuf), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (rxr->vxrxr_rxbuf == NULL)
 			return (ENOMEM);
-	}
 
-	rxq->vxrxq_comp_ring.vxcr_ndesc =
-	    sc->vmx_nrxdescs * VMXNET3_RXRINGS_PERQ;
+		rxq->vxrxq_comp_ring.vxcr_ndesc += sc->vmx_nrxdescs;
+	}
 
 	return (0);
 }
@@ -1240,8 +1239,11 @@ static void
 vmxnet3_free_queue_data(struct vmxnet3_softc *sc)
 {
 
-	vmxnet3_free_rxq_data(sc);
-	vmxnet3_free_txq_data(sc);
+	if (sc->vmx_rxq != NULL)
+		vmxnet3_free_rxq_data(sc);
+
+	if (sc->vmx_txq != NULL)
+		vmxnet3_free_txq_data(sc);
 }
 
 static int
@@ -1325,9 +1327,9 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 		txs = txq->vxtxq_ts;
 
 		txs->cmd_ring = txq->vxtxq_cmd_ring.vxtxr_dma.dma_paddr;
-		txs->cmd_ring_len = sc->vmx_ntxdescs;
+		txs->cmd_ring_len = txq->vxtxq_cmd_ring.vxtxr_ndesc;
 		txs->comp_ring = txq->vxtxq_comp_ring.vxcr_dma.dma_paddr;
-		txs->comp_ring_len = sc->vmx_ntxdescs;
+		txs->comp_ring_len = txq->vxtxq_comp_ring.vxcr_ndesc;
 		txs->driver_data = vtophys(txq);
 		txs->driver_data_len = sizeof(struct vmxnet3_txqueue);
 	}
@@ -1342,8 +1344,7 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 		rxs->cmd_ring[1] = rxq->vxrxq_cmd_ring[1].vxrxr_dma.dma_paddr;
 		rxs->cmd_ring_len[1] = rxq->vxrxq_cmd_ring[1].vxrxr_ndesc;
 		rxs->comp_ring = rxq->vxrxq_comp_ring.vxcr_dma.dma_paddr;
-		rxs->comp_ring_len = rxq->vxrxq_cmd_ring[0].vxrxr_ndesc +
-		    rxq->vxrxq_cmd_ring[1].vxrxr_ndesc;
+		rxs->comp_ring_len = rxq->vxrxq_comp_ring.vxcr_ndesc;
 		rxs->driver_data = vtophys(rxq);
 		rxs->driver_data_len = sizeof(struct vmxnet3_rxqueue);
 	}
@@ -1558,6 +1559,7 @@ vmxnet3_txq_eof(struct vmxnet3_txqueue *txq)
 		txcd = &txc->vxcr_u.txcd[txc->vxcr_next];
 		if (txcd->gen != txc->vxcr_gen)
 			break;
+		vmxnet3_barrier(sc, VMXNET3_BARRIER_RD);
 
 		if (++txc->vxcr_next == txc->vxcr_ndesc) {
 			txc->vxcr_next = 0;
@@ -1647,7 +1649,7 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	    BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m);
-		sc->vmx_stats.vmst_mbuf_load_failed++;;
+		sc->vmx_stats.vmst_mbuf_load_failed++;
 		return (error);
 	}
 	KASSERT(nsegs == 1,
@@ -2119,19 +2121,19 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	int i, populate, idx, frame_size, error;
 
 	ifp = sc->vmx_ifp;
-	frame_size = ifp->if_mtu + sizeof(struct ether_vlan_header);
+	frame_size = ETHER_ALIGN + sizeof(struct ether_vlan_header) +
+	    ifp->if_mtu;
 
 	/*
-	 * If the MTU causes us to exceed what a regular sized cluster
-	 * can handle, we allocate a second MJUMPAGESIZE cluster after
-	 * it in ring 0. If in use, ring 1 always contains MJUMPAGESIZE
-	 * clusters.
+	 * If the MTU causes us to exceed what a regular sized cluster can
+	 * handle, we allocate a second MJUMPAGESIZE cluster after it in
+	 * ring 0. If in use, ring 1 always contains MJUMPAGESIZE clusters.
 	 *
-	 * Keep rx_max_chain a divisor of the maximum Rx ring size to
-	 * to make our life easier. We do not support changing the ring
-	 * size after the attach.
+	 * Keep rx_max_chain a divisor of the maximum Rx ring size to make
+	 * our life easier. We do not support changing the ring size after
+	 * the attach.
 	 */
-	if (frame_size <= MCLBYTES - ETHER_ALIGN)
+	if (frame_size <= MCLBYTES)
 		sc->vmx_rx_max_chain = 1;
 	else
 		sc->vmx_rx_max_chain = 2;
