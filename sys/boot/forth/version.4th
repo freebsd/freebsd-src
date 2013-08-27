@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2011 Devin Teske <dteske@FreeBSD.org>
+\ Copyright (c) 2006-2013 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
