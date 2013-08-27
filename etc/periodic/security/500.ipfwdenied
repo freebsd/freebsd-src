@@ -37,17 +37,18 @@ fi
 
 . /etc/periodic/security/security.functions
 
+security_daily_compat_var security_status_ipfwdenied_enable
+
 rc=0
 
-case "$daily_status_security_ipfwdenied_enable" in
-    [Yy][Ee][Ss])
+if check_yesno_period security_status_ipfwdenied_enable
+then
 	TMP=`mktemp -t security`
 	if ipfw -a list 2>/dev/null | egrep "deny|reset|unreach" > ${TMP}; then
 	  check_diff new_only ipfw ${TMP} "${host} ipfw denied packets:"
 	fi
 	rc=$?
-	rm -f ${TMP};;
-    *)	rc=0;;
-esac
+	rm -f ${TMP}
+fi
 
 exit $rc

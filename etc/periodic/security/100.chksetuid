@@ -37,10 +37,12 @@ fi
 
 . /etc/periodic/security/security.functions
 
+security_daily_compat_var security_status_chksetuid_enable
+
 rc=0
 
-case "$daily_status_security_chksetuid_enable" in
-    [Yy][Ee][Ss])
+if check_yesno_period security_status_chksetuid_enable
+then
 	echo ""
 	echo 'Checking setuid files and devices:'
 	MP=`mount -t ufs,zfs | awk '$0 !~ /no(suid|exec)/ { print $3 }'`
@@ -49,10 +51,6 @@ case "$daily_status_security_chksetuid_enable" in
 	    \( -perm -u+s -or -perm -g+s \) -exec ls -liTd \{\} \+ |
 	check_diff setuid - "${host} setuid diffs:"
 	rc=$?
-	;;
-    *)
-	rc=0
-	;;
-esac
+fi
 
 exit $rc
