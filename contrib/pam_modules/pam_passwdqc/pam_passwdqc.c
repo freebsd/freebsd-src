@@ -2,9 +2,9 @@
  * Copyright (c) 2000-2002 by Solar Designer. See LICENSE.
  */
 
-#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE 600
 #define _XOPEN_SOURCE_EXTENDED
-#define _XOPEN_VERSION 500
+#define _XOPEN_VERSION 600
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -132,17 +132,19 @@ static params_t defaults = {
 static int converse(pam_handle_t *pamh, int style, lo_const char *text,
     struct pam_response **resp)
 {
-	struct pam_conv *conv;
+	pam_item_t item;
+	lo_const struct pam_conv *conv;
 	struct pam_message msg, *pmsg;
 	int status;
 
-	status = pam_get_item(pamh, PAM_CONV, (pam_item_t *)&conv);
+	status = pam_get_item(pamh, PAM_CONV, &item);
 	if (status != PAM_SUCCESS)
 		return status;
+	conv = item;
 
 	pmsg = &msg;
 	msg.msg_style = style;
-	msg.msg = text;
+	msg.msg = (char *)text;
 
 	*resp = NULL;
 	return conv->conv(1, (lo_const struct pam_message **)&pmsg, resp,
@@ -294,8 +296,11 @@ static int parse(params_t *params, pam_handle_t *pamh,
 	}
 
 	if (argc) {
-		say(pamh, PAM_ERROR_MSG, getuid() != 0 ?
-		    MESSAGE_MISCONFIGURED : MESSAGE_INVALID_OPTION, *argv);
+		if (getuid() != 0) {
+			say(pamh, PAM_ERROR_MSG, MESSAGE_MISCONFIGURED);
+		} else {
+			say(pamh, PAM_ERROR_MSG, MESSAGE_INVALID_OPTION, *argv);
+		}
 		return PAM_ABORT;
 	}
 
@@ -311,7 +316,9 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 #ifdef HAVE_SHADOW
 	struct spwd *spw;
 #endif
-	char *user, *oldpass, *newpass, *randompass;
+	pam_item_t item;
+	lo_const char *user, *oldpass, *curpass;
+	char *newpass, *randompass;
 	const char *reason;
 	int ask_oldauthtok;
 	int randomonly, enforce, retries_left, retry_wanted;
@@ -353,17 +360,19 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	if (flags & PAM_PRELIM_CHECK)
 		return status;
 
-	status = pam_get_item(pamh, PAM_USER, (pam_item_t *)&user);
+	status = pam_get_item(pamh, PAM_USER, &item);
 	if (status != PAM_SUCCESS)
 		return status;
+	user = item;
 
-	status = pam_get_item(pamh, PAM_OLDAUTHTOK, (pam_item_t *)&oldpass);
+	status = pam_get_item(pamh, PAM_OLDAUTHTOK, &item);
 	if (status != PAM_SUCCESS)
 		return status;
+	oldpass = item;
 
 	if (params.flags & F_NON_UNIX) {
 		pw = &fake_pw;
-		pw->pw_name = user;
+		pw->pw_name = (char *)user;
 		pw->pw_gecos = "";
 	} else {
 		pw = getpwnam(user);
@@ -405,13 +414,13 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		enforce = params.flags & F_ENFORCE_ROOT;
 
 	if (params.flags & F_USE_AUTHTOK) {
-		status = pam_get_item(pamh, PAM_AUTHTOK,
-		    (pam_item_t *)&newpass);
+		status = pam_get_item(pamh, PAM_AUTHTOK, &item);
 		if (status != PAM_SUCCESS)
 			return status;
-		if (!newpass || (check_max(&params, pamh, newpass) && enforce))
+		curpass = item;
+		if (!curpass || (check_max(&params, pamh, curpass) && enforce))
 			return PAM_AUTHTOK_ERR;
-		reason = _passwdqc_check(&params.qc, newpass, oldpass, pw);
+		reason = _passwdqc_check(&params.qc, curpass, oldpass, pw);
 		if (reason) {
 			say(pamh, PAM_ERROR_MSG, MESSAGE_WEAKPASS, reason);
 			if (enforce)
@@ -487,7 +496,7 @@ retry:
 
 	if (!newpass) {
 		if (randompass) _pam_overwrite(randompass);
-		return PAM_AUTHTOK_ERR;
+		return status;
 	}
 
 	if (check_max(&params, pamh, newpass) && enforce) {
