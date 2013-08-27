@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 FILES=	450.status-security \
-	999.LOCAL
+	999.local
 
 # NB: keep these sorted by MK_* knobs
 
