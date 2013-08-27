@@ -369,7 +369,6 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    BSDCONFIG \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
