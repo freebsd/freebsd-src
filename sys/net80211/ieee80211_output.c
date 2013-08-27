@@ -3353,3 +3353,34 @@ ieee80211_ff_encap1(struct ieee80211vap *vap, struct mbuf *m,
 	mtod(m, struct ether_header *)->ether_type = htons(payload);
 	return m;
 }
+
+/*
+ * Complete an mbuf transmission.
+ *
+ * For now, this simply processes a completed frame after the
+ * driver has completed it's transmission and/or retransmission.
+ * It assumes the frame is an 802.11 encapsulated frame.
+ *
+ * Later on it will grow to become the exit path for a given frame
+ * from the driver and, depending upon how it's been encapsulated
+ * and already transmitted, it may end up doing A-MPDU retransmission,
+ * power save requeuing, etc.
+ *
+ * In order for the above to work, the driver entry point to this
+ * must not hold any driver locks.  Thus, the driver needs to delay
+ * any actual mbuf completion until it can release said locks.
+ *
+ * This frees the mbuf and if the mbuf has a node reference,
+ * the node reference will be freed.
+ */
+void
+ieee80211_tx_complete(struct ieee80211_node *ni, struct mbuf *m, int status)
+{
+
+	if (ni != NULL) {
+		if (m->m_flags & M_TXCB)
+			ieee80211_process_callback(ni, m, status);
+		ieee80211_free_node(ni);
+	}
+	m_freem(m);
+}
