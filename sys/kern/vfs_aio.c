@@ -1333,7 +1333,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Bring buffer into kernel space.
 	 */
-	if (vmapbuf(bp, 1) < 0) {
+	if (vmapbuf(bp, (dev->si_flags & SI_UNMAPPED) == 0) < 0) {
 		error = EFAULT;
 		goto doerror;
 	}

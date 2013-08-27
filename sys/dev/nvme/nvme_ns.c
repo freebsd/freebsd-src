@@ -133,11 +133,7 @@ nvme_ns_strategy(struct bio *bp)
 
 static struct cdevsw nvme_ns_cdevsw = {
 	.d_version =	D_VERSION,
-#ifdef NVME_UNMAPPED_BIO_SUPPORT
-	.d_flags =	D_DISK | D_UNMAPPED_IO,
-#else
 	.d_flags =	D_DISK,
-#endif
 	.d_read =	physread,
 	.d_write =	physwrite,
 	.d_open =	nvme_ns_open,
@@ -347,6 +343,9 @@ nvme_ns_construct(struct nvme_namespace *ns, uint16_t id,
 	ns->cdev = make_dev_credf(0, &nvme_ns_cdevsw, 0,
 	    NULL, UID_ROOT, GID_WHEEL, 0600, "nvme%dns%d",
 	    device_get_unit(ctrlr->dev), ns->id);
+#endif
+#ifdef NVME_UNMAPPED_BIO_SUPPORT
+	ns->cdev->si_flags |= SI_UNMAPPED;
 #endif
 
 	if (ns->cdev != NULL)
