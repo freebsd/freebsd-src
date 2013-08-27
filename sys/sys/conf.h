@@ -64,6 +64,7 @@ struct cdev {
 #define SI_DUMPDEV	0x0080	/* is kernel dumpdev */
 #define SI_CANDELETE	0x0100	/* can do BIO_DELETE */
 #define SI_CLONELIST	0x0200	/* on a clone list */
+#define	SI_UNMAPPED	0x0400	/* can handle unmapped I/O */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;

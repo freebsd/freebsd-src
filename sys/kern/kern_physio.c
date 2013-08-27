@@ -93,8 +93,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 
 			csw = dev->si_devsw;
 			if (uio->uio_segflg == UIO_USERSPACE) {
-				if (csw != NULL &&
-                                    (csw->d_flags & D_UNMAPPED_IO) != 0)
+				if (dev->si_flags & SI_UNMAPPED)
 					mapped = 0;
 				else
 					mapped = 1;
