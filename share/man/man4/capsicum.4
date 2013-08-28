@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2011 Robert N. M. Watson
+.\" Copyright (c) 2011, 2013 Robert N. M. Watson
 .\" Copyright (c) 2011 Jonathan Anderson
 .\" All rights reserved.
 .\"
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2011
+.Dd August 21, 2013
 .Dt CAPSICUM 4
 .Os
 .Sh NAME
@@ -78,10 +78,13 @@ objects using capabilities rather than global namespaces:
 .Bl -tag -width indent
 .It process descriptors
 File descriptors representing processes, allowing parent processes to manage
-child processes without requiring access to the PID namespace.
+child processes without requiring access to the PID namespace; described in
+greater detail in
+.Xr procdesc 4 .
 .It anonymous shared memory
 An extension to the POSIX shared memory API to support anonymous swap objects
-associated with file descriptors.
+associated with file descriptors; described in greater detail in
+.Xr shm_open 2 .
 .El
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
@@ -96,7 +99,8 @@ associated with file descriptors.
 .Xr pdwait4 2 ,
 .Xr read 2 ,
 .Xr shm_open 2 ,
-.Xr write 2
+.Xr write 2 ,
+.Xr procdesc 4 ,
 .Sh HISTORY
 .Nm
 first appeared in
