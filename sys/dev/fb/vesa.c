@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1998 Kazutaka YOKOTA and Michael Smith
- * Copyright (c) 2009-2012 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2009-2013 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1463,7 +1463,7 @@ vesa_set_border(video_adapter_t *adp, int color)
 static int
 vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 {
-	vm_offset_t buf;
+	void *buf;
 	size_t bsize;
 
 	if (adp != vesa_adp || (size == 0 && vesa_state_buf_size == 0))
@@ -1479,17 +1479,14 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 		free(vesa_vmem_buf, M_DEVBUF);
 		vesa_vmem_buf = NULL;
 	}
-	if (VESA_MODE(adp->va_mode) && adp->va_buffer != 0) {
-		buf = adp->va_buffer;
-		bsize = adp->va_buffer_size;
-	} else {
-		buf = adp->va_window;
-		bsize = adp->va_window_size;
-	}
-	if (buf != 0) {
-		vesa_vmem_buf = malloc(bsize, M_DEVBUF, M_NOWAIT);
-		if (vesa_vmem_buf != NULL)
-			bcopy((void *)buf, vesa_vmem_buf, bsize);
+	if (VESA_MODE(adp->va_mode)) {
+		buf = (void *)adp->va_buffer;
+		if (buf != NULL) {
+			bsize = adp->va_buffer_size;
+			vesa_vmem_buf = malloc(bsize, M_DEVBUF, M_NOWAIT);
+			if (vesa_vmem_buf != NULL)
+				bcopy(buf, vesa_vmem_buf, bsize);
+		}
 	}
 	if (vesa_state_buf_size == 0)
 		return ((*prevvidsw->save_state)(adp, p, size));
@@ -1500,7 +1497,7 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 static int
 vesa_load_state(video_adapter_t *adp, void *p)
 {
-	vm_offset_t buf;
+	void *buf;
 	size_t bsize;
 	int error, mode;
 
@@ -1515,16 +1512,12 @@ vesa_load_state(video_adapter_t *adp, void *p)
 		error = vesa_set_mode(adp, mode);
 
 	if (vesa_vmem_buf != NULL) {
-		if (error == 0) {
-			if (VESA_MODE(mode) && adp->va_buffer != 0) {
-				buf = adp->va_buffer;
+		if (error == 0 && VESA_MODE(mode)) {
+			buf = (void *)adp->va_buffer;
+			if (buf != NULL) {
 				bsize = adp->va_buffer_size;
-			} else {
-				buf = adp->va_window;
-				bsize = adp->va_window_size;
+				bcopy(vesa_vmem_buf, buf, bsize);
 			}
-			if (buf != 0)
-				bcopy(vesa_vmem_buf, (void *)buf, bsize);
 		}
 		free(vesa_vmem_buf, M_DEVBUF);
 		vesa_vmem_buf = NULL;
