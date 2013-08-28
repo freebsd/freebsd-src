@@ -600,7 +600,6 @@ t4_attach(device_t dev)
 	t4_register_cpl_handler(sc, CPL_TRACE_PKT_T5, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
 
-
 	/* Prepare the adapter for operation */
 	rc = -t4_prep_adapter(sc);
 	if (rc != 0) {
