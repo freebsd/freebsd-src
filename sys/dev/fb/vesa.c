@@ -1475,6 +1475,10 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 	if (vesa_state_buf_size > 0 && size < bsize)
 		return (EINVAL);
 
+	if (vesa_vmem_buf != NULL) {
+		free(vesa_vmem_buf, M_DEVBUF);
+		vesa_vmem_buf = NULL;
+	}
 	if (VESA_MODE(adp->va_mode) && adp->va_buffer != 0) {
 		buf = adp->va_buffer;
 		bsize = adp->va_buffer_size;
@@ -1486,8 +1490,7 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 		vesa_vmem_buf = malloc(bsize, M_DEVBUF, M_NOWAIT);
 		if (vesa_vmem_buf != NULL)
 			bcopy((void *)buf, vesa_vmem_buf, bsize);
-	} else
-		vesa_vmem_buf = NULL;
+	}
 	if (vesa_state_buf_size == 0)
 		return ((*prevvidsw->save_state)(adp, p, size));
 	((adp_state_t *)p)->sig = V_STATE_SIG;
@@ -1524,6 +1527,7 @@ vesa_load_state(video_adapter_t *adp, void *p)
 				bcopy(vesa_vmem_buf, (void *)buf, bsize);
 		}
 		free(vesa_vmem_buf, M_DEVBUF);
+		vesa_vmem_buf = NULL;
 	}
 	if (((adp_state_t *)p)->sig != V_STATE_SIG)
 		return ((*prevvidsw->load_state)(adp, p));
