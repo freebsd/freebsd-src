@@ -212,6 +212,7 @@ struct sa_softc {
 	sa_state	state;
 	sa_flags	flags;
 	sa_quirks	quirks;
+	u_int		si_flags;
 	struct		bio_queue_head bio_queue;
 	int		queue_count;
 	struct		devstat *device_stats;
@@ -221,6 +222,7 @@ struct sa_softc {
 	int		blk_shift;
 	u_int32_t	max_blk;
 	u_int32_t	min_blk;
+	u_int32_t	maxio;
 	u_int32_t	comp_algorithm;
 	u_int32_t	saved_comp_algorithm;
 	u_int32_t	media_blksize;
@@ -447,7 +449,7 @@ static struct cdevsw sa_cdevsw = {
 	.d_ioctl =	saioctl,
 	.d_strategy =	sastrategy,
 	.d_name =	"sa",
-	.d_flags =	D_TAPE | D_NEEDGIANT,
+	.d_flags =	D_TAPE,
 };
 
 static int
@@ -1506,10 +1508,29 @@ saregister(struct cam_periph *periph, void *arg)
 	    DEVSTAT_BS_UNAVAILABLE, SID_TYPE(&cgd->inq_data) |
 	    XPORT_DEVSTAT_TYPE(cpi.transport), DEVSTAT_PRIORITY_TAPE);
 
+	/*
+	 * If maxio isn't set, we fall back to DFLTPHYS.  If it is set, we
+	 * take it whether or not it's larger than MAXPHYS.  physio will
+	 * break it down into pieces small enough to fit in a buffer.
+	 */
+	if (cpi.maxio == 0)
+		softc->maxio = DFLTPHYS;
+	else
+		softc->maxio = cpi.maxio;
+
+	/*
+	 * If the SIM supports unmapped I/O, let physio know that we can
+	 * handle unmapped buffers.
+	 */
+	if (cpi.hba_misc & PIM_UNMAPPED)
+		softc->si_flags = SI_UNMAPPED;
+
 	softc->devs.ctl_dev = make_dev(&sa_cdevsw, SAMINOR(SA_CTLDEV,
 	    0, SA_ATYPE_R), UID_ROOT, GID_OPERATOR,
 	    0660, "%s%d.ctl", periph->periph_name, periph->unit_number);
 	softc->devs.ctl_dev->si_drv1 = periph;
+	softc->devs.ctl_dev->si_iosize_max = softc->maxio;
+	softc->devs.ctl_dev->si_flags |= softc->si_flags;
 
 	for (i = 0; i < SA_NUM_MODES; i++) {
 
@@ -1518,18 +1539,24 @@ saregister(struct cam_periph *periph, void *arg)
 		    UID_ROOT, GID_OPERATOR, 0660, "%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 		softc->devs.mode_devs[i].r_dev->si_drv1 = periph;
+		softc->devs.mode_devs[i].r_dev->si_iosize_max = softc->maxio;
+		softc->devs.mode_devs[i].r_dev->si_flags |= softc->si_flags;
 
 		softc->devs.mode_devs[i].nr_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, i, SA_ATYPE_NR),
 		    UID_ROOT, GID_OPERATOR, 0660, "n%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 		softc->devs.mode_devs[i].nr_dev->si_drv1 = periph;
+		softc->devs.mode_devs[i].nr_dev->si_iosize_max = softc->maxio;
+		softc->devs.mode_devs[i].nr_dev->si_flags |= softc->si_flags;
 
 		softc->devs.mode_devs[i].er_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, i, SA_ATYPE_ER),
 		    UID_ROOT, GID_OPERATOR, 0660, "e%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 		softc->devs.mode_devs[i].er_dev->si_drv1 = periph;
+		softc->devs.mode_devs[i].er_dev->si_iosize_max = softc->maxio;
+		softc->devs.mode_devs[i].er_dev->si_flags |= softc->si_flags;
 
 		/*
 		 * Make the (well known) aliases for the first mode.
@@ -1540,12 +1567,20 @@ saregister(struct cam_periph *periph, void *arg)
 			alias = make_dev_alias(softc->devs.mode_devs[i].r_dev,
 			   "%s%d", periph->periph_name, periph->unit_number);
 			alias->si_drv1 = periph;
+			alias->si_iosize_max = softc->maxio;
+			alias->si_flags |= softc->si_flags;
+
 			alias = make_dev_alias(softc->devs.mode_devs[i].nr_dev,
 			    "n%s%d", periph->periph_name, periph->unit_number);
 			alias->si_drv1 = periph;
+			alias->si_iosize_max = softc->maxio;
+			alias->si_flags |= softc->si_flags;
+
 			alias = make_dev_alias(softc->devs.mode_devs[i].er_dev,
 			    "e%s%d", periph->periph_name, periph->unit_number);
 			alias->si_drv1 = periph;
+			alias->si_iosize_max = softc->maxio;
+			alias->si_flags |= softc->si_flags;
 		}
 	}
 	cam_periph_lock(periph);
@@ -1694,9 +1729,13 @@ again:
 			softc->dsreg = (bp->bio_cmd == BIO_READ)?
 			    MTIO_DSREG_RD : MTIO_DSREG_WR;
 			scsi_sa_read_write(&start_ccb->csio, 0, sadone,
-			    MSG_SIMPLE_Q_TAG, (bp->bio_cmd == BIO_READ),
-			    FALSE, (softc->flags & SA_FLAG_FIXED) != 0,
-			    length, bp->bio_data, bp->bio_bcount, SSD_FULL_SIZE,
+			    MSG_SIMPLE_Q_TAG, (bp->bio_cmd == BIO_READ ? 
+			    SCSI_RW_READ : SCSI_RW_WRITE) |
+			    ((bp->bio_flags & BIO_UNMAPPED) != 0 ?
+			    SCSI_RW_BIO : 0), FALSE,
+			    (softc->flags & SA_FLAG_FIXED) != 0, length,
+			    (bp->bio_flags & BIO_UNMAPPED) != 0 ? (void *)bp :
+			    bp->bio_data, bp->bio_bcount, SSD_FULL_SIZE,
 			    IO_TIMEOUT);
 			start_ccb->ccb_h.ccb_pflags &= ~SA_POSITION_UPDATED;
 			Set_CCB_Type(start_ccb, SA_CCB_BUFFER_IO);
@@ -3431,18 +3470,22 @@ scsi_sa_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		   u_int32_t dxfer_len, u_int8_t sense_len, u_int32_t timeout)
 {
 	struct scsi_sa_rw *scsi_cmd;
+	int read;
+
+	read = (readop & SCSI_RW_DIRMASK) == SCSI_RW_READ;
 
 	scsi_cmd = (struct scsi_sa_rw *)&csio->cdb_io.cdb_bytes;
-	scsi_cmd->opcode = readop ? SA_READ : SA_WRITE;
+	scsi_cmd->opcode = read ? SA_READ : SA_WRITE;
 	scsi_cmd->sli_fixed = 0;
-	if (sli && readop)
+	if (sli && read)
 		scsi_cmd->sli_fixed |= SAR_SLI;
 	if (fixed)
 		scsi_cmd->sli_fixed |= SARW_FIXED;
 	scsi_ulto3b(length, scsi_cmd->length);
 	scsi_cmd->control = 0;
 
-	cam_fill_csio(csio, retries, cbfcnp, readop ? CAM_DIR_IN : CAM_DIR_OUT,
+	cam_fill_csio(csio, retries, cbfcnp, (read ? CAM_DIR_IN : CAM_DIR_OUT) |
+	    ((readop & SCSI_RW_BIO) != 0 ? CAM_DATA_BIO : 0),
 	    tag_action, data_ptr, dxfer_len, sense_len,
 	    sizeof(*scsi_cmd), timeout);
 }
