@@ -367,6 +367,7 @@ MAN=	aac.4 \
 	ppbus.4 \
 	ppc.4 \
 	ppi.4 \
+	procdesc.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
