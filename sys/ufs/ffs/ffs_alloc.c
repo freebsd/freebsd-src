@@ -1186,7 +1186,7 @@ ffs_dirpref(pip)
 			if (fs->fs_contigdirs[cg] < maxcontigdirs)
 				return ((ino_t)(fs->fs_ipg * cg));
 		}
-	for (cg = prefcg - 1; cg >= 0; cg--)
+	for (cg = 0; cg < prefcg; cg++)
 		if (fs->fs_cs(fs, cg).cs_ndir < maxndir &&
 		    fs->fs_cs(fs, cg).cs_nifree >= minifree &&
 	    	    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
@@ -1199,7 +1199,7 @@ ffs_dirpref(pip)
 	for (cg = prefcg; cg < fs->fs_ncg; cg++)
 		if (fs->fs_cs(fs, cg).cs_nifree >= avgifree)
 			return ((ino_t)(fs->fs_ipg * cg));
-	for (cg = prefcg - 1; cg >= 0; cg--)
+	for (cg = 0; cg < prefcg; cg++)
 		if (fs->fs_cs(fs, cg).cs_nifree >= avgifree)
 			break;
 	return ((ino_t)(fs->fs_ipg * cg));
