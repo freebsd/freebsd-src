@@ -83,7 +83,7 @@ static struct mtx vesa_lock;
 static int vesa_state;
 static void *vesa_state_buf;
 static uint32_t vesa_state_buf_offs;
-static ssize_t vesa_state_buf_size;
+static size_t vesa_state_buf_size;
 
 static u_char *vesa_palette;
 static uint32_t vesa_palette_offs;
@@ -207,7 +207,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_SIZE	0
 #define STATE_SAVE	1
 #define STATE_LOAD	2
-static ssize_t vesa_bios_state_buf_size(int);
+static size_t vesa_bios_state_buf_size(int);
 static int vesa_bios_save_restore(int code, void *p);
 #ifdef MODE_TABLE_BROKEN
 static int vesa_bios_get_line_length(void);
@@ -505,7 +505,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	return (regs.R_AX != 0x004f);
 }
 
-static ssize_t
+static size_t
 vesa_bios_state_buf_size(int state)
 {
 	x86regs_t regs;
