@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/interrupt.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -90,6 +91,14 @@ __FBSDID("$FreeBSD$");
 
 #define OCW3_POLL_IRQ(x) ((x) & 0x7f)
 #define OCW3_POLL_PENDING (1U << 7)
+
+/*
+ * Galileo controller's registers are LE so convert to then
+ * to/from native byte order. We rely on boot loader or emulator
+ * to set "swap bytes" configuration correctly for us
+ */
+#define	GT_PCI_DATA(v)	htole32((v))
+#define	GT_HOST_DATA(v)	le32toh((v))
 
 struct gt_pci_softc;
 
@@ -437,20 +446,20 @@ gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		return (uint32_t)(-1);
 
 	/* Clear cause register bits. */
-	GT_REGVAL(GT_INTR_CAUSE) = 0;
-
-	GT_REGVAL(GT_PCI0_CFG_ADDR) = (1 << 31) | addr;
-	data = GT_REGVAL(GT_PCI0_CFG_DATA);
+	GT_REGVAL(GT_INTR_CAUSE) = GT_PCI_DATA(0);
+	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1 << 31) | addr);
+	/* 
+	 * Galileo system controller is special
+	 */
+	if ((bus == 0) && (slot == 0))
+		data = GT_PCI_DATA(GT_REGVAL(GT_PCI0_CFG_DATA));
+	else
+		data = GT_REGVAL(GT_PCI0_CFG_DATA);
 
 	/* Check for master abort. */
-	if (GT_REGVAL(GT_INTR_CAUSE) & (GTIC_MASABORT0 | GTIC_TARABORT0))
+	if (GT_HOST_DATA(GT_REGVAL(GT_INTR_CAUSE)) & (GTIC_MASABORT0 | GTIC_TARABORT0))
 		data = (uint32_t) -1;
 
-	/*
-	 * XXX: We assume that words readed from GT chip are BE.
-	 *	Should we set the mode explicitly during chip
-	 *	Initialization?
-	 */ 
 	switch(reg % 4)
 	{
 	case 3:
@@ -507,11 +516,6 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	{
 		reg_data = gt_pci_read_config(dev, bus, slot, func, reg, 4);
 
-		/*
-		* XXX: We assume that words readed from GT chip are BE.
-		*	Should we set the mode explicitly during chip
-		*	Initialization?
-		*/ 
 		shift = 8 * (reg & 3);
 
 		switch(bytes)
@@ -548,10 +552,23 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		return;
 
 	/* Clear cause register bits. */
-	GT_REGVAL(GT_INTR_CAUSE) = 0;
+	GT_REGVAL(GT_INTR_CAUSE) = GT_PCI_DATA(0);
 
-	GT_REGVAL(GT_PCI0_CFG_ADDR) = (1 << 31) | addr;
-	GT_REGVAL(GT_PCI0_CFG_DATA) = data;
+	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1 << 31) | addr);
+
+	/* 
+	 * Galileo system controller is special
+	 */
+	if ((bus == 0) && (slot == 0))
+		GT_REGVAL(GT_PCI0_CFG_DATA) = GT_PCI_DATA(data);
+	else
+		GT_REGVAL(GT_PCI0_CFG_DATA) = data;
+
+#if 0
+	printf("PCICONF_WRITE(%02x:%02x.%02x[%04x] -> %02x(%d)\n", 
+	  bus, slot, func, reg, data, bytes);
+#endif
+
 }
 
 static int
