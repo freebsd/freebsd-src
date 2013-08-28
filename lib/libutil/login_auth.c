@@ -98,7 +98,7 @@ auth_cat(const char *file)
   int fd, count;
   char buf[BUFSIZ];
 
-  if ((fd = open(file, O_RDONLY)) < 0)
+  if ((fd = open(file, O_RDONLY | O_CLOEXEC)) < 0)
     return 0;
   while ((count = read(fd, buf, sizeof(buf))) > 0)
     (void)write(fileno(stdout), buf, count);
