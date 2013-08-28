@@ -160,10 +160,10 @@ MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
  * Correct lock order when you need to acquire multiple locks is t4_list_lock,
  * then ADAPTER_LOCK, then t4_uld_list_lock.
  */
-static struct mtx t4_list_lock;
+static struct sx t4_list_lock;
 static SLIST_HEAD(, adapter) t4_list;
 #ifdef TCP_OFFLOAD
-static struct mtx t4_uld_list_lock;
+static struct sx t4_uld_list_lock;
 static SLIST_HEAD(, uld_info) t4_uld_list;
 #endif
 
@@ -568,9 +568,9 @@ t4_attach(device_t dev)
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
 	    device_get_nameunit(dev));
 	mtx_init(&sc->sc_lock, sc->lockname, 0, MTX_DEF);
-	mtx_lock(&t4_list_lock);
+	sx_xlock(&t4_list_lock);
 	SLIST_INSERT_HEAD(&t4_list, sc, link);
-	mtx_unlock(&t4_list_lock);
+	sx_xunlock(&t4_list_lock);
 
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
@@ -917,9 +917,9 @@ t4_detach(device_t dev)
 	free(sc->tids.ftid_tab, M_CXGBE);
 	t4_destroy_dma_tag(sc);
 	if (mtx_initialized(&sc->sc_lock)) {
-		mtx_lock(&t4_list_lock);
+		sx_xlock(&t4_list_lock);
 		SLIST_REMOVE(&t4_list, sc, adapter, link);
-		mtx_unlock(&t4_list_lock);
+		sx_xunlock(&t4_list_lock);
 		mtx_destroy(&sc->sc_lock);
 	}
 
@@ -7341,7 +7341,7 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 {
 	struct adapter *sc;
 
-	mtx_lock(&t4_list_lock);
+	sx_slock(&t4_list_lock);
 	SLIST_FOREACH(sc, &t4_list, link) {
 		/*
 		 * func should not make any assumptions about what state sc is
@@ -7349,7 +7349,7 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 		 */
 		func(sc, arg);
 	}
-	mtx_unlock(&t4_list_lock);
+	sx_sunlock(&t4_list_lock);
 }
 
 static int
@@ -7577,7 +7577,7 @@ t4_register_uld(struct uld_info *ui)
 	int rc = 0;
 	struct uld_info *u;
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_xlock(&t4_uld_list_lock);
 	SLIST_FOREACH(u, &t4_uld_list, link) {
 	    if (u->uld_id == ui->uld_id) {
 		    rc = EEXIST;
@@ -7588,7 +7588,7 @@ t4_register_uld(struct uld_info *ui)
 	SLIST_INSERT_HEAD(&t4_uld_list, ui, link);
 	ui->refcount = 0;
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_xunlock(&t4_uld_list_lock);
 	return (rc);
 }
 
@@ -7598,7 +7598,7 @@ t4_unregister_uld(struct uld_info *ui)
 	int rc = EINVAL;
 	struct uld_info *u;
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_xlock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(u, &t4_uld_list, link) {
 	    if (u == ui) {
@@ -7613,7 +7613,7 @@ t4_unregister_uld(struct uld_info *ui)
 	    }
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_xunlock(&t4_uld_list_lock);
 	return (rc);
 }
 
@@ -7625,7 +7625,7 @@ t4_activate_uld(struct adapter *sc, int id)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_slock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
@@ -7636,7 +7636,7 @@ t4_activate_uld(struct adapter *sc, int id)
 		}
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
 }
@@ -7649,7 +7649,7 @@ t4_deactivate_uld(struct adapter *sc, int id)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_slock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
@@ -7660,7 +7660,7 @@ t4_deactivate_uld(struct adapter *sc, int id)
 		}
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
 }
@@ -7741,10 +7741,10 @@ mod_event(module_t mod, int cmd, void *arg)
 		if (atomic_fetchadd_int(&loaded, 1))
 			break;
 		t4_sge_modload();
-		mtx_init(&t4_list_lock, "T4 adapters", 0, MTX_DEF);
+		sx_init(&t4_list_lock, "T4/T5 adapters");
 		SLIST_INIT(&t4_list);
 #ifdef TCP_OFFLOAD
-		mtx_init(&t4_uld_list_lock, "T4 ULDs", 0, MTX_DEF);
+		sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
 		SLIST_INIT(&t4_uld_list);
 #endif
 		t4_tracer_modload();
@@ -7756,23 +7756,23 @@ mod_event(module_t mod, int cmd, void *arg)
 			break;
 		t4_tracer_modunload();
 #ifdef TCP_OFFLOAD
-		mtx_lock(&t4_uld_list_lock);
+		sx_slock(&t4_uld_list_lock);
 		if (!SLIST_EMPTY(&t4_uld_list)) {
 			rc = EBUSY;
-			mtx_unlock(&t4_uld_list_lock);
+			sx_sunlock(&t4_uld_list_lock);
 			break;
 		}
-		mtx_unlock(&t4_uld_list_lock);
-		mtx_destroy(&t4_uld_list_lock);
+		sx_sunlock(&t4_uld_list_lock);
+		sx_destroy(&t4_uld_list_lock);
 #endif
-		mtx_lock(&t4_list_lock);
+		sx_slock(&t4_list_lock);
 		if (!SLIST_EMPTY(&t4_list)) {
 			rc = EBUSY;
-			mtx_unlock(&t4_list_lock);
+			sx_sunlock(&t4_list_lock);
 			break;
 		}
-		mtx_unlock(&t4_list_lock);
-		mtx_destroy(&t4_list_lock);
+		sx_sunlock(&t4_list_lock);
+		sx_destroy(&t4_list_lock);
 		break;
 	}
 
