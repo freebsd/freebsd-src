@@ -548,9 +548,10 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
 
-	if (__predict_false(toep->ulp_mode != ULP_MODE_NONE &&
-	    toep->ulp_mode != ULP_MODE_TCPDDP))
-		CXGBE_UNIMPLEMENTED("ulp_mode");
+	KASSERT(toep->ulp_mode == ULP_MODE_NONE ||
+	    toep->ulp_mode == ULP_MODE_TCPDDP ||
+	    toep->ulp_mode == ULP_MODE_RDMA,
+	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
 
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
@@ -843,9 +844,11 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	socantrcvmore_locked(so);	/* unlocks the sockbuf */
 
-	KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
-	    ("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
-	    be32toh(cpl->rcv_nxt)));
+	if (toep->ulp_mode != ULP_MODE_RDMA) {
+		KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
+	    		("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
+	    		be32toh(cpl->rcv_nxt)));
+	}
 
 	switch (tp->t_state) {
 	case TCPS_SYN_RECEIVED:

@@ -1069,6 +1069,17 @@ service_iq(struct sge_iq *iq, int budget)
 				    ("%s: budget %u, rsp_type %u", __func__,
 				    budget, rsp_type));
 
+				/*
+				 * There are 1K interrupt-capable queues (qids 0
+				 * through 1023).  A response type indicating a
+				 * forwarded interrupt with a qid >= 1K is an
+				 * iWARP async notification.
+				 */
+				if (lq >= 1024) {
+                                        sc->an_handler(iq, ctrl);
+                                        break;
+                                }
+
 				q = sc->sge.iqmap[lq - sc->sge.iq_start];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
@@ -1083,7 +1094,12 @@ service_iq(struct sge_iq *iq, int budget)
 				break;
 
 			default:
-				sc->an_handler(iq, ctrl);
+				KASSERT(0,
+				    ("%s: illegal response type %d on iq %p",
+				    __func__, rsp_type, iq));
+				log(LOG_ERR,
+				    "%s: illegal response type %d on iq %p",
+				    device_get_nameunit(sc->dev), rsp_type, iq);
 				break;
 			}
 

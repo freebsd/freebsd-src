@@ -123,6 +123,7 @@ struct t4_virt_res {                      /* virtualized HW resources */
 #ifdef TCP_OFFLOAD
 enum {
 	ULD_TOM = 1,
+	ULD_IWARP = 2,
 };
 
 struct adapter;
