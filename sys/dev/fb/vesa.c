@@ -1506,6 +1506,7 @@ vesa_load_state(video_adapter_t *adp, void *p)
 
 	/* Try BIOS POST to restore a sane state. */
 	(void)vesa_bios_post();
+	bsize = adp->va_buffer_size;
 	mode = adp->va_mode;
 	error = vesa_set_mode(adp, adp->va_initial_mode);
 	if (mode != adp->va_initial_mode)
@@ -1514,10 +1515,8 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	if (vesa_vmem_buf != NULL) {
 		if (error == 0 && VESA_MODE(mode)) {
 			buf = (void *)adp->va_buffer;
-			if (buf != NULL) {
-				bsize = adp->va_buffer_size;
+			if (buf != NULL)
 				bcopy(vesa_vmem_buf, buf, bsize);
-			}
 		}
 		free(vesa_vmem_buf, M_DEVBUF);
 		vesa_vmem_buf = NULL;
