@@ -559,6 +559,7 @@ struct adapter {
 	bus_dma_tag_t dmat;	/* Parent DMA tag */
 
 	struct sge sge;
+	int lro_timeout;
 
 	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
 	struct port_info *port[MAX_NPORTS];

@@ -4229,6 +4229,10 @@ t4_sysctls(struct adapter *sc)
 
 	t4_sge_sysctls(sc, ctx, children);
 
+	sc->lro_timeout = 100;
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
+	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
+
 #ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
