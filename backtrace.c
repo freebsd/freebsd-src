@@ -1,4 +1,4 @@
-/*	$NetBSD: backtrace.c,v 1.2 2012/07/09 03:11:59 christos Exp $	*/
+/*	$NetBSD: backtrace.c,v 1.3 2013/08/29 14:58:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: backtrace.c,v 1.2 2012/07/09 03:11:59 christos Exp $");
+__RCSID("$NetBSD: backtrace.c,v 1.3 2013/08/29 14:58:56 christos Exp $");
 
 #include <sys/param.h>
 #include <assert.h>
@@ -50,8 +50,28 @@ __RCSID("$NetBSD: backtrace.c,v 1.2 2012/07/09 03:11:59 christos Exp $");
 #ifdef __linux__
 #define SELF	"/proc/self/exe"
 #else
+#include <sys/sysctl.h>
 #define SELF	"/proc/curproc/file"
 #endif
+
+static int
+open_self(int flags)
+{
+	const char *pathname = SELF;
+#ifdef KERN_PROC_PATHNAME
+	static const int name[] = {
+		CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1,
+	};
+	char path[MAXPATHLEN];
+	size_t len;
+
+	len = sizeof(path);
+	if (sysctl(name, __arraycount(name), path, &len, NULL, 0) != -1)
+		pathname = path;
+#endif
+	return open(pathname, flags);
+}
+
 
 static int __printflike(4, 5)
 rasprintf(char **buf, size_t *bufsiz, size_t offs, const char *fmt, ...)
@@ -162,7 +182,7 @@ backtrace_symbols_fmt(void *const *trace, size_t len, const char *fmt)
 	symtab_t *st;
 	int fd;
 
-	if ((fd = open(SELF, O_RDONLY)) != -1)
+	if ((fd = open_self(O_RDONLY)) != -1)
 		st = symtab_create(fd, -1, STT_FUNC);
 	else
 		st = NULL;

@@ -1,4 +1,4 @@
-/*	$NetBSD: symtab.c,v 1.1 2012/05/26 22:02:29 christos Exp $	*/
+/*	$NetBSD: symtab.c,v 1.2 2013/08/29 15:01:57 christos Exp $	*/
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,11 +29,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: symtab.c,v 1.1 2012/05/26 22:02:29 christos Exp $");
+__RCSID("$NetBSD: symtab.c,v 1.2 2013/08/29 15:01:57 christos Exp $");
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <err.h>
 #include <dlfcn.h>
 
