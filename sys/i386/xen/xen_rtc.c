@@ -39,15 +39,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/time.h>
 
+#include <xen/xen-os.h>
 #include <xen/xen_intr.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <xen/hypervisor.h>
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenfunc.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/vcpu.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <machine/pmap.h>
+#include <machine/xen/xenfunc.h>
 #include <machine/cpu.h>
 
 #include <machine/xen/xen_clock_util.h>

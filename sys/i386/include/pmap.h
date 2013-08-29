@@ -213,7 +213,9 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 
 #if defined(XEN)
 #include <sys/param.h>
-#include <machine/xen/xen-os.h>
+
+#include <xen/xen-os.h>
+
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenpmap.h>
 
