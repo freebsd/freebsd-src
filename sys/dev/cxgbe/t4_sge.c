@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
 #include <net/bpf.h>
@@ -1006,6 +1007,9 @@ service_iq(struct sge_iq *iq, int budget)
 	uint32_t lq;
 	struct mbuf *m0;
 	STAILQ_HEAD(, sge_iq) iql = STAILQ_HEAD_INITIALIZER(iql);
+#if defined(INET) || defined(INET6)
+	const struct timeval lro_timeout = {0, sc->lro_timeout};
+#endif
 
 	limit = budget ? budget : iq->qsize / 8;
 
@@ -1110,6 +1114,14 @@ service_iq(struct sge_iq *iq, int budget)
 				    V_INGRESSQID(iq->cntxt_id) |
 				    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 				ndescs = 0;
+
+#if defined(INET) || defined(INET6)
+				if (iq->flags & IQ_LRO_ENABLED &&
+				    sc->lro_timeout != 0) {
+					tcp_lro_flush_inactive(&rxq->lro,
+					    &lro_timeout);
+				}
+#endif
 
 				if (fl_bufs_used > 0) {
 					FL_LOCK(fl);
