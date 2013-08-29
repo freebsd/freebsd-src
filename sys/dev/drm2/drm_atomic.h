@@ -37,8 +37,8 @@ typedef uint64_t	atomic64_t;
 
 #define	BITS_TO_LONGS(x)		howmany(x, sizeof(long) * NBBY)
 
-#define	atomic_set(p, v)		atomic_store_rel_int(p, v)
-#define	atomic_read(p)			atomic_load_acq_int(p)
+#define	atomic_read(p)			(*(volatile u_int *)(p))
+#define	atomic_set(p, v)		do { *(u_int *)(p) = (v); } while (0)
 
 #define	atomic_add(v, p)		atomic_add_int(p, v)
 #define	atomic_sub(v, p)		atomic_subtract_int(p, v)
@@ -63,9 +63,7 @@ typedef uint64_t	atomic64_t;
 #define	set_bit(b, p) \
     atomic_set_int((volatile u_int *)(p) + (b) / 32, 1 << (b) % 32)
 #define	test_bit(b, p) \
-    (atomic_load_acq_int((volatile u_int *)(p) + (b) / 32) & (1 << (b) % 32))
-#define	test_and_set_bit(b, p) \
-    atomic_testandset_int((volatile u_int *)(p) + (b) / 32, b)
+    ((atomic_read((volatile u_int *)(p) + (b) / 32) & (1 << (b) % 32)) != 0)
 
 static __inline int
 find_first_zero_bit(volatile void *p, int max)
