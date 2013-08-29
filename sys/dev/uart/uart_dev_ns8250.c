@@ -453,7 +453,19 @@ ns8250_bus_attach(struct uart_softc *sc)
 	ns8250->ier |= ns8250->ier_rxbits;
 	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
-	
+
+	/*
+	 * Timing of the H/W access was changed with r253161 of uart_core.c
+	 * It has been observed that an ITE IT8513E would signal a break
+	 * condition with pretty much every character it received, unless
+	 * it had enough time to settle between ns8250_bus_attach() and
+	 * ns8250_bus_ipend() -- which it accidentally had before r253161.
+	 * It's not understood why the UART chip behaves this way and it
+	 * could very well be that the DELAY make the H/W work in the same
+	 * accidental manner as before. More analysis is warranted, but
+	 * at least now we fixed a known regression.
+	 */
+	DELAY(150);
 	return (0);
 }
 
