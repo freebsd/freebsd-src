@@ -7,6 +7,7 @@
 
 /*-
  * Copyright 2004 Eric Anholt
+ * Copyright 2013 Jung-uk Kim <jkim@FreeBSD.org>
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -32,10 +33,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-typedef uint32_t	atomic_t;
+typedef u_int		atomic_t;
 typedef uint64_t	atomic64_t;
 
-#define	BITS_TO_LONGS(x)		howmany(x, sizeof(long) * NBBY)
+#define	BITS_PER_LONG			(sizeof(long) * NBBY)
+#define	BITS_TO_LONGS(x)		howmany(x, BITS_PER_LONG)
 
 #define	atomic_read(p)			(*(volatile u_int *)(p))
 #define	atomic_set(p, v)		do { *(u_int *)(p) = (v); } while (0)
@@ -58,23 +60,27 @@ typedef uint64_t	atomic64_t;
 #define	atomic_xchg(p, v)		atomic_swap_int(p, v)
 #define	atomic64_xchg(p, v)		atomic_swap_64(p, v)
 
+#define	__bit_word(b)			((b) / BITS_PER_LONG)
+#define	__bit_mask(b)			(1UL << (b) % BITS_PER_LONG)
+#define	__bit_addr(p, b)		((volatile u_long *)(p) + __bit_word(b))
+
 #define	clear_bit(b, p) \
-    atomic_clear_int((volatile u_int *)(p) + (b) / 32, 1 << (b) % 32)
+    atomic_clear_long(__bit_addr(p, b), __bit_mask(b))
 #define	set_bit(b, p) \
-    atomic_set_int((volatile u_int *)(p) + (b) / 32, 1 << (b) % 32)
+    atomic_set_long(__bit_addr(p, b), __bit_mask(b))
 #define	test_bit(b, p) \
-    ((atomic_read((volatile u_int *)(p) + (b) / 32) & (1 << (b) % 32)) != 0)
+    ((atomic_read(__bit_addr(p, b)) & __bit_mask(b)) != 0)
 
-static __inline int
-find_first_zero_bit(volatile void *p, int max)
+static __inline u_long
+find_first_zero_bit(const u_long *p, u_long max)
 {
-	volatile int *np = p;
-	int i, n;
+	u_long i, n;
 
-	for (i = 0; i < max / (NBBY * sizeof(int)); i++) {
-		n = ~np[i];
+	KASSERT(max % BITS_PER_LONG == 0, ("invalid bitmap size %lu", max));
+	for (i = 0; i < max / BITS_PER_LONG; i++) {
+		n = ~p[i];
 		if (n != 0)
-			return (i * NBBY * sizeof(int) + ffs(n) - 1);
+			return (i * BITS_PER_LONG + ffsl(n) - 1);
 	}
 	return (max);
 }
