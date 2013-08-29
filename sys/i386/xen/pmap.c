@@ -3914,6 +3914,72 @@ pmap_ts_referenced(vm_page_t m)
 }
 
 /*
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping and set the mapped page's dirty field.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+	pd_entry_t oldpde;
+	pt_entry_t *pte;
+	vm_offset_t pdnxt;
+	vm_page_t m;
+	boolean_t anychanged;
+
+	if (advice != MADV_DONTNEED && advice != MADV_FREE)
+		return;
+	anychanged = FALSE;
+	rw_wlock(&pvh_global_lock);
+	sched_pin();
+	PMAP_LOCK(pmap);
+	for (; sva < eva; sva = pdnxt) {
+		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
+		oldpde = pmap->pm_pdir[sva >> PDRSHIFT];
+		if ((oldpde & (PG_PS | PG_V)) != PG_V)
+			continue;
+		if (pdnxt > eva)
+			pdnxt = eva;
+		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
+		    sva += PAGE_SIZE) {
+			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED |
+			    PG_V))
+				continue;
+			else if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+				if (advice == MADV_DONTNEED) {
+					/*
+					 * Future calls to pmap_is_modified()
+					 * can be avoided by making the page
+					 * dirty now.
+					 */
+					m = PHYS_TO_VM_PAGE(xpmap_mtop(*pte) &
+					    PG_FRAME);
+					vm_page_dirty(m);
+				}
+				PT_SET_VA_MA(pte, *pte & ~(PG_M | PG_A), TRUE);
+			} else if ((*pte & PG_A) != 0)
+				PT_SET_VA_MA(pte, *pte & ~PG_A, TRUE);
+			else
+				continue;
+			if ((*pte & PG_G) != 0)
+				pmap_invalidate_page(pmap, sva);
+			else
+				anychanged = TRUE;
+		}
+	}
+	PT_UPDATES_FLUSH();
+	if (*PMAP1)
+		PT_SET_VA_MA(PMAP1, 0, TRUE);
+	if (anychanged)
+		pmap_invalidate_all(pmap);
+	sched_unpin();
+	rw_wunlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
+}
+
+/*
  *	Clear the modify bits on the specified physical page.
  */
 void
