@@ -2499,7 +2499,6 @@ dev/xen/control/control.c	optional xen | xenhvm
 dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
-dev/xen/xenpci/evtchn.c         optional xenpci
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/deadfs/dead_vnops.c		standard
@@ -3815,7 +3814,6 @@ vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
-xen/evtchn/evtchn.c		optional xen
 xen/evtchn/evtchn_dev.c		optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm

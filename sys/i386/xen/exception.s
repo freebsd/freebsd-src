@@ -168,7 +168,7 @@ call_evtchn_upcall:
 	jb	critical_region_fixup
 	
 10:	pushl	%esp
-	call	evtchn_do_upcall
+	call	xen_intr_handle_upcall
 	addl	$4,%esp
 
 	/*

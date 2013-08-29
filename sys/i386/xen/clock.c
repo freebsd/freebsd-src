@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/pmap.h>
 #include <xen/hypervisor.h>
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <machine/xen/xenfunc.h>
 #include <xen/interface/vcpu.h>
 #include <machine/cpu.h>
@@ -132,6 +132,8 @@ static uint32_t shadow_tv_version;	/* XXX: lazy locking */
 static uint64_t processed_system_time;	/* stime (ns) at last processing. */
 
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+
+int ap_cpu_initclocks(int cpu);
 
 SYSCTL_INT(_machdep, OID_AUTO, independent_wallclock,
     CTLFLAG_RW, &independent_wallclock, 0, "");
@@ -257,9 +259,11 @@ static void __get_time_values_from_xen(void)
 	struct vcpu_time_info   *src;
 	struct shadow_time_info *dst;
 	uint32_t pre_version, post_version;
+	struct pcpu *pc;
 
+	pc = pcpu_find(smp_processor_id());
 	src = &s->vcpu_info[smp_processor_id()].time;
-	dst = &per_cpu(shadow_time, smp_processor_id());
+	dst = &pc->pc_shadow_time;
 
 	spinlock_enter();
 	do {
@@ -283,9 +287,11 @@ static inline int time_values_up_to_date(int cpu)
 {
 	struct vcpu_time_info   *src;
 	struct shadow_time_info *dst;
+	struct pcpu *pc;
 
 	src = &HYPERVISOR_shared_info->vcpu_info[cpu].time; 
-	dst = &per_cpu(shadow_time, cpu); 
+	pc = pcpu_find(cpu);
+	dst = &pc->pc_shadow_time;
 
 	rmb();
 	return (dst->version == src->version);
@@ -320,7 +326,8 @@ clkintr(void *arg)
 {
 	int64_t now;
 	int cpu = smp_processor_id();
-	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
+	struct pcpu *pc = pcpu_find(cpu);
+	struct shadow_time_info *shadow = &pc->pc_shadow_time;
 	struct xen_et_state *state = DPCPU_PTR(et_state);
 
 	do {
@@ -364,8 +371,10 @@ getit(void)
 	struct shadow_time_info *shadow;
 	uint64_t time;
 	uint32_t local_time_version;
+	struct pcpu *pc;
 
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	pc = pcpu_find(smp_processor_id());
+	shadow = &pc->pc_shadow_time;
 
 	do {
 	  local_time_version = shadow->version;
@@ -492,12 +501,14 @@ void
 timer_restore(void)
 {
 	struct xen_et_state *state = DPCPU_PTR(et_state);
+	struct pcpu *pc;
 
 	/* Get timebases for new environment. */ 
 	__get_time_values_from_xen();
 
 	/* Reset our own concept of passage of system time. */
-	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
+	pc = pcpu_find(0);
+	processed_system_time = pc->pc_shadow_time.system_timestamp;
 	state->next = processed_system_time;
 }
 
@@ -508,10 +519,13 @@ startrtclock()
 	uint64_t __cpu_khz;
 	uint32_t cpu_khz;
 	struct vcpu_time_info *info;
+	struct pcpu *pc;
+
+	pc = pcpu_find(0);
 
 	/* initialize xen values */
 	__get_time_values_from_xen();
-	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
+	processed_system_time = pc->pc_shadow_time.system_timestamp;
 
 	__cpu_khz = 1000000ULL << 32;
 	info = &HYPERVISOR_shared_info->vcpu_info[0].time;
@@ -594,8 +608,10 @@ domu_resettodr(void)
 	int s;
 	dom0_op_t op;
 	struct shadow_time_info *shadow;
+	struct pcpu *pc;
 
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	pc = pcpu_find(smp_processor_id());
+	shadow = &pc->pc_shadow_time;
 	if (xen_disable_rtc_set)
 		return;
 	
@@ -773,6 +789,7 @@ xen_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	struct xen_et_state *state = DPCPU_PTR(et_state);
 	struct shadow_time_info *shadow;
 	int64_t fperiod;
+	struct pcpu *pc;
 
 	__get_time_values_from_xen();
 
@@ -788,7 +805,8 @@ xen_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	else
 		fperiod = state->period;
 
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	pc = pcpu_find(smp_processor_id());
+	shadow = &pc->pc_shadow_time;
 	state->next = shadow->system_timestamp + get_nsec_offset(shadow);
 	state->next += fperiod;
 	HYPERVISOR_set_timer_op(state->next + 50000);
@@ -811,11 +829,11 @@ xen_et_stop(struct eventtimer *et)
 void
 cpu_initclocks(void)
 {
-	unsigned int time_irq;
+	xen_intr_handle_t time_irq;
 	int error;
 
 	HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, 0, NULL);
-	error = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "cpu0:timer",
+	error = xen_intr_bind_virq(root_bus, VIRQ_TIMER, 0,
 	    clkintr, NULL, NULL, INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
@@ -840,13 +858,11 @@ cpu_initclocks(void)
 int
 ap_cpu_initclocks(int cpu)
 {
-	char buf[MAXCOMLEN + 1];
-	unsigned int time_irq;
+	xen_intr_handle_t time_irq;
 	int error;
 
 	HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, cpu, NULL);
-	snprintf(buf, sizeof(buf), "cpu%d:timer", cpu);
-	error = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, buf,
+	error = xen_intr_bind_virq(root_bus, VIRQ_TIMER, cpu,
 	    clkintr, NULL, NULL, INTR_TYPE_CLK, &time_irq);
 	if (error)
 		panic("failed to register clock interrupt\n");
@@ -859,7 +875,10 @@ xen_get_timecount(struct timecounter *tc)
 {	
 	uint64_t clk;
 	struct shadow_time_info *shadow;
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	struct pcpu *pc;
+
+	pc = pcpu_find(smp_processor_id());
+	shadow = &pc->pc_shadow_time;
 
 	__get_time_values_from_xen();
 	
@@ -874,13 +893,6 @@ uint64_t
 get_system_time(int ticks)
 {
     return processed_system_time + (ticks * NS_PER_TICK);
-}
-
-void
-idle_block(void)
-{
-
-	HYPERVISOR_sched_op(SCHEDOP_block, 0);
 }
 
 int

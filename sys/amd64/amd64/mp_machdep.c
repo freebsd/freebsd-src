@@ -70,6 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/tss.h>
 
+#ifdef XENHVM
+#include <xen/hvm.h>
+#endif
+
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
 #define WARMBOOT_SEG		(KERNBASE + 0x0469)
@@ -710,6 +714,11 @@ init_secondary(void)
 
 	/* set up FPU state on the AP */
 	fpuinit();
+
+#ifdef XENHVM
+	/* register vcpu_info area */
+	xen_hvm_init_cpu();
+#endif
 
 	/* A quick check from sanity claus */
 	cpuid = PCPU_GET(cpuid);
