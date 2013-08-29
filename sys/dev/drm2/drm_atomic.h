@@ -69,7 +69,7 @@ typedef uint64_t	atomic64_t;
 #define	set_bit(b, p) \
     atomic_set_long(__bit_addr(p, b), __bit_mask(b))
 #define	test_bit(b, p) \
-    ((atomic_read(__bit_addr(p, b)) & __bit_mask(b)) != 0)
+    ((*__bit_addr(p, b) & __bit_mask(b)) != 0)
 
 static __inline u_long
 find_first_zero_bit(const u_long *p, u_long max)
