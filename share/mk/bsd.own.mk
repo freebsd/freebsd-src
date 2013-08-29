@@ -373,7 +373,6 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_EXTRAS \
     CTF \
     DEBUG_FILES \
-    GNU_PATCH \
     GPL_DTC \
     HESIOD \
     LIBICONV_COMPAT \
