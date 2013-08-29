@@ -4767,6 +4767,14 @@ pmap_is_modified(vm_page_t m)
 }
 
 /*
+ *	This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+}
+
+/*
  *	Clear the modify bits on the specified physical page.
  */
 void

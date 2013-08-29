@@ -91,6 +91,15 @@ RB_GENERATE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
 	
 
 void
+pmap_advise(pmap_t pmap, vm_offset_t start, vm_offset_t end, int advice)
+{
+
+	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %d)", __func__, pmap, start, end,
+	    advice);
+	MMU_ADVISE(mmu_obj, pmap, start, end, advice);
+}
+
+void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
 
