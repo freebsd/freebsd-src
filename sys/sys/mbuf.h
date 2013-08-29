@@ -646,18 +646,6 @@ m_getcl(int how, short type, int flags)
 	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
-static __inline struct mbuf *
-m_free(struct mbuf *m)
-{
-	struct mbuf *n = m->m_next;
-
-	if (m->m_flags & M_EXT)
-		mb_free_ext(m);
-	else if ((m->m_flags & M_NOFREE) == 0)
-		uma_zfree(zone_mbuf, m);
-	return (n);
-}
-
 static __inline void
 m_clget(struct mbuf *m, int how)
 {
@@ -1122,6 +1110,20 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 {
 	return (SLIST_EMPTY(&m->m_pkthdr.tags) ? (struct m_tag *)NULL :
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
+}
+
+static __inline struct mbuf *
+m_free(struct mbuf *m)
+{
+	struct mbuf *n = m->m_next;
+
+	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
+		m_tag_delete_chain(m, NULL);
+	if (m->m_flags & M_EXT)
+		mb_free_ext(m);
+	else if ((m->m_flags & M_NOFREE) == 0)
+		uma_zfree(zone_mbuf, m);
+	return (n);
 }
 
 static int inline
