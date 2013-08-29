@@ -128,12 +128,13 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 
 #include <machine/_inttypes.h>
-#include <machine/xen/xen-os.h>
+#include <machine/intr_machdep.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
+#include <xen/xen-os.h>
 #include <xen/blkif.h>
 #include <xen/evtchn.h>
 #include <xen/gnttab.h>
@@ -143,6 +144,9 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/grant_table.h>
 
 #include <xen/xenbus/xenbusvar.h>
+
+#include <machine/xen/xenvar.h>
+#include <machine/xen/xenfunc.h>
 
 /*--------------------------- Forward Declarations --------------------------*/
 /** Function signature for shutdown event handlers. */
@@ -242,6 +246,7 @@ xctrl_suspend()
 
 	xencons_suspend();
 	gnttab_suspend();
+	intr_suspend();
 
 	max_pfn = HYPERVISOR_shared_info->arch.max_pfn;
 
@@ -282,7 +287,7 @@ xctrl_suspend()
 	HYPERVISOR_shared_info->arch.max_pfn = max_pfn;
 
 	gnttab_resume();
-	irq_resume();
+	intr_resume();
 	local_irq_enable();
 	xencons_resume();
 
@@ -352,13 +357,11 @@ xctrl_suspend()
 	 * Prevent any races with evtchn_interrupt() handler.
 	 */
 	disable_intr();
-	irq_suspend();
+	intr_suspend();
 
 	suspend_cancelled = HYPERVISOR_suspend(0);
-	if (suspend_cancelled)
-		irq_resume();
-	else
-		xenpci_resume();
+
+	intr_resume();
 
 	/*
 	 * Re-enable interrupts and put the scheduler back to normal.

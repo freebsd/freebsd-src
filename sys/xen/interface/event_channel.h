@@ -73,8 +73,11 @@
 #define EVTCHNOP_reset           10
 /* ` } */
 
+#ifndef __XEN_EVTCHN_PORT_DEFINED__
 typedef uint32_t evtchn_port_t;
 DEFINE_XEN_GUEST_HANDLE(evtchn_port_t);
+#define __XEN_EVTCHN_PORT_DEFINED__ 1
+#endif
 
 /*
  * EVTCHNOP_alloc_unbound: Allocate a port in domain <dom> and mark as

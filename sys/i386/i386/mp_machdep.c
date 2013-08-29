@@ -82,6 +82,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 
+#ifdef XENHVM
+#include <xen/hvm.h>
+#endif
+
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
 #define WARMBOOT_SEG		(KERNBASE + 0x0469)
@@ -746,6 +750,11 @@ init_secondary(void)
 
 	/* set up SSE registers */
 	enable_sse();
+
+#ifdef XENHVM
+	/* register vcpu_info area */
+	xen_hvm_init_cpu();
+#endif
 
 #ifdef PAE
 	/* Enable the PTE no-execute bit. */
