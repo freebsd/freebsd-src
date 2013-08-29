@@ -153,7 +153,6 @@ static cpuset_t	hyperthreading_cpus_mask;
 extern void Xhypervisor_callback(void);
 extern void failsafe_callback(void);
 extern void pmap_lazyfix_action(void);
-extern int  ap_cpu_initclocks(int cpu);
 
 DPCPU_DEFINE(xen_intr_handle_t, ipi_port[NR_IPIS]);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
@@ -494,9 +493,6 @@ xen_smp_cpu_init(unsigned int cpu)
 
 	printf("[XEN] IPI cpu=%d port=%d vector=CALL_FUNCTION_VECTOR (%d)\n",
 	    cpu, xen_intr_port(irq_handle), CALL_FUNCTION_VECTOR);
-
-	if ((cpu != 0) && ((rc = ap_cpu_initclocks(cpu)) != 0))
-		goto fail;
 
 	return 0;
 
