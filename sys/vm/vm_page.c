@@ -2634,7 +2634,6 @@ vm_page_advise(vm_page_t m, int advice)
 		 * But we do make the page is freeable as we can without
 		 * actually taking the step of unmapping it.
 		 */
-		pmap_clear_modify(m);
 		m->dirty = 0;
 		m->act_count = 0;
 	} else if (advice != MADV_DONTNEED)
@@ -2654,15 +2653,7 @@ vm_page_advise(vm_page_t m, int advice)
 	/*
 	 * Clear any references to the page.  Otherwise, the page daemon will
 	 * immediately reactivate the page.
-	 *
-	 * Perform the pmap_clear_reference() first.  Otherwise, a concurrent
-	 * pmap operation, such as pmap_remove(), could clear a reference in
-	 * the pmap and set PGA_REFERENCED on the page before the
-	 * pmap_clear_reference() had completed.  Consequently, the page would
-	 * appear referenced based upon an old reference that occurred before
-	 * this function ran.
 	 */
-	pmap_clear_reference(m);
 	vm_page_aflag_clear(m, PGA_REFERENCED);
 
 	if (advice != MADV_FREE && m->dirty == 0 && pmap_is_modified(m))
