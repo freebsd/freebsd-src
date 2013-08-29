@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130829: bsdpatch is patch unconditionally
+OLD_FILES+=usr/bin/bsdpatch
+OLD_FILES+=usr/share/man/man1/bsdpatch.1.gz
 # 20130822: bind 9.9.3-P2 import
 OLD_LIBS+=usr/lib/liblwres.so.80
 # 20130814: vm_page_busy(9)
