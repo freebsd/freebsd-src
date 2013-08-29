@@ -99,10 +99,10 @@ __FBSDID("$FreeBSD$");
  */
 
 static const u_int32_t	CH_TIMEOUT_MODE_SENSE                = 6000;
-static const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 100000;
-static const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 100000;
-static const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 100000;
-static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 60000;
+static const u_int32_t	CH_TIMEOUT_MOVE_MEDIUM               = 15 * 60 * 1000;
+static const u_int32_t	CH_TIMEOUT_EXCHANGE_MEDIUM           = 15 * 60 * 1000;
+static const u_int32_t	CH_TIMEOUT_POSITION_TO_ELEMENT       = 15 * 60 * 1000;
+static const u_int32_t	CH_TIMEOUT_READ_ELEMENT_STATUS       = 5 * 60 * 1000;
 static const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
 static const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
 
