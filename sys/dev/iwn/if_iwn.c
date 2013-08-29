@@ -2668,11 +2668,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		KASSERT(ni != NULL, ("no node"));
 		KASSERT(m != NULL, ("no mbuf"));
 
-		if (m->m_flags & M_TXCB)
-			ieee80211_process_callback(ni, m, 1);
-
-		m_freem(m);
-		ieee80211_free_node(ni);
+		ieee80211_tx_complete(ni, m, 1);
 
 		txq->queued--;
 		txq->read = (txq->read + 1) % IWN_TX_RING_COUNT;
@@ -2934,29 +2930,6 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 	ni = data->ni, data->ni = NULL;
 	vap = ni->ni_vap;
 
-	if (m->m_flags & M_TXCB) {
-		/*
-		 * Channels marked for "radar" require traffic to be received
-		 * to unlock before we can transmit.  Until traffic is seen
-		 * any attempt to transmit is returned immediately with status
-		 * set to IWN_TX_FAIL_TX_LOCKED.  Unfortunately this can easily
-		 * happen on first authenticate after scanning.  To workaround
-		 * this we ignore a failure of this sort in AUTH state so the
-		 * 802.11 layer will fall back to using a timeout to wait for
-		 * the AUTH reply.  This allows the firmware time to see
-		 * traffic so a subsequent retry of AUTH succeeds.  It's
-		 * unclear why the firmware does not maintain state for
-		 * channels recently visited as this would allow immediate
-		 * use of the channel after a scan (where we see traffic).
-		 */
-		if (status == IWN_TX_FAIL_TX_LOCKED &&
-		    ni->ni_vap->iv_state == IEEE80211_S_AUTH)
-			ieee80211_process_callback(ni, m, 0);
-		else
-			ieee80211_process_callback(ni, m,
-			    (status & IWN_TX_FAIL) != 0);
-	}
-
 	/*
 	 * Update rate control statistics for the node.
 	 */
@@ -2969,8 +2942,27 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int ackfailcnt,
 		ieee80211_ratectl_tx_complete(vap, ni,
 		    IEEE80211_RATECTL_TX_SUCCESS, &ackfailcnt, NULL);
 	}
-	m_freem(m);
-	ieee80211_free_node(ni);
+
+	/*
+	 * Channels marked for "radar" require traffic to be received
+	 * to unlock before we can transmit.  Until traffic is seen
+	 * any attempt to transmit is returned immediately with status
+	 * set to IWN_TX_FAIL_TX_LOCKED.  Unfortunately this can easily
+	 * happen on first authenticate after scanning.  To workaround
+	 * this we ignore a failure of this sort in AUTH state so the
+	 * 802.11 layer will fall back to using a timeout to wait for
+	 * the AUTH reply.  This allows the firmware time to see
+	 * traffic so a subsequent retry of AUTH succeeds.  It's
+	 * unclear why the firmware does not maintain state for
+	 * channels recently visited as this would allow immediate
+	 * use of the channel after a scan (where we see traffic).
+	 */
+	if (status == IWN_TX_FAIL_TX_LOCKED &&
+	    ni->ni_vap->iv_state == IEEE80211_S_AUTH)
+		ieee80211_tx_complete(ni, m, 0);
+	else
+		ieee80211_tx_complete(ni, m,
+		    (status & IWN_TX_FAIL) != 0);
 
 	sc->sc_tx_timer = 0;
 	if (--ring->queued < IWN_TX_RING_LOMARK) {
@@ -3091,11 +3083,7 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		KASSERT(ni != NULL, ("no node"));
 		KASSERT(m != NULL, ("no mbuf"));
 
-		if (m->m_flags & M_TXCB)
-			ieee80211_process_callback(ni, m, 1);
-
-		m_freem(m);
-		ieee80211_free_node(ni);
+		ieee80211_tx_complete(ni, m, 1);
 
 		ring->queued--;
 		ring->read = (ring->read + 1) % IWN_TX_RING_COUNT;
