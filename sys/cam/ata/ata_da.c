@@ -153,6 +153,7 @@ struct ada_softc {
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
 	struct trim_request	trim_req;
+	int	refcount;
 };
 
 struct ada_quirk_entry {
@@ -671,6 +672,8 @@ adaclose(struct disk *dp)
 
 	softc->flags &= ~ADA_FLAG_OPEN;
 	cam_periph_unhold(periph);
+	while (softc->refcount != 0)
+		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "adaclose", 1);
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 	return (0);	
@@ -1639,7 +1642,11 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 out:
 		start_ccb->ccb_h.ccb_bp = bp;
 		softc->outstanding_cmds++;
+		softc->refcount++;
+		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
+		cam_periph_lock(periph);
+		softc->refcount--;
 
 		/* May have more work to do, so ensure we stay scheduled */
 		adaschedule(periph);

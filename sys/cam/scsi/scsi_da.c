@@ -228,6 +228,7 @@ struct da_softc {
 	uint8_t	 unmap_buf[UNMAP_BUF_SIZE];
 	struct scsi_read_capacity_data_long rcaplong;
 	struct callout		mediapoll_c;
+	int	refcount;
 };
 
 #define dadeleteflag(softc, delete_method, enable)			\
@@ -1321,6 +1322,8 @@ daclose(struct disk *dp)
 
 	softc->flags &= ~DA_FLAG_OPEN;
 	cam_periph_unhold(periph);
+	while (softc->refcount != 0)
+		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "daclose", 1);
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 	return (0);	
@@ -2313,7 +2316,11 @@ out:
 		}
 
 		start_ccb->ccb_h.ccb_bp = bp;
+		softc->refcount++;
+		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
+		cam_periph_lock(periph);
+		softc->refcount--;
 
 		/* May have more work to do, so ensure we stay scheduled */
 		daschedule(periph);
