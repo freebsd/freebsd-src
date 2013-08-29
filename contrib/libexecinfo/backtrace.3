@@ -1,4 +1,4 @@
-.\"	$NetBSD: backtrace.3,v 1.4 2012/06/10 00:24:36 christos Exp $
+.\"	$NetBSD: backtrace.3,v 1.5 2013/08/22 17:08:43 christos Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -152,10 +152,4 @@ The Linux versions of the functions (there are no _fmt variants) use
 instead of
 .Ft size_t
 arguments.
-.It
-The
-.Fn backtrace_symbols
-functions currently rely on
-.Xr procfs 5
-to locate the executable.
 .El
