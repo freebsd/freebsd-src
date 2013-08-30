@@ -457,10 +457,7 @@ command(void)
 		if (lasttoken == TWORD && ! quoteflag && equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
-				n2 = (union node *)stalloc(sizeof (struct narg));
-				n2->type = NARG;
-				n2->narg.text = wordtext;
-				n2->narg.backquote = backquotelist;
+				n2 = makename();
 				*app = n2;
 				app = &n2->narg.next;
 			}
@@ -500,11 +497,7 @@ command(void)
 		n1 = (union node *)stalloc(sizeof (struct ncase));
 		n1->type = NCASE;
 		consumetoken(TWORD);
-		n1->ncase.expr = n2 = (union node *)stalloc(sizeof (struct narg));
-		n2->type = NARG;
-		n2->narg.text = wordtext;
-		n2->narg.backquote = backquotelist;
-		n2->narg.next = NULL;
+		n1->ncase.expr = makename();
 		while (readtoken() == TNL);
 		if (lasttoken != TWORD || ! equal(wordtext, "in"))
 			synerror("expecting \"in\"");
@@ -517,10 +510,7 @@ command(void)
 			if (lasttoken == TLP)
 				readtoken();
 			for (;;) {
-				*app = ap = (union node *)stalloc(sizeof (struct narg));
-				ap->type = NARG;
-				ap->narg.text = wordtext;
-				ap->narg.backquote = backquotelist;
+				*app = ap = makename();
 				checkkwd = CHKNL | CHKKWD;
 				if (readtoken() != TPIPE)
 					break;
@@ -632,10 +622,7 @@ simplecmd(union node **rpp, union node *redir)
 	for (;;) {
 		checkkwd = savecheckkwd;
 		if (readtoken() == TWORD) {
-			n = (union node *)stalloc(sizeof (struct narg));
-			n->type = NARG;
-			n->narg.text = wordtext;
-			n->narg.backquote = backquotelist;
+			n = makename();
 			*app = n;
 			app = &n->narg.next;
 			if (savecheckkwd != 0 && !isassignment(wordtext))
@@ -772,11 +759,7 @@ parseheredoc(void)
 		}
 		readtoken1(pgetc(), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
 				here->eofmark, here->striptabs);
-		n = (union node *)stalloc(sizeof (struct narg));
-		n->narg.type = NARG;
-		n->narg.next = NULL;
-		n->narg.text = wordtext;
-		n->narg.backquote = backquotelist;
+		n = makename();
 		here->here->nhere.doc = n;
 	}
 }
