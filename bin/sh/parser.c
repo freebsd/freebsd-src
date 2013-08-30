@@ -576,6 +576,9 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TSEMI:
 	case TAND:
 	case TOR:
+	case TPIPE:
+	case TENDCASE:
+	case TFALLTHRU:
 		/*
 		 * An empty command before a ; doesn't make much sense, and
 		 * should certainly be disallowed in the case of `if ;'.
