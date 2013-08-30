@@ -114,6 +114,7 @@ static union node *pipeline(void);
 static union node *command(void);
 static union node *simplecmd(union node **, union node *);
 static union node *makename(void);
+static union node *makebinary(int type, union node *n1, union node *n2);
 static void parsefname(void);
 static void parseheredoc(void);
 static int peektoken(void);
@@ -257,17 +258,11 @@ list(int nlflag, int erflag)
 		if (ntop == NULL)
 			ntop = n2;
 		else if (n1 == NULL) {
-			n1 = (union node *)stalloc(sizeof (struct nbinary));
-			n1->type = NSEMI;
-			n1->nbinary.ch1 = ntop;
-			n1->nbinary.ch2 = n2;
+			n1 = makebinary(NSEMI, ntop, n2);
 			ntop = n1;
 		}
 		else {
-			n3 = (union node *)stalloc(sizeof (struct nbinary));
-			n3->type = NSEMI;
-			n3->nbinary.ch1 = n1->nbinary.ch2;
-			n3->nbinary.ch2 = n2;
+			n3 = makebinary(NSEMI, n1->nbinary.ch2, n2);
 			n1->nbinary.ch2 = n3;
 			n1 = n3;
 		}
@@ -312,10 +307,10 @@ list(int nlflag, int erflag)
 static union node *
 andor(void)
 {
-	union node *n1, *n2, *n3;
+	union node *n;
 	int t;
 
-	n1 = pipeline();
+	n = pipeline();
 	for (;;) {
 		if ((t = readtoken()) == TAND) {
 			t = NAND;
@@ -323,14 +318,9 @@ andor(void)
 			t = NOR;
 		} else {
 			tokpushback++;
-			return n1;
+			return n;
 		}
-		n2 = pipeline();
-		n3 = (union node *)stalloc(sizeof (struct nbinary));
-		n3->type = t;
-		n3->nbinary.ch1 = n1;
-		n3->nbinary.ch2 = n2;
-		n1 = n3;
+		n = makebinary(t, n, pipeline());
 	}
 }
 
@@ -437,12 +427,11 @@ command(void)
 		break;
 	case TWHILE:
 	case TUNTIL:
-		n1 = (union node *)stalloc(sizeof (struct nbinary));
-		n1->type = (lasttoken == TWHILE)? NWHILE : NUNTIL;
-		if ((n1->nbinary.ch1 = list(0, 0)) == NULL)
+		t = lasttoken;
+		if ((n1 = list(0, 0)) == NULL)
 			synexpect(-1);
 		consumetoken(TDO);
-		n1->nbinary.ch2 = list(0, 0);
+		n1 = makebinary((t == TWHILE)? NWHILE : NUNTIL, n1, list(0, 0));
 		consumetoken(TDONE);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
@@ -680,6 +669,18 @@ makename(void)
 	n->narg.text = wordtext;
 	n->narg.backquote = backquotelist;
 	return n;
+}
+
+static union node *
+makebinary(int type, union node *n1, union node *n2)
+{
+	union node *n;
+
+	n = (union node *)stalloc(sizeof (struct nbinary));
+	n->type = type;
+	n->nbinary.ch1 = n1;
+	n->nbinary.ch2 = n2;
+	return (n);
 }
 
 void
