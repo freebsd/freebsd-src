@@ -762,5 +762,7 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 int
 typecmd(int argc, char **argv)
 {
+	if (argc > 2 && strcmp(argv[1], "--") == 0)
+		argc--, argv++;
 	return typecmd_impl(argc, argv, TYPECMD_TYPE, bltinlookup("PATH", 1));
 }
