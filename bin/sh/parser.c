@@ -108,7 +108,7 @@ static int funclinno;		/* line # where the current function started */
 static struct parser_temp *parser_temp;
 
 
-static union node *list(int, int);
+static union node *list(int);
 static union node *andor(void);
 static union node *pipeline(void);
 static union node *command(void);
@@ -225,18 +225,18 @@ parsecmd(int interact)
 	if (t == TNL)
 		return NULL;
 	tokpushback++;
-	return list(1, 1);
+	return list(1);
 }
 
 
 static union node *
-list(int nlflag, int erflag)
+list(int nlflag)
 {
 	union node *ntop, *n1, *n2, *n3;
 	int tok;
 
 	checkkwd = CHKNL | CHKKWD | CHKALIAS;
-	if (!nlflag && !erflag && tokendlist[peektoken()])
+	if (!nlflag && tokendlist[peektoken()])
 		return NULL;
 	ntop = n1 = NULL;
 	for (;;) {
@@ -283,8 +283,7 @@ list(int nlflag, int erflag)
 				tokpushback++;
 			}
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
-			if (!nlflag && (erflag ? peektoken() == TEOF :
-			    tokendlist[peektoken()]))
+			if (!nlflag && tokendlist[peektoken()])
 				return ntop;
 			break;
 		case TEOF:
@@ -294,7 +293,7 @@ list(int nlflag, int erflag)
 				pungetc();		/* push back EOF on input */
 			return ntop;
 		default:
-			if (nlflag || erflag)
+			if (nlflag)
 				synexpect(-1);
 			tokpushback++;
 			return ntop;
@@ -402,22 +401,22 @@ command(void)
 	case TIF:
 		n1 = (union node *)stalloc(sizeof (struct nif));
 		n1->type = NIF;
-		if ((n1->nif.test = list(0, 0)) == NULL)
+		if ((n1->nif.test = list(0)) == NULL)
 			synexpect(-1);
 		consumetoken(TTHEN);
-		n1->nif.ifpart = list(0, 0);
+		n1->nif.ifpart = list(0);
 		n2 = n1;
 		while (readtoken() == TELIF) {
 			n2->nif.elsepart = (union node *)stalloc(sizeof (struct nif));
 			n2 = n2->nif.elsepart;
 			n2->type = NIF;
-			if ((n2->nif.test = list(0, 0)) == NULL)
+			if ((n2->nif.test = list(0)) == NULL)
 				synexpect(-1);
 			consumetoken(TTHEN);
-			n2->nif.ifpart = list(0, 0);
+			n2->nif.ifpart = list(0);
 		}
 		if (lasttoken == TELSE)
-			n2->nif.elsepart = list(0, 0);
+			n2->nif.elsepart = list(0);
 		else {
 			n2->nif.elsepart = NULL;
 			tokpushback++;
@@ -428,10 +427,10 @@ command(void)
 	case TWHILE:
 	case TUNTIL:
 		t = lasttoken;
-		if ((n1 = list(0, 0)) == NULL)
+		if ((n1 = list(0)) == NULL)
 			synexpect(-1);
 		consumetoken(TDO);
-		n1 = makebinary((t == TWHILE)? NWHILE : NUNTIL, n1, list(0, 0));
+		n1 = makebinary((t == TWHILE)? NWHILE : NUNTIL, n1, list(0));
 		consumetoken(TDONE);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
@@ -478,7 +477,7 @@ command(void)
 			t = TEND;
 		else
 			synexpect(-1);
-		n1->nfor.body = list(0, 0);
+		n1->nfor.body = list(0);
 		consumetoken(t);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
@@ -509,7 +508,7 @@ command(void)
 			ap->narg.next = NULL;
 			if (lasttoken != TRP)
 				synexpect(TRP);
-			cp->nclist.body = list(0, 0);
+			cp->nclist.body = list(0);
 
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if ((t = readtoken()) != TESAC) {
@@ -529,14 +528,14 @@ command(void)
 	case TLP:
 		n1 = (union node *)stalloc(sizeof (struct nredir));
 		n1->type = NSUBSHELL;
-		n1->nredir.n = list(0, 0);
+		n1->nredir.n = list(0);
 		n1->nredir.redirect = NULL;
 		consumetoken(TRP);
 		checkkwd = CHKKWD | CHKALIAS;
 		is_subshell = 1;
 		break;
 	case TBEGIN:
-		n1 = list(0, 0);
+		n1 = list(0);
 		consumetoken(TEND);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
@@ -1060,11 +1059,13 @@ done:
 		doprompt = 0;
 	}
 
-	n = list(0, oldstyle);
+	n = list(0);
 
-	if (oldstyle)
+	if (oldstyle) {
+		if (peektoken() != TEOF)
+			synexpect(-1);
 		doprompt = saveprompt;
-	else
+	} else
 		consumetoken(TRP);
 
 	(*nlpp)->n = n;
