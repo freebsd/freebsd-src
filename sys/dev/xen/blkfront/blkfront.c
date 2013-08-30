@@ -1409,6 +1409,9 @@ xbd_attach(device_t dev)
 	/* FIXME: Use dynamic device id if this is not set. */
 	error = xs_scanf(XST_NIL, xenbus_get_node(dev),
 	    "virtual-device", NULL, "%" PRIu32, &vdevice);
+	if (error)
+		error = xs_scanf(XST_NIL, xenbus_get_node(dev),
+		    "virtual-device-ext", NULL, "%" PRIu32, &vdevice);
 	if (error) {
 		xenbus_dev_fatal(dev, error, "reading virtual-device");
 		device_printf(dev, "Couldn't determine virtual device.\n");
