@@ -42,10 +42,17 @@ struct vmxnet3_dma_alloc {
 #define VMXNET3_RXRINGS_PERQ	2
 
 /*
- * The maximum number of descriptors in each Rx/Tx ring.
+ * The number of descriptors in each Rx/Tx ring.
  */
-#define VMXNET3_MAX_TX_NDESC		512
-#define VMXNET3_MAX_RX_NDESC		256
+#define VMXNET3_DEF_TX_NDESC		512
+#define VMXNET3_MAX_TX_NDESC		4096
+#define VMXNET3_MIN_TX_NDESC		32
+#define VMXNET3_MASK_TX_NDESC		0x1F
+#define VMXNET3_DEF_RX_NDESC		256
+#define VMXNET3_MAX_RX_NDESC		2048
+#define VMXNET3_MIN_RX_NDESC		32
+#define VMXNET3_MASK_RX_NDESC		0x1F
+
 #define VMXNET3_MAX_TX_NCOMPDESC	VMXNET3_MAX_TX_NDESC
 #define VMXNET3_MAX_RX_NCOMPDESC \
     (VMXNET3_MAX_RX_NDESC * VMXNET3_RXRINGS_PERQ)
