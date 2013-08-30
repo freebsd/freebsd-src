@@ -54,6 +54,8 @@ inthand_t
 	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
 	IDTVEC(rendezvous);	/* handle CPU rendezvous */
 
+struct pmap;
+
 /* functions in mp_machdep.c */
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
@@ -67,13 +69,14 @@ int	ipi_nmi_handler(void);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
 void	smp_cache_flush(void);
-void	smp_invlpg(vm_offset_t addr);
-void	smp_masked_invlpg(cpuset_t mask, vm_offset_t addr);
-void	smp_invlpg_range(vm_offset_t startva, vm_offset_t endva);
-void	smp_masked_invlpg_range(cpuset_t mask, vm_offset_t startva,
+void	smp_invlpg(struct pmap *pmap, vm_offset_t addr);
+void	smp_masked_invlpg(cpuset_t mask, struct pmap *pmap, vm_offset_t addr);
+void	smp_invlpg_range(struct pmap *pmap, vm_offset_t startva,
 	    vm_offset_t endva);
-void	smp_invltlb(void);
-void	smp_masked_invltlb(cpuset_t mask);
+void	smp_masked_invlpg_range(cpuset_t mask, struct pmap *pmap,
+	    vm_offset_t startva, vm_offset_t endva);
+void	smp_invltlb(struct pmap *pmap);
+void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap);
 
 #endif /* !LOCORE */
 #endif /* SMP */
