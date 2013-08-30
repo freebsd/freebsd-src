@@ -420,7 +420,7 @@ kiic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			device_printf(sc->sc_dev, "I2C error\n");
 			sc->sc_flags = 0;
 			mtx_unlock(&sc->sc_mutex);
-			return (-1);
+			return (EIO);
 		}
 	}
 

@@ -108,7 +108,6 @@ static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m);
 static void vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off,
 		vm_page_t m);
-static void vfs_drain_busy_pages(struct buf *bp);
 static void vfs_clean_pages_dirty_buf(struct buf *bp);
 static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
@@ -3983,7 +3982,7 @@ vfs_page_set_validclean(struct buf *bp, vm_ooffset_t off, vm_page_t m)
  * Ensure that all buffer pages are not exclusive busied.  If any page is
  * exclusive busy, drain it.
  */
-static void
+void
 vfs_drain_busy_pages(struct buf *bp)
 {
 	vm_page_t m;

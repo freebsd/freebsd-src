@@ -2621,8 +2621,8 @@ mwl_rxbuf_init(struct mwl_softc *sc, struct mwl_rxbuf *bf)
 	return 0;
 }
 
-static void
-mwl_ext_free(void *data, void *arg)
+static int
+mwl_ext_free(struct mbuf *m, void *data, void *arg)
 {
 	struct mwl_softc *sc = arg;
 
@@ -2637,6 +2637,7 @@ mwl_ext_free(void *data, void *arg)
 		sc->sc_rxblocked = 0;
 		mwl_hal_intrset(sc->sc_mh, sc->sc_imask);
 	}
+	return (EXT_FREE_OK);
 }
 
 struct mwl_frame_bar {

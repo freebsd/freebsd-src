@@ -304,6 +304,7 @@ dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
+dev/vmware/vmxnet3/if_vmx.c	optional	vmx
 dev/wbwd/wbwd.c			optional	wbwd
 dev/wpi/if_wpi.c		optional	wpi
 dev/isci/isci.c							optional isci
@@ -530,3 +531,5 @@ x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/xen/hvm.c			optional	xenhvm
+x86/xen/xen_intr.c		optional	xen | xenhvm

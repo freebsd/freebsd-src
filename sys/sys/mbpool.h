@@ -69,7 +69,7 @@ void *mbp_alloc(struct mbpool *, bus_addr_t *, uint32_t *);
 void mbp_free(struct mbpool *, void *);
 
 /* free a chunk that is an external mbuf */
-void mbp_ext_free(void *, void *);
+int mbp_ext_free(struct mbuf *, void *, void *);
 
 /* free all buffers that are marked to be on the card */
 void mbp_card_free(struct mbpool *);

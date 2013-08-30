@@ -1854,8 +1854,8 @@ struct sendfile_sync {
 /*
  * Detach mapped page and release resources back to the system.
  */
-void
-sf_buf_mext(void *addr, void *args)
+int
+sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 {
 	vm_page_t m;
 	struct sendfile_sync *sfs;
@@ -1873,13 +1873,14 @@ sf_buf_mext(void *addr, void *args)
 		vm_page_free(m);
 	vm_page_unlock(m);
 	if (addr == NULL)
-		return;
+		return (EXT_FREE_OK);
 	sfs = addr;
 	mtx_lock(&sfs->mtx);
 	KASSERT(sfs->count> 0, ("Sendfile sync botchup count == 0"));
 	if (--sfs->count == 0)
 		cv_signal(&sfs->cv);
 	mtx_unlock(&sfs->mtx);
+	return (EXT_FREE_OK);
 }
 
 /*
@@ -2230,7 +2231,8 @@ retry_space:
 			pindex = OFF_TO_IDX(off);
 			VM_OBJECT_WLOCK(obj);
 			pg = vm_page_grab(obj, pindex, VM_ALLOC_NOBUSY |
-			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
+			    VM_ALLOC_IGN_SBUSY | VM_ALLOC_NORMAL |
+			    VM_ALLOC_WIRED);
 
 			/*
 			 * Check if page is valid for what we need,
@@ -2314,14 +2316,14 @@ retry_space:
 			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
 			if (m0 == NULL) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				sf_buf_mext(NULL, sf);
+				(void)sf_buf_mext(NULL, NULL, sf);
 				break;
 			}
 			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
 			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
 			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				sf_buf_mext(NULL, sf);
+				(void)sf_buf_mext(NULL, NULL, sf);
 				m_freem(m0);
 				break;
 			}

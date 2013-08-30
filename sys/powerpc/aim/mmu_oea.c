@@ -1655,7 +1655,6 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 	u_int	entropy;
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
-	PMAP_LOCK_INIT(pmap);
 	RB_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
@@ -1719,6 +1718,7 @@ void
 moea_pinit0(mmu_t mmu, pmap_t pm)
 {
 
+	PMAP_LOCK_INIT(pm);
 	moea_pinit(mmu, pm);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
@@ -1824,7 +1824,6 @@ moea_release(mmu_t mmu, pmap_t pmap)
         idx /= VSID_NBPW;
         moea_vsid_bitmap[idx] &= ~mask;
 	mtx_unlock(&moea_vsid_mutex);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*

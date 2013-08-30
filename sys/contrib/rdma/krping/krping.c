@@ -119,7 +119,7 @@ static void krping_wait(struct krping_cb *cb, int state)
 	int rc;
 	mtx_lock(&cb->lock);
 	while (cb->state < state) {
-		rc = msleep(cb, &cb->lock, 0, "krping", 0);
+		rc = msleep(cb, &cb->lock, PCATCH, "krping", 0);
 		if (rc && rc != ERESTART) {
 			cb->state = ERROR;
 			break;
@@ -188,7 +188,12 @@ static int krping_cma_event_handler(struct rdma_cm_id *cma_id,
 
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		DEBUG_LOG(PFX "cma detected device removal!!!!\n");
-		break;
+		cb->state = ERROR;
+		wakeup(cb);
+		mtx_unlock(&cb->lock);
+		krping_wait(cb, CLEANUP);
+		tsleep(cb, 0, "krping", 5000);
+		return 0;
 
 	default:
 		log(LOG_ERR, "oof bad type!\n");
@@ -602,6 +607,8 @@ static int krping_setup_qp(struct krping_cb *cb, struct rdma_cm_id *cm_id)
 		return PTR_ERR(cb->pd);
 	}
 	DEBUG_LOG(PFX "created pd %p\n", cb->pd);
+
+	strlcpy(cb->name, cb->pd->device->name, sizeof(cb->name));
 
 	cb->cq = ib_create_cq(cm_id->device, krping_cq_event_handler, NULL,
 			      cb, cb->txdepth * 2, 0);
@@ -1164,7 +1171,7 @@ static void krping_wlat_test_server(struct krping_cb *cb)
 	}
 
 	wlat_test(cb);
-
+	krping_wait(cb, ERROR);
 }
 
 static void krping_bw_test_server(struct krping_cb *cb)
@@ -1776,6 +1783,12 @@ int krping_doit(char *cmd)
 	else
 		krping_run_client(cb);
 	DEBUG_LOG(PFX "destroy cm_id %p\n", cb->cm_id);
+
+	mtx_lock(&cb->lock);
+	cb->state = CLEANUP;
+	wakeup(cb);
+	mtx_unlock(&cb->lock);
+
 	rdma_destroy_id(cb->cm_id);
 out:
 	mtx_lock(&krping_mutex);

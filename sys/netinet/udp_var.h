@@ -42,6 +42,7 @@ struct udpiphdr {
 	struct udphdr	ui_u;		/* udp header */
 };
 #define	ui_x1		ui_i.ih_x1
+#define	ui_v		ui_i.ih_x1[0]
 #define	ui_pr		ui_i.ih_pr
 #define	ui_len		ui_i.ih_len
 #define	ui_src		ui_i.ih_src
@@ -122,15 +123,6 @@ void	kmod_udpstat_inc(int statnum);
 #define	UDPCTL_RECVSPACE	4	/* default receive buffer space */
 #define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
 #define	UDPCTL_MAXID		6
-
-#define	UDPCTL_NAMES	{						\
-	{ 0, 0 },							\
-	{ "checksum", CTLTYPE_INT },					\
-	{ "stats", CTLTYPE_STRUCT },					\
-	{ "maxdgram", CTLTYPE_INT },					\
-	{ "recvspace", CTLTYPE_INT },					\
-	{ "pcblist", CTLTYPE_STRUCT },					\
-}
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_udp);

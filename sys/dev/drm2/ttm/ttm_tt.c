@@ -353,8 +353,8 @@ int ttm_tt_swapout(struct ttm_tt *ttm, vm_object_t persistent_swap_storage)
 			continue;
 		to_page = vm_page_grab(obj, i, VM_ALLOC_NORMAL);
 		pmap_copy_page(from_page, to_page);
-		vm_page_dirty(to_page);
 		to_page->valid = VM_PAGE_BITS_ALL;
+		vm_page_dirty(to_page);
 		vm_page_xunbusy(to_page);
 	}
 	vm_object_pip_wakeup(obj);

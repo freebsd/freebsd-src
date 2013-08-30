@@ -1070,8 +1070,6 @@ pmap_pinit(pmap_t pmap)
 	vm_page_t ptdpg;
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
-
 	/*
 	 * allocate the page directory page
 	 */
@@ -1231,7 +1229,6 @@ pmap_release(pmap_t pmap)
 	ptdpg->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -2914,6 +2911,14 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 	}
 	PMAP_UNLOCK(pmap);
 	return (rv);
+}
+
+/*
+ *	This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
 }
 
 /*

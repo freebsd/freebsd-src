@@ -133,6 +133,25 @@ CODE {
 
 
 /**
+ * @brief Apply the given advice to the specified range of addresses within
+ * the given pmap.  Depending on the advice, clear the referenced and/or
+ * modified flags in each mapping and set the mapped page's dirty field.
+ *
+ * @param _pmap		physical map
+ * @param _start	virtual range start
+ * @param _end		virtual range end
+ * @param _advice	advice to apply
+ */
+METHOD void advise {
+	mmu_t		_mmu;
+	pmap_t		_pmap;
+	vm_offset_t	_start;
+	vm_offset_t	_end;
+	int		_advice;
+};
+
+
+/**
  * @brief Change the wiring attribute for the page in the given physical
  * map and virtual address.
  *

@@ -267,6 +267,7 @@ dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_x86.c		optional uart
 dev/viawd/viawd.c		optional viawd
+dev/vmware/vmxnet3/if_vmx.c	optional vmx
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
@@ -482,8 +483,6 @@ i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
 i386/xen/clock.c		optional xen
-i386/xen/xen_clock_util.c	optional xen
-i386/xen/xen_rtc.c		optional xen
 i386/isa/elink.c		optional ep | ie
 i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
@@ -567,3 +566,5 @@ x86/x86/mptable_pci.c		optional apic native pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/xen/hvm.c			optional xenhvm
+x86/xen/xen_intr.c		optional xen | xenhvm

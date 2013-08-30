@@ -1879,7 +1879,7 @@ moea64_get_unique_vsid(void) {
 void
 moea64_pinit(mmu_t mmu, pmap_t pmap)
 {
-	PMAP_LOCK_INIT(pmap);
+
 	RB_INIT(&pmap->pmap_pvo);
 
 	pmap->pm_slb_tree_root = slb_alloc_tree();
@@ -1893,7 +1893,6 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 	int	i;
 	uint32_t hash;
 
-	PMAP_LOCK_INIT(pmap);
 	RB_INIT(&pmap->pmap_pvo);
 
 	if (pmap_bootstrapped)
@@ -1920,6 +1919,8 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 void
 moea64_pinit0(mmu_t mmu, pmap_t pm)
 {
+
+	PMAP_LOCK_INIT(pm);
 	moea64_pinit(mmu, pm);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 }
@@ -2074,8 +2075,6 @@ moea64_release(mmu_t mmu, pmap_t pmap)
 
 	moea64_release_vsid(VSID_TO_HASH(pmap->pm_sr[0]));
     #endif
-
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*

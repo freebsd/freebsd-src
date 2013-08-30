@@ -77,6 +77,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x89,
 		.op_type = VIE_OP_TYPE_MOV,
 	},
+	[0x8A] = {
+		.op_byte = 0x8A,
+		.op_type = VIE_OP_TYPE_MOV,
+	},
 	[0x8B] = {
 		.op_byte = 0x8B,
 		.op_type = VIE_OP_TYPE_MOV,
@@ -268,13 +272,18 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			error = memwrite(vm, vcpuid, gpa, val, size, arg);
 		}
 		break;
+	case 0x8A:
 	case 0x8B:
 		/*
 		 * MOV from mem (ModRM:r/m) to reg (ModRM:reg)
+		 * 8A/r:	mov r/m8, r8
+		 * REX + 8A/r:	mov r/m8, r8
 		 * 8B/r:	mov r32, r/m32
 		 * REX.W 8B/r:	mov r64, r/m64
 		 */
-		if (vie->rex_w)
+		if (vie->op.op_byte == 0x8A)
+			size = 1;
+		else if (vie->rex_w)
 			size = 8;
 		error = memread(vm, vcpuid, gpa, &val, size, arg);
 		if (error == 0) {
@@ -688,7 +697,6 @@ decode_modrm(struct vie *vie)
 				vie->base_register = VM_REG_GUEST_RIP;
 			else
 				vie->base_register = VM_REG_LAST;
-				
 		}
 		break;
 	}

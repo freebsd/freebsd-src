@@ -830,7 +830,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				putchar(',');
-				socktypename(*ip);
+				socktypenamewithflags(*ip);
 				ip++;
 				narg--;
 				if (sockdomain == PF_INET ||
@@ -908,7 +908,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				putchar(',');
-				socktypename(*ip);
+				socktypenamewithflags(*ip);
 				ip++;
 				narg--;
 				c = ',';

@@ -2479,7 +2479,6 @@ pmap_release(pmap_t pmap)
 
 	}
 	pmap_free_l1(pmap);
-	PMAP_LOCK_DESTROY(pmap);
 	
 	dprintf("pmap_release()\n");
 }
@@ -3819,7 +3818,6 @@ pmap_pinit(pmap_t pmap)
 {
 	PDEBUG(1, printf("pmap_pinit: pmap = %08x\n", (uint32_t) pmap));
 	
-	PMAP_LOCK_INIT(pmap);
 	pmap_alloc_l1(pmap);
 	bzero(pmap->pm_l2, sizeof(pmap->pm_l2));
 
@@ -4515,6 +4513,14 @@ pmap_page_wired_mappings(vm_page_t m)
 			count++;
 	rw_wunlock(&pvh_global_lock);
 	return (count);
+}
+
+/*
+ *	This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
 }
 
 /*

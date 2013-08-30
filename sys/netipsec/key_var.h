@@ -48,22 +48,6 @@
 #define KEYCTL_PREFERED_OLDSA		12
 #define KEYCTL_MAXID			13
 
-#define KEYCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "spi_try", CTLTYPE_INT }, \
-	{ "spi_min_value", CTLTYPE_INT }, \
-	{ "spi_max_value", CTLTYPE_INT }, \
-	{ "random_int", CTLTYPE_INT }, \
-	{ "larval_lifetime", CTLTYPE_INT }, \
-	{ "blockacq_count", CTLTYPE_INT }, \
-	{ "blockacq_lifetime", CTLTYPE_INT }, \
-	{ "esp_keymin", CTLTYPE_INT }, \
-	{ "esp_auth", CTLTYPE_INT }, \
-	{ "ah_keymin", CTLTYPE_INT }, \
-	{ "prefered_oldsa", CTLTYPE_INT }, \
-}
-
 #ifdef _KERNEL
 #define _ARRAYLEN(p) (sizeof(p)/sizeof(p[0]))
 #define _KEYLEN(key) ((u_int)((key)->bits >> 3))

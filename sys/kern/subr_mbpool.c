@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <sys/mbuf.h>
 #include <sys/mbpool.h>
 
 MODULE_VERSION(libmbpool, 1);
@@ -282,10 +283,12 @@ mbp_free(struct mbpool *p, void *ptr)
 /*
  * Mbuf system external mbuf free routine
  */
-void
-mbp_ext_free(void *buf, void *arg)
+int
+mbp_ext_free(struct mbuf *m, void *buf, void *arg)
 {
 	mbp_free(arg, buf);
+
+	return (EXT_FREE_OK);
 }
 
 /*

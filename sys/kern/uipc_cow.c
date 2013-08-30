@@ -70,10 +70,10 @@ struct netsend_cow_stats {
 
 static struct netsend_cow_stats socow_stats;
 
-static void socow_iodone(void *addr, void *args);
+static int socow_iodone(struct mbuf *m, void *addr, void *args);
 
-static void
-socow_iodone(void *addr, void *args)
+static int
+socow_iodone(struct mbuf *m, void *addr, void *args)
 {	
 	struct sf_buf *sf;
 	vm_page_t pp;
@@ -94,6 +94,7 @@ socow_iodone(void *addr, void *args)
 		vm_page_free(pp);
 	vm_page_unlock(pp);
 	socow_stats.iodone++;
+	return (EXT_FREE_OK);
 }
 
 int

@@ -367,7 +367,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {
-		tp->t_state = TCPS_LISTEN;
+		tcp_state_change(tp, TCPS_LISTEN);
 		solisten_proto(so, backlog);
 #ifdef TCP_OFFLOAD
 		if ((so->so_options & SO_NO_OFFLOAD) == 0)
@@ -412,7 +412,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {
-		tp->t_state = TCPS_LISTEN;
+		tcp_state_change(tp, TCPS_LISTEN);
 		solisten_proto(so, backlog);
 #ifdef TCP_OFFLOAD
 		if ((so->so_options & SO_NO_OFFLOAD) == 0)
@@ -1152,7 +1152,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
-	tp->t_state = TCPS_SYN_SENT;
+	tcp_state_change(tp, TCPS_SYN_SENT);
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1224,7 +1224,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
-	tp->t_state = TCPS_SYN_SENT;
+	tcp_state_change(tp, TCPS_SYN_SENT);
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1704,7 +1704,7 @@ tcp_usrclosed(struct tcpcb *tp)
 #endif
 		/* FALLTHROUGH */
 	case TCPS_CLOSED:
-		tp->t_state = TCPS_CLOSED;
+		tcp_state_change(tp, TCPS_CLOSED);
 		tp = tcp_close(tp);
 		/*
 		 * tcp_close() should never return NULL here as the socket is
@@ -1720,11 +1720,11 @@ tcp_usrclosed(struct tcpcb *tp)
 		break;
 
 	case TCPS_ESTABLISHED:
-		tp->t_state = TCPS_FIN_WAIT_1;
+		tcp_state_change(tp, TCPS_FIN_WAIT_1);
 		break;
 
 	case TCPS_CLOSE_WAIT:
-		tp->t_state = TCPS_LAST_ACK;
+		tcp_state_change(tp, TCPS_LAST_ACK);
 		break;
 	}
 	if (tp->t_state >= TCPS_FIN_WAIT_2) {
