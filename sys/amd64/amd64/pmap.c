@@ -116,11 +116,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
-#ifdef SMP
+#include <sys/_unrhdr.h>
 #include <sys/smp.h>
-#else
-#include <sys/cpuset.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -249,6 +246,53 @@ static struct md_page *pv_table;
  */
 pt_entry_t *CMAP1 = 0;
 caddr_t CADDR1 = 0;
+
+static struct unrhdr pcid_unr;
+static struct mtx pcid_mtx;
+int pmap_pcid_enabled = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
+    0, "Is TLB Context ID enabled ?");
+int invpcid_works = 0;
+
+/*
+ * Perform the guaranteed invalidation of all TLB entries.  This
+ * includes the global entries, and entries in all PCIDs, not only the
+ * current context.  The function works both on non-PCID CPUs and CPUs
+ * with the PCID turned off or on.  See IA-32 SDM Vol. 3a 4.10.4.1
+ * Operations that Invalidate TLBs and Paging-Structure Caches.
+ */
+static __inline void
+invltlb_globpcid(void)
+{
+	uint64_t cr4;
+
+	cr4 = rcr4();
+	load_cr4(cr4 & ~CR4_PGE);
+	/*
+	 * Although preemption at this point could be detrimental to
+	 * performance, it would not lead to an error.  PG_G is simply
+	 * ignored if CR4.PGE is clear.  Moreover, in case this block
+	 * is re-entered, the load_cr4() either above or below will
+	 * modify CR4.PGE flushing the TLB.
+	 */
+	load_cr4(cr4 | CR4_PGE);
+}
+
+static int
+pmap_pcid_save_cnt_proc(SYSCTL_HANDLER_ARGS)
+{
+	int i;
+	uint64_t res;
+
+	res = 0;
+	CPU_FOREACH(i) {
+		res += cpuid_to_pcpu[i]->pc_pm_save_cnt;
+	}
+	return (sysctl_handle_64(oidp, &res, 0, req));
+}
+SYSCTL_PROC(_vm_pmap, OID_AUTO, pcid_save_cnt, CTLTYPE_U64 | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, NULL, 0, pmap_pcid_save_cnt_proc, "QU",
+    "Count of saved TLB context on switch");
 
 /*
  * Crashdump maps.
@@ -685,6 +729,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
+	CPU_ZERO(&kernel_pmap->pm_save);
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 
  	/*
@@ -716,6 +761,21 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
+
+#ifdef SMP
+	/* Initialize TLB Context Id. */
+	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
+	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
+		load_cr4(rcr4() | CR4_PCIDE);
+		mtx_init(&pcid_mtx, "pcid", NULL, MTX_DEF);
+		init_unrhdr(&pcid_unr, 1, (1 << 12) - 1, &pcid_mtx);
+		/* Check for INVPCID support */
+		invpcid_works = (cpu_stdext_feature & CPUID_STDEXT_INVPCID)
+		    != 0;
+		kernel_pmap->pm_pcid = 0;
+	} else
+#endif
+		pmap_pcid_enabled = 0;
 }
 
 /*
@@ -952,7 +1012,6 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 static void
 pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
 {
-	u_long cr4;
 
 	if ((newpde & PG_PS) == 0)
 		/* Demotion: flush a specific 2MB page mapping. */
@@ -968,19 +1027,34 @@ pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde)
 		 * Promotion: flush every 4KB page mapping from the TLB,
 		 * including any global (PG_G) mappings.
 		 */
-		cr4 = rcr4();
-		load_cr4(cr4 & ~CR4_PGE);
-		/*
-		 * Although preemption at this point could be detrimental to
-		 * performance, it would not lead to an error.  PG_G is simply
-		 * ignored if CR4.PGE is clear.  Moreover, in case this block
-		 * is re-entered, the load_cr4() either above or below will
-		 * modify CR4.PGE flushing the TLB.
-		 */
-		load_cr4(cr4 | CR4_PGE);
+		invltlb_globpcid();
 	}
 }
 #ifdef SMP
+
+static void
+pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va)
+{
+	struct invpcid_descr d;
+	uint64_t cr3;
+
+	if (invpcid_works) {
+		d.pcid = pmap->pm_pcid;
+		d.pad = 0;
+		d.addr = va;
+		invpcid(&d, INVPCID_ADDR);
+		return;
+	}
+
+	cr3 = rcr3();
+	critical_enter();
+	load_cr3(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4) | pmap->pm_pcid |
+	    CR3_PCID_SAVE);
+	invlpg(va);
+	load_cr3(cr3 | CR3_PCID_SAVE);
+	critical_exit();
+}
+
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
  *
@@ -1008,19 +1082,66 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-		invlpg(va);
-		smp_invlpg(va);
+		if (!pmap_pcid_enabled) {
+			invlpg(va);
+		} else {
+			if (pmap->pm_pcid != -1 && pmap->pm_pcid != 0) {
+				if (pmap == PCPU_GET(curpmap))
+					invlpg(va);
+				else
+					pmap_invalidate_page_pcid(pmap, va);
+			} else {
+				invltlb_globpcid();
+			}
+		}
+		smp_invlpg(pmap, va);
 	} else {
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
 		CPU_CLR(cpuid, &other_cpus);
 		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invlpg(va);
-		CPU_AND(&other_cpus, &pmap->pm_active);
+		else if (pmap_pcid_enabled) {
+			if (pmap->pm_pcid != -1 && pmap->pm_pcid != 0)
+				pmap_invalidate_page_pcid(pmap, va);
+			else
+				invltlb_globpcid();
+		}
+		if (pmap_pcid_enabled)
+			CPU_AND(&other_cpus, &pmap->pm_save);
+		else
+			CPU_AND(&other_cpus, &pmap->pm_active);
 		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invlpg(other_cpus, va);
+			smp_masked_invlpg(other_cpus, pmap, va);
 	}
 	sched_unpin();
+}
+
+static void
+pmap_invalidate_range_pcid(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct invpcid_descr d;
+	uint64_t cr3;
+	vm_offset_t addr;
+
+	if (invpcid_works) {
+		d.pcid = pmap->pm_pcid;
+		d.pad = 0;
+		for (addr = sva; addr < eva; addr += PAGE_SIZE) {
+			d.addr = addr;
+			invpcid(&d, INVPCID_ADDR);
+		}
+		return;
+	}
+
+	cr3 = rcr3();
+	critical_enter();
+	load_cr3(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4) | pmap->pm_pcid |
+	    CR3_PCID_SAVE);
+	for (addr = sva; addr < eva; addr += PAGE_SIZE)
+		invlpg(addr);
+	load_cr3(cr3 | CR3_PCID_SAVE);
+	critical_exit();
 }
 
 void
@@ -1032,19 +1153,43 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	sched_pin();
 	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-		for (addr = sva; addr < eva; addr += PAGE_SIZE)
-			invlpg(addr);
-		smp_invlpg_range(sva, eva);
+		if (!pmap_pcid_enabled) {
+			for (addr = sva; addr < eva; addr += PAGE_SIZE)
+				invlpg(addr);
+		} else {
+			if (pmap->pm_pcid != -1 && pmap->pm_pcid != 0) {
+				if (pmap == PCPU_GET(curpmap)) {
+					for (addr = sva; addr < eva;
+					    addr += PAGE_SIZE)
+						invlpg(addr);
+				} else {
+					pmap_invalidate_range_pcid(pmap,
+					    sva, eva);
+				}
+			} else {
+				invltlb_globpcid();
+			}
+		}
+		smp_invlpg_range(pmap, sva, eva);
 	} else {
 		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
 		CPU_CLR(cpuid, &other_cpus);
-		if (CPU_ISSET(cpuid, &pmap->pm_active))
+		if (CPU_ISSET(cpuid, &pmap->pm_active)) {
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
-		CPU_AND(&other_cpus, &pmap->pm_active);
+		} else if (pmap_pcid_enabled) {
+			if (pmap->pm_pcid != -1 && pmap->pm_pcid != 0)
+				pmap_invalidate_range_pcid(pmap, sva, eva);
+			else
+				invltlb_globpcid();
+		}
+		if (pmap_pcid_enabled)
+			CPU_AND(&other_cpus, &pmap->pm_save);
+		else
+			CPU_AND(&other_cpus, &pmap->pm_active);
 		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invlpg_range(other_cpus, sva, eva);
+			smp_masked_invlpg_range(other_cpus, pmap, sva, eva);
 	}
 	sched_unpin();
 }
@@ -1053,21 +1198,63 @@ void
 pmap_invalidate_all(pmap_t pmap)
 {
 	cpuset_t other_cpus;
+	struct invpcid_descr d;
+	uint64_t cr3;
 	u_int cpuid;
 
 	sched_pin();
-	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-		invltlb();
-		smp_invltlb();
+	cpuid = PCPU_GET(cpuid);
+	if (pmap == kernel_pmap ||
+	    (pmap_pcid_enabled && !CPU_CMP(&pmap->pm_save, &all_cpus)) ||
+	    !CPU_CMP(&pmap->pm_active, &all_cpus)) {
+		if (invpcid_works) {
+			bzero(&d, sizeof(d));
+			invpcid(&d, INVPCID_CTXGLOB);
+		} else {
+			invltlb_globpcid();
+		}
+		CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
+		smp_invltlb(pmap);
 	} else {
-		cpuid = PCPU_GET(cpuid);
 		other_cpus = all_cpus;
 		CPU_CLR(cpuid, &other_cpus);
-		if (CPU_ISSET(cpuid, &pmap->pm_active))
+
+		/*
+		 * This logic is duplicated in the Xinvltlb shootdown
+		 * IPI handler.
+		 */
+		if (pmap_pcid_enabled) {
+			if (pmap->pm_pcid != -1 && pmap->pm_pcid != 0) {
+				if (invpcid_works) {
+					d.pcid = pmap->pm_pcid;
+					d.pad = 0;
+					d.addr = 0;
+					invpcid(&d, INVPCID_CTX);
+				} else {
+					cr3 = rcr3();
+					critical_enter();
+
+					/*
+					 * Bit 63 is clear, pcid TLB
+					 * entries are invalidated.
+					 */
+					load_cr3(DMAP_TO_PHYS((vm_offset_t)
+					    pmap->pm_pml4) | pmap->pm_pcid);
+					load_cr3(cr3 | CR3_PCID_SAVE);
+					critical_exit();
+				}
+			} else {
+				invltlb_globpcid();
+			}
+		} else if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invltlb();
-		CPU_AND(&other_cpus, &pmap->pm_active);
+		CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
+		if (pmap_pcid_enabled)
+			CPU_AND(&other_cpus, &pmap->pm_save);
+		else
+			CPU_AND(&other_cpus, &pmap->pm_active);
 		if (!CPU_EMPTY(&other_cpus))
-			smp_masked_invltlb(other_cpus);
+			smp_masked_invltlb(other_cpus, pmap);
 	}
 	sched_unpin();
 }
@@ -1129,8 +1316,10 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	CPU_CLR(cpuid, &other_cpus);
 	if (pmap == kernel_pmap)
 		active = all_cpus;
-	else
+	else {
 		active = pmap->pm_active;
+		CPU_AND_ATOMIC(&pmap->pm_save, &active);
+	}
 	if (CPU_OVERLAP(&active, &other_cpus)) { 
 		act.store = cpuid;
 		act.invalidate = active;
@@ -1193,6 +1382,8 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	pde_store(pde, newpde);
 	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		pmap_update_pde_invalidate(va, newpde);
+	else
+		CPU_ZERO(&pmap->pm_save);
 }
 #endif /* !SMP */
 
@@ -1675,6 +1866,8 @@ pmap_pinit0(pmap_t pmap)
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	pmap->pm_pcid = pmap_pcid_enabled ? 0 : -1;
+	CPU_ZERO(&pmap->pm_save);
 }
 
 /*
@@ -1716,6 +1909,8 @@ pmap_pinit(pmap_t pmap)
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	pmap->pm_pcid = pmap_pcid_enabled ? alloc_unr(&pcid_unr) : -1;
+	CPU_ZERO(&pmap->pm_save);
 
 	return (1);
 }
@@ -1957,6 +2152,14 @@ pmap_release(pmap_t pmap)
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
 
+	if (pmap_pcid_enabled) {
+		/*
+		 * Invalidate any left TLB entries, to allow the reuse
+		 * of the pcid.
+		 */
+		pmap_invalidate_all(pmap);
+	}
+
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
 
 	for (i = 0; i < NKPML4E; i++)	/* KVA */
@@ -1968,6 +2171,8 @@ pmap_release(pmap_t pmap)
 	m->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
+	if (pmap->pm_pcid != -1)
+		free_unr(&pcid_unr, pmap->pm_pcid);
 }
 
 static int
@@ -5734,15 +5939,20 @@ pmap_activate(struct thread *td)
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
+	CPU_ZERO(&pmap->pm_save);
 	cpuid = PCPU_GET(cpuid);
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_save);
 #else
 	CPU_CLR(cpuid, &oldpmap->pm_active);
 	CPU_SET(cpuid, &pmap->pm_active);
+	CPU_SET(cpuid, &pmap->pm_save);
 #endif
 	cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4);
+	if (pmap->pm_pcid != -1)
+		cr3 |= pmap->pm_pcid;
 	td->td_pcb->pcb_cr3 = cr3;
 	load_cr3(cr3);
 	PCPU_SET(curpmap, pmap);
