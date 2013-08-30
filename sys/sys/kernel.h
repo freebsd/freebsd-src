@@ -96,6 +96,11 @@ enum sysinit_sub_id {
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
+	SI_SUB_HYPERVISOR	= 0x1A40000,	/*
+						 * Hypervisor detection and
+						 * virtualization support 
+						 * setup.
+						 */
 	SI_SUB_WITNESS		= 0x1A80000,	/* witness initialization */
 	SI_SUB_MTX_POOL_DYNAMIC	= 0x1AC0000,	/* dynamic mutex pool */
 	SI_SUB_LOCK		= 0x1B00000,	/* various locks */

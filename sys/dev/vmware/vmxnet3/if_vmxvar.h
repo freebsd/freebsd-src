@@ -42,20 +42,20 @@ struct vmxnet3_dma_alloc {
 #define VMXNET3_RXRINGS_PERQ	2
 
 /*
- * The maximum number of descriptors in each Rx/Tx ring.
+ * The number of descriptors in each Rx/Tx ring.
  */
-#define VMXNET3_MAX_TX_NDESC		512
-#define VMXNET3_MAX_RX_NDESC		256
+#define VMXNET3_DEF_TX_NDESC		512
+#define VMXNET3_MAX_TX_NDESC		4096
+#define VMXNET3_MIN_TX_NDESC		32
+#define VMXNET3_MASK_TX_NDESC		0x1F
+#define VMXNET3_DEF_RX_NDESC		256
+#define VMXNET3_MAX_RX_NDESC		2048
+#define VMXNET3_MIN_RX_NDESC		32
+#define VMXNET3_MASK_RX_NDESC		0x1F
+
 #define VMXNET3_MAX_TX_NCOMPDESC	VMXNET3_MAX_TX_NDESC
 #define VMXNET3_MAX_RX_NCOMPDESC \
     (VMXNET3_MAX_RX_NDESC * VMXNET3_RXRINGS_PERQ)
-
-/*
- * The maximum number of Rx segments we accept. When LRO is enabled,
- * this allows us to receive the maximum sized frame with one MCLBYTES
- * cluster followed by 16 MJUMPAGESIZE clusters.
- */
-#define VMXNET3_MAX_RX_SEGS		17
 
 struct vmxnet3_txbuf {
 	bus_dmamap_t		 vtxb_dmamap;
@@ -270,6 +270,13 @@ struct vmxnet3_softc {
  * Tx descriptor is 14 bits.
  */
 #define VMXNET3_TX_MAXSEGSIZE		(1 << 14)
+
+/*
+ * The maximum number of Rx segments we accept. When LRO is enabled,
+ * this allows us to receive the maximum sized frame with one MCLBYTES
+ * cluster followed by 16 MJUMPAGESIZE clusters.
+ */
+#define VMXNET3_MAX_RX_SEGS		17
 
 /*
  * Predetermined size of the multicast MACs filter table. If the

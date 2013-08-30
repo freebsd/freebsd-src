@@ -127,6 +127,8 @@ int	ieee80211_send_probereq(struct ieee80211_node *ni,
 		const uint8_t *ssid, size_t ssidlen);
 struct mbuf *	ieee80211_ff_encap1(struct ieee80211vap *, struct mbuf *,
 		const struct ether_header *);
+void	ieee80211_tx_complete(struct ieee80211_node *,
+		struct mbuf *, int);
 
 /*
  * The formation of ProbeResponse frames requires guidance to

@@ -35,13 +35,15 @@ fi
 
 . /etc/periodic/security/security.functions
 
+security_daily_compat_var security_status_chkportsum_enable
+
 rc=0
 
 echo ""
 echo 'Checking for ports with mismatched checksums:'
 
-case "${daily_status_security_chkportsum_enable}" in
-	[Yy][Ee][Ss])
+if check_yesno_period security_status_chkportsum_enable
+then
 	set -f
 	pkg_info -ga 2>/dev/null | \
 	while IFS= read -r line; do
@@ -59,10 +61,6 @@ case "${daily_status_security_chkportsum_enable}" in
 			;;
 		esac
 	done
-	;;
-	*)
-	rc=0
-	;;
-esac
+fi
 
 exit $rc

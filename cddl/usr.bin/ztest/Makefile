@@ -25,7 +25,8 @@ LDADD=	-lgeom -lm -lnvpair -lumem -lzpool -lpthread -lavl -lzfs_core -lzfs \
 
 CSTD=	c99
 
-CFLAGS+= -DDEBUG=1
-#DEBUG_FLAGS+=	-g
+# Since there are many asserts in this program, it makes no sense to compile
+# it without debugging.
+CFLAGS+= -g -DDEBUG=1
 
 .include <bsd.prog.mk>

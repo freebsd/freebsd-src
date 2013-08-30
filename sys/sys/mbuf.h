@@ -53,6 +53,10 @@
  * externally and attach it to the mbuf in a way similar to that of mbuf
  * clusters.
  *
+ * NB: These calculation do not take actual compiler-induced alignment and
+ * padding inside the complete struct mbuf into account.  Appropriate
+ * attention is required when changing members of struct mbuf.
+ *
  * MLEN is data length in a normal mbuf.
  * MHLEN is data length in an mbuf with pktheader.
  * MINCLSIZE is a smallest amount of data that should be put into cluster.
@@ -84,7 +88,7 @@ struct mb_args {
 
 /*
  * Header present at the beginning of every mbuf.
- * Size ILP32: 20
+ * Size ILP32: 24
  *	 LP64: 32
  */
 struct m_hdr {
@@ -94,6 +98,9 @@ struct m_hdr {
 	int32_t		 mh_len;	/* amount of data in this mbuf */
 	uint32_t	 mh_type:8,	/* type of data in this mbuf */
 			 mh_flags:24;	/* flags; see below */
+#if !defined(__LP64__)
+	uint32_t	 mh_pad;	/* pad for 64bit alignment */
+#endif
 };
 
 /*
@@ -538,6 +545,28 @@ m_gettype(int size)
 	return (type);
 }
 
+/*
+ * Associated an external reference counted buffer with an mbuf.
+ */
+static __inline void
+m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
+    int (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2)
+{
+
+	KASSERT(ref_cnt != NULL, ("%s: ref_cnt not provided", __func__));
+
+	atomic_add_int(ref_cnt, 1);
+	m->m_flags |= M_EXT;
+	m->m_ext.ext_buf = buf;
+	m->m_ext.ref_cnt = ref_cnt;
+	m->m_data = m->m_ext.ext_buf;
+	m->m_ext.ext_size = size;
+	m->m_ext.ext_free = freef;
+	m->m_ext.ext_arg1 = arg1;
+	m->m_ext.ext_arg2 = arg2;
+	m->m_ext.ext_type = EXT_EXTREF;
+}
+
 static __inline uma_zone_t
 m_getzone(int size)
 {
@@ -637,18 +666,6 @@ m_getcl(int how, short type, int flags)
 	args.flags = flags;
 	args.type = type;
 	return (uma_zalloc_arg(zone_pack, &args, how));
-}
-
-static __inline struct mbuf *
-m_free(struct mbuf *m)
-{
-	struct mbuf *n = m->m_next;
-
-	if (m->m_flags & M_EXT)
-		mb_free_ext(m);
-	else if ((m->m_flags & M_NOFREE) == 0)
-		uma_zfree(zone_mbuf, m);
-	return (n);
 }
 
 static __inline void
@@ -1115,6 +1132,20 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 {
 	return (SLIST_EMPTY(&m->m_pkthdr.tags) ? (struct m_tag *)NULL :
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
+}
+
+static __inline struct mbuf *
+m_free(struct mbuf *m)
+{
+	struct mbuf *n = m->m_next;
+
+	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
+		m_tag_delete_chain(m, NULL);
+	if (m->m_flags & M_EXT)
+		mb_free_ext(m);
+	else if ((m->m_flags & M_NOFREE) == 0)
+		uma_zfree(zone_mbuf, m);
+	return (n);
 }
 
 static int inline

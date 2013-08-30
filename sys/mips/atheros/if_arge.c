@@ -1019,7 +1019,8 @@ arge_init_locked(struct arge_softc *sc)
 
 	ARGE_LOCK_ASSERT(sc);
 
-	arge_stop(sc);
+	if ((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return;
 
 	/* Init circular RX list. */
 	if (arge_rx_ring_init(sc) != 0) {

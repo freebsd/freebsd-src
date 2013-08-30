@@ -194,6 +194,25 @@ tcp_lro_rx_csum_fixup(struct lro_entry *le, void *l3hdr, struct tcphdr *th,
 #endif
 
 void
+tcp_lro_flush_inactive(struct lro_ctrl *lc, const struct timeval *timeout)
+{
+	struct lro_entry *le, *le_tmp;
+	struct timeval tv;
+
+	if (SLIST_EMPTY(&lc->lro_active))
+		return;
+
+	getmicrotime(&tv);
+	timevalsub(&tv, timeout);
+	SLIST_FOREACH_SAFE(le, &lc->lro_active, next, le_tmp) {
+		if (timevalcmp(&tv, &le->mtime, >=)) {
+			SLIST_REMOVE(&lc->lro_active, le, lro_entry, next);
+			tcp_lro_flush(lc, le);
+		}
+	}
+}
+
+void
 tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 {
 
@@ -543,7 +562,8 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 		if (le->p_len > (65535 - lc->ifp->if_mtu)) {
 			SLIST_REMOVE(&lc->lro_active, le, lro_entry, next);
 			tcp_lro_flush(lc, le);
-		}
+		} else
+			getmicrotime(&le->mtime);
 
 		return (0);
 	}
@@ -556,6 +576,7 @@ tcp_lro_rx(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum)
 	le = SLIST_FIRST(&lc->lro_free);
 	SLIST_REMOVE_HEAD(&lc->lro_free, next);
 	SLIST_INSERT_HEAD(&lc->lro_active, le, next);
+	getmicrotime(&le->mtime);
 
 	/* Start filling in details. */
 	switch (eh_type) {

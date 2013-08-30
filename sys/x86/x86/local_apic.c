@@ -91,6 +91,7 @@ CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 #define	IRQ_TIMER	(NUM_IO_INTS + 1)
 #define	IRQ_SYSCALL	(NUM_IO_INTS + 2)
 #define	IRQ_DTRACE_RET	(NUM_IO_INTS + 3)
+#define	IRQ_EVTCHN	(NUM_IO_INTS + 4)
 
 /*
  * Support for local APICs.  Local APICs manage interrupts on each
@@ -312,6 +313,9 @@ lapic_create(u_int apic_id, int boot_cpu)
 #ifdef KDTRACE_HOOKS
 	lapics[apic_id].la_ioint_irqs[IDT_DTRACE_RET - APIC_IO_INTS] =
 	    IRQ_DTRACE_RET;
+#endif
+#ifdef XENHVM
+	lapics[apic_id].la_ioint_irqs[IDT_EVTCHN - APIC_IO_INTS] = IRQ_EVTCHN;
 #endif
 
 
@@ -1135,6 +1139,10 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 				continue;
 #ifdef KDTRACE_HOOKS
 			if (irq == IRQ_DTRACE_RET)
+				continue;
+#endif
+#ifdef XENHVM
+			if (irq == IRQ_EVTCHN)
 				continue;
 #endif
 			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);

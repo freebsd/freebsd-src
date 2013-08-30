@@ -23,8 +23,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * DWARF to tdata conversion
  *
@@ -1796,6 +1794,59 @@ die_resolve(dwarf_t *dw)
 	} while (dw->dw_nunres != 0);
 }
 
+/*
+ * Any object containing a function or object symbol at any scope should also
+ * contain DWARF data.
+ */
+static boolean_t
+should_have_dwarf(Elf *elf)
+{
+	Elf_Scn *scn = NULL;
+	Elf_Data *data = NULL;
+	GElf_Shdr shdr;
+	GElf_Sym sym;
+	uint32_t symdx = 0;
+	size_t nsyms = 0;
+	boolean_t found = B_FALSE;
+
+	while ((scn = elf_nextscn(elf, scn)) != NULL) {
+		gelf_getshdr(scn, &shdr);
+
+		if (shdr.sh_type == SHT_SYMTAB) {
+			found = B_TRUE;
+			break;
+		}
+	}
+
+	if (!found)
+		terminate("cannot convert stripped objects\n");
+
+	data = elf_getdata(scn, NULL);
+	nsyms = shdr.sh_size / shdr.sh_entsize;
+
+	for (symdx = 0; symdx < nsyms; symdx++) {
+		gelf_getsym(data, symdx, &sym);
+
+		if ((GELF_ST_TYPE(sym.st_info) == STT_FUNC) ||
+		    (GELF_ST_TYPE(sym.st_info) == STT_TLS) ||
+		    (GELF_ST_TYPE(sym.st_info) == STT_OBJECT)) {
+			char *name;
+
+			name = elf_strptr(elf, shdr.sh_link, sym.st_name);
+
+			/* Studio emits these local symbols regardless */
+			if ((strcmp(name, "Bbss.bss") != 0) &&
+			    (strcmp(name, "Ttbss.bss") != 0) &&
+			    (strcmp(name, "Ddata.data") != 0) &&
+			    (strcmp(name, "Ttdata.data") != 0) &&
+			    (strcmp(name, "Drodata.rodata") != 0))
+				return (B_TRUE);
+		}
+	}
+
+	return (B_FALSE);
+}
+
 /*ARGSUSED*/
 int
 dw_read(tdata_t *td, Elf *elf, char *filename __unused)
@@ -1820,8 +1871,12 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 
 	if ((rc = dwarf_elf_init(elf, DW_DLC_READ, &dw.dw_dw,
 	    &dw.dw_err)) == DW_DLV_NO_ENTRY) {
-		errno = ENOENT;
-		return (-1);
+		if (should_have_dwarf(elf)) {
+			errno = ENOENT;
+			return (-1);
+		} else {
+			return (0);
+		}
 	} else if (rc != DW_DLV_OK) {
 		if (dwarf_errno(&dw.dw_err) == DW_DLE_DEBUG_INFO_NULL) {
 			/*
@@ -1839,9 +1894,14 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
 		terminate("rc = %d %s\n", rc, dwarf_errmsg(&dw.dw_err));
 
-	if ((cu = die_sibling(&dw, NULL)) == NULL)
+	if ((cu = die_sibling(&dw, NULL)) == NULL ||
+	    (((child = die_child(&dw, cu)) == NULL) &&
+	    should_have_dwarf(elf))) {
 		terminate("file does not contain dwarf type data "
 		    "(try compiling with -g)\n");
+	} else if (child == NULL) {
+		return (0);
+	}
 
 	dw.dw_maxoff = nxthdr - 1;
 

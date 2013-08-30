@@ -2914,6 +2914,14 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 }
 
 /*
+ *	This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+}
+
+/*
  *	Clear the modify bits on the specified physical page.
  */
 void
