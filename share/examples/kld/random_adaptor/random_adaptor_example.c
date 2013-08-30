@@ -37,34 +37,19 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 
-static int random_example_entropy_control;
-
 #define RNG_NAME "example"
 
 static int random_example_read(void *, int);
-static void random_example_init(void);
 
 struct random_adaptor random_example = {
 	.ident = "Example RNG",
-	.init = random_example_init,
+	.init = (random_init_func_t *)random_null_func,
 	.deinit = (random_deinit_func_t *)random_null_func,
 	.read = random_example_read,
 	.write = (random_write_func_t *)random_null_func,
 	.reseed = (random_reseed_func_t *)random_null_func,
 	.seeded = 1,
 };
-
-static void
-random_example_init(void)
-{
-
-	/*
-	 * Init() is called only if this RNG was chosen to plugin in to
-	 * random(4). In which case, we should no longer use this adaptor as
-	 * an entropy source.
-	 */
-	random_example_entropy_control = 1;
-}
 
 /*
  * Used under the license provided @ http://xkcd.com/221/
@@ -98,9 +83,6 @@ random_example_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		/* start off by using this as an entropy source */
-		random_adaptor_use_as_entropy(RNG_NAME, &random_example,
-		    &random_example_entropy_control);
 		random_adaptor_register(RNG_NAME, &random_example);
 		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_example);
 		return (0);

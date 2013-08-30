@@ -55,11 +55,6 @@ static struct sysctl_ctx_list random_clist;
 
 MALLOC_DEFINE(M_RANDOM_ADAPTORS, "random_adaptors", "Random adaptors buffers");
 
-struct entropy_thread_ctx {
-	 struct random_adaptor   *adaptor;
-	 int			 *control;
-};
-
 int
 random_adaptor_register(const char *name, struct random_adaptor *rsp)
 {
@@ -183,72 +178,6 @@ random_adaptor_choose(struct random_adaptor **adaptor)
 			printf("Falling back to <%s> random adaptor",
 			    (*adaptor)->ident);
 	}
-}
-
-static void
-random_proc(void *arg)
-{
-	struct entropy_thread_ctx *ctx;
-	u_char randomness[HARVESTSIZE];
-	int i;
-
-	ctx = (struct entropy_thread_ctx *)arg;
-
-	/* Sanity check. */
-	if (ctx->adaptor == NULL || ctx->adaptor->read == NULL)
-		return;
-
-	for (; *ctx->control == 0;) {
-		i = ctx->adaptor->read(randomness, sizeof(randomness));
-
-		if (i > 0)
-			/* Be very conservative with entropy estimation here. */
-			random_harvest(randomness, i, 0, 0, RANDOM_PURE);
-
-		/* Wake up every 10 secs. */
-		tsleep_sbt(ctx->adaptor, PWAIT | PCATCH, "-", SBT_1M / 6, 0, 0);
-	}
-
-	printf("<%s> entropy source is exiting\n", ctx->adaptor->ident);
-	free(ctx, M_RANDOM_ADAPTORS);
-	kproc_exit(0);
-}
-
-/*
- * Use RNG's output as an entropy source for another RNG. i.e.:
- * +--------+          +--------+
- * | Intel  |          | Yarrow |
- * | RDRAND +--------->|        |
- * +--------+          +--------+
- * Very useful for seeding software RNGs with output of
- * Hardware RNGs like Intel's RdRand and VIA's Padlock.
- *
- * Returns a handle to the newly created kernel process.
- */
-void *
-random_adaptor_use_as_entropy(const char *id, struct random_adaptor *adaptor,
-    int *control)
-{
-	int error;
-	struct proc *random_chain_proc;
-	struct entropy_thread_ctx *ctx;
-
-	KASSERT(adaptor != NULL, ("can't obtain randomness"));
-	KASSERT(control != NULL, ("can't control entropy process"));
-
-	ctx = malloc(sizeof(struct entropy_thread_ctx), M_RANDOM_ADAPTORS,
-	    M_WAITOK);
-
-	ctx->control = control;
-	ctx->adaptor = adaptor;
-
-	/* Start the thread */
-	error = kproc_create(random_proc, ctx, &random_chain_proc, RFHIGHPID,
-	    0, "%s_entropy", id);
-	if (error != 0)
-		panic("Cannot create rng chaining thread");
-
-	return random_chain_proc;
 }
 
 static void
