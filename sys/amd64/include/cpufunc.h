@@ -472,6 +472,26 @@ invlpg(u_long addr)
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
 }
 
+#define	INVPCID_ADDR	0
+#define	INVPCID_CTX	1
+#define	INVPCID_CTXGLOB	2
+#define	INVPCID_ALLCTX	3
+
+struct invpcid_descr {
+	uint64_t	pcid:12 __packed;
+	uint64_t	pad:52 __packed;
+	uint64_t	addr;
+} __packed;
+
+static __inline void
+invpcid(struct invpcid_descr *d, int type)
+{
+
+	/* invpcid (%rdx),%rax */
+	__asm __volatile(".byte 0x66,0x0f,0x38,0x82,0x02"
+	    : : "d" (d), "a" ((u_long)type) : "memory");
+}
+
 static __inline u_short
 rfs(void)
 {
