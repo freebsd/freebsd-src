@@ -36,12 +36,11 @@
 
 #ifndef __ASM_GNTTAB_H__
 
-#include <xen/interface/grant_table.h>
-
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
-#include <xen/interface/grant_table.h>
-#include <machine/xen/xen-os.h>
 #include <xen/features.h>
+
+#include <xen/interface/grant_table.h>
 
 #define GNTTAB_LIST_END GRANT_REF_INVALID
 

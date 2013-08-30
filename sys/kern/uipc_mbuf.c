@@ -85,6 +85,14 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 #endif
 
 /*
+ * Ensure the correct size of various mbuf parameters.  It could be off due
+ * to compiler-induced padding and alignment artifacts.
+ */
+CTASSERT(sizeof(struct mbuf) == MSIZE);
+CTASSERT(MSIZE - offsetof(struct mbuf, m_dat) == MLEN);
+CTASSERT(MSIZE - offsetof(struct mbuf, m_pktdat) == MHLEN);
+
+/*
  * m_get2() allocates minimum mbuf that would fit "size" argument.
  */
 struct mbuf *

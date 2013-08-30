@@ -51,18 +51,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <sys/bus_dma.h>
 
-#include <machine/_inttypes.h>
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenvar.h>
-#include <machine/xen/xenfunc.h>
-
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
-#include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/protocols.h>
 #include <xen/xenbus/xenbusvar.h>
+
+#include <machine/_inttypes.h>
+#include <machine/xen/xenvar.h>
 
 #include <geom/geom_disk.h>
 
@@ -139,7 +137,7 @@ xbd_flush_requests(struct xbd_softc *sc)
 	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&sc->xbd_ring, notify);
 
 	if (notify)
-		notify_remote_via_irq(sc->xbd_irq);
+		xen_intr_signal(sc->xen_intr_handle);
 }
 
 static void
@@ -310,7 +308,7 @@ xbd_bio_command(struct xbd_softc *sc)
 	struct xbd_command *cm;
 	struct bio *bp;
 
-	if (unlikely(sc->xbd_state != XBD_STATE_CONNECTED))
+	if (__predict_false(sc->xbd_state != XBD_STATE_CONNECTED))
 		return (NULL);
 
 	bp = xbd_dequeue_bio(sc);
@@ -437,7 +435,7 @@ xbd_bio_complete(struct xbd_softc *sc, struct xbd_command *cm)
 
 	bp = cm->cm_bp;
 
-	if (unlikely(cm->cm_status != BLKIF_RSP_OKAY)) {
+	if (__predict_false(cm->cm_status != BLKIF_RSP_OKAY)) {
 		disk_err(bp, "disk error" , -1, 0);
 		printf(" status: %x\n", cm->cm_status);
 		bp->bio_flags |= BIO_ERROR;
@@ -470,7 +468,7 @@ xbd_int(void *xsc)
 
 	mtx_lock(&sc->xbd_io_lock);
 
-	if (unlikely(sc->xbd_state == XBD_STATE_DISCONNECTED)) {
+	if (__predict_false(sc->xbd_state == XBD_STATE_DISCONNECTED)) {
 		mtx_unlock(&sc->xbd_io_lock);
 		return;
 	}
@@ -531,7 +529,7 @@ xbd_int(void *xsc)
 
 	xbd_startio(sc);
 
-	if (unlikely(sc->xbd_state == XBD_STATE_SUSPENDED))
+	if (__predict_false(sc->xbd_state == XBD_STATE_SUSPENDED))
 		wakeup(&sc->xbd_cm_q[XBD_Q_BUSY]);
 
 	mtx_unlock(&sc->xbd_io_lock);
@@ -782,13 +780,12 @@ xbd_alloc_ring(struct xbd_softc *sc)
 		}
 	}
 
-	error = bind_listening_port_to_irqhandler(
-	    xenbus_get_otherend_id(sc->xbd_dev),
-	    "xbd", (driver_intr_t *)xbd_int, sc,
-	    INTR_TYPE_BIO | INTR_MPSAFE, &sc->xbd_irq);
+	error = xen_intr_alloc_and_bind_local_port(sc->xbd_dev,
+	    xenbus_get_otherend_id(sc->xbd_dev), NULL, xbd_int, sc,
+	    INTR_TYPE_BIO | INTR_MPSAFE, &sc->xen_intr_handle);
 	if (error) {
 		xenbus_dev_fatal(sc->xbd_dev, error,
-		    "bind_evtchn_to_irqhandler failed");
+		    "xen_intr_alloc_and_bind_local_port failed");
 		return (error);
 	}
 
@@ -873,10 +870,6 @@ xbd_setup_sysctl(struct xbd_softc *xbd)
 		return;
 
 	children = SYSCTL_CHILDREN(sysctl_tree);
-	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
-	    "max_requests", CTLFLAG_RD, &xbd->xbd_max_requests, -1,
-	    "maximum outstanding requests (negotiated)");
-
 	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
 	    "max_requests", CTLFLAG_RD, &xbd->xbd_max_requests, -1,
 	    "maximum outstanding requests (negotiated)");
@@ -1046,10 +1039,8 @@ xbd_free(struct xbd_softc *sc)
 		xbd_initq_cm(sc, XBD_Q_COMPLETE);
 	}
 		
-	if (sc->xbd_irq) {
-		unbind_from_irqhandler(sc->xbd_irq);
-		sc->xbd_irq = 0;
-	}
+	xen_intr_unbind(&sc->xen_intr_handle);
+
 }
 
 /*--------------------------- State Change Handlers --------------------------*/
@@ -1281,7 +1272,7 @@ xbd_initialize(struct xbd_softc *sc)
 	}
 
 	error = xs_printf(XST_NIL, node_path, "event-channel",
-	    "%u", irq_to_evtchn_port(sc->xbd_irq));
+	    "%u", xen_intr_port(sc->xen_intr_handle));
 	if (error) {
 		xenbus_dev_fatal(sc->xbd_dev, error,
 		    "writing %s/event-channel",
@@ -1418,6 +1409,9 @@ xbd_attach(device_t dev)
 	/* FIXME: Use dynamic device id if this is not set. */
 	error = xs_scanf(XST_NIL, xenbus_get_node(dev),
 	    "virtual-device", NULL, "%" PRIu32, &vdevice);
+	if (error)
+		error = xs_scanf(XST_NIL, xenbus_get_node(dev),
+		    "virtual-device-ext", NULL, "%" PRIu32, &vdevice);
 	if (error) {
 		xenbus_dev_fatal(dev, error, "reading virtual-device");
 		device_printf(dev, "Couldn't determine virtual device.\n");

@@ -217,6 +217,7 @@ union descriptor {
 #define	IDT_IO_INTS	NRSVIDT	/* Base of IDT entries for I/O interrupts. */
 #define	IDT_SYSCALL	0x80	/* System Call Interrupt Vector */
 #define	IDT_DTRACE_RET	0x92	/* DTrace pid provider Interrupt Vector */
+#define	IDT_EVTCHN	0x93	/* Xen HVM Event Channel Interrupt Vector */
 
 #if defined(__i386__) || defined(__ia64__)
 /*

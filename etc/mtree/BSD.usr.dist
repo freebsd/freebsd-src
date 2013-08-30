@@ -42,6 +42,62 @@
         ..
     ..
     libexec
+        bsdconfig
+            020.docsinstall
+                include
+                ..
+            ..
+            030.packages
+                include
+                ..
+            ..
+            040.password
+                include
+                ..
+            ..
+            050.diskmgmt
+                include
+                ..
+            ..
+            070.usermgmt
+                include
+                ..
+            ..
+            080.console
+                include
+                ..
+            ..
+            090.timezone
+                include
+                ..
+            ..
+            110.mouse
+                include
+                ..
+            ..
+            120.networking
+                include
+                ..
+            ..
+            130.security
+                include
+                ..
+            ..
+            140.startup
+                include
+                ..
+            ..
+            150.ttys
+                include
+                ..
+            ..
+            dot
+                include
+                ..
+            ..
+            include
+            ..
+        ..
         bsdinstall
         ..
         lpr
@@ -62,7 +118,25 @@
     share
         atf
         ..
+        bsdconfig
+            media
+            ..
+            networking
+            ..
+            packages
+            ..
+            password
+            ..
+            startup
+            ..
+            timezone
+            ..
+            usermgmt
+            ..
+        ..
         calendar
+            de_AT.ISO_8859-15
+            ..
             de_DE.ISO8859-1
             ..
             fr_FR.ISO8859-1
@@ -71,7 +145,13 @@
             ..
             hu_HU.ISO8859-2
             ..
+            pt_BR.ISO8859-1
+            ..
+            pt_BR.UTF-8
+            ..
             ru_RU.KOI8-R
+            ..
+            ru_RU.UTF-8
             ..
             uk_UA.KOI8-U
             ..
@@ -220,6 +300,8 @@
             bhyve
             ..
             bootforth
+            ..
+            bsdconfig
             ..
             csh
             ..

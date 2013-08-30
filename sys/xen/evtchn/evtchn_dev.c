@@ -22,27 +22,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
-
-#include <machine/xen/xen-os.h>
-#include <xen/xen_intr.h>
-#include <machine/bus.h>
 #include <sys/rman.h>
+
+#include <xen/xen-os.h>
+#include <xen/evtchn.h>
+#include <xen/xen_intr.h>
+
+#include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/xen/synch_bitops.h>
-#include <xen/hypervisor.h>
-#include <xen/evtchn.h>
 
+#include <xen/evtchn/evtchnvar.h>
 
 typedef struct evtchn_sotfc {
 
 	struct selinfo  ev_rsel;
 } evtchn_softc_t;
-
-
-#ifdef linuxcrap
-/* NB. This must be shared amongst drivers if more things go in /dev/xen */
-static devfs_handle_t xen_dev_dir;
-#endif
 
 /* Only one process may open /dev/xen/evtchn at any time. */
 static unsigned long evtchn_dev_inuse;
@@ -72,12 +67,12 @@ static d_close_t     evtchn_close;
 
 
 void 
-evtchn_device_upcall(int port)
+evtchn_device_upcall(evtchn_port_t port)
 {
 	mtx_lock(&upcall_lock);
 
-	mask_evtchn(port);
-	clear_evtchn(port);
+	evtchn_mask_port(port);
+	evtchn_clear_port(port);
 
 	if ( ring != NULL ) {
 		if ( (ring_prod - ring_cons) < EVTCHN_RING_SIZE ) {
@@ -208,7 +203,7 @@ evtchn_write(struct cdev *dev, struct uio *uio, int ioflag)
 	mtx_lock_spin(&lock);
 	for ( i = 0; i < (count/2); i++ )
 		if ( test_bit(kbuf[i], &bound_ports[0]) )
-			unmask_evtchn(kbuf[i]);
+			evtchn_unmask_port(kbuf[i]);
 	mtx_unlock_spin(&lock);
 
 	rc = count;
@@ -224,6 +219,7 @@ evtchn_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 {
 	int rc = 0;
     
+#ifdef NOTYET
 	mtx_lock_spin(&lock);
     
 	switch ( cmd )
@@ -249,6 +245,7 @@ evtchn_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 	}
 
 	mtx_unlock_spin(&lock);   
+#endif
 
 	return rc;
 }
@@ -309,7 +306,7 @@ evtchn_close(struct cdev *dev, int flag, int otyp, struct thread *td __unused)
 	mtx_lock_spin(&lock);
 	for ( i = 0; i < NR_EVENT_CHANNELS; i++ )
 		if ( synch_test_and_clear_bit(i, &bound_ports[0]) )
-			mask_evtchn(i);
+			evtchn_mask_port(i);
 	mtx_unlock_spin(&lock);
 
 	evtchn_dev_inuse = 0;
@@ -352,34 +349,6 @@ evtchn_dev_init(void *dummy __unused)
 	evtchn_dev->si_drv1 = malloc(sizeof(evtchn_softc_t), M_DEVBUF, M_WAITOK);
 	bzero(evtchn_dev->si_drv1, sizeof(evtchn_softc_t));
 
-	/* XXX I don't think we need any of this rubbish */
-#if 0
-	if ( err != 0 )
-	{
-		printk(KERN_ALERT "Could not register /dev/misc/evtchn\n");
-		return err;
-	}
-
-	/* (DEVFS) create directory '/dev/xen'. */
-	xen_dev_dir = devfs_mk_dir(NULL, "xen", NULL);
-
-	/* (DEVFS) &link_dest[pos] == '../misc/evtchn'. */
-	pos = devfs_generate_path(evtchn_miscdev.devfs_handle, 
-				  &link_dest[3], 
-				  sizeof(link_dest) - 3);
-	if ( pos >= 0 )
-		strncpy(&link_dest[pos], "../", 3);
-	/* (DEVFS) symlink '/dev/xen/evtchn' -> '../misc/evtchn'. */
-	(void)devfs_mk_symlink(xen_dev_dir, 
-			       "evtchn", 
-			       DEVFS_FL_DEFAULT, 
-			       &link_dest[pos],
-			       &symlink_handle, 
-			       NULL);
-
-	/* (DEVFS) automatically destroy the symlink with its destination. */
-	devfs_auto_unregister(evtchn_miscdev.devfs_handle, symlink_handle);
-#endif
 	if (bootverbose)
 		printf("Event-channel device installed.\n");
 
@@ -387,5 +356,3 @@ evtchn_dev_init(void *dummy __unused)
 }
 
 SYSINIT(evtchn_dev_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, evtchn_dev_init, NULL);
-
-

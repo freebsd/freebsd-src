@@ -2698,17 +2698,12 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				    sizeof tv);
 			if (error)
 				goto bad;
-
-			if (tv.tv_sec < 0 || tv.tv_sec > INT_MAX / hz ||
-			    tv.tv_usec < 0 || tv.tv_usec >= 1000000) {
+			if (tv.tv_sec < 0 || tv.tv_usec < 0 ||
+			    tv.tv_usec >= 1000000) {
 				error = EDOM;
 				goto bad;
 			}
 			val = tvtohz(&tv);
-			if (val == INT_MAX) {
-				error = EDOM;
-				goto bad;
-			}
 
 			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:

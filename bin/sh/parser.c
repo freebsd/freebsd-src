@@ -96,7 +96,7 @@ static struct heredoc *heredoclist;	/* list of here documents to read */
 static int doprompt;		/* if set, prompt the user */
 static int needprompt;		/* true if interactive and at start of line */
 static int lasttoken;		/* last token read */
-int tokpushback;		/* last token pushed back */
+static int tokpushback;		/* last token pushed back */
 static char *wordtext;		/* text of last word returned by readtoken */
 static int checkkwd;
 static struct nodelist *backquotelist;
