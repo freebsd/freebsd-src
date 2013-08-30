@@ -604,6 +604,17 @@ t4_create_dma_tag(struct adapter *sc)
 	return (rc);
 }
 
+static inline int
+enable_buffer_packing(struct adapter *sc)
+{
+
+	if (sc->flags & BUF_PACKING_OK &&
+	    ((is_t5(sc) && buffer_packing) ||	/* 1 or -1 both ok for T5 */
+	    (is_t4(sc) && buffer_packing == 1)))
+		return (1);
+	return (0);
+}
+
 void
 t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *children)
@@ -622,7 +633,7 @@ t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 	    NULL, cong_drop, "congestion drop setting");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "buffer_packing", CTLFLAG_RD,
-	    NULL, sc->flags & BUF_PACKING_OK ? 1 : 0,
+	    NULL, enable_buffer_packing(sc),
 	    "pack multiple frames in one fl buffer");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pack", CTLFLAG_RD,
@@ -841,12 +852,7 @@ t4_setup_port_queues(struct port_info *pi)
 	 * b) allocate queue iff it will take direct interrupts.
 	 */
 	bufsize = mtu_to_bufsize(ifp->if_mtu);
-	if (sc->flags & BUF_PACKING_OK &&
-	    ((is_t5(sc) && buffer_packing) ||	/* 1 or -1 both ok for T5 */
-	    (is_t4(sc) && buffer_packing == 1)))
-		pack = 1;
-	else
-		pack = 0;
+	pack = enable_buffer_packing(sc);
 	for_each_rxq(pi, i, rxq) {
 
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
