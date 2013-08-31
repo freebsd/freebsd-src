@@ -253,12 +253,17 @@ extern "C" {
       return val;
     }
 
+#ifndef __FreeBSD__
   /* Return the address of the instruction, not the actual IP value.  */
 #define _Unwind_GetIP(context) \
   (_Unwind_GetGR (context, 15) & ~(_Unwind_Word)1)
 
 #define _Unwind_GetIPInfo(context, ip_before_insn) \
   (*ip_before_insn = 0, _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1)
+#else
+  _Unwind_Ptr _Unwind_GetIP (struct _Unwind_Context *);
+  _Unwind_Ptr _Unwind_GetIPInfo (struct _Unwind_Context *, int *);
+#endif
 
   static inline void
   _Unwind_SetGR (_Unwind_Context *context, int regno, _Unwind_Word val)
