@@ -1263,7 +1263,7 @@ initarm(struct arm_boot_params *abp)
 				break;
 			/*
 			 * Restricted region includes memory region
-			 * skip availble region
+			 * skip available region
 			 */
 			if ((start >= rstart) && (rend >= end)) {
 				start = rend;

@@ -715,7 +715,9 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 			if (status == 0) { free(demangled); }
 			// Print a back trace if no handler is found.
 			// TODO: Make this optional
+#ifndef __arm__
 			_Unwind_Backtrace(trace, 0);
+#endif
 			break;
 	}
 	std::terminate();

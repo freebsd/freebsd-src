@@ -1863,6 +1863,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
+	CPU_ZERO(&pmap->pm_save);
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -5939,7 +5940,6 @@ pmap_activate(struct thread *td)
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
-	CPU_ZERO(&pmap->pm_save);
 	cpuid = PCPU_GET(cpuid);
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
