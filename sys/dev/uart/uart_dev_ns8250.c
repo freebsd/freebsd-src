@@ -465,7 +465,7 @@ ns8250_bus_attach(struct uart_softc *sc)
 	 * accidental manner as before. More analysis is warranted, but
 	 * at least now we fixed a known regression.
 	 */
-	DELAY(150);
+	DELAY(200);
 	return (0);
 }
 
