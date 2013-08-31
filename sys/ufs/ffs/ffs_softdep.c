@@ -660,14 +660,16 @@ FEATURE(softupdates, "FFS soft-updates support");
 #define	D_LAST		D_SENTINEL
 
 unsigned long dep_current[D_LAST + 1];
+unsigned long dep_highuse[D_LAST + 1];
 unsigned long dep_total[D_LAST + 1];
 unsigned long dep_write[D_LAST + 1];
-
 
 static SYSCTL_NODE(_debug, OID_AUTO, softdep, CTLFLAG_RW, 0,
     "soft updates stats");
 static SYSCTL_NODE(_debug_softdep, OID_AUTO, total, CTLFLAG_RW, 0,
     "total dependencies allocated");
+static SYSCTL_NODE(_debug_softdep, OID_AUTO, highuse, CTLFLAG_RW, 0,
+    "high use dependencies allocated");
 static SYSCTL_NODE(_debug_softdep, OID_AUTO, current, CTLFLAG_RW, 0,
     "current dependencies allocated");
 static SYSCTL_NODE(_debug_softdep, OID_AUTO, write, CTLFLAG_RW, 0,
@@ -679,6 +681,8 @@ static SYSCTL_NODE(_debug_softdep, OID_AUTO, write, CTLFLAG_RW, 0,
 	&dep_total[D_ ## type], 0, "");					\
     SYSCTL_ULONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
 	&dep_current[D_ ## type], 0, "");				\
+    SYSCTL_ULONG(_debug_softdep_highuse, OID_AUTO, str, CTLFLAG_RD, 	\
+	&dep_highuse[D_ ## type], 0, "");				\
     SYSCTL_ULONG(_debug_softdep_write, OID_AUTO, str, CTLFLAG_RD, 	\
 	&dep_write[D_ ## type], 0, "");
 
@@ -1203,8 +1207,12 @@ jwork_insert(dst, jsegdep)
  */
 static	void workitem_free(struct worklist *, int);
 static	void workitem_alloc(struct worklist *, int, struct mount *);
+static	void workitem_reassign(struct worklist *, int);
 
-#define	WORKITEM_FREE(item, type) workitem_free((struct worklist *)(item), (type))
+#define	WORKITEM_FREE(item, type) \
+	workitem_free((struct worklist *)(item), (type))
+#define	WORKITEM_REASSIGN(item, type) \
+	workitem_reassign((struct worklist *)(item), (type))
 
 static void
 workitem_free(item, type)
@@ -1218,16 +1226,22 @@ workitem_free(item, type)
 	if (item->wk_state & ONWORKLIST)
 		panic("workitem_free: %s(0x%X) still on list",
 		    TYPENAME(item->wk_type), item->wk_state);
-	if (item->wk_type != type)
+	if (item->wk_type != type && type != D_NEWBLK)
 		panic("workitem_free: type mismatch %s != %s",
 		    TYPENAME(item->wk_type), TYPENAME(type));
 #endif
 	if (item->wk_state & IOWAITING)
 		wakeup(item);
 	ump = VFSTOUFS(item->wk_mp);
+	KASSERT(ump->softdep_deps > 0,
+	    ("workitem_free: %s: softdep_deps going negative",
+	    ump->um_fs->fs_fsmnt));
 	if (--ump->softdep_deps == 0 && ump->softdep_req)
 		wakeup(&ump->softdep_deps);
-	dep_current[type]--;
+	KASSERT(dep_current[item->wk_type] > 0,
+	    ("workitem_free: %s: dep_current[%s] going negative",
+	    ump->um_fs->fs_fsmnt, TYPENAME(item->wk_type)));
+	dep_current[item->wk_type]--;
 	free(item, DtoM(type));
 }
 
@@ -1246,10 +1260,29 @@ workitem_alloc(item, type, mp)
 	ump = VFSTOUFS(mp);
 	ACQUIRE_LOCK(&lk);
 	dep_current[type]++;
+	if (dep_current[type] > dep_highuse[type])
+		dep_highuse[type] = dep_current[type];
 	dep_total[type]++;
 	ump->softdep_deps++;
 	ump->softdep_accdeps++;
 	FREE_LOCK(&lk);
+}
+
+static void
+workitem_reassign(item, newtype)
+	struct worklist *item;
+	int newtype;
+{
+
+	KASSERT(dep_current[item->wk_type] > 0,
+	    ("workitem_reassign: %s: dep_current[%s] going negative",
+	    VFSTOUFS(item->wk_mp)->um_fs->fs_fsmnt, TYPENAME(item->wk_type)));
+	dep_current[item->wk_type]--;
+	dep_current[newtype]++;
+	if (dep_current[newtype] > dep_highuse[newtype])
+		dep_highuse[newtype] = dep_current[newtype];
+	dep_total[newtype]++;
+	item->wk_type = newtype;
 }
 
 /*
@@ -2365,7 +2398,7 @@ softdep_initialize()
 	max_softdeps = desiredvnodes * 4;
 	pagedep_hashtbl = hashinit(desiredvnodes / 5, M_PAGEDEP, &pagedep_hash);
 	inodedep_hashtbl = hashinit(desiredvnodes, M_INODEDEP, &inodedep_hash);
-	newblk_hashtbl = hashinit(desiredvnodes / 5,  M_NEWBLK, &newblk_hash);
+	newblk_hashtbl = hashinit(max_softdeps / 2,  M_NEWBLK, &newblk_hash);
 	bmsafemap_hashtbl = hashinit(1024, M_BMSAFEMAP, &bmsafemap_hash);
 	i = 1 << (ffs(desiredvnodes / 10) - 1);
 	indir_hashtbl = malloc(i * sizeof(indir_hashtbl[0]), M_FREEWORK,
@@ -5129,7 +5162,7 @@ softdep_setup_allocdirect(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 	/*
 	 * Convert the newblk to an allocdirect.
 	 */
-	newblk->nb_list.wk_type = D_ALLOCDIRECT;
+	WORKITEM_REASSIGN(newblk, D_ALLOCDIRECT);
 	adp = (struct allocdirect *)newblk;
 	newblk->nb_freefrag = freefrag;
 	adp->ad_offset = off;
@@ -5485,7 +5518,7 @@ softdep_setup_allocext(ip, off, newblkno, oldblkno, newsize, oldsize, bp)
 	/*
 	 * Convert the newblk to an allocdirect.
 	 */
-	newblk->nb_list.wk_type = D_ALLOCDIRECT;
+	WORKITEM_REASSIGN(newblk, D_ALLOCDIRECT);
 	adp = (struct allocdirect *)newblk;
 	newblk->nb_freefrag = freefrag;
 	adp->ad_offset = off;
@@ -5594,7 +5627,7 @@ newallocindir(ip, ptrno, newblkno, oldblkno, lbn)
 		panic("new_allocindir: lost block");
 	KASSERT(newblk->nb_list.wk_type == D_NEWBLK,
 	    ("newallocindir: newblk already initialized"));
-	newblk->nb_list.wk_type = D_ALLOCINDIR;
+	WORKITEM_REASSIGN(newblk, D_ALLOCINDIR);
 	newblk->nb_freefrag = freefrag;
 	aip = (struct allocindir *)newblk;
 	aip->ai_offset = ptrno;
@@ -7227,7 +7260,9 @@ free_newblk(newblk)
 	struct worklist *wk;
 
 	KASSERT(newblk->nb_jnewblk == NULL,
-	    ("free_newblk; jnewblk %p still attached", newblk->nb_jnewblk));
+	    ("free_newblk: jnewblk %p still attached", newblk->nb_jnewblk));
+	KASSERT(newblk->nb_list.wk_type != D_NEWBLK,
+	    ("free_newblk: unclaimed newblk"));
 	mtx_assert(&lk, MA_OWNED);
 	newblk_freefrag(newblk);
 	if (newblk->nb_state & ONDEPLIST)
@@ -7242,7 +7277,6 @@ free_newblk(newblk)
 	while ((indirdep = LIST_FIRST(&newblk->nb_indirdeps)) != NULL)
 		indirdep_complete(indirdep);
 	handle_jwork(&newblk->nb_jwork);
-	newblk->nb_list.wk_type = D_NEWBLK;
 	WORKITEM_FREE(newblk, D_NEWBLK);
 }
 
