@@ -1074,3 +1074,19 @@ _Unwind_GetTextRelBase (_Unwind_Context *context __attribute__ ((unused)))
 {
   abort ();
 }
+
+#ifdef __FreeBSD__
+/* FreeBSD expects these to be functions */
+_Unwind_Ptr
+_Unwind_GetIP (struct _Unwind_Context *context)
+{
+  return _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1;
+}
+
+_Unwind_Ptr
+_Unwind_GetIPInfo (struct _Unwind_Context *context, int *ip_before_insn)
+{
+  *ip_before_insn = 0;
+  return _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1;
+}
+#endif
