@@ -79,13 +79,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/_inttypes.h>
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenvar.h>
 
-#include <xen/evtchn.h>
+#include <xen/xen-os.h>
+#include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
+
+#include <machine/xen/xenvar.h>
 
 /*--------------------------- Compile-time Tunables --------------------------*/
 
@@ -433,8 +434,8 @@ struct xnb_softc {
 	/** Xen device handle.*/
 	long 			handle;
 
-	/** IRQ mapping for the communication ring event channel. */
-	int			irq;
+	/** Handle to the communication ring event channel. */
+	xen_intr_handle_t	xen_intr_handle;
 
 	/**
 	 * \brief Cached value of the front-end's domain id.
@@ -587,14 +588,14 @@ xnb_dump_mbuf(const struct mbuf *m)
 	if (m->m_flags & M_PKTHDR) {
 		printf("    flowid=%10d, csum_flags=%#8x, csum_data=%#8x, "
 		       "tso_segsz=%5hd\n",
-		       m->m_pkthdr.flowid, m->m_pkthdr.csum_flags,
+		       m->m_pkthdr.flowid, (int)m->m_pkthdr.csum_flags,
 		       m->m_pkthdr.csum_data, m->m_pkthdr.tso_segsz);
-		printf("    rcvif=%16p,  header=%18p, len=%19d\n",
-		       m->m_pkthdr.rcvif, m->m_pkthdr.header, m->m_pkthdr.len);
+		printf("    rcvif=%16p,  len=%19d\n",
+		       m->m_pkthdr.rcvif, m->m_pkthdr.len);
 	}
 	printf("    m_next=%16p, m_nextpk=%16p, m_data=%16p\n",
 	       m->m_next, m->m_nextpkt, m->m_data);
-	printf("    m_len=%17d, m_flags=%#15x, m_type=%18hd\n",
+	printf("    m_len=%17d, m_flags=%#15x, m_type=%18u\n",
 	       m->m_len, m->m_flags, m->m_type);
 
 	len = m->m_len;
@@ -647,10 +648,7 @@ xnb_disconnect(struct xnb_softc *xnb)
 	int error;
 	int i;
 
-	if (xnb->irq != 0) {
-		unbind_from_irqhandler(xnb->irq);
-		xnb->irq = 0;
-	}
+	xen_intr_unbind(xnb->xen_intr_handle);
 
 	/*
 	 * We may still have another thread currently processing requests.  We
@@ -773,13 +771,13 @@ xnb_connect_comms(struct xnb_softc *xnb)
 
 	xnb->flags |= XNBF_RING_CONNECTED;
 
-	error =
-	    bind_interdomain_evtchn_to_irqhandler(xnb->otherend_id,
-						  xnb->evtchn,
-						  device_get_nameunit(xnb->dev),
-						  xnb_intr, /*arg*/xnb,
-						  INTR_TYPE_BIO | INTR_MPSAFE,
-						  &xnb->irq);
+	error = xen_intr_bind_remote_port(xnb->dev,
+					  xnb->otherend_id,
+					  xnb->evtchn,
+					  /*filter*/NULL,
+					  xnb_intr, /*arg*/xnb,
+					  INTR_TYPE_BIO | INTR_MPSAFE,
+					  &xnb->xen_intr_handle);
 	if (error != 0) {
 		(void)xnb_disconnect(xnb);
 		xenbus_dev_fatal(xnb->dev, error, "binding event channel");
@@ -1448,7 +1446,7 @@ xnb_intr(void *arg)
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(txb, notify);
 		if (notify != 0)
-			notify_remote_via_irq(xnb->irq);
+			xen_intr_signal(xnb->xen_intr_handle);
 
 		txb->sring->req_event = txb->req_cons + 1;
 		xen_mb();
@@ -2361,7 +2359,7 @@ xnb_start_locked(struct ifnet *ifp)
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(rxb, notify);
 		if ((notify != 0) || (out_of_space != 0))
-			notify_remote_via_irq(xnb->irq);
+			xen_intr_signal(xnb->xen_intr_handle);
 		rxb->sring->req_event = req_prod_local + 1;
 		xen_mb();
 	} while (rxb->sring->req_prod != req_prod_local) ;

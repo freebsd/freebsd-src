@@ -29,7 +29,6 @@
 #include "Plugins/ABI/SysV-x86_64/ABISysV_x86_64.h"
 #include "Plugins/Disassembler/llvm/DisassemblerLLVMC.h"
 #include "Plugins/Instruction/ARM/EmulateInstructionARM.h"
-#include "Plugins/SymbolVendor/MacOSX/SymbolVendorMacOSX.h"
 #include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
@@ -38,10 +37,8 @@
 #include "Plugins/SymbolFile/Symtab/SymbolFileSymtab.h"
 #include "Plugins/UnwindAssembly/x86/UnwindAssembly-x86.h"
 #include "Plugins/UnwindAssembly/InstEmulation/UnwindAssemblyInstEmulation.h"
-#include "Plugins/ObjectFile/PECOFF/ObjectFilePECOFF.h"
 #include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
 #include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
-#include "Plugins/Platform/Linux/PlatformLinux.h"
 #include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
 #ifndef LLDB_DISABLE_PYTHON
 #include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
@@ -59,8 +56,6 @@
 #include "Plugins/Platform/MacOSX/PlatformDarwinKernel.h"
 #include "Plugins/Platform/MacOSX/PlatformiOSSimulator.h"
 #endif
-
-#include "Plugins/Process/mach-core/ProcessMachCore.h"
 
 #if defined(__linux__) or defined(__FreeBSD__)
 #include "Plugins/Process/elf-core/ProcessElfCore.h"
@@ -109,10 +104,8 @@ lldb_private::Initialize ()
         UnwindAssemblyInstEmulation::Initialize();
         UnwindAssembly_x86::Initialize();
         EmulateInstructionARM::Initialize ();
-        ObjectFilePECOFF::Initialize ();
         DynamicLoaderPOSIXDYLD::Initialize ();
         PlatformFreeBSD::Initialize();
-        PlatformLinux::Initialize();
         SymbolFileDWARFDebugMap::Initialize();
         ItaniumABILanguageRuntime::Initialize();
 #ifndef LLDB_DISABLE_PYTHON
@@ -130,8 +123,6 @@ lldb_private::Initialize ()
         ObjectContainerUniversalMachO::Initialize();
         ObjectFileMachO::Initialize();
         ProcessKDP::Initialize();
-        ProcessMachCore::Initialize();
-        SymbolVendorMacOSX::Initialize();
         PlatformDarwinKernel::Initialize();
         PlatformRemoteiOS::Initialize();
         PlatformMacOSX::Initialize();
@@ -193,10 +184,8 @@ lldb_private::Terminate ()
     UnwindAssembly_x86::Terminate();
     UnwindAssemblyInstEmulation::Terminate();
     EmulateInstructionARM::Terminate ();
-    ObjectFilePECOFF::Terminate ();
     DynamicLoaderPOSIXDYLD::Terminate ();
     PlatformFreeBSD::Terminate();
-    PlatformLinux::Terminate();
     SymbolFileDWARFDebugMap::Terminate();
     ItaniumABILanguageRuntime::Terminate();
 #ifndef LLDB_DISABLE_PYTHON
@@ -210,9 +199,7 @@ lldb_private::Terminate ()
     AppleObjCRuntimeV1::Terminate();
     ObjectContainerUniversalMachO::Terminate();
     ObjectFileMachO::Terminate();
-    ProcessMachCore::Terminate();
     ProcessKDP::Terminate();
-    SymbolVendorMacOSX::Terminate();
     PlatformMacOSX::Terminate();
     PlatformDarwinKernel::Terminate();
     PlatformRemoteiOS::Terminate();

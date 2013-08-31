@@ -4516,6 +4516,14 @@ pmap_page_wired_mappings(vm_page_t m)
 }
 
 /*
+ *	This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+}
+
+/*
  *	pmap_ts_referenced:
  *
  *	Return the count of reference bits for a page, clearing all of them.

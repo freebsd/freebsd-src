@@ -44,12 +44,30 @@
  * allocate IDT vectors.
  *
  * The first 255 IRQs (0 - 254) are reserved for ISA IRQs and PCI intline IRQs.
- * IRQ values beyond 256 are used by MSI.  We leave 255 unused to avoid
- * confusion since 255 is used in PCI to indicate an invalid IRQ.
+ * IRQ values from 256 to 767 are used by MSI.  When running under the Xen
+ * Hypervisor, IRQ values from 768 to 4863 are available for binding to
+ * event channel events.  We leave 255 unused to avoid confusion since 255 is
+ * used in PCI to indicate an invalid IRQ.
  */
 #define	NUM_MSI_INTS	512
 #define	FIRST_MSI_INT	256
-#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS)
+#ifdef XENHVM
+#include <xen/xen-os.h>
+#define	NUM_EVTCHN_INTS	NR_EVENT_CHANNELS
+#define	FIRST_EVTCHN_INT \
+    (FIRST_MSI_INT + NUM_MSI_INTS)
+#define	LAST_EVTCHN_INT \
+    (FIRST_EVTCHN_INT + NUM_EVTCHN_INTS - 1)
+#elif defined(XEN)
+#include <xen/xen-os.h>
+#define	NUM_EVTCHN_INTS	NR_EVENT_CHANNELS
+#define	FIRST_EVTCHN_INT 0
+#define	LAST_EVTCHN_INT \
+    (FIRST_EVTCHN_INT + NUM_EVTCHN_INTS - 1)
+#else /* !XEN && !XENHVM */
+#define	NUM_EVTCHN_INTS	0
+#endif
+#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS + NUM_EVTCHN_INTS)
 
 /*
  * Default base address for MSI messages on x86 platforms.

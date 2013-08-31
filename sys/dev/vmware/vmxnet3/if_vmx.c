@@ -199,6 +199,8 @@ static int	vmxnet3_dma_malloc(struct vmxnet3_softc *, bus_size_t,
 		    bus_size_t, struct vmxnet3_dma_alloc *);
 static void	vmxnet3_dma_free(struct vmxnet3_softc *,
 		    struct vmxnet3_dma_alloc *);
+static int	vmxnet3_tunable_int(struct vmxnet3_softc *,
+		    const char *, int);
 
 typedef enum {
 	VMXNET3_BARRIER_RD,
@@ -207,6 +209,12 @@ typedef enum {
 } vmxnet3_barrier_t;
 
 static void	vmxnet3_barrier(struct vmxnet3_softc *, vmxnet3_barrier_t);
+
+/* Tunables. */
+static int vmxnet3_default_txndesc = VMXNET3_DEF_TX_NDESC;
+TUNABLE_INT("hw.vmx.txndesc", &vmxnet3_default_txndesc);
+static int vmxnet3_default_rxndesc = VMXNET3_DEF_RX_NDESC;
+TUNABLE_INT("hw.vmx.rxndesc", &vmxnet3_default_rxndesc);
 
 static device_method_t vmxnet3_methods[] = {
 	/* Device interface. */
@@ -437,15 +445,15 @@ vmxnet3_check_version(struct vmxnet3_softc *sc)
 		device_printf(dev, "unsupported hardware version %#x\n",
 		    version);
 		return (ENOTSUP);
-	} else
-		vmxnet3_write_bar1(sc, VMXNET3_BAR1_VRRS, 1);
+	}
+	vmxnet3_write_bar1(sc, VMXNET3_BAR1_VRRS, 1);
 
 	version = vmxnet3_read_bar1(sc, VMXNET3_BAR1_UVRS);
 	if ((version & 0x01) == 0) {
 		device_printf(dev, "unsupported UPT version %#x\n", version);
 		return (ENOTSUP);
-	} else
-		vmxnet3_write_bar1(sc, VMXNET3_BAR1_UVRS, 1);
+	}
+	vmxnet3_write_bar1(sc, VMXNET3_BAR1_UVRS, 1);
 
 	return (0);
 }
@@ -453,11 +461,28 @@ vmxnet3_check_version(struct vmxnet3_softc *sc)
 static void
 vmxnet3_initial_config(struct vmxnet3_softc *sc)
 {
+	int ndesc;
 
-	sc->vmx_ntxqueues = 1;
-	sc->vmx_nrxqueues = 1;
-	sc->vmx_ntxdescs = VMXNET3_MAX_TX_NDESC;
-	sc->vmx_nrxdescs = VMXNET3_MAX_RX_NDESC;
+	/*
+	 * BMV Much of the work is already done, but this driver does
+	 * not support multiqueue yet.
+	 */
+	sc->vmx_ntxqueues = VMXNET3_TX_QUEUES;
+	sc->vmx_nrxqueues = VMXNET3_RX_QUEUES;
+
+	ndesc = vmxnet3_tunable_int(sc, "txd", vmxnet3_default_txndesc);
+	if (ndesc > VMXNET3_MAX_TX_NDESC || ndesc < VMXNET3_MIN_TX_NDESC)
+		ndesc = VMXNET3_DEF_TX_NDESC;
+	if (ndesc & VMXNET3_MASK_TX_NDESC)
+		ndesc &= ~VMXNET3_MASK_TX_NDESC;
+	sc->vmx_ntxdescs = ndesc;
+
+	ndesc = vmxnet3_tunable_int(sc, "rxd", vmxnet3_default_rxndesc);
+	if (ndesc > VMXNET3_MAX_RX_NDESC || ndesc < VMXNET3_MIN_RX_NDESC)
+		ndesc = VMXNET3_DEF_RX_NDESC;
+	if (ndesc & VMXNET3_MASK_RX_NDESC)
+		ndesc &= ~VMXNET3_MASK_RX_NDESC;
+	sc->vmx_nrxdescs = ndesc;
 	sc->vmx_max_rxsegs = VMXNET3_MAX_RX_SEGS;
 }
 
@@ -781,10 +806,9 @@ vmxnet3_init_rxq(struct vmxnet3_softc *sc, int q)
 		    sizeof(struct vmxnet3_rxbuf), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (rxr->vxrxr_rxbuf == NULL)
 			return (ENOMEM);
-	}
 
-	rxq->vxrxq_comp_ring.vxcr_ndesc =
-	    sc->vmx_nrxdescs * VMXNET3_RXRINGS_PERQ;
+		rxq->vxrxq_comp_ring.vxcr_ndesc += sc->vmx_nrxdescs;
+	}
 
 	return (0);
 }
@@ -1240,8 +1264,11 @@ static void
 vmxnet3_free_queue_data(struct vmxnet3_softc *sc)
 {
 
-	vmxnet3_free_rxq_data(sc);
-	vmxnet3_free_txq_data(sc);
+	if (sc->vmx_rxq != NULL)
+		vmxnet3_free_rxq_data(sc);
+
+	if (sc->vmx_txq != NULL)
+		vmxnet3_free_txq_data(sc);
 }
 
 static int
@@ -1325,9 +1352,9 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 		txs = txq->vxtxq_ts;
 
 		txs->cmd_ring = txq->vxtxq_cmd_ring.vxtxr_dma.dma_paddr;
-		txs->cmd_ring_len = sc->vmx_ntxdescs;
+		txs->cmd_ring_len = txq->vxtxq_cmd_ring.vxtxr_ndesc;
 		txs->comp_ring = txq->vxtxq_comp_ring.vxcr_dma.dma_paddr;
-		txs->comp_ring_len = sc->vmx_ntxdescs;
+		txs->comp_ring_len = txq->vxtxq_comp_ring.vxcr_ndesc;
 		txs->driver_data = vtophys(txq);
 		txs->driver_data_len = sizeof(struct vmxnet3_txqueue);
 	}
@@ -1342,8 +1369,7 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 		rxs->cmd_ring[1] = rxq->vxrxq_cmd_ring[1].vxrxr_dma.dma_paddr;
 		rxs->cmd_ring_len[1] = rxq->vxrxq_cmd_ring[1].vxrxr_ndesc;
 		rxs->comp_ring = rxq->vxrxq_comp_ring.vxcr_dma.dma_paddr;
-		rxs->comp_ring_len = rxq->vxrxq_cmd_ring[0].vxrxr_ndesc +
-		    rxq->vxrxq_cmd_ring[1].vxrxr_ndesc;
+		rxs->comp_ring_len = rxq->vxrxq_comp_ring.vxcr_ndesc;
 		rxs->driver_data = vtophys(rxq);
 		rxs->driver_data_len = sizeof(struct vmxnet3_rxqueue);
 	}
@@ -1381,10 +1407,10 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 	ds = sc->vmx_ds;
 
 	ds->upt_features = 0;
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
-		ds->upt_features |= UPT1_F_VLAN;
 	if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 		ds->upt_features |= UPT1_F_CSUM;
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		ds->upt_features |= UPT1_F_VLAN;
 	if (ifp->if_capenable & IFCAP_LRO)
 		ds->upt_features |= UPT1_F_LRO;
 
@@ -1463,18 +1489,13 @@ vmxnet3_setup_interface(struct vmxnet3_softc *sc)
 	ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_TXCSUM;
 	ifp->if_capabilities |= IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6;
 	ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6;
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
-	ifp->if_hwassist |= VMXNET3_CSUM_ALL_OFFLOAD;
-
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_VLAN_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 
-	/*
-	 * Capabilities after here are not enabled by default.
-	 */
+	/* These capabilities are not enabled by default. */
+	ifp->if_capabilities |= IFCAP_LRO | IFCAP_VLAN_HWFILTER;
 
-	ifp->if_capabilities |= IFCAP_LRO;
-
-	ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 	sc->vmx_vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 	    vmxnet3_register_vlan, sc, EVENTHANDLER_PRI_FIRST);
 	sc->vmx_vlan_detach = EVENTHANDLER_REGISTER(vlan_config,
@@ -1558,6 +1579,7 @@ vmxnet3_txq_eof(struct vmxnet3_txqueue *txq)
 		txcd = &txc->vxcr_u.txcd[txc->vxcr_next];
 		if (txcd->gen != txc->vxcr_gen)
 			break;
+		vmxnet3_barrier(sc, VMXNET3_BARRIER_RD);
 
 		if (++txc->vxcr_next == txc->vxcr_ndesc) {
 			txc->vxcr_next = 0;
@@ -1647,7 +1669,7 @@ vmxnet3_newbuf(struct vmxnet3_softc *sc, struct vmxnet3_rxring *rxr)
 	    BUS_DMA_NOWAIT);
 	if (error) {
 		m_freem(m);
-		sc->vmx_stats.vmst_mbuf_load_failed++;;
+		sc->vmx_stats.vmst_mbuf_load_failed++;
 		return (error);
 	}
 	KASSERT(nsegs == 1,
@@ -2119,19 +2141,19 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	int i, populate, idx, frame_size, error;
 
 	ifp = sc->vmx_ifp;
-	frame_size = ifp->if_mtu + sizeof(struct ether_vlan_header);
+	frame_size = ETHER_ALIGN + sizeof(struct ether_vlan_header) +
+	    ifp->if_mtu;
 
 	/*
-	 * If the MTU causes us to exceed what a regular sized cluster
-	 * can handle, we allocate a second MJUMPAGESIZE cluster after
-	 * it in ring 0. If in use, ring 1 always contains MJUMPAGESIZE
-	 * clusters.
+	 * If the MTU causes us to exceed what a regular sized cluster can
+	 * handle, we allocate a second MJUMPAGESIZE cluster after it in
+	 * ring 0. If in use, ring 1 always contains MJUMPAGESIZE clusters.
 	 *
-	 * Keep rx_max_chain a divisor of the maximum Rx ring size to
-	 * to make our life easier. We do not support changing the ring
-	 * size after the attach.
+	 * Keep rx_max_chain a divisor of the maximum Rx ring size to make
+	 * our life easier. We do not support changing the ring size after
+	 * the attach.
 	 */
-	if (frame_size <= MCLBYTES - ETHER_ALIGN)
+	if (frame_size <= MCLBYTES)
 		sc->vmx_rx_max_chain = 1;
 	else
 		sc->vmx_rx_max_chain = 2;
@@ -2515,7 +2537,7 @@ vmxnet3_start_locked(struct ifnet *ifp)
 	struct vmxnet3_txqueue *txq;
 	struct vmxnet3_txring *txr;
 	struct mbuf *m_head;
-	int tx;
+	int tx, avail;
 
 	sc = ifp->if_softc;
 	txq = &sc->vmx_txq[0];
@@ -2528,10 +2550,19 @@ vmxnet3_start_locked(struct ifnet *ifp)
 	    sc->vmx_link_active == 0)
 		return;
 
-	while (VMXNET3_TXRING_AVAIL(txr) > 0) {
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+		if ((avail = VMXNET3_TXRING_AVAIL(txr)) < 2)
+			break;
+
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
+
+		/* Assume worse case if this mbuf is the head of a chain. */
+		if (m_head->m_next != NULL && avail < VMXNET3_TX_MAXSEGS) {
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			break;
+		}
 
 		if (vmxnet3_txq_encap(txq, &m_head) != 0) {
 			if (m_head != NULL)
@@ -2750,8 +2781,8 @@ vmxnet3_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_TSO6;
 
 		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO |
-		    IFCAP_VLAN_HWFILTER)) {
-			/* These Rx features require us to renegotiate. */
+		    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWFILTER)) {
+			/* Changing these features requires us to reinit. */
 			reinit = 1;
 
 			if (mask & IFCAP_RXCSUM)
@@ -2760,6 +2791,8 @@ vmxnet3_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
 			if (mask & IFCAP_LRO)
 				ifp->if_capenable ^= IFCAP_LRO;
+			if (mask & IFCAP_VLAN_HWTAGGING)
+				ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			if (mask & IFCAP_VLAN_HWFILTER)
 				ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
 		} else
@@ -2767,8 +2800,6 @@ vmxnet3_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		if (mask & IFCAP_VLAN_HWTSO)
 			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
-		if (mask & IFCAP_VLAN_HWTAGGING)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -3278,6 +3309,18 @@ vmxnet3_dma_free(struct vmxnet3_softc *sc, struct vmxnet3_dma_alloc *dma)
 		bus_dma_tag_destroy(dma->dma_tag);
 	}
 	bzero(dma, sizeof(struct vmxnet3_dma_alloc));
+}
+
+static int
+vmxnet3_tunable_int(struct vmxnet3_softc *sc, const char *knob, int def)
+{
+	char path[64];
+
+	snprintf(path, sizeof(path),
+	    "hw.vmx.%d.%s", device_get_unit(sc->vmx_dev), knob);
+	TUNABLE_INT_FETCH(path, &def);
+
+	return (def);
 }
 
 /*

@@ -2125,7 +2125,7 @@ vm_map_madvise(
 		     (current != &map->header) && (current->start < end);
 		     current = current->next
 		) {
-			vm_offset_t useStart;
+			vm_offset_t useEnd, useStart;
 
 			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
 				continue;
@@ -2133,16 +2133,33 @@ vm_map_madvise(
 			pstart = OFF_TO_IDX(current->offset);
 			pend = pstart + atop(current->end - current->start);
 			useStart = current->start;
+			useEnd = current->end;
 
 			if (current->start < start) {
 				pstart += atop(start - current->start);
 				useStart = start;
 			}
-			if (current->end > end)
+			if (current->end > end) {
 				pend -= atop(current->end - end);
+				useEnd = end;
+			}
 
 			if (pstart >= pend)
 				continue;
+
+			/*
+			 * Perform the pmap_advise() before clearing
+			 * PGA_REFERENCED in vm_page_advise().  Otherwise, a
+			 * concurrent pmap operation, such as pmap_remove(),
+			 * could clear a reference in the pmap and set
+			 * PGA_REFERENCED on the page before the pmap_advise()
+			 * had completed.  Consequently, the page would appear
+			 * referenced based upon an old reference that
+			 * occurred before this pmap_advise() ran.
+			 */
+			if (behav == MADV_DONTNEED || behav == MADV_FREE)
+				pmap_advise(map->pmap, useStart, useEnd,
+				    behav);
 
 			vm_object_madvise(current->object.vm_object, pstart,
 			    pend, behav);

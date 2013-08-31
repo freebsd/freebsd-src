@@ -515,11 +515,13 @@ vendor USR		0x0baf	U.S. Robotics
 vendor AMBIT		0x0bb2	Ambit Microsystems
 vendor HTC		0x0bb4	HTC
 vendor REALTEK		0x0bda	Realtek
+vendor ERICSSON2	0x0bdb	Ericsson
 vendor MEI		0x0bed	MEI
 vendor ADDONICS2	0x0bf6	Addonics Technology
 vendor FSC		0x0bf8	Fujitsu Siemens Computers
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
+vendor CANYON		0x0c10	Canyon
 vendor ICOM		0x0c26	Icom Inc.
 vendor GNOTOMETRICS	0x0c33	GN Otometrics
 vendor CHICONY2		0x0c45	Chicony

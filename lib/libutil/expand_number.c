@@ -35,42 +35,24 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <stdint.h>
 
-/*
- * Convert an expression of the following forms to a uint64_t.
- *	1) A positive decimal number.
- *	2) A positive decimal number followed by a 'b' or 'B' (mult by 1).
- *	3) A positive decimal number followed by a 'k' or 'K' (mult by 1 << 10).
- *	4) A positive decimal number followed by a 'm' or 'M' (mult by 1 << 20).
- *	5) A positive decimal number followed by a 'g' or 'G' (mult by 1 << 30).
- *	6) A positive decimal number followed by a 't' or 'T' (mult by 1 << 40).
- *	7) A positive decimal number followed by a 'p' or 'P' (mult by 1 << 50).
- *	8) A positive decimal number followed by a 'e' or 'E' (mult by 1 << 60).
- */
 int
 expand_number(const char *buf, uint64_t *num)
 {
-	uint64_t number;
-	int saved_errno;
-	unsigned shift;
 	char *endptr;
+	uintmax_t umaxval;
+	uint64_t number;
+	unsigned shift;
+	int serrno;
 
-	saved_errno = errno;
+	serrno = errno;
 	errno = 0;
-
-	number = strtoumax(buf, &endptr, 0);
-
-	if (number == UINTMAX_MAX && errno == ERANGE) {
+	umaxval = strtoumax(buf, &endptr, 0);
+	if (umaxval > UINT64_MAX)
+		errno = ERANGE;
+	if (errno != 0)
 		return (-1);
-	}
-
-	if (errno == 0)
-		errno = saved_errno;
-
-	if (endptr == buf) {
-		/* No valid digits. */
-		errno = EINVAL;
-		return (-1);
-	}
+	errno = serrno;
+	number = umaxval;
 
 	switch (tolower((unsigned char)*endptr)) {
 	case 'e':
@@ -106,7 +88,6 @@ expand_number(const char *buf, uint64_t *num)
 		errno = ERANGE;
 		return (-1);
 	}
-
 	*num = number << shift;
 	return (0);
 }

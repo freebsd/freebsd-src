@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 
 
 
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <xen/evtchn.h>
 #include <xen/xen_intr.h>
 #include <xen/hypervisor.h>
@@ -101,9 +101,6 @@ extern	struct pcpu __pcpu[];
 
 static int bootAP;
 static union descriptor *bootAPgdt;
-
-static char resched_name[NR_CPUS][15];
-static char callfunc_name[NR_CPUS][15];
 
 /* Free these after use */
 void *bootstacks[MAXCPU];
@@ -156,6 +153,9 @@ static cpuset_t	hyperthreading_cpus_mask;
 extern void Xhypervisor_callback(void);
 extern void failsafe_callback(void);
 extern void pmap_lazyfix_action(void);
+
+DPCPU_DEFINE(xen_intr_handle_t, ipi_port[NR_IPIS]);
+DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
 struct cpu_group *
 cpu_topo(void)
@@ -461,49 +461,46 @@ cpu_mp_announce(void)
 }
 
 static int
-xen_smp_intr_init(unsigned int cpu)
+xen_smp_cpu_init(unsigned int cpu)
 {
 	int rc;
-	unsigned int irq;
-	
-	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) = -1;
+	xen_intr_handle_t irq_handle;
 
-	sprintf(resched_name[cpu], "resched%u", cpu);
-	rc = bind_ipi_to_irqhandler(RESCHEDULE_VECTOR,
-				    cpu,
-				    resched_name[cpu],
-				    smp_reschedule_interrupt,
-	    INTR_TYPE_TTY, &irq);
+	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], NULL);
+	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], NULL);
 
-	printf("[XEN] IPI cpu=%d irq=%d vector=RESCHEDULE_VECTOR (%d)\n",
-	    cpu, irq, RESCHEDULE_VECTOR);
-	
-	per_cpu(resched_irq, cpu) = irq;
-
-	sprintf(callfunc_name[cpu], "callfunc%u", cpu);
-	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR,
-				    cpu,
-				    callfunc_name[cpu],
-				    smp_call_function_interrupt,
-	    INTR_TYPE_TTY, &irq);
+	/*
+	 * The PCPU variable pc_device is not initialized on i386 PV,
+	 * so we have to use the root_bus device in order to setup
+	 * the IPIs.
+	 */
+	rc = xen_intr_bind_ipi(root_bus, RESCHEDULE_VECTOR,
+	    cpu, smp_reschedule_interrupt, INTR_TYPE_TTY, &irq_handle);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfunc_irq, cpu) = irq;
+	xen_intr_describe(irq_handle, "resched%u", cpu);
+	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], irq_handle);
 
-	printf("[XEN] IPI cpu=%d irq=%d vector=CALL_FUNCTION_VECTOR (%d)\n",
-	    cpu, irq, CALL_FUNCTION_VECTOR);
+	printf("[XEN] IPI cpu=%d port=%d vector=RESCHEDULE_VECTOR (%d)\n",
+	    cpu, xen_intr_port(irq_handle), RESCHEDULE_VECTOR);
 
-	
-	if ((cpu != 0) && ((rc = ap_cpu_initclocks(cpu)) != 0))
+	rc = xen_intr_bind_ipi(root_bus, CALL_FUNCTION_VECTOR,
+	    cpu, smp_call_function_interrupt, INTR_TYPE_TTY, &irq_handle);
+	if (rc < 0)
 		goto fail;
+	xen_intr_describe(irq_handle, "callfunc%u", cpu);
+	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], irq_handle);
+
+	printf("[XEN] IPI cpu=%d port=%d vector=CALL_FUNCTION_VECTOR (%d)\n",
+	    cpu, xen_intr_port(irq_handle), CALL_FUNCTION_VECTOR);
 
 	return 0;
 
  fail:
-	if (per_cpu(resched_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(resched_irq, cpu));
-	if (per_cpu(callfunc_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu));
+	xen_intr_unbind(DPCPU_ID_GET(cpu, ipi_port[RESCHEDULE_VECTOR]));
+	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], NULL);
+	xen_intr_unbind(DPCPU_ID_GET(cpu, ipi_port[CALL_FUNCTION_VECTOR]));
+	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], NULL);
 	return rc;
 }
 
@@ -513,7 +510,17 @@ xen_smp_intr_init_cpus(void *unused)
 	int i;
 	    
 	for (i = 0; i < mp_ncpus; i++)
-		xen_smp_intr_init(i);
+		xen_smp_cpu_init(i);
+}
+
+static void
+xen_smp_intr_setup_cpus(void *unused)
+{
+	int i;
+
+	for (i = 0; i < mp_ncpus; i++)
+		DPCPU_ID_SET(i, vcpu_info,
+		    &HYPERVISOR_shared_info->vcpu_info[i]);
 }
 
 #define MTOPSIZE (1<<(14 + PAGE_SHIFT))
@@ -959,6 +966,13 @@ start_ap(int apic_id)
 	return 0;		/* return FAILURE */
 }
 
+static void
+ipi_pcpu(int cpu, u_int ipi)
+{
+	KASSERT((ipi <= NR_IPIS), ("invalid IPI"));
+	xen_intr_signal(DPCPU_ID_GET(cpu, ipi_port[ipi]));
+}
+
 /*
  * send an IPI to a specific CPU.
  */
@@ -1246,5 +1260,6 @@ release_aps(void *dummy __unused)
 		ia32_pause();
 }
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
-SYSINIT(start_ipis, SI_SUB_INTR, SI_ORDER_ANY, xen_smp_intr_init_cpus, NULL);
+SYSINIT(start_ipis, SI_SUB_SMP, SI_ORDER_ANY, xen_smp_intr_init_cpus, NULL);
+SYSINIT(start_cpu, SI_SUB_INTR, SI_ORDER_ANY, xen_smp_intr_setup_cpus, NULL);
 

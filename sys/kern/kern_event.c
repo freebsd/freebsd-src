@@ -565,7 +565,7 @@ filt_timerattach(struct knote *kn)
 	    memory_order_relaxed));
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
-	kn->kn_status &= ~KN_DETACHED;		/* knlist_add usually sets it */
+	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
@@ -587,7 +587,7 @@ filt_timerdetach(struct knote *kn)
 	free(calloutp, M_KQUEUE);
 	old = atomic_fetch_sub_explicit(&kq_ncallouts, 1, memory_order_relaxed);
 	KASSERT(old > 0, ("Number of callouts cannot become negative"));
-	kn->kn_status |= KN_DETACHED;	/* knlist_remove usually clears it */
+	kn->kn_status |= KN_DETACHED;	/* knlist_remove sets it */
 }
 
 static int
@@ -1467,7 +1467,7 @@ retry:
 				*kevp = kn->kn_kevent;
 			KQ_LOCK(kq);
 			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-			if (kn->kn_flags & (EV_CLEAR |  EV_DISPATCH)) {
+			if (kn->kn_flags & (EV_CLEAR | EV_DISPATCH)) {
 				/* 
 				 * Manually clear knotes who weren't 
 				 * 'touch'ed.
@@ -1859,7 +1859,7 @@ knlist_remove_kq(struct knlist *knl, struct knote *kn, int knlislocked, int kqis
 }
 
 /*
- * remove all knotes from a specified klist
+ * remove knote from the specified knlist
  */
 void
 knlist_remove(struct knlist *knl, struct knote *kn, int islocked)
@@ -1869,7 +1869,7 @@ knlist_remove(struct knlist *knl, struct knote *kn, int islocked)
 }
 
 /*
- * remove knote from a specified klist while in f_event handler.
+ * remove knote from the specified knlist while in f_event handler.
  */
 void
 knlist_remove_inevent(struct knlist *knl, struct knote *kn)
@@ -2002,7 +2002,7 @@ knlist_destroy(struct knlist *knl)
 #ifdef INVARIANTS
 	/*
 	 * if we run across this error, we need to find the offending
-	 * driver and have it call knlist_clear.
+	 * driver and have it call knlist_clear or knlist_delete.
 	 */
 	if (!SLIST_EMPTY(&knl->kl_list))
 		printf("WARNING: destroying knlist w/ knotes on it!\n");
