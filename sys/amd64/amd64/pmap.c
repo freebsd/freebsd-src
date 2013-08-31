@@ -762,7 +762,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/* Initialize the PAT MSR. */
 	pmap_init_pat();
 
-#ifdef SMP
 	/* Initialize TLB Context Id. */
 	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
 	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
@@ -773,8 +772,10 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		invpcid_works = (cpu_stdext_feature & CPUID_STDEXT_INVPCID)
 		    != 0;
 		kernel_pmap->pm_pcid = 0;
-	} else
+#ifndef SMP
+		pmap_pcid_enabled = 0;
 #endif
+	} else
 		pmap_pcid_enabled = 0;
 }
 
