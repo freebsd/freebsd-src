@@ -3561,6 +3561,40 @@ xpt_path_comp(struct cam_path *path1, struct cam_path *path2)
 	return (retval);
 }
 
+int
+xpt_path_comp_dev(struct cam_path *path, struct cam_ed *dev)
+{
+	int retval = 0;
+
+	if (path->bus != dev->target->bus) {
+		if (path->bus->path_id == CAM_BUS_WILDCARD)
+			retval = 1;
+		else if (dev->target->bus->path_id == CAM_BUS_WILDCARD)
+			retval = 2;
+		else
+			return (-1);
+	}
+	if (path->target != dev->target) {
+		if (path->target->target_id == CAM_TARGET_WILDCARD) {
+			if (retval == 0)
+				retval = 1;
+		} else if (dev->target->target_id == CAM_TARGET_WILDCARD)
+			retval = 2;
+		else
+			return (-1);
+	}
+	if (path->device != dev) {
+		if (path->device->lun_id == CAM_LUN_WILDCARD) {
+			if (retval == 0)
+				retval = 1;
+		} else if (dev->lun_id == CAM_LUN_WILDCARD)
+			retval = 2;
+		else
+			return (-1);
+	}
+	return (retval);
+}
+
 void
 xpt_print_path(struct cam_path *path)
 {
@@ -3590,6 +3624,21 @@ xpt_print_path(struct cam_path *path)
 			printf("%d): ", path->device->lun_id);
 		else
 			printf("X): ");
+	}
+}
+
+void
+xpt_print_device(struct cam_ed *device)
+{
+
+	if (device == NULL)
+		printf("(nopath): ");
+	else {
+		printf("(noperiph:%s%d:%d:%d:%d): ", device->sim->sim_name,
+		       device->sim->unit_number,
+		       device->sim->bus_id,
+		       device->target->target_id,
+		       device->lun_id);
 	}
 }
 
@@ -4223,6 +4272,8 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 
 	devq = dev->sim->devq;
 	mtx_lock(&devq->send_mtx);
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_freeze_devq() %u->%u\n",
+	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt + count));
 	freeze = (dev->ccbq.queue.qfrozen_cnt += count);
 	/* Remove frozen device from sendq. */
 	if (device_is_queued(dev))
@@ -4251,6 +4302,7 @@ xpt_release_devq_timeout(void *arg)
 	struct cam_devq *devq;
 
 	dev = (struct cam_ed *)arg;
+	CAM_DEBUG_DEV(dev, CAM_DEBUG_TRACE, ("xpt_release_devq_timeout\n"));
 	devq = dev->sim->devq;
 	mtx_lock(&devq->send_mtx);
 	if (xpt_release_devq_device(dev, /*count*/1, /*run_queue*/TRUE))
@@ -4264,6 +4316,8 @@ xpt_release_devq(struct cam_path *path, u_int count, int run_queue)
 	struct cam_ed *dev;
 	struct cam_devq *devq;
 
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_release_devq(%d, %d)\n",
+	    count, run_queue));
 	dev = path->device;
 	devq = dev->sim->devq;
 	mtx_lock(&devq->send_mtx);
@@ -4277,6 +4331,9 @@ xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 {
 
 	mtx_assert(&dev->sim->devq->send_mtx, MA_OWNED);
+	CAM_DEBUG_DEV(dev, CAM_DEBUG_TRACE,
+	    ("xpt_release_devq_device(%d, %d) %u->%u\n", count, run_queue,
+	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt - count));
 	if (count > dev->ccbq.queue.qfrozen_cnt) {
 #ifdef INVARIANTS
 		printf("xpt_release_devq(): requested %u > present %u\n",
