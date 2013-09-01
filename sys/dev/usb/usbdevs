@@ -1776,6 +1776,7 @@ product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_232RL	0x6006	FT232RL Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 product FTDI 232H		0x6014	FTDI compatible adapter
+product FTDI 232EX		0x6015	FTDI compatible adapter
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
 product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
 product FTDI BEAGLEBONE		0xa6d0	BeagleBone
