@@ -160,11 +160,11 @@ IDTVEC(xen_intr_upcall)
 
 	SUPERALIGN_TEXT
 global_invltlb:
-	movl	%cr4,%eax
-	andl	$~0x80,%eax
-	movl	%eax,%cr4
-	orl	$0x80,%eax
-	movl	%eax,%cr4
+	movq	%cr4,%rax
+	andq	$~0x80,%rax	/* PGE */
+	movq	%rax,%cr4
+	orq	$0x80,%rax
+	movq	%rax,%cr4
 invltlb_ret_clear_pm_save:
 	movq	smp_tlb_pmap,%rdx
 	testq	%rdx,%rdx

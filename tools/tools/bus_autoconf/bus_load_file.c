@@ -39,7 +39,7 @@ void
 load_file(const char *fname, uint8_t **pptr, uint32_t *plen)
 {
 	uint8_t *ptr;
-	uint32_t len;
+	ssize_t len;
 	off_t off;
 	int f;
 
