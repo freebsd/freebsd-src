@@ -340,7 +340,7 @@ again:
 	/*
 	 * The following work for any of the builtin shell specs.
 	 */
-	if (shellErrFlag) {
+	if (errCheck && shellErrFlag) {
 	    shargv[shargc++] = shellErrFlag;
 	}
 	if (DEBUG(SHELL))
