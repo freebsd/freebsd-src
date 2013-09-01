@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130822: bind 9.9.3-P2 import
+OLD_LIBS+=usr/lib/liblwres.so.80
+# 20130814: vm_page_busy(9)
+OLD_FILES+=usr/share/man/man9/vm_page_flash.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_io.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_io_finish.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_io_start.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_wakeup.9.gz
 # 20130710: libkvm version bump 
 OLD_LIBS+=lib/libkvm.so.5
 OLD_LIBS+=usr/lib32/libkvm.so.5
@@ -114,6 +122,7 @@ OLD_FILES+=usr/include/clang/3.2/xmmintrin.h
 OLD_FILES+=usr/include/clang/3.2/xopintrin.h
 OLD_DIRS+=usr/include/clang/3.2
 # 20130404: legacy ATA stack removed
+OLD_FILES+=etc/periodic/daily/405.status-ata-raid
 OLD_FILES+=rescue/atacontrol
 OLD_FILES+=sbin/atacontrol
 OLD_FILES+=usr/share/man/man8/atacontrol.8.gz

@@ -495,14 +495,10 @@ waitcmdloop(struct job *job)
 	in_waitcmd++;
 	do {
 		if (job != NULL) {
-			if (job->state) {
+			if (job->state == JOBDONE) {
 				status = job->ps[job->nprocs - 1].status;
 				if (WIFEXITED(status))
 					retval = WEXITSTATUS(status);
-#if JOBS
-				else if (WIFSTOPPED(status))
-					retval = WSTOPSIG(status) + 128;
-#endif
 				else
 					retval = WTERMSIG(status) + 128;
 				if (! iflag || ! job->changed)

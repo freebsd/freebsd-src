@@ -4981,7 +4981,7 @@ igb_rx_checksum(u32 staterr, struct mbuf *mp, u32 ptype)
 	}
 
 	if (status & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS)) {
-		u16 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		u64 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 #if __FreeBSD_version >= 800000
 		if (sctp) /* reassign */
 			type = CSUM_SCTP_VALID;

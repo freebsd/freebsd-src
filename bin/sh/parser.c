@@ -573,7 +573,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			synexpect(TEND);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
-	/* Handle an empty command like other simple commands.  */
+	/* A simple command must have at least one redirection or word. */
 	case TBACKGND:
 	case TSEMI:
 	case TAND:
@@ -581,16 +581,12 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TPIPE:
 	case TENDCASE:
 	case TFALLTHRU:
-		/*
-		 * An empty command before a ; doesn't make much sense, and
-		 * should certainly be disallowed in the case of `if ;'.
-		 */
+	case TEOF:
+	case TNL:
+	case TRP:
 		if (!redir)
 			synexpect(-1);
-	case TNL:
-	case TEOF:
 	case TWORD:
-	case TRP:
 		tokpushback++;
 		n1 = simplecmd(rpp, redir);
 		return n1;

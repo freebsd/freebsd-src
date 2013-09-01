@@ -121,14 +121,13 @@ match_name(struct adapter *sc, void *arg)
 static int
 t4_cloner_match(struct if_clone *ifc, const char *name)
 {
-	struct match_rr mrr;
 
-	mrr.name = name;
-	mrr.lock = 0;
-	mrr.sc = NULL;
-	t4_iterate(match_name, &mrr);
-
-	return (mrr.sc != NULL);
+	if (strncmp(name, "t4nex", 5) != 0 &&
+	    strncmp(name, "t5nex", 5) != 0)
+		return (0);
+	if (name[5] < '0' || name[5] > '9')
+		return (0);
+	return (1);
 }
 
 static int
@@ -466,7 +465,7 @@ tracer_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFMTU:
 	case SIOCSIFFLAGS:
-	case SIOCADDMULTI:	
+	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 	case SIOCSIFCAP:
 		break;

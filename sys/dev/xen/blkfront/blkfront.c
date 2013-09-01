@@ -878,10 +878,6 @@ xbd_setup_sysctl(struct xbd_softc *xbd)
 	    "maximum outstanding requests (negotiated)");
 
 	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
-	    "max_requests", CTLFLAG_RD, &xbd->xbd_max_requests, -1,
-	    "maximum outstanding requests (negotiated)");
-
-	SYSCTL_ADD_UINT(sysctl_ctx, children, OID_AUTO,
 	    "max_request_segments", CTLFLAG_RD,
 	    &xbd->xbd_max_request_segments, 0,
 	    "maximum number of pages per requests (negotiated)");

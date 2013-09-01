@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
 #include <net/bpf.h>
@@ -1006,6 +1007,9 @@ service_iq(struct sge_iq *iq, int budget)
 	uint32_t lq;
 	struct mbuf *m0;
 	STAILQ_HEAD(, sge_iq) iql = STAILQ_HEAD_INITIALIZER(iql);
+#if defined(INET) || defined(INET6)
+	const struct timeval lro_timeout = {0, sc->lro_timeout};
+#endif
 
 	limit = budget ? budget : iq->qsize / 8;
 
@@ -1069,6 +1073,17 @@ service_iq(struct sge_iq *iq, int budget)
 				    ("%s: budget %u, rsp_type %u", __func__,
 				    budget, rsp_type));
 
+				/*
+				 * There are 1K interrupt-capable queues (qids 0
+				 * through 1023).  A response type indicating a
+				 * forwarded interrupt with a qid >= 1K is an
+				 * iWARP async notification.
+				 */
+				if (lq >= 1024) {
+                                        sc->an_handler(iq, ctrl);
+                                        break;
+                                }
+
 				q = sc->sge.iqmap[lq - sc->sge.iq_start];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
@@ -1083,7 +1098,12 @@ service_iq(struct sge_iq *iq, int budget)
 				break;
 
 			default:
-				sc->an_handler(iq, ctrl);
+				KASSERT(0,
+				    ("%s: illegal response type %d on iq %p",
+				    __func__, rsp_type, iq));
+				log(LOG_ERR,
+				    "%s: illegal response type %d on iq %p",
+				    device_get_nameunit(sc->dev), rsp_type, iq);
 				break;
 			}
 
@@ -1094,6 +1114,14 @@ service_iq(struct sge_iq *iq, int budget)
 				    V_INGRESSQID(iq->cntxt_id) |
 				    V_SEINTARM(V_QINTR_TIMER_IDX(X_TIMERREG_UPDATE_CIDX)));
 				ndescs = 0;
+
+#if defined(INET) || defined(INET6)
+				if (iq->flags & IQ_LRO_ENABLED &&
+				    sc->lro_timeout != 0) {
+					tcp_lro_flush_inactive(&rxq->lro,
+					    &lro_timeout);
+				}
+#endif
 
 				if (fl_bufs_used > 0) {
 					FL_LOCK(fl);
@@ -1802,9 +1830,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 
 		/* Allocate space for one software descriptor per buffer. */
 		fl->cap = (fl->qsize - spg_len / RX_FL_ESIZE) * 8;
-		FL_LOCK(fl);
 		rc = alloc_fl_sdesc(fl);
-		FL_UNLOCK(fl);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to setup fl software descriptors: %d\n",
@@ -1937,11 +1963,8 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 		free_ring(sc, fl->desc_tag, fl->desc_map, fl->ba,
 		    fl->desc);
 
-		if (fl->sdesc) {
-			FL_LOCK(fl);
+		if (fl->sdesc)
 			free_fl_sdesc(fl);
-			FL_UNLOCK(fl);
-		}
 
 		if (mtx_initialized(&fl->fl_lock))
 			mtx_destroy(&fl->fl_lock);
@@ -2788,8 +2811,6 @@ alloc_fl_sdesc(struct sge_fl *fl)
 	bus_dma_tag_t tag;
 	int i, rc;
 
-	FL_LOCK_ASSERT_OWNED(fl);
-
 	fl->sdesc = malloc(fl->cap * sizeof(struct fl_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
@@ -2827,8 +2848,6 @@ free_fl_sdesc(struct sge_fl *fl)
 {
 	struct fl_sdesc *sd;
 	int i;
-
-	FL_LOCK_ASSERT_OWNED(fl);
 
 	sd = fl->sdesc;
 	for (i = 0; i < fl->cap; i++, sd++) {

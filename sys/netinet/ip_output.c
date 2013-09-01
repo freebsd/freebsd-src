@@ -34,9 +34,10 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
+#include "opt_kdtrace.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 #include "opt_sctp.h"
 
 #include <sys/param.h>
@@ -47,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -64,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
@@ -622,6 +625,7 @@ passout:
 		 * to avoid confusing lower layers.
 		 */
 		m_clrprotoflags(m);
+		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 		error = (*ifp->if_output)(ifp, m,
 		    (const struct sockaddr *)gw, ro);
 		goto done;
@@ -656,6 +660,7 @@ passout:
 			 */
 			m_clrprotoflags(m);
 
+			IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 			error = (*ifp->if_output)(ifp, m,
 			    (const struct sockaddr *)gw, ro);
 		} else

@@ -159,6 +159,10 @@ AcpiDbGenerateGpe (
     char                    *GpeArg,
     char                    *BlockArg))
 
+ACPI_HW_DEPENDENT_RETURN_VOID (
+void
+AcpiDbGenerateSci (
+    void))
 
 /*
  * dbconvert - miscellaneous conversion routines
@@ -232,6 +236,10 @@ void
 AcpiDbDumpNamespace (
     char                    *StartArg,
     char                    *DepthArg);
+
+void
+AcpiDbDumpNamespacePaths (
+    void);
 
 void
 AcpiDbDumpNamespaceByOwner (

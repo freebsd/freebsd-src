@@ -32,62 +32,51 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* Many of these implementations are rather fake, but good enough. */
+typedef uint32_t	atomic_t;
+typedef uint64_t	atomic64_t;
 
-typedef u_int32_t atomic_t;
+#define	BITS_TO_LONGS(x)		howmany(x, sizeof(long) * NBBY)
 
-#define atomic_set(p, v)	(*(p) = (v))
-#define atomic_read(p)		(*(p))
-#define atomic_inc(p)		atomic_add_int(p, 1)
-#define atomic_dec(p)		atomic_subtract_int(p, 1)
-#define atomic_add(n, p)	atomic_add_int(p, n)
-#define atomic_sub(n, p)	atomic_subtract_int(p, n)
+#define	atomic_set(p, v)		atomic_store_rel_int(p, v)
+#define	atomic_read(p)			atomic_load_acq_int(p)
 
-static __inline atomic_t
-test_and_set_bit(int b, volatile void *p)
-{
-	int s = splhigh();
-	unsigned int m = 1<<b;
-	unsigned int r = *(volatile int *)p & m;
-	*(volatile int *)p |= m;
-	splx(s);
-	return r;
-}
+#define	atomic_add(v, p)		atomic_add_int(p, v)
+#define	atomic_sub(v, p)		atomic_subtract_int(p, v)
+#define	atomic_inc(p)			atomic_add(1, p)
+#define	atomic_dec(p)			atomic_sub(1, p)
 
-static __inline void
-clear_bit(int b, volatile void *p)
-{
-	atomic_clear_int(((volatile int *)p) + (b >> 5), 1 << (b & 0x1f));
-}
+#define	atomic_add_return(v, p)		(atomic_fetchadd_int(p, v) + (v))
+#define	atomic_sub_return(v, p)		(atomic_fetchadd_int(p, -(v)) - (v))
+#define	atomic_inc_return(p)		atomic_add_return(1, p)
+#define	atomic_dec_return(p)		atomic_sub_return(1, p)
 
-static __inline void
-set_bit(int b, volatile void *p)
-{
-	atomic_set_int(((volatile int *)p) + (b >> 5), 1 << (b & 0x1f));
-}
+#define	atomic_add_and_test(v, p)	(atomic_add_return(v, p) == 0)
+#define	atomic_sub_and_test(v, p)	(atomic_sub_return(v, p) == 0)
+#define	atomic_inc_and_test(p)		(atomic_inc_return(p) == 0)
+#define	atomic_dec_and_test(p)		(atomic_dec_return(p) == 0)
 
-static __inline int
-test_bit(int b, volatile void *p)
-{
-	return ((volatile int *)p)[b >> 5] & (1 << (b & 0x1f));
-}
+#define	atomic_xchg(p, v)		atomic_swap_int(p, v)
+#define	atomic64_xchg(p, v)		atomic_swap_64(p, v)
+
+#define	clear_bit(b, p) \
+    atomic_clear_int((volatile u_int *)(p) + (b) / 32, 1 << (b) % 32)
+#define	set_bit(b, p) \
+    atomic_set_int((volatile u_int *)(p) + (b) / 32, 1 << (b) % 32)
+#define	test_bit(b, p) \
+    (atomic_load_acq_int((volatile u_int *)(p) + (b) / 32) & (1 << (b) % 32))
+#define	test_and_set_bit(b, p) \
+    atomic_testandset_int((volatile u_int *)(p) + (b) / 32, b)
 
 static __inline int
 find_first_zero_bit(volatile void *p, int max)
 {
-	int b;
-	volatile int *ptr = (volatile int *)p;
+	volatile int *np = p;
+	int i, n;
 
-	for (b = 0; b < max; b += 32) {
-		if (ptr[b >> 5] != ~0) {
-			for (;;) {
-				if ((ptr[b >> 5] & (1 << (b & 0x1f))) == 0)
-					return b;
-				b++;
-			}
-		}
+	for (i = 0; i < max / (NBBY * sizeof(int)); i++) {
+		n = ~np[i];
+		if (n != 0)
+			return (i * NBBY * sizeof(int) + ffs(n) - 1);
 	}
-	return max;
+	return (max);
 }
-
-#define	BITS_TO_LONGS(x) (howmany((x), NBBY * sizeof(long)))

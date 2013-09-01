@@ -2126,6 +2126,14 @@ pmap_is_referenced(vm_page_t m)
 	return (rv);
 }
 
+/*
+ * This function is advisory.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+}
+
 void
 pmap_clear_modify(vm_page_t m)
 {

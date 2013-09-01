@@ -45,6 +45,7 @@
 #define CH_ALERT(adap, fmt, ...) log(LOG_ALERT, fmt, ##__VA_ARGS__)
 #define CH_WARN_RATELIMIT(adap, fmt, ...) log(LOG_WARNING, fmt, ##__VA_ARGS__)
 
+#ifndef LINUX_TYPES_DEFINED
 typedef int8_t  s8;
 typedef int16_t s16;
 typedef int32_t s32;
@@ -156,5 +157,6 @@ strstrip(char *s)
 
 	return (r);
 }
+#endif /* LINUX_TYPES_DEFINED */
 
 #endif

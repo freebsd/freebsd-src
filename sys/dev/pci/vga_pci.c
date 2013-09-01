@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -66,6 +71,95 @@ int vga_pci_default_unit = -1;
 TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
 SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
     &vga_pci_default_unit, -1, "Default VGA-compatible display");
+
+int
+vga_pci_is_boot_display(device_t dev)
+{
+
+	/*
+	 * Return true if the given device is the default display used
+	 * at boot time.
+	 */
+
+	return (
+	    (pci_get_class(dev) == PCIC_DISPLAY ||
+	     (pci_get_class(dev) == PCIC_OLD &&
+	      pci_get_subclass(dev) == PCIS_OLD_VGA)) &&
+	    device_get_unit(dev) == vga_pci_default_unit);
+}
+
+void *
+vga_pci_map_bios(device_t dev, size_t *size)
+{
+	int rid;
+	struct resource *res;
+
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+	if (vga_pci_is_boot_display(dev)) {
+		/*
+		 * On x86, the System BIOS copy the default display
+		 * device's Video BIOS at a fixed location in system
+		 * memory (0xC0000, 128 kBytes long) at boot time.
+		 *
+		 * We use this copy for the default boot device, because
+		 * the original ROM may not be valid after boot.
+		 */
+
+		*size = VGA_PCI_BIOS_SHADOW_SIZE;
+		return (pmap_mapbios(VGA_PCI_BIOS_SHADOW_ADDR, *size));
+	}
+#endif
+
+	rid = PCIR_BIOS;
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL) {
+		return (NULL);
+	}
+
+	*size = rman_get_size(res);
+	return (rman_get_virtual(res));
+}
+
+void
+vga_pci_unmap_bios(device_t dev, void *bios)
+{
+	int rid;
+	struct resource *res;
+
+	if (bios == NULL) {
+		return;
+	}
+
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+	if (vga_pci_is_boot_display(dev)) {
+		/* We mapped the BIOS shadow copy located at 0xC0000. */
+		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
+
+		return;
+	}
+#endif
+
+	/*
+	 * FIXME: We returned only the virtual address of the resource
+	 * to the caller. Now, to get the resource struct back, we
+	 * allocate it again: the struct exists once in memory in
+	 * device softc. Therefore, we release twice now to release the
+	 * reference we just obtained to get the structure back and the
+	 * caller's reference.
+	 */
+
+	rid = PCIR_BIOS;
+	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+
+	KASSERT(res != NULL,
+	    ("%s: Can't get BIOS resource back", __func__));
+	KASSERT(bios == rman_get_virtual(res),
+	    ("%s: Given BIOS address doesn't match "
+	     "resource virtual address", __func__));
+
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, bios);
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, bios);
+}
 
 static int
 vga_pci_probe(device_t dev)
