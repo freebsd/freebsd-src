@@ -577,7 +577,7 @@ static struct cam_ed *
 				   lun_id_t lun_id);
 static void	 scsi_devise_transport(struct cam_path *path);
 static void	 scsi_set_transfer_settings(struct ccb_trans_settings *cts,
-					    struct cam_ed *device,
+					    struct cam_path *path,
 					    int async_update);
 static void	 scsi_toggle_tags(struct cam_path *path);
 static void	 scsi_dev_async(u_int32_t async_code,
@@ -2534,7 +2534,7 @@ scsi_action(union ccb *start_ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		scsi_set_transfer_settings(&start_ccb->cts,
-					   start_ccb->ccb_h.path->device,
+					   start_ccb->ccb_h.path,
 					   /*async_update*/FALSE);
 		break;
 	}
@@ -2559,7 +2559,7 @@ scsi_action(union ccb *start_ccb)
 }
 
 static void
-scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
+scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
 			   int async_update)
 {
 	struct	ccb_pathinq cpi;
@@ -2568,8 +2568,9 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 	struct	ccb_trans_settings_scsi *cur_scsi;
 	struct	cam_sim *sim;
 	struct	scsi_inquiry_data *inq_data;
+	struct	cam_ed *device;
 
-	if (device == NULL) {
+	if (path == NULL || (device = path->device) == NULL) {
 		cts->ccb_h.status = CAM_PATH_INVALID;
 		xpt_done((union ccb *)cts);
 		return;
@@ -2586,14 +2587,14 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		cts->protocol_version = device->protocol_version;
 
 	if (cts->protocol != device->protocol) {
-		xpt_print(cts->ccb_h.path, "Uninitialized Protocol %x:%x?\n",
+		xpt_print(path, "Uninitialized Protocol %x:%x?\n",
 		       cts->protocol, device->protocol);
 		cts->protocol = device->protocol;
 	}
 
 	if (cts->protocol_version > device->protocol_version) {
 		if (bootverbose) {
-			xpt_print(cts->ccb_h.path, "Down reving Protocol "
+			xpt_print(path, "Down reving Protocol "
 			    "Version from %d to %d?\n", cts->protocol_version,
 			    device->protocol_version);
 		}
@@ -2611,21 +2612,21 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		cts->transport_version = device->transport_version;
 
 	if (cts->transport != device->transport) {
-		xpt_print(cts->ccb_h.path, "Uninitialized Transport %x:%x?\n",
+		xpt_print(path, "Uninitialized Transport %x:%x?\n",
 		    cts->transport, device->transport);
 		cts->transport = device->transport;
 	}
 
 	if (cts->transport_version > device->transport_version) {
 		if (bootverbose) {
-			xpt_print(cts->ccb_h.path, "Down reving Transport "
+			xpt_print(path, "Down reving Transport "
 			    "Version from %d to %d?\n", cts->transport_version,
 			    device->transport_version);
 		}
 		cts->transport_version = device->transport_version;
 	}
 
-	sim = cts->ccb_h.path->bus->sim;
+	sim = path->bus->sim;
 
 	/*
 	 * Nothing more of interest to do unless
@@ -2640,7 +2641,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 
 	inq_data = &device->inq_data;
 	scsi = &cts->proto_specific.scsi;
-	xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -2661,7 +2662,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		 * Perform sanity checking against what the
 		 * controller and device can do.
 		 */
-		xpt_setup_ccb(&cur_cts.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
+		xpt_setup_ccb(&cur_cts.ccb_h, path, CAM_PRIORITY_NONE);
 		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cur_cts.type = cts->type;
 		xpt_action((union ccb *)&cur_cts);
@@ -2782,7 +2783,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		 && (spi->flags & (CTS_SPI_VALID_SYNC_RATE|
 				   CTS_SPI_VALID_SYNC_OFFSET|
 				   CTS_SPI_VALID_BUS_WIDTH)) != 0)
-			scsi_toggle_tags(cts->ccb_h.path);
+			scsi_toggle_tags(path);
 	}
 
 	if (cts->type == CTS_TYPE_CURRENT_SETTINGS
@@ -2819,7 +2820,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
 				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 			} else {
-				xpt_stop_tags(cts->ccb_h.path);
+				xpt_stop_tags(path);
 			}
 		}
 	}
@@ -2852,10 +2853,10 @@ scsi_toggle_tags(struct cam_path *path)
 		cts.transport_version = XPORT_VERSION_UNSPECIFIED;
 		cts.proto_specific.scsi.flags = 0;
 		cts.proto_specific.scsi.valid = CTS_SCSI_VALID_TQ;
-		scsi_set_transfer_settings(&cts, path->device,
+		scsi_set_transfer_settings(&cts, path,
 					  /*async_update*/TRUE);
 		cts.proto_specific.scsi.flags = CTS_SCSI_FLAGS_TAG_ENB;
-		scsi_set_transfer_settings(&cts, path->device,
+		scsi_set_transfer_settings(&cts, path,
 					  /*async_update*/TRUE);
 	}
 }
@@ -2926,10 +2927,14 @@ scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		xpt_release_device(device);
 	} else if (async_code == AC_TRANSFER_NEG) {
 		struct ccb_trans_settings *settings;
+		struct cam_path path;
 
 		settings = (struct ccb_trans_settings *)async_arg;
-		scsi_set_transfer_settings(settings, device,
+		xpt_compile_path(&path, NULL, bus->path_id, target->target_id,
+				 device->lun_id);
+		scsi_set_transfer_settings(settings, &path,
 					  /*async_update*/TRUE);
+		xpt_release_path(&path);
 	}
 }
 

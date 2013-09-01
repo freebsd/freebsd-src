@@ -182,7 +182,7 @@ static struct cam_ed *
 static void	 ata_device_transport(struct cam_path *path);
 static void	 ata_get_transfer_settings(struct ccb_trans_settings *cts);
 static void	 ata_set_transfer_settings(struct ccb_trans_settings *cts,
-					    struct cam_ed *device,
+					    struct cam_path *path,
 					    int async_update);
 static void	 ata_dev_async(u_int32_t async_code,
 				struct cam_eb *bus,
@@ -1729,7 +1729,7 @@ ata_action(union ccb *start_ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		ata_set_transfer_settings(&start_ccb->cts,
-					   start_ccb->ccb_h.path->device,
+					   start_ccb->ccb_h.path,
 					   /*async_update*/FALSE);
 		break;
 	}
@@ -1829,7 +1829,7 @@ ata_get_transfer_settings(struct ccb_trans_settings *cts)
 }
 
 static void
-ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
+ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
 			   int async_update)
 {
 	struct	ccb_pathinq cpi;
@@ -1838,8 +1838,9 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	struct	cam_sim *sim;
 	struct	ata_params *ident_data;
 	struct	scsi_inquiry_data *inq_data;
+	struct	cam_ed *device;
 
-	if (device == NULL) {
+	if (path == NULL || (device = path->device) == NULL) {
 		cts->ccb_h.status = CAM_PATH_INVALID;
 		xpt_done((union ccb *)cts);
 		return;
@@ -1856,14 +1857,14 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		cts->protocol_version = device->protocol_version;
 
 	if (cts->protocol != device->protocol) {
-		xpt_print(cts->ccb_h.path, "Uninitialized Protocol %x:%x?\n",
+		xpt_print(path, "Uninitialized Protocol %x:%x?\n",
 		       cts->protocol, device->protocol);
 		cts->protocol = device->protocol;
 	}
 
 	if (cts->protocol_version > device->protocol_version) {
 		if (bootverbose) {
-			xpt_print(cts->ccb_h.path, "Down reving Protocol "
+			xpt_print(path, "Down reving Protocol "
 			    "Version from %d to %d?\n", cts->protocol_version,
 			    device->protocol_version);
 		}
@@ -1881,21 +1882,21 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		cts->transport_version = device->transport_version;
 
 	if (cts->transport != device->transport) {
-		xpt_print(cts->ccb_h.path, "Uninitialized Transport %x:%x?\n",
+		xpt_print(path, "Uninitialized Transport %x:%x?\n",
 		    cts->transport, device->transport);
 		cts->transport = device->transport;
 	}
 
 	if (cts->transport_version > device->transport_version) {
 		if (bootverbose) {
-			xpt_print(cts->ccb_h.path, "Down reving Transport "
+			xpt_print(path, "Down reving Transport "
 			    "Version from %d to %d?\n", cts->transport_version,
 			    device->transport_version);
 		}
 		cts->transport_version = device->transport_version;
 	}
 
-	sim = cts->ccb_h.path->bus->sim;
+	sim = path->bus->sim;
 	ident_data = &device->ident_data;
 	inq_data = &device->inq_data;
 	if (cts->protocol == PROTO_ATA)
@@ -1906,7 +1907,7 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		scsi = &cts->proto_specific.scsi;
 	else
 		scsi = NULL;
-	xpt_setup_ccb(&cpi.ccb_h, cts->ccb_h.path, CAM_PRIORITY_NONE);
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NONE);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -1950,7 +1951,7 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			device->tag_delay_count = CAM_TAG_DELAY_COUNT;
 			device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 		} else if (nowt && !newt)
-			xpt_stop_tags(cts->ccb_h.path);
+			xpt_stop_tags(path);
 	}
 
 	if (async_update == FALSE)
@@ -2011,10 +2012,14 @@ ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		xpt_release_device(device);
 	} else if (async_code == AC_TRANSFER_NEG) {
 		struct ccb_trans_settings *settings;
+		struct cam_path path;
 
 		settings = (struct ccb_trans_settings *)async_arg;
-		ata_set_transfer_settings(settings, device,
+		xpt_compile_path(&path, NULL, bus->path_id, target->target_id,
+				 device->lun_id);
+		ata_set_transfer_settings(settings, &path,
 					  /*async_update*/TRUE);
+		xpt_release_path(&path);
 	}
 }
 
