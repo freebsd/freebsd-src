@@ -4,7 +4,6 @@
  * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
- *
  * This code is derived from software written for Brini by Mark Brinicombe
  * Portions of this software were developed by Oleksandr Rybalko
  * under sponsorship from the FreeBSD Foundation.
@@ -35,8 +34,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * from: FreeBSD: //depot/projects/arm/src/sys/arm/at91/kb920x_machdep.c, rev 45
  */
 
 #include "opt_platform.h"
@@ -60,7 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
-#define	IMX51_DEV_VIRT_BASE	0xe0000000
+#define	IMX53_DEV_VIRT_BASE	0xe0000000
+
 vm_offset_t
 initarm_lastaddr(void)
 {
@@ -68,7 +66,7 @@ initarm_lastaddr(void)
 	boothowto |= RB_VERBOSE|RB_MULTIPLE;
 	bootverbose = 1;
 
-	if (fdt_immr_addr(IMX51_DEV_VIRT_BASE) != 0)
+	if (fdt_immr_addr(IMX53_DEV_VIRT_BASE) != 0)
 		while (1);
 
 	/* Platform-specific initialisation */
@@ -106,13 +104,14 @@ platform_devmap_init(void)
 	/*
 	 * Map segment where UART1 and UART2 located.
 	 */
-	fdt_devmap[0].pd_va = IMX51_DEV_VIRT_BASE + 0x03f00000;
+	fdt_devmap[0].pd_va = IMX53_DEV_VIRT_BASE + 0x03f00000;
 	fdt_devmap[0].pd_pa = 0x53f00000;
 	fdt_devmap[0].pd_size = 0x00100000;
 	fdt_devmap[0].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
 	fdt_devmap[0].pd_cache = PTE_NOCACHE;
 
 	pmap_devmap_bootstrap_table = &fdt_devmap[0];
+
 	return (0);
 }
 
@@ -136,7 +135,7 @@ cpu_reset(void)
 
 	printf("Reset ...\n");
 	/* Clear n_reset flag */
-	*((volatile u_int16_t *)(IMX51_DEV_VIRT_BASE + 0x03f98000)) =
+	*((volatile u_int16_t *)(IMX53_DEV_VIRT_BASE + 0x03f98000)) =
 	    (u_int16_t)0;
 	while (1);
 }
