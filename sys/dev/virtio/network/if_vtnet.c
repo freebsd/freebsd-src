@@ -1531,7 +1531,7 @@ vtnet_rxq_csum_by_parse(struct vtnet_rxq *rxq, struct mbuf *m,
 		 */
 #if 0
 		if_printf(sc->vtnet_ifp, "cksum offload of unsupported "
-		    "protocol eth_type=%#x proto=%d csum_start=%d
+		    "protocol eth_type=%#x proto=%d csum_start=%d "
 		    "csum_offset=%d\n", __func__, eth_type, proto,
 		    hdr->csum_start, hdr->csum_offset);
 #endif
