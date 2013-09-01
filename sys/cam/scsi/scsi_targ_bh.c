@@ -305,10 +305,10 @@ targbhenlun(struct cam_periph *periph)
 	 * so the SIM can tell us of asynchronous target mode events.
 	 */
 	for (i = 0; i < MAX_ACCEPT; i++) {
-		struct ccb_immed_notify *inot;
+		struct ccb_immediate_notify *inot;
 
-		inot = (struct ccb_immed_notify*)malloc(sizeof(*inot), M_SCSIBH,
-						        M_NOWAIT);
+		inot = (struct ccb_immediate_notify*)malloc(sizeof(*inot),
+			    M_SCSIBH, M_NOWAIT);
 
 		if (inot == NULL) {
 			status = CAM_RESRC_UNAVAIL;
@@ -316,7 +316,7 @@ targbhenlun(struct cam_periph *periph)
 		}
 
 		xpt_setup_ccb(&inot->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
+		inot->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		inot->ccb_h.cbfcnp = targbhdone;
 		SLIST_INSERT_HEAD(&softc->immed_notify_slist, &inot->ccb_h,
 				  periph_links.sle);
@@ -712,7 +712,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		break;
 	}
-	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	{
 		int frozen;
 
