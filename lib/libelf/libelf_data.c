@@ -84,13 +84,21 @@ _libelf_xlate_shtype(uint32_t sht)
 	case SHT_SUNW_dof:
 		return (ELF_T_BYTE);
 #endif
+	case SHT_ARM_PREEMPTMAP:
+		/* FALLTHROUGH */
+	case SHT_ARM_ATTRIBUTES:
+		/* FALLTHROUGH */
+	case SHT_ARM_DEBUGOVERLAY:
+		/* FALLTHROUGH */
+	case SHT_ARM_OVERLAYSECTION:
+		/* FALLTHROUGH */
 	case SHT_MIPS_DWARF:
 		/* FALLTHROUGH */
 	case SHT_MIPS_REGINFO:
 		/* FALLTHROUGH */
 	case SHT_MIPS_OPTIONS:
 		/* FALLTHROUGH */
-	case SHT_AMD64_UNWIND:	/* == SHT_IA_64_UNWIND */
+	case SHT_AMD64_UNWIND:	/* == SHT_IA_64_UNWIND == SHT_ARM_EXIDX */
 		return (ELF_T_BYTE);
 	default:
 		return (-1);
