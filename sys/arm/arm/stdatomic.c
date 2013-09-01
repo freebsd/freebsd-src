@@ -194,6 +194,7 @@ EMIT_ALL_OPS_N(1, uint8_t)
 EMIT_ALL_OPS_N(2, uint16_t)
 EMIT_ALL_OPS_N(4, uint32_t)
 EMIT_ALL_OPS_N(8, uint64_t)
+#undef	EMIT_ALL_OPS_N
 
 #else /* !_KERNEL */
 
@@ -330,6 +331,7 @@ EMIT_FETCH_OP_N(N, uintN_t, ldr, str, fetch_xor, "eor")
 EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "strbeq")
 EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "strheq")
 EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
+#undef	EMIT_ALL_OPS_N
 
 #endif /* _KERNEL */
 
@@ -337,7 +339,31 @@ EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
 
 #endif /* __CLANG_ATOMICS || __GNUC_ATOMICS */
 
-#if defined(__SYNC_ATOMICS)
+#if defined(__SYNC_ATOMICS) || defined(EMIT_SYNC_ATOMICS)
+
+#ifdef __clang__
+#pragma redefine_extname __sync_lock_test_and_set_1_c __sync_lock_test_and_set_1
+#pragma redefine_extname __sync_lock_test_and_set_2_c __sync_lock_test_and_set_2
+#pragma	redefine_extname __sync_lock_test_and_set_4_c __sync_lock_test_and_set_4
+#pragma	redefine_extname __sync_val_compare_and_swap_1_c __sync_val_compare_and_swap_1
+#pragma	redefine_extname __sync_val_compare_and_swap_2_c __sync_val_compare_and_swap_2
+#pragma	redefine_extname __sync_val_compare_and_swap_4_c __sync_val_compare_and_swap_4
+#pragma	redefine_extname __sync_fetch_and_add_1_c __sync_fetch_and_add_1
+#pragma	redefine_extname __sync_fetch_and_add_2_c __sync_fetch_and_add_2
+#pragma	redefine_extname __sync_fetch_and_add_4_c __sync_fetch_and_add_4
+#pragma	redefine_extname __sync_fetch_and_and_1_c __sync_fetch_and_and_1
+#pragma	redefine_extname __sync_fetch_and_and_2_c __sync_fetch_and_and_2
+#pragma	redefine_extname __sync_fetch_and_and_4_c __sync_fetch_and_and_4
+#pragma	redefine_extname __sync_fetch_and_or_1_c __sync_fetch_and_or_1
+#pragma	redefine_extname __sync_fetch_and_or_2_c __sync_fetch_and_or_2
+#pragma	redefine_extname __sync_fetch_and_or_4_c __sync_fetch_and_or_4
+#pragma	redefine_extname __sync_fetch_and_xor_1_c __sync_fetch_and_xor_1
+#pragma	redefine_extname __sync_fetch_and_xor_2_c __sync_fetch_and_xor_2
+#pragma	redefine_extname __sync_fetch_and_xor_4_c __sync_fetch_and_xor_4
+#pragma	redefine_extname __sync_fetch_and_sub_1_c __sync_fetch_and_sub_1
+#pragma	redefine_extname __sync_fetch_and_sub_2_c __sync_fetch_and_sub_2
+#pragma	redefine_extname __sync_fetch_and_sub_4_c __sync_fetch_and_sub_4
+#endif
 
 /*
  * Old __sync_* API.
@@ -430,7 +456,7 @@ get_2(const reg_t *r, const uint16_t *offset_ptr)
 
 #define	EMIT_LOCK_TEST_AND_SET_N(N, uintN_t)				\
 uintN_t									\
-__sync_lock_test_and_set_##N(uintN_t *mem, uintN_t val)			\
+__sync_lock_test_and_set_##N##_c(uintN_t *mem, uintN_t val)			\
 {									\
 	uint32_t *mem32;						\
 	reg_t val32, negmask, old;					\
@@ -462,7 +488,7 @@ EMIT_LOCK_TEST_AND_SET_N(2, uint16_t)
 
 #define	EMIT_VAL_COMPARE_AND_SWAP_N(N, uintN_t)				\
 uintN_t									\
-__sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
+__sync_val_compare_and_swap_##N##_c(uintN_t *mem, uintN_t expected,		\
     uintN_t desired)							\
 {									\
 	uint32_t *mem32;						\
@@ -503,7 +529,7 @@ EMIT_VAL_COMPARE_AND_SWAP_N(2, uint16_t)
 
 #define	EMIT_ARITHMETIC_FETCH_AND_OP_N(N, uintN_t, name, op)		\
 uintN_t									\
-__sync_##name##_##N(uintN_t *mem, uintN_t val)				\
+__sync_##name##_##N##_c(uintN_t *mem, uintN_t val)				\
 {									\
 	uint32_t *mem32;						\
 	reg_t val32, posmask, old;					\
@@ -541,7 +567,7 @@ EMIT_ARITHMETIC_FETCH_AND_OP_N(2, uint16_t, fetch_and_sub, "sub")
 
 #define	EMIT_BITWISE_FETCH_AND_OP_N(N, uintN_t, name, op, idempotence)	\
 uintN_t									\
-__sync_##name##_##N(uintN_t *mem, uintN_t val)				\
+__sync_##name##_##N##_c(uintN_t *mem, uintN_t val)				\
 {									\
 	uint32_t *mem32;						\
 	reg_t val32, old;						\
@@ -577,7 +603,7 @@ EMIT_BITWISE_FETCH_AND_OP_N(2, uint16_t, fetch_and_xor, "eor", 0)
  */
 
 uint32_t
-__sync_lock_test_and_set_4(uint32_t *mem, uint32_t val)
+__sync_lock_test_and_set_4_c(uint32_t *mem, uint32_t val)
 {
 	uint32_t old, temp;
 
@@ -594,7 +620,7 @@ __sync_lock_test_and_set_4(uint32_t *mem, uint32_t val)
 }
 
 uint32_t
-__sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
+__sync_val_compare_and_swap_4_c(uint32_t *mem, uint32_t expected,
     uint32_t desired)
 {
 	uint32_t old, temp;
@@ -616,7 +642,7 @@ __sync_val_compare_and_swap_4(uint32_t *mem, uint32_t expected,
 
 #define	EMIT_FETCH_AND_OP_4(name, op)					\
 uint32_t								\
-__sync_##name##_4(uint32_t *mem, uint32_t val)				\
+__sync_##name##_4##_c(uint32_t *mem, uint32_t val)				\
 {									\
 	uint32_t old, temp1, temp2;					\
 									\
@@ -694,6 +720,7 @@ EMIT_ALL_OPS_N(1, uint8_t)
 EMIT_ALL_OPS_N(2, uint16_t)
 EMIT_ALL_OPS_N(4, uint32_t)
 EMIT_ALL_OPS_N(8, uint64_t)
+#undef	EMIT_ALL_OPS_N
 
 #else /* !_KERNEL */
 
@@ -705,7 +732,7 @@ EMIT_ALL_OPS_N(8, uint64_t)
 
 #define	EMIT_LOCK_TEST_AND_SET_N(N, uintN_t, ldr, str)			\
 uintN_t									\
-__sync_lock_test_and_set_##N(uintN_t *mem, uintN_t val)			\
+__sync_lock_test_and_set_##N##_c(uintN_t *mem, uintN_t val)			\
 {									\
 	uint32_t old, temp, ras_start;					\
 									\
@@ -734,7 +761,7 @@ __sync_lock_test_and_set_##N(uintN_t *mem, uintN_t val)			\
 
 #define	EMIT_VAL_COMPARE_AND_SWAP_N(N, uintN_t, ldr, streq)		\
 uintN_t									\
-__sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
+__sync_val_compare_and_swap_##N##_c(uintN_t *mem, uintN_t expected,		\
     uintN_t desired)							\
 {									\
 	uint32_t old, temp, ras_start;					\
@@ -766,7 +793,7 @@ __sync_val_compare_and_swap_##N(uintN_t *mem, uintN_t expected,		\
 
 #define	EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, name, op)		\
 uintN_t									\
-__sync_##name##_##N(uintN_t *mem, uintN_t val)				\
+__sync_##name##_##N##_c(uintN_t *mem, uintN_t val)				\
 {									\
 	uint32_t old, temp, ras_start;					\
 									\
@@ -806,6 +833,30 @@ EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_xor, "eor")
 EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "streqb")
 EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "streqh")
 EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
+
+#ifndef __clang__
+__strong_reference(__sync_lock_test_and_set_1_c, __sync_lock_test_and_set_1);
+__strong_reference(__sync_lock_test_and_set_2_c, __sync_lock_test_and_set_2);
+__strong_reference(__sync_lock_test_and_set_4_c, __sync_lock_test_and_set_4);
+__strong_reference(__sync_val_compare_and_swap_1_c, __sync_val_compare_and_swap_1);
+__strong_reference(__sync_val_compare_and_swap_2_c, __sync_val_compare_and_swap_2);
+__strong_reference(__sync_val_compare_and_swap_4_c, __sync_val_compare_and_swap_4);
+__strong_reference(__sync_fetch_and_add_1_c, __sync_fetch_and_add_1);
+__strong_reference(__sync_fetch_and_add_2_c, __sync_fetch_and_add_2);
+__strong_reference(__sync_fetch_and_add_4_c, __sync_fetch_and_add_4);
+__strong_reference(__sync_fetch_and_and_1_c, __sync_fetch_and_and_1);
+__strong_reference(__sync_fetch_and_and_2_c, __sync_fetch_and_and_2);
+__strong_reference(__sync_fetch_and_and_4_c, __sync_fetch_and_and_4);
+__strong_reference(__sync_fetch_and_sub_1_c, __sync_fetch_and_sub_1);
+__strong_reference(__sync_fetch_and_sub_2_c, __sync_fetch_and_sub_2);
+__strong_reference(__sync_fetch_and_sub_4_c, __sync_fetch_and_sub_4);
+__strong_reference(__sync_fetch_and_or_1_c, __sync_fetch_and_or_1);
+__strong_reference(__sync_fetch_and_or_2_c, __sync_fetch_and_or_2);
+__strong_reference(__sync_fetch_and_or_4_c, __sync_fetch_and_or_4);
+__strong_reference(__sync_fetch_and_xor_1_c, __sync_fetch_and_xor_1);
+__strong_reference(__sync_fetch_and_xor_2_c, __sync_fetch_and_xor_2);
+__strong_reference(__sync_fetch_and_xor_4_c, __sync_fetch_and_xor_4);
+#endif
 
 #endif /* _KERNEL */
 

@@ -1781,9 +1781,8 @@ dns_acache_setcleaninginterval(dns_acache_t *acache, unsigned int t) {
  * function for more details about the logic.
  */
 void
-dns_acache_setcachesize(dns_acache_t *acache, isc_uint32_t size) {
-	isc_uint32_t lowater;
-	isc_uint32_t hiwater;
+dns_acache_setcachesize(dns_acache_t *acache, size_t size) {
+	size_t hiwater, lowater;
 
 	REQUIRE(DNS_ACACHE_VALID(acache));
 

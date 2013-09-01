@@ -591,6 +591,12 @@ dprintf_setup(int *argc, char **argv)
 		dprintf_print_all = 1;
 }
 
+int
+sysctl_handle_64(SYSCTL_HANDLER_ARGS)
+{
+	return (0);
+}
+
 /*
  * =========================================================================
  * debug printfs

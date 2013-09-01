@@ -1711,7 +1711,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 
 	vm_object_pip_add(object, 1);
-	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_subtract(object, 1);
 		vm_page_dirty(m);

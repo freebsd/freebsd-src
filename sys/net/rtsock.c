@@ -86,7 +86,7 @@ struct if_data32 {
 	uint8_t	ifi_hdrlen;
 	uint8_t	ifi_link_state;
 	uint8_t	ifi_vhid;
-	uint8_t	ifi_spare_char2;
+	uint8_t	ifi_baudrate_pf;
 	uint8_t	ifi_datalen;
 	uint32_t ifi_mtu;
 	uint32_t ifi_metric;
@@ -1629,6 +1629,7 @@ copy_ifdata32(struct if_data *src, struct if_data32 *dst)
 	CP(*src, *dst, ifi_hdrlen);
 	CP(*src, *dst, ifi_link_state);
 	CP(*src, *dst, ifi_vhid);
+	CP(*src, *dst, ifi_baudrate_pf);
 	dst->ifi_datalen = sizeof(struct if_data32);
 	CP(*src, *dst, ifi_mtu);
 	CP(*src, *dst, ifi_metric);

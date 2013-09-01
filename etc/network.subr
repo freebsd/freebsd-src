@@ -661,9 +661,9 @@ ipv4_down()
 	for _inet in $inetList ; do
 		# get rid of extraneous line
 		case $_inet in
-		"")		break ;;
-		inet\ *)	;;
-		*)		continue ;;
+		"")				break ;;
+		\	inet\ *|inet\ *)	;;
+		*)				continue ;;
 		esac
 		[ -z "$_inet" ] && break
 

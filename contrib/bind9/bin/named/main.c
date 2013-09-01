@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.180.14.4 2011/11/05 00:45:52 each Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -418,7 +418,7 @@ parse_command_line(int argc, char *argv[]) {
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
 					   "46c:C:d:E:fFgi:lm:n:N:p:P:"
-					   "sS:t:T:u:vVx:")) != -1) {
+					   "sS:t:T:U:u:vVx:")) != -1) {
 		switch (ch) {
 		case '4':
 			if (disable4)
@@ -531,6 +531,11 @@ parse_command_line(int argc, char *argv[]) {
 				fprintf(stderr, "unknown -T flag '%s\n",
 					isc_commandline_argument);
 			break;
+		case 'U':
+			ns_g_udpdisp = parse_int(isc_commandline_argument,
+						 "number of UDP listeners "
+						 "per interface");
+			break;
 		case 'u':
 			ns_g_username = isc_commandline_argument;
 			break;
@@ -595,6 +600,18 @@ create_managers(void) {
 #else
 	ns_g_cpus = 1;
 #endif
+#ifdef WIN32
+	ns_g_udpdisp = 1;
+#else
+	if (ns_g_udpdisp == 0)
+		ns_g_udpdisp = ns_g_cpus_detected;
+	if (ns_g_udpdisp > ns_g_cpus)
+		ns_g_udpdisp = ns_g_cpus;
+#endif
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_SERVER,
+		      ISC_LOG_INFO, "using %u UDP listener%s per interface",
+		      ns_g_udpdisp, ns_g_udpdisp == 1 ? "" : "s");
+
 	result = isc_taskmgr_create(ns_g_mctx, ns_g_cpus, 0, &ns_g_taskmgr);
 	if (result != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,

@@ -622,6 +622,8 @@ pmap_free_rid(uint32_t rid)
 void
 pmap_pinit0(struct pmap *pmap)
 {
+
+	PMAP_LOCK_INIT(pmap);
 	/* kernel_pmap is the same as any other pmap. */
 	pmap_pinit(pmap);
 }
@@ -635,7 +637,6 @@ pmap_pinit(struct pmap *pmap)
 {
 	int i;
 
-	PMAP_LOCK_INIT(pmap);
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -660,7 +661,6 @@ pmap_release(pmap_t pmap)
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
-	PMAP_LOCK_DESTROY(pmap);
 }
 
 /*
@@ -2307,6 +2307,50 @@ pmap_is_referenced(vm_page_t m)
 	}
 	rw_wunlock(&pvh_global_lock);
 	return (rv);
+}
+
+/*
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping and set the mapped page's dirty field.
+ */
+void
+pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
+{
+	struct ia64_lpte *pte;
+	pmap_t oldpmap;
+	vm_page_t m;
+
+	PMAP_LOCK(pmap);
+	oldpmap = pmap_switch(pmap);
+	for (; sva < eva; sva += PAGE_SIZE) {
+		/* If page is invalid, skip this page. */
+		pte = pmap_find_vhpt(sva);
+		if (pte == NULL)
+			continue;
+
+		/* If it isn't managed, skip it too. */
+		if (!pmap_managed(pte))
+			continue;
+
+		/* Clear its modified and referenced bits. */
+		if (pmap_dirty(pte)) {
+			if (advice == MADV_DONTNEED) {
+				/*
+				 * Future calls to pmap_is_modified() can be
+				 * avoided by making the page dirty now.
+				 */
+				m = PHYS_TO_VM_PAGE(pmap_ppn(pte));
+				vm_page_dirty(m);
+			}
+			pmap_clear_dirty(pte);
+		} else if (!pmap_accessed(pte))
+			continue;
+		pmap_clear_accessed(pte);
+		pmap_invalidate_page(sva);
+	}
+	pmap_switch(oldpmap);
+	PMAP_UNLOCK(pmap);
 }
 
 /*

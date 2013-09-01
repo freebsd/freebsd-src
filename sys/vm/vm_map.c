@@ -226,6 +226,7 @@ vmspace_zinit(void *mem, int size, int flags)
 
 	vm->vm_map.pmap = NULL;
 	(void)vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map), flags);
+	PMAP_LOCK_INIT(vmspace_pmap(vm));
 	return (0);
 }
 
@@ -1434,12 +1435,17 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    vm_size_t length, int find_space, vm_prot_t prot,
 	    vm_prot_t max, int cow)
 {
-	vm_offset_t start, initial_addr;
+	vm_offset_t alignment, initial_addr, start;
 	int result;
 
 	if (find_space == VMFS_OPTIMAL_SPACE && (object == NULL ||
 	    (object->flags & OBJ_COLORED) == 0))
-			find_space = VMFS_ANY_SPACE;
+		find_space = VMFS_ANY_SPACE;
+	if (find_space >> 8 != 0) {
+		KASSERT((find_space & 0xff) == 0, ("bad VMFS flags"));
+		alignment = (vm_offset_t)1 << (find_space >> 8);
+	} else
+		alignment = 0;
 	initial_addr = *addr;
 again:
 	start = initial_addr;
@@ -1455,12 +1461,18 @@ again:
 				return (KERN_NO_SPACE);
 			}
 			switch (find_space) {
-			case VMFS_ALIGNED_SPACE:
+			case VMFS_SUPER_SPACE:
 			case VMFS_OPTIMAL_SPACE:
 				pmap_align_superpage(object, offset, addr,
 				    length);
 				break;
+			case VMFS_ANY_SPACE:
+				break;
 			default:
+				if ((*addr & (alignment - 1)) != 0) {
+					*addr &= ~(alignment - 1);
+					*addr += alignment;
+				}
 				break;
 			}
 
@@ -1468,8 +1480,8 @@ again:
 		}
 		result = vm_map_insert(map, object, offset, start, start +
 		    length, prot, max, cow);
-	} while (result == KERN_NO_SPACE && (find_space == VMFS_ALIGNED_SPACE ||
-	    find_space == VMFS_OPTIMAL_SPACE));
+	} while (result == KERN_NO_SPACE && find_space != VMFS_NO_SPACE &&
+	    find_space != VMFS_ANY_SPACE);
 	vm_map_unlock(map);
 	return (result);
 }
@@ -2113,7 +2125,7 @@ vm_map_madvise(
 		     (current != &map->header) && (current->start < end);
 		     current = current->next
 		) {
-			vm_offset_t useStart;
+			vm_offset_t useEnd, useStart;
 
 			if (current->eflags & MAP_ENTRY_IS_SUB_MAP)
 				continue;
@@ -2121,16 +2133,33 @@ vm_map_madvise(
 			pstart = OFF_TO_IDX(current->offset);
 			pend = pstart + atop(current->end - current->start);
 			useStart = current->start;
+			useEnd = current->end;
 
 			if (current->start < start) {
 				pstart += atop(start - current->start);
 				useStart = start;
 			}
-			if (current->end > end)
+			if (current->end > end) {
 				pend -= atop(current->end - end);
+				useEnd = end;
+			}
 
 			if (pstart >= pend)
 				continue;
+
+			/*
+			 * Perform the pmap_advise() before clearing
+			 * PGA_REFERENCED in vm_page_advise().  Otherwise, a
+			 * concurrent pmap operation, such as pmap_remove(),
+			 * could clear a reference in the pmap and set
+			 * PGA_REFERENCED on the page before the pmap_advise()
+			 * had completed.  Consequently, the page would appear
+			 * referenced based upon an old reference that
+			 * occurred before this pmap_advise() ran.
+			 */
+			if (behav == MADV_DONTNEED || behav == MADV_FREE)
+				pmap_advise(map->pmap, useStart, useEnd,
+				    behav);
 
 			vm_object_madvise(current->object.vm_object, pstart,
 			    pend, behav);

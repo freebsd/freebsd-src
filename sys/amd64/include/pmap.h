@@ -113,28 +113,49 @@
 	((unsigned long)(l2) << PDRSHIFT) | \
 	((unsigned long)(l1) << PAGE_SHIFT))
 
-#define NKPML4E		1		/* number of kernel PML4 slots */
+/*
+ * Number of kernel PML4 slots.  Can be anywhere from 1 to 64 or so,
+ * but setting it larger than NDMPML4E makes no sense.
+ *
+ * Each slot provides .5 TB of kernel virtual space.
+ */
+#define NKPML4E		4
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
 #define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
 
 /*
- * NDMPML4E is the number of PML4 entries that are used to implement the
- * direct map.  It must be a power of two.
+ * NDMPML4E is the maximum number of PML4 entries that will be
+ * used to implement the direct map.  It must be a power of two,
+ * and should generally exceed NKPML4E.  The maximum possible
+ * value is 64; using 128 will make the direct map intrude into
+ * the recursive page table map.
  */
-#define	NDMPML4E	2
+#define	NDMPML4E	8
 
 /*
- * The *PDI values control the layout of virtual memory.  The starting address
+ * These values control the layout of virtual memory.  The starting address
  * of the direct map, which is controlled by DMPML4I, must be a multiple of
  * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
+ *
+ * Note: KPML4I is the index of the (single) level 4 page that maps
+ * the KVA that holds KERNBASE, while KPML4BASE is the index of the
+ * first level 4 page that maps VM_MIN_KERNEL_ADDRESS.  If NKPML4E
+ * is 1, these are the same, otherwise KPML4BASE < KPML4I and extra
+ * level 4 PDEs are needed to map from VM_MIN_KERNEL_ADDRESS up to
+ * KERNBASE.
+ *
+ * (KPML4I combines with KPDPI to choose where KERNBASE starts.
+ * Or, in other words, KPML4I provides bits 39..47 of KERNBASE,
+ * and KPDPI provides bits 30..38.)
  */
 #define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
 
-#define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
-#define	DMPML4I		rounddown(KPML4I - NDMPML4E, NDMPML4E) /* Below KVM */
+#define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
+#define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
 
+#define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
 /*
@@ -185,41 +206,14 @@ extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 pt_entry_t *vtopte(vm_offset_t);
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
-static __inline pt_entry_t
-pte_load(pt_entry_t *ptep)
-{
-	pt_entry_t r;
+#define	pte_load_store(ptep, pte)	atomic_swap_long(ptep, pte)
+#define	pte_load_clear(ptep)		atomic_swap_long(ptep, 0)
+#define	pte_store(ptep, pte) do { \
+	*(u_long *)(ptep) = (u_long)(pte); \
+} while (0)
+#define	pte_clear(ptep)			pte_store(ptep, 0)
 
-	r = *ptep;
-	return (r);
-}
-
-static __inline pt_entry_t
-pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "xchgq %0,%1"
-	    : "=m" (*ptep),
-	      "=r" (r)
-	    : "1" (pte),
-	      "m" (*ptep));
-	return (r);
-}
-
-#define	pte_load_clear(pte)	atomic_readandclear_long(pte)
-
-static __inline void
-pte_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-
-	*ptep = pte;
-}
-
-#define	pte_clear(ptep)		pte_store((ptep), (pt_entry_t)0ULL)
-
-#define	pde_store(pdep, pde)	pte_store((pdep), (pde))
+#define	pde_store(pdep, pde)		pte_store(pdep, pde)
 
 extern pt_entry_t pg_nx;
 
@@ -246,6 +240,8 @@ struct pmap {
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
+	cpuset_t		pm_save;	/* Context valid on cpus mask */
+	int			pm_pcid;	/* context id */
 	/* spare u_int here due to padding */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */

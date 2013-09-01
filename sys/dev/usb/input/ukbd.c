@@ -1130,8 +1130,12 @@ ukbd_parse_hid(struct ukbd_softc *sc, const uint8_t *ptr, uint32_t len)
 	    HID_USAGE2(HUP_KEYBOARD, 0x00),
 	    hid_input, 0, &sc->sc_loc_events, &flags,
 	    &sc->sc_id_events)) {
-		sc->sc_flags |= UKBD_FLAG_EVENTS;
-		DPRINTFN(1, "Found keyboard events\n");
+		if (flags & HIO_VARIABLE) {
+			DPRINTFN(1, "Ignoring keyboard event control\n");
+		} else {
+			sc->sc_flags |= UKBD_FLAG_EVENTS;
+			DPRINTFN(1, "Found keyboard event array\n");
+		}
 	}
 
 	/* figure out leds on keyboard */

@@ -1149,7 +1149,7 @@ union sctp_sockstore {
 struct xsctp_inpcb {
 	uint32_t last;
 	uint32_t flags;
-	uint32_t features;
+	uint64_t features;
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t total_nospaces;
@@ -1157,7 +1157,7 @@ struct xsctp_inpcb {
 	uint16_t local_port;
 	uint16_t qlen;
 	uint16_t maxqlen;
-	uint32_t extra_padding[32];	/* future */
+	uint32_t extra_padding[31];	/* future */
 };
 
 struct xsctp_tcb {

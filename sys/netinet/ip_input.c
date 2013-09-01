@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipfw.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
+#include "opt_kdtrace.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/sdt.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
@@ -63,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net/flowtable.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -428,6 +431,8 @@ ip_input(struct mbuf *m)
 		}
 		ip = mtod(m, struct ip *);
 	}
+
+	IP_PROBE(receive, NULL, NULL, ip, m->m_pkthdr.rcvif, ip, NULL);
 
 	/* 127/8 must not appear on wire - RFC1122 */
 	ifp = m->m_pkthdr.rcvif;
@@ -911,9 +916,9 @@ found:
 			IPSTAT_INC(ips_toosmall); /* XXX */
 			goto dropfrag;
 		}
-		m->m_flags |= M_FRAG;
+		m->m_flags |= M_IP_FRAG;
 	} else
-		m->m_flags &= ~M_FRAG;
+		m->m_flags &= ~M_IP_FRAG;
 	ip->ip_off = htons(ntohs(ip->ip_off) << 3);
 
 	/*
@@ -921,7 +926,7 @@ found:
 	 * ip_reass() will return a different mbuf.
 	 */
 	IPSTAT_INC(ips_fragments);
-	m->m_pkthdr.header = ip;
+	m->m_pkthdr.PH_loc.ptr = ip;
 
 	/* Previous ip_reass() started here. */
 	/*
@@ -964,7 +969,7 @@ found:
 #endif
 	}
 
-#define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
+#define GETIP(m)	((struct ip*)((m)->m_pkthdr.PH_loc.ptr))
 
 	/*
 	 * Handle ECN by comparing this segment with the first one;
@@ -1060,7 +1065,7 @@ found:
 		next += ntohs(GETIP(q)->ip_len);
 	}
 	/* Make sure the last packet didn't have the IP_MF flag */
-	if (p->m_flags & M_FRAG) {
+	if (p->m_flags & M_IP_FRAG) {
 		if (fp->ipq_nfrags > V_maxfragsperpacket) {
 			IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
 			ip_freef(head, fp);

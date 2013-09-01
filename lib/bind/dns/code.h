@@ -67,7 +67,7 @@
 #include "rdata/generic/loc_29.c"
 #include "rdata/generic/nxt_30.c"
 #include "rdata/in_1/srv_33.c"
-#include "rdata/in_1/naptr_35.c"
+#include "rdata/generic/naptr_35.c"
 #include "rdata/in_1/kx_36.c"
 #include "rdata/generic/cert_37.c"
 #include "rdata/in_1/a6_38.c"
@@ -164,11 +164,7 @@
 		default: result = DNS_R_UNKNOWN; break; \
 		} \
 		break; \
-	case 35: switch (rdclass) { \
-		case 1: result = fromtext_in_naptr(rdclass, type, lexer, origin, options, target, callbacks); break; \
-		default: result = DNS_R_UNKNOWN; break; \
-		} \
-		break; \
+	case 35: result = fromtext_naptr(rdclass, type, lexer, origin, options, target, callbacks); break; \
 	case 36: switch (rdclass) { \
 		case 1: result = fromtext_in_kx(rdclass, type, lexer, origin, options, target, callbacks); break; \
 		default: result = DNS_R_UNKNOWN; break; \
@@ -285,11 +281,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata->rdclass) { \
-		case 1: result = totext_in_naptr(rdata, tctx, target); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = totext_naptr(rdata, tctx, target); break; \
 	case 36: switch (rdata->rdclass) { \
 		case 1: result = totext_in_kx(rdata, tctx, target); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -406,11 +398,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdclass) { \
-		case 1: result = fromwire_in_naptr(rdclass, type, source, dctx, options, target); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = fromwire_naptr(rdclass, type, source, dctx, options, target); break; \
 	case 36: switch (rdclass) { \
 		case 1: result = fromwire_in_kx(rdclass, type, source, dctx, options, target); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -527,11 +515,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata->rdclass) { \
-		case 1: result = towire_in_naptr(rdata, cctx, target); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = towire_naptr(rdata, cctx, target); break; \
 	case 36: switch (rdata->rdclass) { \
 		case 1: result = towire_in_kx(rdata, cctx, target); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -648,11 +632,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata1->rdclass) { \
-		case 1: result = compare_in_naptr(rdata1, rdata2); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = compare_naptr(rdata1, rdata2); break; \
 	case 36: switch (rdata1->rdclass) { \
 		case 1: result = compare_in_kx(rdata1, rdata2); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -769,11 +749,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata1->rdclass) { \
-		case 1: result = casecompare_in_naptr(rdata1, rdata2); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = casecompare_naptr(rdata1, rdata2); break; \
 	case 36: switch (rdata1->rdclass) { \
 		case 1: result = casecompare_in_kx(rdata1, rdata2); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -890,11 +866,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdclass) { \
-		case 1: result = fromstruct_in_naptr(rdclass, type, source, target); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = fromstruct_naptr(rdclass, type, source, target); break; \
 	case 36: switch (rdclass) { \
 		case 1: result = fromstruct_in_kx(rdclass, type, source, target); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -1011,11 +983,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata->rdclass) { \
-		case 1: result = tostruct_in_naptr(rdata, target, mctx); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = tostruct_naptr(rdata, target, mctx); break; \
 	case 36: switch (rdata->rdclass) { \
 		case 1: result = tostruct_in_kx(rdata, target, mctx); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -1132,11 +1100,7 @@
 		default: break; \
 		} \
 		break; \
-	case 35: switch (common->rdclass) { \
-		case 1: freestruct_in_naptr(source); break; \
-		default: break; \
-		} \
-		break; \
+	case 35: freestruct_naptr(source); break; \
 	case 36: switch (common->rdclass) { \
 		case 1: freestruct_in_kx(source); break; \
 		default: break; \
@@ -1253,11 +1217,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata->rdclass) { \
-		case 1: result = additionaldata_in_naptr(rdata, add, arg); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = additionaldata_naptr(rdata, add, arg); break; \
 	case 36: switch (rdata->rdclass) { \
 		case 1: result = additionaldata_in_kx(rdata, add, arg); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -1374,11 +1334,7 @@
 		default: use_default = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata->rdclass) { \
-		case 1: result = digest_in_naptr(rdata, digest, arg); break; \
-		default: use_default = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = digest_naptr(rdata, digest, arg); break; \
 	case 36: switch (rdata->rdclass) { \
 		case 1: result = digest_in_kx(rdata, digest, arg); break; \
 		default: use_default = ISC_TRUE; break; \
@@ -1495,11 +1451,7 @@
 		default: result = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdclass) { \
-		case 1: result = checkowner_in_naptr(name, rdclass, type, wildcard); break; \
-		default: result = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = checkowner_naptr(name, rdclass, type, wildcard); break; \
 	case 36: switch (rdclass) { \
 		case 1: result = checkowner_in_kx(name, rdclass, type, wildcard); break; \
 		default: result = ISC_TRUE; break; \
@@ -1616,11 +1568,7 @@
 		default: result = ISC_TRUE; break; \
 		} \
 		break; \
-	case 35: switch (rdata->rdclass) { \
-		case 1: result = checknames_in_naptr(rdata, owner, bad); break; \
-		default: result = ISC_TRUE; break; \
-		} \
-		break; \
+	case 35: result = checknames_naptr(rdata, owner, bad); break; \
 	case 36: switch (rdata->rdclass) { \
 		case 1: result = checknames_in_kx(rdata, owner, bad); break; \
 		default: result = ISC_TRUE; break; \

@@ -163,10 +163,13 @@ void	kmod_ipstat_dec(int statnum);
 #define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
 
 /*
- * mbuf flag used by ip_fastfwd
+ * IPv4 protocol layer specific mbuf flags.
  */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
 #define	M_IP_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
+#define	M_SKIP_FIREWALL		M_PROTO3	/* skip firewall processing,
+						   keep in sync with IP6 */
+#define	M_IP_FRAG		M_PROTO4	/* fragment reassembly */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1

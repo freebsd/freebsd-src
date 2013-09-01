@@ -4553,7 +4553,8 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
  */
 #ifdef BIND9
 static isc_result_t
-rpz_enabled(dns_db_t *db, dns_rpz_st_t *st) {
+rpz_enabled(dns_db_t *db, dns_rpz_st_t *st)
+{
 	dns_rbtdb_t *rbtdb;
 	isc_result_t result;
 
@@ -7464,8 +7465,10 @@ static dns_dbmethods_t zone_methods = {
 	rpz_findips,
 #else
 	NULL,
-	NULL
+	NULL,
 #endif
+	NULL,
+	NULL
 };
 
 static dns_dbmethods_t cache_methods = {
@@ -7505,6 +7508,8 @@ static dns_dbmethods_t cache_methods = {
 	NULL,
 	isdnssec,
 	getrrsetstats,
+	NULL,
+	NULL,
 	NULL,
 	NULL
 };

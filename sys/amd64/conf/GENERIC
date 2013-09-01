@@ -66,11 +66,14 @@ options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	CAPABILITY_MODE		# Capsicum capability mode
 options 	CAPABILITIES		# Capsicum capabilities
+options 	PROCDESC		# Support for process descriptors
 options 	MAC			# TrustedBSD MAC Framework
 options 	KDTRACE_FRAME		# Ensure frames are compiled in
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
+
+options 	DRM_DEBUG		# Include this file in kernel
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -173,14 +176,17 @@ device		psm		# PS/2 mouse
 
 device		kbdmux		# keyboard multiplexer
 
-device		vga		# VGA video card driver
-options 	VESA		# Add support for VESA BIOS Extensions (VBE)
+#device		vga		# VGA video card driver
+#options 	VESA		# Add support for VESA BIOS Extensions (VBE)
 
 device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
-device		sc
-options 	SC_PIXEL_MODE	# add support for the raster text mode
+#device		sc
+#options 	SC_PIXEL_MODE	# add support for the raster text mode
+
+device		vt
+device		vt_vga
 
 device		agp		# support several AGP chipsets
 
@@ -292,8 +298,8 @@ device		wpi		# Intel 3945ABG wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
-options 	PADLOCK_RNG	# VIA Padlock RNG
-options 	RDRAND_RNG	# Intel Bull Mountain RNG
+device		padlock_rng	# VIA Padlock RNG
+device		rdrand_rng	# Intel Bull Mountain RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.

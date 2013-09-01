@@ -9821,9 +9821,7 @@ bce_dump_mbuf(struct bce_softc *sc, struct mbuf *m)
 		if (mp->m_flags & M_PKTHDR) {
 			BCE_PRINTF("- m_pkthdr: len = %d, flags = 0x%b, "
 			    "csum_flags = %b\n", mp->m_pkthdr.len,
-			    mp->m_flags, "\20\12M_BCAST\13M_MCAST\14M_FRAG"
-			    "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
-			    "\22M_PROMISC\23M_NOFREE",
+			    mp->m_flags, M_FLAG_PRINTF,
 			    mp->m_pkthdr.csum_flags,
 			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP"
 			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"

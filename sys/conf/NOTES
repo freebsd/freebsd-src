@@ -1801,6 +1801,8 @@ device		uart
 # Options for uart(4)
 options 	UART_PPS_ON_CTS		# Do time pulse capturing using CTS
 					# instead of DCD.
+options 	UART_POLL_FREQ		# Set polling rate, used when hw has
+					# no interrupt support (50 Hz default).
 
 # The following hint should only be used for pure ISA devices.  It is not
 # needed otherwise.  Use of hints is strongly discouraged.

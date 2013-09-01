@@ -70,6 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/tss.h>
 
+#ifdef XENHVM
+#include <xen/hvm.h>
+#endif
+
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
 #define WARMBOOT_SEG		(KERNBASE + 0x0469)
@@ -103,9 +107,11 @@ struct pcb stoppcbs[MAXCPU];
 struct pcb **susppcbs;
 
 /* Variables needed for SMP tlb shootdown. */
-vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
+struct invpcid_descr smp_tlb_invpcid;
 volatile int smp_tlb_wait;
+uint64_t pcid_cr3;
+pmap_t smp_tlb_pmap;
 
 #ifdef COUNT_IPIS
 /* Interrupt counts. */
@@ -599,6 +605,8 @@ cpu_mp_announce(void)
 	}
 }
 
+extern int pmap_pcid_enabled;
+
 /*
  * AP CPU's call this to initialize themselves.
  */
@@ -711,6 +719,11 @@ init_secondary(void)
 	/* set up FPU state on the AP */
 	fpuinit();
 
+#ifdef XENHVM
+	/* register vcpu_info area */
+	xen_hvm_init_cpu();
+#endif
+
 	/* A quick check from sanity claus */
 	cpuid = PCPU_GET(cpuid);
 	if (PCPU_GET(apic_id) != lapic_id()) {
@@ -759,6 +772,8 @@ init_secondary(void)
 	 */
 
 	load_cr4(rcr4() | CR4_PGE);
+	if (pmap_pcid_enabled)
+		load_cr4(rcr4() | CR4_PCIDE);
 	load_ds(_udatasel);
 	load_es(_udatasel);
 	load_fs(_ufssel);
@@ -1110,7 +1125,8 @@ ipi_send_cpu(int cpu, u_int ipi)
  * Flush the TLB on all other CPU's
  */
 static void
-smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
+smp_tlb_shootdown(u_int vector, pmap_t pmap, vm_offset_t addr1,
+    vm_offset_t addr2)
 {
 	u_int ncpu;
 
@@ -1120,8 +1136,16 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	if (!(read_rflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
-	smp_tlb_addr1 = addr1;
+	smp_tlb_invpcid.addr = addr1;
+	if (pmap == NULL) {
+		smp_tlb_invpcid.pcid = 0;
+	} else {
+		smp_tlb_invpcid.pcid = pmap->pm_pcid;
+		pcid_cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4) |
+		    (pmap->pm_pcid == -1 ? 0 : pmap->pm_pcid);
+	}
 	smp_tlb_addr2 = addr2;
+	smp_tlb_pmap = pmap;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	ipi_all_but_self(vector);
 	while (smp_tlb_wait < ncpu)
@@ -1130,7 +1154,8 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 }
 
 static void
-smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
+smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
+    vm_offset_t addr1, vm_offset_t addr2)
 {
 	int cpu, ncpu, othercpus;
 
@@ -1146,8 +1171,16 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_of
 	if (!(read_rflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
-	smp_tlb_addr1 = addr1;
+	smp_tlb_invpcid.addr = addr1;
+	if (pmap == NULL) {
+		smp_tlb_invpcid.pcid = 0;
+	} else {
+		smp_tlb_invpcid.pcid = pmap->pm_pcid;
+		pcid_cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4) |
+		    (pmap->pm_pcid == -1 ? 0 : pmap->pm_pcid);
+	}
 	smp_tlb_addr2 = addr2;
+	smp_tlb_pmap = pmap;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	if (CPU_ISFULLSET(&mask)) {
 		ncpu = othercpus;
@@ -1173,15 +1206,15 @@ smp_cache_flush(void)
 {
 
 	if (smp_started)
-		smp_tlb_shootdown(IPI_INVLCACHE, 0, 0);
+		smp_tlb_shootdown(IPI_INVLCACHE, NULL, 0, 0);
 }
 
 void
-smp_invltlb(void)
+smp_invltlb(pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
+		smp_tlb_shootdown(IPI_INVLTLB, pmap, 0, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_global++;
 #endif
@@ -1189,11 +1222,11 @@ smp_invltlb(void)
 }
 
 void
-smp_invlpg(vm_offset_t addr)
+smp_invlpg(pmap_t pmap, vm_offset_t addr)
 {
 
 	if (smp_started) {
-		smp_tlb_shootdown(IPI_INVLPG, addr, 0);
+		smp_tlb_shootdown(IPI_INVLPG, pmap, addr, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_page++;
 #endif
@@ -1201,11 +1234,11 @@ smp_invlpg(vm_offset_t addr)
 }
 
 void
-smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
+smp_invlpg_range(pmap_t pmap, vm_offset_t addr1, vm_offset_t addr2)
 {
 
 	if (smp_started) {
-		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
+		smp_tlb_shootdown(IPI_INVLRNG, pmap, addr1, addr2);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_range++;
 		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
@@ -1214,11 +1247,11 @@ smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 }
 
 void
-smp_masked_invltlb(cpuset_t mask)
+smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, NULL, 0, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_masked_global++;
 #endif
@@ -1226,11 +1259,11 @@ smp_masked_invltlb(cpuset_t mask)
 }
 
 void
-smp_masked_invlpg(cpuset_t mask, vm_offset_t addr)
+smp_masked_invlpg(cpuset_t mask, pmap_t pmap, vm_offset_t addr)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, pmap, addr, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_masked_page++;
 #endif
@@ -1238,11 +1271,13 @@ smp_masked_invlpg(cpuset_t mask, vm_offset_t addr)
 }
 
 void
-smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2)
+smp_masked_invlpg_range(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
+    vm_offset_t addr2)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, pmap, addr1,
+		    addr2);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_masked_range++;
 		ipi_masked_range_size += (addr2 - addr1) / PAGE_SIZE;

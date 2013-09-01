@@ -31,6 +31,24 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130827:
+        Thomas Dickey (vendor author thereof) reports that dialog(1) since
+        2011/10/18 has a bug in handling --hline. Testers and I noticed the
+        --hline is not ignored but displayed as a NULL string, regardless of
+        value. This will cause confusion in some bsdconfig dialogs where the
+        --hline is used to inform users which keybindings to use. This will
+        likewise affect any other persons relying on --hline. It also looks
+        rather strange seeing "[]" at the bottom of dialog(1) widgets when
+        passing --hline "anything". Thomas said he will have a look in a few
+        weeks. NOTE: The "[]" brackets appear with the left-edge where it
+        would normally appear given the width of text to display, but the
+        displayed text is not there (part of the bug).
+
+20130821:
+	The PADLOCK_RNG and RDRAND_RNG kernel options are now devices.
+	Thus "device padlock_rng" and "device rdrand_rng" should be
+	used instead of "options PADLOCK_RNG" & "options RDRAND_RNG".
+
 20130813:
 	WITH_ICONV has been split into two feature sets.  WITH_ICONV now
 	enables just the iconv* functionality and is now on by default.
@@ -340,9 +358,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 20120913:
 	The random(4) support for the VIA hardware random number
 	generator (`PADLOCK') is no longer enabled unconditionally.
-	Add the PADLOCK_RNG option in the custom kernel config if
+	Add the padlock_rng device in the custom kernel config if
 	needed.  The GENERIC kernels on i386 and amd64 do include the
-	option, so the change only affects the custom kernel
+	device, so the change only affects the custom kernel
 	configurations.
 
 20120908:

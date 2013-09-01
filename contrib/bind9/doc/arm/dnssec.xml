@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
- - Copyright (C) 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id$ -->
+<!-- $Id: dnssec.xml,v 1.7 2011/10/13 23:47:10 tbox Exp $ -->
 
 <sect1 id="dnssec.dynamic.zones">
   <title>DNSSEC, Dynamic Zones, and Automatic Signing</title>
@@ -100,8 +100,7 @@
   <command>named</command> can search the key directory for keys
   matching the zone, insert them into the zone, and use them to
   sign the zone. It will do so only when it receives an 
-  <command>rndc sign &lt;zonename&gt;</command> or 
-  <command>rndc loadkeys &lt;zonename&gt;</command> command.</para>
+  <command>rndc sign &lt;zonename&gt;</command>.</para>
   <para>
   <!-- TODO: this is repeated in the ARM -->
   <command>auto-dnssec maintain</command> includes the above
@@ -109,11 +108,33 @@
   DNSKEY records on schedule according to the keys' timing metadata.
   (See <xref linkend="man.dnssec-keygen"/> and
   <xref linkend="man.dnssec-settime"/> for more information.) 
+  </para>
+  <para>
+  <command>named</command> will periodically search the key directory
+  for keys matching the zone, and if the keys' metadata indicates
+  that any change should be made the zone, such as adding, removing,
+  or revoking a key, then that action will be carried out.  By default,
+  the key directory is checked for changes every 60 minutes; this period
+  can be adjusted with the <option>dnssec-loadkeys-interval</option>, up
+  to a maximum of 24 hours.  The <command>rndc loadkeys</command> forces
+  <command>named</command> to check for key updates immediately.
+  </para>
+  <para>
   If keys are present in the key directory the first time the zone
-  is loaded, it will be signed immediately, without waiting for an 
+  is loaded, the zone will be signed immediately, without waiting for an 
   <command>rndc sign</command> or <command>rndc loadkeys</command>
   command. (Those commands can still be used when there are unscheduled
   key changes, however.)
+  </para>
+  <para>
+  If you wish the zone to be signed using NSEC3 instead of NSEC,
+  submit an NSEC3PARAM record via dynamic update prior to the
+  scheduled publication and activation of the keys.  If you wish the
+  NSEC3 chain to have the OPTOUT bit set, set it in the flags field
+  of the NSEC3PARAM record.  The NSEC3PARAM record will not appear in
+  the zone immediately, but it will be stored for later reference.  When
+  the zone is signed and the NSEC3 chain is completed, the NSEC3PARAM
+  record will appear in the zone.
   </para>
   <para>Using the 
   <command>auto-dnssec</command> option requires the zone to be

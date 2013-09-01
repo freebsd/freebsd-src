@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.h,v 1.28 2010/12/20 23:47:20 tbox Exp $ */
+/* $Id: zoneconf.h,v 1.30 2011/08/30 23:46:51 tbox Exp $ */
 
 #ifndef NS_ZONECONF_H
 #define NS_ZONECONF_H 1
@@ -33,7 +33,7 @@ ISC_LANG_BEGINDECLS
 isc_result_t
 ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		  const cfg_obj_t *zconfig, cfg_aclconfctx_t *ac,
-		  dns_zone_t *zone);
+		  dns_zone_t *zone, dns_zone_t *raw);
 /*%<
  * Configure or reconfigure a zone according to the named.conf
  * data in 'cctx' and 'czone'.

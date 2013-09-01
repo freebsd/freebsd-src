@@ -108,8 +108,7 @@ shared_page_init(void *dummy __unused)
 	shared_page_obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
 	    VM_PROT_DEFAULT, 0, NULL);
 	VM_OBJECT_WLOCK(shared_page_obj);
-	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_RETRY | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_ZERO);
+	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_NOBUSY | VM_ALLOC_ZERO);
 	m->valid = VM_PAGE_BITS_ALL;
 	VM_OBJECT_WUNLOCK(shared_page_obj);
 	addr = kva_alloc(PAGE_SIZE);

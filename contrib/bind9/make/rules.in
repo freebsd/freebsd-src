@@ -358,3 +358,12 @@ ALWAYS_MAKE_SYMTABLE =	@ALWAYS_MAKE_SYMTABLE@
 
 .docbook.8:
 	${XSLTPROC} -o $@ ${top_srcdir}/doc/xsl/isc-manpage.xsl $<
+
+###
+### Python executable
+###
+.SUFFIXES: .py
+.py:
+	cp -f $< $@
+	chmod +x $@
+

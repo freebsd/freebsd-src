@@ -59,7 +59,7 @@ static int	sdt_unload(void *);
 static void	sdt_create_provider(struct sdt_provider *);
 static void	sdt_create_probe(struct sdt_probe *);
 static void	sdt_kld_load(void *, struct linker_file *);
-static void	sdt_kld_unload(void *, struct linker_file *, int *);
+static void	sdt_kld_unload_try(void *, struct linker_file *, int *);
 
 static MALLOC_DEFINE(M_SDT, "SDT", "DTrace SDT providers");
 
@@ -95,7 +95,7 @@ static struct cdev	*sdt_cdev;
 static TAILQ_HEAD(, sdt_provider) sdt_prov_list;
 
 eventhandler_tag	sdt_kld_load_tag;
-eventhandler_tag	sdt_kld_unload_tag;
+eventhandler_tag	sdt_kld_unload_try_tag;
 
 static void
 sdt_create_provider(struct sdt_provider *prov)
@@ -201,11 +201,15 @@ sdt_getargdesc(void *arg, dtrace_id_t id, void *parg, dtrace_argdesc_t *desc)
 	if (desc->dtargd_ndx < probe->n_args) {
 		TAILQ_FOREACH(argtype, &probe->argtype_list, argtype_entry) {
 			if (desc->dtargd_ndx == argtype->ndx) {
-				/* XXX */
 				desc->dtargd_mapping = desc->dtargd_ndx;
 				strlcpy(desc->dtargd_native, argtype->type,
 				    sizeof(desc->dtargd_native));
-				desc->dtargd_xlate[0] = '\0'; /* XXX */
+				if (argtype->xtype != NULL)
+					strlcpy(desc->dtargd_xlate,
+					    argtype->xtype,
+					    sizeof(desc->dtargd_xlate));
+				else
+					desc->dtargd_xlate[0] = '\0';
 			}
 		}
 	} else
@@ -260,7 +264,7 @@ sdt_kld_load(void *arg __unused, struct linker_file *lf)
 }
 
 static void
-sdt_kld_unload(void *arg __unused, struct linker_file *lf, int *error __unused)
+sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error __unused)
 {
 	struct sdt_provider *prov, **curr, **begin, **end, *tmp;
 
@@ -315,8 +319,8 @@ sdt_load(void *arg __unused)
 
 	sdt_kld_load_tag = EVENTHANDLER_REGISTER(kld_load, sdt_kld_load, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	sdt_kld_unload_tag = EVENTHANDLER_REGISTER(kld_unload, sdt_kld_unload,
-	    NULL, EVENTHANDLER_PRI_ANY);
+	sdt_kld_unload_try_tag = EVENTHANDLER_REGISTER(kld_unload_try,
+	    sdt_kld_unload_try, NULL, EVENTHANDLER_PRI_ANY);
 
 	/* Pick up probes from the kernel and already-loaded linker files. */
 	linker_file_foreach(sdt_linker_file_cb, NULL);
@@ -328,7 +332,7 @@ sdt_unload(void *arg __unused)
 	struct sdt_provider *prov, *tmp;
 
 	EVENTHANDLER_DEREGISTER(kld_load, sdt_kld_load_tag);
-	EVENTHANDLER_DEREGISTER(kld_unload, sdt_kld_unload_tag);
+	EVENTHANDLER_DEREGISTER(kld_unload_try, sdt_kld_unload_try_tag);
 
 	sdt_probe_func = sdt_probe_stub;
 

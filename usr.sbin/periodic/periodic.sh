@@ -76,6 +76,7 @@ shift
 arg=$1
 
 tmp_output=`mktemp ${TMPDIR:-/tmp}/periodic.XXXXXXXXXX`
+export PERIODIC="$arg${PERIODIC:+ }${PERIODIC}"
 
 # Execute each executable file in the directory list.  If the x bit is not
 # set, assume the user didn't really want us to muck with it (it's a

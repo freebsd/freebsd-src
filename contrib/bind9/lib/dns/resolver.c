@@ -26,8 +26,9 @@
 #include <isc/print.h>
 #include <isc/string.h>
 #include <isc/random.h>
-#include <isc/task.h>
+#include <isc/socket.h>
 #include <isc/stats.h>
+#include <isc/task.h>
 #include <isc/timer.h>
 #include <isc/util.h>
 
@@ -160,6 +161,7 @@ typedef struct query {
 	isc_buffer_t			buffer;
 	isc_buffer_t			*tsig;
 	dns_tsigkey_t			*tsigkey;
+	isc_socketevent_t		sendevent;
 	unsigned int			options;
 	unsigned int			attributes;
 	unsigned int			sends;
@@ -393,11 +395,10 @@ struct dns_resolver {
 	isc_boolean_t			frozen;
 	unsigned int			options;
 	dns_dispatchmgr_t *		dispatchmgr;
-	dns_dispatch_t *		dispatchv4;
+	dns_dispatchset_t *		dispatches4;
 	isc_boolean_t			exclusivev4;
-	dns_dispatch_t *		dispatchv6;
+	dns_dispatchset_t *		dispatches6;
 	isc_boolean_t			exclusivev6;
-	unsigned int			ndisps;
 	unsigned int			nbuckets;
 	fctxbucket_t *			buckets;
 	isc_uint32_t			lame_ttl;
@@ -424,7 +425,6 @@ struct dns_resolver {
 	unsigned int			activebuckets;
 	isc_boolean_t			priming;
 	unsigned int			spillat;	/* clients-per-query */
-	unsigned int			nextdisp;
 
 	/* Bad cache. */
 	dns_badcache_t  ** 		badcache;
@@ -1218,7 +1218,8 @@ process_sendevent(resquery_t *query, isc_event_t *event) {
 		}
 	}
 
-	isc_event_free(&event);
+	if (event->ev_type == ISC_SOCKEVENT_CONNECT)
+		isc_event_free(&event);
 
 	if (retry) {
 		/*
@@ -1413,14 +1414,14 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		if (!have_addr) {
 			switch (pf) {
 			case PF_INET:
-				result =
-				  dns_dispatch_getlocaladdress(res->dispatchv4,
-							       &addr);
+				result = dns_dispatch_getlocaladdress(
+					      res->dispatches4->dispatches[0],
+					      &addr);
 				break;
 			case PF_INET6:
-				result =
-				  dns_dispatch_getlocaladdress(res->dispatchv6,
-							       &addr);
+				result = dns_dispatch_getlocaladdress(
+					      res->dispatches6->dispatches[0],
+					      &addr);
 				break;
 			default:
 				result = ISC_R_NOTIMPLEMENTED;
@@ -1476,13 +1477,15 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		} else {
 			switch (isc_sockaddr_pf(&addrinfo->sockaddr)) {
 			case PF_INET:
-				dns_dispatch_attach(res->dispatchv4,
-						    &query->dispatch);
+				dns_dispatch_attach(
+				    dns_resolver_dispatchv4(res),
+				    &query->dispatch);
 				query->exclusivesocket = res->exclusivev4;
 				break;
 			case PF_INET6:
-				dns_dispatch_attach(res->dispatchv6,
-						    &query->dispatch);
+				dns_dispatch_attach(
+				    dns_resolver_dispatchv6(res),
+				    &query->dispatch);
 				query->exclusivesocket = res->exclusivev6;
 				break;
 			default:
@@ -1975,8 +1978,11 @@ resquery_send(resquery_t *query) {
 	 * XXXRTH  Make sure we don't send to ourselves!  We should probably
 	 *		prune out these addresses when we get them from the ADB.
 	 */
-	result = isc_socket_sendto(socket, &r, task, resquery_senddone,
-				   query, address, NULL);
+	ISC_EVENT_INIT(&query->sendevent, sizeof(query->sendevent), 0, NULL,
+		       ISC_SOCKEVENT_SENDDONE, resquery_senddone, query,
+		       NULL, NULL, NULL);
+	result = isc_socket_sendto2(socket, &r, task, address, NULL,
+				    &query->sendevent, 0);
 	if (result != ISC_R_SUCCESS) {
 		if (connecting) {
 			/*
@@ -2510,9 +2516,9 @@ findname(fetchctx_t *fctx, dns_name_t *name, in_port_t port,
 			 */
 			if (need_alternate != NULL &&
 			    !*need_alternate && unshared &&
-			    ((res->dispatchv4 == NULL &&
+			    ((res->dispatches4 == NULL &&
 			      find->result_v6 != DNS_R_NXDOMAIN) ||
-			     (res->dispatchv6 == NULL &&
+			     (res->dispatches6 == NULL &&
 			      find->result_v4 != DNS_R_NXDOMAIN)))
 				*need_alternate = ISC_TRUE;
 		} else {
@@ -2527,9 +2533,9 @@ findname(fetchctx_t *fctx, dns_name_t *name, in_port_t port,
 			 * an alternative server.
 			 */
 			if (need_alternate != NULL && !*need_alternate &&
-			    ((res->dispatchv4 == NULL &&
+			    ((res->dispatches4 == NULL &&
 			      find->result_v6 == DNS_R_NXRRSET) ||
-			     (res->dispatchv6 == NULL &&
+			     (res->dispatches6 == NULL &&
 			      find->result_v4 == DNS_R_NXRRSET)))
 				*need_alternate = ISC_TRUE;
 			dns_adb_destroyfind(&find);
@@ -2627,9 +2633,9 @@ fctx_getaddresses(fetchctx_t *fctx, isc_boolean_t badcache) {
 
 	while (sa != NULL) {
 		if ((isc_sockaddr_pf(sa) == AF_INET &&
-			 fctx->res->dispatchv4 == NULL) ||
+			 fctx->res->dispatches4 == NULL) ||
 		    (isc_sockaddr_pf(sa) == AF_INET6 &&
-			fctx->res->dispatchv6 == NULL)) {
+			fctx->res->dispatches6 == NULL)) {
 				sa = ISC_LIST_NEXT(sa, link);
 				continue;
 		}
@@ -2677,9 +2683,9 @@ fctx_getaddresses(fetchctx_t *fctx, isc_boolean_t badcache) {
 		 */
 		stdoptions |= DNS_ADBFIND_AVOIDFETCHES;
 	}
-	if (res->dispatchv4 != NULL)
+	if (res->dispatches4 != NULL)
 		stdoptions |= DNS_ADBFIND_INET;
-	if (res->dispatchv6 != NULL)
+	if (res->dispatches6 != NULL)
 		stdoptions |= DNS_ADBFIND_INET6;
 	isc_stdtime_get(&now);
 
@@ -2712,7 +2718,7 @@ fctx_getaddresses(fetchctx_t *fctx, isc_boolean_t badcache) {
 	if (need_alternate) {
 		int family;
 		alternate_t *a;
-		family = (res->dispatchv6 != NULL) ? AF_INET6 : AF_INET;
+		family = (res->dispatches6 != NULL) ? AF_INET6 : AF_INET;
 		for (a = ISC_LIST_HEAD(fctx->res->alternates);
 		     a != NULL;
 		     a = ISC_LIST_NEXT(a, link)) {
@@ -7567,10 +7573,10 @@ destroy(dns_resolver_t *res) {
 	}
 	isc_mem_put(res->mctx, res->buckets,
 		    res->nbuckets * sizeof(fctxbucket_t));
-	if (res->dispatchv4 != NULL)
-		dns_dispatch_detach(&res->dispatchv4);
-	if (res->dispatchv6 != NULL)
-		dns_dispatch_detach(&res->dispatchv6);
+	if (res->dispatches4 != NULL)
+		dns_dispatchset_destroy(&res->dispatches4);
+	if (res->dispatches6 != NULL)
+		dns_dispatchset_destroy(&res->dispatches6);
 	while ((a = ISC_LIST_HEAD(res->alternates)) != NULL) {
 		ISC_LIST_UNLINK(res->alternates, a, link);
 		if (!a->isaddress)
@@ -7660,7 +7666,8 @@ spillattimer_countdown(isc_task_t *task, isc_event_t *event) {
 
 isc_result_t
 dns_resolver_create(dns_view_t *view,
-		    isc_taskmgr_t *taskmgr, unsigned int ntasks,
+		    isc_taskmgr_t *taskmgr,
+		    unsigned int ntasks, unsigned int ndisp,
 		    isc_socketmgr_t *socketmgr,
 		    isc_timermgr_t *timermgr,
 		    unsigned int options,
@@ -7682,6 +7689,7 @@ dns_resolver_create(dns_view_t *view,
 
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(ntasks > 0);
+	REQUIRE(ndisp > 0);
 	REQUIRE(resp != NULL && *resp == NULL);
 	REQUIRE(dispatchmgr != NULL);
 	REQUIRE(dispatchv4 != NULL || dispatchv6 != NULL);
@@ -7712,8 +7720,6 @@ dns_resolver_create(dns_view_t *view,
 	res->spillattimer = NULL;
 	res->zero_no_soa_ttl = ISC_FALSE;
 	res->query_timeout = DEFAULT_QUERY_TIMEOUT;
-	res->ndisps = 0;
-	res->nextdisp = 0; /* meaningless at this point, but init it */
 	res->nbuckets = ntasks;
 	res->activebuckets = ntasks;
 	res->buckets = isc_mem_get(view->mctx,
@@ -7756,17 +7762,19 @@ dns_resolver_create(dns_view_t *view,
 		buckets_created++;
 	}
 
-	res->dispatchv4 = NULL;
+	res->dispatches4 = NULL;
 	if (dispatchv4 != NULL) {
-		dns_dispatch_attach(dispatchv4, &res->dispatchv4);
+		dns_dispatchset_create(view->mctx, socketmgr, taskmgr,
+				       dispatchv4, &res->dispatches4, ndisp);
 		dispattr = dns_dispatch_getattributes(dispatchv4);
 		res->exclusivev4 =
 			ISC_TF((dispattr & DNS_DISPATCHATTR_EXCLUSIVE) != 0);
 	}
 
-	res->dispatchv6 = NULL;
+	res->dispatches6 = NULL;
 	if (dispatchv6 != NULL) {
-		dns_dispatch_attach(dispatchv6, &res->dispatchv6);
+		dns_dispatchset_create(view->mctx, socketmgr, taskmgr,
+				       dispatchv6, &res->dispatches6, ndisp);
 		dispattr = dns_dispatch_getattributes(dispatchv6);
 		res->exclusivev6 =
 			ISC_TF((dispattr & DNS_DISPATCHATTR_EXCLUSIVE) != 0);
@@ -7842,10 +7850,10 @@ dns_resolver_create(dns_view_t *view,
 	DESTROYLOCK(&res->lock);
 
  cleanup_dispatches:
-	if (res->dispatchv6 != NULL)
-		dns_dispatch_detach(&res->dispatchv6);
-	if (res->dispatchv4 != NULL)
-		dns_dispatch_detach(&res->dispatchv4);
+	if (res->dispatches6 != NULL)
+		dns_dispatchset_destroy(&res->dispatches6);
+	if (res->dispatches4 != NULL)
+		dns_dispatchset_destroy(&res->dispatches4);
 
  cleanup_buckets:
 	for (i = 0; i < buckets_created; i++) {
@@ -8034,7 +8042,6 @@ void
 dns_resolver_shutdown(dns_resolver_t *res) {
 	unsigned int i;
 	fetchctx_t *fctx;
-	isc_socket_t *sock;
 	isc_result_t result;
 
 	REQUIRE(VALID_RESOLVER(res));
@@ -8053,15 +8060,13 @@ dns_resolver_shutdown(dns_resolver_t *res) {
 			     fctx != NULL;
 			     fctx = ISC_LIST_NEXT(fctx, link))
 				fctx_shutdown(fctx);
-			if (res->dispatchv4 != NULL && !res->exclusivev4) {
-				sock = dns_dispatch_getsocket(res->dispatchv4);
-				isc_socket_cancel(sock, res->buckets[i].task,
-						  ISC_SOCKCANCEL_ALL);
+			if (res->dispatches4 != NULL && !res->exclusivev4) {
+				dns_dispatchset_cancelall(res->dispatches4,
+							  res->buckets[i].task);
 			}
-			if (res->dispatchv6 != NULL && !res->exclusivev6) {
-				sock = dns_dispatch_getsocket(res->dispatchv6);
-				isc_socket_cancel(sock, res->buckets[i].task,
-						  ISC_SOCKCANCEL_ALL);
+			if (res->dispatches6 != NULL && !res->exclusivev6) {
+				dns_dispatchset_cancelall(res->dispatches6,
+							  res->buckets[i].task);
 			}
 			res->buckets[i].exiting = ISC_TRUE;
 			if (ISC_LIST_EMPTY(res->buckets[i].fctxs)) {
@@ -8444,13 +8449,13 @@ dns_resolver_dispatchmgr(dns_resolver_t *resolver) {
 dns_dispatch_t *
 dns_resolver_dispatchv4(dns_resolver_t *resolver) {
 	REQUIRE(VALID_RESOLVER(resolver));
-	return (resolver->dispatchv4);
+	return (dns_dispatchset_get(resolver->dispatches4));
 }
 
 dns_dispatch_t *
 dns_resolver_dispatchv6(dns_resolver_t *resolver) {
 	REQUIRE(VALID_RESOLVER(resolver));
-	return (resolver->dispatchv6);
+	return (dns_dispatchset_get(resolver->dispatches6));
 }
 
 isc_socketmgr_t *

@@ -721,6 +721,17 @@ The preferred variable to use is the environment variable
 because it is more compatible with other versions of
 .Nm
 and cannot be confused with the special target with the same name.
+.It Va .MAKE.ALWAYS_PASS_JOB_QUEUE
+Tells
+.Nm
+whether to pass the descriptors of the job token queue
+even if the target is not tagged with
+.Ic .MAKE
+The default is 
+.Ql Pa yes
+for backwards compatability with
+.Fx 9
+and earlier.
 .It Va .MAKE.DEPENDFILE
 Names the makefile (default
 .Ql Pa .depend )

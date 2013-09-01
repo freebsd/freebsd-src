@@ -274,6 +274,15 @@ main(int argc, char *argv[])
 		exit(1);
 	if (!quiet_mode) {
 		pid_child_receiver = pdfork(&fdp, 0);
+		if (pid_child_receiver == -1) {
+			if (errno != ENOSYS) {
+				syslog(LOG_ERR, "pdfork: %m");
+				exit(1);
+			} else {
+				pid_child_receiver = fork();
+				fdp = -1;
+			}
+		}
 		if (pid_child_receiver == 0) {
 			receiver_process();
 		} else if (pid_child_receiver > 0) {
@@ -328,8 +337,11 @@ verify(char *name, int maxlen)
 
 	size = 0;
 	while (*name != '\0' && size < maxlen - 1) {
-		if (!isascii(*name) || !isalnum(*name) || ispunct(*name))
+		if (!isascii((unsigned char)*name) ||
+		    !(isalnum((unsigned char)*name) ||
+		    ispunct((unsigned char)*name))) {
 			return (0);
+		}
 		name++;
 		size++;
 	}

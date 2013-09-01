@@ -172,6 +172,14 @@ __RCSID("$NetBSD: job.c,v 1.175 2013/07/30 19:09:57 sjg Exp $");
 # define STATIC static
 
 /*
+ * FreeBSD: traditionally .MAKE is not required to
+ * pass jobs queue to sub-makes.
+ * Use .MAKE.ALWAYS_PASS_JOB_QUEUE=no to disable.
+ */
+#define MAKE_ALWAYS_PASS_JOB_QUEUE ".MAKE.ALWAYS_PASS_JOB_QUEUE"
+static int Always_pass_job_queue = TRUE;
+
+/*
  * error handling variables
  */
 static int     	errors = 0;	    /* number of errors reported */
@@ -1360,7 +1368,7 @@ JobExec(Job *job, char **argv)
 	(void)fcntl(0, F_SETFD, 0);
 	(void)lseek(0, (off_t)0, SEEK_SET);
 
-	if (job->node->type & OP_MAKE) {
+	if (Always_pass_job_queue || (job->node->type & OP_MAKE)) {
 		/*
 		 * Pass job token pipe to submakes.
 		 */
@@ -2225,6 +2233,9 @@ Job_Init(void)
     errors = 	  0;
 
     lastNode =	  NULL;
+
+    Always_pass_job_queue = getBoolean(MAKE_ALWAYS_PASS_JOB_QUEUE,
+				       Always_pass_job_queue);
 
     /*
      * There is a non-zero chance that we already have children.

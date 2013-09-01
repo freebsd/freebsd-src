@@ -82,6 +82,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/callout.h>
@@ -93,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -114,6 +116,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_encap.h>
 
 #include <netinet/ip6.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
@@ -1644,10 +1647,13 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 		dst6.sin6_len = sizeof(struct sockaddr_in6);
 		dst6.sin6_family = AF_INET6;
 		dst6.sin6_addr = ip6->ip6_dst;
+
+		IP_PROBE(send, NULL, NULL, ip6, ifp, NULL, ip6);
 		/*
 		 * We just call if_output instead of nd6_output here, since
 		 * we need no ND for a multicast forwarded packet...right?
 		 */
+		m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 		error = (*ifp->if_output)(ifp, mb_copy,
 		    (struct sockaddr *)&dst6, NULL);
 #ifdef MRT6DEBUG
