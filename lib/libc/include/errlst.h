@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Poul-Henning Kamp
+ * Copyright (c) 2013 Jilles Tjoelker
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,41 +26,18 @@
  * $FreeBSD$
  */
 
-#include <namespace.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <wchar.h>
-#include <vis.h>
-#include <assert.h>
-#include <sys/time.h>
-#include "errlst.h"
-#include "printf.h"
+#ifndef __ERRLST_H__
+#define __ERRLST_H__
 
-int
-__printf_arginfo_errno(const struct printf_info *pi __unused, size_t n, int *argt)
-{
+#include <sys/cdefs.h>
 
-	assert(n >= 1);
-	argt[0] = PA_INT;
-	return (1);
-}
+#ifdef PIC
+/* If the main executable imports these, do not use its copy from libc.so. */
+extern const char *const __hidden_sys_errlist[] __hidden;
+extern const int __hidden_sys_nerr __hidden;
+#else
+#define __hidden_sys_errlist sys_errlist
+#define __hidden_sys_nerr sys_nerr
+#endif
 
-int
-__printf_render_errno(struct __printf_io *io, const struct printf_info *pi __unused, const void *const *arg)
-{
-	int ret, error;
-	char buf[64];
-	const char *p;
-
-	ret = 0;
-	error = *((const int *)arg[0]);
-	if (error >= 0 && error < __hidden_sys_nerr) {
-		p = strerror(error);
-		return (__printf_out(io, pi, p, strlen(p)));
-	}
-	sprintf(buf, "errno=%d/0x%x", error, error);
-	ret += __printf_out(io, pi, buf, strlen(buf));
-	__printf_flush(io);
-	return(ret);
-}
+#endif /* __ERRLST_H__ */
