@@ -2854,6 +2854,7 @@ call_sim:
 			}
 		}
 
+		mtx_lock(&dev->sim->devq->send_mtx);
 		if ((crs->release_flags & RELSIM_RELEASE_AFTER_TIMEOUT) != 0) {
 
 			if ((dev->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0) {
@@ -2906,6 +2907,7 @@ call_sim:
 				start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 			}
 		}
+		mtx_unlock(&dev->sim->devq->send_mtx);
 
 		if ((start_ccb->ccb_h.flags & CAM_DEV_QFREEZE) == 0)
 			xpt_release_devq(path, /*count*/1, /*run_queue*/TRUE);
@@ -4304,10 +4306,9 @@ xpt_release_devq_timeout(void *arg)
 	dev = (struct cam_ed *)arg;
 	CAM_DEBUG_DEV(dev, CAM_DEBUG_TRACE, ("xpt_release_devq_timeout\n"));
 	devq = dev->sim->devq;
-	mtx_lock(&devq->send_mtx);
+	mtx_assert(&devq->send_mtx, MA_OWNED);
 	if (xpt_release_devq_device(dev, /*count*/1, /*run_queue*/TRUE))
-		xpt_run_devq(dev->sim->devq);
-	mtx_unlock(&devq->send_mtx);
+		xpt_run_devq(devq);
 }
 
 void
@@ -4726,7 +4727,7 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	device->tag_saved_openings = 0;
 	device->refcount = 1;
 	mtx_init(&device->device_mtx, "CAM device lock", NULL, MTX_DEF);
-	callout_init_mtx(&device->callout, bus->sim->mtx, 0);
+	callout_init_mtx(&device->callout, &devq->send_mtx, 0);
 	TASK_INIT(&device->device_destroy_task, 0, xpt_destroy_device, device);
 	/*
 	 * Hold a reference to our parent bus so it
