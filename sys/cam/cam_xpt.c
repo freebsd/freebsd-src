@@ -327,7 +327,7 @@ xpt_schedule_devq(struct cam_devq *devq, struct cam_ed *dev)
 		 */
 		retval =
 		    xpt_schedule_dev(&devq->send_queue,
-				     &dev->devq_entry.pinfo,
+				     &dev->devq_entry,
 				     CAMQ_GET_PRIO(&dev->ccbq.queue));
 	} else {
 		retval = 0;
@@ -338,7 +338,7 @@ xpt_schedule_devq(struct cam_devq *devq, struct cam_ed *dev)
 static __inline int
 device_is_queued(struct cam_ed *device)
 {
-	return (device->devq_entry.pinfo.index != CAM_UNQUEUED_INDEX);
+	return (device->devq_entry.index != CAM_UNQUEUED_INDEX);
 }
 
 static void
@@ -3183,14 +3183,12 @@ xpt_run_devq(struct cam_devq *devq)
 	while ((devq->send_queue.entries > 0)
 	    && (devq->send_openings > 0)
 	    && (devq->send_queue.qfrozen_cnt <= 1)) {
-		struct	cam_ed_qinfo *qinfo;
 		struct	cam_ed *device;
 		union ccb *work_ccb;
 		struct	cam_sim *sim;
 
-		qinfo = (struct cam_ed_qinfo *)camq_remove(&devq->send_queue,
+		device = (struct cam_ed *)camq_remove(&devq->send_queue,
 							   CAMQ_HEAD);
-		device = qinfo->device;
 		CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 				("running device %p\n", device));
 
@@ -4279,7 +4277,7 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 	freeze = (dev->ccbq.queue.qfrozen_cnt += count);
 	/* Remove frozen device from sendq. */
 	if (device_is_queued(dev))
-		camq_remove(&devq->send_queue, dev->devq_entry.pinfo.index);
+		camq_remove(&devq->send_queue, dev->devq_entry.index);
 	mtx_unlock(&devq->send_mtx);
 	return (freeze);
 }
@@ -4709,8 +4707,7 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	if (device == NULL)
 		return (NULL);
 
-	cam_init_pinfo(&device->devq_entry.pinfo);
-	device->devq_entry.device = device;
+	cam_init_pinfo(&device->devq_entry);
 	device->target = target;
 	device->lun_id = lun_id;
 	device->sim = bus->sim;
@@ -4780,7 +4777,7 @@ xpt_release_device(struct cam_ed *device)
 
 	KASSERT(SLIST_EMPTY(&device->periphs),
 	    ("destroying device, but periphs list is not empty"));
-	KASSERT(device->devq_entry.pinfo.index == CAM_UNQUEUED_INDEX,
+	KASSERT(device->devq_entry.index == CAM_UNQUEUED_INDEX,
 	    ("destroying device while still queued for ccbs"));
 
 	if ((device->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0)
@@ -5209,13 +5206,11 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 	devq = sim->devq;
 	if ((ccb_h->func_code & XPT_FC_USER_CCB) == 0) {
-		struct cam_ed *dev;
+		struct cam_ed *dev = ccb_h->path->device;
 
 		mtx_lock(&devq->send_mtx);
 		devq->send_active--;
 		devq->send_openings++;
-
-		dev = ccb_h->path->device;
 		cam_ccbq_ccb_done(&dev->ccbq, (union ccb *)ccb_h);
 
 		if (((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
@@ -5236,20 +5231,26 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 			(void)xpt_schedule_devq(devq, dev);
 		mtx_unlock(&devq->send_mtx);
 
-		mtx = xpt_path_mtx(ccb_h->path);
-		mtx_lock(mtx);
+		if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0) {
+			mtx = xpt_path_mtx(ccb_h->path);
+			mtx_lock(mtx);
 
-		if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
-		 && (--dev->tag_delay_count == 0))
-			xpt_start_tags(ccb_h->path);
+			if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
+			 && (--dev->tag_delay_count == 0))
+				xpt_start_tags(ccb_h->path);
+		}
+	}
 
-		if ((ccb_h->flags & CAM_UNLOCKED) != 0) {
+	if ((ccb_h->flags & CAM_UNLOCKED) == 0) {
+		if (mtx == NULL) {
+			mtx = xpt_path_mtx(ccb_h->path);
+			mtx_lock(mtx);
+		}
+	} else {
+		if (mtx != NULL) {
 			mtx_unlock(mtx);
 			mtx = NULL;
 		}
-	} else if ((ccb_h->flags & CAM_UNLOCKED) == 0) {
-		mtx = xpt_path_mtx(ccb_h->path);
-		mtx_lock(mtx);
 	}
 
 	/* Call the peripheral driver's callback */

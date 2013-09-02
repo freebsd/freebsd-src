@@ -57,23 +57,13 @@ struct xpt_xport {
 };
 
 /*
- * Structure for queueing a device in a run queue.
- * There is one run queue for allocating new ccbs,
- * and another for sending ccbs to the controller.
- */
-struct cam_ed_qinfo {
-	cam_pinfo pinfo;
-	struct	  cam_ed *device;
-};
-
-/*
  * The CAM EDT (Existing Device Table) contains the device information for
  * all devices for all busses in the system.  The table contains a
  * cam_ed structure for each device on the bus.
  */
 struct cam_ed {
+	cam_pinfo	 devq_entry;
 	TAILQ_ENTRY(cam_ed) links;
-	struct	cam_ed_qinfo devq_entry;
 	struct	cam_et	 *target;
 	struct	cam_sim  *sim;
 	lun_id_t	 lun_id;
