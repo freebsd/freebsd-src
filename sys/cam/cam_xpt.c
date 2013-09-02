@@ -3046,11 +3046,9 @@ xpt_polled_action(union ccb *start_ccb)
 void
 xpt_schedule(struct cam_periph *periph, u_int32_t new_priority)
 {
-	struct cam_devq *devq;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("xpt_schedule\n"));
 	cam_periph_assert(periph, MA_OWNED);
-	devq = periph->sim->devq;
 	if (new_priority < periph->scheduled_priority) {
 		periph->scheduled_priority = new_priority;
 		xpt_run_allocq(periph, 0);
@@ -3121,11 +3119,9 @@ static void
 xpt_run_allocq(struct cam_periph *periph, int sleep)
 {
 	struct cam_ed	*device;
-	struct cam_devq	*devq;
 	union ccb	*ccb;
 	uint32_t	 prio;
 
-	devq = periph->sim->devq;
 	cam_periph_assert(periph, MA_OWNED);
 	if (periph->periph_allocating)
 		return;
@@ -3785,13 +3781,11 @@ void
 xpt_release_ccb(union ccb *free_ccb)
 {
 	struct	 cam_ed *device;
-	struct	 cam_devq *devq;
 	struct	 cam_periph *periph;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_release_ccb\n"));
 	xpt_path_assert(free_ccb->ccb_h.path, MA_OWNED);
 	device = free_ccb->ccb_h.path->device;
-	devq = device->sim->devq;
 	periph = free_ccb->ccb_h.path->periph;
 
 	xpt_free_ccb(free_ccb);

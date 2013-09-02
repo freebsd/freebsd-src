@@ -1032,7 +1032,6 @@ cam_periph_runccb(union ccb *ccb,
 {
 	int error;
  
-	error = 0;
 	xpt_path_assert(ccb->ccb_h.path, MA_OWNED);
 
 	/*
