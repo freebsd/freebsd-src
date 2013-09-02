@@ -1788,10 +1788,8 @@ ata_get_transfer_settings(struct ccb_trans_settings *cts)
 	struct	ccb_trans_settings_ata *ata;
 	struct	ccb_trans_settings_scsi *scsi;
 	struct	cam_ed *device;
-	struct	cam_sim *sim;
 
 	device = cts->ccb_h.path->device;
-	sim = cts->ccb_h.path->bus->sim;
 	xpt_action_default((union ccb *)cts);
 
 	if (cts->protocol == PROTO_UNKNOWN ||
@@ -1835,7 +1833,6 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
 	struct	ccb_pathinq cpi;
 	struct	ccb_trans_settings_ata *ata;
 	struct	ccb_trans_settings_scsi *scsi;
-	struct	cam_sim *sim;
 	struct	ata_params *ident_data;
 	struct	scsi_inquiry_data *inq_data;
 	struct	cam_ed *device;
@@ -1896,7 +1893,6 @@ ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path,
 		cts->transport_version = device->transport_version;
 	}
 
-	sim = path->bus->sim;
 	ident_data = &device->ident_data;
 	inq_data = &device->inq_data;
 	if (cts->protocol == PROTO_ATA)

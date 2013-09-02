@@ -2566,7 +2566,6 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path
 	struct	ccb_trans_settings cur_cts;
 	struct	ccb_trans_settings_scsi *scsi;
 	struct	ccb_trans_settings_scsi *cur_scsi;
-	struct	cam_sim *sim;
 	struct	scsi_inquiry_data *inq_data;
 	struct	cam_ed *device;
 
@@ -2625,8 +2624,6 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_path *path
 		}
 		cts->transport_version = device->transport_version;
 	}
-
-	sim = path->bus->sim;
 
 	/*
 	 * Nothing more of interest to do unless
