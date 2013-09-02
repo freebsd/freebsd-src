@@ -4809,7 +4809,9 @@ xpt_dev_ccbq_resize(struct cam_path *path, int newopenings)
 	struct	cam_ed *dev;
 
 	dev = path->device;
+	mtx_lock(&dev->sim->devq->send_mtx);
 	result = cam_ccbq_resize(&dev->ccbq, newopenings);
+	mtx_unlock(&dev->sim->devq->send_mtx);
 	if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
 	 || (dev->inq_flags & SID_CmdQue) != 0)
 		dev->tag_saved_openings = newopenings;
@@ -5158,7 +5160,8 @@ static void
 xpt_done_process(struct ccb_hdr *ccb_h)
 {
 	struct cam_sim *sim;
-	struct mtx *mtx;
+	struct cam_devq *devq;
+	struct mtx *mtx = NULL;
 
 	if (ccb_h->flags & CAM_HIGH_POWER) {
 		struct highpowerlist	*hphead;
@@ -5191,15 +5194,26 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	}
 
 	sim = ccb_h->path->bus->sim;
-	mtx = xpt_path_mtx(ccb_h->path);
-	mtx_lock(mtx);
 
+	if (ccb_h->status & CAM_RELEASE_SIMQ) {
+		xpt_release_simq(sim, /*run_queue*/FALSE);
+		ccb_h->status &= ~CAM_RELEASE_SIMQ;
+	}
+
+	if ((ccb_h->flags & CAM_DEV_QFRZDIS)
+	 && (ccb_h->status & CAM_DEV_QFRZN)) {
+		xpt_release_devq(ccb_h->path, /*count*/1,
+				 /*run_queue*/FALSE);
+		ccb_h->status &= ~CAM_DEV_QFRZN;
+	}
+
+	devq = sim->devq;
 	if ((ccb_h->func_code & XPT_FC_USER_CCB) == 0) {
 		struct cam_ed *dev;
 
-		mtx_lock(&sim->devq->send_mtx);
-		sim->devq->send_active--;
-		sim->devq->send_openings++;
+		mtx_lock(&devq->send_mtx);
+		devq->send_active--;
+		devq->send_openings++;
 
 		dev = ccb_h->path->device;
 		cam_ccbq_ccb_done(&dev->ccbq, (union ccb *)ccb_h);
@@ -5219,29 +5233,23 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 		}
 
 		if (!device_is_queued(dev))
-			(void)xpt_schedule_devq(sim->devq, dev);
-		mtx_unlock(&sim->devq->send_mtx);
+			(void)xpt_schedule_devq(devq, dev);
+		mtx_unlock(&devq->send_mtx);
+
+		mtx = xpt_path_mtx(ccb_h->path);
+		mtx_lock(mtx);
 
 		if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
 		 && (--dev->tag_delay_count == 0))
 			xpt_start_tags(ccb_h->path);
-	}
 
-	if (ccb_h->status & CAM_RELEASE_SIMQ) {
-		xpt_release_simq(sim, /*run_queue*/FALSE);
-		ccb_h->status &= ~CAM_RELEASE_SIMQ;
-	}
-
-	if ((ccb_h->flags & CAM_DEV_QFRZDIS)
-	 && (ccb_h->status & CAM_DEV_QFRZN)) {
-		xpt_release_devq(ccb_h->path, /*count*/1,
-				 /*run_queue*/FALSE);
-		ccb_h->status &= ~CAM_DEV_QFRZN;
-	}
-
-	if (ccb_h->flags & CAM_UNLOCKED) {
-		mtx_unlock(mtx);
-		mtx = NULL;
+		if ((ccb_h->flags & CAM_UNLOCKED) != 0) {
+			mtx_unlock(mtx);
+			mtx = NULL;
+		}
+	} else if ((ccb_h->flags & CAM_UNLOCKED) == 0) {
+		mtx = xpt_path_mtx(ccb_h->path);
+		mtx_lock(mtx);
 	}
 
 	/* Call the peripheral driver's callback */
@@ -5249,9 +5257,9 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	if (mtx != NULL)
 		mtx_unlock(mtx);
 
-	mtx_lock(&sim->devq->send_mtx);
-	xpt_run_devq(sim->devq);
-	mtx_unlock(&sim->devq->send_mtx);
+	mtx_lock(&devq->send_mtx);
+	xpt_run_devq(devq);
+	mtx_unlock(&devq->send_mtx);
 }
 
 void
