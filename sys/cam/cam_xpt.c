@@ -3215,8 +3215,7 @@ xpt_run_devq(struct cam_devq *devq)
 				 * available.
 				 */
 				xpt_freeze_devq(work_ccb->ccb_h.path, 1);
-				STAILQ_INSERT_TAIL(&xsoftc.highpowerq,
-						   work_ccb->ccb_h.path->device,
+				STAILQ_INSERT_TAIL(&xsoftc.highpowerq, device,
 						   highpowerq_entry);
 
 				mtx_unlock(&xsoftc.xpt_lock);
@@ -3279,12 +3278,11 @@ xpt_run_devq(struct cam_devq *devq)
 		}
 
 		/*
-		 * Device queues can be shared among multiple sim instances
-		 * that reside on different busses.  Use the SIM in the queue
-		 * CCB's path, rather than the one in the bus that was passed
-		 * into this function.
+		 * Device queues can be shared among multiple SIM instances
+		 * that reside on different busses.  Use the SIM from the
+		 * queued device, rather than the one from the calling bus.
 		 */
-		sim = work_ccb->ccb_h.path->bus->sim;
+		sim = device->sim;
 		lock = (mtx_owned(sim->mtx) == 0);
 		if (lock)
 			CAM_SIM_LOCK(sim);
