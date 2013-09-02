@@ -3364,6 +3364,16 @@ xpt_create_path(struct cam_path **new_path_ptr, struct cam_periph *perph,
 }
 
 cam_status
+xpt_create_path_unlocked(struct cam_path **new_path_ptr,
+			 struct cam_periph *periph, path_id_t path_id,
+			 target_id_t target_id, lun_id_t lun_id)
+{
+
+	return (xpt_create_path(new_path_ptr, periph, path_id, target_id,
+	    lun_id));
+}
+
+cam_status
 xpt_compile_path(struct cam_path *new_path, struct cam_periph *perph,
 		 path_id_t path_id, target_id_t target_id, lun_id_t lun_id)
 {
