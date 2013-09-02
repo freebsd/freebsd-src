@@ -101,12 +101,15 @@ typedef struct synapticshw {
 	int capPen;
 	int infoSimplC;
 	int infoGeometry;
+	int nExtendedButtons;
 	int capExtended;
+	int nExtendedQueries;
+	int capMiddle;
+	int capPassthrough;
 	int capSleep;
 	int capFourButtons;
 	int capMultiFinger;
 	int capPalmDetect;
-	int capPassthrough;
 } synapticshw_t;
 
 /* iftype */
