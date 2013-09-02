@@ -107,7 +107,7 @@ platform_devmap_init(void)
 	 * Map segment where UART1 and UART2 located.
 	 */
 	fdt_devmap[0].pd_va = IMX51_DEV_VIRT_BASE + 0x03f00000;
-	fdt_devmap[0].pd_pa = 0x53f00000;
+	fdt_devmap[0].pd_pa = 0x73f00000;
 	fdt_devmap[0].pd_size = 0x00100000;
 	fdt_devmap[0].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
 	fdt_devmap[0].pd_cache = PTE_NOCACHE;
