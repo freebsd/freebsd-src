@@ -1335,7 +1335,7 @@ ext2_strategy(struct vop_strategy_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip;
 	struct bufobj *bo;
-	int64_t blkno;
+	daddr_t blkno;
 	int error;
 
 	ip = VTOI(vp);
