@@ -482,6 +482,242 @@ This variable behaves in the same way as the
 .Va *_output
 variables above, namely it can be set either to one or more email addresses
 or to an absolute file name.
+.It Va daily_status_mail_rejects_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to summarise mail rejections logged to
+.Pa /var/log/maillog
+for the previous day.
+.It Va daily_status_mail_rejects_logs
+.Pq Vt num
+Set to the number of maillog files that should be checked
+for yesterday's mail rejects.
+.It Va daily_status_named_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to summarise denied zone transfers (AXFR and IXFR)
+for the previous day.
+.It Va daily_status_named_usedns
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to enable reverse DNS lookups.
+.It Va daily_status_ntpd
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to enable NTP status check.
+.It Va daily_queuerun_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to manually run the mail queue at least once a day.
+.It Va daily_submit_queuerun
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you also want to manually run the submit mail queue at least once a day
+when
+.Va daily_queuerun_enable
+is set to
+.Dq Li YES .
+.It Va daily_scrub_zfs_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run a zfs scrub periodically.
+.It Va daily_scrub_zfs_pools
+.Pq Vt str
+A space separated list of names of zfs pools to scrub.
+If the list is empty or not set, all zfs pools are scrubbed.
+.It Va daily_scrub_zfs_default_threshold
+.Pq Vt int
+Number of days between a scrub if no pool-specific threshold is set.
+If not set, the default value is 35, corresponding to 5 weeks.
+.It Va daily_scrub_zfs_ Ns Ao Ar poolname Ac Ns Va _threshold
+.Pq Vt int
+The same as
+.Va daily_scrub_zfs_default_threshold
+but specific to the pool
+.Ao Ar poolname Ac Ns .
+.It Va daily_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
+daily scripts.
+All scripts must be absolute path names.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/weekly :
+.Bl -tag -offset 4n -width 2n
+.It Va weekly_locate_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Pa /usr/libexec/locate.updatedb .
+This script is run using
+.Nm nice Fl 5
+as user
+.Dq Li nobody ,
+and generates the table used by the
+.Xr locate 1
+command.
+.It Va weekly_whatis_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Pa /usr/libexec/makewhatis.local .
+This script regenerates the database used by the
+.Xr apropos 1
+command.
+.It Va weekly_catman_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to run
+.Pa /usr/libexec/catman.local .
+This script processes all out of date manual pages, speeding up the
+.Xr man 1
+command at the expense of disk space.
+.It Va weekly_noid_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to locate orphaned files on the system.
+An orphaned file is one with an invalid owner or group.
+.It Va weekly_noid_dirs
+.Pq Vt str
+A list of directories under which orphaned files are searched for.
+This would usually be set to
+.Pa / .
+.It Va weekly_status_security_enable
+.Pq Vt bool
+Weekly counterpart of
+.Va daily_status_securiy_enable .
+.It Va weekly_status_security_inline
+.Pq Vt bool
+Weekly counterpart of
+.Va daily_status_securiy_inline .
+.It Va weekly_status_security_output
+.Pq Vt str
+Weekly counterpart of
+.Va daily_status_securiy_output .
+.It Va weekly_status_pkg_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to use
+.Xr pkg_version 1
+to list installed packages which are out of date.
+.It Va pkg_version
+.Pq Vt str
+When
+.Va weekly_status_pkg_enable
+is set to
+.Dq Li YES ,
+this variable specifies the program that is used to determine the out of
+date packages.
+If unset, the
+.Xr pkg_version 1
+program is used.
+As an example, this variable might be set to
+.Dq Li portversion
+if the
+.Pa ports/sysutils/portupgrade
+port has been installed.
+.It Va pkg_version_index
+.Pq Vt str
+This variable specifies the
+.Pa INDEX
+file from
+.Pa /usr/ports
+that should be used by
+.Xr pkg_version 1 .
+Because the dependency tree may be substantially different between versions of
+.Fx ,
+there may be more than one
+.Pa INDEX
+file in
+.Pa /usr/ports .
+.Pp
+Note, if the
+.Va pkg_version
+variable is set to
+.Dq Li portversion ,
+it will also be necessary to arrange that the correct
+.Pa INDEX
+file is specified
+using environment variables and that
+.Va pkg_version_index
+is cleared in
+.Pa /etc/periodic.conf
+.Pq Dq Li pkg_version_index= .
+.It Va weekly_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
+weekly scripts.
+All scripts must be absolute path names.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/monthly :
+.Bl -tag -offset 4n -width 2n
+.It Va monthly_accounting_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+if you want to do login accounting using the
+.Xr ac 8
+command.
+.It Va monthly_status_security_enable
+.Pq Vt bool
+Monthly counterpart of
+.Va daily_status_securiy_enable .
+.It Va monthly_status_security_inline
+.Pq Vt bool
+Monthly counterpart of
+.Va daily_status_securiy_inline .
+.It Va monthly_status_security_output
+.Pq Vt str
+Monthly counterpart of
+.Va daily_status_securiy_output .
+.It Va monthly_local
+.Pq Vt str
+Set to a list of extra scripts that should be run after all other
+monthly scripts.
+All scripts must be absolute path names.
+.El
+.Pp
+The following variables are used by the standard scripts that reside in
+.Pa /etc/periodic/security .
+Those scripts are usually run from daily
+.Pq Va daily_status_security_enable ,
+weekly
+.Pq Va weekly_status_security_enable ,
+and monthly
+.Pq Va monthly_status_security_enable
+periodic hooks.
+The
+.Va ..._period
+of each script can be configured as
+.Dq daily ,
+.Dq weekly ,
+.Dq monthly
+or
+.Dq NO .
+Note that when periodic security scripts are run from
+.Xr crontab 5 ,
+they will be always run unless their
+.Va ..._enable
+or
+.Va ..._period
+variable is set to
+.Dq No .
+.Bl -tag -offset 4n -width 2n
 .It Va security_status_diff_flags
 .Pq Vt str
 Set to the arguments to pass to the
@@ -709,214 +945,6 @@ Set to either
 .Dq Li monthly
 or
 .Dq Li NO .
-.It Va daily_status_mail_rejects_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to summarise mail rejections logged to
-.Pa /var/log/maillog
-for the previous day.
-.It Va daily_status_mail_rejects_logs
-.Pq Vt num
-Set to the number of maillog files that should be checked
-for yesterday's mail rejects.
-.It Va daily_status_named_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to summarise denied zone transfers (AXFR and IXFR)
-for the previous day.
-.It Va daily_status_named_usedns
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to enable reverse DNS lookups.
-.It Va daily_status_ntpd
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to enable NTP status check.
-.It Va daily_queuerun_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to manually run the mail queue at least once a day.
-.It Va daily_submit_queuerun
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you also want to manually run the submit mail queue at least once a day
-when
-.Va daily_queuerun_enable
-is set to
-.Dq Li YES .
-.It Va daily_scrub_zfs_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to run a zfs scrub periodically.
-.It Va daily_scrub_zfs_pools
-.Pq Vt str
-A space separated list of names of zfs pools to scrub.
-If the list is empty or not set, all zfs pools are scrubbed.
-.It Va daily_scrub_zfs_default_threshold
-.Pq Vt int
-Number of days between a scrub if no pool-specific threshold is set.
-If not set, the default value is 35, corresponding to 5 weeks.
-.It Va daily_scrub_zfs_ Ns Ao Ar poolname Ac Ns Va _threshold
-.Pq Vt int
-The same as
-.Va daily_scrub_zfs_default_threshold
-but specific to the pool
-.Ao Ar poolname Ac Ns .
-.It Va daily_local
-.Pq Vt str
-Set to a list of extra scripts that should be run after all other
-daily scripts.
-All scripts must be absolute path names.
-.El
-.Pp
-The following variables are used by the standard scripts that reside in
-.Pa /etc/periodic/weekly :
-.Bl -tag -offset 4n -width 2n
-.It Va weekly_locate_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to run
-.Pa /usr/libexec/locate.updatedb .
-This script is run using
-.Nm nice Fl 5
-as user
-.Dq Li nobody ,
-and generates the table used by the
-.Xr locate 1
-command.
-.It Va weekly_whatis_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to run
-.Pa /usr/libexec/makewhatis.local .
-This script regenerates the database used by the
-.Xr apropos 1
-command.
-.It Va weekly_catman_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to run
-.Pa /usr/libexec/catman.local .
-This script processes all out of date manual pages, speeding up the
-.Xr man 1
-command at the expense of disk space.
-.It Va weekly_noid_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to locate orphaned files on the system.
-An orphaned file is one with an invalid owner or group.
-.It Va weekly_noid_dirs
-.Pq Vt str
-A list of directories under which orphaned files are searched for.
-This would usually be set to
-.Pa / .
-.It Va weekly_status_security_enable
-.Pq Vt bool
-Weekly counterpart of
-.Va daily_status_securiy_enable .
-.It Va weekly_status_security_inline
-.Pq Vt bool
-Weekly counterpart of
-.Va daily_status_securiy_inline .
-.It Va weekly_status_security_output
-.Pq Vt str
-Weekly counterpart of
-.Va daily_status_securiy_output .
-.It Va weekly_status_pkg_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to use
-.Xr pkg_version 1
-to list installed packages which are out of date.
-.It Va pkg_version
-.Pq Vt str
-When
-.Va weekly_status_pkg_enable
-is set to
-.Dq Li YES ,
-this variable specifies the program that is used to determine the out of
-date packages.
-If unset, the
-.Xr pkg_version 1
-program is used.
-As an example, this variable might be set to
-.Dq Li portversion
-if the
-.Pa ports/sysutils/portupgrade
-port has been installed.
-.It Va pkg_version_index
-.Pq Vt str
-This variable specifies the
-.Pa INDEX
-file from
-.Pa /usr/ports
-that should be used by
-.Xr pkg_version 1 .
-Because the dependency tree may be substantially different between versions of
-.Fx ,
-there may be more than one
-.Pa INDEX
-file in
-.Pa /usr/ports .
-.Pp
-Note, if the
-.Va pkg_version
-variable is set to
-.Dq Li portversion ,
-it will also be necessary to arrange that the correct
-.Pa INDEX
-file is specified
-using environment variables and that
-.Va pkg_version_index
-is cleared in
-.Pa /etc/periodic.conf
-.Pq Dq Li pkg_version_index= .
-.It Va weekly_local
-.Pq Vt str
-Set to a list of extra scripts that should be run after all other
-weekly scripts.
-All scripts must be absolute path names.
-.El
-.Pp
-The following variables are used by the standard scripts that reside in
-.Pa /etc/periodic/monthly :
-.Bl -tag -offset 4n -width 2n
-.It Va monthly_accounting_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-if you want to do login accounting using the
-.Xr ac 8
-command.
-.It Va monthly_status_security_enable
-.Pq Vt bool
-Monthly counterpart of
-.Va daily_status_securiy_enable .
-.It Va monthly_status_security_inline
-.Pq Vt bool
-Monthly counterpart of
-.Va daily_status_securiy_inline .
-.It Va monthly_status_security_output
-.Pq Vt str
-Monthly counterpart of
-.Va daily_status_securiy_output .
-.It Va monthly_local
-.Pq Vt str
-Set to a list of extra scripts that should be run after all other
-monthly scripts.
-All scripts must be absolute path names.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/periodic.conf"
