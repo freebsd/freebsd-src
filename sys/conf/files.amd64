@@ -138,10 +138,13 @@ amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
 amd64/pci/pci_cfgreg.c		optional	pci
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
-crypto/aesni/aesencdec_amd64.S	optional aesni
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
-crypto/aesni/aesni_wrap.c	optional aesni
+aesni_wrap.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 crypto/via/padlock.c		optional	padlock
