@@ -124,10 +124,13 @@ bf_enc.o			optional crypto | ipsec	\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
-crypto/aesni/aesencdec_i386.S	optional aesni
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
-crypto/aesni/aesni_wrap.c	optional aesni
+aesni_wrap.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_wrap.o"
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
