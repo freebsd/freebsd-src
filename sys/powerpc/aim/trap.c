@@ -197,13 +197,11 @@ trap(struct trapframe *frame)
 
 #ifdef HWPMC_HOOKS
 	if (type == EXC_PERF && (pmc_intr != NULL)) {
-#ifdef notyet
-	    (*pmc_intr)(PCPU_GET(cpuid), frame);
-	    if (!user)
+		(*pmc_intr)(PCPU_GET(cpuid), frame);
+		if (user)
+			userret(td, frame);
 		return;
-#endif
 	}
-	else
 #endif
 #ifdef KDTRACE_HOOKS
 	/*
@@ -316,9 +314,11 @@ trap(struct trapframe *frame)
 				if (*(uintptr_t *)frame->srr0 == 0x7c810808) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
+						return;
 					}
 				}
 			}
+			break;
 #endif
 #ifdef __powerpc64__
 		case EXC_DSE:
