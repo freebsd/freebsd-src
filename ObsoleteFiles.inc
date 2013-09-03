@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20130903: gnupatch is no more
+OLD_FILES+=usr/bin/gnupatch
+OLD_FILES+=usr/share/man/man1/gnupatch.1.gz
 # 20130829: bsdpatch is patch unconditionally
 OLD_FILES+=usr/bin/bsdpatch
 OLD_FILES+=usr/share/man/man1/bsdpatch.1.gz
