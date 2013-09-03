@@ -592,6 +592,9 @@ vtnet_setup_features(struct vtnet_softc *sc)
 
 	vtnet_negotiate_features(sc);
 
+	if (virtio_with_feature(dev, VIRTIO_RING_F_EVENT_IDX))
+		sc->vtnet_flags |= VTNET_FLAG_EVENT_IDX;
+
 	if (virtio_with_feature(dev, VIRTIO_NET_F_MAC)) {
 		/* This feature should always be negotiated. */
 		sc->vtnet_flags |= VTNET_FLAG_MAC;
@@ -2155,6 +2158,8 @@ vtnet_start_locked(struct vtnet_txq *txq, struct ifnet *ifp)
 	    sc->vtnet_link_active == 0)
 		return;
 
+	vtnet_txq_eof(txq);
+
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		if (virtqueue_full(vq))
 			break;
@@ -2225,6 +2230,8 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 		if (error)
 			return (error);
 	}
+
+	vtnet_txq_eof(txq);
 
 	while ((m = drbr_peek(ifp, br)) != NULL) {
 		error = vtnet_txq_encap(txq, &m);
@@ -2471,6 +2478,8 @@ vtnet_watchdog(struct vtnet_txq *txq)
 	sc = txq->vtntx_sc;
 
 	VTNET_TXQ_LOCK(txq);
+	if (sc->vtnet_flags & VTNET_FLAG_EVENT_IDX)
+		vtnet_txq_eof(txq);
 	if (txq->vtntx_watchdog == 0 || --txq->vtntx_watchdog) {
 		VTNET_TXQ_UNLOCK(txq);
 		return (0);
