@@ -397,9 +397,11 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	if (es->e2fs_rev == E2FS_REV0 ||
 	    !EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_LARGEFILE))
 		fs->e2fs_maxfilesize = 0x7fffffff;
-	else
-		fs->e2fs_maxfilesize = 0x7fffffffffffffff;
-
+	else {
+		fs->e2fs_maxfilesize = 0xffffffffffff;
+		if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_HUGE_FILE))
+			fs->e2fs_maxfilesize = 0x7fffffffffffffff;
+	}
 	if (es->e4fs_flags & E2FS_UNSIGNED_HASH) {
 		fs->e2fs_uhash = 3;
 	} else if ((es->e4fs_flags & E2FS_SIGNED_HASH) == 0) {
@@ -970,8 +972,12 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 * Now we want to make sure that block pointers for unused
 	 * blocks are zeroed out - ext2_balloc depends on this
 	 * although for regular files and directories only
+	 *
+	 * If EXT4_EXTENTS flag is enabled, unused blocks aren't
+	 * zeroed out because we could corrupt the extent tree.
 	 */
-	if(S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode)) {
+	if (!(ip->i_flags & EXT4_EXTENTS) &&
+	    (S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode))) {
 		used_blocks = (ip->i_size+fs->e2fs_bsize-1) / fs->e2fs_bsize;
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;

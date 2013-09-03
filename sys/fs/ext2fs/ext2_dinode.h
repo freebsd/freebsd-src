@@ -79,6 +79,8 @@
 
 #define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
 				    EXT2F_ROCOMPAT_EXTRA_ISIZE))
+#define E2DI_HAS_HUGE_FILE(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
+				    EXT2F_ROCOMPAT_HUGE_FILE))
 
 /*
  * Constants relative to the data blocks
