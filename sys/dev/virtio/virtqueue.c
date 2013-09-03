@@ -449,10 +449,10 @@ virtqueue_postpone_intr(struct virtqueue *vq, vq_postpone_t hint)
 
 	switch (hint) {
 	case VQ_POSTPONE_SHORT:
-		ndesc /= 4;
+		ndesc = ndesc / 4;
 		break;
 	case VQ_POSTPONE_LONG:
-		ndesc *= 3 / 4;
+		ndesc = (ndesc * 3) / 4;
 		break;
 	case VQ_POSTPONE_EMPTIED:
 		break;
