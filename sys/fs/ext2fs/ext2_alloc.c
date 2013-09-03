@@ -80,8 +80,8 @@ static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
  *        available block is located.
  */
 int
-ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
-    struct ucred *cred, int32_t *bnp)
+ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
+    struct ucred *cred, e4fs_daddr_t *bnp)
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
@@ -166,7 +166,8 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
 	e2fs_lbn_t start_lbn, end_lbn;
-	int32_t soff, newblk, blkno;
+	int soff;
+	e2fs_daddr_t newblk, blkno;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
 	if (doreallocblks == 0)
@@ -250,7 +251,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
-	if ((newblk = (int32_t)ext2_hashalloc(ip, dtog(fs, pref), pref,
+	if ((newblk = (e2fs_daddr_t)ext2_hashalloc(ip, dtog(fs, pref), pref,
 	    len, ext2_clusteralloc)) == 0){
 		EXT2_UNLOCK(ump);
 		goto fail;
@@ -550,9 +551,9 @@ ext2_dirpref(struct inode *pip)
  * of the above. Then, blocknr tells us the number of the block
  * that will hold the pointer
  */
-int32_t
-ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, int32_t *bap,
-    int32_t blocknr)
+e4fs_daddr_t
+ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
+    e2fs_daddr_t blocknr)
 {
 	int	tmp;
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
@@ -575,7 +576,7 @@ ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, int32_t *bap,
 	   follow the rule that a block should be allocated near its inode
 	*/
 	return blocknr ? blocknr :
-			(int32_t)(ip->i_block_group * 
+			(e2fs_daddr_t)(ip->i_block_group * 
 			EXT2_BLOCKS_PER_GROUP(ip->i_e2fs)) + 
 			ip->i_e2fs->e2fs->e2fs_first_dblock;
 }
@@ -963,7 +964,7 @@ gotit:
  *
  */
 void
-ext2_blkfree(struct inode *ip, int32_t bno, long size)
+ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 {
 	struct m_ext2fs *fs;
 	struct buf *bp;

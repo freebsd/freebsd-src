@@ -54,9 +54,11 @@
 #define	NIADDR	3			/* Indirect addresses in inode. */
 
 /*
- * The size of physical and logical block numbers and time fields in UFS.
+ * The size of physical and logical block numbers in EXT2FS.
  */
-typedef int32_t	e2fs_lbn_t;
+typedef	uint32_t e2fs_daddr_t;
+typedef	int64_t	e2fs_lbn_t;
+typedef	int64_t e4fs_daddr_t;
  
 /*
  * The inode is used to describe each active (or recently active) file in the
