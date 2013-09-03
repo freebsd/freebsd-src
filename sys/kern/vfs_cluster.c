@@ -846,7 +846,9 @@ cluster_wbuild_gb(struct vnode *vp, long size, daddr_t start_lbn, int len,
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
 		  (len == 1) ||
-		  ((bp = getpbuf(&cluster_pbuf_freecnt)) == NULL)) {
+		  ((bp = (vp->v_vflag & VV_MD) != 0 ?
+		  trypbuf(&cluster_pbuf_freecnt) :
+		  getpbuf(&cluster_pbuf_freecnt)) == NULL)) {
 			totalwritten += tbp->b_bufsize;
 			bawrite(tbp);
 			++start_lbn;
