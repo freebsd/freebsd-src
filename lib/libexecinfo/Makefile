@@ -7,7 +7,7 @@ SHLIB_MAJOR=	1
 
 .PATH:		${LIBEXECINFO}
 
-INCS=		execinfo.h symtab.h unwind.h
+INCS=		execinfo.h
 SRCS=		backtrace.c symtab.c unwind.c
 
 DPADD=		${LIBELF}
