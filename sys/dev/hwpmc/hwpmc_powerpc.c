@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/pmc_mdep.h>
 #include <machine/spr.h>
+#include <machine/pte.h>
+#include <machine/sr.h>
 #include <machine/cpu.h>
 #include <machine/vmparam.h> /* For VM_MIN_KERNEL_ADDRESS/VM_MAX_KERNEL_ADDRESS */
 
@@ -43,11 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #define INKERNEL(x)	(((vm_offset_t)(x)) <= VM_MAX_KERNEL_ADDRESS && \
 		((vm_offset_t)(x)) >= VM_MIN_KERNEL_ADDRESS)
-
-/*
- * Per-processor information.
- */
-static unsigned int ppc_npmcs;
 
 int
 pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
@@ -89,8 +86,6 @@ powerpc_describe(int cpu, int ri, struct pmc_info *pi, struct pmc **ppmc)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d], illegal CPU %d", __LINE__, cpu));
-	KASSERT(ri >= 0 && ri < ppc_npmcs,
-	    ("[powerpc,%d] row-index %d out of range", __LINE__, ri));
 
 	phw = &powerpc_pcpu[cpu]->pc_ppcpmcs[ri];
 	snprintf(powerpc_name, sizeof(powerpc_name), "POWERPC-%d", ri);
