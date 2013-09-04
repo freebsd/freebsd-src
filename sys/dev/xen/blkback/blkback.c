@@ -1239,6 +1239,7 @@ xbb_get_resources(struct xbb_softc *xbb, struct xbb_xen_reqlist **reqlist,
 
 	nreq->reqlist = *reqlist;
 	nreq->req_ring_idx = ring_idx;
+	nreq->id = ring_req->id;
 
 	if (xbb->abi != BLKIF_PROTOCOL_NATIVE) {
 		bcopy(ring_req, &nreq->ring_req_storage, sizeof(*ring_req));
@@ -1608,7 +1609,6 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 		req_ring_idx	      = nreq->req_ring_idx;
 		nr_sects              = 0;
 		nseg                  = ring_req->nr_segments;
-		nreq->id              = ring_req->id;
 		nreq->nr_pages        = nseg;
 		nreq->nr_512b_sectors = 0;
 		req_seg_idx	      = 0;
