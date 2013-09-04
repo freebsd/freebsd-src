@@ -228,7 +228,6 @@ ASSYM(PC_LDT, offsetof(struct pcpu, pc_ldt));
 ASSYM(PC_COMMONTSSP, offsetof(struct pcpu, pc_commontssp));
 ASSYM(PC_TSS, offsetof(struct pcpu, pc_tss));
 ASSYM(PC_PM_SAVE_CNT, offsetof(struct pcpu, pc_pm_save_cnt));
-ASSYM(PC_INVPCID_DESCR, offsetof(struct pcpu, pc_invpcid_descr));
  
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
 ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
