@@ -375,10 +375,10 @@ static devclass_t psm_devclass;
 static int tap_enabled = -1;
 TUNABLE_INT("hw.psm.tap_enabled", &tap_enabled);
 
-static int synaptics_support = 1;
+static int synaptics_support = 0;
 TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
 
-static int trackpoint_support = 1;
+static int trackpoint_support = 0;
 TUNABLE_INT("hw.psm.trackpoint_support", &trackpoint_support);
 
 static int verbose = PSM_DEBUG;
