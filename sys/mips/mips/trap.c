@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
 
-#define	NO_REG_DEFS	1	/* Prevent asm.h from including regdef.h */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
@@ -85,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/regnum.h>
 #include <machine/tls.h>
-#include <machine/asm.h>
 
 #ifdef DDB
 #include <machine/db_machdep.h>
@@ -126,6 +124,61 @@ int trap_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
     &trap_debug, 0, "Debug information on all traps");
 #endif
+
+#define	lbu_macro(data, addr)						\
+	__asm __volatile ("lbu %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lb_macro(data, addr)						\
+	__asm __volatile ("lb %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lwl_macro(data, addr)						\
+	__asm __volatile ("lwl %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lwr_macro(data, addr)						\
+	__asm __volatile ("lwr %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	ldl_macro(data, addr)						\
+	__asm __volatile ("ldl %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	ldr_macro(data, addr)						\
+	__asm __volatile ("ldr %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	sb_macro(data, addr)						\
+	__asm __volatile ("sb %0, 0x0(%1)"				\
+			:				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	swl_macro(data, addr)						\
+	__asm __volatile ("swl %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	swr_macro(data, addr)						\
+	__asm __volatile ("swr %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	sdl_macro(data, addr)						\
+	__asm __volatile ("sdl %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	sdr_macro(data, addr)						\
+	__asm __volatile ("sdr %0, 0x0(%1)"				\
+			:				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
 
 static void log_illegal_instruction(const char *, struct trapframe *);
 static void log_bad_page_fault(char *, struct trapframe *, int);
@@ -363,10 +416,10 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 			/*
 			 * Non-o32 ABIs support more arguments in registers.
 			 */
-			sa->args[3] = locr0->t4;
-			sa->args[4] = locr0->t5;
-			sa->args[5] = locr0->t6;
-			sa->args[6] = locr0->t7;
+			sa->args[3] = locr0->a4;
+			sa->args[4] = locr0->a5;
+			sa->args[5] = locr0->a6;
+			sa->args[6] = locr0->a7;
 			nsaved += 4;
 #ifdef COMPAT_FREEBSD32
 		}
@@ -389,10 +442,10 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 			/*
 			 * Non-o32 ABIs support more arguments in registers.
 			 */
-			sa->args[4] = locr0->t4;
-			sa->args[5] = locr0->t5;
-			sa->args[6] = locr0->t6;
-			sa->args[7] = locr0->t7;
+			sa->args[4] = locr0->a4;
+			sa->args[5] = locr0->a5;
+			sa->args[6] = locr0->a6;
+			sa->args[7] = locr0->a7;
 			nsaved += 4;
 #ifdef COMPAT_FREEBSD32
 		}
@@ -447,7 +500,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 				    (caddr_t)&arg, sizeof arg);
 				if (error != 0)
 					break;
-			       sa->args[i] = arg;
+				sa->args[i] = arg;
 			}
 		} else
 #endif
@@ -1294,12 +1347,19 @@ log_frame_dump(struct trapframe *frame)
 	log(LOG_ERR, "\ta0: %#jx\ta1: %#jx\ta2: %#jx\ta3: %#jx\n",
 	    (intmax_t)frame->a0, (intmax_t)frame->a1, (intmax_t)frame->a2, (intmax_t)frame->a3);
 
+#if defined(__mips_n32) || defined(__mips_n64)
+	log(LOG_ERR, "\ta4: %#jx\ta5: %#jx\ta6: %#jx\ta6: %#jx\n",
+	    (intmax_t)frame->a4, (intmax_t)frame->a5, (intmax_t)frame->a6, (intmax_t)frame->a7);
+
+	log(LOG_ERR, "\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
+	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
+#else
 	log(LOG_ERR, "\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
 	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
 
 	log(LOG_ERR, "\tt4: %#jx\tt5: %#jx\tt6: %#jx\tt7: %#jx\n",
 	    (intmax_t)frame->t4, (intmax_t)frame->t5, (intmax_t)frame->t6, (intmax_t)frame->t7);
-
+#endif
 	log(LOG_ERR, "\tt8: %#jx\tt9: %#jx\ts0: %#jx\ts1: %#jx\n",
 	    (intmax_t)frame->t8, (intmax_t)frame->t9, (intmax_t)frame->s0, (intmax_t)frame->s1);
 
@@ -1334,13 +1394,19 @@ trap_frame_dump(struct trapframe *frame)
 
 	printf("\ta0: %#jx\ta1: %#jx\ta2: %#jx\ta3: %#jx\n",
 	    (intmax_t)frame->a0, (intmax_t)frame->a1, (intmax_t)frame->a2, (intmax_t)frame->a3);
+#if defined(__mips_n32) || defined(__mips_n64)
+	printf("\ta4: %#jx\ta5: %#jx\ta6: %#jx\ta7: %#jx\n",
+	    (intmax_t)frame->a4, (intmax_t)frame->a5, (intmax_t)frame->a6, (intmax_t)frame->a7);
 
+	printf("\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
+	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
+#else
 	printf("\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
 	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
 
 	printf("\tt4: %#jx\tt5: %#jx\tt6: %#jx\tt7: %#jx\n",
 	    (intmax_t)frame->t4, (intmax_t)frame->t5, (intmax_t)frame->t6, (intmax_t)frame->t7);
-
+#endif
 	printf("\tt8: %#jx\tt9: %#jx\ts0: %#jx\ts1: %#jx\n",
 	    (intmax_t)frame->t8, (intmax_t)frame->t9, (intmax_t)frame->s0, (intmax_t)frame->s1);
 

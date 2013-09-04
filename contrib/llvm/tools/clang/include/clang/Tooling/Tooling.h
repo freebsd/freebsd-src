@@ -30,14 +30,14 @@
 #ifndef LLVM_CLANG_TOOLING_TOOLING_H
 #define LLVM_CLANG_TOOLING_TOOLING_H
 
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/Twine.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Driver/Util.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Tooling/ArgumentsAdjusters.h"
 #include "clang/Tooling/CompilationDatabase.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/Twine.h"
 #include <string>
 #include <vector>
 
@@ -151,11 +151,10 @@ class ToolInvocation {
 
   bool runInvocation(const char *BinaryName,
                      clang::driver::Compilation *Compilation,
-                     clang::CompilerInvocation *Invocation,
-                     const clang::driver::ArgStringList &CC1Args);
+                     clang::CompilerInvocation *Invocation);
 
   std::vector<std::string> CommandLine;
-  llvm::OwningPtr<FrontendAction> ToolAction;
+  OwningPtr<FrontendAction> ToolAction;
   FileManager *Files;
   // Maps <file name> -> <file content>.
   llvm::StringMap<StringRef> MappedFileContents;
@@ -179,6 +178,8 @@ class ClangTool {
   ClangTool(const CompilationDatabase &Compilations,
             ArrayRef<std::string> SourcePaths);
 
+  virtual ~ClangTool() {}
+
   /// \brief Map a virtual file to be used while running the tool.
   ///
   /// \param FilePath The path at which the content will be mapped.
@@ -195,7 +196,7 @@ class ClangTool {
   /// \param ActionFactory Factory generating the frontend actions. The function
   /// takes ownership of this parameter. A new action is generated for every
   /// processed translation unit.
-  int run(FrontendActionFactory *ActionFactory);
+  virtual int run(FrontendActionFactory *ActionFactory);
 
   /// \brief Returns the file manager used in the tool.
   ///
@@ -210,7 +211,7 @@ class ClangTool {
   // Contains a list of pairs (<file name>, <file content>).
   std::vector< std::pair<StringRef, StringRef> > MappedFileContents;
 
-  llvm::OwningPtr<ArgumentsAdjuster> ArgsAdjuster;
+  OwningPtr<ArgumentsAdjuster> ArgsAdjuster;
 };
 
 template <typename T>
@@ -244,7 +245,7 @@ inline FrontendActionFactory *newFrontendActionFactory(
         : ConsumerFactory(ConsumerFactory), EndCallback(EndCallback) {}
 
       clang::ASTConsumer *CreateASTConsumer(clang::CompilerInstance &,
-                                            llvm::StringRef) {
+                                            StringRef) {
         return ConsumerFactory->newASTConsumer();
       }
 

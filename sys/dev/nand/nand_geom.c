@@ -156,6 +156,7 @@ nand_getattr(struct bio *bp)
 	struct nand_chip *chip;
 	struct chip_geom *cg;
 	device_t dev;
+	int val;
 
 	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
 		return (ENXIO);
@@ -166,22 +167,25 @@ nand_getattr(struct bio *bp)
 	dev = device_get_parent(chip->dev);
 	dev = device_get_parent(dev);
 
-	do {
-		if (g_handleattr_int(bp, "NAND::oobsize", cg->oob_size))
-			break;
-		else if (g_handleattr_int(bp, "NAND::pagesize", cg->page_size))
-			break;
-		else if (g_handleattr_int(bp, "NAND::blocksize",
-		    cg->block_size))
-			break;
-		else if (g_handleattr(bp, "NAND::device", &(dev),
-		    sizeof(device_t)))
-			break;
-
-		return (ERESTART);
-	} while (0);
-
-	return (EJUSTRETURN);
+	if (strcmp(bp->bio_attribute, "NAND::device") == 0) {
+		if (bp->bio_length != sizeof(dev))
+			return (EFAULT);
+		bcopy(&dev, bp->bio_data, sizeof(dev));
+	} else {
+		if (strcmp(bp->bio_attribute, "NAND::oobsize") == 0)
+			val = cg->oob_size;
+		else if (strcmp(bp->bio_attribute, "NAND::pagesize") == 0)
+			val = cg->page_size;
+		else if (strcmp(bp->bio_attribute, "NAND::blocksize") == 0)
+			val = cg->block_size;
+		else
+			return (-1);
+		if (bp->bio_length != sizeof(val))
+			return (EFAULT);
+		bcopy(&val, bp->bio_data, sizeof(val));
+	}
+	bp->bio_completed = bp->bio_length;
+	return (0);
 }
 
 static int

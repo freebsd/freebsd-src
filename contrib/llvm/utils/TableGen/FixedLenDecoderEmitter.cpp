@@ -15,8 +15,6 @@
 #define DEBUG_TYPE "decoder-emitter"
 
 #include "CodeGenTarget.h"
-#include "llvm/TableGen/Error.h"
-#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -28,11 +26,12 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
-
-#include <vector>
 #include <map>
 #include <string>
+#include <vector>
 
 using namespace llvm;
 
@@ -1867,7 +1866,7 @@ static void emitFieldFromInstruction(formatted_raw_ostream &OS) {
      << "    if (numBits == sizeof(InsnType)*8)\n"
      << "      fieldMask = (InsnType)(-1LL);\n"
      << "    else\n"
-     << "      fieldMask = ((1 << numBits) - 1) << startBit;\n"
+     << "      fieldMask = (((InsnType)1 << numBits) - 1) << startBit;\n"
      << "    return (insn & fieldMask) >> startBit;\n"
      << "}\n\n";
 }

@@ -325,7 +325,7 @@ uint16_t ldns_get_random(void);
  */
 char *ldns_bubblebabble(uint8_t *data, size_t len);
 
-#ifndef B32_NTOP
+#ifndef HAVE_B32_NTOP
 int ldns_b32_ntop(uint8_t const *src, size_t srclength,
 	     char *target, size_t targsize);
 int b32_ntop(uint8_t const *src, size_t srclength,
@@ -343,8 +343,8 @@ INLINE size_t ldns_b32_ntop_calculate_size(size_t srcsize)
 	size_t result = ((((srcsize / 5) * 8) - 2) + 2);
 	return result;
 }
-#endif /* !B32_NTOP */
-#ifndef B32_PTON
+#endif /* !HAVE_B32_NTOP */
+#ifndef HAVE_B32_PTON
 int ldns_b32_pton(char const *src, size_t hashed_owner_str_len, uint8_t *target, size_t targsize);
 int b32_pton(char const *src, size_t hashed_owner_str_len, uint8_t *target, size_t targsize);
 int ldns_b32_pton_extended_hex(char const *src, size_t hashed_owner_str_len, uint8_t *target, size_t targsize);
@@ -358,7 +358,30 @@ INLINE size_t ldns_b32_pton_calculate_size(size_t srcsize)
 	size_t result = ((((srcsize) / 8) * 5));
 	return result;
 }
-#endif /* !B32_PTON */
+#endif /* !HAVE_B32_PTON */
+#ifndef HAVE_B64_NTOP
+int ldns_b64_ntop(uint8_t const *src, size_t srclength,
+	 	  char *target, size_t targsize);
+/**
+ * calculates the size needed to store the result of b64_ntop
+ */
+/*@unused@*/
+static inline size_t ldns_b64_ntop_calculate_size(size_t srcsize)
+{
+	return ((((srcsize + 2) / 3) * 4) + 1);
+}
+#endif /* !HAVE_B64_NTOP */
+#ifndef HAVE_B64_PTON
+int ldns_b64_pton(char const *src, uint8_t *target, size_t targsize);
+/**
+ * calculates the size needed to store the result of ldns_b64_pton
+ */
+/*@unused@*/
+static inline size_t ldns_b64_pton_calculate_size(size_t srcsize)
+{
+	return (((((srcsize + 3) / 4) * 3)) + 1);
+}
+#endif /* !HAVE_B64_PTON */
 
 INLINE time_t ldns_time(time_t *t) { return time(t); }
 

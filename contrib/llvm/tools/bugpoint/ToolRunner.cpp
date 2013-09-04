@@ -13,12 +13,12 @@
 
 #define DEBUG_TYPE "toolrunner"
 #include "ToolRunner.h"
-#include "llvm/Support/Program.h"
+#include "llvm/Config/config.h"   // for HAVE_LINK_R
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Config/config.h"   // for HAVE_LINK_R
 #include <fstream>
 #include <sstream>
 using namespace llvm;
@@ -531,12 +531,12 @@ LLC *AbstractInterpreter::createLLC(const char *Argv0,
     return 0;
   }
 
-  Message = "Found llc: " + LLCPath + "\n";
   GCC *gcc = GCC::create(Message, GCCBinary, GCCArgs);
   if (!gcc) {
     errs() << Message << "\n";
     exit(1);
   }
+  Message = "Found llc: " + LLCPath + "\n";
   return new LLC(LLCPath, gcc, Args, UseIntegratedAssembler);
 }
 

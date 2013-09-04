@@ -66,9 +66,9 @@
  */
 
 /*
- * This global ZIL switch affects all pools
+ * Disable intent logging replay.  This global ZIL switch affects all pools.
  */
-int zil_replay_disable = 0;    /* disable intent logging replay */
+int zil_replay_disable = 0;
 SYSCTL_DECL(_vfs_zfs);
 TUNABLE_INT("vfs.zfs.zil_replay_disable", &zil_replay_disable);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RW,
@@ -83,10 +83,11 @@ boolean_t zfs_nocacheflush = B_FALSE;
 TUNABLE_INT("vfs.zfs.cache_flush_disable", &zfs_nocacheflush);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, cache_flush_disable, CTLFLAG_RDTUN,
     &zfs_nocacheflush, 0, "Disable cache flush");
-boolean_t zfs_notrim = B_TRUE;
-TUNABLE_INT("vfs.zfs.trim_disable", &zfs_notrim);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, trim_disable, CTLFLAG_RDTUN, &zfs_notrim, 0,
-    "Disable trim");
+boolean_t zfs_trim_enabled = B_TRUE;
+SYSCTL_DECL(_vfs_zfs_trim);
+TUNABLE_INT("vfs.zfs.trim.enabled", &zfs_trim_enabled);
+SYSCTL_INT(_vfs_zfs_trim, OID_AUTO, enabled, CTLFLAG_RDTUN, &zfs_trim_enabled, 0,
+    "Enable ZFS TRIM");
 
 static kmem_cache_t *zil_lwb_cache;
 
@@ -890,6 +891,7 @@ zil_lwb_write_init(zilog_t *zilog, lwb_t *lwb)
 
 /*
  * Define a limited set of intent log block sizes.
+ *
  * These must be a multiple of 4KB. Note only the amount used (again
  * aligned to 4KB) actually gets written. However, we can't always just
  * allocate SPA_MAXBLOCKSIZE as the slog space could be exhausted.

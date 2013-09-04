@@ -5,7 +5,7 @@
 .PATH.c:${WPA_SUPPLICANT_DISTDIR}
 
 PROG=	wpa_cli
-SRCS=	wpa_cli.c wpa_ctrl.c os_unix.c
+SRCS=	common.c edit.c eloop.c os_unix.c wpa_cli.c wpa_ctrl.c wpa_debug.c
 
 MAN=	wpa_cli.8
 

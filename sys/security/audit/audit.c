@@ -701,6 +701,8 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	 * (signal) tokens.
 	 */
 	ar = audit_new(AUE_CORE, td);
+	if (ar == NULL)
+		return;
 	if (path != NULL) {
 		pathp = &ar->k_ar.ar_arg_upath1;
 		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);

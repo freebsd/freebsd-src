@@ -110,7 +110,8 @@ extract_plist(const char *home, Package *pkg)
     PackingList p = pkg->head;
     char *last_file, *prefix = NULL;
     char *where_args, *perm_args, *last_chdir;
-    int maxargs, where_count = 0, perm_count = 0, add_count;
+    long maxargs;
+    int where_count = 0, perm_count = 0, add_count;
     Boolean preserve;
 
     maxargs = sysconf(_SC_ARG_MAX) / 2;	/* Just use half the argument space */

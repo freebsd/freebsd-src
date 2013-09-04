@@ -116,12 +116,27 @@ CVMX_SHARED cvmx_mgmt_port_state_t *cvmx_mgmt_port_state_ptr = NULL;
  */
 static int __cvmx_mgmt_port_num_ports(void)
 {
+#if defined(OCTEON_VENDOR_GEFES)
+    return 0; /* none of the GEFES boards have mgmt ports */
+#else
     if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN68XX))
         return 1;
     else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN6XXX))
         return 2;
     else
         return 0;
+#endif
+}
+
+
+/**
+ * Return the number of management ports supported on this board.
+ *
+ * @return Number of ports
+ */
+int cvmx_mgmt_port_num_ports(void)
+{
+    return __cvmx_mgmt_port_num_ports();
 }
 
 

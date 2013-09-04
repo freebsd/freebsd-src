@@ -200,10 +200,8 @@ SRCS+=	hm_ameth.c hm_pmeth.c hmac.c
 INCS+=	hmac.h
 
 # idea
-.if ${MK_IDEA} != "no"
 SRCS+=	i_cbc.c i_cfb64.c i_ecb.c i_ofb64.c i_skey.c
 INCS+=	idea.h
-.endif
 
 # krb5
 INCS+=	krb5_asn.h
@@ -404,12 +402,6 @@ opensslconf.h: opensslconf-${MACHINE_CPUARCH}.h
 .endif
 	cp -f ${.ALLSRC} ${.TARGET}
 
-.if ${MK_IDEA} == "no"
-evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
-	sed '/^#ifndef OPENSSL_NO_IDEA$$/,/^#endif$$/d' ${.ALLSRC} > ${.TARGET}
-CLEANFILES+=	evp.h
-.endif
-
 OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
 afterinstall:
 	@${ECHO} "Removing stale symlinks."
@@ -428,10 +420,6 @@ afterinstall:
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
-.endif
-
-.if ${MK_IDEA} != "no"
-_ideapath=	${LCRYPTO_SRC}/crypto/idea
 .endif
 
 .PATH:	${LCRYPTO_SRC}/crypto \
@@ -459,7 +447,7 @@ _ideapath=	${LCRYPTO_SRC}/crypto/idea
 	${LCRYPTO_SRC}/crypto/err \
 	${LCRYPTO_SRC}/crypto/evp \
 	${LCRYPTO_SRC}/crypto/hmac \
-	${_ideapath} \
+	${LCRYPTO_SRC}/crypto/idea \
 	${LCRYPTO_SRC}/crypto/krb5 \
 	${LCRYPTO_SRC}/crypto/lhash \
 	${LCRYPTO_SRC}/crypto/md4 \

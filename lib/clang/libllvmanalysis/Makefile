@@ -12,19 +12,16 @@ SRCS=	AliasAnalysis.cpp \
 	AliasSetTracker.cpp \
 	Analysis.cpp \
 	BasicAliasAnalysis.cpp \
-	BlockFrequencyInfo.cpp \
 	BranchProbabilityInfo.cpp \
 	CFGPrinter.cpp \
 	CaptureTracking.cpp \
 	CodeMetrics.cpp \
 	ConstantFolding.cpp \
 	CostModel.cpp \
-	DbgInfoPrinter.cpp \
 	DependenceAnalysis.cpp \
 	DomPrinter.cpp \
 	DominanceFrontier.cpp \
 	IVUsers.cpp \
-	InlineCost.cpp \
 	InstCount.cpp \
 	InstructionSimplify.cpp \
 	Interval.cpp \
@@ -46,13 +43,14 @@ SRCS=	AliasAnalysis.cpp \
 	PathProfileInfo.cpp \
 	PathProfileVerifier.cpp \
 	PostDominators.cpp \
+	ProfileDataLoader.cpp \
+	ProfileDataLoaderPass.cpp \
 	ProfileEstimatorPass.cpp \
 	ProfileInfo.cpp \
 	ProfileInfoLoader.cpp \
 	ProfileInfoLoaderPass.cpp \
 	ProfileVerifierPass.cpp \
-	ProfileDataLoader.cpp \
-	ProfileDataLoaderPass.cpp \
+	PtrUseVisitor.cpp \
 	RegionInfo.cpp \
 	RegionPass.cpp \
 	RegionPrinter.cpp \
@@ -61,16 +59,13 @@ SRCS=	AliasAnalysis.cpp \
 	ScalarEvolutionExpander.cpp \
 	ScalarEvolutionNormalization.cpp \
 	SparsePropagation.cpp \
+	TargetTransformInfo.cpp \
 	Trace.cpp \
 	TypeBasedAliasAnalysis.cpp \
 	ValueTracking.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	BlockFrequencyInfo.cpp \
-	LibCallSemantics.cpp \
-	PathNumbering.cpp \
-	PathProfileInfo.cpp \
-	PathProfileVerifier.cpp
+SRCS+=	BlockFrequencyInfo.cpp
 .endif
 
 TGHDRS=	Intrinsics

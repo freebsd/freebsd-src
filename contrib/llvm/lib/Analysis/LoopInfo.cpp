@@ -15,18 +15,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Constants.h"
-#include "llvm/Instructions.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfoImpl.h"
 #include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -213,13 +214,74 @@ bool Loop::isLoopSimplifyForm() const {
 /// isSafeToClone - Return true if the loop body is safe to clone in practice.
 /// Routines that reform the loop CFG and split edges often fail on indirectbr.
 bool Loop::isSafeToClone() const {
-  // Return false if any loop blocks contain indirectbrs.
+  // Return false if any loop blocks contain indirectbrs, or there are any calls
+  // to noduplicate functions.
   for (Loop::block_iterator I = block_begin(), E = block_end(); I != E; ++I) {
-    if (isa<IndirectBrInst>((*I)->getTerminator()))
+    if (isa<IndirectBrInst>((*I)->getTerminator())) {
       return false;
+    } else if (const InvokeInst *II = dyn_cast<InvokeInst>((*I)->getTerminator())) {
+      if (II->hasFnAttr(Attribute::NoDuplicate))
+        return false;
+    }
+
+    for (BasicBlock::iterator BI = (*I)->begin(), BE = (*I)->end(); BI != BE; ++BI) {
+      if (const CallInst *CI = dyn_cast<CallInst>(BI)) {
+        if (CI->hasFnAttr(Attribute::NoDuplicate))
+          return false;
+      }
+    }
   }
   return true;
 }
+
+bool Loop::isAnnotatedParallel() const {
+
+  BasicBlock *latch = getLoopLatch();
+  if (latch == NULL)
+    return false;
+
+  MDNode *desiredLoopIdMetadata =
+    latch->getTerminator()->getMetadata("llvm.loop.parallel");
+
+  if (!desiredLoopIdMetadata)
+      return false;
+
+  // The loop branch contains the parallel loop metadata. In order to ensure
+  // that any parallel-loop-unaware optimization pass hasn't added loop-carried
+  // dependencies (thus converted the loop back to a sequential loop), check
+  // that all the memory instructions in the loop contain parallelism metadata
+  // that point to the same unique "loop id metadata" the loop branch does.
+  for (block_iterator BB = block_begin(), BE = block_end(); BB != BE; ++BB) {
+    for (BasicBlock::iterator II = (*BB)->begin(), EE = (*BB)->end();
+         II != EE; II++) {
+
+      if (!II->mayReadOrWriteMemory())
+        continue;
+
+      if (!II->getMetadata("llvm.mem.parallel_loop_access"))
+        return false;
+
+      // The memory instruction can refer to the loop identifier metadata
+      // directly or indirectly through another list metadata (in case of
+      // nested parallel loops). The loop identifier metadata refers to
+      // itself so we can check both cases with the same routine.
+      MDNode *loopIdMD =
+          dyn_cast<MDNode>(II->getMetadata("llvm.mem.parallel_loop_access"));
+      bool loopIdMDFound = false;
+      for (unsigned i = 0, e = loopIdMD->getNumOperands(); i < e; ++i) {
+        if (loopIdMD->getOperand(i) == desiredLoopIdMetadata) {
+          loopIdMDFound = true;
+          break;
+        }
+      }
+
+      if (!loopIdMDFound)
+        return false;
+    }
+  }
+  return true;
+}
+
 
 /// hasDedicatedExits - Return true if no exit block for the loop
 /// has a predecessor that is outside the loop.

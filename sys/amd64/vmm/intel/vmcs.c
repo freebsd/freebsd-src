@@ -174,7 +174,7 @@ vmcs_seg_desc_encoding(int seg, uint32_t *base, uint32_t *lim, uint32_t *acc)
 }
 
 int
-vmcs_getreg(struct vmcs *vmcs, int ident, uint64_t *retval)
+vmcs_getreg(struct vmcs *vmcs, int running, int ident, uint64_t *retval)
 {
 	int error;
 	uint32_t encoding;
@@ -194,14 +194,19 @@ vmcs_getreg(struct vmcs *vmcs, int ident, uint64_t *retval)
 	if (encoding == (uint32_t)-1)
 		return (EINVAL);
 
-	VMPTRLD(vmcs);
+	if (!running)
+		VMPTRLD(vmcs);
+
 	error = vmread(encoding, retval);
-	VMCLEAR(vmcs);
+
+	if (!running)
+		VMCLEAR(vmcs);
+
 	return (error);
 }
 
 int
-vmcs_setreg(struct vmcs *vmcs, int ident, uint64_t val)
+vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val)
 {
 	int error;
 	uint32_t encoding;
@@ -216,9 +221,14 @@ vmcs_setreg(struct vmcs *vmcs, int ident, uint64_t val)
 
 	val = vmcs_fix_regval(encoding, val);
 
-	VMPTRLD(vmcs);
+	if (!running)
+		VMPTRLD(vmcs);
+
 	error = vmwrite(encoding, val);
-	VMCLEAR(vmcs);
+
+	if (!running)
+		VMCLEAR(vmcs);
+
 	return (error);
 }
 

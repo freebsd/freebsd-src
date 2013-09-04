@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_ch.c	10.8 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_ch.c,v 10.11 2011/12/02 19:49:50 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -35,9 +35,7 @@ static void noprev __P((SCR *));
  * PUBLIC: int v_chrepeat __P((SCR *, VICMD *));
  */
 int
-v_chrepeat(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_chrepeat(SCR *sp, VICMD *vp)
 {
 	vp->character = VIP(sp)->lastckey;
 
@@ -66,9 +64,7 @@ v_chrepeat(sp, vp)
  * PUBLIC: int v_chrrepeat __P((SCR *, VICMD *));
  */
 int
-v_chrrepeat(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_chrrepeat(SCR *sp, VICMD *vp)
 {
 	cdir_t savedir;
 	int rval;
@@ -107,9 +103,7 @@ v_chrrepeat(sp, vp)
  * PUBLIC: int v_cht __P((SCR *, VICMD *));
  */
 int
-v_cht(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_cht(SCR *sp, VICMD *vp)
 {
 	if (v_chf(sp, vp))
 		return (1);
@@ -140,14 +134,13 @@ v_cht(sp, vp)
  * PUBLIC: int v_chf __P((SCR *, VICMD *));
  */
 int
-v_chf(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_chf(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	u_long cnt;
-	int isempty, key;
-	char *endp, *p, *startp;
+	int isempty;
+	ARG_CHAR_T key;
+	CHAR_T *endp, *p, *startp;
 
 	/*
 	 * !!!
@@ -198,9 +191,7 @@ empty:		notfound(sp, key);
  * PUBLIC: int v_chT __P((SCR *, VICMD *));
  */
 int
-v_chT(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_chT(SCR *sp, VICMD *vp)
 {
 	if (v_chF(sp, vp))
 		return (1);
@@ -225,14 +216,13 @@ v_chT(sp, vp)
  * PUBLIC: int v_chF __P((SCR *, VICMD *));
  */
 int
-v_chF(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_chF(SCR *sp, VICMD *vp)
 {
 	size_t len;
 	u_long cnt;
-	int isempty, key;
-	char *endp, *p;
+	int isempty;
+	ARG_CHAR_T key;
+	CHAR_T *endp, *p;
 
 	/*
 	 * !!!
@@ -280,16 +270,13 @@ empty:		notfound(sp, key);
 }
 
 static void
-noprev(sp)
-	SCR *sp;
+noprev(SCR *sp)
 {
 	msgq(sp, M_BERR, "178|No previous F, f, T or t search");
 }
 
 static void
-notfound(sp, ch)
-	SCR *sp;
-	ARG_CHAR_T ch;
+notfound(SCR *sp, ARG_CHAR_T ch)
 {
 	msgq(sp, M_BERR, "179|%s not found", KEY_NAME(sp, ch));
 }

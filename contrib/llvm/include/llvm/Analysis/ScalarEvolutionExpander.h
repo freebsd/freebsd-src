@@ -11,18 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_SCALAREVOLUTION_EXPANDER_H
-#define LLVM_ANALYSIS_SCALAREVOLUTION_EXPANDER_H
+#ifndef LLVM_ANALYSIS_SCALAREVOLUTIONEXPANDER_H
+#define LLVM_ANALYSIS_SCALAREVOLUTIONEXPANDER_H
 
-#include "llvm/IRBuilder.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ScalarEvolutionNormalization.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/TargetFolder.h"
 #include "llvm/Support/ValueHandle.h"
 #include <set>
 
 namespace llvm {
-  class TargetLowering;
+  class TargetTransformInfo;
 
   /// Return true if the given expression is safe to expand in the sense that
   /// all materialized values are safe to speculate.
@@ -40,8 +40,10 @@ namespace llvm {
     // New instructions receive a name to identifies them with the current pass.
     const char* IVName;
 
-    std::map<std::pair<const SCEV *, Instruction *>, AssertingVH<Value> >
+    // InsertedExpressions caches Values for reuse, so must track RAUW.
+    std::map<std::pair<const SCEV *, Instruction *>, TrackingVH<Value> >
       InsertedExpressions;
+    // InsertedValues only flags inserted instructions so needs no RAUW.
     std::set<AssertingVH<Value> > InsertedValues;
     std::set<AssertingVH<Value> > InsertedPostIncValues;
 
@@ -129,7 +131,7 @@ namespace llvm {
     /// representative. Return the number of phis eliminated.
     unsigned replaceCongruentIVs(Loop *L, const DominatorTree *DT,
                                  SmallVectorImpl<WeakVH> &DeadInsts,
-                                 const TargetLowering *TLI = NULL);
+                                 const TargetTransformInfo *TTI = NULL);
 
     /// expandCodeFor - Insert code to directly compute the specified SCEV
     /// expression into the program.  The inserted code is inserted into the

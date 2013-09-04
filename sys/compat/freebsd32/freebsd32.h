@@ -69,6 +69,15 @@ struct timespec32 {
 	CP((src).fld,(dst).fld,tv_nsec);	\
 } while (0)
 
+struct itimerspec32 {
+	struct timespec32  it_interval;
+	struct timespec32  it_value;
+};
+#define ITS_CP(src, dst) do {			\
+	TS_CP((src), (dst), it_interval);	\
+	TS_CP((src), (dst), it_value);		\
+} while (0)
+
 struct rusage32 {
 	struct timeval32 ru_utime;
 	struct timeval32 ru_stime;
@@ -333,6 +342,7 @@ struct kinfo_proc32 {
 	char	ki_loginclass[LOGINCLASSLEN+1];
 	char	ki_sparestrings[50];
 	int	ki_spareints[KI_NSPARE_INT];
+	int	ki_fibnum;
 	u_int	ki_cr_flags;
 	int	ki_jid;
 	int	ki_numthreads;

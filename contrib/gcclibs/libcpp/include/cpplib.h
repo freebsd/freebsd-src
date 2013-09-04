@@ -745,10 +745,12 @@ struct cpp_num
 #define CPP_N_DECIMAL	0x0100
 #define CPP_N_HEX	0x0200
 #define CPP_N_OCTAL	0x0400
+#define CPP_N_BINARY	0x0800
 
 #define CPP_N_UNSIGNED	0x1000	/* Properties.  */
 #define CPP_N_IMAGINARY	0x2000
 #define CPP_N_DFLOAT	0x4000
+#define CPP_N_DEFAULT	0x8000
 
 /* Classify a CPP_NUMBER token.  The return value is a combination of
    the flags from the above sets.  */

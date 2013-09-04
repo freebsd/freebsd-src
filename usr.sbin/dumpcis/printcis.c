@@ -969,7 +969,7 @@ dump_network_ext(u_char *p, int len)
 			printf(" %02x", p[i + 2]);
 		putchar('\n');
 		break;
-	case 5:			/* Connecter type */
+	case 5:			/* Connector type */
 		if (len < 2)
 			goto err;
 		printf("\tNetwork connector: %s connector standard\n",

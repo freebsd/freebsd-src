@@ -82,10 +82,14 @@ header_check(const char *hdrname)
 }
 
 atf::fs::path
-get_process_helpers_path(const atf::tests::tc& tc)
+get_process_helpers_path(const atf::tests::tc& tc, bool is_detail)
 {
-    return atf::fs::path(tc.get_config_var("srcdir")) /
-           ".." / "atf-c" / "detail" / "process_helpers";
+    if (is_detail)
+        return atf::fs::path(tc.get_config_var("srcdir")) /
+               ".." / ".." / "atf-c" / "detail" / "process_helpers";
+    else
+        return atf::fs::path(tc.get_config_var("srcdir")) /
+               ".." / "atf-c" / "detail" / "process_helpers";
 }
 
 bool

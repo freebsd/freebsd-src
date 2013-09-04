@@ -49,20 +49,26 @@
 //     v1 = bitcast v0
 //        = v0
 //
+// - Optimize Loads:
+//
+//     Loads that can be folded into a later instruction. A load is foldable
+//     if it loads to virtual registers and the virtual register defined has 
+//     a single use.
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "peephole-opt"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 // Optimize Extensions
@@ -473,6 +479,9 @@ bool PeepholeOptimizer::foldImmediate(MachineInstr *MI, MachineBasicBlock *MBB,
 }
 
 bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
+  DEBUG(dbgs() << "********** PEEPHOLE OPTIMIZER **********\n");
+  DEBUG(dbgs() << "********** Function: " << MF.getName() << '\n');
+
   if (DisablePeephole)
     return false;
 
@@ -547,6 +556,8 @@ bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
                                                       FoldAsLoadDefReg, DefMI);
         if (FoldMI) {
           // Update LocalMIs since we replaced MI with FoldMI and deleted DefMI.
+          DEBUG(dbgs() << "Replacing: " << *MI);
+          DEBUG(dbgs() << "     With: " << *FoldMI);
           LocalMIs.erase(MI);
           LocalMIs.erase(DefMI);
           LocalMIs.insert(FoldMI);

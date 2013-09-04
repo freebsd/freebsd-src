@@ -169,6 +169,7 @@ typedef enum {
 
 	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
 
+	HAL_CAP_ANT_DIV_COMB	= 105,	/* Enable antenna diversity/combining */
 	HAL_CAP_PHYRESTART_CLR_WAR	= 106,	/* in some cases, clear phy restart to fix bb hang */
 	HAL_CAP_ENTERPRISE_MODE	= 107,	/* Enterprise mode features */
 	HAL_CAP_LDPCWAR		= 108,
@@ -197,6 +198,7 @@ typedef enum {
 	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
 	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
+	HAL_CAP_RX_LNA_MIXING	= 247,	/* RX hardware uses LNA mixing */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -1400,9 +1402,6 @@ struct ath_hal {
 				const struct ieee80211_channel *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,
 				const HAL_NODE_STATS *);
-	void	  __ahdecl(*ah_rxAntCombDiversity)(struct ath_hal *,
-				struct ath_rx_status *,
-				unsigned long, int);
 
 	/* Misc Functions */
 	HAL_STATUS __ahdecl(*ah_getCapability)(struct ath_hal *,
@@ -1579,10 +1578,16 @@ struct ath_hal {
 				uint32_t);
 	void	    __ahdecl(*ah_btCoexSetBmissThresh)(struct ath_hal *,
 				uint32_t);
-	void	    __ahdecl(*ah_btcoexSetParameter)(struct ath_hal *,
+	void	    __ahdecl(*ah_btCoexSetParameter)(struct ath_hal *,
 				uint32_t, uint32_t);
 	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
 	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
+
+	/* LNA diversity configuration */
+	void	    __ahdecl(*ah_divLnaConfGet)(struct ath_hal *,
+				HAL_ANT_COMB_CONFIG *);
+	void	    __ahdecl(*ah_divLnaConfSet)(struct ath_hal *,
+				HAL_ANT_COMB_CONFIG *);
 };
 
 /* 

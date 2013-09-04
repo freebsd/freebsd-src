@@ -173,6 +173,12 @@ typedef void (*be_lun_config_t)(void *be_lun,
  * The links field is for CTL internal use only, and should not be used by
  * the backend.
  */
+struct ctl_be_lun_option {
+	STAILQ_ENTRY(ctl_be_lun_option)	links;
+	char			*name;
+	char			*value;
+};
+
 struct ctl_be_lun {
 	uint8_t			lun_type;	/* passed to CTL */
 	ctl_backend_lun_flags	flags;		/* passed to CTL */
@@ -187,6 +193,7 @@ struct ctl_be_lun {
 	be_lun_config_t		lun_config_status; /* passed to CTL */
 	struct ctl_backend_driver *be;		/* passed to CTL */
 	void			*ctl_lun;	/* used by CTL */
+	STAILQ_HEAD(, ctl_be_lun_option) options; /* passed to CTL */
 	STAILQ_ENTRY(ctl_be_lun) links;		/* used by CTL */
 };
 

@@ -54,5 +54,6 @@ int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, struct vie *vie);
 		    
 int	register_mem(struct mem_range *memp);
 int	register_mem_fallback(struct mem_range *memp);
+int	unregister_mem(struct mem_range *memp);
 
 #endif	/* _MEM_H_ */

@@ -28,12 +28,12 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #include "libiberty.h"
 #include "arparse.h"
 
-#define YY_NO_UNPUT
-
 extern int yylex (void);
 
 int linenumber;
 %}
+
+%option nounput
 
 %a 10000
 %o 25000

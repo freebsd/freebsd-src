@@ -17,6 +17,7 @@ SRCS=	FixItRewriter.cpp \
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentCommandList \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \

@@ -2,14 +2,8 @@
  * WPA definitions shared between hostapd and wpa_supplicant
  * Copyright (c) 2002-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef WPA_COMMON_H
@@ -38,6 +32,7 @@
 #define WPA_AUTH_KEY_MGMT_NONE RSN_SELECTOR(0x00, 0x50, 0xf2, 0)
 #define WPA_AUTH_KEY_MGMT_UNSPEC_802_1X RSN_SELECTOR(0x00, 0x50, 0xf2, 1)
 #define WPA_AUTH_KEY_MGMT_PSK_OVER_802_1X RSN_SELECTOR(0x00, 0x50, 0xf2, 2)
+#define WPA_AUTH_KEY_MGMT_CCKM RSN_SELECTOR(0x00, 0x40, 0x96, 0)
 #define WPA_CIPHER_SUITE_NONE RSN_SELECTOR(0x00, 0x50, 0xf2, 0)
 #define WPA_CIPHER_SUITE_WEP40 RSN_SELECTOR(0x00, 0x50, 0xf2, 1)
 #define WPA_CIPHER_SUITE_TKIP RSN_SELECTOR(0x00, 0x50, 0xf2, 2)
@@ -56,6 +51,10 @@
 #endif /* CONFIG_IEEE80211R */
 #define RSN_AUTH_KEY_MGMT_802_1X_SHA256 RSN_SELECTOR(0x00, 0x0f, 0xac, 5)
 #define RSN_AUTH_KEY_MGMT_PSK_SHA256 RSN_SELECTOR(0x00, 0x0f, 0xac, 6)
+#define RSN_AUTH_KEY_MGMT_TPK_HANDSHAKE RSN_SELECTOR(0x00, 0x0f, 0xac, 7)
+#define RSN_AUTH_KEY_MGMT_SAE RSN_SELECTOR(0x00, 0x0f, 0xac, 8)
+#define RSN_AUTH_KEY_MGMT_FT_SAE RSN_SELECTOR(0x00, 0x0f, 0xac, 9)
+#define RSN_AUTH_KEY_MGMT_CCKM RSN_SELECTOR(0x00, 0x40, 0x96, 0x00)
 
 #define RSN_CIPHER_SUITE_NONE RSN_SELECTOR(0x00, 0x0f, 0xac, 0)
 #define RSN_CIPHER_SUITE_WEP40 RSN_SELECTOR(0x00, 0x0f, 0xac, 1)
@@ -68,6 +67,8 @@
 #ifdef CONFIG_IEEE80211W
 #define RSN_CIPHER_SUITE_AES_128_CMAC RSN_SELECTOR(0x00, 0x0f, 0xac, 6)
 #endif /* CONFIG_IEEE80211W */
+#define RSN_CIPHER_SUITE_NO_GROUP_ADDRESSED RSN_SELECTOR(0x00, 0x0f, 0xac, 7)
+#define RSN_CIPHER_SUITE_GCMP RSN_SELECTOR(0x00, 0x0f, 0xac, 8)
 
 /* EAPOL-Key Key Data Encapsulation
  * GroupKey and PeerKey require encryption, otherwise, encryption is optional.
@@ -87,6 +88,9 @@
 #ifdef CONFIG_IEEE80211W
 #define RSN_KEY_DATA_IGTK RSN_SELECTOR(0x00, 0x0f, 0xac, 9)
 #endif /* CONFIG_IEEE80211W */
+#define RSN_KEY_DATA_KEYID RSN_SELECTOR(0x00, 0x0f, 0xac, 10)
+#define RSN_KEY_DATA_MULTIBAND_GTK RSN_SELECTOR(0x00, 0x0f, 0xac, 11)
+#define RSN_KEY_DATA_MULTIBAND_KEYID RSN_SELECTOR(0x00, 0x0f, 0xac, 12)
 
 #define WPA_OUI_TYPE RSN_SELECTOR(0x00, 0x50, 0xf2, 1)
 
@@ -115,7 +119,13 @@
 /* B4-B5: GTKSA Replay Counter */
 #define WPA_CAPABILITY_MFPR BIT(6)
 #define WPA_CAPABILITY_MFPC BIT(7)
+/* B8: Reserved */
 #define WPA_CAPABILITY_PEERKEY_ENABLED BIT(9)
+#define WPA_CAPABILITY_SPP_A_MSDU_CAPABLE BIT(10)
+#define WPA_CAPABILITY_SPP_A_MSDU_REQUIRED BIT(11)
+#define WPA_CAPABILITY_PBAC BIT(12)
+#define WPA_CAPABILITY_EXT_KEY_ID_FOR_UNICAST BIT(13)
+/* B14-B15: Reserved */
 
 
 /* IEEE 802.11r */
@@ -337,6 +347,8 @@ struct wpa_ie_data {
 
 int wpa_parse_wpa_ie_rsn(const u8 *rsn_ie, size_t rsn_ie_len,
 			 struct wpa_ie_data *data);
+int wpa_parse_wpa_ie_wpa(const u8 *wpa_ie, size_t wpa_ie_len,
+			 struct wpa_ie_data *data);
 
 void rsn_pmkid(const u8 *pmk, size_t pmk_len, const u8 *aa, const u8 *spa,
 	       u8 *pmkid, int use_sha256);
@@ -347,5 +359,36 @@ int wpa_compare_rsn_ie(int ft_initial_assoc,
 		       const u8 *ie1, size_t ie1len,
 		       const u8 *ie2, size_t ie2len);
 int wpa_insert_pmkid(u8 *ies, size_t ies_len, const u8 *pmkid);
+
+struct wpa_ft_ies {
+	const u8 *mdie;
+	size_t mdie_len;
+	const u8 *ftie;
+	size_t ftie_len;
+	const u8 *r1kh_id;
+	const u8 *gtk;
+	size_t gtk_len;
+	const u8 *r0kh_id;
+	size_t r0kh_id_len;
+	const u8 *rsn;
+	size_t rsn_len;
+	const u8 *rsn_pmkid;
+	const u8 *tie;
+	size_t tie_len;
+	const u8 *igtk;
+	size_t igtk_len;
+	const u8 *ric;
+	size_t ric_len;
+};
+
+int wpa_ft_parse_ies(const u8 *ies, size_t ies_len, struct wpa_ft_ies *parse);
+
+int wpa_cipher_key_len(int cipher);
+int wpa_cipher_rsc_len(int cipher);
+int wpa_cipher_to_alg(int cipher);
+int wpa_cipher_valid_pairwise(int cipher);
+u32 wpa_cipher_to_suite(int proto, int cipher);
+int rsn_cipher_put_suites(u8 *pos, int ciphers);
+int wpa_cipher_put_suites(u8 *pos, int ciphers);
 
 #endif /* WPA_COMMON_H */

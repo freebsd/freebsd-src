@@ -29,11 +29,20 @@
 #ifndef _MACHINE_GDB_MACHDEP_H_
 #define	_MACHINE_GDB_MACHDEP_H_
 
+#ifdef BOOKE
+#define	PPC_GDB_NREGS0	1
+#define	PPC_GDB_NREGS4	(70 + 1)
+#define	PPC_GDB_NREGS8	(1 + 32)
+#define	PPC_GDB_NREGS16	0
+#else
+#define	PPC_GDB_NREGS0	0
 #define	PPC_GDB_NREGS4	(32 + 7 + 2)
 #define	PPC_GDB_NREGS8	32
 #define	PPC_GDB_NREGS16	32
+#endif
 
-#define GDB_NREGS	(PPC_GDB_NREGS4 + PPC_GDB_NREGS8 + PPC_GDB_NREGS16)
+#define GDB_NREGS	(PPC_GDB_NREGS0 + PPC_GDB_NREGS4 + \
+			 PPC_GDB_NREGS8 + PPC_GDB_NREGS16)
 #define	GDB_REG_PC	64
 
 #define	GDB_BUFSZ	(PPC_GDB_NREGS4 * 8 +	\
@@ -44,10 +53,17 @@ static __inline size_t
 gdb_cpu_regsz(int regnum)
 {
 
+#ifdef BOOKE
+	if (regnum == 70)
+		return (0);
+	if (regnum == 71 || regnum >= 73)
+		return (8);
+#else
 	if (regnum >= 32 && regnum <= 63)
 		return (8);
 	if (regnum >= 71 && regnum <= 102)
 		return (16);
+#endif
 	return (4);
 }
 

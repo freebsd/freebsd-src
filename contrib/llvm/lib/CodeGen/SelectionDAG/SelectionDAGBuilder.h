@@ -14,12 +14,12 @@
 #ifndef SELECTIONDAGBUILDER_H
 #define SELECTIONDAGBUILDER_H
 
-#include "llvm/Constants.h"
-#include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <vector>
@@ -262,7 +262,7 @@ private:
 
   struct BitTestBlock {
     BitTestBlock(APInt F, APInt R, const Value* SV,
-                 unsigned Rg, EVT RgVT, bool E,
+                 unsigned Rg, MVT RgVT, bool E,
                  MachineBasicBlock* P, MachineBasicBlock* D,
                  const BitTestInfo& C):
       First(F), Range(R), SValue(SV), Reg(Rg), RegVT(RgVT), Emitted(E),
@@ -271,7 +271,7 @@ private:
     APInt Range;
     const Value *SValue;
     unsigned Reg;
-    EVT RegVT;
+    MVT RegVT;
     bool Emitted;
     MachineBasicBlock *Parent;
     MachineBasicBlock *Default;
@@ -532,13 +532,6 @@ private:
   void visitInlineAsm(ImmutableCallSite CS);
   const char *visitIntrinsicCall(const CallInst &I, unsigned Intrinsic);
   void visitTargetIntrinsic(const CallInst &I, unsigned Intrinsic);
-
-  void visitPow(const CallInst &I);
-  void visitExp2(const CallInst &I);
-  void visitExp(const CallInst &I);
-  void visitLog(const CallInst &I);
-  void visitLog2(const CallInst &I);
-  void visitLog10(const CallInst &I);
 
   void visitVAStart(const CallInst &I);
   void visitVAArg(const VAArgInst &I);

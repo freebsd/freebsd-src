@@ -67,16 +67,6 @@ enum {
 	PAUSE_AUTONEG = 1 << 2
 };
 
-#define FW_VERSION_MAJOR_T4 1
-#define FW_VERSION_MINOR_T4 8
-#define FW_VERSION_MICRO_T4 4
-#define FW_VERSION_BUILD_T4 0
-
-#define FW_VERSION_MAJOR_T5 0
-#define FW_VERSION_MINOR_T5 5
-#define FW_VERSION_MICRO_T5 18
-#define FW_VERSION_BUILD_T5 0
-
 struct memwin {
 	uint32_t base;
 	uint32_t aperture;
@@ -229,6 +219,12 @@ struct tp_params {
 	unsigned int dack_re;        /* DACK timer resolution */
 	unsigned int la_mask;        /* what events are recorded by TP LA */
 	unsigned short tx_modq[NCHAN];  /* channel to modulation queue map */
+	uint32_t vlan_pri_map;
+	uint32_t ingress_config;
+	int8_t vlan_shift;
+	int8_t vnic_shift;
+	int8_t port_shift;
+	int8_t protocol_shift;
 };
 
 struct vpd_params {
@@ -424,13 +420,15 @@ int t4_read_flash(struct adapter *adapter, unsigned int addr, unsigned int nword
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
 int t4_load_boot(struct adapter *adap, u8 *boot_data,
                  unsigned int boot_addr, unsigned int size);
-unsigned int t4_flash_cfg_addr(struct adapter *adapter);
+int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
 int t4_check_fw_version(struct adapter *adapter);
 int t4_init_hw(struct adapter *adapter, u32 fw_params);
 int t4_prep_adapter(struct adapter *adapter);
+int t4_init_tp_params(struct adapter *adap);
+int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct port_info *p, int mbox, int pf, int vf);
 int t4_reinit_adapter(struct adapter *adap);
 void t4_fatal_err(struct adapter *adapter);

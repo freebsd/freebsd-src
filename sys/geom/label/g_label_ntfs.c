@@ -86,7 +86,7 @@ struct ntfs_bootfile {
 	uint64_t	bf_spv;
 	uint64_t	bf_mftcn;
 	uint64_t	bf_mftmirrcn;
-	uint8_t		bf_mftrecsz;
+	int8_t		bf_mftrecsz;
 	uint32_t	bf_ibsz;
 	uint32_t	bf_volsn;
 } __packed;
@@ -100,7 +100,8 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 	struct ntfs_attr *atr;
 	off_t voloff;
 	char *filerecp, *ap;
-	char mftrecsz, vnchar;
+	int8_t mftrecsz;
+	char vnchar;
 	int recsize, j;
 
 	g_topology_assert_not();
@@ -113,7 +114,7 @@ g_label_ntfs_taste(struct g_consumer *cp, char *label, size_t size)
 	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0)
 		goto done;
 
-	mftrecsz = (char)bf->bf_mftrecsz;
+	mftrecsz = bf->bf_mftrecsz;
 	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
 	if (recsize == 0 || recsize % pp->sectorsize != 0)
 		goto done;

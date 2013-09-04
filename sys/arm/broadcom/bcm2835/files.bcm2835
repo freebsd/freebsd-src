@@ -22,3 +22,5 @@ arm/arm/cpufunc_asm_armv6.S                     standard
 arm/arm/irq_dispatch.S                          standard
 
 kern/kern_clocksource.c                         standard
+
+dev/mbox/mbox_if.m				standard

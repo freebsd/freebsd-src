@@ -56,105 +56,6 @@ ldns_zone_push_rr(ldns_zone *z, ldns_rr *rr)
 	return ldns_rr_list_push_rr( ldns_zone_rrs(z), rr);
 }
 
-#if 0
-/* return a clone of the given rr list, without the glue records
- * rr list should be the complete zone
- * if present, stripped records are added to the list *glue_records
- */
-static ldns_rr_list *
-ldns_zone_strip_glue_rrs(const ldns_rdf *zone_name, const ldns_rr_list *rrs, ldns_rr_list *glue_rrs)
-{
-	ldns_rr_list *new_list;
-
-	/* when do we find glue? It means we find an IP address
-	 * (AAAA/A) for a nameserver listed in the zone
-	 *
-	 * Alg used here:
-	 * first find all the zonecuts (NS records)
-	 * find all the AAAA or A records (can be done it the 
-	 * above loop).
-	 *
-	 * Check if the aaaa/a list are subdomains under the
-	 * NS domains.
-	 * If yes -> glue, if no -> not glue
-	 */
-
-	ldns_rr_list *zone_cuts;
-	ldns_rr_list *addr;
-	ldns_rr *r, *ns, *a;
-	ldns_rdf *dname_a, *ns_owner;
-	uint16_t i,j;
-
-	new_list = NULL;
-	zone_cuts = NULL;
-	addr = NULL;
-
-	new_list = ldns_rr_list_new();
-	if (!new_list) goto memory_error;
-	zone_cuts = ldns_rr_list_new();
-	if (!zone_cuts) goto memory_error;
-	addr = ldns_rr_list_new();
-	if (!addr) goto memory_error;
-
-	for(i = 0; i < ldns_rr_list_rr_count(rrs); i++) {
-		r = ldns_rr_list_rr(rrs, i);
-		if (ldns_rr_get_type(r) == LDNS_RR_TYPE_A ||
-				ldns_rr_get_type(r) == LDNS_RR_TYPE_AAAA) {
-			/* possibly glue */
-			if (!ldns_rr_list_push_rr(addr, r)) goto memory_error;
-			continue;
-		}
-		if (ldns_rr_get_type(r) == LDNS_RR_TYPE_NS) {
-			/* multiple zones will end up here -
-			 * for now; not a problem
-			 */
-			/* don't add NS records for the current zone itself */
-			if (ldns_rdf_compare(ldns_rr_owner(r), 
-						zone_name) != 0) {
-				if (!ldns_rr_list_push_rr(zone_cuts, r)) goto memory_error;
-			}
-			continue;
-		}
-	}
-
-	/* will sorting make it quicker ?? */
-	for(i = 0; i < ldns_rr_list_rr_count(zone_cuts); i++) {
-		ns = ldns_rr_list_rr(zone_cuts, i);
-		ns_owner = ldns_rr_owner(ns);
-		for(j = 0; j < ldns_rr_list_rr_count(addr); j++) {
-			a = ldns_rr_list_rr(addr, j);
-			dname_a = ldns_rr_owner(a);
-			
-			if (ldns_dname_is_subdomain(dname_a, ns_owner)) {
-				/* GLUE! */
-				if (glue_rrs) {
-					if (!ldns_rr_list_push_rr(glue_rrs, a)) goto memory_error;
-				}
-				break;
-			} else {
-				if (!ldns_rr_list_push_rr(new_list, a)) goto memory_error;
-			}
-		}
-	}
-	
-	ldns_rr_list_free(addr);
-	ldns_rr_list_free(zone_cuts);
-
-	return new_list;
-
-memory_error:
-	if (new_list) {
-		ldns_rr_list_free(new_list);
-	}
-	if (zone_cuts) {
-		ldns_rr_list_free(zone_cuts);
-	}
-	if (addr) {
-		ldns_rr_list_free(addr);
-	}
-	return NULL;
-}
-#endif
 
 /*
  * Get the list of glue records in a zone
@@ -400,22 +301,6 @@ ldns_zone_sort(ldns_zone *zone)
 	zrr = ldns_zone_rrs(zone);
 	ldns_rr_list_sort(zrr);
 }
-
-#if 0
-/**
- * ixfr function. Work on a ldns_zone and remove and add
- * the rrs from the rrlist
- * \param[in] z the zone to work on
- * \param[in] del rr_list to remove from the zone
- * \param[in] add rr_list to add to the zone
- * \return Tja, wat zouden we eens returnen TODO
- */
-void
-ldns_zone_ixfr_del_add(ldns_zone *z, ldns_rr_list *del, ldns_rr_list *add)
-{
-	
-}
-#endif
 
 void
 ldns_zone_free(ldns_zone *zone) 

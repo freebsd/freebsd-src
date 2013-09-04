@@ -6,4 +6,6 @@ BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 PROG=	bzip2recover
 NO_MAN=
 
+NO_WMISSING_VARIABLE_DECLARATIONS=
+
 .include <bsd.prog.mk>

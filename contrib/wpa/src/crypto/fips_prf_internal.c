@@ -2,14 +2,8 @@
  * FIPS 186-2 PRF for internal crypto implementation
  * Copyright (c) 2006-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -28,13 +22,14 @@ int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 	u8 *xpos = x;
 	u32 carry;
 
-	if (seed_len > sizeof(xkey))
+	if (seed_len < sizeof(xkey))
+		os_memset(xkey + seed_len, 0, sizeof(xkey) - seed_len);
+	else
 		seed_len = sizeof(xkey);
 
 	/* FIPS 186-2 + change notice 1 */
 
 	os_memcpy(xkey, seed, seed_len);
-	os_memset(xkey + seed_len, 0, 64 - seed_len);
 	t[0] = 0x67452301;
 	t[1] = 0xEFCDAB89;
 	t[2] = 0x98BADCFE;

@@ -10,14 +10,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/RegionInfo.h"
-#include "llvm/Analysis/RegionIterator.h"
-
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/RegionIterator.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Assembly/Writer.h"
 
 #define DEBUG_TYPE "region"
 #include "llvm/Support/Debug.h"
@@ -80,10 +79,43 @@ void Region::replaceExit(BasicBlock *BB) {
   exit = BB;
 }
 
+void Region::replaceEntryRecursive(BasicBlock *NewEntry) {
+  std::vector<Region *> RegionQueue;
+  BasicBlock *OldEntry = getEntry();
+
+  RegionQueue.push_back(this);
+  while (!RegionQueue.empty()) {
+    Region *R = RegionQueue.back();
+    RegionQueue.pop_back();
+
+    R->replaceEntry(NewEntry);
+    for (Region::const_iterator RI = R->begin(), RE = R->end(); RI != RE; ++RI)
+      if ((*RI)->getEntry() == OldEntry)
+        RegionQueue.push_back(*RI);
+  }
+}
+
+void Region::replaceExitRecursive(BasicBlock *NewExit) {
+  std::vector<Region *> RegionQueue;
+  BasicBlock *OldExit = getExit();
+
+  RegionQueue.push_back(this);
+  while (!RegionQueue.empty()) {
+    Region *R = RegionQueue.back();
+    RegionQueue.pop_back();
+
+    R->replaceExit(NewExit);
+    for (Region::const_iterator RI = R->begin(), RE = R->end(); RI != RE; ++RI)
+      if ((*RI)->getExit() == OldExit)
+        RegionQueue.push_back(*RI);
+  }
+}
+
 bool Region::contains(const BasicBlock *B) const {
   BasicBlock *BB = const_cast<BasicBlock*>(B);
 
-  assert(DT->getNode(BB) && "BB not part of the dominance tree");
+  if (!DT->getNode(BB))
+    return false;
 
   BasicBlock *entry = getEntry(), *exit = getExit();
 

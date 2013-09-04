@@ -443,7 +443,7 @@ startagain:
 	/*
 	 * Wait a short amount of time to see if the allocation request
 	 * completes.  Otherwise, I enable the interrupt and wait for
-	 * completion asyncronously.
+	 * completion asynchronously.
 	 */
 
 	time_out = MEMORY_WAIT_TIME;

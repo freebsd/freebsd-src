@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -116,6 +117,9 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_VMX, "vmx", "vmx");
 
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, vmx, CTLFLAG_RW, NULL, NULL);
+
 int vmxon_enabled[MAXCPU];
 static char vmxon_region[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
 
@@ -123,11 +127,24 @@ static uint32_t pinbased_ctls, procbased_ctls, procbased_ctls2;
 static uint32_t exit_ctls, entry_ctls;
 
 static uint64_t cr0_ones_mask, cr0_zeros_mask;
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr0_ones_mask, CTLFLAG_RD,
+	     &cr0_ones_mask, 0, NULL);
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr0_zeros_mask, CTLFLAG_RD,
+	     &cr0_zeros_mask, 0, NULL);
+
 static uint64_t cr4_ones_mask, cr4_zeros_mask;
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_ones_mask, CTLFLAG_RD,
+	     &cr4_ones_mask, 0, NULL);
+SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_zeros_mask, CTLFLAG_RD,
+	     &cr4_zeros_mask, 0, NULL);
 
 static volatile u_int nextvpid;
 
 static int vmx_no_patmsr;
+
+static int vmx_initialized;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, initialized, CTLFLAG_RD,
+	   &vmx_initialized, 0, "Intel VMX initialized");
 
 /*
  * Virtual NMI blocking conditions.
@@ -441,7 +458,8 @@ vmx_init(void)
 	 * are set (bits 0 and 2 respectively).
 	 */
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
-	if ((feature_control & 0x5) != 0x5) {
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
 		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
 	}
@@ -592,6 +610,8 @@ vmx_init(void)
 	/* enable VMX operation */
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
 
+	vmx_initialized = 1;
+
 	return (0);
 }
 
@@ -627,10 +647,10 @@ vmx_vpid(void)
 }
 
 static int
-vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
+vmx_setup_cr_shadow(int which, struct vmcs *vmcs, uint32_t initial)
 {
 	int error, mask_ident, shadow_ident;
-	uint64_t mask_value, shadow_value;
+	uint64_t mask_value;
 
 	if (which != 0 && which != 4)
 		panic("vmx_setup_cr_shadow: unknown cr%d", which);
@@ -639,26 +659,24 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs)
 		mask_ident = VMCS_CR0_MASK;
 		mask_value = cr0_ones_mask | cr0_zeros_mask;
 		shadow_ident = VMCS_CR0_SHADOW;
-		shadow_value = cr0_ones_mask;
 	} else {
 		mask_ident = VMCS_CR4_MASK;
 		mask_value = cr4_ones_mask | cr4_zeros_mask;
 		shadow_ident = VMCS_CR4_SHADOW;
-		shadow_value = cr4_ones_mask;
 	}
 
-	error = vmcs_setreg(vmcs, VMCS_IDENT(mask_ident), mask_value);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(mask_ident), mask_value);
 	if (error)
 		return (error);
 
-	error = vmcs_setreg(vmcs, VMCS_IDENT(shadow_ident), shadow_value);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(shadow_ident), initial);
 	if (error)
 		return (error);
 
 	return (0);
 }
-#define	vmx_setup_cr0_shadow(vmcs)	vmx_setup_cr_shadow(0, (vmcs))
-#define	vmx_setup_cr4_shadow(vmcs)	vmx_setup_cr_shadow(4, (vmcs))
+#define	vmx_setup_cr0_shadow(vmcs,init)	vmx_setup_cr_shadow(0, (vmcs), (init))
+#define	vmx_setup_cr4_shadow(vmcs,init)	vmx_setup_cr_shadow(4, (vmcs), (init))
 
 static void *
 vmx_vminit(struct vm *vm)
@@ -764,11 +782,17 @@ vmx_vminit(struct vm *vm)
 		if (error != 0)
 			panic("vmcs_set_msr_save error %d", error);
 
-		error = vmx_setup_cr0_shadow(&vmx->vmcs[i]);
+		/*
+		 * Set up the CR0/4 shadows, and init the read shadow
+		 * to the power-on register value from the Intel Sys Arch.
+		 *  CR0 - 0x60000010
+		 *  CR4 - 0
+		 */
+		error = vmx_setup_cr0_shadow(&vmx->vmcs[i], 0x60000010);
 		if (error != 0)
 			panic("vmx_setup_cr0_shadow %d", error);
 
-		error = vmx_setup_cr4_shadow(&vmx->vmcs[i]);
+		error = vmx_setup_cr4_shadow(&vmx->vmcs[i], 0);
 		if (error != 0)
 			panic("vmx_setup_cr4_shadow %d", error);
 	}
@@ -1059,8 +1083,8 @@ cantinject:
 static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
-	int error, cr, vmcs_guest_cr;
-	uint64_t regval, ones_mask, zeros_mask;
+	int error, cr, vmcs_guest_cr, vmcs_shadow_cr;
+	uint64_t crval, regval, ones_mask, zeros_mask;
 	const struct vmxctx *vmxctx;
 
 	/* We only handle mov to %cr0 or %cr4 at this time */
@@ -1136,17 +1160,60 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 		ones_mask = cr0_ones_mask;
 		zeros_mask = cr0_zeros_mask;
 		vmcs_guest_cr = VMCS_GUEST_CR0;
+		vmcs_shadow_cr = VMCS_CR0_SHADOW;
 	} else {
 		ones_mask = cr4_ones_mask;
 		zeros_mask = cr4_zeros_mask;
 		vmcs_guest_cr = VMCS_GUEST_CR4;
+		vmcs_shadow_cr = VMCS_CR4_SHADOW;
 	}
-	regval |= ones_mask;
-	regval &= ~zeros_mask;
-	error = vmwrite(vmcs_guest_cr, regval);
+
+	error = vmwrite(vmcs_shadow_cr, regval);
+	if (error) {
+		panic("vmx_emulate_cr_access: error %d writing cr%d shadow",
+		      error, cr);
+	}
+
+	crval = regval | ones_mask;
+	crval &= ~zeros_mask;
+	error = vmwrite(vmcs_guest_cr, crval);
 	if (error) {
 		panic("vmx_emulate_cr_access: error %d writing cr%d",
 		      error, cr);
+	}
+
+	if (cr == 0 && regval & CR0_PG) {
+		uint64_t efer, entry_ctls;
+
+		/*
+		 * If CR0.PG is 1 and EFER.LME is 1 then EFER.LMA and
+		 * the "IA-32e mode guest" bit in VM-entry control must be
+		 * equal.
+		 */
+		error = vmread(VMCS_GUEST_IA32_EFER, &efer);
+		if (error) {
+		  panic("vmx_emulate_cr_access: error %d efer read",
+			error);			
+		}
+		if (efer & EFER_LME) {
+			efer |= EFER_LMA;
+			error = vmwrite(VMCS_GUEST_IA32_EFER, efer);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " efer write", error);
+			}
+			error = vmread(VMCS_ENTRY_CTLS, &entry_ctls);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " entry ctls read", error);
+			}
+			entry_ctls |= VM_ENTRY_GUEST_LMA;
+			error = vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " entry ctls write", error);
+			}
+		}
 	}
 
 	return (HANDLED);
@@ -1595,51 +1662,57 @@ vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val)
 }
 
 static int
+vmx_shadow_reg(int reg)
+{
+	int shreg;
+
+	shreg = -1;
+
+	switch (reg) {
+	case VM_REG_GUEST_CR0:
+		shreg = VMCS_CR0_SHADOW;
+                break;
+        case VM_REG_GUEST_CR4:
+		shreg = VMCS_CR4_SHADOW;
+		break;
+	default:
+		break;
+	}
+
+	return (shreg);
+}
+
+static int
 vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 {
+	int running, hostcpu;
 	struct vmx *vmx = arg;
+
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
 
 	if (vmxctx_getreg(&vmx->ctx[vcpu], reg, retval) == 0)
 		return (0);
 
-	/*
-	 * If the vcpu is running then don't mess with the VMCS.
-	 *
-	 * vmcs_getreg will VMCLEAR the vmcs when it is done which will cause
-	 * the subsequent vmlaunch/vmresume to fail.
-	 */
-	if (vcpu_is_running(vmx->vm, vcpu))
-		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
-
-	return (vmcs_getreg(&vmx->vmcs[vcpu], reg, retval));
+	return (vmcs_getreg(&vmx->vmcs[vcpu], running, reg, retval));
 }
 
 static int
 vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 {
-	int error;
+	int error, hostcpu, running, shadow;
 	uint64_t ctls;
 	struct vmx *vmx = arg;
 
-	/*
-	 * XXX Allow caller to set contents of the guest registers saved in
-	 * the 'vmxctx' even though the vcpu might be running. We need this
-	 * specifically to support the rdmsr emulation that will set the
-	 * %eax and %edx registers during vm exit processing.
-	 */
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
+
 	if (vmxctx_setreg(&vmx->ctx[vcpu], reg, val) == 0)
 		return (0);
 
-	/*
-	 * If the vcpu is running then don't mess with the VMCS.
-	 *
-	 * vmcs_setreg will VMCLEAR the vmcs when it is done which will cause
-	 * the subsequent vmlaunch/vmresume to fail.
-	 */
-	if (vcpu_is_running(vmx->vm, vcpu))
-		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
-
-	error = vmcs_setreg(&vmx->vmcs[vcpu], reg, val);
+	error = vmcs_setreg(&vmx->vmcs[vcpu], running, reg, val);
 
 	if (error == 0) {
 		/*
@@ -1649,14 +1722,23 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 		 */
 		if ((entry_ctls & VM_ENTRY_LOAD_EFER) != 0 &&
 		    (reg == VM_REG_GUEST_EFER)) {
-			vmcs_getreg(&vmx->vmcs[vcpu],
+			vmcs_getreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(VMCS_ENTRY_CTLS), &ctls);
 			if (val & EFER_LMA)
 				ctls |= VM_ENTRY_GUEST_LMA;
 			else
 				ctls &= ~VM_ENTRY_GUEST_LMA;
-			vmcs_setreg(&vmx->vmcs[vcpu],
+			vmcs_setreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(VMCS_ENTRY_CTLS), ctls);
+		}
+
+		shadow = vmx_shadow_reg(reg);
+		if (shadow > 0) {
+			/*
+			 * Store the unmodified value in the shadow
+			 */			
+			error = vmcs_setreg(&vmx->vmcs[vcpu], running,
+				    VMCS_IDENT(shadow), val);
 		}
 	}
 
@@ -1702,7 +1784,7 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	 * If there is already an exception pending to be delivered to the
 	 * vcpu then just return.
 	 */
-	error = vmcs_getreg(vmcs, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
+	error = vmcs_getreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
 	if (error)
 		return (error);
 
@@ -1711,12 +1793,12 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 
 	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
 	info |= VMCS_INTERRUPTION_INFO_VALID;
-	error = vmcs_setreg(vmcs, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
+	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
 	if (error != 0)
 		return (error);
 
 	if (code_valid) {
-		error = vmcs_setreg(vmcs,
+		error = vmcs_setreg(vmcs, 0,
 				    VMCS_IDENT(VMCS_ENTRY_EXCEPTION_ERROR),
 				    code);
 	}

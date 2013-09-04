@@ -87,7 +87,7 @@ struct vmm_ops {
 extern struct vmm_ops vmm_ops_intel;
 extern struct vmm_ops vmm_ops_amd;
 
-struct vm *vm_create(const char *name);
+int vm_create(const char *name, struct vm **retvm);
 void vm_destroy(struct vm *vm);
 const char *vm_name(struct vm *vm);
 int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
@@ -135,12 +135,12 @@ enum vcpu_state {
 };
 
 int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);
-enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu);
+enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu, int *hostcpu);
 
 static int __inline
-vcpu_is_running(struct vm *vm, int vcpu)
+vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 {
-	return (vcpu_get_state(vm, vcpu) == VCPU_RUNNING);
+	return (vcpu_get_state(vm, vcpu, hostcpu) == VCPU_RUNNING);
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);

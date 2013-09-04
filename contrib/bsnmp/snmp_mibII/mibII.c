@@ -934,6 +934,34 @@ mib_find_ifa(struct in_addr addr)
 }
 
 /*
+ * Process a new ARP entry
+ */
+static void
+process_arp(const struct rt_msghdr *rtm, const struct sockaddr_dl *sdl,
+    const struct sockaddr_in *sa)
+{
+	struct mibif *ifp;
+	struct mibarp *at;
+
+	/* IP arp table entry */
+	if (sdl->sdl_alen == 0)
+		return;
+	if ((ifp = mib_find_if_sys(sdl->sdl_index)) == NULL)
+		return;
+	/* have a valid entry */
+	if ((at = mib_find_arp(ifp, sa->sin_addr)) == NULL &&
+	    (at = mib_arp_create(ifp, sa->sin_addr,
+	    sdl->sdl_data + sdl->sdl_nlen, sdl->sdl_alen)) == NULL)
+		return;
+
+	if (rtm->rtm_rmx.rmx_expire == 0)
+		at->flags |= MIBARP_PERM;
+	else
+		at->flags &= ~MIBARP_PERM;
+	at->flags |= MIBARP_FOUND;
+}
+
+/*
  * Handle a routing socket message.
  */
 static void
@@ -1075,6 +1103,23 @@ handle_rtmsg(struct rt_msghdr *rtm)
 #endif
 	  case RTM_GET:
 	  case RTM_ADD:
+		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
+		if (rtm->rtm_flags & RTF_LLINFO) {
+			if (addrs[RTAX_DST] == NULL ||
+			    addrs[RTAX_GATEWAY] == NULL ||
+			    addrs[RTAX_DST]->sa_family != AF_INET ||
+			    addrs[RTAX_GATEWAY]->sa_family != AF_LINK)
+				break;
+			process_arp(rtm,
+			    (struct sockaddr_dl *)(void *)addrs[RTAX_GATEWAY],
+			    (struct sockaddr_in *)(void *)addrs[RTAX_DST]);
+		} else {
+			if (rtm->rtm_errno == 0 && (rtm->rtm_flags & RTF_UP))
+				mib_sroute_process(rtm, addrs[RTAX_GATEWAY],
+				    addrs[RTAX_DST], addrs[RTAX_NETMASK]);
+		}
+		break;
+
 	  case RTM_DELETE:
 		mib_extract_addrs(rtm->rtm_addrs, (u_char *)(rtm + 1), addrs);
 

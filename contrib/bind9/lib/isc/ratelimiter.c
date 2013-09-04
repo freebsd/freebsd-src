@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -114,7 +114,7 @@ isc_ratelimiter_setinterval(isc_ratelimiter_t *rl, isc_interval_t *interval) {
 	/*
 	 * If the timer is currently running, change its rate.
 	 */
-        if (rl->state == isc_ratelimiter_ratelimited) {
+	if (rl->state == isc_ratelimiter_ratelimited) {
 		result = isc_timer_reset(rl->timer, isc_timertype_ticker, NULL,
 					 &rl->interval, ISC_FALSE);
 	}
@@ -142,13 +142,13 @@ isc_ratelimiter_enqueue(isc_ratelimiter_t *rl, isc_task_t *task,
 	REQUIRE(ev->ev_sender == NULL);
 
 	LOCK(&rl->lock);
-        if (rl->state == isc_ratelimiter_ratelimited ||
+	if (rl->state == isc_ratelimiter_ratelimited ||
 	    rl->state == isc_ratelimiter_stalled) {
 		isc_event_t *ev = *eventp;
 		ev->ev_sender = task;
-                ISC_LIST_APPEND(rl->pending, ev, ev_link);
+		ISC_LIST_APPEND(rl->pending, ev, ev_link);
 		*eventp = NULL;
-        } else if (rl->state == isc_ratelimiter_idle) {
+	} else if (rl->state == isc_ratelimiter_idle) {
 		result = isc_timer_reset(rl->timer, isc_timertype_ticker, NULL,
 					 &rl->interval, ISC_FALSE);
 		if (result == ISC_R_SUCCESS) {
@@ -177,7 +177,7 @@ ratelimiter_tick(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
 
 	pertic = rl->pertic;
-        while (pertic != 0) {
+	while (pertic != 0) {
 		pertic--;
 		LOCK(&rl->lock);
 		p = ISC_LIST_HEAD(rl->pending);
@@ -289,8 +289,9 @@ isc_ratelimiter_stall(isc_ratelimiter_t *rl) {
 		break;
 	case isc_ratelimiter_ratelimited:
 		result = isc_timer_reset(rl->timer, isc_timertype_inactive,
-				 	 NULL, NULL, ISC_FALSE);
+					 NULL, NULL, ISC_FALSE);
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
+		/* FALLTHROUGH */
 	case isc_ratelimiter_idle:
 	case isc_ratelimiter_stalled:
 		rl->state = isc_ratelimiter_stalled;
@@ -316,7 +317,7 @@ isc_ratelimiter_release(isc_ratelimiter_t *rl) {
 						 &rl->interval, ISC_FALSE);
 			if (result == ISC_R_SUCCESS)
 				rl->state = isc_ratelimiter_ratelimited;
-		} else 
+		} else
 			rl->state = isc_ratelimiter_idle;
 		break;
 	case isc_ratelimiter_ratelimited:

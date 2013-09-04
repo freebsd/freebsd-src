@@ -1,9 +1,9 @@
 /*
- *  $Id: inputstr.c,v 1.69 2011/01/16 21:52:35 tom Exp $
+ *  $Id: inputstr.c,v 1.72 2012/12/30 22:11:37 tom Exp $
  *
  *  inputstr.c -- functions for input/display of a string
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -261,7 +261,6 @@ dlg_count_wcbytes(const char *string, size_t len)
 	load_cache(&cache, string);
 	if (!same_cache1(&cache, string, len)) {
 	    while (len != 0) {
-		int part = 0;
 		size_t code = 0;
 		const char *src = cache.string;
 		mbstate_t state;
@@ -274,7 +273,6 @@ dlg_count_wcbytes(const char *string, size_t len)
 		if ((int) code >= 0) {
 		    break;
 		}
-		++part;
 		--len;
 	    }
 	    cache.i_len = len;
@@ -310,13 +308,17 @@ dlg_count_wchars(const char *string)
 	    size_t code;
 	    wchar_t *temp = dlg_calloc(wchar_t, len + 1);
 
-	    cache.string[part] = '\0';
-	    memset(&state, 0, sizeof(state));
-	    code = mbsrtowcs(temp, &src, (size_t) part, &state);
-	    cache.i_len = ((int) code >= 0) ? wcslen(temp) : 0;
-	    cache.string[part] = save;
-	    free(temp);
-	    save_cache(&cache, string);
+	    if (temp != 0) {
+		cache.string[part] = '\0';
+		memset(&state, 0, sizeof(state));
+		code = mbsrtowcs(temp, &src, (size_t) part, &state);
+		cache.i_len = ((int) code >= 0) ? wcslen(temp) : 0;
+		cache.string[part] = save;
+		free(temp);
+		save_cache(&cache, string);
+	    } else {
+		cache.i_len = 0;
+	    }
 	}
 	result = (int) cache.i_len;
     } else
@@ -377,8 +379,9 @@ dlg_find_index(const int *list, int limit, int to_find)
     for (result = 0; result <= limit; ++result) {
 	if (to_find == list[result]
 	    || result == limit
-	    || to_find < list[result + 1])
+	    || ((result < limit) && (to_find < list[result + 1]))) {
 	    break;
+	}
     }
     return result;
 }
@@ -531,7 +534,7 @@ dlg_edit_string(char *string, int *chr_offset, int key, int fkey, bool force)
 	    edit = force;
 	    break;
 	case DLGK_GRID_LEFT:
-	    if (*chr_offset)
+	    if (*chr_offset && offset > 0)
 		*chr_offset = indx[offset - 1];
 	    break;
 	case DLGK_GRID_RIGHT:
@@ -700,7 +703,7 @@ dlg_show_string(WINDOW *win,
 
 	compute_edit_offset(string, chr_offset, x_last, &input_x, &scrollamt);
 
-	wattrset(win, attr);
+	(void) wattrset(win, attr);
 	(void) wmove(win, y_base, x_base);
 	for (i = scrollamt, k = 0; i < limit && k < x_last; ++i) {
 	    int check = cols[i + 1] - cols[scrollamt];

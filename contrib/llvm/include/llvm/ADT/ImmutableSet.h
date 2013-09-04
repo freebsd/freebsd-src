@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ADT_IMSET_H
-#define LLVM_ADT_IMSET_H
+#ifndef LLVM_ADT_IMMUTABLESET_H
+#define LLVM_ADT_IMMUTABLESET_H
 
-#include "llvm/Support/Allocator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
@@ -1054,18 +1054,27 @@ public:
 
   class iterator {
     typename TreeTy::iterator itr;
+
+    iterator() {}
     iterator(TreeTy* t) : itr(t) {}
     friend class ImmutableSet<ValT,ValInfo>;
+
   public:
-    iterator() {}
-    inline value_type_ref operator*() const { return itr->getValue(); }
-    inline iterator& operator++() { ++itr; return *this; }
-    inline iterator  operator++(int) { iterator tmp(*this); ++itr; return tmp; }
-    inline iterator& operator--() { --itr; return *this; }
-    inline iterator  operator--(int) { iterator tmp(*this); --itr; return tmp; }
-    inline bool operator==(const iterator& RHS) const { return RHS.itr == itr; }
-    inline bool operator!=(const iterator& RHS) const { return RHS.itr != itr; }
-    inline value_type *operator->() const { return &(operator*()); }
+    typedef typename ImmutableSet<ValT,ValInfo>::value_type value_type;
+    typedef typename ImmutableSet<ValT,ValInfo>::value_type_ref reference;
+    typedef typename iterator::value_type *pointer;
+    typedef std::bidirectional_iterator_tag iterator_category;
+
+    typename iterator::reference operator*() const { return itr->getValue(); }
+    typename iterator::pointer   operator->() const { return &(operator*()); }
+
+    iterator& operator++() { ++itr; return *this; }
+    iterator  operator++(int) { iterator tmp(*this); ++itr; return tmp; }
+    iterator& operator--() { --itr; return *this; }
+    iterator  operator--(int) { iterator tmp(*this); --itr; return tmp; }
+
+    bool operator==(const iterator& RHS) const { return RHS.itr == itr; }
+    bool operator!=(const iterator& RHS) const { return RHS.itr != itr; }
   };
 
   iterator begin() const { return iterator(Root); }

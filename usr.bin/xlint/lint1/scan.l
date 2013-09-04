@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include "cgram.h"
 
 #define CHAR_MASK	(~(~0 << CHAR_BIT))
-#define YY_NO_UNPUT
 
 /* Current position (its also updated when an included file is parsed) */
 pos_t	curr_pos = { 1, "", 0 };
@@ -85,6 +84,8 @@ static	int	string(void);
 static	int	wcstrg(void);
 
 %}
+
+%option nounput
 
 L	[_A-Za-z]
 D	[0-9]

@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="euc-jp"?>
 <!--
     FreeBSD Japanese Documentation Project
 
@@ -25,14 +26,8 @@
 
   <abstract>
     <para>この &os; &release.current; 用リリースノートには、
-<![ %include.historic; [
-      &release.prev; 以降の &os; ベースシステムに対する変更点の概要
-      が含まれています。
-]]>
-<![ %no.include.historic; [
       &release.branch; 開発ブランチの &os; ベースシステムに対する最近の
       変更点の概要が含まれています。
-]]>
       &os; カーネルおよびユーザーランドにおける変更点、
       前のリリース以降に発行されたセキュリティ勧告が書かれています。
       また、アップグレードの際の注意点も載せてあります。</para>
@@ -47,20 +42,14 @@
     これは &os; に最近追加、変更、削除された機能について解説したものであり、
     &os; の前のバージョンからのアップグレードについても言及しています。</para>
 
-<![ %release.type.snapshot [
-
-  <para>このリリースノートが対応する &release.type; 配布物は、
+  <para releasetype="snapshot">このリリースノートが対応する &release.type; 配布物は、
     &release.branch; 開発ブランチの &release.prev; から
     将来の &release.next; の間に位置します。
     このブランチのあらかじめコンパイルされたバイナリ &release.type;
     配布物は <ulink url="&release.url;"></ulink> に公開されています。
   </para>
 
-]]>
-
-<![ %release.type.release [
-
-  <para>この &os; &release.current; 配布物は &release.type; 配布物です。
+  <para releasetype="release">この &os; &release.current; 配布物は &release.type; 配布物です。
     この配布物はあらゆるミラーの <ulink url="&release.url;"></ulink>
     で見つけることができます。
     この (もしくは他の) &os; の &release.type; 配布物を取得する方法
@@ -70,8 +59,6 @@
     <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
       付録 <quote>FreeBSD を取得する</quote></ulink>
     を参照してください。</para>
-
-]]>
 
   <para>&os; &release.type; の &release.branch;
     系列をはじめて利用するユーザは、まず <quote>&os;
@@ -98,19 +85,11 @@
   <title>更新情報</title>
 
   <para>この節では
-<![ %include.historic; [
-    &release.prev; 以降に新たに追加・変更された
-    ユーザに影響する機能について説明します。
-    一般的に、ここに書かれている変更点のうち &merged;
-    という印の付いていないものは &release.branch; に固有のものです。
-]]>
-<![ %no.include.historic; [
     &release.prev; 以降に新たに追加・変更された
     ユーザに影響する機能について説明します。
     これには他のブランチ (&os; &release.prev; 以降) へと
     最近マージされた機能に加えて、&release.branch; ブランチ
     に固有の項目も含まれます。
-]]>
   </para>
 
   <para>リリースノートには、
@@ -610,7 +589,7 @@
       <para>テラバイトオーダのファイルシステムに対応するため、
 	<literal>statfs</literal>
 	構造体に含まれるいくつかのメンバ変数の大きさが、
-	32 ビットから 64 ビットに変更されました。
+	32 ビットから 64 ビットに変更されました。</para>
 
       <itemizedlist>
 	<listitem>

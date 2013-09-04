@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -47,60 +47,66 @@ __FBSDID("$FreeBSD$");
 
 char *_mktemp(char *);
 
-static int _gettemp(char *, int *, int, int);
+static int _gettemp(char *, int *, int, int, int);
 
 static const unsigned char padchar[] =
 "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 int
-mkstemps(path, slen)
-	char *path;
-	int slen;
+mkostemps(char *path, int slen, int oflags)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0, slen) ? fd : -1);
+	return (_gettemp(path, &fd, 0, slen, oflags) ? fd : -1);
 }
 
 int
-mkstemp(path)
-	char *path;
+mkstemps(char *path, int slen)
 {
 	int fd;
 
-	return (_gettemp(path, &fd, 0, 0) ? fd : -1);
+	return (_gettemp(path, &fd, 0, slen, 0) ? fd : -1);
+}
+
+int
+mkostemp(char *path, int oflags)
+{
+	int fd;
+
+	return (_gettemp(path, &fd, 0, 0, oflags) ? fd : -1);
+}
+
+int
+mkstemp(char *path)
+{
+	int fd;
+
+	return (_gettemp(path, &fd, 0, 0, 0) ? fd : -1);
 }
 
 char *
-mkdtemp(path)
-	char *path;
+mkdtemp(char *path)
 {
-	return (_gettemp(path, (int *)NULL, 1, 0) ? path : (char *)NULL);
+	return (_gettemp(path, (int *)NULL, 1, 0, 0) ? path : (char *)NULL);
 }
 
 char *
-_mktemp(path)
-	char *path;
+_mktemp(char *path)
 {
-	return (_gettemp(path, (int *)NULL, 0, 0) ? path : (char *)NULL);
+	return (_gettemp(path, (int *)NULL, 0, 0, 0) ? path : (char *)NULL);
 }
 
 __warn_references(mktemp,
     "warning: mktemp() possibly used unsafely; consider using mkstemp()");
 
 char *
-mktemp(path)
-	char *path;
+mktemp(char *path)
 {
 	return (_mktemp(path));
 }
 
 static int
-_gettemp(path, doopen, domkdir, slen)
-	char *path;
-	int *doopen;
-	int domkdir;
-	int slen;
+_gettemp(char *path, int *doopen, int domkdir, int slen, int oflags)
 {
 	char *start, *trv, *suffp, *carryp;
 	char *pad;
@@ -109,7 +115,9 @@ _gettemp(path, doopen, domkdir, slen)
 	uint32_t rand;
 	char carrybuf[MAXPATHLEN];
 
-	if ((doopen != NULL && domkdir) || slen < 0) {
+	if ((doopen != NULL && domkdir) || slen < 0 ||
+	    (oflags & ~(O_APPEND | O_DIRECT | O_SHLOCK | O_EXLOCK | O_SYNC |
+	    O_CLOEXEC)) != 0) {
 		errno = EINVAL;
 		return (0);
 	}
@@ -161,7 +169,8 @@ _gettemp(path, doopen, domkdir, slen)
 	for (;;) {
 		if (doopen) {
 			if ((*doopen =
-			    _open(path, O_CREAT|O_EXCL|O_RDWR, 0600)) >= 0)
+			    _open(path, O_CREAT|O_EXCL|O_RDWR|oflags, 0600)) >=
+			    0)
 				return (1);
 			if (errno != EEXIST)
 				return (0);

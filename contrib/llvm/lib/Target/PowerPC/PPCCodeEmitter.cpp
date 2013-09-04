@@ -12,15 +12,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "PPCTargetMachine.h"
-#include "PPCRelocations.h"
 #include "PPC.h"
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
+#include "PPCRelocations.h"
+#include "PPCTargetMachine.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/IR/Module.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
@@ -68,6 +68,7 @@ namespace {
     unsigned getLO16Encoding(const MachineInstr &MI, unsigned OpNo) const;
     unsigned getMemRIEncoding(const MachineInstr &MI, unsigned OpNo) const;
     unsigned getMemRIXEncoding(const MachineInstr &MI, unsigned OpNo) const;
+    unsigned getTLSRegEncoding(const MachineInstr &MI, unsigned OpNo) const;
 
     const char *getPassName() const { return "PowerPC Machine Code Emitter"; }
 
@@ -141,7 +142,7 @@ unsigned PPCCodeEmitter::get_crbitm_encoding(const MachineInstr &MI,
   assert((MI.getOpcode() == PPC::MTCRF || MI.getOpcode() == PPC::MTCRF8 ||
             MI.getOpcode() == PPC::MFOCRF) &&
          (MO.getReg() >= PPC::CR0 && MO.getReg() <= PPC::CR7));
-  return 0x80 >> getPPCRegisterNumbering(MO.getReg());
+  return 0x80 >> TM.getRegisterInfo()->getEncodingValue(MO.getReg());
 }
 
 MachineRelocation PPCCodeEmitter::GetRelocation(const MachineOperand &MO, 
@@ -243,6 +244,13 @@ unsigned PPCCodeEmitter::getMemRIXEncoding(const MachineInstr &MI,
 }
 
 
+unsigned PPCCodeEmitter::getTLSRegEncoding(const MachineInstr &MI,
+                                           unsigned OpNo) const {
+  llvm_unreachable("TLS not supported on the old JIT.");
+  return 0;
+}
+
+
 unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
                                            const MachineOperand &MO) const {
 
@@ -252,7 +260,7 @@ unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
     assert((MI.getOpcode() != PPC::MTCRF && MI.getOpcode() != PPC::MTCRF8 &&
              MI.getOpcode() != PPC::MFOCRF) ||
            MO.getReg() < PPC::CR0 || MO.getReg() > PPC::CR7);
-    return getPPCRegisterNumbering(MO.getReg());
+    return TM.getRegisterInfo()->getEncodingValue(MO.getReg());
   }
   
   assert(MO.isImm() &&

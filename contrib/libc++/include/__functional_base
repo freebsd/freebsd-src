@@ -23,21 +23,21 @@
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Arg, class _Result>
-struct _LIBCPP_VISIBLE unary_function
+struct _LIBCPP_TYPE_VIS unary_function
 {
     typedef _Arg    argument_type;
     typedef _Result result_type;
 };
 
 template <class _Arg1, class _Arg2, class _Result>
-struct _LIBCPP_VISIBLE binary_function
+struct _LIBCPP_TYPE_VIS binary_function
 {
     typedef _Arg1   first_argument_type;
     typedef _Arg2   second_argument_type;
     typedef _Result result_type;
 };
 
-template <class _Tp> struct _LIBCPP_VISIBLE hash;
+template <class _Tp> struct _LIBCPP_TYPE_VIS hash;
 
 template <class _Tp>
 struct __has_result_type
@@ -51,7 +51,7 @@ public:
 };
 
 template <class _Tp>
-struct _LIBCPP_VISIBLE less : binary_function<_Tp, _Tp, bool>
+struct _LIBCPP_TYPE_VIS less : binary_function<_Tp, _Tp, bool>
 {
     _LIBCPP_INLINE_VISIBILITY bool operator()(const _Tp& __x, const _Tp& __y) const
         {return __x < __y;}
@@ -292,7 +292,8 @@ struct __weak_result_type<_Rp (_Cp::*)(_A1, _A2, _A3...) const volatile>
 
 // bullets 1 and 2
 
-template <class _Fp, class _A0, class ..._Args>
+template <class _Fp, class _A0, class ..._Args,
+            class>
 inline _LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0, _Args&& ...__args)
@@ -301,7 +302,8 @@ __invoke(_Fp&& __f, _A0&& __a0, _Args&& ...__args)
     return (_VSTD::forward<_A0>(__a0).*__f)(_VSTD::forward<_Args>(__args)...);
 }
 
-template <class _Fp, class _A0, class ..._Args>
+template <class _Fp, class _A0, class ..._Args,
+            class>
 inline _LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0, _Args&& ...__args)
@@ -312,7 +314,8 @@ __invoke(_Fp&& __f, _A0&& __a0, _Args&& ...__args)
 
 // bullets 3 and 4
 
-template <class _Fp, class _A0>
+template <class _Fp, class _A0,
+            class>
 inline _LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0)
@@ -321,7 +324,8 @@ __invoke(_Fp&& __f, _A0&& __a0)
     return _VSTD::forward<_A0>(__a0).*__f;
 }
 
-template <class _Fp, class _A0>
+template <class _Fp, class _A0,
+            class>
 inline _LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0)
@@ -348,7 +352,7 @@ struct __invoke_return
 };
 
 template <class _Tp>
-class _LIBCPP_VISIBLE reference_wrapper
+class _LIBCPP_TYPE_VIS reference_wrapper
     : public __weak_result_type<_Tp>
 {
 public:

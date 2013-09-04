@@ -32,11 +32,8 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#endif
-
 #include "ixv.h"
 
 /*********************************************************************
@@ -1564,14 +1561,8 @@ ixv_identify_hardware(struct adapter *adapter)
 	** Make sure BUSMASTER is set, on a VM under
 	** KVM it may not be and will break things.
 	*/
+	pci_enable_busmaster(dev);
 	pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	    (pci_cmd_word & PCIM_CMD_MEMEN))) {
-		INIT_DEBUGOUT("Memory Access and/or Bus Master "
-		    "bits were not set!\n");
-		pci_cmd_word |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
-	}
 
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);
@@ -1689,24 +1680,16 @@ static int
 ixv_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	int rid, vectors, want = 2;
+	int rid, want;
 
 
 	/* First try MSI/X */
 	rid = PCIR_BAR(3);
 	adapter->msix_mem = bus_alloc_resource_any(dev,
 	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
-       	if (!adapter->msix_mem) {
+       	if (adapter->msix_mem == NULL) {
 		device_printf(adapter->dev,
 		    "Unable to map MSIX table \n");
-		goto out;
-	}
-
-	vectors = pci_msix_count(dev); 
-	if (vectors < 2) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    rid, adapter->msix_mem);
-		adapter->msix_mem = NULL;
 		goto out;
 	}
 
@@ -1714,12 +1697,20 @@ ixv_setup_msix(struct adapter *adapter)
 	** Want two vectors: one for a queue,
 	** plus an additional for mailbox.
 	*/
-	if (pci_alloc_msix(dev, &want) == 0) {
+	want = 2;
+	if ((pci_alloc_msix(dev, &want) == 0) && (want == 2)) {
                	device_printf(adapter->dev,
 		    "Using MSIX interrupts with %d vectors\n", want);
 		return (want);
 	}
+	/* Release in case alloc was insufficient */
+	pci_release_msi(dev);
 out:
+       	if (adapter->msix_mem != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rid, adapter->msix_mem);
+		adapter->msix_mem = NULL;
+	}
 	device_printf(adapter->dev,"MSIX config error\n");
 	return (ENXIO);
 }
@@ -3553,7 +3544,7 @@ ixv_rx_checksum(u32 staterr, struct mbuf * mp, u32 ptype)
 			mp->m_pkthdr.csum_flags = 0;
 	}
 	if (status & IXGBE_RXD_STAT_L4CS) {
-		u16 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+		u64 type = (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 #if __FreeBSD_version >= 800000
 		if (sctp)
 			type = CSUM_SCTP_VALID;

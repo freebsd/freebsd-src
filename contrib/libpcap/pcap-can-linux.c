@@ -72,10 +72,57 @@ static int can_setfilter_linux(pcap_t *, struct bpf_program *);
 static int can_setdirection_linux(pcap_t *, pcap_direction_t);
 static int can_stats_linux(pcap_t *, struct pcap_stat *);
 
-pcap_t *
-can_create(const char *device, char *ebuf)
+int
+can_findalldevs(pcap_if_t **devlistp, char *errbuf)
 {
+	/*
+	 * There are no platform-specific devices since each device
+	 * exists as a regular network interface.
+	 *
+	 * XXX - true?
+	 */
+	return 0;
+}
+
+pcap_t *
+can_create(const char *device, char *ebuf, int *is_ours)
+{
+	const char *cp;
+	char *cpend;
+	long devnum;
 	pcap_t* p;
+
+	/* Does this look like a CANbus device? */
+	cp = strrchr(device, '/');
+	if (cp == NULL)
+		cp = device;
+	/* Does it begin with "can" or "vcan"? */
+	if (strncmp(cp, "can", 3) == 0) {
+		/* Begins with "can" */
+		cp += 3;	/* skip past "can" */
+	} else if (strncmp(cp, "vcan", 4) == 0) {
+		/* Begins with "vcan" */
+		cp += 4;
+	} else {
+		/* Nope, doesn't begin with "can" or "vcan" */
+		*is_ours = 0;
+		return NULL;
+	}
+	/* Yes - is "can" or "vcan" followed by a number from 0? */
+	devnum = strtol(cp, &cpend, 10);
+	if (cpend == cp || *cpend != '\0') {
+		/* Not followed by a number. */
+		*is_ours = 0;
+		return NULL;
+	}
+	if (devnum < 0) {
+		/* Followed by a non-valid number. */
+		*is_ours = 0;
+		return NULL;
+	}
+
+	/* OK, it's probably ours. */
+	*is_ours = 1;
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)

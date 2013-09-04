@@ -8,8 +8,8 @@ PROG=	m4
 CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/lib
 DPADD=	${LIBY} ${LIBL} ${LIBM}
 LDADD=	-ly -ll -lm
-# clang needs 1 while with gcc we can use 2
-#WARNS=	1
+
+NO_WMISSING_VARIABLE_DECLARATIONS=
 
 SRCS=	eval.c expr.c look.c main.c misc.c gnum4.c trace.c parser.y tokenizer.l
 .PATH: ${.CURDIR}/lib

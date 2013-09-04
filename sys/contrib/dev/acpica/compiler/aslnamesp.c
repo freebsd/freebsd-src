@@ -194,7 +194,6 @@ NsDoOneNamespaceObject (
                 ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
             break;
 
-
         case ACPI_TYPE_STRING:
 
             FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
@@ -203,7 +202,9 @@ NsDoOneNamespaceObject (
             break;
 
         default:
+
             /* Nothing to do for other types */
+
             break;
         }
 
@@ -228,7 +229,6 @@ NsDoOneNamespaceObject (
                 ACPI_FORMAT_UINT64 (Op->Asl.Value.Integer));
             break;
 
-
         case ACPI_TYPE_STRING:
 
             if (Op->Asl.ParseOpcode == PARSEOP_NAME)
@@ -245,7 +245,6 @@ NsDoOneNamespaceObject (
                 Op->Asl.Value.String);
             break;
 
-
         case ACPI_TYPE_LOCAL_REGION_FIELD:
 
             if ((Op->Asl.ParseOpcode == PARSEOP_NAMESEG)  ||
@@ -258,41 +257,46 @@ NsDoOneNamespaceObject (
                 Op->Asl.Parent->Asl.ExtraValue, (UINT32) Op->Asl.Value.Integer);
             break;
 
-
         case ACPI_TYPE_BUFFER_FIELD:
 
             switch (Op->Asl.ParseOpcode)
             {
             case PARSEOP_CREATEBYTEFIELD:
+
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "   [BYTE  ( 8 bit)]");
                 break;
 
             case PARSEOP_CREATEDWORDFIELD:
+
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "   [DWORD (32 bit)]");
                 break;
 
             case PARSEOP_CREATEQWORDFIELD:
+
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "   [QWORD (64 bit)]");
                 break;
 
             case PARSEOP_CREATEWORDFIELD:
+
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "   [WORD  (16 bit)]");
                 break;
 
             case PARSEOP_CREATEBITFIELD:
+
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "   [BIT   ( 1 bit)]");
                 break;
 
             case PARSEOP_CREATEFIELD:
+
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "   [Arbitrary Bit Field]");
                 break;
 
             default:
+
                 break;
 
             }
             break;
-
 
         case ACPI_TYPE_PACKAGE:
 
@@ -316,7 +320,6 @@ NsDoOneNamespaceObject (
             }
             break;
 
-
         case ACPI_TYPE_BUFFER:
 
             if (Op->Asl.ParseOpcode == PARSEOP_NAME)
@@ -338,7 +341,6 @@ NsDoOneNamespaceObject (
             }
             break;
 
-
         case ACPI_TYPE_METHOD:
 
             FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
@@ -346,13 +348,11 @@ NsDoOneNamespaceObject (
                 Op->Asl.AmlSubtreeLength);
             break;
 
-
         case ACPI_TYPE_LOCAL_RESOURCE:
 
             FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
                 "  [Desc Offset     0x%.4X Bytes]", Node->Value);
             break;
-
 
         case ACPI_TYPE_LOCAL_RESOURCE_FIELD:
 
@@ -372,9 +372,10 @@ NsDoOneNamespaceObject (
             }
             break;
 
-
         default:
+
             /* Nothing to do for other types */
+
             break;
         }
     }

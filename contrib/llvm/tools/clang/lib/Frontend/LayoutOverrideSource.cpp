@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 #include "clang/Frontend/LayoutOverrideSource.h"
 #include "clang/AST/Decl.h"
+#include "clang/Basic/CharInfo.h"
 #include "llvm/Support/raw_ostream.h"
-#include <cctype>
 #include <fstream>
 #include <string>
 
@@ -17,16 +17,17 @@ using namespace clang;
 
 /// \brief Parse a simple identifier.
 static std::string parseName(StringRef S) {
-  unsigned Offset = 0;
-  while (Offset < S.size() &&
-         (isalpha(S[Offset]) || S[Offset] == '_' ||
-          (Offset > 0 && isdigit(S[Offset]))))
+  if (S.empty() || !isIdentifierHead(S[0]))
+    return "";
+
+  unsigned Offset = 1;
+  while (Offset < S.size() && isIdentifierBody(S[Offset]))
     ++Offset;
   
   return S.substr(0, Offset).str();
 }
 
-LayoutOverrideSource::LayoutOverrideSource(llvm::StringRef Filename) {
+LayoutOverrideSource::LayoutOverrideSource(StringRef Filename) {
   std::ifstream Input(Filename.str().c_str());
   if (!Input.is_open())
     return;
@@ -128,10 +129,10 @@ LayoutOverrideSource::LayoutOverrideSource(llvm::StringRef Filename) {
       continue;
 
     LineStr = LineStr.substr(Pos + strlen("FieldOffsets: ["));
-    while (!LineStr.empty() && isdigit(LineStr[0])) {
+    while (!LineStr.empty() && isDigit(LineStr[0])) {
       // Parse this offset.
       unsigned Idx = 1;
-      while (Idx < LineStr.size() && isdigit(LineStr[Idx]))
+      while (Idx < LineStr.size() && isDigit(LineStr[Idx]))
         ++Idx;
       
       unsigned long long Offset = 0;
@@ -141,7 +142,7 @@ LayoutOverrideSource::LayoutOverrideSource(llvm::StringRef Filename) {
       
       // Skip over this offset, the following comma, and any spaces.
       LineStr = LineStr.substr(Idx + 1);
-      while (!LineStr.empty() && isspace(LineStr[0]))
+      while (!LineStr.empty() && isWhitespace(LineStr[0]))
         LineStr = LineStr.substr(1);
     }
   }
@@ -188,7 +189,7 @@ LayoutOverrideSource::layoutRecordType(const RecordDecl *Record,
 }
 
 void LayoutOverrideSource::dump() {
-  llvm::raw_ostream &OS = llvm::errs();
+  raw_ostream &OS = llvm::errs();
   for (llvm::StringMap<Layout>::iterator L = Layouts.begin(), 
                                       LEnd = Layouts.end();
        L != LEnd; ++L) {

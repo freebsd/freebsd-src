@@ -8,17 +8,18 @@ SRCDIR=	lib/CodeGen
 SRCS=	AggressiveAntiDepBreaker.cpp \
 	AllocationOrder.cpp \
 	Analysis.cpp \
+	BasicTargetTransformInfo.cpp \
 	BranchFolding.cpp \
 	CalcSpillWeights.cpp \
 	CallingConvLower.cpp \
 	CodeGen.cpp \
-	CodePlacementOpt.cpp \
 	CriticalAntiDepBreaker.cpp \
 	DFAPacketizer.cpp \
 	DeadMachineInstructionElim.cpp \
 	DwarfEHPrepare.cpp \
 	EarlyIfConversion.cpp \
 	EdgeBundles.cpp \
+	ErlangGC.cpp \
 	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
 	ExpandPostRAPseudos.cpp \
@@ -59,7 +60,6 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineInstrBundle.cpp \
 	MachineLICM.cpp \
 	MachineLoopInfo.cpp \
-	MachineLoopRanges.cpp \
 	MachineModuleInfo.cpp \
 	MachineModuleInfoImpls.cpp \
 	MachinePassRegistry.cpp \
@@ -106,9 +106,11 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	StrongPHIElimination.cpp \
 	TailDuplication.cpp \
 	TargetFrameLoweringImpl.cpp \
-	TargetInstrInfoImpl.cpp \
+	TargetInstrInfo.cpp \
+	TargetLoweringBase.cpp \
 	TargetLoweringObjectFileImpl.cpp \
 	TargetOptionsImpl.cpp \
+	TargetRegisterInfo.cpp \
 	TargetSchedule.cpp \
 	TwoAddressInstructionPass.cpp \
 	UnreachableBlockElim.cpp \

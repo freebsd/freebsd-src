@@ -768,7 +768,7 @@ struct ahc_syncrate {
 #define	AHC_ULTRA2_XFER_PERIOD 0x0a
 
 /*
- * Indexes into our table of syncronous transfer rates.
+ * Indexes into our table of synchronous transfer rates.
  */
 #define AHC_SYNCRATE_DT		0
 #define AHC_SYNCRATE_ULTRA2	1

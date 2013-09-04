@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keyfromlabel.docbook,v 1.18.14.2 2011/02/28 01:19:58 tbox Exp $ -->
+<!-- $Id: dnssec-keyfromlabel.docbook,v 1.21 2011/03/17 01:40:34 each Exp $ -->
 <refentry id="man.dnssec-keyfromlabel">
   <refentryinfo>
     <date>February 8, 2008</date>
@@ -60,6 +60,7 @@
       <arg><option>-I <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-k</option></arg>
       <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-L <replaceable class="parameter">ttl</replaceable></option></arg>
       <arg><option>-n <replaceable class="parameter">nametype</replaceable></option></arg>
       <arg><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">protocol</replaceable></option></arg>
@@ -232,6 +233,20 @@
         <listitem>
           <para>
             Generate KEY records rather than DNSKEY records.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-L <replaceable class="parameter">ttl</replaceable></term>
+        <listitem>
+          <para>
+            Sets the default TTL to use for this key when it is converted
+            into a DNSKEY RR.  If the key is imported into a zone,
+            this is the TTL that will be used for it, unless there was
+            already a DNSKEY RRset in place, in which case the existing TTL
+            would take precedence.  Setting the default TTL to
+            <literal>0</literal> or <literal>none</literal> removes it.
           </para>
         </listitem>
       </varlistentry>

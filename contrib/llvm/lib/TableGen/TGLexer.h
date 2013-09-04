@@ -15,9 +15,10 @@
 #define TGLEXER_H
 
 #include "llvm/Support/DataTypes.h"
-#include <string>
-#include <vector>
+#include "llvm/Support/SMLoc.h"
 #include <cassert>
+#include <map>
+#include <string>
 
 namespace llvm {
 class MemoryBuffer;
@@ -46,7 +47,7 @@ namespace tgtok {
     MultiClass, String,
     
     // !keywords.
-    XConcat, XSRA, XSRL, XSHL, XStrConcat, XCast, XSubst,
+    XConcat, XADD, XSRA, XSRL, XSHL, XStrConcat, XCast, XSubst,
     XForEach, XHead, XTail, XEmpty, XIf, XEq,
 
     // Integer value.
@@ -73,9 +74,13 @@ class TGLexer {
   /// CurBuffer - This is the current buffer index we're lexing from as managed
   /// by the SourceMgr object.
   int CurBuffer;
+
+public:
+  typedef std::map<std::string, SMLoc> DependenciesMapTy;
+private:
   /// Dependencies - This is the list of all included files.
-  std::vector<std::string> Dependencies;
-  
+  DependenciesMapTy Dependencies;
+
 public:
   TGLexer(SourceMgr &SrcMgr);
   ~TGLexer() {}
@@ -84,7 +89,7 @@ public:
     return CurCode = LexToken();
   }
 
-  const std::vector<std::string> &getDependencies() const {
+  const DependenciesMapTy &getDependencies() const {
     return Dependencies;
   }
   

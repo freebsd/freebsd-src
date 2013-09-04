@@ -61,6 +61,8 @@ struct cdev {
 #define	SI_CHILD	0x0010	/* child of another struct cdev **/
 #define	SI_DUMPDEV	0x0080	/* is kernel dumpdev */
 #define	SI_CLONELIST	0x0200	/* on a clone list */
+#define	SI_UNMAPPED	0x0400	/* can handle unmapped I/O */
+#define	SI_NOSPLIT	0x0800	/* I/O should not be split up */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
@@ -167,7 +169,6 @@ typedef int dumper_t(
 #define	D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
 #define	D_NEEDGIANT	0x00400000	/* driver want Giant */
 #define	D_NEEDMINOR	0x00800000	/* driver uses clone_create() */
-#define	D_UNMAPPED_IO   0x01000000	/* d_strategy can accept unmapped IO */
 
 /*
  * Version numbers.

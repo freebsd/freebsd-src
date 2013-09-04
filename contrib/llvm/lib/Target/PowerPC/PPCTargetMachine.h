@@ -15,14 +15,13 @@
 #define PPC_TARGETMACHINE_H
 
 #include "PPCFrameLowering.h"
-#include "PPCSubtarget.h"
-#include "PPCJITInfo.h"
-#include "PPCInstrInfo.h"
 #include "PPCISelLowering.h"
+#include "PPCInstrInfo.h"
+#include "PPCJITInfo.h"
 #include "PPCSelectionDAGInfo.h"
+#include "PPCSubtarget.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetTransformImpl.h"
-#include "llvm/DataLayout.h"
 
 namespace llvm {
 
@@ -37,8 +36,6 @@ class PPCTargetMachine : public LLVMTargetMachine {
   PPCTargetLowering   TLInfo;
   PPCSelectionDAGInfo TSInfo;
   InstrItineraryData  InstrItins;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
 
 public:
   PPCTargetMachine(const Target &T, StringRef TT,
@@ -66,17 +63,14 @@ public:
   virtual const InstrItineraryData *getInstrItineraryData() const {
     return &InstrItins;
   }
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
-  }
 
   // Pass Pipeline Configuration
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
   virtual bool addCodeEmitter(PassManagerBase &PM,
                               JITCodeEmitter &JCE);
+
+  /// \brief Register PPC analysis passes with a pass manager.
+  virtual void addAnalysisPasses(PassManagerBase &PM);
 };
 
 /// PPC32TargetMachine - PowerPC 32-bit target machine.

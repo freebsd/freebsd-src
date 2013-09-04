@@ -283,8 +283,17 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <net/if6.h> header file. */
 #undef HAVE_NET_IF6_H
 
+/* Define if your OpenSSL version supports ECDSA. */
+#undef HAVE_OPENSSL_ECDSA
+
 /* Define if your OpenSSL version supports GOST. */
 #undef HAVE_OPENSSL_GOST
+
+/* Define to 1 if you have the `readline' function. */
+#undef HAVE_READLINE
+
+/* Define to 1 if you have the <regex.h> header file. */
+#undef HAVE_REGEX_H
 
 /* Define to 1 if you have the `setegid' function. */
 #undef HAVE_SETEGID
@@ -355,6 +364,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
+/* Define to 1 if you have the `usleep' function. */
+#undef HAVE_USLEEP
+
 /* return type of gai_strerror */
 #undef IRS_GAISTRERROR_RETURN_T
 
@@ -367,12 +379,19 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to allow building of objects for dlopen(). */
 #undef ISC_DLZ_DLOPEN
 
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
 /* Defined if extern char *optarg is not declared. */
 #undef NEED_OPTARG
 
 /* Define if connect does not honour the permission on the UNIX domain socket.
    */
 #undef NEED_SECURE_DIRECTORY
+
+/* Use the new XML schema for statistics */
+#undef NEWSTATS
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT

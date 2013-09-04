@@ -35,22 +35,21 @@
 #define DEBUG_TYPE "shrink-wrap"
 
 #include "PrologEpilogInserter.h"
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineLoopInfo.h"
-#include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <sstream>
 
 using namespace llvm;
@@ -71,14 +70,14 @@ ShrinkWrapFunc("shrink-wrap-func", cl::Hidden,
 
 // Debugging level for shrink wrapping.
 enum ShrinkWrapDebugLevel {
-  None, BasicInfo, Iterations, Details
+  Disabled, BasicInfo, Iterations, Details
 };
 
 static cl::opt<enum ShrinkWrapDebugLevel>
 ShrinkWrapDebugging("shrink-wrap-dbg", cl::Hidden,
   cl::desc("Print shrink wrapping debugging information"),
   cl::values(
-    clEnumVal(None      , "disable debug output"),
+    clEnumVal(Disabled  , "disable debug output"),
     clEnumVal(BasicInfo , "print basic DF sets"),
     clEnumVal(Iterations, "print SR sets for each iteration"),
     clEnumVal(Details   , "print all DF sets"),

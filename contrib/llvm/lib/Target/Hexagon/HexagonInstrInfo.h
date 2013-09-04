@@ -18,7 +18,7 @@
 #include "MCTargetDesc/HexagonBaseInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetFrameLowering.h"
-
+#include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 
 #define GET_INSTRINFO_HEADER
 #include "HexagonGenInstrInfo.inc"
@@ -28,6 +28,8 @@ namespace llvm {
 class HexagonInstrInfo : public HexagonGenInstrInfo {
   const HexagonRegisterInfo RI;
   const HexagonSubtarget& Subtarget;
+  typedef unsigned Opcode_t;
+
 public:
   explicit HexagonInstrInfo(HexagonSubtarget &ST);
 
@@ -65,6 +67,10 @@ public:
                                 MachineBasicBlock *FBB,
                                 const SmallVectorImpl<MachineOperand> &Cond,
                                 DebugLoc DL) const;
+
+  virtual bool analyzeCompare(const MachineInstr *MI,
+                              unsigned &SrcReg, unsigned &SrcReg2,
+                              int &Mask, int &Value) const;
 
   virtual void copyPhysReg(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator I, DebugLoc DL,
@@ -107,6 +113,7 @@ public:
 
   unsigned createVR(MachineFunction* MF, MVT VT) const;
 
+  virtual bool isBranch(const MachineInstr *MI) const;
   virtual bool isPredicable(MachineInstr *MI) const;
   virtual bool
   PredicateInstruction(MachineInstr *MI,
@@ -123,6 +130,11 @@ public:
                                    const BranchProbability &Probability) const;
 
   virtual bool isPredicated(const MachineInstr *MI) const;
+  virtual bool isPredicated(unsigned Opcode) const;
+  virtual bool isPredicatedTrue(const MachineInstr *MI) const;
+  virtual bool isPredicatedTrue(unsigned Opcode) const;
+  virtual bool isPredicatedNew(const MachineInstr *MI) const;
+  virtual bool isPredicatedNew(unsigned Opcode) const;
   virtual bool DefinesPredicate(MachineInstr *MI,
                                 std::vector<MachineOperand> &Pred) const;
   virtual bool
@@ -136,6 +148,11 @@ public:
   isProfitableToDupForIfCvt(MachineBasicBlock &MBB,unsigned NumCycles,
                             const BranchProbability &Probability) const;
 
+  virtual MachineInstr *emitFrameIndexDebugValue(MachineFunction &MF,
+                                                 int FrameIx,
+                                                 uint64_t Offset,
+                                                 const MDNode *MDPtr,
+                                                 DebugLoc DL) const;
   virtual DFAPacketizer*
   CreateTargetScheduleState(const TargetMachine *TM,
                             const ScheduleDAG *DAG) const;
@@ -165,6 +182,9 @@ public:
   bool isConditionalALU32 (const MachineInstr* MI) const;
   bool isConditionalLoad (const MachineInstr* MI) const;
   bool isConditionalStore(const MachineInstr* MI) const;
+  bool isNewValueInst(const MachineInstr* MI) const;
+  bool isNewValue(const MachineInstr* MI) const;
+  bool isDotNewInst(const MachineInstr* MI) const;
   bool isDeallocRet(const MachineInstr *MI) const;
   unsigned getInvertedPredicatedOpcode(const int Opc) const;
   bool isExtendable(const MachineInstr* MI) const;
@@ -173,8 +193,22 @@ public:
   bool isNewValueStore(const MachineInstr* MI) const;
   bool isNewValueJump(const MachineInstr* MI) const;
   bool isNewValueJumpCandidate(const MachineInstr *MI) const;
-  unsigned getImmExtForm(const MachineInstr* MI) const;
-  unsigned getNormalBranchForm(const MachineInstr* MI) const;
+
+
+  void immediateExtend(MachineInstr *MI) const;
+  bool isConstExtended(MachineInstr *MI) const;
+  int getDotNewPredJumpOp(MachineInstr *MI,
+                      const MachineBranchProbabilityInfo *MBPI) const;
+  unsigned getAddrMode(const MachineInstr* MI) const;
+  bool isOperandExtended(const MachineInstr *MI,
+                         unsigned short OperandNum) const;
+  unsigned short getCExtOpNum(const MachineInstr *MI) const;
+  int getMinValue(const MachineInstr *MI) const;
+  int getMaxValue(const MachineInstr *MI) const;
+  bool NonExtEquivalentExists (const MachineInstr *MI) const;
+  short getNonExtOpcode(const MachineInstr *MI) const;
+  bool PredOpcodeHasJMP_c(Opcode_t Opcode) const;
+  bool PredOpcodeHasNot(Opcode_t Opcode) const;
 
 private:
   int getMatchingCondBranchOpcode(int Opc, bool sense) const;

@@ -27,17 +27,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/LiveVariables.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/STLExtras.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -617,29 +617,6 @@ bool LiveVariables::runOnMachineFunction(MachineFunction &mf) {
         // Mark it alive only in the block we are representing.
         MarkVirtRegAliveInBlock(getVarInfo(*I),MRI->getVRegDef(*I)->getParent(),
                                 MBB);
-    }
-
-    // Finally, if the last instruction in the block is a return, make sure to
-    // mark it as using all of the live-out values in the function.
-    // Things marked both call and return are tail calls; do not do this for
-    // them.  The tail callee need not take the same registers as input
-    // that it produces as output, and there are dependencies for its input
-    // registers elsewhere.
-    if (!MBB->empty() && MBB->back().isReturn()
-        && !MBB->back().isCall()) {
-      MachineInstr *Ret = &MBB->back();
-
-      for (MachineRegisterInfo::liveout_iterator
-           I = MF->getRegInfo().liveout_begin(),
-           E = MF->getRegInfo().liveout_end(); I != E; ++I) {
-        assert(TargetRegisterInfo::isPhysicalRegister(*I) &&
-               "Cannot have a live-out virtual register!");
-        HandlePhysRegUse(*I, Ret);
-
-        // Add live-out registers as implicit uses.
-        if (!Ret->readsRegister(*I))
-          Ret->addOperand(MachineOperand::CreateReg(*I, false, true));
-      }
     }
 
     // MachineCSE may CSE instructions which write to non-allocatable physical

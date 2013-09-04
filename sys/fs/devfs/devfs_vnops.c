@@ -1696,6 +1696,8 @@ static struct fileops devfs_ops_f = {
 	.fo_close =	devfs_close_f,
 	.fo_chmod =	vn_chmod,
 	.fo_chown =	vn_chown,
+	.fo_sendfile =	vn_sendfile,
+	.fo_seek =	vn_seek,
 	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 

@@ -14,14 +14,14 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "internalize"
-#include "llvm/Analysis/CallGraph.h"
 #include "llvm/Transforms/IPO.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
 #include <fstream>
 #include <set>
 using namespace llvm;
@@ -48,8 +48,10 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     explicit InternalizePass();
-    explicit InternalizePass(const std::vector <const char *>& exportList);
+    explicit InternalizePass(ArrayRef<const char *> exportList);
     void LoadFile(const char *Filename);
+    void ClearExportList();
+    void AddToExportList(const std::string &val);
     virtual bool runOnModule(Module &M);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -72,10 +74,10 @@ InternalizePass::InternalizePass()
     ExternalNames.insert(APIList.begin(), APIList.end());
 }
 
-InternalizePass::InternalizePass(const std::vector<const char *>&exportList)
+InternalizePass::InternalizePass(ArrayRef<const char *> exportList)
   : ModulePass(ID){
   initializeInternalizePassPass(*PassRegistry::getPassRegistry());
-  for(std::vector<const char *>::const_iterator itr = exportList.begin();
+  for(ArrayRef<const char *>::const_iterator itr = exportList.begin();
         itr != exportList.end(); itr++) {
     ExternalNames.insert(*itr);
   }
@@ -95,6 +97,14 @@ void InternalizePass::LoadFile(const char *Filename) {
     if (!Symbol.empty())
       ExternalNames.insert(Symbol);
   }
+}
+
+void InternalizePass::ClearExportList() {
+  ExternalNames.clear();
+}
+
+void InternalizePass::AddToExportList(const std::string &val) {
+  ExternalNames.insert(val);
 }
 
 bool InternalizePass::runOnModule(Module &M) {
@@ -173,6 +183,6 @@ ModulePass *llvm::createInternalizePass() {
   return new InternalizePass();
 }
 
-ModulePass *llvm::createInternalizePass(const std::vector <const char *> &el) {
+ModulePass *llvm::createInternalizePass(ArrayRef<const char *> el) {
   return new InternalizePass(el);
 }

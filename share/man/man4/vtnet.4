@@ -69,13 +69,29 @@ prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width "xxxxxx"
 .It Va hw.vtnet.csum_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .csum_disable
 This tunable disables receive and send checksum offload.
 The default value is 0.
 .It Va hw.vtnet.tso_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .tso_disable
 This tunable disables TSO.
 The default value is 0.
 .It Va hw.vtnet.lro_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .lro_disable
 This tunable disables LRO.
+The default value is 0.
+.It Va hw.vtnet.mq_disable
+.It Va hw.vtnet. Ns Ar X Ns Va .mq_disable
+This tunable disables multiqueue.
+The default value is 0.
+.It Va hw.vtnet.mq_max_pairs
+.It Va hw.vtnet. Ns Ar X Ns Va .mq_max_pairs
+This tunable sets the maximum number of transmit and receive queue pairs.
+Multiple queues are only supported when the Multiqueue feature is negotiated.
+This driver supports a maximum of 8 queue pairs.
+The number of queue pairs used is the lesser of the maximum supported by the
+driver and the hypervisor, the number of CPUs present in the guest, and this
+tunable if not zero.
 The default value is 0.
 .El
 .Sh SEE ALSO
@@ -89,7 +105,7 @@ The default value is 0.
 The
 .Nm
 driver was written by
-.An Bryan Venteicher Aq bryanv@daemoninthecloset.org .
+.An Bryan Venteicher Aq bryanv@FreeBSD.org .
 It first appeared in
 .Fx 9.0 .
 .Sh CAVEATS

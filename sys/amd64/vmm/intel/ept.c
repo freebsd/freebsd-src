@@ -77,6 +77,11 @@ MALLOC_DECLARE(M_VMX);
 
 static uint64_t page_sizes_mask;
 
+/*
+ * Set this to 1 to have the EPT tables respect the guest PAT settings
+ */
+static int ept_pat_passthru;
+
 int
 ept_init(void)
 {
@@ -226,10 +231,13 @@ ept_create_mapping(uint64_t *ptp, vm_paddr_t gpa, vm_paddr_t hpa, size_t length,
 			ptp[ptpindex] |= EPT_PG_EX;
 
 		/*
-		 * XXX should we enforce this memory type by setting the
-		 * ignore PAT bit to 1.
+		 * By default the PAT type is ignored - this appears to
+		 * be how other hypervisors handle EPT. Allow this to be
+		 * overridden.
 		 */
 		ptp[ptpindex] |= EPT_PG_MEMORY_TYPE(attr);
+		if (!ept_pat_passthru)
+			ptp[ptpindex] |= EPT_PG_IGNORE_PAT;
 
 		if (nlevels > 0)
 			ptp[ptpindex] |= EPT_PG_SUPERPAGE;

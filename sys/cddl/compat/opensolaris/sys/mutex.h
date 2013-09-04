@@ -46,7 +46,7 @@ typedef enum {
 
 typedef struct sx	kmutex_t;
 
-#ifndef DEBUG
+#ifndef OPENSOLARIS_WITNESS
 #define	MUTEX_FLAGS	(SX_DUPOK | SX_NOWITNESS)
 #else
 #define	MUTEX_FLAGS	(SX_DUPOK)
@@ -71,8 +71,7 @@ typedef struct sx	kmutex_t;
 #define	mutex_tryenter(lock)	sx_try_xlock(lock)
 #define	mutex_exit(lock)	sx_xunlock(lock)
 #define	mutex_owned(lock)	sx_xlocked(lock)
-/* TODO: Change to sx_xholder() once it is moved from kern_sx.c to sx.h. */
-#define	mutex_owner(lock)	((lock)->sx_lock & SX_LOCK_SHARED ? NULL : (struct thread *)SX_OWNER((lock)->sx_lock))
+#define	mutex_owner(lock)	sx_xholder(lock)
 
 #endif	/* _KERNEL */
 

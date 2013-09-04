@@ -15,14 +15,16 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/IdentifierTable.h"
-#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringSwitch.h"
 using namespace clang;
 
 size_t AttributeList::allocated_size() const {
   if (IsAvailability) return AttributeFactory::AvailabilityAllocSize;
   else if (IsTypeTagForDatatype)
     return AttributeFactory::TypeTagForDatatypeAllocSize;
+  else if (IsProperty)
+    return AttributeFactory::PropertyAllocSize;
   return (sizeof(AttributeList) + NumArgs * sizeof(Expr*));
 }
 
@@ -125,3 +127,14 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name,
 
   return ::getAttrKind(Buf);
 }
+
+unsigned AttributeList::getAttributeSpellingListIndex() const {
+  // Both variables will be used in tablegen generated
+  // attribute spell list index matching code.
+  StringRef Name = AttrName->getName();
+  StringRef Scope = ScopeName ? ScopeName->getName() : "";
+
+#include "clang/Sema/AttrSpellingListIndex.inc"
+
+}
+

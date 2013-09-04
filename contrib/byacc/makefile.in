@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.17 2012/01/15 19:11:21 tom Exp $
+# $Id: makefile.in,v 1.18 2012/09/29 13:10:15 Adrian.Bunk Exp $
 #
 # UNIX template-makefile for Berkeley Yacc
 
@@ -31,6 +31,7 @@ LINT		= @LINT@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 
+datarootdir	= @datarootdir@
 bindir		= $(DESTDIR)@bindir@
 mandir		= $(DESTDIR)@mandir@/man1
 manext		= 1

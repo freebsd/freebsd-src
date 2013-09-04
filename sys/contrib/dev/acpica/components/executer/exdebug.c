@@ -208,6 +208,7 @@ AcpiExDoDebugObject (
             return_VOID;
 
         default:
+
             break;
         }
 
@@ -241,6 +242,7 @@ AcpiExDoDebugObject (
                     break;
 
                 default:
+
                     AcpiExDoDebugObject ((SourceDesc->Reference.Node)->Object,
                         Level+4, 0);
                     break;

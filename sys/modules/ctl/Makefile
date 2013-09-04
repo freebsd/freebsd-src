@@ -21,7 +21,6 @@ SRCS+=	bus_if.h
 SRCS+=	device_if.h
 SRCS+=	vnode_if.h
 SRCS+=	opt_cam.h
-SRCS+=	opt_ctl.h
 SRCS+=	opt_kdtrace.h
 
 .include <bsd.kmod.mk>

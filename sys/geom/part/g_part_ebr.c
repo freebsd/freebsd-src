@@ -540,6 +540,8 @@ g_part_ebr_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
 	struct g_part_ebr_entry *entry;
 	int changed;
 
+	if (baseentry == NULL)
+		return (ENODEV);
 	if (strcasecmp(attrib, "active") != 0)
 		return (EINVAL);
 

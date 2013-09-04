@@ -52,7 +52,11 @@ public:
   iterator end() const { return Buffer.end(); }
   unsigned size() const { return Buffer.size(); }
 
-  raw_ostream &write(raw_ostream &) const;
+  /// \brief Write to \p Stream the result of applying all changes to the
+  /// original buffer.
+  ///
+  /// The original buffer is not actually changed.
+  raw_ostream &write(raw_ostream &Stream) const;
 
   /// RemoveText - Remove the specified text.
   void RemoveText(unsigned OrigOffset, unsigned Size,
@@ -279,7 +283,7 @@ public:
   buffer_iterator buffer_begin() { return RewriteBuffers.begin(); }
   buffer_iterator buffer_end() { return RewriteBuffers.end(); }
 
-  /// SaveFiles - Save all changed files to disk.
+  /// overwriteChangedFiles - Save all changed files to disk.
   ///
   /// Returns whether not all changes were saved successfully.
   /// Outputs diagnostics via the source manager's diagnostic engine

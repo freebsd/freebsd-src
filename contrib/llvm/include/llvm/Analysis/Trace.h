@@ -18,8 +18,8 @@
 #ifndef LLVM_ANALYSIS_TRACE_H
 #define LLVM_ANALYSIS_TRACE_H
 
-#include <vector>
 #include <cassert>
+#include <vector>
 
 namespace llvm {
   class BasicBlock;
@@ -116,4 +116,4 @@ public:
 
 } // end namespace llvm
 
-#endif // TRACE_H
+#endif // LLVM_ANALYSIS_TRACE_H

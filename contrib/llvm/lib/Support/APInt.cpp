@@ -23,9 +23,9 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cmath>
-#include <limits>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
+#include <limits>
 using namespace llvm;
 
 /// A utility function for allocating memory, checking for allocation failures,
@@ -559,12 +559,12 @@ bool APInt::slt(const APInt& RHS) const {
   if (lhsNeg) {
     // Sign bit is set so perform two's complement to make it positive
     lhs.flipAllBits();
-    lhs++;
+    ++lhs;
   }
   if (rhsNeg) {
     // Sign bit is set so perform two's complement to make it positive
     rhs.flipAllBits();
-    rhs++;
+    ++rhs;
   }
 
   // Now we have unsigned values to compare so do the comparison if necessary
@@ -1876,6 +1876,17 @@ APInt APInt::udiv(const APInt& RHS) const {
   return Quotient;
 }
 
+APInt APInt::sdiv(const APInt &RHS) const {
+  if (isNegative()) {
+    if (RHS.isNegative())
+      return (-(*this)).udiv(-RHS);
+    return -((-(*this)).udiv(RHS));
+  }
+  if (RHS.isNegative())
+    return -(this->udiv(-RHS));
+  return this->udiv(RHS);
+}
+
 APInt APInt::urem(const APInt& RHS) const {
   assert(BitWidth == RHS.BitWidth && "Bit widths must be the same");
   if (isSingleWord()) {
@@ -1911,6 +1922,17 @@ APInt APInt::urem(const APInt& RHS) const {
   APInt Remainder(1,0);
   divide(*this, lhsWords, RHS, rhsWords, 0, &Remainder);
   return Remainder;
+}
+
+APInt APInt::srem(const APInt &RHS) const {
+  if (isNegative()) {
+    if (RHS.isNegative())
+      return -((-(*this)).urem(-RHS));
+    return -((-(*this)).urem(RHS));
+  }
+  if (RHS.isNegative())
+    return this->urem(-RHS);
+  return this->urem(RHS);
 }
 
 void APInt::udivrem(const APInt &LHS, const APInt &RHS,
@@ -1951,6 +1973,24 @@ void APInt::udivrem(const APInt &LHS, const APInt &RHS,
 
   // Okay, lets do it the long way
   divide(LHS, lhsWords, RHS, rhsWords, &Quotient, &Remainder);
+}
+
+void APInt::sdivrem(const APInt &LHS, const APInt &RHS,
+                    APInt &Quotient, APInt &Remainder) {
+  if (LHS.isNegative()) {
+    if (RHS.isNegative())
+      APInt::udivrem(-LHS, -RHS, Quotient, Remainder);
+    else {
+      APInt::udivrem(-LHS, RHS, Quotient, Remainder);
+      Quotient = -Quotient;
+    }
+    Remainder = -Remainder;
+  } else if (RHS.isNegative()) {
+    APInt::udivrem(LHS, -RHS, Quotient, Remainder);
+    Quotient = -Quotient;
+  } else {
+    APInt::udivrem(LHS, RHS, Quotient, Remainder);
+  }
 }
 
 APInt APInt::sadd_ov(const APInt &RHS, bool &Overflow) const {
@@ -2076,7 +2116,7 @@ void APInt::fromString(unsigned numbits, StringRef str, uint8_t radix) {
   }
   // If its negative, put it in two's complement form
   if (isNeg) {
-    (*this)--;
+    --(*this);
     this->flipAllBits();
   }
 }
@@ -2157,7 +2197,7 @@ void APInt::toString(SmallVectorImpl<char> &Str, unsigned Radix,
     // Flip the bits and add one to turn it into the equivalent positive
     // value and put a '-' in the result.
     Tmp.flipAllBits();
-    Tmp++;
+    ++Tmp;
     Str.push_back('-');
   }
 

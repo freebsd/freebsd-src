@@ -223,7 +223,7 @@
  *
  *****************************************************************************/
 
-#define ACPI_DEBUGGER_MAX_ARGS          ACPI_METHOD_NUM_ARGS + 2 /* Max command line arguments */
+#define ACPI_DEBUGGER_MAX_ARGS          ACPI_METHOD_NUM_ARGS + 4 /* Max command line arguments */
 #define ACPI_DB_LINE_BUFFER_SIZE        512
 
 #define ACPI_DEBUGGER_COMMAND_PROMPT    '-'

@@ -31,6 +31,7 @@ SRCS=		dt_aggregate.c \
 		dt_parser.c \
 		dt_pcb.c \
 		dt_pid.c \
+		dt_pq.c \
 		dt_pragma.c \
 		dt_print.c \
 		dt_printf.c \
@@ -47,8 +48,11 @@ SRCS=		dt_aggregate.c \
 
 DSRCS=		errno.d			\
 		io.d			\
+		ip.d			\
 		psinfo.d		\
 		signal.d		\
+		tcp.d			\
+		udp.d			\
 		unistd.d
 
 WARNS?=		1

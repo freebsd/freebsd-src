@@ -37,18 +37,12 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
-#ifdef DEBUG
 #include <stdint.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "mfiutil.h"
-
-#ifdef DEBUG
-static void	dump_config(int fd, struct mfi_config_data *config);
-#endif
 
 static int	add_spare(int ac, char **av);
 static int	remove_spare(int ac, char **av);
@@ -81,8 +75,16 @@ dehumanize(const char *value)
         }
         return (iv);
 }
+
 int
 mfi_config_read(int fd, struct mfi_config_data **configp)
+{
+	return mfi_config_read_opcode(fd, MFI_DCMD_CFG_READ, configp, NULL, 0);
+}
+
+int
+mfi_config_read_opcode(int fd, uint32_t opcode, struct mfi_config_data **configp,
+	uint8_t *mbox, size_t mboxlen)
 {
 	struct mfi_config_data *config;
 	uint32_t config_size;
@@ -98,8 +100,8 @@ fetch:
 	config = reallocf(config, config_size);
 	if (config == NULL)
 		return (-1);
-	if (mfi_dcmd_command(fd, MFI_DCMD_CFG_READ, config,
-	    config_size, NULL, 0, NULL) < 0) {
+	if (mfi_dcmd_command(fd, opcode, config,
+	    config_size, mbox, mboxlen, NULL) < 0) {
 		error = errno;
 		free(config);
 		errno = error;
@@ -362,6 +364,13 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 
 		if (pinfo->fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
 			warnx("Drive %u is not available", device_id);
+			free(info->drives);
+			info->drives = NULL;
+			return (EINVAL);
+		}
+
+		if (pinfo->state.ddf.v.pd_type.is_foreign) {
+			warnx("Drive %u is foreign", device_id);
 			free(info->drives);
 			info->drives = NULL;
 			return (EINVAL);
@@ -804,7 +813,7 @@ create_volume(int ac, char **av)
 
 #ifdef DEBUG
 	if (dump)
-		dump_config(fd, config);
+		dump_config(fd, config, NULL);
 #endif
 
 	/* Send the new config to the controller. */
@@ -1093,10 +1102,9 @@ remove_spare(int ac, char **av)
 }
 MFI_COMMAND(top, remove, remove_spare);
 
-#ifdef DEBUG
 /* Display raw data about a config. */
-static void
-dump_config(int fd, struct mfi_config_data *config)
+void
+dump_config(int fd, struct mfi_config_data *config, const char *msg_prefix)
 {
 	struct mfi_array *ar;
 	struct mfi_ld_config *ld;
@@ -1106,9 +1114,12 @@ dump_config(int fd, struct mfi_config_data *config)
 	char *p;
 	int i, j;
 
+	if (NULL == msg_prefix)
+		msg_prefix = "Configuration (Debug)";
+
 	printf(
-	    "mfi%d Configuration (Debug): %d arrays, %d volumes, %d spares\n",
-	    mfi_unit, config->array_count, config->log_drv_count,
+	    "mfi%d %s: %d arrays, %d volumes, %d spares\n", mfi_unit,
+	    msg_prefix, config->array_count, config->log_drv_count,
 	    config->spares_count);
 	printf("  array size: %u\n", config->array_size);
 	printf("  volume size: %u\n", config->log_drv_size);
@@ -1186,6 +1197,7 @@ dump_config(int fd, struct mfi_config_data *config)
 	}
 }
 
+#ifdef DEBUG
 static int
 debug_config(int ac, char **av)
 {
@@ -1213,7 +1225,7 @@ debug_config(int ac, char **av)
 	}
 
 	/* Dump out the configuration. */
-	dump_config(fd, config);
+	dump_config(fd, config, NULL);
 	free(config);
 	close(fd);
 
@@ -1265,7 +1277,7 @@ dump(int ac, char **av)
 		close(fd);
 		return (error);
 	}
-	dump_config(fd, config);
+	dump_config(fd, config, NULL);
 	free(config);
 	close(fd);
 

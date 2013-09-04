@@ -548,9 +548,10 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
 
-	if (__predict_false(toep->ulp_mode != ULP_MODE_NONE &&
-	    toep->ulp_mode != ULP_MODE_TCPDDP))
-		CXGBE_UNIMPLEMENTED("ulp_mode");
+	KASSERT(toep->ulp_mode == ULP_MODE_NONE ||
+	    toep->ulp_mode == ULP_MODE_TCPDDP ||
+	    toep->ulp_mode == ULP_MODE_RDMA,
+	    ("%s: ulp_mode %u for toep %p", __func__, toep->ulp_mode, toep));
 
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
@@ -827,15 +828,8 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
-		m = m_get(M_NOWAIT, MT_DATA);
-		if (m == NULL)
-			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
-
-		m->m_len = be32toh(cpl->rcv_nxt) - tp->rcv_nxt;
-		m->m_flags |= M_DDP;	/* Data is already where it should be */
-		m->m_data = "nothing to see here";
+		m = get_ddp_mbuf(be32toh(cpl->rcv_nxt) - tp->rcv_nxt);
 		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
-
 		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
 
 		KASSERT(toep->sb_cc >= sb->sb_cc,
@@ -850,9 +844,11 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	socantrcvmore_locked(so);	/* unlocks the sockbuf */
 
-	KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
-	    ("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
-	    be32toh(cpl->rcv_nxt)));
+	if (toep->ulp_mode != ULP_MODE_RDMA) {
+		KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
+	    		("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
+	    		be32toh(cpl->rcv_nxt)));
+	}
 
 	switch (tp->t_state) {
 	case TCPS_SYN_RECEIVED:
@@ -1417,13 +1413,13 @@ do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 }
 
 void
-t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, uint16_t word,
-    uint64_t mask, uint64_t val)
+t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, int ctrl,
+    uint16_t word, uint64_t mask, uint64_t val)
 {
 	struct wrqe *wr;
 	struct cpl_set_tcb_field *req;
 
-	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
+	wr = alloc_wrqe(sizeof(*req), ctrl ? toep->ctrlq : toep->ofld_txq);
 	if (wr == NULL) {
 		/* XXX */
 		panic("%s: allocation failure.", __func__);

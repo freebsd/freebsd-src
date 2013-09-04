@@ -1,7 +1,7 @@
 if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #
 # Copyright (c) 2006-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_NETWORKING_DEVICE_SUBR" ]; then _NETWORKING_DEVICE_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -33,7 +33,6 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." networking/device.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/sysrc.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/networking/common.subr
 f_include $BSDCFG_SHARE/networking/ipaddr.subr
@@ -41,6 +40,7 @@ f_include $BSDCFG_SHARE/networking/media.subr
 f_include $BSDCFG_SHARE/networking/netmask.subr
 f_include $BSDCFG_SHARE/networking/resolv.subr
 f_include $BSDCFG_SHARE/networking/routing.subr
+f_include $BSDCFG_SHARE/sysrc.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
@@ -55,12 +55,15 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ############################################################ FUNCTIONS
 
-# f_dialog_menu_netdev
+# f_dialog_menu_netdev [$default]
 #
-# Display a list of network devices with descriptions.
+# Display a list of network devices with descriptions. Optionally, if present
+# and non-NULL, initially highlight $default interface.
 #
 f_dialog_menu_netdev()
 {
+	local defaultitem="${1%\*}" # Tim trailing asterisk if present
+
 	#
 	# Display a message to let the user know we're working...
 	# (message will remain until we throw up the next dialog)
@@ -121,8 +124,17 @@ f_dialog_menu_netdev()
 		done
 	)
 	if [ ! "$interfaces" ]; then
-		f_dialog_msgbox "$msg_no_network_interfaces"
+		f_show_msg "$msg_no_network_interfaces"
 		return $FAILURE
+	fi
+
+	#
+	# Maybe the default item was marked as active
+	#
+	if [ "$defaultitem" ]; then
+		ifconfig "$defaultitem" 2> /dev/null | awk \
+			'( $1 == "status:" && $2 != "active" ) { exit 0 }' ||
+			defaultitem="$defaultitem*"
 	fi
 
 	local hline="$hline_arrows_tab_enter"
@@ -130,27 +142,29 @@ f_dialog_menu_netdev()
 	#
 	# Ask user to select an interface
 	#
-	local prompt size
-	prompt="$msg_select_network_interface"
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	        	\"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$interfaces            )
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+	local prompt="$msg_select_network_interface"
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $interfaces
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$prompt\" $size          \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
 		$interfaces                        \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
 	return $retval
 }
 
@@ -162,7 +176,7 @@ f_dialog_menu_netdev()
 f_dialog_menu_netdev_edit()
 {
 	local interface="$1" ipaddr="$2" netmask="$3" options="$4" dhcp="$5"
-	local prompt menu_list size
+	local prompt menu_list height width rows
 
 	#
 	# Create a duplicate set of variables for change-tracking...
@@ -188,6 +202,7 @@ f_dialog_menu_netdev_edit()
 	# changes effective because all three options must be specified at-once
 	# to ifconfig(8).
 	#
+	local defaultitem=
 	while :; do
 		local dhcp_status="$msg_disabled"
 		[ "$dhcp" ] && dhcp_status="$msg_enabled"
@@ -202,15 +217,15 @@ f_dialog_menu_netdev_edit()
 			'4 $msg_netmask'   '$netmask'
 			'5 $msg_options'   '$options'
 		"
-		size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$prompt\"           \
-		        	\"\$hline\"            \
-		        	$menu_list             )
-		local dialog_menu
-		dialog_menu=$( eval $DIALOG \
-			--clear --title \"\$DIALOG_TITLE\" \
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
+		local tag
+		tag=$( eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
@@ -218,14 +233,14 @@ f_dialog_menu_netdev_edit()
 			--help-button                      \
 			--help-label \"\$msg_help\"        \
 			${USE_XDIALOG:+--help \"\"}        \
-			--menu \"\$prompt\" $size          \
+			--default-item \"\$defaultitem\"   \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		local tag="$( f_dialog_menutag )"
+		f_dialog_data_sanitize tag
 
 		if [ $retval -eq 2 ]; then
 			# The Help button was pressed
@@ -234,6 +249,9 @@ f_dialog_menu_netdev_edit()
 		elif [ $retval -ne $SUCCESS ]; then
 			# "Cancel" was chosen (-1) or ESC was pressed (255)
 			return $retval
+		else
+			# Only update default-item on success
+			defaultitem="$tag"
 		fi
 
 		#
@@ -243,18 +261,17 @@ f_dialog_menu_netdev_edit()
 		# read and display in the summary dialog.
 		#
 		case "$tag" in
-		X\ *) break;;
+		X\ *) break ;;
 		2\ *) #
-		      # Do not proceed if/when there are NFS-mounts currently
-		      # active. If the network is changed while NFS-exported
-		      # directories are mounted, the system may hang (if any
-		      # NFS mounts are using that interface).
+		      # Proceed cautiously (confirm with the user) if/when NFS-
+		      # mounts are active. If the network on which these mounts
+		      # are made is changed parts of the system may hang.
 		      #
 		      if f_nfs_mounted && ! f_jailed; then
 		      	local setting="$( printf "$msg_current_dhcp_status" \
 		      	                         "$interface" "$dhcp_status" )"
-			f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
-		      	continue
+			f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
+		      		continue
 		      fi
 
 		      #
@@ -295,11 +312,11 @@ f_dialog_menu_netdev_edit()
 		      fi
 		      ;;
 		3\ *) f_dialog_input_ipaddr "$interface" "$ipaddr"
-		      [ $? -eq $SUCCESS ] && dhcp=;;
+		      [ $? -eq $SUCCESS ] && dhcp= ;;
 		4\ *) f_dialog_input_netmask "$interface" "$netmask"
-		      [ $? -eq $SUCCESS -a "$_netmask" ] && dhcp=;;
+		      [ $? -eq $SUCCESS -a "$_netmask" ] && dhcp= ;;
 		5\ *) f_dialog_menu_media_options "$interface" "$options"
-		      [ $? -eq $SUCCESS ] && dhcp=;;
+		      [ $? -eq $SUCCESS ] && dhcp= ;;
 		esac
 	done
 

@@ -20,6 +20,9 @@ extern int	i8254_max_count;
 extern uint64_t	tsc_freq;
 extern int	tsc_is_invariant;
 extern int	tsc_perf_stat;
+#ifdef SMP
+extern int	smp_tsc;
+#endif
 
 void	i8254_init(void);
 

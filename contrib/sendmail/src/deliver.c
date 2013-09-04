@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1027 2012/12/19 02:49:21 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1028 2013/01/02 18:57:42 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -6159,7 +6159,7 @@ starttls(m, mci, e)
 			sm_syslog(LOG_ERR, NOQID,
 				  "STARTTLS=client, error: SSL_new failed");
 			if (LogLevel > 9)
-				tlslogerr("client");
+				tlslogerr(LOG_WARNING, "client");
 		}
 		return EX_SOFTWARE;
 	}
@@ -6178,7 +6178,7 @@ starttls(m, mci, e)
 				  "STARTTLS=client, error: SSL_set_xfd failed=%d",
 				  result);
 			if (LogLevel > 9)
-				tlslogerr("client");
+				tlslogerr(LOG_WARNING, "client");
 		}
 		return EX_SOFTWARE;
 	}
@@ -6208,7 +6208,7 @@ ssl_retry:
 				  result, sr == NULL ? "unknown" : sr, ssl_err,
 				  errno, i);
 			if (LogLevel > 9)
-				tlslogerr("client");
+				tlslogerr(LOG_WARNING, "client");
 		}
 
 		SSL_free(clt_ssl);

@@ -16,12 +16,13 @@
 #ifndef INSTREMITTER_H
 #define INSTREMITTER_H
 
-#include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/SelectionDAG.h"
 
 namespace llvm {
 
+class MachineInstrBuilder;
 class MCInstrDesc;
 class SDDbgValue;
 
@@ -48,7 +49,8 @@ class InstrEmitter {
   unsigned getDstOfOnlyCopyToRegUse(SDNode *Node,
                                     unsigned ResNo) const;
 
-  void CreateVirtualRegisters(SDNode *Node, MachineInstr *MI,
+  void CreateVirtualRegisters(SDNode *Node,
+                              MachineInstrBuilder &MIB,
                               const MCInstrDesc &II,
                               bool IsClone, bool IsCloned,
                               DenseMap<SDValue, unsigned> &VRBaseMap);
@@ -61,7 +63,8 @@ class InstrEmitter {
   /// AddRegisterOperand - Add the specified register as an operand to the
   /// specified machine instr. Insert register copies if the register is
   /// not in the required register class.
-  void AddRegisterOperand(MachineInstr *MI, SDValue Op,
+  void AddRegisterOperand(MachineInstrBuilder &MIB,
+                          SDValue Op,
                           unsigned IIOpNum,
                           const MCInstrDesc *II,
                           DenseMap<SDValue, unsigned> &VRBaseMap,
@@ -71,7 +74,8 @@ class InstrEmitter {
   /// specifies the instruction information for the node, and IIOpNum is the
   /// operand number (in the II) that we are adding. IIOpNum and II are used for
   /// assertions only.
-  void AddOperand(MachineInstr *MI, SDValue Op,
+  void AddOperand(MachineInstrBuilder &MIB,
+                  SDValue Op,
                   unsigned IIOpNum,
                   const MCInstrDesc *II,
                   DenseMap<SDValue, unsigned> &VRBaseMap,
@@ -81,7 +85,7 @@ class InstrEmitter {
   /// supports SubIdx sub-registers.  Emit a copy if that isn't possible.
   /// Return the virtual register to use.
   unsigned ConstrainForSubReg(unsigned VReg, unsigned SubIdx,
-                              EVT VT, DebugLoc DL);
+                              MVT VT, DebugLoc DL);
 
   /// EmitSubregNode - Generate machine code for subreg nodes.
   ///

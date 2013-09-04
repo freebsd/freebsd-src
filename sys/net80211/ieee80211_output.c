@@ -110,6 +110,152 @@ doprint(struct ieee80211vap *vap, int subtype)
 #endif
 
 /*
+ * Transmit a frame to the given destination on the given VAP.
+ *
+ * It's up to the caller to figure out the details of who this
+ * is going to and resolving the node.
+ *
+ * This routine takes care of queuing it for power save,
+ * A-MPDU state stuff, fast-frames state stuff, encapsulation
+ * if required, then passing it up to the driver layer.
+ *
+ * This routine (for now) consumes the mbuf and frees the node
+ * reference; it ideally will return a TX status which reflects
+ * whether the mbuf was consumed or not, so the caller can
+ * free the mbuf (if appropriate) and the node reference (again,
+ * if appropriate.)
+ */
+int
+ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
+    struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ifnet *ifp = vap->iv_ifp;
+	int error;
+
+	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
+	    (m->m_flags & M_PWR_SAV) == 0) {
+		/*
+		 * Station in power save mode; pass the frame
+		 * to the 802.11 layer and continue.  We'll get
+		 * the frame back when the time is right.
+		 * XXX lose WDS vap linkage?
+		 */
+		(void) ieee80211_pwrsave(ni, m);
+		ieee80211_free_node(ni);
+		/* XXX better status? */
+		return (ENOBUFS);
+	}
+	/* calculate priority so drivers can find the tx queue */
+	if (ieee80211_classify(ni, m)) {
+		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
+		    ni->ni_macaddr, NULL,
+		    "%s", "classification failure");
+		vap->iv_stats.is_tx_classify++;
+		ifp->if_oerrors++;
+		m_freem(m);
+		ieee80211_free_node(ni);
+		/* XXX better status? */
+		return (ENOBUFS);
+	}
+	/*
+	 * Stash the node pointer.  Note that we do this after
+	 * any call to ieee80211_dwds_mcast because that code
+	 * uses any existing value for rcvif to identify the
+	 * interface it (might have been) received on.
+	 */
+	m->m_pkthdr.rcvif = (void *)ni;
+
+	BPF_MTAP(ifp, m);		/* 802.3 tx */
+
+
+	/*
+	 * Check if A-MPDU tx aggregation is setup or if we
+	 * should try to enable it.  The sta must be associated
+	 * with HT and A-MPDU enabled for use.  When the policy
+	 * routine decides we should enable A-MPDU we issue an
+	 * ADDBA request and wait for a reply.  The frame being
+	 * encapsulated will go out w/o using A-MPDU, or possibly
+	 * it might be collected by the driver and held/retransmit.
+	 * The default ic_ampdu_enable routine handles staggering
+	 * ADDBA requests in case the receiver NAK's us or we are
+	 * otherwise unable to establish a BA stream.
+	 */
+	if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
+	    (m->m_flags & M_EAPOL) == 0) {
+		int tid = WME_AC_TO_TID(M_WME_GETAC(m));
+		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
+
+		ieee80211_txampdu_count_packet(tap);
+		if (IEEE80211_AMPDU_RUNNING(tap)) {
+			/*
+			 * Operational, mark frame for aggregation.
+			 *
+			 * XXX do tx aggregation here
+			 */
+			m->m_flags |= M_AMPDU_MPDU;
+		} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
+		    ic->ic_ampdu_enable(ni, tap)) {
+			/*
+			 * Not negotiated yet, request service.
+			 */
+			ieee80211_ampdu_request(ni, tap);
+			/* XXX hold frame for reply? */
+		}
+	}
+
+#ifdef IEEE80211_SUPPORT_SUPERG
+	else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
+		m = ieee80211_ff_check(ni, m);
+		if (m == NULL) {
+			/* NB: any ni ref held on stageq */
+			return (0);
+		}
+	}
+#endif /* IEEE80211_SUPPORT_SUPERG */
+
+	/*
+	 * Grab the TX lock - serialise the TX process from this
+	 * point (where TX state is being checked/modified)
+	 * through to driver queue.
+	 */
+	IEEE80211_TX_LOCK(ic);
+
+	if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
+		/*
+		 * Encapsulate the packet in prep for transmission.
+		 */
+		m = ieee80211_encap(vap, ni, m);
+		if (m == NULL) {
+			/* NB: stat+msg handled in ieee80211_encap */
+			IEEE80211_TX_UNLOCK(ic);
+			ieee80211_free_node(ni);
+			/* XXX better status? */
+			return (ENOBUFS);
+		}
+	}
+	error = ieee80211_parent_xmitpkt(ic, m);
+
+	/*
+	 * Unlock at this point - no need to hold it across
+	 * ieee80211_free_node() (ie, the comlock)
+	 */
+	IEEE80211_TX_UNLOCK(ic);
+	if (error != 0) {
+		/* NB: IFQ_HANDOFF reclaims mbuf */
+		ieee80211_free_node(ni);
+	} else {
+		ifp->if_opackets++;
+	}
+	ic->ic_lastdata = ticks;
+
+	return (0);
+}
+
+
+
+/*
  * Send the given mbuf through the given vap.
  *
  * This consumes the mbuf regardless of whether the transmit
@@ -129,7 +275,6 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211_node *ni;
 	struct ether_header *eh;
-	int error;
 
 	/*
 	 * Cancel any background scan.
@@ -236,124 +381,12 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 		}
 	}
 #endif
-	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
-	    (m->m_flags & M_PWR_SAV) == 0) {
-		/*
-		 * Station in power save mode; pass the frame
-		 * to the 802.11 layer and continue.  We'll get
-		 * the frame back when the time is right.
-		 * XXX lose WDS vap linkage?
-		 */
-		(void) ieee80211_pwrsave(ni, m);
-		ieee80211_free_node(ni);
-		/* XXX better status? */
+
+	/*
+	 * We've resolved the sender, so attempt to transmit it.
+	 */
+	if (ieee80211_vap_pkt_send_dest(vap, m, ni) != 0)
 		return (ENOBUFS);
-	}
-	/* calculate priority so drivers can find the tx queue */
-	if (ieee80211_classify(ni, m)) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
-		    eh->ether_dhost, NULL,
-		    "%s", "classification failure");
-		vap->iv_stats.is_tx_classify++;
-		ifp->if_oerrors++;
-		m_freem(m);
-		ieee80211_free_node(ni);
-		/* XXX better status? */
-		return (ENOBUFS);
-	}
-	/*
-	 * Stash the node pointer.  Note that we do this after
-	 * any call to ieee80211_dwds_mcast because that code
-	 * uses any existing value for rcvif to identify the
-	 * interface it (might have been) received on.
-	 */
-	m->m_pkthdr.rcvif = (void *)ni;
-
-	BPF_MTAP(ifp, m);		/* 802.3 tx */
-
-
-	/*
-	 * Check if A-MPDU tx aggregation is setup or if we
-	 * should try to enable it.  The sta must be associated
-	 * with HT and A-MPDU enabled for use.  When the policy
-	 * routine decides we should enable A-MPDU we issue an
-	 * ADDBA request and wait for a reply.  The frame being
-	 * encapsulated will go out w/o using A-MPDU, or possibly
-	 * it might be collected by the driver and held/retransmit.
-	 * The default ic_ampdu_enable routine handles staggering
-	 * ADDBA requests in case the receiver NAK's us or we are
-	 * otherwise unable to establish a BA stream.
-	 */
-	if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
-	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX) &&
-	    (m->m_flags & M_EAPOL) == 0) {
-		int tid = WME_AC_TO_TID(M_WME_GETAC(m));
-		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
-
-		ieee80211_txampdu_count_packet(tap);
-		if (IEEE80211_AMPDU_RUNNING(tap)) {
-			/*
-			 * Operational, mark frame for aggregation.
-			 *
-			 * XXX do tx aggregation here
-			 */
-			m->m_flags |= M_AMPDU_MPDU;
-		} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
-		    ic->ic_ampdu_enable(ni, tap)) {
-			/*
-			 * Not negotiated yet, request service.
-			 */
-			ieee80211_ampdu_request(ni, tap);
-			/* XXX hold frame for reply? */
-		}
-	}
-
-#ifdef IEEE80211_SUPPORT_SUPERG
-	else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF)) {
-		m = ieee80211_ff_check(ni, m);
-		if (m == NULL) {
-			/* NB: any ni ref held on stageq */
-			/* XXX better status? */
-			return (ENOBUFS);
-		}
-	}
-#endif /* IEEE80211_SUPPORT_SUPERG */
-
-	/*
-	 * Grab the TX lock - serialise the TX process from this
-	 * point (where TX state is being checked/modified)
-	 * through to driver queue.
-	 */
-	IEEE80211_TX_LOCK(ic);
-
-	if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
-		/*
-		 * Encapsulate the packet in prep for transmission.
-		 */
-		m = ieee80211_encap(vap, ni, m);
-		if (m == NULL) {
-			/* NB: stat+msg handled in ieee80211_encap */
-			IEEE80211_TX_UNLOCK(ic);
-			ieee80211_free_node(ni);
-			/* XXX better status? */
-			return (ENOBUFS);
-		}
-	}
-	error = ieee80211_parent_transmit(ic, m);
-
-	/*
-	 * Unlock at this point - no need to hold it across
-	 * ieee80211_free_node() (ie, the comlock)
-	 */
-	IEEE80211_TX_UNLOCK(ic);
-	if (error != 0) {
-		/* NB: IFQ_HANDOFF reclaims mbuf */
-		ieee80211_free_node(ni);
-	} else {
-		ifp->if_opackets++;
-	}
-	ic->ic_lastdata = ticks;
-
 	return (0);
 #undef	IS_DWDS
 }
@@ -362,14 +395,16 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
  * Start method for vap's.  All packets from the stack come
  * through here.  We handle common processing of the packets
  * before dispatching them to the underlying device.
+ *
+ * if_transmit() requires that the mbuf be consumed by this call
+ * regardless of the return condition.
  */
-void
-ieee80211_start(struct ifnet *ifp)
+int
+ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *parent = ic->ic_ifp;
-	struct mbuf *m;
 
 	/* NB: parent must be up and running */
 	if (!IFNET_IS_UP_RUNNING(parent)) {
@@ -377,14 +412,16 @@ ieee80211_start(struct ifnet *ifp)
 		    "%s: ignore queue, parent %s not up+running\n",
 		    __func__, parent->if_xname);
 		/* XXX stat */
-		return;
+		m_freem(m);
+		return (EINVAL);
 	}
 	if (vap->iv_state == IEEE80211_S_SLEEP) {
 		/*
 		 * In power save, wakeup device for transmit.
 		 */
 		ieee80211_new_state(vap, IEEE80211_S_RUN, 0);
-		return;
+		m_freem(m);
+		return (0);
 	}
 	/*
 	 * No data frames go out unless we're running.
@@ -401,34 +438,36 @@ ieee80211_start(struct ifnet *ifp)
 			    __func__, ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_tx_badstate++;
 			IEEE80211_UNLOCK(ic);
-			IFQ_LOCK(&ifp->if_snd);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_UNLOCK(&ifp->if_snd);
-			return;
+			m_freem(m);
+			return (EINVAL);
 		}
 		IEEE80211_UNLOCK(ic);
 	}
 
-	for (;;) {
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
-		/*
-		 * Sanitize mbuf flags for net80211 use.  We cannot
-		 * clear M_PWR_SAV or M_MORE_DATA because these may
-		 * be set for frames that are re-submitted from the
-		 * power save queue.
-		 *
-		 * NB: This must be done before ieee80211_classify as
-		 *     it marks EAPOL in frames with M_EAPOL.
-		 */
-		m->m_flags &= ~(M_80211_TX - M_PWR_SAV - M_MORE_DATA);
-		/*
-		 * Bump to the packet transmission path.
-		 */
-		(void) ieee80211_start_pkt(vap, m);
-		/* mbuf is consumed here */
-	}
+	/*
+	 * Sanitize mbuf flags for net80211 use.  We cannot
+	 * clear M_PWR_SAV or M_MORE_DATA because these may
+	 * be set for frames that are re-submitted from the
+	 * power save queue.
+	 *
+	 * NB: This must be done before ieee80211_classify as
+	 *     it marks EAPOL in frames with M_EAPOL.
+	 */
+	m->m_flags &= ~(M_80211_TX - M_PWR_SAV - M_MORE_DATA);
+
+	/*
+	 * Bump to the packet transmission path.
+	 * The mbuf will be consumed here.
+	 */
+	return (ieee80211_start_pkt(vap, m));
+}
+
+void
+ieee80211_vap_qflush(struct ifnet *ifp)
+{
+
+	/* Empty for now */
 }
 
 /*
@@ -448,9 +487,15 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
  * connect bpf write calls to the 802.11 layer for injecting
  * raw 802.11 frames.
  */
+#if __FreeBSD_version >= 1000031
+int
+ieee80211_output(struct ifnet *ifp, struct mbuf *m,
+	const struct sockaddr *dst, struct route *ro)
+#else
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
+#endif
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
 	struct ieee80211_node *ni = NULL;
@@ -460,9 +505,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	int error;
 	int ret;
 
-	IFQ_LOCK(&ifp->if_snd);
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		IFQ_UNLOCK(&ifp->if_snd);
 		/*
 		 * Short-circuit requests if the vap is marked OACTIVE
 		 * as this can happen because a packet came down through
@@ -473,7 +516,6 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		 */
 		senderr(ENETDOWN);
 	}
-	IFQ_UNLOCK(&ifp->if_snd);
 	vap = ifp->if_softc;
 	ic = vap->iv_ic;
 	/*
@@ -1022,7 +1064,7 @@ ieee80211_mbuf_adjust(struct ieee80211vap *vap, int hdrsize,
 			return NULL;
 		}
 		KASSERT(needed_space <= MHLEN,
-		    ("not enough room, need %u got %zu\n", needed_space, MHLEN));
+		    ("not enough room, need %u got %d\n", needed_space, MHLEN));
 		/*
 		 * Setup new mbuf to have leading space to prepend the
 		 * 802.11 header and any crypto header bits that are
@@ -1495,18 +1537,28 @@ static int
 ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_frame *wh, *whf;
 	struct mbuf *m, *prev, *next;
 	u_int totalhdrsize, fragno, fragsize, off, remainder, payload;
+	u_int hdrspace;
 
 	KASSERT(m0->m_nextpkt == NULL, ("mbuf already chained?"));
 	KASSERT(m0->m_pkthdr.len > mtu,
 		("pktlen %u mtu %u", m0->m_pkthdr.len, mtu));
 
+	/*
+	 * Honor driver DATAPAD requirement.
+	 */
+	if (ic->ic_flags & IEEE80211_F_DATAPAD)
+		hdrspace = roundup(hdrsize, sizeof(uint32_t));
+	else
+		hdrspace = hdrsize;
+
 	wh = mtod(m0, struct ieee80211_frame *);
 	/* NB: mark the first frag; it will be propagated below */
 	wh->i_fc[1] |= IEEE80211_FC1_MORE_FRAG;
-	totalhdrsize = hdrsize + ciphdrsize;
+	totalhdrsize = hdrspace + ciphdrsize;
 	fragno = 1;
 	off = mtu - ciphdrsize;
 	remainder = m0->m_pkthdr.len - off;
@@ -1553,9 +1605,10 @@ ieee80211_fragment(struct ieee80211vap *vap, struct mbuf *m0,
 
 		payload = fragsize - totalhdrsize;
 		/* NB: destination is known to be contiguous */
-		m_copydata(m0, off, payload, mtod(m, uint8_t *) + hdrsize);
-		m->m_len = hdrsize + payload;
-		m->m_pkthdr.len = hdrsize + payload;
+
+		m_copydata(m0, off, payload, mtod(m, uint8_t *) + hdrspace);
+		m->m_len = hdrspace + payload;
+		m->m_pkthdr.len = hdrspace + payload;
 		m->m_flags |= M_FRAG;
 
 		/* chain up the fragment */
@@ -1872,6 +1925,40 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic)
 	return add_appie(frm, ic->ic_countryie);
 }
 
+uint8_t *
+ieee80211_add_wpa(uint8_t *frm, const struct ieee80211vap *vap)
+{
+	if (vap->iv_flags & IEEE80211_F_WPA1 && vap->iv_wpa_ie != NULL)
+		return (add_ie(frm, vap->iv_wpa_ie));
+	else {
+		/* XXX else complain? */
+		return (frm);
+	}
+}
+
+uint8_t *
+ieee80211_add_rsn(uint8_t *frm, const struct ieee80211vap *vap)
+{
+	if (vap->iv_flags & IEEE80211_F_WPA2 && vap->iv_rsn_ie != NULL)
+		return (add_ie(frm, vap->iv_rsn_ie));
+	else {
+		/* XXX else complain? */
+		return (frm);
+	}
+}
+
+uint8_t *
+ieee80211_add_qos(uint8_t *frm, const struct ieee80211_node *ni)
+{
+	if (ni->ni_flags & IEEE80211_NODE_QOS) {
+		*frm++ = IEEE80211_ELEMID_QOS;
+		*frm++ = 1;
+		*frm++ = 0;
+	}
+
+	return (frm);
+}
+
 /*
  * Send a probe request frame with the specified ssid
  * and any optional information element data.
@@ -1940,17 +2027,9 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	frm = ieee80211_add_ssid(frm, ssid, ssidlen);
 	rs = ieee80211_get_suprates(ic, ic->ic_curchan);
 	frm = ieee80211_add_rates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_rsn(frm, vap);
 	frm = ieee80211_add_xrates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA1) {
-		if (vap->iv_wpa_ie != NULL)
-			frm = add_ie(frm, vap->iv_wpa_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_appie_probereq != NULL)
 		frm = add_appie(frm, vap->iv_appie_probereq);
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
@@ -2216,11 +2295,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 		frm = ieee80211_add_ssid(frm, ni->ni_essid, ni->ni_esslen);
 		frm = ieee80211_add_rates(frm, &ni->ni_rates);
-		if (vap->iv_flags & IEEE80211_F_WPA2) {
-			if (vap->iv_rsn_ie != NULL)
-				frm = add_ie(frm, vap->iv_rsn_ie);
-			/* XXX else complain? */
-		}
+		frm = ieee80211_add_rsn(frm, vap);
 		frm = ieee80211_add_xrates(frm, &ni->ni_rates);
 		if (capinfo & IEEE80211_CAPINFO_SPECTRUM_MGMT) {
 			frm = ieee80211_add_powercapability(frm,
@@ -2231,11 +2306,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		    ni->ni_ies.htcap_ie != NULL &&
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_HTCAP)
 			frm = ieee80211_add_htcap(frm, ni);
-		if (vap->iv_flags & IEEE80211_F_WPA1) {
-			if (vap->iv_wpa_ie != NULL)
-				frm = add_ie(frm, vap->iv_wpa_ie);
-			/* XXX else complain */
-		}
+		frm = ieee80211_add_wpa(frm, vap);
 		if ((ic->ic_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
 			frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
@@ -2502,11 +2573,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
 		frm = ieee80211_add_erp(frm, ic);
 	frm = ieee80211_add_xrates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_rsn(frm, vap);
 	/*
 	 * NB: legacy 11b clients do not get certain ie's.
 	 *     The caller identifies such clients by passing
@@ -2518,11 +2585,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 		frm = ieee80211_add_htcap(frm, bss);
 		frm = ieee80211_add_htinfo(frm, bss);
 	}
-	if (vap->iv_flags & IEEE80211_F_WPA1) {
-		if (vap->iv_wpa_ie != NULL)
-			frm = add_ie(frm, vap->iv_wpa_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_flags & IEEE80211_F_WME)
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
 	if (IEEE80211_IS_CHAN_HT(bss->ni_chan) &&
@@ -2820,21 +2883,13 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_erp(frm, ic);
 	}
 	frm = ieee80211_add_xrates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain */
-	}
+	frm = ieee80211_add_rsn(frm, vap);
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		frm = ieee80211_add_htcap(frm, ni);
 		bo->bo_htinfo = frm;
 		frm = ieee80211_add_htinfo(frm, ni);
 	}
-	if (vap->iv_flags & IEEE80211_F_WPA1) {
-		if (vap->iv_wpa_ie != NULL)
-			frm = add_ie(frm, vap->iv_wpa_ie);
-		/* XXX else complain */
-	}
+	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_flags & IEEE80211_F_WME) {
 		bo->bo_wme = frm;
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
@@ -3260,4 +3315,72 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 	IEEE80211_UNLOCK(ic);
 
 	return len_changed;
+}
+
+/*
+ * Do Ethernet-LLC encapsulation for each payload in a fast frame
+ * tunnel encapsulation.  The frame is assumed to have an Ethernet
+ * header at the front that must be stripped before prepending the
+ * LLC followed by the Ethernet header passed in (with an Ethernet
+ * type that specifies the payload size).
+ */
+struct mbuf *
+ieee80211_ff_encap1(struct ieee80211vap *vap, struct mbuf *m,
+	const struct ether_header *eh)
+{
+	struct llc *llc;
+	uint16_t payload;
+
+	/* XXX optimize by combining m_adj+M_PREPEND */
+	m_adj(m, sizeof(struct ether_header) - sizeof(struct llc));
+	llc = mtod(m, struct llc *);
+	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
+	llc->llc_control = LLC_UI;
+	llc->llc_snap.org_code[0] = 0;
+	llc->llc_snap.org_code[1] = 0;
+	llc->llc_snap.org_code[2] = 0;
+	llc->llc_snap.ether_type = eh->ether_type;
+	payload = m->m_pkthdr.len;		/* NB: w/o Ethernet header */
+
+	M_PREPEND(m, sizeof(struct ether_header), M_NOWAIT);
+	if (m == NULL) {		/* XXX cannot happen */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
+			"%s: no space for ether_header\n", __func__);
+		vap->iv_stats.is_tx_nobuf++;
+		return NULL;
+	}
+	ETHER_HEADER_COPY(mtod(m, void *), eh);
+	mtod(m, struct ether_header *)->ether_type = htons(payload);
+	return m;
+}
+
+/*
+ * Complete an mbuf transmission.
+ *
+ * For now, this simply processes a completed frame after the
+ * driver has completed it's transmission and/or retransmission.
+ * It assumes the frame is an 802.11 encapsulated frame.
+ *
+ * Later on it will grow to become the exit path for a given frame
+ * from the driver and, depending upon how it's been encapsulated
+ * and already transmitted, it may end up doing A-MPDU retransmission,
+ * power save requeuing, etc.
+ *
+ * In order for the above to work, the driver entry point to this
+ * must not hold any driver locks.  Thus, the driver needs to delay
+ * any actual mbuf completion until it can release said locks.
+ *
+ * This frees the mbuf and if the mbuf has a node reference,
+ * the node reference will be freed.
+ */
+void
+ieee80211_tx_complete(struct ieee80211_node *ni, struct mbuf *m, int status)
+{
+
+	if (ni != NULL) {
+		if (m->m_flags & M_TXCB)
+			ieee80211_process_callback(ni, m, status);
+		ieee80211_free_node(ni);
+	}
+	m_freem(m);
 }

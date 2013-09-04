@@ -101,13 +101,17 @@ void
 open_patch_file(const char *filename)
 {
 	struct stat filestat;
+	int nr, nw;
 
 	if (filename == NULL || *filename == '\0' || strEQ(filename, "-")) {
 		pfp = fopen(TMPPATNAME, "w");
 		if (pfp == NULL)
 			pfatal("can't create %s", TMPPATNAME);
-		while (fgets(buf, buf_size, stdin) != NULL)
-			fputs(buf, pfp);
+		while ((nr = fread(buf, 1, buf_size, stdin)) > 0) {
+			nw = fwrite(buf, 1, nr, pfp);
+			if (nr != nw)
+				pfatal("write error to %s", TMPPATNAME);
+		}
 		if (ferror(pfp) || fclose(pfp))
 			pfatal("can't write %s", TMPPATNAME);
 		filename = TMPPATNAME;
@@ -1200,7 +1204,7 @@ pgets(bool do_indent)
 					indent++;
 			}
 		}
-		strncpy(buf, line, len - skipped);
+		memcpy(buf, line, len - skipped);
 		buf[len - skipped] = '\0';
 	}
 	return len;
@@ -1537,10 +1541,16 @@ best_name(const struct file_name *names, bool assume_exists)
 			continue;
 		if ((tmp = num_components(names[i].path)) > min_components)
 			continue;
-		min_components = tmp;
+		if (tmp < min_components) {
+			min_components = tmp;
+			best = names[i].path;
+		}
 		if ((tmp = strlen(basename(names[i].path))) > min_baselen)
 			continue;
-		min_baselen = tmp;
+		if (tmp < min_baselen) {
+			min_baselen = tmp;
+			best = names[i].path;
+		}
 		if ((tmp = strlen(names[i].path)) > min_len)
 			continue;
 		min_len = tmp;

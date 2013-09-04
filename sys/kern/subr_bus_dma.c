@@ -66,8 +66,8 @@ _bus_dmamap_load_vlist(bus_dma_tag_t dmat, bus_dmamap_t map,
 	error = 0;
 	for (; sglist_cnt > 0; sglist_cnt--, list++) {
 		error = _bus_dmamap_load_buffer(dmat, map,
-		    (void *)list->ds_addr, list->ds_len, pmap, flags, NULL,
-		    nsegs);
+		    (void *)(uintptr_t)list->ds_addr, list->ds_len, pmap,
+		    flags, NULL, nsegs);
 		if (error)
 			break;
 	}
@@ -103,8 +103,6 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 {
 	struct mbuf *m;
 	int error;
-
-	M_ASSERTPKTHDR(m0);
 
 	error = 0;
 	for (m = m0; m != NULL && error == 0; m = m->m_next) {
@@ -322,6 +320,8 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 {
 	bus_dma_segment_t *segs;
 	int nsegs, error;
+
+	M_ASSERTPKTHDR(m0);
 
 	flags |= BUS_DMA_NOWAIT;
 	nsegs = -1;

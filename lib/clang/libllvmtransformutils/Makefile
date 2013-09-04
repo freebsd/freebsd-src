@@ -5,8 +5,7 @@
 LIB=	llvmtransformutils
 
 SRCDIR=	lib/Transforms/Utils
-SRCS=	AddrModeMatcher.cpp \
-	BasicBlockUtils.cpp \
+SRCS=	BasicBlockUtils.cpp \
 	BreakCriticalEdges.cpp \
 	BuildLibCalls.cpp \
 	BypassSlowDivision.cpp \

@@ -39,8 +39,9 @@
 #define VIRTIO_BLK_F_RO		0x0020	/* Disk is read-only */
 #define VIRTIO_BLK_F_BLK_SIZE	0x0040	/* Block size of disk is available*/
 #define VIRTIO_BLK_F_SCSI	0x0080	/* Supports scsi command passthru */
-#define VIRTIO_BLK_F_FLUSH	0x0200	/* Cache flush command support */
+#define VIRTIO_BLK_F_WCE	0x0200	/* Writeback mode enabled after reset */
 #define VIRTIO_BLK_F_TOPOLOGY	0x0400	/* Topology information is available */
+#define VIRTIO_BLK_F_CONFIG_WCE 0x0800	/* Writeback mode available in config */
 
 #define VIRTIO_BLK_ID_BYTES	20	/* ID string length */
 
@@ -51,15 +52,27 @@ struct virtio_blk_config {
 	uint32_t size_max;
 	/* The maximum number of segments (if VIRTIO_BLK_F_SEG_MAX) */
 	uint32_t seg_max;
-	/* geometry the device (if VIRTIO_BLK_F_GEOMETRY) */
+	/* Geometry of the device (if VIRTIO_BLK_F_GEOMETRY) */
 	struct virtio_blk_geometry {
 		uint16_t cylinders;
 		uint8_t heads;
 		uint8_t sectors;
 	} geometry;
 
-	/* block size of device (if VIRTIO_BLK_F_BLK_SIZE) */
+	/* Block size of device (if VIRTIO_BLK_F_BLK_SIZE) */
 	uint32_t blk_size;
+
+	/* Topology of the device (if VIRTIO_BLK_F_TOPOLOGY) */
+	struct virtio_blk_topology {
+		uint8_t physical_block_exp;
+		uint8_t alignment_offset;
+		uint16_t min_io_size;
+		uint16_t opt_io_size;
+	} topology;
+
+	/* Writeback mode (if VIRTIO_BLK_F_CONFIG_WCE) */
+	uint8_t writeback;
+
 } __packed;
 
 /*

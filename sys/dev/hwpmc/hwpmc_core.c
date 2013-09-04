@@ -25,7 +25,7 @@
  */
 
 /*
- * Intel Core, Core 2 and Atom PMCs.
+ * Intel Core PMCs.
  */
 
 #include <sys/cdefs.h>
@@ -59,6 +59,10 @@ __FBSDID("$FreeBSD$");
 #define	IAP_PMC_CAPS (PMC_CAP_INTERRUPT | PMC_CAP_USER | PMC_CAP_SYSTEM | \
     PMC_CAP_EDGE | PMC_CAP_THRESHOLD | PMC_CAP_READ | PMC_CAP_WRITE |	 \
     PMC_CAP_INVERT | PMC_CAP_QUALIFIER | PMC_CAP_PRECISE)
+
+#define	EV_IS_NOTARCH		0
+#define	EV_IS_ARCH_SUPP		1
+#define	EV_IS_ARCH_NOTSUPP	-1
 
 /*
  * "Architectural" events defined by Intel.  The values of these
@@ -560,7 +564,7 @@ struct iap_event_descr {
 #define	IAP_F_SB	(1 << 6)	/* CPU: Sandy Bridge */
 #define	IAP_F_IB	(1 << 7)	/* CPU: Ivy Bridge */
 #define	IAP_F_SBX	(1 << 8)	/* CPU: Sandy Bridge Xeon */
-#define	IAP_F_IBX	(1 << 9)	/* CPU: Ivy Bridge */
+#define	IAP_F_IBX	(1 << 9)	/* CPU: Ivy Bridge Xeon */
 #define	IAP_F_HW	(1 << 10)	/* CPU: Haswell */
 #define	IAP_F_FM	(1 << 11)	/* Fixed mask */
 
@@ -860,9 +864,9 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(2EH_01H, 0x2E, 0x01, IAP_F_FM | IAP_F_WM),
     IAPDESCR(2EH_02H, 0x2E, 0x02, IAP_F_FM | IAP_F_WM),
     IAPDESCR(2EH_41H, 0x2E, 0x41, IAP_F_FM | IAP_F_ALLCPUSCORE2 | IAP_F_I7 |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(2EH_4FH, 0x2E, 0x4F, IAP_F_FM | IAP_F_ALLCPUSCORE2 | IAP_F_I7 |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
 
     IAPDESCR(30H, 0x30, IAP_M_CORE | IAP_M_MESI | IAP_M_PREFETCH,
 	IAP_F_ALLCPUSCORE2),
@@ -1359,7 +1363,7 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(BFH_05H, 0xBF, 0x05, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
     IAPDESCR(C0H_00H, 0xC0, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2 |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+	IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
     IAPDESCR(C0H_01H, 0xC0, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
 	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_SBX |
 	IAP_F_IBX | IAP_F_HW),
@@ -1510,19 +1514,22 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(CEH_00H, 0xCE, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
     IAPDESCR(CFH_00H, 0xCF, 0x00, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
 
+    /* Sandy Bridge / Sandy Bridge Xeon - 11, 12, 21, 41, 42, 81, 82 */
     IAPDESCR(D0H_00H, 0xD0, 0x00, IAP_F_FM | IAP_F_CC),
-    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_02H, 0xD0, 0x02, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_10H, 0xD0, 0x10, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_20H, 0xD0, 0x20, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_40H, 0xD0, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_80H, 0xD0, 0X80, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_02H, 0xD0, 0x02, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_10H, 0xD0, 0x10, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_11H, 0xD0, 0x11, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_12H, 0xD0, 0x12, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_20H, 0xD0, 0x20, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_21H, 0xD0, 0x21, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_40H, 0xD0, 0x40, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_41H, 0xD0, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_42H, 0xD0, 0x42, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_80H, 0xD0, 0x80, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_81H, 0xD0, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_82H, 0xD0, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
     IAPDESCR(D1H_01H, 0xD1, 0x01, IAP_F_FM | IAP_F_WM | IAP_F_SB |
 	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
@@ -1537,15 +1544,21 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
 
     IAPDESCR(D2H_01H, 0xD2, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_02H, 0xD2, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_04H, 0xD2, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_08H, 0xD2, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_0FH, 0xD2, 0x0F, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
+
     IAPDESCR(D2H_10H, 0xD2, 0x10, IAP_F_FM | IAP_F_CC2E),
 
     IAPDESCR(D3H_01H, 0xD3, 0x01, IAP_F_FM | IAP_F_IB | IAP_F_SBX |
@@ -1723,43 +1736,53 @@ iap_pmc_has_overflowed(int ri)
 /*
  * Check an event against the set of supported architectural events.
  *
- * Returns 1 if the event is architectural and unsupported on this
- * CPU.  Returns 0 otherwise.
+ * If the event is not architectural EV_IS_NOTARCH is returned.
+ * If the event is architectural and supported on this CPU, the correct
+ * event+umask mapping is returned in map, and EV_IS_ARCH_SUPP is returned.
+ * Otherwise, the function returns EV_IS_ARCH_NOTSUPP.
  */
 
 static int
-iap_architectural_event_is_unsupported(enum pmc_event pe)
+iap_is_event_architectural(enum pmc_event pe, enum pmc_event *map)
 {
 	enum core_arch_events ae;
 
 	switch (pe) {
-	case PMC_EV_IAP_EVENT_3CH_00H:
+	case PMC_EV_IAP_ARCH_UNH_COR_CYC:
 		ae = CORE_AE_UNHALTED_CORE_CYCLES;
+		*map = PMC_EV_IAP_EVENT_C4H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_C0H_00H:
+	case PMC_EV_IAP_ARCH_INS_RET:
 		ae = CORE_AE_INSTRUCTION_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C0H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_3CH_01H:
+	case PMC_EV_IAP_ARCH_UNH_REF_CYC:
 		ae = CORE_AE_UNHALTED_REFERENCE_CYCLES;
+		*map = PMC_EV_IAP_EVENT_3CH_01H;
 		break;
-	case PMC_EV_IAP_EVENT_2EH_4FH:
+	case PMC_EV_IAP_ARCH_LLC_REF:
 		ae = CORE_AE_LLC_REFERENCE;
+		*map = PMC_EV_IAP_EVENT_2EH_4FH;
 		break;
-	case PMC_EV_IAP_EVENT_2EH_41H:
+	case PMC_EV_IAP_ARCH_LLC_MIS:
 		ae = CORE_AE_LLC_MISSES;
+		*map = PMC_EV_IAP_EVENT_2EH_41H;
 		break;
-	case PMC_EV_IAP_EVENT_C4H_00H:
+	case PMC_EV_IAP_ARCH_BR_INS_RET:
 		ae = CORE_AE_BRANCH_INSTRUCTION_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C4H_00H;
 		break;
-	case PMC_EV_IAP_EVENT_C5H_00H:
+	case PMC_EV_IAP_ARCH_BR_MIS_RET:
 		ae = CORE_AE_BRANCH_MISSES_RETIRED;
+		*map = PMC_EV_IAP_EVENT_C5H_00H;
 		break;
 
 	default:	/* Non architectural event. */
-		return (0);
+		return (EV_IS_NOTARCH);
 	}
 
-	return ((core_architectural_events & (1 << ae)) == 0);
+	return (((core_architectural_events & (1 << ae)) == 0) ? 
+	    EV_IS_ARCH_NOTSUPP : EV_IS_ARCH_SUPP);
 }
 
 static int
@@ -1917,8 +1940,8 @@ static int
 iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
-	int n, model;
-	enum pmc_event ev;
+	int arch, n, model;
+	enum pmc_event ev, map;
 	struct iap_event_descr *ie;
 	uint32_t c, caps, config, cpuflag, evsel, mask;
 
@@ -1931,11 +1954,14 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	caps = a->pm_caps;
 	if ((IAP_PMC_CAPS & caps) != caps)
 		return (EPERM);
-
-	ev = pm->pm_event;
-
-	if (iap_architectural_event_is_unsupported(ev))
+	map = 0;	/* XXX: silent GCC warning */
+	arch = iap_is_event_architectural(pm->pm_event, &map);
+	if (arch == EV_IS_ARCH_NOTSUPP)
 		return (EOPNOTSUPP);
+	else if (arch == EV_IS_ARCH_SUPP)
+		ev = map;
+	else
+		ev = pm->pm_event;
 
 	/*
 	 * A small number of events are not supported in all the

@@ -235,18 +235,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_run(sc->vm, vmrun);
 		break;
 	case VM_STAT_DESC: {
-		const char *desc;
 		statdesc = (struct vm_stat_desc *)data;
-		desc = vmm_stat_desc(statdesc->index);
-		if (desc != NULL) {
-			error = 0;
-			strlcpy(statdesc->desc, desc, sizeof(statdesc->desc));
-		} else
-			error = EINVAL;
+		error = vmm_stat_desc_copy(statdesc->index,
+					statdesc->desc, sizeof(statdesc->desc));
 		break;
 	}
 	case VM_STATS: {
-		CTASSERT(MAX_VM_STATS >= MAX_VMM_STAT_TYPES);
+		CTASSERT(MAX_VM_STATS >= MAX_VMM_STAT_ELEMS);
 		vmstats = (struct vm_stats *)data;
 		getmicrotime(&vmstats->tv);
 		error = vmm_stat_copy(sc->vm, vmstats->cpuid,
@@ -475,9 +470,9 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 	if (sc != NULL)
 		return (EEXIST);
 
-	vm = vm_create(buf);
-	if (vm == NULL)
-		return (EINVAL);
+	error = vm_create(buf, &vm);
+	if (error != 0)
+		return (error);
 
 	sc = malloc(sizeof(struct vmmdev_softc), M_VMMDEV, M_WAITOK | M_ZERO);
 	sc->vm = vm;
@@ -497,8 +492,12 @@ sysctl_vmm_create(SYSCTL_HANDLER_ARGS)
 		return (EEXIST);
 	}
 
-	sc->cdev = make_dev(&vmmdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-			    "vmm/%s", buf);
+	error = make_dev_p(MAKEDEV_CHECKNAME, &sc->cdev, &vmmdevsw, NULL,
+			   UID_ROOT, GID_WHEEL, 0600, "vmm/%s", buf);
+	if (error != 0) {
+		vmmdev_destroy(sc, TRUE);
+		return (error);
+	}
 	sc->cdev->si_drv1 = sc;
 
 	return (0);

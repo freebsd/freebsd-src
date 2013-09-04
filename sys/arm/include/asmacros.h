@@ -63,6 +63,7 @@
  */
 #ifdef ARM_TP_ADDRESS
 #define PUSHFRAME							   \
+	sub	sp, sp, #4;		/* Align the stack */		   \
 	str	lr, [sp, #-4]!;		/* Push the return address */	   \
 	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
 	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
@@ -78,6 +79,7 @@
 	str	r1, [r0, #4];
 #else
 #define PUSHFRAME							   \
+	sub	sp, sp, #4;		/* Align the stack */		   \
 	str	lr, [sp, #-4]!;		/* Push the return address */	   \
 	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
 	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
@@ -100,7 +102,8 @@
         ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
 	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
- 	ldr	lr, [sp], #0x0004;	/* Pull the return address */
+ 	ldr	lr, [sp], #0x0004;	/* Pull the return address */	   \
+	add	sp, sp, #4		/* Align the stack */
 #else 
 #define PULLFRAME							   \
         ldr     r0, [sp], #0x0004;      /* Get the SPSR from stack */	   \
@@ -109,7 +112,8 @@
         ldmia   sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
 	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
- 	ldr	lr, [sp], #0x0004;	/* Pull the return address */
+ 	ldr	lr, [sp], #0x0004;	/* Pull the return address */	   \
+	add	sp, sp, #4		/* Align the stack */
 #endif
 
 /*
@@ -133,6 +137,8 @@
 	orr     r2, r2, #(PSR_SVC32_MODE);				   \
 	msr     cpsr_c, r2;		/* Punch into SVC mode */	   \
 	mov	r2, sp;			/* Save	SVC sp */		   \
+	bic	sp, sp, #7;		/* Align sp to an 8-byte addrress */  \
+	sub	sp, sp, #4;		/* Pad trapframe to keep alignment */ \
 	str	r0, [sp, #-4]!;		/* Push return address */	   \
 	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
 	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
@@ -168,6 +174,8 @@
 	orr     r2, r2, #(PSR_SVC32_MODE);				   \
 	msr     cpsr_c, r2;		/* Punch into SVC mode */	   \
 	mov	r2, sp;			/* Save	SVC sp */		   \
+	bic	sp, sp, #7;		/* Align sp to an 8-byte addrress */  \
+	sub	sp, sp, #4;		/* Pad trapframe to keep alignment */ \
 	str	r0, [sp, #-4]!;		/* Push return address */	   \
 	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
 	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
@@ -206,7 +214,17 @@
         mov     r0, r0;	  		/* NOP for previous instruction */ \
 	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
-#endif 
+#endif
+#if defined(__ARM_EABI__)
+#define	UNWINDSVCFRAME							   \
+	.pad #(4);			/* Skip stack alignment */	   \
+	.save {r13-r15};		/* Restore sp, lr, pc */	   \
+	.pad #(2*4);			/* Skip user sp and lr */	   \
+	.save {r0-r12};			/* Restore r0-r12 */		   \
+	.pad #(4)			/* Skip spsr */
+#else
+#define	UNWINDSVCFRAME
+#endif
 
 #define	DATA(name) \
 	.data ; \

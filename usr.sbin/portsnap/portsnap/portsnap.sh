@@ -864,8 +864,8 @@ fetch_update() {
 	echo "done."
 
 # Remove files which are no longer needed
-	cut -f 2 -d '|' tINDEX INDEX | sort > oldfiles
-	cut -f 2 -d '|' tINDEX.new INDEX.new | sort | comm -13 - oldfiles |
+	cut -f 2 -d '|' tINDEX INDEX | sort -u > oldfiles
+	cut -f 2 -d '|' tINDEX.new INDEX.new | sort -u | comm -13 - oldfiles |
 	    lam -s "files/" - -s ".gz" | xargs rm -f
 	rm patchlist filelist oldfiles
 
@@ -1113,7 +1113,7 @@ cmd_alfred() {
 	else
 		cmd_cron
 	fi
-	if [ -d ${PORTSDIR} ]; then
+	if [ -r ${PORTSDIR}/.portsnap.INDEX ]; then
 		cmd_update
 	else
 		cmd_extract

@@ -124,29 +124,30 @@ ApCheckForPredefinedMethod (
 
     default:
         /*
-         * Matched a predefined method name
+         * Matched a predefined method name - validate the ASL-defined
+         * argument count against the ACPI specification.
          *
-         * Validate the ASL-defined argument count. Allow two different legal
-         * arg counts.
+         * Some methods are allowed to have a "minimum" number of args
+         * (_SCP) because their definition in ACPI has changed over time.
          */
         Gbl_ReservedMethods++;
         ThisName = &AcpiGbl_PredefinedMethods[Index];
-        RequiredArgCount = ThisName->Info.ArgumentList & METHOD_ARG_MASK;
+        RequiredArgCount = METHOD_GET_ARG_COUNT (ThisName->Info.ArgumentList);
 
         if (MethodInfo->NumArguments != RequiredArgCount)
         {
             sprintf (MsgBuffer, "%4.4s requires %u",
                 ThisName->Info.Name, RequiredArgCount);
 
-            if ((MethodInfo->NumArguments > RequiredArgCount) &&
+            if (MethodInfo->NumArguments < RequiredArgCount)
+            {
+                AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_LO, Op,
+                    MsgBuffer);
+            }
+            else if ((MethodInfo->NumArguments > RequiredArgCount) &&
                 !(ThisName->Info.ArgumentList & ARG_COUNT_IS_MINIMUM))
             {
                 AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_HI, Op,
-                    MsgBuffer);
-            }
-            else
-            {
-                AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_LO, Op,
                     MsgBuffer);
             }
         }
@@ -309,7 +310,6 @@ ApCheckPredefinedReturnValue (
             break;
 
         default:
-
             /*
              * All other ops are very difficult or impossible to typecheck at
              * compile time. These include all Localx, Argx, and method
@@ -378,6 +378,7 @@ ApCheckForPredefinedObject (
         return;
 
     default:
+
         break;
     }
 
@@ -388,7 +389,7 @@ ApCheckForPredefinedObject (
      * it must be implemented as a control method
      */
     ThisName = &AcpiGbl_PredefinedMethods[Index];
-    if ((ThisName->Info.ArgumentList & METHOD_ARG_MASK) > 0)
+    if (METHOD_GET_ARG_COUNT (ThisName->Info.ArgumentList) > 0)
     {
         AslError (ASL_ERROR, ASL_MSG_RESERVED_METHOD, Op,
             "with arguments");
@@ -623,33 +624,53 @@ ApCheckObjectType (
     case PARSEOP_ONE:
     case PARSEOP_ONES:
     case PARSEOP_INTEGER:
+
         ReturnBtype = ACPI_RTYPE_INTEGER;
         TypeName = "Integer";
         break;
 
     case PARSEOP_STRING_LITERAL:
+
         ReturnBtype = ACPI_RTYPE_STRING;
         TypeName = "String";
         break;
 
     case PARSEOP_BUFFER:
+
         ReturnBtype = ACPI_RTYPE_BUFFER;
         TypeName = "Buffer";
         break;
 
     case PARSEOP_PACKAGE:
     case PARSEOP_VAR_PACKAGE:
+
         ReturnBtype = ACPI_RTYPE_PACKAGE;
         TypeName = "Package";
         break;
 
     case PARSEOP_NAMESEG:
     case PARSEOP_NAMESTRING:
+        /*
+         * Ignore any named references within a package object.
+         *
+         * For Package objects, references are allowed instead of any of the
+         * standard data types (Integer/String/Buffer/Package). These
+         * references are resolved at runtime. NAMESEG and NAMESTRING are
+         * impossible to typecheck at compile time because the type of
+         * any named object can be changed at runtime (for example,
+         * CopyObject will change the type of the target object).
+         */
+        if (PackageIndex != ACPI_NOT_PACKAGE_ELEMENT)
+        {
+            return (AE_OK);
+        }
+
         ReturnBtype = ACPI_RTYPE_REFERENCE;
         TypeName = "Reference";
         break;
 
     default:
+
         /* Not one of the supported object types */
 
         TypeName = UtGetOpName (Op->Asl.ParseOpcode);

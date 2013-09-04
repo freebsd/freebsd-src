@@ -109,6 +109,12 @@ public:
     return strchr(GetRecord(ID).Attributes, 'j') != 0;
   }
 
+  /// \brief Returns true if this builtin does not perform the side-effects
+  /// of its arguments.
+  bool isUnevaluated(unsigned ID) const {
+    return strchr(GetRecord(ID).Attributes, 'u') != 0;
+  }
+
   /// \brief Return true if this is a builtin for a libc/libm function,
   /// with a "__builtin_" prefix (e.g. __builtin_abs).
   bool isLibFunction(unsigned ID) const {
@@ -120,6 +126,13 @@ public:
   /// priori.
   bool isPredefinedLibFunction(unsigned ID) const {
     return strchr(GetRecord(ID).Attributes, 'f') != 0;
+  }
+
+  /// \brief Determines whether this builtin is a predefined compiler-rt/libgcc
+  /// function, such as "__clear_cache", where we know the signature a
+  /// priori.
+  bool isPredefinedRuntimeFunction(unsigned ID) const {
+    return strchr(GetRecord(ID).Attributes, 'i') != 0;
   }
 
   /// \brief Determines whether this builtin has custom typechecking.

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2009
+.Dd April 14, 2013
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -139,8 +139,11 @@ Debug level of the
 .Nm NOP
 GEOM class.
 This can be set to a number between 0 and 2 inclusive.
-If set to 0 minimal debug information is printed, and if set to 2 the
-maximum amount of debug information is printed.
+If set to 0, minimal debug information is printed.
+If set to 1, basic debug information is logged along with the I/O requests
+that were returned as errors.
+If set to 2, the maximum amount of debug information is printed including
+all I/O requests.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.

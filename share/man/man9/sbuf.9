@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2011
+.Dd April 11, 2013
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -51,7 +51,9 @@
 .Nm sbuf_data ,
 .Nm sbuf_len ,
 .Nm sbuf_done ,
-.Nm sbuf_delete
+.Nm sbuf_delete ,
+.Nm sbuf_start_section ,
+.Nm sbuf_end_section
 .Nd safe string composition
 .Sh SYNOPSIS
 .In sys/types.h
@@ -100,6 +102,10 @@
 .Fn sbuf_done "struct sbuf *s"
 .Ft void
 .Fn sbuf_delete "struct sbuf *s"
+.Ft void
+.Fn sbuf_start_section "struct sbuf *s" "ssize_t *old_lenp"
+.Ft ssize_t
+.Fn sbuf_end_section "struct sbuf *s" "ssize_t old_len" "size_t pad" "int c"
 .In sys/sysctl.h
 .Ft struct sbuf *
 .Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
@@ -402,6 +408,30 @@ returns the length of the un-drained data.
 returns non-zero if the
 .Fa sbuf
 is finished.
+.Pp
+The
+.Fn sbuf_start_section
+and
+.Fn sbuf_end_section
+functions may be used for automatic section alignment.
+The arguments
+.Fa pad
+and
+.Fa c
+specify the padding size and a character used for padding.
+The arguments
+.Fa old_lenp
+and
+.Fa old_len
+are to save and restore the current section length when nested sections
+are used.
+For the top level section
+.Dv NULL
+and \-1 can be specified for
+.Fa old_lenp
+and
+.Fa old_len
+respectively.
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
@@ -471,6 +501,10 @@ The
 function
 returns \-1 if copying string from userland failed, and number of bytes
 copied otherwise.
+.Pp
+The
+.Fn sbuf_end_section
+function returns the section length or \-1 if the buffer has an error.
 .Pp
 The
 .Fn sbuf_finish 9

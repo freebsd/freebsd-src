@@ -83,7 +83,7 @@
  * it in two places: function fill_kinfo_proc in sys/kern/kern_proc.c and
  * function kvm_proclist in lib/libkvm/kvm_proc.c .
  */
-#define	KI_NSPARE_INT	9
+#define	KI_NSPARE_INT	8
 #define	KI_NSPARE_LONG	12
 #define	KI_NSPARE_PTR	6
 
@@ -186,6 +186,7 @@ struct kinfo_proc {
 	 */
 	char	ki_sparestrings[50];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	int	ki_fibnum;		/* Default FIB number */
 	u_int	ki_cr_flags;		/* Credential flags */
 	int	ki_jid;			/* Process jail ID */
 	int	ki_numthreads;		/* XXXKSE number of threads in total */
@@ -365,6 +366,10 @@ struct kinfo_file {
 			uint32_t	kf_file_pad1;
 		} kf_file;
 		struct {
+			uint32_t	kf_sem_value;
+			uint16_t	kf_sem_mode;
+		} kf_sem;
+		struct {
 			uint64_t	kf_pipe_addr;
 			uint64_t	kf_pipe_peer;
 			uint32_t	kf_pipe_buffer_cnt;
@@ -491,6 +496,25 @@ struct kinfo_kstack {
 };
 
 #ifdef _KERNEL
+/* Flags for kern_proc_out function. */
+#define KERN_PROC_NOTHREADS	0x1
+#define KERN_PROC_MASK32	0x2
+
+struct sbuf;
+
+/*
+ * The kern_proc out functions are helper functions to dump process
+ * miscellaneous kinfo structures to sbuf.  The main consumers are KERN_PROC
+ * sysctls but they may also be used by other kernel subsystems.
+ *
+ * The functions manipulate the process locking state and expect the process
+ * to be locked on enter.  On return the process is unlocked.
+ */
+
+int	kern_proc_filedesc_out(struct proc *p, struct sbuf *sb, ssize_t maxlen);
+int	kern_proc_out(struct proc *p, struct sbuf *sb, int flags);
+int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb);
+
 int	vntype_to_kinfo(int vtype);
 #endif /* !_KERNEL */
 

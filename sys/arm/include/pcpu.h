@@ -41,7 +41,7 @@ struct vmspace;
 
 #endif	/* _KERNEL */
 
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 #define PCPU_MD_FIELDS							\
 	unsigned int pc_cpu;						\
 	unsigned int pc_vfpsid;						\

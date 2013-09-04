@@ -123,6 +123,28 @@ yyerror(const char *msg)
 }
 %}
 
+%union
+{
+	int ival;
+	char *sval;
+}
+%token <ival> NUMBER
+%token <sval> STRING
+
+%type <ival>
+	byte_size
+	check_login
+	form_code
+	mode_code
+	octal_number
+	struct_code
+
+%type <sval>
+	password
+	pathname
+	pathstring
+	username
+
 %token
 	A	B	C	E	F	I
 	L	N	P	R	S	T
@@ -155,13 +177,13 @@ cmd_list:	/* empty */
 
 cmd:		USER SP username CRLF
 		{
-			user((char *) $3);
-			free((char *) $3);
+			user($3);
+			free($3);
 		}
 	|	PASS SP password CRLF
 		{
-			pass((char *) $3);
-			free((char *) $3);
+			pass($3);
+			free($3);
 		}
 	|	PORT SP host_port CRLF
 		{
@@ -246,23 +268,23 @@ cmd:		USER SP username CRLF
 	|	RETR check_login SP pathname CRLF
 		{
 			if ($2 && $4 != 0)
-				retrieve((char *) 0, (char *) $4);
+				retrieve((char *) 0, $4);
 			if ($4 != 0)
-				free((char *) $4);
+				free($4);
 		}
 	|	STOR check_login SP pathname CRLF
 		{
 			if ($2 && $4 != 0)
-				store((char *) $4, "w", 0);
+				store($4, "w", 0);
 			if ($4 != 0)
-				free((char *) $4);
+				free($4);
 		}
 	|	APPE check_login SP pathname CRLF
 		{
 			if ($2 && $4 != 0)
-				store((char *) $4, "a", 0);
+				store($4, "a", 0);
 			if ($4 != 0)
-				free((char *) $4);
+				free($4);
 		}
 	|	NLST check_login CRLF
 		{
@@ -284,16 +306,16 @@ cmd:		USER SP username CRLF
 	|	LIST check_login SP pathname CRLF
 		{
 			if ($2 && $4 != 0)
-				retrieve("/bin/ls -lgA %s", (char *) $4);
+				retrieve("/bin/ls -lgA %s", $4);
 			if ($4 != 0)
-				free((char *) $4);
+				free($4);
 		}
 	|	STAT check_login SP pathname CRLF
 		{
 			if ($2 && $4 != 0)
-				statfilecmd((char *) $4);
+				statfilecmd($4);
 			if ($4 != 0)
-				free((char *) $4);
+				free($4);
 		}
 	|	STAT CRLF
 		{
@@ -554,9 +576,13 @@ host_port:	NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
 			register char *a, *p;
 
 			a = (char *)&data_dest.sin_addr;
-			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
+			a[0] = (char) $1;
+			a[1] = (char) $3;
+			a[2] = (char) $5;
+			a[3] = (char) $7;
 			p = (char *)&data_dest.sin_port;
-			p[0] = $9; p[1] = $11;
+			p[0] = (char) $9;
+			p[1] = (char) $11;
 			data_dest.sin_family = AF_INET;
 		}
 	;
@@ -842,7 +868,7 @@ get_line(char *s, int n, FILE *iop)
 			}
 		    }
 		}
-		*cs++ = c;
+		*cs++ = (char) c;
 		if (--n <= 0 || c == '\n')
 			break;
 	}
@@ -900,7 +926,7 @@ yylex(void)
 				*cp = '\0';
 			}
 			if ((cp = strpbrk(cbuf, " \n")))
-				cpos = cp - cbuf;
+				cpos = (int) (cp - cbuf);
 			if (cpos == 0)
 				cpos = 4;
 			c = cbuf[cpos];
@@ -927,7 +953,7 @@ yylex(void)
 			}
 			cp = &cbuf[cpos];
 			if ((cp2 = strpbrk(cp, " \n")))
-				cpos = cp2 - cbuf;
+				cpos = (int) (cp2 - cbuf);
 			c = cbuf[cpos];
 			cbuf[cpos] = '\0';
 			upper(cp);
@@ -976,7 +1002,7 @@ yylex(void)
 
 		case STR2:
 			cp = &cbuf[cpos];
-			n = strlen(cp);
+			n = (int) strlen(cp);
 			cpos += n - 1;
 			/*
 			 * Make sure the string is nonempty and \n terminated.
@@ -1001,7 +1027,7 @@ yylex(void)
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
-				yylval = atoi(cp);
+				yylval.ival = atoi(cp);
 				cbuf[cpos] = c;
 				state = STR1;
 				return (NUMBER);
@@ -1016,7 +1042,7 @@ yylex(void)
 					;
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
-				yylval = atoi(cp);
+				yylval.ival = atoi(cp);
 				cbuf[cpos] = c;
 				return (NUMBER);
 			}
@@ -1128,7 +1154,7 @@ help(struct tab *ctab, char *s)
 		help_type = "";
 	width = 0, NCMDS = 0;
 	for (c = ctab; c->name != 0; c++) {
-		int len = strlen(c->name);
+		int len = (int) strlen(c->name);
 
 		if (len > width)
 			width = len;
@@ -1154,7 +1180,7 @@ help(struct tab *ctab, char *s)
 					c->implemented ? ' ' : '*');
 				if (c + lines >= &ctab[NCMDS])
 					break;
-				w = strlen(c->name) + 1;
+				w = (int) strlen(c->name) + 1;
 				while (w < width) {
 					putchar(' ');
 					w++;

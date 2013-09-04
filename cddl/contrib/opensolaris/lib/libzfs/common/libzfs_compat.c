@@ -72,7 +72,9 @@ zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 	if (zfs_ioctl_version == ZFS_IOCVER_UNDEF)
 		zfs_ioctl_version = get_zfs_ioctl_version();
 
-	if (zfs_ioctl_version == ZFS_IOCVER_DEADMAN)
+	if (zfs_ioctl_version == ZFS_IOCVER_LZC)
+		cflag = ZFS_CMD_COMPAT_LZC;
+	else if (zfs_ioctl_version == ZFS_IOCVER_DEADMAN)
 		cflag = ZFS_CMD_COMPAT_DEADMAN;
 
 	/*

@@ -1,20 +1,8 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//EN">
-%entities;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
+        "../../../share/xml/freebsd45.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
-
-<![ %release.type.current [
-<!ENTITY release "&release.current;">
-]]>
-<![ %release.type.snapshot [
-<!ENTITY release "&release.prev;">
-]]>
-<![ %release.type.release [
-<!ENTITY release "&release.current;">
-]]>
 ]>
 
 <!--
@@ -58,16 +46,7 @@
   </articleinfo>
 
   <abstract>
-    <para>This document lists errata items for &os;
-<![ %release.type.current [
-      &release.current;,
-]]>
-<![ %release.type.snapshot [
-      &release.prev;,
-]]>
-<![ %release.type.release [
-      &release.current;,
-]]>
+    <para>This document lists errata items for &os; &release;,
       containing significant information discovered after the release
       or too late in the release cycle to be otherwise included in the
       release documentation.
@@ -77,16 +56,7 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This errata document for &os;
-<![ %release.type.current [
-      &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
+    <para>This errata document for &os; &release;
       will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
@@ -94,16 +64,7 @@
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-      about &os;
-<![ %release.type.current [
-      &release.current;.
-]]>
-<![ %release.type.snapshot [
-      &release.prev;.
-]]>
-<![ %release.type.release [
-      &release.current;.
-]]>
+      about &os; &release;
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
@@ -130,51 +91,30 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-<![ %release.type.release [
-    <para>No advisories.</para>
-]]>
+    <para releasetype="current">No advisories.</para>
 
-<![ %release.type.current [
-    <para>No advisories.</para>
-]]>
+    <para releasetype="release">No advisories.</para>
 
-<![ %release.type.snapshot [
-    <para>No advisories.</para>
-]]>
-
+    <para releasetype="snapshot">No advisories.</para>
   </sect1>
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.current [
-    <para>No open issues.</para>
-]]>
+    <para releasetype="current">No open issues.</para>
 
-<![ %release.type.release [
-    <para>No open issues.</para>
-]]>
+    <para releasetype="release">No open issues.</para>
 
-<![ %release.type.snapshot [
-    <para>No open issues.</para>
-]]>
-
+    <para releasetype="snapshot">No open issues.</para>
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-<![ %release.type.current [
-    <para>No news.</para>
-]]>
+    <para releasetype="current">No news.</para>
 
-<![ %release.type.release [
-    <para>No news.</para>
-]]>
+    <para releasetype="release">No news.</para>
 
-<![ %release.type.snapshot [
-    <para>No news.</para>
-]]>
+    <para releasetype="snapshot">No news.</para>
   </sect1>
-
 </article>

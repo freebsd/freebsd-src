@@ -16,12 +16,12 @@
 #define LLVM_CLANG_SOURCELOCATION_H
 
 #include "clang/Basic/LLVM.h"
-#include "llvm/Support/PointerLikeTypeTraits.h"
 #include "llvm/Support/Compiler.h"
-#include <utility>
-#include <functional>
+#include "llvm/Support/PointerLikeTypeTraits.h"
 #include <cassert>
+#include <functional>
 #include <string>
+#include <utility>
 
 namespace llvm {
   class MemoryBuffer;
@@ -165,7 +165,7 @@ public:
     return (void*)(uintptr_t)getRawEncoding();
   }
 
-  /// getFromPtrEncoding - Turn a pointer encoding of a SourceLocation object
+  /// \brief Turn a pointer encoding of a SourceLocation object back
   /// into a real SourceLocation.
   static SourceLocation getFromPtrEncoding(const void *Encoding) {
     return getFromRawEncoding((unsigned)(uintptr_t)Encoding);
@@ -218,7 +218,7 @@ public:
 /// \brief Represents a character-granular source range.
 ///
 /// The underlying SourceRange can either specify the starting/ending character
-/// of the range, or it can specify the start or the range and the start of the
+/// of the range, or it can specify the start of the range and the start of the
 /// last token of the range (a "token range").  In the token range case, the
 /// size of the last token must be measured to determine the actual end of the
 /// range.
@@ -227,20 +227,14 @@ class CharSourceRange {
   bool IsTokenRange;
 public:
   CharSourceRange() : IsTokenRange(false) {}
-  CharSourceRange(SourceRange R, bool ITR) : Range(R),IsTokenRange(ITR){}
+  CharSourceRange(SourceRange R, bool ITR) : Range(R), IsTokenRange(ITR) {}
 
   static CharSourceRange getTokenRange(SourceRange R) {
-    CharSourceRange Result;
-    Result.Range = R;
-    Result.IsTokenRange = true;
-    return Result;
+    return CharSourceRange(R, true);
   }
 
   static CharSourceRange getCharRange(SourceRange R) {
-    CharSourceRange Result;
-    Result.Range = R;
-    Result.IsTokenRange = false;
-    return Result;
+    return CharSourceRange(R, false);
   }
     
   static CharSourceRange getTokenRange(SourceLocation B, SourceLocation E) {
