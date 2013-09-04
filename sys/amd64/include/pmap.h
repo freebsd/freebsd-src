@@ -238,6 +238,7 @@ struct md_page {
 struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
+	uint64_t		pm_cr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
 	cpuset_t		pm_save;	/* Context valid on cpus mask */

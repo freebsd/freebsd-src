@@ -728,6 +728,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
+	kernel_pmap->pm_cr3 = KPML4phys;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	CPU_ZERO(&kernel_pmap->pm_save);
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
@@ -1049,8 +1050,7 @@ pmap_invalidate_page_pcid(pmap_t pmap, vm_offset_t va)
 
 	cr3 = rcr3();
 	critical_enter();
-	load_cr3(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4) | pmap->pm_pcid |
-	    CR3_PCID_SAVE);
+	load_cr3(pmap->pm_cr3 | CR3_PCID_SAVE);
 	invlpg(va);
 	load_cr3(cr3 | CR3_PCID_SAVE);
 	critical_exit();
@@ -1137,8 +1137,7 @@ pmap_invalidate_range_pcid(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	cr3 = rcr3();
 	critical_enter();
-	load_cr3(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4) | pmap->pm_pcid |
-	    CR3_PCID_SAVE);
+	load_cr3(pmap->pm_cr3 | CR3_PCID_SAVE);
 	for (addr = sva; addr < eva; addr += PAGE_SIZE)
 		invlpg(addr);
 	load_cr3(cr3 | CR3_PCID_SAVE);
@@ -1239,8 +1238,7 @@ pmap_invalidate_all(pmap_t pmap)
 					 * Bit 63 is clear, pcid TLB
 					 * entries are invalidated.
 					 */
-					load_cr3(DMAP_TO_PHYS((vm_offset_t)
-					    pmap->pm_pml4) | pmap->pm_pcid);
+					load_cr3(pmap->pm_cr3);
 					load_cr3(cr3 | CR3_PCID_SAVE);
 					critical_exit();
 				}
@@ -1862,6 +1860,7 @@ pmap_pinit0(pmap_t pmap)
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
+	pmap->pm_cr3 = KPML4phys;
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
 	CPU_ZERO(&pmap->pm_save);
@@ -1869,7 +1868,6 @@ pmap_pinit0(pmap_t pmap)
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_pcid = pmap_pcid_enabled ? 0 : -1;
-	CPU_ZERO(&pmap->pm_save);
 }
 
 /*
@@ -1889,7 +1887,8 @@ pmap_pinit(pmap_t pmap)
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		VM_WAIT;
 
-	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
+	pmap->pm_cr3 = VM_PAGE_TO_PHYS(pml4pg);
+	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(pmap->pm_cr3);
 
 	if ((pml4pg->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_pml4);
@@ -1911,7 +1910,13 @@ pmap_pinit(pmap_t pmap)
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
-	pmap->pm_pcid = pmap_pcid_enabled ? alloc_unr(&pcid_unr) : -1;
+	if (pmap_pcid_enabled) {
+		pmap->pm_pcid = alloc_unr(&pcid_unr);
+		if (pmap->pm_pcid != -1)
+			pmap->pm_cr3 |= pmap->pm_pcid;
+	} else {
+		pmap->pm_pcid = -1;
+	}
 	CPU_ZERO(&pmap->pm_save);
 
 	return (1);
@@ -5936,7 +5941,6 @@ pmap_activate(struct thread *td)
 {
 	pmap_t	pmap, oldpmap;
 	u_int	cpuid;
-	u_int64_t  cr3;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
@@ -5951,11 +5955,8 @@ pmap_activate(struct thread *td)
 	CPU_SET(cpuid, &pmap->pm_active);
 	CPU_SET(cpuid, &pmap->pm_save);
 #endif
-	cr3 = DMAP_TO_PHYS((vm_offset_t)pmap->pm_pml4);
-	if (pmap->pm_pcid != -1)
-		cr3 |= pmap->pm_pcid;
-	td->td_pcb->pcb_cr3 = cr3;
-	load_cr3(cr3);
+	td->td_pcb->pcb_cr3 = pmap->pm_cr3;
+	load_cr3(pmap->pm_cr3);
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
