@@ -1375,7 +1375,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Bring buffer into kernel space.
 	 */
-	if (vmapbuf(bp, (csw->d_flags & D_UNMAPPED_IO) == 0) < 0) {
+	if (vmapbuf(bp, (dev->si_flags & SI_UNMAPPED) == 0) < 0) {
 		error = EFAULT;
 		goto doerror;
 	}
@@ -1595,8 +1595,6 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	}
 
 	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK | M_ZERO);
-	aiocbe->inputcharge = 0;
-	aiocbe->outputcharge = 0;
 	knlist_init_mtx(&aiocbe->klist, AIO_MTX(ki));
 
 	error = ops->copyin(job, &aiocbe->uaiocb);

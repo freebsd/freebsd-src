@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 extern int		_getlogin(char *, int);
 
-int			_logname_valid;		/* known to setlogin() */
+int			_logname_valid __hidden; /* known to setlogin() */
 static pthread_mutex_t	logname_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static char *

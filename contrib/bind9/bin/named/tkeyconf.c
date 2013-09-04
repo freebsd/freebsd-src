@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -73,7 +73,7 @@ ns_tkeyctx_fromconfig(const cfg_obj_t *options, isc_mem_t *mctx,
 	if (result == ISC_R_SUCCESS) {
 		s = cfg_obj_asstring(cfg_tuple_get(obj, "name"));
 		n = cfg_obj_asuint32(cfg_tuple_get(obj, "keyid"));
-		isc_buffer_init(&b, s, strlen(s));
+		isc_buffer_constinit(&b, s, strlen(s));
 		isc_buffer_add(&b, strlen(s));
 		dns_fixedname_init(&fname);
 		name = dns_fixedname_name(&fname);
@@ -87,7 +87,7 @@ ns_tkeyctx_fromconfig(const cfg_obj_t *options, isc_mem_t *mctx,
 	result = cfg_map_get(options, "tkey-domain", &obj);
 	if (result == ISC_R_SUCCESS) {
 		s = cfg_obj_asstring(obj);
-		isc_buffer_init(&b, s, strlen(s));
+		isc_buffer_constinit(&b, s, strlen(s));
 		isc_buffer_add(&b, strlen(s));
 		dns_fixedname_init(&fname);
 		name = dns_fixedname_name(&fname);
@@ -106,7 +106,7 @@ ns_tkeyctx_fromconfig(const cfg_obj_t *options, isc_mem_t *mctx,
 	if (result == ISC_R_SUCCESS) {
 		s = cfg_obj_asstring(obj);
 
-		isc_buffer_init(&b, s, strlen(s));
+		isc_buffer_constinit(&b, s, strlen(s));
 		isc_buffer_add(&b, strlen(s));
 		dns_fixedname_init(&fname);
 		name = dns_fixedname_name(&fname);

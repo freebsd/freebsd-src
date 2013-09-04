@@ -448,12 +448,12 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 		blkid = off >> dn->dn_datablkshift;
 		nblks = (len + dn->dn_datablksz - 1) >> dn->dn_datablkshift;
 
-		if (blkid >= dn->dn_maxblkid) {
+		if (blkid > dn->dn_maxblkid) {
 			rw_exit(&dn->dn_struct_rwlock);
 			return;
 		}
 		if (blkid + nblks > dn->dn_maxblkid)
-			nblks = dn->dn_maxblkid - blkid;
+			nblks = dn->dn_maxblkid - blkid + 1;
 
 	}
 	l0span = nblks;    /* save for later use to calc level > 1 overhead */
@@ -615,7 +615,8 @@ dmu_tx_hold_free(dmu_tx_t *tx, uint64_t object, uint64_t off, uint64_t len)
 	 * if they are blocksize-aligned.
 	 */
 	if (dn->dn_datablkshift == 0) {
-		dmu_tx_count_write(txh, off, len);
+		if (off != 0 || len < dn->dn_datablksz)
+			dmu_tx_count_write(txh, off, len);
 	} else {
 		/* first block will be modified if it is not aligned */
 		if (!IS_P2ALIGNED(off, 1 << dn->dn_datablkshift))

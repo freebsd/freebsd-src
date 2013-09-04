@@ -156,6 +156,7 @@ ar71xx_gpio_pin_max(device_t dev, int *maxpin)
 		case AR71XX_SOC_AR9342:
 		case AR71XX_SOC_AR9344:
 			*maxpin = AR934X_GPIO_COUNT - 1;
+			break;
 		default:
 			*maxpin = AR71XX_GPIO_PINS - 1;
 	}

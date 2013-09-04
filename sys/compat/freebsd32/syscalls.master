@@ -975,10 +975,10 @@
 				    uint64_t *rightsp); }
 516	AUE_CAP_ENTER	NOPROTO	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(u_int *modep); }
-518	AUE_PDFORK	UNIMPL	pdfork
-519	AUE_PDKILL	UNIMPL	pdkill
-520	AUE_PDGETPID	UNIMPL	pdgetpid
-521	AUE_PDWAIT	UNIMPL	pdwait
+518	AUE_PDFORK	NOPROTO	{ int pdfork(int *fdp, int flags); }
+519	AUE_PDKILL	NOPROTO	{ int pdkill(int fd, int signum); }
+520	AUE_PDGETPID	NOPROTO	{ int pdgetpid(int fd, pid_t *pidp); }
+521	AUE_PDWAIT	UNIMPL	pdwait4
 522	AUE_SELECT	STD	{ int freebsd32_pselect(int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec32 *ts, \
@@ -1016,6 +1016,10 @@
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
+533	AUE_CAP_RIGHTS_LIMIT	STD	{ \
+				    int freebsd32_cap_rights_limit(int fd, \
+				    int pad, \
+				    uint32_t rights1, uint32_t rights2); }
 #else
 530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
 				    uint32_t offset1, uint32_t offset2,\
@@ -1029,13 +1033,16 @@
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
+533	AUE_CAP_RIGHTS_LIMIT	STD	{ \
+				    int freebsd32_cap_rights_limit(int fd, \
+				    uint32_t rights1, uint32_t rights2); }
 #endif
-533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ int cap_rights_limit(int fd, \
-				    uint64_t rights); }
-534	AUE_CAP_IOCTLS_LIMIT	NOPROTO	{ int cap_ioctls_limit(int fd, \
-				    const u_long *cmds, size_t ncmds); }
-535	AUE_CAP_IOCTLS_GET	NOPROTO	{ ssize_t cap_ioctls_get(int fd, \
-				    u_long *cmds, size_t maxcmds); }
+534	AUE_CAP_IOCTLS_LIMIT	STD	{ \
+				    int freebsd32_cap_ioctls_limit(int fd, \
+				    const uint32_t *cmds, size_t ncmds); }
+535	AUE_CAP_IOCTLS_GET	STD	{ \
+				    ssize_t freebsd32_cap_ioctls_get(int fd, \
+				    uint32_t *cmds, size_t maxcmds); }
 536	AUE_CAP_FCNTLS_LIMIT	NOPROTO	{ int cap_fcntls_limit(int fd, \
 				    uint32_t fcntlrights); }
 537	AUE_CAP_FCNTLS_GET	NOPROTO	{ int cap_fcntls_get(int fd, \

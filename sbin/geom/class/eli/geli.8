@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2012
+.Dd July 5, 2013
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -285,11 +285,14 @@ Currently supported algorithms are:
 .Nm AES-XTS ,
 .Nm AES-CBC ,
 .Nm Blowfish-CBC ,
-.Nm Camellia-CBC
+.Nm Camellia-CBC ,
+.Nm 3DES-CBC ,
 and
-.Nm 3DES-CBC .
+.Nm NULL .
 The default and recommended algorithm is
 .Nm AES-XTS .
+.Nm NULL
+is unencrypted.
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2 when processing User Key
 passphrase component.

@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009, 2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -67,12 +67,11 @@ OBJS =		@ISC_EXTRA_OBJS@ \
 		error.@O@ event.@O@ \
 		hash.@O@ hex.@O@ hmacmd5.@O@ hmacsha.@O@ \
 		inet_aton.@O@ iterated_hash.@O@ lex.@O@ lfsr.@O@ log.@O@ \
-		md5.@O@ mutexblock.@O@ \
-		netaddr.@O@ netscope.@O@ \
-		ondestroy.@O@ \
-		parseint.@O@ portset.@O@ radix.@O@ \
-		random.@O@ refcount.@O@ region.@O@ result.@O@ rwlock.@O@ \
-		serial.@O@ sha1.@O@ sha2.@O@ sockaddr.@O@ stats.@O@ string.@O@ \
+		md5.@O@ mutexblock.@O@ netaddr.@O@ netscope.@O@ \
+		ondestroy.@O@ parseint.@O@ portset.@O@ radix.@O@ \
+		random.@O@ refcount.@O@ region.@O@ regex.@O@ result.@O@ \
+		rwlock.@O@ serial.@O@ sha1.@O@ sha2.@O@ sockaddr.@O@ \
+		stats.@O@ string.@O@ \
 		symtab.@O@ \
 		version.@O@ \
 		${APIOBJS} ${ISCDRIVEROBJS} \
@@ -94,7 +93,7 @@ SRCS =		@ISC_EXTRA_SRCS@ \
 		netaddr.c netscope.c \
 		ondestroy.c \
 		parseint.c portset.c radix.c \
-		random.c refcount.c region.c result.c rwlock.c \
+		random.c refcount.c region.c regex.c result.c rwlock.c \
 		serial.c sha1.c sha2.c sockaddr.c stats.c string.c symtab.c \
 		version.c \
 		${APISRCS} ${ISCDRIVERSRCS}

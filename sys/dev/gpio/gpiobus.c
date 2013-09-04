@@ -151,6 +151,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if (i >= sc->sc_npins) {
 			device_printf(child, 
 			    "invalid pin %d, max: %d\n", i, sc->sc_npins - 1);
+			free(devi->pins, M_DEVBUF);
 			return (EINVAL);
 		}
 
@@ -161,6 +162,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if (sc->sc_pins_mapped[i]) {
 			device_printf(child, 
 			    "warning: pin %d is already mapped\n", i);
+			free(devi->pins, M_DEVBUF);
 			return (EINVAL);
 		}
 		sc->sc_pins_mapped[i] = 1;
@@ -218,9 +220,12 @@ gpiobus_attach(device_t dev)
 static int
 gpiobus_detach(device_t dev)
 {
-	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
-	int err;
+	struct gpiobus_softc *sc;
+	struct gpiobus_ivar *devi;
+	device_t *devlist;
+	int i, err, ndevs;
 
+	sc = GPIOBUS_SOFTC(dev);
 	KASSERT(mtx_initialized(&sc->sc_mtx),
 	    ("gpiobus mutex not initialized"));
 	GPIOBUS_LOCK_DESTROY(sc);
@@ -228,8 +233,17 @@ gpiobus_detach(device_t dev)
 	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
 
-	/* detach and delete all children */
-	device_delete_children(dev);
+	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
+		return (err);
+	for (i = 0; i < ndevs; i++) {
+		device_delete_child(dev, devlist[i]);
+		devi = GPIOBUS_IVAR(devlist[i]);
+		if (devi->pins) {
+			free(devi->pins, M_DEVBUF);
+			devi->pins = NULL;
+		}
+	}
+	free(devlist, M_TEMP);
 
 	if (sc->sc_pins_mapped) {
 		free(sc->sc_pins_mapped, M_DEVBUF);

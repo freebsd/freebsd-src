@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2007-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -34,7 +34,7 @@ _new_prefix(isc_mem_t *mctx, isc_prefix_t **target, int family,
 	    void *dest, int bitlen);
 
 static void
-_deref_prefix(isc_mem_t *mctx, isc_prefix_t *prefix);
+_deref_prefix(isc_prefix_t *prefix);
 
 static isc_result_t
 _ref_prefix(isc_mem_t *mctx, isc_prefix_t **target, isc_prefix_t *prefix);
@@ -70,6 +70,8 @@ _new_prefix(isc_mem_t *mctx, isc_prefix_t **target, int family, void *dest,
 	}
 
 	prefix->family = family;
+	prefix->mctx = NULL;
+	isc_mem_attach(mctx, &prefix->mctx);
 
 	isc_refcount_init(&prefix->refcount, 1);
 
@@ -78,7 +80,7 @@ _new_prefix(isc_mem_t *mctx, isc_prefix_t **target, int family, void *dest,
 }
 
 static void
-_deref_prefix(isc_mem_t *mctx, isc_prefix_t *prefix) {
+_deref_prefix(isc_prefix_t *prefix) {
 	int refs;
 
 	if (prefix == NULL)
@@ -88,7 +90,8 @@ _deref_prefix(isc_mem_t *mctx, isc_prefix_t *prefix) {
 
 	if (refs <= 0) {
 		isc_refcount_destroy(&prefix->refcount);
-		isc_mem_put(mctx, prefix, sizeof(isc_prefix_t));
+		isc_mem_putanddetach(&prefix->mctx, prefix,
+				     sizeof(isc_prefix_t));
 	}
 }
 
@@ -109,7 +112,7 @@ _ref_prefix(isc_mem_t *mctx, isc_prefix_t **target, isc_prefix_t *prefix) {
 		isc_result_t ret;
 		ret = _new_prefix(mctx, target, prefix->family,
 				  &prefix->add, prefix->bitlen);
-		return ret;
+		return (ret);
 	}
 
 	isc_refcount_increment(&prefix->refcount, NULL);
@@ -146,7 +149,8 @@ isc_radix_create(isc_mem_t *mctx, isc_radix_tree_t **target, int maxbits) {
 	if (radix == NULL)
 		return (ISC_R_NOMEMORY);
 
-	radix->mctx = mctx;
+	radix->mctx = NULL;
+	isc_mem_attach(mctx, &radix->mctx);
 	radix->maxbits = maxbits;
 	radix->head = NULL;
 	radix->num_active_node = 0;
@@ -168,7 +172,6 @@ _clear_radix(isc_radix_tree_t *radix, isc_radix_destroyfunc_t func) {
 	REQUIRE(radix != NULL);
 
 	if (radix->head != NULL) {
-
 		isc_radix_node_t *Xstack[RADIX_MAXBITS+1];
 		isc_radix_node_t **Xsp = Xstack;
 		isc_radix_node_t *Xrn = radix->head;
@@ -178,7 +181,7 @@ _clear_radix(isc_radix_tree_t *radix, isc_radix_destroyfunc_t func) {
 			isc_radix_node_t *r = Xrn->r;
 
 			if (Xrn->prefix != NULL) {
-				_deref_prefix(radix->mctx, Xrn->prefix);
+				_deref_prefix(Xrn->prefix);
 				if (func != NULL && (Xrn->data[0] != NULL ||
 						     Xrn->data[1] != NULL))
 					func(Xrn->data);
@@ -209,11 +212,10 @@ _clear_radix(isc_radix_tree_t *radix, isc_radix_destroyfunc_t func) {
 
 
 void
-isc_radix_destroy(isc_radix_tree_t *radix, isc_radix_destroyfunc_t func)
-{
+isc_radix_destroy(isc_radix_tree_t *radix, isc_radix_destroyfunc_t func) {
 	REQUIRE(radix != NULL);
 	_clear_radix(radix, func);
-	isc_mem_put(radix->mctx, radix, sizeof(*radix));
+	isc_mem_putanddetach(&radix->mctx, radix, sizeof(*radix));
 }
 
 
@@ -221,8 +223,7 @@ isc_radix_destroy(isc_radix_tree_t *radix, isc_radix_destroyfunc_t func)
  * func will be called as func(node->prefix, node->data)
  */
 void
-isc_radix_process(isc_radix_tree_t *radix, isc_radix_processfunc_t func)
-{
+isc_radix_process(isc_radix_tree_t *radix, isc_radix_processfunc_t func) {
 	isc_radix_node_t *node;
 
 	REQUIRE(func != NULL);
@@ -461,8 +462,8 @@ isc_radix_insert(isc_radix_tree_t *radix, isc_radix_node_t **target,
 			*target = node;
 			return (ISC_R_SUCCESS);
 		} else {
-			result =
-				_ref_prefix(radix->mctx, &node->prefix, prefix);
+			result = _ref_prefix(radix->mctx,
+					     &node->prefix, prefix);
 			if (result != ISC_R_SUCCESS)
 				return (result);
 		}
@@ -623,7 +624,7 @@ isc_radix_remove(isc_radix_tree_t *radix, isc_radix_node_t *node) {
 		 * make sure there is a prefix associated with it!
 		 */
 		if (node->prefix != NULL)
-			_deref_prefix(radix->mctx, node->prefix);
+			_deref_prefix(node->prefix);
 
 		node->prefix = NULL;
 		node->data[0] = node->data[1] = NULL;
@@ -632,7 +633,7 @@ isc_radix_remove(isc_radix_tree_t *radix, isc_radix_node_t *node) {
 
 	if (node->r == NULL && node->l == NULL) {
 		parent = node->parent;
-		_deref_prefix(radix->mctx, node->prefix);
+		_deref_prefix(node->prefix);
 		isc_mem_put(radix->mctx, node, sizeof(*node));
 		radix->num_active_node--;
 
@@ -680,7 +681,7 @@ isc_radix_remove(isc_radix_tree_t *radix, isc_radix_node_t *node) {
 	parent = node->parent;
 	child->parent = parent;
 
-	_deref_prefix(radix->mctx, node->prefix);
+	_deref_prefix(node->prefix);
 	isc_mem_put(radix->mctx, node, sizeof(*node));
 	radix->num_active_node--;
 

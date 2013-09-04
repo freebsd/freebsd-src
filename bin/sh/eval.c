@@ -109,7 +109,6 @@ reseteval(void)
 {
 	evalskip = 0;
 	loopnest = 0;
-	funcnest = 0;
 }
 
 

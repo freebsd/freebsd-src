@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2013
+.Dd July 22, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1651,11 +1651,33 @@ Further cloning arguments may be passed to the
 command for each interface by setting the
 .Va create_args_ Ns Aq Ar interface
 variable.
+If an interface name is specified with
+.Dq :sticky
+keyword,
+the interface will not be destroyed even when
+.Pa rc.d/netif
+script is invoked with
+.Dq stop
+argument.
+This is useful when reconfiguring the interface without destroying it.
 Entries in
 .Va cloned_interfaces
 are automatically appended to
 .Va network_interfaces
 for configuration.
+.It Va cloned_interfaces_sticky
+.Pq Vt bool
+This variable is to globally enable functionality of
+.Dq :sticky
+keyword in
+.Va cloned_interfaces
+for all interfaces.
+The default value is
+.Dq NO .
+Even if this variable is specified to
+.Dq YES ,
+.Dq :nosticky
+keyword can be used to override it on per interface basis.
 .It Va fec_interfaces
 .Pq Vt str
 Set to the list of
@@ -1685,6 +1707,8 @@ ifconfig_fec0="DHCP"
 .Ed
 .It Va gif_interfaces
 .Pq Vt str
+This variable is deprecated in favor of
+.Va cloned_interfaces .
 Set to the list of
 .Xr gif 4
 tunnel interfaces to configure on this host.

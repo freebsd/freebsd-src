@@ -2541,7 +2541,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	int	error, optval;
 	struct	linger l;
 	struct	timeval tv;
-	u_long  val;
+	sbintime_t val;
 	uint32_t val32;
 #ifdef MAC
 	struct mac extmac;
@@ -2698,22 +2698,12 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				    sizeof tv);
 			if (error)
 				goto bad;
-
-			/* assert(hz > 0); */
-			if (tv.tv_sec < 0 || tv.tv_sec > INT_MAX / hz ||
-			    tv.tv_usec < 0 || tv.tv_usec >= 1000000) {
+			if (tv.tv_sec < 0 || tv.tv_usec < 0 ||
+			    tv.tv_usec >= 1000000) {
 				error = EDOM;
 				goto bad;
 			}
-			/* assert(tick > 0); */
-			/* assert(ULONG_MAX - INT_MAX >= 1000000); */
-			val = (u_long)(tv.tv_sec * hz) + tv.tv_usec / tick;
-			if (val > INT_MAX) {
-				error = EDOM;
-				goto bad;
-			}
-			if (val == 0 && tv.tv_usec != 0)
-				val = 1;
+			val = tvtosbt(tv);
 
 			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:
@@ -2867,8 +2857,7 @@ integer:
 			optval = (sopt->sopt_name == SO_SNDTIMEO ?
 				  so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
 
-			tv.tv_sec = optval / hz;
-			tv.tv_usec = (optval % hz) * tick;
+			tv = sbttotv(optval);
 #ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;

@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicvar.h>
 
 #include <xen/hypervisor.h>
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <machine/smp.h>
 #include <xen/interface/vcpu.h>
 

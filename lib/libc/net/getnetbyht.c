@@ -63,7 +63,7 @@ _setnethtent(int f, struct netent_data *ned)
 {
 
 	if (ned->netf == NULL)
-		ned->netf = fopen(_PATH_NETWORKS, "r");
+		ned->netf = fopen(_PATH_NETWORKS, "re");
 	else
 		rewind(ned->netf);
 	ned->stayopen |= f;
@@ -89,7 +89,7 @@ getnetent_p(struct netent *ne, struct netent_data *ned)
 	char line[BUFSIZ + 1];
 
 	if (ned->netf == NULL &&
-	    (ned->netf = fopen(_PATH_NETWORKS, "r")) == NULL)
+	    (ned->netf = fopen(_PATH_NETWORKS, "re")) == NULL)
 		return (-1);
 again:
 	p = fgets(line, sizeof line, ned->netf);

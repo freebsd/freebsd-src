@@ -141,18 +141,20 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 */
 	if (fdt_is_compatible(node, "fsl,imx-uart"))
 		class = &uart_imx_class;
-	if (fdt_is_compatible(node, "quicc"))
+	else if (fdt_is_compatible(node, "quicc"))
 		class = &uart_quicc_class;
-	if (fdt_is_compatible(node, "lpc"))
+	else if (fdt_is_compatible(node, "lpc"))
 		class = &uart_lpc_class;
-	if (fdt_is_compatible(node, "ns16550"))
-		class = &uart_ns8250_class;
-	if (fdt_is_compatible(node, "arm,pl011"))
+	else if (fdt_is_compatible(node, "arm,pl011"))
 		class = &uart_pl011_class;
-	if (fdt_is_compatible(node, "exynos"))
+	else if (fdt_is_compatible(node, "exynos"))
 		class = &uart_s3c2410_class;
-	if (fdt_is_compatible(node, "cadence,uart"))
+	else if (fdt_is_compatible(node, "cadence,uart"))
 		class = &uart_cdnc_class;
+	else if (fdt_is_compatible(node, "ti,ns16550"))
+		class = &uart_ti8250_class;
+	else if (fdt_is_compatible(node, "ns16550"))
+		class = &uart_ns8250_class;
 
 	di->bas.chan = 0;
 	di->bas.regshft = (u_int)shift;

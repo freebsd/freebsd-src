@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2012
+.Dd August 23, 2013
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -540,6 +540,14 @@ is set to a value lower than 2.
 .It Va allow.mount.procfs
 privileged users inside the jail will be able to mount and unmount the
 procfs file system.
+This permission is effective only together with
+.Va allow.mount
+and if
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.tmpfs
+privileged users inside the jail will be able to mount and unmount the
+tmpfs file system.
 This permission is effective only together with
 .Va allow.mount
 and if

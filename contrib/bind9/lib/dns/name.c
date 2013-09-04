@@ -584,11 +584,13 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 	nlabels = 0;
 	l1 = name1->labels;
 	l2 = name2->labels;
-	ldiff = (int)l1 - (int)l2;
-	if (ldiff < 0)
+	if (l2 > l1) {
 		l = l1;
-	else
+		ldiff = 0 - (l2 - l1);
+	} else {
 		l = l2;
+		ldiff = l1 - l2;
+	}
 
 	while (l > 0) {
 		l--;
@@ -841,6 +843,10 @@ dns_name_matcheswildcard(const dns_name_t *name, const dns_name_t *wname) {
 	REQUIRE(labels > 0);
 	REQUIRE(dns_name_iswildcard(wname));
 
+#if defined(__clang__)  && \
+       ( __clang_major__ < 3 || (__clang_major__ == 3 && __clang_minor__ < 2))
+	memset(&tname, 0, sizeof(tname));
+#endif
 	DNS_NAME_INIT(&tname, NULL);
 	dns_name_getlabelsequence(wname, 1, labels - 1, &tname);
 	if (dns_name_fullcompare(name, &tname, &order, &nlabels) ==
@@ -1427,6 +1433,7 @@ dns_name_totext2(dns_name_t *name, unsigned int options, isc_buffer_t *target)
 				case 0x24: /* '$' */
 					if ((options & DNS_NAME_MASTERFILE) == 0)
 						goto no_escape;
+					/* FALLTHROUGH */
 				case 0x22: /* '"' */
 				case 0x28: /* '(' */
 				case 0x29: /* ')' */
@@ -1934,6 +1941,10 @@ dns_name_towire(const dns_name_t *name, dns_compress_t *cctx,
 	 * has one.
 	 */
 	if (name->offsets == NULL) {
+#if defined(__clang__)  && \
+       ( __clang_major__ < 3 || (__clang_major__ == 3 && __clang_minor__ < 2))
+		memset(&clname, 0, sizeof(clname));
+#endif
 		DNS_NAME_INIT(&clname, clo);
 		dns_name_clone(name, &clname);
 		name = &clname;
@@ -2239,7 +2250,12 @@ dns_name_digest(dns_name_t *name, dns_digestfunc_t digest, void *arg) {
 	REQUIRE(VALID_NAME(name));
 	REQUIRE(digest != NULL);
 
+#if defined(__clang__)  && \
+       ( __clang_major__ < 3 || (__clang_major__ == 3 && __clang_minor__ < 2))
+	memset(&downname, 0, sizeof(downname));
+#endif
 	DNS_NAME_INIT(&downname, NULL);
+
 	isc_buffer_init(&buffer, data, sizeof(data));
 
 	result = dns_name_downcase(name, &downname, &buffer);
@@ -2404,7 +2420,7 @@ dns_name_fromstring2(dns_name_t *target, const char *src,
 
 	REQUIRE(src != NULL);
 
-	isc_buffer_init(&buf, src, strlen(src));
+	isc_buffer_constinit(&buf, src, strlen(src));
 	isc_buffer_add(&buf, strlen(src));
 	if (BINDABLE(target) && target->buffer != NULL)
 		name = target;

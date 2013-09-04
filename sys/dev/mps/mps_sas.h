@@ -158,3 +158,4 @@ void mpssas_startup_decrement(struct mpssas_softc *sassc);
 struct mps_command * mpssas_alloc_tm(struct mps_softc *sc);
 void mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm);
 void mpssas_firmware_event_work(void *arg, int pending);
+int mpssas_check_id(struct mpssas_softc *sassc, int id);

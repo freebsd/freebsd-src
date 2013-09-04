@@ -164,6 +164,7 @@ struct fileops pipeops = {
 	.fo_close = pipe_close,
 	.fo_chmod = pipe_chmod,
 	.fo_chown = pipe_chown,
+	.fo_sendfile = invfo_sendfile,
 	.fo_flags = DFLAG_PASSABLE
 };
 

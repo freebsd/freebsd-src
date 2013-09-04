@@ -1084,7 +1084,7 @@ static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
 	int error, cr, vmcs_guest_cr, vmcs_shadow_cr;
-	uint64_t regval, ones_mask, zeros_mask;
+	uint64_t crval, regval, ones_mask, zeros_mask;
 	const struct vmxctx *vmxctx;
 
 	/* We only handle mov to %cr0 or %cr4 at this time */
@@ -1174,12 +1174,46 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 		      error, cr);
 	}
 
-	regval |= ones_mask;
-	regval &= ~zeros_mask;
-	error = vmwrite(vmcs_guest_cr, regval);
+	crval = regval | ones_mask;
+	crval &= ~zeros_mask;
+	error = vmwrite(vmcs_guest_cr, crval);
 	if (error) {
 		panic("vmx_emulate_cr_access: error %d writing cr%d",
 		      error, cr);
+	}
+
+	if (cr == 0 && regval & CR0_PG) {
+		uint64_t efer, entry_ctls;
+
+		/*
+		 * If CR0.PG is 1 and EFER.LME is 1 then EFER.LMA and
+		 * the "IA-32e mode guest" bit in VM-entry control must be
+		 * equal.
+		 */
+		error = vmread(VMCS_GUEST_IA32_EFER, &efer);
+		if (error) {
+		  panic("vmx_emulate_cr_access: error %d efer read",
+			error);			
+		}
+		if (efer & EFER_LME) {
+			efer |= EFER_LMA;
+			error = vmwrite(VMCS_GUEST_IA32_EFER, efer);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " efer write", error);
+			}
+			error = vmread(VMCS_ENTRY_CTLS, &entry_ctls);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " entry ctls read", error);
+			}
+			entry_ctls |= VM_ENTRY_GUEST_LMA;
+			error = vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
+			if (error) {
+				panic("vmx_emulate_cr_access: error %d"
+				      " entry ctls write", error);
+			}
+		}
 	}
 
 	return (HANDLED);

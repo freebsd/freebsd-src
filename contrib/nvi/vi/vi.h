@@ -6,11 +6,11 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)vi.h	10.19 (Berkeley) 6/30/96
+ *	$Id: vi.h,v 10.29 2012/02/11 00:33:46 zy Exp $
  */
 
 /* Definition of a vi "word". */
-#define	inword(ch)	(isalnum(ch) || (ch) == '_')
+#define	inword(ch)	((ch) == '_' || (ISGRAPH(ch) && !ISPUNCT(ch)))
 
 typedef struct _vikeys VIKEYS;
 
@@ -188,23 +188,24 @@ int	cs_prev __P((SCR *, VCS *));
  * slot for the colon command line, so there is room to add any screen into
  * another one at screen exit.
  *
- * Lno is the line number.  If doing the historic vi long line folding, off
+ * Lno is the line number.  If doing the historic vi long line folding, soff
  * is the screen offset into the line.  For example, the pair 2:1 would be
  * the first screen of line 2, and 2:2 would be the second.  In the case of
  * long lines, the screen map will tend to be staggered, e.g., 1:1, 1:2, 1:3,
- * 2:1, 3:1, etc.  If doing left-right scrolling, the off field is the screen
+ * 2:1, 3:1, etc.  If doing left-right scrolling, the coff field is the screen
  * column offset into the lines, and can take on any value, as it's adjusted
  * by the user set value O_SIDESCROLL.
  */
 typedef struct _smap {
-	recno_t  lno;		/* 1-N: Physical file line number. */
+	recno_t  lno;	/* 1-N: Physical file line number. */
 	size_t	 coff;		/* 0-N: Column offset in the line. */
 	size_t	 soff;		/* 1-N: Screen offset in the line. */
 
 				/* vs_line() cache information. */
-	size_t	 c_sboff;	/* 0-N: offset of first character byte. */
-	size_t	 c_eboff;	/* 0-N: offset of  last character byte. */
+	size_t	 c_sboff;	/* 0-N: offset of first character on screen. */
+	size_t	 c_eboff;	/* 0-N: offset of  last character on screen. */
 	u_int8_t c_scoff;	/* 0-N: offset into the first character. */
+				/* 255: no character of line visible. */
 	u_int8_t c_eclen;	/* 1-N: columns from the last character. */
 	u_int8_t c_ecsize;	/* 1-N: size of the last character. */
 } SMAP;
@@ -253,8 +254,11 @@ typedef struct _vi_private {
 	size_t	busy_fx;	/* Busy character x coordinate. */
 	size_t	busy_oldy;	/* Saved y coordinate. */
 	size_t	busy_oldx;	/* Saved x coordinate. */
-	struct timeval busy_tv;	/* Busy timer. */
+	struct timespec busy_ts;/* Busy timer. */
 
+	MARK	sel;		/* Select start position. */
+
+	CHAR_T *mcs;		/* Match character list. */
 	char   *ps;		/* Paragraph plus section list. */
 
 	u_long	u_ccnt;		/* Undo command count. */
@@ -351,10 +355,15 @@ typedef struct _vi_private {
  */
 #define	TAB_OFF(c)	COL_OFF((c), O_VAL(sp, O_TABSTOP))
 
+/* If more than one horizontal screen being shown. */
+#define	IS_HSPLIT(sp)							\
+	((sp)->rows != O_VAL(sp, O_LINES))
+/* If more than one vertical screen being shown. */
+#define	IS_VSPLIT(sp)							\
+	((sp)->cols != O_VAL(sp, O_COLUMNS))
 /* If more than one screen being shown. */
 #define	IS_SPLIT(sp)							\
-	((sp)->q.cqe_next != (void *)&(sp)->gp->dq ||			\
-	(sp)->q.cqe_prev != (void *)&(sp)->gp->dq)
+	(IS_HSPLIT(sp) || IS_VSPLIT(sp))
 
 /* Screen adjustment operations. */
 typedef enum { A_DECREASE, A_INCREASE, A_SET } adj_t;
@@ -374,4 +383,4 @@ typedef enum {
 	VIM_NOCOM, VIM_NOCOM_B, VIM_USAGE, VIM_WRESIZE
 } vim_t;
 
-#include "vi_extern.h"
+#include "extern.h"

@@ -129,6 +129,7 @@ SUBDIR+=	dnssec-keygen
 SUBDIR+=	dnssec-revoke
 SUBDIR+=	dnssec-settime
 SUBDIR+=	dnssec-signzone
+SUBDIR+=	dnssec-verify
 .endif
 .if ${MK_BIND_NAMED} != "no"
 SUBDIR+=	arpaname

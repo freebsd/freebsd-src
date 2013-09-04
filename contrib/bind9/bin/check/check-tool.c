@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.c,v 1.41 2010/09/07 23:46:59 tbox Exp $ */
+/* $Id: check-tool.c,v 1.44 2011/12/22 07:32:39 each Exp $ */
 
 /*! \file */
 
@@ -196,6 +196,10 @@ checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
 		a->type == dns_rdatatype_a);
 	REQUIRE(aaaa == NULL || !dns_rdataset_isassociated(aaaa) ||
 		aaaa->type == dns_rdatatype_aaaa);
+
+	if (a == NULL || aaaa == NULL)
+		return (answer);
+
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_CANONNAME;
 	hints.ai_family = PF_UNSPEC;
@@ -258,8 +262,7 @@ checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
 		}
 		return (ISC_TRUE);
 	}
-	if (a == NULL || aaaa == NULL)
-		return (answer);
+
 	/*
 	 * Check that all glue records really exist.
 	 */
@@ -597,7 +600,7 @@ load_zone(isc_mem_t *mctx, const char *zonename, const char *filename,
 
 	dns_zone_settype(zone, dns_zone_master);
 
-	isc_buffer_init(&buffer, zonename, strlen(zonename));
+	isc_buffer_constinit(&buffer, zonename, strlen(zonename));
 	isc_buffer_add(&buffer, strlen(zonename));
 	dns_fixedname_init(&fixorigin);
 	origin = dns_fixedname_name(&fixorigin);
@@ -635,7 +638,8 @@ load_zone(isc_mem_t *mctx, const char *zonename, const char *filename,
 /*% dump the zone */
 isc_result_t
 dump_zone(const char *zonename, dns_zone_t *zone, const char *filename,
-	  dns_masterformat_t fileformat, const dns_master_style_t *style)
+	  dns_masterformat_t fileformat, const dns_master_style_t *style,
+	  const isc_uint32_t rawversion)
 {
 	isc_result_t result;
 	FILE *output = stdout;
@@ -661,8 +665,8 @@ dump_zone(const char *zonename, dns_zone_t *zone, const char *filename,
 		}
 	}
 
-	result = dns_zone_dumptostream2(zone, output, fileformat, style);
-
+	result = dns_zone_dumptostream3(zone, output, fileformat, style,
+					rawversion);
 	if (output != stdout)
 		(void)isc_stdio_close(output);
 

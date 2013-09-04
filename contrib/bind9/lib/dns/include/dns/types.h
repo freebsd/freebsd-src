@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -65,6 +65,7 @@ typedef struct dns_decompress			dns_decompress_t;
 typedef struct dns_dispatch			dns_dispatch_t;
 typedef struct dns_dispatchevent		dns_dispatchevent_t;
 typedef struct dns_dispatchlist			dns_dispatchlist_t;
+typedef struct dns_dispatchset			dns_dispatchset_t;
 typedef struct dns_dispatchmgr			dns_dispatchmgr_t;
 typedef struct dns_dispentry			dns_dispentry_t;
 typedef struct dns_dns64			dns_dns64_t;
@@ -72,6 +73,7 @@ typedef ISC_LIST(dns_dns64_t)			dns_dns64list_t;
 typedef struct dns_dnsseckey			dns_dnsseckey_t;
 typedef ISC_LIST(dns_dnsseckey_t)		dns_dnsseckeylist_t;
 typedef struct dns_dumpctx			dns_dumpctx_t;
+typedef struct dns_ednsopt			dns_ednsopt_t;
 typedef struct dns_fetch			dns_fetch_t;
 typedef struct dns_fixedname			dns_fixedname_t;
 typedef struct dns_forwarders			dns_forwarders_t;
@@ -85,6 +87,7 @@ typedef struct dns_keytable			dns_keytable_t;
 typedef isc_uint16_t				dns_keytag_t;
 typedef struct dns_loadctx			dns_loadctx_t;
 typedef struct dns_loadmgr			dns_loadmgr_t;
+typedef struct dns_masterrawheader		dns_masterrawheader_t;
 typedef struct dns_message			dns_message_t;
 typedef isc_uint16_t				dns_messageid_t;
 typedef isc_region_t				dns_label_t;
@@ -332,6 +335,20 @@ typedef enum {
 	dns_severity_fail
 } dns_severity_t;
 
+/*%
+ * DNS Serial Number Update Method.
+ *
+ * \li	_increment:	Add one to the current serial, skipping 0.
+ * \li	_unixtime:	Set to the seconds since 00:00 Jan 1, 1970,
+ *			if possible.
+ * \li	_yyyymmvv:	Set to Year, Month, Version, if possible.
+ *			(Not yet implemented)
+ */
+typedef enum {
+	dns_updatemethod_increment = 0,
+	dns_updatemethod_unixtime
+} dns_updatemethod_t;
+
 /*
  * Functions.
  */
@@ -340,6 +357,9 @@ typedef void
 
 typedef void
 (*dns_loaddonefunc_t)(void *, isc_result_t);
+
+typedef void
+(*dns_rawdatafunc_t)(dns_zone_t *, dns_masterrawheader_t *);
 
 typedef isc_result_t
 (*dns_addrdatasetfunc_t)(void *, dns_name_t *, dns_rdataset_t *);
@@ -372,5 +392,8 @@ typedef isc_boolean_t
 typedef isc_boolean_t
 (*dns_isselffunc_t)(dns_view_t *, dns_tsigkey_t *, isc_sockaddr_t *,
 		    isc_sockaddr_t *, dns_rdataclass_t, void *);
+
+typedef void
+(*dns_nseclog_t)(void *val, int , const char *, ...);
 
 #endif /* DNS_TYPES_H */

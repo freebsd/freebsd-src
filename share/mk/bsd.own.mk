@@ -292,6 +292,7 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     GROFF \
     HTML \
+    ICONV \
     INET \
     INET6 \
     INFO \
@@ -331,7 +332,6 @@ __DEFAULT_YES_OPTIONS = \
     PC_SYSINSTALL \
     PF \
     PKGBOOTSTRAP \
-    PKGTOOLS \
     PMC \
     PORTSNAP \
     PPP \
@@ -369,21 +369,20 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
-    BSDCONFIG \
     BSD_GREP \
     CLANG_EXTRAS \
     CTF \
     DEBUG_FILES \
-    GNU_PATCH \
     GPL_DTC \
     HESIOD \
-    ICONV \
+    LIBICONV_COMPAT \
     INSTALL_AS_USER \
     LDNS_UTILS \
     NMTREE \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
+    PKGTOOLS \
     SHARED_TOOLCHAIN \
     SVN \
     USB_GADGET_EXAMPLES
@@ -482,6 +481,10 @@ MK_BIND_LIBS_LWRES:= no
 MK_BIND_MTREE:=	no
 MK_BIND_NAMED:=	no
 MK_BIND_UTILS:=	no
+.endif
+
+.if ${MK_ICONV} == "no"
+MK_LIBICONV_COMPAT:=	no
 .endif
 
 .if ${MK_LDNS} == "no"

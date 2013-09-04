@@ -4026,7 +4026,6 @@ done:
 static void
 musbotg_xfer_setup(struct usb_setup_params *parm)
 {
-	const struct usb_hw_ep_profile *pf;
 	struct musbotg_softc *sc;
 	struct usb_xfer *xfer;
 	void *last_obj;
@@ -4088,12 +4087,14 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 	 */
 	last_obj = NULL;
 
-	/*
-	 * get profile stuff
-	 */
-	if (ntd) {
+	ep_no = xfer->endpointno & UE_ADDR;
 
-		ep_no = xfer->endpointno & UE_ADDR;
+	/*
+	 * Check for a valid endpoint profile in USB device mode:
+	 */
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
+		const struct usb_hw_ep_profile *pf;
+
 		musbotg_get_hw_ep_profile(parm->udev, &pf, ep_no);
 
 		if (pf == NULL) {
@@ -4101,9 +4102,6 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 			parm->err = USB_ERR_INVAL;
 			return;
 		}
-	} else {
-		ep_no = 0;
-		pf = NULL;
 	}
 
 	/* align data */

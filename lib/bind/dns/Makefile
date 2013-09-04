@@ -13,7 +13,7 @@ LIB=		dns
 
 .PATH:		${SRCDIR}
 SRCS+=		acache.c acl.c adb.c byaddr.c \
-		cache.c callbacks.c compress.c \
+		cache.c callbacks.c clientinfo.c compress.c \
 		db.c dbiterator.c dbtable.c diff.c dispatch.c \
 		dlz.c dns64.c dnssec.c ds.c \
 		dst_api.c dst_lib.c dst_parse.c dst_result.c \
@@ -33,7 +33,7 @@ SRCS+=		acache.c acl.c adb.c byaddr.c \
 		resolver.c result.c rootns.c rpz.c rriterator.c \
 		sdb.c sdlz.c soa.c ssu.c ssu_external.c \
 		stats.c tcpmsg.c time.c timer.c tkey.c \
-		tsec.c tsig.c ttl.c validator.c \
+		tsec.c tsig.c ttl.c update.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c
 
 CFLAGS+=	-I${SRCDIR}/include/dst -I${SRCDIR}/include -I${SRCDIR}
@@ -52,6 +52,7 @@ DNSINCS=	${SRCDIR}/include/dns/acache.h \
 		${SRCDIR}/include/dns/cache.h \
 		${SRCDIR}/include/dns/callbacks.h \
 		${SRCDIR}/include/dns/cert.h \
+		${SRCDIR}/include/dns/clientinfo.h \
 		${SRCDIR}/include/dns/compress.h \
 		${SRCDIR}/include/dns/db.h \
 		${SRCDIR}/include/dns/dbiterator.h \
@@ -111,6 +112,7 @@ DNSINCS=	${SRCDIR}/include/dns/acache.h \
 		${SRCDIR}/include/dns/tsig.h \
 		${SRCDIR}/include/dns/ttl.h \
 		${SRCDIR}/include/dns/types.h \
+		${SRCDIR}/include/dns/update.h \
 		${SRCDIR}/include/dns/validator.h \
 		${SRCDIR}/include/dns/version.h \
 		${SRCDIR}/include/dns/view.h \

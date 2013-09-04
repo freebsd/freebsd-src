@@ -160,10 +160,10 @@ MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4/T5 Ethernet driver and services");
  * Correct lock order when you need to acquire multiple locks is t4_list_lock,
  * then ADAPTER_LOCK, then t4_uld_list_lock.
  */
-static struct mtx t4_list_lock;
+static struct sx t4_list_lock;
 static SLIST_HEAD(, adapter) t4_list;
 #ifdef TCP_OFFLOAD
-static struct mtx t4_uld_list_lock;
+static struct sx t4_uld_list_lock;
 static SLIST_HEAD(, uld_info) t4_uld_list;
 #endif
 
@@ -379,6 +379,7 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
 #ifdef SBUF_DRAIN
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
@@ -567,9 +568,9 @@ t4_attach(device_t dev)
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
 	    device_get_nameunit(dev));
 	mtx_init(&sc->sc_lock, sc->lockname, 0, MTX_DEF);
-	mtx_lock(&t4_list_lock);
+	sx_xlock(&t4_list_lock);
 	SLIST_INSERT_HEAD(&t4_list, sc, link);
-	mtx_unlock(&t4_list_lock);
+	sx_xunlock(&t4_list_lock);
 
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
@@ -598,7 +599,6 @@ t4_attach(device_t dev)
 	t4_register_cpl_handler(sc, CPL_TRACE_PKT, t4_trace_pkt);
 	t4_register_cpl_handler(sc, CPL_TRACE_PKT_T5, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
-
 
 	/* Prepare the adapter for operation */
 	rc = -t4_prep_adapter(sc);
@@ -917,9 +917,9 @@ t4_detach(device_t dev)
 	free(sc->tids.ftid_tab, M_CXGBE);
 	t4_destroy_dma_tag(sc);
 	if (mtx_initialized(&sc->sc_lock)) {
-		mtx_lock(&t4_list_lock);
+		sx_xlock(&t4_list_lock);
 		SLIST_REMOVE(&t4_list, sc, adapter, link);
-		mtx_unlock(&t4_list_lock);
+		sx_xunlock(&t4_list_lock);
 		mtx_destroy(&sc->sc_lock);
 	}
 
@@ -2491,7 +2491,7 @@ get_params__post_init(struct adapter *sc)
 		param[3] = FW_PARAM_PFVF(CQ_END);
 		param[4] = FW_PARAM_PFVF(OCQ_START);
 		param[5] = FW_PARAM_PFVF(OCQ_END);
-		rc = -t4_query_params(sc, 0, 0, 0, 6, param, val);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 6, param, val);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to query RDMA parameters(2): %d.\n", rc);
@@ -2548,9 +2548,9 @@ t4_set_desc(struct adapter *sc)
 	char buf[128];
 	struct adapter_params *p = &sc->params;
 
-	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, E/C:%s",
-	    p->vpd.id, is_offload(sc) ? "R" : "", chip_rev(sc), p->vpd.sn,
-	    p->vpd.ec);
+	snprintf(buf, sizeof(buf), "Chelsio %s %sNIC (rev %d), S/N:%s, "
+	    "P/N:%s, E/C:%s", p->vpd.id, is_offload(sc) ? "R" : "",
+	    chip_rev(sc), p->vpd.sn, p->vpd.pn, p->vpd.ec);
 
 	device_set_desc_copy(sc->dev, buf);
 }
@@ -4223,7 +4223,15 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature", CTLTYPE_INT |
+	    CTLFLAG_RD, sc, 0, sysctl_temperature, "A",
+	    "chip temperature (in Celsius)");
+
 	t4_sge_sysctls(sc, ctx, children);
+
+	sc->lro_timeout = 100;
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
+	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
 
 #ifdef SBUF_DRAIN
 	/*
@@ -4863,6 +4871,31 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	val = t4_read_reg64(sc, reg);
 
 	return (sysctl_handle_64(oidp, &val, 0, req));
+}
+
+static int
+sysctl_temperature(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int rc, t;
+	uint32_t param, val;
+
+	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4temp");
+	if (rc)
+		return (rc);
+	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_DIAG) |
+	    V_FW_PARAMS_PARAM_Y(FW_PARAM_DEV_DIAG_TMP);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, &param, &val);
+	end_synchronized_op(sc, 0);
+	if (rc)
+		return (rc);
+
+	/* unknown is returned as 0 but we display -1 in that case */
+	t = val == 0 ? -1 : val;
+
+	rc = sysctl_handle_int(oidp, &t, 0, req);
+	return (rc);
 }
 
 #ifdef SBUF_DRAIN
@@ -7312,7 +7345,7 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 {
 	struct adapter *sc;
 
-	mtx_lock(&t4_list_lock);
+	sx_slock(&t4_list_lock);
 	SLIST_FOREACH(sc, &t4_list, link) {
 		/*
 		 * func should not make any assumptions about what state sc is
@@ -7320,7 +7353,7 @@ t4_iterate(void (*func)(struct adapter *, void *), void *arg)
 		 */
 		func(sc, arg);
 	}
-	mtx_unlock(&t4_list_lock);
+	sx_sunlock(&t4_list_lock);
 }
 
 static int
@@ -7548,7 +7581,7 @@ t4_register_uld(struct uld_info *ui)
 	int rc = 0;
 	struct uld_info *u;
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_xlock(&t4_uld_list_lock);
 	SLIST_FOREACH(u, &t4_uld_list, link) {
 	    if (u->uld_id == ui->uld_id) {
 		    rc = EEXIST;
@@ -7559,7 +7592,7 @@ t4_register_uld(struct uld_info *ui)
 	SLIST_INSERT_HEAD(&t4_uld_list, ui, link);
 	ui->refcount = 0;
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_xunlock(&t4_uld_list_lock);
 	return (rc);
 }
 
@@ -7569,7 +7602,7 @@ t4_unregister_uld(struct uld_info *ui)
 	int rc = EINVAL;
 	struct uld_info *u;
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_xlock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(u, &t4_uld_list, link) {
 	    if (u == ui) {
@@ -7584,7 +7617,7 @@ t4_unregister_uld(struct uld_info *ui)
 	    }
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_xunlock(&t4_uld_list_lock);
 	return (rc);
 }
 
@@ -7596,7 +7629,7 @@ t4_activate_uld(struct adapter *sc, int id)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_slock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
@@ -7607,7 +7640,7 @@ t4_activate_uld(struct adapter *sc, int id)
 		}
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
 }
@@ -7620,7 +7653,7 @@ t4_deactivate_uld(struct adapter *sc, int id)
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
-	mtx_lock(&t4_uld_list_lock);
+	sx_slock(&t4_uld_list_lock);
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
@@ -7631,7 +7664,7 @@ t4_deactivate_uld(struct adapter *sc, int id)
 		}
 	}
 done:
-	mtx_unlock(&t4_uld_list_lock);
+	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
 }
@@ -7712,10 +7745,10 @@ mod_event(module_t mod, int cmd, void *arg)
 		if (atomic_fetchadd_int(&loaded, 1))
 			break;
 		t4_sge_modload();
-		mtx_init(&t4_list_lock, "T4 adapters", 0, MTX_DEF);
+		sx_init(&t4_list_lock, "T4/T5 adapters");
 		SLIST_INIT(&t4_list);
 #ifdef TCP_OFFLOAD
-		mtx_init(&t4_uld_list_lock, "T4 ULDs", 0, MTX_DEF);
+		sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
 		SLIST_INIT(&t4_uld_list);
 #endif
 		t4_tracer_modload();
@@ -7727,23 +7760,23 @@ mod_event(module_t mod, int cmd, void *arg)
 			break;
 		t4_tracer_modunload();
 #ifdef TCP_OFFLOAD
-		mtx_lock(&t4_uld_list_lock);
+		sx_slock(&t4_uld_list_lock);
 		if (!SLIST_EMPTY(&t4_uld_list)) {
 			rc = EBUSY;
-			mtx_unlock(&t4_uld_list_lock);
+			sx_sunlock(&t4_uld_list_lock);
 			break;
 		}
-		mtx_unlock(&t4_uld_list_lock);
-		mtx_destroy(&t4_uld_list_lock);
+		sx_sunlock(&t4_uld_list_lock);
+		sx_destroy(&t4_uld_list_lock);
 #endif
-		mtx_lock(&t4_list_lock);
+		sx_slock(&t4_list_lock);
 		if (!SLIST_EMPTY(&t4_list)) {
 			rc = EBUSY;
-			mtx_unlock(&t4_list_lock);
+			sx_sunlock(&t4_list_lock);
 			break;
 		}
-		mtx_unlock(&t4_list_lock);
-		mtx_destroy(&t4_list_lock);
+		sx_sunlock(&t4_list_lock);
+		sx_destroy(&t4_list_lock);
 		break;
 	}
 

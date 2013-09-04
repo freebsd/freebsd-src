@@ -1064,14 +1064,14 @@ t4_tom_mod_load(void)
 static void
 tom_uninit(struct adapter *sc, void *arg __unused)
 {
-	if (begin_synchronized_op(sc, NULL, HOLD_LOCK, "t4tomun"))
+	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4tomun"))
 		return;
 
 	/* Try to free resources (works only if no port has IFCAP_TOE) */
 	if (sc->flags & TOM_INIT_DONE)
 		t4_deactivate_uld(sc, ULD_TOM);
 
-	end_synchronized_op(sc, LOCK_HELD);
+	end_synchronized_op(sc, 0);
 }
 
 static int

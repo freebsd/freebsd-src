@@ -2,6 +2,8 @@
 /*	$OpenBSD: if_iwnvar.h,v 1.18 2010/04/30 16:06:46 damien Exp $	*/
 
 /*-
+ * Copyright (c) 2013 Cedric GROSS <cg@cgross.info>
+ * Copyright (c) 2011 Intel Corporation
  * Copyright (c) 2007, 2008
  *	Damien Bergamini <damien.bergamini@free.fr>
  * Copyright (c) 2008 Sam Leffler, Errno Consulting
@@ -18,6 +20,38 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+enum iwn_rxon_ctx_id {
+		IWN_RXON_BSS_CTX,
+		IWN_RXON_PAN_CTX,
+		IWN_NUM_RXON_CTX
+};
+
+struct iwn_pan_slot {
+	uint16_t	time;
+	uint8_t		type;
+	uint8_t		reserved;
+} __packed;
+
+struct iwn_pan_params_cmd {
+	uint16_t flags;
+#define	IWN_PAN_PARAMS_FLG_SLOTTED_MODE	(1 << 3)
+
+	uint8_t reserved;
+	uint8_t num_slots;
+	struct iwn_pan_slot slots[10];
+} __packed;
+
+struct iwn_led_mode
+{
+	uint8_t		led_cur_mode;
+	uint64_t	led_cur_bt;
+	uint64_t	led_last_bt;
+	uint64_t	led_cur_tpt;
+	uint64_t	led_last_tpt;
+	uint64_t	led_bt_diff;
+	int		led_cur_time;
+	int		led_last_time;
+};
 
 struct iwn_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -191,6 +225,10 @@ struct iwn_vap {
 
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
+	int			ctx;
+	int			beacon_int;
+	uint8_t		macaddr[IEEE80211_ADDR_LEN];
+
 };
 #define	IWN_VAP(_vap)	((struct iwn_vap *)(_vap))
 
@@ -210,8 +248,11 @@ struct iwn_softc {
 #define IWN_FLAG_HAS_11N	(1 << 6)
 #define IWN_FLAG_ENH_SENS	(1 << 7)
 #define IWN_FLAG_ADV_BTCOEX	(1 << 8)
+#define IWN_FLAG_PAN_SUPPORT	(1 << 9)
 
 	uint8_t 		hw_type;
+	/* subdevice_id used to adjust configuration */
+	uint16_t		subdevice_id;
 
 	struct iwn_ops		ops;
 	const char		*fwname;
@@ -272,7 +313,7 @@ struct iwn_softc {
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
 	struct callout		watchdog_to;
-
+	struct callout		ct_kill_exit_to;
 	struct iwn_fw_info	fw;
 	struct iwn_calib_info	calibcmd[5];
 	uint32_t		errptr;
@@ -280,7 +321,12 @@ struct iwn_softc {
 	struct iwn_rx_stat	last_rx_stat;
 	int			last_rx_valid;
 	struct iwn_ucode_info	ucode_info;
-	struct iwn_rxon		rxon;
+	struct iwn_rxon		rx_on[IWN_NUM_RXON_CTX];
+	struct iwn_rxon		*rxon;
+	int			ctx;
+	struct ieee80211vap	*ivap[IWN_NUM_RXON_CTX];
+
+	uint8_t			uc_scan_progress;
 	uint32_t		rawtemp;
 	int			temp;
 	int			noise;
@@ -295,10 +341,13 @@ struct iwn_softc {
 	char			eeprom_domain[4];
 	uint32_t		eeprom_crystal;
 	int16_t			eeprom_temp;
+	int16_t			eeprom_temp_high;
 	int16_t			eeprom_voltage;
 	int8_t			maxpwr2GHz;
 	int8_t			maxpwr5GHz;
 	int8_t			maxpwr[IEEE80211_CHAN_MAX];
+
+	uint32_t		tlv_feature_flags;
 
 	int32_t			temp_off;
 	uint32_t		int_mask;
@@ -309,6 +358,7 @@ struct iwn_softc {
 	uint8_t			chainmask;
 
 	int			sc_tx_timer;
+	int			sc_scan_timer;
 
 	struct ieee80211_tx_ampdu *qid2tap[IWN5000_NTXQUEUES];
 
@@ -323,9 +373,22 @@ struct iwn_softc {
 	void			(*sc_addba_stop)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *);
 
+	struct	iwn_led_mode sc_led;
 
 	struct iwn_rx_radiotap_header sc_rxtap;
 	struct iwn_tx_radiotap_header sc_txtap;
+
+	/* The power save level originally configured by user */
+	int			desired_pwrsave_level;
+
+	/*
+	 * The current power save level, this may differ from the
+	 * configured value due to thermal throttling etc.
+	 */
+	int			current_pwrsave_level;
+
+	/* For specifique params */
+	struct iwn_base_params *base_params;
 };
 
 #define IWN_LOCK_INIT(_sc) \

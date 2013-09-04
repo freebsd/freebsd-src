@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.24 2012/12/13 23:04:14 sjg Exp $
+#	$Id: prog.mk,v 1.25 2013/07/18 05:46:24 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -48,6 +48,15 @@ LIBCRT0=	${DESTDIR}/usr/lib/crt0.o
 .if ${MK_DPADD_MK} == "yes"
 # lots of cool magic, but might not suit everyone.
 .include <dpadd.mk>
+.endif
+
+.if ${MK_GPROF} == "yes"
+CFLAGS+= ${CC_PG} ${PROFFLAGS}
+LDADD+= ${CC_PG}
+.if ${MK_DPADD_MK} == "no"
+LDADD_LIBC_P?= -lc_p
+LDADD_LAST+= ${LDADD_LIBC_P}
+.endif
 .endif
 
 .if defined(SHAREDSTRINGS)

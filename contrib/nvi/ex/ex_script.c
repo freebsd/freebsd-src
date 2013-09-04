@@ -13,32 +13,32 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_script.c	10.30 (Berkeley) 9/24/96";
+static const char sccsid[] = "$Id: ex_script.c,v 10.44 2012/10/05 10:17:47 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/queue.h>
-#ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
-#endif
 #include <sys/stat.h>
-#ifdef HAVE_SYS5_PTY
-#include <sys/stropts.h>
-#endif
-#include <sys/time.h>
 #include <sys/wait.h>
 
 #include <bitstring.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>		/* XXX: OSF/1 bug: include before <grp.h> */
 #include <grp.h>
 #include <limits.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
+#else
+#include <util.h>
+#endif
 
 #include "../common/common.h"
 #include "../vi/vi.h"
@@ -50,7 +50,6 @@ static int	sscr_getprompt __P((SCR *));
 static int	sscr_init __P((SCR *));
 static int	sscr_insert __P((SCR *));
 static int	sscr_matchprompt __P((SCR *, char *, size_t, size_t *));
-static int	sscr_pty __P((int *, int *, char *, struct termios *, void *));
 static int	sscr_setprompt __P((SCR *, char *, size_t));
 
 /*
@@ -60,9 +59,7 @@ static int	sscr_setprompt __P((SCR *, char *, size_t));
  * PUBLIC: int ex_script __P((SCR *, EXCMD *));
  */
 int
-ex_script(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_script(SCR *sp, EXCMD *cmdp)
 {
 	/* Vi only command. */
 	if (!F_ISSET(sp, SC_VI)) {
@@ -87,8 +84,7 @@ ex_script(sp, cmdp)
  *	Create a pty setup for a shell.
  */
 static int
-sscr_init(sp)
-	SCR *sp;
+sscr_init(SCR *sp)
 {
 	SCRIPT *sc;
 	char *sh, *sh_path;
@@ -119,24 +115,16 @@ sscr_init(sp)
 	sc->sh_term.c_oflag &= ~OPOST;
 	sc->sh_term.c_cflag &= ~(ECHO|ECHOE|ECHONL|ECHOK);
 
-#ifdef TIOCGWINSZ
 	if (ioctl(STDIN_FILENO, TIOCGWINSZ, &sc->sh_win) == -1) {
 		msgq(sp, M_SYSERR, "tcgetattr");
 		goto err;
 	}
 
-	if (sscr_pty(&sc->sh_master,
+	if (openpty(&sc->sh_master,
 	    &sc->sh_slave, sc->sh_name, &sc->sh_term, &sc->sh_win) == -1) {
-		msgq(sp, M_SYSERR, "pty");
+		msgq(sp, M_SYSERR, "openpty");
 		goto err;
 	}
-#else
-	if (sscr_pty(&sc->sh_master,
-	    &sc->sh_slave, sc->sh_name, &sc->sh_term, NULL) == -1) {
-		msgq(sp, M_SYSERR, "pty");
-		goto err;
-	}
-#endif
 
 	/*
 	 * __TK__ huh?
@@ -203,17 +191,20 @@ err:		if (sc->sh_master != -1)
  *	carriage return comes; set the prompt from that line.
  */
 static int
-sscr_getprompt(sp)
-	SCR *sp;
+sscr_getprompt(SCR *sp)
 {
+	EX_PRIVATE *exp;
 	struct timeval tv;
-	CHAR_T *endp, *p, *t, buf[1024];
+	char *endp, *p, *t, buf[1024];
 	SCRIPT *sc;
 	fd_set fdset;
 	recno_t lline;
 	size_t llen, len;
-	u_int value;
 	int nr;
+	CHAR_T *wp;
+	size_t wlen;
+
+	exp = EXP(sp);
 
 	FD_ZERO(&fdset);
 	endp = buf;
@@ -251,10 +242,11 @@ more:	len = sizeof(buf) - (endp - buf);
 
 	/* If any complete lines, push them into the file. */
 	for (p = t = buf; p < endp; ++p) {
-		value = KEY_VAL(sp, *p);
-		if (value == K_CR || value == K_NL) {
+		if (*p == '\r' || *p == '\n') {
+			if (CHAR2INT5(sp, exp->ibcw, t, p - t, wp, wlen))
+				goto conv_err;
 			if (db_last(sp, &lline) ||
-			    db_append(sp, 0, lline, t, p - t))
+			    db_append(sp, 0, lline, wp, wlen))
 				goto prompterr;
 			t = p + 1;
 		}
@@ -284,7 +276,11 @@ more:	len = sizeof(buf) - (endp - buf);
 	endp = buf;
 
 	/* Append the line into the file. */
-	if (db_last(sp, &lline) || db_append(sp, 0, lline, buf, llen)) {
+	if (CHAR2INT5(sp, exp->ibcw, buf, llen, wp, wlen))
+		goto conv_err;
+	if (db_last(sp, &lline) || db_append(sp, 0, lline, wp, wlen)) {
+		if (0)
+conv_err:		msgq(sp, M_ERR, "323|Invalid input. Truncated.");
 prompterr:	sscr_end(sp);
 		return (1);
 	}
@@ -299,38 +295,40 @@ prompterr:	sscr_end(sp);
  * PUBLIC: int sscr_exec __P((SCR *, recno_t));
  */
 int
-sscr_exec(sp, lno)
-	SCR *sp;
-	recno_t lno;
+sscr_exec(SCR *sp, recno_t lno)
 {
 	SCRIPT *sc;
 	recno_t last_lno;
 	size_t blen, len, last_len, tlen;
 	int isempty, matchprompt, nw, rval;
-	char *bp, *p;
+	char *bp = NULL, *p;
+	CHAR_T *wp;
+	size_t wlen;
 
 	/* If there's a prompt on the last line, append the command. */
 	if (db_last(sp, &last_lno))
 		return (1);
-	if (db_get(sp, last_lno, DBG_FATAL, &p, &last_len))
+	if (db_get(sp, last_lno, DBG_FATAL, &wp, &wlen))
 		return (1);
+	INT2CHAR(sp, wp, wlen, p, last_len);
 	if (sscr_matchprompt(sp, p, last_len, &tlen) && tlen == 0) {
 		matchprompt = 1;
-		GET_SPACE_RET(sp, bp, blen, last_len + 128);
+		GET_SPACE_RETC(sp, bp, blen, last_len + 128);
 		memmove(bp, p, last_len);
 	} else
 		matchprompt = 0;
 
 	/* Get something to execute. */
-	if (db_eget(sp, lno, &p, &len, &isempty)) {
+	if (db_eget(sp, lno, &wp, &wlen, &isempty)) {
 		if (isempty)
 			goto empty;
 		goto err1;
 	}
 
 	/* Empty lines aren't interesting. */
-	if (len == 0)
+	if (wlen == 0)
 		goto empty;
+	INT2CHAR(sp, wp, wlen, p, len);
 
 	/* Delete any prompt. */
 	if (sscr_matchprompt(sp, p, len, &tlen)) {
@@ -355,9 +353,10 @@ err2:		if (nw == 0)
 	}
 
 	if (matchprompt) {
-		ADD_SPACE_RET(sp, bp, blen, last_len + len);
+		ADD_SPACE_RETC(sp, bp, blen, last_len + len);
 		memmove(bp + last_len, p, len);
-		if (db_set(sp, last_lno, bp, last_len + len))
+		CHAR2INT(sp, bp, last_len + len, wp, wlen);
+		if (db_set(sp, last_lno, wp, wlen))
 err1:			rval = 1;
 	}
 	if (matchprompt)
@@ -372,8 +371,7 @@ err1:			rval = 1;
  * PUBLIC: int sscr_input __P((SCR *));
  */
 int
-sscr_input(sp)
-	SCR *sp;
+sscr_input(SCR *sp)
 {
 	GS *gp;
 	struct timeval poll;
@@ -388,7 +386,7 @@ loop:	maxfd = 0;
 	poll.tv_usec = 0;
 
 	/* Set up the input mask. */
-	for (sp = gp->dq.cqh_first; sp != (void *)&gp->dq; sp = sp->q.cqe_next)
+	TAILQ_FOREACH(sp, gp->dq, q)
 		if (F_ISSET(sp, SC_SCRIPT)) {
 			FD_SET(sp->script->sh_master, &rdfd);
 			if (sp->script->sh_master > maxfd)
@@ -407,9 +405,10 @@ loop:	maxfd = 0;
 	}
 
 	/* Read the input. */
-	for (sp = gp->dq.cqh_first; sp != (void *)&gp->dq; sp = sp->q.cqe_next)
+	TAILQ_FOREACH(sp, gp->dq, q)
 		if (F_ISSET(sp, SC_SCRIPT) &&
-		    FD_ISSET(sp->script->sh_master, &rdfd) && sscr_insert(sp))
+		    FD_ISSET(sp->script->sh_master, &rdfd) &&
+		    sscr_insert(sp))
 			return (1);
 	goto loop;
 }
@@ -419,25 +418,29 @@ loop:	maxfd = 0;
  *	Take a line from the shell and insert it into the file.
  */
 static int
-sscr_insert(sp)
-	SCR *sp;
+sscr_insert(SCR *sp)
 {
+	EX_PRIVATE *exp;
 	struct timeval tv;
-	CHAR_T *endp, *p, *t;
+	char *endp, *p, *t;
 	SCRIPT *sc;
 	fd_set rdfd;
 	recno_t lno;
 	size_t blen, len, tlen;
-	u_int value;
 	int nr, rval;
 	char *bp;
+	CHAR_T *wp;
+	size_t wlen = 0;
+
+	exp = EXP(sp);
+
 
 	/* Find out where the end of the file is. */
 	if (db_last(sp, &lno))
 		return (1);
 
 #define	MINREAD	1024
-	GET_SPACE_RET(sp, bp, blen, MINREAD);
+	GET_SPACE_RETC(sp, bp, blen, MINREAD);
 	endp = bp;
 
 	/* Read the characters. */
@@ -458,10 +461,11 @@ more:	switch (nr = read(sc->sh_master, endp, MINREAD)) {
 
 	/* Append the lines into the file. */
 	for (p = t = bp; p < endp; ++p) {
-		value = KEY_VAL(sp, *p);
-		if (value == K_CR || value == K_NL) {
+		if (*p == '\r' || *p == '\n') {
 			len = p - t;
-			if (db_append(sp, 1, lno++, t, len))
+			if (CHAR2INT5(sp, exp->ibcw, t, len, wp, wlen))
+				goto conv_err;
+			if (db_append(sp, 1, lno++, wp, wlen))
 				goto ret;
 			t = p + 1;
 		}
@@ -489,14 +493,19 @@ more:	switch (nr = read(sc->sh_master, endp, MINREAD)) {
 		}
 		if (sscr_setprompt(sp, t, len))
 			return (1);
-		if (db_append(sp, 1, lno++, t, len))
+		if (CHAR2INT5(sp, exp->ibcw, t, len, wp, wlen))
+			goto conv_err;
+		if (db_append(sp, 1, lno++, wp, wlen))
 			goto ret;
 	}
 
 	/* The cursor moves to EOF. */
 	sp->lno = lno;
-	sp->cno = len ? len - 1 : 0;
+	sp->cno = wlen ? wlen - 1 : 0;
 	rval = vs_refresh(sp, 1);
+
+	if (0)
+conv_err:	msgq(sp, M_ERR, "323|Invalid input. Truncated.");
 
 ret:	FREE_SPACE(sp, bp, blen);
 	return (rval);
@@ -509,10 +518,7 @@ ret:	FREE_SPACE(sp, bp, blen);
  *
  */
 static int
-sscr_setprompt(sp, buf, len)
-	SCR *sp;
-	char *buf;
-	size_t len;
+sscr_setprompt(SCR *sp, char *buf, size_t len)
 {
 	SCRIPT *sc;
 
@@ -536,10 +542,7 @@ sscr_setprompt(sp, buf, len)
  *	parts that can change, in both content and size.
  */
 static int
-sscr_matchprompt(sp, lp, line_len, lenp)
-	SCR *sp;
-	char *lp;
-	size_t line_len, *lenp;
+sscr_matchprompt(SCR *sp, char *lp, size_t line_len, size_t *lenp)
 {
 	SCRIPT *sc;
 	size_t prompt_len;
@@ -577,8 +580,7 @@ sscr_matchprompt(sp, lp, line_len, lenp)
  * PUBLIC: int sscr_end __P((SCR *));
  */
 int
-sscr_end(sp)
-	SCR *sp;
+sscr_end(SCR *sp)
 {
 	SCRIPT *sc;
 
@@ -611,188 +613,15 @@ sscr_end(sp)
  *	Set/clear the global scripting bit.
  */
 static void
-sscr_check(sp)
-	SCR *sp;
+sscr_check(SCR *sp)
 {
 	GS *gp;
 
 	gp = sp->gp;
-	for (sp = gp->dq.cqh_first; sp != (void *)&gp->dq; sp = sp->q.cqe_next)
+	TAILQ_FOREACH(sp, gp->dq, q)
 		if (F_ISSET(sp, SC_SCRIPT)) {
 			F_SET(gp, G_SCRWIN);
 			return;
 		}
 	F_CLR(gp, G_SCRWIN);
 }
-
-#ifdef HAVE_SYS5_PTY
-static int ptys_open __P((int, char *));
-static int ptym_open __P((char *));
-
-static int
-sscr_pty(amaster, aslave, name, termp, winp)
-	int *amaster, *aslave;
-	char *name;
-	struct termios *termp;
-	void *winp;
-{
-	int master, slave, ttygid;
-
-	/* open master terminal */
-	if ((master = ptym_open(name)) < 0)  {
-		errno = ENOENT;	/* out of ptys */
-		return (-1);
-	}
-
-	/* open slave terminal */
-	if ((slave = ptys_open(master, name)) >= 0) {
-		*amaster = master;
-		*aslave = slave;
-	} else {
-		errno = ENOENT;	/* out of ptys */
-		return (-1);
-	}
-
-	if (termp)
-		(void) tcsetattr(slave, TCSAFLUSH, termp);
-#ifdef TIOCSWINSZ
-	if (winp != NULL)
-		(void) ioctl(slave, TIOCSWINSZ, (struct winsize *)winp);
-#endif
-	return (0);
-}
-
-/*
- * ptym_open --
- *	This function opens a master pty and returns the file descriptor
- *	to it.  pts_name is also returned which is the name of the slave.
- */
-static int
-ptym_open(pts_name)
-	char *pts_name;
-{
-	int fdm;
-	char *ptr, *ptsname();
-
-	strcpy(pts_name, _PATH_SYSV_PTY);
-	if ((fdm = open(pts_name, O_RDWR)) < 0 )
-		return (-1);
-
-	if (grantpt(fdm) < 0) {
-		close(fdm);
-		return (-2);
-	}
-
-	if (unlockpt(fdm) < 0) {
-		close(fdm);
-		return (-3);
-	}
-
-	if (unlockpt(fdm) < 0) {
-		close(fdm);
-		return (-3);
-	}
-
-	/* get slave's name */
-	if ((ptr = ptsname(fdm)) == NULL) {
-		close(fdm);
-		return (-3);
-	}
-	strcpy(pts_name, ptr);
-	return (fdm);
-}
-
-/*
- * ptys_open --
- *	This function opens the slave pty.
- */
-static int
-ptys_open(fdm, pts_name)
-	int fdm;
-	char *pts_name;
-{
-	int fds;
-
-	if ((fds = open(pts_name, O_RDWR)) < 0) {
-		close(fdm);
-		return (-5);
-	}
-
-	if (ioctl(fds, I_PUSH, "ptem") < 0) {
-		close(fds);
-		close(fdm);
-		return (-6);
-	}
-
-	if (ioctl(fds, I_PUSH, "ldterm") < 0) {
-		close(fds);
-		close(fdm);
-		return (-7);
-	}
-
-	if (ioctl(fds, I_PUSH, "ttcompat") < 0) {
-		close(fds);
-		close(fdm);
-		return (-8);
-	}
-
-	return (fds);
-}
-
-#else /* !HAVE_SYS5_PTY */
-
-static int
-sscr_pty(amaster, aslave, name, termp, winp)
-	int *amaster, *aslave;
-	char *name;
-	struct termios *termp;
-	void *winp;
-{
-	static char line[] = "/dev/ptyXX";
-	register char *cp1, *cp2;
-	register int master, slave, ttygid;
-	struct group *gr;
-
-	if ((gr = getgrnam("tty")) != NULL)
-		ttygid = gr->gr_gid;
-	else
-		ttygid = -1;
-
-	for (cp1 = "pqrs"; *cp1; cp1++) {
-		line[8] = *cp1;
-		for (cp2 = "0123456789abcdef"; *cp2; cp2++) {
-			line[5] = 'p';
-			line[9] = *cp2;
-			if ((master = open(line, O_RDWR, 0)) == -1) {
-				if (errno == ENOENT)
-					return (-1);	/* out of ptys */
-			} else {
-				line[5] = 't';
-				(void) chown(line, getuid(), ttygid);
-				(void) chmod(line, S_IRUSR|S_IWUSR|S_IWGRP);
-#ifdef HAVE_REVOKE
-				(void) revoke(line);
-#endif
-				if ((slave = open(line, O_RDWR, 0)) != -1) {
-					*amaster = master;
-					*aslave = slave;
-					if (name)
-						strcpy(name, line);
-					if (termp)
-						(void) tcsetattr(slave, 
-							TCSAFLUSH, termp);
-#ifdef TIOCSWINSZ
-					if (winp)
-						(void) ioctl(slave, TIOCSWINSZ, 
-							(char *)winp);
-#endif
-					return (0);
-				}
-				(void) close(master);
-			}
-		}
-	}
-	errno = ENOENT;	/* out of ptys */
-	return (-1);
-}
-#endif /* HAVE_SYS5_PTY */

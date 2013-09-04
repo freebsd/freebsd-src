@@ -516,7 +516,13 @@ ffs_reallocblks_ufs1(ap)
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	ump = ip->i_ump;
-	if (fs->fs_contigsumsize <= 0)
+	/*
+	 * If we are not tracking block clusters or if we have less than 2%
+	 * free blocks left, then do not attempt to cluster. Running with
+	 * less than 5% free block reserve is not recommended and those that
+	 * choose to do so do not expect to have good file layout.
+	 */
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 2) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
@@ -737,7 +743,13 @@ ffs_reallocblks_ufs2(ap)
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	ump = ip->i_ump;
-	if (fs->fs_contigsumsize <= 0)
+	/*
+	 * If we are not tracking block clusters or if we have less than 2%
+	 * free blocks left, then do not attempt to cluster. Running with
+	 * less than 5% free block reserve is not recommended and those that
+	 * choose to do so do not expect to have good file layout.
+	 */
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 2) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
@@ -1174,7 +1186,7 @@ ffs_dirpref(pip)
 			if (fs->fs_contigdirs[cg] < maxcontigdirs)
 				return ((ino_t)(fs->fs_ipg * cg));
 		}
-	for (cg = prefcg - 1; cg >= 0; cg--)
+	for (cg = 0; cg < prefcg; cg++)
 		if (fs->fs_cs(fs, cg).cs_ndir < maxndir &&
 		    fs->fs_cs(fs, cg).cs_nifree >= minifree &&
 	    	    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
@@ -1187,7 +1199,7 @@ ffs_dirpref(pip)
 	for (cg = prefcg; cg < fs->fs_ncg; cg++)
 		if (fs->fs_cs(fs, cg).cs_nifree >= avgifree)
 			return ((ino_t)(fs->fs_ipg * cg));
-	for (cg = prefcg - 1; cg >= 0; cg--)
+	for (cg = 0; cg < prefcg; cg++)
 		if (fs->fs_cs(fs, cg).cs_nifree >= avgifree)
 			break;
 	return ((ino_t)(fs->fs_ipg * cg));

@@ -12,8 +12,8 @@ CFLAGS+=	-I${.CURDIR}/../../cddl/compat/opensolaris		\
 		-I${.CURDIR}/../..					\
 		-I${.CURDIR}/../../cddl/dev/cyclic/i386
 
-CFLAGS+=	-DDEBUG=1
-
 IGNORE_PRAGMA=	1
 
 .include <bsd.kmod.mk>
+
+CFLAGS+=	-include ${.CURDIR}/../../cddl/compat/opensolaris/sys/debug_compat.h

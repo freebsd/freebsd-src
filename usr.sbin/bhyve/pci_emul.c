@@ -245,8 +245,12 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 	int tab_index;
 	uint64_t retval = ~0;
 
-	/* support only 4 or 8 byte reads */
-	if (size != 4 && size != 8)
+	/*
+	 * The PCI standard only allows 4 and 8 byte accesses to the MSI-X
+	 * table but we also allow 1 byte access to accomodate reads from
+	 * ddb.
+	 */
+	if (size != 1 && size != 4 && size != 8)
 		return (retval);
 
 	msix_entry_offset = offset % MSIX_TABLE_ENTRY_SIZE;
@@ -263,7 +267,9 @@ pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size)
 		dest = (char *)(pi->pi_msix.table + tab_index);
 		dest += msix_entry_offset;
 
-		if (size == 4)
+		if (size == 1)
+			retval = *((uint8_t *)dest);
+		else if (size == 4)
 			retval = *((uint32_t *)dest);
 		else
 			retval = *((uint64_t *)dest);
@@ -1008,6 +1014,16 @@ init_pci(struct vmctx *ctx)
 	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
+	/*
+	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
+	 * generic use
+	 */
+	lirq[5].li_generic = 1;
+	lirq[10].li_generic = 1;
+	lirq[11].li_generic = 1;
+	lirq[12].li_generic = 1;
+	lirq[15].li_generic = 1;
+
 	for (slot = 0; slot < MAXSLOTS; slot++) {
 		for (func = 0; func < MAXFUNCS; func++) {
 			si = &pci_slotinfo[slot][func];
@@ -1021,16 +1037,6 @@ init_pci(struct vmctx *ctx)
 			}
 		}
 	}
-
-	/*
-	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
-	 * generic use
-	 */
-	lirq[5].li_generic = 1;
-	lirq[10].li_generic = 1;
-	lirq[11].li_generic = 1;
-	lirq[12].li_generic = 1;
-	lirq[15].li_generic = 1;
 
 	/*
 	 * The guest physical memory map looks like the following:
