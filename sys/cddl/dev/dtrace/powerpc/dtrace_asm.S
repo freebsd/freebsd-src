@@ -50,6 +50,7 @@
 void dtrace_membar_producer(void)
 */
 ASENTRY_NOPROF(dtrace_membar_producer)
+	sync
 	blr
 END(dtrace_membar_producer)
 
@@ -57,6 +58,7 @@ END(dtrace_membar_producer)
 void dtrace_membar_consumer(void)
 */
 ASENTRY_NOPROF(dtrace_membar_consumer)
+	isync
 	blr
 END(dtrace_membar_consumer)
 
@@ -97,12 +99,21 @@ void *
 dtrace_casptr(void *target, void *cmp, void *new)
 */
 ASENTRY_NOPROF(dtrace_casptr)
+#ifdef __powerpc64__
+1:
+	ldarx	%r0,0,%r3
+	cmpd	%r4,%r0
+	bne	2f
+	stdcx.	%r5,0,%r3
+	bne	1b
+#else
 1:
 	lwarx	%r0,0,%r3
 	cmpw	%r4,%r0
 	bne	2f
 	stwcx.	%r5,0,%r3
 	bne	1b
+#endif
 2:	mr	%r3,%r0
 	blr
 END(dtrace_casptr)
@@ -114,13 +125,13 @@ void
 dtrace_copy(uintptr_t src, uintptr_t dest, size_t size)
 */
 ASENTRY_NOPROF(dtrace_copy)
-	addme	%r7,%r3
-	addme	%r8,%r4
+	subi	%r7,%r3,1
+	subi	%r8,%r4,1
+	mtctr	%r5
 1:
 	lbzu	%r3,1(%r7)
 	stbu	%r3,1(%r8)
-	addme	%r5,%r5
-	beq	2f
+	bdnz	1b
 2:
 	blr
 END(dtrace_copy)

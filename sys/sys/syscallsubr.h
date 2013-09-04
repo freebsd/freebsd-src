@@ -71,6 +71,8 @@ int	kern_adjtime(struct thread *td, struct timeval *delta,
 int	kern_alternate_path(struct thread *td, const char *prefix, const char *path,
 	    enum uio_seg pathseg, char **pathbuf, int create, int dirfd);
 int	kern_bind(struct thread *td, int fd, struct sockaddr *sa);
+int	kern_cap_ioctls_limit(struct thread *td, int fd, u_long *cmds,
+	    size_t ncmds);
 int	kern_chdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_chmod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode);

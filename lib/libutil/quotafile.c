@@ -137,7 +137,7 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 		goto error;
 	}
 	qf->accmode = openflags & O_ACCMODE;
-	if ((qf->fd = open(qf->qfname, qf->accmode)) < 0 &&
+	if ((qf->fd = open(qf->qfname, qf->accmode|O_CLOEXEC)) < 0 &&
 	    (openflags & O_CREAT) != O_CREAT)
 		goto error;
 	/* File open worked, so process it */
@@ -168,7 +168,8 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 		/* not reached */
 	}
 	/* open failed, but O_CREAT was specified, so create a new file */
-	if ((qf->fd = open(qf->qfname, O_RDWR|O_CREAT|O_TRUNC, 0)) < 0)
+	if ((qf->fd = open(qf->qfname, O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC, 0)) <
+	    0)
 		goto error;
 	qf->wordsize = 64;
 	memset(&dqh, 0, sizeof(dqh));
@@ -534,7 +535,8 @@ quota_convert(struct quotafile *qf, int wordsize)
 		free(newqf);
 		return (-1);
 	}
-	if ((newqf->fd = open(qf->qfname, O_RDWR|O_CREAT|O_TRUNC, 0)) < 0) {
+	if ((newqf->fd = open(qf->qfname, O_RDWR|O_CREAT|O_TRUNC|O_CLOEXEC,
+	    0)) < 0) {
 		serrno = errno;
 		goto error;
 	}

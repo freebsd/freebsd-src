@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/capability.h>
 #include <sys/clock.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
@@ -101,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_ipc.h>
+#include <compat/freebsd32/freebsd32_misc.h>
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
@@ -126,16 +128,6 @@ CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
-
-#if BYTE_ORDER == BIG_ENDIAN
-#define PAIR32TO64(type, name) ((name ## 2) | ((type)(name ## 1) << 32))
-#define RETVAL_HI 0	
-#define RETVAL_LO 1	
-#else
-#define PAIR32TO64(type, name) ((name ## 1) | ((type)(name ## 2) << 32))
-#define RETVAL_HI 1	
-#define RETVAL_LO 0	
-#endif
 
 void
 freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32)
@@ -1653,22 +1645,19 @@ static int
 freebsd32_do_sendfile(struct thread *td,
     struct freebsd32_sendfile_args *uap, int compat)
 {
-	struct sendfile_args ap;
 	struct sf_hdtr32 hdtr32;
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
 	struct iovec32 *iov32;
+	struct file *fp;
+	off_t offset;
 	int error;
 
-	hdr_uio = trl_uio = NULL;
+	offset = PAIR32TO64(off_t, uap->offset);
+	if (offset < 0)
+		return (EINVAL);
 
-	ap.fd = uap->fd;
-	ap.s = uap->s;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	ap.nbytes = uap->nbytes;
-	ap.hdtr = (struct sf_hdtr *)uap->hdtr;		/* XXX not used */
-	ap.sbytes = uap->sbytes;
-	ap.flags = uap->flags;
+	hdr_uio = trl_uio = NULL;
 
 	if (uap->hdtr != NULL) {
 		error = copyin(uap->hdtr, &hdtr32, sizeof(hdtr32));
@@ -1695,7 +1684,15 @@ freebsd32_do_sendfile(struct thread *td,
 		}
 	}
 
-	error = kern_sendfile(td, &ap, hdr_uio, trl_uio, compat);
+	AUDIT_ARG_FD(uap->fd);
+
+	if ((error = fget_read(td, uap->fd, CAP_PREAD, &fp)) != 0)
+		goto out;
+
+	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
+	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	fdrop(fp, td);
+
 out:
 	if (hdr_uio)
 		free(hdr_uio, M_IOV);

@@ -162,7 +162,7 @@ exec 3>&-
 _UNAME_R=`uname -r`
 
 case ${_UNAME_R} in
-	*-CURRENT|*-STABLE|*-BETA*|*-PRERELEASE|*-RC*)
+	*-CURRENT|*-STABLE|*-PRERELEASE)
 		RELDIR="snapshots"
 		;;
 	*)

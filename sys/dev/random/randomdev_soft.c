@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
+#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
 
@@ -63,7 +65,7 @@ static int random_yarrow_poll(int event,struct thread *td);
 static int random_yarrow_block(int flag);
 static void random_yarrow_flush_reseed(void);
 
-struct random_systat random_yarrow = {
+struct random_adaptor random_yarrow = {
 	.ident = "Software, Yarrow",
 	.init = random_yarrow_init,
 	.deinit = random_yarrow_deinit,
@@ -103,7 +105,7 @@ static int random_kthread_control = 0;
 static struct proc *random_kthread_proc;
 
 /* List for the dynamic sysctls */
-struct sysctl_ctx_list random_clist;
+static struct sysctl_ctx_list random_clist;
 
 /* ARGSUSED */
 static int
@@ -120,25 +122,20 @@ random_yarrow_init(void)
 {
 	int error, i;
 	struct harvest *np;
-	struct sysctl_oid *random_o, *random_sys_o, *random_sys_harvest_o;
+	struct sysctl_oid *random_sys_o, *random_sys_harvest_o;
 	enum esource e;
 
-	random_o = SYSCTL_ADD_NODE(&random_clist,
-	    SYSCTL_STATIC_CHILDREN(_kern),
-	    OID_AUTO, "random", CTLFLAG_RW, 0,
-	    "Software Random Number Generator");
-
-	random_yarrow_init_alg(&random_clist, random_o);
+	random_yarrow_init_alg(&random_clist);
 
 	random_sys_o = SYSCTL_ADD_NODE(&random_clist,
-	    SYSCTL_CHILDREN(random_o),
+	    SYSCTL_STATIC_CHILDREN(_kern_random),
 	    OID_AUTO, "sys", CTLFLAG_RW, 0,
 	    "Entropy Device Parameters");
 
 	SYSCTL_ADD_PROC(&random_clist,
 	    SYSCTL_CHILDREN(random_sys_o),
 	    OID_AUTO, "seeded", CTLTYPE_INT | CTLFLAG_RW,
-	    &random_systat->seeded, 1, random_check_boolean, "I",
+	    &random_yarrow.seeded, 1, random_check_boolean, "I",
 	    "Seeded State");
 
 	random_sys_harvest_o = SYSCTL_ADD_NODE(&random_clist,
@@ -362,10 +359,10 @@ random_yarrow_write(void *buf, int count)
 void
 random_yarrow_unblock(void)
 {
-	if (!random_systat->seeded) {
-		random_systat->seeded = 1;
-		selwakeuppri(&random_systat->rsel, PUSER);
-		wakeup(random_systat);
+	if (!random_yarrow.seeded) {
+		random_yarrow.seeded = 1;
+		selwakeuppri(&random_yarrow.rsel, PUSER);
+		wakeup(&random_yarrow);
 	}
 	(void)atomic_cmpset_int(&arc4rand_iniseed_state, ARC4_ENTR_NONE,
 	    ARC4_ENTR_HAVE);
@@ -377,10 +374,10 @@ random_yarrow_poll(int events, struct thread *td)
 	int revents = 0;
 	mtx_lock(&random_reseed_mtx);
 
-	if (random_systat->seeded)
+	if (random_yarrow.seeded)
 		revents = events & (POLLIN | POLLRDNORM);
 	else
-		selrecord(td, &random_systat->rsel);
+		selrecord(td, &random_yarrow.rsel);
 
 	mtx_unlock(&random_reseed_mtx);
 	return revents;
@@ -394,12 +391,12 @@ random_yarrow_block(int flag)
 	mtx_lock(&random_reseed_mtx);
 
 	/* Blocking logic */
-	while (!random_systat->seeded && !error) {
+	while (!random_yarrow.seeded && !error) {
 		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {
 			printf("Entropy device is blocking.\n");
-			error = msleep(random_systat,
+			error = msleep(&random_yarrow,
 			    &random_reseed_mtx,
 			    PUSER | PCATCH, "block", 0);
 		}
@@ -420,3 +417,31 @@ random_yarrow_flush_reseed(void)
 
 	random_yarrow_reseed();
 }
+
+static int
+yarrow_modevent(module_t mod, int type, void *unused)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		random_adaptor_register("yarrow", &random_yarrow);
+		/*
+		 * For statically built kernels that contain both device
+		 * random and options PADLOCK_RNG/RDRAND_RNG/etc..,
+		 * this event handler will do nothing, since the random
+		 * driver-specific handlers are loaded after these HW
+		 * consumers, and hence hasn't yet registered for this event.
+		 *
+		 * In case where both the random driver and RNG's are built
+		 * as seperate modules, random.ko is loaded prior to *_rng.ko's
+		 * (by dependency). This event handler is there to delay
+		 * creation of /dev/{u,}random and attachment of this *_rng.ko.
+		 */
+		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_yarrow);
+		return (0);
+	}
+
+	return (EINVAL);
+}
+
+RANDOM_ADAPTOR_MODULE(yarrow, yarrow_modevent, 1);

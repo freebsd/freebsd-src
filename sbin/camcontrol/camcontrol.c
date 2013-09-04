@@ -4488,13 +4488,13 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 		    &cts->xport_specific.fc;
 
 		if (fc->valid & CTS_FC_VALID_WWNN)
-			fprintf(stdout, "%sWWNN: 0x%llx", pathstr,
+			fprintf(stdout, "%sWWNN: 0x%llx\n", pathstr,
 			    (long long) fc->wwnn);
 		if (fc->valid & CTS_FC_VALID_WWPN)
-			fprintf(stdout, "%sWWPN: 0x%llx", pathstr,
+			fprintf(stdout, "%sWWPN: 0x%llx\n", pathstr,
 			    (long long) fc->wwpn);
 		if (fc->valid & CTS_FC_VALID_PORT)
-			fprintf(stdout, "%sPortID: 0x%x", pathstr, fc->port);
+			fprintf(stdout, "%sPortID: 0x%x\n", pathstr, fc->port);
 		if (fc->valid & CTS_FC_VALID_SPEED)
 			fprintf(stdout, "%stransfer speed: %d.%03dMB/s\n",
 			    pathstr, fc->bitrate / 1000, fc->bitrate % 1000);

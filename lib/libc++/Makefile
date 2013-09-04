@@ -9,6 +9,7 @@ CXXINCLUDEDIR=	${INCLUDEDIR}/c++/v${SHLIB_MAJOR}
 
 LIB=		c++
 SHLIB_MAJOR=	1
+SHLIB_LDSCRIPT=	libc++.ldscript
 
 SRCS+=		algorithm.cpp\
 		bind.cpp\
@@ -164,6 +165,7 @@ RT_HEADERS=	cxxabi.h\
 
 .for hdr in ${STD_HEADERS}
 STD+=		${HDRDIR}/${hdr}
+INCSLINKS+=	${CXXINCLUDEDIR}/${hdr} ${CXXINCLUDEDIR}/tr1/${hdr}
 .endfor
 .for hdr in ${RT_HEADERS}
 STD+=		${LIBCXXRTDIR}/${hdr}

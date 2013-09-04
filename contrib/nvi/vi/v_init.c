@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_init.c	10.8 (Berkeley) 3/30/96";
+static const char sccsid[] = "$Id: v_init.c,v 10.10 2012/02/11 00:33:46 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -34,8 +34,7 @@ static const char sccsid[] = "@(#)v_init.c	10.8 (Berkeley) 3/30/96";
  * PUBLIC: int v_screen_copy __P((SCR *, SCR *));
  */
 int
-v_screen_copy(orig, sp)
-	SCR *orig, *sp;
+v_screen_copy(SCR *orig, SCR *sp)
 {
 	VI_PRIVATE *ovip, *nvip;
 
@@ -58,6 +57,11 @@ v_screen_copy(orig, sp)
 			nvip->rep_len = ovip->rep_len;
 		}
 
+		/* Copy the match characters information. */
+		if (ovip->mcs != NULL && (nvip->mcs =
+		    v_wstrdup(sp, ovip->mcs, STRLEN(ovip->mcs))) == NULL)
+			return (1);
+
 		/* Copy the paragraph/section information. */
 		if (ovip->ps != NULL && (nvip->ps =
 		    v_strdup(sp, ovip->ps, strlen(ovip->ps))) == NULL)
@@ -78,8 +82,7 @@ v_screen_copy(orig, sp)
  * PUBLIC: int v_screen_end __P((SCR *));
  */
 int
-v_screen_end(sp)
-	SCR *sp;
+v_screen_end(SCR *sp)
 {
 	VI_PRIVATE *vip;
 
@@ -89,6 +92,8 @@ v_screen_end(sp)
 		free(vip->keyw);
 	if (vip->rep != NULL)
 		free(vip->rep);
+	if (vip->mcs != NULL)
+		free(vip->mcs);
 	if (vip->ps != NULL)
 		free(vip->ps);
 
@@ -108,13 +113,11 @@ v_screen_end(sp)
  * PUBLIC: int v_optchange __P((SCR *, int, char *, u_long *));
  */
 int
-v_optchange(sp, offset, str, valp)
-	SCR *sp;
-	int offset;
-	char *str;
-	u_long *valp;
+v_optchange(SCR *sp, int offset, char *str, u_long *valp)
 {
 	switch (offset) {
+	case O_MATCHCHARS:
+		return (v_buildmcs(sp, str));
 	case O_PARAGRAPHS:
 		return (v_buildps(sp, str, O_STR(sp, O_SECTIONS)));
 	case O_SECTIONS:

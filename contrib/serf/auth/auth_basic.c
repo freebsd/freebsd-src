@@ -23,6 +23,8 @@
 #include <apr_base64.h>
 #include <apr_strings.h>
 
+/* Stores the context information related to Basic authentication.
+   This information is stored in the per server cache in the serf context. */
 typedef struct basic_authn_info_t {
     const char *header;
     const char *value;
@@ -41,12 +43,12 @@ serf__handle_basic_auth(int code,
     apr_size_t tmp_len;
     serf_connection_t *conn = request->conn;
     serf_context_t *ctx = conn->ctx;
-    serf__authn_info_t *authn_info = (code == 401) ? &ctx->authn_info :
-        &ctx->proxy_authn_info;
-    basic_authn_info_t *basic_info = authn_info->baton;
+    serf__authn_info_t *authn_info;
+    basic_authn_info_t *basic_info;
     apr_status_t status;
     apr_pool_t *cred_pool;
-    char *username, *password;
+    char *username, *password, *realm_name;
+    const char *eq, *realm;
 
     /* Can't do Basic authentication if there's no callback to get
        username & password. */
@@ -54,20 +56,25 @@ serf__handle_basic_auth(int code,
         return SERF_ERROR_AUTHN_FAILED;
     }
 
-    if (!authn_info->realm) {
-        char *realm_name = NULL;
-        const char *eq = strchr(auth_attr, '=');
+    if (code == 401) {
+        authn_info = serf__get_authn_info_for_server(conn);
+    } else {
+        authn_info = &ctx->proxy_authn_info;
+    }
+    basic_info = authn_info->baton;
 
-        if (eq && strncasecmp(auth_attr, "realm", 5) == 0) {
-            realm_name = apr_pstrdup(pool, eq + 1);
-            if (realm_name[0] == '\"') {
-                apr_size_t realm_len;
+    realm_name = NULL;
+    eq = strchr(auth_attr, '=');
 
-                realm_len = strlen(realm_name);
-                if (realm_name[realm_len - 1] == '\"') {
-                    realm_name[realm_len - 1] = '\0';
-                    realm_name++;
-                }
+    if (eq && strncasecmp(auth_attr, "realm", 5) == 0) {
+        realm_name = apr_pstrdup(pool, eq + 1);
+        if (realm_name[0] == '\"') {
+            apr_size_t realm_len;
+
+            realm_len = strlen(realm_name);
+            if (realm_name[realm_len - 1] == '\"') {
+                realm_name[realm_len - 1] = '\0';
+                realm_name++;
             }
         }
 
@@ -75,18 +82,18 @@ serf__handle_basic_auth(int code,
             return SERF_ERROR_AUTHN_MISSING_ATTRIBUTE;
         }
 
-        authn_info->realm = apr_psprintf(conn->pool, "<%s://%s:%d> %s",
-                                         conn->host_info.scheme,
-                                         conn->host_info.hostname,
-                                         conn->host_info.port,
-                                         realm_name);
+        realm = serf__construct_realm(code == 401 ? HOST : PROXY,
+                                      conn, realm_name,
+                                      pool);
     }
 
     /* Ask the application for credentials */
     apr_pool_create(&cred_pool, pool);
-    status = (*ctx->cred_cb)(&username, &password, request, baton,
-                             code, authn_info->scheme->name,
-                             authn_info->realm, cred_pool);
+    status = serf__provide_credentials(ctx,
+                                       &username, &password,
+                                       request, baton,
+                                       code, authn_info->scheme->name,
+                                       realm, cred_pool);
     if (status) {
         apr_pool_destroy(cred_pool);
         return status;
@@ -104,28 +111,39 @@ serf__handle_basic_auth(int code,
     return APR_SUCCESS;
 }
 
-/* For Basic authentication we expect all authn info to be the same for all
-   connections in the context (same realm, username, password). Therefore we
-   can keep the header value in the context instead of per connection. */
 apr_status_t
 serf__init_basic(int code,
                  serf_context_t *ctx,
                  apr_pool_t *pool)
 {
-    if (code == 401) {
-        ctx->authn_info.baton = apr_pcalloc(pool, sizeof(basic_authn_info_t));
-    } else {
-        ctx->proxy_authn_info.baton = apr_pcalloc(pool, sizeof(basic_authn_info_t));
-    }
-
     return APR_SUCCESS;
 }
 
+/* For Basic authentication we expect all authn info to be the same for all
+   connections in the context to the same server (same realm, username,
+   password). Therefore we can keep the header value in the per-server store
+   context instead of per connection.
+   TODO: we currently don't cache this info per realm, so each time a request
+   'switches realms', we have to ask the application for new credentials. */
 apr_status_t
-serf__init_basic_connection(int code,
+serf__init_basic_connection(const serf__authn_scheme_t *scheme,
+                            int code,
                             serf_connection_t *conn,
                             apr_pool_t *pool)
 {
+    serf_context_t *ctx = conn->ctx;
+    serf__authn_info_t *authn_info;
+
+    if (code == 401) {
+        authn_info = serf__get_authn_info_for_server(conn);
+    } else {
+        authn_info = &ctx->proxy_authn_info;
+    }
+
+    if (!authn_info->baton) {
+        authn_info->baton = apr_pcalloc(pool, sizeof(basic_authn_info_t));
+    }
+
     return APR_SUCCESS;
 }
 
@@ -139,17 +157,19 @@ serf__setup_request_basic_auth(peer_t peer,
                                serf_bucket_t *hdrs_bkt)
 {
     serf_context_t *ctx = conn->ctx;
-    basic_authn_info_t *authn_info;
+    serf__authn_info_t *authn_info;
+    basic_authn_info_t *basic_info;
 
     if (peer == HOST) {
-        authn_info = ctx->authn_info.baton;
+        authn_info = serf__get_authn_info_for_server(conn);
     } else {
-        authn_info = ctx->proxy_authn_info.baton;
+        authn_info = &ctx->proxy_authn_info;
     }
+    basic_info = authn_info->baton;
 
-    if (authn_info && authn_info->header && authn_info->value) {
-        serf_bucket_headers_setn(hdrs_bkt, authn_info->header,
-                                 authn_info->value);
+    if (basic_info && basic_info->header && basic_info->value) {
+        serf_bucket_headers_setn(hdrs_bkt, basic_info->header,
+                                 basic_info->value);
         return APR_SUCCESS;
     }
 

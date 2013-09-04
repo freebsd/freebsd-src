@@ -23,6 +23,9 @@
 #ifndef	__XEN_HVM_H__
 #define	__XEN_HVM_H__
 
+#include <xen/xen-os.h>
+#include <xen/hypervisor.h>
+
 #include <xen/interface/hvm/params.h>
 
 /**
@@ -91,4 +94,5 @@ enum {
 void xen_hvm_set_callback(device_t);
 void xen_hvm_suspend(void);
 void xen_hvm_resume(void);
+void xen_hvm_init_cpu(void);
 #endif	/* __XEN_HVM_H__ */

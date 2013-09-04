@@ -137,8 +137,8 @@ ip6_forward(struct mbuf *m, int srcrt)
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
 		IP6STAT_INC(ip6s_cantforward);
 		/* XXX in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard) */
-		if (V_ip6_log_time + V_ip6_log_interval < time_second) {
-			V_ip6_log_time = time_second;
+		if (V_ip6_log_time + V_ip6_log_interval < time_uptime) {
+			V_ip6_log_time = time_uptime;
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "from %s to %s nxt %d received on %s\n",
@@ -405,8 +405,8 @@ skip_routing:
 		IP6STAT_INC(ip6s_badscope);
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
 
-		if (V_ip6_log_time + V_ip6_log_interval < time_second) {
-			V_ip6_log_time = time_second;
+		if (V_ip6_log_time + V_ip6_log_interval < time_uptime) {
+			V_ip6_log_time = time_uptime;
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",

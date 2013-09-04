@@ -660,6 +660,11 @@ ipv4_down()
 	IFS="$_ifs"
 	for _inet in $inetList ; do
 		# get rid of extraneous line
+		case $_inet in
+		"")				break ;;
+		\	inet\ *|inet\ *)	;;
+		*)				continue ;;
+		esac
 		[ -z "$_inet" ] && break
 
 		_inet=`expr "$_inet" : '.*\(inet \([0-9]\{1,3\}\.\)\{3\}[0-9]\{1,3\}\).*'`
@@ -1192,18 +1197,62 @@ ifscript_down()
 #
 clone_up()
 {
-	local _prefix _list ifn
+	local _prefix _list ifn ifopt _iflist _n tmpargs
 	_prefix=
 	_list=
+	_iflist=$*
 
 	# create_args_IF
 	for ifn in ${cloned_interfaces}; do
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		# Skip if ifn already exists.
+		if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+			continue
+		fi
 		${IFCONFIG_CMD} ${ifn} create `get_if_var ${ifn} create_args_IF`
 		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
 		fi
 	done
+	if [ -n "$gif_interfaces" ]; then
+		warn "\$gif_interfaces is obsolete.  Use \$cloned_interfaces instead."
+	fi
+	for ifn in ${gif_interfaces}; do
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		# Skip if ifn already exists.
+		if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+			continue
+		fi
+		case $ifn in
+		gif[0-9]*)
+			${IFCONFIG_CMD} $ifn create
+		;;
+		*)
+			_n=$(${IFCONFIG_CMD} gif create)
+			${IFCONFIG_CMD} $_n name $ifn
+		;;
+		esac
+		if [ $? -eq 0 ]; then
+			_list="${_list}${_prefix}${ifn}"
+			[ -z "$_prefix" ] && _prefix=' '
+		fi
+		tmpargs=$(get_if_var $ifn gifconfig_IF)
+		eval ifconfig_${ifn}=\"tunnel \$tmpargs\"
+	done
+	if [ -n "${_list}" ]; then
+		echo "Created clone interfaces: ${_list}."
+	fi
 	debug "Cloned: ${_list}"
 }
 
@@ -1213,17 +1262,42 @@ clone_up()
 #
 clone_down()
 {
-	local _prefix _list ifn
+	local _prefix _list ifn ifopt _iflist _sticky
 	_prefix=
 	_list=
+	_iflist=$*
 
-	for ifn in ${cloned_interfaces}; do
+	: ${cloned_interfaces_sticky:=NO}
+	if checkyesno cloned_interfaces_sticky; then
+		_sticky=1
+	else
+		_sticky=0
+	fi
+	for ifn in ${cloned_interfaces} ${gif_interfaces}; do
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $ifopt:$_sticky in
+		sticky:*)	continue ;;	# :sticky => not destroy
+		nosticky:*)	;;		# :nosticky => destroy
+		*:1)		continue ;;	# global sticky knob == 1
+		esac
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		# Skip if ifn does not exist.
+		if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+			continue
+		fi
 		${IFCONFIG_CMD} -n ${ifn} destroy
 		if [ $? -eq 0 ]; then
 			_list="${_list}${_prefix}${ifn}"
 			[ -z "$_prefix" ] && _prefix=' '
 		fi
 	done
+	if [ -n "${_list}" ]; then
+		echo "Destroyed clone interfaces: ${_list}."
+	fi
 	debug "Destroyed clones: ${_list}"
 }
 
@@ -1347,32 +1421,6 @@ ng_create_one()
 	done
 }
 
-# gif_up
-#	Create gif(4) tunnel interfaces.
-gif_up()
-{
-	local i peers
-
-	for i in ${gif_interfaces}; do
-		peers=`get_if_var $i gifconfig_IF`
-		case ${peers} in
-		'')
-			continue
-			;;
-		*)
-			if expr $i : 'gif[0-9][0-9]*$' >/dev/null 2>&1; then
-				${IFCONFIG_CMD} $i create >/dev/null 2>&1
-			else
-				gif=`${IFCONFIG_CMD} gif create`
-				${IFCONFIG_CMD} $gif name $i
-			fi
-			${IFCONFIG_CMD} $i tunnel ${peers}
-			${IFCONFIG_CMD} $i up
-			;;
-		esac
-	done
-}
-
 # ng_fec_create ifn
 #	Configure Fast EtherChannel for interface $ifn. Returns 0 if
 #	FEC arguments were found and configured; returns !0 otherwise.
@@ -1470,15 +1518,15 @@ ipx_down()
 	return $_ret
 }
 
-# ifnet_rename
-#	Rename all requested interfaces.
+# ifnet_rename [ifname]
+#	Rename interfaces if ifconfig_IF_name is defined.
 #
 ifnet_rename()
 {
 	local _if _ifname
 
 	# ifconfig_IF_name
-	for _if in `${IFCONFIG_CMD} -l`; do
+	for _if in ${*:-$(${IFCONFIG_CMD} -l)}; do
 		_ifname=`get_if_var $_if ifconfig_IF_name`
 		if [ ! -z "$_ifname" ]; then
 			${IFCONFIG_CMD} $_if name $_ifname

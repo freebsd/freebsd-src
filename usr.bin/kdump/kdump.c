@@ -606,6 +606,29 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 		if (fancy &&
 		    (flags == 0 || (flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
 			switch (ktr->ktr_code) {
+			case SYS_bindat:
+			case SYS_connectat:
+			case SYS_faccessat:
+			case SYS_fchmodat:
+			case SYS_fchownat:
+			case SYS_fstatat:
+			case SYS_futimesat:
+			case SYS_linkat:
+			case SYS_mkdirat:
+			case SYS_mkfifoat:
+			case SYS_mknodat:
+			case SYS_openat:
+			case SYS_readlinkat:
+			case SYS_renameat:
+			case SYS_unlinkat:
+				putchar('(');
+				atfdname(*ip, decimal);
+				c = ',';
+				ip++;
+				narg--;
+				break;
+			}
+			switch (ktr->ktr_code) {
 			case SYS_ioctl: {
 				print_number(ip, narg, c);
 				putchar(c);
@@ -624,6 +647,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				break;
 			case SYS_access:
 			case SYS_eaccess:
+			case SYS_faccessat:
 				print_number(ip, narg, c);
 				putchar(',');
 				accessmodename(*ip);
@@ -631,6 +655,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				narg--;
 				break;
 			case SYS_open:
+			case SYS_openat:
 				print_number(ip, narg, c);
 				putchar(',');
 				flagsandmodename(ip[0], ip[1], decimal);
@@ -655,6 +680,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				narg--;
 				break;
 			case SYS_mknod:
+			case SYS_mknodat:
 				print_number(ip, narg, c);
 				putchar(',');
 				modename(*ip);
@@ -804,7 +830,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				putchar(',');
-				socktypename(*ip);
+				socktypenamewithflags(*ip);
 				ip++;
 				narg--;
 				if (sockdomain == PF_INET ||
@@ -860,7 +886,9 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				narg--;
 				break;
 			case SYS_mkfifo:
+			case SYS_mkfifoat:
 			case SYS_mkdir:
+			case SYS_mkdirat:
 				print_number(ip, narg, c);
 				putchar(',');
 				modename(*ip);
@@ -880,7 +908,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				putchar(',');
-				socktypename(*ip);
+				socktypenamewithflags(*ip);
 				ip++;
 				narg--;
 				c = ',';
@@ -1080,6 +1108,15 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				putchar(',');
 				kldunloadfflagsname(*ip);
+				ip++;
+				narg--;
+				break;
+			case SYS_linkat:
+			case SYS_renameat:
+			case SYS_symlinkat:
+				print_number(ip, narg, c);
+				putchar(',');
+				atfdname(*ip, decimal);
 				ip++;
 				narg--;
 				break;

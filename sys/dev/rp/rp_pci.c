@@ -151,7 +151,6 @@ rp_pciattach(device_t dev)
 	CONTROLLER_t	*ctlp;
 	int	unit;
 	int	retval;
-	u_int32_t	stcmd;
 
 	ctlp = device_get_softc(dev);
 	bzero(ctlp, sizeof(*ctlp));
@@ -160,13 +159,6 @@ rp_pciattach(device_t dev)
 	ctlp->aiop2rid = rp_pci_aiop2rid;
 	ctlp->aiop2off = rp_pci_aiop2off;
 	ctlp->ctlmask = rp_pci_ctlmask;
-
-	/* Wake up the device. */
-	stcmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((stcmd & PCIM_CMD_PORTEN) == 0) {
-		stcmd |= (PCIM_CMD_PORTEN);
-		pci_write_config(dev, PCIR_COMMAND, 4, stcmd);
-	}
 
 	/* The IO ports of AIOPs for a PCI controller are continuous. */
 	ctlp->io_num = 1;

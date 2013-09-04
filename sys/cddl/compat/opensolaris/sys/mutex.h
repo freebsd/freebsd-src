@@ -46,7 +46,7 @@ typedef enum {
 
 typedef struct sx	kmutex_t;
 
-#ifndef DEBUG
+#ifndef OPENSOLARIS_WITNESS
 #define	MUTEX_FLAGS	(SX_DUPOK | SX_NOWITNESS)
 #else
 #define	MUTEX_FLAGS	(SX_DUPOK)

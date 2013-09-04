@@ -275,6 +275,7 @@ cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
+compat/freebsd32/freebsd32_capability.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
@@ -1520,12 +1521,12 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
-dev/iscsi/initiator/iscsi.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/iscsi_subr.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_cam.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_soc.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_sm.c	optional iscsi_initiator scbus
-dev/iscsi/initiator/isc_subr.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
+dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
 dev/isf/isf.c			optional isf
 dev/isf/isf_fdt.c		optional isf fdt
 dev/isf/isf_nexus.c		optional isf
@@ -2032,6 +2033,7 @@ rt2860.fw			optional rt2860fw | ralfw		\
 dev/random/harvest.c		standard
 dev/random/hash.c		optional random
 dev/random/probe.c		optional random
+dev/random/random_adaptors.c	standard
 dev/random/randomdev.c		optional random
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
@@ -2497,7 +2499,7 @@ dev/xen/control/control.c	optional xen | xenhvm
 dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
-dev/xen/xenpci/evtchn.c         optional xenpci
+dev/xen/timer/timer.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/deadfs/dead_vnops.c		standard
@@ -2713,6 +2715,7 @@ geom/zero/g_zero.c		optional geom_zero
 fs/ext2fs/ext2_alloc.c		optional ext2fs
 fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
+fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
 fs/ext2fs/ext2_hash.c		optional ext2fs
@@ -3225,6 +3228,7 @@ netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
 netinet/in_debug.c		optional inet ddb
+netinet/in_kdtrace.c		optional inet | inet6
 netinet/ip_carp.c		optional inet carp | inet6 carp
 netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
@@ -3811,7 +3815,6 @@ vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
-xen/evtchn/evtchn.c		optional xen
 xen/evtchn/evtchn_dev.c		optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm

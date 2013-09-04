@@ -1931,8 +1931,8 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 				ltime = ND6_INFINITE_LIFETIME;
 			else {
 				if (ifa6->ia6_lifetime.ia6t_expire >
-				    time_second)
-					ltime = htonl(ifa6->ia6_lifetime.ia6t_expire - time_second);
+				    time_uptime)
+					ltime = htonl(ifa6->ia6_lifetime.ia6t_expire - time_uptime);
 				else
 					ltime = 0;
 			}

@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 7, 2012
+.Dd August 7, 2013
 .Dt RANDOM 4
 .Os
 .Sh NAME
@@ -43,6 +43,13 @@ The device will probe for
 certain hardware entropy sources,
 and use these in preference to the fallback,
 which is a generator implemented in software.
+If the kernel environment MIB's
+.Va hw.nehemiah_rng_enable
+or
+.Va hw.ivy_rng_enable
+are set to
+.Dq Li 0 ,
+the associated hardware entropy source will be ignored.
 .Pp
 If the device is using
 the software generator,
@@ -74,6 +81,7 @@ device, use the command line:
 .Pp
 which results in something like:
 .Bd -literal -offset indent
+kern.random.adaptors: yarrow
 kern.random.sys.seeded: 1
 kern.random.sys.harvest.ethernet: 1
 kern.random.sys.harvest.point_to_point: 1
@@ -89,7 +97,9 @@ kern.random.yarrow.slowoverthresh: 2
 (These would not be seen if a
 hardware generator is present.)
 .Pp
-All settings are read/write.
+Other than
+.Dl kern.random.adaptors
+all settings are read/write.
 .Pp
 The
 .Va kern.random.sys.seeded
