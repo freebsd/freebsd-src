@@ -290,6 +290,7 @@ wkoszek [label="Wojciech A. Koszek\nwkoszek@FreeBSD.org\n2006/02/21"]
 wollman [label="Garrett Wollman\nwollman@FreeBSD.org\n????/??/??"]
 wsalamon [label="Wayne Salamon\nwsalamon@FreeBSD.org\n2005/06/25"]
 yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
+zbb [label="Zbigniew Bodek\nzbb@FreeBSD.org\n2013/09/02"]
 zec [label="Marko Zec\nzec@FreeBSD.org\n2008/06/22"]
 zml [label="Zachary Loafman\nzml@FreeBSD.org\n2009/05/27"]
 zont [label="Andrey Zonov\nzont@FreeBSD.org\n2012/08/21"]
@@ -354,6 +355,7 @@ cognet -> jceel
 cognet -> kevlo
 cognet -> ian
 cognet -> wkoszek
+cognet -> zbb
 
 cperciva -> eadler
 cperciva -> flz
