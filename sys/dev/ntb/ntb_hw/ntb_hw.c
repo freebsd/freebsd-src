@@ -355,6 +355,7 @@ static int
 map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 {
 	int rc;
+	uint8_t bar_size_bits = 0;
 
 	bar->pci_resource = bus_alloc_resource_any(ntb->device,
 	    SYS_RES_MEMORY, &bar->pci_resource_id, RF_ACTIVE);
@@ -363,6 +364,40 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 		return (ENXIO);
 	else {
 		save_bar_parameters(bar);
+		/*
+		 * Ivytown NTB BAR sizes are misreported by the hardware due to
+		 * a hardware issue. To work around this, query the size it
+		 * should be configured to by the device and modify the resource
+		 * to correspond to this new size. The BIOS on systems with this
+		 * problem is required to provide enough address space to allow
+		 * the driver to make this change safely.
+		 *
+		 * Ideally I could have just specified the size when I allocated
+		 * the resource like:
+		 *  bus_alloc_resource(ntb->device,
+		 *	SYS_RES_MEMORY, &bar->pci_resource_id, 0ul, ~0ul,
+		 *	1ul << bar_size_bits, RF_ACTIVE);
+		 * but the PCI driver does not honor the size in this call, so
+		 * we have to modify it after the fact.
+		 */
+		if (HAS_FEATURE(BAR_SIZE_4K)) {
+			if (bar->pci_resource_id == PCIR_BAR(2))
+				bar_size_bits = pci_read_config(ntb->device,
+				    XEON_PBAR23SZ_OFFSET, 1);
+			else
+				bar_size_bits = pci_read_config(ntb->device,
+				    XEON_PBAR45SZ_OFFSET, 1);
+			rc = bus_adjust_resource(ntb->device, SYS_RES_MEMORY,
+			    bar->pci_resource, bar->pbase,
+			    bar->pbase + (1ul << bar_size_bits) - 1);
+			if (rc != 0 ) {
+				device_printf(ntb->device,
+				    "unable to resize bar\n");
+				return (rc);
+			} else
+				save_bar_parameters(bar);
+		}
+
 		/* Mark bar region as write combining to improve performance. */
 		rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
 		    VM_MEMATTR_WRITE_COMBINING);
