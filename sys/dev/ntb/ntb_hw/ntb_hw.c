@@ -637,6 +637,10 @@ ntb_setup_xeon(struct ntb_softc *ntb)
 	/* Enable Bus Master and Memory Space on the secondary side */
 	ntb_write_2(ntb->reg_ofs.spci_cmd,
 	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	
+	/* Enable link training */
+	ntb_write_4(ntb->reg_ofs.lnk_cntl,
+	    NTB_CNTL_BAR23_SNOOP | NTB_CNTL_BAR45_SNOOP);
 
 	return (0);
 }
