@@ -354,6 +354,7 @@ receiver_process(void)
 {
 	struct sockaddr_in from;
 	struct stat st;
+	cap_rights_t rights;
 	char path[64];
 	int dirfd;
 	struct whod wd;
@@ -367,8 +368,9 @@ receiver_process(void)
 		syslog(LOG_WARNING, "%s: %m", _PATH_RWHODIR);
 		exit(1);
 	}
-	if (cap_rights_limit(dirfd, CAP_CREATE | CAP_WRITE | CAP_FTRUNCATE |
-	    CAP_SEEK | CAP_LOOKUP | CAP_FSTAT) < 0 && errno != ENOSYS) {
+	cap_rights_init(&rights, CAP_CREATE, CAP_FSTAT, CAP_FTRUNCATE,
+	    CAP_LOOKUP, CAP_SEEK, CAP_WRITE);
+	if (cap_rights_limit(dirfd, &rights) < 0 && errno != ENOSYS) {
 		syslog(LOG_WARNING, "cap_rights_limit: %m");
 		exit(1);
 	}
@@ -413,8 +415,8 @@ receiver_process(void)
 			syslog(LOG_WARNING, "%s: %m", path);
 			continue;
 		}
-		if (cap_rights_limit(whod, CAP_WRITE | CAP_FTRUNCATE |
-		    CAP_FSTAT) < 0 && errno != ENOSYS) {
+		cap_rights_init(&rights, CAP_FSTAT, CAP_FTRUNCATE, CAP_WRITE);
+		if (cap_rights_limit(whod, &rights) < 0 && errno != ENOSYS) {
 			syslog(LOG_WARNING, "cap_rights_limit: %m");
 			exit(1);
 		}
