@@ -104,7 +104,7 @@ struct ntb_transport_qp {
 
 	bool			client_ready;
 	bool			qp_link;
-	uint8_t			qp_num;	/* Only 64 QP's are allowed.  0-63 */
+	uint8_t			qp_num;	/* Only 64 QPs are allowed.  0-63 */
 
 	struct ntb_rx_info	*rx_info;
 	struct ntb_rx_info	*remote_rx_info;
@@ -297,7 +297,7 @@ ntb_setup_interface()
 
 	net_softc.ntb = devclass_get_softc(devclass_find("ntb_hw"), 0);
 	if (net_softc.ntb == NULL) {
-		printf("ntb: Can't find devclass\n");
+		printf("ntb: Cannot find devclass\n");
 		return (ENXIO);
 	}
 
@@ -410,7 +410,7 @@ ntb_start(struct ifnet *ifp)
 			     m_length(m_head, NULL));
 		if (rc != 0) {
 			CTR1(KTR_NTB,
-			    "TX: couldn't tx mbuf %p. Returning to snd q",
+			    "TX: could not tx mbuf %p. Returning to snd q",
 			    m_head);
 			if (rc == EAGAIN) {
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -505,7 +505,7 @@ ntb_transport_free(void *transport)
 
 	callout_drain(&nt->link_work);
 
-	/* verify that all the qp's are freed */
+	/* verify that all the qps are freed */
 	for (i = 0; i < nt->max_qps; i++)
 		if (!test_bit(i, &nt->qp_bitmap))
 			ntb_transport_free_queue(&nt->qps[i]);
@@ -719,7 +719,7 @@ ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 
 	entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q);
 	if (entry == NULL) {
-		CTR0(KTR_NTB, "TX: couldn't get entry from tx_free_q");
+		CTR0(KTR_NTB, "TX: could not get entry from tx_free_q");
 		return (ENOMEM);
 	}
 	CTR1(KTR_NTB, "TX: got entry %p from tx_free_q", entry);

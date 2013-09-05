@@ -842,7 +842,7 @@ configure_xeon_secondary_side_bars(struct ntb_softc *ntb)
 	}
 }
 
-/* SOC doesn't have link status interrupt, poll on that platform */
+/* SOC does not have link status interrupt, poll on that platform */
 static void
 ntb_handle_heartbeat(void *arg)
 {
@@ -935,7 +935,7 @@ ntb_handle_link_event(struct ntb_softc *ntb, int link_state)
 		device_printf(ntb->device, "Link Down\n");
 		ntb->link_status = NTB_LINK_DOWN;
 		event = NTB_EVENT_HW_LINK_DOWN;
-		/* Don't modify link width/speed, we need it in link recovery */
+		/* Do not modify link width/speed, we need it in link recovery */
 	}
 
 	/* notify the upper layer if we have an event change */
