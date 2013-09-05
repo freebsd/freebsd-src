@@ -363,7 +363,6 @@ FBSD_1.1 {
 FBSD_1.2 {
 	cap_enter;
 	cap_getmode;
-	cap_new;
 	getloginclass;
 	pdfork;
 	pdgetpid;
@@ -385,7 +384,7 @@ FBSD_1.3 {
 	cap_fcntls_limit;
 	cap_ioctls_get;
 	cap_ioctls_limit;
-	cap_rights_get;
+	__cap_rights_get;
 	cap_rights_limit;
 	cap_sandboxed;
 	chflagsat;

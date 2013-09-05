@@ -824,9 +824,11 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	struct kevent *kevp, *changes;
 	struct kqueue *kq;
 	struct file *fp;
+	cap_rights_t rights;
 	int i, n, nerrors, error;
 
-	if ((error = fget(td, fd, CAP_POST_EVENT, &fp)) != 0)
+	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto done_norel;
@@ -964,6 +966,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 	struct filterops *fops;
 	struct file *fp;
 	struct knote *kn, *tkn;
+	cap_rights_t rights;
 	int error, filt, event;
 	int haskqglobal;
 
@@ -982,7 +985,8 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 findkn:
 	if (fops->f_isfd) {
 		KASSERT(td != NULL, ("td is NULL"));
-		error = fget(td, kev->ident, CAP_POLL_EVENT, &fp);
+		error = fget(td, kev->ident,
+		    cap_rights_init(&rights, CAP_POLL_EVENT), &fp);
 		if (error)
 			goto done;
 
@@ -2237,9 +2241,11 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 {
 	struct kqueue *kq;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	if ((error = fget(td, fd, CAP_POST_EVENT, &fp)) != 0)
+	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto noacquire;

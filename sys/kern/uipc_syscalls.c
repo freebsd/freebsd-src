@@ -164,13 +164,13 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
  * A reference on the file entry is held upon returning.
  */
 static int
-getsock_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
+getsock_cap(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
     struct file **fpp, u_int *fflagp)
 {
 	struct file *fp;
 	int error;
 
-	error = fget_unlocked(fdp, fd, rights, 0, &fp, NULL);
+	error = fget_unlocked(fdp, fd, rightsp, 0, &fp, NULL);
 	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
@@ -267,11 +267,13 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
-	error = getsock_cap(td->td_proc->p_fd, fd, CAP_BIND, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, fd,
+	    cap_rights_init(&rights, CAP_BIND), &fp, NULL);
 	if (error)
 		return (error);
 	so = fp->f_data;
@@ -334,10 +336,12 @@ sys_listen(td, uap)
 {
 	struct socket *so;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(uap->s);
-	error = getsock_cap(td->td_proc->p_fd, uap->s, CAP_LISTEN, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, uap->s,
+	    cap_rights_init(&rights, CAP_LISTEN), &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 #ifdef MAC
@@ -419,6 +423,7 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	int error;
 	struct socket *head, *so;
 	int fd;
+	cap_rights_t rights;
 	u_int fflag;
 	pid_t pgid;
 	int tmp;
@@ -428,7 +433,8 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 
 	AUDIT_ARG_FD(s);
 	fdp = td->td_proc->p_fd;
-	error = getsock_cap(fdp, s, CAP_ACCEPT, &headfp, &fflag);
+	error = getsock_cap(fdp, s, cap_rights_init(&rights, CAP_ACCEPT),
+	    &headfp, &fflag);
 	if (error)
 		return (error);
 	head = headfp->f_data;
@@ -629,12 +635,14 @@ kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 	int interrupted = 0;
 
 	AUDIT_ARG_FD(fd);
 	AUDIT_ARG_SOCKADDR(td, dirfd, sa);
-	error = getsock_cap(td->td_proc->p_fd, fd, CAP_CONNECT, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, fd,
+	    cap_rights_init(&rights, CAP_CONNECT), &fp, NULL);
 	if (error)
 		return (error);
 	so = fp->f_data;
@@ -898,12 +906,12 @@ kern_sendit(td, s, mp, flags, control, segflg)
 #endif
 
 	AUDIT_ARG_FD(s);
-	rights = CAP_SEND;
+	cap_rights_init(&rights, CAP_SEND);
 	if (mp->msg_name != NULL) {
 		AUDIT_ARG_SOCKADDR(td, AT_FDCWD, mp->msg_name);
-		rights |= CAP_CONNECT;
+		cap_rights_set(&rights, CAP_CONNECT);
 	}
-	error = getsock_cap(td->td_proc->p_fd, s, rights, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, s, &rights, &fp, NULL);
 	if (error)
 		return (error);
 	so = (struct socket *)fp->f_data;
@@ -1099,6 +1107,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	struct file *fp;
 	struct socket *so;
 	struct sockaddr *fromsa = NULL;
+	cap_rights_t rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
@@ -1107,7 +1116,8 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		*controlp = NULL;
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s, CAP_RECV, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, s,
+	    cap_rights_init(&rights, CAP_RECV), &fp, NULL);
 	if (error)
 		return (error);
 	so = fp->f_data;
@@ -1420,11 +1430,12 @@ sys_shutdown(td, uap)
 {
 	struct socket *so;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(uap->s);
-	error = getsock_cap(td->td_proc->p_fd, uap->s, CAP_SHUTDOWN, &fp,
-	    NULL);
+	error = getsock_cap(td->td_proc->p_fd, uap->s,
+	    cap_rights_init(&rights, CAP_SHUTDOWN), &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = soshutdown(so, uap->how);
@@ -1464,6 +1475,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	struct socket *so;
 	struct file *fp;
 	struct sockopt sopt;
+	cap_rights_t rights;
 
 	if (val == NULL && valsize != 0)
 		return (EFAULT);
@@ -1487,7 +1499,8 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s, CAP_SETSOCKOPT, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, s,
+	    cap_rights_init(&rights, CAP_SETSOCKOPT), &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sosetopt(so, &sopt);
@@ -1543,6 +1556,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	struct  socket *so;
 	struct file *fp;
 	struct	sockopt sopt;
+	cap_rights_t rights;
 
 	if (val == NULL)
 		*valsize = 0;
@@ -1566,7 +1580,8 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	}
 
 	AUDIT_ARG_FD(s);
-	error = getsock_cap(td->td_proc->p_fd, s, CAP_GETSOCKOPT, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, s,
+	    cap_rights_init(&rights, CAP_GETSOCKOPT), &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sogetopt(so, &sopt);
@@ -1621,11 +1636,13 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 {
 	struct socket *so;
 	struct file *fp;
+	cap_rights_t rights;
 	socklen_t len;
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getsock_cap(td->td_proc->p_fd, fd, CAP_GETSOCKNAME, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, fd,
+	    cap_rights_init(&rights, CAP_GETSOCKNAME), &fp, NULL);
 	if (error)
 		return (error);
 	so = fp->f_data;
@@ -1718,11 +1735,13 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 {
 	struct socket *so;
 	struct file *fp;
+	cap_rights_t rights;
 	socklen_t len;
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getsock_cap(td->td_proc->p_fd, fd, CAP_GETPEERNAME, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, fd,
+	    cap_rights_init(&rights, CAP_GETPEERNAME), &fp, NULL);
 	if (error)
 		return (error);
 	so = fp->f_data;
@@ -1907,6 +1926,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	if (uap->offset < 0)
@@ -1937,8 +1957,10 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	 * sendfile(2) can start at any offset within a file so we require
 	 * CAP_READ+CAP_SEEK = CAP_PREAD.
 	 */
-	if ((error = fget_read(td, uap->fd, CAP_PREAD, &fp)) != 0)
+	if ((error = fget_read(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
 		goto out;
+	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
 	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
@@ -1983,6 +2005,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct sf_buf *sf;
 	struct vm_page *pg;
 	struct vattr va;
+	cap_rights_t rights;
 	off_t off, xfsize, fsbytes = 0, sbytes = 0, rem = 0;
 	int error, hdrlen = 0, mnw = 0;
 	int bsize;
@@ -2030,8 +2053,9 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 * The socket must be a stream socket and connected.
 	 * Remember if it a blocking or non-blocking socket.
 	 */
-	if ((error = getsock_cap(td->td_proc->p_fd, sockfd, CAP_SEND,
-	    &sock_fp, NULL)) != 0)
+	error = getsock_cap(td->td_proc->p_fd, sockfd,
+	    cap_rights_init(&rights, CAP_SEND), &sock_fp, NULL);
+	if (error != 0)
 		goto out;
 	so = sock_fp->f_data;
 	if (so->so_type != SOCK_STREAM) {
@@ -2463,10 +2487,12 @@ sys_sctp_peeloff(td, uap)
 	int error;
 	struct socket *head, *so;
 	int fd;
+	cap_rights_t rights;
 	u_int fflag;
 
 	AUDIT_ARG_FD(uap->sd);
-	error = fgetsock(td, uap->sd, CAP_PEELOFF, &head, &fflag);
+	error = fgetsock(td, uap->sd, cap_rights_init(&rights, CAP_PEELOFF),
+	    &head, &fflag);
 	if (error)
 		goto done2;
 	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
@@ -2574,18 +2600,18 @@ sys_sctp_generic_sendmsg (td, uap)
 		u_sinfo = &sinfo;
 	}
 
-	rights = CAP_SEND;
+	cap_rights_init(&rights, CAP_SEND);
 	if (uap->tolen) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error) {
 			to = NULL;
 			goto sctp_bad2;
 		}
-		rights |= CAP_CONNECT;
+		cap_rights_set(&rights, CAP_CONNECT);
 	}
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, rights, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, uap->sd, &rights, &fp, NULL);
 	if (error)
 		goto sctp_bad;
 #ifdef KTRACE
@@ -2685,18 +2711,18 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 			return (error);
 		u_sinfo = &sinfo;
 	}
-	rights = CAP_SEND;
+	cap_rights_init(&rights, CAP_SEND);
 	if (uap->tolen) {
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error) {
 			to = NULL;
 			goto sctp_bad2;
 		}
-		rights |= CAP_CONNECT;
+		cap_rights_set(&rights, CAP_CONNECT);
 	}
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, rights, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, uap->sd, &rights, &fp, NULL);
 	if (error)
 		goto sctp_bad1;
 
@@ -2804,12 +2830,14 @@ sys_sctp_generic_recvmsg(td, uap)
 	ssize_t len;
 	int i, msg_flags;
 	int error = 0;
+	cap_rights_t rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
 
 	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, CAP_RECV, &fp, NULL);
+	error = getsock_cap(td->td_proc->p_fd, uap->sd,
+	    cap_rights_init(&rights, CAP_RECV), &fp, NULL);
 	if (error) {
 		return (error);
 	}
