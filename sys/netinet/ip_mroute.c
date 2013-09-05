@@ -634,8 +634,8 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
 		continue;
 	for (i = 0; i < mfchashsize; i++) {
 		struct mfc *rt, *nrt;
-		for (rt = LIST_FIRST(&V_mfchashtbl[i]); rt; rt = nrt) {
-			nrt = LIST_NEXT(rt, mfc_hash);
+
+		LIST_FOREACH_SAFE(rt, &V_mfchashtbl[i], mfc_hash, nrt) {
 			if (rt->mfc_parent == vifi) {
 				expire_mfc(rt);
 			}
@@ -753,8 +753,8 @@ X_ip_mrouter_done(void)
      */
     for (i = 0; i < mfchashsize; i++) {
 	struct mfc *rt, *nrt;
-	for (rt = LIST_FIRST(&V_mfchashtbl[i]); rt; rt = nrt) {
-		nrt = LIST_NEXT(rt, mfc_hash);
+
+	LIST_FOREACH_SAFE(rt, &V_mfchashtbl[i], mfc_hash, nrt) {
 		expire_mfc(rt);
 	}
     }
@@ -1445,9 +1445,7 @@ expire_upcalls(void *arg)
 	if (V_nexpire[i] == 0)
 	    continue;
 
-	for (rt = LIST_FIRST(&V_mfchashtbl[i]); rt; rt = nrt) {
-		nrt = LIST_NEXT(rt, mfc_hash);
-
+	LIST_FOREACH_SAFE(rt, &V_mfchashtbl[i], mfc_hash, nrt) {
 		if (TAILQ_EMPTY(&rt->mfc_stall))
 			continue;
 
