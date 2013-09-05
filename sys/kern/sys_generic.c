@@ -1368,7 +1368,9 @@ pollrescan(struct thread *td)
 	struct filedesc *fdp;
 	struct file *fp;
 	struct pollfd *fd;
+#ifdef CAPABILITIES
 	cap_rights_t rights;
+#endif
 	int n;
 
 	n = 0;
@@ -1444,7 +1446,9 @@ pollscan(td, fds, nfd)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp;
+#ifdef CAPABILITIES
 	cap_rights_t rights;
+#endif
 	int i, n = 0;
 
 	FILEDESC_SLOCK(fdp);
