@@ -340,8 +340,8 @@ static int
 map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 {
 
-	bar->pci_resource = bus_alloc_resource(ntb->device, SYS_RES_MEMORY,
-		&bar->pci_resource_id, 0, ~0, 1, RF_ACTIVE);
+	bar->pci_resource = bus_alloc_resource_any(ntb->device, SYS_RES_MEMORY,
+		&bar->pci_resource_id, RF_ACTIVE);
 
 	if (bar->pci_resource == NULL)
 		return (ENXIO);
@@ -356,9 +356,8 @@ map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
 {
 	int rc;
 
-	bar->pci_resource = bus_alloc_resource(ntb->device,
-		SYS_RES_MEMORY, &bar->pci_resource_id, 0, ~0, 1,
-			RF_ACTIVE);
+	bar->pci_resource = bus_alloc_resource_any(ntb->device,
+	    SYS_RES_MEMORY, &bar->pci_resource_id, RF_ACTIVE);
 
 	if (bar->pci_resource == NULL)
 		return (ENXIO);
