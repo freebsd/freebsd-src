@@ -1650,6 +1650,7 @@ freebsd32_do_sendfile(struct thread *td,
 	struct uio *hdr_uio, *trl_uio;
 	struct iovec32 *iov32;
 	struct file *fp;
+	cap_rights_t rights;
 	off_t offset;
 	int error;
 
@@ -1686,8 +1687,10 @@ freebsd32_do_sendfile(struct thread *td,
 
 	AUDIT_ARG_FD(uap->fd);
 
-	if ((error = fget_read(td, uap->fd, CAP_PREAD, &fp)) != 0)
+	if ((error = fget_read(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
 		goto out;
+	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
 	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);

@@ -1,7 +1,9 @@
 /*-
- * Copyright (c) 2009 Advanced Computing Technologies LLC
- * Written by: John H. Baldwin <jhb@FreeBSD.org>
+ * Copyright (c) 2013 FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Pawel Jakub Dawidek under sponsorship from
+ * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,22 +29,33 @@
  * $FreeBSD$
  */
 
+#ifndef _SYS_CAPRIGHTS_H_
+#define	_SYS_CAPRIGHTS_H_
+
 /*
- * This file defines compatiblity symbol versions for old system calls.  It
- * is included in all generated system call files.
+ * The top two bits in the first element of the cr_rights[] array contain
+ * total number of elements in the array - 2. This means if those two bits are
+ * equal to 0, we have 2 array elements.
+ * The top two bits in all remaining array elements should be 0.
+ * The next five bits contain array index. Only one bit is used and bit position
+ * in this five-bits range defines array index. This means there can be at most
+ * five array elements.
  */
+#define	CAP_RIGHTS_VERSION_00	0
+/*
+#define	CAP_RIGHTS_VERSION_01	1
+#define	CAP_RIGHTS_VERSION_02	2
+#define	CAP_RIGHTS_VERSION_03	3
+*/
+#define	CAP_RIGHTS_VERSION	CAP_RIGHTS_VERSION_00
 
-#ifndef __LIBC_COMPAT_H__
-#define	__LIBC_COMPAT_H__
+struct cap_rights {
+	uint64_t	cr_rights[CAP_RIGHTS_VERSION + 2];
+};
 
-#define	__sym_compat(sym,impl,verid)	\
-	.symver impl, sym@verid
+#ifndef	_CAP_RIGHTS_T_DECLARED
+#define	_CAP_RIGHTS_T_DECLARED
+typedef	struct cap_rights	cap_rights_t;
+#endif
 
-__sym_compat(__semctl, freebsd7___semctl, FBSD_1.0);
-__sym_compat(msgctl, freebsd7_msgctl, FBSD_1.0);
-__sym_compat(shmctl, freebsd7_shmctl, FBSD_1.0);
-
-#undef __sym_compat
-
-#endif	/* __LIBC_COMPAT_H__ */
-
+#endif /* !_SYS_CAPRIGHTS_H_ */
