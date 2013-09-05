@@ -170,13 +170,20 @@ main(int argc, char **argv)
 	if (which_prog == SWAPON || which_prog == SWAPOFF) {
 		if (doall) {
 			while ((fsp = getfsent()) != NULL) {
-				if (strcmp(fsp->fs_type, FSTAB_SW))
+				if (strcmp(fsp->fs_type, FSTAB_SW) != 0)
 					continue;
-				if (strstr(fsp->fs_mntops, "noauto"))
+				if (strstr(fsp->fs_mntops, "noauto") != NULL)
 					continue;
+				/*
+				 * Forcibly enable "late" option when file= is
+				 * specified.  This is because mounting file
+				 * systems with rw option is typically
+				 * required to make the backing store ready.
+				 */
 				if (which_prog != SWAPOFF &&
-				    strstr(fsp->fs_mntops, "late") &&
-				    !late)
+				    (strstr(fsp->fs_mntops, "late") != NULL ||
+				     strstr(fsp->fs_mntops, "file=") != NULL) &&
+				    late == 0)
 					continue;
 				swfile = swap_on_off(fsp->fs_spec, 1,
 				    fsp->fs_mntops);
