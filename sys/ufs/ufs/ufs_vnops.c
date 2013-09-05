@@ -1271,7 +1271,7 @@ relock:
 			error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &nvp);
 			if (error != 0)
 				goto releout;
-			VOP_UNLOCK(nvp, 0);
+			vput(nvp);
 			atomic_add_int(&rename_restarts, 1);
 			goto relock;
 		}
