@@ -37,6 +37,7 @@ static unsigned adjustFixupValue(unsigned Kind, uint64_t Value) {
   case FK_Data_4:
   case FK_Data_8:
   case Mips::fixup_Mips_LO16:
+  case Mips::fixup_Mips_GPREL16:
   case Mips::fixup_Mips_GPOFF_HI:
   case Mips::fixup_Mips_GPOFF_LO:
   case Mips::fixup_Mips_GOT_PAGE:
@@ -213,7 +214,7 @@ public:
   /// fixup requires the associated instruction to be relaxed.
   bool fixupNeedsRelaxation(const MCFixup &Fixup,
                             uint64_t Value,
-                            const MCInstFragment *DF,
+                            const MCRelaxableFragment *DF,
                             const MCAsmLayout &Layout) const {
     // FIXME.
     assert(0 && "RelaxInstruction() unimplemented");

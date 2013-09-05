@@ -39,6 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -186,7 +187,7 @@ main(int argc, char *argv[])
 		perror("unknown file type\n");
 		exit(1);
 	}
-	printf("File: %s; File size %qd bytes\n", fn, file_size);
+	printf("File: %s; File size %jd bytes\n", fn, (intmax_t)file_size);
 
 	aio = calloc(aio_len, sizeof(struct aiocb));
 	abuf = calloc(aio_len, sizeof(char *));

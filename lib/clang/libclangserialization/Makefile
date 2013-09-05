@@ -13,6 +13,7 @@ SRCS=	ASTCommon.cpp \
 	ASTWriterDecl.cpp \
 	ASTWriterStmt.cpp \
 	GeneratePCH.cpp \
+	GlobalModuleIndex.cpp \
 	Module.cpp \
 	ModuleManager.cpp
 
@@ -21,6 +22,7 @@ TGHDRS=	AttrList \
 	AttrPCHWrite \
 	AttrParsedAttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

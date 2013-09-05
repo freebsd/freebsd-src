@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: config.h,v 1.47 2004/10/26 21:41:07 gshapiro Exp $
+ *	$Id: config.h,v 1.48 2013/03/22 22:48:57 gshapiro Exp $
  */
 
 /*
@@ -24,14 +24,16 @@
 
 /*
 **  SM_CONF_STDBOOL_H is 1 if <stdbool.h> exists
+**
+**  Note, unlike gcc, clang doesn't apply full prototypes to K&R definitions.
 */
 
 # ifndef SM_CONF_STDBOOL_H
-#  if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#  if !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 #   define SM_CONF_STDBOOL_H		1
-#  else /* defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
+#  else /* !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
 #   define SM_CONF_STDBOOL_H		0
-#  endif /* defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
+#  endif /* !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
 # endif /* ! SM_CONF_STDBOOL_H */
 
 /*

@@ -1359,7 +1359,8 @@ zfs_acl_chmod(vtype_t vtype, uint64_t mode, boolean_t trim, zfs_acl_t *aclp)
 		zacep = (void *)((uintptr_t)zacep + abstract_size);
 		new_count++;
 		new_bytes += abstract_size;
-	} if (masks.deny1) {
+	}
+	if (masks.deny1) {
 		zfs_set_ace(aclp, zacep, masks.deny1, DENY, -1, ACE_OWNER);
 		zacep = (void *)((uintptr_t)zacep + abstract_size);
 		new_count++;
@@ -1682,7 +1683,7 @@ zfs_acl_ids_create(znode_t *dzp, int flag, vattr_t *vap, cred_t *cr,
 			} else {
 				acl_ids->z_fgid = zfs_fuid_create_cred(zfsvfs,
 				    ZFS_GROUP, cr, &acl_ids->z_fuidp);
-#ifdef __FreeBSD__
+#ifdef __FreeBSD_kernel__
 				gid = acl_ids->z_fgid = dzp->z_gid;
 #else
 				gid = crgetgid(cr);
@@ -1767,7 +1768,7 @@ zfs_acl_ids_overquota(zfsvfs_t *zfsvfs, zfs_acl_ids_t *acl_ids)
 }
 
 /*
- * Retrieve a files ACL
+ * Retrieve a file's ACL
  */
 int
 zfs_getacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
@@ -1922,7 +1923,7 @@ zfs_vsec_2_aclp(zfsvfs_t *zfsvfs, vtype_t obj_type,
 }
 
 /*
- * Set a files ACL
+ * Set a file's ACL
  */
 int
 zfs_setacl(znode_t *zp, vsecattr_t *vsecp, boolean_t skipaclchk, cred_t *cr)
@@ -2355,6 +2356,7 @@ slow:
 
 /*
  * Determine whether Access should be granted/denied.
+ *
  * The least priv subsytem is always consulted as a basic privilege
  * can define any form of access.
  */
@@ -2372,7 +2374,7 @@ zfs_zaccess(znode_t *zp, int mode, int flags, boolean_t skipaclchk, cred_t *cr)
 
 	is_attr = ((zp->z_pflags & ZFS_XATTR) && (ZTOV(zp)->v_type == VDIR));
 
-#ifdef __FreeBSD__
+#ifdef __FreeBSD_kernel__
 	/*
 	 * In FreeBSD, we don't care about permissions of individual ADS.
 	 * Note that not checking them is not just an optimization - without
@@ -2559,7 +2561,6 @@ zfs_delete_final_check(znode_t *zp, znode_t *dzp,
 /*
  * Determine whether Access should be granted/deny, without
  * consulting least priv subsystem.
- *
  *
  * The following chart is the recommended NFSv4 enforcement for
  * ability to delete an object.

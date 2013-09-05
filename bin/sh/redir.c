@@ -66,14 +66,13 @@ __FBSDID("$FreeBSD$");
 #define CLOSED -1		/* fd was not open before redir */
 
 
-MKINIT
 struct redirtab {
 	struct redirtab *next;
 	int renamed[10];
 };
 
 
-MKINIT struct redirtab *redirlist;
+static struct redirtab *redirlist;
 
 /*
  * We keep track of whether or not fd0 has been redirected.  This is for
@@ -121,7 +120,7 @@ redirect(union node *redir, int flags)
 
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
-			if ((i = fcntl(fd, F_DUPFD, 10)) == -1) {
+			if ((i = fcntl(fd, F_DUPFD_CLOEXEC, 10)) == -1) {
 				switch (errno) {
 				case EBADF:
 					i = CLOSED;
@@ -131,8 +130,7 @@ redirect(union node *redir, int flags)
 					error("%d: %s", fd, strerror(errno));
 					break;
 				}
-			} else
-				(void)fcntl(i, F_SETFD, FD_CLOEXEC);
+			}
 			sv->renamed[fd] = i;
 			INTON;
 		}
@@ -320,21 +318,6 @@ popredir(void)
 	ckfree(rp);
 	INTON;
 }
-
-/*
- * Undo all redirections.  Called on error or interrupt.
- */
-
-#ifdef mkinit
-
-INCLUDE "redir.h"
-
-RESET {
-	while (redirlist)
-		popredir();
-}
-
-#endif
 
 /* Return true if fd 0 has already been redirected at least once.  */
 int

@@ -299,6 +299,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 				 * the function.
 				 */
 				symcopy->st_value = rsym;
+				error = 0;
 				goto out;
 			}
 		}

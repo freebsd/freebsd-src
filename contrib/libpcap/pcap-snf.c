@@ -18,11 +18,6 @@
 #include "snf.h"
 #include "pcap-int.h"
 
-#ifdef SNF_ONLY
-#define snf_create pcap_create
-#define snf_platform_finddevs pcap_platform_finddevs
-#endif
-
 static int
 snf_set_datalink(pcap_t *p, int dlt)
 {
@@ -249,7 +244,7 @@ snf_activate(pcap_t* p)
 }
 
 int
-snf_platform_finddevs(pcap_if_t **devlistp, char *errbuf)
+snf_findalldevs(pcap_if_t **devlistp, char *errbuf)
 {
 	/*
 	 * There are no platform-specific devices since each device
@@ -259,22 +254,28 @@ snf_platform_finddevs(pcap_if_t **devlistp, char *errbuf)
 }
 
 pcap_t *
-snf_create(const char *device, char *ebuf)
+snf_create(const char *device, char *ebuf, int *is_ours)
 {
 	pcap_t *p;
 	int boardnum = -1;
 	struct snf_ifaddrs *ifaddrs, *ifa;
 	size_t devlen;
 
-	if (snf_init(SNF_VERSION_API))
+	if (snf_init(SNF_VERSION_API)) {
+		/* Can't initialize the API, so no SNF devices */
+		*is_ours = 0;
 		return NULL;
+	}
 
 	/*
 	 * Match a given interface name to our list of interface names, from
 	 * which we can obtain the intended board number
 	 */
-	if (snf_getifaddrs(&ifaddrs) || ifaddrs == NULL)
+	if (snf_getifaddrs(&ifaddrs) || ifaddrs == NULL) {
+		/* Can't get SNF addresses */
+		*is_ours = 0;
 		return NULL;
+	}
 	devlen = strlen(device) + 1;
 	ifa = ifaddrs;
 	while (ifa) {
@@ -292,9 +293,15 @@ snf_create(const char *device, char *ebuf)
 		 * and "snf10gX" where X is the board number.
 		 */
 		if (sscanf(device, "snf10g%d", &boardnum) != 1 &&
-		    sscanf(device, "snf%d", &boardnum) != 1)
+		    sscanf(device, "snf%d", &boardnum) != 1) {
+			/* Nope, not a supported name */
+			*is_ours = 0;
 			return NULL;
+		    }
 	}
+
+	/* OK, it's probably ours. */
+	*is_ours = 1;
 
 	p = pcap_create_common(device, ebuf);
 	if (p == NULL)

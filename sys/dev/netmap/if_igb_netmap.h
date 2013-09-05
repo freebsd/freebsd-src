@@ -25,7 +25,6 @@
 
 /*
  * $FreeBSD$
- * $Id: if_igb_netmap.h 10627 2012-02-23 19:37:15Z luigi $
  *
  * Netmap support for igb, partly contributed by Ahmed Kooli
  * For details on netmap support please see ixgbe_netmap.h

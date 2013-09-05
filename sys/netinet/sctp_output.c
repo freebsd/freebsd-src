@@ -3561,7 +3561,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 
 static struct sctp_tcb *
 sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
-    in_port_t port,
+    uint16_t port,
     struct mbuf *control,
     struct sctp_nets **net_p,
     int *error)
@@ -4543,11 +4543,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	struct mbuf *m;
 	struct sctp_nets *net;
 	struct sctp_init_chunk *init;
-
-#if defined(INET) || defined(INET6)
 	struct sctp_supported_addr_param *sup_addr;
-
-#endif
 	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_supported_chunk_types_param *pr_supported;
 	struct sctp_paramhdr *ph;
@@ -5410,6 +5406,14 @@ do_a_abort:
 	}
 	SCTP_BUF_LEN(m) = sizeof(struct sctp_init_chunk);
 
+	/*
+	 * We might not overwrite the identification[] completely and on
+	 * some platforms time_entered will contain some padding. Therefore
+	 * zero out the cookie to avoid putting uninitialized memory on the
+	 * wire.
+	 */
+	memset(&stc, 0, sizeof(struct sctp_state_cookie));
+
 	/* the time I built cookie */
 	(void)SCTP_GETTIME_TIMEVAL(&stc.time_entered);
 
@@ -6063,7 +6067,6 @@ sctp_get_frag_point(struct sctp_tcb *stcb,
 static void
 sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 {
-	sp->pr_sctp_on = 0;
 	/*
 	 * We assume that the user wants PR_SCTP_TTL if the user provides a
 	 * positive lifetime but does not specify any PR_SCTP policy. This
@@ -6073,7 +6076,6 @@ sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 	 */
 	if (PR_SCTP_ENABLED(sp->sinfo_flags)) {
 		sp->act_flags |= PR_SCTP_POLICY(sp->sinfo_flags);
-		sp->pr_sctp_on = 1;
 	} else {
 		return;
 	}
@@ -7421,13 +7423,8 @@ dont_do_it:
 		}
 		chk->send_size += pads;
 	}
-	/* We only re-set the policy if it is on */
-	if (sp->pr_sctp_on) {
-		sctp_set_prsctp_policy(sp);
+	if (PR_SCTP_ENABLED(chk->flags)) {
 		asoc->pr_sctp_cnt++;
-		chk->pr_sctp_on = 1;
-	} else {
-		chk->pr_sctp_on = 0;
 	}
 	if (sp->msg_is_complete && (sp->length == 0) && (sp->sender_all_done)) {
 		/* All done pull and kill the message */
@@ -7617,7 +7614,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 #endif
 )
 {
-	/*
+	/**
 	 * Ok this is the generic chunk service queue. we must do the
 	 * following: - Service the stream queue that is next, moving any
 	 * message (note I must get a complete message i.e. FIRST/MIDDLE and
@@ -10669,6 +10666,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	struct sctp_abort_chunk *abort;
 	struct sctp_auth_chunk *auth = NULL;
 	struct sctp_nets *net;
+	uint32_t vtag;
 	uint32_t auth_offset = 0;
 	uint16_t cause_len, chunk_len, padding_len;
 
@@ -10724,7 +10722,14 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	/* Fill in the ABORT chunk header. */
 	abort = mtod(m_abort, struct sctp_abort_chunk *);
 	abort->ch.chunk_type = SCTP_ABORT_ASSOCIATION;
-	abort->ch.chunk_flags = 0;
+	if (stcb->asoc.peer_vtag == 0) {
+		/* This happens iff the assoc is in COOKIE-WAIT state. */
+		vtag = stcb->asoc.my_vtag;
+		abort->ch.chunk_flags = SCTP_HAD_NO_TCB;
+	} else {
+		vtag = stcb->asoc.peer_vtag;
+		abort->ch.chunk_flags = 0;
+	}
 	abort->ch.chunk_length = htons(chunk_len);
 	/* Add padding, if necessary. */
 	if (padding_len > 0) {
@@ -10736,7 +10741,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_out, auth_offset, auth, stcb->asoc.authinfo.active_keyid, 1, 0, 0,
-	    stcb->sctp_ep->sctp_lport, stcb->rport, htonl(stcb->asoc.peer_vtag),
+	    stcb->sctp_ep->sctp_lport, stcb->rport, htonl(vtag),
 	    stcb->asoc.primary_destination->port, NULL,
 	    0, 0,
 	    so_locked);

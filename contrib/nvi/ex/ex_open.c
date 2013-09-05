@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_open.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: ex_open.c,v 10.8 2001/06/25 15:19:17 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <limits.h>
@@ -30,9 +31,7 @@ static const char sccsid[] = "@(#)ex_open.c	10.7 (Berkeley) 3/6/96";
  * PUBLIC: int ex_open __P((SCR *, EXCMD *));
  */
 int
-ex_open(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_open(SCR *sp, EXCMD *cmdp)
 {
 	/* If open option off, disallow open command. */
 	if (!O_ISSET(sp, O_OPEN)) {

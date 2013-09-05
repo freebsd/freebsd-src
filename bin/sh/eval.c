@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 
 int evalskip;			/* set if we are skipping commands */
 int skipcount;			/* number of levels to skip */
-MKINIT int loopnest;		/* current loop nesting level */
+static int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
 static int builtin_flags;	/* evalcommand flags for builtins */
 
@@ -104,16 +104,12 @@ static void prehash(union node *);
  * Called to reset things after an exception.
  */
 
-#ifdef mkinit
-INCLUDE "eval.h"
-
-RESET {
+void
+reseteval(void)
+{
 	evalskip = 0;
 	loopnest = 0;
-	funcnest = 0;
 }
-#endif
-
 
 
 /*
@@ -328,7 +324,7 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 			}
 			if (evalskip == SKIPBREAK && --skipcount <= 0)
 				evalskip = 0;
-			if (evalskip == SKIPFUNC || evalskip == SKIPFILE)
+			if (evalskip == SKIPRETURN)
 				status = exitstatus;
 			break;
 		}
@@ -589,7 +585,8 @@ evalpipe(union node *n)
 		pip[1] = -1;
 		if (lp->next) {
 			if (pipe(pip) < 0) {
-				close(prevfd);
+				if (prevfd >= 0)
+					close(prevfd);
 				error("Pipe call failed: %s", strerror(errno));
 			}
 		}
@@ -1071,7 +1068,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		funcnest--;
 		popredir();
 		INTON;
-		if (evalskip == SKIPFUNC) {
+		if (evalskip == SKIPRETURN) {
 			evalskip = 0;
 			skipcount = 0;
 		}
@@ -1308,14 +1305,8 @@ returncmd(int argc, char **argv)
 {
 	int ret = argc > 1 ? number(argv[1]) : oexitstatus;
 
-	if (funcnest) {
-		evalskip = SKIPFUNC;
-		skipcount = 1;
-	} else {
-		/* skip the rest of the file */
-		evalskip = SKIPFILE;
-		skipcount = 1;
-	}
+	evalskip = SKIPRETURN;
+	skipcount = 1;
 	return ret;
 }
 

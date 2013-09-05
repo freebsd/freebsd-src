@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -282,8 +282,6 @@ make_querymessage(dns_message_t *message, dns_name_t *qname0,
 		dns_message_puttempname(message, &qname);
 	if (qrdataset != NULL)
 		dns_message_puttemprdataset(message, &qrdataset);
-	if (message != NULL)
-		dns_message_destroy(&message);
 	return (result);
 }
 
@@ -293,7 +291,7 @@ make_querymessage(dns_message_t *message, dns_name_t *qname0,
 static inline void
 increment_entry(unsigned long *entryp) {
 	(*entryp)++;
-	INSIST(*entryp != 0);	/* check overflow */
+	INSIST(*entryp != 0U);	/* check overflow */
 }
 
 static void
@@ -392,57 +390,57 @@ update_stat(struct probe_trans *trans) {
 	}
 
 	/* Update per domain statistics */
-	if (local_stat.ignore > 0) {
+	if (local_stat.ignore > 0U) {
 		if (verbose_level > 0)
 			printf("%s:ignore\n", trans->domain);
 		increment_entry(&domain_stat.ignore);
 		err_count++;
 	}
-	if (local_stat.nxdomain > 0) {
+	if (local_stat.nxdomain > 0U) {
 		if (verbose_level > 0)
 			printf("%s:nxdomain\n", trans->domain);
 		increment_entry(&domain_stat.nxdomain);
 		err_count++;
 	}
-	if (local_stat.othererr > 0) {
+	if (local_stat.othererr > 0U) {
 		if (verbose_level > 0)
 			printf("%s:othererr\n", trans->domain);
 		increment_entry(&domain_stat.othererr);
 		err_count++;
 	}
-	if (local_stat.multiplesoa > 0) {
+	if (local_stat.multiplesoa > 0U) {
 		if (verbose_level > 0)
 			printf("%s:multiplesoa\n", trans->domain);
 		increment_entry(&domain_stat.multiplesoa);
 		err_count++;
 	}
-	if (local_stat.multiplecname > 0) {
+	if (local_stat.multiplecname > 0U) {
 		if (verbose_level > 0)
 			printf("%s:multiplecname\n", trans->domain);
 		increment_entry(&domain_stat.multiplecname);
 		err_count++;
 	}
-	if (local_stat.brokenanswer > 0) {
+	if (local_stat.brokenanswer > 0U) {
 		if (verbose_level > 0)
 			printf("%s:brokenanswer\n", trans->domain);
 		increment_entry(&domain_stat.brokenanswer);
 		err_count++;
 	}
-	if (local_stat.lame > 0) {
+	if (local_stat.lame > 0U) {
 		if (verbose_level > 0)
 			printf("%s:lame\n", trans->domain);
 		increment_entry(&domain_stat.lame);
 		err_count++;
 	}
 
-	if (err_count > 1)
+	if (err_count > 1U)
 		increment_entry(&multiple_error_domains);
 
 	/*
 	 * We regard the domain as valid if and only if no authoritative server
 	 * has a problem and at least one server is known to be valid.
 	 */
-	if (local_stat.valid > 0 && err_count == 0) {
+	if (local_stat.valid > 0U && err_count == 0U) {
 		if (verbose_level > 1)
 			printf("%s:valid\n", trans->domain);
 		increment_entry(&domain_stat.valid);
@@ -452,7 +450,7 @@ update_stat(struct probe_trans *trans) {
 	 * If the domain has no available server or all servers have the
 	 * 'unknown' result, the domain's result is also regarded as unknown.
 	 */
-	if (local_stat.valid == 0 && err_count == 0) {
+	if (local_stat.valid == 0U && err_count == 0U) {
 		if (verbose_level > 1)
 			printf("%s:unknown\n", trans->domain);
 		increment_entry(&domain_stat.unknown);
@@ -1218,5 +1216,5 @@ main(int argc, char *argv[]) {
 	isc_app_ctxfinish(actx);
 	ctxs_destroy(&mctx, &actx, &taskmgr, &socketmgr, &timermgr);
 
-	exit(0);
+	return (0);
 }

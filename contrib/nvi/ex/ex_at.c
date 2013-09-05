@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_at.c	10.12 (Berkeley) 9/15/96";
+static const char sccsid[] = "$Id: ex_at.c,v 10.16 2001/06/25 15:19:14 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -34,17 +35,15 @@ static const char sccsid[] = "@(#)ex_at.c	10.12 (Berkeley) 9/15/96";
  * PUBLIC: int ex_at __P((SCR *, EXCMD *));
  */
 int
-ex_at(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_at(SCR *sp, EXCMD *cmdp)
 {
 	CB *cbp;
 	CHAR_T name;
 	EXCMD *ecp;
 	RANGE *rp;
 	TEXT *tp;
-	size_t len;
-	char *p;
+	size_t len = 0;
+	CHAR_T *p;
 
 	/*
 	 * !!!
@@ -84,7 +83,7 @@ ex_at(sp, cmdp)
 	 * means @ buffers are still useful in a multi-screen environment.
 	 */
 	CALLOC_RET(sp, ecp, EXCMD *, 1, sizeof(EXCMD));
-	CIRCLEQ_INIT(&ecp->rq);
+	TAILQ_INIT(ecp->rq);
 	CALLOC_RET(sp, rp, RANGE *, 1, sizeof(RANGE));
 	rp->start = cmdp->addr1.lno;
 	if (F_ISSET(cmdp, E_ADDR_DEF)) {
@@ -94,7 +93,7 @@ ex_at(sp, cmdp)
 		rp->stop = cmdp->addr2.lno;
 		FL_SET(ecp->agv_flags, AGV_AT);
 	}
-	CIRCLEQ_INSERT_HEAD(&ecp->rq, rp, q);
+	TAILQ_INSERT_HEAD(ecp->rq, rp, q);
 
 	/*
 	 * Buffers executed in ex mode or from the colon command line in vi
@@ -104,23 +103,22 @@ ex_at(sp, cmdp)
 	 * Build two copies of the command.  We need two copies because the
 	 * ex parser may step on the command string when it's parsing it.
 	 */
-	for (len = 0, tp = cbp->textq.cqh_last;
-	    tp != (void *)&cbp->textq; tp = tp->q.cqe_prev)
+	TAILQ_FOREACH_REVERSE(tp, cbp->textq, _texth, q)
 		len += tp->len + 1;
 
-	MALLOC_RET(sp, ecp->cp, char *, len * 2);
+	MALLOC_RET(sp, ecp->cp, CHAR_T *, len * 2 * sizeof(CHAR_T));
 	ecp->o_cp = ecp->cp;
 	ecp->o_clen = len;
 	ecp->cp[len] = '\0';
 
 	/* Copy the buffer into the command space. */
-	for (p = ecp->cp + len, tp = cbp->textq.cqh_last;
-	    tp != (void *)&cbp->textq; tp = tp->q.cqe_prev) {
-		memcpy(p, tp->lb, tp->len);
+	p = ecp->cp + len;
+	TAILQ_FOREACH_REVERSE(tp, cbp->textq, _texth, q) {
+		MEMCPY(p, tp->lb, tp->len);
 		p += tp->len;
 		*p++ = '\n';
 	}
 
-	LIST_INSERT_HEAD(&sp->gp->ecq, ecp, q);
+	SLIST_INSERT_HEAD(sp->gp->ecq, ecp, q);
 	return (0);
 }

@@ -16,11 +16,11 @@
 #ifndef LLVM_CLANG_STATICANALYZER_PATHSENSITIVE_CALL
 #define LLVM_CLANG_STATICANALYZER_PATHSENSITIVE_CALL
 
-#include "clang/Basic/SourceManager.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Analysis/AnalysisContext.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -162,11 +162,11 @@ protected:
   }
 
 
-  typedef SmallVectorImpl<const MemRegion *> RegionList;
+  typedef SmallVectorImpl<SVal> ValueList;
 
   /// \brief Used to specify non-argument regions that will be invalidated as a
   /// result of this call.
-  virtual void getExtraInvalidatedRegions(RegionList &Regions) const {}
+  virtual void getExtraInvalidatedValues(ValueList &Values) const {}
 
 public:
   virtual ~CallEvent() {}
@@ -181,7 +181,7 @@ public:
   }
 
   /// \brief The state in which the call is being evaluated.
-  ProgramStateRef getState() const {
+  const ProgramStateRef &getState() const {
     return State;
   }
 
@@ -225,6 +225,11 @@ public:
     if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
       return FD->isOverloadedOperator() && FD->isImplicit() && FD->isGlobal();
 
+    return false;
+  }
+
+  /// \brief Returns true if this is a call to a variadic function or method.
+  virtual bool isVariadic() const {
     return false;
   }
 
@@ -331,7 +336,9 @@ public:
   /// of some kind.
   static bool isCallStmt(const Stmt *S);
 
-  /// \brief Returns the result type of a function, method declaration.
+  /// \brief Returns the result type of a function or method declaration.
+  ///
+  /// This will return a null QualType if the result type cannot be determined.
   static QualType getDeclaredResultType(const Decl *D);
 
   // Iterator access to formal parameters and their types.
@@ -416,6 +423,10 @@ public:
     return RuntimeDefinition();
   }
 
+  virtual bool isVariadic() const {
+    return getDecl()->isVariadic();
+  }
+
   virtual bool argumentsMayEscape() const;
 
   virtual void getInitialStackFrameContents(const StackFrameContext *CalleeCtx,
@@ -493,7 +504,7 @@ protected:
   BlockCall(const BlockCall &Other) : SimpleCall(Other) {}
   virtual void cloneTo(void *Dest) const { new (Dest) BlockCall(*this); }
 
-  virtual void getExtraInvalidatedRegions(RegionList &Regions) const;
+  virtual void getExtraInvalidatedValues(ValueList &Values) const;
 
 public:
   /// \brief Returns the region associated with this instance of the block.
@@ -516,6 +527,10 @@ public:
     return RuntimeDefinition(getBlockDecl());
   }
 
+  virtual bool isVariadic() const {
+    return getBlockDecl()->isVariadic();
+  }
+
   virtual void getInitialStackFrameContents(const StackFrameContext *CalleeCtx,
                                             BindingsTy &Bindings) const;
 
@@ -533,7 +548,7 @@ public:
 /// it is written.
 class CXXInstanceCall : public AnyFunctionCall {
 protected:
-  virtual void getExtraInvalidatedRegions(RegionList &Regions) const;
+  virtual void getExtraInvalidatedValues(ValueList &Values) const;
 
   CXXInstanceCall(const CallExpr *CE, ProgramStateRef St,
                   const LocationContext *LCtx)
@@ -716,7 +731,7 @@ protected:
   CXXConstructorCall(const CXXConstructorCall &Other) : AnyFunctionCall(Other){}
   virtual void cloneTo(void *Dest) const { new (Dest) CXXConstructorCall(*this); }
 
-  virtual void getExtraInvalidatedRegions(RegionList &Regions) const;
+  virtual void getExtraInvalidatedValues(ValueList &Values) const;
 
 public:
   virtual const CXXConstructExpr *getOriginExpr() const {
@@ -815,7 +830,7 @@ protected:
   ObjCMethodCall(const ObjCMethodCall &Other) : CallEvent(Other) {}
   virtual void cloneTo(void *Dest) const { new (Dest) ObjCMethodCall(*this); }
 
-  virtual void getExtraInvalidatedRegions(RegionList &Regions) const;
+  virtual void getExtraInvalidatedValues(ValueList &Values) const;
 
   /// Check if the selector may have multiple definitions (may have overrides).
   virtual bool canBeOverridenInSubclass(ObjCInterfaceDecl *IDecl,
@@ -833,6 +848,9 @@ public:
   }
   virtual const Expr *getArgExpr(unsigned Index) const {
     return getOriginExpr()->getArg(Index);
+  }
+  virtual bool isVariadic() const {
+    return getDecl()->isVariadic();
   }
 
   bool isInstanceMessage() const {
@@ -1024,7 +1042,7 @@ namespace llvm {
     typedef const T *SimpleType;
 
     static SimpleType
-    getSimplifiedValue(const clang::ento::CallEventRef<T>& Val) {
+    getSimplifiedValue(clang::ento::CallEventRef<T> Val) {
       return Val.getPtr();
     }
   };

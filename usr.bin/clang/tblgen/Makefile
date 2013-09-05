@@ -8,6 +8,7 @@ SRCDIR=	utils/TableGen
 SRCS=	AsmMatcherEmitter.cpp \
 	AsmWriterEmitter.cpp \
 	AsmWriterInst.cpp \
+	CTagsEmitter.cpp \
 	CallingConvEmitter.cpp \
 	CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp \
@@ -23,11 +24,11 @@ SRCS=	AsmMatcherEmitter.cpp \
 	DAGISelMatcherOpt.cpp \
 	DFAPacketizerEmitter.cpp \
 	DisassemblerEmitter.cpp \
-	EDEmitter.cpp \
 	FastISelEmitter.cpp \
 	FixedLenDecoderEmitter.cpp \
 	InstrInfoEmitter.cpp \
 	IntrinsicEmitter.cpp \
+	OptParserEmitter.cpp \
 	PseudoLoweringEmitter.cpp \
 	RegisterInfoEmitter.cpp \
 	SetTheory.cpp \
@@ -37,7 +38,6 @@ SRCS=	AsmMatcherEmitter.cpp \
 	X86DisassemblerTables.cpp \
 	X86ModRMFilters.cpp \
 	X86RecognizableInstr.cpp
-LLVM_REQUIRES_EH=
 
 LIBDEPS=llvmtablegen \
 	llvmsupport

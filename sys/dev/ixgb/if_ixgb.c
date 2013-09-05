@@ -72,8 +72,8 @@ char            ixgb_copyright[] = "Copyright (c) 2001-2004 Intel Corporation.";
 static ixgb_vendor_info_t ixgb_vendor_info_array[] =
 {
 	/* Intel(R) PRO/10000 Network Connection */
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX, PCI_ANY_ID, PCI_ANY_ID, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{IXGB_VENDOR_ID, IXGB_DEVICE_ID_82597EX, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{IXGB_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -1210,15 +1210,9 @@ ixgb_identify_hardware(struct adapter * adapter)
 	device_t        dev = adapter->dev;
 
 	/* Make sure our PCI config space has the necessary stuff set */
+	pci_enable_busmaster(dev);
 	adapter->hw.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((adapter->hw.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	      (adapter->hw.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		device_printf(dev,
-		    "Memory Access and/or Bus Master bits were not set!\n");
-		adapter->hw.pci_cmd_word |=
-			(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND, adapter->hw.pci_cmd_word, 2);
-	}
+
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);
 	adapter->hw.device_id = pci_get_device(dev);

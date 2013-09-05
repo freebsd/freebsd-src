@@ -217,54 +217,28 @@ struct secspacq {
 
 /* statistics for ipsec processing */
 struct ipsecstat {
-	u_quad_t in_success;  /* succeeded inbound process */
-	u_quad_t in_polvio;
-			/* security policy violation for inbound process */
-	u_quad_t in_nosa;     /* inbound SA is unavailable */
-	u_quad_t in_inval;    /* inbound processing failed due to EINVAL */
-	u_quad_t in_nomem;    /* inbound processing failed due to ENOBUFS */
-	u_quad_t in_badspi;   /* failed getting a SPI */
-	u_quad_t in_ahreplay; /* AH replay check failed */
-	u_quad_t in_espreplay; /* ESP replay check failed */
-	u_quad_t in_ahauthsucc; /* AH authentication success */
-	u_quad_t in_ahauthfail; /* AH authentication failure */
-	u_quad_t in_espauthsucc; /* ESP authentication success */
-	u_quad_t in_espauthfail; /* ESP authentication failure */
-	u_quad_t in_esphist[256];
-	u_quad_t in_ahhist[256];
-	u_quad_t in_comphist[256];
-	u_quad_t out_success; /* succeeded outbound process */
-	u_quad_t out_polvio;
-			/* security policy violation for outbound process */
-	u_quad_t out_nosa;    /* outbound SA is unavailable */
-	u_quad_t out_inval;   /* outbound process failed due to EINVAL */
-	u_quad_t out_nomem;    /* inbound processing failed due to ENOBUFS */
-	u_quad_t out_noroute; /* there is no route */
-	u_quad_t out_esphist[256];
-	u_quad_t out_ahhist[256];
-	u_quad_t out_comphist[256];
+	uint64_t ips_in_polvio;		/* input: sec policy violation */
+	uint64_t ips_in_nomem;		/* input: no memory available */
+	uint64_t ips_in_inval;		/* input: generic error */
 
-	u_quad_t spdcachelookup;
-	u_quad_t spdcachemiss;
+	uint64_t ips_out_polvio;	/* output: sec policy violation */
+	uint64_t ips_out_nosa;		/* output: SA unavailable  */
+	uint64_t ips_out_nomem;		/* output: no memory available */
+	uint64_t ips_out_noroute;	/* output: no route available */
+	uint64_t ips_out_inval;		/* output: generic error */
+	uint64_t ips_out_bundlesa;	/* output: bundled SA processed */
 
-	u_int32_t ips_in_polvio;	/* input: sec policy violation */
-	u_int32_t ips_out_polvio;	/* output: sec policy violation */
-	u_int32_t ips_out_nosa;		/* output: SA unavailable  */
-	u_int32_t ips_out_nomem;	/* output: no memory available */
-	u_int32_t ips_out_noroute;	/* output: no route available */
-	u_int32_t ips_out_inval;	/* output: generic error */
-	u_int32_t ips_out_bundlesa;	/* output: bundled SA processed */
-	u_int32_t ips_mbcoalesced;	/* mbufs coalesced during clone */
-	u_int32_t ips_clcoalesced;	/* clusters coalesced during clone */
-	u_int32_t ips_clcopied;		/* clusters copied during clone */
-	u_int32_t ips_mbinserted;	/* mbufs inserted during makespace */
+	uint64_t ips_mbcoalesced;	/* mbufs coalesced during clone */
+	uint64_t ips_clcoalesced;	/* clusters coalesced during clone */
+	uint64_t ips_clcopied;		/* clusters copied during clone */
+	uint64_t ips_mbinserted;	/* mbufs inserted during makespace */
 	/* 
 	 * Temporary statistics for performance analysis.
 	 */
 	/* See where ESP/AH/IPCOMP header land in mbuf on input */
-	u_int32_t ips_input_front;
-	u_int32_t ips_input_middle;
-	u_int32_t ips_input_end;
+	uint64_t ips_input_front;
+	uint64_t ips_input_middle;
+	uint64_t ips_input_end;
 };
 
 /*
@@ -290,41 +264,9 @@ struct ipsecstat {
 #define	IPSECCTL_ESP_RANDPAD		13
 #define IPSECCTL_MAXID			14
 
-#define IPSECCTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "def_policy", CTLTYPE_INT }, \
-	{ "esp_trans_deflev", CTLTYPE_INT }, \
-	{ "esp_net_deflev", CTLTYPE_INT }, \
-	{ "ah_trans_deflev", CTLTYPE_INT }, \
-	{ "ah_net_deflev", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ "ah_cleartos", CTLTYPE_INT }, \
-	{ "ah_offsetmask", CTLTYPE_INT }, \
-	{ "dfbit", CTLTYPE_INT }, \
-	{ "ecn", CTLTYPE_INT }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "esp_randpad", CTLTYPE_INT }, \
-}
-
-#define IPSEC6CTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "def_policy", CTLTYPE_INT }, \
-	{ "esp_trans_deflev", CTLTYPE_INT }, \
-	{ "esp_net_deflev", CTLTYPE_INT }, \
-	{ "ah_trans_deflev", CTLTYPE_INT }, \
-	{ "ah_net_deflev", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "ecn", CTLTYPE_INT }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "esp_randpad", CTLTYPE_INT }, \
-}
-
 #ifdef _KERNEL
+#include <sys/counter.h>
+
 struct ipsec_output_state {
 	struct mbuf *m;
 	struct route *ro;
@@ -347,7 +289,7 @@ VNET_DECLARE(int, ipsec_integrity);
 #define	V_ipsec_integrity	VNET(ipsec_integrity)
 #endif
 
-VNET_DECLARE(struct ipsecstat, ipsec4stat);
+VNET_PCPUSTAT_DECLARE(struct ipsecstat, ipsec4stat);
 VNET_DECLARE(struct secpolicy, ip4_def_policy);
 VNET_DECLARE(int, ip4_esp_trans_deflev);
 VNET_DECLARE(int, ip4_esp_net_deflev);
@@ -359,7 +301,8 @@ VNET_DECLARE(int, ip4_ipsec_ecn);
 VNET_DECLARE(int, ip4_esp_randpad);
 VNET_DECLARE(int, crypto_support);
 
-#define	V_ipsec4stat		VNET(ipsec4stat)
+#define	IPSECSTAT_INC(name)	\
+    VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec4stat, name, 1)
 #define	V_ip4_def_policy	VNET(ip4_def_policy)
 #define	V_ip4_esp_trans_deflev	VNET(ip4_esp_trans_deflev)
 #define	V_ip4_esp_net_deflev	VNET(ip4_esp_net_deflev)

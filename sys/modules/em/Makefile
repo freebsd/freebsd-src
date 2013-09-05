@@ -1,7 +1,10 @@
 # $FreeBSD$
+
+.include <bsd.own.mk>
+
 .PATH:  ${.CURDIR}/../../dev/e1000
 KMOD    = if_em
-SRCS    = device_if.h bus_if.h pci_if.h opt_inet.h
+SRCS    = device_if.h bus_if.h pci_if.h opt_inet.h opt_inet6.h
 SRCS    += $(CORE_SRC) $(LEGACY_SRC)
 SRCS	+= $(COMMON_SHARED) $(LEGACY_SHARED) $(PCIE_SHARED)
 CORE_SRC = if_em.c e1000_osdep.c
@@ -17,5 +20,17 @@ CFLAGS += -I${.CURDIR}/../../dev/e1000
 
 # DEVICE_POLLING for a non-interrupt-driven method
 #CFLAGS  += -DDEVICE_POLLING
+
+.if !defined(KERNBUILDDIR)
+.if ${MK_INET_SUPPORT} != "no"
+opt_inet.h:
+	@echo "#define INET 1" > ${.TARGET}
+.endif
+
+.if ${MK_INET6_SUPPORT} != "no"
+opt_inet6.h:
+	@echo "#define INET6 1" > ${.TARGET}
+.endif
+.endif
 
 .include <bsd.kmod.mk>

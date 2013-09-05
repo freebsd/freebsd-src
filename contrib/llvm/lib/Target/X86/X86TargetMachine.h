@@ -15,16 +15,15 @@
 #define X86TARGETMACHINE_H
 
 #include "X86.h"
-#include "X86InstrInfo.h"
-#include "X86ISelLowering.h"
 #include "X86FrameLowering.h"
+#include "X86ISelLowering.h"
+#include "X86InstrInfo.h"
 #include "X86JITInfo.h"
 #include "X86SelectionDAGInfo.h"
 #include "X86Subtarget.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/DataLayout.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetTransformImpl.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
@@ -65,6 +64,9 @@ public:
     return &InstrItins;
   }
 
+  /// \brief Register X86 analysis passes with a pass manager.
+  virtual void addAnalysisPasses(PassManagerBase &PM);
+
   // Set up the pass pipeline.
   virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
 
@@ -78,11 +80,9 @@ class X86_32TargetMachine : public X86TargetMachine {
   virtual void anchor();
   const DataLayout  DL; // Calculates type size & alignment
   X86InstrInfo      InstrInfo;
-  X86SelectionDAGInfo TSInfo;
   X86TargetLowering TLInfo;
+  X86SelectionDAGInfo TSInfo;
   X86JITInfo        JITInfo;
-  ScalarTargetTransformImpl STTI;
-  X86VectorTargetTransformInfo VTTI;
 public:
   X86_32TargetMachine(const Target &T, StringRef TT,
                       StringRef CPU, StringRef FS, const TargetOptions &Options,
@@ -101,12 +101,6 @@ public:
   virtual       X86JITInfo       *getJITInfo()         {
     return &JITInfo;
   }
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
-  }
 };
 
 /// X86_64TargetMachine - X86 64-bit target machine.
@@ -115,11 +109,9 @@ class X86_64TargetMachine : public X86TargetMachine {
   virtual void anchor();
   const DataLayout  DL; // Calculates type size & alignment
   X86InstrInfo      InstrInfo;
-  X86SelectionDAGInfo TSInfo;
   X86TargetLowering TLInfo;
+  X86SelectionDAGInfo TSInfo;
   X86JITInfo        JITInfo;
-  ScalarTargetTransformImpl STTI;
-  X86VectorTargetTransformInfo VTTI;
 public:
   X86_64TargetMachine(const Target &T, StringRef TT,
                       StringRef CPU, StringRef FS, const TargetOptions &Options,
@@ -137,12 +129,6 @@ public:
   }
   virtual       X86JITInfo       *getJITInfo()         {
     return &JITInfo;
-  }
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
   }
 };
 

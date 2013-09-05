@@ -15,6 +15,7 @@
 
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/Sema/Weak.h"
+#include "llvm/ADT/MapVector.h"
 #include <utility>
 
 namespace clang {
@@ -65,7 +66,12 @@ public:
   /// which will be used during typo correction.
   virtual void ReadKnownNamespaces(
                            SmallVectorImpl<NamespaceDecl *> &Namespaces);
-  
+
+  /// \brief Load the set of used but not defined functions or variables with
+  /// internal linkage, or used but not defined internal functions.
+  virtual void ReadUndefinedButUsed(
+                         llvm::DenseMap<NamedDecl*, SourceLocation> &Undefined);
+
   /// \brief Do last resort, unqualified lookup on a LookupResult that
   /// Sema cannot find.
   ///
@@ -130,7 +136,7 @@ public:
   /// declarations to the given vector of declarations. Note that this routine 
   /// may be invoked multiple times; the external source should take care not 
   /// to introduce the same declarations repeatedly.
-  virtual void ReadLocallyScopedExternalDecls(
+  virtual void ReadLocallyScopedExternCDecls(
                  SmallVectorImpl<NamedDecl *> &Decls) {}
 
   /// \brief Read the set of referenced selectors known to the

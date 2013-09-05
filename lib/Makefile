@@ -72,12 +72,14 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdwarf \
 	libedit \
 	${_libefi} \
+	libexecinfo \
 	libexpat \
 	libfetch \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
+	${_libiconv_compat} \
 	libipsec \
 	${_libipx} \
 	libjail \
@@ -102,6 +104,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
+	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
@@ -188,6 +191,10 @@ _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
 .endif
 
+.if ${MK_LIBICONV_COMPAT} != "no"
+_libiconv_compat=	libiconv_compat
+.endif
+
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
 .endif
@@ -205,6 +212,7 @@ _libypclnt=	libypclnt
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
@@ -216,6 +224,7 @@ _libvmmapi=	libvmmapi
 
 .if ${MACHINE_CPUARCH} == "ia64"
 _libefi=	libefi
+_libsmb=	libsmb
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
@@ -226,6 +235,11 @@ _librtld_db=	librtld_db
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libproc=	libproc
 _librtld_db=	librtld_db
+_libsmb=	libsmb
+.endif
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+_libsmb=	libsmb
 .endif
 
 .if ${MK_OPENSSL} != "no"
@@ -250,6 +264,11 @@ _libtelnet=	libtelnet
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 _libusb=	libusb
+.endif
+
+.if !defined(LIBRARIES_ONLY)
+afterinstall:
+	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
 .endif
 
 .include <bsd.subdir.mk>

@@ -224,8 +224,13 @@ vmm_handler(module_t mod, int what, void *arg)
 			iommu_cleanup();
 			vmm_ipi_cleanup();
 			error = VMM_CLEANUP();
+			/*
+			 * Something bad happened - prevent new
+			 * VMs from being created
+			 */
+			if (error)
+				vmm_initialized = 0;
 		}
-		vmm_initialized = 0;
 		break;
 	default:
 		error = 0;
@@ -894,7 +899,7 @@ vcpu_set_state(struct vm *vm, int vcpuid, enum vcpu_state state)
 }
 
 enum vcpu_state
-vcpu_get_state(struct vm *vm, int vcpuid)
+vcpu_get_state(struct vm *vm, int vcpuid, int *hostcpu)
 {
 	struct vcpu *vcpu;
 	enum vcpu_state state;
@@ -906,6 +911,8 @@ vcpu_get_state(struct vm *vm, int vcpuid)
 
 	vcpu_lock(vcpu);
 	state = vcpu->state;
+	if (hostcpu != NULL)
+		*hostcpu = vcpu->hostcpu;
 	vcpu_unlock(vcpu);
 
 	return (state);

@@ -470,12 +470,16 @@ lwres__print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 				pad--;
 			}
 			break;
+
 		case 'D':	/*deprecated*/
 			INSIST("use %ld instead of %D" == NULL);
+			break;
 		case 'O':	/*deprecated*/
 			INSIST("use %lo instead of %O" == NULL);
+			break;
 		case 'U':	/*deprecated*/
 			INSIST("use %lu instead of %U" == NULL);
+			break;
 
 		case 'L':
 #ifdef HAVE_LONG_DOUBLE

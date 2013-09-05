@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: result.h,v 1.123 2011/03/21 07:22:14 each Exp $ */
 
 #ifndef DNS_RESULT_H
 #define DNS_RESULT_H 1
@@ -151,8 +151,10 @@
 #define DNS_R_NOTMASTER 		(ISC_RESULTCLASS_DNS + 105)
 #define DNS_R_BROKENCHAIN		(ISC_RESULTCLASS_DNS + 106)
 #define DNS_R_EXPIRED			(ISC_RESULTCLASS_DNS + 107)
+#define DNS_R_NOTDYNAMIC 		(ISC_RESULTCLASS_DNS + 108)
+#define DNS_R_BADEUI	 		(ISC_RESULTCLASS_DNS + 109)
 
-#define DNS_R_NRESULTS			108	/*%< Number of results */
+#define DNS_R_NRESULTS			110	/*%< Number of results */
 
 /*
  * DNS wire format rcodes.

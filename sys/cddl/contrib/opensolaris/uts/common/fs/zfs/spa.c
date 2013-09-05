@@ -27,6 +27,8 @@
  */
 
 /*
+ * SPA: Storage Pool Allocator
+ *
  * This file contains all the routines used when modifying on-disk SPA state.
  * This includes opening, importing, destroying, exporting a pool, and syncing a
  * pool.
@@ -85,6 +87,12 @@ SYSCTL_DECL(_vfs_zfs);
 TUNABLE_INT("vfs.zfs.check_hostid", &check_hostid);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RW, &check_hostid, 0,
     "Check hostid on import?");
+
+/*
+ * The interval, in seconds, at which failed configuration cache file writes
+ * should be retried.
+ */
+static int zfs_ccw_retry_interval = 300;
 
 typedef enum zti_modes {
 	zti_mode_fixed,			/* value is # of threads (min 1) */
@@ -751,6 +759,7 @@ spa_change_guid(spa_t *spa)
 	int error;
 	uint64_t guid;
 
+	mutex_enter(&spa->spa_vdev_top_lock);
 	mutex_enter(&spa_namespace_lock);
 	guid = spa_generate_guid(NULL);
 
@@ -763,6 +772,7 @@ spa_change_guid(spa_t *spa)
 	}
 
 	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&spa->spa_vdev_top_lock);
 
 	return (error);
 }
@@ -3052,6 +3062,10 @@ spa_add_feature_stats(spa_t *spa, nvlist_t *config)
 	ASSERT(spa_config_held(spa, SCL_CONFIG, RW_READER));
 	VERIFY(nvlist_alloc(&features, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 
+	/* We may be unable to read features if pool is suspended. */
+	if (spa_suspended(spa))
+		goto out;
+
 	if (spa->spa_feat_for_read_obj != 0) {
 		for (zap_cursor_init(&zc, spa->spa_meta_objset,
 		    spa->spa_feat_for_read_obj);
@@ -3078,6 +3092,7 @@ spa_add_feature_stats(spa_t *spa, nvlist_t *config)
 		zap_cursor_fini(&zc);
 	}
 
+out:
 	VERIFY(nvlist_add_nvlist(config, ZPOOL_CONFIG_FEATURE_STATS,
 	    features) == 0);
 	nvlist_free(features);
@@ -3409,6 +3424,7 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	    (error = spa_validate_aux(spa, nvroot, txg,
 	    VDEV_ALLOC_ADD)) == 0) {
 		for (int c = 0; c < rvd->vdev_children; c++) {
+			vdev_ashift_optimize(rvd->vdev_child[c]);
 			vdev_metaslab_set_size(rvd->vdev_child[c]);
 			vdev_expand(rvd->vdev_child[c], txg);
 		}
@@ -4618,7 +4634,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing)
 	}
 
 	/* mark the device being resilvered */
-	newvd->vdev_resilvering = B_TRUE;
+	newvd->vdev_resilver_txg = txg;
 
 	/*
 	 * If the parent is not a mirror, or if we're replacing, insert the new
@@ -4696,6 +4712,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing)
 
 /*
  * Detach a device from a mirror or replacing vdev.
+ *
  * If 'replace_done' is specified, only detach if the parent
  * is a replacing vdev.
  */
@@ -4847,7 +4864,6 @@ spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
 		if (pvd->vdev_ops == &vdev_spare_ops)
 			cvd->vdev_unspare = B_FALSE;
 		vdev_remove_parent(cvd);
-		cvd->vdev_resilvering = B_FALSE;
 	}
 
 
@@ -5357,11 +5373,9 @@ spa_vdev_remove_from_namespace(spa_t *spa, vdev_t *vd)
  * the spa_vdev_config_[enter/exit] functions which allow us to
  * grab and release the spa_config_lock while still holding the namespace
  * lock.  During each step the configuration is synced out.
- */
-
-/*
- * Remove a device from the pool.  Currently, this supports removing only hot
- * spares, slogs, and level 2 ARC devices.
+ *
+ * Currently, this supports removing only hot spares, slogs, and level 2 ARC
+ * devices.
  */
 int
 spa_vdev_remove(spa_t *spa, uint64_t guid, boolean_t unspare)
@@ -5471,7 +5485,7 @@ spa_vdev_remove(spa_t *spa, uint64_t guid, boolean_t unspare)
 
 /*
  * Find any device that's done replacing, or a vdev marked 'unspare' that's
- * current spared, so we can detach it.
+ * currently spared, so we can detach it.
  */
 static vdev_t *
 spa_vdev_resilver_done_hunt(vdev_t *vd)
@@ -5573,6 +5587,8 @@ spa_vdev_resilver_done(spa_t *spa)
 			ASSERT(pvd->vdev_ops == &vdev_replacing_ops);
 			sguid = ppvd->vdev_child[1]->vdev_guid;
 		}
+		ASSERT(vd->vdev_resilver_txg == 0 || !vdev_dtl_required(vd));
+
 		spa_config_exit(spa, SCL_ALL, FTAG);
 		if (spa_vdev_detach(spa, guid, pguid, B_TRUE) != 0)
 			return;
@@ -5756,7 +5772,7 @@ spa_async_thread(void *arg)
 
 	mutex_enter(&spa->spa_async_lock);
 	tasks = spa->spa_async_tasks;
-	spa->spa_async_tasks = 0;
+	spa->spa_async_tasks &= SPA_ASYNC_REMOVE;
 	mutex_exit(&spa->spa_async_lock);
 
 	/*
@@ -5780,19 +5796,6 @@ spa_async_thread(void *arg)
 			    "pool '%s' size: %llu(+%llu)",
 			    spa_name(spa), new_space, new_space - old_space);
 		}
-	}
-
-	/*
-	 * See if any devices need to be marked REMOVED.
-	 */
-	if (tasks & SPA_ASYNC_REMOVE) {
-		spa_vdev_state_enter(spa, SCL_NONE);
-		spa_async_remove(spa, spa->spa_root_vdev);
-		for (int i = 0; i < spa->spa_l2cache.sav_count; i++)
-			spa_async_remove(spa, spa->spa_l2cache.sav_vdevs[i]);
-		for (int i = 0; i < spa->spa_spares.sav_count; i++)
-			spa_async_remove(spa, spa->spa_spares.sav_vdevs[i]);
-		(void) spa_vdev_state_exit(spa, NULL, 0);
 	}
 
 	if ((tasks & SPA_ASYNC_AUTOEXPAND) && !spa_suspended(spa)) {
@@ -5832,12 +5835,53 @@ spa_async_thread(void *arg)
 	thread_exit();
 }
 
+static void
+spa_async_thread_vd(void *arg)
+{
+	spa_t *spa = arg;
+	int tasks;
+
+	ASSERT(spa->spa_sync_on);
+
+	mutex_enter(&spa->spa_async_lock);
+	tasks = spa->spa_async_tasks;
+retry:
+	spa->spa_async_tasks &= ~SPA_ASYNC_REMOVE;
+	mutex_exit(&spa->spa_async_lock);
+
+	/*
+	 * See if any devices need to be marked REMOVED.
+	 */
+	if (tasks & SPA_ASYNC_REMOVE) {
+		spa_vdev_state_enter(spa, SCL_NONE);
+		spa_async_remove(spa, spa->spa_root_vdev);
+		for (int i = 0; i < spa->spa_l2cache.sav_count; i++)
+			spa_async_remove(spa, spa->spa_l2cache.sav_vdevs[i]);
+		for (int i = 0; i < spa->spa_spares.sav_count; i++)
+			spa_async_remove(spa, spa->spa_spares.sav_vdevs[i]);
+		(void) spa_vdev_state_exit(spa, NULL, 0);
+	}
+
+	/*
+	 * Let the world know that we're done.
+	 */
+	mutex_enter(&spa->spa_async_lock);
+	tasks = spa->spa_async_tasks;
+	if ((tasks & SPA_ASYNC_REMOVE) != 0)
+		goto retry;
+	spa->spa_async_thread_vd = NULL;
+	cv_broadcast(&spa->spa_async_cv);
+	mutex_exit(&spa->spa_async_lock);
+	thread_exit();
+}
+
 void
 spa_async_suspend(spa_t *spa)
 {
 	mutex_enter(&spa->spa_async_lock);
 	spa->spa_async_suspended++;
-	while (spa->spa_async_thread != NULL)
+	while (spa->spa_async_thread != NULL &&
+	    spa->spa_async_thread_vd != NULL)
 		cv_wait(&spa->spa_async_cv, &spa->spa_async_lock);
 	mutex_exit(&spa->spa_async_lock);
 }
@@ -5851,15 +5895,50 @@ spa_async_resume(spa_t *spa)
 	mutex_exit(&spa->spa_async_lock);
 }
 
+static boolean_t
+spa_async_tasks_pending(spa_t *spa)
+{
+	uint_t non_config_tasks;
+	uint_t config_task;
+	boolean_t config_task_suspended;
+
+	non_config_tasks = spa->spa_async_tasks & ~(SPA_ASYNC_CONFIG_UPDATE |
+	    SPA_ASYNC_REMOVE);
+	config_task = spa->spa_async_tasks & SPA_ASYNC_CONFIG_UPDATE;
+	if (spa->spa_ccw_fail_time == 0) {
+		config_task_suspended = B_FALSE;
+	} else {
+		config_task_suspended =
+		    (gethrtime() - spa->spa_ccw_fail_time) <
+		    (zfs_ccw_retry_interval * NANOSEC);
+	}
+
+	return (non_config_tasks || (config_task && !config_task_suspended));
+}
+
 static void
 spa_async_dispatch(spa_t *spa)
 {
 	mutex_enter(&spa->spa_async_lock);
-	if (spa->spa_async_tasks && !spa->spa_async_suspended &&
+	if (spa_async_tasks_pending(spa) &&
+	    !spa->spa_async_suspended &&
 	    spa->spa_async_thread == NULL &&
-	    rootdir != NULL && !vn_is_readonly(rootdir))
+	    rootdir != NULL)
 		spa->spa_async_thread = thread_create(NULL, 0,
 		    spa_async_thread, spa, 0, &p0, TS_RUN, maxclsyspri);
+	mutex_exit(&spa->spa_async_lock);
+}
+
+static void
+spa_async_dispatch_vd(spa_t *spa)
+{
+	mutex_enter(&spa->spa_async_lock);
+	if ((spa->spa_async_tasks & SPA_ASYNC_REMOVE) != 0 &&
+	    !spa->spa_async_suspended &&
+	    spa->spa_async_thread_vd == NULL &&
+	    rootdir != NULL)
+		spa->spa_async_thread_vd = thread_create(NULL, 0,
+		    spa_async_thread_vd, spa, 0, &p0, TS_RUN, maxclsyspri);
 	mutex_exit(&spa->spa_async_lock);
 }
 
@@ -5870,6 +5949,7 @@ spa_async_request(spa_t *spa, int task)
 	mutex_enter(&spa->spa_async_lock);
 	spa->spa_async_tasks |= task;
 	mutex_exit(&spa->spa_async_lock);
+	spa_async_dispatch_vd(spa);
 }
 
 /*
@@ -6458,6 +6538,7 @@ spa_sync(spa_t *spa, uint64_t txg)
 	 * If any async tasks have been requested, kick them off.
 	 */
 	spa_async_dispatch(spa);
+	spa_async_dispatch_vd(spa);
 }
 
 /*

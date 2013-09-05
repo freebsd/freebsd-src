@@ -115,6 +115,16 @@ static int kgdb_trgt_frame_offset[] = {
 	offsetof(struct trapframe, a1),
 	offsetof(struct trapframe, a2),
 	offsetof(struct trapframe, a3),
+#if defined(__mips_n32) || defined(__mips_n64)
+	offsetof(struct trapframe, a4),
+	offsetof(struct trapframe, a5),
+	offsetof(struct trapframe, a6),
+	offsetof(struct trapframe, a7),
+	offsetof(struct trapframe, t0),
+	offsetof(struct trapframe, t1),
+	offsetof(struct trapframe, t2),
+	offsetof(struct trapframe, t3),
+#else
 	offsetof(struct trapframe, t0),
 	offsetof(struct trapframe, t1),
 	offsetof(struct trapframe, t2),
@@ -123,6 +133,7 @@ static int kgdb_trgt_frame_offset[] = {
 	offsetof(struct trapframe, t5),
 	offsetof(struct trapframe, t6),
 	offsetof(struct trapframe, t7),
+#endif
 	offsetof(struct trapframe, s0),
 	offsetof(struct trapframe, s1),
 	offsetof(struct trapframe, s2),

@@ -433,6 +433,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+				vnode_pager_setsize(vp, np->n_size);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -444,16 +445,24 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 					np->n_size = vap->va_size;
 					np->n_flag |= NSIZECHANGED;
 				}
+				vnode_pager_setsize(vp, np->n_size);
+			} else if (vap->va_size < np->n_size) {
+				/*
+				 * When shrinking the size, the call to
+				 * vnode_pager_setsize() cannot be done
+				 * with the mutex held, so delay it until
+				 * after the mtx_unlock call.
+				 */
+				nsize = np->n_size = vap->va_size;
+				np->n_flag |= NSIZECHANGED;
+				setnsize = 1;
 			} else {
 				np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
+				vnode_pager_setsize(vp, np->n_size);
 			}
 		} else {
 			np->n_size = vap->va_size;
-		}
-		if (vap->va_type == VREG || vap->va_type == VDIR) {
-			setnsize = 1;
-			nsize = vap->va_size;
 		}
 	}
 	/*
@@ -1210,10 +1219,11 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
-	int error;
 	struct nameidata nd;
 	struct nfscl_dumpmntopts dumpmntopts;
+	cap_rights_t rights;
 	char *buf;
+	int error;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1224,10 +1234,10 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_CLIENT, &fp))
-		    != 0) {
+		error = fget(td, nfscbdarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_CLIENT), &fp);
+		if (error)
 			return (error);
-		}
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
 			return (EPERM);

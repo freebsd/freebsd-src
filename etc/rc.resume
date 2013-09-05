@@ -52,10 +52,6 @@ fi
 # suspend and reloading it on resume.  Example:
 # kldload usb
 
-# wpa_supplicant(8) doesn't seem to reassociate during resume.  Uncomment
-# the following to signal it to reassociate.
-# /usr/sbin/wpa_cli reassociate
-
 /usr/bin/logger -t $subsystem resumed at `/bin/date +'%Y%m%d %H:%M:%S'`
 /bin/sync && /bin/sync && /bin/sync
 

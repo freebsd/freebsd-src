@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -141,6 +141,18 @@ isc_socket_sendto(isc_socket_t *sock, isc_region_t *region, isc_task_t *task,
 }
 
 isc_result_t
+isc_socket_sendto2(isc_socket_t *sock, isc_region_t *region,
+		   isc_task_t *task, isc_sockaddr_t *address,
+		   struct in6_pktinfo *pktinfo, isc_socketevent_t *event,
+		   unsigned int flags)
+{
+	REQUIRE(ISCAPI_SOCKET_VALID(sock));
+
+	return (sock->methods->sendto2(sock, region, task, address,
+				       pktinfo, event, flags));
+}
+
+isc_result_t
 isc_socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr, isc_task_t *task,
 		   isc_taskaction_t action, const void *arg)
 {
@@ -156,6 +168,17 @@ isc_socket_recv(isc_socket_t *sock, isc_region_t *region, unsigned int minimum,
 	REQUIRE(ISCAPI_SOCKET_VALID(sock));
 
 	return (sock->methods->recv(sock, region, minimum, task, action, arg));
+}
+
+isc_result_t
+isc_socket_recv2(isc_socket_t *sock, isc_region_t *region,
+		 unsigned int minimum, isc_task_t *task,
+		 isc_socketevent_t *event, unsigned int flags)
+{
+	REQUIRE(ISCAPI_SOCKET_VALID(sock));
+
+	return (sock->methods->recv2(sock, region, minimum, task,
+				     event, flags));
 }
 
 void
@@ -213,4 +236,19 @@ isc_socket_fdwatchpoke(isc_socket_t *sock, int flags)
 	REQUIRE(ISCAPI_SOCKET_VALID(sock));
 
 	return(sock->methods->fdwatchpoke(sock, flags));
+}
+
+isc_result_t
+isc_socket_dup(isc_socket_t *sock, isc_socket_t **socketp) {
+	REQUIRE(ISCAPI_SOCKET_VALID(sock));
+	REQUIRE(socketp != NULL && *socketp == NULL);
+
+	return(sock->methods->dup(sock, socketp));
+}
+
+int
+isc_socket_getfd(isc_socket_t *sock) {
+	REQUIRE(ISCAPI_SOCKET_VALID(sock));
+
+	return(sock->methods->getfd(sock));
 }

@@ -13,11 +13,11 @@
 
 #define DEBUG_TYPE "asm-printer"
 #include "ARMInstPrinter.h"
-#include "MCTargetDesc/ARMBaseInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
-#include "llvm/MC/MCInst.h"
+#include "MCTargetDesc/ARMBaseInfo.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/raw_ostream.h"
@@ -252,6 +252,35 @@ void ARMInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
     return;
   }
 
+  // Combine 2 GPRs from disassember into a GPRPair to match with instr def.
+  // ldrexd/strexd require even/odd GPR pair. To enforce this constraint,
+  // a single GPRPair reg operand is used in the .td file to replace the two
+  // GPRs. However, when decoding them, the two GRPs cannot be automatically
+  // expressed as a GPRPair, so we have to manually merge them.
+  // FIXME: We would really like to be able to tablegen'erate this.
+  if (Opcode == ARM::LDREXD || Opcode == ARM::STREXD) {
+    const MCRegisterClass& MRC = MRI.getRegClass(ARM::GPRRegClassID);
+    bool isStore = Opcode == ARM::STREXD;
+    unsigned Reg = MI->getOperand(isStore ? 1 : 0).getReg();
+    if (MRC.contains(Reg)) {
+      MCInst NewMI;
+      MCOperand NewReg;
+      NewMI.setOpcode(Opcode);
+
+      if (isStore)
+        NewMI.addOperand(MI->getOperand(0));
+      NewReg = MCOperand::CreateReg(MRI.getMatchingSuperReg(Reg, ARM::gsub_0,
+        &MRI.getRegClass(ARM::GPRPairRegClassID)));
+      NewMI.addOperand(NewReg);
+
+      // Copy the rest operands into NewMI.
+      for(unsigned i= isStore ? 3 : 2; i < MI->getNumOperands(); ++i)
+        NewMI.addOperand(MI->getOperand(i));
+      printInstruction(&NewMI, O);
+      return;
+    }
+  }
+
   printInstruction(MI, O);
   printAnnotation(O, Annot);
 }
@@ -264,7 +293,7 @@ void ARMInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     printRegName(O, Reg);
   } else if (Op.isImm()) {
     O << markup("<imm:")
-      << '#' << Op.getImm()
+      << '#' << formatImm(Op.getImm())
       << markup(">");
   } else {
     assert(Op.isExpr() && "unknown operand kind in printOperand");
@@ -290,7 +319,7 @@ void ARMInstPrinter::printThumbLdrLabelOperand(const MCInst *MI, unsigned OpNum,
     O << *MO1.getExpr();
   else if (MO1.isImm()) {
     O << markup("<mem:") << "[pc, "
-      << markup("<imm:") << "#" << MO1.getImm()
+      << markup("<imm:") << "#" << formatImm(MO1.getImm())
       << markup(">]>", "]");
   }
   else
@@ -461,7 +490,8 @@ void ARMInstPrinter::printAM3PostIndexOp(const MCInst *MI, unsigned Op,
 }
 
 void ARMInstPrinter::printAM3PreOrOffsetIndexOp(const MCInst *MI, unsigned Op,
-                                                raw_ostream &O) {
+                                                raw_ostream &O,
+                                                bool AlwaysPrintImm0) {
   const MCOperand &MO1 = MI->getOperand(Op);
   const MCOperand &MO2 = MI->getOperand(Op+1);
   const MCOperand &MO3 = MI->getOperand(Op+2);
@@ -480,7 +510,7 @@ void ARMInstPrinter::printAM3PreOrOffsetIndexOp(const MCInst *MI, unsigned Op,
   unsigned ImmOffs = ARM_AM::getAM3Offset(MO3.getImm());
   ARM_AM::AddrOpc op = ARM_AM::getAM3Op(MO3.getImm());
 
-  if (ImmOffs || (op == ARM_AM::sub)) {
+  if (AlwaysPrintImm0 || ImmOffs || (op == ARM_AM::sub)) {
     O << ", "
       << markup("<imm:")
       << "#"
@@ -491,6 +521,7 @@ void ARMInstPrinter::printAM3PreOrOffsetIndexOp(const MCInst *MI, unsigned Op,
   O << ']' << markup(">");
 }
 
+template <bool AlwaysPrintImm0>
 void ARMInstPrinter::printAddrMode3Operand(const MCInst *MI, unsigned Op,
                                            raw_ostream &O) {
   const MCOperand &MO1 = MI->getOperand(Op);
@@ -506,7 +537,7 @@ void ARMInstPrinter::printAddrMode3Operand(const MCInst *MI, unsigned Op,
     printAM3PostIndexOp(MI, Op, O);
     return;
   }
-  printAM3PreOrOffsetIndexOp(MI, Op, O);
+  printAM3PreOrOffsetIndexOp(MI, Op, O, AlwaysPrintImm0);
 }
 
 void ARMInstPrinter::printAddrMode3OffsetOperand(const MCInst *MI,
@@ -564,6 +595,7 @@ void ARMInstPrinter::printLdStmModeOperand(const MCInst *MI, unsigned OpNum,
   O << ARM_AM::getAMSubModeStr(Mode);
 }
 
+template <bool AlwaysPrintImm0>
 void ARMInstPrinter::printAddrMode5Operand(const MCInst *MI, unsigned OpNum,
                                            raw_ostream &O) {
   const MCOperand &MO1 = MI->getOperand(OpNum);
@@ -579,7 +611,7 @@ void ARMInstPrinter::printAddrMode5Operand(const MCInst *MI, unsigned OpNum,
 
   unsigned ImmOffs = ARM_AM::getAM5Offset(MO2.getImm());
   unsigned Op = ARM_AM::getAM5Op(MO2.getImm());
-  if (ImmOffs || Op == ARM_AM::sub) {
+  if (AlwaysPrintImm0 || ImmOffs || Op == ARM_AM::sub) {
     O << ", "
       << markup("<imm:")
       << "#"
@@ -598,8 +630,7 @@ void ARMInstPrinter::printAddrMode6Operand(const MCInst *MI, unsigned OpNum,
   O << markup("<mem:") << "[";
   printRegName(O, MO1.getReg());
   if (MO2.getImm()) {
-    // FIXME: Both darwin as and GNU as violate ARM docs here.
-    O << ", :" << (MO2.getImm() << 3);
+    O << ":" << (MO2.getImm() << 3);
   }
   O << "]" << markup(">");
 }
@@ -690,6 +721,15 @@ void ARMInstPrinter::printRegisterList(const MCInst *MI, unsigned OpNum,
   }
   O << "}";
 }
+
+void ARMInstPrinter::printGPRPairOperand(const MCInst *MI, unsigned OpNum,
+                                         raw_ostream &O) {
+  unsigned Reg = MI->getOperand(OpNum).getReg();
+  printRegName(O, MRI.getSubReg(Reg, ARM::gsub_0));
+  O << ", ";
+  printRegName(O, MRI.getSubReg(Reg, ARM::gsub_1));
+}
+
 
 void ARMInstPrinter::printSetendOperand(const MCInst *MI, unsigned OpNum,
                                         raw_ostream &O) {
@@ -873,7 +913,7 @@ void ARMInstPrinter::printAdrLabelOperand(const MCInst *MI, unsigned OpNum,
 void ARMInstPrinter::printThumbS4ImmOperand(const MCInst *MI, unsigned OpNum,
                                             raw_ostream &O) {
   O << markup("<imm:")
-    << "#" << MI->getOperand(OpNum).getImm() * 4
+    << "#" << formatImm(MI->getOperand(OpNum).getImm() * 4)
     << markup(">");
 }
 
@@ -881,7 +921,7 @@ void ARMInstPrinter::printThumbSRImm(const MCInst *MI, unsigned OpNum,
                                      raw_ostream &O) {
   unsigned Imm = MI->getOperand(OpNum).getImm();
   O << markup("<imm:")
-    << "#" << (Imm == 0 ? 32 : Imm)
+    << "#" << formatImm((Imm == 0 ? 32 : Imm))
     << markup(">");
 }
 
@@ -938,7 +978,7 @@ void ARMInstPrinter::printThumbAddrModeImm5SOperand(const MCInst *MI,
   if (unsigned ImmOffs = MO2.getImm()) {
     O << ", "
       << markup("<imm:")
-      << "#" << ImmOffs * Scale
+      << "#" << formatImm(ImmOffs * Scale)
       << markup(">");
   }
   O << "]" << markup(">");
@@ -985,6 +1025,7 @@ void ARMInstPrinter::printT2SOOperand(const MCInst *MI, unsigned OpNum,
                    ARM_AM::getSORegOffset(MO2.getImm()), UseMarkup);
 }
 
+template <bool AlwaysPrintImm0>
 void ARMInstPrinter::printAddrModeImm12Operand(const MCInst *MI, unsigned OpNum,
                                                raw_ostream &O) {
   const MCOperand &MO1 = MI->getOperand(OpNum);
@@ -1005,13 +1046,13 @@ void ARMInstPrinter::printAddrModeImm12Operand(const MCInst *MI, unsigned OpNum,
     OffImm = 0;
   if (isSub) {
     O << ", "
-      << markup("<imm:") 
+      << markup("<imm:")
       << "#-" << -OffImm
       << markup(">");
   }
-  else if (OffImm > 0) {
+  else if (AlwaysPrintImm0 || OffImm > 0) {
     O << ", "
-      << markup("<imm:") 
+      << markup("<imm:")
       << "#" << OffImm
       << markup(">");
   }
@@ -1089,7 +1130,7 @@ void ARMInstPrinter::printT2AddrModeImm0_1020s4Operand(const MCInst *MI,
   if (MO2.getImm()) {
     O << ", "
       << markup("<imm:")
-      << "#" << MO2.getImm() * 4
+      << "#" << formatImm(MO2.getImm() * 4)
       << markup(">");
   }
   O << "]" << markup(">");
@@ -1179,7 +1220,7 @@ void ARMInstPrinter::printImmPlusOneOperand(const MCInst *MI, unsigned OpNum,
                                             raw_ostream &O) {
   unsigned Imm = MI->getOperand(OpNum).getImm();
   O << markup("<imm:")
-    << "#" << Imm + 1
+    << "#" << formatImm(Imm + 1)
     << markup(">");
 }
 

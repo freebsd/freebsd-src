@@ -73,7 +73,7 @@ die "Could not determine local IP address" if $local eq "";
 # Find the first remote host that responds to an icmp echo,
 # which isn't a local address.
 #
-open PING, "/sbin/ping -ns $Broadcast{$local} 56 $MAXHOSTS |" or
+open PING, "/sbin/ping -n -s 56 -c $MAXHOSTS $Broadcast{$local} |" or
     die "Couldn't run ping: $!\n";
 while (<PING>) {
 	if (/bytes from (.*): / and not defined $Broadcast{$1}) {

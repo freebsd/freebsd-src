@@ -25,9 +25,9 @@
 .Nm getnameinfo
 .Nd socket address structure to hostname and service name
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
-.Fd #include <netdb.h>
+.In sys/types.h
+.In sys/socket.h
+.In netdb.h
 .Ft int
 .Fo getnameinfo
 .Fa "const struct sockaddr *sa" "socklen_t salen" "char *host"
@@ -191,10 +191,11 @@ printf("host=%s\en", hbuf);
 .%A R. Gilligan
 .%A S. Thomson
 .%A J. Bound
+.%A J. McCann
 .%A W. Stevens
 .%T Basic Socket Interface Extensions for IPv6
-.%R RFC 2553
-.%D March 1999
+.%R RFC 3493
+.%D February 2003
 .Re
 .Rs
 .%A S. Deering
@@ -203,9 +204,8 @@ printf("host=%s\en", hbuf);
 .%A E. Nordmark
 .%A B. Zill
 .%T "IPv6 Scoped Address Architecture"
-.%R internet draft
-.%N draft-ietf-ipv6-scoping-arch-02.txt
-.%O work in progress material
+.%R RFC 4007
+.%D March 2005
 .Re
 .Rs
 .%A Craig Metz
@@ -217,9 +217,9 @@ printf("host=%s\en", hbuf);
 The
 .Fn getnameinfo
 function is defined by the
-.St -p1003.1g-2000
-draft specification and documented in
-.Tn "RFC 2553" ,
+.St -p1003.1-2004
+specification and documented in
+.Tn "RFC 3493" ,
 .Dq Basic Socket Interface Extensions for IPv6 .
 .Sh CAVEATS
 .Fn getnameinfo

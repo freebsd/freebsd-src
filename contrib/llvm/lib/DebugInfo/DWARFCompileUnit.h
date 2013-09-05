@@ -13,15 +13,25 @@
 #include "DWARFDebugAbbrev.h"
 #include "DWARFDebugInfoEntry.h"
 #include "DWARFDebugRangeList.h"
+#include "DWARFRelocMap.h"
 #include <vector>
 
 namespace llvm {
 
-class DWARFContext;
+class DWARFDebugAbbrev;
+class StringRef;
 class raw_ostream;
 
 class DWARFCompileUnit {
-  DWARFContext &Context;
+  const DWARFDebugAbbrev *Abbrev;
+  StringRef InfoSection;
+  StringRef AbbrevSection;
+  StringRef RangeSection;
+  StringRef StringSection;
+  StringRef StringOffsetSection;
+  StringRef AddrOffsetSection;
+  const RelocAddrMap *RelocMap;
+  bool isLittleEndian;
 
   uint32_t Offset;
   uint32_t Length;
@@ -32,11 +42,20 @@ class DWARFCompileUnit {
   // The compile unit debug information entry item.
   std::vector<DWARFDebugInfoEntryMinimal> DieArray;
 public:
-  DWARFCompileUnit(DWARFContext &context) : Context(context) {
+
+  DWARFCompileUnit(const DWARFDebugAbbrev *DA, StringRef IS, StringRef AS,
+                   StringRef RS, StringRef SS, StringRef SOS, StringRef AOS,
+                   const RelocAddrMap *M, bool LE) :
+    Abbrev(DA), InfoSection(IS), AbbrevSection(AS),
+    RangeSection(RS), StringSection(SS), StringOffsetSection(SOS),
+    AddrOffsetSection(AOS), RelocMap(M), isLittleEndian(LE) {
     clear();
   }
 
-  DWARFContext &getContext() const { return Context; }
+  StringRef getStringSection() const { return StringSection; }
+  StringRef getStringOffsetSection() const { return StringOffsetSection; }
+  StringRef getAddrOffsetSection() const { return AddrOffsetSection; }
+  const RelocAddrMap *getRelocMap() const { return RelocMap; }
   DataExtractor getDebugInfoExtractor() const;
 
   bool extract(DataExtractor debug_info, uint32_t* offset_ptr);

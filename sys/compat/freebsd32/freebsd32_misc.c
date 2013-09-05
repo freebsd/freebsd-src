@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/capability.h>
 #include <sys/clock.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
@@ -101,8 +102,11 @@ __FBSDID("$FreeBSD$");
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_ipc.h>
+#include <compat/freebsd32/freebsd32_misc.h>
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
+
+FEATURE(compat_freebsd_32bit, "Compatible with 32-bit FreeBSD");
 
 #ifndef __mips__
 CTASSERT(sizeof(struct timeval32) == 8);
@@ -124,16 +128,6 @@ CTASSERT(sizeof(struct sigaction32) == 24);
 
 static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
-
-#if BYTE_ORDER == BIG_ENDIAN
-#define PAIR32TO64(type, name) ((name ## 2) | ((type)(name ## 1) << 32))
-#define RETVAL_HI 0	
-#define RETVAL_LO 1	
-#else
-#define PAIR32TO64(type, name) ((name ## 1) | ((type)(name ## 2) << 32))
-#define RETVAL_HI 1	
-#define RETVAL_LO 0	
-#endif
 
 void
 freebsd32_rusage_out(const struct rusage *s, struct rusage32 *s32)
@@ -198,8 +192,8 @@ freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
 		bzero(sip, sizeof(*sip));
 	} else
 		sip = NULL;
-	error = kern_wait6(td, uap->idtype, uap->id, &status, uap->options,
-	    wrup, sip);
+	error = kern_wait6(td, uap->idtype, PAIR32TO64(id_t, uap->id),
+	    &status, uap->options, wrup, sip);
 	if (error != 0)
 		return (error);
 	if (uap->status != NULL)
@@ -1651,22 +1645,20 @@ static int
 freebsd32_do_sendfile(struct thread *td,
     struct freebsd32_sendfile_args *uap, int compat)
 {
-	struct sendfile_args ap;
 	struct sf_hdtr32 hdtr32;
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
 	struct iovec32 *iov32;
+	struct file *fp;
+	cap_rights_t rights;
+	off_t offset;
 	int error;
 
-	hdr_uio = trl_uio = NULL;
+	offset = PAIR32TO64(off_t, uap->offset);
+	if (offset < 0)
+		return (EINVAL);
 
-	ap.fd = uap->fd;
-	ap.s = uap->s;
-	ap.offset = PAIR32TO64(off_t,uap->offset);
-	ap.nbytes = uap->nbytes;
-	ap.hdtr = (struct sf_hdtr *)uap->hdtr;		/* XXX not used */
-	ap.sbytes = uap->sbytes;
-	ap.flags = uap->flags;
+	hdr_uio = trl_uio = NULL;
 
 	if (uap->hdtr != NULL) {
 		error = copyin(uap->hdtr, &hdtr32, sizeof(hdtr32));
@@ -1693,7 +1685,17 @@ freebsd32_do_sendfile(struct thread *td,
 		}
 	}
 
-	error = kern_sendfile(td, &ap, hdr_uio, trl_uio, compat);
+	AUDIT_ARG_FD(uap->fd);
+
+	if ((error = fget_read(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
+		goto out;
+	}
+
+	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
+	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	fdrop(fp, td);
+
 out:
 	if (hdr_uio)
 		free(hdr_uio, M_IOV);
@@ -2329,6 +2331,84 @@ freebsd32_clock_getres(struct thread *td,
 	return (error);
 }
 
+int freebsd32_ktimer_create(struct thread *td,
+    struct freebsd32_ktimer_create_args *uap)
+{
+	struct sigevent32 ev32;
+	struct sigevent ev, *evp;
+	int error, id;
+
+	if (uap->evp == NULL) {
+		evp = NULL;
+	} else {
+		evp = &ev;
+		error = copyin(uap->evp, &ev32, sizeof(ev32));
+		if (error != 0)
+			return (error);
+		error = convert_sigevent32(&ev32, &ev);
+		if (error != 0)
+			return (error);
+	}
+	error = kern_ktimer_create(td, uap->clock_id, evp, &id, -1);
+	if (error == 0) {
+		error = copyout(&id, uap->timerid, sizeof(int));
+		if (error != 0)
+			kern_ktimer_delete(td, id);
+	}
+	return (error);
+}
+
+int
+freebsd32_ktimer_settime(struct thread *td,
+    struct freebsd32_ktimer_settime_args *uap)
+{
+	struct itimerspec32 val32, oval32;
+	struct itimerspec val, oval, *ovalp;
+	int error;
+
+	error = copyin(uap->value, &val32, sizeof(val32));
+	if (error != 0)
+		return (error);
+	ITS_CP(val32, val);
+	ovalp = uap->ovalue != NULL ? &oval : NULL;
+	error = kern_ktimer_settime(td, uap->timerid, uap->flags, &val, ovalp);
+	if (error == 0 && uap->ovalue != NULL) {
+		ITS_CP(oval, oval32);
+		error = copyout(&oval32, uap->ovalue, sizeof(oval32));
+	}
+	return (error);
+}
+
+int
+freebsd32_ktimer_gettime(struct thread *td,
+    struct freebsd32_ktimer_gettime_args *uap)
+{
+	struct itimerspec32 val32;
+	struct itimerspec val;
+	int error;
+
+	error = kern_ktimer_gettime(td, uap->timerid, &val);
+	if (error == 0) {
+		ITS_CP(val, val32);
+		error = copyout(&val32, uap->value, sizeof(val32));
+	}
+	return (error);
+}
+
+int
+freebsd32_clock_getcpuclockid2(struct thread *td,
+    struct freebsd32_clock_getcpuclockid2_args *uap)
+{
+	clockid_t clk_id;
+	int error;
+
+	error = kern_clock_getcpuclockid2(td, PAIR32TO64(id_t, uap->id),
+	    uap->which, &clk_id);
+	if (error == 0)
+		error = copyout(&clk_id, uap->clock_id, sizeof(clockid_t));
+	return (error);
+}
+
 int
 freebsd32_thr_new(struct thread *td,
 		  struct freebsd32_thr_new_args *uap)
@@ -2394,7 +2474,7 @@ siginfo_to_siginfo32(const siginfo_t *src, struct siginfo32 *dst)
 	dst->si_uid = src->si_uid;
 	dst->si_status = src->si_status;
 	dst->si_addr = (uintptr_t)src->si_addr;
-	dst->si_value.sigval_int = src->si_value.sival_int;
+	dst->si_value.sival_int = src->si_value.sival_int;
 	dst->si_timerid = src->si_timerid;
 	dst->si_overrun = src->si_overrun;
 }
@@ -2895,4 +2975,30 @@ freebsd32_posix_fadvise(struct thread *td,
 
 	return (kern_posix_fadvise(td, uap->fd, PAIR32TO64(off_t, uap->offset),
 	    PAIR32TO64(off_t, uap->len), uap->advice));
+}
+
+int
+convert_sigevent32(struct sigevent32 *sig32, struct sigevent *sig)
+{
+
+	CP(*sig32, *sig, sigev_notify);
+	switch (sig->sigev_notify) {
+	case SIGEV_NONE:
+		break;
+	case SIGEV_THREAD_ID:
+		CP(*sig32, *sig, sigev_notify_thread_id);
+		/* FALLTHROUGH */
+	case SIGEV_SIGNAL:
+		CP(*sig32, *sig, sigev_signo);
+		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
+		break;
+	case SIGEV_KEVENT:
+		CP(*sig32, *sig, sigev_notify_kqueue);
+		CP(*sig32, *sig, sigev_notify_kevent_flags);
+		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
 }

@@ -12,6 +12,7 @@ SRCS=	AnalysisConsumer.cpp \
 TGHDRS=	AttrList \
 	Attrs \
 	Checkers \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

@@ -2,6 +2,11 @@
  * $FreeBSD: head/lib/libz/Symbol.map 206709 2010-04-16 20:07:24Z delphij $
  */
 
+ZLIB_1.2.7.1 {
+	inflateGetDictionary;
+	gzvprintf;
+};
+
 ZLIB_1.2.7.0 {
 	deflatePending;
 	deflateResetKeep;

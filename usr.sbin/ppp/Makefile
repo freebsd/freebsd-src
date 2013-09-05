@@ -44,13 +44,6 @@ M4FLAGS=
 LDADD= -lcrypt -lmd -lutil -lz
 DPADD=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
 
-.SUFFIXES: .8 .8.m4
-
-.8.m4.8:
-	m4 ${M4FLAGS} ${.IMPSRC} >${.TARGET}
-
-CLEANFILES= ppp.8
-
 .if defined(PPP_CONFDIR) && !empty(PPP_CONFDIR)
 CFLAGS+=-DPPP_CONFDIR=\"${PPP_CONFDIR}\"
 .endif

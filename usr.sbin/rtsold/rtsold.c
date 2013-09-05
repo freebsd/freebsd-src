@@ -33,7 +33,6 @@
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/param.h>
 
@@ -54,6 +53,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include <errno.h>
 #include <err.h>
 #include <stdarg.h>
@@ -67,8 +67,7 @@
 #define RTSOL_DUMPFILE	"/var/run/rtsold.dump";
 #define RTSOL_PIDFILE	"/var/run/rtsold.pid";
 
-struct ifinfo *iflist;
-struct timeval tm_max =	{0x7fffffff, 0x7fffffff};
+struct timespec tm_max;
 static int log_upto = 999;
 static int fflag = 0;
 
@@ -105,7 +104,7 @@ static int ifreconfig(char *);
 #endif
 
 static int make_packet(struct ifinfo *);
-static struct timeval *rtsol_check_timer(void);
+static struct timespec *rtsol_check_timer(void);
 
 #ifndef SMALL
 static void rtsold_set_dump_file(int);
@@ -116,7 +115,7 @@ int
 main(int argc, char **argv)
 {
 	int s, ch, once = 0;
-	struct timeval *timeout;
+	struct timespec *timeout;
 	const char *opts;
 #ifdef HAVE_POLL_H
 	struct pollfd set[2];
@@ -186,6 +185,10 @@ main(int argc, char **argv)
 		usage();
 		exit(1);
 	}
+
+	/* Generate maximum time in timespec. */
+	tm_max.tv_sec = (-1) & ~((time_t)1 << ((sizeof(tm_max.tv_sec) * 8) - 1));
+	tm_max.tv_nsec = (-1) & ~((long)1 << ((sizeof(tm_max.tv_nsec) * 8) - 1));
 
 	/* set log level */
 	if (dflag > 1)
@@ -363,7 +366,7 @@ main(int argc, char **argv)
 				break;
 		}
 #ifdef HAVE_POLL_H
-		e = poll(set, 2, timeout ? (timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : INFTIM);
+		e = poll(set, 2, timeout ? (timeout->tv_sec * 1000 + timeout->tv_nsec / 1000 / 1000) : INFTIM);
 #else
 		e = select(maxfd + 1, selectfdp, NULL, NULL, timeout);
 #endif
@@ -603,22 +606,22 @@ make_packet(struct ifinfo *ifi)
 	return (0);
 }
 
-static struct timeval *
+static struct timespec *
 rtsol_check_timer(void)
 {
-	static struct timeval returnval;
-	struct timeval now, rtsol_timer;
+	static struct timespec returnval;
+	struct timespec now, rtsol_timer;
 	struct ifinfo *ifi;
 	struct rainfo *rai;
 	struct ra_opt *rao;
 	int flags;
 
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 
 	rtsol_timer = tm_max;
 
 	TAILQ_FOREACH(ifi, &ifinfo_head, ifi_next) {
-		if (timercmp(&ifi->expire, &now, <=)) {
+		if (TS_CMP(&ifi->expire, &now, <=)) {
 			warnmsg(LOG_DEBUG, __func__, "timer expiration on %s, "
 			    "state = %d", ifi->ifname, ifi->state);
 
@@ -711,7 +714,7 @@ rtsol_check_timer(void)
 					    "type=%d, msg=%s, expire=%s",
 					    rao->rao_type, (char *)rao->rao_msg,
 						sec2str(&rao->rao_expire));
-					if (timercmp(&now, &rao->rao_expire,
+					if (TS_CMP(&now, &rao->rao_expire,
 					    >=)) {
 						warnmsg(LOG_DEBUG, __func__,
 						    "RA expiration timer: "
@@ -728,21 +731,21 @@ rtsol_check_timer(void)
 			if (expire)
 				ra_opt_handler(ifi);
 		}
-		if (timercmp(&ifi->expire, &rtsol_timer, <))
+		if (TS_CMP(&ifi->expire, &rtsol_timer, <))
 			rtsol_timer = ifi->expire;
 	}
 
-	if (timercmp(&rtsol_timer, &tm_max, ==)) {
+	if (TS_CMP(&rtsol_timer, &tm_max, ==)) {
 		warnmsg(LOG_DEBUG, __func__, "there is no timer");
 		return (NULL);
-	} else if (timercmp(&rtsol_timer, &now, <))
+	} else if (TS_CMP(&rtsol_timer, &now, <))
 		/* this may occur when the interval is too small */
-		returnval.tv_sec = returnval.tv_usec = 0;
+		returnval.tv_sec = returnval.tv_nsec = 0;
 	else
-		timersub(&rtsol_timer, &now, &returnval);
+		TS_SUB(&rtsol_timer, &now, &returnval);
 
 	now.tv_sec += returnval.tv_sec;
-	now.tv_usec += returnval.tv_usec;
+	now.tv_nsec += returnval.tv_nsec;
 	warnmsg(LOG_DEBUG, __func__, "New timer is %s",
 	    sec2str(&now));
 
@@ -755,7 +758,7 @@ rtsol_timer_update(struct ifinfo *ifi)
 #define MILLION 1000000
 #define DADRETRY 10		/* XXX: adhoc */
 	long interval;
-	struct timeval now;
+	struct timespec now;
 
 	bzero(&ifi->timer, sizeof(ifi->timer));
 
@@ -783,7 +786,7 @@ rtsol_timer_update(struct ifinfo *ifi)
 		interval = arc4random_uniform(MAX_RTR_SOLICITATION_DELAY * MILLION);
 #endif
 		ifi->timer.tv_sec = interval / MILLION;
-		ifi->timer.tv_usec = interval % MILLION;
+		ifi->timer.tv_nsec = (interval % MILLION) * 1000;
 		break;
 	case IFS_PROBE:
 		if (ifi->probes < MAX_RTR_SOLICITATIONS)
@@ -807,16 +810,16 @@ rtsol_timer_update(struct ifinfo *ifi)
 	}
 
 	/* reset the timer */
-	if (timercmp(&ifi->timer, &tm_max, ==)) {
+	if (TS_CMP(&ifi->timer, &tm_max, ==)) {
 		ifi->expire = tm_max;
 		warnmsg(LOG_DEBUG, __func__,
 		    "stop timer for %s", ifi->ifname);
 	} else {
-		gettimeofday(&now, NULL);
-		timeradd(&now, &ifi->timer, &ifi->expire);
+		clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+		TS_ADD(&now, &ifi->timer, &ifi->expire);
 
 		now.tv_sec += ifi->timer.tv_sec;
-		now.tv_usec += ifi->timer.tv_usec;
+		now.tv_nsec += ifi->timer.tv_nsec;
 		warnmsg(LOG_DEBUG, __func__, "set timer for %s to %s",
 		    ifi->ifname, sec2str(&now));
 	}

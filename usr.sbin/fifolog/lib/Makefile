@@ -8,4 +8,6 @@ SRCS+=	getdate.y
 
 CFLAGS+= -I${.CURDIR}
 
+NO_WMISSING_VARIABLE_DECLARATIONS=
+
 .include <bsd.lib.mk>

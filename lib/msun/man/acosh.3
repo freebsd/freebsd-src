@@ -28,12 +28,13 @@
 .\"     from: @(#)acosh.3	5.2 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd June 9, 2013
 .Dt ACOSH 3
 .Os
 .Sh NAME
 .Nm acosh ,
-.Nm acoshf
+.Nm acoshf ,
+.Nm acoshl
 .Nd inverse hyperbolic cosine functions
 .Sh LIBRARY
 .Lb libm
@@ -43,11 +44,14 @@
 .Fn acosh "double x"
 .Ft float
 .Fn acoshf "float x"
+.Ft long double
+.Fn acoshl "long double x"
 .Sh DESCRIPTION
 The
-.Fn acosh
-and the
-.Fn acoshf
+.Fn acosh ,
+.Fn acoshf ,
+and
+.Fn acoshl
 functions compute the inverse hyperbolic cosine
 of the real
 argument
@@ -55,11 +59,7 @@ argument
 For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
-The
-.Fn acosh
-and the
-.Fn acoshf
-functions
+These functions
 return the inverse hyperbolic cosine of
 .Ar x .
 If the argument is less than 1,
@@ -73,6 +73,13 @@ raises an invalid exception and returns an \*(Na.
 .Xr math 3
 .Sh HISTORY
 The
-.Fn acosh
-function appeared in
-.Bx 4.3 .
+.Fn acosh ,
+.Fn acoshf ,
+and
+.Fn acoshl
+functions appeared in
+.Bx 4.3 ,
+.Fx 2.0 ,
+and
+.Fx 10.0 ,
+respectively.

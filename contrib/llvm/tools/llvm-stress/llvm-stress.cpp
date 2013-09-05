@@ -11,25 +11,25 @@
 // different components in LLVM.
 //
 //===----------------------------------------------------------------------===//
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
-#include "llvm/PassManager.h"
-#include "llvm/Constants.h"
-#include "llvm/Instruction.h"
-#include "llvm/CallGraphSCCPass.h"
-#include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/Analysis/Verifier.h"
-#include "llvm/Support/PassNameParser.h"
+#include "llvm/Assembly/PrintModulePass.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Module.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/PassNameParser.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include <memory>
-#include <sstream>
-#include <set>
-#include <vector>
 #include <algorithm>
+#include <set>
+#include <sstream>
+#include <vector>
 using namespace llvm;
 
 static cl::opt<unsigned> SeedCL("seed",
@@ -379,9 +379,7 @@ struct ConstModifier: public Modifier {
         RandomBits[i] = Ran->Rand64();
 
       APInt RandomInt(Ty->getPrimitiveSizeInBits(), makeArrayRef(RandomBits));
-
-      bool isIEEE = !Ty->isX86_FP80Ty() && !Ty->isPPC_FP128Ty();
-      APFloat RandomFloat(RandomInt, isIEEE);
+      APFloat RandomFloat(Ty->getFltSemantics(), RandomInt);
 
       if (Ran->Rand() & 1)
         return PT->push_back(ConstantFP::getNullValue(Ty));
@@ -624,15 +622,15 @@ void FillFunction(Function *F, Random &R) {
 
   // List of modifiers which add new random instructions.
   std::vector<Modifier*> Modifiers;
-  std::auto_ptr<Modifier> LM(new LoadModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> SM(new StoreModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> EE(new ExtractElementModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> SHM(new ShuffModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> IE(new InsertElementModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> BM(new BinModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> CM(new CastModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> SLM(new SelectModifier(BB, &PT, &R));
-  std::auto_ptr<Modifier> PM(new CmpModifier(BB, &PT, &R));
+  OwningPtr<Modifier> LM(new LoadModifier(BB, &PT, &R));
+  OwningPtr<Modifier> SM(new StoreModifier(BB, &PT, &R));
+  OwningPtr<Modifier> EE(new ExtractElementModifier(BB, &PT, &R));
+  OwningPtr<Modifier> SHM(new ShuffModifier(BB, &PT, &R));
+  OwningPtr<Modifier> IE(new InsertElementModifier(BB, &PT, &R));
+  OwningPtr<Modifier> BM(new BinModifier(BB, &PT, &R));
+  OwningPtr<Modifier> CM(new CastModifier(BB, &PT, &R));
+  OwningPtr<Modifier> SLM(new SelectModifier(BB, &PT, &R));
+  OwningPtr<Modifier> PM(new CmpModifier(BB, &PT, &R));
   Modifiers.push_back(LM.get());
   Modifiers.push_back(SM.get());
   Modifiers.push_back(EE.get());
@@ -686,7 +684,7 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, "llvm codegen stress-tester\n");
   llvm_shutdown_obj Y;
 
-  std::auto_ptr<Module> M(new Module("/tmp/autogen.bc", getGlobalContext()));
+  OwningPtr<Module> M(new Module("/tmp/autogen.bc", getGlobalContext()));
   Function *F = GenEmptyFunction(M.get());
 
   // Pick an initial seed value

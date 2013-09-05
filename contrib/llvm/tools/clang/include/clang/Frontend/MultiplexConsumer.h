@@ -17,7 +17,6 @@
 
 #include "clang/Basic/LLVM.h"
 #include "clang/Sema/SemaConsumer.h"
-#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/OwningPtr.h"
 #include <vector>
 

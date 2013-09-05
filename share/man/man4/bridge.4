@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2010
+.Dd July 27, 2013
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -142,6 +142,78 @@ This can be used to multiplex the input of two or more interfaces into a single
 stream.
 This is useful for reconstructing the traffic for network taps
 that transmit the RX/TX signals out through two separate interfaces.
+.Sh IPV6 SUPPORT
+.Nm
+supports the
+.Li AF_INET6
+address family on bridge interfaces.
+The following
+.Xr rc.conf 5
+variable configures an IPv6 link-local address on
+.Li bridge0
+interface:
+.Bd -literal -offset indent
+ifconfig_bridge0_ipv6="up"
+.Ed
+.Pp
+or in a more explicit manner:
+.Bd -literal -offset indent
+ifconfig_bridge0_ipv6="inet6 auto_linklocal"
+.Ed
+.Pp
+However, the
+.Li AF_INET6
+address family has a concept of scope zone.
+Bridging multiple interfaces change the zone configuration because
+multiple links are merged to each other and form a new single link
+while the member interfaces still work individually.
+This means each member interface still has a separate link-local scope
+zone and the
+.Nm
+interface has another single,
+aggregated link-local scope zone at the same time.
+This situation is clearly against the description
+.Qq zones of the same scope cannot overlap
+in Section 5,
+RFC 4007.
+Although it works in most cases,
+it can cause some conterintuitive or undesirable behavior in some
+edge cases when both of the
+.Nm
+interface and one of the member interface have an IPv6 address
+and applications use both of them.
+.Pp
+To prevent this situation,
+.Nm
+checks whether a link-local scoped IPv6 address is configured on
+a member interface to be added and the
+.Nm
+interface.
+When the
+.Nm
+interface has IPv6 addresses,
+IPv6 addresses on the member interface will be automatically removed
+before the interface is added.
+.Pp
+This behavior can be disabled by setting
+.Xr sysctl 8
+variable
+.Va net.link.bridge.allow_llz_overlap
+to
+.Li 1 .
+.Pp
+Note that
+.Li ACCEPT_RTADV
+and
+.Li AUTO_LINKLOCAL
+interface flag are not enabled by default on
+.Nm
+interface even when
+.Va net.inet6.ip6.accept_rtadv
+and/or
+.Va net.inet6.ip6.auto_linklocal
+is set to
+.Li 1 .
 .Sh SPANNING TREE
 The
 .Nm

@@ -483,6 +483,7 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
   sleep 3
   SOURCEDIR=${SOURCEDIR}/..
 fi
+SOURCEDIR=$(realpath "$SOURCEDIR")
 
 # Setup make to use system files from SOURCEDIR
 MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
@@ -629,11 +630,10 @@ case "${RERUN}" in
         ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs >/dev/null
         ;;
       esac
-      od=${TEMPROOT}/usr/obj
       ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
+      ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
+      ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
+      ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
@@ -1327,7 +1327,7 @@ case "${NEED_PWD_MKDB}" in
   ;;
 esac
 
-if [ -e "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
+if [ -e "${DESTDIR}/etc/localtime" -a ! -L "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
   echo ''
   [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
   if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006, 2013 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1994, 1996-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1994
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.147 2007/09/26 23:29:11 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.148 2013/03/12 15:24:53 ca Exp $")
 
 /*
 **  MIME support.
@@ -107,6 +107,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 {
 	register char *p;
 	int linelen;
+	int blen;
 	int bt;
 	off_t offset;
 	size_t sectionsize, sectionhighbits;
@@ -322,13 +323,13 @@ mime8to7(mci, header, e, boundaries, flags, level)
 			goto writeerr;
 		mci->mci_flags &= ~MCIF_INHEADER;
 		bt = MBT_FINAL;
-		while (sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf, sizeof(buf))
-			!= NULL)
+		while ((blen = sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf,
+					sizeof(buf))) >= 0)
 		{
 			bt = mimeboundary(buf, boundaries);
 			if (bt != MBT_NOTSEP)
 				break;
-			if (!putxline(buf, strlen(buf), mci,
+			if (!putxline(buf, blen, mci,
 					PXLF_MAPFROM|PXLF_STRIP8BIT))
 				goto writeerr;
 			if (tTd(43, 99))
@@ -366,13 +367,13 @@ mime8to7(mci, header, e, boundaries, flags, level)
 		mci->mci_flags &= ~MCIF_INMIME;
 
 		/* skip the late "comment" epilogue */
-		while (sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf, sizeof(buf))
-			!= NULL)
+		while ((blen = sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf,
+					sizeof(buf))) >= 0)
 		{
 			bt = mimeboundary(buf, boundaries);
 			if (bt != MBT_NOTSEP)
 				break;
-			if (!putxline(buf, strlen(buf), mci,
+			if (!putxline(buf, blen, mci,
 					PXLF_MAPFROM|PXLF_STRIP8BIT))
 				goto writeerr;
 			if (tTd(43, 99))
@@ -443,16 +444,16 @@ mime8to7(mci, header, e, boundaries, flags, level)
 			       DATAFL_LETTER, e->e_id);
 
 		/* do a scan of this body type to count character types */
-		while (sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf, sizeof(buf))
-			!= NULL)
+		while ((blen = sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf,
+					sizeof(buf))) >= 0)
 		{
 			if (mimeboundary(buf, boundaries) != MBT_NOTSEP)
 				break;
-			for (p = buf; *p != '\0'; p++)
+			for (i = 0; i < blen; i++)
 			{
 				/* count bytes with the high bit set */
 				sectionsize++;
-				if (bitset(0200, *p))
+				if (bitset(0200, buf[i]))
 					sectionhighbits++;
 			}
 
@@ -522,8 +523,8 @@ mime8to7(mci, header, e, boundaries, flags, level)
 		if (!putline("", mci))
 			goto writeerr;
 		mci->mci_flags &= ~MCIF_INHEADER;
-		while (sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf, sizeof(buf))
-			!= NULL)
+		while ((blen = sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf,
+					sizeof(buf))) >= 0)
 		{
 			if (!bitset(MCIF_INLONGLINE, mci->mci_flags))
 			{
@@ -531,7 +532,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 				if (bt != MBT_NOTSEP)
 					break;
 			}
-			if (!putxline(buf, strlen(buf), mci,
+			if (!putxline(buf, blen, mci,
 				      PXLF_MAPFROM|PXLF_NOADDEOL))
 				goto writeerr;
 		}
@@ -1033,7 +1034,7 @@ mime7to8(mci, header, e)
 	HDR *header;
 	register ENVELOPE *e;
 {
-	int pxflags;
+	int pxflags, blen;
 	register char *p;
 	char *cte;
 	char **pvp;
@@ -1066,10 +1067,10 @@ mime7to8(mci, header, e)
 		if (!putline("", mci))
 			goto writeerr;
 		mci->mci_flags &= ~MCIF_INHEADER;
-		while (sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf, sizeof(buf))
-			!= NULL)
+		while ((blen = sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf,
+					sizeof(buf))) >= 0)
 		{
-			if (!putline(buf, mci))
+			if (!putxline(buf, blen, mci, PXLF_MAPFROM))
 				goto writeerr;
 		}
 		return true;
@@ -1177,7 +1178,7 @@ mime7to8(mci, header, e)
 		pxflags |= PXLF_NOADDEOL;
 		fbufp = fbuf;
 		while (sm_io_fgets(e->e_dfp, SM_TIME_DEFAULT, buf,
-				   sizeof(buf)) != NULL)
+				   sizeof(buf)) >= 0)
 		{
 			off = mime_fromqp((unsigned char *) buf, &fbufp,
 					  &fbuf[MAXLINE] - fbufp);

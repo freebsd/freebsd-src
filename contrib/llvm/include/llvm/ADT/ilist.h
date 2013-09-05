@@ -234,17 +234,17 @@ public:
   pointer getNodePtrUnchecked() const { return NodePtr; }
 };
 
-// do not implement. this is to catch errors when people try to use
-// them as random access iterators
+// These are to catch errors when people try to use them as random access
+// iterators.
 template<typename T>
-void operator-(int, ilist_iterator<T>);
+void operator-(int, ilist_iterator<T>) LLVM_DELETED_FUNCTION;
 template<typename T>
-void operator-(ilist_iterator<T>,int);
+void operator-(ilist_iterator<T>,int) LLVM_DELETED_FUNCTION;
 
 template<typename T>
-void operator+(int, ilist_iterator<T>);
+void operator+(int, ilist_iterator<T>) LLVM_DELETED_FUNCTION;
 template<typename T>
-void operator+(ilist_iterator<T>,int);
+void operator+(ilist_iterator<T>,int) LLVM_DELETED_FUNCTION;
 
 // operator!=/operator== - Allow mixed comparisons without dereferencing
 // the iterator, which could very likely be pointing to end().
@@ -274,12 +274,12 @@ template<typename From> struct simplify_type;
 template<typename NodeTy> struct simplify_type<ilist_iterator<NodeTy> > {
   typedef NodeTy* SimpleType;
 
-  static SimpleType getSimplifiedValue(const ilist_iterator<NodeTy> &Node) {
+  static SimpleType getSimplifiedValue(ilist_iterator<NodeTy> &Node) {
     return &*Node;
   }
 };
 template<typename NodeTy> struct simplify_type<const ilist_iterator<NodeTy> > {
-  typedef NodeTy* SimpleType;
+  typedef /*const*/ NodeTy* SimpleType;
 
   static SimpleType getSimplifiedValue(const ilist_iterator<NodeTy> &Node) {
     return &*Node;
@@ -465,6 +465,17 @@ public:
     return where;
   }
 
+  /// Remove all nodes from the list like clear(), but do not call
+  /// removeNodeFromList() or deleteNode().
+  ///
+  /// This should only be used immediately before freeing nodes in bulk to
+  /// avoid traversing the list and bringing all the nodes into cache.
+  void clearAndLeakNodesUnsafely() {
+    if (Head) {
+      Head = getTail();
+      this->setPrev(Head, Head);
+    }
+  }
 
 private:
   // transfer - The heart of the splice function.  Move linked list nodes from
@@ -472,6 +483,10 @@ private:
   //
   void transfer(iterator position, iplist &L2, iterator first, iterator last) {
     assert(first != last && "Should be checked by callers");
+    // Position cannot be contained in the range to be transferred.
+    // Check for the most common mistake.
+    assert(position != first &&
+           "Insertion point can't be one of the transferred nodes");
 
     if (position != last) {
       // Note: we have to be careful about the case when we move the first node

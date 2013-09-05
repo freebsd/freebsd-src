@@ -115,6 +115,22 @@ static struct {
 #define AHCI_Q_NOCOUNT	1024
 #define AHCI_Q_ALTSIG	2048
 #define AHCI_Q_NOMSI	4096
+
+#define AHCI_Q_BIT_STRING	\
+	"\020"			\
+	"\001NOFORCE"		\
+	"\002NOPMP"		\
+	"\003NONCQ"		\
+	"\0041CH"		\
+	"\0052CH"		\
+	"\0064CH"		\
+	"\007EDGEIS"		\
+	"\010SATA2"		\
+	"\011NOBSYRES"		\
+	"\012NOAA"		\
+	"\013NOCOUNT"		\
+	"\014ALTSIG"		\
+	"\015NOMSI"
 } ahci_ids[] = {
 	{0x43801002, 0x00, "ATI IXP600",	AHCI_Q_NOMSI},
 	{0x43901002, 0x00, "ATI IXP700",	0},
@@ -180,6 +196,7 @@ static struct {
 	{0x1e078086, 0x00, "Intel Panther Point",	0},
 	{0x1e0e8086, 0x00, "Intel Panther Point",	0},
 	{0x1e0f8086, 0x00, "Intel Panther Point",	0},
+	{0x23a38086, 0x00, "Intel Coleto Creek",        0},
 	{0x8c028086, 0x00, "Intel Lynx Point",	0},
 	{0x8c038086, 0x00, "Intel Lynx Point",	0},
 	{0x8c048086, 0x00, "Intel Lynx Point",	0},
@@ -212,6 +229,9 @@ static struct {
 	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x91721b4b, 0x00, "Marvell 88SE9172",	AHCI_Q_NOBSYRES},
 	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_NOBSYRES},
+	{0x91831b4b, 0x00, "Marvell 88SS9183",	AHCI_Q_NOBSYRES},
+	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	AHCI_Q_NOBSYRES},
+	{0x92151b4b, 0x00, "Marvell 88SE9215",  AHCI_Q_NOBSYRES},
 	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
 	{0x92351b4b, 0x00, "Marvell 88SE9235",  AHCI_Q_NOBSYRES},
@@ -223,6 +243,9 @@ static struct {
 	{0x06401b4b, 0x00, "HighPoint RocketRAID 640",	AHCI_Q_NOBSYRES},
 	{0x06441103, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
 	{0x06441b4b, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
+	{0x06411103, 0x00, "HighPoint RocketRAID 640L",	AHCI_Q_NOBSYRES},
+	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	AHCI_Q_NOBSYRES},
+	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	AHCI_Q_NOBSYRES},
 	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
@@ -486,6 +509,10 @@ ahci_attach(device_t dev)
 		    "supported" : "not supported",
 		    (ctlr->caps & AHCI_CAP_FBSS) ?
 		    " with FBS" : "");
+	if (ctlr->quirks != 0) {
+		device_printf(dev, "quirks=0x%b\n", ctlr->quirks,
+		    AHCI_Q_BIT_STRING);
+	}
 	if (bootverbose) {
 		device_printf(dev, "Caps:%s%s%s%s%s%s%s%s %sGbps",
 		    (ctlr->caps & AHCI_CAP_64BIT) ? " 64bit":"",
@@ -512,7 +539,10 @@ ahci_attach(device_t dev)
 		    (ctlr->caps & AHCI_CAP_NPMASK) + 1);
 	}
 	if (bootverbose && version >= 0x00010200) {
-		device_printf(dev, "Caps2:%s%s%s\n",
+		device_printf(dev, "Caps2:%s%s%s%s%s%s\n",
+		    (ctlr->caps2 & AHCI_CAP2_DESO) ? " DESO":"",
+		    (ctlr->caps2 & AHCI_CAP2_SADM) ? " SADM":"",
+		    (ctlr->caps2 & AHCI_CAP2_SDS) ? " SDS":"",
 		    (ctlr->caps2 & AHCI_CAP2_APST) ? " APST":"",
 		    (ctlr->caps2 & AHCI_CAP2_NVMP) ? " NVMP":"",
 		    (ctlr->caps2 & AHCI_CAP2_BOH) ? " BOH":"");

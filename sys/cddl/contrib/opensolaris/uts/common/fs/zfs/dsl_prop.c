@@ -379,7 +379,7 @@ dsl_prop_predict(dsl_dir_t *dd, const char *propname,
 
 /*
  * Unregister this callback.  Return 0 on success, ENOENT if ddname is
- * invalid, ENOMSG if no matching callback registered.
+ * invalid, or ENOMSG if no matching callback registered.
  */
 int
 dsl_prop_unregister(dsl_dataset_t *ds, const char *propname,
@@ -557,10 +557,6 @@ dsl_prop_set_sync_impl(dsl_dataset_t *ds, const char *propname,
 	}
 
 	if (version < SPA_VERSION_RECVD_PROPS) {
-		zfs_prop_t prop = zfs_name_to_prop(propname);
-		if (prop == ZFS_PROP_QUOTA || prop == ZFS_PROP_RESERVATION)
-			return;
-
 		if (source & ZPROP_SRC_NONE)
 			source = ZPROP_SRC_NONE;
 		else if (source & ZPROP_SRC_RECEIVED)

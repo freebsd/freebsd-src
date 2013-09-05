@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2013
+.Dd July 15, 2013
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -67,7 +67,6 @@ statistics (a la
 .Xr iostat 8 ) ,
 virtual memory statistics (a la
 .Xr vmstat 8 ) ,
-network ``mbuf'' utilization,
 .Tn TCP/IP
 statistics,
 and network connections (a la
@@ -94,7 +93,6 @@ to be one of:
 .Ic iostat ,
 .Ic ip ,
 .Ic ip6 ,
-.Ic mbufs ,
 .Ic netstat ,
 .Ic pigs ,
 .Ic swap ,
@@ -280,9 +278,6 @@ the graph shows the percentage of space in use on each partition.
 If there are more than one swap partition in use,
 a total line is also shown.
 Areas known to the kernel, but not in use are shown as not available.
-.It Ic mbufs
-Display, in the lower window, the number of mbufs allocated
-for particular uses, i.e., data, socket structures, etc.
 .It Ic vmstat
 Take over the entire display and show a (rather crowded) compendium
 of statistics related to virtual memory usage, process scheduling,

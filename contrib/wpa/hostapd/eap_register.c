@@ -2,14 +2,8 @@
  * EAP method registration
  * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -43,6 +37,11 @@ int eap_server_register_methods(void)
 #ifdef EAP_SERVER_TLS
 	if (ret == 0)
 		ret = eap_server_tls_register();
+#endif /* EAP_SERVER_TLS */
+
+#ifdef EAP_SERVER_UNAUTH_TLS
+	if (ret == 0)
+		ret = eap_server_unauth_tls_register();
 #endif /* EAP_SERVER_TLS */
 
 #ifdef EAP_SERVER_MSCHAPV2
@@ -129,6 +128,11 @@ int eap_server_register_methods(void)
 	if (ret == 0)
 		ret = eap_server_tnc_register();
 #endif /* EAP_SERVER_TNC */
+
+#ifdef EAP_SERVER_PWD
+	if (ret == 0)
+		ret = eap_server_pwd_register();
+#endif /* EAP_SERVER_PWD */
 
 	return ret;
 }

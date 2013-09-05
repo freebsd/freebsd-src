@@ -101,7 +101,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 	 * for now, it should be irrelevant for most applications.
 	 */
 	mcp->mc_ownedfp = fpugetregs(td);
-	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate,
+	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 	if (!use_xsave || xfpusave_len == 0)
@@ -112,7 +112,7 @@ ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp,
 		len = max_len;
 		bzero(xfpusave + max_len, len - max_len);
 	}
-	mcp->mc_flags |= _MC_HASFPXSTATE;
+	mcp->mc_flags |= _MC_IA32_HASFPXSTATE;
 	mcp->mc_xfpustate_len = len;
 	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
 }
@@ -187,7 +187,6 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_xfpustate = 0;
 	mcp->mc_xfpustate_len = 0;
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 
@@ -1001,6 +1000,5 @@ ia32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 
 	/* Return via doreti so that we can change to a different %cs */
 	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
-	clear_pcb_flags(pcb, PCB_GS32BIT);
 	td->td_retval[1] = 0;
 }

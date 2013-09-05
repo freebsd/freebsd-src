@@ -77,10 +77,11 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs/xdr_subs.h>
 #include <nfs/nfsproto.h>
+#include <nfs/nfs_fha.h>
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
-#include <nfsserver/nfs_fha.h>
+#include <nfsserver/nfs_fha_old.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -167,6 +168,7 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfsd_addsock_args addsockarg;
 	struct nfsd_nfsd_args nfsdarg;
+	cap_rights_t rights;
 	int error;
 
 	if (uap->flag & NFSSVC_ADDSOCK) {
@@ -174,7 +176,8 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 		    sizeof(addsockarg));
 		if (error)
 			return (error);
-		error = fget(td, addsockarg.sock, CAP_SOCK_SERVER, &fp);
+		error = fget(td, addsockarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_SERVER), &fp);
 		if (error)
 			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {
@@ -532,7 +535,7 @@ nfsrv_init(int terminating)
 
 	nfsrv_pool = svcpool_create("nfsd", SYSCTL_STATIC_CHILDREN(_vfs_nfsrv));
 	nfsrv_pool->sp_rcache = replay_newcache(nfsrv_replay_size());
-	nfsrv_pool->sp_assign = fha_assign;
+	nfsrv_pool->sp_assign = fhaold_assign;
 	nfsrv_pool->sp_done = fha_nd_complete;
 	nfsrv_nmbclusters_tag = EVENTHANDLER_REGISTER(nmbclusters_change,
 	    nfsrv_nmbclusters_change, NULL, EVENTHANDLER_PRI_FIRST);

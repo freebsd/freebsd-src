@@ -112,7 +112,7 @@
 #define ZYD_MACB_MAX_RETRY	0x9b28
 
 /*
- * Miscellanous registers.
+ * Miscellaneous registers.
  */
 #define ZYD_FIRMWARE_START_ADDR	0xee00
 #define ZYD_FIRMWARE_BASE_ADDR	0xee1d /* Firmware base address */
@@ -1185,7 +1185,7 @@ struct zyd_rx_radiotap_header {
 	uint16_t		wr_chan_flags;
 	int8_t			wr_antsignal;
 	int8_t			wr_antnoise;
-} __packed;
+} __packed __aligned(8);
 
 #define ZYD_RX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -1200,7 +1200,7 @@ struct zyd_tx_radiotap_header {
 	uint8_t			wt_rate;
 	uint16_t		wt_chan_freq;
 	uint16_t		wt_chan_flags;
-} __packed;
+} __packed __aligned(8);
 
 #define ZYD_TX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\

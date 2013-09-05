@@ -251,7 +251,9 @@ LsWriteListingHexBytes (
                 break;
 
             default:
+
                 /* No other types supported */
+
                 return;
             }
         }
@@ -617,7 +619,9 @@ LsFlushListingBuffer (
         break;
 
     default:
+
         /* No other types supported */
+
         return;
     }
 

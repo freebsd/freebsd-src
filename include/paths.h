@@ -57,6 +57,8 @@
 #define	_PATH_ETC	"/etc"
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
 #define	_PATH_FWMEM	"/dev/fwmem"
+#define	_PATH_GBDE	"/sbin/gbde"
+#define	_PATH_GELI	"/sbin/geli"
 #define	_PATH_HALT	"/sbin/halt"
 #ifdef COMPAT_32BIT
 #define	_PATH_I18NMODULE	"/usr/lib32/i18n"

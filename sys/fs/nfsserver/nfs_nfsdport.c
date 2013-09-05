@@ -60,7 +60,8 @@ extern SVCPOOL	*nfsrvd_pool;
 extern struct nfsv4lock nfsd_suspend_lock;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
-struct mtx nfs_cache_mutex;
+struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
+struct mtx nfsrc_udpmtx;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
@@ -390,7 +391,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 
 	/*
 	 * Initialize for scan, set ni_startdir and bump ref on dp again
-	 * becuase lookup() will dereference ni_startdir.
+	 * because lookup() will dereference ni_startdir.
 	 */
 
 	cnp->cn_thread = p;
@@ -1321,7 +1322,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 			 */
 			if ((bp = gbincore(&vp->v_bufobj, lblkno)) != NULL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
-				    LK_INTERLOCK, BO_MTX(bo)) == ENOLCK) {
+				    LK_INTERLOCK, BO_LOCKPTR(bo)) == ENOLCK) {
 					BO_LOCK(bo);
 					continue; /* retry */
 				}
@@ -1574,6 +1575,8 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 			nd->nd_repstat = NFSERR_BAD_COOKIE;
 #endif
 	}
+	if (!nd->nd_repstat && vp->v_type != VDIR)
+		nd->nd_repstat = NFSERR_NOTDIR;
 	if (nd->nd_repstat == 0 && cnt == 0) {
 		if (nd->nd_flag & ND_NFSV2)
 			/* NFSv2 does not have NFSERR_TOOSMALL */
@@ -2692,9 +2695,11 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 		goto out;
 	}
 
-	if (startwrite)
+	if (startwrite) {
 		vn_start_write(NULL, mpp, V_WAIT);
-
+		if (lktype == LK_SHARED && !(MNT_SHARED_WRITES(mp)))
+			lktype = LK_EXCLUSIVE;
+	}
 	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, lktype, vpp, exp,
 	    &credanon);
 	vfs_unbusy(mp);
@@ -3030,6 +3035,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfsd_addsock_args sockarg;
 	struct nfsd_nfsd_args nfsdarg;
+	cap_rights_t rights;
 	int error;
 
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {
@@ -3041,7 +3047,9 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, sockarg.sock, CAP_SOCK_SERVER, &fp)) != 0)
+		error = fget(td, sockarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_SERVER), &fp);
+		if (error != 0)
 			goto out;
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
@@ -3274,7 +3282,7 @@ extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
 static int
 nfsd_modevent(module_t mod, int type, void *data)
 {
-	int error = 0;
+	int error = 0, i;
 	static int loaded = 0;
 
 	switch (type) {
@@ -3282,7 +3290,14 @@ nfsd_modevent(module_t mod, int type, void *data)
 		if (loaded)
 			goto out;
 		newnfs_portinit();
-		mtx_init(&nfs_cache_mutex, "nfs_cache_mutex", NULL, MTX_DEF);
+		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
+			snprintf(nfsrchash_table[i].lock_name,
+			    sizeof(nfsrchash_table[i].lock_name), "nfsrc_tcp%d",
+			    i);
+			mtx_init(&nfsrchash_table[i].mtx,
+			    nfsrchash_table[i].lock_name, NULL, MTX_DEF);
+		}
+		mtx_init(&nfsrc_udpmtx, "nfs_udpcache_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
 		mtx_init(&nfsv4root_mnt.mnt_mtx, "struct mount mtx", NULL,
 		    MTX_DEF);
@@ -3326,7 +3341,9 @@ nfsd_modevent(module_t mod, int type, void *data)
 			svcpool_destroy(nfsrvd_pool);
 
 		/* and get rid of the locks */
-		mtx_destroy(&nfs_cache_mutex);
+		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++)
+			mtx_destroy(&nfsrchash_table[i].mtx);
+		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsv4root_mnt.mnt_mtx);
 		lockdestroy(&nfsv4root_mnt.mnt_explock);

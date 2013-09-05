@@ -316,7 +316,7 @@ sigchild(int signo __unused)
 	int status;
 	struct child *cp;
 
-	while ((pid = waitpid((pid_t)-1, &status, WNOHANG)) > 0) {
+	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
 		cp = findchild(pid);
 		if (cp->free)
 			delchild(cp);

@@ -46,6 +46,7 @@ SRCS=	APSIntType.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \

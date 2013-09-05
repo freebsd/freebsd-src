@@ -34,7 +34,7 @@
 /*
  * DM9601(DAVICOM USB to Ethernet MAC Controller with Integrated 10/100 PHY)
  * The spec can be found at the following url.
- *   http://www.davicom.com.tw/big5/download/Data%20Sheet/DM9601-DS-P01-930914.pdf
+ *   http://ptm2.cc.utu.fi/ftp/network/cards/DM9601/From_NET/DM9601-DS-P01-930914.pdf
  */
 
 /*
@@ -750,14 +750,15 @@ udav_ifmedia_upd(struct ifnet *ifp)
 	struct udav_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
+	int error;
 
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~UDAV_FLAG_LINK;
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
-	mii_mediachg(mii);
-	return (0);
+	error = mii_mediachg(mii);
+	return (error);
 }
 
 static void

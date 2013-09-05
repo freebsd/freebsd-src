@@ -12,6 +12,7 @@ SRCS=	DIContext.cpp \
 	DWARFDebugAbbrev.cpp \
 	DWARFDebugArangeSet.cpp \
 	DWARFDebugAranges.cpp \
+	DWARFDebugFrame.cpp \
 	DWARFDebugInfoEntry.cpp \
 	DWARFDebugLine.cpp \
 	DWARFDebugRangeList.cpp \

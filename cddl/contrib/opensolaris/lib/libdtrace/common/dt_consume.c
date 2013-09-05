@@ -2949,7 +2949,7 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 				break;
 
 			timestamp = dt_buf_oldest(buf, dtp);
-			/* XXX: assert(timestamp >= dtp->dt_last_timestamp); */
+			assert(timestamp >= dtp->dt_last_timestamp);
 			dtp->dt_last_timestamp = timestamp;
 
 			if (timestamp == buf->dtbd_timestamp) {

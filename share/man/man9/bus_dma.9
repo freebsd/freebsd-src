@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd May 12, 2009
+.Dd July 17, 2013
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -70,6 +70,8 @@
 .Nm bus_dmamap_create ,
 .Nm bus_dmamap_destroy ,
 .Nm bus_dmamap_load ,
+.Nm bus_dmamap_load_bio ,
+.Nm bus_dmamap_load_ccb ,
 .Nm bus_dmamap_load_mbuf ,
 .Nm bus_dmamap_load_mbuf_sg ,
 .Nm bus_dmamap_load_uio ,
@@ -95,6 +97,14 @@
 .Ft int
 .Fn bus_dmamap_load "bus_dma_tag_t dmat" "bus_dmamap_t map" "void *buf" \
 "bus_size_t buflen" "bus_dmamap_callback_t *callback" "void *callback_arg" \
+"int flags"
+.Ft int
+.Fn bus_dmamap_load_bio "bus_dma_tag_t dmat" "bus_dmamap_t map" \
+"struct bio *bio" "bus_dmamap_callback_t *callback" "void *callback_arg" \
+"int flags"
+.Ft int
+.Fn bus_dmamap_load_ccb "bus_dma_tag_t dmat" "bus_dmamap_t map" \
+"union ccb *ccb" "bus_dmamap_callback_t *callback" "void *callback_arg" \
 "int flags"
 .Ft int
 .Fn bus_dmamap_load_mbuf "bus_dma_tag_t dmat" "bus_dmamap_t map" \
@@ -199,7 +209,10 @@ Client specified callback for receiving mapping information resulting from
 the load of a
 .Vt bus_dmamap_t
 via
-.Fn bus_dmamap_load .
+.Fn bus_dmamap_load ,
+.Fn bus_dmamap_load_bio
+or
+.Fn bus_dmamap_load_ccb .
 Callbacks are of the format:
 .Bl -tag -width indent
 .It Ft void
@@ -624,6 +637,49 @@ This array is only valid during the scope of the callback function.
 A mapping could not be achieved within the segment constraints provided
 in the tag even though the requested allocation size was less than maxsize.
 .El
+.It Fn bus_dmamap_load_bio "dmat" "map" "bio" "callback" "callback_arg" "flags"
+This is a variation of
+.Fn bus_dmamap_load
+which maps buffers pointed to by
+.Fa bio
+for DMA transfers.
+.Fa bio
+may point to either a mapped or unmapped buffer.
+.It Fn bus_dmamap_load_ccb "dmat" "map" "ccb" "callback" "callback_arg" "flags"
+This is a variation of
+.Fn bus_dmamap_load
+which maps data pointed to by
+.Fa ccb
+for DMA transfers.
+The data for
+.Fa ccb
+may be any of the following types:
+.Bl -tag -width ".Er CAM_DATA_SG_PADDR"
+.It CAM_DATA_VADDR
+The data is a single KVA buffer.
+.It CAM_DATA_PADDR
+The data is a single bus address range.
+.It CAM_DATA_SG
+The data is a scatter/gather list of KVA buffers.
+.It CAM_DATA_SG_PADDR
+The data is a scatter/gather list of bus address ranges.
+.It CAM_DATA_BIO
+The data is contained in a
+.Vt struct bio
+attached to the CCB.
+.El
+.Pp
+.Fn bus_dmamap_load_ccb
+supports the following CCB XPT function codes:
+.Pp
+.Bl -item -offset indent -compact
+.It
+XPT_ATA_IO
+.It
+XPT_CONT_TARGET_IO
+.It
+XPT_SCSI_IO
+.El
 .It Fn bus_dmamap_load_mbuf "dmat" "map" "mbuf" "callback2" "callback_arg" \
 "flags"
 This is a variation of
@@ -898,11 +954,15 @@ These functions include:
 .It
 .Fn bus_dmamap_load
 .It
-.Fn bus_dmamap_load_uio
+.Fn bus_dmamap_load_bio
+.It
+.Fn bus_dmamap_load_ccb
 .It
 .Fn bus_dmamap_load_mbuf
 .It
 .Fn bus_dmamap_load_mbuf_sg
+.It
+.Fn bus_dmamap_load_uio
 .It
 .Fn bus_dmamap_unload
 .It

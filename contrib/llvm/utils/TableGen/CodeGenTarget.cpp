@@ -17,11 +17,11 @@
 #include "CodeGenTarget.h"
 #include "CodeGenIntrinsics.h"
 #include "CodeGenSchedule.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/CommandLine.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -73,16 +73,20 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v4i1:     return "MVT::v4i1";
   case MVT::v8i1:     return "MVT::v8i1";
   case MVT::v16i1:    return "MVT::v16i1";
+  case MVT::v32i1:    return "MVT::v32i1";
+  case MVT::v64i1:    return "MVT::v64i1";
   case MVT::v2i8:     return "MVT::v2i8";
   case MVT::v4i8:     return "MVT::v4i8";
   case MVT::v8i8:     return "MVT::v8i8";
   case MVT::v16i8:    return "MVT::v16i8";
   case MVT::v32i8:    return "MVT::v32i8";
+  case MVT::v64i8:    return "MVT::v64i8";
   case MVT::v1i16:    return "MVT::v1i16";
   case MVT::v2i16:    return "MVT::v2i16";
   case MVT::v4i16:    return "MVT::v4i16";
   case MVT::v8i16:    return "MVT::v8i16";
   case MVT::v16i16:   return "MVT::v16i16";
+  case MVT::v32i16:   return "MVT::v32i16";
   case MVT::v1i32:    return "MVT::v1i32";
   case MVT::v2i32:    return "MVT::v2i32";
   case MVT::v4i32:    return "MVT::v4i32";
@@ -97,8 +101,10 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v2f32:    return "MVT::v2f32";
   case MVT::v4f32:    return "MVT::v4f32";
   case MVT::v8f32:    return "MVT::v8f32";
+  case MVT::v16f32:   return "MVT::v16f32";
   case MVT::v2f64:    return "MVT::v2f64";
   case MVT::v4f64:    return "MVT::v4f64";
+  case MVT::v8f64:    return "MVT::v8f64";
   case MVT::Metadata: return "MVT::Metadata";
   case MVT::iPTR:     return "MVT::iPTR";
   case MVT::iPTRAny:  return "MVT::iPTRAny";
@@ -223,7 +229,7 @@ getRegisterVTs(Record *R) const {
   for (unsigned i = 0, e = RCs.size(); i != e; ++i) {
     const CodeGenRegisterClass &RC = *RCs[i];
     if (RC.contains(Reg)) {
-      const std::vector<MVT::SimpleValueType> &InVTs = RC.getValueTypes();
+      ArrayRef<MVT::SimpleValueType> InVTs = RC.getValueTypes();
       Result.insert(Result.end(), InVTs.begin(), InVTs.end());
     }
   }

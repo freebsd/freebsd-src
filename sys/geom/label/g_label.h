@@ -87,6 +87,7 @@ extern struct g_label_desc g_label_reiserfs;
 extern struct g_label_desc g_label_ntfs;
 extern struct g_label_desc g_label_gpt;
 extern struct g_label_desc g_label_gpt_uuid;
+extern struct g_label_desc g_label_disk_ident;
 #endif	/* _KERNEL */
 
 struct g_label_metadata {

@@ -16,11 +16,9 @@
 
 #include "X86Disassembler.h"
 #include "X86DisassemblerDecoder.h"
-
-#include "llvm/MC/EDInstInfo.h"
-#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -33,7 +31,6 @@
 #include "X86GenRegisterInfo.inc"
 #define GET_INSTRINFO_ENUM
 #include "X86GenInstrInfo.inc"
-#include "X86GenEDInfo.inc"
 
 using namespace llvm;
 using namespace llvm::X86Disassembler;
@@ -82,10 +79,6 @@ X86GenericDisassembler::X86GenericDisassembler(const MCSubtargetInfo &STI,
 
 X86GenericDisassembler::~X86GenericDisassembler() {
   delete MII;
-}
-
-const EDInstInfo *X86GenericDisassembler::getEDInfo() const {
-  return instInfoX86;
 }
 
 /// regionReader - a callback function that wraps the readByte method from

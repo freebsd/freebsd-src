@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/arm/bus_space_generic.c			standard
+arm/arm/bus_space_asm_generic.S			standard
+arm/arm/cpufunc_asm_armv5.S			standard
+arm/arm/cpufunc_asm_arm10.S			standard
+arm/arm/cpufunc_asm_arm11.S			standard
+arm/arm/cpufunc_asm_armv7.S			standard
+arm/arm/irq_dispatch.S				standard
+
+arm/arm/gic.c					standard
+arm/arm/generic_timer.c				standard
+
+arm/samsung/exynos/arch_timer.c			standard
+arm/samsung/exynos/exynos5_mp.c			optional	smp
+arm/samsung/exynos/bus_space.c			standard
+arm/samsung/exynos/common.c			standard
+arm/samsung/exynos/exynos5_machdep.c		standard
+arm/samsung/exynos/uart.c			optional	uart
+arm/samsung/exynos/ehci_exynos5.c		optional	ehci
+
+#dev/sdhci/sdhci_fdt.c				optional	sdhci

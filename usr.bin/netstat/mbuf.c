@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/sf_buf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -81,7 +82,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	uintmax_t jumbo16_failures, jumbo16_sleeps, jumbo16_size;
 	uintmax_t bytes_inuse, bytes_incache, bytes_total;
 	int nsfbufs, nsfbufspeak, nsfbufsused;
-	struct mbstat mbstat;
+	struct sfstat sfstat;
 	size_t mlen;
 	int error;
 
@@ -308,20 +309,21 @@ mbpr(void *kvmd, u_long mbaddr)
 		    &mlen, NULL, 0))
 			printf("%d/%d/%d sfbufs in use (current/peak/max)\n",
 			    nsfbufsused, nsfbufspeak, nsfbufs);
-		mlen = sizeof(mbstat);
-		if (sysctlbyname("kern.ipc.mbstat", &mbstat, &mlen, NULL, 0)) {
-			warn("kern.ipc.mbstat");
+		mlen = sizeof(sfstat);
+		if (sysctlbyname("kern.ipc.sfstat", &sfstat, &mlen, NULL, 0)) {
+			warn("kern.ipc.sfstat");
 			goto out;
 		}
 	} else {
-		if (kread(mbaddr, (char *)&mbstat, sizeof mbstat) != 0)
+		if (kread_counters(mbaddr, (char *)&sfstat, sizeof sfstat) != 0)
 			goto out;
 	}
-	printf("%lu requests for sfbufs denied\n", mbstat.sf_allocfail);
-	printf("%lu requests for sfbufs delayed\n", mbstat.sf_allocwait);
-	printf("%lu requests for I/O initiated by sendfile\n",
-	    mbstat.sf_iocnt);
-	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
+	printf("%ju requests for sfbufs denied\n",
+	    (uintmax_t)sfstat.sf_allocfail);
+	printf("%ju requests for sfbufs delayed\n",
+	    (uintmax_t)sfstat.sf_allocwait);
+	printf("%ju requests for I/O initiated by sendfile\n",
+	    (uintmax_t)sfstat.sf_iocnt);
 out:
 	memstat_mtl_free(mtlp);
 }

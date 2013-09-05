@@ -108,6 +108,7 @@ typedef enum
     ACPI_DMT_UINT56,
     ACPI_DMT_UINT64,
     ACPI_DMT_BUF7,
+    ACPI_DMT_BUF10,
     ACPI_DMT_BUF16,
     ACPI_DMT_BUF128,
     ACPI_DMT_SIG,
@@ -693,6 +694,9 @@ void
 AcpiDmUnresolvedWarning (
     UINT8                   Type);
 
+void
+AcpiDmGetExternalsFromFile (
+    void);
 
 /*
  * dmresrc

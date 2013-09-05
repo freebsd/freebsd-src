@@ -1086,7 +1086,17 @@ dt_vopen(int version, int flags, int *errp,
 
 	dtfd = open("/dev/dtrace/dtrace", O_RDWR);
 	err = errno; /* save errno from opening dtfd */
-
+#if defined(__FreeBSD__)
+	/*
+	 * Automatically load the 'dtraceall' module if we couldn't open the
+	 * char device.
+	 */
+	if (err == ENOENT && modfind("dtraceall") < 0) {
+		kldload("dtraceall"); /* ignore the error */
+		dtfd = open("/dev/dtrace/dtrace", O_RDWR);
+		err = errno;
+	}
+#endif
 #if defined(sun)
 	ftfd = open("/dev/dtrace/provider/fasttrap", O_RDWR);
 #else
@@ -1132,7 +1142,7 @@ alloc:
 #if defined(sun)
 	dtp->dt_prcmode = DT_PROC_STOP_PREINIT;
 #else
-	dtp->dt_prcmode = DT_PROC_STOP_POSTINIT;
+	dtp->dt_prcmode = DT_PROC_STOP_MAIN;
 #endif
 	dtp->dt_linkmode = DT_LINK_KERNEL;
 	dtp->dt_linktype = DT_LTYP_ELF;
@@ -1153,7 +1163,7 @@ alloc:
 	dtp->dt_mods = calloc(dtp->dt_modbuckets, sizeof (dt_module_t *));
 	dtp->dt_provbuckets = _dtrace_strbuckets;
 	dtp->dt_provs = calloc(dtp->dt_provbuckets, sizeof (dt_provider_t *));
-	dt_proc_init(dtp);
+	dt_proc_hash_create(dtp);
 	dtp->dt_vmax = DT_VERS_LATEST;
 	dtp->dt_cpp_path = strdup(_dtrace_defcpp);
 	dtp->dt_cpp_argv = malloc(sizeof (char *));
@@ -1167,9 +1177,8 @@ alloc:
 	(void) uname(&dtp->dt_uts);
 
 	if (dtp->dt_mods == NULL || dtp->dt_provs == NULL ||
-	    dtp->dt_procs == NULL || dtp->dt_proc_env == NULL ||
-	    dtp->dt_ld_path == NULL || dtp->dt_cpp_path == NULL ||
-	    dtp->dt_cpp_argv == NULL)
+	    dtp->dt_procs == NULL || dtp->dt_ld_path == NULL ||
+	    dtp->dt_cpp_path == NULL || dtp->dt_cpp_argv == NULL)
 		return (set_open_errno(dtp, errp, EDT_NOMEM));
 
 	for (i = 0; i < DTRACEOPT_MAX; i++)
@@ -1581,7 +1590,7 @@ dtrace_close(dtrace_hdl_t *dtp)
 	int i;
 
 	if (dtp->dt_procs != NULL)
-		dt_proc_fini(dtp);
+		dt_proc_hash_destroy(dtp);
 
 	while ((pgp = dt_list_next(&dtp->dt_programs)) != NULL)
 		dt_program_destroy(dtp, pgp);

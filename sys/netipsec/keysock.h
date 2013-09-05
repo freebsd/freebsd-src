@@ -36,26 +36,26 @@
 /* statistics for pfkey socket */
 struct pfkeystat {
 	/* kernel -> userland */
-	u_quad_t out_total;		/* # of total calls */
-	u_quad_t out_bytes;		/* total bytecount */
-	u_quad_t out_msgtype[256];	/* message type histogram */
-	u_quad_t out_invlen;		/* invalid length field */
-	u_quad_t out_invver;		/* invalid version field */
-	u_quad_t out_invmsgtype;	/* invalid message type field */
-	u_quad_t out_tooshort;		/* msg too short */
-	u_quad_t out_nomem;		/* memory allocation failure */
-	u_quad_t out_dupext;		/* duplicate extension */
-	u_quad_t out_invexttype;	/* invalid extension type */
-	u_quad_t out_invsatype;		/* invalid sa type */
-	u_quad_t out_invaddr;		/* invalid address extension */
+	uint64_t out_total;		/* # of total calls */
+	uint64_t out_bytes;		/* total bytecount */
+	uint64_t out_msgtype[256];	/* message type histogram */
+	uint64_t out_invlen;		/* invalid length field */
+	uint64_t out_invver;		/* invalid version field */
+	uint64_t out_invmsgtype;	/* invalid message type field */
+	uint64_t out_tooshort;		/* msg too short */
+	uint64_t out_nomem;		/* memory allocation failure */
+	uint64_t out_dupext;		/* duplicate extension */
+	uint64_t out_invexttype;	/* invalid extension type */
+	uint64_t out_invsatype;		/* invalid sa type */
+	uint64_t out_invaddr;		/* invalid address extension */
 	/* userland -> kernel */
-	u_quad_t in_total;		/* # of total calls */
-	u_quad_t in_bytes;		/* total bytecount */
-	u_quad_t in_msgtype[256];	/* message type histogram */
-	u_quad_t in_msgtarget[3];	/* one/all/registered */
-	u_quad_t in_nomem;		/* memory allocation failure */
+	uint64_t in_total;		/* # of total calls */
+	uint64_t in_bytes;		/* total bytecount */
+	uint64_t in_msgtype[256];	/* message type histogram */
+	uint64_t in_msgtarget[3];	/* one/all/registered */
+	uint64_t in_nomem;		/* memory allocation failure */
 	/* others */
-	u_quad_t sockerr;		/* # of socket related errors */
+	uint64_t sockerr;		/* # of socket related errors */
 };
 
 #define KEY_SENDUP_ONE		0
@@ -63,14 +63,18 @@ struct pfkeystat {
 #define KEY_SENDUP_REGISTERED	2
 
 #ifdef _KERNEL
+#include <sys/counter.h>
+
 struct keycb {
 	struct rawcb kp_raw;	/* rawcb */
 	int kp_promisc;		/* promiscuous mode */
 	int kp_registered;	/* registered socket */
 };
 
-VNET_DECLARE(struct pfkeystat, pfkeystat);
-#define	V_pfkeystat		VNET(pfkeystat)
+VNET_PCPUSTAT_DECLARE(struct pfkeystat, pfkeystat);
+#define	PFKEYSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct pfkeystat, pfkeystat, name, (val))
+#define	PFKEYSTAT_INC(name)		PFKEYSTAT_ADD(name, 1)
 
 extern int key_output(struct mbuf *m, struct socket *so);
 extern int key_usrreq __P((struct socket *,

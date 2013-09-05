@@ -1,7 +1,7 @@
 if [ ! "$_TIMEZONE_ZONES_SUBR" ]; then _TIMEZONE_ZONES_SUBR=1
 #
 # Copyright (c) 2011-2012 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_TIMEZONE_ZONES_SUBR" ]; then _TIMEZONE_ZONES_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -348,7 +348,7 @@ f_read_zones()
 f_install_zoneinfo_file()
 {
 	local zoneinfo_file="$1"
-	local copymode title msg err size
+	local copymode title msg err height width
 
 	if [ -L "$_PATH_LOCALTIME" ]; then
 		copymode=
@@ -371,227 +371,149 @@ f_install_zoneinfo_file()
 		fi
 		if [ "$USEDIALOG" ]; then
 			f_dialog_title "$msg_info"
-			title="$DIALOG_TITLE"
-			btitle="$DIALOG_BACKTITLE"
+			f_dialog_msgbox "$msg"
 			f_dialog_title_restore
-			size=$( f_dialog_buttonbox_size "$title" \
-			        	"$btitle" "$msg" )
-			eval $DIALOG \
-				--title \"\$title\"      \
-				--backtitle \"\$btitle\" \
-				--ok-label \"\$msg_ok\"  \
-				--msgbox \"\$msg\" $size
 		else
 			printf "%s\n" "$msg"
 		fi
 	fi
 
-	if [ "$REALLYDOIT" ]; then
-		f_dialog_title "$msg_error"
-		title="$DIALOG_TITLE"
-		btitle="$DIALOG_BACKTITLE"
-		f_dialog_title_restore
+	[ "$REALLYDOIT" ] || return $SUCCESS
 
-		if [ ! "$zoneinfo_file" ]; then
-
-			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
+	if [ ! "$zoneinfo_file" ]; then
+		err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
 			fi
+			return $FAILURE
+		fi
 
-			err=$( rm -f "$_PATH_DB" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
+		err=$( rm -f "$_PATH_DB" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
 			fi
-
-			if [ "$VERBOSE" ]; then
-				title="$msg_done"
-				msg=$( printf "$msg_removed_file" \
-				              "$_PATH_LOCALTIME" )
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$msg" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$msg\" $size
-				else
-					printf "%s\n" "$msg"
-				fi
-			fi
-
-			return $SUCCESS
-
-		fi # ! zoneinfo_file
-
-		if [ "$copymode" ]; then
-
-			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"     \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( umask 222 && : 2>&1 > "$_PATH_LOCALTIME" )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( cat "$zoneinfo_file" 2>&1 > "$_PATH_LOCALTIME" )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-		else # ! copymode
-
-			err=$( ( :< "$zoneinfo_file" ) 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-			err=$( ln -s "$zoneinfo_file" "$_PATH_LOCALTIME" 2>&1 )
-			if [ "$err" ]; then
-				if [ "$USEDIALOG" ]; then
-					size=$( f_dialog_buttonbox_size \
-					        	"$title"  \
-					        	"$btitle" \
-					        	"$err" )
-					eval $DIALOG \
-						--title \"\$title\"      \
-						--backtitle \"\$btitle\" \
-						--ok-label \"\$msg_ok\"  \
-						--msgbox \"\$err\" $size
-				else
-					f_err "%s\n" "$err"
-				fi
-				return $FAILURE
-			fi
-
-		fi # copymode
+			return $FAILURE
+		fi
 
 		if [ "$VERBOSE" ]; then
-			title="$msg_done"
-			if [ "$copymode" ]; then
-				msg=$( printf "$msg_copied_timezone_file" \
-				              "$zoneinfo_file" \
-				              "$_PATH_LOCALTIME" )
-			else
-				msg=$( printf "$msg_created_symlink" \
-				              "$_PATH_LOCALTIME" \
-				              "$zoneinfo_file" )
-			fi
+			msg=$( printf "$msg_removed_file" "$_PATH_LOCALTIME" )
 			if [ "$USEDIALOG" ]; then
-				size=$( f_dialog_buttonbox_size \
-				        	"$title" "$btitle" "$msg" )
-				eval $DIALOG \
-					--title \"\$title\"      \
-					--backtitle \"\$btitle\" \
-					--ok-label \"\$msg_ok\"  \
-					--msgbox \"\$msg\" $size
+				f_dialog_title "$msg_done"
+				f_dialog_msgbox "$msg"
+				f_dialog_title_restore
 			else
 				printf "%s\n" "$msg"
 			fi
 		fi
 
-	fi # REALLYDOIT
+		return $SUCCESS
+
+	fi # ! zoneinfo_file
+
+	if [ "$copymode" ]; then
+
+		err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( umask 222 && : 2>&1 > "$_PATH_LOCALTIME" )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( cat "$zoneinfo_file" 2>&1 > "$_PATH_LOCALTIME" )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+	else # ! copymode
+
+		err=$( ( :< "$zoneinfo_file" ) 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( rm -f "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+		err=$( ln -s "$zoneinfo_file" "$_PATH_LOCALTIME" 2>&1 )
+		if [ "$err" ]; then
+			if [ "$USEDIALOG" ]; then
+				f_dialog_title "$msg_error"
+				f_dialog_msgbox "$err"
+				f_dialog_title_restore
+			else
+				f_err "%s\n" "$err"
+			fi
+			return $FAILURE
+		fi
+
+	fi # copymode
+
+	if [ "$VERBOSE" ]; then
+		if [ "$copymode" ]; then
+			msg=$( printf "$msg_copied_timezone_file" \
+			              "$zoneinfo_file" "$_PATH_LOCALTIME" )
+		else
+			msg=$( printf "$msg_created_symlink" \
+			              "$_PATH_LOCALTIME" "$zoneinfo_file" )
+		fi
+		if [ "$USEDIALOG" ]; then
+			f_dialog_title "$msg_done"
+			f_dialog_msgbox "$msg"
+			f_dialog_title_restore
+		else
+			printf "%s\n" "$msg"
+		fi
+	fi
 
 	return $SUCCESS
 }

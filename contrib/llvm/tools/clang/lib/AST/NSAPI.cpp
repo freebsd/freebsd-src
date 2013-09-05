@@ -67,7 +67,7 @@ Selector NSAPI::getNSStringSelector(NSStringMethodKind MK) const {
   return NSStringSelectors[MK];
 }
 
-llvm::Optional<NSAPI::NSStringMethodKind>
+Optional<NSAPI::NSStringMethodKind>
 NSAPI::getNSStringMethodKind(Selector Sel) const {
   for (unsigned i = 0; i != NumNSStringMethods; ++i) {
     NSStringMethodKind MK = NSStringMethodKind(i);
@@ -75,7 +75,7 @@ NSAPI::getNSStringMethodKind(Selector Sel) const {
       return MK;
   }
 
-  return llvm::Optional<NSStringMethodKind>();
+  return None;
 }
 
 Selector NSAPI::getNSArraySelector(NSArrayMethodKind MK) const {
@@ -126,15 +126,14 @@ Selector NSAPI::getNSArraySelector(NSArrayMethodKind MK) const {
   return NSArraySelectors[MK];
 }
 
-llvm::Optional<NSAPI::NSArrayMethodKind>
-NSAPI::getNSArrayMethodKind(Selector Sel) {
+Optional<NSAPI::NSArrayMethodKind> NSAPI::getNSArrayMethodKind(Selector Sel) {
   for (unsigned i = 0; i != NumNSArrayMethods; ++i) {
     NSArrayMethodKind MK = NSArrayMethodKind(i);
     if (Sel == getNSArraySelector(MK))
       return MK;
   }
 
-  return llvm::Optional<NSArrayMethodKind>();
+  return None;
 }
 
 Selector NSAPI::getNSDictionarySelector(
@@ -186,6 +185,14 @@ Selector NSAPI::getNSDictionarySelector(
       Sel = Ctx.Selectors.getUnarySelector(
                                      &Ctx.Idents.get("initWithObjectsAndKeys"));
       break;
+    case NSDict_initWithObjectsForKeys: {
+      IdentifierInfo *KeyIdents[] = {
+        &Ctx.Idents.get("initWithObjects"),
+        &Ctx.Idents.get("forKeys")
+      };
+      Sel = Ctx.Selectors.getSelector(2, KeyIdents);
+      break;
+    }
     case NSDict_objectForKey:
       Sel = Ctx.Selectors.getUnarySelector(&Ctx.Idents.get("objectForKey"));
       break;
@@ -204,7 +211,7 @@ Selector NSAPI::getNSDictionarySelector(
   return NSDictionarySelectors[MK];
 }
 
-llvm::Optional<NSAPI::NSDictionaryMethodKind>
+Optional<NSAPI::NSDictionaryMethodKind>
 NSAPI::getNSDictionaryMethodKind(Selector Sel) {
   for (unsigned i = 0; i != NumNSDictionaryMethods; ++i) {
     NSDictionaryMethodKind MK = NSDictionaryMethodKind(i);
@@ -212,7 +219,7 @@ NSAPI::getNSDictionaryMethodKind(Selector Sel) {
       return MK;
   }
 
-  return llvm::Optional<NSDictionaryMethodKind>();
+  return None;
 }
 
 Selector NSAPI::getNSNumberLiteralSelector(NSNumberLiteralMethodKind MK,
@@ -267,7 +274,7 @@ Selector NSAPI::getNSNumberLiteralSelector(NSNumberLiteralMethodKind MK,
   return Sels[MK];
 }
 
-llvm::Optional<NSAPI::NSNumberLiteralMethodKind>
+Optional<NSAPI::NSNumberLiteralMethodKind>
 NSAPI::getNSNumberLiteralMethodKind(Selector Sel) const {
   for (unsigned i = 0; i != NumNSNumberLiteralMethods; ++i) {
     NSNumberLiteralMethodKind MK = NSNumberLiteralMethodKind(i);
@@ -275,14 +282,14 @@ NSAPI::getNSNumberLiteralMethodKind(Selector Sel) const {
       return MK;
   }
 
-  return llvm::Optional<NSNumberLiteralMethodKind>();
+  return None;
 }
 
-llvm::Optional<NSAPI::NSNumberLiteralMethodKind>
+Optional<NSAPI::NSNumberLiteralMethodKind>
 NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   const BuiltinType *BT = T->getAs<BuiltinType>();
   if (!BT)
-    return llvm::Optional<NSAPI::NSNumberLiteralMethodKind>();
+    return None;
 
   const TypedefType *TDT = T->getAs<TypedefType>();
   if (TDT) {
@@ -337,6 +344,14 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::ObjCClass:
   case BuiltinType::ObjCId:
   case BuiltinType::ObjCSel:
+  case BuiltinType::OCLImage1d:
+  case BuiltinType::OCLImage1dArray:
+  case BuiltinType::OCLImage1dBuffer:
+  case BuiltinType::OCLImage2d:
+  case BuiltinType::OCLImage2dArray:
+  case BuiltinType::OCLImage3d:
+  case BuiltinType::OCLSampler:
+  case BuiltinType::OCLEvent:
   case BuiltinType::BoundMember:
   case BuiltinType::Dependent:
   case BuiltinType::Overload:
@@ -348,7 +363,7 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
     break;
   }
   
-  return llvm::Optional<NSAPI::NSNumberLiteralMethodKind>();
+  return None;
 }
 
 /// \brief Returns true if \param T is a typedef of "BOOL" in objective-c.

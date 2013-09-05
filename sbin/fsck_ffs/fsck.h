@@ -74,6 +74,7 @@
 #define	MINBUFS		10	/* minimum number of buffers required */
 #define	MAXBUFS		40	/* maximum space to allocate to buffers */
 #define	INOBUFSIZE	64*1024	/* size of buffer to read inodes in pass1 */
+#define	ZEROBUFSIZE	(dev_bsize * 128) /* size of zero buffer used by -Z */
 
 union dinode {
 	struct ufs1_dinode dp1;
@@ -306,7 +307,8 @@ char	yflag;			/* assume a yes response */
 int	bkgrdflag;		/* use a snapshot to run on an active system */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
-int	Eflag;			/* zero out empty data blocks */
+int	Eflag;			/* delete empty data blocks */
+int	Zflag;			/* zero empty data blocks */
 int	inoopt;			/* trim out unused inodes */
 char	ckclean;		/* only do work if not cleanly unmounted */
 int	cvtlevel;		/* convert to newer file system format */
@@ -322,6 +324,7 @@ char	skipclean;		/* skip clean file systems if preening */
 int	fsmodified;		/* 1 => write done to file system */
 int	fsreadfd;		/* file descriptor for reading file system */
 int	fswritefd;		/* file descriptor for writing file system */
+int	surrender;		/* Give up if reads fail */
 
 ufs2_daddr_t maxfsblock;	/* number of blocks in the file system */
 char	*blockmap;		/* ptr to primary blk allocation map */
@@ -402,6 +405,7 @@ int		blread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
 void		blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size);
 void		blerase(int fd, ufs2_daddr_t blk, long size);
+void		blzero(int fd, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);

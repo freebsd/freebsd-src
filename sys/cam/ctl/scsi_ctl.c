@@ -961,23 +961,23 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		/*
 		 * Valid combinations:
-		 *  - CAM_SEND_STATUS, SCATTER_VALID = 0, dxfer_len = 0,
+		 *  - CAM_SEND_STATUS, CAM_DATA_SG = 0, dxfer_len = 0,
 		 *    sglist_cnt = 0
-		 *  - CAM_SEND_STATUS = 0, SCATTER_VALID = 0, dxfer_len != 0,
+		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG = 0, dxfer_len != 0,
 		 *    sglist_cnt = 0 
-		 *  - CAM_SEND_STATUS = 0, SCATTER_VALID, dxfer_len != 0,
+		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG, dxfer_len != 0,
 		 *    sglist_cnt != 0
 		 */
 #ifdef CTLFEDEBUG
 		if (((flags & CAM_SEND_STATUS)
-		  && (((flags & CAM_SCATTER_VALID) != 0)
+		  && (((flags & CAM_DATA_SG) != 0)
 		   || (dxfer_len != 0)
 		   || (csio->sglist_cnt != 0)))
 		 || (((flags & CAM_SEND_STATUS) == 0)
 		  && (dxfer_len == 0))
-		 || ((flags & CAM_SCATTER_VALID)
+		 || ((flags & CAM_DATA_SG)
 		  && (csio->sglist_cnt == 0))
-		 || (((flags & CAM_SCATTER_VALID) == 0)
+		 || (((flags & CAM_DATA_SG) == 0)
 		  && (csio->sglist_cnt != 0))) {
 			printf("%s: tag %04x cdb %02x flags %#x dxfer_len "
 			       "%d sg %u\n", __func__, atio->tag_id,
@@ -2060,7 +2060,6 @@ ctlfe_lun_disable(void *arg, struct ctl_id targ_id, int lun_id)
 static void
 ctlfe_dump_sim(struct cam_sim *sim)
 {
-	int i;
 
 	printf("%s%d: max tagged openings: %d, max dev openings: %d\n",
 	       sim->sim_name, sim->unit_number,
@@ -2071,14 +2070,6 @@ ctlfe_dump_sim(struct cam_sim *sim)
 	printf("%s%d: ccb_freeq is %sempty\n",
 	       sim->sim_name, sim->unit_number,
 	       (SLIST_FIRST(&sim->ccb_freeq) == NULL) ? "" : "NOT ");
-	printf("%s%d: alloc_queue.entries %d, alloc_openings %d\n",
-	       sim->sim_name, sim->unit_number,
-	       sim->devq->alloc_queue.entries, sim->devq->alloc_openings);
-	printf("%s%d: qfrozen_cnt:", sim->sim_name, sim->unit_number);
-	for (i = 0; i < CAM_RL_VALUES; i++) {
-		printf("%s%u", (i != 0) ? ":" : "",
-		sim->devq->alloc_queue.qfrozen_cnt[i]);
-	}
 	printf("\n");
 }
 
@@ -2146,7 +2137,7 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 
 	xpt_print(periph->path, "%d requests total waiting for CCBs\n",
 		  num_items);
-	xpt_print(periph->path, "%ju CCBs oustanding (%ju allocated, %ju "
+	xpt_print(periph->path, "%ju CCBs outstanding (%ju allocated, %ju "
 		  "freed)\n", (uintmax_t)(softc->ccbs_alloced -
 		  softc->ccbs_freed), (uintmax_t)softc->ccbs_alloced,
 		  (uintmax_t)softc->ccbs_freed);

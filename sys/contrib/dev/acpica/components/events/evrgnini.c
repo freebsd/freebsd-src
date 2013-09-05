@@ -664,7 +664,9 @@ AcpiEvInitializeRegion (
                 break;
 
             default:
+
                 /* Ignore other objects */
+
                 break;
             }
 

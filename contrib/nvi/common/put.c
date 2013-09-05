@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)put.c	10.11 (Berkeley) 9/23/96";
+static const char sccsid[] = "$Id: put.c,v 10.19 04/07/11 17:00:24 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -32,19 +33,21 @@ static const char sccsid[] = "@(#)put.c	10.11 (Berkeley) 9/23/96";
  * PUBLIC: int put __P((SCR *, CB *, CHAR_T *, MARK *, MARK *, int));
  */
 int
-put(sp, cbp, namep, cp, rp, append)
-	SCR *sp;
-	CB *cbp;
-	CHAR_T *namep;
-	MARK *cp, *rp;
-	int append;
+put(
+	SCR *sp,
+	CB *cbp,
+	CHAR_T *namep,
+	MARK *cp,
+	MARK *rp,
+	int append)
 {
 	CHAR_T name;
 	TEXT *ltp, *tp;
 	recno_t lno;
 	size_t blen, clen, len;
 	int rval;
-	char *bp, *p, *t;
+	CHAR_T *bp, *t;
+	CHAR_T *p;
 
 	if (cbp == NULL)
 		if (namep == NULL) {
@@ -63,7 +66,7 @@ put(sp, cbp, namep, cp, rp, append)
 				return (1);
 			}
 		}
-	tp = cbp->textq.cqh_first;
+	tp = TAILQ_FIRST(cbp->textq);
 
 	/*
 	 * It's possible to do a put into an empty file, meaning that the cut
@@ -84,8 +87,8 @@ put(sp, cbp, namep, cp, rp, append)
 		if (db_last(sp, &lno))
 			return (1);
 		if (lno == 0) {
-			for (; tp != (void *)&cbp->textq;
-			    ++lno, ++sp->rptlines[L_ADDED], tp = tp->q.cqe_next)
+			for (; tp != NULL;
+			    ++lno, ++sp->rptlines[L_ADDED], tp = TAILQ_NEXT(tp, q))
 				if (db_append(sp, 1, lno, tp->lb, tp->len))
 					return (1);
 			rp->lno = 1;
@@ -98,8 +101,8 @@ put(sp, cbp, namep, cp, rp, append)
 	if (F_ISSET(cbp, CB_LMODE)) {
 		lno = append ? cp->lno : cp->lno - 1;
 		rp->lno = lno + 1;
-		for (; tp != (void *)&cbp->textq;
-		    ++lno, ++sp->rptlines[L_ADDED], tp = tp->q.cqe_next)
+		for (; tp != NULL;
+		    ++lno, ++sp->rptlines[L_ADDED], tp = TAILQ_NEXT(tp, q))
 			if (db_append(sp, 1, lno, tp->lb, tp->len))
 				return (1);
 		rp->cno = 0;
@@ -120,19 +123,19 @@ put(sp, cbp, namep, cp, rp, append)
 	if (db_get(sp, lno, DBG_FATAL, &p, &len))
 		return (1);
 
-	GET_SPACE_RET(sp, bp, blen, tp->len + len + 1);
+	GET_SPACE_RETW(sp, bp, blen, tp->len + len + 1);
 	t = bp;
 
 	/* Original line, left of the split. */
 	if (len > 0 && (clen = cp->cno + (append ? 1 : 0)) > 0) {
-		memcpy(bp, p, clen);
+		MEMCPY(bp, p, clen);
 		p += clen;
 		t += clen;
 	}
 
 	/* First line from the CB. */
 	if (tp->len != 0) {
-		memcpy(t, tp->lb, tp->len);
+		MEMCPY(t, tp->lb, tp->len);
 		t += tp->len;
 	}
 
@@ -161,9 +164,9 @@ put(sp, cbp, namep, cp, rp, append)
 	 * the intermediate lines, because the line changes will lose
 	 * the cached line.
 	 */
-	if (tp->q.cqe_next == (void *)&cbp->textq) {
+	if (TAILQ_NEXT(tp, q) == NULL) {
 		if (clen > 0) {
-			memcpy(t, p, clen);
+			MEMCPY(t, p, clen);
 			t += clen;
 		}
 		if (db_set(sp, lno, bp, t - bp))
@@ -183,15 +186,15 @@ put(sp, cbp, namep, cp, rp, append)
 		 * Last part of original line; check for space, reset
 		 * the pointer into the buffer.
 		 */
-		ltp = cbp->textq.cqh_last;
+		ltp = TAILQ_LAST(cbp->textq, _texth);
 		len = t - bp;
-		ADD_SPACE_RET(sp, bp, blen, ltp->len + clen);
+		ADD_SPACE_RETW(sp, bp, blen, ltp->len + clen);
 		t = bp + len;
 
 		/* Add in last part of the CB. */
-		memcpy(t, ltp->lb, ltp->len);
+		MEMCPY(t, ltp->lb, ltp->len);
 		if (clen)
-			memcpy(t + ltp->len, p, clen);
+			MEMCPY(t + ltp->len, p, clen);
 		clen += ltp->len;
 
 		/*
@@ -211,9 +214,8 @@ put(sp, cbp, namep, cp, rp, append)
 		}
 
 		/* Output any intermediate lines in the CB. */
-		for (tp = tp->q.cqe_next;
-		    tp->q.cqe_next != (void *)&cbp->textq;
-		    ++lno, ++sp->rptlines[L_ADDED], tp = tp->q.cqe_next)
+		for (tp = TAILQ_NEXT(tp, q); TAILQ_NEXT(tp, q) != NULL;
+		    ++lno, ++sp->rptlines[L_ADDED], tp = TAILQ_NEXT(tp, q))
 			if (db_append(sp, 1, lno, tp->lb, tp->len))
 				goto err;
 
@@ -226,6 +228,6 @@ put(sp, cbp, namep, cp, rp, append)
 	if (0)
 err:		rval = 1;
 
-	FREE_SPACE(sp, bp, blen);
+	FREE_SPACEW(sp, bp, blen);
 	return (rval);
 }

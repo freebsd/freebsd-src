@@ -121,7 +121,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 
 	serrno = errno;
 
-	if (pipe(pdes) < 0)
+	if (pipe2(pdes, O_CLOEXEC) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
 	(void)sigemptyset(&newsigblock);
 	(void)sigaddset(&newsigblock, SIGCHLD);
@@ -139,25 +139,15 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		 * We are the child; just get /bin/sh to run the wordexp
 		 * builtin on `words'.
 		 */
-		int devnull;
-		char *cmd;
-
 		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
-		_close(pdes[0]);
-		if (_dup2(pdes[1], STDOUT_FILENO) < 0)
+		if ((pdes[1] != STDOUT_FILENO ?
+		    _dup2(pdes[1], STDOUT_FILENO) :
+		    _fcntl(pdes[1], F_SETFD, 0)) < 0)
 			_exit(1);
-		_close(pdes[1]);
-		if (asprintf(&cmd, "wordexp %s\n", words) < 0)
-			_exit(1);
-		if ((flags & WRDE_SHOWERR) == 0) {
-			if ((devnull = _open(_PATH_DEVNULL, O_RDWR, 0666)) < 0)
-				_exit(1);
-			if (_dup2(devnull, STDERR_FILENO) < 0)
-				_exit(1);
-			_close(devnull);
-		}
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
-		    "-c", cmd, (char *)NULL);
+		    "-c", "eval \"$1\";eval \"wordexp $2\"", "",
+		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null", words,
+		    (char *)NULL);
 		_exit(1);
 	}
 
@@ -261,7 +251,8 @@ we_check(const char *words, int flags)
 	while ((c = *words++) != '\0') {
 		switch (c) {
 		case '\\':
-			quote ^= 1;
+			if (squote == 0)
+				quote ^= 1;
 			continue;
 		case '\'':
 			if (quote + dquote == 0)

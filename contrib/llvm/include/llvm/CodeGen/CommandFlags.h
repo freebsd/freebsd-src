@@ -1,4 +1,4 @@
-//===-- CommandFlags.h - Register Coalescing Interface ----------*- C++ -*-===//
+//===-- CommandFlags.h - Command Line Flags Interface -----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,13 +13,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_COMMAND_LINE_FLAGS_H
-#define LLVM_CODEGEN_COMMAND_LINE_FLAGS_H
+#ifndef LLVM_CODEGEN_COMMANDFLAGS_H
+#define LLVM_CODEGEN_COMMANDFLAGS_H
 
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetMachine.h"
-
 #include <string>
 using namespace llvm;
 

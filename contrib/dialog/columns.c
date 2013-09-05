@@ -1,5 +1,5 @@
 /*
- *  $Id: columns.c,v 1.8 2011/06/28 09:26:23 tom Exp $
+ *  $Id: columns.c,v 1.10 2011/10/20 20:53:55 tom Exp $
  *
  *  columns.c -- implements column-alignment
  *
@@ -45,7 +45,7 @@ next_row(char **target, int per_row)
 {
     char *result = (char *) target;
     result += per_row;
-    return (char **) result;
+    return (char **) (void *) result;
 }
 
 static char *
@@ -148,6 +148,7 @@ dlg_align_columns(char **target, int per_row, int num_rows)
 		memcpy(text + offset, *value + offsets[n], (size_t) widths[n]);
 		offset += maxwidth[n] + 1;
 	    }
+	    text[realwidth] = 0;
 	    *value = text;
 	}
 

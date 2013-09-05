@@ -2232,6 +2232,8 @@ nfs_readdir(struct vop_readdir_args *ap)
 	int error = 0;
 	struct vattr vattr;
 	
+	if (ap->a_eofflag != NULL)
+		*ap->a_eofflag = 0;
 	if (vp->v_type != VDIR) 
 		return(EPERM);
 
@@ -2246,6 +2248,8 @@ nfs_readdir(struct vop_readdir_args *ap)
 			    !NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 				mtx_unlock(&np->n_mtx);
 				NFSINCRGLOBAL(newnfsstats.direofcache_hits);
+				if (ap->a_eofflag != NULL)
+					*ap->a_eofflag = 1;
 				return (0);
 			} else
 				mtx_unlock(&np->n_mtx);
@@ -2258,8 +2262,11 @@ nfs_readdir(struct vop_readdir_args *ap)
 	tresid = uio->uio_resid;
 	error = ncl_bioread(vp, uio, 0, ap->a_cred);
 
-	if (!error && uio->uio_resid == tresid)
+	if (!error && uio->uio_resid == tresid) {
 		NFSINCRGLOBAL(newnfsstats.direofcache_misses);
+		if (ap->a_eofflag != NULL)
+			*ap->a_eofflag = 1;
+	}
 	return (error);
 }
 
@@ -2845,7 +2852,7 @@ loop:
 
 			error = BUF_TIMELOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_MTX(bo), "nfsfsync", slpflag, slptimeo);
+			    BO_LOCKPTR(bo), "nfsfsync", slpflag, slptimeo);
 			if (error == 0) {
 				BUF_UNLOCK(bp);
 				goto loop;
@@ -2944,9 +2951,16 @@ loop:
 		mtx_unlock(&np->n_mtx);
 	} else
 		BO_UNLOCK(bo);
-	if (NFSHASPNFS(nmp))
+	if (NFSHASPNFS(nmp)) {
 		nfscl_layoutcommit(vp, td);
-	mtx_lock(&np->n_mtx);
+		/*
+		 * Invalidate the attribute cache, since writes to a DS
+		 * won't update the size attribute.
+		 */
+		mtx_lock(&np->n_mtx);
+		np->n_attrstamp = 0;
+	} else
+		mtx_lock(&np->n_mtx);
 	if (np->n_flag & NWRITEERR) {
 		error = np->n_error;
 		np->n_flag &= ~NWRITEERR;

@@ -85,10 +85,28 @@ struct ath_ahb_softc {
 static int
 ath_ahb_probe(device_t dev)
 {
+	int vendor_id, device_id;
 	const char* devname;
 
-	/* Atheros / ar9130 */
-	devname = ath_hal_probe(VENDOR_ATHEROS, AR9130_DEVID);
+	/*
+	 * Check if a device/vendor ID is provided in hints.
+	 */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "vendor_id", &vendor_id) != 0) {
+		vendor_id = VENDOR_ATHEROS;
+	}
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "device_id", &device_id) != 0) {
+		device_id = AR9130_DEVID;
+	}
+
+	device_printf(dev, "Vendor=0x%04x, Device=0x%04x\n",
+	    vendor_id & 0xffff,
+	    device_id & 0xffff);
+
+	/* Attempt to probe */
+	devname = ath_hal_probe(vendor_id, device_id);
 
 	if (devname != NULL) {
 		device_set_desc(dev, devname);
@@ -105,7 +123,9 @@ ath_ahb_attach(device_t dev)
 	int error = ENXIO;
 	int rid;
 	long eepromaddr;
+	int eepromsize;
 	uint8_t *p;
+	int device_id, vendor_id;
 
 	sc->sc_dev = dev;
 
@@ -116,15 +136,27 @@ ath_ahb_attach(device_t dev)
 		goto bad;
 	}
 
-        if (resource_long_value(device_get_name(dev), device_get_unit(dev),
-            "eepromaddr", &eepromaddr) != 0) {
+	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
+	    "eepromaddr", &eepromaddr) != 0) {
 		device_printf(dev, "cannot fetch 'eepromaddr' from hints\n");
 		goto bad0;
-        }
+	}
+
+	/*
+	 * The default EEPROM size is 2048 * 16 bit words.
+	 * Later EEPROM/OTP/flash regions may be quite a bit bigger.
+	 */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "eepromsize", &eepromsize) != 0) {
+		eepromsize = ATH_EEPROM_DATA_SIZE * 2;
+	}
+
+
 	rid = 0;
-	device_printf(sc->sc_dev, "eeprom @ %p\n", (void *) eepromaddr);
+	device_printf(sc->sc_dev, "eeprom @ %p (%d bytes)\n",
+	    (void *) eepromaddr, eepromsize);
 	psc->sc_eeprom = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, (uintptr_t) eepromaddr,
-	  (uintptr_t) eepromaddr + (uintptr_t) ((ATH_EEPROM_DATA_SIZE * 2) - 1), 0, RF_ACTIVE);
+	  (uintptr_t) eepromaddr + (uintptr_t) (eepromsize - 1), 0, RF_ACTIVE);
 	if (psc->sc_eeprom == NULL) {
 		device_printf(dev, "cannot map eeprom space\n");
 		goto bad0;
@@ -140,7 +172,7 @@ ath_ahb_attach(device_t dev)
 	sc->sc_invalid = 1;
 
 	/* Copy the EEPROM data out */
-	sc->sc_eepromdata = malloc(ATH_EEPROM_DATA_SIZE * 2, M_TEMP, M_NOWAIT | M_ZERO);
+	sc->sc_eepromdata = malloc(eepromsize, M_TEMP, M_NOWAIT | M_ZERO);
 	if (sc->sc_eepromdata == NULL) {
 		device_printf(dev, "cannot allocate memory for eeprom data\n");
 		goto bad1;
@@ -151,10 +183,10 @@ ath_ahb_attach(device_t dev)
 	bus_space_read_multi_1(
 	    rman_get_bustag(psc->sc_eeprom),
 	    rman_get_bushandle(psc->sc_eeprom),
-	    0, (u_int8_t *) sc->sc_eepromdata, ATH_EEPROM_DATA_SIZE * 2);
+	    0, (u_int8_t *) sc->sc_eepromdata, eepromsize);
 #endif
 	p = (void *) rman_get_bushandle(psc->sc_eeprom);
-	memcpy(sc->sc_eepromdata, p, ATH_EEPROM_DATA_SIZE * 2);
+	memcpy(sc->sc_eepromdata, p, eepromsize);
 
 	/*
 	 * Arrange interrupt line.
@@ -191,6 +223,19 @@ ath_ahb_attach(device_t dev)
 		goto bad3;
 	}
 
+	/*
+	 * Check if a device/vendor ID is provided in hints.
+	 */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "vendor_id", &vendor_id) != 0) {
+		vendor_id = VENDOR_ATHEROS;
+	}
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "device_id", &device_id) != 0) {
+		device_id = AR9130_DEVID;
+	}
+
 	ATH_LOCK_INIT(sc);
 	ATH_PCU_LOCK_INIT(sc);
 	ATH_RX_LOCK_INIT(sc);
@@ -198,7 +243,7 @@ ath_ahb_attach(device_t dev)
 	ATH_TX_IC_LOCK_INIT(sc);
 	ATH_TXSTATUS_LOCK_INIT(sc);
 
-	error = ath_attach(AR9130_DEVID, sc);
+	error = ath_attach(device_id, sc);
 	if (error == 0)					/* success */
 		return 0;
 

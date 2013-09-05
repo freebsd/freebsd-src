@@ -143,7 +143,7 @@ use_mountprog(const char *vfstype)
 	unsigned int i;
 	const char *fs[] = {
 	"cd9660", "mfs", "msdosfs", "nfs",
-	"nullfs", "oldnfs", "udf", "unionfs",
+	"nullfs", "oldnfs", "smbfs", "udf", "unionfs",
 	NULL
 	};
 
@@ -245,14 +245,15 @@ main(int argc, char *argv[])
 	struct fstab *fs;
 	struct statfs *mntbuf;
 	int all, ch, i, init_flags, late, failok, mntsize, rval, have_fstab, ro;
+	int onlylate;
 	char *cp, *ep, *options;
 
-	all = init_flags = late = 0;
+	all = init_flags = late = onlylate = 0;
 	ro = 0;
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "adF:flo:prt:uvw")) != -1)
+	while ((ch = getopt(argc, argv, "adF:fLlno:prt:uvw")) != -1)
 		switch (ch) {
 		case 'a':
 			all = 1;
@@ -266,8 +267,15 @@ main(int argc, char *argv[])
 		case 'f':
 			init_flags |= MNT_FORCE;
 			break;
+		case 'L':
+			onlylate = 1;
+			late = 1;
+			break;
 		case 'l':
 			late = 1;
+			break;
+		case 'n':
+			/* For compatibility with the Linux version of mount. */
 			break;
 		case 'o':
 			if (*optarg) {
@@ -326,6 +334,8 @@ main(int argc, char *argv[])
 				if (checkvfsname(fs->fs_vfstype, vfslist))
 					continue;
 				if (hasopt(fs->fs_mntops, "noauto"))
+					continue;
+				if (!hasopt(fs->fs_mntops, "late") && onlylate)
 					continue;
 				if (hasopt(fs->fs_mntops, "late") && !late)
 					continue;

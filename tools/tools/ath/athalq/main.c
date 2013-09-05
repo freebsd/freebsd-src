@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_alq.h>
 
-#if 0
+#if 1
 #include "ar9300_ds.h"
 #endif
 #include "ar5210_ds.h"
@@ -73,6 +73,36 @@ ath_alq_print_intr_status(struct if_ath_alq_payload *a)
 	    (unsigned int) be32toh(a->hdr.tstamp_usec),
 	    (unsigned long long) be64toh(a->hdr.threadid),
 	    be32toh(is.intr_status));
+}
+
+static void
+ath_alq_print_beacon_miss(struct if_ath_alq_payload *a)
+{
+
+	printf("[%u.%06u] [%llu] BMISS\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
+	    (unsigned long long) be64toh(a->hdr.threadid));
+}
+
+static void
+ath_alq_print_beacon_stuck(struct if_ath_alq_payload *a)
+{
+
+	printf("[%u.%06u] [%llu] BSTUCK\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
+	    (unsigned long long) be64toh(a->hdr.threadid));
+}
+
+static void
+ath_alq_print_beacon_resume(struct if_ath_alq_payload *a)
+{
+
+	printf("[%u.%06u] [%llu] BRESUME\n",
+	    (unsigned int) be32toh(a->hdr.tstamp_sec),
+	    (unsigned int) be32toh(a->hdr.tstamp_usec),
+	    (unsigned long long) be64toh(a->hdr.threadid));
 }
 
 int
@@ -147,6 +177,15 @@ main(int argc, const char *argv[])
 			case ATH_ALQ_INTR_STATUS:
 				ath_alq_print_intr_status(a);
 				break;
+			case ATH_ALQ_MISSED_BEACON:
+				ath_alq_print_beacon_miss(a);
+				break;
+			case ATH_ALQ_STUCK_BEACON:
+				ath_alq_print_beacon_stuck(a);
+				break;
+			case ATH_ALQ_RESUME_BEACON:
+				ath_alq_print_beacon_resume(a);
+				break;
 			default:
 				if (be32toh(hdr.sc_hal_magic) == AR5210_MAGIC)
 					ar5210_alq_payload(a);
@@ -156,7 +195,7 @@ main(int argc, const char *argv[])
 					ar5212_alq_payload(a);
 				else if (be32toh(hdr.sc_hal_magic) == AR5416_MAGIC)
 					ar5416_alq_payload(a);
-#if 0
+#if 1
 				else if (be32toh(hdr.sc_hal_magic) == AR9300_MAGIC)
 					ar9300_alq_payload(a);
 #endif

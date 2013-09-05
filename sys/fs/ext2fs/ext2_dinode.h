@@ -77,7 +77,20 @@
 #define EXT3_EPOCH_MASK	((1 << EXT3_EPOCH_BITS) - 1)
 #define EXT3_NSEC_MASK	(~0UL << EXT3_EPOCH_BITS)
 
-#define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs, EXT2F_ROCOMPAT_EXTRA_ISIZE))
+#define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
+				    EXT2F_ROCOMPAT_EXTRA_ISIZE))
+#define E2DI_HAS_HUGE_FILE(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
+				    EXT2F_ROCOMPAT_HUGE_FILE))
+
+/*
+ * Constants relative to the data blocks
+ */
+#define	EXT2_NDIR_BLOCKS		12
+#define	EXT2_IND_BLOCK			EXT2_NDIR_BLOCKS
+#define	EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
+#define	EXT2_TIND_BLOCK			(EXT2_DIND_BLOCK + 1)
+#define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
+#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof(uint32_t))
 
 /*
  * Structure of an inode on the disk

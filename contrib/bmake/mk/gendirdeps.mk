@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.21 2013/03/28 20:01:05 sjg Exp $
+# $Id: gendirdeps.mk,v 1.23 2013/09/04 17:49:20 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -111,13 +111,24 @@ _py_d =
 .if ${META2DEPS:E} == "py"
 # we can afford to do this all the time.
 DPDEPS ?= no
-META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} \
-	-R ${RELDIR} -H ${HOST_TARGET} \
-	${M2D_OBJROOTS:O:u:@o@-O $o@}
-
+META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} 
 .if ${DPDEPS:tl} != "no"
 META2DEPS_CMD += -D ${DPDEPS}
 .endif
+META2DEPS_FILTER = sed 's,^src:,${SRCTOP}/,;s,^\([^/]\),${OBJTOP}/\1,' |
+.elif ${META2DEPS:E} == "sh"
+META2DEPS_CMD = ${_time} ${_sh_x} ${META2DEPS} OBJTOP=${_OBJTOP}
+.else
+META2DEPS_CMD ?= ${META2DEPS}
+.endif
+
+.if ${TARGET_OBJ_SPEC:U${MACHINE}} != ${MACHINE}
+META2DEPS_CMD += -T ${TARGET_OBJ_SPEC}
+.endif
+META2DEPS_CMD += \
+	-R ${RELDIR} -H ${HOST_TARGET} \
+	${M2D_OBJROOTS:O:u:@o@-O $o@}
+
 
 M2D_OBJROOTS += ${OBJTOP} ${_OBJROOT} ${_objroot}
 .if defined(SB_OBJROOT)
@@ -132,13 +143,6 @@ META2DEPS_ARGS += MACHINE=none
 .if defined(SB_BACKING_SB) 
 META2DEPS_CMD += -S ${SB_BACKING_SB}/src 
 M2D_OBJROOTS += ${SB_BACKING_SB}/${SB_OBJPREFIX}
-.endif
-META2DEPS_FILTER = sed 's,^src:,${SRCTOP}/,;s,^\([^/]\),${OBJTOP}/\1,' |
-.elif ${META2DEPS:E} == "sh"
-META2DEPS_CMD = ${_time} ${_sh_x} ${META2DEPS} \
-	OBJTOP=${_objtop} SB_OBJROOT=${_objroot}
-.else
-META2DEPS_CMD ?= ${META2DEPS}
 .endif
 
 # we are only interested in the dirs
@@ -158,7 +162,7 @@ dir_list != cd ${_OBJDIR} && \
 .warning Skipping ${_DEPENDFILE:S,${SRCTOP}/,,}
 # we are not going to update anything
 .else
-
+dpadd_dir_list=
 .if !empty(DPADD)
 _nonlibs := ${DPADD:T:Nlib*:N*include}
 .if !empty(_nonlibs)
@@ -170,6 +174,7 @@ ddep_list += $f.dirdep
 ddep_list += ${f:H}.dirdep
 .else
 dir_list += ${f:H:tA}
+dpadd_dir_list += ${f:H:tA}
 .endif
 .endfor
 .if !empty(ddep_list)
@@ -193,7 +198,7 @@ dir_list += ${ddeps}
 # so we add 
 # ${"${dir_list:M*bsd/sys/${MACHINE_ARCH}/include}":?bsd/include:}
 # to GENDIRDEPS_DIR_LIST_XTRAS
-_objtops = ${OBJTOP} ${_OBJTOP} ${_obtop}
+_objtops = ${OBJTOP} ${_OBJTOP} ${_objtop}
 _objtops := ${_objtops:O:u}
 dirdep_list = \
 	${_objtops:@o@${dir_list:M$o*/*:C,$o[^/]*/,,}@} \
@@ -208,8 +213,11 @@ M2D_OBJROOTS := ${M2D_OBJROOTS:O:u:[-1..1]}
 skip_ql= ${SRCTOP}* ${_objtops:@o@$o*@}
 .for o in ${M2D_OBJROOTS:${skip_ql:${M_ListToSkip}}}
 # we need := so only skip_ql to this point applies
-ql :=	${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
-qualdir_list += ${ql}
+ql.$o := ${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
+qualdir_list += ${ql.$o}
+.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.info ${RELDIR}: o=$o ${ql.$o qualdir_list:L:@v@$v=${$v}@}
+.endif
 skip_ql+= $o*
 .endfor
 
@@ -237,6 +245,7 @@ DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:O:u}
 .if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
 .info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
 .info ${RELDIR}: dir_list='${dir_list}'
+.info ${RELDIR}: dpadd_dir_list='${dpadd_dir_list}'
 .info ${RELDIR}: dirdep_list='${dirdep_list}'
 .info ${RELDIR}: qualdir_list='${qualdir_list}'
 .info ${RELDIR}: SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS}'

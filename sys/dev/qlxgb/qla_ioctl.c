@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -82,9 +82,14 @@ qla_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
         int rval = 0;
         qla_reg_val_t *rv;
         qla_rd_flash_t *rdf;
+	qla_wr_flash_t *wrf;
+	qla_rd_pci_ids_t *pci_ids;
+	device_t pci_dev;
 
         if ((ha = (qla_host_t *)dev->si_drv1) == NULL)
                 return ENXIO;
+
+	pci_dev= ha->pci_dev;
 
         switch(cmd) {
 
@@ -110,6 +115,30 @@ qla_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
                 if ((rval = qla_rd_flash32(ha, rdf->off, &rdf->data)))
                         rval = ENXIO;
                 break;
+
+        case QLA_WR_FLASH:
+                wrf = (qla_wr_flash_t *)data;
+                if ((rval = qla_wr_flash_buffer(ha, wrf->off, wrf->size,
+					wrf->buffer, wrf->pattern)))
+                        rval = ENXIO;
+                break;
+
+
+	case QLA_ERASE_FLASH:
+		if (qla_erase_flash(ha, ((qla_erase_flash_t *)data)->off,
+			((qla_erase_flash_t *)data)->size))
+			rval = ENXIO;
+		break;
+
+	case QLA_RD_PCI_IDS:
+		pci_ids = (qla_rd_pci_ids_t *)data;
+		pci_ids->ven_id = pci_get_vendor(pci_dev);
+		pci_ids->dev_id = pci_get_device(pci_dev);
+		pci_ids->subsys_ven_id = pci_get_subvendor(pci_dev);
+		pci_ids->subsys_dev_id = pci_get_subdevice(pci_dev);
+		pci_ids->rev_id = pci_read_config(pci_dev, PCIR_REVID, 1);
+		break;
+		
         default:
                 break;
         }

@@ -464,6 +464,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct unpcb *unp;
 	struct vnode *vp;
 	struct mount *mp;
+	cap_rights_t rights;
 	char *buf;
 
 	unp = sotounpcb(so);
@@ -502,7 +503,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 
 restart:
 	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME,
-	    UIO_SYSSPACE, buf, fd, CAP_BINDAT, td);
+	    UIO_SYSSPACE, buf, fd, cap_rights_init(&rights, CAP_BINDAT), td);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
@@ -1276,10 +1277,11 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	struct vnode *vp;
 	struct socket *so2, *so3;
 	struct unpcb *unp, *unp2, *unp3;
-	int error, len;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
+	cap_rights_t rights;
+	int error, len;
 
 	UNP_LINK_WLOCK_ASSERT();
 
@@ -1305,7 +1307,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
-	    UIO_SYSSPACE, buf, fd, CAP_CONNECTAT, td);
+	    UIO_SYSSPACE, buf, fd, cap_rights_init(&rights, CAP_CONNECTAT), td);
 	error = namei(&nd);
 	if (error)
 		vp = NULL;
@@ -1370,7 +1372,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		}
 
 		/*
-		 * The connecter's (client's) credentials are copied from its
+		 * The connector's (client's) credentials are copied from its
 		 * process structure at the time of connect() (which is now).
 		 */
 		cru2x(td->td_ucred, &unp3->unp_peercred);
@@ -1686,6 +1688,8 @@ unp_freerights(struct filedescent **fdep, int fdcount)
 	struct file *fp;
 	int i;
 
+	KASSERT(fdcount > 0, ("%s: fdcount %d", __func__, fdcount));
+
 	for (i = 0; i < fdcount; i++) {
 		fp = fdep[i]->fde_file;
 		filecaps_free(&fdep[i]->fde_caps);
@@ -1706,7 +1710,6 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, newfds;
-	int f;
 	u_int newlen;
 
 	UNP_LINK_UNLOCK_ASSERT();
@@ -1724,6 +1727,8 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 		if (cm->cmsg_level == SOL_SOCKET
 		    && cm->cmsg_type == SCM_RIGHTS) {
 			newfds = datalen / sizeof(*fdep);
+			if (newfds == 0)
+				goto next;
 			fdep = data;
 
 			/* If we're not outputting the descriptors free them. */
@@ -1732,13 +1737,6 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				goto next;
 			}
 			FILEDESC_XLOCK(fdesc);
-			/* if the new FD's will not fit free them.  */
-			if (!fdavail(td, newfds)) {
-				FILEDESC_XUNLOCK(fdesc);
-				error = EMSGSIZE;
-				unp_freerights(fdep, newfds);
-				goto next;
-			}
 
 			/*
 			 * Now change each pointer to an fd in the global
@@ -1758,17 +1756,22 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 
 			fdp = (int *)
 			    CMSG_DATA(mtod(*controlp, struct cmsghdr *));
+			if (fdallocn(td, 0, fdp, newfds) != 0) {
+				FILEDESC_XUNLOCK(td->td_proc->p_fd);
+				error = EMSGSIZE;
+				unp_freerights(fdep, newfds);
+				m_freem(*controlp);
+				*controlp = NULL;
+				goto next;
+			}
 			for (i = 0; i < newfds; i++, fdp++) {
-				if (fdalloc(td, 0, &f))
-					panic("unp_externalize fdalloc failed");
-				fde = &fdesc->fd_ofiles[f];
-				fde->fde_file = fdep[0]->fde_file;
-				filecaps_move(&fdep[0]->fde_caps,
+				fde = &fdesc->fd_ofiles[*fdp];
+				fde->fde_file = fdep[i]->fde_file;
+				filecaps_move(&fdep[i]->fde_caps,
 				    &fde->fde_caps);
 				if ((flags & MSG_CMSG_CLOEXEC) != 0)
 					fde->fde_flags |= UF_EXCLOSE;
 				unp_externalize_fp(fde->fde_file);
-				*fdp = f;
 			}
 			FILEDESC_XUNLOCK(fdesc);
 			free(fdep[0], M_FILECAPS);
@@ -1894,6 +1897,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 
 		case SCM_RIGHTS:
 			oldfds = datalen / sizeof (int);
+			if (oldfds == 0)
+				break;
 			/*
 			 * Check that all the FDs passed in refer to legal
 			 * files.  If not, reject the entire operation.

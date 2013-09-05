@@ -12,7 +12,7 @@
 #define __has_include(inc) 0
 #endif
 
-#if __APPLE__
+#ifdef __APPLE__
 #include <cxxabi.h>
 #elif defined(LIBCXXRT) || __has_include(<cxxabi.h>)
 #include <cxxabi.h>
@@ -50,11 +50,21 @@ std::bad_typeid::what() const _NOEXCEPT
   return "std::bad_typeid";
 }
 
-#if __APPLE__
+#ifdef __APPLE__
   // On Darwin, the cxa_bad_* functions cannot be in the lower level library
   // because bad_cast and bad_typeid are defined in his higher level library
-  void __cxxabiv1::__cxa_bad_typeid() { throw std::bad_typeid(); }
-  void __cxxabiv1::__cxa_bad_cast() { throw std::bad_cast(); }
+  void __cxxabiv1::__cxa_bad_typeid()
+  {
+#ifndef _LIBCPP_NO_EXCEPTIONS
+     throw std::bad_typeid();
+#endif
+  }
+  void __cxxabiv1::__cxa_bad_cast()
+  {
+#ifndef _LIBCPP_NO_EXCEPTIONS
+      throw std::bad_cast();
+#endif
+  }
 #endif
 
 #endif  // _LIBCPPABI_VERSION

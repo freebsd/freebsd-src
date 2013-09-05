@@ -1,15 +1,9 @@
 /*
  * EAP common peer/server definitions
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef EAP_COMMON_H
@@ -17,6 +11,7 @@
 
 #include "wpabuf.h"
 
+int eap_hdr_len_valid(const struct wpabuf *msg, size_t min_payload);
 const u8 * eap_hdr_validate(int vendor, EapType eap_type,
 			    const struct wpabuf *msg, size_t *plen);
 struct wpabuf * eap_msg_alloc(int vendor, EapType type, size_t payload_len,

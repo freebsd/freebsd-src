@@ -1686,7 +1686,7 @@ hatm_attach(device_t dev)
 	 * 4.2 BIOS Configuration
 	 */
 	v = pci_read_config(dev, PCIR_COMMAND, 2);
-	v |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
+	v |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
 	pci_write_config(dev, PCIR_COMMAND, v, 2);
 
 	/*
@@ -1702,12 +1702,6 @@ hatm_attach(device_t dev)
 	/*
 	 * Map memory
 	 */
-	v = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!(v & PCIM_CMD_MEMEN)) {
-		device_printf(dev, "failed to enable memory\n");
-		error = ENXIO;
-		goto failed;
-	}
 	sc->memid = PCIR_BAR(0);
 	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->memid,
 	    RF_ACTIVE);

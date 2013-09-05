@@ -82,13 +82,15 @@ dummynet(void *arg)
 {
 
 	(void)arg;	/* UNUSED */
-	taskqueue_enqueue(dn_tq, &dn_task);
+	taskqueue_enqueue_fast(dn_tq, &dn_task);
 }
 
 void
 dn_reschedule(void)
 {
-	callout_reset(&dn_timeout, 1, dummynet, NULL);
+
+	callout_reset_sbt(&dn_timeout, tick_sbt, 0, dummynet, NULL,
+	    C_HARDCLOCK | C_DIRECT_EXEC);
 }
 /*----- end of callout hooks -----*/
 
@@ -618,7 +620,7 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		fs->sched->fp->free_fsk(fs);
 	fs->sched = NULL;
 	if (flags & DN_DELETE_FS) {
-		bzero(fs, sizeof(fs));	/* safety */
+		bzero(fs, sizeof(*fs));	/* safety */
 		free(fs, M_DUMMYNET);
 		dn_cfg.fsk_count--;
 	} else {
@@ -2159,18 +2161,17 @@ ip_dn_init(void)
 	DN_LOCK_INIT();
 
 	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
-	dn_tq = taskqueue_create("dummynet", M_WAITOK,
+	dn_tq = taskqueue_create_fast("dummynet", M_WAITOK,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
 	callout_init(&dn_timeout, CALLOUT_MPSAFE);
-	callout_reset(&dn_timeout, 1, dummynet, NULL);
+	dn_reschedule();
 
 	/* Initialize curr_time adjustment mechanics. */
 	getmicrouptime(&dn_cfg.prev_t);
 }
 
-#ifdef KLD_MODULE
 static void
 ip_dn_destroy(int last)
 {
@@ -2194,7 +2195,6 @@ ip_dn_destroy(int last)
 
 	DN_LOCK_DESTROY();
 }
-#endif /* KLD_MODULE */
 
 static int
 dummynet_modevent(module_t mod, int type, void *data)
@@ -2210,13 +2210,8 @@ dummynet_modevent(module_t mod, int type, void *data)
 		ip_dn_io_ptr = dummynet_io;
 		return 0;
 	} else if (type == MOD_UNLOAD) {
-#if !defined(KLD_MODULE)
-		printf("dummynet statically compiled, cannot unload\n");
-		return EINVAL ;
-#else
 		ip_dn_destroy(1 /* last */);
 		return 0;
-#endif
 	} else
 		return EOPNOTSUPP;
 }

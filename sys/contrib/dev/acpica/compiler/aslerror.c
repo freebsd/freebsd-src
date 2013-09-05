@@ -201,6 +201,7 @@ AePrintException (
         switch (Enode->Level)
         {
         case ASL_REMARK:
+
             if (!Gbl_DisplayRemarks)
             {
                 return;
@@ -208,6 +209,7 @@ AePrintException (
             break;
 
         case ASL_OPTIMIZATION:
+
             if (!Gbl_DisplayOptimizations)
             {
                 return;
@@ -215,6 +217,7 @@ AePrintException (
             break;
 
         default:
+
             break;
         }
     }
@@ -676,6 +679,113 @@ AslCommonError (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AslDisableException
+ *
+ * PARAMETERS:  MessageIdString     - ID to be disabled
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enter a message ID into the global disabled messages table
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AslDisableException (
+    char                    *MessageIdString)
+{
+    UINT32                  MessageId;
+
+
+    /* Convert argument to an integer and validate it */
+
+    MessageId = (UINT32) strtoul (MessageIdString, NULL, 0);
+
+    if ((MessageId < 2000) || (MessageId > 5999))
+    {
+        printf ("\"%s\" is not a valid warning/remark ID\n",
+            MessageIdString);
+        return (AE_BAD_PARAMETER);
+    }
+
+    /* Insert value into the global disabled message array */
+
+    if (Gbl_DisabledMessagesIndex >= ASL_MAX_DISABLED_MESSAGES)
+    {
+        printf ("Too many messages have been disabled (max %u)\n",
+            ASL_MAX_DISABLED_MESSAGES);
+        return (AE_LIMIT);
+    }
+
+    Gbl_DisabledMessages[Gbl_DisabledMessagesIndex] = MessageId;
+    Gbl_DisabledMessagesIndex++;
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslIsExceptionDisabled
+ *
+ * PARAMETERS:  Level               - Seriousness (Warning/error, etc.)
+ *              MessageId           - Index into global message buffer
+ *
+ * RETURN:      TRUE if exception/message should be ignored
+ *
+ * DESCRIPTION: Check if the user has specified options such that this
+ *              exception should be ignored
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AslIsExceptionDisabled (
+    UINT8                   Level,
+    UINT8                   MessageId)
+{
+    UINT32                  EncodedMessageId;
+    UINT32                  i;
+
+
+    switch (Level)
+    {
+    case ASL_WARNING2:
+    case ASL_WARNING3:
+
+        /* Check for global disable via -w1/-w2/-w3 options */
+
+        if (Level > Gbl_WarningLevel)
+        {
+            return (TRUE);
+        }
+        /* Fall through */
+
+    case ASL_WARNING:
+    case ASL_REMARK:
+        /*
+         * Ignore this warning/remark if it has been disabled by
+         * the user (-vw option)
+         */
+        EncodedMessageId = MessageId + ((Level + 1) * 1000);
+        for (i = 0; i < Gbl_DisabledMessagesIndex; i++)
+        {
+            /* Simple implementation via fixed array */
+
+            if (EncodedMessageId == Gbl_DisabledMessages[i])
+            {
+                return (TRUE);
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AslError
  *
  * PARAMETERS:  Level               - Seriousness (Warning/error, etc.)
@@ -698,32 +808,25 @@ AslError (
     char                    *ExtraMessage)
 {
 
-    switch (Level)
-    {
-    case ASL_WARNING2:
-    case ASL_WARNING3:
-        if (Gbl_WarningLevel < Level)
-        {
-            return;
-        }
-        break;
+    /* Check if user wants to ignore this exception */
 
-    default:
-        break;
+    if (AslIsExceptionDisabled (Level, MessageId))
+    {
+        return;
     }
 
     if (Op)
     {
         AslCommonError (Level, MessageId, Op->Asl.LineNumber,
-                        Op->Asl.LogicalLineNumber,
-                        Op->Asl.LogicalByteOffset,
-                        Op->Asl.Column,
-                        Op->Asl.Filename, ExtraMessage);
+            Op->Asl.LogicalLineNumber,
+            Op->Asl.LogicalByteOffset,
+            Op->Asl.Column,
+            Op->Asl.Filename, ExtraMessage);
     }
     else
     {
         AslCommonError (Level, MessageId, 0,
-                        0, 0, 0, NULL, ExtraMessage);
+            0, 0, 0, NULL, ExtraMessage);
     }
 }
 

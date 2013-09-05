@@ -8,6 +8,6 @@ LDADD=	-ldialog -lncursesw -lm
 CFLAGS+= -I${.CURDIR} -I${DIALOG}
 .PATH:	${DIALOG}
 
-WARNS?= 3
+WARNS?= 6
 
 .include <bsd.prog.mk>

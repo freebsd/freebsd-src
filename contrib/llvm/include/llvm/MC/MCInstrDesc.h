@@ -15,6 +15,8 @@
 #ifndef LLVM_MC_MCINSTRDESC_H
 #define LLVM_MC_MCINSTRDESC_H
 
+#include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
@@ -144,7 +146,7 @@ public:
   const uint16_t *ImplicitDefs;  // Registers implicitly defined by this instr
   const MCOperandInfo *OpInfo;   // 'NumOperands' entries about operands
 
-  /// getOperandConstraint - Returns the value of the specific constraint if
+  /// \brief Returns the value of the specific constraint if
   /// it is set. Returns -1 if it is not set.
   int getOperandConstraint(unsigned OpNum,
                            MCOI::OperandConstraint Constraint) const {
@@ -156,12 +158,12 @@ public:
     return -1;
   }
 
-  /// getOpcode - Return the opcode number for this descriptor.
+  /// \brief Return the opcode number for this descriptor.
   unsigned getOpcode() const {
     return Opcode;
   }
 
-  /// getNumOperands - Return the number of declared MachineOperands for this
+  /// \brief Return the number of declared MachineOperands for this
   /// MachineInstruction.  Note that variadic (isVariadic() returns true)
   /// instructions may have additional operands at the end of the list, and note
   /// that the machine instruction may include implicit register def/uses as
@@ -170,7 +172,7 @@ public:
     return NumOperands;
   }
 
-  /// getNumDefs - Return the number of MachineOperands that are register
+  /// \brief Return the number of MachineOperands that are register
   /// definitions.  Register definitions always occur at the start of the
   /// machine operand list.  This is the number of "outs" in the .td file,
   /// and does not include implicit defs.
@@ -178,11 +180,10 @@ public:
     return NumDefs;
   }
 
-  /// getFlags - Return flags of this instruction.
-  ///
+  /// \brief Return flags of this instruction.
   unsigned getFlags() const { return Flags; }
 
-  /// isVariadic - Return true if this instruction can have a variable number of
+  /// \brief Return true if this instruction can have a variable number of
   /// operands.  In this case, the variable operands will be after the normal
   /// operands but before the implicit definitions and uses (if any are
   /// present).
@@ -190,35 +191,37 @@ public:
     return Flags & (1 << MCID::Variadic);
   }
 
-  /// hasOptionalDef - Set if this instruction has an optional definition, e.g.
+  /// \brief Set if this instruction has an optional definition, e.g.
   /// ARM instructions which can set condition code if 's' bit is set.
   bool hasOptionalDef() const {
     return Flags & (1 << MCID::HasOptionalDef);
   }
 
-  /// isPseudo - Return true if this is a pseudo instruction that doesn't
+  /// \brief Return true if this is a pseudo instruction that doesn't
   /// correspond to a real machine instruction.
   ///
   bool isPseudo() const {
     return Flags & (1 << MCID::Pseudo);
   }
 
+  /// \brief Return true if the instruction is a return.
   bool isReturn() const {
     return Flags & (1 << MCID::Return);
   }
 
+  /// \brief  Return true if the instruction is a call.
   bool isCall() const {
     return Flags & (1 << MCID::Call);
   }
 
-  /// isBarrier - Returns true if the specified instruction stops control flow
+  /// \brief Returns true if the specified instruction stops control flow
   /// from executing the instruction immediately following it.  Examples include
   /// unconditional branches and return instructions.
   bool isBarrier() const {
     return Flags & (1 << MCID::Barrier);
   }
 
-  /// isTerminator - Returns true if this instruction part of the terminator for
+  /// \brief Returns true if this instruction part of the terminator for
   /// a basic block.  Typically this is things like return and branch
   /// instructions.
   ///
@@ -228,7 +231,7 @@ public:
     return Flags & (1 << MCID::Terminator);
   }
 
-  /// isBranch - Returns true if this is a conditional, unconditional, or
+  /// \brief Returns true if this is a conditional, unconditional, or
   /// indirect branch.  Predicates below can be used to discriminate between
   /// these cases, and the TargetInstrInfo::AnalyzeBranch method can be used to
   /// get more information.
@@ -236,13 +239,13 @@ public:
     return Flags & (1 << MCID::Branch);
   }
 
-  /// isIndirectBranch - Return true if this is an indirect branch, such as a
+  /// \brief Return true if this is an indirect branch, such as a
   /// branch through a register.
   bool isIndirectBranch() const {
     return Flags & (1 << MCID::IndirectBranch);
   }
 
-  /// isConditionalBranch - Return true if this is a branch which may fall
+  /// \brief Return true if this is a branch which may fall
   /// through to the next instruction or may transfer control flow to some other
   /// block.  The TargetInstrInfo::AnalyzeBranch method can be used to get more
   /// information about this branch.
@@ -250,7 +253,7 @@ public:
     return isBranch() & !isBarrier() & !isIndirectBranch();
   }
 
-  /// isUnconditionalBranch - Return true if this is a branch which always
+  /// \brief Return true if this is a branch which always
   /// transfers control flow to some other block.  The
   /// TargetInstrInfo::AnalyzeBranch method can be used to get more information
   /// about this branch.
@@ -258,38 +261,47 @@ public:
     return isBranch() & isBarrier() & !isIndirectBranch();
   }
 
-  // isPredicable - Return true if this instruction has a predicate operand that
-  // controls execution.  It may be set to 'always', or may be set to other
-  /// values.   There are various methods in TargetInstrInfo that can be used to
+  /// \brief Return true if this is a branch or an instruction which directly
+  /// writes to the program counter. Considered 'may' affect rather than
+  /// 'does' affect as things like predication are not taken into account.
+  bool mayAffectControlFlow(const MCInst &MI, const MCRegisterInfo &RI) const {
+    if (isBranch() || isCall() || isReturn() || isIndirectBranch())
+      return true;
+    unsigned PC = RI.getProgramCounter();
+    if (PC == 0) return false;
+    return hasDefOfPhysReg(MI, PC, RI);
+  }
+
+  /// \brief Return true if this instruction has a predicate operand
+  /// that controls execution. It may be set to 'always', or may be set to other
+  /// values. There are various methods in TargetInstrInfo that can be used to
   /// control and modify the predicate in this instruction.
   bool isPredicable() const {
     return Flags & (1 << MCID::Predicable);
   }
 
-  /// isCompare - Return true if this instruction is a comparison.
+  /// \brief Return true if this instruction is a comparison.
   bool isCompare() const {
     return Flags & (1 << MCID::Compare);
   }
 
-  /// isMoveImmediate - Return true if this instruction is a move immediate
+  /// \brief Return true if this instruction is a move immediate
   /// (including conditional moves) instruction.
   bool isMoveImmediate() const {
     return Flags & (1 << MCID::MoveImm);
   }
 
-  /// isBitcast - Return true if this instruction is a bitcast instruction.
-  ///
+  /// \brief Return true if this instruction is a bitcast instruction.
   bool isBitcast() const {
     return Flags & (1 << MCID::Bitcast);
   }
 
-  /// isSelect - Return true if this is a select instruction.
-  ///
+  /// \brief Return true if this is a select instruction.
   bool isSelect() const {
     return Flags & (1 << MCID::Select);
   }
 
-  /// isNotDuplicable - Return true if this instruction cannot be safely
+  /// \brief Return true if this instruction cannot be safely
   /// duplicated.  For example, if the instruction has a unique labels attached
   /// to it, duplicating it would cause multiple definition errors.
   bool isNotDuplicable() const {
@@ -318,7 +330,7 @@ public:
   // Side Effect Analysis
   //===--------------------------------------------------------------------===//
 
-  /// mayLoad - Return true if this instruction could possibly read memory.
+  /// \brief Return true if this instruction could possibly read memory.
   /// Instructions with this flag set are not necessarily simple load
   /// instructions, they may load a value and modify it, for example.
   bool mayLoad() const {
@@ -326,7 +338,7 @@ public:
   }
 
 
-  /// mayStore - Return true if this instruction could possibly modify memory.
+  /// \brief Return true if this instruction could possibly modify memory.
   /// Instructions with this flag set are not necessarily simple store
   /// instructions, they may store a modified value based on their operands, or
   /// may not actually modify anything, for example.
@@ -459,8 +471,7 @@ public:
     return ImplicitUses;
   }
 
-  /// getNumImplicitUses - Return the number of implicit uses this instruction
-  /// has.
+  /// \brief Return the number of implicit uses this instruction has.
   unsigned getNumImplicitUses() const {
     if (ImplicitUses == 0) return 0;
     unsigned i = 0;
@@ -482,8 +493,7 @@ public:
     return ImplicitDefs;
   }
 
-  /// getNumImplicitDefs - Return the number of implicit defs this instruction
-  /// has.
+  /// \brief Return the number of implicit defs this instruct has.
   unsigned getNumImplicitDefs() const {
     if (ImplicitDefs == 0) return 0;
     unsigned i = 0;
@@ -491,7 +501,7 @@ public:
     return i;
   }
 
-  /// hasImplicitUseOfPhysReg - Return true if this instruction implicitly
+  /// \brief Return true if this instruction implicitly
   /// uses the specified physical register.
   bool hasImplicitUseOfPhysReg(unsigned Reg) const {
     if (const uint16_t *ImpUses = ImplicitUses)
@@ -500,31 +510,43 @@ public:
     return false;
   }
 
-  /// hasImplicitDefOfPhysReg - Return true if this instruction implicitly
+  /// \brief Return true if this instruction implicitly
   /// defines the specified physical register.
-  bool hasImplicitDefOfPhysReg(unsigned Reg) const {
+  bool hasImplicitDefOfPhysReg(unsigned Reg,
+                               const MCRegisterInfo *MRI = 0) const {
     if (const uint16_t *ImpDefs = ImplicitDefs)
       for (; *ImpDefs; ++ImpDefs)
-        if (*ImpDefs == Reg) return true;
+        if (*ImpDefs == Reg || (MRI && MRI->isSubRegister(Reg, *ImpDefs)))
+            return true;
     return false;
   }
 
-  /// getSchedClass - Return the scheduling class for this instruction.  The
+  /// \brief Return true if this instruction defines the specified physical
+  /// register, either explicitly or implicitly.
+  bool hasDefOfPhysReg(const MCInst &MI, unsigned Reg,
+                       const MCRegisterInfo &RI) const {
+    for (int i = 0, e = NumDefs; i != e; ++i)
+      if (MI.getOperand(i).isReg() &&
+          RI.isSubRegisterEq(Reg, MI.getOperand(i).getReg()))
+        return true;
+    return hasImplicitDefOfPhysReg(Reg, &RI);
+  }
+
+  /// \brief Return the scheduling class for this instruction.  The
   /// scheduling class is an index into the InstrItineraryData table.  This
   /// returns zero if there is no known scheduling information for the
   /// instruction.
-  ///
   unsigned getSchedClass() const {
     return SchedClass;
   }
 
-  /// getSize - Return the number of bytes in the encoding of this instruction,
+  /// \brief Return the number of bytes in the encoding of this instruction,
   /// or zero if the encoding size cannot be known from the opcode.
   unsigned getSize() const {
     return Size;
   }
 
-  /// findFirstPredOperandIdx() - Find the index of the first operand in the
+  /// \brief Find the index of the first operand in the
   /// operand list that is used to represent the predicate. It returns -1 if
   /// none is found.
   int findFirstPredOperandIdx() const {

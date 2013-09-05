@@ -27,7 +27,7 @@
  */
 
 /*-
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Oleksandr Rybalko
@@ -106,7 +106,8 @@ static int
 iomux_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx51-iomux"))
+	if (!ofw_bus_is_compatible(dev, "fsl,imx51-iomux") &&
+	    !ofw_bus_is_compatible(dev, "fsl,imx53-iomux"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale i.MX51 IO pins multiplexor");

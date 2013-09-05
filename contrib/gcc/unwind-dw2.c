@@ -1438,17 +1438,6 @@ uw_init_context_1 (struct _Unwind_Context *context,
   context->ra = __builtin_extract_return_addr (outer_ra);
 }
 
-#if defined(__clang__) && defined(__amd64__)
-/* Some versions of clang don't save and restore all callee registers, if a
-   __builtin_eh_return() intrinsic is used in a function.  This is particularly
-   bad on amd64.  For now, use the following ugly hack to force it to assume
-   those registers are clobbered, when invoking __builtin_eh_return(), so it
-   will emit code to save and restore them.  */
-#define CLOBBER_REGS_HACK \
-  __asm __volatile(" " : : : "r15", "r14", "r13", "r12", "rbx", "rdx", "rax");
-#else
-#define CLOBBER_REGS_HACK
-#endif /* __clang__ */
 
 /* Install TARGET into CURRENT so that we can return to it.  This is a
    macro because __builtin_eh_return must be invoked in the context of
@@ -1459,7 +1448,6 @@ uw_init_context_1 (struct _Unwind_Context *context,
     {									 \
       long offset = uw_install_context_1 ((CURRENT), (TARGET));		 \
       void *handler = __builtin_frob_return_addr ((TARGET)->ra);	 \
-      CLOBBER_REGS_HACK							 \
       __builtin_eh_return (offset, handler);				 \
     }									 \
   while (0)

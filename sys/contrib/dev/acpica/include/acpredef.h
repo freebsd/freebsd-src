@@ -131,8 +131,8 @@ enum AcpiReturnPackageTypes
 #define ARG_COUNT_IS_MINIMUM            0x8000
 #define METHOD_MAX_ARG_TYPE             ACPI_TYPE_PACKAGE
 
-#define METHOD_GET_COUNT(ArgList)       (ArgList & METHOD_ARG_MASK)
-#define METHOD_GET_NEXT_ARG(ArgList)    (ArgList >> METHOD_ARG_BIT_WIDTH)
+#define METHOD_GET_ARG_COUNT(ArgList)   ((ArgList) & METHOD_ARG_MASK)
+#define METHOD_GET_NEXT_TYPE(ArgList)   (((ArgList) >>= METHOD_ARG_BIT_WIDTH) & METHOD_ARG_MASK)
 
 /* Macros used to build the predefined info table */
 

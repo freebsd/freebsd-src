@@ -71,7 +71,6 @@ FEATURE(p1003_1b_semaphores, "POSIX P1003.1B semaphores support");
  * TODO
  *
  * - Resource limits?
- * - Update fstat(1)
  * - Replace global sem_lock with mtx_pool locks?
  * - Add a MAC check_create() hook for creating new named semaphores.
  */
@@ -117,7 +116,7 @@ static int	ksem_create(struct thread *td, const char *path,
 		    semid_t *semidp, mode_t mode, unsigned int value,
 		    int flags, int compat32);
 static void	ksem_drop(struct ksem *ks);
-static int	ksem_get(struct thread *td, semid_t id, cap_rights_t rights,
+static int	ksem_get(struct thread *td, semid_t id, cap_rights_t *rightsp,
     struct file **fpp);
 static struct ksem *ksem_hold(struct ksem *ks);
 static void	ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks);
@@ -150,6 +149,7 @@ static struct fileops ksem_ops = {
 	.fo_close = ksem_closef,
 	.fo_chmod = ksem_chmod,
 	.fo_chown = ksem_chown,
+	.fo_sendfile = invfo_sendfile,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -407,6 +407,7 @@ ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks)
 	map->km_path = path;
 	map->km_fnv = fnv;
 	map->km_ksem = ksem_hold(ks);
+	ks->ks_path = path;
 	LIST_INSERT_HEAD(KSEM_HASH(fnv), map, km_link);
 }
 
@@ -428,6 +429,7 @@ ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 			error = ksem_access(map->km_ksem, ucred);
 			if (error)
 				return (error);
+			map->km_ksem->ks_path = NULL;
 			LIST_REMOVE(map, km_link);
 			ksem_drop(map->km_ksem);
 			free(map->km_path, M_KSEM);
@@ -437,6 +439,20 @@ ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 	}
 
 	return (ENOENT);
+}
+
+static void
+ksem_info_impl(struct ksem *ks, char *path, size_t size, uint32_t *value)
+{
+
+	if (ks->ks_path == NULL)
+		return;
+	sx_slock(&ksem_dict_lock);
+	if (ks->ks_path != NULL)
+		strlcpy(path, ks->ks_path, size);
+	if (value != NULL)
+		*value = ks->ks_value;
+	sx_sunlock(&ksem_dict_lock);
 }
 
 static int
@@ -584,13 +600,14 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 }
 
 static int
-ksem_get(struct thread *td, semid_t id, cap_rights_t rights, struct file **fpp)
+ksem_get(struct thread *td, semid_t id, cap_rights_t *rightsp,
+    struct file **fpp)
 {
 	struct ksem *ks;
 	struct file *fp;
 	int error;
 
-	error = fget(td, id, rights, &fp);
+	error = fget(td, id, rightsp, &fp);
 	if (error)
 		return (EINVAL);
 	if (fp->f_type != DTYPE_SEM) {
@@ -704,11 +721,13 @@ struct ksem_post_args {
 int
 sys_ksem_post(struct thread *td, struct ksem_post_args *uap)
 {
+	cap_rights_t rights;
 	struct file *fp;
 	struct ksem *ks;
 	int error;
 
-	error = ksem_get(td, uap->id, CAP_SEM_POST, &fp);
+	error = ksem_get(td, uap->id,
+	    cap_rights_init(&rights, CAP_SEM_POST), &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -793,12 +812,13 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 {
 	struct timespec ts1, ts2;
 	struct timeval tv;
+	cap_rights_t rights;
 	struct file *fp;
 	struct ksem *ks;
 	int error;
 
 	DP((">>> kern_sem_wait entered! pid=%d\n", (int)td->td_proc->p_pid));
-	error = ksem_get(td, id, CAP_SEM_WAIT, &fp);
+	error = ksem_get(td, id, cap_rights_init(&rights, CAP_SEM_WAIT), &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -860,11 +880,13 @@ struct ksem_getvalue_args {
 int
 sys_ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 {
+	cap_rights_t rights;
 	struct file *fp;
 	struct ksem *ks;
 	int error, val;
 
-	error = ksem_get(td, uap->id, CAP_SEM_GETVALUE, &fp);
+	error = ksem_get(td, uap->id,
+	    cap_rights_init(&rights, CAP_SEM_GETVALUE), &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -1014,6 +1036,7 @@ ksem_module_init(void)
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 200112L);
 	p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 	p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
+	ksem_info = ksem_info_impl;
 
 	error = syscall_helper_register(ksem_syscalls);
 	if (error)
@@ -1035,6 +1058,7 @@ ksem_module_destroy(void)
 #endif
 	syscall_helper_unregister(ksem_syscalls);
 
+	ksem_info = NULL;
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 0);
 	hashdestroy(ksem_dictionary, M_KSEM, ksem_hash);
 	sx_destroy(&ksem_dict_lock);

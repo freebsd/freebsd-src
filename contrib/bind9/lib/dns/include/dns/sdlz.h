@@ -57,6 +57,7 @@
 #ifndef SDLZ_H
 #define SDLZ_H 1
 
+#include <dns/clientinfo.h>
 #include <dns/dlz.h>
 
 ISC_LANG_BEGINDECLS
@@ -182,18 +183,23 @@ typedef isc_result_t
 
 typedef isc_result_t
 (*dns_sdlzlookupfunc_t)(const char *zone, const char *name, void *driverarg,
-			void *dbdata, dns_sdlzlookup_t *lookup);
+			void *dbdata, dns_sdlzlookup_t *lookup,
+			dns_clientinfomethods_t *methods,
+			dns_clientinfo_t *clientinfo);
 
 /*%<
  * Method prototype.  Drivers implementing the SDLZ interface MUST
- * supply a lookup method.  This method is called when the DNS server
- * is performing a query, after the find zone and before any other
- * methods have been called.  This function returns record DNS record
+ * supply a lookup method.  This method is called when the
+ * DNS server is performing a query, after the find zone and before any
+ * other methods have been called.  This function returns DNS record
  * information using the dns_sdlz_putrr and dns_sdlz_putsoa functions.
  * If this function supplies authority information for the DNS record
  * the authority method is not required.  If it does not, the
- * authority function is required.  A SDLZ driver must implement a
- * lookup method.
+ * authority function is required.
+ *
+ * The 'methods' and 'clientinfo' args allow an SDLZ driver to retrieve
+ * information about the querying client (such as source IP address)
+ * from the caller.
  */
 
 typedef isc_result_t (*dns_sdlznewversion_t)(const char *zone,

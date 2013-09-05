@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2005, 2007, 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005, 2007, 2009-2013  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -142,6 +142,7 @@ dns_dlzcreate(isc_mem_t *mctx, const char *dlzname, const char *drivername,
 {
 	dns_dlzimplementation_t *impinfo;
 	isc_result_t result;
+	dns_dlzdb_t *db = NULL;
 
 	/*
 	 * initialize the dlz_implementations list, this is guaranteed
@@ -180,30 +181,31 @@ dns_dlzcreate(isc_mem_t *mctx, const char *dlzname, const char *drivername,
 	}
 
 	/* Allocate memory to hold the DLZ database driver */
-	(*dbp) = isc_mem_get(mctx, sizeof(dns_dlzdb_t));
-	if ((*dbp) == NULL) {
+	db = isc_mem_get(mctx, sizeof(dns_dlzdb_t));
+	if (db == NULL) {
 		RWUNLOCK(&dlz_implock, isc_rwlocktype_read);
 		return (ISC_R_NOMEMORY);
 	}
 
 	/* Make sure memory region is set to all 0's */
-	memset((*dbp), 0, sizeof(dns_dlzdb_t));
+	memset(db, 0, sizeof(dns_dlzdb_t));
 
-	(*dbp)->implementation = impinfo;
+	db->implementation = impinfo;
 
 	/* Create a new database using implementation 'drivername'. */
 	result = ((impinfo->methods->create)(mctx, dlzname, argc, argv,
 					     impinfo->driverarg,
-					     &(*dbp)->dbdata));
+					     &db->dbdata));
 
 	/* mark the DLZ driver as valid */
 	if (result == ISC_R_SUCCESS) {
 		RWUNLOCK(&dlz_implock, isc_rwlocktype_read);
-		(*dbp)->magic = DNS_DLZ_MAGIC;
-		isc_mem_attach(mctx, &(*dbp)->mctx);
+		db->magic = DNS_DLZ_MAGIC;
+		isc_mem_attach(mctx, &db->mctx);
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
 			      DNS_LOGMODULE_DLZ, ISC_LOG_DEBUG(2),
 			      "DLZ driver loaded successfully.");
+		*dbp = db;
 		return (ISC_R_SUCCESS);
 	} else {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
@@ -213,7 +215,7 @@ dns_dlzcreate(isc_mem_t *mctx, const char *dlzname, const char *drivername,
 
 	/* impinfo->methods->create failed. */
 	RWUNLOCK(&dlz_implock, isc_rwlocktype_read);
-	isc_mem_put(mctx, (*dbp), sizeof(dns_dlzdb_t));
+	isc_mem_put(mctx, db, sizeof(dns_dlzdb_t));
 	return (result);
 }
 
@@ -543,7 +545,7 @@ dns_dlz_writeablezone(dns_view_t *view, const char *zone_name) {
 
 	REQUIRE(dlzdatabase->configure_callback != NULL);
 
-	isc_buffer_init(&buffer, zone_name, strlen(zone_name));
+	isc_buffer_constinit(&buffer, zone_name, strlen(zone_name));
 	isc_buffer_add(&buffer, strlen(zone_name));
 	dns_fixedname_init(&fixorigin);
 	result = dns_name_fromtext(dns_fixedname_name(&fixorigin),

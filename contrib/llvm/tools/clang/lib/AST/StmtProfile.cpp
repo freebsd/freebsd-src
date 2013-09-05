@@ -215,6 +215,10 @@ void StmtProfiler::VisitSEHExceptStmt(const SEHExceptStmt *S) {
   VisitStmt(S);
 }
 
+void StmtProfiler::VisitCapturedStmt(const CapturedStmt *S) {
+  VisitStmt(S);
+}
+
 void StmtProfiler::VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S) {
   VisitStmt(S);
 }
@@ -766,6 +770,11 @@ void StmtProfiler::VisitCXXUuidofExpr(const CXXUuidofExpr *S) {
     VisitType(S->getTypeOperand());
 }
 
+void StmtProfiler::VisitMSPropertyRefExpr(const MSPropertyRefExpr *S) {
+  VisitExpr(S);
+  VisitDecl(S->getPropertyDecl());
+}
+
 void StmtProfiler::VisitCXXThisExpr(const CXXThisExpr *S) {
   VisitExpr(S);
   ID.AddBoolean(S->isImplicit());
@@ -778,6 +787,11 @@ void StmtProfiler::VisitCXXThrowExpr(const CXXThrowExpr *S) {
 void StmtProfiler::VisitCXXDefaultArgExpr(const CXXDefaultArgExpr *S) {
   VisitExpr(S);
   VisitDecl(S->getParam());
+}
+
+void StmtProfiler::VisitCXXDefaultInitExpr(const CXXDefaultInitExpr *S) {
+  VisitExpr(S);
+  VisitDecl(S->getField());
 }
 
 void StmtProfiler::VisitCXXBindTemporaryExpr(const CXXBindTemporaryExpr *S) {

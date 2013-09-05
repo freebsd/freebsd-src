@@ -3049,16 +3049,6 @@ option could be used to (re)mark user traffic,
 by adding the following to the appropriate place in ruleset:
 .Pp
 .Dl "ipfw add setdscp be ip from any to any dscp af11,af21"
-.Pp
-This rule drops all incoming packets that appear to be coming from another
-directly connected system but on the wrong interface.
-For example, a packet with a source address of
-.Li 192.168.0.0/24 ,
-configured on
-.Li fxp0 ,
-but coming in on
-.Li fxp1
-would be dropped.
 .Ss DYNAMIC RULES
 In order to protect a site from flood attacks involving fake
 TCP packets, it is safer to use dynamic rules:

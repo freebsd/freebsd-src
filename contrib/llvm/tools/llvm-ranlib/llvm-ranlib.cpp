@@ -11,16 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/LLVMContext.h"
-#include "llvm/Module.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/Bitcode/Archive.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Format.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/raw_ostream.h"
 #include <memory>
 using namespace llvm;
 
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
   }
 
   std::string err_msg;
-  std::auto_ptr<Archive>
+  OwningPtr<Archive>
     AutoArchive(Archive::OpenAndLoad(ArchivePath, Context, &err_msg));
   Archive* TheArchive = AutoArchive.get();
   if (!TheArchive) {

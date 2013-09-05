@@ -17,7 +17,6 @@
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
-
 #include <map>
 using namespace clang;
 
@@ -108,16 +107,51 @@ static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
   }
 #endif
 
-  // Search the diagnostic table with a binary search.
-  StaticDiagInfoRec Find = { static_cast<unsigned short>(DiagID),
-                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-  const StaticDiagInfoRec *Found =
-    std::lower_bound(StaticDiagInfo, StaticDiagInfo + StaticDiagInfoSize, Find);
-  if (Found == StaticDiagInfo + StaticDiagInfoSize ||
-      Found->DiagID != DiagID)
+  // Out of bounds diag. Can't be in the table.
+  using namespace diag;
+  if (DiagID >= DIAG_UPPER_LIMIT)
     return 0;
 
+  // Compute the index of the requested diagnostic in the static table.
+  // 1. Add the number of diagnostics in each category preceeding the
+  //    diagnostic and of the category the diagnostic is in. This gives us
+  //    the offset of the category in the table.
+  // 2. Subtract the number of IDs in each category from our ID. This gives us
+  //    the offset of the diagnostic in the category.
+  // This is cheaper than a binary search on the table as it doesn't touch
+  // memory at all.
+  unsigned Offset = 0;
+  unsigned ID = DiagID;
+#define DIAG_START_COMMON 0 // Sentinel value.
+#define CATEGORY(NAME, PREV) \
+  if (DiagID > DIAG_START_##NAME) { \
+    Offset += NUM_BUILTIN_##PREV##_DIAGNOSTICS - DIAG_START_##PREV - 1; \
+    ID -= DIAG_START_##NAME - DIAG_START_##PREV; \
+  }
+CATEGORY(DRIVER, COMMON)
+CATEGORY(FRONTEND, DRIVER)
+CATEGORY(SERIALIZATION, FRONTEND)
+CATEGORY(LEX, SERIALIZATION)
+CATEGORY(PARSE, LEX)
+CATEGORY(AST, PARSE)
+CATEGORY(COMMENT, AST)
+CATEGORY(SEMA, COMMENT)
+CATEGORY(ANALYSIS, SEMA)
+#undef CATEGORY
+#undef DIAG_START_COMMON
+
+  // Avoid out of bounds reads.
+  if (ID + Offset >= StaticDiagInfoSize)
+    return 0;
+
+  assert(ID < StaticDiagInfoSize && Offset < StaticDiagInfoSize);
+
+  const StaticDiagInfoRec *Found = &StaticDiagInfo[ID + Offset];
+  // If the diag id doesn't match we found a different diag, abort. This can
+  // happen when this function is called with an ID that points into a hole in
+  // the diagID space.
+  if (Found->DiagID != DiagID)
+    return 0;
   return Found;
 }
 
@@ -247,14 +281,14 @@ namespace clang {
       /// diagnostic.
       StringRef getDescription(unsigned DiagID) const {
         assert(this && DiagID-DIAG_UPPER_LIMIT < DiagInfo.size() &&
-               "Invalid diagnosic ID");
+               "Invalid diagnostic ID");
         return DiagInfo[DiagID-DIAG_UPPER_LIMIT].second;
       }
 
       /// getLevel - Return the level of the specified custom diagnostic.
       DiagnosticIDs::Level getLevel(unsigned DiagID) const {
         assert(this && DiagID-DIAG_UPPER_LIMIT < DiagInfo.size() &&
-               "Invalid diagnosic ID");
+               "Invalid diagnostic ID");
         return DiagInfo[DiagID-DIAG_UPPER_LIMIT].first;
       }
 
@@ -291,7 +325,7 @@ DiagnosticIDs::~DiagnosticIDs() {
 }
 
 /// getCustomDiagID - Return an ID for a diagnostic with the specified message
-/// and level.  If this is the first request for this diagnosic, it is
+/// and level.  If this is the first request for this diagnostic, it is
 /// registered and created, otherwise the existing ID is returned.
 unsigned DiagnosticIDs::getCustomDiagID(Level L, StringRef Message) {
   if (CustomDiagInfo == 0)
@@ -512,9 +546,8 @@ StringRef DiagnosticIDs::getWarningOptionForDiag(unsigned DiagID) {
 }
 
 void DiagnosticIDs::getDiagnosticsInGroup(
-  const WarningOption *Group,
-  llvm::SmallVectorImpl<diag::kind> &Diags) const
-{
+    const WarningOption *Group,
+    SmallVectorImpl<diag::kind> &Diags) const {
   // Add the members of the option diagnostic set.
   if (const short *Member = Group->Members) {
     for (; *Member != -1; ++Member)
@@ -529,9 +562,8 @@ void DiagnosticIDs::getDiagnosticsInGroup(
 }
 
 bool DiagnosticIDs::getDiagnosticsInGroup(
-  StringRef Group,
-  llvm::SmallVectorImpl<diag::kind> &Diags) const
-{
+    StringRef Group,
+    SmallVectorImpl<diag::kind> &Diags) const {
   WarningOption Key = { Group.size(), Group.data(), 0, 0 };
   const WarningOption *Found =
   std::lower_bound(OptionTable, OptionTable + OptionTableSize, Key,
@@ -545,7 +577,7 @@ bool DiagnosticIDs::getDiagnosticsInGroup(
 }
 
 void DiagnosticIDs::getAllDiagnostics(
-                               llvm::SmallVectorImpl<diag::kind> &Diags) const {
+                               SmallVectorImpl<diag::kind> &Diags) const {
   for (unsigned i = 0; i != StaticDiagInfoSize; ++i)
     Diags.push_back(StaticDiagInfo[i].DiagID);
 }
@@ -628,6 +660,10 @@ bool DiagnosticIDs::ProcessDiag(DiagnosticsEngine &Diag) const {
   if (DiagLevel >= DiagnosticIDs::Error) {
     if (isUnrecoverable(DiagID))
       Diag.UnrecoverableErrorOccurred = true;
+
+    // Warnings which have been upgraded to errors do not prevent compilation.
+    if (isDefaultMappingAsError(DiagID))
+      Diag.UncompilableErrorOccurred = true;
 
     Diag.ErrorOccurred = true;
     if (Diag.Client->IncludeInDiagnosticCounts()) {
