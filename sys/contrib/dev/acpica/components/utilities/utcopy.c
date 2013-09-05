@@ -172,7 +172,6 @@ AcpiUtCopyIsimpleToEsimple (
             (ACPI_SIZE) InternalObject->String.Length + 1);
         break;
 
-
     case ACPI_TYPE_BUFFER:
 
         ExternalObject->Buffer.Pointer = DataSpace;
@@ -185,12 +184,10 @@ AcpiUtCopyIsimpleToEsimple (
             InternalObject->Buffer.Length);
         break;
 
-
     case ACPI_TYPE_INTEGER:
 
         ExternalObject->Integer.Value = InternalObject->Integer.Value;
         break;
-
 
     case ACPI_TYPE_LOCAL_REFERENCE:
 
@@ -199,7 +196,6 @@ AcpiUtCopyIsimpleToEsimple (
         switch (InternalObject->Reference.Class)
         {
         case ACPI_REFCLASS_NAME:
-
             /*
              * For namepath, return the object handle ("reference")
              * We are referring to the namespace node
@@ -218,7 +214,6 @@ AcpiUtCopyIsimpleToEsimple (
         }
         break;
 
-
     case ACPI_TYPE_PROCESSOR:
 
         ExternalObject->Processor.ProcId =
@@ -229,7 +224,6 @@ AcpiUtCopyIsimpleToEsimple (
             InternalObject->Processor.Length;
         break;
 
-
     case ACPI_TYPE_POWER:
 
         ExternalObject->PowerResource.SystemLevel =
@@ -238,7 +232,6 @@ AcpiUtCopyIsimpleToEsimple (
         ExternalObject->PowerResource.ResourceOrder =
             InternalObject->PowerResource.ResourceOrder;
         break;
-
 
     default:
         /*
@@ -291,7 +284,6 @@ AcpiUtCopyIelementToEelement (
     switch (ObjectType)
     {
     case ACPI_COPY_TYPE_SIMPLE:
-
         /*
          * This is a simple or null object
          */
@@ -303,9 +295,7 @@ AcpiUtCopyIelementToEelement (
         }
         break;
 
-
     case ACPI_COPY_TYPE_PACKAGE:
-
         /*
          * Build the package object
          */
@@ -328,8 +318,8 @@ AcpiUtCopyIelementToEelement (
                             sizeof (ACPI_OBJECT));
         break;
 
-
     default:
+
         return (AE_BAD_PARAMETER);
     }
 
@@ -514,6 +504,7 @@ AcpiUtCopyEsimpleToIsimple (
         return_ACPI_STATUS (AE_OK);
 
     default:
+
         /* All other types are not supported */
 
         ACPI_ERROR ((AE_INFO,
@@ -546,7 +537,6 @@ AcpiUtCopyEsimpleToIsimple (
         InternalObject->String.Length  = ExternalObject->String.Length;
         break;
 
-
     case ACPI_TYPE_BUFFER:
 
         InternalObject->Buffer.Pointer =
@@ -567,7 +557,6 @@ AcpiUtCopyEsimpleToIsimple (
         InternalObject->Buffer.Flags |= AOPOBJ_DATA_VALID;
         break;
 
-
     case ACPI_TYPE_INTEGER:
 
         InternalObject->Integer.Value   = ExternalObject->Integer.Value;
@@ -582,7 +571,9 @@ AcpiUtCopyEsimpleToIsimple (
         break;
 
     default:
+
         /* Other types can't get here */
+
         break;
     }
 
@@ -855,7 +846,9 @@ AcpiUtCopySimpleObject (
         break;
 
     default:
+
         /* Nothing to do for other simple objects */
+
         break;
     }
 
@@ -929,9 +922,7 @@ AcpiUtCopyIelementToIelement (
         }
         break;
 
-
     case ACPI_COPY_TYPE_PACKAGE:
-
         /*
          * This object is a package - go down another nesting level
          * Create and build the package object
@@ -953,8 +944,8 @@ AcpiUtCopyIelementToIelement (
         *ThisTargetPtr = TargetObject;
         break;
 
-
     default:
+
         return (AE_BAD_PARAMETER);
     }
 

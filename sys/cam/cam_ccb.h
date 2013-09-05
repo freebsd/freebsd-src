@@ -145,8 +145,6 @@ typedef enum {
 				/* Path statistics (error counts, etc.) */
 	XPT_GDEV_STATS		= 0x0c,
 				/* Device statistics (error counts, etc.) */
-	XPT_FREEZE_QUEUE	= 0x0d,
-				/* Freeze device queue */
 	XPT_DEV_ADVINFO		= 0x0e,
 				/* Get/Set Device advanced information */
 /* SCSI Control Functions: 0x10->0x1F */
@@ -543,7 +541,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x16	/* Hex value for current version */
+#define CAM_VERSION	0x17	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
@@ -573,6 +571,7 @@ typedef enum {
 	PIM_NO_6_BYTE	= 0x08,	/* Do not send 6-byte commands */
 	PIM_SEQSCAN	= 0x04,	/* Do bus scans sequentially, not in parallel */
 	PIM_UNMAPPED	= 0x02,
+	PIM_NOSCAN	= 0x01	/* SIM does its own scanning */
 } pi_miscflag;
 
 /* Path Inquiry CCB */
@@ -749,7 +748,6 @@ struct ccb_relsim {
 #define RELSIM_RELEASE_AFTER_TIMEOUT	0x02
 #define RELSIM_RELEASE_AFTER_CMDCMPLT	0x04
 #define RELSIM_RELEASE_AFTER_QEMPTY	0x08
-#define RELSIM_RELEASE_RUNLEVEL		0x10
 	u_int32_t      openings;
 	u_int32_t      release_timeout;	/* Abstract argument. */
 	u_int32_t      qfrozen_cnt;
@@ -1297,6 +1295,19 @@ cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 	smpio->smp_request_len = smp_request_len;
 	smpio->smp_response = smp_response;
 	smpio->smp_response_len = smp_response_len;
+}
+
+static __inline void
+cam_set_ccbstatus(union ccb *ccb, cam_status status)
+{
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	ccb->ccb_h.status |= status;
+}
+
+static __inline cam_status
+cam_ccb_status(union ccb *ccb)
+{
+	return ((cam_status)(ccb->ccb_h.status & CAM_STATUS_MASK));
 }
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);

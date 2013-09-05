@@ -236,6 +236,7 @@ MAN=	accept_filter.9 \
 	rwlock.9 \
 	sbuf.9 \
 	scheduler.9 \
+	SDT.9 \
 	securelevel_gt.9 \
 	selrecord.9 \
 	sema.9 \
@@ -282,7 +283,6 @@ MAN=	accept_filter.9 \
 	vfs_getopt.9 \
 	vfs_getvfs.9 \
 	VFS_MOUNT.9 \
-	vfs_mount.9 \
 	vfs_mountedfrom.9 \
 	VFS_QUOTACTL.9 \
 	VFS_ROOT.9 \
@@ -324,6 +324,7 @@ MAN=	accept_filter.9 \
 	vm_map_wire.9 \
 	vm_page_alloc.9 \
 	vm_page_bits.9 \
+	vm_page_busy.9 \
 	vm_page_cache.9 \
 	vm_page_deactivate.9 \
 	vm_page_dontneed.9 \
@@ -332,13 +333,11 @@ MAN=	accept_filter.9 \
 	vm_page_grab.9 \
 	vm_page_hold.9 \
 	vm_page_insert.9 \
-	vm_page_io.9 \
 	vm_page_lookup.9 \
 	vm_page_rename.9 \
-	vm_page_sleep_if_busy.9 \
-	vm_page_wakeup.9 \
 	vm_page_wire.9 \
 	vm_set_page_size.9 \
+	vmem.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
 	vnode.9 \
@@ -953,7 +952,9 @@ MLINKS+=microuptime.9 binuptime.9 \
 	microuptime.9 getbinuptime.9 \
 	microuptime.9 getmicrouptime.9 \
 	microuptime.9 getnanouptime.9 \
-	microuptime.9 nanouptime.9
+	microuptime.9 getsbinuptime.9 \
+	microuptime.9 nanouptime.9 \
+	microuptime.9 sbinuptime.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
 	mi_switch.9 cpu_throw.9
 MLINKS+=mtx_pool.9 mtx_pool_alloc.9 \
@@ -1078,12 +1079,15 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_bustag.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
-MLINKS+=rmlock.9 rm_destroy.9 \
+MLINKS+=rmlock.9 rm_assert.9 \
+	rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_init.9 \
+	rmlock.9 rm_init_flags.9 \
 	rmlock.9 rm_rlock.9 \
-	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_runlock.9 \
+	rmlock.9 rm_sleep.9 \
 	rmlock.9 RM_SYSINIT.9 \
+	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_wlock.9 \
 	rmlock.9 rm_wowned.9 \
 	rmlock.9 rm_wunlock.9
@@ -1145,6 +1149,11 @@ MLINKS+=scheduler.9 curpriority_cmp.9 \
 	scheduler.9 sched_setup.9 \
 	scheduler.9 setrunnable.9 \
 	scheduler.9 updatepri.9
+MLINKS+=SDT.9 SDT_PROVIDER_DECLARE.9 \
+	SDT.9 SDT_PROVIDER_DEFINE.9 \
+	SDT.9 SDT_PROBE_DECLARE.9 \
+	SDT.9 SDT_PROBE_DEFINE.9 \
+	SDT.9 SDT_PROBE.9
 MLINKS+=securelevel_gt.9 securelevel_ge.9
 MLINKS+=selrecord.9 seldrain.9 \
 	selrecord.9 selwakeup.9
@@ -1434,6 +1443,13 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 MLINKS+=vhold.9 vdrop.9 \
 	vhold.9 vdropl.9 \
 	vhold.9 vholdl.9
+MLINKS+=vmem.9 vmem_add.9 \
+	vmem.9 vmem_alloc.9 \
+	vmem.9 vmem_create.9 \
+	vmem.9 vmem_destroy.9 \
+	vmem.9 vmem_free.9 \
+	vmem.9 vmem_xalloc.9 \
+	vmem.9 vmem_xfree.9  
 MLINKS+=vm_map_lock.9 vm_map_lock_downgrade.9 \
 	vm_map_lock.9 vm_map_lock_read.9 \
 	vm_map_lock.9 vm_map_lock_upgrade.9 \
@@ -1454,6 +1470,21 @@ MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9 \
 	vm_page_bits.9 vm_page_test_dirty.9 \
 	vm_page_bits.9 vm_page_undirty.9 \
 	vm_page_bits.9 vm_page_zero_invalid.9
+MLINKS+=vm_page_busy.9 vm_page_busied.9 \
+	vm_page_busy.9 vm_page_busy_downgrade.9 \
+	vm_page_busy.9 vm_page_busy_sleep.9 \
+	vm_page_busy.9 vm_page_sbusied.9 \
+	vm_page_busy.9 vm_page_sbusy.9 \
+	vm_page_busy.9 vm_page_sleep_if_busy.9 \
+	vm_page_busy.9 vm_page_sunbusy.9 \
+	vm_page_busy.9 vm_page_trysbusy.9 \
+	vm_page_busy.9 vm_page_tryxbusy.9 \
+	vm_page_busy.9 vm_page_xbusied.9 \
+	vm_page_busy.9 vm_page_xbusy.9 \
+	vm_page_busy.9 vm_page_xunbusy.9 \
+	vm_page_busy.9 vm_page_assert_sbusied.9 \
+	vm_page_busy.9 vm_page_assert_unbusied.9 \
+	vm_page_busy.9 vm_page_assert_xbusied.9
 MLINKS+=vm_page_aflag.9 vm_page_aflag_clear.9 \
 	vm_page_aflag.9 vm_page_aflag_set.9 \
 	vm_page_aflag.9 vm_page_reference.9
@@ -1462,10 +1493,6 @@ MLINKS+=vm_page_free.9 vm_page_free_toq.9 \
 	vm_page_free.9 vm_page_try_to_free.9
 MLINKS+=vm_page_hold.9 vm_page_unhold.9
 MLINKS+=vm_page_insert.9 vm_page_remove.9
-MLINKS+=vm_page_io.9 vm_page_io_finish.9 \
-	vm_page_io.9 vm_page_io_start.9
-MLINKS+=vm_page_wakeup.9 vm_page_busy.9 \
-	vm_page_wakeup.9 vm_page_flash.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9
 MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \

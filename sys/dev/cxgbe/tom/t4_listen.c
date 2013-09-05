@@ -125,7 +125,7 @@ alloc_stid(struct adapter *sc, struct listen_ctx *lctx, int isipv6)
 		TAILQ_FOREACH(s, &t->stids, link) {
 			stid += s->used + s->free;
 			f = stid & mask;
-			if (n <= s->free - f) {
+			if (s->free >= n + f) {
 				stid -= n + f;
 				s->free -= n + f;
 				TAILQ_INSERT_AFTER(&t->stids, s, sr, link);
@@ -674,6 +674,12 @@ t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 	synqe->iss = be32toh(th->th_seq);
 	synqe->ts = to.to_tsval;
 
+	if (is_t5(sc)) {
+		struct cpl_t5_pass_accept_rpl *rpl5 = wrtod(wr);
+
+		rpl5->iss = th->th_seq;
+	}
+
 	e = &sc->l2t->l2tab[synqe->l2e_idx];
 	t4_l2t_send(sc, wr, e);
 
@@ -1001,7 +1007,7 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 			opt2 |= F_TSTAMPS_EN;
 		if (tcpopt->sack)
 			opt2 |= F_SACK_EN;
-		if (tcpopt->wsf > 0)
+		if (tcpopt->wsf <= 14)
 			opt2 |= F_WND_SCALE_EN;
 	}
 
@@ -1011,9 +1017,12 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 	/* RX_COALESCE is always a valid value (0 or M_RX_COALESCE). */
 	if (is_t4(sc))
 		opt2 |= F_RX_COALESCE_VALID;
-	else
+	else {
 		opt2 |= F_T5_OPT_2_VALID;
-	opt2 |= V_RX_COALESCE(M_RX_COALESCE);
+		opt2 |= F_CONG_CNTRL_VALID; /* OPT_2_ISS really, for T5 */
+	}
+	if (sc->tt.rx_coalesce)
+		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (ulp_mode == ULP_MODE_TCPDDP)
@@ -1287,7 +1296,8 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	if (synqe == NULL)
 		REJECT_PASS_ACCEPT();
 
-	wr = alloc_wrqe(sizeof(*rpl), &sc->sge.ctrlq[pi->port_id]);
+	wr = alloc_wrqe(is_t4(sc) ? sizeof(struct cpl_pass_accept_rpl) :
+	    sizeof(struct cpl_t5_pass_accept_rpl), &sc->sge.ctrlq[pi->port_id]);
 	if (wr == NULL)
 		REJECT_PASS_ACCEPT();
 	rpl = wrtod(wr);
@@ -1328,7 +1338,13 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	save_qids_in_mbuf(m, pi);
 	get_qids_from_mbuf(m, NULL, &rxqid);
 
-	INIT_TP_WR_MIT_CPL(rpl, CPL_PASS_ACCEPT_RPL, tid);
+	if (is_t4(sc))
+		INIT_TP_WR_MIT_CPL(rpl, CPL_PASS_ACCEPT_RPL, tid);
+	else {
+		struct cpl_t5_pass_accept_rpl *rpl5 = (void *)rpl;
+
+		INIT_TP_WR_MIT_CPL(rpl5, CPL_PASS_ACCEPT_RPL, tid);
+	}
 	if (sc->tt.ddp && (so->so_options & SO_NO_DDP) == 0) {
 		ulp_mode = ULP_MODE_TCPDDP;
 		synqe->flags |= TPF_SYNQE_TCPDDP;

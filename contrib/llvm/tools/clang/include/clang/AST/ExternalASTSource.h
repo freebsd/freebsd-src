@@ -14,8 +14,8 @@
 #ifndef LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
 #define LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
 
-#include "clang/AST/DeclBase.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/DeclBase.h"
 #include "llvm/ADT/DenseMap.h"
 
 namespace clang {
@@ -24,7 +24,10 @@ class ASTConsumer;
 class CXXBaseSpecifier;
 class DeclarationName;
 class ExternalSemaSource; // layering violation required for downcasting
+class FieldDecl;
+class Module;
 class NamedDecl;
+class RecordDecl;
 class Selector;
 class Stmt;
 class TagDecl;
@@ -115,22 +118,27 @@ public:
   /// The default implementation of this method is a no-op.
   virtual CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset);
 
-  /// \brief Finds all declarations with the given name in the
-  /// given context.
+  /// \brief Update an out-of-date identifier.
+  virtual void updateOutOfDateIdentifier(IdentifierInfo &II) { }
+
+  /// \brief Find all declarations with the given name in the given context,
+  /// and add them to the context by calling SetExternalVisibleDeclsForName
+  /// or SetNoExternalVisibleDeclsForName.
+  /// \return \c true if any declarations might have been found, \c false if
+  /// we definitely have no declarations with tbis name.
   ///
-  /// Generally the final step of this method is either to call
-  /// SetExternalVisibleDeclsForName or to recursively call lookup on
-  /// the DeclContext after calling SetExternalVisibleDecls.
-  ///
-  /// The default implementation of this method is a no-op.
-  virtual DeclContextLookupResult
+  /// The default implementation of this method is a no-op returning \c false.
+  virtual bool
   FindExternalVisibleDeclsByName(const DeclContext *DC, DeclarationName Name);
 
   /// \brief Ensures that the table of all visible declarations inside this
   /// context is up to date.
   ///
-  /// The default implementation of this functino is a no-op.
+  /// The default implementation of this function is a no-op.
   virtual void completeVisibleDeclsMap(const DeclContext *DC);
+
+  /// \brief Retrieve the module that corresponds to the given module ID.
+  virtual Module *getModule(unsigned ID) { return 0; }
 
   /// \brief Finds all declarations lexically contained within the given
   /// DeclContext, after applying an optional filter predicate.

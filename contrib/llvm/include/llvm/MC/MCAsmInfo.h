@@ -13,11 +13,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_ASM_INFO_H
-#define LLVM_TARGET_ASM_INFO_H
+#ifndef LLVM_MC_MCASMINFO_H
+#define LLVM_MC_MCASMINFO_H
 
-#include "llvm/MC/MachineLocation.h"
 #include "llvm/MC/MCDirectives.h"
+#include "llvm/MC/MachineLocation.h"
 #include <cassert>
 #include <vector>
 
@@ -47,6 +47,11 @@ namespace llvm {
     /// PointerSize - Pointer size in bytes.
     ///               Default is 4.
     unsigned PointerSize;
+
+    /// CalleeSaveStackSlotSize - Size of the stack slot reserved for
+    ///                           callee-saved registers, in bytes.
+    ///                           Default is same as pointer size.
+    unsigned CalleeSaveStackSlotSize;
 
     /// IsLittleEndian - True if target is little endian.
     ///                  Default is true.
@@ -101,6 +106,9 @@ namespace llvm {
 
     /// LabelSuffix - This is appended to emitted labels.
     const char *LabelSuffix;                 // Defaults to ":"
+
+    /// LabelSuffix - This is appended to emitted labels.
+    const char *DebugLabelSuffix;                 // Defaults to ":"
 
     /// GlobalPrefix - If this is set to a non-empty string, it is prepended
     /// onto all global symbols.  This is often used for "_" or ".".
@@ -209,6 +217,8 @@ namespace llvm {
     /// convention.
     bool HasMicrosoftFastStdCallMangling;    // Defaults to false.
 
+    bool NeedsDwarfSectionOffsetDirective;
+
     //===--- Alignment Information ----------------------------------------===//
 
     /// AlignDirective - The directive used to emit round up to an alignment
@@ -312,9 +322,6 @@ namespace llvm {
     /// encode inline subroutine information.
     bool DwarfUsesInlineInfoSection;         // Defaults to false.
 
-    /// DwarfSectionOffsetDirective - Special section offset directive.
-    const char* DwarfSectionOffsetDirective; // Defaults to NULL
-
     /// DwarfUsesRelocationsAcrossSections - True if Dwarf2 output generally
     /// uses relocations for references to other .debug_* sections.
     bool DwarfUsesRelocationsAcrossSections;
@@ -340,7 +347,13 @@ namespace llvm {
       return PointerSize;
     }
 
-    /// islittleendian - True if the target is little endian.
+    /// getCalleeSaveStackSlotSize - Get the callee-saved register stack slot
+    /// size in bytes.
+    unsigned getCalleeSaveStackSlotSize() const {
+      return CalleeSaveStackSlotSize;
+    }
+
+    /// isLittleEndian - True if the target is little endian.
     bool isLittleEndian() const {
       return IsLittleEndian;
     }
@@ -398,6 +411,10 @@ namespace llvm {
       return HasMicrosoftFastStdCallMangling;
     }
 
+    bool needsDwarfSectionOffsetDirective() const {
+      return NeedsDwarfSectionOffsetDirective;
+    }
+
     // Accessors.
     //
     bool hasMachoZeroFillDirective() const { return HasMachoZeroFillDirective; }
@@ -426,6 +443,11 @@ namespace llvm {
     const char *getLabelSuffix() const {
       return LabelSuffix;
     }
+
+    const char *getDebugLabelSuffix() const {
+      return DebugLabelSuffix;
+    }
+
     const char *getGlobalPrefix() const {
       return GlobalPrefix;
     }
@@ -537,9 +559,6 @@ namespace llvm {
     }
     bool doesDwarfUseInlineInfoSection() const {
       return DwarfUsesInlineInfoSection;
-    }
-    const char *getDwarfSectionOffsetDirective() const {
-      return DwarfSectionOffsetDirective;
     }
     bool doesDwarfUseRelocationsAcrossSections() const {
       return DwarfUsesRelocationsAcrossSections;

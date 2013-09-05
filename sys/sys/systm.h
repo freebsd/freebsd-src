@@ -74,7 +74,7 @@ extern int vm_guest;		/* Running as virtual machine guest? */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
 #if defined(WITNESS) || defined(INVARIANTS)
-void	kassert_panic(const char *fmt, ...);
+void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #endif
 
 #ifdef	INVARIANTS		/* The option is always available */
@@ -396,6 +396,7 @@ int root_mounted(void);
  */
 struct unrhdr;
 struct unrhdr *new_unrhdr(int low, int high, struct mtx *mutex);
+void init_unrhdr(struct unrhdr *uh, int low, int high, struct mtx *mutex);
 void delete_unrhdr(struct unrhdr *uh);
 void clean_unrhdr(struct unrhdr *uh);
 void clean_unrhdrl(struct unrhdr *uh);

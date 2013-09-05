@@ -11,8 +11,8 @@
 #include "XCoreSubtarget.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/ELF.h"
+#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
 
@@ -57,9 +57,4 @@ void XCoreTargetObjectFile::Initialize(MCContext &Ctx, const TargetMachine &TM){
                       ELF::SHF_ALLOC |
                       ELF::XCORE_SHF_CP_SECTION,
                       SectionKind::getReadOnlyWithRel());
-
-  // Dynamic linking is not supported. Data with relocations is placed in the
-  // same section as data without relocations.
-  DataRelSection = DataRelLocalSection = DataSection;
-  DataRelROSection = DataRelROLocalSection = ReadOnlySection;
 }

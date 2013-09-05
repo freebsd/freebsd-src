@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -276,6 +277,8 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 
 		if (DMU_OS_IS_L2CACHEABLE(os))
 			aflags |= ARC_L2CACHE;
+		if (DMU_OS_IS_L2COMPRESSIBLE(os))
+			aflags |= ARC_L2COMPRESS;
 
 		dprintf_bp(os->os_rootbp, "reading %s", "");
 		err = arc_read(NULL, spa, os->os_rootbp,
@@ -512,6 +515,38 @@ dmu_objset_rele(objset_t *os, void *tag)
 	dsl_pool_t *dp = dmu_objset_pool(os);
 	dsl_dataset_rele(os->os_dsl_dataset, tag);
 	dsl_pool_rele(dp, tag);
+}
+
+/*
+ * When we are called, os MUST refer to an objset associated with a dataset
+ * that is owned by 'tag'; that is, is held and long held by 'tag' and ds_owner
+ * == tag.  We will then release and reacquire ownership of the dataset while
+ * holding the pool config_rwlock to avoid intervening namespace or ownership
+ * changes may occur.
+ *
+ * This exists solely to accommodate zfs_ioc_userspace_upgrade()'s desire to
+ * release the hold on its dataset and acquire a new one on the dataset of the
+ * same name so that it can be partially torn down and reconstructed.
+ */
+void
+dmu_objset_refresh_ownership(objset_t *os, void *tag)
+{
+	dsl_pool_t *dp;
+	dsl_dataset_t *ds, *newds;
+	char name[MAXNAMELEN];
+
+	ds = os->os_dsl_dataset;
+	VERIFY3P(ds, !=, NULL);
+	VERIFY3P(ds->ds_owner, ==, tag);
+	VERIFY(dsl_dataset_long_held(ds));
+
+	dsl_dataset_name(ds, name);
+	dp = dmu_objset_pool(os);
+	dsl_pool_config_enter(dp, FTAG);
+	dmu_objset_disown(os, tag);
+	VERIFY0(dsl_dataset_own(dp, name, tag, &newds));
+	VERIFY3P(newds, ==, os->os_dsl_dataset);
+	dsl_pool_config_exit(dp, FTAG);
 }
 
 void
@@ -991,9 +1026,10 @@ dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 	dmu_write_policy(os, NULL, 0, 0, &zp);
 
 	zio = arc_write(pio, os->os_spa, tx->tx_txg,
-	    os->os_rootbp, os->os_phys_buf, DMU_OS_IS_L2CACHEABLE(os), &zp,
-	    dmu_objset_write_ready, dmu_objset_write_done, os,
-	    ZIO_PRIORITY_ASYNC_WRITE, ZIO_FLAG_MUSTSUCCEED, &zb);
+	    os->os_rootbp, os->os_phys_buf, DMU_OS_IS_L2CACHEABLE(os),
+	    DMU_OS_IS_L2COMPRESSIBLE(os), &zp, dmu_objset_write_ready,
+	    dmu_objset_write_done, os, ZIO_PRIORITY_ASYNC_WRITE,
+	    ZIO_FLAG_MUSTSUCCEED, &zb);
 
 	/*
 	 * Sync special dnodes - the parent IO for the sync is the root block

@@ -14,10 +14,25 @@
 // ("and i32 %x, %x" -> "%x").  If the simplification is also an instruction
 // then it dominates the original instruction.
 //
+// These routines implicitly resolve undef uses. The easiest way to be safe when
+// using these routines to obtain simplified values for existing instructions is
+// to always replace all uses of the instructions with the resulting simplified
+// values. This will prevent other code from seeing the same undef uses and
+// resolving them to different values.
+//
+// These routines are designed to tolerate moderately incomplete IR, such as
+// instructions that are not connected to basic blocks yet. However, they do
+// require that all the IR that they encounter be valid. In particular, they
+// require that all non-constant values be defined in the same function, and the
+// same call context of that function (and not split between caller and callee
+// contexts of a directly recursive call, for example).
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
 #define LLVM_ANALYSIS_INSTRUCTIONSIMPLIFY_H
+
+#include "llvm/IR/User.h"
 
 namespace llvm {
   template<typename T>
@@ -25,6 +40,7 @@ namespace llvm {
   class DominatorTree;
   class Instruction;
   class DataLayout;
+  class FastMathFlags;
   class TargetLibraryInfo;
   class Type;
   class Value;
@@ -43,6 +59,28 @@ namespace llvm {
                          const TargetLibraryInfo *TLI = 0,
                          const DominatorTree *DT = 0);
 
+  /// Given operands for an FAdd, see if we can fold the result.  If not, this
+  /// returns null.
+  Value *SimplifyFAddInst(Value *LHS, Value *RHS, FastMathFlags FMF,
+                         const DataLayout *TD = 0,
+                         const TargetLibraryInfo *TLI = 0,
+                         const DominatorTree *DT = 0);
+
+  /// Given operands for an FSub, see if we can fold the result.  If not, this
+  /// returns null.
+  Value *SimplifyFSubInst(Value *LHS, Value *RHS, FastMathFlags FMF,
+                         const DataLayout *TD = 0,
+                         const TargetLibraryInfo *TLI = 0,
+                         const DominatorTree *DT = 0);
+
+  /// Given operands for an FMul, see if we can fold the result.  If not, this
+  /// returns null.
+  Value *SimplifyFMulInst(Value *LHS, Value *RHS,
+                          FastMathFlags FMF,
+                          const DataLayout *TD = 0,
+                          const TargetLibraryInfo *TLI = 0,
+                          const DominatorTree *DT = 0);
+
   /// SimplifyMulInst - Given operands for a Mul, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyMulInst(Value *LHS, Value *RHS, const DataLayout *TD = 0,
@@ -57,7 +95,7 @@ namespace llvm {
 
   /// SimplifyUDivInst - Given operands for a UDiv, see if we can
   /// fold the result.  If not, this returns null.
-  Value *SimplifyUDivInst(Value *LHS, Value *RHS, const DataLayout *TD = 0, 
+  Value *SimplifyUDivInst(Value *LHS, Value *RHS, const DataLayout *TD = 0,
                           const TargetLibraryInfo *TLI = 0,
                           const DominatorTree *DT = 0);
 
@@ -69,7 +107,7 @@ namespace llvm {
 
   /// SimplifySRemInst - Given operands for an SRem, see if we can
   /// fold the result.  If not, this returns null.
-  Value *SimplifySRemInst(Value *LHS, Value *RHS, const DataLayout *TD = 0, 
+  Value *SimplifySRemInst(Value *LHS, Value *RHS, const DataLayout *TD = 0,
                           const TargetLibraryInfo *TLI = 0,
                           const DominatorTree *DT = 0);
 
@@ -88,7 +126,7 @@ namespace llvm {
   /// SimplifyShlInst - Given operands for a Shl, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyShlInst(Value *Op0, Value *Op1, bool isNSW, bool isNUW,
-                         const DataLayout *TD = 0, 
+                         const DataLayout *TD = 0,
                          const TargetLibraryInfo *TLI = 0,
                          const DominatorTree *DT = 0);
 
@@ -127,14 +165,14 @@ namespace llvm {
   /// SimplifyICmpInst - Given operands for an ICmpInst, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyICmpInst(unsigned Predicate, Value *LHS, Value *RHS,
-                          const DataLayout *TD = 0, 
+                          const DataLayout *TD = 0,
                           const TargetLibraryInfo *TLI = 0,
                           const DominatorTree *DT = 0);
 
   /// SimplifyFCmpInst - Given operands for an FCmpInst, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyFCmpInst(unsigned Predicate, Value *LHS, Value *RHS,
-                          const DataLayout *TD = 0, 
+                          const DataLayout *TD = 0,
                           const TargetLibraryInfo *TLI = 0,
                           const DominatorTree *DT = 0);
 
@@ -178,9 +216,27 @@ namespace llvm {
   /// SimplifyBinOp - Given operands for a BinaryOperator, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyBinOp(unsigned Opcode, Value *LHS, Value *RHS,
-                       const DataLayout *TD = 0, 
+                       const DataLayout *TD = 0,
                        const TargetLibraryInfo *TLI = 0,
                        const DominatorTree *DT = 0);
+
+  /// \brief Given a function and iterators over arguments, see if we can fold
+  /// the result.
+  ///
+  /// If this call could not be simplified returns null.
+  Value *SimplifyCall(Value *V, User::op_iterator ArgBegin,
+                      User::op_iterator ArgEnd, const DataLayout *TD = 0,
+                      const TargetLibraryInfo *TLI = 0,
+                      const DominatorTree *DT = 0);
+
+  /// \brief Given a function and set of arguments, see if we can fold the
+  /// result.
+  ///
+  /// If this call could not be simplified returns null.
+  Value *SimplifyCall(Value *V, ArrayRef<Value *> Args,
+                      const DataLayout *TD = 0,
+                      const TargetLibraryInfo *TLI = 0,
+                      const DominatorTree *DT = 0);
 
   /// SimplifyInstruction - See if we can compute a simplified version of this
   /// instruction.  If not, this returns null.

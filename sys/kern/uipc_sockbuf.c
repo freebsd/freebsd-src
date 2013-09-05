@@ -127,9 +127,9 @@ sbwait(struct sockbuf *sb)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	sb->sb_flags |= SB_WAIT;
-	return (msleep(&sb->sb_cc, &sb->sb_mtx,
+	return (msleep_sbt(&sb->sb_cc, &sb->sb_mtx,
 	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, "sbwait",
-	    sb->sb_timeo));
+	    sb->sb_timeo, 0, 0));
 }
 
 int
@@ -942,6 +942,13 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 	/* Return closest mbuf in chain for current offset. */
 	*moff = off - sb->sb_sndptroff;
 	m = ret = sb->sb_sndptr ? sb->sb_sndptr : sb->sb_mb;
+	if (*moff == m->m_len) {
+		*moff = 0;
+		sb->sb_sndptroff += m->m_len;
+		m = ret = m->m_next;
+		KASSERT(ret->m_len > 0,
+		    ("mbuf %p in sockbuf %p chain has no valid data", ret, sb));
+	}
 
 	/* Advance by len to be as close as possible for the next transmit. */
 	for (off = off - sb->sb_sndptroff + len - 1;

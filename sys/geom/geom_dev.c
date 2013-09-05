@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/limits.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 #include <machine/stdarg.h>
@@ -78,7 +79,7 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_ioctl =	g_dev_ioctl,
 	.d_strategy =	g_dev_strategy,
 	.d_name =	"g_dev",
-	.d_flags =	D_DISK | D_TRACKCLOSE | D_UNMAPPED_IO,
+	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
 static g_taste_t g_dev_taste;
@@ -92,6 +93,19 @@ static struct g_class g_dev_class	= {
 	.orphan = g_dev_orphan,
 	.attrchanged = g_dev_attrchanged
 };
+
+/*
+ * We target 262144 (8 x 32768) sectors by default as this significantly
+ * increases the throughput on commonly used SSD's with a marginal
+ * increase in non-interruptible request latency.
+ */
+static uint64_t g_dev_del_max_sectors = 262144;
+SYSCTL_DECL(_kern_geom);
+SYSCTL_NODE(_kern_geom, OID_AUTO, dev, CTLFLAG_RW, 0, "GEOM_DEV stuff");
+SYSCTL_QUAD(_kern_geom_dev, OID_AUTO, delete_max_sectors, CTLFLAG_RW,
+    &g_dev_del_max_sectors, 0, "Maximum number of sectors in a single "
+    "delete request sent to the provider. Larger requests are chunked "
+    "so they can be interrupted. (0 = disable chunking)");
 
 static void
 g_dev_destroy(void *arg, int flags __unused)
@@ -223,6 +237,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		g_free(sc);
 		return (NULL);
 	}
+	dev->si_flags |= SI_UNMAPPED;
 	sc->sc_dev = dev;
 
 	/* Search for device alias name and create it if found. */
@@ -237,6 +252,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			freeenv(val);
 			make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
 			    &adev, dev, "%s", buf);
+			adev->si_flags |= SI_UNMAPPED;
 			break;
 		}
 	}
@@ -408,17 +424,20 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		}
 		while (length > 0) { 
 			chunk = length;
-			if (chunk > 65536 * cp->provider->sectorsize)
-				chunk = 65536 * cp->provider->sectorsize;
+			if (g_dev_del_max_sectors != 0 && chunk >
+			    g_dev_del_max_sectors * cp->provider->sectorsize) {
+				chunk = g_dev_del_max_sectors *
+				    cp->provider->sectorsize;
+			}
 			error = g_delete_data(cp, offset, chunk);
 			length -= chunk;
 			offset += chunk;
 			if (error)
 				break;
 			/*
-			 * Since the request size is unbounded, the service
-			 * time is likewise.  We make this ioctl interruptible
-			 * by checking for signals for each bio.
+			 * Since the request size can be large, the service
+			 * time can be is likewise.  We make this ioctl
+			 * interruptible by checking for signals for each bio.
 			 */
 			if (SIGPENDING(td))
 				break;

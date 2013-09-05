@@ -19,24 +19,21 @@
 #include "X86RegisterInfo.h"
 #include "X86Subtarget.h"
 #include "X86TargetMachine.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/Type.h"
-#include "llvm/CodeGen/FunctionLoweringInfo.h"
-#include "llvm/CodeGen/MachineConstantPool.h"
-#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/CFG.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
 STATISTIC(NumLoadMoved, "Number of loads moved below TokenFactor");
@@ -283,13 +280,13 @@ namespace {
 
     /// getTargetMachine - Return a reference to the TargetMachine, casted
     /// to the target-specific type.
-    const X86TargetMachine &getTargetMachine() {
+    const X86TargetMachine &getTargetMachine() const {
       return static_cast<const X86TargetMachine &>(TM);
     }
 
     /// getInstrInfo - Return a reference to the TargetInstrInfo, casted
     /// to the target-specific type.
-    const X86InstrInfo *getInstrInfo() {
+    const X86InstrInfo *getInstrInfo() const {
       return getTargetMachine().getInstrInfo();
     }
   };
@@ -423,6 +420,11 @@ static bool isCalleeLoad(SDValue Callee, SDValue &Chain, bool HasCallSeq) {
 
   if (!Chain.getNumOperands())
     return false;
+  // Since we are not checking for AA here, conservatively abort if the chain
+  // writes to memory. It's not safe to move the callee (a load) across a store.
+  if (isa<MemSDNode>(Chain.getNode()) &&
+      cast<MemSDNode>(Chain.getNode())->writeMem())
+    return false;
   if (Chain.getOperand(0).getNode() == Callee.getNode())
     return true;
   if (Chain.getOperand(0).getOpcode() == ISD::TokenFactor &&
@@ -434,17 +436,19 @@ static bool isCalleeLoad(SDValue Callee, SDValue &Chain, bool HasCallSeq) {
 
 void X86DAGToDAGISel::PreprocessISelDAG() {
   // OptForSize is used in pattern predicates that isel is matching.
-  OptForSize = MF->getFunction()->getFnAttributes().
-    hasAttribute(Attributes::OptimizeForSize);
+  OptForSize = MF->getFunction()->getAttributes().
+    hasAttribute(AttributeSet::FunctionIndex, Attribute::OptimizeForSize);
 
   for (SelectionDAG::allnodes_iterator I = CurDAG->allnodes_begin(),
        E = CurDAG->allnodes_end(); I != E; ) {
     SDNode *N = I++;  // Preincrement iterator to avoid invalidation issues.
 
     if (OptLevel != CodeGenOpt::None &&
-        (N->getOpcode() == X86ISD::CALL ||
+        // Only does this when target favors doesn't favor register indirect
+        // call.
+        ((N->getOpcode() == X86ISD::CALL && !Subtarget->callRegIndirect()) ||
          (N->getOpcode() == X86ISD::TC_RETURN &&
-          // Only does this if load can be foled into TC_RETURN.
+          // Only does this if load can be folded into TC_RETURN.
           (Subtarget->is64Bit() ||
            getTargetMachine().getRelocationModel() != Reloc::PIC_)))) {
       /// Also try moving call address load from outside callseq_start to just
@@ -1040,8 +1044,8 @@ bool X86DAGToDAGISel::MatchAddressRecursively(SDValue N, X86ISelAddressMode &AM,
         AM.IndexReg = ShVal;
         return false;
       }
-    break;
     }
+    break;
 
   case ISD::SRL: {
     // Scale must not be used already.
@@ -1499,8 +1503,7 @@ SDNode *X86DAGToDAGISel::SelectAtomic64(SDNode *Node, unsigned Opc) {
   MemOp[0] = cast<MemSDNode>(Node)->getMemOperand();
   const SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, In2L, In2H, Chain};
   SDNode *ResNode = CurDAG->getMachineNode(Opc, Node->getDebugLoc(),
-                                           MVT::i32, MVT::i32, MVT::Other, Ops,
-                                           array_lengthof(Ops));
+                                           MVT::i32, MVT::i32, MVT::Other, Ops);
   cast<MachineSDNode>(ResNode)->setMemRefs(MemOp, MemOp + 1);
   return ResNode;
 }
@@ -1716,7 +1719,7 @@ SDNode *X86DAGToDAGISel::SelectAtomicLoadArith(SDNode *Node, EVT NVT) {
       Op = ADD;
       break;
   }
-  
+
   Val = getAtomicLoadArithTargetConstant(CurDAG, dl, Op, NVT, Val);
   bool isUnOp = !Val.getNode();
   bool isCN = Val.getNode() && (Val.getOpcode() == ISD::TargetConstant);
@@ -1768,12 +1771,10 @@ SDNode *X86DAGToDAGISel::SelectAtomicLoadArith(SDNode *Node, EVT NVT) {
   MemOp[0] = cast<MemSDNode>(Node)->getMemOperand();
   if (isUnOp) {
     SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Chain };
-    Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops,
-                                         array_lengthof(Ops)), 0);
+    Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops), 0);
   } else {
     SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Val, Chain };
-    Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops,
-                                         array_lengthof(Ops)), 0);
+    Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops), 0);
   }
   cast<MachineSDNode>(Ret)->setMemRefs(MemOp, MemOp + 1);
   SDValue RetVals[] = { Undef, Ret };
@@ -1967,8 +1968,7 @@ SDNode *X86DAGToDAGISel::SelectGather(SDNode *Node, unsigned Opc) {
   SDValue Segment = CurDAG->getRegister(0, MVT::i32);
   const SDValue Ops[] = { VSrc, Base, getI8Imm(Scale->getSExtValue()), VIdx,
                           Disp, Segment, VMask, Chain};
-  SDNode *ResNode = CurDAG->getMachineNode(Opc, Node->getDebugLoc(),
-                                           VTs, Ops, array_lengthof(Ops));
+  SDNode *ResNode = CurDAG->getMachineNode(Opc, Node->getDebugLoc(), VTs, Ops);
   // Node has 2 outputs: VDst and MVT::Other.
   // ResNode has 3 outputs: VDst, VMask_wb, and MVT::Other.
   // We replace VDst of Node with VDst of ResNode, and Other of Node with Other
@@ -2182,7 +2182,7 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
 
     SDVTList VTs = CurDAG->getVTList(NVT, NVT, MVT::i32);
     SDValue Ops[] = {N1, InFlag};
-    SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops, 2);
+    SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops);
 
     ReplaceUses(SDValue(Node, 0), SDValue(CNode, 0));
     ReplaceUses(SDValue(Node, 1), SDValue(CNode, 1));
@@ -2263,16 +2263,14 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
                         InFlag };
       if (MOpc == X86::MULX32rm || MOpc == X86::MULX64rm) {
         SDVTList VTs = CurDAG->getVTList(NVT, NVT, MVT::Other, MVT::Glue);
-        SDNode *CNode = CurDAG->getMachineNode(MOpc, dl, VTs, Ops,
-                                               array_lengthof(Ops));
+        SDNode *CNode = CurDAG->getMachineNode(MOpc, dl, VTs, Ops);
         ResHi = SDValue(CNode, 0);
         ResLo = SDValue(CNode, 1);
         Chain = SDValue(CNode, 2);
         InFlag = SDValue(CNode, 3);
       } else {
         SDVTList VTs = CurDAG->getVTList(MVT::Other, MVT::Glue);
-        SDNode *CNode = CurDAG->getMachineNode(MOpc, dl, VTs, Ops,
-                                               array_lengthof(Ops));
+        SDNode *CNode = CurDAG->getMachineNode(MOpc, dl, VTs, Ops);
         Chain = SDValue(CNode, 0);
         InFlag = SDValue(CNode, 1);
       }
@@ -2283,15 +2281,13 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
       SDValue Ops[] = { N1, InFlag };
       if (Opc == X86::MULX32rr || Opc == X86::MULX64rr) {
         SDVTList VTs = CurDAG->getVTList(NVT, NVT, MVT::Glue);
-        SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops,
-                                               array_lengthof(Ops));
+        SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops);
         ResHi = SDValue(CNode, 0);
         ResLo = SDValue(CNode, 1);
         InFlag = SDValue(CNode, 2);
       } else {
         SDVTList VTs = CurDAG->getVTList(MVT::Glue);
-        SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops,
-                                               array_lengthof(Ops));
+        SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops);
         InFlag = SDValue(CNode, 0);
       }
     }
@@ -2338,6 +2334,9 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
       ReplaceUses(SDValue(Node, 1), ResHi);
       DEBUG(dbgs() << "=> "; ResHi.getNode()->dump(CurDAG); dbgs() << '\n');
     }
+
+    // Propagate ordering to the last node, for now.
+    CurDAG->AssignOrdering(InFlag.getNode(), CurDAG->GetOrdering(Node));
 
     return NULL;
   }
@@ -2405,8 +2404,7 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
         SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, N0.getOperand(0) };
         Move =
           SDValue(CurDAG->getMachineNode(X86::MOVZX32rm8, dl, MVT::i32,
-                                         MVT::Other, Ops,
-                                         array_lengthof(Ops)), 0);
+                                         MVT::Other, Ops), 0);
         Chain = Move.getValue(1);
         ReplaceUses(N0.getValue(1), Chain);
       } else {
@@ -2437,8 +2435,7 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
       SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, N1.getOperand(0),
                         InFlag };
       SDNode *CNode =
-        CurDAG->getMachineNode(MOpc, dl, MVT::Other, MVT::Glue, Ops,
-                               array_lengthof(Ops));
+        CurDAG->getMachineNode(MOpc, dl, MVT::Other, MVT::Glue, Ops);
       InFlag = SDValue(CNode, 1);
       // Update the chain.
       ReplaceUses(N1.getValue(1), SDValue(CNode, 0));
@@ -2670,8 +2667,7 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
     unsigned newOpc = getFusedLdStOpcode(LdVT, Opc);
     MachineSDNode *Result = CurDAG->getMachineNode(newOpc,
                                                    Node->getDebugLoc(),
-                                                   MVT::i32, MVT::Other, Ops,
-                                                   array_lengthof(Ops));
+                                                   MVT::i32, MVT::Other, Ops);
     Result->setMemRefs(MemOp, MemOp + 2);
 
     ReplaceUses(SDValue(StoreNode, 0), SDValue(Result, 1));

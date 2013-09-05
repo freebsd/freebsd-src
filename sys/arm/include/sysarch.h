@@ -47,7 +47,7 @@
  * update the cpu_switch() (and cpu_throw()) code as well.
  * In addition, code in arm/include/atomic.h and arm/include/asmacros.h
  * assumes that ARM_RAS_END is at ARM_RAS_START+4, so be sure to update those
- * if ARM_RAS_END moves in relation to ARM_RAS_START (look for occurrances
+ * if ARM_RAS_END moves in relation to ARM_RAS_START (look for occurrences
  * of ldr/str rm,[rn, #4]).
  */
 

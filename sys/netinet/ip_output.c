@@ -34,9 +34,10 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
+#include "opt_kdtrace.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 #include "opt_sctp.h"
 
 #include <sys/param.h>
@@ -47,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -64,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
@@ -123,6 +126,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int n;	/* scratchpad */
 	int error = 0;
 	struct sockaddr_in *dst;
+	const struct sockaddr_in *gw;
 	struct in_ifaddr *ia;
 	int isbroadcast;
 	uint16_t ip_len, ip_off;
@@ -196,7 +200,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		hlen = ip->ip_hl << 2;
 	}
 
-	dst = (struct sockaddr_in *)&ro->ro_dst;
+	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
 	ia = NULL;
 	/*
@@ -297,11 +301,11 @@ again:
 		ifp = rte->rt_ifp;
 		rte->rt_rmx.rmx_pksent++;
 		if (rte->rt_flags & RTF_GATEWAY)
-			dst = (struct sockaddr_in *)rte->rt_gateway;
+			gw = (struct sockaddr_in *)rte->rt_gateway;
 		if (rte->rt_flags & RTF_HOST)
 			isbroadcast = (rte->rt_flags & RTF_BROADCAST);
 		else
-			isbroadcast = in_broadcast(dst->sin_addr, ifp);
+			isbroadcast = in_broadcast(gw->sin_addr, ifp);
 	}
 	/*
 	 * Calculate MTU.  If we have a route that is up, use that,
@@ -326,12 +330,6 @@ again:
 	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
-		/*
-		 * IP destination address is multicast.  Make sure "dst"
-		 * still points to the address in "ro".  (It may have been
-		 * changed to point to a gateway address, above.)
-		 */
-		dst = (struct sockaddr_in *)&ro->ro_dst;
 		/*
 		 * See if the caller provided any multicast options
 		 */
@@ -559,7 +557,6 @@ sendit:
 	/* Or forward to some other address? */
 	if ((m->m_flags & M_IP_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
-		dst = (struct sockaddr_in *)&ro->ro_dst;
 		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP_NEXTHOP;
@@ -627,9 +624,10 @@ passout:
 		 * Reset layer specific mbuf flags
 		 * to avoid confusing lower layers.
 		 */
-		m->m_flags &= ~(M_PROTOFLAGS);
+		m_clrprotoflags(m);
+		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 		error = (*ifp->if_output)(ifp, m,
-		    		(struct sockaddr *)dst, ro);
+		    (const struct sockaddr *)gw, ro);
 		goto done;
 	}
 
@@ -660,10 +658,11 @@ passout:
 			 * Reset layer specific mbuf flags
 			 * to avoid confusing upper layers.
 			 */
-			m->m_flags &= ~(M_PROTOFLAGS);
+			m_clrprotoflags(m);
 
+			IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst, ro);
+			    (const struct sockaddr *)gw, ro);
 		} else
 			m_freem(m);
 	}
@@ -790,7 +789,7 @@ smart_frag_failure:
 			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
-		m->m_flags |= (m0->m_flags & M_MCAST) | M_FRAG;
+		m->m_flags |= (m0->m_flags & M_MCAST);
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload
@@ -807,10 +806,9 @@ smart_frag_failure:
 		m->m_len = mhlen;
 		/* XXX do we need to add ip_off below ? */
 		mhip->ip_off = ((off - hlen) >> 3) + ip_off;
-		if (off + len >= ip_len) {	/* last fragment */
+		if (off + len >= ip_len)
 			len = ip_len - off;
-			m->m_flags |= M_LASTFRAG;
-		} else
+		else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
 		m->m_next = m_copym(m0, off, len, M_NOWAIT);
@@ -836,10 +834,6 @@ smart_frag_failure:
 		mnext = &m->m_nextpkt;
 	}
 	IPSTAT_ADD(ips_ofragments, nfrags);
-
-	/* set first marker for fragment chain */
-	m0->m_flags |= M_FIRSTFRAG | M_FRAG;
-	m0->m_pkthdr.csum_data = nfrags;
 
 	/*
 	 * Update first fragment by trimming what's been copied out
@@ -906,13 +900,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			switch (sopt->sopt_name) {
 			case SO_REUSEADDR:
 				INP_WLOCK(inp);
-				if (IN_MULTICAST(ntohl(inp->inp_laddr.s_addr))) {
-					if ((so->so_options &
-					    (SO_REUSEADDR | SO_REUSEPORT)) != 0)
-						inp->inp_flags2 |= INP_REUSEPORT;
-					else
-						inp->inp_flags2 &= ~INP_REUSEPORT;
-				}
+				if ((so->so_options & SO_REUSEADDR) != 0)
+					inp->inp_flags2 |= INP_REUSEADDR;
+				else
+					inp->inp_flags2 &= ~INP_REUSEADDR;
 				INP_WUNLOCK(inp);
 				error = 0;
 				break;

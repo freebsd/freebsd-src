@@ -69,6 +69,8 @@ vdev_geom_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	vd = cp->private;
+	if (vd == NULL)
+		return;
 
 	/*
 	 * Orphan callbacks occur from the GEOM event thread.
@@ -270,8 +272,7 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 			continue;
 
 		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
-		    &state) != 0 || state == POOL_STATE_DESTROYED ||
-		    state > POOL_STATE_L2CACHE) {
+		    &state) != 0 || state > POOL_STATE_L2CACHE) {
 			nvlist_free(*config);
 			*config = NULL;
 			continue;
@@ -575,7 +576,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 
 static int
 vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
-    uint64_t *ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
@@ -661,9 +662,13 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	*max_psize = *psize = pp->mediasize;
 
 	/*
-	 * Determine the device's minimum transfer size.
+	 * Determine the device's minimum transfer size and preferred
+	 * transfer size.
 	 */
-	*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*logical_ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*physical_ashift = 0;
+	if (pp->stripesize)
+		*physical_ashift = highbit(pp->stripesize) - 1;
 
 	/*
 	 * Clear the nowritecache settings, so that on a vdev_reopen()
@@ -690,6 +695,7 @@ vdev_geom_close(vdev_t *vd)
 		return;
 	vd->vdev_tsd = NULL;
 	vd->vdev_delayed_close = B_FALSE;
+	cp->private = NULL;	/* XXX locking */
 	g_post_event(vdev_geom_detach, cp, M_WAITOK, NULL);
 }
 

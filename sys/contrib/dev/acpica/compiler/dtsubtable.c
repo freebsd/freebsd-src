@@ -312,14 +312,17 @@ DtGetSubtableLength (
         switch (Info->Opcode)
         {
         case ACPI_DMT_GAS:
+
             Step = 5;
             break;
 
         case ACPI_DMT_HESTNTFY:
+
             Step = 9;
             break;
 
         default:
+
             Step = 1;
             break;
         }

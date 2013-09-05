@@ -1169,7 +1169,7 @@ the privilege of the authenticated user.
 The goal of privilege separation is to prevent privilege
 escalation by containing any corruption within the unprivileged processes.
 The default is
-.Dq sandbox .
+.Dq yes .
 If
 .Cm UsePrivilegeSeparation
 is set to
@@ -1180,7 +1180,7 @@ restrictions.
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Dq FreeBSD-20130322 .
+.Dq FreeBSD-20130515 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

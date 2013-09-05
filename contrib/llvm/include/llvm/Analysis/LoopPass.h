@@ -12,13 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LOOP_PASS_H
-#define LLVM_LOOP_PASS_H
+#ifndef LLVM_ANALYSIS_LOOPPASS_H
+#define LLVM_ANALYSIS_LOOPPASS_H
 
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/PassManagers.h"
-#include "llvm/Function.h"
 #include <deque>
 
 namespace llvm {
@@ -38,6 +37,9 @@ public:
   // runOnLoop - This method should be implemented by the subclass to perform
   // whatever action is necessary for the specified Loop.
   virtual bool runOnLoop(Loop *L, LPPassManager &LPM) = 0;
+
+  using llvm::Pass::doInitialization;
+  using llvm::Pass::doFinalization;
 
   // Initialization and finalization hooks.
   virtual bool doInitialization(Loop *L, LPPassManager &LPM) {

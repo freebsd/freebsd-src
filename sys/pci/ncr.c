@@ -3622,8 +3622,8 @@ ncr_attach (device_t dev)
 			pci_write_config(dev, PCIR_CACHELNSZ, cachelnsz, 1);
 		}
 
-		if (!(command & (1<<4))) {
-			command |= (1<<4);
+		if (!(command & PCIM_CMD_MWRICEN)) {
+			command |= PCIM_CMD_MWRICEN;
 			printf("%s: setting PCI command write and invalidate.\n",
 				ncr_name(np));
 			pci_write_config(dev, PCIR_COMMAND, command, 2);
@@ -4857,7 +4857,7 @@ static void ncr_getsync(ncb_p np, u_char sfac, u_char *fakp, u_char *scntl3p)
 	*/
 	fak = (kpc - 1) / div_10M[div] + 1;
 
-#if 0	/* You can #if 1 if you think this optimization is usefull */
+#if 0	/* You can #if 1 if you think this optimization is useful */
 
 	per = (fak * div_10M[div]) / clk;
 

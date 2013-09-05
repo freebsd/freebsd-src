@@ -75,6 +75,10 @@
 #define	MAXCPU		1
 #endif /* SMP || KLD_MODULE */
 
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
+
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
 /*

@@ -93,14 +93,9 @@ AcpiTbVerifyTable (
         }
     }
 
-    /* FACS is the odd table, has no standard ACPI header and no checksum */
+    /* Always calculate checksum, ignore bad checksum if requested */
 
-    if (!ACPI_COMPARE_NAME (&TableDesc->Signature, ACPI_SIG_FACS))
-    {
-        /* Always calculate checksum, ignore bad checksum if requested */
-
-        Status = AcpiTbVerifyChecksum (TableDesc->Pointer, TableDesc->Length);
-    }
+    Status = AcpiTbVerifyChecksum (TableDesc->Pointer, TableDesc->Length);
 
     return_ACPI_STATUS (Status);
 }
@@ -160,7 +155,7 @@ AcpiTbAddTable (
         ACPI_BIOS_ERROR ((AE_INFO,
             "Table has invalid signature [%4.4s] (0x%8.8X), "
             "must be SSDT or OEMx",
-            AcpiUtValidAcpiName (*(UINT32 *) TableDesc->Pointer->Signature) ?
+            AcpiUtValidAcpiName (TableDesc->Pointer->Signature) ?
                 TableDesc->Pointer->Signature : "????",
             *(UINT32 *) TableDesc->Pointer->Signature));
 
@@ -514,16 +509,19 @@ AcpiTbDeleteTable (
     switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
     {
     case ACPI_TABLE_ORIGIN_MAPPED:
+
         AcpiOsUnmapMemory (TableDesc->Pointer, TableDesc->Length);
         break;
 
     case ACPI_TABLE_ORIGIN_ALLOCATED:
+
         ACPI_FREE (TableDesc->Pointer);
         break;
 
     /* Not mapped or allocated, there is nothing we can do */
 
     default:
+
         return;
     }
 

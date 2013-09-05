@@ -24,8 +24,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_FILE_SYSTEM_H
-#define LLVM_SUPPORT_FILE_SYSTEM_H
+#ifndef LLVM_SUPPORT_FILESYSTEM_H
+#define LLVM_SUPPORT_FILESYSTEM_H
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -602,12 +602,12 @@ private:
   void *FileMappingHandle;
 #endif
 
-  error_code init(int FD, uint64_t Offset);
+  error_code init(int FD, bool CloseFD, uint64_t Offset);
 
 public:
   typedef char char_type;
 
-#if LLVM_USE_RVALUE_REFERENCES
+#if LLVM_HAS_RVALUE_REFERENCES
   mapped_file_region(mapped_file_region&&);
   mapped_file_region &operator =(mapped_file_region&&);
 #endif
@@ -633,8 +633,10 @@ public:
                      error_code &ec);
 
   /// \param fd An open file descriptor to map. mapped_file_region takes
-  ///           ownership. It must have been opended in the correct mode.
+  ///   ownership if closefd is true. It must have been opended in the correct
+  ///   mode.
   mapped_file_region(int fd,
+                     bool closefd,
                      mapmode mode,
                      uint64_t length,
                      uint64_t offset,

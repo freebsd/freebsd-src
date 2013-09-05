@@ -85,14 +85,15 @@ void	ath_rate_detach(struct ath_ratectrl *);
 #define	ATH_RC_HT_FLAG		0x08	/* use HT */
 #define	ATH_RC_RTSCTS_FLAG	0x10	/* enable RTS/CTS protection */
 #define	ATH_RC_STBC_FLAG	0x20	/* enable STBC */
-#define	ATH_RC_LDPC_FLAG	0x40	/* enable STBC */
+#define	ATH_RC_TS_FLAG		0x40	/* triple-stream rate */
 
 struct ath_rc_series {
 	uint8_t rix;		/* ratetable index, not rate code */
 	uint8_t ratecode;	/* hardware rate code */
 	uint8_t tries;
-	uint8_t flags;
-	uint32_t max4msframelen;
+	uint8_t tx_power_cap;
+	uint16_t flags;
+	uint16_t max4msframelen;
 };
 
 /*

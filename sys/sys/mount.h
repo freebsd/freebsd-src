@@ -608,7 +608,8 @@ typedef	int vfs_mount_t(struct mount *mp);
 typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 		    struct sysctl_req *req);
 typedef void vfs_susp_clean_t(struct mount *mp);
-typedef void vfs_reclaim_lowervp_t(struct mount *mp, struct vnode *lowervp);
+typedef void vfs_notify_lowervp_t(struct mount *mp, struct vnode *lowervp);
+typedef void vfs_purge_t(struct mount *mp);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -626,7 +627,10 @@ struct vfsops {
 	vfs_extattrctl_t	*vfs_extattrctl;
 	vfs_sysctl_t		*vfs_sysctl;
 	vfs_susp_clean_t	*vfs_susp_clean;
-	vfs_reclaim_lowervp_t	*vfs_reclaim_lowervp;
+	vfs_notify_lowervp_t	*vfs_reclaim_lowervp;
+	vfs_notify_lowervp_t	*vfs_unlink_lowervp;
+	vfs_purge_t		*vfs_purge;
+	vfs_mount_t		*vfs_spare[6];	/* spares for ABI compat */
 };
 
 vfs_statfs_t	__vfs_statfs;
@@ -747,6 +751,22 @@ vfs_statfs_t	__vfs_statfs;
 	}								\
 } while (0)
 
+#define	VFS_UNLINK_LOWERVP(MP, VP) do {					\
+	if (*(MP)->mnt_op->vfs_unlink_lowervp != NULL) {		\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_unlink_lowervp)((MP), (VP));	\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
+
+#define	VFS_PURGE(MP) do {						\
+	if (*(MP)->mnt_op->vfs_purge != NULL) {				\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_purge)(MP);				\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
+
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
@@ -758,6 +778,9 @@ vfs_statfs_t	__vfs_statfs;
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
 		VN_KNOTE((vp), (hint), 0);				\
 } while (0)
+
+#define	VFS_NOTIFY_UPPER_RECLAIM	1
+#define	VFS_NOTIFY_UPPER_UNLINK		2
 
 #include <sys/module.h>
 
@@ -840,6 +863,7 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
+void	vfs_notify_upper(struct vnode *, int);
 void	vfs_oexport_conv(const struct oexport_args *oexp,
 	    struct export_args *exp);
 void	vfs_ref(struct mount *);

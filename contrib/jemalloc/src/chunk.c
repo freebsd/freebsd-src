@@ -111,6 +111,7 @@ chunk_recycle(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, size_t size,
 		}
 		node->addr = (void *)((uintptr_t)(ret) + size);
 		node->size = trailsize;
+		node->zeroed = zeroed;
 		extent_tree_szad_insert(chunks_szad, node);
 		extent_tree_ad_insert(chunks_ad, node);
 		node = NULL;
@@ -119,7 +120,6 @@ chunk_recycle(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, size_t size,
 
 	if (node != NULL)
 		base_node_dealloc(node);
-	VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 	if (*zero) {
 		if (zeroed == false)
 			memset(ret, 0, size);
@@ -130,7 +130,6 @@ chunk_recycle(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, size_t size,
 			VALGRIND_MAKE_MEM_DEFINED(ret, size);
 			for (i = 0; i < size / sizeof(size_t); i++)
 				assert(p[i] == 0);
-			VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 		}
 	}
 	return (ret);
@@ -179,27 +178,32 @@ chunk_alloc(size_t size, size_t alignment, bool base, bool *zero,
 	/* All strategies for allocation failed. */
 	ret = NULL;
 label_return:
-	if (config_ivsalloc && base == false && ret != NULL) {
-		if (rtree_set(chunks_rtree, (uintptr_t)ret, ret)) {
-			chunk_dealloc(ret, size, true);
-			return (NULL);
+	if (ret != NULL) {
+		if (config_ivsalloc && base == false) {
+			if (rtree_set(chunks_rtree, (uintptr_t)ret, ret)) {
+				chunk_dealloc(ret, size, true);
+				return (NULL);
+			}
 		}
-	}
-	if ((config_stats || config_prof) && ret != NULL) {
-		bool gdump;
-		malloc_mutex_lock(&chunks_mtx);
-		if (config_stats)
-			stats_chunks.nchunks += (size / chunksize);
-		stats_chunks.curchunks += (size / chunksize);
-		if (stats_chunks.curchunks > stats_chunks.highchunks) {
-			stats_chunks.highchunks = stats_chunks.curchunks;
-			if (config_prof)
-				gdump = true;
-		} else if (config_prof)
-			gdump = false;
-		malloc_mutex_unlock(&chunks_mtx);
-		if (config_prof && opt_prof && opt_prof_gdump && gdump)
-			prof_gdump();
+		if (config_stats || config_prof) {
+			bool gdump;
+			malloc_mutex_lock(&chunks_mtx);
+			if (config_stats)
+				stats_chunks.nchunks += (size / chunksize);
+			stats_chunks.curchunks += (size / chunksize);
+			if (stats_chunks.curchunks > stats_chunks.highchunks) {
+				stats_chunks.highchunks =
+				    stats_chunks.curchunks;
+				if (config_prof)
+					gdump = true;
+			} else if (config_prof)
+				gdump = false;
+			malloc_mutex_unlock(&chunks_mtx);
+			if (config_prof && opt_prof && opt_prof_gdump && gdump)
+				prof_gdump();
+		}
+		if (config_valgrind)
+			VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 	}
 	assert(CHUNK_ADDR2BASE(ret) == ret);
 	return (ret);
@@ -210,9 +214,10 @@ chunk_record(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, void *chunk,
     size_t size)
 {
 	bool unzeroed;
-	extent_node_t *xnode, *node, *prev, key;
+	extent_node_t *xnode, *node, *prev, *xprev, key;
 
 	unzeroed = pages_purge(chunk, size);
+	VALGRIND_MAKE_MEM_NOACCESS(chunk, size);
 
 	/*
 	 * Allocate a node before acquiring chunks_mtx even though it might not
@@ -221,6 +226,8 @@ chunk_record(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, void *chunk,
 	 * held.
 	 */
 	xnode = base_node_alloc();
+	/* Use xprev to implement conditional deferred deallocation of prev. */
+	xprev = NULL;
 
 	malloc_mutex_lock(&chunks_mtx);
 	key.addr = (void *)((uintptr_t)chunk + size);
@@ -237,8 +244,6 @@ chunk_record(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, void *chunk,
 		node->size += size;
 		node->zeroed = (node->zeroed && (unzeroed == false));
 		extent_tree_szad_insert(chunks_szad, node);
-		if (xnode != NULL)
-			base_node_dealloc(xnode);
 	} else {
 		/* Coalescing forward failed, so insert a new node. */
 		if (xnode == NULL) {
@@ -248,10 +253,10 @@ chunk_record(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, void *chunk,
 			 * already been purged, so this is only a virtual
 			 * memory leak.
 			 */
-			malloc_mutex_unlock(&chunks_mtx);
-			return;
+			goto label_return;
 		}
 		node = xnode;
+		xnode = NULL; /* Prevent deallocation below. */
 		node->addr = chunk;
 		node->size = size;
 		node->zeroed = (unzeroed == false);
@@ -277,9 +282,19 @@ chunk_record(extent_tree_t *chunks_szad, extent_tree_t *chunks_ad, void *chunk,
 		node->zeroed = (node->zeroed && prev->zeroed);
 		extent_tree_szad_insert(chunks_szad, node);
 
-		base_node_dealloc(prev);
+		xprev = prev;
 	}
+
+label_return:
 	malloc_mutex_unlock(&chunks_mtx);
+	/*
+	 * Deallocate xnode and/or xprev after unlocking chunks_mtx in order to
+	 * avoid potential deadlock.
+	 */
+	if (xnode != NULL)
+		base_node_dealloc(xnode);
+	if (xprev != NULL)
+		base_node_dealloc(prev);
 }
 
 void

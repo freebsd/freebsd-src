@@ -1056,7 +1056,8 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	ses_setphyspath_callback_args_t args;
 	int i, ret;
 	struct sbuf sb;
-	uint8_t *devid, *elmaddr;
+	struct scsi_vpd_id_descriptor *idd;
+	uint8_t *devid;
 	ses_element_t *elmpriv;
 	const char *c;
 
@@ -1084,9 +1085,9 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	if (cdai.ccb_h.status != CAM_REQ_CMP)
 		goto out;
 
-	elmaddr = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+	idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
 	    cdai.provsiz, scsi_devid_is_naa_ieee_reg);
-	if (elmaddr == NULL)
+	if (idd == NULL)
 		goto out;
 
 	if (sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND) == NULL) {
@@ -1095,7 +1096,7 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	}
 	/* Next, generate the physical path string */
 	sbuf_printf(&sb, "id1,enc@n%jx/type@%x/slot@%x",
-	    scsi_8btou64(elmaddr), iter->type_index,
+	    scsi_8btou64(idd->identifier), iter->type_index,
 	    iter->type_element_index);
 	/* Append the element descriptor if one exists */
 	elmpriv = elm->elm_private;

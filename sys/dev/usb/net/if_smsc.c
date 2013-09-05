@@ -606,16 +606,13 @@ smsc_ifmedia_upd(struct ifnet *ifp)
 {
 	struct smsc_softc *sc = ifp->if_softc;
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
+	struct mii_softc *miisc;
 	int err;
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	err = mii_mediachg(mii);
 	return (err);
 }
@@ -638,13 +635,10 @@ smsc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii = uether_getmii(&sc->sc_ue);
 
 	SMSC_LOCK(sc);
-	
 	mii_pollstat(mii);
-	
-	SMSC_UNLOCK(sc);
-	
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	SMSC_UNLOCK(sc);
 }
 
 /**

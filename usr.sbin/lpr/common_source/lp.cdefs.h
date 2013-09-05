@@ -1,6 +1,6 @@
 /*-
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * Copyright (c) 2003  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+ * Copyright (c) 2003,2013  - Garance Alistair Drosehn <gad@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,21 @@
 #endif
 #if defined(HAVE_SYS_CDEFS_H)
 #  include <sys/cdefs.h>
+#endif
+
+/*
+ * FreeBSD added a closefrom() routine in release 8.0.  When compiling
+ * `lpr' on other platforms you might want to include bsd-closefrom.c
+ * from the portable-openssh project.
+ */
+#ifndef	USE_CLOSEFROM
+#  if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#    define	USE_CLOSEFROM	1
+#  endif
+#endif
+/* The macro USE_CLOSEFROM must be defined with a value of 0 or 1. */
+#ifndef	USE_CLOSEFROM
+#  define	USE_CLOSEFROM	0
 #endif
 
 /*

@@ -333,17 +333,9 @@ struct hpt_iop_ioctl_param {
 #define HPT_IOCTL_FLAG_OPEN 1
 #define HPT_CTL_CODE_BSD_TO_IOP(x) ((x)-0xff00)
 
-#if __FreeBSD_version>503000
 typedef struct cdev * ioctl_dev_t;
-#else
-typedef dev_t ioctl_dev_t;
-#endif
 
-#if __FreeBSD_version >= 500000
 typedef struct thread * ioctl_thread_t;
-#else
-typedef struct proc * ioctl_thread_t;
-#endif
 
 struct hpt_iop_hba {
 	struct hptiop_adapter_ops *ops;
@@ -425,11 +417,7 @@ struct hpt_iop_hba {
 	struct cam_sim        *sim;
 	struct cam_path       *path;
 	void                  *req;
-#if (__FreeBSD_version >= 500000)
 	struct mtx            lock;
-#else
-	int                   hpt_splx;
-#endif
 #define HPT_IOCTL_FLAG_OPEN     1
 	u_int32_t             flag;
 	struct hpt_iop_srb* srb[HPT_SRB_MAX_QUEUE_SIZE];
@@ -474,19 +462,8 @@ struct hpt_iop_srb {
 	int                  index;
 };
 
-#if __FreeBSD_version >= 500000
 #define hptiop_lock_adapter(hba)   mtx_lock(&(hba)->lock)
 #define hptiop_unlock_adapter(hba) mtx_unlock(&(hba)->lock)
-#else
-static __inline void hptiop_lock_adapter(struct hpt_iop_hba *hba)
-{
-	hba->hpt_splx = splcam();
-}
-static __inline void hptiop_unlock_adapter(struct hpt_iop_hba *hba)
-{
-	splx(hba->hpt_splx);
-}
-#endif
 
 #define HPT_OSM_TIMEOUT (20*hz)  /* timeout value for OS commands */
 
@@ -499,24 +476,12 @@ static  __inline int hptiop_sleep(struct hpt_iop_hba *hba, void *ident,
 
 	int retval;
 
-#if __FreeBSD_version >= 500000
 	retval = msleep(ident, &hba->lock, priority, wmesg, timo);
-#else
-	asleep(ident, priority, wmesg, timo);
-	hptiop_unlock_adapter(hba);
-	retval = await(priority, timo);
-	hptiop_lock_adapter(hba);
-#endif
 
 	return retval;
 
 }
 
-#if __FreeBSD_version < 501000
-#define READ_16             0x88
-#define WRITE_16            0x8a
-#define SERVICE_ACTION_IN   0x9e
-#endif
 
 #define HPT_DEV_MAJOR   200
 

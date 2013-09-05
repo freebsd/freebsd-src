@@ -12,9 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/Serialization/Module.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/MemoryBuffer.h"
 #include "ASTReaderInternals.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace serialization;
@@ -33,7 +33,7 @@ ModuleFile::ModuleFile(ModuleKind Kind, unsigned Generation)
     PreprocessedEntityOffsets(0), NumPreprocessedEntities(0),
     LocalNumHeaderFileInfos(0), 
     HeaderFileInfoTableData(0), HeaderFileInfoTable(0),
-    HeaderFileFrameworkStrings(0), LocalNumSubmodules(0), BaseSubmoduleID(0),
+    LocalNumSubmodules(0), BaseSubmoduleID(0),
     LocalNumSelectors(0), SelectorOffsets(0), BaseSelectorID(0),
     SelectorLookupTableData(0), SelectorLookupTable(0), LocalNumDecls(0),
     DeclOffsets(0), BaseDeclID(0),

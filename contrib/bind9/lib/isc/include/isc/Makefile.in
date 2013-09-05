@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -36,7 +36,7 @@ HEADERS =	app.h assertions.h base64.h bind9.h bitstring.h boolean.h \
 		magic.h md5.h mem.h msgcat.h msgs.h mutexblock.h \
 		namespace.h netaddr.h ondestroy.h os.h parseint.h \
 		print.h quota.h radix.h random.h ratelimiter.h \
-		refcount.h region.h resource.h \
+		refcount.h regex.h region.h resource.h \
 		result.h resultclass.h rwlock.h serial.h sha1.h sha2.h \
 		sockaddr.h socket.h stdio.h stdlib.h string.h \
 		symtab.h \

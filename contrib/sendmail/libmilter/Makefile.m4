@@ -1,4 +1,4 @@
-dnl $Id: Makefile.m4,v 8.88 2012/09/25 17:40:32 ca Exp $
+dnl $Id: Makefile.m4,v 8.92 2013/04/16 20:19:54 ca Exp $
 include(confBUILDTOOLSDIR`/M4/switch.m4')
 
 dnl only required for compilation of EXTRAS

@@ -52,7 +52,10 @@ static struct uart_class *uart_classes[] = {
 	&uart_ns8250_class,
 	&uart_sab82532_class,
 	&uart_z8530_class,
+#if defined(__arm__)
 	&uart_lpc_class,
+	&uart_s3c2410_class,
+#endif
 };
 static size_t uart_nclasses = sizeof(uart_classes) / sizeof(uart_classes[0]);
 

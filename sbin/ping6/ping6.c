@@ -287,7 +287,7 @@ void	 pr_retip(struct ip6_hdr *, u_char *);
 void	 summary(void);
 void	 tvsub(struct timeval *, struct timeval *);
 int	 setpolicy(int, char *);
-char	*nigroup(char *);
+char	*nigroup(char *, int);
 void	 usage(void);
 
 int
@@ -306,6 +306,7 @@ main(int argc, char *argv[])
 	struct addrinfo hints;
 	int cc, i;
 	int ch, hold, packlen, preload, optval, ret_ga;
+	int nig_oldmcprefix = -1;
 	u_char *datap;
 	char *e, *target, *ifname = NULL, *gateway = NULL;
 	int ip6optlen = 0;
@@ -490,6 +491,7 @@ main(int argc, char *argv[])
 			break;
 		case 'N':
 			options |= F_NIGROUP;
+			nig_oldmcprefix++;
 			break;
 		case 'o':
 			options |= F_ONCE;
@@ -605,7 +607,7 @@ main(int argc, char *argv[])
 	}
 
 	if (options & F_NIGROUP) {
-		target = nigroup(argv[argc - 1]);
+		target = nigroup(argv[argc - 1], nig_oldmcprefix);
 		if (target == NULL) {
 			usage();
 			/*NOTREACHED*/
@@ -2723,7 +2725,7 @@ setpolicy(int so __unused, char *policy)
 #endif
 
 char *
-nigroup(char *name)
+nigroup(char *name, int nig_oldmcprefix)
 {
 	char *p;
 	char *q;
@@ -2733,6 +2735,7 @@ nigroup(char *name)
 	size_t l;
 	char hbuf[NI_MAXHOST];
 	struct in6_addr in6;
+	int valid;
 
 	p = strchr(name, '.');
 	if (!p)
@@ -2748,7 +2751,7 @@ nigroup(char *name)
 			*q = tolower(*(unsigned char *)q);
 	}
 
-	/* generate 8 bytes of pseudo-random value. */
+	/* generate 16 bytes of pseudo-random value. */
 	memset(&ctxt, 0, sizeof(ctxt));
 	MD5Init(&ctxt);
 	c = l & 0xff;
@@ -2756,9 +2759,23 @@ nigroup(char *name)
 	MD5Update(&ctxt, (unsigned char *)name, l);
 	MD5Final(digest, &ctxt);
 
-	if (inet_pton(AF_INET6, "ff02::2:0000:0000", &in6) != 1)
+	if (nig_oldmcprefix) {
+		/* draft-ietf-ipngwg-icmp-name-lookup */
+		valid = inet_pton(AF_INET6, "ff02::2:0000:0000", &in6);
+	} else {
+		/* RFC 4620 */
+		valid = inet_pton(AF_INET6, "ff02::2:ff00:0000", &in6);
+	}
+	if (valid != 1)
 		return NULL;	/*XXX*/
-	bcopy(digest, &in6.s6_addr[12], 4);
+	
+	if (nig_oldmcprefix) {
+		/* draft-ietf-ipngwg-icmp-name-lookup */
+		bcopy(digest, &in6.s6_addr[12], 4);
+	} else {
+		/* RFC 4620 */
+		bcopy(digest, &in6.s6_addr[13], 3);
+	}
 
 	if (inet_ntop(AF_INET6, &in6, hbuf, sizeof(hbuf)) == NULL)
 		return NULL;

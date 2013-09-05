@@ -2,23 +2,16 @@
  * AES (Rijndael) cipher
  *
  * Modifications to public domain implementation:
- * - support only 128-bit keys
  * - cleanup
  * - use C pre-processor to make it easier to change S table access
  * - added option (AES_SMALL_TABLES) for reducing code size by about 8 kB at
  *   cost of reduced throughput (quite small difference on Pentium 4,
  *   10-25% when using -O1 or -O2 optimization)
  *
- * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -783,7 +776,7 @@ const u8 rcons[] = {
  *
  * @return	the number of rounds for the given cipher key size.
  */
-void rijndaelKeySetupEnc(u32 rk[/*44*/], const u8 cipherKey[])
+int rijndaelKeySetupEnc(u32 rk[], const u8 cipherKey[], int keyBits)
 {
 	int i;
 	u32 temp;
@@ -792,14 +785,61 @@ void rijndaelKeySetupEnc(u32 rk[/*44*/], const u8 cipherKey[])
 	rk[1] = GETU32(cipherKey +  4);
 	rk[2] = GETU32(cipherKey +  8);
 	rk[3] = GETU32(cipherKey + 12);
-	for (i = 0; i < 10; i++) {
-		temp  = rk[3];
-		rk[4] = rk[0] ^
-			TE421(temp) ^ TE432(temp) ^ TE443(temp) ^ TE414(temp) ^
-			RCON(i);
-		rk[5] = rk[1] ^ rk[4];
-		rk[6] = rk[2] ^ rk[5];
-		rk[7] = rk[3] ^ rk[6];
-		rk += 4;
+
+	if (keyBits == 128) {
+		for (i = 0; i < 10; i++) {
+			temp  = rk[3];
+			rk[4] = rk[0] ^ TE421(temp) ^ TE432(temp) ^
+				TE443(temp) ^ TE414(temp) ^ RCON(i);
+			rk[5] = rk[1] ^ rk[4];
+			rk[6] = rk[2] ^ rk[5];
+			rk[7] = rk[3] ^ rk[6];
+			rk += 4;
+		}
+		return 10;
 	}
+
+	rk[4] = GETU32(cipherKey + 16);
+	rk[5] = GETU32(cipherKey + 20);
+
+	if (keyBits == 192) {
+		for (i = 0; i < 8; i++) {
+			temp  = rk[5];
+			rk[6] = rk[0] ^ TE421(temp) ^ TE432(temp) ^
+				TE443(temp) ^ TE414(temp) ^ RCON(i);
+			rk[7] = rk[1] ^ rk[6];
+			rk[8] = rk[2] ^ rk[7];
+			rk[9] = rk[3] ^ rk[8];
+			if (i == 7)
+				return 12;
+			rk[10] = rk[4] ^ rk[9];
+			rk[11] = rk[5] ^ rk[10];
+			rk += 6;
+		}
+	}
+
+	rk[6] = GETU32(cipherKey + 24);
+	rk[7] = GETU32(cipherKey + 28);
+
+	if (keyBits == 256) {
+		for (i = 0; i < 7; i++) {
+			temp  = rk[7];
+			rk[8] = rk[0] ^ TE421(temp) ^ TE432(temp) ^
+				TE443(temp) ^ TE414(temp) ^ RCON(i);
+			rk[9] = rk[1] ^ rk[8];
+			rk[10] = rk[2] ^ rk[9];
+			rk[11] = rk[3] ^ rk[10];
+			if (i == 6)
+				return 14;
+			temp  = rk[11];
+			rk[12] = rk[4] ^ TE411(temp) ^ TE422(temp) ^
+				TE433(temp) ^ TE444(temp);
+			rk[13] = rk[5] ^ rk[12];
+			rk[14] = rk[6] ^ rk[13];
+			rk[15] = rk[7] ^ rk[14];
+			rk += 8;
+		}
+	}
+
+	return -1;
 }

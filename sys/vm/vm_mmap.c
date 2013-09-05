@@ -201,7 +201,7 @@ sys_mmap(td, uap)
 	vm_prot_t cap_maxprot, prot, maxprot;
 	void *handle;
 	objtype_t handle_type;
-	int flags, error;
+	int align, error, flags;
 	off_t pos;
 	struct vmspace *vms = td->td_proc->p_vmspace;
 	cap_rights_t rights;
@@ -250,6 +250,13 @@ sys_mmap(td, uap)
 	/* Adjust size for rounding (on both ends). */
 	size += pageoff;			/* low end... */
 	size = (vm_size_t) round_page(size);	/* hi end */
+
+	/* Ensure alignment is at least a page and fits in a pointer. */
+	align = flags & MAP_ALIGNMENT_MASK;
+	if (align != 0 && align != MAP_ALIGNED_SUPER &&
+	    (align >> MAP_ALIGNMENT_SHIFT >= sizeof(void *) * NBBY ||
+	    align >> MAP_ALIGNMENT_SHIFT < PAGE_SHIFT))
+		return (EINVAL);
 
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
@@ -304,17 +311,17 @@ sys_mmap(td, uap)
 		 * rights, but also return the maximum rights to be combined
 		 * with maxprot later.
 		 */
-		rights = CAP_MMAP;
+		cap_rights_init(&rights, CAP_MMAP);
 		if (prot & PROT_READ)
-			rights |= CAP_MMAP_R;
+			cap_rights_set(&rights, CAP_MMAP_R);
 		if ((flags & MAP_SHARED) != 0) {
 			if (prot & PROT_WRITE)
-				rights |= CAP_MMAP_W;
+				cap_rights_set(&rights, CAP_MMAP_W);
 		}
 		if (prot & PROT_EXEC)
-			rights |= CAP_MMAP_X;
-		if ((error = fget_mmap(td, uap->fd, rights, &cap_maxprot,
-		    &fp)) != 0)
+			cap_rights_set(&rights, CAP_MMAP_X);
+		error = fget_mmap(td, uap->fd, &rights, &cap_maxprot, &fp);
+		if (error != 0)
 			goto done;
 		if (fp->f_type == DTYPE_SHM) {
 			handle = fp->f_data;
@@ -1036,18 +1043,24 @@ sys_mlock(td, uap)
 	struct thread *td;
 	struct mlock_args *uap;
 {
-	struct proc *proc;
+
+	return (vm_mlock(td->td_proc, td->td_ucred, uap->addr, uap->len));
+}
+
+int
+vm_mlock(struct proc *proc, struct ucred *cred, const void *addr0, size_t len)
+{
 	vm_offset_t addr, end, last, start;
 	vm_size_t npages, size;
 	vm_map_t map;
 	unsigned long nsize;
 	int error;
 
-	error = priv_check(td, PRIV_VM_MLOCK);
+	error = priv_check_cred(cred, PRIV_VM_MLOCK, 0);
 	if (error)
 		return (error);
-	addr = (vm_offset_t)uap->addr;
-	size = uap->len;
+	addr = (vm_offset_t)addr0;
+	size = len;
 	last = addr + size;
 	start = trunc_page(addr);
 	end = round_page(last);
@@ -1056,7 +1069,6 @@ sys_mlock(td, uap)
 	npages = atop(end - start);
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
-	proc = td->td_proc;
 	map = &proc->p_vmspace->vm_map;
 	PROC_LOCK(proc);
 	nsize = ptoa(npages + pmap_wired_count(map->pmap));
@@ -1219,6 +1231,9 @@ sys_munlock(td, uap)
 {
 	vm_offset_t addr, end, last, start;
 	vm_size_t size;
+#ifdef RACCT
+	vm_map_t map;
+#endif
 	int error;
 
 	error = priv_check(td, PRIV_VM_MUNLOCK);
@@ -1236,7 +1251,9 @@ sys_munlock(td, uap)
 #ifdef RACCT
 	if (error == KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
-		racct_sub(td->td_proc, RACCT_MEMLOCK, ptoa(end - start));
+		map = &td->td_proc->p_vmspace->vm_map;
+		racct_set(td->td_proc, RACCT_MEMLOCK,
+		    ptoa(pmap_wired_count(map->pmap)));
 		PROC_UNLOCK(td->td_proc);
 	}
 #endif
@@ -1284,12 +1301,12 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			error = EINVAL;
 			goto done;
 		}
-		if (obj->handle != vp) {
+		if (obj->type == OBJT_VNODE && obj->handle != vp) {
 			vput(vp);
 			vp = (struct vnode *)obj->handle;
 			/*
 			 * Bypass filesystems obey the mpsafety of the
-			 * underlying fs.
+			 * underlying fs.  Tmpfs never bypasses.
 			 */
 			error = vget(vp, locktype, td);
 			if (error != 0)
@@ -1333,7 +1350,14 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	objsize = round_page(va.va_size);
 	if (va.va_nlink == 0)
 		flags |= MAP_NOSYNC;
-	obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff, cred);
+	if (obj->type == OBJT_VNODE)
+		obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff,
+		    cred);
+	else {
+		KASSERT(obj->type == OBJT_DEFAULT || obj->type == OBJT_SWAP,
+		    ("wrong object type"));
+		vm_object_reference(obj);
+	}
 	if (obj == NULL) {
 		error = ENOMEM;
 		goto done;
@@ -1473,7 +1497,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	boolean_t fitit;
 	vm_object_t object = NULL;
 	struct thread *td = curthread;
-	int docow, error, rv;
+	int docow, error, findspace, rv;
 	boolean_t writecounted;
 
 	if (size == 0)
@@ -1588,11 +1612,17 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if (flags & MAP_STACK)
 		rv = vm_map_stack(map, *addr, size, prot, maxprot,
 		    docow | MAP_STACK_GROWS_DOWN);
-	else if (fitit)
-		rv = vm_map_find(map, object, foff, addr, size,
-		    object != NULL && object->type == OBJT_DEVICE ?
-		    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, prot, maxprot, docow);
-	else
+	else if (fitit) {
+		if ((flags & MAP_ALIGNMENT_MASK) == MAP_ALIGNED_SUPER)
+			findspace = VMFS_SUPER_SPACE;
+		else if ((flags & MAP_ALIGNMENT_MASK) != 0)
+			findspace = VMFS_ALIGNED_SPACE(flags >>
+			    MAP_ALIGNMENT_SHIFT);
+		else
+			findspace = VMFS_OPTIMAL_SPACE;
+		rv = vm_map_find(map, object, foff, addr, size, findspace,
+		    prot, maxprot, docow);
+	} else
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);
 

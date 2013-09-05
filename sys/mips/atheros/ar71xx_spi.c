@@ -108,7 +108,7 @@ ar71xx_spi_attach(device_t dev)
 	SPI_WRITE(sc, AR71XX_SPI_CTRL, 0x43);
 	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, SPI_IO_CTRL_CSMASK);
 
-	device_add_child(dev, "spibus", 0);
+	device_add_child(dev, "spibus", -1);
 	return (bus_generic_attach(dev));
 }
 

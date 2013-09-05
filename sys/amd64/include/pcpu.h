@@ -42,15 +42,6 @@
 #endif
 #endif
 
-#ifdef XENHVM
-#define PCPU_XEN_FIELDS							\
-	;								\
-	unsigned int pc_last_processed_l1i;				\
-	unsigned int pc_last_processed_l2i
-#else
-#define PCPU_XEN_FIELDS
-#endif
-
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -76,10 +67,15 @@
 	struct system_segment_descriptor *pc_ldt;			\
 	/* Pointer to the CPU TSS descriptor */				\
 	struct system_segment_descriptor *pc_tss;			\
-	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
-	PCPU_XEN_FIELDS;						\
-	char	__pad[293]		/* be divisor of PAGE_SIZE	\
+	uint64_t	pc_pm_save_cnt;					\
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
+	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
+	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
+	char	__pad[161]		/* be divisor of PAGE_SIZE	\
 					   after cache alignment */
+
+#define	PC_DBREG_CMD_NONE	0
+#define	PC_DBREG_CMD_LOAD	1
 
 #ifdef _KERNEL
 

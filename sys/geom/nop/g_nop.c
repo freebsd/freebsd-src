@@ -124,7 +124,7 @@ g_nop_start(struct bio *bp)
 
 		rval = arc4random() % 100;
 		if (rval < failprob) {
-			G_NOP_LOGREQ(bp, "Returning error=%d.", sc->sc_error);
+			G_NOP_LOGREQLVL(1, bp, "Returning error=%d.", sc->sc_error);
 			g_io_deliver(bp, sc->sc_error);
 			return;
 		}

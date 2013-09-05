@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/counter.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -145,11 +146,11 @@ static struct mtx mrouter_mtx;
 static int ip_mrouter_cnt;	/* # of vnets with active mrouters */
 static int ip_mrouter_unloading; /* Allow no more V_ip_mrouter sockets */
 
-static VNET_DEFINE(struct mrtstat, mrtstat);
-#define	V_mrtstat		VNET(mrtstat)
-SYSCTL_VNET_STRUCT(_net_inet_ip, OID_AUTO, mrtstat, CTLFLAG_RW,
-    &VNET_NAME(mrtstat), mrtstat,
-    "IPv4 Multicast Forwarding Statistics (struct mrtstat, "
+static VNET_PCPUSTAT_DEFINE(struct mrtstat, mrtstat);
+VNET_PCPUSTAT_SYSINIT(mrtstat);
+VNET_PCPUSTAT_SYSUNINIT(mrtstat);
+SYSCTL_VNET_PCPUSTAT(_net_inet_ip, OID_AUTO, mrtstat, struct mrtstat,
+    mrtstat, "IPv4 Multicast Forwarding Statistics (struct mrtstat, "
     "netinet/ip_mroute.h)");
 
 static VNET_DEFINE(u_long, mfchash);
@@ -225,13 +226,13 @@ static VNET_DEFINE(struct callout, bw_upcalls_ch);
 
 #define BW_UPCALLS_PERIOD (hz)		/* periodical flush of bw upcalls */
 
-static VNET_DEFINE(struct pimstat, pimstat);
-#define	V_pimstat		VNET(pimstat)
+static VNET_PCPUSTAT_DEFINE(struct pimstat, pimstat);
+VNET_PCPUSTAT_SYSINIT(pimstat);
+VNET_PCPUSTAT_SYSUNINIT(pimstat);
 
 SYSCTL_NODE(_net_inet, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
-SYSCTL_VNET_STRUCT(_net_inet_pim, PIMCTL_STATS, stats, CTLFLAG_RD,
-    &VNET_NAME(pimstat), pimstat,
-    "PIM Statistics (struct pimstat, netinet/pim_var.h)");
+SYSCTL_VNET_PCPUSTAT(_net_inet_pim, PIMCTL_STATS, stats, struct pimstat,
+    pimstat, "PIM Statistics (struct pimstat, netinet/pim_var.h)");
 
 static u_long	pim_squelch_wholepkt = 0;
 SYSCTL_ULONG(_net_inet_pim, OID_AUTO, squelch_wholepkt, CTLFLAG_RW,
@@ -608,7 +609,7 @@ static void
 if_detached_event(void *arg __unused, struct ifnet *ifp)
 {
     vifi_t vifi;
-    int i;
+    u_long i;
 
     MROUTER_LOCK();
 
@@ -633,8 +634,8 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
 		continue;
 	for (i = 0; i < mfchashsize; i++) {
 		struct mfc *rt, *nrt;
-		for (rt = LIST_FIRST(&V_mfchashtbl[i]); rt; rt = nrt) {
-			nrt = LIST_NEXT(rt, mfc_hash);
+
+		LIST_FOREACH_SAFE(rt, &V_mfchashtbl[i], mfc_hash, nrt) {
 			if (rt->mfc_parent == vifi) {
 				expire_mfc(rt);
 			}
@@ -703,10 +704,9 @@ ip_mrouter_init(struct socket *so, int version)
 static int
 X_ip_mrouter_done(void)
 {
-    vifi_t vifi;
-    int i;
     struct ifnet *ifp;
-    struct ifreq ifr;
+    u_long i;
+    vifi_t vifi;
 
     MROUTER_LOCK();
 
@@ -731,11 +731,6 @@ X_ip_mrouter_done(void)
     for (vifi = 0; vifi < V_numvifs; vifi++) {
 	if (!in_nullhost(V_viftable[vifi].v_lcl_addr) &&
 		!(V_viftable[vifi].v_flags & (VIFF_TUNNEL | VIFF_REGISTER))) {
-	    struct sockaddr_in *so = (struct sockaddr_in *)&(ifr.ifr_addr);
-
-	    so->sin_len = sizeof(struct sockaddr_in);
-	    so->sin_family = AF_INET;
-	    so->sin_addr.s_addr = INADDR_ANY;
 	    ifp = V_viftable[vifi].v_ifp;
 	    if_allmulti(ifp, 0);
 	}
@@ -758,8 +753,8 @@ X_ip_mrouter_done(void)
      */
     for (i = 0; i < mfchashsize; i++) {
 	struct mfc *rt, *nrt;
-	for (rt = LIST_FIRST(&V_mfchashtbl[i]); rt; rt = nrt) {
-		nrt = LIST_NEXT(rt, mfc_hash);
+
+	LIST_FOREACH_SAFE(rt, &V_mfchashtbl[i], mfc_hash, nrt) {
 		expire_mfc(rt);
 	}
     }
@@ -802,7 +797,7 @@ set_assert(int i)
 int
 set_api_config(uint32_t *apival)
 {
-    int i;
+    u_long i;
 
     /*
      * We can set the API capabilities only if it is the first operation
@@ -824,6 +819,7 @@ set_api_config(uint32_t *apival)
 
     for (i = 0; i < mfchashsize; i++) {
 	if (LIST_FIRST(&V_mfchashtbl[i]) != NULL) {
+	    MFC_UNLOCK();
 	    *apival = 0;
 	    return EPERM;
 	}
@@ -1437,7 +1433,7 @@ non_fatal:
 static void
 expire_upcalls(void *arg)
 {
-    int i;
+    u_long i;
 
     CURVNET_SET((struct vnet *) arg);
 
@@ -1449,9 +1445,7 @@ expire_upcalls(void *arg)
 	if (V_nexpire[i] == 0)
 	    continue;
 
-	for (rt = LIST_FIRST(&V_mfchashtbl[i]); rt; rt = nrt) {
-		nrt = LIST_NEXT(rt, mfc_hash);
-
+	LIST_FOREACH_SAFE(rt, &V_mfchashtbl[i], mfc_hash, nrt) {
 		if (TAILQ_EMPTY(&rt->mfc_stall))
 			continue;
 
@@ -2845,7 +2839,8 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event, 
 	    if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
 	if (if_detach_event_tag == NULL) {
-		printf("ip_mroute: unable to ifnet_deperture_even handler\n");
+		printf("ip_mroute: unable to register "
+		    "ifnet_departure_event handler\n");
 		MROUTER_LOCK_DESTROY();
 		return (EINVAL);
 	}

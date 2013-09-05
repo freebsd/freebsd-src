@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/systm.h>
@@ -136,32 +138,40 @@ filemon_dtr(void *data)
 	}
 }
 
-#if __FreeBSD_version < 900041
-#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), (a3))
-#else
-#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), CAP_WRITE | CAP_SEEK, (a3))
-#endif
-
 static int
 filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
     struct thread *td)
 {
 	int error = 0;
 	struct filemon *filemon;
+	struct proc *p;
+#if __FreeBSD_version >= 900041
+	cap_rights_t rights;
+#endif
 
 	devfs_get_cdevpriv((void **) &filemon);
 
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
-		if ((error = FGET_WRITE(td, *(int *)data, &filemon->fp)) == 0)
+		error = fget_write(td, *(int *)data,
+#if __FreeBSD_version >= 900041
+		    cap_rights_init(&rights, CAP_PWRITE),
+#endif
+		    &filemon->fp);
+		if (error == 0)
 			/* Write the file header. */
 			filemon_comment(filemon);
 		break;
 
 	/* Set the monitored process ID. */
 	case FILEMON_SET_PID:
-		filemon->pid = *((pid_t *)data);
+		error = pget(*((pid_t *)data), PGET_CANDEBUG | PGET_NOTWEXIT,
+		    &p);
+		if (error == 0) {
+			filemon->pid = p->p_pid;
+			PROC_UNLOCK(p);
+		}
 		break;
 
 	default:

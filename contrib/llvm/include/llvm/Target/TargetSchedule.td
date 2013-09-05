@@ -76,6 +76,7 @@ class SchedMachineModel {
   int IssueWidth = -1; // Max micro-ops that may be scheduled per cycle.
   int MinLatency = -1; // Determines which instrucions are allowed in a group.
                        // (-1) inorder (0) ooo, (1): inorder +var latencies.
+  int ILPWindow = -1;  // Cycles of latency likely hidden by hardware buffers.
   int LoadLatency = -1; // Cycles for loads to access the cache.
   int HighLatency = -1; // Approximation of cycles for "high latency" ops.
   int MispredictPenalty = -1; // Extra cycles for a mispredicted branch.
@@ -131,6 +132,11 @@ def EponymousProcResourceKind : ProcResourceKind;
 // units in one place.
 class ProcResource<int num> : ProcResourceKind,
   ProcResourceUnits<EponymousProcResourceKind, num>;
+
+class ProcResGroup<list<ProcResource> resources> : ProcResourceKind {
+  list<ProcResource> Resources = resources;
+  SchedMachineModel SchedModel = ?;
+}
 
 // A target architecture may define SchedReadWrite types and associate
 // them with instruction operands.

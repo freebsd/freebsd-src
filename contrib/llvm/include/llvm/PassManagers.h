@@ -14,13 +14,13 @@
 #ifndef LLVM_PASSMANAGERS_H
 #define LLVM_PASSMANAGERS_H
 
-#include "llvm/Pass.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/DenseMap.h"
-#include <vector>
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Pass.h"
 #include <map>
+#include <vector>
 
 //===----------------------------------------------------------------------===//
 // Overview:
@@ -168,7 +168,7 @@ class PMTopLevelManager {
 protected:
   explicit PMTopLevelManager(PMDataManager *PMDM);
 
-  virtual unsigned getNumContainedManagers() const {
+  unsigned getNumContainedManagers() const {
     return (unsigned)PassManagers.size();
   }
 
@@ -343,7 +343,7 @@ public:
   void dumpRequiredSet(const Pass *P) const;
   void dumpPreservedSet(const Pass *P) const;
 
-  virtual unsigned getNumContainedPasses() const {
+  unsigned getNumContainedPasses() const {
     return (unsigned)PassVector.size();
   }
 
@@ -352,7 +352,7 @@ public:
     return PMT_Unknown;
   }
 
-  std::map<AnalysisID, Pass*> *getAvailableAnalysis() {
+  DenseMap<AnalysisID, Pass*> *getAvailableAnalysis() {
     return &AvailableAnalysis;
   }
 
@@ -375,8 +375,7 @@ protected:
   // Collection of Analysis provided by Parent pass manager and
   // used by current pass manager. At at time there can not be more
   // then PMT_Last active pass mangers.
-  std::map<AnalysisID, Pass *> *InheritedAnalysis[PMT_Last];
-
+  DenseMap<AnalysisID, Pass *> *InheritedAnalysis[PMT_Last];
 
   /// isPassDebuggingExecutionsOrMore - Return true if -debug-pass=Executions
   /// or higher is specified.
@@ -390,7 +389,7 @@ private:
   // pass. If a pass requires an analysis which is not available then
   // the required analysis pass is scheduled to run before the pass itself is
   // scheduled to run.
-  std::map<AnalysisID, Pass*> AvailableAnalysis;
+  DenseMap<AnalysisID, Pass*> AvailableAnalysis;
 
   // Collection of higher level analysis used by the pass managed by
   // this manager.
@@ -420,10 +419,20 @@ public:
   /// cleanup - After running all passes, clean up pass manager cache.
   void cleanup();
 
+  /// doInitialization - Overrides ModulePass doInitialization for global
+  /// initialization tasks
+  ///
+  using ModulePass::doInitialization;
+
   /// doInitialization - Run all of the initializers for the function passes.
   ///
   bool doInitialization(Module &M);
 
+  /// doFinalization - Overrides ModulePass doFinalization for global
+  /// finalization tasks
+  /// 
+  using ModulePass::doFinalization;
+  
   /// doFinalization - Run all of the finalizers for the function passes.
   ///
   bool doFinalization(Module &M);

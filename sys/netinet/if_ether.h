@@ -48,9 +48,9 @@
 	(enaddr)[0] = 0x01; \
 	(enaddr)[1] = 0x00; \
 	(enaddr)[2] = 0x5e; \
-	(enaddr)[3] = ((u_char *)ipaddr)[1] & 0x7f; \
-	(enaddr)[4] = ((u_char *)ipaddr)[2]; \
-	(enaddr)[5] = ((u_char *)ipaddr)[3]; \
+	(enaddr)[3] = ((const u_char *)ipaddr)[1] & 0x7f; \
+	(enaddr)[4] = ((const u_char *)ipaddr)[2]; \
+	(enaddr)[5] = ((const u_char *)ipaddr)[3]; \
 }
 /*
  * Macro to map an IP6 multicast address to an Ethernet multicast address.
@@ -63,10 +63,10 @@
 {                                                                       \
 	(enaddr)[0] = 0x33;						\
 	(enaddr)[1] = 0x33;						\
-	(enaddr)[2] = ((u_char *)ip6addr)[12];				\
-	(enaddr)[3] = ((u_char *)ip6addr)[13];				\
-	(enaddr)[4] = ((u_char *)ip6addr)[14];				\
-	(enaddr)[5] = ((u_char *)ip6addr)[15];				\
+	(enaddr)[2] = ((const u_char *)ip6addr)[12];			\
+	(enaddr)[3] = ((const u_char *)ip6addr)[13];			\
+	(enaddr)[4] = ((const u_char *)ip6addr)[14];			\
+	(enaddr)[5] = ((const u_char *)ip6addr)[15];			\
 }
 
 /*
@@ -115,11 +115,10 @@ extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 struct llentry;
 struct ifaddr;
 
-int	arpresolve(struct ifnet *ifp, struct rtentry *rt,
-		    struct mbuf *m, struct sockaddr *dst, u_char *desten,
-		    struct llentry **lle);
-void	arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
-		    u_char *);
+int	arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
+	    const struct sockaddr *dst, u_char *desten, struct llentry **lle);
+void	arprequest(struct ifnet *, const struct in_addr *,
+	    const struct in_addr *, u_char *);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
 void	arp_ifinit2(struct ifnet *, struct ifaddr *, u_char *);
 void	arp_ifscrub(struct ifnet *, uint32_t);

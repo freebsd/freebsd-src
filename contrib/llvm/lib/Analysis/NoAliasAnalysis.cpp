@@ -12,10 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/Pass.h"
-#include "llvm/DataLayout.h"
 using namespace llvm;
 
 namespace {

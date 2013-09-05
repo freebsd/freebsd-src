@@ -34,6 +34,7 @@ Lp6 = 1.5313838422e-01, /* 3E1CD04F */
 Lp7 = 1.4798198640e-01; /* 3E178897 */
 
 static const float zero = 0.0;
+static volatile float vzero = 0.0;
 
 float
 log1pf(float x)
@@ -47,7 +48,7 @@ log1pf(float x)
 	k = 1;
 	if (hx < 0x3ed413d0) {			/* 1+x < sqrt(2)+  */
 	    if(ax>=0x3f800000) {		/* x <= -1.0 */
-		if(x==(float)-1.0) return -two25/zero; /* log1p(-1)=+inf */
+		if(x==(float)-1.0) return -two25/vzero; /* log1p(-1)=+inf */
 		else return (x-x)/(x-x);	/* log1p(x<-1)=NaN */
 	    }
 	    if(ax<0x38000000) {			/* |x| < 2**-15 */

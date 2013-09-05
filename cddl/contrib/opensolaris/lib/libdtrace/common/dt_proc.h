@@ -24,12 +24,10 @@
  * Use is subject to license terms.
  */
 
-/*
- * Copyright (c) 2012 by Delphix. All rights reserved.
- */
-
 #ifndef	_DT_PROC_H
 #define	_DT_PROC_H
+
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <libproc.h>
 #include <dtrace.h>
@@ -108,8 +106,8 @@ extern void dt_proc_lock(dtrace_hdl_t *, struct ps_prochandle *);
 extern void dt_proc_unlock(dtrace_hdl_t *, struct ps_prochandle *);
 extern dt_proc_t *dt_proc_lookup(dtrace_hdl_t *, struct ps_prochandle *, int);
 
-extern void dt_proc_init(dtrace_hdl_t *);
-extern void dt_proc_fini(dtrace_hdl_t *);
+extern void dt_proc_hash_create(dtrace_hdl_t *);
+extern void dt_proc_hash_destroy(dtrace_hdl_t *);
 
 #ifdef	__cplusplus
 }

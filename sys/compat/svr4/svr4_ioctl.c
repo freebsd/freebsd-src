@@ -84,6 +84,7 @@ svr4_sys_ioctl(td, uap)
 	struct svr4_sys_ioctl_args *uap;
 {
 	int             *retval;
+	cap_rights_t	 rights;
 	struct file	*fp;
 	u_long		 cmd;
 	int (*fun)(struct file *, struct thread *, register_t *,
@@ -103,7 +104,8 @@ svr4_sys_ioctl(td, uap)
 	retval = td->td_retval;
 	cmd = uap->com;
 
-	if ((error = fget(td, uap->fd, CAP_IOCTL, &fp)) != 0)
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	if (error != 0)
 		return (error);
 
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {

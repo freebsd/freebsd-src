@@ -57,6 +57,7 @@
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
+#include <machine/md_var.h>
 #include <machine/stdarg.h>
 
 #include <sys/dtrace.h>
@@ -172,7 +173,11 @@ fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
 					tmp = fbt->fbtp_savedval & FBT_BR_MASK;
 					/* Sign extend. */
 					if (tmp & 0x02000000)
-						tmp |= 0xFC000000;
+#ifdef __powerpc64__
+						tmp |= 0xfffffffffc000000ULL;
+#else
+						tmp |= 0xfc000000UL;
+#endif
 					frame->srr0 += tmp;
 				}
 				cpu->cpu_dtrace_caller = 0;
@@ -193,8 +198,11 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	const char *name = symval->name;
 	fbt_probe_t *fbt, *retfbt;
 	int j;
-	int size;
 	u_int32_t *instr, *limit;
+
+	/* PowerPC64 uses '.' prefixes on symbol names, ignore it. */
+	if (name[0] == '.')
+		name++;
 
 	if (strncmp(name, "dtrace_", 7) == 0 &&
 	    strncmp(name, "dtrace_safe_", 12) != 0) {
@@ -210,8 +218,6 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	if (name[0] == '_' && name[1] == '_')
 		return (0);
 
-	size = symval->size;
-
 	instr = (u_int32_t *) symval->value;
 	limit = (u_int32_t *) symval->value + symval->size;
 
@@ -219,7 +225,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 		if (*instr == FBT_MFLR_R0)
 			break;
 
-	if (*instr != FBT_MFLR_R0);
+	if (*instr != FBT_MFLR_R0)
 		return (0);
 
 	fbt = malloc(sizeof (fbt_probe_t), M_FBT, M_WAITOK | M_ZERO);
@@ -264,9 +270,6 @@ again:
 		}
 	}
 
-	if (*instr == FBT_MFLR_R0)
-		return (0);
-
 	if (*instr != FBT_MTLR_R0) {
 		instr++;
 		goto again;
@@ -291,7 +294,7 @@ again:
 
 	if (retfbt == NULL) {
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
-		    name, FBT_RETURN, 3, fbt);
+		    name, FBT_RETURN, 5, fbt);
 	} else {
 		retfbt->fbtp_next = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;
@@ -317,7 +320,7 @@ again:
 
 	lf->fbt_nentries++;
 
-	instr += size;
+	instr += 4;
 	goto again;
 }
 
@@ -434,6 +437,7 @@ fbt_enable(void *arg, dtrace_id_t id, void *parg)
 
 	for (; fbt != NULL; fbt = fbt->fbtp_next) {
 		*fbt->fbtp_patchpoint = fbt->fbtp_patchval;
+		__syncicache(fbt->fbtp_patchpoint, 4);
 	}
 }
 
@@ -449,8 +453,10 @@ fbt_disable(void *arg, dtrace_id_t id, void *parg)
 	if ((ctl->loadcnt != fbt->fbtp_loadcnt))
 		return;
 
-	for (; fbt != NULL; fbt = fbt->fbtp_next)
+	for (; fbt != NULL; fbt = fbt->fbtp_next) {
 		*fbt->fbtp_patchpoint = fbt->fbtp_savedval;
+		__syncicache(fbt->fbtp_patchpoint, 4);
+	}
 }
 
 static void
@@ -464,8 +470,10 @@ fbt_suspend(void *arg, dtrace_id_t id, void *parg)
 	if ((ctl->loadcnt != fbt->fbtp_loadcnt))
 		return;
 
-	for (; fbt != NULL; fbt = fbt->fbtp_next)
+	for (; fbt != NULL; fbt = fbt->fbtp_next) {
 		*fbt->fbtp_patchpoint = fbt->fbtp_savedval;
+		__syncicache(fbt->fbtp_patchpoint, 4);
+	}
 }
 
 static void
@@ -479,15 +487,16 @@ fbt_resume(void *arg, dtrace_id_t id, void *parg)
 	if ((ctl->loadcnt != fbt->fbtp_loadcnt))
 		return;
 
-	for (; fbt != NULL; fbt = fbt->fbtp_next)
+	for (; fbt != NULL; fbt = fbt->fbtp_next) {
 		*fbt->fbtp_patchpoint = fbt->fbtp_patchval;
+		__syncicache(fbt->fbtp_patchpoint, 4);
+	}
 }
 
 static int
 fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 {
 	const Elf_Sym *symp = lc->symtab;;
-	const char *name;
 	const ctf_header_t *hp = (const ctf_header_t *) lc->ctftab;
 	const uint8_t *ctfdata = lc->ctftab + sizeof(ctf_header_t);
 	int i;
@@ -518,11 +527,6 @@ fbt_ctfoff_init(modctl_t *lf, linker_ctf_t *lc)
 			*ctfoff = 0xffffffff;
 			continue;
 		}
-
-		if (symp->st_name < lc->strcnt)
-			name = lc->strtab + symp->st_name;
-		else
-			name = "(?)";
 
 		switch (ELF_ST_TYPE(symp->st_info)) {
 		case STT_OBJECT:
@@ -690,6 +694,8 @@ fbt_typoff_init(linker_ctf_t *lc)
 		pop[kind]++;
 	}
 
+	/* account for a sentinel value below */
+	ctf_typemax++;
 	*lc->typlenp = ctf_typemax;
 
 	if ((xp = malloc(sizeof(uint32_t) * ctf_typemax, M_LINKER, M_ZERO | M_WAITOK)) == NULL)
@@ -1171,6 +1177,11 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 	uint32_t offset;
 	ushort_t info, kind, n;
 
+	if (fbt->fbtp_roffset != 0 && desc->dtargd_ndx == 0) {
+		(void) strcpy(desc->dtargd_native, "int");
+		return;
+	}
+
 	desc->dtargd_ndx = DTRACE_ARGNONE;
 
 	/* Get a pointer to the CTF data and it's length. */
@@ -1221,17 +1232,33 @@ fbt_getargdesc(void *arg __unused, dtrace_id_t id __unused, void *parg, dtrace_a
 		return;
 	}
 
-	/* Check if the requested argument doesn't exist. */
-	if (ndx >= n)
-		return;
+	if (fbt->fbtp_roffset != 0) {
+		/* Only return type is available for args[1] in return probe. */
+		if (ndx > 1)
+			return;
+		ASSERT(ndx == 1);
+	} else {
+		/* Check if the requested argument doesn't exist. */
+		if (ndx >= n)
+			return;
 
-	/* Skip the return type and arguments up to the one requested. */
-	dp += ndx + 1;
+		/* Skip the return type and arguments up to the one requested. */
+		dp += ndx + 1;
+	}
 
 	if (fbt_type_name(&lc, *dp, desc->dtargd_native, sizeof(desc->dtargd_native)) > 0)
 		desc->dtargd_ndx = ndx;
 
 	return;
+}
+
+static int
+fbt_linker_file_cb(linker_file_t lf, void *arg)
+{
+
+	fbt_provide_module(arg, lf);
+
+	return (0);
 }
 
 static void
@@ -1257,6 +1284,9 @@ fbt_load(void *dummy)
 	if (dtrace_register("fbt", &fbt_attr, DTRACE_PRIV_USER,
 	    NULL, &fbt_pops, NULL, &fbt_id) != 0)
 		return;
+
+	/* Create probes for the kernel and already-loaded modules. */
+	linker_file_foreach(fbt_linker_file_cb, NULL);
 }
 
 

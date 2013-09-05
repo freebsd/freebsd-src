@@ -1,0 +1,136 @@
+# Kernel configuration for Arndale Board (Exynos5 Dual development platform).
+#
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
+#
+#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
+# in NOTES.
+#
+# $FreeBSD$
+
+ident		ARNDALE
+
+include		"../samsung/exynos/std.exynos5"
+
+makeoptions	MODULES_OVERRIDE=""
+makeoptions	WITHOUT_MODULES="ahc"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WERROR="-Werror"
+
+options		HZ=100 ##
+options		SCHED_4BSD		#4BSD scheduler
+options		INET			#InterNETworking
+options		INET6			#IPv6 communications protocols
+options		FFS			#Berkeley Fast Filesystem
+options		SOFTUPDATES
+options		UFS_ACL			#Support for access control lists
+options		UFS_DIRHASH		#Improve performance on big directories
+options		MSDOSFS			#MSDOS Filesystem
+options		CD9660			#ISO 9660 Filesystem
+options		PROCFS			#Process filesystem (requires PSEUDOFS)
+options		PSEUDOFS		#Pseudo-filesystem framework
+options		TMPFS
+options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options		SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
+options		KTRACE
+options		SYSVSHM			#SYSV-style shared memory
+options		SYSVMSG			#SYSV-style message queues
+options		SYSVSEM			#SYSV-style semaphores
+options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options		KBD_INSTALL_CDEV
+options		PREEMPTION
+options		FREEBSD_BOOT_LOADER
+options 	VFP		# vfp/neon
+
+# Debugging
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+options		BREAK_TO_DEBUGGER
+#options	VERBOSE_SYSINIT		#Enable verbose sysinit messages
+options		KDB
+options		DDB			#Enable the kernel debugger
+options		INVARIANTS		#Enable calls of extra sanity checking
+options		INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+#options	WITNESS			#Enable checks to detect deadlocks and cycles
+#options	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+options		DIAGNOSTIC
+
+# NFS support
+options		NFSCL			#Network Filesystem Client
+options		NFSLOCKD		#Network Lock Manager
+options		NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+
+# Uncomment this for NFS root
+#options	NFS_ROOT		#NFS usable as /, requires NFSCL
+#options	BOOTP_NFSROOT
+#options	BOOTP_COMPAT
+#options	BOOTP
+#options	BOOTP_NFSV3
+#options	BOOTP_WIRED_TO=cpsw0
+
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		sdhci			# generic sdhci
+
+options		ROOTDEVNAME=\"ufs:/dev/da0\"
+
+#options	SMP
+
+# Pseudo devices
+
+device		loop
+device		random
+device		pty
+device		md
+device		gpio
+
+# USB support
+device		usb
+options		USB_DEBUG
+#options	USB_REQ_DEBUG
+#options	USB_VERBOSE
+#device		musb
+device		ehci
+#device		ohci
+
+device		umass
+device		scbus			# SCSI bus (required for SCSI)
+device		da			# Direct Access (disks)
+device		pass
+
+# SATA
+#device		ata
+#device		atadisk
+#device		mvs
+
+# Serial ports
+device		uart
+
+# I2C (TWSI)
+#device		iic
+#device		iicbus
+
+# Ethernet
+device		ether
+device		mii
+device		smsc
+device		smscphy
+
+# USB ethernet support, requires miibus
+device		miibus
+device		axe			# ASIX Electronics USB Ethernet
+device		bpf			# Berkeley packet filter
+
+#FDT
+options		FDT
+options		FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=exynos5250-arndale.dts

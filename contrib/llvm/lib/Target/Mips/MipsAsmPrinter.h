@@ -14,8 +14,8 @@
 #ifndef MIPSASMPRINTER_H
 #define MIPSASMPRINTER_H
 
-#include "MipsMachineFunction.h"
 #include "MipsMCInstLower.h"
+#include "MipsMachineFunction.h"
 #include "MipsSubtarget.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/Support/Compiler.h"
@@ -80,6 +80,7 @@ public:
   void printFCCOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
                        const char *Modifier = 0);
   void EmitStartOfAsmFile(Module &M);
+  void EmitEndOfAsmFile(Module &M);
   virtual MachineLocation getDebugValueLocation(const MachineInstr *MI) const;
   void PrintDebugValueComment(const MachineInstr *MI, raw_ostream &OS);
 };

@@ -24,7 +24,7 @@ nodevice gpio
 nodevice gpioled
 nodevice gif
 nodevice gre
-nodevice bridge
+nodevice if_bridge
 nodevice usb
 nodevice ehci
 nodevice wlan
@@ -54,11 +54,14 @@ options 	NO_SYSCTL_DESCR
 device		geom_map	# to get access to the SPI flash partitions
 device		geom_uncompress	# compressed in-memory filesystem hackery!
 options		GEOM_UNCOMPRESS
+options		GEOM_PART_GPT
 
 options		ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
 options		AR71XX_REALMEM=64*1024*1024
 
 options		AR71XX_ENV_UBOOT
+
+options		MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
 
 # options		MD_ROOT
 # options		MD_ROOT_SIZE="6144"

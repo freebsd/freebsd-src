@@ -73,10 +73,6 @@ dt_pq_insert(dt_pq_t *p, void *item)
 {
 	uint_t i;
 
-#if !defined(sun)
-	if (p->dtpq_last >= p->dtpq_size)
-		return;
-#endif
 	assert(p->dtpq_last < p->dtpq_size);
 
 	i = p->dtpq_last++;

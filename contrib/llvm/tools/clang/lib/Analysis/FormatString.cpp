@@ -204,7 +204,7 @@ clang::analyze_format_string::ParseLengthModifier(FormatSpecifier &FS,
     case 'L': lmKind = LengthModifier::AsLongDouble; ++I; break;
     case 'q': lmKind = LengthModifier::AsQuad;       ++I; break;
     case 'a':
-      if (IsScanf && !LO.C99 && !LO.CPlusPlus0x) {
+      if (IsScanf && !LO.C99 && !LO.CPlusPlus11) {
         // For scanf in C90, look at the next character to see if this should
         // be parsed as the GNU extension 'a' length modifier. If not, this
         // will be parsed as a conversion specifier.
@@ -532,13 +532,13 @@ const char *ConversionSpecifier::toString() const {
   return NULL;
 }
 
-llvm::Optional<ConversionSpecifier>
+Optional<ConversionSpecifier>
 ConversionSpecifier::getStandardSpecifier() const {
   ConversionSpecifier::Kind NewKind;
   
   switch (getKind()) {
   default:
-    return llvm::Optional<ConversionSpecifier>();
+    return None;
   case DArg:
     NewKind = dArg;
     break;
@@ -766,8 +766,7 @@ bool FormatSpecifier::hasStandardLengthConversionCombination() const {
   return true;
 }
 
-llvm::Optional<LengthModifier>
-FormatSpecifier::getCorrectedLengthModifier() const {
+Optional<LengthModifier> FormatSpecifier::getCorrectedLengthModifier() const {
   if (CS.isAnyIntArg() || CS.getKind() == ConversionSpecifier::nArg) {
     if (LM.getKind() == LengthModifier::AsLongDouble ||
         LM.getKind() == LengthModifier::AsQuad) {
@@ -777,7 +776,7 @@ FormatSpecifier::getCorrectedLengthModifier() const {
     }
   }
 
-  return llvm::Optional<LengthModifier>();
+  return None;
 }
 
 bool FormatSpecifier::namedTypeToLengthModifier(QualType QT,

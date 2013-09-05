@@ -45,13 +45,12 @@ namespace llvm {
   void ComputeSignBit(Value *V, bool &KnownZero, bool &KnownOne,
                       const DataLayout *TD = 0, unsigned Depth = 0);
 
-  /// isPowerOfTwo - Return true if the given value is known to have exactly one
-  /// bit set when defined. For vectors return true if every element is known to
-  /// be a power of two when defined.  Supports values with integer or pointer
-  /// type and vectors of integers.  If 'OrZero' is set then returns true if the
-  /// given value is either a power of two or zero.
-  bool isPowerOfTwo(Value *V, const DataLayout *TD = 0, bool OrZero = false,
-                    unsigned Depth = 0);
+  /// isKnownToBeAPowerOfTwo - Return true if the given value is known to have
+  /// exactly one bit set when defined. For vectors return true if every
+  /// element is known to be a power of two when defined.  Supports values with
+  /// integer or pointer type and vectors of integers.  If 'OrZero' is set then
+  /// returns true if the given value is either a power of two or zero.
+  bool isKnownToBeAPowerOfTwo(Value *V, bool OrZero = false, unsigned Depth = 0);
 
   /// isKnownNonZero - Return true if the given value is known to be non-zero
   /// when defined.  For vectors return true if every element is known to be
@@ -118,10 +117,10 @@ namespace llvm {
   /// it can be expressed as a base pointer plus a constant offset.  Return the
   /// base and offset to the caller.
   Value *GetPointerBaseWithConstantOffset(Value *Ptr, int64_t &Offset,
-                                          const DataLayout &TD);
+                                          const DataLayout *TD);
   static inline const Value *
   GetPointerBaseWithConstantOffset(const Value *Ptr, int64_t &Offset,
-                                   const DataLayout &TD) {
+                                   const DataLayout *TD) {
     return GetPointerBaseWithConstantOffset(const_cast<Value*>(Ptr), Offset,TD);
   }
   
@@ -183,6 +182,11 @@ namespace llvm {
   /// for such instructions, moving them may change the resulting value.
   bool isSafeToSpeculativelyExecute(const Value *V,
                                     const DataLayout *TD = 0);
+
+  /// isKnownNonNull - Return true if this pointer couldn't possibly be null by
+  /// its definition.  This returns true for allocas, non-extern-weak globals
+  /// and byval arguments.
+  bool isKnownNonNull(const Value *V);
 
 } // end namespace llvm
 

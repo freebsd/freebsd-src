@@ -97,10 +97,11 @@
 #endif
 
 /*
- * AcpiBin/AcpiHelp/AcpiSrc configuration. All single threaded, with
- * no debug output.
+ * AcpiBin/AcpiDump/AcpiSrc/AcpiXtract configuration. All single
+ * threaded, with no debug output.
  */
 #if (defined ACPI_BIN_APP)   || \
+    (defined ACPI_DUMP_APP)  || \
     (defined ACPI_SRC_APP)   || \
     (defined ACPI_XTRACT_APP)
 #define ACPI_APPLICATION
@@ -146,6 +147,9 @@
 
 #if defined(_LINUX) || defined(__linux__)
 #include "aclinux.h"
+
+#elif defined(_APPLE) || defined(__APPLE__)
+#include "acmacosx.h"
 
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <contrib/dev/acpica/include/platform/acfreebsd.h>

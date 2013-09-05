@@ -16,10 +16,12 @@
 
 top_srcdir =	@top_srcdir@
 srcdir =	@top_srcdir@/lib/isc/nls
+export_srcdir = @top_srcdir@/lib/export
 
 @BIND9_MAKE_INCLUDES@
 
 CINCLUDES =	-I${srcdir}/unix/include \
+		-I${export_srcdir}/isc/include \
 		${ISC_INCLUDES}
 
 CDEFINES =

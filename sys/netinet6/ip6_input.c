@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
+#include "opt_kdtrace.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
@@ -92,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_systm.h>
 #include <net/if_llatbl.h>
@@ -141,7 +144,11 @@ VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
 
 VNET_DEFINE(struct pfil_head, inet6_pfil_hook);
 
-VNET_DEFINE(struct ip6stat, ip6stat);
+VNET_PCPUSTAT_DEFINE(struct ip6stat, ip6stat);
+VNET_PCPUSTAT_SYSINIT(ip6stat);
+#ifdef VIMAGE
+VNET_PCPUSTAT_SYSUNINIT(ip6stat);
+#endif /* VIMAGE */
 
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
@@ -466,18 +473,16 @@ ip6_input(struct mbuf *m)
 		else
 			IP6STAT_INC(ip6s_mext1);
 	} else {
-#define M2MMAX	(sizeof(V_ip6stat.ip6s_m2m)/sizeof(V_ip6stat.ip6s_m2m[0]))
 		if (m->m_next) {
 			if (m->m_flags & M_LOOP) {
 				IP6STAT_INC(ip6s_m2m[V_loif->if_index]);
-			} else if (m->m_pkthdr.rcvif->if_index < M2MMAX)
+			} else if (m->m_pkthdr.rcvif->if_index < IP6S_M2MMAX)
 				IP6STAT_INC(
 				    ip6s_m2m[m->m_pkthdr.rcvif->if_index]);
 			else
 				IP6STAT_INC(ip6s_m2m[0]);
 		} else
 			IP6STAT_INC(ip6s_m1);
-#undef M2MMAX
 	}
 
 	/* drop the packet if IPv6 operation is disabled on the IF */
@@ -535,6 +540,8 @@ ip6_input(struct mbuf *m)
 	}
 
 	IP6STAT_INC(ip6s_nxthist[ip6->ip6_nxt]);
+
+	IP_PROBE(receive, NULL, NULL, ip6, m->m_pkthdr.rcvif, NULL, ip6);
 
 	/*
 	 * Check against address spoofing/corruption.

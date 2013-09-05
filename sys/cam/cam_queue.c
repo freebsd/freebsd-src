@@ -230,15 +230,8 @@ int
 cam_devq_init(struct cam_devq *devq, int devices, int openings)
 {
 	bzero(devq, sizeof(*devq));
-	if (camq_init(&devq->alloc_queue, devices) != 0) {
+	if (camq_init(&devq->send_queue, devices) != 0)
 		return (1);
-	}
-	if (camq_init(&devq->send_queue, devices) != 0) {
-		camq_fini(&devq->alloc_queue);
-		return (1);
-	}
-	devq->alloc_openings = openings;
-	devq->alloc_active = 0;
 	devq->send_openings = openings;
 	devq->send_active = 0;	
 	return (0);	
@@ -247,7 +240,6 @@ cam_devq_init(struct cam_devq *devq, int devices, int openings)
 void
 cam_devq_free(struct cam_devq *devq)
 {
-	camq_fini(&devq->alloc_queue);
 	camq_fini(&devq->send_queue);
 	free(devq, M_CAMDEVQ);
 }
@@ -257,11 +249,7 @@ cam_devq_resize(struct cam_devq *camq, int devices)
 {
 	u_int32_t retval;
 
-	retval = camq_resize(&camq->alloc_queue, devices);
-
-	if (retval == CAM_REQ_CMP)
-		retval = camq_resize(&camq->send_queue, devices);
-
+	retval = camq_resize(&camq->send_queue, devices);
 	return (retval);
 }
 
@@ -296,43 +284,27 @@ u_int32_t
 cam_ccbq_resize(struct cam_ccbq *ccbq, int new_size)
 {
 	int delta;
-	int space_left;
 
 	delta = new_size - (ccbq->dev_active + ccbq->dev_openings);
-	space_left = new_size
-	    - ccbq->queue.entries
-	    - ccbq->held
-	    - ccbq->dev_active;
+	ccbq->devq_openings += delta;
+	ccbq->dev_openings += delta;
 
-	/*
-	 * Only attempt to change the underlying queue size if we are
-	 * shrinking it and there is space for all outstanding entries
-	 * in the new array or we have been requested to grow the array.
-	 * We don't fail in the case where we can't reduce the array size,
-	 * but clients that care that the queue be "garbage collected"
-	 * should detect this condition and call us again with the
-	 * same size once the outstanding entries have been processed.
-	 */
-	if (space_left < 0
-	 || camq_resize(&ccbq->queue, new_size + (CAM_RL_VALUES - 1)) ==
-	    CAM_REQ_CMP) {
-		ccbq->devq_openings += delta;
-		ccbq->dev_openings += delta;
+	new_size = imax(64, 1 << fls(new_size + new_size / 2));
+	if (new_size > ccbq->queue.array_size)
+		return (camq_resize(&ccbq->queue, new_size));
+	else
 		return (CAM_REQ_CMP);
-	} else {
-		return (CAM_RESRC_UNAVAIL);
-	}
 }
 
 int
 cam_ccbq_init(struct cam_ccbq *ccbq, int openings)
 {
 	bzero(ccbq, sizeof(*ccbq));
-	if (camq_init(&ccbq->queue, openings + (CAM_RL_VALUES - 1)) != 0) {
+	if (camq_init(&ccbq->queue,
+	    imax(64, 1 << fls(openings + openings / 2))) != 0)
 		return (1);
-	}
 	ccbq->devq_openings = openings;
-	ccbq->dev_openings = openings;	
+	ccbq->dev_openings = openings;
 	return (0);
 }
 

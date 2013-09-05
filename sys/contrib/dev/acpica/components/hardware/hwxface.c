@@ -131,7 +131,8 @@ AcpiRead (
     UINT64                  *ReturnValue,
     ACPI_GENERIC_ADDRESS    *Reg)
 {
-    UINT32                  Value;
+    UINT32                  ValueLo;
+    UINT32                  ValueHi;
     UINT32                  Width;
     UINT64                  Address;
     ACPI_STATUS             Status;
@@ -153,13 +154,8 @@ AcpiRead (
         return (Status);
     }
 
-    /* Initialize entire 64-bit return value to zero */
-
-    *ReturnValue = 0;
-    Value = 0;
-
     /*
-     * Two address spaces supported: Memory or IO. PCI_Config is
+     * Two address spaces supported: Memory or I/O. PCI_Config is
      * not supported here because the GAS structure is insufficient
      */
     if (Reg->SpaceId == ACPI_ADR_SPACE_SYSTEM_MEMORY)
@@ -173,6 +169,9 @@ AcpiRead (
     }
     else /* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
     {
+        ValueLo = 0;
+        ValueHi = 0;
+
         Width = Reg->BitWidth;
         if (Width == 64)
         {
@@ -180,25 +179,27 @@ AcpiRead (
         }
 
         Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
-                    Address, &Value, Width);
+                    Address, &ValueLo, Width);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
         }
-        *ReturnValue = Value;
 
         if (Reg->BitWidth == 64)
         {
             /* Read the top 32 bits */
 
             Status = AcpiHwReadPort ((ACPI_IO_ADDRESS)
-                        (Address + 4), &Value, 32);
+                        (Address + 4), &ValueHi, 32);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
             }
-            *ReturnValue |= ((UINT64) Value << 32);
         }
+
+        /* Set the return value only if status is AE_OK */
+
+        *ReturnValue = (ValueLo | ((UINT64) ValueHi << 32));
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_IO,
@@ -207,7 +208,7 @@ AcpiRead (
         ACPI_FORMAT_UINT64 (Address),
         AcpiUtGetRegionName (Reg->SpaceId)));
 
-    return (Status);
+    return (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL (AcpiRead)
@@ -556,7 +557,8 @@ AcpiGetSleepTypeData (
      * Evaluate the \_Sx namespace object containing the register values
      * for this state
      */
-    Info->Pathname = ACPI_CAST_PTR (char, AcpiGbl_SleepStateNames[SleepState]);
+    Info->RelativePathname = ACPI_CAST_PTR (
+        char, AcpiGbl_SleepStateNames[SleepState]);
     Status = AcpiNsEvaluate (Info);
     if (ACPI_FAILURE (Status))
     {
@@ -568,7 +570,7 @@ AcpiGetSleepTypeData (
     if (!Info->ReturnObject)
     {
         ACPI_ERROR ((AE_INFO, "No Sleep State object returned from [%s]",
-            Info->Pathname));
+            Info->RelativePathname));
         Status = AE_AML_NO_RETURN_VALUE;
         goto Cleanup;
     }
@@ -591,10 +593,12 @@ AcpiGetSleepTypeData (
     switch (Info->ReturnObject->Package.Count)
     {
     case 0:
+
         Status = AE_AML_PACKAGE_LIMIT;
         break;
 
     case 1:
+
         if (Elements[0]->Common.Type != ACPI_TYPE_INTEGER)
         {
             Status = AE_AML_OPERAND_TYPE;
@@ -609,6 +613,7 @@ AcpiGetSleepTypeData (
 
     case 2:
     default:
+
         if ((Elements[0]->Common.Type != ACPI_TYPE_INTEGER) ||
             (Elements[1]->Common.Type != ACPI_TYPE_INTEGER))
         {
@@ -630,7 +635,7 @@ Cleanup:
     if (ACPI_FAILURE (Status))
     {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "While evaluating Sleep State [%s]", Info->Pathname));
+            "While evaluating Sleep State [%s]", Info->RelativePathname));
     }
 
     ACPI_FREE (Info);

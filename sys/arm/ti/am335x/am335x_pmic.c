@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #define TPS65217A		0x7
 #define TPS65217B		0xF
+#define TPS65217C		0xE
+#define TPS65217D		0x6
 
 /* TPS65217 Reisters */
 #define TPS65217_CHIPID_REG	0x00
@@ -130,6 +132,12 @@ am335x_pmic_start(void *xdev)
 			break;
 		case TPS65217B:
 			sprintf(name, "TPS65217B ver 1.%u", reg & 0xF);
+			break;
+		case TPS65217C:
+			sprintf(name, "TPS65217C ver 1.%u", reg & 0xF);
+			break;
+		case TPS65217D:
+			sprintf(name, "TPS65217D ver 1.%u", reg & 0xF);
 			break;
 		default:
 			sprintf(name, "Unknown PMIC");

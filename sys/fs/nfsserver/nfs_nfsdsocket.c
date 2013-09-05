@@ -379,6 +379,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 				goto out;
 			}
 			if (nd->nd_procnum == NFSPROC_READ ||
+			    nd->nd_procnum == NFSPROC_WRITE ||
 			    nd->nd_procnum == NFSPROC_READDIR ||
 			    nd->nd_procnum == NFSPROC_READLINK ||
 			    nd->nd_procnum == NFSPROC_GETATTR ||

@@ -227,7 +227,8 @@ struct prison_racct {
 #define	PR_ALLOW_MOUNT_NULLFS		0x0100
 #define	PR_ALLOW_MOUNT_ZFS		0x0200
 #define	PR_ALLOW_MOUNT_PROCFS		0x0400
-#define	PR_ALLOW_ALL			0x07ff
+#define	PR_ALLOW_MOUNT_TMPFS		0x0800
+#define	PR_ALLOW_ALL			0x0fff
 
 /*
  * OSD methods

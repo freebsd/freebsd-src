@@ -1446,10 +1446,12 @@ svr4_sys_putmsg(td, uap)
 	struct thread *td;
 	struct svr4_sys_putmsg_args *uap;
 {
-	struct file     *fp;
+	cap_rights_t rights;
+	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, CAP_SEND, &fp)) != 0) {
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_SEND), &fp);
+	if (error != 0) {
 #ifdef DEBUG_SVR4
 	        uprintf("putmsg: bad fp\n");
 #endif
@@ -1618,10 +1620,12 @@ svr4_sys_getmsg(td, uap)
 	struct thread *td;
 	struct svr4_sys_getmsg_args *uap;
 {
-	struct file     *fp;
+	cap_rights_t rights;
+	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, CAP_RECV, &fp)) != 0) {
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_RECV), &fp);
+	if (error != 0) {
 #ifdef DEBUG_SVR4
 	        uprintf("getmsg: bad fp\n");
 #endif

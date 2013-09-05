@@ -437,6 +437,67 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
 	  USB_IFACE_CLASS(UICLASS_VENDOR),
 	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
 	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* Apple-specific (Broadcom) devices */
+	{ USB_VENDOR(USB_VENDOR_APPLE),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* Foxconn - Hon Hai */
+	{ USB_VENDOR(USB_VENDOR_FOXCONN),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* MediaTek MT76x0E */
+	{ USB_VPI(USB_VENDOR_MEDIATEK, 0x763f, 0) },
+
+	/* Broadcom SoftSailing reporting vendor specific */
+	{ USB_VPI(USB_VENDOR_BROADCOM, 0x21e1, 0) },
+
+	/* Apple MacBookPro 7,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8213, 0) },
+
+	/* Apple iMac11,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8215, 0) },
+
+	/* Apple MacBookPro6,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8218, 0) },
+
+	/* Apple MacBookAir3,1, MacBookAir3,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821b, 0) },
+
+	/* Apple MacBookAir4,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821f, 0) },
+
+	/* MacBookAir6,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x828f, 0) },
+
+	/* Apple MacBookPro8,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821a, 0) },
+
+	/* Apple MacMini5,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8281, 0) },
+
+	/* Bluetooth Ultraport Module from IBM */
+	{ USB_VPI(USB_VENDOR_TDK, 0x030a, 0) },
+
+	/* ALPS Modules with non-standard ID */
+	{ USB_VPI(USB_VENDOR_ALPS, 0x3001, 0) },
+	{ USB_VPI(USB_VENDOR_ALPS, 0x3002, 0) },
+
+	{ USB_VPI(USB_VENDOR_ERICSSON2, 0x1002, 0) },
+
+	/* Canyon CN-BTU1 with HID interfaces */
+	{ USB_VPI(USB_VENDOR_CANYON, 0x0000, 0) },
+
+	/* Broadcom BCM20702A0 */
+	{ USB_VPI(USB_VENDOR_ASUS, 0x17b5, 0) },
+	{ USB_VPI(USB_VENDOR_ASUS, 0x17cb, 0) },
+	{ USB_VPI(USB_VENDOR_LITEON, 0x2003, 0) },
+	{ USB_VPI(USB_VENDOR_FOXCONN, 0xe042, 0) },
+	{ USB_VPI(USB_VENDOR_DELL, 0x8197, 0) },
 };
 
 /*

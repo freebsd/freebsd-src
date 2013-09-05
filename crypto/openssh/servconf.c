@@ -298,7 +298,7 @@ fill_default_server_options(ServerOptions *options)
 		options->version_addendum = xstrdup(SSH_VERSION_FREEBSD);
 	/* Turn privilege separation on by default */
 	if (use_privsep == -1)
-		use_privsep = PRIVSEP_ON;
+		use_privsep = PRIVSEP_NOSANDBOX;
 
 #ifndef HAVE_MMAP
 	if (use_privsep && options->compression == 1) {

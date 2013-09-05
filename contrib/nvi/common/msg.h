@@ -52,9 +52,9 @@ typedef enum {
  * messages.
  */
 typedef struct _msgh MSGH;	/* MSGS list head structure. */
-LIST_HEAD(_msgh, _msg);
+SLIST_HEAD(_msgh, _msg);
 struct _msg {
-	LIST_ENTRY(_msg) q;	/* Linked list of messages. */
+	SLIST_ENTRY(_msg) q;	/* Linked list of messages. */
 	mtype_t	 mtype;		/* Message type: M_NONE, M_ERR, M_INFO. */
 	char	*buf;		/* Message buffer. */
 	size_t	 len;		/* Message length. */

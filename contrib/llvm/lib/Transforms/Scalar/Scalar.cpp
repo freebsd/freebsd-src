@@ -13,14 +13,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm-c/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar.h"
 #include "llvm-c/Initialization.h"
-#include "llvm/InitializePasses.h"
-#include "llvm/PassManager.h"
+#include "llvm-c/Transforms/Scalar.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/Verifier.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Transforms/Scalar.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/PassManager.h"
 
 using namespace llvm;
 
@@ -50,11 +50,6 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeLowerAtomicPass(Registry);
   initializeLowerExpectIntrinsicPass(Registry);
   initializeMemCpyOptPass(Registry);
-  initializeObjCARCAliasAnalysisPass(Registry);
-  initializeObjCARCAPElimPass(Registry);
-  initializeObjCARCExpandPass(Registry);
-  initializeObjCARCContractPass(Registry);
-  initializeObjCARCOptPass(Registry);
   initializeReassociatePass(Registry);
   initializeRegToMemPass(Registry);
   initializeSCCPPass(Registry);

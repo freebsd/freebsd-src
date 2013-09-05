@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-SUBDIR=	cc_chd \
+SUBDIR=	cc_cdg \
+	cc_chd \
 	cc_cubic \
 	cc_hd \
 	cc_htcp \

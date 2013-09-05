@@ -13,11 +13,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/Mutex.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Config/config.h"
+#include "llvm/Support/Mutex.h"
 #include <cstdio>
 #include <cstring>
 
@@ -46,7 +46,7 @@ void llvm::sys::DynamicLibrary::AddSymbol(StringRef symbolName,
                                           void *symbolValue) {
   SmartScopedLock<true> lock(getMutex());
   if (ExplicitSymbols == 0)
-    ExplicitSymbols = new llvm::StringMap<void*>();
+    ExplicitSymbols = new StringMap<void*>();
   (*ExplicitSymbols)[symbolName] = symbolValue;
 }
 

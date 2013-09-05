@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/RecordLayout.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/RecordLayout.h"
 #include "llvm/ADT/SetVector.h"
 #include <algorithm>
 #include <set>
@@ -28,7 +28,7 @@ void CXXBasePaths::ComputeDeclsFound() {
 
   llvm::SetVector<NamedDecl *, SmallVector<NamedDecl *, 8> > Decls;
   for (paths_iterator Path = begin(), PathEnd = end(); Path != PathEnd; ++Path)
-    Decls.insert(*Path->Decls.first);
+    Decls.insert(Path->Decls.front());
 
   NumDeclsFound = Decls.size();
   DeclsFound = new NamedDecl * [NumDeclsFound];
@@ -118,7 +118,19 @@ static bool BaseIsNot(const CXXRecordDecl *Base, void *OpaqueTarget) {
 }
 
 bool CXXRecordDecl::isProvablyNotDerivedFrom(const CXXRecordDecl *Base) const {
-  return forallBases(BaseIsNot, (void*) Base->getCanonicalDecl());
+  return forallBases(BaseIsNot,
+                     const_cast<CXXRecordDecl *>(Base->getCanonicalDecl()));
+}
+
+bool
+CXXRecordDecl::isCurrentInstantiation(const DeclContext *CurContext) const {
+  assert(isDependentContext());
+
+  for (; !CurContext->isFileContext(); CurContext = CurContext->getParent())
+    if (CurContext->Equals(this))
+      return true;
+
+  return false;
 }
 
 bool CXXRecordDecl::forallBases(ForallBasesCallback *BaseMatches,
@@ -140,7 +152,9 @@ bool CXXRecordDecl::forallBases(ForallBasesCallback *BaseMatches,
 
       CXXRecordDecl *Base = 
             cast_or_null<CXXRecordDecl>(Ty->getDecl()->getDefinition());
-      if (!Base) {
+      if (!Base ||
+          (Base->isDependentContext() &&
+           !Base->isCurrentInstantiation(Record))) {
         if (AllowShortCircuit) return false;
         AllMatches = false;
         continue;
@@ -384,9 +398,9 @@ bool CXXRecordDecl::FindTagMember(const CXXBaseSpecifier *Specifier,
 
   DeclarationName N = DeclarationName::getFromOpaquePtr(Name);
   for (Path.Decls = BaseRecord->lookup(N);
-       Path.Decls.first != Path.Decls.second;
-       ++Path.Decls.first) {
-    if ((*Path.Decls.first)->isInIdentifierNamespace(IDNS_Tag))
+       !Path.Decls.empty();
+       Path.Decls = Path.Decls.slice(1)) {
+    if (Path.Decls.front()->isInIdentifierNamespace(IDNS_Tag))
       return true;
   }
 
@@ -402,9 +416,9 @@ bool CXXRecordDecl::FindOrdinaryMember(const CXXBaseSpecifier *Specifier,
   const unsigned IDNS = IDNS_Ordinary | IDNS_Tag | IDNS_Member;
   DeclarationName N = DeclarationName::getFromOpaquePtr(Name);
   for (Path.Decls = BaseRecord->lookup(N);
-       Path.Decls.first != Path.Decls.second;
-       ++Path.Decls.first) {
-    if ((*Path.Decls.first)->isInIdentifierNamespace(IDNS))
+       !Path.Decls.empty();
+       Path.Decls = Path.Decls.slice(1)) {
+    if (Path.Decls.front()->isInIdentifierNamespace(IDNS))
       return true;
   }
   
@@ -420,11 +434,11 @@ FindNestedNameSpecifierMember(const CXXBaseSpecifier *Specifier,
   
   DeclarationName N = DeclarationName::getFromOpaquePtr(Name);
   for (Path.Decls = BaseRecord->lookup(N);
-       Path.Decls.first != Path.Decls.second;
-       ++Path.Decls.first) {
+       !Path.Decls.empty();
+       Path.Decls = Path.Decls.slice(1)) {
     // FIXME: Refactor the "is it a nested-name-specifier?" check
-    if (isa<TypedefNameDecl>(*Path.Decls.first) ||
-        (*Path.Decls.first)->isInIdentifierNamespace(IDNS_Tag))
+    if (isa<TypedefNameDecl>(Path.Decls.front()) ||
+        Path.Decls.front()->isInIdentifierNamespace(IDNS_Tag))
       return true;
   }
   
@@ -725,4 +739,3 @@ CXXRecordDecl::getIndirectPrimaryBases(CXXIndirectPrimaryBaseSet& Bases) const {
       AddIndirectPrimaryBases(BaseDecl, Context, Bases);
   }
 }
-

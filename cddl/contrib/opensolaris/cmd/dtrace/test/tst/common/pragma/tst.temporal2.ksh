@@ -89,8 +89,8 @@ if [ "$status" -ne 0 ]; then
 fi
 
 # dtrace outputs a blank line at the end, which will sort to the beginning,
-# so use grep to remove the blank line.
-head -n -1 $file > $file.2
+# so use sed to remove the blank line.
+sed '$d' $file > $file.2
 
 sort -n $file.2 | diff $file.2 -
 status=$?

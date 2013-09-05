@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc-confgen.c,v 1.5.308.2 2011/03/12 04:59:13 tbox Exp $ */
+/* $Id: rndc-confgen.c,v 1.7 2011/03/12 04:59:46 tbox Exp $ */
 
 /*! \file */
 
@@ -140,8 +140,6 @@ main(int argc, char **argv) {
 			keysize = strtol(isc_commandline_argument, &p, 10);
 			if (*p != '\0' || keysize < 0)
 				fatal("-b requires a non-negative number");
-			if (keysize < 1 || keysize > 512)
-				fatal("-b must be in the range 1 through 512");
 			break;
 		case 'c':
 			keyfile = isc_commandline_argument;

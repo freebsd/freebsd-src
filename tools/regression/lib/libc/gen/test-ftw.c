@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <assert.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ftw.h>
@@ -41,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <spawn.h>
+#include <unistd.h>
 
 extern char **environ;
 

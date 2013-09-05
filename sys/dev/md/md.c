@@ -826,13 +826,14 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	vm_object_pip_add(sc->object, 1);
 	for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
 		len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
-		m = vm_page_grab(sc->object, i, VM_ALLOC_NORMAL |
-		    VM_ALLOC_RETRY);
+		m = vm_page_grab(sc->object, i, VM_ALLOC_SYSTEM);
 		if (bp->bio_cmd == BIO_READ) {
-			if (m->valid != VM_PAGE_BITS_ALL)
+			if (m->valid == VM_PAGE_BITS_ALL)
+				rv = VM_PAGER_OK;
+			else
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			} else if (rv == VM_PAGER_FAIL) {
 				/*
@@ -854,8 +855,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			}
 			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
@@ -868,8 +871,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
+			else
+				rv = VM_PAGER_OK;
 			if (rv == VM_PAGER_ERROR) {
-				vm_page_wakeup(m);
+				vm_page_xunbusy(m);
 				break;
 			}
 			if (len != PAGE_SIZE) {
@@ -879,7 +884,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 			} else
 				vm_pager_page_unswapped(m);
 		}
-		vm_page_wakeup(m);
+		vm_page_xunbusy(m);
 		vm_page_lock(m);
 		if (bp->bio_cmd == BIO_DELETE && len == PAGE_SIZE)
 			vm_page_free(m);

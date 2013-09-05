@@ -183,7 +183,7 @@ struct pciecap {
 	uint16_t	slot_status2;
 } __packed;
 
-void	init_pci(struct vmctx *ctx);
+int	init_pci(struct vmctx *ctx);
 void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	    int bytes, uint32_t val);
 void	msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
@@ -206,7 +206,7 @@ int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
 int	pci_msix_pba_bar(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
-void	pci_parse_slot(char *opt, int legacy);
+int	pci_parse_slot(char *opt, int legacy);
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
 int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,

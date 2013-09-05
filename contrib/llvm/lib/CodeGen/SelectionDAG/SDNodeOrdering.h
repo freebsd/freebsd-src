@@ -33,8 +33,10 @@ class SDNodeOrdering {
 public:
   SDNodeOrdering() {}
 
-  void add(const SDNode *Node, unsigned O) {
-    OrderMap[Node] = O;
+  void add(const SDNode *Node, unsigned NewOrder) {
+    unsigned &OldOrder = OrderMap[Node];
+    if (OldOrder == 0 || (OldOrder > 0 && NewOrder < OldOrder))
+      OldOrder = NewOrder;
   }
   void remove(const SDNode *Node) {
     DenseMap<const SDNode*, unsigned>::iterator Itr = OrderMap.find(Node);

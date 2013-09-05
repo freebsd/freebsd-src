@@ -30,7 +30,7 @@ ISC_LANG_BEGINDECLS
  * for the entry points of an external DLZ module for bind9.
  */
 
-#define DLZ_DLOPEN_VERSION 1
+#define DLZ_DLOPEN_VERSION 2
 
 /*
  * dlz_dlopen_version() is required for all DLZ external drivers. It
@@ -65,7 +65,9 @@ typedef isc_result_t dlz_dlopen_findzonedb_t (void *dbdata,
 typedef isc_result_t dlz_dlopen_lookup_t (const char *zone,
 					  const char *name,
 					  void *dbdata,
-					  dns_sdlzlookup_t *lookup);
+					  dns_sdlzlookup_t *lookup,
+					  dns_clientinfomethods_t *methods,
+					  dns_clientinfo_t *clientinfo);
 
 /*
  * dlz_dlopen_authority is optional() if dlz_dlopen_lookup()
@@ -114,6 +116,15 @@ typedef void dlz_dlopen_closeversion_t (const char *zone,
  */
 typedef isc_result_t dlz_dlopen_configure_t (dns_view_t *view,
 					     void *dbdata);
+
+/*
+ * dlz_dlopen_setclientcallback() is optional, but must be supplied if you
+ * want to retrieve information about the client (e.g., source address)
+ * before sending a replay.
+ */
+typedef isc_result_t dlz_dlopen_setclientcallback_t (dns_view_t *view,
+						     void *dbdata);
+
 
 /*
  * dlz_dlopen_ssumatch() is optional, but must be supplied if you want

@@ -333,7 +333,6 @@ static int
 mly_pci_attach(struct mly_softc *sc)
 {
     int			i, error;
-    u_int32_t		command;
 
     debug_called(1);
 
@@ -342,21 +341,8 @@ mly_pci_attach(struct mly_softc *sc)
 
     /* 
      * Verify that the adapter is correctly set up in PCI space.
-     * 
-     * XXX we shouldn't do this; the PCI code should.
      */
-    command = pci_read_config(sc->mly_dev, PCIR_COMMAND, 2);
-    command |= PCIM_CMD_BUSMASTEREN;
-    pci_write_config(sc->mly_dev, PCIR_COMMAND, command, 2);
-    command = pci_read_config(sc->mly_dev, PCIR_COMMAND, 2);
-    if (!(command & PCIM_CMD_BUSMASTEREN)) {
-	mly_printf(sc, "can't enable busmaster feature\n");
-	goto fail;
-    }
-    if ((command & PCIM_CMD_MEMEN) == 0) {
-	mly_printf(sc, "memory window not available\n");
-	goto fail;
-    }
+    pci_enable_busmaster(sc->mly_dev);
 
     /*
      * Allocate the PCI register window.
@@ -2025,7 +2011,7 @@ mly_cam_rescan_btl(struct mly_softc *sc, int bus, int target)
 	mly_printf(sc, "rescan failed (can't allocate CCB)\n");
 	return;
     }
-    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, 
+    if (xpt_create_path(&ccb->ccb_h.path, NULL,
 	    cam_sim_path(sc->mly_cam_sim[bus]), target, 0) != CAM_REQ_CMP) {
 	mly_printf(sc, "rescan failed (can't create path)\n");
 	xpt_free_ccb(ccb);

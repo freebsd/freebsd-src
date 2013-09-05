@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/taskqueue.h>
+#include <sys/counter.h>
 
 #include <net/ethernet.h>
 #include <net/fddi.h>
@@ -186,31 +187,58 @@ static int proto_reg[] = {-1, -1};
  *   dereferencing our function pointers.
  */
 
-static int carp_allow = 1;		/* Accept incoming CARP packets. */
-static int carp_preempt = 0;		/* Preempt slower nodes. */
-static int carp_log = 1;		/* Log level. */
-static int carp_demotion = 0;		/* Global advskew demotion. */
-static int carp_senderr_adj = CARP_MAXSKEW;	/* Send error demotion factor */
-static int carp_ifdown_adj = CARP_MAXSKEW;	/* Iface down demotion factor */
+/* Accept incoming CARP packets. */
+static VNET_DEFINE(int, carp_allow) = 1;
+#define	V_carp_allow	VNET(carp_allow)
+
+/* Preempt slower nodes. */
+static VNET_DEFINE(int, carp_preempt) = 0;
+#define	V_carp_preempt	VNET(carp_preempt)
+
+/* Log level. */
+static VNET_DEFINE(int, carp_log) = 1;
+#define	V_carp_log	VNET(carp_log)
+
+/* Global advskew demotion. */
+static VNET_DEFINE(int, carp_demotion) = 0;
+#define	V_carp_demotion	VNET(carp_demotion)
+
+/* Send error demotion factor. */
+static VNET_DEFINE(int, carp_senderr_adj) = CARP_MAXSKEW;
+#define	V_carp_senderr_adj	VNET(carp_senderr_adj)
+
+/* Iface down demotion factor. */
+static VNET_DEFINE(int, carp_ifdown_adj) = CARP_MAXSKEW;
+#define	V_carp_ifdown_adj	VNET(carp_ifdown_adj)
+
 static int carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, allow, CTLFLAG_RW, &carp_allow, 0,
-    "Accept incoming CARP packets");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, preempt, CTLFLAG_RW, &carp_preempt, 0,
-    "High-priority backup preemption mode");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, log, CTLFLAG_RW, &carp_log, 0,
-    "CARP log level");
-SYSCTL_PROC(_net_inet_carp, OID_AUTO, demotion, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, allow, CTLFLAG_RW,
+    &VNET_NAME(carp_allow), 0, "Accept incoming CARP packets");
+SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, preempt, CTLFLAG_RW,
+    &VNET_NAME(carp_preempt), 0, "High-priority backup preemption mode");
+SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, log, CTLFLAG_RW,
+    &VNET_NAME(carp_log), 0, "CARP log level");
+SYSCTL_VNET_PROC(_net_inet_carp, OID_AUTO, demotion, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, carp_demote_adj_sysctl, "I",
     "Adjust demotion factor (skew of advskew)");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, senderr_demotion_factor, CTLFLAG_RW,
-    &carp_senderr_adj, 0, "Send error demotion factor adjustment");
-SYSCTL_INT(_net_inet_carp, OID_AUTO, ifdown_demotion_factor, CTLFLAG_RW,
-    &carp_ifdown_adj, 0, "Interface down demotion factor adjustment");
+SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, senderr_demotion_factor, CTLFLAG_RW,
+    &VNET_NAME(carp_senderr_adj), 0, "Send error demotion factor adjustment");
+SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, ifdown_demotion_factor, CTLFLAG_RW,
+    &VNET_NAME(carp_ifdown_adj), 0,
+    "Interface down demotion factor adjustment");
 
-static struct carpstats carpstats;
-SYSCTL_STRUCT(_net_inet_carp, OID_AUTO, stats, CTLFLAG_RW, &carpstats,
+VNET_PCPUSTAT_DEFINE(struct carpstats, carpstats);
+VNET_PCPUSTAT_SYSINIT(carpstats);
+VNET_PCPUSTAT_SYSUNINIT(carpstats);
+
+#define	CARPSTATS_ADD(name, val)	\
+    counter_u64_add(VNET(carpstats)[offsetof(struct carpstats, name) / \
+	sizeof(uint64_t)], (val))
+#define	CARPSTATS_INC(name)		CARPSTATS_ADD(name, 1)
+
+SYSCTL_VNET_PCPUSTAT(_net_inet_carp, OID_AUTO, stats, struct carpstats,
     carpstats, "CARP statistics (struct carpstats, netinet/ip_carp.h)");
 
 #define	CARP_LOCK_INIT(sc)	mtx_init(&(sc)->sc_mtx, "carp_softc",   \
@@ -234,12 +262,12 @@ SYSCTL_STRUCT(_net_inet_carp, OID_AUTO, stats, CTLFLAG_RW, &carpstats,
 } while (0)
 
 #define	CARP_LOG(...)	do {				\
-	if (carp_log > 0)				\
+	if (V_carp_log > 0)				\
 		log(LOG_INFO, "carp: " __VA_ARGS__);	\
 } while (0)
 
 #define	CARP_DEBUG(...)	do {				\
-	if (carp_log > 1)				\
+	if (V_carp_log > 1)				\
 		log(LOG_DEBUG, __VA_ARGS__);		\
 } while (0)
 
@@ -260,8 +288,8 @@ SYSCTL_STRUCT(_net_inet_carp, OID_AUTO, stats, CTLFLAG_RW, &carpstats,
 	TAILQ_FOREACH((sc), &(ifp)->if_carp->cif_vrs, sc_list)
 
 #define	DEMOTE_ADVSKEW(sc)					\
-    (((sc)->sc_advskew + carp_demotion > CARP_MAXSKEW) ?	\
-    CARP_MAXSKEW : ((sc)->sc_advskew + carp_demotion))
+    (((sc)->sc_advskew + V_carp_demotion > CARP_MAXSKEW) ?	\
+    CARP_MAXSKEW : ((sc)->sc_advskew + V_carp_demotion))
 
 static void	carp_input_c(struct mbuf *, struct carp_header *, sa_family_t);
 static struct carp_softc
@@ -413,7 +441,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	CARPSTATS_INC(carps_ipackets);
 
-	if (!carp_allow) {
+	if (!V_carp_allow) {
 		m_freem(m);
 		return;
 	}
@@ -496,7 +524,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 
 	CARPSTATS_INC(carps_ipackets6);
 
-	if (!carp_allow) {
+	if (!V_carp_allow) {
 		m_freem(m);
 		return (IPPROTO_DONE);
 	}
@@ -630,7 +658,7 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 		 * If we're pre-empting masters who advertise slower than us,
 		 * and this one claims to be slower, treat him as down.
 		 */
-		if (carp_preempt && timevalcmp(&sc_tv, &ch_tv, <)) {
+		if (V_carp_preempt && timevalcmp(&sc_tv, &ch_tv, <)) {
 			CARP_LOG("VHID %u@%s: BACKUP -> MASTER "
 			    "(preempting a slower master)\n",
 			    sc->sc_vhid,
@@ -813,13 +841,14 @@ carp_send_ad_locked(struct carp_softc *sc)
 			if (sc->sc_sendad_errors < INT_MAX)
 				sc->sc_sendad_errors++;
 			if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS)
-				carp_demote_adj(carp_senderr_adj, "send error");
+				carp_demote_adj(V_carp_senderr_adj,
+				    "send error");
 			sc->sc_sendad_success = 0;
 		} else {
 			if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS) {
 				if (++sc->sc_sendad_success >=
 				    CARP_SENDAD_MIN_SUCCESS) {
-					carp_demote_adj(-carp_senderr_adj,
+					carp_demote_adj(-V_carp_senderr_adj,
 					    "send ok");
 					sc->sc_sendad_errors = 0;
 				}
@@ -886,14 +915,14 @@ carp_send_ad_locked(struct carp_softc *sc)
 			if (sc->sc_sendad_errors < INT_MAX)
 				sc->sc_sendad_errors++;
 			if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS)
-				carp_demote_adj(carp_senderr_adj,
+				carp_demote_adj(V_carp_senderr_adj,
 				    "send6 error");
 			sc->sc_sendad_success = 0;
 		} else {
 			if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS) {
 				if (++sc->sc_sendad_success >=
 				    CARP_SENDAD_MIN_SUCCESS) {
-					carp_demote_adj(-carp_senderr_adj,
+					carp_demote_adj(-V_carp_senderr_adj,
 					    "send6 ok");
 					sc->sc_sendad_errors = 0;
 				}
@@ -1372,7 +1401,7 @@ carp_multicast_cleanup(struct carp_if *cif, sa_family_t sa)
 }
 
 int
-carp_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa)
+carp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *sa)
 {
 	struct m_tag *mtag;
 	struct carp_softc *sc;
@@ -1524,7 +1553,7 @@ carp_destroy(struct carp_softc *sc)
 
 	CARP_LOCK(sc);
 	if (sc->sc_suppress)
-		carp_demote_adj(-carp_ifdown_adj, "vhid removed");
+		carp_demote_adj(-V_carp_ifdown_adj, "vhid removed");
 	callout_drain(&sc->sc_ad_tmo);
 #ifdef INET
 	callout_drain(&sc->sc_md_tmo);
@@ -1989,13 +2018,13 @@ carp_sc_state(struct carp_softc *sc)
 		carp_set_state(sc, INIT);
 		carp_setrun(sc, 0);
 		if (!sc->sc_suppress)
-			carp_demote_adj(carp_ifdown_adj, "interface down");
+			carp_demote_adj(V_carp_ifdown_adj, "interface down");
 		sc->sc_suppress = 1;
 	} else {
 		carp_set_state(sc, INIT);
 		carp_setrun(sc, 0);
 		if (sc->sc_suppress)
-			carp_demote_adj(-carp_ifdown_adj, "interface up");
+			carp_demote_adj(-V_carp_ifdown_adj, "interface up");
 		sc->sc_suppress = 0;
 	}
 }
@@ -2003,8 +2032,8 @@ carp_sc_state(struct carp_softc *sc)
 static void
 carp_demote_adj(int adj, char *reason)
 {
-	atomic_add_int(&carp_demotion, adj);
-	CARP_LOG("demoted by %d to %d (%s)\n", adj, carp_demotion, reason);
+	atomic_add_int(&V_carp_demotion, adj);
+	CARP_LOG("demoted by %d to %d (%s)\n", adj, V_carp_demotion, reason);
 	taskqueue_enqueue(taskqueue_swi, &carp_sendall_task);
 }
 
@@ -2013,7 +2042,7 @@ carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int new, error;
 
-	new = carp_demotion;
+	new = V_carp_demotion;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error || !req->newptr)
 		return (error);

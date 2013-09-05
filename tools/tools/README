@@ -18,6 +18,7 @@ cxgbetool	A tool for the cxgbe(4) driver.
 cxgbtool	A tool for the cxgb(4) driver.
 diffburst	OBSOLETE: equivalent functionality is available via split -p.
 		For example: "split -p ^diff < patchfile". See split(1).
+drm		Tools specific to the DRM/KMS device drivers.
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
 ether_reflect	An Ethernet packet reflector for low level testing.

@@ -551,6 +551,7 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		switch (func_code) {
 		case XPT_ACCEPT_TARGET_IO:
 		case XPT_IMMED_NOTIFY:
+		case XPT_IMMEDIATE_NOTIFY:
 			cam_periph_lock(softc->periph);
 			ccb = targgetccb(softc, func_code, priority);
 			descr = (struct targ_cmd_descr *)ccb->ccb_h.targ_descr;
@@ -726,21 +727,8 @@ targsendccb(struct targ_softc *softc, union ccb *ccb,
 	ccb_h->cbfcnp = targdone;
 	ccb_h->targ_descr = descr;
 
-	/*
-	 * We only attempt to map the user memory into kernel space
-	 * if they haven't passed in a physical memory pointer,
-	 * and if there is actually an I/O operation to perform.
-	 * Right now cam_periph_mapmem() only supports SCSI and device
-	 * match CCBs.  For the SCSI CCBs, we only pass the CCB in if
-	 * there's actually data to map.  cam_periph_mapmem() will do the
-	 * right thing, even if there isn't data to map, but since CCBs
-	 * without data are a reasonably common occurance (e.g. test unit
-	 * ready), it will save a few cycles if we check for it here.
-	 */
-	if (((ccb_h->flags & CAM_DATA_MASK) == CAM_DATA_VADDR)
-	 && (((ccb_h->func_code == XPT_CONT_TARGET_IO)
-	    && ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE))
-	  || (ccb_h->func_code == XPT_DEV_MATCH))) {
+	if ((ccb_h->func_code == XPT_CONT_TARGET_IO) ||
+	    (ccb_h->func_code == XPT_DEV_MATCH)) {
 
 		error = cam_periph_mapmem(ccb, mapinfo);
 
@@ -794,6 +782,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (done_ccb->ccb_h.func_code) {
 	/* All FC_*_QUEUED CCBs go back to userland */
 	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
 		TAILQ_INSERT_TAIL(&softc->user_ccb_queue, &done_ccb->ccb_h,
@@ -974,6 +963,7 @@ targfreeccb(struct targ_softc *softc, union ccb *ccb)
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 		CAM_DEBUG_PRINT(CAM_DEBUG_PERIPH, ("freeing ccb %p\n", ccb));
 		free(ccb, M_TARG);
 		break;
@@ -1143,6 +1133,9 @@ targccblen(xpt_opcode func_code)
 		break;
 	case XPT_IMMED_NOTIFY:
 		len = sizeof(struct ccb_immed_notify);
+		break;
+	case XPT_IMMEDIATE_NOTIFY:
+		len = sizeof(struct ccb_immediate_notify);
 		break;
 	case XPT_REL_SIMQ:
 		len = sizeof(struct ccb_relsim);

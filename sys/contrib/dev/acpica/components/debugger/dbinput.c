@@ -132,12 +132,14 @@ enum AcpiExDebuggerCommands
     CMD_OPEN,
     CMD_OSI,
     CMD_OWNER,
+    CMD_PATHS,
     CMD_PREDEFINED,
     CMD_PREFIX,
     CMD_QUIT,
     CMD_REFERENCES,
     CMD_RESOURCES,
     CMD_RESULTS,
+    CMD_SCI,
     CMD_SET,
     CMD_SLEEP,
     CMD_STATS,
@@ -203,12 +205,14 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"OPEN",         1},
     {"OSI",          0},
     {"OWNER",        1},
+    {"PATHS",        0},
     {"PREDEFINED",   0},
     {"PREFIX",       0},
     {"QUIT",         0},
     {"REFERENCES",   1},
     {"RESOURCES",    0},
     {"RESULTS",      0},
+    {"SCI",          0},
     {"SET",          3},
     {"SLEEP",        0},
     {"STATS",        1},
@@ -259,22 +263,19 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {0, "\nNamespace Access Commands:",        "\n"},
     {1, "  Businfo",                           "Display system bus info\n"},
     {1, "  Disassemble <Method>",              "Disassemble a control method\n"},
-    {1, "  Event <F|G> <Value>",               "Generate AcpiEvent (Fixed/GPE)\n"},
     {1, "  Find <AcpiName> (? is wildcard)",   "Find ACPI name(s) with wildcards\n"},
-    {1, "  Gpe <GpeNum> <GpeBlock>",           "Simulate a GPE\n"},
-    {1, "  Gpes",                              "Display info on all GPEs\n"},
     {1, "  Integrity",                         "Validate namespace integrity\n"},
     {1, "  Methods",                           "Display list of loaded control methods\n"},
     {1, "  Namespace [Object] [Depth]",        "Display loaded namespace tree/subtree\n"},
     {1, "  Notify <Object> <Value>",           "Send a notification on Object\n"},
     {1, "  Objects <ObjectType>",              "Display all objects of the given type\n"},
     {1, "  Owner <OwnerId> [Depth]",           "Display loaded namespace by object owner\n"},
+    {1, "  Paths",                             "Display full pathnames of namespace objects\n"},
     {1, "  Predefined",                        "Check all predefined names\n"},
     {1, "  Prefix [<NamePath>]",               "Set or Get current execution prefix\n"},
     {1, "  References <Addr>",                 "Find all references to object at addr\n"},
     {1, "  Resources [DeviceName]",            "Display Device resources (no arg = all devices)\n"},
     {1, "  Set N <NamedObject> <Value>",       "Set value for named integer\n"},
-    {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},
     {1, "  Template <Object>",                 "Format/dump a Buffer/ResourceTemplate\n"},
     {1, "  Terminate",                         "Delete namespace and all internal objects\n"},
     {1, "  Type <Object>",                     "Display object type\n"},
@@ -288,7 +289,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {5, "  Execute <Namepath> [Arguments]",    "Execute control method\n"},
     {1, "     Hex Integer",                    "Integer method argument\n"},
     {1, "     \"Ascii String\"",               "String method argument\n"},
-    {1, "     (Byte List)",                    "Buffer method argument\n"},
+    {1, "     (Hex Byte List)",                "Buffer method argument\n"},
     {1, "     [Package Element List]",         "Package method argument\n"},
     {1, "  Go",                                "Allow method to run to completion\n"},
     {1, "  Information",                       "Display info about the current method\n"},
@@ -302,6 +303,13 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Trace <method name>",               "Trace method execution\n"},
     {1, "  Tree",                              "Display control method calling tree\n"},
     {1, "  <Enter>",                           "Single step next AML opcode (over calls)\n"},
+
+    {0, "\nHardware Related Commands:",         "\n"},
+    {1, "  Event <F|G> <Value>",               "Generate AcpiEvent (Fixed/GPE)\n"},
+    {1, "  Gpe <GpeNum> <GpeBlock>",           "Simulate a GPE\n"},
+    {1, "  Gpes",                              "Display info on all GPEs\n"},
+    {1, "  Sci",                               "Generate an SCI\n"},
+    {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},
 
     {0, "\nFile I/O Commands:",                "\n"},
     {1, "  Close",                             "Close debug output file\n"},
@@ -753,6 +761,7 @@ AcpiDbCommandDispatch (
     switch (CommandIndex)
     {
     case CMD_NULL:
+
         if (Op)
         {
             return (AE_OK);
@@ -768,41 +777,50 @@ AcpiDbCommandDispatch (
 
     case CMD_ARGS:
     case CMD_ARGUMENTS:
+
         AcpiDbDisplayArguments ();
         break;
 
     case CMD_BATCH:
+
         AcpiDbBatchExecute (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_BREAKPOINT:
+
         AcpiDbSetMethodBreakpoint (AcpiGbl_DbArgs[1], WalkState, Op);
         break;
 
     case CMD_BUSINFO:
+
         AcpiDbGetBusInfo ();
         break;
 
     case CMD_CALL:
+
         AcpiDbSetMethodCallBreakpoint (Op);
         Status = AE_OK;
         break;
 
     case CMD_CLOSE:
+
         AcpiDbCloseDebugFile ();
         break;
 
     case CMD_DEBUG:
+
         AcpiDbExecute (AcpiGbl_DbArgs[1],
             &AcpiGbl_DbArgs[2], &AcpiGbl_DbArgTypes[2], EX_SINGLE_STEP);
         break;
 
     case CMD_DISASSEMBLE:
     case CMD_DISASM:
+
         (void) AcpiDbDisassembleMethod (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_DUMP:
+
         AcpiDbDecodeAndDisplayObject (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
@@ -819,45 +837,55 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_EVENT:
+
         AcpiOsPrintf ("Event command not implemented\n");
         break;
 
     case CMD_EVALUATE:
     case CMD_EXECUTE:
+
         AcpiDbExecute (AcpiGbl_DbArgs[1],
             &AcpiGbl_DbArgs[2], &AcpiGbl_DbArgTypes[2], EX_NO_SINGLE_STEP);
         break;
 
     case CMD_FIND:
+
         Status = AcpiDbFindNameInNamespace (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_GO:
+
         AcpiGbl_CmSingleStep = FALSE;
         return (AE_OK);
 
     case CMD_GPE:
+
         AcpiDbGenerateGpe (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
     case CMD_GPES:
+
         AcpiDbDisplayGpes ();
         break;
 
     case CMD_HANDLERS:
+
         AcpiDbDisplayHandlers ();
         break;
 
     case CMD_HELP:
     case CMD_HELP2:
+
         AcpiDbDisplayHelp (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_HISTORY:
+
         AcpiDbDisplayHistory ();
         break;
 
-    case CMD_HISTORY_EXE:
+    case CMD_HISTORY_EXE: /* ! command */
+
         CommandLine = AcpiDbGetFromHistory (AcpiGbl_DbArgs[1]);
         if (!CommandLine)
         {
@@ -867,7 +895,8 @@ AcpiDbCommandDispatch (
         Status = AcpiDbCommandDispatch (CommandLine, WalkState, Op);
         return (Status);
 
-    case CMD_HISTORY_LAST:
+    case CMD_HISTORY_LAST: /* !! command */
+
         CommandLine = AcpiDbGetFromHistory (NULL);
         if (!CommandLine)
         {
@@ -878,14 +907,17 @@ AcpiDbCommandDispatch (
         return (Status);
 
     case CMD_INFORMATION:
+
         AcpiDbDisplayMethodInfo (Op);
         break;
 
     case CMD_INTEGRITY:
+
         AcpiDbCheckIntegrity ();
         break;
 
     case CMD_INTO:
+
         if (Op)
         {
             AcpiGbl_CmSingleStep = TRUE;
@@ -894,6 +926,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_LEVEL:
+
         if (ParamCount == 0)
         {
             AcpiOsPrintf ("Current debug level for file output is:    %8.8lX\n",
@@ -921,96 +954,129 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_LIST:
+
         AcpiDbDisassembleAml (AcpiGbl_DbArgs[1], Op);
         break;
 
     case CMD_LOAD:
+
         Status = AcpiDbGetTableFromFile (AcpiGbl_DbArgs[1], NULL);
         break;
 
     case CMD_LOCKS:
+
         AcpiDbDisplayLocks ();
         break;
 
     case CMD_LOCALS:
+
         AcpiDbDisplayLocals ();
         break;
 
     case CMD_METHODS:
+
         Status = AcpiDbDisplayObjects ("METHOD", AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_NAMESPACE:
+
         AcpiDbDumpNamespace (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
     case CMD_NOTIFY:
+
         Temp = ACPI_STRTOUL (AcpiGbl_DbArgs[2], NULL, 0);
         AcpiDbSendNotify (AcpiGbl_DbArgs[1], Temp);
         break;
 
     case CMD_OBJECT:
+
         AcpiUtStrupr (AcpiGbl_DbArgs[1]);
         Status = AcpiDbDisplayObjects (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
     case CMD_OPEN:
+
         AcpiDbOpenDebugFile (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_OSI:
+
         AcpiDbDisplayInterfaces (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
     case CMD_OWNER:
+
         AcpiDbDumpNamespaceByOwner (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
+    case CMD_PATHS:
+
+        AcpiDbDumpNamespacePaths ();
+        break;
+
     case CMD_PREDEFINED:
+
         AcpiDbCheckPredefinedNames ();
         break;
 
     case CMD_PREFIX:
+
         AcpiDbSetScope (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_REFERENCES:
+
         AcpiDbFindReferences (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_RESOURCES:
+
         AcpiDbDisplayResources (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_RESULTS:
+
         AcpiDbDisplayResults ();
         break;
 
+    case CMD_SCI:
+
+        AcpiDbGenerateSci ();
+        break;
+
     case CMD_SET:
+
         AcpiDbSetMethodData (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2],
             AcpiGbl_DbArgs[3]);
         break;
 
     case CMD_SLEEP:
+
         Status = AcpiDbSleep (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_STATS:
+
         Status = AcpiDbDisplayStatistics (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_STOP:
+
         return (AE_NOT_IMPLEMENTED);
 
     case CMD_TABLES:
+
         AcpiDbDisplayTableInfo (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_TEMPLATE:
+
         AcpiDbDisplayTemplate (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_TERMINATE:
+
         AcpiDbSetOutputDestination (ACPI_DB_REDIRECTABLE_OUTPUT);
         AcpiUtSubsystemShutdown ();
 
@@ -1023,28 +1089,34 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_THREADS:
+
         AcpiDbCreateExecutionThreads (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2],
             AcpiGbl_DbArgs[3]);
         break;
 
     case CMD_TRACE:
+
         (void) AcpiDebugTrace (AcpiGbl_DbArgs[1],0,0,1);
         break;
 
     case CMD_TREE:
+
         AcpiDbDisplayCallingTree ();
         break;
 
     case CMD_TYPE:
+
         AcpiDbDisplayObjectType (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_UNLOAD:
+
         AcpiDbUnloadAcpiTable (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_EXIT:
     case CMD_QUIT:
+
         if (Op)
         {
             AcpiOsPrintf ("Method execution terminated\n");
@@ -1062,6 +1134,7 @@ AcpiDbCommandDispatch (
 
     case CMD_NOT_FOUND:
     default:
+
         AcpiOsPrintf ("Unknown Command\n");
         return (AE_CTRL_TRUE);
     }

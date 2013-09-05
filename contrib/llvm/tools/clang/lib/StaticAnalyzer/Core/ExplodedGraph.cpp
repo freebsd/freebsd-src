@@ -13,12 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
+#include "clang/AST/ParentMap.h"
+#include "clang/AST/Stmt.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
-#include "clang/AST/Stmt.h"
-#include "clang/AST/ParentMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include <vector>
@@ -56,19 +56,42 @@ ExplodedGraph::~ExplodedGraph() {}
 // Node reclamation.
 //===----------------------------------------------------------------------===//
 
+bool ExplodedGraph::isInterestingLValueExpr(const Expr *Ex) {
+  if (!Ex->isLValue())
+    return false;
+  return isa<DeclRefExpr>(Ex) ||
+         isa<MemberExpr>(Ex) ||
+         isa<ObjCIvarRefExpr>(Ex);
+}
+
 bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
-  // Reclaim all nodes that match *all* the following criteria:
+  // First, we only consider nodes for reclamation of the following
+  // conditions apply:
   //
   // (1) 1 predecessor (that has one successor)
   // (2) 1 successor (that has one predecessor)
+  //
+  // If a node has no successor it is on the "frontier", while a node
+  // with no predecessor is a root.
+  //
+  // After these prerequisites, we discard all "filler" nodes that
+  // are used only for intermediate processing, and are not essential
+  // for analyzer history:
+  //
+  // (a) PreStmtPurgeDeadSymbols
+  //
+  // We then discard all other nodes where *all* of the following conditions
+  // apply:
+  //
   // (3) The ProgramPoint is for a PostStmt, but not a PostStore.
   // (4) There is no 'tag' for the ProgramPoint.
   // (5) The 'store' is the same as the predecessor.
   // (6) The 'GDM' is the same as the predecessor.
   // (7) The LocationContext is the same as the predecessor.
-  // (8) The PostStmt isn't for a non-consumed Stmt or Expr.
-  // (9) The successor is not a CallExpr StmtPoint (so that we would be able to
-  //     find it when retrying a call with no inlining).
+  // (8) Expressions that are *not* lvalue expressions.
+  // (9) The PostStmt isn't for a non-consumed Stmt or Expr.
+  // (10) The successor is not a CallExpr StmtPoint (so that we would
+  //      be able to find it when retrying a call with no inlining).
   // FIXME: It may be safe to reclaim PreCall and PostCall nodes as well.
 
   // Conditions 1 and 2.
@@ -83,14 +106,18 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
   if (succ->pred_size() != 1)
     return false;
 
-  // Condition 3.
+  // Now reclaim any nodes that are (by definition) not essential to
+  // analysis history and are not consulted by any client code.
   ProgramPoint progPoint = node->getLocation();
-  if (!isa<PostStmt>(progPoint) || isa<PostStore>(progPoint))
+  if (progPoint.getAs<PreStmtPurgeDeadSymbols>())
+    return !progPoint.getTag();
+
+  // Condition 3.
+  if (!progPoint.getAs<PostStmt>() || progPoint.getAs<PostStore>())
     return false;
 
   // Condition 4.
-  PostStmt ps = cast<PostStmt>(progPoint);
-  if (ps.getTag())
+  if (progPoint.getTag())
     return false;
 
   // Conditions 5, 6, and 7.
@@ -99,23 +126,30 @@ bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
   if (state->store != pred_state->store || state->GDM != pred_state->GDM ||
       progPoint.getLocationContext() != pred->getLocationContext())
     return false;
-  
+
+  // All further checks require expressions. As per #3, we know that we have
+  // a PostStmt.
+  const Expr *Ex = dyn_cast<Expr>(progPoint.castAs<PostStmt>().getStmt());
+  if (!Ex)
+    return false;
+
   // Condition 8.
+  // Do not collect nodes for "interesting" lvalue expressions since they are
+  // used extensively for generating path diagnostics.
+  if (isInterestingLValueExpr(Ex))
+    return false;
+
+  // Condition 9.
   // Do not collect nodes for non-consumed Stmt or Expr to ensure precise
   // diagnostic generation; specifically, so that we could anchor arrows
   // pointing to the beginning of statements (as written in code).
-  if (!isa<Expr>(ps.getStmt()))
+  ParentMap &PM = progPoint.getLocationContext()->getParentMap();
+  if (!PM.isConsumedExpr(Ex))
     return false;
-  
-  if (const Expr *Ex = dyn_cast<Expr>(ps.getStmt())) {
-    ParentMap &PM = progPoint.getLocationContext()->getParentMap();
-    if (!PM.isConsumedExpr(Ex))
-      return false;
-  }
-  
-  // Condition 9.
+
+  // Condition 10.
   const ProgramPoint SuccLoc = succ->getLocation();
-  if (const StmtPoint *SP = dyn_cast<StmtPoint>(&SuccLoc))
+  if (Optional<StmtPoint> SP = SuccLoc.getAs<StmtPoint>())
     if (CallEvent::isCallStmt(SP->getStmt()))
       return false;
 
@@ -297,45 +331,31 @@ ExplodedNode *ExplodedGraph::getNode(const ProgramPoint &L,
   return V;
 }
 
-std::pair<ExplodedGraph*, InterExplodedGraphMap*>
-ExplodedGraph::Trim(const NodeTy* const* NBeg, const NodeTy* const* NEnd,
-               llvm::DenseMap<const void*, const void*> *InverseMap) const {
+ExplodedGraph *
+ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
+                    InterExplodedGraphMap *ForwardMap,
+                    InterExplodedGraphMap *InverseMap) const{
 
-  if (NBeg == NEnd)
-    return std::make_pair((ExplodedGraph*) 0,
-                          (InterExplodedGraphMap*) 0);
-
-  assert (NBeg < NEnd);
-
-  OwningPtr<InterExplodedGraphMap> M(new InterExplodedGraphMap());
-
-  ExplodedGraph* G = TrimInternal(NBeg, NEnd, M.get(), InverseMap);
-
-  return std::make_pair(static_cast<ExplodedGraph*>(G), M.take());
-}
-
-ExplodedGraph*
-ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
-                            const ExplodedNode* const* EndSources,
-                            InterExplodedGraphMap* M,
-                   llvm::DenseMap<const void*, const void*> *InverseMap) const {
+  if (Nodes.empty())
+    return 0;
 
   typedef llvm::DenseSet<const ExplodedNode*> Pass1Ty;
   Pass1Ty Pass1;
 
-  typedef llvm::DenseMap<const ExplodedNode*, ExplodedNode*> Pass2Ty;
-  Pass2Ty& Pass2 = M->M;
+  typedef InterExplodedGraphMap Pass2Ty;
+  InterExplodedGraphMap Pass2Scratch;
+  Pass2Ty &Pass2 = ForwardMap ? *ForwardMap : Pass2Scratch;
 
   SmallVector<const ExplodedNode*, 10> WL1, WL2;
 
   // ===- Pass 1 (reverse DFS) -===
-  for (const ExplodedNode* const* I = BeginSources; I != EndSources; ++I) {
+  for (ArrayRef<const NodeTy *>::iterator I = Sinks.begin(), E = Sinks.end();
+       I != E; ++I) {
     if (*I)
       WL1.push_back(*I);
   }
 
-  // Process the first worklist until it is empty.  Because it is a std::list
-  // it acts like a FIFO queue.
+  // Process the first worklist until it is empty.
   while (!WL1.empty()) {
     const ExplodedNode *N = WL1.back();
     WL1.pop_back();
@@ -398,7 +418,7 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
       if (PI == Pass2.end())
         continue;
 
-      NewN->addPredecessor(PI->second, *G);
+      NewN->addPredecessor(const_cast<ExplodedNode *>(PI->second), *G);
     }
 
     // In the case that some of the intended successors of NewN have already
@@ -409,7 +429,7 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
          I != E; ++I) {
       Pass2Ty::iterator PI = Pass2.find(*I);
       if (PI != Pass2.end()) {
-        PI->second->addPredecessor(NewN, *G);
+        const_cast<ExplodedNode *>(PI->second)->addPredecessor(NewN, *G);
         continue;
       }
 
@@ -420,15 +440,5 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
   }
 
   return G;
-}
-
-void InterExplodedGraphMap::anchor() { }
-
-ExplodedNode*
-InterExplodedGraphMap::getMappedNode(const ExplodedNode *N) const {
-  llvm::DenseMap<const ExplodedNode*, ExplodedNode*>::const_iterator I =
-    M.find(N);
-
-  return I == M.end() ? 0 : I->second;
 }
 

@@ -467,7 +467,7 @@ cleanup:
 
 	/* Release the temporary mapping. */
 	if (a_out)
-		kmem_free_wakeup(exec_map, (vm_offset_t)a_out, PAGE_SIZE);
+		kmap_free_wakeup(exec_map, (vm_offset_t)a_out, PAGE_SIZE);
 
 	return (error);
 }

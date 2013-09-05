@@ -50,7 +50,6 @@ static int	comc_init(int arg);
 static void	comc_putchar(int c);
 static int	comc_getchar(void);
 static int	comc_getspeed(void);
-static void	set_hw_console_hint(void);
 static int	comc_ischar(void);
 static int	comc_parseint(const char *string);
 static uint32_t comc_parse_pcidev(const char *string);
@@ -202,25 +201,12 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
     }
 
     if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) != 0 &&
-	comc_port != port) {
+	comc_port != port)
 	comc_setup(comc_curspeed, port);
-	set_hw_console_hint();
-    }
 
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 
     return (CMD_OK);
-}
-
-static void
-set_hw_console_hint(void)
-{
-	char intbuf[64];
-
-	unsetenv("hw.uart.console");
-	sprintf(intbuf, "io:%d,br:%d", comc_port, comc_curspeed);
-	env_setenv("hw.uart.console", EV_VOLATILE, intbuf,
-	    env_noset, env_nounset);
 }
 
 /*
@@ -288,7 +274,6 @@ comc_pcidev_handle(uint32_t locator)
 		   comc_port_set, env_nounset);
 
 	comc_setup(comc_curspeed, port);
-	set_hw_console_hint();
 	comc_locator = locator;
 
 	return (CMD_OK);
@@ -318,8 +303,10 @@ static void
 comc_setup(int speed, int port)
 {
     static int TRY_COUNT = 1000000;
+    char intbuf[64];
     int tries;
 
+    unsetenv("hw.uart.console");
     comc_curspeed = speed;
     comc_port = port;
 
@@ -334,9 +321,11 @@ comc_setup(int speed, int port)
         inb(comc_port + com_data);
     while (inb(comc_port + com_lsr) & LSR_RXRDY && ++tries < TRY_COUNT);
 
-    if (tries < TRY_COUNT)
+    if (tries < TRY_COUNT) {
 	comconsole.c_flags |= (C_PRESENTIN | C_PRESENTOUT);
-    else
+	sprintf(intbuf, "io:%d,br:%d", comc_port, comc_curspeed);
+	env_setenv("hw.uart.console", EV_VOLATILE, intbuf, NULL, NULL);
+    } else
 	comconsole.c_flags &= ~(C_PRESENTIN | C_PRESENTOUT);
 }
 

@@ -112,7 +112,7 @@ static void
 kwsinit (void)
 {
   static char trans[NCHAR];
-  int i;
+  size_t i;
 
   if (match_icase)
     for (i = 0; i < NCHAR; ++i)
@@ -326,7 +326,8 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 {
   register char const *buflim, *beg, *end;
   char eol = eolbyte;
-  int backref, start, len;
+  int backref;
+  ptrdiff_t start, len;
   struct kwsmatch kwsm;
   size_t i, ret_val;
   static int use_dfa;

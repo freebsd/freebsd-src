@@ -1,15 +1,9 @@
 /*
  * SSL/TLS interface functions for GnuTLS
- * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -19,28 +13,12 @@
 #include <gnutls/pkcs12.h>
 #endif /* PKCS12_FUNCS */
 
-#ifdef CONFIG_GNUTLS_EXTRA
-#if LIBGNUTLS_VERSION_NUMBER >= 0x010302
-#define GNUTLS_IA
-#include <gnutls/extra.h>
-#if LIBGNUTLS_VERSION_NUMBER == 0x010302
-/* This function is not included in the current gnutls/extra.h even though it
- * should be, so define it here as a workaround for the time being. */
-int gnutls_ia_verify_endphase(gnutls_session_t session, char *checksum);
-#endif /* LIBGNUTLS_VERSION_NUMBER == 0x010302 */
-#endif /* LIBGNUTLS_VERSION_NUMBER >= 0x010302 */
-#endif /* CONFIG_GNUTLS_EXTRA */
-
 #include "common.h"
 #include "tls.h"
 
 
-#ifndef TLS_RANDOM_SIZE
-#define TLS_RANDOM_SIZE 32
-#endif
-#ifndef TLS_MASTER_SIZE
-#define TLS_MASTER_SIZE 48
-#endif
+#define WPA_TLS_RANDOM_SIZE 32
+#define WPA_TLS_MASTER_SIZE 48
 
 
 #if LIBGNUTLS_VERSION_NUMBER < 0x010302
@@ -77,9 +55,9 @@ typedef struct {
 	gnutls_mac_algorithm_t write_mac_algorithm;
 	gnutls_compression_method_t write_compression_algorithm;
 	cipher_suite_st current_cipher_suite;
-	opaque master_secret[TLS_MASTER_SIZE];
-	opaque client_random[TLS_RANDOM_SIZE];
-	opaque server_random[TLS_RANDOM_SIZE];
+	opaque master_secret[WPA_TLS_MASTER_SIZE];
+	opaque client_random[WPA_TLS_RANDOM_SIZE];
+	opaque server_random[WPA_TLS_RANDOM_SIZE];
 	/* followed by stuff we are not interested in */
 } security_parameters_st;
 
@@ -118,21 +96,6 @@ struct tls_connection {
 
 	int params_set;
 	gnutls_certificate_credentials_t xcred;
-
-	int tls_ia;
-	int final_phase_finished;
-
-#ifdef GNUTLS_IA
-	gnutls_ia_server_credentials_t iacred_srv;
-	gnutls_ia_client_credentials_t iacred_cli;
-
-	/* Session keys generated in the current phase for inner secret
-	 * permutation before generating/verifying PhaseFinished. */
-	u8 *session_keys;
-	size_t session_keys_len;
-
-	u8 inner_secret[TLS_MASTER_SIZE];
-#endif /* GNUTLS_IA */
 };
 
 
@@ -285,8 +248,12 @@ static ssize_t tls_push_func(gnutls_transport_ptr ptr, const void *buf,
 static int tls_gnutls_init_session(struct tls_global *global,
 				   struct tls_connection *conn)
 {
+#if LIBGNUTLS_VERSION_NUMBER >= 0x020200
+	const char *err;
+#else /* LIBGNUTLS_VERSION_NUMBER >= 0x020200 */
 	const int cert_types[2] = { GNUTLS_CRT_X509, 0 };
 	const int protos[2] = { GNUTLS_TLS1, 0 };
+#endif /* LIBGNUTLS_VERSION_NUMBER < 0x020200 */
 	int ret;
 
 	ret = gnutls_init(&conn->session,
@@ -301,6 +268,15 @@ static int tls_gnutls_init_session(struct tls_global *global,
 	if (ret < 0)
 		goto fail;
 
+#if LIBGNUTLS_VERSION_NUMBER >= 0x020200
+	ret = gnutls_priority_set_direct(conn->session, "NORMAL:-VERS-SSL3.0",
+					 &err);
+	if (ret < 0) {
+		wpa_printf(MSG_ERROR, "GnuTLS: Priority string failure at "
+			   "'%s'", err);
+		goto fail;
+	}
+#else /* LIBGNUTLS_VERSION_NUMBER >= 0x020200 */
 	ret = gnutls_certificate_type_set_priority(conn->session, cert_types);
 	if (ret < 0)
 		goto fail;
@@ -308,6 +284,7 @@ static int tls_gnutls_init_session(struct tls_global *global,
 	ret = gnutls_protocol_set_priority(conn->session, protos);
 	if (ret < 0)
 		goto fail;
+#endif /* LIBGNUTLS_VERSION_NUMBER < 0x020200 */
 
 	gnutls_transport_set_pull_function(conn->session, tls_pull_func);
 	gnutls_transport_set_push_function(conn->session, tls_push_func);
@@ -364,17 +341,6 @@ void tls_connection_deinit(void *ssl_ctx, struct tls_connection *conn)
 	if (conn == NULL)
 		return;
 
-#ifdef GNUTLS_IA
-	if (conn->iacred_srv)
-		gnutls_ia_free_server_credentials(conn->iacred_srv);
-	if (conn->iacred_cli)
-		gnutls_ia_free_client_credentials(conn->iacred_cli);
-	if (conn->session_keys) {
-		os_memset(conn->session_keys, 0, conn->session_keys_len);
-		os_free(conn->session_keys);
-	}
-#endif /* GNUTLS_IA */
-
 	gnutls_certificate_free_credentials(conn->xcred);
 	gnutls_deinit(conn->session);
 	os_free(conn->pre_shared_secret);
@@ -407,14 +373,6 @@ int tls_connection_shutdown(void *ssl_ctx, struct tls_connection *conn)
 	wpabuf_free(conn->push_buf);
 	conn->push_buf = NULL;
 	conn->established = 0;
-	conn->final_phase_finished = 0;
-#ifdef GNUTLS_IA
-	if (conn->session_keys) {
-		os_memset(conn->session_keys, 0, conn->session_keys_len);
-		os_free(conn->session_keys);
-	}
-	conn->session_keys_len = 0;
-#endif /* GNUTLS_IA */
 
 	gnutls_deinit(conn->session);
 	if (tls_gnutls_init_session(global, conn)) {
@@ -597,11 +555,13 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 				conn->xcred, GNUTLS_VERIFY_ALLOW_SIGN_RSA_MD5);
 		}
 
+#if LIBGNUTLS_VERSION_NUMBER >= 0x020800
 		if (params->flags & TLS_CONN_DISABLE_TIME_CHECKS) {
 			gnutls_certificate_set_verify_flags(
 				conn->xcred,
 				GNUTLS_VERIFY_DISABLE_TIME_CHECKS);
 		}
+#endif /* LIBGNUTLS_VERSION_NUMBER >= 0x020800 */
 	}
 
 	if (params->client_cert && params->private_key) {
@@ -646,7 +606,6 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		}
 	}
 
-	conn->tls_ia = params->tls_ia;
 	conn->params_set = 1;
 
 	ret = gnutls_credentials_set(conn->session, GNUTLS_CRD_CERTIFICATE,
@@ -655,28 +614,6 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		wpa_printf(MSG_INFO, "Failed to configure credentials: %s",
 			   gnutls_strerror(ret));
 	}
-
-#ifdef GNUTLS_IA
-	if (conn->iacred_cli)
-		gnutls_ia_free_client_credentials(conn->iacred_cli);
-
-	ret = gnutls_ia_allocate_client_credentials(&conn->iacred_cli);
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "Failed to allocate IA credentials: %s",
-			   gnutls_strerror(ret));
-		return -1;
-	}
-
-	ret = gnutls_credentials_set(conn->session, GNUTLS_CRD_IA,
-				     conn->iacred_cli);
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "Failed to configure IA credentials: %s",
-			   gnutls_strerror(ret));
-		gnutls_ia_free_client_credentials(conn->iacred_cli);
-		conn->iacred_cli = NULL;
-		return -1;
-	}
-#endif /* GNUTLS_IE */
 
 	return ret;
 }
@@ -729,11 +666,13 @@ int tls_global_set_params(void *tls_ctx,
 				GNUTLS_VERIFY_ALLOW_SIGN_RSA_MD5);
 		}
 
+#if LIBGNUTLS_VERSION_NUMBER >= 0x020800
 		if (params->flags & TLS_CONN_DISABLE_TIME_CHECKS) {
 			gnutls_certificate_set_verify_flags(
 				global->xcred,
 				GNUTLS_VERIFY_DISABLE_TIME_CHECKS);
 		}
+#endif /* LIBGNUTLS_VERSION_NUMBER >= 0x020800 */
 	}
 
 	if (params->client_cert && params->private_key) {
@@ -822,10 +761,11 @@ int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
 
 	os_memset(keys, 0, sizeof(*keys));
 
+#if LIBGNUTLS_VERSION_NUMBER < 0x020c00
 #ifdef GNUTLS_INTERNAL_STRUCTURE_HACK
 	sec = &conn->session->security_parameters;
 	keys->master_key = sec->master_secret;
-	keys->master_key_len = TLS_MASTER_SIZE;
+	keys->master_key_len = WPA_TLS_MASTER_SIZE;
 	keys->client_random = sec->client_random;
 	keys->server_random = sec->server_random;
 #else /* GNUTLS_INTERNAL_STRUCTURE_HACK */
@@ -835,16 +775,12 @@ int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
 		(u8 *) gnutls_session_get_server_random(conn->session);
 	/* No access to master_secret */
 #endif /* GNUTLS_INTERNAL_STRUCTURE_HACK */
+#endif /* LIBGNUTLS_VERSION_NUMBER < 0x020c00 */
 
-#ifdef GNUTLS_IA
-	gnutls_ia_extract_inner_secret(conn->session,
-				       (char *) conn->inner_secret);
-	keys->inner_secret = conn->inner_secret;
-	keys->inner_secret_len = TLS_MASTER_SIZE;
-#endif /* GNUTLS_IA */
-
-	keys->client_random_len = TLS_RANDOM_SIZE;
-	keys->server_random_len = TLS_RANDOM_SIZE;
+#if LIBGNUTLS_VERSION_NUMBER < 0x020c00
+	keys->client_random_len = WPA_TLS_RANDOM_SIZE;
+	keys->server_random_len = WPA_TLS_RANDOM_SIZE;
+#endif /* LIBGNUTLS_VERSION_NUMBER < 0x020c00 */
 
 	return 0;
 }
@@ -883,11 +819,13 @@ static int tls_connection_verify_peer(struct tls_connection *conn,
 
 	if (conn->verify_peer && (status & GNUTLS_CERT_INVALID)) {
 		wpa_printf(MSG_INFO, "TLS: Peer certificate not trusted");
+		*err = GNUTLS_A_INTERNAL_ERROR;
 		if (status & GNUTLS_CERT_INSECURE_ALGORITHM) {
 			wpa_printf(MSG_INFO, "TLS: Certificate uses insecure "
 				   "algorithm");
 			*err = GNUTLS_A_INSUFFICIENT_SECURITY;
 		}
+#if LIBGNUTLS_VERSION_NUMBER >= 0x020800
 		if (status & GNUTLS_CERT_NOT_ACTIVATED) {
 			wpa_printf(MSG_INFO, "TLS: Certificate not yet "
 				   "activated");
@@ -897,6 +835,7 @@ static int tls_connection_verify_peer(struct tls_connection *conn,
 			wpa_printf(MSG_INFO, "TLS: Certificate expired");
 			*err = GNUTLS_A_CERTIFICATE_EXPIRED;
 		}
+#endif /* LIBGNUTLS_VERSION_NUMBER >= 0x020800 */
 		return -1;
 	}
 
@@ -988,7 +927,7 @@ static struct wpabuf * gnutls_get_appl_data(struct tls_connection *conn)
 				 wpabuf_size(ad));
 	wpa_printf(MSG_DEBUG, "GnuTLS: gnutls_record_recv: %d", res);
 	if (res < 0) {
-		wpa_printf(MSG_DEBUG, "%s - gnutls_ia_recv failed: %d "
+		wpa_printf(MSG_DEBUG, "%s - gnutls_record_recv failed: %d "
 			   "(%s)", __func__, (int) res,
 			   gnutls_strerror(res));
 		wpabuf_free(ad);
@@ -1062,20 +1001,7 @@ struct wpabuf * tls_connection_handshake(void *tls_ctx,
 			goto out;
 		}
 
-#ifdef CONFIG_GNUTLS_EXTRA
-		if (conn->tls_ia && !gnutls_ia_handshake_p(conn->session)) {
-			wpa_printf(MSG_INFO, "TLS: No TLS/IA negotiation");
-			conn->failed++;
-			return NULL;
-		}
-#endif /* CONFIG_GNUTLS_EXTRA */
-
-		if (conn->tls_ia)
-			wpa_printf(MSG_DEBUG, "TLS: Start TLS/IA handshake");
-		else {
-			wpa_printf(MSG_DEBUG, "TLS: Handshake completed "
-				   "successfully");
-		}
+		wpa_printf(MSG_DEBUG, "TLS: Handshake completed successfully");
 		conn->established = 1;
 		if (conn->push_buf == NULL) {
 			/* Need to return something to get final TLS ACK. */
@@ -1122,12 +1048,6 @@ struct wpabuf * tls_connection_encrypt(void *tls_ctx,
 	ssize_t res;
 	struct wpabuf *buf;
 
-#ifdef GNUTLS_IA
-	if (conn->tls_ia)
-		res = gnutls_ia_send(conn->session, wpabuf_head(in_data),
-				     wpabuf_len(in_data));
-	else
-#endif /* GNUTLS_IA */
 	res = gnutls_record_send(conn->session, wpabuf_head(in_data),
 				 wpabuf_len(in_data));
 	if (res < 0) {
@@ -1169,65 +1089,6 @@ struct wpabuf * tls_connection_decrypt(void *tls_ctx,
 	out = wpabuf_alloc((wpabuf_len(in_data) + 500) * 3);
 	if (out == NULL)
 		return NULL;
-
-#ifdef GNUTLS_IA
-	if (conn->tls_ia) {
-		res = gnutls_ia_recv(conn->session, wpabuf_mhead(out),
-				     wpabuf_size(out));
-		if (res == GNUTLS_E_WARNING_IA_IPHF_RECEIVED ||
-		    res == GNUTLS_E_WARNING_IA_FPHF_RECEIVED) {
-			int final = res == GNUTLS_E_WARNING_IA_FPHF_RECEIVED;
-			wpa_printf(MSG_DEBUG, "%s: Received %sPhaseFinished",
-				   __func__, final ? "Final" : "Intermediate");
-
-			res = gnutls_ia_permute_inner_secret(
-				conn->session, conn->session_keys_len,
-				(char *) conn->session_keys);
-			if (conn->session_keys) {
-				os_memset(conn->session_keys, 0,
-					  conn->session_keys_len);
-				os_free(conn->session_keys);
-			}
-			conn->session_keys = NULL;
-			conn->session_keys_len = 0;
-			if (res) {
-				wpa_printf(MSG_DEBUG, "%s: Failed to permute "
-					   "inner secret: %s",
-					   __func__, gnutls_strerror(res));
-				wpabuf_free(out);
-				return NULL;
-			}
-
-			res = gnutls_ia_verify_endphase(conn->session,
-							wpabuf_head(out));
-			if (res == 0) {
-				wpa_printf(MSG_DEBUG, "%s: Correct endphase "
-					   "checksum", __func__);
-			} else {
-				wpa_printf(MSG_INFO, "%s: Endphase "
-					   "verification failed: %s",
-					   __func__, gnutls_strerror(res));
-				wpabuf_free(out);
-				return NULL;
-			}
-
-			if (final)
-				conn->final_phase_finished = 1;
-
-			return out;
-		}
-
-		if (res < 0) {
-			wpa_printf(MSG_DEBUG, "%s - gnutls_ia_recv failed: %d "
-				   "(%s)", __func__, (int) res,
-				   gnutls_strerror(res));
-			wpabuf_free(out);
-			return NULL;
-		}
-		wpabuf_put(out, res);
-		return out;
-	}
-#endif /* GNUTLS_IA */
 
 	res = gnutls_record_recv(conn->session, wpabuf_mhead(out),
 				 wpabuf_size(out));
@@ -1319,133 +1180,7 @@ int tls_connection_get_keyblock_size(void *tls_ctx,
 
 unsigned int tls_capabilities(void *tls_ctx)
 {
-	unsigned int capa = 0;
-
-#ifdef GNUTLS_IA
-	capa |= TLS_CAPABILITY_IA;
-#endif /* GNUTLS_IA */
-
-	return capa;
-}
-
-
-int tls_connection_set_ia(void *tls_ctx, struct tls_connection *conn,
-			  int tls_ia)
-{
-#ifdef GNUTLS_IA
-	int ret;
-
-	if (conn == NULL)
-		return -1;
-
-	conn->tls_ia = tls_ia;
-	if (!tls_ia)
-		return 0;
-
-	ret = gnutls_ia_allocate_server_credentials(&conn->iacred_srv);
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "Failed to allocate IA credentials: %s",
-			   gnutls_strerror(ret));
-		return -1;
-	}
-
-	ret = gnutls_credentials_set(conn->session, GNUTLS_CRD_IA,
-				     conn->iacred_srv);
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "Failed to configure IA credentials: %s",
-			   gnutls_strerror(ret));
-		gnutls_ia_free_server_credentials(conn->iacred_srv);
-		conn->iacred_srv = NULL;
-		return -1;
-	}
-
 	return 0;
-#else /* GNUTLS_IA */
-	return -1;
-#endif /* GNUTLS_IA */
-}
-
-
-struct wpabuf * tls_connection_ia_send_phase_finished(
-	void *tls_ctx, struct tls_connection *conn, int final)
-{
-#ifdef GNUTLS_IA
-	int ret;
-	struct wpabuf *buf;
-
-	if (conn == NULL || conn->session == NULL || !conn->tls_ia)
-		return NULL;
-
-	ret = gnutls_ia_permute_inner_secret(conn->session,
-					     conn->session_keys_len,
-					     (char *) conn->session_keys);
-	if (conn->session_keys) {
-		os_memset(conn->session_keys, 0, conn->session_keys_len);
-		os_free(conn->session_keys);
-	}
-	conn->session_keys = NULL;
-	conn->session_keys_len = 0;
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "%s: Failed to permute inner secret: %s",
-			   __func__, gnutls_strerror(ret));
-		return NULL;
-	}
-
-	ret = gnutls_ia_endphase_send(conn->session, final);
-	if (ret) {
-		wpa_printf(MSG_DEBUG, "%s: Failed to send endphase: %s",
-			   __func__, gnutls_strerror(ret));
-		return NULL;
-	}
-
-	buf = conn->push_buf;
-	conn->push_buf = NULL;
-	return buf;
-#else /* GNUTLS_IA */
-	return NULL;
-#endif /* GNUTLS_IA */
-}
-
-
-int tls_connection_ia_final_phase_finished(void *tls_ctx,
-					   struct tls_connection *conn)
-{
-	if (conn == NULL)
-		return -1;
-
-	return conn->final_phase_finished;
-}
-
-
-int tls_connection_ia_permute_inner_secret(void *tls_ctx,
-					   struct tls_connection *conn,
-					   const u8 *key, size_t key_len)
-{
-#ifdef GNUTLS_IA
-	if (conn == NULL || !conn->tls_ia)
-		return -1;
-
-	if (conn->session_keys) {
-		os_memset(conn->session_keys, 0, conn->session_keys_len);
-		os_free(conn->session_keys);
-	}
-	conn->session_keys_len = 0;
-
-	if (key) {
-		conn->session_keys = os_malloc(key_len);
-		if (conn->session_keys == NULL)
-			return -1;
-		os_memcpy(conn->session_keys, key, key_len);
-		conn->session_keys_len = key_len;
-	} else {
-		conn->session_keys = NULL;
-		conn->session_keys_len = 0;
-	}
-
-	return 0;
-#else /* GNUTLS_IA */
-	return -1;
-#endif /* GNUTLS_IA */
 }
 
 

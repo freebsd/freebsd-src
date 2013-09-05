@@ -6,7 +6,6 @@ PROG_CXX=llvm-ar
 
 SRCDIR=	tools/llvm-ar
 SRCS=	llvm-ar.cpp
-LLVM_REQUIRES_EH=
 
 LIBDEPS=llvmarchive \
 	llvmbitreader \

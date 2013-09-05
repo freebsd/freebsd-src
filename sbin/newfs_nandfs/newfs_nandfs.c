@@ -80,15 +80,18 @@ struct file_info {
 	struct nandfs_inode *inode;
 };
 
-struct file_info user_files[] =
-{
-	{NANDFS_ROOT_INO, NULL, S_IFDIR | 0755, 0, 1, NULL, NULL},
+static struct file_info user_files[] = {
+	{ NANDFS_ROOT_INO, NULL, S_IFDIR | 0755, 0, 1, NULL, NULL },
 };
 
-struct file_info ifile = {NANDFS_IFILE_INO, NULL, 0, 0, -1, NULL, NULL};
-struct file_info sufile = {NANDFS_SUFILE_INO, NULL, 0, 0, -1, NULL, NULL};
-struct file_info cpfile = {NANDFS_CPFILE_INO, NULL, 0, 0, -1, NULL, NULL};
-struct file_info datfile = {NANDFS_DAT_INO, NULL, 0, 0, -1, NULL, NULL};
+static struct file_info ifile =
+	{ NANDFS_IFILE_INO, NULL, 0, 0, -1, NULL, NULL };
+static struct file_info sufile =
+	{ NANDFS_SUFILE_INO, NULL, 0, 0, -1, NULL, NULL };
+static struct file_info cpfile =
+	{ NANDFS_CPFILE_INO, NULL, 0, 0, -1, NULL, NULL };
+static struct file_info datfile =
+	{ NANDFS_DAT_INO, NULL, 0, 0, -1, NULL, NULL };
 
 struct nandfs_block {
 	LIST_ENTRY(nandfs_block) block_link;
@@ -97,7 +100,8 @@ struct nandfs_block {
 	void	*data;
 };
 
-static LIST_HEAD(, nandfs_block) block_head = LIST_HEAD_INITIALIZER(&block_head);
+static LIST_HEAD(, nandfs_block) block_head =
+	LIST_HEAD_INITIALIZER(&block_head);
 
 /* Storage geometry */
 static off_t mediasize;
@@ -106,8 +110,8 @@ static uint64_t nsegments;
 static uint64_t erasesize;
 static uint64_t segsize;
 
-struct nandfs_fsdata fsdata;
-struct nandfs_super_block super_block;
+static struct nandfs_fsdata fsdata;
+static struct nandfs_super_block super_block;
 
 static int is_nand;
 
@@ -120,14 +124,13 @@ static uint32_t bad_segments_count = 0;
 static uint32_t *bad_segments = NULL;
 static uint8_t fsdata_blocks_state[NANDFS_NFSAREAS];
 
-u_char *volumelabel = NULL;
+static u_char *volumelabel = NULL;
 
-struct nandfs_super_root *sr;
+static struct nandfs_super_root *sr;
 
-uint32_t nuserfiles;
-uint32_t seg_segsum_size;
-uint32_t seg_nblocks;
-uint32_t seg_endblock;
+static uint32_t nuserfiles;
+static uint32_t seg_nblocks;
+static uint32_t seg_endblock;
 
 #define SIZE_TO_BLOCK(size) (((size) + (blocksize - 1)) / blocksize)
 

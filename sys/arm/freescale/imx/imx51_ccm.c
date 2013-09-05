@@ -26,7 +26,7 @@
  */
 
 /*-
- * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2012, 2013 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Oleksandr Rybalko
@@ -140,7 +140,8 @@ static int
 imxccm_match(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ccm"))
+	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ccm") &&
+	    !ofw_bus_is_compatible(dev, "fsl,imx53-ccm"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale Clock Control Module");

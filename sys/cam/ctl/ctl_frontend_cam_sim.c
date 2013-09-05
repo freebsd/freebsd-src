@@ -311,7 +311,7 @@ cfcs_onoffline(void *arg, int online)
 		goto bailout;
 	}
 
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+	if (xpt_create_path(&ccb->ccb_h.path, NULL,
 			    cam_sim_path(softc->sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		printf("%s: can't allocate path for rescan\n", __func__);

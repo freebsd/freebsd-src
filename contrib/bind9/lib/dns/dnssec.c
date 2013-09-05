@@ -275,7 +275,7 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_databuf;
 
-	ret = dst_context_create(key, mctx, &ctx);
+	ret = dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_databuf;
 
@@ -352,7 +352,6 @@ dns_dnssec_sign(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		ret = ISC_R_NOSPACE;
 		goto cleanup_array;
 	}
-	memcpy(sig.signature, r.base, sig.siglen);
 
 	ret = dns_rdata_fromstruct(sigrdata, sig.common.rdclass,
 				   sig.common.rdtype, &sig, buffer);
@@ -373,6 +372,15 @@ isc_result_t
 dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 		   isc_boolean_t ignoretime, isc_mem_t *mctx,
 		   dns_rdata_t *sigrdata, dns_name_t *wild)
+{
+	return (dns_dnssec_verify3(name, set, key, ignoretime, 0, mctx,
+				   sigrdata, wild));
+}
+
+isc_result_t
+dns_dnssec_verify3(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
+		   isc_boolean_t ignoretime, unsigned int maxbits,
+		   isc_mem_t *mctx, dns_rdata_t *sigrdata, dns_name_t *wild)
 {
 	dns_rdata_rrsig_t sig;
 	dns_fixedname_t fnewname;
@@ -462,7 +470,7 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	}
 
  again:
-	ret = dst_context_create(key, mctx, &ctx);
+	ret = dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx);
 	if (ret != ISC_R_SUCCESS)
 		goto cleanup_struct;
 
@@ -547,13 +555,13 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 
 	r.base = sig.signature;
 	r.length = sig.siglen;
-	ret = dst_context_verify(ctx, &r);
+	ret = dst_context_verify2(ctx, maxbits, &r);
 	if (ret == ISC_R_SUCCESS && downcase) {
 		char namebuf[DNS_NAME_FORMATSIZE];
 		dns_name_format(&sig.signer, namebuf, sizeof(namebuf));
-		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
-			      DNS_LOGMODULE_DNSSEC, ISC_LOG_INFO,
-			      "sucessfully validated after lower casing "
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DNSSEC,
+			      DNS_LOGMODULE_DNSSEC, ISC_LOG_DEBUG(1),
+			      "successfully validated after lower casing "
 			      "signer '%s'", namebuf);
 		inc_stat(dns_dnssecstats_downcase);
 	} else if (ret == ISC_R_SUCCESS)
@@ -684,6 +692,8 @@ dns_dnssec_findzonekeys2(dns_db_t *db, dns_dbversion_t *ver,
 		pubkey = NULL;
 		dns_rdataset_current(&rdataset, &rdata);
 		RETERR(dns_dnssec_keyfromrdata(name, &rdata, mctx, &pubkey));
+		dst_key_setttl(pubkey, rdataset.ttl);
+
 		if (!is_zone_key(pubkey) ||
 		    (dst_key_flags(pubkey) & DNS_KEYTYPE_NOAUTH) != 0)
 			goto next;
@@ -760,6 +770,12 @@ dns_dnssec_findzonekeys2(dns_db_t *db, dns_dbversion_t *ver,
 			count++;
 			goto next;
 		}
+
+		/*
+		 * Whatever the key's default TTL may have
+		 * been, the rdataset TTL takes priority.
+		 */
+		dst_key_setttl(keys[count], rdataset.ttl);
 
 		if ((dst_key_flags(keys[count]) & DNS_KEYTYPE_NOAUTH) != 0) {
 			/* We should never get here. */
@@ -854,7 +870,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 
 	isc_buffer_init(&databuf, data, sizeof(data));
 
-	RETERR(dst_context_create(key, mctx, &ctx));
+	RETERR(dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx));
 
 	/*
 	 * Digest the fields of the SIG - we can cheat and use
@@ -1004,7 +1020,7 @@ dns_dnssec_verifymessage(isc_buffer_t *source, dns_message_t *msg,
 		goto failure;
 	}
 
-	RETERR(dst_context_create(key, mctx, &ctx));
+	RETERR(dst_context_create2(key, mctx, DNS_LOGCATEGORY_DNSSEC, &ctx));
 
 	/*
 	 * Digest the SIG(0) record, except for the signature.
@@ -1510,6 +1526,7 @@ dns_dnssec_keylistfromrdataset(dns_name_t *origin,
 		dns_rdata_reset(&rdata);
 		dns_rdataset_current(&keys, &rdata);
 		RETERR(dns_dnssec_keyfromrdata(origin, &rdata, mctx, &pubkey));
+		dst_key_setttl(pubkey, keys.ttl);
 
 		if (!is_zone_key(pubkey) ||
 		    (dst_key_flags(pubkey) & DNS_KEYTYPE_NOAUTH) != 0)
@@ -1581,6 +1598,12 @@ dns_dnssec_keylistfromrdataset(dns_name_t *origin,
 		/* This should never happen. */
 		if ((dst_key_flags(privkey) & DNS_KEYTYPE_NOAUTH) != 0)
 			goto skip;
+
+		/*
+		 * Whatever the key's default TTL may have
+		 * been, the rdataset TTL takes priority.
+		 */
+		dst_key_setttl(privkey, dst_key_getttl(pubkey));
 
 		RETERR(addkey(keylist, &privkey, savekeys, mctx));
  skip:
@@ -1707,16 +1730,22 @@ remove_key(dns_diff_t *diff, dns_dnsseckey_t *key, dns_name_t *origin,
 isc_result_t
 dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 		      dns_dnsseckeylist_t *removed, dns_name_t *origin,
-		      dns_ttl_t ttl, dns_diff_t *diff, isc_boolean_t allzsk,
-		      isc_mem_t *mctx, void (*report)(const char *, ...))
+		      dns_ttl_t hint_ttl, dns_diff_t *diff,
+		      isc_boolean_t allzsk, isc_mem_t *mctx,
+		      void (*report)(const char *, ...))
 {
 	isc_result_t result;
 	dns_dnsseckey_t *key, *key1, *key2, *next;
+	isc_boolean_t found_ttl = ISC_FALSE;
+	dns_ttl_t ttl = hint_ttl;
 
 	/*
 	 * First, look through the existing key list to find keys
 	 * supplied from the command line which are not in the zone.
 	 * Update the zone to include them.
+	 *
+	 * Also, if there are keys published in the zone already,
+	 * use their TTL for all subsequent published keys.
 	 */
 	for (key = ISC_LIST_HEAD(*keys);
 	     key != NULL;
@@ -1726,6 +1755,30 @@ dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 			RETERR(publish_key(diff, key, origin, ttl,
 					   mctx, allzsk, report));
 		}
+		if (key->source == dns_keysource_zoneapex) {
+			ttl = dst_key_getttl(key->key);
+			found_ttl = ISC_TRUE;
+		}
+	}
+
+	/*
+	 * If there were no existing keys, use the smallest nonzero
+	 * TTL of the keys found in the repository.
+	 */
+	if (!found_ttl && !ISC_LIST_EMPTY(*newkeys)) {
+		dns_ttl_t shortest = 0;
+
+		for (key = ISC_LIST_HEAD(*newkeys);
+		     key != NULL;
+		     key = ISC_LIST_NEXT(key, link)) {
+			dns_ttl_t thisttl = dst_key_getttl(key->key);
+			if (thisttl != 0 &&
+			    (shortest == 0 || thisttl < shortest))
+				shortest = thisttl;
+		}
+
+		if (shortest != 0)
+			ttl = shortest;
 	}
 
 	/*

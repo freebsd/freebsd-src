@@ -83,10 +83,7 @@ ASENTRY_NP(swi_entry)
 	PUSHFRAME
 
 	mov	r0, sp			/* Pass the frame to any function */
-	mov	r6, sp			/* Backup the stack pointer */
-	bic	sp, sp, #7		/* Align the stack pointer */
 	bl	_C_LABEL(swi_handler)	/* It's a SWI ! */
-	mov	sp, r6			/* Restore the stack */
 
 	DO_AST
 	PULLFRAME
@@ -196,15 +193,20 @@ END(address_exception_entry)
  * Interrupts are disabled at suitable points to avoid ASTs
  * being posted between testing and exit to user mode.
  *
- * This function uses PULLFRAMEFROMSVCANDEXIT and
- * DO_AST
- * only be called if the exception handler used PUSHFRAMEINSVC
+ * This function uses PULLFRAMEFROMSVCANDEXIT and DO_AST and can
+ * only be called if the exception handler used PUSHFRAMEINSVC.
  *
+ * For EABI, don't try to unwind any further than this.  This is a
+ * stopgap measure to avoid getting stuck in a loop in the unwinder,
+ * which happens because we don't yet provide the proper unwind info
+ * here that describes which registers are being restored.
  */
 
-exception_exit:
+ASENTRY_NP(exception_exit)
+	UNWINDSVCFRAME
 	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
+END(exception_exit)
 
 /*
  * undefined_entry:

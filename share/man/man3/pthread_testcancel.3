@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd January 17, 1999
+.Dd June 11, 2013
 .Dt PTHREAD_TESTCANCEL 3
 .Os
 .Sh NAME
@@ -100,28 +100,59 @@ type will be in effect.
 .Ss Cancellation Points
 Cancellation points will occur when a thread is executing the following
 functions:
+.Fn accept ,
+.Fn accept4 ,
+.Fn aio_suspend ,
+.Fn connect ,
 .Fn close ,
 .Fn creat ,
-.Fn fcntl ,
 .Fn fsync ,
+.Fn mq_receive ,
+.Fn mq_send ,
+.Fn mq_timedreceive ,
+.Fn mq_timedsend ,
 .Fn msync ,
 .Fn nanosleep ,
 .Fn open ,
+.Fn openat ,
 .Fn pause ,
+.Fn poll ,
+.Fn pselect ,
 .Fn pthread_cond_timedwait ,
 .Fn pthread_cond_wait ,
 .Fn pthread_join ,
 .Fn pthread_testcancel ,
 .Fn read ,
-.Fn sigwaitinfo ,
+.Fn readv ,
+.Fn recv ,
+.Fn recvfrom ,
+.Fn recvmsg ,
+.Fn select ,
+.Fn sem_timedwait ,
+.Fn sem_wait ,
+.Fn send ,
+.Fn sendmsg ,
+.Fn sendto ,
 .Fn sigsuspend ,
+.Fn sigtimedwait ,
+.Fn sigwaitinfo ,
 .Fn sigwait ,
 .Fn sleep ,
 .Fn system ,
 .Fn tcdrain ,
+.Fn usleep ,
 .Fn wait ,
+.Fn wait3 ,
+.Fn wait4 ,
 .Fn waitpid ,
-.Fn write .
+.Fn write ,
+.Fn writev .
+The
+.Fn fcntl
+function is a cancellation point if
+.Fa cmd
+is
+.Dv F_SETLKW .
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_setcancelstate
@@ -201,6 +232,8 @@ The
 .Fn pthread_testcancel
 function conforms to
 .St -p1003.1-96 .
+The standard allows implementations to make many more functions
+cancellation points.
 .Sh AUTHORS
 This manual page was written by
 .An David Leonard Aq d@openbsd.org

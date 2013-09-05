@@ -271,6 +271,7 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 	nv_add_string(nvout, compression_name(res->hr_compression),
 	    "compression%u", no);
 	nv_add_string(nvout, role2str(res->hr_role), "role%u", no);
+	nv_add_int32(nvout, res->hr_workerpid, "workerpid%u", no);
 
 	switch (res->hr_role) {
 	case HAST_ROLE_PRIMARY:

@@ -30,6 +30,7 @@ extern int screen_trashed;
 extern int less_is_more;
 extern int quit_at_eof;
 extern char *every_first_cmd;
+extern int opt_use_backslash;
 
 /*
  * Return a printable description of an option.
@@ -578,7 +579,7 @@ optstring(s, p_str, printopt, validchars)
 
 	for (p = s;  *p != '\0';  p++)
 	{
-		if (*p == '\\' && p[1] != '\0')
+		if (opt_use_backslash && *p == '\\' && p[1] != '\0')
 		{
 			/* Take next char literally. */
 			++p;

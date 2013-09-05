@@ -32,7 +32,7 @@
 dnssec\-settime \- Set the key timing metadata for a DNSSEC key
 .SH "SYNOPSIS"
 .HP 15
-\fBdnssec\-settime\fR [\fB\-f\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-h\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] {keyfile}
+\fBdnssec\-settime\fR [\fB\-f\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-L\ \fR\fB\fIttl\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-h\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] {keyfile}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-settime\fR
@@ -65,6 +65,15 @@ will fail when attempting to update a legacy key. With this option, the key will
 \-K \fIdirectory\fR
 .RS 4
 Sets the directory in which the key files are to reside.
+.RE
+.PP
+\-L \fIttl\fR
+.RS 4
+Sets the default TTL to use for this key when it is converted into a DNSKEY RR. If the key is imported into a zone, this is the TTL that will be used for it, unless there was already a DNSKEY RRset in place, in which case the existing TTL would take precedence. Setting the default TTL to
+0
+or
+none
+removes it.
 .RE
 .PP
 \-h

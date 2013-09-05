@@ -16,22 +16,23 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "pre-RA-sched"
-#include "ScheduleDAGSDNodes.h"
-#include "llvm/InlineAsm.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/CodeGen/SelectionDAGISel.h"
-#include "llvm/CodeGen/ScheduleHazardRecognizer.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLowering.h"
+#include "ScheduleDAGSDNodes.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/ScheduleHazardRecognizer.h"
+#include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/InlineAsm.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <climits>
 using namespace llvm;
 
@@ -142,6 +143,12 @@ private:
   std::vector<SUnit*> LiveRegDefs;
   std::vector<SUnit*> LiveRegGens;
 
+  // Collect interferences between physical register use/defs.
+  // Each interference is an SUnit and set of physical registers.
+  SmallVector<SUnit*, 4> Interferences;
+  typedef DenseMap<SUnit*, SmallVector<unsigned, 4> > LRegsMapT;
+  LRegsMapT LRegsMap;
+
   /// Topo - A topological ordering for SUnits which permits fast IsReachable
   /// and similar queries.
   ScheduleDAGTopologicalSort Topo;
@@ -156,7 +163,7 @@ public:
                     CodeGenOpt::Level OptLevel)
     : ScheduleDAGSDNodes(mf),
       NeedLatency(needlatency), AvailableQueue(availqueue), CurCycle(0),
-      Topo(SUnits) {
+      Topo(SUnits, NULL) {
 
     const TargetMachine &tm = mf.getTarget();
     if (DisableSchedCycles || !NeedLatency)
@@ -225,6 +232,8 @@ private:
                                 SmallVector<SUnit*, 2>&);
   bool DelayForLiveRegsBottomUp(SUnit*, SmallVector<unsigned, 4>&);
 
+  void releaseInterferences(unsigned Reg = 0);
+
   SUnit *PickNodeToScheduleBottomUp();
   void ListScheduleBottomUp();
 
@@ -268,14 +277,23 @@ static void GetCostForDef(const ScheduleDAGSDNodes::RegDefIter &RegDefPos,
                           const TargetRegisterInfo *TRI,
                           unsigned &RegClass, unsigned &Cost,
                           const MachineFunction &MF) {
-  EVT VT = RegDefPos.GetValue();
+  MVT VT = RegDefPos.GetValue();
 
   // Special handling for untyped values.  These values can only come from
   // the expansion of custom DAG-to-DAG patterns.
   if (VT == MVT::Untyped) {
     const SDNode *Node = RegDefPos.GetNode();
-    unsigned Opcode = Node->getMachineOpcode();
 
+    // Special handling for CopyFromReg of untyped values.
+    if (!Node->isMachineOpcode() && Node->getOpcode() == ISD::CopyFromReg) {
+      unsigned Reg = cast<RegisterSDNode>(Node->getOperand(1))->getReg();
+      const TargetRegisterClass *RC = MF.getRegInfo().getRegClass(Reg);
+      RegClass = RC->getID();
+      Cost = 1;
+      return;
+    }
+
+    unsigned Opcode = Node->getMachineOpcode();
     if (Opcode == TargetOpcode::REG_SEQUENCE) {
       unsigned DstRCIdx = cast<ConstantSDNode>(Node->getOperand(0))->getZExtValue();
       const TargetRegisterClass *RC = TRI->getRegClass(DstRCIdx);
@@ -312,6 +330,7 @@ void ScheduleDAGRRList::Schedule() {
   LiveRegDefs.resize(TRI->getNumRegs() + 1, NULL);
   LiveRegGens.resize(TRI->getNumRegs() + 1, NULL);
   CallSeqEndForStart.clear();
+  assert(Interferences.empty() && LRegsMap.empty() && "stale Interferences");
 
   // Build the scheduling graph.
   BuildSchedGraph(NULL);
@@ -725,6 +744,7 @@ void ScheduleDAGRRList::ScheduleNodeBottomUp(SUnit *SU) {
       --NumLiveRegs;
       LiveRegDefs[I->getReg()] = NULL;
       LiveRegGens[I->getReg()] = NULL;
+      releaseInterferences(I->getReg());
     }
   }
   // Release the special call resource dependence, if this is the beginning
@@ -739,6 +759,7 @@ void ScheduleDAGRRList::ScheduleNodeBottomUp(SUnit *SU) {
         --NumLiveRegs;
         LiveRegDefs[CallResource] = NULL;
         LiveRegGens[CallResource] = NULL;
+        releaseInterferences(CallResource);
       }
     }
 
@@ -794,6 +815,7 @@ void ScheduleDAGRRList::UnscheduleNodeBottomUp(SUnit *SU) {
       --NumLiveRegs;
       LiveRegDefs[I->getReg()] = NULL;
       LiveRegGens[I->getReg()] = NULL;
+      releaseInterferences(I->getReg());
     }
   }
 
@@ -821,6 +843,7 @@ void ScheduleDAGRRList::UnscheduleNodeBottomUp(SUnit *SU) {
         --NumLiveRegs;
         LiveRegDefs[CallResource] = NULL;
         LiveRegGens[CallResource] = NULL;
+        releaseInterferences(CallResource);
       }
     }
 
@@ -881,9 +904,6 @@ void ScheduleDAGRRList::BacktrackBottomUp(SUnit *SU, SUnit *BtSU) {
   SUnit *OldSU = Sequence.back();
   while (true) {
     Sequence.pop_back();
-    if (SU->isSucc(OldSU))
-      // Don't try to remove SU from AvailableQueue.
-      SU->isAvailable = false;
     // FIXME: use ready cycle instead of height
     CurCycle = OldSU->getHeight();
     UnscheduleNodeBottomUp(OldSU);
@@ -1305,34 +1325,60 @@ DelayForLiveRegsBottomUp(SUnit *SU, SmallVector<unsigned, 4> &LRegs) {
   return !LRegs.empty();
 }
 
+void ScheduleDAGRRList::releaseInterferences(unsigned Reg) {
+  // Add the nodes that aren't ready back onto the available list.
+  for (unsigned i = Interferences.size(); i > 0; --i) {
+    SUnit *SU = Interferences[i-1];
+    LRegsMapT::iterator LRegsPos = LRegsMap.find(SU);
+    if (Reg) {
+      SmallVector<unsigned, 4> &LRegs = LRegsPos->second;
+      if (std::find(LRegs.begin(), LRegs.end(), Reg) == LRegs.end())
+        continue;
+    }
+    SU->isPending = false;
+    // The interfering node may no longer be available due to backtracking.
+    // Furthermore, it may have been made available again, in which case it is
+    // now already in the AvailableQueue.
+    if (SU->isAvailable && !SU->NodeQueueId) {
+      DEBUG(dbgs() << "    Repushing SU #" << SU->NodeNum << '\n');
+      AvailableQueue->push(SU);
+    }
+    if (i < Interferences.size())
+      Interferences[i-1] = Interferences.back();
+    Interferences.pop_back();
+    LRegsMap.erase(LRegsPos);
+  }
+}
+
 /// Return a node that can be scheduled in this cycle. Requirements:
 /// (1) Ready: latency has been satisfied
 /// (2) No Hazards: resources are available
 /// (3) No Interferences: may unschedule to break register interferences.
 SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
-  SmallVector<SUnit*, 4> Interferences;
-  DenseMap<SUnit*, SmallVector<unsigned, 4> > LRegsMap;
-
-  SUnit *CurSU = AvailableQueue->pop();
+  SUnit *CurSU = AvailableQueue->empty() ? 0 : AvailableQueue->pop();
   while (CurSU) {
     SmallVector<unsigned, 4> LRegs;
     if (!DelayForLiveRegsBottomUp(CurSU, LRegs))
       break;
-    LRegsMap.insert(std::make_pair(CurSU, LRegs));
-
-    CurSU->isPending = true;  // This SU is not in AvailableQueue right now.
-    Interferences.push_back(CurSU);
+    DEBUG(dbgs() << "    Interfering reg " <<
+          (LRegs[0] == TRI->getNumRegs() ? "CallResource"
+           : TRI->getName(LRegs[0]))
+           << " SU #" << CurSU->NodeNum << '\n');
+    std::pair<LRegsMapT::iterator, bool> LRegsPair =
+      LRegsMap.insert(std::make_pair(CurSU, LRegs));
+    if (LRegsPair.second) {
+      CurSU->isPending = true;  // This SU is not in AvailableQueue right now.
+      Interferences.push_back(CurSU);
+    }
+    else {
+      assert(CurSU->isPending && "Intereferences are pending");
+      // Update the interference with current live regs.
+      LRegsPair.first->second = LRegs;
+    }
     CurSU = AvailableQueue->pop();
   }
-  if (CurSU) {
-    // Add the nodes that aren't ready back onto the available list.
-    for (unsigned i = 0, e = Interferences.size(); i != e; ++i) {
-      Interferences[i]->isPending = false;
-      assert(Interferences[i]->isAvailable && "must still be available");
-      AvailableQueue->push(Interferences[i]);
-    }
+  if (CurSU)
     return CurSU;
-  }
 
   // All candidates are delayed due to live physical reg dependencies.
   // Try backtracking, code duplication, or inserting cross class copies
@@ -1353,6 +1399,7 @@ SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
       }
     }
     if (!WillCreateCycle(TrySU, BtSU))  {
+      // BacktrackBottomUp mutates Interferences!
       BacktrackBottomUp(TrySU, BtSU);
 
       // Force the current node to be scheduled before the node that
@@ -1362,19 +1409,19 @@ SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
         if (!BtSU->isPending)
           AvailableQueue->remove(BtSU);
       }
+      DEBUG(dbgs() << "ARTIFICIAL edge from SU(" << BtSU->NodeNum << ") to SU("
+            << TrySU->NodeNum << ")\n");
       AddPred(TrySU, SDep(BtSU, SDep::Artificial));
 
       // If one or more successors has been unscheduled, then the current
-      // node is no longer avaialable. Schedule a successor that's now
-      // available instead.
-      if (!TrySU->isAvailable) {
+      // node is no longer available.
+      if (!TrySU->isAvailable)
         CurSU = AvailableQueue->pop();
-      }
       else {
+        AvailableQueue->remove(TrySU);
         CurSU = TrySU;
-        TrySU->isPending = false;
-        Interferences.erase(Interferences.begin()+i);
       }
+      // Interferences has been mutated. We must break.
       break;
     }
   }
@@ -1425,17 +1472,7 @@ SUnit *ScheduleDAGRRList::PickNodeToScheduleBottomUp() {
     TrySU->isAvailable = false;
     CurSU = NewDef;
   }
-
   assert(CurSU && "Unable to resolve live physical register dependencies!");
-
-  // Add the nodes that aren't ready back onto the available list.
-  for (unsigned i = 0, e = Interferences.size(); i != e; ++i) {
-    Interferences[i]->isPending = false;
-    // May no longer be available due to backtracking.
-    if (Interferences[i]->isAvailable) {
-      AvailableQueue->push(Interferences[i]);
-    }
-  }
   return CurSU;
 }
 
@@ -1456,7 +1493,7 @@ void ScheduleDAGRRList::ListScheduleBottomUp() {
   // While Available queue is not empty, grab the node with the highest
   // priority. If it is not ready put it back.  Schedule the node.
   Sequence.reserve(SUnits.size());
-  while (!AvailableQueue->empty()) {
+  while (!AvailableQueue->empty() || !Interferences.empty()) {
     DEBUG(dbgs() << "\nExamining Available:\n";
           AvailableQueue->dump(this));
 
@@ -1939,7 +1976,7 @@ bool RegReductionPQBase::MayReduceRegPressure(SUnit *SU) const {
 
   unsigned NumDefs = TII->get(N->getMachineOpcode()).getNumDefs();
   for (unsigned i = 0; i != NumDefs; ++i) {
-    EVT VT = N->getValueType(i);
+    MVT VT = N->getSimpleValueType(i);
     if (!N->hasAnyUseOfValue(i))
       continue;
     unsigned RCId = TLI->getRepRegClassFor(VT)->getID();
@@ -1973,7 +2010,7 @@ int RegReductionPQBase::RegPressureDiff(SUnit *SU, unsigned &LiveUses) const {
     }
     for (ScheduleDAGSDNodes::RegDefIter RegDefPos(PredSU, scheduleDAG);
          RegDefPos.IsValid(); RegDefPos.Advance()) {
-      EVT VT = RegDefPos.GetValue();
+      MVT VT = RegDefPos.GetValue();
       unsigned RCId = TLI->getRepRegClassFor(VT)->getID();
       if (RegPressure[RCId] >= RegLimit[RCId])
         ++PDiff;
@@ -1986,7 +2023,7 @@ int RegReductionPQBase::RegPressureDiff(SUnit *SU, unsigned &LiveUses) const {
 
   unsigned NumDefs = TII->get(N->getMachineOpcode()).getNumDefs();
   for (unsigned i = 0; i != NumDefs; ++i) {
-    EVT VT = N->getValueType(i);
+    MVT VT = N->getSimpleValueType(i);
     if (!N->hasAnyUseOfValue(i))
       continue;
     unsigned RCId = TLI->getRepRegClassFor(VT)->getID();
@@ -2097,7 +2134,7 @@ void RegReductionPQBase::unscheduledNode(SUnit *SU) {
     const SDNode *PN = PredSU->getNode();
     if (!PN->isMachineOpcode()) {
       if (PN->getOpcode() == ISD::CopyFromReg) {
-        EVT VT = PN->getValueType(0);
+        MVT VT = PN->getSimpleValueType(0);
         unsigned RCId = TLI->getRepRegClassFor(VT)->getID();
         RegPressure[RCId] += TLI->getRepRegClassCostFor(VT);
       }
@@ -2109,14 +2146,14 @@ void RegReductionPQBase::unscheduledNode(SUnit *SU) {
     if (POpc == TargetOpcode::EXTRACT_SUBREG ||
         POpc == TargetOpcode::INSERT_SUBREG ||
         POpc == TargetOpcode::SUBREG_TO_REG) {
-      EVT VT = PN->getValueType(0);
+      MVT VT = PN->getSimpleValueType(0);
       unsigned RCId = TLI->getRepRegClassFor(VT)->getID();
       RegPressure[RCId] += TLI->getRepRegClassCostFor(VT);
       continue;
     }
     unsigned NumDefs = TII->get(PN->getMachineOpcode()).getNumDefs();
     for (unsigned i = 0; i != NumDefs; ++i) {
-      EVT VT = PN->getValueType(i);
+      MVT VT = PN->getSimpleValueType(i);
       if (!PN->hasAnyUseOfValue(i))
         continue;
       unsigned RCId = TLI->getRepRegClassFor(VT)->getID();
@@ -2133,7 +2170,7 @@ void RegReductionPQBase::unscheduledNode(SUnit *SU) {
   if (SU->NumSuccs && N->isMachineOpcode()) {
     unsigned NumDefs = TII->get(N->getMachineOpcode()).getNumDefs();
     for (unsigned i = NumDefs, e = N->getNumValues(); i != e; ++i) {
-      EVT VT = N->getValueType(i);
+      MVT VT = N->getSimpleValueType(i);
       if (VT == MVT::Glue || VT == MVT::Other)
         continue;
       if (!N->hasAnyUseOfValue(i))

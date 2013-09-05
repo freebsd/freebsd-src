@@ -534,6 +534,7 @@ AslDoOneFile (
         return (AE_ERROR);
 
     default:
+
         printf ("Unknown file type %X\n", Gbl_FileType);
         return (AE_ERROR);
     }

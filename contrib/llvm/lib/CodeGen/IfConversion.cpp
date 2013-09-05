@@ -12,24 +12,25 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "ifcvt"
-#include "BranchFolding.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "BranchFolding.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 // Hidden options for help debugging.
@@ -150,7 +151,7 @@ namespace {
     /// basic block number.
     std::vector<BBInfo> BBAnalysis;
 
-    const TargetLowering *TLI;
+    const TargetLoweringBase *TLI;
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
     const InstrItineraryData *InstrItins;
@@ -994,14 +995,13 @@ static void UpdatePredRedefs(MachineInstr *MI, SmallSet<unsigned,4> &Redefs,
         Redefs.erase(*SubRegs);
     }
   }
+  MachineInstrBuilder MIB(*MI->getParent()->getParent(), MI);
   for (unsigned i = 0, e = Defs.size(); i != e; ++i) {
     unsigned Reg = Defs[i];
     if (!Redefs.insert(Reg)) {
       if (AddImpUse)
         // Treat predicated update as read + write.
-        MI->addOperand(MachineOperand::CreateReg(Reg, false/*IsDef*/,
-                                              true/*IsImp*/,false/*IsKill*/,
-                                              false/*IsDead*/,true/*IsUndef*/));
+        MIB.addReg(Reg, RegState::Implicit | RegState::Undef);
     } else {
       for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
         Redefs.insert(*SubRegs);
@@ -1039,6 +1039,10 @@ bool IfConverter::IfConvertSimple(BBInfo &BBI, IfcvtKind Kind) {
     return false;
   }
 
+  if (CvtBBI->BB->hasAddressTaken())
+    // Conservatively abort if-conversion if BB's address is taken.
+    return false;
+
   if (Kind == ICSimpleFalse)
     if (TII->ReverseBranchCondition(Cond))
       llvm_unreachable("Unable to reverse branch condition!");
@@ -1054,6 +1058,10 @@ bool IfConverter::IfConvertSimple(BBInfo &BBI, IfcvtKind Kind) {
     // Copy instructions in the true block, predicate them, and add them to
     // the entry block.
     CopyAndPredicateBlock(BBI, *CvtBBI, Cond, Redefs);
+
+    // RemoveExtraEdges won't work if the block has an unanalyzable branch, so
+    // explicitly remove CvtBBI as a successor.
+    BBI.BB->removeSuccessor(CvtBBI->BB);
   } else {
     PredicateBlock(*CvtBBI, CvtBBI->BB->end(), Cond, Redefs);
 
@@ -1112,6 +1120,10 @@ bool IfConverter::IfConvertTriangle(BBInfo &BBI, IfcvtKind Kind) {
     return false;
   }
 
+  if (CvtBBI->BB->hasAddressTaken())
+    // Conservatively abort if-conversion if BB's address is taken.
+    return false;
+
   if (Kind == ICTriangleFalse || Kind == ICTriangleFRev)
     if (TII->ReverseBranchCondition(Cond))
       llvm_unreachable("Unable to reverse branch condition!");
@@ -1146,6 +1158,10 @@ bool IfConverter::IfConvertTriangle(BBInfo &BBI, IfcvtKind Kind) {
     // Copy instructions in the true block, predicate them, and add them to
     // the entry block.
     CopyAndPredicateBlock(BBI, *CvtBBI, Cond, Redefs, true);
+
+    // RemoveExtraEdges won't work if the block has an unanalyzable branch, so
+    // explicitly remove CvtBBI as a successor.
+    BBI.BB->removeSuccessor(CvtBBI->BB);
   } else {
     // Predicate the 'true' block after removing its branch.
     CvtBBI->NonPredSize -= TII->RemoveBranch(*CvtBBI->BB);
@@ -1176,7 +1192,8 @@ bool IfConverter::IfConvertTriangle(BBInfo &BBI, IfcvtKind Kind) {
     // block. By not merging them, we make it possible to iteratively
     // ifcvt the blocks.
     if (!HasEarlyExit &&
-        NextBBI->BB->pred_size() == 1 && !NextBBI->HasFallThrough) {
+        NextBBI->BB->pred_size() == 1 && !NextBBI->HasFallThrough &&
+        !NextBBI->BB->hasAddressTaken()) {
       MergeBlocks(BBI, *NextBBI);
       FalseBBDead = true;
     } else {
@@ -1225,6 +1242,10 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
     FalseBBI.IsAnalyzed = false;
     return false;
   }
+
+  if (TrueBBI.BB->hasAddressTaken() || FalseBBI.BB->hasAddressTaken())
+    // Conservatively abort if-conversion if either BB has its address taken.
+    return false;
 
   // Put the predicated instructions from the 'true' block before the
   // instructions from the 'false' block, unless the true block would clobber
@@ -1374,7 +1395,8 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
   // tail, add a unconditional branch to it.
   if (TailBB) {
     BBInfo &TailBBI = BBAnalysis[TailBB->getNumber()];
-    bool CanMergeTail = !TailBBI.HasFallThrough;
+    bool CanMergeTail = !TailBBI.HasFallThrough &&
+      !TailBBI.BB->hasAddressTaken();
     // There may still be a fall-through edge from BBI1 or BBI2 to TailBB;
     // check if there are any other predecessors besides those.
     unsigned NumPreds = TailBB->pred_size();
@@ -1543,6 +1565,9 @@ void IfConverter::CopyAndPredicateBlock(BBInfo &ToBBI, BBInfo &FromBBI,
 /// i.e., when FromBBI's branch is being moved, add those successor edges to
 /// ToBBI.
 void IfConverter::MergeBlocks(BBInfo &ToBBI, BBInfo &FromBBI, bool AddEdges) {
+  assert(!FromBBI.BB->hasAddressTaken() &&
+         "Removing a BB whose address is taken!");
+
   ToBBI.BB->splice(ToBBI.BB->end(),
                    FromBBI.BB, FromBBI.BB->begin(), FromBBI.BB->end());
 
@@ -1557,7 +1582,7 @@ void IfConverter::MergeBlocks(BBInfo &ToBBI, BBInfo &FromBBI, bool AddEdges) {
     if (Succ == FallThrough)
       continue;
     FromBBI.BB->removeSuccessor(Succ);
-    if (AddEdges)
+    if (AddEdges && !ToBBI.BB->isSuccessor(Succ))
       ToBBI.BB->addSuccessor(Succ);
   }
 

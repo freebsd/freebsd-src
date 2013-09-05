@@ -83,7 +83,7 @@ nfscb_program(struct svc_req *rqst, SVCXPRT *xprt)
 	 */
 	nd.nd_mrep = rqst->rq_args;
 	rqst->rq_args = NULL;
-	newnfs_realign(&nd.nd_mrep);
+	newnfs_realign(&nd.nd_mrep, M_WAITOK);
 	nd.nd_md = nd.nd_mrep;
 	nd.nd_dpos = mtod(nd.nd_md, caddr_t);
 	nd.nd_nam = svc_getrpccaller(rqst);
@@ -278,17 +278,15 @@ nfsrvd_cbinit(int terminating)
 		while (nfs_numnfscbd > 0)
 			msleep(&nfs_numnfscbd, NFSDLOCKMUTEXPTR, PZERO, 
 			    "nfscbdt", 0);
-		NFSD_UNLOCK();
-		svcpool_destroy(nfscbd_pool);
-		nfscbd_pool = NULL;
-	} else
-		NFSD_UNLOCK();
+	}
 
-	nfscbd_pool = svcpool_create("nfscbd", NULL);
-	nfscbd_pool->sp_rcache = NULL;
-	nfscbd_pool->sp_assign = NULL;
-	nfscbd_pool->sp_done = NULL;
-
-	NFSD_LOCK();
+	if (nfscbd_pool == NULL) {
+		NFSD_UNLOCK();
+		nfscbd_pool = svcpool_create("nfscbd", NULL);
+		nfscbd_pool->sp_rcache = NULL;
+		nfscbd_pool->sp_assign = NULL;
+		nfscbd_pool->sp_done = NULL;
+		NFSD_LOCK();
+	}
 }
 

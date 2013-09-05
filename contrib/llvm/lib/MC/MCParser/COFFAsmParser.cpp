@@ -12,11 +12,11 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCTargetAsmParser.h"
 #include "llvm/Support/COFF.h"
 using namespace llvm;
@@ -24,10 +24,11 @@ using namespace llvm;
 namespace {
 
 class COFFAsmParser : public MCAsmParserExtension {
-  template<bool (COFFAsmParser::*Handler)(StringRef, SMLoc)>
-  void AddDirectiveHandler(StringRef Directive) {
-    getParser().AddDirectiveHandler(this, Directive,
-                                    HandleDirective<COFFAsmParser, Handler>);
+  template<bool (COFFAsmParser::*HandlerMethod)(StringRef, SMLoc)>
+  void addDirectiveHandler(StringRef Directive) {
+    MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
+        this, HandleDirective<COFFAsmParser, HandlerMethod>);
+    getParser().addDirectiveHandler(Directive, Handler);
   }
 
   bool ParseSectionSwitch(StringRef Section,
@@ -38,43 +39,43 @@ class COFFAsmParser : public MCAsmParserExtension {
     // Call the base implementation.
     MCAsmParserExtension::Initialize(Parser);
 
-    AddDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveText>(".text");
-    AddDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveData>(".data");
-    AddDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveBSS>(".bss");
-    AddDirectiveHandler<&COFFAsmParser::ParseDirectiveDef>(".def");
-    AddDirectiveHandler<&COFFAsmParser::ParseDirectiveScl>(".scl");
-    AddDirectiveHandler<&COFFAsmParser::ParseDirectiveType>(".type");
-    AddDirectiveHandler<&COFFAsmParser::ParseDirectiveEndef>(".endef");
-    AddDirectiveHandler<&COFFAsmParser::ParseDirectiveSecRel32>(".secrel32");
+    addDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveText>(".text");
+    addDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveData>(".data");
+    addDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveBSS>(".bss");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveDef>(".def");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveScl>(".scl");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveType>(".type");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveEndef>(".endef");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveSecRel32>(".secrel32");
 
     // Win64 EH directives.
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveStartProc>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveStartProc>(
                                                                    ".seh_proc");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveEndProc>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveEndProc>(
                                                                 ".seh_endproc");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveStartChained>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveStartChained>(
                                                            ".seh_startchained");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveEndChained>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveEndChained>(
                                                              ".seh_endchained");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveHandler>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveHandler>(
                                                                 ".seh_handler");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveHandlerData>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveHandlerData>(
                                                             ".seh_handlerdata");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectivePushReg>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectivePushReg>(
                                                                 ".seh_pushreg");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveSetFrame>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveSetFrame>(
                                                                ".seh_setframe");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveAllocStack>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveAllocStack>(
                                                              ".seh_stackalloc");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveSaveReg>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveSaveReg>(
                                                                 ".seh_savereg");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveSaveXMM>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveSaveXMM>(
                                                                 ".seh_savexmm");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectivePushFrame>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectivePushFrame>(
                                                               ".seh_pushframe");
-    AddDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveEndProlog>(
+    addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveEndProlog>(
                                                             ".seh_endprologue");
-    AddDirectiveHandler<&COFFAsmParser::ParseDirectiveSymbolAttribute>(".weak");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveSymbolAttribute>(".weak");
   }
 
   bool ParseSectionDirectiveText(StringRef, SMLoc) {
@@ -140,7 +141,7 @@ bool COFFAsmParser::ParseDirectiveSymbolAttribute(StringRef Directive, SMLoc) {
     for (;;) {
       StringRef Name;
 
-      if (getParser().ParseIdentifier(Name))
+      if (getParser().parseIdentifier(Name))
         return TokError("expected identifier in directive");
 
       MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
@@ -176,7 +177,7 @@ bool COFFAsmParser::ParseSectionSwitch(StringRef Section,
 bool COFFAsmParser::ParseDirectiveDef(StringRef, SMLoc) {
   StringRef SymbolName;
 
-  if (getParser().ParseIdentifier(SymbolName))
+  if (getParser().parseIdentifier(SymbolName))
     return TokError("expected identifier in directive");
 
   MCSymbol *Sym = getContext().GetOrCreateSymbol(SymbolName);
@@ -189,7 +190,7 @@ bool COFFAsmParser::ParseDirectiveDef(StringRef, SMLoc) {
 
 bool COFFAsmParser::ParseDirectiveScl(StringRef, SMLoc) {
   int64_t SymbolStorageClass;
-  if (getParser().ParseAbsoluteExpression(SymbolStorageClass))
+  if (getParser().parseAbsoluteExpression(SymbolStorageClass))
     return true;
 
   if (getLexer().isNot(AsmToken::EndOfStatement))
@@ -202,7 +203,7 @@ bool COFFAsmParser::ParseDirectiveScl(StringRef, SMLoc) {
 
 bool COFFAsmParser::ParseDirectiveType(StringRef, SMLoc) {
   int64_t Type;
-  if (getParser().ParseAbsoluteExpression(Type))
+  if (getParser().parseAbsoluteExpression(Type))
     return true;
 
   if (getLexer().isNot(AsmToken::EndOfStatement))
@@ -221,7 +222,7 @@ bool COFFAsmParser::ParseDirectiveEndef(StringRef, SMLoc) {
 
 bool COFFAsmParser::ParseDirectiveSecRel32(StringRef, SMLoc) {
   StringRef SymbolID;
-  if (getParser().ParseIdentifier(SymbolID))
+  if (getParser().parseIdentifier(SymbolID))
     return true;
 
   if (getLexer().isNot(AsmToken::EndOfStatement))
@@ -236,7 +237,7 @@ bool COFFAsmParser::ParseDirectiveSecRel32(StringRef, SMLoc) {
 
 bool COFFAsmParser::ParseSEHDirectiveStartProc(StringRef, SMLoc) {
   StringRef SymbolID;
-  if (getParser().ParseIdentifier(SymbolID))
+  if (getParser().parseIdentifier(SymbolID))
     return true;
 
   if (getLexer().isNot(AsmToken::EndOfStatement))
@@ -269,7 +270,7 @@ bool COFFAsmParser::ParseSEHDirectiveEndChained(StringRef, SMLoc) {
 
 bool COFFAsmParser::ParseSEHDirectiveHandler(StringRef, SMLoc) {
   StringRef SymbolID;
-  if (getParser().ParseIdentifier(SymbolID))
+  if (getParser().parseIdentifier(SymbolID))
     return true;
 
   if (getLexer().isNot(AsmToken::Comma))
@@ -322,7 +323,7 @@ bool COFFAsmParser::ParseSEHDirectiveSetFrame(StringRef, SMLoc L) {
 
   Lex();
   SMLoc startLoc = getLexer().getLoc();
-  if (getParser().ParseAbsoluteExpression(Off))
+  if (getParser().parseAbsoluteExpression(Off))
     return true;
 
   if (Off & 0x0F)
@@ -339,7 +340,7 @@ bool COFFAsmParser::ParseSEHDirectiveSetFrame(StringRef, SMLoc L) {
 bool COFFAsmParser::ParseSEHDirectiveAllocStack(StringRef, SMLoc) {
   int64_t Size;
   SMLoc startLoc = getLexer().getLoc();
-  if (getParser().ParseAbsoluteExpression(Size))
+  if (getParser().parseAbsoluteExpression(Size))
     return true;
 
   if (Size & 7)
@@ -363,7 +364,7 @@ bool COFFAsmParser::ParseSEHDirectiveSaveReg(StringRef, SMLoc L) {
 
   Lex();
   SMLoc startLoc = getLexer().getLoc();
-  if (getParser().ParseAbsoluteExpression(Off))
+  if (getParser().parseAbsoluteExpression(Off))
     return true;
 
   if (Off & 7)
@@ -390,7 +391,7 @@ bool COFFAsmParser::ParseSEHDirectiveSaveXMM(StringRef, SMLoc L) {
 
   Lex();
   SMLoc startLoc = getLexer().getLoc();
-  if (getParser().ParseAbsoluteExpression(Off))
+  if (getParser().parseAbsoluteExpression(Off))
     return true;
 
   if (getLexer().isNot(AsmToken::EndOfStatement))
@@ -411,7 +412,7 @@ bool COFFAsmParser::ParseSEHDirectivePushFrame(StringRef, SMLoc) {
   if (getLexer().is(AsmToken::At)) {
     SMLoc startLoc = getLexer().getLoc();
     Lex();
-    if (!getParser().ParseIdentifier(CodeID)) {
+    if (!getParser().parseIdentifier(CodeID)) {
       if (CodeID != "code")
         return Error(startLoc, "expected @code");
       Code = true;
@@ -438,7 +439,7 @@ bool COFFAsmParser::ParseAtUnwindOrAtExcept(bool &unwind, bool &except) {
     return TokError("a handler attribute must begin with '@'");
   SMLoc startLoc = getLexer().getLoc();
   Lex();
-  if (getParser().ParseIdentifier(identifier))
+  if (getParser().parseIdentifier(identifier))
     return Error(startLoc, "expected @unwind or @except");
   if (identifier == "unwind")
     unwind = true;
@@ -479,7 +480,7 @@ bool COFFAsmParser::ParseSEHRegisterNumber(unsigned &RegNo) {
   }
   else {
     int64_t n;
-    if (getParser().ParseAbsoluteExpression(n))
+    if (getParser().parseAbsoluteExpression(n))
       return true;
     if (n > 15)
       return Error(startLoc, "register number is too high");

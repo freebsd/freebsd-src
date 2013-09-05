@@ -228,3 +228,37 @@ mac_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd, uid_t uid,
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_read, "struct ucred *",
+    "struct ucred *", "struct shmfd *");
+
+int
+mac_posixshm_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_read, active_cred,
+	    file_cred, shmfd, shmfd->shm_label);
+	MAC_CHECK_PROBE3(posixshm_check_read, error, active_cred,
+	    file_cred, shmfd);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE3(posixshm_check_write, "struct ucred *",
+    "struct ucred *", "struct shmfd *");
+
+int
+mac_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixshm_check_write, active_cred,
+	    file_cred, shmfd, shmfd->shm_label);
+	MAC_CHECK_PROBE3(posixshm_check_write, error, active_cred,
+	    file_cred, shmfd);
+
+	return (error);
+}

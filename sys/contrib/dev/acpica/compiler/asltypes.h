@@ -81,16 +81,17 @@
 
 typedef struct asl_method_info
 {
-    UINT8                   NumArguments;
-    UINT8                   LocalInitialized[ACPI_METHOD_NUM_LOCALS];
-    UINT8                   ArgInitialized[ACPI_METHOD_NUM_ARGS];
+    ACPI_PARSE_OBJECT       *Op;
+    struct asl_method_info  *Next;
     UINT32                  ValidArgTypes[ACPI_METHOD_NUM_ARGS];
     UINT32                  ValidReturnTypes;
     UINT32                  NumReturnNoValue;
     UINT32                  NumReturnWithValue;
-    ACPI_PARSE_OBJECT       *Op;
-    struct asl_method_info  *Next;
+    UINT8                   NumArguments;
+    UINT8                   LocalInitialized[ACPI_METHOD_NUM_LOCALS];
+    UINT8                   ArgInitialized[ACPI_METHOD_NUM_ARGS];
     UINT8                   HasBeenTyped;
+    UINT8                   ShouldBeSerialized;
 
 } ASL_METHOD_INFO;
 

@@ -595,11 +595,18 @@ static void sym_mfree(void *ptr, int size, char *name)
  * BUS handle. A reverse table (hashed) is maintained for virtual
  * to BUS address translation.
  */
-static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg __unused,
+    int error)
 {
 	bus_addr_t *baddr;
+
+	KASSERT(nseg == 1, ("%s: too many DMA segments (%d)", __func__, nseg));
+
 	baddr = (bus_addr_t *)arg;
-	*baddr = segs->ds_addr;
+	if (error)
+		*baddr = 0;
+	else
+		*baddr = segs->ds_addr;
 }
 
 static m_addr_t ___dma_getp(m_pool_s *mp)
@@ -1165,6 +1172,14 @@ struct sym_tcb {
 };
 
 /*
+ *  Assert some alignments required by the chip.
+ */
+CTASSERT(((offsetof(struct sym_reg, nc_sxfer) ^
+    offsetof(struct sym_tcb, head.sval)) &3) == 0);
+CTASSERT(((offsetof(struct sym_reg, nc_scntl3) ^
+    offsetof(struct sym_tcb, head.wval)) &3) == 0);
+
+/*
  *  Global LCB HEADER.
  *
  *  Due to lack of indirect addressing on earlier NCR chips,
@@ -1265,9 +1280,9 @@ struct sym_pmc {
  *  LUN(s) > 0.
  */
 #if SYM_CONF_MAX_LUN <= 1
-#define sym_lp(np, tp, lun) (!lun) ? (tp)->lun0p : 0
+#define sym_lp(tp, lun) (!lun) ? (tp)->lun0p : 0
 #else
-#define sym_lp(np, tp, lun) \
+#define sym_lp(tp, lun) \
 	(!lun) ? (tp)->lun0p : (tp)->lunmp ? (tp)->lunmp[(lun)] : 0
 #endif
 
@@ -2222,11 +2237,11 @@ static void sym_int_par (hcb_p np, u_short sist);
 static void sym_int_ma (hcb_p np);
 static int  sym_dequeue_from_squeue(hcb_p np, int i, int target, int lun,
 				    int task);
-static void sym_sir_bad_scsi_status (hcb_p np, int num, ccb_p cp);
+static void sym_sir_bad_scsi_status (hcb_p np, ccb_p cp);
 static int  sym_clear_tasks (hcb_p np, int status, int targ, int lun, int task);
 static void sym_sir_task_recovery (hcb_p np, int num);
 static int  sym_evaluate_dp (hcb_p np, ccb_p cp, u32 scr, int *ofs);
-static void sym_modify_dp (hcb_p np, tcb_p tp, ccb_p cp, int ofs);
+static void sym_modify_dp(hcb_p np, ccb_p cp, int ofs);
 static int  sym_compute_residual (hcb_p np, ccb_p cp);
 static int  sym_show_msg (u_char * msg);
 static void sym_print_msg (ccb_p cp, char *label, u_char *msg);
@@ -2260,7 +2275,7 @@ static int sym_fast_scatter_sg_physical(hcb_p np, ccb_p cp,
 static int sym_scatter_sg_physical (hcb_p np, ccb_p cp,
 				    bus_dma_segment_t *psegs, int nsegs);
 static void sym_action2 (struct cam_sim *sim, union ccb *ccb);
-static void sym_update_trans (hcb_p np, tcb_p tp, struct sym_trans *tip,
+static void sym_update_trans(hcb_p np, struct sym_trans *tip,
 			      struct ccb_trans_settings *cts);
 static void sym_update_dflags(hcb_p np, u_char *flags,
 			      struct ccb_trans_settings *cts);
@@ -2352,20 +2367,10 @@ static void sym_enqueue_cam_ccb(ccb_p cp)
 /*
  *  Complete a pending CAM CCB.
  */
-static void _sym_xpt_done(hcb_p np, union ccb *ccb)
-{
-	SYM_LOCK_ASSERT(MA_OWNED);
-
-	KASSERT((ccb->ccb_h.status & CAM_SIM_QUEUED) == 0,
-			("%s: status=CAM_SIM_QUEUED", __func__));
-
-	if (ccb->ccb_h.flags & CAM_DEV_QFREEZE)
-		sym_freeze_cam_ccb(ccb);
-	xpt_done(ccb);
-}
 
 static void sym_xpt_done(hcb_p np, union ccb *ccb, ccb_p cp)
 {
+
 	SYM_LOCK_ASSERT(MA_OWNED);
 
 	if (ccb->ccb_h.status & CAM_SIM_QUEUED) {
@@ -2374,15 +2379,16 @@ static void sym_xpt_done(hcb_p np, union ccb *ccb, ccb_p cp)
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		ccb->ccb_h.sym_hcb_ptr = NULL;
 	}
-	_sym_xpt_done(np, ccb);
+	xpt_done(ccb);
 }
 
 static void sym_xpt_done2(hcb_p np, union ccb *ccb, int cam_status)
 {
+
 	SYM_LOCK_ASSERT(MA_OWNED);
 
 	sym_set_cam_status(ccb, cam_status);
-	_sym_xpt_done(np, ccb);
+	xpt_done(ccb);
 }
 
 /*
@@ -4670,7 +4676,7 @@ sym_flush_comp_queue(hcb_p np, int cam_status)
  *  SCRATCHA is assumed to have been loaded with STARTPOS
  *  before the SCRIPTS called the C code.
  */
-static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
+static void sym_sir_bad_scsi_status(hcb_p np, ccb_p cp)
 {
 	tcb_p tp	= &np->target[cp->target];
 	u32		startp;
@@ -5097,7 +5103,7 @@ static void sym_sir_task_recovery(hcb_p np, int num)
 		 *  an IDENTIFY(lun) + ABORT MESSAGE.
 		 */
 		if (lun != -1) {
-			lcb_p lp = sym_lp(np, tp, lun);
+			lcb_p lp = sym_lp(tp, lun);
 			lp->to_clear = 0; /* We donnot expect to fail here */
 			np->abrt_msg[0] = M_IDENTIFY | lun;
 			np->abrt_msg[1] = M_ABORT;
@@ -5390,7 +5396,7 @@ out_err:
  *  Btw, we assume in that situation that such a message
  *  is equivalent to a MODIFY DATA POINTER (offset=-1).
  */
-static void sym_modify_dp(hcb_p np, tcb_p tp, ccb_p cp, int ofs)
+static void sym_modify_dp(hcb_p np, ccb_p cp, int ofs)
 {
 	int dp_ofs	= ofs;
 	u32	dp_scr	= INL (nc_temp);
@@ -6119,7 +6125,7 @@ static void sym_int_sir (hcb_p np)
 	case SIR_BAD_SCSI_STATUS:
 		if (!cp)
 			goto out;
-		sym_sir_bad_scsi_status(np, num, cp);
+		sym_sir_bad_scsi_status(np, cp);
 		return;
 	/*
 	 *  We are asked by the SCRIPTS to prepare a
@@ -6193,7 +6199,7 @@ static void sym_int_sir (hcb_p np)
 					sym_print_msg(cp,"modify DP",np->msgin);
 				tmp = (np->msgin[3]<<24) + (np->msgin[4]<<16) +
 				      (np->msgin[5]<<8)  + (np->msgin[6]);
-				sym_modify_dp(np, tp, cp, tmp);
+				sym_modify_dp(np, cp, tmp);
 				return;
 			case M_X_SYNC_REQ:
 				sym_sync_nego(np, tp, cp);
@@ -6218,7 +6224,7 @@ static void sym_int_sir (hcb_p np)
 		case M_IGN_RESIDUE:
 			if (DEBUG_FLAGS & DEBUG_POINTER)
 				sym_print_msg(cp,"ign wide residue", np->msgin);
-			sym_modify_dp(np, tp, cp, -1);
+			sym_modify_dp(np, cp, -1);
 			return;
 		case M_REJECT:
 			if (INB (HS_PRT) == HS_NEGOTIATE)
@@ -6277,7 +6283,7 @@ out_stuck:
 static	ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order)
 {
 	tcb_p tp = &np->target[tn];
-	lcb_p lp = sym_lp(np, tp, ln);
+	lcb_p lp = sym_lp(tp, ln);
 	u_short tag = NO_TAG;
 	SYM_QUEHEAD *qp;
 	ccb_p cp = (ccb_p) NULL;
@@ -6400,10 +6406,10 @@ out_free:
 /*
  *  Release one control block
  */
-static void sym_free_ccb (hcb_p np, ccb_p cp)
+static void sym_free_ccb(hcb_p np, ccb_p cp)
 {
 	tcb_p tp = &np->target[cp->target];
-	lcb_p lp = sym_lp(np, tp, cp->lun);
+	lcb_p lp = sym_lp(tp, cp->lun);
 
 	if (DEBUG_FLAGS & DEBUG_TAGS) {
 		PRINT_LUN(np, cp->target, cp->lun);
@@ -6588,27 +6594,12 @@ static ccb_p sym_ccb_from_dsa(hcb_p np, u32 dsa)
 }
 
 /*
- *  Target control block initialisation.
- *  Nothing important to do at the moment.
- */
-static void sym_init_tcb (hcb_p np, u_char tn)
-{
-	/*
-	 *  Check some alignments required by the chip.
-	 */
-	assert (((offsetof(struct sym_reg, nc_sxfer) ^
-		offsetof(struct sym_tcb, head.sval)) &3) == 0);
-	assert (((offsetof(struct sym_reg, nc_scntl3) ^
-		offsetof(struct sym_tcb, head.wval)) &3) == 0);
-}
-
-/*
  *  Lun control block allocation and initialization.
  */
 static lcb_p sym_alloc_lcb (hcb_p np, u_char tn, u_char ln)
 {
 	tcb_p tp = &np->target[tn];
-	lcb_p lp = sym_lp(np, tp, ln);
+	lcb_p lp = sym_lp(tp, ln);
 
 	/*
 	 *  Already done, just return.
@@ -6619,11 +6610,6 @@ static lcb_p sym_alloc_lcb (hcb_p np, u_char tn, u_char ln)
 	 *  Check against some race.
 	 */
 	assert(!sym_is_bit(tp->busy0_map, ln));
-
-	/*
-	 *  Initialize the target control block if not yet.
-	 */
-	sym_init_tcb (np, tn);
 
 	/*
 	 *  Allocate the LCB bus address array.
@@ -6691,7 +6677,7 @@ fail:
 static void sym_alloc_lcb_tags (hcb_p np, u_char tn, u_char ln)
 {
 	tcb_p tp = &np->target[tn];
-	lcb_p lp = sym_lp(np, tp, ln);
+	lcb_p lp = sym_lp(tp, ln);
 	int i;
 
 	/*
@@ -7301,7 +7287,7 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	 */
 	csio = &cp->cam_ccb->csio;
 	tp = &np->target[cp->target];
-	lp = sym_lp(np, tp, cp->lun);
+	lp = sym_lp(tp, cp->lun);
 
 	/*
 	 *  Assume device discovered on first success.
@@ -7500,7 +7486,7 @@ static void sym_action(struct cam_sim *sim, union ccb *ccb)
 	 *  Retrieve the target and lun descriptors.
 	 */
 	tp = &np->target[ccb_h->target_id];
-	lp = sym_lp(np, tp, ccb_h->target_lun);
+	lp = sym_lp(tp, ccb_h->target_lun);
 
 	/*
 	 *  Complete the 1st INQUIRY command with error
@@ -7885,7 +7871,6 @@ sym_setup_data_and_start(hcb_p np, struct ccb_scsiio *csio, ccb_p cp)
 		xpt_freeze_simq(np->sim, 1);
 		csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
-	return;
 }
 
 /*
@@ -8002,14 +7987,14 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		 *  Update SPI transport settings in TARGET control block.
 		 *  Update SCSI device settings in LUN control block.
 		 */
-		lp = sym_lp(np, tp, ccb_h->target_lun);
+		lp = sym_lp(tp, ccb_h->target_lun);
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
-			sym_update_trans(np, tp, &tp->tinfo.goal, cts);
+			sym_update_trans(np, &tp->tinfo.goal, cts);
 			if (lp)
 				sym_update_dflags(np, &lp->current_flags, cts);
 		}
 		if (cts->type == CTS_TYPE_USER_SETTINGS) {
-			sym_update_trans(np, tp, &tp->tinfo.user, cts);
+			sym_update_trans(np, &tp->tinfo.user, cts);
 			if (lp)
 				sym_update_dflags(np, &lp->user_flags, cts);
 		}
@@ -8019,7 +8004,7 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS:
 		cts = &ccb->cts;
 		tp = &np->target[ccb_h->target_id];
-		lp = sym_lp(np, tp, ccb_h->target_lun);
+		lp = sym_lp(tp, ccb_h->target_lun);
 
 #define	cts__scsi (&cts->proto_specific.scsi)
 #define	cts__spi  (&cts->xport_specific.spi)
@@ -8071,7 +8056,7 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 		if ((np->features & FE_WIDE) != 0)
 			cpi->hba_inquiry |= PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
+		cpi->hba_misc = PIM_UNMAPPED;
 		if (np->usrflags & SYM_SCAN_TARGETS_HILO)
 			cpi->hba_misc |= PIM_SCANHILO;
 		if (np->usrflags & SYM_AVOID_BUS_RESET)
@@ -8144,7 +8129,7 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
  *  Asynchronous notification handler.
  */
 static void
-sym_async(void *cb_arg, u32 code, struct cam_path *path, void *arg)
+sym_async(void *cb_arg, u32 code, struct cam_path *path, void *args __unused)
 {
 	hcb_p np;
 	struct cam_sim *sim;
@@ -8183,9 +8168,10 @@ sym_async(void *cb_arg, u32 code, struct cam_path *path, void *arg)
 /*
  *  Update transfer settings of a target.
  */
-static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
-			    struct ccb_trans_settings *cts)
+static void sym_update_trans(hcb_p np, struct sym_trans *tip,
+    struct ccb_trans_settings *cts)
 {
+
 	SYM_LOCK_ASSERT(MA_OWNED);
 
 	/*
@@ -8262,6 +8248,7 @@ static void sym_update_trans(hcb_p np, tcb_p tp, struct sym_trans *tip,
 static void
 sym_update_dflags(hcb_p np, u_char *flags, struct ccb_trans_settings *cts)
 {
+
 	SYM_LOCK_ASSERT(MA_OWNED);
 
 #define	cts__scsi (&cts->proto_specific.scsi)
@@ -8541,11 +8528,9 @@ sym_pci_attach(device_t dev)
 	/*
 	 *  Alloc/get/map/retrieve everything that deals with MMIO.
 	 */
-	if ((command & PCIM_CMD_MEMEN) != 0) {
-		int regs_id = SYM_PCI_MMIO;
-		np->mmio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-						      &regs_id, RF_ACTIVE);
-	}
+	i = SYM_PCI_MMIO;
+	np->mmio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i,
+	    RF_ACTIVE);
 	if (!np->mmio_res) {
 		device_printf(dev, "failed to allocate MMIO resources\n");
 		goto attach_failed;
@@ -8568,11 +8553,8 @@ sym_pci_attach(device_t dev)
 	 *  User want us to use normal IO with PCI.
 	 *  Alloc/get/map/retrieve everything that deals with IO.
 	 */
-	if ((command & PCI_COMMAND_IO_ENABLE) != 0) {
-		int regs_id = SYM_PCI_IO;
-		np->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-						    &regs_id, RF_ACTIVE);
-	}
+	i = SYM_PCI_IO;
+	np->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &i, RF_ACTIVE);
 	if (!np->io_res) {
 		device_printf(dev, "failed to allocate IO resources\n");
 		goto attach_failed;
@@ -8584,8 +8566,7 @@ sym_pci_attach(device_t dev)
 	 *  If the chip has RAM.
 	 *  Alloc/get/map/retrieve the corresponding resources.
 	 */
-	if ((np->features & (FE_RAM|FE_RAM8K)) &&
-	    (command & PCIM_CMD_MEMEN) != 0) {
+	if (np->features & (FE_RAM|FE_RAM8K)) {
 		int regs_id = SYM_PCI_RAM;
 		if (np->features & FE_64BIT)
 			regs_id = SYM_PCI_RAM64;
@@ -8859,7 +8840,7 @@ static void sym_pci_free(hcb_p np)
 	for (target = 0; target < SYM_CONF_MAX_TARGET ; target++) {
 		tp = &np->target[target];
 		for (lun = 0 ; lun < SYM_CONF_MAX_LUN ; lun++) {
-			lp = sym_lp(np, tp, lun);
+			lp = sym_lp(tp, lun);
 			if (!lp)
 				continue;
 			if (lp->itlq_tbl)
@@ -8935,7 +8916,7 @@ static int sym_cam_attach(hcb_p np)
 		goto fail;
 	np->sim = sim;
 
-	if (xpt_create_path(&path, 0,
+	if (xpt_create_path(&path, NULL,
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		goto fail;
@@ -8978,6 +8959,7 @@ fail:
  */
 static void sym_cam_free(hcb_p np)
 {
+
 	SYM_LOCK_ASSERT(MA_NOTOWNED);
 
 	if (np->intr) {

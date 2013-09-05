@@ -398,6 +398,9 @@ extern int		vttoif_tab[];
 #define	VR_START_WRITE	0x0001	/* vfs_write_resume: start write atomically */
 #define	VR_NO_SUSPCLR	0x0002	/* vfs_write_resume: do not clear suspension */
 
+#define	VS_SKIP_UNMOUNT	0x0001	/* vfs_write_suspend: fail if the
+				   filesystem is being unmounted */
+
 #define	VREF(vp)	vref(vp)
 
 #ifdef DIAGNOSTIC
@@ -711,7 +714,7 @@ int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp, int flags);
-int	vfs_write_suspend(struct mount *mp);
+int	vfs_write_suspend(struct mount *mp, int flags);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);

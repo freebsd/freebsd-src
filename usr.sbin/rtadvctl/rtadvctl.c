@@ -55,6 +55,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <syslog.h>
+#include <time.h>
 #include <err.h>
 
 #include "pathnames.h"
@@ -416,6 +417,7 @@ action_show(int argc, char **argv)
 	char argv_dnssl[IFNAMSIZ + sizeof(":dnssl=")];
 	char ssbuf[SSBUFLEN];
 
+	struct timespec now, ts0, ts;
 	struct ctrl_msg_pl cp;
 	struct ifinfo *ifi;
 	TAILQ_HEAD(, ifinfo) ifl = TAILQ_HEAD_INITIALIZER(ifl);
@@ -463,6 +465,10 @@ action_show(int argc, char **argv)
 			TAILQ_INSERT_TAIL(&ifl, ifi, ifi_next);
 		}
 	}
+
+	clock_gettime(CLOCK_REALTIME_FAST, &now);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &ts);
+	TS_SUB(&now, &ts, &ts0);
 
 	TAILQ_FOREACH(ifi, &ifl, ifi_next) {
 		struct ifinfo *ifi_s;
@@ -615,12 +621,20 @@ action_show(int argc, char **argv)
 
 			rat = (struct rtadvd_timer *)cp.cp_val;
 		}
-		printf("\tNext RA send: %s",
-		    (rat == NULL) ? "never\n" :
-		    ctime((time_t *)&rat->rat_tm.tv_sec));
-		printf("\tLast RA sent: %s",
-		    (ifi_s->ifi_ra_lastsent.tv_sec == 0) ? "never\n" :
-		    ctime((time_t *)&ifi_s->ifi_ra_lastsent.tv_sec));
+		printf("\tNext RA send: ");
+		if (rat == NULL)
+			printf("never\n");
+		else {
+			ts.tv_sec = rat->rat_tm.tv_sec + ts0.tv_sec;
+			printf("%s", ctime(&ts.tv_sec));
+		}
+		printf("\tLast RA send: ");
+		if (ifi_s->ifi_ra_lastsent.tv_sec == 0)
+			printf("never\n");
+		else {
+			ts.tv_sec = ifi_s->ifi_ra_lastsent.tv_sec + ts0.tv_sec;
+			printf("%s", ctime(&ts.tv_sec));
+		}
 		if (rai->rai_clockskew)
 			printf("\tClock skew: %" PRIu16 "sec\n",
 			    rai->rai_clockskew);
@@ -747,9 +761,9 @@ action_show_prefix(struct prefix *pfx)
 {
 	char ntopbuf[INET6_ADDRSTRLEN];
 	char ssbuf[SSBUFLEN];
-	struct timeval now;
+	struct timespec now;
 
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 	printf("\t  %s/%d", inet_ntop(AF_INET6, &pfx->pfx_prefix,
 		ntopbuf, sizeof(ntopbuf)), pfx->pfx_prefixlen);
 
@@ -800,7 +814,7 @@ action_show_prefix(struct prefix *pfx)
 		printf("<none>");
 
 	if (pfx->pfx_timer) {
-		struct timeval *rest;
+		struct timespec *rest;
 
 		rest = rtadvd_timer_rest(pfx->pfx_timer);
 		if (rest) { /* XXX: what if not? */
