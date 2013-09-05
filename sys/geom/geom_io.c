@@ -380,7 +380,6 @@ g_io_check(struct bio *bp)
 
 		/* Deliver zero length transfers right here. */
 		if (bp->bio_length == 0) {
-			g_io_deliver(bp, 0);
 			CTR2(KTR_GEOM, "g_down terminated 0-length "
 			    "bp %p provider %s", bp, bp->bio_to->name);
 			return (0);
