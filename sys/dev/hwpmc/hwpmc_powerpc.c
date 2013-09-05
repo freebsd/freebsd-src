@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #define INKERNEL(x)	(((vm_offset_t)(x)) <= VM_MAX_KERNEL_ADDRESS && \
 		((vm_offset_t)(x)) >= VM_MIN_KERNEL_ADDRESS)
 
+struct powerpc_cpu **powerpc_pcpu;
+
 int
 pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
