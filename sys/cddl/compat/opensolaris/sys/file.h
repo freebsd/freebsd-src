@@ -54,7 +54,7 @@ releasef(int fd)
 	struct file *fp;
 
 	/* No CAP_ rights required, as we're only releasing. */
-	if (fget(curthread, fd, 0, &fp) == 0) {
+	if (fget(curthread, fd, NULL, &fp) == 0) {
 		fdrop(fp, curthread);
 		fdrop(fp, curthread);
 	}
