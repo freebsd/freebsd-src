@@ -1286,3 +1286,9 @@ is_bar_for_data_transfer(int bar_num)
 	else
 		return false;
 }
+
+device_t ntb_get_device(struct ntb_softc *ntb)
+{
+
+	return (ntb->device);
+}
