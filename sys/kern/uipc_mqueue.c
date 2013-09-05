@@ -2247,7 +2247,9 @@ sys_kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 static int
 kern_kmq_notify(struct thread *td, int mqd, struct sigevent *sigev)
 {
+#ifdef CAPABILITIES
 	cap_rights_t rights;
+#endif
 	struct filedesc *fdp;
 	struct proc *p;
 	struct mqueue *mq;
