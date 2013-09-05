@@ -279,14 +279,14 @@ ntb_handle_module_events(struct module *m, int what, void *arg)
 	return (err);
 }
 
-static moduledata_t ntb_transport_mod = {
-	"ntb_transport",
+static moduledata_t if_ntb_mod = {
+	"if_ntb",
 	ntb_handle_module_events,
 	NULL
 };
 
-DECLARE_MODULE(ntb_transport, ntb_transport_mod, SI_SUB_KLD, SI_ORDER_ANY);
-MODULE_DEPEND(ntb_transport, ntb_hw, 1, 1, 1);
+DECLARE_MODULE(if_ntb, if_ntb_mod, SI_SUB_KLD, SI_ORDER_ANY);
+MODULE_DEPEND(if_ntb, ntb_hw, 1, 1, 1);
 
 static int
 ntb_setup_interface()
