@@ -576,7 +576,7 @@ int
 X_ip6_mrouter_done(void)
 {
 	mifi_t mifi;
-	int i;
+	u_long i;
 	struct mf6c *rt;
 	struct rtdetq *rte;
 
@@ -1341,7 +1341,7 @@ expire_upcalls(void *unused)
 {
 	struct rtdetq *rte;
 	struct mf6c *mfc, **nptr;
-	int i;
+	u_long i;
 
 	MFC6_LOCK();
 	for (i = 0; i < MF6CTBLSIZ; i++) {
