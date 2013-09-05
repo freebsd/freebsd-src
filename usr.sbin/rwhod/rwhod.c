@@ -274,21 +274,17 @@ main(int argc, char *argv[])
 		exit(1);
 	if (!quiet_mode) {
 		pid_child_receiver = pdfork(&fdp, 0);
-		if (pid_child_receiver == -1) {
-			if (errno != ENOSYS) {
-				syslog(LOG_ERR, "pdfork: %m");
-				exit(1);
-			} else {
-				pid_child_receiver = fork();
-				fdp = -1;
-			}
-		}
 		if (pid_child_receiver == 0) {
 			receiver_process();
 		} else if (pid_child_receiver > 0) {
 			sender_process();
 		} else if (pid_child_receiver == -1) {
-			syslog(LOG_ERR, "pdfork: %m");
+			if (errno == ENOSYS) {
+				syslog(LOG_ERR,
+				    "The pdfork(2) system call is not available; recompile the kernel with options PROCDESC");
+			} else {
+				syslog(LOG_ERR, "pdfork: %m");
+			}
 			exit(1);
 		}
 	} else {
