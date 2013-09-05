@@ -576,7 +576,7 @@ sys_cap_rights_limit(struct thread *td, struct cap_rights_limit_args *uap)
 }
 
 int
-sys___cap_rights_get(struct thread *td, struct cap___rights_get_args *uap)
+sys___cap_rights_get(struct thread *td, struct __cap_rights_get_args *uap)
 {
 
 	return (ENOSYS);
