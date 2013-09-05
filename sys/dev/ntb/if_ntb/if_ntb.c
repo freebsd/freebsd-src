@@ -334,14 +334,19 @@ ntb_setup_interface()
 static int
 ntb_teardown_interface()
 {
-	struct ifnet *ifp = net_softc.ifp;
 
-	ntb_transport_link_down(net_softc.qp);
+	if (net_softc.qp != NULL)
+		ntb_transport_link_down(net_softc.qp);
 
-	ether_ifdetach(ifp);
-	if_free(ifp);
-	ntb_transport_free_queue(net_softc.qp);
-	ntb_transport_free(&net_softc);
+	if (net_softc.ifp != NULL) {
+		ether_ifdetach(net_softc.ifp);
+		if_free(net_softc.ifp);
+	}
+
+	if (net_softc.qp != NULL) {
+		ntb_transport_free_queue(net_softc.qp);
+		ntb_transport_free(&net_softc);
+	}
 
 	return (0);
 }
