@@ -920,7 +920,7 @@ change_dir(vp, td)
 		return (ENOTDIR);
 #ifdef MAC
 	error = mac_vnode_check_chdir(td->td_ucred, vp);
-	if (error == 0)
+	if (error != 0)
 		return (error);
 #endif
 	return (VOP_ACCESS(vp, VEXEC, td->td_ucred, td));
