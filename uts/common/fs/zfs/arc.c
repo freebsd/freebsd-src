@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
@@ -2233,6 +2234,16 @@ arc_reclaim_needed(void)
 	 * circumstances from getting really dire.
 	 */
 	if (availrmem < swapfs_minfree + swapfs_reserve + extra)
+		return (1);
+
+	/*
+	 * Check that we have enough availrmem that memory locking (e.g., via
+	 * mlock(3C) or memcntl(2)) can still succeed.  (pages_pp_maximum
+	 * stores the number of pages that cannot be locked; when availrmem
+	 * drops below pages_pp_maximum, page locking mechanisms such as
+	 * page_pp_lock() will fail.)
+	 */
+	if (availrmem <= pages_pp_maximum)
 		return (1);
 
 #if defined(__i386)
