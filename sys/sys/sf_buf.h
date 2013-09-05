@@ -54,6 +54,7 @@ struct sfstat {				/* sendfile statistics */
 
 #ifdef _KERNEL
 #include <machine/sf_buf.h>
+#include <sys/systm.h>
 #include <sys/counter.h>
 struct mbuf;	/* for sf_buf_mext() */
 
