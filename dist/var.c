@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.183 2013/07/16 20:00:56 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.183 2013/07/16 20:00:56 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.183 2013/07/16 20:00:56 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -176,6 +176,7 @@ static char	varNoError[] = "";
  * The four contexts are searched in the reverse order from which they are
  * listed.
  */
+GNode          *VAR_INTERNAL; /* variables from make itself */
 GNode          *VAR_GLOBAL;   /* variables from the makefile */
 GNode          *VAR_CMD;      /* variables defined on the command-line */
 
@@ -408,6 +409,10 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	(ctxt != VAR_GLOBAL))
     {
 	var = Hash_FindEntry(&VAR_GLOBAL->context, name);
+	if ((var == NULL) && (ctxt != VAR_INTERNAL)) {
+	    /* VAR_INTERNAL is subordinate to VAR_GLOBAL */
+	    var = Hash_FindEntry(&VAR_INTERNAL->context, name);
+	}
     }
     if ((var == NULL) && (flags & FIND_ENV)) {
 	char *env;
@@ -429,6 +434,9 @@ VarFind(const char *name, GNode *ctxt, int flags)
 		   (ctxt != VAR_GLOBAL))
 	{
 	    var = Hash_FindEntry(&VAR_GLOBAL->context, name);
+	    if ((var == NULL) && (ctxt != VAR_INTERNAL)) {
+		var = Hash_FindEntry(&VAR_INTERNAL->context, name);
+	    }
 	    if (var == NULL) {
 		return NULL;
 	    } else {
@@ -4137,6 +4145,7 @@ Var_GetHead(char *file)
 void
 Var_Init(void)
 {
+    VAR_INTERNAL = Targ_NewGN("Internal");
     VAR_GLOBAL = Targ_NewGN("Global");
     VAR_CMD = Targ_NewGN("Command");
 
