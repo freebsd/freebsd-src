@@ -250,18 +250,21 @@ int zfs_flags = 0;
  */
 int zfs_recover = 0;
 
-extern int zfs_txg_synctime_ms;
+/*
+ * Expiration time in milliseconds. This value has two meanings. First it is
+ * used to determine when the spa_deadman() logic should fire. By default the
+ * spa_deadman() will fire if spa_sync() has not completed in 1000 seconds.
+ * Secondly, the value determines if an I/O is considered "hung". Any I/O that
+ * has not completed in zfs_deadman_synctime_ms is considered "hung" resulting
+ * in a system panic.
+ */
+uint64_t zfs_deadman_synctime_ms = 1000000ULL;
 
 /*
- * Expiration time in units of zfs_txg_synctime_ms. This value has two
- * meanings. First it is used to determine when the spa_deadman logic
- * should fire. By default the spa_deadman will fire if spa_sync has
- * not completed in 1000 * zfs_txg_synctime_ms (i.e. 1000 seconds).
- * Secondly, the value determines if an I/O is considered "hung".
- * Any I/O that has not completed in zfs_deadman_synctime is considered
- * "hung" resulting in a system panic.
+ * Check time in milliseconds. This defines the frequency at which we check
+ * for hung I/O.
  */
-uint64_t zfs_deadman_synctime = 1000ULL;
+uint64_t zfs_deadman_checktime_ms = 5000ULL;
 
 /*
  * Override the zfs deadman behavior via /etc/system. By default the
@@ -269,6 +272,16 @@ uint64_t zfs_deadman_synctime = 1000ULL;
  */
 int zfs_deadman_enabled = -1;
 
+/*
+ * The worst case is single-sector max-parity RAID-Z blocks, in which
+ * case the space requirement is exactly (VDEV_RAIDZ_MAXPARITY + 1)
+ * times the size; so just assume that.  Add to this the fact that
+ * we can have up to 3 DVAs per bp, and one more factor of 2 because
+ * the block may be dittoed with up to 3 DVAs by ddt_sync().  All together,
+ * the worst case is:
+ *     (VDEV_RAIDZ_MAXPARITY + 1) * SPA_DVAS_PER_BP * 2 == 24
+ */
+int spa_asize_inflation = 24;
 
 /*
  * ==========================================================================
@@ -499,16 +512,15 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 	hdlr.cyh_arg = spa;
 	hdlr.cyh_level = CY_LOW_LEVEL;
 
-	spa->spa_deadman_synctime = MSEC2NSEC(zfs_deadman_synctime *
-	    zfs_txg_synctime_ms);
+	spa->spa_deadman_synctime = MSEC2NSEC(zfs_deadman_synctime_ms);
 
 	/*
 	 * This determines how often we need to check for hung I/Os after
 	 * the cyclic has already fired. Since checking for hung I/Os is
 	 * an expensive operation we don't want to check too frequently.
-	 * Instead wait for 5 synctimes before checking again.
+	 * Instead wait for 5 seconds before checking again.
 	 */
-	when.cyt_interval = MSEC2NSEC(5 * zfs_txg_synctime_ms);
+	when.cyt_interval = MSEC2NSEC(zfs_deadman_checktime_ms);
 	when.cyt_when = CY_INFINITY;
 	mutex_enter(&cpu_lock);
 	spa->spa_deadman_cycid = cyclic_add(&hdlr, &when);
@@ -1499,14 +1511,7 @@ spa_freeze_txg(spa_t *spa)
 uint64_t
 spa_get_asize(spa_t *spa, uint64_t lsize)
 {
-	/*
-	 * The worst case is single-sector max-parity RAID-Z blocks, in which
-	 * case the space requirement is exactly (VDEV_RAIDZ_MAXPARITY + 1)
-	 * times the size; so just assume that.  Add to this the fact that
-	 * we can have up to 3 DVAs per bp, and one more factor of 2 because
-	 * the block may be dittoed with up to 3 DVAs by ddt_sync().
-	 */
-	return (lsize * (VDEV_RAIDZ_MAXPARITY + 1) * SPA_DVAS_PER_BP * 2);
+	return (lsize * spa_asize_inflation);
 }
 
 uint64_t

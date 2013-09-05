@@ -25,7 +25,7 @@
 
 /*
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_CONTEXT_H
@@ -70,6 +70,8 @@ extern "C" {
 #include <sys/fm/util.h>
 #include <sys/sunddi.h>
 #include <sys/cyclic.h>
+#include <sys/disp.h>
+#include <sys/callo.h>
 
 #define	CPU_SEQID	(CPU->cpu_seqid)
 
