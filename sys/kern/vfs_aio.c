@@ -2050,7 +2050,7 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct vnode *vp;
 
 	/* Lookup file object. */
-	error = fget(td, uap->fd, 0, &fp);
+	error = fget(td, uap->fd, NULL, &fp);
 	if (error)
 		return (error);
 
