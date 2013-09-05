@@ -475,8 +475,11 @@ ntb_transport_init(struct ntb_softc *ntb)
 	if (rc != 0)
 		goto err;
 
-	if (ntb_query_link_status(ntb))
+	if (ntb_query_link_status(ntb)) {
+		if (bootverbose)
+			device_printf(ntb_get_device(ntb), "link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
+	}
 
 	return (0);
 
@@ -673,6 +676,8 @@ ntb_transport_link_up(struct ntb_transport_qp *qp)
 		return;
 
 	qp->client_ready = NTB_LINK_UP;
+	if (bootverbose)
+		device_printf(ntb_get_device(qp->ntb), "qp client ready\n");
 
 	if (qp->transport->transport_link == NTB_LINK_UP)
 		callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
@@ -988,9 +993,13 @@ ntb_transport_event_callback(void *data, enum ntb_hw_event event)
 
 	switch (event) {
 	case NTB_EVENT_HW_LINK_UP:
+		if (bootverbose)
+			device_printf(ntb_get_device(nt->ntb), "HW link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
 		break;
 	case NTB_EVENT_HW_LINK_DOWN:
+		if (bootverbose)
+			device_printf(ntb_get_device(nt->ntb), "HW link down\n");
 		ntb_transport_link_cleanup(nt);
 		break;
 	default:
@@ -1071,6 +1080,8 @@ ntb_transport_link_work(void *arg)
 		return;
 
 	nt->transport_link = NTB_LINK_UP;
+	if (bootverbose)
+		device_printf(ntb_get_device(ntb), "transport link up\n");
 
 	for (i = 0; i < nt->max_qps; i++) {
 		qp = &nt->qps[i];
@@ -1176,6 +1187,8 @@ ntb_qp_link_work(void *arg)
 		qp->qp_link = NTB_LINK_UP;
 		if (qp->event_handler != NULL)
 			qp->event_handler(qp->cb_data, NTB_LINK_UP);
+		if (bootverbose)
+			device_printf(ntb_get_device(ntb), "qp link up\n");
 	} else if (nt->transport_link == NTB_LINK_UP) {
 		callout_reset(&qp->link_work,
 		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_qp_link_work, qp);
