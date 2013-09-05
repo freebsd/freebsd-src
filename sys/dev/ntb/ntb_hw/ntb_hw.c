@@ -76,10 +76,18 @@ enum ntb_device_type {
 	NTB_SOC
 };
 
+/* Device features and workarounds */
+#define HAS_FEATURE(feature)	\
+	((ntb->features & (feature)) != 0)
+
+#define NTB_BAR_SIZE_4K		(1 << 0)
+#define NTB_REGS_THRU_MW	(1 << 1)
+
 struct ntb_hw_info {
 	uint32_t		device_id;
-	enum ntb_device_type	type;
 	const char		*desc;
+	enum ntb_device_type	type;
+	uint64_t		features;
 };
 
 struct ntb_pci_bar_info {
@@ -108,6 +116,7 @@ struct ntb_db_cb {
 struct ntb_softc {
 	device_t		device;
 	enum ntb_device_type	type;
+	uint64_t		features;
 
 	struct ntb_pci_bar_info	bar_info[NTB_MAX_BARS];
 	struct ntb_int_info	int_info[MAX_MSIX_INTERRUPTS];
@@ -190,13 +199,15 @@ static void ntb_handle_heartbeat(void *arg);
 static void ntb_handle_link_event(struct ntb_softc *ntb, int link_state);
 static void recover_soc_link(void *arg);
 static int ntb_check_link_status(struct ntb_softc *ntb);
-static bool is_bar_for_data_transfer(int bar_num);
+static void save_bar_parameters(struct ntb_pci_bar_info *bar);
 
 static struct ntb_hw_info pci_ids[] = {
-	{ 0x3C0D8086, NTB_XEON, "Xeon E5/Core i7 Non-Transparent Bridge B2B" },
-	{ 0x0C4E8086, NTB_SOC, "Atom Processor S1200 NTB Primary B2B" },
-	{ 0x0E0D8086, NTB_XEON, "Xeon E5 V2 Non-Transparent Bridge B2B" },
-	{ 0x00000000, NTB_SOC, NULL }
+	{ 0x3C0D8086, "Xeon E5/Core i7 Non-Transparent Bridge B2B", NTB_XEON,
+	    NTB_REGS_THRU_MW },
+	{ 0x0C4E8086, "Atom Processor S1200 NTB Primary B2B", NTB_SOC, 0 },
+	{ 0x0E0D8086, "Xeon E5 V2 Non-Transparent Bridge B2B", NTB_XEON,
+	    NTB_REGS_THRU_MW | NTB_BAR_SIZE_4K },
+	{ 0x00000000, NULL, NTB_SOC, 0 }
 };
 
 /*
@@ -253,6 +264,7 @@ ntb_attach(device_t device)
 
 	ntb->device = device;
 	ntb->type = p->type;
+	ntb->features = p->features;
 
 	/* Heartbeat timer for NTB_SOC since there is no link interrupt */
 	callout_init(&ntb->heartbeat_timer, CALLOUT_MPSAFE);
@@ -301,7 +313,7 @@ ntb_map_pci_bars(struct ntb_softc *ntb)
 	    &ntb->bar_info[NTB_B2B_BAR_2]);
 	if (rc != 0)
 		return rc;
-	
+
 	return (0);
 }
 
