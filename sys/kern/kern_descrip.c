@@ -586,8 +586,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETLK:
 	do_setlk:
-		error = fget_unlocked(fdp, fd,
-		    cap_rights_init(&rights, CAP_FLOCK), 0, &fp, NULL);
+		cap_rights_init(&rights, CAP_FLOCK);
+		error = fget_unlocked(fdp, fd, &rights, 0, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -676,7 +676,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * that the closing thread was a bit slower and that the
 		 * advisory lock succeeded before the close.
 		 */
-		error = fget_unlocked(fdp, fd, 0, 0, &fp2, NULL);
+		error = fget_unlocked(fdp, fd, &rights, 0, &fp2, NULL);
 		if (error != 0) {
 			fdrop(fp, td);
 			break;
@@ -733,7 +733,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd, 0, 0, &fp, NULL);
+		error = fget_unlocked(fdp, fd, NULL, 0, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -2324,13 +2324,15 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			return (EBADF);
 #ifdef CAPABILITIES
 		haverights = *cap_rights(fdp, fd);
-		error = cap_check(&haverights, needrightsp);
-		if (error != 0)
-			return (error);
-		if (cap_rights_is_set(needrightsp, CAP_FCNTL)) {
-			error = cap_fcntl_check(fdp, fd, needfcntl);
+		if (needrightsp != NULL) {
+			error = cap_check(&haverights, needrightsp);
 			if (error != 0)
 				return (error);
+			if (cap_rights_is_set(needrightsp, CAP_FCNTL)) {
+				error = cap_fcntl_check(fdp, fd, needfcntl);
+				if (error != 0)
+					return (error);
+			}
 		}
 #endif
 		count = fp->f_count;
@@ -2382,7 +2384,10 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 	*fpp = NULL;
 	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
 		return (EBADF);
-	needrights = *needrightsp;
+	if (needrightsp != NULL)
+		needrights = *needrightsp;
+	else
+		cap_rights_init(&needrights);
 	if (maxprotp != NULL)
 		cap_rights_set(&needrights, CAP_MMAP);
 	error = fget_unlocked(fdp, fd, &needrights, 0, &fp, &haverights);
@@ -2517,9 +2522,11 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 		return (EBADF);
 
 #ifdef CAPABILITIES
-	error = cap_check(cap_rights(fdp, fd), needrightsp);
-	if (error != 0)
-		return (error);
+	if (needrightsp != NULL) {
+		error = cap_check(cap_rights(fdp, fd), needrightsp);
+		if (error != 0)
+			return (error);
+	}
 #endif
 
 	if (fp->f_vnode == NULL)

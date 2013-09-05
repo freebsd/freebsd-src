@@ -309,7 +309,7 @@ fdesc_lookup(ap)
 	/*
 	 * No rights to check since 'fp' isn't actually used.
 	 */
-	if ((error = fget(td, fd, 0, &fp)) != 0)
+	if ((error = fget(td, fd, NULL, &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */
