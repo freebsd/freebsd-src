@@ -161,10 +161,18 @@ struct ntb_softc {
 #define ntb_write_4(offset, val) ntb_reg_write(4, (offset), (val))
 #define ntb_write_8(offset, val) ntb_reg_write(8, (offset), (val))
 
+typedef int (*bar_map_strategy)(struct ntb_softc *ntb,
+    struct ntb_pci_bar_info *bar);
+
 static int ntb_probe(device_t device);
 static int ntb_attach(device_t device);
 static int ntb_detach(device_t device);
-static int ntb_map_pci_bar(struct ntb_softc *ntb);
+static int ntb_map_pci_bars(struct ntb_softc *ntb);
+static int map_pci_bar(struct ntb_softc *ntb, bar_map_strategy strategy,
+    struct ntb_pci_bar_info *bar);
+static int map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar);
+static int map_memory_window_bar(struct ntb_softc *ntb,
+    struct ntb_pci_bar_info *bar);
 static void ntb_unmap_pci_bar(struct ntb_softc *ntb);
 static int ntb_setup_interrupts(struct ntb_softc *ntb);
 static void ntb_teardown_interrupts(struct ntb_softc *ntb);
@@ -250,7 +258,7 @@ ntb_attach(device_t device)
 	callout_init(&ntb->heartbeat_timer, CALLOUT_MPSAFE);
 	callout_init(&ntb->lr_timer, CALLOUT_MPSAFE);
 
-	DETACH_ON_ERROR(ntb_map_pci_bar(ntb));
+	DETACH_ON_ERROR(ntb_map_pci_bars(ntb));
 	DETACH_ON_ERROR(ntb_initialize_hw(ntb));
 	DETACH_ON_ERROR(ntb_setup_interrupts(ntb));
 
@@ -273,59 +281,84 @@ ntb_detach(device_t device)
 }
 
 static int
-ntb_map_pci_bar(struct ntb_softc *ntb)
+ntb_map_pci_bars(struct ntb_softc *ntb)
 {
-	struct ntb_pci_bar_info *current_bar;
-	int rc, i;
+	int rc;
 
 	ntb->bar_info[NTB_CONFIG_BAR].pci_resource_id = PCIR_BAR(0);
-	ntb->bar_info[NTB_B2B_BAR_1].pci_resource_id  = PCIR_BAR(2);
-	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id  = PCIR_BAR(4);
+	rc = map_pci_bar(ntb, map_mmr_bar, &ntb->bar_info[NTB_CONFIG_BAR]);
+	if (rc != 0)
+		return rc;
 
-	for (i = 0; i< NTB_MAX_BARS; i++) {
-		current_bar = &ntb->bar_info[i];
-		current_bar->pci_resource =
-		    bus_alloc_resource(ntb->device,
-			SYS_RES_MEMORY,
-			&current_bar->pci_resource_id, 0, ~0, 1,
+	ntb->bar_info[NTB_B2B_BAR_1].pci_resource_id  = PCIR_BAR(2);
+	rc = map_pci_bar(ntb, map_memory_window_bar,
+	    &ntb->bar_info[NTB_B2B_BAR_1]);
+	if (rc != 0)
+		return rc;
+
+	ntb->bar_info[NTB_B2B_BAR_2].pci_resource_id  = PCIR_BAR(4);
+	rc = map_pci_bar(ntb, map_memory_window_bar,
+	    &ntb->bar_info[NTB_B2B_BAR_2]);
+	if (rc != 0)
+		return rc;
+	
+	return (0);
+}
+
+static int
+map_pci_bar(struct ntb_softc *ntb, bar_map_strategy strategy,
+    struct ntb_pci_bar_info *bar)
+{
+	int rc;
+
+	rc = strategy(ntb, bar);
+	if (rc != 0) {
+		device_printf(ntb->device,
+		    "unable to allocate pci resource\n");
+	} else {
+		device_printf(ntb->device, 
+		    "Bar size = %lx, v %p, p %p\n",
+		    bar->size, bar->vbase,
+		    (void *)(bar->pbase));
+	}
+	return (rc);
+}
+
+static int
+map_mmr_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
+{
+
+	bar->pci_resource = bus_alloc_resource(ntb->device, SYS_RES_MEMORY,
+		&bar->pci_resource_id, 0, ~0, 1, RF_ACTIVE);
+
+	if (bar->pci_resource == NULL)
+		return (ENXIO);
+	else {
+		save_bar_parameters(bar);
+		return (0);
+	}
+}
+
+static int
+map_memory_window_bar(struct ntb_softc *ntb, struct ntb_pci_bar_info *bar)
+{
+	int rc;
+
+	bar->pci_resource = bus_alloc_resource(ntb->device,
+		SYS_RES_MEMORY, &bar->pci_resource_id, 0, ~0, 1,
 			RF_ACTIVE);
 
-		if (current_bar->pci_resource == NULL) {
-			device_printf(ntb->device,
-			    "unable to allocate pci resource\n");
-			return (ENXIO);
-		}
-		else {
-			current_bar->pci_bus_tag =
-			    rman_get_bustag(current_bar->pci_resource);
-			current_bar->pci_bus_handle =
-			    rman_get_bushandle(current_bar->pci_resource);
-			current_bar->pbase =
-			    rman_get_start(current_bar->pci_resource);
-			current_bar->size =
-			    rman_get_size(current_bar->pci_resource);
-			current_bar->vbase =
-			    rman_get_virtual(current_bar->pci_resource);
-			if (is_bar_for_data_transfer(i)) {
-				/*
-				 * Mark bar region as write combining to improve
-				 * performance.
-				 */
-				rc = pmap_change_attr(
-				    (vm_offset_t)current_bar->vbase,
-				    current_bar->size,
-				    VM_MEMATTR_WRITE_COMBINING);
-				if (rc != 0) {
-					device_printf(ntb->device,
-					    "Couldn't mark bar as"
-					    " WRITE_COMBINING\n");
-					return (rc);
-				}
-			}
-			device_printf(ntb->device, 
-			    "Bar size = %lx, v %p, p %p\n",
-			    current_bar->size, current_bar->vbase,
-			    (void *)(current_bar->pbase));
+	if (bar->pci_resource == NULL)
+		return (ENXIO);
+	else {
+		save_bar_parameters(bar);
+		/* Mark bar region as write combining to improve performance. */
+		rc = pmap_change_attr((vm_offset_t)bar->vbase, bar->size,
+		    VM_MEMATTR_WRITE_COMBINING);
+		if (rc != 0) {
+			device_printf(ntb->device, "unable to mark bar as"
+			    " WRITE_COMBINING\n");
+			return (rc);
 		}
 	}
 	return (0);
@@ -1282,13 +1315,20 @@ ntb_query_link_status(struct ntb_softc *ntb)
 	return (ntb->link_status == NTB_LINK_UP);
 }
 
-static bool
-is_bar_for_data_transfer(int bar_num)
+static void
+save_bar_parameters(struct ntb_pci_bar_info *bar)
 {
-	if ((bar_num > NTB_CONFIG_BAR) && (bar_num < NTB_MAX_BARS))
-		return true;
-	else
-		return false;
+	bar->pci_bus_tag =
+	    rman_get_bustag(bar->pci_resource);
+	bar->pci_bus_handle =
+	    rman_get_bushandle(bar->pci_resource);
+	bar->pbase =
+	    rman_get_start(bar->pci_resource);
+	bar->size =
+	    rman_get_size(bar->pci_resource);
+	bar->vbase =
+	    rman_get_virtual(bar->pci_resource);
+
 }
 
 device_t ntb_get_device(struct ntb_softc *ntb)
