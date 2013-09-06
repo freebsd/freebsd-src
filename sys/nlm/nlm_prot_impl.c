@@ -133,6 +133,11 @@ static time_t nlm_grace_threshold;
 static time_t nlm_next_idle_check;
 
 /*
+ * A flag to indicate the server is already running.
+ */
+static int nlm_is_running;
+
+/*
  * A socket to use for RPC - shared by all IPv4 RPC clients.
  */
 static struct socket *nlm_socket;
@@ -1526,51 +1531,51 @@ nlm_server_main(int addr_count, char **addrs)
 	struct nlm_waiting_lock *nw;
 	vop_advlock_t *old_nfs_advlock;
 	vop_reclaim_t *old_nfs_reclaim;
-	int v4_used;
-#ifdef INET6
-	int v6_used;
-#endif
 
-	if (nlm_socket) {
+	if (nlm_is_running != 0) {
 		NLM_ERR("NLM: can't start server - "
 		    "it appears to be running already\n");
 		return (EPERM);
 	}
 
-	memset(&opt, 0, sizeof(opt));
+	if (nlm_socket == NULL) {
+		memset(&opt, 0, sizeof(opt));
 
-	nlm_socket = NULL;
-	error = socreate(AF_INET, &nlm_socket, SOCK_DGRAM, 0,
-	    td->td_ucred, td);
-	if (error) {
-		NLM_ERR("NLM: can't create IPv4 socket - error %d\n", error);
-		return (error);
-	}
-	opt.sopt_dir = SOPT_SET;
-	opt.sopt_level = IPPROTO_IP;
-	opt.sopt_name = IP_PORTRANGE;
-	portlow = IP_PORTRANGE_LOW;
-	opt.sopt_val = &portlow;
-	opt.sopt_valsize = sizeof(portlow);
-	sosetopt(nlm_socket, &opt);
+		error = socreate(AF_INET, &nlm_socket, SOCK_DGRAM, 0,
+		    td->td_ucred, td);
+		if (error) {
+			NLM_ERR("NLM: can't create IPv4 socket - error %d\n",
+			    error);
+			return (error);
+		}
+		opt.sopt_dir = SOPT_SET;
+		opt.sopt_level = IPPROTO_IP;
+		opt.sopt_name = IP_PORTRANGE;
+		portlow = IP_PORTRANGE_LOW;
+		opt.sopt_val = &portlow;
+		opt.sopt_valsize = sizeof(portlow);
+		sosetopt(nlm_socket, &opt);
 
 #ifdef INET6
-	nlm_socket6 = NULL;
-	error = socreate(AF_INET6, &nlm_socket6, SOCK_DGRAM, 0,
-	    td->td_ucred, td);
-	if (error) {
-		NLM_ERR("NLM: can't create IPv6 socket - error %d\n", error);
-		goto out;
-		return (error);
-	}
-	opt.sopt_dir = SOPT_SET;
-	opt.sopt_level = IPPROTO_IPV6;
-	opt.sopt_name = IPV6_PORTRANGE;
-	portlow = IPV6_PORTRANGE_LOW;
-	opt.sopt_val = &portlow;
-	opt.sopt_valsize = sizeof(portlow);
-	sosetopt(nlm_socket6, &opt);
+		nlm_socket6 = NULL;
+		error = socreate(AF_INET6, &nlm_socket6, SOCK_DGRAM, 0,
+		    td->td_ucred, td);
+		if (error) {
+			NLM_ERR("NLM: can't create IPv6 socket - error %d\n",
+			    error);
+			soclose(nlm_socket);
+			nlm_socket = NULL;
+			return (error);
+		}
+		opt.sopt_dir = SOPT_SET;
+		opt.sopt_level = IPPROTO_IPV6;
+		opt.sopt_name = IPV6_PORTRANGE;
+		portlow = IPV6_PORTRANGE_LOW;
+		opt.sopt_val = &portlow;
+		opt.sopt_valsize = sizeof(portlow);
+		sosetopt(nlm_socket6, &opt);
 #endif
+	}
 
 	nlm_auth = authunix_create(curthread->td_ucred);
 
@@ -1622,6 +1627,7 @@ nlm_server_main(int addr_count, char **addrs)
 		error = EINVAL;
 		goto out;
 	}
+	nlm_is_running = 1;
 
 	NLM_DEBUG(1, "NLM: local NSM state is %d\n", smstat.state);
 	nlm_nsm_state = smstat.state;
@@ -1638,6 +1644,7 @@ nlm_server_main(int addr_count, char **addrs)
 	nfs_reclaim_p = old_nfs_reclaim;
 
 out:
+	nlm_is_running = 0;
 	if (pool)
 		svcpool_destroy(pool);
 
@@ -1661,13 +1668,8 @@ out:
 	 * nlm_hosts to the host (which may remove it from the list
 	 * and free it). After this phase, the only entries in the
 	 * nlm_host list should be from other threads performing
-	 * client lock requests. We arrange to defer closing the
-	 * sockets until the last RPC client handle is released.
+	 * client lock requests.
 	 */
-	v4_used = 0;
-#ifdef INET6
-	v6_used = 0;
-#endif
 	mtx_lock(&nlm_global_lock);
 	TAILQ_FOREACH(nw, &nlm_waiting_locks, nw_link) {
 		wakeup(nw);
@@ -1678,42 +1680,9 @@ out:
 		nlm_host_release(host);
 		mtx_lock(&nlm_global_lock);
 	}
-	TAILQ_FOREACH_SAFE(host, &nlm_hosts, nh_link, nhost) {
-		mtx_lock(&host->nh_lock);
-		if (host->nh_srvrpc.nr_client
-		    || host->nh_clntrpc.nr_client) {
-			if (host->nh_addr.ss_family == AF_INET)
-				v4_used++;
-#ifdef INET6
-			if (host->nh_addr.ss_family == AF_INET6)
-				v6_used++;
-#endif
-			/*
-			 * Note that the rpc over udp code copes
-			 * correctly with the fact that a socket may
-			 * be used by many rpc handles.
-			 */
-			if (host->nh_srvrpc.nr_client)
-				CLNT_CONTROL(host->nh_srvrpc.nr_client,
-				    CLSET_FD_CLOSE, 0);
-			if (host->nh_clntrpc.nr_client)
-				CLNT_CONTROL(host->nh_clntrpc.nr_client,
-				    CLSET_FD_CLOSE, 0);
-		}
-		mtx_unlock(&host->nh_lock);
-	}
 	mtx_unlock(&nlm_global_lock);
 
 	AUTH_DESTROY(nlm_auth);
-
-	if (!v4_used)
-		soclose(nlm_socket);
-	nlm_socket = NULL;
-#ifdef INET6
-	if (!v6_used)
-		soclose(nlm_socket6);
-	nlm_socket6 = NULL;
-#endif
 
 	return (error);
 }
@@ -2435,7 +2404,15 @@ static int
 nfslockd_modevent(module_t mod, int type, void *data)
 {
 
-	return (0);
+	switch (type) {
+	case MOD_LOAD:
+		return (0);
+	case MOD_UNLOAD:
+		/* The NLM module cannot be safely unloaded. */
+		/* FALLTHROUGH */
+	default:
+		return (EOPNOTSUPP);
+	}
 }
 static moduledata_t nfslockd_mod = {
 	"nfslockd",
