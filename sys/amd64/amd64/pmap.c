@@ -5086,8 +5086,8 @@ pmap_ts_referenced(vm_page_t m)
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	rtval = 0;
-retry:
 	rw_wlock(lock);
+retry:
 	if ((m->flags & PG_FICTITIOUS) != 0)
 		goto small_mappings;
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, pvn) {
@@ -5099,7 +5099,6 @@ retry:
 			rw_wlock(lock);
 			if (pvh_gen != pvh->pv_gen) {
 				PMAP_UNLOCK(pmap);
-				rw_wunlock(lock);
 				goto retry;
 			}
 		}
@@ -5154,7 +5153,6 @@ small_mappings:
 				if (pvh_gen != pvh->pv_gen ||
 				    md_gen != m->md.pv_gen) {
 					PMAP_UNLOCK(pmap);
-					rw_wunlock(lock);
 					goto retry;
 				}
 			}
