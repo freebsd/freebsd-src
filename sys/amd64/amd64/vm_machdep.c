@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
-#include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -692,27 +691,6 @@ cpu_reset_real()
 
 	/* NOTREACHED */
 	while(1);
-}
-
-/*
- * Allocate an sf_buf for the given vm_page.  On this machine, however, there
- * is no sf_buf object.  Instead, an opaque pointer to the given vm_page is
- * returned.
- */
-struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int pri)
-{
-
-	return ((struct sf_buf *)m);
-}
-
-/*
- * Free the sf_buf.  In fact, do nothing because there are no resources
- * associated with the sf_buf.
- */
-void
-sf_buf_free(struct sf_buf *sf)
-{
 }
 
 /*
