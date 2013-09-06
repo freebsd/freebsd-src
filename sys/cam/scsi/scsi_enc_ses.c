@@ -1555,6 +1555,18 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		ENC_VLOG(enc, "Enclosure Status Page Too Long\n");
 		goto out;
 	}
+
+	/* Check for simple enclosure reporting short enclosure status. */
+	if (length >= 4 && page->hdr.page_code == SesShortStatus) {
+		ENC_DLOG(enc, "Got Short Enclosure Status page\n");
+		ses->ses_flags &= ~(SES_FLAG_ADDLSTATUS | SES_FLAG_DESC);
+		ses_cache_free(enc, enc_cache);
+		enc_cache->enc_status = page->hdr.page_specific_flags;
+		enc_update_request(enc, SES_PUBLISH_CACHE);
+		err = 0;
+		goto out;
+	}
+
 	/* Make sure the length contains at least one header and status */
 	if (length < (sizeof(*page) + sizeof(*page->elements))) {
 		ENC_VLOG(enc, "Enclosure Status Page Too Short\n");
