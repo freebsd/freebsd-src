@@ -58,25 +58,22 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	 * If the driver does not want I/O to be split, that means that we
 	 * need to reject any requests that will not fit into one buffer.
 	 */
-	if ((dev->si_flags & SI_NOSPLIT) &&
-	    ((uio->uio_resid > dev->si_iosize_max) ||
-	     (uio->uio_resid > MAXPHYS) ||
-	     (uio->uio_iovcnt > 1))) {
+	if (dev->si_flags & SI_NOSPLIT &&
+	    (uio->uio_resid > dev->si_iosize_max || uio->uio_resid > MAXPHYS ||
+	    uio->uio_iovcnt > 1)) {
 		/*
 		 * Tell the user why his I/O was rejected.
 		 */
 		if (uio->uio_resid > dev->si_iosize_max)
-			printf("%s: request size %zd > si_iosize_max=%d, "
+			uprintf("%s: request size=%zd > si_iosize_max=%d; "
 			    "cannot split request\n", devtoname(dev),
 			    uio->uio_resid, dev->si_iosize_max);
-
 		if (uio->uio_resid > MAXPHYS)
-			printf("%s: request size %zd > MAXPHYS=%d, "
+			uprintf("%s: request size=%zd > MAXPHYS=%d; "
 			    "cannot split request\n", devtoname(dev),
 			    uio->uio_resid, MAXPHYS);
-
 		if (uio->uio_iovcnt > 1)
-			printf("%s: request vectors=%d > 1, "
+			uprintf("%s: request vectors=%d > 1; "
 			    "cannot split request\n", devtoname(dev),
 			    uio->uio_iovcnt);
 
@@ -117,8 +114,8 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				 * This device does not want I/O to be split.
 				 */
 				if (dev->si_flags & SI_NOSPLIT) {
-					printf("%s: request ptr %p is not "
-					    "on a page boundary, cannot split "
+					uprintf("%s: request ptr %p is not "
+					    "on a page boundary; cannot split "
 					    "request\n", devtoname(dev),
 					    bp->b_data);
 					error = EFBIG;

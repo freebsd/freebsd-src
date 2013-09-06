@@ -127,9 +127,9 @@ sbwait(struct sockbuf *sb)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	sb->sb_flags |= SB_WAIT;
-	return (msleep(&sb->sb_cc, &sb->sb_mtx,
+	return (msleep_sbt(&sb->sb_cc, &sb->sb_mtx,
 	    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK | PCATCH, "sbwait",
-	    sb->sb_timeo));
+	    sb->sb_timeo, 0, 0));
 }
 
 int

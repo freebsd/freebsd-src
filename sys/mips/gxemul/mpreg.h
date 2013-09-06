@@ -43,10 +43,17 @@
 #define	GXEMUL_MP_DEV_IPI_READ	0x00c0
 #define	GXEMUL_MP_DEV_CYCLES	0x00d0
 
+#ifdef _LP64
 #define	GXEMUL_MP_DEV_FUNCTION(f)					\
 	(volatile uint64_t *)MIPS_PHYS_TO_DIRECT_UNCACHED(GXEMUL_MP_DEV_BASE + (f))
 #define	GXEMUL_MP_DEV_READ(f)						\
 	(volatile uint64_t)*GXEMUL_MP_DEV_FUNCTION(f)
+#else
+#define	GXEMUL_MP_DEV_FUNCTION(f)					\
+	(volatile uint32_t *)MIPS_PHYS_TO_DIRECT_UNCACHED(GXEMUL_MP_DEV_BASE + (f))
+#define	GXEMUL_MP_DEV_READ(f)						\
+	(volatile uint32_t)*GXEMUL_MP_DEV_FUNCTION(f)
+#endif
 #define	GXEMUL_MP_DEV_WRITE(f, v)					\
 	*GXEMUL_MP_DEV_FUNCTION(f) = (v)
 

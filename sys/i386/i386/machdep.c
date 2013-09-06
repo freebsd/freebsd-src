@@ -160,9 +160,8 @@ uint32_t arch_i386_xbox_memsize = 0;
 
 #ifdef XEN
 /* XEN includes */
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
-#include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
 #include <xen/xen_intr.h>
@@ -1216,6 +1215,13 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 #ifdef XEN
 
+static void
+idle_block(void)
+{
+
+	HYPERVISOR_sched_op(SCHEDOP_block, 0);
+}
+
 void
 cpu_halt(void)
 {
@@ -1959,6 +1965,9 @@ extern inthand_t
 	IDTVEC(xmm),
 #ifdef KDTRACE_HOOKS
 	IDTVEC(dtrace_ret),
+#endif
+#ifdef XENHVM
+	IDTVEC(xen_intr_upcall),
 #endif
 	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
@@ -2946,6 +2955,10 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
 #ifdef KDTRACE_HOOKS
 	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
+#ifdef XENHVM
+	setidt(IDT_EVTCHN, &IDTVEC(xen_intr_upcall), SDT_SYS386IGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif
 

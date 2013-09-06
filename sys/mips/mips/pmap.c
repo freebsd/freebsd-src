@@ -1914,7 +1914,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pdpe = pmap_segmap(pmap, sva);
@@ -1980,7 +1979,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (va != va_next)
 			pmap_invalidate_range(pmap, va, sva);
 	}
-	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -2914,11 +2912,92 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 }
 
 /*
- *	This function is advisory.
+ *	Apply the given advice to the specified range of addresses within the
+ *	given pmap.  Depending on the advice, clear the referenced and/or
+ *	modified flags in each mapping and set the mapped page's dirty field.
  */
 void
 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
+	pd_entry_t *pde, *pdpe;
+	pt_entry_t *pte;
+	vm_offset_t va, va_next;
+	vm_paddr_t pa;
+	vm_page_t m;
+
+	if (advice != MADV_DONTNEED && advice != MADV_FREE)
+		return;
+	rw_wlock(&pvh_global_lock);
+	PMAP_LOCK(pmap);
+	for (; sva < eva; sva = va_next) {
+		pdpe = pmap_segmap(pmap, sva);
+#ifdef __mips_n64
+		if (*pdpe == 0) {
+			va_next = (sva + NBSEG) & ~SEGMASK;
+			if (va_next < sva)
+				va_next = eva;
+			continue;
+		}
+#endif
+		va_next = (sva + NBPDR) & ~PDRMASK;
+		if (va_next < sva)
+			va_next = eva;
+
+		pde = pmap_pdpe_to_pde(pdpe, sva);
+		if (*pde == NULL)
+			continue;
+
+		/*
+		 * Limit our scan to either the end of the va represented
+		 * by the current page table page, or to the end of the
+		 * range being write protected.
+		 */
+		if (va_next > eva)
+			va_next = eva;
+
+		va = va_next;
+		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
+		    sva += PAGE_SIZE) {
+			if (!pte_test(pte, PTE_MANAGED | PTE_V)) {
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
+				continue;
+			}
+			pa = TLBLO_PTE_TO_PA(*pte);
+			m = PHYS_TO_VM_PAGE(pa);
+			m->md.pv_flags &= ~PV_TABLE_REF;
+			if (pte_test(pte, PTE_D)) {
+				if (advice == MADV_DONTNEED) {
+					/*
+					 * Future calls to pmap_is_modified()
+					 * can be avoided by making the page
+					 * dirty now.
+					 */
+					vm_page_dirty(m);
+				} else {
+					pte_clear(pte, PTE_D);
+					if (va == va_next)
+						va = sva;
+				}
+			} else {
+				/*
+				 * Unless PTE_D is set, any TLB entries
+				 * mapping "sva" don't allow write access, so
+				 * they needn't be invalidated.
+				 */
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
+			}
+		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
+	}
+	rw_wunlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
 }
 
 /*

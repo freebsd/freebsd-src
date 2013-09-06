@@ -254,8 +254,11 @@ enum pmap_type {
 struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
+	uint64_t		pm_cr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
+	cpuset_t		pm_save;	/* Context valid on cpus mask */
+	int			pm_pcid;	/* context id */
 	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */

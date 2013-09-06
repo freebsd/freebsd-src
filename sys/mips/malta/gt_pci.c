@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 
+#include <mips/malta/gt_pci_bus_space.h>
 
 #define	ICU_LEN		16	/* number of ISA IRQs */
 
@@ -635,7 +636,6 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct gt_pci_softc *sc = device_get_softc(bus);	
 	struct resource *rv = NULL;
 	struct rman *rm;
-	bus_space_tag_t bt = 0;
 	bus_space_handle_t bh = 0;
 
 	switch (type) {
@@ -644,12 +644,10 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
-		bt = sc->sc_st;
 		bh = sc->sc_mem;
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_io_rman;
-		bt = sc->sc_st;
 		bh = sc->sc_io;
 		break;
 	default:
@@ -663,7 +661,7 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type != SYS_RES_IRQ) {
 		bh += (rman_get_start(rv));
 
-		rman_set_bustag(rv, bt);
+		rman_set_bustag(rv, gt_pci_bus_space);
 		rman_set_bushandle(rv, bh);
 		if (flags & RF_ACTIVE) {
 			if (bus_activate_resource(child, type, *rid, rv)) {

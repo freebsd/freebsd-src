@@ -65,5 +65,6 @@ device		loop
 device		ether
 device		le
 device		miibus
+device		bpf
 device		md
 device		uart

@@ -103,6 +103,7 @@ gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
 glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
+gnn [label="George Neville-Neil\ngnn@FreeBSD.org\n2013/09/04"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
@@ -490,6 +491,8 @@ sem -> stas
 
 shaun -> timur
 shaun -> matthew
+
+skreuzer -> gnn
 
 sobomax -> demon
 sobomax -> glewis
