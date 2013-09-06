@@ -1264,29 +1264,27 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	cpuset_t other_cpus;
 	u_int cpuid;
 
-	sched_pin();
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap ||
-		    !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-			invlpg(va);
-			smp_invlpg(va);
-		} else {
-			cpuid = PCPU_GET(cpuid);
-			other_cpus = all_cpus;
-			CPU_CLR(cpuid, &other_cpus);
-			if (CPU_ISSET(cpuid, &pmap->pm_active))
-				invlpg(va);
-			CPU_AND(&other_cpus, &pmap->pm_active);
-			if (!CPU_EMPTY(&other_cpus))
-				smp_masked_invlpg(other_cpus, va);
-		}
-		break;
-	case PT_EPT:
+	if (pmap->pm_type == PT_EPT) {
 		pmap_invalidate_ept(pmap);
-		break;
-	default:
+		return;
+	}
+
+	if (pmap->pm_type != PT_X86)
 		panic("pmap_invalidate_page: invalid type %d", pmap->pm_type);
+
+	sched_pin();
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
+		invlpg(va);
+		smp_invlpg(va);
+	} else {
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
+			invlpg(va);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invlpg(other_cpus, va);
 	}
 	sched_unpin();
 }
@@ -1298,31 +1296,29 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t addr;
 	u_int cpuid;
 
+	if (pmap->pm_type == PT_EPT) {
+		pmap_invalidate_ept(pmap);
+		return;
+	}
+
+	if (pmap->pm_type != PT_X86)
+		panic("pmap_invalidate_range: invalid type %d", pmap->pm_type);
+
 	sched_pin();
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap ||
-		    !CPU_CMP(&pmap->pm_active, &all_cpus)) {
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
+		for (addr = sva; addr < eva; addr += PAGE_SIZE)
+			invlpg(addr);
+		smp_invlpg_range(sva, eva);
+	} else {
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
-			smp_invlpg_range(sva, eva);
-		} else {
-			cpuid = PCPU_GET(cpuid);
-			other_cpus = all_cpus;
-			CPU_CLR(cpuid, &other_cpus);
-			if (CPU_ISSET(cpuid, &pmap->pm_active))
-				for (addr = sva; addr < eva; addr += PAGE_SIZE)
-					invlpg(addr);
-			CPU_AND(&other_cpus, &pmap->pm_active);
-			if (!CPU_EMPTY(&other_cpus))
-				smp_masked_invlpg_range(other_cpus, sva, eva);
-		}
-		break;
-	case PT_EPT:
-		pmap_invalidate_ept(pmap);
-		break;
-	default:
-		panic("pmap_invalidate_range: invalid type %d", pmap->pm_type);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invlpg_range(other_cpus, sva, eva);
 	}
 	sched_unpin();
 }
@@ -1333,29 +1329,27 @@ pmap_invalidate_all(pmap_t pmap)
 	cpuset_t other_cpus;
 	u_int cpuid;
 
-	sched_pin();
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap ||
-		    !CPU_CMP(&pmap->pm_active, &all_cpus)) {
-			invltlb();
-			smp_invltlb();
-		} else {
-			cpuid = PCPU_GET(cpuid);
-			other_cpus = all_cpus;
-			CPU_CLR(cpuid, &other_cpus);
-			if (CPU_ISSET(cpuid, &pmap->pm_active))
-				invltlb();
-			CPU_AND(&other_cpus, &pmap->pm_active);
-			if (!CPU_EMPTY(&other_cpus))
-				smp_masked_invltlb(other_cpus);
-		}
-		break;
-	case PT_EPT:
+	if (pmap->pm_type == PT_EPT) {
 		pmap_invalidate_ept(pmap);
-		break;
-	default:
+		return;
+	}
+
+	if (pmap->pm_type != PT_X86)
 		panic("pmap_invalidate_all: invalid type %d", pmap->pm_type);
+
+	sched_pin();
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
+		invltlb();
+		smp_invltlb();
+	} else {
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
+			invltlb();
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invltlb(other_cpus);
 	}
 	sched_unpin();
 }
