@@ -102,7 +102,7 @@ ioapic_set_pinstate(struct vmctx *ctx, int pin, bool newstate)
 	 * We only deal with:
 	 * - edge triggered interrupts
 	 * - fixed delivery mode
-	 *  Level-triggered sources will work so long as their is
+	 *  Level-triggered sources will work so long as there is
 	 * no sharing.
 	 */
 	low = ioapic->redtbl[pin];
