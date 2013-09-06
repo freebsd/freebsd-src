@@ -96,6 +96,13 @@ __FBSDID("$FreeBSD$");
 #endif /* SCTP */
 #endif /* INET || INET6 */
 
+/*
+ * Creation flags, OR'ed into socket() and socketpair() type argument.
+ * For stable/9, these are supported but not exposed in the header file.
+ */
+#define	SOCK_CLOEXEC	0x10000000
+#define	SOCK_NONBLOCK	0x20000000
+
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
 
@@ -183,26 +190,41 @@ sys_socket(td, uap)
 	struct filedesc *fdp;
 	struct socket *so;
 	struct file *fp;
-	int fd, error;
+	int fd, error, type, oflag, fflag;
 
 	AUDIT_ARG_SOCKET(uap->domain, uap->type, uap->protocol);
+
+	type = uap->type;
+	oflag = 0;
+	fflag = 0;
+	if ((type & SOCK_CLOEXEC) != 0) {
+		type &= ~SOCK_CLOEXEC;
+		oflag |= O_CLOEXEC;
+	}
+	if ((type & SOCK_NONBLOCK) != 0) {
+		type &= ~SOCK_NONBLOCK;
+		fflag |= FNONBLOCK;
+	}
+
 #ifdef MAC
-	error = mac_socket_check_create(td->td_ucred, uap->domain, uap->type,
+	error = mac_socket_check_create(td->td_ucred, uap->domain, type,
 	    uap->protocol);
 	if (error)
 		return (error);
 #endif
 	fdp = td->td_proc->p_fd;
-	error = falloc(td, &fp, &fd, 0);
+	error = falloc(td, &fp, &fd, oflag);
 	if (error)
 		return (error);
 	/* An extra reference on `fp' has been held for us by falloc(). */
-	error = socreate(uap->domain, &so, uap->type, uap->protocol,
+	error = socreate(uap->domain, &so, type, uap->protocol,
 	    td->td_ucred, td);
 	if (error) {
 		fdclose(fdp, fp, fd, td);
 	} else {
-		finit(fp, FREAD | FWRITE, DTYPE_SOCKET, so, &socketops);
+		finit(fp, FREAD | FWRITE | fflag, DTYPE_SOCKET, so, &socketops);
+		if ((fflag & FNONBLOCK) != 0)
+			(void) fo_ioctl(fp, FIONBIO, &fflag, td->td_ucred, td);
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);
@@ -606,9 +628,20 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp1, *fp2;
 	struct socket *so1, *so2;
-	int fd, error;
+	int fd, error, oflag, fflag;
 
 	AUDIT_ARG_SOCKET(domain, type, protocol);
+
+	oflag = 0;
+	fflag = 0;
+	if ((type & SOCK_CLOEXEC) != 0) {
+		type &= ~SOCK_CLOEXEC;
+		oflag |= O_CLOEXEC;
+	}
+	if ((type & SOCK_NONBLOCK) != 0) {
+		type &= ~SOCK_NONBLOCK;
+		fflag |= FNONBLOCK;
+	}
 #ifdef MAC
 	/* We might want to have a separate check for socket pairs. */
 	error = mac_socket_check_create(td->td_ucred, domain, type,
@@ -623,12 +656,12 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	if (error)
 		goto free1;
 	/* On success extra reference to `fp1' and 'fp2' is set by falloc. */
-	error = falloc(td, &fp1, &fd, 0);
+	error = falloc(td, &fp1, &fd, oflag);
 	if (error)
 		goto free2;
 	rsv[0] = fd;
 	fp1->f_data = so1;	/* so1 already has ref count */
-	error = falloc(td, &fp2, &fd, 0);
+	error = falloc(td, &fp2, &fd, oflag);
 	if (error)
 		goto free3;
 	fp2->f_data = so2;	/* so2 already has ref count */
@@ -644,8 +677,14 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 		 if (error)
 			goto free4;
 	}
-	finit(fp1, FREAD | FWRITE, DTYPE_SOCKET, fp1->f_data, &socketops);
-	finit(fp2, FREAD | FWRITE, DTYPE_SOCKET, fp2->f_data, &socketops);
+	finit(fp1, FREAD | FWRITE | fflag, DTYPE_SOCKET, fp1->f_data,
+	    &socketops);
+	finit(fp2, FREAD | FWRITE | fflag, DTYPE_SOCKET, fp2->f_data,
+	    &socketops);
+	if ((fflag & FNONBLOCK) != 0) {
+		(void) fo_ioctl(fp1, FIONBIO, &fflag, td->td_ucred, td);
+		(void) fo_ioctl(fp2, FIONBIO, &fflag, td->td_ucred, td);
+	}
 	fdrop(fp1, td);
 	fdrop(fp2, td);
 	return (0);
