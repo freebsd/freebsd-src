@@ -729,7 +729,7 @@ bcm_gpio_attach(device_t dev)
 		goto fail;
 
 	/* Initialize the software controlled pins. */
-	for (i = 0, j = 0; j < BCM_GPIO_PINS - 1; j++) {
+	for (i = 0, j = 0; j < BCM_GPIO_PINS; j++) {
 		if (bcm_gpio_pin_is_ro(sc, j))
 			continue;
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,

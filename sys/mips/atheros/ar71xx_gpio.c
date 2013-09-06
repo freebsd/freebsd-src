@@ -418,7 +418,7 @@ ar71xx_gpio_attach(device_t dev)
 	    "pinon", &pinon) != 0)
 		pinon = 0;
 	device_printf(dev, "gpio pinmask=0x%x\n", mask);
-	for (i = 0, j = 0; j < maxpin; j++) {
+	for (i = 0, j = 0; j <= maxpin; j++) {
 		if ((mask & (1 << j)) == 0)
 			continue;
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
