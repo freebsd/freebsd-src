@@ -3885,6 +3885,13 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_SETGID:
 	case PRIV_VFS_STAT:
 	case PRIV_VFS_STICKYFILE:
+
+		/*
+		 * As in the non-jail case, non-root users are expected to be
+		 * able to read kernel/phyiscal memory (provided /dev/[k]mem
+		 * exists in the jail and they have permission to access it).
+		 */
+	case PRIV_KMEM_READ:
 		return (0);
 
 		/*
