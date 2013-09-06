@@ -402,7 +402,7 @@ __T=${MACHINE_ARCH}
 .if defined(TARGET)
 __TT=${TARGET}
 .else
-__TT=${MACHINE_ARCH}
+__TT=${MACHINE}
 .endif
 # Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
