@@ -200,6 +200,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case CPUID_0000_0006:
 		case CPUID_0000_0007:
 		case CPUID_0000_000A:
+		case CPUID_0000_000D:
 			/*
 			 * Handle the access, but report 0 for
 			 * all options
