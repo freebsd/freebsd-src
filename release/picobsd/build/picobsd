@@ -972,6 +972,8 @@ set_build_parameters() {
 	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
 	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
+	[ "$BINMAKE" = "" ] && \
+	   eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
     fi
 
     if [ "${o_init_src}" != "" ] ; then
