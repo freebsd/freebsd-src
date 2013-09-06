@@ -213,8 +213,8 @@ dtrace_gethrtime_init(void *arg)
 		CPU_SET(pc->pc_cpuid, &map);
 
 		smp_rendezvous_cpus(map, NULL,
-				dtrace_gethrtime_init_cpu,
-				smp_no_rendevous_barrier, (void *)(uintptr_t) i);
+		    dtrace_gethrtime_init_cpu,
+		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
 
 		timebase_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
 	}
@@ -247,7 +247,7 @@ dtrace_gethrtime()
 	lo = timebase;
 	hi = timebase >> 32;
 	return (((lo * nsec_scale) >> SCALE_SHIFT) +
-		((hi * nsec_scale) << (32 - SCALE_SHIFT)));
+	    ((hi * nsec_scale) << (32 - SCALE_SHIFT)));
 }
 
 uint64_t
@@ -280,34 +280,34 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		 * All the rest will be handled in the usual way.
 		 */
 		switch (type) {
-			/* Page fault. */
-			case EXC_DSI:
-			case EXC_DSE:
-				/* Flag a bad address. */
-				cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
-				cpu_core[curcpu].cpuc_dtrace_illval = frame->cpu.aim.dar;
+		/* Page fault. */
+		case EXC_DSI:
+		case EXC_DSE:
+			/* Flag a bad address. */
+			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
+			cpu_core[curcpu].cpuc_dtrace_illval = frame->cpu.aim.dar;
 
-				/*
-				 * Offset the instruction pointer to the instruction
-				 * following the one causing the fault.
-				 */
-				frame->srr0 += sizeof(int);
-				return (1);
-			case EXC_ISI:
-			case EXC_ISE:
-				/* Flag a bad address. */
-				cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
-				cpu_core[curcpu].cpuc_dtrace_illval = frame->srr0;
+			/*
+			 * Offset the instruction pointer to the instruction
+			 * following the one causing the fault.
+			 */
+			frame->srr0 += sizeof(int);
+			return (1);
+		case EXC_ISI:
+		case EXC_ISE:
+			/* Flag a bad address. */
+			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
+			cpu_core[curcpu].cpuc_dtrace_illval = frame->srr0;
 
-				/*
-				 * Offset the instruction pointer to the instruction
-				 * following the one causing the fault.
-				 */
-				frame->srr0 += sizeof(int);
-				return (1);
-			default:
-				/* Handle all other traps in the usual way. */
-				break;
+			/*
+			 * Offset the instruction pointer to the instruction
+			 * following the one causing the fault.
+			 */
+			frame->srr0 += sizeof(int);
+			return (1);
+		default:
+			/* Handle all other traps in the usual way. */
+			break;
 		}
 	}
 
@@ -321,29 +321,29 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 {
 
 	dtrace_probe(dtrace_probeid_error, (uint64_t)(uintptr_t)state,
-			(uintptr_t)epid,
-			(uintptr_t)which, (uintptr_t)fault, (uintptr_t)fltoffs);
+	    (uintptr_t)epid,
+	    (uintptr_t)which, (uintptr_t)fault, (uintptr_t)fltoffs);
 }
 
 static int
 dtrace_invop_start(struct trapframe *frame)
 {
 	switch (dtrace_invop(frame->srr0, (uintptr_t *)frame, frame->fixreg[3])) {
-		case DTRACE_INVOP_JUMP:
-			break;
-		case DTRACE_INVOP_BCTR:
-			frame->srr0 = frame->ctr;
-			break;
-		case DTRACE_INVOP_BLR:
-			frame->srr0 = frame->lr;
-			break;
-		case DTRACE_INVOP_MFLR_R0:
-			frame->fixreg[0] = frame->lr;
-			frame->srr0 = frame->srr0 + 4;
-			break;
-		default:
-			return (-1);
-			break;
+	case DTRACE_INVOP_JUMP:
+		break;
+	case DTRACE_INVOP_BCTR:
+		frame->srr0 = frame->ctr;
+		break;
+	case DTRACE_INVOP_BLR:
+		frame->srr0 = frame->lr;
+		break;
+	case DTRACE_INVOP_MFLR_R0:
+		frame->fixreg[0] = frame->lr;
+		frame->srr0 = frame->srr0 + 4;
+		break;
+	default:
+		return (-1);
+		break;
 	}
 
 	return (0);

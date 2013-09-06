@@ -92,7 +92,7 @@ xen_hvm_init_hypercall_stubs(void)
 	int i;
 
 	base = xen_hvm_cpuid_base();
-	if (!base)
+	if (base == 0)
 		return (ENXIO);
 
 	if (hypercall_stubs == NULL) {
@@ -151,7 +151,7 @@ xen_hvm_set_callback(device_t dev)
 
 	xhp.domid = DOMID_SELF;
 	xhp.index = HVM_PARAM_CALLBACK_IRQ;
-	if (xen_feature(XENFEAT_hvm_callback_vector)) {
+	if (xen_feature(XENFEAT_hvm_callback_vector) != 0) {
 		int error;
 
 		xhp.value = HVM_CALLBACK_VECTOR(IDT_EVTCHN);
@@ -161,8 +161,7 @@ xen_hvm_set_callback(device_t dev)
 			return;
 		}
 		printf("Xen HVM callback vector registration failed (%d). "
-		       "Falling back to emulated device interrupt\n",
-		       error);
+		    "Falling back to emulated device interrupt\n", error);
 	}
 	xen_vector_callback_enabled = 0;
 	if (dev == NULL) {
@@ -185,7 +184,7 @@ xen_hvm_set_callback(device_t dev)
 		xhp.value = HVM_CALLBACK_PCI_INTX(slot, pin);
 	}
 
-	if (HYPERVISOR_hvm_op(HVMOP_set_param, &xhp))
+	if (HYPERVISOR_hvm_op(HVMOP_set_param, &xhp) != 0)
 		panic("Can't set evtchn callback");
 }
 
@@ -216,6 +215,7 @@ xen_hvm_suspend(void)
 void
 xen_hvm_resume(void)
 {
+
 	xen_hvm_init_hypercall_stubs();
 	xen_hvm_init_shared_info_page();
 }
@@ -223,6 +223,7 @@ xen_hvm_resume(void)
 static void
 xen_hvm_init(void *dummy __unused)
 {
+
 	if (xen_hvm_init_hypercall_stubs() != 0)
 		return;
 
@@ -235,21 +236,20 @@ xen_hvm_init(void *dummy __unused)
 
 void xen_hvm_init_cpu(void)
 {
-	int cpu = PCPU_GET(acpi_id);
-	struct vcpu_info *vcpu_info;
 	struct vcpu_register_vcpu_info info;
-	int rc;
+	struct vcpu_info *vcpu_info;
+	int cpu, rc;
 
+	cpu = PCPU_GET(acpi_id);
 	vcpu_info = DPCPU_PTR(vcpu_local_info);
 	info.mfn = vtophys(vcpu_info) >> PAGE_SHIFT;
 	info.offset = vtophys(vcpu_info) - trunc_page(vtophys(vcpu_info));
 
 	rc = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
-	if (rc) {
+	if (rc != 0)
 		DPCPU_SET(vcpu_info, &HYPERVISOR_shared_info->vcpu_info[cpu]);
-	} else {
+	else
 		DPCPU_SET(vcpu_info, vcpu_info);
-	}
 }
 
 SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_init, NULL);

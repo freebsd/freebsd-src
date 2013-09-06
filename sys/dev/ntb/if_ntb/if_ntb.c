@@ -104,7 +104,7 @@ struct ntb_transport_qp {
 
 	bool			client_ready;
 	bool			qp_link;
-	uint8_t			qp_num;	/* Only 64 QP's are allowed.  0-63 */
+	uint8_t			qp_num;	/* Only 64 QPs are allowed.  0-63 */
 
 	struct ntb_rx_info	*rx_info;
 	struct ntb_rx_info	*remote_rx_info;
@@ -279,14 +279,14 @@ ntb_handle_module_events(struct module *m, int what, void *arg)
 	return (err);
 }
 
-static moduledata_t ntb_transport_mod = {
-	"ntb_transport",
+static moduledata_t if_ntb_mod = {
+	"if_ntb",
 	ntb_handle_module_events,
 	NULL
 };
 
-DECLARE_MODULE(ntb_transport, ntb_transport_mod, SI_SUB_KLD, SI_ORDER_ANY);
-MODULE_DEPEND(ntb_transport, ntb_hw, 1, 1, 1);
+DECLARE_MODULE(if_ntb, if_ntb_mod, SI_SUB_KLD, SI_ORDER_ANY);
+MODULE_DEPEND(if_ntb, ntb_hw, 1, 1, 1);
 
 static int
 ntb_setup_interface()
@@ -297,7 +297,7 @@ ntb_setup_interface()
 
 	net_softc.ntb = devclass_get_softc(devclass_find("ntb_hw"), 0);
 	if (net_softc.ntb == NULL) {
-		printf("ntb: Can't find devclass\n");
+		printf("ntb: Cannot find devclass\n");
 		return (ENXIO);
 	}
 
@@ -334,14 +334,19 @@ ntb_setup_interface()
 static int
 ntb_teardown_interface()
 {
-	struct ifnet *ifp = net_softc.ifp;
 
-	ntb_transport_link_down(net_softc.qp);
+	if (net_softc.qp != NULL)
+		ntb_transport_link_down(net_softc.qp);
 
-	ether_ifdetach(ifp);
-	if_free(ifp);
-	ntb_transport_free_queue(net_softc.qp);
-	ntb_transport_free(&net_softc);
+	if (net_softc.ifp != NULL) {
+		ether_ifdetach(net_softc.ifp);
+		if_free(net_softc.ifp);
+	}
+
+	if (net_softc.qp != NULL) {
+		ntb_transport_free_queue(net_softc.qp);
+		ntb_transport_free(&net_softc);
+	}
 
 	return (0);
 }
@@ -405,7 +410,7 @@ ntb_start(struct ifnet *ifp)
 			     m_length(m_head, NULL));
 		if (rc != 0) {
 			CTR1(KTR_NTB,
-			    "TX: couldn't tx mbuf %p. Returning to snd q",
+			    "TX: could not tx mbuf %p. Returning to snd q",
 			    m_head);
 			if (rc == EAGAIN) {
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -475,8 +480,11 @@ ntb_transport_init(struct ntb_softc *ntb)
 	if (rc != 0)
 		goto err;
 
-	if (ntb_query_link_status(ntb))
+	if (ntb_query_link_status(ntb)) {
+		if (bootverbose)
+			device_printf(ntb_get_device(ntb), "link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
+	}
 
 	return (0);
 
@@ -497,7 +505,7 @@ ntb_transport_free(void *transport)
 
 	callout_drain(&nt->link_work);
 
-	/* verify that all the qp's are freed */
+	/* verify that all the qps are freed */
 	for (i = 0; i < nt->max_qps; i++)
 		if (!test_bit(i, &nt->qp_bitmap))
 			ntb_transport_free_queue(&nt->qps[i]);
@@ -673,6 +681,8 @@ ntb_transport_link_up(struct ntb_transport_qp *qp)
 		return;
 
 	qp->client_ready = NTB_LINK_UP;
+	if (bootverbose)
+		device_printf(ntb_get_device(qp->ntb), "qp client ready\n");
 
 	if (qp->transport->transport_link == NTB_LINK_UP)
 		callout_reset(&qp->link_work, 0, ntb_qp_link_work, qp);
@@ -709,7 +719,7 @@ ntb_transport_tx_enqueue(struct ntb_transport_qp *qp, void *cb, void *data,
 
 	entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q);
 	if (entry == NULL) {
-		CTR0(KTR_NTB, "TX: couldn't get entry from tx_free_q");
+		CTR0(KTR_NTB, "TX: could not get entry from tx_free_q");
 		return (ENOMEM);
 	}
 	CTR1(KTR_NTB, "TX: got entry %p from tx_free_q", entry);
@@ -988,9 +998,13 @@ ntb_transport_event_callback(void *data, enum ntb_hw_event event)
 
 	switch (event) {
 	case NTB_EVENT_HW_LINK_UP:
+		if (bootverbose)
+			device_printf(ntb_get_device(nt->ntb), "HW link up\n");
 		callout_reset(&nt->link_work, 0, ntb_transport_link_work, nt);
 		break;
 	case NTB_EVENT_HW_LINK_DOWN:
+		if (bootverbose)
+			device_printf(ntb_get_device(nt->ntb), "HW link down\n");
 		ntb_transport_link_cleanup(nt);
 		break;
 	default:
@@ -1071,6 +1085,8 @@ ntb_transport_link_work(void *arg)
 		return;
 
 	nt->transport_link = NTB_LINK_UP;
+	if (bootverbose)
+		device_printf(ntb_get_device(ntb), "transport link up\n");
 
 	for (i = 0; i < nt->max_qps; i++) {
 		qp = &nt->qps[i];
@@ -1176,6 +1192,8 @@ ntb_qp_link_work(void *arg)
 		qp->qp_link = NTB_LINK_UP;
 		if (qp->event_handler != NULL)
 			qp->event_handler(qp->cb_data, NTB_LINK_UP);
+		if (bootverbose)
+			device_printf(ntb_get_device(ntb), "qp link up\n");
 	} else if (nt->transport_link == NTB_LINK_UP) {
 		callout_reset(&qp->link_work,
 		    NTB_LINK_DOWN_TIMEOUT * hz / 1000, ntb_qp_link_work, qp);

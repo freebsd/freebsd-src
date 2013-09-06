@@ -45,7 +45,9 @@ extern u_long *ipi_rendezvous_counts[MAXCPU];
 
 /* IPI handlers */
 inthand_t
+	IDTVEC(invltlb_pcid),	/* TLB shootdowns - global, pcid enabled */
 	IDTVEC(invltlb),	/* TLB shootdowns - global */
+	IDTVEC(invlpg_pcid),	/* TLB shootdowns - 1 page, pcid enabled */
 	IDTVEC(invlpg),		/* TLB shootdowns - 1 page */
 	IDTVEC(invlrng),	/* TLB shootdowns - page range */
 	IDTVEC(invlcache),	/* Write back and invalidate cache */

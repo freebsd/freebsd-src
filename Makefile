@@ -498,3 +498,11 @@ universe_epilogue:
 
 buildLINT:
 	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT
+
+.if defined(.PARSEDIR)
+.if make(universe)
+# we do not want a failure of one branch abort all.
+MAKE_JOB_ERROR_TOKEN= no
+.export MAKE_JOB_ERROR_TOKEN
+.endif
+.endif

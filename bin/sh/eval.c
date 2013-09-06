@@ -324,7 +324,7 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 			}
 			if (evalskip == SKIPBREAK && --skipcount <= 0)
 				evalskip = 0;
-			if (evalskip == SKIPFUNC || evalskip == SKIPFILE)
+			if (evalskip == SKIPRETURN)
 				status = exitstatus;
 			break;
 		}
@@ -1068,7 +1068,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		funcnest--;
 		popredir();
 		INTON;
-		if (evalskip == SKIPFUNC) {
+		if (evalskip == SKIPRETURN) {
 			evalskip = 0;
 			skipcount = 0;
 		}
@@ -1305,14 +1305,8 @@ returncmd(int argc, char **argv)
 {
 	int ret = argc > 1 ? number(argv[1]) : oexitstatus;
 
-	if (funcnest) {
-		evalskip = SKIPFUNC;
-		skipcount = 1;
-	} else {
-		/* skip the rest of the file */
-		evalskip = SKIPFILE;
-		skipcount = 1;
-	}
+	evalskip = SKIPRETURN;
+	skipcount = 1;
 	return ret;
 }
 

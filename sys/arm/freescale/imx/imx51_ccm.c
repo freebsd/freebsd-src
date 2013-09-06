@@ -140,7 +140,8 @@ static int
 imxccm_match(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ccm"))
+	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ccm") &&
+	    !ofw_bus_is_compatible(dev, "fsl,imx53-ccm"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale Clock Control Module");

@@ -32,6 +32,9 @@
 #include <sys/vdev_impl.h>
 #include <sys/zio.h>
 
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, metaslab, CTLFLAG_RW, 0, "ZFS metaslab");
+
 /*
  * Allow allocations to switch to gang blocks quickly. We do this to
  * avoid having to load lots of space_maps in a given txg. There are,
@@ -46,6 +49,10 @@
 
 uint64_t metaslab_aliquot = 512ULL << 10;
 uint64_t metaslab_gang_bang = SPA_MAXBLOCKSIZE + 1;	/* force gang blocks */
+TUNABLE_QUAD("vfs.zfs.metaslab.gang_bang", &metaslab_gang_bang);
+SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, gang_bang, CTLFLAG_RWTUN,
+    &metaslab_gang_bang, 0,
+    "Force gang block allocation for blocks larger than or equal to this value");
 
 /*
  * The in-core space map representation is more compact than its on-disk form.
@@ -61,17 +68,19 @@ int zfs_condense_pct = 200;
  * allocations on that device.
  */
 int zfs_mg_alloc_failures = 0;
-
-SYSCTL_DECL(_vfs_zfs);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_alloc_failures, CTLFLAG_RDTUN,
+TUNABLE_INT("vfs.zfs.mg_alloc_failures", &zfs_mg_alloc_failures);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_alloc_failures, CTLFLAG_RWTUN,
     &zfs_mg_alloc_failures, 0,
     "Number of allowed allocation failures per vdev");
-TUNABLE_INT("vfs.zfs.mg_alloc_failures", &zfs_mg_alloc_failures);
 
 /*
  * Metaslab debugging: when set, keeps all space maps in core to verify frees.
  */
 static int metaslab_debug = 0;
+TUNABLE_INT("vfs.zfs.metaslab.debug", &metaslab_debug);
+SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug, CTLFLAG_RWTUN, &metaslab_debug,
+    0,
+    "Metaslab debugging: when set, keeps all space maps in core to verify frees");
 
 /*
  * Minimum size which forces the dynamic allocator to change
@@ -80,6 +89,11 @@ static int metaslab_debug = 0;
  * aggressive strategy (i.e search by size rather than offset).
  */
 uint64_t metaslab_df_alloc_threshold = SPA_MAXBLOCKSIZE;
+TUNABLE_QUAD("vfs.zfs.metaslab.df_alloc_threshold",
+    &metaslab_df_alloc_threshold);
+SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold, CTLFLAG_RWTUN,
+    &metaslab_df_alloc_threshold, 0,
+    "Minimum size which forces the dynamic allocator to change it's allocation strategy");
 
 /*
  * The minimum free space, in percent, which must be available
@@ -88,22 +102,37 @@ uint64_t metaslab_df_alloc_threshold = SPA_MAXBLOCKSIZE;
  * switch to using best-fit allocations.
  */
 int metaslab_df_free_pct = 4;
+TUNABLE_INT("vfs.zfs.metaslab.df_free_pct", &metaslab_df_free_pct);
+SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, df_free_pct, CTLFLAG_RWTUN,
+    &metaslab_df_free_pct, 0,
+    "The minimum free space, in percent, which must be available in a space map to continue allocations in a first-fit fashion");
 
 /*
  * A metaslab is considered "free" if it contains a contiguous
  * segment which is greater than metaslab_min_alloc_size.
  */
 uint64_t metaslab_min_alloc_size = DMU_MAX_ACCESS;
+TUNABLE_QUAD("vfs.zfs.metaslab.min_alloc_size",
+    &metaslab_min_alloc_size);
+SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, min_alloc_size, CTLFLAG_RWTUN,
+    &metaslab_min_alloc_size, 0,
+    "A metaslab is considered \"free\" if it contains a contiguous segment which is greater than vfs.zfs.metaslab.min_alloc_size");
 
 /*
  * Max number of space_maps to prefetch.
  */
 int metaslab_prefetch_limit = SPA_DVAS_PER_BP;
+TUNABLE_INT("vfs.zfs.metaslab.prefetch_limit", &metaslab_prefetch_limit);
+SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, prefetch_limit, CTLFLAG_RWTUN,
+    &metaslab_prefetch_limit, 0, "Maximum number of space_maps to prefetch");
 
 /*
  * Percentage bonus multiplier for metaslabs that are in the bonus area.
  */
 int metaslab_smo_bonus_pct = 150;
+TUNABLE_INT("vfs.zfs.metaslab.smo_bonus_pct", &metaslab_smo_bonus_pct);
+SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, smo_bonus_pct, CTLFLAG_RWTUN,
+    &metaslab_smo_bonus_pct, 0, "Maximum number of space_maps to prefetch");
 
 /*
  * Should we be willing to write data to degraded vdevs?

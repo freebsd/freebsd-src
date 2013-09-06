@@ -970,9 +970,9 @@
 512	AUE_SHMCTL	NOSTD	{ int freebsd32_shmctl(int shmid, int cmd, \
 				    struct shmid_ds32 *buf); }
 513	AUE_LPATHCONF	NOPROTO	{ int lpathconf(char *path, int name); }
-514	AUE_CAP_NEW	NOPROTO	{ int cap_new(int fd, uint64_t rights); }
-515	AUE_CAP_RIGHTS_GET	NOPROTO	{ int cap_rights_get(int fd, \
-				    uint64_t *rightsp); }
+514	AUE_NULL	OBSOL	cap_new
+515	AUE_CAP_RIGHTS_GET	NOPROTO	{ int __cap_rights_get(int version, \
+				    int fd, cap_rights_t *rightsp); }
 516	AUE_CAP_ENTER	NOPROTO	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	NOPROTO	{ int cap_getmode(u_int *modep); }
 518	AUE_PDFORK	NOPROTO	{ int pdfork(int *fdp, int flags); }
@@ -1016,10 +1016,6 @@
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
-533	AUE_CAP_RIGHTS_LIMIT	STD	{ \
-				    int freebsd32_cap_rights_limit(int fd, \
-				    int pad, \
-				    uint32_t rights1, uint32_t rights2); }
 #else
 530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
 				    uint32_t offset1, uint32_t offset2,\
@@ -1033,10 +1029,10 @@
 				    int *status, int options, \
 				    struct wrusage32 *wrusage, \
 				    siginfo_t *info); }
-533	AUE_CAP_RIGHTS_LIMIT	STD	{ \
-				    int freebsd32_cap_rights_limit(int fd, \
-				    uint32_t rights1, uint32_t rights2); }
 #endif
+533	AUE_CAP_RIGHTS_LIMIT	NOPROTO	{ \
+				    int cap_rights_limit(int fd, \
+				    cap_rights_t *rightsp); }
 534	AUE_CAP_IOCTLS_LIMIT	STD	{ \
 				    int freebsd32_cap_ioctls_limit(int fd, \
 				    const uint32_t *cmds, size_t ncmds); }
