@@ -99,23 +99,35 @@ extern void failsafe_callback(void);
 extern void pmap_lazyfix_action(void);
 
 /*--------------------------- Forward Declarations ---------------------------*/
-static void	assign_cpu_ids(void);
-static void	set_interrupt_apic_ids(void);
-static int	start_all_aps(void);
-static int	start_ap(int apic_id);
-static void	release_aps(void *dummy);
+static driver_filter_t	smp_reschedule_interrupt;
+static driver_filter_t	smp_call_function_interrupt;
+static void		assign_cpu_ids(void);
+static void		set_interrupt_apic_ids(void);
+static int		start_all_aps(void);
+static int		start_ap(int apic_id);
+static void		release_aps(void *dummy);
+
+/*---------------------------------- Macros ----------------------------------*/
+#define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
 
 /*-------------------------------- Local Types -------------------------------*/
 typedef void call_data_func_t(uintptr_t , uintptr_t);
 
-/*
- * Store data from cpu_add() until later in the boot when we actually setup
- * the APs.
- */
 struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
 	int	cpu_disabled:1;
+};
+
+struct xen_ipi_handler
+{
+	driver_filter_t	*filter;
+	const char	*description;
+};
+
+enum {
+	RESCHEDULE_VECTOR,
+	CALL_FUNCTION_VECTOR,
 };
 
 /*-------------------------------- Global Data -------------------------------*/
@@ -161,8 +173,14 @@ static volatile u_int cpu_ipi_pending[MAXCPU];
 static int cpu_logical;
 static int cpu_cores;
 
+static const struct xen_ipi_handler xen_ipis[] = 
+{
+	[RESCHEDULE_VECTOR]	= { smp_reschedule_interrupt,	"resched"  },
+	[CALL_FUNCTION_VECTOR]	= { smp_call_function_interrupt,"callfunc" }
+};
+
 /*------------------------------- Per-CPU Data -------------------------------*/
-DPCPU_DEFINE(xen_intr_handle_t, ipi_port[NR_IPIS]);
+DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
 /*------------------------------ Implementation ------------------------------*/
@@ -362,7 +380,7 @@ iv_lazypmap(uintptr_t a, uintptr_t b)
 /*
  * These start from "IPI offset" APIC_IPI_INTS
  */
-static call_data_func_t *ipi_vectors[] = 
+static call_data_func_t *ipi_vectors[6] = 
 {
 	iv_rendezvous,
 	iv_invltlb,
@@ -427,7 +445,7 @@ smp_call_function_interrupt(void *unused)
 	    call_data->func_id > IPI_BITMAP_VECTOR)
 		panic("invalid function id %u", call_data->func_id);
 	
-	func = ipi_vectors[call_data->func_id - APIC_IPI_INTS];
+	func = ipi_vectors[IPI_TO_IDX(call_data->func_id)];
 	/*
 	 * Notify initiating CPU that I've grabbed the data and am
 	 * about to execute the function
@@ -473,44 +491,43 @@ cpu_mp_announce(void)
 static int
 xen_smp_cpu_init(unsigned int cpu)
 {
-	int rc;
-	xen_intr_handle_t irq_handle;
+	xen_intr_handle_t *ipi_handle;
+	const struct xen_ipi_handler *ipi;
+	int idx, rc;
 
-	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], NULL);
-	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], NULL);
+	ipi_handle = DPCPU_ID_GET(cpu, ipi_handle);
+	for (ipi = xen_ipis, idx = 0; idx < nitems(xen_ipis); ipi++, idx++) {
 
-	/*
-	 * The PCPU variable pc_device is not initialized on i386 PV,
-	 * so we have to use the root_bus device in order to setup
-	 * the IPIs.
-	 */
-	rc = xen_intr_bind_ipi(root_bus, RESCHEDULE_VECTOR,
-	    cpu, smp_reschedule_interrupt, INTR_TYPE_TTY, &irq_handle);
-	if (rc < 0)
-		goto fail;
-	xen_intr_describe(irq_handle, "resched%u", cpu);
-	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], irq_handle);
+		/*
+		 * The PCPU variable pc_device is not initialized on i386 PV,
+		 * so we have to use the root_bus device in order to setup
+		 * the IPIs.
+		 */
+		rc = xen_intr_alloc_and_bind_ipi(root_bus, cpu,
+		    ipi->filter, INTR_TYPE_TTY, &ipi_handle[idx]);
+		if (rc != 0) {
+			printf("Unable to allocate a XEN IPI port. "
+			    "Error %d\n", rc);
+			break;
+		}
+		xen_intr_describe(ipi_handle[idx], "%s", ipi->description);
+	}
 
-	printf("[XEN] IPI cpu=%d port=%d vector=RESCHEDULE_VECTOR (%d)\n",
-	    cpu, xen_intr_port(irq_handle), RESCHEDULE_VECTOR);
+	for (;idx < nitems(xen_ipis); idx++)
+		    ipi_handle[idx] = NULL;
 
-	rc = xen_intr_bind_ipi(root_bus, CALL_FUNCTION_VECTOR,
-	    cpu, smp_call_function_interrupt, INTR_TYPE_TTY, &irq_handle);
-	if (rc < 0)
-		goto fail;
-	xen_intr_describe(irq_handle, "callfunc%u", cpu);
-	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], irq_handle);
+	if (rc == 0)
+		return (0);
 
-	printf("[XEN] IPI cpu=%d port=%d vector=CALL_FUNCTION_VECTOR (%d)\n",
-	    cpu, xen_intr_port(irq_handle), CALL_FUNCTION_VECTOR);
+	/* Either all are successfully mapped, or none at all. */
+	for (idx = 0; idx < nitems(xen_ipis); idx++) {
+		if (ipi_handle[idx] == NULL)
+			continue;
 
-	return (0);
+		xen_intr_unbind(ipi_handle[idx]);
+		ipi_handle[idx] = NULL;
+	}
 
- fail:
-	xen_intr_unbind(DPCPU_ID_GET(cpu, ipi_port[RESCHEDULE_VECTOR]));
-	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], NULL);
-	xen_intr_unbind(DPCPU_ID_GET(cpu, ipi_port[CALL_FUNCTION_VECTOR]));
-	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], NULL);
 	return (rc);
 }
 
@@ -980,8 +997,8 @@ start_ap(int apic_id)
 static void
 ipi_pcpu(int cpu, u_int ipi)
 {
-	KASSERT((ipi <= NR_IPIS), ("invalid IPI"));
-	xen_intr_signal(DPCPU_ID_GET(cpu, ipi_port[ipi]));
+	KASSERT((ipi <= nitems(xen_ipis)), ("invalid IPI"));
+	xen_intr_signal(DPCPU_ID_GET(cpu, ipi_handle[ipi]));
 }
 
 /*
