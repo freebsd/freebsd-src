@@ -885,9 +885,11 @@ fill_floppy_image() {
 
     mkdir -p  ${dst}/boot/kernel
     # XXX loader.conf does not work unless we also load the .4th files
-    echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
-    echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
-    cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
+    # echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
+    # echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
+    local blf="loader* *.4th" # loader.rc loader.4th support.4th"
+    (cd /boot; cp -p loader ${dst}/boot) || fail $? no_space "copying bootloader"
+    cp ${MY_TREE}/floppy.tree/boot/loader.conf ${dst}/boot || true
     gzip -c kernel > ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
 
     # now transfer the floppy tree. If it is already in mfs, dont bother.
