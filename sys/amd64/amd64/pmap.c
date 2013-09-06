@@ -254,30 +254,6 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
     0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
 
-/*
- * Perform the guaranteed invalidation of all TLB entries.  This
- * includes the global entries, and entries in all PCIDs, not only the
- * current context.  The function works both on non-PCID CPUs and CPUs
- * with the PCID turned off or on.  See IA-32 SDM Vol. 3a 4.10.4.1
- * Operations that Invalidate TLBs and Paging-Structure Caches.
- */
-static __inline void
-invltlb_globpcid(void)
-{
-	uint64_t cr4;
-
-	cr4 = rcr4();
-	load_cr4(cr4 & ~CR4_PGE);
-	/*
-	 * Although preemption at this point could be detrimental to
-	 * performance, it would not lead to an error.  PG_G is simply
-	 * ignored if CR4.PGE is clear.  Moreover, in case this block
-	 * is re-entered, the load_cr4() either above or below will
-	 * modify CR4.PGE flushing the TLB.
-	 */
-	load_cr4(cr4 | CR4_PGE);
-}
-
 static int
 pmap_pcid_save_cnt_proc(SYSCTL_HANDLER_ARGS)
 {
