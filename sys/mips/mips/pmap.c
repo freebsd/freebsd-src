@@ -1914,7 +1914,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pdpe = pmap_segmap(pmap, sva);
@@ -1980,7 +1979,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (va != va_next)
 			pmap_invalidate_range(pmap, va, sva);
 	}
-	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 }
 

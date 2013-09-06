@@ -1,4 +1,4 @@
-# $Id: progs.mk,v 1.12 2013/04/22 18:10:04 sjg Exp $
+# $Id: progs.mk,v 1.13 2013/08/02 18:28:48 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
@@ -35,9 +35,21 @@ PROG ?= $t
 
 .if defined(PROG)
 # just one of many
-PROG_VARS += BINDIR CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD MAN SRCS
+PROG_VARS += \
+	BINDIR \
+	CFLAGS \
+	COPTS \
+	CPPFLAGS \
+	CXXFLAGS \
+	DPADD \
+	DPLIBS \
+	LDADD \
+	LDFLAGS \
+	MAN \
+	SRCS
+
 .for v in ${PROG_VARS:O:u}
-.if defined(${v}.${PROG})
+.if defined(${v}.${PROG}) || defined(${v}_${PROG})
 $v += ${${v}_${PROG}:U${${v}.${PROG}}}
 .endif
 .endfor

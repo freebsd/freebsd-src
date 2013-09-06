@@ -311,17 +311,17 @@ sys_mmap(td, uap)
 		 * rights, but also return the maximum rights to be combined
 		 * with maxprot later.
 		 */
-		rights = CAP_MMAP;
+		cap_rights_init(&rights, CAP_MMAP);
 		if (prot & PROT_READ)
-			rights |= CAP_MMAP_R;
+			cap_rights_set(&rights, CAP_MMAP_R);
 		if ((flags & MAP_SHARED) != 0) {
 			if (prot & PROT_WRITE)
-				rights |= CAP_MMAP_W;
+				cap_rights_set(&rights, CAP_MMAP_W);
 		}
 		if (prot & PROT_EXEC)
-			rights |= CAP_MMAP_X;
-		if ((error = fget_mmap(td, uap->fd, rights, &cap_maxprot,
-		    &fp)) != 0)
+			cap_rights_set(&rights, CAP_MMAP_X);
+		error = fget_mmap(td, uap->fd, &rights, &cap_maxprot, &fp);
+		if (error != 0)
 			goto done;
 		if (fp->f_type == DTYPE_SHM) {
 			handle = fp->f_data;

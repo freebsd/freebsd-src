@@ -609,6 +609,7 @@ typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 		    struct sysctl_req *req);
 typedef void vfs_susp_clean_t(struct mount *mp);
 typedef void vfs_notify_lowervp_t(struct mount *mp, struct vnode *lowervp);
+typedef void vfs_purge_t(struct mount *mp);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -628,6 +629,7 @@ struct vfsops {
 	vfs_susp_clean_t	*vfs_susp_clean;
 	vfs_notify_lowervp_t	*vfs_reclaim_lowervp;
 	vfs_notify_lowervp_t	*vfs_unlink_lowervp;
+	vfs_purge_t		*vfs_purge;
 	vfs_mount_t		*vfs_spare[6];	/* spares for ABI compat */
 };
 
@@ -753,6 +755,14 @@ vfs_statfs_t	__vfs_statfs;
 	if (*(MP)->mnt_op->vfs_unlink_lowervp != NULL) {		\
 		VFS_PROLOGUE(MP);					\
 		(*(MP)->mnt_op->vfs_unlink_lowervp)((MP), (VP));	\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
+
+#define	VFS_PURGE(MP) do {						\
+	if (*(MP)->mnt_op->vfs_purge != NULL) {				\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_purge)(MP);				\
 		VFS_EPILOGUE(MP);					\
 	}								\
 } while (0)

@@ -112,7 +112,8 @@ static int
 imx_gpt_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx51-gpt"))
+	if (!ofw_bus_is_compatible(dev, "fsl,imx51-gpt") &&
+	    !ofw_bus_is_compatible(dev, "fsl,imx53-gpt"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Freescale i.MX GPT timer");

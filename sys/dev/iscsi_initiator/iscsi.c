@@ -382,16 +382,19 @@ i_ping(struct cdev *dev)
 static int
 i_setsoc(isc_session_t *sp, int fd, struct thread *td)
 {
+     cap_rights_t rights;
      int error = 0;
 
      if(sp->soc != NULL)
 	  isc_stop_receiver(sp);
 
-     error = fget(td, fd, CAP_SOCK_CLIENT, &sp->fp);
+     error = fget(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT), &sp->fp);
      if(error)
 	  return error;
 
-     if((error = fgetsock(td, fd, CAP_SOCK_CLIENT, &sp->soc, 0)) == 0) {
+     error = fgetsock(td, fd, cap_rights_init(&rights, CAP_SOCK_CLIENT),
+        &sp->soc, 0);
+     if(error == 0) {
 	  sp->td = td;
 	  isc_start_receiver(sp);
      }

@@ -35,6 +35,7 @@
 /* Forward Declarations */
 union ccb;
 struct cam_periph;
+struct cam_ed;
 struct cam_sim;
 
 /*
@@ -89,7 +90,10 @@ void			xpt_path_counts(struct cam_path *path, uint32_t *bus_ref,
 					uint32_t *device_ref);
 int			xpt_path_comp(struct cam_path *path1,
 				      struct cam_path *path2);
+int			xpt_path_comp_dev(struct cam_path *path,
+					  struct cam_ed *dev);
 void			xpt_print_path(struct cam_path *path);
+void			xpt_print_device(struct cam_ed *device);
 void			xpt_print(struct cam_path *path, const char *fmt, ...);
 int			xpt_path_string(struct cam_path *path, char *str,
 					size_t str_len);

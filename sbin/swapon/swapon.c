@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1980, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -83,16 +83,16 @@ main(int argc, char **argv)
 	struct fstab *fsp;
 	const char *swfile;
 	char *ptr;
-	int ret;
-	int ch, doall;
-	int sflag = 0, lflag = 0, late = 0, hflag = 0;
+	int ret, ch, doall;
+	int sflag, lflag, late, hflag;
 	const char *etc_fstab;
 
+	sflag = lflag = late = hflag = 0;
 	if ((ptr = strrchr(argv[0], '/')) == NULL)
 		ptr = argv[0];
-	if (strstr(ptr, "swapon"))
+	if (strstr(ptr, "swapon") != NULL)
 		which_prog = SWAPON;
-	else if (strstr(ptr, "swapoff"))
+	else if (strstr(ptr, "swapoff") != NULL)
 		which_prog = SWAPOFF;
 	orig_prog = which_prog;
 	
@@ -104,9 +104,8 @@ main(int argc, char **argv)
 			if (which_prog == SWAPCTL) {
 				doall = 1;
 				which_prog = SWAPON;
-			} else {
+			} else
 				usage();
-			}
 			break;
 		case 'a':
 			if (which_prog == SWAPON || which_prog == SWAPOFF)
@@ -149,9 +148,8 @@ main(int argc, char **argv)
 			if (which_prog == SWAPCTL) {
 				doall = 1;
 				which_prog = SWAPOFF;
-			} else {
+			} else
 				usage();
-			}
 			break;
 		case 'F':
 			etc_fstab = optarg;
@@ -170,13 +168,20 @@ main(int argc, char **argv)
 	if (which_prog == SWAPON || which_prog == SWAPOFF) {
 		if (doall) {
 			while ((fsp = getfsent()) != NULL) {
-				if (strcmp(fsp->fs_type, FSTAB_SW))
+				if (strcmp(fsp->fs_type, FSTAB_SW) != 0)
 					continue;
-				if (strstr(fsp->fs_mntops, "noauto"))
+				if (strstr(fsp->fs_mntops, "noauto") != NULL)
 					continue;
+				/*
+				 * Forcibly enable "late" option when file= is
+				 * specified.  This is because mounting file
+				 * systems with rw option is typically
+				 * required to make the backing store ready.
+				 */
 				if (which_prog != SWAPOFF &&
-				    strstr(fsp->fs_mntops, "late") &&
-				    !late)
+				    (strstr(fsp->fs_mntops, "late") != NULL ||
+				     strstr(fsp->fs_mntops, "file=") != NULL) &&
+				    late == 0)
 					continue;
 				swfile = swap_on_off(fsp->fs_spec, 1,
 				    fsp->fs_mntops);
@@ -184,15 +189,14 @@ main(int argc, char **argv)
 					ret = 1;
 					continue;
 				}
-				if (!qflag) {
+				if (qflag == 0) {
 					printf("%s: %sing %s as swap device\n",
 					    getprogname(),
 					    (which_prog == SWAPOFF) ?
 					    "remov" : "add", swfile);
 				}
 			}
-		}
-		else if (!*argv)
+		} else if (*argv == NULL)
 			usage();
 		for (; *argv; ++argv) {
 			swfile = swap_on_off(*argv, 0, NULL);
@@ -281,7 +285,7 @@ swap_on_off_gbde(const char *name, int doingall)
 		if (error) {
 			/* bde device found.  Ignore it. */
 			free(dname);
-			if (!qflag)
+			if (qflag == 0)
 				warnx("%s: Device already in use", name);
 			return (NULL);
 		}
@@ -301,7 +305,7 @@ swap_on_off_gbde(const char *name, int doingall)
 		free(dname);
 		if (error) {
 			/* bde device not found.  Ignore it. */
-			if (!qflag)
+			if (qflag == 0)
 				warnx("%s: Device not found", name);
 			return (NULL);
 		}
@@ -316,18 +320,16 @@ swap_on_geli_args(const char *mntops)
 {
 	const char *aalgo, *ealgo, *keylen_str, *sectorsize_str;
 	const char *aflag, *eflag, *lflag, *sflag;
-	char *p;
-	char *args;
-	char *token, *string, *ops;
+	char *p, *args, *token, *string, *ops;
 	int argsize, pagesize;
 	size_t pagesize_len;
 	u_long ul;
 
-	/* Use built-in defaults for geli(8) */
+	/* Use built-in defaults for geli(8). */
 	aalgo = ealgo = keylen_str = "";
 	aflag = eflag = lflag = "";
 
-	/* We will always specify sectorsize */
+	/* We will always specify sectorsize. */
 	sflag = " -s ";
 	sectorsize_str = NULL;
 
@@ -364,7 +366,8 @@ swap_on_geli_args(const char *mntops)
 						errno = EINVAL;
 				}
 				if (errno) {
-					warn("Invalid sectorsize: %s", sectorsize_str);
+					warn("Invalid sectorsize: %s",
+					    sectorsize_str);
 					free(ops);
 					return (NULL);
 				}
@@ -382,7 +385,7 @@ swap_on_geli_args(const char *mntops)
 	 * pagesize as sector size.
 	 */
 	if (sectorsize_str == NULL) {
-		/* Use pagesize as default sectorsize */
+		/* Use pagesize as default sectorsize. */
 		pagesize = getpagesize();
 		pagesize_len = snprintf(NULL, 0, "%d", pagesize) + 1;
 		p = alloca(pagesize_len);
@@ -401,15 +404,14 @@ swap_on_geli_args(const char *mntops)
 static const char *
 swap_on_off_geli(const char *name, char *mntops, int doingall)
 {
-	char *dname;
-	char *args;
 	struct stat sb;
+	char *dname, *args;
 	int error;
 
 	error = stat(name, &sb);
 
 	if (which_prog == SWAPON) do {
-		/* Skip if the .eli device already exists */
+		/* Skip if the .eli device already exists. */
 		if (error == 0)
 			break;
 
@@ -430,8 +432,8 @@ swap_on_off_geli(const char *name, char *mntops, int doingall)
 		free(args);
 
 		if (error) {
-			/* error occured during creation */
-			if (!qflag)
+			/* error occured during creation. */
+			if (qflag == 0)
 				warnx("%s: Invalid parameters", name);
 			return (NULL);
 		}
@@ -536,7 +538,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 			if (error == 0) {
 				/* md device found.  Ignore it. */
 				close(fd);
-				if (!qflag)
+				if (qflag == 0)
 					warnx("md%d on %s: Device already "
 					    "in use", mdunit, vnodefile);
 				free(vnodefile);
@@ -719,13 +721,13 @@ swap_on_off_sfile(const char *name, int doingall)
 	if (error == -1) {
 		switch (errno) {
 		case EBUSY:
-			if (!doingall)
+			if (doingall == 0)
 				warnx("%s: Device already in use", name);
 			break;
 		case EINVAL:
 			if (which_prog == SWAPON)
 				warnx("%s: NSWAPDEV limit reached", name);
-			else if (!doingall)
+			else if (doingall == 0)
 				warn("%s", name);
 			break;
 		default:
@@ -740,6 +742,7 @@ swap_on_off_sfile(const char *name, int doingall)
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: %s ", getprogname());
 	switch(orig_prog) {
 	case SWAPON:
@@ -757,16 +760,14 @@ static void
 sizetobuf(char *buf, size_t bufsize, int hflag, long long val, int hlen,
     long blocksize)
 {
+	char tmp[16];
 
 	if (hflag == 'H') {
-		char tmp[16];
-
 		humanize_number(tmp, 5, (int64_t)val, "", HN_AUTOSCALE,
 		    HN_B | HN_NOSPACE | HN_DECIMAL);
 		snprintf(buf, bufsize, "%*s", hlen, tmp);
-	} else {
+	} else
 		snprintf(buf, bufsize, "%*lld", hlen, val / blocksize);
-	}
 }
 
 static void
@@ -785,32 +786,32 @@ swaplist(int lflag, int sflag, int hflag)
 	pagesize = getpagesize();
 	switch(hflag) {
 	case 'G':
-	    blocksize = 1024 * 1024 * 1024;
-	    strlcpy(buf, "1GB-blocks", sizeof(buf));
-	    hlen = 10;
-	    break;
+		blocksize = 1024 * 1024 * 1024;
+		strlcpy(buf, "1GB-blocks", sizeof(buf));
+		hlen = 10;
+		break;
 	case 'H':
-	    blocksize = -1;
-	    strlcpy(buf, "Bytes", sizeof(buf));
-	    hlen = 10;
-	    break;
+		blocksize = -1;
+		strlcpy(buf, "Bytes", sizeof(buf));
+		hlen = 10;
+		break;
 	case 'K':
-	    blocksize = 1024;
-	    strlcpy(buf, "1kB-blocks", sizeof(buf));
-	    hlen = 10;
-	    break;
+		blocksize = 1024;
+		strlcpy(buf, "1kB-blocks", sizeof(buf));
+		hlen = 10;
+		break;
 	case 'M':
-	    blocksize = 1024 * 1024;
-	    strlcpy(buf, "1MB-blocks", sizeof(buf));
-	    hlen = 10;
-	    break;
+		blocksize = 1024 * 1024;
+		strlcpy(buf, "1MB-blocks", sizeof(buf));
+		hlen = 10;
+		break;
 	default:
-	    getbsize(&hlen, &blocksize);
-	    snprintf(buf, sizeof(buf), "%ld-blocks", blocksize);
-	    break;
+		getbsize(&hlen, &blocksize);
+		snprintf(buf, sizeof(buf), "%ld-blocks", blocksize);
+		break;
 	}
 	
-	mibsize = sizeof mib / sizeof mib[0];
+	mibsize = nitems(mib);
 	if (sysctlnametomib("vm.swap_info", mib, &mibsize) == -1)
 		err(1, "sysctlnametomib()");
 	

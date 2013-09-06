@@ -2990,20 +2990,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cap_new */
-	case 514: {
-		struct cap_new_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* uint64_t */
-		*n_args = 2;
-		break;
-	}
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515: {
-		struct cap_rights_get_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
-		*n_args = 2;
+		struct __cap_rights_get_args *p = params;
+		iarg[0] = p->version; /* int */
+		iarg[1] = p->fd; /* int */
+		uarg[2] = (intptr_t) p->rightsp; /* cap_rights_t * */
+		*n_args = 3;
 		break;
 	}
 	/* cap_enter */
@@ -3159,16 +3152,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 8;
 		break;
 	}
-	/* freebsd32_cap_rights_limit */
-	case 533: {
-		struct freebsd32_cap_rights_limit_args *p = params;
-		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
-		uarg[2] = p->rights1; /* uint32_t */
-		uarg[3] = p->rights2; /* uint32_t */
-		*n_args = 4;
-		break;
-	}
 #else
 	/* freebsd32_posix_fallocate */
 	case 530: {
@@ -3206,16 +3189,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 7;
 		break;
 	}
-	/* freebsd32_cap_rights_limit */
+#endif
+	/* cap_rights_limit */
 	case 533: {
-		struct freebsd32_cap_rights_limit_args *p = params;
+		struct cap_rights_limit_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights1; /* uint32_t */
-		uarg[2] = p->rights2; /* uint32_t */
-		*n_args = 3;
+		uarg[1] = (intptr_t) p->rightsp; /* cap_rights_t * */
+		*n_args = 2;
 		break;
 	}
-#endif
 	/* freebsd32_cap_ioctls_limit */
 	case 534: {
 		struct freebsd32_cap_ioctls_limit_args *p = params;
@@ -8277,27 +8259,17 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cap_new */
-	case 514:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "uint64_t";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "uint64_t *";
+			p = "int";
+			break;
+		case 2:
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
@@ -8583,25 +8555,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_cap_rights_limit */
-	case 533:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "uint32_t";
-			break;
-		case 3:
-			p = "uint32_t";
-			break;
-		default:
-			break;
-		};
-		break;
 #else
 	/* freebsd32_posix_fallocate */
 	case 530:
@@ -8678,23 +8631,20 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_cap_rights_limit */
+#endif
+	/* cap_rights_limit */
 	case 533:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "uint32_t";
-			break;
-		case 2:
-			p = "uint32_t";
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
 		};
 		break;
-#endif
 	/* freebsd32_cap_ioctls_limit */
 	case 534:
 		switch(ndx) {
@@ -10567,12 +10517,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cap_new */
-	case 514:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10655,11 +10600,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_cap_rights_limit */
-	case 533:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 #else
 	/* freebsd32_posix_fallocate */
 	case 530:
@@ -10676,12 +10616,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_cap_rights_limit */
+#endif
+	/* cap_rights_limit */
 	case 533:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-#endif
 	/* freebsd32_cap_ioctls_limit */
 	case 534:
 		if (ndx == 0 || ndx == 1)

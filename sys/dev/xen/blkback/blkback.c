@@ -230,7 +230,7 @@ struct xbb_xen_reqlist {
 	int			 num_children;
 
 	/**
-	 * Number of I/O requests dispatched to the backend.
+	 * Number of I/O requests still pending on the backend.
 	 */
 	int			 pendcnt;
 
@@ -325,13 +325,6 @@ struct xbb_xen_req {
 	 * The number of 512 byte sectors comprising this requests.
 	 */
 	int			  nr_512b_sectors;
-
-	/**
-	 * The number of struct bio requests still outstanding for this
-	 * request on the backend device.  This field is only used for	
-	 * device (rather than file) backed I/O.
-	 */
-	int			  pendcnt;
 
 	/**
 	 * BLKIF_OP code for this request.
@@ -1239,6 +1232,8 @@ xbb_get_resources(struct xbb_softc *xbb, struct xbb_xen_reqlist **reqlist,
 
 	nreq->reqlist = *reqlist;
 	nreq->req_ring_idx = ring_idx;
+	nreq->id = ring_req->id;
+	nreq->operation = ring_req->operation;
 
 	if (xbb->abi != BLKIF_PROTOCOL_NATIVE) {
 		bcopy(ring_req, &nreq->ring_req_storage, sizeof(*ring_req));
@@ -1608,7 +1603,6 @@ xbb_dispatch_io(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 		req_ring_idx	      = nreq->req_ring_idx;
 		nr_sects              = 0;
 		nseg                  = ring_req->nr_segments;
-		nreq->id              = ring_req->id;
 		nreq->nr_pages        = nseg;
 		nreq->nr_512b_sectors = 0;
 		req_seg_idx	      = 0;
@@ -2062,7 +2056,6 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 {
 	struct xbb_dev_data *dev_data;
 	struct bio          *bios[XBB_MAX_SEGMENTS_PER_REQLIST];
-	struct xbb_xen_req  *nreq;
 	off_t                bio_offset;
 	struct bio          *bio;
 	struct xbb_sg       *xbb_sg;
@@ -2080,7 +2073,6 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 	bio_idx    = 0;
 
 	if (operation == BIO_FLUSH) {
-		nreq = STAILQ_FIRST(&reqlist->contig_req_list);
 		bio = g_new_bio();
 		if (__predict_false(bio == NULL)) {
 			DPRINTF("Unable to allocate bio for BIO_FLUSH\n");
@@ -2094,10 +2086,10 @@ xbb_dispatch_dev(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		bio->bio_offset	 = 0;
 		bio->bio_data	 = 0;
 		bio->bio_done	 = xbb_bio_done;
-		bio->bio_caller1 = nreq;
+		bio->bio_caller1 = reqlist;
 		bio->bio_pblkno	 = 0;
 
-		nreq->pendcnt	 = 1;
+		reqlist->pendcnt = 1;
 
 		SDT_PROBE1(xbb, kernel, xbb_dispatch_dev, flush,
 			   device_get_unit(xbb->dev));

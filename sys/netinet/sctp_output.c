@@ -3561,7 +3561,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 
 static struct sctp_tcb *
 sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
-    in_port_t port,
+    uint16_t port,
     struct mbuf *control,
     struct sctp_nets **net_p,
     int *error)
@@ -6067,7 +6067,6 @@ sctp_get_frag_point(struct sctp_tcb *stcb,
 static void
 sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 {
-	sp->pr_sctp_on = 0;
 	/*
 	 * We assume that the user wants PR_SCTP_TTL if the user provides a
 	 * positive lifetime but does not specify any PR_SCTP policy. This
@@ -6077,7 +6076,6 @@ sctp_set_prsctp_policy(struct sctp_stream_queue_pending *sp)
 	 */
 	if (PR_SCTP_ENABLED(sp->sinfo_flags)) {
 		sp->act_flags |= PR_SCTP_POLICY(sp->sinfo_flags);
-		sp->pr_sctp_on = 1;
 	} else {
 		return;
 	}
@@ -7425,13 +7423,8 @@ dont_do_it:
 		}
 		chk->send_size += pads;
 	}
-	/* We only re-set the policy if it is on */
-	if (sp->pr_sctp_on) {
-		sctp_set_prsctp_policy(sp);
+	if (PR_SCTP_ENABLED(chk->flags)) {
 		asoc->pr_sctp_cnt++;
-		chk->pr_sctp_on = 1;
-	} else {
-		chk->pr_sctp_on = 0;
 	}
 	if (sp->msg_is_complete && (sp->length == 0) && (sp->sender_all_done)) {
 		/* All done pull and kill the message */
