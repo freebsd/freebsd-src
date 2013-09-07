@@ -3,7 +3,7 @@ dnl $Id: configure.ac 610 2012-05-26 14:03:45Z des $
 AC_PREREQ([2.62])
 AC_REVISION([$Id: configure.ac 610 2012-05-26 14:03:45Z des $])
 AC_INIT([OpenPAM], [20120526], [des@des.no])
-AC_CONFIG_SRCDIR([lib/pam_start.c])
+AC_CONFIG_SRCDIR([lib/libpam/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER([config.h])
@@ -119,7 +119,7 @@ AC_CONFIG_FILES([
     doc/man/Makefile
     include/Makefile
     include/security/Makefile
-    lib/Makefile
+    lib/libpam/Makefile
     modules/Makefile
     modules/pam_deny/Makefile
     modules/pam_permit/Makefile
