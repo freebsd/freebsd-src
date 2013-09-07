@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Mark R V Murray
+ * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,40 +23,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef __RANDOM_HARVEST_H__
+#define __RANDOM_HARVEST_H__
 
-#if defined(__amd64__) || defined(__i386__)
-#include "opt_cpu.h"
-#endif
+typedef void (*event_proc_f)(struct harvest *event);
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/selinfo.h>
+void random_harvestq_init(event_proc_f);
+void random_harvestq_deinit(void);
+void random_harvestq_internal(u_int64_t, const void *,
+    u_int, u_int, u_int, enum esource);
 
-#include <dev/random/random_adaptors.h>
-#include <dev/random/randomdev.h>
+extern int random_kthread_control;
 
-void
-random_ident_hardware(struct random_adaptor **adaptor)
-{
-	struct random_adaptor *tmp;
-	int enable;
-
-	/* Set default to software (yarrow) */
-	*adaptor = random_adaptor_get("yarrow");
-
-	/* Then go looking for hardware */
-	enable = 1;
-	TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
-	if (enable && (tmp = random_adaptor_get("nehemiah")))
-		*adaptor = tmp;
-
-	enable = 1;
-	TUNABLE_INT_FETCH("hw.ivy_rng_enable", &enable);
-	if (enable && (tmp = random_adaptor_get("rdrand")))
-		*adaptor = tmp;
-}
+#endif /* __RANDOM_HARVEST_H__ */
