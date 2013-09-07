@@ -1554,13 +1554,17 @@ OLD_FILES+=usr/bin/gcc
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/bin/gcpp
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_aes.h
+OLD_FILES+=usr/include/gcc/4.2/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/gcc/4.2/ammintrin.h
 OLD_FILES+=usr/include/gcc/4.2/emmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/mm3dnow.h
 OLD_FILES+=usr/include/gcc/4.2/mm_malloc.h
 OLD_FILES+=usr/include/gcc/4.2/mmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/pmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/tmmintrin.h
+OLD_FILES+=usr/include/gcc/4.2/wmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/xmmintrin.h
-OLD_FILES+=usr/include/gcc/4.2/mm3dnow.h
 .elif ${TARGET_ARCH} == "ia64"
 OLD_FILES+=usr/include/gcc/4.2/ia64intrin.h
 .elif ${TARGET_ARCH} == "arm"
