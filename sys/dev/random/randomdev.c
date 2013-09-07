@@ -72,26 +72,11 @@ static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 };
 
-static struct random_adaptor *random_adaptor;
 static eventhandler_tag attach_tag;
 static int random_inited;
 
-
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
-
-/* Used to fake out unused random calls in random_adaptor */
-void
-random_null_func(void)
-{
-}
-
-struct random_adaptor *
-random_get_active_adaptor(void)
-{ 
-
-	return (random_adaptor);
-}
 
 /* ARGSUSED */
 static int
