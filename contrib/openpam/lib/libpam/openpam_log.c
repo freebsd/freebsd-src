@@ -49,7 +49,11 @@
 
 #include "openpam_impl.h"
 
+#ifdef OPENPAM_DEBUG
+int openpam_debug = 1;
+#else
 int openpam_debug = 0;
+#endif
 
 #if !defined(openpam_log)
 
