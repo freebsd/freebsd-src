@@ -138,8 +138,6 @@ SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_ones_mask, CTLFLAG_RD,
 SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_zeros_mask, CTLFLAG_RD,
 	     &cr4_zeros_mask, 0, NULL);
 
-static volatile u_int nextvpid;
-
 static int vmx_no_patmsr;
 
 static int vmx_initialized;
@@ -171,6 +169,11 @@ static int cap_monitor_trap;
  
 /* statistics */
 static VMM_STAT_INTEL(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
+
+static struct unrhdr *vpid_unr;
+static u_int vpid_alloc_failed;
+SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
+	    &vpid_alloc_failed, 0, NULL);
 
 #ifdef KTR
 static const char *
@@ -382,6 +385,88 @@ vmx_fix_cr4(u_long cr4)
 }
 
 static void
+vpid_free(int vpid)
+{
+	if (vpid < 0 || vpid > 0xffff)
+		panic("vpid_free: invalid vpid %d", vpid);
+
+	/*
+	 * VPIDs [0,VM_MAXCPU] are special and are not allocated from
+	 * the unit number allocator.
+	 */
+
+	if (vpid > VM_MAXCPU)
+		free_unr(vpid_unr, vpid);
+}
+
+static void
+vpid_alloc(uint16_t *vpid, int num)
+{
+	int i, x;
+
+	if (num <= 0 || num > VM_MAXCPU)
+		panic("invalid number of vpids requested: %d", num);
+
+	/*
+	 * If the "enable vpid" execution control is not enabled then the
+	 * VPID is required to be 0 for all vcpus.
+	 */
+	if ((procbased_ctls2 & PROCBASED2_ENABLE_VPID) == 0) {
+		for (i = 0; i < num; i++)
+			vpid[i] = 0;
+		return;
+	}
+
+	/*
+	 * Allocate a unique VPID for each vcpu from the unit number allocator.
+	 */
+	for (i = 0; i < num; i++) {
+		x = alloc_unr(vpid_unr);
+		if (x == -1)
+			break;
+		else
+			vpid[i] = x;
+	}
+
+	if (i < num) {
+		atomic_add_int(&vpid_alloc_failed, 1);
+
+		/*
+		 * If the unit number allocator does not have enough unique
+		 * VPIDs then we need to allocate from the [1,VM_MAXCPU] range.
+		 *
+		 * These VPIDs are not be unique across VMs but this does not
+		 * affect correctness because the combined mappings are also
+		 * tagged with the EP4TA which is unique for each VM.
+		 *
+		 * It is still sub-optimal because the invvpid will invalidate
+		 * combined mappings for a particular VPID across all EP4TAs.
+		 */
+		while (i-- > 0)
+			vpid_free(vpid[i]);
+
+		for (i = 0; i < num; i++)
+			vpid[i] = i + 1;
+	}
+}
+
+static void
+vpid_init(void)
+{
+	/*
+	 * VPID 0 is required when the "enable VPID" execution control is
+	 * disabled.
+	 *
+	 * VPIDs [1,VM_MAXCPU] are used as the "overflow namespace" when the
+	 * unit number allocator does not have sufficient unique VPIDs to
+	 * satisfy the allocation.
+	 *
+	 * The remaining VPIDs are managed by the unit number allocator.
+	 */
+	vpid_unr = new_unrhdr(VM_MAXCPU + 1, 0xffff, NULL);
+}
+
+static void
 msr_save_area_init(struct msr_entry *g_area, int *g_count)
 {
 	int cnt;
@@ -421,6 +506,11 @@ vmx_disable(void *arg __unused)
 static int
 vmx_cleanup(void)
 {
+
+	if (vpid_unr != NULL) {
+		delete_unrhdr(vpid_unr);
+		vpid_unr = NULL;
+	}
 
 	smp_rendezvous(NULL, vmx_disable, NULL, NULL);
 
@@ -607,43 +697,14 @@ vmx_init(void)
 	cr4_ones_mask = fixed0 & fixed1;
 	cr4_zeros_mask = ~fixed0 & ~fixed1;
 
+	vpid_init();
+
 	/* enable VMX operation */
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
 
 	vmx_initialized = 1;
 
 	return (0);
-}
-
-/*
- * If this processor does not support VPIDs then simply return 0.
- *
- * Otherwise generate the next value of VPID to use. Any value is alright
- * as long as it is non-zero.
- *
- * We always execute in VMX non-root context with EPT enabled. Thus all
- * combined mappings are tagged with the (EP4TA, VPID, PCID) tuple. This
- * in turn means that multiple VMs can share the same VPID as long as
- * they have distinct EPT page tables.
- *
- * XXX
- * We should optimize this so that it returns VPIDs that are not in
- * use. Then we will not unnecessarily invalidate mappings in
- * vmx_set_pcpu_defaults() just because two or more vcpus happen to
- * use the same 'vpid'.
- */
-static uint16_t
-vmx_vpid(void)
-{
-	uint16_t vpid = 0;
-
-	if ((procbased_ctls2 & PROCBASED2_ENABLE_VPID) != 0) {
-		do {
-			vpid = atomic_fetchadd_int(&nextvpid, 1);
-		} while (vpid == 0);
-	}
-
-	return (vpid);
 }
 
 static int
@@ -681,7 +742,7 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs, uint32_t initial)
 static void *
 vmx_vminit(struct vm *vm)
 {
-	uint16_t vpid;
+	uint16_t vpid[VM_MAXCPU];
 	int i, error, guest_msr_count;
 	struct vmx *vmx;
 
@@ -744,6 +805,8 @@ vmx_vminit(struct vm *vm)
 	if (!vmx_no_patmsr && guest_msr_rw(vmx, MSR_PAT))
 		panic("vmx_vminit: error setting guest pat msr access");
 
+	vpid_alloc(vpid, VM_MAXCPU);
+
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vmx->vmcs[i].identifier = vmx_revision();
 		error = vmclear(&vmx->vmcs[i]);
@@ -751,8 +814,6 @@ vmx_vminit(struct vm *vm)
 			panic("vmx_vminit: vmclear error %d on vcpu %d\n",
 			      error, i);
 		}
-
-		vpid = vmx_vpid();
 
 		error = vmcs_set_defaults(&vmx->vmcs[i],
 					  (u_long)vmx_longjmp,
@@ -763,7 +824,7 @@ vmx_vminit(struct vm *vm)
 					  procbased_ctls2,
 					  exit_ctls, entry_ctls,
 					  vtophys(vmx->msr_bitmap),
-					  vpid);
+					  vpid[i]);
 
 		if (error != 0)
 			panic("vmx_vminit: vmcs_set_defaults error %d", error);
@@ -772,7 +833,7 @@ vmx_vminit(struct vm *vm)
 		vmx->cap[i].proc_ctls = procbased_ctls;
 
 		vmx->state[i].lastcpu = -1;
-		vmx->state[i].vpid = vpid;
+		vmx->state[i].vpid = vpid[i];
 
 		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
 
@@ -1580,8 +1641,11 @@ err_exit:
 static void
 vmx_vmcleanup(void *arg)
 {
-	int error;
+	int i, error;
 	struct vmx *vmx = arg;
+
+	for (i = 0; i < VM_MAXCPU; i++)
+		vpid_free(vmx->state[i].vpid);
 
 	/*
 	 * XXXSMP we also need to clear the VMCS active on the other vcpus.
