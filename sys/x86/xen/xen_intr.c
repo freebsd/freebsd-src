@@ -1010,7 +1010,7 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
 }
 
 int
-xen_intr_bind_ipi(device_t dev, u_int ipi, u_int cpu,
+xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
     driver_filter_t filter, enum intr_type flags,
     xen_intr_handle_t *port_handlep)
 {

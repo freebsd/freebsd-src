@@ -1,21 +1,22 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000-2003 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: portname.c,v 1.7.2.1 2006/06/16 17:21:09 darrenr Exp $
+ * $Id$
  */
 #include "ipf.h"
 
 
-char	*portname(pr, port)
-int	pr, port;
+char *portname(pr, port)
+	int pr, port;
 {
-	static	char	buf[32];
-	struct	protoent	*p = NULL;
-	struct	servent	*sv = NULL, *sv1 = NULL;
+	static char buf[32];
+	struct protoent *p = NULL;
+	struct servent *sv = NULL;
+	struct servent *sv1 = NULL;
 
 	if ((opts & OPT_NORESOLVE) == 0) {
 		if (pr == -1) {
