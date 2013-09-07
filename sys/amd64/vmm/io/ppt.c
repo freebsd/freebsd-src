@@ -568,7 +568,7 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 			return (ENXIO);
 	
 		ppt->msix.arg[idx].pptdev = ppt;
-		ppt->msix.arg[idx].vec = msg;
+		ppt->msix.arg[idx].vec = msg & 0xFF;
 		ppt->msix.arg[idx].vcpu = (addr >> 12) & 0xFF;
 	
 		/* Setup the MSI-X interrupt */
