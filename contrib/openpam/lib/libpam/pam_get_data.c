@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_data.c 444 2011-10-22 01:03:23Z des $
+ * $Id: pam_get_data.c 648 2013-03-05 17:54:27Z des $
  */
 
 #ifdef HAVE_CONFIG_H

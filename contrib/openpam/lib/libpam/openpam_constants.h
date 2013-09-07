@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_constants.h 606 2012-04-20 11:06:38Z des $
+ * $Id: openpam_constants.h 659 2013-03-11 14:10:13Z des $
  */
 
 #ifndef OPENPAM_CONSTANTS_H_INCLUDED
@@ -39,5 +38,8 @@ extern const char *pam_facility_name[PAM_NUM_FACILITIES];
 extern const char *pam_control_flag_name[PAM_NUM_CONTROL_FLAGS];
 extern const char *pam_func_name[PAM_NUM_PRIMITIVES];
 extern const char *pam_sm_func_name[PAM_NUM_PRIMITIVES];
+
+extern const char *openpam_policy_path[];
+extern const char *openpam_module_path[];
 
 #endif

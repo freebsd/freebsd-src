@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_impl.h 594 2012-04-14 14:18:41Z des $
+ * $Id: openpam_impl.h 648 2013-03-05 17:54:27Z des $
  */
 
 #ifndef OPENPAM_IMPL_H_INCLUDED
@@ -121,19 +121,6 @@ struct pam_handle {
 	int		 env_count;
 	int		 env_size;
 };
-
-#ifdef NGROUPS_MAX
-/*
- * Saved credentials
- */
-#define PAM_SAVED_CRED "pam_saved_cred"
-struct pam_saved_cred {
-	uid_t	 euid;
-	gid_t	 egid;
-	gid_t	 groups[NGROUPS_MAX];
-	int	 ngroups;
-};
-#endif
 
 /*
  * Default policy
