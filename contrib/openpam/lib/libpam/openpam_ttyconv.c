@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_ttyconv.c 527 2012-02-26 03:23:59Z des $
+ * $Id: openpam_ttyconv.c 688 2013-07-11 16:40:08Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -40,10 +40,11 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/poll.h>
+#include <sys/time.h>
 
-#include <ctype.h>
 #include <errno.h>
-#include <setjmp.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,108 +58,253 @@
 
 int openpam_ttyconv_timeout = 0;
 
+static volatile sig_atomic_t caught_signal;
+
+/*
+ * Handle incoming signals during tty conversation
+ */
 static void
-timeout(int sig)
+catch_signal(int signo)
 {
 
-	(void)sig;
+	switch (signo) {
+	case SIGINT:
+	case SIGQUIT:
+	case SIGTERM:
+		caught_signal = signo;
+		break;
+	}
 }
 
-static char *
-prompt(const char *msg)
+/*
+ * Accept a response from the user on a tty
+ */
+static int
+prompt_tty(int ifd, int ofd, const char *message, char *response, int echo)
 {
-	char buf[PAM_MAX_RESP_SIZE];
-	struct sigaction action, saved_action;
-	sigset_t saved_sigset, the_sigset;
-	unsigned int saved_alarm;
-	int eof, error, fd;
-	size_t len;
-	char *retval;
+	struct sigaction action;
+	struct sigaction saction_sigint, saction_sigquit, saction_sigterm;
+	struct termios tcattr;
+	struct timeval now, target, remaining;
+	int remaining_ms;
+	tcflag_t slflag;
+	struct pollfd pfd;
+	int serrno;
+	int pos, ret;
 	char ch;
 
-	sigemptyset(&the_sigset);
-	sigaddset(&the_sigset, SIGINT);
-	sigaddset(&the_sigset, SIGTSTP);
-	sigprocmask(SIG_SETMASK, &the_sigset, &saved_sigset);
-	action.sa_handler = &timeout;
-	action.sa_flags = 0;
-	sigemptyset(&action.sa_mask);
-	sigaction(SIGALRM, &action, &saved_action);
-	fputs(msg, stdout);
-	fflush(stdout);
-#ifdef HAVE_FPURGE
-	fpurge(stdin);
-#endif
-	fd = fileno(stdin);
-	buf[0] = '\0';
-	eof = error = 0;
-	saved_alarm = 0;
-	if (openpam_ttyconv_timeout >= 0)
-		saved_alarm = alarm(openpam_ttyconv_timeout);
-	ch = '\0';
-	for (len = 0; ch != '\n' && !eof && !error; ++len) {
-		switch (read(fd, &ch, 1)) {
-		case 1:
-			if (len < PAM_MAX_RESP_SIZE - 1) {
-				buf[len + 1] = '\0';
-				buf[len] = ch;
-			}
-			break;
-		case 0:
-			eof = 1;
-			break;
-		default:
-			error = errno;
-			break;
+	/* write prompt */
+	if (write(ofd, message, strlen(message)) < 0) {
+		openpam_log(PAM_LOG_ERROR, "write(): %m");
+		return (-1);
+	}
+
+	/* turn echo off if requested */
+	slflag = 0; /* prevent bogus uninitialized variable warning */
+	if (!echo) {
+		if (tcgetattr(ifd, &tcattr) != 0) {
+			openpam_log(PAM_LOG_ERROR, "tcgetattr(): %m");
+			return (-1);
+		}
+		slflag = tcattr.c_lflag;
+		tcattr.c_lflag &= ~ECHO;
+		if (tcsetattr(ifd, TCSAFLUSH, &tcattr) != 0) {
+			openpam_log(PAM_LOG_ERROR, "tcsetattr(): %m");
+			return (-1);
 		}
 	}
-	if (openpam_ttyconv_timeout >= 0)
-		alarm(0);
-	sigaction(SIGALRM, &saved_action, NULL);
-	sigprocmask(SIG_SETMASK, &saved_sigset, NULL);
-	if (saved_alarm > 0)
-		alarm(saved_alarm);
-	if (error == EINTR)
-		fputs(" timeout!", stderr);
-	if (error || eof) {
-		fputs("\n", stderr);
-		memset(buf, 0, sizeof(buf));
-		return (NULL);
+
+	/* install signal handlers */
+	caught_signal = 0;
+	action.sa_handler = &catch_signal;
+	action.sa_flags = 0;
+	sigfillset(&action.sa_mask);
+	sigaction(SIGINT, &action, &saction_sigint);
+	sigaction(SIGQUIT, &action, &saction_sigquit);
+	sigaction(SIGTERM, &action, &saction_sigterm);
+
+	/* compute timeout */
+	if (openpam_ttyconv_timeout > 0) {
+		(void)gettimeofday(&now, NULL);
+		remaining.tv_sec = openpam_ttyconv_timeout;
+		remaining.tv_usec = 0;
+		timeradd(&now, &remaining, &target);
+	} else {
+		/* prevent bogus uninitialized variable warning */
+		now.tv_sec = now.tv_usec = 0;
+		remaining.tv_sec = remaining.tv_usec = 0;
+		target.tv_sec = target.tv_usec = 0;
 	}
-	/* trim trailing whitespace */
-	for (len = strlen(buf); len > 0; --len)
-		if (buf[len - 1] != '\r' && buf[len - 1] != '\n')
+
+	/* input loop */
+	pos = 0;
+	ret = -1;
+	serrno = 0;
+	while (!caught_signal) {
+		pfd.fd = ifd;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		if (openpam_ttyconv_timeout > 0) {
+			gettimeofday(&now, NULL);
+			if (timercmp(&now, &target, >))
+				break;
+			timersub(&target, &now, &remaining);
+			remaining_ms = remaining.tv_sec * 1000 +
+			    remaining.tv_usec / 1000;
+		} else {
+			remaining_ms = -1;
+		}
+		if ((ret = poll(&pfd, 1, remaining_ms)) < 0) {
+			serrno = errno;
+			if (errno == EINTR)
+				continue;
+			openpam_log(PAM_LOG_ERROR, "poll(): %m");
 			break;
-	buf[len] = '\0';
-	retval = strdup(buf);
-	memset(buf, 0, sizeof(buf));
-	return (retval);
+		} else if (ret == 0) {
+			/* timeout */
+			write(ofd, " timed out", 10);
+			openpam_log(PAM_LOG_NOTICE, "timed out");
+			break;
+		}
+		if ((ret = read(ifd, &ch, 1)) < 0) {
+			serrno = errno;
+			openpam_log(PAM_LOG_ERROR, "read(): %m");
+			break;
+		} else if (ret == 0 || ch == '\n') {
+			response[pos] = '\0';
+			ret = pos;
+			break;
+		}
+		if (pos + 1 < PAM_MAX_RESP_SIZE)
+			response[pos++] = ch;
+		/* overflow is discarded */
+	}
+
+	/* restore tty state */
+	if (!echo) {
+		tcattr.c_lflag = slflag;
+		if (tcsetattr(ifd, 0, &tcattr) != 0) {
+			/* treat as non-fatal, since we have our answer */
+			openpam_log(PAM_LOG_NOTICE, "tcsetattr(): %m");
+		}
+	}
+
+	/* restore signal handlers and re-post caught signal*/
+	sigaction(SIGINT, &saction_sigint, NULL);
+	sigaction(SIGQUIT, &saction_sigquit, NULL);
+	sigaction(SIGTERM, &saction_sigterm, NULL);
+	if (caught_signal != 0) {
+		openpam_log(PAM_LOG_ERROR, "caught signal %d",
+		    (int)caught_signal);
+		raise((int)caught_signal);
+		/* if raise() had no effect... */
+		serrno = EINTR;
+		ret = -1;
+	}
+
+	/* done */
+	write(ofd, "\n", 1);
+	errno = serrno;
+	return (ret);
 }
 
-static char *
-prompt_echo_off(const char *msg)
+/*
+ * Accept a response from the user on a non-tty stdin.
+ */
+static int
+prompt_notty(const char *message, char *response)
 {
-	struct termios tattr;
-	tcflag_t lflag;
-	char *ret;
-	int fd;
+	struct timeval now, target, remaining;
+	int remaining_ms;
+	struct pollfd pfd;
+	int ch, pos, ret;
 
-	fd = fileno(stdin);
-	if (tcgetattr(fd, &tattr) != 0) {
-		openpam_log(PAM_LOG_ERROR, "tcgetattr(): %m");
-		return (NULL);
+	/* show prompt */
+	fputs(message, stdout);
+	fflush(stdout);
+
+	/* compute timeout */
+	if (openpam_ttyconv_timeout > 0) {
+		(void)gettimeofday(&now, NULL);
+		remaining.tv_sec = openpam_ttyconv_timeout;
+		remaining.tv_usec = 0;
+		timeradd(&now, &remaining, &target);
+	} else {
+		/* prevent bogus uninitialized variable warning */
+		now.tv_sec = now.tv_usec = 0;
+		remaining.tv_sec = remaining.tv_usec = 0;
+		target.tv_sec = target.tv_usec = 0;
 	}
-	lflag = tattr.c_lflag;
-	tattr.c_lflag &= ~ECHO;
-	if (tcsetattr(fd, TCSAFLUSH, &tattr) != 0) {
-		openpam_log(PAM_LOG_ERROR, "tcsetattr(): %m");
-		return (NULL);
+
+	/* input loop */
+	pos = 0;
+	for (;;) {
+		pfd.fd = STDIN_FILENO;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		if (openpam_ttyconv_timeout > 0) {
+			gettimeofday(&now, NULL);
+			if (timercmp(&now, &target, >))
+				break;
+			timersub(&target, &now, &remaining);
+			remaining_ms = remaining.tv_sec * 1000 +
+			    remaining.tv_usec / 1000;
+		} else {
+			remaining_ms = -1;
+		}
+		if ((ret = poll(&pfd, 1, remaining_ms)) < 0) {
+			/* interrupt is ok, everything else -> bail */
+			if (errno == EINTR)
+				continue;
+			perror("\nopenpam_ttyconv");
+			return (-1);
+		} else if (ret == 0) {
+			/* timeout */
+			break;
+		} else {
+			/* input */
+			if ((ch = getchar()) == EOF && ferror(stdin)) {
+				perror("\nopenpam_ttyconv");
+				return (-1);
+			}
+			if (ch == EOF || ch == '\n') {
+				response[pos] = '\0';
+				return (pos);
+			}
+			if (pos + 1 < PAM_MAX_RESP_SIZE)
+				response[pos++] = ch;
+			/* overflow is discarded */
+		}
 	}
-	ret = prompt(msg);
-	tattr.c_lflag = lflag;
-	(void)tcsetattr(fd, TCSANOW, &tattr);
-	if (ret != NULL)
-		fputs("\n", stdout);
+	fputs("\nopenpam_ttyconv: timeout\n", stderr);
+	return (-1);
+}
+
+/*
+ * Determine whether stdin is a tty; if not, try to open the tty; in
+ * either case, call the appropriate method.
+ */
+static int
+prompt(const char *message, char *response, int echo)
+{
+	int ifd, ofd, ret;
+
+	if (isatty(STDIN_FILENO)) {
+		fflush(stdout);
+#ifdef HAVE_FPURGE
+		fpurge(stdin);
+#endif
+		ifd = STDIN_FILENO;
+		ofd = STDOUT_FILENO;
+	} else {
+		if ((ifd = open("/dev/tty", O_RDWR)) < 0)
+			/* no way to prevent echo */
+			return (prompt_notty(message, response));
+		ofd = ifd;
+	}
+	ret = prompt_tty(ifd, ofd, message, response, echo);
+	if (ifd != STDIN_FILENO)
+		close(ifd);
 	return (ret);
 }
 
@@ -174,6 +320,7 @@ openpam_ttyconv(int n,
 	 struct pam_response **resp,
 	 void *data)
 {
+	char respbuf[PAM_MAX_RESP_SIZE];
 	struct pam_response *aresp;
 	int i;
 
@@ -188,13 +335,13 @@ openpam_ttyconv(int n,
 		aresp[i].resp = NULL;
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
-			aresp[i].resp = prompt_echo_off(msg[i]->msg);
-			if (aresp[i].resp == NULL)
+			if (prompt(msg[i]->msg, respbuf, 0) < 0 ||
+			    (aresp[i].resp = strdup(respbuf)) == NULL)
 				goto fail;
 			break;
 		case PAM_PROMPT_ECHO_ON:
-			aresp[i].resp = prompt(msg[i]->msg);
-			if (aresp[i].resp == NULL)
+			if (prompt(msg[i]->msg, respbuf, 1) < 0 ||
+			    (aresp[i].resp = strdup(respbuf)) == NULL)
 				goto fail;
 			break;
 		case PAM_ERROR_MSG:
@@ -214,6 +361,7 @@ openpam_ttyconv(int n,
 		}
 	}
 	*resp = aresp;
+	memset(respbuf, 0, sizeof respbuf);
 	RETURNC(PAM_SUCCESS);
 fail:
 	for (i = 0; i < n; ++i) {
@@ -225,6 +373,7 @@ fail:
 	memset(aresp, 0, n * sizeof *aresp);
 	FREE(aresp);
 	*resp = NULL;
+	memset(respbuf, 0, sizeof respbuf);
 	RETURNC(PAM_CONV_ERR);
 }
 

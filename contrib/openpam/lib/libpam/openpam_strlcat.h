@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,28 +26,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_strlcat.h 578 2012-04-06 00:45:59Z des $
+ * $Id: openpam_strlcat.h 648 2013-03-05 17:54:27Z des $
  */
 
 #ifndef OPENPAM_STRLCAT_H_INCLUDED
 #define OPENPAM_STRLCAT_H_INCLUDED
 
 #ifndef HAVE_STRLCAT
-/* like strcat(3), but always NUL-terminates; returns strlen(src) */
-static size_t
-strlcat(char *dst, const char *src, size_t size)
-{
-	size_t len;
-
-	for (len = 0; *dst && size > 1; ++len, --size)
-		dst++;
-	for (; *src && size > 1; ++len, --size)
-		*dst++ = *src++;
-	*dst = '\0';
-	while (*src)
-		++len, ++src;
-	return (len);
-}
+size_t openpam_strlcat(char *, const char *, size_t);
+#undef strlcat
+#define strlcat(arg, ...) openpam_strlcat(arg, __VA_ARGS__)
 #endif
 
 #endif

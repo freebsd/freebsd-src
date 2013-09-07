@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_borrow_cred.c 437 2011-09-13 12:00:13Z des $
+ * $Id: openpam_borrow_cred.c 649 2013-03-05 17:58:33Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -50,6 +50,7 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+#include "openpam_cred.h"
 
 /*
  * OpenPAM extension
@@ -68,12 +69,12 @@ openpam_borrow_cred(pam_handle_t *pamh,
 	ENTERI(pwd->pw_uid);
 	r = pam_get_data(pamh, PAM_SAVED_CRED, &scredp);
 	if (r == PAM_SUCCESS && scredp != NULL) {
-		openpam_log(PAM_LOG_DEBUG,
+		openpam_log(PAM_LOG_LIBDEBUG,
 		    "already operating under borrowed credentials");
 		RETURNC(PAM_SYSTEM_ERR);
 	}
 	if (geteuid() != 0 && geteuid() != pwd->pw_uid) {
-		openpam_log(PAM_LOG_DEBUG, "called with non-zero euid: %d",
+		openpam_log(PAM_LOG_LIBDEBUG, "called with non-zero euid: %d",
 		    (int)geteuid());
 		RETURNC(PAM_PERM_DENIED);
 	}

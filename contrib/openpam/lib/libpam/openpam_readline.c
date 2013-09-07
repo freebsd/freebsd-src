@@ -32,14 +32,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_readline.c 596 2012-04-14 14:52:40Z des $
+ * $Id: openpam_readline.c 703 2013-08-16 11:57:54Z des $
  */
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
 #endif
 
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -101,7 +100,6 @@ openpam_readline(FILE *f, int *lineno, size_t *lenp)
 		goto fail;
 	if (lenp != NULL)
 		*lenp = len;
-	openpam_log(PAM_LOG_LIBDEBUG, "returning '%s'", line);
 	return (line);
 fail:
 	FREE(line);
