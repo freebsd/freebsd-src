@@ -67,7 +67,7 @@ close(CNF);
 #       number datapoints/24 hours is 1440 (minutes)
 #
 #       Split into N graphs where each graph has max of 240 datapoints (4 hours)
-# 
+#
 
 $barset=0;
 $m=0;
@@ -117,7 +117,7 @@ $teal=$im->colorAllocate(51,153,153);
       $xspace= $XINIT+$option{'XCELLGRIDSIZE'}*$i +$i;
      # $im->line($xspace,$YINIT,$xspace,$YGRAPH,gdStyled);
       $num = $i+1;
-      
+
       use integer;
      {
       $posis=$num - ($num/60)*60;
@@ -157,7 +157,7 @@ $nextdata="N";
    $count=0;
    $i=0;
    $fname=$_;
-    
+
   print "fname $fname\n";
 #  change entry for red in colour table to green for packets LEAVING target host
 
@@ -180,14 +180,14 @@ $nextdata="N";
 
      if($nextdata eq "Y")
      {
-	
+
          #$im->line($XINIT,$YGRAPH,$X,$Y,$orange);
          $im->line($xspaceold,$yspaceold,$xspace,$yspace,$green);
      }
      else
      {
          $im->line($xspaceold,$yspaceold,$xspace,$yspace,$red);
-     } 
+     }
     }
       else
          {
@@ -214,7 +214,7 @@ $nextdata="N";
      $im->line(500,60,530,60,$green);
      $im->string(gdSmallFont,535,35,"Packets IN",$fg);
      $im->string(gdSmallFont,535,55,"Packets OUT",$fg);
-     
+
    if ($option{'Bar'} ne 0)
       {
       if ($X eq $option{'XMAX'})
@@ -237,7 +237,7 @@ $nextdata="N";
 
      $nextdata="Y";
 # TOP LEFT is 0,0 on GIF (image)
-# origin of plot is xinit,yinit 
+# origin of plot is xinit,yinit
  # print "little line\n";
      $im->line($xspace,$yspace,$xspace,$YGRAPH,$blue);
      $im->line($xspace,$YGRAPH,$XINIT,$YGRAPH,$blue);

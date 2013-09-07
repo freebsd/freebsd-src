@@ -44,15 +44,6 @@
  * other processors"
  */
 
-#if defined(XEN) || defined(XENHVM)
-#ifndef NR_VIRQS
-#define	NR_VIRQS	24
-#endif
-#ifndef NR_IPIS
-#define	NR_IPIS		2
-#endif
-#endif
-
 #if defined(XEN)
 
 /* These are peridically updated in shared_info, and then copied here. */

@@ -378,7 +378,7 @@ procstat_freefiles(struct procstat *procstat, struct filestat_list *head)
 
 static struct filestat *
 filestat_new_entry(void *typedep, int type, int fd, int fflags, int uflags,
-    int refcount, off_t offset, char *path, cap_rights_t cap_rights)
+    int refcount, off_t offset, char *path, cap_rights_t *cap_rightsp)
 {
 	struct filestat *entry;
 
@@ -395,7 +395,7 @@ filestat_new_entry(void *typedep, int type, int fd, int fflags, int uflags,
 	entry->fs_ref_count = refcount;
 	entry->fs_offset = offset;
 	entry->fs_path = path;
-	entry->fs_cap_rights = cap_rights;
+	entry->fs_cap_rights = *cap_rightsp;
 	return (entry);
 }
 
@@ -851,7 +851,7 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp,
 		 * Create filestat entry.
 		 */
 		entry = filestat_new_entry(kif, type, fd, fflags, uflags,
-		    refcount, offset, path, cap_rights);
+		    refcount, offset, path, &cap_rights);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}

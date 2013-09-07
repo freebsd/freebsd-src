@@ -131,7 +131,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 	}
 
 	if (npins == 0) {
-		device_printf(child, "empty pin mask");
+		device_printf(child, "empty pin mask\n");
 		return (EINVAL);
 	}
 

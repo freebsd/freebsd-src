@@ -1145,8 +1145,10 @@ command is
 .Pp
 .D1 Ic return Op Ar exitstatus
 .Pp
-It terminates the current executional scope, returning from the previous
-nested function, sourced script, or shell instance, in that order.
+It terminates the current executional scope, returning from the closest
+nested function or sourced script;
+if no function or sourced script is being executed,
+it exits the shell instance.
 The
 .Ic return
 command is implemented as a special built-in command.

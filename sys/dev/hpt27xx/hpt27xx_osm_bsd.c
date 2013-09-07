@@ -52,7 +52,7 @@ static int hpt_probe(device_t dev)
 				memset(hba, 0, sizeof(HBA));
 				hba->ext_type = EXT_TYPE_HBA;
 				hba->ldm_adapter.him = him;
-				return 0;
+				return (BUS_PROBE_DEFAULT);
 			}
 		}
 	}

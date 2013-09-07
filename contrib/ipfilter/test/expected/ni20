@@ -34,16 +34,36 @@
 
 4500 0034 118c 4000 4006 ec87 0a01 0104 c0a8 7103 03ff 03f0 91d4 c8a7 66e5 b811 8011 05b4 d54e 0000 0101 080a 0039 dd6d 0000 0000 
 
-4500 0028 e404 4000 4006 f372 c0a8 7103 c0a8 7104 03f1 0202 6523 90eb 915a a5cb 5010 8328 962b 0000 
+0
+0
+0
+0
+0
+0
+List of active MAP/Redirect filters:
+rdr bge0 10.1.1.4/32 port 514 -> 192.168.113.4/32 port 514 tcp proxy rcmd
 
-4500 0034 e405 4000 4006 f365 c0a8 7103 c0a8 7104 03f0 03ff 66e5 b811 91d4 c8a8 8010 8328 312f 0000 0101 080a 0000 0004 0039 dd6c 
+List of active sessions:
+MAP 192.168.113.4   1023  <- -> 10.1.1.4        1023  [192.168.113.3 1008]
+RDR 192.168.113.4   514   <- -> 10.1.1.4        514   [192.168.113.3 1009]
+	proxy active
 
-4500 0028 e40a 4000 4006 f36c c0a8 7103 c0a8 7104 03f1 0202 6523 90eb 915a a5cb 5011 832c 9626 0000 
-
-4500 0034 e40b 4000 4006 f35f c0a8 7103 c0a8 7104 03f0 03ff 66e5 b811 91d4 c8a8 8011 832c 312a 0000 0101 080a 0000 0004 0039 dd6c 
-
-4500 0028 0004 4000 4006 d773 c0a8 7104 c0a8 7103 0202 03f1 915a a5cb 6523 90ec 5010 05b4 139f 0000 
-
-4500 0034 118e 4000 4006 c5dd c0a8 7104 c0a8 7103 03ff 03f0 91d4 c8a8 66e5 b812 8010 05b4 aea0 0000 0101 080a 0039 dd6e 0000 0004 
-
+Hostmap table:
+192.168.113.4,192.168.113.3 -> 10.1.1.4,0.0.0.0 (use = 1)
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+Rules configured (set 0, in)
+5 block in all
+1 pass in quick on bge0 proto tcp from any to any port = 514 flags S/FSRPAU keep state
+Rules configured (set 0, out)
+2 block out all
+Rules configured (set 1, in)
+Rules configured (set 1, out)
+Accounting rules configured (set 0, in)
+Accounting rules configured (set 0, out)
+Accounting rules configured (set 1, in)
+Accounting rules configured (set 1, out)
 -------------------------------

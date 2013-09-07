@@ -602,9 +602,13 @@ vm_page_trysbusy(vm_page_t m)
 {
 	u_int x;
 
-	x = m->busy_lock;
-	return ((x & VPB_BIT_SHARED) != 0 &&
-	    atomic_cmpset_acq_int(&m->busy_lock, x, x + VPB_ONE_SHARER));
+	for (;;) {
+		x = m->busy_lock;
+		if ((x & VPB_BIT_SHARED) == 0)
+			return (0);
+		if (atomic_cmpset_acq_int(&m->busy_lock, x, x + VPB_ONE_SHARER))
+			return (1);
+	}
 }
 
 /*
