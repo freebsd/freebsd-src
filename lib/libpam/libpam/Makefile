@@ -36,7 +36,7 @@
 # $FreeBSD$
 
 OPENPAM=	${.CURDIR}/../../../contrib/openpam
-.PATH: ${OPENPAM}/include ${OPENPAM}/lib ${OPENPAM}/doc/man
+.PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
 LIB=	pam
 NO_PROFILE=
