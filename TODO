@@ -1,13 +1,17 @@
 Before the next release:
 
- - Complete the transition from PAM_LOG_DEBUG to PAM_LOG_LIBDEBUG.
+ - Rewrite openpam_ttyconv(3).
+   - mostly done, needs review.
 
-Whenever:
+ - Fix try_first_pass / use_first_pass (pam_get_authtok() code &
+   documentation are slightly incorrect, OpenPAM's pam_unix(8) is
+   incorrect, all FreeBSD modules are broken)
 
- - Implement mechanism to enable / disable optional features.  Use it
-   to disable strict error checking so pamtest and unit tests can do
-   things that we don't allow in production.
+ - Add loop detection to openpam_load_chain().
 
- - Rewrite the module-loading code.
+ - Look into the possibility of implementing a version of (or a
+   wrapper for) openpam_log() which respects the PAM_SILENT flag and
+   the no_warn module option.  This would eliminate the need for
+   FreeBSD's _pam_verbose_error().
 
-$Id: TODO 592 2012-04-08 13:19:51Z des $
+$Id: TODO 736 2013-09-07 12:52:42Z des $
