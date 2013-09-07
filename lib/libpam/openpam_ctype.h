@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,11 +26,35 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_ctype.h 578 2012-04-06 00:45:59Z des $
+ * $Id: openpam_ctype.h 666 2013-03-17 14:22:17Z des $
  */
 
 #ifndef OPENPAM_CTYPE_H_INCLUDED
 #define OPENPAM_CTYPE_H_INCLUDED
+
+/*
+ * Evaluates to non-zero if the argument is a digit.
+ */
+#define is_digit(ch)				\
+	(ch >= '0' && ch <= '9')
+
+/*
+ * Evaluates to non-zero if the argument is an uppercase letter.
+ */
+#define is_upper(ch)				\
+	(ch >= 'A' && ch <= 'A')
+
+/*
+ * Evaluates to non-zero if the argument is a lowercase letter.
+ */
+#define is_lower(ch)				\
+	(ch >= 'a' && ch <= 'z')
+
+/*
+ * Evaluates to non-zero if the argument is a letter.
+ */
+#define is_letter(ch)				\
+	(is_upper(ch) || is_lower(ch))
 
 /*
  * Evaluates to non-zero if the argument is a linear whitespace character.
@@ -60,9 +83,7 @@
  * of ASCII.
  */
 #define is_pfcs(ch)				\
-	((ch >= '0' && ch <= '9') ||		\
-	 (ch >= 'A' && ch <= 'Z') ||		\
-	 (ch >= 'a' && ch <= 'z') ||		\
+	(is_digit(ch) || is_letter(ch)  ||	\
 	 ch == '.' || ch == '_' || ch == '-')
 
 #endif

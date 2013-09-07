@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_straddch.c 568 2012-04-05 14:35:53Z des $
+ * $Id: openpam_straddch.c 648 2013-03-05 17:54:27Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -66,7 +65,7 @@ openpam_straddch(char **str, size_t *size, size_t *len, int ch)
 		*str = tmpstr;
 		*size = tmpsize;
 		*len = 0;
-	} else if (*len + 1 >= *size) {
+	} else if (ch != 0 && *len + 1 >= *size) {
 		/* additional space required */
 		tmpsize = *size * 2;
 		if ((tmpstr = realloc(*str, tmpsize)) == NULL) {
@@ -77,8 +76,10 @@ openpam_straddch(char **str, size_t *size, size_t *len, int ch)
 		*size = tmpsize;
 		*str = tmpstr;
 	}
-	(*str)[*len] = ch;
-	++*len;
+	if (ch != 0) {
+		(*str)[*len] = ch;
+		++*len;
+	}
 	(*str)[*len] = '\0';
 	return (0);
 }
@@ -95,6 +96,11 @@ openpam_straddch(char **str, size_t *size, size_t *len, int ch)
  * The =size and =len argument point to variables used to hold the size
  * of the buffer and the length of the string it contains, respectively.
  *
+ * The final argument, =ch, is the character that should be appended to
+ * the string.  If =ch is 0, nothing is appended, but a new buffer is
+ * still allocated if =str is NULL.  This can be used to "bootstrap" the
+ * string.
+ *
  * If a new buffer is allocated or an existing buffer is reallocated to
  * make room for the additional character, =str and =size are updated
  * accordingly.
@@ -103,7 +109,7 @@ openpam_straddch(char **str, size_t *size, size_t *len, int ch)
  * NUL-terminated.
  *
  * If the =openpam_straddch function is successful, it increments the
- * integer variable pointed to by =len and returns 0.
+ * integer variable pointed to by =len (unless =ch was 0) and returns 0.
  * Otherwise, it leaves the variables pointed to by =str, =size and =len
  * unmodified, sets :errno to =ENOMEM and returns -1.
  *

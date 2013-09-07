@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_log.c 544 2012-03-31 22:47:15Z des $
+ * $Id: openpam_log.c 686 2013-07-11 16:36:02Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -48,12 +48,9 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+#include "openpam_asprintf.h"
 
-#ifdef OPENPAM_DEBUG
-int openpam_debug = 1;
-#else
 int openpam_debug = 0;
-#endif
 
 #if !defined(openpam_log)
 
@@ -68,6 +65,7 @@ openpam_log(int level, const char *fmt, ...)
 {
 	va_list ap;
 	int priority;
+	int serrno;
 
 	switch (level) {
 	case PAM_LOG_LIBDEBUG:
@@ -87,9 +85,11 @@ openpam_log(int level, const char *fmt, ...)
 		priority = LOG_ERR;
 		break;
 	}
+	serrno = errno;
 	va_start(ap, fmt);
 	vsyslog(priority, fmt, ap);
 	va_end(ap);
+	errno = serrno;
 }
 
 #else
@@ -120,8 +120,8 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 		priority = LOG_ERR;
 		break;
 	}
-	va_start(ap, fmt);
 	serrno = errno;
+	va_start(ap, fmt);
 	if (asprintf(&format, "in %s(): %s", func, fmt) > 0) {
 		errno = serrno;
 		vsyslog(priority, format, ap);
@@ -131,6 +131,7 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 		vsyslog(priority, fmt, ap);
 	}
 	va_end(ap);
+	errno = serrno;
 }
 
 #endif
@@ -167,4 +168,6 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
  *
  * The remaining arguments are a =printf format string and the
  * corresponding arguments.
+ *
+ * The =openpam_log function does not modify the value of :errno.
  */

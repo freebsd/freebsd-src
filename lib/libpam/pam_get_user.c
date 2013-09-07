@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_user.c 455 2011-10-29 18:31:11Z des $
+ * $Id: pam_get_user.c 670 2013-03-17 19:26:07Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -116,20 +116,31 @@ pam_get_user(pam_handle_t *pamh,
  * If no user was specified, nor set using =pam_set_item, =pam_get_user
  * will prompt for a user name.
  * Either way, a pointer to the user name is stored in the location
- * pointed to by the =user argument.
+ * pointed to by the =user argument, and the corresponding PAM item is
+ * updated.
  *
  * The =prompt argument specifies a prompt to use if no user name is
  * cached.
  * If it is =NULL, the =PAM_USER_PROMPT item will be used.
  * If that item is also =NULL, a hardcoded default prompt will be used.
- * Either way, the prompt is expanded using =openpam_subst before it is
- * passed to the conversation function.
+ * Additionally, when =pam_get_user is called from a service module, the
+ * prompt may be affected by module options as described below.
+ * The prompt is then expanded using =openpam_subst before it is passed to
+ * the conversation function.
  *
- * If =pam_get_user is called from a module and the ;user_prompt option is
- * set in the policy file, the value of that option takes precedence over
- * both the =prompt argument and the =PAM_USER_PROMPT item.
+ * MODULE OPTIONS
  *
+ * When called by a service module, =pam_get_user will recognize the
+ * following module options:
+ *
+ *	;user_prompt:
+ *		Prompt to use when asking for the user name.
+ *		This option overrides both the =prompt argument and the
+ *		=PAM_USER_PROMPT item.
+ *
+ * >pam_conv
  * >pam_get_item
  * >pam_get_authtok
+ * >openpam_get_option
  * >openpam_subst
  */
