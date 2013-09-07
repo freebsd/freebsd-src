@@ -9862,8 +9862,8 @@ ipf_ht_node_make_key(htp, key, family, addr)
 			key->hn_addr.adf_addr.i6[0] = addr->i6[0] &
 					     htonl(0xffffffff << (32 - bits));
 		}
-	}
 #endif
+	}
 }
 
 
