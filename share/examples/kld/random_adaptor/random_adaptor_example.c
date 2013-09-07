@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R V Murray
+ * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,53 +29,66 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/selinfo.h>
 #include <sys/systm.h>
 
-#include <crypto/rijndael/rijndael-api-fst.h>
-#include <crypto/sha2/sha2.h>
+#include <dev/random/random_adaptors.h>
+#include <dev/random/randomdev.h>
 
-#include <dev/random/hash.h>
+#define RNG_NAME "example"
 
-/* Initialise the hash */
-void
-randomdev_hash_init(struct randomdev_hash *context)
-{
-	SHA256_Init(&context->sha);
-}
+static int random_example_read(void *, int);
 
-/* Iterate the hash */
-void
-randomdev_hash_iterate(struct randomdev_hash *context, void *data, size_t size)
-{
-	SHA256_Update(&context->sha, data, size);
-}
+struct random_adaptor random_example = {
+	.ident = "Example RNG",
+	.init = (random_init_func_t *)random_null_func,
+	.deinit = (random_deinit_func_t *)random_null_func,
+	.read = random_example_read,
+	.write = (random_write_func_t *)random_null_func,
+	.reseed = (random_reseed_func_t *)random_null_func,
+	.seeded = 1,
+};
 
-/* Conclude by returning the hash in the supplied <*buf> which must be
- * KEYSIZE bytes long.
+/*
+ * Used under the license provided @ http://xkcd.com/221/
+ * http://creativecommons.org/licenses/by-nc/2.5/
  */
-void
-randomdev_hash_finish(struct randomdev_hash *context, void *buf)
+static u_char
+getRandomNumber(void)
 {
-	SHA256_Final(buf, &context->sha);
+	return 4;   /* chosen by fair dice roll, guaranteed to be random */
 }
 
-/* Initialise the encryption routine by setting up the key schedule
- * from the supplied <*data> which must be KEYSIZE bytes of binary
- * data. Use CBC mode for better avalanche.
- */
-void
-randomdev_encrypt_init(struct randomdev_key *context, void *data)
+static int
+random_example_read(void *buf, int c)
 {
-	rijndael_cipherInit(&context->cipher, MODE_CBC, NULL);
-	rijndael_makeKey(&context->key, DIR_ENCRYPT, KEYSIZE*8, data);
+	u_char *b;
+	int count;
+
+	b = buf;
+
+	for (count = 0; count < c; count++) {
+		b[count] = getRandomNumber();
+	}
+
+	printf("returning %d bytes of pure randomness\n", c);
+	return (c);
 }
 
-/* Encrypt the supplied data using the key schedule preset in the context.
- * <length> bytes are encrypted from <*d_in> to <*d_out>. <length> must be
- * a multiple of BLOCKSIZE.
- */
-void
-randomdev_encrypt(struct randomdev_key *context, void *d_in, void *d_out, unsigned length)
+static int
+random_example_modevent(module_t mod, int type, void *unused)
 {
-	rijndael_blockEncrypt(&context->cipher, &context->key, d_in, length*8, d_out);
+
+	switch (type) {
+	case MOD_LOAD:
+		random_adaptor_register(RNG_NAME, &random_example);
+		EVENTHANDLER_INVOKE(random_adaptor_attach, &random_example);
+		return (0);
+	}
+
+	return (EINVAL);
 }
+
+RANDOM_ADAPTOR_MODULE(random_example, random_example_modevent, 1);

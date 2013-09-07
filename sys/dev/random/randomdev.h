@@ -53,3 +53,4 @@ struct random_adaptor {
 
 extern void random_ident_hardware(struct random_adaptor **);
 extern void random_null_func(void);
+struct random_adaptor *random_get_active_adaptor(void);
