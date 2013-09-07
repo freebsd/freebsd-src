@@ -920,9 +920,8 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
-		random_harvest(m, 16, 3, 0, RANDOM_NET);
+		random_harvest(&(m->m_data), 12, 3, 0, RANDOM_NET_TUN);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
 	CURVNET_SET(ifp->if_vnet);
