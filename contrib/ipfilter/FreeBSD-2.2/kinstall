@@ -17,8 +17,8 @@ foreach i (ip_{auth,fil,frag,nat,pool,proxy,scan,state,sync}.[ch] fil.c \
 	case *.h:
 		/bin/cp $i /usr/include/netinet/$i
 		chmod 644 /usr/include/netinet/$i
-		breaksw 
-	endsw   
+		breaksw
+	endsw
 end
 echo ""
 echo "Copying /usr/include/osreldate.h to /sys/sys"

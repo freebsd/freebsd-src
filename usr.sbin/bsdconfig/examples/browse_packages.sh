@@ -17,9 +17,8 @@ if [ ! -e "$TMPDIR/packages/INDEX" ]; then
 	# For older releases, use ftp://ftp-archive.freebsd.org
 	mediaSetFTP
 	mediaOpen
-	f_show_info "Downloading packages/INDEX from %s" "$_ftpPath" 
+	f_show_info "Downloading packages/INDEX from\n %s" "$_ftpPath" 
 	f_device_get media packages/INDEX > $TMPDIR/packages/INDEX
-	mediaClose
 fi
 _directoryPath=$TMPDIR
 mediaSetDirectory

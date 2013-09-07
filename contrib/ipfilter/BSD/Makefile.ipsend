@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.ipsend,v 2.8 2002/05/22 16:15:36 darrenr Exp $
+# $Id$
 #
 
 BINDEST=/usr/sbin
@@ -23,7 +23,8 @@ MFLAGS="BINDEST=$(BINDEST)" "SBINDEST=$(SBINDEST)" "MANDIR=$(MANDIR)" \
 	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
 	"CPUDIR=$(CPUDIR)" "LOOKUP=$(LOOKUP)"
 #
-all build bsd-bpf : ipsend ipresend iptest
+build:
+all bsd-bpf : ipsend ipresend iptest
 
 iplang_y.o: $(TOP)/iplang/iplang_y.y
 	(cd $(TOP)/iplang; $(MAKE) ../BSD/$(CPUDIR)/$@ $(MFLAGS) 'DESTDIR=../BSD/$(CPUDIR)' )
@@ -103,6 +104,6 @@ dlcommon.o: $(TOP)/ipsend/dlcommon.c
 sdlpi.o: $(TOP)/ipsend/sdlpi.c
 	$(CC) $(DEBUG) $(CFLAGS) -c $(TOP)/ipsend/sdlpi.c -o $@
 
-install:  
+install:
 	-$(INSTALL) -cs -g wheel -m 755 -o root ipsend ipresend iptest $(BINDEST)
 

@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000-2005 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: printpacket.c,v 1.12.4.5 2007/09/09 22:15:30 darrenr Exp $
+ * $Id$
  */
 
 #include "ipf.h"
@@ -15,32 +15,43 @@
 #endif
 
 
-void printpacket(ip)
-struct ip *ip;
+void
+printpacket(dir, m)
+	int dir;
+	mb_t *m;
 {
-	struct	tcphdr	*tcp;
-	u_short len;
-	u_short off;
+	u_short len, off;
+	tcphdr_t *tcp;
+	ip_t *ip;
+
+	ip = MTOD(m, ip_t *);
 
 	if (IP_V(ip) == 6) {
-		off = 0;
-		len = ntohs(((u_short *)ip)[2]) + 40;
+#ifdef USE_INET6
+		len = ntohs(((ip6_t *)ip)->ip6_plen);
+#else
+		len = ntohs(((u_short *)ip)[2]);
+#endif
+		len += 40;
 	} else {
-		off = ntohs(ip->ip_off);
 		len = ntohs(ip->ip_len);
 	}
+	ASSERT(len == msgdsize(m));
 
 	if ((opts & OPT_HEX) == OPT_HEX) {
 		u_char *s;
 		int i;
 
-		for (s = (u_char *)ip, i = 0; i < len; i++) {
-			printf("%02x", *s++ & 0xff);
-			if (len - i > 1) {
-				i++;
-				printf("%02x", *s++ & 0xff);
+		for (; m != NULL; m = m->mb_next) {
+			len = m->mb_len;
+			for (s = (u_char *)m->mb_data, i = 0; i < len; i++) {
+				PRINTF("%02x", *s++ & 0xff);
+				if (len - i > 1) {
+					i++;
+					PRINTF("%02x", *s++ & 0xff);
+				}
+				putchar(' ');
 			}
-			putchar(' ');
 		}
 		putchar('\n');
 		putchar('\n');
@@ -48,24 +59,32 @@ struct ip *ip;
 	}
 
 	if (IP_V(ip) == 6) {
-		printpacket6(ip);
+		printpacket6(dir, m);
 		return;
 	}
 
+	if (dir)
+		PRINTF("> ");
+	else
+		PRINTF("< ");
+
+	PRINTF("%s ", IFNAME(m->mb_ifp));
+
+	off = ntohs(ip->ip_off);
 	tcp = (struct tcphdr *)((char *)ip + (IP_HL(ip) << 2));
-	printf("ip #%d %d(%d) %d", ntohs(ip->ip_id), ntohs(ip->ip_len),
+	PRINTF("ip #%d %d(%d) %d", ntohs(ip->ip_id), ntohs(ip->ip_len),
 	       IP_HL(ip) << 2, ip->ip_p);
 	if (off & IP_OFFMASK)
-		printf(" @%d", (off & IP_OFFMASK) << 3);
-	printf(" %s", inet_ntoa(ip->ip_src));
+		PRINTF(" @%d", off << 3);
+	PRINTF(" %s", inet_ntoa(ip->ip_src));
 	if (!(off & IP_OFFMASK))
 		if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP)
-			printf(",%d", ntohs(tcp->th_sport));
-	printf(" > ");
-	printf("%s", inet_ntoa(ip->ip_dst));
+			PRINTF(",%d", ntohs(tcp->th_sport));
+	PRINTF(" > ");
+	PRINTF("%s", inet_ntoa(ip->ip_dst));
 	if (!(off & IP_OFFMASK)) {
 		if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP)
-			printf(",%d", ntohs(tcp->th_dport));
+			PRINTF(",%d", ntohs(tcp->th_dport));
 		if ((ip->ip_p == IPPROTO_TCP) && (tcp->th_flags != 0)) {
 			putchar(' ');
 			if (tcp->th_flags & TH_FIN)

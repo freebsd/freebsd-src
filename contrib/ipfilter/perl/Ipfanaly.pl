@@ -41,7 +41,7 @@ if ($maxout > $maxin)
 ($dayis,$monthis,$yearis)=split "/",$dateis;
 $month=$months{$monthis};
 $dateis="$dayis " . "$month " . "$yearis ";
-# split graphs in to 6 four hour spans for 24 hours 
+# split graphs in to 6 four hour spans for 24 hours
 $numgraphs=int($XMAX/240);
 
 $junk=0;
@@ -62,7 +62,7 @@ while ($cnt1++ < $numgraphs)
  $filename3="graph$cnt1.conf";
  open(OUTDATA,"> $filename2") || die "Couldnt open $filename2 for writing \n";
  open(INDATA,"> $filename1") || die "Couldnt open $filename1 for writing \n";
-  
+
  $loop=$end;
  $end=($end + 240);
 
@@ -144,7 +144,7 @@ sub packbytime {
 local  ($xmax)=@_;
 $XMAX=$xmax;
 # pass in the dest port number or get graph for all packets
-# at 1 minute intervals 
+# at 1 minute intervals
 # @shortrecs has form 209.24.1.217 123 192.216.16.2 123 udp len 20 76
 # @recs has form 27/07/1998 00:01:05.216596  le0 @0:2 L 192.216.21.16,2733 -> 192.216.16.2,53 PR udp len 20 62
 #
@@ -175,9 +175,9 @@ while ($cnt++ <= $#recs )
     if("$destip" eq "$gatekeep")
       {
 #      TO GATEKEEP port lookat
-#        print "to gatekeep at $xpos\n"; 
+#        print "to gatekeep at $xpos\n";
         $value5=$inwards[$xpos] [1];
-        $value5++ ; 
+        $value5++ ;
 #        $maxin = $value5 if $maxin < $value5 ;
 
          if($value5 > $maxin)
@@ -190,9 +190,9 @@ while ($cnt++ <= $#recs )
     else
       {
 #       FROM GATEKEEP to port lookat
-#        print "from gatekeep at $xpos\n"; 
+#        print "from gatekeep at $xpos\n";
         $value4=$outwards[$xpos] [1];
-        $value4++ ; 
+        $value4++ ;
 #        $maxout = $value4 if $maxout < $value4 ;
 	if($value4 > $maxout)
            {
@@ -212,18 +212,18 @@ while ($cnt++ <= $#recs )
     if("$destip" eq "$gatekeep")
       {
 #      TO GATEKEEP port lookat
-#        print "to gatekeep at $xpos\n"; 
+#        print "to gatekeep at $xpos\n";
         $value5=$inwards[$xpos] [1];
-        $value5++ ; 
+        $value5++ ;
         $maxin = $value5 if $maxin < $value5 ;
         $inwards[$xpos][1]=$value5;
         }
     else
       {
 #       FROM GATEKEEP to port lookat
-#        print "from gatekeep at $xpos\n"; 
+#        print "from gatekeep at $xpos\n";
         $value4=$outwards[$xpos] [1];
-        $value4++ ; 
+        $value4++ ;
         $maxout = $value4 if $maxout < $value4 ;
         $outwards[$xpos][1]=$value4;
       }
@@ -276,7 +276,7 @@ $loop=-1;
 while ($loop++ <= $#recs )
  {
  ($srcip,$srcport,$destip,$destport,$pro)= split " " ,  @shortrecs[$loop];
-  if ("$destip" eq "$gatekeep") 
+  if ("$destip" eq "$gatekeep")
     {
      if ($destport < $ITRUSTABOVE )
      {
@@ -309,10 +309,10 @@ print "# Sites sending > $percsafe % of all packets to gatekeep MAY be attacking
 print "Trusted hosts are $safehosts\n";
 print "\nTOTAL packets were $#recs \n";
 print "########################################################################\n";
-while(($ipadd,$numpacketsent)=each %numpacks) 
+while(($ipadd,$numpacketsent)=each %numpacks)
 {
 $perc=$numpacketsent/$#recs*100;
-if ($perc > $percsafe) 
+if ($perc > $percsafe)
 # dont believe safehosts are attacking!
  {
    $where=index($safehosts,$ipadd);
@@ -326,7 +326,7 @@ if ($perc > $percsafe)
 }
 
 print "\n\n";
-} # end of subroutine toobusy_site 
+} # end of subroutine toobusy_site
 
 
 ############### END SUBROUTINE DECLARATIONS ###########
@@ -339,7 +339,7 @@ if("$opt_t" eq "0")
  {usage;print "\n---->ERROR: You must psecify the IP address of the interface that collected the data!\n";
 exit;
 }
- 
+
 if("$opt_h" eq "1")
  {usage;exit 0};
 if("$opt_H" eq "1")
@@ -379,7 +379,7 @@ if("$opt_p" eq "")
 # -p arg must be all or AN INTEGER in range 1<=N<=64K
 if ("$opt_p" ne "all")
  {
-   $_=$opt_p;  
+   $_=$opt_p;
    unless (/^[+-]?\d+$/)
    {
      usage;
@@ -394,7 +394,7 @@ if ("$opt_p" ne "all")
 $lookat=$opt_p;
 
 # -o arg must be all or AN INTEGER in range 1<=N<=64K
-   $_=$opt_o;  
+   $_=$opt_o;
    unless (/^[+-]?\d+$/)
    {
      usage;
@@ -438,7 +438,7 @@ open (REC, $FILENAME) || die "Cant open $FILENAME: \n";
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$junk)=stat REC;
 print "Log file $FILENAME is $size bytes in size\n";
 #each record is an element of array rec[] now
-while(<REC>) 
+while(<REC>)
  {
  @recs[$numrec++]=$_;
  }
@@ -456,7 +456,7 @@ while ($loop++ < $#recs )
   $bit=substr(@recs[$loop],39);
   $bit =~ s/,/ /g;
   ($sourceip,$junkit)= split " " , $bit ;
-  
+
 # NOTE the  . is the string concat command NOT + .......!!!!
 
   $sourceip =~ split " ", $sourceip;
@@ -467,7 +467,7 @@ while ($loop++ < $#recs )
      $allips = $allips . "$sourceip " ;
    }
  }
-  
+
 print "Put all unique ip addresses into a 1D array\n";
 @allips=split " ", $allips;
 
@@ -490,7 +490,7 @@ while ($loop++ < $#recs )
  {
   $a = $srcip . $icmp .  $ptr . $destip  . $icmp . $icmp . $lenst . $lenicmp ;
  }
- 
+
 # dump the "->"  and commas from logging
  $a =~ s/->//g;
  $a =~ s/PR//g;
@@ -503,7 +503,7 @@ while ($loop++ < $#recs )
  ($srcip,$junk) = split " ","$a";
  $numpackets=$numpacks{"$srcip"};
  $numpackets++ ;
- $numpacks{"$srcip"}=$numpackets; 
+ $numpacks{"$srcip"}=$numpackets;
 
 }
 
@@ -546,7 +546,7 @@ while ($cnt++ < $#allips)
 
   while ($loop++ < $#recs )
    {
-#    get src IP num,    src port number, 
+#    get src IP num,    src port number,
 #    destination IP num, destnation port number,protocol
      ($srcip,$srcport,$destip,$destport,$pro)= split " " ,  @shortrecs[$loop];
 # loop over all records for the machine $uniqip
@@ -564,7 +564,7 @@ while ($cnt++ < $#allips)
    {
      $srcportnam=$services{$srcport};
    }
-#    try and get dest portname, if not there, leave it as the 
+#    try and get dest portname, if not there, leave it as the
 #    dest portnumber
   if ("$destport" eq "icmp")
    { $destportnam="icmp";}
@@ -581,15 +581,15 @@ while ($cnt++ < $#allips)
   if ($srcportnam eq "")
     {
 #    increment number of times a (high)/unknown port has gone to destport
-     $value1=$unknownsrcports{$destportnam}; 
-     $value1++ ; 
+     $value1=$unknownsrcports{$destportnam};
+     $value1++ ;
      $unknownsrcports{$destportnam}=$value1;
     }
   else
    {
 #    want tally(srcport) counter to be increased by 1
      $value3=$tally{$srcportnam};
-     $value3++ ; 
+     $value3++ ;
      $tally{$srcportnam}=$value3;
     }
    }
@@ -603,7 +603,7 @@ if ($set eq "N")
 $set="Y";
 
 print "\n#### with $uniqip as the the source for packets ####\n";
-while(($key,$value)=each %tally) 
+while(($key,$value)=each %tally)
   {
    if (not "$uniqip" eq "$gatekeep")
     {
@@ -617,7 +617,7 @@ while(($key,$value)=each %tally)
 
 
 
-while(($key2,$value2)=each %unknownsrcports) 
+while(($key2,$value2)=each %unknownsrcports)
   {
    if (not "$uniqip" eq "$gatekeep")
     {
@@ -632,7 +632,7 @@ while(($key2,$value2)=each %unknownsrcports)
 }
 # print if rests for UNIQIP IF flag is set to N then toggle flag
 
-} # end of all IPs loop 
+} # end of all IPs loop
 } # end of if verbose option set block
 
 

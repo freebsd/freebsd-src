@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/tss.h>
+#include <machine/cpu.h>
 
 #ifdef XENHVM
 #include <xen/hvm.h>
@@ -124,6 +125,11 @@ u_long *ipi_invlcache_counts[MAXCPU];
 u_long *ipi_rendezvous_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
+
+/* Default cpu_ops implementation. */
+struct cpu_ops cpu_ops = {
+	.ipi_vectored = lapic_ipi_vectored
+};
 
 extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
@@ -1125,7 +1131,7 @@ ipi_send_cpu(int cpu, u_int ipi)
 		if (old_pending)
 			return;
 	}
-	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+	cpu_ops.ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
 
 /*
@@ -1395,7 +1401,7 @@ ipi_all_but_self(u_int ipi)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
+	cpu_ops.ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
 int

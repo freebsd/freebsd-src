@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130906:
+	The GNU Compiler Collection and C++ standard library (libstdc++)
+	are no longer built by default on platforms where clang is the system
+	compiler.  You can enable them with the WITH_GCC and WITH_GNUCXX
+	options in src.conf.  
+
 20130905:
 	The PROCDESC kernel option is now part of the GENERIC kernel
 	configuration and is required for the rwhod(8) to work.
