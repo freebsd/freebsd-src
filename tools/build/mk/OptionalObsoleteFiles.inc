@@ -900,6 +900,11 @@ OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
 OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/g++
+OLD_FILES+=usr/libexec/cc1plus
+.endif
+
+.if ${MK_GNUCXX} == no
+OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/include/c++/4.2/algorithm
 OLD_FILES+=usr/include/c++/4.2/backward/algo.h
 OLD_FILES+=usr/include/c++/4.2/backward/algobase.h
@@ -1455,12 +1460,23 @@ OLD_FILES+=usr/include/c++/4.2/utility
 OLD_FILES+=usr/include/c++/4.2/valarray
 OLD_FILES+=usr/include/c++/4.2/vector
 OLD_FILES+=usr/lib/libstdc++.a
-# Keep libs to allow bootstrapping g++(1) with gperf(1)
-#OLD_LIBS+=usr/lib/libstdc++.so
-#OLD_LIBS+=usr/lib/libstdc++.so.6
+OLD_FILES+=usr/lib/libstdc++.so
+OLD_LIBS+=usr/lib/libstdc++.so.6
 OLD_FILES+=usr/lib/libstdc++_p.a
 OLD_FILES+=usr/lib/libsupc++.a
+OLD_FILES+=usr/lib/libsupc++.so
+OLD_LIBS+=usr/lib/libsupc++.so.1
 OLD_FILES+=usr/lib/libsupc++_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libstdc++.a
+OLD_FILES+=usr/lib32/libstdc++.so
+OLD_LIBS+=usr/lib32/libstdc++.so.6
+OLD_FILES+=usr/lib32/libstdc++_p.a
+OLD_FILES+=usr/lib32/libsupc++.a
+OLD_FILES+=usr/lib32/libsupc++.so
+OLD_LIBS+=usr/lib32/libsupc++.so.1
+OLD_FILES+=usr/lib32/libsupc++_p.a
+.endif
 OLD_FILES+=usr/libexec/cc1plus
 .endif
 
