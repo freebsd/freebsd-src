@@ -19,7 +19,6 @@ if [ ! -e "$TMPDIR/packages/INDEX" ]; then
 	mediaOpen
 	f_show_info "Downloading packages/INDEX from\n %s" "$_ftpPath" 
 	f_device_get media packages/INDEX > $TMPDIR/packages/INDEX
-	mediaClose
 fi
 _directoryPath=$TMPDIR
 mediaSetDirectory
