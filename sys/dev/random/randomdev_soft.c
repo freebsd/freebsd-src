@@ -79,7 +79,7 @@ static struct random_adaptor random_context = {
 	.write = randomdev_write,
 	.poll = randomdev_poll,
 	.reseed = randomdev_flush_reseed,
-	.seeded = 0,
+	.seeded = 1,
 };
 #define RANDOM_MODULE_NAME	yarrow
 #define RANDOM_CSPRNG_NAME	"yarrow"
@@ -95,7 +95,7 @@ static struct random_adaptor random_context = {
 	.write = randomdev_write,
 	.poll = randomdev_poll,
 	.reseed = randomdev_flush_reseed,
-	.seeded = 0,
+	.seeded = 1,
 };
 #define RANDOM_MODULE_NAME	fortuna
 #define RANDOM_CSPRNG_NAME	"fortuna"

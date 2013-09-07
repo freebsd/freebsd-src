@@ -53,6 +53,8 @@ static struct sx adaptors_lock; /* need a sleepable lock */
 /* List for the dynamic sysctls */
 static struct sysctl_ctx_list random_clist;
 
+struct random_adaptor *random_adaptor;
+
 MALLOC_DEFINE(M_RANDOM_ADAPTORS, "random_adaptors", "Random adaptors buffers");
 
 int
@@ -230,7 +232,7 @@ random_sysctl_active_adaptor_handler(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	name = NULL;
-	rsp = random_get_active_adaptor();
+	rsp = random_adaptor;
 
 	if (rsp != NULL) {
 		sx_slock(&adaptors_lock);

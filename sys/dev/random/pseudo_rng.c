@@ -39,6 +39,12 @@ __FBSDID("$FreeBSD$");
 
 static struct mtx	pseudo_random_block_mtx;
 
+/* Used to fake out unused random calls in random_adaptor */
+void
+random_null_func(void)
+{
+}
+
 static int
 pseudo_random_block_read(void *buf __unused, int c __unused)
 {
