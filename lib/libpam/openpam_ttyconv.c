@@ -58,7 +58,7 @@
 
 int openpam_ttyconv_timeout = 0;
 
-volatile sig_atomic_t caught_signal;
+static volatile sig_atomic_t caught_signal;
 
 /*
  * Handle incoming signals during tty conversation
