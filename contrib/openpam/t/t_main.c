@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_main.c 578 2012-04-06 00:45:59Z des $
+ * $Id: t_main.c 651 2013-03-05 18:11:59Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -39,6 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "t.h"
@@ -63,7 +63,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: [-v] %s\n", t_progname);
+	fprintf(stderr, "usage: %s [-v]\n", t_progname);
 	exit(1);
 }
 
@@ -74,6 +74,14 @@ main(int argc, char *argv[])
 	const char *desc;
 	int n, pass, fail;
 	int opt;
+
+#ifdef HAVE_SETLOGMASK
+	/* suppress openpam_log() */
+	setlogmask(LOG_UPTO(0));
+#endif
+
+	/* clean up temp files in case of premature exit */
+	atexit(t_fcloseall);
 
 	if ((t_progname = strrchr(argv[0], '/')) != NULL)
 		t_progname++; /* one past the slash */
@@ -104,7 +112,7 @@ main(int argc, char *argv[])
 	/* run the tests */
 	for (n = pass = fail = 0; t_plan[n] != NULL; ++n) {
 		desc = t_plan[n]->desc ? t_plan[n]->desc : "no description";
-		if ((*t_plan[n]->func)()) {
+		if ((*t_plan[n]->func)(t_plan[n]->arg)) {
 			printf("ok %d - %s\n", n + 1, desc);
 			++pass;
 		} else {

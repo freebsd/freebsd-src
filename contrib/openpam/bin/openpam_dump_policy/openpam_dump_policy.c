@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_dump_policy.c 582 2012-04-06 23:23:35Z des $
+ * $Id: openpam_dump_policy.c 648 2013-03-05 17:54:27Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -43,6 +42,7 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+#include "openpam_asprintf.h"
 
 static char *
 openpam_chain_name(const char *service, pam_facility_t fclt)

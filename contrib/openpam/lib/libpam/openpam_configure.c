@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_configure.c 612 2012-05-26 23:02:55Z des $
+ * $Id: openpam_configure.c 667 2013-03-17 14:24:00Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -41,7 +41,6 @@
 
 #include <sys/param.h>
 
-#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -307,14 +306,6 @@ fail:
 	errno = serrno;
 	return (-1);
 }
-
-static const char *openpam_policy_path[] = {
-	"/etc/pam.d/",
-	"/etc/pam.conf",
-	"/usr/local/etc/pam.d/",
-	"/usr/local/etc/pam.conf",
-	NULL
-};
 
 /*
  * Read the specified chains from the specified file.
