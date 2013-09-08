@@ -262,6 +262,10 @@ SUBDIR+=        truss
 SUBDIR+=	compile_et
 .endif
 
+.if ${MK_LDNS_UTILS} != "no"
+SUBDIR+=	host
+.endif
+
 .if ${MK_LIBTHR} != "no"
 SUBDIR+=	csup
 .endif
