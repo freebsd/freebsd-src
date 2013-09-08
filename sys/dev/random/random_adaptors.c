@@ -177,7 +177,7 @@ random_adaptor_choose(struct random_adaptor **adaptor)
 		}
 
 		if (bootverbose && *adaptor)
-			printf("Falling back to <%s> random adaptor",
+			printf("Falling back to <%s> random adaptor\n",
 			    (*adaptor)->ident);
 	}
 }
