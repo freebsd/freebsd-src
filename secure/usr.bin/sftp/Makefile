@@ -9,6 +9,7 @@ SRCS+=	roaming_dummy.c
 
 DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ} ${LIBEDIT} ${LIBNCURSES}
 LDADD=	-lssh -lcrypt -lcrypto -lz -ledit -lncurses
+USEPRIVATELIB= ssh
 
 .include <bsd.prog.mk>
 

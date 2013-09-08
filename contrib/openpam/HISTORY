@@ -1,3 +1,30 @@
+OpenPAM Nummularia						2013-09-07
+
+ - ENHANCE: Rewrite the dynamic loader to improve readability and
+   reliability.  Modules can now be listed without the ".so" suffix in
+   the policy file; OpenPAM will automatically add it, just like it
+   will automatically add the version number if required.
+
+ - ENHANCE: Allow openpam_straddch(3) to be called without a character
+   so it can be used to preallocate a string.
+
+ - ENHANCE: Improve portability by adding simple asprintf(3) and
+   vasprintf(3) implementations for platforms that don't have them.
+
+ - ENHANCE: Move the libpam sources into a separate subdirectory.
+
+ - ENHANCE: Substantial documentation improvements.
+
+ - BUGFIX: When openpam_readword(3) encountered an opening quote, it
+   would set the first byte in the buffer to '\0', discarding all
+   existing text and, unless the buffer was empty to begin with, all
+   subsequent text as well.  This went unnoticed because none of the
+   unit tests for quoted strings had any text preceding the opening
+   quote.
+
+ - BUGFIX: make --with-modules-dir work the way it was meant to work
+   (but never did).
+============================================================================
 OpenPAM Micrampelis						2012-05-26
 
  - FEATURE: Add an openpam_readword(3) function which reads the next
@@ -401,4 +428,4 @@ OpenPAM Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$Id: HISTORY 609 2012-05-26 13:57:45Z des $
+$Id: HISTORY 737 2013-09-07 12:53:55Z des $
