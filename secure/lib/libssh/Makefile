@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 LIB=	ssh
+PRIVATELIB=	true
 SHLIB_MAJOR=	5
 SRCS=	authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 	canohost.c channels.c cipher.c cipher-aes.c \

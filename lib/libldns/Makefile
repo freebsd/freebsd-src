@@ -6,7 +6,7 @@ LDNSDIR = ${.CURDIR}/../../contrib/ldns
 .PATH: ${LDNSDIR} ${LDNSDIR}/compat
 
 LIB=	ldns
-INTERNALLIB= true
+PRIVATELIB= true
 
 CFLAGS+= -I${LDNSDIR}
 
