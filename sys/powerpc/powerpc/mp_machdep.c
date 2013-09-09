@@ -91,6 +91,9 @@ machdep_ap_bootstrap(void)
 #endif
 	decr_ap_init();
 
+	/* Give platform code a chance to do anything necessary */
+	platform_smp_ap_init();
+
 	/* Serialize console output and AP count increment */
 	mtx_lock_spin(&ap_boot_mtx);
 	ap_awake++;
