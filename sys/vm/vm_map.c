@@ -1432,8 +1432,8 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 int
 vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    vm_offset_t *addr,	/* IN/OUT */
-	    vm_size_t length, int find_space, vm_prot_t prot,
-	    vm_prot_t max, int cow)
+	    vm_size_t length, vm_offset_t max_addr, int find_space,
+	    vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_offset_t alignment, initial_addr, start;
 	int result;
@@ -1452,7 +1452,8 @@ again:
 	vm_map_lock(map);
 	do {
 		if (find_space != VMFS_NO_SPACE) {
-			if (vm_map_findspace(map, start, length, addr)) {
+			if (vm_map_findspace(map, start, length, addr) ||
+			    (max_addr != 0 && *addr + length > max_addr)) {
 				vm_map_unlock(map);
 				if (find_space == VMFS_OPTIMAL_SPACE) {
 					find_space = VMFS_ANY_SPACE;
