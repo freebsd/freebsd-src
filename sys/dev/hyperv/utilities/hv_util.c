@@ -82,15 +82,6 @@ hv_vmbus_service service_table[] = {
 	  .enabled = TRUE,
           .callback = hv_heartbeat_cb,
 	},
-
-        /* KVP (Key Value Pair) Service */
-        { .guid.data = {0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
-			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6},
-	  .name = "Hyper-V KVP Service\n",
-	  .enabled = TRUE,
-	  .init = hv_kvp_init, 
-	  .callback = hv_kvp_callback,
-	},
 };
 
 /*
