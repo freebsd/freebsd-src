@@ -173,7 +173,7 @@ _EXTRADEPEND:
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .if defined(PROG_CXX)
-.if !empty(CXXFLAGS:M-stdlib=libc++)
+.if ${MK_CLANG_IS_CC} != "no" && empty(CXXFLAGS:M-stdlib=libstdc++)
 	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
 	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
