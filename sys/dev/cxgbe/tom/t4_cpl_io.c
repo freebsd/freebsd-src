@@ -604,7 +604,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 		if (sb->sb_flags & SB_AUTOSIZE &&
 		    V_tcp_do_autosndbuf &&
 		    sb->sb_hiwat < V_tcp_autosndbuf_max &&
-		    sbspace(sb) < sb->sb_hiwat / 8 * 7) {
+		    sbspace(sb) < sb->sb_hiwat / 8) {
 			int newsize = min(sb->sb_hiwat + V_tcp_autosndbuf_inc,
 			    V_tcp_autosndbuf_max);
 
