@@ -891,7 +891,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	}
 	ef->address = (caddr_t) vm_map_min(kernel_map);
 	error = vm_map_find(kernel_map, ef->object, 0,
-	    (vm_offset_t *) &ef->address, mapsize, 1,
+	    (vm_offset_t *) &ef->address, mapsize, 0, VMFS_OPTIMAL_SPACE,
 	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error != 0) {
 		vm_object_deallocate(ef->object);
