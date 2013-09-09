@@ -94,10 +94,8 @@ SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RW | CTLFLAG_TUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
 TUNABLE_INT("vm.old_mlock", &old_mlock);
 
-#ifndef _SYS_SYSPROTO_H_
-struct sbrk_args {
-	int incr;
-};
+#ifdef MAP_32BIT
+#define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
 #endif
 
 static int vm_mmap_vnode(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
@@ -106,6 +104,12 @@ static int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct cdev *, vm_ooffset_t *, vm_object_t *);
 static int vm_mmap_shm(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct shmfd *, vm_ooffset_t, vm_object_t *);
+
+#ifndef _SYS_SYSPROTO_H_
+struct sbrk_args {
+	int incr;
+};
+#endif
 
 /*
  * MPSAFE
@@ -278,6 +282,18 @@ sys_mmap(td, uap)
 			return (EINVAL);
 		if (addr + size < addr)
 			return (EINVAL);
+#ifdef MAP_32BIT
+		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR)
+			return (EINVAL);
+	} else if (flags & MAP_32BIT) {
+		/*
+		 * For MAP_32BIT, override the hint if it is too high and
+		 * do not bother moving the mapping past the heap (since
+		 * the heap is usually above 2GB).
+		 */
+		if (addr + size > MAP_32BIT_MAX_ADDR)
+			addr = 0;
+#endif
 	} else {
 		/*
 		 * XXX for non-fixed mappings where no hint is provided or
@@ -1620,8 +1636,11 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			    MAP_ALIGNMENT_SHIFT);
 		else
 			findspace = VMFS_OPTIMAL_SPACE;
-		rv = vm_map_find(map, object, foff, addr, size, findspace,
-		    prot, maxprot, docow);
+		rv = vm_map_find(map, object, foff, addr, size,
+#ifdef MAP_32BIT
+		    flags & MAP_32BIT ? MAP_32BIT_MAX_ADDR :
+#endif
+		    0, findspace, prot, maxprot, docow);
 	} else
 		rv = vm_map_fixed(map, object, foff, *addr, size,
 				 prot, maxprot, docow);
