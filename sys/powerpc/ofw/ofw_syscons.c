@@ -218,7 +218,6 @@ ofwfb_configure(int flags)
         ihandle_t stdout;
 	phandle_t node;
 	uint32_t fb_phys;
-	ssize_t proplen;
 	int depth;
 	int disable;
 	int len;
@@ -265,21 +264,12 @@ ofwfb_configure(int flags)
 	} else
 		return (0);
 
-	if (OF_getproplen(node, "height") != sizeof(sc->sc_height) ||
-	    OF_getproplen(node, "width") != sizeof(sc->sc_width))
-		return (0);
-
 	sc->sc_depth = depth;
 	sc->sc_node = node;
 	sc->sc_console = 1;
-	sc->sc_stride = -1;
 	OF_getprop(node, "height", &sc->sc_height, sizeof(sc->sc_height));
 	OF_getprop(node, "width", &sc->sc_width, sizeof(sc->sc_width));
-	proplen = OF_getprop(node, "linebytes", &sc->sc_stride,
-	    sizeof(sc->sc_stride));
-	if (proplen != sizeof(sc->sc_stride) ||
-	    sc->sc_stride < sc->sc_width*sc->sc_depth/4)
-		sc->sc_stride = sc->sc_width*sc->sc_depth/4;
+	OF_getprop(node, "linebytes", &sc->sc_stride, sizeof(sc->sc_stride));
 
 	/*
 	 * Grab the physical address of the framebuffer, and then map it
@@ -288,8 +278,6 @@ ofwfb_configure(int flags)
 	 *
 	 * XXX We assume #address-cells is 1 at this point.
 	 */
-	if (OF_getproplen(node, "address") != sizeof(fb_phys))
-		return (0);
 	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
 
 	bus_space_map(&bs_be_tag, fb_phys, sc->sc_height * sc->sc_stride,
