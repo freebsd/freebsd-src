@@ -2,10 +2,9 @@
 
 .PATH:	${.CURDIR}/../../../dev/hyperv/utilities
 
-KMOD=	 hv_utils
+KMOD=	hv_utils
 
-SRCS =  hv_kvp.c \
-	hv_util.c
+SRCS =  hv_util.c
 
 CFLAGS+= -I${.CURDIR}/../../../dev/hyperv/include \
 	 -I${.CURDIR}/../../../dev/hyperv/vmbus
