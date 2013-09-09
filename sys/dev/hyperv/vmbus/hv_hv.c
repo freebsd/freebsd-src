@@ -43,6 +43,7 @@
 #include "hv_vmbus_priv.h"
 
 #define HV_X64_MSR_GUEST_OS_ID		0x40000000
+
 #define HV_X64_CPUID_MIN		0x40000005
 #define HV_X64_CPUID_MAX		0x4000ffff
 #define HV_X64_MSR_TIME_REF_COUNT	0x40000020
@@ -50,7 +51,6 @@
 #define HV_NANOSECONDS_PER_SEC		1000000000L
 
 
-static u_int hv_get_timecount(struct timecounter *tc);
 static u_int hv_get_timecount(struct timecounter *tc);
 
 static inline void do_cpuid_inline(unsigned int op, unsigned int *eax,
@@ -76,7 +76,7 @@ static struct timecounter hv_timecounter = {
 static u_int
 hv_get_timecount(struct timecounter *tc)
 {
-	u_int now =  hv_vmbus_read_msr(HV_X64_MSR_TIME_REF_COUNT);
+	u_int now = rdmsr(HV_X64_MSR_TIME_REF_COUNT);
 	return (now);
 }
 
@@ -217,13 +217,13 @@ hv_vmbus_init(void)
 	 * Write our OS info
 	 */
 	uint64_t os_guest_info = HV_FREEBSD_GUEST_ID;
-	hv_vmbus_write_msr(HV_X64_MSR_GUEST_OS_ID, os_guest_info);
+	wrmsr(HV_X64_MSR_GUEST_OS_ID, os_guest_info);
 	hv_vmbus_g_context.guest_id = os_guest_info;
 
 	/*
 	 * See if the hypercall page is already set
 	 */
-	hypercall_msr.as_uint64_t = hv_vmbus_read_msr(HV_X64_MSR_HYPERCALL);
+	hypercall_msr.as_uint64_t = rdmsr(HV_X64_MSR_HYPERCALL);
 	virt_addr = malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
 	KASSERT(virt_addr != NULL,
 	    ("Error VMBUS: malloc failed to allocate page during init!"));
@@ -233,13 +233,13 @@ hv_vmbus_init(void)
 	hypercall_msr.enable = 1;
 	hypercall_msr.guest_physical_address =
 	    (hv_get_phys_addr(virt_addr) >> PAGE_SHIFT);
-	hv_vmbus_write_msr(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64_t);
+	wrmsr(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64_t);
 
 	/*
 	 * Confirm that hypercall page did get set up
 	 */
 	hypercall_msr.as_uint64_t = 0;
-	hypercall_msr.as_uint64_t = hv_vmbus_read_msr(HV_X64_MSR_HYPERCALL);
+	hypercall_msr.as_uint64_t = rdmsr(HV_X64_MSR_HYPERCALL);
 
 	if (!hypercall_msr.enable)
 	    goto cleanup;
@@ -276,7 +276,7 @@ hv_vmbus_init(void)
 	if (virt_addr != NULL) {
 	    if (hypercall_msr.enable) {
 		hypercall_msr.as_uint64_t = 0;
-		hv_vmbus_write_msr(HV_X64_MSR_HYPERCALL,
+		wrmsr(HV_X64_MSR_HYPERCALL,
 					hypercall_msr.as_uint64_t);
 	    }
 
@@ -302,7 +302,7 @@ hv_vmbus_cleanup(void)
 	if (hv_vmbus_g_context.guest_id == HV_FREEBSD_GUEST_ID) {
 	    if (hv_vmbus_g_context.hypercall_page != NULL) {
 		hypercall_msr.as_uint64_t = 0;
-		hv_vmbus_write_msr(HV_X64_MSR_HYPERCALL,
+		wrmsr(HV_X64_MSR_HYPERCALL,
 					hypercall_msr.as_uint64_t);
 		free(hv_vmbus_g_context.hypercall_page, M_DEVBUF);
 		hv_vmbus_g_context.hypercall_page = NULL;
@@ -376,18 +376,17 @@ hv_vmbus_signal_event()
  * @brief hv_vmbus_synic_init
  */
 void
-hv_vmbus_synic_init(void *irq_arg) 
+hv_vmbus_synic_init(void *arg)
 
 {
 	int			cpu;
-	uint32_t		irq_vector;
 	hv_vmbus_synic_simp	simp;
 	hv_vmbus_synic_siefp	siefp;
 	hv_vmbus_synic_scontrol sctrl;
 	hv_vmbus_synic_sint	shared_sint;
 	uint64_t		version;
+	hv_setup_args* 		setup_args = (hv_setup_args *)arg;
 
-	irq_vector = *((uint32_t *) (irq_arg));
 	cpu = PCPU_GET(cpuid);
 
 	if (hv_vmbus_g_context.hypercall_page == NULL)
@@ -406,65 +405,50 @@ hv_vmbus_synic_init(void *irq_arg)
 	/*
 	 * TODO: Check the version
 	 */
-	version = hv_vmbus_read_msr(HV_X64_MSR_SVERSION);
+	version = rdmsr(HV_X64_MSR_SVERSION);
 
-	hv_vmbus_g_context.syn_ic_msg_page[cpu] =
-	    malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
-	KASSERT(hv_vmbus_g_context.syn_ic_msg_page[cpu] != NULL,
-	    ("Error VMBUS: malloc failed for allocating page!"));
-	if (hv_vmbus_g_context.syn_ic_msg_page[cpu] == NULL)
-	    goto cleanup;
-
-	hv_vmbus_g_context.syn_ic_event_page[cpu] =
-	    malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
-	KASSERT(hv_vmbus_g_context.syn_ic_event_page[cpu] != NULL,
-	    ("Error VMBUS: malloc failed to allocate page!"));
-	if (hv_vmbus_g_context.syn_ic_event_page[cpu] == NULL)
-	    goto cleanup;
+	
+	hv_vmbus_g_context.syn_ic_msg_page[cpu] = setup_args->page_buffers[0];
+	hv_vmbus_g_context.syn_ic_event_page[cpu] = setup_args->page_buffers[1];
 
 	/*
 	 * Setup the Synic's message page
 	 */
 
-	simp.as_uint64_t = hv_vmbus_read_msr(HV_X64_MSR_SIMP);
+	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
 	simp.simp_enabled = 1;
 	simp.base_simp_gpa = ((hv_get_phys_addr(
 	    hv_vmbus_g_context.syn_ic_msg_page[cpu])) >> PAGE_SHIFT);
 
-	hv_vmbus_write_msr(HV_X64_MSR_SIMP, simp.as_uint64_t);
+	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
 
 	/*
 	 * Setup the Synic's event page
 	 */
-	siefp.as_uint64_t = hv_vmbus_read_msr(HV_X64_MSR_SIEFP);
+	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
 	siefp.siefp_enabled = 1;
 	siefp.base_siefp_gpa = ((hv_get_phys_addr(
 	    hv_vmbus_g_context.syn_ic_event_page[cpu])) >> PAGE_SHIFT);
 
-	hv_vmbus_write_msr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
+	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 
-	shared_sint.vector = irq_vector; /*HV_SHARED_SINT_IDT_VECTOR + 0x20; */
+	/*HV_SHARED_SINT_IDT_VECTOR + 0x20; */
+	shared_sint.vector = setup_args->vector;
 	shared_sint.masked = FALSE;
 	shared_sint.auto_eoi = FALSE;
 
-	hv_vmbus_write_msr(
-	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
+	wrmsr(HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
 
 	/* Enable the global synic bit */
-	sctrl.as_uint64_t = hv_vmbus_read_msr(HV_X64_MSR_SCONTROL);
+	sctrl.as_uint64_t = rdmsr(HV_X64_MSR_SCONTROL);
 	sctrl.enable = 1;
 
-	hv_vmbus_write_msr(HV_X64_MSR_SCONTROL, sctrl.as_uint64_t);
+	wrmsr(HV_X64_MSR_SCONTROL, sctrl.as_uint64_t);
 
 	hv_vmbus_g_context.syn_ic_initialized = TRUE;
 
 	return;
-
-	cleanup:
-
-	free(hv_vmbus_g_context.syn_ic_msg_page[cpu], M_DEVBUF);
-	free(hv_vmbus_g_context.syn_ic_msg_page[cpu], M_DEVBUF);
 }
 
 /**
@@ -483,7 +467,7 @@ void hv_vmbus_synic_cleanup(void *arg)
 	if (cpu != 0)
 	    return; /* TODO: XXXKYS: SMP? */
 
-	shared_sint.as_uint64_t = hv_vmbus_read_msr(
+	shared_sint.as_uint64_t = rdmsr(
 	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT);
 
 	shared_sint.masked = 1;
@@ -491,25 +475,20 @@ void hv_vmbus_synic_cleanup(void *arg)
 	/*
 	 * Disable the interrupt
 	 */
-	hv_vmbus_write_msr(
+	wrmsr(
 	    HV_X64_MSR_SINT0 + HV_VMBUS_MESSAGE_SINT,
 	    shared_sint.as_uint64_t);
 
-	simp.as_uint64_t = hv_vmbus_read_msr(HV_X64_MSR_SIMP);
+	simp.as_uint64_t = rdmsr(HV_X64_MSR_SIMP);
 	simp.simp_enabled = 0;
 	simp.base_simp_gpa = 0;
 
-	hv_vmbus_write_msr(HV_X64_MSR_SIMP, simp.as_uint64_t);
+	wrmsr(HV_X64_MSR_SIMP, simp.as_uint64_t);
 
-	siefp.as_uint64_t = hv_vmbus_read_msr(HV_X64_MSR_SIEFP);
+	siefp.as_uint64_t = rdmsr(HV_X64_MSR_SIEFP);
 	siefp.siefp_enabled = 0;
 	siefp.base_siefp_gpa = 0;
 
-	hv_vmbus_write_msr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
-
-	contigfree(hv_vmbus_g_context.syn_ic_msg_page[cpu],
-			PAGE_SIZE, M_DEVBUF);
-	contigfree(hv_vmbus_g_context.syn_ic_event_page[cpu],
-			PAGE_SIZE, M_DEVBUF);
+	wrmsr(HV_X64_MSR_SIEFP, siefp.as_uint64_t);
 }
 

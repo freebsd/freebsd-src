@@ -675,58 +675,6 @@ int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(uint32_t child_rel_id);
 void			hv_vmbus_on_events(void *);
 
-/*
- * static inline functions
- * (with some helper macros for reading/writing to model specific registers)
- */
-
-#ifdef __x86_64__
-
-#define HV_VMBUS_READ_MSR(reg, v) {	\
-	uint32_t h, l;			\
-	__asm__ __volatile__("rdmsr"	\
-	: "=a" (l), "=d" (h)		\
-	: "c" (reg));			\
-	v = (((uint64_t)h) << 32) | l;	\
-}
-
-#define HV_VMBUS_WRITE_MSR(reg, v) {				\
-	uint32_t h, l;						\
-	l = (uint32_t)(((uint64_t)(v)) & 0xFFFFFFFF);		\
-	h = (uint32_t)((((uint64_t)(v)) >> 32) & 0xFFFFFFFF);	\
-	__asm__ __volatile__("wrmsr"				\
-	: /* no outputs */					\
-	: "c" (reg), "a" (l), "d" (h));				\
-}
-
-#else
-
-#define HV_VMBUS_READ_MSR(reg, v)	\
-     __asm__ __volatile__("rdmsr"	\
-    : "=A" (v)				\
-    : "c" (reg))
-
-#define HV_VMBUS_WRITE_MSR(reg, v)	\
-     __asm__ __volatile__("wrmsr"	\
-    : /* no outputs */			\
-    : "c" (reg), "A" ((uint64_t)v))
-
-#endif
-
-static inline unsigned long long
-hv_vmbus_read_msr(int msr)
-{
-	unsigned long long val;
-	HV_VMBUS_READ_MSR(msr, val);
-	return (val);
-}
-
-static inline
-void hv_vmbus_write_msr(int msr, uint64_t val)
-{
-	HV_VMBUS_WRITE_MSR(msr, val);
-	return;
-}
 
 /*
  * The guest OS needs to register the guest ID with the hypervisor.
@@ -766,5 +714,9 @@ static inline  uint64_t hv_generate_guest_id(
 	return guest_id;
 }
 
+typedef struct {
+	unsigned int	vector;
+	void		*page_buffers[2];
+} hv_setup_args;
 
 #endif  /* __HYPERV_PRIV_H__ */
