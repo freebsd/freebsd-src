@@ -422,6 +422,18 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	case SIOCGIFSTAT_ICMP6:
 		sa6 = &ifr->ifr_addr;
 		break;
+	case SIOCSIFADDR:
+	case SIOCSIFBRDADDR:
+	case SIOCSIFDSTADDR:
+	case SIOCSIFNETMASK:
+		/*
+		 * Although we should pass any non-INET6 ioctl requests
+		 * down to driver, we filter some legacy INET requests.
+		 * Drivers trust SIOCSIFADDR et al to come from an already
+		 * privileged layer, and do not perform any credentials
+		 * checks or input validation.
+		 */
+		return (EINVAL);
 	default:
 		sa6 = NULL;
 		break;

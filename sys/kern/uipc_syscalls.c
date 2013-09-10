@@ -2126,11 +2126,10 @@ retry_space:
 			 * or the passed in nbytes.
 			 */
 			pgoff = (vm_offset_t)(off & PAGE_MASK);
-			if (uap->nbytes)
-				rem = (uap->nbytes - fsbytes - loopbytes);
-			else
-				rem = va.va_size -
-				    uap->offset - fsbytes - loopbytes;
+			rem = va.va_size - uap->offset;
+			if (uap->nbytes != 0)
+				rem = omin(rem, uap->nbytes);
+			rem -= fsbytes + loopbytes;
 			xfsize = omin(PAGE_SIZE - pgoff, rem);
 			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
