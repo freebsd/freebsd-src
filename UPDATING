@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20130910:	p11	FreeBSD-SA-13:12.ifioctl
+			FreeBSD-SA-13:13.nullfs
+
+	In IPv6 and NetATM, stop SIOCSIFADDR, SIOCSIFBRDADDR,
+	SIOCSIFDSTADDR and SIOCSIFNETMASK at the socket layer rather
+	than pass them on to the link layer without validation or
+	credential checks.  [SA-13:12]
+
+	Prevent cross-mount hardlinks between different nullfs mounts
+	of the same underlying filesystem.  [SA-13:13]
+
 20130822:	p10	FreeBSD-SA-13:09.ip_multicast
 			FreeBSD-SA-13:10.sctp
 	Fix an integer overflow in computing the size of a temporary buffer
