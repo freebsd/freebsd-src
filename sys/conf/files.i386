@@ -128,7 +128,7 @@ crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 aesni_wrap.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse ${COMPILER_TYPE} ${COMPILER_TYPE:Mclang:S/clang/-maes} ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
