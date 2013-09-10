@@ -12,7 +12,7 @@ OBJS+=	aesni_wrap.o
 # Remove -nostdinc so we can get the intrinsics.
 aesni_wrap.o: aesni_wrap.c
 	${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} \
-	     -mmmx -msse ${COMPILER_TYPE:Mclang:S/clang/-maes/} ${.IMPSRC}
+	     -mmmx -msse -maes ${.IMPSRC}
 	${CTFCONVERT_CMD}
 
 .include <bsd.kmod.mk>
