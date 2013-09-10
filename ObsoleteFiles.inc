@@ -39,8 +39,14 @@
 # done
 
 # 20130908: libssh becomes private
+OLD_FILES+=usr/lib/libssh.a
+OLD_FILES+=usr/lib/libssh.so
 OLD_LIBS+=usr/lib/libssh.so.5
+OLD_FILES+=usr/lib/libssh_p.a
+OLD_FILES+=usr/lib32/libssh.a
+OLD_FILES+=usr/lib32/libssh.so
 OLD_LIBS+=usr/lib32/libssh.so.5
+OLD_FILES+=usr/lib32/libssh_p.a
 # 20130903: gnupatch is no more
 OLD_FILES+=usr/bin/gnupatch
 OLD_FILES+=usr/share/man/man1/gnupatch.1.gz
