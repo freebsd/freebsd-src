@@ -32,7 +32,7 @@
 
 TYPE="FreeBSD"
 REVISION="9.2"
-BRANCH="RC3"
+BRANCH="RC3-p1"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
