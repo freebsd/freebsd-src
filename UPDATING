@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	advised: libc, libprocstat, dhclient, tcpdump, hastd, hastctl,
 	kdump, procstat, rwho, rwhod, uniq.
 
+20130903:
+       AES-NI intrinsic support has been added to gcc.  The AES-NI module
+       has been updated to use this support.  A new gcc is required to build
+       the aesni module on both i386 and amd64.
+
 20130827:
         Thomas Dickey (vendor author thereof) reports that dialog(1) since
         2011/10/18 has a bug in handling --hline. Testers and I noticed the
