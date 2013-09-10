@@ -74,12 +74,13 @@ struct sendfile_test {
 	uint32_t	hdr_length;
 	uint32_t	offset;
 	uint32_t	length;
+	uint32_t	file_size;
 };
 
-int	file_fd;
-char	path[PATH_MAX];
-int	listen_socket;
-int	accept_socket;
+static int	file_fd;
+static char	path[PATH_MAX];
+static int	listen_socket;
+static int	accept_socket;
 
 static int test_th(struct test_header *th, uint32_t *header_length,
 		uint32_t *offset, uint32_t *length);
@@ -92,6 +93,7 @@ static int new_test_socket(int *connect_socket);
 static void init_th(struct test_header *th, uint32_t header_length, 
 		uint32_t offset, uint32_t length);
 static int send_test(int connect_socket, struct sendfile_test);
+static int write_test_file(size_t file_size);
 static void run_parent(void);
 static void cleanup(void);
 
@@ -278,15 +280,12 @@ send_test(int connect_socket, struct sendfile_test test)
 	if (len != 0)
 		FAIL_ERR("lseek")
 
-	if (test.length == 0) {
-		struct stat st;
-		if (fstat(file_fd, &st) < 0)
-			FAIL_ERR("fstat")
-		length = st.st_size - test.offset;
-	}
-	else {
+	struct stat st;
+	if (fstat(file_fd, &st) < 0)
+		FAIL_ERR("fstat")
+	length = st.st_size - test.offset;
+	if (test.length > 0 && test.length < (uint32_t)length)
 		length = test.length;
-	}
 
 	init_th(&th, test.hdr_length, test.offset, length);
 
@@ -336,17 +335,55 @@ send_test(int connect_socket, struct sendfile_test test)
 	return (0);
 }
 
+static int
+write_test_file(size_t file_size)
+{
+	char *page_buffer;
+	ssize_t len;
+	static size_t current_file_size = 0;
+
+	if (file_size == current_file_size)
+		return (0);
+	else if (file_size < current_file_size) {
+		if (ftruncate(file_fd, file_size) != 0)
+			FAIL_ERR("ftruncate");
+		current_file_size = file_size;
+		return (0);
+	}
+
+	page_buffer = malloc(file_size);
+	if (page_buffer == NULL)
+		FAIL_ERR("malloc")
+	bzero(page_buffer, file_size);
+
+	len = write(file_fd, page_buffer, file_size);
+	if (len < 0)
+		FAIL_ERR("write")
+
+	len = lseek(file_fd, 0, SEEK_SET);
+	if (len < 0)
+		FAIL_ERR("lseek")
+	if (len != 0)
+		FAIL("len != 0")
+
+	free(page_buffer);
+	current_file_size = file_size;
+	return (0);
+}
+
 static void
 run_parent(void)
 {
 	int connect_socket;
 	int status;
 	int test_num;
+	int test_count;
 	int pid;
+	size_t desired_file_size = 0;
 
 	const int pagesize = getpagesize();
 
-	struct sendfile_test tests[10] = {
+	struct sendfile_test tests[] = {
  		{ .hdr_length = 0, .offset = 0, .length = 1 },
 		{ .hdr_length = 0, .offset = 0, .length = pagesize },
 		{ .hdr_length = 0, .offset = 1, .length = 1 },
@@ -356,12 +393,23 @@ run_parent(void)
 		{ .hdr_length = 0, .offset = 0, .length = 0 },
 		{ .hdr_length = 0, .offset = pagesize, .length = 0 },
 		{ .hdr_length = 0, .offset = 2*pagesize, .length = 0 },
-		{ .hdr_length = 0, .offset = TEST_PAGES*pagesize, .length = 0 }
+		{ .hdr_length = 0, .offset = TEST_PAGES*pagesize, .length = 0 },
+		{ .hdr_length = 0, .offset = 0, .length = pagesize,
+		    .file_size = 1 }
 	};
 
-	printf("1..10\n");
+	test_count = sizeof(tests) / sizeof(tests[0]);
+	printf("1..%d\n", test_count);
 
-	for (test_num = 1; test_num <= 10; test_num++) {
+	for (test_num = 1; test_num <= test_count; test_num++) {
+
+		desired_file_size = tests[test_num - 1].file_size;
+		if (desired_file_size == 0)
+			desired_file_size = TEST_PAGES * pagesize;
+		if (write_test_file(desired_file_size) != 0) {
+			printf("not ok %d\n", test_num);
+			continue;
+		}
 
 		pid = fork();
 		if (pid == -1) {
@@ -411,17 +459,11 @@ cleanup(void)
 int
 main(int argc, char *argv[])
 {
-	char *page_buffer;
 	int pagesize;
-	ssize_t len;
 
 	*path = '\0';
 
 	pagesize = getpagesize();
-	page_buffer = malloc(TEST_PAGES * pagesize);
-	if (page_buffer == NULL)
-		FAIL_ERR("malloc")
-	bzero(page_buffer, TEST_PAGES * pagesize);
 
 	if (argc == 1) {
 		snprintf(path, PATH_MAX, "/tmp/sendfile.XXXXXXXXXXXX");
@@ -438,16 +480,6 @@ main(int argc, char *argv[])
 	}
 
 	atexit(cleanup);
-
-	len = write(file_fd, page_buffer, TEST_PAGES * pagesize);
-	if (len < 0)
-		FAIL_ERR("write")
-
-	len = lseek(file_fd, 0, SEEK_SET);
-	if (len < 0)
-		FAIL_ERR("lseek")
-	if (len != 0)
-		FAIL("len != 0")
 
 	run_parent();
 	return (0);
