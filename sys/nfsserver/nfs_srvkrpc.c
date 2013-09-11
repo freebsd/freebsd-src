@@ -168,6 +168,7 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfsd_addsock_args addsockarg;
 	struct nfsd_nfsd_args nfsdarg;
+	cap_rights_t rights;
 	int error;
 
 	if (uap->flag & NFSSVC_ADDSOCK) {
@@ -175,7 +176,8 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 		    sizeof(addsockarg));
 		if (error)
 			return (error);
-		error = fget(td, addsockarg.sock, CAP_SOCK_SERVER, &fp);
+		error = fget(td, addsockarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_SERVER), &fp);
 		if (error)
 			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {

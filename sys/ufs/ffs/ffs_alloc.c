@@ -2709,6 +2709,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	long blkcnt, blksize;
 	struct filedesc *fdp;
 	struct file *fp, *vfp;
+	cap_rights_t rights;
 	int filetype, error;
 	static struct fileops *origops, bufferedops;
 
@@ -2718,8 +2719,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
-	if ((error = getvnode(td->td_proc->p_fd, cmd.handle, CAP_FSCK,
-	     &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, cmd.handle,
+	    cap_rights_init(&rights, CAP_FSCK), &fp)) != 0)
 		return (error);
 	vp = fp->f_data;
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
@@ -3033,7 +3034,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		}
 #endif /* DEBUG */
 		if ((error = getvnode(td->td_proc->p_fd, cmd.value,
-		    CAP_FSCK, &vfp)) != 0)
+		    cap_rights_init(&rights, CAP_FSCK), &vfp)) != 0)
 			break;
 		if (vfp->f_vnode->v_type != VCHR) {
 			fdrop(vfp, td);

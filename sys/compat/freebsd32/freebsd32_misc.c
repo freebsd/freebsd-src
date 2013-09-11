@@ -448,9 +448,8 @@ freebsd32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
 		}
 	} else {
 		vm_offset_t addr = trunc_page(start);
-		rv = vm_map_find(map, 0, 0,
-				 &addr, PAGE_SIZE, FALSE, prot,
-				 VM_PROT_ALL, 0);
+		rv = vm_map_find(map, NULL, 0, &addr, PAGE_SIZE, 0,
+		    VMFS_NO_SPACE, prot, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS)
 			return (EINVAL);
 	}
@@ -542,9 +541,8 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 			rv = vm_map_remove(map, start, end);
 			if (rv != KERN_SUCCESS)
 				return (EINVAL);
-			rv = vm_map_find(map, 0, 0,
-					 &start, end - start, FALSE,
-					 prot, VM_PROT_ALL, 0);
+			rv = vm_map_find(map, NULL, 0, &start, end - start,
+			    0, VMFS_NO_SPACE, prot, VM_PROT_ALL, 0);
 			if (rv != KERN_SUCCESS)
 				return (EINVAL);
 			r.fd = fd;
@@ -1650,6 +1648,7 @@ freebsd32_do_sendfile(struct thread *td,
 	struct uio *hdr_uio, *trl_uio;
 	struct iovec32 *iov32;
 	struct file *fp;
+	cap_rights_t rights;
 	off_t offset;
 	int error;
 
@@ -1686,8 +1685,10 @@ freebsd32_do_sendfile(struct thread *td,
 
 	AUDIT_ARG_FD(uap->fd);
 
-	if ((error = fget_read(td, uap->fd, CAP_PREAD, &fp)) != 0)
+	if ((error = fget_read(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
 		goto out;
+	}
 
 	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
 	    uap->nbytes, uap->sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);

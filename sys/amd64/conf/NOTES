@@ -309,6 +309,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
@@ -325,6 +326,7 @@ device  	mthca		# Mellanox HCA InfiniBand
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sfxge		# Solarflare SFC9000 10Gb Ethernet
+device		vmx		# VMware VMXNET3 Ethernet
 device		wpi		# Intel 3945ABG wireless NICs.
 
 # IEEE 802.11 adapter firmware modules

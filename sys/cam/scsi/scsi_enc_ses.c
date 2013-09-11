@@ -567,8 +567,8 @@ ses_cache_free_elm_addlstatus(enc_softc_t *enc, enc_cache_t *cache)
 		return;
 
 	for (cur_elm = cache->elm_map,
-	     last_elm = &cache->elm_map[cache->nelms - 1];
-	     cur_elm <= last_elm; cur_elm++) {
+	     last_elm = &cache->elm_map[cache->nelms];
+	     cur_elm != last_elm; cur_elm++) {
 		ses_element_t *elmpriv;
 
 		elmpriv = cur_elm->elm_private;
@@ -598,8 +598,8 @@ ses_cache_free_elm_descs(enc_softc_t *enc, enc_cache_t *cache)
 		return;
 
 	for (cur_elm = cache->elm_map,
-	     last_elm = &cache->elm_map[cache->nelms - 1];
-	     cur_elm <= last_elm; cur_elm++) {
+	     last_elm = &cache->elm_map[cache->nelms];
+	     cur_elm != last_elm; cur_elm++) {
 		ses_element_t *elmpriv;
 
 		elmpriv = cur_elm->elm_private;
@@ -644,8 +644,8 @@ ses_cache_free_elm_map(enc_softc_t *enc, enc_cache_t *cache)
 	ses_cache_free_elm_descs(enc, cache);
 	ses_cache_free_elm_addlstatus(enc, cache);
 	for (cur_elm = cache->elm_map,
-	     last_elm = &cache->elm_map[cache->nelms - 1];
-	     cur_elm <= last_elm; cur_elm++) {
+	     last_elm = &cache->elm_map[cache->nelms];
+	     cur_elm != last_elm; cur_elm++) {
 
 		ENC_FREE_AND_NULL(cur_elm->elm_private);
 	}
@@ -717,8 +717,8 @@ ses_cache_clone(enc_softc_t *enc, enc_cache_t *src, enc_cache_t *dst)
 	dst->elm_map = ENC_MALLOCZ(dst->nelms * sizeof(enc_element_t));
 	memcpy(dst->elm_map, src->elm_map, dst->nelms * sizeof(enc_element_t));
 	for (dst_elm = dst->elm_map, src_elm = src->elm_map,
-	     last_elm = &src->elm_map[src->nelms - 1];
-	     src_elm <= last_elm; src_elm++, dst_elm++) {
+	     last_elm = &src->elm_map[src->nelms];
+	     src_elm != last_elm; src_elm++, dst_elm++) {
 
 		dst_elm->elm_private = ENC_MALLOCZ(sizeof(ses_element_t));
 		memcpy(dst_elm->elm_private, src_elm->elm_private,
@@ -1555,6 +1555,18 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		ENC_VLOG(enc, "Enclosure Status Page Too Long\n");
 		goto out;
 	}
+
+	/* Check for simple enclosure reporting short enclosure status. */
+	if (length >= 4 && page->hdr.page_code == SesShortStatus) {
+		ENC_DLOG(enc, "Got Short Enclosure Status page\n");
+		ses->ses_flags &= ~(SES_FLAG_ADDLSTATUS | SES_FLAG_DESC);
+		ses_cache_free(enc, enc_cache);
+		enc_cache->enc_status = page->hdr.page_specific_flags;
+		enc_update_request(enc, SES_PUBLISH_CACHE);
+		err = 0;
+		goto out;
+	}
+
 	/* Make sure the length contains at least one header and status */
 	if (length < (sizeof(*page) + sizeof(*page->elements))) {
 		ENC_VLOG(enc, "Enclosure Status Page Too Short\n");

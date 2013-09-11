@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark R. V. Murray
+ * Copyright (c) 2000-2013 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,8 +42,11 @@ enum esource {
 	RANDOM_WRITE = 0,
 	RANDOM_KEYBOARD,
 	RANDOM_MOUSE,
-	RANDOM_NET,
+	RANDOM_NET_TUN,
+	RANDOM_NET_ETHER,
+	RANDOM_NET_NG,
 	RANDOM_INTERRUPT,
+	RANDOM_SWI,
 	RANDOM_PURE,
 	ENTROPYSOURCE
 };
@@ -57,6 +60,7 @@ struct harvest_select {
 	int point_to_point;
 	int interrupt;
 	int swi;
+	int namei;
 };
 
 extern struct harvest_select harvest;

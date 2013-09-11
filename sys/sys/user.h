@@ -61,6 +61,7 @@
 #ifndef _SYS_SOCKET_VAR_H_
 #include <sys/socket.h>
 #endif
+#include <sys/caprights.h>
 
 /*
  * KERN_PROC subtype ops return arrays of selected proc structure entries:
@@ -318,7 +319,7 @@ struct kinfo_ofile {
 };
 
 #if defined(__amd64__) || defined(__i386__)
-#define	KINFO_FILE_SIZE	1392
+#define	KINFO_FILE_SIZE	1424
 #endif
 
 struct kinfo_file {
@@ -389,6 +390,7 @@ struct kinfo_file {
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
 	int		_kf_ispare0;		/* Space for more stuff. */
 	cap_rights_t	kf_cap_rights;		/* Capability rights. */
+	uint64_t	_kf_cap_spare[3];	/* Space for future cap_rights_t. */
 	int		_kf_ispare[4];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */

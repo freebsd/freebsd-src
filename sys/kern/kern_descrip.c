@@ -455,6 +455,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct filedescent *fde;
 	struct proc *p;
 	struct vnode *vp;
+	cap_rights_t rights;
 	int error, flg, tmp;
 	u_int old, new;
 	uint64_t bsize;
@@ -515,7 +516,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFL:
-		error = fget_unlocked(fdp, fd, CAP_FCNTL, F_GETFL, &fp, NULL);
+		error = fget_unlocked(fdp, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_GETFL, &fp, NULL);
 		if (error != 0)
 			break;
 		td->td_retval[0] = OFLAGS(fp->f_flag);
@@ -523,7 +525,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETFL:
-		error = fget_unlocked(fdp, fd, CAP_FCNTL, F_SETFL, &fp, NULL);
+		error = fget_unlocked(fdp, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_SETFL, &fp, NULL);
 		if (error != 0)
 			break;
 		do {
@@ -550,7 +553,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETOWN:
-		error = fget_unlocked(fdp, fd, CAP_FCNTL, F_GETOWN, &fp, NULL);
+		error = fget_unlocked(fdp, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_GETOWN, &fp, NULL);
 		if (error != 0)
 			break;
 		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
@@ -560,7 +564,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETOWN:
-		error = fget_unlocked(fdp, fd, CAP_FCNTL, F_SETOWN, &fp, NULL);
+		error = fget_unlocked(fdp, fd,
+		    cap_rights_init(&rights, CAP_FCNTL), F_SETOWN, &fp, NULL);
 		if (error != 0)
 			break;
 		tmp = arg;
@@ -581,7 +586,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETLK:
 	do_setlk:
-		error = fget_unlocked(fdp, fd, CAP_FLOCK, 0, &fp, NULL);
+		cap_rights_init(&rights, CAP_FLOCK);
+		error = fget_unlocked(fdp, fd, &rights, 0, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -670,7 +676,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * that the closing thread was a bit slower and that the
 		 * advisory lock succeeded before the close.
 		 */
-		error = fget_unlocked(fdp, fd, 0, 0, &fp2, NULL);
+		error = fget_unlocked(fdp, fd, &rights, 0, &fp2, NULL);
 		if (error != 0) {
 			fdrop(fp, td);
 			break;
@@ -688,7 +694,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETLK:
-		error = fget_unlocked(fdp, fd, CAP_FLOCK, 0, &fp, NULL);
+		error = fget_unlocked(fdp, fd,
+		    cap_rights_init(&rights, CAP_FLOCK), 0, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -726,7 +733,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		arg = arg ? 128 * 1024: 0;
 		/* FALLTHROUGH */
 	case F_READAHEAD:
-		error = fget_unlocked(fdp, fd, 0, 0, &fp, NULL);
+		error = fget_unlocked(fdp, fd, NULL, 0, &fp, NULL);
 		if (error != 0)
 			break;
 		if (fp->f_type != DTYPE_VNODE) {
@@ -1281,11 +1288,13 @@ int
 kern_fstat(struct thread *td, int fd, struct stat *sbp)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(fd);
 
-	if ((error = fget(td, fd, CAP_FSTAT, &fp)) != 0)
+	error = fget(td, fd, cap_rights_init(&rights, CAP_FSTAT), &fp);
+	if (error != 0)
 		return (error);
 
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -1339,9 +1348,11 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 {
 	struct file *fp;
 	struct vnode *vp;
+	cap_rights_t rights;
 	int error;
 
-	if ((error = fget(td, uap->fd, CAP_FPATHCONF, &fp)) != 0)
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FPATHCONF), &fp);
+	if (error != 0)
 		return (error);
 
 	/* If asynchronous I/O is available, it works for all descriptors. */
@@ -1417,7 +1428,7 @@ static void
 filecaps_fill(struct filecaps *fcaps)
 {
 
-	fcaps->fc_rights = CAP_ALL;
+	CAP_ALL(&fcaps->fc_rights);
 	fcaps->fc_ioctls = NULL;
 	fcaps->fc_nioctls = -1;
 	fcaps->fc_fcntls = CAP_FCNTL_ALL;
@@ -1441,16 +1452,18 @@ static void
 filecaps_validate(const struct filecaps *fcaps, const char *func)
 {
 
-	KASSERT((fcaps->fc_rights & ~CAP_MASK_VALID) == 0,
+	KASSERT(cap_rights_is_valid(&fcaps->fc_rights),
 	    ("%s: invalid rights", func));
 	KASSERT((fcaps->fc_fcntls & ~CAP_FCNTL_ALL) == 0,
 	    ("%s: invalid fcntls", func));
-	KASSERT(fcaps->fc_fcntls == 0 || (fcaps->fc_rights & CAP_FCNTL) != 0,
+	KASSERT(fcaps->fc_fcntls == 0 ||
+	    cap_rights_is_set(&fcaps->fc_rights, CAP_FCNTL),
 	    ("%s: fcntls without CAP_FCNTL", func));
 	KASSERT(fcaps->fc_ioctls != NULL ? fcaps->fc_nioctls > 0 :
 	    (fcaps->fc_nioctls == -1 || fcaps->fc_nioctls == 0),
 	    ("%s: invalid ioctls", func));
-	KASSERT(fcaps->fc_nioctls == 0 || (fcaps->fc_rights & CAP_IOCTL) != 0,
+	KASSERT(fcaps->fc_nioctls == 0 ||
+	    cap_rights_is_set(&fcaps->fc_rights, CAP_IOCTL),
 	    ("%s: ioctls without CAP_IOCTL", func));
 }
 
@@ -2285,7 +2298,7 @@ finit(struct file *fp, u_int flag, short type, void *data, struct fileops *ops)
 }
 
 int
-fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t needrights,
+fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     int needfcntl, struct file **fpp, cap_rights_t *haverightsp)
 {
 	struct file *fp;
@@ -2310,14 +2323,16 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t needrights,
 		if (fp == NULL)
 			return (EBADF);
 #ifdef CAPABILITIES
-		haverights = cap_rights(fdp, fd);
-		error = cap_check(haverights, needrights);
-		if (error != 0)
-			return (error);
-		if ((needrights & CAP_FCNTL) != 0) {
-			error = cap_fcntl_check(fdp, fd, needfcntl);
+		haverights = *cap_rights(fdp, fd);
+		if (needrightsp != NULL) {
+			error = cap_check(&haverights, needrightsp);
 			if (error != 0)
 				return (error);
+			if (cap_rights_is_set(needrightsp, CAP_FCNTL)) {
+				error = cap_fcntl_check(fdp, fd, needfcntl);
+				if (error != 0)
+					return (error);
+			}
 		}
 #endif
 		count = fp->f_count;
@@ -2338,7 +2353,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t needrights,
 #ifdef CAPABILITIES
 		*haverightsp = haverights;
 #else
-		*haverightsp = CAP_ALL;
+		CAP_ALL(haverightsp);
 #endif
 	}
 	return (0);
@@ -2359,19 +2374,23 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t needrights,
  */
 static __inline int
 _fget(struct thread *td, int fd, struct file **fpp, int flags,
-    cap_rights_t needrights, u_char *maxprotp)
+    cap_rights_t *needrightsp, u_char *maxprotp)
 {
 	struct filedesc *fdp;
 	struct file *fp;
-	cap_rights_t haverights;
+	cap_rights_t haverights, needrights;
 	int error;
 
 	*fpp = NULL;
 	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
 		return (EBADF);
+	if (needrightsp != NULL)
+		needrights = *needrightsp;
+	else
+		cap_rights_init(&needrights);
 	if (maxprotp != NULL)
-		needrights |= CAP_MMAP;
-	error = fget_unlocked(fdp, fd, needrights, 0, &fp, &haverights);
+		cap_rights_set(&needrights, CAP_MMAP);
+	error = fget_unlocked(fdp, fd, &needrights, 0, &fp, &haverights);
 	if (error != 0)
 		return (error);
 	if (fp->f_ops == &badfileops) {
@@ -2384,7 +2403,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 	 * If requested, convert capability rights to access flags.
 	 */
 	if (maxprotp != NULL)
-		*maxprotp = cap_rights_to_vmprot(haverights);
+		*maxprotp = cap_rights_to_vmprot(&haverights);
 #else /* !CAPABILITIES */
 	if (maxprotp != NULL)
 		*maxprotp = VM_PROT_ALL;
@@ -2421,32 +2440,32 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags,
 }
 
 int
-fget(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
+fget(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, 0, rights, NULL));
+	return(_fget(td, fd, fpp, 0, rightsp, NULL));
 }
 
 int
-fget_mmap(struct thread *td, int fd, cap_rights_t rights, u_char *maxprotp,
+fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp, u_char *maxprotp,
     struct file **fpp)
 {
 
-	return (_fget(td, fd, fpp, 0, rights, maxprotp));
+	return (_fget(td, fd, fpp, 0, rightsp, maxprotp));
 }
 
 int
-fget_read(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
+fget_read(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 
-	return(_fget(td, fd, fpp, FREAD, rights, NULL));
+	return(_fget(td, fd, fpp, FREAD, rightsp, NULL));
 }
 
 int
-fget_write(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
+fget_write(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
 {
 
-	return (_fget(td, fd, fpp, FWRITE, rights, NULL));
+	return (_fget(td, fd, fpp, FWRITE, rightsp, NULL));
 }
 
 /*
@@ -2457,15 +2476,15 @@ fget_write(struct thread *td, int fd, cap_rights_t rights, struct file **fpp)
  * XXX: what about the unused flags ?
  */
 static __inline int
-_fgetvp(struct thread *td, int fd, int flags, cap_rights_t needrights,
+_fgetvp(struct thread *td, int fd, int flags, cap_rights_t *needrightsp,
     struct vnode **vpp)
 {
 	struct file *fp;
 	int error;
 
 	*vpp = NULL;
-	error = _fget(td, fd, &fp, flags, needrights, NULL);
-	if (error)
+	error = _fget(td, fd, &fp, flags, needrightsp, NULL);
+	if (error != 0)
 		return (error);
 	if (fp->f_vnode == NULL) {
 		error = EINVAL;
@@ -2479,14 +2498,14 @@ _fgetvp(struct thread *td, int fd, int flags, cap_rights_t needrights,
 }
 
 int
-fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
+fgetvp(struct thread *td, int fd, cap_rights_t *rightsp, struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, 0, rights, vpp));
+	return (_fgetvp(td, fd, 0, rightsp, vpp));
 }
 
 int
-fgetvp_rights(struct thread *td, int fd, cap_rights_t need,
+fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
     struct filecaps *havecaps, struct vnode **vpp)
 {
 	struct filedesc *fdp;
@@ -2503,9 +2522,11 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t need,
 		return (EBADF);
 
 #ifdef CAPABILITIES
-	error = cap_check(cap_rights(fdp, fd), need);
-	if (error != 0)
-		return (error);
+	if (needrightsp != NULL) {
+		error = cap_check(cap_rights(fdp, fd), needrightsp);
+		if (error != 0)
+			return (error);
+	}
 #endif
 
 	if (fp->f_vnode == NULL)
@@ -2519,26 +2540,26 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t need,
 }
 
 int
-fgetvp_read(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
+fgetvp_read(struct thread *td, int fd, cap_rights_t *rightsp, struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, FREAD, rights, vpp));
+	return (_fgetvp(td, fd, FREAD, rightsp, vpp));
 }
 
 int
-fgetvp_exec(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp)
+fgetvp_exec(struct thread *td, int fd, cap_rights_t *rightsp, struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, FEXEC, rights, vpp));
+	return (_fgetvp(td, fd, FEXEC, rightsp, vpp));
 }
 
 #ifdef notyet
 int
-fgetvp_write(struct thread *td, int fd, cap_rights_t rights,
+fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp)
 {
 
-	return (_fgetvp(td, fd, FWRITE, rights, vpp));
+	return (_fgetvp(td, fd, FWRITE, rightsp, vpp));
 }
 #endif
 
@@ -2554,7 +2575,7 @@ fgetvp_write(struct thread *td, int fd, cap_rights_t rights,
  * during use.
  */
 int
-fgetsock(struct thread *td, int fd, cap_rights_t rights, struct socket **spp,
+fgetsock(struct thread *td, int fd, cap_rights_t *rightsp, struct socket **spp,
     u_int *fflagp)
 {
 	struct file *fp;
@@ -2563,7 +2584,7 @@ fgetsock(struct thread *td, int fd, cap_rights_t rights, struct socket **spp,
 	*spp = NULL;
 	if (fflagp != NULL)
 		*fflagp = 0;
-	if ((error = _fget(td, fd, &fp, 0, rights, NULL)) != 0)
+	if ((error = _fget(td, fd, &fp, 0, rightsp, NULL)) != 0)
 		return (error);
 	if (fp->f_type != DTYPE_SOCKET) {
 		error = ENOTSOCK;
@@ -2637,9 +2658,11 @@ sys_flock(struct thread *td, struct flock_args *uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
+	cap_rights_t rights;
 	int error;
 
-	if ((error = fget(td, uap->fd, CAP_FLOCK, &fp)) != 0)
+	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_FLOCK), &fp);
+	if (error != 0)
 		return (error);
 	if (fp->f_type != DTYPE_VNODE) {
 		fdrop(fp, td);
@@ -3185,7 +3208,7 @@ struct export_fd_buf {
 
 static int
 export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
-    int64_t offset, cap_rights_t fd_cap_rights, struct export_fd_buf *efbuf)
+    int64_t offset, cap_rights_t *rightsp, struct export_fd_buf *efbuf)
 {
 	struct {
 		int	fflag;
@@ -3259,7 +3282,10 @@ export_fd_to_sb(void *data, int type, int fd, int fflags, int refcnt,
 	for (i = 0; i < NFFLAGS; i++)
 		if (fflags & fflags_table[i].fflag)
 			kif->kf_flags |=  fflags_table[i].kf_fflag;
-	kif->kf_cap_rights = fd_cap_rights;
+	if (rightsp != NULL)
+		kif->kf_cap_rights = *rightsp;
+	else
+		cap_rights_init(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_type = type;
 	kif->kf_ref_count = refcnt;
@@ -3302,7 +3328,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 	void *data;
 	int error, i;
 	int type, refcnt, fflags;
-	cap_rights_t fd_cap_rights;
+	cap_rights_t rights;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -3329,13 +3355,13 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 	efbuf->remainder = maxlen;
 	if (tracevp != NULL)
 		export_fd_to_sb(tracevp, KF_TYPE_VNODE, KF_FD_TYPE_TRACE,
-		    FREAD | FWRITE, -1, -1, 0, efbuf);
+		    FREAD | FWRITE, -1, -1, NULL, efbuf);
 	if (textvp != NULL)
 		export_fd_to_sb(textvp, KF_TYPE_VNODE, KF_FD_TYPE_TEXT,
-		    FREAD, -1, -1, 0, efbuf);
+		    FREAD, -1, -1, NULL, efbuf);
 	if (cttyvp != NULL)
 		export_fd_to_sb(cttyvp, KF_TYPE_VNODE, KF_FD_TYPE_CTTY,
-		    FREAD | FWRITE, -1, -1, 0, efbuf);
+		    FREAD | FWRITE, -1, -1, NULL, efbuf);
 	error = 0;
 	if (fdp == NULL)
 		goto fail;
@@ -3346,30 +3372,30 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		vref(fdp->fd_cdir);
 		data = fdp->fd_cdir;
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_CWD,
-		    FREAD, -1, -1, 0, efbuf);
+		    FREAD, -1, -1, NULL, efbuf);
 	}
 	/* root directory */
 	if (fdp->fd_rdir != NULL) {
 		vref(fdp->fd_rdir);
 		data = fdp->fd_rdir;
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_ROOT,
-		    FREAD, -1, -1, 0, efbuf);
+		    FREAD, -1, -1, NULL, efbuf);
 	}
 	/* jail directory */
 	if (fdp->fd_jdir != NULL) {
 		vref(fdp->fd_jdir);
 		data = fdp->fd_jdir;
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
-		    FREAD, -1, -1, 0, efbuf);
+		    FREAD, -1, -1, NULL, efbuf);
 	}
 	for (i = 0; i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		data = NULL;
 #ifdef CAPABILITIES
-		fd_cap_rights = cap_rights(fdp, i);
+		rights = *cap_rights(fdp, i);
 #else /* !CAPABILITIES */
-		fd_cap_rights = 0;
+		cap_rights_init(&rights);
 #endif
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
@@ -3443,8 +3469,8 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		 * the loop continues.
 		 */
 		error = export_fd_to_sb(data, type, i, fflags, refcnt,
-		    offset, fd_cap_rights, efbuf);
-		if (error)
+		    offset, &rights, efbuf);
+		if (error != 0)
 			break;
 	}
 	FILEDESC_SUNLOCK(fdp);

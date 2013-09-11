@@ -1726,6 +1726,7 @@ sys_pdkill(td, uap)
 {
 #ifdef PROCDESC
 	struct proc *p;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_SIGNUM(uap->signum);
@@ -1733,7 +1734,8 @@ sys_pdkill(td, uap)
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
-	error = procdesc_find(td, uap->fd, CAP_PDKILL, &p);
+	error = procdesc_find(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PDKILL), &p);
 	if (error)
 		return (error);
 	AUDIT_ARG_PROCESS(p);
