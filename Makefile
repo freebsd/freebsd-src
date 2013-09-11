@@ -505,4 +505,10 @@ buildLINT:
 # make sure things we run from here don't either
 WITHOUT_META_MODE=
 .export WITHOUT_META_MODE
+
+.if make(universe)
+# we do not want a failure of one branch abort all.
+MAKE_JOB_ERROR_TOKEN= no
+.export MAKE_JOB_ERROR_TOKEN
+.endif
 .endif

@@ -263,7 +263,7 @@ uintptr_t	moea64_scratchpage_pte[2];
 struct	mtx	moea64_scratchpage_mtx;
 
 uint64_t 	moea64_large_page_mask = 0;
-int		moea64_large_page_size = 0;
+uint64_t	moea64_large_page_size = 0;
 int		moea64_large_page_shift = 0;
 
 /*
@@ -546,12 +546,9 @@ moea64_probe_large_page(void)
 		powerpc_sync(); isync();
 		
 		/* FALLTHROUGH */
-	case IBMCELLBE:
+	default:
 		moea64_large_page_size = 0x1000000; /* 16 MB */
 		moea64_large_page_shift = 24;
-		break;
-	default:
-		moea64_large_page_size = 0;
 	}
 
 	moea64_large_page_mask = moea64_large_page_size - 1;

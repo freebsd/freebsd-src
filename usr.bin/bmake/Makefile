@@ -167,6 +167,7 @@ accept test:
 # override some simple things
 BINDIR= /usr/bin
 MANDIR= /usr/share/man/man
+DEFAULT_SYS_PATH= /usr/share/mk
 
 # make sure we get this
 CFLAGS+= ${COPTS.${.IMPSRC:T}}

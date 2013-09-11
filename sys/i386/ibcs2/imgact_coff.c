@@ -128,7 +128,7 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 
 	if (map_len != 0) {
 		error = vm_map_find(&vmspace->vm_map, NULL, 0, &map_addr,
-		    map_len, VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		    map_len, 0, VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (error)
 			return (vm_mmap_to_errno(error));
 	}
@@ -473,7 +473,7 @@ exec_coff_imgact(imgp)
         DPRINTF(("imgact: error = %d\n", error));
 
 	vm_map_find(&vmspace->vm_map, NULL, 0,
-	    (vm_offset_t *)&hole, PAGE_SIZE, VMFS_NO_SPACE,
+	    (vm_offset_t *)&hole, PAGE_SIZE, 0, VMFS_NO_SPACE,
 	    VM_PROT_ALL, VM_PROT_ALL, 0);
 	DPRINTF(("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%p end = 0x%p\n",
 		ctob(vmspace->vm_dsize), vmspace->vm_daddr,

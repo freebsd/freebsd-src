@@ -1693,6 +1693,12 @@ brelse(struct buf *bp)
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
 				VM_OBJECT_WLOCK(obj);
+				while (vm_page_xbusied(m)) {
+					vm_page_lock(m);
+					VM_OBJECT_WUNLOCK(obj);
+					vm_page_busy_sleep(m, "mbncsh");
+					VM_OBJECT_WLOCK(obj);
+				}
 				if (pmap_page_wired_mappings(m) == 0)
 					vm_page_set_invalid(m, poffset, presid);
 				VM_OBJECT_WUNLOCK(obj);

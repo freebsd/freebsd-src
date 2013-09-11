@@ -361,8 +361,6 @@ tuncreate(const char *name, struct cdev *dev)
 	struct tun_softc *sc;
 	struct ifnet *ifp;
 
-	dev->si_flags &= ~SI_CHEAPCLONE;
-
 	sc = malloc(sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	mtx_init(&sc->tun_mtx, "tun_mtx", NULL, MTX_DEF);
 	cv_init(&sc->tun_cv, "tun_condvar");
@@ -553,10 +551,6 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		tuninit(ifp);
 		TUNDEBUG(ifp, "address set\n");
-		break;
-	case SIOCSIFDSTADDR:
-		tuninit(ifp);
-		TUNDEBUG(ifp, "destination address set\n");
 		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
@@ -922,9 +916,8 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
-		random_harvest(m, 16, 3, 0, RANDOM_NET);
+		random_harvest(&(m->m_data), 12, 3, 0, RANDOM_NET_TUN);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
 	CURVNET_SET(ifp->if_vnet);

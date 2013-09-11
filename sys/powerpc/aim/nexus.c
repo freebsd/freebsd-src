@@ -195,7 +195,8 @@ static driver_t nexus_driver = {
 
 static devclass_t nexus_devclass;
 
-DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static int
 nexus_probe(device_t dev)
@@ -216,7 +217,7 @@ nexus_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	start = 0;
-	end = MAX_PICS*INTR_VECTORS - 1;
+	end = ~0;
 
 	sc->sc_rman.rm_start = start;
 	sc->sc_rman.rm_end = end;

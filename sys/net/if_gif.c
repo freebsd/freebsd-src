@@ -687,9 +687,6 @@ gif_ioctl(ifp, cmd, data)
 		ifp->if_flags |= IFF_UP;
 		break;
 		
-	case SIOCSIFDSTADDR:
-		break;
-
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2013
+.Dd September 6, 2013
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -203,6 +203,19 @@
 .Op device id
 .Op generic args
 .Op Fl q
+.Op Fl r
+.Op Fl w
+.Op Fl y
+.Nm
+.Ic sanitize
+.Op device id
+.Op generic args
+.Aq Fl a Ar overwrite | block | crypto | exitfailure
+.Op Fl c Ar passes
+.Op Fl I
+.Op Fl P Ar pattern
+.Op Fl q
+.Op Fl U
 .Op Fl r
 .Op Fl w
 .Op Fl y
@@ -649,7 +662,8 @@ request and not expect CRC bytes to be returned in the response.
 .Bl -tag -width 17n
 .It Fl r Ar len Ar fmt Op args
 This specifies the size of the SMP request, without the CRC bytes, and the
-SMP request format.  If the format is
+SMP request format.
+If the format is
 .Sq - ,
 .Ar len
 bytes of data will be read from standard input and written as the SMP
@@ -1088,16 +1102,132 @@ The user
 will not be asked about the timeout if a timeout is specified on the
 command line.
 .El
+.It Ic sanitize
+Issue the
+.Tn SCSI
+SANITIZE command to the named device.
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+ALL data in the cache and on the disk will be destroyed or made inaccessible.
+Recovery of the data is not possible.
+Use extreme caution when issuing this command.
+.Pp
+The
+.Sq sanitize
+subcommand takes several arguments that modify its default behavior.
+The
+.Fl q
+and
+.Fl y
+arguments can be useful for scripts.
+.Bl -tag -width 6n
+.It Fl a Ar operation
+Specify the sanitize operation to perform.
+.Bl -tag -width 16n
+.It overwrite
+Perform an overwrite operation by writing a user supplied
+data pattern to the device one or more times.
+The pattern is given by the
+.Fl P
+argument.
+The number of times is given by the
+.Fl c
+argument.
+.It block
+Perform a block erase operation.
+All the device's blocks are set to a vendor defined
+value, typically zero.
+.It crypto
+Perform a cryptographic erase operation.
+The encryption keys are changed to prevent the decryption
+of the data.
+.It exitfailure
+Exits a previously failed sanitize operation.
+A failed sanitize operation can only be exited if it was
+run in the unrestricted completion mode, as provided by the
+.Fl U
+argument.
+.El
+.It Fl c Ar passes
+The number of passes when performing an
+.Sq overwrite
+operation.
+Valid values are between 1 and 31.
+The default is 1.
+.It Fl I
+When performing an
+.Sq overwrite
+operation, the pattern is inverted between consecutive passes.
+.It Fl P Ar pattern
+Path to the file containing the pattern to use when
+performing an
+.Sq overwrite
+operation.
+The pattern is repeated as needed to fill each block.
+.It Fl q
+Be quiet, do not print any status messages.
+This option will not disable
+the questions, however.
+To disable questions, use the
+.Fl y
+argument, below.
+.It Fl U
+Perform the sanitize in the unrestricted completion mode.
+If the operation fails, it can later be exited with the
+.Sq exitfailure
+operation.
+.It Fl r
+Run in
+.Dq report only
+mode.
+This will report status on a sanitize that is already running on the drive.
+.It Fl w
+Issue a non-immediate sanitize command.
+By default,
+.Nm
+issues the SANITIZE command with the immediate bit set.
+This tells the
+device to immediately return the sanitize command, before
+the sanitize has actually completed.
+Then,
+.Nm
+gathers
+.Tn SCSI
+sense information from the device every second to determine how far along
+in the sanitize process it is.
+If the
+.Fl w
+argument is specified,
+.Nm
+will issue a non-immediate sanitize command, and will be unable to print any
+information to let the user know what percentage of the disk has been
+sanitized.
+.It Fl y
+Do not ask any questions.
+By default,
+.Nm
+will ask the user if he/she really wants to sanitize the disk in question,
+and also if the default sanitize command timeout is acceptable.
+The user
+will not be asked about the timeout if a timeout is specified on the
+command line.
+.El
 .It Ic idle
-Put ATA device into IDLE state. Optional parameter
+Put ATA device into IDLE state.
+Optional parameter
 .Pq Fl t
-specifies automatic standby timer value in seconds. Value 0 disables timer.
+specifies automatic standby timer value in seconds.
+Value 0 disables timer.
 .It Ic standby
-Put ATA device into STANDBY state. Optional parameter
+Put ATA device into STANDBY state.
+Optional parameter
 .Pq Fl t
-specifies automatic standby timer value in seconds. Value 0 disables timer.
+specifies automatic standby timer value in seconds.
+Value 0 disables timer.
 .It Ic sleep
-Put ATA device into SLEEP state. Note that the only way get device out of
+Put ATA device into SLEEP state.
+Note that the only way get device out of
 this state may be reset.
 .It Ic security
 Update or report security settings, using an ATA identify command (0xec).
@@ -1123,7 +1253,8 @@ Issuing a secure erase will
 user data on the device and may take several hours to complete.
 .Pp
 When this command is used against an SSD drive all its cells will be marked as
-empty, restoring it to factory default write performance. For SSD's this action
+empty, restoring it to factory default write performance.
+For SSD's this action
 usually takes just a few seconds.
 .It Fl f
 .Pp
@@ -1153,8 +1284,10 @@ the devices configured security level.
 .Pp
 Specifies which security level to set when issuing a
 .Fl s Ar pwd
-command. The security level determines device behavior when the master
-password is used to unlock the device. When the security level is set to high
+command.
+The security level determines device behavior when the master
+password is used to unlock the device.
+When the security level is set to high
 the device requires the unlock command and the master password to unlock.
 When the security level is set to maximum the device requires a secure erase
 with the master password to unlock.
@@ -1173,7 +1306,8 @@ argument, below.
 .It Fl s Ar pwd
 .Pp
 Password the device (enable security) using the given password for the selected
-user. This option can be combined with other options such as
+user.
+This option can be combined with other options such as
 .Fl e Em pwd
 .Pp
 A master password may be set in a addition to the user password. The purpose of
@@ -1212,7 +1346,7 @@ Confirm yes to dangerous options such as
 without prompting for confirmation.
 .Pp
 .El
-If the password specified for any action commands doesn't match the configured
+If the password specified for any action commands does not match the configured
 password for the specified user the command will fail.
 .Pp
 The password in all cases is limited to 32 characters, longer passwords will
@@ -1269,7 +1403,7 @@ call can be made without a power-on reset or a hardware reset of the device.
 .It Fl U Ar pwd
 .Pp
 Unlock the HPA configuration of the specified device using the given password.
-If the password specified doesn't match the password configured via
+If the password specified does not match the password configured via
 .Fl p Ar pwd
 the command will fail.
 .Pp
@@ -1299,6 +1433,8 @@ IBM
 PLEXTOR
 .It
 QUANTUM
+.It
+SAMSUNG
 .It
 SEAGATE
 .El
@@ -1474,7 +1610,7 @@ This will
 .Em ERASE ALL
 data from the device, so backup your data before using!
 .Pp
-This command can be used used against an SSD drive to restoring it to
+This command can be used against an SSD drive to restoring it to
 factory default write performance.
 .Bd -literal -offset indent
 camcontrol hpa ada0

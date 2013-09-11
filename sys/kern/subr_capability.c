@@ -51,7 +51,10 @@ __FBSDID("$FreeBSD$");
 #define	assert(exp)	KASSERT((exp), ("%s:%u", __func__, __LINE__))
 #endif
 
-static __inline unsigned int
+#define	CAPARSIZE_MIN	(CAP_RIGHTS_VERSION_00 + 2)
+#define	CAPARSIZE_MAX	(CAP_RIGHTS_VERSION + 2)
+
+static __inline int
 right_to_index(uint64_t right)
 {
 	static const int bit2idx[] = {
@@ -61,23 +64,20 @@ right_to_index(uint64_t right)
 	int idx;
 
 	idx = CAPIDXBIT(right);
-	assert(idx == 1 || idx == 2 || idx == 4 || idx == 8 || idx == 16);
-
-	idx = bit2idx[idx];
-	assert(idx >= 0 && idx <= 4);
-
-	return ((unsigned int)idx);
+	assert(idx >= 0 && idx < sizeof(bit2idx) / sizeof(bit2idx[0]));
+	return (bit2idx[idx]);
 }
 
 static void
 cap_rights_vset(cap_rights_t *rights, va_list ap)
 {
-	unsigned int i, n;
 	uint64_t right;
+	int i, n;
 
 	assert(CAPVER(rights) == CAP_RIGHTS_VERSION_00);
 
 	n = CAPARSIZE(rights);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 
 	for (;;) {
 		right = (uint64_t)va_arg(ap, unsigned long long);
@@ -85,6 +85,7 @@ cap_rights_vset(cap_rights_t *rights, va_list ap)
 			break;
 		assert(CAPRVER(right) == 0);
 		i = right_to_index(right);
+		assert(i >= 0);
 		assert(i < n);
 		assert(CAPIDXBIT(rights->cr_rights[i]) == CAPIDXBIT(right));
 		rights->cr_rights[i] |= right;
@@ -95,12 +96,13 @@ cap_rights_vset(cap_rights_t *rights, va_list ap)
 static void
 cap_rights_vclear(cap_rights_t *rights, va_list ap)
 {
-	unsigned int i, n;
 	uint64_t right;
+	int i, n;
 
 	assert(CAPVER(rights) == CAP_RIGHTS_VERSION_00);
 
 	n = CAPARSIZE(rights);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 
 	for (;;) {
 		right = (uint64_t)va_arg(ap, unsigned long long);
@@ -108,6 +110,7 @@ cap_rights_vclear(cap_rights_t *rights, va_list ap)
 			break;
 		assert(CAPRVER(right) == 0);
 		i = right_to_index(right);
+		assert(i >= 0);
 		assert(i < n);
 		assert(CAPIDXBIT(rights->cr_rights[i]) == CAPIDXBIT(right));
 		rights->cr_rights[i] &= ~(right & 0x01FFFFFFFFFFFFFFULL);
@@ -118,12 +121,13 @@ cap_rights_vclear(cap_rights_t *rights, va_list ap)
 static bool
 cap_rights_is_vset(const cap_rights_t *rights, va_list ap)
 {
-	unsigned int i, n;
 	uint64_t right;
+	int i, n;
 
 	assert(CAPVER(rights) == CAP_RIGHTS_VERSION_00);
 
 	n = CAPARSIZE(rights);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 
 	for (;;) {
 		right = (uint64_t)va_arg(ap, unsigned long long);
@@ -131,6 +135,7 @@ cap_rights_is_vset(const cap_rights_t *rights, va_list ap)
 			break;
 		assert(CAPRVER(right) == 0);
 		i = right_to_index(right);
+		assert(i >= 0);
 		assert(i < n);
 		assert(CAPIDXBIT(rights->cr_rights[i]) == CAPIDXBIT(right));
 		if ((rights->cr_rights[i] & right) != right)
@@ -149,6 +154,7 @@ __cap_rights_init(int version, cap_rights_t *rights, ...)
 	assert(version == CAP_RIGHTS_VERSION_00);
 
 	n = version + 2;
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 	memset(rights->cr_rights, 0, sizeof(rights->cr_rights[0]) * n);
 	CAP_NONE(rights);
 	va_start(ap, rights);
@@ -201,10 +207,14 @@ bool
 cap_rights_is_valid(const cap_rights_t *rights)
 {
 	cap_rights_t allrights;
-	unsigned int i, j;
+	int i, j;
 
 	if (CAPVER(rights) != CAP_RIGHTS_VERSION_00)
 		return (false);
+	if (CAPARSIZE(rights) < CAPARSIZE_MIN ||
+	    CAPARSIZE(rights) > CAPARSIZE_MAX) {
+		return (false);
+	}
 	CAP_ALL(&allrights);
 	if (!cap_rights_contains(&allrights, rights))
 		return (false);
@@ -233,6 +243,7 @@ cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src)
 	assert(cap_rights_is_valid(dst));
 
 	n = CAPARSIZE(dst);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 
 	for (i = 0; i < n; i++)
 		dst->cr_rights[i] |= src->cr_rights[i];
@@ -253,6 +264,7 @@ cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src)
 	assert(cap_rights_is_valid(dst));
 
 	n = CAPARSIZE(dst);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 
 	for (i = 0; i < n; i++) {
 		dst->cr_rights[i] &=
@@ -273,6 +285,7 @@ cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little)
 	assert(CAPVER(big) == CAPVER(little));
 
 	n = CAPARSIZE(big);
+	assert(n >= CAPARSIZE_MIN && n <= CAPARSIZE_MAX);
 
 	for (i = 0; i < n; i++) {
 		if ((big->cr_rights[i] & little->cr_rights[i]) !=
