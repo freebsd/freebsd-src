@@ -1350,7 +1350,6 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	callout_init(&lle->base.la_timer, CALLOUT_MPSAFE);
 	/*
 	 * For IPv4 this will trigger "arpresolve" to generate
 	 * an ARP request.
@@ -1359,7 +1358,10 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
 	lle->base.lle_refcnt = 1;
 	LLE_LOCK_INIT(&lle->base);
-	return &lle->base;
+	callout_init_rw(&lle->base.la_timer, &lle->base.lle_lock,
+	    CALLOUT_RETURNUNLOCKED);
+
+	return (&lle->base);
 }
 
 /*
@@ -1392,7 +1394,8 @@ in_lltable_prefix_free(struct lltable *llt,
 	register int i;
 	size_t pkts_dropped;
 
-	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+	IF_AFDATA_WLOCK(llt->llt_ifp);
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 
 		        /* 
@@ -1402,17 +1405,15 @@ in_lltable_prefix_free(struct lltable *llt,
 			if (IN_ARE_MASKED_ADDR_EQUAL((struct sockaddr_in *)L3_ADDR(lle), 
 						     pfx, msk) &&
 			    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))) {
-				int canceled;
-
-				canceled = callout_drain(&lle->la_timer);
 				LLE_WLOCK(lle);
-				if (canceled)
+				if (callout_stop(&lle->la_timer))
 					LLE_REMREF(lle);
 				pkts_dropped = llentry_free(lle);
 				ARPSTAT_ADD(dropped, pkts_dropped);
 			}
 		}
 	}
+	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 }
 
 
@@ -1545,15 +1546,20 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 
 		lle->lle_tbl  = llt;
 		lle->lle_head = lleh;
+		lle->la_flags |= LLE_LINKED;
 		LIST_INSERT_HEAD(lleh, lle, lle_next);
 	} else if (flags & LLE_DELETE) {
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
-			lle->la_flags = LLE_DELETED;
-			LLE_WUNLOCK(lle);
+			lle->la_flags |= LLE_DELETED;
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 		

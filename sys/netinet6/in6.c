@@ -1377,10 +1377,10 @@ in6_purgeaddr(struct ifaddr *ifa)
 	nd6_dad_stop(ifa);
 
 	/* Remove local address entry from lltable. */
-	IF_AFDATA_LOCK(ifp);
-	lla_lookup(LLTABLE6(ifp), (LLE_DELETE | LLE_IFADDR),
-	    (struct sockaddr *)&ia->ia_addr);
-	IF_AFDATA_UNLOCK(ifp);
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	lltable_prefix_free(AF_INET6, (struct sockaddr *)&addr,
+		(struct sockaddr *)&mask, LLE_STATIC);
 
 	/*
 	 * initialize for rtmsg generation
@@ -1393,8 +1393,6 @@ in6_purgeaddr(struct ifaddr *ifa)
 	/* */
 	bzero(&rt0, sizeof(rt0));
 	rt0.rt_gateway = (struct sockaddr *)&gateway;
-	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
-	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
 	rt_mask(&rt0) = (struct sockaddr *)&mask;
 	rt_key(&rt0) = (struct sockaddr *)&addr;
 	rt0.rt_flags = RTF_HOST | RTF_STATIC;
@@ -2392,23 +2390,22 @@ in6_lltable_prefix_free(struct lltable *llt,
 	 * (flags & LLE_STATIC) means deleting all entries 
 	 * including static ND6 entries
 	 */
-	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+	IF_AFDATA_WLOCK(llt->llt_ifp);
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			if (IN6_ARE_MASKED_ADDR_EQUAL(
-				    &((struct sockaddr_in6 *)L3_ADDR(lle))->sin6_addr, 
-				    &pfx->sin6_addr, 
-				    &msk->sin6_addr) &&
-			    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC))) {
-				int canceled;
-
-				canceled = callout_drain(&lle->la_timer);
+			    &satosin6(L3_ADDR(lle))->sin6_addr,
+			    &pfx->sin6_addr, &msk->sin6_addr) &&
+			    ((flags & LLE_STATIC) ||
+			    !(lle->la_flags & LLE_STATIC))) {
 				LLE_WLOCK(lle);
-				if (canceled)
+				if (callout_stop(&lle->la_timer))
 					LLE_REMREF(lle);
 				llentry_free(lle);
 			}
 		}
 	}
+	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 }
 
 static int
@@ -2500,15 +2497,20 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 
 		lle->lle_tbl  = llt;
 		lle->lle_head = lleh;
+		lle->la_flags |= LLE_LINKED;
 		LIST_INSERT_HEAD(lleh, lle, lle_next);
 	} else if (flags & LLE_DELETE) {
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
-			lle->la_flags = LLE_DELETED;
-			LLE_WUNLOCK(lle);
+			lle->la_flags |= LLE_DELETED;
 #ifdef DIAGNOSTIC
-			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
-#endif	
+			log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+#endif
+			if ((lle->la_flags &
+			    (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
+				llentry_free(lle);
+			else
+				LLE_WUNLOCK(lle);
 		}
 		lle = (void *)-1;
 	}
