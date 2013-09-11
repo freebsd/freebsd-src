@@ -24,7 +24,7 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=9.2-RC3
+#BUILDNAME=9.2-RC4
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
