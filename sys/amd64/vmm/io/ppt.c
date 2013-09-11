@@ -592,3 +592,9 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 	return (0);
 }
 
+int
+ppt_num_devices(void)
+{
+
+	return (num_pptdevs);
+}
