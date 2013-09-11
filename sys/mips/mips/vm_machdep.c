@@ -76,7 +76,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/user.h>
 #include <sys/mbuf.h>
+#ifndef __mips_n64
 #include <sys/sf_buf.h>
+#endif
 
 #ifndef NSFBUFS
 #define	NSFBUFS		(512 + maxusers * 16)
@@ -523,7 +525,6 @@ sf_buf_init(void *arg)
 	}
 	sf_buf_alloc_want = 0;
 }
-#endif
 
 /*
  * Get an sf_buf from the freelist.  Will block if none are available.
@@ -531,7 +532,6 @@ sf_buf_init(void *arg)
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
 {
-#ifndef __mips_n64
 	struct sf_buf *sf;
 	int error;
 
@@ -560,9 +560,6 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
-#else
-	return ((struct sf_buf *)m);
-#endif
 }
 
 /*
@@ -571,7 +568,6 @@ sf_buf_alloc(struct vm_page *m, int flags)
 void
 sf_buf_free(struct sf_buf *sf)
 {
-#ifndef __mips_n64
 	pmap_qremove(sf->kva, 1);
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
@@ -579,8 +575,8 @@ sf_buf_free(struct sf_buf *sf)
 	if (sf_buf_alloc_want > 0)
 		wakeup(&sf_freelist);
 	mtx_unlock(&sf_freelist.sf_lock);
-#endif
 }
+#endif	/* !__mips_n64 */
 
 /*
  * Software interrupt handler for queued VM system processing.

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ static int (*read_func)(void *, int) = read_random_phony;
 
 /* Initialise the harvester at load time */
 void
-random_yarrow_init_harvester(void (*reaper)(u_int64_t, const void *, u_int,
+randomdev_init_harvester(void (*reaper)(u_int64_t, const void *, u_int,
     u_int, u_int, enum esource), int (*reader)(void *, int))
 {
 	reap_func = reaper;
@@ -69,7 +69,7 @@ random_yarrow_init_harvester(void (*reaper)(u_int64_t, const void *, u_int,
 
 /* Deinitialise the harvester at unload time */
 void
-random_yarrow_deinit_harvester(void)
+randomdev_deinit_harvester(void)
 {
 	reap_func = NULL;
 	read_func = read_random_phony;

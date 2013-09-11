@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 
+#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
 
 #define RANDOM_MINOR	0
@@ -71,19 +72,11 @@ static struct cdevsw random_cdevsw = {
 	.d_name = "random",
 };
 
-static struct random_adaptor *random_adaptor;
 static eventhandler_tag attach_tag;
 static int random_inited;
 
-
 /* For use with make_dev(9)/destroy_dev(9). */
 static struct cdev *random_dev;
-
-/* Used to fake out unused random calls in random_adaptor */
-void
-random_null_func(void)
-{
-}
 
 /* ARGSUSED */
 static int
@@ -215,7 +208,7 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		random_ident_hardware(&random_adaptor);
+		random_adaptor_choose(&random_adaptor);
 
 		if (random_adaptor == NULL) {
 			printf(
