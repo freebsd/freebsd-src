@@ -33,15 +33,6 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
-#if defined(XEN) || defined(XENHVM)
-#ifndef NR_VIRQS
-#define	NR_VIRQS	24
-#endif
-#ifndef NR_IPIS
-#define	NR_IPIS		2
-#endif
-#endif
-
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -68,7 +59,6 @@
 	/* Pointer to the CPU TSS descriptor */				\
 	struct system_segment_descriptor *pc_tss;			\
 	uint64_t	pc_pm_save_cnt;					\
-	char		pc_invpcid_descr[16];				\
 	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
 	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\

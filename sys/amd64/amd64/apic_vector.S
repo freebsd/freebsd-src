@@ -168,7 +168,7 @@ global_invltlb:
 invltlb_ret_clear_pm_save:
 	movq	smp_tlb_pmap,%rdx
 	testq	%rdx,%rdx
-	jz	invltlb_ret
+	jz	invltlb_ret_rdx
 	testb	$SEL_RPL_MASK,NAKE_INTR_CS(%rsp)
 	jz	1f
 	swapgs
@@ -179,16 +179,17 @@ invltlb_ret_clear_pm_save:
 2:
 	LK btcl	%eax,PM_SAVE(%rdx)
 	SUPERALIGN_TEXT
-invltlb_ret:
+invltlb_ret_rdx:
+	popq	%rdx
+invltlb_ret_rax:
 	movq	lapic, %rax
 	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 	LK incl	smp_tlb_wait
-	popq	%rdx
 	popq	%rax
 	jmp	doreti_iret
 
 	SUPERALIGN_TEXT
-IDTVEC(invltlb)
+IDTVEC(invltlb_pcid)
 #if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
 	PUSH_FRAME
 	movl	PCPU(CPUID), %eax
@@ -206,8 +207,6 @@ IDTVEC(invltlb)
 	pushq	%rdx
 
 	movq	%cr3,%rax
-	cmpl	$0,pmap_pcid_enabled
-	je	2f
 
 	movq	$smp_tlb_invpcid,%rdx
 	cmpl	$0,(%rdx)
@@ -216,8 +215,7 @@ IDTVEC(invltlb)
 	je	global_invltlb
 
 	/*
-	 * Non-zero smp_tlb_invpcid, only invalidate TLB for entries with
-	 * current PCID.
+	 * Only invalidate TLB for entries with current PCID.
 	 */
 	cmpl	$0,invpcid_works
 	je	1f
@@ -233,21 +231,36 @@ IDTVEC(invltlb)
 	je	2f
 	movq	%rdx,%cr3	/* Invalidate, bit 63 is zero. */
 	btsq	$63,%rax
-
-	/*
-	 * Invalidate the TLB if PCID is not enabled.
-	 * Restore the old address space.
-	 */
 2:
 	movq	%rax,%cr3
 	jmp	invltlb_ret_clear_pm_save
+
+	SUPERALIGN_TEXT
+IDTVEC(invltlb)
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+#ifdef COUNT_XINVLTLB_HITS
+	incl	xhits_gbl(,%rax,4)
+#endif
+#ifdef COUNT_IPIS
+	movq	ipi_invltlb_counts(,%rax,8),%rax
+	incq	(%rax)
+#endif
+	POP_FRAME
+#endif
+
+	pushq	%rax
+	movq	%cr3, %rax		/* invalidate the TLB */
+	movq	%rax, %cr3
+	jmp	invltlb_ret_rax
 
 /*
  * Single page TLB shootdown
  */
 	.text
 	SUPERALIGN_TEXT
-IDTVEC(invlpg)
+IDTVEC(invlpg_pcid)
 #if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
 	PUSH_FRAME
 	movl	PCPU(CPUID), %eax
@@ -264,8 +277,6 @@ IDTVEC(invlpg)
 	pushq	%rax
 	pushq	%rdx
 	movq	$smp_tlb_invpcid,%rdx
-	cmpl	$0,pmap_pcid_enabled
-	je	3f
 	cmpl	$0,invpcid_works
 	jne	2f
 
@@ -291,7 +302,7 @@ IDTVEC(invlpg)
 	btsq	$63,%rcx
 	movq	%rcx,%cr3
 	popq	%rcx
-	jmp	invltlb_ret
+	jmp	invltlb_ret_rdx
 
 	/*
 	 * Invalidate the TLB entry using INVPCID_ADDR.
@@ -300,7 +311,7 @@ IDTVEC(invlpg)
 	xorl	%eax,%eax
 /*	invpcid	(%rdx),%rax */
 	.byte	0x66,0x0f,0x38,0x82,0x02
-	jmp	invltlb_ret
+	jmp	invltlb_ret_rdx
 
 	/*
 	 * PCID is not supported or kernel pmap.
@@ -309,7 +320,27 @@ IDTVEC(invlpg)
 3:
 	movq	8(%rdx),%rax
 	invlpg	(%rax)
-	jmp	invltlb_ret
+	jmp	invltlb_ret_rdx
+
+	SUPERALIGN_TEXT
+IDTVEC(invlpg)
+#if defined(COUNT_XINVLTLB_HITS) || defined(COUNT_IPIS)
+	PUSH_FRAME
+	movl	PCPU(CPUID), %eax
+#ifdef COUNT_XINVLTLB_HITS
+	incl	xhits_pg(,%rax,4)
+#endif
+#ifdef COUNT_IPIS
+	movq	ipi_invlpg_counts(,%rax,8),%rax
+	incq	(%rax)
+#endif
+	POP_FRAME
+#endif
+
+	pushq	%rax
+	movq	smp_tlb_invpcid+8,%rax
+	invlpg	(%rax)			/* invalidate single page */
+	jmp	invltlb_ret_rax
 
 /*
  * Page range TLB shootdown.
@@ -334,15 +365,15 @@ IDTVEC(invlrng)
 	pushq	%rdx
 	movq	$smp_tlb_invpcid,%rdx
 	cmpl	$0,pmap_pcid_enabled
-	jne	invlrng_single_page
-	cmpl	$0,invpcid_works
-	jne	invlrng_invpcid
+	je	invlrng_single_page
 
 	/* kernel pmap - use invlpg to invalidate global mapping */
 	cmpl	$0,(%rdx)
 	je	invlrng_single_page
 	cmpl	$-1,(%rdx)
 	je	global_invltlb
+	cmpl	$0,invpcid_works
+	jne	invlrng_invpcid
 
 	pushq	%rcx
 	movq	%cr3,%rcx
@@ -362,37 +393,27 @@ IDTVEC(invlrng)
 	btsq	$63,%rcx
 	movq	%rcx,%cr3
 	popq	%rcx
-	jmp	invltlb_ret
+	jmp	invltlb_ret_rdx
 
 invlrng_invpcid:
-	testb	$SEL_RPL_MASK,NAKE_INTR_CS(%rsp)
-	jz	1f
-	swapgs
-1:
 	pushq	%rcx
+	subq	$16,%rsp
 	movq	(%rdx),%rcx
-	movq	%rcx,PCPU(INVPCID_DESCR)
+	movq	%rcx,(%rsp)
 	movq	8(%rdx),%rax
-	movq	%rax,PCPU(INVPCID_DESCR)+8
+	movq	%rax,8(%rsp)
 	movq	smp_tlb_addr2,%rcx
-	xorl	%eax,%eax
-	movq	$PC_INVPCID_DESCR,%rdx
-	gs
-	subq	8(%rdx),%rcx
+	subq	%rax,%rcx
 	shrq	$PAGE_SHIFT,%rcx
-2:
-	gs
+1:
 //	invpcid	(%rdx),%rax
 	.byte	0x66,0x0f,0x38,0x82,0x02
-	gs
-	addq	$PAGE_SIZE,8(%rdx)
+	addq	$PAGE_SIZE,8(%rsp)
 	dec	%rcx
-	jne	2b
+	jne	1b
+	addq	$16,%rsp
 	popq	%rcx
-	testb	$SEL_RPL_MASK,NAKE_INTR_CS(%rsp)
-	jz	invltlb_ret
-	swapgs
-	jmp	invltlb_ret
+	jmp	invltlb_ret_rdx
 
 invlrng_single_page:
 	movq	8(%rdx),%rdx
@@ -401,7 +422,7 @@ invlrng_single_page:
 	addq	$PAGE_SIZE,%rdx
 	cmpq	%rax,%rdx
 	jb	1b
-	jmp	invltlb_ret
+	jmp	invltlb_ret_rdx
 
 /*
  * Invalidate cache.
@@ -418,9 +439,8 @@ IDTVEC(invlcache)
 #endif
 
 	pushq	%rax
-	pushq	%rdx
 	wbinvd
-	jmp	invltlb_ret
+	jmp	invltlb_ret_rax
 
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.

@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include <stdbool.h>
 #include <wchar.h>
 
 #include <sys/cdefs.h>
@@ -47,6 +46,13 @@
 #define libiconv_close		iconv_close
 #define libiconv		iconv
 #define libiconv_t		iconv_t
+#endif
+#ifdef __cplusplus
+typedef	bool	__iconv_bool;
+#elif __STDC_VERSION__ >= 199901L
+typedef	_Bool	__iconv_bool;
+#else
+typedef	int	__iconv_bool;
 #endif
 
 struct __tag_iconv_t;
@@ -61,7 +67,7 @@ int	iconv_close(iconv_t);
 /*
  * non-portable interfaces for iconv
  */
-int	__iconv_get_list(char ***, size_t *, bool);
+int	__iconv_get_list(char ***, size_t *, __iconv_bool);
 void	__iconv_free_list(char **, size_t);
 size_t	__iconv(iconv_t, const char **, size_t *, char **,
 		     size_t *, __uint32_t, size_t *);

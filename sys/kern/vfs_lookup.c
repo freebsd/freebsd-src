@@ -222,20 +222,26 @@ namei(struct nameidata *ndp)
 			dp = ndp->ni_startdir;
 			error = 0;
 		} else if (ndp->ni_dirfd != AT_FDCWD) {
+			cap_rights_t rights;
+
+			rights = ndp->ni_rightsneeded;
+			cap_rights_set(&rights, CAP_LOOKUP);
+
 			if (cnp->cn_flags & AUDITVNODE1)
 				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			error = fgetvp_rights(td, ndp->ni_dirfd,
-			    ndp->ni_rightsneeded | CAP_LOOKUP,
-			    &ndp->ni_filecaps, &dp);
+			    &rights, &ndp->ni_filecaps, &dp);
 #ifdef CAPABILITIES
 			/*
 			 * If file descriptor doesn't have all rights,
 			 * all lookups relative to it must also be
 			 * strictly relative.
 			 */
-			if (ndp->ni_filecaps.fc_rights != CAP_ALL ||
+			CAP_ALL(&rights);
+			if (!cap_rights_contains(&ndp->ni_filecaps.fc_rights,
+			    &rights) ||
 			    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
 			    ndp->ni_filecaps.fc_nioctls != -1) {
 				ndp->ni_strictrelative = 1;
@@ -1057,6 +1063,27 @@ bad:
 	vput(dp);
 	*vpp = NULL;
 	return (error);
+}
+
+void
+NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
+    const char *namep, int dirfd, struct vnode *startdir, cap_rights_t *rightsp,
+    struct thread *td)
+{
+
+	ndp->ni_cnd.cn_nameiop = op;
+	ndp->ni_cnd.cn_flags = flags;
+	ndp->ni_segflg = segflg;
+	ndp->ni_dirp = namep;
+	ndp->ni_dirfd = dirfd;
+	ndp->ni_startdir = startdir;
+	ndp->ni_strictrelative = 0;
+	if (rightsp != NULL)
+		ndp->ni_rightsneeded = *rightsp;
+	else
+		cap_rights_init(&ndp->ni_rightsneeded);
+	filecaps_init(&ndp->ni_filecaps);
+	ndp->ni_cnd.cn_thread = td;
 }
 
 /*

@@ -133,7 +133,7 @@ print_address(struct sockaddr_storage *ss)
 }
 
 static struct cap_desc {
-	cap_rights_t	 cd_right;
+	uint64_t	 cd_right;
 	const char	*cd_desc;
 } cap_desc[] = {
 	/* General file I/O. */
@@ -244,14 +244,14 @@ static const u_int	cap_desc_count = sizeof(cap_desc) /
 			    sizeof(cap_desc[0]);
 
 static u_int
-width_capability(cap_rights_t rights)
+width_capability(cap_rights_t *rightsp)
 {
 	u_int count, i, width;
 
 	count = 0;
 	width = 0;
 	for (i = 0; i < cap_desc_count; i++) {
-		if ((cap_desc[i].cd_right & ~rights) == 0) {
+		if (cap_rights_is_set(rightsp, cap_desc[i].cd_right)) {
 			width += strlen(cap_desc[i].cd_desc);
 			if (count)
 				width++;
@@ -262,20 +262,20 @@ width_capability(cap_rights_t rights)
 }
 
 static void
-print_capability(cap_rights_t rights, u_int capwidth)
+print_capability(cap_rights_t *rightsp, u_int capwidth)
 {
 	u_int count, i, width;
 
 	count = 0;
 	width = 0;
-	for (i = width_capability(rights); i < capwidth; i++) {
-		if (rights || i != 0)
+	for (i = width_capability(rightsp); i < capwidth; i++) {
+		if (i != 0)
 			printf(" ");
 		else
 			printf("-");
 	}
 	for (i = 0; i < cap_desc_count; i++) {
-		if ((cap_desc[i].cd_right & ~rights) == 0) {
+		if (cap_rights_is_set(rightsp, cap_desc[i].cd_right)) {
 			printf("%s%s", count ? "," : "", cap_desc[i].cd_desc);
 			width += strlen(cap_desc[i].cd_desc);
 			if (count)
@@ -306,7 +306,7 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 	head = procstat_getfiles(procstat, kipp, 0);
 	if (head != NULL && Cflag) {
 		STAILQ_FOREACH(fst, head, next) {
-			width = width_capability(fst->fs_cap_rights);
+			width = width_capability(&fst->fs_cap_rights);
 			if (width > capwidth)
 				capwidth = width;
 		}
@@ -460,7 +460,7 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 				printf("%7c ", '-');
 		}
 		if (Cflag) {
-			print_capability(fst->fs_cap_rights, capwidth);
+			print_capability(&fst->fs_cap_rights, capwidth);
 			printf(" ");
 		}
 		switch (fst->fs_type) {

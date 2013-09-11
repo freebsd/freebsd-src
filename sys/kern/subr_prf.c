@@ -175,15 +175,24 @@ out:
 }
 
 /*
- * tprintf prints on the controlling terminal associated with the given
- * session, possibly to the log as well.
+ * tprintf and vtprintf print on the controlling terminal associated with the
+ * given session, possibly to the log as well.
  */
 void
 tprintf(struct proc *p, int pri, const char *fmt, ...)
 {
+	va_list ap;
+
+	va_start(ap, fmt);
+	vtprintf(p, pri, fmt, ap);
+	va_end(ap);
+}
+
+void
+vtprintf(struct proc *p, int pri, const char *fmt, va_list ap)
+{
 	struct tty *tp = NULL;
 	int flags = 0;
-	va_list ap;
 	struct putchar_arg pca;
 	struct session *sess = NULL;
 
@@ -208,13 +217,11 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	pca.tty = tp;
 	pca.flags = flags;
 	pca.p_bufr = NULL;
-	va_start(ap, fmt);
 	if (pca.tty != NULL)
 		tty_lock(pca.tty);
 	kvprintf(fmt, putchar, &pca, 10, ap);
 	if (pca.tty != NULL)
 		tty_unlock(pca.tty);
-	va_end(ap);
 	if (sess != NULL)
 		sess_release(sess);
 	msgbuftrigger = 1;

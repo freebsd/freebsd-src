@@ -3126,20 +3126,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cap_new */
-	case 514: {
-		struct cap_new_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* uint64_t */
-		*n_args = 2;
-		break;
-	}
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515: {
-		struct cap_rights_get_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
-		*n_args = 2;
+		struct __cap_rights_get_args *p = params;
+		iarg[0] = p->version; /* int */
+		iarg[1] = p->fd; /* int */
+		uarg[2] = (intptr_t) p->rightsp; /* cap_rights_t * */
+		*n_args = 3;
 		break;
 	}
 	/* cap_enter */
@@ -3290,7 +3283,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 533: {
 		struct cap_rights_limit_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* uint64_t */
+		uarg[1] = (intptr_t) p->rightsp; /* cap_rights_t * */
 		*n_args = 2;
 		break;
 	}
@@ -8561,27 +8554,17 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cap_new */
-	case 514:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "uint64_t";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "uint64_t *";
+			p = "int";
+			break;
+		case 2:
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
@@ -8849,7 +8832,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "uint64_t";
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
@@ -10818,12 +10801,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cap_new */
-	case 514:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
