@@ -204,7 +204,6 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 
-	case SIOCSIFDSTADDR:
 	case SIOCAIFADDR:
 	case SIOCSIFADDR:
 		if (ifa->ifa_addr->sa_family != AF_INET)
