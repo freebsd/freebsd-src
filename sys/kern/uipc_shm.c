@@ -134,7 +134,7 @@ static struct fileops shm_ops = {
 	.fo_close = shm_close,
 	.fo_chmod = shm_chmod,
 	.fo_chown = shm_chown,
-	.fo_sendfile = invfo_sendfile,
+	.fo_sendfile = vn_sendfile,
 	.fo_seek = shm_seek,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
