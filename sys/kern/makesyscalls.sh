@@ -156,7 +156,8 @@ s/\$//g
 		printf "#include <sys/cpuset.h>\n" > sysarg
 		printf "#include <sys/_ffcounter.h>\n" > sysarg
 		printf "#include <sys/_semaphore.h>\n" > sysarg
-		printf "#include <sys/ucontext.h>\n\n" > sysarg
+		printf "#include <sys/ucontext.h>\n" > sysarg
+		printf "#include <sys/wait.h>\n\n" > sysarg
 		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg
 		printf "struct proc;\n\n" > sysarg
 		printf "struct thread;\n\n" > sysarg
