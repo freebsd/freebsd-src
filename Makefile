@@ -351,7 +351,7 @@ make bmake: .PHONY
 	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj DESTDIR= && \
 		${MMAKE} depend DESTDIR= && \
-		${MMAKE} all DESTDIR= && \
+		${MMAKE} all DESTDIR= PROGNAME=${MYMAKE:T} && \
 		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= PROGNAME=${MYMAKE:T}
 
 tinderbox toolchains kernel-toolchains: upgrade_checks
