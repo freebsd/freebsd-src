@@ -710,7 +710,7 @@ parse_mount(char **conf)
 	errmsg = malloc(ERRMSGL, M_TEMP, M_WAITOK | M_ZERO);
 
 	if (vfs_byname(fs) == NULL) {
-		strlcpy(errmsg, "unknown file system", sizeof(errmsg));
+		strlcpy(errmsg, "unknown file system", ERRMSGL);
 		error = ENOENT;
 		goto out;
 	}
