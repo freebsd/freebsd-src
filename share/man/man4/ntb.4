@@ -71,7 +71,7 @@ This needs to be done on both systems.
 Each system needs to have a different IP address assigned.
 The MAC address is randomly generated.
 Also for maximum performance, the MTU should be set to 16 kiB.
-This can be down by adding the line below to
+This can be done by adding the line below to
 .Xr rc.conf 5 :
 .Bd -literal -offset indent
 ifconfig_ntb0="inet 192.168.1.10 netmask 255.255.255.0 mtu 16384"

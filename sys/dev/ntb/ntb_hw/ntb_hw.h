@@ -69,5 +69,6 @@ u_long ntb_get_mw_size(struct ntb_softc *ntb, unsigned int mw);
 void ntb_set_mw_addr(struct ntb_softc *ntb, unsigned int mw, uint64_t addr);
 void ntb_ring_sdb(struct ntb_softc *ntb, unsigned int db);
 bool ntb_query_link_status(struct ntb_softc *ntb);
+device_t ntb_get_device(struct ntb_softc *ntb);
 
 #endif /* _NTB_HW_H_ */

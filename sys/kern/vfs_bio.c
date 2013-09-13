@@ -3994,7 +3994,7 @@ vfs_drain_busy_pages(struct buf *bp)
 		m = bp->b_pages[i];
 		if (vm_page_xbusied(m)) {
 			for (; last_busied < i; last_busied++)
-				vm_page_xbusy(bp->b_pages[last_busied]);
+				vm_page_sbusy(bp->b_pages[last_busied]);
 			while (vm_page_xbusied(m)) {
 				vm_page_lock(m);
 				VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
@@ -4004,7 +4004,7 @@ vfs_drain_busy_pages(struct buf *bp)
 		}
 	}
 	for (i = 0; i < last_busied; i++)
-		vm_page_xunbusy(bp->b_pages[i]);
+		vm_page_sunbusy(bp->b_pages[i]);
 }
 
 /*

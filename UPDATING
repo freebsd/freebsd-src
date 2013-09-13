@@ -31,6 +31,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20130905:
+	The PROCDESC kernel option is now part of the GENERIC kernel
+	configuration and is required for the rwhod(8) to work.
+	If you are using custom kernel configuration, you should include
+	'options PROCDESC'.
+
+20130905:
+	The API and ABI related to the Capsicum framework was modified
+	in backward incompatible way. The userland libraries and programs
+	have to be recompiled to work with the new kernel. This includes the
+	following libraries and programs, but the whole buildworld is
+	advised: libc, libprocstat, dhclient, tcpdump, hastd, hastctl,
+	kdump, procstat, rwho, rwhod, uniq.
+
 20130827:
         Thomas Dickey (vendor author thereof) reports that dialog(1) since
         2011/10/18 has a bug in handling --hline. Testers and I noticed the

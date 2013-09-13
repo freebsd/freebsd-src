@@ -77,6 +77,7 @@ typedef enum {
 	VENDOR_PLEXTOR,
 	VENDOR_QUALSTAR,
 	VENDOR_QUANTUM,
+	VENDOR_SAMSUNG,
 	VENDOR_SEAGATE,
 	VENDOR_UNKNOWN
 } fw_vendor_t;
@@ -98,6 +99,7 @@ static const struct fw_vendor vendors_list[] = {
 	{VENDOR_PLEXTOR,	"PLEXTOR",	0x2000, 0x04, 0x05, 0, 1},
 	{VENDOR_QUALSTAR,	"QUALSTAR",	0x2030, 0x05, 0x05, 0, 0},
 	{VENDOR_QUANTUM,	"QUANTUM",	0x2000, 0x04, 0x05, 0, 1},
+	{VENDOR_SAMSUNG,	"SAMSUNG",	0x8000, 0x07, 0x07, 0, 1},
 	{VENDOR_SEAGATE,	"SEAGATE",	0x8000, 0x07, 0x07, 0, 1},
 	/* the next 2 are SATA disks going through SAS HBA */
 	{VENDOR_SEAGATE,	"ATA ST",	0x8000, 0x07, 0x07, 0, 1},

@@ -101,13 +101,13 @@ ioapic_set_pinstate(struct vmctx *ctx, int pin, bool newstate)
 	 * XXX
 	 * We only deal with:
 	 * - edge triggered interrupts
-	 * - physical destination mode
 	 * - fixed delivery mode
+	 *  Level-triggered sources will work so long as there is
+	 * no sharing.
 	 */
 	low = ioapic->redtbl[pin];
 	high = ioapic->redtbl[pin] >> 32;
 	if ((low & IOART_INTMASK) == IOART_INTMCLR &&
-	    (low & IOART_TRGRMOD) == IOART_TRGREDG &&
 	    (low & IOART_DESTMOD) == IOART_DESTPHY &&
 	    (low & IOART_DELMOD) == IOART_DELFIXED) {
 		vector = low & IOART_INTVEC;

@@ -385,7 +385,6 @@ _EOF_
 
 auto_or_type     "accessmodename"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/unistd.h"
 auto_switch_type "acltypename"         "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+"        "sys/acl.h"
-auto_or_type     "capname"             "CAP_[A-Z]+[[:space:]]+0x[01248]{16}ULL"       "sys/capability.h"
 auto_or_type     "capfcntlname"        "CAP_FCNTL_[A-Z]+[[:space:]]+\(1"              "sys/capability.h"
 auto_switch_type "extattrctlname"      "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
 auto_switch_type "fadvisebehavname"    "POSIX_FADV_[A-Z]+[[:space:]]+[0-9]+"          "sys/fcntl.h"
@@ -609,3 +608,26 @@ cat <<_EOF_
 		}
 	}
 }
+
+_EOF_
+egrep '#define[[:space:]]+CAP_[A-Z_]+[[:space:]]+CAPRIGHT\([0-9],[[:space:]]+0x[0-9]{16}ULL\)' \
+	$include_dir/sys/capability.h | \
+	sed -E 's/[	]+/ /g' | \
+	awk -F '[   \(,\)]' '
+	BEGIN {
+		printf "void\n"
+		printf "capname(const cap_rights_t *rightsp)\n"
+		printf "{\n"
+		printf "\tint comma = 0;\n\n"
+		printf "\tprintf(\"<\");\n"
+	}
+	{
+		printf "\tif ((rightsp->cr_rights[%s] & %s) == %s) {\n", $4, $2, $2
+		printf "\t\tif (comma) printf(\",\"); else comma = 1;\n"
+		printf "\t\tprintf(\"%s\");\n", $2
+		printf "\t}\n"
+	}
+	END {
+		printf "\tprintf(\">\");\n"
+		printf "}\n"
+	}'

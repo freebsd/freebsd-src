@@ -338,6 +338,7 @@ do_execve(td, args, mac_p)
 	struct ucred *tracecred = NULL;
 #endif
 	struct vnode *textvp = NULL, *binvp = NULL;
+	cap_rights_t rights;
 	int credential_changing;
 	int textset;
 #ifdef MAC
@@ -438,7 +439,8 @@ interpret:
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
+		error = fgetvp_exec(td, args->fd,
+		    cap_rights_init(&rights, CAP_FEXECVE), &binvp);
 		if (error)
 			goto exec_fail;
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
