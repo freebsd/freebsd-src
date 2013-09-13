@@ -1520,7 +1520,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 			VOP_UNLOCK(dvp, 0);
 		}
 		ZFS_EXIT(zfsvfs);
-		error = zfs_vnode_lock(*vpp, cnp->cn_lkflags);
+		error = vn_lock(*vpp, cnp->cn_lkflags);
 		if (cnp->cn_flags & ISDOTDOT)
 			vn_lock(dvp, ltype | LK_RETRY);
 		if (error != 0) {
