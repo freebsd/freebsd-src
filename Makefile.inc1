@@ -270,7 +270,7 @@ WMAKEENV=	${CROSSENV} \
 		PATH=${TMPPATH}
 
 # make hierarchy
-HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE}
+HMAKE=		PATH=${TMPPATH} ${MAKE} LOCAL_MTREE=${LOCAL_MTREE:Q}
 .if defined(NO_ROOT)
 HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 .endif
@@ -768,7 +768,7 @@ distributeworld installworld: installcheck installcheck_UGID
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
 	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
-	    LOCAL_MTREE=${LOCAL_MTREE} distrib-dirs
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} distrib-dirs
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
@@ -814,7 +814,7 @@ reinstall:
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
-	    LOCAL_MTREE=${LOCAL_MTREE} hierarchy
+	    LOCAL_MTREE=${LOCAL_MTREE:Q} hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"
