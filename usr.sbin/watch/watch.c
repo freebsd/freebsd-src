@@ -110,7 +110,6 @@ set_tty(void)
 {
 	struct termios	ntty;
 
-	tcgetattr(std_in, &otty);
 	ntty = otty;
 	ntty.c_lflag &= ~ICANON;	/* disable canonical operation */
 	ntty.c_lflag &= ~ECHO;
@@ -323,6 +322,8 @@ main(int ac, char *av[])
 		default:
 			usage();
 		}
+
+	tcgetattr(std_in, &otty);
 
 	if (modfind("snp") == -1)
 		if (kldload("snp") == -1 || modfind("snp") == -1)
