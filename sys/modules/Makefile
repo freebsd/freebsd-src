@@ -126,6 +126,7 @@ SUBDIR=	\
 	${_hptnr} \
 	${_hptrr} \
 	hwpmc \
+	${_hyperv} \
 	${_i2c} \
 	${_ibcs2} \
 	${_ichwd} \
@@ -671,6 +672,7 @@ _hptmv=		hptmv
 _hptnr=		hptnr
 _hptrr=		hptrr
 .endif
+_hyperv=	hyperv
 _i2c=		i2c
 _ichwd=		ichwd
 _ida=		ida
