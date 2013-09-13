@@ -580,6 +580,7 @@ hint.mse.0.irq="5"
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # sbni: Granch SBNI12-xx ISA and PCI adapters
+# vmx:	VMware VMXNET3 Ethernet (BSD open source)
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
@@ -629,6 +630,7 @@ hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
+device		vmx		# VMware VMXNET3 Ethernet
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
