@@ -1828,6 +1828,7 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 	(void) nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_SPARES,
 	    &spares, &nspares);
 
+#ifdef illumos
 	/*
 	 * A root pool with concatenated devices is not supported.
 	 * Thus, can not add a device to a root pool.
@@ -1843,6 +1844,7 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 		spa_close(spa, FTAG);
 		return (SET_ERROR(EDOM));
 	}
+#endif /* illumos */
 
 	if (error == 0) {
 		error = spa_vdev_add(spa, config);
