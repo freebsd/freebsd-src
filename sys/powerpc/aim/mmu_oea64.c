@@ -1523,7 +1523,7 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have LPTE_CHG set.
 	 */
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if (!vm_page_xbusied(m) && (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	return (moea64_query_bit(mmu, m, LPTE_CHG));
