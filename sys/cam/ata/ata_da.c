@@ -88,7 +88,8 @@ typedef enum {
 	ADA_FLAG_SCTX_INIT	= 0x0200,
 	ADA_FLAG_CAN_CFA        = 0x0400,
 	ADA_FLAG_CAN_POWERMGT   = 0x0800,
-	ADA_FLAG_CAN_DMA48	= 0x1000
+	ADA_FLAG_CAN_DMA48	= 0x1000,
+	ADA_FLAG_DIRTY		= 0x2000
 } ada_flags;
 
 typedef enum {
@@ -613,6 +614,7 @@ adaclose(struct disk *dp)
 	struct	cam_periph *periph;
 	struct	ada_softc *softc;
 	union ccb *ccb;
+	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	cam_periph_lock(periph);
@@ -628,7 +630,8 @@ adaclose(struct disk *dp)
 	    ("adaclose\n"));
 
 	/* We only sync the cache if the drive is capable of it. */
-	if ((softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
+	if ((softc->flags & ADA_FLAG_DIRTY) != 0 &&
+	    (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
 	    (softc->flags & ADA_FLAG_PACK_INVALID) == 0) {
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
@@ -645,11 +648,13 @@ adaclose(struct disk *dp)
 			ata_48bit_cmd(&ccb->ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
 			ata_28bit_cmd(&ccb->ataio, ATA_FLUSHCACHE, 0, 0, 0);
-		cam_periph_runccb(ccb, adaerror, /*cam_flags*/0,
+		error = cam_periph_runccb(ccb, adaerror, /*cam_flags*/0,
 		    /*sense_flags*/0, softc->disk->d_devstat);
 
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		if (error != 0)
 			xpt_print(periph->path, "Synchronize cache failed\n");
+		else
+			softc->flags &= ~ADA_FLAG_DIRTY;
 		xpt_release_ccb(ccb);
 	}
 
@@ -1498,8 +1503,10 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 			tag_code = 1;
 		}
 		switch (bp->bio_cmd) {
-		case BIO_READ:
 		case BIO_WRITE:
+			softc->flags |= ADA_FLAG_DIRTY;
+			/* FALLTHROUGH */
+		case BIO_READ:
 		{
 			uint64_t lba = bp->bio_pblkno;
 			uint16_t count = bp->bio_bcount / softc->params.secsize;
