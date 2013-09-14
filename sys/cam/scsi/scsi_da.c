@@ -2797,6 +2797,28 @@ cmd6workaround(union ccb *ccb)
 		return (0);
 	}
 
+	/* Detect unsupported PREVENT ALLOW MEDIUM REMOVAL. */
+	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) == 0 &&
+	    (*cdb == PREVENT_ALLOW) &&
+	    (softc->quirks & DA_Q_NO_PREVENT) == 0) {
+		if (bootverbose)
+			xpt_print(ccb->ccb_h.path,
+			    "PREVENT ALLOW MEDIUM REMOVAL not supported.\n");
+		softc->quirks |= DA_Q_NO_PREVENT;
+		return (0);
+	}
+
+	/* Detect unsupported SYNCHRONIZE CACHE(10). */
+	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) == 0 &&
+	    (*cdb == SYNCHRONIZE_CACHE) &&
+	    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
+		if (bootverbose)
+			xpt_print(ccb->ccb_h.path,
+			    "SYNCHRONIZE CACHE(10) not supported.\n");
+		softc->quirks |= DA_Q_NO_SYNC_CACHE;
+		return (0);
+	}
+
 	/* Translation only possible if CDB is an array and cmd is R/W6 */
 	if ((ccb->ccb_h.flags & CAM_CDB_POINTER) != 0 ||
 	    (*cdb != READ_6 && *cdb != WRITE_6))
