@@ -4,6 +4,6 @@
 
 KMOD=	 hv_ata_pci_disengage
 
-SRCS=	hv_ata_pci_disengage.c
+SRCS=	hv_ata_pci_disengage.c ata_if.h
 
 .include <bsd.kmod.mk>
