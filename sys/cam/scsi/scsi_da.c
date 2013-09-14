@@ -99,7 +99,8 @@ typedef enum {
 	DA_Q_NO_SYNC_CACHE	= 0x01,
 	DA_Q_NO_6_BYTE		= 0x02,
 	DA_Q_NO_PREVENT		= 0x04,
-	DA_Q_4K			= 0x08
+	DA_Q_4K			= 0x08,
+	DA_Q_NO_RC16		= 0x10
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -107,7 +108,8 @@ typedef enum {
 	"\001NO_SYNC_CACHE"	\
 	"\002NO_6_BYTE"		\
 	"\003NO_PREVENT"	\
-	"\0044K"
+	"\0044K"		\
+	"\005NO_RC16"
 
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
@@ -680,6 +682,11 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Kingston", "DataTraveler G3",
 		 "1.00"}, /*quirks*/ DA_Q_NO_PREVENT
+	},
+	{
+		/* At least several Transcent USB sticks lie on RC16. */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JetFlash", "Transcend*",
+		 "*"}, /*quirks*/ DA_Q_NO_RC16
 	},
 	/* ATA/SATA devices over SAS/USB/... */
 	{
@@ -2087,7 +2094,8 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->minimum_cmd_size = 16;
 
 	/* Predict whether device may support READ CAPACITY(16). */
-	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3) {
+	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3 &&
+	    (softc->quirks & DA_Q_NO_RC16) == 0) {
 		softc->flags |= DA_FLAG_CAN_RC16;
 		softc->state = DA_STATE_PROBE_RC16;
 	}
