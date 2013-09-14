@@ -44,7 +44,6 @@ daemon is responsible for managing the CAM Target Layer configuration,
 accepting incoming iSCSI connections, performing authentication and
 passing connections to the kernel part of the native iSCSI target.
 .Pp
-.Pp
 Upon startup, the
 .Nm
 daemon parses the configuration file and exits, if it encounters any errors.
@@ -52,7 +51,7 @@ Then it compares the configuration with the kernel list of LUNs managed
 by previously running
 .Nm
 instances, removes LUNs no longer existing in the configuration file,
-and creates new LUNs as neccessary. 
+and creates new LUNs as neccessary.
 After that it listens for the incoming iSCSI connections, performs
 authentication, and, if successful, passes the connections to the kernel part
 of CTL iSCSI target, which handles it from that point.
