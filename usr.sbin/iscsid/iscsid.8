@@ -46,7 +46,6 @@ The
 daemon is responsible for performing the Login Phase of iSCSI connections,
 as well as performing SendTargets discovery.
 .Pp
-.Pp
 Upon startup, the
 .Nm
 daemon opens the iSCSI initiator device file and waits for kernel requests.
@@ -64,7 +63,8 @@ The following options are available:
 .Bl -tag -width ".Fl P Ar pidfile"
 .It Fl P Ar pidfile
 Specify alternative location of a file where main process PID will be stored.
-The default location is /var/run/iscsid.pid.
+The default location is
+.Pa /var/run/iscsid.pid .
 .It Fl d
 Debug mode.
 The server sends verbose debug output to standard error, and does not
