@@ -218,9 +218,9 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	}
 	if (*p_drv == NULL) {
 		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
+		xpt_unlock_buses();
 		xpt_free_path(periph->path);
 		free(periph, M_CAMPERIPH);
-		xpt_unlock_buses();
 		return (CAM_REQ_INVALID);
 	}
 	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
