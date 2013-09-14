@@ -1194,7 +1194,6 @@ daopen(struct disk *dp)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	int unit;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
@@ -1209,17 +1208,12 @@ daopen(struct disk *dp)
 		return (error);
 	}
 
-	unit = periph->unit_number;
-	softc = (struct da_softc *)periph->softc;
-	softc->flags |= DA_FLAG_OPEN;
-
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("daopen\n"));
 
-	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
-		/* Invalidate our pack information. */
-		softc->flags &= ~DA_FLAG_PACK_INVALID;
-	}
+	softc = (struct da_softc *)periph->softc;
+	softc->flags |= DA_FLAG_OPEN;
+	softc->flags &= ~DA_FLAG_PACK_INVALID;
 
 	dareprobe(periph);
 
@@ -2975,11 +2969,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= DA_FLAG_WENT_IDLE;
-
-		if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
-			xpt_print(periph->path, "oustanding %d\n",
-				  softc->outstanding_cmds);
-		}
 
 		if (state == DA_CCB_DELETE) {
 			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))

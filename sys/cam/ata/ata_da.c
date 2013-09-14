@@ -76,7 +76,6 @@ typedef enum {
 } ada_state;
 
 typedef enum {
-	ADA_FLAG_PACK_INVALID	= 0x0001,
 	ADA_FLAG_CAN_48BIT	= 0x0002,
 	ADA_FLAG_CAN_FLUSHCACHE	= 0x0004,
 	ADA_FLAG_CAN_NCQ	= 0x0008,
@@ -592,16 +591,11 @@ adaopen(struct disk *dp)
 		return (error);
 	}
 
-	softc = (struct ada_softc *)periph->softc;
-	softc->flags |= ADA_FLAG_OPEN;
-
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("adaopen\n"));
 
-	if ((softc->flags & ADA_FLAG_PACK_INVALID) != 0) {
-		/* Invalidate our pack information. */
-		softc->flags &= ~ADA_FLAG_PACK_INVALID;
-	}
+	softc = (struct ada_softc *)periph->softc;
+	softc->flags |= ADA_FLAG_OPEN;
 
 	cam_periph_unhold(periph);
 	cam_periph_unlock(periph);
@@ -632,7 +626,7 @@ adaclose(struct disk *dp)
 	/* We only sync the cache if the drive is capable of it. */
 	if ((softc->flags & ADA_FLAG_DIRTY) != 0 &&
 	    (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) != 0 &&
-	    (softc->flags & ADA_FLAG_PACK_INVALID) == 0) {
+	    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		cam_fill_ataio(&ccb->ataio,
@@ -709,7 +703,7 @@ adastrategy(struct bio *bp)
 	/*
 	 * If the device has been made invalid, error out
 	 */
-	if ((softc->flags & ADA_FLAG_PACK_INVALID)) {
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
 		cam_periph_unlock(periph);
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -760,7 +754,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	lba = offset / secsize;
 	count = length / secsize;
 	
-	if ((softc->flags & ADA_FLAG_PACK_INVALID) != 0) {
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
 		cam_periph_unlock(periph);
 		return (ENXIO);
 	}
@@ -884,8 +878,6 @@ adaoninvalidate(struct cam_periph *periph)
 	 * De-register any async callbacks.
 	 */
 	xpt_register_async(0, adaasync, periph, periph->path);
-
-	softc->flags |= ADA_FLAG_PACK_INVALID;
 
 	/*
 	 * Return all queued I/O with ENXIO.
@@ -1050,7 +1042,7 @@ adasysctlinit(void *context, int pending)
 	periph = (struct cam_periph *)context;
 
 	/* periph was held for us when this task was enqueued */
-	if (periph->flags & CAM_PERIPH_INVALID) {
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
 		cam_periph_release(periph);
 		return;
 	}
@@ -1664,7 +1656,7 @@ out:
 	case ADA_STATE_RAHEAD:
 	case ADA_STATE_WCACHE:
 	{
-		if (softc->flags & ADA_FLAG_PACK_INVALID) {
+		if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
 			softc->state = ADA_STATE_NORMAL;
 			xpt_release_ccb(start_ccb);
 			cam_release_devq(periph->path,
@@ -1726,20 +1718,6 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 				return;
 			}
 			if (error != 0) {
-				if (error == ENXIO &&
-				    (softc->flags & ADA_FLAG_PACK_INVALID) == 0) {
-					/*
-					 * Catastrophic error.  Mark our pack as
-					 * invalid.
-					 */
-					/*
-					 * XXX See if this is really a media
-					 * XXX change first?
-					 */
-					xpt_print(periph->path,
-					    "Invalidating pack\n");
-					softc->flags |= ADA_FLAG_PACK_INVALID;
-				}
 				bp->bio_error = error;
 				bp->bio_resid = bp->bio_bcount;
 				bp->bio_flags |= BIO_ERROR;
