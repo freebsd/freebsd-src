@@ -1863,6 +1863,11 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 		error = ENXIO;
 		goto out;
 	}
+	/* Deny write opens for read-only volumes. */
+	if (vol->v_read_only && acw > 0) {
+		error = EROFS;
+		goto out;
+	}
 	if (dcw == 0)
 		g_raid_clean(vol, dcw);
 	vol->v_provider_open += acr + acw + ace;
