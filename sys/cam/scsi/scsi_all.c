@@ -665,6 +665,10 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 	if (pd_type == T_RBC)
 		pd_type = T_DIRECT;
 
+	/* Map NODEVICE to Direct Access Device to handle REPORT LUNS, etc. */
+	if (pd_type == T_NODEVICE)
+		pd_type = T_DIRECT;
+
 	opmask = 1 << pd_type;
 
 	for (j = 0; j < num_tables; j++) {
