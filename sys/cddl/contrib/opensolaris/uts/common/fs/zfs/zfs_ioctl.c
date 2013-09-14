@@ -5504,10 +5504,10 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_read, B_FALSE, POOL_CHECK_NONE);
 
 	zfs_ioctl_register_pool(ZFS_IOC_ERROR_LOG, zfs_ioc_error_log,
-	    zfs_secpolicy_inject, B_FALSE, POOL_CHECK_SUSPENDED);
+	    zfs_secpolicy_inject, B_FALSE, POOL_CHECK_NONE);
 	zfs_ioctl_register_pool(ZFS_IOC_DSOBJ_TO_DSNAME,
 	    zfs_ioc_dsobj_to_dsname,
-	    zfs_secpolicy_diff, B_FALSE, POOL_CHECK_SUSPENDED);
+	    zfs_secpolicy_diff, B_FALSE, POOL_CHECK_NONE);
 	zfs_ioctl_register_pool(ZFS_IOC_POOL_GET_HISTORY,
 	    zfs_ioc_pool_get_history,
 	    zfs_secpolicy_config, B_FALSE, POOL_CHECK_SUSPENDED);
@@ -5516,7 +5516,7 @@ zfs_ioctl_init(void)
 	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_NONE);
 
 	zfs_ioctl_register_pool(ZFS_IOC_CLEAR, zfs_ioc_clear,
-	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_SUSPENDED);
+	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_NONE);
 	zfs_ioctl_register_pool(ZFS_IOC_POOL_REOPEN, zfs_ioc_pool_reopen,
 	    zfs_secpolicy_config, B_TRUE, POOL_CHECK_SUSPENDED);
 
