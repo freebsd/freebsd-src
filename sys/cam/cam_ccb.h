@@ -1305,6 +1305,19 @@ cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 	smpio->smp_response_len = smp_response_len;
 }
 
+static __inline void
+cam_set_ccbstatus(union ccb *ccb, cam_status status)
+{
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	ccb->ccb_h.status |= status;
+}
+
+static __inline cam_status
+cam_ccb_status(union ccb *ccb)
+{
+	return ((cam_status)(ccb->ccb_h.status & CAM_STATUS_MASK));
+}
+
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 
 __END_DECLS

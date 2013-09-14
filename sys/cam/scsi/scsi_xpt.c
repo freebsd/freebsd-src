@@ -975,7 +975,7 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_USER_SETTINGS;
 	xpt_action((union ccb *)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP) {
 		return;
 	}
 	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
@@ -997,7 +997,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb *)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP) {
 		if (bootverbose) {
 			xpt_print(periph->path,
 			    "failed to get current device settings\n");
@@ -1076,7 +1076,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		xpt_action((union ccb *)&cts);
-		if ((cts.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP) {
 			break;
 		}
 		CAM_DEBUG(periph->path, CAM_DEBUG_PROBE,
@@ -1106,7 +1106,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (softc->action) {
 	case PROBE_TUR:
 	{
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 
 			if (cam_periph_error(done_ccb, 0,
 					     SF_NO_PRINT, NULL) == ERESTART)
@@ -1125,7 +1125,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
 	{
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		if (cam_ccb_status(done_ccb) == CAM_REQ_CMP) {
 			struct scsi_inquiry_data *inq_buf;
 			u_int8_t periph_qual;
 
@@ -1243,7 +1243,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		nlun = scsi_4btoul(lp->length) / 8;
 		maxlun = (csio->dxfer_len / 8) - 1;
 
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 			if (cam_periph_error(done_ccb, 0,
 			    done_ccb->ccb_h.target_lun > 0 ?
 			    SF_RETRY_UA|SF_QUIET_IR : SF_RETRY_UA,
@@ -1354,7 +1354,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 
 		csio = &done_ccb->csio;
 		mode_hdr = (struct scsi_mode_header_6 *)csio->data_ptr;
-		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		if (cam_ccb_status(done_ccb) == CAM_REQ_CMP) {
 			struct scsi_control_page *page;
 			u_int8_t *offset;
 
@@ -1489,7 +1489,7 @@ probe_device_check:
 			/*
 			 * Don't process the command as it was never sent
 			 */
-		} else if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP
+		} else if (cam_ccb_status(done_ccb) == CAM_REQ_CMP
 			&& (serial_buf->length > 0)) {
 
 			have_serialnum = 1;
@@ -1574,7 +1574,7 @@ probe_device_check:
 	}
 	case PROBE_TUR_FOR_NEGOTIATION:
 	case PROBE_DV_EXIT:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 			cam_periph_error(done_ccb, 0,
 			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		}
@@ -1625,7 +1625,7 @@ probe_device_check:
 		struct scsi_inquiry_data *nbuf;
 		struct ccb_scsiio *csio;
 
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (cam_ccb_status(done_ccb) != CAM_REQ_CMP) {
 			cam_periph_error(done_ccb, 0,
 			    SF_NO_PRINT | SF_NO_RECOVERY | SF_NO_RETRY, NULL);
 		}
@@ -1980,7 +1980,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 		oldpath = request_ccb->ccb_h.path;
 
-		status = request_ccb->ccb_h.status & CAM_STATUS_MASK;
+		status = cam_ccb_status(request_ccb);
 		/* Reuse the same CCB to query if a device was really found */
 		scan_info = (scsi_scan_bus_info *)request_ccb->ccb_h.ppriv_ptr0;
 		xpt_setup_ccb(&request_ccb->ccb_h, request_ccb->ccb_h.path,
@@ -2663,7 +2663,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cur_cts.type = cts->type;
 		xpt_action((union ccb *)&cur_cts);
-		if ((cur_cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (cam_ccb_status((union ccb *)&cur_cts) != CAM_REQ_CMP) {
 			return;
 		}
 		cur_scsi = &cur_cts.proto_specific.scsi;
@@ -2947,7 +2947,7 @@ scsi_announce_periph(struct cam_periph *periph)
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb*)&cts);
-	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+	if (cam_ccb_status((union ccb *)&cts) != CAM_REQ_CMP)
 		return;
 	/* Ask the SIM for its base transfer speed */
 	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
