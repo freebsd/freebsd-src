@@ -2980,12 +2980,19 @@ void
 vm_page_set_invalid(vm_page_t m, int base, int size)
 {
 	vm_page_bits_t bits;
+	vm_object_t object;
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
-	bits = vm_page_bits(base, size);
+	object = m->object;
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	if (object->type == OBJT_VNODE && base == 0 && IDX_TO_OFF(m->pindex) +
+	    size >= object->un_pager.vnp.vnp_size)
+		bits = VM_PAGE_BITS_ALL;
+	else
+		bits = vm_page_bits(base, size);
 	if (m->valid == VM_PAGE_BITS_ALL && bits != 0)
 		pmap_remove_all(m);
-	KASSERT(!pmap_page_is_mapped(m),
+	KASSERT((bits == 0 && m->valid == VM_PAGE_BITS_ALL) ||
+	    !pmap_page_is_mapped(m),
 	    ("vm_page_set_invalid: page %p is mapped", m));
 	m->valid &= ~bits;
 	m->dirty &= ~bits;
