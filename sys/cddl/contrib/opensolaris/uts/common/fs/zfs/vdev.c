@@ -2379,6 +2379,14 @@ vdev_clear(spa_t *spa, vdev_t *vd)
 	for (int c = 0; c < vd->vdev_children; c++)
 		vdev_clear(spa, vd->vdev_child[c]);
 
+	if (vd == rvd) {
+		for (int c = 0; c < spa->spa_l2cache.sav_count; c++)
+			vdev_clear(spa, spa->spa_l2cache.sav_vdevs[c]);
+
+		for (int c = 0; c < spa->spa_spares.sav_count; c++)
+			vdev_clear(spa, spa->spa_spares.sav_vdevs[c]);
+	}
+
 	/*
 	 * If we're in the FAULTED state or have experienced failed I/O, then
 	 * clear the persistent state and attempt to reopen the device.  We
