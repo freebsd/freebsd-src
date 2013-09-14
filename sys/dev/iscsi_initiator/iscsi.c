@@ -858,7 +858,7 @@ iscsi_modevent(module_t mod, int what, void *arg)
 }
 
 moduledata_t iscsi_mod = {
-         "iscsi",
+         "iscsi_initiator",
          (modeventhand_t) iscsi_modevent,
          0
 };
@@ -878,5 +878,5 @@ iscsi_rootconf(void)
 SYSINIT(cpu_rootconf1, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, iscsi_rootconf, NULL)
 #endif
 
-DECLARE_MODULE(iscsi, iscsi_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_DEPEND(iscsi, cam, 1, 1, 1);
+DECLARE_MODULE(iscsi_initiator, iscsi_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_DEPEND(iscsi_initiator, cam, 1, 1, 1);

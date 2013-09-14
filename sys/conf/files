@@ -124,6 +124,7 @@ cam/ctl/ctl_cmd_table.c		optional ctl
 cam/ctl/ctl_frontend.c		optional ctl
 cam/ctl/ctl_frontend_cam_sim.c	optional ctl
 cam/ctl/ctl_frontend_internal.c	optional ctl
+cam/ctl/ctl_frontend_iscsi.c	optional ctl
 cam/ctl/ctl_mem_pool.c		optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
 cam/ctl/ctl_error.c		optional ctl
@@ -1531,6 +1532,9 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
+dev/iscsi/icl.c			optional iscsi | ctl 
+dev/iscsi/icl_proxy.c		optional iscsi | ctl
+dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
