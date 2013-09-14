@@ -2831,6 +2831,7 @@ cmd6workaround(union ccb *ccb)
 			xpt_print(ccb->ccb_h.path,
 			    "SYNCHRONIZE CACHE(10) not supported.\n");
 		softc->quirks |= DA_Q_NO_SYNC_CACHE;
+		softc->disk->d_flags &= ~DISKFLAG_CANFLUSHCACHE;
 		return (0);
 	}
 
