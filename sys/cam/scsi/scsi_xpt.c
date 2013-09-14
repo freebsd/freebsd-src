@@ -1877,8 +1877,8 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		if ((work_ccb->cpi.hba_inquiry &
 		    (PI_WIDE_32|PI_WIDE_16|PI_SDTR_ABLE)) &&
 		    !(work_ccb->cpi.hba_misc & PIM_NOBUSRESET) &&
-		    !timevalisset(&request_ccb->ccb_h.path->bus->last_reset)) {
-			reset_ccb = xpt_alloc_ccb_nowait();
+		    !timevalisset(&request_ccb->ccb_h.path->bus->last_reset) &&
+		    (reset_ccb = xpt_alloc_ccb_nowait()) != NULL) {
 			xpt_setup_ccb(&reset_ccb->ccb_h, request_ccb->ccb_h.path,
 			      CAM_PRIORITY_NONE);
 			reset_ccb->ccb_h.func_code = XPT_RESET_BUS;

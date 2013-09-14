@@ -75,7 +75,7 @@ static int		camperiphscsistatuserror(union ccb *ccb,
 						 int *openings,
 						 u_int32_t *relsim_flags,
 						 u_int32_t *timeout,
-						 int *print,
+						 u_int32_t  *action,
 						 const char **action_string);
 static	int		camperiphscsisenseerror(union ccb *ccb,
 					        union ccb **orig_ccb,
@@ -84,7 +84,7 @@ static	int		camperiphscsisenseerror(union ccb *ccb,
 					        int *openings,
 					        u_int32_t *relsim_flags,
 					        u_int32_t *timeout,
-					        int *print,
+					        u_int32_t *action,
 					        const char **action_string);
 
 static int nperiph_drivers;
@@ -1283,7 +1283,7 @@ static int
 camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
     cam_flags camflags, u_int32_t sense_flags,
     int *openings, u_int32_t *relsim_flags,
-    u_int32_t *timeout, int *print, const char **action_string)
+    u_int32_t *timeout, u_int32_t *action, const char **action_string)
 {
 	int error;
 
@@ -1302,7 +1302,7 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 					        openings,
 					        relsim_flags,
 					        timeout,
-					        print,
+					        action,
 					        action_string);
 		break;
 	case SCSI_STATUS_QUEUE_FULL:
@@ -1357,7 +1357,7 @@ camperiphscsistatuserror(union ccb *ccb, union ccb **orig_ccb,
 			}
 			*timeout = 0;
 			error = ERESTART;
-			*print = 0;
+			*action &= ~SSQ_PRINT_SENSE;
 			break;
 		}
 		/* FALLTHROUGH */
@@ -1389,7 +1389,7 @@ static int
 camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
     cam_flags camflags, u_int32_t sense_flags,
     int *openings, u_int32_t *relsim_flags,
-    u_int32_t *timeout, int *print, const char **action_string)
+    u_int32_t *timeout, u_int32_t *action, const char **action_string)
 {
 	struct cam_periph *periph;
 	union ccb *orig_ccb = ccb;
@@ -1412,7 +1412,7 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 		 * imperitive that we don't violate this assumption.
 		 */
 		error = ERESTART;
-		*print = 0;
+		*action &= ~SSQ_PRINT_SENSE;
 	} else {
 		scsi_sense_action err_action;
 		struct ccb_getdev cgd;
@@ -1584,7 +1584,7 @@ camperiphscsisenseerror(union ccb *ccb, union ccb **orig,
 		}
 
 sense_error_done:
-		*print = ((err_action & SSQ_PRINT_SENSE) != 0);
+		*action = err_action;
 	}
 	return (error);
 }
@@ -1598,32 +1598,32 @@ int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 u_int32_t sense_flags, union ccb *save_ccb)
 {
-	union ccb  *orig_ccb;
+	struct cam_path *newpath;
+	union ccb  *orig_ccb, *scan_ccb;
 	struct cam_periph *periph;
 	const char *action_string;
 	cam_status  status;
-	int	    frozen, error, openings, print, lost_device;
-	int	    error_code, sense_key, asc, ascq;
-	u_int32_t   relsim_flags, timeout;
+	int	    frozen, error, openings;
+	u_int32_t   action, relsim_flags, timeout;
 
-	print = 1;
+	action = SSQ_PRINT_SENSE;
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	action_string = NULL;
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
 	status &= CAM_STATUS_MASK;
-	openings = relsim_flags = timeout = lost_device = 0;
+	openings = relsim_flags = timeout = 0;
 	orig_ccb = ccb;
 
 	switch (status) {
 	case CAM_REQ_CMP:
 		error = 0;
-		print = 0;
+		action &= ~SSQ_PRINT_SENSE;
 		break;
 	case CAM_SCSI_STATUS_ERROR:
 		error = camperiphscsistatuserror(ccb, &orig_ccb,
 		    camflags, sense_flags, &openings, &relsim_flags,
-		    &timeout, &print, &action_string);
+		    &timeout, &action, &action_string);
 		break;
 	case CAM_AUTOSENSE_FAIL:
 		error = EIO;	/* we have to kill the command */
@@ -1654,8 +1654,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* FALLTHROUGH */
 	case CAM_DEV_NOT_THERE:
 		error = ENXIO;
-		print = 0;
-		lost_device = 1;
+		action = SSQ_LOST;
 		break;
 	case CAM_REQ_INVALID:
 	case CAM_PATH_INVALID:
@@ -1686,7 +1685,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			action_string = "Retry was blocked";
 		} else {
 			error = ERESTART;
-			print = 0;
+			action &= ~SSQ_PRINT_SENSE;
 		}
 		break;
 	case CAM_RESRC_UNAVAIL:
@@ -1725,12 +1724,12 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 
 	if ((sense_flags & SF_PRINT_ALWAYS) ||
 	    CAM_DEBUGGED(ccb->ccb_h.path, CAM_DEBUG_INFO))
-		print = 1;
+		action |= SSQ_PRINT_SENSE;
 	else if (sense_flags & SF_NO_PRINT)
-		print = 0;
-	if (print)
+		action &= ~SSQ_PRINT_SENSE;
+	if ((action & SSQ_PRINT_SENSE) != 0)
 		cam_error_print(orig_ccb, CAM_ESF_ALL, CAM_EPF_ALL);
-	if (error != 0 && print) {
+	if (error != 0 && (action & SSQ_PRINT_SENSE) != 0) {
 		if (error != ERESTART) {
 			if (action_string == NULL)
 				action_string = "Unretryable error";
@@ -1742,8 +1741,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_print(ccb->ccb_h.path, "Retrying command\n");
 	}
 
-	if (lost_device) {
-		struct cam_path *newpath;
+	if ((action & SSQ_LOST) != 0) {
 		lun_id_t lun_id;
 
 		/*
@@ -1752,10 +1750,10 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 * then we only get rid of the device(s) specified by the
 		 * path in the original CCB.
 		 */
-		if (status == CAM_DEV_NOT_THERE)
-			lun_id = xpt_path_lun_id(ccb->ccb_h.path);
-		else
+		if (status == CAM_SEL_TIMEOUT)
 			lun_id = CAM_LUN_WILDCARD;
+		else
+			lun_id = xpt_path_lun_id(ccb->ccb_h.path);
 
 		/* Should we do more if we can't create the path?? */
 		if (xpt_create_path(&newpath, periph,
@@ -1770,12 +1768,29 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_async(AC_LOST_DEVICE, newpath, NULL);
 			xpt_free_path(newpath);
 		}
+	}
 
 	/* Broadcast UNIT ATTENTIONs to all periphs. */
-	} else if (scsi_extract_sense_ccb(ccb,
-	    &error_code, &sense_key, &asc, &ascq) &&
-	    sense_key == SSD_KEY_UNIT_ATTENTION) {
+	if ((action & SSQ_UA) != 0)
 		xpt_async(AC_UNIT_ATTENTION, orig_ccb->ccb_h.path, orig_ccb);
+
+	/* Rescan target on "Reported LUNs data has changed" */
+	if ((action & SSQ_RESCAN) != 0) {
+		if (xpt_create_path(&newpath, NULL,
+				    xpt_path_path_id(ccb->ccb_h.path),
+				    xpt_path_target_id(ccb->ccb_h.path),
+				    CAM_LUN_WILDCARD) == CAM_REQ_CMP) {
+
+			scan_ccb = xpt_alloc_ccb_nowait();
+			if (scan_ccb != NULL) {
+				scan_ccb->ccb_h.path = newpath;
+				scan_ccb->ccb_h.func_code = XPT_SCAN_TGT;
+				scan_ccb->crcn.flags = 0;
+				xpt_rescan(scan_ccb);
+			} else
+				xpt_print(newpath,
+				    "Can't allocate CCB to rescan target\n");
+		}
 	}
 
 	/* Attempt a retry */
