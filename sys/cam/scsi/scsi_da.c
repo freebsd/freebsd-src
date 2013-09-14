@@ -145,6 +145,22 @@ typedef enum {
 	DA_DELETE_MAX = DA_DELETE_ZERO
 } da_delete_methods;
 
+typedef void da_delete_func_t (struct cam_periph *periph, union ccb *ccb,
+			      struct bio *bp);
+static da_delete_func_t da_delete_trim;
+static da_delete_func_t da_delete_unmap;
+static da_delete_func_t da_delete_ws;
+
+static const void * da_delete_functions[] = {
+	NULL,
+	NULL,
+	da_delete_trim,
+	da_delete_unmap,
+	da_delete_ws,
+	da_delete_ws,
+	da_delete_ws
+};
+
 static const char *da_delete_method_names[] =
     { "NONE", "DISABLE", "ATA_TRIM", "UNMAP", "WS16", "WS10", "ZERO" };
 static const char *da_delete_method_desc[] =
@@ -199,6 +215,7 @@ struct da_softc {
 	uint32_t		unmap_max_lba;
 	uint64_t		ws_max_blks;
 	da_delete_methods	delete_method;
+	da_delete_func_t	*delete_func;
 	struct	 disk_params params;
 	struct	 disk *disk;
 	union	 ccb saved_ccb;
@@ -1813,6 +1830,7 @@ dadeletemethodset(struct da_softc *softc, da_delete_methods delete_method)
 
 	softc->delete_method = delete_method;
 	softc->disk->d_delmaxsize = dadeletemaxsize(softc, delete_method);
+	softc->delete_func = da_delete_functions[delete_method];
 
 	if (softc->delete_method > DA_DELETE_DISABLE)
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
@@ -2172,7 +2190,7 @@ skipstate:
 	switch (softc->state) {
 	case DA_STATE_NORMAL:
 	{
-		struct bio *bp, *bp1;
+		struct bio *bp;
 		uint8_t tag_code;
 
 		/* Execute immediate CCB if waiting. */
@@ -2192,237 +2210,13 @@ skipstate:
 		/* Run BIO_DELETE if not running yet. */
 		if (!softc->delete_running &&
 		    (bp = bioq_first(&softc->delete_queue)) != NULL) {
-		    uint64_t lba;
-		    uint64_t count; /* forward compat with WS32 */
-
-		    /*
-		     * In each of the methods below, while its the caller's
-		     * responsibility to ensure the request will fit into a
-		     * single device request, we might have changed the delete
-		     * method due to the device incorrectly advertising either
-		     * its supported methods or limits.
-		     * 
-		     * To prevent this causing further issues we validate the
-		     * against the methods limits, and warn which would
-		     * otherwise be unnecessary.
-		     */
-
-		    if (softc->delete_method == DA_DELETE_UNMAP) {
-			uint8_t *buf = softc->unmap_buf;
-			uint64_t lastlba = (uint64_t)-1;
-			uint32_t lastcount = 0, c;
-			uint64_t totalcount = 0;
-			uint32_t off, ranges = 0;
-
-			/*
-			 * Currently this doesn't take the UNMAP
-			 * Granularity and Granularity Alignment
-			 * fields into account.
-			 *
-			 * This could result in both unoptimal unmap
-			 * requests as as well as UNMAP calls unmapping
-			 * fewer LBA's than requested.
-			 */
-
-			softc->delete_running = 1;
-			bzero(softc->unmap_buf, sizeof(softc->unmap_buf));
-			bp1 = bp;
-			do {
-				bioq_remove(&softc->delete_queue, bp1);
-				if (bp1 != bp)
-					bioq_insert_tail(&softc->delete_run_queue, bp1);
-				lba = bp1->bio_pblkno;
-				count = bp1->bio_bcount / softc->params.secsize;
-
-				/* Try to extend the previous range. */
-				if (lba == lastlba) {
-					c = min(count, softc->unmap_max_lba -
-						lastcount);
-					lastcount += c;
-					off = ((ranges - 1) * UNMAP_RANGE_SIZE) +
-					      UNMAP_HEAD_SIZE;
-					scsi_ulto4b(lastcount, &buf[off + 8]);
-					count -= c;
-					lba +=c;
-					totalcount += c;
-				}
-
-				while (count > 0) {
-					c = min(count, softc->unmap_max_lba);
-					if (totalcount + c > softc->unmap_max_lba ||
-					    ranges >= softc->unmap_max_ranges) {
-						xpt_print(periph->path,
-						  "%s issuing short delete %ld > %ld"
-						  "|| %d >= %d",
-						  da_delete_method_desc[softc->delete_method],
-						  totalcount + c, softc->unmap_max_lba,
-						  ranges, softc->unmap_max_ranges);
-						break;
-					}
-					off = (ranges * UNMAP_RANGE_SIZE) +
-					      UNMAP_HEAD_SIZE;
-					scsi_u64to8b(lba, &buf[off + 0]);
-					scsi_ulto4b(c, &buf[off + 8]);
-					lba += c;
-					totalcount += c;
-					ranges++;
-					count -= c;
-					lastcount = c;
-				}
-				lastlba = lba;
-				bp1 = bioq_first(&softc->delete_queue);
-				if (bp1 == NULL ||
-				    ranges >= softc->unmap_max_ranges ||
-				    totalcount + bp1->bio_bcount /
-				     softc->params.secsize > softc->unmap_max_lba)
-					break;
-			} while (1);
-			scsi_ulto2b(ranges * 16 + 6, &buf[0]);
-			scsi_ulto2b(ranges * 16, &buf[2]);
-
-			scsi_unmap(&start_ccb->csio,
-					/*retries*/da_retry_count,
-					/*cbfcnp*/dadone,
-					/*tag_action*/MSG_SIMPLE_Q_TAG,
-					/*byte2*/0,
-					/*data_ptr*/ buf,
-					/*dxfer_len*/ ranges * 16 + 8,
-					/*sense_len*/SSD_FULL_SIZE,
-					da_default_timeout * 1000);
-			start_ccb->ccb_h.ccb_state = DA_CCB_DELETE;
-			goto out;
-		    } else if (softc->delete_method == DA_DELETE_ATA_TRIM) {
-				uint8_t *buf = softc->unmap_buf;
-				uint64_t lastlba = (uint64_t)-1;
-				uint32_t lastcount = 0, c, requestcount;
-				int ranges = 0, off, block_count;
-
-				softc->delete_running = 1;
-				bzero(softc->unmap_buf, sizeof(softc->unmap_buf));
-				bp1 = bp;
-				do {
-					bioq_remove(&softc->delete_queue, bp1);
-					if (bp1 != bp)
-						bioq_insert_tail(&softc->delete_run_queue, bp1);
-					lba = bp1->bio_pblkno;
-					count = bp1->bio_bcount / softc->params.secsize;
-					requestcount = count;
-
-					/* Try to extend the previous range. */
-					if (lba == lastlba) {
-						c = min(count, ATA_DSM_RANGE_MAX - lastcount);
-						lastcount += c;
-						off = (ranges - 1) * 8;
-						buf[off + 6] = lastcount & 0xff;
-						buf[off + 7] = (lastcount >> 8) & 0xff;
-						count -= c;
-						lba += c;
-					}
-
-					while (count > 0) {
-						c = min(count, ATA_DSM_RANGE_MAX);
-						off = ranges * 8;
-
-						buf[off + 0] = lba & 0xff;
-						buf[off + 1] = (lba >> 8) & 0xff;
-						buf[off + 2] = (lba >> 16) & 0xff;
-						buf[off + 3] = (lba >> 24) & 0xff;
-						buf[off + 4] = (lba >> 32) & 0xff;
-						buf[off + 5] = (lba >> 40) & 0xff;
-						buf[off + 6] = c & 0xff;
-						buf[off + 7] = (c >> 8) & 0xff;
-						lba += c;
-						ranges++;
-						count -= c;
-						lastcount = c;
-						if (count != 0 && ranges == softc->trim_max_ranges) {
-							xpt_print(periph->path,
-							  "%s issuing short delete %ld > %ld",
-							  da_delete_method_desc[softc->delete_method],
-							  requestcount,
-							  (softc->trim_max_ranges - ranges) *
-							  ATA_DSM_RANGE_MAX);
-							break;
-						}
-					}
-					lastlba = lba;
-					bp1 = bioq_first(&softc->delete_queue);
-					if (bp1 == NULL ||
-					    bp1->bio_bcount / softc->params.secsize >
-					    (softc->trim_max_ranges - ranges) *
-						    ATA_DSM_RANGE_MAX)
-						break;
-				} while (1);
-
-				block_count = (ranges + ATA_DSM_BLK_RANGES - 1) /
-					      ATA_DSM_BLK_RANGES;
-				scsi_ata_trim(&start_ccb->csio,
-						/*retries*/da_retry_count,
-						/*cbfcnp*/dadone,
-						/*tag_action*/MSG_SIMPLE_Q_TAG,
-						block_count,
-						/*data_ptr*/buf,
-						/*dxfer_len*/block_count * ATA_DSM_BLK_SIZE,
-						/*sense_len*/SSD_FULL_SIZE,
-						da_default_timeout * 1000);
-				start_ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+			if (softc->delete_func != NULL) {
+				softc->delete_func(periph, start_ccb, bp);
 				goto out;
-		    } else if (softc->delete_method == DA_DELETE_ZERO ||
-			       softc->delete_method == DA_DELETE_WS10 ||
-			       softc->delete_method == DA_DELETE_WS16) {
-			/*
-			 * We calculate ws_max_blks here based off d_delmaxsize instead
-			 * of using softc->ws_max_blks as it is absolute max for the
-			 * device not the protocol max which may well be lower
-			 */
-			uint64_t ws_max_blks;
-			ws_max_blks = softc->disk->d_delmaxsize / softc->params.secsize;
-			softc->delete_running = 1;
-			lba = bp->bio_pblkno;
-			count = 0;
-			bp1 = bp;
-			do {
-				bioq_remove(&softc->delete_queue, bp1);
-				if (bp1 != bp)
-					bioq_insert_tail(&softc->delete_run_queue, bp1);
-				count += bp1->bio_bcount / softc->params.secsize;
-				if (count > ws_max_blks) {
-					count = min(count, ws_max_blks);
-					xpt_print(periph->path,
-					  "%s issuing short delete %ld > %ld",
-					  da_delete_method_desc[softc->delete_method],
-					  count, ws_max_blks);
-					break;
-				}
-				bp1 = bioq_first(&softc->delete_queue);
-				if (bp1 == NULL ||
-				    lba + count != bp1->bio_pblkno ||
-				    count + bp1->bio_bcount /
-				     softc->params.secsize > ws_max_blks)
-					break;
-			} while (1);
-
-			scsi_write_same(&start_ccb->csio,
-					/*retries*/da_retry_count,
-					/*cbfcnp*/dadone,
-					/*tag_action*/MSG_SIMPLE_Q_TAG,
-					/*byte2*/softc->delete_method ==
-					    DA_DELETE_ZERO ? 0 : SWS_UNMAP,
-					softc->delete_method ==
-					    DA_DELETE_WS16 ? 16 : 10,
-					/*lba*/lba,
-					/*block_count*/count,
-					/*data_ptr*/ __DECONST(void *,
-					    zero_region),
-					/*dxfer_len*/ softc->params.secsize,
-					/*sense_len*/SSD_FULL_SIZE,
-					da_default_timeout * 1000);
-			start_ccb->ccb_h.ccb_state = DA_CCB_DELETE;
-			goto out;
-		    } else {
-			bioq_flush(&softc->delete_queue, NULL, 0);
-			/* FALLTHROUGH */
-		    }
+			} else {
+				bioq_flush(&softc->delete_queue, NULL, 0);
+				/* FALLTHROUGH */
+			}
 		}
 
 		/* Run regular command. */
@@ -2712,6 +2506,240 @@ out:
 		break;
 	}
 	}
+}
+
+/*
+ * In each of the methods below, while its the caller's
+ * responsibility to ensure the request will fit into a
+ * single device request, we might have changed the delete
+ * method due to the device incorrectly advertising either
+ * its supported methods or limits.
+ * 
+ * To prevent this causing further issues we validate the
+ * against the methods limits, and warn which would
+ * otherwise be unnecessary.
+ */
+static void
+da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
+{
+	struct da_softc *softc = (struct da_softc *)periph->softc;;
+	struct bio *bp1;
+	uint8_t *buf = softc->unmap_buf;
+	uint64_t lba, lastlba = (uint64_t)-1;
+	uint64_t totalcount = 0;
+	uint64_t count;
+	uint32_t lastcount = 0, c;
+	uint32_t off, ranges = 0;
+
+	/*
+	 * Currently this doesn't take the UNMAP
+	 * Granularity and Granularity Alignment
+	 * fields into account.
+	 *
+	 * This could result in both unoptimal unmap
+	 * requests as as well as UNMAP calls unmapping
+	 * fewer LBA's than requested.
+	 */
+
+	softc->delete_running = 1;
+	bzero(softc->unmap_buf, sizeof(softc->unmap_buf));
+	bp1 = bp;
+	do {
+		bioq_remove(&softc->delete_queue, bp1);
+		if (bp1 != bp)
+			bioq_insert_tail(&softc->delete_run_queue, bp1);
+		lba = bp1->bio_pblkno;
+		count = bp1->bio_bcount / softc->params.secsize;
+
+		/* Try to extend the previous range. */
+		if (lba == lastlba) {
+			c = min(count, softc->unmap_max_lba - lastcount);
+			lastcount += c;
+			off = ((ranges - 1) * UNMAP_RANGE_SIZE) +
+			      UNMAP_HEAD_SIZE;
+			scsi_ulto4b(lastcount, &buf[off + 8]);
+			count -= c;
+			lba +=c;
+			totalcount += c;
+		}
+
+		while (count > 0) {
+			c = min(count, softc->unmap_max_lba);
+			if (totalcount + c > softc->unmap_max_lba ||
+			    ranges >= softc->unmap_max_ranges) {
+				xpt_print(periph->path,
+				    "%s issuing short delete %ld > %ld"
+				    "|| %d >= %d",
+				    da_delete_method_desc[softc->delete_method],
+				    totalcount + c, softc->unmap_max_lba,
+				    ranges, softc->unmap_max_ranges);
+				break;
+			}
+			off = (ranges * UNMAP_RANGE_SIZE) + UNMAP_HEAD_SIZE;
+			scsi_u64to8b(lba, &buf[off + 0]);
+			scsi_ulto4b(c, &buf[off + 8]);
+			lba += c;
+			totalcount += c;
+			ranges++;
+			count -= c;
+			lastcount = c;
+		}
+		lastlba = lba;
+		bp1 = bioq_first(&softc->delete_queue);
+		if (bp1 == NULL || ranges >= softc->unmap_max_ranges ||
+		    totalcount + bp1->bio_bcount /
+		    softc->params.secsize > softc->unmap_max_lba)
+			break;
+	} while (1);
+	scsi_ulto2b(ranges * 16 + 6, &buf[0]);
+	scsi_ulto2b(ranges * 16, &buf[2]);
+
+	scsi_unmap(&ccb->csio,
+		   /*retries*/da_retry_count,
+		   /*cbfcnp*/dadone,
+		   /*tag_action*/MSG_SIMPLE_Q_TAG,
+		   /*byte2*/0,
+		   /*data_ptr*/ buf,
+		   /*dxfer_len*/ ranges * 16 + 8,
+		   /*sense_len*/SSD_FULL_SIZE,
+		   da_default_timeout * 1000);
+	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+}
+
+static void
+da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
+{
+	struct da_softc *softc = (struct da_softc *)periph->softc;
+	struct bio *bp1;
+	uint8_t *buf = softc->unmap_buf;
+	uint64_t lastlba = (uint64_t)-1;
+	uint64_t count;
+	uint64_t lba;
+	uint32_t lastcount = 0, c, requestcount;
+	int ranges = 0, off, block_count;
+
+	softc->delete_running = 1;
+	bzero(softc->unmap_buf, sizeof(softc->unmap_buf));
+	bp1 = bp;
+	do {
+		bioq_remove(&softc->delete_queue, bp1);
+		if (bp1 != bp)
+			bioq_insert_tail(&softc->delete_run_queue, bp1);
+		lba = bp1->bio_pblkno;
+		count = bp1->bio_bcount / softc->params.secsize;
+		requestcount = count;
+
+		/* Try to extend the previous range. */
+		if (lba == lastlba) {
+			c = min(count, ATA_DSM_RANGE_MAX - lastcount);
+			lastcount += c;
+			off = (ranges - 1) * 8;
+			buf[off + 6] = lastcount & 0xff;
+			buf[off + 7] = (lastcount >> 8) & 0xff;
+			count -= c;
+			lba += c;
+		}
+
+		while (count > 0) {
+			c = min(count, ATA_DSM_RANGE_MAX);
+			off = ranges * 8;
+
+			buf[off + 0] = lba & 0xff;
+			buf[off + 1] = (lba >> 8) & 0xff;
+			buf[off + 2] = (lba >> 16) & 0xff;
+			buf[off + 3] = (lba >> 24) & 0xff;
+			buf[off + 4] = (lba >> 32) & 0xff;
+			buf[off + 5] = (lba >> 40) & 0xff;
+			buf[off + 6] = c & 0xff;
+			buf[off + 7] = (c >> 8) & 0xff;
+			lba += c;
+			ranges++;
+			count -= c;
+			lastcount = c;
+			if (count != 0 && ranges == softc->trim_max_ranges) {
+				xpt_print(periph->path,
+				    "%s issuing short delete %ld > %ld",
+				    da_delete_method_desc[softc->delete_method],
+				    requestcount,
+				    (softc->trim_max_ranges - ranges) *
+				    ATA_DSM_RANGE_MAX);
+				break;
+			}
+		}
+		lastlba = lba;
+		bp1 = bioq_first(&softc->delete_queue);
+		if (bp1 == NULL || bp1->bio_bcount / softc->params.secsize >
+		    (softc->trim_max_ranges - ranges) * ATA_DSM_RANGE_MAX)
+			break;
+	} while (1);
+
+	block_count = (ranges + ATA_DSM_BLK_RANGES - 1) / ATA_DSM_BLK_RANGES;
+	scsi_ata_trim(&ccb->csio,
+		      /*retries*/da_retry_count,
+		      /*cbfcnp*/dadone,
+		      /*tag_action*/MSG_SIMPLE_Q_TAG,
+		      block_count,
+		      /*data_ptr*/buf,
+		      /*dxfer_len*/block_count * ATA_DSM_BLK_SIZE,
+		      /*sense_len*/SSD_FULL_SIZE,
+		      da_default_timeout * 1000);
+	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+}
+
+/*
+ * We calculate ws_max_blks here based off d_delmaxsize instead
+ * of using softc->ws_max_blks as it is absolute max for the
+ * device not the protocol max which may well be lower
+ */
+static void
+da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
+{
+	struct da_softc *softc;
+	struct bio *bp1;
+	uint64_t ws_max_blks;
+	uint64_t lba;
+	uint64_t count; /* forward compat with WS32 */
+
+	softc = (struct da_softc *)periph->softc;
+	ws_max_blks = softc->disk->d_delmaxsize / softc->params.secsize;
+	softc->delete_running = 1;
+	lba = bp->bio_pblkno;
+	count = 0;
+	bp1 = bp;
+	do {
+		bioq_remove(&softc->delete_queue, bp1);
+		if (bp1 != bp)
+			bioq_insert_tail(&softc->delete_run_queue, bp1);
+		count += bp1->bio_bcount / softc->params.secsize;
+		if (count > ws_max_blks) {
+			count = min(count, ws_max_blks);
+			xpt_print(periph->path,
+			    "%s issuing short delete %ld > %ld",
+			    da_delete_method_desc[softc->delete_method],
+			    count, ws_max_blks);
+			break;
+		}
+		bp1 = bioq_first(&softc->delete_queue);
+		if (bp1 == NULL || lba + count != bp1->bio_pblkno ||
+		    count + bp1->bio_bcount /
+		    softc->params.secsize > ws_max_blks)
+			break;
+	} while (1);
+
+	scsi_write_same(&ccb->csio,
+			/*retries*/da_retry_count,
+			/*cbfcnp*/dadone,
+			/*tag_action*/MSG_SIMPLE_Q_TAG,
+			/*byte2*/softc->delete_method ==
+			    DA_DELETE_ZERO ? 0 : SWS_UNMAP,
+			softc->delete_method == DA_DELETE_WS16 ? 16 : 10,
+			/*lba*/lba,
+			/*block_count*/count,
+			/*data_ptr*/ __DECONST(void *, zero_region),
+			/*dxfer_len*/ softc->params.secsize,
+			/*sense_len*/SSD_FULL_SIZE,
+			da_default_timeout * 1000);
+	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
 }
 
 static int
