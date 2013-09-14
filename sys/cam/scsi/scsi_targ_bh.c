@@ -283,16 +283,13 @@ targbhenlun(struct cam_periph *periph)
 		xpt_setup_ccb(&atio->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		atio->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		atio->ccb_h.cbfcnp = targbhdone;
-		xpt_action((union ccb *)atio);
-		status = atio->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			targbhfreedescr(atio->ccb_h.ccb_descr);
-			free(atio, M_SCSIBH);
-			break;
-		}
 		((struct targbh_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link =
 		    softc->accept_tio_list;
 		softc->accept_tio_list = atio;
+		xpt_action((union ccb *)atio);
+		status = atio->ccb_h.status;
+		if (status != CAM_REQ_INPROG)
+			break;
 	}
 
 	if (i == 0) {
@@ -321,14 +318,12 @@ targbhenlun(struct cam_periph *periph)
 		xpt_setup_ccb(&inot->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
 		inot->ccb_h.cbfcnp = targbhdone;
-		xpt_action((union ccb *)inot);
-		status = inot->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			free(inot, M_SCSIBH);
-			break;
-		}
 		SLIST_INSERT_HEAD(&softc->immed_notify_slist, &inot->ccb_h,
 				  periph_links.sle);
+		xpt_action((union ccb *)inot);
+		status = inot->ccb_h.status;
+		if (status != CAM_REQ_INPROG)
+			break;
 	}
 
 	if (i == 0) {
@@ -413,7 +408,9 @@ targbhctor(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->init_level++;
 
-	return (targbhenlun(periph));
+	if (targbhenlun(periph) != CAM_REQ_CMP)
+		cam_periph_invalidate(periph);
+	return (CAM_REQ_CMP);
 }
 
 static void
