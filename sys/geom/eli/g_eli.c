@@ -620,21 +620,19 @@ end:
  * to close it when this situation occur.
  */
 static void
-g_eli_last_close(struct g_eli_softc *sc)
+g_eli_last_close(void *arg, int flags __unused)
 {
 	struct g_geom *gp;
-	struct g_provider *pp;
-	char ppname[64];
+	char gpname[64];
 	int error;
 
 	g_topology_assert();
-	gp = sc->sc_geom;
-	pp = LIST_FIRST(&gp->provider);
-	strlcpy(ppname, pp->name, sizeof(ppname));
-	error = g_eli_destroy(sc, TRUE);
+	gp = arg;
+	strlcpy(gpname, gp->name, sizeof(gpname));
+	error = g_eli_destroy(gp->softc, TRUE);
 	KASSERT(error == 0, ("Cannot detach %s on last close (error=%d).",
-	    ppname, error));
-	G_ELI_DEBUG(0, "Detached %s on last close.", ppname);
+	    gpname, error));
+	G_ELI_DEBUG(0, "Detached %s on last close.", gpname);
 }
 
 int
@@ -664,7 +662,7 @@ g_eli_access(struct g_provider *pp, int dr, int dw, int de)
 	 */
 	if ((sc->sc_flags & G_ELI_FLAG_RW_DETACH) ||
 	    (sc->sc_flags & G_ELI_FLAG_WOPEN)) {
-		g_eli_last_close(sc);
+		g_post_event(g_eli_last_close, gp, M_WAITOK, NULL);
 	}
 	return (0);
 }
@@ -910,6 +908,10 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 		if (force) {
 			G_ELI_DEBUG(1, "Device %s is still open, so it "
 			    "cannot be definitely removed.", pp->name);
+			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
+			gp->access = g_eli_access;
+			g_wither_provider(pp, ENXIO);
+			return (EBUSY);
 		} else {
 			G_ELI_DEBUG(1,
 			    "Device %s is still open (r%dw%de%d).", pp->name,
