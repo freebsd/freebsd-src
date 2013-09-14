@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
+#include <opt_ses.h>
+
 MALLOC_DEFINE(M_SCSIENC, "SCSI ENC", "SCSI ENC buffers");
 
 /* Enclosure type independent driver */
@@ -719,12 +721,12 @@ enc_type(struct ccb_getdev *cgd)
 		return (ENC_NONE);
 	}
 
-#ifdef	ENC_ENABLE_PASSTHROUGH
+#ifdef	SES_ENABLE_PASSTHROUGH
 	if ((iqd[6] & 0x40) && (iqd[2] & 0x7) >= 2) {
 		/*
 		 * PassThrough Device.
 		 */
-		return (ENC_ENC_PASSTHROUGH);
+		return (ENC_SES_PASSTHROUGH);
 	}
 #endif
 
