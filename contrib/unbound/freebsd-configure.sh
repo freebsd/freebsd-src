@@ -22,6 +22,7 @@ ldnsobj=$(realpath $(make -C$ldnsbld -V.OBJDIR))
 export LDFLAGS="-L$ldnsobj"
 
 ./configure \
+	--prefix= --exec-prefix=/usr \
 	--with-conf-file=/etc/unbound/unbound.conf \
 	--with-run-dir=/var/unbound \
 	--with-username=unbound
