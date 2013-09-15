@@ -66,6 +66,8 @@
         ..
         ssl
         ..
+        unbound
+        ..
         zfs
         ..
     ..
