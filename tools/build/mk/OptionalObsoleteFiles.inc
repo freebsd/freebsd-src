@@ -4367,6 +4367,24 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_UNBOUND} == no
+OLD_FILES+=usr/lib/private/libunbound.a
+OLD_FILES+=usr/lib/private/libunbound.so
+OLD_LIBS+=usr/lib/private/libunbound.so.5
+OLD_FILES+=usr/lib/private/libunbound_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/private/libunbound.a
+OLD_FILES+=usr/lib32/private/libunbound.so
+OLD_LIBS+=usr/lib32/private/libunbound.so.5
+OLD_FILES+=usr/lib32/private/libunbound_p.a
+.endif
+OLD_FILES+=usr/sbin/unbound
+OLD_FILES+=usr/sbin/unbound-anchor
+OLD_FILES+=usr/sbin/unbound-checkconf
+OLD_FILES+=usr/sbin/unbound-control
+OLD_FILES+=usr/sbin/unbound-control-setup
+.endif
+
 #.if ${MK_USB} == no
 # to be filled in
 #.endif

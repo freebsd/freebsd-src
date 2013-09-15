@@ -358,6 +358,7 @@ __DEFAULT_YES_OPTIONS = \
     TELNET \
     TEXTPROC \
     TOOLCHAIN \
+    UNBOUND \
     USB \
     UTMPX \
     WIRELESS \
@@ -521,6 +522,7 @@ MK_LIBICONV_COMPAT:=	no
 
 .if ${MK_LDNS} == "no"
 MK_LDNS_UTILS:=	no
+MK_UNBOUND:= no
 .endif
 
 .if ${MK_LDNS_UTILS} != "no"
