@@ -39,6 +39,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libelf \
 	${_libiconv_modules} \
 	libkvm \
+	${_libldns} \
 	msun \
 	libmd \
 	ncurses \
@@ -85,7 +86,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libipx} \
 	libjail \
 	libkiconv \
-	${_libldns} \
 	liblzma \
 	libmagic \
 	libmandoc \
