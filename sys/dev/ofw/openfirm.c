@@ -386,6 +386,48 @@ OF_package_to_path(phandle_t package, char *buf, size_t len)
 	return (OFW_PACKAGE_TO_PATH(ofw_obj, package, buf, len));
 }
 
+/* Look up effective phandle (see FDT/PAPR spec) */
+static phandle_t
+OF_child_xref_phandle(phandle_t parent, phandle_t xref)
+{
+	phandle_t child, rxref;
+
+	/*
+	 * Recursively descend from parent, looking for a node with a property
+	 * named either "phandle", "ibm,phandle", or "linux,phandle" that
+	 * matches the xref we are looking for.
+	 */
+
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+		rxref = OF_child_xref_phandle(child, xref);
+		if (rxref != -1)
+			return (rxref);
+
+		if (OF_getprop(child, "phandle", &rxref, sizeof(rxref)) == -1 &&
+		    OF_getprop(child, "ibm,phandle", &rxref,
+		    sizeof(rxref)) == -1 && OF_getprop(child,
+		    "linux,phandle", &rxref, sizeof(rxref)) == -1)
+			continue;
+
+		if (rxref == xref)
+			return (child);
+	}
+
+	return (-1);
+}
+
+phandle_t
+OF_xref_phandle(phandle_t xref)
+{
+	phandle_t node;
+
+	node = OF_child_xref_phandle(OF_peer(0), xref);
+	if (node == -1)
+		return (xref);
+
+	return (node);
+}
+
 /*  Call the method in the scope of a given instance. */
 int
 OF_call_method(const char *method, ihandle_t instance, int nargs, int nreturns,
