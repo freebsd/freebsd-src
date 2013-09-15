@@ -41,8 +41,8 @@
  * and if in the background continues until exit, if in the foreground
  * returns from the procedure when done.
  */
-#ifndef LIBUNBOUND_WORKER_H
-#define LIBUNBOUND_WORKER_H
+#ifndef LIBUNBOUND_LIBWORKER_H
+#define LIBUNBOUND_LIBWORKER_H
 #include "util/data/packed_rrset.h"
 struct ub_ctx;
 struct ub_result;
@@ -167,4 +167,4 @@ void libworker_bg_done_cb(void* arg, int rcode, ldns_buffer* buf,
 void libworker_enter_result(struct ub_result* res, ldns_buffer* buf,
 	struct regional* temp, enum sec_status msg_security);
 
-#endif /* LIBUNBOUND_WORKER_H */
+#endif /* LIBUNBOUND_LIBWORKER_H */
