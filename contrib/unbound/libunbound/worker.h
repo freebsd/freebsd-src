@@ -42,6 +42,53 @@
 #ifndef LIBUNBOUND_WORKER_H
 #define LIBUNBOUND_WORKER_H
 
+struct comm_reply;
+struct comm_point;
+struct module_qstate;
+struct tube;
+
+/**
+ * Worker service routine to send serviced queries to authoritative servers.
+ * @param qname: query name. (host order)
+ * @param qnamelen: length in bytes of qname, including trailing 0.
+ * @param qtype: query type. (host order)
+ * @param qclass: query class. (host order)
+ * @param flags: host order flags word, with opcode and CD bit.
+ * @param dnssec: if set, EDNS record will have DO bit set.
+ * @param want_dnssec: signatures needed.
+ * @param addr: where to.
+ * @param addrlen: length of addr.
+ * @param zone: delegation point name.
+ * @param zonelen: length of zone name wireformat dname.
+ * @param q: wich query state to reactivate upon return.
+ * @return: false on failure (memory or socket related). no query was
+ *      sent.
+ */
+struct outbound_entry* libworker_send_query(uint8_t* qname, size_t qnamelen,
+        uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec,
+	int want_dnssec, struct sockaddr_storage* addr, socklen_t addrlen,
+	uint8_t* zone, size_t zonelen, struct module_qstate* q);
+
+/** process incoming replies from the network */
+int libworker_handle_reply(struct comm_point* c, void* arg, int error,
+        struct comm_reply* reply_info);
+
+/** process incoming serviced query replies from the network */
+int libworker_handle_service_reply(struct comm_point* c, void* arg, int error,
+        struct comm_reply* reply_info);
+
+/** handle control command coming into server */
+void libworker_handle_control_cmd(struct tube* tube, uint8_t* msg, size_t len,
+	int err, void* arg);
+
+/** mesh callback with fg results */
+void libworker_fg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+	enum sec_status s, char* why_bogus);
+
+/** mesh callback with bg results */
+void libworker_bg_done_cb(void* arg, int rcode, ldns_buffer* buf, 
+	enum sec_status s, char* why_bogus);
+
 /**
  * Worker signal handler function. User argument is the worker itself.
  * @param sig: signal number.
