@@ -42,6 +42,7 @@
 #ifndef LIBUNBOUND_WORKER_H
 #define LIBUNBOUND_WORKER_H
 
+#include "util/data/packed_rrset.h" /* for enum sec_status */
 struct comm_reply;
 struct comm_point;
 struct module_qstate;
