@@ -123,6 +123,7 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 			    __func__, bios[0], bios[1]);
 		}
 		vga_pci_unmap_bios(vga_dev, bios);
+		return false;
 	}
 	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_WAITOK);
 	memcpy(rdev->bios, bios, size);
