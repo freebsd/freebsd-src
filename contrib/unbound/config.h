@@ -8,10 +8,10 @@
 #define CONFIGFILE "/etc/unbound/unbound.conf"
 
 /* configure flags */
-#define CONFIGURE_BUILD_WITH " '--with-conf-file=/etc/unbound/unbound.conf' '--with-run-dir=/var/unbound' '--with-username=unbound'"
+#define CONFIGURE_BUILD_WITH " '--prefix=' '--exec-prefix=/usr' '--with-conf-file=/etc/unbound/unbound.conf' '--with-run-dir=/var/unbound' '--with-username=unbound'"
 
 /* configure date */
-#define CONFIGURE_DATE "Sun Sep 15 02:01:38 CEST 2013"
+#define CONFIGURE_DATE "Sun Sep 15 15:38:41 CEST 2013"
 
 /* configure target system */
 #define CONFIGURE_TARGET "x86_64-unknown-freebsd10.0"
