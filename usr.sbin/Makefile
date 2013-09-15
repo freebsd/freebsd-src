@@ -317,6 +317,10 @@ SUBDIR+=	config
 SUBDIR+=	crunch
 .endif
 
+.if ${MK_UNBOUND} != "no"
+SUBDIR+=	unbound
+.endif
+
 .if ${MK_USB} != "no"
 SUBDIR+=	uathload
 SUBDIR+=	uhsoctl

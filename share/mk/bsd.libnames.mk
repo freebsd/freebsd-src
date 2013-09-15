@@ -164,6 +164,9 @@ LIBTINFO?=	"don't use LIBTINFO, use LIBNCURSES"
 LIBUFS?=	${DESTDIR}${LIBDIR}/libufs.a
 LIBUGIDFW?=	${DESTDIR}${LIBDIR}/libugidfw.a
 LIBUMEM?=	${DESTDIR}${LIBDIR}/libumem.a
+.if ${MK_UNBOUND} != "no"
+LIBUNBOUND?=	${DESTDIR}${LIBDIR}/libunbound.a
+.endif
 LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
 LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a
 LIBULOG?=	${DESTDIR}${LIBDIR}/libulog.a
