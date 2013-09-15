@@ -31,13 +31,14 @@ use strict;
 use warnings;
 use Text::Wrap;
 
-our @targets = qw(LIBUNBOUND DAEMON UBANCHOR CHECKCONF);
+our @targets = qw(LIBUNBOUND DAEMON UBANCHOR CHECKCONF CONTROL);
 
 our %target_names = (
     LIBUNBOUND => "libunbound",
     DAEMON => "unbound",
     UBANCHOR => "unbound-anchor",
     CHECKCONF => "unbound-checkconf",
+    CONTROL => "unbound-control",
 );
 
 sub get_sources($) {
