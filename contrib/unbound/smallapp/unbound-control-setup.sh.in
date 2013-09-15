@@ -58,8 +58,8 @@ SVR_BASE=unbound_server
 # base name for unbound-control keys
 CTL_BASE=unbound_control
 
-# we want -rw-r--- access (say you run this as root: grp=yes (server), all=no).
-umask 0026
+# we want -rw-r----- access (say you run this as root: grp=yes (server), all=no).
+umask 0027
 
 # end of options
 
