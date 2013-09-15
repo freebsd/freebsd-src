@@ -72,7 +72,7 @@ ldns_read_uint16(const void *src)
 #ifdef ALLOW_UNALIGNED_ACCESSES
 	return ntohs(*(uint16_t *) src);
 #else
-	uint8_t *p = (uint8_t *) src;
+	const uint8_t *p = (const uint8_t *) src;
 	return ((uint16_t) p[0] << 8) | (uint16_t) p[1];
 #endif
 }
@@ -83,7 +83,7 @@ ldns_read_uint32(const void *src)
 #ifdef ALLOW_UNALIGNED_ACCESSES
 	return ntohl(*(uint32_t *) src);
 #else
-	uint8_t *p = (uint8_t *) src;
+	const uint8_t *p = (const uint8_t *) src;
 	return (  ((uint32_t) p[0] << 24)
 		| ((uint32_t) p[1] << 16)
 		| ((uint32_t) p[2] << 8)
