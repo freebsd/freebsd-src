@@ -210,11 +210,12 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 				icells = 1;
 				OF_getprop(child, "interrupt-parent", &iparent,
 				    sizeof(iparent));
-				OF_getprop(iparent, "#interrupt-cells", &icells,
-				    sizeof(icells));
-
-				if (iparent != 0)
+				if (iparent != 0) {
+					OF_getprop(OF_xref_phandle(iparent),
+					    "#interrupt-cells", &icells,
+					    sizeof(icells));
 					intr[0] = MAP_IRQ(iparent, intr[0]);
+				}
 
 				if (iparent != 0 && icells > 1) {
 					powerpc_config_intr(intr[0],
