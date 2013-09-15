@@ -43,6 +43,7 @@
 #ifndef DAEMON_WORKER_H
 #define DAEMON_WORKER_H
 
+#include "libunbound/worker.h"
 #include "util/netevent.h"
 #include "util/locks.h"
 #include "util/alloc.h"
