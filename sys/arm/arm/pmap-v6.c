@@ -987,7 +987,7 @@ pmap_clearbit(struct vm_page *m, u_int maskbits)
 						    ("pmap_clearbit: no PV "
 						    "entry for managed mapping"));
 						pve->pv_flags &= ~PVF_WRITE;
-						*ptep &= ~L2_APX;
+						*ptep |= L2_APX;
 						PTE_SYNC(ptep);
 					}
 				}
